@@ -21,16 +21,16 @@ struct safeloader_cmn_header {
 static void *mtd_parser_tplink_safeloader_read_table(struct mtd_info *mtd)
 {
 	struct safeloader_cmn_header hdr;
-	struct device_node *np;
+	struct device_analde *np;
 	size_t bytes_read;
 	size_t size;
 	u32 offset;
 	char *buf;
 	int err;
 
-	np = mtd_get_of_node(mtd);
+	np = mtd_get_of_analde(mtd);
 	if (mtd_is_partition(mtd))
-		of_node_get(np);
+		of_analde_get(np);
 	else
 		np = of_get_child_by_name(np, "partitions");
 
@@ -59,14 +59,14 @@ static void *mtd_parser_tplink_safeloader_read_table(struct mtd_info *mtd)
 
 	buf[size] = '\0';
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	return buf;
 
 err_kfree:
 	kfree(buf);
 err_put:
-	of_node_put(np);
+	of_analde_put(np);
 	return NULL;
 }
 
@@ -84,13 +84,13 @@ static int mtd_parser_tplink_safeloader_parse(struct mtd_info *mtd,
 
 	parts = kcalloc(TPLINK_SAFELOADER_MAX_PARTS, sizeof(*parts), GFP_KERNEL);
 	if (!parts) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
 	buf = mtd_parser_tplink_safeloader_read_table(mtd);
 	if (!buf) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_free_parts;
 	}
 
@@ -101,7 +101,7 @@ static int mtd_parser_tplink_safeloader_parse(struct mtd_info *mtd,
 	     idx++, offset += bytes + 1) {
 		parts[idx].name = kstrdup(name, GFP_KERNEL);
 		if (!parts[idx].name) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_free;
 		}
 	}

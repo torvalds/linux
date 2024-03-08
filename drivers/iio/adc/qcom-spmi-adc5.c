@@ -81,7 +81,7 @@
 #define ADC5_CONV_TIMEOUT			msecs_to_jiffies(100)
 
 /* Digital version >= 5.3 supports hw_settle_2 */
-#define ADC5_HW_SETTLE_DIFF_MINOR		3
+#define ADC5_HW_SETTLE_DIFF_MIANALR		3
 #define ADC5_HW_SETTLE_DIFF_MAJOR		5
 
 /* For PMIC7 */
@@ -90,7 +90,7 @@
 #define ADC7_CONV_TIMEOUT			msecs_to_jiffies(10)
 
 enum adc5_cal_method {
-	ADC5_NO_CAL = 0,
+	ADC5_ANAL_CAL = 0,
 	ADC5_RATIOMETRIC_CAL,
 	ADC5_ABSOLUTE_CAL
 };
@@ -138,7 +138,7 @@ struct adc5_channel_prop {
  * @chan_props: array of ADC channel properties.
  * @iio_chans: array of IIO channels specification.
  * @poll_eoc: use polling instead of interrupt.
- * @complete: ADC result notification after interrupt is received.
+ * @complete: ADC result analtification after interrupt is received.
  * @lock: ADC lock for access to the peripheral.
  * @data: software configuration data.
  */
@@ -329,17 +329,17 @@ static int adc5_do_conversion(struct adc5_chip *adc,
 	if (adc->poll_eoc) {
 		ret = adc5_poll_wait_eoc(adc);
 		if (ret) {
-			dev_err(adc->dev, "EOC bit not set\n");
+			dev_err(adc->dev, "EOC bit analt set\n");
 			goto unlock;
 		}
 	} else {
 		ret = wait_for_completion_timeout(&adc->complete,
 							ADC5_CONV_TIMEOUT);
 		if (!ret) {
-			dev_dbg(adc->dev, "Did not get completion timeout.\n");
+			dev_dbg(adc->dev, "Did analt get completion timeout.\n");
 			ret = adc5_poll_wait_eoc(adc);
 			if (ret) {
-				dev_err(adc->dev, "EOC bit not set\n");
+				dev_err(adc->dev, "EOC bit analt set\n");
 				goto unlock;
 			}
 		}
@@ -368,7 +368,7 @@ static int adc7_do_conversion(struct adc5_chip *adc,
 		goto unlock;
 	}
 
-	/* No support for polling mode at present */
+	/* Anal support for polling mode at present */
 	wait_for_completion_timeout(&adc->complete, ADC7_CONV_TIMEOUT);
 
 	ret = adc5_read(adc, ADC5_USR_STATUS1, &status, 1);
@@ -403,8 +403,8 @@ static irqreturn_t adc5_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int adc5_fwnode_xlate(struct iio_dev *indio_dev,
-			     const struct fwnode_reference_args *iiospec)
+static int adc5_fwanalde_xlate(struct iio_dev *indio_dev,
+			     const struct fwanalde_reference_args *iiospec)
 {
 	struct adc5_chip *adc = iio_priv(indio_dev);
 	int i;
@@ -416,8 +416,8 @@ static int adc5_fwnode_xlate(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-static int adc7_fwnode_xlate(struct iio_dev *indio_dev,
-			     const struct fwnode_reference_args *iiospec)
+static int adc7_fwanalde_xlate(struct iio_dev *indio_dev,
+			     const struct fwanalde_reference_args *iiospec)
 {
 	struct adc5_chip *adc = iio_priv(indio_dev);
 	int i, v_channel;
@@ -481,12 +481,12 @@ static int adc7_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info adc5_info = {
 	.read_raw = adc5_read_raw,
-	.fwnode_xlate = adc5_fwnode_xlate,
+	.fwanalde_xlate = adc5_fwanalde_xlate,
 };
 
 static const struct iio_info adc7_info = {
 	.read_raw = adc7_read_raw,
-	.fwnode_xlate = adc7_fwnode_xlate,
+	.fwanalde_xlate = adc7_fwanalde_xlate,
 };
 
 struct adc5_channels {
@@ -627,7 +627,7 @@ static const struct adc5_channels adc5_chans_rev2[ADC5_MAX_CHANNEL] = {
 
 static int adc5_get_fw_channel_data(struct adc5_chip *adc,
 				    struct adc5_channel_prop *prop,
-				    struct fwnode_handle *fwnode,
+				    struct fwanalde_handle *fwanalde,
 				    const struct adc5_data *data)
 {
 	const char *channel_name;
@@ -637,14 +637,14 @@ static int adc5_get_fw_channel_data(struct adc5_chip *adc,
 	int ret;
 	struct device *dev = adc->dev;
 
-	name = devm_kasprintf(dev, GFP_KERNEL, "%pfwP", fwnode);
+	name = devm_kasprintf(dev, GFP_KERNEL, "%pfwP", fwanalde);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Cut the address part */
 	name[strchrnul(name, '@') - name] = '\0';
 
-	ret = fwnode_property_read_u32(fwnode, "reg", &chan);
+	ret = fwanalde_property_read_u32(fwanalde, "reg", &chan);
 	if (ret) {
 		dev_err(dev, "invalid channel number %s\n", name);
 		return ret;
@@ -668,13 +668,13 @@ static int adc5_get_fw_channel_data(struct adc5_chip *adc,
 	prop->channel = chan;
 	prop->sid = sid;
 
-	ret = fwnode_property_read_string(fwnode, "label", &channel_name);
+	ret = fwanalde_property_read_string(fwanalde, "label", &channel_name);
 	if (ret)
 		channel_name = data->adc_chans[chan].datasheet_name;
 
 	prop->channel_name = channel_name;
 
-	ret = fwnode_property_read_u32(fwnode, "qcom,decimation", &value);
+	ret = fwanalde_property_read_u32(fwanalde, "qcom,decimation", &value);
 	if (!ret) {
 		ret = qcom_adc5_decimation_from_dt(value, data->decimation);
 		if (ret < 0) {
@@ -687,7 +687,7 @@ static int adc5_get_fw_channel_data(struct adc5_chip *adc,
 		prop->decimation = ADC5_DECIMATION_DEFAULT;
 	}
 
-	ret = fwnode_property_read_u32_array(fwnode, "qcom,pre-scaling", varr, 2);
+	ret = fwanalde_property_read_u32_array(fwanalde, "qcom,pre-scaling", varr, 2);
 	if (!ret) {
 		ret = qcom_adc5_prescaling_from_dt(varr[0], varr[1]);
 		if (ret < 0) {
@@ -701,7 +701,7 @@ static int adc5_get_fw_channel_data(struct adc5_chip *adc,
 			adc->data->adc_chans[prop->channel].prescale_index;
 	}
 
-	ret = fwnode_property_read_u32(fwnode, "qcom,hw-settle-time", &value);
+	ret = fwanalde_property_read_u32(fwanalde, "qcom,hw-settle-time", &value);
 	if (!ret) {
 		u8 dig_version[2];
 
@@ -712,10 +712,10 @@ static int adc5_get_fw_channel_data(struct adc5_chip *adc,
 			return ret;
 		}
 
-		dev_dbg(dev, "dig_ver:minor:%d, major:%d\n", dig_version[0],
+		dev_dbg(dev, "dig_ver:mianalr:%d, major:%d\n", dig_version[0],
 						dig_version[1]);
 		/* Digital controller >= 5.3 have hw_settle_2 option */
-		if ((dig_version[0] >= ADC5_HW_SETTLE_DIFF_MINOR &&
+		if ((dig_version[0] >= ADC5_HW_SETTLE_DIFF_MIANALR &&
 			dig_version[1] >= ADC5_HW_SETTLE_DIFF_MAJOR) ||
 			adc->data->info == &adc7_info)
 			ret = qcom_adc5_hw_settle_time_from_dt(value, data->hw_settle_2);
@@ -732,7 +732,7 @@ static int adc5_get_fw_channel_data(struct adc5_chip *adc,
 		prop->hw_settle_time = VADC_DEF_HW_SETTLE_TIME;
 	}
 
-	ret = fwnode_property_read_u32(fwnode, "qcom,avg-samples", &value);
+	ret = fwanalde_property_read_u32(fwanalde, "qcom,avg-samples", &value);
 	if (!ret) {
 		ret = qcom_adc5_avg_samples_from_dt(value);
 		if (ret < 0) {
@@ -745,7 +745,7 @@ static int adc5_get_fw_channel_data(struct adc5_chip *adc,
 		prop->avg_samples = VADC_DEF_AVG_SAMPLES;
 	}
 
-	if (fwnode_property_read_bool(fwnode, "qcom,ratiometric"))
+	if (fwanalde_property_read_bool(fwanalde, "qcom,ratiometric"))
 		prop->cal_method = ADC5_RATIOMETRIC_CAL;
 	else
 		prop->cal_method = ADC5_ABSOLUTE_CAL;
@@ -825,23 +825,23 @@ static int adc5_get_fw_data(struct adc5_chip *adc)
 	const struct adc5_channels *adc_chan;
 	struct iio_chan_spec *iio_chan;
 	struct adc5_channel_prop prop, *chan_props;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	unsigned int index = 0;
 	int ret;
 
-	adc->nchannels = device_get_child_node_count(adc->dev);
+	adc->nchannels = device_get_child_analde_count(adc->dev);
 	if (!adc->nchannels)
 		return -EINVAL;
 
 	adc->iio_chans = devm_kcalloc(adc->dev, adc->nchannels,
 				       sizeof(*adc->iio_chans), GFP_KERNEL);
 	if (!adc->iio_chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc->chan_props = devm_kcalloc(adc->dev, adc->nchannels,
 					sizeof(*adc->chan_props), GFP_KERNEL);
 	if (!adc->chan_props)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chan_props = adc->chan_props;
 	iio_chan = adc->iio_chans;
@@ -849,10 +849,10 @@ static int adc5_get_fw_data(struct adc5_chip *adc)
 	if (!adc->data)
 		adc->data = &adc5_data_pmic;
 
-	device_for_each_child_node(adc->dev, child) {
+	device_for_each_child_analde(adc->dev, child) {
 		ret = adc5_get_fw_channel_data(adc, &prop, child, adc->data);
 		if (ret) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ret;
 		}
 
@@ -886,7 +886,7 @@ static int adc5_probe(struct platform_device *pdev)
 
 	regmap = dev_get_regmap(dev->parent, NULL);
 	if (!regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = device_property_read_u32(dev, "reg", &reg);
 	if (ret < 0)
@@ -894,7 +894,7 @@ static int adc5_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*adc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(indio_dev);
 	adc->regmap = regmap;
@@ -939,5 +939,5 @@ static struct platform_driver adc5_driver = {
 module_platform_driver(adc5_driver);
 
 MODULE_ALIAS("platform:qcom-spmi-adc5");
-MODULE_DESCRIPTION("Qualcomm Technologies Inc. PMIC5 ADC driver");
+MODULE_DESCRIPTION("Qualcomm Techanallogies Inc. PMIC5 ADC driver");
 MODULE_LICENSE("GPL v2");

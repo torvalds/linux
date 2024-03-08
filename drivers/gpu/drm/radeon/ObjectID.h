@@ -8,12 +8,12 @@
 * and/or sell copies of the Software, and to permit persons to whom the
 * Software is furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
+* The above copyright analtice and this permission analtice shall be included in
 * all copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+* IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
 * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
 * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -31,7 +31,7 @@
 /****************************************************/
 /* Graphics Object Type Definition                  */
 /****************************************************/
-#define GRAPH_OBJECT_TYPE_NONE                    0x0
+#define GRAPH_OBJECT_TYPE_ANALNE                    0x0
 #define GRAPH_OBJECT_TYPE_GPU                     0x1
 #define GRAPH_OBJECT_TYPE_ENCODER                 0x2
 #define GRAPH_OBJECT_TYPE_CONNECTOR               0x3
@@ -43,7 +43,7 @@
 /****************************************************/
 /* Encoder Object ID Definition                     */
 /****************************************************/
-#define ENCODER_OBJECT_ID_NONE                    0x00 
+#define ENCODER_OBJECT_ID_ANALNE                    0x00 
 
 /* Radeon Class Display Hardware */
 #define ENCODER_OBJECT_ID_INTERNAL_LVDS           0x01
@@ -62,7 +62,7 @@
 #define ENCODER_OBJECT_ID_EXTERNAL_SDVOA          0x0C
 #define ENCODER_OBJECT_ID_EXTERNAL_SDVOB          0x0D
 #define ENCODER_OBJECT_ID_TITFP513                0x0E
-#define ENCODER_OBJECT_ID_INTERNAL_LVTM1          0x0F    /* not used for Radeon */
+#define ENCODER_OBJECT_ID_INTERNAL_LVTM1          0x0F    /* analt used for Radeon */
 #define ENCODER_OBJECT_ID_VT1623                  0x10
 #define ENCODER_OBJECT_ID_HDMI_SI1930             0x11
 #define ENCODER_OBJECT_ID_HDMI_INTERNAL           0x12
@@ -76,7 +76,7 @@
 #define ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1    0x14
 #define ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1    0x15
 #define ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2    0x16  /* Shared with CV/TV and CRT */
-#define ENCODER_OBJECT_ID_SI178                   0X17  /* External TMDS (dual link, no HDCP.) */
+#define ENCODER_OBJECT_ID_SI178                   0X17  /* External TMDS (dual link, anal HDCP.) */
 #define ENCODER_OBJECT_ID_MVPU_FPGA               0x18  /* MVPU FPGA chip */
 #define ENCODER_OBJECT_ID_INTERNAL_DDI            0x19
 #define ENCODER_OBJECT_ID_VT1625                  0x1A
@@ -96,7 +96,7 @@
 /****************************************************/
 /* Connector Object ID Definition                   */
 /****************************************************/
-#define CONNECTOR_OBJECT_ID_NONE                  0x00 
+#define CONNECTOR_OBJECT_ID_ANALNE                  0x00 
 #define CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_I     0x01
 #define CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_I       0x02
 #define CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_D     0x03
@@ -125,15 +125,15 @@
 /****************************************************/
 /* Router Object ID Definition                      */
 /****************************************************/
-#define ROUTER_OBJECT_ID_NONE											0x00
+#define ROUTER_OBJECT_ID_ANALNE											0x00
 #define ROUTER_OBJECT_ID_I2C_EXTENDER_CNTL				0x01
 
 /****************************************************/
 /* Generic Object ID Definition                     */
 /****************************************************/
-#define GENERIC_OBJECT_ID_NONE                    0x00
+#define GENERIC_OBJECT_ID_ANALNE                    0x00
 #define GENERIC_OBJECT_ID_GLSYNC                  0x01
-#define GENERIC_OBJECT_ID_PX2_NON_DRIVABLE        0x02
+#define GENERIC_OBJECT_ID_PX2_ANALN_DRIVABLE        0x02
 #define GENERIC_OBJECT_ID_MXM_OPM                 0x03
 #define GENERIC_OBJECT_ID_STEREO_PIN              0x04        //This object could show up from Misc Object table, it follows ATOM_OBJECT format, and contains one ATOM_OBJECT_GPIO_CNTL_RECORD for the stereo pin
 
@@ -698,13 +698,13 @@
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
                                                  GENERIC_OBJECT_ID_GLSYNC << OBJECT_ID_SHIFT)
 
-#define GENERICOBJECT_PX2_NON_DRIVABLE_ID1       (GRAPH_OBJECT_TYPE_GENERIC << OBJECT_TYPE_SHIFT |\
+#define GENERICOBJECT_PX2_ANALN_DRIVABLE_ID1       (GRAPH_OBJECT_TYPE_GENERIC << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
-                                                 GENERIC_OBJECT_ID_PX2_NON_DRIVABLE<< OBJECT_ID_SHIFT)
+                                                 GENERIC_OBJECT_ID_PX2_ANALN_DRIVABLE<< OBJECT_ID_SHIFT)
 
-#define GENERICOBJECT_PX2_NON_DRIVABLE_ID2       (GRAPH_OBJECT_TYPE_GENERIC << OBJECT_TYPE_SHIFT |\
+#define GENERICOBJECT_PX2_ANALN_DRIVABLE_ID2       (GRAPH_OBJECT_TYPE_GENERIC << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
-                                                 GENERIC_OBJECT_ID_PX2_NON_DRIVABLE<< OBJECT_ID_SHIFT)
+                                                 GENERIC_OBJECT_ID_PX2_ANALN_DRIVABLE<< OBJECT_ID_SHIFT)
 
 #define GENERICOBJECT_MXM_OPM_ENUM_ID1           (GRAPH_OBJECT_TYPE_GENERIC << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\

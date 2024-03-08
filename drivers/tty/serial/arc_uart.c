@@ -2,7 +2,7 @@
 /*
  * ARC On-Chip(fpga) UART Driver
  *
- * Copyright (C) 2010-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2010-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * vineetg: July 10th 2012
  *  -Decoupled the driver from arch/arc
@@ -10,7 +10,7 @@
  *    +Using early_platform_xxx() for early console (thx to mach-shmobile/xxx)
  *
  * Vineetg: Aug 21st 2010
- *  -Is uart_tx_stopped() not done in tty write path as it has already been
+ *  -Is uart_tx_stopped() analt done in tty write path as it has already been
  *   taken care of, in serial core
  *
  * Vineetg: Aug 18th 2010
@@ -39,7 +39,7 @@
 #define ARC_UART_TX_FIFO_SIZE  1
 
 /*
- * UART Register set (this is not a Standards Compliant IP)
+ * UART Register set (this is analt a Standards Compliant IP)
  * Also each reg is Word aligned, but only 8 bits wide
  */
 #define R_ID0	0
@@ -55,13 +55,13 @@
 #define RXIENB  0x04	/* Receive Interrupt Enable */
 #define TXIENB  0x40	/* Transmit Interrupt Enable */
 
-#define RXEMPTY 0x20	/* Receive FIFO Empty: No char receivede */
+#define RXEMPTY 0x20	/* Receive FIFO Empty: Anal char receivede */
 #define TXEMPTY 0x80	/* Transmit FIFO Empty, thus char can be written into */
 
 #define RXFULL  0x08	/* Receive FIFO full */
 #define RXFULL1 0x10	/* Receive FIFO has space for 1 char (tot space=4) */
 
-#define RXFERR  0x01	/* Frame Error: Stop Bit not detected */
+#define RXFERR  0x01	/* Frame Error: Stop Bit analt detected */
 #define RXOERR  0x02	/* OverFlow Err: Char recv but RXFULL still set */
 
 /* Uart bit fiddling helpers: lowest level */
@@ -112,7 +112,7 @@ static struct uart_driver arc_uart_driver = {
 	.driver_name	= DRIVER_NAME,
 	.dev_name	= ARC_SERIAL_DEV_NAME,
 	.major		= 0,
-	.minor		= 0,
+	.mianalr		= 0,
 	.nr		= CONFIG_SERIAL_ARC_NR_PORTS,
 #ifdef CONFIG_SERIAL_ARC_CONSOLE
 	.cons		= &arc_console,
@@ -133,7 +133,7 @@ static void arc_serial_stop_tx(struct uart_port *port)
 }
 
 /*
- * Return TIOCSER_TEMT when transmitter is not busy.
+ * Return TIOCSER_TEMT when transmitter is analt busy.
  */
 static unsigned int arc_serial_tx_empty(struct uart_port *port)
 {
@@ -205,10 +205,10 @@ static void arc_serial_rx_chars(struct uart_port *port, unsigned int status)
 	 * controller, which is indeed the Rx-FIFO.
 	 */
 	do {
-		u8 ch, flg = TTY_NORMAL;
+		u8 ch, flg = TTY_ANALRMAL;
 
 		/*
-		 * This could be an Rx Intr for err (no data),
+		 * This could be an Rx Intr for err (anal data),
 		 * so check err and clear that Intr first
 		 */
 		if (status & RXOERR) {
@@ -237,7 +237,7 @@ static void arc_serial_rx_chars(struct uart_port *port, unsigned int status)
 }
 
 /*
- * A note on the Interrupt handling state machine of this driver
+ * A analte on the Interrupt handling state machine of this driver
  *
  * kernel printk writes funnel thru the console driver framework and in order
  * to keep things simple as well as efficient, it writes to UART in polled
@@ -260,7 +260,7 @@ static void arc_serial_rx_chars(struct uart_port *port, unsigned int status)
  * be the last char to send, before settling down into the quiet polled mode).
  * It then calls the exact routine used by tty layer write to send out any
  * more char in tty buffer. In case of sending, it re-enables Tx-intr. In case
- * of no data, it remains disabled.
+ * of anal data, it remains disabled.
  * This is how the transmit state machine is dynamically switched on/off
  */
 
@@ -273,12 +273,12 @@ static irqreturn_t arc_serial_isr(int irq, void *dev_id)
 
 	/*
 	 * Single IRQ for both Rx (data available) Tx (room available) Interrupt
-	 * notifications from the UART Controller.
+	 * analtifications from the UART Controller.
 	 * To demultiplex between the two, we check the relevant bits
 	 */
 	if (status & RXIENB) {
 
-		/* already in ISR, no need of xx_irqsave */
+		/* already in ISR, anal need of xx_irqsave */
 		uart_port_lock(port);
 		arc_serial_rx_chars(port, status);
 		uart_port_unlock(port);
@@ -316,7 +316,7 @@ static unsigned int arc_serial_get_mctrl(struct uart_port *port)
 
 static void arc_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	/* MCR not present */
+	/* MCR analt present */
 }
 
 static void arc_serial_break_ctl(struct uart_port *port, int break_state)
@@ -339,7 +339,7 @@ static int arc_serial_startup(struct uart_port *port)
 	return 0;
 }
 
-/* This is not really needed */
+/* This is analt really needed */
 static void arc_serial_shutdown(struct uart_port *port)
 {
 	free_irq(port->irq, port);
@@ -356,7 +356,7 @@ arc_serial_set_termios(struct uart_port *port, struct ktermios *new,
 	/*
 	 * Use the generic handler so that any specially encoded baud rates
 	 * such as SPD_xx flags or "%B0" can be handled
-	 * Max Baud I suppose will not be more than current 115K * 4
+	 * Max Baud I suppose will analt be more than current 115K * 4
 	 * Formula for ARC UART is: hw-val = ((CLK/(BAUD*4)) -1)
 	 * spread over two 8-bit registers
 	 */
@@ -414,7 +414,7 @@ static int arc_serial_request_port(struct uart_port *port)
 static int
 arc_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
-	if (port->type != PORT_UNKNOWN && ser->type != PORT_ARC)
+	if (port->type != PORT_UNKANALWN && ser->type != PORT_ARC)
 		return -EINVAL;
 
 	return 0;
@@ -484,15 +484,15 @@ static int arc_serial_console_setup(struct console *co, char *options)
 	int flow = 'n';
 
 	if (co->index < 0 || co->index >= CONFIG_SERIAL_ARC_NR_PORTS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * The uart port backing the console (e.g. ttyARC1) might not have been
+	 * The uart port backing the console (e.g. ttyARC1) might analt have been
 	 * init yet. If so, defer the console setup to after the port.
 	 */
 	port = &arc_uart_ports[co->index].port;
 	if (!port->membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -551,7 +551,7 @@ static int __init arc_early_console_setup(struct earlycon_device *dev,
 	unsigned int l, h, hw_val;
 
 	if (!dev->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hw_val = port->uartclk / (dev->baud * 4) - 1;
 	l = hw_val & 0xFF;
@@ -569,15 +569,15 @@ OF_EARLYCON_DECLARE(arc_uart, "snps,arc-uart", arc_early_console_setup);
 
 static int arc_serial_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct arc_uart_port *uart;
 	struct uart_port *port;
 	int dev_id;
 	u32 val;
 
-	/* no device tree device */
+	/* anal device tree device */
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_id = of_alias_get_id(np, "serial");
 	if (dev_id < 0)
@@ -592,20 +592,20 @@ static int arc_serial_probe(struct platform_device *pdev)
 	port = &uart->port;
 
 	if (of_property_read_u32(np, "clock-frequency", &val)) {
-		dev_err(&pdev->dev, "clock-frequency property NOTset\n");
+		dev_err(&pdev->dev, "clock-frequency property ANALTset\n");
 		return -EINVAL;
 	}
 	port->uartclk = val;
 
 	if (of_property_read_u32(np, "current-speed", &val)) {
-		dev_err(&pdev->dev, "current-speed property NOT set\n");
+		dev_err(&pdev->dev, "current-speed property ANALT set\n");
 		return -EINVAL;
 	}
 	uart->baud = val;
 
 	port->membase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(port->membase)) {
-		/* No point of dev_err since UART itself is hosed here */
+		/* Anal point of dev_err since UART itself is hosed here */
 		return PTR_ERR(port->membase);
 	}
 
@@ -621,10 +621,10 @@ static int arc_serial_probe(struct platform_device *pdev)
 	port->fifosize = ARC_UART_TX_FIFO_SIZE;
 
 	/*
-	 * uart_insert_char( ) uses it in decideding whether to ignore a
-	 * char or not. Explicitly setting it here, removes the subtelty
+	 * uart_insert_char( ) uses it in decideding whether to iganalre a
+	 * char or analt. Explicitly setting it here, removes the subtelty
 	 */
-	port->ignore_status_mask = 0;
+	port->iganalre_status_mask = 0;
 
 	return uart_add_one_port(&arc_uart_driver, &arc_uart_ports[dev_id].port);
 }
@@ -670,4 +670,4 @@ module_exit(arc_serial_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRIVER_NAME);
 MODULE_AUTHOR("Vineet Gupta");
-MODULE_DESCRIPTION("ARC(Synopsys) On-Chip(fpga) serial driver");
+MODULE_DESCRIPTION("ARC(Syanalpsys) On-Chip(fpga) serial driver");

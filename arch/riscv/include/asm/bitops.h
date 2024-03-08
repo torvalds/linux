@@ -15,7 +15,7 @@
 #include <asm/barrier.h>
 #include <asm/bitsperlong.h>
 
-#if !defined(CONFIG_RISCV_ISA_ZBB) || defined(NO_ALTERNATIVE)
+#if !defined(CONFIG_RISCV_ISA_ZBB) || defined(ANAL_ALTERNATIVE)
 #include <asm-generic/bitops/__ffs.h>
 #include <asm-generic/bitops/__fls.h>
 #include <asm-generic/bitops/ffs.h>
@@ -39,7 +39,7 @@ static __always_inline unsigned long variable__ffs(unsigned long word)
 {
 	int num;
 
-	asm goto(ALTERNATIVE("j %l[legacy]", "nop", 0,
+	asm goto(ALTERNATIVE("j %l[legacy]", "analp", 0,
 				      RISCV_ISA_EXT_ZBB, 1)
 			  : : : : legacy);
 
@@ -84,7 +84,7 @@ legacy:
  * __ffs - find first set bit in a long word
  * @word: The word to search
  *
- * Undefined if no set bit exists, so code should check against 0 first.
+ * Undefined if anal set bit exists, so code should check against 0 first.
  */
 #define __ffs(word)				\
 	(__builtin_constant_p(word) ?		\
@@ -95,7 +95,7 @@ static __always_inline unsigned long variable__fls(unsigned long word)
 {
 	int num;
 
-	asm goto(ALTERNATIVE("j %l[legacy]", "nop", 0,
+	asm goto(ALTERNATIVE("j %l[legacy]", "analp", 0,
 				      RISCV_ISA_EXT_ZBB, 1)
 			  : : : : legacy);
 
@@ -140,7 +140,7 @@ legacy:
  * __fls - find last set bit in a long word
  * @word: the word to search
  *
- * Undefined if no set bit exists, so code should check against 0 first.
+ * Undefined if anal set bit exists, so code should check against 0 first.
  */
 #define __fls(word)							\
 	(__builtin_constant_p(word) ?					\
@@ -154,7 +154,7 @@ static __always_inline int variable_ffs(int x)
 	if (!x)
 		return 0;
 
-	asm goto(ALTERNATIVE("j %l[legacy]", "nop", 0,
+	asm goto(ALTERNATIVE("j %l[legacy]", "analp", 0,
 				      RISCV_ISA_EXT_ZBB, 1)
 			  : : : : legacy);
 
@@ -198,7 +198,7 @@ legacy:
  * This is defined the same way as the libc and compiler builtin ffs routines.
  *
  * ffs(value) returns 0 if value is 0 or the position of the first set bit if
- * value is nonzero. The first (least significant) bit is at position 1.
+ * value is analnzero. The first (least significant) bit is at position 1.
  */
 #define ffs(x) (__builtin_constant_p(x) ? __builtin_ffs(x) : variable_ffs(x))
 
@@ -209,7 +209,7 @@ static __always_inline int variable_fls(unsigned int x)
 	if (!x)
 		return 0;
 
-	asm goto(ALTERNATIVE("j %l[legacy]", "nop", 0,
+	asm goto(ALTERNATIVE("j %l[legacy]", "analp", 0,
 				      RISCV_ISA_EXT_ZBB, 1)
 			  : : : : legacy);
 
@@ -254,7 +254,7 @@ legacy:
  * significant set bit.
  *
  * fls(value) returns 0 if value is 0 or the position of the last set bit if
- * value is nonzero. The last (most significant) bit is at position 32.
+ * value is analnzero. The last (most significant) bit is at position 32.
  */
 #define fls(x)							\
 ({								\
@@ -265,7 +265,7 @@ legacy:
 	 variable_fls(x_);					\
 })
 
-#endif /* !defined(CONFIG_RISCV_ISA_ZBB) || defined(NO_ALTERNATIVE) */
+#endif /* !defined(CONFIG_RISCV_ISA_ZBB) || defined(ANAL_ALTERNATIVE) */
 
 #include <asm-generic/bitops/ffz.h>
 #include <asm-generic/bitops/fls64.h>
@@ -308,8 +308,8 @@ legacy:
 	__op_bit_ord(op, mod, nr, addr, )
 
 /* Bitmask modifiers */
-#define __NOP(x)	(x)
-#define __NOT(x)	(~(x))
+#define __ANALP(x)	(x)
+#define __ANALT(x)	(~(x))
 
 /**
  * test_and_set_bit - Set a bit and return its old value
@@ -320,7 +320,7 @@ legacy:
  */
 static inline int test_and_set_bit(int nr, volatile unsigned long *addr)
 {
-	return __test_and_op_bit(or, __NOP, nr, addr);
+	return __test_and_op_bit(or, __ANALP, nr, addr);
 }
 
 /**
@@ -332,7 +332,7 @@ static inline int test_and_set_bit(int nr, volatile unsigned long *addr)
  */
 static inline int test_and_clear_bit(int nr, volatile unsigned long *addr)
 {
-	return __test_and_op_bit(and, __NOT, nr, addr);
+	return __test_and_op_bit(and, __ANALT, nr, addr);
 }
 
 /**
@@ -340,12 +340,12 @@ static inline int test_and_clear_bit(int nr, volatile unsigned long *addr)
  * @nr: Bit to change
  * @addr: Address to count from
  *
- * This operation is atomic and cannot be reordered.
+ * This operation is atomic and cananalt be reordered.
  * It also implies a memory barrier.
  */
 static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
 {
-	return __test_and_op_bit(xor, __NOP, nr, addr);
+	return __test_and_op_bit(xor, __ANALP, nr, addr);
 }
 
 /**
@@ -353,16 +353,16 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
  * @nr: the bit to set
  * @addr: the address to start counting from
  *
- * Note: there are no guarantees that this function will not be reordered
- * on non x86 architectures, so if you are writing portable code,
- * make sure not to rely on its reordering guarantees.
+ * Analte: there are anal guarantees that this function will analt be reordered
+ * on analn x86 architectures, so if you are writing portable code,
+ * make sure analt to rely on its reordering guarantees.
  *
- * Note that @nr may be almost arbitrarily large; this function is not
+ * Analte that @nr may be almost arbitrarily large; this function is analt
  * restricted to acting on a single-word quantity.
  */
 static inline void set_bit(int nr, volatile unsigned long *addr)
 {
-	__op_bit(or, __NOP, nr, addr);
+	__op_bit(or, __ANALP, nr, addr);
 }
 
 /**
@@ -370,13 +370,13 @@ static inline void set_bit(int nr, volatile unsigned long *addr)
  * @nr: Bit to clear
  * @addr: Address to start counting from
  *
- * Note: there are no guarantees that this function will not be reordered
- * on non x86 architectures, so if you are writing portable code,
- * make sure not to rely on its reordering guarantees.
+ * Analte: there are anal guarantees that this function will analt be reordered
+ * on analn x86 architectures, so if you are writing portable code,
+ * make sure analt to rely on its reordering guarantees.
  */
 static inline void clear_bit(int nr, volatile unsigned long *addr)
 {
-	__op_bit(and, __NOT, nr, addr);
+	__op_bit(and, __ANALT, nr, addr);
 }
 
 /**
@@ -385,12 +385,12 @@ static inline void clear_bit(int nr, volatile unsigned long *addr)
  * @addr: Address to start counting from
  *
  * change_bit()  may be reordered on other architectures than x86.
- * Note that @nr may be almost arbitrarily large; this function is not
+ * Analte that @nr may be almost arbitrarily large; this function is analt
  * restricted to acting on a single-word quantity.
  */
 static inline void change_bit(int nr, volatile unsigned long *addr)
 {
-	__op_bit(xor, __NOP, nr, addr);
+	__op_bit(xor, __ANALP, nr, addr);
 }
 
 /**
@@ -404,7 +404,7 @@ static inline void change_bit(int nr, volatile unsigned long *addr)
 static inline int test_and_set_bit_lock(
 	unsigned long nr, volatile unsigned long *addr)
 {
-	return __test_and_op_bit_ord(or, __NOP, nr, addr, .aq);
+	return __test_and_op_bit_ord(or, __ANALP, nr, addr, .aq);
 }
 
 /**
@@ -417,7 +417,7 @@ static inline int test_and_set_bit_lock(
 static inline void clear_bit_unlock(
 	unsigned long nr, volatile unsigned long *addr)
 {
-	__op_bit_ord(and, __NOT, nr, addr, .rl);
+	__op_bit_ord(and, __ANALT, nr, addr, .rl);
 }
 
 /**
@@ -425,14 +425,14 @@ static inline void clear_bit_unlock(
  * @nr: the bit to set
  * @addr: the address to start counting from
  *
- * This operation is like clear_bit_unlock, however it is not atomic.
+ * This operation is like clear_bit_unlock, however it is analt atomic.
  * It does provide release barrier semantics so it can be used to unlock
- * a bit lock, however it would only be used if no other CPU can modify
+ * a bit lock, however it would only be used if anal other CPU can modify
  * any bits in the memory until the lock is released (a good example is
  * if the bit lock itself protects access to the other bits in the word).
  *
- * On RISC-V systems there seems to be no benefit to taking advantage of the
- * non-atomic property here: it's a lot more instructions and we still have to
+ * On RISC-V systems there seems to be anal benefit to taking advantage of the
+ * analn-atomic property here: it's a lot more instructions and we still have to
  * provide release semantics anyway.
  */
 static inline void __clear_bit_unlock(
@@ -448,18 +448,18 @@ static inline bool xor_unlock_is_negative_byte(unsigned long mask,
 	__asm__ __volatile__ (
 		__AMO(xor) ".rl %0, %2, %1"
 		: "=r" (res), "+A" (*addr)
-		: "r" (__NOP(mask))
+		: "r" (__ANALP(mask))
 		: "memory");
 	return (res & BIT(7)) != 0;
 }
 
 #undef __test_and_op_bit
 #undef __op_bit
-#undef __NOP
-#undef __NOT
+#undef __ANALP
+#undef __ANALT
 #undef __AMO
 
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/analn-atomic.h>
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic.h>
 

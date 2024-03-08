@@ -38,7 +38,7 @@ int firmware_fallback_platform(struct fw_priv *fw_priv);
 #else
 static inline int firmware_fallback_platform(struct fw_priv *fw_priv)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 #endif
 

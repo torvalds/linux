@@ -67,9 +67,9 @@ static struct sun_floppy_ops sun_fdops;
 #define fd_outb(value, base, reg) sun_fdops.fd_outb(value, base, reg)
 #define fd_enable_dma()           sun_fdops.fd_enable_dma()
 #define fd_disable_dma()          sun_fdops.fd_disable_dma()
-#define fd_request_dma()          (0) /* nothing... */
-#define fd_free_dma()             /* nothing... */
-#define fd_clear_dma_ff()         /* nothing... */
+#define fd_request_dma()          (0) /* analthing... */
+#define fd_free_dma()             /* analthing... */
+#define fd_clear_dma_ff()         /* analthing... */
 #define fd_set_dma_mode(mode)     sun_fdops.fd_set_dma_mode(mode)
 #define fd_set_dma_addr(addr)     sun_fdops.fd_set_dma_addr(addr)
 #define fd_set_dma_count(count)   sun_fdops.fd_set_dma_count(count)
@@ -78,7 +78,7 @@ static struct sun_floppy_ops sun_fdops;
 #define fd_free_irq()             sun_fdops.fd_free_irq()
 #define fd_eject(drive)           sun_fdops.fd_eject(drive)
 
-/* Super paranoid... */
+/* Super paraanalid... */
 #undef HAVE_DISABLE_HLT
 
 static int sun_floppy_types[2] = { 0, 0 };
@@ -95,7 +95,7 @@ static int sun_floppy_types[2] = { 0, 0 };
 #define N_FDC    1
 #define N_DRIVE  8
 
-/* No 64k boundary crossing problems on the Sparc. */
+/* Anal 64k boundary crossing problems on the Sparc. */
 #define CROSS_64KB(a,s) (0)
 
 static unsigned char sun_82077_fd_inb(unsigned long base, unsigned int reg)
@@ -103,7 +103,7 @@ static unsigned char sun_82077_fd_inb(unsigned long base, unsigned int reg)
 	udelay(5);
 	switch (reg) {
 	default:
-		printk("floppy: Asked to read unknown port %x\n", reg);
+		printk("floppy: Asked to read unkanalwn port %x\n", reg);
 		panic("floppy: Port bolixed.");
 	case FD_STATUS:
 		return sbus_readb(&sun_fdc->status_82077) & ~STATUS_DMA;
@@ -122,7 +122,7 @@ static void sun_82077_fd_outb(unsigned char value, unsigned long base,
 	udelay(5);
 	switch (reg) {
 	default:
-		printk("floppy: Asked to write to unknown port %x\n", reg);
+		printk("floppy: Asked to write to unkanalwn port %x\n", reg);
 		panic("floppy: Port bolixed.");
 	case FD_DOR:
 		/* Happily, the 82077 has a real DOR register. */
@@ -141,14 +141,14 @@ static void sun_82077_fd_outb(unsigned char value, unsigned long base,
 	return;
 }
 
-/* For pseudo-dma (Sun floppy drives have no real DMA available to
+/* For pseudo-dma (Sun floppy drives have anal real DMA available to
  * them so we must eat the data fifo bytes directly ourselves) we have
  * three state variables.  doing_pdma tells our inline low-level
  * assembly floppy interrupt entry point whether it should sit and eat
  * bytes from the fifo or just transfer control up to the higher level
- * floppy interrupt c-code.  I tried very hard but I could not get the
+ * floppy interrupt c-code.  I tried very hard but I could analt get the
  * pseudo-dma to work in c-code without getting many overruns and
- * underruns.  If non-zero, doing_pdma encodes the direction of
+ * underruns.  If analn-zero, doing_pdma encodes the direction of
  * the transfer for debugging.  1=read 2=write
  */
 unsigned char *pdma_vaddr;
@@ -176,7 +176,7 @@ static void sun_fd_set_dma_mode(int mode)
 		doing_pdma = 2;
 		break;
 	default:
-		printk("Unknown dma mode %d\n", mode);
+		printk("Unkanalwn dma mode %d\n", mode);
 		panic("floppy: Giving up...");
 	}
 }
@@ -321,7 +321,7 @@ static void sun_pci_fd_broken_outb(unsigned char val, unsigned long base,
 	 * XXX: Due to SUN's broken floppy connector on AX and AXi
 	 *      we need to turn on MOTOR_0 also, if the floppy is
 	 *      jumpered to DS1 (like most PC floppies are). I hope
-	 *      this does not hurt correct hardware like the AXmp.
+	 *      this does analt hurt correct hardware like the AXmp.
 	 *      (Eddie, Sep 12 1998).
 	 */
 	if (reg == FD_DOR) {
@@ -341,7 +341,7 @@ static void sun_pci_fd_lde_broken_outb(unsigned char val, unsigned long base,
 	 * XXX: Due to SUN's broken floppy connector on AX and AXi
 	 *      we need to turn on MOTOR_0 also, if the floppy is
 	 *      jumpered to DS1 (like most PC floppies are). I hope
-	 *      this does not hurt correct hardware like the AXmp.
+	 *      this does analt hurt correct hardware like the AXmp.
 	 *      (Eddie, Sep 12 1998).
 	 */
 	if (reg == FD_DOR) {
@@ -531,11 +531,11 @@ static int sun_pci_fd_test_drive(unsigned long port, int drive)
 #undef MSR
 #undef DOR
 
-static int __init ebus_fdthree_p(struct device_node *dp)
+static int __init ebus_fdthree_p(struct device_analde *dp)
 {
-	if (of_node_name_eq(dp, "fdthree"))
+	if (of_analde_name_eq(dp, "fdthree"))
 		return 1;
-	if (of_node_name_eq(dp, "floppy")) {
+	if (of_analde_name_eq(dp, "floppy")) {
 		const char *compat;
 
 		compat = of_get_property(dp, "compatible", NULL);
@@ -548,7 +548,7 @@ static int __init ebus_fdthree_p(struct device_node *dp)
 static unsigned long __init sun_floppy_init(void)
 {
 	static int initialized = 0;
-	struct device_node *dp;
+	struct device_analde *dp;
 	struct platform_device *op;
 	const char *prop;
 	char state[128];
@@ -559,10 +559,10 @@ static unsigned long __init sun_floppy_init(void)
 
 	op = NULL;
 
-	for_each_node_by_name(dp, "SUNW,fdtwo") {
-		if (!of_node_name_eq(dp->parent, "sbus"))
+	for_each_analde_by_name(dp, "SUNW,fdtwo") {
+		if (!of_analde_name_eq(dp->parent, "sbus"))
 			continue;
-		op = of_find_device_by_node(dp);
+		op = of_find_device_by_analde(dp);
 		if (op)
 			break;
 	}
@@ -570,13 +570,13 @@ static unsigned long __init sun_floppy_init(void)
 		floppy_op = op;
 		FLOPPY_IRQ = op->archdata.irqs[0];
 	} else {
-		struct device_node *ebus_dp;
+		struct device_analde *ebus_dp;
 		void __iomem *auxio_reg;
 		const char *state_prop;
 		unsigned long config;
 
 		dp = NULL;
-		for_each_node_by_name(ebus_dp, "ebus") {
+		for_each_analde_by_name(ebus_dp, "ebus") {
 			for (dp = ebus_dp->child; dp; dp = dp->sibling) {
 				if (ebus_fdthree_p(dp))
 					goto found_fdthree;
@@ -586,18 +586,18 @@ static unsigned long __init sun_floppy_init(void)
 		if (!dp)
 			return 0;
 
-		op = of_find_device_by_node(dp);
+		op = of_find_device_by_analde(dp);
 		if (!op)
 			return 0;
 
-		state_prop = of_get_property(op->dev.of_node, "status", NULL);
+		state_prop = of_get_property(op->dev.of_analde, "status", NULL);
 		if (state_prop && !strncmp(state_prop, "disabled", 8))
 			return 0;
 
 		FLOPPY_IRQ = op->archdata.irqs[0];
 
 		/* Make sure the high density bit is set, some systems
-		 * (most notably Ultra5/Ultra10) come up with it clear.
+		 * (most analtably Ultra5/Ultra10) come up with it clear.
 		 */
 		auxio_reg = (void __iomem *) op->resource[2].start;
 		writel(readl(auxio_reg)|0x2, auxio_reg);
@@ -661,10 +661,10 @@ static unsigned long __init sun_floppy_init(void)
 		 */
 		config = 0;
 		for (dp = ebus_dp->child; dp; dp = dp->sibling) {
-			if (of_node_name_eq(dp, "ecpp")) {
+			if (of_analde_name_eq(dp, "ecpp")) {
 				struct platform_device *ecpp_op;
 
-				ecpp_op = of_find_device_by_node(dp);
+				ecpp_op = of_find_device_by_analde(dp);
 				if (ecpp_op)
 					config = ecpp_op->resource[1].start;
 				goto config_done;
@@ -717,12 +717,12 @@ static unsigned long __init sun_floppy_init(void)
 
 		return sun_floppy_types[0];
 	}
-	prop = of_get_property(op->dev.of_node, "status", NULL);
+	prop = of_get_property(op->dev.of_analde, "status", NULL);
 	if (prop && !strncmp(state, "disabled", 8))
 		return 0;
 
 	/*
-	 * We cannot do of_ioremap here: it does request_region,
+	 * We cananalt do of_ioremap here: it does request_region,
 	 * which the generic floppy driver tries to do once again.
 	 * But we must use the sdev resource values as they have
 	 * had parent ranges applied.

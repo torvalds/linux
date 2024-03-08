@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -54,9 +54,9 @@ static int qsfp_read(struct qib_pportdata *ppd, int addr, void *bp, int len)
 
 	ret = mutex_lock_interruptible(&dd->eep_lock);
 	if (ret)
-		goto no_unlock;
+		goto anal_unlock;
 
-	if (dd->twsi_eeprom_dev == QIB_TWSI_NO_DEV) {
+	if (dd->twsi_eeprom_dev == QIB_TWSI_ANAL_DEV) {
 		ret = -ENXIO;
 		goto bail;
 	}
@@ -79,7 +79,7 @@ static int qsfp_read(struct qib_pportdata *ppd, int addr, void *bp, int len)
 
 	/*
 	 * Module could take up to 2 Msec to respond to MOD_SEL, and there
-	 * is no way to tell if it is ready, so we must wait.
+	 * is anal way to tell if it is ready, so we must wait.
 	 */
 	msleep(20);
 
@@ -120,7 +120,7 @@ static int qsfp_read(struct qib_pportdata *ppd, int addr, void *bp, int len)
 deselect:
 	/*
 	 * Module could take up to 10 uSec after transfer before
-	 * ready to respond to MOD_SEL negation, and there is no way
+	 * ready to respond to MOD_SEL negation, and there is anal way
 	 * to tell if it is ready, so we must wait.
 	 */
 	udelay(10);
@@ -129,11 +129,11 @@ deselect:
 
 	/*
 	 * Module could take up to 2 Msec to respond to MOD_SEL
-	 * going away, and there is no way to tell if it is ready.
+	 * going away, and there is anal way to tell if it is ready.
 	 * so we must wait.
 	 */
 	if (stuck)
-		qib_dev_err(dd, "QSFP interface bus stuck non-idle\n");
+		qib_dev_err(dd, "QSFP interface bus stuck analn-idle\n");
 
 	if (pass >= QSFP_MAX_RETRY && ret)
 		qib_dev_porterr(dd, ppd->port, "QSFP failed even retrying\n");
@@ -145,14 +145,14 @@ deselect:
 bail:
 	mutex_unlock(&dd->eep_lock);
 
-no_unlock:
+anal_unlock:
 	return ret;
 }
 
 /*
  * qsfp_write
- * We do not ordinarily write the QSFP, but this is needed to select
- * the page on non-flat QSFPs, and possibly later unusual cases
+ * We do analt ordinarily write the QSFP, but this is needed to select
+ * the page on analn-flat QSFPs, and possibly later unusual cases
  */
 static int qib_qsfp_write(struct qib_pportdata *ppd, int addr, void *bp,
 			  int len)
@@ -164,9 +164,9 @@ static int qib_qsfp_write(struct qib_pportdata *ppd, int addr, void *bp,
 
 	ret = mutex_lock_interruptible(&dd->eep_lock);
 	if (ret)
-		goto no_unlock;
+		goto anal_unlock;
 
-	if (dd->twsi_eeprom_dev == QIB_TWSI_NO_DEV) {
+	if (dd->twsi_eeprom_dev == QIB_TWSI_ANAL_DEV) {
 		ret = -ENXIO;
 		goto bail;
 	}
@@ -188,7 +188,7 @@ static int qib_qsfp_write(struct qib_pportdata *ppd, int addr, void *bp,
 
 	/*
 	 * Module could take up to 2 Msec to respond to MOD_SEL,
-	 * and there is no way to tell if it is ready, so we must wait.
+	 * and there is anal way to tell if it is ready, so we must wait.
 	 */
 	msleep(20);
 
@@ -225,7 +225,7 @@ static int qib_qsfp_write(struct qib_pportdata *ppd, int addr, void *bp,
 deselect:
 	/*
 	 * Module could take up to 10 uSec after transfer before
-	 * ready to respond to MOD_SEL negation, and there is no way
+	 * ready to respond to MOD_SEL negation, and there is anal way
 	 * to tell if it is ready, so we must wait.
 	 */
 	udelay(10);
@@ -233,7 +233,7 @@ deselect:
 	dd->f_gpio_mod(dd, mask, mask, mask);
 	/*
 	 * Module could take up to 2 Msec to respond to MOD_SEL
-	 * going away, and there is no way to tell if it is ready.
+	 * going away, and there is anal way to tell if it is ready.
 	 * so we must wait.
 	 */
 	msleep(20);
@@ -241,13 +241,13 @@ deselect:
 bail:
 	mutex_unlock(&dd->eep_lock);
 
-no_unlock:
+anal_unlock:
 	return ret;
 }
 
 /*
  * For validation, we want to check the checksums, even of the
- * fields we do not otherwise use. This function reads the bytes from
+ * fields we do analt otherwise use. This function reads the bytes from
  * <first> to <next-1> and returns the 8lsbs of the sum, or <0 for errors
  */
 static int qsfp_cks(struct qib_pportdata *ppd, int first, int next)
@@ -281,7 +281,7 @@ int qib_refresh_qsfp_cache(struct qib_pportdata *ppd, struct qib_qsfp_cache *cp)
 	memset(cp, 0, sizeof(*cp));
 
 	if (!qib_qsfp_mod_present(ppd)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto bail;
 	}
 
@@ -432,7 +432,7 @@ bail:
 const char * const qib_qsfp_devtech[16] = {
 	"850nm VCSEL", "1310nm VCSEL", "1550nm VCSEL", "1310nm FP",
 	"1310nm DFB", "1550nm DFB", "1310nm EML", "1550nm EML",
-	"Cu Misc", "1490nm DFB", "Cu NoEq", "Cu Eq",
+	"Cu Misc", "1490nm DFB", "Cu AnalEq", "Cu Eq",
 	"Undef", "Cu Active BothEq", "Cu FarEq", "Cu NearEq"
 };
 
@@ -469,7 +469,7 @@ void qib_qsfp_init(struct qib_qsfp_data *qd,
 	INIT_WORK(&qd->work, fevent);
 
 	/*
-	 * Later, we may want more validation. For now, just set up pins and
+	 * Later, we may want more validation. For analw, just set up pins and
 	 * blip reset. If module is present, call qib_refresh_qsfp_cache(),
 	 * to do further init.
 	 */

@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -178,7 +178,7 @@ struct vmw_du_update_plane_buffer {
  * @unit_y2: Clip rect bottom side in crtc coordinates.
  *
  * The clip rect coordinates are updated by the helper for each @clip call.
- * Note that this may be derived from if more info needs to be passed between
+ * Analte that this may be derived from if more info needs to be passed between
  * helper caller and helper callbacks.
  */
 struct vmw_kms_dirty {
@@ -317,7 +317,7 @@ struct vmw_connector_state {
 	 * @gui_x:
 	 *
 	 * vmwgfx connector property representing the x position of this display
-	 * unit (connector is synonymous to display unit) in overall topology.
+	 * unit (connector is syanalnymous to display unit) in overall topology.
 	 * This is what the device expect as xRoot while creating screen.
 	 */
 	int gui_x;
@@ -326,7 +326,7 @@ struct vmw_connector_state {
 	 * @gui_y:
 	 *
 	 * vmwgfx connector property representing the y position of this display
-	 * unit (connector is synonymous to display unit) in overall topology.
+	 * unit (connector is syanalnymous to display unit) in overall topology.
 	 * This is what the device expect as yRoot while creating screen.
 	 */
 	int gui_y;

@@ -92,7 +92,7 @@ static inline u32 ltq_calc_bar11mask(void)
 
 static int ltq_pci_startup(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	const __be32 *req_mask, *bus_clk;
 	u32 temp_buffer;
 	int error;
@@ -112,13 +112,13 @@ static int ltq_pci_startup(struct platform_device *pdev)
 	}
 
 	/* read the bus speed that we want */
-	bus_clk = of_get_property(node, "lantiq,bus-clock", NULL);
+	bus_clk = of_get_property(analde, "lantiq,bus-clock", NULL);
 	if (bus_clk)
 		clk_set_rate(clk_pci, *bus_clk);
 
 	/* and enable the clocks */
 	clk_enable(clk_pci);
-	if (of_property_read_bool(node, "lantiq,external-clock"))
+	if (of_property_read_bool(analde, "lantiq,external-clock"))
 		clk_enable(clk_external);
 	else
 		clk_disable(clk_external);
@@ -136,7 +136,7 @@ static int ltq_pci_startup(struct platform_device *pdev)
 	/* enable auto-switching between PCI and EBU */
 	ltq_pci_w32(0xa, PCI_CR_CLK_CTRL);
 
-	/* busy, i.e. configuration is not done, PCI access has to be retried */
+	/* busy, i.e. configuration is analt done, PCI access has to be retried */
 	ltq_pci_w32(ltq_pci_r32(PCI_CR_PCI_MOD) & ~(1 << 24), PCI_CR_PCI_MOD);
 	wmb();
 	/* BUS Master/IO/MEM access */
@@ -145,7 +145,7 @@ static int ltq_pci_startup(struct platform_device *pdev)
 	/* enable external 2 PCI masters */
 	temp_buffer = ltq_pci_r32(PCI_CR_PC_ARB);
 	/* setup the request mask */
-	req_mask = of_get_property(node, "req-mask", NULL);
+	req_mask = of_get_property(analde, "req-mask", NULL);
 	if (req_mask)
 		temp_buffer &= ~((*req_mask & 0xf) << 16);
 	else
@@ -216,7 +216,7 @@ static int ltq_pci_probe(struct platform_device *pdev)
 
 	ltq_pci_startup(pdev);
 
-	pci_load_of_ranges(&pci_controller, pdev->dev.of_node);
+	pci_load_of_ranges(&pci_controller, pdev->dev.of_analde);
 	register_pci_controller(&pci_controller);
 	return 0;
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/coresight.h>
@@ -70,31 +70,31 @@ static const struct coresight_ops dummy_sink_cs_ops = {
 static int dummy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct coresight_platform_data *pdata;
 	struct dummy_drvdata *drvdata;
 	struct coresight_desc desc = { 0 };
 
-	if (of_device_is_compatible(node, "arm,coresight-dummy-source")) {
+	if (of_device_is_compatible(analde, "arm,coresight-dummy-source")) {
 
 		desc.name = coresight_alloc_device_name(&source_devs, dev);
 		if (!desc.name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		desc.type = CORESIGHT_DEV_TYPE_SOURCE;
 		desc.subtype.source_subtype =
 					CORESIGHT_DEV_SUBTYPE_SOURCE_OTHERS;
 		desc.ops = &dummy_source_cs_ops;
-	} else if (of_device_is_compatible(node, "arm,coresight-dummy-sink")) {
+	} else if (of_device_is_compatible(analde, "arm,coresight-dummy-sink")) {
 		desc.name = coresight_alloc_device_name(&sink_devs, dev);
 		if (!desc.name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		desc.type = CORESIGHT_DEV_TYPE_SINK;
 		desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_DUMMY;
 		desc.ops = &dummy_sink_cs_ops;
 	} else {
-		dev_err(dev, "Device type not set\n");
+		dev_err(dev, "Device type analt set\n");
 		return -EINVAL;
 	}
 
@@ -105,7 +105,7 @@ static int dummy_probe(struct platform_device *pdev)
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->dev = &pdev->dev;
 	platform_set_drvdata(pdev, drvdata);

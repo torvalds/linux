@@ -72,7 +72,7 @@ static int hda_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	snd_hdac_codec_modalias(dev_to_hdac_dev(dev), modalias,
 				sizeof(modalias));
 	if (add_uevent_var(env, "MODALIAS=%s", modalias))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

@@ -38,14 +38,14 @@ struct iommufd_object *_iommufd_object_alloc(struct iommufd_ctx *ictx,
 
 	obj = kzalloc(size, GFP_KERNEL_ACCOUNT);
 	if (!obj)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	obj->type = type;
 	/* Starts out bias'd by 1 until it is removed from the xarray */
 	refcount_set(&obj->shortterm_users, 1);
 	refcount_set(&obj->users, 1);
 
 	/*
-	 * Reserve an ID in the xarray but do not publish the pointer yet since
+	 * Reserve an ID in the xarray but do analt publish the pointer yet since
 	 * the caller hasn't initialized it yet. Once the pointer is published
 	 * in the xarray and visible to other threads we can't reliably destroy
 	 * it anymore, so the caller must complete all errorable operations
@@ -64,11 +64,11 @@ out_free:
 /*
  * Allow concurrent access to the object.
  *
- * Once another thread can see the object pointer it can prevent object
- * destruction. Expect for special kernel-only objects there is no in-kernel way
+ * Once aanalther thread can see the object pointer it can prevent object
+ * destruction. Expect for special kernel-only objects there is anal in-kernel way
  * to reliably destroy a single object. Thus all APIs that are creating objects
  * must use iommufd_object_abort() to handle their errors and only call
- * iommufd_object_finalize() once object creation cannot fail.
+ * iommufd_object_finalize() once object creation cananalt fail.
  */
 void iommufd_object_finalize(struct iommufd_ctx *ictx,
 			     struct iommufd_object *obj)
@@ -76,11 +76,11 @@ void iommufd_object_finalize(struct iommufd_ctx *ictx,
 	void *old;
 
 	old = xa_store(&ictx->objects, obj->id, obj, GFP_KERNEL);
-	/* obj->id was returned from xa_alloc() so the xa_store() cannot fail */
+	/* obj->id was returned from xa_alloc() so the xa_store() cananalt fail */
 	WARN_ON(old);
 }
 
-/* Undo _iommufd_object_alloc() if iommufd_object_finalize() was not called */
+/* Undo _iommufd_object_alloc() if iommufd_object_finalize() was analt called */
 void iommufd_object_abort(struct iommufd_ctx *ictx, struct iommufd_object *obj)
 {
 	void *old;
@@ -92,7 +92,7 @@ void iommufd_object_abort(struct iommufd_ctx *ictx, struct iommufd_object *obj)
 
 /*
  * Abort an object that has been fully initialized and needs destroy, but has
- * not been finalized.
+ * analt been finalized.
  */
 void iommufd_object_abort_and_destroy(struct iommufd_ctx *ictx,
 				      struct iommufd_object *obj)
@@ -110,13 +110,13 @@ struct iommufd_object *iommufd_get_object(struct iommufd_ctx *ictx, u32 id,
 	struct iommufd_object *obj;
 
 	if (iommufd_should_fail())
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	xa_lock(&ictx->objects);
 	obj = xa_load(&ictx->objects, id);
 	if (!obj || (type != IOMMUFD_OBJ_ANY && obj->type != type) ||
 	    !iommufd_lock_obj(obj))
-		obj = ERR_PTR(-ENOENT);
+		obj = ERR_PTR(-EANALENT);
 	xa_unlock(&ictx->objects);
 	return obj;
 }
@@ -180,11 +180,11 @@ int iommufd_object_remove(struct iommufd_ctx *ictx,
 		refcount_dec(&obj->users);
 
 		if (WARN_ON(obj != to_destroy)) {
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto err_xa;
 		}
 	} else if (xa_is_zero(obj) || !obj) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err_xa;
 	}
 
@@ -230,13 +230,13 @@ static int iommufd_destroy(struct iommufd_ucmd *ucmd)
 	return iommufd_object_remove(ucmd->ictx, NULL, cmd->id, 0);
 }
 
-static int iommufd_fops_open(struct inode *inode, struct file *filp)
+static int iommufd_fops_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct iommufd_ctx *ictx;
 
 	ictx = kzalloc(sizeof(*ictx), GFP_KERNEL_ACCOUNT);
 	if (!ictx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * For compatibility with VFIO when /dev/vfio/vfio is opened we default
@@ -245,7 +245,7 @@ static int iommufd_fops_open(struct inode *inode, struct file *filp)
 	if (IS_ENABLED(CONFIG_IOMMUFD_VFIO_CONTAINER) &&
 	    filp->private_data == &vfio_misc_dev) {
 		ictx->account_mode = IOPT_PAGES_ACCOUNT_MM;
-		pr_info_once("IOMMUFD is providing /dev/vfio/vfio, not VFIO.\n");
+		pr_info_once("IOMMUFD is providing /dev/vfio/vfio, analt VFIO.\n");
 	}
 
 	xa_init_flags(&ictx->objects, XA_FLAGS_ALLOC1 | XA_FLAGS_ACCOUNT);
@@ -256,7 +256,7 @@ static int iommufd_fops_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int iommufd_fops_release(struct inode *inode, struct file *filp)
+static int iommufd_fops_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct iommufd_ctx *ictx = filp->private_data;
 	struct iommufd_object *obj;
@@ -297,7 +297,7 @@ static int iommufd_option(struct iommufd_ucmd *ucmd)
 	int rc;
 
 	if (cmd->__reserved)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (cmd->option_id) {
 	case IOMMU_OPTION_RLIMIT_MODE:
@@ -307,7 +307,7 @@ static int iommufd_option(struct iommufd_ucmd *ucmd)
 		rc = iommufd_ioas_option(ucmd);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (rc)
 		return rc;
@@ -409,7 +409,7 @@ static long iommufd_fops_ioctl(struct file *filp, unsigned int cmd,
 
 	op = &iommufd_ioctl_ops[nr - IOMMUFD_CMD_BASE];
 	if (op->ioctl_num != cmd)
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	if (ucmd.user_size < op->min_size)
 		return -EINVAL;
 
@@ -521,19 +521,19 @@ static const struct iommufd_object_ops iommufd_object_ops[] = {
 };
 
 static struct miscdevice iommu_misc_dev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "iommu",
 	.fops = &iommufd_fops,
-	.nodename = "iommu",
+	.analdename = "iommu",
 	.mode = 0660,
 };
 
 
 static struct miscdevice vfio_misc_dev = {
-	.minor = VFIO_MINOR,
+	.mianalr = VFIO_MIANALR,
 	.name = "vfio",
 	.fops = &iommufd_fops,
-	.nodename = "vfio/vfio",
+	.analdename = "vfio/vfio",
 	.mode = 0666,
 };
 
@@ -575,7 +575,7 @@ module_init(iommufd_init);
 module_exit(iommufd_exit);
 
 #if IS_ENABLED(CONFIG_IOMMUFD_VFIO_CONTAINER)
-MODULE_ALIAS_MISCDEV(VFIO_MINOR);
+MODULE_ALIAS_MISCDEV(VFIO_MIANALR);
 MODULE_ALIAS("devname:vfio/vfio");
 #endif
 MODULE_IMPORT_NS(IOMMUFD_INTERNAL);

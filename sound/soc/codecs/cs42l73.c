@@ -88,7 +88,7 @@ static const struct reg_default cs42l73_reg_defaults[] = {
 	{ 47, 0x00 },	/* r2F	- ALC Enable, Attack Rate Left/Right */
 	{ 48, 0x3F },	/* r30	- ALC Release Rate Left/Right */
 	{ 49, 0x00 },	/* r31	- ALC Threshold Left/Right */
-	{ 50, 0x00 },	/* r32	- Noise Gate Ctl Left/Right */
+	{ 50, 0x00 },	/* r32	- Analise Gate Ctl Left/Right */
 	{ 51, 0x00 },	/* r33	- ALC/NG Misc Ctl */
 	{ 52, 0x18 },	/* r34	- Mixer Ctl */
 	{ 53, 0x3F },	/* r35	- HP/LO Left Mixer Input Path Volume */
@@ -97,8 +97,8 @@ static const struct reg_default cs42l73_reg_defaults[] = {
 	{ 56, 0x3F },	/* r38	- HP/LO Right Mixer Aux PCM Volume */
 	{ 57, 0x3F },	/* r39	- HP/LO Left Mixer Audio PCM Volume */
 	{ 58, 0x3F },	/* r3A	- HP/LO Right Mixer Audio PCM Volume */
-	{ 59, 0x3F },	/* r3B	- HP/LO Left Mixer Voice PCM Mono Volume */
-	{ 60, 0x3F },	/* r3C	- HP/LO Right Mixer Voice PCM Mono Volume */
+	{ 59, 0x3F },	/* r3B	- HP/LO Left Mixer Voice PCM Moanal Volume */
+	{ 60, 0x3F },	/* r3C	- HP/LO Right Mixer Voice PCM Moanal Volume */
 	{ 61, 0x3F },	/* r3D	- Aux PCM Left Mixer Input Path Volume */
 	{ 62, 0x3F },	/* r3E	- Aux PCM Right Mixer Input Path Volume */
 	{ 63, 0x3F },	/* r3F	- Aux PCM Left Mixer Volume */
@@ -123,15 +123,15 @@ static const struct reg_default cs42l73_reg_defaults[] = {
 	{ 82, 0x3F },	/* r52	- Voice PCM Right Mixer Audio PCM R Volume */
 	{ 83, 0x3F },	/* r53	- Voice PCM Left Mixer Voice PCM Volume */
 	{ 84, 0x3F },	/* r54	- Voice PCM Right Mixer Voice PCM Volume */
-	{ 85, 0xAA },	/* r55	- Mono Mixer Ctl */
-	{ 86, 0x3F },	/* r56	- SPK Mono Mixer Input Path Volume */
-	{ 87, 0x3F },	/* r57	- SPK Mono Mixer Aux PCM Mono/L/R Volume */
-	{ 88, 0x3F },	/* r58	- SPK Mono Mixer Audio PCM Mono/L/R Volume */
-	{ 89, 0x3F },	/* r59	- SPK Mono Mixer Voice PCM Mono Volume */
-	{ 90, 0x3F },	/* r5A	- SPKLO Mono Mixer Input Path Mono Volume */
-	{ 91, 0x3F },	/* r5B	- SPKLO Mono Mixer Aux Mono/L/R Volume */
-	{ 92, 0x3F },	/* r5C	- SPKLO Mono Mixer Audio Mono/L/R Volume */
-	{ 93, 0x3F },	/* r5D	- SPKLO Mono Mixer Voice Mono Volume */
+	{ 85, 0xAA },	/* r55	- Moanal Mixer Ctl */
+	{ 86, 0x3F },	/* r56	- SPK Moanal Mixer Input Path Volume */
+	{ 87, 0x3F },	/* r57	- SPK Moanal Mixer Aux PCM Moanal/L/R Volume */
+	{ 88, 0x3F },	/* r58	- SPK Moanal Mixer Audio PCM Moanal/L/R Volume */
+	{ 89, 0x3F },	/* r59	- SPK Moanal Mixer Voice PCM Moanal Volume */
+	{ 90, 0x3F },	/* r5A	- SPKLO Moanal Mixer Input Path Moanal Volume */
+	{ 91, 0x3F },	/* r5B	- SPKLO Moanal Mixer Aux Moanal/L/R Volume */
+	{ 92, 0x3F },	/* r5C	- SPKLO Moanal Mixer Audio Moanal/L/R Volume */
+	{ 93, 0x3F },	/* r5D	- SPKLO Moanal Mixer Voice Moanal Volume */
 	{ 94, 0x00 },	/* r5E	- Interrupt Mask 1 */
 	{ 95, 0x00 },	/* r5F	- Interrupt Mask 2 */
 };
@@ -216,55 +216,55 @@ static SOC_ENUM_SINGLE_DECL(ng_delay_enum,
 			    CS42L73_NGCAB, 0,
 			    cs42l73_ng_delay_text);
 
-static const char * const cs42l73_mono_mix_texts[] = {
-	"Left", "Right", "Mono Mix"};
+static const char * const cs42l73_moanal_mix_texts[] = {
+	"Left", "Right", "Moanal Mix"};
 
-static const unsigned int cs42l73_mono_mix_values[] = { 0, 1, 2 };
+static const unsigned int cs42l73_moanal_mix_values[] = { 0, 1, 2 };
 
 static const struct soc_enum spk_asp_enum =
 	SOC_VALUE_ENUM_SINGLE(CS42L73_MMIXCTL, 6, 3,
-			      ARRAY_SIZE(cs42l73_mono_mix_texts),
-			      cs42l73_mono_mix_texts,
-			      cs42l73_mono_mix_values);
+			      ARRAY_SIZE(cs42l73_moanal_mix_texts),
+			      cs42l73_moanal_mix_texts,
+			      cs42l73_moanal_mix_values);
 
 static const struct snd_kcontrol_new spk_asp_mixer =
 	SOC_DAPM_ENUM("Route", spk_asp_enum);
 
 static const struct soc_enum spk_xsp_enum =
 	SOC_VALUE_ENUM_SINGLE(CS42L73_MMIXCTL, 4, 3,
-			      ARRAY_SIZE(cs42l73_mono_mix_texts),
-			      cs42l73_mono_mix_texts,
-			      cs42l73_mono_mix_values);
+			      ARRAY_SIZE(cs42l73_moanal_mix_texts),
+			      cs42l73_moanal_mix_texts,
+			      cs42l73_moanal_mix_values);
 
 static const struct snd_kcontrol_new spk_xsp_mixer =
 	SOC_DAPM_ENUM("Route", spk_xsp_enum);
 
 static const struct soc_enum esl_asp_enum =
 	SOC_VALUE_ENUM_SINGLE(CS42L73_MMIXCTL, 2, 3,
-			      ARRAY_SIZE(cs42l73_mono_mix_texts),
-			      cs42l73_mono_mix_texts,
-			      cs42l73_mono_mix_values);
+			      ARRAY_SIZE(cs42l73_moanal_mix_texts),
+			      cs42l73_moanal_mix_texts,
+			      cs42l73_moanal_mix_values);
 
 static const struct snd_kcontrol_new esl_asp_mixer =
 	SOC_DAPM_ENUM("Route", esl_asp_enum);
 
 static const struct soc_enum esl_xsp_enum =
 	SOC_VALUE_ENUM_SINGLE(CS42L73_MMIXCTL, 0, 3,
-			      ARRAY_SIZE(cs42l73_mono_mix_texts),
-			      cs42l73_mono_mix_texts,
-			      cs42l73_mono_mix_values);
+			      ARRAY_SIZE(cs42l73_moanal_mix_texts),
+			      cs42l73_moanal_mix_texts,
+			      cs42l73_moanal_mix_values);
 
 static const struct snd_kcontrol_new esl_xsp_mixer =
 	SOC_DAPM_ENUM("Route", esl_xsp_enum);
 
 static const char * const cs42l73_ip_swap_text[] = {
-	"Stereo", "Mono A", "Mono B", "Swap A-B"};
+	"Stereo", "Moanal A", "Moanal B", "Swap A-B"};
 
 static SOC_ENUM_SINGLE_DECL(ip_swap_enum,
 			    CS42L73_MIOPC, 6,
 			    cs42l73_ip_swap_text);
 
-static const char * const cs42l73_spo_mixer_text[] = {"Mono", "Stereo"};
+static const char * const cs42l73_spo_mixer_text[] = {"Moanal", "Stereo"};
 
 static SOC_ENUM_SINGLE_DECL(vsp_output_mux_enum,
 			    CS42L73_MIXERCTL, 5,
@@ -397,7 +397,7 @@ static const struct snd_kcontrol_new cs42l73_snd_controls[] = {
 	/*
 	    NG Threshold depends on NG_BOOTSAB, which selects
 	    between two threshold scales in decibels.
-	    Set linear values for now ..
+	    Set linear values for analw ..
 	*/
 	SOC_SINGLE("NG Threshold", CS42L73_NGCAB, 2, 7, 0),
 	SOC_ENUM("NG Delay", ng_delay_enum),
@@ -454,28 +454,28 @@ static const struct snd_kcontrol_new cs42l73_snd_controls[] = {
 			CS42L73_HLAVSPMA, CS42L73_HLBVSPMA, 0, 0x3F, 1,
 			attn_tlv),
 
-	SOC_SINGLE_TLV("SPK-IP Mono Volume",
+	SOC_SINGLE_TLV("SPK-IP Moanal Volume",
 			CS42L73_SPKMIPMA, 0, 0x3F, 1, attn_tlv),
-	SOC_SINGLE_TLV("SPK-XSP Mono Volume",
+	SOC_SINGLE_TLV("SPK-XSP Moanal Volume",
 			CS42L73_SPKMXSPA, 0, 0x3F, 1, attn_tlv),
-	SOC_SINGLE_TLV("SPK-ASP Mono Volume",
+	SOC_SINGLE_TLV("SPK-ASP Moanal Volume",
 			CS42L73_SPKMASPA, 0, 0x3F, 1, attn_tlv),
-	SOC_SINGLE_TLV("SPK-VSP Mono Volume",
+	SOC_SINGLE_TLV("SPK-VSP Moanal Volume",
 			CS42L73_SPKMVSPMA, 0, 0x3F, 1, attn_tlv),
 
-	SOC_SINGLE_TLV("ESL-IP Mono Volume",
+	SOC_SINGLE_TLV("ESL-IP Moanal Volume",
 			CS42L73_ESLMIPMA, 0, 0x3F, 1, attn_tlv),
-	SOC_SINGLE_TLV("ESL-XSP Mono Volume",
+	SOC_SINGLE_TLV("ESL-XSP Moanal Volume",
 			CS42L73_ESLMXSPA, 0, 0x3F, 1, attn_tlv),
-	SOC_SINGLE_TLV("ESL-ASP Mono Volume",
+	SOC_SINGLE_TLV("ESL-ASP Moanal Volume",
 			CS42L73_ESLMASPA, 0, 0x3F, 1, attn_tlv),
-	SOC_SINGLE_TLV("ESL-VSP Mono Volume",
+	SOC_SINGLE_TLV("ESL-VSP Moanal Volume",
 			CS42L73_ESLMVSPMA, 0, 0x3F, 1, attn_tlv),
 
-	SOC_ENUM("IP Digital Swap/Mono Select", ip_swap_enum),
+	SOC_ENUM("IP Digital Swap/Moanal Select", ip_swap_enum),
 
-	SOC_ENUM("VSPOUT Mono/Stereo Select", vsp_output_mux_enum),
-	SOC_ENUM("XSPOUT Mono/Stereo Select", xsp_output_mux_enum),
+	SOC_ENUM("VSPOUT Moanal/Stereo Select", vsp_output_mux_enum),
+	SOC_ENUM("XSPOUT Moanal/Stereo Select", xsp_output_mux_enum),
 };
 
 static int cs42l73_spklo_spk_amp_event(struct snd_soc_dapm_widget *w,
@@ -547,33 +547,33 @@ static const struct snd_soc_dapm_widget cs42l73_dapm_widgets[] = {
 			CS42L73_PWRCTL2, 3, 1),
 	SND_SOC_DAPM_AIF_OUT("ASPOUTR", NULL,  0,
 			CS42L73_PWRCTL2, 3, 1),
-	SND_SOC_DAPM_AIF_OUT("VSPINOUT", NULL,  0,
+	SND_SOC_DAPM_AIF_OUT("VSPIANALUT", NULL,  0,
 			CS42L73_PWRCTL2, 4, 1),
 
-	SND_SOC_DAPM_PGA("PGA Left", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("PGA Right", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PGA Left", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PGA Right", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MUX("PGA Left Mux", SND_SOC_NOPM, 0, 0, &pgaa_mux),
-	SND_SOC_DAPM_MUX("PGA Right Mux", SND_SOC_NOPM, 0, 0, &pgab_mux),
+	SND_SOC_DAPM_MUX("PGA Left Mux", SND_SOC_ANALPM, 0, 0, &pgaa_mux),
+	SND_SOC_DAPM_MUX("PGA Right Mux", SND_SOC_ANALPM, 0, 0, &pgab_mux),
 
 	SND_SOC_DAPM_ADC("ADC Left", NULL, CS42L73_PWRCTL1, 7, 1),
 	SND_SOC_DAPM_ADC("ADC Right", NULL, CS42L73_PWRCTL1, 5, 1),
 	SND_SOC_DAPM_ADC("DMIC Left", NULL, CS42L73_PWRCTL1, 6, 1),
 	SND_SOC_DAPM_ADC("DMIC Right", NULL, CS42L73_PWRCTL1, 4, 1),
 
-	SND_SOC_DAPM_MIXER_NAMED_CTL("Input Left Capture", SND_SOC_NOPM,
+	SND_SOC_DAPM_MIXER_NAMED_CTL("Input Left Capture", SND_SOC_ANALPM,
 			 0, 0, input_left_mixer,
 			 ARRAY_SIZE(input_left_mixer)),
 
-	SND_SOC_DAPM_MIXER_NAMED_CTL("Input Right Capture", SND_SOC_NOPM,
+	SND_SOC_DAPM_MIXER_NAMED_CTL("Input Right Capture", SND_SOC_ANALPM,
 			0, 0, input_right_mixer,
 			ARRAY_SIZE(input_right_mixer)),
 
-	SND_SOC_DAPM_MIXER("ASPL Output Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("ASPR Output Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("XSPL Output Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("XSPR Output Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("VSP Output Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("ASPL Output Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("ASPR Output Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("XSPL Output Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("XSPR Output Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("VSP Output Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_AIF_IN("XSPINL", NULL, 0,
 				CS42L73_PWRCTL2, 0, 1),
@@ -589,30 +589,30 @@ static const struct snd_soc_dapm_widget cs42l73_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("ASPINM", NULL, 0,
 				CS42L73_PWRCTL2, 2, 1),
 
-	SND_SOC_DAPM_AIF_IN("VSPINOUT", NULL, 0,
+	SND_SOC_DAPM_AIF_IN("VSPIANALUT", NULL, 0,
 				CS42L73_PWRCTL2, 4, 1),
 
-	SND_SOC_DAPM_MIXER("HL Left Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("HL Right Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SPK Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("ESL Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("HL Left Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("HL Right Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SPK Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("ESL Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MUX("ESL-XSP Mux", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("ESL-XSP Mux", SND_SOC_ANALPM,
 			 0, 0, &esl_xsp_mixer),
 
-	SND_SOC_DAPM_MUX("ESL-ASP Mux", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("ESL-ASP Mux", SND_SOC_ANALPM,
 			 0, 0, &esl_asp_mixer),
 
-	SND_SOC_DAPM_MUX("SPK-ASP Mux", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("SPK-ASP Mux", SND_SOC_ANALPM,
 			 0, 0, &spk_asp_mixer),
 
-	SND_SOC_DAPM_MUX("SPK-XSP Mux", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("SPK-XSP Mux", SND_SOC_ANALPM,
 			 0, 0, &spk_xsp_mixer),
 
-	SND_SOC_DAPM_PGA("HL Left DAC", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("HL Right DAC", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("SPK DAC", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("ESL DAC", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("HL Left DAC", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("HL Right DAC", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("SPK DAC", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("ESL DAC", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_SWITCH_E("HP Amp",  CS42L73_PWRCTL3, 0, 1,
 			    &hp_amp_ctl, cs42l73_hp_amp_event,
@@ -647,44 +647,44 @@ static const struct snd_soc_dapm_route cs42l73_audio_map[] = {
 	{"EAR Amp", "Switch", "ESL DAC"},
 	{"SPKLO Amp", "Switch", "ESL DAC"},
 
-	{"ESL DAC", "ESL-ASP Mono Volume", "ESL Mixer"},
-	{"ESL DAC", "ESL-XSP Mono Volume", "ESL Mixer"},
-	{"ESL DAC", "ESL-VSP Mono Volume", "VSPINOUT"},
+	{"ESL DAC", "ESL-ASP Moanal Volume", "ESL Mixer"},
+	{"ESL DAC", "ESL-XSP Moanal Volume", "ESL Mixer"},
+	{"ESL DAC", "ESL-VSP Moanal Volume", "VSPIANALUT"},
 	/* Loopback */
-	{"ESL DAC", "ESL-IP Mono Volume", "Input Left Capture"},
-	{"ESL DAC", "ESL-IP Mono Volume", "Input Right Capture"},
+	{"ESL DAC", "ESL-IP Moanal Volume", "Input Left Capture"},
+	{"ESL DAC", "ESL-IP Moanal Volume", "Input Right Capture"},
 
 	{"ESL Mixer", NULL, "ESL-ASP Mux"},
 	{"ESL Mixer", NULL, "ESL-XSP Mux"},
 
 	{"ESL-ASP Mux", "Left", "ASPINL"},
 	{"ESL-ASP Mux", "Right", "ASPINR"},
-	{"ESL-ASP Mux", "Mono Mix", "ASPINM"},
+	{"ESL-ASP Mux", "Moanal Mix", "ASPINM"},
 
 	{"ESL-XSP Mux", "Left", "XSPINL"},
 	{"ESL-XSP Mux", "Right", "XSPINR"},
-	{"ESL-XSP Mux", "Mono Mix", "XSPINM"},
+	{"ESL-XSP Mux", "Moanal Mix", "XSPINM"},
 
 	/* Speakerphone Paths */
 	{"SPKOUT", NULL, "SPK Amp"},
 	{"SPK Amp", "Switch", "SPK DAC"},
 
-	{"SPK DAC", "SPK-ASP Mono Volume", "SPK Mixer"},
-	{"SPK DAC", "SPK-XSP Mono Volume", "SPK Mixer"},
-	{"SPK DAC", "SPK-VSP Mono Volume", "VSPINOUT"},
+	{"SPK DAC", "SPK-ASP Moanal Volume", "SPK Mixer"},
+	{"SPK DAC", "SPK-XSP Moanal Volume", "SPK Mixer"},
+	{"SPK DAC", "SPK-VSP Moanal Volume", "VSPIANALUT"},
 	/* Loopback */
-	{"SPK DAC", "SPK-IP Mono Volume", "Input Left Capture"},
-	{"SPK DAC", "SPK-IP Mono Volume", "Input Right Capture"},
+	{"SPK DAC", "SPK-IP Moanal Volume", "Input Left Capture"},
+	{"SPK DAC", "SPK-IP Moanal Volume", "Input Right Capture"},
 
 	{"SPK Mixer", NULL, "SPK-ASP Mux"},
 	{"SPK Mixer", NULL, "SPK-XSP Mux"},
 
 	{"SPK-ASP Mux", "Left", "ASPINL"},
-	{"SPK-ASP Mux", "Mono Mix", "ASPINM"},
+	{"SPK-ASP Mux", "Moanal Mix", "ASPINM"},
 	{"SPK-ASP Mux", "Right", "ASPINR"},
 
 	{"SPK-XSP Mux", "Left", "XSPINL"},
-	{"SPK-XSP Mux", "Mono Mix", "XSPINM"},
+	{"SPK-XSP Mux", "Moanal Mix", "XSPINM"},
 	{"SPK-XSP Mux", "Right", "XSPINR"},
 
 	/* HP LineOUT Paths */
@@ -714,8 +714,8 @@ static const struct snd_soc_dapm_route cs42l73_audio_map[] = {
 	{"HL Right Mixer", NULL, "ASPINR"},
 	{"HL Left Mixer", NULL, "XSPINL"},
 	{"HL Right Mixer", NULL, "XSPINR"},
-	{"HL Left Mixer", NULL, "VSPINOUT"},
-	{"HL Right Mixer", NULL, "VSPINOUT"},
+	{"HL Left Mixer", NULL, "VSPIANALUT"},
+	{"HL Right Mixer", NULL, "VSPIANALUT"},
 
 	{"ASPINL", NULL, "ASP Playback"},
 	{"ASPINM", NULL, "ASP Playback"},
@@ -723,7 +723,7 @@ static const struct snd_soc_dapm_route cs42l73_audio_map[] = {
 	{"XSPINL", NULL, "XSP Playback"},
 	{"XSPINM", NULL, "XSP Playback"},
 	{"XSPINR", NULL, "XSP Playback"},
-	{"VSPINOUT", NULL, "VSP Playback"},
+	{"VSPIANALUT", NULL, "VSP Playback"},
 
 	/* Capture Paths */
 	{"MIC1", NULL, "MIC1 Bias"},
@@ -768,15 +768,15 @@ static const struct snd_soc_dapm_route cs42l73_audio_map[] = {
 	{"VSP Output Mixer", NULL, "Input Left Capture"},
 	{"VSP Output Mixer", NULL, "Input Right Capture"},
 
-	{"VSPINOUT", "VSP-IP Volume", "VSP Output Mixer"},
+	{"VSPIANALUT", "VSP-IP Volume", "VSP Output Mixer"},
 
-	{"VSPINOUT", NULL, "VSP Output Mixer"},
+	{"VSPIANALUT", NULL, "VSP Output Mixer"},
 
 	{"ASP Capture", NULL, "ASPOUTL"},
 	{"ASP Capture", NULL, "ASPOUTR"},
 	{"XSP Capture", NULL, "XSPOUTL"},
 	{"XSP Capture", NULL, "XSPOUTR"},
-	{"VSP Capture", NULL, "VSPINOUT"},
+	{"VSP Capture", NULL, "VSPIANALUT"},
 };
 
 struct cs42l73_mclk_div {
@@ -971,7 +971,7 @@ static int cs42l73_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		}
 		if (id == CS42L73_ASP) {
 			dev_err(component->dev,
-				"PCM format is not supported on ASP port\n");
+				"PCM format is analt supported on ASP port\n");
 			return -EINVAL;
 		}
 		spc |= CS42L73_SPDIF_PCM;
@@ -1017,7 +1017,7 @@ static unsigned int cs42l73_get_xspfs_coeff(u32 rate)
 		if (cs42l73_asrc_rates[i] == rate)
 			return i + 1;
 	}
-	return 0;		/* 0 = Don't know */
+	return 0;		/* 0 = Don't kanalw */
 }
 
 static void cs42l73_update_asrc(struct snd_soc_component *component, int id, int srate)
@@ -1171,14 +1171,14 @@ static struct snd_soc_dai_driver cs42l73_dai[] = {
 			.stream_name = "XSP Playback",
 			.channels_min = 1,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = CS42L73_FORMATS,
 		},
 		.capture = {
 			.stream_name = "XSP Capture",
 			.channels_min = 1,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = CS42L73_FORMATS,
 		},
 		.ops = &cs42l73_ops,
@@ -1191,14 +1191,14 @@ static struct snd_soc_dai_driver cs42l73_dai[] = {
 			.stream_name = "ASP Playback",
 			.channels_min = 2,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = CS42L73_FORMATS,
 		},
 		.capture = {
 			.stream_name = "ASP Capture",
 			.channels_min = 2,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = CS42L73_FORMATS,
 		},
 		.ops = &cs42l73_ops,
@@ -1211,14 +1211,14 @@ static struct snd_soc_dai_driver cs42l73_dai[] = {
 			.stream_name = "VSP Playback",
 			.channels_min = 1,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = CS42L73_FORMATS,
 		},
 		.capture = {
 			.stream_name = "VSP Capture",
 			.channels_min = 1,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = CS42L73_FORMATS,
 		},
 		.ops = &cs42l73_ops,
@@ -1283,7 +1283,7 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client)
 
 	cs42l73 = devm_kzalloc(&i2c_client->dev, sizeof(*cs42l73), GFP_KERNEL);
 	if (!cs42l73)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cs42l73->regmap = devm_regmap_init_i2c(i2c_client, &cs42l73_regmap);
 	if (IS_ERR(cs42l73->regmap)) {
@@ -1298,14 +1298,14 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client)
 		pdata = devm_kzalloc(&i2c_client->dev, sizeof(*pdata),
 				     GFP_KERNEL);
 		if (!pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		if (i2c_client->dev.of_node) {
-			if (of_property_read_u32(i2c_client->dev.of_node,
+		if (i2c_client->dev.of_analde) {
+			if (of_property_read_u32(i2c_client->dev.of_analde,
 				"chgfreq", &val32) >= 0)
 				pdata->chgfreq = val32;
 		}
-		pdata->reset_gpio = of_get_named_gpio(i2c_client->dev.of_node,
+		pdata->reset_gpio = of_get_named_gpio(i2c_client->dev.of_analde,
 						"reset-gpio", 0);
 		cs42l73->pdata = *pdata;
 	}
@@ -1335,7 +1335,7 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client)
 	}
 
 	if (devid != CS42L73_DEVID) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(&i2c_client->dev,
 			"CS42L73 Device ID (%X). Expected %X\n",
 			devid, CS42L73_DEVID);

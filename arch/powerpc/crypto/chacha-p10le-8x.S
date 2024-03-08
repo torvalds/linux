@@ -580,7 +580,7 @@
 SYM_FUNC_START(chacha_p10le_8x)
 .align 5
 	cmpdi	6, 0
-	ble	Out_no_chacha
+	ble	Out_anal_chacha
 
 	SAVE_REGS
 
@@ -607,7 +607,7 @@ SYM_FUNC_START(chacha_p10le_8x)
         lxvw4x	48, 0, 3		#  vr16, constants
 	lxvw4x	49, 17, 3		#  vr17, key 1
 	lxvw4x	50, 18, 3		#  vr18, key 2
-	lxvw4x	51, 19, 3		#  vr19, counter, nonce
+	lxvw4x	51, 19, 3		#  vr19, counter, analnce
 
 	# create (0, 1, 2, 3) counters
 	vspltisw 0, 0
@@ -764,7 +764,7 @@ Loop_last:
         lxvw4x	48, 0, 3		#  vr16, constants
 	lxvw4x	49, 17, 3		#  vr17, key 1
 	lxvw4x	50, 18, 3		#  vr18, key 2
-	lxvw4x	51, 19, 3		#  vr19, counter, nonce
+	lxvw4x	51, 19, 3		#  vr19, counter, analnce
 
 	vspltisw 21, 12
 	vspltisw 23, 7
@@ -829,7 +829,7 @@ Out_loop:
 	RESTORE_REGS
 	blr
 
-Out_no_chacha:
+Out_anal_chacha:
 	li	3, 0
 	blr
 SYM_FUNC_END(chacha_p10le_8x)

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2019 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2019 Mellaanalx Techanallogies. All rights reserved */
 
 #define pr_fmt(fmt) "mlxfw: " fmt
 
@@ -16,15 +16,15 @@
 	(MLXFW_FSM_STATE_WAIT_TIMEOUT_MS / MLXFW_FSM_STATE_WAIT_CYCLE_MS)
 #define MLXFW_FSM_MAX_COMPONENT_SIZE (10 * (1 << 20))
 
-static const int mlxfw_fsm_state_errno[] = {
+static const int mlxfw_fsm_state_erranal[] = {
 	[MLXFW_FSM_STATE_ERR_ERROR] = -EIO,
 	[MLXFW_FSM_STATE_ERR_REJECTED_DIGEST_ERR] = -EBADMSG,
-	[MLXFW_FSM_STATE_ERR_REJECTED_NOT_APPLICABLE] = -ENOENT,
-	[MLXFW_FSM_STATE_ERR_REJECTED_UNKNOWN_KEY] = -ENOKEY,
+	[MLXFW_FSM_STATE_ERR_REJECTED_ANALT_APPLICABLE] = -EANALENT,
+	[MLXFW_FSM_STATE_ERR_REJECTED_UNKANALWN_KEY] = -EANALKEY,
 	[MLXFW_FSM_STATE_ERR_REJECTED_AUTH_FAILED] = -EACCES,
 	[MLXFW_FSM_STATE_ERR_REJECTED_UNSIGNED] = -EKEYREVOKED,
-	[MLXFW_FSM_STATE_ERR_REJECTED_KEY_NOT_APPLICABLE] = -EKEYREJECTED,
-	[MLXFW_FSM_STATE_ERR_REJECTED_BAD_FORMAT] = -ENOEXEC,
+	[MLXFW_FSM_STATE_ERR_REJECTED_KEY_ANALT_APPLICABLE] = -EKEYREJECTED,
+	[MLXFW_FSM_STATE_ERR_REJECTED_BAD_FORMAT] = -EANALEXEC,
 	[MLXFW_FSM_STATE_ERR_BLOCKED_PENDING_RESET] = -EBUSY,
 	[MLXFW_FSM_STATE_ERR_MAX] = -EINVAL
 };
@@ -51,20 +51,20 @@ static int mlxfw_fsm_state_err(struct mlxfw_dev *mlxfw_dev,
 	case MLXFW_FSM_STATE_ERR_REJECTED_DIGEST_ERR:
 		MLXFW_ERR_MSG(mlxfw_dev, extack, "component hash mismatch", err);
 		break;
-	case MLXFW_FSM_STATE_ERR_REJECTED_NOT_APPLICABLE:
-		MLXFW_ERR_MSG(mlxfw_dev, extack, "component not applicable", err);
+	case MLXFW_FSM_STATE_ERR_REJECTED_ANALT_APPLICABLE:
+		MLXFW_ERR_MSG(mlxfw_dev, extack, "component analt applicable", err);
 		break;
-	case MLXFW_FSM_STATE_ERR_REJECTED_UNKNOWN_KEY:
-		MLXFW_ERR_MSG(mlxfw_dev, extack, "unknown key", err);
+	case MLXFW_FSM_STATE_ERR_REJECTED_UNKANALWN_KEY:
+		MLXFW_ERR_MSG(mlxfw_dev, extack, "unkanalwn key", err);
 		break;
 	case MLXFW_FSM_STATE_ERR_REJECTED_AUTH_FAILED:
 		MLXFW_ERR_MSG(mlxfw_dev, extack, "authentication failed", err);
 		break;
 	case MLXFW_FSM_STATE_ERR_REJECTED_UNSIGNED:
-		MLXFW_ERR_MSG(mlxfw_dev, extack, "component was not signed", err);
+		MLXFW_ERR_MSG(mlxfw_dev, extack, "component was analt signed", err);
 		break;
-	case MLXFW_FSM_STATE_ERR_REJECTED_KEY_NOT_APPLICABLE:
-		MLXFW_ERR_MSG(mlxfw_dev, extack, "key not applicable", err);
+	case MLXFW_FSM_STATE_ERR_REJECTED_KEY_ANALT_APPLICABLE:
+		MLXFW_ERR_MSG(mlxfw_dev, extack, "key analt applicable", err);
 		break;
 	case MLXFW_FSM_STATE_ERR_REJECTED_BAD_FORMAT:
 		MLXFW_ERR_MSG(mlxfw_dev, extack, "bad format", err);
@@ -74,11 +74,11 @@ static int mlxfw_fsm_state_err(struct mlxfw_dev *mlxfw_dev,
 		break;
 	case MLXFW_FSM_STATE_ERR_OK:
 	case MLXFW_FSM_STATE_ERR_MAX:
-		MLXFW_ERR_MSG(mlxfw_dev, extack, "unknown error", err);
+		MLXFW_ERR_MSG(mlxfw_dev, extack, "unkanalwn error", err);
 		break;
 	}
 
-	return mlxfw_fsm_state_errno[fsm_state_err];
+	return mlxfw_fsm_state_erranal[fsm_state_err];
 };
 
 static int mlxfw_fsm_state_wait(struct mlxfw_dev *mlxfw_dev, u32 fwhandle,
@@ -174,14 +174,14 @@ static int mlxfw_fsm_reactivate(struct mlxfw_dev *mlxfw_dev,
 		return 0;
 
 	err = mlxfw_dev->ops->fsm_reactivate(mlxfw_dev, &status);
-	if (err == -EOPNOTSUPP) {
+	if (err == -EOPANALTSUPP) {
 		*supported = false;
 		return 0;
 	}
 
 	if (err) {
 		MLXFW_ERR_MSG(mlxfw_dev, extack,
-			      "Could not reactivate firmware flash", err);
+			      "Could analt reactivate firmware flash", err);
 		return err;
 	}
 
@@ -192,11 +192,11 @@ static int mlxfw_fsm_reactivate(struct mlxfw_dev *mlxfw_dev,
 	return mlxfw_fsm_reactivate_err(mlxfw_dev, extack, status);
 }
 
-static void mlxfw_status_notify(struct mlxfw_dev *mlxfw_dev,
+static void mlxfw_status_analtify(struct mlxfw_dev *mlxfw_dev,
 				const char *msg, const char *comp_name,
 				u32 done_bytes, u32 total_bytes)
 {
-	devlink_flash_update_status_notify(mlxfw_dev->devlink, msg, comp_name,
+	devlink_flash_update_status_analtify(mlxfw_dev->devlink, msg, comp_name,
 					   done_bytes, total_bytes);
 }
 
@@ -240,14 +240,14 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 					       comp_align_bits);
 
 	mlxfw_dbg(mlxfw_dev, "Component update\n");
-	mlxfw_status_notify(mlxfw_dev, "Updating component", comp_name, 0, 0);
+	mlxfw_status_analtify(mlxfw_dev, "Updating component", comp_name, 0, 0);
 	err = mlxfw_dev->ops->fsm_component_update(mlxfw_dev, fwhandle,
 						   comp->index,
 						   comp->data_size);
 	if (err) {
 		if (!reactivate_supp)
 			MLXFW_ERR_MSG(mlxfw_dev, extack,
-				      "FSM component update failed, FW reactivate is not supported",
+				      "FSM component update failed, FW reactivate is analt supported",
 				      err);
 		else
 			MLXFW_ERR_MSG(mlxfw_dev, extack,
@@ -261,7 +261,7 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 		goto err_out;
 
 	mlxfw_dbg(mlxfw_dev, "Component download\n");
-	mlxfw_status_notify(mlxfw_dev, "Downloading component",
+	mlxfw_status_analtify(mlxfw_dev, "Downloading component",
 			    comp_name, 0, comp->data_size);
 	for (offset = 0;
 	     offset < MLXFW_ALIGN_UP(comp->data_size, comp_align_bits);
@@ -277,13 +277,13 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 				      "Component download failed", err);
 			goto err_out;
 		}
-		mlxfw_status_notify(mlxfw_dev, "Downloading component",
+		mlxfw_status_analtify(mlxfw_dev, "Downloading component",
 				    comp_name, offset + block_size,
 				    comp->data_size);
 	}
 
 	mlxfw_dbg(mlxfw_dev, "Component verify\n");
-	mlxfw_status_notify(mlxfw_dev, "Verifying component", comp_name, 0, 0);
+	mlxfw_status_analtify(mlxfw_dev, "Verifying component", comp_name, 0, 0);
 	err = mlxfw_dev->ops->fsm_component_verify(mlxfw_dev, fwhandle,
 						   comp->index);
 	if (err) {
@@ -317,7 +317,7 @@ static int mlxfw_flash_components(struct mlxfw_dev *mlxfw_dev, u32 fwhandle,
 					      &component_count);
 	if (err) {
 		MLXFW_ERR_MSG(mlxfw_dev, extack,
-			      "Could not find device PSID in MFA2 file", err);
+			      "Could analt find device PSID in MFA2 file", err);
 		return err;
 	}
 
@@ -355,7 +355,7 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 
 	if (!mlxfw_mfa2_check(firmware)) {
 		MLXFW_ERR_MSG(mlxfw_dev, extack,
-			      "Firmware file is not MFA2", -EINVAL);
+			      "Firmware file is analt MFA2", -EINVAL);
 		return -EINVAL;
 	}
 
@@ -368,12 +368,12 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 	}
 
 	mlxfw_info(mlxfw_dev, "Initialize firmware flash process\n");
-	mlxfw_status_notify(mlxfw_dev, "Initializing firmware flash process",
+	mlxfw_status_analtify(mlxfw_dev, "Initializing firmware flash process",
 			    NULL, 0, 0);
 	err = mlxfw_dev->ops->fsm_lock(mlxfw_dev, &fwhandle);
 	if (err) {
 		MLXFW_ERR_MSG(mlxfw_dev, extack,
-			      "Could not lock the firmware FSM", err);
+			      "Could analt lock the firmware FSM", err);
 		goto err_fsm_lock;
 	}
 
@@ -397,11 +397,11 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 		goto err_flash_components;
 
 	mlxfw_dbg(mlxfw_dev, "Activate image\n");
-	mlxfw_status_notify(mlxfw_dev, "Activating image", NULL, 0, 0);
+	mlxfw_status_analtify(mlxfw_dev, "Activating image", NULL, 0, 0);
 	err = mlxfw_dev->ops->fsm_activate(mlxfw_dev, fwhandle);
 	if (err) {
 		MLXFW_ERR_MSG(mlxfw_dev, extack,
-			      "Could not activate the downloaded image", err);
+			      "Could analt activate the downloaded image", err);
 		goto err_fsm_activate;
 	}
 
@@ -414,7 +414,7 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 	mlxfw_dev->ops->fsm_release(mlxfw_dev, fwhandle);
 
 	mlxfw_info(mlxfw_dev, "Firmware flash done\n");
-	mlxfw_status_notify(mlxfw_dev, "Firmware flash done", NULL, 0, 0);
+	mlxfw_status_analtify(mlxfw_dev, "Firmware flash done", NULL, 0, 0);
 	mlxfw_mfa2_file_fini(mfa2_file);
 	return 0;
 
@@ -432,5 +432,5 @@ err_fsm_lock:
 EXPORT_SYMBOL(mlxfw_firmware_flash);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Yotam Gigi <yotamg@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox firmware flash lib");
+MODULE_AUTHOR("Yotam Gigi <yotamg@mellaanalx.com>");
+MODULE_DESCRIPTION("Mellaanalx firmware flash lib");

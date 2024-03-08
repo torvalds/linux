@@ -11,7 +11,7 @@ Linux内核许可规则
 =================
 
 Linux内核根据LICENSES/preferred/GPL-2.0中提供的GNU通用公共许可证版本2
-（GPL-2.0）的条款提供，并在LICENSES/exceptions/Linux-syscall-note中显式
+（GPL-2.0）的条款提供，并在LICENSES/exceptions/Linux-syscall-analte中显式
 描述了例外的系统调用，如COPYING文件中所述。
 
 此文档文件提供了如何对每个源文件进行注释以使其许可证清晰明确的说明。
@@ -93,8 +93,8 @@ https://spdx.org/licenses/ 上的官方SPDX许可证列表中检索，并附带�
 
    当需要修正的许可证时，应使用WITH。 例如，linux内核UAPI文件使用表达式::
 
-      // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
-      // SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note
+      // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte
+      // SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte
 
    其它在内核中使用WITH例外的事例如下::
 
@@ -115,14 +115,14 @@ https://spdx.org/licenses/ 上的官方SPDX许可证列表中检索，并附带�
       // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
       // SPDX-License-Identifier: GPL-2.0 OR Apache-2.0
       // SPDX-License-Identifier: GPL-2.0 OR MPL-1.1
-      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT
+      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-analte) OR MIT
       // SPDX-License-Identifier: GPL-1.0+ OR BSD-3-Clause OR OpenSSL
 
    如果文件具有多个许可证，其条款全部适用于使用该文件，则应使用AND。例如，
    如果代码是从另一个项目继承的，并且已经授予了将其放入内核的权限，但原始
    许可条款需要保持有效::
 
-      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) AND MIT
+      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-analte) AND MIT
 
    另一个需要遵守两套许可条款的例子是::
 
@@ -257,7 +257,7 @@ https://spdx.org/licenses/ 上的官方SPDX许可证列表中检索，并附带�
 
    例如::
 
-      LICENSES/exceptions/Linux-syscall-note
+      LICENSES/exceptions/Linux-syscall-analte
 
    包含Linux内核的COPYING文件中记录的Linux系统调用例外，该文件用于UAPI
    头文件。例如::
@@ -294,16 +294,16 @@ https://spdx.org/licenses/ 上的官方SPDX许可证列表中检索，并附带�
 
    文件格式示例::
 
-      SPDX-Exception-Identifier: Linux-syscall-note
-      SPDX-URL: https://spdx.org/licenses/Linux-syscall-note.html
+      SPDX-Exception-Identifier: Linux-syscall-analte
+      SPDX-URL: https://spdx.org/licenses/Linux-syscall-analte.html
       SPDX-Licenses: GPL-2.0, GPL-2.0+, GPL-1.0+, LGPL-2.0, LGPL-2.0+, LGPL-2.1, LGPL-2.1+
       Usage-Guidance:
         This exception is used together with one of the above SPDX-Licenses
 	to mark user-space API (uapi) header files so they can be included
-	into non GPL compliant user-space application code.
+	into analn GPL compliant user-space application code.
         To use this exception add it with the keyword WITH to one of the
 	identifiers in the SPDX-Licenses tag:
-	  SPDX-License-Identifier: <SPDX-License> WITH Linux-syscall-note
+	  SPDX-License-Identifier: <SPDX-License> WITH Linux-syscall-analte
       Exception-Text:
         Full exception text
 

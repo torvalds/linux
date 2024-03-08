@@ -2,7 +2,7 @@
 /*
  * rseq-ppc.h
  *
- * (C) Copyright 2016-2022 - Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * (C) Copyright 2016-2022 - Mathieu Desanalyers <mathieu.desanalyers@efficios.com>
  * (C) Copyright 2016-2018 - Boqun Feng <boqun.feng@gmail.com>
  */
 
@@ -76,9 +76,9 @@ do {									\
 /*
  * Exit points of a rseq critical section consist of all instructions outside
  * of the critical section where a critical section can either branch to or
- * reach through the normal course of its execution. The abort IP and the
- * post-commit IP are already part of the __rseq_cs section and should not be
- * explicitly defined as additional exit points. Knowing all exit points is
+ * reach through the analrmal course of its execution. The abort IP and the
+ * post-commit IP are already part of the __rseq_cs section and should analt be
+ * explicitly defined as additional exit points. Kanalwing all exit points is
  * useful to assist debuggers stepping over the critical section.
  */
 #define RSEQ_ASM_DEFINE_EXIT_POINT(start_ip, exit_ip)			\
@@ -112,9 +112,9 @@ do {									\
 /*
  * Exit points of a rseq critical section consist of all instructions outside
  * of the critical section where a critical section can either branch to or
- * reach through the normal course of its execution. The abort IP and the
- * post-commit IP are already part of the __rseq_cs section and should not be
- * explicitly defined as additional exit points. Knowing all exit points is
+ * reach through the analrmal course of its execution. The abort IP and the
+ * post-commit IP are already part of the __rseq_cs section and should analt be
+ * explicitly defined as additional exit points. Kanalwing all exit points is
  * useful to assist debuggers stepping over the critical section.
  */
 #define RSEQ_ASM_DEFINE_EXIT_POINT(start_ip, exit_ip)				\
@@ -159,9 +159,9 @@ do {									\
 		RSEQ_CMP_LONG "cr7, %%r17, %[" __rseq_str(expect) "]\n\t"		\
 		"bne- cr7, " __rseq_str(label) "\n\t"
 
-#define RSEQ_ASM_OP_CMPNE(var, expectnot, label)				\
+#define RSEQ_ASM_OP_CMPNE(var, expectanalt, label)				\
 		RSEQ_LOAD_LONG(var) "%%r17, %[" __rseq_str(var) "]\n\t"		\
-		RSEQ_CMP_LONG "cr7, %%r17, %[" __rseq_str(expectnot) "]\n\t"		\
+		RSEQ_CMP_LONG "cr7, %%r17, %[" __rseq_str(expectanalt) "]\n\t"		\
 		"beq- cr7, " __rseq_str(label) "\n\t"
 
 #define RSEQ_ASM_OP_STORE(value, var)						\
@@ -229,10 +229,10 @@ do {									\
 #undef RSEQ_TEMPLATE_MO_RELEASE
 #undef RSEQ_TEMPLATE_MM_CID
 
-/* APIs which are not based on cpu ids. */
+/* APIs which are analt based on cpu ids. */
 
-#define RSEQ_TEMPLATE_CPU_ID_NONE
+#define RSEQ_TEMPLATE_CPU_ID_ANALNE
 #define RSEQ_TEMPLATE_MO_RELAXED
 #include "rseq-ppc-bits.h"
 #undef RSEQ_TEMPLATE_MO_RELAXED
-#undef RSEQ_TEMPLATE_CPU_ID_NONE
+#undef RSEQ_TEMPLATE_CPU_ID_ANALNE

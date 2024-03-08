@@ -9,8 +9,8 @@
 
 #include "soctherm.h"
 
-#define NOMINAL_CALIB_FT			105
-#define NOMINAL_CALIB_CP			25
+#define ANALMINAL_CALIB_FT			105
+#define ANALMINAL_CALIB_CP			25
 
 #define FUSE_TSENSOR_CALIB_CP_TS_BASE_MASK	0x1fff
 #define FUSE_TSENSOR_CALIB_FT_TS_BASE_MASK	(0x1fff << 13)
@@ -98,8 +98,8 @@ int tegra_calc_shared_calib(const struct tegra_soctherm_fuse *tfuse,
 
 	shifted_cp = sign_extend32(val, 5);
 
-	shared->actual_temp_cp = 2 * NOMINAL_CALIB_CP + shifted_cp;
-	shared->actual_temp_ft = 2 * NOMINAL_CALIB_FT + shifted_ft;
+	shared->actual_temp_cp = 2 * ANALMINAL_CALIB_CP + shifted_cp;
+	shared->actual_temp_ft = 2 * ANALMINAL_CALIB_FT + shifted_ft;
 
 	return 0;
 }

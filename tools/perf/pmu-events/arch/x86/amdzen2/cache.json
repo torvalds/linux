@@ -48,7 +48,7 @@
     "UMask": "0x01"
   },
   {
-    "EventName": "l2_request_g1.all_no_prefetch",
+    "EventName": "l2_request_g1.all_anal_prefetch",
     "EventCode": "0x60",
     "UMask": "0xf9"
   },
@@ -67,7 +67,7 @@
   {
     "EventName": "l2_request_g2.ls_rd_sized_nc",
     "EventCode": "0x61",
-    "BriefDescription": "All L2 Cache Requests (Breakdown 2 - Rare). Data cache read sized non-cacheable.",
+    "BriefDescription": "All L2 Cache Requests (Breakdown 2 - Rare). Data cache read sized analn-cacheable.",
     "UMask": "0x20"
   },
   {
@@ -79,7 +79,7 @@
   {
     "EventName": "l2_request_g2.ic_rd_sized_nc",
     "EventCode": "0x61",
-    "BriefDescription": "All L2 Cache Requests (Breakdown 2 - Rare). Instruction cache read sized non-cacheable.",
+    "BriefDescription": "All L2 Cache Requests (Breakdown 2 - Rare). Instruction cache read sized analn-cacheable.",
     "UMask": "0x08"
   },
   {
@@ -133,67 +133,67 @@
   {
     "EventName": "l2_cache_req_stat.ls_rd_blk_cs",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Data cache shared read hit in L2",
+    "BriefDescription": "Core to L2 cacheable request access status (analt including L2 Prefetch). Data cache shared read hit in L2",
     "UMask": "0x80"
   },
   {
     "EventName": "l2_cache_req_stat.ls_rd_blk_l_hit_x",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Data cache read hit in L2.",
+    "BriefDescription": "Core to L2 cacheable request access status (analt including L2 Prefetch). Data cache read hit in L2.",
     "UMask": "0x40"
   },
   {
     "EventName": "l2_cache_req_stat.ls_rd_blk_l_hit_s",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Data cache read hit on shared line in L2.",
+    "BriefDescription": "Core to L2 cacheable request access status (analt including L2 Prefetch). Data cache read hit on shared line in L2.",
     "UMask": "0x20"
   },
   {
     "EventName": "l2_cache_req_stat.ls_rd_blk_x",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Data cache store or state change hit in L2.",
+    "BriefDescription": "Core to L2 cacheable request access status (analt including L2 Prefetch). Data cache store or state change hit in L2.",
     "UMask": "0x10"
   },
   {
     "EventName": "l2_cache_req_stat.ls_rd_blk_c",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Data cache request miss in L2 (all types).",
+    "BriefDescription": "Core to L2 cacheable request access status (analt including L2 Prefetch). Data cache request miss in L2 (all types).",
     "UMask": "0x08"
   },
   {
     "EventName": "l2_cache_req_stat.ic_fill_hit_x",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Instruction cache hit modifiable line in L2.",
+    "BriefDescription": "Core to L2 cacheable request access status (analt including L2 Prefetch). Instruction cache hit modifiable line in L2.",
     "UMask": "0x04"
   },
   {
     "EventName": "l2_cache_req_stat.ic_fill_hit_s",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Instruction cache hit clean line in L2.",
+    "BriefDescription": "Core to L2 cacheable request access status (analt including L2 Prefetch). Instruction cache hit clean line in L2.",
     "UMask": "0x02"
   },
   {
     "EventName": "l2_cache_req_stat.ic_fill_miss",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Instruction cache request miss in L2.",
+    "BriefDescription": "Core to L2 cacheable request access status (analt including L2 Prefetch). Instruction cache request miss in L2.",
     "UMask": "0x01"
   },
   {
     "EventName": "l2_cache_req_stat.ic_access_in_l2",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Instruction cache requests in L2.",
+    "BriefDescription": "Core to L2 cacheable request access status (analt including L2 Prefetch). Instruction cache requests in L2.",
     "UMask": "0x07"
   },
   {
     "EventName": "l2_cache_req_stat.ic_dc_miss_in_l2",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Instruction cache request miss in L2 and Data cache request miss in L2 (all types).",
+    "BriefDescription": "Core to L2 cacheable request access status (analt including L2 Prefetch). Instruction cache request miss in L2 and Data cache request miss in L2 (all types).",
     "UMask": "0x09"
   },
   {
     "EventName": "l2_cache_req_stat.ic_dc_hit_in_l2",
     "EventCode": "0x64",
-    "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Instruction cache request hit in L2 and Data cache request hit in L2 (all types).",
+    "BriefDescription": "Core to L2 cacheable request access status (analt including L2 Prefetch). Instruction cache request hit in L2 and Data cache request hit in L2 (all types).",
     "UMask": "0xf6"
   },
   {
@@ -223,7 +223,7 @@
   {
     "EventName": "ic_fw32",
     "EventCode": "0x80",
-    "BriefDescription": "The number of 32B fetch windows transferred from IC pipe to DE instruction decoder (includes non-cacheable and cacheable fill responses)."
+    "BriefDescription": "The number of 32B fetch windows transferred from IC pipe to DE instruction decoder (includes analn-cacheable and cacheable fill responses)."
   },
   {
     "EventName": "ic_fw32_miss",
@@ -238,7 +238,7 @@
   {
     "EventName": "ic_cache_fill_sys",
     "EventCode": "0x83",
-    "BriefDescription": "The number of 64 byte instruction cache line fulfilled from system memory or another cache."
+    "BriefDescription": "The number of 64 byte instruction cache line fulfilled from system memory or aanalther cache."
   },
   {
     "EventName": "bp_l1_tlb_miss_l2_hit",
@@ -272,12 +272,12 @@
   {
     "EventName": "bp_snp_re_sync",
     "EventCode": "0x86",
-    "BriefDescription": "The number of pipeline restarts caused by invalidating probes that hit on the instruction stream currently being executed. This would happen if the active instruction stream was being modified by another processor in an MP system - typically a highly unlikely event."
+    "BriefDescription": "The number of pipeline restarts caused by invalidating probes that hit on the instruction stream currently being executed. This would happen if the active instruction stream was being modified by aanalther processor in an MP system - typically a highly unlikely event."
   },
   {
     "EventName": "ic_fetch_stall.ic_stall_any",
     "EventCode": "0x87",
-    "BriefDescription": "Instruction Pipe Stall. IC pipe was stalled during this clock cycle for any reason (nothing valid in pipe ICM1).",
+    "BriefDescription": "Instruction Pipe Stall. IC pipe was stalled during this clock cycle for any reason (analthing valid in pipe ICM1).",
     "UMask": "0x04"
   },
   {
@@ -295,13 +295,13 @@
   {
     "EventName": "ic_cache_inval.l2_invalidating_probe",
     "EventCode": "0x8c",
-    "BriefDescription": "IC line invalidated due to L2 invalidating probe (external or LS). The number of instruction cache lines invalidated. A non-SMC event is CMC (cross modifying code), either from the other thread of the core or another core.",
+    "BriefDescription": "IC line invalidated due to L2 invalidating probe (external or LS). The number of instruction cache lines invalidated. A analn-SMC event is CMC (cross modifying code), either from the other thread of the core or aanalther core.",
     "UMask": "0x02"
   },
   {
     "EventName": "ic_cache_inval.fill_invalidated",
     "EventCode": "0x8c",
-    "BriefDescription": "IC line invalidated due to overwriting fill response. The number of instruction cache lines invalidated. A non-SMC event is CMC (cross modifying code), either from the other thread of the core or another core.",
+    "BriefDescription": "IC line invalidated due to overwriting fill response. The number of instruction cache lines invalidated. A analn-SMC event is CMC (cross modifying code), either from the other thread of the core or aanalther core.",
     "UMask": "0x01"
   },
   {
@@ -347,14 +347,14 @@
   {
     "EventName": "xi_sys_fill_latency",
     "EventCode": "0x90",
-    "BriefDescription": "L3 Cache Miss Latency. Total cycles for all transactions divided by 16. Ignores SliceMask and ThreadMask.",
+    "BriefDescription": "L3 Cache Miss Latency. Total cycles for all transactions divided by 16. Iganalres SliceMask and ThreadMask.",
     "UMask": "0x00",
     "Unit": "L3PMC"
   },
   {
     "EventName": "xi_ccx_sdp_req1.all_l3_miss_req_typs",
     "EventCode": "0x9a",
-    "BriefDescription": "All L3 Miss Request Types. Ignores SliceMask and ThreadMask.",
+    "BriefDescription": "All L3 Miss Request Types. Iganalres SliceMask and ThreadMask.",
     "UMask": "0x3f",
     "Unit": "L3PMC"
   }

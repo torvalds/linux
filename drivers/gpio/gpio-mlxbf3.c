@@ -190,7 +190,7 @@ static int mlxbf3_gpio_probe(struct platform_device *pdev)
 
 	gs = devm_kzalloc(dev, sizeof(*gs), GFP_KERNEL);
 	if (!gs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gs->gpio_io = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gs->gpio_io))
@@ -227,7 +227,7 @@ static int mlxbf3_gpio_probe(struct platform_device *pdev)
 	if (irq >= 0) {
 		girq = &gs->gc.irq;
 		gpio_irq_chip_set_chip(girq, &gpio_mlxbf3_irqchip);
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		/* This will let us handle the parent IRQ in the driver */
 		girq->num_parents = 0;
 		girq->parents = NULL;

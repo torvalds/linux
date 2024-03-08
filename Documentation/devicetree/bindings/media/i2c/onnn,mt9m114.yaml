@@ -63,7 +63,7 @@ properties:
           remote-endpoint: true
 
           # The number and mapping of lanes (for CSI-2), and the bus width and
-          # signal polarities (for parallel and BT.656) are fixed and must not
+          # signal polarities (for parallel and BT.656) are fixed and must analt
           # be specified.
 
         required:

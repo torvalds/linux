@@ -125,16 +125,16 @@ static int damon_sysfs_regions_add_dirs(struct damon_sysfs_regions *regions,
 		return 0;
 
 	regions_arr = kmalloc_array(nr_regions, sizeof(*regions_arr),
-			GFP_KERNEL | __GFP_NOWARN);
+			GFP_KERNEL | __GFP_ANALWARN);
 	if (!regions_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 	regions->regions_arr = regions_arr;
 
 	for (i = 0; i < nr_regions; i++) {
 		region = damon_sysfs_region_alloc();
 		if (!region) {
 			damon_sysfs_regions_rm_dirs(regions);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		err = kobject_init_and_add(&region->kobj,
@@ -225,7 +225,7 @@ static int damon_sysfs_target_add_dirs(struct damon_sysfs_target *target)
 	int err;
 
 	if (!regions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = kobject_init_and_add(&regions->kobj, &damon_sysfs_regions_ktype,
 			&target->kobj, "regions");
@@ -323,16 +323,16 @@ static int damon_sysfs_targets_add_dirs(struct damon_sysfs_targets *targets,
 		return 0;
 
 	targets_arr = kmalloc_array(nr_targets, sizeof(*targets_arr),
-			GFP_KERNEL | __GFP_NOWARN);
+			GFP_KERNEL | __GFP_ANALWARN);
 	if (!targets_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 	targets->targets_arr = targets_arr;
 
 	for (i = 0; i < nr_targets; i++) {
 		target = damon_sysfs_target_alloc();
 		if (!target) {
 			damon_sysfs_targets_rm_dirs(targets);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		err = kobject_init_and_add(&target->kobj,
@@ -564,7 +564,7 @@ static int damon_sysfs_attrs_add_dirs(struct damon_sysfs_attrs *attrs)
 
 	intervals = damon_sysfs_intervals_alloc(5000, 100000, 60000000);
 	if (!intervals)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = kobject_init_and_add(&intervals->kobj,
 			&damon_sysfs_intervals_ktype, &attrs->kobj,
@@ -575,7 +575,7 @@ static int damon_sysfs_attrs_add_dirs(struct damon_sysfs_attrs *attrs)
 
 	nr_regions_range = damon_sysfs_ul_range_alloc(10, 1000);
 	if (!nr_regions_range) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put_intervals_out;
 	}
 
@@ -656,7 +656,7 @@ static int damon_sysfs_context_set_attrs(struct damon_sysfs_context *context)
 	int err;
 
 	if (!attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = kobject_init_and_add(&attrs->kobj, &damon_sysfs_attrs_ktype,
 			&context->kobj, "monitoring_attrs");
 	if (err)
@@ -678,7 +678,7 @@ static int damon_sysfs_context_set_targets(struct damon_sysfs_context *context)
 	int err;
 
 	if (!targets)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = kobject_init_and_add(&targets->kobj, &damon_sysfs_targets_ktype,
 			&context->kobj, "targets");
 	if (err) {
@@ -695,7 +695,7 @@ static int damon_sysfs_context_set_schemes(struct damon_sysfs_context *context)
 	int err;
 
 	if (!schemes)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = kobject_init_and_add(&schemes->kobj, &damon_sysfs_schemes_ktype,
 			&context->kobj, "schemes");
 	if (err) {
@@ -846,16 +846,16 @@ static int damon_sysfs_contexts_add_dirs(struct damon_sysfs_contexts *contexts,
 		return 0;
 
 	contexts_arr = kmalloc_array(nr_contexts, sizeof(*contexts_arr),
-			GFP_KERNEL | __GFP_NOWARN);
+			GFP_KERNEL | __GFP_ANALWARN);
 	if (!contexts_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 	contexts->contexts_arr = contexts_arr;
 
 	for (i = 0; i < nr_contexts; i++) {
 		context = damon_sysfs_context_alloc(DAMON_OPS_VADDR);
 		if (!context) {
 			damon_sysfs_contexts_rm_dirs(contexts);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		err = kobject_init_and_add(&context->kobj,
@@ -954,7 +954,7 @@ static int damon_sysfs_kdamond_add_dirs(struct damon_sysfs_kdamond *kdamond)
 
 	contexts = damon_sysfs_contexts_alloc();
 	if (!contexts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = kobject_init_and_add(&contexts->kobj,
 			&damon_sysfs_contexts_ktype, &kdamond->kobj,
@@ -1045,7 +1045,7 @@ static const char * const damon_sysfs_cmd_strs[] = {
  * This structure represents a sysfs command request that need to access some
  * DAMON context-internal data.  Because DAMON context-internal data can be
  * safely accessed from DAMON callbacks without additional synchronization, the
- * request will be handled by the DAMON callback.  None-``NULL`` @kdamond means
+ * request will be handled by the DAMON callback.  Analne-``NULL`` @kdamond means
  * the request is valid.
  */
 struct damon_sysfs_cmd_request {
@@ -1106,11 +1106,11 @@ static int damon_sysfs_set_regions(struct damon_target *t,
 		struct damon_sysfs_regions *sysfs_regions)
 {
 	struct damon_addr_range *ranges = kmalloc_array(sysfs_regions->nr,
-			sizeof(*ranges), GFP_KERNEL | __GFP_NOWARN);
+			sizeof(*ranges), GFP_KERNEL | __GFP_ANALWARN);
 	int i, err = -EINVAL;
 
 	if (!ranges)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < sysfs_regions->nr; i++) {
 		struct damon_sysfs_region *sys_region =
 			sysfs_regions->regions_arr[i];
@@ -1139,7 +1139,7 @@ static int damon_sysfs_add_target(struct damon_sysfs_target *sys_target,
 	int err = -EINVAL;
 
 	if (!t)
-		return -ENOMEM;
+		return -EANALMEM;
 	damon_add_target(ctx, t);
 	if (damon_target_has_pid(ctx)) {
 		t->pid = find_get_pid(sys_target->pid);
@@ -1203,7 +1203,7 @@ static int damon_sysfs_set_targets(struct damon_ctx *ctx,
 	struct damon_target *t, *next;
 	int i = 0, err;
 
-	/* Multiple physical address space monitoring targets makes no sense */
+	/* Multiple physical address space monitoring targets makes anal sense */
 	if (ctx->ops.id == DAMON_OPS_PADDR && sysfs_targets->nr > 1)
 		return -EINVAL;
 
@@ -1239,7 +1239,7 @@ static void damon_sysfs_before_terminate(struct damon_ctx *ctx)
 	struct damon_sysfs_kdamond *kdamond;
 	enum damon_sysfs_cmd cmd;
 
-	/* damon_sysfs_schemes_update_regions_stop() might not yet called */
+	/* damon_sysfs_schemes_update_regions_stop() might analt yet called */
 	kdamond = damon_sysfs_cmd_request.kdamond;
 	cmd = damon_sysfs_cmd_request.cmd;
 	if (kdamond && ctx == kdamond->damon_ctx &&
@@ -1378,7 +1378,7 @@ static int damon_sysfs_commit_schemes_quota_goals(
 /*
  * damon_sysfs_cmd_request_callback() - DAMON callback for handling requests.
  * @c:		The DAMON context of the callback.
- * @active:	Whether @c is not deactivated due to watermarks.
+ * @active:	Whether @c is analt deactivated due to watermarks.
  *
  * This function is periodically called back from the kdamond thread for @c.
  * Then, it checks if there is a waiting DAMON sysfs request and handles it.
@@ -1420,7 +1420,7 @@ static int damon_sysfs_cmd_request_callback(struct damon_ctx *c, bool active)
 		} else {
 			/*
 			 * Continue regions updating if DAMON is till
-			 * active and the update for all schemes is not
+			 * active and the update for all schemes is analt
 			 * finished.
 			 */
 			if (active && !damos_sysfs_regions_upd_done())
@@ -1435,7 +1435,7 @@ static int damon_sysfs_cmd_request_callback(struct damon_ctx *c, bool active)
 	default:
 		break;
 	}
-	/* Mark the request as invalid now. */
+	/* Mark the request as invalid analw. */
 	damon_sysfs_cmd_request.kdamond = NULL;
 out:
 	if (!damon_sysfs_schemes_regions_updating)
@@ -1456,7 +1456,7 @@ static int damon_sysfs_after_wmarks_check(struct damon_ctx *c)
 static int damon_sysfs_after_aggregation(struct damon_ctx *c)
 {
 	/*
-	 * after_aggregation() is called back only while the context is not
+	 * after_aggregation() is called back only while the context is analt
 	 * deactivated by watermarks.
 	 */
 	return damon_sysfs_cmd_request_callback(c, true);
@@ -1469,7 +1469,7 @@ static struct damon_ctx *damon_sysfs_build_ctx(
 	int err;
 
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = damon_sysfs_apply_inputs(ctx, sys_ctx);
 	if (err) {
@@ -1714,16 +1714,16 @@ static int damon_sysfs_kdamonds_add_dirs(struct damon_sysfs_kdamonds *kdamonds,
 		return 0;
 
 	kdamonds_arr = kmalloc_array(nr_kdamonds, sizeof(*kdamonds_arr),
-			GFP_KERNEL | __GFP_NOWARN);
+			GFP_KERNEL | __GFP_ANALWARN);
 	if (!kdamonds_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 	kdamonds->kdamonds_arr = kdamonds_arr;
 
 	for (i = 0; i < nr_kdamonds; i++) {
 		kdamond = damon_sysfs_kdamond_alloc();
 		if (!kdamond) {
 			damon_sysfs_kdamonds_rm_dirs(kdamonds);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		err = kobject_init_and_add(&kdamond->kobj,
@@ -1821,7 +1821,7 @@ static int damon_sysfs_ui_dir_add_dirs(struct damon_sysfs_ui_dir *ui_dir)
 
 	kdamonds = damon_sysfs_kdamonds_alloc();
 	if (!kdamonds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = kobject_init_and_add(&kdamonds->kobj,
 			&damon_sysfs_kdamonds_ktype, &ui_dir->kobj,
@@ -1858,12 +1858,12 @@ static int __init damon_sysfs_init(void)
 
 	damon_sysfs_root = kobject_create_and_add("damon", mm_kobj);
 	if (!damon_sysfs_root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	admin = damon_sysfs_ui_dir_alloc();
 	if (!admin) {
 		kobject_put(damon_sysfs_root);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	err = kobject_init_and_add(&admin->kobj, &damon_sysfs_ui_dir_ktype,
 			damon_sysfs_root, "admin");

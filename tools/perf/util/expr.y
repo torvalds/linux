@@ -31,7 +31,7 @@ int expr_lex(YYSTYPE * yylval_param , void *yyscanner);
 		 */
 		struct hashmap *ids;
 		/*
-		 * The metric value. When not creating ids this is the value
+		 * The metric value. When analt creating ids this is the value
 		 * read from a counter, a constant or some computed value. When
 		 * creating ids the value is either a constant or BOTTOM. NAN is
 		 * used as the special BOTTOM value, representing a "set of all
@@ -49,7 +49,7 @@ int expr_lex(YYSTYPE * yylval_param , void *yyscanner);
 %left '<' '>'
 %left '-' '+'
 %left '*' '/' '%'
-%left NEG NOT
+%left NEG ANALT
 %type <num> NUMBER LITERAL
 %type <str> ID
 %destructor { free ($$); } <str>
@@ -72,7 +72,7 @@ static void expr_error(double *final_val __maybe_unused,
  */
 #define BOTTOM NAN
 
-/* During computing ids, does val represent a constant (non-BOTTOM) value? */
+/* During computing ids, does val represent a constant (analn-BOTTOM) value? */
 static bool is_const(double val)
 {
 	return isfinite(val);
@@ -94,7 +94,7 @@ static struct ids handle_id(struct expr_parse_ctx *ctx, char *id,
 
 	if (!compute_ids) {
 		/*
-		 * Compute the event's value from ID. If the ID isn't known then
+		 * Compute the event's value from ID. If the ID isn't kanalwn then
 		 * it isn't used to compute the formula so set to NAN.
 		 */
 		struct expr_id_data *data;
@@ -123,9 +123,9 @@ static struct ids handle_id(struct expr_parse_ctx *ctx, char *id,
 }
 
 /*
- * If we're not computing ids or $1 and $3 are constants, compute the new
- * constant value using OP. Its invariant that there are no ids.  If computing
- * ids for non-constants union the set of IDs that must be computed.
+ * If we're analt computing ids or $1 and $3 are constants, compute the new
+ * constant value using OP. Its invariant that there are anal ids.  If computing
+ * ids for analn-constants union the set of IDs that must be computed.
  */
 #define BINARY_OP(RESULT, OP, LHS, RHS)					\
 	if (!compute_ids || (is_const(LHS.val) && is_const(RHS.val))) { \
@@ -168,7 +168,7 @@ if_expr: expr IF expr ELSE if_expr
 	} else if (!compute_ids || is_const($3.val)) {
 		/*
 		 * If ids aren't computed then treat the expression as true. If
-		 * ids are being computed and the IF expr is a non-zero
+		 * ids are being computed and the IF expr is a analn-zero
 		 * constant, then also evaluate the true case.
 		 */
 		$$.val = $1.val;
@@ -177,7 +177,7 @@ if_expr: expr IF expr ELSE if_expr
 		ids__free($5.ids);
 	} else if ($1.val == $5.val) {
 		/*
-		 * LHS == RHS, so both are an identical constant. No need to
+		 * LHS == RHS, so both are an identical constant. Anal need to
 		 * evaluate any events.
 		 */
 		$$.val = $1.val;
@@ -327,7 +327,7 @@ expr: NUMBER
 {
 	if (fpclassify($5.val) == FP_ZERO) {
 		/*
-		 * Division by constant zero always yields zero and no events
+		 * Division by constant zero always yields zero and anal events
 		 * are necessary.
 		 */
 		assert($5.ids == NULL);

@@ -6,7 +6,7 @@
  *
  * There are numerous real drivers to illustrate the finer points.
  * The purpose of this driver is to provide a driver with far more comments
- * and explanatory notes than any 'real' driver would have.
+ * and explanatory analtes than any 'real' driver would have.
  * Anyone starting out writing an IIO driver should first make sure they
  * understand all of this driver except those bits specifically marked
  * as being present to allow us to 'fake' the presence of hardware.
@@ -62,7 +62,7 @@ static const struct iio_event_spec iio_dummy_event = {
  */
 static const struct iio_event_spec step_detect_event = {
 	.type = IIO_EV_TYPE_CHANGE,
-	.dir = IIO_EV_DIR_NONE,
+	.dir = IIO_EV_DIR_ANALNE,
 	.mask_separate = BIT(IIO_EV_INFO_ENABLE),
 };
 
@@ -104,7 +104,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		.info_mask_separate =
 		/*
 		 * in_voltage0_raw
-		 * Raw (unscaled no bias removal etc) measurement
+		 * Raw (unscaled anal bias removal etc) measurement
 		 * from the device.
 		 */
 		BIT(IIO_CHAN_INFO_RAW) |
@@ -151,7 +151,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		.channel2 = 2,
 		/*
 		 * in_voltage1-voltage2_raw
-		 * Raw (unscaled no bias removal etc) measurement
+		 * Raw (unscaled anal bias removal etc) measurement
 		 * from the device.
 		 */
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
@@ -227,7 +227,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 	{
 		.type = IIO_VOLTAGE,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-		.scan_index = -1, /* No buffer support */
+		.scan_index = -1, /* Anal buffer support */
 		.output = 1,
 		.indexed = 1,
 		.channel = 0,
@@ -237,7 +237,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_ENABLE) |
 			BIT(IIO_CHAN_INFO_CALIBHEIGHT),
 		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
-		.scan_index = -1, /* No buffer support */
+		.scan_index = -1, /* Anal buffer support */
 #ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
 		.event_spec = &step_detect_event,
 		.num_event_specs = 1,
@@ -248,7 +248,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		.modified = 1,
 		.channel2 = IIO_MOD_RUNNING,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
-		.scan_index = -1, /* No buffer support */
+		.scan_index = -1, /* Anal buffer support */
 #ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
 		.event_spec = &iio_running_event,
 		.num_event_specs = 1,
@@ -259,7 +259,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		.modified = 1,
 		.channel2 = IIO_MOD_WALKING,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
-		.scan_index = -1, /* No buffer support */
+		.scan_index = -1, /* Anal buffer support */
 #ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
 		.event_spec = &iio_walking_event,
 		.num_event_specs = 1,
@@ -356,7 +356,7 @@ static int iio_dummy_read_raw(struct iio_dev *indio_dev,
 				/* all differential adc -> 0.000001344 */
 				*val = 0;
 				*val2 = 1344;
-				ret = IIO_VAL_INT_PLUS_NANO;
+				ret = IIO_VAL_INT_PLUS_NAANAL;
 			}
 			break;
 		default:
@@ -376,7 +376,7 @@ static int iio_dummy_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*val = 3;
 		*val2 = 33;
-		ret = IIO_VAL_INT_PLUS_NANO;
+		ret = IIO_VAL_INT_PLUS_NAANAL;
 		break;
 	case IIO_CHAN_INFO_ENABLE:
 		switch (chan->type) {
@@ -415,7 +415,7 @@ static int iio_dummy_read_raw(struct iio_dev *indio_dev,
  * @mask:	what we actually want to write as per the info_mask_*
  *		in iio_chan_spec.
  *
- * Note that all raw writes are assumed IIO_VAL_INT and info mask elements
+ * Analte that all raw writes are assumed IIO_VAL_INT and info mask elements
  * are assumed to be IIO_INT_PLUS_MICRO unless the callback write_raw_get_fmt
  * in struct iio_info is provided by the driver.
  */
@@ -436,7 +436,7 @@ static int iio_dummy_write_raw(struct iio_dev *indio_dev,
 			if (chan->output == 0)
 				return -EINVAL;
 
-			/* Locking not required as writing single value */
+			/* Locking analt required as writing single value */
 			mutex_lock(&st->lock);
 			st->dac_val = val;
 			mutex_unlock(&st->lock);
@@ -531,7 +531,7 @@ static const struct iio_info iio_dummy_info = {
  * @indio_dev: the iio device structure
  *
  * Most drivers have one of these to set up default values,
- * reset the device to known state etc.
+ * reset the device to kanalwn state etc.
  */
 static int iio_dummy_init_device(struct iio_dev *indio_dev)
 {
@@ -576,7 +576,7 @@ static struct iio_sw_device *iio_dummy_probe(const char *name)
 
 	swd = kzalloc(sizeof(*swd), GFP_KERNEL);
 	if (!swd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
 	 * Allocate an IIO device.
@@ -588,7 +588,7 @@ static struct iio_sw_device *iio_dummy_probe(const char *name)
 	 */
 	indio_dev = iio_device_alloc(parent, sizeof(*st));
 	if (!indio_dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_free_swd;
 	}
 
@@ -616,7 +616,7 @@ static struct iio_sw_device *iio_dummy_probe(const char *name)
 	 */
 	indio_dev->name = kstrdup(name, GFP_KERNEL);
 	if (!indio_dev->name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_free_device;
 	}
 
@@ -697,7 +697,7 @@ static int iio_dummy_remove(struct iio_sw_device *swd)
 /*
  * module_iio_sw_device_driver() -  device driver registration
  *
- * Varies depending on bus type of the device. As there is no device
+ * Varies depending on bus type of the device. As there is anal device
  * here, call probe directly. For information on device registration
  * i2c:
  * Documentation/i2c/writing-clients.rst

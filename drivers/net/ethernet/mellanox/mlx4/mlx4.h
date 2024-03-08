@@ -2,7 +2,7 @@
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  * Copyright (c) 2005, 2006, 2007 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -16,18 +16,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -48,7 +48,7 @@
 #include <net/devlink.h>
 #include <linux/rwsem.h>
 #include <linux/auxiliary_bus.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/driver.h>
@@ -177,7 +177,7 @@ struct mlx4_vhcr {
 	u64	in_param;
 	u64	out_param;
 	u32	in_modifier;
-	u32	errno;
+	u32	erranal;
 	u16	op;
 	u16	token;
 	u8	op_modifier;
@@ -354,7 +354,7 @@ struct mlx4_cq_context {
 	u8			reserved3[2];
 	u8			mtt_base_addr_h;
 	__be32			mtt_base_addr_l;
-	__be32			last_notified_index;
+	__be32			last_analtified_index;
 	__be32			solicit_producer_index;
 	__be32			consumer_index;
 	__be32			producer_index;
@@ -504,7 +504,7 @@ struct mlx4_slave_state {
 };
 
 #define MLX4_VGT 4095
-#define NO_INDX  (-1)
+#define ANAL_INDX  (-1)
 
 struct mlx4_vport_state {
 	u64 mac;
@@ -794,7 +794,7 @@ struct mlx4_set_port_general_context {
 	u8 flags2;
 	u8 flags;
 	union {
-		u8 ignore_fcs;
+		u8 iganalre_fcs;
 		u8 roce_mode;
 	};
 	u8 reserved2;
@@ -821,12 +821,12 @@ struct mlx4_set_port_rqp_calc_context {
 	u8 n_prio;
 	u8 reserved2[3];
 	u8 mac_miss;
-	u8 intra_no_vlan;
-	u8 no_vlan;
+	u8 intra_anal_vlan;
+	u8 anal_vlan;
 	u8 intra_vlan_miss;
 	u8 vlan_miss;
 	u8 reserved3[3];
-	u8 no_vlan_prio;
+	u8 anal_vlan_prio;
 	__be32 promisc;
 	__be32 mcast;
 };
@@ -875,7 +875,7 @@ enum {
 };
 
 enum {
-	MLX4_NO_RR	= 0,
+	MLX4_ANAL_RR	= 0,
 	MLX4_USE_RR	= 1,
 };
 
@@ -884,7 +884,7 @@ struct mlx4_priv {
 
 	struct mlx4_adev	**adev;
 	int			adev_idx;
-	struct atomic_notifier_head event_nh;
+	struct atomic_analtifier_head event_nh;
 
 	int			pci_dev_data;
 	int                     removed;
@@ -928,7 +928,7 @@ struct mlx4_priv {
 	u8 virt2phys_pkey[MLX4_MFUNC_MAX][MLX4_MAX_PORTS][MLX4_MAX_PORT_PKEYS];
 	struct mlx4_port_map	v2p; /* cached port mapping configuration */
 	struct mutex		bond_mutex; /* for bond mode */
-	__be64			slave_node_guids[MLX4_MFUNC_MAX];
+	__be64			slave_analde_guids[MLX4_MFUNC_MAX];
 
 	atomic_t		opreq_count;
 	struct work_struct	opreq_task;
@@ -1409,7 +1409,7 @@ static inline spinlock_t *mlx4_tlock(struct mlx4_dev *dev)
 	return &mlx4_priv(dev)->mfunc.master.res_tracker.lock;
 }
 
-#define NOT_MASKED_PD_BITS 17
+#define ANALT_MASKED_PD_BITS 17
 
 void mlx4_vf_immed_vlan_work_handler(struct work_struct *_work);
 
@@ -1433,12 +1433,12 @@ enum mlx4_zone_flags {
 };
 
 enum mlx4_zone_alloc_flags {
-	/* No two objects could overlap between zones. UID
+	/* Anal two objects could overlap between zones. UID
 	 * could be left unused. If this flag is given and
 	 * two overlapped zones are used, an object will be free'd
 	 * from the smallest possible matching zone.
 	 */
-	MLX4_ZONE_ALLOC_FLAGS_NO_OVERLAP	= 1UL << 0,
+	MLX4_ZONE_ALLOC_FLAGS_ANAL_OVERLAP	= 1UL << 0,
 };
 
 struct mlx4_zone_allocator;
@@ -1484,7 +1484,7 @@ u32 mlx4_zone_alloc_entries(struct mlx4_zone_allocator *zones, u32 uid, int coun
 u32 mlx4_zone_free_entries(struct mlx4_zone_allocator *zones,
 			   u32 uid, u32 obj, u32 count);
 
-/* If <zones> was allocated with MLX4_ZONE_ALLOC_FLAGS_NO_OVERLAP, instead of
+/* If <zones> was allocated with MLX4_ZONE_ALLOC_FLAGS_ANAL_OVERLAP, instead of
  * specifying the uid when freeing an object, zone allocator could figure it by
  * itself. Other parameters are similar to mlx4_zone_free.
  */

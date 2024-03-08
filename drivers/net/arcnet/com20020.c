@@ -32,7 +32,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/ioport.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/init.h>
@@ -113,28 +113,28 @@ int com20020_check(struct net_device *dev)
 		com20020_set_subaddress(lp, ioaddr, SUB_SETUP2);
 		arcnet_outb(lp->setup2, ioaddr, COM20020_REG_W_XREG);
 
-		/* must now write the magic "restart operation" command */
+		/* must analw write the magic "restart operation" command */
 		mdelay(1);
 		arcnet_outb(STARTIOcmd, ioaddr, COM20020_REG_W_COMMAND);
 	}
 
-	lp->config = (lp->timeout << 3) | (lp->backplane << 2) | SUB_NODE;
-	/* set node ID to 0x42 (but transmitter is disabled, so it's okay) */
+	lp->config = (lp->timeout << 3) | (lp->backplane << 2) | SUB_ANALDE;
+	/* set analde ID to 0x42 (but transmitter is disabled, so it's okay) */
 	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
 	arcnet_outb(0x42, ioaddr, COM20020_REG_W_XREG);
 
 	status = arcnet_inb(ioaddr, COM20020_REG_R_STATUS);
 
-	if ((status & 0x99) != (NORXflag | TXFREEflag | RESETflag)) {
-		arc_printk(D_NORMAL, dev, "status invalid (%Xh).\n", status);
-		return -ENODEV;
+	if ((status & 0x99) != (ANALRXflag | TXFREEflag | RESETflag)) {
+		arc_printk(D_ANALRMAL, dev, "status invalid (%Xh).\n", status);
+		return -EANALDEV;
 	}
 	arc_printk(D_INIT_REASONS, dev, "status after reset: %X\n", status);
 
 	arcnet_outb(CFLAGScmd | RESETclear | CONFIGclear,
 		    ioaddr, COM20020_REG_W_COMMAND);
 	status = arcnet_inb(ioaddr, COM20020_REG_R_STATUS);
-	arc_printk(D_INIT_REASONS, dev, "status after reset acknowledged: %X\n",
+	arc_printk(D_INIT_REASONS, dev, "status after reset ackanalwledged: %X\n",
 		   status);
 
 	/* Read first location of memory */
@@ -144,9 +144,9 @@ int com20020_check(struct net_device *dev)
 
 	status = arcnet_inb(ioaddr, COM20020_REG_RW_MEMDATA);
 	if (status != TESTvalue) {
-		arc_printk(D_NORMAL, dev, "Signature byte not found (%02Xh != D1h).\n",
+		arc_printk(D_ANALRMAL, dev, "Signature byte analt found (%02Xh != D1h).\n",
 			   status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -158,7 +158,7 @@ static int com20020_set_hwaddr(struct net_device *dev, void *addr)
 	struct sockaddr *hwaddr = addr;
 
 	dev_addr_set(dev, hwaddr->sa_data);
-	com20020_set_subaddress(lp, ioaddr, SUB_NODE);
+	com20020_set_subaddress(lp, ioaddr, SUB_ANALDE);
 	arcnet_outb(dev->dev_addr[0], ioaddr, COM20020_REG_W_XREG);
 
 	return 0;
@@ -229,34 +229,34 @@ int com20020_found(struct net_device *dev, int shared)
 		com20020_set_subaddress(lp, ioaddr, SUB_SETUP2);
 		arcnet_outb(lp->setup2, ioaddr, COM20020_REG_W_XREG);
 
-		/* must now write the magic "restart operation" command */
+		/* must analw write the magic "restart operation" command */
 		mdelay(1);
 		arcnet_outb(STARTIOcmd, ioaddr, COM20020_REG_W_COMMAND);
 	}
 
-	lp->config = (lp->timeout << 3) | (lp->backplane << 2) | SUB_NODE;
-	/* Default 0x38 + register: Node ID */
+	lp->config = (lp->timeout << 3) | (lp->backplane << 2) | SUB_ANALDE;
+	/* Default 0x38 + register: Analde ID */
 	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
 	arcnet_outb(dev->dev_addr[0], ioaddr, COM20020_REG_W_XREG);
 
 	/* reserve the irq */
 	if (request_irq(dev->irq, arcnet_interrupt, shared,
 			"arcnet (COM20020)", dev)) {
-		arc_printk(D_NORMAL, dev, "Can't get IRQ %d!\n", dev->irq);
-		return -ENODEV;
+		arc_printk(D_ANALRMAL, dev, "Can't get IRQ %d!\n", dev->irq);
+		return -EANALDEV;
 	}
 
-	arc_printk(D_NORMAL, dev, "%s: station %02Xh found at %03lXh, IRQ %d.\n",
+	arc_printk(D_ANALRMAL, dev, "%s: station %02Xh found at %03lXh, IRQ %d.\n",
 		   lp->card_name, dev->dev_addr[0], dev->base_addr, dev->irq);
 
 	if (lp->backplane)
-		arc_printk(D_NORMAL, dev, "Using backplane mode.\n");
+		arc_printk(D_ANALRMAL, dev, "Using backplane mode.\n");
 
 	if (lp->timeout != 3)
-		arc_printk(D_NORMAL, dev, "Using extended timeout value of %d\n",
+		arc_printk(D_ANALRMAL, dev, "Using extended timeout value of %d\n",
 			   lp->timeout);
 
-	arc_printk(D_NORMAL, dev, "Using CKP %d - data rate %s\n",
+	arc_printk(D_ANALRMAL, dev, "Using CKP %d - data rate %s\n",
 		   lp->setup >> 1,
 		   clockrates[3 -
 			      ((lp->setup2 & 0xF0) >> 4) +
@@ -317,7 +317,7 @@ static int com20020_reset(struct net_device *dev, int really_reset)
 	if (inbyte != TESTvalue) {
 		arc_printk(D_DEBUG, dev, "%s: %d: %s\n",
 			   __FILE__, __LINE__, __func__);
-		arc_printk(D_NORMAL, dev, "reset failed: TESTvalue not present.\n");
+		arc_printk(D_ANALRMAL, dev, "reset failed: TESTvalue analt present.\n");
 		return 1;
 	}
 	/* enable extended (512-byte) packets */
@@ -364,10 +364,10 @@ static void com20020_close(struct net_device *dev)
 
 /* Set or clear the multicast filter for this adaptor.
  * num_addrs == -1    Promiscuous mode, receive all packets
- * num_addrs == 0       Normal mode, clear multicast list
- * num_addrs > 0        Multicast mode, receive normal and MC packets, and do
+ * num_addrs == 0       Analrmal mode, clear multicast list
+ * num_addrs > 0        Multicast mode, receive analrmal and MC packets, and do
  *                      best-effort filtering.
- *      FIXME - do multicast stuff, not just promiscuous.
+ *      FIXME - do multicast stuff, analt just promiscuous.
  */
 static void com20020_set_mc_list(struct net_device *dev)
 {
@@ -377,14 +377,14 @@ static void com20020_set_mc_list(struct net_device *dev)
 	if ((dev->flags & IFF_PROMISC) && (dev->flags & IFF_UP)) {
 		/* Enable promiscuous mode */
 		if (!(lp->setup & PROMISCset))
-			arc_printk(D_NORMAL, dev, "Setting promiscuous flag...\n");
+			arc_printk(D_ANALRMAL, dev, "Setting promiscuous flag...\n");
 		com20020_set_subaddress(lp, ioaddr, SUB_SETUP1);
 		lp->setup |= PROMISCset;
 		arcnet_outb(lp->setup, ioaddr, COM20020_REG_W_XREG);
 	} else {
-		/* Disable promiscuous mode, use normal mode */
+		/* Disable promiscuous mode, use analrmal mode */
 		if ((lp->setup & PROMISCset))
-			arc_printk(D_NORMAL, dev, "Resetting promiscuous flag...\n");
+			arc_printk(D_ANALRMAL, dev, "Resetting promiscuous flag...\n");
 		com20020_set_subaddress(lp, ioaddr, SUB_SETUP1);
 		lp->setup &= ~PROMISCset;
 		arcnet_outb(lp->setup, ioaddr, COM20020_REG_W_XREG);
@@ -406,7 +406,7 @@ MODULE_LICENSE("GPL");
 
 static int __init com20020_module_init(void)
 {
-	if (BUGLVL(D_NORMAL))
+	if (BUGLVL(D_ANALRMAL))
 		pr_info("%s\n", "COM20020 chipset support (by David Woodhouse et al.)");
 	return 0;
 }

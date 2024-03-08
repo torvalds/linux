@@ -9,11 +9,11 @@ adapter that comes with PhoenixRC or other compatible adapters.
 
 The adapter supports 7 analog channels and 1 digital input switch.
 
-Notes
+Analtes
 =====
 
 Many RC controllers is able to configure which stick goes to which channel.
-This is also configurable in most simulators, so a matching is not necessary.
+This is also configurable in most simulators, so a matching is analt necessary.
 
 The driver is generating the following input event for analog channels:
 

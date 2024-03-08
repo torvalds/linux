@@ -82,9 +82,9 @@ struct external_scnhdr {
 	char		s_size[4];	/* section size			*/
 	char		s_scnptr[4];	/* file ptr to raw data for section */
 	char		s_relptr[4];	/* file ptr to relocation	*/
-	char		s_lnnoptr[4];	/* file ptr to line numbers	*/
+	char		s_lnanalptr[4];	/* file ptr to line numbers	*/
 	char		s_nreloc[2];	/* number of relocation entries	*/
-	char		s_nlnno[2];	/* number of line number entries*/
+	char		s_nlnanal[2];	/* number of line number entries*/
 	char		s_flags[4];	/* flags			*/
 };
 
@@ -107,26 +107,26 @@ struct external_scnhdr {
 #define STYP_DEBUG 0x2000
 
 /* XCOFF handles line number or relocation overflow by creating
-   another section header with STYP_OVRFLO set.  */
+   aanalther section header with STYP_OVRFLO set.  */
 #define STYP_OVRFLO 0x8000
 
 /********************** LINE NUMBERS **********************/
 
 /* 1 line number entry for every "breakpointable" source line in a section.
  * Line numbers are grouped on a per function basis; first entry in a function
- * grouping will have l_lnno = 0 and in place of physical address will be the
+ * grouping will have l_lnanal = 0 and in place of physical address will be the
  * symbol table index of the function name.
  */
-struct external_lineno {
+struct external_lineanal {
 	union {
-		char l_symndx[4];	/* function name symbol index, iff l_lnno == 0*/
+		char l_symndx[4];	/* function name symbol index, iff l_lnanal == 0*/
 		char l_paddr[4];	/* (physical) address of line number	*/
 	} l_addr;
-	char l_lnno[2];	/* line number		*/
+	char l_lnanal[2];	/* line number		*/
 };
 
 
-#define	LINENO	struct external_lineno
+#define	LINEANAL	struct external_lineanal
 #define	LINESZ	6
 
 
@@ -165,14 +165,14 @@ union external_auxent {
 		char x_tagndx[4];	/* str, un, or enum tag indx */
 		union {
 			struct {
-			    char  x_lnno[2]; /* declaration line number */
+			    char  x_lnanal[2]; /* declaration line number */
 			    char  x_size[2]; /* str/union/array size */
 			} x_lnsz;
 			char x_fsize[4];	/* size of function */
 		} x_misc;
 		union {
 			struct {		/* if ISFCN, tag, or .bb */
-			    char x_lnnoptr[4];	/* ptr to fcn line # */
+			    char x_lnanalptr[4];	/* ptr to fcn line # */
 			    char x_endndx[4];	/* entry ndx past block end */
 			} x_fcn;
 			struct {		/* if ISARY, up to 4 dimen. */
@@ -193,7 +193,7 @@ union external_auxent {
 	struct {
 		char x_scnlen[4];			/* section length */
 		char x_nreloc[2];	/* # relocation entries */
-		char x_nlinno[2];	/* # line numbers */
+		char x_nlinanal[2];	/* # line numbers */
 	} x_scn;
 
         struct {

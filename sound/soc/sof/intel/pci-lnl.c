@@ -41,7 +41,7 @@ static const struct sof_dev_desc lnl_desc = {
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_4] = "sof-lnl.ri",
 	},
-	.nocodec_tplg_filename = "sof-lnl-nocodec.tplg",
+	.analcodec_tplg_filename = "sof-lnl-analcodec.tplg",
 	.ops = &sof_lnl_ops,
 	.ops_init = sof_lnl_ops_init,
 };

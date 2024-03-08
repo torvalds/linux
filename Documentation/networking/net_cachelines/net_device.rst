@@ -8,7 +8,7 @@ net_device struct fast path usage breakdown
 Type                                Name                    fastpath_tx_access  fastpath_rx_access  Comments
 ..struct                            ..net_device                                                    
 char                                name[16]                -                   -                   
-struct_netdev_name_node*            name_node                                                       
+struct_netdev_name_analde*            name_analde                                                       
 struct_dev_ifalias*                 ifalias                                                         
 unsigned_long                       mem_end                                                         
 unsigned_long                       mem_start                                                       
@@ -108,7 +108,7 @@ struct_bpf_mprog_entry              tcx_ingress             -                   
 struct_nf_hook_entries*             nf_hooks_ingress                                                
 unsigned_char                       broadcast[32]                                                   
 struct_cpu_rmap*                    rx_cpu_rmap                                                     
-struct_hlist_node                   index_hlist                                                     
+struct_hlist_analde                   index_hlist                                                     
 struct_netdev_queue*                _tx                     read_mostly         -                   netdev_get_tx_queue(tx)
 unsigned_int                        num_tx_queues           -                   -                   
 unsigned_int                        real_num_tx_queues      read_mostly         -                   skb_tx_hash,netdev_core_pick_tx(tx)
@@ -163,7 +163,7 @@ struct_lock_class_key*              qdisc_tx_busylock
 bool                                proto_down                                                      
 unsigned:1                          wol_enabled                                                     
 unsigned:1                          threaded                -                   -                   napi_poll(napi_enable,dev_set_threaded)
-struct_list_head                    net_notifier_list                                               
+struct_list_head                    net_analtifier_list                                               
 struct_macsec_ops*                  macsec_ops                                                      
 struct_udp_tunnel_nic_info*         udp_tunnel_nic_info                                             
 struct_udp_tunnel_nic*              udp_tunnel_nic                                                  

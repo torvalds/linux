@@ -101,7 +101,7 @@ int dm_register_path_selector(struct path_selector_type *pst)
 	struct ps_internal *psi = _alloc_path_selector(pst);
 
 	if (!psi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	down_write(&_ps_lock);
 

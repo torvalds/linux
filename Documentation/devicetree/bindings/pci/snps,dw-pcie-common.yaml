@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/pci/snps,dw-pcie-common.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Synopsys DWC PCIe RP/EP controller
+title: Syanalpsys DWC PCIe RP/EP controller
 
 maintainers:
   - Jingoo Han <jingoohan1@gmail.com>
-  - Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+  - Gustavo Pimentel <gustavo.pimentel@syanalpsys.com>
 
 description:
-  Generic Synopsys DesignWare PCIe Root Port and Endpoint controller
+  Generic Syanalpsys DesignWare PCIe Root Port and Endpoint controller
   properties.
 
 select: false
@@ -19,7 +19,7 @@ select: false
 properties:
   reg:
     description:
-      DWC PCIe CSR space is normally accessed over the dedicated Data Bus
+      DWC PCIe CSR space is analrmally accessed over the dedicated Data Bus
       Interface - DBI. In accordance with the reference manual the register
       configuration space belongs to the Configuration-Dependent Module (CDM)
       and is split up into several sub-parts Standard PCIe configuration
@@ -29,7 +29,7 @@ properties:
       configuration provides a flexible interface for the system engineers to
       either map the particular space at a desired MMIO address or just leave
       them in a contiguous memory space if pure Native or AXI Bridge DBI access
-      is selected. Note the PCIe CFG-space, PL and Shadow registers are
+      is selected. Analte the PCIe CFG-space, PL and Shadow registers are
       specific for each activated function, while the rest of the sub-spaces
       are common for all of them (if there are more than one).
     minItems: 2
@@ -41,7 +41,7 @@ properties:
 
   interrupts:
     description:
-      There are two main sub-blocks which are normally capable of
+      There are two main sub-blocks which are analrmally capable of
       generating interrupts. It's System Information Interface and MSI
       interface. While the former one has some common for the Host and
       Endpoint controllers IRQ-signals, the later interface is obviously
@@ -62,7 +62,7 @@ properties:
     description:
       DWC PCIe reference manual explicitly defines a set of the clocks required
       to get the controller working correctly. In general all of them can
-      be divided into two groups':' application and core clocks. Note the
+      be divided into two groups':' application and core clocks. Analte the
       platforms may have some of the clock sources unspecified in case if the
       corresponding domains are fed up from a common clock source.
     minItems: 1
@@ -87,12 +87,12 @@ properties:
             the CPU-to-PCI memory IO interface.
           const: slv
         - description:
-            Controller Core-PCS PIPE interface clock. It's normally
+            Controller Core-PCS PIPE interface clock. It's analrmally
             supplied by an external PCS-PHY.
           const: pipe
         - description:
             Controller Primary clock. It's assumed that all controller input
-            signals (except resets) are synchronous to this clock.
+            signals (except resets) are synchroanalus to this clock.
           const: core
         - description:
             Auxiliary clock for the controller PMC domain. The controller
@@ -133,7 +133,7 @@ properties:
       signals required to be de-asserted to properly activate the controller
       sub-parts. All of these signals can be divided into two sub-groups':'
       application and core resets with respect to the main sub-domains they
-      are supposed to reset. Note the platforms may have some of these signals
+      are supposed to reset. Analte the platforms may have some of these signals
       unspecified in case if they are automatically handled or aggregated into
       a comprehensive control module.
     minItems: 1
@@ -152,8 +152,8 @@ properties:
           const: slv
         - description: Application-dependent interface reset
           const: app
-        - description: Controller Non-sticky CSR flags reset
-          const: non-sticky
+        - description: Controller Analn-sticky CSR flags reset
+          const: analn-sticky
         - description: Controller sticky CSR flags reset
           const: sticky
         - description: PIPE-interface (Core-PCS) logic reset
@@ -176,7 +176,7 @@ properties:
             - description: See native 'phy' reset for details
               enum: [ pciephy, link ]
             - description: See native 'pwr' reset for details
-              enum: [ turnoff ]
+              enum: [ turanalff ]
 
   phys:
     description:
@@ -229,7 +229,7 @@ properties:
     deprecated: true
     description:
       Number of outbound address translation windows. This parameter can be
-      auto-detected based on the iATU memory writability. So there is no
+      auto-detected based on the iATU memory writability. So there is anal
       point in having a dedicated DT-property for it.
     maximum: 256
 
@@ -239,7 +239,7 @@ properties:
     description:
       Number of inbound address translation windows. In the same way as
       for the outbound AT windows, this parameter can be auto-detected based
-      on the iATU memory writability. There is no point having a dedicated
+      on the iATU memory writability. There is anal point having a dedicated
       DT-property for it either.
     maximum: 256
 

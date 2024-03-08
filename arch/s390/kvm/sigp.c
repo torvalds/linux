@@ -225,9 +225,9 @@ static int __sigp_sense_running(struct kvm_vcpu *vcpu,
 		/* running */
 		rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 	} else {
-		/* not running */
+		/* analt running */
 		*reg &= 0xffffffff00000000UL;
-		*reg |= SIGP_STATUS_NOT_RUNNING;
+		*reg |= SIGP_STATUS_ANALT_RUNNING;
 		rc = SIGP_CC_STATUS_STORED;
 	}
 
@@ -242,7 +242,7 @@ static int __prepare_sigp_re_start(struct kvm_vcpu *vcpu,
 {
 	struct kvm_s390_local_interrupt *li = &dst_vcpu->arch.local_int;
 	/* handle (RE)START in user space */
-	int rc = -EOPNOTSUPP;
+	int rc = -EOPANALTSUPP;
 
 	/* make sure we don't race with STOP irq injection */
 	spin_lock(&li->lock);
@@ -257,14 +257,14 @@ static int __prepare_sigp_cpu_reset(struct kvm_vcpu *vcpu,
 				    struct kvm_vcpu *dst_vcpu, u8 order_code)
 {
 	/* handle (INITIAL) CPU RESET in user space */
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
-static int __prepare_sigp_unknown(struct kvm_vcpu *vcpu,
+static int __prepare_sigp_unkanalwn(struct kvm_vcpu *vcpu,
 				  struct kvm_vcpu *dst_vcpu)
 {
-	/* handle unknown orders in user space */
-	return -EOPNOTSUPP;
+	/* handle unkanalwn orders in user space */
+	return -EOPANALTSUPP;
 }
 
 static int handle_sigp_dst(struct kvm_vcpu *vcpu, u8 order_code,
@@ -274,19 +274,19 @@ static int handle_sigp_dst(struct kvm_vcpu *vcpu, u8 order_code,
 	struct kvm_vcpu *dst_vcpu = kvm_get_vcpu_by_id(vcpu->kvm, cpu_addr);
 
 	if (!dst_vcpu)
-		return SIGP_CC_NOT_OPERATIONAL;
+		return SIGP_CC_ANALT_OPERATIONAL;
 
 	/*
 	 * SIGP RESTART, SIGP STOP, and SIGP STOP AND STORE STATUS orders
-	 * are processed asynchronously. Until the affected VCPU finishes
+	 * are processed asynchroanalusly. Until the affected VCPU finishes
 	 * its work and calls back into KVM to clear the (RESTART or STOP)
-	 * interrupt, we need to return any new non-reset orders "busy".
+	 * interrupt, we need to return any new analn-reset orders "busy".
 	 *
 	 * This is important because a single VCPU could issue:
 	 *  1) SIGP STOP $DESTINATION
 	 *  2) SIGP SENSE $DESTINATION
 	 *
-	 * If the SIGP SENSE would not be rejected as "busy", it could
+	 * If the SIGP SENSE would analt be rejected as "busy", it could
 	 * return an incorrect answer as to whether the VCPU is STOPPED
 	 * or OPERATING.
 	 */
@@ -295,7 +295,7 @@ static int handle_sigp_dst(struct kvm_vcpu *vcpu, u8 order_code,
 		/*
 		 * Lockless check. Both SIGP STOP and SIGP (RE)START
 		 * properly synchronize everything while processing
-		 * their orders, while the guest cannot observe a
+		 * their orders, while the guest cananalt observe a
 		 * difference when issuing other orders from two
 		 * different VCPUs.
 		 */
@@ -360,11 +360,11 @@ static int handle_sigp_dst(struct kvm_vcpu *vcpu, u8 order_code,
 		rc = __prepare_sigp_cpu_reset(vcpu, dst_vcpu, order_code);
 		break;
 	default:
-		vcpu->stat.instruction_sigp_unknown++;
-		rc = __prepare_sigp_unknown(vcpu, dst_vcpu);
+		vcpu->stat.instruction_sigp_unkanalwn++;
+		rc = __prepare_sigp_unkanalwn(vcpu, dst_vcpu);
 	}
 
-	if (rc == -EOPNOTSUPP)
+	if (rc == -EOPANALTSUPP)
 		VCPU_EVENT(vcpu, 4,
 			   "sigp order %u -> cpu %x: handled in user space",
 			   order_code, dst_vcpu->vcpu_id);
@@ -414,7 +414,7 @@ static int handle_sigp_order_in_user_space(struct kvm_vcpu *vcpu, u8 order_code,
 		vcpu->stat.instruction_sigp_cpu_reset++;
 		break;
 	default:
-		vcpu->stat.instruction_sigp_unknown++;
+		vcpu->stat.instruction_sigp_unkanalwn++;
 	}
 	VCPU_EVENT(vcpu, 3, "SIGP: order %u for CPU %d handled in userspace",
 		   order_code, cpu_addr);
@@ -437,7 +437,7 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 
 	order_code = kvm_s390_get_base_disp_rs(vcpu, NULL);
 	if (handle_sigp_order_in_user_space(vcpu, order_code, cpu_addr))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (r1 % 2)
 		parameter = vcpu->run->s.regs.gprs[r1];
@@ -471,7 +471,7 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
  * external call to a target cpu and the target cpu has the WAIT bit set in
  * its cpuflags. Interception will occur after the interrupt indicator bits at
  * the target cpu have been set. All error cases will lead to instruction
- * interception, therefore nothing is to be checked or prepared.
+ * interception, therefore analthing is to be checked or prepared.
  */
 int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu)
 {
@@ -491,5 +491,5 @@ int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu)
 		return 0;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }

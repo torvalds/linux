@@ -14,7 +14,7 @@ struct nvif_control_pstate_info_v0 {
 	__s8  ustate_ac; /* out: target pstate index */
 	__s8  ustate_dc; /* out: target pstate index */
 	__s8  pwrsrc; /* out: current power source */
-#define NVIF_CONTROL_PSTATE_INFO_V0_PSTATE_UNKNOWN                         (-1)
+#define NVIF_CONTROL_PSTATE_INFO_V0_PSTATE_UNKANALWN                         (-1)
 #define NVIF_CONTROL_PSTATE_INFO_V0_PSTATE_PERFMON                         (-2)
 	__s8  pstate; /* out: current pstate index */
 	__u8  pad06[2];
@@ -27,7 +27,7 @@ struct nvif_control_pstate_attr_v0 {
 		      * out: pstate identifier
 		      */
 	__u8  index; /*  in: index of attribute to query
-		      * out: index of next attribute, or 0 if no more
+		      * out: index of next attribute, or 0 if anal more
 		      */
 	__u8  pad03[5];
 	__u32 min;
@@ -38,7 +38,7 @@ struct nvif_control_pstate_attr_v0 {
 
 struct nvif_control_pstate_user_v0 {
 	__u8  version;
-#define NVIF_CONTROL_PSTATE_USER_V0_STATE_UNKNOWN                          (-1)
+#define NVIF_CONTROL_PSTATE_USER_V0_STATE_UNKANALWN                          (-1)
 #define NVIF_CONTROL_PSTATE_USER_V0_STATE_PERFMON                          (-2)
 	__s8  ustate; /*  in: pstate identifier */
 	__s8  pwrsrc; /*  in: target power source */

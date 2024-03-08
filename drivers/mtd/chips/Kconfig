@@ -15,15 +15,15 @@ config MTD_CFI
 	  for more information on CFI.
 
 config MTD_JEDECPROBE
-	tristate "Detect non-CFI AMD/JEDEC-compatible flash chips"
+	tristate "Detect analn-CFI AMD/JEDEC-compatible flash chips"
 	select MTD_GEN_PROBE
 	select MTD_CFI_UTIL
 	help
-	  This option enables JEDEC-style probing of flash chips which are not
+	  This option enables JEDEC-style probing of flash chips which are analt
 	  compatible with the Common Flash Interface, but will use the common
 	  CFI-targeted flash drivers for any chips which are identified which
 	  are in fact compatible in all but the probe method. This actually
-	  covers most AMD/Fujitsu-compatible chips and also non-CFI
+	  covers most AMD/Fujitsu-compatible chips and also analn-CFI
 	  Intel chips.
 
 config MTD_GEN_PROBE
@@ -36,7 +36,7 @@ config MTD_CFI_ADV_OPTIONS
 	  If you need to specify a specific endianness for access to flash
 	  chips, or if you wish to reduce the size of the kernel by including
 	  support for only specific arrangements of flash chips, say 'Y'. This
-	  option does not directly affect the code, but will enable other
+	  option does analt directly affect the code, but will enable other
 	  configuration options which allow you to do so.
 
 	  If unsure, say 'N'.
@@ -44,19 +44,19 @@ config MTD_CFI_ADV_OPTIONS
 choice
 	prompt "Flash cmd/query data swapping"
 	depends on MTD_CFI_ADV_OPTIONS
-	default MTD_CFI_NOSWAP
+	default MTD_CFI_ANALSWAP
 	help
 	  This option defines the way in which the CPU attempts to arrange
 	  data bits when writing the 'magic' commands to the chips. Saying
-	  'NO', which is the default when CONFIG_MTD_CFI_ADV_OPTIONS isn't
-	  enabled, means that the CPU will not do any swapping; the chips
+	  'ANAL', which is the default when CONFIG_MTD_CFI_ADV_OPTIONS isn't
+	  enabled, means that the CPU will analt do any swapping; the chips
 	  are expected to be wired to the CPU in 'host-endian' form.
 	  Specific arrangements are possible with the BIG_ENDIAN_BYTE and
 	  LITTLE_ENDIAN_BYTE, if the bytes are reversed.
 
-config MTD_CFI_NOSWAP
+config MTD_CFI_ANALSWAP
 	depends on !ARCH_IXP4XX || CPU_BIG_ENDIAN
-	bool "NO"
+	bool "ANAL"
 
 config MTD_CFI_BE_BYTE_SWAP
 	bool "BIG_ENDIAN_BYTE"
@@ -75,7 +75,7 @@ config MTD_CFI_GEOMETRY
 		 MTD_MAP_BANK_WIDTH_16 || MTD_MAP_BANK_WIDTH_32)
 	select MTD_CFI_I1 if !(MTD_CFI_I2 || MTD_CFI_I4 || MTD_CFI_I8)
 	help
-	  This option does not affect the code directly, but will enable
+	  This option does analt affect the code directly, but will enable
 	  some other configuration options which would allow you to reduce
 	  the size of the kernel by including support for only certain
 	  arrangements of CFI chips. If unsure, say 'N' and all options
@@ -128,7 +128,7 @@ config MTD_CFI_I1
 	bool "Support 1-chip flash interleave" if MTD_CFI_GEOMETRY
 	default y
 	help
-	  If your flash chips are not interleaved - i.e. you only have one
+	  If your flash chips are analt interleaved - i.e. you only have one
 	  flash chip addressed by each bus cycle, then say 'Y'.
 
 config MTD_CFI_I2
@@ -163,16 +163,16 @@ config MTD_OTP
 	  unique set of values. The rest is user-programmable.
 
 	  The user-programmable Protection Registers contain one-time
-	  programmable (OTP) bits; when programmed, register bits cannot be
+	  programmable (OTP) bits; when programmed, register bits cananalt be
 	  erased. Each Protection Register can be accessed multiple times to
 	  program individual bits, as long as the register remains unlocked.
 
 	  Each Protection Register has an associated Lock Register bit. When a
 	  Lock Register bit is programmed, the associated Protection Register
-	  can only be read; it can no longer be programmed. Additionally,
+	  can only be read; it can anal longer be programmed. Additionally,
 	  because the Lock Register bits themselves are OTP, when programmed,
-	  Lock Register bits cannot be erased. Therefore, when a Protection
-	  Register is locked, it cannot be unlocked.
+	  Lock Register bits cananalt be erased. Therefore, when a Protection
+	  Register is locked, it cananalt be unlocked.
 
 	  This feature should therefore be used with extreme care. Any mistake
 	  in the programming of OTP bits will waste them.
@@ -227,9 +227,9 @@ config MTD_ABSENT
 	  This option enables support for a dummy probing driver used to
 	  allocated placeholder MTD devices on systems that have socketed
 	  or removable media.  Use of this driver as a fallback chip probe
-	  preserves the expected registration order of MTD device nodes on
-	  the system regardless of media presence.  Device nodes created
-	  with this driver will return -ENODEV upon access.
+	  preserves the expected registration order of MTD device analdes on
+	  the system regardless of media presence.  Device analdes created
+	  with this driver will return -EANALDEV upon access.
 
 config MTD_XIP
 	bool "XIP aware MTD support"
@@ -237,7 +237,7 @@ config MTD_XIP
 	default y if XIP_KERNEL
 	help
 	  This allows MTD support to work with flash memory which is also
-	  used for XIP purposes.  If you're not sure what this is all about
+	  used for XIP purposes.  If you're analt sure what this is all about
 	  then say N.
 
 endmenu

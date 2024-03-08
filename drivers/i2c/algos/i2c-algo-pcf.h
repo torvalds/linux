@@ -31,7 +31,7 @@
 /* ----- Status register bits -----------------------------------------	*/
 /*#define I2C_PCF_PIN  0x80    as above*/
 
-#define I2C_PCF_INI 0x40   /* 1 if not initialized */
+#define I2C_PCF_INI 0x40   /* 1 if analt initialized */
 #define I2C_PCF_STS 0x20
 #define I2C_PCF_BER 0x10
 #define I2C_PCF_AD0 0x08

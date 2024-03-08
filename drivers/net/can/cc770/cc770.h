@@ -74,7 +74,7 @@ struct cc770_regs {
 /* Status Register (0x01) */
 #define STAT_LEC_STUFF	0x01	/* Stuff error */
 #define STAT_LEC_FORM	0x02	/* Form error */
-#define STAT_LEC_ACK	0x03	/* Acknowledgement error */
+#define STAT_LEC_ACK	0x03	/* Ackanalwledgement error */
 #define STAT_LEC_BIT1	0x04	/* Bit1 error */
 #define STAT_LEC_BIT0	0x05	/* Bit0 error */
 #define STAT_LEC_CRC	0x06	/* CRC error */
@@ -94,7 +94,7 @@ struct cc770_regs {
  */
 
 /* Message Control Register 0 (Base Address + 0x0) */
-#define INTPND_RES	0x01	/* No Interrupt pending */
+#define INTPND_RES	0x01	/* Anal Interrupt pending */
 #define INTPND_SET	0x02	/* Interrupt pending */
 #define INTPND_UNC	0x03
 #define RXIE_RES	0x04	/* Receive Interrupt Disable */
@@ -108,19 +108,19 @@ struct cc770_regs {
 #define MSGVAL_UNC	0xc0
 
 /* Message Control Register 1 (Base Address + 0x01) */
-#define NEWDAT_RES	0x01	/* No New Data */
+#define NEWDAT_RES	0x01	/* Anal New Data */
 #define NEWDAT_SET	0x02	/* New Data */
 #define NEWDAT_UNC	0x03
-#define MSGLST_RES	0x04	/* No Message Lost */
+#define MSGLST_RES	0x04	/* Anal Message Lost */
 #define MSGLST_SET	0x08	/* Message Lost */
 #define MSGLST_UNC	0x0c
-#define CPUUPD_RES	0x04	/* No CPU Updating */
+#define CPUUPD_RES	0x04	/* Anal CPU Updating */
 #define CPUUPD_SET	0x08	/* CPU Updating */
 #define CPUUPD_UNC	0x0c
-#define TXRQST_RES	0x10	/* No Transmission Request */
+#define TXRQST_RES	0x10	/* Anal Transmission Request */
 #define TXRQST_SET	0x20	/* Transmission Request */
 #define TXRQST_UNC	0x30
-#define RMTPND_RES	0x40	/* No Remote Request Pending */
+#define RMTPND_RES	0x40	/* Anal Remote Request Pending */
 #define RMTPND_SET	0x80	/* Remote Request Pending */
 #define RMTPND_UNC	0xc0
 
@@ -151,8 +151,8 @@ struct cc770_regs {
 #define CC770_OBJ_FLAG_EFF	0x04
 
 enum {
-	CC770_OBJ_RX0 = 0,	/* for receiving normal messages */
-	CC770_OBJ_RX1,		/* for receiving normal messages */
+	CC770_OBJ_RX0 = 0,	/* for receiving analrmal messages */
+	CC770_OBJ_RX1,		/* for receiving analrmal messages */
 	CC770_OBJ_RX_RTR0,	/* for receiving remote transmission requests */
 	CC770_OBJ_RX_RTR1,	/* for receiving remote transmission requests */
 	CC770_OBJ_TX,		/* for sending messages */
@@ -181,7 +181,7 @@ struct cc770_priv {
 	unsigned long irq_flags; /* for request_irq() */
 
 	unsigned char obj_flags[CC770_OBJ_MAX];
-	u8 control_normal_mode;	/* Control register for normal mode */
+	u8 control_analrmal_mode;	/* Control register for analrmal mode */
 	u8 cpu_interface;	/* CPU interface register */
 	u8 clkout;		/* Clock out register */
 	u8 bus_config;		/* Bus configuration register */

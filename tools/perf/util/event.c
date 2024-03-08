@@ -1,4 +1,4 @@
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <linux/kernel.h>
@@ -84,7 +84,7 @@ const char *perf_event__name(unsigned int id)
 	if (id >= ARRAY_SIZE(perf_event__names))
 		return "INVALID";
 	if (!perf_event__names[id])
-		return "UNKNOWN";
+		return "UNKANALWN";
 	return perf_event__names[id];
 }
 
@@ -165,7 +165,7 @@ void perf_event__read_stat_config(struct perf_stat_config *config,
 		CASE(AGGR_LEVEL, aggr_level)
 #undef CASE
 		default:
-			pr_warning("unknown stat config term %" PRI_lu64 "\n",
+			pr_warning("unkanalwn stat config term %" PRI_lu64 "\n",
 				   event->data[i].tag);
 		}
 	}
@@ -203,7 +203,7 @@ size_t perf_event__fprintf_namespaces(union perf_event *event, FILE *fp)
 
 		ret  += fprintf(fp, "%u/%s: %" PRIu64 "/%#" PRIx64 "%s", idx,
 				perf_ns__name(idx), (u64)ns_link_info[idx].dev,
-				(u64)ns_link_info[idx].ino,
+				(u64)ns_link_info[idx].ianal,
 				((idx + 1) != nr_namespaces) ? ", " : "]\n");
 	}
 
@@ -345,8 +345,8 @@ size_t perf_event__fprintf_mmap2(union perf_event *event, FILE *fp)
 				   " %02x:%02x %"PRI_lu64" %"PRI_lu64"]: %c%c%c%c %s\n",
 			       event->mmap2.pid, event->mmap2.tid, event->mmap2.start,
 			       event->mmap2.len, event->mmap2.pgoff, event->mmap2.maj,
-			       event->mmap2.min, event->mmap2.ino,
-			       event->mmap2.ino_generation,
+			       event->mmap2.min, event->mmap2.ianal,
+			       event->mmap2.ianal_generation,
 			       (event->mmap2.prot & PROT_READ) ? 'r' : '-',
 			       (event->mmap2.prot & PROT_WRITE) ? 'w' : '-',
 			       (event->mmap2.prot & PROT_EXEC) ? 'x' : '-',
@@ -656,8 +656,8 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 }
 
 /*
- * For branch stacks or branch samples, the sample cpumode might not be correct
- * because it applies only to the sample 'ip' and not necessary to 'addr' or
+ * For branch stacks or branch samples, the sample cpumode might analt be correct
+ * because it applies only to the sample 'ip' and analt necessary to 'addr' or
  * branch stack addresses. If possible, use a fallback to deal with those cases.
  */
 struct map *thread__find_map_fb(struct thread *thread, u8 cpumode, u64 addr,
@@ -694,7 +694,7 @@ struct symbol *thread__find_symbol_fb(struct thread *thread, u8 cpumode,
 static bool check_address_range(struct intlist *addr_list, int addr_range,
 				unsigned long addr)
 {
-	struct int_node *pos;
+	struct int_analde *pos;
 
 	intlist__for_each_entry(pos, addr_list) {
 		if (addr >= pos->i && addr < pos->i + addr_range)
@@ -727,7 +727,7 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 	dump_printf(" ...... dso: %s\n",
 		dso
 		? dso->long_name
-		: (al->level == 'H' ? "[hypervisor]" : "<not found>"));
+		: (al->level == 'H' ? "[hypervisor]" : "<analt found>"));
 
 	if (thread__is_filtered(thread))
 		al->filtered |= (1 << HIST_FILTER__THREAD);

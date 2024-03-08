@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Driver for Linear Technology LTC2471 and LTC2473 voltage monitors
+ * Driver for Linear Techanallogy LTC2471 and LTC2473 voltage monitors
  * The LTC2473 is identical to the 2471, but reports a differential signal.
  *
  * Copyright (C) 2017 Topic Embedded Products
@@ -107,11 +107,11 @@ static int ltc2471_i2c_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->client = client;
@@ -128,7 +128,7 @@ static int ltc2471_i2c_probe(struct i2c_client *client)
 	/* Trigger once to start conversion and check if chip is there */
 	ret = ltc2471_get_value(client);
 	if (ret < 0) {
-		dev_err(&client->dev, "Cannot read from device.\n");
+		dev_err(&client->dev, "Cananalt read from device.\n");
 		return ret;
 	}
 

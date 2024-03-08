@@ -8,7 +8,7 @@ struct data_insert_op {
 	struct bio		*bio;
 	struct workqueue_struct *wq;
 
-	unsigned int		inode;
+	unsigned int		ianalde;
 	uint16_t		write_point;
 	uint16_t		write_prio;
 	blk_status_t		status;

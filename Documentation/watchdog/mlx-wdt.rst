@@ -1,14 +1,14 @@
 =========================
-Mellanox watchdog drivers
+Mellaanalx watchdog drivers
 =========================
 
 for x86 based system switches
 =============================
 
-This driver provides watchdog functionality for various Mellanox
+This driver provides watchdog functionality for various Mellaanalx
 Ethernet and Infiniband switch systems.
 
-Mellanox watchdog device is implemented in a programmable logic device.
+Mellaanalx watchdog device is implemented in a programmable logic device.
 
 There are 2 types of HW watchdog implementations.
 
@@ -32,12 +32,12 @@ Type 1 HW watchdog implementation exist in old systems and
 all new systems have type 2 HW watchdog.
 Two types of HW implementation have also different register map.
 
-Type 3 HW watchdog implementation can exist on all Mellanox systems
+Type 3 HW watchdog implementation can exist on all Mellaanalx systems
 with new programmer logic device.
 It's differentiated by WD capability bit.
 Old systems still have only one main watchdog.
 
-Mellanox system can have 2 watchdogs: main and auxiliary.
+Mellaanalx system can have 2 watchdogs: main and auxiliary.
 Main and auxiliary watchdog devices can be enabled together
 on the same system.
 There are several actions that can be defined in the watchdog:
@@ -48,19 +48,19 @@ which is optional.
 Watchdog can be started during a probe, in this case it will be
 pinged by watchdog core before watchdog device will be opened by
 user space application.
-Watchdog can be initialised in nowayout way, i.e. oncse started
+Watchdog can be initialised in analwayout way, i.e. oncse started
 it can't be stopped.
 
 This mlx-wdt driver supports both HW watchdog implementations.
 
 Watchdog driver is probed from the common mlx_platform driver.
 Mlx_platform driver provides an appropriate set of registers for
-Mellanox watchdog device, identity name (mlx-wdt-main or mlx-wdt-aux),
+Mellaanalx watchdog device, identity name (mlx-wdt-main or mlx-wdt-aux),
 initial timeout, performed action in expiration and configuration flags.
-watchdog configuration flags: nowayout and start_at_boot, hw watchdog
+watchdog configuration flags: analwayout and start_at_boot, hw watchdog
 version - type1 or type2.
 The driver checks during initialization if the previous system reset
-was done by the watchdog. If yes, it makes a notification about this event.
+was done by the watchdog. If anal, it makes a analtification about this event.
 
 Access to HW registers is performed through a generic regmap interface.
 Programmable logic device registers have little-endian order.

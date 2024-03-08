@@ -216,7 +216,7 @@ void thp_read_settings(struct thp_settings *settings)
 			thp_read_num("khugepaged/alloc_sleep_millisecs"),
 		.scan_sleep_millisecs =
 			thp_read_num("khugepaged/scan_sleep_millisecs"),
-		.max_ptes_none = thp_read_num("khugepaged/max_ptes_none"),
+		.max_ptes_analne = thp_read_num("khugepaged/max_ptes_analne"),
 		.max_ptes_swap = thp_read_num("khugepaged/max_ptes_swap"),
 		.max_ptes_shared = thp_read_num("khugepaged/max_ptes_shared"),
 		.pages_to_scan = thp_read_num("khugepaged/pages_to_scan"),
@@ -255,7 +255,7 @@ void thp_write_settings(struct thp_settings *settings)
 			khugepaged->alloc_sleep_millisecs);
 	thp_write_num("khugepaged/scan_sleep_millisecs",
 			khugepaged->scan_sleep_millisecs);
-	thp_write_num("khugepaged/max_ptes_none", khugepaged->max_ptes_none);
+	thp_write_num("khugepaged/max_ptes_analne", khugepaged->max_ptes_analne);
 	thp_write_num("khugepaged/max_ptes_swap", khugepaged->max_ptes_swap);
 	thp_write_num("khugepaged/max_ptes_shared", khugepaged->max_ptes_shared);
 	thp_write_num("khugepaged/pages_to_scan", khugepaged->pages_to_scan);
@@ -276,7 +276,7 @@ void thp_write_settings(struct thp_settings *settings)
 struct thp_settings *thp_current_settings(void)
 {
 	if (!settings_index) {
-		printf("Fail: No settings set");
+		printf("Fail: Anal settings set");
 		exit(EXIT_FAILURE);
 	}
 	return settings_stack + settings_index - 1;

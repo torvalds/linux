@@ -27,7 +27,7 @@ enum {
 	 */
 	RTAS_WORK_AREA_ARENA_SZ = RTAS_WORK_AREA_MAX_ALLOC_SZ * 2,
 	/*
-	 * The smallest known work area size is for ibm,get-vpd's
+	 * The smallest kanalwn work area size is for ibm,get-vpd's
 	 * location code argument, which is limited to 79 characters
 	 * plus 1 nul terminator.
 	 *
@@ -51,7 +51,7 @@ static struct {
 
 /*
  * A single work area buffer and descriptor to serve requests early in
- * boot before the allocator is fully initialized. We know 4KB is the
+ * boot before the allocator is fully initialized. We kanalw 4KB is the
  * most any boot time user needs (they all call ibm,get-system-parameter).
  */
 static bool early_work_area_in_use __initdata;
@@ -137,10 +137,10 @@ static __init int rtas_work_area_allocator_init(void)
 	const phys_addr_t pa_start = __pa(rwa_state.arena);
 	const phys_addr_t pa_end = pa_start + RTAS_WORK_AREA_ARENA_SZ - 1;
 	struct gen_pool *pool;
-	const int nid = NUMA_NO_NODE;
+	const int nid = NUMA_ANAL_ANALDE;
 	int err;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!rwa_state.arena)
 		goto err_out;
 
@@ -191,7 +191,7 @@ void __init rtas_work_area_reserve_arena(const phys_addr_t limit)
 	const phys_addr_t align = RTAS_WORK_AREA_ARENA_ALIGN;
 	const phys_addr_t size = RTAS_WORK_AREA_ARENA_SZ;
 	const phys_addr_t min = MEMBLOCK_LOW_LIMIT;
-	const int nid = NUMA_NO_NODE;
+	const int nid = NUMA_ANAL_ANALDE;
 
 	/*
 	 * Too early for a machine_is(pseries) check. But PAPR

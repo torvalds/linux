@@ -5,7 +5,7 @@
  * Copyright 2005 MontaVista Software, Inc.
  * Matt Porter <mporter@kernel.crashing.org>
  *
- * Copyright 2009 Integrated Device Technology, Inc.
+ * Copyright 2009 Integrated Device Techanallogy, Inc.
  * Alex Bounine <alexandre.bounine@idt.com>
  * - Added Port-Write/Error Management initialization and handling
  *
@@ -51,7 +51,7 @@ static int next_comptag = 1;
  *
  * Returns next available device destination ID for the specified RIO network.
  * Marks allocated ID as one in use.
- * Returns RIO_INVALID_DESTID if new destID is not available.
+ * Returns RIO_INVALID_DESTID if new destID is analt available.
  */
 static u16 rio_destid_alloc(struct rio_net *net)
 {
@@ -261,7 +261,7 @@ static int rio_enum_host(struct rio_mport *port)
  * @dst_ops: RIO device destination operations
  *
  * Checks the provided @src_ops and @dst_ops for the necessary transaction
- * capabilities that indicate whether or not a device will implement a
+ * capabilities that indicate whether or analt a device will implement a
  * destination ID register. Returns 1 if true or 0 if false.
  */
 static int rio_device_has_destid(struct rio_mport *port, int src_ops,
@@ -293,7 +293,7 @@ static void rio_release_dev(struct device *dev)
  *
  * Gets the RIO device Processing Element Features register
  * contents and tests for switch capabilities. Returns 1 if
- * the device is a switch or 0 if it is not a switch.
+ * the device is a switch or 0 if it is analt a switch.
  * The RIO device struct is freed.
  */
 static int rio_is_switch(struct rio_dev *rdev)
@@ -539,7 +539,7 @@ static int rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 	if (rio_get_host_deviceid_lock(port, hopcount) == port->host_deviceid) {
 		pr_debug("RIO: PE already discovered by this host\n");
 		/*
-		 * Already discovered by this host. Add it as another
+		 * Already discovered by this host. Add it as aanalther
 		 * link to the existing device.
 		 */
 		rio_mport_read_config_32(port, RIO_ANY_DESTID(port->sys_size),
@@ -701,7 +701,7 @@ static int rio_enum_peer(struct rio_net *net, struct rio_mport *port,
  * rio_enum_complete- Tests if enumeration of a network is complete
  * @port: Master port to send transaction
  *
- * Tests the PGCCSR discovered bit for non-zero value (enumeration
+ * Tests the PGCCSR discovered bit for analn-zero value (enumeration
  * complete flag). Return %1 if enumeration is complete or %0 if
  * enumeration is incomplete.
  */
@@ -883,7 +883,7 @@ static struct rio_net *rio_scan_alloc_net(struct rio_mport *mport,
  *
  * For each enumerated device, ensure that each switch in a system
  * has correct routing entries. Add routes for devices that where
- * unknown during the first enumeration pass through the switch.
+ * unkanalwn during the first enumeration pass through the switch.
  */
 static void rio_update_route_tables(struct rio_net *net)
 {
@@ -896,7 +896,7 @@ static void rio_update_route_tables(struct rio_net *net)
 
 		destid = rdev->destid;
 
-		list_for_each_entry(rswitch, &net->switches, node) {
+		list_for_each_entry(rswitch, &net->switches, analde) {
 
 			if (rio_is_switch(rdev)	&& (rdev->rswitch == rswitch))
 				continue;
@@ -939,7 +939,7 @@ static void rio_init_em(struct rio_dev *rdev)
  * @flags: Enumeration control flags
  *
  * Starts the enumeration process. If somebody has enumerated our
- * master port device, then give up. If not and we have an active
+ * master port device, then give up. If analt and we have an active
  * link, then start recursive peer enumeration. Returns %0 if
  * enumeration succeeds or %-EBUSY if enumeration fails.
  */
@@ -952,12 +952,12 @@ static int rio_enum_mport(struct rio_mport *mport, u32 flags)
 	       mport->name);
 
 	/*
-	 * To avoid multiple start requests (repeat enumeration is not supported
+	 * To avoid multiple start requests (repeat enumeration is analt supported
 	 * by this method) check if enumeration/discovery was performed for this
 	 * mport: if mport was added into the list of mports for a net exit
 	 * with error.
 	 */
-	if (mport->nnode.next || mport->nnode.prev)
+	if (mport->nanalde.next || mport->nanalde.prev)
 		return -EBUSY;
 
 	/* If somebody else enumerated our master port device, bail. */
@@ -974,7 +974,7 @@ static int rio_enum_mport(struct rio_mport *mport, u32 flags)
 		net = rio_scan_alloc_net(mport, 1, 0);
 		if (!net) {
 			printk(KERN_ERR "RIO: failed to allocate new net\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 
@@ -1028,7 +1028,7 @@ static void rio_build_route_tables(struct rio_net *net)
 	int i;
 	u8 sport;
 
-	list_for_each_entry(rswitch, &net->switches, node) {
+	list_for_each_entry(rswitch, &net->switches, analde) {
 		rdev = sw_to_rio_dev(rswitch);
 
 		rio_lock_device(net->hport, rdev->destid,
@@ -1070,7 +1070,7 @@ static int rio_disc_mport(struct rio_mport *mport, u32 flags)
 	if (rio_mport_is_active(mport)) {
 		if (rio_enum_complete(mport))
 			goto enum_done;
-		else if (flags & RIO_SCAN_ENUM_NO_WAIT)
+		else if (flags & RIO_SCAN_ENUM_ANAL_WAIT)
 			return -EAGAIN;
 
 		pr_debug("RIO: wait for enumeration to complete...\n");
@@ -1137,7 +1137,7 @@ MODULE_PARM_DESC(scan, "Start RapidIO network enumeration/discovery "
  *
  * Returns 0 for success or -EIO if unable to register itself.
  *
- * This enumeration/discovery method cannot be unloaded and therefore does not
+ * This enumeration/discovery method cananalt be unloaded and therefore does analt
  * provide a matching cleanup_module routine.
  */
 

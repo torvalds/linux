@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2015 - 2023 Beijing WangXun Technology Co., Ltd. */
+/* Copyright (c) 2015 - 2023 Beijing WangXun Techanallogy Co., Ltd. */
 
 #include <linux/pci.h>
 #include <linux/phy.h>
@@ -34,9 +34,9 @@ static const struct wx_stats wx_gstrings_stats[] = {
 	WX_STAT("os2bmc_tx_by_bmc", stats.b2ospc),
 	WX_STAT("os2bmc_tx_by_host", stats.o2bspc),
 	WX_STAT("os2bmc_rx_by_host", stats.b2ogprc),
-	WX_STAT("rx_no_dma_resources", stats.rdmdrop),
+	WX_STAT("rx_anal_dma_resources", stats.rdmdrop),
 	WX_STAT("tx_busy", tx_busy),
-	WX_STAT("non_eop_descs", non_eop_descs),
+	WX_STAT("analn_eop_descs", analn_eop_descs),
 	WX_STAT("tx_restart_queue", restart_queue),
 	WX_STAT("rx_csum_offload_good_count", hw_csum_rx_good),
 	WX_STAT("rx_csum_offload_errors", hw_csum_rx_error),
@@ -45,7 +45,7 @@ static const struct wx_stats wx_gstrings_stats[] = {
 
 /* drivers allocates num_tx_queues and num_rx_queues symmetrically so
  * we set the num_rx_queues to evaluate to num_tx_queues. This is
- * used because we do not have a good way to get the max number of
+ * used because we do analt have a good way to get the max number of
  * rx queues with CONFIG_RPS disabled.
  */
 #define WX_NUM_RX_QUEUES netdev->num_tx_queues
@@ -63,7 +63,7 @@ int wx_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_STATS:
 		return WX_STATS_LEN;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 EXPORT_SYMBOL(wx_get_sset_count);
@@ -166,7 +166,7 @@ void wx_get_pause_stats(struct net_device *netdev,
 
 	hwstats = &wx->stats;
 	stats->tx_pause_frames = hwstats->lxontxc + hwstats->lxofftxc;
-	stats->rx_pause_frames = hwstats->lxonoffrxc;
+	stats->rx_pause_frames = hwstats->lxoanalffrxc;
 }
 EXPORT_SYMBOL(wx_get_pause_stats);
 
@@ -291,7 +291,7 @@ int wx_set_coalesce(struct net_device *netdev,
 	if (wx->q_vector[0]->tx.count && wx->q_vector[0]->rx.count) {
 		/* reject Tx specific changes in case of mixed RxTx vectors */
 		if (ec->tx_coalesce_usecs)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	if (ec->tx_max_coalesced_frames_irq)
@@ -392,11 +392,11 @@ int wx_set_channels(struct net_device *dev,
 	unsigned int count = ch->combined_count;
 	struct wx *wx = netdev_priv(dev);
 
-	/* verify other_count has not changed */
+	/* verify other_count has analt changed */
 	if (ch->other_count != 1)
 		return -EINVAL;
 
-	/* verify the number of channels does not exceed hardware limits */
+	/* verify the number of channels does analt exceed hardware limits */
 	if (count > wx_max_channels(wx))
 		return -EINVAL;
 

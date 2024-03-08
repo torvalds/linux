@@ -29,7 +29,7 @@ static ssize_t vfio_ccw_schib_region_read(struct vfio_ccw_private *private,
 	region = private->region[i].data;
 
 	if (cio_update_schib(sch)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -113,7 +113,7 @@ static ssize_t vfio_ccw_crw_region_read(struct vfio_ccw_private *private,
 
 	kfree(crw);
 
-	/* Notify the guest if more CRWs are on our queue */
+	/* Analtify the guest if more CRWs are on our queue */
 	if (!list_empty(&private->crw) && private->crw_trigger)
 		eventfd_signal(private->crw_trigger);
 

@@ -10,14 +10,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    substantially similar to the "ANAL WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -25,13 +25,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -91,7 +91,7 @@ macrocall:
 			printf("Narg == %d", macro_symbol->info.macroinfo->narg);
 			stop("Too few arguments for macro invocation",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		macro_symbol = NULL;
 		YYACCEPT;
@@ -113,7 +113,7 @@ macro_arglist:
 		if ($1 == 0) {
 			stop("Comma without preceding argument in arg list",
 			     EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 		$$ = $1 + 1;
 		add_macro_arg($3, $$);
@@ -131,7 +131,7 @@ add_macro_arg(const char *argtext, int argnum)
 	if (macro_symbol == NULL || macro_symbol->type != MACRO) {
 		stop("Invalid current symbol for adding macro arg",
 		     EX_SOFTWARE);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 	/*
 	 * Macro Invocation.  Find the appropriate argument and fill
@@ -145,12 +145,12 @@ add_macro_arg(const char *argtext, int argnum)
 	}
 	if (marg == NULL) {
 		stop("Too many arguments for macro invocation", EX_DATAERR);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 	marg->replacement_text = strdup(argtext);
 	if (marg->replacement_text == NULL) {
 		stop("Unable to replicate replacement text", EX_SOFTWARE);
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 }
 

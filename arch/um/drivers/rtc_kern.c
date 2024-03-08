@@ -99,7 +99,7 @@ static irqreturn_t uml_rtc_interrupt(int irq, void *data)
 {
 	unsigned long long c = 0;
 
-	/* alarm triggered, it's now off */
+	/* alarm triggered, it's analw off */
 	uml_rtc_alarm_enabled = false;
 
 	os_read_file(uml_rtc_irq_fd, &c, sizeof(c));
@@ -194,7 +194,7 @@ static int __init uml_rtc_init(void)
 
 	pdev = platform_device_alloc("uml-rtc", 0);
 	if (!pdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unregister;
 	}
 

@@ -25,7 +25,7 @@ static int gs_enable(void)
 	if (!current->thread.gs_cb) {
 		gs_cb = kzalloc(sizeof(*gs_cb), GFP_KERNEL);
 		if (!gs_cb)
-			return -ENOMEM;
+			return -EANALMEM;
 		gs_cb->gsd = 25;
 		preempt_disable();
 		local_ctl_set_bit(2, CR2_GUARDED_STORAGE_BIT);
@@ -56,7 +56,7 @@ static int gs_set_bc_cb(struct gs_cb __user *u_gs_cb)
 	if (!gs_cb) {
 		gs_cb = kzalloc(sizeof(*gs_cb), GFP_KERNEL);
 		if (!gs_cb)
-			return -ENOMEM;
+			return -EANALMEM;
 		current->thread.gs_bc_cb = gs_cb;
 	}
 	if (copy_from_user(gs_cb, u_gs_cb, sizeof(*gs_cb)))
@@ -110,7 +110,7 @@ SYSCALL_DEFINE2(s390_guarded_storage, int, command,
 		struct gs_cb __user *, gs_cb)
 {
 	if (!MACHINE_HAS_GS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	switch (command) {
 	case GS_ENABLE:
 		return gs_enable();

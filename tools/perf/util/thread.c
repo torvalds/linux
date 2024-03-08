@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -172,7 +172,7 @@ static int __thread__set_namespaces(struct thread *thread, u64 timestamp,
 
 	new = namespaces__new(event);
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&new->list, thread__namespaces_list(thread));
 
@@ -220,7 +220,7 @@ struct comm *thread__exec_comm(struct thread *thread)
 	}
 
 	/*
-	 * 'last' with no start time might be the parent's comm of a synthesized
+	 * 'last' with anal start time might be the parent's comm of a synthesized
 	 * thread (created by processing a synthesized fork event). For a main
 	 * thread, that is very probably wrong. Prefer a later comm to avoid
 	 * that case.
@@ -244,7 +244,7 @@ static int ____thread__set_comm(struct thread *thread, const char *str,
 	} else {
 		new = comm__new(str, timestamp, exec);
 		if (!new)
-			return -ENOMEM;
+			return -EANALMEM;
 		list_add(&new->list, thread__comm_list(thread));
 
 		if (exec)
@@ -399,7 +399,7 @@ int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp, bo
 		const char *comm = thread__comm_str(parent);
 		int err;
 		if (!comm)
-			return -ENOMEM;
+			return -EANALMEM;
 		err = thread__set_comm(thread, comm, timestamp);
 		if (err)
 			return err;
@@ -479,13 +479,13 @@ void thread__free_stitch_list(struct thread *thread)
 	if (!lbr_stitch)
 		return;
 
-	list_for_each_entry_safe(pos, tmp, &lbr_stitch->lists, node) {
-		list_del_init(&pos->node);
+	list_for_each_entry_safe(pos, tmp, &lbr_stitch->lists, analde) {
+		list_del_init(&pos->analde);
 		free(pos);
 	}
 
-	list_for_each_entry_safe(pos, tmp, &lbr_stitch->free_lists, node) {
-		list_del_init(&pos->node);
+	list_for_each_entry_safe(pos, tmp, &lbr_stitch->free_lists, analde) {
+		list_del_init(&pos->analde);
 		free(pos);
 	}
 

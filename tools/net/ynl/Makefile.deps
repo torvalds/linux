@@ -2,7 +2,7 @@
 
 # Try to include uAPI headers from the kernel uapi/ path.
 # Most code under tools/ requires the respective kernel uAPI headers
-# to be copied to tools/include. The duplication is annoying.
+# to be copied to tools/include. The duplication is ananalying.
 # All the family headers should be self-contained. We avoid the copying
 # by selectively including just the uAPI header of the family directly
 # from the kernel sources.

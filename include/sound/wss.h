@@ -15,7 +15,7 @@
 
 /* defines for codec.mode */
 
-#define WSS_MODE_NONE	0x0000
+#define WSS_MODE_ANALNE	0x0000
 #define WSS_MODE_PLAY	0x0001
 #define WSS_MODE_RECORD	0x0002
 #define WSS_MODE_TIMER	0x0004

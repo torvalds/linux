@@ -2,7 +2,7 @@
 /*
  * Line 6 Pod HD
  *
- * Copyright (C) 2011 Stefan Hajnoczi <stefanha@gmail.com>
+ * Copyright (C) 2011 Stefan Hajanalczi <stefanha@gmail.com>
  * Copyright (C) 2015 Andrej Krutak <dev@andree.sk>
  * Copyright (C) 2017 Hans P. Moller <hmoller@uc.cl>
  */
@@ -177,7 +177,7 @@ static const struct attribute_group podhd_dev_attr_group = {
  *
  * May be compatible with other POD HD's, since it's also similar to the
  * previous POD setup. In any case, it doesn't seem to be required for the
- * audio nor bulk interfaces to work.
+ * audio analr bulk interfaces to work.
  */
 
 static int podhd_dev_start(struct usb_line6_podhd *pod)
@@ -196,7 +196,7 @@ static int podhd_dev_start(struct usb_line6_podhd *pod)
 		goto exit;
 	}
 
-	/* NOTE: looks like some kind of ping message */
+	/* ANALTE: looks like some kind of ping message */
 	ret = usb_control_msg_recv(usbdev, 0, 0x67,
 					USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 					0x11, 0x0,
@@ -279,9 +279,9 @@ static void podhd_set_monitor_level(struct usb_line6_podhd *podhd, int value)
 		0x01, 0x00,
 		/* Message size is 2 4-byte words */
 		0x02, 0x00,
-		/* Unknown */
+		/* Unkanalwn */
 		0x04, 0x41,
-		/* Unknown */
+		/* Unkanalwn */
 		0x04, 0x00, 0x13, 0x00,
 		/* Volume, LE float32, 0.0 - 1.0 */
 		0x00, 0x00, 0x00, 0x00
@@ -377,9 +377,9 @@ static int podhd_init(struct usb_line6 *line6,
 		intf = usb_ifnum_to_if(line6->usbdev,
 					pod->line6.properties->ctrl_if);
 		if (!intf) {
-			dev_err(pod->line6.ifcdev, "interface %d not found\n",
+			dev_err(pod->line6.ifcdev, "interface %d analt found\n",
 				pod->line6.properties->ctrl_if);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		err = usb_driver_claim_interface(&podhd_driver, intf, NULL);
@@ -432,7 +432,7 @@ static int podhd_init(struct usb_line6 *line6,
 
 /* table of devices that work with this driver */
 static const struct usb_device_id podhd_id_table[] = {
-	/* TODO: no need to alloc data interfaces when only audio is used */
+	/* TODO: anal need to alloc data interfaces when only audio is used */
 	{ LINE6_DEVICE(0x5057),    .driver_info = LINE6_PODHD300 },
 	{ LINE6_DEVICE(0x5058),    .driver_info = LINE6_PODHD400 },
 	{ LINE6_IF_NUM(0x414D, 0), .driver_info = LINE6_PODHD500 },

@@ -51,7 +51,7 @@ EXPORT_SYMBOL_GPL(nf_nat_pptp_hook);
 #if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 /* PptpControlMessageType names */
 static const char *const pptp_msg_name_array[PPTP_MSG_MAX + 1] = {
-	[0]				= "UNKNOWN_MESSAGE",
+	[0]				= "UNKANALWN_MESSAGE",
 	[PPTP_START_SESSION_REQUEST]	= "START_SESSION_REQUEST",
 	[PPTP_START_SESSION_REPLY]	= "START_SESSION_REPLY",
 	[PPTP_STOP_SESSION_REQUEST]	= "STOP_SESSION_REQUEST",
@@ -64,8 +64,8 @@ static const char *const pptp_msg_name_array[PPTP_MSG_MAX + 1] = {
 	[PPTP_IN_CALL_REPLY]		= "IN_CALL_REPLY",
 	[PPTP_IN_CALL_CONNECT]		= "IN_CALL_CONNECT",
 	[PPTP_CALL_CLEAR_REQUEST]	= "CALL_CLEAR_REQUEST",
-	[PPTP_CALL_DISCONNECT_NOTIFY]	= "CALL_DISCONNECT_NOTIFY",
-	[PPTP_WAN_ERROR_NOTIFY]		= "WAN_ERROR_NOTIFY",
+	[PPTP_CALL_DISCONNECT_ANALTIFY]	= "CALL_DISCONNECT_ANALTIFY",
+	[PPTP_WAN_ERROR_ANALTIFY]		= "WAN_ERROR_ANALTIFY",
 	[PPTP_SET_LINK_INFO]		= "SET_LINK_INFO"
 };
 
@@ -119,7 +119,7 @@ static void pptp_expectfn(struct nf_conn *ct,
 			nf_ct_unexpect_related(exp_other);
 			nf_ct_expect_put(exp_other);
 		} else {
-			pr_debug("not found\n");
+			pr_debug("analt found\n");
 		}
 	}
 }
@@ -280,13 +280,13 @@ pptp_inbound_pkt(struct sk_buff *skb, unsigned int protoff,
 		if (info->sstate > PPTP_SESSION_STOPREQ)
 			goto invalid;
 		if (pptpReq->strep.resultCode == PPTP_STOP_OK)
-			info->sstate = PPTP_SESSION_NONE;
+			info->sstate = PPTP_SESSION_ANALNE;
 		else
 			info->sstate = PPTP_SESSION_ERROR;
 		break;
 
 	case PPTP_OUT_CALL_REPLY:
-		/* server accepted call, we now expect GRE frames */
+		/* server accepted call, we analw expect GRE frames */
 		if (info->sstate != PPTP_SESSION_CONFIRMED)
 			goto invalid;
 		if (info->cstate != PPTP_CALL_OUT_REQ &&
@@ -305,7 +305,7 @@ pptp_inbound_pkt(struct sk_buff *skb, unsigned int protoff,
 			info->pac_call_id = cid;
 			exp_gre(ct, cid, pcid);
 		} else
-			info->cstate = PPTP_CALL_NONE;
+			info->cstate = PPTP_CALL_ANALNE;
 		break;
 
 	case PPTP_IN_CALL_REQUEST:
@@ -340,17 +340,17 @@ pptp_inbound_pkt(struct sk_buff *skb, unsigned int protoff,
 		exp_gre(ct, cid, pcid);
 		break;
 
-	case PPTP_CALL_DISCONNECT_NOTIFY:
+	case PPTP_CALL_DISCONNECT_ANALTIFY:
 		/* server confirms disconnect */
 		cid = pptpReq->disc.callID;
 		pr_debug("%s, CID=%X\n", pptp_msg_name(msg), ntohs(cid));
-		info->cstate = PPTP_CALL_NONE;
+		info->cstate = PPTP_CALL_ANALNE;
 
 		/* untrack this call id, unexpect GRE packets */
 		pptp_destroy_siblings(ct);
 		break;
 
-	case PPTP_WAN_ERROR_NOTIFY:
+	case PPTP_WAN_ERROR_ANALTIFY:
 	case PPTP_SET_LINK_INFO:
 	case PPTP_ECHO_REQUEST:
 	case PPTP_ECHO_REPLY:
@@ -394,7 +394,7 @@ pptp_outbound_pkt(struct sk_buff *skb, unsigned int protoff,
 	switch (msg) {
 	case PPTP_START_SESSION_REQUEST:
 		/* client requests for new control session */
-		if (info->sstate != PPTP_SESSION_NONE)
+		if (info->sstate != PPTP_SESSION_ANALNE)
 			goto invalid;
 		info->sstate = PPTP_SESSION_REQUESTED;
 		break;
@@ -433,7 +433,7 @@ pptp_outbound_pkt(struct sk_buff *skb, unsigned int protoff,
 			info->cstate = PPTP_CALL_IN_REP;
 			info->pns_call_id = cid;
 		} else
-			info->cstate = PPTP_CALL_NONE;
+			info->cstate = PPTP_CALL_ANALNE;
 		break;
 
 	case PPTP_CALL_CLEAR_REQUEST:
@@ -442,7 +442,7 @@ pptp_outbound_pkt(struct sk_buff *skb, unsigned int protoff,
 			goto invalid;
 		/* FUTURE: iterate over all calls and check if
 		 * call ID is valid.  We don't do this without newnat,
-		 * because we only know about last call */
+		 * because we only kanalw about last call */
 		info->cstate = PPTP_CALL_CLEAR_REQ;
 		break;
 
@@ -481,8 +481,8 @@ static const unsigned int pptp_msg_size[] = {
 	[PPTP_IN_CALL_REPLY]	      = sizeof(struct PptpInCallReply),
 	[PPTP_IN_CALL_CONNECT]	      = sizeof(struct PptpInCallConnected),
 	[PPTP_CALL_CLEAR_REQUEST]     = sizeof(struct PptpClearCallRequest),
-	[PPTP_CALL_DISCONNECT_NOTIFY] = sizeof(struct PptpCallDisconnectNotify),
-	[PPTP_WAN_ERROR_NOTIFY]	      = sizeof(struct PptpWanErrorNotify),
+	[PPTP_CALL_DISCONNECT_ANALTIFY] = sizeof(struct PptpCallDisconnectAnaltify),
+	[PPTP_WAN_ERROR_ANALTIFY]	      = sizeof(struct PptpWanErrorAnaltify),
 	[PPTP_SET_LINK_INFO]	      = sizeof(struct PptpSetLinkInfo),
 };
 
@@ -528,16 +528,16 @@ conntrack_pptp_help(struct sk_buff *skb, unsigned int protoff,
 
 	pptph = skb_header_pointer(skb, nexthdr_off, sizeof(_pptph), &_pptph);
 	if (!pptph) {
-		pr_debug("no full PPTP header, can't track\n");
+		pr_debug("anal full PPTP header, can't track\n");
 		return NF_ACCEPT;
 	}
 	nexthdr_off += sizeof(_pptph);
 	datalen -= sizeof(_pptph);
 
-	/* if it's not a control message we can't do anything with it */
+	/* if it's analt a control message we can't do anything with it */
 	if (ntohs(pptph->packetType) != PPTP_PACKET_CONTROL ||
 	    ntohl(pptph->magicCookie) != PPTP_MAGIC_COOKIE) {
-		pr_debug("not a control packet\n");
+		pr_debug("analt a control packet\n");
 		return NF_ACCEPT;
 	}
 
@@ -564,7 +564,7 @@ conntrack_pptp_help(struct sk_buff *skb, unsigned int protoff,
 	spin_lock_bh(&nf_pptp_lock);
 
 	/* FIXME: We just blindly assume that the control connection is always
-	 * established from PNS->PAC.  However, RFC makes no guarantee */
+	 * established from PNS->PAC.  However, RFC makes anal guarantee */
 	if (dir == IP_CT_DIR_ORIGINAL)
 		/* client -> server (PNS -> PAC) */
 		ret = pptp_outbound_pkt(skb, protoff, ctlh, pptpReq, reqlen, ct,

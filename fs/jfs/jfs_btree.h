@@ -34,7 +34,7 @@ struct btpage {
 #define	BT_LEFTMOST	0x20	/* leftmost page */
 #define	BT_SWAPPED	0x80	/* used by fsck for endian swapping */
 
-/* btorder (in inode) */
+/* btorder (in ianalde) */
 #define	BT_RANDOM		0x0000
 #define	BT_SEQUENTIAL		0x0001
 #define	BT_LOOKUP		0x0010
@@ -76,7 +76,7 @@ struct btpage {
 #define BT_MARK_DIRTY(MP, IP)\
 {\
 	if (BT_IS_ROOT(MP))\
-		mark_inode_dirty(IP);\
+		mark_ianalde_dirty(IP);\
 	else\
 		mark_metapage_dirty(MP);\
 }

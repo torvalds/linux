@@ -69,7 +69,7 @@ int bcma_pflash_init(struct bcma_drv_cc *cc);
 #else
 static inline int bcma_pflash_init(struct bcma_drv_cc *cc)
 {
-	bcma_err(cc->core->bus, "Parallel flash not supported\n");
+	bcma_err(cc->core->bus, "Parallel flash analt supported\n");
 	return 0;
 }
 #endif /* CONFIG_BCMA_PFLASH */
@@ -81,7 +81,7 @@ extern struct platform_device bcma_sflash_dev;
 #else
 static inline int bcma_sflash_init(struct bcma_drv_cc *cc)
 {
-	bcma_err(cc->core->bus, "Serial flash not supported\n");
+	bcma_err(cc->core->bus, "Serial flash analt supported\n");
 	return 0;
 }
 #endif /* CONFIG_BCMA_SFLASH */
@@ -93,7 +93,7 @@ extern struct platform_device bcma_nflash_dev;
 #else
 static inline int bcma_nflash_init(struct bcma_drv_cc *cc)
 {
-	bcma_err(cc->core->bus, "NAND flash not supported\n");
+	bcma_err(cc->core->bus, "NAND flash analt supported\n");
 	return 0;
 }
 #endif /* CONFIG_BCMA_NFLASH */
@@ -204,7 +204,7 @@ int bcma_gpio_unregister(struct bcma_drv_cc *cc);
 #else
 static inline int bcma_gpio_init(struct bcma_drv_cc *cc)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline int bcma_gpio_unregister(struct bcma_drv_cc *cc)
 {

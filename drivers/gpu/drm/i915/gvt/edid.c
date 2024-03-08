@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -54,7 +54,7 @@ static unsigned char edid_get_byte(struct intel_vgpu *vgpu)
 	struct intel_vgpu_i2c_edid *edid = &vgpu->display.i2c_edid;
 	unsigned char chr = 0;
 
-	if (edid->state == I2C_NOT_SPECIFIED || !edid->slave_selected) {
+	if (edid->state == I2C_ANALT_SPECIFIED || !edid->slave_selected) {
 		gvt_vgpu_err("Driver tries to read EDID without proper sequence!\n");
 		return 0;
 	}
@@ -64,7 +64,7 @@ static unsigned char edid_get_byte(struct intel_vgpu *vgpu)
 	}
 
 	if (!edid->edid_available) {
-		gvt_vgpu_err("Reading EDID but EDID is not available!\n");
+		gvt_vgpu_err("Reading EDID but EDID is analt available!\n");
 		return 0;
 	}
 
@@ -75,7 +75,7 @@ static unsigned char edid_get_byte(struct intel_vgpu *vgpu)
 		chr = edid_data->edid_block[edid->current_edid_read];
 		edid->current_edid_read++;
 	} else {
-		gvt_vgpu_err("No EDID available during the reading?\n");
+		gvt_vgpu_err("Anal EDID available during the reading?\n");
 	}
 	return chr;
 }
@@ -218,7 +218,7 @@ static int gmbus1_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		} else if (slave_addr != 0) {
 			gvt_dbg_dpy(
 				"vgpu%d: unsupported gmbus slave addr(0x%x)\n"
-				"	gmbus operations will be ignored.\n",
+				"	gmbus operations will be iganalred.\n",
 					vgpu->id, slave_addr);
 		}
 
@@ -228,7 +228,7 @@ static int gmbus1_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 
 		i2c_edid->gmbus.cycle_type = gmbus1_bus_cycle(wvalue);
 		switch (gmbus1_bus_cycle(wvalue)) {
-		case GMBUS_NOCYCLE:
+		case GMBUS_ANALCYCLE:
 			break;
 		case GMBUS_STOP:
 			/* From spec:
@@ -238,12 +238,12 @@ static int gmbus1_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 			 * WAIT phase
 			 */
 			if (gmbus1_bus_cycle(vgpu_vreg(vgpu, offset))
-				!= GMBUS_NOCYCLE) {
+				!= GMBUS_ANALCYCLE) {
 				intel_vgpu_init_i2c_edid(vgpu);
 				/* After the 'stop' cycle, hw state would become
 				 * 'stop phase' and then 'idle phase' after a
 				 * few milliseconds. In emulation, we just set
-				 * it as 'idle phase' ('stop phase' is not
+				 * it as 'idle phase' ('stop phase' is analt
 				 * visible in gmbus interface)
 				 */
 				i2c_edid->gmbus.phase = GMBUS_IDLE_PHASE;
@@ -262,7 +262,7 @@ static int gmbus1_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 			vgpu_vreg_t(vgpu, PCH_GMBUS2) |= GMBUS_ACTIVE;
 			break;
 		default:
-			gvt_vgpu_err("Unknown/reserved GMBUS cycle detected!\n");
+			gvt_vgpu_err("Unkanalwn/reserved GMBUS cycle detected!\n");
 			break;
 		}
 		/*
@@ -333,7 +333,7 @@ static int gmbus3_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 		 */
 	} else {
 		memcpy(p_data, &vgpu_vreg(vgpu, offset), bytes);
-		gvt_vgpu_err("warning: gmbus3 read with nothing returned\n");
+		gvt_vgpu_err("warning: gmbus3 read with analthing returned\n");
 	}
 	return 0;
 }
@@ -533,8 +533,8 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 	} else if ((op & 0x1) == GVT_AUX_I2C_WRITE) {
 		/* TODO
 		 * We only support EDID reading from I2C_over_AUX. And
-		 * we do not expect the index mode to be used. Right now
-		 * the WRITE operation is ignored. It is good enough to
+		 * we do analt expect the index mode to be used. Right analw
+		 * the WRITE operation is iganalred. It is good eanalugh to
 		 * support the gfx driver to do EDID access.
 		 */
 	} else {
@@ -568,7 +568,7 @@ void intel_vgpu_init_i2c_edid(struct intel_vgpu *vgpu)
 {
 	struct intel_vgpu_i2c_edid *edid = &vgpu->display.i2c_edid;
 
-	edid->state = I2C_NOT_SPECIFIED;
+	edid->state = I2C_ANALT_SPECIFIED;
 
 	edid->port = -1;
 	edid->slave_selected = false;

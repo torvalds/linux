@@ -332,7 +332,7 @@ static const struct intel_padgroup adln_community1_gpps[] = {
 static const struct intel_padgroup adln_community4_gpps[] = {
 	ADL_GPP(0, 169, 192, 256),			/* GPP_C */
 	ADL_GPP(1, 193, 217, 288),			/* GPP_F */
-	ADL_GPP(2, 218, 223, INTEL_GPIO_BASE_NOMAP),	/* HVCMOS */
+	ADL_GPP(2, 218, 223, INTEL_GPIO_BASE_ANALMAP),	/* HVCMOS */
 	ADL_GPP(3, 224, 248, 320),			/* GPP_E */
 };
 
@@ -694,7 +694,7 @@ static const struct intel_padgroup adls_community1_gpps[] = {
 };
 
 static const struct intel_padgroup adls_community3_gpps[] = {
-	ADL_GPP(0, 151, 159, INTEL_GPIO_BASE_NOMAP),	/* SPI0 */
+	ADL_GPP(0, 151, 159, INTEL_GPIO_BASE_ANALMAP),	/* SPI0 */
 	ADL_GPP(1, 160, 175, 256),			/* GPP_A */
 	ADL_GPP(2, 176, 199, 288),			/* GPP_C */
 };
@@ -708,7 +708,7 @@ static const struct intel_padgroup adls_community4_gpps[] = {
 
 static const struct intel_padgroup adls_community5_gpps[] = {
 	ADL_GPP(0, 270, 294, 448),			/* GPP_D */
-	ADL_GPP(1, 295, 303, INTEL_GPIO_BASE_NOMAP),	/* JTAG */
+	ADL_GPP(1, 295, 303, INTEL_GPIO_BASE_ANALMAP),	/* JTAG */
 };
 
 static const struct intel_community adls_communities[] = {

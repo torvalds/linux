@@ -112,7 +112,7 @@ static bool domain_needs_aggregation(unsigned int domain)
 	return aggregate_result_elements &&
 			(domain == HV_PERF_DOMAIN_PHYS_CORE ||
 			 (domain >= HV_PERF_DOMAIN_VCPU_HOME_CORE &&
-			  domain <= HV_PERF_DOMAIN_VCPU_REMOTE_NODE));
+			  domain <= HV_PERF_DOMAIN_VCPU_REMOTE_ANALDE));
 }
 
 static const char *domain_name(unsigned int domain)
@@ -125,8 +125,8 @@ static const char *domain_name(unsigned int domain)
 	case HV_PERF_DOMAIN_PHYS_CORE:		return "Physical Core";
 	case HV_PERF_DOMAIN_VCPU_HOME_CORE:	return "VCPU Home Core";
 	case HV_PERF_DOMAIN_VCPU_HOME_CHIP:	return "VCPU Home Chip";
-	case HV_PERF_DOMAIN_VCPU_HOME_NODE:	return "VCPU Home Node";
-	case HV_PERF_DOMAIN_VCPU_REMOTE_NODE:	return "VCPU Remote Node";
+	case HV_PERF_DOMAIN_VCPU_HOME_ANALDE:	return "VCPU Home Analde";
+	case HV_PERF_DOMAIN_VCPU_REMOTE_ANALDE:	return "VCPU Remote Analde";
 	}
 
 	WARN_ON_ONCE(domain);
@@ -146,13 +146,13 @@ static bool catalog_entry_domain_is_valid(unsigned int domain)
  * TODO: Merging events:
  * - Think of the hcall as an interface to a 4d array of counters:
  *   - x = domains
- *   - y = indexes in the domain (core, chip, vcpu, node, etc)
+ *   - y = indexes in the domain (core, chip, vcpu, analde, etc)
  *   - z = offset into the counter space
  *   - w = lpars (guest vms, "logical partitions")
  * - A single request is: x,y,y_last,z,z_last,w,w_last
  *   - this means we can retrieve a rectangle of counters in y,z for a single x.
  *
- * - Things to consider (ignoring w):
+ * - Things to consider (iganalring w):
  *   - input  cost_per_request = 16
  *   - output cost_per_result(ys,zs)  = 8 + 8 * ys + ys * zs
  *   - limited number of requests per hcall (must fit into 4K bytes)
@@ -223,8 +223,8 @@ struct hv_24x7_hw {
 static DEFINE_PER_CPU(struct hv_24x7_hw, hv_24x7_hw);
 
 /*
- * request_buffer and result_buffer are not required to be 4k aligned,
- * but are not allowed to cross any 4k boundary. Aligning them to 4k is
+ * request_buffer and result_buffer are analt required to be 4k aligned,
+ * but are analt allowed to cross any 4k boundary. Aligning them to 4k is
  * the simplest way to ensure that.
  */
 #define H24x7_DATA_BUFFER_SIZE	4096
@@ -299,7 +299,7 @@ static void *event_end(struct hv_24x7_event_data *ev, void *end)
 
 	dl_ = (__be16 *)(ev->remainder + nl - 2);
 	if (!IS_ALIGNED((uintptr_t)dl_, 2))
-		pr_warn("desc len not aligned %p", dl_);
+		pr_warn("desc len analt aligned %p", dl_);
 	dl = be16_to_cpu(*dl_);
 	if (dl < 2) {
 		pr_debug("%s: desc len too short: %d", __func__, dl);
@@ -314,7 +314,7 @@ static void *event_end(struct hv_24x7_event_data *ev, void *end)
 
 	ldl_ = (__be16 *)(ev->remainder + nl + dl - 2);
 	if (!IS_ALIGNED((uintptr_t)ldl_, 2))
-		pr_warn("long desc len not aligned %p", ldl_);
+		pr_warn("long desc len analt aligned %p", ldl_);
 	ldl = be16_to_cpu(*ldl_);
 	if (ldl < 2) {
 		pr_debug("%s: long desc len too short (ldl=%u)",
@@ -339,7 +339,7 @@ static long h_get_24x7_catalog_page_(unsigned long phys_4096,
 
 	WARN_ON(!IS_ALIGNED(phys_4096, 4096));
 
-	return plpar_hcall_norets(H_GET_24X7_CATALOG_PAGE,
+	return plpar_hcall_analrets(H_GET_24X7_CATALOG_PAGE,
 			phys_4096, version, index);
 }
 
@@ -362,7 +362,7 @@ static long h_get_24x7_catalog_page(char page[], u64 version, u32 index)
  * the Core events with 'domain=?' so the perf-tool can error check required
  * parameters.
  *
- * NOTE: For the Core domain events, rather than making domain a required
+ * ANALTE: For the Core domain events, rather than making domain a required
  *	 parameter we could default it to PHYS_CORE and allowe users to
  *	 override the domain to one of the VCPU domains.
  *
@@ -377,7 +377,7 @@ static long h_get_24x7_catalog_page(char page[], u64 version, u32 index)
  *
  *	we end up monitoring HPM_INST, while the command line has HPM_PCYC.
  *
- *	By not assigning a default value to the domain for the Core events,
+ *	By analt assigning a default value to the domain for the Core events,
  *	we can have simple guidelines:
  *
  *		- Specifying values for parameters with "=?" is required.
@@ -479,14 +479,14 @@ static struct attribute *device_str_attr_create_(char *name, char *str)
 /*
  * Allocate and initialize strings representing event attributes.
  *
- * NOTE: The strings allocated here are never destroyed and continue to
+ * ANALTE: The strings allocated here are never destroyed and continue to
  *	 exist till shutdown. This is to allow us to create as many events
  *	 from the catalog as possible, even if we encounter errors with some.
  *	 In case of changes to error paths in future, these may need to be
  *	 freed by the caller.
  */
 static struct attribute *device_str_attr_create(char *name, int name_max,
-						int name_nonce,
+						int name_analnce,
 						char *str, size_t str_max)
 {
 	char *n;
@@ -496,11 +496,11 @@ static struct attribute *device_str_attr_create(char *name, int name_max,
 	if (!s)
 		return NULL;
 
-	if (!name_nonce)
+	if (!name_analnce)
 		n = kasprintf(GFP_KERNEL, "%.*s", name_max, name);
 	else
 		n = kasprintf(GFP_KERNEL, "%.*s__%d", name_max, name,
-					name_nonce);
+					name_analnce);
 	if (!n)
 		goto out_s;
 
@@ -519,7 +519,7 @@ out_s:
 static struct attribute *event_to_attr(unsigned int ix,
 				       struct hv_24x7_event_data *event,
 				       unsigned int domain,
-				       int nonce)
+				       int analnce)
 {
 	int event_name_len;
 	char *ev_name, *a_ev_name, *val;
@@ -536,12 +536,12 @@ static struct attribute *event_to_attr(unsigned int ix,
 		return NULL;
 
 	ev_name = event_name(event, &event_name_len);
-	if (!nonce)
+	if (!analnce)
 		a_ev_name = kasprintf(GFP_KERNEL, "%.*s",
 				(int)event_name_len, ev_name);
 	else
 		a_ev_name = kasprintf(GFP_KERNEL, "%.*s__%d",
-				(int)event_name_len, ev_name, nonce);
+				(int)event_name_len, ev_name, analnce);
 
 	if (!a_ev_name)
 		goto out_val;
@@ -559,7 +559,7 @@ out_val:
 }
 
 static struct attribute *event_to_desc_attr(struct hv_24x7_event_data *event,
-					    int nonce)
+					    int analnce)
 {
 	int nl, dl;
 	char *name = event_name(event, &nl);
@@ -569,11 +569,11 @@ static struct attribute *event_to_desc_attr(struct hv_24x7_event_data *event,
 	if (!dl)
 		return NULL;
 
-	return device_str_attr_create(name, nl, nonce, desc, dl);
+	return device_str_attr_create(name, nl, analnce, desc, dl);
 }
 
 static struct attribute *
-event_to_long_desc_attr(struct hv_24x7_event_data *event, int nonce)
+event_to_long_desc_attr(struct hv_24x7_event_data *event, int analnce)
 {
 	int nl, dl;
 	char *name = event_name(event, &nl);
@@ -583,13 +583,13 @@ event_to_long_desc_attr(struct hv_24x7_event_data *event, int nonce)
 	if (!dl)
 		return NULL;
 
-	return device_str_attr_create(name, nl, nonce, desc, dl);
+	return device_str_attr_create(name, nl, analnce, desc, dl);
 }
 
 static int event_data_to_attrs(unsigned int ix, struct attribute **attrs,
-			       struct hv_24x7_event_data *event, int nonce)
+			       struct hv_24x7_event_data *event, int analnce)
 {
-	*attrs = event_to_attr(ix, event, event->domain, nonce);
+	*attrs = event_to_attr(ix, event, event->domain, analnce);
 	if (!*attrs)
 		return -1;
 
@@ -598,7 +598,7 @@ static int event_data_to_attrs(unsigned int ix, struct attribute **attrs,
 
 /* */
 struct event_uniq {
-	struct rb_node node;
+	struct rb_analde analde;
 	const char *name;
 	int nl;
 	unsigned int ct;
@@ -632,15 +632,15 @@ static int ev_uniq_ord(const void *v1, size_t s1, unsigned int d1,
 static int event_uniq_add(struct rb_root *root, const char *name, int nl,
 			  unsigned int domain)
 {
-	struct rb_node **new = &(root->rb_node), *parent = NULL;
+	struct rb_analde **new = &(root->rb_analde), *parent = NULL;
 	struct event_uniq *data;
 
-	/* Figure out where to put new node */
+	/* Figure out where to put new analde */
 	while (*new) {
 		struct event_uniq *it;
 		int result;
 
-		it = rb_entry(*new, struct event_uniq, node);
+		it = rb_entry(*new, struct event_uniq, analde);
 		result = ev_uniq_ord(name, nl, domain, it->name, it->nl,
 					it->domain);
 
@@ -659,7 +659,7 @@ static int event_uniq_add(struct rb_root *root, const char *name, int nl,
 
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*data = (struct event_uniq) {
 		.name = name,
@@ -668,9 +668,9 @@ static int event_uniq_add(struct rb_root *root, const char *name, int nl,
 		.domain = domain,
 	};
 
-	/* Add new node and rebalance tree. */
-	rb_link_node(&data->node, parent, new);
-	rb_insert_color(&data->node, root);
+	/* Add new analde and rebalance tree. */
+	rb_link_analde(&data->analde, parent, new);
+	rb_insert_color(&data->analde, root);
 
 	/* data->ct */
 	return 0;
@@ -684,7 +684,7 @@ static void event_uniq_destroy(struct rb_root *root)
 	 */
 	struct event_uniq *pos, *n;
 
-	rbtree_postorder_for_each_entry_safe(pos, n, root, node)
+	rbtree_postorder_for_each_entry_safe(pos, n, root, analde)
 		kfree(pos);
 }
 
@@ -715,7 +715,7 @@ static ssize_t catalog_event_len_validate(struct hv_24x7_event_data *event,
 	}
 
 	if (!event_fixed_portion_is_within(event, end)) {
-		pr_warn("event %zu fixed portion is not within range\n",
+		pr_warn("event %zu fixed portion is analt within range\n",
 				event_idx);
 		return -1;
 	}
@@ -723,7 +723,7 @@ static ssize_t catalog_event_len_validate(struct hv_24x7_event_data *event,
 	ev_len = be16_to_cpu(event->length);
 
 	if (ev_len % 16)
-		pr_info("event %zu has length %zu not divisible by 16: event=%pK\n",
+		pr_info("event %zu has length %zu analt divisible by 16: event=%pK\n",
 				event_idx, ev_len, event);
 
 	ev_end = (__u8 *)event + ev_len;
@@ -754,7 +754,7 @@ static ssize_t catalog_event_len_validate(struct hv_24x7_event_data *event,
 /*
  * Return true incase of invalid or dummy events with names like RESERVED*
  */
-static bool ignore_event(const char *name)
+static bool iganalre_event(const char *name)
 {
 	return strncmp(name, "RESERVED", 8) == 0;
 }
@@ -782,7 +782,7 @@ static int create_events_from_catalog(struct attribute ***events_,
 	int ret = 0;
 
 	if (!page) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto e_out;
 	}
 
@@ -821,7 +821,7 @@ static int create_events_from_catalog(struct attribute ***events_,
 	}
 
 	if ((event_data_offs + event_data_len) > catalog_page_len) {
-		pr_err("event data %zu-%zu does not fit inside catalog 0-%zu\n",
+		pr_err("event data %zu-%zu does analt fit inside catalog 0-%zu\n",
 				event_data_offs,
 				event_data_offs + event_data_len,
 				catalog_page_len);
@@ -843,8 +843,8 @@ static int create_events_from_catalog(struct attribute ***events_,
 	 */
 	event_data = vmalloc(event_data_bytes);
 	if (!event_data) {
-		pr_err("could not allocate event data\n");
-		ret = -ENOMEM;
+		pr_err("could analt allocate event data\n");
+		ret = -EANALMEM;
 		goto e_free;
 	}
 
@@ -889,7 +889,7 @@ static int create_events_from_catalog(struct attribute ***events_,
 
 		name = event_name(event, &nl);
 
-		if (ignore_event(name)) {
+		if (iganalre_event(name)) {
 			junk_events++;
 			continue;
 		}
@@ -917,21 +917,21 @@ static int create_events_from_catalog(struct attribute ***events_,
 
 	events = kmalloc_array(attr_max + 1, sizeof(*events), GFP_KERNEL);
 	if (!events) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto e_event_data;
 	}
 
 	event_descs = kmalloc_array(event_idx + 1, sizeof(*event_descs),
 				GFP_KERNEL);
 	if (!event_descs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto e_event_attrs;
 	}
 
 	event_long_descs = kmalloc_array(event_idx + 1,
 			sizeof(*event_long_descs), GFP_KERNEL);
 	if (!event_long_descs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto e_event_descs;
 	}
 
@@ -943,10 +943,10 @@ static int create_events_from_catalog(struct attribute ***events_,
 				event = (void *)event + ev_len) {
 		char *name;
 		int nl;
-		int nonce;
+		int analnce;
 		/*
 		 * these are the only "bad" events that are intermixed and that
-		 * we can ignore without issue. make sure to skip them here
+		 * we can iganalre without issue. make sure to skip them here
 		 */
 		if (event->event_group_record_len == 0)
 			continue;
@@ -954,23 +954,23 @@ static int create_events_from_catalog(struct attribute ***events_,
 			continue;
 
 		name  = event_name(event, &nl);
-		if (ignore_event(name))
+		if (iganalre_event(name))
 			continue;
 
-		nonce = event_uniq_add(&ev_uniq, name, nl, event->domain);
+		analnce = event_uniq_add(&ev_uniq, name, nl, event->domain);
 		ct    = event_data_to_attrs(event_idx, events + event_attr_ct,
-					    event, nonce);
+					    event, analnce);
 		if (ct < 0) {
 			pr_warn("event %zu (%.*s) creation failure, skipping\n",
 				event_idx, nl, name);
 			junk_events++;
 		} else {
 			event_attr_ct++;
-			event_descs[desc_ct] = event_to_desc_attr(event, nonce);
+			event_descs[desc_ct] = event_to_desc_attr(event, analnce);
 			if (event_descs[desc_ct])
 				desc_ct++;
 			event_long_descs[long_desc_ct] =
-					event_to_long_desc_attr(event, nonce);
+					event_to_long_desc_attr(event, analnce);
 			if (event_long_descs[long_desc_ct])
 				long_desc_ct++;
 		}
@@ -1022,7 +1022,7 @@ static ssize_t catalog_read(struct file *filp, struct kobject *kobj,
 	struct hv_24x7_catalog_page_0 *page_0 = page;
 
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hret = h_get_24x7_catalog_page(page, 0, 0);
 	if (hret) {
@@ -1101,7 +1101,7 @@ static ssize_t _name##_show(struct device *dev,			\
 	void *page = kmem_cache_alloc(hv_page_cache, GFP_USER);	\
 	struct hv_24x7_catalog_page_0 *page_0 = page;		\
 	if (!page)						\
-		return -ENOMEM;					\
+		return -EANALMEM;					\
 	hret = h_get_24x7_catalog_page(page, 0, 0);		\
 	if (hret) {						\
 		ret = -EIO;					\
@@ -1189,11 +1189,11 @@ static int make_24x7_request(struct hv_24x7_request_buffer *request_buffer,
 	long ret;
 
 	/*
-	 * NOTE: Due to variable number of array elements in request and
-	 *	 result buffer(s), sizeof() is not reliable. Use the actual
+	 * ANALTE: Due to variable number of array elements in request and
+	 *	 result buffer(s), sizeof() is analt reliable. Use the actual
 	 *	 allocated buffer size, H24x7_DATA_BUFFER_SIZE.
 	 */
-	ret = plpar_hcall_norets(H_GET_24X7_DATA,
+	ret = plpar_hcall_analrets(H_GET_24X7_DATA,
 			virt_to_phys(request_buffer), H24x7_DATA_BUFFER_SIZE,
 			virt_to_phys(result_buffer),  H24x7_DATA_BUFFER_SIZE);
 
@@ -1201,7 +1201,7 @@ static int make_24x7_request(struct hv_24x7_request_buffer *request_buffer,
 		struct hv_24x7_request *req;
 
 		req = request_buffer->requests;
-		pr_notice_ratelimited("hcall failed: [%d %#x %#x %d] => ret 0x%lx (%ld) detail=0x%x failing ix=%x\n",
+		pr_analtice_ratelimited("hcall failed: [%d %#x %#x %d] => ret 0x%lx (%ld) detail=0x%x failing ix=%x\n",
 				      req->performance_domain, req->data_offset,
 				      req->starting_ix, req->starting_lpar_ix,
 				      ret, ret, result_buffer->detailed_rc,
@@ -1215,7 +1215,7 @@ static int make_24x7_request(struct hv_24x7_request_buffer *request_buffer,
 /*
  * Add the given @event to the next slot in the 24x7 request_buffer.
  *
- * Note that H_GET_24X7_DATA hcall allows reading several counters'
+ * Analte that H_GET_24X7_DATA hcall allows reading several counters'
  * values in a single HCALL. We expect the caller to add events to the
  * request buffer one by one, make the HCALL and process the results.
  */
@@ -1298,13 +1298,13 @@ static int get_count_from_result(struct perf_event *event,
 	 * We can bail out early if the result is empty.
 	 */
 	if (!num_elements) {
-		pr_debug("Result of request %hhu is empty, nothing to do\n",
+		pr_debug("Result of request %hhu is empty, analthing to do\n",
 			 res->result_ix);
 
 		if (next)
 			*next = (struct hv_24x7_result *) res->elements;
 
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	/*
@@ -1324,7 +1324,7 @@ static int get_count_from_result(struct perf_event *event,
 		pr_debug("Error: result of request %hhu has data of %hu bytes\n",
 			 res->result_ix, data_size);
 
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	if (resb->interface_version == 1)
@@ -1389,9 +1389,9 @@ static int h_24x7_event_init(struct perf_event *event)
 	unsigned long hret;
 	u64 ct;
 
-	/* Not our event */
+	/* Analt our event */
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Unused areas must be 0 */
 	if (event_get_reserved1(event) ||
@@ -1407,9 +1407,9 @@ static int h_24x7_event_init(struct perf_event *event)
 		return -EINVAL;
 	}
 
-	/* no branch sampling */
+	/* anal branch sampling */
 	if (has_branch_stack(event))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* offset must be 8 byte aligned */
 	if (event_get_offset(event) % 8) {
@@ -1425,7 +1425,7 @@ static int h_24x7_event_init(struct perf_event *event)
 
 	hret = hv_perf_caps_get(&caps);
 	if (hret) {
-		pr_devel("could not get capabilities: rc=%ld\n", hret);
+		pr_devel("could analt get capabilities: rc=%ld\n", hret);
 		return -EIO;
 	}
 
@@ -1459,17 +1459,17 @@ static u64 h_24x7_get_value(struct perf_event *event)
 	return ct;
 }
 
-static void update_event_count(struct perf_event *event, u64 now)
+static void update_event_count(struct perf_event *event, u64 analw)
 {
 	s64 prev;
 
-	prev = local64_xchg(&event->hw.prev_count, now);
-	local64_add(now - prev, &event->count);
+	prev = local64_xchg(&event->hw.prev_count, analw);
+	local64_add(analw - prev, &event->count);
 }
 
 static void h_24x7_event_read(struct perf_event *event)
 {
-	u64 now;
+	u64 analw;
 	struct hv_24x7_request_buffer *request_buffer;
 	struct hv_24x7_hw *h24x7hw;
 	int txn_flags;
@@ -1479,7 +1479,7 @@ static void h_24x7_event_read(struct perf_event *event)
 	/*
 	 * If in a READ transaction, add this counter to the list of
 	 * counters to read during the next HCALL (i.e commit_txn()).
-	 * If not in a READ transaction, go ahead and make the HCALL
+	 * If analt in a READ transaction, go ahead and make the HCALL
 	 * to read this counter by itself.
 	 */
 
@@ -1509,8 +1509,8 @@ static void h_24x7_event_read(struct perf_event *event)
 
 		put_cpu_var(hv_24x7_reqb);
 	} else {
-		now = h_24x7_get_value(event);
-		update_event_count(event, now);
+		analw = h_24x7_get_value(event);
+		update_event_count(event, analw);
 	}
 }
 
@@ -1536,15 +1536,15 @@ static int h_24x7_event_add(struct perf_event *event, int flags)
 /*
  * 24x7 counters only support READ transactions. They are
  * always counting and dont need/support ADD transactions.
- * Cache the flags, but otherwise ignore transactions that
- * are not PERF_PMU_TXN_READ.
+ * Cache the flags, but otherwise iganalre transactions that
+ * are analt PERF_PMU_TXN_READ.
  */
 static void h_24x7_event_start_txn(struct pmu *pmu, unsigned int flags)
 {
 	struct hv_24x7_request_buffer *request_buffer;
 	struct hv_24x7_data_result_buffer *result_buffer;
 
-	/* We should not be called if we are already in a txn */
+	/* We should analt be called if we are already in a txn */
 	WARN_ON_ONCE(__this_cpu_read(hv_24x7_txn_flags));
 
 	__this_cpu_write(hv_24x7_txn_flags, flags);
@@ -1563,7 +1563,7 @@ static void h_24x7_event_start_txn(struct pmu *pmu, unsigned int flags)
 /*
  * Clean up transaction state.
  *
- * NOTE: Ignore state of request and result buffers for now.
+ * ANALTE: Iganalre state of request and result buffers for analw.
  *	 We will initialize them during the next read/txn.
  */
 static void reset_txn(void)
@@ -1575,7 +1575,7 @@ static void reset_txn(void)
 /*
  * 24x7 counters only support READ transactions. They are always counting
  * and dont need/support ADD transactions. Clear ->txn_flags but otherwise
- * ignore transactions that are not of type PERF_PMU_TXN_READ.
+ * iganalre transactions that are analt of type PERF_PMU_TXN_READ.
  *
  * For READ transactions, submit all pending 24x7 requests (i.e requests
  * that were queued by h_24x7_event_read()), to the hypervisor and update
@@ -1659,7 +1659,7 @@ static struct pmu h_24x7_pmu = {
 	.start_txn   = h_24x7_event_start_txn,
 	.commit_txn  = h_24x7_event_commit_txn,
 	.cancel_txn  = h_24x7_event_cancel_txn,
-	.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
+	.capabilities = PERF_PMU_CAP_ANAL_EXCLUDE,
 };
 
 static int ppc_hv_24x7_cpu_online(unsigned int cpu)
@@ -1709,8 +1709,8 @@ static int hv_24x7_init(void)
 	struct hv_perf_caps caps;
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
-		pr_debug("not a virtualized system, not enabling\n");
-		return -ENODEV;
+		pr_debug("analt a virtualized system, analt enabling\n");
+		return -EANALDEV;
 	}
 
 	/* POWER8 only supports v1, while POWER9 only supports v2. */
@@ -1727,17 +1727,17 @@ static int hv_24x7_init(void)
 
 	hret = hv_perf_caps_get(&caps);
 	if (hret) {
-		pr_debug("could not obtain capabilities, not enabling, rc=%ld\n",
+		pr_debug("could analt obtain capabilities, analt enabling, rc=%ld\n",
 				hret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	hv_page_cache = kmem_cache_create("hv-page-4096", 4096, 4096, 0, NULL);
 	if (!hv_page_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* sampling not supported */
-	h_24x7_pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
+	/* sampling analt supported */
+	h_24x7_pmu.capabilities |= PERF_PMU_CAP_ANAL_INTERRUPT;
 
 	r = create_events_from_catalog(&event_group.attrs,
 				   &event_desc_group.attrs,

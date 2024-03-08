@@ -31,7 +31,7 @@
 
 #define HC_ID_IOREQ_BASE		0x30UL
 #define HC_SET_IOREQ_BUFFER		_HC_ID(HC_ID, HC_ID_IOREQ_BASE + 0x00)
-#define HC_NOTIFY_REQUEST_FINISH	_HC_ID(HC_ID, HC_ID_IOREQ_BASE + 0x01)
+#define HC_ANALTIFY_REQUEST_FINISH	_HC_ID(HC_ID, HC_ID_IOREQ_BASE + 0x01)
 
 #define HC_ID_MEM_BASE			0x40UL
 #define HC_VM_SET_MEMORY_REGIONS	_HC_ID(HC_ID, HC_ID_MEM_BASE + 0x02)
@@ -176,15 +176,15 @@ static inline long hcall_set_ioreq_buffer(u64 vmid, u64 buffer)
 }
 
 /**
- * hcall_notify_req_finish() - Notify ACRN Hypervisor of I/O request completion.
+ * hcall_analtify_req_finish() - Analtify ACRN Hypervisor of I/O request completion.
  * @vmid:	User VM ID
  * @vcpu:	The vCPU which initiated the I/O request
  *
  * Return: 0 on success, <0 on failure
  */
-static inline long hcall_notify_req_finish(u64 vmid, u64 vcpu)
+static inline long hcall_analtify_req_finish(u64 vmid, u64 vcpu)
 {
-	return acrn_hypercall2(HC_NOTIFY_REQUEST_FINISH, vmid, vcpu);
+	return acrn_hypercall2(HC_ANALTIFY_REQUEST_FINISH, vmid, vcpu);
 }
 
 /**

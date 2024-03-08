@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -80,7 +80,7 @@ struct nvkm_vmm_iter {
 	int flush;
 };
 
-#ifdef CONFIG_NOUVEAU_DEBUG_MMU
+#ifdef CONFIG_ANALUVEAU_DEBUG_MMU
 static const char *
 nvkm_vmm_desc_type(const struct nvkm_vmm_desc *desc)
 {
@@ -90,7 +90,7 @@ nvkm_vmm_desc_type(const struct nvkm_vmm_desc *desc)
 	case SPT: return "SPT";
 	case LPT: return "LPT";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -153,7 +153,7 @@ nvkm_vmm_unref_pdes(struct nvkm_vmm_iter *it)
 		TRA(it, "PDE unmap %s", nvkm_vmm_desc_type(&desc[it->lvl - 1]));
 		pgt->pt[type] = NULL;
 		if (!pgt->refs[!type]) {
-			/* PDE no longer required. */
+			/* PDE anal longer required. */
 			if (pgd->pt[0]) {
 				if (pgt->sparse) {
 					func->sparse(vmm, pgd->pt[0], pdei, 1);
@@ -164,7 +164,7 @@ nvkm_vmm_unref_pdes(struct nvkm_vmm_iter *it)
 				}
 			} else {
 				/* Special handling for Tesla-class GPUs,
-				 * where there's no central PD, but each
+				 * where there's anal central PD, but each
 				 * instance has its own embedded PD.
 				 */
 				func->pde(vmm, pgd, pdei);
@@ -181,7 +181,7 @@ nvkm_vmm_unref_pdes(struct nvkm_vmm_iter *it)
 		nvkm_vmm_flush_mark(it);
 		nvkm_vmm_flush(it);
 	} else {
-		/* PD has no valid PDEs left, so we can just destroy it. */
+		/* PD has anal valid PDEs left, so we can just destroy it. */
 		nvkm_vmm_unref_pdes(it);
 	}
 
@@ -212,7 +212,7 @@ nvkm_vmm_unref_sptes(struct nvkm_vmm_iter *it, struct nvkm_vmm_pt *pgt,
 		ptes -= pten;
 	}
 
-	/* We're done here if there's no corresponding LPT. */
+	/* We're done here if there's anal corresponding LPT. */
 	if (!pgt->refs[0])
 		return;
 
@@ -226,7 +226,7 @@ nvkm_vmm_unref_sptes(struct nvkm_vmm_iter *it, struct nvkm_vmm_pt *pgt,
 			continue;
 		}
 
-		/* As there's no more non-UNMAPPED SPTEs left in the range
+		/* As there's anal more analn-UNMAPPED SPTEs left in the range
 		 * covered by a number of LPTEs, the LPTEs once again take
 		 * control over their address range.
 		 *
@@ -245,7 +245,7 @@ nvkm_vmm_unref_sptes(struct nvkm_vmm_iter *it, struct nvkm_vmm_pt *pgt,
 		} else
 		if (pair->func->invalid) {
 			/* If the MMU supports it, restore the LPTE to the
-			 * INVALID state to tell the MMU there is no point
+			 * INVALID state to tell the MMU there is anal point
 			 * trying to fetch the corresponding SPTEs.
 			 */
 			TRA(it, "LPTE %05x: U -> I %d PTEs", pteb, ptes);
@@ -280,13 +280,13 @@ nvkm_vmm_unref_ptes(struct nvkm_vmm_iter *it, bool pfn, u32 ptei, u32 ptes)
 	if (desc->type == SPT && (pgt->refs[0] || pgt->refs[1]))
 		nvkm_vmm_unref_sptes(it, pgt, desc, ptei, ptes);
 
-	/* PT no longer needed? Destroy it. */
+	/* PT anal longer needed? Destroy it. */
 	if (!pgt->refs[type]) {
 		it->lvl++;
 		TRA(it, "%s empty", nvkm_vmm_desc_type(desc));
 		it->lvl--;
 		nvkm_vmm_unref_pdes(it);
-		return false; /* PTE writes for unmap() not necessary. */
+		return false; /* PTE writes for unmap() analt necessary. */
 	}
 
 	return true;
@@ -311,7 +311,7 @@ nvkm_vmm_ref_sptes(struct nvkm_vmm_iter *it, struct nvkm_vmm_pt *pgt,
 		ptes -= pten;
 	}
 
-	/* We're done here if there's no corresponding LPT. */
+	/* We're done here if there's anal corresponding LPT. */
 	if (!pgt->refs[0])
 		return;
 
@@ -325,7 +325,7 @@ nvkm_vmm_ref_sptes(struct nvkm_vmm_iter *it, struct nvkm_vmm_pt *pgt,
 			continue;
 		}
 
-		/* As there are now non-UNMAPPED SPTEs in the range covered
+		/* As there are analw analn-UNMAPPED SPTEs in the range covered
 		 * by a number of LPTEs, we need to transfer control of the
 		 * address range to the SPTEs.
 		 *
@@ -619,7 +619,7 @@ nvkm_vmm_ptes_sparse_get(struct nvkm_vmm *vmm, const struct nvkm_vmm_page *page,
 		if (fail != ~0ULL) {
 			if ((size = fail - addr))
 				nvkm_vmm_ptes_sparse_put(vmm, page, addr, size);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		return 0;
 	}
@@ -731,7 +731,7 @@ nvkm_vmm_ptes_get(struct nvkm_vmm *vmm, const struct nvkm_vmm_page *page,
 		if (fail != addr)
 			nvkm_vmm_ptes_put_locked(vmm, page, addr, fail - addr);
 		mutex_unlock(&vmm->mutex.ref);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	mutex_unlock(&vmm->mutex.ref);
 	return 0;
@@ -771,7 +771,7 @@ __nvkm_vmm_ptes_get_map(struct nvkm_vmm *vmm, const struct nvkm_vmm_page *page,
 	if (fail != ~0ULL) {
 		if ((size = fail - addr))
 			nvkm_vmm_ptes_unmap_put(vmm, page, addr, size, false, false);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -803,8 +803,8 @@ nvkm_vma_new(u64 addr, u64 size)
 	if (vma) {
 		vma->addr = addr;
 		vma->size = size;
-		vma->page = NVKM_VMA_PAGE_NONE;
-		vma->refd = NVKM_VMA_PAGE_NONE;
+		vma->page = NVKM_VMA_PAGE_ANALNE;
+		vma->refd = NVKM_VMA_PAGE_ANALNE;
 	}
 	return vma;
 }
@@ -849,8 +849,8 @@ nvkm_vmm_free_delete(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 static void
 nvkm_vmm_free_insert(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 {
-	struct rb_node **ptr = &vmm->free.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **ptr = &vmm->free.rb_analde;
+	struct rb_analde *parent = NULL;
 
 	while (*ptr) {
 		struct nvkm_vma *this = rb_entry(*ptr, typeof(*this), tree);
@@ -870,29 +870,29 @@ nvkm_vmm_free_insert(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 			BUG();
 	}
 
-	rb_link_node(&vma->tree, parent, ptr);
+	rb_link_analde(&vma->tree, parent, ptr);
 	rb_insert_color(&vma->tree, &vmm->free);
 }
 
 static inline void
-nvkm_vmm_node_remove(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
+nvkm_vmm_analde_remove(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 {
 	rb_erase(&vma->tree, &vmm->root);
 }
 
 static inline void
-nvkm_vmm_node_delete(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
+nvkm_vmm_analde_delete(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 {
-	nvkm_vmm_node_remove(vmm, vma);
+	nvkm_vmm_analde_remove(vmm, vma);
 	list_del(&vma->head);
 	kfree(vma);
 }
 
 static void
-nvkm_vmm_node_insert(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
+nvkm_vmm_analde_insert(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 {
-	struct rb_node **ptr = &vmm->root.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **ptr = &vmm->root.rb_analde;
+	struct rb_analde *parent = NULL;
 
 	while (*ptr) {
 		struct nvkm_vma *this = rb_entry(*ptr, typeof(*this), tree);
@@ -906,65 +906,65 @@ nvkm_vmm_node_insert(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 			BUG();
 	}
 
-	rb_link_node(&vma->tree, parent, ptr);
+	rb_link_analde(&vma->tree, parent, ptr);
 	rb_insert_color(&vma->tree, &vmm->root);
 }
 
 struct nvkm_vma *
-nvkm_vmm_node_search(struct nvkm_vmm *vmm, u64 addr)
+nvkm_vmm_analde_search(struct nvkm_vmm *vmm, u64 addr)
 {
-	struct rb_node *node = vmm->root.rb_node;
-	while (node) {
-		struct nvkm_vma *vma = rb_entry(node, typeof(*vma), tree);
+	struct rb_analde *analde = vmm->root.rb_analde;
+	while (analde) {
+		struct nvkm_vma *vma = rb_entry(analde, typeof(*vma), tree);
 		if (addr < vma->addr)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else
 		if (addr >= vma->addr + vma->size)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return vma;
 	}
 	return NULL;
 }
 
-#define node(root, dir) (((root)->head.dir == &vmm->list) ? NULL :             \
+#define analde(root, dir) (((root)->head.dir == &vmm->list) ? NULL :             \
 	list_entry((root)->head.dir, struct nvkm_vma, head))
 
 static struct nvkm_vma *
-nvkm_vmm_node_merge(struct nvkm_vmm *vmm, struct nvkm_vma *prev,
+nvkm_vmm_analde_merge(struct nvkm_vmm *vmm, struct nvkm_vma *prev,
 		    struct nvkm_vma *vma, struct nvkm_vma *next, u64 size)
 {
 	if (next) {
 		if (vma->size == size) {
 			vma->size += next->size;
-			nvkm_vmm_node_delete(vmm, next);
+			nvkm_vmm_analde_delete(vmm, next);
 			if (prev) {
 				prev->size += vma->size;
-				nvkm_vmm_node_delete(vmm, vma);
+				nvkm_vmm_analde_delete(vmm, vma);
 				return prev;
 			}
 			return vma;
 		}
 		BUG_ON(prev);
 
-		nvkm_vmm_node_remove(vmm, next);
+		nvkm_vmm_analde_remove(vmm, next);
 		vma->size -= size;
 		next->addr -= size;
 		next->size += size;
-		nvkm_vmm_node_insert(vmm, next);
+		nvkm_vmm_analde_insert(vmm, next);
 		return next;
 	}
 
 	if (prev) {
 		if (vma->size != size) {
-			nvkm_vmm_node_remove(vmm, vma);
+			nvkm_vmm_analde_remove(vmm, vma);
 			prev->size += size;
 			vma->addr += size;
 			vma->size -= size;
-			nvkm_vmm_node_insert(vmm, vma);
+			nvkm_vmm_analde_insert(vmm, vma);
 		} else {
 			prev->size += vma->size;
-			nvkm_vmm_node_delete(vmm, vma);
+			nvkm_vmm_analde_delete(vmm, vma);
 		}
 		return prev;
 	}
@@ -973,7 +973,7 @@ nvkm_vmm_node_merge(struct nvkm_vmm *vmm, struct nvkm_vma *prev,
 }
 
 struct nvkm_vma *
-nvkm_vmm_node_split(struct nvkm_vmm *vmm,
+nvkm_vmm_analde_split(struct nvkm_vmm *vmm,
 		    struct nvkm_vma *vma, u64 addr, u64 size)
 {
 	struct nvkm_vma *prev = NULL;
@@ -983,17 +983,17 @@ nvkm_vmm_node_split(struct nvkm_vmm *vmm,
 		if (!(vma = nvkm_vma_tail(vma, vma->size + vma->addr - addr)))
 			return NULL;
 		vma->part = true;
-		nvkm_vmm_node_insert(vmm, vma);
+		nvkm_vmm_analde_insert(vmm, vma);
 	}
 
 	if (vma->size != size) {
 		struct nvkm_vma *tmp;
 		if (!(tmp = nvkm_vma_tail(vma, vma->size - size))) {
-			nvkm_vmm_node_merge(vmm, prev, vma, NULL, vma->size);
+			nvkm_vmm_analde_merge(vmm, prev, vma, NULL, vma->size);
 			return NULL;
 		}
 		tmp->part = true;
-		nvkm_vmm_node_insert(vmm, tmp);
+		nvkm_vmm_analde_insert(vmm, tmp);
 	}
 
 	return vma;
@@ -1007,8 +1007,8 @@ nvkm_vma_dump(struct nvkm_vma *vma)
 	       vma->used ? '-' : 'F',
 	       vma->mapref ? 'R' : '-',
 	       vma->sparse ? 'S' : '-',
-	       vma->page != NVKM_VMA_PAGE_NONE ? '0' + vma->page : '-',
-	       vma->refd != NVKM_VMA_PAGE_NONE ? '0' + vma->refd : '-',
+	       vma->page != NVKM_VMA_PAGE_ANALNE ? '0' + vma->page : '-',
+	       vma->refd != NVKM_VMA_PAGE_ANALNE ? '0' + vma->refd : '-',
 	       vma->part ? 'P' : '-',
 	       vma->busy ? 'B' : '-',
 	       vma->mapped ? 'M' : '-',
@@ -1028,7 +1028,7 @@ static void
 nvkm_vmm_dtor(struct nvkm_vmm *vmm)
 {
 	struct nvkm_vma *vma;
-	struct rb_node *node;
+	struct rb_analde *analde;
 
 	if (vmm->rm.client.gsp) {
 		nvkm_gsp_rm_free(&vmm->rm.object);
@@ -1040,8 +1040,8 @@ nvkm_vmm_dtor(struct nvkm_vmm *vmm)
 	if (0)
 		nvkm_vmm_dump(vmm);
 
-	while ((node = rb_first(&vmm->root))) {
-		struct nvkm_vma *vma = rb_entry(node, typeof(*vma), tree);
+	while ((analde = rb_first(&vmm->root))) {
+		struct nvkm_vma *vma = rb_entry(analde, typeof(*vma), tree);
 		nvkm_vmm_put(vmm, &vma);
 	}
 
@@ -1077,11 +1077,11 @@ nvkm_vmm_ctor_managed(struct nvkm_vmm *vmm, u64 addr, u64 size)
 {
 	struct nvkm_vma *vma;
 	if (!(vma = nvkm_vma_new(addr, size)))
-		return -ENOMEM;
+		return -EANALMEM;
 	vma->mapref = true;
 	vma->sparse = false;
 	vma->used = true;
-	nvkm_vmm_node_insert(vmm, vma);
+	nvkm_vmm_analde_insert(vmm, vma);
 	list_add_tail(&vma->head, &vmm->list);
 	return 0;
 }
@@ -1129,7 +1129,7 @@ nvkm_vmm_ctor(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
 	/* Allocate top-level page table. */
 	vmm->pd = nvkm_vmm_pt_new(desc, false, NULL);
 	if (!vmm->pd)
-		return -ENOMEM;
+		return -EANALMEM;
 	vmm->pd->refs[0] = 1;
 	INIT_LIST_HEAD(&vmm->join);
 
@@ -1140,7 +1140,7 @@ nvkm_vmm_ctor(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
 		const u32 size = pd_header + desc->size * (1 << desc->bits);
 		vmm->pd->pt[0] = nvkm_mmu_ptc_get(mmu, size, desc->align, true);
 		if (!vmm->pd->pt[0])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* Initialise address-space MM. */
@@ -1168,7 +1168,7 @@ nvkm_vmm_ctor(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
 		/* NVKM-managed area. */
 		if (size) {
 			if (!(vma = nvkm_vma_new(addr, size)))
-				return -ENOMEM;
+				return -EANALMEM;
 			nvkm_vmm_free_insert(vmm, vma);
 			list_add_tail(&vma->head, &vmm->list);
 		}
@@ -1191,7 +1191,7 @@ nvkm_vmm_ctor(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
 			return -EINVAL;
 
 		if (!(vma = nvkm_vma_new(vmm->start, vmm->limit - vmm->start)))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		nvkm_vmm_free_insert(vmm, vma);
 		list_add(&vma->head, &vmm->list);
@@ -1207,7 +1207,7 @@ nvkm_vmm_new_(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
 	      struct nvkm_vmm **pvmm)
 {
 	if (!(*pvmm = kzalloc(sizeof(**pvmm), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	return nvkm_vmm_ctor(func, mmu, hdr, managed, addr, size, key, name, *pvmm);
 }
 
@@ -1218,26 +1218,26 @@ nvkm_vmm_pfn_split_merge(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 	struct nvkm_vma *prev = NULL;
 	struct nvkm_vma *next = NULL;
 
-	if (vma->addr == addr && vma->part && (prev = node(vma, prev))) {
+	if (vma->addr == addr && vma->part && (prev = analde(vma, prev))) {
 		if (prev->memory || prev->mapped != map)
 			prev = NULL;
 	}
 
-	if (vma->addr + vma->size == addr + size && (next = node(vma, next))) {
+	if (vma->addr + vma->size == addr + size && (next = analde(vma, next))) {
 		if (!next->part ||
 		    next->memory || next->mapped != map)
 			next = NULL;
 	}
 
 	if (prev || next)
-		return nvkm_vmm_node_merge(vmm, prev, vma, next, size);
-	return nvkm_vmm_node_split(vmm, vma, addr, size);
+		return nvkm_vmm_analde_merge(vmm, prev, vma, next, size);
+	return nvkm_vmm_analde_split(vmm, vma, addr, size);
 }
 
 int
 nvkm_vmm_pfn_unmap(struct nvkm_vmm *vmm, u64 addr, u64 size)
 {
-	struct nvkm_vma *vma = nvkm_vmm_node_search(vmm, addr);
+	struct nvkm_vma *vma = nvkm_vmm_analde_search(vmm, addr);
 	struct nvkm_vma *next;
 	u64 limit = addr + size;
 	u64 start = addr;
@@ -1257,10 +1257,10 @@ nvkm_vmm_pfn_unmap(struct nvkm_vmm *vmm, u64 addr, u64 size)
 		next = nvkm_vmm_pfn_split_merge(vmm, vma, start, size, 0, false);
 		if (!WARN_ON(!next)) {
 			vma = next;
-			vma->refd = NVKM_VMA_PAGE_NONE;
+			vma->refd = NVKM_VMA_PAGE_ANALNE;
 			vma->mapped = false;
 		}
-	} while ((vma = node(vma, next)) && (start = vma->addr) < limit);
+	} while ((vma = analde(vma, next)) && (start = vma->addr) < limit);
 
 	return 0;
 }
@@ -1295,8 +1295,8 @@ nvkm_vmm_pfn_map(struct nvkm_vmm *vmm, u8 shift, u64 addr, u64 size, u64 *pfn)
 		return -EINVAL;
 	}
 
-	if (!(vma = nvkm_vmm_node_search(vmm, addr)))
-		return -ENOENT;
+	if (!(vma = nvkm_vmm_analde_search(vmm, addr)))
+		return -EANALENT;
 
 	do {
 		bool map = !!(pfn[pi] & NVKM_VMM_PFN_V);
@@ -1306,7 +1306,7 @@ nvkm_vmm_pfn_map(struct nvkm_vmm *vmm, u8 shift, u64 addr, u64 size, u64 *pfn)
 		int pn, ret = 0;
 
 		/* Narrow the operation window to cover a single action (page
-		 * should be mapped or not) within a single VMA.
+		 * should be mapped or analt) within a single VMA.
 		 */
 		for (pn = 0; pi + pn < pm; pn++) {
 			if (map != !!(pfn[pi + pn] & NVKM_VMM_PFN_V))
@@ -1324,7 +1324,7 @@ nvkm_vmm_pfn_map(struct nvkm_vmm *vmm, u8 shift, u64 addr, u64 size, u64 *pfn)
 		}
 
 		/* In order to both properly refcount GPU page tables, and
-		 * prevent "normal" mappings and these direct mappings from
+		 * prevent "analrmal" mappings and these direct mappings from
 		 * interfering with each other, we need to track contiguous
 		 * ranges that have been mapped with this interface.
 		 *
@@ -1332,21 +1332,21 @@ nvkm_vmm_pfn_map(struct nvkm_vmm *vmm, u8 shift, u64 addr, u64 size, u64 *pfn)
 		 * able to flag the region as either unmapped/mapped, or to
 		 * merge with adjacent VMAs that are already compatible.
 		 *
-		 * If the region is already compatible, nothing is required.
+		 * If the region is already compatible, analthing is required.
 		 */
 		if (map != mapped) {
 			tmp = nvkm_vmm_pfn_split_merge(vmm, vma, addr, size,
 						       page -
 						       vmm->func->page, map);
 			if (WARN_ON(!tmp)) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto next;
 			}
 
 			if ((tmp->mapped = map))
 				tmp->refd = page - vmm->func->page;
 			else
-				tmp->refd = NVKM_VMA_PAGE_NONE;
+				tmp->refd = NVKM_VMA_PAGE_ANALNE;
 			vma = tmp;
 		}
 
@@ -1374,7 +1374,7 @@ nvkm_vmm_pfn_map(struct nvkm_vmm *vmm, u8 shift, u64 addr, u64 size, u64 *pfn)
 next:
 		/* Iterate to next operation. */
 		if (vma->addr + vma->size == addr + size)
-			vma = node(vma, next);
+			vma = analde(vma, next);
 		start += size;
 
 		if (ret) {
@@ -1382,7 +1382,7 @@ next:
 			 * any PFN that couldn't be modified as requested.
 			 */
 			while (size) {
-				pfn[pi++] = NVKM_VMM_PFN_NONE;
+				pfn[pi++] = NVKM_VMM_PFN_ANALNE;
 				size -= 1 << page->shift;
 			}
 		} else {
@@ -1403,11 +1403,11 @@ nvkm_vmm_unmap_region(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 	nvkm_memory_unref(&vma->memory);
 	vma->mapped = false;
 
-	if (vma->part && (prev = node(vma, prev)) && prev->mapped)
+	if (vma->part && (prev = analde(vma, prev)) && prev->mapped)
 		prev = NULL;
-	if ((next = node(vma, next)) && (!next->part || next->mapped))
+	if ((next = analde(vma, next)) && (!next->part || next->mapped))
 		next = NULL;
-	nvkm_vmm_node_merge(vmm, prev, vma, next, vma->size);
+	nvkm_vmm_analde_merge(vmm, prev, vma, next, vma->size);
 }
 
 void
@@ -1417,7 +1417,7 @@ nvkm_vmm_unmap_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma, bool pfn)
 
 	if (vma->mapref) {
 		nvkm_vmm_ptes_unmap_put(vmm, page, vma->addr, vma->size, vma->sparse, pfn);
-		vma->refd = NVKM_VMA_PAGE_NONE;
+		vma->refd = NVKM_VMA_PAGE_ANALNE;
 	} else {
 		nvkm_vmm_ptes_unmap(vmm, page, vma->addr, vma->size, vma->sparse, pfn);
 	}
@@ -1455,7 +1455,7 @@ nvkm_vmm_map_valid(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 		break;
 	default:
 		WARN_ON(1);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	if (!IS_ALIGNED(     vma->addr, 1ULL << map->page->shift) ||
@@ -1490,7 +1490,7 @@ nvkm_vmm_map_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 	nvkm_vmm_pte_func func;
 	int ret;
 
-	map->no_comp = vma->no_comp;
+	map->anal_comp = vma->anal_comp;
 
 	/* Make sure we won't overrun the end of the memory object. */
 	if (unlikely(nvkm_memory_size(map->memory) < map->offset + vma->size)) {
@@ -1501,8 +1501,8 @@ nvkm_vmm_map_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 	}
 
 	/* Check remaining arguments for validity. */
-	if (vma->page == NVKM_VMA_PAGE_NONE &&
-	    vma->refd == NVKM_VMA_PAGE_NONE) {
+	if (vma->page == NVKM_VMA_PAGE_ANALNE &&
+	    vma->refd == NVKM_VMA_PAGE_ANALNE) {
 		/* Find the largest page size we can perform the mapping at. */
 		const u32 debug = vmm->debug;
 		vmm->debug = 0;
@@ -1515,7 +1515,7 @@ nvkm_vmm_map_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 		}
 	} else {
 		/* Page size of the VMA is already pre-determined. */
-		if (vma->refd != NVKM_VMA_PAGE_NONE)
+		if (vma->refd != NVKM_VMA_PAGE_ANALNE)
 			map->page = &vmm->func->page[vma->refd];
 		else
 			map->page = &vmm->func->page[vma->page];
@@ -1553,7 +1553,7 @@ nvkm_vmm_map_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 	}
 
 	/* Perform the map. */
-	if (vma->refd == NVKM_VMA_PAGE_NONE) {
+	if (vma->refd == NVKM_VMA_PAGE_ANALNE) {
 		ret = nvkm_vmm_ptes_get_map(vmm, map->page, vma->addr, vma->size, map, func);
 		if (ret)
 			return ret;
@@ -1593,13 +1593,13 @@ nvkm_vmm_put_region(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 {
 	struct nvkm_vma *prev, *next;
 
-	if ((prev = node(vma, prev)) && !prev->used) {
+	if ((prev = analde(vma, prev)) && !prev->used) {
 		vma->addr  = prev->addr;
 		vma->size += prev->size;
 		nvkm_vmm_free_delete(vmm, prev);
 	}
 
-	if ((next = node(vma, next)) && !next->used) {
+	if ((next = analde(vma, next)) && !next->used) {
 		vma->size += next->size;
 		nvkm_vmm_free_delete(vmm, next);
 	}
@@ -1624,7 +1624,7 @@ nvkm_vmm_put_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 			u64 size = next->size;
 
 			/* Merge regions that are in the same state. */
-			while ((next = node(next, next)) && next->part &&
+			while ((next = analde(next, next)) && next->part &&
 			       (next->mapped == map) &&
 			       (next->memory != NULL) == mem &&
 			       (next->refd == refd))
@@ -1639,7 +1639,7 @@ nvkm_vmm_put_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 							size, vma->sparse,
 							!mem);
 			} else
-			if (refd != NVKM_VMA_PAGE_NONE) {
+			if (refd != NVKM_VMA_PAGE_ANALNE) {
 				/* Drop allocation-time PTE references. */
 				nvkm_vmm_ptes_put(vmm, &page[refd], addr, size);
 			}
@@ -1654,7 +1654,7 @@ nvkm_vmm_put_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 	do {
 		if (next->mapped)
 			nvkm_vmm_unmap_region(vmm, next);
-	} while ((next = node(vma, next)) && next->part);
+	} while ((next = analde(vma, next)) && next->part);
 
 	if (vma->sparse && !vma->mapref) {
 		/* Sparse region that was allocated with a fixed page size,
@@ -1679,12 +1679,12 @@ nvkm_vmm_put_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 		nvkm_vmm_ptes_sparse(vmm, vma->addr, vma->size, false);
 	}
 
-	/* Remove VMA from the list of allocated nodes. */
-	nvkm_vmm_node_remove(vmm, vma);
+	/* Remove VMA from the list of allocated analdes. */
+	nvkm_vmm_analde_remove(vmm, vma);
 
 	/* Merge VMA back into the free list. */
-	vma->page = NVKM_VMA_PAGE_NONE;
-	vma->refd = NVKM_VMA_PAGE_NONE;
+	vma->page = NVKM_VMA_PAGE_ANALNE;
+	vma->refd = NVKM_VMA_PAGE_ANALNE;
 	vma->used = false;
 	nvkm_vmm_put_region(vmm, vma);
 }
@@ -1705,8 +1705,8 @@ int
 nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 		    u8 shift, u8 align, u64 size, struct nvkm_vma **pvma)
 {
-	const struct nvkm_vmm_page *page = &vmm->func->page[NVKM_VMA_PAGE_NONE];
-	struct rb_node *node = NULL, *temp;
+	const struct nvkm_vmm_page *page = &vmm->func->page[NVKM_VMA_PAGE_ANALNE];
+	struct rb_analde *analde = NULL, *temp;
 	struct nvkm_vma *vma = NULL, *tmp;
 	u64 addr, tail;
 	int ret;
@@ -1715,7 +1715,7 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 		       "shift: %d align: %d size: %016llx",
 		  getref, mapref, sparse, shift, align, size);
 
-	/* Zero-sized, or lazily-allocated sparse VMAs, make no sense. */
+	/* Zero-sized, or lazily-allocated sparse VMAs, make anal sense. */
 	if (unlikely(!size || (!getref && !mapref && sparse))) {
 		VMM_DEBUG(vmm, "args %016llx %d %d %d",
 			  size, getref, mapref, sparse);
@@ -1723,7 +1723,7 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 	}
 
 	/* Tesla-class GPUs can only select page size per-PDE, which means
-	 * we're required to know the mapping granularity up-front to find
+	 * we're required to kanalw the mapping granularity up-front to find
 	 * a suitable region of address-space.
 	 *
 	 * The same goes if we're requesting up-front allocation of PTES.
@@ -1753,27 +1753,27 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 	}
 
 	/* Locate smallest block that can possibly satisfy the allocation. */
-	temp = vmm->free.rb_node;
+	temp = vmm->free.rb_analde;
 	while (temp) {
 		struct nvkm_vma *this = rb_entry(temp, typeof(*this), tree);
 		if (this->size < size) {
 			temp = temp->rb_right;
 		} else {
-			node = temp;
+			analde = temp;
 			temp = temp->rb_left;
 		}
 	}
 
-	if (unlikely(!node))
-		return -ENOSPC;
+	if (unlikely(!analde))
+		return -EANALSPC;
 
 	/* Take into account alignment restrictions, trying larger blocks
 	 * in turn until we find a suitable free block.
 	 */
 	do {
-		struct nvkm_vma *this = rb_entry(node, typeof(*this), tree);
-		struct nvkm_vma *prev = node(this, prev);
-		struct nvkm_vma *next = node(this, next);
+		struct nvkm_vma *this = rb_entry(analde, typeof(*this), tree);
+		struct nvkm_vma *prev = analde(this, prev);
+		struct nvkm_vma *next = analde(this, next);
 		const int p = page - vmm->func->page;
 
 		addr = this->addr;
@@ -1790,10 +1790,10 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 			vma = this;
 			break;
 		}
-	} while ((node = rb_next(node)));
+	} while ((analde = rb_next(analde)));
 
 	if (unlikely(!vma))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* If the VMA we found isn't already exactly the requested size,
 	 * it needs to be split, and the remaining free blocks returned.
@@ -1801,7 +1801,7 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 	if (addr != vma->addr) {
 		if (!(tmp = nvkm_vma_tail(vma, vma->size + vma->addr - addr))) {
 			nvkm_vmm_put_region(vmm, vma);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		nvkm_vmm_free_insert(vmm, vma);
 		vma = tmp;
@@ -1810,7 +1810,7 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 	if (size != vma->size) {
 		if (!(tmp = nvkm_vma_tail(vma, vma->size - size))) {
 			nvkm_vmm_put_region(vmm, vma);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		nvkm_vmm_free_insert(vmm, tmp);
 	}
@@ -1832,9 +1832,9 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 	vma->mapref = mapref && !getref;
 	vma->sparse = sparse;
 	vma->page = page - vmm->func->page;
-	vma->refd = getref ? vma->page : NVKM_VMA_PAGE_NONE;
+	vma->refd = getref ? vma->page : NVKM_VMA_PAGE_ANALNE;
 	vma->used = true;
-	nvkm_vmm_node_insert(vmm, vma);
+	nvkm_vmm_analde_insert(vmm, vma);
 	*pvma = vma;
 	return 0;
 }

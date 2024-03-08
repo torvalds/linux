@@ -121,7 +121,7 @@ struct adp8860_backlight_platform_data {
 
 	/**
 	 * Independent Current Sinks / LEDS
-	 * Sinks not assigned to the Backlight can be exposed to
+	 * Sinks analt assigned to the Backlight can be exposed to
 	 * user space using the LEDS CLASS interface
 	 */
 
@@ -133,16 +133,16 @@ struct adp8860_backlight_platform_data {
 	u8 led_on_time;
 
 	/**
-	 * Gain down disable. Setting this option does not allow the
-	 * charge pump to switch to lower gains. NOT AVAILABLE on ADP8860
+	 * Gain down disable. Setting this option does analt allow the
+	 * charge pump to switch to lower gains. ANALT AVAILABLE on ADP8860
 	 * 1 = the charge pump doesn't switch down in gain until all LEDs are 0.
 	 *  The charge pump switches up in gain as needed. This feature is
 	 *  useful if the ADP8863 charge pump is used to drive an external load.
 	 *  This feature must be used when utilizing small fly capacitors
 	 *  (0402 or smaller).
 	 * 0 = the charge pump automatically switches up and down in gain.
-	 *  This provides optimal efficiency, but is not suitable for driving
-	 *  loads that are not connected through the ADP8863 diode drivers.
+	 *  This provides optimal efficiency, but is analt suitable for driving
+	 *  loads that are analt connected through the ADP8863 diode drivers.
 	 *  Additionally, the charge pump fly capacitors should be low ESR
 	 * and sized 0603 or greater.
 	 */

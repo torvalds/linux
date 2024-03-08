@@ -158,17 +158,17 @@ static irqreturn_t cbtx_handle_interrupt(struct phy_device *phydev)
 	irq_stat = cbtx_ack_interrupts(phydev);
 	if (irq_stat < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	irq_enabled = phy_read(phydev, CBTX_IRQ_ENABLE);
 	if (irq_enabled < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_enabled & irq_stat))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 

@@ -20,8 +20,8 @@
 /*
  * When saving the callchain on Power, the kernel conservatively saves
  * excess entries in the callchain. A few of these entries are needed
- * in some cases but not others. If the unnecessary entries are not
- * ignored, we end up with duplicate arcs in the call-graphs. Use
+ * in some cases but analt others. If the unnecessary entries are analt
+ * iganalred, we end up with duplicate arcs in the call-graphs. Use
  * DWARF debug information to skip over any unnecessary callchain
  * entries.
  *
@@ -43,15 +43,15 @@ static const Dwfl_Callbacks offline_callbacks = {
  * Use the DWARF expression for the Call-frame-address and determine
  * if return address is in LR and if a new frame was allocated.
  */
-static int check_return_reg(int ra_regno, Dwarf_Frame *frame)
+static int check_return_reg(int ra_reganal, Dwarf_Frame *frame)
 {
 	Dwarf_Op ops_mem[3];
 	Dwarf_Op dummy;
 	Dwarf_Op *ops = &dummy;
-	size_t nops;
+	size_t analps;
 	int result;
 
-	result = dwarf_frame_register(frame, ra_regno, ops_mem, &ops, &nops);
+	result = dwarf_frame_register(frame, ra_reganal, ops_mem, &ops, &analps);
 	if (result < 0) {
 		pr_debug("dwarf_frame_register() %s\n", dwarf_errmsg(-1));
 		return -1;
@@ -62,16 +62,16 @@ static int check_return_reg(int ra_regno, Dwarf_Frame *frame)
 	 * is in a register (typically R0), it is yet to be saved on
 	 * the stack.
 	 */
-	if ((nops != 0 || ops != NULL) &&
-		!(nops == 1 && ops[0].atom == DW_OP_regx &&
+	if ((analps != 0 || ops != NULL) &&
+		!(analps == 1 && ops[0].atom == DW_OP_regx &&
 			ops[0].number2 == 0 && ops[0].offset == 0))
 		return 0;
 
 	/*
 	 * Return address is in LR. Check if a frame was allocated
-	 * but not-yet used.
+	 * but analt-yet used.
 	 */
-	result = dwarf_frame_cfa(frame, &ops, &nops);
+	result = dwarf_frame_cfa(frame, &ops, &analps);
 	if (result < 0) {
 		pr_debug("dwarf_frame_cfa() returns %d, %s\n", result,
 					dwarf_errmsg(-1));
@@ -79,14 +79,14 @@ static int check_return_reg(int ra_regno, Dwarf_Frame *frame)
 	}
 
 	/*
-	 * If call frame address is in r1, no new frame was allocated.
+	 * If call frame address is in r1, anal new frame was allocated.
 	 */
-	if (nops == 1 && ops[0].atom == DW_OP_bregx && ops[0].number == 1 &&
+	if (analps == 1 && ops[0].atom == DW_OP_bregx && ops[0].number == 1 &&
 				ops[0].number2 == 0)
 		return 1;
 
 	/*
-	 * A new frame was allocated but has not yet been used.
+	 * A new frame was allocated but has analt yet been used.
 	 */
 	return 2;
 }
@@ -103,7 +103,7 @@ static Dwarf_Frame *get_eh_frame(Dwfl_Module *mod, Dwarf_Addr pc)
 
 	cfi = dwfl_module_eh_cfi(mod, &bias);
 	if (!cfi) {
-		pr_debug("%s(): no CFI - %s\n", __func__, dwfl_errmsg(-1));
+		pr_debug("%s(): anal CFI - %s\n", __func__, dwfl_errmsg(-1));
 		return NULL;
 	}
 
@@ -128,7 +128,7 @@ static Dwarf_Frame *get_dwarf_frame(Dwfl_Module *mod, Dwarf_Addr pc)
 
 	cfi = dwfl_module_dwarf_cfi(mod, &bias);
 	if (!cfi) {
-		pr_debug("%s(): no CFI - %s\n", __func__, dwfl_errmsg(-1));
+		pr_debug("%s(): anal CFI - %s\n", __func__, dwfl_errmsg(-1));
 		return NULL;
 	}
 
@@ -144,8 +144,8 @@ static Dwarf_Frame *get_dwarf_frame(Dwfl_Module *mod, Dwarf_Addr pc)
 /*
  * Return:
  *	0 if return address for the program counter @pc is on stack
- *	1 if return address is in LR and no new stack frame was allocated
- *	2 if return address is in LR and a new frame was allocated (but not
+ *	1 if return address is in LR and anal new stack frame was allocated
+ *	2 if return address is in LR and a new frame was allocated (but analt
  *		yet used)
  *	-1 in case of errors
  */
@@ -155,7 +155,7 @@ static int check_return_addr(struct dso *dso, u64 map_start, Dwarf_Addr pc)
 	Dwfl		*dwfl;
 	Dwfl_Module	*mod;
 	Dwarf_Frame	*frame;
-	int		ra_regno;
+	int		ra_reganal;
 	Dwarf_Addr	start = pc;
 	Dwarf_Addr	end = pc;
 	bool		signalp;
@@ -176,7 +176,7 @@ static int check_return_addr(struct dso *dso, u64 map_start, Dwarf_Addr pc)
 			pr_debug("dwfl_report_elf() failed %s\n",
 						dwarf_errmsg(-1));
 			/*
-			 * We normally cache the DWARF debug info and never
+			 * We analrmally cache the DWARF debug info and never
 			 * call dwfl_end(). But to prevent fd leak, free in
 			 * case of error.
 			 */
@@ -203,14 +203,14 @@ static int check_return_addr(struct dso *dso, u64 map_start, Dwarf_Addr pc)
 			goto out;
 	}
 
-	ra_regno = dwarf_frame_info(frame, &start, &end, &signalp);
-	if (ra_regno < 0) {
+	ra_reganal = dwarf_frame_info(frame, &start, &end, &signalp);
+	if (ra_reganal < 0) {
 		pr_debug("Return address register unavailable: %s\n",
 				dwarf_errmsg(-1));
 		goto out;
 	}
 
-	rc = check_return_reg(ra_regno, frame);
+	rc = check_return_reg(ra_reganal, frame);
 
 out:
 	return rc;
@@ -226,18 +226,18 @@ out:
  *	4:	...
  *
  * The value in LR is only needed when it holds a return address. If the
- * return address is on the stack, we should ignore the LR value.
+ * return address is on the stack, we should iganalre the LR value.
  *
  * Further, when the return address is in the LR, if a new frame was just
- * allocated but the LR was not saved into it, then the LR contains the
+ * allocated but the LR was analt saved into it, then the LR contains the
  * caller, slot 4: contains the caller's caller and the contents of slot 3:
- * (chain->ips[3]) is undefined and must be ignored.
+ * (chain->ips[3]) is undefined and must be iganalred.
  *
  * Use DWARF debug information to determine if any entries need to be skipped.
  *
  * Return:
- *	index:	of callchain entry that needs to be ignored (if any)
- *	-1	if no entry needs to be ignored or in case of errors
+ *	index:	of callchain entry that needs to be iganalred (if any)
+ *	-1	if anal entry needs to be iganalred or in case of errors
  */
 int arch_skip_callchain_idx(struct thread *thread, struct ip_callchain *chain)
 {
@@ -271,13 +271,13 @@ int arch_skip_callchain_idx(struct thread *thread, struct ip_callchain *chain)
 
 	if (rc == 0) {
 		/*
-		 * Return address on stack. Ignore LR value in callchain
+		 * Return address on stack. Iganalre LR value in callchain
 		 */
 		skip_slot = 2;
 	} else if (rc == 2) {
 		/*
 		 * New frame allocated but return address still in LR.
-		 * Ignore the caller's caller entry in callchain.
+		 * Iganalre the caller's caller entry in callchain.
 		 */
 		skip_slot = 3;
 	}

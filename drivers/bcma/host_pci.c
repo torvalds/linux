@@ -161,7 +161,7 @@ static int bcma_host_pci_probe(struct pci_dev *dev,
 			       const struct pci_device_id *id)
 {
 	struct bcma_bus *bus;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	u32 val;
 
 	/* Alloc */
@@ -187,7 +187,7 @@ static int bcma_host_pci_probe(struct pci_dev *dev,
 
 	/* SSB needed additional powering up, do we have any AMBA PCI cards? */
 	if (!pci_is_pcie(dev)) {
-		bcma_err(bus, "PCI card detected, they are not supported.\n");
+		bcma_err(bus, "PCI card detected, they are analt supported.\n");
 		err = -ENXIO;
 		goto err_pci_release_regions;
 	}
@@ -195,7 +195,7 @@ static int bcma_host_pci_probe(struct pci_dev *dev,
 	bus->dev = &dev->dev;
 
 	/* Map MMIO */
-	err = -ENOMEM;
+	err = -EANALMEM;
 	bus->mmio = pci_iomap(dev, 0, ~0UL);
 	if (!bus->mmio)
 		goto err_pci_release_regions;
@@ -360,9 +360,9 @@ int bcma_host_pci_irq_ctl(struct bcma_bus *bus, struct bcma_device *core,
 	int err = 0;
 
 	if (bus->hosttype != BCMA_HOSTTYPE_PCI) {
-		/* This bcma device is not on a PCI host-bus. So the IRQs are
-		 * not routed through the PCI core.
-		 * So we must not enable routing through the PCI core. */
+		/* This bcma device is analt on a PCI host-bus. So the IRQs are
+		 * analt routed through the PCI core.
+		 * So we must analt enable routing through the PCI core. */
 		goto out;
 	}
 

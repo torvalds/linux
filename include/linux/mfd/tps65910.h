@@ -890,7 +890,7 @@ struct tps65910 {
 	struct regmap *regmap;
 	unsigned long id;
 
-	/* Device node parsed board data */
+	/* Device analde parsed board data */
 	struct tps65910_board *of_plat_data;
 
 	/* IRQ Handling */

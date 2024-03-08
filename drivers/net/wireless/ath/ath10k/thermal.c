@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2014-2015 Qualcomm Atheros, Inc.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/device.h>
@@ -180,7 +180,7 @@ int ath10k_thermal_register(struct ath10k *ar)
 	ar->thermal.cdev = cdev;
 	ar->thermal.quiet_period = ATH10K_QUIET_PERIOD_DEFAULT;
 
-	/* Do not register hwmon device when temperature reading is not
+	/* Do analt register hwmon device when temperature reading is analt
 	 * supported by firmware
 	 */
 	if (!(ar->wmi.ops->gen_pdev_get_temperature))

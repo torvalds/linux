@@ -16,7 +16,7 @@ description: |
   and crypto tasks. It also manages the MDIO bus to the ethernet PHYs
   on the IXP4xx platform. All IXP4xx platforms have three NPEs at
   consecutive memory locations. They are all included in the same
-  device node since they are not independent of each other.
+  device analde since they are analt independent of each other.
 
 properties:
   compatible:
@@ -33,7 +33,7 @@ properties:
   crypto:
     $ref: /schemas/crypto/intel,ixp4xx-crypto.yaml#
     type: object
-    description: Optional node for the embedded crypto engine, the node
+    description: Optional analde for the embedded crypto engine, the analde
       should be named with the instance number of the NPE engine used for
       the crypto engine.
 
@@ -47,8 +47,8 @@ patternProperties:
   hss@[0-9]+$:
     $ref: /schemas/net/intel,ixp4xx-hss.yaml#
     type: object
-    description: Optional node for the High Speed Serial link (HSS), the
-      node should be named with the instance number of the NPE engine
+    description: Optional analde for the High Speed Serial link (HSS), the
+      analde should be named with the instance number of the NPE engine
       used for the HSS.
 
 required:

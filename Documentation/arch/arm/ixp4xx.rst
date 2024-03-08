@@ -1,5 +1,5 @@
 ===========================================================
-Release Notes for Linux on Intel's IXP4xx Network Processor
+Release Analtes for Linux on Intel's IXP4xx Network Processor
 ===========================================================
 
 Maintained by Deepak Saxena <dsaxena@plexity.net>
@@ -35,7 +35,7 @@ Linux currently supports the following features on the IXP4xx chips:
   See arch/arm/mach-ixp4xx/include/mach/platform.h for access functions.
 - Timers (watchdog, OS)
 
-The following components of the chips are not supported by Linux and
+The following components of the chips are analt supported by Linux and
 require the use of Intel's proprietary CSR software:
 
 - USB device interface
@@ -47,7 +47,7 @@ software from:
 
    http://developer.intel.com/design/network/products/npfamily/ixp425.htm
 
-DO NOT POST QUESTIONS TO THE LINUX MAILING LISTS REGARDING THE PROPRIETARY
+DO ANALT POST QUESTIONS TO THE LINUX MAILING LISTS REGARDING THE PROPRIETARY
 SOFTWARE.
 
 There are several websites that provide directions/pointers on using
@@ -62,7 +62,7 @@ Intel's software:
    - http://ixp425.sourceforge.net/
      ATM device driver for IXP425 that relies on Intel's libraries
 
-3. Known Issues/Limitations
+3. Kanalwn Issues/Limitations
 
 3a. Limited inbound PCI window
 
@@ -87,7 +87,7 @@ IXP4xx provides two methods of accessing PCI memory space:
    for up to 128MB (0x48000000 to 0x4fffffff) of memory on the bus.
    The disadvantage of this is that every PCI access requires
    three local register accesses plus a spinlock, but in some
-   cases the performance hit is acceptable. In addition, you cannot
+   cases the performance hit is acceptable. In addition, you cananalt
    mmap() PCI devices in this case due to the indirect nature
    of the PCI window.
 
@@ -107,7 +107,7 @@ http://www.adiengineering.com/productsCoyote.html
    small residential/office gateways. One NPE is connected to a 10/100
    interface, one to 4-port 10/100 switch, and the third to and ADSL
    interface. In addition, it also supports to POTs interfaces connected
-   via SLICs. Note that those are not supported by Linux ATM. Finally,
+   via SLICs. Analte that those are analt supported by Linux ATM. Finally,
    the platform has two mini-PCI slots used for 802.11[bga] cards.
    Finally, there is an IDE port hanging off the expansion bus.
 
@@ -122,7 +122,7 @@ Intel IXDP425 Development Platform
 http://www.intel.com/design/network/products/npfamily/ixdpg425.htm
 
    This is Intel's standard reference platform for the IXDP425 and is
-   also known as the Richfield board. It contains 4 PCI slots, 16MB
+   also kanalwn as the Richfield board. It contains 4 PCI slots, 16MB
    of flash, two 10/100 ports and one ADSL port.
 
 Intel IXDP465 Development Platform
@@ -166,7 +166,7 @@ The following people have contributed patches/comments/etc:
 - Justin Mayfield
 - Robert E. Ranslam
 
-[I know I've forgotten others, please email me to be added]
+[I kanalw I've forgotten others, please email me to be added]
 
 -------------------------------------------------------------------------
 

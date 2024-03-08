@@ -48,7 +48,7 @@ static int xdp_umem_addr_map(struct xdp_umem *umem, struct page **pages,
 {
 	umem->addrs = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
 	if (!umem->addrs)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -97,9 +97,9 @@ static int xdp_umem_pin_pages(struct xdp_umem *umem, unsigned long address)
 	long npgs;
 	int err;
 
-	umem->pgs = kvcalloc(umem->npgs, sizeof(*umem->pgs), GFP_KERNEL | __GFP_NOWARN);
+	umem->pgs = kvcalloc(umem->npgs, sizeof(*umem->pgs), GFP_KERNEL | __GFP_ANALWARN);
 	if (!umem->pgs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mmap_read_lock(current->mm);
 	npgs = pin_user_pages(address, umem->npgs,
@@ -109,7 +109,7 @@ static int xdp_umem_pin_pages(struct xdp_umem *umem, unsigned long address)
 	if (npgs != umem->npgs) {
 		if (npgs >= 0) {
 			umem->npgs = npgs;
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_pin;
 		}
 		err = npgs;
@@ -141,7 +141,7 @@ static int xdp_umem_account_pages(struct xdp_umem *umem)
 		if (new_npgs > lock_limit) {
 			free_uid(umem->user);
 			umem->user = NULL;
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 	} while (atomic_long_cmpxchg(&umem->user->locked_vm, old_npgs,
 				     new_npgs) != old_npgs);
@@ -167,7 +167,7 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 		 * - huge pages, or*
 		 * - using an IOMMU, or
 		 * - making sure the memory area is consecutive
-		 * but for now, we simply say "computer says no".
+		 * but for analw, we simply say "computer says anal".
 		 */
 		return -EINVAL;
 	}
@@ -248,7 +248,7 @@ struct xdp_umem *xdp_umem_create(struct xdp_umem_reg *mr)
 
 	umem = kzalloc(sizeof(*umem), GFP_KERNEL);
 	if (!umem)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = ida_alloc(&umem_ida, GFP_KERNEL);
 	if (err < 0) {

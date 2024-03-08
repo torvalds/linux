@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * PAPR nvDimm Specific Methods (PDSM) and structs for libndctl
  *
@@ -47,7 +47,7 @@
  * as nd_cmd_pdsm_pkg.  Following fields aare available in this header:
  *
  * 'cmd_status'		: (Out) Errors if any encountered while servicing PDSM.
- * 'reserved'		: Not used, reserved for future and should be set to 0.
+ * 'reserved'		: Analt used, reserved for future and should be set to 0.
  * 'payload'            : A union of all the possible payload structs
  *
  * PDSM Payload:
@@ -85,8 +85,8 @@
  * Various flags indicate the health status of the dimm.
  *
  * extension_flags	: Any extension fields present in the struct.
- * dimm_unarmed		: Dimm not armed. So contents wont persist.
- * dimm_bad_shutdown	: Previous shutdown did not persist contents.
+ * dimm_unarmed		: Dimm analt armed. So contents wont persist.
+ * dimm_bad_shutdown	: Previous shutdown did analt persist contents.
  * dimm_bad_restore	: Contents from previous shutdown werent restored.
  * dimm_scrubbed	: Contents of the dimm have been scrubbed.
  * dimm_locked		: Contents of the dimm cant be modified until CEC reboot
@@ -158,7 +158,7 @@ union nd_pdsm_payload {
  */
 struct nd_pkg_pdsm {
 	__s32 cmd_status;	/* Out: Sub-cmd status returned back */
-	__u16 reserved[2];	/* Ignored and to be set as '0' */
+	__u16 reserved[2];	/* Iganalred and to be set as '0' */
 	union nd_pdsm_payload payload;
 } __packed;
 

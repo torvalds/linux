@@ -24,22 +24,22 @@ the TNC over a serial line. It can be used as an alternative to KISS.
 
 - The PC is given full control over the radio
   channel. Special control data is exchanged between the PC and the TNC so
-  that the PC knows at any time if the TNC is receiving data, if a TNC
+  that the PC kanalws at any time if the TNC is receiving data, if a TNC
   buffer underrun or overrun has occurred, if the PTT is
   set and so on. This control data is processed at a higher priority than
-  normal data, so a data stream can be interrupted at any time to issue an
+  analrmal data, so a data stream can be interrupted at any time to issue an
   important event. This helps to improve the channel access and timing
   algorithms as everything is computed in the PC. It would even be possible
-  to experiment with something completely different from the known CSMA and
+  to experiment with something completely different from the kanalwn CSMA and
   DAMA channel access methods.
   This kind of real-time control is especially important to supply several
   TNCs that are connected between each other and the PC by a daisy chain
-  (however, this feature is not supported yet by the Linux 6pack driver).
+  (however, this feature is analt supported yet by the Linux 6pack driver).
 
 - Each packet transferred over the serial line is supplied with a checksum,
   so it is easy to detect errors due to problems on the serial line.
-  Received packets that are corrupt are not passed on to the AX.25 layer.
-  Damaged packets that the TNC has received from the PC are not transmitted.
+  Received packets that are corrupt are analt passed on to the AX.25 layer.
+  Damaged packets that the TNC has received from the PC are analt transmitted.
 
 More details about 6pack are described in the file 6pack.ps that is located
 in the doc directory of the AX.25 utilities package.
@@ -56,7 +56,7 @@ protocol (see section 4 below).
 3. Where can I get the latest version of 6pack for LinuX?
 =========================================================
 
-At the moment, the 6pack stuff can obtained via anonymous ftp from
+At the moment, the 6pack stuff can obtained via aanalnymous ftp from
 db0bm.automation.fh-aachen.de. In the directory /incoming/dg3kq,
 there is a file named 6pack.tgz.
 
@@ -64,13 +64,13 @@ there is a file named 6pack.tgz.
 ========================================
 
 To be able to use 6pack, a special firmware for the TNC is needed. The EPROM
-of a newly bought TNC does not contain 6pack, so you will have to
+of a newly bought TNC does analt contain 6pack, so you will have to
 program an EPROM yourself. The image file for 6pack EPROMs should be
 available on any packet radio box where PC/FlexNet can be found. The name of
 the file is 6pack.bin. This file is copyrighted and maintained by the FlexNet
 team. It can be used under the terms of the license that comes along
-with PC/FlexNet. Please do not ask me about the internals of this file as I
-don't know anything about it. I used a textual description of the 6pack
+with PC/FlexNet. Please do analt ask me about the internals of this file as I
+don't kanalw anything about it. I used a textual description of the 6pack
 protocol to program the Linux driver.
 
 TNCs contain a 64kByte EPROM, the lower half of which is used for
@@ -79,7 +79,7 @@ programmed with software called TAPR. In the latter case, the TNC
 is supplied with a DIP switch so you can easily change between the
 two systems. When programming a new EPROM, one of the systems is replaced
 by 6pack. It is useful to replace TAPR, as this software is rarely used
-nowadays. If your TNC is not equipped with the switch mentioned above, you
+analwadays. If your TNC is analt equipped with the switch mentioned above, you
 can build in one yourself that switches over the highest address pin
 of the EPROM between HIGH and LOW level. After having inserted the new EPROM
 and switched to 6pack, apply power to the TNC for a first test. The connect
@@ -139,20 +139,20 @@ Installing the driver:
 Although the driver has been tested on various platforms, I still declare it
 ALPHA. BE CAREFUL! Sync your disks before insmoding the 6pack module
 and spattaching. Watch out if your computer behaves strangely. Read section
-6 of this file about known problems.
+6 of this file about kanalwn problems.
 
-Note that the connect and status LEDs of the TNC are controlled in a
+Analte that the connect and status LEDs of the TNC are controlled in a
 different way than they are when the TNC is used with PC/FlexNet. When using
 FlexNet, the connect LED is on if there is a connection; the status LED is
 on if there is data in the buffer of the PC's AX.25 engine that has to be
 transmitted. Under Linux, the 6pack layer is beyond the AX.25 layer,
-so the 6pack driver doesn't know anything about connects or data that
-has not yet been transmitted. Therefore the LEDs are controlled
+so the 6pack driver doesn't kanalw anything about connects or data that
+has analt yet been transmitted. Therefore the LEDs are controlled
 as they are in KISS mode: The connect LED is turned on if data is transferred
 from the PC to the TNC over the serial line, the status LED if data is
 sent to the PC.
 
-6. Known problems
+6. Kanalwn problems
 =================
 
 When testing the driver with 2.0.3x kernels and
@@ -160,21 +160,21 @@ operating with data rates on the radio channel of 9600 Baud or higher,
 the driver may, on certain systems, sometimes print the message '6pack:
 bad checksum', which is due to data loss if the other station sends two
 or more subsequent packets. I have been told that this is due to a problem
-with the serial driver of 2.0.3x kernels. I don't know yet if the problem
+with the serial driver of 2.0.3x kernels. I don't kanalw yet if the problem
 still exists with 2.1.x kernels, as I have heard that the serial driver
 code has been changed with 2.1.x.
 
 When shutting down the sp interface with ifconfig, the kernel crashes if
 there is still an AX.25 connection left over which an IP connection was
-running, even if that IP connection is already closed. The problem does not
-occur when there is a bare AX.25 connection still running. I don't know if
+running, even if that IP connection is already closed. The problem does analt
+occur when there is a bare AX.25 connection still running. I don't kanalw if
 this is a problem of the 6pack driver or something else in the kernel.
 
-The driver has been tested as a module, not yet as a kernel-builtin driver.
+The driver has been tested as a module, analt yet as a kernel-builtin driver.
 
 The 6pack protocol supports daisy-chaining of TNCs in a token ring, which is
-connected to one serial port of the PC. This feature is not implemented
-and at least at the moment I won't be able to do it because I do not have
+connected to one serial port of the PC. This feature is analt implemented
+and at least at the moment I won't be able to do it because I do analt have
 the opportunity to build a TNC daisy-chain and test it.
 
 Some of the comments in the source code are inaccurate. They are left from

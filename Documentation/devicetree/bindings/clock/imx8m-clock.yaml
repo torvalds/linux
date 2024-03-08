@@ -10,7 +10,7 @@ maintainers:
   - Anson Huang <Anson.Huang@nxp.com>
 
 description: |
-  NXP i.MX8M Mini/Nano/Plus/Quad clock control module is an integrated clock
+  NXP i.MX8M Mini/Naanal/Plus/Quad clock control module is an integrated clock
   controller, which generates and supplies to all modules.
 
 properties:
@@ -98,7 +98,7 @@ allOf:
 additionalProperties: false
 
 examples:
-  # Clock Control Module node:
+  # Clock Control Module analde:
   - |
     clock-controller@30380000 {
         compatible = "fsl,imx8mm-ccm";

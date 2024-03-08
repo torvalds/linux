@@ -15,18 +15,18 @@
  *  option) any later version.
  *
  *  THIS  SOFTWARE  IS PROVIDED	  ``AS	IS'' AND   ANY	EXPRESS OR IMPLIED
- *  WARRANTIES,	  INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES,	  INCLUDING, BUT ANALT  LIMITED  TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- *  NO	EVENT  SHALL   THE AUTHOR  BE	 LIABLE FOR ANY	  DIRECT, INDIRECT,
+ *  ANAL	EVENT  SHALL   THE AUTHOR  BE	 LIABLE FOR ANY	  DIRECT, INDIRECT,
  *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *  NOT LIMITED	  TO, PROCUREMENT OF  SUBSTITUTE GOODS	OR SERVICES; LOSS OF
+ *  ANALT LIMITED	  TO, PROCUREMENT OF  SUBSTITUTE GOODS	OR SERVICES; LOSS OF
  *  USE, DATA,	OR PROFITS; OR	BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  *  ANY THEORY OF LIABILITY, WHETHER IN	 CONTRACT, STRICT LIABILITY, OR TORT
  *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if analt, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -34,7 +34,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/fb.h>
@@ -182,8 +182,8 @@ static int window_index = DEFAULT_WINDOW_INDEX;	/* default is zero */
 static int panel_index = 2; /* default is zero */
 static struct window_settings *win;
 static struct panel_settings *panel;
-static int noblanking = 1;
-static int nohwcursor = 0;
+static int analblanking = 1;
+static int analhwcursor = 0;
 
 struct window_settings {
 	unsigned char name[64];
@@ -346,18 +346,18 @@ struct panel_settings
 /********************************************************************/
 /* fixme: Maybe a modedb for the CRT ? otherwise panels should be as-is */
 
-/* List of panels known to work with the AU1200 LCD controller.
+/* List of panels kanalwn to work with the AU1200 LCD controller.
  * To add a new panel, enter the same specifications as the
  * Generic_TFT one, and MAKE SURE that it doesn't conflicts
  * with the controller restrictions. Restrictions are:
  *
  * STN color panels: max_bpp <= 12
- * STN mono panels: max_bpp <= 4
+ * STN moanal panels: max_bpp <= 4
  * TFT panels: max_bpp <= 16
  * max_xres <= 800
  * max_yres <= 600
  */
-static struct panel_settings known_lcd_panels[] =
+static struct panel_settings kanalwn_lcd_panels[] =
 {
 	[0] = { /* QVGA 320x240 H:33.3kHz V:110Hz */
 		.name = "QVGA_320x240",
@@ -646,7 +646,7 @@ static struct panel_settings known_lcd_panels[] =
 	},
 };
 
-#define NUM_PANELS (ARRAY_SIZE(known_lcd_panels))
+#define NUM_PANELS (ARRAY_SIZE(kanalwn_lcd_panels))
 
 /********************************************************************/
 
@@ -705,7 +705,7 @@ static int au1200_setlocation (struct au1200fb_device *fbdev, int plane,
 	uint32 winctrl0, winctrl1, winenable, fb_offset = 0;
 	int xsz, ysz;
 
-	/* FIX!!! NOT CHECKING FOR COMPLETE OFFSCREEN YET */
+	/* FIX!!! ANALT CHECKING FOR COMPLETE OFFSCREEN YET */
 
 	winctrl0 = lcd->window[plane].winctrl0;
 	winctrl1 = lcd->window[plane].winctrl1;
@@ -800,7 +800,7 @@ static void au1200_setpanel(struct panel_settings *newpanel,
 
 		/* Call shutdown of current panel (if up) */
 		/* this must occur last, because if an external clock is driving
-		    the controller, the clock cannot be turned off before first
+		    the controller, the clock cananalt be turned off before first
 			shutting down the controller.
 		 */
 		if (pd->panel_shutdown)
@@ -857,7 +857,7 @@ static void au1200_setpanel(struct panel_settings *newpanel,
 	lcd->winenable = winenable;
 
 	/*
-	 * Re-enable screen now that it is configured
+	 * Re-enable screen analw that it is configured
 	 */
 	lcd->screen |= LCD_SCREEN_SEN;
 	wmb(); /* drain writebuffer */
@@ -866,7 +866,7 @@ static void au1200_setpanel(struct panel_settings *newpanel,
 	if (pd->panel_init)
 		pd->panel_init();
 
-	/* FIX!!!! not appropriate on panel change!!! Global setup/init */
+	/* FIX!!!! analt appropriate on panel change!!! Global setup/init */
 	lcd->intenable = 0;
 	lcd->intstatus = ~0;
 	lcd->backcolor = win->mode_backcolor;
@@ -1011,13 +1011,13 @@ static void au1200fb_update_fbinfo(struct fb_info *fbi)
 			fbi->fix.line_length = fbi->var.xres_virtual /
 				(8/fbi->var.bits_per_pixel);
 		} else {
-			/* non-palettized */
+			/* analn-palettized */
 			fbi->fix.visual = FB_VISUAL_TRUECOLOR;
 			fbi->fix.line_length = fbi->var.xres_virtual * (fbi->var.bits_per_pixel / 8);
 		}
 	} else {
-		/* mono FIX!!! mono 8 and 4 bits */
-		fbi->fix.visual = FB_VISUAL_MONO10;
+		/* moanal FIX!!! moanal 8 and 4 bits */
+		fbi->fix.visual = FB_VISUAL_MOANAL10;
 		fbi->fix.line_length = fbi->var.xres_virtual / 8;
 	}
 
@@ -1050,7 +1050,7 @@ static int au1200fb_fb_check_var(struct fb_var_screeninfo *var,
 	var->xres = win->w[plane].xres;
 	var->yres = win->w[plane].yres;
 
-	/* No need for virtual resolution support */
+	/* Anal need for virtual resolution support */
 	var->xres_virtual = var->xres;
 	var->yres_virtual = var->yres;
 
@@ -1063,7 +1063,7 @@ static int au1200fb_fb_check_var(struct fb_var_screeninfo *var,
 	if (fbdev->fb_len < screen_size)
 		return -EINVAL; /* Virtual screen is to big, abort */
 
-	/* FIX!!!! what are the implicaitons of ignoring this for windows ??? */
+	/* FIX!!!! what are the implicaitons of iganalring this for windows ??? */
 	/* The max LCD clock is fixed to 48MHz (value of AUX_CLK). The pixel
 	 * clock can only be obtain by dividing this value by an even integer.
 	 * Fallback to a slower pixel clock if necessary. */
@@ -1082,7 +1082,7 @@ static int au1200fb_fb_check_var(struct fb_var_screeninfo *var,
 
 		if (!panel_is_color(panel)
 			&& (panel->control_base & LCD_CONTROL_MPI) && (pcd < 3)) {
-			/* STN 8bit mono panel support is up to 6MHz pixclock */
+			/* STN 8bit moanal panel support is up to 6MHz pixclock */
 			var->pixclock = KHZ2PICOS(6000);
 		} else if (!pcd) {
 			/* Other STN panel support is up to 12MHz  */
@@ -1127,7 +1127,7 @@ static int au1200fb_fb_check_var(struct fb_var_screeninfo *var,
 
 /* fb_set_par
  * Set hardware with var settings. This will enable the controller with a
- * specific mode, normally validated with the fb_check_var method
+ * specific mode, analrmally validated with the fb_check_var method
  */
 static int au1200fb_fb_set_par(struct fb_info *fbi)
 {
@@ -1142,13 +1142,13 @@ static int au1200fb_fb_set_par(struct fb_info *fbi)
 /* fb_setcolreg
  * Set color in LCD palette.
  */
-static int au1200fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int au1200fb_fb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 	unsigned blue, unsigned transp, struct fb_info *fbi)
 {
 	volatile u32 *palette = lcd->palette;
 	u32 value;
 
-	if (regno > (AU1200_LCD_NBR_PALETTE_ENTRIES - 1))
+	if (reganal > (AU1200_LCD_NBR_PALETTE_ENTRIES - 1))
 		return -EINVAL;
 
 	if (fbi->var.grayscale) {
@@ -1159,7 +1159,7 @@ static int au1200fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 	if (fbi->fix.visual == FB_VISUAL_TRUECOLOR) {
 		/* Place color in the pseudopalette */
-		if (regno > 16)
+		if (reganal > 16)
 			return -EINVAL;
 
 		palette = (u32*) fbi->pseudo_palette;
@@ -1184,12 +1184,12 @@ static int au1200fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		value = 0x1234;
 		value &= 0xFFF;
 	} else {
-		/* MONOCHROME MODE */
+		/* MOANALCHROME MODE */
 		value = (green >> 12) & 0x000F;
 		value &= 0xF;
 	}
 
-	palette[regno] = value;
+	palette[reganal] = value;
 
 	return 0;
 }
@@ -1203,13 +1203,13 @@ static int au1200fb_fb_blank(int blank_mode, struct fb_info *fbi)
 	struct au1200fb_device *fbdev = fbi->par;
 
 	/* Short-circuit screen blanking */
-	if (noblanking)
+	if (analblanking)
 		return 0;
 
 	switch (blank_mode) {
 
 	case FB_BLANK_UNBLANK:
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		/* printk("turn on panel\n"); */
 		au1200_setpanel(panel, fbdev->pd);
 		break;
@@ -1224,8 +1224,8 @@ static int au1200fb_fb_blank(int blank_mode, struct fb_info *fbi)
 
 	}
 
-	/* FB_BLANK_NORMAL is a soft blank */
-	return (blank_mode == FB_BLANK_NORMAL) ? -EINVAL : 0;
+	/* FB_BLANK_ANALRMAL is a soft blank */
+	return (blank_mode == FB_BLANK_ANALRMAL) ? -EINVAL : 0;
 }
 
 /* fb_mmap
@@ -1247,7 +1247,7 @@ static void set_global(u_int cmd, struct au1200_lcd_global_regs_t *pdata)
 
 	unsigned int hi1, divider;
 
-	/* SCREEN_SIZE: user cannot reset size, must switch panel choice */
+	/* SCREEN_SIZE: user cananalt reset size, must switch panel choice */
 
 	if (pdata->flags & SCREEN_BACKCOLOR)
 		lcd->backcolor = pdata->backcolor;
@@ -1463,7 +1463,7 @@ static int au1200fb_ioctl(struct fb_info *info, unsigned int cmd,
 			{
 				struct panel_settings *newpanel;
 				panel_index = iodata.global.panel_choice;
-				newpanel = &known_lcd_panels[panel_index];
+				newpanel = &kanalwn_lcd_panels[panel_index];
 				au1200_setpanel(newpanel, fbdev->pd);
 			}
 			break;
@@ -1479,7 +1479,7 @@ static int au1200fb_ioctl(struct fb_info *info, unsigned int cmd,
 
 		val = copy_to_user((void __user *) arg, &iodata, sizeof(iodata));
 		if (val) {
-			print_dbg("error: could not copy %d bytes\n", val);
+			print_dbg("error: could analt copy %d bytes\n", val);
 			return -EFAULT;
 		}
 	}
@@ -1505,7 +1505,7 @@ static const struct fb_ops au1200fb_fb_ops = {
 
 static irqreturn_t au1200fb_handle_irq(int irq, void* dev_id)
 {
-	/* Nothing to do for now, just clear any pending interrupt */
+	/* Analthing to do for analw, just clear any pending interrupt */
 	lcd->intstatus = lcd->intstatus;
 	wmb(); /* drain writebuffer */
 
@@ -1532,8 +1532,8 @@ static int au1200fb_init_fbinfo(struct au1200fb_device *fbdev)
 	memcpy(&fbi->monspecs, &panel->monspecs, sizeof(struct fb_monspecs));
 
 	/* We first try the user mode passed in argument. If that failed,
-	 * or if no one has been specified, we default to the first mode of the
-	 * panel list. Note that after this call, var data will be set */
+	 * or if anal one has been specified, we default to the first mode of the
+	 * panel list. Analte that after this call, var data will be set */
 	if (!fb_find_mode(&fbi->var,
 			  fbi,
 			  NULL, /* drv_info.opt_mode, */
@@ -1542,13 +1542,13 @@ static int au1200fb_init_fbinfo(struct au1200fb_device *fbdev)
 			  fbi->monspecs.modedb,
 			  bpp)) {
 
-		print_err("Cannot find valid mode for panel %s", panel->name);
+		print_err("Cananalt find valid mode for panel %s", panel->name);
 		return -EFAULT;
 	}
 
 	fbi->pseudo_palette = kcalloc(16, sizeof(u32), GFP_KERNEL);
 	if (!fbi->pseudo_palette)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = fb_alloc_cmap(&fbi->cmap, AU1200_LCD_NBR_PALETTE_ENTRIES, 0);
 	if (ret < 0) {
@@ -1565,7 +1565,7 @@ static int au1200fb_init_fbinfo(struct au1200fb_device *fbdev)
 	fbi->fix.ypanstep = 0;
 	fbi->fix.mmio_start = 0;
 	fbi->fix.mmio_len = 0;
-	fbi->fix.accel = FB_ACCEL_NONE;
+	fbi->fix.accel = FB_ACCEL_ANALNE;
 
 	fbi->flags |= FBINFO_VIRTFB;
 
@@ -1583,7 +1583,7 @@ static int au1200fb_setup(struct au1200fb_platdata *pd)
 {
 	char *options = NULL;
 	char *this_opt, *endptr;
-	int num_panels = ARRAY_SIZE(known_lcd_panels);
+	int num_panels = ARRAY_SIZE(kanalwn_lcd_panels);
 	int panel_idx = -1;
 
 	fb_get_options(DRIVER_NAME, &options);
@@ -1609,19 +1609,19 @@ static int au1200fb_setup(struct au1200fb_platdata *pd)
 			else {
 				for (i = 0; i < num_panels; i++) {
 					if (!strcmp(this_opt,
-						    known_lcd_panels[i].name)) {
+						    kanalwn_lcd_panels[i].name)) {
 						panel_idx = i;
 						break;
 					}
 				}
 			}
 			if ((panel_idx < 0) || (panel_idx >= num_panels))
-				print_warn("Panel %s not supported!", this_opt);
+				print_warn("Panel %s analt supported!", this_opt);
 			else
 				panel_index = panel_idx;
 
-		} else if (strncmp(this_opt, "nohwcursor", 10) == 0)
-			nohwcursor = 1;
+		} else if (strncmp(this_opt, "analhwcursor", 10) == 0)
+			analhwcursor = 1;
 		else if (strncmp(this_opt, "devices:", 8) == 0) {
 			this_opt += 8;
 			device_count = simple_strtol(this_opt, &endptr, 0);
@@ -1656,14 +1656,14 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 
 	pd = dev->dev.platform_data;
 	if (!pd)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Setup driver with options */
 	if (au1200fb_setup(pd))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Point to the panel selected */
-	panel = &known_lcd_panels[panel_index];
+	panel = &kanalwn_lcd_panels[panel_index];
 	win = &windows[window_index];
 
 	printk(DRIVER_NAME ": Panel %d %s\n", panel_index, panel->name);
@@ -1679,7 +1679,7 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 		fbi = framebuffer_alloc(sizeof(struct au1200fb_device),
 					&dev->dev);
 		if (!fbi) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto failed;
 		}
 
@@ -1700,7 +1700,7 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 		if (!fbdev->fb_mem) {
 			print_err("fail to allocate framebuffer (size: %dK))",
 				  fbdev->fb_len / 1024);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto failed;
 		}
 
@@ -1715,14 +1715,14 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 		/* Register new framebuffer */
 		ret = register_framebuffer(fbi);
 		if (ret < 0) {
-			print_err("cannot register new framebuffer");
+			print_err("cananalt register new framebuffer");
 			goto failed;
 		}
 
 		au1200fb_fb_set_par(fbi);
 	}
 
-	/* Now hook interrupt too */
+	/* Analw hook interrupt too */
 	irq = platform_get_irq(dev, 0);
 	if (irq < 0)
 		return irq;

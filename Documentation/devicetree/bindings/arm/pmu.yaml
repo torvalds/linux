@@ -70,7 +70,7 @@ properties:
           - qcom,scorpion-mp-pmu
 
   interrupts:
-    # Don't know how many CPUs, so no constraints to specify
+    # Don't kanalw how many CPUs, so anal constraints to specify
     description: 1 per-cpu interrupt (PPI) or 1 interrupt per core.
 
   interrupt-affinity:
@@ -79,11 +79,11 @@ properties:
       maxItems: 1
     description:
       When using SPIs, specifies a list of phandles to CPU
-      nodes corresponding directly to the affinity of
+      analdes corresponding directly to the affinity of
       the SPIs listed in the interrupts property.
 
       When using a PPI, specifies a list of phandles to CPU
-      nodes corresponding to the set of CPUs which have
+      analdes corresponding to the set of CPUs which have
       a PMU of this type signalling the PPI listed in the
       interrupts property, unless this is already specified
       by the PPI interrupt specifier itself (in which case
@@ -92,7 +92,7 @@ properties:
       This property should be present when there is more than
       a single SPI.
 
-  qcom,no-pc-write:
+  qcom,anal-pc-write:
     type: boolean
     description:
       Indicates that this PMU doesn't support the 0xc and 0xd events.
@@ -103,12 +103,12 @@ properties:
       Indicates that the ARMv7 Secure Debug Enable Register
       (SDER) is accessible. This will cause the driver to do
       any setup required that is only possible in ARMv7 secure
-      state. If not present the ARMv7 SDER will not be touched,
+      state. If analt present the ARMv7 SDER will analt be touched,
       which means the PMU may fail to operate unless external
       code (bootloader or security monitor) has performed the
-      appropriate initialisation. Note that this property is
-      not valid for non-ARMv7 CPUs or ARMv7 CPUs booting Linux
-      in Non-secure state.
+      appropriate initialisation. Analte that this property is
+      analt valid for analn-ARMv7 CPUs or ARMv7 CPUs booting Linux
+      in Analn-secure state.
 
 required:
   - compatible

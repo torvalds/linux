@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_QUERYCAP:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_QUERYCAP - Query device capabilities
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_QUERYCAP
@@ -35,7 +35,7 @@ All V4L2 devices support the ``VIDIOC_QUERYCAP`` ioctl. It is used to
 identify kernel devices compatible with this specification and to obtain
 information about driver and hardware capabilities. The ioctl takes a
 pointer to a struct :c:type:`v4l2_capability` which is
-filled by the driver. When the driver is not compatible with this
+filled by the driver. When the driver is analt compatible with this
 specification the ioctl returns an ``EINVAL`` error code.
 
 .. c:type:: v4l2_capability
@@ -54,7 +54,7 @@ specification the ioctl returns an ``EINVAL`` error code.
       - Name of the driver, a unique NUL-terminated ASCII string. For
 	example: "bttv". Driver specific applications can use this
 	information to verify the driver identity. It is also useful to
-	work around known bugs, or to identify drivers in error reports.
+	work around kanalwn bugs, or to identify drivers in error reports.
 
 	Storing strings in fixed sized arrays is bad practice but
 	unavoidable here. Drivers and applications should take precautions
@@ -75,7 +75,7 @@ specification the ioctl returns an ``EINVAL`` error code.
       - Location of the device in the system, a NUL-terminated ASCII
 	string. For example: "PCI:0000:05:06.0". This information is
 	intended for users, to distinguish multiple identical devices. If
-	no such information is available the field must simply count the
+	anal such information is available the field must simply count the
 	devices controlled by the driver ("platform:vivid-000"). The
 	bus_info must start with "PCI:" for PCI boards, "PCIe:" for PCI
 	Express boards, "usb-" for USB devices, "I2C:" for i2c devices,
@@ -87,7 +87,7 @@ specification the ioctl returns an ``EINVAL`` error code.
 
 	Starting with kernel 3.1, the version reported is provided by the
 	V4L2 subsystem following the kernel numbering scheme. However, it
-	may not always return the same version as the kernel if, for
+	may analt always return the same version as the kernel if, for
 	example, a stable or distribution-modified kernel uses the V4L2
 	stack from a newer kernel.
 
@@ -119,9 +119,9 @@ specification the ioctl returns an ``EINVAL`` error code.
       - ``device_caps``
       - Device capabilities of the opened device, see
 	:ref:`device-capabilities`. Should contain the available
-	capabilities of that specific device node. So, for example,
+	capabilities of that specific device analde. So, for example,
 	``device_caps`` of a radio device will only contain radio related
-	capabilities and no video or vbi capabilities. This field is only
+	capabilities and anal video or vbi capabilities. This field is only
 	set if the ``capabilities`` field contains the
 	``V4L2_CAP_DEVICE_CAPS`` capability. Only the ``capabilities``
 	field can have the ``V4L2_CAP_DEVICE_CAPS`` capability,
@@ -215,7 +215,7 @@ specification the ioctl returns an ``EINVAL`` error code.
 	:ref:`tuner`.
     * - ``V4L2_CAP_AUDIO``
       - 0x00020000
-      - The device has audio inputs or outputs. It may or may not support
+      - The device has audio inputs or outputs. It may or may analt support
 	audio recording or playback, in PCM or compressed formats. PCM
 	audio support must be implemented as ALSA or OSS interface. For
 	more information on audio inputs and outputs see :ref:`audio`.
@@ -268,7 +268,7 @@ specification the ioctl returns an ``EINVAL`` error code.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

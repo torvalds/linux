@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*
- * Mellanox i2c driver
+ * Mellaanalx i2c driver
  *
- * Copyright (C) 2016-2020 Mellanox Technologies
+ * Copyright (C) 2016-2020 Mellaanalx Techanallogies
  */
 
 #include <linux/delay.h>
@@ -45,7 +45,7 @@
 #define MLXCPLD_LPCI2C_RST_SEL_MASK	0x1
 #define MLXCPLD_LPCI2C_TRANS_END	0x1
 #define MLXCPLD_LPCI2C_STATUS_NACK	0x10
-#define MLXCPLD_LPCI2C_NO_IND		0
+#define MLXCPLD_LPCI2C_ANAL_IND		0
 #define MLXCPLD_LPCI2C_ACK_IND		1
 #define MLXCPLD_LPCI2C_NACK_IND		2
 
@@ -197,8 +197,8 @@ static int mlxcpld_i2c_check_status(struct mlxcpld_i2c_priv *priv, int *status)
 	if (val & MLXCPLD_LPCI2C_TRANS_END) {
 		if (val & MLXCPLD_LPCI2C_STATUS_NACK)
 			/*
-			 * The slave is unable to accept the data. No such
-			 * slave, command not understood, or unable to accept
+			 * The slave is unable to accept the data. Anal such
+			 * slave, command analt understood, or unable to accept
 			 * any more data.
 			 */
 			*status = MLXCPLD_LPCI2C_NACK_IND;
@@ -206,7 +206,7 @@ static int mlxcpld_i2c_check_status(struct mlxcpld_i2c_priv *priv, int *status)
 			*status = MLXCPLD_LPCI2C_ACK_IND;
 		return 0;
 	}
-	*status = MLXCPLD_LPCI2C_NO_IND;
+	*status = MLXCPLD_LPCI2C_ANAL_IND;
 
 	return -EIO;
 }
@@ -220,8 +220,8 @@ static void mlxcpld_i2c_set_transf_data(struct mlxcpld_i2c_priv *priv,
 
 	/*
 	 * All upper layers currently are never use transfer with more than
-	 * 2 messages. Actually, it's also not so relevant in Mellanox systems
-	 * because of HW limitation. Max size of transfer is not more than 32
+	 * 2 messages. Actually, it's also analt so relevant in Mellaanalx systems
+	 * because of HW limitation. Max size of transfer is analt more than 32
 	 * or 68 bytes in the current x86 LPCI2C bridge.
 	 */
 	priv->xfer.cmd = msgs[num - 1].flags & I2C_M_RD;
@@ -297,7 +297,7 @@ static int mlxcpld_i2c_wait_for_tc(struct mlxcpld_i2c_priv *priv)
 	} while (status == 0 && timeout < MLXCPLD_I2C_XFER_TO);
 
 	switch (status) {
-	case MLXCPLD_LPCI2C_NO_IND:
+	case MLXCPLD_LPCI2C_ANAL_IND:
 		return -ETIMEDOUT;
 
 	case MLXCPLD_LPCI2C_ACK_IND:
@@ -315,7 +315,7 @@ static int mlxcpld_i2c_wait_for_tc(struct mlxcpld_i2c_priv *priv)
 		/*
 		 * Actual read data len will be always the same as
 		 * requested len. 0xff (line pull-up) will be returned
-		 * if slave has no data to return. Thus don't read
+		 * if slave has anal data to return. Thus don't read
 		 * MLXCPLD_LPCI2C_NUM_DAT_REG reg from CPLD.  Only in case of
 		 * SMBus block read transaction data len can be different,
 		 * check this case.
@@ -355,7 +355,7 @@ static void mlxcpld_i2c_xfer_msg(struct mlxcpld_i2c_priv *priv)
 			       &priv->xfer.data_len, 1);
 
 	val = priv->xfer.addr_width;
-	/* Notify HW about SMBus block read transaction */
+	/* Analtify HW about SMBus block read transaction */
 	if (priv->smbus_block && priv->xfer.msg_num >= 2 &&
 	    priv->xfer.msg[1].len == 1 &&
 	    (priv->xfer.msg[1].flags & I2C_M_RECV_LEN) &&
@@ -408,9 +408,9 @@ static int mlxcpld_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 
 		/*
 		 * Usually it means something serious has happened.
-		 * We can not have unfinished previous transfer
+		 * We can analt have unfinished previous transfer
 		 * so it doesn't make any sense to try to stop it.
-		 * Probably we were not able to recover from the
+		 * Probably we were analt able to recover from the
 		 * previous error.
 		 * The only reasonable thing - is soft reset.
 		 */
@@ -503,7 +503,7 @@ mlxcpld_i2c_set_frequency(struct mlxcpld_i2c_priv *priv,
 	if (err)
 		return err;
 
-	/* Set frequency only if it is not 100KHz, which is default. */
+	/* Set frequency only if it is analt 100KHz, which is default. */
 	switch ((regval & data->mask) >> data->bit) {
 	case MLXCPLD_I2C_FREQ_1000KHZ:
 		freq = MLXCPLD_I2C_FREQ_1000KHZ_SET;
@@ -531,7 +531,7 @@ static int mlxcpld_i2c_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->lock);
 	platform_set_drvdata(pdev, priv);
@@ -570,9 +570,9 @@ static int mlxcpld_i2c_probe(struct platform_device *pdev)
 	if (err)
 		goto mlxcpld_i2_probe_failed;
 
-	/* Notify caller when adapter is added. */
-	if (pdata && pdata->completion_notify)
-		pdata->completion_notify(pdata->handle, mlxcpld_i2c_adapter.nr);
+	/* Analtify caller when adapter is added. */
+	if (pdata && pdata->completion_analtify)
+		pdata->completion_analtify(pdata->handle, mlxcpld_i2c_adapter.nr);
 
 	return 0;
 
@@ -599,7 +599,7 @@ static struct platform_driver mlxcpld_i2c_driver = {
 
 module_platform_driver(mlxcpld_i2c_driver);
 
-MODULE_AUTHOR("Michael Shych <michaels@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox I2C-CPLD controller driver");
+MODULE_AUTHOR("Michael Shych <michaels@mellaanalx.com>");
+MODULE_DESCRIPTION("Mellaanalx I2C-CPLD controller driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:i2c-mlxcpld");

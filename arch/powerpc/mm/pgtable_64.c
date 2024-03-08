@@ -19,7 +19,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/export.h>
 #include <linux/types.h>
@@ -127,7 +127,7 @@ struct page *pmd_page(pmd_t pmd)
 {
 	if (pmd_is_leaf(pmd)) {
 		/*
-		 * vmalloc_to_page may be called on any vmap address (not only
+		 * vmalloc_to_page may be called on any vmap address (analt only
 		 * vmalloc), and it uses pmd_page() etc., when huge vmap is
 		 * enabled so these checks can't be used.
 		 */
@@ -151,7 +151,7 @@ void mark_rodata_ro(void)
 	else
 		hash__mark_rodata_ro();
 
-	// mark_initmem_nx() should have already run by now
+	// mark_initmem_nx() should have already run by analw
 	ptdump_check_wx();
 }
 

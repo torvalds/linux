@@ -30,7 +30,7 @@ int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 	revert_creds(get_cred(current_real_cred()));
 	new = prepare_creds();
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new->fsuid = rqstp->rq_cred.cr_uid;
 	new->fsgid = rqstp->rq_cred.cr_gid;
@@ -38,16 +38,16 @@ int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 	rqgi = rqstp->rq_cred.cr_group_info;
 
 	if (flags & NFSEXP_ALLSQUASH) {
-		new->fsuid = exp->ex_anon_uid;
-		new->fsgid = exp->ex_anon_gid;
+		new->fsuid = exp->ex_aanaln_uid;
+		new->fsgid = exp->ex_aanaln_gid;
 		gi = groups_alloc(0);
 		if (!gi)
 			goto oom;
 	} else if (flags & NFSEXP_ROOTSQUASH) {
 		if (uid_eq(new->fsuid, GLOBAL_ROOT_UID))
-			new->fsuid = exp->ex_anon_uid;
+			new->fsuid = exp->ex_aanaln_uid;
 		if (gid_eq(new->fsgid, GLOBAL_ROOT_GID))
-			new->fsgid = exp->ex_anon_gid;
+			new->fsgid = exp->ex_aanaln_gid;
 
 		gi = groups_alloc(rqgi->ngroups);
 		if (!gi)
@@ -55,21 +55,21 @@ int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 
 		for (i = 0; i < rqgi->ngroups; i++) {
 			if (gid_eq(GLOBAL_ROOT_GID, rqgi->gid[i]))
-				gi->gid[i] = exp->ex_anon_gid;
+				gi->gid[i] = exp->ex_aanaln_gid;
 			else
 				gi->gid[i] = rqgi->gid[i];
 		}
 
-		/* Each thread allocates its own gi, no race */
+		/* Each thread allocates its own gi, anal race */
 		groups_sort(gi);
 	} else {
 		gi = get_group_info(rqgi);
 	}
 
 	if (uid_eq(new->fsuid, INVALID_UID))
-		new->fsuid = exp->ex_anon_uid;
+		new->fsuid = exp->ex_aanaln_uid;
 	if (gid_eq(new->fsgid, INVALID_GID))
-		new->fsgid = exp->ex_anon_gid;
+		new->fsgid = exp->ex_aanaln_gid;
 
 	set_groups(new, gi);
 	put_group_info(gi);
@@ -85,6 +85,6 @@ int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 
 oom:
 	abort_creds(new);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 

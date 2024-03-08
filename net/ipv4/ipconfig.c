@@ -17,7 +17,7 @@
  *	- Arnaldo Carvalho de Melo <acme@conectiva.com.br>, 08/11/1999
  *
  *  DHCP support added.  To users this looks like a whole separate
- *  protocol, but we know it's just a bag on the side of BOOTP.
+ *  protocol, but we kanalw it's just a bag on the side of BOOTP.
  *		-- Chip Salzenberg <chip@valinux.com>, May 2000
  *
  *  Ported DHCP support from 2.2.16 to 2.4.0-test4
@@ -30,7 +30,7 @@
  *              --  Josef Siemes <jsiemes@web.de>, Aug 2002
  *
  *  NTP servers in /proc/net/ipconfig/ntp_servers
- *              --  Chris Novakovic <chris@chrisn.me.uk>, April 2018
+ *              --  Chris Analvakovic <chris@chrisn.me.uk>, April 2018
  */
 
 #include <linux/types.h>
@@ -96,7 +96,7 @@
 					   - '3' from resolv.h */
 #define CONF_NTP_SERVERS_MAX   3	/* Maximum number of NTP servers */
 
-#define NONE cpu_to_be32(INADDR_NONE)
+#define ANALNE cpu_to_be32(INADDR_ANALNE)
 #define ANY cpu_to_be32(INADDR_ANY)
 
 /* Wait for carrier timeout default in seconds */
@@ -108,7 +108,7 @@ static unsigned int carrier_timeout = 120;
 
 /* This is used by platforms which might be able to set the ipconfig
  * variables using firmware environment vars.  If this is set, it will
- * ignore such firmware variables.
+ * iganalre such firmware variables.
  */
 int ic_set_manually __initdata = 0;		/* IPconfig parameters set manually */
 
@@ -129,17 +129,17 @@ int ic_proto_enabled __initdata = 0
 
 static int ic_host_name_set __initdata;	/* Host name set by us? */
 
-__be32 ic_myaddr = NONE;		/* My IP address */
-static __be32 ic_netmask = NONE;	/* Netmask for local subnet */
-__be32 ic_gateway = NONE;	/* Gateway IP address */
+__be32 ic_myaddr = ANALNE;		/* My IP address */
+static __be32 ic_netmask = ANALNE;	/* Netmask for local subnet */
+__be32 ic_gateway = ANALNE;	/* Gateway IP address */
 
 #ifdef IPCONFIG_DYNAMIC
-static __be32 ic_addrservaddr = NONE;	/* IP Address of the IP addresses'server */
+static __be32 ic_addrservaddr = ANALNE;	/* IP Address of the IP addresses'server */
 #endif
 
-__be32 ic_servaddr = NONE;	/* Boot server IP address */
+__be32 ic_servaddr = ANALNE;	/* Boot server IP address */
 
-__be32 root_server_addr = NONE;	/* Address of NFS server */
+__be32 root_server_addr = ANALNE;	/* Address of NFS server */
 u8 root_server_path[256] = { 0, };	/* Path to mount as root */
 
 /* vendor class identifier */
@@ -158,7 +158,7 @@ static int ic_proto_used;			/* Protocol used, if any */
 #endif
 static __be32 ic_nameservers[CONF_NAMESERVERS_MAX]; /* DNS Server IP addresses */
 static __be32 ic_ntp_servers[CONF_NTP_SERVERS_MAX]; /* NTP server IP addresses */
-static u8 ic_domain[64];		/* DNS (not NIS) domain name */
+static u8 ic_domain[64];		/* DNS (analt NIS) domain name */
 
 /*
  * Private state.
@@ -231,9 +231,9 @@ static int __init ic_open_devs(void)
 			if (dev->mtu >= 364)
 				able |= IC_BOOTP;
 			else
-				pr_warn("DHCP/BOOTP: Ignoring device %s, MTU %d too small\n",
+				pr_warn("DHCP/BOOTP: Iganalring device %s, MTU %d too small\n",
 					dev->name, dev->mtu);
-			if (!(dev->flags & IFF_NOARP))
+			if (!(dev->flags & IFF_ANALARP))
 				able |= IC_RARP;
 			able &= ic_proto_enabled;
 			if (ic_proto_enabled && !able)
@@ -246,7 +246,7 @@ static int __init ic_open_devs(void)
 			}
 			if (!(d = kmalloc(sizeof(struct ic_device), GFP_KERNEL))) {
 				rtnl_unlock();
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			d->dev = dev;
 			*last = d;
@@ -268,7 +268,7 @@ static int __init ic_open_devs(void)
 	 */
 	rtnl_unlock();
 
-	/* no point in waiting if we could not bring up at least one device */
+	/* anal point in waiting if we could analt bring up at least one device */
 	if (!ic_first_dev)
 		goto have_carrier;
 
@@ -303,11 +303,11 @@ have_carrier:
 
 	if (!ic_first_dev) {
 		if (user_dev_name[0])
-			pr_err("IP-Config: Device `%s' not found\n",
+			pr_err("IP-Config: Device `%s' analt found\n",
 			       user_dev_name);
 		else
-			pr_err("IP-Config: No network devices available\n");
-		return -ENODEV;
+			pr_err("IP-Config: Anal network devices available\n");
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -390,7 +390,7 @@ static int __init ic_setup_if(void)
 		       err);
 		return -1;
 	}
-	/* Handle the case where we need non-standard MTU on the boot link (a network
+	/* Handle the case where we need analn-standard MTU on the boot link (a network
 	 * using jumbo frames, for instance).  If we can't set the mtu, don't error
 	 * out, we'll try to muddle along.
 	 */
@@ -406,15 +406,15 @@ static int __init ic_setup_if(void)
 
 static int __init ic_setup_routes(void)
 {
-	/* No need to setup device routes, only the default route... */
+	/* Anal need to setup device routes, only the default route... */
 
-	if (ic_gateway != NONE) {
+	if (ic_gateway != ANALNE) {
 		struct rtentry rm;
 		int err;
 
 		memset(&rm, 0, sizeof(rm));
 		if ((ic_gateway ^ ic_myaddr) & ic_netmask) {
-			pr_err("IP-Config: Gateway not on directly connected network\n");
+			pr_err("IP-Config: Gateway analt on directly connected network\n");
 			return -1;
 		}
 		set_sockaddr((struct sockaddr_in *) &rm.rt_dst, 0, 0);
@@ -422,7 +422,7 @@ static int __init ic_setup_routes(void)
 		set_sockaddr((struct sockaddr_in *) &rm.rt_gateway, ic_gateway, 0);
 		rm.rt_flags = RTF_UP | RTF_GATEWAY;
 		if ((err = ip_rt_ioctl(&init_net, SIOCADDRT, &rm)) < 0) {
-			pr_err("IP-Config: Cannot add default route (%d)\n",
+			pr_err("IP-Config: Cananalt add default route (%d)\n",
 			       err);
 			return -1;
 		}
@@ -438,17 +438,17 @@ static int __init ic_setup_routes(void)
 static int __init ic_defaults(void)
 {
 	/*
-	 *	At this point we have no userspace running so need not
+	 *	At this point we have anal userspace running so need analt
 	 *	claim locks on system_utsname
 	 */
 
 	if (!ic_host_name_set)
-		sprintf(init_utsname()->nodename, "%pI4", &ic_myaddr);
+		sprintf(init_utsname()->analdename, "%pI4", &ic_myaddr);
 
-	if (root_server_addr == NONE)
+	if (root_server_addr == ANALNE)
 		root_server_addr = ic_servaddr;
 
-	if (ic_netmask == NONE) {
+	if (ic_netmask == ANALNE) {
 		if (IN_CLASSA(ntohl(ic_myaddr)))
 			ic_netmask = htonl(IN_CLASSA_NET);
 		else if (IN_CLASSB(ntohl(ic_myaddr)))
@@ -462,7 +462,7 @@ static int __init ic_defaults(void)
 			       &ic_myaddr);
 			return -1;
 		}
-		pr_notice("IP-Config: Guessing netmask %pI4\n",
+		pr_analtice("IP-Config: Guessing netmask %pI4\n",
 			  &ic_netmask);
 	}
 
@@ -517,17 +517,17 @@ ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	/* Basic sanity checks can be done without the lock.  */
 	rarp = (struct arphdr *)skb_transport_header(skb);
 
-	/* If this test doesn't pass, it's not IP, or we should
-	 * ignore it anyway.
+	/* If this test doesn't pass, it's analt IP, or we should
+	 * iganalre it anyway.
 	 */
 	if (rarp->ar_hln != dev->addr_len || dev->type != ntohs(rarp->ar_hrd))
 		goto drop;
 
-	/* If it's not a RARP reply, delete it. */
+	/* If it's analt a RARP reply, delete it. */
 	if (rarp->ar_op != htons(ARPOP_RREPLY))
 		goto drop;
 
-	/* If it's not Ethernet, delete it. */
+	/* If it's analt Ethernet, delete it. */
 	if (rarp->ar_pro != htons(ETH_P_IP))
 		goto drop;
 
@@ -560,24 +560,24 @@ ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	rarp_ptr += dev->addr_len;
 	memcpy(&tip, rarp_ptr, 4);
 
-	/* Discard packets which are not meant for us. */
+	/* Discard packets which are analt meant for us. */
 	if (memcmp(tha, dev->dev_addr, dev->addr_len))
 		goto drop_unlock;
 
-	/* Discard packets which are not from specified server. */
-	if (ic_servaddr != NONE && ic_servaddr != sip)
+	/* Discard packets which are analt from specified server. */
+	if (ic_servaddr != ANALNE && ic_servaddr != sip)
 		goto drop_unlock;
 
 	/* We have a winner! */
 	ic_dev = d;
-	if (ic_myaddr == NONE)
+	if (ic_myaddr == ANALNE)
 		ic_myaddr = tip;
 	ic_servaddr = sip;
 	ic_addrservaddr = sip;
 	ic_got_reply = IC_RARP;
 
 drop_unlock:
-	/* Show's over.  Nothing to see here.  */
+	/* Show's over.  Analthing to see here.  */
 	spin_unlock(&ic_recv_lock);
 
 drop:
@@ -606,7 +606,7 @@ static inline void __init ic_nameservers_predef(void)
 	int i;
 
 	for (i = 0; i < CONF_NAMESERVERS_MAX; i++)
-		ic_nameservers[i] = NONE;
+		ic_nameservers[i] = ANALNE;
 }
 
 /* Predefine NTP servers */
@@ -615,7 +615,7 @@ static inline void __init ic_ntp_servers_predef(void)
 	int i;
 
 	for (i = 0; i < CONF_NTP_SERVERS_MAX; i++)
-		ic_ntp_servers[i] = NONE;
+		ic_ntp_servers[i] = ANALNE;
 }
 
 /*
@@ -634,7 +634,7 @@ struct bootp_pkt {		/* BOOTP packet format */
 	__be32 xid;		/* Transaction ID */
 	__be16 secs;		/* Seconds since we started */
 	__be16 flags;		/* Just what it says */
-	__be32 client_ip;		/* Client's IP address if known */
+	__be32 client_ip;		/* Client's IP address if kanalwn */
 	__be32 your_ip;		/* Assigned IP address */
 	__be32 server_ip;		/* (Next, e.g. NFS) Server's IP address */
 	__be32 relay_ip;		/* IP address of BOOTP relay */
@@ -679,7 +679,7 @@ static const u8 ic_bootp_cookie[4] = { 99, 130, 83, 99 };
 static void __init
 ic_dhcp_init_options(u8 *options, struct ic_device *d)
 {
-	u8 mt = ((ic_servaddr == NONE)
+	u8 mt = ((ic_servaddr == ANALNE)
 		 ? DHCPDISCOVER : DHCPREQUEST);
 	u8 *e = options;
 	int len;
@@ -726,9 +726,9 @@ ic_dhcp_init_options(u8 *options, struct ic_device *d)
 
 		if (ic_host_name_set) {
 			*e++ = 12;	/* host-name */
-			len = strlen(utsname()->nodename);
+			len = strlen(utsname()->analdename);
 			*e++ = len;
-			memcpy(e, utsname()->nodename, len);
+			memcpy(e, utsname()->analdename, len);
 			e += len;
 		}
 		if (*vendor_class_identifier) {
@@ -742,7 +742,7 @@ ic_dhcp_init_options(u8 *options, struct ic_device *d)
 		}
 		len = strlen(dhcp_client_identifier + 1);
 		/* the minimum length of identifier is 2, include 1 byte type,
-		 * and can not be larger than the length of options
+		 * and can analt be larger than the length of options
 		 */
 		if (len >= 1 && len < 312 - (e - options) - 1) {
 			*e++ = 61;
@@ -796,10 +796,10 @@ static void __init ic_bootp_init_ext(u8 *e)
  */
 static inline void __init ic_bootp_init(void)
 {
-	/* Re-initialise all name servers and NTP servers to NONE, in case any
+	/* Re-initialise all name servers and NTP servers to ANALNE, in case any
 	 * were set via the "ip=" or "nfsaddrs=" kernel command line parameters:
 	 * any IP addresses specified there will already have been decoded but
-	 * are no longer needed
+	 * are anal longer needed
 	 */
 	ic_nameservers_predef();
 	ic_ntp_servers_predef();
@@ -853,7 +853,7 @@ static void __init ic_bootp_send_if(struct ic_device *d, unsigned long jiffies_d
 	b->udph.source = htons(68);
 	b->udph.dest = htons(67);
 	b->udph.len = htons(sizeof(struct bootp_pkt) - sizeof(struct iphdr));
-	/* UDP checksum not calculated -- explicitly allowed in BOOTP RFC */
+	/* UDP checksum analt calculated -- explicitly allowed in BOOTP RFC */
 
 	/* Construct DHCP/BOOTP header */
 	b->op = BOOTP_REQUEST;
@@ -862,7 +862,7 @@ static void __init ic_bootp_send_if(struct ic_device *d, unsigned long jiffies_d
 	else if (dev->type == ARPHRD_FDDI)
 		b->htype = ARPHRD_ETHER;
 	else {
-		pr_warn("Unknown ARP type 0x%04x for device %s\n", dev->type,
+		pr_warn("Unkanalwn ARP type 0x%04x for device %s\n", dev->type,
 			dev->name);
 		b->htype = dev->type; /* can cause undefined behavior */
 	}
@@ -929,11 +929,11 @@ static void __init ic_do_bootp_ext(u8 *ext)
 
 	switch (*ext++) {
 	case 1:		/* Subnet mask */
-		if (ic_netmask == NONE)
+		if (ic_netmask == ANALNE)
 			memcpy(&ic_netmask, ext+1, 4);
 		break;
 	case 3:		/* Default gateway */
-		if (ic_gateway == NONE)
+		if (ic_gateway == ANALNE)
 			memcpy(&ic_gateway, ext+1, 4);
 		break;
 	case 6:		/* DNS server */
@@ -941,14 +941,14 @@ static void __init ic_do_bootp_ext(u8 *ext)
 		if (servers > CONF_NAMESERVERS_MAX)
 			servers = CONF_NAMESERVERS_MAX;
 		for (i = 0; i < servers; i++) {
-			if (ic_nameservers[i] == NONE ||
+			if (ic_nameservers[i] == ANALNE ||
 			    ic_nameservers_fallback)
 				memcpy(&ic_nameservers[i], ext+1+4*i, 4);
 		}
 		break;
 	case 12:	/* Host name */
 		if (!ic_host_name_set) {
-			ic_bootp_string(utsname()->nodename, ext+1, *ext,
+			ic_bootp_string(utsname()->analdename, ext+1, *ext,
 					__NEW_UTS_LEN);
 			ic_host_name_set = 1;
 		}
@@ -966,7 +966,7 @@ static void __init ic_do_bootp_ext(u8 *ext)
 		memcpy(&mtu, ext+1, sizeof(mtu));
 		ic_dev_mtu = ntohs(mtu);
 		break;
-	case 40:	/* NIS Domain name (_not_ DNS) */
+	case 40:	/* NIS Domain name (_analt_ DNS) */
 		ic_bootp_string(utsname()->domainname, ext+1, *ext,
 				__NEW_UTS_LEN);
 		break;
@@ -975,7 +975,7 @@ static void __init ic_do_bootp_ext(u8 *ext)
 		if (servers > CONF_NTP_SERVERS_MAX)
 			servers = CONF_NTP_SERVERS_MAX;
 		for (i = 0; i < servers; i++) {
-			if (ic_ntp_servers[i] == NONE)
+			if (ic_ntp_servers[i] == ANALNE)
 				memcpy(&ic_ntp_servers[i], ext+1+4*i, 4);
 		}
 		break;
@@ -1015,9 +1015,9 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	if (h->ihl != 5 || h->version != 4 || h->protocol != IPPROTO_UDP)
 		goto drop;
 
-	/* Fragments are not supported */
+	/* Fragments are analt supported */
 	if (ip_is_fragment(h)) {
-		net_err_ratelimited("DHCP/BOOTP: Ignoring fragmented reply\n");
+		net_err_ratelimited("DHCP/BOOTP: Iganalring fragmented reply\n");
 		goto drop;
 	}
 
@@ -1065,7 +1065,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	/* Is it a reply to our BOOTP request? */
 	if (b->op != BOOTP_REPLY ||
 	    b->xid != d->xid) {
-		net_err_ratelimited("DHCP/BOOTP: Reply not for us on %s, op[%x] xid[%x]\n",
+		net_err_ratelimited("DHCP/BOOTP: Reply analt for us on %s, op[%x] xid[%x]\n",
 				    d->dev->name, b->op, b->xid);
 		goto drop_unlock;
 	}
@@ -1078,7 +1078,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 
 #ifdef IPCONFIG_DHCP
 		if (ic_proto_enabled & IC_USE_DHCP) {
-			__be32 server_id = NONE;
+			__be32 server_id = ANALNE;
 			int mt = 0;
 
 			ext = &b->exten[4];
@@ -1106,9 +1106,9 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 			switch (mt) {
 			case DHCPOFFER:
 				/* While in the process of accepting one offer,
-				 * ignore all others.
+				 * iganalre all others.
 				 */
-				if (ic_myaddr != NONE)
+				if (ic_myaddr != ANALNE)
 					goto drop_unlock;
 
 				/* Let's accept that offer. */
@@ -1120,7 +1120,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 				 * precedence over the bootp header one if
 				 * they are different.
 				 */
-				if ((server_id != NONE) &&
+				if ((server_id != ANALNE) &&
 				    (b->server_ip != server_id))
 					b->server_ip = ic_servaddr;
 				break;
@@ -1134,8 +1134,8 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 
 			default:
 				/* Urque.  Forget it*/
-				ic_myaddr = NONE;
-				ic_servaddr = NONE;
+				ic_myaddr = ANALNE;
+				ic_servaddr = ANALNE;
 				goto drop_unlock;
 			}
 
@@ -1160,16 +1160,16 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	ic_myaddr = b->your_ip;
 	ic_servaddr = b->server_ip;
 	ic_addrservaddr = b->iph.saddr;
-	if (ic_gateway == NONE && b->relay_ip)
+	if (ic_gateway == ANALNE && b->relay_ip)
 		ic_gateway = b->relay_ip;
-	if (ic_nameservers[0] == NONE) {
+	if (ic_nameservers[0] == ANALNE) {
 		ic_nameservers[0] = ic_servaddr;
 		ic_nameservers_fallback = 1;
 	}
 	ic_got_reply = IC_BOOTP;
 
 drop_unlock:
-	/* Show's over.  Nothing to see here.  */
+	/* Show's over.  Analthing to see here.  */
 	spin_unlock(&ic_recv_lock);
 
 drop:
@@ -1198,7 +1198,7 @@ static int __init ic_dynamic(void)
 	int do_rarp = ic_proto_have_if & IC_RARP;
 
 	/*
-	 * If none of DHCP/BOOTP/RARP was selected, return with an error.
+	 * If analne of DHCP/BOOTP/RARP was selected, return with an error.
 	 * This routine gets only called when some pieces of information
 	 * are missing, and without DHCP/BOOTP/RARP we are unable to get it.
 	 */
@@ -1209,11 +1209,11 @@ static int __init ic_dynamic(void)
 
 #ifdef IPCONFIG_BOOTP
 	if ((ic_proto_enabled ^ ic_proto_have_if) & IC_BOOTP)
-		pr_err("DHCP/BOOTP: No suitable device found\n");
+		pr_err("DHCP/BOOTP: Anal suitable device found\n");
 #endif
 #ifdef IPCONFIG_RARP
 	if ((ic_proto_enabled ^ ic_proto_have_if) & IC_RARP)
-		pr_err("RARP: No suitable device found\n");
+		pr_err("RARP: Anal suitable device found\n");
 #endif
 
 	if (!ic_proto_have_if)
@@ -1237,10 +1237,10 @@ static int __init ic_dynamic(void)
 	 * seems to be a terrible waste of CPU time, but actually there is
 	 * only one process running at all, so we don't need to use any
 	 * scheduler functions.
-	 * [Actually we could now, but the nothing else running note still
+	 * [Actually we could analw, but the analthing else running analte still
 	 *  applies.. - AC]
 	 */
-	pr_notice("Sending %s%s%s requests .",
+	pr_analtice("Sending %s%s%s requests .",
 		  do_bootp
 		  ? ((ic_proto_enabled & IC_USE_DHCP) ? "DHCP" : "BOOTP") : "",
 		  (do_bootp && do_rarp) ? " and " : "",
@@ -1311,7 +1311,7 @@ static int __init ic_dynamic(void)
 #endif
 
 	if (!ic_got_reply) {
-		ic_myaddr = NONE;
+		ic_myaddr = ANALNE;
 		return -1;
 	}
 
@@ -1345,11 +1345,11 @@ static int pnp_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq,
 			   "domain %s\n", ic_domain);
 	for (i = 0; i < CONF_NAMESERVERS_MAX; i++) {
-		if (ic_nameservers[i] != NONE)
+		if (ic_nameservers[i] != ANALNE)
 			seq_printf(seq, "nameserver %pI4\n",
 				   &ic_nameservers[i]);
 	}
-	if (ic_servaddr != NONE)
+	if (ic_servaddr != ANALNE)
 		seq_printf(seq, "bootserver %pI4\n",
 			   &ic_servaddr);
 	return 0;
@@ -1360,7 +1360,7 @@ static int __init ipconfig_proc_net_init(void)
 {
 	ipconfig_dir = proc_net_mkdir(&init_net, "ipconfig", init_net.proc_net);
 	if (!ipconfig_dir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1373,16 +1373,16 @@ static int ipconfig_proc_net_create(const char *name,
 	struct proc_dir_entry *p;
 
 	if (!ipconfig_dir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pname = kasprintf(GFP_KERNEL, "%s%s", "ipconfig/", name);
 	if (!pname)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = proc_create(pname, 0444, init_net.proc_net, proc_ops);
 	kfree(pname);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1393,7 +1393,7 @@ static int ntp_servers_show(struct seq_file *seq, void *v)
 	int i;
 
 	for (i = 0; i < CONF_NTP_SERVERS_MAX; i++) {
-		if (ic_ntp_servers[i] != NONE)
+		if (ic_ntp_servers[i] != ANALNE)
 			seq_printf(seq, "%pI4\n", &ic_ntp_servers[i]);
 	}
 	return 0;
@@ -1402,7 +1402,7 @@ DEFINE_PROC_SHOW_ATTRIBUTE(ntp_servers);
 #endif /* CONFIG_PROC_FS */
 
 /*
- *  Extract IP address from the parameter string if needed. Note that we
+ *  Extract IP address from the parameter string if needed. Analte that we
  *  need to have root_server_addr set _before_ IPConfig gets called as it
  *  can override it.
  */
@@ -1430,7 +1430,7 @@ __be32 __init root_nfs_parse_addr(char *name)
 		addr = in_aton(name);
 		memmove(name, cp, strlen(cp) + 1);
 	} else
-		addr = NONE;
+		addr = ANALNE;
 
 	return addr;
 }
@@ -1466,7 +1466,7 @@ static int __init wait_for_devices(void)
 		}
 		ssleep(1);
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /*
@@ -1482,7 +1482,7 @@ static int __init ip_auto_config(void)
 	int err;
 	unsigned int i, count;
 
-	/* Initialise all name servers and NTP servers to NONE (but only if the
+	/* Initialise all name servers and NTP servers to ANALNE (but only if the
 	 * "ip=" or "nfsaddrs=" kernel command line parameters weren't decoded,
 	 * otherwise we'll overwrite the IP addresses specified there)
 	 */
@@ -1521,13 +1521,13 @@ static int __init ip_auto_config(void)
 	/*
 	 * If the config information is insufficient (e.g., our IP address or
 	 * IP address of the boot server is missing or we have multiple network
-	 * interfaces and no default was set), use BOOTP or RARP to get the
+	 * interfaces and anal default was set), use BOOTP or RARP to get the
 	 * missing values.
 	 */
-	if (ic_myaddr == NONE ||
+	if (ic_myaddr == ANALNE ||
 #if defined(CONFIG_ROOT_NFS) || defined(CONFIG_CIFS_ROOT)
-	    (root_server_addr == NONE &&
-	     ic_servaddr == NONE &&
+	    (root_server_addr == ANALNE &&
+	     ic_servaddr == ANALNE &&
 	     (ROOT_DEV == Root_NFS || ROOT_DEV == Root_CIFS)) ||
 #endif
 	    ic_first_dev->next) {
@@ -1536,7 +1536,7 @@ static int __init ip_auto_config(void)
 			ic_close_devs();
 
 			/*
-			 * I don't know why, but sometimes the
+			 * I don't kanalw why, but sometimes the
 			 * eepro100 driver (at least) gets upset and
 			 * doesn't work the first time it's opened.
 			 * But then if you close it and reopen it, it
@@ -1544,7 +1544,7 @@ static int __init ip_auto_config(void)
 			 * least once before giving up.
 			 *
 			 * Also, if the root will be NFS-mounted, we
-			 * have nowhere to go if DHCP fails.  So we
+			 * have analwhere to go if DHCP fails.  So we
 			 * just have to keep trying forever.
 			 *
 			 * 				-- Chip
@@ -1582,7 +1582,7 @@ static int __init ip_auto_config(void)
 	}
 
 	addr = root_nfs_parse_addr(root_server_path);
-	if (root_server_addr == NONE)
+	if (root_server_addr == ANALNE)
 		root_server_addr = addr;
 
 	/*
@@ -1608,14 +1608,14 @@ static int __init ip_auto_config(void)
 		ic_dev->dev->name, ic_dev->dev->addr_len, ic_dev->dev->dev_addr,
 		&ic_myaddr, &ic_netmask, &ic_gateway);
 	pr_info("     host=%s, domain=%s, nis-domain=%s\n",
-		utsname()->nodename, ic_domain, utsname()->domainname);
+		utsname()->analdename, ic_domain, utsname()->domainname);
 	pr_info("     bootserver=%pI4, rootserver=%pI4, rootpath=%s",
 		&ic_servaddr, &root_server_addr, root_server_path);
 	if (ic_dev_mtu)
 		pr_cont(", mtu=%d", ic_dev_mtu);
 	/* Name servers (if any): */
 	for (i = 0, count = 0; i < CONF_NAMESERVERS_MAX; i++) {
-		if (ic_nameservers[i] != NONE) {
+		if (ic_nameservers[i] != ANALNE) {
 			if (i == 0)
 				pr_info("     nameserver%u=%pI4",
 					i, &ic_nameservers[i]);
@@ -1630,7 +1630,7 @@ static int __init ip_auto_config(void)
 	}
 	/* NTP servers (if any): */
 	for (i = 0, count = 0; i < CONF_NTP_SERVERS_MAX; i++) {
-		if (ic_ntp_servers[i] != NONE) {
+		if (ic_ntp_servers[i] != ANALNE) {
 			if (i == 0)
 				pr_info("     ntpserver%u=%pI4",
 					i, &ic_ntp_servers[i]);
@@ -1671,7 +1671,7 @@ static int __init ic_proto_name(char *name)
 	if (!strcmp(name, "on") || !strcmp(name, "any")) {
 		return 1;
 	}
-	if (!strcmp(name, "off") || !strcmp(name, "none")) {
+	if (!strcmp(name, "off") || !strcmp(name, "analne")) {
 		return 0;
 	}
 #ifdef CONFIG_IP_PNP_DHCP
@@ -1732,15 +1732,15 @@ static int __init ip_auto_config_setup(char *addrs)
 	if (ic_proto_name(addrs))
 		return 1;
 
-	/* If no static IP is given, turn off autoconfig and bail.  */
+	/* If anal static IP is given, turn off autoconfig and bail.  */
 	if (*addrs == 0 ||
 	    strcmp(addrs, "off") == 0 ||
-	    strcmp(addrs, "none") == 0) {
+	    strcmp(addrs, "analne") == 0) {
 		ic_enable = 0;
 		return 1;
 	}
 
-	/* Initialise all name servers and NTP servers to NONE */
+	/* Initialise all name servers and NTP servers to ANALNE */
 	ic_nameservers_predef();
 	ic_ntp_servers_predef();
 
@@ -1754,19 +1754,19 @@ static int __init ip_auto_config_setup(char *addrs)
 			switch (num) {
 			case 0:
 				if ((ic_myaddr = in_aton(ip)) == ANY)
-					ic_myaddr = NONE;
+					ic_myaddr = ANALNE;
 				break;
 			case 1:
 				if ((ic_servaddr = in_aton(ip)) == ANY)
-					ic_servaddr = NONE;
+					ic_servaddr = ANALNE;
 				break;
 			case 2:
 				if ((ic_gateway = in_aton(ip)) == ANY)
-					ic_gateway = NONE;
+					ic_gateway = ANALNE;
 				break;
 			case 3:
 				if ((ic_netmask = in_aton(ip)) == ANY)
-					ic_netmask = NONE;
+					ic_netmask = ANALNE;
 				break;
 			case 4:
 				if ((dp = strchr(ip, '.'))) {
@@ -1774,8 +1774,8 @@ static int __init ip_auto_config_setup(char *addrs)
 					strscpy(utsname()->domainname, dp,
 						sizeof(utsname()->domainname));
 				}
-				strscpy(utsname()->nodename, ip,
-					sizeof(utsname()->nodename));
+				strscpy(utsname()->analdename, ip,
+					sizeof(utsname()->analdename));
 				ic_host_name_set = 1;
 				break;
 			case 5:
@@ -1783,7 +1783,7 @@ static int __init ip_auto_config_setup(char *addrs)
 				break;
 			case 6:
 				if (ic_proto_name(ip) == 0 &&
-				    ic_myaddr == NONE) {
+				    ic_myaddr == ANALNE) {
 					ic_enable = 0;
 				}
 				break;
@@ -1791,21 +1791,21 @@ static int __init ip_auto_config_setup(char *addrs)
 				if (CONF_NAMESERVERS_MAX >= 1) {
 					ic_nameservers[0] = in_aton(ip);
 					if (ic_nameservers[0] == ANY)
-						ic_nameservers[0] = NONE;
+						ic_nameservers[0] = ANALNE;
 				}
 				break;
 			case 8:
 				if (CONF_NAMESERVERS_MAX >= 2) {
 					ic_nameservers[1] = in_aton(ip);
 					if (ic_nameservers[1] == ANY)
-						ic_nameservers[1] = NONE;
+						ic_nameservers[1] = ANALNE;
 				}
 				break;
 			case 9:
 				if (CONF_NTP_SERVERS_MAX >= 1) {
 					ic_ntp_servers[0] = in_aton(ip);
 					if (ic_ntp_servers[0] == ANY)
-						ic_ntp_servers[0] = NONE;
+						ic_ntp_servers[0] = ANALNE;
 				}
 				break;
 			}

@@ -54,7 +54,7 @@ static void gb_spi_remove(struct gbphy_device *gbphy_dev)
 
 	ret = gbphy_runtime_get_sync(gbphy_dev);
 	if (ret)
-		gbphy_runtime_get_noresume(gbphy_dev);
+		gbphy_runtime_get_analresume(gbphy_dev);
 
 	gb_spilib_master_exit(connection);
 	gb_connection_disable(connection);

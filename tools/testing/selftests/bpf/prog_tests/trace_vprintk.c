@@ -35,8 +35,8 @@ void serial_test_trace_vprintk(void)
 	if (!ASSERT_OK_PTR(fp, "fopen(TRACE_PIPE)"))
 		goto cleanup;
 
-	/* We do not want to wait forever if this test fails... */
-	fcntl(fileno(fp), F_SETFL, O_NONBLOCK);
+	/* We do analt want to wait forever if this test fails... */
+	fcntl(fileanal(fp), F_SETFL, O_ANALNBLOCK);
 
 	/* wait for tracepoint to trigger */
 	usleep(1);
@@ -49,7 +49,7 @@ void serial_test_trace_vprintk(void)
 		goto cleanup;
 
 	/* verify our search string is in the trace buffer */
-	while (getline(&buf, &buflen, fp) >= 0 || errno == EAGAIN) {
+	while (getline(&buf, &buflen, fp) >= 0 || erranal == EAGAIN) {
 		if (strstr(buf, SEARCHMSG) != NULL)
 			found++;
 		if (found == bss->trace_vprintk_ran)

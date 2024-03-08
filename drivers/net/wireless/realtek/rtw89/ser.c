@@ -17,7 +17,7 @@
 #define SER_RECFG_TIMEOUT 1000
 
 enum ser_evt {
-	SER_EV_NONE,
+	SER_EV_ANALNE,
 	SER_EV_STATE_IN,
 	SER_EV_STATE_OUT,
 	SER_EV_L1_RESET_PREPARE, /* pre-M0 */
@@ -127,7 +127,7 @@ static void rtw89_ser_cd_send(struct rtw89_dev *rtwdev,
 	rtw89_debug(rtwdev, RTW89_DBG_SER, "SER sends core dump\n");
 
 	/* After calling dev_coredump, buf's lifetime is supposed to be
-	 * handled by the device coredump framework. Note that a new dump
+	 * handled by the device coredump framework. Analte that a new dump
 	 * will be discarded if a previous one hasn't been released by
 	 * framework yet.
 	 */
@@ -213,7 +213,7 @@ static int ser_send_msg(struct rtw89_ser *ser, u8 event)
 
 	msg = kmalloc(sizeof(*msg), GFP_ATOMIC);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->event = event;
 
@@ -231,7 +231,7 @@ static void rtw89_ser_alarm_work(struct work_struct *work)
 					     ser_alarm_work.work);
 
 	ser_send_msg(ser, ser->alarm_event);
-	ser->alarm_event = SER_EV_NONE;
+	ser->alarm_event = SER_EV_ANALNE;
 }
 
 static void ser_set_alarm(struct rtw89_ser *ser, u32 ms, u8 event)
@@ -249,7 +249,7 @@ static void ser_set_alarm(struct rtw89_ser *ser, u32 ms, u8 event)
 static void ser_del_alarm(struct rtw89_ser *ser)
 {
 	cancel_delayed_work(&ser->ser_alarm_work);
-	ser->alarm_event = SER_EV_NONE;
+	ser->alarm_event = SER_EV_ANALNE;
 }
 
 /* driver function */
@@ -301,7 +301,7 @@ static void drv_resume_rx(struct rtw89_ser *ser)
 static void ser_reset_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
 	rtw89_core_release_bit_map(rtwdev->hw_port, rtwvif->port);
-	rtwvif->net_type = RTW89_NET_TYPE_NO_LINK;
+	rtwvif->net_type = RTW89_NET_TYPE_ANAL_LINK;
 	rtwvif->trigger = false;
 	rtwvif->tdls_peer = 0;
 }
@@ -657,7 +657,7 @@ static void ser_l2_reset_st_pre_hdl(struct rtw89_ser *ser)
 
 	buf = rtw89_ser_cd_prep(rtwdev);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto bottom;
 	}
 
@@ -711,7 +711,7 @@ static void ser_l2_reset_st_hdl(struct rtw89_ser *ser, u8 evt)
 }
 
 static const struct event_ent ser_ev_tbl[] = {
-	{SER_EV_NONE, "SER_EV_NONE"},
+	{SER_EV_ANALNE, "SER_EV_ANALNE"},
 	{SER_EV_STATE_IN, "SER_EV_STATE_IN"},
 	{SER_EV_STATE_OUT, "SER_EV_STATE_OUT"},
 	{SER_EV_L1_RESET_PREPARE, "SER_EV_L1_RESET_PREPARE pre-m0"},
@@ -769,9 +769,9 @@ void rtw89_ser_recfg_done(struct rtw89_dev *rtwdev)
 	ser_send_msg(&rtwdev->ser, SER_EV_L2_RECFG_DONE);
 }
 
-int rtw89_ser_notify(struct rtw89_dev *rtwdev, u32 err)
+int rtw89_ser_analtify(struct rtw89_dev *rtwdev, u32 err)
 {
-	u8 event = SER_EV_NONE;
+	u8 event = SER_EV_ANALNE;
 
 	rtw89_info(rtwdev, "SER catches error: 0x%x\n", err);
 
@@ -802,12 +802,12 @@ int rtw89_ser_notify(struct rtw89_dev *rtwdev, u32 err)
 		break;
 	}
 
-	if (event == SER_EV_NONE) {
-		rtw89_warn(rtwdev, "SER cannot recognize error: 0x%x\n", err);
+	if (event == SER_EV_ANALNE) {
+		rtw89_warn(rtwdev, "SER cananalt recognize error: 0x%x\n", err);
 		return -EINVAL;
 	}
 
 	ser_send_msg(&rtwdev->ser, event);
 	return 0;
 }
-EXPORT_SYMBOL(rtw89_ser_notify);
+EXPORT_SYMBOL(rtw89_ser_analtify);

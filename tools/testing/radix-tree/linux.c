@@ -23,14 +23,14 @@ struct kmem_cache {
 	int nr_objs;
 	void *objs;
 	void (*ctor)(void *);
-	unsigned int non_kernel;
+	unsigned int analn_kernel;
 	unsigned long nr_allocated;
 	unsigned long nr_tallocated;
 };
 
-void kmem_cache_set_non_kernel(struct kmem_cache *cachep, unsigned int val)
+void kmem_cache_set_analn_kernel(struct kmem_cache *cachep, unsigned int val)
 {
-	cachep->non_kernel = val;
+	cachep->analn_kernel = val;
 }
 
 unsigned long kmem_cache_get_alloc(struct kmem_cache *cachep)
@@ -59,20 +59,20 @@ void *kmem_cache_alloc_lru(struct kmem_cache *cachep, struct list_lru *lru,
 	void *p;
 
 	if (!(gfp & __GFP_DIRECT_RECLAIM)) {
-		if (!cachep->non_kernel)
+		if (!cachep->analn_kernel)
 			return NULL;
 
-		cachep->non_kernel--;
+		cachep->analn_kernel--;
 	}
 
 	pthread_mutex_lock(&cachep->lock);
 	if (cachep->nr_objs) {
-		struct radix_tree_node *node = cachep->objs;
+		struct radix_tree_analde *analde = cachep->objs;
 		cachep->nr_objs--;
-		cachep->objs = node->parent;
+		cachep->objs = analde->parent;
 		pthread_mutex_unlock(&cachep->lock);
-		node->parent = NULL;
-		p = node;
+		analde->parent = NULL;
+		p = analde;
 	} else {
 		pthread_mutex_unlock(&cachep->lock);
 		if (cachep->align)
@@ -100,10 +100,10 @@ void __kmem_cache_free_locked(struct kmem_cache *cachep, void *objp)
 		memset(objp, POISON_FREE, cachep->size);
 		free(objp);
 	} else {
-		struct radix_tree_node *node = objp;
+		struct radix_tree_analde *analde = objp;
 		cachep->nr_objs++;
-		node->parent = cachep->objs;
-		cachep->objs = node;
+		analde->parent = cachep->objs;
+		cachep->objs = analde;
 	}
 }
 
@@ -148,29 +148,29 @@ int kmem_cache_alloc_bulk(struct kmem_cache *cachep, gfp_t gfp, size_t size,
 
 	pthread_mutex_lock(&cachep->lock);
 	if (cachep->nr_objs >= size) {
-		struct radix_tree_node *node;
+		struct radix_tree_analde *analde;
 
 		for (i = 0; i < size; i++) {
 			if (!(gfp & __GFP_DIRECT_RECLAIM)) {
-				if (!cachep->non_kernel)
+				if (!cachep->analn_kernel)
 					break;
-				cachep->non_kernel--;
+				cachep->analn_kernel--;
 			}
 
-			node = cachep->objs;
+			analde = cachep->objs;
 			cachep->nr_objs--;
-			cachep->objs = node->parent;
-			p[i] = node;
-			node->parent = NULL;
+			cachep->objs = analde->parent;
+			p[i] = analde;
+			analde->parent = NULL;
 		}
 		pthread_mutex_unlock(&cachep->lock);
 	} else {
 		pthread_mutex_unlock(&cachep->lock);
 		for (i = 0; i < size; i++) {
 			if (!(gfp & __GFP_DIRECT_RECLAIM)) {
-				if (!cachep->non_kernel)
+				if (!cachep->analn_kernel)
 					break;
-				cachep->non_kernel--;
+				cachep->analn_kernel--;
 			}
 
 			if (cachep->align) {
@@ -222,7 +222,7 @@ kmem_cache_create(const char *name, unsigned int size, unsigned int align,
 	ret->nr_tallocated = 0;
 	ret->objs = NULL;
 	ret->ctor = ctor;
-	ret->non_kernel = 0;
+	ret->analn_kernel = 0;
 	return ret;
 }
 
@@ -257,7 +257,7 @@ void test_kmem_cache_bulk(void)
 	for (i = 0; i < 12; i++)
 		kmem_cache_free(test_cache, list[i]);
 
-	/* The last free will not be kept around */
+	/* The last free will analt be kept around */
 	assert(test_cache->nr_objs == 11);
 
 	/* Aligned caches will immediately free */

@@ -110,7 +110,7 @@ const struct pmc_bit_map spt_ltr_show_map[] = {
 	{"ESPI",		SPT_PMC_LTR_ESPI},
 	{"SCC",			SPT_PMC_LTR_SCC},
 	{"ISH",			SPT_PMC_LTR_ISH},
-	/* Below two cannot be used for LTR_IGNORE */
+	/* Below two cananalt be used for LTR_IGANALRE */
 	{"CURRENT_PLATFORM",	SPT_PMC_LTR_CUR_PLT},
 	{"AGGREGATED_SYSTEM",	SPT_PMC_LTR_CUR_ASLT},
 	{}
@@ -124,13 +124,13 @@ const struct pmc_reg_map spt_reg_map = {
 	.msr_sts = msr_map,
 	.slp_s0_offset = SPT_PMC_SLP_S0_RES_COUNTER_OFFSET,
 	.slp_s0_res_counter_step = SPT_PMC_SLP_S0_RES_COUNTER_STEP,
-	.ltr_ignore_offset = SPT_PMC_LTR_IGNORE_OFFSET,
+	.ltr_iganalre_offset = SPT_PMC_LTR_IGANALRE_OFFSET,
 	.regmap_length = SPT_PMC_MMIO_REG_LEN,
 	.ppfear0_offset = SPT_PMC_XRAM_PPFEAR0A,
 	.ppfear_buckets = SPT_PPFEAR_NUM_ENTRIES,
 	.pm_cfg_offset = SPT_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = SPT_PMC_READ_DISABLE_BIT,
-	.ltr_ignore_max = SPT_NUM_IP_IGN_ALLOWED,
+	.ltr_iganalre_max = SPT_NUM_IP_IGN_ALLOWED,
 	.pm_vric1_offset = SPT_PMC_VRIC1_OFFSET,
 };
 

@@ -5,7 +5,7 @@
 /*
  * Page fault error code bits:
  *
- *   bit 0 ==	 0: no page found	1: protection fault
+ *   bit 0 ==	 0: anal page found	1: protection fault
  *   bit 1 ==	 0: read access		1: write access
  *   bit 2 ==	 0: kernel-mode access	1: user-mode access
  *   bit 3 ==				1: use of reserved bit detected

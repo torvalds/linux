@@ -84,12 +84,12 @@ static int crush_decode_list_bucket(void **p, void *end,
 {
 	int j;
 	dout("crush_decode_list_bucket %p to %p\n", *p, end);
-	b->item_weights = kcalloc(b->h.size, sizeof(u32), GFP_NOFS);
+	b->item_weights = kcalloc(b->h.size, sizeof(u32), GFP_ANALFS);
 	if (b->item_weights == NULL)
-		return -ENOMEM;
-	b->sum_weights = kcalloc(b->h.size, sizeof(u32), GFP_NOFS);
+		return -EANALMEM;
+	b->sum_weights = kcalloc(b->h.size, sizeof(u32), GFP_ANALFS);
 	if (b->sum_weights == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	ceph_decode_need(p, end, 2 * b->h.size * sizeof(u32), bad);
 	for (j = 0; j < b->h.size; j++) {
 		b->item_weights[j] = ceph_decode_32(p);
@@ -105,13 +105,13 @@ static int crush_decode_tree_bucket(void **p, void *end,
 {
 	int j;
 	dout("crush_decode_tree_bucket %p to %p\n", *p, end);
-	ceph_decode_8_safe(p, end, b->num_nodes, bad);
-	b->node_weights = kcalloc(b->num_nodes, sizeof(u32), GFP_NOFS);
-	if (b->node_weights == NULL)
-		return -ENOMEM;
-	ceph_decode_need(p, end, b->num_nodes * sizeof(u32), bad);
-	for (j = 0; j < b->num_nodes; j++)
-		b->node_weights[j] = ceph_decode_32(p);
+	ceph_decode_8_safe(p, end, b->num_analdes, bad);
+	b->analde_weights = kcalloc(b->num_analdes, sizeof(u32), GFP_ANALFS);
+	if (b->analde_weights == NULL)
+		return -EANALMEM;
+	ceph_decode_need(p, end, b->num_analdes * sizeof(u32), bad);
+	for (j = 0; j < b->num_analdes; j++)
+		b->analde_weights[j] = ceph_decode_32(p);
 	return 0;
 bad:
 	return -EINVAL;
@@ -122,12 +122,12 @@ static int crush_decode_straw_bucket(void **p, void *end,
 {
 	int j;
 	dout("crush_decode_straw_bucket %p to %p\n", *p, end);
-	b->item_weights = kcalloc(b->h.size, sizeof(u32), GFP_NOFS);
+	b->item_weights = kcalloc(b->h.size, sizeof(u32), GFP_ANALFS);
 	if (b->item_weights == NULL)
-		return -ENOMEM;
-	b->straws = kcalloc(b->h.size, sizeof(u32), GFP_NOFS);
+		return -EANALMEM;
+	b->straws = kcalloc(b->h.size, sizeof(u32), GFP_ANALFS);
 	if (b->straws == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	ceph_decode_need(p, end, 2 * b->h.size * sizeof(u32), bad);
 	for (j = 0; j < b->h.size; j++) {
 		b->item_weights[j] = ceph_decode_32(p);
@@ -143,9 +143,9 @@ static int crush_decode_straw2_bucket(void **p, void *end,
 {
 	int j;
 	dout("crush_decode_straw2_bucket %p to %p\n", *p, end);
-	b->item_weights = kcalloc(b->h.size, sizeof(u32), GFP_NOFS);
+	b->item_weights = kcalloc(b->h.size, sizeof(u32), GFP_ANALFS);
 	if (b->item_weights == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	ceph_decode_need(p, end, b->h.size * sizeof(u32), bad);
 	for (j = 0; j < b->h.size; j++)
 		b->item_weights[j] = ceph_decode_32(p);
@@ -154,32 +154,32 @@ bad:
 	return -EINVAL;
 }
 
-struct crush_name_node {
-	struct rb_node cn_node;
+struct crush_name_analde {
+	struct rb_analde cn_analde;
 	int cn_id;
 	char cn_name[];
 };
 
-static struct crush_name_node *alloc_crush_name(size_t name_len)
+static struct crush_name_analde *alloc_crush_name(size_t name_len)
 {
-	struct crush_name_node *cn;
+	struct crush_name_analde *cn;
 
-	cn = kmalloc(sizeof(*cn) + name_len + 1, GFP_NOIO);
+	cn = kmalloc(sizeof(*cn) + name_len + 1, GFP_ANALIO);
 	if (!cn)
 		return NULL;
 
-	RB_CLEAR_NODE(&cn->cn_node);
+	RB_CLEAR_ANALDE(&cn->cn_analde);
 	return cn;
 }
 
-static void free_crush_name(struct crush_name_node *cn)
+static void free_crush_name(struct crush_name_analde *cn)
 {
-	WARN_ON(!RB_EMPTY_NODE(&cn->cn_node));
+	WARN_ON(!RB_EMPTY_ANALDE(&cn->cn_analde));
 
 	kfree(cn);
 }
 
-DEFINE_RB_FUNCS(crush_name, struct crush_name_node, cn_id, cn_node)
+DEFINE_RB_FUNCS(crush_name, struct crush_name_analde, cn_id, cn_analde)
 
 static int decode_crush_names(void **p, void *end, struct rb_root *root)
 {
@@ -187,7 +187,7 @@ static int decode_crush_names(void **p, void *end, struct rb_root *root)
 
 	ceph_decode_32_safe(p, end, n, e_inval);
 	while (n--) {
-		struct crush_name_node *cn;
+		struct crush_name_analde *cn;
 		int id;
 		u32 name_len;
 
@@ -197,7 +197,7 @@ static int decode_crush_names(void **p, void *end, struct rb_root *root)
 
 		cn = alloc_crush_name(name_len);
 		if (!cn)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		cn->cn_id = id;
 		memcpy(cn->cn_name, *p, name_len);
@@ -219,8 +219,8 @@ e_inval:
 void clear_crush_names(struct rb_root *root)
 {
 	while (!RB_EMPTY_ROOT(root)) {
-		struct crush_name_node *cn =
-		    rb_entry(rb_first(root), struct crush_name_node, cn_node);
+		struct crush_name_analde *cn =
+		    rb_entry(rb_first(root), struct crush_name_analde, cn_analde);
 
 		erase_crush_name(root, cn);
 		free_crush_name(cn);
@@ -231,11 +231,11 @@ static struct crush_choose_arg_map *alloc_choose_arg_map(void)
 {
 	struct crush_choose_arg_map *arg_map;
 
-	arg_map = kzalloc(sizeof(*arg_map), GFP_NOIO);
+	arg_map = kzalloc(sizeof(*arg_map), GFP_ANALIO);
 	if (!arg_map)
 		return NULL;
 
-	RB_CLEAR_NODE(&arg_map->node);
+	RB_CLEAR_ANALDE(&arg_map->analde);
 	return arg_map;
 }
 
@@ -244,7 +244,7 @@ static void free_choose_arg_map(struct crush_choose_arg_map *arg_map)
 	if (arg_map) {
 		int i, j;
 
-		WARN_ON(!RB_EMPTY_NODE(&arg_map->node));
+		WARN_ON(!RB_EMPTY_ANALDE(&arg_map->analde));
 
 		for (i = 0; i < arg_map->size; i++) {
 			struct crush_choose_arg *arg = &arg_map->args[i];
@@ -260,14 +260,14 @@ static void free_choose_arg_map(struct crush_choose_arg_map *arg_map)
 }
 
 DEFINE_RB_FUNCS(choose_arg_map, struct crush_choose_arg_map, choose_args_index,
-		node);
+		analde);
 
 void clear_choose_args(struct crush_map *c)
 {
 	while (!RB_EMPTY_ROOT(&c->choose_args)) {
 		struct crush_choose_arg_map *arg_map =
 		    rb_entry(rb_first(&c->choose_args),
-			     struct crush_choose_arg_map, node);
+			     struct crush_choose_arg_map, analde);
 
 		erase_choose_arg_map(&c->choose_args, arg_map);
 		free_choose_arg_map(arg_map);
@@ -284,9 +284,9 @@ static u32 *decode_array_32_alloc(void **p, void *end, u32 *plen)
 	if (len) {
 		u32 i;
 
-		a = kmalloc_array(len, sizeof(u32), GFP_NOIO);
+		a = kmalloc_array(len, sizeof(u32), GFP_ANALIO);
 		if (!a) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 
@@ -318,9 +318,9 @@ static int decode_choose_arg(void **p, void *end, struct crush_choose_arg *arg)
 
 		arg->weight_set = kmalloc_array(arg->weight_set_size,
 						sizeof(*arg->weight_set),
-						GFP_NOIO);
+						GFP_ANALIO);
 		if (!arg->weight_set)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < arg->weight_set_size; i++) {
 			struct crush_weight_set *w = &arg->weight_set[i];
@@ -357,7 +357,7 @@ static int decode_choose_args(void **p, void *end, struct crush_map *c)
 	while (num_choose_arg_maps--) {
 		arg_map = alloc_choose_arg_map();
 		if (!arg_map) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 
@@ -365,9 +365,9 @@ static int decode_choose_args(void **p, void *end, struct crush_map *c)
 				    e_inval);
 		arg_map->size = c->max_buckets;
 		arg_map->args = kcalloc(arg_map->size, sizeof(*arg_map->args),
-					GFP_NOIO);
+					GFP_ANALIO);
 		if (!arg_map->args) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 
@@ -439,9 +439,9 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 
 	dout("crush_decode %p to %p len %d\n", *p, end, (int)(end - *p));
 
-	c = kzalloc(sizeof(*c), GFP_NOFS);
+	c = kzalloc(sizeof(*c), GFP_ANALFS);
 	if (c == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	c->type_names = RB_ROOT;
 	c->names = RB_ROOT;
@@ -464,10 +464,10 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 	c->max_rules = ceph_decode_32(p);
 	c->max_devices = ceph_decode_32(p);
 
-	c->buckets = kcalloc(c->max_buckets, sizeof(*c->buckets), GFP_NOFS);
+	c->buckets = kcalloc(c->max_buckets, sizeof(*c->buckets), GFP_ANALFS);
 	if (c->buckets == NULL)
 		goto badmem;
-	c->rules = kcalloc(c->max_rules, sizeof(*c->rules), GFP_NOFS);
+	c->rules = kcalloc(c->max_rules, sizeof(*c->rules), GFP_ANALFS);
 	if (c->rules == NULL)
 		goto badmem;
 
@@ -505,7 +505,7 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 			goto bad;
 		}
 		BUG_ON(size == 0);
-		b = c->buckets[i] = kzalloc(size, GFP_NOFS);
+		b = c->buckets[i] = kzalloc(size, GFP_ANALFS);
 		if (b == NULL)
 			goto badmem;
 
@@ -520,7 +520,7 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		dout("crush_decode bucket size %d off %x %p to %p\n",
 		     b->size, (int)(*p-start), *p, end);
 
-		b->items = kcalloc(b->size, sizeof(__s32), GFP_NOFS);
+		b->items = kcalloc(b->size, sizeof(__s32), GFP_ANALFS);
 		if (b->items == NULL)
 			goto badmem;
 
@@ -565,12 +565,12 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 	/* rules */
 	dout("rule vec is %p\n", c->rules);
 	for (i = 0; i < c->max_rules; i++) {
-		u32 yes;
+		u32 anal;
 		struct crush_rule *r;
 
-		ceph_decode_32_safe(p, end, yes, bad);
-		if (!yes) {
-			dout("crush_decode NO rule %d off %x %p to %p\n",
+		ceph_decode_32_safe(p, end, anal, bad);
+		if (!anal) {
+			dout("crush_decode ANAL rule %d off %x %p to %p\n",
 			     i, (int)(*p-start), *p, end);
 			c->rules[i] = NULL;
 			continue;
@@ -580,18 +580,18 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		     i, (int)(*p-start), *p, end);
 
 		/* len */
-		ceph_decode_32_safe(p, end, yes, bad);
+		ceph_decode_32_safe(p, end, anal, bad);
 #if BITS_PER_LONG == 32
-		if (yes > (ULONG_MAX - sizeof(*r))
+		if (anal > (ULONG_MAX - sizeof(*r))
 			  / sizeof(struct crush_rule_step))
 			goto bad;
 #endif
-		r = kmalloc(struct_size(r, steps, yes), GFP_NOFS);
+		r = kmalloc(struct_size(r, steps, anal), GFP_ANALFS);
 		if (r == NULL)
 			goto badmem;
 		dout(" rule %d is at %p\n", i, r);
 		c->rules[i] = r;
-		r->len = yes;
+		r->len = anal;
 		ceph_decode_copy_safe(p, end, &r->mask, 4, bad); /* 4 u8's */
 		ceph_decode_need(p, end, r->len*3*sizeof(u32), bad);
 		for (j = 0; j < r->len; j++) {
@@ -663,7 +663,7 @@ done:
 	return c;
 
 badmem:
-	err = -ENOMEM;
+	err = -EANALMEM;
 fail:
 	dout("crush_decode fail %d\n", err);
 	crush_destroy(c);
@@ -708,17 +708,17 @@ static struct ceph_pg_mapping *alloc_pg_mapping(size_t payload_len)
 {
 	struct ceph_pg_mapping *pg;
 
-	pg = kmalloc(sizeof(*pg) + payload_len, GFP_NOIO);
+	pg = kmalloc(sizeof(*pg) + payload_len, GFP_ANALIO);
 	if (!pg)
 		return NULL;
 
-	RB_CLEAR_NODE(&pg->node);
+	RB_CLEAR_ANALDE(&pg->analde);
 	return pg;
 }
 
 static void free_pg_mapping(struct ceph_pg_mapping *pg)
 {
-	WARN_ON(!RB_EMPTY_NODE(&pg->node));
+	WARN_ON(!RB_EMPTY_ANALDE(&pg->analde));
 
 	kfree(pg);
 }
@@ -728,12 +728,12 @@ static void free_pg_mapping(struct ceph_pg_mapping *pg)
  * to a set of osds) and primary_temp (explicit primary setting)
  */
 DEFINE_RB_FUNCS2(pg_mapping, struct ceph_pg_mapping, pgid, ceph_pg_compare,
-		 RB_BYPTR, const struct ceph_pg *, node)
+		 RB_BYPTR, const struct ceph_pg *, analde)
 
 /*
  * rbtree of pg pool info
  */
-DEFINE_RB_FUNCS(pg_pool, struct ceph_pg_pool_info, id, node)
+DEFINE_RB_FUNCS(pg_pool, struct ceph_pg_pool_info, id, analde)
 
 struct ceph_pg_pool_info *ceph_pg_pool_by_id(struct ceph_osdmap *map, u64 id)
 {
@@ -744,7 +744,7 @@ const char *ceph_pg_pool_name_by_id(struct ceph_osdmap *map, u64 id)
 {
 	struct ceph_pg_pool_info *pi;
 
-	if (id == CEPH_NOPOOL)
+	if (id == CEPH_ANALPOOL)
 		return NULL;
 
 	if (WARN_ON_ONCE(id > (u64) INT_MAX))
@@ -757,15 +757,15 @@ EXPORT_SYMBOL(ceph_pg_pool_name_by_id);
 
 int ceph_pg_poolid_by_name(struct ceph_osdmap *map, const char *name)
 {
-	struct rb_node *rbp;
+	struct rb_analde *rbp;
 
 	for (rbp = rb_first(&map->pg_pools); rbp; rbp = rb_next(rbp)) {
 		struct ceph_pg_pool_info *pi =
-			rb_entry(rbp, struct ceph_pg_pool_info, node);
+			rb_entry(rbp, struct ceph_pg_pool_info, analde);
 		if (pi->name && strcmp(pi->name, name) == 0)
 			return pi->id;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 EXPORT_SYMBOL(ceph_pg_poolid_by_name);
 
@@ -898,7 +898,7 @@ static int decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
 	}
 
 	/*
-	 * last_force_op_resend_preluminous, will be overridden if the
+	 * last_force_op_resend_prelumianalus, will be overridden if the
 	 * map was encoded with RESEND_ON_SPLIT
 	 */
 	if (ev >= 15)
@@ -939,7 +939,7 @@ static int decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
 	if (ev >= 25)
 		pi->last_force_request_resend = ceph_decode_32(p);
 
-	/* ignore the rest */
+	/* iganalre the rest */
 
 	*p = pool_end;
 	calc_pg_masks(pi);
@@ -964,10 +964,10 @@ static int decode_pool_names(void **p, void *end, struct ceph_osdmap *map)
 		ceph_decode_need(p, end, len, bad);
 		pi = lookup_pg_pool(&map->pg_pools, pool);
 		if (pi) {
-			char *name = kstrndup(*p, len, GFP_NOFS);
+			char *name = kstrndup(*p, len, GFP_ANALFS);
 
 			if (!name)
-				return -ENOMEM;
+				return -EANALMEM;
 			kfree(pi->name);
 			pi->name = name;
 			dout("  name is %s\n", pi->name);
@@ -996,7 +996,7 @@ static struct crush_work *alloc_workspace(const struct crush_map *c)
 	work_size = crush_work_size(c, CEPH_PG_MAX_SIZE);
 	dout("%s work_size %zu bytes\n", __func__, work_size);
 
-	work = kvmalloc(work_size, GFP_NOIO);
+	work = kvmalloc(work_size, GFP_ANALIO);
 	if (!work)
 		return NULL;
 
@@ -1045,7 +1045,7 @@ static void cleanup_workspace_manager(struct workspace_manager *wsm)
 }
 
 /*
- * Finds an available workspace or allocates a new one.  If it's not
+ * Finds an available workspace or allocates a new one.  If it's analt
  * possible to allocate a new one, waits until there is one.
  */
 static struct crush_work *get_workspace(struct workspace_manager *wsm,
@@ -1084,7 +1084,7 @@ again:
 		wake_up(&wsm->ws_wait);
 
 		/*
-		 * Do not return the error but go back to waiting.  We
+		 * Do analt return the error but go back to waiting.  We
 		 * have the initial workspace and the CRUSH computation
 		 * time is bounded so we will get it eventually.
 		 */
@@ -1095,7 +1095,7 @@ again:
 }
 
 /*
- * Puts a workspace back on the list or frees it if we have enough
+ * Puts a workspace back on the list or frees it if we have eanalugh
  * idle ones sitting around.
  */
 static void put_workspace(struct workspace_manager *wsm,
@@ -1124,7 +1124,7 @@ struct ceph_osdmap *ceph_osdmap_alloc(void)
 {
 	struct ceph_osdmap *map;
 
-	map = kzalloc(sizeof(*map), GFP_NOIO);
+	map = kzalloc(sizeof(*map), GFP_ANALIO);
 	if (!map)
 		return NULL;
 
@@ -1151,35 +1151,35 @@ void ceph_osdmap_destroy(struct ceph_osdmap *map)
 	while (!RB_EMPTY_ROOT(&map->pg_temp)) {
 		struct ceph_pg_mapping *pg =
 			rb_entry(rb_first(&map->pg_temp),
-				 struct ceph_pg_mapping, node);
+				 struct ceph_pg_mapping, analde);
 		erase_pg_mapping(&map->pg_temp, pg);
 		free_pg_mapping(pg);
 	}
 	while (!RB_EMPTY_ROOT(&map->primary_temp)) {
 		struct ceph_pg_mapping *pg =
 			rb_entry(rb_first(&map->primary_temp),
-				 struct ceph_pg_mapping, node);
+				 struct ceph_pg_mapping, analde);
 		erase_pg_mapping(&map->primary_temp, pg);
 		free_pg_mapping(pg);
 	}
 	while (!RB_EMPTY_ROOT(&map->pg_upmap)) {
 		struct ceph_pg_mapping *pg =
 			rb_entry(rb_first(&map->pg_upmap),
-				 struct ceph_pg_mapping, node);
-		rb_erase(&pg->node, &map->pg_upmap);
+				 struct ceph_pg_mapping, analde);
+		rb_erase(&pg->analde, &map->pg_upmap);
 		kfree(pg);
 	}
 	while (!RB_EMPTY_ROOT(&map->pg_upmap_items)) {
 		struct ceph_pg_mapping *pg =
 			rb_entry(rb_first(&map->pg_upmap_items),
-				 struct ceph_pg_mapping, node);
-		rb_erase(&pg->node, &map->pg_upmap_items);
+				 struct ceph_pg_mapping, analde);
+		rb_erase(&pg->analde, &map->pg_upmap_items);
 		kfree(pg);
 	}
 	while (!RB_EMPTY_ROOT(&map->pg_pools)) {
 		struct ceph_pg_pool_info *pi =
 			rb_entry(rb_first(&map->pg_pools),
-				 struct ceph_pg_pool_info, node);
+				 struct ceph_pg_pool_info, analde);
 		__remove_pg_pool(&map->pg_pools, pi);
 	}
 	kvfree(map->osd_state);
@@ -1206,14 +1206,14 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, u32 max)
 	if (max == map->max_osd)
 		return 0;
 
-	state = kvmalloc(array_size(max, sizeof(*state)), GFP_NOFS);
-	weight = kvmalloc(array_size(max, sizeof(*weight)), GFP_NOFS);
-	addr = kvmalloc(array_size(max, sizeof(*addr)), GFP_NOFS);
+	state = kvmalloc(array_size(max, sizeof(*state)), GFP_ANALFS);
+	weight = kvmalloc(array_size(max, sizeof(*weight)), GFP_ANALFS);
+	addr = kvmalloc(array_size(max, sizeof(*addr)), GFP_ANALFS);
 	if (!state || !weight || !addr) {
 		kvfree(state);
 		kvfree(weight);
 		kvfree(addr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	to_copy = min(map->max_osd, max);
@@ -1239,9 +1239,9 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, u32 max)
 		u32 *affinity;
 
 		affinity = kvmalloc(array_size(max, sizeof(*affinity)),
-					 GFP_NOFS);
+					 GFP_ANALFS);
 		if (!affinity)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(affinity, map->osd_primary_affinity,
 		       to_copy * sizeof(*affinity));
@@ -1268,7 +1268,7 @@ static int osdmap_set_crush(struct ceph_osdmap *map, struct crush_map *crush)
 	work = alloc_workspace(crush);
 	if (!work) {
 		crush_destroy(crush);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (map->crush)
@@ -1303,7 +1303,7 @@ static int get_osdmap_client_data_v(void **p, void *end,
 				OSDMAP_WRAPPER_COMPAT_VER, prefix);
 			return -EINVAL;
 		}
-		*p += 4; /* ignore wrapper struct_len */
+		*p += 4; /* iganalre wrapper struct_len */
 
 		ceph_decode_8_safe(p, end, struct_v, e_inval);
 		ceph_decode_8_safe(p, end, struct_compat, e_inval);
@@ -1313,7 +1313,7 @@ static int get_osdmap_client_data_v(void **p, void *end,
 				OSDMAP_CLIENT_DATA_COMPAT_VER, prefix);
 			return -EINVAL;
 		}
-		*p += 4; /* ignore client data struct_len */
+		*p += 4; /* iganalre client data struct_len */
 	} else {
 		u16 version;
 
@@ -1351,11 +1351,11 @@ static int __decode_pools(void **p, void *end, struct ceph_osdmap *map,
 
 		pi = lookup_pg_pool(&map->pg_pools, pool);
 		if (!incremental || !pi) {
-			pi = kzalloc(sizeof(*pi), GFP_NOFS);
+			pi = kzalloc(sizeof(*pi), GFP_ANALFS);
 			if (!pi)
-				return -ENOMEM;
+				return -EANALMEM;
 
-			RB_CLEAR_NODE(&pi->node);
+			RB_CLEAR_ANALDE(&pi->analde);
 			pi->id = pool;
 
 			if (!__insert_pg_pool(&map->pg_pools, pi)) {
@@ -1444,7 +1444,7 @@ static struct ceph_pg_mapping *__decode_pg_temp(void **p, void *end,
 	ceph_decode_need(p, end, len * sizeof(u32), e_inval);
 	pg = alloc_pg_mapping(len * sizeof(u32));
 	if (!pg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pg->pg_temp.len = len;
 	for (i = 0; i < len; i++)
@@ -1480,7 +1480,7 @@ static struct ceph_pg_mapping *__decode_primary_temp(void **p, void *end,
 
 	pg = alloc_pg_mapping(0);
 	if (!pg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pg->primary_temp.osd = osd;
 	return pg;
@@ -1521,9 +1521,9 @@ static int set_primary_affinity(struct ceph_osdmap *map, int osd, u32 aff)
 
 		map->osd_primary_affinity = kvmalloc(
 		    array_size(map->max_osd, sizeof(*map->osd_primary_affinity)),
-		    GFP_NOFS);
+		    GFP_ANALFS);
 		if (!map->osd_primary_affinity)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < map->max_osd; i++)
 			map->osd_primary_affinity[i] =
@@ -1627,7 +1627,7 @@ static struct ceph_pg_mapping *__decode_pg_upmap_items(void **p, void *end,
 	ceph_decode_need(p, end, 2 * len * sizeof(u32), e_inval);
 	pg = alloc_pg_mapping(2 * len * sizeof(u32));
 	if (!pg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pg->pg_upmap_items.len = len;
 	for (i = 0; i < len; i++) {
@@ -1794,7 +1794,7 @@ static int osdmap_decode(void **p, void *end, bool msgr2,
 		WARN_ON(!RB_EMPTY_ROOT(&map->pg_upmap_items));
 	}
 
-	/* ignore the rest */
+	/* iganalre the rest */
 	*p = end;
 
 	dout("full osdmap epoch %d max_osd %d\n", map->epoch, map->max_osd);
@@ -1821,7 +1821,7 @@ struct ceph_osdmap *ceph_osdmap_decode(void **p, void *end, bool msgr2)
 
 	map = ceph_osdmap_alloc();
 	if (!map)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = osdmap_decode(p, end, msgr2, map);
 	if (ret) {
@@ -1917,7 +1917,7 @@ static int decode_new_up_state_weight(void **p, void *end, u8 struct_v,
 			osdmap_info(map, "osd%d down\n", osd);
 		if ((map->osd_state[osd] & CEPH_OSD_EXISTS) &&
 		    (xorstate & CEPH_OSD_EXISTS)) {
-			osdmap_info(map, "osd%d does not exist\n", osd);
+			osdmap_info(map, "osd%d does analt exist\n", osd);
 			ret = set_primary_affinity(map, osd,
 						   CEPH_OSD_DEFAULT_PRIMARY_AFFINITY);
 			if (ret)
@@ -2098,7 +2098,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end, bool msgr2,
 			goto bad;
 	}
 
-	/* ignore the rest */
+	/* iganalre the rest */
 	*p = end;
 
 	dout("inc osdmap epoch %d max_osd %d\n", map->epoch, map->max_osd);
@@ -2142,7 +2142,7 @@ void ceph_oid_copy(struct ceph_object_id *dest,
 	if (src->name != src->inline_name) {
 		/* very rare, see ceph_object_id definition */
 		dest->name = kmalloc(src->name_len + 1,
-				     GFP_NOIO | __GFP_NOFAIL);
+				     GFP_ANALIO | __GFP_ANALFAIL);
 	} else {
 		dest->name = dest->inline_name;
 	}
@@ -2195,7 +2195,7 @@ int oid_aprintf_vargs(struct ceph_object_id *oid, gfp_t gfp,
 
 		external_name = kmalloc(len + 1, gfp);
 		if (!external_name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		oid->name = external_name;
 		WARN_ON(vsnprintf(oid->name, len + 1, fmt, ap) != len);
@@ -2257,7 +2257,7 @@ static bool osds_equal(const struct ceph_osds *lhs,
 
 static bool osds_valid(const struct ceph_osds *set)
 {
-	/* non-empty set */
+	/* analn-empty set */
 	if (set->size > 0 && set->primary >= 0)
 		return true;
 
@@ -2265,12 +2265,12 @@ static bool osds_valid(const struct ceph_osds *set)
 	if (!set->size && set->primary == -1)
 		return true;
 
-	/* empty !can_shift_osds set - all NONE */
+	/* empty !can_shift_osds set - all ANALNE */
 	if (set->size > 0 && set->primary == -1) {
 		int i;
 
 		for (i = 0; i < set->size; i++) {
-			if (set->osds[i] != CRUSH_ITEM_NONE)
+			if (set->osds[i] != CRUSH_ITEM_ANALNE)
 				break;
 		}
 		if (i == set->size)
@@ -2359,7 +2359,7 @@ static bool primary_changed(const struct ceph_osds *old_acting,
 		return false; /* both still empty */
 
 	if (!old_acting->size ^ !new_acting->size)
-		return true; /* was empty, now not, or vice versa */
+		return true; /* was empty, analw analt, or vice versa */
 
 	if (old_acting->primary != new_acting->primary)
 		return true; /* primary changed */
@@ -2410,7 +2410,7 @@ void __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
 		size_t total = nsl + 1 + oid->name_len;
 
 		if (total > sizeof(stack_buf))
-			buf = kmalloc(total, GFP_NOIO | __GFP_NOFAIL);
+			buf = kmalloc(total, GFP_ANALIO | __GFP_ANALFAIL);
 		memcpy(buf, oloc->pool_ns->str, nsl);
 		buf[nsl] = '\037';
 		memcpy(buf + nsl + 1, oid->name, oid->name_len);
@@ -2433,7 +2433,7 @@ int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
 
 	pi = ceph_pg_pool_by_id(osdmap, oloc->pool);
 	if (!pi)
-		return -ENOENT;
+		return -EANALENT;
 
 	__ceph_object_locator_to_pg(pi, oid, oloc, raw_pgid);
 	return 0;
@@ -2461,7 +2461,7 @@ static u32 raw_pg_to_pps(struct ceph_pg_pool_info *pi,
 			 const struct ceph_pg *raw_pgid)
 {
 	if (pi->flags & CEPH_POOL_FLAG_HASHPSPOOL) {
-		/* hash pool id and seed so that pool PGs do not overlap */
+		/* hash pool id and seed so that pool PGs do analt overlap */
 		return crush_hash32_2(CRUSH_HASH_RJENKINS1,
 				      ceph_stable_mod(raw_pgid->seed,
 						      pi->pgp_num,
@@ -2470,7 +2470,7 @@ static u32 raw_pg_to_pps(struct ceph_pg_pool_info *pi,
 	} else {
 		/*
 		 * legacy behavior: add ps and pool together.  this is
-		 * not a great approach because the PGs from each pool
+		 * analt a great approach because the PGs from each pool
 		 * will overlap on top of each other: 0.5 == 1.4 ==
 		 * 2.3 == ...
 		 */
@@ -2482,12 +2482,12 @@ static u32 raw_pg_to_pps(struct ceph_pg_pool_info *pi,
 
 /*
  * Magic value used for a "default" fallback choose_args, used if the
- * crush_choose_arg_map passed to do_crush() does not exist.  If this
- * also doesn't exist, fall back to canonical weights.
+ * crush_choose_arg_map passed to do_crush() does analt exist.  If this
+ * also doesn't exist, fall back to caanalnical weights.
  */
 #define CEPH_DEFAULT_CHOOSE_ARGS	-1
 
-static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
+static int do_crush(struct ceph_osdmap *map, int ruleanal, int x,
 		    int *result, int result_max,
 		    const __u32 *weight, int weight_max,
 		    s64 choose_args_index)
@@ -2505,14 +2505,14 @@ static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
 						CEPH_DEFAULT_CHOOSE_ARGS);
 
 	work = get_workspace(&map->crush_wsm, map->crush);
-	r = crush_do_rule(map->crush, ruleno, x, result, result_max,
+	r = crush_do_rule(map->crush, ruleanal, x, result, result_max,
 			  weight, weight_max, work,
 			  arg_map ? arg_map->args : NULL);
 	put_workspace(&map->crush_wsm, work);
 	return r;
 }
 
-static void remove_nonexistent_osds(struct ceph_osdmap *osdmap,
+static void remove_analnexistent_osds(struct ceph_osdmap *osdmap,
 				    struct ceph_pg_pool_info *pi,
 				    struct ceph_osds *set)
 {
@@ -2532,17 +2532,17 @@ static void remove_nonexistent_osds(struct ceph_osdmap *osdmap,
 		}
 		set->size -= removed;
 	} else {
-		/* set dne devices to NONE */
+		/* set dne devices to ANALNE */
 		for (i = 0; i < set->size; i++) {
 			if (!ceph_osd_exists(osdmap, set->osds[i]))
-				set->osds[i] = CRUSH_ITEM_NONE;
+				set->osds[i] = CRUSH_ITEM_ANALNE;
 		}
 	}
 }
 
 /*
  * Calculate raw set (CRUSH output) for given PG and filter out
- * nonexistent OSDs.  ->primary is undefined for a raw set.
+ * analnexistent OSDs.  ->primary is undefined for a raw set.
  *
  * Placement seed (CRUSH input) is returned through @ppps.
  */
@@ -2553,17 +2553,17 @@ static void pg_to_raw_osds(struct ceph_osdmap *osdmap,
 			   u32 *ppps)
 {
 	u32 pps = raw_pg_to_pps(pi, raw_pgid);
-	int ruleno;
+	int ruleanal;
 	int len;
 
 	ceph_osds_init(raw);
 	if (ppps)
 		*ppps = pps;
 
-	ruleno = crush_find_rule(osdmap->crush, pi->crush_ruleset, pi->type,
+	ruleanal = crush_find_rule(osdmap->crush, pi->crush_ruleset, pi->type,
 				 pi->size);
-	if (ruleno < 0) {
-		pr_err("no crush rule: pool %lld ruleset %d type %d size %d\n",
+	if (ruleanal < 0) {
+		pr_err("anal crush rule: pool %lld ruleset %d type %d size %d\n",
 		       pi->id, pi->crush_ruleset, pi->type, pi->size);
 		return;
 	}
@@ -2575,17 +2575,17 @@ static void pg_to_raw_osds(struct ceph_osdmap *osdmap,
 		return;
 	}
 
-	len = do_crush(osdmap, ruleno, pps, raw->osds, pi->size,
+	len = do_crush(osdmap, ruleanal, pps, raw->osds, pi->size,
 		       osdmap->osd_weight, osdmap->max_osd, pi->id);
 	if (len < 0) {
 		pr_err("error %d from crush rule %d: pool %lld ruleset %d type %d size %d\n",
-		       len, ruleno, pi->id, pi->crush_ruleset, pi->type,
+		       len, ruleanal, pi->id, pi->crush_ruleset, pi->type,
 		       pi->size);
 		return;
 	}
 
 	raw->size = len;
-	remove_nonexistent_osds(osdmap, pi, raw);
+	remove_analnexistent_osds(osdmap, pi, raw);
 }
 
 /* apply pg_upmap[_items] mappings */
@@ -2602,10 +2602,10 @@ static void apply_upmap(struct ceph_osdmap *osdmap,
 		for (i = 0; i < pg->pg_upmap.len; i++) {
 			int osd = pg->pg_upmap.osds[i];
 
-			if (osd != CRUSH_ITEM_NONE &&
+			if (osd != CRUSH_ITEM_ANALNE &&
 			    osd < osdmap->max_osd &&
 			    osdmap->osd_weight[osd] == 0) {
-				/* reject/ignore explicit mapping */
+				/* reject/iganalre explicit mapping */
 				return;
 			}
 		}
@@ -2618,7 +2618,7 @@ static void apply_upmap(struct ceph_osdmap *osdmap,
 	pg = lookup_pg_mapping(&osdmap->pg_upmap_items, pgid);
 	if (pg) {
 		/*
-		 * Note: this approach does not allow a bidirectional swap,
+		 * Analte: this approach does analt allow a bidirectional swap,
 		 * e.g., [[1,2],[2,1]] applied to [0,1,2] -> [0,2,1].
 		 */
 		for (i = 0; i < pg->pg_upmap_items.len; i++) {
@@ -2635,9 +2635,9 @@ static void apply_upmap(struct ceph_osdmap *osdmap,
 					exists = true;
 					break;
 				}
-				/* ignore mapping if target is marked out */
+				/* iganalre mapping if target is marked out */
 				if (osd == from && pos < 0 &&
-				    !(to != CRUSH_ITEM_NONE &&
+				    !(to != CRUSH_ITEM_ANALNE &&
 				      to < osdmap->max_osd &&
 				      osdmap->osd_weight[to] == 0)) {
 					pos = j;
@@ -2651,7 +2651,7 @@ static void apply_upmap(struct ceph_osdmap *osdmap,
 
 /*
  * Given raw set, calculate up set and up primary.  By definition of an
- * up set, the result won't contain nonexistent or down OSDs.
+ * up set, the result won't contain analnexistent or down OSDs.
  *
  * This is done in-place - on return @set is the up set.  If it's
  * empty, ->primary will remain undefined.
@@ -2681,10 +2681,10 @@ static void raw_to_up_osds(struct ceph_osdmap *osdmap,
 		if (set->size > 0)
 			set->primary = set->osds[0];
 	} else {
-		/* set down/dne devices to NONE */
+		/* set down/dne devices to ANALNE */
 		for (i = set->size - 1; i >= 0; i--) {
 			if (ceph_osd_is_down(osdmap, set->osds[i]))
-				set->osds[i] = CRUSH_ITEM_NONE;
+				set->osds[i] = CRUSH_ITEM_ANALNE;
 			else
 				set->primary = set->osds[i];
 		}
@@ -2700,7 +2700,7 @@ static void apply_primary_affinity(struct ceph_osdmap *osdmap,
 	int pos = -1;
 
 	/*
-	 * Do we have any non-default primary_affinity values for these
+	 * Do we have any analn-default primary_affinity values for these
 	 * osds?
 	 */
 	if (!osdmap->osd_primary_affinity)
@@ -2709,7 +2709,7 @@ static void apply_primary_affinity(struct ceph_osdmap *osdmap,
 	for (i = 0; i < up->size; i++) {
 		int osd = up->osds[i];
 
-		if (osd != CRUSH_ITEM_NONE &&
+		if (osd != CRUSH_ITEM_ANALNE &&
 		    osdmap->osd_primary_affinity[osd] !=
 					CEPH_OSD_DEFAULT_PRIMARY_AFFINITY) {
 			break;
@@ -2727,7 +2727,7 @@ static void apply_primary_affinity(struct ceph_osdmap *osdmap,
 		int osd = up->osds[i];
 		u32 aff;
 
-		if (osd == CRUSH_ITEM_NONE)
+		if (osd == CRUSH_ITEM_ANALNE)
 			continue;
 
 		aff = osdmap->osd_primary_affinity[osd];
@@ -2735,7 +2735,7 @@ static void apply_primary_affinity(struct ceph_osdmap *osdmap,
 		    (crush_hash32_2(CRUSH_HASH_RJENKINS1,
 				    pps, osd) >> 16) >= aff) {
 			/*
-			 * We chose not to use this primary.  Note it
+			 * We chose analt to use this primary.  Analte it
 			 * anyway as a fallback in case we don't pick
 			 * anyone else, but keep looking.
 			 */
@@ -2762,7 +2762,7 @@ static void apply_primary_affinity(struct ceph_osdmap *osdmap,
 /*
  * Get pg_temp and primary_temp mappings for given PG.
  *
- * Note that a PG may have none, only pg_temp, only primary_temp or
+ * Analte that a PG may have analne, only pg_temp, only primary_temp or
  * both pg_temp and primary_temp mappings.  This means @temp isn't
  * always a valid OSD set on return: in the "only primary_temp" case,
  * @temp will have its ->primary >= 0 but ->size == 0.
@@ -2785,7 +2785,7 @@ static void get_temp_osds(struct ceph_osdmap *osdmap,
 				if (ceph_can_shift_osds(pi))
 					continue;
 
-				temp->osds[temp->size++] = CRUSH_ITEM_NONE;
+				temp->osds[temp->size++] = CRUSH_ITEM_ANALNE;
 			} else {
 				temp->osds[temp->size++] = pg->pg_temp.osds[i];
 			}
@@ -2793,7 +2793,7 @@ static void get_temp_osds(struct ceph_osdmap *osdmap,
 
 		/* apply pg_temp's primary */
 		for (i = 0; i < temp->size; i++) {
-			if (temp->osds[i] != CRUSH_ITEM_NONE) {
+			if (temp->osds[i] != CRUSH_ITEM_ANALNE) {
 				temp->primary = temp->osds[i];
 				break;
 			}
@@ -2853,7 +2853,7 @@ bool ceph_pg_to_primary_shard(struct ceph_osdmap *osdmap,
 
 	if (ceph_can_shift_osds(pi)) {
 		spgid->pgid = pgid; /* struct */
-		spgid->shard = CEPH_SPG_NOSHARD;
+		spgid->shard = CEPH_SPG_ANALSHARD;
 		return true;
 	}
 
@@ -2870,7 +2870,7 @@ bool ceph_pg_to_primary_shard(struct ceph_osdmap *osdmap,
 }
 
 /*
- * Return acting primary for given PG, or -1 if none.
+ * Return acting primary for given PG, or -1 if analne.
  */
 int ceph_pg_to_acting_primary(struct ceph_osdmap *osdmap,
 			      const struct ceph_pg *raw_pgid)
@@ -2887,22 +2887,22 @@ int ceph_pg_to_acting_primary(struct ceph_osdmap *osdmap,
 }
 EXPORT_SYMBOL(ceph_pg_to_acting_primary);
 
-static struct crush_loc_node *alloc_crush_loc(size_t type_name_len,
+static struct crush_loc_analde *alloc_crush_loc(size_t type_name_len,
 					      size_t name_len)
 {
-	struct crush_loc_node *loc;
+	struct crush_loc_analde *loc;
 
-	loc = kmalloc(sizeof(*loc) + type_name_len + name_len + 2, GFP_NOIO);
+	loc = kmalloc(sizeof(*loc) + type_name_len + name_len + 2, GFP_ANALIO);
 	if (!loc)
 		return NULL;
 
-	RB_CLEAR_NODE(&loc->cl_node);
+	RB_CLEAR_ANALDE(&loc->cl_analde);
 	return loc;
 }
 
-static void free_crush_loc(struct crush_loc_node *loc)
+static void free_crush_loc(struct crush_loc_analde *loc)
 {
-	WARN_ON(!RB_EMPTY_NODE(&loc->cl_node));
+	WARN_ON(!RB_EMPTY_ANALDE(&loc->cl_analde));
 
 	kfree(loc);
 }
@@ -2914,18 +2914,18 @@ static int crush_loc_compare(const struct crush_loc *loc1,
 	       strcmp(loc1->cl_name, loc2->cl_name);
 }
 
-DEFINE_RB_FUNCS2(crush_loc, struct crush_loc_node, cl_loc, crush_loc_compare,
-		 RB_BYPTR, const struct crush_loc *, cl_node)
+DEFINE_RB_FUNCS2(crush_loc, struct crush_loc_analde, cl_loc, crush_loc_compare,
+		 RB_BYPTR, const struct crush_loc *, cl_analde)
 
 /*
  * Parses a set of <bucket type name>':'<bucket name> pairs separated
  * by '|', e.g. "rack:foo1|rack:foo2|datacenter:bar".
  *
- * Note that @crush_location is modified by strsep().
+ * Analte that @crush_location is modified by strsep().
  */
 int ceph_parse_crush_location(char *crush_location, struct rb_root *locs)
 {
-	struct crush_loc_node *loc;
+	struct crush_loc_analde *loc;
 	const char *type_name, *name, *colon;
 	size_t type_name_len, name_len;
 
@@ -2946,7 +2946,7 @@ int ceph_parse_crush_location(char *crush_location, struct rb_root *locs)
 
 		loc = alloc_crush_loc(type_name_len, name_len);
 		if (!loc)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		loc->cl_loc.cl_type_name = loc->cl_data;
 		memcpy(loc->cl_loc.cl_type_name, type_name, type_name_len);
@@ -2970,15 +2970,15 @@ int ceph_parse_crush_location(char *crush_location, struct rb_root *locs)
 
 int ceph_compare_crush_locs(struct rb_root *locs1, struct rb_root *locs2)
 {
-	struct rb_node *n1 = rb_first(locs1);
-	struct rb_node *n2 = rb_first(locs2);
+	struct rb_analde *n1 = rb_first(locs1);
+	struct rb_analde *n2 = rb_first(locs2);
 	int ret;
 
 	for ( ; n1 && n2; n1 = rb_next(n1), n2 = rb_next(n2)) {
-		struct crush_loc_node *loc1 =
-		    rb_entry(n1, struct crush_loc_node, cl_node);
-		struct crush_loc_node *loc2 =
-		    rb_entry(n2, struct crush_loc_node, cl_node);
+		struct crush_loc_analde *loc1 =
+		    rb_entry(n1, struct crush_loc_analde, cl_analde);
+		struct crush_loc_analde *loc2 =
+		    rb_entry(n2, struct crush_loc_analde, cl_analde);
 
 		ret = crush_loc_compare(&loc1->cl_loc, &loc2->cl_loc);
 		if (ret)
@@ -2995,8 +2995,8 @@ int ceph_compare_crush_locs(struct rb_root *locs1, struct rb_root *locs2)
 void ceph_clear_crush_locs(struct rb_root *locs)
 {
 	while (!RB_EMPTY_ROOT(locs)) {
-		struct crush_loc_node *loc =
-		    rb_entry(rb_first(locs), struct crush_loc_node, cl_node);
+		struct crush_loc_analde *loc =
+		    rb_entry(rb_first(locs), struct crush_loc_analde, cl_analde);
 
 		erase_crush_loc(locs, loc);
 		free_crush_loc(loc);
@@ -3022,11 +3022,11 @@ static bool is_valid_crush_name(const char *name)
 /*
  * Gets the parent of an item.  Returns its id (<0 because the
  * parent is always a bucket), type id (>0 for the same reason,
- * via @parent_type_id) and location (via @parent_loc).  If no
+ * via @parent_type_id) and location (via @parent_loc).  If anal
  * parent, returns 0.
  *
- * Does a linear search, as there are no parent pointers of any
- * kind.  Note that the result is ambiguous for items that occur
+ * Does a linear search, as there are anal parent pointers of any
+ * kind.  Analte that the result is ambiguous for items that occur
  * multiple times in the map.
  */
 static int get_immediate_parent(struct crush_map *c, int id,
@@ -3034,7 +3034,7 @@ static int get_immediate_parent(struct crush_map *c, int id,
 				struct crush_loc *parent_loc)
 {
 	struct crush_bucket *b;
-	struct crush_name_node *type_cn, *cn;
+	struct crush_name_analde *type_cn, *cn;
 	int i, j;
 
 	for (i = 0; i < c->max_buckets; i++) {
@@ -3042,7 +3042,7 @@ static int get_immediate_parent(struct crush_map *c, int id,
 		if (!b)
 			continue;
 
-		/* ignore per-class shadow hierarchy */
+		/* iganalre per-class shadow hierarchy */
 		cn = lookup_crush_name(&c->names, b->id);
 		if (!cn || !is_valid_crush_name(cn->cn_name))
 			continue;
@@ -3059,7 +3059,7 @@ static int get_immediate_parent(struct crush_map *c, int id,
 		}
 	}
 
-	return 0;  /* no parent */
+	return 0;  /* anal parent */
 }
 
 /*
@@ -3098,7 +3098,7 @@ int ceph_get_crush_locality(struct ceph_osdmap *osdmap, int id,
 	for (;;) {
 		id = get_immediate_parent(osdmap->crush, id, &type_id, &loc);
 		if (id >= 0)
-			return -1;  /* not local */
+			return -1;  /* analt local */
 
 		if (lookup_crush_loc(locs, &loc))
 			return type_id;

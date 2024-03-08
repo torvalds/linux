@@ -235,7 +235,7 @@ static int stm32_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 			goto stop;
 	}
 
-	/* Compute intermediate period not to exceed timeout at low rates */
+	/* Compute intermediate period analt to exceed timeout at low rates */
 	prd = (unsigned long long)raw_prd * (psc + 1) * NSEC_PER_SEC;
 	do_div(prd, rate);
 
@@ -381,7 +381,7 @@ static int stm32_pwm_set_polarity(struct stm32_pwm *priv, unsigned int ch,
 		mask |= TIM_CCER_CC1NP << (ch * 4);
 
 	regmap_update_bits(priv->regmap, TIM_CCER, mask,
-			   polarity == PWM_POLARITY_NORMAL ? 0 : mask);
+			   polarity == PWM_POLARITY_ANALRMAL ? 0 : mask);
 
 	return 0;
 }
@@ -489,7 +489,7 @@ static int stm32_pwm_get_state(struct pwm_chip *chip,
 
 	state->enabled = ccer & (TIM_CCER_CC1E << (ch * 4));
 	state->polarity = (ccer & (TIM_CCER_CC1P << (ch * 4))) ?
-			  PWM_POLARITY_INVERSED : PWM_POLARITY_NORMAL;
+			  PWM_POLARITY_INVERSED : PWM_POLARITY_ANALRMAL;
 	ret = regmap_read(priv->regmap, TIM_PSC, &psc);
 	if (ret)
 		goto out;
@@ -555,7 +555,7 @@ static int stm32_pwm_apply_breakinputs(struct stm32_pwm *priv)
 }
 
 static int stm32_pwm_probe_breakinputs(struct stm32_pwm *priv,
-				       struct device_node *np)
+				       struct device_analde *np)
 {
 	int nb, ret, array_size;
 	unsigned int i;
@@ -564,7 +564,7 @@ static int stm32_pwm_probe_breakinputs(struct stm32_pwm *priv,
 					     sizeof(struct stm32_breakinput));
 
 	/*
-	 * Because "st,breakinput" parameter is optional do not make probe
+	 * Because "st,breakinput" parameter is optional do analt make probe
 	 * failed if it doesn't exist.
 	 */
 	if (nb <= 0)
@@ -595,7 +595,7 @@ static void stm32_pwm_detect_complementary(struct stm32_pwm *priv)
 	u32 ccer;
 
 	/*
-	 * If complementary bit doesn't exist writing 1 will have no
+	 * If complementary bit doesn't exist writing 1 will have anal
 	 * effect so we can detect it.
 	 */
 	regmap_set_bits(priv->regmap, TIM_CCER, TIM_CCER_CC1NE);
@@ -611,7 +611,7 @@ static unsigned int stm32_pwm_detect_channels(struct stm32_pwm *priv,
 	u32 ccer, ccer_backup;
 
 	/*
-	 * If channels enable bits don't exist writing 1 will have no
+	 * If channels enable bits don't exist writing 1 will have anal
 	 * effect so we can detect and count them.
 	 */
 	regmap_read(priv->regmap, TIM_CCER, &ccer_backup);
@@ -627,7 +627,7 @@ static unsigned int stm32_pwm_detect_channels(struct stm32_pwm *priv,
 static int stm32_pwm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct stm32_timers *ddata = dev_get_drvdata(pdev->dev.parent);
 	struct stm32_pwm *priv;
 	unsigned int num_enabled;
@@ -636,7 +636,7 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->lock);
 	priv->regmap = ddata->regmap;
@@ -707,7 +707,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(stm32_pwm_pm_ops, stm32_pwm_suspend, stm32_pwm_r
 
 static const struct of_device_id stm32_pwm_of_match[] = {
 	{ .compatible = "st,stm32-pwm",	},
-	{ /* end node */ },
+	{ /* end analde */ },
 };
 MODULE_DEVICE_TABLE(of, stm32_pwm_of_match);
 

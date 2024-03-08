@@ -26,7 +26,7 @@
 #define BCOVE_USBIDSTS_GND		BIT(0)
 #define BCOVE_USBIDSTS_RARBRC_MASK	GENMASK(2, 1)
 #define BCOVE_USBIDSTS_RARBRC_SHIFT	1
-#define BCOVE_USBIDSTS_NO_ACA		0
+#define BCOVE_USBIDSTS_ANAL_ACA		0
 #define BCOVE_USBIDSTS_R_ID_A		1
 #define BCOVE_USBIDSTS_R_ID_B		2
 #define BCOVE_USBIDSTS_R_ID_C		3
@@ -44,7 +44,7 @@
 #define BCOVE_CHGRCTRL0_TTLCK		BIT(4)
 #define BCOVE_CHGRCTRL0_BIT_5		BIT(5)
 #define BCOVE_CHGRCTRL0_BIT_6		BIT(6)
-#define BCOVE_CHGRCTRL0_CHR_WDT_NOKICK	BIT(7)
+#define BCOVE_CHGRCTRL0_CHR_WDT_ANALKICK	BIT(7)
 
 struct mrfld_extcon_data {
 	struct device *dev;
@@ -61,7 +61,7 @@ static const unsigned int mrfld_extcon_cable[] = {
 	EXTCON_CHG_USB_CDP,
 	EXTCON_CHG_USB_DCP,
 	EXTCON_CHG_USB_ACA,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 static int mrfld_extcon_clear(struct mrfld_extcon_data *data, unsigned int reg,
@@ -127,7 +127,7 @@ static int mrfld_extcon_get_id(struct mrfld_extcon_data *data)
 		return ground ? INTEL_USB_ID_FLOAT : INTEL_USB_ID_GND;
 	}
 
-	/* Unknown or unsupported type */
+	/* Unkanalwn or unsupported type */
 	return INTEL_USB_ID_FLOAT;
 }
 
@@ -166,7 +166,7 @@ static int mrfld_extcon_cable_detect(struct mrfld_extcon_data *data)
 
 	change = status ^ data->status;
 	if (!change)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (change & BCOVE_CHGRIRQ_USBIDDET) {
 		ret = mrfld_extcon_role_detect(data);
@@ -188,7 +188,7 @@ static irqreturn_t mrfld_extcon_interrupt(int irq, void *dev_id)
 
 	mrfld_extcon_clear(data, BCOVE_MIRQLVL1, BCOVE_LVL1_CHGR);
 
-	return ret ? IRQ_NONE: IRQ_HANDLED;
+	return ret ? IRQ_ANALNE: IRQ_HANDLED;
 }
 
 static int mrfld_extcon_probe(struct platform_device *pdev)
@@ -207,14 +207,14 @@ static int mrfld_extcon_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = dev;
 	data->regmap = regmap;
 
 	data->edev = devm_extcon_dev_allocate(dev, mrfld_extcon_cable);
 	if (IS_ERR(data->edev))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_extcon_dev_register(dev, data->edev);
 	if (ret < 0) {

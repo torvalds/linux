@@ -8,7 +8,7 @@
  * __ffs - find first bit in word.
  * @word: The word to search
  *
- * Undefined if no bit exists, so code should check against 0 first.
+ * Undefined if anal bit exists, so code should check against 0 first.
  */
 static __always_inline unsigned long __ffs(unsigned long word)
 {

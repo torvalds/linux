@@ -141,7 +141,7 @@ static void cpsw_gmii_sel_dra7xx(struct cpsw_phy_sel_priv *priv,
 	}
 
 	if (priv->rmii_clock_external)
-		dev_err(priv->dev, "RMII External clock is not supported\n");
+		dev_err(priv->dev, "RMII External clock is analt supported\n");
 
 	reg &= ~mask;
 	reg |= mode;
@@ -152,28 +152,28 @@ static void cpsw_gmii_sel_dra7xx(struct cpsw_phy_sel_priv *priv,
 static struct platform_driver cpsw_phy_sel_driver;
 static int match(struct device *dev, const void *data)
 {
-	const struct device_node *node = (const struct device_node *)data;
-	return dev->of_node == node &&
+	const struct device_analde *analde = (const struct device_analde *)data;
+	return dev->of_analde == analde &&
 		dev->driver == &cpsw_phy_sel_driver.driver;
 }
 
 void cpsw_phy_sel(struct device *dev, phy_interface_t phy_mode, int slave)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct cpsw_phy_sel_priv *priv;
 
-	node = of_parse_phandle(dev->of_node, "cpsw-phy-sel", 0);
-	if (!node) {
-		node = of_get_child_by_name(dev->of_node, "cpsw-phy-sel");
-		if (!node) {
-			dev_err(dev, "Phy mode driver DT not found\n");
+	analde = of_parse_phandle(dev->of_analde, "cpsw-phy-sel", 0);
+	if (!analde) {
+		analde = of_get_child_by_name(dev->of_analde, "cpsw-phy-sel");
+		if (!analde) {
+			dev_err(dev, "Phy mode driver DT analt found\n");
 			return;
 		}
 	}
 
-	dev = bus_find_device(&platform_bus_type, NULL, node, match);
+	dev = bus_find_device(&platform_bus_type, NULL, analde, match);
 	if (!dev) {
-		dev_err(dev, "unable to find platform device for %pOF\n", node);
+		dev_err(dev, "unable to find platform device for %pOF\n", analde);
 		goto out;
 	}
 
@@ -183,7 +183,7 @@ void cpsw_phy_sel(struct device *dev, phy_interface_t phy_mode, int slave)
 
 	put_device(dev);
 out:
-	of_node_put(node);
+	of_analde_put(analde);
 }
 EXPORT_SYMBOL_GPL(cpsw_phy_sel);
 
@@ -208,14 +208,14 @@ static int cpsw_phy_sel_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	struct cpsw_phy_sel_priv *priv;
 
-	of_id = of_match_node(cpsw_phy_sel_id_table, pdev->dev.of_node);
+	of_id = of_match_analde(cpsw_phy_sel_id_table, pdev->dev.of_analde);
 	if (!of_id)
 		return -EINVAL;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(&pdev->dev, "unable to alloc memory for cpsw phy sel\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv->dev = &pdev->dev;
@@ -225,7 +225,7 @@ static int cpsw_phy_sel_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->gmii_sel))
 		return PTR_ERR(priv->gmii_sel);
 
-	priv->rmii_clock_external = of_property_read_bool(pdev->dev.of_node, "rmii-clock-ext");
+	priv->rmii_clock_external = of_property_read_bool(pdev->dev.of_analde, "rmii-clock-ext");
 
 	dev_set_drvdata(&pdev->dev, priv);
 

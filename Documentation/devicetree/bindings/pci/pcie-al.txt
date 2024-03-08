@@ -1,10 +1,10 @@
 * Amazon Annapurna Labs PCIe host bridge
 
-Amazon's Annapurna Labs PCIe Host Controller is based on the Synopsys DesignWare
+Amazon's Annapurna Labs PCIe Host Controller is based on the Syanalpsys DesignWare
 PCI core. It inherits common properties defined in
 Documentation/devicetree/bindings/pci/snps,dw-pcie.yaml.
 
-Properties of the host controller node that differ from it are:
+Properties of the host controller analde that differ from it are:
 
 - compatible:
 	Usage: required

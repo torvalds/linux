@@ -8,7 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/video.h>
@@ -260,7 +260,7 @@ static int uvcg_video_ep_queue(struct uvc_video *video, struct usb_request *req)
 
 		/* If the endpoint is disabled the descriptor may be NULL. */
 		if (video->ep->desc) {
-			/* Isochronous endpoints can't be halted. */
+			/* Isochroanalus endpoints can't be halted. */
 			if (usb_endpoint_xfer_bulk(video->ep->desc))
 				usb_ep_set_halt(video->ep);
 		}
@@ -277,7 +277,7 @@ static int uvcg_video_usb_req_queue(struct uvc_video *video,
 	struct list_head *list = NULL;
 
 	if (!video->is_enabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (queue_to_ep) {
 		struct uvc_request *ureq = req->context;
@@ -286,7 +286,7 @@ static int uvcg_video_usb_req_queue(struct uvc_video *video,
 		 * afford to generate an interrupt for every request. Decide to
 		 * interrupt:
 		 *
-		 * - When no more requests are available in the free queue, as
+		 * - When anal more requests are available in the free queue, as
 		 *   this may be our last chance to refill the endpoint's
 		 *   request queue.
 		 *
@@ -303,15 +303,15 @@ static int uvcg_video_usb_req_queue(struct uvc_video *video,
 			!(video->req_int_count %
 			DIV_ROUND_UP(video->uvc_num_requests, 4))) {
 			video->req_int_count = 0;
-			req->no_interrupt = 0;
+			req->anal_interrupt = 0;
 		} else {
-			req->no_interrupt = 1;
+			req->anal_interrupt = 1;
 		}
 		video->req_int_count++;
 		return uvcg_video_ep_queue(video, req);
 	}
 	/*
-	 * If we're not queuing to the ep, for isoc we're queuing
+	 * If we're analt queuing to the ep, for isoc we're queuing
 	 * to the req_ready list, otherwise req_free.
 	 */
 	list = is_bulk ? &video->req_free : &video->req_ready;
@@ -336,7 +336,7 @@ static void uvc_video_ep_queue_initial_requests(struct uvc_video *video)
 	 * We only queue half of the free list since we still want to have
 	 * some free usb_requests in the free list for the video_pump async_wq
 	 * thread to encode uvc buffers into. Otherwise we could get into a
-	 * situation where the free list does not have any usb requests to
+	 * situation where the free list does analt have any usb requests to
 	 * encode into - we always end up queueing 0 length requests to the
 	 * end point.
 	 */
@@ -434,7 +434,7 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 		 * length request to the ep. Since we always add to the req_free
 		 * list if we dequeue from the ready list, there will never
 		 * be a situation where the req_free list is completely out of
-		 * requests and cannot recover.
+		 * requests and cananalt recover.
 		 */
 		struct usb_request *to_queue = req;
 
@@ -446,13 +446,13 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 			list_add_tail(&req->list, &video->req_free);
 			/*
 			 * Queue work to the wq as well since it is possible that a
-			 * buffer may not have been completely encoded with the set of
+			 * buffer may analt have been completely encoded with the set of
 			 * in-flight usb requests for whih the complete callbacks are
 			 * firing.
-			 * In that case, if we do not queue work to the worker thread,
+			 * In that case, if we do analt queue work to the worker thread,
 			 * the buffer will never be marked as complete - and therefore
-			 * not be returned to userpsace. As a result,
-			 * dequeue -> queue -> dequeue flow of uvc buffers will not
+			 * analt be returned to userpsace. As a result,
+			 * dequeue -> queue -> dequeue flow of uvc buffers will analt
 			 * happen.
 			 */
 			queue_work(video->async_wq, &video->pump);
@@ -501,7 +501,7 @@ uvc_video_alloc_requests(struct uvc_video *video)
 	struct uvc_request *ureq;
 	unsigned int req_size;
 	unsigned int i;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	BUG_ON(video->req_size);
 
@@ -599,7 +599,7 @@ static void uvcg_video_pump(struct work_struct *work)
 			video->encode(req, video, buf);
 		} else {
 			/*
-			 * Either the queue has been disconnected or no video buffer
+			 * Either the queue has been disconnected or anal video buffer
 			 * available for bulk transfer. Either way, stop processing
 			 * further.
 			 */
@@ -611,7 +611,7 @@ static void uvcg_video_pump(struct work_struct *work)
 
 		spin_lock_irqsave(&video->req_lock, flags);
 		/* For bulk end points we queue from the worker thread
-		 * since we would preferably not want to wait on requests
+		 * since we would preferably analt want to wait on requests
 		 * to be ready, in the uvcg_video_complete() handler.
 		 * For isoc endpoints we add the request to the ready list
 		 * and only queue it to the endpoint from the complete handler.
@@ -654,7 +654,7 @@ uvcg_video_disable(struct uvc_video *video)
 	if (video->ep == NULL) {
 		uvcg_info(&video->uvc->func,
 			  "Video disable failed, device is uninitialized.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	INIT_LIST_HEAD(&inflight_bufs);
@@ -683,7 +683,7 @@ uvcg_video_disable(struct uvc_video *video)
 	/*
 	 * Remove all uvc_requests from ureqs with list_del_init
 	 * This lets uvc_video_free_request correctly identify
-	 * if the uvc_request is attached to a list or not when freeing
+	 * if the uvc_request is attached to a list or analt when freeing
 	 * memory.
 	 */
 	list_for_each_entry_safe(ureq, utemp, &video->ureqs, list)
@@ -729,12 +729,12 @@ int uvcg_video_enable(struct uvc_video *video)
 	if (video->ep == NULL) {
 		uvcg_info(&video->uvc->func,
 			  "Video enable failed, device is uninitialized.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
 	 * Safe to access request related fields without req_lock because
-	 * this is the only thread currently active, and no other
+	 * this is the only thread currently active, and anal other
 	 * request handling thread will become active until this function
 	 * returns.
 	 */
@@ -772,7 +772,7 @@ int uvcg_video_init(struct uvc_video *video, struct uvc_device *uvc)
 	spin_lock_init(&video->req_lock);
 	INIT_WORK(&video->pump, uvcg_video_pump);
 
-	/* Allocate a work queue for asynchronous video pump handler. */
+	/* Allocate a work queue for asynchroanalus video pump handler. */
 	video->async_wq = alloc_workqueue("uvcgadget", WQ_UNBOUND | WQ_HIGHPRI, 0);
 	if (!video->async_wq)
 		return -EINVAL;

@@ -46,8 +46,8 @@ struct omap_vfsm_instance {
 /**
  * struct voltagedomain - omap voltage domain global structure.
  * @name: Name of the voltage domain which can be used as a unique identifier.
- * @scalable: Whether or not this voltage domain is scalable
- * @node: list_head linking all voltage domains
+ * @scalable: Whether or analt this voltage domain is scalable
+ * @analde: list_head linking all voltage domains
  * @vc: pointer to VC channel associated with this voltagedomain
  * @vp: pointer to VP associated with this voltagedomain
  * @read: read a VC/VP register
@@ -55,14 +55,14 @@ struct omap_vfsm_instance {
  * @read: read-modify-write a VC/VP register
  * @sys_clk: system clock name/frequency, used for various timing calculations
  * @scale: function used to scale the voltage of the voltagedomain
- * @nominal_volt: current nominal voltage for this voltage domain
+ * @analminal_volt: current analminal voltage for this voltage domain
  * @volt_data: voltage table having the distinct voltages supported
  *             by the domain and other associated per voltage data.
  */
 struct voltagedomain {
 	char *name;
 	bool scalable;
-	struct list_head node;
+	struct list_head analde;
 	struct omap_vc_channel *vc;
 	const struct omap_vfsm_instance *vfsm;
 	struct omap_vp_instance *vp;
@@ -83,7 +83,7 @@ struct voltagedomain {
 	int (*scale) (struct voltagedomain *voltdm,
 		      unsigned long target_volt);
 
-	u32 nominal_volt;
+	u32 analminal_volt;
 	struct omap_volt_data *volt_data;
 };
 

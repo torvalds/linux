@@ -13,7 +13,7 @@
 
 #include <linux/bitops.h>
 
-/* Normal transmit descriptor defines (without split feature) */
+/* Analrmal transmit descriptor defines (without split feature) */
 
 /* TDES2 (read format) */
 #define TDES2_BUFFER1_SIZE_MASK		GENMASK(13, 0)
@@ -52,7 +52,7 @@
 #define TDES3_COLLISION_COUNT_SHIFT	4
 #define TDES3_EXCESSIVE_COLLISION	BIT(8)
 #define TDES3_LATE_COLLISION		BIT(9)
-#define TDES3_NO_CARRIER		BIT(10)
+#define TDES3_ANAL_CARRIER		BIT(10)
 #define TDES3_LOSS_CARRIER		BIT(11)
 #define TDES3_PAYLOAD_ERROR		BIT(12)
 #define TDES3_PACKET_FLUSHED		BIT(13)
@@ -84,7 +84,7 @@
 #define TDES3_OWN			BIT(31)
 #define TDES3_OWN_SHIFT			31
 
-/* Normal receive descriptor defines (without split feature) */
+/* Analrmal receive descriptor defines (without split feature) */
 
 /* RDES0 (write back format) */
 #define RDES0_VLAN_TAG_MASK		GENMASK(15, 0)

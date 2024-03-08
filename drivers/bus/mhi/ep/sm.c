@@ -4,7 +4,7 @@
  * Author: Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mhi_ep.h>
 #include "internal.h"
 
@@ -32,7 +32,7 @@ int mhi_ep_set_mhi_state(struct mhi_ep_cntrl *mhi_cntrl, enum mhi_state mhi_stat
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
 
 	if (!mhi_ep_check_mhi_state(mhi_cntrl, mhi_cntrl->mhi_state, mhi_state)) {
-		dev_err(dev, "MHI state change to %s from %s is not allowed!\n",
+		dev_err(dev, "MHI state change to %s from %s is analt allowed!\n",
 			mhi_state_str(mhi_state),
 			mhi_state_str(mhi_cntrl->mhi_state));
 		return -EACCES;
@@ -40,8 +40,8 @@ int mhi_ep_set_mhi_state(struct mhi_ep_cntrl *mhi_cntrl, enum mhi_state mhi_stat
 
 	/* TODO: Add support for M1 and M2 states */
 	if (mhi_state == MHI_STATE_M1 || mhi_state == MHI_STATE_M2) {
-		dev_err(dev, "MHI state (%s) not supported\n", mhi_state_str(mhi_state));
-		return -EOPNOTSUPP;
+		dev_err(dev, "MHI state (%s) analt supported\n", mhi_state_str(mhi_state));
+		return -EOPANALTSUPP;
 	}
 
 	mhi_ep_mmio_masked_write(mhi_cntrl, EP_MHISTATUS, MHISTATUS_MHISTATE_MASK, mhi_state);
@@ -138,7 +138,7 @@ int mhi_ep_set_ready_state(struct mhi_ep_cntrl *mhi_cntrl)
 	is_ready = mhi_ep_mmio_masked_read(mhi_cntrl, EP_MHISTATUS, MHISTATUS_READY_MASK);
 
 	if (mhi_state != MHI_STATE_RESET || is_ready) {
-		dev_err(dev, "READY state transition failed. MHI host not in RESET state\n");
+		dev_err(dev, "READY state transition failed. MHI host analt in RESET state\n");
 		ret = -EIO;
 		goto err_unlock;
 	}

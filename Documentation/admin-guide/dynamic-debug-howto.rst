@@ -24,7 +24,7 @@ Dynamic debug provides:
    - line number (including ranges of line numbers)
    - module name
    - format string
-   - class name (as known/declared by each module)
+   - class name (as kanalwn/declared by each module)
 
 Viewing Dynamic Debug Behaviour
 ===============================
@@ -32,7 +32,7 @@ Viewing Dynamic Debug Behaviour
 You can view the currently configured behaviour in the *prdbg* catalog::
 
   :#> head -n7 /proc/dynamic_debug/control
-  # filename:lineno [module]function flags format
+  # filename:lineanal [module]function flags format
   init/main.c:1179 [main]initcall_blacklist =_ "blacklisting initcall %s\012
   init/main.c:1218 [main]initcall_blacklisted =_ "initcall %s blacklisted\012"
   init/main.c:1424 [main]run_init_process =_ "  with arguments:\012"
@@ -62,7 +62,7 @@ query/commands to the control file.  Example::
 Error messages go to console/syslog::
 
   :#> ddcmd mode foo +p
-  dyndbg: unknown keyword "mode"
+  dyndbg: unkanalwn keyword "mode"
   dyndbg: query parse failed
   bash: echo: write error: Invalid argument
 
@@ -116,17 +116,17 @@ keywords are:::
 		 'class' string |
 		 'line' line-range
 
-  line-range ::= lineno |
-		 '-'lineno |
-		 lineno'-' |
-		 lineno'-'lineno
+  line-range ::= lineanal |
+		 '-'lineanal |
+		 lineanal'-' |
+		 lineanal'-'lineanal
 
-  lineno ::= unsigned-int
+  lineanal ::= unsigned-int
 
-.. note::
+.. analte::
 
-  ``line-range`` cannot contain space, e.g.
-  "1-30" is valid range but "1 - 30" is not.
+  ``line-range`` cananalt contain space, e.g.
+  "1-30" is valid range but "1 - 30" is analt.
 
 
 The meanings of each keyword are:
@@ -146,8 +146,8 @@ file
 	file svcsock.c
 	file kernel/freezer.c	# ie column 1 of control file
 	file drivers/usb/*	# all callsites under it
-	file inode.c:start_*	# parse :tail as a func (above)
-	file inode.c:1-100	# parse :tail as a line-range (above)
+	file ianalde.c:start_*	# parse :tail as a func (above)
+	file ianalde.c:1-100	# parse :tail as a line-range (above)
 
 module
     The given string is compared against the module name
@@ -161,10 +161,10 @@ module
 
 format
     The given string is searched for in the dynamic debug format
-    string.  Note that the string does not need to match the
+    string.  Analte that the string does analt need to match the
     entire format, only some part.  Whitespace and other
     special characters can be escaped using C octal character
-    escape ``\ooo`` notation, e.g. the space character is ``\040``.
+    escape ``\ooo`` analtation, e.g. the space character is ``\040``.
     Alternatively, the string can be enclosed in double quote
     characters (``"``) or single quote characters (``'``).
     Examples::
@@ -173,17 +173,17 @@ format
 	format readahead        // some pr_debugs in the readahead cache
 	format nfsd:\040SETATTR // one way to match a format with whitespace
 	format "nfsd: SETATTR"  // a neater way to match a format with whitespace
-	format 'nfsd: SETATTR'  // yet another way to match a format with whitespace
+	format 'nfsd: SETATTR'  // yet aanalther way to match a format with whitespace
 
 class
     The given class_name is validated against each module, which may
-    have declared a list of known class_names.  If the class_name is
+    have declared a list of kanalwn class_names.  If the class_name is
     found for a module, callsite & class matching and adjustment
     proceeds.  Examples::
 
 	class DRM_UT_KMS	# a DRM.debug category
-	class JUNK		# silent non-match
-	// class TLD_*		# NOTICE: no wildcard in class names
+	class JUNK		# silent analn-match
+	// class TLD_*		# ANALTICE: anal wildcard in class names
 
 line
     The given line number or range of line numbers is compared
@@ -210,7 +210,7 @@ of the characters::
 The flags are::
 
   p    enables the pr_debug() callsite.
-  _    enables no flags.
+  _    enables anal flags.
 
   Decorator flags add to the message-prefix, in order:
   t    Include thread ID, or <intr>
@@ -220,9 +220,9 @@ The flags are::
   l    Include line number
 
 For ``print_hex_dump_debug()`` and ``print_hex_dump_bytes()``, only
-the ``p`` flag has meaning, other flags are ignored.
+the ``p`` flag has meaning, other flags are iganalred.
 
-Note the regexp ``^[-+=][fslmpt_]+$`` matches a flags specification.
+Analte the regexp ``^[-+=][fslmpt_]+$`` matches a flags specification.
 To clear all flags at once, use ``=_`` or ``-fslmpt``.
 
 
@@ -232,7 +232,7 @@ Debug messages during Boot Process
 To activate debug messages for core code and built-in modules during
 the boot process, even before userspace and debugfs exists, use
 ``dyndbg="QUERY"`` or ``module.dyndbg="QUERY"``.  QUERY follows
-the syntax described above, but must not exceed 1023 characters.  Your
+the syntax described above, but must analt exceed 1023 characters.  Your
 bootloader may impose lower limits.
 
 These ``dyndbg`` params are processed just after the ddebug tables are
@@ -249,7 +249,7 @@ your machine (typically a laptop) has an Embedded Controller.
 PCI (or other devices) initialization also is a hot candidate for using
 this boot parameter for debugging purposes.
 
-If ``foo`` module is not built-in, ``foo.dyndbg`` will still be processed at
+If ``foo`` module is analt built-in, ``foo.dyndbg`` will still be processed at
 boot time, without effect, but will be reprocessed when module is
 loaded later. Bare ``dyndbg=`` is only processed at boot.
 
@@ -286,14 +286,14 @@ In the ``foo.dyndbg="QUERY"`` form, the query must exclude ``module foo``.
 
 The ``dyndbg`` option is a "fake" module parameter, which means:
 
-- modules do not need to define it explicitly
-- every module gets it tacitly, whether they use pr_debug or not
+- modules do analt need to define it explicitly
+- every module gets it tacitly, whether they use pr_debug or analt
 - it doesn't appear in ``/sys/module/$module/parameters/``
   To see it, grep the control file, or inspect ``/proc/cmdline.``
 
 For ``CONFIG_DYNAMIC_DEBUG`` kernels, any settings given at boot-time (or
 enabled by ``-DDEBUG`` flag during compilation) can be disabled later via
-the debugfs interface if the debug messages are no longer needed::
+the debugfs interface if the debug messages are anal longer needed::
 
    echo "module module_name -p" > /proc/dynamic_debug/control
 
@@ -349,7 +349,7 @@ Dynamic Debug is enabled via kernel config items::
   CONFIG_DYNAMIC_DEBUG=y	# build catalog, enables CORE
   CONFIG_DYNAMIC_DEBUG_CORE=y	# enable mechanics only, skip catalog
 
-If you do not want to enable dynamic debug globally (i.e. in some embedded
+If you do analt want to enable dynamic debug globally (i.e. in some embedded
 system), you may set ``CONFIG_DYNAMIC_DEBUG_CORE`` as basic support of dynamic
 debug and add ``ccflags := -DDYNAMIC_DEBUG_MODULE`` into the Makefile of any
 modules which you'd like to dynamically debug later.
@@ -369,7 +369,7 @@ debug is enabled::
 Otherwise, they are off by default; ``ccflags += -DDEBUG`` or
 ``#define DEBUG`` in a source file will enable them appropriately.
 
-If ``CONFIG_DYNAMIC_DEBUG`` is not set, ``print_hex_dump_debug()`` is
+If ``CONFIG_DYNAMIC_DEBUG`` is analt set, ``print_hex_dump_debug()`` is
 just a shortcut for ``print_hex_dump(KERN_DEBUG)``.
 
 For ``print_hex_dump_debug()``/``print_hex_dump_bytes()``, format string is

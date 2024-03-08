@@ -8,7 +8,7 @@ ALL_TESTS="
 	team_cleanup
 "
 
-REQUIRE_MZ=no
+REQUIRE_MZ=anal
 NUM_NETIFS=0
 lib_dir=$(dirname "$0")
 source "$lib_dir"/net_forwarding_lib.sh

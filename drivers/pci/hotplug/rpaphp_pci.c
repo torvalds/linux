@@ -27,25 +27,25 @@
  *    -3: Invalid sensor. RTAS Parameter Error.
  * -- rtas_get_sensor function specific return codes ---
  * -9000: Need DR entity to be powered up and unisolated before RTAS call
- * -9001: Need DR entity to be powered up, but not unisolated, before RTAS call
+ * -9001: Need DR entity to be powered up, but analt unisolated, before RTAS call
  * -9002: DR entity unusable
  *  990x: Extended delay - where x is a number in the range of 0-5
  */
 #define RTAS_SLOT_UNISOLATED		-9000
-#define RTAS_SLOT_NOT_UNISOLATED	-9001
-#define RTAS_SLOT_NOT_USABLE		-9002
+#define RTAS_SLOT_ANALT_UNISOLATED	-9001
+#define RTAS_SLOT_ANALT_USABLE		-9002
 
-static int rtas_get_sensor_errno(int rtas_rc)
+static int rtas_get_sensor_erranal(int rtas_rc)
 {
 	switch (rtas_rc) {
 	case 0:
 		/* Success case */
 		return 0;
 	case RTAS_SLOT_UNISOLATED:
-	case RTAS_SLOT_NOT_UNISOLATED:
+	case RTAS_SLOT_ANALT_UNISOLATED:
 		return -EFAULT;
-	case RTAS_SLOT_NOT_USABLE:
-		return -ENODEV;
+	case RTAS_SLOT_ANALT_USABLE:
+		return -EANALDEV;
 	case RTAS_BUSY:
 	case RTAS_EXTENDED_DELAY_MIN...RTAS_EXTENDED_DELAY_MAX:
 		return -EBUSY;
@@ -61,11 +61,11 @@ static int rtas_get_sensor_errno(int rtas_rc)
  * interface rtas_get_sensor() loops over the RTAS call on extended delay
  * return code (9902) until the return value is either success (0) or error
  * (-1). This causes the EEH handler to get stuck for ~6 seconds before it
- * could notify that the PCI error has been detected and stop any active
+ * could analtify that the PCI error has been detected and stop any active
  * operations. This sometimes causes EEH recovery to fail. To avoid this issue,
  * invoke rtas_call(get-sensor-state) directly if the respective PE is in EEH
  * recovery state and return -EBUSY error based on RTAS return status. This
- * will help the EEH handler to notify the driver about the PCI error
+ * will help the EEH handler to analtify the driver about the PCI error
  * immediately and successfully proceed with EEH recovery steps.
  */
 
@@ -77,8 +77,8 @@ static int __rpaphp_get_sensor_state(struct slot *slot, int *state)
 	struct eeh_pe *pe;
 	struct pci_controller *phb = PCI_DN(slot->dn)->phb;
 
-	if (token == RTAS_UNKNOWN_SERVICE)
-		return -ENOENT;
+	if (token == RTAS_UNKANALWN_SERVICE)
+		return -EANALENT;
 
 	/*
 	 * Fallback to existing method for empty slot or PE isn't in EEH
@@ -93,7 +93,7 @@ static int __rpaphp_get_sensor_state(struct slot *slot, int *state)
 	if (pe && (pe->state & EEH_PE_RECOVERING)) {
 		rc = rtas_call(token, 2, 2, state, DR_ENTITY_SENSE,
 			       slot->index);
-		return rtas_get_sensor_errno(rc);
+		return rtas_get_sensor_erranal(rc);
 	}
 fallback:
 	return rtas_get_sensor(DR_ENTITY_SENSE, slot->index, state);
@@ -122,7 +122,7 @@ int rpaphp_get_sensor_state(struct slot *slot, int *state)
 			} else {
 				rc = __rpaphp_get_sensor_state(slot, state);
 			}
-		} else if (rc == -ENODEV)
+		} else if (rc == -EANALDEV)
 			info("%s: slot is unusable\n", __func__);
 		else
 			err("%s failed to get sensor state\n", __func__);
@@ -135,7 +135,7 @@ int rpaphp_get_sensor_state(struct slot *slot, int *state)
  * @slot: target &slot
  *
  * Initialize values in the slot structure to indicate if there is a pci card
- * plugged into the slot. If the slot is not empty, run the pcibios routine
+ * plugged into the slot. If the slot is analt empty, run the pcibios routine
  * to get pcibios stuff correctly set up.
  */
 int rpaphp_enable_slot(struct slot *slot)
@@ -155,9 +155,9 @@ int rpaphp_enable_slot(struct slot *slot)
 	if (rc)
 		return rc;
 
-	bus = pci_find_bus_by_node(slot->dn);
+	bus = pci_find_bus_by_analde(slot->dn);
 	if (!bus) {
-		err("%s: no pci_bus for dn %pOF\n", __func__, slot->dn);
+		err("%s: anal pci_bus for dn %pOF\n", __func__, slot->dn);
 		return -EINVAL;
 	}
 
@@ -166,11 +166,11 @@ int rpaphp_enable_slot(struct slot *slot)
 
 	/* if there's an adapter in the slot, go add the pci devices */
 	if (state == PRESENT) {
-		slot->state = NOT_CONFIGURED;
+		slot->state = ANALT_CONFIGURED;
 
-		/* non-empty slot has to have child */
+		/* analn-empty slot has to have child */
 		if (!slot->dn->child) {
-			err("%s: slot[%s]'s device_node doesn't have child for adapter\n",
+			err("%s: slot[%s]'s device_analde doesn't have child for adapter\n",
 			    __func__, slot->name);
 			return -EINVAL;
 		}

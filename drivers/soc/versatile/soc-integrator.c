@@ -36,7 +36,7 @@ static const char *integrator_arch_str(u32 id)
 	case 0x08:
 		return "AHB system bus, ASB processor bus";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -52,7 +52,7 @@ static const char *integrator_fpga_str(u32 id)
 	case 0x04:
 		return "EPM7256AE (Altera PLD)";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -103,28 +103,28 @@ static int __init integrator_soc_init(void)
 	struct regmap *syscon_regmap;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
-	struct device_node *np;
+	struct device_analde *np;
 	struct device *dev;
 	u32 val;
 	int ret;
 
-	np = of_find_matching_node(NULL, integrator_cm_match);
+	np = of_find_matching_analde(NULL, integrator_cm_match);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
-	syscon_regmap = syscon_node_to_regmap(np);
+	syscon_regmap = syscon_analde_to_regmap(np);
 	if (IS_ERR(syscon_regmap))
 		return PTR_ERR(syscon_regmap);
 
 	ret = regmap_read(syscon_regmap, INTEGRATOR_HDR_ID_OFFSET,
 			  &val);
 	if (ret)
-		return -ENODEV;
+		return -EANALDEV;
 	integrator_coreid = val;
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc_dev_attr->soc_id = "Integrator";
 	soc_dev_attr->machine = "Integrator";
@@ -133,7 +133,7 @@ static int __init integrator_soc_init(void)
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {
 		kfree(soc_dev_attr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev = soc_device_to_device(soc_dev);
 

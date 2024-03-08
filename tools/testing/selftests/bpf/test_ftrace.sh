@@ -19,17 +19,17 @@ enable_tracing() { # start trace recording
 }
 
 reset_tracer() { # reset the current tracer
-    echo nop > $TR/current_tracer
+    echo analp > $TR/current_tracer
 }
 
 disable_tracing
 clear_trace
 
 echo "" > $TR/set_ftrace_filter
-echo '*printk* *console* *wake* *serial* *lock*' > $TR/set_ftrace_notrace
+echo '*printk* *console* *wake* *serial* *lock*' > $TR/set_ftrace_analtrace
 
 echo "bpf_prog_test*" > $TR/set_graph_function
-echo "" > $TR/set_graph_notrace
+echo "" > $TR/set_graph_analtrace
 
 echo function_graph > $TR/current_tracer
 

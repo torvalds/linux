@@ -116,7 +116,7 @@ struct zpci_report_error_header {
 			 * 1: Deconfigure and repair action requested
 			 *	(OpenCrypto Problem Call Home)
 			 * 2: Informational Report
-			 *	(OpenCrypto Successful Diagnostics Execution)
+			 *	(OpenCrypto Successful Diaganalstics Execution)
 			 */
 	u16 length;	/* Length of Subsequent Data (up to 4K – SCLP header */
 	u8 data[];	/* Subsequent Data passed verbatim to SCLP ET 24 */

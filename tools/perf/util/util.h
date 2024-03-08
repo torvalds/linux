@@ -24,8 +24,8 @@ extern bool perf_host;
 extern bool perf_guest;
 
 /* General helper functions */
-void usage(const char *err) __noreturn;
-void die(const char *err, ...) __noreturn __printf(1, 2);
+void usage(const char *err) __analreturn;
+void die(const char *err, ...) __analreturn __printf(1, 2);
 
 struct dirent;
 struct strlist;
@@ -34,7 +34,7 @@ int mkdir_p(char *path, mode_t mode);
 int rm_rf(const char *path);
 int rm_rf_perf_data(const char *path);
 struct strlist *lsdir(const char *name, bool (*filter)(const char *, struct dirent *));
-bool lsdir_no_dot_filter(const char *name, struct dirent *d);
+bool lsdir_anal_dot_filter(const char *name, struct dirent *d);
 
 size_t hex_width(u64 v);
 

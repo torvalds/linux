@@ -127,7 +127,7 @@ static void sm8250_add_be_ops(struct snd_soc_card *card)
 	int i;
 
 	for_each_card_prelinks(card, i, link) {
-		if (link->no_pcm == 1) {
+		if (link->anal_pcm == 1) {
 			link->init = sm8250_snd_init;
 			link->be_hw_params_fixup = sm8250_be_hw_params_fixup;
 			link->ops = &sm8250_be_ops;
@@ -144,13 +144,13 @@ static int sm8250_platform_probe(struct platform_device *pdev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->owner = THIS_MODULE;
 	/* Allocate the private data */
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->dev = dev;
 	dev_set_drvdata(dev, card);

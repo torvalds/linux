@@ -36,12 +36,12 @@
 #define ARIZONA_GP_FN_DRC1_SIGNAL_DETECT         0x1D
 #define ARIZONA_GP_FN_DRC1_ANTICLIP              0x1E
 #define ARIZONA_GP_FN_DRC1_DECAY                 0x1F
-#define ARIZONA_GP_FN_DRC1_NOISE                 0x20
+#define ARIZONA_GP_FN_DRC1_ANALISE                 0x20
 #define ARIZONA_GP_FN_DRC1_QUICK_RELEASE         0x21
 #define ARIZONA_GP_FN_DRC2_SIGNAL_DETECT         0x22
 #define ARIZONA_GP_FN_DRC2_ANTICLIP              0x23
 #define ARIZONA_GP_FN_DRC2_DECAY                 0x24
-#define ARIZONA_GP_FN_DRC2_NOISE                 0x25
+#define ARIZONA_GP_FN_DRC2_ANALISE                 0x25
 #define ARIZONA_GP_FN_DRC2_QUICK_RELEASE         0x26
 #define ARIZONA_GP_FN_MIXER_DROPPED_SAMPLE       0x27
 #define ARIZONA_GP_FN_AIF1_CONFIG_ERROR          0x28
@@ -76,7 +76,7 @@
 
 #define ARIZONA_32KZ_MCLK1 1
 #define ARIZONA_32KZ_MCLK2 2
-#define ARIZONA_32KZ_NONE  3
+#define ARIZONA_32KZ_ANALNE  3
 
 #define ARIZONA_DMIC_MICVDD   0
 #define ARIZONA_DMIC_MICBIAS1 1

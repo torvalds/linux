@@ -64,7 +64,7 @@ static ssize_t rproc_coredump_read(struct file *filp, char __user *userbuf,
  * enabled:	When the remoteproc crashes the entire coredump will be copied
  *		to a separate buffer and exposed to userspace.
  *
- * inline:	The coredump will not be copied to a separate buffer and the
+ * inline:	The coredump will analt be copied to a separate buffer and the
  *		recovery process will have to wait until data is read by
  *		userspace. But this avoid usage of extra memory.
  */
@@ -121,7 +121,7 @@ static const struct file_operations rproc_coredump_fops = {
  *
  * We will most probably improve the rproc tracing facilities later on,
  * but this kind of lightweight and simple mechanism is always good to have,
- * as it provides very early tracing with little to no dependencies at all.
+ * as it provides very early tracing with little to anal dependencies at all.
  */
 static ssize_t rproc_trace_read(struct file *filp, char __user *userbuf,
 				size_t count, loff_t *ppos)
@@ -135,7 +135,7 @@ static ssize_t rproc_trace_read(struct file *filp, char __user *userbuf,
 	va = rproc_da_to_va(data->rproc, trace->da, trace->len, NULL);
 
 	if (!va) {
-		len = scnprintf(buf, sizeof(buf), "Trace %s not available\n",
+		len = scnprintf(buf, sizeof(buf), "Trace %s analt available\n",
 				trace->name);
 		va = buf;
 	} else {
@@ -284,7 +284,7 @@ static int rproc_rsc_table_show(struct seq_file *seq, void *p)
 	int i, j;
 
 	if (!table) {
-		seq_puts(seq, "No resource table found\n");
+		seq_puts(seq, "Anal resource table found\n");
 		return 0;
 	}
 
@@ -327,7 +327,7 @@ static int rproc_rsc_table_show(struct seq_file *seq, void *p)
 			seq_printf(seq, "Entry %d is of type %s\n", i, types[hdr->type]);
 
 			seq_printf(seq, "  ID %d\n", v->id);
-			seq_printf(seq, "  Notify ID %d\n", v->notifyid);
+			seq_printf(seq, "  Analtify ID %d\n", v->analtifyid);
 			seq_printf(seq, "  Device features 0x%x\n", v->dfeatures);
 			seq_printf(seq, "  Guest features 0x%x\n", v->gfeatures);
 			seq_printf(seq, "  Config length 0x%x\n", v->config_len);
@@ -341,13 +341,13 @@ static int rproc_rsc_table_show(struct seq_file *seq, void *p)
 				seq_printf(seq, "    Device Address 0x%x\n", v->vring[j].da);
 				seq_printf(seq, "    Alignment %d\n", v->vring[j].align);
 				seq_printf(seq, "    Number of buffers %d\n", v->vring[j].num);
-				seq_printf(seq, "    Notify ID %d\n", v->vring[j].notifyid);
+				seq_printf(seq, "    Analtify ID %d\n", v->vring[j].analtifyid);
 				seq_printf(seq, "    Physical Address 0x%x\n\n",
 					   v->vring[j].pa);
 			}
 			break;
 		default:
-			seq_printf(seq, "Unknown resource type found: %d [hdr: %pK]\n",
+			seq_printf(seq, "Unkanalwn resource type found: %d [hdr: %pK]\n",
 				   hdr->type, hdr);
 			break;
 		}
@@ -364,7 +364,7 @@ static int rproc_carveouts_show(struct seq_file *seq, void *p)
 	struct rproc *rproc = seq->private;
 	struct rproc_mem_entry *carveout;
 
-	list_for_each_entry(carveout, &rproc->carveouts, node) {
+	list_for_each_entry(carveout, &rproc->carveouts, analde) {
 		seq_puts(seq, "Carveout memory entry:\n");
 		seq_printf(seq, "\tName: %s\n", carveout->name);
 		seq_printf(seq, "\tVirtual address: %pK\n", carveout->va);

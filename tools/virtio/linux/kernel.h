@@ -17,7 +17,7 @@
 #include <linux/list.h>
 #include <linux/printk.h>
 #include <linux/bug.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <asm/barrier.h>
 
@@ -52,7 +52,7 @@ struct page {
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
-extern void *__kmalloc_fake, *__kfree_ignore_start, *__kfree_ignore_end;
+extern void *__kmalloc_fake, *__kfree_iganalre_start, *__kfree_iganalre_end;
 static inline void *kmalloc(size_t s, gfp_t gfp)
 {
 	if (__kmalloc_fake)
@@ -79,7 +79,7 @@ static inline void *alloc_pages_exact(size_t s, gfp_t gfp)
 
 static inline void kfree(void *p)
 {
-	if (p >= __kfree_ignore_start && p < __kfree_ignore_end)
+	if (p >= __kfree_iganalre_start && p < __kfree_iganalre_end)
 		return;
 	free(p);
 }

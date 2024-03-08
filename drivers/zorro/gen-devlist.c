@@ -32,18 +32,18 @@ main(void)
 	char line[1024], *c, *bra, manuf[8];
 	int manufs = 0;
 	int mode = 0;
-	int lino = 0;
+	int lianal = 0;
 	int manuf_len = 0;
 	FILE *devf;
 
 	devf = fopen("devlist.h", "w");
 	if (!devf) {
-		fprintf(stderr, "Cannot create output file!\n");
+		fprintf(stderr, "Cananalt create output file!\n");
 		return 1;
 	}
 
 	while (fgets(line, sizeof(line)-1, stdin)) {
-		lino++;
+		lianal++;
 		if ((c = strchr(line, '\n')))
 			*c = 0;
 		if (!line[0] || line[0] == '#')
@@ -61,7 +61,7 @@ main(void)
 						if (bra && bra > c && bra[-1] == ' ')
 							bra[-1] = 0;
 						if (manuf_len + strlen(c) + 1 > MAX_NAME_SIZE) {
-							fprintf(stderr, "Line %d: Product name too long\n", lino);
+							fprintf(stderr, "Line %d: Product name too long\n", lianal);
 							return 1;
 						}
 					}
@@ -83,7 +83,7 @@ main(void)
 			strcpy(manuf, line);
 			manuf_len = strlen(c);
 			if (manuf_len + 24 > MAX_NAME_SIZE) {
-				fprintf(stderr, "Line %d: manufacturer name too long\n", lino);
+				fprintf(stderr, "Line %d: manufacturer name too long\n", lianal);
 				return 1;
 			}
 			fprintf(devf, "MANUF(%s,\"", manuf);
@@ -92,7 +92,7 @@ main(void)
 			mode = 1;
 		} else {
 		err:
-			fprintf(stderr, "Line %d: Syntax error in mode %d: %s\n", lino, mode, line);
+			fprintf(stderr, "Line %d: Syntax error in mode %d: %s\n", lianal, mode, line);
 			return 1;
 		}
 	}

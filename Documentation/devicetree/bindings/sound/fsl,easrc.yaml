@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/sound/fsl,easrc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NXP Asynchronous Sample Rate Converter (ASRC) Controller
+title: NXP Asynchroanalus Sample Rate Converter (ASRC) Controller
 
 maintainers:
   - Shengjiu Wang <shengjiu.wang@nxp.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^easrc@.*"
 
   compatible:

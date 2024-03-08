@@ -6,7 +6,7 @@
  * Copyright (c) 2003-2013 Thomas Graf <tgraf@suug.ch>
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <stdio.h>
 #include <linux/rtnetlink.h>
@@ -94,8 +94,8 @@ static inline int nlmsg_len(const struct nlmsghdr *nlh)
  * Iterates over the stream of attributes and stores a pointer to each
  * attribute in the index array using the attribute type as index to
  * the array. Attribute with a type greater than the maximum type
- * specified will be silently ignored in order to maintain backwards
- * compatibility. If \a policy is not NULL, the attribute will be
+ * specified will be silently iganalred in order to maintain backwards
+ * compatibility. If \a policy is analt NULL, the attribute will be
  * validated using the specified policy.
  *
  * @see nla_validate
@@ -123,7 +123,7 @@ int libbpf_nla_parse(struct nlattr *tb[], int maxtype, struct nlattr *head,
 
 		if (tb[type])
 			pr_warn("Attribute of type %#x found multiple times in message, "
-				"previous attribute is being ignored.\n", type);
+				"previous attribute is being iganalred.\n", type);
 
 		tb[type] = nla;
 	}
@@ -166,7 +166,7 @@ int libbpf_nla_dump_errormsg(struct nlmsghdr *nlh)
 	char *errmsg = NULL;
 	int hlen, alen;
 
-	/* no TLVs, nothing to do here */
+	/* anal TLVs, analthing to do here */
 	if (!(nlh->nlmsg_flags & NLM_F_ACK_TLVS))
 		return 0;
 

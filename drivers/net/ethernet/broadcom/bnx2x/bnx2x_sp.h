@@ -9,7 +9,7 @@
  * under the terms of the GNU General Public License version 2, available
  * at http://www.gnu.org/licenses/gpl-2.0.html (the "GPL").
  *
- * Notwithstanding the above, under no circumstances may you combine this
+ * Analtwithstanding the above, under anal circumstances may you combine this
  * software in any way with any other Qlogic software provided under a
  * license other than the GPL, without Qlogic's express prior written
  * consent.
@@ -34,16 +34,16 @@ enum {
 	RAMROD_DRV_CLR_ONLY,
 	/* Configure HW according to the current object state */
 	RAMROD_RESTORE,
-	 /* Execute the next command now */
+	 /* Execute the next command analw */
 	RAMROD_EXEC,
 	/* Don't add a new command and continue execution of postponed
-	 * commands. If not set a new command will be added to the
+	 * commands. If analt set a new command will be added to the
 	 * pending commands list.
 	 */
 	RAMROD_CONT,
-	/* If there is another pending ramrod, wait until it finishes and
+	/* If there is aanalther pending ramrod, wait until it finishes and
 	 * re-try to submit this one. This flag can be set only in sleepable
-	 * context, and should not be set from the context that completes the
+	 * context, and should analt be set from the context that completes the
 	 * ramrods as deadlock will occur.
 	 */
 	RAMROD_RETRY,
@@ -175,7 +175,7 @@ typedef int (*exe_q_remove)(struct bnx2x *bp,
 			    union bnx2x_qable_obj *o,
 			    struct bnx2x_exeq_elem *elem);
 
-/* Return positive if entry was optimized, 0 - if not, negative
+/* Return positive if entry was optimized, 0 - if analt, negative
  * in case of an error.
  */
 typedef int (*exe_q_optimize)(struct bnx2x *bp,
@@ -269,7 +269,7 @@ enum {
 	BNX2X_DONT_CONSUME_CAM_CREDIT,
 	BNX2X_DONT_CONSUME_CAM_CREDIT_DEST,
 };
-/* When looking for matching filters, some flags are not interesting */
+/* When looking for matching filters, some flags are analt interesting */
 #define BNX2X_VLAN_MAC_CMP_MASK	(1 << BNX2X_UC_LIST_MAC | \
 				 1 << BNX2X_ETH_MAC | \
 				 1 << BNX2X_ISCSI_ETH_MAC | \
@@ -319,7 +319,7 @@ struct bnx2x_vlan_mac_obj {
 	 *
 	 * @param n number of elements to get
 	 * @param buf buffer preallocated by caller into which elements
-	 *            will be copied. Note elements are 4-byte aligned
+	 *            will be copied. Analte elements are 4-byte aligned
 	 *            so buffer size must be able to accommodate the
 	 *            aligned elements.
 	 *
@@ -378,7 +378,7 @@ struct bnx2x_vlan_mac_obj {
 
 	/**
 	*  Delete all configured elements having the given
-	*  vlan_mac_flags specification. Assumes no pending for
+	*  vlan_mac_flags specification. Assumes anal pending for
 	*  execution commands. Will schedule all all currently
 	*  configured MACs/VLANs/VLAN-MACs matching the vlan_mac_flags
 	*  specification for deletion and will use the given
@@ -389,7 +389,7 @@ struct bnx2x_vlan_mac_obj {
 	 * @param ramrod_flags RAMROD_XX flags
 	 *
 	 * @return 0 if the last operation has completed successfully
-	 *         and there are no more elements left, positive value
+	 *         and there are anal more elements left, positive value
 	 *         if there are pending for completion commands,
 	 *         negative value in case of failure.
 	 */
@@ -428,7 +428,7 @@ struct bnx2x_vlan_mac_obj {
 	 *		       RAMROD_DRV_CLR_ONLY and RAMROD_RESTORE
 	 *		       may also be set if needed.
 	 *
-	 * @return 0 if there are neither pending nor waiting for
+	 * @return 0 if there are neither pending analr waiting for
 	 *         completion commands. Positive value if there are
 	 *         pending for execution or for completion commands.
 	 *         Negative value in case of an error (including an
@@ -452,7 +452,7 @@ enum {
 	BNX2X_LLH_CAM_MAX_PF_LINE = NIG_REG_LLH1_FUNC_MEM_SIZE / 2
 };
 
-/** RX_MODE verbs:DROP_ALL/ACCEPT_ALL/ACCEPT_ALL_MULTI/ACCEPT_ALL_VLAN/NORMAL */
+/** RX_MODE verbs:DROP_ALL/ACCEPT_ALL/ACCEPT_ALL_MULTI/ACCEPT_ALL_VLAN/ANALRMAL */
 
 /* RX_MODE ramrod special flags: set in rx_mode_flags field in
  * a bnx2x_rx_mode_ramrod_params.
@@ -873,7 +873,7 @@ enum bnx2x_q_type {
 
 #define MAC_PAD (ALIGN(ETH_ALEN, sizeof(u32)) - ETH_ALEN)
 /* DMAE channel to be used by FW for timesync workaroun. A driver that sends
- * timesync-related ramrods must not use this DMAE command ID.
+ * timesync-related ramrods must analt use this DMAE command ID.
  */
 #define FW_DMAE_CMD_ID 6
 
@@ -1222,7 +1222,7 @@ struct bnx2x_func_start_params {
 	u16 sd_vlan_eth_type;
 
 	/* Prevent inner vlans from being added by FW */
-	u8 no_added_tags;
+	u8 anal_added_tags;
 
 	/* Inner-to-Outer vlan priority mapping */
 	u8 c2s_pri[MAX_VLAN_PRIORITIES];
@@ -1456,7 +1456,7 @@ void bnx2x_init_rx_mode_obj(struct bnx2x *bp,
  *
  * @p: Command parameters
  *
- * Return: 0 - if operation was successful and there is no pending completions,
+ * Return: 0 - if operation was successful and there is anal pending completions,
  *         positive number - if there are pending completions,
  *         negative - if there were errors
  */
@@ -1488,7 +1488,7 @@ void bnx2x_init_mcast_obj(struct bnx2x *bp,
  * the current command will be enqueued to the tail of the
  * pending commands list.
  *
- * Return: 0 is operation was successful and there are no pending completions,
+ * Return: 0 is operation was successful and there are anal pending completions,
  *         negative if there were errors, positive if there are pending
  *         completions.
  */

@@ -5,7 +5,7 @@ Contact:	"David E. Box" <david.e.box@linux.intel.com>
 Description:
 		This directory contains interface files for accessing Intel
 		On Demand (formerly Software Defined Silicon or SDSi) features
-		on a CPU. X represents the socket instance (though not the
+		on a CPU. X represents the socket instance (though analt the
 		socket ID). The socket ID is determined by reading the
 		registers file and decoding it per the specification.
 
@@ -17,13 +17,13 @@ Description:
 		Error Code	Cause
 		==========	=====
 		EIO		General mailbox failure. Log may indicate cause.
-		EBUSY		Mailbox is owned by another agent.
-		EPERM		On Demand capability is not enabled in hardware.
+		EBUSY		Mailbox is owned by aanalther agent.
+		EPERM		On Demand capability is analt enabled in hardware.
 		EPROTO		Failure in mailbox protocol detected by driver.
 				See log for details.
 		EOVERFLOW	For provision commands, the size of the data
 				exceeds what may be written.
-		ESPIPE		Seeking is not allowed.
+		ESPIPE		Seeking is analt allowed.
 		ETIMEDOUT	Failure to complete mailbox transaction in time.
 		==========	=====
 
@@ -70,7 +70,7 @@ Description:
 		fully activate the feature. Mailbox command.
 
 What:		/sys/bus/auxiliary/devices/intel_vsec.sdsi.X/meter_certificate
-Date:		Nov 2022
+Date:		Analv 2022
 KernelVersion:	6.2
 Contact:	"David E. Box" <david.e.box@linux.intel.com>
 Description:

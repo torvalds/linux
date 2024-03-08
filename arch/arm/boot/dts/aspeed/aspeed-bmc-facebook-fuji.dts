@@ -210,7 +210,7 @@
 	spi_gpio: spi {
 		num-chipselects = <3>;
 		cs-gpios = <&gpio0 ASPEED_GPIO(X, 0) GPIO_ACTIVE_LOW>,
-			   <0>,	/* device reg=<1> does not exist */
+			   <0>,	/* device reg=<1> does analt exist */
 			   <&gpio0 ASPEED_GPIO(X, 2) GPIO_ACTIVE_HIGH>;
 
 		eeprom@2 {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <drm/drm_debugfs.h>
@@ -15,8 +15,8 @@
 
 static int lsdc_identify(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct lsdc_device *ldev = (struct lsdc_device *)node->info_ent->data;
+	struct drm_info_analde *analde = (struct drm_info_analde *)m->private;
+	struct lsdc_device *ldev = (struct lsdc_device *)analde->info_ent->data;
 	const struct loongson_gfx_desc *gfx = to_loongson_gfx(ldev->descp);
 	u8 impl, rev;
 
@@ -32,8 +32,8 @@ static int lsdc_identify(struct seq_file *m, void *arg)
 
 static int lsdc_show_mm(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *ddev = node->minor->dev;
+	struct drm_info_analde *analde = (struct drm_info_analde *)m->private;
+	struct drm_device *ddev = analde->mianalr->dev;
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	drm_mm_print(&ddev->vma_offset_manager->vm_addr_space_mm, &p);
@@ -43,8 +43,8 @@ static int lsdc_show_mm(struct seq_file *m, void *arg)
 
 static int lsdc_show_gfxpll_clock(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct lsdc_device *ldev = (struct lsdc_device *)node->info_ent->data;
+	struct drm_info_analde *analde = (struct drm_info_analde *)m->private;
+	struct lsdc_device *ldev = (struct lsdc_device *)analde->info_ent->data;
 	struct drm_printer printer = drm_seq_file_printer(m);
 	struct loongson_gfxpll *gfxpll = ldev->gfxpll;
 
@@ -55,8 +55,8 @@ static int lsdc_show_gfxpll_clock(struct seq_file *m, void *arg)
 
 static int lsdc_show_benchmark(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct lsdc_device *ldev = (struct lsdc_device *)node->info_ent->data;
+	struct drm_info_analde *analde = (struct drm_info_analde *)m->private;
+	struct lsdc_device *ldev = (struct lsdc_device *)analde->info_ent->data;
 	struct drm_printer printer = drm_seq_file_printer(m);
 
 	lsdc_show_benchmark_copy(ldev, &printer);
@@ -66,8 +66,8 @@ static int lsdc_show_benchmark(struct seq_file *m, void *arg)
 
 static int lsdc_pdev_enable_io_mem(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct lsdc_device *ldev = (struct lsdc_device *)node->info_ent->data;
+	struct drm_info_analde *analde = (struct drm_info_analde *)m->private;
+	struct lsdc_device *ldev = (struct lsdc_device *)analde->info_ent->data;
 	u16 cmd;
 
 	pci_read_config_word(ldev->dc, PCI_COMMAND, &cmd);
@@ -94,9 +94,9 @@ static struct drm_info_list lsdc_debugfs_list[] = {
 	{ "mm",          lsdc_show_mm, 0, NULL },
 };
 
-void lsdc_debugfs_init(struct drm_minor *minor)
+void lsdc_debugfs_init(struct drm_mianalr *mianalr)
 {
-	struct drm_device *ddev = minor->dev;
+	struct drm_device *ddev = mianalr->dev;
 	struct lsdc_device *ldev = to_lsdc(ddev);
 	unsigned int n = ARRAY_SIZE(lsdc_debugfs_list);
 	unsigned int i;
@@ -104,7 +104,7 @@ void lsdc_debugfs_init(struct drm_minor *minor)
 	for (i = 0; i < n; ++i)
 		lsdc_debugfs_list[i].data = ldev;
 
-	drm_debugfs_create_files(lsdc_debugfs_list, n, minor->debugfs_root, minor);
+	drm_debugfs_create_files(lsdc_debugfs_list, n, mianalr->debugfs_root, mianalr);
 
 	lsdc_ttm_debugfs_init(ldev);
 }

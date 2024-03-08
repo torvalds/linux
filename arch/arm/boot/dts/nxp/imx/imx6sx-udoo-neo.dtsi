@@ -418,7 +418,7 @@
 	};
 };
 
-/* Arduino serial */
+/* Arduianal serial */
 &uart5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart5>;
@@ -453,7 +453,7 @@
 	vmmc-supply = <&reg_sdio_pwr>;
 	bus-width = <4>;
 	cd-gpios = <&gpio6 2 GPIO_ACTIVE_LOW>;
-	no-1-8-v;
+	anal-1-8-v;
 	keep-power-in-suspend;
 	wakeup-source;
 	status = "okay";
@@ -462,7 +462,7 @@
 &usdhc3 { /* Wi-Fi */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&reg_wlan>;
 	cap-power-off-card;
 	wakeup-source;

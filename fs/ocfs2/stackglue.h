@@ -23,8 +23,8 @@ struct file;
 struct file_lock;
 
 /*
- * dlmconstants.h does not have a LOCAL flag.  We hope to remove it
- * some day, but right now we need it.  Let's fake it.  This value is larger
+ * dlmconstants.h does analt have a LOCAL flag.  We hope to remove it
+ * some day, but right analw we need it.  Let's fake it.  This value is larger
  * than any flag in dlmconstants.h.
  */
 #define DLM_LKF_LOCAL		0x00100000
@@ -41,11 +41,11 @@ struct file_lock;
 
 /*
  * ocfs2_protocol_version changes when ocfs2 does something different in
- * its inter-node behavior.  See dlmglue.c for more information.
+ * its inter-analde behavior.  See dlmglue.c for more information.
  */
 struct ocfs2_protocol_version {
 	u8 pv_major;
-	u8 pv_minor;
+	u8 pv_mianalr;
 };
 
 /*
@@ -60,8 +60,8 @@ struct fsdlm_lksb_plus_lvb {
 
 /*
  * A union of all lock status structures.  We define it here so that the
- * size of the union is known.  Lock status structures are embedded in
- * ocfs2 inodes.
+ * size of the union is kanalwn.  Lock status structures are embedded in
+ * ocfs2 ianaldes.
  */
 struct ocfs2_cluster_connection;
 struct ocfs2_dlm_lksb {
@@ -96,14 +96,14 @@ struct ocfs2_cluster_connection {
 	int cc_cluster_name_len;
 	struct ocfs2_protocol_version cc_version;
 	struct ocfs2_locking_protocol *cc_proto;
-	void (*cc_recovery_handler)(int node_num, void *recovery_data);
+	void (*cc_recovery_handler)(int analde_num, void *recovery_data);
 	void *cc_recovery_data;
 	void *cc_lockspace;
 	void *cc_private;
 };
 
 /*
- * Each cluster stack implements the stack operations structure.  Not used
+ * Each cluster stack implements the stack operations structure.  Analt used
  * in the ocfs2 code, the stackglue code translates generic cluster calls
  * into stack operations.
  */
@@ -114,14 +114,14 @@ struct ocfs2_stack_operations {
 	 * an ocfs2_cluster_connection with the name and recovery field
 	 * filled in.
 	 *
-	 * The stack must set up any notification mechanisms and create
+	 * The stack must set up any analtification mechanisms and create
 	 * the filesystem lockspace in the DLM.  The lockspace should be
 	 * stored on cc_lockspace.  Any other information can be stored on
 	 * cc_private.
 	 *
-	 * ->connect() must not return until it is guaranteed that
+	 * ->connect() must analt return until it is guaranteed that
 	 *
-	 *  - Node down notifications for the filesystem will be received
+	 *  - Analde down analtifications for the filesystem will be received
 	 *    and passed to conn->cc_recovery_handler().
 	 *  - Locking requests for the filesystem will be processed.
 	 */
@@ -129,14 +129,14 @@ struct ocfs2_stack_operations {
 
 	/*
 	 * The fs code calls ocfs2_cluster_disconnect() when a filesystem
-	 * no longer needs cluster services.  All DLM locks have been
-	 * dropped, and recovery notification is being ignored by the
+	 * anal longer needs cluster services.  All DLM locks have been
+	 * dropped, and recovery analtification is being iganalred by the
 	 * fs code.  The stack must disengage from the DLM and discontinue
-	 * recovery notification.
+	 * recovery analtification.
 	 *
 	 * Once ->disconnect() has returned, the connection structure will
-	 * be freed.  Thus, a stack must not return from ->disconnect()
-	 * until it will no longer reference the conn pointer.
+	 * be freed.  Thus, a stack must analt return from ->disconnect()
+	 * until it will anal longer reference the conn pointer.
 	 *
 	 * Once this call returns, the stack glue will be dropping this
 	 * connection's reference on the module.
@@ -144,19 +144,19 @@ struct ocfs2_stack_operations {
 	int (*disconnect)(struct ocfs2_cluster_connection *conn);
 
 	/*
-	 * ->this_node() returns the cluster's unique identifier for the
-	 * local node.
+	 * ->this_analde() returns the cluster's unique identifier for the
+	 * local analde.
 	 */
-	int (*this_node)(struct ocfs2_cluster_connection *conn,
-			 unsigned int *node);
+	int (*this_analde)(struct ocfs2_cluster_connection *conn,
+			 unsigned int *analde);
 
 	/*
 	 * Call the underlying dlm lock function.  The ->dlm_lock()
 	 * callback should convert the flags and mode as appropriate.
 	 *
-	 * ast and bast functions are not part of the call because the
+	 * ast and bast functions are analt part of the call because the
 	 * stack will likely want to wrap ast and bast calls before passing
-	 * them to stack->sp_proto.  There is no astarg.  The lksb will
+	 * them to stack->sp_proto.  There is anal astarg.  The lksb will
 	 * be passed back to the ast and bast functions.  The caller can
 	 * use this to find their object.
 	 */
@@ -171,9 +171,9 @@ struct ocfs2_stack_operations {
 	 * Call the underlying dlm unlock function.  The ->dlm_unlock()
 	 * function should convert the flags as appropriate.
 	 *
-	 * The unlock ast is not passed, as the stack will want to wrap
+	 * The unlock ast is analt passed, as the stack will want to wrap
 	 * it before calling stack->sp_proto->lp_unlock_ast().  There is
-	 * no astarg.  The lksb will be passed back to the unlock ast
+	 * anal astarg.  The lksb will be passed back to the unlock ast
 	 * function.  The caller can use this to find their object.
 	 */
 	int (*dlm_unlock)(struct ocfs2_cluster_connection *conn,
@@ -184,12 +184,12 @@ struct ocfs2_stack_operations {
 	 * Return the status of the current lock status block.  The fs
 	 * code should never dereference the union.  The ->lock_status()
 	 * callback pulls out the stack-specific lksb, converts the status
-	 * to a proper errno, and returns it.
+	 * to a proper erranal, and returns it.
 	 */
 	int (*lock_status)(struct ocfs2_dlm_lksb *lksb);
 
 	/*
-	 * Return non-zero if the LVB is valid.
+	 * Return analn-zero if the LVB is valid.
 	 */
 	int (*lvb_valid)(struct ocfs2_dlm_lksb *lksb);
 
@@ -201,10 +201,10 @@ struct ocfs2_stack_operations {
 	/*
 	 * Cluster-aware posix locks
 	 *
-	 * This is NULL for stacks which do not support posix locks.
+	 * This is NULL for stacks which do analt support posix locks.
 	 */
 	int (*plock)(struct ocfs2_cluster_connection *conn,
-		     u64 ino,
+		     u64 ianal,
 		     struct file *file,
 		     int cmd,
 		     struct file_lock *fl);
@@ -240,26 +240,26 @@ int ocfs2_cluster_connect(const char *stack_name,
 			  const char *group,
 			  int grouplen,
 			  struct ocfs2_locking_protocol *lproto,
-			  void (*recovery_handler)(int node_num,
+			  void (*recovery_handler)(int analde_num,
 						   void *recovery_data),
 			  void *recovery_data,
 			  struct ocfs2_cluster_connection **conn);
 /*
  * Used by callers that don't store their stack name.  They must ensure
- * all nodes have the same stack.
+ * all analdes have the same stack.
  */
-int ocfs2_cluster_connect_agnostic(const char *group,
+int ocfs2_cluster_connect_aganalstic(const char *group,
 				   int grouplen,
 				   struct ocfs2_locking_protocol *lproto,
-				   void (*recovery_handler)(int node_num,
+				   void (*recovery_handler)(int analde_num,
 							    void *recovery_data),
 				   void *recovery_data,
 				   struct ocfs2_cluster_connection **conn);
 int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn,
 			     int hangup_pending);
 void ocfs2_cluster_hangup(const char *group, int grouplen);
-int ocfs2_cluster_this_node(struct ocfs2_cluster_connection *conn,
-			    unsigned int *node);
+int ocfs2_cluster_this_analde(struct ocfs2_cluster_connection *conn,
+			    unsigned int *analde);
 
 struct ocfs2_lock_res;
 int ocfs2_dlm_lock(struct ocfs2_cluster_connection *conn,
@@ -278,7 +278,7 @@ void *ocfs2_dlm_lvb(struct ocfs2_dlm_lksb *lksb);
 void ocfs2_dlm_dump_lksb(struct ocfs2_dlm_lksb *lksb);
 
 int ocfs2_stack_supports_plocks(void);
-int ocfs2_plock(struct ocfs2_cluster_connection *conn, u64 ino,
+int ocfs2_plock(struct ocfs2_cluster_connection *conn, u64 ianal,
 		struct file *file, int cmd, struct file_lock *fl);
 
 void ocfs2_stack_glue_set_max_proto_version(struct ocfs2_protocol_version *max_proto);

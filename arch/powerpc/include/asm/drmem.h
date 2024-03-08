@@ -23,7 +23,7 @@ struct drmem_lmb_info {
 	u64                     lmb_size;
 };
 
-struct device_node;
+struct device_analde;
 struct property;
 
 extern struct drmem_lmb_info *drmem_info;
@@ -34,7 +34,7 @@ static inline struct drmem_lmb *drmem_lmb_next(struct drmem_lmb *lmb,
 	/*
 	 * DLPAR code paths can take several milliseconds per element
 	 * when interacting with firmware. Ensure that we don't
-	 * unfairly monopolize the CPU.
+	 * unfairly moanalpolize the CPU.
 	 */
 	if (((++lmb - start) % 16) == 0)
 		cond_resched();
@@ -106,13 +106,13 @@ static inline bool drmem_lmb_reserved(struct drmem_lmb *lmb)
 }
 
 u64 drmem_lmb_memory_max(void);
-int walk_drmem_lmbs(struct device_node *dn, void *data,
+int walk_drmem_lmbs(struct device_analde *dn, void *data,
 		    int (*func)(struct drmem_lmb *, const __be32 **, void *));
 int drmem_update_dt(void);
 
 #ifdef CONFIG_PPC_PSERIES
 int __init
-walk_drmem_lmbs_early(unsigned long node, void *data,
+walk_drmem_lmbs_early(unsigned long analde, void *data,
 		      int (*func)(struct drmem_lmb *, const __be32 **, void *));
 void drmem_update_lmbs(struct property *prop);
 #endif

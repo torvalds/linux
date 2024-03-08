@@ -2,10 +2,10 @@
 /*
  * For architectures where we want to allow direct access to the PCI config
  * stuff - it would probably be preferable on PCs too, but there people
- * just do it by hand with the magic northbridge registers.
+ * just do it by hand with the magic analrthbridge registers.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
@@ -26,7 +26,7 @@ SYSCALL_DEFINE5(pciconfig_read, unsigned long, bus, unsigned long, dfn,
 	if (!capable(CAP_SYS_ADMIN))
 		goto error;
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	dev = pci_get_domain_bus_and_slot(0, bus, dfn);
 	if (!dev)
 		goto error;
@@ -98,7 +98,7 @@ SYSCALL_DEFINE5(pciconfig_write, unsigned long, bus, unsigned long, dfn,
 
 	dev = pci_get_domain_bus_and_slot(0, bus, dfn);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (len) {
 	case 1:

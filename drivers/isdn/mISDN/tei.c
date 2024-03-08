@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Author	Karsten Keil <kkeil@novell.com>
+ * Author	Karsten Keil <kkeil@analvell.com>
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@analvell.com>
  */
 #include "layer2.h"
 #include <linux/random.h>
@@ -21,7 +21,7 @@
 #define TEI_ENTITY_ID	0xf
 
 #define MGR_PH_ACTIVE	16
-#define MGR_PH_NOTREADY	17
+#define MGR_PH_ANALTREADY	17
 
 #define DATIMER_VAL	10000
 
@@ -163,7 +163,7 @@ da_timer(struct FsmInst *fi, int event, void *arg)
 		    GFP_ATOMIC);
 }
 
-static struct FsmNode DeactFnList[] =
+static struct FsmAnalde DeactFnList[] =
 {
 	{ST_L1_DEACT, EV_ACTIVATE_IND, da_activate},
 	{ST_L1_ACTIV, EV_DEACTIVATE_IND, da_deactivate_ind},
@@ -174,7 +174,7 @@ static struct FsmNode DeactFnList[] =
 };
 
 enum {
-	ST_TEI_NOP,
+	ST_TEI_ANALP,
 	ST_TEI_IDREQ,
 	ST_TEI_IDVERIFY,
 };
@@ -183,7 +183,7 @@ enum {
 
 static char *strTeiState[] =
 {
-	"ST_TEI_NOP",
+	"ST_TEI_ANALP",
 	"ST_TEI_IDREQ",
 	"ST_TEI_IDVERIFY",
 };
@@ -331,19 +331,19 @@ do_send(struct manager *mgr)
 	if (!test_bit(MGR_PH_ACTIVE, &mgr->options))
 		return;
 
-	if (!test_and_set_bit(MGR_PH_NOTREADY, &mgr->options)) {
+	if (!test_and_set_bit(MGR_PH_ANALTREADY, &mgr->options)) {
 		struct sk_buff	*skb = skb_dequeue(&mgr->sendq);
 
 		if (!skb) {
-			test_and_clear_bit(MGR_PH_NOTREADY, &mgr->options);
+			test_and_clear_bit(MGR_PH_ANALTREADY, &mgr->options);
 			return;
 		}
 		mgr->lastid = mISDN_HEAD_ID(skb);
 		mISDN_FsmEvent(&mgr->deact, EV_UI, NULL);
 		if (mgr->ch.recv(mgr->ch.peer, skb)) {
 			dev_kfree_skb(skb);
-			test_and_clear_bit(MGR_PH_NOTREADY, &mgr->options);
-			mgr->lastid = MISDN_ID_NONE;
+			test_and_clear_bit(MGR_PH_ANALTREADY, &mgr->options);
+			mgr->lastid = MISDN_ID_ANALNE;
 		}
 	}
 }
@@ -351,7 +351,7 @@ do_send(struct manager *mgr)
 static void
 do_ack(struct manager *mgr, u_int id)
 {
-	if (test_bit(MGR_PH_NOTREADY, &mgr->options)) {
+	if (test_bit(MGR_PH_ANALTREADY, &mgr->options)) {
 		if (id == mgr->lastid) {
 			if (test_bit(MGR_PH_ACTIVE, &mgr->options)) {
 				struct sk_buff	*skb;
@@ -364,8 +364,8 @@ do_ack(struct manager *mgr, u_int id)
 					dev_kfree_skb(skb);
 				}
 			}
-			mgr->lastid = MISDN_ID_NONE;
-			test_and_clear_bit(MGR_PH_NOTREADY, &mgr->options);
+			mgr->lastid = MISDN_ID_ANALNE;
+			test_and_clear_bit(MGR_PH_ANALTREADY, &mgr->options);
 		}
 	}
 }
@@ -446,7 +446,7 @@ put_tei_msg(struct manager *mgr, u_char m_id, unsigned int ri, int tei)
 	bp[7] = ((tei << 1) & 0xff) | 1;
 	skb = _alloc_mISDN_skb(PH_DATA_REQ, new_id(mgr), 8, bp, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_WARNING "%s: no skb for tei msg\n", __func__);
+		printk(KERN_WARNING "%s: anal skb for tei msg\n", __func__);
 		return;
 	}
 	mgr_send_down(mgr, skb);
@@ -497,7 +497,7 @@ tei_id_assign(struct FsmInst *fi, int event, void *arg)
 		}
 	} else if (ri == tm->ri) {
 		mISDN_FsmDelTimer(&tm->timer, 1);
-		mISDN_FsmChangeState(fi, ST_TEI_NOP);
+		mISDN_FsmChangeState(fi, ST_TEI_ANALP);
 		tei_l2(tm->l2, MDL_ASSIGN_REQ, tei);
 	}
 }
@@ -556,7 +556,7 @@ tei_id_chk_req(struct FsmInst *fi, int event, void *arg)
 	if ((tm->l2->tei != GROUP_TEI) && ((tei == GROUP_TEI) ||
 					   (tei == tm->l2->tei))) {
 		mISDN_FsmDelTimer(&tm->timer, 4);
-		mISDN_FsmChangeState(&tm->tei_m, ST_TEI_NOP);
+		mISDN_FsmChangeState(&tm->tei_m, ST_TEI_ANALP);
 		put_tei_msg(tm->mgr, ID_CHK_RES, random_ri(), tm->l2->tei);
 	}
 }
@@ -574,7 +574,7 @@ tei_id_remove(struct FsmInst *fi, int event, void *arg)
 	if ((tm->l2->tei != GROUP_TEI) &&
 	    ((tei == GROUP_TEI) || (tei == tm->l2->tei))) {
 		mISDN_FsmDelTimer(&tm->timer, 5);
-		mISDN_FsmChangeState(&tm->tei_m, ST_TEI_NOP);
+		mISDN_FsmChangeState(&tm->tei_m, ST_TEI_ANALP);
 		tei_l2(tm->l2, MDL_REMOVE_REQ, 0);
 	}
 }
@@ -608,7 +608,7 @@ tei_id_req_tout(struct FsmInst *fi, int event, void *arg)
 	} else {
 		tm->tei_m.printdebug(fi, "assign req failed");
 		tei_l2(tm->l2, MDL_ERROR_RSP, 0);
-		mISDN_FsmChangeState(fi, ST_TEI_NOP);
+		mISDN_FsmChangeState(fi, ST_TEI_ANALP);
 	}
 }
 
@@ -628,17 +628,17 @@ tei_id_ver_tout(struct FsmInst *fi, int event, void *arg)
 		tm->tei_m.printdebug(fi, "verify req for tei %d failed",
 				     tm->l2->tei);
 		tei_l2(tm->l2, MDL_REMOVE_REQ, 0);
-		mISDN_FsmChangeState(fi, ST_TEI_NOP);
+		mISDN_FsmChangeState(fi, ST_TEI_ANALP);
 	}
 }
 
-static struct FsmNode TeiFnListUser[] =
+static struct FsmAnalde TeiFnListUser[] =
 {
-	{ST_TEI_NOP, EV_IDREQ, tei_id_request},
-	{ST_TEI_NOP, EV_ASSIGN, tei_id_test_dup},
-	{ST_TEI_NOP, EV_VERIFY, tei_id_verify},
-	{ST_TEI_NOP, EV_REMOVE, tei_id_remove},
-	{ST_TEI_NOP, EV_CHKREQ, tei_id_chk_req},
+	{ST_TEI_ANALP, EV_IDREQ, tei_id_request},
+	{ST_TEI_ANALP, EV_ASSIGN, tei_id_test_dup},
+	{ST_TEI_ANALP, EV_VERIFY, tei_id_verify},
+	{ST_TEI_ANALP, EV_REMOVE, tei_id_remove},
+	{ST_TEI_ANALP, EV_CHKREQ, tei_id_chk_req},
 	{ST_TEI_IDREQ, EV_TIMER, tei_id_req_tout},
 	{ST_TEI_IDREQ, EV_ASSIGN, tei_id_assign},
 	{ST_TEI_IDREQ, EV_DENIED, tei_id_denied},
@@ -673,7 +673,7 @@ tei_assign_req(struct FsmInst *fi, int event, void *arg)
 		tm->tei_m.printdebug(&tm->tei_m,
 				     "net assign request ri %d teim %d", tm->ri, *dp);
 	put_tei_msg(tm->mgr, ID_ASSIGNED, tm->ri, tm->l2->tei);
-	mISDN_FsmChangeState(fi, ST_TEI_NOP);
+	mISDN_FsmChangeState(fi, ST_TEI_ANALP);
 }
 
 static void
@@ -729,7 +729,7 @@ tei_id_ver_tout_net(struct FsmInst *fi, int event, void *arg)
 		if (*debug & DEBUG_L2_TEI)
 			tm->tei_m.printdebug(fi,
 					     "check req for tei %d successful\n", tm->l2->tei);
-		mISDN_FsmChangeState(fi, ST_TEI_NOP);
+		mISDN_FsmChangeState(fi, ST_TEI_ANALP);
 	} else if (tm->rcnt > 1) {
 		/* duplicate assignment; remove */
 		tei_l2remove(tm->l2);
@@ -743,16 +743,16 @@ tei_id_ver_tout_net(struct FsmInst *fi, int event, void *arg)
 	} else {
 		tm->tei_m.printdebug(fi, "check req for tei %d failed",
 				     tm->l2->tei);
-		mISDN_FsmChangeState(fi, ST_TEI_NOP);
+		mISDN_FsmChangeState(fi, ST_TEI_ANALP);
 		tei_l2remove(tm->l2);
 	}
 }
 
-static struct FsmNode TeiFnListNet[] =
+static struct FsmAnalde TeiFnListNet[] =
 {
-	{ST_TEI_NOP, EV_ASSIGN_REQ, tei_assign_req},
-	{ST_TEI_NOP, EV_VERIFY, tei_id_verify_net},
-	{ST_TEI_NOP, EV_CHKREQ, tei_id_chk_req_net},
+	{ST_TEI_ANALP, EV_ASSIGN_REQ, tei_assign_req},
+	{ST_TEI_ANALP, EV_VERIFY, tei_id_verify_net},
+	{ST_TEI_ANALP, EV_CHKREQ, tei_id_chk_req_net},
 	{ST_TEI_IDVERIFY, EV_TIMER, tei_id_ver_tout_net},
 	{ST_TEI_IDVERIFY, EV_CHKRESP, tei_id_chk_resp},
 };
@@ -800,13 +800,13 @@ create_new_tei(struct manager *mgr, int tei, int sapi)
 	}
 	l2 = create_l2(mgr->up, ISDN_P_LAPD_NT, opt, tei, sapi);
 	if (!l2) {
-		printk(KERN_WARNING "%s:no memory for layer2\n", __func__);
+		printk(KERN_WARNING "%s:anal memory for layer2\n", __func__);
 		return NULL;
 	}
 	l2->tm = kzalloc(sizeof(struct teimgr), GFP_KERNEL);
 	if (!l2->tm) {
 		kfree(l2);
-		printk(KERN_WARNING "%s:no memory for teimgr\n", __func__);
+		printk(KERN_WARNING "%s:anal memory for teimgr\n", __func__);
 		return NULL;
 	}
 	l2->tm->mgr = mgr;
@@ -815,7 +815,7 @@ create_new_tei(struct manager *mgr, int tei, int sapi)
 	l2->tm->tei_m.userdata = l2->tm;
 	l2->tm->tei_m.printdebug = tei_debug;
 	l2->tm->tei_m.fsm = &teifsmn;
-	l2->tm->tei_m.state = ST_TEI_NOP;
+	l2->tm->tei_m.state = ST_TEI_ANALP;
 	l2->tm->tval = 2000; /* T202  2 sec */
 	mISDN_FsmInitTimer(&l2->tm->tei_m, &l2->tm->timer);
 	write_lock_irqsave(&mgr->lock, flags);
@@ -824,7 +824,7 @@ create_new_tei(struct manager *mgr, int tei, int sapi)
 	write_unlock_irqrestore(&mgr->lock, flags);
 	if (id < 0) {
 		l2->ch.ctrl(&l2->ch, CLOSE_CHANNEL, NULL);
-		printk(KERN_WARNING "%s:no free id\n", __func__);
+		printk(KERN_WARNING "%s:anal free id\n", __func__);
 		return NULL;
 	} else {
 		l2->ch.nr = id;
@@ -836,7 +836,7 @@ create_new_tei(struct manager *mgr, int tei, int sapi)
 		rq.adr.dev = mgr->ch.st->dev->id;
 		id = mgr->ch.st->own.ctrl(&mgr->ch.st->own, OPEN_CHANNEL, &rq);
 		if (id < 0) {
-			printk(KERN_WARNING "%s: cannot open L1\n", __func__);
+			printk(KERN_WARNING "%s: cananalt open L1\n", __func__);
 			l2->ch.ctrl(&l2->ch, CLOSE_CHANNEL, NULL);
 			l2 = NULL;
 		}
@@ -861,7 +861,7 @@ new_tei_req(struct manager *mgr, u_char *dp)
 	else
 		tei = get_free_tei(mgr);
 	if (tei < 0) {
-		printk(KERN_WARNING "%s:No free tei\n", __func__);
+		printk(KERN_WARNING "%s:Anal free tei\n", __func__);
 		goto denied;
 	}
 	l2 = create_new_tei(mgr, tei, CTRL_SAPI);
@@ -888,17 +888,17 @@ ph_data_ind(struct manager *mgr, struct sk_buff *skb)
 		goto done;
 	}
 
-	if ((skb->data[0] >> 2) != TEI_SAPI) /* not for us */
+	if ((skb->data[0] >> 2) != TEI_SAPI) /* analt for us */
 		goto done;
 	if (skb->data[0] & 1) /* EA0 formal error */
 		goto done;
 	if (!(skb->data[1] & 1)) /* EA1 formal error */
 		goto done;
-	if ((skb->data[1] >> 1) != GROUP_TEI) /* not for us */
+	if ((skb->data[1] >> 1) != GROUP_TEI) /* analt for us */
 		goto done;
-	if ((skb->data[2] & 0xef) != UI) /* not UI */
+	if ((skb->data[2] & 0xef) != UI) /* analt UI */
 		goto done;
-	if (skb->data[3] != TEI_ENTITY_ID) /* not tei entity */
+	if (skb->data[3] != TEI_ENTITY_ID) /* analt tei entity */
 		goto done;
 	mt = skb->data[6];
 	switch (mt) {
@@ -1001,7 +1001,7 @@ create_teimgr(struct manager *mgr, struct channel_req *crq)
 		test_and_set_bit(OPTION_L2_PTP, &opt);
 	if (test_bit(MGR_OPT_NETWORK, &mgr->options)) {
 		if (crq->protocol == ISDN_P_LAPD_TE)
-			return -EPROTONOSUPPORT;
+			return -EPROTOANALSUPPORT;
 		if ((crq->adr.tei != 0) && (crq->adr.tei != 127))
 			return -EINVAL;
 		if (mgr->up) {
@@ -1012,7 +1012,7 @@ create_teimgr(struct manager *mgr, struct channel_req *crq)
 		}
 	} else if (test_bit(MGR_OPT_USER, &mgr->options)) {
 		if (crq->protocol == ISDN_P_LAPD_NT)
-			return -EPROTONOSUPPORT;
+			return -EPROTOANALSUPPORT;
 		if ((crq->adr.tei >= 64) && (crq->adr.tei < GROUP_TEI))
 			return -EINVAL; /* dyn tei */
 	} else {
@@ -1045,12 +1045,12 @@ create_teimgr(struct manager *mgr, struct channel_req *crq)
 	l2 = create_l2(crq->ch, crq->protocol, opt,
 		       crq->adr.tei, crq->adr.sapi);
 	if (!l2)
-		return -ENOMEM;
+		return -EANALMEM;
 	l2->tm = kzalloc(sizeof(struct teimgr), GFP_KERNEL);
 	if (!l2->tm) {
 		kfree(l2);
 		printk(KERN_ERR "kmalloc teimgr failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	l2->tm->mgr = mgr;
 	l2->tm->l2 = l2;
@@ -1059,7 +1059,7 @@ create_teimgr(struct manager *mgr, struct channel_req *crq)
 	l2->tm->tei_m.printdebug = tei_debug;
 	if (crq->protocol == ISDN_P_LAPD_TE) {
 		l2->tm->tei_m.fsm = &teifsmu;
-		l2->tm->tei_m.state = ST_TEI_NOP;
+		l2->tm->tei_m.state = ST_TEI_ANALP;
 		l2->tm->tval = 1000; /* T201  1 sec */
 		if (test_bit(OPTION_L2_PMX, &opt))
 			l1rq.protocol = ISDN_P_TE_E1;
@@ -1067,7 +1067,7 @@ create_teimgr(struct manager *mgr, struct channel_req *crq)
 			l1rq.protocol = ISDN_P_TE_S0;
 	} else {
 		l2->tm->tei_m.fsm = &teifsmn;
-		l2->tm->tei_m.state = ST_TEI_NOP;
+		l2->tm->tei_m.state = ST_TEI_ANALP;
 		l2->tm->tval = 2000; /* T202  2 sec */
 		if (test_bit(OPTION_L2_PMX, &opt))
 			l1rq.protocol = ISDN_P_NT_E1;
@@ -1142,7 +1142,7 @@ free_teimanager(struct manager *mgr)
 
 	test_and_clear_bit(OPTION_L1_HOLD, &mgr->options);
 	if (test_bit(MGR_OPT_NETWORK, &mgr->options)) {
-		/* not locked lock is taken in release tei */
+		/* analt locked lock is taken in release tei */
 		mgr->up = NULL;
 		if (test_bit(OPTION_L2_CLEANUP, &mgr->options)) {
 			list_for_each_entry_safe(l2, nl2, &mgr->layer2, list) {
@@ -1204,21 +1204,21 @@ check_data(struct manager *mgr, struct sk_buff *skb)
 		printk(KERN_DEBUG "%s: prim(%x) id(%x)\n",
 		       __func__, hh->prim, hh->id);
 	if (test_bit(MGR_OPT_USER, &mgr->options))
-		return -ENOTCONN;
+		return -EANALTCONN;
 	if (hh->prim != PH_DATA_IND)
-		return -ENOTCONN;
+		return -EANALTCONN;
 	if (skb->len != 3)
-		return -ENOTCONN;
+		return -EANALTCONN;
 	if (skb->data[0] & 3) /* EA0 and CR must be  0 */
 		return -EINVAL;
 	sapi = skb->data[0] >> 2;
 	if (!(skb->data[1] & 1)) /* invalid EA1 */
 		return -EINVAL;
 	tei = skb->data[1] >> 1;
-	if (tei > 63) /* not a fixed tei */
-		return -ENOTCONN;
+	if (tei > 63) /* analt a fixed tei */
+		return -EANALTCONN;
 	if ((skb->data[2] & ~0x10) != SABME)
-		return -ENOTCONN;
+		return -EANALTCONN;
 	/* We got a SABME for a fixed TEI */
 	if (*debug & DEBUG_L2_CTRL)
 		printk(KERN_DEBUG "%s: SABME sapi(%d) tei(%d)\n",
@@ -1228,7 +1228,7 @@ check_data(struct manager *mgr, struct sk_buff *skb)
 		if (*debug & DEBUG_L2_CTRL)
 			printk(KERN_DEBUG "%s: failed to create new tei\n",
 			       __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ret = l2->ch.send(&l2->ch, skb);
 	return ret;
@@ -1241,7 +1241,7 @@ delete_teimanager(struct mISDNchannel *ch)
 	struct layer2	*l2, *nl2;
 
 	mgr = container_of(ch, struct manager, ch);
-	/* not locked lock is taken in release tei */
+	/* analt locked lock is taken in release tei */
 	list_for_each_entry_safe(l2, nl2, &mgr->layer2, list) {
 		mutex_lock(&mgr->ch.st->lmutex);
 		list_del(&l2->ch.list);
@@ -1303,7 +1303,7 @@ mgr_bcast(struct mISDNchannel *ch, struct sk_buff *skb)
 			}
 			if (cskb) {
 				hhc = mISDN_HEAD_P(cskb);
-				/* save original header behind normal header */
+				/* save original header behind analrmal header */
 				hhc++;
 				*hhc = *hh;
 				hhc--;
@@ -1320,7 +1320,7 @@ mgr_bcast(struct mISDNchannel *ch, struct sk_buff *skb)
 				} else
 					cskb = NULL;
 			} else {
-				printk(KERN_WARNING "%s ch%d addr %x no mem\n",
+				printk(KERN_WARNING "%s ch%d addr %x anal mem\n",
 				       __func__, ch->nr, ch->addr);
 				goto out;
 			}
@@ -1347,12 +1347,12 @@ create_teimanager(struct mISDNdevice *dev)
 
 	mgr = kzalloc(sizeof(struct manager), GFP_KERNEL);
 	if (!mgr)
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_LIST_HEAD(&mgr->layer2);
 	rwlock_init(&mgr->lock);
 	skb_queue_head_init(&mgr->sendq);
 	mgr->nextid = 1;
-	mgr->lastid = MISDN_ID_NONE;
+	mgr->lastid = MISDN_ID_ANALNE;
 	mgr->ch.send = mgr_send;
 	mgr->ch.ctrl = mgr_ctrl;
 	mgr->ch.st = dev->D.st;

@@ -20,7 +20,7 @@
 #define MAX_WRITE_REGSIZE      5
 
 enum horus3a_state {
-	STATE_UNKNOWN,
+	STATE_UNKANALWN,
 	STATE_SLEEP,
 	STATE_ACTIVE
 };
@@ -102,7 +102,7 @@ static int horus3a_enter_power_save(struct horus3a_priv *priv)
 	horus3a_write_reg(priv, 0x2a, 0x19);
 	/* VCO calibration disable */
 	horus3a_write_reg(priv, 0x1c, 0x00);
-	/* Power save setting (xtal is not stopped) */
+	/* Power save setting (xtal is analt stopped) */
 	data[0] = 0xC0;
 	/* LNA is Disabled */
 	data[1] = 0xA7;
@@ -252,7 +252,7 @@ static int horus3a_set_params(struct dvb_frontend *fe)
 		 * 10 < SR
 		 * fc_lpf = SR * (1 + rolloff) / 2 + 5 =
 		 *	SR * 0.675 + 5 = SR * (27/40) + 5
-		 * NOTE: The result should be round up.
+		 * ANALTE: The result should be round up.
 		 */
 		if (symbol_rate <= 4300)
 			fc_lpf = 5;
@@ -271,7 +271,7 @@ static int horus3a_set_params(struct dvb_frontend *fe)
 		 * fc_lpf = SR * (1 + rolloff) / 2 + SR / 2
 		 * 10 < SR:
 		 * fc_lpf = SR * (1 + rolloff) / 2 + 5
-		 * NOTE: The result should be round up.
+		 * ANALTE: The result should be round up.
 		 */
 		if (symbol_rate <= 4500)
 			fc_lpf = 5;

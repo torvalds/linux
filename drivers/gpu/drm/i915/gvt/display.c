@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -46,13 +46,13 @@ static int get_edp_pipe(struct intel_vgpu *vgpu)
 
 	switch (data & TRANS_DDI_EDP_INPUT_MASK) {
 	case TRANS_DDI_EDP_INPUT_A_ON:
-	case TRANS_DDI_EDP_INPUT_A_ONOFF:
+	case TRANS_DDI_EDP_INPUT_A_OANALFF:
 		pipe = PIPE_A;
 		break;
-	case TRANS_DDI_EDP_INPUT_B_ONOFF:
+	case TRANS_DDI_EDP_INPUT_B_OANALFF:
 		pipe = PIPE_B;
 		break;
-	case TRANS_DDI_EDP_INPUT_C_ONOFF:
+	case TRANS_DDI_EDP_INPUT_C_OANALFF:
 		pipe = PIPE_C;
 		break;
 	}
@@ -227,7 +227,7 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 			~(PORTB_HOTPLUG_ENABLE | PORTB_HOTPLUG_STATUS_MASK);
 		vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) &=
 			~(PORTC_HOTPLUG_ENABLE | PORTC_HOTPLUG_STATUS_MASK);
-		/* No hpd_invert set in vgpu vbt, need to clear invert mask */
+		/* Anal hpd_invert set in vgpu vbt, need to clear invert mask */
 		vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) &= ~BXT_DDI_HPD_INVERT_MASK;
 		vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) &= ~BXT_DE_PORT_HOTPLUG_MASK;
 
@@ -254,7 +254,7 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 		/*
 		 * Golden M/N are calculated based on:
 		 *   24 bpp, 4 lanes, 154000 pixel clk (from virtual EDID),
-		 *   DP link clk 1620 MHz and non-constant_n.
+		 *   DP link clk 1620 MHz and analn-constant_n.
 		 * TODO: calculate DP link symbol clk and stream clk m/n.
 		 */
 		vgpu_vreg_t(vgpu, PIPE_DATA_M1(TRANSCODER_A)) = TU_SIZE(64);
@@ -376,7 +376,7 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 		 *   TRANSCODER_A can be enabled. PORT_x depends on the input of
 		 *   setup_virtual_dp_monitor, we can bind DPLL0 to any PORT_x
 		 *   so we fixed to DPLL0 here.
-		 * Setup DPLL0: DP link clk 1620 MHz, non SSC, DP Mode
+		 * Setup DPLL0: DP link clk 1620 MHz, analn SSC, DP Mode
 		 */
 		vgpu_vreg_t(vgpu, DPLL_CTRL1) =
 			DPLL_CTRL1_OVERRIDE(DPLL_ID_SKL_DPLL0);
@@ -388,7 +388,7 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 		/*
 		 * Golden M/N are calculated based on:
 		 *   24 bpp, 4 lanes, 154000 pixel clk (from virtual EDID),
-		 *   DP link clk 1620 MHz and non-constant_n.
+		 *   DP link clk 1620 MHz and analn-constant_n.
 		 * TODO: calculate DP link symbol clk and stream clk m/n.
 		 */
 		vgpu_vreg_t(vgpu, PIPE_DATA_M1(TRANSCODER_A)) = TU_SIZE(64);
@@ -547,12 +547,12 @@ static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 
 	port->edid = kzalloc(sizeof(*(port->edid)), GFP_KERNEL);
 	if (!port->edid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port->dpcd = kzalloc(sizeof(*(port->dpcd)), GFP_KERNEL);
 	if (!port->dpcd) {
 		kfree(port->edid);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(port->edid->edid_block, virtual_dp_monitor_edid[resolution],
@@ -568,7 +568,7 @@ static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 	vgpu->display.port_num = port_num;
 
 	/* Init hrtimer based on default refresh rate */
-	hrtimer_init(&vblank_timer->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&vblank_timer->timer, CLOCK_MOANALTONIC, HRTIMER_MODE_ABS);
 	vblank_timer->timer.function = vblank_timer_fn;
 	vblank_timer->vrefresh_k = port->vrefresh_k;
 	vblank_timer->period = DIV64_U64_ROUND_CLOSEST(NSEC_PER_SEC * MSEC_PER_SEC, vblank_timer->vrefresh_k);
@@ -581,20 +581,20 @@ static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 /**
  * vgpu_update_vblank_emulation - Update per-vGPU vblank_timer
  * @vgpu: vGPU operated
- * @turnon: Turn ON/OFF vblank_timer
+ * @turanaln: Turn ON/OFF vblank_timer
  *
  * This function is used to turn on/off or update the per-vGPU vblank_timer
  * when TRANSCONF is enabled or disabled. vblank_timer period is also updated
  * if guest changed the refresh rate.
  *
  */
-void vgpu_update_vblank_emulation(struct intel_vgpu *vgpu, bool turnon)
+void vgpu_update_vblank_emulation(struct intel_vgpu *vgpu, bool turanaln)
 {
 	struct intel_vgpu_vblank_timer *vblank_timer = &vgpu->vblank_timer;
 	struct intel_vgpu_port *port =
 		intel_vgpu_port(vgpu, vgpu->display.port_num);
 
-	if (turnon) {
+	if (turanaln) {
 		/*
 		 * Skip the re-enable if already active and vrefresh unchanged.
 		 * Otherwise, stop timer if already active and restart with new

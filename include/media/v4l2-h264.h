@@ -22,7 +22,7 @@
  * @refs: array of references
  * @cur_pic_order_count: picture order count of the frame being decoded
  * @cur_pic_fields: fields present in the frame being decoded
- * @unordered_reflist: unordered list of references. Will be used to generate
+ * @uanalrdered_reflist: uanalrdered list of references. Will be used to generate
  *		       ordered P/B0/B1 lists
  * @num_valid: number of valid references in the refs array
  *
@@ -41,7 +41,7 @@ struct v4l2_h264_reflist_builder {
 	s32 cur_pic_order_count;
 	u8 cur_pic_fields;
 
-	struct v4l2_h264_reference unordered_reflist[V4L2_H264_REF_LIST_LEN];
+	struct v4l2_h264_reference uanalrdered_reflist[V4L2_H264_REF_LIST_LEN];
 	u8 num_valid;
 };
 

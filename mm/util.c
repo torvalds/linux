@@ -33,7 +33,7 @@
  * kfree_const - conditionally free memory
  * @x: pointer to the memory
  *
- * Function calls kfree only if @x is not in .rodata section.
+ * Function calls kfree only if @x is analt in .rodata section.
  */
 void kfree_const(const void *x)
 {
@@ -49,7 +49,7 @@ EXPORT_SYMBOL(kfree_const);
  *
  * Return: newly allocated copy of @s or %NULL in case of error
  */
-noinline
+analinline
 char *kstrdup(const char *s, gfp_t gfp)
 {
 	size_t len;
@@ -71,8 +71,8 @@ EXPORT_SYMBOL(kstrdup);
  * @s: the string to duplicate
  * @gfp: the GFP mask used in the kmalloc() call when allocating memory
  *
- * Note: Strings allocated by kstrdup_const should be freed by kfree_const and
- * must not be passed to krealloc().
+ * Analte: Strings allocated by kstrdup_const should be freed by kfree_const and
+ * must analt be passed to krealloc().
  *
  * Return: source string if it is in .rodata section otherwise
  * fallback to kstrdup.
@@ -92,7 +92,7 @@ EXPORT_SYMBOL(kstrdup_const);
  * @max: read at most @max chars from @s
  * @gfp: the GFP mask used in the kmalloc() call when allocating memory
  *
- * Note: Use kmemdup_nul() instead if the size is known exactly.
+ * Analte: Use kmemdup_nul() instead if the size is kanalwn exactly.
  *
  * Return: newly allocated copy of @s or %NULL in case of error
  */
@@ -143,7 +143,7 @@ EXPORT_SYMBOL(kmemdup);
  * @gfp: GFP mask to use
  *
  * Return: newly allocated copy of @src or %NULL in case of error,
- * result may be not physically contiguous. Use kvfree() to free.
+ * result may be analt physically contiguous. Use kvfree() to free.
  */
 void *kvmemdup(const void *src, size_t len, gfp_t gfp)
 {
@@ -194,9 +194,9 @@ void *memdup_user(const void __user *src, size_t len)
 {
 	void *p;
 
-	p = kmalloc_track_caller(len, GFP_USER | __GFP_NOWARN);
+	p = kmalloc_track_caller(len, GFP_USER | __GFP_ANALWARN);
 	if (!p)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (copy_from_user(p, src, len)) {
 		kfree(p);
@@ -213,7 +213,7 @@ EXPORT_SYMBOL(memdup_user);
  * @src: source address in user space
  * @len: number of bytes to copy
  *
- * Return: an ERR_PTR() on failure.  Result may be not
+ * Return: an ERR_PTR() on failure.  Result may be analt
  * physically contiguous.  Use kvfree() to free.
  */
 void *vmemdup_user(const void __user *src, size_t len)
@@ -222,7 +222,7 @@ void *vmemdup_user(const void __user *src, size_t len)
 
 	p = kvmalloc(len, GFP_USER);
 	if (!p)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (copy_from_user(p, src, len)) {
 		kvfree(p);
@@ -278,12 +278,12 @@ void *memdup_user_nul(const void __user *src, size_t len)
 
 	/*
 	 * Always use GFP_KERNEL, since copy_from_user() can sleep and
-	 * cause pagefault, which makes it pointless to use GFP_NOFS
+	 * cause pagefault, which makes it pointless to use GFP_ANALFS
 	 * or GFP_ATOMIC.
 	 */
 	p = kmalloc_track_caller(len + 1, GFP_KERNEL);
 	if (!p)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (copy_from_user(p, src, len)) {
 		kfree(p);
@@ -308,7 +308,7 @@ int vma_is_stack_for_current(struct vm_area_struct *vma)
  */
 void vma_set_file(struct vm_area_struct *vma, struct file *file)
 {
-	/* Changing an anonymous vma with this is illegal */
+	/* Changing an aanalnymous vma with this is illegal */
 	get_file(file);
 	swap(vma->vm_file, file);
 	fput(file);
@@ -343,8 +343,8 @@ unsigned long randomize_stack_top(unsigned long stack_top)
  *
  * If @start + @range would overflow, @range is capped.
  *
- * NOTE: Historical use of randomize_range, which this replaces, presumed that
- * @start was already page aligned.  We now align it regardless.
+ * ANALTE: Historical use of randomize_range, which this replaces, presumed that
+ * @start was already page aligned.  We analw align it regardless.
  *
  * Return: A page aligned address within [start, start + range).  On error,
  * @start is returned.
@@ -397,7 +397,7 @@ static int mmap_is_legacy(struct rlimit *rlim_stack)
 		return 1;
 
 	/* On parisc the stack always grows up - so a unlimited stack should
-	 * not be an indicator to use the legacy memory layout. */
+	 * analt be an indicator to use the legacy memory layout. */
 	if (rlim_stack->rlim_cur == RLIM_INFINITY &&
 		!IS_ENABLED(CONFIG_STACK_GROWSUP))
 		return 1;
@@ -406,7 +406,7 @@ static int mmap_is_legacy(struct rlimit *rlim_stack)
 }
 
 /*
- * Leave enough space between the mmap area and the stack to honour ulimit in
+ * Leave eanalugh space between the mmap area and the stack to hoanalur ulimit in
  * the face of randomisation.
  */
 #define MIN_GAP		(SZ_128M)
@@ -470,7 +470,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
  * __account_locked_vm - account locked pages to an mm's locked_vm
  * @mm:          mm to account against
  * @pages:       number of pages to account
- * @inc:         %true if @pages should be considered positive, %false if not
+ * @inc:         %true if @pages should be considered positive, %false if analt
  * @task:        task used to check RLIMIT_MEMLOCK
  * @bypass_rlim: %true if checking RLIMIT_MEMLOCK should be skipped
  *
@@ -479,7 +479,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
  *
  * Return:
  * * 0       on success
- * * -ENOMEM if RLIMIT_MEMLOCK would be exceeded.
+ * * -EANALMEM if RLIMIT_MEMLOCK would be exceeded.
  */
 int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
 			struct task_struct *task, bool bypass_rlim)
@@ -494,7 +494,7 @@ int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
 		if (!bypass_rlim) {
 			limit = task_rlimit(task, RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 			if (locked_vm + pages > limit)
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 		}
 		if (!ret)
 			mm->locked_vm = locked_vm + pages;
@@ -516,13 +516,13 @@ EXPORT_SYMBOL_GPL(__account_locked_vm);
  * account_locked_vm - account locked pages to an mm's locked_vm
  * @mm:          mm to account against, may be NULL
  * @pages:       number of pages to account
- * @inc:         %true if @pages should be considered positive, %false if not
+ * @inc:         %true if @pages should be considered positive, %false if analt
  *
- * Assumes a non-NULL @mm is valid (i.e. at least one reference on it).
+ * Assumes a analn-NULL @mm is valid (i.e. at least one reference on it).
  *
  * Return:
  * * 0       on success, or if mm is NULL
- * * -ENOMEM if RLIMIT_MEMLOCK would be exceeded.
+ * * -EANALMEM if RLIMIT_MEMLOCK would be exceeded.
  */
 int account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc)
 {
@@ -577,22 +577,22 @@ unsigned long vm_mmap(struct file *file, unsigned long addr,
 EXPORT_SYMBOL(vm_mmap);
 
 /**
- * kvmalloc_node - attempt to allocate physically contiguous memory, but upon
- * failure, fall back to non-contiguous (vmalloc) allocation.
+ * kvmalloc_analde - attempt to allocate physically contiguous memory, but upon
+ * failure, fall back to analn-contiguous (vmalloc) allocation.
  * @size: size of the request.
  * @flags: gfp mask for the allocation - must be compatible (superset) with GFP_KERNEL.
- * @node: numa node to allocate from
+ * @analde: numa analde to allocate from
  *
  * Uses kmalloc to get the memory but if the allocation fails then falls back
  * to the vmalloc allocator. Use kvfree for freeing the memory.
  *
- * GFP_NOWAIT and GFP_ATOMIC are not supported, neither is the __GFP_NORETRY modifier.
+ * GFP_ANALWAIT and GFP_ATOMIC are analt supported, neither is the __GFP_ANALRETRY modifier.
  * __GFP_RETRY_MAYFAIL is supported, and it should be used only if kmalloc is
  * preferable to the vmalloc fallback, due to visible performance drawbacks.
  *
  * Return: pointer to the allocated memory of %NULL in case of failure
  */
-void *kvmalloc_node(size_t size, gfp_t flags, int node)
+void *kvmalloc_analde(size_t size, gfp_t flags, int analde)
 {
 	gfp_t kmalloc_flags = flags;
 	void *ret;
@@ -601,20 +601,20 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
 	 * We want to attempt a large physically contiguous block first because
 	 * it is less likely to fragment multiple larger blocks and therefore
 	 * contribute to a long term fragmentation less than vmalloc fallback.
-	 * However make sure that larger requests are not too disruptive - no
-	 * OOM killer and no allocation failure warnings as we have a fallback.
+	 * However make sure that larger requests are analt too disruptive - anal
+	 * OOM killer and anal allocation failure warnings as we have a fallback.
 	 */
 	if (size > PAGE_SIZE) {
-		kmalloc_flags |= __GFP_NOWARN;
+		kmalloc_flags |= __GFP_ANALWARN;
 
 		if (!(kmalloc_flags & __GFP_RETRY_MAYFAIL))
-			kmalloc_flags |= __GFP_NORETRY;
+			kmalloc_flags |= __GFP_ANALRETRY;
 
-		/* nofail semantic is implemented by the vmalloc fallback */
-		kmalloc_flags &= ~__GFP_NOFAIL;
+		/* analfail semantic is implemented by the vmalloc fallback */
+		kmalloc_flags &= ~__GFP_ANALFAIL;
 	}
 
-	ret = kmalloc_node(size, kmalloc_flags, node);
+	ret = kmalloc_analde(size, kmalloc_flags, analde);
 
 	/*
 	 * It doesn't really make sense to fallback to vmalloc for sub page
@@ -623,27 +623,27 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
 	if (ret || size <= PAGE_SIZE)
 		return ret;
 
-	/* non-sleeping allocations are not supported by vmalloc */
+	/* analn-sleeping allocations are analt supported by vmalloc */
 	if (!gfpflags_allow_blocking(flags))
 		return NULL;
 
 	/* Don't even allow crazy sizes */
 	if (unlikely(size > INT_MAX)) {
-		WARN_ON_ONCE(!(flags & __GFP_NOWARN));
+		WARN_ON_ONCE(!(flags & __GFP_ANALWARN));
 		return NULL;
 	}
 
 	/*
 	 * kvmalloc() can always use VM_ALLOW_HUGE_VMAP,
-	 * since the callers already cannot assume anything
-	 * about the resulting pointer, and cannot play
+	 * since the callers already cananalt assume anything
+	 * about the resulting pointer, and cananalt play
 	 * protection games.
 	 */
-	return __vmalloc_node_range(size, 1, VMALLOC_START, VMALLOC_END,
+	return __vmalloc_analde_range(size, 1, VMALLOC_START, VMALLOC_END,
 			flags, PAGE_KERNEL, VM_ALLOW_HUGE_VMAP,
-			node, __builtin_return_address(0));
+			analde, __builtin_return_address(0));
 }
-EXPORT_SYMBOL(kvmalloc_node);
+EXPORT_SYMBOL(kvmalloc_analde);
 
 /**
  * kvfree() - Free memory.
@@ -651,9 +651,9 @@ EXPORT_SYMBOL(kvmalloc_node);
  *
  * kvfree frees memory allocated by any of vmalloc(), kmalloc() or kvmalloc().
  * It is slightly more efficient to use kfree() or vfree() if you are certain
- * that you know which one to use.
+ * that you kanalw which one to use.
  *
- * Context: Either preemptible task context or not-NMI interrupt.
+ * Context: Either preemptible task context or analt-NMI interrupt.
  */
 void kvfree(const void *addr)
 {
@@ -747,13 +747,13 @@ void *vcalloc(size_t n, size_t size)
 }
 EXPORT_SYMBOL(vcalloc);
 
-struct anon_vma *folio_anon_vma(struct folio *folio)
+struct aanaln_vma *folio_aanaln_vma(struct folio *folio)
 {
 	unsigned long mapping = (unsigned long)folio->mapping;
 
-	if ((mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
+	if ((mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_AANALN)
 		return NULL;
-	return (void *)(mapping - PAGE_MAPPING_ANON);
+	return (void *)(mapping - PAGE_MAPPING_AANALN);
 }
 
 /**
@@ -788,7 +788,7 @@ struct address_space *folio_mapping(struct folio *folio)
 EXPORT_SYMBOL(folio_mapping);
 
 /**
- * folio_copy - Copy the contents of one folio to another.
+ * folio_copy - Copy the contents of one folio to aanalther.
  * @dst: Folio to copy to.
  * @src: Folio to copy from.
  *
@@ -899,7 +899,7 @@ unsigned long vm_commit_limit(void)
 }
 
 /*
- * Make sure vm_committed_as in one cacheline and not cacheline shared with
+ * Make sure vm_committed_as in one cacheline and analt cacheline shared with
  * other variables. It can be updated by several CPUs frequently.
  */
 struct percpu_counter vm_committed_as ____cacheline_aligned_in_smp;
@@ -924,9 +924,9 @@ unsigned long vm_memory_committed(void)
 EXPORT_SYMBOL_GPL(vm_memory_committed);
 
 /*
- * Check that a process has enough memory to allocate a new virtual
- * mapping. 0 means there is enough memory for the allocation to
- * succeed and -ENOMEM implies there is not.
+ * Check that a process has eanalugh memory to allocate a new virtual
+ * mapping. 0 means there is eanalugh memory for the allocation to
+ * succeed and -EANALMEM implies there is analt.
  *
  * We currently support three overcommit policies, which are set via the
  * vm.overcommit_memory sysctl.  See Documentation/mm/overcommit-accounting.rst
@@ -936,10 +936,10 @@ EXPORT_SYMBOL_GPL(vm_memory_committed);
  *
  * cap_sys_admin is 1 if the process has admin privileges, 0 otherwise.
  *
- * Note this is a helper function intended to be used by LSMs which
+ * Analte this is a helper function intended to be used by LSMs which
  * wish to use this logic.
  */
-int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+int __vm_eanalugh_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 {
 	long allowed;
 
@@ -976,11 +976,11 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
 		return 0;
 error:
-	pr_warn_ratelimited("%s: pid: %d, comm: %s, not enough memory for the allocation\n",
+	pr_warn_ratelimited("%s: pid: %d, comm: %s, analt eanalugh memory for the allocation\n",
 			    __func__, current->pid, current->comm);
 	vm_unacct_memory(pages);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -990,8 +990,8 @@ error:
  * @buflen:   the length of the buffer. Larger cmdline values are truncated
  *            to this length.
  *
- * Return: the size of the cmdline field copied. Note that the copy does
- * not guarantee an ending NULL byte.
+ * Return: the size of the cmdline field copied. Analte that the copy does
+ * analt guarantee an ending NULL byte.
  */
 int get_cmdline(struct task_struct *task, char *buffer, int buflen)
 {
@@ -1002,7 +1002,7 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
 	if (!mm)
 		goto out;
 	if (!mm->arg_end)
-		goto out_mm;	/* Shh! No looking before we're done */
+		goto out_mm;	/* Shh! Anal looking before we're done */
 
 	spin_lock(&mm->arg_lock);
 	arg_start = mm->arg_start;
@@ -1080,13 +1080,13 @@ void mem_dump_obj(void *object)
 	if (is_vmalloc_addr(object))
 		type = "vmalloc memory";
 	else if (virt_addr_valid(object))
-		type = "non-slab/vmalloc memory";
+		type = "analn-slab/vmalloc memory";
 	else if (object == NULL)
 		type = "NULL pointer";
 	else if (object == ZERO_SIZE_PTR)
 		type = "zero-size pointer";
 	else
-		type = "non-paged memory";
+		type = "analn-paged memory";
 
 	pr_cont(" %s\n", type);
 }
@@ -1103,7 +1103,7 @@ EXPORT_SYMBOL_GPL(mem_dump_obj);
  * with drivers that set PageOffline().
  *
  * page_offline_freeze()/page_offline_thaw() allows for a subsystem to
- * synchronize with such drivers, achieving that a page cannot be set
+ * synchronize with such drivers, achieving that a page cananalt be set
  * PageOffline() while frozen.
  *
  * page_offline_begin()/page_offline_end() is used by drivers that care about

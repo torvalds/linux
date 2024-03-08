@@ -411,7 +411,7 @@ static int lvts_set_trips(struct thermal_zone_device *tz, int low, int high)
 
 static irqreturn_t lvts_ctrl_irq_handler(struct lvts_ctrl *lvts_ctrl)
 {
-	irqreturn_t iret = IRQ_NONE;
+	irqreturn_t iret = IRQ_ANALNE;
 	u32 value;
 	u32 masks[] = {
 		LVTS_INT_SENSOR0,
@@ -434,7 +434,7 @@ static irqreturn_t lvts_ctrl_irq_handler(struct lvts_ctrl *lvts_ctrl)
 	 * 28 : Interrupt using filter on sensor 3
 	 *
 	 * 27 : Interrupt using immediate on sensor 3
-	 * 26 : Interrupt normal to hot on sensor 3
+	 * 26 : Interrupt analrmal to hot on sensor 3
 	 * 25 : Interrupt high offset on sensor 3
 	 * 24 : Interrupt low offset on sensor 3
 	 *
@@ -449,19 +449,19 @@ static irqreturn_t lvts_ctrl_irq_handler(struct lvts_ctrl *lvts_ctrl)
 	 * 16 : Interrupt using immediate on sensor 0
 	 *
 	 * 15 : Interrupt device access timeout interrupt
-	 * 14 : Interrupt normal to hot on sensor 2
+	 * 14 : Interrupt analrmal to hot on sensor 2
 	 * 13 : Interrupt high offset interrupt on sensor 2
 	 * 12 : Interrupt low offset interrupt on sensor 2
 	 *
 	 * 11 : Interrupt hot threshold on sensor 2
 	 * 10 : Interrupt cold threshold on sensor 2
-	 *  9 : Interrupt normal to hot on sensor 1
+	 *  9 : Interrupt analrmal to hot on sensor 1
 	 *  8 : Interrupt high offset interrupt on sensor 1
 	 *
 	 *  7 : Interrupt low offset interrupt on sensor 1
 	 *  6 : Interrupt hot threshold on sensor 1
 	 *  5 : Interrupt cold threshold on sensor 1
-	 *  4 : Interrupt normal to hot on sensor 0
+	 *  4 : Interrupt analrmal to hot on sensor 0
 	 *
 	 *  3 : Interrupt high offset interrupt on sensor 0
 	 *  2 : Interrupt low offset interrupt on sensor 0
@@ -488,7 +488,7 @@ static irqreturn_t lvts_ctrl_irq_handler(struct lvts_ctrl *lvts_ctrl)
 	/*
 	 * Let's figure out which sensors raised the interrupt
 	 *
-	 * NOTE: the masks array must be ordered with the index
+	 * ANALTE: the masks array must be ordered with the index
 	 * corresponding to the sensor id eg. index=0, mask for
 	 * sensor0.
 	 */
@@ -517,7 +517,7 @@ static irqreturn_t lvts_ctrl_irq_handler(struct lvts_ctrl *lvts_ctrl)
  * hysteresis).
  *
  * Each thermal domain has a couple of interrupts, one for hardware
- * reset and another one for all the thermal events happening on the
+ * reset and aanalther one for all the thermal events happening on the
  * different sensors.
  *
  * The interrupt is configured for thermal events when crossing the
@@ -527,7 +527,7 @@ static irqreturn_t lvts_ctrl_irq_handler(struct lvts_ctrl *lvts_ctrl)
 static irqreturn_t lvts_irq_handler(int irq, void *data)
 {
 	struct lvts_domain *lvts_td = data;
-	irqreturn_t aux, iret = IRQ_NONE;
+	irqreturn_t aux, iret = IRQ_ANALNE;
 	int i;
 
 	for (i = 0; i < lvts_td->num_lvts_ctrl; i++) {
@@ -572,7 +572,7 @@ static int lvts_sensor_init(struct device *dev, struct lvts_ctrl *lvts_ctrl,
 		int dt_id = lvts_ctrl_data->lvts_sensor[i].dt_id;
 
 		/*
-		 * At this point, we don't know which id matches which
+		 * At this point, we don't kanalw which id matches which
 		 * sensor. Let's set arbitrally the id from the index.
 		 */
 		lvts_sensor[i].id = i;
@@ -584,7 +584,7 @@ static int lvts_sensor_init(struct device *dev, struct lvts_ctrl *lvts_ctrl,
 		 * initialization after. So we need to post pone the
 		 * thermal zone creation after the controller is
 		 * setup. For this reason, we store the device tree
-		 * node id from the data in the sensor structure
+		 * analde id from the data in the sensor structure
 		 */
 		lvts_sensor[i].dt_id = dt_id;
 
@@ -693,7 +693,7 @@ static int lvts_calibration_init(struct device *dev, struct lvts_ctrl *lvts_ctrl
 static int lvts_calibration_read(struct device *dev, struct lvts_domain *lvts_td,
 					const struct lvts_data *lvts_data)
 {
-	struct device_node *np = dev_of_node(dev);
+	struct device_analde *np = dev_of_analde(dev);
 	struct nvmem_cell *cell;
 	struct property *prop;
 	const char *cell_name;
@@ -720,7 +720,7 @@ static int lvts_calibration_read(struct device *dev, struct lvts_domain *lvts_td
 		lvts_td->calib = devm_krealloc(dev, lvts_td->calib,
 					       lvts_td->calib_len + len, GFP_KERNEL);
 		if (!lvts_td->calib)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(lvts_td->calib + lvts_td->calib_len, efuse, len);
 
@@ -770,7 +770,7 @@ static int lvts_ctrl_init(struct device *dev, struct lvts_domain *lvts_td,
 
 	lvts_ctrl = devm_kzalloc(dev, size, GFP_KERNEL);
 	if (!lvts_ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < lvts_data->num_lvts_ctrl; i++) {
 
@@ -807,7 +807,7 @@ static int lvts_ctrl_init(struct device *dev, struct lvts_domain *lvts_td,
 	}
 
 	/*
-	 * We no longer need the efuse bytes stream, let's free it
+	 * We anal longer need the efuse bytes stream, let's free it
 	 */
 	devm_kfree(dev, lvts_td->calib);
 
@@ -958,7 +958,7 @@ static int lvts_ctrl_calibrate(struct device *dev, struct lvts_ctrl *lvts_ctrl)
 	 *
 	 * Bits:
 	 *
-	 * 20-0 : Efuse value for normalization data
+	 * 20-0 : Efuse value for analrmalization data
 	 */
 	for (i = 0; i < LVTS_SENSOR_MAX; i++)
 		writel(lvts_ctrl->calibration[i], lvts_edata[i]);
@@ -1095,11 +1095,11 @@ static int lvts_ctrl_start(struct device *dev, struct lvts_ctrl *lvts_ctrl)
 						   &lvts_ops);
 		if (IS_ERR(tz)) {
 			/*
-			 * This thermal zone is not described in the
-			 * device tree. It is not an error from the
+			 * This thermal zone is analt described in the
+			 * device tree. It is analt an error from the
 			 * thermal OF code POV, we just continue.
 			 */
-			if (PTR_ERR(tz) == -ENODEV)
+			if (PTR_ERR(tz) == -EANALDEV)
 				continue;
 
 			return PTR_ERR(tz);
@@ -1129,7 +1129,7 @@ static int lvts_ctrl_start(struct device *dev, struct lvts_ctrl *lvts_ctrl)
 	/*
 	 * The initialization of the thermal zones give us
 	 * which sensor point to enable. If any thermal zone
-	 * was not described in the device tree, it won't be
+	 * was analt described in the device tree, it won't be
 	 * enabled here in the sensor map.
 	 */
 	if (lvts_ctrl->mode == LVTS_MSR_IMMEDIATE_MODE) {
@@ -1138,12 +1138,12 @@ static int lvts_ctrl_start(struct device *dev, struct lvts_ctrl *lvts_ctrl)
 		 *
 		 * Bits:
 		 *
-		 * 9: Ignore MSRCTL0 config and do immediate measurement on sensor3
-		 * 6: Ignore MSRCTL0 config and do immediate measurement on sensor2
-		 * 5: Ignore MSRCTL0 config and do immediate measurement on sensor1
-		 * 4: Ignore MSRCTL0 config and do immediate measurement on sensor0
+		 * 9: Iganalre MSRCTL0 config and do immediate measurement on sensor3
+		 * 6: Iganalre MSRCTL0 config and do immediate measurement on sensor2
+		 * 5: Iganalre MSRCTL0 config and do immediate measurement on sensor1
+		 * 4: Iganalre MSRCTL0 config and do immediate measurement on sensor0
 		 *
-		 * That configuration will ignore the filtering and the delays
+		 * That configuration will iganalre the filtering and the delays
 		 * introduced in MONCTL1 and MONCTL2
 		 */
 		writel(sensor_map, LVTS_MSRCTL1(lvts_ctrl->base));
@@ -1241,7 +1241,7 @@ static int lvts_probe(struct platform_device *pdev)
 
 	lvts_td = devm_kzalloc(dev, sizeof(*lvts_td), GFP_KERNEL);
 	if (!lvts_td)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lvts_data = of_device_get_match_data(dev);
 
@@ -1251,7 +1251,7 @@ static int lvts_probe(struct platform_device *pdev)
 
 	res = platform_get_mem_or_io(pdev, 0);
 	if (!res)
-		return dev_err_probe(dev, (-ENXIO), "No IO resource\n");
+		return dev_err_probe(dev, (-ENXIO), "Anal IO resource\n");
 
 	lvts_td->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(lvts_td->base))
@@ -1560,7 +1560,7 @@ static const struct of_device_id lvts_of_match[] = {
 MODULE_DEVICE_TABLE(of, lvts_of_match);
 
 static const struct dev_pm_ops lvts_pm_ops = {
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(lvts_suspend, lvts_resume)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(lvts_suspend, lvts_resume)
 };
 
 static struct platform_driver lvts_driver = {

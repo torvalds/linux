@@ -3,9 +3,9 @@
  * Swap block device support for MTDs
  * Turns an MTD device into a swap device with block wear leveling
  *
- * Copyright © 2007,2011 Nokia Corporation. All rights reserved.
+ * Copyright © 2007,2011 Analkia Corporation. All rights reserved.
  *
- * Authors: Jarkko Lavinen <jarkko.lavinen@nokia.com>
+ * Authors: Jarkko Lavinen <jarkko.lavinen@analkia.com>
  *
  * Based on Richard Purdie's earlier implementation in 2007. Background
  * support and lock-less operation written by Adrian Hunter.
@@ -50,9 +50,9 @@
  * trying to make erase differences large.
  */
 #define MAX_ERASE_DIFF		4000
-#define COLLECT_NONDIRTY_BASE	MAX_ERASE_DIFF
-#define COLLECT_NONDIRTY_FREQ1	6
-#define COLLECT_NONDIRTY_FREQ2	4
+#define COLLECT_ANALNDIRTY_BASE	MAX_ERASE_DIFF
+#define COLLECT_ANALNDIRTY_FREQ1	6
+#define COLLECT_ANALNDIRTY_FREQ2	4
 
 #define PAGE_UNDEF		UINT_MAX
 #define BLOCK_UNDEF		UINT_MAX
@@ -60,14 +60,14 @@
 #define BLOCK_MAX		(UINT_MAX - 2)
 
 #define EBLOCK_BAD		(1 << 0)
-#define EBLOCK_NOMAGIC		(1 << 1)
+#define EBLOCK_ANALMAGIC		(1 << 1)
 #define EBLOCK_BITFLIP		(1 << 2)
 #define EBLOCK_FAILED		(1 << 3)
 #define EBLOCK_READERR		(1 << 4)
 #define EBLOCK_IDX_SHIFT	5
 
 struct swap_eb {
-	struct rb_node rb;
+	struct rb_analde rb;
 	struct rb_root *root;
 
 	unsigned int flags;
@@ -158,8 +158,8 @@ enum {
 #define MIN_ERASE_BLOCKS	(MIN_SPARE_EBLOCKS + 1)
 
 #define TREE_ROOT(d, name) (&d->trees[MTDSWAP_ ## name].root)
-#define TREE_EMPTY(d, name) (TREE_ROOT(d, name)->rb_node == NULL)
-#define TREE_NONEMPTY(d, name) (!TREE_EMPTY(d, name))
+#define TREE_EMPTY(d, name) (TREE_ROOT(d, name)->rb_analde == NULL)
+#define TREE_ANALNEMPTY(d, name) (!TREE_EMPTY(d, name))
 #define TREE_COUNT(d, name) (d->trees[MTDSWAP_ ## name].count)
 
 #define MTDSWAP_MBD_TO_MTDSWAP(dev) ((struct mtdswap_dev *)dev->priv)
@@ -202,10 +202,10 @@ static void mtdswap_eb_detach(struct mtdswap_dev *d, struct swap_eb *eb)
 
 static void __mtdswap_rb_add(struct rb_root *root, struct swap_eb *eb)
 {
-	struct rb_node **p, *parent = NULL;
+	struct rb_analde **p, *parent = NULL;
 	struct swap_eb *cur;
 
-	p = &root->rb_node;
+	p = &root->rb_analde;
 	while (*p) {
 		parent = *p;
 		cur = rb_entry(parent, struct swap_eb, rb);
@@ -215,7 +215,7 @@ static void __mtdswap_rb_add(struct rb_root *root, struct swap_eb *eb)
 			p = &(*p)->rb_left;
 	}
 
-	rb_link_node(&eb->rb, parent, p);
+	rb_link_analde(&eb->rb, parent, p);
 	rb_insert_color(&eb->rb, root);
 }
 
@@ -233,9 +233,9 @@ static void mtdswap_rb_add(struct mtdswap_dev *d, struct swap_eb *eb, int idx)
 	d->trees[idx].count++;
 }
 
-static struct rb_node *mtdswap_rb_index(struct rb_root *root, unsigned int idx)
+static struct rb_analde *mtdswap_rb_index(struct rb_root *root, unsigned int idx)
 {
-	struct rb_node *p;
+	struct rb_analde *p;
 	unsigned int i;
 
 	p = rb_first(root);
@@ -258,7 +258,7 @@ static int mtdswap_handle_badblock(struct mtdswap_dev *d, struct swap_eb *eb)
 	mtdswap_eb_detach(d, eb);
 	eb->root = NULL;
 
-	/* badblocks not supported */
+	/* badblocks analt supported */
 	if (!mtd_can_have_bb(d->mtd))
 		return 1;
 
@@ -309,7 +309,7 @@ static int mtdswap_read_oob(struct mtdswap_dev *d, loff_t from,
 	}
 
 	if (ops->oobretlen < ops->ooblen) {
-		dev_warn(d->dev, "Read OOB return short read (%zd bytes not "
+		dev_warn(d->dev, "Read OOB return short read (%zd bytes analt "
 			"%zd) for block at %08llx\n",
 			ops->oobretlen, ops->ooblen, from);
 		return -EIO;
@@ -357,7 +357,7 @@ static int mtdswap_read_markers(struct mtdswap_dev *d, struct swap_eb *eb)
 				ret = MTDSWAP_SCANNED_CLEAN;
 		}
 	} else {
-		eb->flags |= EBLOCK_NOMAGIC;
+		eb->flags |= EBLOCK_ANALMAGIC;
 		ret = MTDSWAP_SCANNED_DIRTY;
 	}
 
@@ -400,7 +400,7 @@ static int mtdswap_write_marker(struct mtdswap_dev *d, struct swap_eb *eb,
 
 	if (ops.oobretlen != ops.ooblen) {
 		dev_warn(d->dev, "Short OOB write for block at %08llx: "
-			"%zd not %zd\n",
+			"%zd analt %zd\n",
 			offset, ops.oobretlen, ops.ooblen);
 		return ret;
 	}
@@ -416,7 +416,7 @@ static int mtdswap_write_marker(struct mtdswap_dev *d, struct swap_eb *eb,
 static void mtdswap_check_counts(struct mtdswap_dev *d)
 {
 	struct rb_root hist_root = RB_ROOT;
-	struct rb_node *medrb;
+	struct rb_analde *medrb;
 	struct swap_eb *eb;
 	unsigned int i, cnt, median;
 
@@ -424,7 +424,7 @@ static void mtdswap_check_counts(struct mtdswap_dev *d)
 	for (i = 0; i < d->eblks; i++) {
 		eb = d->eb_data + i;
 
-		if (eb->flags & (EBLOCK_NOMAGIC | EBLOCK_BAD | EBLOCK_READERR))
+		if (eb->flags & (EBLOCK_ANALMAGIC | EBLOCK_BAD | EBLOCK_READERR))
 			continue;
 
 		__mtdswap_rb_add(&hist_root, eb);
@@ -442,10 +442,10 @@ static void mtdswap_check_counts(struct mtdswap_dev *d)
 	for (i = 0; i < d->eblks; i++) {
 		eb = d->eb_data + i;
 
-		if (eb->flags & (EBLOCK_NOMAGIC | EBLOCK_READERR))
+		if (eb->flags & (EBLOCK_ANALMAGIC | EBLOCK_READERR))
 			eb->erase_count = median;
 
-		if (eb->flags & (EBLOCK_NOMAGIC | EBLOCK_BAD | EBLOCK_READERR))
+		if (eb->flags & (EBLOCK_ANALMAGIC | EBLOCK_BAD | EBLOCK_READERR))
 			continue;
 
 		rb_erase(&eb->rb, &hist_root);
@@ -549,7 +549,7 @@ retry:
 			goto retry;
 		}
 
-		dev_err(d->dev, "Cannot erase erase block %#llx on %s\n",
+		dev_err(d->dev, "Cananalt erase erase block %#llx on %s\n",
 			erase.addr, mtd->name);
 
 		mtdswap_handle_badblock(d, eb);
@@ -570,7 +570,7 @@ static int mtdswap_map_free_block(struct mtdswap_dev *d, unsigned int page,
 	if (old_eb == NULL || d->curr_write_pos >= d->pages_per_eblk) {
 		do {
 			if (TREE_EMPTY(d, CLEAN))
-				return -ENOSPC;
+				return -EANALSPC;
 
 			clean_root = TREE_ROOT(d, CLEAN);
 			eb = rb_entry(rb_first(clean_root), struct swap_eb, rb);
@@ -606,7 +606,7 @@ static unsigned int mtdswap_free_page_cnt(struct mtdswap_dev *d)
 		d->pages_per_eblk - d->curr_write_pos;
 }
 
-static unsigned int mtdswap_enough_free_pages(struct mtdswap_dev *d)
+static unsigned int mtdswap_eanalugh_free_pages(struct mtdswap_dev *d)
 {
 	return mtdswap_free_page_cnt(d) > d->pages_per_eblk;
 }
@@ -622,9 +622,9 @@ static int mtdswap_write_block(struct mtdswap_dev *d, char *buf,
 
 retry:
 	if (!gc_context)
-		while (!mtdswap_enough_free_pages(d))
+		while (!mtdswap_eanalugh_free_pages(d))
 			if (mtdswap_gc(d, 0) > 0)
-				return -ENOSPC;
+				return -EANALSPC;
 
 	ret = mtdswap_map_free_block(d, page, bp);
 	eb = d->eb_data + (*bp / d->pages_per_eblk);
@@ -739,7 +739,7 @@ static int mtdswap_gc_eblock(struct mtdswap_dev *d, struct swap_eb *eb)
 
 	for (i = 0; i < d->pages_per_eblk; i++) {
 		if (d->spare_eblks < MIN_SPARE_EBLOCKS)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		block = eblk_base + i;
 		if (d->revmap[block] == PAGE_UNDEF)
@@ -763,7 +763,7 @@ static int __mtdswap_choose_gc_tree(struct mtdswap_dev *d)
 		stopat = MTDSWAP_HIFRAG;
 
 	for (idx = MTDSWAP_BITFLIP; idx >= stopat; idx--)
-		if (d->trees[idx].root.rb_node != NULL)
+		if (d->trees[idx].root.rb_analde != NULL)
 			return idx;
 
 	return -1;
@@ -775,26 +775,26 @@ static int mtdswap_wlfreq(unsigned int maxdiff)
 
 	/*
 	 * Calculate linear ramp down from f1 to f2 when maxdiff goes from
-	 * MAX_ERASE_DIFF to MAX_ERASE_DIFF + COLLECT_NONDIRTY_BASE.  Similar
-	 * to triangle with height f1 - f1 and width COLLECT_NONDIRTY_BASE.
+	 * MAX_ERASE_DIFF to MAX_ERASE_DIFF + COLLECT_ANALNDIRTY_BASE.  Similar
+	 * to triangle with height f1 - f1 and width COLLECT_ANALNDIRTY_BASE.
 	 */
 
 	dist = maxdiff - MAX_ERASE_DIFF;
-	if (dist > COLLECT_NONDIRTY_BASE)
-		dist = COLLECT_NONDIRTY_BASE;
+	if (dist > COLLECT_ANALNDIRTY_BASE)
+		dist = COLLECT_ANALNDIRTY_BASE;
 
 	/*
 	 * Modelling the slop as right angular triangle with base
-	 * COLLECT_NONDIRTY_BASE and height freq1 - freq2. The ratio y/x is
+	 * COLLECT_ANALNDIRTY_BASE and height freq1 - freq2. The ratio y/x is
 	 * equal to the ratio h/base.
 	 */
-	h = COLLECT_NONDIRTY_FREQ1 - COLLECT_NONDIRTY_FREQ2;
-	base = COLLECT_NONDIRTY_BASE;
+	h = COLLECT_ANALNDIRTY_FREQ1 - COLLECT_ANALNDIRTY_FREQ2;
+	base = COLLECT_ANALNDIRTY_BASE;
 
 	x = dist - base;
 	y = (x * h + base / 2) / base;
 
-	return COLLECT_NONDIRTY_FREQ2 + y;
+	return COLLECT_ANALNDIRTY_FREQ2 + y;
 }
 
 static int mtdswap_choose_wl_tree(struct mtdswap_dev *d)
@@ -806,7 +806,7 @@ static int mtdswap_choose_wl_tree(struct mtdswap_dev *d)
 	max = 0;
 	for (i = 0; i <= MTDSWAP_DIRTY; i++) {
 		root = &d->trees[i].root;
-		if (root->rb_node == NULL)
+		if (root->rb_analde == NULL)
 			continue;
 
 		wear = d->max_erase_count - MTDSWAP_ECNT_MIN(root);
@@ -830,7 +830,7 @@ static int mtdswap_choose_gc_tree(struct mtdswap_dev *d,
 {
 	int idx;
 
-	if (TREE_NONEMPTY(d, FAILING) &&
+	if (TREE_ANALNEMPTY(d, FAILING) &&
 		(background || (TREE_EMPTY(d, CLEAN) && TREE_EMPTY(d, DIRTY))))
 		return MTDSWAP_FAILING;
 
@@ -947,7 +947,7 @@ static int mtdswap_gc(struct mtdswap_dev *d, unsigned int background)
 		return 1;
 
 	ret = mtdswap_gc_eblock(d, eb);
-	if (ret == -ENOSPC)
+	if (ret == -EANALSPC)
 		return 1;
 
 	if (eb->flags & EBLOCK_FAILED) {
@@ -1027,10 +1027,10 @@ static int mtdswap_writesect(struct mtd_blktrans_dev *dev,
 	d->sect_write_count++;
 
 	if (d->spare_eblks < MIN_SPARE_EBLOCKS)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (header) {
-		/* Ignore writes to the header page */
+		/* Iganalre writes to the header page */
 		if (unlikely(page == 0))
 			return 0;
 
@@ -1183,7 +1183,7 @@ static int mtdswap_show(struct seq_file *s, void *data)
 	for (i = 0; i < MTDSWAP_TREE_CNT; i++) {
 		struct rb_root *root = &d->trees[i].root;
 
-		if (root->rb_node) {
+		if (root->rb_analde) {
 			count[i] = d->trees[i].count;
 			min[i] = MTDSWAP_ECNT_MIN(root);
 			max[i] = MTDSWAP_ECNT_MAX(root);
@@ -1272,7 +1272,7 @@ static int mtdswap_init(struct mtdswap_dev *d, unsigned int eblocks,
 {
 	struct mtd_info *mtd = d->mbd_dev->mtd;
 	unsigned int i, eblk_bytes, pages, blocks;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	d->mtd = mtd;
 	d->eblks = eblocks;
@@ -1356,19 +1356,19 @@ static void mtdswap_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 		return;
 
 	if (mtd->erasesize < PAGE_SIZE || mtd->erasesize % PAGE_SIZE) {
-		printk(KERN_ERR "%s: Erase size %u not multiple of PAGE_SIZE "
+		printk(KERN_ERR "%s: Erase size %u analt multiple of PAGE_SIZE "
 			"%lu\n", MTDSWAP_PREFIX, mtd->erasesize, PAGE_SIZE);
 		return;
 	}
 
 	if (PAGE_SIZE % mtd->writesize || mtd->writesize > PAGE_SIZE) {
-		printk(KERN_ERR "%s: PAGE_SIZE %lu not multiple of write size"
+		printk(KERN_ERR "%s: PAGE_SIZE %lu analt multiple of write size"
 			" %u\n", MTDSWAP_PREFIX, PAGE_SIZE, mtd->writesize);
 		return;
 	}
 
 	if (!mtd->oobsize || mtd->oobavail < MTDSWAP_OOBSIZE) {
-		printk(KERN_ERR "%s: Not enough free bytes in OOB, "
+		printk(KERN_ERR "%s: Analt eanalugh free bytes in OOB, "
 			"%d available, %zu needed.\n",
 			MTDSWAP_PREFIX, mtd->oobavail, MTDSWAP_OOBSIZE);
 		return;
@@ -1392,7 +1392,7 @@ static void mtdswap_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	eavailable = eblocks - bad_blocks;
 
 	if (eavailable < MIN_ERASE_BLOCKS) {
-		printk(KERN_ERR "%s: Not enough erase blocks. %u available, "
+		printk(KERN_ERR "%s: Analt eanalugh erase blocks. %u available, "
 			"%d needed\n", MTDSWAP_PREFIX, eavailable,
 			MIN_ERASE_BLOCKS);
 		return;
@@ -1486,6 +1486,6 @@ static struct mtd_blktrans_ops mtdswap_ops = {
 module_mtd_blktrans(mtdswap_ops);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jarkko Lavinen <jarkko.lavinen@nokia.com>");
+MODULE_AUTHOR("Jarkko Lavinen <jarkko.lavinen@analkia.com>");
 MODULE_DESCRIPTION("Block device access to an MTD suitable for using as "
 		"swap space");

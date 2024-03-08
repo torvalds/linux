@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -81,7 +81,7 @@ EXPORT_SYMBOL(ath9k_hw_numtxpending);
  * ath9k_hw_updatetxtriglevel - adjusts the frame trigger level
  *
  * @ah: atheros hardware struct
- * @bIncTrigLevel: whether or not the frame trigger level should be updated
+ * @bIncTrigLevel: whether or analt the frame trigger level should be updated
  *
  * The frame trigger level specifies the minimum number of bytes,
  * in units of 64 bytes, that must be DMA'ed into the PCU TX FIFO
@@ -92,15 +92,15 @@ EXPORT_SYMBOL(ath9k_hw_numtxpending);
  *
  * Caution must be taken to ensure to set the frame trigger level based
  * on the DMA request size. For example if the DMA request size is set to
- * 128 bytes the trigger level cannot exceed 6 * 64 = 384. This is because
- * there need to be enough space in the tx FIFO for the requested transfer
+ * 128 bytes the trigger level cananalt exceed 6 * 64 = 384. This is because
+ * there need to be eanalugh space in the tx FIFO for the requested transfer
  * size. Hence the tx FIFO will stop with 512 - 128 = 384 bytes. If we set
  * the threshold to a value beyond 6, then the transmit will hang.
  *
  * Current dual   stream devices have a PCU TX FIFO size of 8 KB.
  * Current single stream devices have a PCU TX FIFO size of 4 KB, however,
  * there is a hardware issue which forces us to use 2 KB instead so the
- * frame trigger level must not exceed 2 KB for these chipsets.
+ * frame trigger level must analt exceed 2 KB for these chipsets.
  */
 bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel)
 {
@@ -147,7 +147,7 @@ void ath9k_hw_abort_tx_dma(struct ath_hw *ah)
 
 	REG_SET_BIT(ah, AR_PCU_MISC, AR_PCU_FORCE_QUIET_COLL | AR_PCU_CLEAR_VMF);
 	REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_FORCE_CH_IDLE_HIGH);
-	REG_SET_BIT(ah, AR_D_GBL_IFS_MISC, AR_D_GBL_IFS_MISC_IGNORE_BACKOFF);
+	REG_SET_BIT(ah, AR_D_GBL_IFS_MISC, AR_D_GBL_IFS_MISC_IGANALRE_BACKOFF);
 
 	for (q = 0; q < AR_NUM_QCU; q++) {
 		for (i = 0; i < maxdelay; i++) {
@@ -161,7 +161,7 @@ void ath9k_hw_abort_tx_dma(struct ath_hw *ah)
 
 	REG_CLR_BIT(ah, AR_PCU_MISC, AR_PCU_FORCE_QUIET_COLL | AR_PCU_CLEAR_VMF);
 	REG_CLR_BIT(ah, AR_DIAG_SW, AR_DIAG_FORCE_CH_IDLE_HIGH);
-	REG_CLR_BIT(ah, AR_D_GBL_IFS_MISC, AR_D_GBL_IFS_MISC_IGNORE_BACKOFF);
+	REG_CLR_BIT(ah, AR_D_GBL_IFS_MISC, AR_D_GBL_IFS_MISC_IGANALRE_BACKOFF);
 
 	REG_WRITE(ah, AR_Q_TXD, 0);
 }
@@ -455,8 +455,8 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 
 		/*
 		 * cwmin and cwmax should be 0 for beacon queue
-		 * but not for IBSS as we would create an imbalance
-		 * on beaconing fairness for participating nodes.
+		 * but analt for IBSS as we would create an imbalance
+		 * on beaconing fairness for participating analdes.
 		 */
 		if (AR_SREV_9300_20_OR_LATER(ah) &&
 		    ah->opmode != NL80211_IFTYPE_ADHOC) {
@@ -879,7 +879,7 @@ void ath9k_hw_resume_interrupts(struct ath_hw *ah)
 		return;
 
 	if (atomic_read(&ah->intr_ref_cnt) != 0) {
-		ath_dbg(common, INTERRUPT, "Do not enable IER ref count %d\n",
+		ath_dbg(common, INTERRUPT, "Do analt enable IER ref count %d\n",
 			atomic_read(&ah->intr_ref_cnt));
 		return;
 	}
@@ -896,7 +896,7 @@ void ath9k_hw_enable_interrupts(struct ath_hw *ah)
 		return;
 
 	if (!atomic_inc_and_test(&ah->intr_ref_cnt)) {
-		ath_dbg(common, INTERRUPT, "Do not enable IER ref count %d\n",
+		ath_dbg(common, INTERRUPT, "Do analt enable IER ref count %d\n",
 			atomic_read(&ah->intr_ref_cnt));
 		return;
 	}

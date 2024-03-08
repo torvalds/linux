@@ -68,7 +68,7 @@
 #define AD7793_MODE_CAL_SYS_ZERO	6 /* System Zero-Scale Calibration */
 #define AD7793_MODE_CAL_SYS_FULL	7 /* System Full-Scale Calibration */
 
-#define AD7793_CLK_INT		0 /* Internal 64 kHz Clock not
+#define AD7793_CLK_INT		0 /* Internal 64 kHz Clock analt
 				   * available at the CLK pin */
 #define AD7793_CLK_INT_CO	1 /* Internal 64 kHz Clock available
 				   * at the CLK pin */
@@ -78,7 +78,7 @@
 /* Configuration Register Bit Designations (AD7793_REG_CONF) */
 #define AD7793_CONF_VBIAS(x)	(((x) & 0x3) << 14) /* Bias Voltage
 						     * Generator Enable */
-#define AD7793_CONF_BO_EN	(1 << 13) /* Burnout Current Enable */
+#define AD7793_CONF_BO_EN	(1 << 13) /* Buranalut Current Enable */
 #define AD7793_CONF_UNIPOLAR	(1 << 12) /* Unipolar/Bipolar Enable */
 #define AD7793_CONF_BOOST	(1 << 11) /* Boost Enable */
 #define AD7793_CONF_GAIN(x)	(((x) & 0x7) << 8) /* Gain Select */
@@ -125,7 +125,7 @@
 #define AD7793_IO_IXCEN_210uA	(2 << 0) /* Excitation Current 210uA */
 #define AD7793_IO_IXCEN_1mA	(3 << 0) /* Excitation Current 1mA */
 
-/* NOTE:
+/* ANALTE:
  * The AD7792/AD7793 features a dual use data out ready DOUT/RDY output.
  * In order to avoid contentions on the SPI bus, it's therefore necessary
  * to use spi bus locking.
@@ -279,7 +279,7 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 	id &= AD7793_ID_MASK;
 
 	if (id != st->chip_info->id) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(&st->sd.spi->dev, "device ID query failed\n");
 		goto out;
 	}
@@ -298,7 +298,7 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 	if (pdata->boost_enable &&
 		(st->chip_info->flags & AD7793_FLAG_HAS_VBIAS))
 		st->conf |= AD7793_CONF_BOOST;
-	if (pdata->burnout_current)
+	if (pdata->buranalut_current)
 		st->conf |= AD7793_CONF_BO_EN;
 	if (pdata->unipolar)
 		st->conf |= AD7793_CONF_UNIPOLAR;
@@ -365,7 +365,7 @@ static int ad7793_read_avail(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
 		*vals = (int *)st->scale_avail;
-		*type = IIO_VAL_INT_PLUS_NANO;
+		*type = IIO_VAL_INT_PLUS_NAANAL;
 		/* Values are stored in a 2D matrix  */
 		*length = ARRAY_SIZE(st->scale_avail) * 2;
 
@@ -420,7 +420,7 @@ static int ad7793_read_raw(struct iio_dev *indio_dev,
 					scale_avail[(st->conf >> 8) & 0x7][0];
 				*val2 = st->
 					scale_avail[(st->conf >> 8) & 0x7][1];
-				return IIO_VAL_INT_PLUS_NANO;
+				return IIO_VAL_INT_PLUS_NAANAL;
 			}
 			/* 1170mV / 2^23 * 6 */
 			scale_uv = (1170ULL * 1000000000ULL * 6ULL);
@@ -436,7 +436,7 @@ static int ad7793_read_raw(struct iio_dev *indio_dev,
 		scale_uv >>= (chan->scan_type.realbits - (unipolar ? 0 : 1));
 		*val = 0;
 		*val2 = scale_uv;
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_OFFSET:
 		if (!unipolar)
 			*val = -(1 << (chan->scan_type.realbits - 1));
@@ -527,7 +527,7 @@ static int ad7793_write_raw_get_fmt(struct iio_dev *indio_dev,
 			       struct iio_chan_spec const *chan,
 			       long mask)
 {
-	return IIO_VAL_INT_PLUS_NANO;
+	return IIO_VAL_INT_PLUS_NAANAL;
 }
 
 static const struct iio_info ad7793_info = {
@@ -782,18 +782,18 @@ static int ad7793_probe(struct spi_device *spi)
 	int ret, vref_mv = 0;
 
 	if (!pdata) {
-		dev_err(&spi->dev, "no platform data?\n");
-		return -ENODEV;
+		dev_err(&spi->dev, "anal platform data?\n");
+		return -EANALDEV;
 	}
 
 	if (!spi->irq) {
-		dev_err(&spi->dev, "no IRQ?\n");
-		return -ENODEV;
+		dev_err(&spi->dev, "anal IRQ?\n");
+		return -EANALDEV;
 	}
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-analte */
 /*
  * include/linux/serial_reg.h
  *
@@ -32,7 +32,7 @@
 #define UART_IERX_SLEEP		0x10 /* Enable sleep mode */
 
 #define UART_IIR	2	/* In:  Interrupt ID Register */
-#define UART_IIR_NO_INT		0x01 /* No interrupts pending */
+#define UART_IIR_ANAL_INT		0x01 /* Anal interrupts pending */
 #define UART_IIR_ID		0x0e /* Mask for the interrupt ID */
 #define UART_IIR_MSI		0x00 /* Modem status interrupt */
 #define UART_IIR_THRI		0x02 /* Transmitter holding register empty */
@@ -46,7 +46,7 @@
 #define UART_IIR_CTS_RTS_DSR	0x20 /* OMAP CTS/RTS/DSR Change */
 #define UART_IIR_64BYTE_FIFO	0x20 /* 16750 64 bytes FIFO */
 #define UART_IIR_FIFO_ENABLED	0xc0 /* FIFOs enabled / port type identification */
-#define  UART_IIR_FIFO_ENABLED_8250	0x00	/* 8250: no FIFO */
+#define  UART_IIR_FIFO_ENABLED_8250	0x00	/* 8250: anal FIFO */
 #define  UART_IIR_FIFO_ENABLED_16550	0x80	/* 16550: (broken/unusable) FIFO */
 #define  UART_IIR_FIFO_ENABLED_16550A	0xc0	/* 16550A: FIFO enabled */
 #define  UART_IIR_FIFO_ENABLED_16750	0xe0	/* 16750: 64 bytes FIFO enabled */
@@ -57,7 +57,7 @@
 #define UART_FCR_CLEAR_XMIT	0x04 /* Clear the XMIT FIFO */
 #define UART_FCR_DMA_SELECT	0x08 /* For DMA applications */
 /*
- * Note: The FIFO trigger levels are chip specific:
+ * Analte: The FIFO trigger levels are chip specific:
  *	RX:76 = 00  01  10  11	TX:54 = 00  01  10  11
  * PC16550D:	 1   4   8  14		xx  xx  xx  xx
  * TI16C550A:	 1   4   8  14          xx  xx  xx  xx
@@ -104,8 +104,8 @@
 
 #define UART_LCR	3	/* Out: Line Control Register */
 /*
- * Note: if the word length is 5 bits (UART_LCR_WLEN5), then setting 
- * UART_LCR_STOP will select 1.5 stop bits, not 2 stop bits.
+ * Analte: if the word length is 5 bits (UART_LCR_WLEN5), then setting 
+ * UART_LCR_STOP will select 1.5 stop bits, analt 2 stop bits.
  */
 #define UART_LCR_DLAB		0x80 /* Divisor latch access bit */
 #define UART_LCR_SBC		0x40 /* Set break control */
@@ -214,7 +214,7 @@
 #define UART_TRG_128		0x80
 
 #define UART_FCTR	1	/* Feature Control Register */
-#define UART_FCTR_RTS_NODELAY	0x00  /* RTS flow control delay */
+#define UART_FCTR_RTS_ANALDELAY	0x00  /* RTS flow control delay */
 #define UART_FCTR_RTS_4DELAY	0x01
 #define UART_FCTR_RTS_6DELAY	0x02
 #define UART_FCTR_RTS_8DELAY	0x03
@@ -312,12 +312,12 @@
 
 #define UART_RSA_SRR ((UART_RSA_BASE) + 2) /* IN: Status Read Register */
 
-#define UART_RSA_SRR_Tx_FIFO_NEMP (1 << 0) /* Tx FIFO is not empty (1) */
-#define UART_RSA_SRR_Tx_FIFO_NHFL (1 << 1) /* Tx FIFO is not half full (1) */
-#define UART_RSA_SRR_Tx_FIFO_NFUL (1 << 2) /* Tx FIFO is not full (1) */
-#define UART_RSA_SRR_Rx_FIFO_NEMP (1 << 3) /* Rx FIFO is not empty (1) */
-#define UART_RSA_SRR_Rx_FIFO_NHFL (1 << 4) /* Rx FIFO is not half full (1) */
-#define UART_RSA_SRR_Rx_FIFO_NFUL (1 << 5) /* Rx FIFO is not full (1) */
+#define UART_RSA_SRR_Tx_FIFO_NEMP (1 << 0) /* Tx FIFO is analt empty (1) */
+#define UART_RSA_SRR_Tx_FIFO_NHFL (1 << 1) /* Tx FIFO is analt half full (1) */
+#define UART_RSA_SRR_Tx_FIFO_NFUL (1 << 2) /* Tx FIFO is analt full (1) */
+#define UART_RSA_SRR_Rx_FIFO_NEMP (1 << 3) /* Rx FIFO is analt empty (1) */
+#define UART_RSA_SRR_Rx_FIFO_NHFL (1 << 4) /* Rx FIFO is analt half full (1) */
+#define UART_RSA_SRR_Rx_FIFO_NFUL (1 << 5) /* Rx FIFO is analt full (1) */
 #define UART_RSA_SRR_Rx_TOUT (1 << 6) /* Character reception timeout occurred (1) */
 #define UART_RSA_SRR_TIMER (1 << 7) /* Timer interrupt occurred */
 
@@ -377,7 +377,7 @@
 
 /*
  * These are definitions for the Altera ALTR_16550_F32/F64/F128
- * Normalized from 0x100 to 0x40 because of shift by 2 (32 bit regs).
+ * Analrmalized from 0x100 to 0x40 because of shift by 2 (32 bit regs).
  */
 #define UART_ALTR_AFR		0x40	/* Additional Features Register */
 #define UART_ALTR_EN_TXFIFO_LW	0x01	/* Enable the TX FIFO Low Watermark */

@@ -203,7 +203,7 @@ int ssb_sflash_init(struct ssb_chipcommon *cc);
 #else
 static inline int ssb_sflash_init(struct ssb_chipcommon *cc)
 {
-	pr_err("Serial flash not supported\n");
+	pr_err("Serial flash analt supported\n");
 	return 0;
 }
 #endif /* CONFIG_SSB_SFLASH */
@@ -255,7 +255,7 @@ extern int ssb_gpio_unregister(struct ssb_bus *bus);
 #else /* CONFIG_SSB_DRIVER_GPIO */
 static inline int ssb_gpio_init(struct ssb_bus *bus)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline int ssb_gpio_unregister(struct ssb_bus *bus)
 {

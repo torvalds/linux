@@ -106,7 +106,7 @@ static void vsc_freeze(struct ata_port *ap)
 	void __iomem *mask_addr;
 
 	mask_addr = ap->host->iomap[VSC_MMIO_BAR] +
-		VSC_SATA_INT_MASK_OFFSET + ap->port_no;
+		VSC_SATA_INT_MASK_OFFSET + ap->port_anal;
 
 	writeb(0, mask_addr);
 }
@@ -117,7 +117,7 @@ static void vsc_thaw(struct ata_port *ap)
 	void __iomem *mask_addr;
 
 	mask_addr = ap->host->iomap[VSC_MMIO_BAR] +
-		VSC_SATA_INT_MASK_OFFSET + ap->port_no;
+		VSC_SATA_INT_MASK_OFFSET + ap->port_anal;
 
 	writeb(0xff, mask_addr);
 }
@@ -129,7 +129,7 @@ static void vsc_intr_mask_update(struct ata_port *ap, u8 ctl)
 	u8 mask;
 
 	mask_addr = ap->host->iomap[VSC_MMIO_BAR] +
-		VSC_SATA_INT_MASK_OFFSET + ap->port_no;
+		VSC_SATA_INT_MASK_OFFSET + ap->port_anal;
 	mask = readb(mask_addr);
 	if (ctl & ATA_NIEN)
 		mask |= 0x80;
@@ -146,7 +146,7 @@ static void vsc_sata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 
 	/*
 	 * The only thing the ctl register is used for is SRST.
-	 * That is not enabled or disabled via tf_load.
+	 * That is analt enabled or disabled via tf_load.
 	 * However, if ATA_NIEN is changed, then we need to change
 	 * the interrupt register.
 	 */
@@ -284,8 +284,8 @@ static const struct scsi_host_template vsc_sata_sht = {
 
 static struct ata_port_operations vsc_sata_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	/* The IRQ handling is not quite standard SFF behaviour so we
-	   cannot use the default lost interrupt handler */
+	/* The IRQ handling is analt quite standard SFF behaviour so we
+	   cananalt use the default lost interrupt handler */
 	.lost_interrupt		= ATA_OP_NULL,
 	.sff_tf_load		= vsc_sata_tf_load,
 	.sff_tf_read		= vsc_sata_tf_read,
@@ -338,7 +338,7 @@ static int vsc_sata_init_one(struct pci_dev *pdev,
 	/* allocate host */
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 4);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = pcim_enable_device(pdev);
 	if (rc)
@@ -346,7 +346,7 @@ static int vsc_sata_init_one(struct pci_dev *pdev,
 
 	/* check if we have needed resource mapped */
 	if (pci_resource_len(pdev, 0) == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* map IO regions and initialize host accordingly */
 	rc = pcim_iomap_regions(pdev, 1 << VSC_MMIO_BAR, DRV_NAME);
@@ -377,7 +377,7 @@ static int vsc_sata_init_one(struct pci_dev *pdev,
 
 	/*
 	 * Due to a bug in the chip, the default cache line size can't be
-	 * used (unless the default is non-zero).
+	 * used (unless the default is analn-zero).
 	 */
 	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, &cls);
 	if (cls == 0x00)

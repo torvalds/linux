@@ -10,14 +10,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NON-INFRINGEMENT.  IN NO EVENT SHALL INTEL AND/OR ITS SUPPLIERS BE
+ * ANALN-INFRINGEMENT.  IN ANAL EVENT SHALL INTEL AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -63,7 +63,7 @@ struct opregion_header {
 	struct {
 		u8 rsvd;
 		u8 revision;
-		u8 minor;
+		u8 mianalr;
 		u8 major;
 	}  __packed over;
 	u8 bios_ver[32];
@@ -79,7 +79,7 @@ struct opregion_header {
 /* OpRegion mailbox #1: public ACPI methods */
 struct opregion_acpi {
 	u32 drdy;       /* driver readiness */
-	u32 csts;       /* notification status */
+	u32 csts;       /* analtification status */
 	u32 cevt;       /* current event */
 	u8 rsvd1[20];
 	u32 didl[8];    /* supported display devices ID list */
@@ -93,7 +93,7 @@ struct opregion_acpi {
 	u32 cdck;       /* current docking state */
 	u32 sxsw;       /* Sx state resume */
 	u32 evts;       /* ASL supported events */
-	u32 cnot;       /* current OS notification */
+	u32 canalt;       /* current OS analtification */
 	u32 nrdy;       /* driver status */
 	u32 did2[7];	/* extended supported display devices ID list */
 	u32 cpd2[7];	/* extended attached display devices list */
@@ -112,7 +112,7 @@ struct opregion_swsci {
 struct opregion_asle {
 	u32 ardy;       /* driver readiness */
 	u32 aslc;       /* ASLE interrupt command */
-	u32 tche;       /* technology enabled indicator */
+	u32 tche;       /* techanallogy enabled indicator */
 	u32 alsi;       /* current ALS illuminance reading */
 	u32 bclp;       /* backlight brightness to set */
 	u32 pfit;       /* panel fitting state */
@@ -144,7 +144,7 @@ struct opregion_asle_ext {
 
 /* Driver readiness indicator */
 #define ASLE_ARDY_READY		(1 << 0)
-#define ASLE_ARDY_NOT_READY	(0 << 0)
+#define ASLE_ARDY_ANALT_READY	(0 << 0)
 
 /* ASLE Interrupt Command (ASLC) bits */
 #define ASLC_SET_ALS_ILLUM		(1 << 0)
@@ -168,7 +168,7 @@ struct opregion_asle_ext {
 #define ASLC_DOCKING_FAILED		(1 << 24)
 #define ASLC_ISCT_STATE_FAILED		(1 << 26)
 
-/* Technology enabled indicator */
+/* Techanallogy enabled indicator */
 #define ASLE_TCHE_ALS_EN	(1 << 0)
 #define ASLE_TCHE_BLC_EN	(1 << 1)
 #define ASLE_TCHE_PFIT_EN	(1 << 2)
@@ -256,7 +256,7 @@ static int check_swsci_function(struct drm_i915_private *i915, u32 function)
 	u32 main_function, sub_function;
 
 	if (!swsci)
-		return -ENODEV;
+		return -EANALDEV;
 
 	main_function = (function & SWSCI_SCIC_MAIN_FUNCTION_MASK) >>
 		SWSCI_SCIC_MAIN_FUNCTION_SHIFT;
@@ -337,7 +337,7 @@ static int swsci(struct drm_i915_private *dev_priv,
 	scic = (scic & SWSCI_SCIC_EXIT_STATUS_MASK) >>
 		SWSCI_SCIC_EXIT_STATUS_SHIFT;
 
-	/* Note: scic == 0 is an error! */
+	/* Analte: scic == 0 is an error! */
 	if (scic != SWSCI_SCIC_EXIT_STATUS_SUCCESS) {
 		drm_dbg(&dev_priv->drm, "SWSCI request error %u\n", scic);
 		return -EIO;
@@ -356,7 +356,7 @@ static int swsci(struct drm_i915_private *dev_priv,
 #define DISPLAY_TYPE_EXTERNAL_FLAT_PANEL	2
 #define DISPLAY_TYPE_INTERNAL_FLAT_PANEL	3
 
-int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
+int intel_opregion_analtify_encoder(struct intel_encoder *intel_encoder,
 				  bool enable)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
@@ -365,7 +365,7 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 	u32 port;
 	int ret;
 
-	/* don't care about old stuff for now */
+	/* don't care about old stuff for analw */
 	if (!HAS_DDI(dev_priv))
 		return 0;
 
@@ -387,15 +387,15 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 	}
 
 	/*
-	 * The port numbering and mapping here is bizarre. The now-obsolete
+	 * The port numbering and mapping here is bizarre. The analw-obsolete
 	 * swsci spec supports ports numbered [0..4]. Port E is handled as a
-	 * special case, but port F and beyond are not. The functionality is
+	 * special case, but port F and beyond are analt. The functionality is
 	 * supposed to be obsolete for new platforms. Just bail out if the port
 	 * number is out of bounds after mapping.
 	 */
 	if (port > 4) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "[ENCODER:%d:%s] port %c (index %u) out of bounds for display power state notification\n",
+			    "[ENCODER:%d:%s] port %c (index %u) out of bounds for display power state analtification\n",
 			    intel_encoder->base.base.id, intel_encoder->base.name,
 			    port_name(intel_encoder->port), port);
 		return -EINVAL;
@@ -441,7 +441,7 @@ static const struct {
 	{ PCI_D3cold,	0x04 },
 };
 
-int intel_opregion_notify_adapter(struct drm_i915_private *dev_priv,
+int intel_opregion_analtify_adapter(struct drm_i915_private *dev_priv,
 				  pci_power_t state)
 {
 	int i;
@@ -468,7 +468,7 @@ static u32 asle_set_backlight(struct drm_i915_private *dev_priv, u32 bclp)
 
 	if (acpi_video_get_backlight_type() == acpi_backlight_native) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "opregion backlight request ignored\n");
+			    "opregion backlight request iganalred\n");
 		return 0;
 	}
 
@@ -503,27 +503,27 @@ static u32 asle_set_als_illum(struct drm_i915_private *dev_priv, u32 alsi)
 {
 	/* alsi is the current ALS reading in lux. 0 indicates below sensor
 	   range, 0xffff indicates above sensor range. 1-0xfffe are valid */
-	drm_dbg(&dev_priv->drm, "Illum is not supported\n");
+	drm_dbg(&dev_priv->drm, "Illum is analt supported\n");
 	return ASLC_ALS_ILLUM_FAILED;
 }
 
 static u32 asle_set_pwm_freq(struct drm_i915_private *dev_priv, u32 pfmb)
 {
-	drm_dbg(&dev_priv->drm, "PWM freq is not supported\n");
+	drm_dbg(&dev_priv->drm, "PWM freq is analt supported\n");
 	return ASLC_PWM_FREQ_FAILED;
 }
 
 static u32 asle_set_pfit(struct drm_i915_private *dev_priv, u32 pfit)
 {
 	/* Panel fitting is currently controlled by the X code, so this is a
-	   noop until modesetting support works fully */
-	drm_dbg(&dev_priv->drm, "Pfit is not supported\n");
+	   analop until modesetting support works fully */
+	drm_dbg(&dev_priv->drm, "Pfit is analt supported\n");
 	return ASLC_PFIT_FAILED;
 }
 
 static u32 asle_set_supported_rotation_angles(struct drm_i915_private *dev_priv, u32 srot)
 {
-	drm_dbg(&dev_priv->drm, "SROT is not supported\n");
+	drm_dbg(&dev_priv->drm, "SROT is analt supported\n");
 	return ASLC_ROTATION_ANGLES_FAILED;
 }
 
@@ -531,22 +531,22 @@ static u32 asle_set_button_array(struct drm_i915_private *dev_priv, u32 iuer)
 {
 	if (!iuer)
 		drm_dbg(&dev_priv->drm,
-			"Button array event is not supported (nothing)\n");
+			"Button array event is analt supported (analthing)\n");
 	if (iuer & ASLE_IUER_ROTATION_LOCK_BTN)
 		drm_dbg(&dev_priv->drm,
-			"Button array event is not supported (rotation lock)\n");
+			"Button array event is analt supported (rotation lock)\n");
 	if (iuer & ASLE_IUER_VOLUME_DOWN_BTN)
 		drm_dbg(&dev_priv->drm,
-			"Button array event is not supported (volume down)\n");
+			"Button array event is analt supported (volume down)\n");
 	if (iuer & ASLE_IUER_VOLUME_UP_BTN)
 		drm_dbg(&dev_priv->drm,
-			"Button array event is not supported (volume up)\n");
+			"Button array event is analt supported (volume up)\n");
 	if (iuer & ASLE_IUER_WINDOWS_BTN)
 		drm_dbg(&dev_priv->drm,
-			"Button array event is not supported (windows)\n");
+			"Button array event is analt supported (windows)\n");
 	if (iuer & ASLE_IUER_POWER_BTN)
 		drm_dbg(&dev_priv->drm,
-			"Button array event is not supported (power)\n");
+			"Button array event is analt supported (power)\n");
 
 	return ASLC_BUTTON_ARRAY_FAILED;
 }
@@ -555,10 +555,10 @@ static u32 asle_set_convertible(struct drm_i915_private *dev_priv, u32 iuer)
 {
 	if (iuer & ASLE_IUER_CONVERTIBLE)
 		drm_dbg(&dev_priv->drm,
-			"Convertible is not supported (clamshell)\n");
+			"Convertible is analt supported (clamshell)\n");
 	else
 		drm_dbg(&dev_priv->drm,
-			"Convertible is not supported (slate)\n");
+			"Convertible is analt supported (slate)\n");
 
 	return ASLC_CONVERTIBLE_FAILED;
 }
@@ -566,17 +566,17 @@ static u32 asle_set_convertible(struct drm_i915_private *dev_priv, u32 iuer)
 static u32 asle_set_docking(struct drm_i915_private *dev_priv, u32 iuer)
 {
 	if (iuer & ASLE_IUER_DOCKING)
-		drm_dbg(&dev_priv->drm, "Docking is not supported (docked)\n");
+		drm_dbg(&dev_priv->drm, "Docking is analt supported (docked)\n");
 	else
 		drm_dbg(&dev_priv->drm,
-			"Docking is not supported (undocked)\n");
+			"Docking is analt supported (undocked)\n");
 
 	return ASLC_DOCKING_FAILED;
 }
 
 static u32 asle_isct_state(struct drm_i915_private *dev_priv)
 {
-	drm_dbg(&dev_priv->drm, "ISCT is not supported\n");
+	drm_dbg(&dev_priv->drm, "ISCT is analt supported\n");
 	return ASLC_ISCT_STATE_FAILED;
 }
 
@@ -597,7 +597,7 @@ static void asle_work(struct work_struct *work)
 
 	if (!(aslc_req & ASLC_REQ_MSK)) {
 		drm_dbg(&dev_priv->drm,
-			"No request on ASLC interrupt 0x%08x\n", aslc_req);
+			"Anal request on ASLC interrupt 0x%08x\n", aslc_req);
 		return;
 	}
 
@@ -635,7 +635,7 @@ static void asle_work(struct work_struct *work)
 void intel_opregion_asle_intr(struct drm_i915_private *dev_priv)
 {
 	if (dev_priv->display.opregion.asle)
-		queue_work(dev_priv->unordered_wq,
+		queue_work(dev_priv->uanalrdered_wq,
 			   &dev_priv->display.opregion.asle_work);
 }
 
@@ -648,22 +648,22 @@ void intel_opregion_asle_intr(struct drm_i915_private *dev_priv)
  * docking event, lid switch or display switch request. In Linux, these are
  * handled by the dock, button and video drivers.
  */
-static int intel_opregion_video_event(struct notifier_block *nb,
+static int intel_opregion_video_event(struct analtifier_block *nb,
 				      unsigned long val, void *data)
 {
 	struct intel_opregion *opregion = container_of(nb, struct intel_opregion,
-						       acpi_notifier);
+						       acpi_analtifier);
 	struct acpi_bus_event *event = data;
 	struct opregion_acpi *acpi;
-	int ret = NOTIFY_OK;
+	int ret = ANALTIFY_OK;
 
 	if (strcmp(event->device_class, ACPI_VIDEO_CLASS) != 0)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	acpi = opregion->acpi;
 
 	if (event->type == 0x80 && ((acpi->cevt & 1) == 0))
-		ret = NOTIFY_BAD;
+		ret = ANALTIFY_BAD;
 
 	acpi->csts = 0;
 
@@ -701,7 +701,7 @@ static void intel_didl_outputs(struct drm_i915_private *dev_priv)
 	 * In theory, did2, the extended didl, gets added at opregion version
 	 * 3.0. In practice, however, we're supposed to set it for earlier
 	 * versions as well, since a BIOS that doesn't understand did2 should
-	 * not look at it anyway. Use a variable so we can tweak this if a need
+	 * analt look at it anyway. Use a variable so we can tweak this if a need
 	 * arises later.
 	 */
 	max_outputs = ARRAY_SIZE(opregion->acpi->didl) +
@@ -739,12 +739,12 @@ static void intel_setup_cadls(struct drm_i915_private *dev_priv)
 	/*
 	 * Initialize the CADL field from the connector device ids. This is
 	 * essentially the same as copying from the DIDL. Technically, this is
-	 * not always correct as display outputs may exist, but not active. This
+	 * analt always correct as display outputs may exist, but analt active. This
 	 * initialization is necessary for some Clevo laptops that check this
 	 * field before processing the brightness and display switching hotkeys.
 	 *
-	 * Note that internal panels should be at the front of the connector
-	 * list already, ensuring they're not left out.
+	 * Analte that internal panels should be at the front of the connector
+	 * list already, ensuring they're analt left out.
 	 */
 	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
@@ -778,7 +778,7 @@ static void swsci_setup(struct drm_i915_private *dev_priv)
 
 	/*
 	 * We also use GBDA to ask for _requested_ SBCB callbacks. The driver
-	 * must not call interfaces that are not specifically requested by the
+	 * must analt call interfaces that are analt specifically requested by the
 	 * bios.
 	 */
 	if (swsci(dev_priv, SWSCI_GBDA_REQUESTED_CALLBACKS, 0, &tmp) == 0) {
@@ -788,9 +788,9 @@ static void swsci_setup(struct drm_i915_private *dev_priv)
 	}
 
 	/*
-	 * But we use SBCB to ask for _supported_ SBCB calls. This does not mean
+	 * But we use SBCB to ask for _supported_ SBCB calls. This does analt mean
 	 * the callback is _requested_. But we still can't call interfaces that
-	 * are not requested.
+	 * are analt requested.
 	 */
 	if (swsci(dev_priv, SWSCI_SBCB_SUPPORTED_CALLBACKS, 0, &tmp) == 0) {
 		/* make the bits match the sub-function codes */
@@ -803,9 +803,9 @@ static void swsci_setup(struct drm_i915_private *dev_priv)
 			u32 req = opregion->swsci_sbcb_sub_functions;
 			if ((req & tmp) != req)
 				drm_dbg(&dev_priv->drm,
-					"SWSCI BIOS requested (%08x) SBCB callbacks that are not supported (%08x)\n",
+					"SWSCI BIOS requested (%08x) SBCB callbacks that are analt supported (%08x)\n",
 					req, tmp);
-			/* XXX: for now, trust the requested callbacks */
+			/* XXX: for analw, trust the requested callbacks */
 			/* opregion->swsci_sbcb_sub_functions &= tmp; */
 		} else {
 			opregion->swsci_sbcb_sub_functions |= tmp;
@@ -818,19 +818,19 @@ static void swsci_setup(struct drm_i915_private *dev_priv)
 		opregion->swsci_sbcb_sub_functions);
 }
 
-static int intel_no_opregion_vbt_callback(const struct dmi_system_id *id)
+static int intel_anal_opregion_vbt_callback(const struct dmi_system_id *id)
 {
 	DRM_DEBUG_KMS("Falling back to manually reading VBT from "
 		      "VBIOS ROM for %s\n", id->ident);
 	return 1;
 }
 
-static const struct dmi_system_id intel_no_opregion_vbt[] = {
+static const struct dmi_system_id intel_anal_opregion_vbt[] = {
 	{
-		.callback = intel_no_opregion_vbt_callback,
+		.callback = intel_anal_opregion_vbt_callback,
 		.ident = "ThinkCentre A57",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "97027RG"),
 		},
 	},
@@ -845,7 +845,7 @@ static int intel_load_vbt_firmware(struct drm_i915_private *dev_priv)
 	int ret;
 
 	if (!name || !*name)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = request_firmware(&fw, name, dev_priv->drm.dev);
 	if (ret) {
@@ -864,7 +864,7 @@ static int intel_load_vbt_firmware(struct drm_i915_private *dev_priv)
 			opregion->vbt_size = fw->size;
 			ret = 0;
 		} else {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 		}
 	} else {
 		drm_dbg_kms(&dev_priv->drm, "Invalid VBT firmware \"%s\"\n",
@@ -898,15 +898,15 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 	drm_dbg(&dev_priv->drm, "graphic opregion physical addr: 0x%x\n",
 		asls);
 	if (asls == 0) {
-		drm_dbg(&dev_priv->drm, "ACPI OpRegion not supported!\n");
-		return -ENOTSUPP;
+		drm_dbg(&dev_priv->drm, "ACPI OpRegion analt supported!\n");
+		return -EANALTSUPP;
 	}
 
 	INIT_WORK(&opregion->asle_work, asle_work);
 
 	base = memremap(asls, OPREGION_SIZE, MEMREMAP_WB);
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(buf, base, sizeof(buf));
 
@@ -920,7 +920,7 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 
 	drm_dbg(&dev_priv->drm, "ACPI OpRegion version %u.%u.%u\n",
 		opregion->header->over.major,
-		opregion->header->over.minor,
+		opregion->header->over.mianalr,
 		opregion->header->over.revision);
 
 	mboxes = opregion->header->mboxes;
@@ -929,8 +929,8 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 		opregion->acpi = base + OPREGION_ACPI_OFFSET;
 		/*
 		 * Indicate we handle monitor hotplug events ourselves so we do
-		 * not need ACPI notifications for them. Disabling these avoids
-		 * triggering the AML code doing the notifation, which may be
+		 * analt need ACPI analtifications for them. Disabling these avoids
+		 * triggering the AML code doing the analtifation, which may be
 		 * broken as Windows also seems to disable these.
 		 */
 		opregion->acpi->chpd = 1;
@@ -940,7 +940,7 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 		u8 major = opregion->header->over.major;
 
 		if (major >= 3) {
-			drm_err(&dev_priv->drm, "SWSCI Mailbox #2 present for opregion v3.x, ignoring\n");
+			drm_err(&dev_priv->drm, "SWSCI Mailbox #2 present for opregion v3.x, iganalring\n");
 		} else {
 			if (major >= 2)
 				drm_dbg(&dev_priv->drm, "SWSCI Mailbox #2 present for opregion v2.x\n");
@@ -954,7 +954,7 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 		drm_dbg(&dev_priv->drm, "ASLE supported\n");
 		opregion->asle = base + OPREGION_ASLE_OFFSET;
 
-		opregion->asle->ardy = ASLE_ARDY_NOT_READY;
+		opregion->asle->ardy = ASLE_ARDY_ANALT_READY;
 	}
 
 	if (mboxes & MBOX_ASLE_EXT) {
@@ -969,7 +969,7 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 	if (intel_load_vbt_firmware(dev_priv) == 0)
 		goto out;
 
-	if (dmi_check_system(intel_no_opregion_vbt))
+	if (dmi_check_system(intel_anal_opregion_vbt))
 		goto out;
 
 	if (opregion->header->over.major >= 2 && opregion->asle &&
@@ -983,7 +983,7 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 		 * opregion base, and should never point within opregion.
 		 */
 		if (opregion->header->over.major > 2 ||
-		    opregion->header->over.minor >= 1) {
+		    opregion->header->over.mianalr >= 1) {
 			drm_WARN_ON(&dev_priv->drm, rvda < OPREGION_SIZE);
 
 			rvda += asls;
@@ -1010,10 +1010,10 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 
 	vbt = base + OPREGION_VBT_OFFSET;
 	/*
-	 * The VBT specification says that if the ASLE ext mailbox is not used
+	 * The VBT specification says that if the ASLE ext mailbox is analt used
 	 * its area is reserved, but on some CHT boards the VBT extends into the
 	 * ASLE ext area. Allow this even though it is against the spec, so we
-	 * do not end up rejecting the VBT on those boards (and end up not
+	 * do analt end up rejecting the VBT on those boards (and end up analt
 	 * finding the LCD panel because of this).
 	 */
 	vbt_size = (mboxes & MBOX_ASLE_EXT) ?
@@ -1073,19 +1073,19 @@ intel_opregion_get_panel_type(struct drm_i915_private *dev_priv)
 
 	/* fall back to VBT panel type? */
 	if (ret == 0x0) {
-		drm_dbg_kms(&dev_priv->drm, "No panel type in OpRegion\n");
-		return -ENODEV;
+		drm_dbg_kms(&dev_priv->drm, "Anal panel type in OpRegion\n");
+		return -EANALDEV;
 	}
 
 	/*
-	 * So far we know that some machined must use it, others must not use it.
+	 * So far we kanalw that some machined must use it, others must analt use it.
 	 * There doesn't seem to be any way to determine which way to go, except
 	 * via a quirk list :(
 	 */
 	if (!dmi_check_system(intel_use_opregion_panel_type)) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "Ignoring OpRegion panel type (%d)\n", ret - 1);
-		return -ENODEV;
+			    "Iganalring OpRegion panel type (%d)\n", ret - 1);
+		return -EANALDEV;
 	}
 
 	return ret - 1;
@@ -1099,7 +1099,7 @@ intel_opregion_get_panel_type(struct drm_i915_private *dev_priv)
  * to it.
  *
  * Returns:
- * The EDID in the OpRegion, or NULL if there is none or it's invalid.
+ * The EDID in the OpRegion, or NULL if there is analne or it's invalid.
  *
  */
 const struct drm_edid *intel_opregion_get_edid(struct intel_connector *intel_connector)
@@ -1138,7 +1138,7 @@ bool intel_opregion_headless_sku(struct drm_i915_private *i915)
 	struct opregion_header *header = opregion->header;
 
 	if (!header || header->over.major < 2 ||
-	    (header->over.major == 2 && header->over.minor < 3))
+	    (header->over.major == 2 && header->over.mianalr < 3))
 		return false;
 
 	return opregion->header->pcon & PCON_HEADLESS_SKU;
@@ -1152,9 +1152,9 @@ void intel_opregion_register(struct drm_i915_private *i915)
 		return;
 
 	if (opregion->acpi) {
-		opregion->acpi_notifier.notifier_call =
+		opregion->acpi_analtifier.analtifier_call =
 			intel_opregion_video_event;
-		register_acpi_notifier(&opregion->acpi_notifier);
+		register_acpi_analtifier(&opregion->acpi_analtifier);
 	}
 
 	intel_opregion_resume(i915);
@@ -1169,8 +1169,8 @@ static void intel_opregion_resume_display(struct drm_i915_private *i915)
 		intel_setup_cadls(i915);
 
 		/*
-		 * Notify BIOS we are ready to handle ACPI video ext notifs.
-		 * Right now, all the events are handled by the ACPI video
+		 * Analtify BIOS we are ready to handle ACPI video ext analtifs.
+		 * Right analw, all the events are handled by the ACPI video
 		 * module. We don't actually need to do anything with them.
 		 */
 		opregion->acpi->csts = 0;
@@ -1196,7 +1196,7 @@ void intel_opregion_resume(struct drm_i915_private *i915)
 	if (HAS_DISPLAY(i915))
 		intel_opregion_resume_display(i915);
 
-	intel_opregion_notify_adapter(i915, PCI_D0);
+	intel_opregion_analtify_adapter(i915, PCI_D0);
 }
 
 static void intel_opregion_suspend_display(struct drm_i915_private *i915)
@@ -1204,7 +1204,7 @@ static void intel_opregion_suspend_display(struct drm_i915_private *i915)
 	struct intel_opregion *opregion = &i915->display.opregion;
 
 	if (opregion->asle)
-		opregion->asle->ardy = ASLE_ARDY_NOT_READY;
+		opregion->asle->ardy = ASLE_ARDY_ANALT_READY;
 
 	cancel_work_sync(&i915->display.opregion.asle_work);
 
@@ -1219,7 +1219,7 @@ void intel_opregion_suspend(struct drm_i915_private *i915, pci_power_t state)
 	if (!opregion->header)
 		return;
 
-	intel_opregion_notify_adapter(i915, state);
+	intel_opregion_analtify_adapter(i915, state);
 
 	if (HAS_DISPLAY(i915))
 		intel_opregion_suspend_display(i915);
@@ -1234,9 +1234,9 @@ void intel_opregion_unregister(struct drm_i915_private *i915)
 	if (!opregion->header)
 		return;
 
-	if (opregion->acpi_notifier.notifier_call) {
-		unregister_acpi_notifier(&opregion->acpi_notifier);
-		opregion->acpi_notifier.notifier_call = NULL;
+	if (opregion->acpi_analtifier.analtifier_call) {
+		unregister_acpi_analtifier(&opregion->acpi_analtifier);
+		opregion->acpi_analtifier.analtifier_call = NULL;
 	}
 }
 
@@ -1247,7 +1247,7 @@ void intel_opregion_cleanup(struct drm_i915_private *i915)
 	if (!opregion->header)
 		return;
 
-	/* just clear all opregion memory pointers now */
+	/* just clear all opregion memory pointers analw */
 	memunmap(opregion->header);
 	if (opregion->rvda) {
 		memunmap(opregion->rvda);

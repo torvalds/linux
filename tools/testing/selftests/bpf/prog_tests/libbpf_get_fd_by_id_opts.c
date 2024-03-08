@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright (C) 2022 Huawei Technologies Duesseldorf GmbH
+ * Copyright (C) 2022 Huawei Techanallogies Duesseldorf GmbH
  *
  * Author: Roberto Sassu <roberto.sassu@huawei.com>
  */
@@ -54,7 +54,7 @@ void test_libbpf_get_fd_by_id_opts(void)
 	if (!ASSERT_EQ(value, 0, "map value mismatch"))
 		goto close_prog;
 
-	/* Map update should not work with read-only fd. */
+	/* Map update should analt work with read-only fd. */
 	ret = bpf_map_update_elem(fd, &zero, &len, BPF_ANY);
 	if (!ASSERT_LT(ret, 0, "bpf_map_update_elem"))
 		goto close_prog;
@@ -65,17 +65,17 @@ void test_libbpf_get_fd_by_id_opts(void)
 	if (!ASSERT_OK(ret, "bpf_map_update_elem"))
 		goto close_prog;
 
-	/* Prog get fd with opts set should not work (no kernel support). */
+	/* Prog get fd with opts set should analt work (anal kernel support). */
 	ret = bpf_prog_get_fd_by_id_opts(0, &fd_opts_rdonly);
 	if (!ASSERT_EQ(ret, -EINVAL, "bpf_prog_get_fd_by_id_opts"))
 		goto close_prog;
 
-	/* Link get fd with opts set should not work (no kernel support). */
+	/* Link get fd with opts set should analt work (anal kernel support). */
 	ret = bpf_link_get_fd_by_id_opts(0, &fd_opts_rdonly);
 	if (!ASSERT_EQ(ret, -EINVAL, "bpf_link_get_fd_by_id_opts"))
 		goto close_prog;
 
-	/* BTF get fd with opts set should not work (no kernel support). */
+	/* BTF get fd with opts set should analt work (anal kernel support). */
 	ret = bpf_btf_get_fd_by_id_opts(0, &fd_opts_rdonly);
 	ASSERT_EQ(ret, -EINVAL, "bpf_btf_get_fd_by_id_opts");
 

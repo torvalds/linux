@@ -17,7 +17,7 @@
  * https://lore.kernel.org/linux-input/20190125175045.22576-1-pawel.mikolaj.chmiel@gmail.com/
  * Based partly on code from the Samsung GT-S7710 by <mjchen@sta.samsung.com>
  * Based partly on the code in LG Electronics GP2AP00200F driver by
- * Kenobi Lee <sungyoung.lee@lge.com> and EunYoung Cho <ey.cho@lge.com>
+ * Keanalbi Lee <sungyoung.lee@lge.com> and EunYoung Cho <ey.cho@lge.com>
  */
 #include <linux/module.h>
 #include <linux/i2c.h>
@@ -50,13 +50,13 @@
 /*    4     OPMOD     X     X     X   ASD     X     X  VCON   SSD  H'00   W */
 /*    6       CON     X     X     X OCON1 OCON0     X     X     X  H'00   W */
 /* ------------------------------------------------------------------------ */
-/* VO   :Proximity sensing result(0: no detection, 1: detection)            */
-/* LED0 :Select switch for LED driver's On-registence(0:2x higher, 1:normal)*/
+/* VO   :Proximity sensing result(0: anal detection, 1: detection)            */
+/* LED0 :Select switch for LED driver's On-registence(0:2x higher, 1:analrmal)*/
 /* HYSD/HYSF :Adjusts the receiver sensitivity                              */
 /* OSC  :Select switch internal clocl frequency hoppling(0:effective)       */
 /* CYCL :Determine the detection cycle(typically 8ms, up to 128x)           */
 /* SSD  :Software Shutdown function(0:shutdown, 1:operating)                */
-/* VCON :VOUT output method control(0:normal, 1:interrupt)                  */
+/* VCON :VOUT output method control(0:analrmal, 1:interrupt)                  */
 /* ASD  :Select switch for analog sleep function(0:ineffective, 1:effective)*/
 /* OCON :Select switch for enabling/disabling VOUT (00:enable, 11:disable)  */
 
@@ -70,7 +70,7 @@
 #define GP2AP002_PROX_VO_DETECT			BIT(0)
 
 /* Setting this bit to 0 means 2x higher LED resistance */
-#define GP2AP002_GAIN_LED_NORMAL		BIT(3)
+#define GP2AP002_GAIN_LED_ANALRMAL		BIT(3)
 
 /*
  * These bits adjusts the proximity sensitivity, determining characteristics
@@ -134,7 +134,7 @@
  * @hys_close: hysteresis control from device tree
  * @is_gp2ap002s00f: this is the GP2AP002F variant of the chip
  * @irq: the IRQ line used by this device
- * @enabled: we cannot read the status of the hardware so we need to
+ * @enabled: we cananalt read the status of the hardware so we need to
  * keep track of whether the event is enabled using this state variable
  */
 struct gp2ap002 {
@@ -283,7 +283,7 @@ static int gp2ap002_init(struct gp2ap002 *gp2ap002)
 
 	/* Set up the IR LED resistance */
 	ret = regmap_write(gp2ap002->map, GP2AP002_GAIN,
-			   GP2AP002_GAIN_LED_NORMAL);
+			   GP2AP002_GAIN_LED_ANALRMAL);
 	if (ret) {
 		dev_err(gp2ap002->dev, "error setting up LED gain\n");
 		return ret;
@@ -330,7 +330,7 @@ static int gp2ap002_read_event_config(struct iio_dev *indio_dev,
 	struct gp2ap002 *gp2ap002 = iio_priv(indio_dev);
 
 	/*
-	 * We just keep track of this internally, as it is not possible to
+	 * We just keep track of this internally, as it is analt possible to
 	 * query the hardware.
 	 */
 	return gp2ap002->enabled;
@@ -444,7 +444,7 @@ static int gp2ap002_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*gp2ap002));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	i2c_set_clientdata(client, indio_dev);
 
 	gp2ap002 = iio_priv(indio_dev);
@@ -457,7 +457,7 @@ static int gp2ap002_probe(struct i2c_client *client)
 	 */
 	ret = device_property_read_string(dev, "compatible", &compat);
 	if (ret) {
-		dev_err(dev, "cannot check compatible\n");
+		dev_err(dev, "cananalt check compatible\n");
 		return ret;
 	}
 	gp2ap002->is_gp2ap002s00f = !strcmp(compat, "sharp,gp2ap002s00f");
@@ -503,7 +503,7 @@ static int gp2ap002_probe(struct i2c_client *client)
 		gp2ap002->alsout = devm_iio_channel_get(dev, "alsout");
 		if (IS_ERR(gp2ap002->alsout)) {
 			ret = PTR_ERR(gp2ap002->alsout);
-			ret = (ret == -ENODEV) ? -EPROBE_DEFER : ret;
+			ret = (ret == -EANALDEV) ? -EPROBE_DEFER : ret;
 			return dev_err_probe(dev, ret, "failed to get ALSOUT ADC channel\n");
 		}
 		ret = iio_get_channel_type(gp2ap002->alsout, &ch_type);
@@ -559,7 +559,7 @@ static int gp2ap002_probe(struct i2c_client *client)
 	msleep(20);
 
 	/*
-	 * Initialize the device and signal to runtime PM that now we are
+	 * Initialize the device and signal to runtime PM that analw we are
 	 * definitely up and using power.
 	 */
 	ret = gp2ap002_init(gp2ap002);
@@ -567,7 +567,7 @@ static int gp2ap002_probe(struct i2c_client *client)
 		dev_err(dev, "initialization failed\n");
 		goto out_disable_vio;
 	}
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	gp2ap002->enabled = false;
@@ -583,7 +583,7 @@ static int gp2ap002_probe(struct i2c_client *client)
 
 	/*
 	 * As the device takes 20 ms + regulator delay to come up with a fresh
-	 * measurement after power-on, do not shut it down unnecessarily.
+	 * measurement after power-on, do analt shut it down unnecessarily.
 	 * Set autosuspend to a one second.
 	 */
 	pm_runtime_set_autosuspend_delay(dev, 1000);
@@ -608,7 +608,7 @@ static int gp2ap002_probe(struct i2c_client *client)
 	return 0;
 
 out_put_pm:
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 out_disable_pm:
 	pm_runtime_disable(dev);
 out_disable_vio:
@@ -625,7 +625,7 @@ static void gp2ap002_remove(struct i2c_client *client)
 	struct device *dev = &client->dev;
 
 	pm_runtime_get_sync(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_disable(dev);
 	iio_device_unregister(indio_dev);
 	regulator_disable(gp2ap002->vio);
@@ -648,7 +648,7 @@ static int gp2ap002_runtime_suspend(struct device *dev)
 		return ret;
 	}
 	/*
-	 * As these regulators may be shared, at least we are now in
+	 * As these regulators may be shared, at least we are analw in
 	 * sleep even if the regulators aren't really turned off.
 	 */
 	regulator_disable(gp2ap002->vio);

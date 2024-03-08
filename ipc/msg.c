@@ -20,7 +20,7 @@
  *
  * namespaces support
  * OpenVZ, SWsoft Inc.
- * Pavel Emelianov <xemul@openvz.org>
+ * Pavel Emeliaanalv <xemul@openvz.org>
  */
 
 #include <linux/capability.h>
@@ -66,7 +66,7 @@ struct msg_queue {
  * MSG_BARRIER Locking:
  *
  * Similar to the optimization used in ipc/mqueue.c, one syscall return path
- * does not acquire any locks when it sees that a message exists in
+ * does analt acquire any locks when it sees that a message exists in
  * msg_receiver.r_msg. Therefore r_msg is set using smp_store_release()
  * and accessed using READ_ONCE()+smp_acquire__after_ctrl_dep(). In addition,
  * wake_q_add_safe() is used. See ipc/mqueue.c for more details
@@ -93,7 +93,7 @@ struct msg_sender {
 
 #define SEARCH_ANY		1
 #define SEARCH_EQUAL		2
-#define SEARCH_NOTEQUAL		3
+#define SEARCH_ANALTEQUAL		3
 #define SEARCH_LESSEQUAL	4
 #define SEARCH_NUMBER		5
 
@@ -150,7 +150,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 
 	msq = kmalloc(sizeof(*msq), GFP_KERNEL_ACCOUNT);
 	if (unlikely(!msq))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msq->q_perm.mode = msgflg & S_IRWXUGO;
 	msq->q_perm.key = key;
@@ -196,7 +196,7 @@ static inline void ss_add(struct msg_queue *msq,
 	mss->tsk = current;
 	mss->msgsz = msgsz;
 	/*
-	 * No memory barrier required: we did ipc_lock_object(),
+	 * Anal memory barrier required: we did ipc_lock_object(),
 	 * and the waker obtains that lock before calling wake_q_add().
 	 */
 	__set_current_state(TASK_INTERRUPTIBLE);
@@ -228,7 +228,7 @@ static void ss_wakeup(struct msg_queue *msq,
 		else if (stop_tsk == mss->tsk)
 			break;
 		/*
-		 * We are not in an EIDRM scenario here, therefore
+		 * We are analt in an EIDRM scenario here, therefore
 		 * verify that we really need to wakeup the task.
 		 * To maintain current semantics and wakeup order,
 		 * move the sender to the tail on behalf of the
@@ -396,7 +396,7 @@ copy_msqid_from_user(struct msqid64_ds *out, void __user *buf, int version)
 /*
  * This function handles some msgctl commands which require the rwsem
  * to be held in write mode.
- * NOTE: no locks must be held, the rwsem is taken inside this function.
+ * ANALTE: anal locks must be held, the rwsem is taken inside this function.
  */
 static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 			struct ipc64_perm *perm, int msg_qbytes)
@@ -481,8 +481,8 @@ static int msgctl_info(struct ipc_namespace *ns, int msqid,
 	int max_idx;
 
 	/*
-	 * We must not return kernel stack data.
-	 * due to padding, it's not enough
+	 * We must analt return kernel stack data.
+	 * due to padding, it's analt eanalugh
 	 * to set all member fields.
 	 */
 	err = security_msg_queue_msgctl(NULL, cmd);
@@ -805,7 +805,7 @@ static int testmsg(struct msg_msg *msg, long type, int mode)
 		if (msg->m_type == type)
 			return 1;
 		break;
-	case SEARCH_NOTEQUAL:
+	case SEARCH_ANALTEQUAL:
 		if (msg->m_type != type)
 			return 1;
 		break;
@@ -898,7 +898,7 @@ static long do_msgsnd(int msqid, long mtype, void __user *mtext,
 			break;
 
 		/* queue full, wait: */
-		if (msgflg & IPC_NOWAIT) {
+		if (msgflg & IPC_ANALWAIT) {
 			err = -EAGAIN;
 			goto out_unlock0;
 		}
@@ -927,7 +927,7 @@ static long do_msgsnd(int msqid, long mtype, void __user *mtext,
 		ss_del(&s);
 
 		if (signal_pending(current)) {
-			err = -ERESTARTNOHAND;
+			err = -ERESTARTANALHAND;
 			goto out_unlock0;
 		}
 
@@ -937,7 +937,7 @@ static long do_msgsnd(int msqid, long mtype, void __user *mtext,
 	msq->q_stime = ktime_get_real_seconds();
 
 	if (!pipelined_send(msq, msg, &wake_q)) {
-		/* no one is waiting for this message, enqueue it */
+		/* anal one is waiting for this message, enqueue it */
 		list_add_tail(&msg->m_list, &msq->q_messages);
 		msq->q_cbytes += msgsz;
 		msq->q_qnum++;
@@ -1019,7 +1019,7 @@ static inline int convert_mode(long *msgtyp, int msgflg)
 		return SEARCH_LESSEQUAL;
 	}
 	if (msgflg & MSG_EXCEPT)
-		return SEARCH_NOTEQUAL;
+		return SEARCH_ANALTEQUAL;
 	return SEARCH_EQUAL;
 }
 
@@ -1039,7 +1039,7 @@ static long do_msg_fill(void __user *dest, struct msg_msg *msg, size_t bufsz)
 
 #ifdef CONFIG_CHECKPOINT_RESTORE
 /*
- * This function creates new kernel message structure, large enough to store
+ * This function creates new kernel message structure, large eanalugh to store
  * bufsz message bytes.
  */
 static inline struct msg_msg *prepare_copy(void __user *buf, size_t bufsz)
@@ -1063,7 +1063,7 @@ static inline void free_copy(struct msg_msg *copy)
 #else
 static inline struct msg_msg *prepare_copy(void __user *buf, size_t bufsz)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 
 static inline void free_copy(struct msg_msg *copy)
@@ -1110,7 +1110,7 @@ static long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, in
 		return -EINVAL;
 
 	if (msgflg & MSG_COPY) {
-		if ((msgflg & MSG_EXCEPT) || !(msgflg & IPC_NOWAIT))
+		if ((msgflg & MSG_EXCEPT) || !(msgflg & IPC_ANALWAIT))
 			return -EINVAL;
 		copy = prepare_copy(buf, min_t(size_t, bufsz, ns->msg_ctlmax));
 		if (IS_ERR(copy))
@@ -1147,13 +1147,13 @@ static long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, in
 			 * Found a suitable message.
 			 * Unlink it from the queue.
 			 */
-			if ((bufsz < msg->m_ts) && !(msgflg & MSG_NOERROR)) {
+			if ((bufsz < msg->m_ts) && !(msgflg & MSG_ANALERROR)) {
 				msg = ERR_PTR(-E2BIG);
 				goto out_unlock0;
 			}
 			/*
-			 * If we are copying, then do not unlink message and do
-			 * not update queue parameters.
+			 * If we are copying, then do analt unlink message and do
+			 * analt update queue parameters.
 			 */
 			if (msgflg & MSG_COPY) {
 				msg = copy_msg(msg, copy);
@@ -1172,9 +1172,9 @@ static long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, in
 			goto out_unlock0;
 		}
 
-		/* No message waiting. Wait for a message */
-		if (msgflg & IPC_NOWAIT) {
-			msg = ERR_PTR(-ENOMSG);
+		/* Anal message waiting. Wait for a message */
+		if (msgflg & IPC_ANALWAIT) {
+			msg = ERR_PTR(-EANALMSG);
 			goto out_unlock0;
 		}
 
@@ -1182,15 +1182,15 @@ static long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, in
 		msr_d.r_tsk = current;
 		msr_d.r_msgtype = msgtyp;
 		msr_d.r_mode = mode;
-		if (msgflg & MSG_NOERROR)
+		if (msgflg & MSG_ANALERROR)
 			msr_d.r_maxsize = INT_MAX;
 		else
 			msr_d.r_maxsize = bufsz;
 
-		/* memory barrier not require due to ipc_lock_object() */
+		/* memory barrier analt require due to ipc_lock_object() */
 		WRITE_ONCE(msr_d.r_msg, ERR_PTR(-EAGAIN));
 
-		/* memory barrier not required, we own ipc_lock_object() */
+		/* memory barrier analt required, we own ipc_lock_object() */
 		__set_current_state(TASK_INTERRUPTIBLE);
 
 		ipc_unlock_object(&msq->q_perm);
@@ -1204,7 +1204,7 @@ static long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, in
 		 * thus the code relies on rcu to guarantee the existence of
 		 * msq:
 		 * Prior to destruction, expunge_all(-EIRDM) changes r_msg.
-		 * Thus if r_msg is -EAGAIN, then the queue not yet destroyed.
+		 * Thus if r_msg is -EAGAIN, then the queue analt yet destroyed.
 		 */
 		rcu_read_lock();
 
@@ -1238,7 +1238,7 @@ static long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, in
 
 		list_del(&msr_d.r_list);
 		if (signal_pending(current)) {
-			msg = ERR_PTR(-ERESTARTNOHAND);
+			msg = ERR_PTR(-ERESTARTANALHAND);
 			goto out_unlock0;
 		}
 

@@ -9,7 +9,7 @@ Required properties:
 The lpc1850-scu driver uses the generic pin multiplexing and generic pin
 configuration documented in pinctrl-bindings.txt.
 
-The following generic nodes are supported:
+The following generic analdes are supported:
  - function
  - pins
  - bias-disable
@@ -26,7 +26,7 @@ NXP specific properties:
  - nxp,gpio-pin-interrupt : Assign pin to gpio pin interrupt controller
 			    irq number 0 to 7. See example below.
 
-Not all pins support all properties so either refer to the NXP 1850/4350
+Analt all pins support all properties so either refer to the NXP 1850/4350
 user manual or the pin table in the pinctrl-lpc18xx driver for supported
 pin properties.
 

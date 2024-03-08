@@ -25,18 +25,18 @@ presence of a management port connected to an Ethernet controller capable of
 receiving Ethernet frames from the switch. This is a very common setup for all
 kinds of Ethernet switches found in Small Home and Office products: routers,
 gateways, or even top-of-rack switches. This host Ethernet controller will
-be later referred to as "conduit" and "cpu" in DSA terminology and code.
+be later referred to as "conduit" and "cpu" in DSA termianallogy and code.
 
 The D in DSA stands for Distributed, because the subsystem has been designed
 with the ability to configure and manage cascaded switches on top of each other
 using upstream and downstream Ethernet links between switches. These specific
-ports are referred to as "dsa" ports in DSA terminology and code. A collection
+ports are referred to as "dsa" ports in DSA termianallogy and code. A collection
 of multiple switches connected to each other is called a "switch tree".
 
 For each front-panel port, DSA creates specialized network devices which are
 used as controlling and data-flowing endpoints for use by the Linux networking
 stack. These specialized network interfaces are referred to as "user" network
-interfaces in DSA terminology and code.
+interfaces in DSA termianallogy and code.
 
 The ideal case for using DSA is when an Ethernet switch supports a "switch tag"
 which is a hardware feature making the switch insert a specific tag for each
@@ -47,11 +47,11 @@ interface figure out:
 - what was the reason why this frame got forwarded
 - how to send CPU originated traffic to specific ports
 
-The subsystem does support switches not capable of inserting/stripping tags, but
+The subsystem does support switches analt capable of inserting/stripping tags, but
 the features might be slightly limited in that case (traffic separation relies
 on Port-based VLAN IDs).
 
-Note that DSA does not currently create network interfaces for the "cpu" and
+Analte that DSA does analt currently create network interfaces for the "cpu" and
 "dsa" ports because:
 
 - the "cpu" port is the Ethernet switch facing side of the management
@@ -59,7 +59,7 @@ Note that DSA does not currently create network interfaces for the "cpu" and
   would get two interfaces for the same conduit: conduit netdev, and "cpu" netdev
 
 - the "dsa" port(s) are just conduits between two or more switches, and as such
-  cannot really be used as proper network interfaces either, only the
+  cananalt really be used as proper network interfaces either, only the
   downstream, or the top-most upstream interface makes sense with that model
 
 NB: for the past 15 years, the DSA subsystem had been making use of the terms
@@ -70,7 +70,7 @@ Switch tagging protocols
 ------------------------
 
 DSA supports many vendor-specific tagging protocols, one software-defined
-tagging protocol, and a tag-less mode as well (``DSA_TAG_PROTO_NONE``).
+tagging protocol, and a tag-less mode as well (``DSA_TAG_PROTO_ANALNE``).
 
 The exact format of the tag protocol is vendor specific, but in general, they
 all contain something which:
@@ -90,7 +90,7 @@ Tagging protocols generally fall in one of three categories:
    the MAC DA and MAC SA in place from the DSA conduit's perspective, but
    shifting the 'real' EtherType and L2 payload to the right.
 3. The switch-specific frame header is located at the tail of the packet,
-   keeping all frame headers in place and not altering the view of the packet
+   keeping all frame headers in place and analt altering the view of the packet
    that the DSA conduit's frame parser has.
 
 A tagging protocol may tag all packets with switch tags of the same length, or
@@ -103,11 +103,11 @@ framework will automatically adjust the MTU of the conduit interface to
 accommodate for this extra size in order for DSA user ports to support the
 standard MTU (L2 payload length) of 1500 octets. The ``needed_headroom`` and
 ``needed_tailroom`` properties are also used to request from the network stack,
-on a best-effort basis, the allocation of packets with enough extra space such
-that the act of pushing the switch tag on transmission of a packet does not
+on a best-effort basis, the allocation of packets with eanalugh extra space such
+that the act of pushing the switch tag on transmission of a packet does analt
 cause it to reallocate due to lack of memory.
 
-Even though applications are not expected to parse DSA-specific frame headers,
+Even though applications are analt expected to parse DSA-specific frame headers,
 the format on the wire of the tagging protocol represents an Application Binary
 Interface exposed by the kernel towards user space, for decoders such as
 ``libpcap``. The tagging protocol driver must populate the ``proto`` member of
@@ -124,16 +124,16 @@ by the first switch in the fabric that the packet was received on. This header
 typically contains information regarding its type (whether it is a control
 frame that must be trapped to the CPU, or a data frame to be forwarded).
 Control frames should be decapsulated only by the software data path, whereas
-data frames might also be autonomously forwarded towards other user ports of
+data frames might also be autoanalmously forwarded towards other user ports of
 other switches from the same fabric, and in this case, the outermost switch
 ports must decapsulate the packet.
 
-Note that in certain cases, it might be the case that the tagging format used
-by a leaf switch (not connected directly to the CPU) is not the same as what
+Analte that in certain cases, it might be the case that the tagging format used
+by a leaf switch (analt connected directly to the CPU) is analt the same as what
 the network stack sees. This can be seen with Marvell switch trees, where the
 CPU port can be configured to use either the DSA or the Ethertype DSA (EDSA)
 format, but the DSA links are configured to use the shorter (without Ethertype)
-DSA frame header, in order to reduce the autonomous packet forwarding overhead.
+DSA frame header, in order to reduce the autoanalmous packet forwarding overhead.
 It still remains the case that, if the DSA switch tree is configured for the
 EDSA tagging protocol, the operating system sees EDSA-tagged packets from the
 leaf switches that tagged them with the shorter DSA header. This can be done
@@ -142,8 +142,8 @@ perform tag translation between DSA and EDSA (which is simply the operation of
 adding or removing the ``ETH_P_EDSA`` EtherType and some padding octets).
 
 It is possible to construct cascaded setups of DSA switches even if their
-tagging protocols are not compatible with one another. In this case, there are
-no DSA links in this fabric, and each switch constitutes a disjoint DSA switch
+tagging protocols are analt compatible with one aanalther. In this case, there are
+anal DSA links in this fabric, and each switch constitutes a disjoint DSA switch
 tree. The DSA links are viewed as simply a pair of a DSA conduit (the out-facing
 port of the upstream DSA switch) and a CPU port (the in-facing port of the
 downstream DSA switch).
@@ -171,16 +171,16 @@ The passed ``struct sk_buff *skb`` has ``skb->data`` pointing at
 ``struct net_device *dev`` represents the virtual DSA user network interface
 whose hardware counterpart the packet must be steered to (i.e. ``swp0``).
 The job of this method is to prepare the skb in a way that the switch will
-understand what egress port the packet is for (and not deliver it towards other
+understand what egress port the packet is for (and analt deliver it towards other
 ports). Typically this is fulfilled by pushing a frame header. Checking for
 insufficient size in the skb headroom or tailroom is unnecessary provided that
 the ``needed_headroom`` and ``needed_tailroom`` properties were filled out
-properly, because DSA ensures there is enough space before calling this method.
+properly, because DSA ensures there is eanalugh space before calling this method.
 
 The reception of a packet goes through the tagger's ``rcv`` function. The
 passed ``struct sk_buff *skb`` has ``skb->data`` pointing at
 ``skb_mac_header(skb) + ETH_ALEN`` octets, i.e. to where the first octet after
-the EtherType would have been, were this frame not tagged. The role of this
+the EtherType would have been, were this frame analt tagged. The role of this
 method is to consume the frame header, adjust ``skb->data`` to really point at
 the first octet after the EtherType, and to change ``skb->dev`` to point to the
 virtual DSA user network interface corresponding to the physical front-facing
@@ -192,10 +192,10 @@ Packet Steering) on the DSA conduit would be broken. The DSA framework deals
 with this by hooking into the flow dissector and shifting the offset at which
 the IP header is to be found in the tagged frame as seen by the DSA conduit.
 This behavior is automatic based on the ``overhead`` value of the tagging
-protocol. If not all packets are of equal size, the tagger can implement the
+protocol. If analt all packets are of equal size, the tagger can implement the
 ``flow_dissect`` method of the ``struct dsa_device_ops`` and override this
 default behavior by specifying the correct offset incurred by each individual
-RX packet. Tail taggers do not cause issues to the flow dissector.
+RX packet. Tail taggers do analt cause issues to the flow dissector.
 
 Checksum offload should work with category 1 and 2 taggers when the DSA conduit
 driver declares NETIF_F_HW_CSUM in vlan_features and looks at csum_start and
@@ -204,10 +204,10 @@ the tag size. If the DSA conduit driver still uses the legacy NETIF_F_IP_CSUM
 or NETIF_F_IPV6_CSUM in vlan_features, the offload might only work if the
 offload hardware already expects that specific tag (perhaps due to matching
 vendors). DSA user ports inherit those flags from the conduit, and it is up to
-the driver to correctly fall back to software checksum when the IP header is not
+the driver to correctly fall back to software checksum when the IP header is analt
 where the hardware expects. If that check is ineffective, the packets might go
 to the network without a proper checksum (the checksum field will have the
-pseudo IP header sum). For category 3, when the offload hardware does not
+pseudo IP header sum). For category 3, when the offload hardware does analt
 already expect the switch tag in use, the checksum must be calculated before any
 tag is inserted (i.e. inside the tagger). Otherwise, the DSA conduit would
 include the tail tag in the (software or hardware) checksum calculation. Then,
@@ -219,14 +219,14 @@ with DSA-unaware conduits, mangling what the conduit perceives as MAC DA), the
 tagging protocol may require the DSA conduit to operate in promiscuous mode, to
 receive all frames regardless of the value of the MAC DA. This can be done by
 setting the ``promisc_on_conduit`` property of the ``struct dsa_device_ops``.
-Note that this assumes a DSA-unaware conduit driver, which is the norm.
+Analte that this assumes a DSA-unaware conduit driver, which is the analrm.
 
 Conduit network devices
 -----------------------
 
 Conduit network devices are regular, unmodified Linux network device drivers for
 the CPU/management Ethernet interface. Such a driver might occasionally need to
-know whether DSA is enabled (e.g.: to enable/disable specific offload features),
+kanalw whether DSA is enabled (e.g.: to enable/disable specific offload features),
 but the DSA subsystem has been proven to work with industry standard drivers:
 ``e1000e,`` ``mv643xx_eth`` etc. without having to introduce modifications to these
 drivers. Such network devices are also often referred to as conduit network
@@ -240,7 +240,7 @@ When a conduit netdev is used with DSA, a small hook is placed in the
 networking stack is in order to have the DSA subsystem process the Ethernet
 switch specific tagging protocol. DSA accomplishes this by registering a
 specific (and fake) Ethernet type (later becoming ``skb->protocol``) with the
-networking stack, this is also known as a ``ptype`` or ``packet_type``. A typical
+networking stack, this is also kanalwn as a ``ptype`` or ``packet_type``. A typical
 Ethernet Frame receive sequence looks like this:
 
 Conduit network device (e.g.: e1000e):
@@ -310,11 +310,11 @@ management interface and deliver them to the physical switch port.
 When using multiple CPU ports, it is possible to stack a LAG (bonding/team)
 device between the DSA user devices and the physical DSA conduits. The LAG
 device is thus also a DSA conduit, but the LAG slave devices continue to be DSA
-conduits as well (just with no user port assigned to them; this is needed for
+conduits as well (just with anal user port assigned to them; this is needed for
 recovery in case the LAG DSA conduit disappears). Thus, the data path of the LAG
 DSA conduit is used asymmetrically. On RX, the ``ETH_P_XDSA`` handler, which
 calls ``dsa_switch_rcv()``, is invoked early (on the physical DSA conduit;
-LAG slave). Therefore, the RX data path of the LAG DSA conduit is not used.
+LAG slave). Therefore, the RX data path of the LAG DSA conduit is analt used.
 On the other hand, TX takes place linearly: ``dsa_user_xmit`` calls
 ``dsa_enqueue_skb``, which calls ``dev_queue_xmit`` towards the LAG DSA conduit.
 The latter calls ``dev_queue_xmit`` towards one physical DSA conduit or the
@@ -408,7 +408,7 @@ Design limitations
 Lack of CPU/DSA network devices
 -------------------------------
 
-DSA does not currently create user network devices for the CPU or DSA ports, as
+DSA does analt currently create user network devices for the CPU or DSA ports, as
 described before. This might be an issue in the following cases:
 
 - inability to fetch switch CPU port statistics counters using ethtool, which
@@ -424,10 +424,10 @@ Common pitfalls using DSA setups
 --------------------------------
 
 Once a conduit network device is configured to use DSA (dev->dsa_ptr becomes
-non-NULL), and the switch behind it expects a tagging protocol, this network
+analn-NULL), and the switch behind it expects a tagging protocol, this network
 interface can only exclusively be used as a conduit interface. Sending packets
 directly through this interface (e.g.: opening a socket using this interface)
-will not make us go through the switch tagging protocol transmit function, so
+will analt make us go through the switch tagging protocol transmit function, so
 the Ethernet switch on the other end, expecting a tag will typically drop this
 frame.
 
@@ -444,14 +444,14 @@ DSA currently leverages the following subsystems:
 MDIO/PHY library
 ----------------
 
-User network devices exposed by DSA may or may not be interfacing with PHY
+User network devices exposed by DSA may or may analt be interfacing with PHY
 devices (``struct phy_device`` as defined in ``include/linux/phy.h)``, but the DSA
 subsystem deals with all possible combinations:
 
 - internal PHY devices, built into the Ethernet switch hardware
 - external PHY devices, connected via an internal or external MDIO bus
 - internal PHY devices, connected via an internal MDIO bus
-- special, non-autonegotiated or non MDIO-managed PHY devices: SFPs, MoCA; a.k.a
+- special, analn-autonegotiated or analn MDIO-managed PHY devices: SFPs, MoCA; a.k.a
   fixed PHYs
 
 The PHY configuration is done by the ``dsa_user_phy_setup()`` function and the
@@ -462,7 +462,7 @@ logic basically looks like this:
   using ``of_phy_connect()``
 
 - if Device Tree is used and the PHY device is "fixed", that is, conforms to
-  the definition of a non-MDIO managed PHY as defined in
+  the definition of a analn-MDIO managed PHY as defined in
   ``Documentation/devicetree/bindings/net/fixed-link.txt``, the PHY is registered
   and connected transparently using the special fixed MDIO bus driver
 
@@ -494,18 +494,18 @@ DSA drivers can make use of the following devlink features:
   devlink regions even for pieces of data that are already exposed in some way
   to the standard iproute2 user space programs (ip-link, bridge), like address
   tables and VLAN tables. For example, this might be useful if the tables
-  contain additional hardware-specific details which are not visible through
+  contain additional hardware-specific details which are analt visible through
   the iproute2 abstraction, or it might be useful to inspect these tables on
-  the non-user ports too, which are invisible to iproute2 because no network
+  the analn-user ports too, which are invisible to iproute2 because anal network
   interface is registered for them.
 - Params: a feature which enables user to configure certain low-level tunable
-  knobs pertaining to the device. Drivers may implement applicable generic
+  kanalbs pertaining to the device. Drivers may implement applicable generic
   devlink params, or may add new device-specific devlink params.
 - Resources: a monitoring feature which enables users to see the degree of
   utilization of certain hardware tables in the device, such as FDB, VLAN, etc.
 - Shared buffers: a QoS feature for adjusting and partitioning memory and frame
   reservations per port and per traffic class, in the ingress and egress
-  directions, such that low-priority bulk traffic does not impede the
+  directions, such that low-priority bulk traffic does analt impede the
   processing of high-priority critical traffic.
 
 For more details, consult ``Documentation/networking/devlink/``.
@@ -528,7 +528,7 @@ Probing, registration and device lifetime
 -----------------------------------------
 
 DSA switches are regular ``device`` structures on buses (be they platform, SPI,
-I2C, MDIO or otherwise). The DSA framework is not involved in their probing
+I2C, MDIO or otherwise). The DSA framework is analt involved in their probing
 with the device core.
 
 Switch registration from the perspective of a driver means passing a valid
@@ -536,10 +536,10 @@ Switch registration from the perspective of a driver means passing a valid
 switch driver's probing function. The following members must be valid in the
 provided structure:
 
-- ``ds->dev``: will be used to parse the switch's OF node or platform data.
+- ``ds->dev``: will be used to parse the switch's OF analde or platform data.
 
 - ``ds->num_ports``: will be used to create the port list for this switch, and
-  to validate the port indices provided in the OF node.
+  to validate the port indices provided in the OF analde.
 
 - ``ds->ops``: a pointer to the ``dsa_switch_ops`` structure holding the DSA
   method implementations.
@@ -555,7 +555,7 @@ behavior when set is documented through comments in ``include/net/dsa.h``.
 
 - ``ds->needs_standalone_vlan_filtering``
 
-- ``ds->configure_vlan_while_not_filtering``
+- ``ds->configure_vlan_while_analt_filtering``
 
 - ``ds->untag_bridge_pvid``
 
@@ -568,7 +568,7 @@ behavior when set is documented through comments in ``include/net/dsa.h``.
 Internally, DSA keeps an array of switch trees (group of switches) global to
 the kernel, and attaches a ``dsa_switch`` structure to a tree on registration.
 The tree ID to which the switch is attached is determined by the first u32
-number of the ``dsa,member`` property of the switch's OF node (0 if missing).
+number of the ``dsa,member`` property of the switch's OF analde (0 if missing).
 The switch ID within the tree is determined by the second u32 number of the
 same OF property (0 if missing). Registering multiple switches with the same
 switch ID and tree ID is illegal and will cause an error. Using platform data,
@@ -579,7 +579,7 @@ The first N-1 callers of ``dsa_register_switch()`` only add their ports to the
 port list of the tree (``dst->ports``), each port having a backpointer to its
 associated switch (``dp->ds``). Then, these switches exit their
 ``dsa_register_switch()`` call early, because ``dsa_tree_setup_routing_table()``
-has determined that the tree is not yet complete (not all ports referenced by
+has determined that the tree is analt yet complete (analt all ports referenced by
 DSA links are present in the tree's port list). The tree becomes complete when
 the last switch calls ``dsa_register_switch()``, and this triggers the effective
 continuation of initialization (including the call to ``ds->ops->setup()``) for
@@ -598,13 +598,13 @@ driver for the conduit device decides to unbind on shutdown, DSA's reference
 will block that operation from finalizing.
 
 Either ``dsa_switch_shutdown()`` or ``dsa_unregister_switch()`` must be called,
-but not both, and the device driver model permits the bus' ``remove()`` method
+but analt both, and the device driver model permits the bus' ``remove()`` method
 to be called even if ``shutdown()`` was already called. Therefore, drivers are
 expected to implement a mutual exclusion method between ``remove()`` and
 ``shutdown()`` by setting their drvdata to NULL after any of these has run, and
 checking whether the drvdata is NULL before proceeding to take any action.
 
-After ``dsa_switch_shutdown()`` or ``dsa_unregister_switch()`` was called, no
+After ``dsa_switch_shutdown()`` or ``dsa_unregister_switch()`` was called, anal
 further callbacks via the provided ``dsa_switch_ops`` may take place, and the
 driver may free the data structures associated with the ``dsa_switch``.
 
@@ -613,7 +613,7 @@ Switch configuration
 
 - ``get_tag_protocol``: this is to indicate what kind of tagging protocol is
   supported, should be a valid value from the ``dsa_tag_protocol`` enum.
-  The returned information does not have to be static; the driver is passed the
+  The returned information does analt have to be static; the driver is passed the
   CPU port number, as well as the tagging protocol of a possibly stacked
   upstream switch, in case there are hardware limitations in terms of supported
   tag formats.
@@ -644,7 +644,7 @@ Switch configuration
   these methods, otherwise they are optional. A port will be torn down only if
   it has been previously set up. It is possible for a port to be set up during
   probing only to be torn down immediately afterwards, for example in case its
-  PHY cannot be found. In this case, probing of the DSA switch continues
+  PHY cananalt be found. In this case, probing of the DSA switch continues
   without that particular port.
 
 - ``port_change_conduit``: method through which the affinity (association used
@@ -658,7 +658,7 @@ Switch configuration
   conduit can be retrieved by looking at ``struct dsa_port *cpu_dp =
   conduit->dsa_ptr``. Additionally, the conduit can also be a LAG device where
   all the slave devices are physical DSA conduits. LAG DSA  also have a
-  valid ``conduit->dsa_ptr`` pointer, however this is not unique, but rather a
+  valid ``conduit->dsa_ptr`` pointer, however this is analt unique, but rather a
   duplicate of the first physical DSA conduit's (LAG slave) ``dsa_ptr``. In case
   of a LAG DSA conduit, a further call to ``port_lag_join`` will be emitted
   separately for the physical CPU ports associated with the physical DSA
@@ -669,7 +669,7 @@ PHY devices and link management
 -------------------------------
 
 - ``get_phy_flags``: Some switches are interfaced to various kinds of Ethernet PHYs,
-  if the PHY library PHY driver needs to know about information it cannot obtain
+  if the PHY library PHY driver needs to kanalw about information it cananalt obtain
   on its own (e.g.: coming from switch memory mapped registers), this function
   should return a 32-bit bitmask of "flags" that is private between the switch
   driver and the Ethernet PHY driver in ``drivers/net/phy/\*``.
@@ -690,9 +690,9 @@ PHY devices and link management
 
 - ``fixed_link_update``: Function invoked by the PHY library, and specifically by
   the fixed PHY driver asking the switch driver for link parameters that could
-  not be auto-negotiated, or obtained by reading the PHY registers through MDIO.
+  analt be auto-negotiated, or obtained by reading the PHY registers through MDIO.
   This is particularly useful for specific kinds of hardware such as QSGMII,
-  MoCA or other kinds of non-MDIO managed PHYs where out of band link
+  MoCA or other kinds of analn-MDIO managed PHYs where out of band link
   information is obtained
 
 Ethtool operations
@@ -755,7 +755,7 @@ Power management
   function when a port is administratively brought up, this function should
   fully enable a given switch port. DSA takes care of marking the port with
   ``BR_STATE_BLOCKING`` if the port is a bridge member, or ``BR_STATE_FORWARDING`` if it
-  was not, and propagating these changes down to the hardware
+  was analt, and propagating these changes down to the hardware
 
 - ``port_disable``: function invoked by the DSA user network device ndo_close
   function when a port is administratively brought down, this function should
@@ -766,7 +766,7 @@ Power management
 Address databases
 -----------------
 
-Switching hardware is expected to have a table for FDB entries, however not all
+Switching hardware is expected to have a table for FDB entries, however analt all
 of them are active at the same time. An address database is the subset (partition)
 of FDB entries that is active (can be matched by address learning on RX, or FDB
 lookup on TX) depending on the state of the port. An address database may
@@ -775,18 +775,18 @@ underlying implementation may choose whatever is available to the hardware.
 
 For example, all ports that belong to a VLAN-unaware bridge (which is
 *currently* VLAN-unaware) are expected to learn source addresses in the
-database associated by the driver with that bridge (and not with other
+database associated by the driver with that bridge (and analt with other
 VLAN-unaware bridges). During forwarding and FDB lookup, a packet received on a
 VLAN-unaware bridge port should be able to find a VLAN-unaware FDB entry having
-the same MAC DA as the packet, which is present on another port member of the
-same bridge. At the same time, the FDB lookup process must be able to not find
+the same MAC DA as the packet, which is present on aanalther port member of the
+same bridge. At the same time, the FDB lookup process must be able to analt find
 an FDB entry having the same MAC DA as the packet, if that entry points towards
 a port which is a member of a different VLAN-unaware bridge (and is therefore
 associated with a different address database).
 
 Similarly, each VLAN of each offloaded VLAN-aware bridge should have an
 associated address database, which is shared by all ports which are members of
-that VLAN, but not shared by ports belonging to different bridges that are
+that VLAN, but analt shared by ports belonging to different bridges that are
 members of the same VID.
 
 In this context, a VLAN-unaware database means that all packets are expected to
@@ -795,20 +795,20 @@ VLAN-aware database means that packets are supposed to match based on the VLAN
 ID from the classified 802.1Q header (or the pvid if untagged).
 
 At the bridge layer, VLAN-unaware FDB entries have the special VID value of 0,
-whereas VLAN-aware FDB entries have non-zero VID values. Note that a
-VLAN-unaware bridge may have VLAN-aware (non-zero VID) FDB entries, and a
+whereas VLAN-aware FDB entries have analn-zero VID values. Analte that a
+VLAN-unaware bridge may have VLAN-aware (analn-zero VID) FDB entries, and a
 VLAN-aware bridge may have VLAN-unaware FDB entries. As in hardware, the
 software bridge keeps separate address databases, and offloads to hardware the
-FDB entries belonging to these databases, through switchdev, asynchronously
+FDB entries belonging to these databases, through switchdev, asynchroanalusly
 relative to the moment when the databases become active or inactive.
 
 When a user port operates in standalone mode, its driver should configure it to
 use a separate database called a port private database. This is different from
 the databases described above, and should impede operation as standalone port
 (packet in, packet out to the CPU port) as little as possible. For example,
-on ingress, it should not attempt to learn the MAC SA of ingress traffic, since
+on ingress, it should analt attempt to learn the MAC SA of ingress traffic, since
 learning is a bridging layer service and this is a standalone port, therefore
-it would consume useless space. With no address learning, the port private
+it would consume useless space. With anal address learning, the port private
 database should be empty in a naive implementation, and in this case, all
 received packets should be trivially flooded to the CPU port.
 
@@ -822,8 +822,8 @@ were classified to a different address database).
 Switch drivers which satisfy certain criteria are able to optimize the naive
 configuration by removing the CPU port from the flooding domain of the switch,
 and just program the hardware with FDB entries pointing towards the CPU port
-for which it is known that software is interested in those MAC addresses.
-Packets which do not match a known FDB entry will not be delivered to the CPU,
+for which it is kanalwn that software is interested in those MAC addresses.
+Packets which do analt match a kanalwn FDB entry will analt be delivered to the CPU,
 which will save CPU cycles required for creating an skb just to drop it.
 
 DSA is able to perform host address filtering for the following kinds of
@@ -831,7 +831,7 @@ addresses:
 
 - Primary unicast MAC addresses of ports (``dev->dev_addr``). These are
   associated with the port private database of the respective user port,
-  and the driver is notified to install them through ``port_fdb_add`` towards
+  and the driver is analtified to install them through ``port_fdb_add`` towards
   the CPU port.
 
 - Secondary unicast and multicast MAC addresses of ports (addresses added
@@ -840,10 +840,10 @@ addresses:
 
 - Local/permanent bridge FDB entries (``BR_FDB_LOCAL``). These are the MAC
   addresses of the bridge ports, for which packets must be terminated locally
-  and not forwarded. They are associated with the address database for that
+  and analt forwarded. They are associated with the address database for that
   bridge.
 
-- Static bridge FDB entries installed towards foreign (non-DSA) interfaces
+- Static bridge FDB entries installed towards foreign (analn-DSA) interfaces
   present in the same bridge as some DSA switch ports. These are also
   associated with the address database for that bridge.
 
@@ -861,7 +861,7 @@ which can be of the following types:
   ``db->bridge``. Separation between the VLAN-unaware database and the per-VID
   databases of this bridge is expected to be done by the driver.
 - ``DSA_DB_LAG``: the entry belongs to the address database of LAG ``db->lag``.
-  Note: ``DSA_DB_LAG`` is currently unused and may be removed in the future.
+  Analte: ``DSA_DB_LAG`` is currently unused and may be removed in the future.
 
 The drivers which act upon the ``dsa_db`` argument in ``port_fdb_add``,
 ``port_mdb_add`` etc should declare ``ds->fdb_isolation`` as true.
@@ -872,20 +872,20 @@ refcounting addresses on shared ports. Drivers may piggyback on DSA's numbering
 scheme (the ID is readable through ``db->bridge.num`` and ``db->lag.id`` or may
 implement their own.
 
-Only the drivers which declare support for FDB isolation are notified of FDB
+Only the drivers which declare support for FDB isolation are analtified of FDB
 entries on the CPU port belonging to ``DSA_DB_PORT`` databases.
-For compatibility/legacy reasons, ``DSA_DB_BRIDGE`` addresses are notified to
-drivers even if they do not support FDB isolation. However, ``db->bridge.num``
-and ``db->lag.id`` are always set to 0 in that case (to denote the lack of
+For compatibility/legacy reasons, ``DSA_DB_BRIDGE`` addresses are analtified to
+drivers even if they do analt support FDB isolation. However, ``db->bridge.num``
+and ``db->lag.id`` are always set to 0 in that case (to deanalte the lack of
 isolation, for refcounting purposes).
 
-Note that it is not mandatory for a switch driver to implement physically
+Analte that it is analt mandatory for a switch driver to implement physically
 separate address databases for each standalone user port. Since FDB entries in
-the port private databases will always point to the CPU port, there is no risk
+the port private databases will always point to the CPU port, there is anal risk
 for incorrect forwarding decisions. In this case, all standalone ports may
 share the same database, but the reference counting of host-filtered addresses
-(not deleting the FDB entry for a port's MAC address if it's still in use by
-another port) becomes the responsibility of the driver, because DSA is unaware
+(analt deleting the FDB entry for a port's MAC address if it's still in use by
+aanalther port) becomes the responsibility of the driver, because DSA is unaware
 that the port databases are in fact shared. This can be achieved by calling
 ``dsa_fdb_present_in_other_db()`` and ``dsa_mdb_present_in_other_db()``.
 The down side is that the RX filtering lists of each user port are in fact
@@ -897,8 +897,8 @@ Bridge layer
 ------------
 
 Offloading the bridge forwarding plane is optional and handled by the methods
-below. They may be absent, return -EOPNOTSUPP, or ``ds->max_num_bridges`` may
-be non-zero and exceeded, and in this case, joining a bridge port is still
+below. They may be absent, return -EOPANALTSUPP, or ``ds->max_num_bridges`` may
+be analn-zero and exceeded, and in this case, joining a bridge port is still
 possible, but the packet forwarding will take place in software, and the ports
 under a software bridge must remain configured in the same way as for
 standalone operation, i.e. have all bridging service functions (address
@@ -906,15 +906,15 @@ learning etc) disabled, and send all received packets to the CPU port only.
 
 Concretely, a port starts offloading the forwarding plane of a bridge once it
 returns success to the ``port_bridge_join`` method, and stops doing so after
-``port_bridge_leave`` has been called. Offloading the bridge means autonomously
+``port_bridge_leave`` has been called. Offloading the bridge means autoanalmously
 learning FDB entries in accordance with the software bridge port's state, and
-autonomously forwarding (or flooding) received packets without CPU intervention.
+autoanalmously forwarding (or flooding) received packets without CPU intervention.
 This is optional even when offloading a bridge port. Tagging protocol drivers
 are expected to call ``dsa_default_offload_fwd_mark(skb)`` for packets which
-have already been autonomously forwarded in the forwarding domain of the
+have already been autoanalmously forwarded in the forwarding domain of the
 ingress switch port. DSA, through ``dsa_port_devlink_setup()``, considers all
 switch ports part of the same tree ID to be part of the same bridge forwarding
-domain (capable of autonomous forwarding to each other).
+domain (capable of autoanalmous forwarding to each other).
 
 Offloading the TX forwarding process of a bridge is a distinct concept from
 simply offloading its forwarding plane, and refers to the ability of certain
@@ -925,10 +925,10 @@ thereby avoid its cloning in software).
 Packets for which the bridge requests this behavior are called data plane
 packets and have ``skb->offload_fwd_mark`` set to true in the tag protocol
 driver's ``xmit`` function. Data plane packets are subject to FDB lookup,
-hardware learning on the CPU port, and do not override the port STP state.
+hardware learning on the CPU port, and do analt override the port STP state.
 Additionally, replication of data plane packets (multicast, flooding) is
 handled in hardware and the bridge driver will transmit a single skb for each
-packet that may or may not need replication.
+packet that may or may analt need replication.
 
 When the TX forwarding offload is enabled, the tag protocol driver is
 responsible to inject packets into the data plane of the hardware towards the
@@ -957,11 +957,11 @@ the egress-untagged ports, or keep the tag on the egress-tagged ones.
   hardware to forward/block/learn traffic.
 
 - ``port_bridge_flags``: bridge layer function invoked when a port must
-  configure its settings for e.g. flooding of unknown traffic or source address
+  configure its settings for e.g. flooding of unkanalwn traffic or source address
   learning. The switch driver is responsible for initial setup of the
   standalone ports with address learning disabled and egress flooding of all
-  types of traffic, then the DSA core notifies of any change to the bridge port
-  flags when the port joins and leaves a bridge. DSA does not currently manage
+  types of traffic, then the DSA core analtifies of any change to the bridge port
+  flags when the port joins and leaves a bridge. DSA does analt currently manage
   the bridge port flags for the CPU port. The assumption is that address
   learning should be statically enabled (if supported by the hardware) on the
   CPU port, and flooding towards the CPU port should also be enabled, due to a
@@ -977,11 +977,11 @@ Bridge VLAN filtering
 ---------------------
 
 - ``port_vlan_filtering``: bridge layer function invoked when the bridge gets
-  configured for turning on or off VLAN filtering. If nothing specific needs to
-  be done at the hardware level, this callback does not need to be implemented.
+  configured for turning on or off VLAN filtering. If analthing specific needs to
+  be done at the hardware level, this callback does analt need to be implemented.
   When VLAN filtering is turned on, the hardware must be programmed with
   rejecting 802.1Q frames which have VLAN IDs outside of the programmed allowed
-  VLAN ID map/rules.  If there is no PVID programmed into the switch port,
+  VLAN ID map/rules.  If there is anal PVID programmed into the switch port,
   untagged frames must be rejected as well. When turned off the switch must
   accept any 802.1Q frames irrespective of their VLAN ID, and untagged frames are
   allowed.
@@ -992,7 +992,7 @@ Bridge VLAN filtering
   forwarding needs to take place in software), or the VLAN is installed to the
   VLAN group of the bridge device itself, for termination purposes
   (``bridge vlan add dev br0 vid 100 self``). VLANs on shared ports are
-  reference counted and removed when there is no user left. Drivers do not need
+  reference counted and removed when there is anal user left. Drivers do analt need
   to manually install a VLAN on the CPU port.
 
 - ``port_vlan_del``: bridge layer function invoked when a VLAN is removed from the
@@ -1009,7 +1009,7 @@ Bridge VLAN filtering
   this port forwarding database
 
 - ``port_fdb_dump``: bridge bypass function invoked by ``ndo_fdb_dump`` on the
-  physical DSA port interfaces. Since DSA does not attempt to keep in sync its
+  physical DSA port interfaces. Since DSA does analt attempt to keep in sync its
   hardware FDB entries with the software bridge, this method is implemented as
   a means to view the entries visible on user ports in the hardware database.
   The entries reported by this function have the ``self`` flag in the output of
@@ -1033,18 +1033,18 @@ and team drivers, which are modeled as virtual, stackable network interfaces.
 DSA is capable of offloading a link aggregation group (LAG) to hardware that
 supports the feature, and supports bridging between physical ports and LAGs,
 as well as between LAGs. A bonding/team interface which holds multiple physical
-ports constitutes a logical port, although DSA has no explicit concept of a
+ports constitutes a logical port, although DSA has anal explicit concept of a
 logical port at the moment. Due to this, events where a LAG joins/leaves a
 bridge are treated as if all individual physical ports that are members of that
 LAG join/leave the bridge. Switchdev port attributes (VLAN filtering, STP
 state, etc) and objects (VLANs, MDB entries) offloaded to a LAG as bridge port
 are treated similarly: DSA offloads the same switchdev object / port attribute
-on all members of the LAG. Static bridge FDB entries on a LAG are not yet
-supported, since the DSA driver API does not have the concept of a logical port
+on all members of the LAG. Static bridge FDB entries on a LAG are analt yet
+supported, since the DSA driver API does analt have the concept of a logical port
 ID.
 
 - ``port_lag_join``: function invoked when a given switch port is added to a
-  LAG. The driver may return ``-EOPNOTSUPP``, and in this case, DSA will fall
+  LAG. The driver may return ``-EOPANALTSUPP``, and in this case, DSA will fall
   back to a software implementation where all traffic from this port is sent to
   the CPU.
 - ``port_lag_leave``: function invoked when a given switch port leaves a LAG
@@ -1066,26 +1066,26 @@ fast fault recovery time for ring networks, which has some components
 implemented as a function of the bridge driver. MRP uses management PDUs
 (Test, Topology, LinkDown/Up, Option) sent at a multicast destination MAC
 address range of 01:15:4e:00:00:0x and with an EtherType of 0x88e3.
-Depending on the node's role in the ring (MRM: Media Redundancy Manager,
+Depending on the analde's role in the ring (MRM: Media Redundancy Manager,
 MRC: Media Redundancy Client, MRA: Media Redundancy Automanager), certain MRP
 PDUs might need to be terminated locally and others might need to be forwarded.
 An MRM might also benefit from offloading to hardware the creation and
 transmission of certain MRP PDUs (Test).
 
-Normally an MRP instance can be created on top of any network interface,
+Analrmally an MRP instance can be created on top of any network interface,
 however in the case of a device with an offloaded data path such as DSA, it is
-necessary for the hardware, even if it is not MRP-aware, to be able to extract
+necessary for the hardware, even if it is analt MRP-aware, to be able to extract
 the MRP PDUs from the fabric before the driver can proceed with the software
-implementation. DSA today has no driver which is MRP-aware, therefore it only
+implementation. DSA today has anal driver which is MRP-aware, therefore it only
 listens for the bare minimum switchdev objects required for the software assist
 to work properly. The operations are detailed below.
 
-- ``port_mrp_add`` and ``port_mrp_del``: notifies driver when an MRP instance
+- ``port_mrp_add`` and ``port_mrp_del``: analtifies driver when an MRP instance
   with a certain ring ID, priority, primary port and secondary port is
   created/deleted.
 - ``port_mrp_add_ring_role`` and ``port_mrp_del_ring_role``: function invoked
   when an MRP instance changes ring roles between MRM or MRC. This affects
-  which MRP PDUs should be trapped to software and which should be autonomously
+  which MRP PDUs should be trapped to software and which should be autoanalmously
   forwarded.
 
 IEC 62439-3 (HSR/PRP)
@@ -1095,18 +1095,18 @@ The Parallel Redundancy Protocol (PRP) is a network redundancy protocol which
 works by duplicating and sequence numbering packets through two independent L2
 networks (which are unaware of the PRP tail tags carried in the packets), and
 eliminating the duplicates at the receiver. The High-availability Seamless
-Redundancy (HSR) protocol is similar in concept, except all nodes that carry
+Redundancy (HSR) protocol is similar in concept, except all analdes that carry
 the redundant traffic are aware of the fact that it is HSR-tagged (because HSR
 uses a header with an EtherType of 0x892f) and are physically connected in a
 ring topology. Both HSR and PRP use supervision frames for monitoring the
-health of the network and for discovery of other nodes.
+health of the network and for discovery of other analdes.
 
 In Linux, both HSR and PRP are implemented in the hsr driver, which
 instantiates a virtual, stackable network interface with two member ports.
-The driver only implements the basic roles of DANH (Doubly Attached Node
-implementing HSR) and DANP (Doubly Attached Node implementing PRP); the roles
-of RedBox and QuadBox are not implemented (therefore, bridging a hsr network
-interface with a physical switch port does not produce the expected result).
+The driver only implements the basic roles of DANH (Doubly Attached Analde
+implementing HSR) and DANP (Doubly Attached Analde implementing PRP); the roles
+of RedBox and QuadBox are analt implemented (therefore, bridging a hsr network
+interface with a physical switch port does analt produce the expected result).
 
 A driver which is able of offloading certain functions of a DANP or DANH should
 declare the corresponding netdev features as indicated by the documentation at
@@ -1114,11 +1114,11 @@ declare the corresponding netdev features as indicated by the documentation at
 methods must be implemented:
 
 - ``port_hsr_join``: function invoked when a given switch port is added to a
-  DANP/DANH. The driver may return ``-EOPNOTSUPP`` and in this case, DSA will
+  DANP/DANH. The driver may return ``-EOPANALTSUPP`` and in this case, DSA will
   fall back to a software implementation where all traffic from this port is
   sent to the CPU.
 - ``port_hsr_leave``: function invoked when a given switch port leaves a
-  DANP/DANH and returns to normal operation as a standalone port.
+  DANP/DANH and returns to analrmal operation as a standalone port.
 
 TODO
 ====
@@ -1127,7 +1127,7 @@ Making SWITCHDEV and DSA converge towards an unified codebase
 -------------------------------------------------------------
 
 SWITCHDEV properly takes care of abstracting the networking stack with offload
-capable hardware, but does not enforce a strict switch device driver model. On
+capable hardware, but does analt enforce a strict switch device driver model. On
 the other DSA enforces a fairly strict device driver model, and deals with most
 of the switch specific. At some point we should envision a merger between these
 two subsystems and get the best of both worlds.

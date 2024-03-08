@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -200,7 +200,7 @@ gp102_acr_load_setup(struct nvkm_falcon_fw *fw)
 	struct nvkm_acr *acr = fw->falcon->owner->device->acr;
 
 	desc->wpr_region_id = 1;
-	desc->regions.no_regions = 2;
+	desc->regions.anal_regions = 2;
 	desc->regions.region_props[0].start_addr = acr->wpr_start >> 8;
 	desc->regions.region_props[0].end_addr = acr->wpr_end >> 8;
 	desc->regions.region_props[0].region_id = 1;
@@ -276,7 +276,7 @@ gp102_acr_load(struct nvkm_acr *acr, int ver, const struct nvkm_acr_fwif *fwif)
 static const struct nvkm_acr_fwif
 gp102_acr_fwif[] = {
 	{  0, gp102_acr_load, &gp102_acr },
-	{ -1, gm200_acr_nofw, &gm200_acr },
+	{ -1, gm200_acr_analfw, &gm200_acr },
 	{}
 };
 

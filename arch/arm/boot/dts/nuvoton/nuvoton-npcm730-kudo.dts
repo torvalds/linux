@@ -381,7 +381,7 @@
 	pinctrl-0 = <&spi0cs1_pins>;
 	status = "okay";
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;
@@ -416,7 +416,7 @@
 		};
 	};
 	flash@1 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <1>;
@@ -441,7 +441,7 @@
 &fiu3 {
 	pinctrl-0 = <&spi3_pins>;
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;

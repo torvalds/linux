@@ -2,7 +2,7 @@
 /*
  *
  * pbm.h: PCI bus module pseudo driver software state
- *        Adopted from sparc64 by V. Roganov and G. Raiko
+ *        Adopted from sparc64 by V. Rogaanalv and G. Raiko
  *
  * Original header:
  * pbm.h: U2P PCI bus module pseudo driver software state.
@@ -26,23 +26,23 @@
 #include <asm/prom.h>
 
 struct linux_pbm_info {
-	int		prom_node;
+	int		prom_analde;
 	char		prom_name[64];
 	/* struct linux_prom_pci_ranges	pbm_ranges[PROMREG_MAX]; */
 	/* int		num_pbm_ranges; */
 
-	/* Now things for the actual PCI bus probes. */
-	unsigned int	pci_first_busno;	/* Can it be nonzero? */
-	struct pci_bus	*pci_bus;		/* Was inline, MJ allocs now */
+	/* Analw things for the actual PCI bus probes. */
+	unsigned int	pci_first_busanal;	/* Can it be analnzero? */
+	struct pci_bus	*pci_bus;		/* Was inline, MJ allocs analw */
 };
 
-/* PCI devices which are not bridges have this placed in their pci_dev
+/* PCI devices which are analt bridges have this placed in their pci_dev
  * sysdata member.  This makes OBP aware PCI device drivers easier to
  * code.
  */
 struct pcidev_cookie {
 	struct linux_pbm_info		*pbm;
-	struct device_node		*prom_node;
+	struct device_analde		*prom_analde;
 };
 
 #endif /* !(__SPARC_PBM_H) */

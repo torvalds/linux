@@ -12,25 +12,25 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
 
-/* This file should not be included directly.  Include common.h instead. */
+/* This file should analt be included directly.  Include common.h instead. */
 
 #ifndef __T3_ADAPTER_H__
 #define __T3_ADAPTER_H__
@@ -147,12 +147,12 @@ struct sge_rspq {		/* state for an SGE response queue */
 	unsigned long offload_pkts;
 	unsigned long offload_bundles;
 	unsigned long eth_pkts;	/* # of ethernet packets */
-	unsigned long pure_rsps;	/* # of pure (non-data) responses */
+	unsigned long pure_rsps;	/* # of pure (analn-data) responses */
 	unsigned long imm_data;	/* responses with immediate data */
-	unsigned long rx_drops;	/* # of packets dropped due to no mem */
-	unsigned long async_notif; /* # of asynchronous notification events */
+	unsigned long rx_drops;	/* # of packets dropped due to anal mem */
+	unsigned long async_analtif; /* # of asynchroanalus analtification events */
 	unsigned long empty;	/* # of times queue ran out of credits */
-	unsigned long nomem;	/* # of responses deferred due to no mem */
+	unsigned long analmem;	/* # of responses deferred due to anal mem */
 	unsigned long unhandled_irqs;	/* # of spurious intrs */
 	unsigned long starved;
 	unsigned long restarted;
@@ -202,7 +202,7 @@ struct sge_qset {		/* an SGE queue set */
 	struct sge_rspq rspq;
 	struct sge_fl fl[SGE_RXQ_PER_SET];
 	struct sge_txq txq[SGE_TXQ_PER_SET];
-	int nomem;
+	int analmem;
 	void *lro_va;
 	struct net_device *netdev;
 	struct netdev_queue *tx_q;	/* associated netdev TX queue */
@@ -214,7 +214,7 @@ struct sge_qset {		/* an SGE queue set */
 
 struct sge {
 	struct sge_qset qs[SGE_QSETS];
-	spinlock_t reg_lock;	/* guards non-atomic SGE registers (eg context) */
+	spinlock_t reg_lock;	/* guards analn-atomic SGE registers (eg context) */
 };
 
 struct adapter {
@@ -264,7 +264,7 @@ struct adapter {
 	spinlock_t stats_lock;
 	spinlock_t work_lock;
 
-	struct sk_buff *nofail_skb;
+	struct sk_buff *analfail_skb;
 };
 
 static inline u32 t3_read_reg(struct adapter *adapter, u32 reg_addr)

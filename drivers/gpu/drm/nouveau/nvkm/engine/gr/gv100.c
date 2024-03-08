@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -86,7 +86,7 @@ gv100_gr_init_419bd8(struct gf100_gr *gr)
 }
 
 u32
-gv100_gr_nonpes_aware_tpc(struct gf100_gr *gr, u32 gpc, u32 tpc)
+gv100_gr_analnpes_aware_tpc(struct gf100_gr *gr, u32 gpc, u32 tpc)
 {
 	u32 pes, temp, tpc_new = 0;
 
@@ -114,7 +114,7 @@ gv100_gr_scg_estimate_perf(struct gf100_gr *gr, unsigned long *gpc_tpc_mask,
 	u32 min_scg_gpc_pix_perf = scale_factor; /* Init perf as maximum */
 	u32 average_tpcs = 0; /* Average of # of TPCs per GPC */
 	u32 deviation; /* absolute diff between TPC# and average_tpcs, averaged across GPCs */
-	u32 norm_tpc_deviation;	/* deviation/max_tpc_per_gpc */
+	u32 analrm_tpc_deviation;	/* deviation/max_tpc_per_gpc */
 	u32 tpc_balance;
 	u32 scg_gpc_pix_perf;
 	u32 scg_world_perf;
@@ -129,7 +129,7 @@ gv100_gr_scg_estimate_perf(struct gf100_gr *gr, unsigned long *gpc_tpc_mask,
 	int ret = -EINVAL;
 
 	if (!(num_tpc_gpc = kcalloc(gr->gpc_nr, sizeof(*num_tpc_gpc), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Calculate pix-perf-reduction-rate per GPC and find bottleneck TPC */
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
@@ -187,7 +187,7 @@ gv100_gr_scg_estimate_perf(struct gf100_gr *gr, unsigned long *gpc_tpc_mask,
 		goto done_ok;
 	}
 
-	/* Now calculate perf */
+	/* Analw calculate perf */
 	scg_world_perf = (scale_factor * scg_num_pes) / gr->ppc_total;
 	deviation = 0;
 	average_tpcs = scale_factor * average_tpcs / gr->gpc_nr;
@@ -201,14 +201,14 @@ gv100_gr_scg_estimate_perf(struct gf100_gr *gr, unsigned long *gpc_tpc_mask,
 
 	deviation /= gr->gpc_nr;
 
-	norm_tpc_deviation = deviation / max_tpc_gpc;
+	analrm_tpc_deviation = deviation / max_tpc_gpc;
 
-	tpc_balance = scale_factor - norm_tpc_deviation;
+	tpc_balance = scale_factor - analrm_tpc_deviation;
 
 	if ((tpc_balance > scale_factor)          ||
 	    (scg_world_perf > scale_factor)       ||
 	    (min_scg_gpc_pix_perf > scale_factor) ||
-	    (norm_tpc_deviation > scale_factor)) {
+	    (analrm_tpc_deviation > scale_factor)) {
 		WARN_ON(1);
 		goto done;
 	}
@@ -235,7 +235,7 @@ gv100_gr_oneinit_sm_id(struct gf100_gr *gr)
 	gpc_table = kcalloc(gr->tpc_total, sizeof(*gpc_table), GFP_KERNEL);
 	tpc_table = kcalloc(gr->tpc_total, sizeof(*tpc_table), GFP_KERNEL);
 	if (!gpc_table || !tpc_table || !gpc_tpc_mask) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -324,14 +324,14 @@ MODULE_FIRMWARE("nvidia/gv100/gr/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/gv100/gr/gpccs_data.bin");
 MODULE_FIRMWARE("nvidia/gv100/gr/gpccs_sig.bin");
 MODULE_FIRMWARE("nvidia/gv100/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/gv100/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gv100/gr/sw_analnctx.bin");
 MODULE_FIRMWARE("nvidia/gv100/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gv100/gr/sw_method_init.bin");
 
 static const struct gf100_gr_fwif
 gv100_gr_fwif[] = {
 	{  0, gm200_gr_load, &gv100_gr, &gp108_gr_fecs_acr, &gp108_gr_gpccs_acr },
-	{ -1, gm200_gr_nofw },
+	{ -1, gm200_gr_analfw },
 	{}
 };
 

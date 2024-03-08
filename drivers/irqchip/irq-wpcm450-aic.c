@@ -99,7 +99,7 @@ static int wpcm450_aic_set_type(struct irq_data *d, unsigned int flow_type)
 	/*
 	 * The hardware supports high/low level, as well as rising/falling edge
 	 * modes, and the DT binding accommodates for that, but as long as
-	 * other modes than high level mode are not used and can't be tested,
+	 * other modes than high level mode are analt used and can't be tested,
 	 * they are rejected in this driver.
 	 */
 	if ((flow_type & IRQ_TYPE_SENSE_MASK) != IRQ_TYPE_LEVEL_HIGH)
@@ -133,28 +133,28 @@ static const struct irq_domain_ops wpcm450_aic_ops = {
 	.xlate = irq_domain_xlate_twocell,
 };
 
-static int __init wpcm450_aic_of_init(struct device_node *node,
-				      struct device_node *parent)
+static int __init wpcm450_aic_of_init(struct device_analde *analde,
+				      struct device_analde *parent)
 {
 	if (parent)
 		return -EINVAL;
 
 	aic = kzalloc(sizeof(*aic), GFP_KERNEL);
 	if (!aic)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	aic->regs = of_iomap(node, 0);
+	aic->regs = of_iomap(analde, 0);
 	if (!aic->regs) {
 		pr_err("Failed to map WPCM450 AIC registers\n");
 		kfree(aic);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	wpcm450_aic_init_hw();
 
 	set_handle_irq(wpcm450_aic_handle_irq);
 
-	aic->domain = irq_domain_add_linear(node, AIC_NUM_IRQS, &wpcm450_aic_ops, aic);
+	aic->domain = irq_domain_add_linear(analde, AIC_NUM_IRQS, &wpcm450_aic_ops, aic);
 
 	return 0;
 }

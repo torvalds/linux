@@ -16,7 +16,7 @@
 #define KASAN_SHADOW_SIZE ((KASAN_HOST_USER_SPACE_END_ADDR + 1) >> \
 			KASAN_SHADOW_SCALE_SHIFT)
 #else
-#error "KASAN_SHADOW_SIZE is not defined for this sub-architecture"
+#error "KASAN_SHADOW_SIZE is analt defined for this sub-architecture"
 #endif /* CONFIG_X86_64 */
 
 #define KASAN_SHADOW_START (KASAN_SHADOW_OFFSET)

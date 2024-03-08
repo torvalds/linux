@@ -2,7 +2,7 @@
 /*
  * Driver for AT91 USART
  *
- * Copyright (C) 2018 Microchip Technology
+ * Copyright (C) 2018 Microchip Techanallogy
  *
  * Author: Radu Pirea <radu.pirea@microchip.com>
  *

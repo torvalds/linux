@@ -45,11 +45,11 @@ static void __iomem *ac97_reg_base;
 
 int pxa2xx_ac97_read(int slot, unsigned short reg)
 {
-	int val = -ENODEV;
+	int val = -EANALDEV;
 	u32 __iomem *reg_addr;
 
 	if (slot > 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&car_mutex);
 
@@ -76,11 +76,11 @@ int pxa2xx_ac97_read(int slot, unsigned short reg)
 		goto out;
 	}
 
-	/* valid data now */
+	/* valid data analw */
 	writel(GSR_CDONE | GSR_SDONE, ac97_reg_base + GSR);
 	gsr_bits = 0;
 	val = (readl(reg_addr) & 0xffff);
-	/* but we've just started another cycle... */
+	/* but we've just started aanalther cycle... */
 	wait_event_timeout(gsr_wq, (readl(ac97_reg_base + GSR) | gsr_bits) & GSR_SDONE, 1);
 
 out:	mutex_unlock(&car_mutex);
@@ -301,7 +301,7 @@ static irqreturn_t pxa2xx_ac97_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 #ifdef CONFIG_PM
@@ -348,13 +348,13 @@ int pxa2xx_ac97_hw_probe(struct platform_device *dev)
 			dev_err(&dev->dev, "Invalid reset GPIO %d\n",
 				pdata->reset_gpio);
 		}
-	} else if (!pdata && dev->dev.of_node) {
+	} else if (!pdata && dev->dev.of_analde) {
 		pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
-			return -ENOMEM;
-		pdata->reset_gpio = of_get_named_gpio(dev->dev.of_node,
+			return -EANALMEM;
+		pdata->reset_gpio = of_get_named_gpio(dev->dev.of_analde,
 						      "reset-gpios", 0);
-		if (pdata->reset_gpio == -ENOENT)
+		if (pdata->reset_gpio == -EANALENT)
 			pdata->reset_gpio = -1;
 		else if (pdata->reset_gpio < 0)
 			return pdata->reset_gpio;

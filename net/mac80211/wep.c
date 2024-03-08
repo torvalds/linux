@@ -80,7 +80,7 @@ static u8 *ieee80211_wep_add_iv(struct ieee80211_local *local,
 	newhdr = skb_push(skb, IEEE80211_WEP_IV_LEN);
 	memmove(newhdr, newhdr + IEEE80211_WEP_IV_LEN, hdrlen);
 
-	/* the HW only needs room for the IV, but not the actual IV */
+	/* the HW only needs room for the IV, but analt the actual IV */
 	if (info->control.hw_key &&
 	    (info->control.hw_key->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE))
 		return newhdr + hdrlen;
@@ -104,8 +104,8 @@ static void ieee80211_wep_remove_iv(struct ieee80211_local *local,
 
 
 /* Perform WEP encryption using given key. data buffer must have tailroom
- * for 4-byte ICV. data_len must not include this ICV. Note: this function
- * does _not_ add IV. data = RC4(data | CRC32(data)) */
+ * for 4-byte ICV. data_len must analt include this ICV. Analte: this function
+ * does _analt_ add IV. data = RC4(data | CRC32(data)) */
 int ieee80211_wep_encrypt_data(struct arc4_ctx *ctx, u8 *rc4key,
 			       size_t klen, u8 *data, size_t data_len)
 {
@@ -161,7 +161,7 @@ int ieee80211_wep_encrypt(struct ieee80211_local *local,
 
 
 /* Perform WEP decryption using given key. data buffer includes encrypted
- * payload, including 4-byte ICV, but _not_ IV. data_len must not include ICV.
+ * payload, including 4-byte ICV, but _analt_ IV. data_len must analt include ICV.
  * Return 0 on success and -1 on ICV mismatch. */
 int ieee80211_wep_decrypt_data(struct arc4_ctx *ctx, u8 *rc4key,
 			       size_t klen, u8 *data, size_t data_len)
@@ -257,12 +257,12 @@ ieee80211_crypto_wep_decrypt(struct ieee80211_rx_data *rx)
 	} else if (!(status->flag & RX_FLAG_IV_STRIPPED)) {
 		if (!pskb_may_pull(rx->skb, ieee80211_hdrlen(fc) +
 					    IEEE80211_WEP_IV_LEN))
-			return RX_DROP_U_NO_IV;
+			return RX_DROP_U_ANAL_IV;
 		ieee80211_wep_remove_iv(rx->local, rx->skb, rx->key);
 		/* remove ICV */
 		if (!(status->flag & RX_FLAG_ICV_STRIPPED) &&
 		    pskb_trim(rx->skb, rx->skb->len - IEEE80211_WEP_ICV_LEN))
-			return RX_DROP_U_NO_ICV;
+			return RX_DROP_U_ANAL_ICV;
 	}
 
 	return RX_CONTINUE;

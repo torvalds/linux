@@ -39,9 +39,9 @@
 #define WCD938X_MBHC_MECH_DETECT_TYPE_MASK	BIT(5)
 #define WCD938X_MBHC_MECH_DETECT_TYPE_INS	1
 #define WCD938X_MBHC_HPHL_PLUG_TYPE_MASK	BIT(4)
-#define WCD938X_MBHC_HPHL_PLUG_TYPE_NO		1
+#define WCD938X_MBHC_HPHL_PLUG_TYPE_ANAL		1
 #define WCD938X_MBHC_GND_PLUG_TYPE_MASK		BIT(3)
-#define WCD938X_MBHC_GND_PLUG_TYPE_NO		1
+#define WCD938X_MBHC_GND_PLUG_TYPE_ANAL		1
 #define WCD938X_MBHC_HSL_PULLUP_COMP_EN		BIT(2)
 #define WCD938X_MBHC_HSG_PULLUP_COMP_EN		BIT(1)
 #define WCD938X_MBHC_HPHL_100K_TO_GND_EN	BIT(0)
@@ -445,7 +445,7 @@
 #define WCD938X_DIGITAL_CDC_TX_RST              (0x3456)
 #define WCD938X_DIGITAL_CDC_REQ_CTL             (0x3457)
 #define WCD938X_FS_RATE_4P8_MASK		BIT(1)
-#define WCD938X_NO_NOTCH_MASK			BIT(0)
+#define WCD938X_ANAL_ANALTCH_MASK			BIT(0)
 #define WCD938X_DIGITAL_CDC_RST                 (0x3458)
 #define WCD938X_DIGITAL_CDC_AMIC_CTL            (0x345A)
 #define WCD938X_AMIC1_IN_SEL_DMIC		0
@@ -678,7 +678,7 @@ int wcd938x_sdw_hw_params(struct wcd938x_sdw_priv *wcd,
 			  struct snd_pcm_hw_params *params,
 			  struct snd_soc_dai *dai);
 
-struct device *wcd938x_sdw_device_get(struct device_node *np);
+struct device *wcd938x_sdw_device_get(struct device_analde *np);
 int wcd938x_swr_get_current_bank(struct sdw_slave *sdev);
 
 #else
@@ -687,14 +687,14 @@ static inline int wcd938x_sdw_free(struct wcd938x_sdw_priv *wcd,
 		     struct snd_pcm_substream *substream,
 		     struct snd_soc_dai *dai)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int wcd938x_sdw_set_sdw_stream(struct wcd938x_sdw_priv *wcd,
 			       struct snd_soc_dai *dai,
 			       void *stream, int direction)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int wcd938x_sdw_hw_params(struct wcd938x_sdw_priv *wcd,
@@ -702,10 +702,10 @@ static inline int wcd938x_sdw_hw_params(struct wcd938x_sdw_priv *wcd,
 			  struct snd_pcm_hw_params *params,
 			  struct snd_soc_dai *dai)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
-static inline struct device *wcd938x_sdw_device_get(struct device_node *np)
+static inline struct device *wcd938x_sdw_device_get(struct device_analde *np)
 {
 	return NULL;
 }

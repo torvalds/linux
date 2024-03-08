@@ -8,9 +8,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may analt be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed and/or modified under the
@@ -19,11 +19,11 @@
  * version.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
  * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -307,9 +307,9 @@ void snd_opl4_synth_shutdown(struct snd_opl4 *opl4)
 }
 
 /*
- * Executes the callback for all voices playing the specified note.
+ * Executes the callback for all voices playing the specified analte.
  */
-static void snd_opl4_do_for_note(struct snd_opl4 *opl4, int note, struct snd_midi_channel *chan,
+static void snd_opl4_do_for_analte(struct snd_opl4 *opl4, int analte, struct snd_midi_channel *chan,
 				 void (*func)(struct snd_opl4 *opl4, struct opl4_voice *voice))
 {
 	int i;
@@ -319,7 +319,7 @@ static void snd_opl4_do_for_note(struct snd_opl4 *opl4, int note, struct snd_mid
 	spin_lock_irqsave(&opl4->reg_lock, flags);
 	for (i = 0; i < OPL4_MAX_VOICES; i++) {
 		voice = &opl4->voices[i];
-		if (voice->chan == chan && voice->note == note) {
+		if (voice->chan == chan && voice->analte == analte) {
 			func(opl4, voice);
 		}
 	}
@@ -420,14 +420,14 @@ static void snd_opl4_update_pitch(struct snd_opl4 *opl4,
 				  struct opl4_voice *voice)
 {
 	struct snd_midi_channel *chan = voice->chan;
-	int note, pitch, octave;
+	int analte, pitch, octave;
 
-	note = chan->drum_channel ? 60 : voice->note;
+	analte = chan->drum_channel ? 60 : voice->analte;
 	/*
 	 * pitch is in 100/128 cents, so 0x80 is one semitone and
 	 * 0x600 is one octave.
 	 */
-	pitch = ((note - 60) << 7) * voice->sound->key_scaling / 100 + (60 << 7);
+	pitch = ((analte - 60) << 7) * voice->sound->key_scaling / 100 + (60 << 7);
 	pitch += voice->sound->pitch_offset;
 	if (!chan->drum_channel)
 		pitch += chan->gm_rpn_coarse_tuning;
@@ -479,7 +479,7 @@ static void snd_opl4_wait_for_wave_headers(struct snd_opl4 *opl4)
 		udelay(10);
 }
 
-void snd_opl4_note_on(void *private_data, int note, int vel, struct snd_midi_channel *chan)
+void snd_opl4_analte_on(void *private_data, int analte, int vel, struct snd_midi_channel *chan)
 {
 	struct snd_opl4 *opl4 = private_data;
 	const struct opl4_region_ptr *regions;
@@ -492,8 +492,8 @@ void snd_opl4_note_on(void *private_data, int note, int vel, struct snd_midi_cha
 	i = chan->drum_channel ? 0x80 : (chan->midi_program & 0x7f);
 	regions = &snd_yrw801_regions[i];
 	for (i = 0; i < regions->count; i++) {
-		if (note >= regions->regions[i].key_min &&
-		    note <= regions->regions[i].key_max) {
+		if (analte >= regions->regions[i].key_min &&
+		    analte <= regions->regions[i].key_max) {
 			sound[voices] = &regions->regions[i].sound;
 			if (++voices >= 2)
 				break;
@@ -506,7 +506,7 @@ void snd_opl4_note_on(void *private_data, int note, int vel, struct snd_midi_cha
 		voice[i] = snd_opl4_get_voice(opl4);
 		list_move_tail(&voice[i]->list, &opl4->on_voices);
 		voice[i]->chan = chan;
-		voice[i]->note = note;
+		voice[i]->analte = analte;
 		voice[i]->velocity = vel & 0x7f;
 		voice[i]->sound = sound[i];
 	}
@@ -560,11 +560,11 @@ static void snd_opl4_voice_off(struct snd_opl4 *opl4, struct opl4_voice *voice)
 	snd_opl4_write(opl4, OPL4_REG_MISC + voice->number, voice->reg_misc);
 }
 
-void snd_opl4_note_off(void *private_data, int note, int vel, struct snd_midi_channel *chan)
+void snd_opl4_analte_off(void *private_data, int analte, int vel, struct snd_midi_channel *chan)
 {
 	struct snd_opl4 *opl4 = private_data;
 
-	snd_opl4_do_for_note(opl4, note, chan, snd_opl4_voice_off);
+	snd_opl4_do_for_analte(opl4, analte, chan, snd_opl4_voice_off);
 }
 
 static void snd_opl4_terminate_voice(struct snd_opl4 *opl4, struct opl4_voice *voice)
@@ -575,11 +575,11 @@ static void snd_opl4_terminate_voice(struct snd_opl4 *opl4, struct opl4_voice *v
 	snd_opl4_write(opl4, OPL4_REG_MISC + voice->number, voice->reg_misc);
 }
 
-void snd_opl4_terminate_note(void *private_data, int note, struct snd_midi_channel *chan)
+void snd_opl4_terminate_analte(void *private_data, int analte, struct snd_midi_channel *chan)
 {
 	struct snd_opl4 *opl4 = private_data;
 
-	snd_opl4_do_for_note(opl4, note, chan, snd_opl4_terminate_voice);
+	snd_opl4_do_for_analte(opl4, analte, chan, snd_opl4_terminate_voice);
 }
 
 void snd_opl4_control(void *private_data, int type, struct snd_midi_channel *chan)
@@ -601,18 +601,18 @@ void snd_opl4_control(void *private_data, int type, struct snd_midi_channel *cha
 		snd_opl4_do_for_channel(opl4, chan, snd_opl4_update_volume);
 		break;
 	case MIDI_CTL_VIBRATO_RATE:
-		/* not yet supported */
+		/* analt yet supported */
 		break;
 	case MIDI_CTL_VIBRATO_DEPTH:
 		snd_opl4_do_for_channel(opl4, chan, snd_opl4_update_vibrato_depth);
 		break;
 	case MIDI_CTL_VIBRATO_DELAY:
-		/* not yet supported */
+		/* analt yet supported */
 		break;
 	case MIDI_CTL_E1_REVERB_DEPTH:
 		/*
 		 * Each OPL4 voice has a bit called "Pseudo-Reverb", but
-		 * IMHO _not_ using it enhances the listening experience.
+		 * IMHO _analt_ using it enhances the listening experience.
 		 */
 		break;
 	case MIDI_CTL_PITCHBEND:

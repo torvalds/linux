@@ -11,7 +11,7 @@ hypervisor when running as a guest (under Xen, KVM or any other
 hypervisor), or any hypervisor-specific interaction when the kernel is
 used as a host.
 
-Note: KVM/arm has been removed from the kernel. The API described
+Analte: KVM/arm has been removed from the kernel. The API described
 here is still valid though, as it allows the kernel to kexec when
 booted at HYP. It can also be used by a hypervisor other than KVM
 if necessary.
@@ -35,7 +35,7 @@ these functions (see arch/arm{,64}/include/asm/virt.h):
 
   Set HVBAR/VBAR_EL2 to 'vectors' to enable a hypervisor. 'vectors'
   must be a physical address, and respect the alignment requirements
-  of the architecture. Only implemented by the initial stubs, not by
+  of the architecture. Only implemented by the initial stubs, analt by
   Linux hypervisors.
 
 * ::
@@ -56,7 +56,7 @@ these functions (see arch/arm{,64}/include/asm/virt.h):
 
   Mask all exceptions, disable the MMU, clear I+D bits, move the arguments
   into place (arm64 only), and jump to the restart address while at HYP/EL2.
-  This hypercall is not expected to return to its caller.
+  This hypercall is analt expected to return to its caller.
 
 * ::
 
@@ -65,11 +65,11 @@ these functions (see arch/arm{,64}/include/asm/virt.h):
   Finish configuring EL2 depending on the command-line options,
   including an attempt to upgrade the kernel's exception level from
   EL1 to EL2 by enabling the VHE mode. This is conditioned by the CPU
-  supporting VHE, the EL2 MMU being off, and VHE not being disabled by
+  supporting VHE, the EL2 MMU being off, and VHE analt being disabled by
   any other means (command line option, for example).
 
 Any other value of r0/x0 triggers a hypervisor-specific handling,
-which is not documented here.
+which is analt documented here.
 
 The return value of a stub hypercall is held by r0/x0, and is 0 on
 success, and HVC_STUB_ERR on error. A stub hypercall is allowed to

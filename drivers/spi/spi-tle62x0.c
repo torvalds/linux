@@ -18,7 +18,7 @@
 #define CMD_READ	0x00
 #define CMD_SET		0xff
 
-#define DIAG_NORMAL	0x03
+#define DIAG_ANALRMAL	0x03
 #define DIAG_OVERLOAD	0x02
 #define DIAG_OPEN	0x01
 #define DIAG_SHORTGND	0x00
@@ -80,7 +80,7 @@ static unsigned char *decode_fault(unsigned int fault_code)
 	fault_code &= 3;
 
 	switch (fault_code) {
-	case DIAG_NORMAL:
+	case DIAG_ANALRMAL:
 		return "N";
 	case DIAG_OVERLOAD:
 		return "V";
@@ -245,13 +245,13 @@ static int tle62x0_probe(struct spi_device *spi)
 
 	pdata = dev_get_platdata(&spi->dev);
 	if (pdata == NULL) {
-		dev_err(&spi->dev, "no device data specified\n");
+		dev_err(&spi->dev, "anal device data specified\n");
 		return -EINVAL;
 	}
 
 	st = kzalloc(sizeof(struct tle62x0_state), GFP_KERNEL);
 	if (st == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->us = spi;
 	st->nr_gpio = pdata->gpio_count;
@@ -261,14 +261,14 @@ static int tle62x0_probe(struct spi_device *spi)
 
 	ret = device_create_file(&spi->dev, &dev_attr_status_show);
 	if (ret) {
-		dev_err(&spi->dev, "cannot create status attribute\n");
+		dev_err(&spi->dev, "cananalt create status attribute\n");
 		goto err_status;
 	}
 
 	for (ptr = 0; ptr < pdata->gpio_count; ptr++) {
 		ret = device_create_file(&spi->dev, gpio_attrs[ptr]);
 		if (ret) {
-			dev_err(&spi->dev, "cannot create gpio attribute\n");
+			dev_err(&spi->dev, "cananalt create gpio attribute\n");
 			goto err_gpios;
 		}
 	}

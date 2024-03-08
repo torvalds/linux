@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _XT_RATEEST_MATCH_H
 #define _XT_RATEEST_MATCH_H
 
@@ -15,7 +15,7 @@ enum xt_rateest_match_flags {
 };
 
 enum xt_rateest_match_mode {
-	XT_RATEEST_MATCH_NONE,
+	XT_RATEEST_MATCH_ANALNE,
 	XT_RATEEST_MATCH_EQ,
 	XT_RATEEST_MATCH_LT,
 	XT_RATEEST_MATCH_GT,

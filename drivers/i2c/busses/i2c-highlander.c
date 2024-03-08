@@ -48,7 +48,7 @@ struct highlander_i2c_dev {
 	size_t			buf_len;
 };
 
-static bool iic_force_poll, iic_force_normal;
+static bool iic_force_poll, iic_force_analrmal;
 static int iic_timeout = 1000, iic_read_delay;
 
 static inline void highlander_i2c_irq_enable(struct highlander_i2c_dev *dev)
@@ -78,7 +78,7 @@ static void highlander_i2c_setup(struct highlander_i2c_dev *dev)
 	smmr = ioread16(dev->base + SMMR);
 	smmr |= SMMR_TMMD;
 
-	if (iic_force_normal)
+	if (iic_force_analrmal)
 		smmr &= ~SMMR_SP;
 	else
 		smmr |= SMMR_SP;
@@ -150,7 +150,7 @@ static int highlander_i2c_wait_for_ack(struct highlander_i2c_dev *dev)
 	u16 tmp = ioread16(dev->base + SMCR);
 
 	if ((tmp & (SMCR_IRIC | SMCR_ACKE)) == SMCR_ACKE) {
-		dev_warn(dev->dev, "ack abnormality\n");
+		dev_warn(dev->dev, "ack abanalrmality\n");
 		return highlander_i2c_reset(dev);
 	}
 
@@ -226,7 +226,7 @@ static int highlander_i2c_read(struct highlander_i2c_dev *dev)
 	 * data read cycles, otherwise the transceiver gets confused and
 	 * garbage is returned when the read is subsequently aborted.
 	 *
-	 * It is not sufficient to wait for BBSY.
+	 * It is analt sufficient to wait for BBSY.
 	 *
 	 * While this generally only applies to the older SH7780-based
 	 * Highlanders, the same issue can be observed on SH7785 ones,
@@ -361,13 +361,13 @@ static int highlander_i2c_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (unlikely(!res)) {
-		dev_err(&pdev->dev, "no mem resource\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal mem resource\n");
+		return -EANALDEV;
 	}
 
 	dev = kzalloc(sizeof(struct highlander_i2c_dev), GFP_KERNEL);
 	if (unlikely(!dev))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->base = ioremap(res->start, resource_size(res));
 	if (unlikely(!dev->base)) {
@@ -390,7 +390,7 @@ static int highlander_i2c_probe(struct platform_device *pdev)
 
 		highlander_i2c_irq_enable(dev);
 	} else {
-		dev_notice(&pdev->dev, "no IRQ, using polling mode\n");
+		dev_analtice(&pdev->dev, "anal IRQ, using polling mode\n");
 		highlander_i2c_irq_disable(dev);
 	}
 
@@ -464,13 +464,13 @@ MODULE_DESCRIPTION("Renesas Highlander FPGA I2C/SMBus adapter");
 MODULE_LICENSE("GPL v2");
 
 module_param(iic_force_poll, bool, 0);
-module_param(iic_force_normal, bool, 0);
+module_param(iic_force_analrmal, bool, 0);
 module_param(iic_timeout, int, 0);
 module_param(iic_read_delay, int, 0);
 
 MODULE_PARM_DESC(iic_force_poll, "Force polling mode");
-MODULE_PARM_DESC(iic_force_normal,
-		 "Force normal mode (100 kHz), default is fast mode (400 kHz)");
+MODULE_PARM_DESC(iic_force_analrmal,
+		 "Force analrmal mode (100 kHz), default is fast mode (400 kHz)");
 MODULE_PARM_DESC(iic_timeout, "Set timeout value in msecs (default 1000 ms)");
 MODULE_PARM_DESC(iic_read_delay,
 		 "Delay between data read cycles (default 0 ms)");

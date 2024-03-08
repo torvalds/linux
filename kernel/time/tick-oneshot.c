@@ -56,7 +56,7 @@ void tick_resume_oneshot(void)
 }
 
 /**
- * tick_setup_oneshot - setup the event device for oneshot mode (hres or nohz)
+ * tick_setup_oneshot - setup the event device for oneshot mode (hres or analhz)
  */
 void tick_setup_oneshot(struct clock_event_device *newdev,
 			void (*handler)(struct clock_event_device *),
@@ -78,14 +78,14 @@ int tick_switch_to_oneshot(void (*handler)(struct clock_event_device *))
 	if (!dev || !(dev->features & CLOCK_EVT_FEAT_ONESHOT) ||
 		    !tick_device_is_functional(dev)) {
 
-		pr_info("Clockevents: could not switch to one-shot mode:");
+		pr_info("Clockevents: could analt switch to one-shot mode:");
 		if (!dev) {
-			pr_cont(" no tick device\n");
+			pr_cont(" anal tick device\n");
 		} else {
 			if (!tick_device_is_functional(dev))
-				pr_cont(" %s is not functional.\n", dev->name);
+				pr_cont(" %s is analt functional.\n", dev->name);
 			else
-				pr_cont(" %s does not support one-shot mode.\n",
+				pr_cont(" %s does analt support one-shot mode.\n",
 					dev->name);
 		}
 		return -EINVAL;
@@ -101,7 +101,7 @@ int tick_switch_to_oneshot(void (*handler)(struct clock_event_device *))
 /**
  * tick_oneshot_mode_active - check whether the system is in oneshot mode
  *
- * returns 1 when either nohz or highres are enabled. otherwise 0.
+ * returns 1 when either analhz or highres are enabled. otherwise 0.
  */
 int tick_oneshot_mode_active(void)
 {

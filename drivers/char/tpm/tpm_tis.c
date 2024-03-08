@@ -33,7 +33,7 @@ struct tpm_info {
 	struct resource res;
 	/* irq > 0 means: use irq $irq;
 	 * irq = 0 means: autoprobe for an irq;
-	 * irq = -1 means: no irq support
+	 * irq = -1 means: anal irq support
 	 */
 	int irq;
 };
@@ -63,7 +63,7 @@ static inline void tpm_tis_flush(void __iomem *iobase)
 
 /*
  * Write a byte word to the TPM MMIO address, and flush the write queue.
- * The flush ensures that the data is sent immediately over the bus and not
+ * The flush ensures that the data is sent immediately over the bus and analt
  * aggregated with further requests and transferred later in a batch. The large
  * write requests can lead to unwanted latency spikes by blocking the CPU until
  * the complete batch has been transferred.
@@ -76,7 +76,7 @@ static inline void tpm_tis_iowrite8(u8 b, void __iomem *iobase, u32 addr)
 
 /*
  * Write a 32-bit word to the TPM MMIO address, and flush the write queue.
- * The flush ensures that the data is sent immediately over the bus and not
+ * The flush ensures that the data is sent immediately over the bus and analt
  * aggregated with further requests and transferred later in a batch. The large
  * write requests can lead to unwanted latency spikes by blocking the CPU until
  * the complete batch has been transferred.
@@ -93,7 +93,7 @@ MODULE_PARM_DESC(interrupts, "Enable interrupts");
 
 static bool itpm;
 module_param(itpm, bool, 0444);
-MODULE_PARM_DESC(itpm, "Force iTPM workarounds (found on some Lenovo laptops)");
+MODULE_PARM_DESC(itpm, "Force iTPM workarounds (found on some Leanalvo laptops)");
 
 static bool force;
 #ifdef CONFIG_X86
@@ -156,7 +156,7 @@ static int check_acpi_tpm2(struct device *dev)
 
 	/* The tpm2_crb driver handles this device */
 	if (tbl->start_method != ACPI_TPM2_MEMORY_MAPPED)
-		ret = -ENODEV;
+		ret = -EANALDEV;
 
 	acpi_put_table((struct acpi_table_header *)tbl);
 	return ret;
@@ -230,7 +230,7 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info)
 
 	phy = devm_kzalloc(dev, sizeof(struct tpm_tis_tcg_phy), GFP_KERNEL);
 	if (phy == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->iobase = devm_ioremap_resource(dev, &tpm_info->res);
 	if (IS_ERR(phy->iobase))
@@ -256,7 +256,7 @@ static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 
 	res = pnp_get_resource(pnp_dev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 	tpm_info.res = *res;
 
 	if (pnp_irq_valid(pnp_dev, 0))
@@ -268,9 +268,9 @@ static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 }
 
 /*
- * There is a known bug caused by 93e1b7d42e1e ("[PATCH] tpm: add HID module
+ * There is a kanalwn bug caused by 93e1b7d42e1e ("[PATCH] tpm: add HID module
  * parameter"). This commit added IFX0102 device ID, which is also used by
- * tpm_infineon but ignored to add quirks to probe which driver ought to be
+ * tpm_infineon but iganalred to add quirks to probe which driver ought to be
  * used.
  */
 
@@ -320,8 +320,8 @@ static int tpm_tis_plat_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "no memory resource defined\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal memory resource defined\n");
+		return -EANALDEV;
 	}
 	tpm_info.res = *res;
 

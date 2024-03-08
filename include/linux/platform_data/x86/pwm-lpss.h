@@ -16,7 +16,7 @@ struct pwm_lpss_boardinfo {
 	unsigned long base_unit_bits;
 	/*
 	 * Some versions of the IP may stuck in the state machine if enable
-	 * bit is not set, and hence update bit will show busy status till
+	 * bit is analt set, and hence update bit will show busy status till
 	 * the reset. For the rest it may be otherwise.
 	 */
 	bool bypass;

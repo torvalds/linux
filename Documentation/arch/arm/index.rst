@@ -74,7 +74,7 @@ SoC-specific documents
    sti/stih418-overview
    sti/overview
 
-   vfp/release-notes
+   vfp/release-analtes
 
 
 .. only::  subproject and html

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-// Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
+// Copyright (C) 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/sun50i-h6-ccu.h>
@@ -91,7 +91,7 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		arm,no-tick-in-suspend;
+		arm,anal-tick-in-suspend;
 		interrupts = <GIC_PPI 13
 			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
 			     <GIC_PPI 14
@@ -363,7 +363,7 @@
 				bias-pull-up;
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			mmc1_pins: mmc1-pins {
 				pins = "PG0", "PG1", "PG2", "PG3",
 				       "PG4", "PG5";
@@ -381,26 +381,26 @@
 				bias-pull-up;
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			spi0_pins: spi0-pins {
 				pins = "PC0", "PC2", "PC3";
 				function = "spi0";
 			};
 
 			/* pin shared with MMC2-CMD (eMMC) */
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			spi0_cs_pin: spi0-cs-pin {
 				pins = "PC5";
 				function = "spi0";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			spi1_pins: spi1-pins {
 				pins = "PH4", "PH5", "PH6";
 				function = "spi1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			spi1_cs_pin: spi1-cs-pin {
 				pins = "PH3";
 				function = "spi1";
@@ -733,9 +733,9 @@
 			resets = <&ccu RST_BUS_XHCI>;
 			/*
 			 * The datasheet of the chip doesn't declare the
-			 * peripheral function, and there's no boards known
+			 * peripheral function, and there's anal boards kanalwn
 			 * to have a USB Type-B port routed to the port.
-			 * In addition, no one has tested the peripheral
+			 * In addition, anal one has tested the peripheral
 			 * function yet.
 			 * So set the dr_mode to "host" in the DTSI file.
 			 */
@@ -1065,10 +1065,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu_alert>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -1108,19 +1108,19 @@
 				// Forbid the GPU to go over 756MHz
 				map0 {
 					trip = <&gpu_alert0>;
-					cooling-device = <&gpu 1 THERMAL_NO_LIMIT>;
+					cooling-device = <&gpu 1 THERMAL_ANAL_LIMIT>;
 				};
 
 				// Forbid the GPU to go over 624MHz
 				map1 {
 					trip = <&gpu_alert1>;
-					cooling-device = <&gpu 2 THERMAL_NO_LIMIT>;
+					cooling-device = <&gpu 2 THERMAL_ANAL_LIMIT>;
 				};
 
 				// Forbid the GPU to go over 576MHz
 				map2 {
 					trip = <&gpu_alert2>;
-					cooling-device = <&gpu 3 THERMAL_NO_LIMIT>;
+					cooling-device = <&gpu 3 THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

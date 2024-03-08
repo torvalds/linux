@@ -18,7 +18,7 @@ description: |
   detection (in-line ECC in which a section (1/8th) of the memory device used to
   store data is used for ECC storage).
 
-  Note, the bootloader must configure ECC mode for the memory controller.
+  Analte, the bootloader must configure ECC mode for the memory controller.
 
 properties:
   compatible:

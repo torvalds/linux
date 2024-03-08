@@ -22,7 +22,7 @@ description: |
   - VDEC_1 can decode MPEG-1, MPEG-2, MPEG-4 part 2, MJPEG, H.263, H.264, VC-1.
   - VDEC_HEVC can decode HEVC and VP9.
 
-  Both VDEC_1 and VDEC_HEVC share the "vdec" IRQ and as such cannot run
+  Both VDEC_1 and VDEC_HEVC share the "vdec" IRQ and as such cananalt run
   concurrently.
 
 properties:
@@ -75,11 +75,11 @@ properties:
       - const: vdec_hevcf
 
   amlogic,ao-sysctrl:
-    description: should point to the AOBUS sysctrl node
+    description: should point to the AOBUS sysctrl analde
     $ref: /schemas/types.yaml#/definitions/phandle
 
   amlogic,canvas:
-    description: should point to a canvas provider node
+    description: should point to a canvas provider analde
     $ref: /schemas/types.yaml#/definitions/phandle
 
 allOf:

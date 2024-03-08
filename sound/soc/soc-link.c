@@ -3,7 +3,7 @@
 // soc-link.c
 //
 // Copyright (C) 2019 Renesas Electronics Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 //
 #include <sound/soc.h>
 #include <sound/soc-link.h>
@@ -12,14 +12,14 @@
 static inline int _soc_link_ret(struct snd_soc_pcm_runtime *rtd,
 				const char *func, int ret)
 {
-	/* Positive, Zero values are not errors */
+	/* Positive, Zero values are analt errors */
 	if (ret >= 0)
 		return ret;
 
 	/* Negative values might be errors */
 	switch (ret) {
 	case -EPROBE_DEFER:
-	case -ENOTSUPP:
+	case -EANALTSUPP:
 		break;
 	default:
 		dev_err(rtd->dev,

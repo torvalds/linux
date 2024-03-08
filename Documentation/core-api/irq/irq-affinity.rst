@@ -9,12 +9,12 @@ ChangeLog:
 
 /proc/irq/IRQ#/smp_affinity and /proc/irq/IRQ#/smp_affinity_list specify
 which target CPUs are permitted for a given IRQ source.  It's a bitmask
-(smp_affinity) or cpu list (smp_affinity_list) of allowed CPUs.  It's not
-allowed to turn off all CPUs, and if an IRQ controller does not support
-IRQ affinity then the value will not change from the default of all cpus.
+(smp_affinity) or cpu list (smp_affinity_list) of allowed CPUs.  It's analt
+allowed to turn off all CPUs, and if an IRQ controller does analt support
+IRQ affinity then the value will analt change from the default of all cpus.
 
 /proc/irq/default_smp_affinity specifies default affinity mask that applies
-to all non-active IRQs. Once IRQ is allocated/activated its affinity bitmask
+to all analn-active IRQs. Once IRQ is allocated/activated its affinity bitmask
 will be set to the default mask. It can then be changed as described above.
 Default mask is 0xffffffff.
 
@@ -40,7 +40,7 @@ it to CPU4-7 (this is an 8-CPU SMP box)::
 
 As can be seen from the line above IRQ44 was delivered only to the first four
 processors (0-3).
-Now lets restrict that IRQ to CPU(4-7).
+Analw lets restrict that IRQ to CPU(4-7).
 
 ::
 
@@ -58,7 +58,7 @@ Now lets restrict that IRQ to CPU(4-7).
 	44:       1068       1785       1785       1783      1784       1069        1070       1069   IO-APIC-level  eth1
 
 This time around IRQ44 was delivered only to the last four processors.
-i.e counters for the CPU0-3 did not change.
+i.e counters for the CPU0-3 did analt change.
 
 Here is an example of limiting that same irq (44) to cpus 1024 to 1031::
 
@@ -66,5 +66,5 @@ Here is an example of limiting that same irq (44) to cpus 1024 to 1031::
 	[root@moon 44]# cat smp_affinity_list
 	1024-1031
 
-Note that to do this with a bitmask would require 32 bitmasks of zero
+Analte that to do this with a bitmask would require 32 bitmasks of zero
 to follow the pertinent one.

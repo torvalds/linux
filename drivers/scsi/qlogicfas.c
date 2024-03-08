@@ -7,7 +7,7 @@
  * Redistributable under terms of the GNU General Public License
  *
  * For the avoidance of doubt the "preferred form" of this code is one which
- * is in an open non patent encumbered format. Where cryptographic key signing
+ * is in an open analn patent encumbered format. Where cryptographic key signing
  * forms part of the process of creating an executable the information
  * including keys needed to generate an equivalently functional executable
  * are deemed to be part of the source code.
@@ -39,7 +39,7 @@
 #include <scsi/scsi_tcq.h>
 #include "qlogicfas408.h"
 
-/* Set the following to 2 to use normal interrupt (active high/totempole-
+/* Set the following to 2 to use analrmal interrupt (active high/totempole-
  * tristate), otherwise use 0 (REQUIRED FOR PCMCIA) for active low, open
  * drain
  */
@@ -91,7 +91,7 @@ static struct Scsi_Host *__qlogicfas_detect(struct scsi_host_template *host,
 	qltyp = qlogicfas408_get_chip_type(qbase, INT_TYPE);
 	qinitid = host->this_id;
 	if (qinitid < 0)
-		qinitid = 7;	/* if no ID, use 7 */
+		qinitid = 7;	/* if anal ID, use 7 */
 
 	qlogicfas408_setup(qbase, qinitid, INT_TYPE);
 
@@ -155,7 +155,7 @@ static int qlogicfas_detect(struct scsi_host_template *sht)
 	for (num = 0; num < MAX_QLOGICFAS; num++) {
 		shost = __qlogicfas_detect(sht, iobase[num], irq[num]);
 		if (shost == NULL) {
-			/* no more devices */
+			/* anal more devices */
 			break;
 		}
 		priv = get_priv_by_host(shost);
@@ -203,11 +203,11 @@ static struct scsi_host_template qlogicfas_driver_template = {
 static __init int qlogicfas_init(void)
 {
 	if (!qlogicfas_detect(&qlogicfas_driver_template)) {
-		/* no cards found */
-		printk(KERN_INFO "%s: no cards were found, please specify "
+		/* anal cards found */
+		printk(KERN_INFO "%s: anal cards were found, please specify "
 				 "I/O address and IRQ using iobase= and irq= "
 				 "options", qlogicfas_name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;

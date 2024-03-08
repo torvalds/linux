@@ -9,7 +9,7 @@
  */
 
 #include <linux/ahci_platform.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -173,7 +173,7 @@ struct tegra_ahci_priv {
 	struct reset_control	   *sata_rst;
 	struct reset_control	   *sata_oob_rst;
 	struct reset_control	   *sata_cold_rst;
-	/* Needs special handling, cannot use ahci_platform */
+	/* Needs special handling, cananalt use ahci_platform */
 	struct clk		   *sata_clk;
 	struct regulator_bulk_data *supplies;
 	const struct tegra_ahci_soc *soc;
@@ -444,7 +444,7 @@ static struct ata_port_operations ahci_tegra_port_ops = {
 };
 
 static const struct ata_port_info ahci_tegra_port_info = {
-	.flags		= AHCI_FLAG_COMMON | ATA_FLAG_NO_DIPM,
+	.flags		= AHCI_FLAG_COMMON | ATA_FLAG_ANAL_DIPM,
 	.pio_mask	= ATA_PIO4,
 	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &ahci_tegra_port_ops,
@@ -523,7 +523,7 @@ static int tegra_ahci_probe(struct platform_device *pdev)
 
 	tegra = devm_kzalloc(&pdev->dev, sizeof(*tegra), GFP_KERNEL);
 	if (!tegra)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hpriv->plat_data = tegra;
 
@@ -575,7 +575,7 @@ static int tegra_ahci_probe(struct platform_device *pdev)
 				       tegra->soc->num_supplies,
 				       sizeof(*tegra->supplies), GFP_KERNEL);
 	if (!tegra->supplies)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regulator_bulk_set_supply_names(tegra->supplies,
 					tegra->soc->supply_names,
@@ -613,7 +613,7 @@ static struct platform_driver tegra_ahci_driver = {
 		.name = DRV_NAME,
 		.of_match_table = tegra_ahci_of_match,
 	},
-	/* LP0 suspend support not implemented */
+	/* LP0 suspend support analt implemented */
 };
 module_platform_driver(tegra_ahci_driver);
 

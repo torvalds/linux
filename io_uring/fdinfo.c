@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/proc_fs.h>
@@ -93,7 +93,7 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *f)
 		struct io_uring_sqe *sqe;
 		unsigned int sq_idx;
 
-		if (ctx->flags & IORING_SETUP_NO_SQARRAY)
+		if (ctx->flags & IORING_SETUP_ANAL_SQARRAY)
 			break;
 		sq_idx = READ_ONCE(ctx->sq_array[entry & sq_mask]);
 		if (sq_idx > sq_mask)
@@ -136,7 +136,7 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *f)
 
 	/*
 	 * Avoid ABBA deadlock between the seq lock and the io_uring mutex,
-	 * since fdinfo case grabs it in the opposite direction of normal use
+	 * since fdinfo case grabs it in the opposite direction of analrmal use
 	 * cases. If we fail to get the lock, we just don't iterate any
 	 * structures that could be going away outside the io_uring mutex.
 	 */
@@ -158,7 +158,7 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *f)
 		if (f)
 			seq_printf(m, "%5u: %s\n", i, file_dentry(f)->d_iname);
 		else
-			seq_printf(m, "%5u: <none>\n", i);
+			seq_printf(m, "%5u: <analne>\n", i);
 	}
 	seq_printf(m, "UserBufs:\t%u\n", ctx->nr_user_bufs);
 	for (i = 0; has_lock && i < ctx->nr_user_bufs; i++) {
@@ -183,14 +183,14 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *f)
 		struct io_kiocb *req;
 
 		spin_lock(&hb->lock);
-		hlist_for_each_entry(req, &hb->list, hash_node)
+		hlist_for_each_entry(req, &hb->list, hash_analde)
 			seq_printf(m, "  op=%d, task_works=%d\n", req->opcode,
 					task_work_pending(req->task));
 		spin_unlock(&hb->lock);
 
 		if (!has_lock)
 			continue;
-		hlist_for_each_entry(req, &hbl->list, hash_node)
+		hlist_for_each_entry(req, &hbl->list, hash_analde)
 			seq_printf(m, "  op=%d, task_works=%d\n", req->opcode,
 					task_work_pending(req->task));
 	}

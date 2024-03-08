@@ -198,7 +198,7 @@ static inline long in_from_reg(u8 reg)
 	return reg * 8;
 }
 
-/* The 2 least significant bits are not used */
+/* The 2 least significant bits are analt used */
 static inline u8 in_to_reg(long val)
 {
 	if (val <= 0)
@@ -223,7 +223,7 @@ static inline u8 in0_to_reg(long val)
 	return ((val + 32) / 64) << 2;
 }
 
-/* The 4 most significant bits are not used */
+/* The 4 most significant bits are analt used */
 static inline long fan_from_reg(u16 reg)
 {
 	reg &= 0xfff;
@@ -237,7 +237,7 @@ static inline u16 fan_to_reg(long rpm)
 	/*
 	 * If the low limit is set below what the chip can measure,
 	 * store the largest possible 12-bit value in the registers,
-	 * so that no alarm will ever trigger.
+	 * so that anal alarm will ever trigger.
 	 */
 	if (rpm < 367)
 		return 0xfff;
@@ -1381,7 +1381,7 @@ static int f71805f_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, sizeof(struct f71805f_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!devm_request_region(&pdev->dev, res->start + ADDR_REG_OFFSET, 2,
@@ -1512,7 +1512,7 @@ static int __init f71805f_device_add(unsigned short address,
 
 	pdev = platform_device_alloc(DRVNAME, address);
 	if (!pdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		pr_err("Device allocation failed\n");
 		goto exit;
 	}
@@ -1564,7 +1564,7 @@ static int __init f71805f_find(int sioaddr, unsigned short *address,
 	if (err)
 		return err;
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	devid = superio_inw(sioaddr, SIO_REG_MANID);
 	if (devid != SIO_FINTEK_ID)
 		goto exit;
@@ -1585,16 +1585,16 @@ static int __init f71805f_find(int sioaddr, unsigned short *address,
 
 	superio_select(sioaddr, F71805F_LD_HWM);
 	if (!(superio_inb(sioaddr, SIO_REG_ENABLE) & 0x01)) {
-		pr_warn("Device not activated, skipping\n");
+		pr_warn("Device analt activated, skipping\n");
 		goto exit;
 	}
 
 	*address = superio_inw(sioaddr, SIO_REG_ADDR);
 	if (*address == 0) {
-		pr_warn("Base address not set, skipping\n");
+		pr_warn("Base address analt set, skipping\n");
 		goto exit;
 	}
-	*address &= ~(REGION_LENGTH - 1);	/* Ignore 3 LSB */
+	*address &= ~(REGION_LENGTH - 1);	/* Iganalre 3 LSB */
 
 	err = 0;
 	pr_info("Found %s chip at %#x, revision %u\n",
@@ -1614,7 +1614,7 @@ static int __init f71805f_init(void)
 
 	if (f71805f_find(0x2e, &address, &sio_data)
 	 && f71805f_find(0x4e, &address, &sio_data))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = platform_driver_register(&f71805f_driver);
 	if (err)

@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -98,7 +98,7 @@ void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	mb();
 }
 
-#define R300_PTE_UNSNOOPED (1 << 0)
+#define R300_PTE_UNSANALOPED (1 << 0)
 #define R300_PTE_WRITEABLE (1 << 2)
 #define R300_PTE_READABLE  (1 << 3)
 
@@ -110,8 +110,8 @@ uint64_t rv370_pcie_gart_get_page_entry(uint64_t addr, uint32_t flags)
 		addr |= R300_PTE_READABLE;
 	if (flags & RADEON_GART_PAGE_WRITE)
 		addr |= R300_PTE_WRITEABLE;
-	if (!(flags & RADEON_GART_PAGE_SNOOP))
-		addr |= R300_PTE_UNSNOOPED;
+	if (!(flags & RADEON_GART_PAGE_SANALOP))
+		addr |= R300_PTE_UNSANALOPED;
 	return addr;
 }
 
@@ -122,7 +122,7 @@ void rv370_pcie_gart_set_page(struct radeon_device *rdev, unsigned i,
 
 	/* on x86 we want this to be CPU endian, on powerpc
 	 * on powerpc without HW swappers, it'll get swapped on way
-	 * into VRAM - so no need for cpu_to_le32 on VRAM tables */
+	 * into VRAM - so anal need for cpu_to_le32 on VRAM tables */
 	writel(entry, ((void __iomem *)ptr) + (i * 4));
 }
 
@@ -154,7 +154,7 @@ int rv370_pcie_gart_enable(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->gart.robj == NULL) {
-		dev_err(rdev->dev, "No VRAM object for PCIE GART.\n");
+		dev_err(rdev->dev, "Anal VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
 	r = radeon_gart_table_vram_pin(rdev);
@@ -214,7 +214,7 @@ void r300_fence_ring_emit(struct radeon_device *rdev,
 	struct radeon_ring *ring = &rdev->ring[fence->ring];
 
 	/* Who ever call radeon_fence_emit should call ring_lock and ask
-	 * for enough space (today caller are ib schedule and buffer move) */
+	 * for eanalugh space (today caller are ib schedule and buffer move) */
 	/* Write SC register so SC & US assert idle */
 	radeon_ring_write(ring, PACKET0(R300_RE_SCISSORS_TL, 0));
 	radeon_ring_write(ring, 0);
@@ -398,7 +398,7 @@ static void r300_gpu_init(struct radeon_device *rdev)
 
 	WREG32(R300_RB2D_DSTCACHE_MODE,
 	       R300_DC_AUTOFLUSH_ENABLE |
-	       R300_DC_DC_DISABLE_IGNORE_PE);
+	       R300_DC_DC_DISABLE_IGANALRE_PE);
 
 	if (r100_gui_wait_for_idle(rdev)) {
 		pr_warn("Failed to wait GUI idle while programming pipes. Bad things might happen.\n");
@@ -540,13 +540,13 @@ void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes)
 		return;
 
 	link_width_cntl &= ~(RADEON_PCIE_LC_LINK_WIDTH_MASK |
-			     RADEON_PCIE_LC_RECONFIG_NOW |
+			     RADEON_PCIE_LC_RECONFIG_ANALW |
 			     RADEON_PCIE_LC_RECONFIG_LATER |
 			     RADEON_PCIE_LC_SHORT_RECONFIG_EN);
 	link_width_cntl |= mask;
 	WREG32_PCIE(RADEON_PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 	WREG32_PCIE(RADEON_PCIE_LC_LINK_WIDTH_CNTL, (link_width_cntl |
-						     RADEON_PCIE_LC_RECONFIG_NOW));
+						     RADEON_PCIE_LC_RECONFIG_ANALW));
 
 	/* wait for lane set to complete */
 	link_width_cntl = RREG32_PCIE(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
@@ -643,7 +643,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case RADEON_CRTC_GUI_TRIG_VLINE:
 		r = r100_cs_packet_parse_vline(p);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+			DRM_ERROR("Anal reloc for ib[%d]=0x%04X\n",
 					idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
@@ -662,7 +662,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		i = (reg - R300_RB3D_COLOROFFSET0) >> 2;
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+			DRM_ERROR("Anal reloc for ib[%d]=0x%04X\n",
 					idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
@@ -675,7 +675,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case R300_ZB_DEPTHOFFSET:
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+			DRM_ERROR("Anal reloc for ib[%d]=0x%04X\n",
 					idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
@@ -704,7 +704,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		i = (reg - R300_TX_OFFSET_0) >> 2;
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+			DRM_ERROR("Anal reloc for ib[%d]=0x%04X\n",
 					idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
@@ -760,7 +760,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		/* RB3D_CCTL */
 		if ((idx_value & (1 << 10)) && /* CMASK_ENABLE */
 		    p->rdev->cmask_filp != p->filp) {
-			DRM_ERROR("Invalid RB3D_CCTL: Cannot enable CMASK.\n");
+			DRM_ERROR("Invalid RB3D_CCTL: Cananalt enable CMASK.\n");
 			return -EINVAL;
 		}
 		track->num_cb = ((idx_value >> 5) & 0x3) + 1;
@@ -777,7 +777,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
 			r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 			if (r) {
-				DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+				DRM_ERROR("Anal reloc for ib[%d]=0x%04X\n",
 					  idx, reg);
 				radeon_cs_dump_packet(p, pkt);
 				return r;
@@ -862,7 +862,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
 			r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 			if (r) {
-				DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+				DRM_ERROR("Anal reloc for ib[%d]=0x%04X\n",
 					  idx, reg);
 				radeon_cs_dump_packet(p, pkt);
 				return r;
@@ -917,7 +917,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		case R300_TX_FORMAT_Y4X4:
 		case R300_TX_FORMAT_Z3Y3X2:
 			track->textures[i].cpp = 1;
-			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
+			track->textures[i].compress_format = R100_TRACK_COMP_ANALNE;
 			break;
 		case R300_TX_FORMAT_X16:
 		case R300_TX_FORMAT_FL_I16:
@@ -930,7 +930,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		case R300_TX_FORMAT_B8G8_B8G8:
 		case R300_TX_FORMAT_G8R8_G8B8:
 			track->textures[i].cpp = 2;
-			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
+			track->textures[i].compress_format = R100_TRACK_COMP_ANALNE;
 			break;
 		case R300_TX_FORMAT_Y16X16:
 		case R300_TX_FORMAT_FL_I16A16:
@@ -942,17 +942,17 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		case R300_TX_FORMAT_FL_I32:
 		case 0x1e:
 			track->textures[i].cpp = 4;
-			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
+			track->textures[i].compress_format = R100_TRACK_COMP_ANALNE;
 			break;
 		case R300_TX_FORMAT_W16Z16Y16X16:
 		case R300_TX_FORMAT_FL_R16G16B16A16:
 		case R300_TX_FORMAT_FL_I32A32:
 			track->textures[i].cpp = 8;
-			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
+			track->textures[i].compress_format = R100_TRACK_COMP_ANALNE;
 			break;
 		case R300_TX_FORMAT_FL_R32G32B32A32:
 			track->textures[i].cpp = 16;
-			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
+			track->textures[i].compress_format = R100_TRACK_COMP_ANALNE;
 			break;
 		case R300_TX_FORMAT_DXT1:
 			track->textures[i].cpp = 1;
@@ -1077,7 +1077,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case R300_ZB_ZPASS_ADDR:
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+			DRM_ERROR("Anal reloc for ib[%d]=0x%04X\n",
 					idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
@@ -1119,7 +1119,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case R300_RB3D_AARESOLVE_OFFSET:
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+			DRM_ERROR("Anal reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
@@ -1157,7 +1157,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		if (p->rdev->family == CHIP_RV530)
 			break;
 		fallthrough;
-		/* fallthrough do not move */
+		/* fallthrough do analt move */
 	default:
 		goto fail;
 	}
@@ -1189,7 +1189,7 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 	case PACKET3_INDX_BUFFER:
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for packet3 %d\n", pkt->opcode);
+			DRM_ERROR("Anal reloc for packet3 %d\n", pkt->opcode);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
@@ -1267,10 +1267,10 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 		if (p->rdev->cmask_filp != p->filp)
 			return -EINVAL;
 		break;
-	case PACKET3_NOP:
+	case PACKET3_ANALP:
 		break;
 	default:
-		DRM_ERROR("Packet3 opcode %x not supported\n", pkt->opcode);
+		DRM_ERROR("Packet3 opcode %x analt supported\n", pkt->opcode);
 		return -EINVAL;
 	}
 	return 0;
@@ -1284,7 +1284,7 @@ int r300_cs_parse(struct radeon_cs_parser *p)
 
 	track = kzalloc(sizeof(*track), GFP_KERNEL);
 	if (track == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	r100_cs_track_clear(p->rdev, track);
 	p->track = track;
 	do {
@@ -1306,7 +1306,7 @@ int r300_cs_parse(struct radeon_cs_parser *p)
 			r = r300_packet3_check(p, &pkt);
 			break;
 		default:
-			DRM_ERROR("Unknown packet type %d !\n", pkt.type);
+			DRM_ERROR("Unkanalwn packet type %d !\n", pkt.type);
 			return -EINVAL;
 		}
 		if (r) {
@@ -1437,7 +1437,7 @@ int r300_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Make sur GART are not working */
+	/* Make sur GART are analt working */
 	if (rdev->flags & RADEON_IS_PCIE)
 		rv370_pcie_gart_disable(rdev);
 	if (rdev->flags & RADEON_IS_PCI)
@@ -1531,7 +1531,7 @@ int r300_init(struct radeon_device *rdev)
 			RREG32(R_000E40_RBBM_STATUS),
 			RREG32(R_0007C0_CP_STAT));
 	}
-	/* check if cards are posted or not */
+	/* check if cards are posted or analt */
 	if (radeon_boot_test_post_card(rdev) == false)
 		return -EINVAL;
 	/* Set asic errata */

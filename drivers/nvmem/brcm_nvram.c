@@ -86,7 +86,7 @@ static int brcm_nvram_copy_data(struct brcm_nvram *priv, struct platform_device 
 
 	priv->data = devm_kzalloc(priv->dev, priv->data_len, GFP_KERNEL);
 	if (!priv->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy_fromio(priv->data, base, priv->data_len);
 
@@ -135,7 +135,7 @@ static int brcm_nvram_add_cells(struct brcm_nvram *priv, uint8_t *data,
 
 	priv->cells = devm_kcalloc(dev, priv->ncells, sizeof(*priv->cells), GFP_KERNEL);
 	if (!priv->cells) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -151,7 +151,7 @@ static int brcm_nvram_add_cells(struct brcm_nvram *priv, uint8_t *data,
 		name = devm_kstrdup(dev, var, GFP_KERNEL);
 		*eq = '=';
 		if (!name) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		value = eq + 1;
@@ -159,7 +159,7 @@ static int brcm_nvram_add_cells(struct brcm_nvram *priv, uint8_t *data,
 		priv->cells[idx].name = name;
 		priv->cells[idx].offset = value - (char *)data;
 		priv->cells[idx].bytes = strlen(value);
-		priv->cells[idx].np = of_get_child_by_name(dev->of_node, priv->cells[idx].name);
+		priv->cells[idx].np = of_get_child_by_name(dev->of_analde, priv->cells[idx].name);
 		if (!strcmp(name, "et0macaddr") ||
 		    !strcmp(name, "et1macaddr") ||
 		    !strcmp(name, "et2macaddr")) {
@@ -212,7 +212,7 @@ static int brcm_nvram_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->dev = dev;
 
 	err = brcm_nvram_copy_data(priv, pdev);

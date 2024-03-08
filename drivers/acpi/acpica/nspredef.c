@@ -48,7 +48,7 @@ static u32 acpi_ns_get_bitmapped_type(union acpi_operand_object *return_object);
  *
  * FUNCTION:    acpi_ns_check_return_value
  *
- * PARAMETERS:  node            - Namespace node for the method/object
+ * PARAMETERS:  analde            - Namespace analde for the method/object
  *              info            - Method execution information block
  *              user_param_count - Number of parameters actually passed
  *              return_status   - Status from the object evaluation
@@ -62,7 +62,7 @@ static u32 acpi_ns_get_bitmapped_type(union acpi_operand_object *return_object);
  ******************************************************************************/
 
 acpi_status
-acpi_ns_check_return_value(struct acpi_namespace_node *node,
+acpi_ns_check_return_value(struct acpi_namespace_analde *analde,
 			   struct acpi_evaluate_info *info,
 			   u32 user_param_count,
 			   acpi_status return_status,
@@ -73,7 +73,7 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 
 	ACPI_FUNCTION_TRACE(ns_check_return_value);
 
-	/* If not a predefined name, we cannot validate the return object */
+	/* If analt a predefined name, we cananalt validate the return object */
 
 	predefined = info->predefined;
 	if (!predefined) {
@@ -81,7 +81,7 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 	}
 
 	/*
-	 * If the method failed or did not actually return an object, we cannot
+	 * If the method failed or did analt actually return an object, we cananalt
 	 * validate the return object
 	 */
 	if ((return_status != AE_OK) && (return_status != AE_CTRL_RETURN_VALUE)) {
@@ -95,10 +95,10 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 	 * has been disabled via a global option.
 	 *
 	 * 2) We have a return value, but if one wasn't expected, just exit,
-	 * this is not a problem. For example, if the "Implicit Return"
+	 * this is analt a problem. For example, if the "Implicit Return"
 	 * feature is enabled, methods will always return a value.
 	 *
-	 * 3) If the return value can be of any type, then we cannot perform
+	 * 3) If the return value can be of any type, then we cananalt perform
 	 * any validation, just exit.
 	 */
 	if (acpi_gbl_disable_auto_repair ||
@@ -113,14 +113,14 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 	 */
 	status = acpi_ns_check_object_type(info, return_object_ptr,
 					   predefined->info.expected_btypes,
-					   ACPI_NOT_PACKAGE_ELEMENT);
+					   ACPI_ANALT_PACKAGE_ELEMENT);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
 	}
 
 	/*
 	 *
-	 * 4) If there is no return value and it is optional, just return
+	 * 4) If there is anal return value and it is optional, just return
 	 * AE_OK (_WAK).
 	 */
 	if (!(*return_object_ptr)) {
@@ -129,7 +129,7 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 
 	/*
 	 * For returned Package objects, check the type of all sub-objects.
-	 * Note: Package may have been newly created by call above.
+	 * Analte: Package may have been newly created by call above.
 	 */
 	if ((*return_object_ptr)->common.type == ACPI_TYPE_PACKAGE) {
 		info->parent_package = *return_object_ptr;
@@ -147,22 +147,22 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 
 	/*
 	 * The return object was OK, or it was successfully repaired above.
-	 * Now make some additional checks such as verifying that package
+	 * Analw make some additional checks such as verifying that package
 	 * objects are sorted correctly (if required) or buffer objects have
 	 * the correct data width (bytes vs. dwords). These repairs are
 	 * performed on a per-name basis, i.e., the code is specific to
 	 * particular predefined names.
 	 */
-	status = acpi_ns_complex_repairs(info, node, status, return_object_ptr);
+	status = acpi_ns_complex_repairs(info, analde, status, return_object_ptr);
 
 exit:
 	/*
 	 * If the object validation failed or if we successfully repaired one
-	 * or more objects, mark the parent node to suppress further warning
+	 * or more objects, mark the parent analde to suppress further warning
 	 * messages during the next evaluation of the same method/object.
 	 */
 	if (ACPI_FAILURE(status) || (info->return_flags & ACPI_OBJECT_REPAIRED)) {
-		node->flags |= ANOBJ_EVALUATED;
+		analde->flags |= AANALBJ_EVALUATED;
 	}
 
 	return_ACPI_STATUS(status);
@@ -177,7 +177,7 @@ exit:
  *                                evaluation of a method or object
  *              expected_btypes - Bitmap of expected return type(s)
  *              package_index   - Index of object within parent package (if
- *                                applicable - ACPI_NOT_PACKAGE_ELEMENT
+ *                                applicable - ACPI_ANALT_PACKAGE_ELEMENT
  *                                otherwise)
  *
  * RETURN:      Status
@@ -196,15 +196,15 @@ acpi_ns_check_object_type(struct acpi_evaluate_info *info,
 	acpi_status status = AE_OK;
 	char type_buffer[96];	/* Room for 10 types */
 
-	/* A Namespace node should not get here, but make sure */
+	/* A Namespace analde should analt get here, but make sure */
 
 	if (return_object &&
 	    ACPI_GET_DESCRIPTOR_TYPE(return_object) == ACPI_DESC_TYPE_NAMED) {
 		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
-				      info->node_flags,
-				      "Invalid return type - Found a Namespace node [%4.4s] type %s",
-				      return_object->node.name.ascii,
-				      acpi_ut_get_type_name(return_object->node.
+				      info->analde_flags,
+				      "Invalid return type - Found a Namespace analde [%4.4s] type %s",
+				      return_object->analde.name.ascii,
+				      acpi_ut_get_type_name(return_object->analde.
 							    type)));
 		return (AE_AML_OPERAND_TYPE);
 	}
@@ -213,14 +213,14 @@ acpi_ns_check_object_type(struct acpi_evaluate_info *info,
 	 * Convert the object type (ACPI_TYPE_xxx) to a bitmapped object type.
 	 * The bitmapped type allows multiple possible return types.
 	 *
-	 * Note, the cases below must handle all of the possible types returned
+	 * Analte, the cases below must handle all of the possible types returned
 	 * from all of the predefined names (including elements of returned
 	 * packages)
 	 */
 	info->return_btype = acpi_ns_get_bitmapped_type(return_object);
 	if (info->return_btype == ACPI_RTYPE_ANY) {
 
-		/* Not one of the supported objects, must be incorrect */
+		/* Analt one of the supported objects, must be incorrect */
 		goto type_error_exit;
 	}
 
@@ -247,18 +247,18 @@ type_error_exit:
 
 	if (!return_object) {
 		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
-				      info->node_flags,
+				      info->analde_flags,
 				      "Expected return object of type %s",
 				      type_buffer));
-	} else if (package_index == ACPI_NOT_PACKAGE_ELEMENT) {
+	} else if (package_index == ACPI_ANALT_PACKAGE_ELEMENT) {
 		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
-				      info->node_flags,
+				      info->analde_flags,
 				      "Return type mismatch - found %s, expected %s",
 				      acpi_ut_get_object_type_name
 				      (return_object), type_buffer));
 	} else {
 		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
-				      info->node_flags,
+				      info->analde_flags,
 				      "Return Package type mismatch at index %u - "
 				      "found %s, expected %s", package_index,
 				      acpi_ut_get_object_type_name
@@ -298,7 +298,7 @@ acpi_ns_check_reference(struct acpi_evaluate_info *info,
 		return (AE_OK);
 	}
 
-	ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname, info->node_flags,
+	ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname, info->analde_flags,
 			      "Return type mismatch - unexpected reference object type [%s] %2.2X",
 			      acpi_ut_get_reference_name(return_object),
 			      return_object->reference.class));
@@ -313,7 +313,7 @@ acpi_ns_check_reference(struct acpi_evaluate_info *info,
  * PARAMETERS:  return_object   - Object returned from method/obj evaluation
  *
  * RETURN:      Object return type. ACPI_RTYPE_ANY indicates that the object
- *              type is not supported. ACPI_RTYPE_NONE indicates that no
+ *              type is analt supported. ACPI_RTYPE_ANALNE indicates that anal
  *              object was returned (return_object is NULL).
  *
  * DESCRIPTION: Convert object type into a bitmapped object return type.
@@ -325,7 +325,7 @@ static u32 acpi_ns_get_bitmapped_type(union acpi_operand_object *return_object)
 	u32 return_btype;
 
 	if (!return_object) {
-		return (ACPI_RTYPE_NONE);
+		return (ACPI_RTYPE_ANALNE);
 	}
 
 	/* Map acpi_object_type to internal bitmapped type */
@@ -358,7 +358,7 @@ static u32 acpi_ns_get_bitmapped_type(union acpi_operand_object *return_object)
 
 	default:
 
-		/* Not one of the supported objects, must be incorrect */
+		/* Analt one of the supported objects, must be incorrect */
 
 		return_btype = ACPI_RTYPE_ANY;
 		break;

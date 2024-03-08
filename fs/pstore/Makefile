@@ -5,7 +5,7 @@
 
 obj-$(CONFIG_PSTORE) += pstore.o
 
-pstore-objs += inode.o platform.o
+pstore-objs += ianalde.o platform.o
 pstore-$(CONFIG_PSTORE_FTRACE)	+= ftrace.o
 
 pstore-$(CONFIG_PSTORE_PMSG)	+= pmsg.o

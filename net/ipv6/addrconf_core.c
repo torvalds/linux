@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * IPv6 library code, needed by static components when full IPv6 support is
- * not configured or static.
+ * analt configured or static.
  */
 
 #include <linux/export.h>
@@ -11,7 +11,7 @@
 #include <net/ip.h>
 
 /* if ipv6 module registers this function is used by xfrm to force all
- * sockets to relookup their nodes - this is fairly expensive, be
+ * sockets to relookup their analdes - this is fairly expensive, be
  * careful
  */
 void (*__fib6_flush_trees)(struct net *);
@@ -22,8 +22,8 @@ EXPORT_SYMBOL(__fib6_flush_trees);
 static inline unsigned int ipv6_addr_scope2type(unsigned int scope)
 {
 	switch (scope) {
-	case IPV6_ADDR_SCOPE_NODELOCAL:
-		return (IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_NODELOCAL) |
+	case IPV6_ADDR_SCOPE_ANALDELOCAL:
+		return (IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_ANALDELOCAL) |
 			IPV6_ADDR_LOOPBACK);
 	case IPV6_ADDR_SCOPE_LINKLOCAL:
 		return (IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_LINKLOCAL) |
@@ -89,133 +89,133 @@ int __ipv6_addr_type(const struct in6_addr *addr)
 }
 EXPORT_SYMBOL(__ipv6_addr_type);
 
-static ATOMIC_NOTIFIER_HEAD(inet6addr_chain);
-static BLOCKING_NOTIFIER_HEAD(inet6addr_validator_chain);
+static ATOMIC_ANALTIFIER_HEAD(inet6addr_chain);
+static BLOCKING_ANALTIFIER_HEAD(inet6addr_validator_chain);
 
-int register_inet6addr_notifier(struct notifier_block *nb)
+int register_inet6addr_analtifier(struct analtifier_block *nb)
 {
-	return atomic_notifier_chain_register(&inet6addr_chain, nb);
+	return atomic_analtifier_chain_register(&inet6addr_chain, nb);
 }
-EXPORT_SYMBOL(register_inet6addr_notifier);
+EXPORT_SYMBOL(register_inet6addr_analtifier);
 
-int unregister_inet6addr_notifier(struct notifier_block *nb)
+int unregister_inet6addr_analtifier(struct analtifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&inet6addr_chain, nb);
+	return atomic_analtifier_chain_unregister(&inet6addr_chain, nb);
 }
-EXPORT_SYMBOL(unregister_inet6addr_notifier);
+EXPORT_SYMBOL(unregister_inet6addr_analtifier);
 
-int inet6addr_notifier_call_chain(unsigned long val, void *v)
+int inet6addr_analtifier_call_chain(unsigned long val, void *v)
 {
-	return atomic_notifier_call_chain(&inet6addr_chain, val, v);
+	return atomic_analtifier_call_chain(&inet6addr_chain, val, v);
 }
-EXPORT_SYMBOL(inet6addr_notifier_call_chain);
+EXPORT_SYMBOL(inet6addr_analtifier_call_chain);
 
-int register_inet6addr_validator_notifier(struct notifier_block *nb)
+int register_inet6addr_validator_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&inet6addr_validator_chain, nb);
+	return blocking_analtifier_chain_register(&inet6addr_validator_chain, nb);
 }
-EXPORT_SYMBOL(register_inet6addr_validator_notifier);
+EXPORT_SYMBOL(register_inet6addr_validator_analtifier);
 
-int unregister_inet6addr_validator_notifier(struct notifier_block *nb)
+int unregister_inet6addr_validator_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&inet6addr_validator_chain,
+	return blocking_analtifier_chain_unregister(&inet6addr_validator_chain,
 						  nb);
 }
-EXPORT_SYMBOL(unregister_inet6addr_validator_notifier);
+EXPORT_SYMBOL(unregister_inet6addr_validator_analtifier);
 
-int inet6addr_validator_notifier_call_chain(unsigned long val, void *v)
+int inet6addr_validator_analtifier_call_chain(unsigned long val, void *v)
 {
-	return blocking_notifier_call_chain(&inet6addr_validator_chain, val, v);
+	return blocking_analtifier_call_chain(&inet6addr_validator_chain, val, v);
 }
-EXPORT_SYMBOL(inet6addr_validator_notifier_call_chain);
+EXPORT_SYMBOL(inet6addr_validator_analtifier_call_chain);
 
-static struct dst_entry *eafnosupport_ipv6_dst_lookup_flow(struct net *net,
+static struct dst_entry *eafanalsupport_ipv6_dst_lookup_flow(struct net *net,
 							   const struct sock *sk,
 							   struct flowi6 *fl6,
 							   const struct in6_addr *final_dst)
 {
-	return ERR_PTR(-EAFNOSUPPORT);
+	return ERR_PTR(-EAFANALSUPPORT);
 }
 
-static int eafnosupport_ipv6_route_input(struct sk_buff *skb)
+static int eafanalsupport_ipv6_route_input(struct sk_buff *skb)
 {
-	return -EAFNOSUPPORT;
+	return -EAFANALSUPPORT;
 }
 
-static struct fib6_table *eafnosupport_fib6_get_table(struct net *net, u32 id)
+static struct fib6_table *eafanalsupport_fib6_get_table(struct net *net, u32 id)
 {
 	return NULL;
 }
 
 static int
-eafnosupport_fib6_table_lookup(struct net *net, struct fib6_table *table,
+eafanalsupport_fib6_table_lookup(struct net *net, struct fib6_table *table,
 			       int oif, struct flowi6 *fl6,
 			       struct fib6_result *res, int flags)
 {
-	return -EAFNOSUPPORT;
+	return -EAFANALSUPPORT;
 }
 
 static int
-eafnosupport_fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
+eafanalsupport_fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
 			 struct fib6_result *res, int flags)
 {
-	return -EAFNOSUPPORT;
+	return -EAFANALSUPPORT;
 }
 
 static void
-eafnosupport_fib6_select_path(const struct net *net, struct fib6_result *res,
+eafanalsupport_fib6_select_path(const struct net *net, struct fib6_result *res,
 			      struct flowi6 *fl6, int oif, bool have_oif_match,
 			      const struct sk_buff *skb, int strict)
 {
 }
 
 static u32
-eafnosupport_ip6_mtu_from_fib6(const struct fib6_result *res,
+eafanalsupport_ip6_mtu_from_fib6(const struct fib6_result *res,
 			       const struct in6_addr *daddr,
 			       const struct in6_addr *saddr)
 {
 	return 0;
 }
 
-static int eafnosupport_fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
+static int eafanalsupport_fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 				     struct fib6_config *cfg, gfp_t gfp_flags,
 				     struct netlink_ext_ack *extack)
 {
-	NL_SET_ERR_MSG(extack, "IPv6 support not enabled in kernel");
-	return -EAFNOSUPPORT;
+	NL_SET_ERR_MSG(extack, "IPv6 support analt enabled in kernel");
+	return -EAFANALSUPPORT;
 }
 
-static int eafnosupport_ip6_del_rt(struct net *net, struct fib6_info *rt,
-				   bool skip_notify)
+static int eafanalsupport_ip6_del_rt(struct net *net, struct fib6_info *rt,
+				   bool skip_analtify)
 {
-	return -EAFNOSUPPORT;
+	return -EAFANALSUPPORT;
 }
 
-static int eafnosupport_ipv6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
+static int eafanalsupport_ipv6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 				      int (*output)(struct net *, struct sock *, struct sk_buff *))
 {
 	kfree_skb(skb);
-	return -EAFNOSUPPORT;
+	return -EAFANALSUPPORT;
 }
 
-static struct net_device *eafnosupport_ipv6_dev_find(struct net *net, const struct in6_addr *addr,
+static struct net_device *eafanalsupport_ipv6_dev_find(struct net *net, const struct in6_addr *addr,
 						     struct net_device *dev)
 {
-	return ERR_PTR(-EAFNOSUPPORT);
+	return ERR_PTR(-EAFANALSUPPORT);
 }
 
 const struct ipv6_stub *ipv6_stub __read_mostly = &(struct ipv6_stub) {
-	.ipv6_dst_lookup_flow = eafnosupport_ipv6_dst_lookup_flow,
-	.ipv6_route_input  = eafnosupport_ipv6_route_input,
-	.fib6_get_table    = eafnosupport_fib6_get_table,
-	.fib6_table_lookup = eafnosupport_fib6_table_lookup,
-	.fib6_lookup       = eafnosupport_fib6_lookup,
-	.fib6_select_path  = eafnosupport_fib6_select_path,
-	.ip6_mtu_from_fib6 = eafnosupport_ip6_mtu_from_fib6,
-	.fib6_nh_init	   = eafnosupport_fib6_nh_init,
-	.ip6_del_rt	   = eafnosupport_ip6_del_rt,
-	.ipv6_fragment	   = eafnosupport_ipv6_fragment,
-	.ipv6_dev_find     = eafnosupport_ipv6_dev_find,
+	.ipv6_dst_lookup_flow = eafanalsupport_ipv6_dst_lookup_flow,
+	.ipv6_route_input  = eafanalsupport_ipv6_route_input,
+	.fib6_get_table    = eafanalsupport_fib6_get_table,
+	.fib6_table_lookup = eafanalsupport_fib6_table_lookup,
+	.fib6_lookup       = eafanalsupport_fib6_lookup,
+	.fib6_select_path  = eafanalsupport_fib6_select_path,
+	.ip6_mtu_from_fib6 = eafanalsupport_ip6_mtu_from_fib6,
+	.fib6_nh_init	   = eafanalsupport_fib6_nh_init,
+	.ip6_del_rt	   = eafanalsupport_ip6_del_rt,
+	.ipv6_fragment	   = eafanalsupport_ipv6_fragment,
+	.ipv6_dev_find     = eafanalsupport_ipv6_dev_find,
 };
 EXPORT_SYMBOL_GPL(ipv6_stub);
 
@@ -226,15 +226,15 @@ EXPORT_SYMBOL(in6addr_loopback);
 const struct in6_addr in6addr_any __aligned(BITS_PER_LONG/8)
 	= IN6ADDR_ANY_INIT;
 EXPORT_SYMBOL(in6addr_any);
-const struct in6_addr in6addr_linklocal_allnodes __aligned(BITS_PER_LONG/8)
-	= IN6ADDR_LINKLOCAL_ALLNODES_INIT;
-EXPORT_SYMBOL(in6addr_linklocal_allnodes);
+const struct in6_addr in6addr_linklocal_allanaldes __aligned(BITS_PER_LONG/8)
+	= IN6ADDR_LINKLOCAL_ALLANALDES_INIT;
+EXPORT_SYMBOL(in6addr_linklocal_allanaldes);
 const struct in6_addr in6addr_linklocal_allrouters __aligned(BITS_PER_LONG/8)
 	= IN6ADDR_LINKLOCAL_ALLROUTERS_INIT;
 EXPORT_SYMBOL(in6addr_linklocal_allrouters);
-const struct in6_addr in6addr_interfacelocal_allnodes __aligned(BITS_PER_LONG/8)
-	= IN6ADDR_INTERFACELOCAL_ALLNODES_INIT;
-EXPORT_SYMBOL(in6addr_interfacelocal_allnodes);
+const struct in6_addr in6addr_interfacelocal_allanaldes __aligned(BITS_PER_LONG/8)
+	= IN6ADDR_INTERFACELOCAL_ALLANALDES_INIT;
+EXPORT_SYMBOL(in6addr_interfacelocal_allanaldes);
 const struct in6_addr in6addr_interfacelocal_allrouters __aligned(BITS_PER_LONG/8)
 	= IN6ADDR_INTERFACELOCAL_ALLROUTERS_INIT;
 EXPORT_SYMBOL(in6addr_interfacelocal_allrouters);
@@ -257,7 +257,7 @@ static void in6_dev_finish_destroy_rcu(struct rcu_head *head)
 	kfree(idev);
 }
 
-/* Nobody refers to this device, we may destroy it. */
+/* Analbody refers to this device, we may destroy it. */
 
 void in6_dev_finish_destroy(struct inet6_dev *idev)
 {

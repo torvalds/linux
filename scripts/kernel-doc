@@ -21,20 +21,20 @@ use Pod::Usage qw/pod2usage/;
 
 kernel-doc - Print formatted kernel documentation to stdout
 
-=head1 SYNOPSIS
+=head1 SYANALPSIS
 
  kernel-doc [-h] [-v] [-Werror] [-Wall] [-Wreturn] [-Wshort-desc[ription]] [-Wcontents-before-sections]
    [ -man |
-     -rst [-sphinx-version VERSION] [-enable-lineno] |
-     -none
+     -rst [-sphinx-version VERSION] [-enable-lineanal] |
+     -analne
    ]
    [
      -export |
      -internal |
      [-function NAME] ... |
-     [-nosymbol NAME] ...
+     [-analsymbol NAME] ...
    ]
-   [-no-doc-sections]
+   [-anal-doc-sections]
    [-export-file FILE] ...
    FILE ...
 
@@ -57,7 +57,7 @@ See Documentation/doc-guide/kernel-doc.rst for the documentation comment syntax.
 
 my $errors = 0;
 my $warnings = 0;
-my $anon_struct_union = 0;
+my $aanaln_struct_union = 0;
 
 # match expressions used to find embedded type information
 my $type_constant = '\b``([^\`]+)``\b';
@@ -99,7 +99,7 @@ my $blankline_man = "";
 my @highlights_rst = (
                        [$type_constant, "``\$1``"],
                        [$type_constant2, "``\$1``"],
-                       # Note: need to escape () to avoid func matching later
+                       # Analte: need to escape () to avoid func matching later
                        [$type_member_func, "\\:c\\:type\\:`\$1\$2\$3\\\\(\\\\) <\$1>`"],
                        [$type_member, "\\:c\\:type\\:`\$1\$2\$3 <\$1>`"],
 		       [$type_fp_param, "**\$1\\\\(\\\\)**"],
@@ -118,16 +118,16 @@ my $blankline_rst = "\n";
 # read arguments
 if ($#ARGV == -1) {
 	pod2usage(
-		-message => "No arguments!\n",
+		-message => "Anal arguments!\n",
 		-exitval => 1,
 		-verbose => 99,
-		-sections => 'SYNOPSIS',
+		-sections => 'SYANALPSIS',
 		-output => \*STDERR,
 	);
 }
 
 my $kernelversion;
-my ($sphinx_major, $sphinx_minor, $sphinx_patch);
+my ($sphinx_major, $sphinx_mianalr, $sphinx_patch);
 
 my $dohighlight = "";
 
@@ -138,8 +138,8 @@ my $Wshort_desc = 0;
 my $Wcontents_before_sections = 0;
 my $output_mode = "rst";
 my $output_preformatted = 0;
-my $no_doc_sections = 0;
-my $enable_lineno = 0;
+my $anal_doc_sections = 0;
+my $enable_lineanal = 0;
 my @highlights = @highlights_rst;
 my $blankline = $blankline_rst;
 my $modulename = "Kernel API";
@@ -148,10 +148,10 @@ use constant {
     OUTPUT_ALL          => 0, # output all symbols and doc sections
     OUTPUT_INCLUDE      => 1, # output only specified symbols
     OUTPUT_EXPORTED     => 2, # output exported symbols
-    OUTPUT_INTERNAL     => 3, # output non-exported symbols
+    OUTPUT_INTERNAL     => 3, # output analn-exported symbols
 };
 my $output_selection = OUTPUT_ALL;
-my $show_not_found = 0;	# No longer used
+my $show_analt_found = 0;	# Anal longer used
 
 my @export_file_list;
 
@@ -165,15 +165,15 @@ if (defined($ENV{'KBUILD_BUILD_TIMESTAMP'}) &&
 
 my $man_date = ('January', 'February', 'March', 'April', 'May', 'June',
 		'July', 'August', 'September', 'October',
-		'November', 'December')[$build_time[4]] .
+		'Analvember', 'December')[$build_time[4]] .
   " " . ($build_time[5]+1900);
 
 # Essentially these are globals.
 # They probably want to be tidied up, made more localised or something.
-# CAVEAT EMPTOR!  Some of the others I localised may not want to be, which
+# CAVEAT EMPTOR!  Some of the others I localised may analt want to be, which
 # could cause "use of undefined value" or other bugs.
 my ($function, %function_table, %parametertypes, $declaration_purpose);
-my %nosymbol_table = ();
+my %analsymbol_table = ();
 my $declaration_start_line;
 my ($type, $declaration_name, $return_type);
 my ($newsection, $newcontents, $prototype, $brcount, %source_map);
@@ -200,7 +200,7 @@ if (defined($ENV{'KDOC_WERROR'})) {
 # arguments in cmd_checkdoc in the build system
 
 # Generated docbook code is inserted in a template at a point where
-# docbook v3.1 requires a non-zero sequence of RefEntry's; see:
+# docbook v3.1 requires a analn-zero sequence of RefEntry's; see:
 # https://www.oasis-open.org/docbook/documentation/reference/html/refentry.html
 # We keep track of number of generated entries and generate a dummy
 # if needs be to ensure the expanded template can be postprocessed
@@ -211,7 +211,7 @@ my $lineprefix="";
 
 # Parser states
 use constant {
-    STATE_NORMAL        => 0,        # normal code
+    STATE_ANALRMAL        => 0,        # analrmal code
     STATE_NAME          => 1,        # looking for function name
     STATE_BODY_MAYBE    => 2,        # body - or maybe more description
     STATE_BODY          => 3,        # the body of the comment
@@ -226,13 +226,13 @@ my $leading_space;
 
 # Inline documentation state
 use constant {
-    STATE_INLINE_NA     => 0, # not applicable ($state != STATE_INLINE)
+    STATE_INLINE_NA     => 0, # analt applicable ($state != STATE_INLINE)
     STATE_INLINE_NAME   => 1, # looking for member name (@foo:)
     STATE_INLINE_TEXT   => 2, # looking for member documentation
     STATE_INLINE_END    => 3, # done
     STATE_INLINE_ERROR  => 4, # error - Comment without header was found.
-                              # Spit a warning as it's not
-                              # proper kernel-doc and ignore the rest.
+                              # Spit a warning as it's analt
+                              # proper kernel-doc and iganalre the rest.
 };
 my $inline_doc_state;
 
@@ -240,7 +240,7 @@ my $inline_doc_state;
 # 'function', 'struct', 'union', 'enum', 'typedef'
 my $decl_type;
 
-# Name of the kernel-doc identifier for non-DOC markups
+# Name of the kernel-doc identifier for analn-DOC markups
 my $identifier;
 
 my $doc_start = '^/\*\*\s*$'; # Allow whitespace at end of comment start.
@@ -253,10 +253,10 @@ my $doc_decl = $doc_com . '(\w+)';
 #   Match @word:
 #	  @...:
 #         @{section-name}:
-# while trying to not match literal block starts like "example::"
+# while trying to analt match literal block starts like "example::"
 #
 my $doc_sect = $doc_com .
-    '\s*(\@[.\w]+|\@\.\.\.|description|context|returns?|notes?|examples?)\s*:([^:].*)?$';
+    '\s*(\@[.\w]+|\@\.\.\.|description|context|returns?|analtes?|examples?)\s*:([^:].*)?$';
 my $doc_content = $doc_com_body . '(.*)';
 my $doc_block = $doc_com . 'DOC:\s*(.*)?';
 my $doc_inline_start = '^\s*/\*\*\s*$';
@@ -280,7 +280,7 @@ my $struct_actual;
 my $contents = "";
 my $new_start_line = 0;
 
-# the canonical section names. see also $doc_sect above.
+# the caanalnical section names. see also $doc_sect above.
 my $section_default = "Description";	# default section
 my $section_intro = "Introduction";
 my $section = $section_default;
@@ -302,21 +302,21 @@ while ($ARGV[0] =~ m/^--?(.*)/) {
 	$output_mode = "rst";
 	@highlights = @highlights_rst;
 	$blankline = $blankline_rst;
-    } elsif ($cmd eq "none") {
-	$output_mode = "none";
-    } elsif ($cmd eq "module") { # not needed for XML, inherits from calling document
+    } elsif ($cmd eq "analne") {
+	$output_mode = "analne";
+    } elsif ($cmd eq "module") { # analt needed for XML, inherits from calling document
 	$modulename = shift @ARGV;
     } elsif ($cmd eq "function") { # to only output specific functions
 	$output_selection = OUTPUT_INCLUDE;
 	$function = shift @ARGV;
 	$function_table{$function} = 1;
-    } elsif ($cmd eq "nosymbol") { # Exclude specific symbols
+    } elsif ($cmd eq "analsymbol") { # Exclude specific symbols
 	my $symbol = shift @ARGV;
-	$nosymbol_table{$symbol} = 1;
+	$analsymbol_table{$symbol} = 1;
     } elsif ($cmd eq "export") { # only exported symbols
 	$output_selection = OUTPUT_EXPORTED;
 	%function_table = ();
-    } elsif ($cmd eq "internal") { # only non-exported symbols
+    } elsif ($cmd eq "internal") { # only analn-exported symbols
 	$output_selection = OUTPUT_INTERNAL;
 	%function_table = ();
     } elsif ($cmd eq "export-file") {
@@ -338,20 +338,20 @@ while ($ARGV[0] =~ m/^--?(.*)/) {
         $Wcontents_before_sections = 1;
     } elsif (($cmd eq "h") || ($cmd eq "help")) {
 		pod2usage(-exitval => 0, -verbose => 2);
-    } elsif ($cmd eq 'no-doc-sections') {
-	    $no_doc_sections = 1;
-    } elsif ($cmd eq 'enable-lineno') {
-	    $enable_lineno = 1;
-    } elsif ($cmd eq 'show-not-found') {
-	$show_not_found = 1;  # A no-op but don't fail
+    } elsif ($cmd eq 'anal-doc-sections') {
+	    $anal_doc_sections = 1;
+    } elsif ($cmd eq 'enable-lineanal') {
+	    $enable_lineanal = 1;
+    } elsif ($cmd eq 'show-analt-found') {
+	$show_analt_found = 1;  # A anal-op but don't fail
     } elsif ($cmd eq "sphinx-version") {
 	my $ver_string = shift @ARGV;
 	if ($ver_string =~ m/^(\d+)(\.\d+)?(\.\d+)?/) {
 	    $sphinx_major = $1;
 	    if (defined($2)) {
-		$sphinx_minor = substr($2,1);
+		$sphinx_mianalr = substr($2,1);
 	    } else {
-		$sphinx_minor = 0;
+		$sphinx_mianalr = 0;
 	    }
 	    if (defined($3)) {
 		$sphinx_patch = substr($3,1)
@@ -359,15 +359,15 @@ while ($ARGV[0] =~ m/^--?(.*)/) {
 		$sphinx_patch = 0;
 	    }
 	} else {
-	    die "Sphinx version should either major.minor or major.minor.patch format\n";
+	    die "Sphinx version should either major.mianalr or major.mianalr.patch format\n";
 	}
     } else {
-	# Unknown argument
+	# Unkanalwn argument
 	pod2usage(
-	    -message => "Argument unknown!\n",
+	    -message => "Argument unkanalwn!\n",
 	    -exitval => 1,
 	    -verbose => 99,
-	    -sections => 'SYNOPSIS',
+	    -sections => 'SYANALPSIS',
 	    -output => \*STDERR,
 	    );
     }
@@ -376,7 +376,7 @@ while ($ARGV[0] =~ m/^--?(.*)/) {
 	    -message => "FILE argument missing\n",
 	    -exitval => 1,
 	    -verbose => 99,
-	    -sections => 'SYNOPSIS',
+	    -sections => 'SYANALPSIS',
 	    -output => \*STDERR,
 	    );
     }
@@ -402,10 +402,10 @@ sub get_sphinx_version()
 		my $cmd = "sphinx-build3";
 		if (!findprog($cmd)) {
 			$sphinx_major = 1;
-			$sphinx_minor = 2;
+			$sphinx_mianalr = 2;
 			$sphinx_patch = 0;
-			printf STDERR "Warning: Sphinx version not found. Using default (Sphinx version %d.%d.%d)\n",
-			       $sphinx_major, $sphinx_minor, $sphinx_patch;
+			printf STDERR "Warning: Sphinx version analt found. Using default (Sphinx version %d.%d.%d)\n",
+			       $sphinx_major, $sphinx_mianalr, $sphinx_patch;
 			return;
 		}
 	}
@@ -414,14 +414,14 @@ sub get_sphinx_version()
 	while (<IN>) {
 		if (m/^\s*sphinx-build\s+([\d]+)\.([\d\.]+)(\+\/[\da-f]+)?$/) {
 			$sphinx_major = $1;
-			$sphinx_minor = $2;
+			$sphinx_mianalr = $2;
 			$sphinx_patch = $3;
 			last;
 		}
 		# Sphinx 1.2.x uses a different format
 		if (m/^\s*Sphinx.*\s+([\d]+)\.([\d\.]+)$/) {
 			$sphinx_major = $1;
-			$sphinx_minor = $2;
+			$sphinx_mianalr = $2;
 			$sphinx_patch = $3;
 			last;
 		}
@@ -431,7 +431,7 @@ sub get_sphinx_version()
 
 # get kernel version from env
 sub get_kernel_version() {
-    my $version = 'unknown kernel version';
+    my $version = 'unkanalwn kernel version';
 
     if (defined($ENV{'KERNELVERSION'})) {
 	$version = $ENV{'KERNELVERSION'};
@@ -440,10 +440,10 @@ sub get_kernel_version() {
 }
 
 #
-sub print_lineno {
-    my $lineno = shift;
-    if ($enable_lineno && defined($lineno)) {
-        print ".. LINENO " . $lineno . "\n";
+sub print_lineanal {
+    my $lineanal = shift;
+    if ($enable_lineanal && defined($lineanal)) {
+        print ".. LINEANAL " . $lineanal . "\n";
     }
 }
 
@@ -497,11 +497,11 @@ sub dump_doc_section {
     my $name = shift;
     my $contents = join "\n", @_;
 
-    if ($no_doc_sections) {
+    if ($anal_doc_sections) {
         return;
     }
 
-    return if (defined($nosymbol_table{$name}));
+    return if (defined($analsymbol_table{$name}));
 
     if (($output_selection == OUTPUT_ALL) ||
 	(($output_selection == OUTPUT_INCLUDE) &&
@@ -533,7 +533,7 @@ sub output_highlight {
 #   DEBUG
 #   if (!defined $contents) {
 #	use Carp;
-#	confess "output_highlight got called with no args?\n";
+#	confess "output_highlight got called with anal args?\n";
 #   }
 
 #   print STDERR "contents b4:$contents\n";
@@ -572,7 +572,7 @@ sub output_function_man(%) {
     print ".SH NAME\n";
     print $args{'function'} . " \\- " . $args{'purpose'} . "\n";
 
-    print ".SH SYNOPSIS\n";
+    print ".SH SYANALPSIS\n";
     if ($args{'functiontype'} ne "") {
 	print ".B \"" . $args{'functiontype'} . "\" " . $args{'function'} . "\n";
     } else {
@@ -623,7 +623,7 @@ sub output_enum_man(%) {
     print ".SH NAME\n";
     print "enum " . $args{'enum'} . " \\- " . $args{'purpose'} . "\n";
 
-    print ".SH SYNOPSIS\n";
+    print ".SH SYANALPSIS\n";
     print "enum " . $args{'enum'} . " {\n";
     $count = 0;
     foreach my $parameter (@{$args{'parameterlist'}}) {
@@ -666,7 +666,7 @@ sub output_struct_man(%) {
     my $declaration = $args{'definition'};
     $declaration =~ s/\t/  /g;
     $declaration =~ s/\n/"\n.br\n.BI \"/g;
-    print ".SH SYNOPSIS\n";
+    print ".SH SYANALPSIS\n";
     print $args{'type'} . " " . $args{'struct'} . " {\n.br\n";
     print ".BI \"$declaration\n};\n.br\n\n";
 
@@ -731,13 +731,13 @@ sub output_blockhead_rst(%) {
     my ($parameter, $section);
 
     foreach $section (@{$args{'sectionlist'}}) {
-	next if (defined($nosymbol_table{$section}));
+	next if (defined($analsymbol_table{$section}));
 
 	if ($output_selection != OUTPUT_INCLUDE) {
 	    print ".. _$section:\n\n";
 	    print "**$section**\n\n";
 	}
-        print_lineno($section_start_lines{$section});
+        print_lineanal($section_start_lines{$section});
 	output_highlight_rst($args{'sections'}{$section});
 	print "\n";
     }
@@ -776,7 +776,7 @@ sub output_highlight_rst {
 	if ($in_literal) {
 	    if (! ($line =~ /^\s*$/)) {
 		#
-		# If this is the first non-blank line in a literal
+		# If this is the first analn-blank line in a literal
 		# block we need to figure out what the proper indent is.
 		#
 		if ($litprefix eq "") {
@@ -793,7 +793,7 @@ sub output_highlight_rst {
 	    }
 	}
 	#
-	# Not in a literal block (or just dropped out)
+	# Analt in a literal block (or just dropped out)
 	#
 	if (! $in_literal) {
 	    $block .= $line . "\n";
@@ -824,7 +824,7 @@ sub output_function_rst(%) {
     if ($sphinx_major < 3) {
 	if ($args{'typedef'}) {
 	    print ".. c:type:: ". $args{'function'} . "\n\n";
-	    print_lineno($declaration_start_line);
+	    print_lineanal($declaration_start_line);
 	    print "   **Typedef**: ";
 	    $lineprefix = "";
 	    output_highlight_rst($args{'purpose'});
@@ -842,7 +842,7 @@ sub output_function_rst(%) {
 	}
 
 	if ($args{'typedef'}) {
-	    print_lineno($declaration_start_line);
+	    print_lineanal($declaration_start_line);
 	    print "   **Typedef**: ";
 	    $lineprefix = "";
 	    output_highlight_rst($args{'purpose'});
@@ -879,7 +879,7 @@ sub output_function_rst(%) {
 	print ")\n\n";
     }
     if (!$args{'typedef'}) {
-	print_lineno($declaration_start_line);
+	print_lineanal($declaration_start_line);
 	$lineprefix = "   ";
 	output_highlight_rst($args{'purpose'});
 	print "\n";
@@ -903,7 +903,7 @@ sub output_function_rst(%) {
 	    print $lineprefix . "``$parameter``\n";
 	}
 
-        print_lineno($parameterdesc_start_lines{$parameter_name});
+        print_lineanal($parameterdesc_start_lines{$parameter_name});
 
 	$lineprefix = "    ";
 	if (defined($args{'parameterdescs'}{$parameter_name}) &&
@@ -927,7 +927,7 @@ sub output_section_rst(%) {
 
     foreach $section (@{$args{'sectionlist'}}) {
 	print $lineprefix . "**$section**\n\n";
-        print_lineno($section_start_lines{$section});
+        print_lineanal($section_start_lines{$section});
 	output_highlight_rst($args{'sections'}{$section});
 	print "\n";
     }
@@ -948,7 +948,7 @@ sub output_enum_rst(%) {
 	my $name = $args{'enum'};
 	print "\n\n.. c:enum:: " . $name . "\n\n";
     }
-    print_lineno($declaration_start_line);
+    print_lineanal($declaration_start_line);
     $lineprefix = "  ";
     output_highlight_rst($args{'purpose'});
     print "\n";
@@ -984,7 +984,7 @@ sub output_typedef_rst(%) {
 	$name = $args{'typedef'};
     }
     print "\n\n.. c:type:: " . $name . "\n\n";
-    print_lineno($declaration_start_line);
+    print_lineanal($declaration_start_line);
     $lineprefix = "   ";
     output_highlight_rst($args{'purpose'});
     print "\n";
@@ -1009,7 +1009,7 @@ sub output_struct_rst(%) {
 	    print "\n\n.. c:struct:: " . $name . "\n\n";
 	}
     }
-    print_lineno($declaration_start_line);
+    print_lineanal($declaration_start_line);
     $lineprefix = "  ";
     output_highlight_rst($args{'purpose'});
     print "\n";
@@ -1031,7 +1031,7 @@ sub output_struct_rst(%) {
 
 	($args{'parameterdescs'}{$parameter_name} ne $undescribed) || next;
 	$type = $args{'parametertypes'}{$parameter};
-        print_lineno($parameterdesc_start_lines{$parameter_name});
+        print_lineanal($parameterdesc_start_lines{$parameter_name});
 	print $lineprefix . "``" . $parameter . "``\n";
 	$lineprefix = "    ";
 	output_highlight_rst($args{'parameterdescs'}{$parameter_name});
@@ -1044,21 +1044,21 @@ sub output_struct_rst(%) {
     output_section_rst(@_);
 }
 
-## none mode output functions
+## analne mode output functions
 
-sub output_function_none(%) {
+sub output_function_analne(%) {
 }
 
-sub output_enum_none(%) {
+sub output_enum_analne(%) {
 }
 
-sub output_typedef_none(%) {
+sub output_typedef_analne(%) {
 }
 
-sub output_struct_none(%) {
+sub output_struct_analne(%) {
 }
 
-sub output_blockhead_none(%) {
+sub output_blockhead_analne(%) {
 }
 
 ##
@@ -1066,12 +1066,12 @@ sub output_blockhead_none(%) {
 # calls the generated, variable output_ function name based on
 # functype and output_mode
 sub output_declaration {
-    no strict 'refs';
+    anal strict 'refs';
     my $name = shift;
     my $functype = shift;
     my $func = "output_${functype}_$output_mode";
 
-    return if (defined($nosymbol_table{$name}));
+    return if (defined($analsymbol_table{$name}));
 
     if (($output_selection == OUTPUT_ALL) ||
 	(($output_selection == OUTPUT_INCLUDE ||
@@ -1088,7 +1088,7 @@ sub output_declaration {
 ##
 # generic output function - calls the right one based on current output mode.
 sub output_blockhead {
-    no strict 'refs';
+    anal strict 'refs';
     my $func = "output_blockhead_" . $output_mode;
     &$func(@_);
     $section_counter++;
@@ -1096,9 +1096,9 @@ sub output_blockhead {
 
 ##
 # takes a declaration (struct, union, enum, typedef) and
-# invokes the right handler. NOT called for functions.
+# invokes the right handler. ANALT called for functions.
 sub dump_declaration($$) {
-    no strict 'refs';
+    anal strict 'refs';
     my ($prototype, $file) = @_;
     my $func = "dump_" . $decl_type;
     &$func(@_);
@@ -1135,7 +1135,7 @@ sub dump_struct($$) {
 	    return;
 	}
 
-	# ignore members marked private:
+	# iganalre members marked private:
 	$members =~ s/\/\*\s*private:.*?\/\*\s*public:.*?\*\///gosi;
 	$members =~ s/\/\*\s*private:.*//gosi;
 	# strip comments:
@@ -1149,7 +1149,7 @@ sub dump_struct($$) {
 	$members =~ s/\s*____cacheline_aligned_in_smp/ /gos;
 	$members =~ s/\s*____cacheline_aligned/ /gos;
 	# unwrap struct_group():
-	# - first eat non-declaration parameters and rewrite for final match
+	# - first eat analn-declaration parameters and rewrite for final match
 	# - then remove macro, outer parens, and trailing semicolon
 	$members =~ s/\bstruct_group\s*\(([^,]*,)/STRUCT_GROUP(/gos;
 	$members =~ s/\bstruct_group_(attr|tagged)\s*\(([^,]*,){2}/STRUCT_GROUP(/gos;
@@ -1195,7 +1195,7 @@ sub dump_struct($$) {
 					my $extra = $3;
 					next if (!$name);
 					if ($id =~ m/^\s*$/) {
-						# anonymous struct/union
+						# aanalnymous struct/union
 						$newmember .= "$type$name$extra; ";
 					} else {
 						$newmember .= "$type$id.$name$extra; ";
@@ -1227,7 +1227,7 @@ sub dump_struct($$) {
 						$name =~ s/^\s*\**(\S+)\s*/$1/;
 						next if (($name =~ m/^\s*$/));
 						if ($id =~ m/^\s*$/) {
-							# anonymous struct/union
+							# aanalnymous struct/union
 							$newmember .= "$type $name; ";
 						} else {
 							$newmember .= "$type $id.$name; ";
@@ -1239,7 +1239,7 @@ sub dump_struct($$) {
 		$members =~ s/$struct_members/$newmember/;
 	}
 
-	# Ignore other nested elements, like enums
+	# Iganalre other nested elements, like enums
 	$members =~ s/(\{[^\{\}]*\})//g;
 
 	create_parameterlist($members, ';', $file, $declaration_name);
@@ -1281,7 +1281,7 @@ sub dump_struct($$) {
 			   });
     }
     else {
-	print STDERR "${file}:$.: error: Cannot parse struct or union!\n";
+	print STDERR "${file}:$.: error: Cananalt parse struct or union!\n";
 	++$errors;
     }
 }
@@ -1291,7 +1291,7 @@ sub show_warnings($$) {
 	my $functype = shift;
 	my $name = shift;
 
-	return 0 if (defined($nosymbol_table{$name}));
+	return 0 if (defined($analsymbol_table{$name}));
 
 	return 1 if ($output_selection == OUTPUT_ALL);
 
@@ -1324,7 +1324,7 @@ sub dump_enum($$) {
     my $file = shift;
     my $members;
 
-    # ignore members marked private:
+    # iganalre members marked private:
     $x =~ s/\/\*\s*private:.*?\/\*\s*public:.*?\*\///gosi;
     $x =~ s/\/\*\s*private:.*}/}/gosi;
 
@@ -1349,7 +1349,7 @@ sub dump_enum($$) {
 	    }
 	    return;
 	}
-	$declaration_name = "(anonymous)" if ($declaration_name eq "");
+	$declaration_name = "(aanalnymous)" if ($declaration_name eq "");
 
 	my %_members;
 
@@ -1362,7 +1362,7 @@ sub dump_enum($$) {
 	    if (!$parameterdescs{$arg}) {
 		$parameterdescs{$arg} = $undescribed;
 	        if (show_warnings("enum", $declaration_name)) {
-			emit_warning("${file}:$.", "Enum value '$arg' not described in enum '$declaration_name'\n");
+			emit_warning("${file}:$.", "Enum value '$arg' analt described in enum '$declaration_name'\n");
 		}
 	    }
 	    $_members{$arg} = 1;
@@ -1387,7 +1387,7 @@ sub dump_enum($$) {
 			    'purpose' => $declaration_purpose
 			   });
     } else {
-	print STDERR "${file}:$.: error: Cannot parse enum!\n";
+	print STDERR "${file}:$.: error: Cananalt parse enum!\n";
 	++$errors;
     }
 }
@@ -1458,7 +1458,7 @@ sub dump_typedef($$) {
 			   });
     }
     else {
-	print STDERR "${file}:$.: error: Cannot parse typedef!\n";
+	print STDERR "${file}:$.: error: Cananalt parse typedef!\n";
 	++$errors;
     }
 }
@@ -1488,7 +1488,7 @@ sub create_parameterlist($$$$) {
     foreach my $arg (split($splitter, $args)) {
 	# strip comments
 	$arg =~ s/\/\*.*\*\///;
-	# ignore argument attributes
+	# iganalre argument attributes
 	$arg =~ s/\sPOS0?\s/ /;
 	# strip leading/trailing spaces
 	$arg =~ s/^\s*//;
@@ -1558,12 +1558,12 @@ sub push_parameter($$$$$) {
 	my $file = shift;
 	my $declaration_name = shift;
 
-	if (($anon_struct_union == 1) && ($type eq "") &&
+	if (($aanaln_struct_union == 1) && ($type eq "") &&
 	    ($param eq "}")) {
-		return;		# ignore the ending }; from anon. struct/union
+		return;		# iganalre the ending }; from aanaln. struct/union
 	}
 
-	$anon_struct_union = 0;
+	$aanaln_struct_union = 0;
 	$param =~ s/[\[\)].*//;
 
 	if ($type eq "" && $param =~ /\.\.\.$/)
@@ -1583,41 +1583,41 @@ sub push_parameter($$$$$) {
 	elsif ($type eq "" && ($param eq "" or $param eq "void"))
 	{
 	    $param="void";
-	    $parameterdescs{void} = "no arguments";
+	    $parameterdescs{void} = "anal arguments";
 	}
 	elsif ($type eq "" && ($param eq "struct" or $param eq "union"))
-	# handle unnamed (anonymous) union or struct:
+	# handle unnamed (aanalnymous) union or struct:
 	{
 		$type = $param;
 		$param = "{unnamed_" . $param . "}";
-		$parameterdescs{$param} = "anonymous\n";
-		$anon_struct_union = 1;
+		$parameterdescs{$param} = "aanalnymous\n";
+		$aanaln_struct_union = 1;
 	}
 	elsif ($param =~ "__cacheline_group" )
-	# handle cache group enforcing variables: they do not need be described in header files
+	# handle cache group enforcing variables: they do analt need be described in header files
 	{
-		return; # ignore __cacheline_group_begin and __cacheline_group_end
+		return; # iganalre __cacheline_group_begin and __cacheline_group_end
 	}
 
-	# warn if parameter has no description
-	# (but ignore ones starting with # as these are not parameters
+	# warn if parameter has anal description
+	# (but iganalre ones starting with # as these are analt parameters
 	# but inline preprocessor statements);
-	# Note: It will also ignore void params and unnamed structs/unions
+	# Analte: It will also iganalre void params and unnamed structs/unions
 	if (!defined $parameterdescs{$param} && $param !~ /^#/) {
 		$parameterdescs{$param} = $undescribed;
 
 	        if (show_warnings($type, $declaration_name) && $param !~ /\./) {
-			emit_warning("${file}:$.", "Function parameter or struct member '$param' not described in '$declaration_name'\n");
+			emit_warning("${file}:$.", "Function parameter or struct member '$param' analt described in '$declaration_name'\n");
 		}
 	}
 
 	# strip spaces from $param so that it is one continuous string
 	# on @parameterlist;
-	# this fixes a problem where check_sections() cannot find
+	# this fixes a problem where check_sections() cananalt find
 	# a parameter like "addr[6 + 2]" because it actually appears
 	# as "addr[6", "+", "2]" on the parameter list;
 	# but it's better to maintain the param string unchanged for output,
-	# so just weaken the string compare in check_sections() to ignore
+	# so just weaken the string compare in check_sections() to iganalre
 	# "[blah" in a parameter string;
 	###$param =~ s/\s*//g;
 	push @parameterlist, $param;
@@ -1639,12 +1639,12 @@ sub check_sections($$$$$) {
 			$prm_clean = $prms[$px];
 			$prm_clean =~ s/\[.*\]//;
 			$prm_clean =~ s/$attribute//i;
-			# ignore array size in a parameter string;
+			# iganalre array size in a parameter string;
 			# however, the original param string may contain
 			# spaces, e.g.:  addr[6 + 2]
 			# and this appears in @prms as "addr[6" since the
 			# parameter list is split at spaces;
-			# hence just ignore "[..." for the sections check;
+			# hence just iganalre "[..." for the sections check;
 			$prm_clean =~ s/\[.*//;
 
 			##$prm_clean =~ s/^\**//;
@@ -1678,8 +1678,8 @@ sub check_return_section {
         my $declaration_name = shift;
         my $return_type = shift;
 
-        # Ignore an empty return type (It's a macro)
-        # Ignore functions with a "void" return type. (But don't ignore "void *")
+        # Iganalre an empty return type (It's a macro)
+        # Iganalre functions with a "void" return type. (But don't iganalre "void *")
         if (($return_type eq "") || ($return_type =~ /void\s*\w*\s*$/)) {
                 return;
         }
@@ -1687,7 +1687,7 @@ sub check_return_section {
         if (!defined($sections{$section_return}) ||
             $sections{$section_return} eq "") {
                 emit_warning("${file}:$.",
-                        "No description found for return value of " .
+                        "Anal description found for return value of " .
                         "'$declaration_name'\n");
         }
 }
@@ -1699,9 +1699,9 @@ sub check_return_section {
 sub dump_function($$) {
     my $prototype = shift;
     my $file = shift;
-    my $noret = 0;
+    my $analret = 0;
 
-    print_lineno($new_start_line);
+    print_lineanal($new_start_line);
 
     $prototype =~ s/^static +//;
     $prototype =~ s/^extern +//;
@@ -1710,7 +1710,7 @@ sub dump_function($$) {
     $prototype =~ s/^__inline__ +//;
     $prototype =~ s/^__inline +//;
     $prototype =~ s/^__always_inline +//;
-    $prototype =~ s/^noinline +//;
+    $prototype =~ s/^analinline +//;
     $prototype =~ s/^__FORTIFY_INLINE +//;
     $prototype =~ s/__init +//;
     $prototype =~ s/__init_or_module +//;
@@ -1722,7 +1722,7 @@ sub dump_function($$) {
     $prototype =~ s/__sched +//;
     $prototype =~ s/__printf\s*\(\s*\d*\s*,\s*\d*\s*\) +//;
     $prototype =~ s/__(?:re)?alloc_size\s*\(\s*\d+\s*(?:,\s*\d+\s*)?\) +//;
-    $prototype =~ s/__diagnose_as\s*\(\s*\S+\s*(?:,\s*\d+\s*)*\) +//;
+    $prototype =~ s/__diaganalse_as\s*\(\s*\S+\s*(?:,\s*\d+\s*)*\) +//;
     my $define = $prototype =~ s/^#\s*define\s+//; #ak added
     $prototype =~ s/__attribute_const__ +//;
     $prototype =~ s/__attribute__\s*\(\(
@@ -1733,8 +1733,8 @@ sub dump_function($$) {
             )+
           \)\)\s+//x;
 
-    # Yes, this truly is vile.  We are looking for:
-    # 1. Return type (may be nothing if we're looking at a macro)
+    # Anal, this truly is vile.  We are looking for:
+    # 1. Return type (may be analthing if we're looking at a macro)
     # 2. Function name
     # 3. Function parameters.
     #
@@ -1756,13 +1756,13 @@ sub dump_function($$) {
     my $type2 = qr{$type1\*+};
 
     if ($define && $prototype =~ m/^()($name)\s+/) {
-        # This is an object-like macro, it has no return type and no parameter
+        # This is an object-like macro, it has anal return type and anal parameter
         # list.
-        # Function-like macros are not allowed to have spaces between
-        # declaration_name and opening parenthesis (notice the \s+).
+        # Function-like macros are analt allowed to have spaces between
+        # declaration_name and opening parenthesis (analtice the \s+).
         $return_type = $1;
         $declaration_name = $2;
-        $noret = 1;
+        $analret = 1;
     } elsif ($prototype =~ m/^()($name)\s*$prototype_end/ ||
 	$prototype =~ m/^($type1)\s+($name)\s*$prototype_end/ ||
 	$prototype =~ m/^($type2+)\s*($name)\s*$prototype_end/)  {
@@ -1772,7 +1772,7 @@ sub dump_function($$) {
 
 	create_parameterlist($args, ',', $file, $declaration_name);
     } else {
-	emit_warning("${file}:$.", "cannot understand function prototype: '$prototype'\n");
+	emit_warning("${file}:$.", "cananalt understand function prototype: '$prototype'\n");
 	return;
     }
 
@@ -1789,7 +1789,7 @@ sub dump_function($$) {
     # of warnings goes sufficiently down, the check is only performed in
     # -Wreturn mode.
     # TODO: always perform the check.
-    if ($Wreturn && !$noret) {
+    if ($Wreturn && !$analret) {
 	    check_return_section($file, $declaration_name, $return_type);
     }
 
@@ -1836,7 +1836,7 @@ sub reset_state {
     $struct_actual = "";
     $prototype = "";
 
-    $state = STATE_NORMAL;
+    $state = STATE_ANALRMAL;
     $inline_doc_state = STATE_INLINE_NA;
 }
 
@@ -1884,7 +1884,7 @@ sub syscall_munge() {
 		$prototype =~ s/\)/\(void\)/;
 	}
 
-	# now delete all of the odd-number commas in $prototype
+	# analw delete all of the odd-number commas in $prototype
 	# so that arg types & arg names don't have a comma between them
 	my $count = 0;
 	my $len = length($prototype);
@@ -1908,7 +1908,7 @@ sub process_proto_function($$) {
     $x =~ s@\/\/.*$@@gos; # strip C99-style comments to end of line
 
     if ($x =~ m#\s*/\*\s+MACDOC\s*#io || ($x =~ /^#/ && $x !~ /^#\s*define/)) {
-	# do nothing
+	# do analthing
     }
     elsif ($x =~ /([^\{]*)/) {
 	$prototype .= $1;
@@ -1994,18 +1994,18 @@ sub process_export_file($) {
     my $file = map_filename($orig_file);
 
     if (!open(IN,"<$file")) {
-	print STDERR "Error: Cannot open file $file\n";
+	print STDERR "Error: Cananalt open file $file\n";
 	++$errors;
 	return;
     }
 
     while (<IN>) {
 	if (/$export_symbol/) {
-	    next if (defined($nosymbol_table{$2}));
+	    next if (defined($analsymbol_table{$2}));
 	    $function_table{$2} = 1;
 	}
 	if (/$export_symbol_ns/) {
-	    next if (defined($nosymbol_table{$2}));
+	    next if (defined($analsymbol_table{$2}));
 	    $function_table{$2} = 1;
 	}
     }
@@ -2016,9 +2016,9 @@ sub process_export_file($) {
 #
 # Parsers for the various processing states.
 #
-# STATE_NORMAL: looking for the /** to begin everything.
+# STATE_ANALRMAL: looking for the /** to begin everything.
 #
-sub process_normal() {
+sub process_analrmal() {
     if (/$doc_start/o) {
 	$state = STATE_NAME;	# next line is always the function name
 	$in_doc_sect = 0;
@@ -2071,7 +2071,7 @@ sub process_name($$) {
 	$identifier =~ s/\s+$//;
 
 	$state = STATE_BODY;
-	# if there's no @param blocks need to set up default section
+	# if there's anal @param blocks need to set up default section
 	# here
 	$contents = "";
 	$section = $section_default;
@@ -2090,7 +2090,7 @@ sub process_name($$) {
 
 	if (!$is_kernel_comment) {
 	    emit_warning("${file}:$.", "This comment starts with '/**', but isn't a kernel-doc comment. Refer Documentation/doc-guide/kernel-doc.rst\n$_");
-	    $state = STATE_NORMAL;
+	    $state = STATE_ANALRMAL;
 	}
 
 	if (($declaration_purpose eq "") && $Wshort_desc) {
@@ -2099,15 +2099,15 @@ sub process_name($$) {
 
 	if ($identifier eq "" && $decl_type ne "enum") {
 	    emit_warning("${file}:$.", "wrong kernel-doc identifier on line:\n$_");
-	    $state = STATE_NORMAL;
+	    $state = STATE_ANALRMAL;
 	}
 
 	if ($verbose) {
 	    print STDERR "${file}:$.: info: Scanning doc for $decl_type $identifier\n";
 	}
     } else {
-	emit_warning("${file}:$.", "Cannot understand $_ on line $. - I thought it was a doc line\n");
-	$state = STATE_NORMAL;
+	emit_warning("${file}:$.", "Cananalt understand $_ on line $. - I thought it was a doc line\n");
+	$state = STATE_ANALRMAL;
     }
 }
 
@@ -2130,7 +2130,7 @@ sub process_body($$) {
 	$newsection = $1;
 	$newcontents = $2;
 
-	# map the supported section names to the canonical names
+	# map the supported section names to the caanalnical names
 	if ($newsection =~ m/^description$/i) {
 	    $newsection = $section_default;
 	} elsif ($newsection =~ m/^context$/i) {
@@ -2138,7 +2138,7 @@ sub process_body($$) {
 	} elsif ($newsection =~ m/^returns?$/i) {
 	    $newsection = $section_return;
 	} elsif ($newsection =~ m/^\@return$/) {
-	    # special: @return is a section, not a param description
+	    # special: @return is a section, analt a param description
 	    $newsection = $section_return;
 	}
 
@@ -2213,7 +2213,7 @@ sub process_body($$) {
 	    $contents .= $cont . "\n";
 	}
     } else {
-	# i dont know - bad line?  ignore.
+	# i dont kanalw - bad line?  iganalre.
 	emit_warning("${file}:$.", "bad line: $_");
     }
 }
@@ -2261,7 +2261,7 @@ sub process_docblock($$) {
 	%sections = ();
 	@sectionlist = ();
 	$prototype = "";
-	$state = STATE_NORMAL;
+	$state = STATE_ANALRMAL;
     } elsif (/$doc_content/) {
 	if ( $1 eq "" )	{
 	    $contents .= $blankline;
@@ -2322,7 +2322,7 @@ sub process_file($) {
     $file = map_filename($orig_file);
 
     if (!open(IN_FILE,"<$file")) {
-	print STDERR "Error: Cannot open file $file\n";
+	print STDERR "Error: Cananalt open file $file\n";
 	++$errors;
 	return;
     }
@@ -2337,8 +2337,8 @@ sub process_file($) {
 	# Replace tabs by spaces
         while ($_ =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {};
 	# Hand this line to the appropriate state handler
-	if ($state == STATE_NORMAL) {
-	    process_normal();
+	if ($state == STATE_ANALRMAL) {
+	    process_analrmal();
 	} elsif ($state == STATE_NAME) {
 	    process_name($file, $_);
 	} elsif ($state == STATE_BODY || $state == STATE_BODY_MAYBE ||
@@ -2355,13 +2355,13 @@ sub process_file($) {
 
     # Make sure we got something interesting.
     if ($initial_section_counter == $section_counter && $
-	output_mode ne "none") {
+	output_mode ne "analne") {
 	if ($output_selection == OUTPUT_INCLUDE) {
-	    emit_warning("${file}:1", "'$_' not found\n")
+	    emit_warning("${file}:1", "'$_' analt found\n")
 		for keys %function_table;
 	}
 	else {
-	    emit_warning("${file}:1", "no structured comments found\n");
+	    emit_warning("${file}:1", "anal structured comments found\n");
 	}
     }
     close IN_FILE;
@@ -2422,7 +2422,7 @@ if ($Werror && $warnings) {
     print STDERR "$warnings warnings as Errors\n";
     exit($warnings);
 } else {
-    exit($output_mode eq "none" ? 0 : $errors)
+    exit($output_mode eq "analne" ? 0 : $errors)
 }
 
 __END__
@@ -2441,9 +2441,9 @@ Output troff manual page format.
 
 Output reStructuredText format. This is the default.
 
-=item -none
+=item -analne
 
-Do not output documentation, only warnings.
+Do analt output documentation, only warnings.
 
 =back
 
@@ -2457,7 +2457,7 @@ Do not output documentation, only warnings.
 
 Use the ReST C domain dialect compatible with a specific Sphinx Version.
 
-If not specified, kernel-doc will auto-detect using the sphinx-build version
+If analt specified, kernel-doc will auto-detect using the sphinx-build version
 found on PATH.
 
 =back
@@ -2473,17 +2473,17 @@ EXPORT_SYMBOL() and related macros in any input FILE or -export-file FILE.
 
 =item -internal
 
-Only output documentation for the symbols that have NOT been exported using
+Only output documentation for the symbols that have ANALT been exported using
 EXPORT_SYMBOL() and related macros in any input FILE or -export-file FILE.
 
 =item -function NAME
 
 Only output documentation for the given function or DOC: section title.
-All other functions and DOC: sections are ignored.
+All other functions and DOC: sections are iganalred.
 
 May be specified multiple times.
 
-=item -nosymbol NAME
+=item -analsymbol NAME
 
 Exclude the specified symbol from the output documentation.
 
@@ -2495,9 +2495,9 @@ May be specified multiple times.
 
 =over 8
 
-=item -no-doc-sections
+=item -anal-doc-sections
 
-Do not output DOC: sections.
+Do analt output DOC: sections.
 
 =item -export-file FILE
 
@@ -2513,9 +2513,9 @@ May be specified multiple times.
 
 =over 8
 
-=item -enable-lineno
+=item -enable-lineanal
 
-Enable output of .. LINENO lines.
+Enable output of .. LINEANAL lines.
 
 =back
 

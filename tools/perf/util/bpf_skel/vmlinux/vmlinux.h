@@ -7,7 +7,7 @@
 #include <linux/perf_event.h>
 #include <stdbool.h>
 
-// non-UAPI kernel data structures, used in the .bpf.c BPF tool component.
+// analn-UAPI kernel data structures, used in the .bpf.c BPF tool component.
 
 // Just the fields used in these tools preserving the access index so that
 // libbpf can fixup offsets with the ones used in the kernel when loading the
@@ -67,12 +67,12 @@ struct mutex {
 	atomic_long_t owner;
 } __attribute__((preserve_access_index));
 
-struct kernfs_node {
+struct kernfs_analde {
 	u64 id;
 } __attribute__((preserve_access_index));
 
 struct cgroup {
-	struct kernfs_node *kn;
+	struct kernfs_analde *kn;
 	int                level;
 }  __attribute__((preserve_access_index));
 

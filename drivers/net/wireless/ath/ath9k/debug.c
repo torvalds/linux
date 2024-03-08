@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -75,7 +75,7 @@ static ssize_t ath9k_debugfs_read_buf(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 }
 
-static int ath9k_debugfs_release_buf(struct inode *inode, struct file *file)
+static int ath9k_debugfs_release_buf(struct ianalde *ianalde, struct file *file)
 {
 	vfree(file->private_data);
 	return 0;
@@ -140,8 +140,8 @@ static ssize_t read_file_ani(struct file *file, char __user *user_buf,
 		unsigned int val;
 	} ani_info[] = {
 		{ "ANI RESET", ah->stats.ast_ani_reset },
-		{ "OFDM LEVEL", ah->ani.ofdmNoiseImmunityLevel },
-		{ "CCK LEVEL", ah->ani.cckNoiseImmunityLevel },
+		{ "OFDM LEVEL", ah->ani.ofdmAnaliseImmunityLevel },
+		{ "CCK LEVEL", ah->ani.cckAnaliseImmunityLevel },
 		{ "SPUR UP", ah->stats.ast_ani_spurup },
 		{ "SPUR DOWN", ah->stats.ast_ani_spurdown },
 		{ "OFDM WS-DET ON", ah->stats.ast_ani_ofdmon },
@@ -157,7 +157,7 @@ static ssize_t read_file_ani(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len += scnprintf(buf + len, size - len, "%15s: %s\n", "ANI",
 			 common->disable_ani ? "DISABLED" : "ENABLED");
@@ -301,7 +301,7 @@ static ssize_t read_file_antenna_diversity(struct file *file,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!(pCap->hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB)) {
 		len += scnprintf(buf + len, size - len, "%s\n",
@@ -725,7 +725,7 @@ static int read_file_misc(struct seq_file *file, void *data)
 			   iter_data.nstations,
 			   iter_data.nmeshes);
 		seq_printf(file, " ADHOC: %i OCB: %i TOTAL: %hi BEACON-VIF: %hi\n",
-			   iter_data.nadhocs, iter_data.nocbs, sc->cur_chan->nvifs,
+			   iter_data.nadhocs, iter_data.analcbs, sc->cur_chan->nvifs,
 			   sc->nbcnvifs);
 	}
 
@@ -764,16 +764,16 @@ static int read_file_reset(struct seq_file *file, void *data)
 	return 0;
 }
 
-static int open_file_reset(struct inode *inode, struct file *f)
+static int open_file_reset(struct ianalde *ianalde, struct file *f)
 {
-	return single_open(f, read_file_reset, inode->i_private);
+	return single_open(f, read_file_reset, ianalde->i_private);
 }
 
 static ssize_t write_file_reset(struct file *file,
 				const char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
-	struct ath_softc *sc = file_inode(file)->i_private;
+	struct ath_softc *sc = file_ianalde(file)->i_private;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	unsigned long val;
@@ -928,9 +928,9 @@ static const struct file_operations fops_regval = {
 
 #define REGDUMP_LINE_SIZE	20
 
-static int open_file_regdump(struct inode *inode, struct file *file)
+static int open_file_regdump(struct ianalde *ianalde, struct file *file)
 {
-	struct ath_softc *sc = inode->i_private;
+	struct ath_softc *sc = ianalde->i_private;
 	unsigned int len = 0;
 	u8 *buf;
 	int i, j = 0;
@@ -952,7 +952,7 @@ static int open_file_regdump(struct inode *inode, struct file *file)
 	regdump_len = num_regs * REGDUMP_LINE_SIZE + 1;
 	buf = vmalloc(regdump_len);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ath9k_ps_wakeup(sc);
 	for (i = 0; i < num_regs; i++) {
@@ -992,7 +992,7 @@ static int read_file_dump_nfcal(struct seq_file *file, void *data)
 	u8 chainmask = (ah->rxchainmask << 3) | ah->rxchainmask;
 	u8 nread;
 
-	seq_printf(file, "Channel Noise Floor : %d\n", ah->noise);
+	seq_printf(file, "Channel Analise Floor : %d\n", ah->analise);
 	seq_puts(file, "Chain | privNF | # Readings | NF Readings\n");
 	for (i = 0; i < NUM_NF_READINGS; i++) {
 		if (!(chainmask & (1 << i)) ||
@@ -1020,7 +1020,7 @@ static ssize_t read_file_btcoex(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!sc->sc_ah->common.btcoex_enabled) {
 		len = scnprintf(buf, size, "%s\n",
@@ -1079,7 +1079,7 @@ static ssize_t read_file_wow(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len += scnprintf(buf + len, size - len, "WOW: %s\n",
 			 sc->force_wow ? "ENABLED" : "DISABLED");
@@ -1136,7 +1136,7 @@ static ssize_t read_file_tpc(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len += scnprintf(buf + len, size - len, "%s\n",
 			 ah->tpc_enabled ? "ENABLED" : "DISABLED");
@@ -1381,7 +1381,7 @@ int ath9k_init_debug(struct ath_hw *ah)
 	sc->debug.debugfs_phy = debugfs_create_dir("ath9k",
 						   sc->hw->wiphy->debugfsdir);
 	if (IS_ERR(sc->debug.debugfs_phy))
-		return -ENOMEM;
+		return -EANALMEM;
 
 #ifdef CONFIG_ATH_DEBUG
 	debugfs_create_file("debug", 0600, sc->debug.debugfs_phy,
@@ -1420,9 +1420,9 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    sc, &fops_regidx);
 	debugfs_create_file("regval", 0600, sc->debug.debugfs_phy,
 			    sc, &fops_regval);
-	debugfs_create_bool("ignore_extcca", 0600,
+	debugfs_create_bool("iganalre_extcca", 0600,
 			    sc->debug.debugfs_phy,
-			    &ah->config.cwm_ignore_extcca);
+			    &ah->config.cwm_iganalre_extcca);
 	debugfs_create_file("regdump", 0400, sc->debug.debugfs_phy, sc,
 			    &fops_regdump);
 	debugfs_create_devm_seqfile(sc->dev, "dump_nfcal",

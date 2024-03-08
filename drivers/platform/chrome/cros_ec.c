@@ -50,7 +50,7 @@ static irqreturn_t cros_ec_irq_handler(int irq, void *data)
  * cros_ec_handle_event() - process and forward pending events on EC
  * @ec_dev: Device with events to process.
  *
- * Call this function in a loop when the kernel is notified that the EC has
+ * Call this function in a loop when the kernel is analtified that the EC has
  * pending events.
  *
  * Return: true if more events are still pending and this function should be
@@ -73,7 +73,7 @@ static bool cros_ec_handle_event(struct cros_ec_device *ec_dev)
 		pm_wakeup_event(ec_dev->dev, 0);
 
 	if (ret > 0)
-		blocking_notifier_call_chain(&ec_dev->event_notifier,
+		blocking_analtifier_call_chain(&ec_dev->event_analtifier,
 					     0, ec_dev);
 
 	return ec_has_more_events;
@@ -150,22 +150,22 @@ static int cros_ec_sleep_event(struct cros_ec_device *ec_dev, u8 sleep_event)
 	return ret;
 }
 
-static int cros_ec_ready_event(struct notifier_block *nb,
+static int cros_ec_ready_event(struct analtifier_block *nb,
 			       unsigned long queued_during_suspend,
-			       void *_notify)
+			       void *_analtify)
 {
 	struct cros_ec_device *ec_dev = container_of(nb, struct cros_ec_device,
-						     notifier_ready);
+						     analtifier_ready);
 	u32 host_event = cros_ec_get_host_event(ec_dev);
 
 	if (host_event & EC_HOST_EVENT_MASK(EC_HOST_EVENT_INTERFACE_READY)) {
 		mutex_lock(&ec_dev->lock);
 		cros_ec_query_all(ec_dev);
 		mutex_unlock(&ec_dev->lock);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /**
@@ -182,8 +182,8 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 	struct device *dev = ec_dev->dev;
 	int err = 0;
 
-	BLOCKING_INIT_NOTIFIER_HEAD(&ec_dev->event_notifier);
-	BLOCKING_INIT_NOTIFIER_HEAD(&ec_dev->panic_notifier);
+	BLOCKING_INIT_ANALTIFIER_HEAD(&ec_dev->event_analtifier);
+	BLOCKING_INIT_ANALTIFIER_HEAD(&ec_dev->panic_analtifier);
 
 	ec_dev->max_request = sizeof(struct ec_params_hello);
 	ec_dev->max_response = sizeof(struct ec_response_get_protocol_info);
@@ -194,11 +194,11 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 
 	ec_dev->din = devm_kzalloc(dev, ec_dev->din_size, GFP_KERNEL);
 	if (!ec_dev->din)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ec_dev->dout = devm_kzalloc(dev, ec_dev->dout_size, GFP_KERNEL);
 	if (!ec_dev->dout)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lockdep_register_key(&ec_dev->lockdep_key);
 	mutex_init(&ec_dev->lock);
@@ -206,7 +206,7 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 
 	err = cros_ec_query_all(ec_dev);
 	if (err) {
-		dev_err(dev, "Cannot identify the EC: error %d\n", err);
+		dev_err(dev, "Cananalt identify the EC: error %d\n", err);
 		goto exit;
 	}
 
@@ -240,7 +240,7 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 		 * We make the following assumptions:
 		 * - behind an EC, we have a pd
 		 * - only one device added.
-		 * - the EC is responsive at init time (it is not true for a
+		 * - the EC is responsive at init time (it is analt true for a
 		 *   sensor hub).
 		 */
 		ec_dev->pd = platform_device_register_data(ec_dev->dev,
@@ -255,7 +255,7 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 		}
 	}
 
-	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+	if (IS_ENABLED(CONFIG_OF) && dev->of_analde) {
 		err = devm_of_platform_populate(dev);
 		if (err) {
 			dev_err(dev, "Failed to register sub-devices\n");
@@ -274,12 +274,12 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 
 	if (ec_dev->mkbp_event_supported) {
 		/*
-		 * Register the notifier for EC_HOST_EVENT_INTERFACE_READY
+		 * Register the analtifier for EC_HOST_EVENT_INTERFACE_READY
 		 * event.
 		 */
-		ec_dev->notifier_ready.notifier_call = cros_ec_ready_event;
-		err = blocking_notifier_chain_register(&ec_dev->event_notifier,
-						      &ec_dev->notifier_ready);
+		ec_dev->analtifier_ready.analtifier_call = cros_ec_ready_event;
+		err = blocking_analtifier_chain_register(&ec_dev->event_analtifier,
+						      &ec_dev->analtifier_ready);
 		if (err)
 			goto exit;
 	}
@@ -400,7 +400,7 @@ static void cros_ec_report_events_during_suspend(struct cros_ec_device *ec_dev)
 
 	while (ec_dev->mkbp_event_supported &&
 	       cros_ec_get_next_event(ec_dev, &wake_event, NULL) > 0) {
-		blocking_notifier_call_chain(&ec_dev->event_notifier,
+		blocking_analtifier_call_chain(&ec_dev->event_analtifier,
 					     1, ec_dev);
 
 		if (wake_event && device_may_wakeup(ec_dev->dev))
@@ -444,8 +444,8 @@ static void cros_ec_enable_irq(struct cros_ec_device *ec_dev)
 		disable_irq_wake(ec_dev->irq);
 
 	/*
-	 * Let the mfd devices know about events that occur during
-	 * suspend. This way the clients know what to do with them.
+	 * Let the mfd devices kanalw about events that occur during
+	 * suspend. This way the clients kanalw what to do with them.
 	 */
 	cros_ec_report_events_during_suspend(ec_dev);
 }

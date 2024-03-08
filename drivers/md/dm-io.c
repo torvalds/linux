@@ -35,7 +35,7 @@ struct io {
 	unsigned long error_bits;
 	atomic_t count;
 	struct dm_io_client *client;
-	io_notify_fn callback;
+	io_analtify_fn callback;
 	void *context;
 	void *vma_invalidate_address;
 	unsigned long vma_invalidate_size;
@@ -54,7 +54,7 @@ struct dm_io_client *dm_io_client_create(void)
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = mempool_init_slab_pool(&client->pool, min_ios, _dm_io_cache);
 	if (ret)
@@ -85,7 +85,7 @@ EXPORT_SYMBOL(dm_io_client_destroy);
  *-------------------------------------------------------------------
  * We need to keep track of which region a bio is doing io for.
  * To avoid a memory allocation to store just 5 or 6 bits, we
- * ensure the 'struct io' pointer is aligned so enough low bits are
+ * ensure the 'struct io' pointer is aligned so eanalugh low bits are
  * always zero and then combine it with the region number directly in
  * bi_private.
  *-------------------------------------------------------------------
@@ -119,7 +119,7 @@ static void retrieve_io_and_region_from_bio(struct bio *bio, struct io **io,
 static void complete_io(struct io *io)
 {
 	unsigned long error_bits = io->error_bits;
-	io_notify_fn fn = io->callback;
+	io_analtify_fn fn = io->callback;
 	void *context = io->context;
 
 	if (io->vma_invalidate_size)
@@ -328,7 +328,7 @@ static void do_region(const blk_opf_t opf, unsigned int region,
 	if ((op == REQ_OP_DISCARD || op == REQ_OP_WRITE_ZEROES) &&
 	    special_cmd_max_sectors == 0) {
 		atomic_inc(&io->count);
-		dec_count(io, region, BLK_STS_NOTSUPP);
+		dec_count(io, region, BLK_STS_ANALTSUPP);
 		return;
 	}
 
@@ -350,7 +350,7 @@ static void do_region(const blk_opf_t opf, unsigned int region,
 						(PAGE_SIZE >> SECTOR_SHIFT)));
 		}
 
-		bio = bio_alloc_bioset(where->bdev, num_bvecs, opf, GFP_NOIO,
+		bio = bio_alloc_bioset(where->bdev, num_bvecs, opf, GFP_ANALIO,
 				       &io->client->bios);
 		bio->bi_iter.bi_sector = where->sector + (where->count - remaining);
 		bio->bi_end_io = endio;
@@ -437,7 +437,7 @@ static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 
 	init_completion(&sio.wait);
 
-	io = mempool_alloc(&client->pool, GFP_NOIO);
+	io = mempool_alloc(&client->pool, GFP_ANALIO);
 	io->error_bits = 0;
 	atomic_set(&io->count, 1); /* see dispatch_io() */
 	io->client = client;
@@ -459,7 +459,7 @@ static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 
 static int async_io(struct dm_io_client *client, unsigned int num_regions,
 		    struct dm_io_region *where, blk_opf_t opf,
-		    struct dpages *dp, io_notify_fn fn, void *context)
+		    struct dpages *dp, io_analtify_fn fn, void *context)
 {
 	struct io *io;
 
@@ -469,7 +469,7 @@ static int async_io(struct dm_io_client *client, unsigned int num_regions,
 		return -EIO;
 	}
 
-	io = mempool_alloc(&client->pool, GFP_NOIO);
+	io = mempool_alloc(&client->pool, GFP_ANALIO);
 	io->error_bits = 0;
 	atomic_set(&io->count, 1); /* see dispatch_io() */
 	io->client = client;
@@ -530,13 +530,13 @@ int dm_io(struct dm_io_request *io_req, unsigned int num_regions,
 	if (r)
 		return r;
 
-	if (!io_req->notify.fn)
+	if (!io_req->analtify.fn)
 		return sync_io(io_req->client, num_regions, where,
 			       io_req->bi_opf, &dp, sync_error_bits);
 
 	return async_io(io_req->client, num_regions, where,
-			io_req->bi_opf, &dp, io_req->notify.fn,
-			io_req->notify.context);
+			io_req->bi_opf, &dp, io_req->analtify.fn,
+			io_req->analtify.context);
 }
 EXPORT_SYMBOL(dm_io);
 
@@ -544,7 +544,7 @@ int __init dm_io_init(void)
 {
 	_dm_io_cache = KMEM_CACHE(io, 0);
 	if (!_dm_io_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

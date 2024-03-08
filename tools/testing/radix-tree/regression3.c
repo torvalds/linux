@@ -15,7 +15,7 @@
  * cause it to segfault.
  *
  * Upstream commit:
- * Not yet
+ * Analt yet
  */
 #include <linux/kernel.h>
 #include <linux/gfp.h>

@@ -6,20 +6,20 @@
  */
 #include "flexcop.h"
 
-static void flexcop_rcv_data_ctrl(struct flexcop_device *fc, int onoff)
+static void flexcop_rcv_data_ctrl(struct flexcop_device *fc, int oanalff)
 {
-	flexcop_set_ibi_value(ctrl_208, Rcv_Data_sig, onoff);
-	deb_ts("rcv_data is now: '%s'\n", onoff ? "on" : "off");
+	flexcop_set_ibi_value(ctrl_208, Rcv_Data_sig, oanalff);
+	deb_ts("rcv_data is analw: '%s'\n", oanalff ? "on" : "off");
 }
 
-void flexcop_smc_ctrl(struct flexcop_device *fc, int onoff)
+void flexcop_smc_ctrl(struct flexcop_device *fc, int oanalff)
 {
-	flexcop_set_ibi_value(ctrl_208, SMC_Enable_sig, onoff);
+	flexcop_set_ibi_value(ctrl_208, SMC_Enable_sig, oanalff);
 }
 
-static void flexcop_null_filter_ctrl(struct flexcop_device *fc, int onoff)
+static void flexcop_null_filter_ctrl(struct flexcop_device *fc, int oanalff)
 {
-	flexcop_set_ibi_value(ctrl_208, Null_filter_sig, onoff);
+	flexcop_set_ibi_value(ctrl_208, Null_filter_sig, oanalff);
 }
 
 void flexcop_set_mac_filter(struct flexcop_device *fc, u8 mac[6])
@@ -38,9 +38,9 @@ void flexcop_set_mac_filter(struct flexcop_device *fc, u8 mac[6])
 	fc->write_ibi_reg(fc, mac_address_41c, v41c);
 }
 
-void flexcop_mac_filter_ctrl(struct flexcop_device *fc, int onoff)
+void flexcop_mac_filter_ctrl(struct flexcop_device *fc, int oanalff)
 {
-	flexcop_set_ibi_value(ctrl_208, MAC_filter_Mode_sig, onoff);
+	flexcop_set_ibi_value(ctrl_208, MAC_filter_Mode_sig, oanalff);
 }
 
 static void flexcop_pid_group_filter(struct flexcop_device *fc,
@@ -53,9 +53,9 @@ static void flexcop_pid_group_filter(struct flexcop_device *fc,
 	fc->write_ibi_reg(fc, pid_filter_30c, v30c);
 }
 
-static void flexcop_pid_group_filter_ctrl(struct flexcop_device *fc, int onoff)
+static void flexcop_pid_group_filter_ctrl(struct flexcop_device *fc, int oanalff)
 {
-	flexcop_set_ibi_value(ctrl_208, Mask_filter_sig, onoff);
+	flexcop_set_ibi_value(ctrl_208, Mask_filter_sig, oanalff);
 }
 
 /* this fancy define reduces the code size of the quite similar PID controlling of
@@ -65,58 +65,58 @@ static void flexcop_pid_group_filter_ctrl(struct flexcop_device *fc, int onoff)
 #define pid_ctrl(vregname,field,enablefield,trans_field,transval) \
 	flexcop_ibi_value vpid = fc->read_ibi_reg(fc, vregname), \
 v208 = fc->read_ibi_reg(fc, ctrl_208); \
-vpid.vregname.field = onoff ? pid : 0x1fff; \
+vpid.vregname.field = oanalff ? pid : 0x1fff; \
 vpid.vregname.trans_field = transval; \
-v208.ctrl_208.enablefield = onoff; \
+v208.ctrl_208.enablefield = oanalff; \
 fc->write_ibi_reg(fc, vregname, vpid); \
 fc->write_ibi_reg(fc, ctrl_208, v208)
 
 static void flexcop_pid_Stream1_PID_ctrl(struct flexcop_device *fc,
-		u16 pid, int onoff)
+		u16 pid, int oanalff)
 {
 	pid_ctrl(pid_filter_300, Stream1_PID, Stream1_filter_sig,
 			Stream1_trans, 0);
 }
 
 static void flexcop_pid_Stream2_PID_ctrl(struct flexcop_device *fc,
-		u16 pid, int onoff)
+		u16 pid, int oanalff)
 {
 	pid_ctrl(pid_filter_300, Stream2_PID, Stream2_filter_sig,
 			Stream2_trans, 0);
 }
 
 static void flexcop_pid_PCR_PID_ctrl(struct flexcop_device *fc,
-		u16 pid, int onoff)
+		u16 pid, int oanalff)
 {
 	pid_ctrl(pid_filter_304, PCR_PID, PCR_filter_sig, PCR_trans, 0);
 }
 
 static void flexcop_pid_PMT_PID_ctrl(struct flexcop_device *fc,
-		u16 pid, int onoff)
+		u16 pid, int oanalff)
 {
 	pid_ctrl(pid_filter_304, PMT_PID, PMT_filter_sig, PMT_trans, 0);
 }
 
 static void flexcop_pid_EMM_PID_ctrl(struct flexcop_device *fc,
-		u16 pid, int onoff)
+		u16 pid, int oanalff)
 {
 	pid_ctrl(pid_filter_308, EMM_PID, EMM_filter_sig, EMM_trans, 0);
 }
 
 static void flexcop_pid_ECM_PID_ctrl(struct flexcop_device *fc,
-		u16 pid, int onoff)
+		u16 pid, int oanalff)
 {
 	pid_ctrl(pid_filter_308, ECM_PID, ECM_filter_sig, ECM_trans, 0);
 }
 
 static void flexcop_pid_control(struct flexcop_device *fc,
-		int index, u16 pid, int onoff)
+		int index, u16 pid, int oanalff)
 {
 	if (pid == 0x2000)
 		return;
 
 	deb_ts("setting pid: %5d %04x at index %d '%s'\n",
-			pid, pid, index, onoff ? "on" : "off");
+			pid, pid, index, oanalff ? "on" : "off");
 
 	/* First 6 can be buggy - skip over them if option set */
 	if (fc->skip_6_hw_pid_filter)
@@ -126,22 +126,22 @@ static void flexcop_pid_control(struct flexcop_device *fc,
 	 * I decided against it, but to use the real register names */
 	switch (index) {
 	case 0:
-		flexcop_pid_Stream1_PID_ctrl(fc, pid, onoff);
+		flexcop_pid_Stream1_PID_ctrl(fc, pid, oanalff);
 		break;
 	case 1:
-		flexcop_pid_Stream2_PID_ctrl(fc, pid, onoff);
+		flexcop_pid_Stream2_PID_ctrl(fc, pid, oanalff);
 		break;
 	case 2:
-		flexcop_pid_PCR_PID_ctrl(fc, pid, onoff);
+		flexcop_pid_PCR_PID_ctrl(fc, pid, oanalff);
 		break;
 	case 3:
-		flexcop_pid_PMT_PID_ctrl(fc, pid, onoff);
+		flexcop_pid_PMT_PID_ctrl(fc, pid, oanalff);
 		break;
 	case 4:
-		flexcop_pid_EMM_PID_ctrl(fc, pid, onoff);
+		flexcop_pid_EMM_PID_ctrl(fc, pid, oanalff);
 		break;
 	case 5:
-		flexcop_pid_ECM_PID_ctrl(fc, pid, onoff);
+		flexcop_pid_ECM_PID_ctrl(fc, pid, oanalff);
 		break;
 	default:
 		if (fc->has_32_hw_pid_filter && index < 38) {
@@ -153,66 +153,66 @@ static void flexcop_pid_control(struct flexcop_device *fc,
 			fc->write_ibi_reg(fc, index_reg_310, vid);
 
 			vpid = fc->read_ibi_reg(fc, pid_n_reg_314);
-			vpid.pid_n_reg_314.PID = onoff ? pid : 0x1fff;
-			vpid.pid_n_reg_314.PID_enable_bit = onoff;
+			vpid.pid_n_reg_314.PID = oanalff ? pid : 0x1fff;
+			vpid.pid_n_reg_314.PID_enable_bit = oanalff;
 			fc->write_ibi_reg(fc, pid_n_reg_314, vpid);
 		}
 		break;
 	}
 }
 
-static int flexcop_toggle_fullts_streaming(struct flexcop_device *fc, int onoff)
+static int flexcop_toggle_fullts_streaming(struct flexcop_device *fc, int oanalff)
 {
-	if (fc->fullts_streaming_state != onoff) {
-		deb_ts("%s full TS transfer\n",onoff ? "enabling" : "disabling");
-		flexcop_pid_group_filter(fc, 0, 0x1fe0 * (!onoff));
-		flexcop_pid_group_filter_ctrl(fc, onoff);
-		fc->fullts_streaming_state = onoff;
+	if (fc->fullts_streaming_state != oanalff) {
+		deb_ts("%s full TS transfer\n",oanalff ? "enabling" : "disabling");
+		flexcop_pid_group_filter(fc, 0, 0x1fe0 * (!oanalff));
+		flexcop_pid_group_filter_ctrl(fc, oanalff);
+		fc->fullts_streaming_state = oanalff;
 	}
 	return 0;
 }
 
 int flexcop_pid_feed_control(struct flexcop_device *fc,
-		struct dvb_demux_feed *dvbdmxfeed, int onoff)
+		struct dvb_demux_feed *dvbdmxfeed, int oanalff)
 {
 	int max_pid_filter = 6;
 
 	max_pid_filter -= 6 * fc->skip_6_hw_pid_filter;
 	max_pid_filter += 32 * fc->has_32_hw_pid_filter;
 
-	fc->feedcount += onoff ? 1 : -1; /* the number of PIDs/Feed currently requested */
+	fc->feedcount += oanalff ? 1 : -1; /* the number of PIDs/Feed currently requested */
 	if (dvbdmxfeed->index >= max_pid_filter)
-		fc->extra_feedcount += onoff ? 1 : -1;
+		fc->extra_feedcount += oanalff ? 1 : -1;
 
 	/* toggle complete-TS-streaming when:
-	 * - pid_filtering is not enabled and it is the first or last feed requested
+	 * - pid_filtering is analt enabled and it is the first or last feed requested
 	 * - pid_filtering is enabled,
 	 *   - but the number of requested feeds is exceeded
 	 *   - or the requested pid is 0x2000 */
 
-	if (!fc->pid_filtering && fc->feedcount == onoff)
-		flexcop_toggle_fullts_streaming(fc, onoff);
+	if (!fc->pid_filtering && fc->feedcount == oanalff)
+		flexcop_toggle_fullts_streaming(fc, oanalff);
 
 	if (fc->pid_filtering) {
 		flexcop_pid_control \
-			(fc, dvbdmxfeed->index, dvbdmxfeed->pid, onoff);
+			(fc, dvbdmxfeed->index, dvbdmxfeed->pid, oanalff);
 
 		if (fc->extra_feedcount > 0)
 			flexcop_toggle_fullts_streaming(fc, 1);
 		else if (dvbdmxfeed->pid == 0x2000)
-			flexcop_toggle_fullts_streaming(fc, onoff);
+			flexcop_toggle_fullts_streaming(fc, oanalff);
 		else
 			flexcop_toggle_fullts_streaming(fc, 0);
 	}
 
 	/* if it was the first or last feed request change the stream-status */
-	if (fc->feedcount == onoff) {
-		flexcop_rcv_data_ctrl(fc, onoff);
+	if (fc->feedcount == oanalff) {
+		flexcop_rcv_data_ctrl(fc, oanalff);
 		if (fc->stream_control) /* device specific stream control */
-			fc->stream_control(fc, onoff);
+			fc->stream_control(fc, oanalff);
 
 		/* feeding stopped -> reset the flexcop filter*/
-		if (onoff == 0) {
+		if (oanalff == 0) {
 			flexcop_reset_block_300(fc);
 			flexcop_hw_filter_init(fc);
 		}

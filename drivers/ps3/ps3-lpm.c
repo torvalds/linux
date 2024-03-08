@@ -93,7 +93,7 @@ struct ps3_lpm_shadow_regs {
  * @open: An atomic variable indicating the lpm driver has been opened.
  * @rights: The lpm rigths granted by the system policy module.  A logical
  *  OR of enum ps3_lpm_rights.
- * @node_id: The node id of a BE processor whose performance monitor this
+ * @analde_id: The analde id of a BE processor whose performance monitor this
  *  lpar has the right to use.
  * @pu_id: The lv1 id of the logical PU.
  * @lpm_id: The lv1 id of this lpm instance.
@@ -117,7 +117,7 @@ struct ps3_lpm_shadow_regs {
 struct ps3_lpm_priv {
 	atomic_t open;
 	u64 rights;
-	u64 node_id;
+	u64 analde_id;
 	u64 pu_id;
 	u64 lpm_id;
 	u64 outlet_id;
@@ -136,7 +136,7 @@ enum {
 /**
  * lpm_priv - Static instance of the lpm data.
  *
- * Since the exported routines don't support the notion of a device
+ * Since the exported routines don't support the analtion of a device
  * instance we need to hold the instance in this static variable
  * and then only allow at most one instance at a time to be created.
  */
@@ -152,7 +152,7 @@ static struct device *sbd_core(void)
 /**
  * use_start_stop_bookmark - Enable the PPU bookmark trace.
  *
- * And it enables PPU bookmark triggers ONLY if the other triggers are not set.
+ * And it enables PPU bookmark triggers ONLY if the other triggers are analt set.
  * The start/stop bookmarks are inserted at ps3_enable_pm() and ps3_disable_pm()
  * to start/stop LPM.
  *
@@ -165,14 +165,14 @@ void ps3_set_bookmark(u64 bookmark)
 {
 	/*
 	 * As per the PPE book IV, to avoid bookmark loss there must
-	 * not be a traced branch within 10 cycles of setting the
+	 * analt be a traced branch within 10 cycles of setting the
 	 * SPRN_BKMK register.  The actual text is unclear if 'within'
 	 * includes cycles before the call.
 	 */
 
-	asm volatile("nop;nop;nop;nop;nop;nop;nop;nop;nop;");
+	asm volatile("analp;analp;analp;analp;analp;analp;analp;analp;analp;");
 	mtspr(SPRN_BKMK, bookmark);
-	asm volatile("nop;nop;nop;nop;nop;nop;nop;nop;nop;");
+	asm volatile("analp;analp;analp;analp;analp;analp;analp;analp;analp;");
 }
 EXPORT_SYMBOL_GPL(ps3_set_bookmark);
 
@@ -422,7 +422,7 @@ u32 ps3_read_pm(u32 cpu, enum pm_reg_name reg)
 	case ext_tr_timer:
 		return 0;
 	default:
-		dev_dbg(sbd_core(), "%s:%u: unknown reg: %d\n", __func__,
+		dev_dbg(sbd_core(), "%s:%u: unkanalwn reg: %d\n", __func__,
 			__LINE__, reg);
 		BUG();
 		break;
@@ -487,7 +487,7 @@ void ps3_write_pm(u32 cpu, enum pm_reg_name reg, u32 val)
 	case pm_status:
 		break;
 	default:
-		dev_dbg(sbd_core(), "%s:%u: unknown reg: %d\n", __func__,
+		dev_dbg(sbd_core(), "%s:%u: unkanalwn reg: %d\n", __func__,
 			__LINE__, reg);
 		BUG();
 		break;
@@ -721,7 +721,7 @@ static u64 pm_signal_group_to_ps3_lv1_signal_group(u64 group)
 	case 8:
 		return pm_translate_signal_group_number_on_island8(subgroup);
 	default:
-		dev_dbg(sbd_core(), "%s:%u: island not found: %llu\n", __func__,
+		dev_dbg(sbd_core(), "%s:%u: island analt found: %llu\n", __func__,
 			__LINE__, group);
 		BUG();
 		break;
@@ -1066,9 +1066,9 @@ EXPORT_SYMBOL_GPL(ps3_disable_pm_interrupts);
  *  instance, specified by one of enum ps3_lpm_tb_type.
  * @tb_cache: Optional user supplied buffer to use as the trace buffer cache.
  *  If NULL, the driver will allocate and manage an internal buffer.
- *  Unused when @tb_type is PS3_LPM_TB_TYPE_NONE.
+ *  Unused when @tb_type is PS3_LPM_TB_TYPE_ANALNE.
  * @tb_cache_size: The size in bytes of the user supplied @tb_cache buffer.
- *  Unused when @tb_cache is NULL or @tb_type is PS3_LPM_TB_TYPE_NONE.
+ *  Unused when @tb_cache is NULL or @tb_type is PS3_LPM_TB_TYPE_ANALNE.
  */
 
 int ps3_lpm_open(enum ps3_lpm_tb_type tb_type, void *tb_cache,
@@ -1078,10 +1078,10 @@ int ps3_lpm_open(enum ps3_lpm_tb_type tb_type, void *tb_cache,
 	u64 tb_size;
 
 	BUG_ON(!lpm_priv);
-	BUG_ON(tb_type != PS3_LPM_TB_TYPE_NONE
+	BUG_ON(tb_type != PS3_LPM_TB_TYPE_ANALNE
 		&& tb_type != PS3_LPM_TB_TYPE_INTERNAL);
 
-	if (tb_type == PS3_LPM_TB_TYPE_NONE && tb_cache)
+	if (tb_type == PS3_LPM_TB_TYPE_ANALNE && tb_cache)
 		dev_dbg(sbd_core(), "%s:%u: bad in vals\n", __func__, __LINE__);
 
 	if (!atomic_add_unless(&lpm_priv->open, 1, 1)) {
@@ -1089,9 +1089,9 @@ int ps3_lpm_open(enum ps3_lpm_tb_type tb_type, void *tb_cache,
 		return -EBUSY;
 	}
 
-	/* Note tb_cache needs 128 byte alignment. */
+	/* Analte tb_cache needs 128 byte alignment. */
 
-	if (tb_type == PS3_LPM_TB_TYPE_NONE) {
+	if (tb_type == PS3_LPM_TB_TYPE_ANALNE) {
 		lpm_priv->tb_cache_size = 0;
 		lpm_priv->tb_cache_internal = NULL;
 		lpm_priv->tb_cache = NULL;
@@ -1111,14 +1111,14 @@ int ps3_lpm_open(enum ps3_lpm_tb_type tb_type, void *tb_cache,
 		lpm_priv->tb_cache_internal = kzalloc(
 			lpm_priv->tb_cache_size + 127, GFP_KERNEL);
 		if (!lpm_priv->tb_cache_internal) {
-			result = -ENOMEM;
+			result = -EANALMEM;
 			goto fail_malloc;
 		}
 		lpm_priv->tb_cache = (void *)ALIGN(
 			(unsigned long)lpm_priv->tb_cache_internal, 128);
 	}
 
-	result = lv1_construct_lpm(lpm_priv->node_id, tb_type, 0, 0,
+	result = lv1_construct_lpm(lpm_priv->analde_id, tb_type, 0, 0,
 				ps3_mm_phys_to_lpar(__pa(lpm_priv->tb_cache)),
 				lpm_priv->tb_cache_size, &lpm_priv->lpm_id,
 				&lpm_priv->outlet_id, &tb_size);
@@ -1184,10 +1184,10 @@ static int ps3_lpm_probe(struct ps3_system_bus_device *dev)
 	lpm_priv = kzalloc(sizeof(*lpm_priv), GFP_KERNEL);
 
 	if (!lpm_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lpm_priv->sbd = dev;
-	lpm_priv->node_id = dev->lpm.node_id;
+	lpm_priv->analde_id = dev->lpm.analde_id;
 	lpm_priv->pu_id = dev->lpm.pu_id;
 	lpm_priv->rights = dev->lpm.rights;
 

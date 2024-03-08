@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2019 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2019 Mellaanalx Techanallogies. All rights reserved.
  */
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_counter.h>
@@ -49,14 +49,14 @@ int rdma_counter_set_auto_mode(struct ib_device *dev, u32 port,
 
 	port_counter = &dev->port_data[port].port_counter;
 	if (!port_counter->hstats)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&port_counter->lock);
 	if (mask)
 		mode = RDMA_COUNTER_MODE_AUTO;
 	else
 		mode = (port_counter->num_counters) ? RDMA_COUNTER_MODE_MANUAL :
-						      RDMA_COUNTER_MODE_NONE;
+						      RDMA_COUNTER_MODE_ANALNE;
 
 	if (port_counter->mode.mode == mode &&
 	    port_counter->mode.mask == mask) {
@@ -71,7 +71,7 @@ out:
 	if (ret == -EBUSY)
 		NL_SET_ERR_MSG(
 			extack,
-			"Modifying auto mode is not allowed when there is a bound QP");
+			"Modifying auto mode is analt allowed when there is a bound QP");
 	return ret;
 }
 
@@ -97,7 +97,7 @@ static int __rdma_counter_bind_qp(struct rdma_counter *counter,
 		return -EINVAL;
 
 	if (!qp->device->ops.counter_bind_qp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&counter->lock);
 	ret = qp->device->ops.counter_bind_qp(counter, qp);
@@ -113,7 +113,7 @@ int rdma_counter_modify(struct ib_device *dev, u32 port,
 	int ret = 0;
 
 	if (!dev->ops.modify_hw_stat)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	stats = ib_get_hw_stats_port(dev, port);
 	if (!stats || index >= stats->num_counters ||
@@ -176,7 +176,7 @@ static struct rdma_counter *alloc_and_bind(struct ib_device *dev, u32 port,
 		auto_mode_init_counter(counter, qp, port_counter->mode.mask);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		mutex_unlock(&port_counter->lock);
 		goto err_mode;
 	}
@@ -213,7 +213,7 @@ static void rdma_counter_free(struct rdma_counter *counter)
 	port_counter->num_counters--;
 	if (!port_counter->num_counters &&
 	    (port_counter->mode.mode == RDMA_COUNTER_MODE_MANUAL))
-		__counter_set_mode(port_counter, RDMA_COUNTER_MODE_NONE, 0);
+		__counter_set_mode(port_counter, RDMA_COUNTER_MODE_ANALNE, 0);
 
 	mutex_unlock(&port_counter->lock);
 
@@ -244,7 +244,7 @@ static int __rdma_counter_unbind_qp(struct ib_qp *qp)
 	int ret;
 
 	if (!qp->device->ops.counter_unbind_qp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&counter->lock);
 	ret = qp->device->ops.counter_unbind_qp(qp);
@@ -347,7 +347,7 @@ int rdma_counter_bind_qp_auto(struct ib_qp *qp, u32 port)
 	} else {
 		counter = alloc_and_bind(dev, port, qp, RDMA_COUNTER_MODE_AUTO);
 		if (!counter)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -495,11 +495,11 @@ int rdma_counter_bind_qpn(struct ib_device *dev, u32 port,
 
 	qp = rdma_counter_get_qp(dev, qp_num);
 	if (!qp)
-		return -ENOENT;
+		return -EANALENT;
 
 	counter = rdma_get_counter_by_id(dev, counter_id);
 	if (!counter) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err;
 	}
 
@@ -544,14 +544,14 @@ int rdma_counter_bind_qpn_alloc(struct ib_device *dev, u32 port,
 
 	port_counter = &dev->port_data[port].port_counter;
 	if (!port_counter->hstats)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (port_counter->mode.mode == RDMA_COUNTER_MODE_AUTO)
 		return -EINVAL;
 
 	qp = rdma_counter_get_qp(dev, qp_num);
 	if (!qp)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (rdma_is_port_valid(dev, qp->port) && (qp->port != port)) {
 		ret = -EINVAL;
@@ -560,7 +560,7 @@ int rdma_counter_bind_qpn_alloc(struct ib_device *dev, u32 port,
 
 	counter = alloc_and_bind(dev, port, qp, RDMA_COUNTER_MODE_MANUAL);
 	if (!counter) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -590,7 +590,7 @@ int rdma_counter_unbind_qpn(struct ib_device *dev, u32 port,
 
 	qp = rdma_counter_get_qp(dev, qp_num);
 	if (!qp)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (rdma_is_port_valid(dev, qp->port) && (qp->port != port)) {
 		ret = -EINVAL;
@@ -634,7 +634,7 @@ void rdma_counter_init(struct ib_device *dev)
 
 	rdma_for_each_port(dev, port) {
 		port_counter = &dev->port_data[port].port_counter;
-		port_counter->mode.mode = RDMA_COUNTER_MODE_NONE;
+		port_counter->mode.mode = RDMA_COUNTER_MODE_ANALNE;
 		mutex_init(&port_counter->lock);
 
 		if (!dev->ops.alloc_hw_port_stats)

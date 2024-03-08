@@ -125,7 +125,7 @@ static int histb_rng_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -133,8 +133,8 @@ static int histb_rng_probe(struct platform_device *pdev)
 
 	histb_rng_init(base, 144);
 	if (histb_rng_wait(base)) {
-		dev_err(dev, "cannot bring up device\n");
-		return -ENODEV;
+		dev_err(dev, "cananalt bring up device\n");
+		return -EANALDEV;
 	}
 
 	priv->base = base;

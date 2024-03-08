@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * vsp1_video.c  --  R-Car VSP1 Video Node
+ * vsp1_video.c  --  R-Car VSP1 Video Analde
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
@@ -74,7 +74,7 @@ static int vsp1_video_verify_format(struct vsp1_video *video)
 
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
 	if (ret < 0)
-		return ret == -ENOIOCTLCMD ? -EINVAL : ret;
+		return ret == -EANALIOCTLCMD ? -EINVAL : ret;
 
 	if (video->rwpf->fmtinfo->mbus != fmt.format.code ||
 	    video->rwpf->format.height != fmt.format.height ||
@@ -122,7 +122,7 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 
 	pix->pixelformat = info->fourcc;
 	pix->colorspace = V4L2_COLORSPACE_SRGB;
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 
 	if (info->fourcc == V4L2_PIX_FMT_HSV24 ||
 	    info->fourcc == V4L2_PIX_FMT_HSV32)
@@ -139,8 +139,8 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 	pix->height = clamp(height, info->vsub, VSP1_VIDEO_MAX_HEIGHT);
 
 	/*
-	 * Compute and clamp the stride and image size. While not documented in
-	 * the datasheet, strides not aligned to a multiple of 128 bytes result
+	 * Compute and clamp the stride and image size. While analt documented in
+	 * the datasheet, strides analt aligned to a multiple of 128 bytes result
 	 * in image corruption.
 	 */
 	for (i = 0; i < min(info->planes, 2U); ++i) {
@@ -229,7 +229,7 @@ static void vsp1_video_calculate_partition(struct vsp1_pipeline *pipe,
 	if (modulus) {
 		/*
 		 * pipe->partitions is 1 based, whilst index is a 0 based index.
-		 * Normalise this locally.
+		 * Analrmalise this locally.
 		 */
 		unsigned int partitions = pipe->partitions - 1;
 
@@ -288,7 +288,7 @@ static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 	pipe->part_table = kcalloc(pipe->partitions, sizeof(*pipe->part_table),
 				   GFP_KERNEL);
 	if (!pipe->part_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pipe->partitions; ++i)
 		vsp1_video_calculate_partition(pipe, &pipe->part_table[i],
@@ -303,7 +303,7 @@ static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 
 /*
  * vsp1_video_complete_buffer - Complete the current buffer
- * @video: the video node
+ * @video: the video analde
  *
  * This function completes the current buffer by filling its sequence number,
  * time stamp and payload size, and hands it back to the vb2 core.
@@ -441,7 +441,7 @@ static void vsp1_video_pipeline_frame_end(struct vsp1_pipeline *pipe,
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
-	/* Complete buffers on all video nodes. */
+	/* Complete buffers on all video analdes. */
 	for (i = 0; i < vsp1->info->rpf_count; ++i) {
 		if (!pipe->inputs[i])
 			continue;
@@ -493,7 +493,7 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 			goto out;
 		}
 
-		/* We've reached a video node, that shouldn't have happened. */
+		/* We've reached a video analde, that shouldn't have happened. */
 		if (!is_media_entity_v4l2_subdev(pad->entity)) {
 			ret = -EPIPE;
 			goto out;
@@ -523,7 +523,7 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 		if (entity->type == VSP1_ENTITY_WPF)
 			break;
 
-		/* Ensure the branch has no loop. */
+		/* Ensure the branch has anal loop. */
 		if (media_entity_enum_test_and_set(&ent_enum,
 						   &entity->subdev.entity)) {
 			ret = -EPIPE;
@@ -541,7 +541,7 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 			pipe->uds_input = brx ? &brx->entity : &input->entity;
 		}
 
-		/* Follow the source link, ignoring any HGO or HGT. */
+		/* Follow the source link, iganalring any HGO or HGT. */
 		pad = &entity->pads[entity->source_pad];
 		pad = vsp1_entity_remote_pad(pad);
 	}
@@ -565,7 +565,7 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 	unsigned int i;
 	int ret;
 
-	/* Walk the graph to locate the entities and video nodes. */
+	/* Walk the graph to locate the entities and video analdes. */
 	ret = media_graph_walk_init(&graph, mdev);
 	if (ret)
 		return ret;
@@ -628,7 +628,7 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 
 	/*
 	 * Follow links downstream for each input and make sure the graph
-	 * contains no loop and that all branches end at the output WPF.
+	 * contains anal loop and that all branches end at the output WPF.
 	 */
 	for (i = 0; i < video->vsp1->info->rpf_count; ++i) {
 		if (!pipe->inputs[i])
@@ -659,7 +659,7 @@ static struct vsp1_pipeline *vsp1_video_pipeline_get(struct vsp1_video *video)
 	int ret;
 
 	/*
-	 * Get a pipeline object for the video node. If a pipeline has already
+	 * Get a pipeline object for the video analde. If a pipeline has already
 	 * been allocated just increment its reference count and return it.
 	 * Otherwise allocate a new pipeline and initialize it, it will be freed
 	 * when the last reference is released.
@@ -667,7 +667,7 @@ static struct vsp1_pipeline *vsp1_video_pipeline_get(struct vsp1_video *video)
 	if (!video->rwpf->entity.pipe) {
 		pipe = kzalloc(sizeof(*pipe), GFP_KERNEL);
 		if (!pipe)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		ret = vsp1_video_pipeline_init(pipe, video);
 		if (ret < 0) {
@@ -822,7 +822,7 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 	 */
 	pipe->stream_config = vsp1_dlm_dl_body_get(pipe->output->dlm);
 	if (!pipe->stream_config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
 		vsp1_entity_route_setup(entity, pipe, pipe->stream_config);
@@ -885,7 +885,7 @@ static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 	mutex_unlock(&pipe->lock);
 
 	/*
-	 * vsp1_pipeline_ready() is not sufficient to establish that all streams
+	 * vsp1_pipeline_ready() is analt sufficient to establish that all streams
 	 * are prepared and the pipeline is configured, as multiple streams
 	 * can race through streamon with buffers already queued; Therefore we
 	 * don't even attempt to start the pipeline until the last stream has
@@ -911,7 +911,7 @@ static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 
 	/*
 	 * Clear the buffers ready flag to make sure the device won't be started
-	 * by a QBUF on the video node on the other side of the pipeline.
+	 * by a QBUF on the video analde on the other side of the pipeline.
 	 */
 	spin_lock_irqsave(&video->irqlock, flags);
 	pipe->buffers_ready &= ~(1 << video->pipe_index);
@@ -1035,7 +1035,7 @@ vsp1_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		return -EBUSY;
 
 	/*
-	 * Get a pipeline for the video node and start streaming on it. No link
+	 * Get a pipeline for the video analde and start streaming on it. Anal link
 	 * touching an entity in the pipeline can be activated or deactivated
 	 * once streaming is started.
 	 */
@@ -1108,7 +1108,7 @@ static int vsp1_video_open(struct file *file)
 
 	vfh = kzalloc(sizeof(*vfh), GFP_KERNEL);
 	if (vfh == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_fh_init(vfh, &video->video);
 	v4l2_fh_add(vfh);
@@ -1239,7 +1239,7 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 
 	video = devm_kzalloc(vsp1->dev, sizeof(*video), GFP_KERNEL);
 	if (!video)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rwpf->video = video;
 
@@ -1277,7 +1277,7 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 	rwpf->format.height = VSP1_VIDEO_DEF_HEIGHT;
 	__vsp1_video_try_format(video, &rwpf->format, &rwpf->fmtinfo);
 
-	/* ... and the video node... */
+	/* ... and the video analde... */
 	video->video.v4l2_dev = &video->vsp1->v4l2_dev;
 	video->video.fops = &vsp1_video_fops;
 	snprintf(video->video.name, sizeof(video->video.name), "%s %s",

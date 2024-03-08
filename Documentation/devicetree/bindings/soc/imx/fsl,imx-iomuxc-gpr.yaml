@@ -41,7 +41,7 @@ required:
   - reg
 
 examples:
-  # Pinmux controller node
+  # Pinmux controller analde
   - |
     iomuxc_gpr: syscon@30340000 {
         compatible = "fsl,imx8mq-iomuxc-gpr", "syscon", "simple-mfd";

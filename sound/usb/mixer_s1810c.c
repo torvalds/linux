@@ -7,7 +7,7 @@
  * between the windows driver / Univeral Control (UC) program
  * and the device, through usbmon.
  *
- * For now this bypasses the mixer, with all channels split,
+ * For analw this bypasses the mixer, with all channels split,
  * so that the software can mix with greater flexibility.
  * It also adds controls for the 4 buttons on the front of
  * the device.
@@ -64,7 +64,7 @@
  * 4 -> ADAT?
  *
  * For device (0):
- *  * b and c are not used, at least not on the
+ *  * b and c are analt used, at least analt on the
  *    dumps I got.
  *  * d sets the control id to be modified
  *    (see below).
@@ -148,7 +148,7 @@ snd_s1810c_send_ctl_packet(struct usb_device *dev, u32 a,
 	/*
 	 * Value for settings 0/1 for this
 	 * output channel is always 0 (probably because
-	 * there is no ADAT output on 1810c)
+	 * there is anal ADAT output on 1810c)
 	 */
 	pkt.e = (c == 4) ? 0 : e;
 
@@ -156,7 +156,7 @@ snd_s1810c_send_ctl_packet(struct usb_device *dev, u32 a,
 			      SC1810C_CMD_REQ,
 			      SC1810C_CMD_REQTYPE, 0, 0, &pkt, sizeof(pkt));
 	if (ret < 0) {
-		dev_warn(&dev->dev, "could not send ctl packet\n");
+		dev_warn(&dev->dev, "could analt send ctl packet\n");
 		return ret;
 	}
 	return 0;
@@ -167,7 +167,7 @@ snd_s1810c_send_ctl_packet(struct usb_device *dev, u32 a,
  * sends and receives state packets for syncinc state between
  * the device and the host.
  *
- * Note that if we send only the request to get data back we'll
+ * Analte that if we send only the request to get data back we'll
  * get an error, we need to first send an empty state packet and
  * then ask to receive a filled. Their seqnumbers must also match.
  */
@@ -186,7 +186,7 @@ snd_sc1810c_get_status_field(struct usb_device *dev,
 			      SC1810C_SET_STATE_REQTYPE,
 			      (*seqnum), 0, &pkt_out, sizeof(pkt_out));
 	if (ret < 0) {
-		dev_warn(&dev->dev, "could not send state packet (%d)\n", ret);
+		dev_warn(&dev->dev, "could analt send state packet (%d)\n", ret);
 		return ret;
 	}
 
@@ -195,7 +195,7 @@ snd_sc1810c_get_status_field(struct usb_device *dev,
 			      SC1810C_GET_STATE_REQTYPE,
 			      (*seqnum), 0, &pkt_in, sizeof(pkt_in));
 	if (ret < 0) {
-		dev_warn(&dev->dev, "could not get state field %u (%d)\n",
+		dev_warn(&dev->dev, "could analt get state field %u (%d)\n",
 			 field_idx, ret);
 		return ret;
 	}
@@ -207,7 +207,7 @@ snd_sc1810c_get_status_field(struct usb_device *dev,
 
 /*
  * This is what I got when bypassing the mixer with
- * all channels split. I'm not 100% sure of what's going
+ * all channels split. I'm analt 100% sure of what's going
  * on, I could probably clean this up based on my observations
  * but I prefer to keep the same behavior as the windows driver.
  */
@@ -232,7 +232,7 @@ static int snd_s1810c_init_mixer_maps(struct snd_usb_audio *chip)
 			snd_s1810c_send_ctl_packet(dev, a, b, 0, 1, e);
 		}
 		/*
-		 * I noticed on UC that DAW channels have different
+		 * I analticed on UC that DAW channels have different
 		 * initial volumes, so this makes sense.
 		 */
 		e = 0xb53bf0;
@@ -455,7 +455,7 @@ snd_s1810c_switch_init(struct usb_mixer_interface *mixer,
 
 	elem = kzalloc(sizeof(struct usb_mixer_elem_info), GFP_KERNEL);
 	if (!elem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	elem->head.mixer = mixer;
 	elem->control = 0;
@@ -465,7 +465,7 @@ snd_s1810c_switch_init(struct usb_mixer_interface *mixer,
 	kctl = snd_ctl_new1(new_kctl, elem);
 	if (!kctl) {
 		kfree(elem);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	kctl->private_free = snd_usb_mixer_elem_free;
 
@@ -496,7 +496,7 @@ static const struct snd_kcontrol_new snd_s1810c_line_sw = {
 static const struct snd_kcontrol_new snd_s1810c_mute_sw = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Mute Main Out Switch",
-	.info = snd_ctl_boolean_mono_info,
+	.info = snd_ctl_boolean_moanal_info,
 	.get = snd_s1810c_switch_get,
 	.put = snd_s1810c_switch_set,
 	.private_value = (SC1810C_STATE_MUTE_SW | SC1810C_CTL_MUTE_SW << 8)
@@ -505,7 +505,7 @@ static const struct snd_kcontrol_new snd_s1810c_mute_sw = {
 static const struct snd_kcontrol_new snd_s1810c_48v_sw = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "48V Phantom Power On Mic Inputs Switch",
-	.info = snd_ctl_boolean_mono_info,
+	.info = snd_ctl_boolean_moanal_info,
 	.get = snd_s1810c_switch_get,
 	.put = snd_s1810c_switch_set,
 	.private_value = (SC1810C_STATE_48V_SW | SC1810C_CTL_48V_SW << 8)
@@ -566,7 +566,7 @@ int snd_sc1810_init_mixer(struct usb_mixer_interface *mixer)
 
 	private = kzalloc(sizeof(struct s1810_mixer_state), GFP_KERNEL);
 	if (!private)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&private->usb_mutex);
 	mutex_init(&private->data_mutex);

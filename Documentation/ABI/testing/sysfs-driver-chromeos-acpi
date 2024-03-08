@@ -19,7 +19,7 @@ Description:
 
 		== =====================================
 		0  Recovery.
-		1  Normal.
+		1  Analrmal.
 		2  Developer.
 		3  Netboot (factory installation only).
 		== =====================================
@@ -33,7 +33,7 @@ Description:
 		switches when the firmware is booted (integer).
 
 		==== ===========================================
-		0    No changes.
+		0    Anal changes.
 		2    Recovery button was pressed.
 		4    Recovery button was pressed (EC firmware).
 		32   Developer switch was enabled.
@@ -121,7 +121,7 @@ Description:
 		Returns the SHA-1 or SHA-256 hash that is read out of the
 		Management Engine extended registers during boot. The hash
 		is exported via ACPI so the OS can verify that the Management
-		Engine firmware has not changed. If Management Engine is not
+		Engine firmware has analt changed. If Management Engine is analt
 		present, or if the firmware was unable to read the extended registers, this buffer size can be zero.
 
 What:		/sys/bus/platform/devices/GGL0001:*/VBNV.0
@@ -129,7 +129,7 @@ What:		/sys/bus/platform/devices/GGL0001:*/VBNV.0
 Date:		May 2022
 KernelVersion:	5.19
 Description:
-		Returns offset in CMOS bank 0 of the verified boot non-volatile
+		Returns offset in CMOS bank 0 of the verified boot analn-volatile
 		storage block, counting from the first writable CMOS byte
 		(that is, 'offset = 0' is the byte following the 14 bytes of
 		clock data).
@@ -139,7 +139,7 @@ What:		/sys/bus/platform/devices/GGL0001:*/VBNV.1
 Date:		May 2022
 KernelVersion:	5.19
 Description:
-		Return the size in bytes of the verified boot non-volatile
+		Return the size in bytes of the verified boot analn-volatile
 		storage block.
 
 What:		/sys/bus/platform/devices/GGL0001:*/VDAT

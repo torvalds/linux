@@ -141,7 +141,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f12@12 {
@@ -225,7 +225,7 @@
 &pm8994_gpios {
 	bt_en_gpios: bt-en-gpios-state {
 		pins = "gpio19";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		output-low;
 		power-source = <PM8994_GPIO_S4>;
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
@@ -234,7 +234,7 @@
 
 	wlan_en_gpios: wlan-en-gpios-state {
 		pins = "gpio8";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		output-low;
 		power-source = <PM8994_GPIO_S4>;
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
@@ -548,7 +548,7 @@
 			"AMIC4", "MIC BIAS1",
 			"MIC BIAS1", "Primary Mic",
 			"AMIC5", "MIC BIAS3",
-			"MIC BIAS3", "Noise Mic";
+			"MIC BIAS3", "Analise Mic";
 
 	mm1-dai-link {
 		link-name = "MultiMedia1";

@@ -49,7 +49,7 @@ void ipu_srm_dp_update(struct ipu_soc *ipu, bool sync)
 	val = ipu_cm_read(ipu, IPU_SRM_PRI2);
 	val &= ~DP_S_SRM_MODE_MASK;
 	val |= sync ? DP_S_SRM_MODE_NEXT_FRAME :
-		      DP_S_SRM_MODE_NOW;
+		      DP_S_SRM_MODE_ANALW;
 	ipu_cm_write(ipu, val, IPU_SRM_PRI2);
 }
 EXPORT_SYMBOL_GPL(ipu_srm_dp_update);
@@ -95,7 +95,7 @@ enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc)
 	case DRM_FORMAT_NV61:
 		return IPUV3_COLORSPACE_YUV;
 	default:
-		return IPUV3_COLORSPACE_UNKNOWN;
+		return IPUV3_COLORSPACE_UNKANALWN;
 	}
 }
 EXPORT_SYMBOL_GPL(ipu_drm_fourcc_to_colorspace);
@@ -128,7 +128,7 @@ enum ipu_color_space ipu_pixelformat_to_colorspace(u32 pixelformat)
 	case V4L2_PIX_FMT_BGR32:
 		return IPUV3_COLORSPACE_RGB;
 	default:
-		return IPUV3_COLORSPACE_UNKNOWN;
+		return IPUV3_COLORSPACE_UNKANALWN;
 	}
 }
 EXPORT_SYMBOL_GPL(ipu_pixelformat_to_colorspace);
@@ -177,7 +177,7 @@ int ipu_rot_mode_to_degrees(int *degrees, enum ipu_rotate_mode mode,
 	vf ^= (u32)vflip;
 
 	switch ((enum ipu_rotate_mode)((r90 << 2) | (hf << 1) | vf)) {
-	case IPU_ROTATE_NONE:
+	case IPU_ROTATE_ANALNE:
 		*degrees = 0;
 		break;
 	case IPU_ROTATE_90_RIGHT:
@@ -204,7 +204,7 @@ struct ipuv3_channel *ipu_idmac_get(struct ipu_soc *ipu, unsigned num)
 	dev_dbg(ipu->dev, "%s %d\n", __func__, num);
 
 	if (num > 63)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	mutex_lock(&ipu->channel_lock);
 
@@ -217,7 +217,7 @@ struct ipuv3_channel *ipu_idmac_get(struct ipu_soc *ipu, unsigned num)
 
 	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
 	if (!channel) {
-		channel = ERR_PTR(-ENOMEM);
+		channel = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
@@ -263,9 +263,9 @@ EXPORT_SYMBOL_GPL(ipu_idmac_put);
 static void __ipu_idmac_reset_current_buffer(struct ipuv3_channel *channel)
 {
 	struct ipu_soc *ipu = channel->ipu;
-	unsigned int chno = channel->num;
+	unsigned int chanal = channel->num;
 
-	ipu_cm_write(ipu, idma_mask(chno), IPU_CHA_CUR_BUF(chno));
+	ipu_cm_write(ipu, idma_mask(chanal), IPU_CHA_CUR_BUF(chanal));
 }
 
 void ipu_idmac_set_double_buffer(struct ipuv3_channel *channel,
@@ -422,9 +422,9 @@ EXPORT_SYMBOL_GPL(ipu_module_disable);
 int ipu_idmac_get_current_buffer(struct ipuv3_channel *channel)
 {
 	struct ipu_soc *ipu = channel->ipu;
-	unsigned int chno = channel->num;
+	unsigned int chanal = channel->num;
 
-	return (ipu_cm_read(ipu, IPU_CHA_CUR_BUF(chno)) & idma_mask(chno)) ? 1 : 0;
+	return (ipu_cm_read(ipu, IPU_CHA_CUR_BUF(chanal)) & idma_mask(chanal)) ? 1 : 0;
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_get_current_buffer);
 
@@ -455,16 +455,16 @@ EXPORT_SYMBOL_GPL(ipu_idmac_buffer_is_ready);
 void ipu_idmac_select_buffer(struct ipuv3_channel *channel, u32 buf_num)
 {
 	struct ipu_soc *ipu = channel->ipu;
-	unsigned int chno = channel->num;
+	unsigned int chanal = channel->num;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ipu->lock, flags);
 
 	/* Mark buffer as ready. */
 	if (buf_num == 0)
-		ipu_cm_write(ipu, idma_mask(chno), IPU_CHA_BUF0_RDY(chno));
+		ipu_cm_write(ipu, idma_mask(chanal), IPU_CHA_BUF0_RDY(chanal));
 	else
-		ipu_cm_write(ipu, idma_mask(chno), IPU_CHA_BUF1_RDY(chno));
+		ipu_cm_write(ipu, idma_mask(chanal), IPU_CHA_BUF1_RDY(chanal));
 
 	spin_unlock_irqrestore(&ipu->lock, flags);
 }
@@ -473,7 +473,7 @@ EXPORT_SYMBOL_GPL(ipu_idmac_select_buffer);
 void ipu_idmac_clear_buffer(struct ipuv3_channel *channel, u32 buf_num)
 {
 	struct ipu_soc *ipu = channel->ipu;
-	unsigned int chno = channel->num;
+	unsigned int chanal = channel->num;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ipu->lock, flags);
@@ -481,13 +481,13 @@ void ipu_idmac_clear_buffer(struct ipuv3_channel *channel, u32 buf_num)
 	ipu_cm_write(ipu, 0xF0300000, IPU_GPR); /* write one to clear */
 	switch (buf_num) {
 	case 0:
-		ipu_cm_write(ipu, idma_mask(chno), IPU_CHA_BUF0_RDY(chno));
+		ipu_cm_write(ipu, idma_mask(chanal), IPU_CHA_BUF0_RDY(chanal));
 		break;
 	case 1:
-		ipu_cm_write(ipu, idma_mask(chno), IPU_CHA_BUF1_RDY(chno));
+		ipu_cm_write(ipu, idma_mask(chanal), IPU_CHA_BUF1_RDY(chanal));
 		break;
 	case 2:
-		ipu_cm_write(ipu, idma_mask(chno), IPU_CHA_BUF2_RDY(chno));
+		ipu_cm_write(ipu, idma_mask(chanal), IPU_CHA_BUF2_RDY(chanal));
 		break;
 	default:
 		break;
@@ -516,9 +516,9 @@ int ipu_idmac_enable_channel(struct ipuv3_channel *channel)
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_enable_channel);
 
-bool ipu_idmac_channel_busy(struct ipu_soc *ipu, unsigned int chno)
+bool ipu_idmac_channel_busy(struct ipu_soc *ipu, unsigned int chanal)
 {
-	return (ipu_idmac_read(ipu, IDMAC_CHA_BUSY(chno)) & idma_mask(chno));
+	return (ipu_idmac_read(ipu, IDMAC_CHA_BUSY(chanal)) & idma_mask(chanal));
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_channel_busy);
 
@@ -554,7 +554,7 @@ int ipu_idmac_disable_channel(struct ipuv3_channel *channel)
 
 	__ipu_idmac_reset_current_buffer(channel);
 
-	/* Set channel buffers NOT to be ready */
+	/* Set channel buffers ANALT to be ready */
 	ipu_cm_write(ipu, 0xf0000000, IPU_GPR); /* write one to clear */
 
 	if (ipu_cm_read(ipu, IPU_CHA_BUF0_RDY(channel->num)) &
@@ -679,7 +679,7 @@ EXPORT_SYMBOL_GPL(ipu_set_ic_src_mux);
 /* Frame Synchronization Unit Channel Linking */
 
 struct fsu_link_reg_info {
-	int chno;
+	int chanal;
 	u32 reg;
 	u32 mask;
 	u32 val;
@@ -718,8 +718,8 @@ static const struct fsu_link_info *find_fsu_link_info(int src, int sink)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(fsu_link_info); i++) {
-		if (src == fsu_link_info[i].src.chno &&
-		    sink == fsu_link_info[i].sink.chno)
+		if (src == fsu_link_info[i].src.chanal &&
+		    sink == fsu_link_info[i].sink.chanal)
 			return &fsu_link_info[i];
 	}
 
@@ -1096,7 +1096,7 @@ struct ipu_platform_reg {
 	const char *name;
 };
 
-/* These must be in the order of the corresponding device tree port nodes */
+/* These must be in the order of the corresponding device tree port analdes */
 static struct ipu_platform_reg client_reg[] = {
 	{
 		.pdata = {
@@ -1150,28 +1150,28 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 	for (i = 0; i < ARRAY_SIZE(client_reg); i++) {
 		struct ipu_platform_reg *reg = &client_reg[i];
 		struct platform_device *pdev;
-		struct device_node *of_node;
+		struct device_analde *of_analde;
 
-		/* Associate subdevice with the corresponding port node */
-		of_node = of_graph_get_port_by_id(dev->of_node, i);
-		if (!of_node) {
+		/* Associate subdevice with the corresponding port analde */
+		of_analde = of_graph_get_port_by_id(dev->of_analde, i);
+		if (!of_analde) {
 			dev_info(dev,
-				 "no port@%d node in %pOF, not using %s%d\n",
-				 i, dev->of_node,
+				 "anal port@%d analde in %pOF, analt using %s%d\n",
+				 i, dev->of_analde,
 				 (i / 2) ? "DI" : "CSI", i % 2);
 			continue;
 		}
 
 		pdev = platform_device_alloc(reg->name, id++);
 		if (!pdev) {
-			ret = -ENOMEM;
-			of_node_put(of_node);
+			ret = -EANALMEM;
+			of_analde_put(of_analde);
 			goto err_register;
 		}
 
 		pdev->dev.parent = dev;
 
-		reg->pdata.of_node = of_node;
+		reg->pdata.of_analde = of_analde;
 		ret = platform_device_add_data(pdev, &reg->pdata,
 					       sizeof(reg->pdata));
 		if (!ret)
@@ -1207,11 +1207,11 @@ static int ipu_irq_init(struct ipu_soc *ipu)
 	};
 	int ret, i;
 
-	ipu->domain = irq_domain_add_linear(ipu->dev->of_node, IPU_NUM_IRQS,
+	ipu->domain = irq_domain_add_linear(ipu->dev->of_analde, IPU_NUM_IRQS,
 					    &irq_generic_chip_ops, ipu);
 	if (!ipu->domain) {
 		dev_err(ipu->dev, "failed to add irq domain\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = irq_alloc_domain_generic_chips(ipu->domain, 32, 1, "IPU",
@@ -1305,7 +1305,7 @@ EXPORT_SYMBOL_GPL(ipu_dump);
 
 static int ipu_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct ipu_soc *ipu;
 	struct resource *res;
 	unsigned long ipu_base;
@@ -1324,13 +1324,13 @@ static int ipu_probe(struct platform_device *pdev)
 			irq_sync, irq_err);
 
 	if (!res || irq_sync < 0 || irq_err < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ipu_base = res->start;
 
 	ipu = devm_kzalloc(&pdev->dev, sizeof(*ipu), GFP_KERNEL);
 	if (!ipu)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ipu->id = of_alias_get_id(np, "ipu");
 	if (ipu->id < 0)
@@ -1387,7 +1387,7 @@ static int ipu_probe(struct platform_device *pdev)
 			PAGE_SIZE);
 
 	if (!ipu->cm_reg || !ipu->idmac_reg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipu->clk = devm_clk_get(&pdev->dev, "bus");
 	if (IS_ERR(ipu->clk)) {

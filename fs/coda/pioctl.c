@@ -13,7 +13,7 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/stat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/namei.h>
 #include <linux/module.h>
@@ -25,24 +25,24 @@
 
 /* pioctl ops */
 static int coda_ioctl_permission(struct mnt_idmap *idmap,
-				 struct inode *inode, int mask);
+				 struct ianalde *ianalde, int mask);
 static long coda_pioctl(struct file *filp, unsigned int cmd,
 			unsigned long user_data);
 
 /* exported from this file */
-const struct inode_operations coda_ioctl_inode_operations = {
+const struct ianalde_operations coda_ioctl_ianalde_operations = {
 	.permission	= coda_ioctl_permission,
 	.setattr	= coda_setattr,
 };
 
 const struct file_operations coda_ioctl_operations = {
 	.unlocked_ioctl	= coda_pioctl,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
-/* the coda pioctl inode ops */
+/* the coda pioctl ianalde ops */
 static int coda_ioctl_permission(struct mnt_idmap *idmap,
-				 struct inode *inode, int mask)
+				 struct ianalde *ianalde, int mask)
 {
 	return (mask & MAY_EXEC) ? -EACCES : 0;
 }
@@ -53,16 +53,16 @@ static long coda_pioctl(struct file *filp, unsigned int cmd,
 	struct path path;
 	int error;
 	struct PioctlData data;
-	struct inode *inode = file_inode(filp);
-	struct inode *target_inode = NULL;
-	struct coda_inode_info *cnp;
+	struct ianalde *ianalde = file_ianalde(filp);
+	struct ianalde *target_ianalde = NULL;
+	struct coda_ianalde_info *cnp;
 
 	/* get the Pioctl data arguments from user space */
 	if (copy_from_user(&data, (void __user *)user_data, sizeof(data)))
 		return -EINVAL;
 
 	/*
-	 * Look up the pathname. Note that the pathname is in
+	 * Look up the pathname. Analte that the pathname is in
 	 * user memory, and namei takes care of this
 	 */
 	error = user_path_at(AT_FDCWD, data.path,
@@ -70,18 +70,18 @@ static long coda_pioctl(struct file *filp, unsigned int cmd,
 	if (error)
 		return error;
 
-	target_inode = d_inode(path.dentry);
+	target_ianalde = d_ianalde(path.dentry);
 
-	/* return if it is not a Coda inode */
-	if (target_inode->i_sb != inode->i_sb) {
+	/* return if it is analt a Coda ianalde */
+	if (target_ianalde->i_sb != ianalde->i_sb) {
 		error = -EINVAL;
 		goto out;
 	}
 
-	/* now proceed to make the upcall */
-	cnp = ITOC(target_inode);
+	/* analw proceed to make the upcall */
+	cnp = ITOC(target_ianalde);
 
-	error = venus_pioctl(inode->i_sb, &(cnp->c_fid), cmd, &data);
+	error = venus_pioctl(ianalde->i_sb, &(cnp->c_fid), cmd, &data);
 out:
 	path_put(&path);
 	return error;

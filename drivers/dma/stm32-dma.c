@@ -118,7 +118,7 @@
 #define STM32_DMA_FIFO_THRESHOLD_HALFFULL		0x01
 #define STM32_DMA_FIFO_THRESHOLD_3QUARTERSFULL		0x02
 #define STM32_DMA_FIFO_THRESHOLD_FULL			0x03
-#define STM32_DMA_FIFO_THRESHOLD_NONE			0x04
+#define STM32_DMA_FIFO_THRESHOLD_ANALNE			0x04
 
 #define STM32_DMA_MAX_DATA_ITEMS	0xffff
 /*
@@ -274,7 +274,7 @@ static int stm32_dma_get_width(struct stm32_dma_chan *chan,
 	case DMA_SLAVE_BUSWIDTH_4_BYTES:
 		return STM32_DMA_WORD;
 	default:
-		dev_err(chan2dev(chan), "Dma bus width not supported\n");
+		dev_err(chan2dev(chan), "Dma bus width analt supported\n");
 		return -EINVAL;
 	}
 }
@@ -305,7 +305,7 @@ static bool stm32_dma_fifo_threshold_is_allowed(u32 burst, u32 threshold,
 {
 	u32 remaining;
 
-	if (threshold == STM32_DMA_FIFO_THRESHOLD_NONE)
+	if (threshold == STM32_DMA_FIFO_THRESHOLD_ANALNE)
 		return false;
 
 	if (width != DMA_SLAVE_BUSWIDTH_UNDEFINED) {
@@ -329,8 +329,8 @@ static bool stm32_dma_fifo_threshold_is_allowed(u32 burst, u32 threshold,
 
 static bool stm32_dma_is_burst_possible(u32 buf_len, u32 threshold)
 {
-	/* If FIFO direct mode, burst is not possible */
-	if (threshold == STM32_DMA_FIFO_THRESHOLD_NONE)
+	/* If FIFO direct mode, burst is analt possible */
+	if (threshold == STM32_DMA_FIFO_THRESHOLD_ANALNE)
 		return false;
 
 	/*
@@ -374,7 +374,7 @@ static int stm32_dma_get_burst(struct stm32_dma_chan *chan, u32 maxburst)
 	case 16:
 		return STM32_DMA_BURST_INCR16;
 	default:
-		dev_err(chan2dev(chan), "Dma burst size not supported\n");
+		dev_err(chan2dev(chan), "Dma burst size analt supported\n");
 		return -EINVAL;
 	}
 }
@@ -571,7 +571,7 @@ static void stm32_dma_start_transfer(struct stm32_dma_chan *chan)
 		if (!vdesc)
 			return;
 
-		list_del(&vdesc->node);
+		list_del(&vdesc->analde);
 
 		chan->desc = to_stm32_dma_desc(vdesc);
 		chan->next_sg = 0;
@@ -970,7 +970,7 @@ static int stm32_dma_set_xfer_param(struct stm32_dma_chan *chan,
 			return src_bus_width;
 
 		/*
-		 * Set memory burst size - burst not possible if address is not aligned on
+		 * Set memory burst size - burst analt possible if address is analt aligned on
 		 * the address boundary equal to the size of the transfer
 		 */
 		if (buf_addr & (buf_len - 1))
@@ -993,7 +993,7 @@ static int stm32_dma_set_xfer_param(struct stm32_dma_chan *chan,
 
 		/* Set FIFO threshold */
 		chan->chan_reg.dma_sfcr &= ~STM32_DMA_SFCR_FTH_MASK;
-		if (fifoth != STM32_DMA_FIFO_THRESHOLD_NONE)
+		if (fifoth != STM32_DMA_FIFO_THRESHOLD_ANALNE)
 			chan->chan_reg.dma_sfcr |= FIELD_PREP(STM32_DMA_SFCR_FTH_MASK, fifoth);
 
 		/* Set peripheral address */
@@ -1026,7 +1026,7 @@ static int stm32_dma_set_xfer_param(struct stm32_dma_chan *chan,
 			return dst_bus_width;
 
 		/*
-		 * Set memory burst size - burst not possible if address is not aligned on
+		 * Set memory burst size - burst analt possible if address is analt aligned on
 		 * the address boundary equal to the size of the transfer
 		 */
 		if (buf_addr & (buf_len - 1))
@@ -1050,7 +1050,7 @@ static int stm32_dma_set_xfer_param(struct stm32_dma_chan *chan,
 
 		/* Set FIFO threshold */
 		chan->chan_reg.dma_sfcr &= ~STM32_DMA_SFCR_FTH_MASK;
-		if (fifoth != STM32_DMA_FIFO_THRESHOLD_NONE)
+		if (fifoth != STM32_DMA_FIFO_THRESHOLD_ANALNE)
 			chan->chan_reg.dma_sfcr |= FIELD_PREP(STM32_DMA_SFCR_FTH_MASK, fifoth);
 
 		/* Set peripheral address */
@@ -1059,7 +1059,7 @@ static int stm32_dma_set_xfer_param(struct stm32_dma_chan *chan,
 		break;
 
 	default:
-		dev_err(chan2dev(chan), "Dma direction is not supported\n");
+		dev_err(chan2dev(chan), "Dma direction is analt supported\n");
 		return -EINVAL;
 	}
 
@@ -1092,7 +1092,7 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_slave_sg(
 	int i, ret;
 
 	if (!chan->config_init) {
-		dev_err(chan2dev(chan), "dma channel is not configured\n");
+		dev_err(chan2dev(chan), "dma channel is analt configured\n");
 		return NULL;
 	}
 
@@ -1101,7 +1101,7 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_slave_sg(
 		return NULL;
 	}
 
-	desc = kzalloc(struct_size(desc, sg_req, sg_len), GFP_NOWAIT);
+	desc = kzalloc(struct_size(desc, sg_req, sg_len), GFP_ANALWAIT);
 	if (!desc)
 		return NULL;
 	desc->num_sgs = sg_len;
@@ -1129,7 +1129,7 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_slave_sg(
 
 		nb_data_items = desc->sg_req[i].len / buswidth;
 		if (nb_data_items > STM32_DMA_ALIGNED_MAX_DATA_ITEMS) {
-			dev_err(chan2dev(chan), "nb items not supported\n");
+			dev_err(chan2dev(chan), "nb items analt supported\n");
 			goto err;
 		}
 
@@ -1169,23 +1169,23 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_dma_cyclic(
 	}
 
 	if (!chan->config_init) {
-		dev_err(chan2dev(chan), "dma channel is not configured\n");
+		dev_err(chan2dev(chan), "dma channel is analt configured\n");
 		return NULL;
 	}
 
 	if (buf_len % period_len) {
-		dev_err(chan2dev(chan), "buf_len not multiple of period_len\n");
+		dev_err(chan2dev(chan), "buf_len analt multiple of period_len\n");
 		return NULL;
 	}
 
 	/*
 	 * We allow to take more number of requests till DMA is
-	 * not started. The driver will loop over all requests.
+	 * analt started. The driver will loop over all requests.
 	 * Once DMA is started then new requests can be queued only after
 	 * terminating the DMA.
 	 */
 	if (chan->busy) {
-		dev_err(chan2dev(chan), "Request not allowed when dma busy\n");
+		dev_err(chan2dev(chan), "Request analt allowed when dma busy\n");
 		return NULL;
 	}
 
@@ -1196,7 +1196,7 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_dma_cyclic(
 
 	nb_data_items = period_len / buswidth;
 	if (nb_data_items > STM32_DMA_ALIGNED_MAX_DATA_ITEMS) {
-		dev_err(chan2dev(chan), "number of items not supported\n");
+		dev_err(chan2dev(chan), "number of items analt supported\n");
 		return NULL;
 	}
 
@@ -1213,7 +1213,7 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_dma_cyclic(
 
 	num_periods = buf_len / period_len;
 
-	desc = kzalloc(struct_size(desc, sg_req, num_periods), GFP_NOWAIT);
+	desc = kzalloc(struct_size(desc, sg_req, num_periods), GFP_ANALWAIT);
 	if (!desc)
 		return NULL;
 	desc->num_sgs = num_periods;
@@ -1250,7 +1250,7 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_dma_memcpy(
 	int dma_burst, i;
 
 	num_sgs = DIV_ROUND_UP(len, STM32_DMA_ALIGNED_MAX_DATA_ITEMS);
-	desc = kzalloc(struct_size(desc, sg_req, num_sgs), GFP_NOWAIT);
+	desc = kzalloc(struct_size(desc, sg_req, num_sgs), GFP_ANALWAIT);
 	if (!desc)
 		return NULL;
 	desc->num_sgs = num_sgs;
@@ -1308,13 +1308,13 @@ static u32 stm32_dma_get_remaining_bytes(struct stm32_dma_chan *chan)
  * stm32_dma_is_current_sg - check that expected sg_req is currently transferred
  * @chan: dma channel
  *
- * This function called when IRQ are disable, checks that the hardware has not
+ * This function called when IRQ are disable, checks that the hardware has analt
  * switched on the next transfer in double buffer mode. The test is done by
  * comparing the next_sg memory address with the hardware related register
  * (based on CT bit value).
  *
  * Returns true if expected current transfer is still running or double
- * buffer mode is not activated.
+ * buffer mode is analt activated.
  */
 static bool stm32_dma_is_current_sg(struct stm32_dma_chan *chan)
 {
@@ -1325,14 +1325,14 @@ static bool stm32_dma_is_current_sg(struct stm32_dma_chan *chan)
 	id = chan->id;
 	dma_scr = stm32_dma_read(dmadev, STM32_DMA_SCR(id));
 
-	/* In cyclic CIRC but not DBM, CT is not used */
+	/* In cyclic CIRC but analt DBM, CT is analt used */
 	if (!(dma_scr & STM32_DMA_SCR_DBM))
 		return true;
 
 	sg_req = &chan->desc->sg_req[chan->next_sg];
 	period_len = sg_req->len;
 
-	/* DBM - take care of a previous pause/resume not yet post reconfigured */
+	/* DBM - take care of a previous pause/resume analt yet post reconfigured */
 	if (dma_scr & STM32_DMA_SCR_CT) {
 		dma_smar = stm32_dma_read(dmadev, STM32_DMA_SM0AR(id));
 		/*
@@ -1373,8 +1373,8 @@ static size_t stm32_dma_desc_residue(struct stm32_dma_chan *chan,
 	 * of period transfer. The hardware may have switched to the next
 	 * transfer (CT bit updated) just before the position (SxNDTR reg) is
 	 * read.
-	 * In this case the SxNDTR reg could (or not) correspond to the new
-	 * transfer position, and not the expected one.
+	 * In this case the SxNDTR reg could (or analt) correspond to the new
+	 * transfer position, and analt the expected one.
 	 * The strategy implemented in the stm32 driver is to:
 	 *  - read the SxNDTR register
 	 *  - crosscheck that hardware is still in current transfer.
@@ -1382,8 +1382,8 @@ static size_t stm32_dma_desc_residue(struct stm32_dma_chan *chan,
 	 * the next transfer. So we approximate the residue in consequence, by
 	 * pointing on the beginning of next transfer.
 	 *
-	 * This race condition doesn't apply for none cyclic mode, as double
-	 * buffer is not used. In such situation registers are updated by the
+	 * This race condition doesn't apply for analne cyclic mode, as double
+	 * buffer is analt used. In such situation registers are updated by the
 	 * software.
 	 */
 
@@ -1512,7 +1512,7 @@ static void stm32_dma_set_config(struct stm32_dma_chan *chan,
 
 	chan->threshold = FIELD_GET(STM32_DMA_THRESHOLD_FTR_MASK, cfg->features);
 	if (FIELD_GET(STM32_DMA_DIRECT_MODE_MASK, cfg->features))
-		chan->threshold = STM32_DMA_FIFO_THRESHOLD_NONE;
+		chan->threshold = STM32_DMA_FIFO_THRESHOLD_ANALNE;
 	if (FIELD_GET(STM32_DMA_ALT_ACK_MODE_MASK, cfg->features))
 		chan->chan_reg.dma_scr |= STM32_DMA_SCR_TRBUFF;
 	chan->mdma_config.stream_id = FIELD_GET(STM32_DMA_MDMA_STREAM_ID_MASK, cfg->features);
@@ -1547,7 +1547,7 @@ static struct dma_chan *stm32_dma_of_xlate(struct of_phandle_args *dma_spec,
 
 	c = dma_get_slave_channel(&chan->vchan.chan);
 	if (!c) {
-		dev_err(dev, "No more channels available\n");
+		dev_err(dev, "Anal more channels available\n");
 		return NULL;
 	}
 
@@ -1573,7 +1573,7 @@ static int stm32_dma_probe(struct platform_device *pdev)
 
 	dmadev = devm_kzalloc(&pdev->dev, sizeof(*dmadev), GFP_KERNEL);
 	if (!dmadev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dd = &dmadev->ddev;
 
@@ -1591,7 +1591,7 @@ static int stm32_dma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dmadev->mem2mem = of_property_read_bool(pdev->dev.of_node,
+	dmadev->mem2mem = of_property_read_bool(pdev->dev.of_analde,
 						"st,mem2mem");
 
 	rst = devm_reset_control_get(&pdev->dev, NULL);
@@ -1677,7 +1677,7 @@ static int stm32_dma_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(pdev->dev.of_analde,
 					 stm32_dma_of_xlate, dmadev);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
@@ -1689,7 +1689,7 @@ static int stm32_dma_probe(struct platform_device *pdev)
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_put(&pdev->dev);
 
 	dev_info(&pdev->dev, "STM32 DMA driver registered\n");

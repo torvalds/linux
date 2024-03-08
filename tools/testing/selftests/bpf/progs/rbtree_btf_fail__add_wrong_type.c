@@ -7,44 +7,44 @@
 #include <bpf/bpf_core_read.h>
 #include "bpf_experimental.h"
 
-struct node_data {
+struct analde_data {
 	int key;
 	int data;
-	struct bpf_rb_node node;
+	struct bpf_rb_analde analde;
 };
 
-struct node_data2 {
+struct analde_data2 {
 	int key;
-	struct bpf_rb_node node;
+	struct bpf_rb_analde analde;
 	int data;
 };
 
-static bool less2(struct bpf_rb_node *a, const struct bpf_rb_node *b)
+static bool less2(struct bpf_rb_analde *a, const struct bpf_rb_analde *b)
 {
-	struct node_data2 *node_a;
-	struct node_data2 *node_b;
+	struct analde_data2 *analde_a;
+	struct analde_data2 *analde_b;
 
-	node_a = container_of(a, struct node_data2, node);
-	node_b = container_of(b, struct node_data2, node);
+	analde_a = container_of(a, struct analde_data2, analde);
+	analde_b = container_of(b, struct analde_data2, analde);
 
-	return node_a->key < node_b->key;
+	return analde_a->key < analde_b->key;
 }
 
 #define private(name) SEC(".data." #name) __hidden __attribute__((aligned(8)))
 private(A) struct bpf_spin_lock glock;
-private(A) struct bpf_rb_root groot __contains(node_data, node);
+private(A) struct bpf_rb_root groot __contains(analde_data, analde);
 
 SEC("tc")
 long rbtree_api_add__add_wrong_type(void *ctx)
 {
-	struct node_data2 *n;
+	struct analde_data2 *n;
 
 	n = bpf_obj_new(typeof(*n));
 	if (!n)
 		return 1;
 
 	bpf_spin_lock(&glock);
-	bpf_rbtree_add(&groot, &n->node, less2);
+	bpf_rbtree_add(&groot, &n->analde, less2);
 	bpf_spin_unlock(&glock);
 	return 0;
 }

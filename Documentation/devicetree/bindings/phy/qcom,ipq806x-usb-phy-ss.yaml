@@ -10,9 +10,9 @@ maintainers:
   - Ansuel Smith <ansuelsmth@gmail.com>
 
 description:
-  DWC3 PHY nodes are defined to describe on-chip Synopsis Physical layer
+  DWC3 PHY analdes are defined to describe on-chip Syanalpsis Physical layer
   controllers used in ipq806x. Each DWC3 PHY controller should have its
-  own node.
+  own analde.
 
 properties:
   compatible:

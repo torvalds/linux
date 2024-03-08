@@ -2,7 +2,7 @@
 /*
  * MSI WMI hotkeys
  *
- * Copyright (C) 2009 Novell <trenn@suse.de>
+ * Copyright (C) 2009 Analvell <trenn@suse.de>
  *
  * Most stuff taken over from hp-wmi
  */
@@ -33,7 +33,7 @@ MODULE_ALIAS("wmi:" MSIWMI_MSI_EVENT_GUID);
 MODULE_ALIAS("wmi:" MSIWMI_WIND_EVENT_GUID);
 
 enum msi_scancodes {
-	/* Generic MSI keys (not present on MSI Wind) */
+	/* Generic MSI keys (analt present on MSI Wind) */
 	MSI_KEY_BRIGHTNESSUP	= 0xD0,
 	MSI_KEY_BRIGHTNESSDOWN,
 	MSI_KEY_VOLUMEUP,
@@ -54,16 +54,16 @@ static struct key_entry msi_wmi_keymap[] = {
 	{ KE_KEY, MSI_KEY_VOLUMEDOWN,		{KEY_VOLUMEDOWN} },
 	{ KE_KEY, MSI_KEY_MUTE,			{KEY_MUTE} },
 
-	/* These keys work without WMI. Ignore them to avoid double keycodes */
-	{ KE_IGNORE, WIND_KEY_TOUCHPAD,		{KEY_TOUCHPAD_TOGGLE} },
-	{ KE_IGNORE, WIND_KEY_BLUETOOTH,	{KEY_BLUETOOTH} },
-	{ KE_IGNORE, WIND_KEY_CAMERA,		{KEY_CAMERA} },
-	{ KE_IGNORE, WIND_KEY_WLAN,		{KEY_WLAN} },
+	/* These keys work without WMI. Iganalre them to avoid double keycodes */
+	{ KE_IGANALRE, WIND_KEY_TOUCHPAD,		{KEY_TOUCHPAD_TOGGLE} },
+	{ KE_IGANALRE, WIND_KEY_BLUETOOTH,	{KEY_BLUETOOTH} },
+	{ KE_IGANALRE, WIND_KEY_CAMERA,		{KEY_CAMERA} },
+	{ KE_IGANALRE, WIND_KEY_WLAN,		{KEY_WLAN} },
 
-	/* These are unknown WMI events found on MSI Wind */
-	{ KE_IGNORE, 0x00 },
-	{ KE_IGNORE, 0x62 },
-	{ KE_IGNORE, 0x63 },
+	/* These are unkanalwn WMI events found on MSI Wind */
+	{ KE_IGANALRE, 0x00 },
+	{ KE_IGANALRE, 0x62 },
+	{ KE_IGANALRE, 0x63 },
 
 	/* These are MSI Wind keys that should be handled via WMI */
 	{ KE_KEY, WIND_KEY_TURBO,		{KEY_PROG1} },
@@ -137,7 +137,7 @@ static int bl_get(struct backlight_device *bd)
 	/* Instance 1 is "get backlight", cmp with DSDT */
 	err = msi_wmi_query_block(1, &ret);
 	if (err) {
-		pr_err("Could not query backlight: %d\n", err);
+		pr_err("Could analt query backlight: %d\n", err);
 		return -EINVAL;
 	}
 	pr_debug("Get: Query block returned: %d\n", ret);
@@ -170,7 +170,7 @@ static const struct backlight_ops msi_backlight_ops = {
 	.update_status	= bl_set_status,
 };
 
-static void msi_wmi_notify(u32 value, void *context)
+static void msi_wmi_analtify(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct key_entry *key;
@@ -191,20 +191,20 @@ static void msi_wmi_notify(u32 value, void *context)
 		key = sparse_keymap_entry_from_scancode(msi_wmi_input_dev,
 				eventcode);
 		if (!key) {
-			pr_info("Unknown key pressed - %x\n", eventcode);
-			goto msi_wmi_notify_exit;
+			pr_info("Unkanalwn key pressed - %x\n", eventcode);
+			goto msi_wmi_analtify_exit;
 		}
 
 		if (event_wmi->quirk_last_pressed) {
 			ktime_t cur = ktime_get_real();
 			ktime_t diff = ktime_sub(cur, last_pressed);
-			/* Ignore event if any event happened in a 50 ms
+			/* Iganalre event if any event happened in a 50 ms
 			   timeframe -> Key press may result in 10-20 GPEs */
 			if (ktime_to_us(diff) < 1000 * 50) {
 				pr_debug("Suppressed key event 0x%X - "
 					 "Last press was %lld us ago\n",
 					 key->code, ktime_to_us(diff));
-				goto msi_wmi_notify_exit;
+				goto msi_wmi_analtify_exit;
 			}
 			last_pressed = cur;
 		}
@@ -220,9 +220,9 @@ static void msi_wmi_notify(u32 value, void *context)
 						   true);
 		}
 	} else
-		pr_info("Unknown event received\n");
+		pr_info("Unkanalwn event received\n");
 
-msi_wmi_notify_exit:
+msi_wmi_analtify_exit:
 	kfree(response.pointer);
 }
 
@@ -257,7 +257,7 @@ static int __init msi_wmi_input_setup(void)
 
 	msi_wmi_input_dev = input_allocate_device();
 	if (!msi_wmi_input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msi_wmi_input_dev->name = "MSI WMI hotkeys";
 	msi_wmi_input_dev->phys = "wmi/input0";
@@ -296,10 +296,10 @@ static int __init msi_wmi_init(void)
 			return err;
 		}
 
-		err = wmi_install_notify_handler(event_wmis[i].guid,
-			msi_wmi_notify, NULL);
+		err = wmi_install_analtify_handler(event_wmis[i].guid,
+			msi_wmi_analtify, NULL);
 		if (ACPI_FAILURE(err)) {
-			pr_err("Unable to setup WMI notify handler\n");
+			pr_err("Unable to setup WMI analtify handler\n");
 			goto err_free_input;
 		}
 
@@ -319,15 +319,15 @@ static int __init msi_wmi_init(void)
 	}
 
 	if (!event_wmi && !backlight) {
-		pr_err("This machine doesn't have neither MSI-hotkeys nor backlight through WMI\n");
-		return -ENODEV;
+		pr_err("This machine doesn't have neither MSI-hotkeys analr backlight through WMI\n");
+		return -EANALDEV;
 	}
 
 	return 0;
 
 err_uninstall_handler:
 	if (event_wmi)
-		wmi_remove_notify_handler(event_wmi->guid);
+		wmi_remove_analtify_handler(event_wmi->guid);
 err_free_input:
 	if (event_wmi)
 		input_unregister_device(msi_wmi_input_dev);
@@ -337,7 +337,7 @@ err_free_input:
 static void __exit msi_wmi_exit(void)
 {
 	if (event_wmi) {
-		wmi_remove_notify_handler(event_wmi->guid);
+		wmi_remove_analtify_handler(event_wmi->guid);
 		input_unregister_device(msi_wmi_input_dev);
 	}
 	backlight_device_unregister(backlight);

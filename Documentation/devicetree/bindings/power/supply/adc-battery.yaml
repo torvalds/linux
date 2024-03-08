@@ -16,7 +16,7 @@ description:
 
   The voltage is expected to be measured between the battery terminals
   and mandatory. The optional current/power channel is expected to
-  monitor the current/power flowing out of the battery. Last but not
+  monitor the current/power flowing out of the battery. Last but analt
   least the temperature channel is supposed to measure the battery
   temperature.
 
@@ -30,7 +30,7 @@ properties:
   charged-gpios:
     description:
       GPIO which signals that the battery is fully charged. The GPIO is
-      often provided by charger ICs, that are not software controllable.
+      often provided by charger ICs, that are analt software controllable.
     maxItems: 1
 
   io-channels:

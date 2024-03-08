@@ -47,7 +47,7 @@ static const struct iwl_rate_mcs_info rate_mcs[IWL_RATE_COUNT] = {
 };
 
 static const char * const ant_name[] = {
-	[ANT_NONE] = "None",
+	[ANT_ANALNE] = "Analne",
 	[ANT_A]    = "A",
 	[ANT_B]    = "B",
 	[ANT_AB]   = "AB",
@@ -76,7 +76,7 @@ IWL_EXPORT_SYMBOL(iwl_rate_mcs);
 const char *iwl_rs_pretty_ant(u8 ant)
 {
 	if (ant >= ARRAY_SIZE(ant_name))
-		return "UNKNOWN";
+		return "UNKANALWN";
 
 	return ant_name[ant];
 }
@@ -85,7 +85,7 @@ IWL_EXPORT_SYMBOL(iwl_rs_pretty_ant);
 const char *iwl_rs_pretty_bw(int bw)
 {
 	if (bw >= ARRAY_SIZE(pretty_bw))
-		return "unknown bw";
+		return "unkanalwn bw";
 
 	return pretty_bw[bw];
 }
@@ -220,7 +220,7 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 	else if (format == RATE_MCS_EHT_MSK)
 		type = "EHT";
 	else
-		type = "Unknown"; /* shouldn't happen */
+		type = "Unkanalwn"; /* shouldn't happen */
 
 	mcs = format == RATE_MCS_HT_MSK ?
 		RATE_HT_MCS_INDEX(rate) :

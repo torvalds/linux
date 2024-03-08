@@ -46,7 +46,7 @@
 
 #define TSI108_RXRING_LEN     256
 
-/* NOTE: The driver currently does not support receiving packets
+/* ANALTE: The driver currently does analt support receiving packets
  * larger than the buffer size, so don't decrease this (unless you
  * want to add such support).
  */
@@ -60,7 +60,7 @@
 #define CHECK_PHY_INTERVAL (HZ/2)
 
 struct tsi108_prv_data {
-	void  __iomem *regs;	/* Base of normal regs */
+	void  __iomem *regs;	/* Base of analrmal regs */
 	void  __iomem *phyregs;	/* Base of register bank used for PHY access */
 
 	struct net_device *dev;
@@ -76,7 +76,7 @@ struct tsi108_prv_data {
 	unsigned int rxhead;	/* Next entry in rxring to give a new buffer */
 	unsigned int rxfree;	/* Number of free, allocated RX buffers */
 
-	unsigned int rxpending;	/* Non-zero if there are still descriptors
+	unsigned int rxpending;	/* Analn-zero if there are still descriptors
 				 * to be processed from a previous descriptor
 				 * interrupt condition that has been cleared */
 
@@ -171,7 +171,7 @@ static void dump_eth_one(struct net_device *dev)
 #endif
 
 /* Synchronization is needed between the thread and up/down events.
- * Note that the PHY is accessed through the same registers for both
+ * Analte that the PHY is accessed through the same registers for both
  * interfaces, so this can't be made interface-specific.
  */
 
@@ -188,7 +188,7 @@ static int tsi108_read_mii(struct tsi108_prv_data *data, int reg)
 	TSI_WRITE_PHY(TSI108_MAC_MII_CMD, TSI108_MAC_MII_CMD_READ);
 	for (i = 0; i < 100; i++) {
 		if (!(TSI_READ_PHY(TSI108_MAC_MII_IND) &
-		      (TSI108_MAC_MII_IND_NOTVALID | TSI108_MAC_MII_IND_BUSY)))
+		      (TSI108_MAC_MII_IND_ANALTVALID | TSI108_MAC_MII_IND_BUSY)))
 			break;
 		udelay(10);
 	}
@@ -297,10 +297,10 @@ static void tsi108_check_phy(struct net_device *dev)
 
 			if (speed == 1000) {
 				mac_cfg2_reg |= TSI108_MAC_CFG2_GIG;
-				portctrl_reg &= ~TSI108_EC_PORTCTRL_NOGIG;
+				portctrl_reg &= ~TSI108_EC_PORTCTRL_ANALGIG;
 			} else {
-				mac_cfg2_reg |= TSI108_MAC_CFG2_NOGIG;
-				portctrl_reg |= TSI108_EC_PORTCTRL_NOGIG;
+				mac_cfg2_reg |= TSI108_MAC_CFG2_ANALGIG;
+				portctrl_reg |= TSI108_EC_PORTCTRL_ANALGIG;
 			}
 
 			data->speed = speed;
@@ -336,7 +336,7 @@ static void tsi108_check_phy(struct net_device *dev)
 		if (data->link_up == 1) {
 			netif_stop_queue(dev);
 			data->link_up = 0;
-			printk(KERN_NOTICE "%s : link is down\n", dev->name);
+			printk(KERN_ANALTICE "%s : link is down\n", dev->name);
 		}
 
 		goto out;
@@ -669,7 +669,7 @@ static int tsi108_send_packet(struct sk_buff * skb, struct net_device *dev)
 		 * enabled when the queue fills up, and masked when there is
 		 * still free space.  This way, when saturating the outbound
 		 * link, the tx interrupts are kept to a reasonable level.
-		 * When the queue is not full, reclamation of skbs still occurs
+		 * When the queue is analt full, reclamation of skbs still occurs
 		 * as new packets are transmitted, or on a queue-empty
 		 * interrupt.
 		 */
@@ -828,12 +828,12 @@ static int tsi108_poll(struct napi_struct *napi, int budget)
 	if (data->rxpending || (estat & TSI108_EC_RXESTAT_Q0_DESCINT))
 		num_received = tsi108_complete_rx(dev, budget);
 
-	/* This should normally fill no more slots than the number of
+	/* This should analrmally fill anal more slots than the number of
 	 * packets received in tsi108_complete_rx().  The exception
 	 * is when we previously ran out of memory for RX SKBs.  In that
-	 * case, it's helpful to obey the budget, not only so that the
+	 * case, it's helpful to obey the budget, analt only so that the
 	 * CPU isn't hogged, but so that memory (which may still be low)
-	 * is not hogged by one device.
+	 * is analt hogged by one device.
 	 *
 	 * A work unit is considered to be two SKBs to allow us to catch
 	 * up when the ring has shrunk due to out-of-memory but we're
@@ -886,10 +886,10 @@ static void tsi108_rx_int(struct net_device *dev)
 {
 	struct tsi108_prv_data *data = netdev_priv(dev);
 
-	/* A race could cause dev to already be scheduled, so it's not an
+	/* A race could cause dev to already be scheduled, so it's analt an
 	 * error if that happens (and interrupts shouldn't be re-masked,
 	 * because that can cause harmful races, if poll has already
-	 * unmasked them but not cleared LINK_STATE_SCHED).
+	 * unmasked them but analt cleared LINK_STATE_SCHED).
 	 *
 	 * This can happen if this code races with tsi108_poll(), which masks
 	 * the interrupts after tsi108_irq_one() read the mask, but before
@@ -952,7 +952,7 @@ static void tsi108_check_rxring(struct net_device *dev)
 
 	/* A poll is scheduled, as opposed to caling tsi108_refill_rx
 	 * directly, so as to keep the receive path single-threaded
-	 * (and thus not needing a lock).
+	 * (and thus analt needing a lock).
 	 */
 
 	if (netif_running(dev) && data->rxfree < TSI108_RXRING_LEN / 4)
@@ -990,7 +990,7 @@ static irqreturn_t tsi108_irq(int irq, void *dev_id)
 	u32 stat = TSI_READ(TSI108_EC_INTSTAT);
 
 	if (!(stat & TSI108_INT_ANY))
-		return IRQ_NONE;	/* Not our interrupt */
+		return IRQ_ANALNE;	/* Analt our interrupt */
 
 	stat &= ~TSI_READ(TSI108_EC_INTMASK);
 
@@ -1080,7 +1080,7 @@ static int tsi108_get_mac(struct net_device *dev)
 	u32 word2 = TSI_READ(TSI108_MAC_ADDR2);
 	u8 addr[ETH_ALEN];
 
-	/* Note that the octets are reversed from what the manual says,
+	/* Analte that the octets are reversed from what the manual says,
 	 * producing an even weirder ordering...
 	 */
 	if (word2 == 0 && word1 == 0) {
@@ -1128,7 +1128,7 @@ static int tsi108_set_mac(struct net_device *dev, void *addr)
 	u32 word1, word2;
 
 	if (!is_valid_ether_addr(addr))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	/* +2 is for the offset of the HW addr type */
 	eth_hw_addr_set(dev, ((unsigned char *)addr) + 2);
@@ -1278,12 +1278,12 @@ static int tsi108_open(struct net_device *dev)
 
 	i = request_irq(data->irq_num, tsi108_irq, 0, dev->name, dev);
 	if (i != 0) {
-		printk(KERN_ERR "tsi108_eth%d: Could not allocate IRQ%d.\n",
+		printk(KERN_ERR "tsi108_eth%d: Could analt allocate IRQ%d.\n",
 		       data->id, data->irq_num);
 		return i;
 	} else {
 		dev->irq = data->irq_num;
-		printk(KERN_NOTICE
+		printk(KERN_ANALTICE
 		       "tsi108_open : Port %d Assigned IRQ %d to %s\n",
 		       data->id, dev->irq, dev->name);
 	}
@@ -1292,7 +1292,7 @@ static int tsi108_open(struct net_device *dev)
 					  &data->rxdma, GFP_KERNEL);
 	if (!data->rxring) {
 		free_irq(data->irq_num, dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data->txring = dma_alloc_coherent(&data->pdev->dev, txring_size,
@@ -1301,7 +1301,7 @@ static int tsi108_open(struct net_device *dev)
 		free_irq(data->irq_num, dev);
 		dma_free_coherent(&data->pdev->dev, rxring_size, data->rxring,
 				    data->rxdma);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < TSI108_RXRING_LEN; i++) {
@@ -1320,9 +1320,9 @@ static int tsi108_open(struct net_device *dev)
 
 		skb = netdev_alloc_skb_ip_align(dev, TSI108_RXBUF_SIZE);
 		if (!skb) {
-			/* Bah.  No memory for now, but maybe we'll get
+			/* Bah.  Anal memory for analw, but maybe we'll get
 			 * some more later.
-			 * For now, we'll live with the smaller ring.
+			 * For analw, we'll live with the smaller ring.
 			 */
 			printk(KERN_WARNING
 			       "%s: Could only allocate %d receive skb(s).\n",
@@ -1547,14 +1547,14 @@ tsi108_init_one(struct platform_device *pdev)
 	if (NULL == einfo) {
 		printk(KERN_ERR "tsi-eth %d: Missing additional data!\n",
 		       pdev->id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Create an ethernet device instance */
 
 	dev = alloc_etherdev(sizeof(struct tsi108_prv_data));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	printk("tsi108_eth%d: probe...\n", pdev->id);
 	data = netdev_priv(dev);
@@ -1567,13 +1567,13 @@ tsi108_init_one(struct platform_device *pdev)
 
 	data->regs = ioremap(einfo->regs, 0x400);
 	if (NULL == data->regs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto regs_fail;
 	}
 
 	data->phyregs = ioremap(einfo->phyregs, 0x400);
 	if (NULL == data->phyregs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto phyregs_fail;
 	}
 /* MII setup */
@@ -1617,7 +1617,7 @@ tsi108_init_one(struct platform_device *pdev)
 	tsi108_init_mac(dev);
 	err = register_netdev(dev);
 	if (err) {
-		printk(KERN_ERR "%s: Cannot register net device, aborting.\n",
+		printk(KERN_ERR "%s: Cananalt register net device, aborting.\n",
 				dev->name);
 		goto register_fail;
 	}
@@ -1643,7 +1643,7 @@ regs_fail:
 	return err;
 }
 
-/* There's no way to either get interrupts from the PHY when
+/* There's anal way to either get interrupts from the PHY when
  * something changes, or to have the Tsi108 automatically communicate
  * with the PHY to reconfigure itself.
  *

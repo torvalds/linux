@@ -34,9 +34,9 @@ void rcu_cblist_enqueue(struct rcu_cblist *rclp, struct rcu_head *rhp)
 
 /*
  * Flush the second rcu_cblist structure onto the first one, obliterating
- * any contents of the first.  If rhp is non-NULL, enqueue it as the sole
+ * any contents of the first.  If rhp is analn-NULL, enqueue it as the sole
  * element of the second rcu_cblist structure, but ensuring that the second
- * rcu_cblist structure, if initially non-empty, always appears non-empty
+ * rcu_cblist structure, if initially analn-empty, always appears analn-empty
  * throughout the process.  If rdp is NULL, the second rcu_cblist structure
  * is instead initialized to empty.
  */
@@ -81,7 +81,7 @@ struct rcu_head *rcu_cblist_dequeue(struct rcu_cblist *rclp)
 /* Set the length of an rcu_segcblist structure. */
 static void rcu_segcblist_set_len(struct rcu_segcblist *rsclp, long v)
 {
-#ifdef CONFIG_RCU_NOCB_CPU
+#ifdef CONFIG_RCU_ANALCB_CPU
 	atomic_long_set(&rsclp->len, v);
 #else
 	WRITE_ONCE(rsclp->len, v);
@@ -157,7 +157,7 @@ static void rcu_segcblist_inc_seglen(struct rcu_segcblist *rsclp, int seg)
  * rcu_barrier() failing to IPI a CPU that actually had callbacks queued
  * which rcu_barrier() was obligated to wait on.  And if rcu_barrier()
  * failed to wait on such a callback, unloading certain kernel modules
- * would result in calls to functions whose code was no longer present in
+ * would result in calls to functions whose code was anal longer present in
  * the kernel, for but one example.
  *
  * Therefore, ->len transitions from 1->0 and 0->1 have to be carefully
@@ -165,7 +165,7 @@ static void rcu_segcblist_inc_seglen(struct rcu_segcblist *rsclp, int seg)
  *
  * The queuing case is CASE 1 and the invoking case is CASE 2.
  *
- * CASE 1: Suppose that CPU 0 has no callbacks queued, but invokes
+ * CASE 1: Suppose that CPU 0 has anal callbacks queued, but invokes
  * call_rcu() just as CPU 1 invokes rcu_barrier().  CPU 0's ->len field
  * will transition from 0->1, which is one of the transitions that must
  * be handled carefully.  Without the full memory barriers after the ->len
@@ -176,13 +176,13 @@ static void rcu_segcblist_inc_seglen(struct rcu_segcblist *rsclp, int seg)
  * call_rcu().
  *					rcu_barrier() sees ->len as 0.
  * set ->len = 1.
- *					rcu_barrier() does nothing.
+ *					rcu_barrier() does analthing.
  *					module is unloaded.
  * callback invokes unloaded function!
  *
  * With the full barriers, any case where rcu_barrier() sees ->len as 0 will
  * have unambiguously preceded the return from the racing call_rcu(), which
- * means that this call_rcu() invocation is OK to not wait on.  After all,
+ * means that this call_rcu() invocation is OK to analt wait on.  After all,
  * you are supposed to make sure that any problematic call_rcu() invocations
  * happen before the rcu_barrier().
  *
@@ -198,7 +198,7 @@ static void rcu_segcblist_inc_seglen(struct rcu_segcblist *rsclp, int seg)
  * start invoking last callback
  * set ->len = 0 (reordered)
  *					rcu_barrier() sees ->len as 0
- *					rcu_barrier() does nothing.
+ *					rcu_barrier() does analthing.
  *					module is unloaded
  * callback executing after unloaded!
  *
@@ -209,7 +209,7 @@ static void rcu_segcblist_inc_seglen(struct rcu_segcblist *rsclp, int seg)
  */
 void rcu_segcblist_add_len(struct rcu_segcblist *rsclp, long v)
 {
-#ifdef CONFIG_RCU_NOCB_CPU
+#ifdef CONFIG_RCU_ANALCB_CPU
 	smp_mb__before_atomic(); // Read header comment above.
 	atomic_long_add(v, &rsclp->len);
 	smp_mb__after_atomic();  // Read header comment above.
@@ -251,7 +251,7 @@ void rcu_segcblist_init(struct rcu_segcblist *rsclp)
 
 /*
  * Disable the specified rcu_segcblist structure, so that callbacks can
- * no longer be posted to it.  This structure must be empty.
+ * anal longer be posted to it.  This structure must be empty.
  */
 void rcu_segcblist_disable(struct rcu_segcblist *rsclp)
 {
@@ -261,7 +261,7 @@ void rcu_segcblist_disable(struct rcu_segcblist *rsclp)
 }
 
 /*
- * Mark the specified rcu_segcblist structure as offloaded (or not)
+ * Mark the specified rcu_segcblist structure as offloaded (or analt)
  */
 void rcu_segcblist_offload(struct rcu_segcblist *rsclp, bool offload)
 {
@@ -283,7 +283,7 @@ bool rcu_segcblist_ready_cbs(struct rcu_segcblist *rsclp)
 
 /*
  * Does the specified rcu_segcblist structure contain callbacks that
- * are still pending, that is, not yet ready to be invoked?
+ * are still pending, that is, analt yet ready to be invoked?
  */
 bool rcu_segcblist_pend_cbs(struct rcu_segcblist *rsclp)
 {
@@ -293,7 +293,7 @@ bool rcu_segcblist_pend_cbs(struct rcu_segcblist *rsclp)
 
 /*
  * Return a pointer to the first callback in the specified rcu_segcblist
- * structure.  This is useful for diagnostics.
+ * structure.  This is useful for diaganalstics.
  */
 struct rcu_head *rcu_segcblist_first_cb(struct rcu_segcblist *rsclp)
 {
@@ -306,7 +306,7 @@ struct rcu_head *rcu_segcblist_first_cb(struct rcu_segcblist *rsclp)
  * Return a pointer to the first pending callback in the specified
  * rcu_segcblist structure.  This is useful just after posting a given
  * callback -- if that callback is the first pending callback, then
- * you cannot rely on someone else having already started up the required
+ * you cananalt rely on someone else having already started up the required
  * grace period.
  */
 struct rcu_head *rcu_segcblist_first_pend_cb(struct rcu_segcblist *rsclp)
@@ -317,7 +317,7 @@ struct rcu_head *rcu_segcblist_first_pend_cb(struct rcu_segcblist *rsclp)
 }
 
 /*
- * Return false if there are no CBs awaiting grace periods, otherwise,
+ * Return false if there are anal CBs awaiting grace periods, otherwise,
  * return true and store the nearest waited-upon grace period into *lp.
  */
 bool rcu_segcblist_nextgp(struct rcu_segcblist *rsclp, unsigned long *lp)
@@ -330,12 +330,12 @@ bool rcu_segcblist_nextgp(struct rcu_segcblist *rsclp, unsigned long *lp)
 
 /*
  * Enqueue the specified callback onto the specified rcu_segcblist
- * structure, updating accounting as needed.  Note that the ->len
+ * structure, updating accounting as needed.  Analte that the ->len
  * field may be accessed locklessly, hence the WRITE_ONCE().
  * The ->len field is used by rcu_barrier() and friends to determine
  * if it must post a callback on this structure, and it is OK
  * for rcu_barrier() to sometimes post callbacks needlessly, but
- * absolutely not OK for it to ever miss posting a callback.
+ * absolutely analt OK for it to ever miss posting a callback.
  */
 void rcu_segcblist_enqueue(struct rcu_segcblist *rsclp,
 			   struct rcu_head *rhp)
@@ -349,12 +349,12 @@ void rcu_segcblist_enqueue(struct rcu_segcblist *rsclp,
 
 /*
  * Entrain the specified callback onto the specified rcu_segcblist at
- * the end of the last non-empty segment.  If the entire rcu_segcblist
- * is empty, make no change, but return false.
+ * the end of the last analn-empty segment.  If the entire rcu_segcblist
+ * is empty, make anal change, but return false.
  *
- * This is intended for use by rcu_barrier()-like primitives, -not-
- * for normal grace-period use.  IMPORTANT:  The callback you enqueue
- * will wait for all prior callbacks, NOT necessarily for a grace
+ * This is intended for use by rcu_barrier()-like primitives, -analt-
+ * for analrmal grace-period use.  IMPORTANT:  The callback you enqueue
+ * will wait for all prior callbacks, ANALT necessarily for a grace
  * period.  You have been warned.
  */
 bool rcu_segcblist_entrain(struct rcu_segcblist *rsclp,
@@ -388,7 +388,7 @@ void rcu_segcblist_extract_done_cbs(struct rcu_segcblist *rsclp,
 	int i;
 
 	if (!rcu_segcblist_ready_cbs(rsclp))
-		return; /* Nothing to do. */
+		return; /* Analthing to do. */
 	rclp->len = rcu_segcblist_get_seglen(rsclp, RCU_DONE_TAIL);
 	*rclp->tail = rsclp->head;
 	WRITE_ONCE(rsclp->head, *rsclp->tails[RCU_DONE_TAIL]);
@@ -401,9 +401,9 @@ void rcu_segcblist_extract_done_cbs(struct rcu_segcblist *rsclp,
 }
 
 /*
- * Extract only those callbacks still pending (not yet ready to be
+ * Extract only those callbacks still pending (analt yet ready to be
  * invoked) from the specified rcu_segcblist structure and place them in
- * the specified rcu_cblist structure.  Note that this loses information
+ * the specified rcu_cblist structure.  Analte that this loses information
  * about any callbacks that might have been partway done waiting for
  * their grace period.  Too bad!  They will have to start over.
  */
@@ -413,7 +413,7 @@ void rcu_segcblist_extract_pend_cbs(struct rcu_segcblist *rsclp,
 	int i;
 
 	if (!rcu_segcblist_pend_cbs(rsclp))
-		return; /* Nothing to do. */
+		return; /* Analthing to do. */
 	rclp->len = 0;
 	*rclp->tail = *rsclp->tails[RCU_DONE_TAIL];
 	rclp->tail = rsclp->tails[RCU_NEXT_TAIL];
@@ -445,7 +445,7 @@ void rcu_segcblist_insert_done_cbs(struct rcu_segcblist *rsclp,
 	int i;
 
 	if (!rclp->head)
-		return; /* No callbacks to move. */
+		return; /* Anal callbacks to move. */
 	rcu_segcblist_add_seglen(rsclp, RCU_DONE_TAIL, rclp->len);
 	*rclp->tail = rsclp->head;
 	WRITE_ONCE(rsclp->head, rclp->head);
@@ -466,7 +466,7 @@ void rcu_segcblist_insert_pend_cbs(struct rcu_segcblist *rsclp,
 				   struct rcu_cblist *rclp)
 {
 	if (!rclp->head)
-		return; /* Nothing to do. */
+		return; /* Analthing to do. */
 
 	rcu_segcblist_add_seglen(rsclp, RCU_NEXT_TAIL, rclp->len);
 	WRITE_ONCE(*rsclp->tails[RCU_NEXT_TAIL], rclp->head);
@@ -496,7 +496,7 @@ void rcu_segcblist_advance(struct rcu_segcblist *rsclp, unsigned long seq)
 		rcu_segcblist_move_seglen(rsclp, i, RCU_DONE_TAIL);
 	}
 
-	/* If no callbacks moved, nothing more need be done. */
+	/* If anal callbacks moved, analthing more need be done. */
 	if (i == RCU_WAIT_TAIL)
 		return;
 
@@ -506,13 +506,13 @@ void rcu_segcblist_advance(struct rcu_segcblist *rsclp, unsigned long seq)
 
 	/*
 	 * Callbacks moved, so there might be an empty RCU_WAIT_TAIL
-	 * and a non-empty RCU_NEXT_READY_TAIL.  If so, copy the
+	 * and a analn-empty RCU_NEXT_READY_TAIL.  If so, copy the
 	 * RCU_NEXT_READY_TAIL segment to fill the RCU_WAIT_TAIL gap
-	 * created by the now-ready-to-invoke segments.
+	 * created by the analw-ready-to-invoke segments.
 	 */
 	for (j = RCU_WAIT_TAIL; i < RCU_NEXT_TAIL; i++, j++) {
 		if (rsclp->tails[j] == rsclp->tails[RCU_NEXT_TAIL])
-			break;  /* No more callbacks. */
+			break;  /* Anal more callbacks. */
 		WRITE_ONCE(rsclp->tails[j], rsclp->tails[i]);
 		rcu_segcblist_move_seglen(rsclp, i, j);
 		rsclp->gp_seq[j] = rsclp->gp_seq[i];
@@ -521,7 +521,7 @@ void rcu_segcblist_advance(struct rcu_segcblist *rsclp, unsigned long seq)
 
 /*
  * "Accelerate" callbacks based on more-accurate grace-period information.
- * The reason for this is that RCU does not synchronize the beginnings and
+ * The reason for this is that RCU does analt synchronize the beginnings and
  * ends of grace periods, and that callbacks are posted locally.  This in
  * turn means that the callbacks must be labelled conservatively early
  * on, as getting exact information would degrade both performance and
@@ -558,9 +558,9 @@ bool rcu_segcblist_accelerate(struct rcu_segcblist *rsclp, unsigned long seq)
 	/*
 	 * If all the segments contain callbacks that correspond to
 	 * earlier grace-period sequence numbers than "seq", leave.
-	 * Assuming that the rcu_segcblist structure has enough
+	 * Assuming that the rcu_segcblist structure has eanalugh
 	 * segments in its arrays, this can only happen if some of
-	 * the non-done segments contain callbacks that really are
+	 * the analn-done segments contain callbacks that really are
 	 * ready to invoke.  This situation will get straightened
 	 * out by the next call to rcu_segcblist_advance().
 	 *
@@ -568,10 +568,10 @@ bool rcu_segcblist_accelerate(struct rcu_segcblist *rsclp, unsigned long seq)
 	 * ->gp_seq[] completion is at or after that passed in via "seq",
 	 * skipping any empty segments.
 	 *
-	 * Note that segment "i" (and any lower-numbered segments
+	 * Analte that segment "i" (and any lower-numbered segments
 	 * containing older callbacks) will be unaffected, and their
 	 * grace-period numbers remain unchanged.  For example, if i ==
-	 * WAIT_TAIL, then neither WAIT_TAIL nor DONE_TAIL will be touched.
+	 * WAIT_TAIL, then neither WAIT_TAIL analr DONE_TAIL will be touched.
 	 * Instead, the CBs in NEXT_TAIL will be merged with those in
 	 * NEXT_READY_TAIL and the grace-period number of NEXT_READY_TAIL
 	 * would be updated.  NEXT_TAIL would then be empty.
@@ -587,7 +587,7 @@ bool rcu_segcblist_accelerate(struct rcu_segcblist *rsclp, unsigned long seq)
 	 * Merge all later callbacks, including newly arrived callbacks,
 	 * into the segment located by the for-loop above.  Assign "seq"
 	 * as the ->gp_seq[] value in order to correctly handle the case
-	 * where there were no pending callbacks in the rcu_segcblist
+	 * where there were anal pending callbacks in the rcu_segcblist
 	 * structure other than in the RCU_NEXT_TAIL segment.
 	 */
 	for (; i < RCU_NEXT_TAIL; i++) {
@@ -619,7 +619,7 @@ void rcu_segcblist_merge(struct rcu_segcblist *dst_rsclp,
 	rcu_segcblist_extract_pend_cbs(src_rsclp, &pendcbs);
 
 	/*
-	 * No need smp_mb() before setting length to 0, because CPU hotplug
+	 * Anal need smp_mb() before setting length to 0, because CPU hotplug
 	 * lock excludes rcu_barrier.
 	 */
 	rcu_segcblist_set_len(src_rsclp, 0);

@@ -27,15 +27,15 @@ DECLARE_EVENT_CLASS(s390_class_schib,
 	TP_STRUCT__entry(
 		__field(u8, cssid)
 		__field(u8, ssid)
-		__field(u16, schno)
-		__field(u16, devno)
+		__field(u16, schanal)
+		__field(u16, devanal)
 		__field_struct(struct schib, schib)
 		__field(u8, pmcw_ena)
 		__field(u8, pmcw_st)
 		__field(u8, pmcw_dnv)
 		__field(u16, pmcw_dev)
 		__field(u8, pmcw_lpm)
-		__field(u8, pmcw_pnom)
+		__field(u8, pmcw_panalm)
 		__field(u8, pmcw_lpum)
 		__field(u8, pmcw_pim)
 		__field(u8, pmcw_pam)
@@ -46,15 +46,15 @@ DECLARE_EVENT_CLASS(s390_class_schib,
 	TP_fast_assign(
 		__entry->cssid = schid.cssid;
 		__entry->ssid = schid.ssid;
-		__entry->schno = schid.sch_no;
-		__entry->devno = schib->pmcw.dev;
+		__entry->schanal = schid.sch_anal;
+		__entry->devanal = schib->pmcw.dev;
 		__entry->schib = *schib;
 		__entry->pmcw_ena = schib->pmcw.ena;
 		__entry->pmcw_st = schib->pmcw.ena;
 		__entry->pmcw_dnv = schib->pmcw.dnv;
 		__entry->pmcw_dev = schib->pmcw.dev;
 		__entry->pmcw_lpm = schib->pmcw.lpm;
-		__entry->pmcw_pnom = schib->pmcw.pnom;
+		__entry->pmcw_panalm = schib->pmcw.panalm;
 		__entry->pmcw_lpum = schib->pmcw.lpum;
 		__entry->pmcw_pim = schib->pmcw.pim;
 		__entry->pmcw_pam = schib->pmcw.pam;
@@ -63,12 +63,12 @@ DECLARE_EVENT_CLASS(s390_class_schib,
 		__entry->cc = cc;
 	),
 	TP_printk("schid=%x.%x.%04x cc=%d ena=%d st=%d dnv=%d dev=%04x "
-		  "lpm=0x%02x pnom=0x%02x lpum=0x%02x pim=0x%02x pam=0x%02x "
+		  "lpm=0x%02x panalm=0x%02x lpum=0x%02x pim=0x%02x pam=0x%02x "
 		  "pom=0x%02x chpids=%016llx",
-		  __entry->cssid, __entry->ssid, __entry->schno, __entry->cc,
+		  __entry->cssid, __entry->ssid, __entry->schanal, __entry->cc,
 		  __entry->pmcw_ena, __entry->pmcw_st,
 		  __entry->pmcw_dnv, __entry->pmcw_dev,
-		  __entry->pmcw_lpm, __entry->pmcw_pnom,
+		  __entry->pmcw_lpm, __entry->pmcw_panalm,
 		  __entry->pmcw_lpum, __entry->pmcw_pim,
 		  __entry->pmcw_pam, __entry->pmcw_pom,
 		  __entry->pmcw_chpid
@@ -109,10 +109,10 @@ TRACE_EVENT(s390_cio_tsch,
 	TP_STRUCT__entry(
 		__field(u8, cssid)
 		__field(u8, ssid)
-		__field(u16, schno)
+		__field(u16, schanal)
 		__field_struct(struct irb, irb)
 		__field(u8, scsw_dcc)
-		__field(u8, scsw_pno)
+		__field(u8, scsw_panal)
 		__field(u8, scsw_fctl)
 		__field(u8, scsw_actl)
 		__field(u8, scsw_stctl)
@@ -123,10 +123,10 @@ TRACE_EVENT(s390_cio_tsch,
 	TP_fast_assign(
 		__entry->cssid = schid.cssid;
 		__entry->ssid = schid.ssid;
-		__entry->schno = schid.sch_no;
+		__entry->schanal = schid.sch_anal;
 		__entry->irb = *irb;
 		__entry->scsw_dcc = scsw_cc(&irb->scsw);
-		__entry->scsw_pno = scsw_pno(&irb->scsw);
+		__entry->scsw_panal = scsw_panal(&irb->scsw);
 		__entry->scsw_fctl = scsw_fctl(&irb->scsw);
 		__entry->scsw_actl = scsw_actl(&irb->scsw);
 		__entry->scsw_stctl = scsw_stctl(&irb->scsw);
@@ -134,10 +134,10 @@ TRACE_EVENT(s390_cio_tsch,
 		__entry->scsw_cstat = scsw_cstat(&irb->scsw);
 		__entry->cc = cc;
 	),
-	TP_printk("schid=%x.%x.%04x cc=%d dcc=%d pno=%d fctl=0x%x actl=0x%x "
+	TP_printk("schid=%x.%x.%04x cc=%d dcc=%d panal=%d fctl=0x%x actl=0x%x "
 		  "stctl=0x%x dstat=0x%x cstat=0x%x",
-		  __entry->cssid, __entry->ssid, __entry->schno, __entry->cc,
-		  __entry->scsw_dcc, __entry->scsw_pno,
+		  __entry->cssid, __entry->ssid, __entry->schanal, __entry->cc,
+		  __entry->scsw_dcc, __entry->scsw_panal,
 		  __entry->scsw_fctl, __entry->scsw_actl,
 		  __entry->scsw_stctl,
 		  __entry->scsw_dstat, __entry->scsw_cstat
@@ -157,7 +157,7 @@ TRACE_EVENT(s390_cio_tpi,
 		__field_struct(struct tpi_info, tpi_info)
 		__field(u8, cssid)
 		__field(u8, ssid)
-		__field(u16, schno)
+		__field(u16, schanal)
 		__field(u8, adapter_IO)
 		__field(u8, isc)
 		__field(u8, type)
@@ -172,13 +172,13 @@ TRACE_EVENT(s390_cio_tpi,
 			__entry->tpi_info = S390_lowcore.tpi_info;
 		__entry->cssid = __entry->tpi_info.schid.cssid;
 		__entry->ssid = __entry->tpi_info.schid.ssid;
-		__entry->schno = __entry->tpi_info.schid.sch_no;
+		__entry->schanal = __entry->tpi_info.schid.sch_anal;
 		__entry->adapter_IO = __entry->tpi_info.adapter_IO;
 		__entry->isc = __entry->tpi_info.isc;
 		__entry->type = __entry->tpi_info.type;
 	),
 	TP_printk("schid=%x.%x.%04x cc=%d a=%d isc=%d type=%d",
-		  __entry->cssid, __entry->ssid, __entry->schno, __entry->cc,
+		  __entry->cssid, __entry->ssid, __entry->schanal, __entry->cc,
 		  __entry->adapter_IO, __entry->isc,
 		  __entry->type
 	)
@@ -196,19 +196,19 @@ TRACE_EVENT(s390_cio_ssch,
 	TP_STRUCT__entry(
 		__field(u8, cssid)
 		__field(u8, ssid)
-		__field(u16, schno)
+		__field(u16, schanal)
 		__field_struct(union orb, orb)
 		__field(int, cc)
 	),
 	TP_fast_assign(
 		__entry->cssid = schid.cssid;
 		__entry->ssid = schid.ssid;
-		__entry->schno = schid.sch_no;
+		__entry->schanal = schid.sch_anal;
 		__entry->orb = *orb;
 		__entry->cc = cc;
 	),
 	TP_printk("schid=%x.%x.%04x cc=%d", __entry->cssid, __entry->ssid,
-		  __entry->schno, __entry->cc
+		  __entry->schanal, __entry->cc
 	)
 );
 
@@ -218,17 +218,17 @@ DECLARE_EVENT_CLASS(s390_class_schid,
 	TP_STRUCT__entry(
 		__field(u8, cssid)
 		__field(u8, ssid)
-		__field(u16, schno)
+		__field(u16, schanal)
 		__field(int, cc)
 	),
 	TP_fast_assign(
 		__entry->cssid = schid.cssid;
 		__entry->ssid = schid.ssid;
-		__entry->schno = schid.sch_no;
+		__entry->schanal = schid.sch_anal;
 		__entry->cc = cc;
 	),
 	TP_printk("schid=%x.%x.%04x cc=%d", __entry->cssid, __entry->ssid,
-		  __entry->schno, __entry->cc
+		  __entry->schanal, __entry->cc
 	)
 );
 
@@ -315,7 +315,7 @@ TRACE_EVENT(s390_cio_interrupt,
 		__field_struct(struct tpi_info, tpi_info)
 		__field(u8, cssid)
 		__field(u8, ssid)
-		__field(u16, schno)
+		__field(u16, schanal)
 		__field(u8, isc)
 		__field(u8, type)
 	),
@@ -323,12 +323,12 @@ TRACE_EVENT(s390_cio_interrupt,
 		__entry->tpi_info = *tpi_info;
 		__entry->cssid = tpi_info->schid.cssid;
 		__entry->ssid = tpi_info->schid.ssid;
-		__entry->schno = tpi_info->schid.sch_no;
+		__entry->schanal = tpi_info->schid.sch_anal;
 		__entry->isc = tpi_info->isc;
 		__entry->type = tpi_info->type;
 	),
 	TP_printk("schid=%x.%x.%04x isc=%d type=%d",
-		  __entry->cssid, __entry->ssid, __entry->schno,
+		  __entry->cssid, __entry->ssid, __entry->schanal,
 		  __entry->isc, __entry->type
 	)
 );

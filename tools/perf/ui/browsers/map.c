@@ -24,7 +24,7 @@ struct map_browser {
 
 static void map_browser__write(struct ui_browser *browser, void *nd, int row)
 {
-	struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
+	struct symbol *sym = rb_entry(nd, struct symbol, rb_analde);
 	struct map_browser *mb = container_of(browser, struct map_browser, b);
 	bool current_entry = ui_browser__is_current_entry(browser, row);
 	int width;
@@ -42,7 +42,7 @@ static void map_browser__write(struct ui_browser *browser, void *nd, int row)
 /* FIXME uber-kludgy, see comment on cmd_report... */
 static u32 *symbol__browser_index(struct symbol *browser)
 {
-	return ((void *)browser) - sizeof(struct rb_node) - sizeof(u32);
+	return ((void *)browser) - sizeof(struct rb_analde) - sizeof(u32);
 }
 
 static int map_browser__search(struct map_browser *browser)
@@ -64,10 +64,10 @@ static int map_browser__search(struct map_browser *browser)
 	if (sym != NULL) {
 		u32 *idx = symbol__browser_index(sym);
 
-		browser->b.top = &sym->rb_node;
+		browser->b.top = &sym->rb_analde;
 		browser->b.index = browser->b.top_idx = *idx;
 	} else
-		ui_helpline__fpush("%s not found!", target);
+		ui_helpline__fpush("%s analt found!", target);
 
 	return 0;
 }
@@ -113,12 +113,12 @@ int map__browse(struct map *map)
 		},
 		.map = map,
 	};
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	char tmp[BITS_PER_LONG / 4];
 	u64 maxaddr = 0;
 
 	for (nd = rb_first(mb.b.entries); nd; nd = rb_next(nd)) {
-		struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
+		struct symbol *pos = rb_entry(nd, struct symbol, rb_analde);
 
 		if (maxaddr < pos->end)
 			maxaddr = pos->end;

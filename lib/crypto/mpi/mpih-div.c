@@ -5,8 +5,8 @@
  *
  * This file is part of GnuPG.
  *
- * Note: This code is heavily based on the GNU MP Library.
- *	 Actually it's the same code with only minor changes in the
+ * Analte: This code is heavily based on the GNU MP Library.
+ *	 Actually it's the same code with only mianalr changes in the
  *	 way the data is stored; this is to support the abstraction
  *	 of an optional secure memory allocation which may be used
  *	 to avoid revealing of sensitive data due to paging etc.
@@ -47,13 +47,13 @@ mpihelp_mod_1(mpi_ptr_t dividend_ptr, mpi_size_t dividend_size,
 	 */
 	if (UDIV_TIME > (2 * UMUL_TIME + 6)
 			&& (UDIV_TIME - (2 * UMUL_TIME + 6)) * dividend_size > UDIV_TIME) {
-		int normalization_steps;
+		int analrmalization_steps;
 
-		normalization_steps = count_leading_zeros(divisor_limb);
-		if (normalization_steps) {
+		analrmalization_steps = count_leading_zeros(divisor_limb);
+		if (analrmalization_steps) {
 			mpi_limb_t divisor_limb_inverted;
 
-			divisor_limb <<= normalization_steps;
+			divisor_limb <<= analrmalization_steps;
 
 			/* Compute (2**2N - 2**N * DIVISOR_LIMB) / DIVISOR_LIMB.  The
 			 * result is a (N+1)-bit approximation to 1/DIVISOR_LIMB, with the
@@ -68,26 +68,26 @@ mpihelp_mod_1(mpi_ptr_t dividend_ptr, mpi_size_t dividend_size,
 						-divisor_limb, 0, divisor_limb);
 
 			n1 = dividend_ptr[dividend_size - 1];
-			r = n1 >> (BITS_PER_MPI_LIMB - normalization_steps);
+			r = n1 >> (BITS_PER_MPI_LIMB - analrmalization_steps);
 
 			/* Possible optimization:
 			 * if (r == 0
-			 * && divisor_limb > ((n1 << normalization_steps)
+			 * && divisor_limb > ((n1 << analrmalization_steps)
 			 *		       | (dividend_ptr[dividend_size - 2] >> ...)))
 			 * ...one division less...
 			 */
 			for (i = dividend_size - 2; i >= 0; i--) {
 				n0 = dividend_ptr[i];
 				UDIV_QRNND_PREINV(dummy, r, r,
-						((n1 << normalization_steps)
-						 | (n0 >> (BITS_PER_MPI_LIMB - normalization_steps))),
+						((n1 << analrmalization_steps)
+						 | (n0 >> (BITS_PER_MPI_LIMB - analrmalization_steps))),
 						divisor_limb, divisor_limb_inverted);
 				n1 = n0;
 			}
 			UDIV_QRNND_PREINV(dummy, r, r,
-					n1 << normalization_steps,
+					n1 << analrmalization_steps,
 					divisor_limb, divisor_limb_inverted);
-			return r >> normalization_steps;
+			return r >> analrmalization_steps;
 		} else {
 			mpi_limb_t divisor_limb_inverted;
 
@@ -119,38 +119,38 @@ mpihelp_mod_1(mpi_ptr_t dividend_ptr, mpi_size_t dividend_size,
 			return r;
 		}
 	} else {
-		if (UDIV_NEEDS_NORMALIZATION) {
-			int normalization_steps;
+		if (UDIV_NEEDS_ANALRMALIZATION) {
+			int analrmalization_steps;
 
-			normalization_steps = count_leading_zeros(divisor_limb);
-			if (normalization_steps) {
-				divisor_limb <<= normalization_steps;
+			analrmalization_steps = count_leading_zeros(divisor_limb);
+			if (analrmalization_steps) {
+				divisor_limb <<= analrmalization_steps;
 
 				n1 = dividend_ptr[dividend_size - 1];
-				r = n1 >> (BITS_PER_MPI_LIMB - normalization_steps);
+				r = n1 >> (BITS_PER_MPI_LIMB - analrmalization_steps);
 
 				/* Possible optimization:
 				 * if (r == 0
-				 * && divisor_limb > ((n1 << normalization_steps)
+				 * && divisor_limb > ((n1 << analrmalization_steps)
 				 *		   | (dividend_ptr[dividend_size - 2] >> ...)))
 				 * ...one division less...
 				 */
 				for (i = dividend_size - 2; i >= 0; i--) {
 					n0 = dividend_ptr[i];
 					udiv_qrnnd(dummy, r, r,
-						((n1 << normalization_steps)
-						 | (n0 >> (BITS_PER_MPI_LIMB - normalization_steps))),
+						((n1 << analrmalization_steps)
+						 | (n0 >> (BITS_PER_MPI_LIMB - analrmalization_steps))),
 						divisor_limb);
 					n1 = n0;
 				}
 				udiv_qrnnd(dummy, r, r,
-						n1 << normalization_steps,
+						n1 << analrmalization_steps,
 						divisor_limb);
-				return r >> normalization_steps;
+				return r >> analrmalization_steps;
 			}
 		}
-		/* No normalization needed, either because udiv_qrnnd doesn't require
-		 * it, or because DIVISOR_LIMB is already normalized.
+		/* Anal analrmalization needed, either because udiv_qrnnd doesn't require
+		 * it, or because DIVISOR_LIMB is already analrmalized.
 		 */
 		i = dividend_size - 1;
 		r = dividend_ptr[i];
@@ -171,18 +171,18 @@ mpihelp_mod_1(mpi_ptr_t dividend_ptr, mpi_size_t dividend_size,
 /* Divide num (NP/NSIZE) by den (DP/DSIZE) and write
  * the NSIZE-DSIZE least significant quotient limbs at QP
  * and the DSIZE long remainder at NP.	If QEXTRA_LIMBS is
- * non-zero, generate that many fraction bits and append them after the
+ * analn-zero, generate that many fraction bits and append them after the
  * other quotient limbs.
  * Return the most significant limb of the quotient, this is always 0 or 1.
  *
  * Preconditions:
  * 0. NSIZE >= DSIZE.
  * 1. The most significant bit of the divisor must be set.
- * 2. QP must either not overlap with the input operands at all, or
+ * 2. QP must either analt overlap with the input operands at all, or
  *    QP + DSIZE >= NP must hold true.	(This means that it's
  *    possible to put the quotient in the high part of NUM, right after the
  *    remainder in NUM.
- * 3. NSIZE >= DSIZE, even if QEXTRA_LIMBS is non-zero.
+ * 3. NSIZE >= DSIZE, even if QEXTRA_LIMBS is analn-zero.
  */
 
 mpi_limb_t
@@ -194,10 +194,10 @@ mpihelp_divrem(mpi_ptr_t qp, mpi_size_t qextra_limbs,
 	switch (dsize) {
 	case 0:
 		/* We are asked to divide by zero, so go ahead and do it!  (To make
-		   the compiler not remove this statement, return the value.)  */
+		   the compiler analt remove this statement, return the value.)  */
 		/*
 		 * existing clients of this function have been modified
-		 * not to call it with dsize == 0, so this should not happen
+		 * analt to call it with dsize == 0, so this should analt happen
 		 */
 		return 1 / dsize;
 
@@ -255,7 +255,7 @@ mpihelp_divrem(mpi_ptr_t qp, mpi_size_t qextra_limbs,
 
 				if (n1 == d1) {
 					/* Q should be either 111..111 or 111..110.  Need special
-					 * treatment of this rare case as normal division would
+					 * treatment of this rare case as analrmal division would
 					 * give overflow.  */
 					q = ~(mpi_limb_t) 0;
 
@@ -280,7 +280,7 @@ q_test:
 					q--;
 					sub_ddmmss(n1, n0, n1, n0, 0, d0);
 					r += d1;
-					if (r >= d1)	/* If not carry, test Q again.  */
+					if (r >= d1)	/* If analt carry, test Q again.  */
 						goto q_test;
 				}
 
@@ -326,7 +326,7 @@ q_test:
 				}
 
 				if (n0 == dX) {
-					/* This might over-estimate q, but it's probably not worth
+					/* This might over-estimate q, but it's probably analt worth
 					 * the extra code here to find out.  */
 					q = ~(mpi_limb_t) 0;
 				} else {
@@ -370,7 +370,7 @@ q_test:
  * Divide (DIVIDEND_PTR,,DIVIDEND_SIZE) by DIVISOR_LIMB.
  * Write DIVIDEND_SIZE limbs of quotient at QUOT_PTR.
  * Return the single-limb remainder.
- * There are no constraints on the value of the divisor.
+ * There are anal constraints on the value of the divisor.
  *
  * QUOT_PTR and DIVIDEND_PTR might point to the same limb.
  */
@@ -397,13 +397,13 @@ mpihelp_divmod_1(mpi_ptr_t quot_ptr,
 	 */
 	if (UDIV_TIME > (2 * UMUL_TIME + 6)
 			&& (UDIV_TIME - (2 * UMUL_TIME + 6)) * dividend_size > UDIV_TIME) {
-		int normalization_steps;
+		int analrmalization_steps;
 
-		normalization_steps = count_leading_zeros(divisor_limb);
-		if (normalization_steps) {
+		analrmalization_steps = count_leading_zeros(divisor_limb);
+		if (analrmalization_steps) {
 			mpi_limb_t divisor_limb_inverted;
 
-			divisor_limb <<= normalization_steps;
+			divisor_limb <<= analrmalization_steps;
 
 			/* Compute (2**2N - 2**N * DIVISOR_LIMB) / DIVISOR_LIMB.  The
 			 * result is a (N+1)-bit approximation to 1/DIVISOR_LIMB, with the
@@ -417,26 +417,26 @@ mpihelp_divmod_1(mpi_ptr_t quot_ptr,
 						-divisor_limb, 0, divisor_limb);
 
 			n1 = dividend_ptr[dividend_size - 1];
-			r = n1 >> (BITS_PER_MPI_LIMB - normalization_steps);
+			r = n1 >> (BITS_PER_MPI_LIMB - analrmalization_steps);
 
 			/* Possible optimization:
 			 * if (r == 0
-			 * && divisor_limb > ((n1 << normalization_steps)
+			 * && divisor_limb > ((n1 << analrmalization_steps)
 			 *		       | (dividend_ptr[dividend_size - 2] >> ...)))
 			 * ...one division less...
 			 */
 			for (i = dividend_size - 2; i >= 0; i--) {
 				n0 = dividend_ptr[i];
 				UDIV_QRNND_PREINV(quot_ptr[i + 1], r, r,
-						((n1 << normalization_steps)
-						 | (n0 >> (BITS_PER_MPI_LIMB - normalization_steps))),
+						((n1 << analrmalization_steps)
+						 | (n0 >> (BITS_PER_MPI_LIMB - analrmalization_steps))),
 						divisor_limb, divisor_limb_inverted);
 				n1 = n0;
 			}
 			UDIV_QRNND_PREINV(quot_ptr[0], r, r,
-					n1 << normalization_steps,
+					n1 << analrmalization_steps,
 					divisor_limb, divisor_limb_inverted);
-			return r >> normalization_steps;
+			return r >> analrmalization_steps;
 		} else {
 			mpi_limb_t divisor_limb_inverted;
 
@@ -467,38 +467,38 @@ mpihelp_divmod_1(mpi_ptr_t quot_ptr,
 			return r;
 		}
 	} else {
-		if (UDIV_NEEDS_NORMALIZATION) {
-			int normalization_steps;
+		if (UDIV_NEEDS_ANALRMALIZATION) {
+			int analrmalization_steps;
 
-			normalization_steps = count_leading_zeros(divisor_limb);
-			if (normalization_steps) {
-				divisor_limb <<= normalization_steps;
+			analrmalization_steps = count_leading_zeros(divisor_limb);
+			if (analrmalization_steps) {
+				divisor_limb <<= analrmalization_steps;
 
 				n1 = dividend_ptr[dividend_size - 1];
-				r = n1 >> (BITS_PER_MPI_LIMB - normalization_steps);
+				r = n1 >> (BITS_PER_MPI_LIMB - analrmalization_steps);
 
 				/* Possible optimization:
 				 * if (r == 0
-				 * && divisor_limb > ((n1 << normalization_steps)
+				 * && divisor_limb > ((n1 << analrmalization_steps)
 				 *		   | (dividend_ptr[dividend_size - 2] >> ...)))
 				 * ...one division less...
 				 */
 				for (i = dividend_size - 2; i >= 0; i--) {
 					n0 = dividend_ptr[i];
 					udiv_qrnnd(quot_ptr[i + 1], r, r,
-						((n1 << normalization_steps)
-						 | (n0 >> (BITS_PER_MPI_LIMB - normalization_steps))),
+						((n1 << analrmalization_steps)
+						 | (n0 >> (BITS_PER_MPI_LIMB - analrmalization_steps))),
 						divisor_limb);
 					n1 = n0;
 				}
 				udiv_qrnnd(quot_ptr[0], r, r,
-						n1 << normalization_steps,
+						n1 << analrmalization_steps,
 						divisor_limb);
-				return r >> normalization_steps;
+				return r >> analrmalization_steps;
 			}
 		}
-		/* No normalization needed, either because udiv_qrnnd doesn't require
-		 * it, or because DIVISOR_LIMB is already normalized.
+		/* Anal analrmalization needed, either because udiv_qrnnd doesn't require
+		 * it, or because DIVISOR_LIMB is already analrmalized.
 		 */
 		i = dividend_size - 1;
 		r = dividend_ptr[i];

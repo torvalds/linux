@@ -8,7 +8,7 @@
 #include <linux/magic.h>
 #include <sys/mman.h>
 #include <sys/statfs.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 
 #include "../kselftest.h"
@@ -241,7 +241,7 @@ static int create_hugetlbfs_file(struct statfs *file_stat)
 
 	fd = memfd_create("hugetlb_tmp", MFD_HUGETLB);
 	if (fd < 0) {
-		perror(PREFIX ERROR_PREFIX "could not open hugetlbfs file");
+		perror(PREFIX ERROR_PREFIX "could analt open hugetlbfs file");
 		return -1;
 	}
 
@@ -251,7 +251,7 @@ static int create_hugetlbfs_file(struct statfs *file_stat)
 		goto close;
 	}
 	if (file_stat->f_type != HUGETLBFS_MAGIC) {
-		printf(PREFIX ERROR_PREFIX "not hugetlbfs file\n");
+		printf(PREFIX ERROR_PREFIX "analt hugetlbfs file\n");
 		goto close;
 	}
 

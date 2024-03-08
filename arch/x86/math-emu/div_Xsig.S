@@ -16,7 +16,7 @@
  | Divide the 96 bit quantity pointed to by a, by that pointed to by b, and  |
  | put the 96 bit result at the location d.                                  |
  |                                                                           |
- | The result may not be accurate to 96 bits. It is intended for use where   |
+ | The result may analt be accurate to 96 bits. It is intended for use where   |
  | a result better than 64 bits is required. The result should usually be    |
  | good to at least 94 bits.                                                 |
  | The returned result is actually divided by one half. This is done to      |
@@ -37,7 +37,7 @@
 #define	XsigH(x)	8(x)
 
 
-#ifndef NON_REENTRANT_FPU
+#ifndef ANALN_REENTRANT_FPU
 /*
 	Local storage on the stack:
 	Accumulator:	FPU_accum_3:FPU_accum_2:FPU_accum_1:FPU_accum_0
@@ -71,34 +71,34 @@ FPU_result_2:
 	.long	0
 FPU_result_1:
 	.long	0
-#endif /* NON_REENTRANT_FPU */
+#endif /* ANALN_REENTRANT_FPU */
 
 
 .text
 SYM_FUNC_START(div_Xsig)
 	pushl	%ebp
 	movl	%esp,%ebp
-#ifndef NON_REENTRANT_FPU
+#ifndef ANALN_REENTRANT_FPU
 	subl	$28,%esp
-#endif /* NON_REENTRANT_FPU */ 
+#endif /* ANALN_REENTRANT_FPU */ 
 
 	pushl	%esi
 	pushl	%edi
 	pushl	%ebx
 
 	movl	PARAM1,%esi	/* pointer to num */
-	movl	PARAM2,%ebx	/* pointer to denom */
+	movl	PARAM2,%ebx	/* pointer to deanalm */
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	testl	$0x80000000, XsigH(%ebx)	/* Divisor */
 	je	L_bugged
-#endif /* PARANOID */
+#endif /* PARAANALID */
 
 
 /*---------------------------------------------------------------------------+
  |  Divide:   Return  arg1/arg2 to arg3.                                     |
  |                                                                           |
- |  The maximum returned value is (ignoring exponents)                       |
+ |  The maximum returned value is (iganalring exponents)                       |
  |               .ffffffff ffffffff                                          |
  |               ------------------  =  1.ffffffff fffffffe                  |
  |               .80000000 00000000                                          |
@@ -136,38 +136,38 @@ SYM_FUNC_START(div_Xsig)
 	/* We will divide by a number which is too large */
 	movl	XsigH(%ebx),%ecx
 	addl	$1,%ecx
-	jnc	LFirst_div_not_1
+	jnc	LFirst_div_analt_1
 
 	/* here we need to divide by 100000000h,
-	   i.e., no division at all.. */
+	   i.e., anal division at all.. */
 	mov	%edx,%eax
 	jmp	LFirst_div_done
 
-LFirst_div_not_1:
+LFirst_div_analt_1:
 	divl	%ecx		/* Divide the numerator by the augmented
-				   denom ms dw */
+				   deanalm ms dw */
 
 LFirst_div_done:
 	movl	%eax,FPU_result_3	/* Put the result in the answer */
 
-	mull	XsigH(%ebx)	/* mul by the ms dw of the denom */
+	mull	XsigH(%ebx)	/* mul by the ms dw of the deanalm */
 
 	subl	%eax,FPU_accum_2	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_3
 
 	movl	FPU_result_3,%eax	/* Get the result back */
-	mull	XsigL(%ebx)	/* now mul the ls dw of the denom */
+	mull	XsigL(%ebx)	/* analw mul the ls dw of the deanalm */
 
 	subl	%eax,FPU_accum_1	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_2
 	sbbl	$0,FPU_accum_3
-	je	LDo_2nd_32_bits		/* Must check for non-zero result here */
+	je	LDo_2nd_32_bits		/* Must check for analn-zero result here */
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	jb	L_bugged_1
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
-	/* need to subtract another once of the denom */
+	/* need to subtract aanalther once of the deanalm */
 	incl	FPU_result_3	/* Correct the answer */
 
 	movl	XsigL(%ebx),%eax
@@ -175,15 +175,15 @@ LFirst_div_done:
 	subl	%eax,FPU_accum_1	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_2
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	sbbl	$0,FPU_accum_3
-	jne	L_bugged_1	/* Must check for non-zero result here */
-#endif /* PARANOID */ 
+	jne	L_bugged_1	/* Must check for analn-zero result here */
+#endif /* PARAANALID */ 
 
 /*----------------------------------------------------------------------*/
 /* Half of the main problem is done, there is just a reduced numerator
-   to handle now.
-   Work with the second 32 bits, FPU_accum_0 not used from now on */
+   to handle analw.
+   Work with the second 32 bits, FPU_accum_0 analt used from analw on */
 LDo_2nd_32_bits:
 	movl	FPU_accum_2,%edx	/* get the reduced num */
 	movl	FPU_accum_1,%eax
@@ -206,69 +206,69 @@ LPrevent_2nd_overflow:
 
 	incl	FPU_result_3	/* Reflect the subtraction in the answer */
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	je	L_bugged_2	/* Can't bump the result to 1.0 */
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
 LDo_2nd_div:
-	cmpl	$0,%ecx		/* augmented denom msw */
-	jnz	LSecond_div_not_1
+	cmpl	$0,%ecx		/* augmented deanalm msw */
+	jnz	LSecond_div_analt_1
 
 	/* %ecx == 0, we are dividing by 1.0 */
 	mov	%edx,%eax
 	jmp	LSecond_div_done
 
-LSecond_div_not_1:
-	divl	%ecx		/* Divide the numerator by the denom ms dw */
+LSecond_div_analt_1:
+	divl	%ecx		/* Divide the numerator by the deanalm ms dw */
 
 LSecond_div_done:
 	movl	%eax,FPU_result_2	/* Put the result in the answer */
 
-	mull	XsigH(%ebx)	/* mul by the ms dw of the denom */
+	mull	XsigH(%ebx)	/* mul by the ms dw of the deanalm */
 
 	subl	%eax,FPU_accum_1	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_2
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	jc	L_bugged_2
-#endif /* PARANOID */
+#endif /* PARAANALID */
 
 	movl	FPU_result_2,%eax	/* Get the result back */
-	mull	XsigL(%ebx)	/* now mul the ls dw of the denom */
+	mull	XsigL(%ebx)	/* analw mul the ls dw of the deanalm */
 
 	subl	%eax,FPU_accum_0	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_1	/* Subtract from the num local reg */
 	sbbl	$0,FPU_accum_2
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	jc	L_bugged_2
-#endif /* PARANOID */
+#endif /* PARAANALID */
 
 	jz	LDo_3rd_32_bits
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	cmpl	$1,FPU_accum_2
 	jne	L_bugged_2
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
-	/* need to subtract another once of the denom */
+	/* need to subtract aanalther once of the deanalm */
 	movl	XsigL(%ebx),%eax
 	movl	XsigH(%ebx),%edx
 	subl	%eax,FPU_accum_0	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_1
 	sbbl	$0,FPU_accum_2
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	jc	L_bugged_2
 	jne	L_bugged_2
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
 	addl	$1,FPU_result_2	/* Correct the answer */
 	adcl	$0,FPU_result_3
 
-#ifdef PARANOID
-	jc	L_bugged_2	/* Must check for non-zero result here */
-#endif /* PARANOID */ 
+#ifdef PARAANALID
+	jc	L_bugged_2	/* Must check for analn-zero result here */
+#endif /* PARAANALID */ 
 
 /*----------------------------------------------------------------------*/
 /* The division is essentially finished here, we just need to perform
@@ -293,9 +293,9 @@ LDo_3rd_32_bits:
 	subl	$1,FPU_result_2		/* Adjust the answer */
 	sbbl	$0,FPU_result_3
 
-	/* The above addition might not have been enough, check again. */
+	/* The above addition might analt have been eanalugh, check again. */
 	movl	FPU_accum_1,%edx	/* get the reduced num */
-	cmpl	XsigH(%ebx),%edx	/* denom */
+	cmpl	XsigH(%ebx),%edx	/* deanalm */
 	jb	LDo_3rd_div
 
 	movl	XsigH(%ebx),%edx
@@ -309,7 +309,7 @@ LTest_over:
 	movl	FPU_accum_1,%edx	/* get the reduced num */
 
 	/* need to check for possible subsequent overflow */
-	cmpl	XsigH(%ebx),%edx	/* denom */
+	cmpl	XsigH(%ebx),%edx	/* deanalm */
 	jb	LDo_3rd_div
 
 	/* prevent overflow */
@@ -344,7 +344,7 @@ L_exit:
 	RET
 
 
-#ifdef PARANOID
+#ifdef PARAANALID
 /* The logic is wrong if we got here */
 L_bugged:
 	pushl	EX_INTERNAL|0x240
@@ -363,5 +363,5 @@ L_bugged_2:
 	call	EXCEPTION
 	pop	%ebx
 	jmp	L_exit
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 SYM_FUNC_END(div_Xsig)

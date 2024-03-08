@@ -335,7 +335,7 @@ struct clock_config {
 				const struct clock_config *cfg);
 };
 
-#define NO_ID ~0
+#define ANAL_ID ~0
 
 struct gate_cfg {
 	u32 reg_off;
@@ -492,7 +492,7 @@ static struct clk_hw *_get_stm32_mux(struct device *dev, void __iomem *base,
 	if (cfg->mmux) {
 		mmux = devm_kzalloc(dev, sizeof(*mmux), GFP_KERNEL);
 		if (!mmux)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		mmux->mux.reg = cfg->mux->reg_off + base;
 		mmux->mux.shift = cfg->mux->shift;
@@ -507,7 +507,7 @@ static struct clk_hw *_get_stm32_mux(struct device *dev, void __iomem *base,
 	} else {
 		mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
 		if (!mux)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		mux->reg = cfg->mux->reg_off + base;
 		mux->shift = cfg->mux->shift;
@@ -530,7 +530,7 @@ static struct clk_hw *_get_stm32_div(struct device *dev, void __iomem *base,
 	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
 
 	if (!div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	div->reg = cfg->div->reg_off + base;
 	div->shift = cfg->div->shift;
@@ -553,7 +553,7 @@ static struct clk_hw *_get_stm32_gate(struct device *dev, void __iomem *base,
 	if (cfg->mgate) {
 		mgate = devm_kzalloc(dev, sizeof(*mgate), GFP_KERNEL);
 		if (!mgate)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		mgate->gate.reg = cfg->gate->reg_off + base;
 		mgate->gate.bit_idx = cfg->gate->bit_idx;
@@ -568,7 +568,7 @@ static struct clk_hw *_get_stm32_gate(struct device *dev, void __iomem *base,
 	} else {
 		gate = devm_kzalloc(dev, sizeof(*gate), GFP_KERNEL);
 		if (!gate)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		gate->reg = cfg->gate->reg_off + base;
 		gate->bit_idx = cfg->gate->bit_idx;
@@ -610,7 +610,7 @@ clk_stm32_register_gate_ops(struct device *dev,
 
 	hw = _get_stm32_gate(dev, base, cfg, lock);
 	if (IS_ERR(hw))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hw->init = &init;
 
@@ -795,7 +795,7 @@ static int pll_enable(struct clk_hw *hw)
 	/* We can't use readl_poll_timeout() because we can be blocked if
 	 * someone enables this clock before clocksource changes.
 	 * Only jiffies counter is available. Jiffies are incremented by
-	 * interruptions and enable op does not allow to be interrupted.
+	 * interruptions and enable op does analt allow to be interrupted.
 	 */
 	do {
 		bit_status = !(readl_relaxed(clk_elem->reg) & PLL_RDY);
@@ -909,7 +909,7 @@ static struct clk_hw *clk_register_pll(struct device *dev, const char *name,
 
 	element = devm_kzalloc(dev, sizeof(*element), GFP_KERNEL);
 	if (!element)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &pll_ops;
@@ -1045,7 +1045,7 @@ static struct clk_hw *clk_register_cktim(struct device *dev, const char *name,
 
 	tim_ker = devm_kzalloc(dev, sizeof(*tim_ker), GFP_KERNEL);
 	if (!tim_ker)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &timer_ker_ops;
@@ -1237,7 +1237,7 @@ _clk_stm32_register_composite(struct device *dev,
 	.name		= _name,\
 	.parent_names	= _parents,\
 	.num_parents	= ARRAY_SIZE(_parents),\
-	.flags		= CLK_IGNORE_UNUSED | (_flags),\
+	.flags		= CLK_IGANALRE_UNUSED | (_flags),\
 	.cfg		=  &(struct stm32_pll_cfg) {\
 		.offset = _offset_p,\
 		.muxoff = _offset_mux,\
@@ -1247,7 +1247,7 @@ _clk_stm32_register_composite(struct device *dev,
 
 #define STM32_CKTIM(_name, _parent, _flags, _offset_apbdiv, _offset_timpre)\
 {\
-	.id		= NO_ID,\
+	.id		= ANAL_ID,\
 	.name		= _name,\
 	.parent_name	= _parent,\
 	.flags		= _flags,\
@@ -1361,9 +1361,9 @@ _clk_stm32_register_composite(struct device *dev,
 
 #define PARENT(_parent) ((const char *[]) { _parent})
 
-#define _NO_MUX .mux = NULL
-#define _NO_DIV .div = NULL
-#define _NO_GATE .gate = NULL
+#define _ANAL_MUX .mux = NULL
+#define _ANAL_DIV .div = NULL
+#define _ANAL_GATE .gate = NULL
 
 #define COMPOSITE(_id, _name, _parents, _flags, _gate, _mux, _div)\
 {\
@@ -1388,10 +1388,10 @@ _clk_stm32_register_composite(struct device *dev,
 
 #define KCLK(_id, _name, _parents, _flags, _mgate, _mmux)\
 	     COMPOSITE(_id, _name, _parents, CLK_OPS_PARENT_ENABLE |\
-		       CLK_SET_RATE_NO_REPARENT | _flags,\
+		       CLK_SET_RATE_ANAL_REPARENT | _flags,\
 		       _MGATE_MP1(_mgate),\
 		       _MMUX(_mmux),\
-		       _NO_DIV)
+		       _ANAL_DIV)
 
 enum {
 	G_SAI1,
@@ -1765,7 +1765,7 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 		 RCC_OCENSETR, 4, 0),
 	COMPOSITE(CK_HSI, "ck_hsi", PARENT("clk-hsi"), 0,
 		  _GATE_MP1(RCC_OCENSETR, 0, 0),
-		  _NO_MUX,
+		  _ANAL_MUX,
 		  _DIV(RCC_HSICFGR, 0, 2, CLK_DIVIDER_POWER_OF_TWO |
 		       CLK_DIVIDER_READ_ONLY, NULL)),
 	GATE(CK_LSI, "ck_lsi", "clk-lsi", 0, RCC_RDLSICR, 0, 0),
@@ -1782,52 +1782,52 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	/* ODF */
 	COMPOSITE(PLL1_P, "pll1_p", PARENT("pll1"), 0,
 		  _GATE(RCC_PLL1CR, 4, 0),
-		  _NO_MUX,
+		  _ANAL_MUX,
 		  _DIV(RCC_PLL1CFGR2, 0, 7, 0, NULL)),
 
 	COMPOSITE(PLL2_P, "pll2_p", PARENT("pll2"), 0,
 		  _GATE(RCC_PLL2CR, 4, 0),
-		  _NO_MUX,
+		  _ANAL_MUX,
 		  _DIV(RCC_PLL2CFGR2, 0, 7, 0, NULL)),
 
 	COMPOSITE(PLL2_Q, "pll2_q", PARENT("pll2"), 0,
 		  _GATE(RCC_PLL2CR, 5, 0),
-		  _NO_MUX,
+		  _ANAL_MUX,
 		  _DIV(RCC_PLL2CFGR2, 8, 7, 0, NULL)),
 
 	COMPOSITE(PLL2_R, "pll2_r", PARENT("pll2"), CLK_IS_CRITICAL,
 		  _GATE(RCC_PLL2CR, 6, 0),
-		  _NO_MUX,
+		  _ANAL_MUX,
 		  _DIV(RCC_PLL2CFGR2, 16, 7, 0, NULL)),
 
 	COMPOSITE(PLL3_P, "pll3_p", PARENT("pll3"), 0,
 		  _GATE(RCC_PLL3CR, 4, 0),
-		  _NO_MUX,
+		  _ANAL_MUX,
 		  _DIV(RCC_PLL3CFGR2, 0, 7, 0, NULL)),
 
 	COMPOSITE(PLL3_Q, "pll3_q", PARENT("pll3"), 0,
 		  _GATE(RCC_PLL3CR, 5, 0),
-		  _NO_MUX,
+		  _ANAL_MUX,
 		  _DIV(RCC_PLL3CFGR2, 8, 7, 0, NULL)),
 
 	COMPOSITE(PLL3_R, "pll3_r", PARENT("pll3"), 0,
 		  _GATE(RCC_PLL3CR, 6, 0),
-		  _NO_MUX,
+		  _ANAL_MUX,
 		  _DIV(RCC_PLL3CFGR2, 16, 7, 0, NULL)),
 
 	COMPOSITE(PLL4_P, "pll4_p", PARENT("pll4"), 0,
 		  _GATE(RCC_PLL4CR, 4, 0),
-		  _NO_MUX,
+		  _ANAL_MUX,
 		  _DIV(RCC_PLL4CFGR2, 0, 7, 0, NULL)),
 
 	COMPOSITE(PLL4_Q, "pll4_q", PARENT("pll4"), 0,
 		  _GATE(RCC_PLL4CR, 5, 0),
-		  _NO_MUX,
+		  _ANAL_MUX,
 		  _DIV(RCC_PLL4CFGR2, 8, 7, 0, NULL)),
 
 	COMPOSITE(PLL4_R, "pll4_r", PARENT("pll4"), 0,
 		  _GATE(RCC_PLL4CR, 6, 0),
-		  _NO_MUX,
+		  _ANAL_MUX,
 		  _DIV(RCC_PLL4CFGR2, 16, 7, 0, NULL)),
 
 	/* MUX system clocks */
@@ -1839,29 +1839,29 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 
 	COMPOSITE(CK_AXI, "ck_axi", axi_src, CLK_IS_CRITICAL |
 		   CLK_OPS_PARENT_ENABLE,
-		   _NO_GATE,
+		   _ANAL_GATE,
 		   _MUX(RCC_ASSCKSELR, 0, 2, 0),
 		   _DIV(RCC_AXIDIVR, 0, 3, 0, axi_div_table)),
 
 	COMPOSITE(CK_MCU, "ck_mcu", mcu_src, CLK_IS_CRITICAL |
 		   CLK_OPS_PARENT_ENABLE,
-		   _NO_GATE,
+		   _ANAL_GATE,
 		   _MUX(RCC_MSSCKSELR, 0, 2, 0),
 		   _DIV(RCC_MCUDIVR, 0, 4, 0, mcu_div_table)),
 
-	DIV_TABLE(NO_ID, "pclk1", "ck_mcu", CLK_IGNORE_UNUSED, RCC_APB1DIVR, 0,
+	DIV_TABLE(ANAL_ID, "pclk1", "ck_mcu", CLK_IGANALRE_UNUSED, RCC_APB1DIVR, 0,
 		  3, CLK_DIVIDER_READ_ONLY, apb_div_table),
 
-	DIV_TABLE(NO_ID, "pclk2", "ck_mcu", CLK_IGNORE_UNUSED, RCC_APB2DIVR, 0,
+	DIV_TABLE(ANAL_ID, "pclk2", "ck_mcu", CLK_IGANALRE_UNUSED, RCC_APB2DIVR, 0,
 		  3, CLK_DIVIDER_READ_ONLY, apb_div_table),
 
-	DIV_TABLE(NO_ID, "pclk3", "ck_mcu", CLK_IGNORE_UNUSED, RCC_APB3DIVR, 0,
+	DIV_TABLE(ANAL_ID, "pclk3", "ck_mcu", CLK_IGANALRE_UNUSED, RCC_APB3DIVR, 0,
 		  3, CLK_DIVIDER_READ_ONLY, apb_div_table),
 
-	DIV_TABLE(NO_ID, "pclk4", "ck_axi", CLK_IGNORE_UNUSED, RCC_APB4DIVR, 0,
+	DIV_TABLE(ANAL_ID, "pclk4", "ck_axi", CLK_IGANALRE_UNUSED, RCC_APB4DIVR, 0,
 		  3, CLK_DIVIDER_READ_ONLY, apb_div_table),
 
-	DIV_TABLE(NO_ID, "pclk5", "ck_axi", CLK_IGNORE_UNUSED, RCC_APB5DIVR, 0,
+	DIV_TABLE(ANAL_ID, "pclk5", "ck_axi", CLK_IGANALRE_UNUSED, RCC_APB5DIVR, 0,
 		  3, CLK_DIVIDER_READ_ONLY, apb_div_table),
 
 	/* Kernel Timers */
@@ -1884,15 +1884,15 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	STM32_TIM(TIM17_K, "tim17_k", "ck2_tim", RCC_APB2ENSETR, 4),
 
 	/* Peripheral clocks */
-	PCLK(TIM2, "tim2", "pclk1", CLK_IGNORE_UNUSED, G_TIM2),
-	PCLK(TIM3, "tim3", "pclk1", CLK_IGNORE_UNUSED, G_TIM3),
-	PCLK(TIM4, "tim4", "pclk1", CLK_IGNORE_UNUSED, G_TIM4),
-	PCLK(TIM5, "tim5", "pclk1", CLK_IGNORE_UNUSED, G_TIM5),
-	PCLK(TIM6, "tim6", "pclk1", CLK_IGNORE_UNUSED, G_TIM6),
-	PCLK(TIM7, "tim7", "pclk1", CLK_IGNORE_UNUSED, G_TIM7),
-	PCLK(TIM12, "tim12", "pclk1", CLK_IGNORE_UNUSED, G_TIM12),
-	PCLK(TIM13, "tim13", "pclk1", CLK_IGNORE_UNUSED, G_TIM13),
-	PCLK(TIM14, "tim14", "pclk1", CLK_IGNORE_UNUSED, G_TIM14),
+	PCLK(TIM2, "tim2", "pclk1", CLK_IGANALRE_UNUSED, G_TIM2),
+	PCLK(TIM3, "tim3", "pclk1", CLK_IGANALRE_UNUSED, G_TIM3),
+	PCLK(TIM4, "tim4", "pclk1", CLK_IGANALRE_UNUSED, G_TIM4),
+	PCLK(TIM5, "tim5", "pclk1", CLK_IGANALRE_UNUSED, G_TIM5),
+	PCLK(TIM6, "tim6", "pclk1", CLK_IGANALRE_UNUSED, G_TIM6),
+	PCLK(TIM7, "tim7", "pclk1", CLK_IGANALRE_UNUSED, G_TIM7),
+	PCLK(TIM12, "tim12", "pclk1", CLK_IGANALRE_UNUSED, G_TIM12),
+	PCLK(TIM13, "tim13", "pclk1", CLK_IGANALRE_UNUSED, G_TIM13),
+	PCLK(TIM14, "tim14", "pclk1", CLK_IGANALRE_UNUSED, G_TIM14),
 	PCLK(LPTIM1, "lptim1", "pclk1", 0, G_LPTIM1),
 	PCLK(SPI2, "spi2", "pclk1", 0, G_SPI2),
 	PCLK(SPI3, "spi3", "pclk1", 0, G_SPI3),
@@ -1910,11 +1910,11 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	PCLK(CEC, "cec", "pclk1", 0, G_CEC),
 	PCLK(DAC12, "dac12", "pclk1", 0, G_DAC12),
 	PCLK(MDIO, "mdio", "pclk1", 0, G_MDIO),
-	PCLK(TIM1, "tim1", "pclk2", CLK_IGNORE_UNUSED, G_TIM1),
-	PCLK(TIM8, "tim8", "pclk2", CLK_IGNORE_UNUSED, G_TIM8),
-	PCLK(TIM15, "tim15", "pclk2", CLK_IGNORE_UNUSED, G_TIM15),
-	PCLK(TIM16, "tim16", "pclk2", CLK_IGNORE_UNUSED, G_TIM16),
-	PCLK(TIM17, "tim17", "pclk2", CLK_IGNORE_UNUSED, G_TIM17),
+	PCLK(TIM1, "tim1", "pclk2", CLK_IGANALRE_UNUSED, G_TIM1),
+	PCLK(TIM8, "tim8", "pclk2", CLK_IGANALRE_UNUSED, G_TIM8),
+	PCLK(TIM15, "tim15", "pclk2", CLK_IGANALRE_UNUSED, G_TIM15),
+	PCLK(TIM16, "tim16", "pclk2", CLK_IGANALRE_UNUSED, G_TIM16),
+	PCLK(TIM17, "tim17", "pclk2", CLK_IGANALRE_UNUSED, G_TIM17),
 	PCLK(SPI1, "spi1", "pclk2", 0, G_SPI1),
 	PCLK(SPI4, "spi4", "pclk2", 0, G_SPI4),
 	PCLK(SPI5, "spi5", "pclk2", 0, G_SPI5),
@@ -1943,14 +1943,14 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	PCLK(I2C4, "i2c4", "pclk5", 0, G_I2C4),
 	PCLK(I2C6, "i2c6", "pclk5", 0, G_I2C6),
 	PCLK(USART1, "usart1", "pclk5", 0, G_USART1),
-	PCLK(RTCAPB, "rtcapb", "pclk5", CLK_IGNORE_UNUSED |
+	PCLK(RTCAPB, "rtcapb", "pclk5", CLK_IGANALRE_UNUSED |
 	     CLK_IS_CRITICAL, G_RTCAPB),
-	PCLK(TZC1, "tzc1", "ck_axi", CLK_IGNORE_UNUSED, G_TZC1),
-	PCLK(TZC2, "tzc2", "ck_axi", CLK_IGNORE_UNUSED, G_TZC2),
-	PCLK(TZPC, "tzpc", "pclk5", CLK_IGNORE_UNUSED, G_TZPC),
+	PCLK(TZC1, "tzc1", "ck_axi", CLK_IGANALRE_UNUSED, G_TZC1),
+	PCLK(TZC2, "tzc2", "ck_axi", CLK_IGANALRE_UNUSED, G_TZC2),
+	PCLK(TZPC, "tzpc", "pclk5", CLK_IGANALRE_UNUSED, G_TZPC),
 	PCLK(IWDG1, "iwdg1", "pclk5", 0, G_IWDG1),
-	PCLK(BSEC, "bsec", "pclk5", CLK_IGNORE_UNUSED, G_BSEC),
-	PCLK(STGEN, "stgen", "pclk5", CLK_IGNORE_UNUSED, G_STGEN),
+	PCLK(BSEC, "bsec", "pclk5", CLK_IGANALRE_UNUSED, G_BSEC),
+	PCLK(STGEN, "stgen", "pclk5", CLK_IGANALRE_UNUSED, G_STGEN),
 	PCLK(DMA1, "dma1", "ck_mcu", 0, G_DMA1),
 	PCLK(DMA2, "dma2", "ck_mcu",  0, G_DMA2),
 	PCLK(DMAMUX, "dmamux", "ck_mcu", 0, G_DMAMUX),
@@ -1975,18 +1975,18 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	PCLK(GPIOI, "gpioi", "ck_mcu", 0, G_GPIOI),
 	PCLK(GPIOJ, "gpioj", "ck_mcu", 0, G_GPIOJ),
 	PCLK(GPIOK, "gpiok", "ck_mcu", 0, G_GPIOK),
-	PCLK(GPIOZ, "gpioz", "ck_axi", CLK_IGNORE_UNUSED, G_GPIOZ),
-	PCLK(CRYP1, "cryp1", "ck_axi", CLK_IGNORE_UNUSED, G_CRYP1),
-	PCLK(HASH1, "hash1", "ck_axi", CLK_IGNORE_UNUSED, G_HASH1),
+	PCLK(GPIOZ, "gpioz", "ck_axi", CLK_IGANALRE_UNUSED, G_GPIOZ),
+	PCLK(CRYP1, "cryp1", "ck_axi", CLK_IGANALRE_UNUSED, G_CRYP1),
+	PCLK(HASH1, "hash1", "ck_axi", CLK_IGANALRE_UNUSED, G_HASH1),
 	PCLK(RNG1, "rng1", "ck_axi", 0, G_RNG1),
-	PCLK(BKPSRAM, "bkpsram", "ck_axi", CLK_IGNORE_UNUSED, G_BKPSRAM),
+	PCLK(BKPSRAM, "bkpsram", "ck_axi", CLK_IGANALRE_UNUSED, G_BKPSRAM),
 	PCLK(MDMA, "mdma", "ck_axi", 0, G_MDMA),
 	PCLK(GPU, "gpu", "ck_axi", 0, G_GPU),
 	PCLK(ETHTX, "ethtx", "ck_axi", 0, G_ETHTX),
 	PCLK_PDATA(ETHRX, "ethrx", ethrx_src, 0, G_ETHRX),
 	PCLK(ETHMAC, "ethmac", "ck_axi", 0, G_ETHMAC),
-	PCLK(FMC, "fmc", "ck_axi", CLK_IGNORE_UNUSED, G_FMC),
-	PCLK(QSPI, "qspi", "ck_axi", CLK_IGNORE_UNUSED, G_QSPI),
+	PCLK(FMC, "fmc", "ck_axi", CLK_IGANALRE_UNUSED, G_FMC),
+	PCLK(QSPI, "qspi", "ck_axi", CLK_IGANALRE_UNUSED, G_QSPI),
 	PCLK(SDMMC1, "sdmmc1", "ck_axi", 0, G_SDMMC1),
 	PCLK(SDMMC2, "sdmmc2", "ck_axi", 0, G_SDMMC2),
 	PCLK(CRC1, "crc1", "ck_axi", 0, G_CRC1),
@@ -2041,23 +2041,23 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	KCLK(ADFSDM_K, "adfsdm_k", sai_src, 0, G_ADFSDM, M_SAI1),
 	KCLK(USBO_K, "usbo_k", usbo_src, 0, G_USBO, M_USBO),
 
-	/* Particulary Kernel Clocks (no mux or no gate) */
+	/* Particulary Kernel Clocks (anal mux or anal gate) */
 	MGATE_MP1(DFSDM_K, "dfsdm_k", "ck_mcu", 0, G_DFSDM),
 	MGATE_MP1(DSI_PX, "dsi_px", "pll4_q", CLK_SET_RATE_PARENT, G_DSI),
 	MGATE_MP1(LTDC_PX, "ltdc_px", "pll4_q", CLK_SET_RATE_PARENT, G_LTDC),
 	MGATE_MP1(GPU_K, "gpu_k", "pll2_q", 0, G_GPU),
 	MGATE_MP1(DAC12_K, "dac12_k", "ck_lsi", 0, G_DAC12),
 
-	COMPOSITE(NO_ID, "ck_ker_eth", eth_src, CLK_OPS_PARENT_ENABLE |
-		  CLK_SET_RATE_NO_REPARENT,
-		  _NO_GATE,
+	COMPOSITE(ANAL_ID, "ck_ker_eth", eth_src, CLK_OPS_PARENT_ENABLE |
+		  CLK_SET_RATE_ANAL_REPARENT,
+		  _ANAL_GATE,
 		  _MMUX(M_ETHCK),
-		  _NO_DIV),
+		  _ANAL_DIV),
 
 	MGATE_MP1(ETHCK_K, "ethck_k", "ck_ker_eth", 0, G_ETHCK),
 
 	DIV(ETHPTP_K, "ethptp_k", "ck_ker_eth", CLK_OPS_PARENT_ENABLE |
-	    CLK_SET_RATE_NO_REPARENT, RCC_ETHCKSELR, 4, 4, 0),
+	    CLK_SET_RATE_ANAL_REPARENT, RCC_ETHCKSELR, 4, 4, 0),
 
 	/* RTC clock */
 	COMPOSITE(RTC, "ck_rtc", rtc_src, CLK_OPS_PARENT_ENABLE,
@@ -2067,24 +2067,24 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 
 	/* MCO clocks */
 	COMPOSITE(CK_MCO1, "ck_mco1", mco1_src, CLK_OPS_PARENT_ENABLE |
-		  CLK_SET_RATE_NO_REPARENT,
+		  CLK_SET_RATE_ANAL_REPARENT,
 		  _GATE(RCC_MCO1CFGR, 12, 0),
 		  _MUX(RCC_MCO1CFGR, 0, 3, 0),
 		  _DIV(RCC_MCO1CFGR, 4, 4, 0, NULL)),
 
 	COMPOSITE(CK_MCO2, "ck_mco2", mco2_src, CLK_OPS_PARENT_ENABLE |
-		  CLK_SET_RATE_NO_REPARENT,
+		  CLK_SET_RATE_ANAL_REPARENT,
 		  _GATE(RCC_MCO2CFGR, 12, 0),
 		  _MUX(RCC_MCO2CFGR, 0, 3, 0),
 		  _DIV(RCC_MCO2CFGR, 4, 4, 0, NULL)),
 
 	/* Debug clocks */
-	GATE(CK_DBG, "ck_sys_dbg", "ck_axi", CLK_IGNORE_UNUSED,
+	GATE(CK_DBG, "ck_sys_dbg", "ck_axi", CLK_IGANALRE_UNUSED,
 	     RCC_DBGCFGR, 8, 0),
 
 	COMPOSITE(CK_TRACE, "ck_trace", ck_trace_src, CLK_OPS_PARENT_ENABLE,
 		  _GATE(RCC_DBGCFGR, 9, 0),
-		  _NO_MUX,
+		  _ANAL_MUX,
 		  _DIV(RCC_DBGCFGR, 0, 3, 0, ck_trace_div_table)),
 };
 
@@ -2184,7 +2184,7 @@ static int stm32_register_hw_clk(struct device *dev,
 				 const struct clock_config *cfg)
 {
 	struct clk_hw **hws;
-	struct clk_hw *hw = ERR_PTR(-ENOENT);
+	struct clk_hw *hw = ERR_PTR(-EANALENT);
 
 	hws = clk_data->hws;
 
@@ -2196,7 +2196,7 @@ static int stm32_register_hw_clk(struct device *dev,
 		return  PTR_ERR(hw);
 	}
 
-	if (cfg->id != NO_ID)
+	if (cfg->id != ANAL_ID)
 		hws[cfg->id] = hw;
 
 	return 0;
@@ -2215,14 +2215,14 @@ static int stm32_rcc_clock_init(struct device *dev, void __iomem *base,
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, max_binding),
 				GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->num = max_binding;
 
 	hws = clk_data->hws;
 
 	for (n = 0; n < max_binding; n++)
-		hws[n] = ERR_PTR(-ENOENT);
+		hws[n] = ERR_PTR(-EANALENT);
 
 	for (n = 0; n < data->num; n++) {
 		if (data->check_security && data->check_security(&data->cfg[n]))
@@ -2238,7 +2238,7 @@ static int stm32_rcc_clock_init(struct device *dev, void __iomem *base,
 		}
 	}
 
-	return of_clk_add_hw_provider(dev_of_node(dev), of_clk_hw_onecell_get, clk_data);
+	return of_clk_add_hw_provider(dev_of_analde(dev), of_clk_hw_onecell_get, clk_data);
 }
 
 static int stm32_rcc_init(struct device *dev, void __iomem *base,
@@ -2248,10 +2248,10 @@ static int stm32_rcc_init(struct device *dev, void __iomem *base,
 	const struct of_device_id *match;
 	int err;
 
-	match = of_match_node(match_data, dev_of_node(dev));
+	match = of_match_analde(match_data, dev_of_analde(dev));
 	if (!match) {
-		dev_err(dev, "match data not found\n");
-		return -ENODEV;
+		dev_err(dev, "match data analt found\n");
+		return -EANALDEV;
 	}
 
 	rcc_match_data = match->data;
@@ -2278,10 +2278,10 @@ static int stm32mp1_rcc_init(struct device *dev)
 	void __iomem *base;
 	int ret;
 
-	base = of_iomap(dev_of_node(dev), 0);
+	base = of_iomap(dev_of_analde(dev), 0);
 	if (!base) {
-		pr_err("%pOFn: unable to map resource", dev_of_node(dev));
-		ret = -ENOMEM;
+		pr_err("%pOFn: unable to map resource", dev_of_analde(dev));
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -2292,7 +2292,7 @@ out:
 		if (base)
 			iounmap(base);
 
-		of_node_put(dev_of_node(dev));
+		of_analde_put(dev_of_analde(dev));
 	}
 
 	return ret;
@@ -2309,14 +2309,14 @@ static int get_clock_deps(struct device *dev)
 
 	clk_deps = devm_kzalloc(dev, deps_size, GFP_KERNEL);
 	if (!clk_deps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(clock_deps_name); i++) {
-		struct clk *clk = of_clk_get_by_name(dev_of_node(dev),
+		struct clk *clk = of_clk_get_by_name(dev_of_analde(dev),
 						     clock_deps_name[i]);
 
 		if (IS_ERR(clk)) {
-			if (PTR_ERR(clk) != -EINVAL && PTR_ERR(clk) != -ENOENT)
+			if (PTR_ERR(clk) != -EINVAL && PTR_ERR(clk) != -EANALENT)
 				return PTR_ERR(clk);
 		} else {
 			/* Device gets a reference count on the clock */
@@ -2342,9 +2342,9 @@ static int stm32mp1_rcc_clocks_probe(struct platform_device *pdev)
 static void stm32mp1_rcc_clocks_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *child, *np = dev_of_node(dev);
+	struct device_analde *child, *np = dev_of_analde(dev);
 
-	for_each_available_child_of_node(np, child)
+	for_each_available_child_of_analde(np, child)
 		of_clk_del_provider(child);
 }
 

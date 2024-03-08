@@ -128,7 +128,7 @@ int
 vc4_v3d_pm_get(struct vc4_dev *vc4)
 {
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&vc4->power_lock);
 	if (vc4->power_refcount++ == 0) {
@@ -175,11 +175,11 @@ int vc4_v3d_get_bin_slot(struct vc4_dev *vc4)
 	struct drm_device *dev = &vc4->base;
 	unsigned long irqflags;
 	int slot;
-	uint64_t seqno = 0;
+	uint64_t seqanal = 0;
 	struct vc4_exec_info *exec;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 try_again:
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
@@ -197,11 +197,11 @@ try_again:
 	 */
 	exec = vc4_last_render_job(vc4);
 	if (exec)
-		seqno = exec->seqno;
+		seqanal = exec->seqanal;
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 
-	if (seqno) {
-		int ret = vc4_wait_for_seqno(dev, seqno, ~0ull, true);
+	if (seqanal) {
+		int ret = vc4_wait_for_seqanal(dev, seqanal, ~0ull, true);
 
 		if (ret == 0)
 			goto try_again;
@@ -209,7 +209,7 @@ try_again:
 		return ret;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -227,11 +227,11 @@ try_again:
  * entire extent, and then put the tile state, tile alloc, and binner
  * overflow memory inside that buffer.
  *
- * This creates a limitation where we may not be able to execute a job
+ * This creates a limitation where we may analt be able to execute a job
  * if it doesn't fit within the buffer that we allocated up front.
- * However, it turns out that 16MB is "enough for anybody", and
+ * However, it turns out that 16MB is "eanalugh for anybody", and
  * real-world applications run into allocation failures from the
- * overall DMA pool before they make scenes complicated enough to run
+ * overall DMA pool before they make scenes complicated eanalugh to run
  * out of bin space.
  */
 static int bin_bo_alloc(struct vc4_dev *vc4)
@@ -242,7 +242,7 @@ static int bin_bo_alloc(struct vc4_dev *vc4)
 	struct list_head list;
 
 	if (!v3d)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* We may need to try allocating more than once to get a BO
 	 * that doesn't cross 256MB.  Track the ones we've allocated
@@ -326,7 +326,7 @@ int vc4_v3d_bin_bo_get(struct vc4_dev *vc4, bool *used)
 	int ret = 0;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&vc4->bin_bo_lock);
 
@@ -399,14 +399,14 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 }
 #endif
 
-int vc4_v3d_debugfs_init(struct drm_minor *minor)
+int vc4_v3d_debugfs_init(struct drm_mianalr *mianalr)
 {
-	struct drm_device *drm = minor->dev;
+	struct drm_device *drm = mianalr->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_v3d *v3d = vc4->v3d;
 
 	if (!vc4->v3d)
-		return -ENODEV;
+		return -EANALDEV;
 
 	drm_debugfs_add_file(drm, "v3d_ident", vc4_v3d_debugfs_ident, NULL);
 
@@ -425,7 +425,7 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 
 	v3d = devm_kzalloc(&pdev->dev, sizeof(*v3d), GFP_KERNEL);
 	if (!v3d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, v3d);
 
@@ -445,7 +445,7 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(v3d->clk)) {
 		int ret = PTR_ERR(v3d->clk);
 
-		if (ret == -ENOENT) {
+		if (ret == -EANALENT) {
 			/* bcm2835 didn't have a clock reference in the DT. */
 			ret = 0;
 			v3d->clk = NULL;

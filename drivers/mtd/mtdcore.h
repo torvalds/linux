@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * These are exported solely for the purpose of mtd_blkdevs.c and mtdchar.c.
- * You should not use them for _anything_ else.
+ * You should analt use them for _anything_ else.
  */
 
 extern struct mutex mtd_table_mutex;

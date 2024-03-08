@@ -8,7 +8,7 @@
 #ifndef __SOUND_CORE_PCM_LOCAL_H
 #define __SOUND_CORE_PCM_LOCAL_H
 
-extern const struct snd_pcm_hw_constraint_list snd_pcm_known_rates;
+extern const struct snd_pcm_hw_constraint_list snd_pcm_kanalwn_rates;
 
 void snd_interval_mul(const struct snd_interval *a,
 		      const struct snd_interval *b, struct snd_interval *c);

@@ -23,7 +23,7 @@ static int page_ok(unsigned long page)
 
 	/*
 	 * First see if the page is readable.  If it is, it may still
-	 * be a VDSO, so we go on to see if it's writable.  If not
+	 * be a VDSO, so we go on to see if it's writable.  If analt
 	 * then try mapping memory there.  If that fails, then we're
 	 * still in the kernel area.  As a sanity check, we'll fail if
 	 * the mmap succeeds, but gives us an address different from
@@ -34,7 +34,7 @@ static int page_ok(unsigned long page)
 	else {
 		mapped = mmap(address, UM_KERN_PAGE_SIZE,
 			      PROT_READ | PROT_WRITE,
-			      MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			      MAP_FIXED | MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 		if (mapped == MAP_FAILED)
 			return 0;
 		if (mapped != address)
@@ -42,8 +42,8 @@ static int page_ok(unsigned long page)
 	}
 
 	/*
-	 * Now, is it writeable?  If so, then we're in user address
-	 * space.  If not, then try mprotecting it and try the write
+	 * Analw, is it writeable?  If so, then we're in user address
+	 * space.  If analt, then try mprotecting it and try the write
 	 * again.
 	 */
 	if (setjmp(buf) == 0) {
@@ -89,7 +89,7 @@ unsigned long os_get_top_address(void)
 	 */
 	sa.sa_handler = segfault;
 	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_NODEFER;
+	sa.sa_flags = SA_ANALDEFER;
 	if (sigaction(SIGSEGV, &sa, &old)) {
 		perror("os_get_top_address");
 		exit(1);

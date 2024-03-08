@@ -27,7 +27,7 @@ int skl_hda_hdmi_add_pcm(struct snd_soc_card *card, int device)
 
 	pcm = devm_kzalloc(card->dev, sizeof(*pcm), GFP_KERNEL);
 	if (!pcm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(dai_name, sizeof(dai_name), "intel-hdmi-hifi%d",
 		 ctx->dai_index);
@@ -85,21 +85,21 @@ struct snd_soc_dai_link skl_hda_be_dai_links[HDA_DSP_MAX_BE_DAI_LINKS] = {
 		.name = "iDisp1",
 		.id = 1,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp1_cpu, idisp1_codec, platform),
 	},
 	{
 		.name = "iDisp2",
 		.id = 2,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp2_cpu, idisp2_codec, platform),
 	},
 	{
 		.name = "iDisp3",
 		.id = 3,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp3_cpu, idisp3_codec, platform),
 	},
 	{
@@ -107,7 +107,7 @@ struct snd_soc_dai_link skl_hda_be_dai_links[HDA_DSP_MAX_BE_DAI_LINKS] = {
 		.id = 4,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(analog_cpu, analog_codec, platform),
 	},
 	{
@@ -115,21 +115,21 @@ struct snd_soc_dai_link skl_hda_be_dai_links[HDA_DSP_MAX_BE_DAI_LINKS] = {
 		.id = 5,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(digital_cpu, digital_codec, platform),
 	},
 	{
 		.name = "dmic01",
 		.id = 6,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(dmic_pin, dmic_codec, platform),
 	},
 	{
 		.name = "dmic16k",
 		.id = 7,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(dmic16k, dmic_codec, platform),
 	},
 };

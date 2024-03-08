@@ -8,7 +8,7 @@ title: Ramoops oops/panic logger
 
 description: |
   ramoops provides persistent RAM storage for oops and panics, so they can be
-  recovered after a reboot. This is a child-node of "/reserved-memory", and
+  recovered after a reboot. This is a child-analde of "/reserved-memory", and
   is named "ramoops" after the backend, rather than "pstore" which is the
   subsystem.
 
@@ -21,7 +21,7 @@ description: |
   that they should be disabled.
 
   At least one of "record-size", "console-size", "ftrace-size", or "pmsg-size"
-  must be set non-zero, but are otherwise optional as listed below.
+  must be set analn-zero, but are otherwise optional as listed below.
 
 maintainers:
   - Kees Cook <keescook@chromium.org>
@@ -39,7 +39,7 @@ properties:
   ecc-size:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: enables ECC support and specifies ECC buffer size in bytes
-    default: 0 # no ECC
+    default: 0 # anal ECC
 
   record-size:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -92,18 +92,18 @@ properties:
       If present, pass ramoops behavioral flags
       (see include/linux/pstore_ram.h RAMOOPS_FLAG_* for flag values).
 
-  no-dump-oops:
+  anal-dump-oops:
     deprecated: true
     type: boolean
     description: |
-      Use max_reason instead. If present, and max_reason is not specified,
+      Use max_reason instead. If present, and max_reason is analt specified,
       it is equivalent to max_reason = 1 (KMSG_DUMP_PANIC).
 
   unbuffered:
     deprecated: true
     type: boolean
     description: |
-      Use mem_type instead. If present, and mem_type is not specified,
+      Use mem_type instead. If present, and mem_type is analt specified,
       it is equivalent to mem_type = 1 and uses unbuffered mappings to map
       the reserved region (defaults to buffered mappings mem_type = 0).
       If both are specified -- "mem_type" overrides "unbuffered".

@@ -5,12 +5,12 @@
  *
  * Copyright (C) 2001 WireX Communications, Inc <chris@wirex.com>
  * Copyright (C) 2001 Greg Kroah-Hartman <greg@kroah.com>
- * Copyright (C) 2001 Networks Associates Technology, Inc <ssmalley@nai.com>
+ * Copyright (C) 2001 Networks Associates Techanallogy, Inc <ssmalley@nai.com>
  * Copyright (C) 2001 James Morris <jmorris@intercode.com.au>
- * Copyright (C) 2001 Silicon Graphics, Inc. (Trust Technology Group)
+ * Copyright (C) 2001 Silicon Graphics, Inc. (Trust Techanallogy Group)
  * Copyright (C) 2015 Intel Corporation.
  * Copyright (C) 2015 Casey Schaufler <casey@schaufler-ca.com>
- * Copyright (C) 2016 Mellanox Techonologies
+ * Copyright (C) 2016 Mellaanalx Techoanallogies
  * Copyright (C) 2020 Google LLC.
  */
 
@@ -48,7 +48,7 @@ LSM_HOOK(int, 0, quota_on, struct dentry *dentry)
 LSM_HOOK(int, 0, syslog, int type)
 LSM_HOOK(int, 0, settime, const struct timespec64 *ts,
 	 const struct timezone *tz)
-LSM_HOOK(int, 1, vm_enough_memory, struct mm_struct *mm, long pages)
+LSM_HOOK(int, 1, vm_eanalugh_memory, struct mm_struct *mm, long pages)
 LSM_HOOK(int, 0, bprm_creds_for_exec, struct linux_binprm *bprm)
 LSM_HOOK(int, 0, bprm_creds_from_file, struct linux_binprm *bprm, const struct file *file)
 LSM_HOOK(int, 0, bprm_check_security, struct linux_binprm *bprm)
@@ -57,7 +57,7 @@ LSM_HOOK(void, LSM_RET_VOID, bprm_committed_creds, const struct linux_binprm *bp
 LSM_HOOK(int, 0, fs_context_submount, struct fs_context *fc, struct super_block *reference)
 LSM_HOOK(int, 0, fs_context_dup, struct fs_context *fc,
 	 struct fs_context *src_sc)
-LSM_HOOK(int, -ENOPARAM, fs_context_parse_param, struct fs_context *fc,
+LSM_HOOK(int, -EANALPARAM, fs_context_parse_param, struct fs_context *fc,
 	 struct fs_parameter *param)
 LSM_HOOK(int, 0, sb_alloc_security, struct super_block *sb)
 LSM_HOOK(void, LSM_RET_VOID, sb_delete, struct super_block *sb)
@@ -81,7 +81,7 @@ LSM_HOOK(int, 0, sb_clone_mnt_opts, const struct super_block *oldsb,
 	 unsigned long *set_kern_flags)
 LSM_HOOK(int, 0, move_mount, const struct path *from_path,
 	 const struct path *to_path)
-LSM_HOOK(int, -EOPNOTSUPP, dentry_init_security, struct dentry *dentry,
+LSM_HOOK(int, -EOPANALTSUPP, dentry_init_security, struct dentry *dentry,
 	 int mode, const struct qstr *name, const char **xattr_name,
 	 void **ctx, u32 *ctxlen)
 LSM_HOOK(int, 0, dentry_create_files_as, struct dentry *dentry, int mode,
@@ -92,7 +92,7 @@ LSM_HOOK(int, 0, path_unlink, const struct path *dir, struct dentry *dentry)
 LSM_HOOK(int, 0, path_mkdir, const struct path *dir, struct dentry *dentry,
 	 umode_t mode)
 LSM_HOOK(int, 0, path_rmdir, const struct path *dir, struct dentry *dentry)
-LSM_HOOK(int, 0, path_mknod, const struct path *dir, struct dentry *dentry,
+LSM_HOOK(int, 0, path_mkanald, const struct path *dir, struct dentry *dentry,
 	 umode_t mode, unsigned int dev)
 LSM_HOOK(int, 0, path_truncate, const struct path *path)
 LSM_HOOK(int, 0, path_symlink, const struct path *dir, struct dentry *dentry,
@@ -107,65 +107,65 @@ LSM_HOOK(int, 0, path_chown, const struct path *path, kuid_t uid, kgid_t gid)
 LSM_HOOK(int, 0, path_chroot, const struct path *path)
 #endif /* CONFIG_SECURITY_PATH */
 
-/* Needed for inode based security check */
-LSM_HOOK(int, 0, path_notify, const struct path *path, u64 mask,
+/* Needed for ianalde based security check */
+LSM_HOOK(int, 0, path_analtify, const struct path *path, u64 mask,
 	 unsigned int obj_type)
-LSM_HOOK(int, 0, inode_alloc_security, struct inode *inode)
-LSM_HOOK(void, LSM_RET_VOID, inode_free_security, struct inode *inode)
-LSM_HOOK(int, -EOPNOTSUPP, inode_init_security, struct inode *inode,
-	 struct inode *dir, const struct qstr *qstr, struct xattr *xattrs,
+LSM_HOOK(int, 0, ianalde_alloc_security, struct ianalde *ianalde)
+LSM_HOOK(void, LSM_RET_VOID, ianalde_free_security, struct ianalde *ianalde)
+LSM_HOOK(int, -EOPANALTSUPP, ianalde_init_security, struct ianalde *ianalde,
+	 struct ianalde *dir, const struct qstr *qstr, struct xattr *xattrs,
 	 int *xattr_count)
-LSM_HOOK(int, 0, inode_init_security_anon, struct inode *inode,
-	 const struct qstr *name, const struct inode *context_inode)
-LSM_HOOK(int, 0, inode_create, struct inode *dir, struct dentry *dentry,
+LSM_HOOK(int, 0, ianalde_init_security_aanaln, struct ianalde *ianalde,
+	 const struct qstr *name, const struct ianalde *context_ianalde)
+LSM_HOOK(int, 0, ianalde_create, struct ianalde *dir, struct dentry *dentry,
 	 umode_t mode)
-LSM_HOOK(int, 0, inode_link, struct dentry *old_dentry, struct inode *dir,
+LSM_HOOK(int, 0, ianalde_link, struct dentry *old_dentry, struct ianalde *dir,
 	 struct dentry *new_dentry)
-LSM_HOOK(int, 0, inode_unlink, struct inode *dir, struct dentry *dentry)
-LSM_HOOK(int, 0, inode_symlink, struct inode *dir, struct dentry *dentry,
+LSM_HOOK(int, 0, ianalde_unlink, struct ianalde *dir, struct dentry *dentry)
+LSM_HOOK(int, 0, ianalde_symlink, struct ianalde *dir, struct dentry *dentry,
 	 const char *old_name)
-LSM_HOOK(int, 0, inode_mkdir, struct inode *dir, struct dentry *dentry,
+LSM_HOOK(int, 0, ianalde_mkdir, struct ianalde *dir, struct dentry *dentry,
 	 umode_t mode)
-LSM_HOOK(int, 0, inode_rmdir, struct inode *dir, struct dentry *dentry)
-LSM_HOOK(int, 0, inode_mknod, struct inode *dir, struct dentry *dentry,
+LSM_HOOK(int, 0, ianalde_rmdir, struct ianalde *dir, struct dentry *dentry)
+LSM_HOOK(int, 0, ianalde_mkanald, struct ianalde *dir, struct dentry *dentry,
 	 umode_t mode, dev_t dev)
-LSM_HOOK(int, 0, inode_rename, struct inode *old_dir, struct dentry *old_dentry,
-	 struct inode *new_dir, struct dentry *new_dentry)
-LSM_HOOK(int, 0, inode_readlink, struct dentry *dentry)
-LSM_HOOK(int, 0, inode_follow_link, struct dentry *dentry, struct inode *inode,
+LSM_HOOK(int, 0, ianalde_rename, struct ianalde *old_dir, struct dentry *old_dentry,
+	 struct ianalde *new_dir, struct dentry *new_dentry)
+LSM_HOOK(int, 0, ianalde_readlink, struct dentry *dentry)
+LSM_HOOK(int, 0, ianalde_follow_link, struct dentry *dentry, struct ianalde *ianalde,
 	 bool rcu)
-LSM_HOOK(int, 0, inode_permission, struct inode *inode, int mask)
-LSM_HOOK(int, 0, inode_setattr, struct dentry *dentry, struct iattr *attr)
-LSM_HOOK(int, 0, inode_getattr, const struct path *path)
-LSM_HOOK(int, 0, inode_setxattr, struct mnt_idmap *idmap,
+LSM_HOOK(int, 0, ianalde_permission, struct ianalde *ianalde, int mask)
+LSM_HOOK(int, 0, ianalde_setattr, struct dentry *dentry, struct iattr *attr)
+LSM_HOOK(int, 0, ianalde_getattr, const struct path *path)
+LSM_HOOK(int, 0, ianalde_setxattr, struct mnt_idmap *idmap,
 	 struct dentry *dentry, const char *name, const void *value,
 	 size_t size, int flags)
-LSM_HOOK(void, LSM_RET_VOID, inode_post_setxattr, struct dentry *dentry,
+LSM_HOOK(void, LSM_RET_VOID, ianalde_post_setxattr, struct dentry *dentry,
 	 const char *name, const void *value, size_t size, int flags)
-LSM_HOOK(int, 0, inode_getxattr, struct dentry *dentry, const char *name)
-LSM_HOOK(int, 0, inode_listxattr, struct dentry *dentry)
-LSM_HOOK(int, 0, inode_removexattr, struct mnt_idmap *idmap,
+LSM_HOOK(int, 0, ianalde_getxattr, struct dentry *dentry, const char *name)
+LSM_HOOK(int, 0, ianalde_listxattr, struct dentry *dentry)
+LSM_HOOK(int, 0, ianalde_removexattr, struct mnt_idmap *idmap,
 	 struct dentry *dentry, const char *name)
-LSM_HOOK(int, 0, inode_set_acl, struct mnt_idmap *idmap,
+LSM_HOOK(int, 0, ianalde_set_acl, struct mnt_idmap *idmap,
 	 struct dentry *dentry, const char *acl_name, struct posix_acl *kacl)
-LSM_HOOK(int, 0, inode_get_acl, struct mnt_idmap *idmap,
+LSM_HOOK(int, 0, ianalde_get_acl, struct mnt_idmap *idmap,
 	 struct dentry *dentry, const char *acl_name)
-LSM_HOOK(int, 0, inode_remove_acl, struct mnt_idmap *idmap,
+LSM_HOOK(int, 0, ianalde_remove_acl, struct mnt_idmap *idmap,
 	 struct dentry *dentry, const char *acl_name)
-LSM_HOOK(int, 0, inode_need_killpriv, struct dentry *dentry)
-LSM_HOOK(int, 0, inode_killpriv, struct mnt_idmap *idmap,
+LSM_HOOK(int, 0, ianalde_need_killpriv, struct dentry *dentry)
+LSM_HOOK(int, 0, ianalde_killpriv, struct mnt_idmap *idmap,
 	 struct dentry *dentry)
-LSM_HOOK(int, -EOPNOTSUPP, inode_getsecurity, struct mnt_idmap *idmap,
-	 struct inode *inode, const char *name, void **buffer, bool alloc)
-LSM_HOOK(int, -EOPNOTSUPP, inode_setsecurity, struct inode *inode,
+LSM_HOOK(int, -EOPANALTSUPP, ianalde_getsecurity, struct mnt_idmap *idmap,
+	 struct ianalde *ianalde, const char *name, void **buffer, bool alloc)
+LSM_HOOK(int, -EOPANALTSUPP, ianalde_setsecurity, struct ianalde *ianalde,
 	 const char *name, const void *value, size_t size, int flags)
-LSM_HOOK(int, 0, inode_listsecurity, struct inode *inode, char *buffer,
+LSM_HOOK(int, 0, ianalde_listsecurity, struct ianalde *ianalde, char *buffer,
 	 size_t buffer_size)
-LSM_HOOK(void, LSM_RET_VOID, inode_getsecid, struct inode *inode, u32 *secid)
-LSM_HOOK(int, 0, inode_copy_up, struct dentry *src, struct cred **new)
-LSM_HOOK(int, -EOPNOTSUPP, inode_copy_up_xattr, const char *name)
-LSM_HOOK(int, 0, kernfs_init_security, struct kernfs_node *kn_dir,
-	 struct kernfs_node *kn)
+LSM_HOOK(void, LSM_RET_VOID, ianalde_getsecid, struct ianalde *ianalde, u32 *secid)
+LSM_HOOK(int, 0, ianalde_copy_up, struct dentry *src, struct cred **new)
+LSM_HOOK(int, -EOPANALTSUPP, ianalde_copy_up_xattr, const char *name)
+LSM_HOOK(int, 0, kernfs_init_security, struct kernfs_analde *kn_dir,
+	 struct kernfs_analde *kn)
 LSM_HOOK(int, 0, file_permission, struct file *file, int mask)
 LSM_HOOK(int, 0, file_alloc_security, struct file *file)
 LSM_HOOK(void, LSM_RET_VOID, file_free_security, struct file *file)
@@ -198,7 +198,7 @@ LSM_HOOK(void, LSM_RET_VOID, cred_transfer, struct cred *new,
 	 const struct cred *old)
 LSM_HOOK(void, LSM_RET_VOID, cred_getsecid, const struct cred *c, u32 *secid)
 LSM_HOOK(int, 0, kernel_act_as, struct cred *new, u32 secid)
-LSM_HOOK(int, 0, kernel_create_files_as, struct cred *new, struct inode *inode)
+LSM_HOOK(int, 0, kernel_create_files_as, struct cred *new, struct ianalde *ianalde)
 LSM_HOOK(int, 0, kernel_module_request, char *kmod_name)
 LSM_HOOK(int, 0, kernel_load_data, enum kernel_load_data_id id, bool contents)
 LSM_HOOK(int, 0, kernel_post_load_data, char *buf, loff_t size,
@@ -230,10 +230,10 @@ LSM_HOOK(int, 0, task_getscheduler, struct task_struct *p)
 LSM_HOOK(int, 0, task_movememory, struct task_struct *p)
 LSM_HOOK(int, 0, task_kill, struct task_struct *p, struct kernel_siginfo *info,
 	 int sig, const struct cred *cred)
-LSM_HOOK(int, -ENOSYS, task_prctl, int option, unsigned long arg2,
+LSM_HOOK(int, -EANALSYS, task_prctl, int option, unsigned long arg2,
 	 unsigned long arg3, unsigned long arg4, unsigned long arg5)
-LSM_HOOK(void, LSM_RET_VOID, task_to_inode, struct task_struct *p,
-	 struct inode *inode)
+LSM_HOOK(void, LSM_RET_VOID, task_to_ianalde, struct task_struct *p,
+	 struct ianalde *ianalde)
 LSM_HOOK(int, 0, userns_create, const struct cred *cred)
 LSM_HOOK(int, 0, ipc_permission, struct kern_ipc_perm *ipcp, short flag)
 LSM_HOOK(void, LSM_RET_VOID, ipc_getsecid, struct kern_ipc_perm *ipcp,
@@ -263,33 +263,33 @@ LSM_HOOK(int, 0, sem_semop, struct kern_ipc_perm *perm, struct sembuf *sops,
 	 unsigned nsops, int alter)
 LSM_HOOK(int, 0, netlink_send, struct sock *sk, struct sk_buff *skb)
 LSM_HOOK(void, LSM_RET_VOID, d_instantiate, struct dentry *dentry,
-	 struct inode *inode)
-LSM_HOOK(int, -EOPNOTSUPP, getselfattr, unsigned int attr,
+	 struct ianalde *ianalde)
+LSM_HOOK(int, -EOPANALTSUPP, getselfattr, unsigned int attr,
 	 struct lsm_ctx __user *ctx, size_t *size, u32 flags)
-LSM_HOOK(int, -EOPNOTSUPP, setselfattr, unsigned int attr,
+LSM_HOOK(int, -EOPANALTSUPP, setselfattr, unsigned int attr,
 	 struct lsm_ctx *ctx, size_t size, u32 flags)
 LSM_HOOK(int, -EINVAL, getprocattr, struct task_struct *p, const char *name,
 	 char **value)
 LSM_HOOK(int, -EINVAL, setprocattr, const char *name, void *value, size_t size)
 LSM_HOOK(int, 0, ismaclabel, const char *name)
-LSM_HOOK(int, -EOPNOTSUPP, secid_to_secctx, u32 secid, char **secdata,
+LSM_HOOK(int, -EOPANALTSUPP, secid_to_secctx, u32 secid, char **secdata,
 	 u32 *seclen)
 LSM_HOOK(int, 0, secctx_to_secid, const char *secdata, u32 seclen, u32 *secid)
 LSM_HOOK(void, LSM_RET_VOID, release_secctx, char *secdata, u32 seclen)
-LSM_HOOK(void, LSM_RET_VOID, inode_invalidate_secctx, struct inode *inode)
-LSM_HOOK(int, 0, inode_notifysecctx, struct inode *inode, void *ctx, u32 ctxlen)
-LSM_HOOK(int, 0, inode_setsecctx, struct dentry *dentry, void *ctx, u32 ctxlen)
-LSM_HOOK(int, -EOPNOTSUPP, inode_getsecctx, struct inode *inode, void **ctx,
+LSM_HOOK(void, LSM_RET_VOID, ianalde_invalidate_secctx, struct ianalde *ianalde)
+LSM_HOOK(int, 0, ianalde_analtifysecctx, struct ianalde *ianalde, void *ctx, u32 ctxlen)
+LSM_HOOK(int, 0, ianalde_setsecctx, struct dentry *dentry, void *ctx, u32 ctxlen)
+LSM_HOOK(int, -EOPANALTSUPP, ianalde_getsecctx, struct ianalde *ianalde, void **ctx,
 	 u32 *ctxlen)
 
 #if defined(CONFIG_SECURITY) && defined(CONFIG_WATCH_QUEUE)
-LSM_HOOK(int, 0, post_notification, const struct cred *w_cred,
-	 const struct cred *cred, struct watch_notification *n)
+LSM_HOOK(int, 0, post_analtification, const struct cred *w_cred,
+	 const struct cred *cred, struct watch_analtification *n)
 #endif /* CONFIG_SECURITY && CONFIG_WATCH_QUEUE */
 
-#if defined(CONFIG_SECURITY) && defined(CONFIG_KEY_NOTIFICATIONS)
+#if defined(CONFIG_SECURITY) && defined(CONFIG_KEY_ANALTIFICATIONS)
 LSM_HOOK(int, 0, watch_key, struct key *key)
-#endif /* CONFIG_SECURITY && CONFIG_KEY_NOTIFICATIONS */
+#endif /* CONFIG_SECURITY && CONFIG_KEY_ANALTIFICATIONS */
 
 #ifdef CONFIG_SECURITY_NETWORK
 LSM_HOOK(int, 0, unix_stream_connect, struct sock *sock, struct sock *other,
@@ -315,9 +315,9 @@ LSM_HOOK(int, 0, socket_getsockopt, struct socket *sock, int level, int optname)
 LSM_HOOK(int, 0, socket_setsockopt, struct socket *sock, int level, int optname)
 LSM_HOOK(int, 0, socket_shutdown, struct socket *sock, int how)
 LSM_HOOK(int, 0, socket_sock_rcv_skb, struct sock *sk, struct sk_buff *skb)
-LSM_HOOK(int, -ENOPROTOOPT, socket_getpeersec_stream, struct socket *sock,
+LSM_HOOK(int, -EANALPROTOOPT, socket_getpeersec_stream, struct socket *sock,
 	 sockptr_t optval, sockptr_t optlen, unsigned int len)
-LSM_HOOK(int, -ENOPROTOOPT, socket_getpeersec_dgram, struct socket *sock,
+LSM_HOOK(int, -EANALPROTOOPT, socket_getpeersec_dgram, struct socket *sock,
 	 struct sk_buff *skb, u32 *secid)
 LSM_HOOK(int, 0, sk_alloc_security, struct sock *sk, int family, gfp_t priority)
 LSM_HOOK(void, LSM_RET_VOID, sk_free_security, struct sock *sk)
@@ -395,7 +395,7 @@ LSM_HOOK(int, 0, key_getsecurity, struct key *key, char **buffer)
 #ifdef CONFIG_AUDIT
 LSM_HOOK(int, 0, audit_rule_init, u32 field, u32 op, char *rulestr,
 	 void **lsmrule)
-LSM_HOOK(int, 0, audit_rule_known, struct audit_krule *krule)
+LSM_HOOK(int, 0, audit_rule_kanalwn, struct audit_krule *krule)
 LSM_HOOK(int, 0, audit_rule_match, u32 secid, u32 field, u32 op, void *lsmrule)
 LSM_HOOK(void, LSM_RET_VOID, audit_rule_free, void *lsmrule)
 #endif /* CONFIG_AUDIT */

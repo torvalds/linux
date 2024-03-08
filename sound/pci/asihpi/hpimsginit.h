@@ -10,7 +10,7 @@
  (C) Copyright AudioScience Inc. 2007
 *******************************************************************************/
 /* Initialise response headers, or msg/response pairs.
-Note that it is valid to just init a response e.g. when a lower level is
+Analte that it is valid to just init a response e.g. when a lower level is
 preparing a response to a message.
 However, when sending a message, a matching response buffer must always be
 prepared.

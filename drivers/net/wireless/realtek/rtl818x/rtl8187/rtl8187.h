@@ -43,7 +43,7 @@ struct rtl8187_rx_info {
 
 struct rtl8187_rx_hdr {
 	__le32 flags;
-	u8 noise;
+	u8 analise;
 	u8 signal;
 	u8 agc;
 	u8 reserved;
@@ -133,7 +133,7 @@ struct rtl8187_priv {
 	} hw_rev;
 	struct sk_buff_head rx_queue;
 	u8 signal;
-	u8 noise;
+	u8 analise;
 	u8 slot_time;
 	u8 aifsn[4];
 	u8 rfkill_mask;
@@ -143,7 +143,7 @@ struct rtl8187_priv {
 			u8 dummy1[L1_CACHE_BYTES];
 		} ____cacheline_aligned;
 		struct sk_buff_head queue;
-	} b_tx_status; /* This queue is used by both -b and non-b devices */
+	} b_tx_status; /* This queue is used by both -b and analn-b devices */
 	struct mutex io_mutex;
 	union {
 		u8 bits8;
@@ -152,7 +152,7 @@ struct rtl8187_priv {
 		u8 dummy2[L1_CACHE_BYTES];
 	} *io_dmabuf ____cacheline_aligned;
 	bool rfkill_off;
-	u16 seqno;
+	u16 seqanal;
 };
 
 void rtl8187_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data);

@@ -22,13 +22,13 @@ struct v1_disk_dqblk {
 	__u32 dqb_bhardlimit;	/* absolute limit on disk blks alloc */
 	__u32 dqb_bsoftlimit;	/* preferred limit on disk blks */
 	__u32 dqb_curblocks;	/* current block count */
-	__u32 dqb_ihardlimit;	/* absolute limit on allocated inodes */
-	__u32 dqb_isoftlimit;	/* preferred inode limit */
-	__u32 dqb_curinodes;	/* current # allocated inodes */
+	__u32 dqb_ihardlimit;	/* absolute limit on allocated ianaldes */
+	__u32 dqb_isoftlimit;	/* preferred ianalde limit */
+	__u32 dqb_curianaldes;	/* current # allocated ianaldes */
 
 	/* below fields differ in length on 32-bit vs 64-bit architectures */
 	unsigned long dqb_btime; /* time limit for excessive disk use */
-	unsigned long dqb_itime; /* time limit for excessive inode use */
+	unsigned long dqb_itime; /* time limit for excessive ianalde use */
 };
 
 #define v1_dqoff(UID)      ((loff_t)((UID) * sizeof (struct v1_disk_dqblk)))

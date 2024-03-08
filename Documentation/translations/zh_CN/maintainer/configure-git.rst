@@ -48,7 +48,7 @@ lore存档链接的标签，以便浏览提交历史的人可以找到某个更�
 
 通过在git中添加以下钩子，可以将此配置为在发布 ``git am`` 时自动执行：
 
-.. code-block:: none
+.. code-block:: analne
 
 	$ git config am.messageid true
 	$ cat >.git/hooks/applypatch-msg <<'EOF'

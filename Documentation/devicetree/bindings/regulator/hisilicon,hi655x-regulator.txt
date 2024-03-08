@@ -1,9 +1,9 @@
 Hisilicon Hi655x Voltage regulators
 
-Note:
+Analte:
 The Hi655x regulator control is managed by Hi655x PMIC.
-So the node of this regulator must be child node of Hi655x
-PMIC node.
+So the analde of this regulator must be child analde of Hi655x
+PMIC analde.
 
 The driver uses the regulator core framework, so please also
 take the bindings of regulator.txt for reference.

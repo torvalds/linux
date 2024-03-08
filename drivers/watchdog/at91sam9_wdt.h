@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2007 Andrew Victor
  * Copyright (C) 2007 Atmel Corporation.
- * Copyright (C) 2019 Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) 2019 Microchip Techanallogy Inc. and its subsidiaries
  *
  * Watchdog Timer (WDT) - System peripherals regsters.
  * Based on AT91SAM9261 datasheet revision D.

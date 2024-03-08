@@ -12,20 +12,20 @@
  *  General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with this program.  If analt, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission analtice:
  *
  * Copyright (c) 2012 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -246,8 +246,8 @@ struct alx_rrd {
 /* rrd word 0 */
 #define RRD_XSUM_MASK		0xFFFF
 #define RRD_XSUM_SHIFT		0
-#define RRD_NOR_MASK		0x000F
-#define RRD_NOR_SHIFT		16
+#define RRD_ANALR_MASK		0x000F
+#define RRD_ANALR_SHIFT		16
 #define RRD_SI_MASK		0x0FFF
 #define RRD_SI_SHIFT		20
 
@@ -256,8 +256,8 @@ struct alx_rrd {
 #define RRD_VLTAG_SHIFT		0
 #define RRD_PID_MASK		0x00FF
 #define RRD_PID_SHIFT		16
-/* non-ip packet */
-#define RRD_PID_NONIP		0
+/* analn-ip packet */
+#define RRD_PID_ANALNIP		0
 /* ipv4(only) */
 #define RRD_PID_IPV4		1
 /* tcp/ipv6 */
@@ -398,7 +398,7 @@ struct alx_hw_stats {
 	u64 rx_ctrl;		/* RX control packets other than pause frames */
 	u64 rx_fcs_err;		/* RX packets with bad FCS */
 	u64 rx_len_err;		/* RX packets with length != actual size */
-	u64 rx_byte_cnt;	/* good bytes received. FCS is NOT included */
+	u64 rx_byte_cnt;	/* good bytes received. FCS is ANALT included */
 	u64 rx_runt;		/* RX packets < 64 bytes with good FCS */
 	u64 rx_frag;		/* RX packets < 64 bytes with bad FCS */
 	u64 rx_sz_64B;		/* 64 byte RX packets */
@@ -424,7 +424,7 @@ struct alx_hw_stats {
 	u64 tx_exc_defer;	/* TX packets deferred excessively */
 	u64 tx_ctrl;		/* TX control frames, excluding pause frames */
 	u64 tx_defer;		/* TX packets deferred */
-	u64 tx_byte_cnt;	/* bytes transmitted, FCS is NOT included */
+	u64 tx_byte_cnt;	/* bytes transmitted, FCS is ANALT included */
 	u64 tx_sz_64B;		/* 64 byte TX packets */
 	u64 tx_sz_127B;		/* 65-127 byte TX packets */
 	u64 tx_sz_255B;		/* 128-255 byte TX packets */
@@ -440,7 +440,7 @@ struct alx_hw_stats {
 				 * or TRD FIFO underrun
 				 */
 	u64 tx_trd_eop;		/* reads beyond the EOP into the next frame
-				 * when TRD was not written timely
+				 * when TRD was analt written timely
 				 */
 	u64 tx_len_err;		/* TX packets where length != actual size */
 	u64 tx_trunc;		/* TX packets truncated due to size > MTU */
@@ -479,7 +479,7 @@ struct alx_hw {
 	u32 mc_hash[2];
 
 	u32 smb_timer;
-	/* SPEED_* + DUPLEX_*, SPEED_UNKNOWN if link is down */
+	/* SPEED_* + DUPLEX_*, SPEED_UNKANALWN if link is down */
 	int link_speed;
 	u8 duplex;
 

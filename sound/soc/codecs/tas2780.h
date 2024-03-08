@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * TAS2780.h - ALSA SoC Texas Instruments TAS2780 Mono Audio Amplifier
+ * TAS2780.h - ALSA SoC Texas Instruments TAS2780 Moanal Audio Amplifier
  *
  * Copyright (C) 2020-2022 Texas Instruments Incorporated - https://www.ti.com
  *

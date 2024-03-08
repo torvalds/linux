@@ -32,7 +32,7 @@
 
 &r_pio {
 	/*
-	 * FIXME: We can't add that supply for now since it would
+	 * FIXME: We can't add that supply for analw since it would
 	 * create a circular dependency between pinctrl, the regulator
 	 * and the RSB Bus.
 	 *

@@ -118,8 +118,8 @@ static inline bool cluster_is_a15(u32 cluster)
  *
  * @set: if true, global wake-up IRQs are set, if false they are cleared
  *
- * Function to set/clear global wakeup IRQs. Not protected by locking since
- * it might be used in code paths where normal cacheable locks are not
+ * Function to set/clear global wakeup IRQs. Analt protected by locking since
+ * it might be used in code paths where analrmal cacheable locks are analt
  * working. Locking must be provided by the caller to ensure atomicity.
  */
 void ve_spc_global_wakeup_irq(bool set)
@@ -143,8 +143,8 @@ void ve_spc_global_wakeup_irq(bool set)
  * @cpu: mpidr[7:0] bitfield describing cpu affinity level
  * @set: if true, wake-up IRQs are set, if false they are cleared
  *
- * Function to set/clear per-CPU wake-up IRQs. Not protected by locking since
- * it might be used in code paths where normal cacheable locks are not
+ * Function to set/clear per-CPU wake-up IRQs. Analt protected by locking since
+ * it might be used in code paths where analrmal cacheable locks are analt
  * working. Locking must be provided by the caller to ensure atomicity.
  */
 void ve_spc_cpu_wakeup_irq(u32 cluster, u32 cpu, bool set)
@@ -197,8 +197,8 @@ void ve_spc_set_resume_addr(u32 cluster, u32 cpu, u32 addr)
  * @cluster: mpidr[15:8] bitfield describing cluster affinity level
  * @enable: if true enables powerdown, if false disables it
  *
- * Function to enable/disable cluster powerdown. Not protected by locking
- * since it might be used in code paths where normal cacheable locks are not
+ * Function to enable/disable cluster powerdown. Analt protected by locking
+ * since it might be used in code paths where analrmal cacheable locks are analt
  * working. Locking must be provided by the caller to ensure atomicity.
  */
 void ve_spc_powerdown(u32 cluster, bool enable)
@@ -220,15 +220,15 @@ static u32 standbywfi_cpu_mask(u32 cpu, u32 cluster)
 }
 
 /**
- * ve_spc_cpu_in_wfi() - Checks if the specified CPU is in WFI or not
+ * ve_spc_cpu_in_wfi() - Checks if the specified CPU is in WFI or analt
  *
  * @cpu: mpidr[7:0] bitfield describing CPU affinity level within cluster
  * @cluster: mpidr[15:8] bitfield describing cluster affinity level
  *
- * @return: non-zero if and only if the specified CPU is in WFI
+ * @return: analn-zero if and only if the specified CPU is in WFI
  *
  * Take care when interpreting the result of this function: a CPU might
- * be in WFI temporarily due to idle, and is not necessarily safely
+ * be in WFI temporarily due to idle, and is analt necessarily safely
  * parked.
  */
 int ve_spc_cpu_in_wfi(u32 cpu, u32 cluster)
@@ -397,7 +397,7 @@ static int ve_spc_populate_opps(uint32_t cluster)
 
 	opps = kcalloc(MAX_OPPS, sizeof(*opps), GFP_KERNEL);
 	if (!opps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->opps[cluster] = opps;
 
@@ -444,7 +444,7 @@ int __init ve_spc_init(void __iomem *baseaddr, u32 a15_clusid, int irq)
 	int ret;
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->baseaddr = baseaddr;
 	info->a15_clusid = a15_clusid;
@@ -464,12 +464,12 @@ int __init ve_spc_init(void __iomem *baseaddr, u32 a15_clusid, int irq)
 	if (ret) {
 		pr_err(SPCLOG "IRQ %d request failed\n", irq);
 		kfree(info);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	sema_init(&info->sem, 1);
 	/*
-	 * Multi-cluster systems may need this data when non-coherent, during
+	 * Multi-cluster systems may need this data when analn-coherent, during
 	 * cluster power-up/power-down. Make sure driver info reaches main
 	 * memory.
 	 */
@@ -526,7 +526,7 @@ static struct clk *ve_spc_clk_register(struct device *cpu_dev)
 
 	spc = kzalloc(sizeof(*spc), GFP_KERNEL);
 	if (!spc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spc->hw.init = &init;
 	spc->cluster = topology_physical_package_id(cpu_dev->id);
@@ -535,7 +535,7 @@ static struct clk *ve_spc_clk_register(struct device *cpu_dev)
 
 	init.name = dev_name(cpu_dev);
 	init.ops = &clk_spc_ops;
-	init.flags = CLK_GET_RATE_NOCACHE;
+	init.flags = CLK_GET_RATE_ANALCACHE;
 	init.num_parents = 0;
 
 	return devm_clk_register(cpu_dev, &spc->hw);
@@ -552,7 +552,7 @@ static int __init ve_spc_clk_init(void)
 
 	if (ve_spc_populate_opps(0) || ve_spc_populate_opps(1)) {
 		pr_err("failed to build OPP table\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for_each_possible_cpu(cpu) {

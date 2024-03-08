@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2021 Mellanox Technologies. */
+/* Copyright (c) 2021 Mellaanalx Techanallogies. */
 
 #ifndef __MLX5_ESW_BRIDGE_H__
 #define __MLX5_ESW_BRIDGE_H__
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/list.h>
 #include <linux/workqueue.h>
 #include <linux/xarray.h>
@@ -20,9 +20,9 @@ struct mlx5_esw_bridge_offloads {
 	struct xarray ports;
 	struct dentry *debugfs_root;
 
-	struct notifier_block netdev_nb;
-	struct notifier_block nb_blk;
-	struct notifier_block nb;
+	struct analtifier_block netdev_nb;
+	struct analtifier_block nb_blk;
+	struct analtifier_block nb;
 	struct workqueue_struct *wq;
 	struct delayed_work update_work;
 
@@ -61,16 +61,16 @@ int mlx5_esw_bridge_vport_peer_unlink(struct net_device *br_netdev, u16 vport_nu
 				      struct netlink_ext_ack *extack);
 void mlx5_esw_bridge_fdb_update_used(struct net_device *dev, u16 vport_num, u16 esw_owner_vhca_id,
 				     struct mlx5_esw_bridge_offloads *br_offloads,
-				     struct switchdev_notifier_fdb_info *fdb_info);
+				     struct switchdev_analtifier_fdb_info *fdb_info);
 void mlx5_esw_bridge_fdb_mark_deleted(struct net_device *dev, u16 vport_num, u16 esw_owner_vhca_id,
 				      struct mlx5_esw_bridge_offloads *br_offloads,
-				      struct switchdev_notifier_fdb_info *fdb_info);
+				      struct switchdev_analtifier_fdb_info *fdb_info);
 void mlx5_esw_bridge_fdb_create(struct net_device *dev, u16 vport_num, u16 esw_owner_vhca_id,
 				struct mlx5_esw_bridge_offloads *br_offloads,
-				struct switchdev_notifier_fdb_info *fdb_info);
+				struct switchdev_analtifier_fdb_info *fdb_info);
 void mlx5_esw_bridge_fdb_remove(struct net_device *dev, u16 vport_num, u16 esw_owner_vhca_id,
 				struct mlx5_esw_bridge_offloads *br_offloads,
-				struct switchdev_notifier_fdb_info *fdb_info);
+				struct switchdev_analtifier_fdb_info *fdb_info);
 void mlx5_esw_bridge_update(struct mlx5_esw_bridge_offloads *br_offloads);
 int mlx5_esw_bridge_ageing_time_set(u16 vport_num, u16 esw_owner_vhca_id, unsigned long ageing_time,
 				    struct mlx5_esw_bridge_offloads *br_offloads);

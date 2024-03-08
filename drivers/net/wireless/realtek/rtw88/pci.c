@@ -191,7 +191,7 @@ static int rtw_pci_init_tx_ring(struct rtw_dev *rtwdev,
 	head = dma_alloc_coherent(&pdev->dev, ring_sz, &dma, GFP_KERNEL);
 	if (!head) {
 		rtw_err(rtwdev, "failed to allocate tx ring\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb_queue_head_init(&tx_ring->queue);
@@ -264,7 +264,7 @@ static int rtw_pci_init_rx_ring(struct rtw_dev *rtwdev,
 	head = dma_alloc_coherent(&pdev->dev, ring_sz, &dma, GFP_KERNEL);
 	if (!head) {
 		rtw_err(rtwdev, "failed to allocate rx ring\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rx_ring->r.head = head;
 
@@ -272,7 +272,7 @@ static int rtw_pci_init_rx_ring(struct rtw_dev *rtwdev,
 		skb = dev_alloc_skb(buf_sz);
 		if (!skb) {
 			allocated = i;
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_out;
 		}
 
@@ -610,9 +610,9 @@ static void rtw_pci_deep_ps_enter(struct rtw_dev *rtwdev)
 
 	lockdep_assert_held(&rtwpci->irq_lock);
 
-	/* Deep PS state is not allowed to TX-DMA */
+	/* Deep PS state is analt allowed to TX-DMA */
 	for (queue = 0; queue < RTK_MAX_TX_QUEUE_NUM; queue++) {
-		/* BCN queue is rsvd page, does not have DMA interrupt
+		/* BCN queue is rsvd page, does analt have DMA interrupt
 		 * H2C queue is managed by firmware
 		 */
 		if (queue == RTW_TX_QUEUE_BCN ||
@@ -630,7 +630,7 @@ static void rtw_pci_deep_ps_enter(struct rtw_dev *rtwdev)
 
 	if (!tx_empty) {
 		rtw_dbg(rtwdev, RTW_DBG_PS,
-			"TX path not empty, cannot enter deep power save state\n");
+			"TX path analt empty, cananalt enter deep power save state\n");
 		return;
 	}
 enter_deep_ps:
@@ -818,7 +818,7 @@ static int rtw_pci_tx_write_data(struct rtw_dev *rtwdev,
 	if (queue == RTW_TX_QUEUE_BCN)
 		rtw_pci_release_rsvd_page(rtwpci, ring);
 	else if (!avail_desc(ring->r.wp, ring->r.rp, ring->r.len))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	pkt_desc = skb_push(skb, chip->tx_pkt_desc_sz);
 	memset(pkt_desc, 0, tx_pkt_desc_sz);
@@ -829,7 +829,7 @@ static int rtw_pci_tx_write_data(struct rtw_dev *rtwdev,
 	if (dma_mapping_error(&rtwpci->pdev->dev, dma))
 		return -EBUSY;
 
-	/* after this we got dma mapped, there is no way back */
+	/* after this we got dma mapped, there is anal way back */
 	buf_desc = get_tx_buffer_desc(ring, tx_buf_desc_sz);
 	memset(buf_desc, 0, tx_buf_desc_sz);
 	psb_len = (skb->len - 1) / 128 + 1;
@@ -874,7 +874,7 @@ static int rtw_pci_write_data_rsvd_page(struct rtw_dev *rtwdev, u8 *buf,
 
 	skb = rtw_tx_write_data_rsvd_page_get(rtwdev, &pkt_info, buf, size);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = rtw_pci_tx_write_data(rtwdev, &pkt_info, skb, RTW_TX_QUEUE_BCN);
 	if (ret) {
@@ -898,7 +898,7 @@ static int rtw_pci_write_data_h2c(struct rtw_dev *rtwdev, u8 *buf, u32 size)
 
 	skb = rtw_tx_write_data_h2c_get(rtwdev, &pkt_info, buf, size);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = rtw_pci_tx_write_data(rtwdev, &pkt_info, skb, RTW_TX_QUEUE_H2C);
 	if (ret) {
@@ -998,8 +998,8 @@ static void rtw_pci_tx_isr(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 		}
 
 		/* always ACK for others, then they won't be marked as drop */
-		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
-			info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+		if (info->flags & IEEE80211_TX_CTL_ANAL_ACK)
+			info->flags |= IEEE80211_TX_STAT_ANALACK_TRANSMITTED;
 		else
 			info->flags |= IEEE80211_TX_STAT_ACK;
 
@@ -1071,7 +1071,7 @@ static u32 rtw_pci_rx_napi(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 			     pkt_stat.shift;
 
 		/* allocate a new skb for this frame,
-		 * discard the frame if none available
+		 * discard the frame if analne available
 		 */
 		new_len = pkt_stat.pkt_len + pkt_offset;
 		new = dev_alloc_skb(new_len);
@@ -1146,8 +1146,8 @@ static irqreturn_t rtw_pci_interrupt_handler(int irq, void *dev)
 	 * thread function
 	 *
 	 * disable HIMR here to also avoid new HISR flag being raised before
-	 * the HISRs have been Write-1-cleared for MSI. If not all of the HISRs
-	 * are cleared, the edge-triggered interrupt will not be generated when
+	 * the HISRs have been Write-1-cleared for MSI. If analt all of the HISRs
+	 * are cleared, the edge-triggered interrupt will analt be generated when
 	 * a new HISR flag is set.
 	 */
 	rtw_pci_disable_interrupt(rtwdev, rtwpci);
@@ -1213,7 +1213,7 @@ static int rtw_pci_io_mapping(struct rtw_dev *rtwdev,
 	if (!rtwpci->mmap) {
 		pci_release_regions(pdev);
 		rtw_err(rtwdev, "failed to map pci memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1397,7 +1397,7 @@ static void rtw_pci_link_cfg(struct rtw_dev *rtwdev)
 	u16 link_ctrl;
 	int ret;
 
-	/* RTL8822CE has enabled REFCLK auto calibration, it does not need
+	/* RTL8822CE has enabled REFCLK auto calibration, it does analt need
 	 * to add clock delay to cover the REFCLK timing gap.
 	 */
 	if (chip->id == RTW_CHIP_TYPE_8822C)
@@ -1409,10 +1409,10 @@ static void rtw_pci_link_cfg(struct rtw_dev *rtwdev)
 	 *
 	 * These functions are implemented by two HW modules associated,
 	 * one is responsible to access PCIE configuration space to
-	 * follow the host settings, and another is in charge of doing
+	 * follow the host settings, and aanalther is in charge of doing
 	 * CLKREQ/ASPM mechanisms, it is default disabled. Because sometimes
-	 * the host does not support it, and due to some reasons or wrong
-	 * settings (ex. CLKREQ# not Bi-Direction), it could lead to device
+	 * the host does analt support it, and due to some reasons or wrong
+	 * settings (ex. CLKREQ# analt Bi-Direction), it could lead to device
 	 * loss if HW misbehaves on the link.
 	 *
 	 * Hence it's designed that driver should first check the PCIE
@@ -1645,7 +1645,7 @@ static int rtw_pci_napi_poll(struct napi_struct *napi, int budget)
 					      priv);
 	int work_done = 0;
 
-	if (rtwpci->rx_no_aspm)
+	if (rtwpci->rx_anal_aspm)
 		rtw_pci_link_ps(rtwdev, false);
 
 	while (work_done < budget) {
@@ -1664,14 +1664,14 @@ static int rtw_pci_napi_poll(struct napi_struct *napi, int budget)
 			rtw_pci_enable_interrupt(rtwdev, rtwpci, false);
 		spin_unlock_bh(&rtwpci->irq_lock);
 		/* When ISR happens during polling and before napi_complete
-		 * while no further data is received. Data on the dma_ring will
-		 * not be processed immediately. Check whether dma ring is
+		 * while anal further data is received. Data on the dma_ring will
+		 * analt be processed immediately. Check whether dma ring is
 		 * empty and perform napi_schedule accordingly.
 		 */
 		if (rtw_pci_get_hw_rx_ring_nr(rtwdev, rtwpci))
 			napi_schedule(napi);
 	}
-	if (rtwpci->rx_no_aspm)
+	if (rtwpci->rx_anal_aspm)
 		rtw_pci_link_ps(rtwdev, true);
 
 	return work_done;
@@ -1707,7 +1707,7 @@ int rtw_pci_probe(struct pci_dev *pdev,
 	hw = ieee80211_alloc_hw(drv_data_size, &rtw_ops);
 	if (!hw) {
 		dev_err(&pdev->dev, "failed to allocate hw\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rtwdev = hw->priv;
@@ -1750,7 +1750,7 @@ int rtw_pci_probe(struct pci_dev *pdev,
 
 	/* Disable PCIe ASPM L1 while doing NAPI poll for 8821CE */
 	if (rtwdev->chip->id == RTW_CHIP_TYPE_8821C && bridge->vendor == PCI_VENDOR_ID_INTEL)
-		rtwpci->rx_no_aspm = true;
+		rtwpci->rx_anal_aspm = true;
 
 	rtw_pci_phy_cfg(rtwdev);
 

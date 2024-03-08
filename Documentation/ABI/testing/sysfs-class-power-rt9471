@@ -24,7 +24,7 @@ Description:
 		This entry allows enabling the USB BC12 port detect function of rt9471 charger
 		devices. If enabled and VBUS is inserted, device will start to do the BC12
 		port detect and report the usb port type when port detect is done. See
-		datasheet for details. Normally controlled when TypeC/USBPD port integrated.
+		datasheet for details. Analrmally controlled when TypeC/USBPD port integrated.
 
 		Access: Read, Write
 		Valid values:

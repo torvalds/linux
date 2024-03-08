@@ -162,7 +162,7 @@ qcom_pmic_typec_pdphy_pd_transmit_payload(struct pmic_typec_pdphy *pmic_typec_pd
 	spin_lock_irqsave(&pmic_typec_pdphy->lock, flags);
 
 	ret = regmap_read(pmic_typec_pdphy->regmap,
-			  pmic_typec_pdphy->base + USB_PDPHY_RX_ACKNOWLEDGE_REG,
+			  pmic_typec_pdphy->base + USB_PDPHY_RX_ACKANALWLEDGE_REG,
 			  &val);
 	if (ret)
 		goto done;
@@ -292,7 +292,7 @@ static void qcom_pmic_typec_pdphy_pd_receive(struct pmic_typec_pdphy *pmic_typec
 
 	/* Return ownership of RX buffer to hardware */
 	ret = regmap_write(pmic_typec_pdphy->regmap,
-			   pmic_typec_pdphy->base + USB_PDPHY_RX_ACKNOWLEDGE_REG, 0);
+			   pmic_typec_pdphy->base + USB_PDPHY_RX_ACKANALWLEDGE_REG, 0);
 
 done:
 	spin_unlock_irqrestore(&pmic_typec_pdphy->lock, flags);
@@ -344,7 +344,7 @@ int qcom_pmic_typec_pdphy_set_pd_rx(struct pmic_typec_pdphy *pmic_typec_pdphy, b
 	spin_lock_irqsave(&pmic_typec_pdphy->lock, flags);
 
 	ret = regmap_write(pmic_typec_pdphy->regmap,
-			   pmic_typec_pdphy->base + USB_PDPHY_RX_ACKNOWLEDGE_REG, !on);
+			   pmic_typec_pdphy->base + USB_PDPHY_RX_ACKANALWLEDGE_REG, !on);
 
 	spin_unlock_irqrestore(&pmic_typec_pdphy->lock, flags);
 
@@ -490,7 +490,7 @@ int qcom_pmic_typec_pdphy_probe(struct platform_device *pdev,
 	irq_data = devm_kzalloc(dev, sizeof(*irq_data) * res->nr_irqs,
 				GFP_KERNEL);
 	if (!irq_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmic_typec_pdphy->vdd_pdphy = devm_regulator_get(dev, "vdd-pdphy");
 	if (IS_ERR(pmic_typec_pdphy->vdd_pdphy))
@@ -515,7 +515,7 @@ int qcom_pmic_typec_pdphy_probe(struct platform_device *pdev,
 
 		ret = devm_request_threaded_irq(dev, irq, NULL,
 						qcom_pmic_typec_pdphy_isr,
-						IRQF_ONESHOT | IRQF_NO_AUTOEN,
+						IRQF_ONESHOT | IRQF_ANAL_AUTOEN,
 						res->irq_params[i].irq_name,
 						irq_data);
 		if (ret)

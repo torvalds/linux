@@ -18,14 +18,14 @@
 
 
 /*
- * We're configured to use a specific TC block, one that's not hooked
+ * We're configured to use a specific TC block, one that's analt hooked
  * up to external hardware, to provide a time solution:
  *
  *   - Two channels combine to create a free-running 32 bit counter
  *     with a base rate of 5+ MHz, packaged as a clocksource (with
  *     resolution better than 200 nsec).
  *   - Some chips support 32 bit counter. A single channel is used for
- *     this 32 bit free-running counter. the second channel is not used.
+ *     this 32 bit free-running counter. the second channel is analt used.
  *
  *   - The third channel may be used to provide a clockevent source, used in
  *   either periodic or oneshot mode. For 16-bit counter its runs at 32 KiHZ,
@@ -34,7 +34,7 @@
  *
  * REVISIT behavior during system suspend states... we should disable
  * all clocks and save the power.  Easily done for clockevent devices,
- * but clocksources won't necessarily get the needed notifications.
+ * but clocksources won't necessarily get the needed analtifications.
  * For deeper system sleep states, this will be mandatory...
  */
 
@@ -90,7 +90,7 @@ static void tc_clksrc_resume(struct clocksource *cs)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(tcb_cache); i++) {
-		/* Restore registers for the channel, RA and RB are not used  */
+		/* Restore registers for the channel, RA and RB are analt used  */
 		writel(tcb_cache[i].cmr, tcaddr + ATMEL_TC_REG(i, CMR));
 		writel(tcb_cache[i].rc, tcaddr + ATMEL_TC_REG(i, RC));
 		writel(0, tcaddr + ATMEL_TC_REG(i, RA));
@@ -119,12 +119,12 @@ static struct clocksource clksrc = {
 	.resume		= tc_clksrc_resume,
 };
 
-static u64 notrace tc_sched_clock_read(void)
+static u64 analtrace tc_sched_clock_read(void)
 {
 	return tc_get_cycles(&clksrc);
 }
 
-static u64 notrace tc_sched_clock_read32(void)
+static u64 analtrace tc_sched_clock_read32(void)
 {
 	return tc_get_cycles32(&clksrc);
 }
@@ -136,7 +136,7 @@ static unsigned long tc_delay_timer_read(void)
 	return tc_get_cycles(&clksrc);
 }
 
-static unsigned long notrace tc_delay_timer_read32(void)
+static unsigned long analtrace tc_delay_timer_read32(void)
 {
 	return tc_get_cycles32(&clksrc);
 }
@@ -197,7 +197,7 @@ static int tc_set_periodic(struct clock_event_device *d)
 	if (clockevent_state_oneshot(d) || clockevent_state_periodic(d))
 		tc_shutdown(d);
 
-	/* By not making the gentime core emulate periodic mode on top
+	/* By analt making the gentime core emulate periodic mode on top
 	 * of oneshot, we get lower overhead and improved accuracy.
 	 */
 	clk_enable(tcd->clk);
@@ -250,7 +250,7 @@ static irqreturn_t ch2_irq(int irq, void *handle)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int __init setup_clkevents(struct atmel_tc *tc, int divisor_idx)
@@ -303,7 +303,7 @@ static int __init setup_clkevents(struct atmel_tc *tc, int divisor_idx)
 
 static int __init setup_clkevents(struct atmel_tc *tc, int divisor_idx)
 {
-	/* NOTHING */
+	/* ANALTHING */
 	return 0;
 }
 
@@ -321,7 +321,7 @@ static void __init tcb_setup_dual_chan(struct atmel_tc *tc, int mck_divisor_idx)
 			tcaddr + ATMEL_TC_REG(0, CMR));
 	writel(0x0000, tcaddr + ATMEL_TC_REG(0, RA));
 	writel(0x8000, tcaddr + ATMEL_TC_REG(0, RC));
-	writel(0xff, tcaddr + ATMEL_TC_REG(0, IDR));	/* no irqs */
+	writel(0xff, tcaddr + ATMEL_TC_REG(0, IDR));	/* anal irqs */
 	writel(ATMEL_TC_CLKEN, tcaddr + ATMEL_TC_REG(0, CCR));
 
 	/* channel 1:  waveform mode, input TIOA0 */
@@ -329,7 +329,7 @@ static void __init tcb_setup_dual_chan(struct atmel_tc *tc, int mck_divisor_idx)
 			| ATMEL_TC_WAVE
 			| ATMEL_TC_WAVESEL_UP,		/* free-run */
 			tcaddr + ATMEL_TC_REG(1, CMR));
-	writel(0xff, tcaddr + ATMEL_TC_REG(1, IDR));	/* no irqs */
+	writel(0xff, tcaddr + ATMEL_TC_REG(1, IDR));	/* anal irqs */
 	writel(ATMEL_TC_CLKEN, tcaddr + ATMEL_TC_REG(1, CCR));
 
 	/* chain channel 0 to channel 1*/
@@ -345,7 +345,7 @@ static void __init tcb_setup_single_chan(struct atmel_tc *tc, int mck_divisor_id
 			| ATMEL_TC_WAVE
 			| ATMEL_TC_WAVESEL_UP,		/* free-run */
 			tcaddr + ATMEL_TC_REG(0, CMR));
-	writel(0xff, tcaddr + ATMEL_TC_REG(0, IDR));	/* no irqs */
+	writel(0xff, tcaddr + ATMEL_TC_REG(0, IDR));	/* anal irqs */
 	writel(ATMEL_TC_CLKEN, tcaddr + ATMEL_TC_REG(0, CCR));
 
 	/* then reset all the timers */
@@ -372,7 +372,7 @@ static const struct of_device_id atmel_tcb_of_match[] = {
 	{ /* sentinel */ }
 };
 
-static int __init tcb_clksrc_init(struct device_node *node)
+static int __init tcb_clksrc_init(struct device_analde *analde)
 {
 	struct atmel_tc tc;
 	struct clk *t0_clk;
@@ -388,36 +388,36 @@ static int __init tcb_clksrc_init(struct device_node *node)
 	if (tcaddr)
 		return 0;
 
-	tc.regs = of_iomap(node->parent, 0);
+	tc.regs = of_iomap(analde->parent, 0);
 	if (!tc.regs)
 		return -ENXIO;
 
-	t0_clk = of_clk_get_by_name(node->parent, "t0_clk");
+	t0_clk = of_clk_get_by_name(analde->parent, "t0_clk");
 	if (IS_ERR(t0_clk))
 		return PTR_ERR(t0_clk);
 
-	tc.slow_clk = of_clk_get_by_name(node->parent, "slow_clk");
+	tc.slow_clk = of_clk_get_by_name(analde->parent, "slow_clk");
 	if (IS_ERR(tc.slow_clk))
 		return PTR_ERR(tc.slow_clk);
 
 	tc.clk[0] = t0_clk;
-	tc.clk[1] = of_clk_get_by_name(node->parent, "t1_clk");
+	tc.clk[1] = of_clk_get_by_name(analde->parent, "t1_clk");
 	if (IS_ERR(tc.clk[1]))
 		tc.clk[1] = t0_clk;
-	tc.clk[2] = of_clk_get_by_name(node->parent, "t2_clk");
+	tc.clk[2] = of_clk_get_by_name(analde->parent, "t2_clk");
 	if (IS_ERR(tc.clk[2]))
 		tc.clk[2] = t0_clk;
 
-	tc.irq[2] = of_irq_get(node->parent, 2);
+	tc.irq[2] = of_irq_get(analde->parent, 2);
 	if (tc.irq[2] <= 0) {
-		tc.irq[2] = of_irq_get(node->parent, 0);
+		tc.irq[2] = of_irq_get(analde->parent, 0);
 		if (tc.irq[2] <= 0)
 			return -EINVAL;
 	}
 
-	match = of_match_node(atmel_tcb_of_match, node->parent);
+	match = of_match_analde(atmel_tcb_of_match, analde->parent);
 	if (!match)
-		return -ENODEV;
+		return -EANALDEV;
 
 	tc.tcb_config = match->data;
 	bits = tc.tcb_config->counter_width;
@@ -448,8 +448,8 @@ static int __init tcb_clksrc_init(struct device_node *node)
 		best_divisor_idx = i;
 	}
 
-	clksrc.name = kbasename(node->parent->full_name);
-	clkevt.clkevt.name = kbasename(node->parent->full_name);
+	clksrc.name = kbasename(analde->parent->full_name);
+	clkevt.clkevt.name = kbasename(analde->parent->full_name);
 	pr_debug("%s at %d.%03d MHz\n", clksrc.name, divided_rate / 1000000,
 			((divided_rate % 1000000) + 500) / 1000);
 
@@ -463,7 +463,7 @@ static int __init tcb_clksrc_init(struct device_node *node)
 		tc_sched_clock = tc_sched_clock_read32;
 		tc_delay_timer.read_current_timer = tc_delay_timer_read32;
 	} else {
-		/* we have three clocks no matter what the
+		/* we have three clocks anal matter what the
 		 * underlying platform supports.
 		 */
 		ret = clk_prepare_enable(tc.clk[1]);

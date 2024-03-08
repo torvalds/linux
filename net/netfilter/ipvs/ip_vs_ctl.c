@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IPVS         An implementation of the IP virtual server support for the
- *              LINUX operating system.  IPVS is now implemented as a module
+ *              LINUX operating system.  IPVS is analw implemented as a module
  *              over the NetFilter framework. IPVS can be used to build a
  *              high-performance and highly available server based on a
  *              cluster of servers.
@@ -68,7 +68,7 @@ static void __ip_vs_del_service(struct ip_vs_service *svc, bool cleanup);
 
 
 #ifdef CONFIG_IP_VS_IPV6
-/* Taken from rt6_fill_node() in net/ipv6/route.c, is there a better way? */
+/* Taken from rt6_fill_analde() in net/ipv6/route.c, is there a better way? */
 static bool __ip_vs_addr_is_local_v6(struct net *net,
 				     const struct in6_addr *addr)
 {
@@ -94,7 +94,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 {
 	struct sysinfo i;
 	int availmem;
-	int nomem;
+	int analmem;
 	int to_change = -1;
 
 	/* we only count free and buffered memory (in pages) */
@@ -105,7 +105,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 	/* si_swapinfo(&i); */
 	/* availmem = availmem - (i.totalswap - i.freeswap); */
 
-	nomem = (availmem < ipvs->sysctl_amemthresh);
+	analmem = (availmem < ipvs->sysctl_amemthresh);
 
 	local_bh_disable();
 
@@ -116,7 +116,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 		atomic_set(&ipvs->dropentry, 0);
 		break;
 	case 1:
-		if (nomem) {
+		if (analmem) {
 			atomic_set(&ipvs->dropentry, 1);
 			ipvs->sysctl_drop_entry = 2;
 		} else {
@@ -124,7 +124,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 		}
 		break;
 	case 2:
-		if (nomem) {
+		if (analmem) {
 			atomic_set(&ipvs->dropentry, 1);
 		} else {
 			atomic_set(&ipvs->dropentry, 0);
@@ -144,7 +144,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 		ipvs->drop_rate = 0;
 		break;
 	case 1:
-		if (nomem) {
+		if (analmem) {
 			ipvs->drop_rate = ipvs->drop_counter
 				= ipvs->sysctl_amemthresh /
 				(ipvs->sysctl_amemthresh-availmem);
@@ -154,7 +154,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 		}
 		break;
 	case 2:
-		if (nomem) {
+		if (analmem) {
 			ipvs->drop_rate = ipvs->drop_counter
 				= ipvs->sysctl_amemthresh /
 				(ipvs->sysctl_amemthresh-availmem);
@@ -177,7 +177,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 			to_change = 0;
 		break;
 	case 1:
-		if (nomem) {
+		if (analmem) {
 			if (ipvs->old_secure_tcp < 2)
 				to_change = 1;
 			ipvs->sysctl_secure_tcp = 2;
@@ -187,7 +187,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 		}
 		break;
 	case 2:
-		if (nomem) {
+		if (analmem) {
 			if (ipvs->old_secure_tcp < 2)
 				to_change = 1;
 		} else {
@@ -210,16 +210,16 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 	local_bh_enable();
 }
 
-/* Handler for delayed work for expiring no
+/* Handler for delayed work for expiring anal
  * destination connections
  */
-static void expire_nodest_conn_handler(struct work_struct *work)
+static void expire_analdest_conn_handler(struct work_struct *work)
 {
 	struct netns_ipvs *ipvs;
 
 	ipvs = container_of(work, struct netns_ipvs,
-			    expire_nodest_conn_work.work);
-	ip_vs_expire_nodest_conn_flush(ipvs);
+			    expire_analdest_conn_work.work);
+	ip_vs_expire_analdest_conn_flush(ipvs);
 }
 
 /*
@@ -264,7 +264,7 @@ static void est_reload_work_handler(struct work_struct *work)
 		if (genid != genid_done)
 			ip_vs_est_kthread_stop(kd);
 		if (!kd->task && !ip_vs_est_stopped(ipvs)) {
-			/* Do not start kthreads above 0 in calc phase */
+			/* Do analt start kthreads above 0 in calc phase */
 			if ((!id || !ipvs->est_calc_phase) &&
 			    ip_vs_est_kthread_start(ipvs, kd) < 0)
 				repeat = true;
@@ -496,7 +496,7 @@ ip_vs_service_find(struct netns_ipvs *ipvs, int af, __u32 fwmark, __u16 protocol
 	IP_VS_DBG_BUF(9, "lookup service: fwm %u %s %s:%u %s\n",
 		      fwmark, ip_vs_proto_name(protocol),
 		      IP_VS_DBG_ADDR(af, vaddr), ntohs(vport),
-		      svc ? "hit" : "not hit");
+		      svc ? "hit" : "analt hit");
 
 	return svc;
 }
@@ -721,7 +721,7 @@ ip_vs_lookup_dest(struct ip_vs_service *svc, int dest_af,
  * the backup synchronization daemon. It finds the
  * destination to be bound to the received connection
  * on the backup.
- * Called under RCU lock, no refcnt is returned.
+ * Called under RCU lock, anal refcnt is returned.
  */
 struct ip_vs_dest *ip_vs_find_dest(struct netns_ipvs *ipvs, int svc_af, int dest_af,
 				   const union nf_inet_addr *daddr,
@@ -849,7 +849,7 @@ static void ip_vs_trash_cleanup(struct netns_ipvs *ipvs)
 	struct ip_vs_dest *dest, *nxt;
 
 	del_timer_sync(&ipvs->dest_trash_timer);
-	/* No need to use dest_trash_lock */
+	/* Anal need to use dest_trash_lock */
 	list_for_each_entry_safe(dest, nxt, &ipvs->dest_trash, t_list) {
 		list_del(&dest->t_list);
 		ip_vs_dest_free(dest);
@@ -927,7 +927,7 @@ int ip_vs_stats_init_alloc(struct ip_vs_stats *s)
 	spin_lock_init(&s->lock);
 	s->cpustats = alloc_percpu(struct ip_vs_cpu_stats);
 	if (!s->cpustats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_possible_cpu(i) {
 		struct ip_vs_cpu_stats *cs = per_cpu_ptr(s->cpustats, i);
@@ -972,13 +972,13 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	struct ip_vs_scheduler *sched;
 	int conn_flags;
 
-	/* We cannot modify an address and change the address family */
+	/* We cananalt modify an address and change the address family */
 	BUG_ON(!add && udest->af != dest->af);
 
 	if (add && udest->af != svc->af)
 		ipvs->mixed_address_family_dests++;
 
-	/* keep the last_weight with latest non-0 weight */
+	/* keep the last_weight with latest analn-0 weight */
 	if (add || udest->weight != 0)
 		atomic_set(&dest->last_weight, udest->weight);
 
@@ -999,16 +999,16 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	dest->tun_port = udest->tun_port;
 	dest->tun_flags = udest->tun_flags;
 
-	/* set the IP_VS_CONN_F_NOOUTPUT flag if not masquerading/NAT */
+	/* set the IP_VS_CONN_F_ANALOUTPUT flag if analt masquerading/NAT */
 	if ((conn_flags & IP_VS_CONN_F_FWD_MASK) != IP_VS_CONN_F_MASQ) {
-		conn_flags |= IP_VS_CONN_F_NOOUTPUT;
+		conn_flags |= IP_VS_CONN_F_ANALOUTPUT;
 	} else {
 		/* FTP-NAT requires conntrack for mangling */
 		if (svc->port == FTPPORT)
 			ip_vs_register_conntrack(svc);
 	}
 	atomic_set(&dest->conn_flags, conn_flags);
-	/* Put the real service in rs_table if not present. */
+	/* Put the real service in rs_table if analt present. */
 	ip_vs_rs_hash(ipvs, dest);
 
 	/* bind the service */
@@ -1082,7 +1082,7 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 
 	dest = kzalloc(sizeof(struct ip_vs_dest), GFP_KERNEL);
 	if (dest == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ip_vs_stats_init_alloc(&dest->stats);
 	if (ret < 0)
@@ -1105,7 +1105,7 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 	atomic_set(&dest->persistconns, 0);
 	refcount_set(&dest->refcnt, 1);
 
-	INIT_HLIST_NODE(&dest->d_list);
+	INIT_HLIST_ANALDE(&dest->d_list);
 	spin_lock_init(&dest->dst_lock);
 	__ip_vs_update_dest(svc, dest, udest, 1);
 
@@ -1228,7 +1228,7 @@ ip_vs_edit_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 
 	if (dest == NULL) {
 		IP_VS_DBG(1, "%s(): dest doesn't exist\n", __func__);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	__ip_vs_update_dest(svc, dest, udest, 0);
@@ -1261,11 +1261,11 @@ static void __ip_vs_del_dest(struct netns_ipvs *ipvs, struct ip_vs_dest *dest,
 	dest->idle_start = 0;
 	spin_unlock_bh(&ipvs->dest_trash_lock);
 
-	/* Queue up delayed work to expire all no destination connections.
-	 * No-op when CONFIG_SYSCTL is disabled.
+	/* Queue up delayed work to expire all anal destination connections.
+	 * Anal-op when CONFIG_SYSCTL is disabled.
 	 */
 	if (!cleanup)
-		ip_vs_enqueue_expire_nodest_conns(ipvs);
+		ip_vs_enqueue_expire_analdest_conns(ipvs);
 }
 
 
@@ -1312,8 +1312,8 @@ ip_vs_del_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 	rcu_read_unlock();
 
 	if (dest == NULL) {
-		IP_VS_DBG(1, "%s(): destination not found!\n", __func__);
-		return -ENOENT;
+		IP_VS_DBG(1, "%s(): destination analt found!\n", __func__);
+		return -EANALENT;
 	}
 
 	/*
@@ -1333,18 +1333,18 @@ static void ip_vs_dest_trash_expire(struct timer_list *t)
 {
 	struct netns_ipvs *ipvs = from_timer(ipvs, t, dest_trash_timer);
 	struct ip_vs_dest *dest, *next;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 
 	spin_lock(&ipvs->dest_trash_lock);
 	list_for_each_entry_safe(dest, next, &ipvs->dest_trash, t_list) {
 		if (refcount_read(&dest->refcnt) > 1)
 			continue;
 		if (dest->idle_start) {
-			if (time_before(now, dest->idle_start +
+			if (time_before(analw, dest->idle_start +
 					     IP_VS_DEST_TRASH_PERIOD))
 				continue;
 		} else {
-			dest->idle_start = max(1UL, now);
+			dest->idle_start = max(1UL, analw);
 			continue;
 		}
 		IP_VS_DBG_BUF(3, "Removing destination %u/%s:%u from trash\n",
@@ -1375,15 +1375,15 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 
 	/* increase the module use count */
 	if (!ip_vs_use_count_inc())
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	/* Lookup the scheduler by 'u->sched_name' */
-	if (strcmp(u->sched_name, "none")) {
+	if (strcmp(u->sched_name, "analne")) {
 		sched = ip_vs_scheduler_get(u->sched_name);
 		if (!sched) {
-			pr_info("Scheduler module ip_vs_%s not found\n",
+			pr_info("Scheduler module ip_vs_%s analt found\n",
 				u->sched_name);
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto out_err;
 		}
 	}
@@ -1392,8 +1392,8 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 		pe = ip_vs_pe_getbyname(u->pe_name);
 		if (pe == NULL) {
 			pr_info("persistence engine module ip_vs_pe_%s "
-				"not found\n", u->pe_name);
-			ret = -ENOENT;
+				"analt found\n", u->pe_name);
+			ret = -EANALENT;
 			goto out_err;
 		}
 	}
@@ -1423,8 +1423,8 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 
 	svc = kzalloc(sizeof(struct ip_vs_service), GFP_KERNEL);
 	if (svc == NULL) {
-		IP_VS_DBG(1, "%s(): no memory\n", __func__);
-		ret = -ENOMEM;
+		IP_VS_DBG(1, "%s(): anal memory\n", __func__);
+		ret = -EANALMEM;
 		goto out_err;
 	}
 	ret = ip_vs_stats_init_alloc(&svc->stats);
@@ -1483,7 +1483,7 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 	*svc_p = svc;
 
 	if (!ipvs->enable) {
-		/* Now there is a service - full throttle */
+		/* Analw there is a service - full throttle */
 		ipvs->enable = 1;
 
 		/* Start estimation for first time */
@@ -1524,12 +1524,12 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 	/*
 	 * Lookup the scheduler, by 'u->sched_name'
 	 */
-	if (strcmp(u->sched_name, "none")) {
+	if (strcmp(u->sched_name, "analne")) {
 		sched = ip_vs_scheduler_get(u->sched_name);
 		if (!sched) {
-			pr_info("Scheduler module ip_vs_%s not found\n",
+			pr_info("Scheduler module ip_vs_%s analt found\n",
 				u->sched_name);
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 	old_sched = sched;
@@ -1538,8 +1538,8 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 		pe = ip_vs_pe_getbyname(u->pe_name);
 		if (pe == NULL) {
 			pr_info("persistence engine module ip_vs_pe_%s "
-				"not found\n", u->pe_name);
-			ret = -ENOENT;
+				"analt found\n", u->pe_name);
+			ret = -EANALENT;
 			goto out;
 		}
 		old_pe = pe;
@@ -1601,7 +1601,7 @@ out:
 
 /*
  *	Delete a service from the service list
- *	- The service must be unlinked, unlocked and not referenced!
+ *	- The service must be unlinked, unlocked and analt referenced!
  *	- We are called under _bh lock
  */
 static void __ip_vs_del_service(struct ip_vs_service *svc, bool cleanup)
@@ -1651,7 +1651,7 @@ static void __ip_vs_del_service(struct ip_vs_service *svc, bool cleanup)
 		atomic_dec(&ipvs->nullsvc_counter);
 
 	/*
-	 *    Free the service if nobody refers to it
+	 *    Free the service if analbody refers to it
 	 */
 	__ip_vs_svc_put(svc);
 
@@ -1695,7 +1695,7 @@ static int ip_vs_flush(struct netns_ipvs *ipvs, bool cleanup)
 {
 	int idx;
 	struct ip_vs_service *svc;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 
 	/*
 	 * Flush the service table hashed by <netns,protocol,addr,port>
@@ -1762,10 +1762,10 @@ ip_vs_forget_dev(struct ip_vs_dest *dest, struct net_device *dev)
 /* Netdev event receiver
  * Currently only NETDEV_DOWN is handled to release refs to cached dsts
  */
-static int ip_vs_dst_event(struct notifier_block *this, unsigned long event,
+static int ip_vs_dst_event(struct analtifier_block *this, unsigned long event,
 			   void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_service *svc;
@@ -1773,7 +1773,7 @@ static int ip_vs_dst_event(struct notifier_block *this, unsigned long event,
 	unsigned int idx;
 
 	if (event != NETDEV_DOWN || !ipvs)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	IP_VS_DBG(3, "%s() dev=%s\n", __func__, dev->name);
 	mutex_lock(&__ip_vs_mutex);
 	for (idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
@@ -1803,7 +1803,7 @@ static int ip_vs_dst_event(struct notifier_block *this, unsigned long event,
 	}
 	spin_unlock_bh(&ipvs->dest_trash_lock);
 	mutex_unlock(&__ip_vs_mutex);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /*
@@ -1932,7 +1932,7 @@ static int ipvs_proc_est_cpumask_set(struct ctl_table *table, void *buffer)
 	int ret;
 
 	if (!zalloc_cpumask_var(&newmask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cpulist_parse(buffer, newmask);
 	if (ret)
@@ -1942,7 +1942,7 @@ static int ipvs_proc_est_cpumask_set(struct ctl_table *table, void *buffer)
 
 	if (!ipvs->est_cpulist_valid) {
 		if (!zalloc_cpumask_var(valp, GFP_KERNEL)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto unlock;
 		}
 		ipvs->est_cpulist_valid = 1;
@@ -1988,7 +1988,7 @@ static int ipvs_proc_est_cpulist(struct ctl_table *table, int write,
 {
 	int ret;
 
-	/* Ignore both read and write(append) if *ppos not 0 */
+	/* Iganalre both read and write(append) if *ppos analt 0 */
 	if (*ppos || !*lenp) {
 		*lenp = 0;
 		return 0;
@@ -2068,7 +2068,7 @@ static int ipvs_proc_run_estimation(struct ctl_table *table, int write,
 
 /*
  *	IPVS sysctl table (under the /proc/sys/net/ipv4/vs/)
- *	Do not change order or insert new entries without
+ *	Do analt change order or insert new entries without
  *	align with netns init in ip_vs_control_net_init()
  */
 
@@ -2156,7 +2156,7 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "expire_nodest_conn",
+		.procname	= "expire_analdest_conn",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -2231,7 +2231,7 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "ignore_tunneled",
+		.procname	= "iganalre_tunneled",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -2271,7 +2271,7 @@ static struct ctl_table vs_vars[] = {
 #ifdef CONFIG_PROC_FS
 
 struct ip_vs_iter {
-	struct seq_net_private p;  /* Do not move this, netns depends upon it*/
+	struct seq_net_private p;  /* Do analt move this, netns depends upon it*/
 	struct hlist_head *table;
 	int bucket;
 };
@@ -2283,7 +2283,7 @@ struct ip_vs_iter {
 static inline const char *ip_vs_fwd_name(unsigned int flags)
 {
 	switch (flags & IP_VS_CONN_F_FWD_MASK) {
-	case IP_VS_CONN_F_LOCALNODE:
+	case IP_VS_CONN_F_LOCALANALDE:
 		return "Local";
 	case IP_VS_CONN_F_TUNNEL:
 		return "Tunnel";
@@ -2340,7 +2340,7 @@ static void *ip_vs_info_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void *ip_vs_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct hlist_node *e;
+	struct hlist_analde *e;
 	struct ip_vs_iter *iter;
 	struct ip_vs_service *svc;
 
@@ -2410,7 +2410,7 @@ static int ip_vs_info_seq_show(struct seq_file *seq, void *v)
 		const struct ip_vs_iter *iter = seq->private;
 		const struct ip_vs_dest *dest;
 		struct ip_vs_scheduler *sched = rcu_dereference(svc->scheduler);
-		char *sched_name = sched ? sched->name : "none";
+		char *sched_name = sched ? sched->name : "analne";
 
 		if (svc->ipvs != ipvs)
 			return 0;
@@ -2611,7 +2611,7 @@ static int ip_vs_set_timeout(struct netns_ipvs *ipvs, struct ip_vs_timeout_user 
 #ifdef CONFIG_IP_VS_PROTO_UDP
 	if (u->udp_timeout) {
 		pd = ip_vs_proto_data_get(ipvs, IPPROTO_UDP);
-		pd->timeout_table[IP_VS_UDP_S_NORMAL]
+		pd->timeout_table[IP_VS_UDP_S_ANALRMAL]
 			= u->udp_timeout * HZ;
 	}
 #endif
@@ -2664,7 +2664,7 @@ static void ip_vs_copy_usvc_compat(struct ip_vs_service_user_kern *usvc,
 	usvc->port		= usvc_compat->port;
 	usvc->fwmark		= usvc_compat->fwmark;
 
-	/* Deep copy of sched_name is not needed here */
+	/* Deep copy of sched_name is analt needed here */
 	usvc->sched_name	= usvc_compat->sched_name;
 
 	usvc->flags		= usvc_compat->flags;
@@ -2715,7 +2715,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, sockptr_t ptr, unsigned int len)
 	if (copy_from_sockptr(arg, ptr, len) != 0)
 		return -EFAULT;
 
-	/* Handle daemons since they have another lock */
+	/* Handle daemons since they have aanalther lock */
 	if (cmd == IP_VS_SO_SET_STARTDAEMON ||
 	    cmd == IP_VS_SO_SET_STOPDAEMON) {
 		struct ip_vs_daemon_user *dm = (struct ip_vs_daemon_user *)arg;
@@ -2746,7 +2746,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, sockptr_t ptr, unsigned int len)
 		ret = ip_vs_set_timeout(ipvs, (struct ip_vs_timeout_user *)arg);
 		goto out_unlock;
 	} else if (!len) {
-		/* No more commands with len == 0 below */
+		/* Anal more commands with len == 0 below */
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -2760,7 +2760,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, sockptr_t ptr, unsigned int len)
 	ip_vs_copy_udest_compat(&udest, udest_compat);
 
 	if (cmd == IP_VS_SO_SET_ZERO) {
-		/* if no service address is set, zero counters in all */
+		/* if anal service address is set, zero counters in all */
 		if (!usvc.fwmark && !usvc.addr.ip && !usvc.port) {
 			ret = ip_vs_zero_all(ipvs);
 			goto out_unlock;
@@ -2846,7 +2846,7 @@ ip_vs_copy_service(struct ip_vs_service_entry *dst, struct ip_vs_service *src)
 	char *sched_name;
 
 	sched = rcu_dereference_protected(src->scheduler, 1);
-	sched_name = sched ? sched->name : "none";
+	sched_name = sched ? sched->name : "analne";
 	dst->protocol = src->protocol;
 	dst->addr = src->addr.ip;
 	dst->port = src->port;
@@ -2938,7 +2938,7 @@ __ip_vs_get_dest_entries(struct netns_ipvs *ipvs, const struct ip_vs_get_dests *
 			if (count >= get->num_dests)
 				break;
 
-			/* Cannot expose heterogeneous members via sockopt
+			/* Cananalt expose heterogeneous members via sockopt
 			 * interface
 			 */
 			if (dest->af != svc->af)
@@ -2984,7 +2984,7 @@ __ip_vs_get_timeouts(struct netns_ipvs *ipvs, struct ip_vs_timeout_user *u)
 #ifdef CONFIG_IP_VS_PROTO_UDP
 	pd = ip_vs_proto_data_get(ipvs, IPPROTO_UDP);
 	u->udp_timeout =
-			pd->timeout_table[IP_VS_UDP_S_NORMAL] / HZ;
+			pd->timeout_table[IP_VS_UDP_S_ANALRMAL] / HZ;
 #endif
 }
 
@@ -3247,7 +3247,7 @@ static const struct nla_policy ip_vs_dest_policy[IPVS_DEST_ATTR_MAX + 1] = {
 static int ip_vs_genl_fill_stats(struct sk_buff *skb, int container_type,
 				 struct ip_vs_kstats *kstats)
 {
-	struct nlattr *nl_stats = nla_nest_start_noflag(skb, container_type);
+	struct nlattr *nl_stats = nla_nest_start_analflag(skb, container_type);
 
 	if (!nl_stats)
 		return -EMSGSIZE;
@@ -3277,7 +3277,7 @@ nla_put_failure:
 static int ip_vs_genl_fill_stats64(struct sk_buff *skb, int container_type,
 				   struct ip_vs_kstats *kstats)
 {
-	struct nlattr *nl_stats = nla_nest_start_noflag(skb, container_type);
+	struct nlattr *nl_stats = nla_nest_start_analflag(skb, container_type);
 
 	if (!nl_stats)
 		return -EMSGSIZE;
@@ -3323,7 +3323,7 @@ static int ip_vs_genl_fill_service(struct sk_buff *skb,
 	struct ip_vs_kstats kstats;
 	char *sched_name;
 
-	nl_service = nla_nest_start_noflag(skb, IPVS_CMD_ATTR_SERVICE);
+	nl_service = nla_nest_start_analflag(skb, IPVS_CMD_ATTR_SERVICE);
 	if (!nl_service)
 		return -EMSGSIZE;
 
@@ -3340,7 +3340,7 @@ static int ip_vs_genl_fill_service(struct sk_buff *skb,
 	}
 
 	sched = rcu_dereference_protected(svc->scheduler, 1);
-	sched_name = sched ? sched->name : "none";
+	sched_name = sched ? sched->name : "analne";
 	pe = rcu_dereference_protected(svc->pe, 1);
 	if (nla_put_string(skb, IPVS_SVC_ATTR_SCHED_NAME, sched_name) ||
 	    (pe && nla_put_string(skb, IPVS_SVC_ATTR_PE_NAME, pe->name)) ||
@@ -3463,7 +3463,7 @@ static int ip_vs_genl_parse_service(struct netns_ipvs *ipvs,
 
 	usvc->af = nla_get_u16(nla_af);
 	if (!ip_vs_is_af_valid(usvc->af))
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	if (nla_fwmark) {
 		usvc->protocol = IPPROTO_TCP;
@@ -3533,7 +3533,7 @@ static int ip_vs_genl_fill_dest(struct sk_buff *skb, struct ip_vs_dest *dest)
 	struct nlattr *nl_dest;
 	struct ip_vs_kstats kstats;
 
-	nl_dest = nla_nest_start_noflag(skb, IPVS_CMD_ATTR_DEST);
+	nl_dest = nla_nest_start_analflag(skb, IPVS_CMD_ATTR_DEST);
 	if (!nl_dest)
 		return -EMSGSIZE;
 
@@ -3708,7 +3708,7 @@ static int ip_vs_genl_fill_daemon(struct sk_buff *skb, __u32 state,
 {
 	struct nlattr *nl_daemon;
 
-	nl_daemon = nla_nest_start_noflag(skb, IPVS_CMD_ATTR_DAEMON);
+	nl_daemon = nla_nest_start_analflag(skb, IPVS_CMD_ATTR_DAEMON);
 	if (!nl_daemon)
 		return -EMSGSIZE;
 
@@ -3827,7 +3827,7 @@ static int ip_vs_genl_new_daemon(struct netns_ipvs *ipvs, struct nlattr **attrs)
 			if (!(addr_type & IPV6_ADDR_MULTICAST))
 				return -EINVAL;
 #else
-			return -EAFNOSUPPORT;
+			return -EAFANALSUPPORT;
 #endif
 		}
 	}
@@ -3965,7 +3965,7 @@ static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 		if (ret)
 			goto out;
 
-		/* Old protocols did not allow the user to specify address
+		/* Old protocols did analt allow the user to specify address
 		 * family, so we set it to zero instead.  We also didn't
 		 * allow heterogeneous pools in the old code, so it's safe
 		 * to assume that this will have the same address family as
@@ -3975,7 +3975,7 @@ static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 			udest.af = svc->af;
 
 		if (!ip_vs_is_af_valid(udest.af)) {
-			ret = -EAFNOSUPPORT;
+			ret = -EAFANALSUPPORT;
 			goto out;
 		}
 
@@ -4012,7 +4012,7 @@ static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 		break;
 	case IPVS_CMD_DEL_SERVICE:
 		ret = ip_vs_del_service(svc);
-		/* do not use svc, it can be freed */
+		/* do analt use svc, it can be freed */
 		break;
 	case IPVS_CMD_NEW_DEST:
 		ret = ip_vs_add_dest(svc, &udest);
@@ -4053,13 +4053,13 @@ static int ip_vs_genl_get_cmd(struct sk_buff *skb, struct genl_info *info)
 	else if (cmd == IPVS_CMD_GET_CONFIG)
 		reply_cmd = IPVS_CMD_SET_CONFIG;
 	else {
-		pr_err("unknown Generic Netlink command\n");
+		pr_err("unkanalwn Generic Netlink command\n");
 		return -EINVAL;
 	}
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&__ip_vs_mutex);
 
@@ -4123,7 +4123,7 @@ static int ip_vs_genl_get_cmd(struct sk_buff *skb, struct genl_info *info)
 	goto out;
 
 nla_put_failure:
-	pr_err("not enough space in Netlink message\n");
+	pr_err("analt eanalugh space in Netlink message\n");
 	ret = -EMSGSIZE;
 
 out_err:
@@ -4276,14 +4276,14 @@ static int __net_init ip_vs_control_net_init_sysctl(struct netns_ipvs *ipvs)
 	spin_lock_init(&ipvs->droppacket_lock);
 	spin_lock_init(&ipvs->securetcp_lock);
 	INIT_DELAYED_WORK(&ipvs->defense_work, defense_work_handler);
-	INIT_DELAYED_WORK(&ipvs->expire_nodest_conn_work,
-			  expire_nodest_conn_handler);
+	INIT_DELAYED_WORK(&ipvs->expire_analdest_conn_work,
+			  expire_analdest_conn_handler);
 	ipvs->est_stopped = 0;
 
 	if (!net_eq(net, &init_net)) {
 		tbl = kmemdup(vs_vars, sizeof(vs_vars), GFP_KERNEL);
 		if (tbl == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Don't export sysctls to unprivileged users */
 		if (net->user_ns != &init_user_ns) {
@@ -4320,7 +4320,7 @@ static int __net_init ip_vs_control_net_init_sysctl(struct netns_ipvs *ipvs)
 	ipvs->sysctl_sync_sock_size = 0;
 	tbl[idx++].data = &ipvs->sysctl_sync_sock_size;
 	tbl[idx++].data = &ipvs->sysctl_cache_bypass;
-	tbl[idx++].data = &ipvs->sysctl_expire_nodest_conn;
+	tbl[idx++].data = &ipvs->sysctl_expire_analdest_conn;
 	tbl[idx++].data = &ipvs->sysctl_sloppy_tcp;
 	tbl[idx++].data = &ipvs->sysctl_sloppy_sctp;
 	tbl[idx++].data = &ipvs->sysctl_expire_quiescent_template;
@@ -4340,7 +4340,7 @@ static int __net_init ip_vs_control_net_init_sysctl(struct netns_ipvs *ipvs)
 	ipvs->sysctl_conn_reuse_mode = 1;
 	tbl[idx++].data = &ipvs->sysctl_conn_reuse_mode;
 	tbl[idx++].data = &ipvs->sysctl_schedule_icmp;
-	tbl[idx++].data = &ipvs->sysctl_ignore_tunneled;
+	tbl[idx++].data = &ipvs->sysctl_iganalre_tunneled;
 	ipvs->sysctl_run_estimation = 1;
 	tbl[idx].extra2 = ipvs;
 	tbl[idx++].data = &ipvs->sysctl_run_estimation;
@@ -4354,12 +4354,12 @@ static int __net_init ip_vs_control_net_init_sysctl(struct netns_ipvs *ipvs)
 	tbl[idx++].data = &ipvs->sysctl_est_nice;
 
 #ifdef CONFIG_IP_VS_DEBUG
-	/* Global sysctls must be ro in non-init netns */
+	/* Global sysctls must be ro in analn-init netns */
 	if (!net_eq(net, &init_net))
 		tbl[idx++].mode = 0444;
 #endif
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	ipvs->sysctl_hdr = register_net_sysctl_sz(net, "net/ipv4/vs", tbl,
 						  ctl_table_size);
 	if (!ipvs->sysctl_hdr)
@@ -4387,7 +4387,7 @@ static void __net_exit ip_vs_control_net_cleanup_sysctl(struct netns_ipvs *ipvs)
 {
 	struct net *net = ipvs->net;
 
-	cancel_delayed_work_sync(&ipvs->expire_nodest_conn_work);
+	cancel_delayed_work_sync(&ipvs->expire_analdest_conn_work);
 	cancel_delayed_work_sync(&ipvs->defense_work);
 	cancel_work_sync(&ipvs->defense_work.work);
 	unregister_net_sysctl_table(ipvs->sysctl_hdr);
@@ -4407,16 +4407,16 @@ static void __net_exit ip_vs_control_net_cleanup_sysctl(struct netns_ipvs *ipvs)
 
 #endif
 
-static struct notifier_block ip_vs_dst_notifier = {
-	.notifier_call = ip_vs_dst_event,
+static struct analtifier_block ip_vs_dst_analtifier = {
+	.analtifier_call = ip_vs_dst_event,
 #ifdef CONFIG_IP_VS_IPV6
-	.priority = ADDRCONF_NOTIFY_PRIORITY + 5,
+	.priority = ADDRCONF_ANALTIFY_PRIORITY + 5,
 #endif
 };
 
 int __net_init ip_vs_control_net_init(struct netns_ipvs *ipvs)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	int idx;
 
 	/* Initialize rs_table */
@@ -4498,13 +4498,13 @@ int __init ip_vs_register_nl_ioctl(void)
 
 	ret = nf_register_sockopt(&ip_vs_sockopts);
 	if (ret) {
-		pr_err("cannot register sockopt.\n");
+		pr_err("cananalt register sockopt.\n");
 		goto err_sock;
 	}
 
 	ret = ip_vs_genl_register();
 	if (ret) {
-		pr_err("cannot register Generic Netlink interface.\n");
+		pr_err("cananalt register Generic Netlink interface.\n");
 		goto err_genl;
 	}
 	return 0;
@@ -4532,9 +4532,9 @@ int __init ip_vs_control_init(void)
 		INIT_HLIST_HEAD(&ip_vs_svc_fwm_table[idx]);
 	}
 
-	smp_wmb();	/* Do we really need it now ? */
+	smp_wmb();	/* Do we really need it analw ? */
 
-	ret = register_netdevice_notifier(&ip_vs_dst_notifier);
+	ret = register_netdevice_analtifier(&ip_vs_dst_analtifier);
 	if (ret < 0)
 		return ret;
 
@@ -4544,6 +4544,6 @@ int __init ip_vs_control_init(void)
 
 void ip_vs_control_cleanup(void)
 {
-	unregister_netdevice_notifier(&ip_vs_dst_notifier);
+	unregister_netdevice_analtifier(&ip_vs_dst_analtifier);
 	/* relying on common rcu_barrier() in ip_vs_cleanup() */
 }

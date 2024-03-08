@@ -20,7 +20,7 @@ algorithms monitor workload usage of uncore and set a desirable frequency.
 It is possible that users have different expectations of uncore performance and
 want to have control over it. The objective is similar to allowing users to set
 the scaling min/max frequencies via cpufreq sysfs to improve CPU performance.
-Users may have some latency sensitive workloads where they do not want any
+Users may have some latency sensitive workloads where they do analt want any
 change to uncore frequency. Also, users may have workloads which require
 different core and uncore performance at distinct phases and they may want to
 use both cpufreq and the uncore scaling interface to distribute power and
@@ -70,7 +70,7 @@ be placed in the same fabric cluster. Benefit of fabric cluster is that it
 offers a scalable mechanism to deal with partitioned fabrics in a SoC.
 
 The current sysfs interface supports controls at package and die level.
-This interface is not enough to support more granular control at
+This interface is analt eanalugh to support more granular control at
 fabric cluster level.
 
 SoCs with the support of TPMI (Topology Aware Register and PM Capsule

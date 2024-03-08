@@ -13,7 +13,7 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/videobuf2-core.h>
 
 #define CSI_EN_REG			0x00
@@ -140,7 +140,7 @@ struct sun4i_csi {
 	struct v4l2_mbus_framefmt	subdev_fmt;
 
 	/* V4L2 Async variables */
-	struct v4l2_async_notifier	notifier;
+	struct v4l2_async_analtifier	analtifier;
 	struct v4l2_subdev		*src_subdev;
 	int				src_pad;
 

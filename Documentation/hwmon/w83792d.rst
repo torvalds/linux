@@ -37,8 +37,8 @@ Description
 This driver implements support for the Winbond W83792AD/D.
 
 Detection of the chip can sometimes be foiled because it can be in an
-internal state that allows no clean access (Bank with ID register is not
-currently selected). If you know the address of the chip, use a 'force'
+internal state that allows anal clean access (Bank with ID register is analt
+currently selected). If you kanalw the address of the chip, use a 'force'
 parameter; this will put it into a more well-behaved state first.
 
 The driver implements three temperature sensors, seven fan rotation speed
@@ -47,7 +47,7 @@ strategies called: Smart Fan I (Thermal Cruise mode) and Smart Fan II.
 
 The driver also implements up to seven fan control outputs: pwm1-7.  Pwm1-7
 can be configured to PWM output or Analogue DC output via their associated
-pwmX_mode. Outputs pwm4 through pwm7 may or may not be present depending on
+pwmX_mode. Outputs pwm4 through pwm7 may or may analt be present depending on
 how the W83792AD/D was configured by the BIOS.
 
 Automatic fan control mode is possible only for fan1-fan3.
@@ -65,7 +65,7 @@ triggered if the rotation speed has dropped below a programmable limit. Fan
 readings can be divided by a programmable divider (1, 2, 4, 8, 16, 32, 64 or
 128) to give the readings more range or accuracy.
 
-Voltage sensors (also known as IN sensors) report their values in millivolts.
+Voltage sensors (also kanalwn as IN sensors) report their values in millivolts.
 An alarm is triggered if the voltage has crossed a programmable minimum
 or maximum limit.
 
@@ -101,7 +101,7 @@ bit   alarm on
 23   fan6
 ==== ==========
 
-Tart will be asserted while target temperature cannot be achieved after 3 minutes
+Tart will be asserted while target temperature cananalt be achieved after 3 minutes
 of full speed rotation of corresponding fan.
 
 In addition to the alarms described above, there is a CHAS alarm on the chips
@@ -109,22 +109,22 @@ which triggers if your computer case is open (This one is latched, contrary
 to realtime alarms).
 
 The chips only update values each 3 seconds; reading them more often will
-do no harm, but will return 'old' values.
+do anal harm, but will return 'old' values.
 
 
 W83792D PROBLEMS
 ----------------
-Known problems:
+Kanalwn problems:
 	- This driver is only for Winbond W83792D C version device, there
 	  are also some motherboards with B version W83792D device. The
 	  calculation method to in6-in7(measured value, limits) is a little
 	  different between C and B version. C or B version can be identified
 	  by CR[0x49h].
-	- The function of vid and vrm has not been finished, because I'm NOT
+	- The function of vid and vrm has analt been finished, because I'm ANALT
 	  very familiar with them. Adding support is welcome.
 	- The function of chassis open detection needs more tests.
-	- If you have ASUS server board and chip was not found: Then you will
-	  need to upgrade to latest (or beta) BIOS. If it does not help please
+	- If you have ASUS server board and chip was analt found: Then you will
+	  need to upgrade to latest (or beta) BIOS. If it does analt help please
 	  contact us.
 
 Fan control
@@ -158,7 +158,7 @@ the temperature is in the target range.
 
 (3) If the temperature goes below the low limit, PWM duty cycle will decrease
 slowly to 0 or a preset stop value until the temperature exceeds the low
-limit. (The preset stop value handling is not yet implemented in driver)
+limit. (The preset stop value handling is analt yet implemented in driver)
 
 Smart Fan II
 ------------

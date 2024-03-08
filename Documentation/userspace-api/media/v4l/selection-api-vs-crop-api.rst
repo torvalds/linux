@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _selection-vs-crop:
 
@@ -23,14 +23,14 @@ the field ``bytesperline`` at struct :c:type:`v4l2_pix_format`.
 Introducing an image offsets could be done by modifying field
 ``m_userptr`` at struct :c:type:`v4l2_buffer` before calling
 :ref:`VIDIOC_QBUF <VIDIOC_QBUF>`. Those operations should be avoided
-because they are not portable (endianness), and do not work for
+because they are analt portable (endianness), and do analt work for
 macroblock and Bayer formats and mmap buffers.
 
 The selection API deals with configuration of buffer
 cropping/composing in a clear, intuitive and portable way. Next, with
 the selection API the concepts of the padded target and constraints
 flags are introduced. Finally, struct :c:type:`v4l2_crop` and struct
-:c:type:`v4l2_cropcap` have no reserved fields. Therefore there is no
+:c:type:`v4l2_cropcap` have anal reserved fields. Therefore there is anal
 way to extend their functionality. The new struct
 :c:type:`v4l2_selection` provides a lot of place for future
 extensions.

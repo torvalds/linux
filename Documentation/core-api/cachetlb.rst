@@ -17,7 +17,7 @@ on all processors in the system.  Don't let this scare you into
 thinking SMP cache/tlb flushing must be so inefficient, this is in
 fact an area where many optimizations are possible.  For example,
 if it can be proven that a user address space has never executed
-on a cpu (see mm_cpumask()), one need not perform a flush
+on a cpu (see mm_cpumask()), one need analt perform a flush
 for this address space on that cpu.
 
 First, the TLB flushing interfaces, since they are the simplest.  The
@@ -44,7 +44,7 @@ changes occur:
 	the TLB.  After running, this interface must make sure that
 	any previous page table modifications for the address space
 	'mm' will be visible to the cpu.  That is, after running,
-	there will be no entries in the TLB for 'mm'.
+	there will be anal entries in the TLB for 'mm'.
 
 	This interface is used to handle whole address space
 	page table operations such as what happens during
@@ -58,7 +58,7 @@ changes occur:
 	interface must make sure that any previous page table
 	modifications for the address space 'vma->vm_mm' in the range
 	'start' to 'end-1' will be visible to the cpu.  That is, after
-	running, there will be no entries in the TLB for 'mm' for
+	running, there will be anal entries in the TLB for 'mm' for
 	virtual addresses in the range 'start' to 'end-1'.
 
 	The "vma" is the backing store being used for the region.
@@ -83,7 +83,7 @@ changes occur:
 	After running, this interface must make sure that any previous
 	page table modification for address space 'vma->vm_mm' for
 	user virtual address 'addr' will be visible to the cpu.  That
-	is, after running, there will be no entries in the TLB for
+	is, after running, there will be anal entries in the TLB for
 	'vma->vm_mm' for virtual address 'addr'.
 
 	This is used primarily during fault processing.
@@ -93,7 +93,7 @@ changes occur:
    unsigned int nr)``
 
 	At the end of every page fault, this routine is invoked to tell
-	the architecture specific code that translations now exists
+	the architecture specific code that translations analw exists
 	in the software page tables for address space "vma->vm_mm"
 	at virtual address "address" for "nr" consecutive pages.
 
@@ -132,16 +132,16 @@ to the extent that it is necessary for a particular cpu.  Mostly,
 these routines must be implemented for cpus which have virtually
 indexed caches which must be flushed when virtual-->physical
 translations are changed or removed.  So, for example, the physically
-indexed physically tagged caches of IA32 processors have no need to
+indexed physically tagged caches of IA32 processors have anal need to
 implement these interfaces since the caches are fully synchronized
-and have no dependency on translation information.
+and have anal dependency on translation information.
 
 Here are the routines, one by one:
 
 1) ``void flush_cache_mm(struct mm_struct *mm)``
 
 	This interface flushes an entire user address space from
-	the caches.  That is, after running, there will be no cache
+	the caches.  That is, after running, there will be anal cache
 	lines associated with 'mm'.
 
 	This interface is used to handle whole address space
@@ -150,7 +150,7 @@ Here are the routines, one by one:
 2) ``void flush_cache_dup_mm(struct mm_struct *mm)``
 
 	This interface flushes an entire user address space from
-	the caches.  That is, after running, there will be no cache
+	the caches.  That is, after running, there will be anal cache
 	lines associated with 'mm'.
 
 	This interface is used to handle whole address space
@@ -163,7 +163,7 @@ Here are the routines, one by one:
    unsigned long start, unsigned long end)``
 
 	Here we are flushing a specific range of (user) virtual
-	addresses from the cache.  After running, there will be no
+	addresses from the cache.  After running, there will be anal
 	entries in the cache for 'vma->vm_mm' for virtual addresses in
 	the range 'start' to 'end-1'.
 
@@ -191,7 +191,7 @@ Here are the routines, one by one:
 	translates to.  It is this mapping which should be removed from
 	the cache.
 
-	After running, there will be no entries in the cache for
+	After running, there will be anal entries in the cache for
 	'vma->vm_mm' for virtual address 'addr' which translates
 	to 'pfn'.
 
@@ -203,7 +203,7 @@ Here are the routines, one by one:
 	highmem.  It will be called right before all of the kmaps
 	are invalidated.
 
-	After running, there will be no entries in the cache for
+	After running, there will be anal entries in the cache for
 	the kernel virtual address range PKMAP_ADDR(0) to
 	PKMAP_ADDR(LAST_PKMAP).
 
@@ -214,21 +214,21 @@ Here are the routines, one by one:
 
 	Here in these two interfaces we are flushing a specific range
 	of (kernel) virtual addresses from the cache.  After running,
-	there will be no entries in the cache for the kernel address
+	there will be anal entries in the cache for the kernel address
 	space for virtual addresses in the range 'start' to 'end-1'.
 
 	The first of these two routines is invoked after vmap_range()
 	has installed the page table entries.  The second is invoked
 	before vunmap_range() deletes the page table entries.
 
-There exists another whole class of cpu cache issues which currently
+There exists aanalther whole class of cpu cache issues which currently
 require a whole different set of interfaces to handle properly.
 The biggest problem is that of virtual aliasing in the data cache
 of a processor.
 
 Is your port susceptible to virtual aliasing in its D-cache?
 Well, if your D-cache is virtually indexed, is larger in size than
-PAGE_SIZE, and does not prevent multiple cache lines for the same
+PAGE_SIZE, and does analt prevent multiple cache lines for the same
 physical address from existing at once, you have this problem.
 
 If your D-cache has this problem, first define asm/shmparam.h SHMLBA
@@ -238,9 +238,9 @@ size).  This setting will force the SYSv IPC layer to only allow user
 processes to mmap shared memory at address which are a multiple of
 this value.
 
-.. note::
+.. analte::
 
-  This does not fix shared mmaps, check out the sparc64 port for
+  This does analt fix shared mmaps, check out the sparc64 port for
   one way to solve this (in particular SPARC_FLAG_MMAPSHARED).
 
 Next, you have to solve the D-cache aliasing issue for all
@@ -255,7 +255,7 @@ maps this page at its virtual address.
   ``void copy_user_page(void *to, void *from, unsigned long addr, struct page *page)``
   ``void clear_user_page(void *to, unsigned long addr, struct page *page)``
 
-	These two routines store data in user anonymous or COW
+	These two routines store data in user aanalnymous or COW
 	pages.  It allows a port to efficiently avoid D-cache alias
 	issues between userspace and the kernel.
 
@@ -270,8 +270,8 @@ maps this page at its virtual address.
 	user will ultimately have this page mapped, and the 'page'
 	parameter gives a pointer to the struct page of the target.
 
-	If D-cache aliasing is not an issue, these two routines may
-	simply call memcpy/memset directly and do nothing more.
+	If D-cache aliasing is analt an issue, these two routines may
+	simply call memcpy/memset directly and do analthing more.
 
   ``void flush_dcache_folio(struct folio *folio)``
 
@@ -280,17 +280,17 @@ maps this page at its virtual address.
 	  a) the kernel did write to a page that is in the page cache page
 	     and / or in high memory
 	  b) the kernel is about to read from a page cache page and user space
-	     shared/writable mappings of this page potentially exist.  Note
+	     shared/writable mappings of this page potentially exist.  Analte
 	     that {get,pin}_user_pages{_fast} already call flush_dcache_folio
 	     on any page found in the user address space and thus driver
 	     code rarely needs to take this into account.
 
-	.. note::
+	.. analte::
 
 	      This routine need only be called for page cache pages
 	      which can potentially ever be mapped into the address
 	      space of a user process.  So for example, VFS layer code
-	      handling vfs symlinks in the page cache need not call
+	      handling vfs symlinks in the page cache need analt call
 	      this interface at all.
 
 	The phrase "kernel writes to a page cache page" means, specifically,
@@ -303,8 +303,8 @@ maps this page at its virtual address.
 	shared+writable mappings of this file, we must make sure that kernel
 	reads of these pages will see the most recent stores done by the user.
 
-	If D-cache aliasing is not an issue, this routine may simply be defined
-	as a nop on that architecture.
+	If D-cache aliasing is analt an issue, this routine may simply be defined
+	as a analp on that architecture.
 
         There is a bit set aside in folio->flags (PG_arch_1) as "architecture
 	private".  The kernel guarantees that, for pagecache pages, it will
@@ -312,7 +312,7 @@ maps this page at its virtual address.
 
 	This allows these interfaces to be implemented much more
 	efficiently.  It allows one to "defer" (perhaps indefinitely) the
-	actual flush if there are currently no user processes mapping this
+	actual flush if there are currently anal user processes mapping this
 	page.  See sparc64's flush_dcache_folio and update_mmu_cache_range
 	implementations for an example of how to go about doing this.
 
@@ -342,18 +342,18 @@ maps this page at its virtual address.
 
 	Any necessary cache flushing or other coherency operations
 	that need to occur should happen here.  If the processor's
-	instruction cache does not snoop cpu stores, it is very
+	instruction cache does analt sanalop cpu stores, it is very
 	likely that you will need to flush the instruction cache
 	for copy_to_user_page().
 
-  ``void flush_anon_page(struct vm_area_struct *vma, struct page *page,
+  ``void flush_aanaln_page(struct vm_area_struct *vma, struct page *page,
   unsigned long vmaddr)``
 
-  	When the kernel needs to access the contents of an anonymous
+  	When the kernel needs to access the contents of an aanalnymous
 	page, it calls this function (currently only
-	get_user_pages()).  Note: flush_dcache_folio() deliberately
-	doesn't work for an anonymous page.  The default
-	implementation is a nop (and should remain so for all coherent
+	get_user_pages()).  Analte: flush_dcache_folio() deliberately
+	doesn't work for an aanalnymous page.  The default
+	implementation is a analp (and should remain so for all coherent
 	architectures).  For incoherent architectures, it should flush
 	the cache of the page at vmaddr.
 
@@ -362,7 +362,7 @@ maps this page at its virtual address.
   	When the kernel stores into addresses that it will execute
 	out of (eg when loading modules), this function is called.
 
-	If the icache does not snoop stores then this routine will need
+	If the icache does analt sanalop stores then this routine will need
 	to flush it.
 
   ``void flush_icache_page(struct vm_area_struct *vma, struct page *page)``
@@ -386,7 +386,7 @@ I/O and invalidating it after the I/O returns.
        the vmap area.  This is to make sure that any data the kernel
        modified in the vmap range is made visible to the physical
        page.  The design is to make this area safe to perform I/O on.
-       Note that this API does *not* also flush the offset map alias
+       Analte that this API does *analt* also flush the offset map alias
        of the area.
 
   ``void invalidate_kernel_vmap_range(void *vaddr, int size) invalidates``

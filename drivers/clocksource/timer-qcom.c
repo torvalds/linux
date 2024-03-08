@@ -80,7 +80,7 @@ static struct clock_event_device __percpu *msm_evt;
 
 static void __iomem *source_base;
 
-static notrace u64 msm_read_timer_count(struct clocksource *cs)
+static analtrace u64 msm_read_timer_count(struct clocksource *cs)
 {
 	return readl_relaxed(source_base + TIMER_COUNT_VAL);
 }
@@ -117,7 +117,7 @@ static int msm_local_timer_starting_cpu(unsigned int cpu)
 		enable_percpu_irq(evt->irq, IRQ_TYPE_EDGE_RISING);
 	} else {
 		err = request_irq(evt->irq, msm_timer_interrupt,
-				IRQF_TIMER | IRQF_NOBALANCING |
+				IRQF_TIMER | IRQF_ANALBALANCING |
 				IRQF_TRIGGER_RISING, "gp_timer", evt);
 		if (err)
 			pr_err("request_irq failed\n");
@@ -135,7 +135,7 @@ static int msm_local_timer_dying_cpu(unsigned int cpu)
 	return 0;
 }
 
-static u64 notrace msm_sched_clock_read(void)
+static u64 analtrace msm_sched_clock_read(void)
 {
 	return msm_clocksource.read(&msm_clocksource);
 }
@@ -194,7 +194,7 @@ err:
 	return res;
 }
 
-static int __init msm_dt_timer_init(struct device_node *np)
+static int __init msm_dt_timer_init(struct device_analde *np)
 {
 	u32 freq;
 	int irq, ret;
@@ -233,7 +233,7 @@ static int __init msm_dt_timer_init(struct device_node *np)
 	}
 
 	if (of_property_read_u32(np, "clock-frequency", &freq)) {
-		pr_err("Unknown frequency\n");
+		pr_err("Unkanalwn frequency\n");
 		return -EINVAL;
 	}
 

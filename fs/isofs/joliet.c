@@ -39,12 +39,12 @@ uni16_to_x8(unsigned char *ascii, __be16 *uni, int len, struct nls_table *nls)
 }
 
 int
-get_joliet_filename(struct iso_directory_record * de, unsigned char *outname, struct inode * inode)
+get_joliet_filename(struct iso_directory_record * de, unsigned char *outname, struct ianalde * ianalde)
 {
 	struct nls_table *nls;
 	unsigned char len = 0;
 
-	nls = ISOFS_SB(inode->i_sb)->s_nls_iocharset;
+	nls = ISOFS_SB(ianalde->i_sb)->s_nls_iocharset;
 
 	if (!nls) {
 		len = utf16s_to_utf8s((const wchar_t *) de->name,

@@ -14,7 +14,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/hw_random.h>
 /*
- * Note that according to the algorithm ID, 2 versions of the TRNG exists,
+ * Analte that according to the algorithm ID, 2 versions of the TRNG exists,
  * The first present in H3/H5/R40/A64 and the second present in H6.
  * This file adds support for both, but only the second is working
  * reliabily according to rngtest.
@@ -40,7 +40,7 @@ static int sun8i_ce_trng_read(struct hwrng *rng, void *data, size_t max, bool wa
 
 	d = kzalloc(todo, GFP_KERNEL | GFP_DMA);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #ifdef CONFIG_CRYPTO_DEV_SUN8I_CE_DEBUG
 	ce->hwrng_stat_req++;
@@ -49,7 +49,7 @@ static int sun8i_ce_trng_read(struct hwrng *rng, void *data, size_t max, bool wa
 
 	dma_dst = dma_map_single(ce->dev, d, todo, DMA_FROM_DEVICE);
 	if (dma_mapping_error(ce->dev, dma_dst)) {
-		dev_err(ce->dev, "Cannot DMA MAP DST\n");
+		dev_err(ce->dev, "Cananalt DMA MAP DST\n");
 		err = -EFAULT;
 		goto err_dst;
 	}
@@ -102,8 +102,8 @@ int sun8i_ce_hwrng_register(struct sun8i_ce_dev *ce)
 {
 	int ret;
 
-	if (ce->variant->trng == CE_ID_NOTSUPP) {
-		dev_info(ce->dev, "TRNG not supported\n");
+	if (ce->variant->trng == CE_ID_ANALTSUPP) {
+		dev_info(ce->dev, "TRNG analt supported\n");
 		return 0;
 	}
 	ce->trng.name = "sun8i Crypto Engine TRNG";
@@ -117,7 +117,7 @@ int sun8i_ce_hwrng_register(struct sun8i_ce_dev *ce)
 
 void sun8i_ce_hwrng_unregister(struct sun8i_ce_dev *ce)
 {
-	if (ce->variant->trng == CE_ID_NOTSUPP)
+	if (ce->variant->trng == CE_ID_ANALTSUPP)
 		return;
 	hwrng_unregister(&ce->trng);
 }

@@ -57,31 +57,31 @@ all configurable using the following module options:
 	number of driver instances to create. By default set to 1. Up to 64
 	instances can be created.
 
-- node_types:
+- analde_types:
 
 	which devices should each driver instance create. An array of
 	hexadecimal values, one for each instance. The default is 0x1d3d.
 	Each value is a bitmask with the following meaning:
 
-		- bit 0: Video Capture node
-		- bit 2-3: VBI Capture node: 0 = none, 1 = raw vbi, 2 = sliced vbi, 3 = both
-		- bit 4: Radio Receiver node
-		- bit 5: Software Defined Radio Receiver node
-		- bit 8: Video Output node
-		- bit 10-11: VBI Output node: 0 = none, 1 = raw vbi, 2 = sliced vbi, 3 = both
-		- bit 12: Radio Transmitter node
+		- bit 0: Video Capture analde
+		- bit 2-3: VBI Capture analde: 0 = analne, 1 = raw vbi, 2 = sliced vbi, 3 = both
+		- bit 4: Radio Receiver analde
+		- bit 5: Software Defined Radio Receiver analde
+		- bit 8: Video Output analde
+		- bit 10-11: VBI Output analde: 0 = analne, 1 = raw vbi, 2 = sliced vbi, 3 = both
+		- bit 12: Radio Transmitter analde
 		- bit 16: Framebuffer for testing overlays
-		- bit 17: Metadata Capture node
-		- bit 18: Metadata Output node
-		- bit 19: Touch Capture node
+		- bit 17: Metadata Capture analde
+		- bit 18: Metadata Output analde
+		- bit 19: Touch Capture analde
 
 	So to create four instances, the first two with just one video capture
 	device, the second two with just one video output device you would pass
 	these module options to vivid:
 
-	.. code-block:: none
+	.. code-block:: analne
 
-		n_devs=4 node_types=0x1,0x1,0x100,0x100
+		n_devs=4 analde_types=0x1,0x1,0x100,0x100
 
 - num_inputs:
 
@@ -106,7 +106,7 @@ all configurable using the following module options:
 	tuner, inputs 1-3 are S-Video inputs and inputs 4-7 are HDMI inputs you
 	would use the following module options:
 
-	.. code-block:: none
+	.. code-block:: analne
 
 		num_inputs=8 input_types=0xffa9
 
@@ -131,7 +131,7 @@ all configurable using the following module options:
 	S-Video outputs and outputs 4-7 are HDMI outputs you would use the
 	following module options:
 
-	.. code-block:: none
+	.. code-block:: analne
 
 		num_outputs=8 output_types=0xf0
 
@@ -139,9 +139,9 @@ all configurable using the following module options:
 
 	give the desired videoX start number for each video capture device.
 	The default is -1 which will just take the first free number. This allows
-	you to map capture video nodes to specific videoX device nodes. Example:
+	you to map capture video analdes to specific videoX device analdes. Example:
 
-	.. code-block:: none
+	.. code-block:: analne
 
 		n_devs=4 vid_cap_nr=2,4,6,8
 
@@ -221,9 +221,9 @@ all configurable using the following module options:
 		picture. The scaler of the vivid driver can enlarge up
 		or down to four times the original size. The scaler is
 		very simple and low-quality. Simplicity and speed were
-		key, not quality.
+		key, analt quality.
 
-	Note that this value is ignored by webcam inputs: those enumerate
+	Analte that this value is iganalred by webcam inputs: those enumerate
 	discrete framesizes and that is incompatible with cropping, composing
 	or scaling.
 
@@ -254,7 +254,7 @@ all configurable using the following module options:
 		buffer. The scaler of the vivid driver can enlarge up
 		or down to four times the original size. The scaler is
 		very simple and low-quality. Simplicity and speed were
-		key, not quality.
+		key, analt quality.
 
 - multiplanar:
 
@@ -271,7 +271,7 @@ all configurable using the following module options:
 
 	enable driver debugging info
 
-- no_error_inj:
+- anal_error_inj:
 
 	if set disable the error injecting controls. This option is
 	needed in order to run a tool like v4l2-compliance. Tools like that
@@ -304,7 +304,7 @@ all configurable using the following module options:
 
 Taken together, all these module options allow you to precisely customize
 the driver behavior and test your application with all sorts of permutations.
-It is also very suitable to emulate hardware that is not yet available, e.g.
+It is also very suitable to emulate hardware that is analt yet available, e.g.
 when developing software for a new upcoming device.
 
 
@@ -353,7 +353,7 @@ the result will be.
 
 These inputs support all combinations of the field setting. Special care has
 been taken to faithfully reproduce how fields are handled for the different
-TV standards. This is particularly noticeable when generating a horizontally
+TV standards. This is particularly analticeable when generating a horizontally
 moving image so the temporal effect of using interlaced formats becomes clearly
 visible. For 50 Hz standards the top field is the oldest and the bottom field
 is the newest in time. For 60 Hz standards that is reversed: the bottom field
@@ -363,7 +363,7 @@ When you start capturing in V4L2_FIELD_ALTERNATE mode the first buffer will
 contain the top field for 50 Hz standards and the bottom field for 60 Hz
 standards. This is what capture hardware does as well.
 
-Finally, for PAL/SECAM standards the first half of the top line contains noise.
+Finally, for PAL/SECAM standards the first half of the top line contains analise.
 This simulates the Wide Screen Signal that is commonly placed there.
 
 The initially selected colorspace when you switch to the TV or S-Video input
@@ -378,14 +378,14 @@ video that will need to be scaled accordingly.
 The TV 'tuner' supports a frequency range of 44-958 MHz. Channels are available
 every 6 MHz, starting from 49.25 MHz. For each channel the generated image
 will be in color for the +/- 0.25 MHz around it, and in grayscale for
-+/- 1 MHz around the channel. Beyond that it is just noise. The VIDIOC_G_TUNER
++/- 1 MHz around the channel. Beyond that it is just analise. The VIDIOC_G_TUNER
 ioctl will return 100% signal strength for +/- 0.25 MHz and 50% for +/- 1 MHz.
 It will also return correct afc values to show whether the frequency is too
 low or too high.
 
-The audio subchannels that are returned are MONO for the +/- 1 MHz range around
+The audio subchannels that are returned are MOANAL for the +/- 1 MHz range around
 a valid channel frequency. When the frequency is within +/- 0.25 MHz of the
-channel it will return either MONO, STEREO, either MONO | SAP (for NTSC) or
+channel it will return either MOANAL, STEREO, either MOANAL | SAP (for NTSC) or
 LANG1 | LANG2 (for others), or STEREO | SAP.
 
 Which one is returned depends on the chosen channel, each next valid channel
@@ -423,7 +423,7 @@ For HDMI inputs it is possible to set the EDID. By default a simple EDID
 is provided. You can only set the EDID for HDMI inputs. Internally, however,
 the EDID is shared between all HDMI inputs.
 
-No interpretation is done of the EDID data with the exception of the
+Anal interpretation is done of the EDID data with the exception of the
 physical address. See the CEC section for more details.
 
 There is a maximum of 15 HDMI inputs (if there are more, then they will be
@@ -481,7 +481,7 @@ VBI Capture
 
 There are three types of VBI capture devices: those that only support raw
 (undecoded) VBI, those that only support sliced (decoded) VBI and those that
-support both. This is determined by the node_types module option. In all
+support both. This is determined by the analde_types module option. In all
 cases the driver will generate valid VBI data: for 60 Hz standards it will
 generate Closed Caption and XDS data. The closed caption stream will
 alternate between "Hello world!" and "Closed captions test" every second.
@@ -498,7 +498,7 @@ VBI Output
 
 There are three types of VBI output devices: those that only support raw
 (undecoded) VBI, those that only support sliced (decoded) VBI and those that
-support both. This is determined by the node_types module option.
+support both. This is determined by the analde_types module option.
 
 The sliced VBI output supports the Wide Screen Signal and the teletext signal
 for 50 Hz standards and Closed Captioning + XDS for 60 Hz standards.
@@ -617,7 +617,7 @@ The Button, Boolean, Integer 32 Bits, Integer 64 Bits, Menu, String, Bitmask and
 Integer Menu are controls that represent all possible control types. The Menu
 control and the Integer Menu control both have 'holes' in their menu list,
 meaning that one or more menu items return EINVAL when VIDIOC_QUERYMENU is called.
-Both menu controls also have a non-zero minimum control value.  These features
+Both menu controls also have a analn-zero minimum control value.  These features
 allow you to check if your application can handle such things correctly.
 These controls are supported for every device type.
 
@@ -637,7 +637,7 @@ This allows you to test controls that can change their range.
 
 The 'Gain, Automatic' and Gain controls can be used to test volatile controls:
 if 'Gain, Automatic' is set, then the Gain control is volatile and changes
-constantly. If 'Gain, Automatic' is cleared, then the Gain control is a normal
+constantly. If 'Gain, Automatic' is cleared, then the Gain control is a analrmal
 control.
 
 The 'Horizontal Flip' and 'Vertical Flip' controls can be used to flip the
@@ -708,7 +708,7 @@ The Test Pattern Controls are all specific to video capture.
 
 	adds a SAV (Start of Active Video) code to the image.
 	This can be used to check if such codes in the image are inadvertently
-	interpreted instead of being ignored.
+	interpreted instead of being iganalred.
 
 - Insert EAV Code in Image:
 
@@ -726,7 +726,7 @@ The Test Pattern Controls are all specific to video capture.
 	That will result in video lines that start with multiple pixels that
 	have the same value as the Video Guard Band that precedes them.
 	Receivers that will just keep skipping Video Guard Band values will
-	now fail and either loose sync or these video lines will shift.
+	analw fail and either loose sync or these video lines will shift.
 
 
 Capture Feature Selection Controls
@@ -768,7 +768,7 @@ These controls are all specific to video capture.
 	This only applies if the CSC Colorbar test pattern is selected,
 	otherwise the test pattern will go through unconverted.
 	This behavior is also what you want, since a 75% Colorbar
-	should really have 75% signal intensity and should not be affected
+	should really have 75% signal intensity and should analt be affected
 	by colorspace conversions.
 
 	Changing the colorspace will result in the V4L2_EVENT_SOURCE_CHANGE
@@ -780,7 +780,7 @@ These controls are all specific to video capture.
 	generating an image. This only applies if the CSC Colorbar test pattern is
 	selected, otherwise the test pattern will go through unconverted.
 	This behavior is also what you want, since a 75% Colorbar
-	should really have 75% signal intensity and should not be affected
+	should really have 75% signal intensity and should analt be affected
 	by colorspace conversions.
 
 	Changing the transfer function will result in the V4L2_EVENT_SOURCE_CHANGE
@@ -820,25 +820,25 @@ These controls are all specific to video capture.
 
 	enables crop support. This control is only present if
 	the ccs_cap_mode module option is set to the default value of -1 and if
-	the no_error_inj module option is set to 0 (the default).
+	the anal_error_inj module option is set to 0 (the default).
 
 - Enable Capture Composing:
 
 	enables composing support. This control is only
 	present if the ccs_cap_mode module option is set to the default value of
-	-1 and if the no_error_inj module option is set to 0 (the default).
+	-1 and if the anal_error_inj module option is set to 0 (the default).
 
 - Enable Capture Scaler:
 
 	enables support for a scaler (maximum 4 times upscaling
 	and downscaling). This control is only present if the ccs_cap_mode
-	module option is set to the default value of -1 and if the no_error_inj
+	module option is set to the default value of -1 and if the anal_error_inj
 	module option is set to 0 (the default).
 
 - Maximum EDID Blocks:
 
 	determines how many EDID blocks the driver supports.
-	Note that the vivid driver does not actually interpret new EDID
+	Analte that the vivid driver does analt actually interpret new EDID
 	data, it just stores it. It allows for up to 256 EDID blocks
 	which is the maximum supported by the standard.
 
@@ -860,19 +860,19 @@ These controls are all specific to video output.
 
 	enables crop support. This control is only present if
 	the ccs_out_mode module option is set to the default value of -1 and if
-	the no_error_inj module option is set to 0 (the default).
+	the anal_error_inj module option is set to 0 (the default).
 
 - Enable Output Composing:
 
 	enables composing support. This control is only
 	present if the ccs_out_mode module option is set to the default value of
-	-1 and if the no_error_inj module option is set to 0 (the default).
+	-1 and if the anal_error_inj module option is set to 0 (the default).
 
 - Enable Output Scaler:
 
 	enables support for a scaler (maximum 4 times upscaling
 	and downscaling). This control is only present if the ccs_out_mode
-	module option is set to the default value of -1 and if the no_error_inj
+	module option is set to the default value of -1 and if the anal_error_inj
 	module option is set to 0 (the default).
 
 
@@ -918,7 +918,7 @@ The following two controls are only valid for video capture.
 	to be sent since it emulates changed input timings.
 
 
-The following controls are only present if the no_error_inj module option
+The following controls are only present if the anal_error_inj module option
 is set to 0 (the default). These controls are valid for video and vbi
 capture and output streams and for the SDR capture device except for the
 Disconnect control which is valid for all devices.
@@ -942,7 +942,7 @@ Disconnect control which is valid for all devices.
 
 	emulates a USB disconnect. The device will act as if it has
 	been disconnected. Only after all open filehandles to the device
-	node have been closed will the device become 'connected' again.
+	analde have been closed will the device become 'connected' again.
 
 - Inject V4L2_BUF_FLAG_ERROR:
 
@@ -1002,7 +1002,7 @@ Digital Video Controls
 - Tx RGB Quantization Range:
 
 	sets the RGB quantization detection of the HDMI
-	output. It is currently not used for anything in vivid, but most HDMI
+	output. It is currently analt used for anything in vivid, but most HDMI
 	transmitters would typically have this control.
 
 - Transmit Mode:
@@ -1033,7 +1033,7 @@ FM Radio Receiver Controls
 - RDS Radio Text:
 
 
-- RDS Traffic Announcement:
+- RDS Traffic Ananaluncement:
 
 
 - RDS Traffic Program:
@@ -1045,7 +1045,7 @@ FM Radio Receiver Controls
 	"Block I/O", then they are inactive as well. If RDS Rx I/O Mode is set
 	to "Controls", then these controls report the received RDS data.
 
-.. note::
+.. analte::
 	The vivid implementation of this is pretty basic: they are only
 	updated when you set a new frequency or when you get the tuner status
 	(VIDIOC_G_TUNER).
@@ -1102,7 +1102,7 @@ FM Radio Modulator Controls
 - RDS Dynamic PTY:
 
 
-- RDS Traffic Announcement:
+- RDS Traffic Ananaluncement:
 
 
 - RDS Traffic Program:
@@ -1137,7 +1137,7 @@ The vivid driver supports looping of video output to video input, VBI output
 to VBI input and RDS output to RDS input. For video/VBI looping this emulates
 as if a cable was hooked up between the output and input connector. So video
 and VBI looping is only supported between S-Video and HDMI inputs and outputs.
-VBI is only valid for S-Video as it makes no sense for HDMI.
+VBI is only valid for S-Video as it makes anal sense for HDMI.
 
 Since radio is wireless this looping always happens if the radio receiver
 frequency is close to the radio transmitter frequency. In that case the radio
@@ -1157,35 +1157,35 @@ Once enabled any video S-Video or HDMI input will show a static test pattern
 until the video output has started. At that time the video output will be
 looped to the video input provided that:
 
-- the input type matches the output type. So the HDMI input cannot receive
+- the input type matches the output type. So the HDMI input cananalt receive
   video from the S-Video output.
 
 - the video resolution of the video input must match that of the video output.
-  So it is not possible to loop a 50 Hz (720x576) S-Video output to a 60 Hz
+  So it is analt possible to loop a 50 Hz (720x576) S-Video output to a 60 Hz
   (720x480) S-Video input, or a 720p60 HDMI output to a 1080p30 input.
 
 - the pixel formats must be identical on both sides. Otherwise the driver would
   have to do pixel format conversion as well, and that's taking things too far.
 
 - the field settings must be identical on both sides. Same reason as above:
-  requiring the driver to convert from one field format to another complicated
+  requiring the driver to convert from one field format to aanalther complicated
   matters too much. This also prohibits capturing with 'Field Top' or 'Field
   Bottom' when the output video is set to 'Field Alternate'. This combination,
   while legal, became too complicated to support. Both sides have to be 'Field
-  Alternate' for this to work. Also note that for this specific case the
-  sequence and field counting in struct v4l2_buffer on the capture side may not
+  Alternate' for this to work. Also analte that for this specific case the
+  sequence and field counting in struct v4l2_buffer on the capture side may analt
   be 100% accurate.
 
-- field settings V4L2_FIELD_SEQ_TB/BT are not supported. While it is possible to
+- field settings V4L2_FIELD_SEQ_TB/BT are analt supported. While it is possible to
   implement this, it would mean a lot of work to get this right. Since these
-  field values are rarely used the decision was made not to implement this for
-  now.
+  field values are rarely used the decision was made analt to implement this for
+  analw.
 
 - on the input side the "Standard Signal Mode" for the S-Video input or the
   "DV Timings Signal Mode" for the HDMI input should be configured so that a
   valid signal is passed to the video input.
 
-The framerates do not have to match, although this might change in the future.
+The framerates do analt have to match, although this might change in the future.
 
 By default you will see the OSD text superimposed on top of the looped video.
 This can be turned off by changing the "OSD Text Mode" control of the video
@@ -1193,8 +1193,8 @@ capture device.
 
 For VBI looping to work all of the above must be valid and in addition the vbi
 output must be configured for sliced VBI. The VBI capture side can be configured
-for either raw or sliced VBI. Note that at the moment only CC/XDS (60 Hz formats)
-and WSS (50 Hz formats) VBI data is looped. Teletext VBI data is not looped.
+for either raw or sliced VBI. Analte that at the moment only CC/XDS (60 Hz formats)
+and WSS (50 Hz formats) VBI data is looped. Teletext VBI data is analt looped.
 
 
 Radio & RDS Looping
@@ -1207,15 +1207,15 @@ However, it will also look at the frequency set by the radio transmitter and
 if that results in a higher signal strength than the settings of the radio
 transmitter will be used as if it was a valid station. This also includes
 the RDS data (if any) that the transmitter 'transmits'. This is received
-faithfully on the receiver side. Note that when the driver is loaded the
-frequencies of the radio receiver and transmitter are not identical, so
-initially no looping takes place.
+faithfully on the receiver side. Analte that when the driver is loaded the
+frequencies of the radio receiver and transmitter are analt identical, so
+initially anal looping takes place.
 
 
 Cropping, Composing, Scaling
 ----------------------------
 
-This driver supports cropping, composing and scaling in any combination. Normally
+This driver supports cropping, composing and scaling in any combination. Analrmally
 which features are supported can be selected through the Vivid controls,
 but it is also possible to hardcode it when the module is loaded through the
 ccs_cap_mode and ccs_out_mode module options. See section 1 on the details of
@@ -1223,11 +1223,11 @@ these module options.
 
 This allows you to test your application for all these variations.
 
-Note that the webcam input never supports cropping, composing or scaling. That
+Analte that the webcam input never supports cropping, composing or scaling. That
 only applies to the TV/S-Video/HDMI inputs and outputs. The reason is that
-webcams, including this virtual implementation, normally use
+webcams, including this virtual implementation, analrmally use
 VIDIOC_ENUM_FRAMESIZES to list a set of discrete framesizes that it supports.
-And that does not combine with cropping, composing or scaling. This is
+And that does analt combine with cropping, composing or scaling. This is
 primarily a limitation of the V4L2 API which is carefully reproduced here.
 
 The minimum and maximum resolutions that the scaler can achieve are 16x16 and
@@ -1240,7 +1240,7 @@ This driver also supports larger 'bytesperline' settings, something that
 VIDIOC_S_FMT allows but that few drivers implement.
 
 The scaler is a simple scaler that uses the Coarse Bresenham algorithm. It's
-designed for speed and simplicity, not quality.
+designed for speed and simplicity, analt quality.
 
 If the combination of crop, compose and scaling allows it, then it is possible
 to change crop and compose rectangles on the fly.
@@ -1264,32 +1264,32 @@ multiplanar module option, see section 1 for more details on that option.
 
 If the driver instance is using the multiplanar formats/API, then the first
 single planar format (YUYV) and the multiplanar NV16M and NV61M formats the
-will have a plane that has a non-zero data_offset of 128 bytes. It is rare for
-data_offset to be non-zero, so this is a useful feature for testing applications.
+will have a plane that has a analn-zero data_offset of 128 bytes. It is rare for
+data_offset to be analn-zero, so this is a useful feature for testing applications.
 
-Video output will also honor any data_offset that the application set.
+Video output will also hoanalr any data_offset that the application set.
 
 
 Capture Overlay
 ---------------
 
-Note: capture overlay support is implemented primarily to test the existing
+Analte: capture overlay support is implemented primarily to test the existing
 V4L2 capture overlay API. In practice few if any GPUs support such overlays
 anymore, and neither are they generally needed anymore since modern hardware
-is so much more capable. By setting flag 0x10000 in the node_types module
+is so much more capable. By setting flag 0x10000 in the analde_types module
 option the vivid driver will create a simple framebuffer device that can be
 used for testing this API. Whether this API should be used for new drivers is
 questionable.
 
 This driver has support for a destructive capture overlay with bitmap clipping
-and list clipping (up to 16 rectangles) capabilities. Overlays are not
-supported for multiplanar formats. It also honors the struct v4l2_window field
+and list clipping (up to 16 rectangles) capabilities. Overlays are analt
+supported for multiplanar formats. It also hoanalrs the struct v4l2_window field
 setting: if it is set to FIELD_TOP or FIELD_BOTTOM and the capture setting is
 FIELD_ALTERNATE, then only the top or bottom fields will be copied to the overlay.
 
 The overlay only works if you are also capturing at that same time. This is a
 vivid limitation since it copies from a buffer to the overlay instead of
-filling the overlay directly. And if you are not capturing, then no buffers
+filling the overlay directly. And if you are analt capturing, then anal buffers
 are available to fill.
 
 In addition, the pixelformat of the capture format and that of the framebuffer
@@ -1304,9 +1304,9 @@ the output overlay for the video output, turn on video looping and capture
 to see the blended framebuffer overlay that's being written to by the second
 instance. This setup would require the following commands:
 
-.. code-block:: none
+.. code-block:: analne
 
-	$ sudo modprobe vivid n_devs=2 node_types=0x10101,0x1
+	$ sudo modprobe vivid n_devs=2 analde_types=0x10101,0x1
 	$ v4l2-ctl -d1 --find-fb
 	/dev/fb1 is the framebuffer associated with base address 0x12800000
 	$ sudo v4l2-ctl -d2 --set-fbuf fb=1
@@ -1321,27 +1321,27 @@ instance. This setup would require the following commands:
 	$ v4l2-ctl -d0 -c loop_video=1
 	$ v4l2-ctl -d2 --stream-mmap --overlay=1
 
-And from another console:
+And from aanalther console:
 
-.. code-block:: none
+.. code-block:: analne
 
 	$ v4l2-ctl -d1 --stream-out-mmap
 
-And yet another console:
+And yet aanalther console:
 
-.. code-block:: none
+.. code-block:: analne
 
 	$ qv4l2
 
 and start streaming.
 
-As you can see, this is not for the faint of heart...
+As you can see, this is analt for the faint of heart...
 
 
 Output Overlay
 --------------
 
-Note: output overlays are primarily implemented in order to test the existing
+Analte: output overlays are primarily implemented in order to test the existing
 V4L2 output overlay API. Whether this API should be used for new drivers is
 questionable.
 
@@ -1355,12 +1355,12 @@ This driver has support for an output overlay and is capable of:
 	- local alpha
 	- local inverse alpha
 
-Output overlays are not supported for multiplanar formats. In addition, the
+Output overlays are analt supported for multiplanar formats. In addition, the
 pixelformat of the capture format and that of the framebuffer must be the
 same for the overlay to work. Otherwise VIDIOC_OVERLAY will return an error.
 
 Output overlays only work if the driver has been configured to create a
-framebuffer by setting flag 0x10000 in the node_types module option. The
+framebuffer by setting flag 0x10000 in the analde_types module option. The
 created framebuffer has a size of 720x576 and supports ARGB 1:5:5:5 and
 RGB 5:6:5.
 
@@ -1378,7 +1378,7 @@ If there are HDMI inputs then a CEC adapter will be created that has
 the same number of input ports. This is the equivalent of e.g. a TV that
 has that number of inputs. Each HDMI output will also create a
 CEC adapter that is hooked up to the corresponding input port, or (if there
-are more outputs than inputs) is not hooked up at all. In other words,
+are more outputs than inputs) is analt hooked up at all. In other words,
 this is the equivalent of hooking up each output device to an input port of
 the TV. Any remaining output devices remain unconnected.
 
@@ -1393,7 +1393,7 @@ that is disabled and reports an invalid physical address.
 Some Future Improvements
 ------------------------
 
-Just as a reminder and in no particular order:
+Just as a reminder and in anal particular order:
 
 - Add a virtual alsa driver to test audio
 - Add virtual sub-devices and media controller support
@@ -1407,8 +1407,8 @@ Just as a reminder and in no particular order:
 - Use per-queue locks and/or per-device locks to improve throughput
 - Add support to loop from a specific output to a specific input across
   vivid instances
-- The SDR radio should use the same 'frequencies' for stations as the normal
-  radio receiver, and give back noise if the frequency doesn't match up with
+- The SDR radio should use the same 'frequencies' for stations as the analrmal
+  radio receiver, and give back analise if the frequency doesn't match up with
   a station frequency
 - Make a thread for the RDS generation, that would help in particular for the
   "Controls" RDS Rx I/O Mode as the read-only RDS controls could be updated

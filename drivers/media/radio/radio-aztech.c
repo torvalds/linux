@@ -56,13 +56,13 @@ struct aztech {
 };
 
 /* bit definitions for register read */
-#define AZTECH_BIT_NOT_TUNED	(1 << 0)
-#define AZTECH_BIT_MONO		(1 << 1)
+#define AZTECH_BIT_ANALT_TUNED	(1 << 0)
+#define AZTECH_BIT_MOANAL		(1 << 1)
 /* bit definitions for register write */
 #define AZTECH_BIT_TUN_CE	(1 << 1)
 #define AZTECH_BIT_TUN_CLK	(1 << 6)
 #define AZTECH_BIT_TUN_DATA	(1 << 7)
-/* bits 0 and 2 are volume control, bits 3..5 are not connected */
+/* bits 0 and 2 are volume control, bits 3..5 are analt connected */
 
 static void aztech_set_pins(void *handle, u8 pins)
 {
@@ -96,14 +96,14 @@ static int aztech_s_frequency(struct radio_isa_card *isa, u32 freq)
 
 static u32 aztech_g_rxsubchans(struct radio_isa_card *isa)
 {
-	if (inb(isa->io) & AZTECH_BIT_MONO)
-		return V4L2_TUNER_SUB_MONO;
+	if (inb(isa->io) & AZTECH_BIT_MOANAL)
+		return V4L2_TUNER_SUB_MOANAL;
 	return V4L2_TUNER_SUB_STEREO;
 }
 
 static u32 aztech_g_signal(struct radio_isa_card *isa)
 {
-	return (inb(isa->io) & AZTECH_BIT_NOT_TUNED) ? 0 : 0xffff;
+	return (inb(isa->io) & AZTECH_BIT_ANALT_TUNED) ? 0 : 0xffff;
 }
 
 static int aztech_s_mute_volume(struct radio_isa_card *isa, bool mute, int vol)

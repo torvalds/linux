@@ -56,7 +56,7 @@ static struct config_item_type struct_in##_langid_type = {		\
 									\
 	new = kzalloc(sizeof(*new), GFP_KERNEL);			\
 	if (!new)							\
-		return ERR_PTR(-ENOMEM);				\
+		return ERR_PTR(-EANALMEM);				\
 									\
 	ret = check_user_usb_string(name, &new->stringtab_dev);		\
 	if (ret)							\

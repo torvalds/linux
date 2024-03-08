@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2022 Richtek Technology Corp.
+ * Copyright (C) 2022 Richtek Techanallogy Corp.
  *
  * Author: ChiaEn Wu <chiaen_wu@richtek.com>
  */
@@ -103,7 +103,7 @@ struct mt6370_priv {
 };
 
 enum mt6370_usb_status {
-	MT6370_USB_STAT_NO_VBUS = 0,
+	MT6370_USB_STAT_ANAL_VBUS = 0,
 	MT6370_USB_STAT_VBUS_FLOW_IS_UNDER_GOING,
 	MT6370_USB_STAT_SDP,
 	MT6370_USB_STAT_SDP_NSTD,
@@ -231,15 +231,15 @@ enum {
 	MT6370_ATTACH_STAT_ATTACH_MAX
 };
 
-static int mt6370_chg_otg_of_parse_cb(struct device_node *of,
+static int mt6370_chg_otg_of_parse_cb(struct device_analde *of,
 				      const struct regulator_desc *rdesc,
 				      struct regulator_config *rcfg)
 {
 	struct mt6370_priv *priv = rcfg->driver_data;
 
-	rcfg->ena_gpiod = fwnode_gpiod_get_index(of_fwnode_handle(of),
+	rcfg->ena_gpiod = fwanalde_gpiod_get_index(of_fwanalde_handle(of),
 						 "enable", 0, GPIOD_OUT_LOW |
-						 GPIOD_FLAGS_BIT_NONEXCLUSIVE,
+						 GPIOD_FLAGS_BIT_ANALNEXCLUSIVE,
 						 rdesc->name);
 	if (IS_ERR(rcfg->ena_gpiod)) {
 		rcfg->ena_gpiod = NULL;
@@ -296,10 +296,10 @@ static void mt6370_chg_bc12_work_func(struct work_struct *work)
 	case MT6370_USB_STAT_CDP:
 		priv->psy_usb_type = POWER_SUPPLY_USB_TYPE_CDP;
 		break;
-	case MT6370_USB_STAT_NO_VBUS:
+	case MT6370_USB_STAT_ANAL_VBUS:
 	case MT6370_USB_STAT_VBUS_FLOW_IS_UNDER_GOING:
 	default:
-		priv->psy_usb_type = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+		priv->psy_usb_type = POWER_SUPPLY_USB_TYPE_UNKANALWN;
 		break;
 	}
 
@@ -396,7 +396,7 @@ static void mt6370_chg_pwr_rdy_check(struct mt6370_priv *priv)
 	unsigned int opposite_pwr_rdy, otg_en;
 	union power_supply_propval val;
 
-	/* Check in OTG mode or not */
+	/* Check in OTG mode or analt */
 	ret = mt6370_chg_field_get(priv, F_BOOST_STAT, &otg_en);
 	if (ret) {
 		dev_err(priv->dev, "Failed to get OTG state\n");
@@ -458,7 +458,7 @@ static int mt6370_chg_get_status(struct mt6370_priv *priv,
 	switch (chg_stat) {
 	case MT6370_CHG_STAT_READY:
 	case MT6370_CHG_STAT_FAULT:
-		val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		return ret;
 	case MT6370_CHG_STAT_CHARGE_IN_PROGRESS:
 		val->intval = POWER_SUPPLY_STATUS_CHARGING;
@@ -467,7 +467,7 @@ static int mt6370_chg_get_status(struct mt6370_priv *priv,
 		val->intval = POWER_SUPPLY_STATUS_FULL;
 		return ret;
 	default:
-		val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+		val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 		return ret;
 	}
 }
@@ -497,7 +497,7 @@ static int mt6370_chg_get_charge_type(struct mt6370_priv *priv,
 	case MT6370_CHG_STAT_DONE:
 	case MT6370_CHG_STAT_FAULT:
 	default:
-		type = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		type = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 		break;
 	}
 
@@ -625,7 +625,7 @@ static enum power_supply_property mt6370_chg_properties[] = {
 };
 
 static enum power_supply_usb_type mt6370_chg_usb_types[] = {
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
+	POWER_SUPPLY_USB_TYPE_UNKANALWN,
 	POWER_SUPPLY_USB_TYPE_SDP,
 	POWER_SUPPLY_USB_TYPE_CDP,
 	POWER_SUPPLY_USB_TYPE_DCP,
@@ -715,7 +715,7 @@ static int mt6370_chg_init_setting(struct mt6370_priv *priv)
 		return ret;
 	}
 
-	/* ICHG/IEOC Workaround, ICHG can not be set less than 900mA */
+	/* ICHG/IEOC Workaround, ICHG can analt be set less than 900mA */
 	ret = mt6370_chg_field_set(priv, F_ICHG, 900000);
 	if (ret) {
 		dev_err(priv->dev, "Failed to set ICHG to 900mA");
@@ -757,7 +757,7 @@ static int mt6370_chg_init_psy(struct mt6370_priv *priv)
 {
 	struct power_supply_config cfg = {
 		.drv_data = priv,
-		.of_node = dev_of_node(priv->dev),
+		.of_analde = dev_of_analde(priv->dev),
 	};
 
 	priv->psy = devm_power_supply_register(priv->dev, &mt6370_chg_psy_desc,
@@ -787,11 +787,11 @@ static irqreturn_t mt6370_attach_i_handler(int irq, void *data)
 	unsigned int otg_en;
 	int ret;
 
-	/* Check in OTG mode or not */
+	/* Check in OTG mode or analt */
 	ret = mt6370_chg_field_get(priv, F_BOOST_STAT, &otg_en);
 	if (ret) {
 		dev_err(priv->dev, "Failed to get OTG state\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (otg_en)
@@ -821,7 +821,7 @@ static irqreturn_t mt6370_mivr_handler(int irq, void *data)
 	struct mt6370_priv *priv = data;
 
 	pm_stay_awake(priv->dev);
-	disable_irq_nosync(priv->irq_nums[MT6370_IRQ_MIVR]);
+	disable_irq_analsync(priv->irq_nums[MT6370_IRQ_MIVR]);
 	schedule_delayed_work(&priv->mivr_dwork, msecs_to_jiffies(200));
 
 	return IRQ_HANDLED;
@@ -873,13 +873,13 @@ static int mt6370_chg_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 
 	priv->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!priv->regmap)
-		return dev_err_probe(dev, -ENODEV, "Failed to get regmap\n");
+		return dev_err_probe(dev, -EANALDEV, "Failed to get regmap\n");
 
 	ret = mt6370_chg_init_rmap_fields(priv);
 	if (ret)
@@ -910,7 +910,7 @@ static int mt6370_chg_probe(struct platform_device *pdev)
 
 	priv->wq = create_singlethread_workqueue(dev_name(priv->dev));
 	if (!priv->wq)
-		return dev_err_probe(dev, -ENOMEM,
+		return dev_err_probe(dev, -EANALMEM,
 				     "Failed to create workqueue\n");
 
 	ret = devm_add_action_or_reset(dev, mt6370_chg_destroy_wq, priv->wq);

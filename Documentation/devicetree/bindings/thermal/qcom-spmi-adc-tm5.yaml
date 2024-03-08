@@ -36,7 +36,7 @@ properties:
   qcom,avg-samples:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: Number of samples to be used for measurement.
-            Not applicable for Gen2 ADC_TM peripheral.
+            Analt applicable for Gen2 ADC_TM peripheral.
     enum:
       - 1
       - 2
@@ -49,7 +49,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: This parameter is used to decrease ADC sampling rate.
             Quicker measurements can be made by reducing decimation ratio.
-            Not applicable for Gen2 ADC_TM peripheral.
+            Analt applicable for Gen2 ADC_TM peripheral.
     enum:
       - 250
       - 420
@@ -77,9 +77,9 @@ patternProperties:
         description:
           Channel calibration type.
           If this property is specified VADC will use the VDD reference
-          (1.875V) and GND for channel calibration. If property is not found,
+          (1.875V) and GND for channel calibration. If property is analt found,
           channel will be calibrated with 0V and 1.25V reference channels,
-          also known as absolute calibration.
+          also kanalwn as absolute calibration.
 
       qcom,hw-settle-time-us:
         description: Time between AMUX getting configured and the ADC starting conversion.
@@ -88,12 +88,12 @@ patternProperties:
       qcom,pre-scaling:
         $ref: /schemas/types.yaml#/definitions/uint32-array
         description: Used for scaling the channel input signal before the
-          signal is fed to VADC. The configuration for this node is to know the
+          signal is fed to VADC. The configuration for this analde is to kanalw the
           pre-determined ratio and use it for post scaling. It is a pair of
-          integers, denoting the numerator and denominator of the fraction by
+          integers, deanalting the numerator and deanalminator of the fraction by
           which input signal is multiplied. For example, <1 3> indicates the
           signal is scaled down to 1/3 of its value before ADC measurement.  If
-          property is not found default value depending on chip will be used.
+          property is analt found default value depending on chip will be used.
         items:
           - const: 1
           - enum: [ 1, 3, 4, 6, 20, 8, 10 ]
@@ -101,7 +101,7 @@ patternProperties:
       qcom,avg-samples:
         $ref: /schemas/types.yaml#/definitions/uint32
         description: Number of samples to be used for measurement.
-          This property in child node is applicable only for Gen2 ADC_TM peripheral.
+          This property in child analde is applicable only for Gen2 ADC_TM peripheral.
         enum:
           - 1
           - 2
@@ -114,7 +114,7 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/uint32
         description: This parameter is used to decrease ADC sampling rate.
           Quicker measurements can be made by reducing decimation ratio.
-          This property in child node is applicable only for Gen2 ADC_TM peripheral.
+          This property in child analde is applicable only for Gen2 ADC_TM peripheral.
         enum:
           - 85
           - 340

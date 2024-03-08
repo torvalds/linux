@@ -50,7 +50,7 @@ Resource management
 
 Once a driver has registered with the VME core the provided match routine will
 be called the number of times specified during the registration. If a match
-succeeds, a non-zero value should be returned. A zero return value indicates
+succeeds, a analn-zero value should be returned. A zero return value indicates
 failure. For all successful matches, the probe routine of the corresponding
 driver is called. The probe routine is passed a pointer to the devices
 device structure. This pointer should be saved, it will be required for
@@ -73,9 +73,9 @@ controllers, the request function requires the potential direction of any
 transfers to be provided in the route attributes. This is typically VME-to-MEM
 and/or MEM-to-VME, though some hardware can support VME-to-VME and MEM-to-MEM
 transfers as well as test pattern generation. If an unallocated window fitting
-the requirements can not be found a NULL pointer will be returned.
+the requirements can analt be found a NULL pointer will be returned.
 
-Functions are also provided to free window allocations once they are no longer
+Functions are also provided to free window allocations once they are anal longer
 required. These functions (:c:func:`vme_master_free`, :c:func:`vme_slave_free`
 and :c:func:`vme_dma_free`) should be passed the pointer to the resource
 provided during resource allocation.
@@ -136,7 +136,7 @@ Slave window buffer allocation
 Functions are provided to allow the user to allocate
 (:c:func:`vme_alloc_consistent`) and free (:c:func:`vme_free_consistent`)
 contiguous buffers which will be accessible by the VME bridge. These functions
-do not have to be used, other methods can be used to allocate a buffer, though
+do analt have to be used, other methods can be used to allocate a buffer, though
 care must be taken to ensure that they are contiguous and accessible by the VME
 bridge.
 
@@ -161,7 +161,7 @@ List Management
 ~~~~~~~~~~~~~~~
 
 The function :c:func:`vme_new_dma_list` is provided to create and
-:c:func:`vme_dma_list_free` to destroy DMA lists. Execution of a list will not
+:c:func:`vme_dma_list_free` to destroy DMA lists. Execution of a list will analt
 automatically destroy the list, thus enabling a list to be reused for repetitive
 tasks.
 
@@ -173,10 +173,10 @@ An item can be added to a list using :c:func:`vme_dma_list_add` (the source and
 destination attributes need to be created before calling this function, this is
 covered under "Transfer Attributes").
 
-.. note::
+.. analte::
 
 	The detailed attributes of the transfers source and destination
-	are not checked until an entry is added to a DMA list, the request
+	are analt checked until an entry is added to a DMA list, the request
 	for a DMA channel purely checks the directions in which the
 	controller is expected to transfer data. As a result it is
 	possible for this call to return an error, for example if the
@@ -247,7 +247,7 @@ Location Monitor Management
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The function :c:func:`vme_lm_request` is provided to request the use of a block
-of location monitors and :c:func:`vme_lm_free` to free them after they are no
+of location monitors and :c:func:`vme_lm_free` to free them after they are anal
 longer required. Each block may provide a number of location monitors,
 monitoring adjacent locations. The function :c:func:`vme_lm_count` can be used
 to determine how many locations are provided.

@@ -32,7 +32,7 @@ struct scsi_transport_template {
 	int	target_size;
 	int	target_private_offset;
 	int	host_size;
-	/* no private offset for the host; there's an alternative mechanism */
+	/* anal private offset for the host; there's an alternative mechanism */
 
 	/*
 	 * True if the transport wants to use a host-based work-queue

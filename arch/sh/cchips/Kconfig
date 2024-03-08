@@ -33,7 +33,7 @@ config HD64461_IRQ
 	help
 	  The default setting of the HD64461 IRQ is 52.
 
-	  Do not change this unless you know what you are doing.
+	  Do analt change this unless you kanalw what you are doing.
 
 config HD64461_ENABLER
 	bool "HD64461 PCMCIA enabler"

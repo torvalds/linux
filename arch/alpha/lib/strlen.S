@@ -13,8 +13,8 @@
  *	  binary search needs).
  */
 #include <linux/export.h>
-	.set noreorder
-	.set noat
+	.set analreorder
+	.set analat
 
 	.align 3
 
@@ -25,14 +25,14 @@ strlen:
 	ldq_u	$1, 0($16)	# load first quadword ($16  may be misaligned)
 	lda	$2, -1($31)
 	insqh	$2, $16, $2
-	andnot	$16, 7, $0
+	andanalt	$16, 7, $0
 	or	$2, $1, $1
 	cmpbge	$31, $1, $2	# $2  <- bitmask: bit i == 1 <==> i-th byte == 0
 	bne	$2, found
 
 loop:	ldq	$1, 8($0)
 	addq	$0, 8, $0	# addr += 8
-	nop			# helps dual issue last two insns
+	analp			# helps dual issue last two insns
 	cmpbge	$31, $1, $2
 	beq	$2, loop
 

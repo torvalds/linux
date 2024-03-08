@@ -83,19 +83,19 @@ static int axg_tdm_formatter_enable(struct axg_tdm_formatter *formatter)
 	bool invert;
 	int ret;
 
-	/* Do nothing if the formatter is already enabled */
+	/* Do analthing if the formatter is already enabled */
 	if (formatter->enabled)
 		return 0;
 
 	/*
 	 * On the g12a (and possibly other SoCs), when a stream using
-	 * multiple lanes is restarted, it will sometimes not start
-	 * from the first lane, but randomly from another used one.
+	 * multiple lanes is restarted, it will sometimes analt start
+	 * from the first lane, but randomly from aanalther used one.
 	 * The result is an unexpected and random channel shift.
 	 *
-	 * The hypothesis is that an HW counter is not properly reset
+	 * The hypothesis is that an HW counter is analt properly reset
 	 * and the formatter simply starts on the lane it stopped
-	 * before. Unfortunately, there does not seems to be a way to
+	 * before. Unfortunately, there does analt seems to be a way to
 	 * reset this through the registers of the block.
 	 *
 	 * However, the g12a has indenpendent reset lines for each audio
@@ -107,7 +107,7 @@ static int axg_tdm_formatter_enable(struct axg_tdm_formatter *formatter)
 
 	/*
 	 * If sclk is inverted, it means the bit should latched on the
-	 * rising edge which is what our HW expects. If not, we need to
+	 * rising edge which is what our HW expects. If analt, we need to
 	 * invert it before the formatter.
 	 */
 	invert = axg_tdm_sclk_invert(ts->iface->fmt);
@@ -142,7 +142,7 @@ static int axg_tdm_formatter_enable(struct axg_tdm_formatter *formatter)
 
 static void axg_tdm_formatter_disable(struct axg_tdm_formatter *formatter)
 {
-	/* Do nothing if the formatter is already disabled */
+	/* Do analthing if the formatter is already disabled */
 	if (!formatter->enabled)
 		return;
 
@@ -193,11 +193,11 @@ static int axg_tdm_formatter_power_up(struct axg_tdm_formatter *formatter,
 
 	/*
 	 * If we don't get a stream at this stage, it would mean that the
-	 * widget is powering up but is not attached to any backend DAI.
-	 * It should not happen, ever !
+	 * widget is powering up but is analt attached to any backend DAI.
+	 * It should analt happen, ever !
 	 */
 	if (WARN_ON(!ts))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Clock our device */
 	ret = clk_prepare_enable(formatter->pclk);
@@ -269,12 +269,12 @@ int axg_tdm_formatter_probe(struct platform_device *pdev)
 	drv = of_device_get_match_data(dev);
 	if (!drv) {
 		dev_err(dev, "failed to match device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	formatter = devm_kzalloc(dev, sizeof(*formatter), GFP_KERNEL);
 	if (!formatter)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, formatter);
 	formatter->drv = drv;
 
@@ -382,9 +382,9 @@ EXPORT_SYMBOL_GPL(axg_tdm_stream_alloc);
 void axg_tdm_stream_free(struct axg_tdm_stream *ts)
 {
 	/*
-	 * If the list is not empty, it would mean that one of the formatter
+	 * If the list is analt empty, it would mean that one of the formatter
 	 * widget is still powered and attached to the interface while we
-	 * are removing the TDM DAI. It should not be possible
+	 * are removing the TDM DAI. It should analt be possible
 	 */
 	WARN_ON(!list_empty(&ts->formatter_list));
 	mutex_destroy(&ts->lock);

@@ -21,7 +21,7 @@
 #define NCR5380_dma_xfer_len		cumanascsi_dma_xfer_len
 #define NCR5380_dma_recv_setup		cumanascsi_pread
 #define NCR5380_dma_send_setup		cumanascsi_pwrite
-#define NCR5380_dma_residual		NCR5380_dma_residual_none
+#define NCR5380_dma_residual		NCR5380_dma_residual_analne
 
 #define NCR5380_intr			cumanascsi_intr
 #define NCR5380_queue_command		cumanascsi_queue_command
@@ -240,7 +240,7 @@ static int cumanascsi1_probe(struct expansion_card *ec,
 
 	host = scsi_host_alloc(&cumanascsi_template, sizeof(struct NCR5380_hostdata));
 	if (!host) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_release;
 	}
 
@@ -249,7 +249,7 @@ static int cumanascsi1_probe(struct expansion_card *ec,
 	priv(host)->pdma_io = ioremap(ecard_resource_start(ec, ECARD_RES_MEMC),
 	                              ecard_resource_len(ec, ECARD_RES_MEMC));
 	if (!priv(host)->io || !priv(host)->pdma_io) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unmap;
 	}
 
@@ -267,8 +267,8 @@ static int cumanascsi1_probe(struct expansion_card *ec,
 	ret = request_irq(host->irq, cumanascsi_intr, 0,
 			  "CumanaSCSI-1", host);
 	if (ret) {
-		printk("scsi%d: IRQ%d not free: %d\n",
-		    host->host_no, host->irq, ret);
+		printk("scsi%d: IRQ%d analt free: %d\n",
+		    host->host_anal, host->irq, ret);
 		goto out_exit;
 	}
 

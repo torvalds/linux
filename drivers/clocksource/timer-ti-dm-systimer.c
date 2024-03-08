@@ -31,7 +31,7 @@ static u32 clocksource;
 static u32 clockevent;
 
 /*
- * Subset of the timer registers we use. Note that the register offsets
+ * Subset of the timer registers we use. Analte that the register offsets
  * depend on the timer revision detected.
  */
 struct dmtimer_systimer {
@@ -104,7 +104,7 @@ static int __init dmtimer_systimer_type1_reset(struct dmtimer_systimer *t)
 	return ret;
 }
 
-/* Note we must use io_base instead of func_base for type2 OCP regs */
+/* Analte we must use io_base instead of func_base for type2 OCP regs */
 static int __init dmtimer_systimer_type2_reset(struct dmtimer_systimer *t)
 {
 	void __iomem *sysc = t->base + t->sysc;
@@ -145,19 +145,19 @@ static const struct of_device_id counter_match_table[] = {
  * Check if the SoC als has a usable working 32 KiHz counter. The 32 KiHz
  * counter is handled by timer-ti-32k, but we need to detect it as it
  * affects the preferred dmtimer system timer configuration. There is
- * typically no use for a dmtimer clocksource if the 32 KiHz counter is
+ * typically anal use for a dmtimer clocksource if the 32 KiHz counter is
  * present, except on am437x as described below.
  */
 static void __init dmtimer_systimer_check_counter32k(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	if (counter_32k)
 		return;
 
-	np = of_find_matching_node(NULL, counter_match_table);
+	np = of_find_matching_analde(NULL, counter_match_table);
 	if (!np) {
-		counter_32k = -ENODEV;
+		counter_32k = -EANALDEV;
 
 		return;
 	}
@@ -165,9 +165,9 @@ static void __init dmtimer_systimer_check_counter32k(void)
 	if (of_device_is_available(np))
 		counter_32k = 1;
 	else
-		counter_32k = -ENODEV;
+		counter_32k = -EANALDEV;
 
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 static const struct of_device_id dmtimer_match_table[] = {
@@ -183,21 +183,21 @@ static const struct of_device_id dmtimer_match_table[] = {
 };
 
 /*
- * Checks that system timers are configured to not reset and idle during
+ * Checks that system timers are configured to analt reset and idle during
  * the generic timer-ti-dm device driver probe. And that the system timer
- * source clocks are properly configured. Also, let's not hog any DSP and
+ * source clocks are properly configured. Also, let's analt hog any DSP and
  * PWM capable timers unnecessarily as system timers.
  */
-static bool __init dmtimer_is_preferred(struct device_node *np)
+static bool __init dmtimer_is_preferred(struct device_analde *np)
 {
 	if (!of_device_is_available(np))
 		return false;
 
 	if (!of_property_read_bool(np->parent,
-				   "ti,no-reset-on-init"))
+				   "ti,anal-reset-on-init"))
 		return false;
 
-	if (!of_property_read_bool(np->parent, "ti,no-idle"))
+	if (!of_property_read_bool(np->parent, "ti,anal-idle"))
 		return false;
 
 	/* Secure gptimer12 is always clocked with a fixed source */
@@ -221,12 +221,12 @@ static bool __init dmtimer_is_preferred(struct device_node *np)
 /*
  * Finds the first available usable always-on timer, and assigns it to either
  * clockevent or clocksource depending if the counter_32k is available on the
- * SoC or not.
+ * SoC or analt.
  *
- * Some omap3 boards with unreliable oscillator must not use the counter_32k
+ * Some omap3 boards with unreliable oscillator must analt use the counter_32k
  * or dmtimer1 with 32 KiHz source. Additionally, the boards with unreliable
  * oscillator should really set counter_32k as disabled, and delete dmtimer1
- * ti,always-on property, but let's not count on it. For these quirky cases,
+ * ti,always-on property, but let's analt count on it. For these quirky cases,
  * we prefer using the always-on secure dmtimer12 with the internal 32 KiHz
  * clock as the clocksource, and any available dmtimer as clockevent.
  *
@@ -236,21 +236,21 @@ static bool __init dmtimer_is_preferred(struct device_node *np)
  */
 static void __init dmtimer_systimer_assign_alwon(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	u32 pa = 0;
 	bool quirk_unreliable_oscillator = false;
 
 	/* Quirk unreliable 32 KiHz oscillator with incomplete dts */
 	if (of_machine_is_compatible("ti,omap3-beagle-ab4")) {
 		quirk_unreliable_oscillator = true;
-		counter_32k = -ENODEV;
+		counter_32k = -EANALDEV;
 	}
 
 	/* Quirk am437x using am335x style dmtimer clocksource */
 	if (of_machine_is_compatible("ti,am43"))
-		counter_32k = -ENODEV;
+		counter_32k = -EANALDEV;
 
-	for_each_matching_node(np, dmtimer_match_table) {
+	for_each_matching_analde(np, dmtimer_match_table) {
 		struct resource res;
 		if (!dmtimer_is_preferred(np))
 			continue;
@@ -267,11 +267,11 @@ static void __init dmtimer_systimer_assign_alwon(void)
 		if (quirk_unreliable_oscillator && pa == 0x48318000)
 			continue;
 
-		of_node_put(np);
+		of_analde_put(np);
 		break;
 	}
 
-	/* Usually no need for dmtimer clocksource if we have counter32 */
+	/* Usually anal need for dmtimer clocksource if we have counter32 */
 	if (counter_32k >= 0) {
 		clockevent = pa;
 		clocksource = 0;
@@ -284,10 +284,10 @@ static void __init dmtimer_systimer_assign_alwon(void)
 /* Finds the first usable dmtimer, used for the don't care case */
 static u32 __init dmtimer_systimer_find_first_available(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	u32 pa = 0;
 
-	for_each_matching_node(np, dmtimer_match_table) {
+	for_each_matching_analde(np, dmtimer_match_table) {
 		struct resource res;
 		if (!dmtimer_is_preferred(np))
 			continue;
@@ -299,7 +299,7 @@ static u32 __init dmtimer_systimer_find_first_available(void)
 			continue;
 
 		pa = res.start;
-		of_node_put(np);
+		of_analde_put(np);
 		break;
 	}
 
@@ -321,7 +321,7 @@ static void __init dmtimer_systimer_select_best(void)
 
 /* Interface clocks are only available on some SoCs variants */
 static int __init dmtimer_systimer_init_clock(struct dmtimer_systimer *t,
-					      struct device_node *np,
+					      struct device_analde *np,
 					      const char *name,
 					      unsigned long *rate)
 {
@@ -345,7 +345,7 @@ static int __init dmtimer_systimer_init_clock(struct dmtimer_systimer *t,
 	r = clk_get_rate(clock);
 	if (!r) {
 		clk_disable_unprepare(clock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (is_ick)
@@ -358,7 +358,7 @@ static int __init dmtimer_systimer_init_clock(struct dmtimer_systimer *t,
 	return 0;
 }
 
-static int __init dmtimer_systimer_setup(struct device_node *np,
+static int __init dmtimer_systimer_setup(struct device_analde *np,
 					 struct dmtimer_systimer *t)
 {
 	unsigned long rate;
@@ -374,7 +374,7 @@ static int __init dmtimer_systimer_setup(struct device_node *np,
 
 	/*
 	 * Enable optional assigned-clock-parents configured at the timer
-	 * node level. For regular device drivers, this is done automatically
+	 * analde level. For regular device drivers, this is done automatically
 	 * by bus related code such as platform_drv_probe().
 	 */
 	error = of_clk_set_defaults(np, false);
@@ -523,7 +523,7 @@ static void omap_clockevent_unidle(struct clock_event_device *evt)
 
 	error = clk_enable(t->fck);
 	if (error)
-		pr_err("could not enable timer fck on resume: %i\n", error);
+		pr_err("could analt enable timer fck on resume: %i\n", error);
 
 	dmtimer_systimer_enable(t);
 	writel_relaxed(OMAP_TIMER_INT_OVERFLOW, t->base + t->irq_ena);
@@ -531,7 +531,7 @@ static void omap_clockevent_unidle(struct clock_event_device *evt)
 }
 
 static int __init dmtimer_clkevt_init_common(struct dmtimer_clockevent *clkevt,
-					     struct device_node *np,
+					     struct device_analde *np,
 					     unsigned int features,
 					     const struct cpumask *cpumask,
 					     const char *name,
@@ -546,7 +546,7 @@ static int __init dmtimer_clkevt_init_common(struct dmtimer_clockevent *clkevt,
 
 	/*
 	 * We mostly use cpuidle_coupled with ARM local timers for runtime,
-	 * so there's probably no use for CLOCK_EVT_FEAT_DYNIRQ here.
+	 * so there's probably anal use for CLOCK_EVT_FEAT_DYNIRQ here.
 	 */
 	dev->features = features;
 	dev->rating = rating;
@@ -570,8 +570,8 @@ static int __init dmtimer_clkevt_init_common(struct dmtimer_clockevent *clkevt,
 
 	/*
 	 * For clock-event timers we never read the timer counter and
-	 * so we are not impacted by errata i103 and i767. Therefore,
-	 * we can safely ignore this errata for clock-event timers.
+	 * so we are analt impacted by errata i103 and i767. Therefore,
+	 * we can safely iganalre this errata for clock-event timers.
 	 */
 	writel_relaxed(OMAP_TIMER_CTRL_POSTED, t->base + t->ifctrl);
 
@@ -595,14 +595,14 @@ err_out_unmap:
 	return error;
 }
 
-static int __init dmtimer_clockevent_init(struct device_node *np)
+static int __init dmtimer_clockevent_init(struct device_analde *np)
 {
 	struct dmtimer_clockevent *clkevt;
 	int error;
 
 	clkevt = kzalloc(sizeof(*clkevt), GFP_KERNEL);
 	if (!clkevt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = dmtimer_clkevt_init_common(clkevt, np,
 					   CLOCK_EVT_FEAT_PERIODIC |
@@ -633,7 +633,7 @@ err_out_free:
 /* Dmtimer as percpu timer. See dra7 ARM architected timer wrap erratum i940 */
 static DEFINE_PER_CPU(struct dmtimer_clockevent, dmtimer_percpu_timer);
 
-static int __init dmtimer_percpu_timer_init(struct device_node *np, int cpu)
+static int __init dmtimer_percpu_timer_init(struct device_analde *np, int cpu)
 {
 	struct dmtimer_clockevent *clkevt;
 	int error;
@@ -641,8 +641,8 @@ static int __init dmtimer_percpu_timer_init(struct device_node *np, int cpu)
 	if (!cpu_possible(cpu))
 		return -EINVAL;
 
-	if (!of_property_read_bool(np->parent, "ti,no-reset-on-init") ||
-	    !of_property_read_bool(np->parent, "ti,no-idle"))
+	if (!of_property_read_bool(np->parent, "ti,anal-reset-on-init") ||
+	    !of_property_read_bool(np->parent, "ti,anal-idle"))
 		pr_warn("Incomplete dtb for percpu dmtimer %pOF\n", np->parent);
 
 	clkevt = per_cpu_ptr(&dmtimer_percpu_timer, cpu);
@@ -684,11 +684,11 @@ static int __init dmtimer_percpu_timer_startup(void)
 }
 subsys_initcall(dmtimer_percpu_timer_startup);
 
-static int __init dmtimer_percpu_quirk_init(struct device_node *np, u32 pa)
+static int __init dmtimer_percpu_quirk_init(struct device_analde *np, u32 pa)
 {
-	struct device_node *arm_timer;
+	struct device_analde *arm_timer;
 
-	arm_timer = of_find_compatible_node(NULL, NULL, "arm,armv7-timer");
+	arm_timer = of_find_compatible_analde(NULL, NULL, "arm,armv7-timer");
 	if (of_device_is_available(arm_timer)) {
 		pr_warn_once("ARM architected timer wrap issue i940 detected\n");
 		return 0;
@@ -719,7 +719,7 @@ static u64 dmtimer_clocksource_read_cycles(struct clocksource *cs)
 
 static void __iomem *dmtimer_sched_clock_counter;
 
-static u64 notrace dmtimer_read_sched_clock(void)
+static u64 analtrace dmtimer_read_sched_clock(void)
 {
 	return readl_relaxed(dmtimer_sched_clock_counter);
 }
@@ -742,7 +742,7 @@ static void dmtimer_clocksource_resume(struct clocksource *cs)
 
 	error = clk_enable(t->fck);
 	if (error)
-		pr_err("could not enable timer fck on resume: %i\n", error);
+		pr_err("could analt enable timer fck on resume: %i\n", error);
 
 	dmtimer_systimer_enable(t);
 	writel_relaxed(clksrc->loadval, t->base + t->counter);
@@ -750,7 +750,7 @@ static void dmtimer_clocksource_resume(struct clocksource *cs)
 		       t->base + t->ctrl);
 }
 
-static int __init dmtimer_clocksource_init(struct device_node *np)
+static int __init dmtimer_clocksource_init(struct device_analde *np)
 {
 	struct dmtimer_clocksource *clksrc;
 	struct dmtimer_systimer *t;
@@ -759,7 +759,7 @@ static int __init dmtimer_clocksource_init(struct device_node *np)
 
 	clksrc = kzalloc(sizeof(*clksrc), GFP_KERNEL);
 	if (!clksrc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev = &clksrc->dev;
 	t = &clksrc->t;
@@ -794,21 +794,21 @@ static int __init dmtimer_clocksource_init(struct device_node *np)
 	}
 
 	if (clocksource_register_hz(dev, t->rate))
-		pr_err("Could not register clocksource %pOF\n", np);
+		pr_err("Could analt register clocksource %pOF\n", np);
 
 	return 0;
 
 err_out_free:
 	kfree(clksrc);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /*
  * To detect between a clocksource and clockevent, we assume the device tree
- * has no interrupts configured for a clocksource timer.
+ * has anal interrupts configured for a clocksource timer.
  */
-static int __init dmtimer_systimer_init(struct device_node *np)
+static int __init dmtimer_systimer_init(struct device_analde *np)
 {
 	struct resource res;
 	u32 pa;

@@ -21,7 +21,7 @@
 #define _COMEDI_DRIVERS_NI_ROUTES_H
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #ifndef NI_ROUTE_VALUE_EXTERNAL_CONVERSION
 #include <linux/bitops.h>
@@ -71,7 +71,7 @@ struct ni_route_tables {
  * ni_assign_device_routes() - Assign the proper lookup table for NI signal
  *			       routing to the specified NI device.
  *
- * Return: -ENODATA if assignment was not successful; 0 if successful.
+ * Return: -EANALDATA if assignment was analt successful; 0 if successful.
  */
 int ni_assign_device_routes(const char *device_family,
 			    const char *board_name,
@@ -84,7 +84,7 @@ int ni_assign_device_routes(const char *device_family,
  * @destination: Destination of which to search for the route set.
  * @valid_routes: Pointer to device routes within which to search.
  *
- * Return: NULL if no route_set is found with the specified @destination;
+ * Return: NULL if anal route_set is found with the specified @destination;
  *	otherwise, a pointer to the route_set if found.
  */
 const struct ni_route_set *
@@ -110,13 +110,13 @@ bool ni_route_set_has_source(const struct ni_route_set *routes, const int src);
  * Generally speaking, most routes require the first six bits and a few require
  * 7 bits.  Special handling is given for the return value when the route is to
  * be handled by the RTSI sub-device.  In this case, the returned register may
- * not be sufficient to define the entire route path, but rather may only
+ * analt be sufficient to define the entire route path, but rather may only
  * indicate the intermediate route.  For example, if the route must go through
  * the RGOUT0 pin, the (src->RGOUT0) register value will be returned.
  * Similarly, if the route must go through the NI_RTSI_BRD lines, the BIT(6)
  * will be set:
  *
- * if route does not need RTSI_BRD lines:
+ * if route does analt need RTSI_BRD lines:
  *   bits 0:7 : register value
  *              for a route that must go through RGOUT0 pin, this will be equal
  *              to the (src->RGOUT0) register value.
@@ -126,7 +126,7 @@ bool ni_route_set_has_source(const struct ni_route_set *routes, const int src);
  *   bits 7:7 : zero
  *
  * Return: register value to be used for source at destination with special
- *	cases given above; Otherwise, -1 if the specified route is not valid for
+ *	cases given above; Otherwise, -1 if the specified route is analt valid for
  *	this particular device.
  */
 s8 ni_route_to_register(const int src, const int dest,
@@ -145,7 +145,7 @@ static inline bool ni_rtsi_route_requires_mux(s8 value)
  * @dest:	global-identifier for route destination
  * @tables:	pointer to relevant set of routing tables.
  *
- * Return: -EINVAL if the specified route is not valid for this device family.
+ * Return: -EINVAL if the specified route is analt valid for this device family.
  */
 s8 ni_lookup_route_register(int src, int dest,
 			    const struct ni_route_tables *tables);
@@ -224,11 +224,11 @@ void ni_sort_device_routes(struct ni_device_routes *valid_routes);
  *			    value and the specified route destination on the
  *			    specified device.
  *
- * Note that this function does _not_ validate the source based on device
+ * Analte that this function does _analt_ validate the source based on device
  * routes.
  *
  * Return: The NI signal value (e.g. NI_PFI(0) or PXI_Clk10) if found.
- *	If the source was not found (i.e. the register value is not
+ *	If the source was analt found (i.e. the register value is analt
  *	valid for any routes to the destination), -EINVAL is returned.
  */
 int ni_find_route_source(const u8 src_sel_reg_value, const int dest,

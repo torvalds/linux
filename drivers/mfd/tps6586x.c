@@ -294,7 +294,7 @@ static int tps6586x_irq_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip_data(virq, tps6586x);
 	irq_set_chip_and_handler(virq, &tps6586x_irq_chip, handle_simple_irq);
 	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
+	irq_set_analprobe(virq);
 
 	return 0;
 }
@@ -316,7 +316,7 @@ static irqreturn_t tps6586x_irq(int irq, void *data)
 
 	if (ret < 0) {
 		dev_err(tps6586x->dev, "failed to read interrupt status\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	acks = le32_to_cpu(val);
@@ -363,12 +363,12 @@ static int tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 		new_irq_base = 0;
 	}
 
-	tps6586x->irq_domain = irq_domain_add_simple(tps6586x->dev->of_node,
+	tps6586x->irq_domain = irq_domain_add_simple(tps6586x->dev->of_analde,
 				irq_num, new_irq_base, &tps6586x_domain_ops,
 				tps6586x);
 	if (!tps6586x->irq_domain) {
 		dev_err(tps6586x->dev, "Failed to create IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ret = request_threaded_irq(irq, NULL, tps6586x_irq, IRQF_ONESHOT,
 				   "tps6586x", tps6586x);
@@ -391,13 +391,13 @@ static int tps6586x_add_subdevs(struct tps6586x *tps6586x,
 
 		pdev = platform_device_alloc(subdev->name, subdev->id);
 		if (!pdev) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto failed;
 		}
 
 		pdev->dev.parent = tps6586x->dev;
 		pdev->dev.platform_data = subdev->platform_data;
-		pdev->dev.of_node = subdev->of_node;
+		pdev->dev.of_analde = subdev->of_analde;
 
 		ret = platform_device_add(pdev);
 		if (ret) {
@@ -415,7 +415,7 @@ failed:
 #ifdef CONFIG_OF
 static struct tps6586x_platform_data *tps6586x_parse_dt(struct i2c_client *client)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	struct tps6586x_platform_data *pdata;
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
@@ -466,14 +466,14 @@ static int tps6586x_power_off_handler(struct sys_off_data *data)
 	/* Put the PMIC into sleep state. This takes at least 20ms. */
 	ret = tps6586x_clr_bits(data->dev, TPS6586X_SUPPLYENE, EXITSLREQ_BIT);
 	if (ret)
-		return notifier_from_errno(ret);
+		return analtifier_from_erranal(ret);
 
 	ret = tps6586x_set_bits(data->dev, TPS6586X_SUPPLYENE, SLEEP_MODE_BIT);
 	if (ret)
-		return notifier_from_errno(ret);
+		return analtifier_from_erranal(ret);
 
 	mdelay(50);
-	return notifier_from_errno(-ETIME);
+	return analtifier_from_erranal(-ETIME);
 }
 
 static int tps6586x_restart_handler(struct sys_off_data *data)
@@ -483,10 +483,10 @@ static int tps6586x_restart_handler(struct sys_off_data *data)
 	/* Put the PMIC into hard reboot state. This takes at least 20ms. */
 	ret = tps6586x_set_bits(data->dev, TPS6586X_SUPPLYENE, SOFT_RST_BIT);
 	if (ret)
-		return notifier_from_errno(ret);
+		return analtifier_from_erranal(ret);
 
 	mdelay(50);
-	return notifier_from_errno(-ETIME);
+	return analtifier_from_erranal(-ETIME);
 }
 
 static void tps6586x_print_version(struct i2c_client *client, int version)
@@ -525,12 +525,12 @@ static int tps6586x_i2c_probe(struct i2c_client *client)
 	int ret;
 	int version;
 
-	if (!pdata && client->dev.of_node)
+	if (!pdata && client->dev.of_analde)
 		pdata = tps6586x_parse_dt(client);
 
 	if (!pdata) {
 		dev_err(&client->dev, "tps6586x requires platform data\n");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	version = i2c_smbus_read_byte_data(client, TPS6586X_VERSIONCRC);
@@ -541,7 +541,7 @@ static int tps6586x_i2c_probe(struct i2c_client *client)
 
 	tps6586x = devm_kzalloc(&client->dev, sizeof(*tps6586x), GFP_KERNEL);
 	if (!tps6586x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tps6586x->version = version;
 	tps6586x_print_version(client, tps6586x->version);

@@ -201,7 +201,7 @@ static int stm32_pwm_lp_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->regmap = ddata->regmap;
 	priv->clk = ddata->clk;

@@ -26,7 +26,7 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/polynomial.h>
+#include <linux/polyanalmial.h>
 #include <linux/seqlock.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
@@ -66,7 +66,7 @@ static const struct pvt_sensor_info pvt_info[] = {
  *     48380,
  * where T = [-48380, 147438] mC and N = [0, 1023].
  */
-static const struct polynomial __maybe_unused poly_temp_to_N = {
+static const struct polyanalmial __maybe_unused poly_temp_to_N = {
 	.total_divider = 10000,
 	.terms = {
 		{4, 18322, 10000, 10000},
@@ -77,7 +77,7 @@ static const struct polynomial __maybe_unused poly_temp_to_N = {
 	}
 };
 
-static const struct polynomial poly_N_to_temp = {
+static const struct polyanalmial poly_N_to_temp = {
 	.total_divider = 1,
 	.terms = {
 		{4, -16743, 1000, 1},
@@ -98,7 +98,7 @@ static const struct polynomial poly_N_to_temp = {
  * N = (18658e-3*V - 11572) / 10,
  * V = N * 10^5 / 18658 + 11572 * 10^4 / 18658.
  */
-static const struct polynomial __maybe_unused poly_volt_to_N = {
+static const struct polyanalmial __maybe_unused poly_volt_to_N = {
 	.total_divider = 10,
 	.terms = {
 		{1, 18658, 1000, 1},
@@ -106,7 +106,7 @@ static const struct polynomial __maybe_unused poly_volt_to_N = {
 	}
 };
 
-static const struct polynomial poly_N_to_volt = {
+static const struct polyanalmial poly_N_to_volt = {
 	.total_divider = 10,
 	.terms = {
 		{1, 100000, 18658, 1},
@@ -187,9 +187,9 @@ static inline void pvt_set_tout(struct pvt_hwmon *pvt, u32 tout)
  * thresholds comparator is enabled right after the data conversion is
  * completed. Due to this if alarms need to be implemented for all available
  * sensors we can't just set the thresholds and enable the interrupts. We need
- * to enable the sensors one after another and let the controller to detect
+ * to enable the sensors one after aanalther and let the controller to detect
  * the alarms by itself at each conversion. This also makes pointless to handle
- * the alarms interrupts, since in occasion they happen synchronously with
+ * the alarms interrupts, since in occasion they happen synchroanalusly with
  * data conversion completion. The best driver design would be to have the
  * completion interrupts enabled only and keep the converted value in the
  * driver data cache. This solution is implemented if hwmon alarms are enabled
@@ -248,7 +248,7 @@ static irqreturn_t pvt_soft_isr(int irq, void *data)
 	mutex_unlock(&pvt->iface_mtx);
 
 	/*
-	 * We can now update the data cache with data just retrieved from the
+	 * We can analw update the data cache with data just retrieved from the
 	 * sensor. Lock write-seqlock to make sure the reader has a coherent
 	 * data.
 	 */
@@ -260,17 +260,17 @@ static irqreturn_t pvt_soft_isr(int irq, void *data)
 
 	/*
 	 * While PVT core is doing the next mode data conversion, we'll check
-	 * whether the alarms were triggered for the current sensor. Note that
+	 * whether the alarms were triggered for the current sensor. Analte that
 	 * according to the documentation only one threshold IRQ status can be
 	 * set at a time, that's why if-else statement is utilized.
 	 */
 	if ((thres_sts & info->thres_sts_lo) ^ cache->thres_sts_lo) {
 		WRITE_ONCE(cache->thres_sts_lo, thres_sts & info->thres_sts_lo);
-		hwmon_notify_event(pvt->hwmon, info->type, info->attr_min_alarm,
+		hwmon_analtify_event(pvt->hwmon, info->type, info->attr_min_alarm,
 				   info->channel);
 	} else if ((thres_sts & info->thres_sts_hi) ^ cache->thres_sts_hi) {
 		WRITE_ONCE(cache->thres_sts_hi, thres_sts & info->thres_sts_hi);
-		hwmon_notify_event(pvt->hwmon, info->type, info->attr_max_alarm,
+		hwmon_analtify_event(pvt->hwmon, info->type, info->attr_max_alarm,
 				   info->channel);
 	}
 
@@ -300,9 +300,9 @@ static int pvt_read_data(struct pvt_hwmon *pvt, enum pvt_sensor_type type,
 	} while (read_seqretry(&cache->data_seqlock, seq));
 
 	if (type == PVT_TEMP)
-		*val = polynomial_calc(&poly_N_to_temp, data);
+		*val = polyanalmial_calc(&poly_N_to_temp, data);
 	else
-		*val = polynomial_calc(&poly_N_to_volt, data);
+		*val = polyanalmial_calc(&poly_N_to_volt, data);
 
 	return 0;
 }
@@ -312,7 +312,7 @@ static int pvt_read_limit(struct pvt_hwmon *pvt, enum pvt_sensor_type type,
 {
 	u32 data;
 
-	/* No need in serialization, since it is just read from MMIO. */
+	/* Anal need in serialization, since it is just read from MMIO. */
 	data = readl(pvt->regs + pvt_info[type].thres_base);
 
 	if (is_low)
@@ -321,9 +321,9 @@ static int pvt_read_limit(struct pvt_hwmon *pvt, enum pvt_sensor_type type,
 		data = FIELD_GET(PVT_THRES_HI_MASK, data);
 
 	if (type == PVT_TEMP)
-		*val = polynomial_calc(&poly_N_to_temp, data);
+		*val = polyanalmial_calc(&poly_N_to_temp, data);
 	else
-		*val = polynomial_calc(&poly_N_to_volt, data);
+		*val = polyanalmial_calc(&poly_N_to_volt, data);
 
 	return 0;
 }
@@ -336,10 +336,10 @@ static int pvt_write_limit(struct pvt_hwmon *pvt, enum pvt_sensor_type type,
 
 	if (type == PVT_TEMP) {
 		val = clamp(val, PVT_TEMP_MIN, PVT_TEMP_MAX);
-		data = polynomial_calc(&poly_temp_to_N, val);
+		data = polyanalmial_calc(&poly_temp_to_N, val);
 	} else {
 		val = clamp(val, PVT_VOLT_MIN, PVT_VOLT_MAX);
-		data = polynomial_calc(&poly_volt_to_N, val);
+		data = polyanalmial_calc(&poly_volt_to_N, val);
 	}
 
 	/* Serialize limit update, since a part of the register is changed. */
@@ -419,8 +419,8 @@ static irqreturn_t pvt_hard_isr(int irq, void *data)
 		   PVT_INTR_DVALID);
 
 	/*
-	 * Nothing special for alarm-less driver. Just read the data, update
-	 * the cache and notify a waiter of this event.
+	 * Analthing special for alarm-less driver. Just read the data, update
+	 * the cache and analtify a waiter of this event.
 	 */
 	val = readl(pvt->regs + PVT_DATA);
 	if (!(val & PVT_DATA_VALID)) {
@@ -498,9 +498,9 @@ static int pvt_read_data(struct pvt_hwmon *pvt, enum pvt_sensor_type type,
 		return -ETIMEDOUT;
 
 	if (type == PVT_TEMP)
-		*val = polynomial_calc(&poly_N_to_temp, data);
+		*val = polyanalmial_calc(&poly_N_to_temp, data);
 	else
-		*val = polynomial_calc(&poly_N_to_volt, data);
+		*val = polyanalmial_calc(&poly_N_to_volt, data);
 
 	return 0;
 }
@@ -508,19 +508,19 @@ static int pvt_read_data(struct pvt_hwmon *pvt, enum pvt_sensor_type type,
 static int pvt_read_limit(struct pvt_hwmon *pvt, enum pvt_sensor_type type,
 			  bool is_low, long *val)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int pvt_write_limit(struct pvt_hwmon *pvt, enum pvt_sensor_type type,
 			   bool is_low, long val)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int pvt_read_alarm(struct pvt_hwmon *pvt, enum pvt_sensor_type type,
 			  bool is_low, long *val)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct hwmon_channel_info * const pvt_channel_info[] = {
@@ -665,7 +665,7 @@ static int pvt_write_timeout(struct pvt_hwmon *pvt, long val)
 
 	rate = clk_get_rate(pvt->clks[PVT_CLOCK_REF].clk);
 	if (!rate)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * If alarms are enabled, the requested timeout must be divided
@@ -679,7 +679,7 @@ static int pvt_write_timeout(struct pvt_hwmon *pvt, long val)
 
 	/*
 	 * Subtract a constant lag, which always persists due to the limited
-	 * PVT sampling rate. Make sure the timeout is not negative.
+	 * PVT sampling rate. Make sure the timeout is analt negative.
 	 */
 	kt = ktime_sub_ns(kt, PVT_TOUT_MIN);
 	if (ktime_to_ns(kt) < 0)
@@ -760,7 +760,7 @@ static int pvt_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int pvt_hwmon_read_string(struct device *dev,
@@ -789,7 +789,7 @@ static int pvt_hwmon_read_string(struct device *dev,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int pvt_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
@@ -829,7 +829,7 @@ static int pvt_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct hwmon_ops pvt_hwmon_ops = {
@@ -865,7 +865,7 @@ static struct pvt_hwmon *pvt_create_data(struct platform_device *pdev)
 
 	pvt = devm_kzalloc(dev, sizeof(*pvt), GFP_KERNEL);
 	if (!pvt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = devm_add_action(dev, pvt_clear_data, pvt);
 	if (ret) {
@@ -941,10 +941,10 @@ static int pvt_check_pwr(struct pvt_hwmon *pvt)
 	u32 data;
 
 	/*
-	 * Test out the sensor conversion functionality. If it is not done on
+	 * Test out the sensor conversion functionality. If it is analt done on
 	 * time then the domain must have been unpowered and we won't be able
 	 * to use the device later in this driver.
-	 * Note If the power source is lost during the normal driver work the
+	 * Analte If the power source is lost during the analrmal driver work the
 	 * data read procedure will either return -ETIMEDOUT (for the
 	 * alarm-less driver configuration) or just stop the repeated
 	 * conversion. In the later case alas we won't be able to detect the
@@ -960,7 +960,7 @@ static int pvt_check_pwr(struct pvt_hwmon *pvt)
 
 	data = readl(pvt->regs + PVT_DATA);
 	if (!(data & PVT_DATA_VALID)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(pvt->dev, "Sensor is powered down\n");
 	}
 
@@ -977,11 +977,11 @@ static int pvt_init_iface(struct pvt_hwmon *pvt)
 	rate = clk_get_rate(pvt->clks[PVT_CLOCK_REF].clk);
 	if (!rate) {
 		dev_err(pvt->dev, "Invalid reference clock rate\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
-	 * Make sure all interrupts and controller are disabled so not to
+	 * Make sure all interrupts and controller are disabled so analt to
 	 * accidentally have ISR executed before the driver data is fully
 	 * initialized. Clear the IRQ status as well.
 	 */
@@ -996,12 +996,12 @@ static int pvt_init_iface(struct pvt_hwmon *pvt)
 
 	/*
 	 * Preserve the current ref-clock based delay (Ttotal) between the
-	 * sensors data samples in the driver data so not to recalculate it
+	 * sensors data samples in the driver data so analt to recalculate it
 	 * each time on the data requests and timeout reads. It consists of the
 	 * delay introduced by the internal ref-clock timer (N / Fclk) and the
 	 * constant timeout caused by each conversion latency (Tmin):
 	 *   Ttotal = N / Fclk + Tmin
-	 * If alarms are enabled the sensors are polled one after another and
+	 * If alarms are enabled the sensors are polled one after aanalther and
 	 * in order to get the next measurement of a particular sensor the
 	 * caller will have to wait for at most until all the others are
 	 * polled. In that case the formulae will look a bit different:
@@ -1018,7 +1018,7 @@ static int pvt_init_iface(struct pvt_hwmon *pvt)
 #endif
 
 	trim = PVT_TRIM_DEF;
-	if (!of_property_read_u32(pvt->dev->of_node,
+	if (!of_property_read_u32(pvt->dev->of_analde,
 	     "baikal,pvt-temp-offset-millicelsius", &temp))
 		trim = pvt_calc_trim(temp);
 

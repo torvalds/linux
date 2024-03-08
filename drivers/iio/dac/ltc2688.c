@@ -36,7 +36,7 @@
 #define LTC2688_CMD_TOGGLE_DITHER_EN		0x74
 #define LTC2688_CMD_THERMAL_STAT		0x77
 #define LTC2688_CMD_UPDATE_ALL			0x7C
-#define LTC2688_CMD_NOOP			0xFF
+#define LTC2688_CMD_ANALOP			0xFF
 
 #define LTC2688_READ_OPERATION			0x80
 
@@ -219,7 +219,7 @@ static int ltc2688_dac_code_write(struct ltc2688_state *st, u32 chan, u32 input,
 
 	/*
 	 * If in dither/toggle mode the dac should be updated by an
-	 * external signal (or sw toggle) and not here.
+	 * external signal (or sw toggle) and analt here.
 	 */
 	if (c->mode == LTC2688_MODE_DEFAULT)
 		reg = LTC2688_CMD_CH_CODE_UPDATE(chan);
@@ -594,7 +594,7 @@ static const struct iio_enum ltc2688_dither_phase_enum = {
 
 /*
  * For toggle mode we only expose the symbol attr (sw_toggle) in case a TGPx is
- * not provided in dts.
+ * analt provided in dts.
  */
 static const struct iio_chan_spec_ext_info ltc2688_toggle_sym_ext_info[] = {
 	LTC2688_CHAN_EXT_INFO("raw0", LTC2688_INPUT_A, IIO_SEPARATE,
@@ -633,7 +633,7 @@ static struct iio_chan_spec_ext_info ltc2688_dither_ext_info[] = {
 	LTC2688_CHAN_EXT_INFO("dither_offset", LTC2688_DITHER_OFF, IIO_SEPARATE,
 			      ltc2688_dac_input_read, ltc2688_dac_input_write),
 	/*
-	 * Not IIO_ENUM because the available freq needs to be computed at
+	 * Analt IIO_ENUM because the available freq needs to be computed at
 	 * probe. We could still use it, but it didn't felt much right.
 	 */
 	LTC2688_CHAN_EXT_INFO("dither_frequency", 0, IIO_SEPARATE,
@@ -700,14 +700,14 @@ static const int ltc2688_period[LTC2688_DITHER_FREQ_AVAIL_N] = {
 
 static int ltc2688_tgp_clk_setup(struct ltc2688_state *st,
 				 struct ltc2688_chan *chan,
-				 struct fwnode_handle *node, int tgp)
+				 struct fwanalde_handle *analde, int tgp)
 {
 	struct device *dev = &st->spi->dev;
 	unsigned long rate;
 	struct clk *clk;
 	int ret, f;
 
-	clk = devm_get_clk_from_child(dev, to_of_node(node), NULL);
+	clk = devm_get_clk_from_child(dev, to_of_analde(analde), NULL);
 	if (IS_ERR(clk))
 		return dev_err_probe(dev, PTR_ERR(clk), "failed to get tgp clk.\n");
 
@@ -746,22 +746,22 @@ static int ltc2688_span_lookup(const struct ltc2688_state *st, int min, int max)
 static int ltc2688_channel_config(struct ltc2688_state *st)
 {
 	struct device *dev = &st->spi->dev;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	u32 reg, clk_input, val, tmp[2];
 	int ret, span;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_analde(dev, child) {
 		struct ltc2688_chan *chan;
 
-		ret = fwnode_property_read_u32(child, "reg", &reg);
+		ret = fwanalde_property_read_u32(child, "reg", &reg);
 		if (ret) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return dev_err_probe(dev, ret,
 					     "Failed to get reg property\n");
 		}
 
 		if (reg >= LTC2688_DAC_CHANNELS) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return dev_err_probe(dev, -EINVAL,
 					     "reg bigger than: %d\n",
 					     LTC2688_DAC_CHANNELS);
@@ -769,7 +769,7 @@ static int ltc2688_channel_config(struct ltc2688_state *st)
 
 		val = 0;
 		chan = &st->channels[reg];
-		if (fwnode_property_read_bool(child, "adi,toggle-mode")) {
+		if (fwanalde_property_read_bool(child, "adi,toggle-mode")) {
 			chan->toggle_chan = true;
 			/* assume sw toggle ABI */
 			st->iio_chan[reg].ext_info = ltc2688_toggle_sym_ext_info;
@@ -781,26 +781,26 @@ static int ltc2688_channel_config(struct ltc2688_state *st)
 				    &st->iio_chan[reg].info_mask_separate);
 		}
 
-		ret = fwnode_property_read_u32_array(child, "adi,output-range-microvolt",
+		ret = fwanalde_property_read_u32_array(child, "adi,output-range-microvolt",
 						     tmp, ARRAY_SIZE(tmp));
 		if (!ret) {
 			span = ltc2688_span_lookup(st, (int)tmp[0] / 1000,
 						   tmp[1] / 1000);
 			if (span < 0) {
-				fwnode_handle_put(child);
+				fwanalde_handle_put(child);
 				return dev_err_probe(dev, -EINVAL,
-						     "output range not valid:[%d %d]\n",
+						     "output range analt valid:[%d %d]\n",
 						     tmp[0], tmp[1]);
 			}
 
 			val |= FIELD_PREP(LTC2688_CH_SPAN_MSK, span);
 		}
 
-		ret = fwnode_property_read_u32(child, "adi,toggle-dither-input",
+		ret = fwanalde_property_read_u32(child, "adi,toggle-dither-input",
 					       &clk_input);
 		if (!ret) {
 			if (clk_input >= LTC2688_CH_TGP_MAX) {
-				fwnode_handle_put(child);
+				fwanalde_handle_put(child);
 				return dev_err_probe(dev, -EINVAL,
 						     "toggle-dither-input inv value(%d)\n",
 						     clk_input);
@@ -808,7 +808,7 @@ static int ltc2688_channel_config(struct ltc2688_state *st)
 
 			ret = ltc2688_tgp_clk_setup(st, chan, child, clk_input);
 			if (ret) {
-				fwnode_handle_put(child);
+				fwanalde_handle_put(child);
 				return ret;
 			}
 
@@ -829,12 +829,12 @@ static int ltc2688_channel_config(struct ltc2688_state *st)
 				val |= FIELD_PREP(LTC2688_CH_MODE_MSK, 1);
 				st->iio_chan[reg].ext_info = ltc2688_dither_ext_info;
 			} else {
-				/* wait, no sw toggle after all */
+				/* wait, anal sw toggle after all */
 				st->iio_chan[reg].ext_info = ltc2688_toggle_ext_info;
 			}
 		}
 
-		if (fwnode_property_read_bool(child, "adi,overrange")) {
+		if (fwanalde_property_read_bool(child, "adi,overrange")) {
 			chan->overrange = true;
 			val |= LTC2688_CH_OVERRANGE_MSK;
 		}
@@ -845,7 +845,7 @@ static int ltc2688_channel_config(struct ltc2688_state *st)
 		ret = regmap_write(st->regmap, LTC2688_CMD_CH_SETTING(reg),
 				   val);
 		if (ret) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return dev_err_probe(dev, -EINVAL,
 					     "failed to set chan settings\n");
 		}
@@ -861,7 +861,7 @@ static int ltc2688_setup(struct ltc2688_state *st, struct regulator *vref)
 	int ret;
 
 	/*
-	 * If we have a reset pin, use that to reset the board, If not, use
+	 * If we have a reset pin, use that to reset the board, If analt, use
 	 * the reset bit.
 	 */
 	gpio = devm_gpiod_get_optional(dev, "clr", GPIOD_OUT_HIGH);
@@ -888,7 +888,7 @@ static int ltc2688_setup(struct ltc2688_state *st, struct regulator *vref)
 	st->iio_chan = devm_kmemdup(dev, ltc2688_channels,
 				    sizeof(ltc2688_channels), GFP_KERNEL);
 	if (!st->iio_chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ltc2688_channel_config(st);
 	if (ret)
@@ -944,7 +944,7 @@ static const struct regmap_config ltc2688_regmap_config = {
 	.val_bits = 16,
 	.readable_reg = ltc2688_reg_readable,
 	.writeable_reg = ltc2688_reg_writable,
-	/* ignoring the no op command */
+	/* iganalring the anal op command */
 	.max_register = LTC2688_CMD_UPDATE_ALL,
 };
 
@@ -966,13 +966,13 @@ static int ltc2688_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	st->spi = spi;
 
-	/* Just write this once. No need to do it in every regmap read. */
-	st->tx_data[3] = LTC2688_CMD_NOOP;
+	/* Just write this once. Anal need to do it in every regmap read. */
+	st->tx_data[3] = LTC2688_CMD_ANALOP;
 	mutex_init(&st->lock);
 
 	st->regmap = devm_regmap_init(dev, &ltc2688_regmap_bus, st,
@@ -988,7 +988,7 @@ static int ltc2688_probe(struct spi_device *spi)
 
 	vref_reg = devm_regulator_get_optional(dev, "vref");
 	if (IS_ERR(vref_reg)) {
-		if (PTR_ERR(vref_reg) != -ENODEV)
+		if (PTR_ERR(vref_reg) != -EANALDEV)
 			return dev_err_probe(dev, PTR_ERR(vref_reg),
 					     "Failed to get vref regulator");
 
@@ -1048,6 +1048,6 @@ static struct spi_driver ltc2688_driver = {
 };
 module_spi_driver(ltc2688_driver);
 
-MODULE_AUTHOR("Nuno Sá <nuno.sa@analog.com>");
+MODULE_AUTHOR("Nuanal Sá <nuanal.sa@analog.com>");
 MODULE_DESCRIPTION("Analog Devices LTC2688 DAC");
 MODULE_LICENSE("GPL");

@@ -61,7 +61,7 @@ struct iscsi_tcp_conn {
 						 * stop to terminate */
 	/* control data */
 	struct iscsi_tcp_recv	in;		/* TCP receive context */
-	/* CRC32C (Rx) LLD should set this is they do not offload */
+	/* CRC32C (Rx) LLD should set this is they do analt offload */
 	struct ahash_request	*rx_hash;
 };
 

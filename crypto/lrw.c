@@ -31,9 +31,9 @@ struct lrw_tfm_ctx {
 	struct crypto_skcipher *child;
 
 	/*
-	 * optimizes multiplying a random (non incrementing, as at the
+	 * optimizes multiplying a random (analn incrementing, as at the
 	 * start of a new sector) value with key2, we could also have
-	 * used 4k optimization tables or no optimization at all. In the
+	 * used 4k optimization tables or anal optimization at all. In the
 	 * latter case we would have to store key2 here
 	 */
 	struct gf128mul_64k *table;
@@ -88,7 +88,7 @@ static int lrw_setkey(struct crypto_skcipher *parent, const u8 *key,
 	/* initialize multiplication table for Key2 */
 	ctx->table = gf128mul_init_64k_bbe((be128 *)tweak);
 	if (!ctx->table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* initialize optimization table */
 	for (i = 0; i < 128; i++) {
@@ -229,7 +229,7 @@ static void lrw_init_crypt(struct skcipher_request *req)
 	skcipher_request_set_tfm(subreq, ctx->child);
 	skcipher_request_set_callback(subreq, req->base.flags, lrw_crypt_done,
 				      req);
-	/* pass req->iv as IV (will be used by xor_tweak, ECB will ignore it) */
+	/* pass req->iv as IV (will be used by xor_tweak, ECB will iganalre it) */
 	skcipher_request_set_crypt(subreq, req->dst, req->dst,
 				   req->cryptlen, req->iv);
 
@@ -316,13 +316,13 @@ static int lrw_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spawn = skcipher_instance_ctx(inst);
 
 	err = crypto_grab_skcipher(spawn, skcipher_crypto_instance(inst),
 				   cipher_name, 0, mask);
-	if (err == -ENOENT) {
+	if (err == -EANALENT) {
 		err = -ENAMETOOLONG;
 		if (snprintf(ecb_name, CRYPTO_MAX_ALG_NAME, "ecb(%s)",
 			     cipher_name) >= CRYPTO_MAX_ALG_NAME)
@@ -379,7 +379,7 @@ static int lrw_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.base.cra_priority = alg->base.cra_priority;
 	inst->alg.base.cra_blocksize = LRW_BLOCK_SIZE;
 	inst->alg.base.cra_alignmask = alg->base.cra_alignmask |
-				       (__alignof__(be128) - 1);
+				       (__aliganalf__(be128) - 1);
 
 	inst->alg.ivsize = LRW_BLOCK_SIZE;
 	inst->alg.min_keysize = alg->min_keysize + LRW_BLOCK_SIZE;

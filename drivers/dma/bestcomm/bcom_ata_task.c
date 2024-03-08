@@ -42,7 +42,7 @@ u32 bcom_ata_task[] = {
 	0x9898802d, /*   LCD: idx1 = idx1; idx1 once var0; idx1 += inc5 */
 	0x64000005, /*     DRD2A: EU0=0 EU1=0 EU2=0 EU3=5 INT EXT init=0 WS=0 RS=0 */
 	0x0c0cf849, /*     DRD2B1: *idx0 = EU3(); EU3(idx1,var9)  */
-	0x000001f8, /* NOP */
+	0x000001f8, /* ANALP */
 
 	/* VAR[9]-VAR[14] */
 	0x40000000,

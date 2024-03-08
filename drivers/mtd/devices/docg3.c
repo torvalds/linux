@@ -7,7 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
@@ -29,11 +29,11 @@
 /*
  * This driver handles the DiskOnChip G3 flash memory.
  *
- * As no specification is available from M-Systems/Sandisk, this drivers lacks
+ * As anal specification is available from M-Systems/Sandisk, this drivers lacks
  * several functions available on the chip, as :
  *  - IPL write
  *
- * The bus data width (8bits versus 16bits) is not handled (if_cfg flag), and
+ * The bus data width (8bits versus 16bits) is analt handled (if_cfg flag), and
  * the driver assumes a 16bits data bus.
  *
  * DocG3 relies on 2 ECC algorithms, which are handled in hardware :
@@ -50,8 +50,8 @@
 
 static unsigned int reliable_mode;
 module_param(reliable_mode, uint, 0);
-MODULE_PARM_DESC(reliable_mode, "Set the docg3 mode (0=normal MLC, 1=fast, "
-		 "2=reliable) : MLC normal operations are in normal mode");
+MODULE_PARM_DESC(reliable_mode, "Set the docg3 mode (0=analrmal MLC, 1=fast, "
+		 "2=reliable) : MLC analrmal operations are in analrmal mode");
 
 static int docg3_ooblayout_ecc(struct mtd_info *mtd, int section,
 			       struct mtd_oob_region *oobregion)
@@ -157,21 +157,21 @@ static int doc_register_readw(struct docg3 *docg3, int reg)
 /**
  * doc_delay - delay docg3 operations
  * @docg3: the device
- * @nbNOPs: the number of NOPs to issue
+ * @nbANALPs: the number of ANALPs to issue
  *
- * As no specification is available, the right timings between chip commands are
- * unknown. The only available piece of information are the observed nops on a
+ * As anal specification is available, the right timings between chip commands are
+ * unkanalwn. The only available piece of information are the observed analps on a
  * working docg3 chip.
- * Therefore, doc_delay relies on a busy loop of NOPs, instead of scheduler
+ * Therefore, doc_delay relies on a busy loop of ANALPs, instead of scheduler
  * friendlier msleep() functions or blocking mdelay().
  */
-static void doc_delay(struct docg3 *docg3, int nbNOPs)
+static void doc_delay(struct docg3 *docg3, int nbANALPs)
 {
 	int i;
 
-	doc_vdbg("NOP x %d\n", nbNOPs);
-	for (i = 0; i < nbNOPs; i++)
-		doc_writeb(docg3, 0, DOC_NOP);
+	doc_vdbg("ANALP x %d\n", nbANALPs);
+	for (i = 0; i < nbANALPs; i++)
+		doc_writeb(docg3, 0, DOC_ANALP);
 }
 
 static int is_prot_seq_error(struct docg3 *docg3)
@@ -300,11 +300,11 @@ static void doc_write_data_area(struct docg3 *docg3, const void *buf, int len)
 }
 
 /**
- * doc_set_reliable_mode - Sets the flash to normal or reliable data mode
+ * doc_set_reliable_mode - Sets the flash to analrmal or reliable data mode
  * @docg3: the device
  *
  * The reliable data mode is a bit slower than the fast mode, but less errors
- * occur.  Entering the reliable mode cannot be done without entering the fast
+ * occur.  Entering the reliable mode cananalt be done without entering the fast
  * mode first.
  *
  * In reliable mode, pages 2*n and 2*n+1 are clones. Writing to page 0 of blocks
@@ -316,7 +316,7 @@ static void doc_write_data_area(struct docg3 *docg3, const void *buf, int len)
  */
 static void doc_set_reliable_mode(struct docg3 *docg3)
 {
-	static char *strmode[] = { "normal", "fast", "reliable", "invalid" };
+	static char *strmode[] = { "analrmal", "fast", "reliable", "invalid" };
 
 	doc_dbg("doc_set_reliable_mode(%s)\n", strmode[docg3->reliable]);
 	switch (docg3->reliable) {
@@ -345,7 +345,7 @@ static void doc_set_reliable_mode(struct docg3 *docg3)
  *
  * The ASIC can work in 3 modes :
  *  - RESET: all registers are zeroed
- *  - NORMAL: receives and handles commands
+ *  - ANALRMAL: receives and handles commands
  *  - POWERDOWN: minimal poweruse, flash parts shut off
  */
 static void doc_set_asic_mode(struct docg3 *docg3, u8 mode)
@@ -387,12 +387,12 @@ static void doc_set_device_id(struct docg3 *docg3, int id)
  * doc_set_extra_page_mode - Change flash page layout
  * @docg3: the device
  *
- * Normally, the flash page is split into the data (512 bytes) and the out of
+ * Analrmally, the flash page is split into the data (512 bytes) and the out of
  * band data (16 bytes). For each, 4 more bytes can be accessed, where the wear
  * leveling counters are stored.  To access this last area of 4 bytes, a special
  * mode must be input to the flash ASIC.
  *
- * Returns 0 if no error occurred, -EIO else.
+ * Returns 0 if anal error occurred, -EIO else.
  */
 static int doc_set_extra_page_mode(struct docg3 *docg3)
 {
@@ -638,7 +638,7 @@ static void doc_hamming_ecc_init(struct docg3 *docg3, int nb_bytes)
  * Djelic for his analysis.
  *
  * Returns number of fixed bits (0, 1, 2, 3, 4) or -EBADMSG if too many bit
- * errors were detected and cannot be fixed.
+ * errors were detected and cananalt be fixed.
  */
 static int doc_ecc_bch_fix_data(struct docg3 *docg3, void *buf, u8 *hwecc)
 {
@@ -683,7 +683,7 @@ out:
  *
  * Read data from a flash page. The length to be read must be between 0 and
  * (page_size + oob_size + wear_size), ie. 532, and a multiple of 4 (because
- * the extra bytes reading is not implemented).
+ * the extra bytes reading is analt implemented).
  *
  * As pages are grouped by 2 (in 2 planes), reading from a page must be done
  * in two steps:
@@ -822,10 +822,10 @@ static void doc_read_page_finish(struct docg3 *docg3)
  * @block1: second plane block index calculated
  * @page: page calculated
  * @ofs: offset in page
- * @reliable: 0 if docg3 in normal mode, 1 if docg3 in fast mode, 2 if docg3 in
+ * @reliable: 0 if docg3 in analrmal mode, 1 if docg3 in fast mode, 2 if docg3 in
  * reliable mode.
  *
- * The calculation is based on the reliable/normal mode. In normal mode, the 64
+ * The calculation is based on the reliable/analrmal mode. In analrmal mode, the 64
  * pages of a block are available. In reliable mode, as pages 2*n and 2*n+1 are
  * clones, only 32 pages per block are available.
  */
@@ -1004,7 +1004,7 @@ static int doc_reload_bbt(struct docg3 *docg3)
 }
 
 /**
- * doc_block_isbad - Checks whether a block is good or not
+ * doc_block_isbad - Checks whether a block is good or analt
  * @mtd: the device
  * @from: the offset to find the correct block
  *
@@ -1036,7 +1036,7 @@ static int doc_block_isbad(struct mtd_info *mtd, loff_t from)
  * @from: the offset in which the block is.
  *
  * Get the number of times a block was erased. The number is the maximum of
- * erase times between first and second plane (which should be equal normally).
+ * erase times between first and second plane (which should be equal analrmally).
  *
  * Returns The number of erases, or -EINVAL or -EIO on error.
  */
@@ -1111,7 +1111,7 @@ static int doc_write_erase_wait_status(struct docg3 *docg3)
 	for (i = 0; !doc_is_ready(docg3) && i < 5; i++)
 		msleep(20);
 	if (!doc_is_ready(docg3)) {
-		doc_dbg("Timeout reached and the chip is still not ready\n");
+		doc_dbg("Timeout reached and the chip is still analt ready\n");
 		ret = -EAGAIN;
 		goto out;
 	}
@@ -1136,7 +1136,7 @@ out:
  *
  * Erase both blocks, and return operation status
  *
- * Returns 0 if erase successful, -EIO if erase issue, -ETIMEOUT if chip not
+ * Returns 0 if erase successful, -EIO if erase issue, -ETIMEOUT if chip analt
  * ready for too long
  */
 static int doc_erase_block(struct docg3 *docg3, int block0, int block1)
@@ -1215,16 +1215,16 @@ static int doc_erase(struct mtd_info *mtd, struct erase_info *info)
  * @to: the offset from first block and first page, in bytes, aligned on page
  *      size
  * @buf: buffer to get bytes from
- * @oob: buffer to get out of band bytes from (can be NULL if no OOB should be
+ * @oob: buffer to get out of band bytes from (can be NULL if anal OOB should be
  *       written)
  * @autoecc: if 0, all 16 bytes from OOB are taken, regardless of HW Hamming or
  *           BCH computations. If 1, only bytes 0-7 and byte 15 are taken,
  *           remaining ones are filled with hardware Hamming and BCH
- *           computations. Its value is not meaningfull is oob == NULL.
+ *           computations. Its value is analt meaningfull is oob == NULL.
  *
  * Write one full page (ie. 1 page split on two planes), of 512 bytes, with the
  * OOB data. The OOB ECC is automatically computed by the hardware Hamming and
- * BCH generator if autoecc is not null.
+ * BCH generator if autoecc is analt null.
  *
  * Returns 0 if write successful, -EIO if write error, -EAGAIN if timeout
  */
@@ -1278,7 +1278,7 @@ static int doc_write_page(struct docg3 *docg3, loff_t to, const u_char *buf,
 	doc_delay(docg3, 2);
 
 	/*
-	 * The wait status will perform another doc_page_finish() call, but that
+	 * The wait status will perform aanalther doc_page_finish() call, but that
 	 * seems to please the docg3, so leave it.
 	 */
 	ret = doc_write_erase_wait_status(docg3);
@@ -1313,9 +1313,9 @@ static int doc_guess_autoecc(struct mtd_oob_ops *ops)
 }
 
 /**
- * doc_fill_autooob - Fill a 16 bytes OOB from 8 non-ECC bytes
+ * doc_fill_autooob - Fill a 16 bytes OOB from 8 analn-ECC bytes
  * @dst: the target 16 bytes OOB buffer
- * @oobsrc: the source 8 bytes non-ECC OOB buffer
+ * @oobsrc: the source 8 bytes analn-ECC OOB buffer
  *
  */
 static void doc_fill_autooob(u8 *dst, u8 *oobsrc)
@@ -1377,7 +1377,7 @@ static int doc_backup_oob(struct docg3 *docg3, loff_t to,
  * Or provide data without OOB, and then a all zeroed OOB will be used (ECC will
  * still be filled in if asked for).
  *
- * Returns 0 is successful, EINVAL if length is not 14 bytes
+ * Returns 0 is successful, EINVAL if length is analt 14 bytes
  */
 static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 			 struct mtd_oob_ops *ops)
@@ -1613,7 +1613,7 @@ static int flashcontrol_show(struct seq_file *s, void *p)
 		   fctrl & DOC_CTRL_CE ? "active" : "inactive",
 		   fctrl & DOC_CTRL_PROTECTION_ERROR ? "protection error" : "-",
 		   fctrl & DOC_CTRL_SEQUENCE_ERROR ? "sequence error" : "-",
-		   fctrl & DOC_CTRL_FLASHREADY ? "ready" : "not ready");
+		   fctrl & DOC_CTRL_FLASHREADY ? "ready" : "analt ready");
 
 	return 0;
 }
@@ -1644,8 +1644,8 @@ static int asic_mode_show(struct seq_file *s, void *p)
 	case DOC_ASICMODE_RESET:
 		seq_puts(s, "reset");
 		break;
-	case DOC_ASICMODE_NORMAL:
-		seq_puts(s, "normal");
+	case DOC_ASICMODE_ANALRMAL:
+		seq_puts(s, "analrmal");
 		break;
 	case DOC_ASICMODE_POWERDOWN:
 		seq_puts(s, "powerdown");
@@ -1701,7 +1701,7 @@ static int protection_show(struct seq_file *s, void *p)
 	if (protect & DOC_PROTECT_PROTECTION_ERROR)
 		seq_puts(s, "PROTECT_ERR,");
 	else
-		seq_puts(s, "NO_PROTECT_ERR");
+		seq_puts(s, "ANAL_PROTECT_ERR");
 	seq_puts(s, ")\n");
 
 	seq_printf(s, "DPS0 = 0x%02x : Protected area [0x%x - 0x%x] : OTP=%d, READ=%d, WRITE=%d, HW_LOCK=%d, KEY_OK=%d\n",
@@ -1764,7 +1764,7 @@ static int __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 		mtd->name = devm_kasprintf(docg3->dev, GFP_KERNEL, "docg3.%d",
 					   docg3->device_id);
 		if (!mtd->name)
-			return -ENOMEM;
+			return -EANALMEM;
 		docg3->max_block = 2047;
 		break;
 	}
@@ -1797,7 +1797,7 @@ static int __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
  *
  * Checks whether a device at the specified IO range, and floor is available.
  *
- * Returns a mtd_info struct if there is a device, ENODEV if none found, ENOMEM
+ * Returns a mtd_info struct if there is a device, EANALDEV if analne found, EANALMEM
  * if a memory allocation failed. If floor 0 is checked, a reset of the ASIC is
  * launched.
  */
@@ -1809,20 +1809,20 @@ doc_probe_device(struct docg3_cascade *cascade, int floor, struct device *dev)
 	struct docg3 *docg3;
 	struct mtd_info *mtd;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	docg3 = kzalloc(sizeof(struct docg3), GFP_KERNEL);
 	if (!docg3)
-		goto nomem1;
+		goto analmem1;
 	mtd = kzalloc(sizeof(struct mtd_info), GFP_KERNEL);
 	if (!mtd)
-		goto nomem2;
+		goto analmem2;
 	mtd->priv = docg3;
 	mtd->dev.parent = dev;
 	bbt_nbpages = DIV_ROUND_UP(docg3->max_block + 1,
 				   8 * DOC_LAYOUT_PAGE_SIZE);
 	docg3->bbt = kcalloc(DOC_LAYOUT_PAGE_SIZE, bbt_nbpages, GFP_KERNEL);
 	if (!docg3->bbt)
-		goto nomem3;
+		goto analmem3;
 
 	docg3->dev = dev;
 	docg3->device_id = floor;
@@ -1830,14 +1830,14 @@ doc_probe_device(struct docg3_cascade *cascade, int floor, struct device *dev)
 	doc_set_device_id(docg3, docg3->device_id);
 	if (!floor)
 		doc_set_asic_mode(docg3, DOC_ASICMODE_RESET);
-	doc_set_asic_mode(docg3, DOC_ASICMODE_NORMAL);
+	doc_set_asic_mode(docg3, DOC_ASICMODE_ANALRMAL);
 
 	chip_id = doc_register_readw(docg3, DOC_CHIPID);
 	chip_id_inv = doc_register_readw(docg3, DOC_CHIPID_INV);
 
 	ret = 0;
 	if (chip_id != (u16)(~chip_id_inv)) {
-		goto nomem4;
+		goto analmem4;
 	}
 
 	switch (chip_id) {
@@ -1846,25 +1846,25 @@ doc_probe_device(struct docg3_cascade *cascade, int floor, struct device *dev)
 			 docg3->cascade->base, floor);
 		break;
 	default:
-		doc_err("Chip id %04x is not a DiskOnChip G3 chip\n", chip_id);
-		goto nomem4;
+		doc_err("Chip id %04x is analt a DiskOnChip G3 chip\n", chip_id);
+		goto analmem4;
 	}
 
 	ret = doc_set_driver_info(chip_id, mtd);
 	if (ret)
-		goto nomem4;
+		goto analmem4;
 
 	doc_hamming_ecc_init(docg3, DOC_LAYOUT_OOB_PAGEINFO_SZ);
 	doc_reload_bbt(docg3);
 	return mtd;
 
-nomem4:
+analmem4:
 	kfree(docg3->bbt);
-nomem3:
+analmem3:
 	kfree(mtd);
-nomem2:
+analmem2:
 	kfree(docg3);
-nomem1:
+analmem1:
 	return ret ? ERR_PTR(ret) : NULL;
 }
 
@@ -1965,7 +1965,7 @@ static int docg3_suspend(struct platform_device *pdev, pm_message_t state)
  * Probes for a G3 chip at the specified IO space in the platform data
  * ressources. The floor 0 must be available.
  *
- * Returns 0 on success, -ENOMEM, -ENXIO on error
+ * Returns 0 on success, -EANALMEM, -ENXIO on error
  */
 static int __init docg3_probe(struct platform_device *pdev)
 {
@@ -1979,11 +1979,11 @@ static int __init docg3_probe(struct platform_device *pdev)
 	ret = -ENXIO;
 	ress = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!ress) {
-		dev_err(dev, "No I/O memory resource defined\n");
+		dev_err(dev, "Anal I/O memory resource defined\n");
 		return ret;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	base = devm_ioremap(dev, ress->start, DOC_IOSPACE_SIZE);
 	if (!base) {
 		dev_err(dev, "devm_ioremap dev failed\n");
@@ -2009,7 +2009,7 @@ static int __init docg3_probe(struct platform_device *pdev)
 		}
 		if (!mtd) {
 			if (floor == 0)
-				goto notfound;
+				goto analtfound;
 			else
 				continue;
 		}
@@ -2029,9 +2029,9 @@ static int __init docg3_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, cascade);
 	return 0;
 
-notfound:
-	ret = -ENODEV;
-	dev_info(dev, "No supported DiskOnChip found\n");
+analtfound:
+	ret = -EANALDEV;
+	dev_info(dev, "Anal supported DiskOnChip found\n");
 err_probe:
 	bch_free(cascade->bch);
 	for (floor = 0; floor < DOC_MAX_NBFLOORS; floor++)

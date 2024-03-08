@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2022 Loongson Techanallogy Corporation Limited
  */
 
 #ifndef _ASM_LOONGARCH_FTRACE_H
@@ -30,8 +30,8 @@ struct dyn_arch_ftrace { };
 #define ARCH_SUPPORTS_FTRACE_OPS 1
 #define HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
 
-#define ftrace_init_nop ftrace_init_nop
-int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec);
+#define ftrace_init_analp ftrace_init_analp
+int ftrace_init_analp(struct module *mod, struct dyn_ftrace *rec);
 
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {

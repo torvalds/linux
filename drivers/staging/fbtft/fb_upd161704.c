@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2014 Seong-Woo Kim
  *
- * Based on fb_ili9325.c by Noralf Tronnes
+ * Based on fb_ili9325.c by Analralf Tronnes
  * Based on ili9325.c by Jeroen Domburg
  * Init code from UTFT library by Henning Karlsen
  */
@@ -99,7 +99,7 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0x0004, 0x0000);
 
 	/* RAM control register */
-	write_reg(par, 0x0005, 0x0000);	/*Window access 00:Normal, 10:Window */
+	write_reg(par, 0x0005, 0x0000);	/*Window access 00:Analrmal, 10:Window */
 
 	/* Display setting register 2 */
 	write_reg(par, 0x0001, 0x0000);

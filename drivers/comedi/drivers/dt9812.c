@@ -14,15 +14,15 @@
  * Devices: [Data Translation] DT9812 (dt9812)
  * Author: anders.blomdell@control.lth.se (Anders Blomdell)
  * Status: in development
- * Updated: Sun Nov 20 20:18:34 EST 2005
+ * Updated: Sun Analv 20 20:18:34 EST 2005
  *
- * This driver works, but bulk transfers not implemented. Might be a
+ * This driver works, but bulk transfers analt implemented. Might be a
  * starting point for someone else. I found out too late that USB has
  * too high latencies (>1 ms) for my needs.
  */
 
 /*
- * Nota Bene:
+ * Analta Bene:
  *   1. All writes to command pipe has to be 32 bytes (ISP1181B SHRTP=0 ?)
  *   2. The DDK source (as of sep 2005) is in error regarding the
  *      input MUX bits (example code says P4, but firmware schematics
@@ -31,7 +31,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/comedi/comedi_usb.h>
@@ -139,7 +139,7 @@ enum {
 	/* Multiple Writes of a device */
 	DT9812_W_MULTI_BYTE_DEV = 15,
 
-	/* Not sure if we'll need this */
+	/* Analt sure if we'll need this */
 	DT9812_W_DAC_THRESHOLD = 16,
 
 	/* Set interrupt on change mask */
@@ -246,7 +246,7 @@ static int dt9812_read_info(struct comedi_device *dev,
 
 	tbuf = kzalloc(tbuf_size, GFP_KERNEL);
 	if (!tbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = tbuf;
 
@@ -290,7 +290,7 @@ static int dt9812_read_multiple_registers(struct comedi_device *dev,
 
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = buf;
 
@@ -331,7 +331,7 @@ static int dt9812_write_multiple_registers(struct comedi_device *dev,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->cmd = cpu_to_le32(DT9812_W_MULTI_BYTE_REG);
 	cmd->u.read_multi_info.count = reg_count;
@@ -360,7 +360,7 @@ static int dt9812_rmw_multiple_registers(struct comedi_device *dev,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->cmd = cpu_to_le32(DT9812_RMW_MULTI_BYTE_REG);
 	cmd->u.rmw_multi_info.count = reg_count;
@@ -692,7 +692,7 @@ static int dt9812_find_endpoints(struct comedi_device *dev)
 
 	if (host->desc.bNumEndpoints != 5) {
 		dev_err(dev->class_dev, "Wrong number of endpoints\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < host->desc.bNumEndpoints; ++i) {
@@ -726,7 +726,7 @@ static int dt9812_find_endpoints(struct comedi_device *dev)
 		if ((ep->bEndpointAddress & USB_DIR_IN) != dir) {
 			dev_err(dev->class_dev,
 				"Endpoint has wrong direction\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	return 0;
@@ -792,7 +792,7 @@ static int dt9812_reset_device(struct comedi_device *dev)
 	}
 	serial = le32_to_cpu(tmp32);
 
-	/* let the user know what node this device is now attached to */
+	/* let the user kanalw what analde this device is analw attached to */
 	dev_info(dev->class_dev, "USB DT9812 (%4.4x.%4.4x.%4.4x) #0x%8.8x\n",
 		 vendor, product, devpriv->device, serial);
 
@@ -817,7 +817,7 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&devpriv->mut);
 	usb_set_intfdata(intf, devpriv);

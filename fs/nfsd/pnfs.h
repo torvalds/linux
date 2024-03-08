@@ -19,7 +19,7 @@ struct nfsd4_deviceid_map {
 };
 
 struct nfsd4_layout_ops {
-	u32		notify_types;
+	u32		analtify_types;
 	bool		disable_recalls;
 
 	__be32 (*proc_getdeviceinfo)(struct super_block *sb,
@@ -29,12 +29,12 @@ struct nfsd4_layout_ops {
 	__be32 (*encode_getdeviceinfo)(struct xdr_stream *xdr,
 			const struct nfsd4_getdeviceinfo *gdevp);
 
-	__be32 (*proc_layoutget)(struct inode *, const struct svc_fh *fhp,
+	__be32 (*proc_layoutget)(struct ianalde *, const struct svc_fh *fhp,
 			struct nfsd4_layoutget *lgp);
 	__be32 (*encode_layoutget)(struct xdr_stream *xdr,
 			const struct nfsd4_layoutget *lgp);
 
-	__be32 (*proc_layoutcommit)(struct inode *inode,
+	__be32 (*proc_layoutcommit)(struct ianalde *ianalde,
 			struct nfsd4_layoutcommit *lcp);
 
 	void (*fence_client)(struct nfs4_layout_stateid *ls);

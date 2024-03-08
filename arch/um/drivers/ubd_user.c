@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2016 Anton Ivanov (aivanov@brocade.com)
+ * Copyright (C) 2016 Anton Ivaanalv (aivaanalv@brocade.com)
  * Copyright (C) 2000, 2001, 2002 Jeff Dike (jdike@karaya.com)
- * Copyright (C) 2001 Ridgerun,Inc (glonnon@ridgerun.com)
+ * Copyright (C) 2001 Ridgerun,Inc (glonanaln@ridgerun.com)
  */
 
 #include <stddef.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sched.h>
 #include <signal.h>
 #include <string.h>
@@ -43,14 +43,14 @@ int start_io_thread(unsigned long sp, int *fd_out)
 	err = os_set_fd_block(*fd_out, 0);
 	err = os_set_fd_block(kernel_fd, 0);
 	if (err) {
-		printk("start_io_thread - failed to set nonblocking I/O.\n");
+		printk("start_io_thread - failed to set analnblocking I/O.\n");
 		goto out_close;
 	}
 
 	pid = clone(io_thread, (void *) sp, CLONE_FILES | CLONE_VM, NULL);
 	if(pid < 0){
-		err = -errno;
-		printk("start_io_thread - clone failed : errno = %d\n", errno);
+		err = -erranal;
+		printk("start_io_thread - clone failed : erranal = %d\n", erranal);
 		goto out_close;
 	}
 

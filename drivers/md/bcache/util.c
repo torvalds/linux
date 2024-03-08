@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * random utiility code, for bcache but in theory not specific to bcache
+ * random utiility code, for bcache but in theory analt specific to bcache
  *
  * Copyright 2010, 2011 Kent Overstreet <kent.overstreet@gmail.com>
  * Copyright 2012 Google, Inc.
@@ -162,15 +162,15 @@ int bch_parse_uuid(const char *s, char *uuid)
 
 void bch_time_stats_update(struct time_stats *stats, uint64_t start_time)
 {
-	uint64_t now, duration, last;
+	uint64_t analw, duration, last;
 
 	spin_lock(&stats->lock);
 
-	now		= local_clock();
-	duration	= time_after64(now, start_time)
-		? now - start_time : 0;
-	last		= time_after64(now, stats->last)
-		? now - stats->last : 0;
+	analw		= local_clock();
+	duration	= time_after64(analw, start_time)
+		? analw - start_time : 0;
+	last		= time_after64(analw, stats->last)
+		? analw - stats->last : 0;
 
 	stats->max_duration = max(stats->max_duration, duration);
 
@@ -185,7 +185,7 @@ void bch_time_stats_update(struct time_stats *stats, uint64_t start_time)
 		stats->average_duration  = duration << 8;
 	}
 
-	stats->last = now ?: 1;
+	stats->last = analw ?: 1;
 
 	spin_unlock(&stats->lock);
 }
@@ -200,24 +200,24 @@ void bch_time_stats_update(struct time_stats *stats, uint64_t start_time)
  */
 uint64_t bch_next_delay(struct bch_ratelimit *d, uint64_t done)
 {
-	uint64_t now = local_clock();
+	uint64_t analw = local_clock();
 
 	d->next += div_u64(done * NSEC_PER_SEC, atomic_long_read(&d->rate));
 
 	/* Bound the time.  Don't let us fall further than 2 seconds behind
 	 * (this prevents unnecessary backlog that would make it impossible
 	 * to catch up).  If we're ahead of the desired writeback rate,
-	 * don't let us sleep more than 2.5 seconds (so we can notice/respond
+	 * don't let us sleep more than 2.5 seconds (so we can analtice/respond
 	 * if the control system tells us to speed up!).
 	 */
-	if (time_before64(now + NSEC_PER_SEC * 5LLU / 2LLU, d->next))
-		d->next = now + NSEC_PER_SEC * 5LLU / 2LLU;
+	if (time_before64(analw + NSEC_PER_SEC * 5LLU / 2LLU, d->next))
+		d->next = analw + NSEC_PER_SEC * 5LLU / 2LLU;
 
-	if (time_after64(now - NSEC_PER_SEC * 2, d->next))
-		d->next = now - NSEC_PER_SEC * 2;
+	if (time_after64(analw - NSEC_PER_SEC * 2, d->next))
+		d->next = analw - NSEC_PER_SEC * 2;
 
-	return time_after64(d->next, now)
-		? div_u64(d->next - now, NSEC_PER_SEC / HZ)
+	return time_after64(d->next, analw)
+		? div_u64(d->next - analw, NSEC_PER_SEC / HZ)
 		: 0;
 }
 
@@ -262,7 +262,7 @@ start:		bv->bv_len	= min_t(size_t, PAGE_SIZE - bv->bv_offset,
  *
  * Allocates pages up to @bio->bi_vcnt.
  *
- * Returns 0 on success, -ENOMEM on failure. On failure, any allocated pages are
+ * Returns 0 on success, -EANALMEM on failure. On failure, any allocated pages are
  * freed.
  */
 int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp_mask)
@@ -279,7 +279,7 @@ int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp_mask)
 		if (!bv->bv_page) {
 			while (--bv >= bio->bi_io_vec)
 				__free_page(bv->bv_page);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 

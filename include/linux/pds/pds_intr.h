@@ -16,14 +16,14 @@
  *                    When an interrupt is sent the interrupt
  *                    coalescing timer current value
  *                    (@coalescing_curr) is initialized with this
- *                    value and begins counting down.  No more
+ *                    value and begins counting down.  Anal more
  *                    interrupts are sent until the coalescing
  *                    timer reaches 0.  When @coalescing_init=0
  *                    interrupt coalescing is effectively disabled
  *                    and every interrupt assert results in an
  *                    interrupt.  Reset value: 0
  * @mask:             Interrupt mask.  When @mask=1 the interrupt
- *                    resource will not send an interrupt.  When
+ *                    resource will analt send an interrupt.  When
  *                    @mask=0 the interrupt resource will send an
  *                    interrupt if an interrupt event is pending
  *                    or on the next interrupt assertion event.
@@ -80,7 +80,7 @@ static_assert(sizeof(struct pds_core_intr) == 32);
 
 #define PDS_CORE_INTR_CTRL_REGS_MAX		2048
 #define PDS_CORE_INTR_CTRL_COAL_MAX		0x3F
-#define PDS_CORE_INTR_INDEX_NOT_ASSIGNED	-1
+#define PDS_CORE_INTR_INDEX_ANALT_ASSIGNED	-1
 
 struct pds_core_intr_status {
 	u32 status[2];
@@ -98,7 +98,7 @@ enum pds_core_intr_mask_vals {
 
 /**
  * enum pds_core_intr_credits_bits - Bitwise composition of credits values.
- * @PDS_CORE_INTR_CRED_COUNT:	bit mask of credit count, no shift needed.
+ * @PDS_CORE_INTR_CRED_COUNT:	bit mask of credit count, anal shift needed.
  * @PDS_CORE_INTR_CRED_COUNT_SIGNED: bit mask of credit count, including sign bit.
  * @PDS_CORE_INTR_CRED_UNMASK:	unmask the interrupt.
  * @PDS_CORE_INTR_CRED_RESET_COALESCE: reset the coalesce timer.

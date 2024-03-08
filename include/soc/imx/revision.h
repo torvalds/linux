@@ -20,7 +20,7 @@
 #define IMX_CHIP_REVISION_3_1		0x31
 #define IMX_CHIP_REVISION_3_2		0x32
 #define IMX_CHIP_REVISION_3_3		0x33
-#define IMX_CHIP_REVISION_UNKNOWN	0xff
+#define IMX_CHIP_REVISION_UNKANALWN	0xff
 
 int mx25_revision(void);
 int mx27_revision(void);

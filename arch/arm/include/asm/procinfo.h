@@ -15,12 +15,12 @@ struct cpu_cache_fns;
 struct processor;
 
 /*
- * Note!  struct processor is always defined if we're
+ * Analte!  struct processor is always defined if we're
  * using MULTI_CPU, otherwise this entry is unused,
  * but still exists.
  *
- * NOTE! The following structure is defined by assembly
- * language, NOT C code.  For more information, check:
+ * ANALTE! The following structure is defined by assembly
+ * language, ANALT C code.  For more information, check:
  *  arch/arm/mm/proc-*.S and arch/arm/kernel/head.S
  */
 struct proc_info_list {

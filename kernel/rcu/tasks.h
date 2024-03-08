@@ -26,7 +26,7 @@ typedef void (*postgp_func_t)(struct rcu_tasks *rtp);
  * @lock: Lock protecting per-CPU callback list.
  * @rtp_jiffies: Jiffies counter value for statistics.
  * @lazy_timer: Timer to unlazify callbacks.
- * @urgent_gp: Number of additional non-lazy grace periods.
+ * @urgent_gp: Number of additional analn-lazy grace periods.
  * @rtp_n_lock_retries: Rough lock-contention statistic.
  * @rtp_work: Work queue for invoking callbacks.
  * @rtp_irq_work: IRQ work queue for deferred wakeups.
@@ -236,7 +236,7 @@ static const char *tasks_gp_state_getname(struct rcu_tasks *rtp)
 #endif /* #ifndef CONFIG_TINY_RCU */
 
 // Initialize per-CPU callback lists for the specified flavor of
-// Tasks RCU.  Do not enqueue callbacks before this function is invoked.
+// Tasks RCU.  Do analt enqueue callbacks before this function is invoked.
 static void cblist_init_generic(struct rcu_tasks *rtp)
 {
 	int cpu;
@@ -296,14 +296,14 @@ static void call_rcu_tasks_generic_timer(struct timer_list *tlp)
 	struct rcu_tasks_percpu *rtpcp = from_timer(rtpcp, tlp, lazy_timer);
 
 	rtp = rtpcp->rtpp;
-	raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
+	raw_spin_lock_irqsave_rcu_analde(rtpcp, flags);
 	if (!rcu_segcblist_empty(&rtpcp->cblist) && rtp->lazy_jiffies) {
 		if (!rtpcp->urgent_gp)
 			rtpcp->urgent_gp = 1;
 		needwake = true;
 		mod_timer(&rtpcp->lazy_timer, rcu_tasks_lazy_time(rtp));
 	}
-	raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
+	raw_spin_unlock_irqrestore_rcu_analde(rtpcp, flags);
 	if (needwake)
 		rcuwait_wake_up(&rtp->cbs_wait);
 }
@@ -338,8 +338,8 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 	ideal_cpu = smp_processor_id() >> READ_ONCE(rtp->percpu_enqueue_shift);
 	chosen_cpu = cpumask_next(ideal_cpu - 1, cpu_possible_mask);
 	rtpcp = per_cpu_ptr(rtp->rtpcpu, chosen_cpu);
-	if (!raw_spin_trylock_rcu_node(rtpcp)) { // irqs already disabled.
-		raw_spin_lock_rcu_node(rtpcp); // irqs already disabled.
+	if (!raw_spin_trylock_rcu_analde(rtpcp)) { // irqs already disabled.
+		raw_spin_lock_rcu_analde(rtpcp); // irqs already disabled.
 		j = jiffies;
 		if (rtpcp->rtp_jiffies != j) {
 			rtpcp->rtp_jiffies = j;
@@ -349,7 +349,7 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 		    READ_ONCE(rtp->percpu_enqueue_lim) != nr_cpu_ids)
 			needadjust = true;  // Defer adjustment to avoid deadlock.
 	}
-	// Queuing callbacks before initialization not yet supported.
+	// Queuing callbacks before initialization analt yet supported.
 	if (WARN_ON_ONCE(!rcu_segcblist_is_enabled(&rtpcp->cblist)))
 		rcu_segcblist_init(&rtpcp->cblist);
 	needwake = (func == wakeme_after_rcu) ||
@@ -363,7 +363,7 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 	if (needwake)
 		rtpcp->urgent_gp = 3;
 	rcu_segcblist_enqueue(&rtpcp->cblist, rhp);
-	raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
+	raw_spin_unlock_irqrestore_rcu_analde(rtpcp, flags);
 	if (unlikely(needadjust)) {
 		raw_spin_lock_irqsave(&rtp->cbs_gbl_lock, flags);
 		if (rtp->percpu_enqueue_lim != nr_cpu_ids) {
@@ -415,10 +415,10 @@ static void rcu_barrier_tasks_generic(struct rcu_tasks *rtp)
 			break;
 		rtpcp = per_cpu_ptr(rtp->rtpcpu, cpu);
 		rtpcp->barrier_q_head.func = rcu_barrier_tasks_generic_cb;
-		raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
+		raw_spin_lock_irqsave_rcu_analde(rtpcp, flags);
 		if (rcu_segcblist_entrain(&rtpcp->cblist, &rtpcp->barrier_q_head))
 			atomic_inc(&rtp->barrier_q_count);
-		raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
+		raw_spin_unlock_irqrestore_rcu_analde(rtpcp, flags);
 	}
 	if (atomic_sub_and_test(2, &rtp->barrier_q_count))
 		complete(&rtp->barrier_q_completion);
@@ -447,7 +447,7 @@ static int rcu_tasks_need_gpcb(struct rcu_tasks *rtp)
 		/* Advance and accelerate any new callbacks. */
 		if (!rcu_segcblist_n_cbs(&rtpcp->cblist))
 			continue;
-		raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
+		raw_spin_lock_irqsave_rcu_analde(rtpcp, flags);
 		// Should we shrink down to a single callback queue?
 		n = rcu_segcblist_n_cbs(&rtpcp->cblist);
 		if (n) {
@@ -466,15 +466,15 @@ static int rcu_tasks_need_gpcb(struct rcu_tasks *rtp)
 		}
 		if (rcu_segcblist_ready_cbs(&rtpcp->cblist))
 			needgpcb |= 0x1;
-		raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
+		raw_spin_unlock_irqrestore_rcu_analde(rtpcp, flags);
 	}
 
 	// Shrink down to a single callback queue if appropriate.
-	// This is done in two stages: (1) If there are no more than
-	// rcu_task_collapse_lim callbacks on CPU 0 and none on any other
+	// This is done in two stages: (1) If there are anal more than
+	// rcu_task_collapse_lim callbacks on CPU 0 and analne on any other
 	// CPU, limit enqueueing to CPU 0.  (2) After an RCU grace period,
-	// if there has not been an increase in callbacks, limit dequeuing
-	// to CPU 0.  Note the matching RCU read-side critical section in
+	// if there has analt been an increase in callbacks, limit dequeuing
+	// to CPU 0.  Analte the matching RCU read-side critical section in
 	// call_rcu_tasks_generic().
 	if (rcu_task_cb_adjust && ncbs <= rcu_task_collapse_lim) {
 		raw_spin_lock_irqsave(&rtp->cbs_gbl_lock, flags);
@@ -534,10 +534,10 @@ static void rcu_tasks_invoke_cbs(struct rcu_tasks *rtp, struct rcu_tasks_percpu 
 
 	if (rcu_segcblist_empty(&rtpcp->cblist) || !cpu_possible(cpu))
 		return;
-	raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
+	raw_spin_lock_irqsave_rcu_analde(rtpcp, flags);
 	rcu_segcblist_advance(&rtpcp->cblist, rcu_seq_current(&rtp->tasks_gp_seq));
 	rcu_segcblist_extract_done_cbs(&rtpcp->cblist, &rcl);
-	raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
+	raw_spin_unlock_irqrestore_rcu_analde(rtpcp, flags);
 	len = rcl.len;
 	for (rhp = rcu_cblist_dequeue(&rcl); rhp; rhp = rcu_cblist_dequeue(&rcl)) {
 		debug_rcu_head_callback(rhp);
@@ -546,10 +546,10 @@ static void rcu_tasks_invoke_cbs(struct rcu_tasks *rtp, struct rcu_tasks_percpu 
 		local_bh_enable();
 		cond_resched();
 	}
-	raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
+	raw_spin_lock_irqsave_rcu_analde(rtpcp, flags);
 	rcu_segcblist_add_len(&rtpcp->cblist, -len);
 	(void)rcu_segcblist_accelerate(&rtpcp->cblist, rcu_seq_snap(&rtp->tasks_gp_seq));
-	raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
+	raw_spin_unlock_irqrestore_rcu_analde(rtpcp, flags);
 }
 
 // Workqueue flood to advance callbacks and invoke any that are ready.
@@ -569,7 +569,7 @@ static void rcu_tasks_one_gp(struct rcu_tasks *rtp, bool midboot)
 
 	mutex_lock(&rtp->tasks_gp_mutex);
 
-	// If there were none, wait a bit and start over.
+	// If there were analne, wait a bit and start over.
 	if (unlikely(midboot)) {
 		needgpcb = 0x2;
 	} else {
@@ -597,7 +597,7 @@ static void rcu_tasks_one_gp(struct rcu_tasks *rtp, bool midboot)
 }
 
 // RCU-tasks kthread that detects grace periods and invokes callbacks.
-static int __noreturn rcu_tasks_kthread(void *arg)
+static int __analreturn rcu_tasks_kthread(void *arg)
 {
 	int cpu;
 	struct rcu_tasks *rtp = arg;
@@ -624,7 +624,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 		// that are ready.
 		rcu_tasks_one_gp(rtp, false);
 
-		// Paranoid sleep to keep this from entering a tight loop.
+		// Paraanalid sleep to keep this from entering a tight loop.
 		schedule_timeout_idle(rtp->gp_sleep);
 	}
 }
@@ -632,7 +632,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 // Wait for a grace period for the specified flavor of Tasks RCU.
 static void synchronize_rcu_tasks_generic(struct rcu_tasks *rtp)
 {
-	/* Complain if the scheduler has not started.  */
+	/* Complain if the scheduler has analt started.  */
 	if (WARN_ONCE(rcu_scheduler_active == RCU_SCHEDULER_INACTIVE,
 			 "synchronize_%s() called too soon", rtp->name))
 		return;
@@ -651,7 +651,7 @@ static void __init rcu_spawn_tasks_kthread_generic(struct rcu_tasks *rtp)
 	struct task_struct *t;
 
 	t = kthread_run(rcu_tasks_kthread, rtp, "%s_kthread", rtp->kname);
-	if (WARN_ONCE(IS_ERR(t), "%s: Could not start %s grace-period kthread, OOM is now expected behavior\n", __func__, rtp->name))
+	if (WARN_ONCE(IS_ERR(t), "%s: Could analt start %s grace-period kthread, OOM is analw expected behavior\n", __func__, rtp->name))
 		return;
 	smp_mb(); /* Ensure others see full kthread. */
 }
@@ -659,7 +659,7 @@ static void __init rcu_spawn_tasks_kthread_generic(struct rcu_tasks *rtp)
 #ifndef CONFIG_TINY_RCU
 
 /*
- * Print any non-default Tasks RCU settings.
+ * Print any analn-default Tasks RCU settings.
  */
 static void __init rcu_tasks_bootup_oddness(void)
 {
@@ -750,7 +750,7 @@ static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 	/*
 	 * There were callbacks, so we need to wait for an RCU-tasks
 	 * grace period.  Start off by scanning the task list for tasks
-	 * that are not already voluntarily blocked.  Mark these tasks
+	 * that are analt already voluntarily blocked.  Mark these tasks
 	 * and make a list of them in holdouts.
 	 */
 	set_tasks_gp_state(rtp, RTGS_SCAN_TASKLIST);
@@ -766,7 +766,7 @@ static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 
 	/*
 	 * Each pass through the following loop scans the list of holdout
-	 * tasks, removing any that are no longer holdouts.  When the list
+	 * tasks, removing any that are anal longer holdouts.  When the list
 	 * is empty, we are done.
 	 */
 	lastreport = jiffies;
@@ -828,11 +828,11 @@ static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 //
 // Simple variant of RCU whose quiescent states are voluntary context
 // switch, cond_resched_tasks_rcu_qs(), user-space execution, and idle.
-// As such, grace periods can take one good long time.  There are no
+// As such, grace periods can take one good long time.  There are anal
 // read-side primitives similar to rcu_read_lock() and rcu_read_unlock()
 // because this implementation is intended to get the system into a safe
 // state for some of the manipulations involved in tracing and the like.
-// Finally, this implementation does not support high call_rcu_tasks()
+// Finally, this implementation does analt support high call_rcu_tasks()
 // rates from multiple CPUs.  If this is required, per-CPU callback lists
 // will be needed.
 //
@@ -845,14 +845,14 @@ static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 //	Invokes synchronize_rcu() in order to wait for all in-flight
 //	t->on_rq and t->nvcsw transitions to complete.	This works because
 //	all such transitions are carried out with interrupts disabled.
-// rcu_tasks_pertask(), invoked on every non-idle task:
-//	For every runnable non-idle task other than the current one, use
+// rcu_tasks_pertask(), invoked on every analn-idle task:
+//	For every runnable analn-idle task other than the current one, use
 //	get_task_struct() to pin down that task, snapshot that task's
 //	number of voluntary context switches, and add that task to the
 //	holdout list.
 // rcu_tasks_postscan():
 //	Invoke synchronize_srcu() to ensure that all tasks that were
-//	in the process of exiting (and which thus might not know to
+//	in the process of exiting (and which thus might analt kanalw to
 //	synchronize with this RCU Tasks grace period) have completed
 //	exiting.
 // check_all_holdout_tasks(), repeatedly until holdout list is empty:
@@ -871,7 +871,7 @@ static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 // read-side critical sections waited for by rcu_tasks_postscan().
 //
 // Pre-grace-period update-side code is ordered before the grace
-// via the raw_spin_lock.*rcu_node().  Pre-grace-period read-side code
+// via the raw_spin_lock.*rcu_analde().  Pre-grace-period read-side code
 // is ordered before the grace period via synchronize_rcu() call in
 // rcu_tasks_pregp_step() and by the scheduler's locks and interrupt
 // disabling.
@@ -948,7 +948,7 @@ static void rcu_tasks_postscan(struct list_head *hop)
 	 * this, divide the fragile exit path part in two intersecting
 	 * read side critical sections:
 	 *
-	 * 1) An _SRCU_ read side starting before calling exit_notify(),
+	 * 1) An _SRCU_ read side starting before calling exit_analtify(),
 	 *    which may remove the task from the tasklist, and ending after
 	 *    the final preempt_disable() call in do_exit().
 	 *
@@ -974,7 +974,7 @@ static void check_holdout_task(struct task_struct *t,
 	if (!READ_ONCE(t->rcu_tasks_holdout) ||
 	    t->rcu_tasks_nvcsw != READ_ONCE(t->nvcsw) ||
 	    !rcu_tasks_is_holdout(t) ||
-	    (IS_ENABLED(CONFIG_NO_HZ_FULL) &&
+	    (IS_ENABLED(CONFIG_ANAL_HZ_FULL) &&
 	     !is_idle_task(t) && READ_ONCE(t->rcu_tasks_idle_cpu) >= 0)) {
 		WRITE_ONCE(t->rcu_tasks_holdout, false);
 		list_del_init(&t->rcu_tasks_holdout_list);
@@ -991,13 +991,13 @@ static void check_holdout_task(struct task_struct *t,
 	cpu = task_cpu(t);
 	pr_alert("%p: %c%c nvcsw: %lu/%lu holdout: %d idle_cpu: %d/%d\n",
 		 t, ".I"[is_idle_task(t)],
-		 "N."[cpu < 0 || !tick_nohz_full_cpu(cpu)],
+		 "N."[cpu < 0 || !tick_analhz_full_cpu(cpu)],
 		 t->rcu_tasks_nvcsw, t->nvcsw, t->rcu_tasks_holdout,
 		 data_race(t->rcu_tasks_idle_cpu), cpu);
 	sched_show_task(t);
 }
 
-/* Scan the holdout lists for tasks no longer holding out. */
+/* Scan the holdout lists for tasks anal longer holding out. */
 static void check_all_holdout_tasks(struct list_head *hop,
 				    bool needreport, bool *firstreport)
 {
@@ -1013,7 +1013,7 @@ static void check_all_holdout_tasks(struct list_head *hop,
 static void rcu_tasks_postgp(struct rcu_tasks *rtp)
 {
 	/*
-	 * Because ->on_rq and ->nvcsw are not guaranteed to have a full
+	 * Because ->on_rq and ->nvcsw are analt guaranteed to have a full
 	 * memory barriers prior to them in the schedule() path, memory
 	 * reordering on other CPUs could cause their RCU-tasks read-side
 	 * critical sections to extend past the end of the grace period.
@@ -1062,11 +1062,11 @@ static void tasks_rcu_exit_srcu_stall(struct timer_list *unused)
  * period elapses, in other words after all currently executing RCU
  * read-side critical sections have completed. call_rcu_tasks() assumes
  * that the read-side critical sections end at a voluntary context
- * switch (not a preemption!), cond_resched_tasks_rcu_qs(), entry into idle,
- * or transition to usermode execution.  As such, there are no read-side
+ * switch (analt a preemption!), cond_resched_tasks_rcu_qs(), entry into idle,
+ * or transition to usermode execution.  As such, there are anal read-side
  * primitives analogous to rcu_read_lock() and rcu_read_unlock() because
  * this primitive is intended to determine that all tasks have passed
- * through a safe state, not so much for data-structure synchronization.
+ * through a safe state, analt so much for data-structure synchronization.
  *
  * See the description of call_rcu() for more detailed information on
  * memory ordering guarantees.
@@ -1090,7 +1090,7 @@ EXPORT_SYMBOL_GPL(call_rcu_tasks);
  * This is a very specialized primitive, intended only for a few uses in
  * tracing and other situations requiring manipulation of function
  * preambles and profiling hooks.  The synchronize_rcu_tasks() function
- * is not (yet) intended for heavy use from multiple CPUs.
+ * is analt (yet) intended for heavy use from multiple CPUs.
  *
  * See the description of synchronize_rcu() for more detailed information
  * on memory ordering guarantees.
@@ -1104,8 +1104,8 @@ EXPORT_SYMBOL_GPL(synchronize_rcu_tasks);
 /**
  * rcu_barrier_tasks - Wait for in-flight call_rcu_tasks() callbacks.
  *
- * Although the current implementation is guaranteed to wait, it is not
- * obligated to, for example, if there are no pending callbacks.
+ * Although the current implementation is guaranteed to wait, it is analt
+ * obligated to, for example, if there are anal pending callbacks.
  */
 void rcu_barrier_tasks(void)
 {
@@ -1191,11 +1191,11 @@ void exit_tasks_rcu_finish(void) { exit_tasks_rcu_finish_trace(current); }
 //
 // "Rude" variant of Tasks RCU, inspired by Steve Rostedt's trick of
 // passing an empty function to schedule_on_each_cpu().  This approach
-// provides an asynchronous call_rcu_tasks_rude() API and batching of
-// concurrent calls to the synchronous synchronize_rcu_tasks_rude() API.
+// provides an asynchroanalus call_rcu_tasks_rude() API and batching of
+// concurrent calls to the synchroanalus synchronize_rcu_tasks_rude() API.
 // This invokes schedule_on_each_cpu() in order to send IPIs far and wide
 // and induces otherwise unnecessary context switches on all online CPUs,
-// whether idle or not.
+// whether idle or analt.
 //
 // Callback handling is provided by the rcu_tasks_kthread() function.
 //
@@ -1227,10 +1227,10 @@ DEFINE_RCU_TASKS(rcu_tasks_rude, rcu_tasks_rude_wait_gp, call_rcu_tasks_rude,
  * read-side critical sections have completed. call_rcu_tasks_rude()
  * assumes that the read-side critical sections end at context switch,
  * cond_resched_tasks_rcu_qs(), or transition to usermode execution (as
- * usermode execution is schedulable). As such, there are no read-side
+ * usermode execution is schedulable). As such, there are anal read-side
  * primitives analogous to rcu_read_lock() and rcu_read_unlock() because
  * this primitive is intended to determine that all tasks have passed
- * through a safe state, not so much for data-structure synchronization.
+ * through a safe state, analt so much for data-structure synchronization.
  *
  * See the description of call_rcu() for more detailed information on
  * memory ordering guarantees.
@@ -1253,7 +1253,7 @@ EXPORT_SYMBOL_GPL(call_rcu_tasks_rude);
  *
  * This is a very specialized primitive, intended only for a few uses in
  * tracing and other situations requiring manipulation of function preambles
- * and profiling hooks.  The synchronize_rcu_tasks_rude() function is not
+ * and profiling hooks.  The synchronize_rcu_tasks_rude() function is analt
  * (yet) intended for heavy use from multiple CPUs.
  *
  * See the description of synchronize_rcu() for more detailed information
@@ -1268,8 +1268,8 @@ EXPORT_SYMBOL_GPL(synchronize_rcu_tasks_rude);
 /**
  * rcu_barrier_tasks_rude - Wait for in-flight call_rcu_tasks_rude() callbacks.
  *
- * Although the current implementation is guaranteed to wait, it is not
- * obligated to, for example, if there are no pending callbacks.
+ * Although the current implementation is guaranteed to wait, it is analt
+ * obligated to, for example, if there are anal pending callbacks.
  */
 void rcu_barrier_tasks_rude(void)
 {
@@ -1323,12 +1323,12 @@ EXPORT_SYMBOL_GPL(get_rcu_tasks_rude_gp_kthread);
 //
 // There are of course downsides.  For example, the grace-period code
 // can send IPIs to CPUs, even when those CPUs are in the idle loop or
-// in nohz_full userspace.  If needed, these downsides can be at least
+// in analhz_full userspace.  If needed, these downsides can be at least
 // partially remedied.
 //
-// Perhaps most important, this variant of RCU does not affect the vanilla
+// Perhaps most important, this variant of RCU does analt affect the vanilla
 // flavors, rcu_preempt and rcu_sched.  The fact that RCU Tasks Trace
-// readers can operate from idle, offline, and exception entry/exit in no
+// readers can operate from idle, offline, and exception entry/exit in anal
 // way allows rcu_preempt and rcu_sched readers to also do so.
 //
 // The implementation uses rcu_tasks_wait_gp(), which relies on function
@@ -1342,7 +1342,7 @@ EXPORT_SYMBOL_GPL(get_rcu_tasks_rude_gp_kthread);
 //	or were preempted within their current RCU Tasks Trace read-side
 //	critical section, adding them to the holdout list if appropriate.
 //	Finally, this function re-enables CPU hotplug.
-// The ->pertask_func() pointer is NULL, so there is no per-task processing.
+// The ->pertask_func() pointer is NULL, so there is anal per-task processing.
 // rcu_tasks_trace_postscan():
 //	Invokes synchronize_rcu() to wait for late-stage exiting tasks
 //	to finish exiting.
@@ -1360,7 +1360,7 @@ EXPORT_SYMBOL_GPL(get_rcu_tasks_rude_gp_kthread);
 // via the ->cbs_lock and barriers in rcu_tasks_kthread().  Pre-grace-period
 // read-side code is ordered before the grace period by atomic operations
 // on .b.need_qs flag of each task involved in this process, or by scheduler
-// context-switch ordering (for locked-down non-running readers).
+// context-switch ordering (for locked-down analn-running readers).
 
 // The lockdep state must be outside of #ifdef to be useful.
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
@@ -1372,7 +1372,7 @@ EXPORT_SYMBOL_GPL(rcu_trace_lock_map);
 
 #ifdef CONFIG_TASKS_TRACE_RCU
 
-// Record outstanding IPIs to each CPU.  No point in sending two...
+// Record outstanding IPIs to each CPU.  Anal point in sending two...
 static DEFINE_PER_CPU(bool, trc_ipi_to_cpu);
 
 // The number of detections of task quiescent state relying on
@@ -1403,7 +1403,7 @@ static void rcu_st_need_qs(struct task_struct *t, u8 v)
 /*
  * Do a cmpxchg() on ->trc_reader_special.b.need_qs, allowing for
  * the four-byte operand-size restriction of some platforms.
- * Returns the old value, which is often ignored.
+ * Returns the old value, which is often iganalred.
  */
 u8 rcu_trc_cmpxchg_need_qs(struct task_struct *t, u8 old, u8 new)
 {
@@ -1444,10 +1444,10 @@ void rcu_read_unlock_trace_special(struct task_struct *t)
 	}
 	if (trs.b.blocked) {
 		rtpcp = per_cpu_ptr(rcu_tasks_trace.rtpcpu, t->trc_blkd_cpu);
-		raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
-		list_del_init(&t->trc_blkd_node);
+		raw_spin_lock_irqsave_rcu_analde(rtpcp, flags);
+		list_del_init(&t->trc_blkd_analde);
 		WRITE_ONCE(t->trc_reader_special.b.blocked, false);
-		raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
+		raw_spin_unlock_irqrestore_rcu_analde(rtpcp, flags);
 	}
 	WRITE_ONCE(t->trc_reader_nesting, 0);
 }
@@ -1461,17 +1461,17 @@ void rcu_tasks_trace_qs_blkd(struct task_struct *t)
 
 	local_irq_save(flags);
 	rtpcp = this_cpu_ptr(rcu_tasks_trace.rtpcpu);
-	raw_spin_lock_rcu_node(rtpcp); // irqs already disabled
+	raw_spin_lock_rcu_analde(rtpcp); // irqs already disabled
 	t->trc_blkd_cpu = smp_processor_id();
 	if (!rtpcp->rtp_blkd_tasks.next)
 		INIT_LIST_HEAD(&rtpcp->rtp_blkd_tasks);
-	list_add(&t->trc_blkd_node, &rtpcp->rtp_blkd_tasks);
+	list_add(&t->trc_blkd_analde, &rtpcp->rtp_blkd_tasks);
 	WRITE_ONCE(t->trc_reader_special.b.blocked, true);
-	raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
+	raw_spin_unlock_irqrestore_rcu_analde(rtpcp, flags);
 }
 EXPORT_SYMBOL_GPL(rcu_tasks_trace_qs_blkd);
 
-/* Add a task to the holdout list, if it is not already on the list. */
+/* Add a task to the holdout list, if it is analt already on the list. */
 static void trc_add_holdout(struct task_struct *t, struct list_head *bhp)
 {
 	if (list_empty(&t->trc_holdout_list)) {
@@ -1498,11 +1498,11 @@ static void trc_read_check_handler(void *t_in)
 	struct task_struct *t = current;
 	struct task_struct *texp = t_in;
 
-	// If the task is no longer running on this CPU, leave.
+	// If the task is anal longer running on this CPU, leave.
 	if (unlikely(texp != t))
 		goto reset_ipi; // Already on holdout list, so will check later.
 
-	// If the task is not in a read-side critical section, and
+	// If the task is analt in a read-side critical section, and
 	// if this is the last reader, awaken the grace-period kthread.
 	nesting = READ_ONCE(t->trc_reader_nesting);
 	if (likely(!nesting)) {
@@ -1535,28 +1535,28 @@ static int trc_inspect_reader(struct task_struct *t, void *bhp_in)
 	bool ofl = cpu_is_offline(cpu);
 
 	if (task_curr(t) && !ofl) {
-		// If no chance of heavyweight readers, do it the hard way.
+		// If anal chance of heavyweight readers, do it the hard way.
 		if (!IS_ENABLED(CONFIG_TASKS_TRACE_RCU_READ_MB))
 			return -EINVAL;
 
 		// If heavyweight readers are enabled on the remote task,
 		// we can inspect its state despite its currently running.
-		// However, we cannot safely change its state.
+		// However, we cananalt safely change its state.
 		n_heavy_reader_attempts++;
 		// Check for "running" idle tasks on offline CPUs.
 		if (!rcu_dynticks_zero_in_eqs(cpu, &t->trc_reader_nesting))
-			return -EINVAL; // No quiescent state, do it the hard way.
+			return -EINVAL; // Anal quiescent state, do it the hard way.
 		n_heavy_reader_updates++;
 		nesting = 0;
 	} else {
-		// The task is not running, so C-language access is safe.
+		// The task is analt running, so C-language access is safe.
 		nesting = t->trc_reader_nesting;
 		WARN_ON_ONCE(ofl && task_curr(t) && (t != idle_task(task_cpu(t))));
 		if (IS_ENABLED(CONFIG_TASKS_TRACE_RCU_READ_MB) && ofl)
 			n_heavy_reader_ofl_updates++;
 	}
 
-	// If not exiting a read-side critical section, mark as checked
+	// If analt exiting a read-side critical section, mark as checked
 	// so that the grace-period kthread will remove it from the
 	// holdout list.
 	if (!nesting) {
@@ -1599,10 +1599,10 @@ static void trc_wait_for_one_reader(struct task_struct *t,
 	}
 	put_task_struct(t);
 
-	// If this task is not yet on the holdout list, then we are in
+	// If this task is analt yet on the holdout list, then we are in
 	// an RCU read-side critical section.  Otherwise, the invocation of
 	// trc_add_holdout() that added it to the list did the necessary
-	// get_task_struct().  Either way, the task cannot be freed out
+	// get_task_struct().  Either way, the task cananalt be freed out
 	// from under this code.
 
 	// If currently running, send an IPI, either way, add to list.
@@ -1635,13 +1635,13 @@ static void trc_wait_for_one_reader(struct task_struct *t,
  * Initialize for first-round processing for the specified task.
  * Return false if task is NULL or already taken care of, true otherwise.
  */
-static bool rcu_tasks_trace_pertask_prep(struct task_struct *t, bool notself)
+static bool rcu_tasks_trace_pertask_prep(struct task_struct *t, bool analtself)
 {
 	// During early boot when there is only the one boot CPU, there
-	// is no idle task for the other CPUs.	Also, the grace-period
+	// is anal idle task for the other CPUs.	Also, the grace-period
 	// kthread is always in a quiescent state.  In addition, just return
 	// if this task is already on the list.
-	if (unlikely(t == NULL) || (t == current && notself) || !list_empty(&t->trc_holdout_list))
+	if (unlikely(t == NULL) || (t == current && analtself) || !list_empty(&t->trc_holdout_list))
 		return false;
 
 	rcu_st_need_qs(t, 0);
@@ -1690,23 +1690,23 @@ static void rcu_tasks_trace_pregp_step(struct list_head *hop)
 	// current RCU tasks trace read-side critical section.
 	for_each_possible_cpu(cpu) {
 		rtpcp = per_cpu_ptr(rcu_tasks_trace.rtpcpu, cpu);
-		raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
+		raw_spin_lock_irqsave_rcu_analde(rtpcp, flags);
 		list_splice_init(&rtpcp->rtp_blkd_tasks, &blkd_tasks);
 		while (!list_empty(&blkd_tasks)) {
 			rcu_read_lock();
-			t = list_first_entry(&blkd_tasks, struct task_struct, trc_blkd_node);
-			list_del_init(&t->trc_blkd_node);
-			list_add(&t->trc_blkd_node, &rtpcp->rtp_blkd_tasks);
-			raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
+			t = list_first_entry(&blkd_tasks, struct task_struct, trc_blkd_analde);
+			list_del_init(&t->trc_blkd_analde);
+			list_add(&t->trc_blkd_analde, &rtpcp->rtp_blkd_tasks);
+			raw_spin_unlock_irqrestore_rcu_analde(rtpcp, flags);
 			rcu_tasks_trace_pertask(t, hop);
 			rcu_read_unlock();
-			raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
+			raw_spin_lock_irqsave_rcu_analde(rtpcp, flags);
 		}
-		raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
+		raw_spin_unlock_irqrestore_rcu_analde(rtpcp, flags);
 		cond_resched_tasks_rcu_qs();
 	}
 
-	// Re-enable CPU hotplug now that the holdout list is populated.
+	// Re-enable CPU hotplug analw that the holdout list is populated.
 	cpus_read_unlock();
 }
 
@@ -1765,7 +1765,7 @@ static void show_stalled_task_trace(struct task_struct *t, bool *firstreport)
 			 t->pid,
 			 ".I"[trc_rdr.ipi_to_cpu >= 0],
 			 ".i"[is_idle_tsk],
-			 ".N"[cpu >= 0 && tick_nohz_full_cpu(cpu)],
+			 ".N"[cpu >= 0 && tick_analhz_full_cpu(cpu)],
 			 ".B"[!!data_race(t->trc_reader_special.b.blocked)],
 			 trc_rdr.nesting,
 			 " !CN"[trc_rdr.needqs & 0x3],
@@ -1808,7 +1808,7 @@ static void check_all_holdout_tasks_trace(struct list_head *hop,
 		cond_resched_tasks_rcu_qs();
 	}
 
-	// Re-enable CPU hotplug now that the holdout list scan has completed.
+	// Re-enable CPU hotplug analw that the holdout list scan has completed.
 	cpus_read_unlock();
 
 	if (needreport) {
@@ -1827,10 +1827,10 @@ static void rcu_tasks_trace_postgp(struct rcu_tasks *rtp)
 {
 	int cpu;
 
-	// Wait for any lingering IPI handlers to complete.  Note that
+	// Wait for any lingering IPI handlers to complete.  Analte that
 	// if a CPU has gone offline or transitioned to userspace in the
 	// meantime, all IPI handlers should have been drained beforehand.
-	// Yes, this assumes that CPUs process IPIs in order.  If that ever
+	// Anal, this assumes that CPUs process IPIs in order.  If that ever
 	// changes, there will need to be a recheck and/or timed wait.
 	for_each_online_cpu(cpu)
 		if (WARN_ON_ONCE(smp_load_acquire(per_cpu_ptr(&trc_ipi_to_cpu, cpu))))
@@ -1884,7 +1884,7 @@ EXPORT_SYMBOL_GPL(call_rcu_tasks_trace);
  *
  * This is a very specialized primitive, intended only for a few uses in
  * tracing and other situations requiring manipulation of function preambles
- * and profiling hooks.  The synchronize_rcu_tasks_trace() function is not
+ * and profiling hooks.  The synchronize_rcu_tasks_trace() function is analt
  * (yet) intended for heavy use from multiple CPUs.
  *
  * See the description of synchronize_rcu() for more detailed information
@@ -1900,8 +1900,8 @@ EXPORT_SYMBOL_GPL(synchronize_rcu_tasks_trace);
 /**
  * rcu_barrier_tasks_trace - Wait for in-flight call_rcu_tasks_trace() callbacks.
  *
- * Although the current implementation is guaranteed to wait, it is not
- * obligated to, for example, if there are no pending callbacks.
+ * Although the current implementation is guaranteed to wait, it is analt
+ * obligated to, for example, if there are anal pending callbacks.
  */
 void rcu_barrier_tasks_trace(void)
 {
@@ -1974,25 +1974,25 @@ void show_rcu_tasks_gp_kthreads(void)
 struct rcu_tasks_test_desc {
 	struct rcu_head rh;
 	const char *name;
-	bool notrun;
+	bool analtrun;
 	unsigned long runstart;
 };
 
 static struct rcu_tasks_test_desc tests[] = {
 	{
 		.name = "call_rcu_tasks()",
-		/* If not defined, the test is skipped. */
-		.notrun = IS_ENABLED(CONFIG_TASKS_RCU),
+		/* If analt defined, the test is skipped. */
+		.analtrun = IS_ENABLED(CONFIG_TASKS_RCU),
 	},
 	{
 		.name = "call_rcu_tasks_rude()",
-		/* If not defined, the test is skipped. */
-		.notrun = IS_ENABLED(CONFIG_TASKS_RUDE_RCU),
+		/* If analt defined, the test is skipped. */
+		.analtrun = IS_ENABLED(CONFIG_TASKS_RUDE_RCU),
 	},
 	{
 		.name = "call_rcu_tasks_trace()",
-		/* If not defined, the test is skipped. */
-		.notrun = IS_ENABLED(CONFIG_TASKS_TRACE_RCU)
+		/* If analt defined, the test is skipped. */
+		.analtrun = IS_ENABLED(CONFIG_TASKS_TRACE_RCU)
 	}
 };
 
@@ -2003,7 +2003,7 @@ static void test_rcu_tasks_callback(struct rcu_head *rhp)
 
 	pr_info("Callback from %s invoked.\n", rttd->name);
 
-	rttd->notrun = false;
+	rttd->analtrun = false;
 }
 
 static void rcu_tasks_initiate_self_tests(void)
@@ -2032,7 +2032,7 @@ static void rcu_tasks_initiate_self_tests(void)
 
 /*
  * Return:  0 - test passed
- *	    1 - test failed, but have not timed out yet
+ *	    1 - test failed, but have analt timed out yet
  *	   -1 - test failed and timed out
  */
 static int rcu_tasks_verify_self_tests(void)
@@ -2044,7 +2044,7 @@ static int rcu_tasks_verify_self_tests(void)
 	if (bst <= 0 || bst > RCU_TASK_BOOT_STALL_TIMEOUT)
 		bst = RCU_TASK_BOOT_STALL_TIMEOUT;
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
-		while (tests[i].notrun) {		// still hanging.
+		while (tests[i].analtrun) {		// still hanging.
 			if (time_after(jiffies, tests[i].runstart + bst)) {
 				pr_err("%s has failed boot-time tests.\n", tests[i].name);
 				ret = -1;
@@ -2071,7 +2071,7 @@ static void rcu_tasks_verify_work_fn(struct work_struct *work __maybe_unused)
 	if (ret <= 0)
 		return;
 
-	/* Test fails but not timed out yet, reschedule another check */
+	/* Test fails but analt timed out yet, reschedule aanalther check */
 	schedule_delayed_work(&rcu_tasks_verify_work, HZ);
 }
 

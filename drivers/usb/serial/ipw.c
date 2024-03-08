@@ -5,15 +5,15 @@
  *   Copyright (C) 2004 Roelf Diedericks <roelfd@inet.co.za>
  *   Copyright (C) 2004 Greg Kroah-Hartman <greg@kroah.com>
  *
- * All information about the device was acquired using SnoopyPro
+ * All information about the device was acquired using SanalopyPro
  * on MSFT's O/S, and examing the MSFT drivers' debug output
  * (insanely left _on_ in the enduser version)
  *
  * It was written out of frustration with the IPWireless USB modem
- * supplied by Axity3G/Sentech South Africa not supporting
+ * supplied by Axity3G/Sentech South Africa analt supporting
  * Linux whatsoever.
  *
- * Nobody provided any proprietary information that was not already
+ * Analbody provided any proprietary information that was analt already
  * available for this device.
  *
  * The modem adheres to the "3GPP TS  27.007 AT command set for 3G
@@ -28,12 +28,12 @@
  *
  * There is still some work to be done in terms of handling
  * DCD, DTR, RTS, CTS which are currently faked.
- * It's good enough for PPP at this point. It's based off all kinds of
+ * It's good eanalugh for PPP at this point. It's based off all kinds of
  * code found in usb/serial and usb/class
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -47,8 +47,8 @@
 #define DRIVER_AUTHOR	"Roelf Diedericks"
 #define DRIVER_DESC	"IPWireless tty driver"
 
-#define IPW_TTY_MAJOR	240	/* real device node major id, experimental range */
-#define IPW_TTY_MINORS	256	/* we support 256 devices, dunno why, it'd be insane :) */
+#define IPW_TTY_MAJOR	240	/* real device analde major id, experimental range */
+#define IPW_TTY_MIANALRS	256	/* we support 256 devices, dunanal why, it'd be insane :) */
 
 #define USB_IPW_MAGIC	0x6d02	/* magic number for ipw struct */
 
@@ -57,7 +57,7 @@
 #define EVENT_BUFFER_SIZE	0xFF
 #define CHAR2INT16(c1, c0)	(((u32)((c1) & 0xff) << 8) + (u32)((c0) & 0xff))
 
-/* vendor/product pairs that are known work with this driver*/
+/* vendor/product pairs that are kanalwn work with this driver*/
 #define IPW_VID		0x0bc3
 #define IPW_PID		0x0001
 
@@ -83,7 +83,7 @@ enum {
 
 /* data bits */
 #define ipw_dtb_7		0x700
-#define ipw_dtb_8		0x810	/* ok so the define is misleading, I know, but forces 8,n,1 */
+#define ipw_dtb_8		0x810	/* ok so the define is misleading, I kanalw, but forces 8,n,1 */
 					/* I mean, is there a point to any other setting these days? :) */
 
 /* usb control request types : */
@@ -139,7 +139,7 @@ static int ipw_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	buf_flow_init = kmemdup(buf_flow_static, 16, GFP_KERNEL);
 	if (!buf_flow_init)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* --1: Tell the modem to initialize (we think) From sniffs this is
 	 *	always the first thing that gets sent to the modem during
@@ -200,7 +200,7 @@ static int ipw_attach(struct usb_serial *serial)
 
 	data = kzalloc(sizeof(struct usb_wwan_intf_private), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&data->susp_lock);
 	usb_set_serial_data(serial, data);

@@ -18,7 +18,7 @@ int meson_eeclkc_probe(struct platform_device *pdev)
 {
 	const struct meson_eeclkc_data *data;
 	struct device *dev = &pdev->dev;
-	struct device_node *np;
+	struct device_analde *np;
 	struct regmap *map;
 	int ret, i;
 
@@ -26,10 +26,10 @@ int meson_eeclkc_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	/* Get the hhi system controller node */
-	np = of_get_parent(dev->of_node);
-	map = syscon_node_to_regmap(np);
-	of_node_put(np);
+	/* Get the hhi system controller analde */
+	np = of_get_parent(dev->of_analde);
+	map = syscon_analde_to_regmap(np);
+	of_analde_put(np);
 	if (IS_ERR(map)) {
 		dev_err(dev,
 			"failed to get HHI regmap\n");

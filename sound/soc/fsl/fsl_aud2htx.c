@@ -111,7 +111,7 @@ static const struct reg_default fsl_aud2htx_reg_defaults[] = {
 	{AUD2HTX_CTRL_EXT,	0x00000000},
 	{AUD2HTX_WR,		0x00000000},
 	{AUD2HTX_STATUS,	0x00000000},
-	{AUD2HTX_IRQ_NOMASK,	0x00000000},
+	{AUD2HTX_IRQ_ANALMASK,	0x00000000},
 	{AUD2HTX_IRQ_MASKED,	0x00000000},
 	{AUD2HTX_IRQ_MASK,	0x00000000},
 };
@@ -122,7 +122,7 @@ static bool fsl_aud2htx_readable_reg(struct device *dev, unsigned int reg)
 	case AUD2HTX_CTRL:
 	case AUD2HTX_CTRL_EXT:
 	case AUD2HTX_STATUS:
-	case AUD2HTX_IRQ_NOMASK:
+	case AUD2HTX_IRQ_ANALMASK:
 	case AUD2HTX_IRQ_MASKED:
 	case AUD2HTX_IRQ_MASK:
 		return true;
@@ -137,7 +137,7 @@ static bool fsl_aud2htx_writeable_reg(struct device *dev, unsigned int reg)
 	case AUD2HTX_CTRL:
 	case AUD2HTX_CTRL_EXT:
 	case AUD2HTX_WR:
-	case AUD2HTX_IRQ_NOMASK:
+	case AUD2HTX_IRQ_ANALMASK:
 	case AUD2HTX_IRQ_MASKED:
 	case AUD2HTX_IRQ_MASK:
 		return true;
@@ -150,7 +150,7 @@ static bool fsl_aud2htx_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case AUD2HTX_STATUS:
-	case AUD2HTX_IRQ_NOMASK:
+	case AUD2HTX_IRQ_ANALMASK:
 	case AUD2HTX_IRQ_MASKED:
 		return true;
 	default:
@@ -192,7 +192,7 @@ static int fsl_aud2htx_probe(struct platform_device *pdev)
 
 	aud2htx = devm_kzalloc(&pdev->dev, sizeof(*aud2htx), GFP_KERNEL);
 	if (!aud2htx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aud2htx->pdev = pdev;
 
@@ -235,7 +235,7 @@ static int fsl_aud2htx_probe(struct platform_device *pdev)
 
 	/*
 	 * Register platform component before registering cpu dai for there
-	 * is not defer probe for platform component in snd_soc_add_pcm_runtime().
+	 * is analt defer probe for platform component in snd_soc_add_pcm_runtime().
 	 */
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {

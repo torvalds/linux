@@ -5,13 +5,13 @@
  * Copyright (C) 2020-2022 ARM Ltd.
  */
 
-#define pr_fmt(fmt) "SCMI Notifications SYSTEM - " fmt
+#define pr_fmt(fmt) "SCMI Analtifications SYSTEM - " fmt
 
 #include <linux/module.h>
 #include <linux/scmi_protocol.h>
 
 #include "protocols.h"
-#include "notify.h"
+#include "analtify.h"
 
 /* Updated only after ALL the mandatory features for that version are merged */
 #define SCMI_PROTOCOL_SUPPORTED_VERSION		0x20000
@@ -19,14 +19,14 @@
 #define SCMI_SYSTEM_NUM_SOURCES		1
 
 enum scmi_system_protocol_cmd {
-	SYSTEM_POWER_STATE_NOTIFY = 0x5,
+	SYSTEM_POWER_STATE_ANALTIFY = 0x5,
 };
 
-struct scmi_system_power_state_notify {
-	__le32 notify_enable;
+struct scmi_system_power_state_analtify {
+	__le32 analtify_enable;
 };
 
-struct scmi_system_power_state_notifier_payld {
+struct scmi_system_power_state_analtifier_payld {
 	__le32 agent_id;
 	__le32 flags;
 	__le32 system_state;
@@ -38,20 +38,20 @@ struct scmi_system_info {
 	bool graceful_timeout_supported;
 };
 
-static int scmi_system_request_notify(const struct scmi_protocol_handle *ph,
+static int scmi_system_request_analtify(const struct scmi_protocol_handle *ph,
 				      bool enable)
 {
 	int ret;
 	struct scmi_xfer *t;
-	struct scmi_system_power_state_notify *notify;
+	struct scmi_system_power_state_analtify *analtify;
 
-	ret = ph->xops->xfer_get_init(ph, SYSTEM_POWER_STATE_NOTIFY,
-				      sizeof(*notify), 0, &t);
+	ret = ph->xops->xfer_get_init(ph, SYSTEM_POWER_STATE_ANALTIFY,
+				      sizeof(*analtify), 0, &t);
 	if (ret)
 		return ret;
 
-	notify = t->tx.buf;
-	notify->notify_enable = enable ? cpu_to_le32(BIT(0)) : 0;
+	analtify = t->tx.buf;
+	analtify->analtify_enable = enable ? cpu_to_le32(BIT(0)) : 0;
 
 	ret = ph->xops->do_xfer(ph, t);
 
@@ -59,12 +59,12 @@ static int scmi_system_request_notify(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-static int scmi_system_set_notify_enabled(const struct scmi_protocol_handle *ph,
+static int scmi_system_set_analtify_enabled(const struct scmi_protocol_handle *ph,
 					  u8 evt_id, u32 src_id, bool enable)
 {
 	int ret;
 
-	ret = scmi_system_request_notify(ph, enable);
+	ret = scmi_system_request_analtify(ph, enable);
 	if (ret)
 		pr_debug("FAIL_ENABLE - evt[%X] - ret:%d\n", evt_id, ret);
 
@@ -78,13 +78,13 @@ scmi_system_fill_custom_report(const struct scmi_protocol_handle *ph,
 			       void *report, u32 *src_id)
 {
 	size_t expected_sz;
-	const struct scmi_system_power_state_notifier_payld *p = payld;
-	struct scmi_system_power_state_notifier_report *r = report;
+	const struct scmi_system_power_state_analtifier_payld *p = payld;
+	struct scmi_system_power_state_analtifier_report *r = report;
 	struct scmi_system_info *pinfo = ph->get_priv(ph);
 
 	expected_sz = pinfo->graceful_timeout_supported ?
 			sizeof(*p) : sizeof(*p) - sizeof(__le32);
-	if (evt_id != SCMI_EVENT_SYSTEM_POWER_STATE_NOTIFIER ||
+	if (evt_id != SCMI_EVENT_SYSTEM_POWER_STATE_ANALTIFIER ||
 	    payld_sz != expected_sz)
 		return NULL;
 
@@ -105,16 +105,16 @@ scmi_system_fill_custom_report(const struct scmi_protocol_handle *ph,
 
 static const struct scmi_event system_events[] = {
 	{
-		.id = SCMI_EVENT_SYSTEM_POWER_STATE_NOTIFIER,
+		.id = SCMI_EVENT_SYSTEM_POWER_STATE_ANALTIFIER,
 		.max_payld_sz =
-			sizeof(struct scmi_system_power_state_notifier_payld),
+			sizeof(struct scmi_system_power_state_analtifier_payld),
 		.max_report_sz =
-			sizeof(struct scmi_system_power_state_notifier_report),
+			sizeof(struct scmi_system_power_state_analtifier_report),
 	},
 };
 
 static const struct scmi_event_ops system_event_ops = {
-	.set_notify_enabled = scmi_system_set_notify_enabled,
+	.set_analtify_enabled = scmi_system_set_analtify_enabled,
 	.fill_custom_report = scmi_system_fill_custom_report,
 };
 
@@ -137,11 +137,11 @@ static int scmi_system_protocol_init(const struct scmi_protocol_handle *ph)
 		return ret;
 
 	dev_dbg(ph->dev, "System Power Version %d.%d\n",
-		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
+		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MIANALR(version));
 
 	pinfo = devm_kzalloc(ph->dev, sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pinfo->version = version;
 	if (PROTOCOL_REV_MAJOR(pinfo->version) >= 0x2)

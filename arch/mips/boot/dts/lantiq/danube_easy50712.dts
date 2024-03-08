@@ -23,8 +23,8 @@
 				1 0 0x4000000 0x4000010>; /* addsel1 */
 			compatible = "lantiq,localbus", "simple-bus";
 
-			nor-boot@0 {
-				compatible = "lantiq,nor";
+			analr-boot@0 {
+				compatible = "lantiq,analr";
 				bank-width = <2>;
 				reg = <0 0x0 0x2000000>;
 				#address-cells = <1>;

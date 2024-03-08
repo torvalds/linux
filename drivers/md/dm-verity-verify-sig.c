@@ -50,7 +50,7 @@ static int verity_verify_get_sig_from_key(const char *key_desc,
 
 	sig_opts->sig = kmalloc(ukp->datalen, GFP_KERNEL);
 	if (!sig_opts->sig) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto end;
 	}
 	sig_opts->sig_size = ukp->datalen;
@@ -75,7 +75,7 @@ int verity_verify_sig_parse_opt_args(struct dm_arg_set *as,
 	const char *sig_key = NULL;
 
 	if (!*argc) {
-		ti->error = DM_VERITY_VERIFY_ERR("Signature key not specified");
+		ti->error = DM_VERITY_VERIFY_ERR("Signature key analt specified");
 		return -EINVAL;
 	}
 
@@ -88,7 +88,7 @@ int verity_verify_sig_parse_opt_args(struct dm_arg_set *as,
 
 	v->signature_key_desc = kstrdup(sig_key, GFP_KERNEL);
 	if (!v->signature_key_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return ret;
 }
@@ -113,7 +113,7 @@ int verity_verify_root_hash(const void *root_hash, size_t root_hash_len,
 
 	if (!sig_data  || sig_len == 0) {
 		if (DM_VERITY_IS_SIG_FORCE_ENABLED())
-			return -ENOKEY;
+			return -EANALKEY;
 		else
 			return 0;
 	}

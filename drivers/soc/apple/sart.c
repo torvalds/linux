@@ -6,8 +6,8 @@
  * Apple SART is a simple address filter for some DMA transactions.
  * Regions of physical memory must be added to the SART's allow
  * list before any DMA can target these. Unlike a proper
- * IOMMU no remapping can be done and special support in the
- * consumer driver is required since not all DMA transactions of
+ * IOMMU anal remapping can be done and special support in the
+ * consumer driver is required since analt all DMA transactions of
  * a single device are subject to SART filtering.
  */
 
@@ -25,7 +25,7 @@
 
 #define APPLE_SART_MAX_ENTRIES 16
 
-/* This is probably a bitfield but the exact meaning of each bit is unknown. */
+/* This is probably a bitfield but the exact meaning of each bit is unkanalwn. */
 #define APPLE_SART_FLAGS_ALLOW 0xff
 
 /* SARTv2 registers */
@@ -135,7 +135,7 @@ static int apple_sart_probe(struct platform_device *pdev)
 
 	sart = devm_kzalloc(dev, sizeof(*sart), GFP_KERNEL);
 	if (!sart)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sart->dev = dev;
 	sart->ops = of_device_get_match_data(dev);
@@ -171,20 +171,20 @@ static void apple_sart_put_device(void *dev)
 
 struct apple_sart *devm_apple_sart_get(struct device *dev)
 {
-	struct device_node *sart_node;
+	struct device_analde *sart_analde;
 	struct platform_device *sart_pdev;
 	struct apple_sart *sart;
 	int ret;
 
-	sart_node = of_parse_phandle(dev->of_node, "apple,sart", 0);
-	if (!sart_node)
-		return ERR_PTR(-ENODEV);
+	sart_analde = of_parse_phandle(dev->of_analde, "apple,sart", 0);
+	if (!sart_analde)
+		return ERR_PTR(-EANALDEV);
 
-	sart_pdev = of_find_device_by_node(sart_node);
-	of_node_put(sart_node);
+	sart_pdev = of_find_device_by_analde(sart_analde);
+	of_analde_put(sart_analde);
 
 	if (!sart_pdev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	sart = dev_get_drvdata(&sart_pdev->dev);
 	if (!sart) {
@@ -249,7 +249,7 @@ int apple_sart_add_allowed_region(struct apple_sart *sart, phys_addr_t paddr,
 	}
 
 	dev_warn(sart->dev,
-		 "no free entries left to add [paddr: 0x%pa, size: 0x%zx]\n",
+		 "anal free entries left to add [paddr: 0x%pa, size: 0x%zx]\n",
 		 &paddr, size);
 
 	return -EBUSY;
@@ -285,7 +285,7 @@ int apple_sart_remove_allowed_region(struct apple_sart *sart, phys_addr_t paddr,
 		return 0;
 	}
 
-	dev_warn(sart->dev, "entry [paddr: 0x%pa, size: 0x%zx] not found\n",
+	dev_warn(sart->dev, "entry [paddr: 0x%pa, size: 0x%zx] analt found\n",
 		 &paddr, size);
 
 	return -EINVAL;

@@ -42,7 +42,7 @@ enum cs35l41_hda_spk_pos {
 };
 
 enum cs35l41_hda_gpio_function {
-	CS35L41_NOT_USED,
+	CS35L41_ANALT_USED,
 	CS35l41_VSPK_SWITCH,
 	CS35L41_INTERRUPT,
 	CS35l41_SYNC,

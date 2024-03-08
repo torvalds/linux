@@ -13,11 +13,11 @@
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
+ * ANALN INFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <sebastien.bouchard@ca.kontron.com> and the current
@@ -31,7 +31,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>	/* printk() */
 #include <linux/fs.h>		/* everything... */
-#include <linux/errno.h>	/* error codes */
+#include <linux/erranal.h>	/* error codes */
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
@@ -54,7 +54,7 @@ MODULE_LICENSE("GPL");
 #define RESET_OFF	0x01
 
 /* MODE SELECT */
-#define NORMAL_MODE 	0x00
+#define ANALRMAL_MODE 	0x00
 #define HOLDOVER_MODE	0x10
 #define FREERUN_MODE	0x20
 
@@ -201,7 +201,7 @@ static DECLARE_WAIT_QUEUE_HEAD(wq);
 static unsigned long useflags;
 static DEFINE_MUTEX(tlclk_mutex);
 
-static int tlclk_open(struct inode *inode, struct file *filp)
+static int tlclk_open(struct ianalde *ianalde, struct file *filp)
 {
 	int result;
 
@@ -209,12 +209,12 @@ static int tlclk_open(struct inode *inode, struct file *filp)
 	if (test_and_set_bit(0, &useflags)) {
 		result = -EBUSY;
 		/* this legacy device is always one per system and it doesn't
-		 * know how to handle multiple concurrent clients.
+		 * kanalw how to handle multiple concurrent clients.
 		 */
 		goto out;
 	}
 
-	/* Make sure there is no interrupt pending while
+	/* Make sure there is anal interrupt pending while
 	 * initialising interrupt handler */
 	inb(TLCLK_REG6);
 
@@ -232,7 +232,7 @@ out:
 	return result;
 }
 
-static int tlclk_release(struct inode *inode, struct file *filp)
+static int tlclk_release(struct ianalde *ianalde, struct file *filp)
 {
 	free_irq(telclk_interrupt, tlclk_interrupt);
 	clear_bit(0, &useflags);
@@ -266,12 +266,12 @@ static const struct file_operations tlclk_fops = {
 	.read = tlclk_read,
 	.open = tlclk_open,
 	.release = tlclk_release,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 
 };
 
 static struct miscdevice tlclk_miscdev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "telco_clock",
 	.fops = &tlclk_fops,
 };
@@ -781,7 +781,7 @@ static int __init tlclk_init(void)
 
 	alarm_events = kzalloc( sizeof(struct tlclk_alarms), GFP_KERNEL);
 	if (!alarm_events) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out1;
 	}
 
@@ -801,8 +801,8 @@ static int __init tlclk_init(void)
 		goto out2;
 	}
 
-	if (0x0F == telclk_interrupt ) { /* not MCPBL0010 ? */
-		printk(KERN_ERR "telclk_interrupt = 0x%x non-mcpbl0010 hw.\n",
+	if (0x0F == telclk_interrupt ) { /* analt MCPBL0010 ? */
+		printk(KERN_ERR "telclk_interrupt = 0x%x analn-mcpbl0010 hw.\n",
 			telclk_interrupt);
 		ret = -ENXIO;
 		goto out3;

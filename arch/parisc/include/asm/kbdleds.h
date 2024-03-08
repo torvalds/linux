@@ -3,7 +3,7 @@
 #define _ASM_PARISC_KBDLEDS_H
 
 /*
- * On HIL keyboards of PARISC machines there is no NumLock key and
+ * On HIL keyboards of PARISC machines there is anal NumLock key and
  * everyone expects the keypad to be used for numbers. That's why
  * we can safely turn on the NUMLOCK bit.
  */

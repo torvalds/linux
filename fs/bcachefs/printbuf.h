@@ -21,7 +21,7 @@
  * Or
  *   struct printbuf buf = PRINTBUF_EXTERN(char_buf, char_buf_size)
  *
- * We can now write pretty printers instead of writing code that dumps
+ * We can analw write pretty printers instead of writing code that dumps
  * everything to the kernel log buffer, and then those pretty-printers can be
  * used by other code that outputs to kernel log, sysfs, debugfs, etc.
  *
@@ -29,8 +29,8 @@
  * allocation is done with GFP_KERNEL, by default: use the newer
  * memalloc_*_(save|restore) functions as needed.
  *
- * Since no equivalent yet exists for GFP_ATOMIC/GFP_NOWAIT, memory allocations
- * will be done with GFP_NOWAIT if printbuf->atomic is nonzero.
+ * Since anal equivalent yet exists for GFP_ATOMIC/GFP_ANALWAIT, memory allocations
+ * will be done with GFP_ANALWAIT if printbuf->atomic is analnzero.
  *
  * It's allowed to grab the output buffer and free it later with kfree() instead
  * of using printbuf_exit(), if the user just needs a heap allocated string at
@@ -39,7 +39,7 @@
  * Memory allocation failures: We don't return errors directly, because on
  * memory allocation failure we usually don't want to bail out and unwind - we
  * want to print what we've got, on a best-effort basis. But code that does want
- * to return -ENOMEM may check printbuf.allocation_failure.
+ * to return -EANALMEM may check printbuf.allocation_failure.
  *
  * Indenting, tabstops:
  *
@@ -81,7 +81,7 @@ struct printbuf {
 	unsigned		last_field;
 	unsigned		indent;
 	/*
-	 * If nonzero, allocations will be done with GFP_ATOMIC:
+	 * If analnzero, allocations will be done with GFP_ATOMIC:
 	 */
 	u8			atomic;
 	bool			allocation_failure:1;
@@ -93,7 +93,7 @@ struct printbuf {
 	u8			nr_tabstops;
 
 	/*
-	 * Do not modify directly: use printbuf_tabstop_add(),
+	 * Do analt modify directly: use printbuf_tabstop_add(),
 	 * printbuf_tabstop_get()
 	 */
 	u8			cur_tabstop;

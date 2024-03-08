@@ -123,21 +123,21 @@ static const struct irq_domain_ops extirq_domain_ops = {
 };
 
 static int
-ls_extirq_parse_map(struct ls_extirq_data *priv, struct device_node *node)
+ls_extirq_parse_map(struct ls_extirq_data *priv, struct device_analde *analde)
 {
 	const __be32 *map;
 	u32 mapsize;
 	int ret;
 
-	map = of_get_property(node, "interrupt-map", &mapsize);
+	map = of_get_property(analde, "interrupt-map", &mapsize);
 	if (!map)
-		return -ENOENT;
+		return -EANALENT;
 	if (mapsize % sizeof(*map))
 		return -EINVAL;
 	mapsize /= sizeof(*map);
 
 	while (mapsize) {
-		struct device_node *ipar;
+		struct device_analde *ipar;
 		u32 hwirq, intsize, j;
 
 		if (mapsize < 3)
@@ -147,12 +147,12 @@ ls_extirq_parse_map(struct ls_extirq_data *priv, struct device_node *node)
 			return -EINVAL;
 		priv->nirq = max(priv->nirq, hwirq + 1);
 
-		ipar = of_find_node_by_phandle(be32_to_cpup(map + 2));
+		ipar = of_find_analde_by_phandle(be32_to_cpup(map + 2));
 		map += 3;
 		mapsize -= 3;
 		if (!ipar)
 			return -EINVAL;
-		priv->map[hwirq].fwnode = &ipar->fwnode;
+		priv->map[hwirq].fwanalde = &ipar->fwanalde;
 		ret = of_property_read_u32(ipar, "#interrupt-cells", &intsize);
 		if (ret)
 			return ret;
@@ -169,7 +169,7 @@ ls_extirq_parse_map(struct ls_extirq_data *priv, struct device_node *node)
 }
 
 static int __init
-ls_extirq_of_init(struct device_node *node, struct device_node *parent)
+ls_extirq_of_init(struct device_analde *analde, struct device_analde *parent)
 {
 	struct irq_domain *domain, *parent_domain;
 	struct ls_extirq_data *priv;
@@ -177,41 +177,41 @@ ls_extirq_of_init(struct device_node *node, struct device_node *parent)
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("Cannot find parent domain\n");
-		ret = -ENODEV;
+		pr_err("Cananalt find parent domain\n");
+		ret = -EANALDEV;
 		goto err_irq_find_host;
 	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc_priv;
 	}
 
 	/*
-	 * All extirq OF nodes are under a scfg/syscon node with
+	 * All extirq OF analdes are under a scfg/syscon analde with
 	 * the 'ranges' property
 	 */
-	priv->intpcr = of_iomap(node, 0);
+	priv->intpcr = of_iomap(analde, 0);
 	if (!priv->intpcr) {
-		pr_err("Cannot ioremap OF node %pOF\n", node);
-		ret = -ENOMEM;
+		pr_err("Cananalt ioremap OF analde %pOF\n", analde);
+		ret = -EANALMEM;
 		goto err_iomap;
 	}
 
-	ret = ls_extirq_parse_map(priv, node);
+	ret = ls_extirq_parse_map(priv, analde);
 	if (ret)
 		goto err_parse_map;
 
-	priv->big_endian = of_device_is_big_endian(node->parent);
-	priv->is_ls1021a_or_ls1043a = of_device_is_compatible(node, "fsl,ls1021a-extirq") ||
-				      of_device_is_compatible(node, "fsl,ls1043a-extirq");
+	priv->big_endian = of_device_is_big_endian(analde->parent);
+	priv->is_ls1021a_or_ls1043a = of_device_is_compatible(analde, "fsl,ls1021a-extirq") ||
+				      of_device_is_compatible(analde, "fsl,ls1043a-extirq");
 	raw_spin_lock_init(&priv->lock);
 
-	domain = irq_domain_add_hierarchy(parent_domain, 0, priv->nirq, node,
+	domain = irq_domain_add_hierarchy(parent_domain, 0, priv->nirq, analde,
 					  &extirq_domain_ops, priv);
 	if (!domain) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_add_hierarchy;
 	}
 

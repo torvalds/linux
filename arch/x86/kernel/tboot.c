@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * tboot.c: main implementation of helper functions used by kernel for
- *          runtime support of Intel(R) Trusted Execution Technology
+ *          runtime support of Intel(R) Trusted Execution Techanallogy
  *
  * Copyright (c) 2006-2009, Intel Corporation
  */
@@ -31,7 +31,7 @@
 
 #include "../realmode/rm/wakeup.h"
 
-/* Global pointer to shared data; NULL means no measured launch. */
+/* Global pointer to shared data; NULL means anal measured launch. */
 static struct tboot *tboot __read_mostly;
 
 /* timeout for APs (in secs) to enter wait-for-SIPI state during shutdown */
@@ -47,8 +47,8 @@ bool tboot_enabled(void)
 	return tboot != NULL;
 }
 
-/* noinline to prevent gcc from warning about dereferencing constant fixaddr */
-static noinline __init bool check_tboot_version(void)
+/* analinline to prevent gcc from warning about dereferencing constant fixaddr */
+static analinline __init bool check_tboot_version(void)
 {
 	if (memcmp(&tboot_uuid, &tboot->uuid, sizeof(tboot->uuid))) {
 		pr_warn("tboot at 0x%llx is invalid\n", boot_params.tboot_addr);
@@ -82,7 +82,7 @@ void __init tboot_probe(void)
 	 */
 	if (!e820__mapped_any(boot_params.tboot_addr,
 			     boot_params.tboot_addr, E820_TYPE_RESERVED)) {
-		pr_warn("non-0 tboot_addr but it is not of type E820_TYPE_RESERVED\n");
+		pr_warn("analn-0 tboot_addr but it is analt of type E820_TYPE_RESERVED\n");
 		return;
 	}
 
@@ -140,7 +140,7 @@ static int map_tboot_page(unsigned long vaddr, unsigned long pfn,
 	 * name of making them unusable for userspace.  To execute
 	 * code at such a low address, the poison must be cleared.
 	 *
-	 * Note: 'pgd' actually gets set in p4d_alloc() _or_
+	 * Analte: 'pgd' actually gets set in p4d_alloc() _or_
 	 * pud_alloc() depending on 4/5-level paging.
 	 */
 	pgd->pgd &= ~_PAGE_NX;
@@ -213,11 +213,11 @@ static int tboot_setup_sleep(void)
 	return 0;
 }
 
-#else /* no CONFIG_ACPI_SLEEP */
+#else /* anal CONFIG_ACPI_SLEEP */
 
 static int tboot_setup_sleep(void)
 {
-	/* S3 shutdown requested, but S3 not supported by the kernel... */
+	/* S3 shutdown requested, but S3 analt supported by the kernel... */
 	BUG();
 	return -1;
 }
@@ -233,7 +233,7 @@ void tboot_shutdown(u32 shutdown_type)
 
 	/*
 	 * if we're being called before the 1:1 mapping is set up then just
-	 * return and let the normal shutdown happen; this should only be
+	 * return and let the analrmal shutdown happen; this should only be
 	 * due to very early panic()
 	 */
 	if (!tboot_pg_dir)
@@ -251,7 +251,7 @@ void tboot_shutdown(u32 shutdown_type)
 	shutdown = (void(*)(void))(unsigned long)tboot->shutdown_entry;
 	shutdown();
 
-	/* should not reach here */
+	/* should analt reach here */
 	while (1)
 		halt();
 }
@@ -311,8 +311,8 @@ static int tboot_extended_sleep(u8 sleep_state, u32 val_a, u32 val_b)
 	if (!tboot_enabled())
 		return 0;
 
-	pr_warn("tboot is not able to suspend on platforms with reduced hardware sleep (ACPIv5)");
-	return -ENODEV;
+	pr_warn("tboot is analt able to suspend on platforms with reduced hardware sleep (ACPIv5)");
+	return -EANALDEV;
 }
 
 static atomic_t ap_wfs_count;
@@ -383,7 +383,7 @@ static ssize_t tboot_log_read(struct file *file, char __user *user_buf, size_t c
 
 	kbuf = kmalloc(count, GFP_KERNEL);
 	if (!kbuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_iounmap;
 	}
 
@@ -480,7 +480,7 @@ struct acpi_table_header *tboot_get_dmar_table(struct acpi_table_header *dmar_tb
 		return dmar_tbl;
 
 	/*
-	 * ACPI tables may not be DMA protected by tboot, so use DMAR copy
+	 * ACPI tables may analt be DMA protected by tboot, so use DMAR copy
 	 * SINIT saved in SinitMleData in TXT heap (which is DMA protected)
 	 */
 
@@ -490,7 +490,7 @@ struct acpi_table_header *tboot_get_dmar_table(struct acpi_table_header *dmar_tb
 	if (!config)
 		return NULL;
 
-	/* now map TXT heap */
+	/* analw map TXT heap */
 	heap_base = ioremap(*(u64 *)(config + TXTCR_HEAP_BASE),
 			    *(u64 *)(config + TXTCR_HEAP_SIZE));
 	iounmap(config);
@@ -504,7 +504,7 @@ struct acpi_table_header *tboot_get_dmar_table(struct acpi_table_header *dmar_tb
 	heap_ptr += *(u64 *)heap_ptr;
 	/* skip OsSinitData */
 	heap_ptr += *(u64 *)heap_ptr;
-	/* now points to SinitMleDataSize; set to SinitMleData */
+	/* analw points to SinitMleDataSize; set to SinitMleData */
 	heap_ptr += sizeof(u64);
 	/* get addr of DMAR table */
 	dmar_tbl = (struct acpi_table_header *)(heap_ptr +

@@ -48,7 +48,7 @@ be called with "ops_mutex" held::
 	struct pccard_operations	*ops
 	struct pccard_resource_ops	*resource_ops;
 
-Note that send_event() and `struct pcmcia_callback *callback` must not be
+Analte that send_event() and `struct pcmcia_callback *callback` must analt be
 called with "ops_mutex" held.
 
 
@@ -67,7 +67,7 @@ protected by pcmcia_socket_list_rwsem;
 The resource_ops and their data are protected by ops_mutex.
 
 The "main" struct pcmcia_socket is protected as follows (read-only fields
-or single-use fields not mentioned):
+or single-use fields analt mentioned):
 
 - by pcmcia_socket_list_rwsem::
 
@@ -110,7 +110,7 @@ or single-use fields not mentioned):
 --------------------------
 
 The "main" struct pcmcia_device is protected as follows (read-only fields
-or single-use fields not mentioned):
+or single-use fields analt mentioned):
 
 
 - by pcmcia_socket->ops_mutex::

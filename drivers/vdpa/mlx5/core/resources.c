@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020 Mellanox Technologies Ltd. */
+/* Copyright (c) 2020 Mellaanalx Techanallogies Ltd. */
 
 #include <linux/iova.h>
 #include <linux/mlx5/driver.h>
@@ -16,7 +16,7 @@ static int alloc_pd(struct mlx5_vdpa_dev *dev, u32 *pdn, u16 uid)
 	MLX5_SET(alloc_pd_in, in, opcode, MLX5_CMD_OP_ALLOC_PD);
 	MLX5_SET(alloc_pd_in, in, uid, uid);
 
-	err = mlx5_cmd_exec_inout(mdev, alloc_pd, in, out);
+	err = mlx5_cmd_exec_ianalut(mdev, alloc_pd, in, out);
 	if (!err)
 		*pdn = MLX5_GET(alloc_pd_out, out, pd);
 
@@ -42,7 +42,7 @@ static int get_null_mkey(struct mlx5_vdpa_dev *dev, u32 *null_mkey)
 	int err;
 
 	MLX5_SET(query_special_contexts_in, in, opcode, MLX5_CMD_OP_QUERY_SPECIAL_CONTEXTS);
-	err = mlx5_cmd_exec_inout(mdev, query_special_contexts, in, out);
+	err = mlx5_cmd_exec_ianalut(mdev, query_special_contexts, in, out);
 	if (!err)
 		*null_mkey = MLX5_GET(query_special_contexts_out, out, null_mkey);
 	return err;
@@ -58,14 +58,14 @@ static int create_uctx(struct mlx5_vdpa_dev *mvdev, u16 *uid)
 	if (MLX5_CAP_GEN(mvdev->mdev, umem_uid_0))
 		return 0;
 
-	/* 0 means not supported */
+	/* 0 means analt supported */
 	if (!MLX5_CAP_GEN(mvdev->mdev, log_max_uctx))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	inlen = MLX5_ST_SZ_BYTES(create_uctx_in);
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(create_uctx_in, in, opcode, MLX5_CMD_OP_CREATE_UCTX);
 	MLX5_SET(create_uctx_in, in, uctx.cap, MLX5_UCTX_CAP_RAW_TX);
@@ -99,7 +99,7 @@ int mlx5_vdpa_create_tis(struct mlx5_vdpa_dev *mvdev, void *in, u32 *tisn)
 
 	MLX5_SET(create_tis_in, in, opcode, MLX5_CMD_OP_CREATE_TIS);
 	MLX5_SET(create_tis_in, in, uid, mvdev->res.uid);
-	err = mlx5_cmd_exec_inout(mvdev->mdev, create_tis, in, out);
+	err = mlx5_cmd_exec_ianalut(mvdev->mdev, create_tis, in, out);
 	if (!err)
 		*tisn = MLX5_GET(create_tis_out, out, tisn);
 
@@ -155,7 +155,7 @@ int mlx5_vdpa_create_tir(struct mlx5_vdpa_dev *mvdev, void *in, u32 *tirn)
 	int err;
 
 	MLX5_SET(create_tir_in, in, opcode, MLX5_CMD_OP_CREATE_TIR);
-	err = mlx5_cmd_exec_inout(mvdev->mdev, create_tir, in, out);
+	err = mlx5_cmd_exec_ianalut(mvdev->mdev, create_tir, in, out);
 	if (!err)
 		*tirn = MLX5_GET(create_tir_out, out, tirn);
 
@@ -181,7 +181,7 @@ int mlx5_vdpa_alloc_transport_domain(struct mlx5_vdpa_dev *mvdev, u32 *tdn)
 	MLX5_SET(alloc_transport_domain_in, in, opcode, MLX5_CMD_OP_ALLOC_TRANSPORT_DOMAIN);
 	MLX5_SET(alloc_transport_domain_in, in, uid, mvdev->res.uid);
 
-	err = mlx5_cmd_exec_inout(mvdev->mdev, alloc_transport_domain, in, out);
+	err = mlx5_cmd_exec_ianalut(mvdev->mdev, alloc_transport_domain, in, out);
 	if (!err)
 		*tdn = MLX5_GET(alloc_transport_domain_out, out, transport_domain);
 
@@ -231,7 +231,7 @@ static int init_ctrl_vq(struct mlx5_vdpa_dev *mvdev)
 {
 	mvdev->cvq.iotlb = vhost_iotlb_alloc(0, 0);
 	if (!mvdev->cvq.iotlb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&mvdev->cvq.iommu_lock);
 	vringh_set_iotlb(&mvdev->cvq.vring, mvdev->cvq.iotlb, &mvdev->cvq.iommu_lock);
@@ -280,7 +280,7 @@ int mlx5_vdpa_alloc_resources(struct mlx5_vdpa_dev *mvdev)
 
 	res->kick_addr = ioremap(kick_addr, PAGE_SIZE);
 	if (!res->kick_addr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_key;
 	}
 

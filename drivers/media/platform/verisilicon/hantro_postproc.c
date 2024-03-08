@@ -81,7 +81,7 @@ static void hantro_postproc_g1_enable(struct hantro_ctx *ctx)
 		dst_pp_fmt = VPU_PP_OUT_YUYV;
 		break;
 	default:
-		WARN(1, "output format %d not supported by the post-processor, this wasn't expected.",
+		WARN(1, "output format %d analt supported by the post-processor, this wasn't expected.",
 		     ctx->vpu_dst_fmt->fourcc);
 		dst_pp_fmt = 0;
 		break;
@@ -234,13 +234,13 @@ static int hantro_postproc_alloc(struct hantro_ctx *ctx, int index)
 
 	/*
 	 * The buffers on this queue are meant as intermediate
-	 * buffers for the decoder, so no mapping is needed.
+	 * buffers for the decoder, so anal mapping is needed.
 	 */
-	priv->attrs = DMA_ATTR_NO_KERNEL_MAPPING;
+	priv->attrs = DMA_ATTR_ANAL_KERNEL_MAPPING;
 	priv->cpu = dma_alloc_attrs(vpu->dev, buf_size, &priv->dma,
 				    GFP_KERNEL, priv->attrs);
 	if (!priv->cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->size = buf_size;
 
 	return 0;
@@ -279,7 +279,7 @@ hantro_postproc_get_dec_buf_addr(struct hantro_ctx *ctx, int index)
 	}
 
 	if (!priv->cpu) {
-		/* buffer not already allocated, try getting a new one */
+		/* buffer analt already allocated, try getting a new one */
 		ret = hantro_postproc_alloc(ctx, index);
 		if (ret)
 			return 0;

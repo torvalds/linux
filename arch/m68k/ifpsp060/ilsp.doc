@@ -1,5 +1,5 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-MOTOROLA MICROPROCESSOR & MEMORY TECHNOLOGY GROUP
+MOTOROLA MICROPROCESSOR & MEMORY TECHANALLOGY GROUP
 M68000 Hi-Performance Microprocessor Division
 M68060 Software Package
 Production Release P1.00 -- October 10, 1994
@@ -14,16 +14,16 @@ and any warranty against infringement with regard to the SOFTWARE
 (INCLUDING ANY MODIFIED VERSIONS THEREOF) and any accompanying written materials.
 
 To the maximum extent permitted by applicable law,
-IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
+IN ANAL EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
 (INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
 BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
 ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
-Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+Motorola assumes anal responsibility for the maintenance and support of the SOFTWARE.
 
 You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
-so long as this entire notice is retained without alteration in any modified and/or
+so long as this entire analtice is retained without alteration in any modified and/or
 redistributed versions, and that such modified versions are clearly identified as such.
-No licenses are granted by implication, estoppel or otherwise under any patents
+Anal licenses are granted by implication, estoppel or otherwise under any patents
 or trademarks of Motorola, Inc.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 68060 INTEGER SOFTWARE PACKAGE (Library version)
@@ -32,8 +32,8 @@ or trademarks of Motorola, Inc.
 The file ilsp.s contains the "Library version" of the
 68060 Integer Software Package. Routines included in this
 module can be used to emulate 64-bit divide and multiply,
-and the "cmp2" instruction. These instructions are not
-implemented in hardware on the 68060 and normally take
+and the "cmp2" instruction. These instructions are analt
+implemented in hardware on the 68060 and analrmally take
 exception vector #61 "Unimplemented Integer Instruction".
 
 By re-compiling a program that uses these instructions, and
@@ -64,7 +64,7 @@ documentation purposes.
 Release file structure:
 -----------------------
 The file ilsp.sa contains an "Entry-Point" section and a
-code section. The ILSP has no "Call-Out" section. The first section
+code section. The ILSP has anal "Call-Out" section. The first section
 is the "Entry-Point" section. In order to access a function in the
 package, a program must "bsr" or "jsr" to the location listed
 below in "68060ILSP Entry Points" that corresponds to the desired
@@ -72,7 +72,7 @@ function. A branch instruction located at the selected entry point
 within the package will then enter the correct emulation code routine.
 
 The entry point addresses at the beginning of the package will remain
-fixed so that a program calling the routines will not have to be
+fixed so that a program calling the routines will analt have to be
 re-compiled with every new 68060ILSP release.
 
 For example, to use a 64-bit multiply instruction,
@@ -129,7 +129,7 @@ If the instruction being emulated is a divide and the source
 operand is a zero, then the library routine, as its last
 instruction, executes an implemented divide using a zero
 source operand so that an "Integer Divide-by-Zero" exception
-will be taken. Although the exception stack frame will not
+will be taken. Although the exception stack frame will analt
 point to the correct instruction, the user will at least be able
 to record that such an event occurred if desired.
 

@@ -32,13 +32,13 @@ static int kimage_alloc_init(struct kimage **rimage, unsigned long entry,
 		/* Verify we have a valid entry point */
 		if ((entry < phys_to_boot_phys(crashk_res.start)) ||
 		    (entry > phys_to_boot_phys(crashk_res.end)))
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 	}
 
 	/* Allocate and initialize a controlling structure */
 	image = do_kimage_alloc_init();
 	if (!image)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	image->start = entry;
 	image->nr_segments = nr_segments;
@@ -59,18 +59,18 @@ static int kimage_alloc_init(struct kimage **rimage, unsigned long entry,
 	 * the vector of segments so that it's pages will also be
 	 * counted as destination pages.
 	 */
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	image->control_code_page = kimage_alloc_control_pages(image,
 					   get_order(KEXEC_CONTROL_PAGE_SIZE));
 	if (!image->control_code_page) {
-		pr_err("Could not allocate control_code_buffer\n");
+		pr_err("Could analt allocate control_code_buffer\n");
 		goto out_free_image;
 	}
 
 	if (!kexec_on_panic) {
 		image->swap_page = kimage_alloc_control_pages(image, 0);
 		if (!image->swap_page) {
-			pr_err("Could not allocate swap buffer\n");
+			pr_err("Could analt allocate swap buffer\n");
 			goto out_free_control_pages;
 		}
 	}
@@ -115,7 +115,7 @@ static int do_kexec_load(unsigned long entry, unsigned long nr_segments,
 	}
 	if (flags & KEXEC_ON_CRASH) {
 		/*
-		 * Loading another kernel to switch to if this one
+		 * Loading aanalther kernel to switch to if this one
 		 * crashes.  Free any current crash dump kernel before
 		 * we corrupt it.
 		 */
@@ -188,7 +188,7 @@ out_unlock:
  *   and then copies the image to it's final destination.  And
  *   jumps into the image at entry.
  *
- * kexec does not sync, or unmount filesystems so if you need
+ * kexec does analt sync, or unmount filesystems so if you need
  * that to happen you need to do that yourself.
  */
 
@@ -280,7 +280,7 @@ COMPAT_SYSCALL_DEFINE4(kexec_load, compat_ulong_t, entry,
 	ksegments = kmalloc_array(nr_segments, sizeof(ksegments[0]),
 			GFP_KERNEL);
 	if (!ksegments)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nr_segments; i++) {
 		result = copy_from_user(&in, &segments[i], sizeof(in));

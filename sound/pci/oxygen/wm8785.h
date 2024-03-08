@@ -34,7 +34,7 @@
 #define WM8785_LRP		0x004
 #define WM8785_BCLKINV		0x008
 #define WM8785_LRSWAP		0x010
-#define WM8785_DEVNO_MASK	0x0e0
+#define WM8785_DEVANAL_MASK	0x0e0
 /* R2 */
 #define WM8785_HPFR		0x001
 #define WM8785_HPFL		0x002

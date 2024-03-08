@@ -29,7 +29,7 @@
 #define PLL_FRAC_DIV_MASK	GENMASK(30, 7)
 #define PLL_INT_DIV_MASK	GENMASK(6, 0)
 #define PLL_OUTPUT_DIV_MASK	GENMASK(4, 0)
-#define PLL_FRAC_DENOM		0x1000000
+#define PLL_FRAC_DEANALM		0x1000000
 
 #define PLL_FRAC_LOCK_TIMEOUT	10000
 #define PLL_FRAC_ACK_TIMEOUT	500000
@@ -109,7 +109,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 
 	temp64 *= 8;
 	temp64 *= divff;
-	do_div(temp64, PLL_FRAC_DENOM);
+	do_div(temp64, PLL_FRAC_DEANALM);
 	do_div(temp64, divq);
 
 	rate = parent_rate * 8 * (divfi + 1);
@@ -132,13 +132,13 @@ static long clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	do_div(temp64, parent_rate);
 	divfi = temp64;
 	temp64 = rate - divfi * parent_rate;
-	temp64 *= PLL_FRAC_DENOM;
+	temp64 *= PLL_FRAC_DEANALM;
 	do_div(temp64, parent_rate);
 	divff = temp64;
 
 	temp64 = parent_rate;
 	temp64 *= divff;
-	do_div(temp64, PLL_FRAC_DENOM);
+	do_div(temp64, PLL_FRAC_DEANALM);
 
 	rate = parent_rate * divfi + temp64;
 
@@ -165,7 +165,7 @@ static int clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	divfi = rate / parent_rate;
 	temp64 = parent_rate * divfi;
 	temp64 = rate - temp64;
-	temp64 *= PLL_FRAC_DENOM;
+	temp64 *= PLL_FRAC_DEANALM;
 	do_div(temp64, parent_rate);
 	divff = temp64;
 
@@ -213,7 +213,7 @@ struct clk_hw *imx_clk_hw_frac_pll(const char *name,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &clk_frac_pll_ops;

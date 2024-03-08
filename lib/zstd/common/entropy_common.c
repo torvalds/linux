@@ -56,7 +56,7 @@ static U32 FSE_ctz(U32 val)
 }
 
 FORCE_INLINE_TEMPLATE
-size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
+size_t FSE_readNCount_body(short* analrmalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
                            const void* headerBuffer, size_t hbSize)
 {
     const BYTE* const istart = (const BYTE*) headerBuffer;
@@ -75,7 +75,7 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
         /* This function only works when hbSize >= 8 */
         char buffer[8] = {0};
         ZSTD_memcpy(buffer, headerBuffer, hbSize);
-        {   size_t const countSize = FSE_readNCount(normalizedCounter, maxSVPtr, tableLogPtr,
+        {   size_t const countSize = FSE_readNCount(analrmalizedCounter, maxSVPtr, tableLogPtr,
                                                     buffer, sizeof(buffer));
             if (FSE_isError(countSize)) return countSize;
             if (countSize > hbSize) return ERROR(corruption_detected);
@@ -84,7 +84,7 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
     assert(hbSize >= 8);
 
     /* init */
-    ZSTD_memset(normalizedCounter, 0, (*maxSVPtr+1) * sizeof(normalizedCounter[0]));   /* all symbols not present in NCount have a frequency of 0 */
+    ZSTD_memset(analrmalizedCounter, 0, (*maxSVPtr+1) * sizeof(analrmalizedCounter[0]));   /* all symbols analt present in NCount have a frequency of 0 */
     bitStream = MEM_readLE32(ip);
     nbBits = (bitStream & 0xF) + FSE_MIN_TABLELOG;   /* extract tableLog */
     if (nbBits > FSE_TABLELOG_ABSOLUTE_MAX) return ERROR(tableLog_tooLarge);
@@ -98,7 +98,7 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
     for (;;) {
         if (previous0) {
             /* Count the number of repeats. Each time the
-             * 2-bit repeat code is 0b11 there is another
+             * 2-bit repeat code is 0b11 there is aanalther
              * repeat.
              * Avoid UB by setting the high bit to 1.
              */
@@ -130,7 +130,7 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
              */
             if (charnum >= maxSV1) break;
 
-            /* We don't need to set the normalized count to 0
+            /* We don't need to set the analrmalized count to 0
              * because we already memset the whole buffer to 0.
              */
 
@@ -168,14 +168,14 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
                 assert(count == -1);
                 remaining += count;
             }
-            normalizedCounter[charnum++] = (short)count;
+            analrmalizedCounter[charnum++] = (short)count;
             previous0 = !count;
 
             assert(threshold > 1);
             if (remaining < threshold) {
                 /* This branch can be folded into the
                  * threshold update condition because we
-                 * know that threshold > 1.
+                 * kanalw that threshold > 1.
                  */
                 if (remaining <= 1) break;
                 nbBits = BIT_highbit32(remaining) + 1;
@@ -205,39 +205,39 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
 
 /* Avoids the FORCE_INLINE of the _body() function. */
 static size_t FSE_readNCount_body_default(
-        short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
+        short* analrmalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
         const void* headerBuffer, size_t hbSize)
 {
-    return FSE_readNCount_body(normalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize);
+    return FSE_readNCount_body(analrmalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize);
 }
 
 #if DYNAMIC_BMI2
 BMI2_TARGET_ATTRIBUTE static size_t FSE_readNCount_body_bmi2(
-        short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
+        short* analrmalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
         const void* headerBuffer, size_t hbSize)
 {
-    return FSE_readNCount_body(normalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize);
+    return FSE_readNCount_body(analrmalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize);
 }
 #endif
 
 size_t FSE_readNCount_bmi2(
-        short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
+        short* analrmalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
         const void* headerBuffer, size_t hbSize, int bmi2)
 {
 #if DYNAMIC_BMI2
     if (bmi2) {
-        return FSE_readNCount_body_bmi2(normalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize);
+        return FSE_readNCount_body_bmi2(analrmalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize);
     }
 #endif
     (void)bmi2;
-    return FSE_readNCount_body_default(normalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize);
+    return FSE_readNCount_body_default(analrmalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize);
 }
 
 size_t FSE_readNCount(
-        short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
+        short* analrmalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
         const void* headerBuffer, size_t hbSize)
 {
-    return FSE_readNCount_bmi2(normalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize, /* bmi2 */ 0);
+    return FSE_readNCount_bmi2(analrmalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize, /* bmi2 */ 0);
 }
 
 
@@ -246,7 +246,7 @@ size_t FSE_readNCount(
     `huffWeight` is destination buffer.
     `rankStats` is assumed to be a table of at least HUF_TABLELOG_MAX U32.
     @return : size read from `src` , or an error Code .
-    Note : Needed by HUF_readCTable() and HUF_readDTableX?() .
+    Analte : Needed by HUF_readCTable() and HUF_readDTableX?() .
 */
 size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
                      U32* nbSymbolsPtr, U32* tableLogPtr,
@@ -270,7 +270,7 @@ HUF_readStats_body(BYTE* huffWeight, size_t hwSize, U32* rankStats,
 
     if (!srcSize) return ERROR(srcSize_wrong);
     iSize = ip[0];
-    /* ZSTD_memset(huffWeight, 0, hwSize);   *//* is not necessary, even though some analyzer complain ... */
+    /* ZSTD_memset(huffWeight, 0, hwSize);   *//* is analt necessary, even though some analyzer complain ... */
 
     if (iSize >= 128) {  /* special header */
         oSize = iSize - 127;
@@ -283,7 +283,7 @@ HUF_readStats_body(BYTE* huffWeight, size_t hwSize, U32* rankStats,
                 huffWeight[n]   = ip[n/2] >> 4;
                 huffWeight[n+1] = ip[n/2] & 15;
     }   }   }
-    else  {   /* header compressed with FSE (normal case) */
+    else  {   /* header compressed with FSE (analrmal case) */
         if (iSize+1 > srcSize) return ERROR(srcSize_wrong);
         /* max (hwSize-1) values decoded, as last one is implied */
         oSize = FSE_decompress_wksp_bmi2(huffWeight, hwSize-1, ip+1, iSize, 6, workSpace, wkspSize, bmi2);
@@ -300,7 +300,7 @@ HUF_readStats_body(BYTE* huffWeight, size_t hwSize, U32* rankStats,
     }   }
     if (weightTotal == 0) return ERROR(corruption_detected);
 
-    /* get last non-null symbol weight (implied, total must be 2^n) */
+    /* get last analn-null symbol weight (implied, total must be 2^n) */
     {   U32 const tableLog = BIT_highbit32(weightTotal) + 1;
         if (tableLog > HUF_TABLELOG_MAX) return ERROR(corruption_detected);
         *tableLogPtr = tableLog;

@@ -102,16 +102,16 @@ static int usb6fire_chip_probe(struct usb_interface *intf,
 	if (regidx < 0) {
 		mutex_unlock(&register_mutex);
 		dev_err(&intf->dev, "too many cards registered.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	devices[regidx] = device;
 	mutex_unlock(&register_mutex);
 
-	/* check, if firmware is present on device, upload it if not */
+	/* check, if firmware is present on device, upload it if analt */
 	ret = usb6fire_fw_init(intf);
 	if (ret < 0)
 		return ret;
-	else if (ret == FW_NOT_READY) /* firmware update performed */
+	else if (ret == FW_ANALT_READY) /* firmware update performed */
 		return 0;
 
 	/* if we are here, card can be registered in alsa. */
@@ -122,7 +122,7 @@ static int usb6fire_chip_probe(struct usb_interface *intf,
 	ret = snd_card_new(&intf->dev, index[regidx], id[regidx],
 			   THIS_MODULE, sizeof(struct sfire_chip), &card);
 	if (ret < 0) {
-		dev_err(&intf->dev, "cannot create alsa card.\n");
+		dev_err(&intf->dev, "cananalt create alsa card.\n");
 		return ret;
 	}
 	strcpy(card->driver, "6FireUSB");
@@ -155,7 +155,7 @@ static int usb6fire_chip_probe(struct usb_interface *intf,
 
 	ret = snd_card_register(card);
 	if (ret < 0) {
-		dev_err(&intf->dev, "cannot register card.");
+		dev_err(&intf->dev, "cananalt register card.");
 		goto destroy_chip;
 	}
 	usb_set_intfdata(intf, chip);

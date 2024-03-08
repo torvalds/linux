@@ -9,15 +9,15 @@
    {
 	    "ConfigCode": "0x01",
 	    "EventName": "rx_outer",
-	    "BriefDescription": "The number of all operations received by the HHA from another socket",
-	    "PublicDescription": "The number of all operations received by the HHA from another socket",
+	    "BriefDescription": "The number of all operations received by the HHA from aanalther socket",
+	    "PublicDescription": "The number of all operations received by the HHA from aanalther socket",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x02",
 	    "EventName": "rx_sccl",
-	    "BriefDescription": "The number of all operations received by the HHA from another SCCL in this socket",
-	    "PublicDescription": "The number of all operations received by the HHA from another SCCL in this socket",
+	    "BriefDescription": "The number of all operations received by the HHA from aanalther SCCL in this socket",
+	    "PublicDescription": "The number of all operations received by the HHA from aanalther SCCL in this socket",
 	    "Unit": "hisi_sccl,hha"
    },
    {

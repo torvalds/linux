@@ -501,7 +501,7 @@ static struct wlcore_conf wl18xx_conf = {
 	},
 	.recovery = {
 		.bug_on_recovery	    = 0,
-		.no_recovery		    = 0,
+		.anal_recovery		    = 0,
 	},
 };
 
@@ -516,7 +516,7 @@ static struct wl18xx_priv_conf wl18xx_default_priv_conf = {
 		.secondary_clock_setting_time	= 0x05,
 		.board_type 			= BOARD_TYPE_HDK_18XX,
 		.auto_detect			= 0x00,
-		.dedicated_fem			= FEM_NONE,
+		.dedicated_fem			= FEM_ANALNE,
 		.low_band_component		= COMPONENT_3_WAY_SWITCH,
 		.low_band_component_type	= 0x05,
 		.high_band_component		= COMPONENT_2_WAY_SWITCH,
@@ -613,7 +613,7 @@ static const struct wlcore_partition_set wl18xx_ptable[PART_TABLE_LEN] = {
 
 static const int wl18xx_rtable[REG_TABLE_LEN] = {
 	[REG_ECPU_CONTROL]		= WL18XX_REG_ECPU_CONTROL,
-	[REG_INTERRUPT_NO_CLEAR]	= WL18XX_REG_INTERRUPT_NO_CLEAR,
+	[REG_INTERRUPT_ANAL_CLEAR]	= WL18XX_REG_INTERRUPT_ANAL_CLEAR,
 	[REG_INTERRUPT_ACK]		= WL18XX_REG_INTERRUPT_ACK,
 	[REG_COMMAND_MAILBOX_PTR]	= WL18XX_REG_COMMAND_MAILBOX_PTR,
 	[REG_EVENT_MAILBOX_PTR]		= WL18XX_REG_EVENT_MAILBOX_PTR,
@@ -671,26 +671,26 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 		wl->plt_fw_name = WL18XX_FW_NAME;
 		wl->quirks |= WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN |
 			      WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN |
-			      WLCORE_QUIRK_NO_SCHED_SCAN_WHILE_CONN |
+			      WLCORE_QUIRK_ANAL_SCHED_SCAN_WHILE_CONN |
 			      WLCORE_QUIRK_TX_PAD_LAST_FRAME |
 			      WLCORE_QUIRK_REGDOMAIN_CONF |
 			      WLCORE_QUIRK_DUAL_PROBE_TMPL;
 
 		wlcore_set_min_fw_ver(wl, WL18XX_CHIP_VER,
 				      WL18XX_IFTYPE_VER,  WL18XX_MAJOR_VER,
-				      WL18XX_SUBTYPE_VER, WL18XX_MINOR_VER,
-				      /* there's no separate multi-role FW */
+				      WL18XX_SUBTYPE_VER, WL18XX_MIANALR_VER,
+				      /* there's anal separate multi-role FW */
 				      0, 0, 0, 0);
 		break;
 	case CHIP_ID_185x_PG10:
 		wl1271_warning("chip id 0x%x (185x PG10) is deprecated",
 			       wl->chip.id);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 
 	default:
 		wl1271_warning("unsupported chip id: 0x%x", wl->chip.id);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -891,7 +891,7 @@ static int wl18xx_pre_upload(struct wl1271 *wl)
 
 	/*
 	 * Workaround for FDSP code RAM corruption (needed for PG2.1
-	 * and newer; for older chips it's a NOP).  Change FDSP clock
+	 * and newer; for older chips it's a ANALP).  Change FDSP clock
 	 * settings so that it's muxed to the ATGP clock instead of
 	 * its own clock.
 	 */
@@ -950,7 +950,7 @@ static int wl18xx_set_mac_and_phy(struct wl1271 *wl)
 
 	params = kmemdup(&priv->conf.phy, sizeof(*params), GFP_KERNEL);
 	if (!params) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1084,7 +1084,7 @@ wl18xx_set_tx_desc_data_len(struct wl1271 *wl, struct wl1271_tx_hw_descr *desc,
 
 	/* if only the last frame is to be padded, we unset this bit on Tx */
 	if (wl->quirks & WLCORE_QUIRK_TX_PAD_LAST_FRAME)
-		desc->wl18xx_mem.ctrl = WL18XX_TX_CTRL_NOT_PADDED;
+		desc->wl18xx_mem.ctrl = WL18XX_TX_CTRL_ANALT_PADDED;
 	else
 		desc->wl18xx_mem.ctrl = 0;
 
@@ -1257,7 +1257,7 @@ static bool wl18xx_is_mimo_supported(struct wl1271 *wl)
 	struct wl18xx_priv *priv = wl->priv;
 
 	/* only support MIMO with multiple antennas, and when SISO
-	 * is not forced through config
+	 * is analt forced through config
 	 */
 	return (priv->conf.phy.number_of_assembled_ant2_4 >= 2) &&
 	       (priv->conf.ht.mode != HT_MODE_WIDE) &&
@@ -1325,17 +1325,17 @@ static const char *wl18xx_rdl_name(enum wl18xx_rdl_num rdl_num)
 	case RDL_4_SP:
 		return "187x";
 	case RDL_5_SP:
-		return "RDL11 - Not Supported";
+		return "RDL11 - Analt Supported";
 	case RDL_6_SP:
 		return "180xD";
 	case RDL_7_SP:
-		return "RDL13 - Not Supported (1893Q)";
+		return "RDL13 - Analt Supported (1893Q)";
 	case RDL_8_SP:
 		return "18xxQ";
-	case RDL_NONE:
+	case RDL_ANALNE:
 		return "UNTRIMMED";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -1397,7 +1397,7 @@ static int wl18xx_load_conf_file(struct device *dev, struct wlcore_conf *conf,
 
 	ret = request_firmware(&fw, file, dev);
 	if (ret < 0) {
-		wl1271_error("could not get configuration binary %s: %d",
+		wl1271_error("could analt get configuration binary %s: %d",
 			     file, ret);
 		return ret;
 	}
@@ -1420,7 +1420,7 @@ static int wl18xx_load_conf_file(struct device *dev, struct wlcore_conf *conf,
 	}
 
 	if (conf_file->header.version != cpu_to_le32(WL18XX_CONF_VERSION)) {
-		wl1271_error("configuration binary file version not supported, "
+		wl1271_error("configuration binary file version analt supported, "
 			     "expected 0x%08x got 0x%08x",
 			     WL18XX_CONF_VERSION, conf_file->header.version);
 		ret = -EINVAL;
@@ -1459,9 +1459,9 @@ static int wl18xx_plt_init(struct wl1271 *wl)
 {
 	int ret;
 
-	/* calibrator based auto/fem detect not supported for 18xx */
+	/* calibrator based auto/fem detect analt supported for 18xx */
 	if (wl->plt_mode == PLT_FEM_DETECT) {
-		wl1271_error("wl18xx_plt_init: PLT FEM_DETECT not supported");
+		wl1271_error("wl18xx_plt_init: PLT FEM_DETECT analt supported");
 		return -EINVAL;
 	}
 
@@ -1501,7 +1501,7 @@ static int wl18xx_get_mac(struct wl1271 *wl)
 
 		wl->fuse_oui_addr = (mac[0] << 16) + (mac[1] << 8) + mac[2];
 		wl->fuse_nic_addr = (mac[3] << 16) + (mac[4] << 8) + mac[5];
-		wl1271_warning("MAC address from fuse not available, using random locally administered addresses.");
+		wl1271_warning("MAC address from fuse analt available, using random locally administered addresses.");
 	}
 
 	ret = wlcore_set_partition(wl, &wl->ptable[PART_DOWN]);
@@ -1576,7 +1576,7 @@ static int wl18xx_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 	if (!change_spare)
 		goto out;
 
-	/* key is now set, change the spare blocks */
+	/* key is analw set, change the spare blocks */
 	if (priv->extra_spare_key_count)
 		ret = wl18xx_set_host_cfg_bitmap(wl,
 					WL18XX_TX_HW_EXTRA_BLOCK_SPARE);
@@ -1599,11 +1599,11 @@ static u32 wl18xx_pre_pkt_send(struct wl1271 *wl,
 							buf_offset - last_len);
 
 		/* the last frame is padded up to an SDIO block */
-		last_desc->wl18xx_mem.ctrl &= ~WL18XX_TX_CTRL_NOT_PADDED;
+		last_desc->wl18xx_mem.ctrl &= ~WL18XX_TX_CTRL_ANALT_PADDED;
 		return ALIGN(buf_offset, WL12XX_BUS_BLOCK_SIZE);
 	}
 
-	/* no modifications */
+	/* anal modifications */
 	return buf_offset;
 }
 
@@ -1618,7 +1618,7 @@ static void wl18xx_sta_rc_update(struct wl1271 *wl,
 	if (WARN_ON(wlvif->bss_type != BSS_TYPE_STA_BSS))
 		return;
 
-	/* ignore the change before association */
+	/* iganalre the change before association */
 	if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
 		return;
 
@@ -1742,7 +1742,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.smart_config_start = wl18xx_cmd_smart_config_start,
 	.smart_config_stop  = wl18xx_cmd_smart_config_stop,
 	.smart_config_set_group_key = wl18xx_cmd_smart_config_set_group_key,
-	.interrupt_notify = wl18xx_acx_interrupt_notify_config,
+	.interrupt_analtify = wl18xx_acx_interrupt_analtify_config,
 	.rx_ba_filter	= wl18xx_acx_rx_ba_filter,
 	.ap_sleep	= wl18xx_acx_ap_sleep,
 	.set_cac	= wl18xx_cmd_set_cac,
@@ -1857,7 +1857,7 @@ wl18xx_iface_combinations[] = {
 		.limits = wl18xx_iface_ap_limits,
 		.n_limits = ARRAY_SIZE(wl18xx_iface_ap_limits),
 		.num_different_channels = 1,
-		.radar_detect_widths =	BIT(NL80211_CHAN_NO_HT) |
+		.radar_detect_widths =	BIT(NL80211_CHAN_ANAL_HT) |
 					BIT(NL80211_CHAN_HT20) |
 					BIT(NL80211_CHAN_HT40MINUS) |
 					BIT(NL80211_CHAN_HT40PLUS),
@@ -2088,5 +2088,5 @@ MODULE_PARM_DESC(num_rx_desc_param,
 
 MODULE_DESCRIPTION("TI WiLink 8 wireless driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
+MODULE_AUTHOR("Luciaanal Coelho <coelho@ti.com>");
 MODULE_FIRMWARE(WL18XX_FW_NAME);

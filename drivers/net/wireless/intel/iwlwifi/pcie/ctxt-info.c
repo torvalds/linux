@@ -17,7 +17,7 @@ static void *_iwl_pcie_ctxt_info_dma_alloc_coherent(struct iwl_trans *trans,
 	void *result;
 
 	if (WARN(depth > 2,
-		 "failed to allocate DMA memory not crossing 2^32 boundary"))
+		 "failed to allocate DMA memory analt crossing 2^32 boundary"))
 		return NULL;
 
 	result = dma_alloc_coherent(trans->dev, size, phys, GFP_KERNEL);
@@ -52,7 +52,7 @@ int iwl_pcie_ctxt_info_alloc_dma(struct iwl_trans *trans,
 	dram->block = iwl_pcie_ctxt_info_dma_alloc_coherent(trans, len,
 							    &dram->physical);
 	if (!dram->block)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dram->size = len;
 	memcpy(dram->block, data, len);
@@ -101,10 +101,10 @@ int iwl_pcie_init_fw_sec(struct iwl_trans *trans,
 
 	dram->fw = kcalloc(umac_cnt + lmac_cnt, sizeof(*dram->fw), GFP_KERNEL);
 	if (!dram->fw)
-		return -ENOMEM;
+		return -EANALMEM;
 	dram->paging = kcalloc(paging_cnt, sizeof(*dram->paging), GFP_KERNEL);
 	if (!dram->paging)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* initialize lmac sections */
 	for (i = 0; i < lmac_cnt; i++) {
@@ -174,7 +174,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 							  sizeof(*ctxt_info),
 							  &phys);
 	if (!ctxt_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	trans_pcie->ctxt_info_dma_addr = phys;
 

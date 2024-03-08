@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -33,14 +33,14 @@
 #include <linux/mlx5/port.h>
 #include "mlx5_core.h"
 
-/* calling with verbose false will not print error to log */
+/* calling with verbose false will analt print error to log */
 int mlx5_access_reg(struct mlx5_core_dev *dev, void *data_in, int size_in,
 		    void *data_out, int size_out, u16 reg_id, int arg,
 		    int write, bool verbose)
 {
 	int outlen = MLX5_ST_SZ_BYTES(access_register_out) + size_out;
 	int inlen = MLX5_ST_SZ_BYTES(access_register_in) + size_in;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	u32 *out = NULL;
 	u32 *in = NULL;
 	void *data;
@@ -432,7 +432,7 @@ int mlx5_query_module_eeprom(struct mlx5_core_dev *dev,
 		mlx5_qsfp_eeprom_params_set(&query.i2c_address, &query.page, &offset);
 		break;
 	default:
-		mlx5_core_err(dev, "Module ID not recognized: 0x%x\n", module_id);
+		mlx5_core_err(dev, "Module ID analt recognized: 0x%x\n", module_id);
 		return -EINVAL;
 	}
 
@@ -459,7 +459,7 @@ int mlx5_query_module_eeprom_by_page(struct mlx5_core_dev *dev,
 
 	if (params->i2c_address != MLX5_I2C_ADDR_HIGH &&
 	    params->i2c_address != MLX5_I2C_ADDR_LOW) {
-		mlx5_core_err(dev, "I2C address not recognized: 0x%x\n", params->i2c_address);
+		mlx5_core_err(dev, "I2C address analt recognized: 0x%x\n", params->i2c_address);
 		return -EINVAL;
 	}
 
@@ -540,7 +540,7 @@ EXPORT_SYMBOL_GPL(mlx5_query_port_pause);
 
 int mlx5_set_port_stall_watermark(struct mlx5_core_dev *dev,
 				  u16 stall_critical_watermark,
-				  u16 stall_minor_watermark)
+				  u16 stall_mianalr_watermark)
 {
 	u32 in[MLX5_ST_SZ_DW(pfcc_reg)] = {0};
 	u32 out[MLX5_ST_SZ_DW(pfcc_reg)];
@@ -550,10 +550,10 @@ int mlx5_set_port_stall_watermark(struct mlx5_core_dev *dev,
 	MLX5_SET(pfcc_reg, in, pprx_mask_n, 1);
 	MLX5_SET(pfcc_reg, in, ppan_mask_n, 1);
 	MLX5_SET(pfcc_reg, in, critical_stall_mask, 1);
-	MLX5_SET(pfcc_reg, in, minor_stall_mask, 1);
+	MLX5_SET(pfcc_reg, in, mianalr_stall_mask, 1);
 	MLX5_SET(pfcc_reg, in, device_stall_critical_watermark,
 		 stall_critical_watermark);
-	MLX5_SET(pfcc_reg, in, device_stall_minor_watermark, stall_minor_watermark);
+	MLX5_SET(pfcc_reg, in, device_stall_mianalr_watermark, stall_mianalr_watermark);
 
 	return mlx5_core_access_reg(dev, in, sizeof(in), out,
 				    sizeof(out), MLX5_REG_PFCC, 0, 1);
@@ -561,7 +561,7 @@ int mlx5_set_port_stall_watermark(struct mlx5_core_dev *dev,
 
 int mlx5_query_port_stall_watermark(struct mlx5_core_dev *dev,
 				    u16 *stall_critical_watermark,
-				    u16 *stall_minor_watermark)
+				    u16 *stall_mianalr_watermark)
 {
 	u32 out[MLX5_ST_SZ_DW(pfcc_reg)];
 	int err;
@@ -574,9 +574,9 @@ int mlx5_query_port_stall_watermark(struct mlx5_core_dev *dev,
 		*stall_critical_watermark = MLX5_GET(pfcc_reg, out,
 						     device_stall_critical_watermark);
 
-	if (stall_minor_watermark)
-		*stall_minor_watermark = MLX5_GET(pfcc_reg, out,
-						  device_stall_minor_watermark);
+	if (stall_mianalr_watermark)
+		*stall_mianalr_watermark = MLX5_GET(pfcc_reg, out,
+						  device_stall_mianalr_watermark);
 
 	return 0;
 }
@@ -695,7 +695,7 @@ static int mlx5_set_port_qetcr_reg(struct mlx5_core_dev *mdev, u32 *in,
 	u32 out[MLX5_ST_SZ_DW(qetc_reg)];
 
 	if (!MLX5_CAP_GEN(mdev, ets))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mlx5_core_access_reg(mdev, in, inlen, out, sizeof(out),
 				    MLX5_REG_QETCR, 0, 1);
@@ -707,7 +707,7 @@ static int mlx5_query_port_qetcr_reg(struct mlx5_core_dev *mdev, u32 *out,
 	u32 in[MLX5_ST_SZ_DW(qetc_reg)];
 
 	if (!MLX5_CAP_GEN(mdev, ets))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(in, 0, sizeof(in));
 	return mlx5_core_access_reg(mdev, in, sizeof(in), out, outlen,
@@ -852,7 +852,7 @@ int mlx5_query_port_wol(struct mlx5_core_dev *mdev, u8 *wol_mode)
 	int err;
 
 	MLX5_SET(query_wol_rol_in, in, opcode, MLX5_CMD_OP_QUERY_WOL_ROL);
-	err = mlx5_cmd_exec_inout(mdev, query_wol_rol, in, out);
+	err = mlx5_cmd_exec_ianalut(mdev, query_wol_rol, in, out);
 	if (!err)
 		*wol_mode = MLX5_GET(query_wol_rol_out, out, wol_mode);
 
@@ -894,7 +894,7 @@ void mlx5_query_port_fcs(struct mlx5_core_dev *mdev, bool *supported,
 			 bool *enabled)
 {
 	u32 out[MLX5_ST_SZ_DW(pcmr_reg)];
-	/* Default values for FW which do not support MLX5_REG_PCMR */
+	/* Default values for FW which do analt support MLX5_REG_PCMR */
 	*supported = false;
 	*enabled = true;
 
@@ -997,7 +997,7 @@ int mlx5_set_dscp2prio(struct mlx5_core_dev *mdev, u8 dscp, u8 prio)
 	in = kzalloc(sz, GFP_KERNEL);
 	out = kzalloc(sz, GFP_KERNEL);
 	if (!in || !out) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1035,7 +1035,7 @@ int mlx5_query_dscp2prio(struct mlx5_core_dev *mdev, u8 *dscp2prio)
 	in = kzalloc(sz, GFP_KERNEL);
 	out = kzalloc(sz, GFP_KERNEL);
 	if (!in || !out) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 

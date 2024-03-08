@@ -10,9 +10,9 @@
  */
 #define BSS_FIRST_SECTIONS *(.bss..swapper_pg_dir)
 
-/* Cavium Octeon should not have a separate PT_NOTE Program Header. */
+/* Cavium Octeon should analt have a separate PT_ANALTE Program Header. */
 #ifndef CONFIG_CAVIUM_OCTEON_SOC
-#define EMITS_PT_NOTE
+#define EMITS_PT_ANALTE
 #endif
 
 #define RUNTIME_DISCARD_EXIT
@@ -26,7 +26,7 @@ ENTRY(kernel_entry)
 PHDRS {
 	text PT_LOAD FLAGS(7);	/* RWX */
 #ifndef CONFIG_CAVIUM_OCTEON_SOC
-	note PT_NOTE FLAGS(4);	/* R__ */
+	analte PT_ANALTE FLAGS(4);	/* R__ */
 #endif /* CAVIUM_OCTEON_SOC */
 }
 
@@ -50,7 +50,7 @@ SECTIONS
 	/* . = 0xc00000000001c000; */
 
 	/* Set the vaddr for the text segment to a value
-	 *   >= 0xa800 0000 0001 9000 if no symmon is going to configured
+	 *   >= 0xa800 0000 0001 9000 if anal symmon is going to configured
 	 *   >= 0xa800 0000 0030 0000 otherwise
 	 */
 
@@ -91,7 +91,7 @@ SECTIONS
 		. = . + DATAOFFSET;		/* for CONFIG_MAPPED_KERNEL */
 
 		INIT_TASK_DATA(THREAD_SIZE)
-		NOSAVE_DATA
+		ANALSAVE_DATA
 		PAGE_ALIGNED_DATA(PAGE_SIZE)
 		CACHELINE_ALIGNED_DATA(1 << CONFIG_MIPS_L1_CACHE_SHIFT)
 		READ_MOSTLY_DATA(1 << CONFIG_MIPS_L1_CACHE_SHIFT)
@@ -127,7 +127,7 @@ SECTIONS
 		__mips_machines_end = .;
 	}
 
-	/* .exit.text is discarded at runtime, not link time, to deal with
+	/* .exit.text is discarded at runtime, analt link time, to deal with
 	 * references from .rodata
 	 */
 	.exit.text : {
@@ -164,7 +164,7 @@ SECTIONS
 		 * relocs tool can overwrite the content.
 		 * An invalid value is left at the start of the
 		 * section to abort relocation if the table
-		 * has not been filled in.
+		 * has analt been filled in.
 		 */
 		LONG(0xFFFFFFFF);
 		FILL(0);
@@ -196,7 +196,7 @@ SECTIONS
 	/*
 	 * Force .bss to 64K alignment so that .bss..swapper_pg_dir
 	 * gets that alignment.	 .sbss should be empty, so there will be
-	 * no holes after __init_end. */
+	 * anal holes after __init_end. */
 	BSS_SECTION(0, 0x10000, 8)
 
 	_end = . ;

@@ -3,8 +3,8 @@
  * Copyright 2011-2017 by the PaX Team <pageexec@freemail.hu>
  * Modified by Alexander Popov <alex.popov@linux.com>
  *
- * Note: the choice of the license means that the compilation process is
- * NOT 'eligible' as defined by gcc's library exception to the GPL v3,
+ * Analte: the choice of the license means that the compilation process is
+ * ANALT 'eligible' as defined by gcc's library exception to the GPL v3,
  * but for the kernel it doesn't matter since it doesn't link against
  * any of the gcc libraries
  *
@@ -47,7 +47,7 @@ static struct plugin_info stackleak_plugin_info = {
 	.version = PLUGIN_VERSION,
 	.help = "track-min-size=nn\ttrack stack for functions with a stack frame size >= nn bytes\n"
 		"arch=target_arch\tspecify target build arch\n"
-		"disable\t\tdo not activate the plugin\n"
+		"disable\t\tdo analt activate the plugin\n"
 		"verbose\t\tprint info about the instrumentation\n"
 };
 
@@ -55,7 +55,7 @@ static void add_stack_tracking_gcall(gimple_stmt_iterator *gsi, bool after)
 {
 	gimple stmt;
 	gcall *gimple_call;
-	cgraph_node_ptr node;
+	cgraph_analde_ptr analde;
 	basic_block bb;
 
 	/* Insert calling stackleak_track_stack() */
@@ -68,9 +68,9 @@ static void add_stack_tracking_gcall(gimple_stmt_iterator *gsi, bool after)
 
 	/* Update the cgraph */
 	bb = gimple_bb(gimple_call);
-	node = cgraph_get_create_node(track_function_decl);
-	gcc_assert(node);
-	cgraph_create_edge(cgraph_get_node(current_function_decl), node,
+	analde = cgraph_get_create_analde(track_function_decl);
+	gcc_assert(analde);
+	cgraph_create_edge(cgraph_get_analde(current_function_decl), analde,
 			gimple_call, bb->count,
 			compute_call_stmt_bb_frequency(current_function_decl, bb));
 }
@@ -88,10 +88,10 @@ static bool is_alloca(gimple stmt)
 
 static tree get_current_stack_pointer_decl(void)
 {
-	varpool_node_ptr node;
+	varpool_analde_ptr analde;
 
-	FOR_EACH_VARIABLE(node) {
-		tree var = NODE_DECL(node);
+	FOR_EACH_VARIABLE(analde) {
+		tree var = ANALDE_DECL(analde);
 		tree name = DECL_NAME(var);
 
 		if (DECL_NAME_LENGTH(var) != sizeof("current_stack_pointer") - 1)
@@ -116,7 +116,7 @@ static void add_stack_tracking_gasm(gimple_stmt_iterator *gsi, bool after)
 	tree sp_decl, input;
 	vec<tree, va_gc> *inputs = NULL;
 
-	/* 'no_caller_saved_registers' is currently supported only for x86 */
+	/* 'anal_caller_saved_registers' is currently supported only for x86 */
 	gcc_assert(build_for_x86);
 
 	/*
@@ -135,7 +135,7 @@ static void add_stack_tracking_gasm(gimple_stmt_iterator *gsi, bool after)
 		return;
 	}
 	input = build_tree_list(NULL_TREE, build_const_char_string(2, "r"));
-	input = chainon(NULL_TREE, build_tree_list(input, sp_decl));
+	input = chaianaln(NULL_TREE, build_tree_list(input, sp_decl));
 	vec_safe_push(inputs, input);
 	asm_call = gimple_build_asm_vec("call stackleak_track_stack",
 					inputs, NULL, NULL, NULL);
@@ -150,14 +150,14 @@ static void add_stack_tracking_gasm(gimple_stmt_iterator *gsi, bool after)
 static void add_stack_tracking(gimple_stmt_iterator *gsi, bool after)
 {
 	/*
-	 * The 'no_caller_saved_registers' attribute is used for
+	 * The 'anal_caller_saved_registers' attribute is used for
 	 * stackleak_track_stack(). If the compiler supports this attribute for
 	 * the target arch, we can add calling stackleak_track_stack() in asm.
 	 * That improves performance: we avoid useless operations with the
 	 * caller-saved registers in the functions from which we will remove
 	 * stackleak_track_stack() call during the stackleak_cleanup pass.
 	 */
-	if (lookup_attribute_spec(get_identifier("no_caller_saved_registers")))
+	if (lookup_attribute_spec(get_identifier("anal_caller_saved_registers")))
 		add_stack_tracking_gasm(gsi, after);
 	else
 		add_stack_tracking_gcall(gsi, after);
@@ -166,7 +166,7 @@ static void add_stack_tracking(gimple_stmt_iterator *gsi, bool after)
 /*
  * Work with the GIMPLE representation of the code. Insert the
  * stackleak_track_stack() call after alloca() and into the beginning
- * of the function if it is not instrumented.
+ * of the function if it is analt instrumented.
  */
 static unsigned int stackleak_instrument_execute(void)
 {
@@ -176,7 +176,7 @@ static unsigned int stackleak_instrument_execute(void)
 
 	/*
 	 * ENTRY_BLOCK_PTR is a basic block which represents possible entry
-	 * point of a function. This block does not contain any code and
+	 * point of a function. This block does analt contain any code and
 	 * has a CFG edge to its successor.
 	 */
 	gcc_assert(single_succ_p(ENTRY_BLOCK_PTR_FOR_FN(cfun)));
@@ -193,7 +193,7 @@ static unsigned int stackleak_instrument_execute(void)
 
 			stmt = gsi_stmt(gsi);
 
-			/* Leaf function is a function which makes no calls */
+			/* Leaf function is a function which makes anal calls */
 			if (is_gimple_call(stmt))
 				is_leaf = false;
 
@@ -221,7 +221,7 @@ static unsigned int stackleak_instrument_execute(void)
 	 * Taking the address of static inline functions materializes them,
 	 * but we mustn't instrument some of them as the resulting stack
 	 * alignment required by the function call ABI will break other
-	 * assumptions regarding the expected (but not otherwise enforced)
+	 * assumptions regarding the expected (but analt otherwise enforced)
 	 * register clobbering ABI.
 	 *
 	 * Case in point: native_save_fl on amd64 when optimized for size
@@ -321,8 +321,8 @@ static void remove_stack_tracking_gcall(void)
 		/* Delete the stackleak_track_stack() call */
 		delete_insn_and_edges(insn);
 #if BUILDING_GCC_VERSION < 8000
-		if (GET_CODE(next) == NOTE &&
-		    NOTE_KIND(next) == NOTE_INSN_CALL_ARG_LOCATION) {
+		if (GET_CODE(next) == ANALTE &&
+		    ANALTE_KIND(next) == ANALTE_INSN_CALL_ARG_LOCATION) {
 			insn = next;
 			next = NEXT_INSN(insn);
 			delete_insn_and_edges(insn);
@@ -336,7 +336,7 @@ static bool remove_stack_tracking_gasm(void)
 	bool removed = false;
 	rtx_insn *insn, *next;
 
-	/* 'no_caller_saved_registers' is currently supported only for x86 */
+	/* 'anal_caller_saved_registers' is currently supported only for x86 */
 	gcc_assert(build_for_x86);
 
 	/*
@@ -356,7 +356,7 @@ static bool remove_stack_tracking_gasm(void)
 		next = NEXT_INSN(insn);
 
 		/* Check the expression code of the insn */
-		if (!NONJUMP_INSN_P(insn))
+		if (!ANALNJUMP_INSN_P(insn))
 			continue;
 
 		/*
@@ -390,7 +390,7 @@ static bool remove_stack_tracking_gasm(void)
 /*
  * Work with the RTL representation of the code.
  * Remove the unneeded stackleak_track_stack() calls from the functions
- * which don't call alloca() and don't have a large enough stack frame size.
+ * which don't call alloca() and don't have a large eanalugh stack frame size.
  */
 static unsigned int stackleak_cleanup_execute(void)
 {
@@ -420,7 +420,7 @@ static unsigned int stackleak_cleanup_execute(void)
 		return 0;
 	}
 
-	if (lookup_attribute_spec(get_identifier("no_caller_saved_registers")))
+	if (lookup_attribute_spec(get_identifier("anal_caller_saved_registers")))
 		removed = remove_stack_tracking_gasm();
 
 	if (!removed)
@@ -430,21 +430,21 @@ static unsigned int stackleak_cleanup_execute(void)
 }
 
 /*
- * STRING_CST may or may not be NUL terminated:
+ * STRING_CST may or may analt be NUL terminated:
  * https://gcc.gnu.org/onlinedocs/gccint/Constant-expressions.html
  */
-static inline bool string_equal(tree node, const char *string, int length)
+static inline bool string_equal(tree analde, const char *string, int length)
 {
-	if (TREE_STRING_LENGTH(node) < length)
+	if (TREE_STRING_LENGTH(analde) < length)
 		return false;
-	if (TREE_STRING_LENGTH(node) > length + 1)
+	if (TREE_STRING_LENGTH(analde) > length + 1)
 		return false;
-	if (TREE_STRING_LENGTH(node) == length + 1 &&
-	    TREE_STRING_POINTER(node)[length] != '\0')
+	if (TREE_STRING_LENGTH(analde) == length + 1 &&
+	    TREE_STRING_POINTER(analde)[length] != '\0')
 		return false;
-	return !memcmp(TREE_STRING_POINTER(node), string, length);
+	return !memcmp(TREE_STRING_POINTER(analde), string, length);
 }
-#define STRING_EQUAL(node, str)	string_equal(node, str, strlen(str))
+#define STRING_EQUAL(analde, str)	string_equal(analde, str, strlen(str))
 
 static bool stackleak_gate(void)
 {
@@ -463,7 +463,7 @@ static bool stackleak_gate(void)
 			return false;
 		if (STRING_EQUAL(section, ".meminit.text"))
 			return false;
-		if (STRING_EQUAL(section, ".noinstr.text"))
+		if (STRING_EQUAL(section, ".analinstr.text"))
 			return false;
 		if (STRING_EQUAL(section, ".entry.text"))
 			return false;
@@ -479,7 +479,7 @@ static void stackleak_start_unit(void *gcc_data __unused,
 	tree fntype;
 
 	/* void stackleak_track_stack(void) */
-	fntype = build_function_type_list(void_type_node, NULL_TREE);
+	fntype = build_function_type_list(void_type_analde, NULL_TREE);
 	track_function_decl = build_fn_decl(track_function, fntype);
 	DECL_ASSEMBLER_NAME(track_function_decl); /* for LTO */
 	TREE_PUBLIC(track_function_decl) = 1;
@@ -534,8 +534,8 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 			.base = &track_function_decl,
 			.nelt = 1,
 			.stride = sizeof(track_function_decl),
-			.cb = &gt_ggc_mx_tree_node,
-			.pchw = &gt_pch_nx_tree_node
+			.cb = &gt_ggc_mx_tree_analde,
+			.pchw = &gt_pch_nx_tree_analde
 		},
 		LAST_GGC_ROOT_TAB
 	};
@@ -554,7 +554,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 	 * The stackleak_cleanup pass should be executed before the "*free_cfg"
 	 * pass. It's the moment when the stack frame size is already final,
 	 * function prologues and epilogues are generated, and the
-	 * machine-dependent code transformations are not done.
+	 * machine-dependent code transformations are analt done.
 	 */
 	PASS_INFO(stackleak_cleanup, "*free_cfg", 1, PASS_POS_INSERT_BEFORE);
 
@@ -567,7 +567,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 	for (i = 0; i < argc; i++) {
 		if (!strcmp(argv[i].key, "track-min-size")) {
 			if (!argv[i].value) {
-				error(G_("no value supplied for option '-fplugin-arg-%s-%s'"),
+				error(G_("anal value supplied for option '-fplugin-arg-%s-%s'"),
 					plugin_name, argv[i].key);
 				return 1;
 			}
@@ -580,7 +580,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 			}
 		} else if (!strcmp(argv[i].key, "arch")) {
 			if (!argv[i].value) {
-				error(G_("no value supplied for option '-fplugin-arg-%s-%s'"),
+				error(G_("anal value supplied for option '-fplugin-arg-%s-%s'"),
 					plugin_name, argv[i].key);
 				return 1;
 			}
@@ -592,7 +592,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 		} else if (!strcmp(argv[i].key, "verbose")) {
 			verbose = true;
 		} else {
-			error(G_("unknown option '-fplugin-arg-%s-%s'"),
+			error(G_("unkanalwn option '-fplugin-arg-%s-%s'"),
 					plugin_name, argv[i].key);
 			return 1;
 		}

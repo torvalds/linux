@@ -498,7 +498,7 @@ static int lp8788_config_ldo_enable_mode(struct platform_device *pdev,
 	}
 
 	/*
-	 * Do not use devm* here: the regulator core takes over the
+	 * Do analt use devm* here: the regulator core takes over the
 	 * lifecycle management of the GPIO descriptor.
 	 * FIXME: check default mode for GPIO here: high or low?
 	 */
@@ -506,11 +506,11 @@ static int lp8788_config_ldo_enable_mode(struct platform_device *pdev,
 					       "enable",
 					       enable_id,
 					       GPIOD_OUT_HIGH |
-					       GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+					       GPIOD_FLAGS_BIT_ANALNEXCLUSIVE);
 	if (IS_ERR(ldo->ena_gpiod))
 		return PTR_ERR(ldo->ena_gpiod);
 
-	/* if no GPIO for ldo pin, then set default enable mode */
+	/* if anal GPIO for ldo pin, then set default enable mode */
 	if (!ldo->ena_gpiod)
 		goto set_default_ldo_enable_mode;
 
@@ -531,7 +531,7 @@ static int lp8788_dldo_probe(struct platform_device *pdev)
 
 	ldo = devm_kzalloc(&pdev->dev, sizeof(struct lp8788_ldo), GFP_KERNEL);
 	if (!ldo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ldo->lp = lp;
 	ret = lp8788_config_ldo_enable_mode(pdev, ldo, id);
@@ -564,7 +564,7 @@ static struct platform_driver lp8788_dldo_driver = {
 	.probe = lp8788_dldo_probe,
 	.driver = {
 		.name = LP8788_DEV_DLDO,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 
@@ -579,7 +579,7 @@ static int lp8788_aldo_probe(struct platform_device *pdev)
 
 	ldo = devm_kzalloc(&pdev->dev, sizeof(struct lp8788_ldo), GFP_KERNEL);
 	if (!ldo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ldo->lp = lp;
 	ret = lp8788_config_ldo_enable_mode(pdev, ldo, id + ALDO1);
@@ -612,7 +612,7 @@ static struct platform_driver lp8788_aldo_driver = {
 	.probe = lp8788_aldo_probe,
 	.driver = {
 		.name = LP8788_DEV_ALDO,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

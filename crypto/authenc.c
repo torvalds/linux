@@ -378,7 +378,7 @@ static int crypto_authenc_create(struct crypto_template *tmpl,
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx = aead_instance_ctx(inst);
 
 	err = crypto_grab_ahash(&ctx->auth, aead_crypto_instance(inst),

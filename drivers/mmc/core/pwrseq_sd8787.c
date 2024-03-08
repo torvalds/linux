@@ -2,7 +2,7 @@
 /*
  * pwrseq_sd8787.c - power sequence support for Marvell SD8787 BT + Wifi chip
  *
- * Copyright (C) 2016 Matt Ranostay <matt@ranostay.consulting>
+ * Copyright (C) 2016 Matt Raanalstay <matt@raanalstay.consulting>
  *
  * Based on the original work pwrseq_simple.c
  *  Copyright (C) 2014 Linaro Ltd
@@ -93,9 +93,9 @@ static int mmc_pwrseq_sd8787_probe(struct platform_device *pdev)
 
 	pwrseq = devm_kzalloc(dev, sizeof(*pwrseq), GFP_KERNEL);
 	if (!pwrseq)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	match = of_match_node(mmc_pwrseq_sd8787_of_match, pdev->dev.of_node);
+	match = of_match_analde(mmc_pwrseq_sd8787_of_match, pdev->dev.of_analde);
 
 	pwrseq->pwrdn_gpio = devm_gpiod_get(dev, "powerdown", GPIOD_OUT_LOW);
 	if (IS_ERR(pwrseq->pwrdn_gpio))

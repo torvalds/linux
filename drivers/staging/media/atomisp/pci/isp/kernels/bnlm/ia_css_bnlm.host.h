@@ -31,7 +31,7 @@ ia_css_bnlm_encode(
     const struct ia_css_bnlm_config *from,
     size_t size);
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 void
 ia_css_bnlm_debug_trace(
     const struct ia_css_bnlm_config *config,

@@ -13,21 +13,21 @@
 
 void machine_shutdown(void)
 {
-	pr_notice("Machine shutdown...\n");
+	pr_analtice("Machine shutdown...\n");
 	while (1)
 		;
 }
 
 void machine_halt(void)
 {
-	pr_notice("Machine halt...\n");
+	pr_analtice("Machine halt...\n");
 	while (1)
 		;
 }
 
 void machine_power_off(void)
 {
-	pr_notice("Machine power off...\n");
+	pr_analtice("Machine power off...\n");
 	while (1)
 		;
 }

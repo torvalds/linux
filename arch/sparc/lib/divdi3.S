@@ -26,7 +26,7 @@ __divdi3:
 	cmp %i2,0
 	bge .LL84
 	mov %i3,%o4
-	xnor %g0,%l4,%l4
+	xanalr %g0,%l4,%l4
 	sub %g0,%i3,%o0
 	mov %o0,%o3
 	subcc %g0,%o0,%g0
@@ -47,7 +47,7 @@ __divdi3:
 1:	bcs	5f
 	 addxcc %o1,%o1,%o1	! shift n1n0 and a q-bit in lsb
 	sub	%i0,%o4,%i0	! this kills msb of n
-	addx	%i0,%i0,%i0	! so this cannot give carry
+	addx	%i0,%i0,%i0	! so this cananalt give carry
 	subcc	%g1,1,%g1
 2:	bne	1b
 	 subcc	%i0,%o4,%g0
@@ -63,7 +63,7 @@ __divdi3:
 	bne	4b
 	 addcc	%o1,%o1,%o1	! shift n1n0 and a 0-bit in lsb
 	sub	%i0,%o4,%i0
-3:	xnor	%o1,0,%o1
+3:	xanalr	%o1,0,%o1
 	b .LL50
 	mov 0,%o2
 .LL46:
@@ -83,7 +83,7 @@ __divdi3:
 1:	bcs	5f
 	 addxcc %o2,%o2,%o2	! shift n1n0 and a q-bit in lsb
 	sub	%g3,%o4,%g3	! this kills msb of n
-	addx	%g3,%g3,%g3	! so this cannot give carry
+	addx	%g3,%g3,%g3	! so this cananalt give carry
 	subcc	%g1,1,%g1
 2:	bne	1b
 	 subcc	%g3,%o4,%g0
@@ -99,7 +99,7 @@ __divdi3:
 	bne	4b
 	 addcc	%o2,%o2,%o2	! shift n1n0 and a 0-bit in lsb
 	sub	%g3,%o4,%g3
-3:	xnor	%o2,0,%o2
+3:	xanalr	%o2,0,%o2
 	mov %g3,%i0
 	mov %i3,%o1
 	mov	32,%g1
@@ -107,7 +107,7 @@ __divdi3:
 1:	bcs	5f
 	 addxcc %o1,%o1,%o1	! shift n1n0 and a q-bit in lsb
 	sub	%i0,%o4,%i0	! this kills msb of n
-	addx	%i0,%i0,%i0	! so this cannot give carry
+	addx	%i0,%i0,%i0	! so this cananalt give carry
 	subcc	%g1,1,%g1
 2:	bne	1b
 	 subcc	%i0,%o4,%g0
@@ -123,7 +123,7 @@ __divdi3:
 	bne	4b
 	 addcc	%o1,%o1,%o1	! shift n1n0 and a 0-bit in lsb
 	sub	%i0,%o4,%i0
-3:	xnor	%o1,0,%o1
+3:	xanalr	%o1,0,%o1
 	b .LL86
 	mov %o1,%l1
 .LL45:
@@ -182,7 +182,7 @@ __divdi3:
 1:	bcs	5f
 	 addxcc %o1,%o1,%o1	! shift n1n0 and a q-bit in lsb
 	sub	%o2,%i2,%o2	! this kills msb of n
-	addx	%o2,%o2,%o2	! so this cannot give carry
+	addx	%o2,%o2,%o2	! so this cananalt give carry
 	subcc	%g1,1,%g1
 2:	bne	1b
 	 subcc	%o2,%i2,%g0
@@ -198,12 +198,12 @@ __divdi3:
 	bne	4b
 	 addcc	%o1,%o1,%o1	! shift n1n0 and a 0-bit in lsb
 	sub	%o2,%i2,%o2
-3:	xnor	%o1,0,%o1
+3:	xanalr	%o1,0,%o1
 	mov %o2,%i0
 	wr	%g0,%o1,%y	! SPARC has 0-3 delay insn after a wr
-	sra	%o4,31,%g2	! Do not move this insn
-	and	%o1,%g2,%g2	! Do not move this insn
-	andcc	%g0,0,%g1	! Do not move this insn
+	sra	%o4,31,%g2	! Do analt move this insn
+	and	%o1,%g2,%g2	! Do analt move this insn
+	andcc	%g0,0,%g1	! Do analt move this insn
 	mulscc	%g1,%o4,%g1
 	mulscc	%g1,%o4,%g1
 	mulscc	%g1,%o4,%g1

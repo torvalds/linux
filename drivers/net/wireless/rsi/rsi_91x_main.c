@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -50,7 +50,7 @@ static struct rsi_proto_ops g_proto_ops = {
  * @zone: Zone of interest for output message.
  * @fmt: printf-style format for output message.
  *
- * Return: none
+ * Return: analne
  */
 void rsi_dbg(u32 zone, const char *fmt, ...)
 {
@@ -91,7 +91,7 @@ static char *opmode_str(int oper_mode)
 		return "Wi-Fi AP + BT DUAL";
 	}
 
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 void rsi_print_version(struct rsi_common *common)
@@ -100,7 +100,7 @@ void rsi_print_version(struct rsi_common *common)
 	rsi_dbg(ERR_ZONE, "================ RSI Version Info ==============\n");
 	rsi_dbg(ERR_ZONE, "================================================\n");
 	rsi_dbg(ERR_ZONE, "FW Version\t: %d.%d.%d\n",
-		common->lmac_ver.major, common->lmac_ver.minor,
+		common->lmac_ver.major, common->lmac_ver.mianalr,
 		common->lmac_ver.release_num);
 	rsi_dbg(ERR_ZONE, "Operating mode\t: %d [%s]",
 		common->oper_mode, opmode_str(common->oper_mode));
@@ -157,7 +157,7 @@ static struct sk_buff *rsi_prepare_skb(struct rsi_common *common,
 int rsi_read_pkt(struct rsi_common *common, u8 *rx_pkt, s32 rcv_pkt_len)
 {
 	u8 *frame_desc = NULL, extended_desc = 0;
-	u32 index, length = 0, queueno = 0;
+	u32 index, length = 0, queueanal = 0;
 	u16 actual_length = 0, offset;
 	struct sk_buff *skb = NULL;
 #ifdef CONFIG_RSI_COEX
@@ -173,15 +173,15 @@ int rsi_read_pkt(struct rsi_common *common, u8 *rx_pkt, s32 rcv_pkt_len)
 			RSI_MAX_RX_USB_PKT_SIZE - FRAME_DESC_SZ)
 			goto fail;
 
-		queueno = rsi_get_queueno(frame_desc, offset);
+		queueanal = rsi_get_queueanal(frame_desc, offset);
 		length = rsi_get_length(frame_desc, offset);
 
 		/* Extended descriptor is valid for WLAN queues only */
-		if (queueno == RSI_WIFI_DATA_Q || queueno == RSI_WIFI_MGMT_Q)
+		if (queueanal == RSI_WIFI_DATA_Q || queueanal == RSI_WIFI_MGMT_Q)
 			extended_desc = rsi_get_extended_desc(frame_desc,
 							      offset);
 
-		switch (queueno) {
+		switch (queueanal) {
 		case RSI_COEX_Q:
 #ifdef CONFIG_RSI_COEX
 			if (common->coex_mode > 1)
@@ -229,7 +229,7 @@ int rsi_read_pkt(struct rsi_common *common, u8 *rx_pkt, s32 rcv_pkt_len)
 
 		default:
 			rsi_dbg(ERR_ZONE, "%s: pkt from invalid queue: %d\n",
-				__func__,   queueno);
+				__func__,   queueanal);
 			goto fail;
 		}
 
@@ -248,7 +248,7 @@ EXPORT_SYMBOL_GPL(rsi_read_pkt);
  *			       packets to the device.
  * @common: Pointer to the driver private structure.
  *
- * Return: None.
+ * Return: Analne.
  */
 static void rsi_tx_scheduler_thread(struct rsi_common *common)
 {
@@ -393,7 +393,7 @@ EXPORT_SYMBOL_GPL(rsi_91x_init);
  * rsi_91x_deinit() - This function de-intializes os intf operations.
  * @adapter: Pointer to the adapter structure.
  *
- * Return: None.
+ * Return: Analne.
  */
 void rsi_91x_deinit(struct rsi_hw *adapter)
 {
@@ -445,7 +445,7 @@ static int rsi_91x_hal_module_init(void)
  *			       It unregisters the client driver.
  * @void: Void.
  *
- * Return: None.
+ * Return: Analne.
  */
 static void rsi_91x_hal_module_exit(void)
 {

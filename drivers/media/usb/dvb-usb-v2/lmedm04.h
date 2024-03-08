@@ -21,7 +21,7 @@
 
 /* Streamer &  PID
  *
- * Note:	These commands do not actually stop the streaming
+ * Analte:	These commands do analt actually stop the streaming
  *		but form some kind of packet filtering/stream count
  *		or tuning related functions.
  *  06 XX

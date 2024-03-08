@@ -8,8 +8,8 @@
 #include "pm8953.dtsi"
 #include "pmi8950.dtsi"
 
-/delete-node/ &cont_splash_mem;
-/delete-node/ &qseecom_mem;
+/delete-analde/ &cont_splash_mem;
+/delete-analde/ &qseecom_mem;
 
 / {
 	model = "Motorola G5 Plus";
@@ -60,22 +60,22 @@
 	reserved-memory {
 		qseecom_mem: qseecom@84300000 {
 			reg = <0x0 0x84300000 0x0 0x2000000>;
-			no-map;
+			anal-map;
 		};
 
 		cont_splash_mem: cont-splash@90001000 {
 			reg = <0x0 0x90001000 0x0 (1080 * 1920 * 3)>;
-			no-map;
+			anal-map;
 		};
 
 		reserved@aefd2000 {
 			reg = <0x0 0xaefd2000 0x0 0x2e000>;
-			no-map;
+			anal-map;
 		};
 
 		reserved@eefe4000 {
 			reg = <0x0 0xeefe4000 0x0 0x1c000>;
-			no-map;
+			anal-map;
 		};
 
 		ramoops@ef000000 {

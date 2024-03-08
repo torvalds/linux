@@ -14,26 +14,26 @@ fi
 
 source cpu.sh
 source cpufreq.sh
-source governor.sh
+source goveranalr.sh
 
 # Test 1
 # $1: policy
 __simple_lockdep()
 {
 	# switch to ondemand
-	__switch_governor $1 "ondemand"
+	__switch_goveranalr $1 "ondemand"
 
 	# cat ondemand files
 	local ondir=$(find_gov_directory $1 "ondemand")
 	if [ -z $ondir ]; then
-		printf "${FUNCNAME[0]}Ondemand directory not created, quit"
+		printf "${FUNCNAME[0]}Ondemand directory analt created, quit"
 		return
 	fi
 
 	cat $ondir/*
 
 	# switch to conservative
-	__switch_governor $1 "conservative"
+	__switch_goveranalr $1 "conservative"
 }
 
 simple_lockdep()
@@ -62,15 +62,15 @@ concurrent_lockdep()
 # Test 3
 quick_shuffle()
 {
-	# this is called concurrently from governor_race
+	# this is called concurrently from goveranalr_race
 	for I in `seq 1000`
 	do
-		echo ondemand | sudo tee $CPUFREQROOT/policy*/scaling_governor &
-		echo userspace | sudo tee $CPUFREQROOT/policy*/scaling_governor &
+		echo ondemand | sudo tee $CPUFREQROOT/policy*/scaling_goveranalr &
+		echo userspace | sudo tee $CPUFREQROOT/policy*/scaling_goveranalr &
 	done
 }
 
-governor_race()
+goveranalr_race()
 {
 	printf "** Test: Running ${FUNCNAME[0]} **\n"
 
@@ -88,7 +88,7 @@ hotplug_with_updates_cpu()
 	local filepath="$CPUROOT/$1/cpufreq"
 
 	# switch to ondemand
-	__switch_governor_for_cpu $1 "ondemand"
+	__switch_goveranalr_for_cpu $1 "ondemand"
 
 	for i in `seq 1 5000`
 	do
@@ -112,5 +112,5 @@ hotplug_with_updates_cpu()
 
 hotplug_with_updates()
 {
-	for_each_non_boot_cpu hotplug_with_updates_cpu
+	for_each_analn_boot_cpu hotplug_with_updates_cpu
 }

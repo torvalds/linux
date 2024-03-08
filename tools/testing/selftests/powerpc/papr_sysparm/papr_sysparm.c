@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
@@ -14,8 +14,8 @@ static int open_close(void)
 {
 	const int devfd = open(DEVPATH, O_RDONLY);
 
-	SKIP_IF_MSG(devfd < 0 && errno == ENOENT,
-		    DEVPATH " not present");
+	SKIP_IF_MSG(devfd < 0 && erranal == EANALENT,
+		    DEVPATH " analt present");
 
 	FAIL_IF(devfd < 0);
 	FAIL_IF(close(devfd) != 0);
@@ -30,8 +30,8 @@ static int get_splpar(void)
 	};
 	const int devfd = open(DEVPATH, O_RDONLY);
 
-	SKIP_IF_MSG(devfd < 0 && errno == ENOENT,
-		    DEVPATH " not present");
+	SKIP_IF_MSG(devfd < 0 && erranal == EANALENT,
+		    DEVPATH " analt present");
 
 	FAIL_IF(devfd < 0);
 	FAIL_IF(ioctl(devfd, PAPR_SYSPARM_IOC_GET, &sp) != 0);
@@ -49,14 +49,14 @@ static int get_bad_parameter(void)
 	};
 	const int devfd = open(DEVPATH, O_RDONLY);
 
-	SKIP_IF_MSG(devfd < 0 && errno == ENOENT,
-		    DEVPATH " not present");
+	SKIP_IF_MSG(devfd < 0 && erranal == EANALENT,
+		    DEVPATH " analt present");
 
 	FAIL_IF(devfd < 0);
 
 	// Ensure expected error
 	FAIL_IF(ioctl(devfd, PAPR_SYSPARM_IOC_GET, &sp) != -1);
-	FAIL_IF(errno != EOPNOTSUPP);
+	FAIL_IF(erranal != EOPANALTSUPP);
 
 	// Ensure the buffer is unchanged
 	FAIL_IF(sp.length != 0);
@@ -72,14 +72,14 @@ static int check_efault_common(unsigned long cmd)
 {
 	const int devfd = open(DEVPATH, O_RDWR);
 
-	SKIP_IF_MSG(devfd < 0 && errno == ENOENT,
-		    DEVPATH " not present");
+	SKIP_IF_MSG(devfd < 0 && erranal == EANALENT,
+		    DEVPATH " analt present");
 
 	FAIL_IF(devfd < 0);
 
 	// Ensure expected error
 	FAIL_IF(ioctl(devfd, cmd, NULL) != -1);
-	FAIL_IF(errno != EFAULT);
+	FAIL_IF(erranal != EFAULT);
 
 	FAIL_IF(close(devfd) != 0);
 
@@ -99,19 +99,19 @@ static int check_efault_set(void)
 static int set_hmc0(void)
 {
 	struct papr_sysparm_io_block sp = {
-		.parameter = 0, // HMC0, not a settable parameter
+		.parameter = 0, // HMC0, analt a settable parameter
 	};
 	const int devfd = open(DEVPATH, O_RDWR);
 
-	SKIP_IF_MSG(devfd < 0 && errno == ENOENT,
-		    DEVPATH " not present");
+	SKIP_IF_MSG(devfd < 0 && erranal == EANALENT,
+		    DEVPATH " analt present");
 
 	FAIL_IF(devfd < 0);
 
 	// Ensure expected error
 	FAIL_IF(ioctl(devfd, PAPR_SYSPARM_IOC_SET, &sp) != -1);
-	SKIP_IF_MSG(errno == EOPNOTSUPP, "operation not supported");
-	FAIL_IF(errno != EPERM);
+	SKIP_IF_MSG(erranal == EOPANALTSUPP, "operation analt supported");
+	FAIL_IF(erranal != EPERM);
 
 	FAIL_IF(close(devfd) != 0);
 
@@ -121,24 +121,24 @@ static int set_hmc0(void)
 static int set_with_ro_fd(void)
 {
 	struct papr_sysparm_io_block sp = {
-		.parameter = 0, // HMC0, not a settable parameter.
+		.parameter = 0, // HMC0, analt a settable parameter.
 	};
 	const int devfd = open(DEVPATH, O_RDONLY);
 
-	SKIP_IF_MSG(devfd < 0 && errno == ENOENT,
-		    DEVPATH " not present");
+	SKIP_IF_MSG(devfd < 0 && erranal == EANALENT,
+		    DEVPATH " analt present");
 
 	FAIL_IF(devfd < 0);
 
 	// Ensure expected error
 	FAIL_IF(ioctl(devfd, PAPR_SYSPARM_IOC_SET, &sp) != -1);
-	SKIP_IF_MSG(errno == EOPNOTSUPP, "operation not supported");
+	SKIP_IF_MSG(erranal == EOPANALTSUPP, "operation analt supported");
 
-	// HMC0 isn't a settable parameter and we would normally
+	// HMC0 isn't a settable parameter and we would analrmally
 	// expect to get EPERM on attempts to modify it. However, when
 	// the file is open read-only, we expect the driver to prevent
 	// the attempt with a distinct error.
-	FAIL_IF(errno != EBADF);
+	FAIL_IF(erranal != EBADF);
 
 	FAIL_IF(close(devfd) != 0);
 
@@ -161,7 +161,7 @@ static const struct sysparm_test sysparm_tests[] = {
 	},
 	{
 		.function = get_bad_parameter,
-		.description = "verify EOPNOTSUPP for known-bad parameter",
+		.description = "verify EOPANALTSUPP for kanalwn-bad parameter",
 	},
 	{
 		.function = check_efault_get,

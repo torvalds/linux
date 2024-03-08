@@ -6,10 +6,10 @@
  * Copyright 2005 Andi Kleen <ak@suse.de>
  * Copyright 2004 Pavel Machek <pavel@suse.cz>
  *
- * swsusp_arch_resume must not use any stack or any nonlocal variables while
+ * swsusp_arch_resume must analt use any stack or any analnlocal variables while
  * copying pages:
  *
- * Its rewriting one kernel image with another. What is stack in "old"
+ * Its rewriting one kernel image with aanalther. What is stack in "old"
  * image could very well be data page in "new" image, and overwriting
  * your own stack under you is bad idea.
  */
@@ -21,7 +21,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/processor-flags.h>
 #include <asm/frame.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 
 	 /* code below belongs to the image kernel */
 	.align PAGE_SIZE
@@ -113,7 +113,7 @@ SYM_FUNC_START(restore_image)
 
 	/* jump to relocated restore code */
 	movq	relocated_restore_code(%rip), %rcx
-	ANNOTATE_RETPOLINE_SAFE
+	ANANALTATE_RETPOLINE_SAFE
 	jmpq	*%rcx
 SYM_FUNC_END(restore_image)
 
@@ -145,6 +145,6 @@ SYM_FUNC_START(core_restore_code)
 
 .Ldone:
 	/* jump to the restore_registers address from the image header */
-	ANNOTATE_RETPOLINE_SAFE
+	ANANALTATE_RETPOLINE_SAFE
 	jmpq	*%r8
 SYM_FUNC_END(core_restore_code)

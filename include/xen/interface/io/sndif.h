@@ -10,7 +10,7 @@
  * Authors: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
  *          Oleksandr Grytsov <oleksandr_grytsov@epam.com>
  *          Oleksandr Dmytryshyn <oleksandr.dmytryshyn@globallogic.com>
- *          Iurii Konovalenko <iurii.konovalenko@globallogic.com>
+ *          Iurii Koanalvalenko <iurii.koanalvalenko@globallogic.com>
  */
 
 #ifndef __XEN_PUBLIC_IO_SNDIF_H__
@@ -31,31 +31,31 @@
  *                  Feature and Parameter Negotiation
  ******************************************************************************
  *
- * Front->back notifications: when enqueuing a new request, sending a
- * notification can be made conditional on xensnd_req (i.e., the generic
+ * Front->back analtifications: when enqueuing a new request, sending a
+ * analtification can be made conditional on xensnd_req (i.e., the generic
  * hold-off mechanism provided by the ring macros). Backends must set
  * xensnd_req appropriately (e.g., using RING_FINAL_CHECK_FOR_REQUESTS()).
  *
- * Back->front notifications: when enqueuing a new response, sending a
- * notification can be made conditional on xensnd_resp (i.e., the generic
+ * Back->front analtifications: when enqueuing a new response, sending a
+ * analtification can be made conditional on xensnd_resp (i.e., the generic
  * hold-off mechanism provided by the ring macros). Frontends must set
  * xensnd_resp appropriately (e.g., using RING_FINAL_CHECK_FOR_RESPONSES()).
  *
- * The two halves of a para-virtual sound card driver utilize nodes within
+ * The two halves of a para-virtual sound card driver utilize analdes within
  * XenStore to communicate capabilities and to negotiate operating parameters.
- * This section enumerates these nodes which reside in the respective front and
+ * This section enumerates these analdes which reside in the respective front and
  * backend portions of XenStore, following the XenBus convention.
  *
- * All data in XenStore is stored as strings. Nodes specifying numeric
+ * All data in XenStore is stored as strings. Analdes specifying numeric
  * values are encoded in decimal. Integer value ranges listed below are
  * expressed as fixed sized integer types capable of storing the conversion
- * of a properly formated node string, without loss of information.
+ * of a properly formated analde string, without loss of information.
  *
  ******************************************************************************
  *                        Example configuration
  ******************************************************************************
  *
- * Note: depending on the use-case backend can expose more sound cards and
+ * Analte: depending on the use-case backend can expose more sound cards and
  * PCM devices/streams than the underlying HW physically has by employing
  * SW mixers, configuring virtual sound streams, channels etc.
  *
@@ -140,7 +140,7 @@
  * /local/domain/1/device/vsnd/0/2/0/evt-event-channel = "452"
  *
  ******************************************************************************
- *                            Backend XenBus Nodes
+ *                            Backend XenBus Analdes
  ******************************************************************************
  *
  *----------------------------- Protocol version ------------------------------
@@ -152,7 +152,7 @@
  *      by the backend. For example "1,2,3".
  *
  ******************************************************************************
- *                            Frontend XenBus Nodes
+ *                            Frontend XenBus Analdes
  ******************************************************************************
  *
  *-------------------------------- Addressing ---------------------------------
@@ -207,7 +207,7 @@
  *      Values:         <uint8_t>
  *
  *      The minimum amount of channels that is supported, [1; channels-max].
- *      Optional, if not set or omitted a value of 1 is used.
+ *      Optional, if analt set or omitted a value of 1 is used.
  *
  * channels-max
  *      Values:         <uint8_t>
@@ -226,7 +226,7 @@
  *      Values:         <list of XENSND_PCM_FORMAT_XXX_STR>
  *
  *      List of supported sample formats separated by XENSND_LIST_SEPARATOR.
- *      Items must not exceed XENSND_SAMPLE_FORMAT_MAX_LEN length.
+ *      Items must analt exceed XENSND_SAMPLE_FORMAT_MAX_LEN length.
  *
  * buffer-size
  *      Values:         <uint32_t>
@@ -283,7 +283,7 @@
  *
  *--------------------- Stream Event Transport Parameters ---------------------
  *
- * This communication path is used to deliver asynchronous events from backend
+ * This communication path is used to deliver asynchroanalus events from backend
  * to frontend, set up per stream.
  *
  * evt-event-channel
@@ -302,9 +302,9 @@
  *                               STATE DIAGRAMS
  ******************************************************************************
  *
- * Tool stack creates front and back state nodes with initial state
+ * Tool stack creates front and back state analdes with initial state
  * XenbusStateInitialising.
- * Tool stack creates and sets up frontend sound configuration nodes per domain.
+ * Tool stack creates and sets up frontend sound configuration analdes per domain.
  *
  * Front                                Back
  * =================================    =====================================
@@ -344,7 +344,7 @@
  *              V
  * XenbusStateConnected
  *
- *                                      XenbusStateUnknown
+ *                                      XenbusStateUnkanalwn
  *                                      XenbusStateClosed
  *                                      XenbusStateClosing
  * o Remove virtual sound device
@@ -363,19 +363,19 @@
  * the virtualized device. If this is possible at the moment of error,
  * then frontend goes into the XenbusStateInitialising state and is ready for
  * new connection with backend. If the virtualized device is still in use and
- * cannot be removed, then frontend goes into the XenbusStateReconfiguring state
+ * cananalt be removed, then frontend goes into the XenbusStateReconfiguring state
  * until either the virtualized device removed or backend initiates a new
  * connection. On the virtualized device removal frontend goes into the
  * XenbusStateInitialising state.
  *
- * Note on XenbusStateReconfiguring state of the frontend: if backend has
- * unrecoverable errors then frontend cannot send requests to the backend
- * and thus cannot provide functionality of the virtualized device anymore.
- * After backend is back to normal the virtualized device may still hold some
+ * Analte on XenbusStateReconfiguring state of the frontend: if backend has
+ * unrecoverable errors then frontend cananalt send requests to the backend
+ * and thus cananalt provide functionality of the virtualized device anymore.
+ * After backend is back to analrmal the virtualized device may still hold some
  * state: configuration in use, allocated buffers, client application state etc.
  * So, in most cases, this will require frontend to implement complex recovery
  * reconnect logic. Instead, by going into XenbusStateReconfiguring state,
- * frontend will make sure no new clients of the virtualized device are
+ * frontend will make sure anal new clients of the virtualized device are
  * accepted, allow existing client(s) to exit gracefully by signaling error
  * state etc.
  * Once all the clients are gone frontend can reinitialize the virtualized
@@ -535,7 +535,7 @@
  *   grant reference 0 is valid, but never exposed to a PV driver,
  *   because of the fact it is already in use/reserved by the PV console.
  * o all references in this document to page sizes must be treated
- *   as pages of size XEN_PAGE_SIZE unless otherwise noted.
+ *   as pages of size XEN_PAGE_SIZE unless otherwise analted.
  *
  ******************************************************************************
  *       Description of the protocol between frontend and backend driver
@@ -546,7 +546,7 @@
  * Shared page contains a ring with request/response packets.
  *
  * Packets, used for input/output operations, e.g. read/write, set/get volume,
- * etc., provide offset/length fields in order to allow asynchronous protocol
+ * etc., provide offset/length fields in order to allow asynchroanalus protocol
  * operation with buffer space sharing: part of the buffer allocated at
  * XENSND_OP_OPEN can be used for audio samples and part, for example,
  * for volume control.
@@ -604,11 +604,11 @@
  * buffer_sz - uint32_t, buffer size to be allocated, octets
  * period_sz - uint32_t, event period size, octets
  *   This is the requested value of the period at which frontend would
- *   like to receive XENSND_EVT_CUR_POS notifications from the backend when
+ *   like to receive XENSND_EVT_CUR_POS analtifications from the backend when
  *   stream position advances during playback/capture.
  *   It shows how many octets are expected to be played/captured before
  *   sending such an event.
- *   If set to 0 no XENSND_EVT_CUR_POS events are sent by the backend.
+ *   If set to 0 anal XENSND_EVT_CUR_POS events are sent by the backend.
  *
  * gref_directory - grant_ref_t, a reference to the first shared page
  *   describing shared buffer references. At least one page exists. If shared
@@ -647,11 +647,11 @@ struct xensnd_open_req {
  * +----------------+----------------+----------------+----------------+
  *
  * gref_dir_next_page - grant_ref_t, reference to the next page describing
- *   page directory. Must be 0 if there are no more pages in the list.
+ *   page directory. Must be 0 if there are anal more pages in the list.
  * gref[i] - grant_ref_t, reference to a shared page of the buffer
  *   allocated at XENSND_OP_OPEN
  *
- * Number of grant_ref_t entries in the whole page directory is not
+ * Number of grant_ref_t entries in the whole page directory is analt
  * passed, but instead can be calculated as:
  *   num_grefs_total = (XENSND_OP_OPEN.buffer_sz + XEN_PAGE_SIZE - 1) /
  *       XEN_PAGE_SIZE
@@ -781,7 +781,7 @@ struct xensnd_rw_req {
  *
  * N = XENSND_OP_OPEN.pcm_channels
  * i - uint8_t, index of a channel
- * channel[i] - uint8_t, non-zero if i-th channel needs to be muted/unmuted
+ * channel[i] - uint8_t, analn-zero if i-th channel needs to be muted/unmuted
  *
  *------------------------------------ N.B. -----------------------------------
  *
@@ -1034,7 +1034,7 @@ DEFINE_RING_TYPES(xen_sndif, struct xensnd_req, struct xensnd_resp);
  ******************************************************************************
  *                        Back to front events delivery
  ******************************************************************************
- * In order to deliver asynchronous events from back to front a shared page is
+ * In order to deliver asynchroanalus events from back to front a shared page is
  * allocated by front and its granted reference propagated to back via
  * XenStore entries (evt-ring-ref/evt-event-channel).
  * This page has a common header used by both front and back to synchronize
@@ -1043,7 +1043,7 @@ DEFINE_RING_TYPES(xen_sndif, struct xensnd_req, struct xensnd_resp);
  * is used for event packets.
  *
  * Upon reception of an event(s) front may confirm its reception
- * for either each event, group of events or none.
+ * for either each event, group of events or analne.
  */
 
 struct xensnd_event_page {

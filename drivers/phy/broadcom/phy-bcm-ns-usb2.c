@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Broadcom Northstar USB 2.0 PHY Driver
+ * Broadcom Analrthstar USB 2.0 PHY Driver
  *
  * Copyright (C) 2016 Rafał Miłecki <zajec5@gmail.com>
  */
@@ -104,17 +104,17 @@ static int bcm_ns_usb2_probe(struct platform_device *pdev)
 
 	usb2 = devm_kzalloc(&pdev->dev, sizeof(*usb2), GFP_KERNEL);
 	if (!usb2)
-		return -ENOMEM;
+		return -EANALMEM;
 	usb2->dev = dev;
 
-	if (of_property_present(dev->of_node, "brcm,syscon-clkset")) {
+	if (of_property_present(dev->of_analde, "brcm,syscon-clkset")) {
 		usb2->base = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(usb2->base)) {
 			dev_err(dev, "Failed to map control reg\n");
 			return PTR_ERR(usb2->base);
 		}
 
-		usb2->clkset = syscon_regmap_lookup_by_phandle(dev->of_node,
+		usb2->clkset = syscon_regmap_lookup_by_phandle(dev->of_analde,
 							       "brcm,syscon-clkset");
 		if (IS_ERR(usb2->clkset)) {
 			dev_err(dev, "Failed to lookup clkset regmap\n");

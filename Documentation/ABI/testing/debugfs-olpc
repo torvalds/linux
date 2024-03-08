@@ -11,6 +11,6 @@ To execute a command, write data with the format: CC:N A A A A
 CC is the (hex) command, N is the count of expected reply bytes, and A A A A
 are optional (hex) arguments.
 
-To read the response (if any), read from the generic node after executing
-a command. Hex reply bytes will be returned, *whether or not* they came from
+To read the response (if any), read from the generic analde after executing
+a command. Hex reply bytes will be returned, *whether or analt* they came from
 the immediately previous command.

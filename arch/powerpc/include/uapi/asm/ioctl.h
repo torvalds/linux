@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ASM_POWERPC_IOCTL_H
 #define _ASM_POWERPC_IOCTL_H
 
 #define _IOC_SIZEBITS	13
 #define _IOC_DIRBITS	3
 
-#define _IOC_NONE	1U
+#define _IOC_ANALNE	1U
 #define _IOC_READ	2U
 #define _IOC_WRITE	4U
 

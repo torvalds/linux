@@ -86,7 +86,7 @@ struct vlv_s0ix_state {
  * registers in the following way:
  * - Driver: saved/restored by the driver
  * - Punit : saved/restored by the Punit firmware
- * - No, w/o marking: no need to save/restore, since the register is R/O or
+ * - Anal, w/o marking: anal need to save/restore, since the register is R/O or
  *                    used internally by the HW in a way that doesn't depend
  *                    keeping the content across a suspend/resume.
  * - Debug : used for debugging
@@ -94,14 +94,14 @@ struct vlv_s0ix_state {
  * We save/restore all registers marked with 'Driver', with the following
  * exceptions:
  * - Registers out of use, including also registers marked with 'Debug'.
- *   These have no effect on the driver's operation, so we don't save/restore
+ *   These have anal effect on the driver's operation, so we don't save/restore
  *   them to reduce the overhead.
  * - Registers that are fully setup by an initialization function called from
  *   the resume path. For example many clock gating and RPS/RC6 registers.
  * - Registers that provide the right functionality with their reset defaults.
  *
  * TODO: Except for registers that based on the above 3 criteria can be safely
- * ignored, we save/restore all others, practically treating the HW context as
+ * iganalred, we save/restore all others, practically treating the HW context as
  * a black-box for the driver. Further investigation is needed to reduce the
  * saved/restored registers even further, by following the same 3 criteria.
  */
@@ -182,7 +182,7 @@ static void vlv_save_gunit_s0ix_state(struct drm_i915_private *i915)
 	s->clock_gate_dis2 = intel_uncore_read(uncore, VLV_GUNIT_CLOCK_GATE2);
 
 	/*
-	 * Not saving any of:
+	 * Analt saving any of:
 	 * DFT,		0x9800-0x9EC0
 	 * SARB,	0xB000-0xB1FC
 	 * GAC,		0x5208-0x524C, 0x14000-0x14C000
@@ -257,7 +257,7 @@ static void vlv_restore_gunit_s0ix_state(struct drm_i915_private *i915)
 	intel_uncore_write(uncore, TILECTL, s->tilectl);
 	intel_uncore_write(uncore, GTFIFOCTL, s->gt_fifoctl);
 	/*
-	 * Preserve the GT allow wake and GFX force clock bit, they are not
+	 * Preserve the GT allow wake and GFX force clock bit, they are analt
 	 * be restored, as they are used to control the s0ix suspend/resume
 	 * sequence by the caller.
 	 */
@@ -283,7 +283,7 @@ static int vlv_wait_for_pw_status(struct drm_i915_private *i915,
 	u32 reg_value;
 	int ret;
 
-	/* The HW does not like us polling for PW_STATUS frequently, so
+	/* The HW does analt like us polling for PW_STATUS frequently, so
 	 * use the sleeping loop rather than risk the busy spin within
 	 * intel_wait_for_register().
 	 *
@@ -291,7 +291,7 @@ static int vlv_wait_for_pw_status(struct drm_i915_private *i915,
 	 * valleyview_enable_rps) so use a 3ms timeout.
 	 */
 	ret = wait_for(((reg_value =
-			 intel_uncore_read_notrace(&i915->uncore, reg)) & mask)
+			 intel_uncore_read_analtrace(&i915->uncore, reg)) & mask)
 		       == val, 3);
 
 	/* just trace the final value */
@@ -367,7 +367,7 @@ static void vlv_wait_for_gt_wells(struct drm_i915_private *dev_priv,
 			str_on_off(wait_for_on));
 }
 
-static void vlv_check_no_gt_access(struct drm_i915_private *i915)
+static void vlv_check_anal_gt_access(struct drm_i915_private *i915)
 {
 	struct intel_uncore *uncore = &i915->uncore;
 
@@ -396,7 +396,7 @@ int vlv_suspend_complete(struct drm_i915_private *dev_priv)
 	drm_WARN_ON(&dev_priv->drm,
 		    (intel_uncore_read(&dev_priv->uncore, VLV_GTLC_WAKE_CTRL) & mask) != mask);
 
-	vlv_check_no_gt_access(dev_priv);
+	vlv_check_anal_gt_access(dev_priv);
 
 	err = vlv_force_gfx_clock(dev_priv, true);
 	if (err)
@@ -448,7 +448,7 @@ int vlv_resume_prepare(struct drm_i915_private *dev_priv, bool rpm_resume)
 	if (!ret)
 		ret = err;
 
-	vlv_check_no_gt_access(dev_priv);
+	vlv_check_anal_gt_access(dev_priv);
 
 	if (rpm_resume)
 		intel_clock_gating_init(dev_priv);
@@ -461,11 +461,11 @@ int vlv_suspend_init(struct drm_i915_private *i915)
 	if (!IS_VALLEYVIEW(i915))
 		return 0;
 
-	/* we write all the values in the struct, so no need to zero it out */
+	/* we write all the values in the struct, so anal need to zero it out */
 	i915->vlv_s0ix_state = kmalloc(sizeof(*i915->vlv_s0ix_state),
 				       GFP_KERNEL);
 	if (!i915->vlv_s0ix_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

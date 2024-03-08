@@ -25,7 +25,7 @@
 #define TUNER_REG_WRITE                   0x04
 
 #define RC_VAL_READ                       0x05
- #define RC_NO_KEY                        0x44
+ #define RC_ANAL_KEY                        0x44
 
 #define SET_TUNER_POWER                   0x06
 #define CHECK_TUNER_POWER                 0x12

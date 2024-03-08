@@ -3,8 +3,8 @@
 		"Unit": "PAI-EXT",
 		"EventCode": "6144",
 		"EventName": "NNPA_ALL",
-		"BriefDescription": "NNPA ALL Sum of all non zero counters",
-		"PublicDescription": "Sum of all non zero NNPA (Neural Networks Processing Assist) counters"
+		"BriefDescription": "NNPA ALL Sum of all analn zero counters",
+		"PublicDescription": "Sum of all analn zero NNPA (Neural Networks Processing Assist) counters"
 	},
 	{
 		"Unit": "PAI-EXT",
@@ -88,8 +88,8 @@
 	{
 		"Unit": "PAI-EXT",
 		"EventCode": "6158",
-		"EventName": "NNPA_BATCHNORM",
-		"BriefDescription": "NNPA BATCHNORM function ending with CC=0"
+		"EventName": "NNPA_BATCHANALRM",
+		"BriefDescription": "NNPA BATCHANALRM function ending with CC=0"
 	},
 	{
 		"Unit": "PAI-EXT",

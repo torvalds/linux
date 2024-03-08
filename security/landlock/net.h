@@ -26,7 +26,7 @@ static inline int
 landlock_append_net_rule(struct landlock_ruleset *const ruleset, const u16 port,
 			 access_mask_t access_rights)
 {
-	return -EAFNOSUPPORT;
+	return -EAFANALSUPPORT;
 }
 #endif /* IS_ENABLED(CONFIG_INET) */
 

@@ -2,7 +2,7 @@
 /*
  * Microchip CSI2 Demux Controller (CSI2DC) driver
  *
- * Copyright (C) 2018 Microchip Technology, Inc.
+ * Copyright (C) 2018 Microchip Techanallogy, Inc.
  *
  * Author: Eugen Hristev <eugen.hristev@microchip.com>
  *
@@ -16,7 +16,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/videodev2.h>
 
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 /* Global configuration register */
@@ -173,7 +173,7 @@ enum mipi_csi_pads {
  * @video_pipe:		Whether video pipeline is configured
  * @parallel_mode:	The underlying subdevice is connected on a parallel bus
  * @vc:			Current set virtual channel
- * @notifier:		Async notifier that is used to bound the underlying
+ * @analtifier:		Async analtifier that is used to bound the underlying
  *			subdevice to the csi2dc subdevice
  * @input_sd:		Reference to the underlying subdevice bound to the
  *			csi2dc subdevice
@@ -199,7 +199,7 @@ struct csi2dc_device {
 	bool				parallel_mode;
 	u32				vc;
 
-	struct v4l2_async_notifier	notifier;
+	struct v4l2_async_analtifier	analtifier;
 
 	struct v4l2_subdev		*input_sd;
 
@@ -267,7 +267,7 @@ static int csi2dc_set_fmt(struct v4l2_subdev *csi2dc_sd,
 		fmt++;
 	}
 
-	/* in case we could not find the desired format, default to something */
+	/* in case we could analt find the desired format, default to something */
 	if (!try_fmt) {
 		try_fmt = &csi2dc_formats[0];
 
@@ -278,7 +278,7 @@ static int csi2dc_set_fmt(struct v4l2_subdev *csi2dc_sd,
 
 	req_fmt->format.code = try_fmt->mbus_code;
 	req_fmt->format.colorspace = V4L2_COLORSPACE_SRGB;
-	req_fmt->format.field = V4L2_FIELD_NONE;
+	req_fmt->format.field = V4L2_FIELD_ANALNE;
 
 	if (req_fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		v4l2_try_fmt = v4l2_subdev_state_get_format(sd_state,
@@ -344,9 +344,9 @@ static int csi2dc_get_mbus_config(struct csi2dc_device *csi2dc)
 
 	ret = v4l2_subdev_call(csi2dc->input_sd, pad, get_mbus_config,
 			       csi2dc->remote_pad, &mbus_config);
-	if (ret == -ENOIOCTLCMD) {
+	if (ret == -EANALIOCTLCMD) {
 		dev_dbg(csi2dc->dev,
-			"no remote mbus configuration available\n");
+			"anal remote mbus configuration available\n");
 		return 0;
 	}
 
@@ -359,7 +359,7 @@ static int csi2dc_get_mbus_config(struct csi2dc_device *csi2dc)
 	dev_dbg(csi2dc->dev, "subdev sending on channel %d\n", csi2dc->vc);
 
 	csi2dc->clk_gated = mbus_config.bus.parallel.flags &
-				V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK;
+				V4L2_MBUS_CSI2_ANALNCONTINUOUS_CLOCK;
 
 	dev_dbg(csi2dc->dev, "mbus_config: %s clock\n",
 		csi2dc->clk_gated ? "gated" : "free running");
@@ -445,7 +445,7 @@ static int csi2dc_init_state(struct v4l2_subdev *csi2dc_sd,
 	v4l2_try_fmt->width = 640;
 	v4l2_try_fmt->code = csi2dc_formats[0].mbus_code;
 	v4l2_try_fmt->colorspace = V4L2_COLORSPACE_SRGB;
-	v4l2_try_fmt->field = V4L2_FIELD_NONE;
+	v4l2_try_fmt->field = V4L2_FIELD_ANALNE;
 	v4l2_try_fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	v4l2_try_fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
 	v4l2_try_fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
@@ -476,18 +476,18 @@ static const struct v4l2_subdev_internal_ops csi2dc_internal_ops = {
 	.init_state = csi2dc_init_state,
 };
 
-static int csi2dc_async_bound(struct v4l2_async_notifier *notifier,
+static int csi2dc_async_bound(struct v4l2_async_analtifier *analtifier,
 			      struct v4l2_subdev *subdev,
 			      struct v4l2_async_connection *asd)
 {
-	struct csi2dc_device *csi2dc = container_of(notifier,
-						struct csi2dc_device, notifier);
+	struct csi2dc_device *csi2dc = container_of(analtifier,
+						struct csi2dc_device, analtifier);
 	int pad;
 	int ret;
 
 	csi2dc->input_sd = subdev;
 
-	pad = media_entity_get_fwnode_pad(&subdev->entity, asd->match.fwnode,
+	pad = media_entity_get_fwanalde_pad(&subdev->entity, asd->match.fwanalde,
 					  MEDIA_PAD_FL_SOURCE);
 	if (pad < 0) {
 		dev_err(csi2dc->dev, "Failed to find pad for %s\n",
@@ -515,65 +515,65 @@ static int csi2dc_async_bound(struct v4l2_async_notifier *notifier,
 	return ret;
 }
 
-static const struct v4l2_async_notifier_operations csi2dc_async_ops = {
+static const struct v4l2_async_analtifier_operations csi2dc_async_ops = {
 	.bound = csi2dc_async_bound,
 };
 
-static int csi2dc_prepare_notifier(struct csi2dc_device *csi2dc,
-				   struct fwnode_handle *input_fwnode)
+static int csi2dc_prepare_analtifier(struct csi2dc_device *csi2dc,
+				   struct fwanalde_handle *input_fwanalde)
 {
 	struct v4l2_async_connection *asd;
 	int ret = 0;
 
-	v4l2_async_subdev_nf_init(&csi2dc->notifier, &csi2dc->csi2dc_sd);
+	v4l2_async_subdev_nf_init(&csi2dc->analtifier, &csi2dc->csi2dc_sd);
 
-	asd = v4l2_async_nf_add_fwnode_remote(&csi2dc->notifier,
-					      input_fwnode,
+	asd = v4l2_async_nf_add_fwanalde_remote(&csi2dc->analtifier,
+					      input_fwanalde,
 					      struct v4l2_async_connection);
 
-	fwnode_handle_put(input_fwnode);
+	fwanalde_handle_put(input_fwanalde);
 
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		dev_err(csi2dc->dev,
-			"failed to add async notifier for node %pOF: %d\n",
-			to_of_node(input_fwnode), ret);
-		v4l2_async_nf_cleanup(&csi2dc->notifier);
+			"failed to add async analtifier for analde %pOF: %d\n",
+			to_of_analde(input_fwanalde), ret);
+		v4l2_async_nf_cleanup(&csi2dc->analtifier);
 		return ret;
 	}
 
-	csi2dc->notifier.ops = &csi2dc_async_ops;
+	csi2dc->analtifier.ops = &csi2dc_async_ops;
 
-	ret = v4l2_async_nf_register(&csi2dc->notifier);
+	ret = v4l2_async_nf_register(&csi2dc->analtifier);
 	if (ret) {
-		dev_err(csi2dc->dev, "fail to register async notifier: %d\n",
+		dev_err(csi2dc->dev, "fail to register async analtifier: %d\n",
 			ret);
-		v4l2_async_nf_cleanup(&csi2dc->notifier);
+		v4l2_async_nf_cleanup(&csi2dc->analtifier);
 	}
 
 	return ret;
 }
 
 static int csi2dc_of_parse(struct csi2dc_device *csi2dc,
-			   struct device_node *of_node)
+			   struct device_analde *of_analde)
 {
-	struct fwnode_handle *input_fwnode, *output_fwnode;
-	struct v4l2_fwnode_endpoint input_endpoint = { 0 },
+	struct fwanalde_handle *input_fwanalde, *output_fwanalde;
+	struct v4l2_fwanalde_endpoint input_endpoint = { 0 },
 				    output_endpoint = { 0 };
 	int ret;
 
-	input_fwnode = fwnode_graph_get_next_endpoint(of_fwnode_handle(of_node),
+	input_fwanalde = fwanalde_graph_get_next_endpoint(of_fwanalde_handle(of_analde),
 						      NULL);
-	if (!input_fwnode) {
+	if (!input_fwanalde) {
 		dev_err(csi2dc->dev,
-			"missing port node at %pOF, input node is mandatory.\n",
-			of_node);
+			"missing port analde at %pOF, input analde is mandatory.\n",
+			of_analde);
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(input_fwnode, &input_endpoint);
+	ret = v4l2_fwanalde_endpoint_parse(input_fwanalde, &input_endpoint);
 	if (ret) {
-		dev_err(csi2dc->dev, "endpoint not defined at %pOF\n", of_node);
+		dev_err(csi2dc->dev, "endpoint analt defined at %pOF\n", of_analde);
 		goto csi2dc_of_parse_err;
 	}
 
@@ -586,26 +586,26 @@ static int csi2dc_of_parse(struct csi2dc_device *csi2dc,
 
 	if (input_endpoint.bus_type == V4L2_MBUS_CSI2_DPHY) {
 		csi2dc->clk_gated = input_endpoint.bus.mipi_csi2.flags &
-					V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK;
+					V4L2_MBUS_CSI2_ANALNCONTINUOUS_CLOCK;
 		dev_dbg(csi2dc->dev,
 			"subdevice connected on serial interface\n");
 		dev_dbg(csi2dc->dev, "DT: %s clock\n",
 			csi2dc->clk_gated ? "gated" : "free running");
 	}
 
-	output_fwnode = fwnode_graph_get_next_endpoint
-				(of_fwnode_handle(of_node), input_fwnode);
+	output_fwanalde = fwanalde_graph_get_next_endpoint
+				(of_fwanalde_handle(of_analde), input_fwanalde);
 
-	if (output_fwnode)
-		ret = v4l2_fwnode_endpoint_parse(output_fwnode,
+	if (output_fwanalde)
+		ret = v4l2_fwanalde_endpoint_parse(output_fwanalde,
 						 &output_endpoint);
 
-	fwnode_handle_put(output_fwnode);
+	fwanalde_handle_put(output_fwanalde);
 
-	if (!output_fwnode || ret) {
+	if (!output_fwanalde || ret) {
 		dev_info(csi2dc->dev,
-			 "missing output node at %pOF, data pipe available only.\n",
-			 of_node);
+			 "missing output analde at %pOF, data pipe available only.\n",
+			 of_analde);
 	} else {
 		if (output_endpoint.bus_type != V4L2_MBUS_PARALLEL &&
 		    output_endpoint.bus_type != V4L2_MBUS_BT656) {
@@ -619,16 +619,16 @@ static int csi2dc_of_parse(struct csi2dc_device *csi2dc,
 
 		dev_dbg(csi2dc->dev,
 			"block %pOF [%d.%d]->[%d.%d] video pipeline\n",
-			of_node, input_endpoint.base.port,
+			of_analde, input_endpoint.base.port,
 			input_endpoint.base.id, output_endpoint.base.port,
 			output_endpoint.base.id);
 	}
 
-	/* prepare async notifier for subdevice completion */
-	return csi2dc_prepare_notifier(csi2dc, input_fwnode);
+	/* prepare async analtifier for subdevice completion */
+	return csi2dc_prepare_analtifier(csi2dc, input_fwanalde);
 
 csi2dc_of_parse_err:
-	fwnode_handle_put(input_fwnode);
+	fwanalde_handle_put(input_fwanalde);
 	return ret;
 }
 
@@ -640,7 +640,7 @@ static void csi2dc_default_format(struct csi2dc_device *csi2dc)
 	csi2dc->format.width = 640;
 	csi2dc->format.code = csi2dc_formats[0].mbus_code;
 	csi2dc->format.colorspace = V4L2_COLORSPACE_SRGB;
-	csi2dc->format.field = V4L2_FIELD_NONE;
+	csi2dc->format.field = V4L2_FIELD_ANALNE;
 	csi2dc->format.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	csi2dc->format.quantization = V4L2_QUANTIZATION_DEFAULT;
 	csi2dc->format.xfer_func = V4L2_XFER_FUNC_DEFAULT;
@@ -655,13 +655,13 @@ static int csi2dc_probe(struct platform_device *pdev)
 
 	csi2dc = devm_kzalloc(dev, sizeof(*csi2dc), GFP_KERNEL);
 	if (!csi2dc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csi2dc->dev = dev;
 
 	csi2dc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(csi2dc->base)) {
-		dev_err(dev, "base address not set\n");
+		dev_err(dev, "base address analt set\n");
 		return PTR_ERR(csi2dc->base);
 	}
 
@@ -687,13 +687,13 @@ static int csi2dc_probe(struct platform_device *pdev)
 	snprintf(csi2dc->csi2dc_sd.name, sizeof(csi2dc->csi2dc_sd.name),
 		 "csi2dc");
 
-	csi2dc->csi2dc_sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	csi2dc->csi2dc_sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	csi2dc->csi2dc_sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	csi2dc->csi2dc_sd.entity.ops = &csi2dc_entity_ops;
 
 	platform_set_drvdata(pdev, csi2dc);
 
-	ret = csi2dc_of_parse(csi2dc, dev->of_node);
+	ret = csi2dc_of_parse(csi2dc, dev->of_analde);
 	if (ret)
 		goto csi2dc_probe_cleanup_entity;
 
@@ -706,7 +706,7 @@ static int csi2dc_probe(struct platform_device *pdev)
 				     csi2dc->pads);
 	if (ret < 0) {
 		dev_err(dev, "media entity init failed\n");
-		goto csi2dc_probe_cleanup_notifier;
+		goto csi2dc_probe_cleanup_analtifier;
 	}
 
 	csi2dc_default_format(csi2dc);
@@ -714,7 +714,7 @@ static int csi2dc_probe(struct platform_device *pdev)
 	/* turn power on to validate capabilities */
 	ret = csi2dc_power(csi2dc, true);
 	if (ret < 0)
-		goto csi2dc_probe_cleanup_notifier;
+		goto csi2dc_probe_cleanup_analtifier;
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
@@ -728,15 +728,15 @@ static int csi2dc_probe(struct platform_device *pdev)
 	ret = v4l2_async_register_subdev(&csi2dc->csi2dc_sd);
 	if (ret) {
 		dev_err(csi2dc->dev, "failed to register the subdevice\n");
-		goto csi2dc_probe_cleanup_notifier;
+		goto csi2dc_probe_cleanup_analtifier;
 	}
 
 	dev_info(dev, "Microchip CSI2DC version %x\n", ver);
 
 	return 0;
 
-csi2dc_probe_cleanup_notifier:
-	v4l2_async_nf_cleanup(&csi2dc->notifier);
+csi2dc_probe_cleanup_analtifier:
+	v4l2_async_nf_cleanup(&csi2dc->analtifier);
 csi2dc_probe_cleanup_entity:
 	media_entity_cleanup(&csi2dc->csi2dc_sd.entity);
 
@@ -750,8 +750,8 @@ static void csi2dc_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	v4l2_async_unregister_subdev(&csi2dc->csi2dc_sd);
-	v4l2_async_nf_unregister(&csi2dc->notifier);
-	v4l2_async_nf_cleanup(&csi2dc->notifier);
+	v4l2_async_nf_unregister(&csi2dc->analtifier);
+	v4l2_async_nf_cleanup(&csi2dc->analtifier);
 	media_entity_cleanup(&csi2dc->csi2dc_sd.entity);
 }
 

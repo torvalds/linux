@@ -140,7 +140,7 @@ err:
 
 /*
  * Trap START_STOP and READ_10 to leave/re-enter storage mode.
- * Everything else is propagated to the normal bulk layer.
+ * Everything else is propagated to the analrmal bulk layer.
  */
 static int rio_karma_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
@@ -174,15 +174,15 @@ static void rio_karma_destructor(void *extra)
 
 static int rio_karma_init(struct us_data *us)
 {
-	struct karma_data *data = kzalloc(sizeof(struct karma_data), GFP_NOIO);
+	struct karma_data *data = kzalloc(sizeof(struct karma_data), GFP_ANALIO);
 
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	data->recv = kmalloc(RIO_RECV_LEN, GFP_NOIO);
+	data->recv = kmalloc(RIO_RECV_LEN, GFP_ANALIO);
 	if (!data->recv) {
 		kfree(data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	us->extra = data;
@@ -228,7 +228,7 @@ static struct usb_driver karma_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	karma_usb_ids,
 	.soft_unbind =	1,
-	.no_dynamic_id = 1,
+	.anal_dynamic_id = 1,
 };
 
 module_usb_stor_driver(karma_driver, karma_host_template, DRV_NAME);

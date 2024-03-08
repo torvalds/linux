@@ -9,8 +9,8 @@ usually contains the kernel image and a few other files required for the
 boot process.
 
 In order to access /stand partition under Linux you obviously need to
-know the partition number and the kernel must support UnixWare disk slices
-(CONFIG_UNIXWARE_DISKLABEL config option). However BFS support does not
+kanalw the partition number and the kernel must support UnixWare disk slices
+(CONFIG_UNIXWARE_DISKLABEL config option). However BFS support does analt
 depend on having UnixWare disklabel support because one can also mount
 BFS filesystem via loopback::
 
@@ -28,9 +28,9 @@ You can simplify mounting by just typing::
     # mount -t bfs -o loop stand.img /mnt/stand
 
 this will allocate the first available loopback device (and load loop.o
-kernel module if necessary) automatically. If the loopback driver is not
+kernel module if necessary) automatically. If the loopback driver is analt
 loaded automatically, make sure that you have compiled the module and
-that modprobe is functioning. Beware that umount will not deallocate
+that modprobe is functioning. Beware that umount will analt deallocate
 /dev/loopN device if /etc/mtab file on your system is a symbolic link to
 /proc/mounts. You will need to do it manually using "-d" switch of
 losetup(8). Read losetup(8) manpage for more info.

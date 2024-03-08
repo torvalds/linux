@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <drm/drm_edid.h>
@@ -20,7 +20,7 @@ static int dpu_wb_conn_get_modes(struct drm_connector *connector)
 	 * and source split support added lets limit the modes based on max_mixer_width
 	 * as 4K modes can then be supported.
 	 */
-	return drm_add_modes_noedid(connector, dpu_kms->catalog->caps->max_mixer_width,
+	return drm_add_modes_analedid(connector, dpu_kms->catalog->caps->max_mixer_width,
 			dev->mode_config.max_height);
 }
 
@@ -71,7 +71,7 @@ int dpu_writeback_init(struct drm_device *dev, struct drm_encoder *enc,
 
 	dpu_wb_conn = devm_kzalloc(dev->dev, sizeof(*dpu_wb_conn), GFP_KERNEL);
 	if (!dpu_wb_conn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_connector_helper_add(&dpu_wb_conn->base.base, &dpu_wb_conn_helper_funcs);
 

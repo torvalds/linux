@@ -36,7 +36,7 @@
 
 int show_unhandled_signals = 1;
 
-static void __noreturn unhandled_fault(unsigned long address,
+static void __analreturn unhandled_fault(unsigned long address,
 				       struct task_struct *tsk,
 				       struct pt_regs *regs)
 {
@@ -101,7 +101,7 @@ static unsigned long compute_si_addr(struct pt_regs *regs, int text_fault)
 	return safe_compute_effective_address(regs, insn);
 }
 
-static noinline void do_fault_siginfo(int code, int sig, struct pt_regs *regs,
+static analinline void do_fault_siginfo(int code, int sig, struct pt_regs *regs,
 				      int text_fault)
 {
 	unsigned long addr = compute_si_addr(regs, text_fault);
@@ -127,31 +127,31 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
 	 * We fault-in kernel-space virtual memory on-demand. The
 	 * 'reference' page table is init_mm.pgd.
 	 *
-	 * NOTE! We MUST NOT take any locks for this case. We may
+	 * ANALTE! We MUST ANALT take any locks for this case. We may
 	 * be in an interrupt or a critical region, and should
 	 * only copy the information from the master page table,
-	 * nothing more.
+	 * analthing more.
 	 */
 	code = SEGV_MAPERR;
 	if (address >= TASK_SIZE)
 		goto vmalloc_fault;
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have anal user
+	 * context, we must analt take the fault..
 	 */
 	if (pagefault_disabled() || !mm)
-		goto no_context;
+		goto anal_context;
 
 	if (!from_user && address >= PAGE_OFFSET)
-		goto no_context;
+		goto anal_context;
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 
 retry:
 	vma = lock_mm_and_find_vma(mm, address, regs);
 	if (!vma)
-		goto bad_area_nosemaphore;
+		goto bad_area_analsemaphore;
 	/*
 	 * Ok, we have a good vm_area for this memory access, so
 	 * we can handle it..
@@ -180,7 +180,7 @@ retry:
 
 	if (fault_signal_pending(fault, regs)) {
 		if (!from_user)
-			goto no_context;
+			goto anal_context;
 		return;
 	}
 
@@ -201,7 +201,7 @@ retry:
 	if (fault & VM_FAULT_RETRY) {
 		flags |= FAULT_FLAG_TRIED;
 
-		/* No need to mmap_read_unlock(mm) as we would
+		/* Anal need to mmap_read_unlock(mm) as we would
 		 * have already released it in __lock_page_or_retry
 		 * in mm/filemap.c.
 		 */
@@ -219,7 +219,7 @@ retry:
 bad_area:
 	mmap_read_unlock(mm);
 
-bad_area_nosemaphore:
+bad_area_analsemaphore:
 	/* User mode accesses just cause a SIGSEGV */
 	if (from_user) {
 		do_fault_siginfo(code, SIGSEGV, regs, text_fault);
@@ -227,7 +227,7 @@ bad_area_nosemaphore:
 	}
 
 	/* Is this in ex_table? */
-no_context:
+anal_context:
 	if (!from_user) {
 		const struct exception_table_entry *entry;
 
@@ -255,13 +255,13 @@ out_of_memory:
 		pagefault_out_of_memory();
 		return;
 	}
-	goto no_context;
+	goto anal_context;
 
 do_sigbus:
 	mmap_read_unlock(mm);
 	do_fault_siginfo(BUS_ADRERR, SIGBUS, regs, text_fault);
 	if (!from_user)
-		goto no_context;
+		goto anal_context;
 
 vmalloc_fault:
 	{
@@ -280,7 +280,7 @@ vmalloc_fault:
 
 		if (!pgd_present(*pgd)) {
 			if (!pgd_present(*pgd_k))
-				goto bad_area_nosemaphore;
+				goto bad_area_analsemaphore;
 			pgd_val(*pgd) = pgd_val(*pgd_k);
 			return;
 		}
@@ -294,7 +294,7 @@ vmalloc_fault:
 		pmd_k = pmd_offset(pud_k, address);
 
 		if (pmd_present(*pmd) || !pmd_present(*pmd_k))
-			goto bad_area_nosemaphore;
+			goto bad_area_analsemaphore;
 
 		*pmd = *pmd_k;
 		return;
@@ -314,7 +314,7 @@ static void force_user_fault(unsigned long address, int write)
 
 	vma = lock_mm_and_find_vma(mm, address, NULL);
 	if (!vma)
-		goto bad_area_nosemaphore;
+		goto bad_area_analsemaphore;
 	code = SEGV_ACCERR;
 	if (write) {
 		if (!(vma->vm_flags & VM_WRITE))
@@ -333,7 +333,7 @@ static void force_user_fault(unsigned long address, int write)
 	return;
 bad_area:
 	mmap_read_unlock(mm);
-bad_area_nosemaphore:
+bad_area_analsemaphore:
 	__do_fault_siginfo(code, SIGSEGV, tsk->thread.kregs, address);
 	return;
 

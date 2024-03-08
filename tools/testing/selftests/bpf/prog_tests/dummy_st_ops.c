@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2021. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2021. Huawei Techanallogies Co., Ltd */
 #include <test_progs.h>
 #include "dummy_st_ops_success.skel.h"
 #include "dummy_st_ops_fail.skel.h"
@@ -20,7 +20,7 @@ static void test_dummy_st_ops_attach(void)
 		return;
 
 	link = bpf_map__attach_struct_ops(skel->maps.dummy_1);
-	ASSERT_EQ(libbpf_get_error(link), -EOPNOTSUPP, "dummy_st_ops_attach");
+	ASSERT_EQ(libbpf_get_error(link), -EOPANALTSUPP, "dummy_st_ops_attach");
 
 	dummy_st_ops_success__destroy(skel);
 }

@@ -22,7 +22,7 @@ attribute that shows the state of the firmware activation as one of 'idle',
 'armed', 'overflow', and 'busy'.
 
 - idle:
-  No devices are set / armed to activate firmware
+  Anal devices are set / armed to activate firmware
 
 - armed:
   At least one device is armed
@@ -40,21 +40,21 @@ attribute that shows the state of the firmware activation as one of 'idle',
 The 'ndbusX/firmware/activate' property can be written with a value of
 either 'live', or 'quiesce'. A value of 'quiesce' triggers the kernel to
 run firmware activation from within the equivalent of the hibernation
-'freeze' state where drivers and applications are notified to stop their
+'freeze' state where drivers and applications are analtified to stop their
 modifications of system memory. A value of 'live' attempts
 firmware activation without this hibernation cycle. The
-'ndbusX/firmware/activate' property will be elided completely if no
+'ndbusX/firmware/activate' property will be elided completely if anal
 firmware activation capability is detected.
 
-Another property 'ndbusX/firmware/capability' indicates a value of
+Aanalther property 'ndbusX/firmware/capability' indicates a value of
 'live' or 'quiesce', where 'live' indicates that the firmware
-does not require or inflict any quiesce period on the system to update
+does analt require or inflict any quiesce period on the system to update
 firmware. A capability value of 'quiesce' indicates that firmware does
 expect and injects a quiet period for the memory controller, but 'live'
 may still be written to 'ndbusX/firmware/activate' as an override to
 assume the risk of racing firmware update with in-flight device and
 application activity. The 'ndbusX/firmware/capability' property will be
-elided completely if no firmware activation capability is detected.
+elided completely if anal firmware activation capability is detected.
 
 The libnvdimm memory-device / DIMM object, nmemX, implements
 'nmemX/firmware/activate' and 'nmemX/firmware/result' attributes to
@@ -66,8 +66,8 @@ firmware staged + state set to armed, and 'ndbusX/firmware/activate' is
 triggered. After that activation event the nmemX/firmware/result
 attribute reflects the state of the last activation as one of:
 
-- none:
-  No runtime activation triggered since the last time the device was reset
+- analne:
+  Anal runtime activation triggered since the last time the device was reset
 
 - success:
   The last runtime activation completed successfully.
@@ -75,9 +75,9 @@ attribute reflects the state of the last activation as one of:
 - fail:
   The last runtime activation failed for device-specific reasons.
 
-- not_staged:
+- analt_staged:
   The last runtime activation failed due to a sequencing error of the
-  firmware image not being staged.
+  firmware image analt being staged.
 
 - need_reset:
   Runtime firmware activation failed, but the firmware can still be

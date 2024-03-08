@@ -387,13 +387,13 @@ static int lynx_28g_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 	int err = 0;
 
 	if (mode != PHY_MODE_ETHERNET)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (lane->interface == PHY_INTERFACE_MODE_NA)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!lynx_28g_supports_interface(priv, submode))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* If the lane is powered up, put the lane into the halt state while
 	 * the reconfiguration is being done.
@@ -412,7 +412,7 @@ static int lynx_28g_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 		lynx_28g_lane_set_10gbaser(lane);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -435,10 +435,10 @@ static int lynx_28g_validate(struct phy *phy, enum phy_mode mode, int submode,
 	struct lynx_28g_priv *priv = lane->priv;
 
 	if (mode != PHY_MODE_ETHERNET)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!lynx_28g_supports_interface(priv, submode))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -576,7 +576,7 @@ static int lynx_28g_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->dev = &pdev->dev;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);

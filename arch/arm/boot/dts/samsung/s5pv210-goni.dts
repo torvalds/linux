@@ -25,7 +25,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySAC0,115200n8 root=/dev/mmcblk0p5 rw rootwait ignore_loglevel earlyprintk";
+		bootargs = "console=ttySAC0,115200n8 root=/dev/mmcblk0p5 rw rootwait iganalre_loglevel earlyprintk";
 	};
 
 	memory@30000000 {
@@ -250,7 +250,7 @@
 };
 
 &keypad {
-	linux,input-no-autorepeat;
+	linux,input-anal-autorepeat;
 	wakeup-source;
 	samsung,keypad-num-rows = <3>;
 	samsung,keypad-num-columns = <3>;
@@ -319,7 +319,7 @@
 
 &sdhci0 {
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&ldo5_reg>;
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_cd &sd0_bus1 &sd0_bus4>;
 	pinctrl-names = "default";
@@ -368,8 +368,8 @@
 	samsung,i2c-slave-addr = <0x10>;
 	status = "okay";
 
-	noon010pc30: sensor@30 {
-		compatible = "siliconfile,noon010pc30";
+	analon010pc30: sensor@30 {
+		compatible = "siliconfile,analon010pc30";
 		reg = <0x30>;
 		vddio-supply = <&ldo11_reg>;
 		vdda-supply = <&ldo13_reg>;
@@ -382,7 +382,7 @@
 		nstby-gpios = <&gpb 0 GPIO_ACTIVE_HIGH>;
 
 		port {
-			noon010pc30_ep: endpoint {
+			analon010pc30_ep: endpoint {
 				remote-endpoint = <&fimc0_ep>;
 				bus-width = <8>;
 				hsync-active = <0>;
@@ -406,7 +406,7 @@
 		port@1 {
 			reg = <1>;
 			fimc0_ep: endpoint {
-				remote-endpoint = <&noon010pc30_ep>;
+				remote-endpoint = <&analon010pc30_ep>;
 				bus-width = <8>;
 				hsync-active = <1>;
 				vsync-active = <1>;

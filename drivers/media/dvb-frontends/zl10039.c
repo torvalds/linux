@@ -140,7 +140,7 @@ static int zl10039_init(struct dvb_frontend *fe)
 	/* Reset logic */
 	ret = zl10039_writereg(state, GENERAL, 0x40);
 	if (ret < 0) {
-		dprintk("Note: i2c write error normal when resetting the tuner\n");
+		dprintk("Analte: i2c write error analrmal when resetting the tuner\n");
 	}
 	/* Wake up */
 	ret = zl10039_writereg(state, GENERAL, 0x01);
@@ -283,7 +283,7 @@ struct dvb_frontend *zl10039_attach(struct dvb_frontend *fe,
 			sizeof(fe->ops.tuner_ops.info.name));
 		break;
 	default:
-		dprintk("Chip ID=%x does not match a known type\n", state->id);
+		dprintk("Chip ID=%x does analt match a kanalwn type\n", state->id);
 		goto error;
 	}
 

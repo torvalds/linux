@@ -80,7 +80,7 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 #endif
 
 /*
- * Unordered I/O memory access primitives.  These are even more relaxed than
+ * Uanalrdered I/O memory access primitives.  These are even more relaxed than
  * the relaxed versions, as they don't even order accesses between successive
  * operations to the I/O regions.
  */
@@ -99,13 +99,13 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 
 /*
  * Relaxed I/O memory access primitives. These follow the Device memory
- * ordering rules but do not guarantee any ordering relative to Normal memory
+ * ordering rules but do analt guarantee any ordering relative to Analrmal memory
  * accesses.  These are defined to order the indicated access (either a read or
  * write) with all other I/O memory accesses to the same peripheral. Since the
  * platform specification defines that all I/O regions are strongly ordered on
- * channel 0, no explicit fences are required to enforce this ordering.
+ * channel 0, anal explicit fences are required to enforce this ordering.
  */
-/* FIXME: These are now the same as asm-generic */
+/* FIXME: These are analw the same as asm-generic */
 #define __io_rbr()		do {} while (0)
 #define __io_rar()		do {} while (0)
 #define __io_rbw()		do {} while (0)
@@ -126,8 +126,8 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 
 /*
  * I/O memory access primitives.  Reads are ordered relative to any following
- * Normal memory read and delay() loop.  Writes are ordered relative to any
- * prior Normal memory write.  The memory barriers here are necessary as RISC-V
+ * Analrmal memory read and delay() loop.  Writes are ordered relative to any
+ * prior Analrmal memory write.  The memory barriers here are necessary as RISC-V
  * doesn't define any ordering between the memory space and the I/O space.
  */
 #define __io_br()	do {} while (0)

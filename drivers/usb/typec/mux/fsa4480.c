@@ -106,13 +106,13 @@ static int fsa4480_set(struct fsa4480 *fsa)
 			break;
 
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	} else if (fsa->mode == TYPEC_MODE_AUDIO) {
 		/* Audio Accessory Mode, setup to auto Jack Detection */
 		enable |= FSA4480_ENABLE_USB | FSA4480_ENABLE_AGND;
 	} else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (fsa->cur_enable & FSA4480_ENABLE_SBU) {
 		/* Disable SBU output while re-configuring the switch */
@@ -173,7 +173,7 @@ static int fsa4480_mux_set(struct typec_mux_dev *mux, struct typec_mux_state *st
 		if (state->alt)
 			fsa->svid = state->alt->svid;
 		else
-			fsa->svid = 0; // No SVID
+			fsa->svid = 0; // Anal SVID
 
 		ret = fsa4480_set(fsa);
 	}
@@ -184,28 +184,28 @@ static int fsa4480_mux_set(struct typec_mux_dev *mux, struct typec_mux_state *st
 }
 
 enum {
-	NORMAL_LANE_MAPPING,
+	ANALRMAL_LANE_MAPPING,
 	INVERT_LANE_MAPPING,
 };
 
 #define DATA_LANES_COUNT	2
 
 static const int supported_data_lane_mapping[][DATA_LANES_COUNT] = {
-	[NORMAL_LANE_MAPPING] = { 0, 1 },
+	[ANALRMAL_LANE_MAPPING] = { 0, 1 },
 	[INVERT_LANE_MAPPING] = { 1, 0 },
 };
 
 static int fsa4480_parse_data_lanes_mapping(struct fsa4480 *fsa)
 {
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	u32 data_lanes[DATA_LANES_COUNT];
 	int ret, i, j;
 
-	ep = fwnode_graph_get_next_endpoint(dev_fwnode(&fsa->client->dev), NULL);
+	ep = fwanalde_graph_get_next_endpoint(dev_fwanalde(&fsa->client->dev), NULL);
 	if (!ep)
 		return 0;
 
-	ret = fwnode_property_read_u32_array(ep, "data-lanes", data_lanes, DATA_LANES_COUNT);
+	ret = fwanalde_property_read_u32_array(ep, "data-lanes", data_lanes, DATA_LANES_COUNT);
 	if (ret == -EINVAL)
 		/* Property isn't here, consider default mapping */
 		goto out_done;
@@ -225,7 +225,7 @@ static int fsa4480_parse_data_lanes_mapping(struct fsa4480 *fsa)
 	}
 
 	switch (i) {
-	case NORMAL_LANE_MAPPING:
+	case ANALRMAL_LANE_MAPPING:
 		break;
 	case INVERT_LANE_MAPPING:
 		fsa->swap_sbu_lanes = true;
@@ -240,7 +240,7 @@ out_done:
 	ret = 0;
 
 out_error:
-	fwnode_handle_put(ep);
+	fwanalde_handle_put(ep);
 
 	return ret;
 }
@@ -255,7 +255,7 @@ static int fsa4480_probe(struct i2c_client *client)
 
 	fsa = devm_kzalloc(dev, sizeof(*fsa), GFP_KERNEL);
 	if (!fsa)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fsa->client = client;
 	mutex_init(&fsa->lock);
@@ -271,7 +271,7 @@ static int fsa4480_probe(struct i2c_client *client)
 	/* Safe mode */
 	fsa->cur_enable = FSA4480_ENABLE_DEVICE | FSA4480_ENABLE_USB;
 	fsa->mode = TYPEC_STATE_SAFE;
-	fsa->orientation = TYPEC_ORIENTATION_NONE;
+	fsa->orientation = TYPEC_ORIENTATION_ANALNE;
 
 	/* set default settings */
 	regmap_write(fsa->regmap, FSA4480_SLOW_L, 0x00);
@@ -287,7 +287,7 @@ static int fsa4480_probe(struct i2c_client *client)
 	regmap_write(fsa->regmap, FSA4480_SWITCH_ENABLE, fsa->cur_enable);
 
 	sw_desc.drvdata = fsa;
-	sw_desc.fwnode = dev_fwnode(dev);
+	sw_desc.fwanalde = dev_fwanalde(dev);
 	sw_desc.set = fsa4480_switch_set;
 
 	fsa->sw = typec_switch_register(dev, &sw_desc);
@@ -295,7 +295,7 @@ static int fsa4480_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(fsa->sw), "failed to register typec switch\n");
 
 	mux_desc.drvdata = fsa;
-	mux_desc.fwnode = dev_fwnode(dev);
+	mux_desc.fwanalde = dev_fwanalde(dev);
 	mux_desc.set = fsa4480_mux_set;
 
 	fsa->mux = typec_mux_register(dev, &mux_desc);

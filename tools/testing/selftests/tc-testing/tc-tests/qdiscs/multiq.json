@@ -45,7 +45,7 @@
     },
     {
         "id": "7832",
-        "name": "Delete nonexistent multiq Qdisc",
+        "name": "Delete analnexistent multiq Qdisc",
         "category": [
             "qdisc",
             "multiq"

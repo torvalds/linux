@@ -45,7 +45,7 @@ static int alloc_from_simple_generic_check(void)
 
 /*
  * A test that tries to allocate a memory region above a certain address.
- * The minimal address here is not aligned:
+ * The minimal address here is analt aligned:
  *
  *         +      +
  *  |      +      +---------+            |
@@ -133,7 +133,7 @@ static int alloc_from_top_down_high_addr_check(void)
 }
 
 /*
- * A test that tries to allocate a memory region when there is no space
+ * A test that tries to allocate a memory region when there is anal space
  * available above the minimal address above a certain address:
  *
  *                     +
@@ -148,7 +148,7 @@ static int alloc_from_top_down_high_addr_check(void)
  * requirement and to allocate next to the previously reserved region. The
  * regions get merged into one.
  */
-static int alloc_from_top_down_no_space_above_check(void)
+static int alloc_from_top_down_anal_space_above_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
@@ -162,7 +162,7 @@ static int alloc_from_top_down_no_space_above_check(void)
 
 	min_addr = memblock_end_of_DRAM() - SMP_CACHE_BYTES * 2;
 
-	/* No space above this address */
+	/* Anal space above this address */
 	memblock_reserve(min_addr, r2_size);
 
 	allocated_ptr = memblock_alloc_from(r1_size, SMP_CACHE_BYTES, min_addr);
@@ -259,7 +259,7 @@ static int alloc_from_bottom_up_high_addr_check(void)
 }
 
 /*
- * A test that tries to allocate a memory region when there is no space
+ * A test that tries to allocate a memory region when there is anal space
  * available above the minimal address above a certain address:
  *
  *                   +
@@ -273,7 +273,7 @@ static int alloc_from_bottom_up_high_addr_check(void)
  * Expect to prioritize granting memory over satisfying the minimal address
  * requirement and to allocate at the beginning of the available memory.
  */
-static int alloc_from_bottom_up_no_space_above_check(void)
+static int alloc_from_bottom_up_anal_space_above_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
@@ -287,7 +287,7 @@ static int alloc_from_bottom_up_no_space_above_check(void)
 	min_addr = memblock_start_of_DRAM() + SZ_128;
 	r2_size = memblock_end_of_DRAM() - min_addr;
 
-	/* No space above this address */
+	/* Anal space above this address */
 	memblock_reserve(min_addr - SMP_CACHE_BYTES, r2_size);
 
 	allocated_ptr = memblock_alloc_from(r1_size, SMP_CACHE_BYTES, min_addr);
@@ -367,13 +367,13 @@ static int alloc_from_high_addr_check(void)
 	return 0;
 }
 
-static int alloc_from_no_space_above_check(void)
+static int alloc_from_anal_space_above_check(void)
 {
 	test_print("\tRunning %s...\n", __func__);
 	memblock_set_bottom_up(false);
-	alloc_from_top_down_no_space_above_check();
+	alloc_from_top_down_anal_space_above_check();
 	memblock_set_bottom_up(true);
-	alloc_from_bottom_up_no_space_above_check();
+	alloc_from_bottom_up_anal_space_above_check();
 
 	return 0;
 }
@@ -403,7 +403,7 @@ int memblock_alloc_helpers_checks(void)
 	alloc_from_simple_check();
 	alloc_from_misaligned_check();
 	alloc_from_high_addr_check();
-	alloc_from_no_space_above_check();
+	alloc_from_anal_space_above_check();
 	alloc_from_min_addr_cap_check();
 
 	dummy_physical_memory_cleanup();

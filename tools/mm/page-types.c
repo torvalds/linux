@@ -23,7 +23,7 @@
 #include <setjmp.h>
 #include <signal.h>
 #include <sys/types.h>
-#include <sys/errno.h>
+#include <sys/erranal.h>
 #include <sys/fcntl.h>
 #include <sys/mount.h>
 #include <sys/statfs.h>
@@ -81,9 +81,9 @@
 #define KPF_ARCH_2		41
 
 /* [47-] take some arbitrary free slots for expanding overloaded flags
- * not part of kernel API
+ * analt part of kernel API
  */
-#define KPF_ANON_EXCLUSIVE	47
+#define KPF_AANALN_EXCLUSIVE	47
 #define KPF_READAHEAD		48
 #define KPF_SLUB_FROZEN		50
 #define KPF_SLUB_DEBUG		51
@@ -111,7 +111,7 @@ static const char * const page_flag_names[] = {
 	[KPF_BUDDY]		= "B:buddy",
 
 	[KPF_MMAP]		= "M:mmap",
-	[KPF_ANON]		= "a:anonymous",
+	[KPF_AANALN]		= "a:aanalnymous",
 	[KPF_SWAPCACHE]		= "s:swapcache",
 	[KPF_SWAPBACKED]	= "b:swapbacked",
 	[KPF_COMPOUND_HEAD]	= "H:compound_head",
@@ -119,7 +119,7 @@ static const char * const page_flag_names[] = {
 	[KPF_HUGE]		= "G:huge",
 	[KPF_UNEVICTABLE]	= "u:unevictable",
 	[KPF_HWPOISON]		= "X:hwpoison",
-	[KPF_NOPAGE]		= "n:nopage",
+	[KPF_ANALPAGE]		= "n:analpage",
 	[KPF_KSM]		= "x:ksm",
 	[KPF_THP]		= "t:thp",
 	[KPF_OFFLINE]		= "o:offline",
@@ -138,7 +138,7 @@ static const char * const page_flag_names[] = {
 	[KPF_SOFTDIRTY]		= "f:softdirty",
 	[KPF_ARCH_2]		= "H:arch_2",
 
-	[KPF_ANON_EXCLUSIVE]	= "d:anon_exclusive",
+	[KPF_AANALN_EXCLUSIVE]	= "d:aanaln_exclusive",
 	[KPF_READAHEAD]		= "I:readahead",
 	[KPF_SLUB_FROZEN]	= "A:slub_frozen",
 	[KPF_SLUB_DEBUG]	= "E:slub_debug",
@@ -156,10 +156,10 @@ static const char * const page_flag_names[] = {
 static int		opt_raw;	/* for kernel developers */
 static int		opt_list;	/* list pages (in ranges) */
 static int		opt_mark_idle;	/* set accessed bit */
-static int		opt_no_summary;	/* don't show summary */
+static int		opt_anal_summary;	/* don't show summary */
 static pid_t		opt_pid;	/* process to walk */
 const char		*opt_file;	/* file or directory path */
-static uint64_t		opt_cgroup;	/* cgroup inode */
+static uint64_t		opt_cgroup;	/* cgroup ianalde */
 static int		opt_list_cgroup;/* list page cgroup */
 static int		opt_list_mapcnt;/* list page map count */
 static const char	*opt_kpageflags;/* kpageflags file to parse */
@@ -336,7 +336,7 @@ static char *page_flag_name(uint64_t flags)
 		present = (flags >> i) & 1;
 		if (!page_flag_names[i]) {
 			if (present)
-				fatal("unknown flag bit %d\n", i);
+				fatal("unkanalwn flag bit %d\n", i);
 			continue;
 		}
 		buf[j++] = present ? page_flag_names[i][0] : '_';
@@ -472,9 +472,9 @@ static int bit_mask_ok(uint64_t flags)
 
 static uint64_t expand_overloaded_flags(uint64_t flags, uint64_t pme)
 {
-	/* Anonymous pages overload PG_mappedtodisk */
-	if ((flags & BIT(ANON)) && (flags & BIT(MAPPEDTODISK)))
-		flags ^= BIT(MAPPEDTODISK) | BIT(ANON_EXCLUSIVE);
+	/* Aanalnymous pages overload PG_mappedtodisk */
+	if ((flags & BIT(AANALN)) && (flags & BIT(MAPPEDTODISK)))
+		flags ^= BIT(MAPPEDTODISK) | BIT(AANALN_EXCLUSIVE);
 
 	/* SLUB overloads several page flags */
 	if (flags & BIT(SLAB)) {
@@ -500,12 +500,12 @@ static uint64_t expand_overloaded_flags(uint64_t flags, uint64_t pme)
 	return flags;
 }
 
-static uint64_t well_known_flags(uint64_t flags)
+static uint64_t well_kanalwn_flags(uint64_t flags)
 {
 	/* hide flags intended only for kernel hacker */
 	flags &= ~KPF_HACKERS_BITS;
 
-	/* hide non-hugeTLB compound pages */
+	/* hide analn-hugeTLB compound pages */
 	if ((flags & BITS_COMPOUND) && !(flags & BIT(HUGE)))
 		flags &= ~BITS_COMPOUND;
 
@@ -517,7 +517,7 @@ static uint64_t kpageflags_flags(uint64_t flags, uint64_t pme)
 	if (opt_raw)
 		flags = expand_overloaded_flags(flags, pme);
 	else
-		flags = well_known_flags(flags);
+		flags = well_kanalwn_flags(flags);
 
 	return flags;
 }
@@ -611,7 +611,7 @@ static size_t hash_slot(uint64_t flags)
 	size_t i;
 
 	/* Explicitly reserve slot 0 for flags 0: the following logic
-	 * cannot distinguish an unoccupied slot from slot (flags==0).
+	 * cananalt distinguish an uanalccupied slot from slot (flags==0).
 	 */
 	if (flags == 0)
 		return 0;
@@ -676,7 +676,7 @@ static void walk_pfn(unsigned long voffset,
 
 	/*
 	 * kpagecgroup_read() reads only if kpagecgroup were opened, but
-	 * /proc/kpagecgroup might even not exist, so it's better to fill
+	 * /proc/kpagecgroup might even analt exist, so it's better to fill
 	 * them with zeros here.
 	 */
 	if (count == 1)
@@ -830,23 +830,23 @@ static void usage(void)
 "            -d|--describe flags        Describe flags\n"
 "            -a|--addr    addr-spec     Walk a range of pages\n"
 "            -b|--bits    bits-spec     Walk pages with specified bits\n"
-"            -c|--cgroup  path|@inode   Walk pages within memory cgroup\n"
+"            -c|--cgroup  path|@ianalde   Walk pages within memory cgroup\n"
 "            -p|--pid     pid           Walk process address space\n"
 "            -f|--file    filename      Walk file address space\n"
 "            -i|--mark-idle             Mark pages idle\n"
 "            -l|--list                  Show page details in ranges\n"
 "            -L|--list-each             Show page details one by one\n"
-"            -C|--list-cgroup           Show cgroup inode for pages\n"
+"            -C|--list-cgroup           Show cgroup ianalde for pages\n"
 "            -M|--list-mapcnt           Show page map count\n"
-"            -N|--no-summary            Don't show summary info\n"
+"            -N|--anal-summary            Don't show summary info\n"
 "            -X|--hwpoison              hwpoison pages\n"
 "            -x|--unpoison              unpoison pages\n"
 "            -F|--kpageflags filename   kpageflags file to parse\n"
 "            -h|--help                  Show this usage message\n"
 "flags:\n"
 "            0x10                       bitfield format, e.g.\n"
-"            anon                       bit-name, e.g.\n"
-"            0x10,anon                  comma-separated list, e.g.\n"
+"            aanaln                       bit-name, e.g.\n"
+"            0x10,aanaln                  comma-separated list, e.g.\n"
 "addr-spec:\n"
 "            N                          one page at offset N (unit: pages)\n"
 "            N+M                        pages range from N to N+M-1\n"
@@ -908,9 +908,9 @@ static void parse_pid(const char *str)
 		unsigned long vm_start;
 		unsigned long vm_end;
 		unsigned long long pgoff;
-		int major, minor;
+		int major, mianalr;
 		char r, w, x, s;
-		unsigned long ino;
+		unsigned long ianal;
 		int n;
 
 		n = sscanf(buf, "%lx-%lx %c%c%c%c %llx %x:%x %lu",
@@ -918,8 +918,8 @@ static void parse_pid(const char *str)
 			   &vm_end,
 			   &r, &w, &x, &s,
 			   &pgoff,
-			   &major, &minor,
-			   &ino);
+			   &major, &mianalr,
+			   &ianal);
 		if (n < 10) {
 			fprintf(stderr, "unexpected line: %s\n", buf);
 			continue;
@@ -938,18 +938,18 @@ static void show_file(const char *name, const struct stat *st)
 {
 	unsigned long long size = st->st_size;
 	char atime[64], mtime[64];
-	long now = time(NULL);
+	long analw = time(NULL);
 
-	printf("%s\tInode: %u\tSize: %llu (%llu pages)\n",
-			name, (unsigned)st->st_ino,
+	printf("%s\tIanalde: %u\tSize: %llu (%llu pages)\n",
+			name, (unsigned)st->st_ianal,
 			size, (size + page_size - 1) / page_size);
 
 	strftime(atime, sizeof(atime), "%c", localtime(&st->st_atime));
 	strftime(mtime, sizeof(mtime), "%c", localtime(&st->st_mtime));
 
 	printf("Modify: %s (%ld seconds ago)\nAccess: %s (%ld seconds ago)\n",
-			mtime, now - st->st_mtime,
-			atime, now - st->st_atime);
+			mtime, analw - st->st_mtime,
+			atime, analw - st->st_atime);
 }
 
 static sigjmp_buf sigbus_jmp;
@@ -1019,7 +1019,7 @@ got_sigbus:
 
 		if (pagemap_read(buf, (unsigned long)ptr / page_size,
 					nr_pages) != nr_pages)
-			fatal("cannot read pagemap");
+			fatal("cananalt read pagemap");
 
 		munmap(ptr, len);
 
@@ -1048,7 +1048,7 @@ static void walk_file(const char *name, const struct stat *st)
 	int i;
 	int fd;
 
-	fd = checked_open(name, O_RDONLY|O_NOATIME|O_NOFOLLOW);
+	fd = checked_open(name, O_RDONLY|O_ANALATIME|O_ANALFOLLOW);
 
 	if (!nr_addr_ranges)
 		add_addr_range(0, st->st_size / page_size);
@@ -1069,7 +1069,7 @@ int walk_tree(const char *name, const struct stat *st, int type, struct FTW *f)
 			walk_file(name, st);
 		break;
 	case FTW_DNR:
-		fprintf(stderr, "cannot read dir: %s\n", name);
+		fprintf(stderr, "cananalt read dir: %s\n", name);
 		break;
 	}
 	return 0;
@@ -1089,7 +1089,7 @@ static void walk_page_cache(void)
 	if (S_ISREG(st.st_mode)) {
 		walk_file(opt_file, &st);
 	} else if (S_ISDIR(st.st_mode)) {
-		/* do not follow symlinks and mountpoints */
+		/* do analt follow symlinks and mountpoints */
 		if (nftw(opt_file, walk_tree, 64, FTW_MOUNT | FTW_PHYS) < 0)
 			fatal("nftw failed: %s\n", opt_file);
 	} else
@@ -1120,7 +1120,7 @@ static void parse_cgroup(const char *path)
 	if (!S_ISDIR(st.st_mode))
 		fatal("cgroup supposed to be a directory: %s\n", path);
 
-	opt_cgroup = st.st_ino;
+	opt_cgroup = st.st_ianal;
 }
 
 static void parse_addr_range(const char *optarg)
@@ -1258,7 +1258,7 @@ static const struct option opts[] = {
 	{ "list-each" , 0, NULL, 'L' },
 	{ "list-cgroup", 0, NULL, 'C' },
 	{ "list-mapcnt", 0, NULL, 'M' },
-	{ "no-summary", 0, NULL, 'N' },
+	{ "anal-summary", 0, NULL, 'N' },
 	{ "hwpoison"  , 0, NULL, 'X' },
 	{ "unpoison"  , 0, NULL, 'x' },
 	{ "kpageflags", 0, NULL, 'F' },
@@ -1313,7 +1313,7 @@ int main(int argc, char *argv[])
 			opt_list_mapcnt = 1;
 			break;
 		case 'N':
-			opt_no_summary = 1;
+			opt_anal_summary = 1;
 			break;
 		case 'X':
 			opt_hwpoison = 1;
@@ -1369,7 +1369,7 @@ int main(int argc, char *argv[])
 	if (opt_list == 1)
 		flush_page_range();
 
-	if (opt_no_summary)
+	if (opt_anal_summary)
 		return 0;
 
 	if (opt_list)

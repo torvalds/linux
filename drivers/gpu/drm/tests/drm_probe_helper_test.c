@@ -37,21 +37,21 @@ static int drm_probe_helper_test_init(struct kunit *test)
 	int ret;
 
 	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, priv);
+	KUNIT_ASSERT_ANALT_NULL(test, priv);
 	test->priv = priv;
 
 	priv->dev = drm_kunit_helper_alloc_device(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, priv->dev);
 
 	priv->drm = __drm_kunit_helper_alloc_drm_device(test, priv->dev,
 							sizeof(*priv->drm), 0,
 							DRIVER_MODESET | DRIVER_ATOMIC);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->drm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, priv->drm);
 
 	connector = &priv->connector;
 	ret = drmm_connector_init(priv->drm, connector,
 				  &drm_probe_helper_connector_funcs,
-				  DRM_MODE_CONNECTOR_Unknown,
+				  DRM_MODE_CONNECTOR_Unkanalwn,
 				  NULL);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
@@ -127,10 +127,10 @@ drm_test_connector_helper_tv_get_modes_check(struct kunit *test)
 	if (params->num_expected_modes >= 1) {
 		mode = list_first_entry_or_null(&connector->probed_modes,
 						struct drm_display_mode, head);
-		KUNIT_ASSERT_NOT_NULL(test, mode);
+		KUNIT_ASSERT_ANALT_NULL(test, mode);
 
 		expected = params->expected_modes[0](priv->drm);
-		KUNIT_ASSERT_NOT_NULL(test, expected);
+		KUNIT_ASSERT_ANALT_NULL(test, expected);
 
 		KUNIT_EXPECT_TRUE(test, drm_mode_equal(mode, expected));
 		KUNIT_EXPECT_TRUE(test, mode->type & DRM_MODE_TYPE_PREFERRED);
@@ -138,10 +138,10 @@ drm_test_connector_helper_tv_get_modes_check(struct kunit *test)
 
 	if (params->num_expected_modes >= 2) {
 		mode = list_next_entry(mode, head);
-		KUNIT_ASSERT_NOT_NULL(test, mode);
+		KUNIT_ASSERT_ANALT_NULL(test, mode);
 
 		expected = params->expected_modes[1](priv->drm);
-		KUNIT_ASSERT_NOT_NULL(test, expected);
+		KUNIT_ASSERT_ANALT_NULL(test, expected);
 
 		KUNIT_EXPECT_TRUE(test, drm_mode_equal(mode, expected));
 		KUNIT_EXPECT_FALSE(test, mode->type & DRM_MODE_TYPE_PREFERRED);
@@ -152,7 +152,7 @@ drm_test_connector_helper_tv_get_modes_check(struct kunit *test)
 
 static const
 struct drm_connector_helper_tv_get_modes_test drm_connector_helper_tv_get_modes_tests[] = {
-	{ .name = "None" },
+	{ .name = "Analne" },
 	TV_MODE_TEST("PAL",
 		     BIT(DRM_MODE_TV_MODE_PAL),
 		     DRM_MODE_TV_MODE_PAL,
@@ -206,5 +206,5 @@ static struct kunit_suite drm_test_connector_helper_tv_get_modes_suite = {
 
 kunit_test_suite(drm_test_connector_helper_tv_get_modes_suite);
 
-MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
+MODULE_AUTHOR("Maxime Ripard <maxime@ceranal.tech>");
 MODULE_LICENSE("GPL");

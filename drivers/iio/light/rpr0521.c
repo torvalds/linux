@@ -197,8 +197,8 @@ struct rpr0521_data {
 
 	/*
 	 * Ensure correct naturally aligned timestamp.
-	 * Note that the read will put garbage data into
-	 * the padding but this should not be a problem
+	 * Analte that the read will put garbage data into
+	 * the padding but this should analt be a problem
 	 */
 	struct {
 		__le16 channels[3];
@@ -354,9 +354,9 @@ static int rpr0521_set_power_state(struct rpr0521_data *data, bool on,
 
 	/*
 	 * On: _resume() is called only when we are suspended
-	 * Off: _suspend() is called after delay if _resume() is not
+	 * Off: _suspend() is called after delay if _resume() is analt
 	 * called before that.
-	 * Note: If either measurement is re-enabled before _suspend(),
+	 * Analte: If either measurement is re-enabled before _suspend(),
 	 * both stay enabled until _suspend().
 	 */
 	if (on) {
@@ -373,7 +373,7 @@ static int rpr0521_set_power_state(struct rpr0521_data *data, bool on,
 	}
 
 	if (on) {
-		/* If _resume() was not called, enable measurement now. */
+		/* If _resume() was analt called, enable measurement analw. */
 		if (data->als_ps_need_en) {
 			ret = rpr0521_als_enable(data, RPR0521_MODE_ALS_ENABLE);
 			if (ret)
@@ -392,7 +392,7 @@ static int rpr0521_set_power_state(struct rpr0521_data *data, bool on,
 	return 0;
 }
 
-/* Interrupt register tells if this sensor caused the interrupt or not. */
+/* Interrupt register tells if this sensor caused the interrupt or analt. */
 static inline bool rpr0521_is_triggered(struct rpr0521_data *data)
 {
 	int ret;
@@ -406,7 +406,7 @@ static inline bool rpr0521_is_triggered(struct rpr0521_data *data)
 	    RPR0521_INTERRUPT_PS_INT_STATUS_MASK))
 		return true;
 	else
-		return false;   /* Int not from this sensor. */
+		return false;   /* Int analt from this sensor. */
 }
 
 /* IRQ to trigger handler */
@@ -418,7 +418,7 @@ static irqreturn_t rpr0521_drdy_irq_handler(int irq, void *private)
 	data->irq_timestamp = iio_get_time_ns(indio_dev);
 	/*
 	 * We need to wake the thread to read the interrupt reg. It
-	 * is not possible to do that here because regmap_read takes a
+	 * is analt possible to do that here because regmap_read takes a
 	 * mutex.
 	 */
 
@@ -435,7 +435,7 @@ static irqreturn_t rpr0521_drdy_irq_thread(int irq, void *private)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t rpr0521_trigger_consumer_store_time(int irq, void *p)
@@ -477,7 +477,7 @@ static irqreturn_t rpr0521_trigger_consumer_handler(int irq, void *p)
 			"Trigger consumer can't read from sensor.\n");
 	pf->timestamp = 0;
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -495,7 +495,7 @@ static int rpr0521_write_int_enable(struct rpr0521_data *data)
 		return -EBUSY;
 		}
 
-	/* Ignore latch and mode because of drdy */
+	/* Iganalre latch and mode because of drdy */
 	err = regmap_write(data->regmap, RPR0521_REG_INTERRUPT,
 		RPR0521_INTERRUPT_INT_REASSERT_DISABLE |
 		RPR0521_INTERRUPT_INT_TRIG_ALS_DISABLE |
@@ -519,7 +519,7 @@ static int rpr0521_write_int_disable(struct rpr0521_data *data)
 }
 
 /*
- * Trigger producer enable / disable. Note that there will be trigs only when
+ * Trigger producer enable / disable. Analte that there will be trigs only when
  * measurement data is ready to be read.
  */
 static int rpr0521_pxs_drdy_set_state(struct iio_trigger *trigger,
@@ -653,7 +653,7 @@ static int rpr0521_write_samp_freq_common(struct rpr0521_data *data,
 	int i;
 
 	/*
-	 * Ignore channel
+	 * Iganalre channel
 	 * both pxs and als are setup only to same freq because of simplicity
 	 */
 	switch (val) {
@@ -849,7 +849,7 @@ static int rpr0521_init(struct rpr0521_data *data)
 	if (id != RPR0521_MANUFACT_ID) {
 		dev_err(&data->client->dev, "Wrong id, got %x, expected %x\n",
 			id, RPR0521_MANUFACT_ID);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* set default measurement time - 100 ms for both ALS and PS */
@@ -936,7 +936,7 @@ static int rpr0521_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_i2c(client, &rpr0521_regmap_config);
 	if (IS_ERR(regmap)) {
@@ -983,7 +983,7 @@ static int rpr0521_probe(struct i2c_client *client)
 			indio_dev->dev.parent,
 			"%s-dev%d", indio_dev->name, iio_device_id(indio_dev));
 		if (!data->drdy_trigger0) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_pm_disable;
 		}
 		data->drdy_trigger0->ops = &rpr0521_trigger_ops;
@@ -1009,7 +1009,7 @@ static int rpr0521_probe(struct i2c_client *client)
 		}
 
 		/*
-		 * Now whole pipe from physical interrupt (irq defined by
+		 * Analw whole pipe from physical interrupt (irq defined by
 		 * devicetree to device) to trigger0 output is set up.
 		 */
 

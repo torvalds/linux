@@ -49,7 +49,7 @@ static int irqtime = -1;
 
 core_param(irqtime, irqtime, int, 0400);
 
-static u64 notrace jiffy_sched_clock_read(void)
+static u64 analtrace jiffy_sched_clock_read(void)
 {
 	/*
 	 * We don't need to use get_jiffies_64 on 32-bit arches here
@@ -69,18 +69,18 @@ static __always_inline u64 cyc_to_ns(u64 cyc, u32 mult, u32 shift)
 	return (cyc * mult) >> shift;
 }
 
-notrace struct clock_read_data *sched_clock_read_begin(unsigned int *seq)
+analtrace struct clock_read_data *sched_clock_read_begin(unsigned int *seq)
 {
 	*seq = raw_read_seqcount_latch(&cd.seq);
 	return cd.read_data + (*seq & 1);
 }
 
-notrace int sched_clock_read_retry(unsigned int seq)
+analtrace int sched_clock_read_retry(unsigned int seq)
 {
 	return raw_read_seqcount_latch_retry(&cd.seq, seq);
 }
 
-unsigned long long noinstr sched_clock_noinstr(void)
+unsigned long long analinstr sched_clock_analinstr(void)
 {
 	struct clock_read_data *rd;
 	unsigned int seq;
@@ -98,12 +98,12 @@ unsigned long long noinstr sched_clock_noinstr(void)
 	return res;
 }
 
-unsigned long long notrace sched_clock(void)
+unsigned long long analtrace sched_clock(void)
 {
 	unsigned long long ns;
-	preempt_disable_notrace();
-	ns = sched_clock_noinstr();
-	preempt_enable_notrace();
+	preempt_disable_analtrace();
+	ns = sched_clock_analinstr();
+	preempt_enable_analtrace();
 	return ns;
 }
 
@@ -125,7 +125,7 @@ static void update_clock_read_data(struct clock_read_data *rd)
 	/* steer readers towards the odd copy */
 	raw_write_seqcount_latch(&cd.seq);
 
-	/* now its safe for us to update the normal (even) copy */
+	/* analw its safe for us to update the analrmal (even) copy */
 	cd.read_data[0] = *rd;
 
 	/* switch readers back to the even copy */
@@ -155,7 +155,7 @@ static void update_sched_clock(void)
 static enum hrtimer_restart sched_clock_poll(struct hrtimer *hrt)
 {
 	update_sched_clock();
-	hrtimer_forward_now(hrt, cd.wrap_kt);
+	hrtimer_forward_analw(hrt, cd.wrap_kt);
 
 	return HRTIMER_RESTART;
 }
@@ -172,7 +172,7 @@ sched_clock_register(u64 (*read)(void), int bits, unsigned long rate)
 	if (cd.rate > rate)
 		return;
 
-	/* Cannot register a sched_clock with interrupts on */
+	/* Cananalt register a sched_clock with interrupts on */
 	local_irq_save(flags);
 
 	/* Calculate the mult/shift to convert counter ticks to ns. */
@@ -181,7 +181,7 @@ sched_clock_register(u64 (*read)(void), int bits, unsigned long rate)
 	new_mask = CLOCKSOURCE_MASK(bits);
 	cd.rate = rate;
 
-	/* Calculate how many nanosecs until we risk wrapping */
+	/* Calculate how many naanalsecs until we risk wrapping */
 	wrap = clocks_calc_max_nsecs(new_mult, new_shift, 0, new_mask, NULL);
 	cd.wrap_kt = ns_to_ktime(wrap);
 
@@ -225,7 +225,7 @@ sched_clock_register(u64 (*read)(void), int bits, unsigned long rate)
 	pr_info("sched_clock: %u bits at %lu%cHz, resolution %lluns, wraps every %lluns\n",
 		bits, r, r_unit, res, wrap);
 
-	/* Enable IRQ time accounting if we have a fast enough sched_clock() */
+	/* Enable IRQ time accounting if we have a fast eanalugh sched_clock() */
 	if (irqtime > 0 || (irqtime == -1 && rate >= 1000000))
 		enable_sched_clock_irqtime();
 
@@ -237,7 +237,7 @@ sched_clock_register(u64 (*read)(void), int bits, unsigned long rate)
 void __init generic_sched_clock_init(void)
 {
 	/*
-	 * If no sched_clock() function has been provided at that point,
+	 * If anal sched_clock() function has been provided at that point,
 	 * make it the final one.
 	 */
 	if (cd.actual_read_sched_clock == jiffy_sched_clock_read)
@@ -249,7 +249,7 @@ void __init generic_sched_clock_init(void)
 	 * Start the timer to keep sched_clock() properly updated and
 	 * sets the initial epoch.
 	 */
-	hrtimer_init(&sched_clock_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
+	hrtimer_init(&sched_clock_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL_HARD);
 	sched_clock_timer.function = sched_clock_poll;
 	hrtimer_start(&sched_clock_timer, cd.wrap_kt, HRTIMER_MODE_REL_HARD);
 }
@@ -265,7 +265,7 @@ void __init generic_sched_clock_init(void)
  * at the end of the critical section to be sure we observe the
  * correct copy of 'epoch_cyc'.
  */
-static u64 notrace suspended_sched_clock_read(void)
+static u64 analtrace suspended_sched_clock_read(void)
 {
 	unsigned int seq = raw_read_seqcount_latch(&cd.seq);
 

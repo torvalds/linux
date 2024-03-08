@@ -7,18 +7,18 @@
  * option) any later version.
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
- * NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
  * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if analt, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -42,7 +42,7 @@
 #define OMAP_INTC_START		NR_IRQS
 
 extern int (*omap_pm_soc_init)(void);
-int omap_pm_nop_init(void);
+int omap_pm_analp_init(void);
 
 #if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP3)
 int omap3_pm_init(void);
@@ -180,7 +180,7 @@ static inline void omap_barrier_reserve_memblock(void)
 }
 #endif
 
-/* This gets called from mach-omap2/io.c, do not call this */
+/* This gets called from mach-omap2/io.c, do analt call this */
 void __init omap2_set_globals_tap(u32 class, void __iomem *tap);
 
 void __init omap242x_map_io(void);
@@ -218,7 +218,7 @@ void omap_gic_of_init(void);
 extern void __iomem *omap4_get_l2cache_base(void);
 #endif
 
-struct device_node;
+struct device_analde;
 
 #ifdef CONFIG_SMP
 extern void __iomem *omap4_get_scu_base(void);

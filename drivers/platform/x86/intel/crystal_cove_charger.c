@@ -3,7 +3,7 @@
  * Driver for the external-charger IRQ pass-through function of the
  * Intel Bay Trail Crystal Cove PMIC.
  *
- * Note this is NOT a power_supply class driver, it just deals with IRQ
+ * Analte this is ANALT a power_supply class driver, it just deals with IRQ
  * pass-through, this requires a separate driver because the PMIC's
  * level 2 interrupt for this must be explicitly acked.
  */
@@ -34,7 +34,7 @@ static irqreturn_t crystal_cove_charger_irq(int irq, void *data)
 {
 	struct crystal_cove_charger_data *charger = data;
 
-	/* No need to read CHGRIRQ_REG as there is only 1 IRQ */
+	/* Anal need to read CHGRIRQ_REG as there is only 1 IRQ */
 	handle_nested_irq(charger->charger_irq);
 
 	/* Ack CHGRIRQ 0 */
@@ -91,7 +91,7 @@ static int crystal_cove_charger_probe(struct platform_device *pdev)
 
 	charger = devm_kzalloc(&pdev->dev, sizeof(*charger), GFP_KERNEL);
 	if (!charger)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	charger->regmap = pmic->regmap;
 	mutex_init(&charger->buslock);
@@ -100,12 +100,12 @@ static int crystal_cove_charger_probe(struct platform_device *pdev)
 	if (charger->irq < 0)
 		return charger->irq;
 
-	charger->irq_domain = irq_domain_create_linear(dev_fwnode(pdev->dev.parent), 1,
+	charger->irq_domain = irq_domain_create_linear(dev_fwanalde(pdev->dev.parent), 1,
 						       &irq_domain_simple_ops, NULL);
 	if (!charger->irq_domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Distuingish IRQ domain from others sharing (MFD) the same fwnode */
+	/* Distuingish IRQ domain from others sharing (MFD) the same fwanalde */
 	irq_domain_update_bus_token(charger->irq_domain, DOMAIN_BUS_WAKEUP);
 
 	ret = devm_add_action_or_reset(&pdev->dev, crystal_cove_charger_rm_irq_domain, charger);
@@ -114,7 +114,7 @@ static int crystal_cove_charger_probe(struct platform_device *pdev)
 
 	charger->charger_irq = irq_create_mapping(charger->irq_domain, 0);
 	if (!charger->charger_irq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	charger->irqchip.name = KBUILD_MODNAME;
 	charger->irqchip.irq_unmask = crystal_cove_charger_irq_unmask;
@@ -125,7 +125,7 @@ static int crystal_cove_charger_probe(struct platform_device *pdev)
 	irq_set_chip_data(charger->charger_irq, charger);
 	irq_set_chip_and_handler(charger->charger_irq, &charger->irqchip, handle_simple_irq);
 	irq_set_nested_thread(charger->charger_irq, true);
-	irq_set_noprobe(charger->charger_irq);
+	irq_set_analprobe(charger->charger_irq);
 
 	/* Mask the single 2nd level IRQ before enabling the 1st level IRQ */
 	charger->mask = charger->new_mask = BIT(0);

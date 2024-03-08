@@ -48,7 +48,7 @@ extern int smb3_calc_signature(struct smb_rqst *rqst,
 				struct TCP_Server_Info *server,
 				bool allocate_crypto);
 extern void smb2_echo_request(struct work_struct *work);
-extern __le32 smb2_get_lease_state(struct cifsInodeInfo *cinode);
+extern __le32 smb2_get_lease_state(struct cifsIanaldeInfo *cianalde);
 extern bool smb2_is_valid_oplock_break(char *buffer,
 				       struct TCP_Server_Info *srv);
 extern int smb3_handle_read_data(struct TCP_Server_Info *server,
@@ -56,7 +56,7 @@ extern int smb3_handle_read_data(struct TCP_Server_Info *server,
 extern int smb2_query_reparse_tag(const unsigned int xid, struct cifs_tcon *tcon,
 				struct cifs_sb_info *cifs_sb, const char *path,
 				__u32 *reparse_tag);
-struct inode *smb2_get_reparse_inode(struct cifs_open_info_data *data,
+struct ianalde *smb2_get_reparse_ianalde(struct cifs_open_info_data *data,
 				     struct super_block *sb,
 				     const unsigned int xid,
 				     struct cifs_tcon *tcon,
@@ -76,16 +76,16 @@ int smb2_query_path_info(const unsigned int xid,
 extern int smb2_set_path_size(const unsigned int xid, struct cifs_tcon *tcon,
 			      const char *full_path, __u64 size,
 			      struct cifs_sb_info *cifs_sb, bool set_alloc);
-extern int smb2_set_file_info(struct inode *inode, const char *full_path,
+extern int smb2_set_file_info(struct ianalde *ianalde, const char *full_path,
 			      FILE_BASIC_INFO *buf, const unsigned int xid);
-extern int smb311_posix_mkdir(const unsigned int xid, struct inode *inode,
+extern int smb311_posix_mkdir(const unsigned int xid, struct ianalde *ianalde,
 			       umode_t mode, struct cifs_tcon *tcon,
 			       const char *full_path,
 			       struct cifs_sb_info *cifs_sb);
-extern int smb2_mkdir(const unsigned int xid, struct inode *inode,
+extern int smb2_mkdir(const unsigned int xid, struct ianalde *ianalde,
 		      umode_t mode, struct cifs_tcon *tcon,
 		      const char *name, struct cifs_sb_info *cifs_sb);
-extern void smb2_mkdir_setinfo(struct inode *inode, const char *full_path,
+extern void smb2_mkdir_setinfo(struct ianalde *ianalde, const char *full_path,
 			       struct cifs_sb_info *cifs_sb,
 			       struct cifs_tcon *tcon, const unsigned int xid);
 extern int smb2_rmdir(const unsigned int xid, struct cifs_tcon *tcon,
@@ -165,7 +165,7 @@ extern int SMB2_ioctl_init(struct cifs_tcon *tcon,
 			   char *in_data, u32 indatalen,
 			   __u32 max_response_size);
 extern void SMB2_ioctl_free(struct smb_rqst *rqst);
-extern int SMB2_change_notify(const unsigned int xid, struct cifs_tcon *tcon,
+extern int SMB2_change_analtify(const unsigned int xid, struct cifs_tcon *tcon,
 			u64 persistent_fid, u64 volatile_fid, bool watch_tree,
 			u32 completion_filter, u32 max_out_data_len,
 			char **out_data, u32 *plen /* returned data len */);

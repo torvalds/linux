@@ -164,7 +164,7 @@ static void pixcir_ts_report(struct pixcir_i2c_ts_data *ts,
 			slot = input_mt_get_slot_by_key(ts->input,
 							report->ids[i]);
 			if (slot < 0) {
-				dev_dbg(dev, "no free slot for id 0x%x\n",
+				dev_dbg(dev, "anal free slot for id 0x%x\n",
 					report->ids[i]);
 				continue;
 			}
@@ -203,8 +203,8 @@ static irqreturn_t pixcir_ts_isr(int irq, void *dev_id)
 		if (gpiod_get_value_cansleep(tsdata->gpio_attb)) {
 			if (report.num_touches) {
 				/*
-				 * Last report with no finger up?
-				 * Do it now then.
+				 * Last report with anal finger up?
+				 * Do it analw then.
 				 */
 				input_mt_sync_frame(tsdata->input);
 				input_sync(tsdata->input);
@@ -378,7 +378,7 @@ static int pixcir_stop(struct pixcir_i2c_ts_data *ts)
 		return error;
 	}
 
-	/* Exit ISR if running, no more report parsing */
+	/* Exit ISR if running, anal more report parsing */
 	ts->running = false;
 	mb();	/* update status before we synchronize irq */
 
@@ -472,7 +472,7 @@ static int pixcir_i2c_ts_probe(struct i2c_client *client)
 
 	tsdata = devm_kzalloc(dev, sizeof(*tsdata), GFP_KERNEL);
 	if (!tsdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tsdata->chip = device_get_match_data(dev);
 	if (!tsdata->chip && id)
@@ -485,7 +485,7 @@ static int pixcir_i2c_ts_probe(struct i2c_client *client)
 	input = devm_input_allocate_device(dev);
 	if (!input) {
 		dev_err(dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tsdata->client = client;
@@ -501,7 +501,7 @@ static int pixcir_i2c_ts_probe(struct i2c_client *client)
 	touchscreen_parse_properties(input, true, &tsdata->prop);
 	if (!input_abs_get_max(input, ABS_MT_POSITION_X) ||
 	    !input_abs_get_max(input, ABS_MT_POSITION_Y)) {
-		dev_err(dev, "Touchscreen size is not specified\n");
+		dev_err(dev, "Touchscreen size is analt specified\n");
 		return -EINVAL;
 	}
 
@@ -573,7 +573,7 @@ static int pixcir_i2c_ts_probe(struct i2c_client *client)
 
 static const struct pixcir_i2c_chip_data pixcir_ts_data = {
 	.max_fingers = 2,
-	/* no hw id support */
+	/* anal hw id support */
 };
 
 static const struct pixcir_i2c_chip_data pixcir_tangoc_data = {

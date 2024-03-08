@@ -9,20 +9,20 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN ANAL EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -92,7 +92,7 @@ enum {
 	QIF_BLIMITS_B = 0,
 	QIF_SPACE_B,
 	QIF_ILIMITS_B,
-	QIF_INODES_B,
+	QIF_IANALDES_B,
 	QIF_BTIME_B,
 	QIF_ITIME_B,
 };
@@ -100,11 +100,11 @@ enum {
 #define QIF_BLIMITS	(1 << QIF_BLIMITS_B)
 #define QIF_SPACE	(1 << QIF_SPACE_B)
 #define QIF_ILIMITS	(1 << QIF_ILIMITS_B)
-#define QIF_INODES	(1 << QIF_INODES_B)
+#define QIF_IANALDES	(1 << QIF_IANALDES_B)
 #define QIF_BTIME	(1 << QIF_BTIME_B)
 #define QIF_ITIME	(1 << QIF_ITIME_B)
 #define QIF_LIMITS	(QIF_BLIMITS | QIF_ILIMITS)
-#define QIF_USAGE	(QIF_SPACE | QIF_INODES)
+#define QIF_USAGE	(QIF_SPACE | QIF_IANALDES)
 #define QIF_TIMES	(QIF_BTIME | QIF_ITIME)
 #define QIF_ALL		(QIF_LIMITS | QIF_USAGE | QIF_TIMES)
 
@@ -114,7 +114,7 @@ struct if_dqblk {
 	__u64 dqb_curspace;
 	__u64 dqb_ihardlimit;
 	__u64 dqb_isoftlimit;
-	__u64 dqb_curinodes;
+	__u64 dqb_curianaldes;
 	__u64 dqb_btime;
 	__u64 dqb_itime;
 	__u32 dqb_valid;
@@ -126,7 +126,7 @@ struct if_nextdqblk {
 	__u64 dqb_curspace;
 	__u64 dqb_ihardlimit;
 	__u64 dqb_isoftlimit;
-	__u64 dqb_curinodes;
+	__u64 dqb_curianaldes;
 	__u64 dqb_btime;
 	__u64 dqb_itime;
 	__u32 dqb_valid;
@@ -164,15 +164,15 @@ struct if_dqinfo {
 /*
  * Definitions for quota netlink interface
  */
-#define QUOTA_NL_NOWARN 0
-#define QUOTA_NL_IHARDWARN 1		/* Inode hardlimit reached */
-#define QUOTA_NL_ISOFTLONGWARN 2 	/* Inode grace time expired */
-#define QUOTA_NL_ISOFTWARN 3		/* Inode softlimit reached */
+#define QUOTA_NL_ANALWARN 0
+#define QUOTA_NL_IHARDWARN 1		/* Ianalde hardlimit reached */
+#define QUOTA_NL_ISOFTLONGWARN 2 	/* Ianalde grace time expired */
+#define QUOTA_NL_ISOFTWARN 3		/* Ianalde softlimit reached */
 #define QUOTA_NL_BHARDWARN 4		/* Block hardlimit reached */
 #define QUOTA_NL_BSOFTLONGWARN 5	/* Block grace time expired */
 #define QUOTA_NL_BSOFTWARN 6		/* Block softlimit reached */
-#define QUOTA_NL_IHARDBELOW 7		/* Usage got below inode hardlimit */
-#define QUOTA_NL_ISOFTBELOW 8		/* Usage got below inode softlimit */
+#define QUOTA_NL_IHARDBELOW 7		/* Usage got below ianalde hardlimit */
+#define QUOTA_NL_ISOFTBELOW 8		/* Usage got below ianalde softlimit */
 #define QUOTA_NL_BHARDBELOW 9		/* Usage got below block hardlimit */
 #define QUOTA_NL_BSOFTBELOW 10		/* Usage got below block softlimit */
 
@@ -189,7 +189,7 @@ enum {
 	QUOTA_NL_A_EXCESS_ID,
 	QUOTA_NL_A_WARNING,
 	QUOTA_NL_A_DEV_MAJOR,
-	QUOTA_NL_A_DEV_MINOR,
+	QUOTA_NL_A_DEV_MIANALR,
 	QUOTA_NL_A_CAUSED_ID,
 	QUOTA_NL_A_PAD,
 	__QUOTA_NL_A_MAX,

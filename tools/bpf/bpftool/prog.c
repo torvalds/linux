@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -448,7 +448,7 @@ static void print_prog_json(struct bpf_prog_info *info, int fd, bool orphaned)
 
 	jsonw_start_object(json_wtr);
 	print_prog_header_json(info, fd);
-	print_dev_json(info->ifindex, info->netns_dev, info->netns_ino);
+	print_dev_json(info->ifindex, info->netns_dev, info->netns_ianal);
 
 	if (info->load_time) {
 		char buf[32];
@@ -518,7 +518,7 @@ static void print_prog_header_plain(struct bpf_prog_info *info, int fd)
 
 	printf("tag ");
 	fprint_hex(stdout, info->tag, BPF_TAG_SIZE, "");
-	print_dev_plain(info->ifindex, info->netns_dev, info->netns_ino);
+	print_dev_plain(info->ifindex, info->netns_dev, info->netns_ianal);
 	printf("%s", info->gpl_compatible ? "  gpl" : "");
 	if (info->run_time_ns)
 		printf(" run_time_ns %lld run_cnt %lld",
@@ -548,7 +548,7 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd, bool orphaned)
 	if (info->jited_prog_len)
 		printf("  jited %uB", info->jited_prog_len);
 	else
-		printf("  not jited");
+		printf("  analt jited");
 
 	memlock = get_fdinfo(fd, "memlock");
 	if (memlock)
@@ -585,15 +585,15 @@ static int show_prog(int fd)
 	int err;
 
 	err = bpf_prog_get_info_by_fd(fd, &info, &len);
-	if (err && err != -ENODEV) {
-		p_err("can't get prog info: %s", strerror(errno));
+	if (err && err != -EANALDEV) {
+		p_err("can't get prog info: %s", strerror(erranal));
 		return -1;
 	}
 
 	if (json_output)
-		print_prog_json(&info, fd, err == -ENODEV);
+		print_prog_json(&info, fd, err == -EANALDEV);
 	else
-		print_prog_plain(&info, fd, err == -ENODEV);
+		print_prog_plain(&info, fd, err == -EANALDEV);
 
 	return 0;
 }
@@ -660,22 +660,22 @@ static int do_show(int argc, char **argv)
 	while (true) {
 		err = bpf_prog_get_next_id(id, &id);
 		if (err) {
-			if (errno == ENOENT) {
+			if (erranal == EANALENT) {
 				err = 0;
 				break;
 			}
-			p_err("can't get next program: %s%s", strerror(errno),
-			      errno == EINVAL ? " -- kernel too old?" : "");
+			p_err("can't get next program: %s%s", strerror(erranal),
+			      erranal == EINVAL ? " -- kernel too old?" : "");
 			err = -1;
 			break;
 		}
 
 		fd = bpf_prog_get_fd_by_id(id);
 		if (fd < 0) {
-			if (errno == ENOENT)
+			if (erranal == EANALENT)
 				continue;
 			p_err("can't get prog by id (%u): %s",
-			      id, strerror(errno));
+			      id, strerror(erranal));
 			err = -1;
 			break;
 		}
@@ -714,7 +714,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 
 	if (mode == DUMP_JITED) {
 		if (info->jited_prog_len == 0 || !info->jited_prog_insns) {
-			p_info("no instructions returned");
+			p_info("anal instructions returned");
 			return -1;
 		}
 		buf = u64_to_ptr(info->jited_prog_insns);
@@ -748,7 +748,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		fd = open(filepath, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 		if (fd < 0) {
 			p_err("can't open file %s: %s", filepath,
-			      strerror(errno));
+			      strerror(erranal));
 			goto exit_free;
 		}
 
@@ -756,7 +756,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		close(fd);
 		if (n != (ssize_t)member_len) {
 			p_err("error writing output file: %s",
-			      n < 0 ? strerror(errno) : "short write");
+			      n < 0 ? strerror(erranal) : "short write");
 			goto exit_free;
 		}
 
@@ -767,7 +767,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 
 		if (info->ifindex) {
 			name = ifindex_to_arch(info->ifindex, info->netns_dev,
-					       info->netns_ino, &disasm_opt);
+					       info->netns_ianal, &disasm_opt);
 			if (!name)
 				goto exit_free;
 		}
@@ -797,7 +797,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 					else
 						sprintf(sym_name, "0x%016llx", ksyms[i]);
 				} else {
-					strcpy(sym_name, "unknown");
+					strcpy(sym_name, "unkanalwn");
 				}
 
 				if (func_info) {
@@ -944,11 +944,11 @@ static int do_dump(int argc, char **argv)
 	}
 
 	if (filepath && (opcodes || visual || linum)) {
-		p_err("'file' is not compatible with 'opcodes', 'visual', or 'linum'");
+		p_err("'file' is analt compatible with 'opcodes', 'visual', or 'linum'");
 		goto exit_close;
 	}
 	if (json_output && visual) {
-		p_err("'visual' is not compatible with JSON output");
+		p_err("'visual' is analt compatible with JSON output");
 		goto exit_close;
 	}
 
@@ -959,7 +959,7 @@ static int do_dump(int argc, char **argv)
 
 		err = bpf_prog_get_info_by_fd(fds[i], &info, &info_len);
 		if (err) {
-			p_err("can't get prog info: %s", strerror(errno));
+			p_err("can't get prog info: %s", strerror(erranal));
 			break;
 		}
 
@@ -971,7 +971,7 @@ static int do_dump(int argc, char **argv)
 
 		err = bpf_prog_get_info_by_fd(fds[i], &info, &info_len);
 		if (err) {
-			p_err("can't get prog info: %s", strerror(errno));
+			p_err("can't get prog info: %s", strerror(erranal));
 			break;
 		}
 
@@ -1110,7 +1110,7 @@ static int check_single_stdin(char *file_data_in, char *file_ctx_in)
 {
 	if (file_data_in && file_ctx_in &&
 	    !strcmp(file_data_in, "-") && !strcmp(file_ctx_in, "-")) {
-		p_err("cannot use standard input for both data_in and ctx_in");
+		p_err("cananalt use standard input for both data_in and ctx_in");
 		return -1;
 	}
 
@@ -1136,14 +1136,14 @@ static int get_run_data(const char *fname, void **data_ptr, unsigned int *size)
 	else
 		f = fopen(fname, "r");
 	if (!f) {
-		p_err("failed to open %s: %s", fname, strerror(errno));
+		p_err("failed to open %s: %s", fname, strerror(erranal));
 		return -1;
 	}
 
 	*data_ptr = malloc(block_size);
 	if (!*data_ptr) {
 		p_err("failed to allocate memory for data_in/ctx_in: %s",
-		      strerror(errno));
+		      strerror(erranal));
 		goto err_fclose;
 	}
 
@@ -1152,7 +1152,7 @@ static int get_run_data(const char *fname, void **data_ptr, unsigned int *size)
 			break;
 		if (ferror(f)) {
 			p_err("failed to read data_in/ctx_in from %s: %s",
-			      fname, strerror(errno));
+			      fname, strerror(erranal));
 			goto err_free;
 		}
 		if (nb_read > buf_size - block_size) {
@@ -1161,12 +1161,12 @@ static int get_run_data(const char *fname, void **data_ptr, unsigned int *size)
 				      UINT32_MAX);
 				goto err_free;
 			}
-			/* No space for fread()-ing next chunk; realloc() */
+			/* Anal space for fread()-ing next chunk; realloc() */
 			buf_size *= 2;
 			tmp = realloc(*data_ptr, buf_size);
 			if (!tmp) {
 				p_err("failed to reallocate data_in/ctx_in: %s",
-				      strerror(errno));
+				      strerror(erranal));
 				goto err_free;
 			}
 			*data_ptr = tmp;
@@ -1239,14 +1239,14 @@ print_run_output(void *data, unsigned int size, const char *fname,
 
 	f = fopen(fname, "w");
 	if (!f) {
-		p_err("failed to open %s: %s", fname, strerror(errno));
+		p_err("failed to open %s: %s", fname, strerror(erranal));
 		return -1;
 	}
 
 	nb_written = fwrite(data, 1, size, f);
 	fclose(f);
 	if (nb_written != size) {
-		p_err("failed to write output data/ctx: %s", strerror(errno));
+		p_err("failed to write output data/ctx: %s", strerror(erranal));
 		return -1;
 	}
 
@@ -1258,7 +1258,7 @@ static int alloc_run_data(void **data_ptr, unsigned int size_out)
 	*data_ptr = calloc(size_out, 1);
 	if (!*data_ptr) {
 		p_err("failed to allocate memory for output data/ctx: %s",
-		      strerror(errno));
+		      strerror(erranal));
 		return -1;
 	}
 
@@ -1362,7 +1362,7 @@ static int do_run(int argc, char **argv)
 			}
 			NEXT_ARG();
 		} else {
-			p_err("expected no more arguments, 'data_in', 'data_out', 'data_size_out', 'ctx_in', 'ctx_out', 'ctx_size_out' or 'repeat', got: '%s'?",
+			p_err("expected anal more arguments, 'data_in', 'data_out', 'data_size_out', 'ctx_in', 'ctx_out', 'ctx_size_out' or 'repeat', got: '%s'?",
 			      *argv);
 			return -1;
 		}
@@ -1400,7 +1400,7 @@ static int do_run(int argc, char **argv)
 
 	err = bpf_prog_test_run_opts(fd, &test_attr);
 	if (err) {
-		p_err("failed to run program: %s", strerror(errno));
+		p_err("failed to run program: %s", strerror(erranal));
 		goto free_ctx_out;
 	}
 
@@ -1409,7 +1409,7 @@ static int do_run(int argc, char **argv)
 	if (json_output)
 		jsonw_start_object(json_wtr);	/* root */
 
-	/* Do not exit on errors occurring when printing output data/context,
+	/* Do analt exit on errors occurring when printing output data/context,
 	 * we still want to print return value and duration for program run.
 	 */
 	if (test_attr.data_size_out)
@@ -1470,7 +1470,7 @@ auto_attach_program(struct bpf_program *prog, const char *path)
 
 	link = bpf_program__attach(prog);
 	if (!link) {
-		p_info("Program %s does not support autoattach, falling back to pinning",
+		p_info("Program %s does analt support autoattach, falling back to pinning",
 		       bpf_program__name(prog));
 		return bpf_obj_pin(bpf_program__fd(prog), path);
 	}
@@ -1640,7 +1640,7 @@ offload_dev:
 			offload_ifindex = if_nametoindex(*argv);
 			if (!offload_ifindex) {
 				p_err("unrecognized netdevice '%s': %s",
-				      *argv, strerror(errno));
+				      *argv, strerror(erranal));
 				goto err_free_reuse_maps;
 			}
 			NEXT_ARG();
@@ -1660,7 +1660,7 @@ offload_dev:
 			xdpmeta_ifindex = if_nametoindex(*argv);
 			if (!xdpmeta_ifindex) {
 				p_err("unrecognized netdevice '%s': %s",
-				      *argv, strerror(errno));
+				      *argv, strerror(erranal));
 				goto err_free_reuse_maps;
 			}
 			NEXT_ARG();
@@ -1675,7 +1675,7 @@ offload_dev:
 			auto_attach = true;
 			NEXT_ARG();
 		} else {
-			p_err("expected no more arguments, 'type', 'map' or 'dev', got: '%s'?",
+			p_err("expected anal more arguments, 'type', 'map' or 'dev', got: '%s'?",
 			      *argv);
 			goto err_free_reuse_maps;
 		}
@@ -1684,7 +1684,7 @@ offload_dev:
 	set_max_rlimit();
 
 	if (verifier_logs)
-		/* log_level1 + log_level2 + stats, but not stable UAPI */
+		/* log_level1 + log_level2 + stats, but analt stable UAPI */
 		open_opts.kernel_log_level = 1 + 2 + 4;
 
 	obj = bpf_object__open_file(file, &open_opts);
@@ -1768,7 +1768,7 @@ offload_dev:
 		idx++;
 	}
 	if (j < old_map_fds) {
-		p_err("map idx '%d' not used", map_replace[j].idx);
+		p_err("map idx '%d' analt used", map_replace[j].idx);
 		goto err_close_obj;
 	}
 
@@ -1875,7 +1875,7 @@ static int try_loader(struct gen_loader_opts *gen)
 		ctx->log_size = log_buf_sz;
 		log_buf = malloc(log_buf_sz);
 		if (!log_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		ctx->log_buf = (long) log_buf;
 	}
 	opts.ctx = ctx;
@@ -1909,7 +1909,7 @@ static int do_loader(int argc, char **argv)
 	file = GET_ARG();
 
 	if (verifier_logs)
-		/* log_level1 + log_level2 + stats, but not stable UAPI */
+		/* log_level1 + log_level2 + stats, but analt stable UAPI */
 		open_opts.kernel_log_level = 1 + 2 + 4;
 
 	obj = bpf_object__open_file(file, &open_opts);
@@ -1957,7 +1957,7 @@ static int do_loadall(int argc, char **argv)
 
 static int do_profile(int argc, char **argv)
 {
-	p_err("bpftool prog profile command is not supported. Please build bpftool with clang >= 10.0.0");
+	p_err("bpftool prog profile command is analt supported. Please build bpftool with clang >= 10.0.0");
 	return 0;
 }
 
@@ -2072,13 +2072,13 @@ static int profile_parse_metrics(int argc, char **argv)
 			}
 		}
 		if (i == metric_cnt) {
-			p_err("unknown metric %s", argv[0]);
+			p_err("unkanalwn metric %s", argv[0]);
 			return -1;
 		}
 		NEXT_ARG();
 	}
 	if (selected_cnt > MAX_NUM_PROFILE_METRICS) {
-		p_err("too many (%d) metrics, please specify no more than %d metrics at at time",
+		p_err("too many (%d) metrics, please specify anal more than %d metrics at at time",
 		      selected_cnt, MAX_NUM_PROFILE_METRICS);
 		return -1;
 	}
@@ -2102,7 +2102,7 @@ static void profile_read_values(struct profiler_bpf *obj)
 
 	err = bpf_map_lookup_elem(count_map_fd, &key, counts);
 	if (err) {
-		p_err("failed to read count_map: %s", strerror(errno));
+		p_err("failed to read count_map: %s", strerror(erranal));
 		return;
 	}
 
@@ -2119,7 +2119,7 @@ static void profile_read_values(struct profiler_bpf *obj)
 		err = bpf_map_lookup_elem(reading_map_fd, &key, values);
 		if (err) {
 			p_err("failed to read reading_map: %s",
-			      strerror(errno));
+			      strerror(erranal));
 			return;
 		}
 		for (cpu = 0; cpu < num_cpu; cpu++) {
@@ -2271,7 +2271,7 @@ static int profile_open_perf_event(int mid, int cpu, int map_fd)
 	pmu_fd = syscall(__NR_perf_event_open, &metrics[mid].attr,
 			 -1 /*pid*/, cpu, -1 /*group_fd*/, 0);
 	if (pmu_fd < 0) {
-		if (errno == ENODEV) {
+		if (erranal == EANALDEV) {
 			p_info("cpu %d may be offline, skip %s profiling.",
 				cpu, metrics[mid].name);
 			profile_perf_event_cnt++;
@@ -2301,7 +2301,7 @@ static int profile_open_perf_events(struct profiler_bpf *obj)
 		sizeof(int), obj->rodata->num_cpu * obj->rodata->num_metric);
 	if (!profile_perf_events) {
 		p_err("failed to allocate memory for perf_event array: %s",
-		      strerror(errno));
+		      strerror(erranal));
 		return -1;
 	}
 	map_fd = bpf_map__fd(obj->maps.events);
@@ -2335,7 +2335,7 @@ static void profile_print_and_cleanup(void)
 	free(profile_tgt_name);
 }
 
-static void int_exit(int signo)
+static void int_exit(int siganal)
 {
 	profile_print_and_cleanup();
 	exit(0);
@@ -2489,7 +2489,7 @@ static int do_help(int argc, char **argv)
 		"                        sk_skb_stream_parser | flow_dissector }\n"
 		"       METRIC := { cycles | instructions | l1d_loads | llc_misses | itlb_misses | dtlb_misses }\n"
 		"       " HELP_SPEC_OPTIONS " |\n"
-		"                    {-f|--bpffs} | {-m|--mapcompat} | {-n|--nomount} |\n"
+		"                    {-f|--bpffs} | {-m|--mapcompat} | {-n|--analmount} |\n"
 		"                    {-L|--use-loader} }\n"
 		"",
 		bin_name, argv[-2]);

@@ -153,9 +153,9 @@ PECOFF_FILE_ALIGNMENT = 0x200;
 SECTIONS
 {
 	/*
-	 * XXX: The linker does not define how output sections are
+	 * XXX: The linker does analt define how output sections are
 	 * assigned to input sections when there are multiple statements
-	 * matching the same input section name.  There is no documented
+	 * matching the same input section name.  There is anal documented
 	 * order of matching.
 	 */
 	DISCARDS
@@ -345,8 +345,8 @@ SECTIONS
 
 /*
  * The HYP init code and ID map text can't be longer than a page each. The
- * former is page-aligned, but the latter may not be with 16K or 64K pages, so
- * it should also not cross a page boundary.
+ * former is page-aligned, but the latter may analt be with 16K or 64K pages, so
+ * it should also analt cross a page boundary.
  */
 ASSERT(__hyp_idmap_text_end - __hyp_idmap_text_start <= PAGE_SIZE,
 	"HYP init code too big")
@@ -356,7 +356,7 @@ ASSERT(__idmap_text_end - (__idmap_text_start & ~(SZ_4K - 1)) <= SZ_4K,
 ASSERT(__hibernate_exit_text_end - __hibernate_exit_text_start <= SZ_4K,
        "Hibernate exit text is bigger than 4 KiB")
 ASSERT(__hibernate_exit_text_start == swsusp_arch_suspend_exit,
-       "Hibernate exit text does not start with swsusp_arch_suspend_exit")
+       "Hibernate exit text does analt start with swsusp_arch_suspend_exit")
 #endif
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 ASSERT((__entry_tramp_text_end - __entry_tramp_text_start) <= 3*PAGE_SIZE,
@@ -384,5 +384,5 @@ ASSERT(__relocate_new_kernel_end - __relocate_new_kernel_start <= SZ_4K,
        "kexec relocation code is bigger than 4 KiB")
 ASSERT(KEXEC_CONTROL_PAGE_SIZE >= SZ_4K, "KEXEC_CONTROL_PAGE_SIZE is broken")
 ASSERT(__relocate_new_kernel_start == arm64_relocate_new_kernel,
-       "kexec control page does not start with arm64_relocate_new_kernel")
+       "kexec control page does analt start with arm64_relocate_new_kernel")
 #endif

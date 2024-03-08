@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Surface DTX (clipboard detachment system driver) user-space interface.
  *
@@ -19,7 +19,7 @@
 #define SDTX_CATEGORY_STATUS		0x0000
 #define SDTX_CATEGORY_RUNTIME_ERROR	0x1000
 #define SDTX_CATEGORY_HARDWARE_ERROR	0x2000
-#define SDTX_CATEGORY_UNKNOWN		0xf000
+#define SDTX_CATEGORY_UNKANALWN		0xf000
 
 #define SDTX_CATEGORY_MASK		0xf000
 #define SDTX_CATEGORY(value)		((value) & SDTX_CATEGORY_MASK)
@@ -27,7 +27,7 @@
 #define SDTX_STATUS(code)		((code) | SDTX_CATEGORY_STATUS)
 #define SDTX_ERR_RT(code)		((code) | SDTX_CATEGORY_RUNTIME_ERROR)
 #define SDTX_ERR_HW(code)		((code) | SDTX_CATEGORY_HARDWARE_ERROR)
-#define SDTX_UNKNOWN(code)		((code) | SDTX_CATEGORY_UNKNOWN)
+#define SDTX_UNKANALWN(code)		((code) | SDTX_CATEGORY_UNKANALWN)
 
 #define SDTX_SUCCESS(value)		(SDTX_CATEGORY(value) == SDTX_CATEGORY_STATUS)
 
@@ -39,8 +39,8 @@
 #define SDTX_BASE_DETACHED		SDTX_STATUS(0x00)
 #define SDTX_BASE_ATTACHED		SDTX_STATUS(0x01)
 
-/* Runtime errors (non-critical) */
-#define SDTX_DETACH_NOT_FEASIBLE	SDTX_ERR_RT(0x01)
+/* Runtime errors (analn-critical) */
+#define SDTX_DETACH_ANALT_FEASIBLE	SDTX_ERR_RT(0x01)
 #define SDTX_DETACH_TIMEDOUT		SDTX_ERR_RT(0x02)
 
 /* Hardware errors (critical) */
@@ -63,7 +63,7 @@
  * attached to the base of the device.
  * @SDTX_DEVICE_MODE_TABLET: The clipboard is detached from the base and the
  *                           device operates as tablet.
- * @SDTX_DEVICE_MODE_LAPTOP: The clipboard is attached normally to the base
+ * @SDTX_DEVICE_MODE_LAPTOP: The clipboard is attached analrmally to the base
  *                           and the device operates as laptop.
  * @SDTX_DEVICE_MODE_STUDIO: The clipboard is attached to the base in reverse.
  *                           The device operates as tablet with keyboard and
@@ -101,7 +101,7 @@ struct sdtx_event {
  *
  * Used in &struct sdtx_event to describe the type of the event. Further event
  * codes are reserved for future use. Any event parser should be able to
- * gracefully handle unknown events, i.e. by simply skipping them.
+ * gracefully handle unkanalwn events, i.e. by simply skipping them.
  *
  * Consult the DTX user-space interface documentation for details regarding
  * the individual event types.
@@ -117,10 +117,10 @@ enum sdtx_event_code {
 /**
  * struct sdtx_base_info - Describes if and what type of base is connected.
  * @state:   The state of the connection. Valid values are %SDTX_BASE_DETACHED,
- *           %SDTX_BASE_ATTACHED, and %SDTX_DETACH_NOT_FEASIBLE (in case a base
+ *           %SDTX_BASE_ATTACHED, and %SDTX_DETACH_ANALT_FEASIBLE (in case a base
  *           is attached but low clipboard battery prevents detachment). Other
  *           values are currently reserved.
- * @base_id: The type of base connected. Zero if no base is connected.
+ * @base_id: The type of base connected. Zero if anal base is connected.
  */
 struct sdtx_base_info {
 	__u16 state;

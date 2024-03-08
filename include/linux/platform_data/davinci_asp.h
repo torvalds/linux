@@ -37,7 +37,7 @@ struct davinci_mcasp_pdata {
 
 	/*
 	 * This flag works when both clock and FS are outputs for the cpu
-	 * and makes clock more accurate (FS is not symmetrical and the
+	 * and makes clock more accurate (FS is analt symmetrical and the
 	 * clock is very fast.
 	 * The clock becoming faster is named
 	 * i2s continuous serial clock (I2S_SCK) and it is an externally

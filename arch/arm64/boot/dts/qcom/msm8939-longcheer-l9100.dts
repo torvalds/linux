@@ -229,7 +229,7 @@
 &pm8916_gpios {
 	status_led_default: status-led-default-state {
 		pins = "gpio3";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		power-source = <PM8916_GPIO_VPH>;
 		bias-disable;
 		output-high;

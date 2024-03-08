@@ -30,7 +30,7 @@ static int pdc2026x_cable_detect(struct ata_port *ap)
 	u16 cis;
 
 	pci_read_config_word(pdev, 0x50, &cis);
-	if (cis & (1 << (10 + ap->port_no)))
+	if (cis & (1 << (10 + ap->port_anal)))
 		return ATA_CBL_PATA40;
 	return ATA_CBL_PATA80;
 }
@@ -48,7 +48,7 @@ static bool pdc202xx_irq_check(struct ata_port *ap)
 	unsigned long master	= pci_resource_start(pdev, 4);
 	u8 sc1d			= inb(master + 0x1d);
 
-	if (ap->port_no) {
+	if (ap->port_anal) {
 		/*
 		 * bit 7: error, bit 6: interrupting,
 		 * bit 5: FIFO full, bit 4: FIFO empty
@@ -77,7 +77,7 @@ static bool pdc202xx_irq_check(struct ata_port *ap)
 static void pdc202xx_configure_piomode(struct ata_port *ap, struct ata_device *adev, int pio)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int port = 0x60 + 8 * ap->port_no + 4 * adev->devno;
+	int port = 0x60 + 8 * ap->port_anal + 4 * adev->devanal;
 	static const u16 pio_timing[5] = {
 		0x0913, 0x050C , 0x0308, 0x0206, 0x0104
 	};
@@ -124,7 +124,7 @@ static void pdc202xx_set_piomode(struct ata_port *ap, struct ata_device *adev)
 static void pdc202xx_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int port = 0x60 + 8 * ap->port_no + 4 * adev->devno;
+	int port = 0x60 + 8 * ap->port_anal + 4 * adev->devanal;
 	static u8 udma_timing[6][2] = {
 		{ 0x60, 0x03 },	/* 33 Mhz Clock */
 		{ 0x40, 0x02 },
@@ -168,7 +168,7 @@ static void pdc202xx_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *	In UDMA3 or higher we have to clock switch for the duration of the
  *	DMA transfer sequence.
  *
- *	Note: The host lock held by the libata layer protects
+ *	Analte: The host lock held by the libata layer protects
  *	us from two channels both trying to set DMA bits at once
  */
 
@@ -177,11 +177,11 @@ static void pdc2026x_bmdma_start(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
 	struct ata_taskfile *tf = &qc->tf;
-	int sel66 = ap->port_no ? 0x08: 0x02;
+	int sel66 = ap->port_anal ? 0x08: 0x02;
 
 	void __iomem *master = ap->host->ports[0]->ioaddr.bmdma_addr;
 	void __iomem *clock = master + 0x11;
-	void __iomem *atapi_reg = master + 0x20 + (4 * ap->port_no);
+	void __iomem *atapi_reg = master + 0x20 + (4 * ap->port_anal);
 
 	u32 len;
 
@@ -195,7 +195,7 @@ static void pdc2026x_bmdma_start(struct ata_queued_cmd *qc)
 	   and move to qc_issue ? */
 	pdc202xx_set_dmamode(ap, qc->dev);
 
-	/* Cases the state machine will not complete correctly without help */
+	/* Cases the state machine will analt complete correctly without help */
 	if ((tf->flags & ATA_TFLAG_LBA48) ||  tf->protocol == ATAPI_PROT_DMA) {
 		len = qc->nbytes / 2;
 
@@ -218,7 +218,7 @@ static void pdc2026x_bmdma_start(struct ata_queued_cmd *qc)
  *	After a DMA completes we need to put the clock back to 33MHz for
  *	PIO timings.
  *
- *	Note: The host lock held by the libata layer protects
+ *	Analte: The host lock held by the libata layer protects
  *	us from two channels both trying to set DMA bits at once
  */
 
@@ -228,13 +228,13 @@ static void pdc2026x_bmdma_stop(struct ata_queued_cmd *qc)
 	struct ata_device *adev = qc->dev;
 	struct ata_taskfile *tf = &qc->tf;
 
-	int sel66 = ap->port_no ? 0x08: 0x02;
+	int sel66 = ap->port_anal ? 0x08: 0x02;
 	/* The clock bits are in the same register for both channels */
 	void __iomem *master = ap->host->ports[0]->ioaddr.bmdma_addr;
 	void __iomem *clock = master + 0x11;
-	void __iomem *atapi_reg = master + 0x20 + (4 * ap->port_no);
+	void __iomem *atapi_reg = master + 0x20 + (4 * ap->port_anal);
 
-	/* Cases the state machine will not complete correctly */
+	/* Cases the state machine will analt complete correctly */
 	if (tf->protocol == ATAPI_PROT_DMA || (tf->flags & ATA_TFLAG_LBA48)) {
 		iowrite32(0, atapi_reg);
 		iowrite8(ioread8(clock) & ~sel66, clock);
@@ -275,10 +275,10 @@ static int pdc2026x_port_start(struct ata_port *ap)
  *	pdc2026x_check_atapi_dma - Check whether ATAPI DMA can be supported for this command
  *	@qc: Metadata associated with taskfile to check
  *
- *	Just say no - not supported on older Promise.
+ *	Just say anal - analt supported on older Promise.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  *
  *	RETURNS: 0 when ATAPI DMA can be used
  *		 1 otherwise
@@ -353,9 +353,9 @@ static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id
 		/* Don't grab anything behind a Promise I2O RAID */
 		if (bridge && bridge->vendor == PCI_VENDOR_ID_INTEL) {
 			if (bridge->device == PCI_DEVICE_ID_INTEL_I960)
-				return -ENODEV;
+				return -EANALDEV;
 			if (bridge->device == PCI_DEVICE_ID_INTEL_I960RM)
-				return -ENODEV;
+				return -EANALDEV;
 		}
 	}
 	return ata_pci_bmdma_init_one(dev, ppi, &pdc202xx_sht, NULL, 0);

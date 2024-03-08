@@ -106,7 +106,7 @@ static int bcm63xx_i2s_startup(struct snd_pcm_substream *substream,
 		/* TX and RX block each have an independent bit to indicate
 		 * if it is generating the clock for the I2S bus. The bus
 		 * clocks need to be generated from either the TX or RX block,
-		 * but not both
+		 * but analt both
 		 */
 		regmap_read(regmap_i2s, I2S_RX_CFG_2, &slavemode);
 		if (slavemode & I2S_RX_SLAVE_MODE_MASK)
@@ -231,11 +231,11 @@ static int bcm63xx_i2s_dev_probe(struct platform_device *pdev)
 
 	i2s_priv = devm_kzalloc(&pdev->dev, sizeof(*i2s_priv), GFP_KERNEL);
 	if (!i2s_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2s_clk = devm_clk_get(&pdev->dev, "i2sclk");
 	if (IS_ERR(i2s_clk)) {
-		dev_err(&pdev->dev, "%s: cannot get a brcm clock: %ld\n",
+		dev_err(&pdev->dev, "%s: cananalt get a brcm clock: %ld\n",
 					__func__, PTR_ERR(i2s_clk));
 		return PTR_ERR(i2s_clk);
 	}

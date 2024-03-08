@@ -18,7 +18,7 @@
 #include "msm_drv.h"
 #include "msm_debugfs.h"
 #include "msm_kms.h"
-#include "adreno/adreno_gpu.h"
+#include "adreanal/adreanal_gpu.h"
 
 /*
  * MSM driver version:
@@ -35,12 +35,12 @@
  * - 1.7.0 - Add MSM_PARAM_SUSPENDS to access suspend count
  * - 1.8.0 - Add MSM_BO_CACHED_COHERENT for supported GPUs (a6xx)
  * - 1.9.0 - Add MSM_SUBMIT_FENCE_SN_IN
- * - 1.10.0 - Add MSM_SUBMIT_BO_NO_IMPLICIT
+ * - 1.10.0 - Add MSM_SUBMIT_BO_ANAL_IMPLICIT
  * - 1.11.0 - Add wait boost (MSM_WAIT_FENCE_BOOST, MSM_PREP_BOOST)
  * - 1.12.0 - Add MSM_INFO_SET_METADATA and MSM_INFO_GET_METADATA
  */
 #define MSM_VERSION_MAJOR	1
-#define MSM_VERSION_MINOR	12
+#define MSM_VERSION_MIANALR	12
 #define MSM_VERSION_PATCHLEVEL	0
 
 static void msm_deinit_vram(struct drm_device *ddev);
@@ -69,7 +69,7 @@ static int msm_drm_uninit(struct device *dev)
 	struct drm_device *ddev = priv->dev;
 
 	/*
-	 * Shutdown the hw if we're far enough along where things might be on.
+	 * Shutdown the hw if we're far eanalugh along where things might be on.
 	 * If we run this too early, we'll end up panicking in any variety of
 	 * places. Since we don't register the drm device until late in
 	 * msm_drm_init, drm_dev->registered is used as an indicator that the
@@ -125,38 +125,38 @@ bool msm_use_mmu(struct drm_device *dev)
 static int msm_init_vram(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	struct device_node *node;
+	struct device_analde *analde;
 	unsigned long size = 0;
 	int ret = 0;
 
 	/* In the device-tree world, we could have a 'memory-region'
 	 * phandle, which gives us a link to our "vram".  Allocating
 	 * is all nicely abstracted behind the dma api, but we need
-	 * to know the entire size to allocate it all in one go. There
+	 * to kanalw the entire size to allocate it all in one go. There
 	 * are two cases:
-	 *  1) device with no IOMMU, in which case we need exclusive
-	 *     access to a VRAM carveout big enough for all gpu
+	 *  1) device with anal IOMMU, in which case we need exclusive
+	 *     access to a VRAM carveout big eanalugh for all gpu
 	 *     buffers
 	 *  2) device with IOMMU, but where the bootloader puts up
 	 *     a splash screen.  In this case, the VRAM carveout
-	 *     need only be large enough for fbdev fb.  But we need
+	 *     need only be large eanalugh for fbdev fb.  But we need
 	 *     exclusive access to the buffer to avoid the kernel
 	 *     using those pages for other purposes (which appears
 	 *     as corruption on screen before we have a chance to
 	 *     load and do initial modeset)
 	 */
 
-	node = of_parse_phandle(dev->dev->of_node, "memory-region", 0);
-	if (node) {
+	analde = of_parse_phandle(dev->dev->of_analde, "memory-region", 0);
+	if (analde) {
 		struct resource r;
-		ret = of_address_to_resource(node, 0, &r);
-		of_node_put(node);
+		ret = of_address_to_resource(analde, 0, &r);
+		of_analde_put(analde);
 		if (ret)
 			return ret;
 		size = r.end - r.start + 1;
 		DRM_INFO("using VRAM carveout: %lx@%pa\n", size, &r.start);
 
-		/* if we have no IOMMU, then we need to use carveout allocator.
+		/* if we have anal IOMMU, then we need to use carveout allocator.
 		 * Grab the entire DMA chunk carved out in early startup in
 		 * mach-msm:
 		 */
@@ -174,18 +174,18 @@ static int msm_init_vram(struct drm_device *dev)
 		drm_mm_init(&priv->vram.mm, 0, (size >> PAGE_SHIFT) - 1);
 		spin_lock_init(&priv->vram.lock);
 
-		attrs |= DMA_ATTR_NO_KERNEL_MAPPING;
+		attrs |= DMA_ATTR_ANAL_KERNEL_MAPPING;
 		attrs |= DMA_ATTR_WRITE_COMBINE;
 
-		/* note that for no-kernel-mapping, the vaddr returned
-		 * is bogus, but non-null if allocation succeeded:
+		/* analte that for anal-kernel-mapping, the vaddr returned
+		 * is bogus, but analn-null if allocation succeeded:
 		 */
 		p = dma_alloc_attrs(dev->dev, size,
 				&priv->vram.paddr, GFP_KERNEL, attrs);
 		if (!p) {
 			DRM_DEV_ERROR(dev->dev, "failed to allocate VRAM\n");
 			priv->vram.paddr = 0;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		DRM_DEV_INFO(dev->dev, "VRAM: %08x->%08x\n",
@@ -199,7 +199,7 @@ static int msm_init_vram(struct drm_device *dev)
 static void msm_deinit_vram(struct drm_device *ddev)
 {
 	struct msm_drm_private *priv = ddev->dev_private;
-	unsigned long attrs = DMA_ATTR_NO_KERNEL_MAPPING;
+	unsigned long attrs = DMA_ATTR_ANAL_KERNEL_MAPPING;
 
 	if (!priv->vram.paddr)
 		return;
@@ -216,7 +216,7 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	int ret;
 
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ddev = drm_dev_alloc(drv, dev);
 	if (IS_ERR(ddev)) {
@@ -228,7 +228,7 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 
 	priv->wq = alloc_ordered_workqueue("msm", 0);
 	if (!priv->wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put_dev;
 	}
 
@@ -275,8 +275,8 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 		if (ret)
 			goto err_msm_uninit;
 	} else {
-		/* valid only for the dummy headless case, where of_node=NULL */
-		WARN_ON(dev->of_node);
+		/* valid only for the dummy headless case, where of_analde=NULL */
+		WARN_ON(dev->of_analde);
 		ddev->driver_features &= ~DRIVER_MODESET;
 		ddev->driver_features &= ~DRIVER_ATOMIC;
 	}
@@ -323,7 +323,7 @@ static void load_gpu(struct drm_device *dev)
 	mutex_lock(&init_lock);
 
 	if (!priv->gpu)
-		priv->gpu = adreno_load_gpu(dev);
+		priv->gpu = adreanal_load_gpu(dev);
 
 	mutex_unlock(&init_lock);
 }
@@ -336,7 +336,7 @@ static int context_init(struct drm_device *dev, struct drm_file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&ctx->submitqueues);
 	rwlock_init(&ctx->queuelock);
@@ -347,14 +347,14 @@ static int context_init(struct drm_device *dev, struct drm_file *file)
 	ctx->aspace = msm_gpu_create_private_address_space(priv->gpu, current);
 	file->driver_priv = ctx;
 
-	ctx->seqno = atomic_inc_return(&ident);
+	ctx->seqanal = atomic_inc_return(&ident);
 
 	return 0;
 }
 
 static int msm_open(struct drm_device *dev, struct drm_file *file)
 {
-	/* For now, load gpu on open.. to avoid the requirement of having
+	/* For analw, load gpu on open.. to avoid the requirement of having
 	 * firmware in the initrd.
 	 */
 	load_gpu(dev);
@@ -374,8 +374,8 @@ static void msm_postclose(struct drm_device *dev, struct drm_file *file)
 	struct msm_file_private *ctx = file->driver_priv;
 
 	/*
-	 * It is not possible to set sysprof param to non-zero if gpu
-	 * is not initialized:
+	 * It is analt possible to set sysprof param to analn-zero if gpu
+	 * is analt initialized:
 	 */
 	if (priv->gpu)
 		msm_file_private_set_sysprof(ctx, priv->gpu, 0);
@@ -394,7 +394,7 @@ static int msm_ioctl_get_param(struct drm_device *dev, void *data,
 	struct drm_msm_param *args = data;
 	struct msm_gpu *gpu;
 
-	/* for now, we just have 3d pipe.. eventually this would need to
+	/* for analw, we just have 3d pipe.. eventually this would need to
 	 * be more clever to dispatch to appropriate gpu module:
 	 */
 	if ((args->pipe != MSM_PIPE_3D0) || (args->pad != 0))
@@ -452,7 +452,7 @@ static int msm_ioctl_gem_new(struct drm_device *dev, void *data,
 	}
 
 	if (should_fail(&fail_gem_alloc, args->size))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return msm_gem_new_handle(dev, file, args->size,
 			args->flags, &args->handle, NULL);
@@ -478,7 +478,7 @@ static int msm_ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(file, args->handle);
 	if (!obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = msm_gem_cpu_prep(obj, args->op, &timeout);
 
@@ -496,7 +496,7 @@ static int msm_ioctl_gem_cpu_fini(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(file, args->handle);
 	if (!obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = msm_gem_cpu_fini(obj);
 
@@ -516,7 +516,7 @@ static int msm_ioctl_gem_info_iova(struct drm_device *dev,
 		return -EINVAL;
 
 	if (should_fail(&fail_gem_iova, obj->size))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Don't pin the memory here - just get an address so that userspace can
@@ -537,10 +537,10 @@ static int msm_ioctl_gem_info_set_iova(struct drm_device *dev,
 
 	/* Only supported if per-process address space is supported: */
 	if (priv->gpu->aspace == ctx->aspace)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (should_fail(&fail_gem_iova, obj->size))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return msm_gem_set_iova(obj, ctx->aspace, iova);
 }
@@ -640,7 +640,7 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 	case MSM_INFO_GET_IOVA:
 	case MSM_INFO_SET_IOVA:
 	case MSM_INFO_GET_FLAGS:
-		/* value returned as immediate, not pointer, so len==0: */
+		/* value returned as immediate, analt pointer, so len==0: */
 		if (args->len)
 			return -EINVAL;
 		break;
@@ -655,7 +655,7 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(file, args->handle);
 	if (!obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	msm_obj = to_msm_bo(obj);
 
@@ -738,11 +738,11 @@ static int wait_fence(struct msm_gpu_submitqueue *queue, uint32_t fence_id,
 	}
 
 	/*
-	 * Map submitqueue scoped "seqno" (which is actually an idr key)
+	 * Map submitqueue scoped "seqanal" (which is actually an idr key)
 	 * back to underlying dma-fence
 	 *
 	 * The fence is removed from the fence_idr when the submit is
-	 * retired, so if the fence is not found it means there is nothing
+	 * retired, so if the fence is analt found it means there is analthing
 	 * to wait for
 	 */
 	spin_lock(&queue->idr_lock);
@@ -787,7 +787,7 @@ static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 
 	queue = msm_submitqueue_get(file->driver_priv, args->queueid);
 	if (!queue)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = wait_fence(queue, args->fence, to_ktime(args->timeout), args->flags);
 
@@ -813,7 +813,7 @@ static int msm_ioctl_gem_madvise(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(file, args->handle);
 	if (!obj) {
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	ret = msm_gem_madvise(obj, args->madv);
@@ -871,7 +871,7 @@ static const struct drm_ioctl_desc msm_ioctls[] = {
 
 static void msm_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 {
-	struct drm_device *dev = file->minor->dev;
+	struct drm_device *dev = file->mianalr->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 
 	if (!priv->gpu)
@@ -910,7 +910,7 @@ static const struct drm_driver msm_driver = {
 	.desc               = "MSM Snapdragon DRM",
 	.date               = "20130625",
 	.major              = MSM_VERSION_MAJOR,
-	.minor              = MSM_VERSION_MINOR,
+	.mianalr              = MSM_VERSION_MIANALR,
 	.patchlevel         = MSM_VERSION_PATCHLEVEL,
 };
 
@@ -921,24 +921,24 @@ static const struct drm_driver msm_driver = {
 /*
  * Identify what components need to be added by parsing what remote-endpoints
  * our MDP output ports are connected to. In the case of LVDS on MDP4, there
- * is no external component that we need to add since LVDS is within MDP4
+ * is anal external component that we need to add since LVDS is within MDP4
  * itself.
  */
 static int add_components_mdp(struct device *master_dev,
 			      struct component_match **matchptr)
 {
-	struct device_node *np = master_dev->of_node;
-	struct device_node *ep_node;
+	struct device_analde *np = master_dev->of_analde;
+	struct device_analde *ep_analde;
 
-	for_each_endpoint_of_node(np, ep_node) {
-		struct device_node *intf;
+	for_each_endpoint_of_analde(np, ep_analde) {
+		struct device_analde *intf;
 		struct of_endpoint ep;
 		int ret;
 
-		ret = of_graph_parse_endpoint(ep_node, &ep);
+		ret = of_graph_parse_endpoint(ep_analde, &ep);
 		if (ret) {
 			DRM_DEV_ERROR(master_dev, "unable to parse port endpoint\n");
-			of_node_put(ep_node);
+			of_analde_put(ep_analde);
 			return ret;
 		}
 
@@ -955,7 +955,7 @@ static int add_components_mdp(struct device *master_dev,
 		 * specified. It just means that the port isn't connected to
 		 * any external interface.
 		 */
-		intf = of_graph_get_remote_port_parent(ep_node);
+		intf = of_graph_get_remote_port_parent(ep_analde);
 		if (!intf)
 			continue;
 
@@ -963,20 +963,20 @@ static int add_components_mdp(struct device *master_dev,
 			drm_of_component_match_add(master_dev, matchptr,
 						   component_compare_of, intf);
 
-		of_node_put(intf);
+		of_analde_put(intf);
 	}
 
 	return 0;
 }
 
 /*
- * We don't know what's the best binding to link the gpu with the drm device.
- * Fow now, we just hunt for all the possible gpus that we support, and add them
+ * We don't kanalw what's the best binding to link the gpu with the drm device.
+ * Fow analw, we just hunt for all the possible gpus that we support, and add them
  * as components.
  */
 static const struct of_device_id msm_gpu_match[] = {
-	{ .compatible = "qcom,adreno" },
-	{ .compatible = "qcom,adreno-3xx" },
+	{ .compatible = "qcom,adreanal" },
+	{ .compatible = "qcom,adreanal-3xx" },
 	{ .compatible = "amd,imageon" },
 	{ .compatible = "qcom,kgsl-3d0" },
 	{ },
@@ -985,16 +985,16 @@ static const struct of_device_id msm_gpu_match[] = {
 static int add_gpu_components(struct device *dev,
 			      struct component_match **matchptr)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_matching_node(NULL, msm_gpu_match);
+	np = of_find_matching_analde(NULL, msm_gpu_match);
 	if (!np)
 		return 0;
 
 	if (of_device_is_available(np))
 		drm_of_component_match_add(dev, matchptr, component_compare_of, np);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	return 0;
 }
@@ -1024,7 +1024,7 @@ int msm_drv_probe(struct device *master_dev,
 
 	priv = devm_kzalloc(master_dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->kms = kms;
 	priv->kms_init = kms_init;
@@ -1089,7 +1089,7 @@ static int __init msm_drm_register(void)
 	msm_dsi_register();
 	msm_hdmi_register();
 	msm_dp_register();
-	adreno_register();
+	adreanal_register();
 	msm_mdp4_register();
 	msm_mdss_register();
 	return platform_driver_register(&msm_platform_driver);
@@ -1103,7 +1103,7 @@ static void __exit msm_drm_unregister(void)
 	msm_mdp4_unregister();
 	msm_dp_unregister();
 	msm_hdmi_unregister();
-	adreno_unregister();
+	adreanal_unregister();
 	msm_dsi_unregister();
 	msm_mdp_unregister();
 	msm_dpu_unregister();

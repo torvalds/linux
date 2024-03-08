@@ -10,33 +10,33 @@
 #include "watchdog_pretimeout.h"
 
 /**
- * pretimeout_noop - No operation on watchdog pretimeout event
+ * pretimeout_analop - Anal operation on watchdog pretimeout event
  * @wdd - watchdog_device
  *
  * This function prints a message about pretimeout to kernel log.
  */
-static void pretimeout_noop(struct watchdog_device *wdd)
+static void pretimeout_analop(struct watchdog_device *wdd)
 {
 	pr_alert("watchdog%d: pretimeout event\n", wdd->id);
 }
 
-static struct watchdog_governor watchdog_gov_noop = {
-	.name		= "noop",
-	.pretimeout	= pretimeout_noop,
+static struct watchdog_goveranalr watchdog_gov_analop = {
+	.name		= "analop",
+	.pretimeout	= pretimeout_analop,
 };
 
-static int __init watchdog_gov_noop_register(void)
+static int __init watchdog_gov_analop_register(void)
 {
-	return watchdog_register_governor(&watchdog_gov_noop);
+	return watchdog_register_goveranalr(&watchdog_gov_analop);
 }
 
-static void __exit watchdog_gov_noop_unregister(void)
+static void __exit watchdog_gov_analop_unregister(void)
 {
-	watchdog_unregister_governor(&watchdog_gov_noop);
+	watchdog_unregister_goveranalr(&watchdog_gov_analop);
 }
-module_init(watchdog_gov_noop_register);
-module_exit(watchdog_gov_noop_unregister);
+module_init(watchdog_gov_analop_register);
+module_exit(watchdog_gov_analop_unregister);
 
 MODULE_AUTHOR("Vladimir Zapolskiy <vladimir_zapolskiy@mentor.com>");
-MODULE_DESCRIPTION("Panic watchdog pretimeout governor");
+MODULE_DESCRIPTION("Panic watchdog pretimeout goveranalr");
 MODULE_LICENSE("GPL");

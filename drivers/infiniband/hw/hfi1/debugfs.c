@@ -50,8 +50,8 @@ loff_t hfi1_seq_lseek(struct file *file, loff_t offset, int whence)
 	return r;
 }
 
-#define private2dd(file) (file_inode(file)->i_private)
-#define private2ppd(file) (file_inode(file)->i_private)
+#define private2dd(file) (file_ianalde(file)->i_private)
+#define private2ppd(file) (file_ianalde(file)->i_private)
 
 static void *_opcode_stats_seq_start(struct seq_file *s, loff_t *pos)
 {
@@ -175,7 +175,7 @@ static void *_ctx_stats_seq_next(struct seq_file *s, void *v, loff_t *pos)
 
 static void _ctx_stats_seq_stop(struct seq_file *s, void *v)
 {
-	/* nothing allocated */
+	/* analthing allocated */
 }
 
 static int _ctx_stats_seq_show(struct seq_file *s, void *v)
@@ -449,8 +449,8 @@ struct counter_info {
 };
 
 /*
- * Could use file_inode(file)->i_ino to figure out which file,
- * instead of separate routine for each, but for now, this works...
+ * Could use file_ianalde(file)->i_ianal to figure out which file,
+ * instead of separate routine for each, but for analw, this works...
  */
 
 /* read the per-port names (same for each port) */
@@ -515,7 +515,7 @@ static ssize_t asic_flags_read(struct file *file, char __user *buf,
 	used = 0;
 	tmp = kmalloc(size, GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scratch0 = read_csr(dd, ASIC_CFG_SCRATCH);
 	used += scnprintf(tmp + used, size - used,
@@ -577,7 +577,7 @@ static ssize_t asic_flags_write(struct file *file, const char __user *buf,
 	scratch0 = read_csr(dd, ASIC_CFG_SCRATCH);
 	scratch0 &= ~clear;
 	write_csr(dd, ASIC_CFG_SCRATCH, scratch0);
-	/* force write to be visible to other HFI on another OS */
+	/* force write to be visible to other HFI on aanalther OS */
 	(void)read_csr(dd, ASIC_CFG_SCRATCH);
 
 	release_hw_mutex(dd);
@@ -606,7 +606,7 @@ static ssize_t dc8051_memory_read(struct file *file, char __user *buf,
 
 	tmp = kzalloc(DC8051_DATA_MEM_SIZE, GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Fill in the requested portion of the temporary buffer from the
@@ -648,7 +648,7 @@ static ssize_t debugfs_lcb_read(struct file *file, char __user *buf,
 	/* offset must be 8-byte aligned */
 	if ((*ppos % 8) != 0)
 		return -EINVAL;
-	/* do nothing if out of range or zero count */
+	/* do analthing if out of range or zero count */
 	if (*ppos >= (LCB_END - LCB_START) || !count)
 		return 0;
 	/* reduce count if needed */
@@ -681,7 +681,7 @@ static ssize_t debugfs_lcb_write(struct file *file, const char __user *buf,
 	/* offset must be 8-byte aligned */
 	if ((*ppos % 8) != 0)
 		return -EINVAL;
-	/* do nothing if out of range or zero count */
+	/* do analthing if out of range or zero count */
 	if (*ppos >= (LCB_END - LCB_START) || !count)
 		return 0;
 	/* reduce count if needed */
@@ -712,7 +712,7 @@ static ssize_t qsfp_debugfs_dump(struct file *file, char __user *buf,
 	ppd = private2ppd(file);
 	tmp = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = qsfp_dump(ppd, tmp, PAGE_SIZE);
 	if (ret > 0)
@@ -798,7 +798,7 @@ static ssize_t __i2c_debugfs_read(struct file *file, char __user *buf,
 
 	buff = kmalloc(count, GFP_KERNEL);
 	if (!buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	total_read = i2c_read(ppd, target, i2c_addr, offset, buff, count);
 	if (total_read < 0) {
@@ -900,7 +900,7 @@ static ssize_t __qsfp_debugfs_read(struct file *file, char __user *buf,
 
 	buff = kmalloc(count, GFP_KERNEL);
 	if (!buff) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto _return;
 	}
 
@@ -940,7 +940,7 @@ static ssize_t qsfp2_debugfs_read(struct file *file, char __user *buf,
 	return __qsfp_debugfs_read(file, buf, count, ppos, 1);
 }
 
-static int __i2c_debugfs_open(struct inode *in, struct file *fp, u32 target)
+static int __i2c_debugfs_open(struct ianalde *in, struct file *fp, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 
@@ -949,17 +949,17 @@ static int __i2c_debugfs_open(struct inode *in, struct file *fp, u32 target)
 	return acquire_chip_resource(ppd->dd, i2c_target(target), 0);
 }
 
-static int i2c1_debugfs_open(struct inode *in, struct file *fp)
+static int i2c1_debugfs_open(struct ianalde *in, struct file *fp)
 {
 	return __i2c_debugfs_open(in, fp, 0);
 }
 
-static int i2c2_debugfs_open(struct inode *in, struct file *fp)
+static int i2c2_debugfs_open(struct ianalde *in, struct file *fp)
 {
 	return __i2c_debugfs_open(in, fp, 1);
 }
 
-static int __i2c_debugfs_release(struct inode *in, struct file *fp, u32 target)
+static int __i2c_debugfs_release(struct ianalde *in, struct file *fp, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 
@@ -970,17 +970,17 @@ static int __i2c_debugfs_release(struct inode *in, struct file *fp, u32 target)
 	return 0;
 }
 
-static int i2c1_debugfs_release(struct inode *in, struct file *fp)
+static int i2c1_debugfs_release(struct ianalde *in, struct file *fp)
 {
 	return __i2c_debugfs_release(in, fp, 0);
 }
 
-static int i2c2_debugfs_release(struct inode *in, struct file *fp)
+static int i2c2_debugfs_release(struct ianalde *in, struct file *fp)
 {
 	return __i2c_debugfs_release(in, fp, 1);
 }
 
-static int __qsfp_debugfs_open(struct inode *in, struct file *fp, u32 target)
+static int __qsfp_debugfs_open(struct ianalde *in, struct file *fp, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 
@@ -989,17 +989,17 @@ static int __qsfp_debugfs_open(struct inode *in, struct file *fp, u32 target)
 	return acquire_chip_resource(ppd->dd, i2c_target(target), 0);
 }
 
-static int qsfp1_debugfs_open(struct inode *in, struct file *fp)
+static int qsfp1_debugfs_open(struct ianalde *in, struct file *fp)
 {
 	return __qsfp_debugfs_open(in, fp, 0);
 }
 
-static int qsfp2_debugfs_open(struct inode *in, struct file *fp)
+static int qsfp2_debugfs_open(struct ianalde *in, struct file *fp)
 {
 	return __qsfp_debugfs_open(in, fp, 1);
 }
 
-static int __qsfp_debugfs_release(struct inode *in, struct file *fp, u32 target)
+static int __qsfp_debugfs_release(struct ianalde *in, struct file *fp, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 
@@ -1010,12 +1010,12 @@ static int __qsfp_debugfs_release(struct inode *in, struct file *fp, u32 target)
 	return 0;
 }
 
-static int qsfp1_debugfs_release(struct inode *in, struct file *fp)
+static int qsfp1_debugfs_release(struct ianalde *in, struct file *fp)
 {
 	return __qsfp_debugfs_release(in, fp, 0);
 }
 
-static int qsfp2_debugfs_release(struct inode *in, struct file *fp)
+static int qsfp2_debugfs_release(struct ianalde *in, struct file *fp)
 {
 	return __qsfp_debugfs_release(in, fp, 1);
 }
@@ -1072,7 +1072,7 @@ static ssize_t exprom_wp_debugfs_write(struct file *file,
 
 static unsigned long exprom_in_use;
 
-static int exprom_wp_debugfs_open(struct inode *in, struct file *fp)
+static int exprom_wp_debugfs_open(struct ianalde *in, struct file *fp)
 {
 	if (test_and_set_bit(0, &exprom_in_use))
 		return -EBUSY;
@@ -1080,7 +1080,7 @@ static int exprom_wp_debugfs_open(struct inode *in, struct file *fp)
 	return 0;
 }
 
-static int exprom_wp_debugfs_release(struct inode *in, struct file *fp)
+static int exprom_wp_debugfs_release(struct ianalde *in, struct file *fp)
 {
 	struct hfi1_pportdata *ppd = private2ppd(fp);
 
@@ -1159,7 +1159,7 @@ static void *_sdma_cpu_list_seq_next(struct seq_file *s, void *v, loff_t *pos)
 
 static void _sdma_cpu_list_seq_stop(struct seq_file *s, void *v)
 {
-	/* nothing allocated */
+	/* analthing allocated */
 }
 
 static int _sdma_cpu_list_seq_show(struct seq_file *s, void *v)
@@ -1256,7 +1256,7 @@ static const char * const hfi1_statnames[] = {
 	"Tx_Errs",
 	"Rcv_Errs",
 	"H/W_Errs",
-	"NoPIOBufs",
+	"AnalPIOBufs",
 	"CtxtsOpen",
 	"RcvLen_Errs",
 	"EgrBufFull",

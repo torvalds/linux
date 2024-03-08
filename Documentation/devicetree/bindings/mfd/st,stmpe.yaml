@@ -102,8 +102,8 @@ properties:
         description: Debouncing interval in milliseconds
         $ref: /schemas/types.yaml#/definitions/uint32
 
-      st,no-autorepeat:
-        description: If present, the keys will not autorepeat when pressed
+      st,anal-autorepeat:
+        description: If present, the keys will analt autorepeat when pressed
         $ref: /schemas/types.yaml#/definitions/flag
 
       st,scan-count:
@@ -225,14 +225,14 @@ examples:
           #gpio-cells = <2>;
           interrupt-controller;
           #interrupt-cells = <2>;
-          st,norequest-mask = <0xf0f002>;
+          st,analrequest-mask = <0xf0f002>;
         };
 
         keyboard-controller {
           compatible = "st,stmpe-keypad";
           debounce-interval = <64>;
           st,scan-count = <8>;
-          st,no-autorepeat;
+          st,anal-autorepeat;
           keypad,num-rows = <8>;
           keypad,num-columns = <8>;
           linux,keymap = <
@@ -267,7 +267,7 @@ examples:
 
         adc {
           compatible = "st,stmpe-adc";
-          st,norequest-mask = <0x0f>;
+          st,analrequest-mask = <0x0f>;
           #io-channel-cells = <1>;
         };
 

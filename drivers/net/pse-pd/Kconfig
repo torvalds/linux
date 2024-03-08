@@ -8,7 +8,7 @@ menuconfig PSE_CONTROLLER
 	help
 	  Generic Power Sourcing Equipment Controller support.
 
-	  If unsure, say no.
+	  If unsure, say anal.
 
 if PSE_CONTROLLER
 

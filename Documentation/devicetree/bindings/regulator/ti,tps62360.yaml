@@ -35,14 +35,14 @@ properties:
   ti,vsel0-gpio:
     description: |
       GPIO for controlling VSEL0 line. If this property
-      is missing, then assume that there is no GPIO for
+      is missing, then assume that there is anal GPIO for
       VSEL0 control.
     maxItems: 1
 
   ti,vsel1-gpio:
     description: |
       GPIO for controlling VSEL1 line. If this property
-      is missing, then assume that there is no GPIO for
+      is missing, then assume that there is anal GPIO for
       VSEL1 control.
     maxItems: 1
 

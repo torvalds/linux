@@ -14,7 +14,7 @@
  * This program is distributed in the hope that it will be useful. *
  * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
  * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
- * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR ANALN-INFRINGEMENT, ARE      *
  * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
  * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
  * more details, a copy of which can be found in the file COPYING  *
@@ -49,7 +49,7 @@ struct lpfc_vmid *lpfc_get_vmid_from_hashtable(struct lpfc_vport *vport,
 {
 	struct lpfc_vmid *vmp;
 
-	hash_for_each_possible(vport->hash_table, vmp, hnode, hash) {
+	hash_for_each_possible(vport->hash_table, vmp, hanalde, hash) {
 		if (memcmp(&vmp->host_vmid[0], buf, 16) == 0)
 			return vmp;
 	}
@@ -69,7 +69,7 @@ static void
 lpfc_put_vmid_in_hashtable(struct lpfc_vport *vport, u32 hash,
 			   struct lpfc_vmid *vmp)
 {
-	hash_add(vport->hash_table, &vmp->hnode, hash);
+	hash_add(vport->hash_table, &vmp->hanalde, hash);
 }
 
 /*
@@ -186,11 +186,11 @@ int lpfc_vmid_get_appid(struct lpfc_vport *vport, char *uuid,
 	} else if (vmp && (vmp->flag & LPFC_VMID_REQ_REGISTER ||
 			   vmp->flag & LPFC_VMID_DE_REGISTER)) {
 		/* else if register or dereg request has already been sent */
-		/* Hence VMID tag will not be added for this I/O */
+		/* Hence VMID tag will analt be added for this I/O */
 		read_unlock(&vport->vmid_lock);
 		rc = -EBUSY;
 	} else {
-		/* The VMID was not found in the hashtable. At this point, */
+		/* The VMID was analt found in the hashtable. At this point, */
 		/* drop the read lock first before proceeding further */
 		read_unlock(&vport->vmid_lock);
 		/* start the process to obtain one as per the */
@@ -224,7 +224,7 @@ int lpfc_vmid_get_appid(struct lpfc_vport *vport, char *uuid,
 
 		if (!vmp) {
 			write_unlock(&vport->vmid_lock);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		/* Add the vmid and register */
@@ -247,7 +247,7 @@ int lpfc_vmid_get_appid(struct lpfc_vport *vport, char *uuid,
 		if (!vmp->last_io_time)
 			vmp->last_io_time = alloc_percpu_gfp(u64, GFP_ATOMIC);
 		if (!vmp->last_io_time) {
-			hash_del(&vmp->hnode);
+			hash_del(&vmp->hanalde);
 			vmp->flag = LPFC_VMID_SLOT_FREE;
 			write_unlock(&vport->vmid_lock);
 			return -EIO;
@@ -267,7 +267,7 @@ int lpfc_vmid_get_appid(struct lpfc_vport *vport, char *uuid,
 			write_unlock(&vport->vmid_lock);
 		} else {
 			write_lock(&vport->vmid_lock);
-			hash_del(&vmp->hnode);
+			hash_del(&vmp->hanalde);
 			vmp->flag = LPFC_VMID_SLOT_FREE;
 			free_percpu(vmp->last_io_time);
 			write_unlock(&vport->vmid_lock);
@@ -292,7 +292,7 @@ int lpfc_vmid_get_appid(struct lpfc_vport *vport, char *uuid,
  * This routine reinitializes the vmid post flogi completion
  *
  * Return codes
- *	None
+ *	Analne
  */
 void
 lpfc_reinit_vmid(struct lpfc_vport *vport)
@@ -300,7 +300,7 @@ lpfc_reinit_vmid(struct lpfc_vport *vport)
 	u32 bucket, i, cpu;
 	struct lpfc_vmid *cur;
 	struct lpfc_vmid *vmp = NULL;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 
 	write_lock(&vport->vmid_lock);
 	vport->cur_vmid_cnt = 0;
@@ -319,8 +319,8 @@ lpfc_reinit_vmid(struct lpfc_vport *vport)
 
 	/* for all elements in the hash table */
 	if (!hash_empty(vport->hash_table))
-		hash_for_each_safe(vport->hash_table, bucket, tmp, cur, hnode)
-			hash_del(&cur->hnode);
+		hash_for_each_safe(vport->hash_table, bucket, tmp, cur, hanalde)
+			hash_del(&cur->hanalde);
 	vport->vmid_flag = 0;
 	write_unlock(&vport->vmid_lock);
 }

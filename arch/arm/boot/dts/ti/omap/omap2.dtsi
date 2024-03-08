@@ -88,7 +88,7 @@
 					 SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-midle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			clocks = <&core_l3_ck>;
@@ -206,7 +206,7 @@
 					 SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			clocks = <&gpt2_fck>, <&gpt2_ick>;

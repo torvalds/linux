@@ -59,8 +59,8 @@ int cn10k_cptpf_lmtst_init(struct otx2_cptpf_dev *cptpf)
 	cptpf->lfs.ops = &cn10k_hw_ops;
 	lmt_base = readq(cptpf->reg_base + RVU_PF_LMTLINE_ADDR);
 	if (!lmt_base) {
-		dev_err(&pdev->dev, "PF LMTLINE address not configured\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "PF LMTLINE address analt configured\n");
+		return -EANALMEM;
 	}
 	size = pci_resource_len(pdev, PCI_MBOX_BAR_NUM);
 	size -= ((1 + cptpf->max_vfs) * MBOX_SIZE);
@@ -68,7 +68,7 @@ int cn10k_cptpf_lmtst_init(struct otx2_cptpf_dev *cptpf)
 	if (!cptpf->lfs.lmt_base) {
 		dev_err(&pdev->dev,
 			"Mapping of PF LMTLINE address failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -89,7 +89,7 @@ int cn10k_cptvf_lmtst_init(struct otx2_cptvf_dev *cptvf)
 	cptvf->lfs.lmt_base = devm_ioremap_wc(&pdev->dev, offset, size);
 	if (!cptvf->lfs.lmt_base) {
 		dev_err(&pdev->dev, "Unable to map BAR4\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -135,7 +135,7 @@ int cn10k_cpt_hw_ctx_init(struct pci_dev *pdev,
 
 	hctx = kmalloc(CN10K_CPT_HW_CTX_SIZE, GFP_KERNEL);
 	if (unlikely(!hctx))
-		return -ENOMEM;
+		return -EANALMEM;
 	cptr_dma = dma_map_single(&pdev->dev, hctx, CN10K_CPT_HW_CTX_SIZE,
 				  DMA_BIDIRECTIONAL);
 

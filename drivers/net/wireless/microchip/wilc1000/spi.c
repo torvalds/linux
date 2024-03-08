@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techanallogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -36,7 +36,7 @@ MODULE_PARM_DESC(enable_crc16,
  * more zero bytes between the command response and the DATA Start tag
  * (0xf3).  This behavior appears to be undocumented in "ATWILC1000
  * USER GUIDE" (https://tinyurl.com/4hhshdts) but we have observed 1-4
- * zero bytes when the SPI bus operates at 48MHz and none when it
+ * zero bytes when the SPI bus operates at 48MHz and analne when it
  * operates at 1MHz.
  */
 #define WILC_SPI_RSP_HDR_EXTRA_DATA	8
@@ -86,7 +86,7 @@ static int wilc_spi_reset(struct wilc *wilc);
 #define RSP_TYPE_FIRST_PACKET			0x1
 #define RSP_TYPE_INNER_PACKET			0x2
 #define RSP_TYPE_LAST_PACKET			0x3
-#define RSP_STATE_NO_ERROR			0x00
+#define RSP_STATE_ANAL_ERROR			0x00
 
 #define PROTOCOL_REG_PKT_SZ_MASK		GENMASK(6, 4)
 #define PROTOCOL_REG_CRC16_MASK			GENMASK(3, 3)
@@ -102,7 +102,7 @@ static int wilc_spi_reset(struct wilc *wilc);
 /*
  * Select the data packet size (log2 of number of bytes): Use the
  * maximum data packet size.  We only retransmit complete packets, so
- * there is no benefit from using smaller data packets.
+ * there is anal benefit from using smaller data packets.
  */
 #define DATA_PKT_LOG_SZ				DATA_PKT_LOG_SZ_MAX
 #define DATA_PKT_SZ				(1 << DATA_PKT_LOG_SZ)
@@ -210,7 +210,7 @@ static int wilc_bus_probe(struct spi_device *spi)
 
 	spi_priv = kzalloc(sizeof(*spi_priv), GFP_KERNEL);
 	if (!spi_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = wilc_cfg80211_init(&wilc, &spi->dev, WILC_HIF_SPI, &wilc_hif_spi);
 	if (ret)
@@ -294,7 +294,7 @@ static int wilc_spi_tx(struct wilc *wilc, u8 *b, u32 len)
 		char *r_buffer = kzalloc(len, GFP_KERNEL);
 
 		if (!r_buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		tr.rx_buf = r_buffer;
 		dev_dbg(&spi->dev, "Request writing %d bytes\n", len);
@@ -338,7 +338,7 @@ static int wilc_spi_rx(struct wilc *wilc, u8 *rb, u32 rlen)
 		char *t_buffer = kzalloc(rlen, GFP_KERNEL);
 
 		if (!t_buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		tr.tx_buf = t_buffer;
 
@@ -461,7 +461,7 @@ static int spi_data_write(struct wilc *wilc, u8 *b, u32 sz)
 		}
 
 		/*
-		 * No need to wait for response
+		 * Anal need to wait for response
 		 */
 		ix += nbytes;
 		sz -= nbytes;
@@ -507,7 +507,7 @@ static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 		c->u.simple_cmd.addr[1] = adr;
 		c->u.simple_cmd.addr[2] = 0x0;
 	} else {
-		dev_err(&spi->dev, "cmd [%x] not supported\n", cmd);
+		dev_err(&spi->dev, "cmd [%x] analt supported\n", cmd);
 		return -EINVAL;
 	}
 
@@ -608,7 +608,7 @@ static int wilc_spi_write_cmd(struct wilc *wilc, u8 cmd, u32 adr, u32 data,
 		if (spi_priv->crc7_enabled)
 			c->u.w_cmd.crc[0] = wilc_get_crc7(wb, cmd_len);
 	} else {
-		dev_err(&spi->dev, "write cmd [%x] not supported\n", cmd);
+		dev_err(&spi->dev, "write cmd [%x] analt supported\n", cmd);
 		return -EINVAL;
 	}
 
@@ -686,7 +686,7 @@ static int wilc_spi_dma_rw(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz)
 		if (spi_priv->crc7_enabled)
 			c->u.dma_cmd_ext.crc[0] = wilc_get_crc7(wb, cmd_len);
 	} else {
-		dev_err(&spi->dev, "dma read write cmd [%x] not supported\n",
+		dev_err(&spi->dev, "dma read write cmd [%x] analt supported\n",
 			cmd);
 		return -EINVAL;
 	}
@@ -866,7 +866,7 @@ static int wilc_spi_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 			return 0;
 		}
 
-		/* retry is not applicable for clockless registers */
+		/* retry is analt applicable for clockless registers */
 		if (clockless)
 			break;
 
@@ -985,14 +985,14 @@ static int spi_data_rsp(struct wilc *wilc, u8 cmd)
 
 	/*
 	 * The response to data packets is two bytes long.  For
-	 * efficiency's sake, wilc_spi_write() wisely ignores the
+	 * efficiency's sake, wilc_spi_write() wisely iganalres the
 	 * responses for all packets but the final one.  The downside
 	 * of that optimization is that when the final data packet is
 	 * short, we may receive (part of) the response to the
 	 * second-to-last packet before the one for the final packet.
 	 * To handle this, we always read 4 bytes and then search for
 	 * the last byte that contains the "Response Start" code (0xc
-	 * in the top 4 bits).  We then know that this byte is the
+	 * in the top 4 bits).  We then kanalw that this byte is the
 	 * first response byte of the final data packet.
 	 */
 	result = wilc_spi_rx(wilc, rsp, sizeof(rsp));
@@ -1015,7 +1015,7 @@ static int spi_data_rsp(struct wilc *wilc, u8 cmd)
 	/* rsp[i] is the last response start byte */
 
 	if (FIELD_GET(RSP_TYPE_FIELD, rsp[i]) != RSP_TYPE_LAST_PACKET
-	    || rsp[i + 1] != RSP_STATE_NO_ERROR) {
+	    || rsp[i + 1] != RSP_STATE_ANAL_ERROR) {
 		dev_err(&spi->dev, "Data response error (%02x %02x)\n",
 			rsp[i], rsp[i + 1]);
 		return -1;

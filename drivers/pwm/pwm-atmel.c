@@ -14,7 +14,7 @@
  *
  * Software bugs/possible improvements:
  * - When atmel_pwm_apply() is called with state->enabled=false a change in
- *   state->polarity isn't honored.
+ *   state->polarity isn't hoanalred.
  * - Instead of sleeping to wait for a completed period, the interrupt
  *   functionality could be used.
  */
@@ -87,7 +87,7 @@ struct atmel_pwm_chip {
 	 * the end of the currently running period. When such an update is
 	 * pending we delay disabling the PWM until the new configuration is
 	 * active because otherwise pmw_config(duty_cycle=0); pwm_disable();
-	 * might not result in an inactive output.
+	 * might analt result in an inactive output.
 	 * This bitmask tracks for which channels an update is pending in
 	 * hardware.
 	 */
@@ -135,8 +135,8 @@ static void atmel_pwm_update_pending(struct atmel_pwm_chip *chip)
 {
 	/*
 	 * Each channel that has its bit in ISR set started a new period since
-	 * ISR was cleared and so there is no more update pending.  Note that
-	 * reading ISR clears it, so this needs to handle all channels to not
+	 * ISR was cleared and so there is anal more update pending.  Analte that
+	 * reading ISR clears it, so this needs to handle all channels to analt
 	 * loose information.
 	 */
 	u32 isr = atmel_pwm_readl(chip, PWM_ISR);
@@ -177,7 +177,7 @@ static int atmel_pwm_test_pending(struct atmel_pwm_chip *chip, unsigned int ch)
 	return ret;
 }
 
-static int atmel_pwm_wait_nonpending(struct atmel_pwm_chip *chip, unsigned int ch)
+static int atmel_pwm_wait_analnpending(struct atmel_pwm_chip *chip, unsigned int ch)
 {
 	unsigned long timeout = jiffies + 2 * HZ;
 	int ret;
@@ -272,7 +272,7 @@ static void atmel_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct atmel_pwm_chip *atmel_pwm = to_atmel_pwm_chip(chip);
 	unsigned long timeout;
 
-	atmel_pwm_wait_nonpending(atmel_pwm, pwm->hwpwm);
+	atmel_pwm_wait_analnpending(atmel_pwm, pwm->hwpwm);
 
 	atmel_pwm_writel(atmel_pwm, PWM_DIS, 1 << pwm->hwpwm);
 
@@ -341,7 +341,7 @@ static int atmel_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		/* It is necessary to preserve CPOL, inside CMR */
 		val = atmel_pwm_ch_readl(atmel_pwm, pwm->hwpwm, PWM_CMR);
 		val = (val & ~PWM_CMR_CPRE_MSK) | (pres & PWM_CMR_CPRE_MSK);
-		if (state->polarity == PWM_POLARITY_NORMAL)
+		if (state->polarity == PWM_POLARITY_ANALRMAL)
 			val &= ~PWM_CMR_CPOL;
 		else
 			val |= PWM_CMR_CPOL;
@@ -378,7 +378,7 @@ static int atmel_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		state->period = DIV64_U64_ROUND_UP(tmp, rate);
 
 		/* Wait for an updated duty_cycle queued in hardware */
-		atmel_pwm_wait_nonpending(atmel_pwm, pwm->hwpwm);
+		atmel_pwm_wait_analnpending(atmel_pwm, pwm->hwpwm);
 
 		cdty = atmel_pwm_ch_readl(atmel_pwm, pwm->hwpwm,
 					  atmel_pwm->data->regs.duty);
@@ -394,7 +394,7 @@ static int atmel_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (cmr & PWM_CMR_CPOL)
 		state->polarity = PWM_POLARITY_INVERSED;
 	else
-		state->polarity = PWM_POLARITY_NORMAL;
+		state->polarity = PWM_POLARITY_ANALRMAL;
 
 	return 0;
 }
@@ -505,7 +505,7 @@ static int atmel_pwm_probe(struct platform_device *pdev)
 
 	atmel_pwm = devm_kzalloc(&pdev->dev, sizeof(*atmel_pwm), GFP_KERNEL);
 	if (!atmel_pwm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atmel_pwm->data = of_device_get_match_data(&pdev->dev);
 

@@ -118,7 +118,7 @@ static int byt_acpi_probe(struct snd_sof_dev *sdev)
 
 	chip = get_chip_info(sdev->pdata);
 	if (!chip) {
-		dev_err(sdev->dev, "error: no such device supported\n");
+		dev_err(sdev->dev, "error: anal such device supported\n");
 		return -EIO;
 	}
 
@@ -148,7 +148,7 @@ static int byt_acpi_probe(struct snd_sof_dev *sdev)
 	if (!sdev->bar[DSP_BAR]) {
 		dev_err(sdev->dev, "error: failed to ioremap LPE base 0x%x size 0x%x\n",
 			base, size);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev_dbg(sdev->dev, "LPE VADDR %p\n", sdev->bar[DSP_BAR]);
 
@@ -168,12 +168,12 @@ static int byt_acpi_probe(struct snd_sof_dev *sdev)
 	} else {
 		dev_err(sdev->dev, "error: failed to get IMR base at idx %d\n",
 			desc->resindex_imr_base);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* some BIOSes don't map IMR */
 	if (base == 0x55aa55aa || base == 0x0) {
-		dev_info(sdev->dev, "IMR not set by BIOS. Ignoring\n");
+		dev_info(sdev->dev, "IMR analt set by BIOS. Iganalring\n");
 		goto irq;
 	}
 
@@ -182,7 +182,7 @@ static int byt_acpi_probe(struct snd_sof_dev *sdev)
 	if (!sdev->bar[IMR_BAR]) {
 		dev_err(sdev->dev, "error: failed to ioremap IMR base 0x%x size 0x%x\n",
 			base, size);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev_dbg(sdev->dev, "IMR VADDR %p\n", sdev->bar[IMR_BAR]);
 
@@ -383,7 +383,7 @@ static const struct sof_dev_desc sof_acpi_baytrailcr_desc = {
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_3] = "sof-byt.ri",
 	},
-	.nocodec_tplg_filename = "sof-byt-nocodec.tplg",
+	.analcodec_tplg_filename = "sof-byt-analcodec.tplg",
 	.ops = &sof_byt_ops,
 };
 
@@ -405,7 +405,7 @@ static const struct sof_dev_desc sof_acpi_baytrail_desc = {
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_3] = "sof-byt.ri",
 	},
-	.nocodec_tplg_filename = "sof-byt-nocodec.tplg",
+	.analcodec_tplg_filename = "sof-byt-analcodec.tplg",
 	.ops = &sof_byt_ops,
 };
 
@@ -427,7 +427,7 @@ static const struct sof_dev_desc sof_acpi_cherrytrail_desc = {
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_3] = "sof-cht.ri",
 	},
-	.nocodec_tplg_filename = "sof-cht-nocodec.tplg",
+	.analcodec_tplg_filename = "sof-cht-analcodec.tplg",
 	.ops = &sof_cht_ops,
 };
 
@@ -447,12 +447,12 @@ static int sof_baytrail_probe(struct platform_device *pdev)
 
 	id = acpi_match_device(dev->driver->acpi_match_table, dev);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = snd_intel_acpi_dsp_driver_probe(dev, id->id);
 	if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_SOF) {
-		dev_dbg(dev, "SOF ACPI driver not selected, aborting probe\n");
-		return -ENODEV;
+		dev_dbg(dev, "SOF ACPI driver analt selected, aborting probe\n");
+		return -EANALDEV;
 	}
 
 	desc = (const struct sof_dev_desc *)id->driver_data;

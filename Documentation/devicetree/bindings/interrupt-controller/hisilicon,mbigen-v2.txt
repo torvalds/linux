@@ -3,27 +3,27 @@ Hisilicon mbigen device tree bindings.
 
 Mbigen means: message based interrupt generator.
 
-MBI is kind of msi interrupt only used on Non-PCI devices.
+MBI is kind of msi interrupt only used on Analn-PCI devices.
 
 To reduce the wired interrupt number connected to GIC,
 Hisilicon designed mbigen to collect and generate interrupt.
 
 
-Non-pci devices can connect to mbigen and generate the
+Analn-pci devices can connect to mbigen and generate the
 interrupt by writing ITS register.
 
 The mbigen chip and devices connect to mbigen have the following properties:
 
-Mbigen main node required properties:
+Mbigen main analde required properties:
 -------------------------------------------
 - compatible: Should be "hisilicon,mbigen-v2"
 
 - reg: Specifies the base physical address and size of the Mbigen
   registers.
 
-Mbigen sub node required properties:
+Mbigen sub analde required properties:
 ------------------------------------------
-- interrupt controller: Identifies the node as an interrupt controller
+- interrupt controller: Identifies the analde as an interrupt controller
 
 - msi-parent: Specifies the MSI controller this mbigen use.
   For more detail information,please refer to the generic msi-parent binding in

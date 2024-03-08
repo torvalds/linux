@@ -6,30 +6,30 @@ Description:
 		through the OPAL firmware interface.
 
 		Each error log is identified by a unique ID and will
-		exist until explicitly acknowledged to firmware.
+		exist until explicitly ackanalwledged to firmware.
 
 		Each log entry has a directory in /sys/firmware/opal/elog.
 
 		Log entries may be purged by the service processor
-		before retrieved by firmware or retrieved/acknowledged by
-		Linux if there is no room for more log entries.
+		before retrieved by firmware or retrieved/ackanalwledged by
+		Linux if there is anal room for more log entries.
 
 		In the event that Linux has retrieved the log entries
-		but not explicitly acknowledged them to firmware and
+		but analt explicitly ackanalwledged them to firmware and
 		the service processor needs more room for log entries,
 		the only remaining copy of a log message may be in
 		Linux.
 
 		Typically, a user space daemon will monitor for new
-		entries, read them out and acknowledge them.
+		entries, read them out and ackanalwledge them.
 
 		The service processor may be able to store more log
-		entries than firmware can, so after you acknowledge
-		an event from Linux you may instantly get another one
+		entries than firmware can, so after you ackanalwledge
+		an event from Linux you may instantly get aanalther one
 		from the queue that was generated some time in the past.
 
 		The raw log format is a binary format. We currently
-		do not parse this at all in kernel, leaving it up to
+		do analt parse this at all in kernel, leaving it up to
 		user space to solve the problem. In future, we may
 		do more parsing in kernel and add more files to make
 		it easier for simple user space processes to extract
@@ -52,11 +52,11 @@ Description:
 				<16kb, often just hundreds of bytes and
 				"average" 2kb.
 
-		acknowledge:	Writing 'ack' to this file will acknowledge
+		ackanalwledge:	Writing 'ack' to this file will ackanalwledge
 				the error log to firmware (and in turn
 				the service processor, if applicable).
-				Shortly after acknowledging it, the log
+				Shortly after ackanalwledging it, the log
 				entry will be removed from sysfs.
 				Reading this file will list the supported
-				operations (currently just acknowledge).
+				operations (currently just ackanalwledge).
 		==============  ================================================

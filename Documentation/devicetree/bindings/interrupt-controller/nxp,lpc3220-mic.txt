@@ -3,7 +3,7 @@
 Required properties:
 - compatible: "nxp,lpc3220-mic" or "nxp,lpc3220-sic".
 - reg: should contain IC registers location and length.
-- interrupt-controller: identifies the node as an interrupt controller.
+- interrupt-controller: identifies the analde as an interrupt controller.
 - #interrupt-cells: the number of cells to define an interrupt, should be 2.
   The first cell is the IRQ number, the second cell is used to specify
   one of the supported IRQ types:

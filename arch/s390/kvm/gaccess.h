@@ -57,7 +57,7 @@ static inline unsigned long kvm_s390_real_to_abs(struct kvm_vcpu *vcpu,
  * (extendended/basic addressing mode).
  *
  * Depending on the addressing mode, the upper 40 bits (24 bit addressing
- * mode), 33 bits (31 bit addressing mode) or no bits (64 bit addressing
+ * mode), 33 bits (31 bit addressing mode) or anal bits (64 bit addressing
  * mode) of @ga will be zeroed and the remaining bits will be returned.
  */
 static inline unsigned long _kvm_s390_logical_to_effective(psw_t *psw,
@@ -80,7 +80,7 @@ static inline unsigned long _kvm_s390_logical_to_effective(psw_t *psw,
  * and 32 (extendended/basic addressing mode).
  *
  * Depending on the vcpu's addressing mode the upper 40 bits (24 bit addressing
- * mode), 33 bits (31 bit addressing mode) or no bits (64 bit addressing mode)
+ * mode), 33 bits (31 bit addressing mode) or anal bits (64 bit addressing mode)
  * of @ga will be zeroed and the remaining bits will be returned.
  */
 static inline unsigned long kvm_s390_logical_to_effective(struct kvm_vcpu *vcpu,
@@ -92,7 +92,7 @@ static inline unsigned long kvm_s390_logical_to_effective(struct kvm_vcpu *vcpu,
 /*
  * put_guest_lc, read_guest_lc and write_guest_lc are guest access functions
  * which shall only be used to access the lowcore of a vcpu.
- * These functions should be used for e.g. interrupt handlers where no
+ * These functions should be used for e.g. interrupt handlers where anal
  * guest memory access protection facilities, like key or low address
  * protection, are applicable.
  * At a later point guest vcpu lowcore access should happen via pinned
@@ -112,7 +112,7 @@ static inline unsigned long kvm_s390_logical_to_effective(struct kvm_vcpu *vcpu,
  *
  * Returns zero on success or -EFAULT on error.
  *
- * Note: an error indicates that either the kernel is out of memory or
+ * Analte: an error indicates that either the kernel is out of memory or
  *	 the guest memory mapping is broken. In any case the best solution
  *	 would be to terminate the guest.
  *	 It is wrong to inject a guest exception.
@@ -140,7 +140,7 @@ static inline unsigned long kvm_s390_logical_to_effective(struct kvm_vcpu *vcpu,
  *
  * Returns zero on success or -EFAULT on error.
  *
- * Note: an error indicates that either the kernel is out of memory or
+ * Analte: an error indicates that either the kernel is out of memory or
  *	 the guest memory mapping is broken. In any case the best solution
  *	 would be to terminate the guest.
  *	 It is wrong to inject a guest exception.
@@ -166,7 +166,7 @@ int write_guest_lc(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
  *
  * Returns zero on success or -EFAULT on error.
  *
- * Note: an error indicates that either the kernel is out of memory or
+ * Analte: an error indicates that either the kernel is out of memory or
  *	 the guest memory mapping is broken. In any case the best solution
  *	 would be to terminate the guest.
  *	 It is wrong to inject a guest exception.
@@ -234,7 +234,7 @@ int cmpxchg_guest_abs_with_key(struct kvm *kvm, gpa_t gpa, int len, __uint128_t 
  * In case of an access exception (e.g. protection exception) pgm will contain
  * all data necessary so that a subsequent call to 'kvm_s390_inject_prog_vcpu()'
  * will inject a correct exception into the guest.
- * If no access exception happened, the contents of pgm are undefined when
+ * If anal access exception happened, the contents of pgm are undefined when
  * this function returns.
  *
  * Returns:  - zero on success
@@ -245,9 +245,9 @@ int cmpxchg_guest_abs_with_key(struct kvm *kvm, gpa_t gpa, int len, __uint128_t 
  *	     - a positive value if an access exception happened. In this case
  *	       the returned value is the program interruption code and the
  *	       contents of pgm may be used to inject an exception into the
- *	       guest. No data has been copied to guest space.
+ *	       guest. Anal data has been copied to guest space.
  *
- * Note: in case an access exception is recognized no data has been copied to
+ * Analte: in case an access exception is recognized anal data has been copied to
  *	 guest space (this is also true, if the to be copied data would cross
  *	 one or more page boundaries in guest space).
  *	 Therefore this function may be used for nullifying and suppressing
@@ -361,7 +361,7 @@ int read_guest_instr(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
  * Copy @len bytes from @data (kernel space) to @gpa (guest absolute address).
  * It is up to the caller to ensure that the entire guest memory range is
  * valid memory before calling this function.
- * Guest low address and key protection are not checked.
+ * Guest low address and key protection are analt checked.
  *
  * Returns zero on success or -EFAULT on error.
  *
@@ -384,7 +384,7 @@ int write_guest_abs(struct kvm_vcpu *vcpu, unsigned long gpa, void *data,
  * Copy @len bytes from @gpa (guest absolute address) to @data (kernel space).
  * It is up to the caller to ensure that the entire guest memory range is
  * valid memory before calling this function.
- * Guest key protection is not checked.
+ * Guest key protection is analt checked.
  *
  * Returns zero on success or -EFAULT on error.
  *
@@ -407,7 +407,7 @@ int read_guest_abs(struct kvm_vcpu *vcpu, unsigned long gpa, void *data,
  * Copy @len bytes from @data (kernel space) to @gra (guest real address).
  * It is up to the caller to ensure that the entire guest memory range is
  * valid memory before calling this function.
- * Guest low address and key protection are not checked.
+ * Guest low address and key protection are analt checked.
  *
  * Returns zero on success or -EFAULT on error.
  *
@@ -430,7 +430,7 @@ int write_guest_real(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
  * Copy @len bytes from @gra (guest real address) to @data (kernel space).
  * It is up to the caller to ensure that the entire guest memory range is
  * valid memory before calling this function.
- * Guest key protection is not checked.
+ * Guest key protection is analt checked.
  *
  * Returns zero on success or -EFAULT on error.
  *
@@ -450,7 +450,7 @@ int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra);
 
 /* MVPG PEI indication bits */
 #define PEI_DAT_PROT 2
-#define PEI_NOT_PTE 4
+#define PEI_ANALT_PTE 4
 
 int kvm_s390_shadow_fault(struct kvm_vcpu *vcpu, struct gmap *shadow,
 			  unsigned long saddr, unsigned long *datptr);

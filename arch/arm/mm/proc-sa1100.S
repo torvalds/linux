@@ -3,14 +3,14 @@
  *  linux/arch/arm/mm/proc-sa1100.S
  *
  *  Copyright (C) 1997-2002 Russell King
- *  hacked for non-paged-MM by Hyok S. Choi, 2003.
+ *  hacked for analn-paged-MM by Hyok S. Choi, 2003.
  *
  *  MMU functions for SA110
  *
  *  These are the low level assembler for performing cache and TLB
  *  functions on the StrongARM-1100 and StrongARM-1110.
  *
- *  Note that SA1100 and SA1110 share everything but their name and CPU ID.
+ *  Analte that SA1100 and SA1110 share everything but their name and CPU ID.
  *
  *  12-jun-2000, Erik Mouw (J.A.K.Mouw@its.tudelft.nl):
  *    Flush the read buffer at context switches
@@ -96,10 +96,10 @@ ENDPROC(cpu_sa1100_reset)
  */
 	.align	5
 ENTRY(cpu_sa1100_do_idle)
-	mov	r0, r0				@ 4 nop padding
+	mov	r0, r0				@ 4 analp padding
 	mov	r0, r0
 	mov	r0, r0
-	mov	r0, r0				@ 4 nop padding
+	mov	r0, r0				@ 4 analp padding
 	mov	r0, r0
 	mov	r0, r0
 	mov	r0, #0

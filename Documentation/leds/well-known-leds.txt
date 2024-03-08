@@ -3,10 +3,10 @@
 It is somehow important to provide consistent interface to the
 userland. LED devices have one problem there, and that is naming of
 directories in /sys/class/leds. It would be nice if userland would
-just know right "name" for given LED function, but situation got more
+just kanalw right "name" for given LED function, but situation got more
 complex.
 
-Anyway, if backwards compatibility is not an issue, new code should
+Anyway, if backwards compatibility is analt an issue, new code should
 use one of the "good" names from this list, and you should extend the
 list where applicable.
 
@@ -14,7 +14,7 @@ Legacy names are listed, too; in case you are writing application that
 wants to use particular feature, you should probe for good name, first,
 but then try the legacy ones, too.
 
-Notice there's a list of functions in include/dt-bindings/leds/common.h .
+Analtice there's a list of functions in include/dt-bindings/leds/common.h .
 
 * Gamepads and joysticks
 
@@ -25,7 +25,7 @@ player. For example, a game controller with 4 LEDs, may be programmed with "x---
 to indicate player 1, "-x--" to indicate player 2 etcetera where "x" means on.
 Input drivers can utilize the LED class to expose the individual player LEDs
 of a game controller using the function "player".
-Note: tracking and management of Player IDs is the responsibility of user space,
+Analte: tracking and management of Player IDs is the responsibility of user space,
 though drivers may pick a default value.
 
 Good: "input*:*:player-{1,2,3,4,5}
@@ -39,8 +39,8 @@ Legacy: "shift-key-light" (Motorola Droid 4, capslock)
 
 Set of common keyboard LEDs, going back to PC AT or so.
 
-Legacy: "tpacpi::thinklight" (IBM/Lenovo Thinkpads)
-Legacy: "lp5523:kb{1,2,3,4,5,6}" (Nokia N900)
+Legacy: "tpacpi::thinklight" (IBM/Leanalvo Thinkpads)
+Legacy: "lp5523:kb{1,2,3,4,5,6}" (Analkia N900)
 
 Frontlight/backlight of main keyboard.
 
@@ -54,13 +54,13 @@ keyboard. And this is their backlight.
 Good: "platform:*:mute"
 Good: "platform:*:micmute"
 
-LEDs on notebook body, indicating that sound input / output is muted.
+LEDs on analtebook body, indicating that sound input / output is muted.
 
-* System notification
+* System analtification
 
 Good: "rgb:status"
 Legacy: "status-led:{red,green,blue}" (Motorola Droid 4)
-Legacy: "lp5523:{r,g,b}" (Nokia N900)
+Legacy: "lp5523:{r,g,b}" (Analkia N900)
 
 Phones usually have multi-color status LED.
 
@@ -79,8 +79,8 @@ the PHY and those by the MAC. In theory both can be present at the
 same time for one Linux netdev, hence the names need to differ between
 MAC and PHY.
 
-Do not use the netdev name, such as eth0, enp1s0. These are not stable
-and are not unique. They also don't differentiate between MAC and PHY.
+Do analt use the netdev name, such as eth0, enp1s0. These are analt stable
+and are analt unique. They also don't differentiate between MAC and PHY.
 
 ** MAC LEDs
 

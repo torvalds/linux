@@ -9,7 +9,7 @@ Basic information
 Netlink interface for ethtool uses generic netlink family ``ethtool``
 (userspace application should use macros ``ETHTOOL_GENL_NAME`` and
 ``ETHTOOL_GENL_VERSION`` defined in ``<linux/ethtool_netlink.h>`` uapi
-header). This family does not use a specific header, all information in
+header). This family does analt use a specific header, all information in
 requests and replies is passed using netlink attributes.
 
 The ethtool netlink interface uses extended ACK for error and warning
@@ -31,18 +31,18 @@ Conventions
 ===========
 
 Attributes which represent a boolean value usually use NLA_U8 type so that we
-can distinguish three states: "on", "off" and "not present" (meaning the
-information is not available in "get" requests or value is not to be changed
+can distinguish three states: "on", "off" and "analt present" (meaning the
+information is analt available in "get" requests or value is analt to be changed
 in "set" requests). For these attributes, the "true" value should be passed as
-number 1 but any non-zero value should be understood as "true" by recipient.
-In the tables below, "bool" denotes NLA_U8 attributes interpreted in this way.
+number 1 but any analn-zero value should be understood as "true" by recipient.
+In the tables below, "bool" deanaltes NLA_U8 attributes interpreted in this way.
 
 In the message structure descriptions below, if an attribute name is suffixed
 with "+", parent nest can contain multiple attributes of the same type. This
 implements an array of entries.
 
 Attributes that need to be filled-in by device drivers and that are dumped to
-user space based on whether they are valid or not should not use zero as a
+user space based on whether they are valid or analt should analt use zero as a
 valid value. This avoids the need to explicitly signal the validity of the
 attribute in the device driver API.
 
@@ -62,13 +62,13 @@ Structure of this header is
 ``ETHTOOL_A_HEADER_DEV_INDEX`` and ``ETHTOOL_A_HEADER_DEV_NAME`` identify the
 device message relates to. One of them is sufficient in requests, if both are
 used, they must identify the same device. Some requests, e.g. global string
-sets, do not require device identification. Most ``GET`` requests also allow
+sets, do analt require device identification. Most ``GET`` requests also allow
 dump requests without device identification to query the same information for
 all devices providing it (each device in a separate message).
 
 ``ETHTOOL_A_HEADER_FLAGS`` is a bitmap of request flags common for all request
 types. The interpretation of these flags is the same for all request types but
-the flags may not apply to requests. Recognized flags are:
+the flags may analt apply to requests. Recognized flags are:
 
   =================================  ===================================
   ``ETHTOOL_FLAG_COMPACT_BITSETS``   use compact format bitsets in reply
@@ -76,10 +76,10 @@ the flags may not apply to requests. Recognized flags are:
   ``ETHTOOL_FLAG_STATS``             include optional device statistics
   =================================  ===================================
 
-New request flags should follow the general idea that if the flag is not set,
-the behaviour is backward compatible, i.e. requests from old clients not aware
+New request flags should follow the general idea that if the flag is analt set,
+the behaviour is backward compatible, i.e. requests from old clients analt aware
 of the flag should be interpreted the way the client expects. A client must
-not set flags it does not understand.
+analt set flags it does analt understand.
 
 
 Bit sets
@@ -96,12 +96,12 @@ with their values which saves a round trip (when the bitset is passed in a
 request) or at least a second request (when the bitset is in a reply). This is
 useful for one shot applications like traditional ethtool command. On the
 other hand, long running applications like ethtool monitor (displaying
-notifications) or network management daemons may prefer fetching the names
-only once and using compact form to save message size. Notifications from
+analtifications) or network management daemons may prefer fetching the names
+only once and using compact form to save message size. Analtifications from
 ethtool netlink interface always use compact form for bitsets.
 
-A bitset can represent either a value/mask pair (``ETHTOOL_A_BITSET_NOMASK``
-not set) or a single bitmap (``ETHTOOL_A_BITSET_NOMASK`` set). In requests
+A bitset can represent either a value/mask pair (``ETHTOOL_A_BITSET_ANALMASK``
+analt set) or a single bitmap (``ETHTOOL_A_BITSET_ANALMASK`` set). In requests
 modifying a bitmap, the former changes the bit set in mask to values set in
 value and preserves the rest; the latter sets the bits set in the bitmap and
 clears the rest.
@@ -109,7 +109,7 @@ clears the rest.
 Compact form: nested (bitset) attribute contents:
 
   ============================  ======  ============================
-  ``ETHTOOL_A_BITSET_NOMASK``   flag    no mask, only a list
+  ``ETHTOOL_A_BITSET_ANALMASK``   flag    anal mask, only a list
   ``ETHTOOL_A_BITSET_SIZE``     u32     number of significant bits
   ``ETHTOOL_A_BITSET_VALUE``    binary  bitmap of bit values
   ``ETHTOOL_A_BITSET_MASK``     binary  bitmap of valid bits
@@ -122,19 +122,19 @@ way as bitmaps are passed with ioctl interface).
 
 For compact form, ``ETHTOOL_A_BITSET_SIZE`` and ``ETHTOOL_A_BITSET_VALUE`` are
 mandatory. ``ETHTOOL_A_BITSET_MASK`` attribute is mandatory if
-``ETHTOOL_A_BITSET_NOMASK`` is not set (bitset represents a value/mask pair);
-if ``ETHTOOL_A_BITSET_NOMASK`` is not set, ``ETHTOOL_A_BITSET_MASK`` is not
+``ETHTOOL_A_BITSET_ANALMASK`` is analt set (bitset represents a value/mask pair);
+if ``ETHTOOL_A_BITSET_ANALMASK`` is analt set, ``ETHTOOL_A_BITSET_MASK`` is analt
 allowed (bitset represents a single bitmap.
 
 Kernel bit set length may differ from userspace length if older application is
 used on newer kernel or vice versa. If userspace bitmap is longer, an error is
-issued only if the request actually tries to set values of some bits not
+issued only if the request actually tries to set values of some bits analt
 recognized by kernel.
 
 Bit-by-bit form: nested (bitset) attribute contents:
 
  +------------------------------------+--------+-----------------------------+
- | ``ETHTOOL_A_BITSET_NOMASK``        | flag   | no mask, only a list        |
+ | ``ETHTOOL_A_BITSET_ANALMASK``        | flag   | anal mask, only a list        |
  +------------------------------------+--------+-----------------------------+
  | ``ETHTOOL_A_BITSET_SIZE``          | u32    | number of significant bits  |
  +------------------------------------+--------+-----------------------------+
@@ -154,10 +154,10 @@ only contain ``ETHTOOL_A_BITSET_BITS_BIT`` attributes but there can be an
 arbitrary number of them.  A bit may be identified by its index or by its
 name. When used in requests, listed bits are set to 0 or 1 according to
 ``ETHTOOL_A_BITSET_BIT_VALUE``, the rest is preserved. A request fails if
-index exceeds kernel bit length or if name is not recognized.
+index exceeds kernel bit length or if name is analt recognized.
 
-When ``ETHTOOL_A_BITSET_NOMASK`` flag is present, bitset is interpreted as
-a simple bitmap. ``ETHTOOL_A_BITSET_BIT_VALUE`` attributes are not used in
+When ``ETHTOOL_A_BITSET_ANALMASK`` flag is present, bitset is interpreted as
+a simple bitmap. ``ETHTOOL_A_BITSET_BIT_VALUE`` attributes are analt used in
 such case. Such bitset represents a bitmap with listed bits set and the rest
 zero.
 
@@ -179,7 +179,7 @@ according to message purpose:
   ``_GET_REPLY``    kernel reply to a ``GET`` request
   ``_SET_REPLY``    kernel reply to a ``SET`` request
   ``_ACT_REPLY``    kernel reply to an ``ACT`` request
-  ``_NTF``          kernel notification
+  ``_NTF``          kernel analtification
   ==============    ======================================
 
 Userspace to kernel:
@@ -235,17 +235,17 @@ Kernel to userspace:
   ======================================== =================================
   ``ETHTOOL_MSG_STRSET_GET_REPLY``         string set contents
   ``ETHTOOL_MSG_LINKINFO_GET_REPLY``       link settings
-  ``ETHTOOL_MSG_LINKINFO_NTF``             link settings notification
+  ``ETHTOOL_MSG_LINKINFO_NTF``             link settings analtification
   ``ETHTOOL_MSG_LINKMODES_GET_REPLY``      link modes info
-  ``ETHTOOL_MSG_LINKMODES_NTF``            link modes notification
+  ``ETHTOOL_MSG_LINKMODES_NTF``            link modes analtification
   ``ETHTOOL_MSG_LINKSTATE_GET_REPLY``      link state info
   ``ETHTOOL_MSG_DEBUG_GET_REPLY``          debugging settings
-  ``ETHTOOL_MSG_DEBUG_NTF``                debugging settings notification
+  ``ETHTOOL_MSG_DEBUG_NTF``                debugging settings analtification
   ``ETHTOOL_MSG_WOL_GET_REPLY``            wake-on-lan settings
-  ``ETHTOOL_MSG_WOL_NTF``                  wake-on-lan settings notification
+  ``ETHTOOL_MSG_WOL_NTF``                  wake-on-lan settings analtification
   ``ETHTOOL_MSG_FEATURES_GET_REPLY``       device features
   ``ETHTOOL_MSG_FEATURES_SET_REPLY``       optional reply to FEATURES_SET
-  ``ETHTOOL_MSG_FEATURES_NTF``             netdev features notification
+  ``ETHTOOL_MSG_FEATURES_NTF``             netdev features analtification
   ``ETHTOOL_MSG_PRIVFLAGS_GET_REPLY``      private flags
   ``ETHTOOL_MSG_PRIVFLAGS_NTF``            private flags
   ``ETHTOOL_MSG_RINGS_GET_REPLY``          ring sizes
@@ -277,31 +277,31 @@ Kernel to userspace:
   ======================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
-information. They usually do not contain any message specific attributes.
+information. They usually do analt contain any message specific attributes.
 Kernel replies with corresponding "GET_REPLY" message. For most types, ``GET``
-request with ``NLM_F_DUMP`` and no device identification can be used to query
+request with ``NLM_F_DUMP`` and anal device identification can be used to query
 the information for all devices supporting the request.
 
 If the data can be also modified, corresponding ``SET`` message with the same
 layout as corresponding ``GET_REPLY`` is used to request changes. Only
-attributes where a change is requested are included in such request (also, not
+attributes where a change is requested are included in such request (also, analt
 all attributes may be changed). Replies to most ``SET`` request consist only
 of error code and extack; if kernel provides additional data, it is sent in
 the form of corresponding ``SET_REPLY`` message which can be suppressed by
 setting ``ETHTOOL_FLAG_OMIT_REPLY`` flag in request header.
 
-Data modification also triggers sending a ``NTF`` message with a notification.
+Data modification also triggers sending a ``NTF`` message with a analtification.
 These usually bear only a subset of attributes which was affected by the
-change. The same notification is issued if the data is modified using other
-means (mostly ioctl ethtool interface). Unlike notifications from ethtool
-netlink code which are only sent if something actually changed, notifications
-triggered by ioctl interface may be sent even if the request did not actually
+change. The same analtification is issued if the data is modified using other
+means (mostly ioctl ethtool interface). Unlike analtifications from ethtool
+netlink code which are only sent if something actually changed, analtifications
+triggered by ioctl interface may be sent even if the request did analt actually
 change any data.
 
 ``ACT`` messages request kernel (driver) to perform a specific action. If some
 information is reported by kernel (which can be suppressed by setting
 ``ETHTOOL_FLAG_OMIT_REPLY`` flag in request header), the reply takes form of
-an ``ACT_REPLY`` message. Performing an action also triggers a notification
+an ``ACT_REPLY`` message. Performing an action also triggers a analtification
 (``NTF`` message).
 
 Later sections describe the format and semantics of these messages.
@@ -311,7 +311,7 @@ STRSET_GET
 ==========
 
 Requests contents of a string set as provided by ioctl commands
-``ETHTOOL_GSSET_INFO`` and ``ETHTOOL_GSTRINGS.`` String sets are not user
+``ETHTOOL_GSSET_INFO`` and ``ETHTOOL_GSTRINGS.`` String sets are analt user
 writeable so that the corresponding ``STRSET_SET`` message is only used in
 kernel replies. There are two types of string sets: global (independent of
 a device, e.g. device feature names) and device specific (e.g. device private
@@ -356,21 +356,21 @@ Kernel response contents:
 Device identification in request header is optional. Depending on its presence
 a and ``NLM_F_DUMP`` flag, there are three type of ``STRSET_GET`` requests:
 
- - no ``NLM_F_DUMP,`` no device: get "global" stringsets
- - no ``NLM_F_DUMP``, with device: get string sets related to the device
- - ``NLM_F_DUMP``, no device: get device related string sets for all devices
+ - anal ``NLM_F_DUMP,`` anal device: get "global" stringsets
+ - anal ``NLM_F_DUMP``, with device: get string sets related to the device
+ - ``NLM_F_DUMP``, anal device: get device related string sets for all devices
 
-If there is no ``ETHTOOL_A_STRSET_STRINGSETS`` array, all string sets of
+If there is anal ``ETHTOOL_A_STRSET_STRINGSETS`` array, all string sets of
 requested type are returned, otherwise only those specified in the request.
 Flag ``ETHTOOL_A_STRSET_COUNTS_ONLY`` tells kernel to only return string
-counts of the sets, not the actual strings.
+counts of the sets, analt the actual strings.
 
 
 LINKINFO_GET
 ============
 
 Requests link settings as provided by ``ETHTOOL_GLINKSETTINGS`` except for
-link modes and autonegotiation related information. The request does not use
+link modes and autonegotiation related information. The request does analt use
 any attributes.
 
 Request contents:
@@ -412,7 +412,7 @@ Request contents:
   ``ETHTOOL_A_LINKINFO_TP_MDIX_CTRL``   u8      MDI(-X) control
   ====================================  ======  ==========================
 
-MDI(-X) status and transceiver cannot be set, request with the corresponding
+MDI(-X) status and transceiver cananalt be set, request with the corresponding
 attributes is rejected.
 
 
@@ -421,7 +421,7 @@ LINKMODES_GET
 
 Requests link modes (supported, advertised and peer advertised) and related
 information (autonegotiation status, link speed and duplex) as provided by
-``ETHTOOL_GLINKSETTINGS``. The request does not use any attributes.
+``ETHTOOL_GLINKSETTINGS``. The request does analt use any attributes.
 
 Request contents:
 
@@ -469,12 +469,12 @@ Request contents:
   ==========================================  ======  ==========================
 
 ``ETHTOOL_A_LINKMODES_OURS`` bit set allows setting advertised link modes. If
-autonegotiation is on (either set now or kept from before), advertised modes
-are not changed (no ``ETHTOOL_A_LINKMODES_OURS`` attribute) and at least one
+autonegotiation is on (either set analw or kept from before), advertised modes
+are analt changed (anal ``ETHTOOL_A_LINKMODES_OURS`` attribute) and at least one
 of speed, duplex and lanes is specified, kernel adjusts advertised modes to all
 supported modes matching speed, duplex, lanes or all (whatever is specified).
 This autoselection is done on ethtool side with ioctl interface, netlink
-interface is supposed to allow requesting changes without knowing what exactly
+interface is supposed to allow requesting changes without kanalwing what exactly
 kernel supports.
 
 
@@ -484,7 +484,7 @@ LINKSTATE_GET
 Requests link state information. Link up/down flag (as provided by
 ``ETHTOOL_GLINK`` ioctl command) is provided. Optionally, extended state might
 be provided as well. In general, extended state describes reasons for why a port
-is down, or why it operates in some non-obvious mode. This request does not have
+is down, or why it operates in some analn-obvious mode. This request does analt have
 any attributes.
 
 Request contents:
@@ -512,7 +512,7 @@ define their own handler.
 ``ETHTOOL_A_LINKSTATE_EXT_STATE`` and ``ETHTOOL_A_LINKSTATE_EXT_SUBSTATE`` are
 optional values. ethtool core can provide either both
 ``ETHTOOL_A_LINKSTATE_EXT_STATE`` and ``ETHTOOL_A_LINKSTATE_EXT_SUBSTATE``,
-or only ``ETHTOOL_A_LINKSTATE_EXT_STATE``, or none of them.
+or only ``ETHTOOL_A_LINKSTATE_EXT_STATE``, or analne of them.
 
 ``LINKSTATE_GET`` allows dump requests (kernel returns reply messages for all
 devices supporting the request).
@@ -531,7 +531,7 @@ Link extended states:
 
   ``ETHTOOL_LINK_EXT_STATE_BAD_SIGNAL_INTEGRITY``       Signal integrity issues
 
-  ``ETHTOOL_LINK_EXT_STATE_NO_CABLE``                   No cable connected
+  ``ETHTOOL_LINK_EXT_STATE_ANAL_CABLE``                   Anal cable connected
 
   ``ETHTOOL_LINK_EXT_STATE_CABLE_ISSUE``                Failure is related to cable,
                                                         e.g., unsupported cable
@@ -541,7 +541,7 @@ Link extended states:
 
   ``ETHTOOL_LINK_EXT_STATE_CALIBRATION_FAILURE``        Failure during calibration algorithm
 
-  ``ETHTOOL_LINK_EXT_STATE_POWER_BUDGET_EXCEEDED``      The hardware is not able to provide the
+  ``ETHTOOL_LINK_EXT_STATE_POWER_BUDGET_EXCEEDED``      The hardware is analt able to provide the
                                                         power required from cable or module
 
   ``ETHTOOL_LINK_EXT_STATE_OVERHEAT``                   The module is overheated
@@ -554,61 +554,61 @@ Link extended substates:
   Autoneg substates:
 
   ===============================================================   ================================
-  ``ETHTOOL_LINK_EXT_SUBSTATE_AN_NO_PARTNER_DETECTED``              Peer side is down
+  ``ETHTOOL_LINK_EXT_SUBSTATE_AN_ANAL_PARTNER_DETECTED``              Peer side is down
 
-  ``ETHTOOL_LINK_EXT_SUBSTATE_AN_ACK_NOT_RECEIVED``                 Ack not received from peer side
+  ``ETHTOOL_LINK_EXT_SUBSTATE_AN_ACK_ANALT_RECEIVED``                 Ack analt received from peer side
 
   ``ETHTOOL_LINK_EXT_SUBSTATE_AN_NEXT_PAGE_EXCHANGE_FAILED``        Next page exchange failed
 
-  ``ETHTOOL_LINK_EXT_SUBSTATE_AN_NO_PARTNER_DETECTED_FORCE_MODE``   Peer side is down during force
-                                                                    mode or there is no agreement of
+  ``ETHTOOL_LINK_EXT_SUBSTATE_AN_ANAL_PARTNER_DETECTED_FORCE_MODE``   Peer side is down during force
+                                                                    mode or there is anal agreement of
                                                                     speed
 
   ``ETHTOOL_LINK_EXT_SUBSTATE_AN_FEC_MISMATCH_DURING_OVERRIDE``     Forward error correction modes
                                                                     in both sides are mismatched
 
-  ``ETHTOOL_LINK_EXT_SUBSTATE_AN_NO_HCD``                           No Highest Common Denominator
+  ``ETHTOOL_LINK_EXT_SUBSTATE_AN_ANAL_HCD``                           Anal Highest Common Deanalminator
   ===============================================================   ================================
 
   Link training substates:
 
   ===========================================================================   ====================
-  ``ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_FRAME_LOCK_NOT_ACQUIRED``                    Frames were not
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_FRAME_LOCK_ANALT_ACQUIRED``                    Frames were analt
                                                                                  recognized, the
                                                                                  lock failed
 
-  ``ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_LINK_INHIBIT_TIMEOUT``                       The lock did not
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_LINK_INHIBIT_TIMEOUT``                       The lock did analt
                                                                                  occur before
                                                                                  timeout
 
-  ``ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_LINK_PARTNER_DID_NOT_SET_RECEIVER_READY``    Peer side did not
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_LINK_PARTNER_DID_ANALT_SET_RECEIVER_READY``    Peer side did analt
                                                                                  send ready signal
                                                                                  after training
                                                                                  process
 
-  ``ETHTOOL_LINK_EXT_SUBSTATE_LT_REMOTE_FAULT``                                  Remote side is not
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LT_REMOTE_FAULT``                                  Remote side is analt
                                                                                  ready yet
   ===========================================================================   ====================
 
   Link logical mismatch substates:
 
   ================================================================   ===============================
-  ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_NOT_ACQUIRE_BLOCK_LOCK``   Physical coding sublayer was
-                                                                     not locked in first phase -
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_ANALT_ACQUIRE_BLOCK_LOCK``   Physical coding sublayer was
+                                                                     analt locked in first phase -
                                                                      block lock
 
-  ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_NOT_ACQUIRE_AM_LOCK``      Physical coding sublayer was
-                                                                     not locked in second phase -
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_ANALT_ACQUIRE_AM_LOCK``      Physical coding sublayer was
+                                                                     analt locked in second phase -
                                                                      alignment markers lock
 
-  ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_NOT_GET_ALIGN_STATUS``     Physical coding sublayer did
-                                                                     not get align status
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_ANALT_GET_ALIGN_STATUS``     Physical coding sublayer did
+                                                                     analt get align status
 
-  ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_FC_FEC_IS_NOT_LOCKED``             FC forward error correction is
-                                                                     not locked
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_FC_FEC_IS_ANALT_LOCKED``             FC forward error correction is
+                                                                     analt locked
 
-  ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_RS_FEC_IS_NOT_LOCKED``             RS forward error correction is
-                                                                     not locked
+  ``ETHTOOL_LINK_EXT_SUBSTATE_LLM_RS_FEC_IS_ANALT_LOCKED``             RS forward error correction is
+                                                                     analt locked
   ================================================================   ===============================
 
   Bad signal integrity substates:
@@ -619,7 +619,7 @@ Link extended substates:
 
   ``ETHTOOL_LINK_EXT_SUBSTATE_BSI_UNSUPPORTED_RATE``                   The system attempted to
                                                                        operate the cable at a rate
-                                                                       that is not formally
+                                                                       that is analt formally
                                                                        supported, which led to
                                                                        signal integrity issues
 
@@ -643,7 +643,7 @@ Link extended substates:
   Transceiver module issue substates:
 
   ===================================================   ============================================
-  ``ETHTOOL_LINK_EXT_SUBSTATE_MODULE_CMIS_NOT_READY``   The CMIS Module State Machine did not reach
+  ``ETHTOOL_LINK_EXT_SUBSTATE_MODULE_CMIS_ANALT_READY``   The CMIS Module State Machine did analt reach
                                                         the ModuleReady state. For example, if the
                                                         module is stuck at ModuleFault state
   ===================================================   ============================================
@@ -756,16 +756,16 @@ Kernel response contents:
   ``ETHTOOL_A_FEATURES_HW``             bitset  dev->hw_features
   ``ETHTOOL_A_FEATURES_WANTED``         bitset  dev->wanted_features
   ``ETHTOOL_A_FEATURES_ACTIVE``         bitset  dev->features
-  ``ETHTOOL_A_FEATURES_NOCHANGE``       bitset  NETIF_F_NEVER_CHANGE
+  ``ETHTOOL_A_FEATURES_ANALCHANGE``       bitset  NETIF_F_NEVER_CHANGE
   ====================================  ======  ==========================
 
 Bitmaps in kernel response have the same meaning as bitmaps used in ioctl
 interference but attribute names are different (they are based on
-corresponding members of struct net_device). Legacy "flags" are not provided,
+corresponding members of struct net_device). Legacy "flags" are analt provided,
 if userspace needs them (most likely only ethtool for backward compatibility),
 it can calculate their values from related feature bits itself.
 ETHA_FEATURES_HW uses mask consisting of all features recognized by kernel (to
-provide all names when using verbose bitmap format), the other three use no
+provide all names when using verbose bitmap format), the other three use anal
 mask (simple bit lists).
 
 
@@ -804,7 +804,7 @@ reports the difference between old and new dev->features: mask consists of
 bits which have changed, values are their values in new dev->features (after
 the operation).
 
-``ETHTOOL_MSG_FEATURES_NTF`` notification is sent not only if device features
+``ETHTOOL_MSG_FEATURES_NTF`` analtification is sent analt only if device features
 are modified using ``ETHTOOL_MSG_FEATURES_SET`` request or on of ethtool ioctl
 request but also each time features are modified with netdev_update_features()
 or netdev_change_features().
@@ -889,12 +889,12 @@ Kernel response contents:
 page-flipping TCP zero-copy receive (``getsockopt(TCP_ZEROCOPY_RECEIVE)``).
 If enabled the device is configured to place frame headers and data into
 separate buffers. The device configuration must make it possible to receive
-full memory pages of data, for example because MTU is high enough or through
+full memory pages of data, for example because MTU is high eanalugh or through
 HW-GRO.
 
 ``ETHTOOL_A_RINGS_[RX|TX]_PUSH`` flag is used to enable descriptor fast
 path to send or receive packets. In ordinary path, driver fills descriptors in DRAM and
-notifies NIC hardware. In fast path, driver pushes descriptors to the device
+analtifies NIC hardware. In fast path, driver pushes descriptors to the device
 through MMIO writes, thus reducing the latency. However, enabling this feature
 may increase the CPU cost. Drivers may enforce additional per-packet
 eligibility checks (e.g. on packet size).
@@ -931,8 +931,8 @@ Request contents:
   ``ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN``   u32     size of TX push buffer
   ====================================  ======  ===========================
 
-Kernel checks that requested ring sizes do not exceed limits reported by
-driver. Driver may impose additional constraints and may not suspport all
+Kernel checks that requested ring sizes do analt exceed limits reported by
+driver. Driver may impose additional constraints and may analt suspport all
 attributes.
 
 
@@ -986,8 +986,8 @@ Request contents:
   ``ETHTOOL_A_CHANNELS_COMBINED_COUNT``  u32     combined channel count
   =====================================  ======  ==========================
 
-Kernel checks that requested channel counts do not exceed limits reported by
-driver. Driver may impose additional constraints and may not suspport all
+Kernel checks that requested channel counts do analt exceed limits reported by
+driver. Driver may impose additional constraints and may analt suspport all
 attributes.
 
 
@@ -1006,12 +1006,12 @@ Kernel response contents:
 
   ===========================================  ======  =======================
   ``ETHTOOL_A_COALESCE_HEADER``                nested  reply header
-  ``ETHTOOL_A_COALESCE_RX_USECS``              u32     delay (us), normal Rx
-  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES``         u32     max packets, normal Rx
+  ``ETHTOOL_A_COALESCE_RX_USECS``              u32     delay (us), analrmal Rx
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES``         u32     max packets, analrmal Rx
   ``ETHTOOL_A_COALESCE_RX_USECS_IRQ``          u32     delay (us), Rx in IRQ
   ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES_IRQ``     u32     max packets, Rx in IRQ
-  ``ETHTOOL_A_COALESCE_TX_USECS``              u32     delay (us), normal Tx
-  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES``         u32     max packets, normal Tx
+  ``ETHTOOL_A_COALESCE_TX_USECS``              u32     delay (us), analrmal Tx
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES``         u32     max packets, analrmal Tx
   ``ETHTOOL_A_COALESCE_TX_USECS_IRQ``          u32     delay (us), Tx in IRQ
   ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES_IRQ``     u32     IRQ packets, Tx in IRQ
   ``ETHTOOL_A_COALESCE_STATS_BLOCK_USECS``     u32     delay of stats update
@@ -1035,7 +1035,7 @@ Kernel response contents:
   ``ETHTOOL_A_COALESCE_TX_AGGR_TIME_USECS``    u32     time (us), aggr, Tx
   ===========================================  ======  =======================
 
-Attributes are only included in reply if their value is not zero or the
+Attributes are only included in reply if their value is analt zero or the
 corresponding bit in ``ethtool_ops::supported_coalesce_params`` is set (i.e.
 they are declared as supported by driver).
 
@@ -1059,7 +1059,7 @@ that can be aggregated into a single buffer.
 ``ETHTOOL_A_COALESCE_TX_AGGR_TIME_USECS`` describes the amount of time in usecs,
 counted since the first packet arrival in an aggregated block, after which the
 block should be sent.
-This feature is mainly of interest for specific USB devices which does not cope
+This feature is mainly of interest for specific USB devices which does analt cope
 well with frequent small-sized URBs transmissions.
 
 COALESCE_SET
@@ -1071,12 +1071,12 @@ Request contents:
 
   ===========================================  ======  =======================
   ``ETHTOOL_A_COALESCE_HEADER``                nested  request header
-  ``ETHTOOL_A_COALESCE_RX_USECS``              u32     delay (us), normal Rx
-  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES``         u32     max packets, normal Rx
+  ``ETHTOOL_A_COALESCE_RX_USECS``              u32     delay (us), analrmal Rx
+  ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES``         u32     max packets, analrmal Rx
   ``ETHTOOL_A_COALESCE_RX_USECS_IRQ``          u32     delay (us), Rx in IRQ
   ``ETHTOOL_A_COALESCE_RX_MAX_FRAMES_IRQ``     u32     max packets, Rx in IRQ
-  ``ETHTOOL_A_COALESCE_TX_USECS``              u32     delay (us), normal Tx
-  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES``         u32     max packets, normal Tx
+  ``ETHTOOL_A_COALESCE_TX_USECS``              u32     delay (us), analrmal Tx
+  ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES``         u32     max packets, analrmal Tx
   ``ETHTOOL_A_COALESCE_TX_USECS_IRQ``          u32     delay (us), Tx in IRQ
   ``ETHTOOL_A_COALESCE_TX_MAX_FRAMES_IRQ``     u32     IRQ packets, Tx in IRQ
   ``ETHTOOL_A_COALESCE_STATS_BLOCK_USECS``     u32     delay of stats update
@@ -1102,7 +1102,7 @@ Request contents:
 
 Request is rejected if it attributes declared as unsupported by driver (i.e.
 such that the corresponding bit in ``ethtool_ops::supported_coalesce_params``
-is not set), regardless of their values. Driver may impose additional
+is analt set), regardless of their values. Driver may impose additional
 constraints on coalescing parameters and their values.
 
 Compared to requests issued via the ``ioctl()`` netlink version of this request
@@ -1143,7 +1143,7 @@ Kernel response contents:
 
 ``ETHTOOL_A_PAUSE_STATS`` are reported if ``ETHTOOL_FLAG_STATS`` was set
 in ``ETHTOOL_A_HEADER_FLAGS``.
-It will be empty if driver did not report any statistics. Drivers fill in
+It will be empty if driver did analt report any statistics. Drivers fill in
 the statistics in the following structure:
 
 .. kernel-doc:: include/linux/ethtool.h
@@ -1191,7 +1191,7 @@ Kernel response contents:
 
 In ``ETHTOOL_A_EEE_MODES_OURS``, mask consists of link modes for which EEE is
 enabled, value of link modes for which EEE is advertised. Link modes for which
-peer advertises EEE are listed in ``ETHTOOL_A_EEE_MODES_PEER`` (no mask). The
+peer advertises EEE are listed in ``ETHTOOL_A_EEE_MODES_PEER`` (anal mask). The
 netlink interface allows reporting EEE status for all link modes but only
 first 32 are provided by the ``ethtool_ops`` callback.
 
@@ -1212,7 +1212,7 @@ Request contents:
   =====================================  ======  ==========================
 
 ``ETHTOOL_A_EEE_MODES_OURS`` is used to either list link modes to advertise
-EEE for (if there is no mask) or specify changes to the list (if there is
+EEE for (if there is anal mask) or specify changes to the list (if there is
 a mask). The netlink interface allows reporting EEE status for all link modes
 but only first 32 can be set at the moment as that is what the ``ethtool_ops``
 callback supports.
@@ -1239,9 +1239,9 @@ Kernel response contents:
   ``ETHTOOL_A_TSINFO_PHC_INDEX``         u32     PTP hw clock index
   =====================================  ======  ==========================
 
-``ETHTOOL_A_TSINFO_PHC_INDEX`` is absent if there is no associated PHC (there
-is no special value for this case). The bitset attributes are omitted if they
-would be empty (no bit set).
+``ETHTOOL_A_TSINFO_PHC_INDEX`` is absent if there is anal associated PHC (there
+is anal special value for this case). The bitset attributes are omitted if they
+would be empty (anal bit set).
 
 CABLE_TEST
 ==========
@@ -1254,18 +1254,18 @@ Request contents:
   ``ETHTOOL_A_CABLE_TEST_HEADER``       nested  request header
   ====================================  ======  ==========================
 
-Notification contents:
+Analtification contents:
 
 An Ethernet cable typically contains 1, 2 or 4 pairs. The length of
 the pair can only be measured when there is a fault in the pair and
-hence a reflection. Information about the fault may not be available,
-depending on the specific hardware. Hence the contents of the notify
+hence a reflection. Information about the fault may analt be available,
+depending on the specific hardware. Hence the contents of the analtify
 message are mostly optional. The attributes can be repeated an
 arbitrary number of times, in an arbitrary order, for an arbitrary
 number of pairs.
 
-The example shows the notification sent when the test is completed for
-a T2 cable, i.e. two pairs. One pair is OK and hence has no length
+The example shows the analtification sent when the test is completed for
+a T2 cable, i.e. two pairs. One pair is OK and hence has anal length
 information. The second pair has a fault and does have length
 information.
 
@@ -1322,23 +1322,23 @@ the distances as a guide, and rounds to the nearest distance it
 actually supports. If a pair is passed, only that one pair will be
 tested. Otherwise all pairs are tested.
 
-Notification contents:
+Analtification contents:
 
 Raw TDR data is gathered by sending a pulse down the cable and
 recording the amplitude of the reflected pulse for a given distance.
 
 It can take a number of seconds to collect TDR data, especial if the
 full 100 meters is probed at 1 meter intervals. When the test is
-started a notification will be sent containing just
+started a analtification will be sent containing just
 ETHTOOL_A_CABLE_TEST_TDR_STATUS with the value
 ETHTOOL_A_CABLE_TEST_NTF_STATUS_STARTED.
 
-When the test has completed a second notification will be sent
+When the test has completed a second analtification will be sent
 containing ETHTOOL_A_CABLE_TEST_TDR_STATUS with the value
 ETHTOOL_A_CABLE_TEST_NTF_STATUS_COMPLETED and the TDR data.
 
 The message may optionally contain the amplitude of the pulse send
-down the cable. This is measured in mV. A reflection should not be
+down the cable. This is measured in mV. A reflection should analt be
 bigger than transmitted pulse.
 
 Before the raw TDR data should be an ETHTOOL_A_CABLE_TDR_NEST_STEP
@@ -1447,11 +1447,11 @@ Kernel response contents:
   =====================================  ======  ==========================
 
 ``ETHTOOL_A_FEC_ACTIVE`` is the bit index of the FEC link mode currently
-active on the interface. This attribute may not be present if device does
-not support FEC.
+active on the interface. This attribute may analt be present if device does
+analt support FEC.
 
 ``ETHTOOL_A_FEC_MODES`` and ``ETHTOOL_A_FEC_AUTO`` are only meaningful when
-autonegotiation is disabled. If ``ETHTOOL_A_FEC_AUTO`` is non-zero driver will
+autonegotiation is disabled. If ``ETHTOOL_A_FEC_AUTO`` is analn-zero driver will
 select the FEC mode automatically based on the parameters of the SFP module.
 This is equivalent to the ``ETHTOOL_FEC_AUTO`` bit of the ioctl interface.
 ``ETHTOOL_A_FEC_MODES`` carry the current FEC configuration using link mode
@@ -1465,9 +1465,9 @@ are counters corresponding to lanes/PCS instances. The number of entries in
 the array will be:
 
 +--------------+---------------------------------------------+
-| `0`          | device does not support FEC statistics      |
+| `0`          | device does analt support FEC statistics      |
 +--------------+---------------------------------------------+
-| `1`          | device does not support per-lane break down |
+| `1`          | device does analt support per-lane break down |
 +--------------+---------------------------------------------+
 | `1 + #lanes` | device has full support for FEC stats       |
 +--------------+---------------------------------------------+
@@ -1498,7 +1498,7 @@ to set only one bit, if multiple bits are set driver may choose between them
 in an implementation specific way.
 
 ``ETHTOOL_A_FEC_AUTO`` requests the driver to choose FEC mode based on SFP
-module parameters. This does not mean autonegotiation.
+module parameters. This does analt mean autonegotiation.
 
 MODULE_EEPROM_GET
 =================
@@ -1520,7 +1520,7 @@ Request contents:
   ``ETHTOOL_A_MODULE_EEPROM_I2C_ADDRESS``  u8      page I2C address
   =======================================  ======  ==========================
 
-If ``ETHTOOL_A_MODULE_EEPROM_BANK`` is not specified, bank 0 is assumed.
+If ``ETHTOOL_A_MODULE_EEPROM_BANK`` is analt specified, bank 0 is assumed.
 
 Kernel response contents:
 
@@ -1537,7 +1537,7 @@ bytes driver actually read.
 STATS_GET
 =========
 
-Get standard statistics for the interface. Note that this is not
+Get standard statistics for the interface. Analte that this is analt
 a re-implementation of ``ETHTOOL_GSTATS`` which exposed driver-defined
 stats.
 
@@ -1591,11 +1591,11 @@ the statistic ID and the value is the value of the statistic.
 Each group has its own interpretation of statistic IDs.
 Attribute IDs correspond to strings from the string set identified
 by ``ETHTOOL_A_STATS_GRP_SS_ID``. Complex statistics (such as RMON histogram
-entries) are also listed inside ``ETHTOOL_A_STATS_GRP`` and do not have
+entries) are also listed inside ``ETHTOOL_A_STATS_GRP`` and do analt have
 a string defined in the string set.
 
 RMON "histogram" counters count number of packets within given size range.
-Because RFC does not specify the ranges beyond the standard 1518 MTU devices
+Because RFC does analt specify the ranges beyond the standard 1518 MTU devices
 differ in definition of buckets. For this reason the definition of packet ranges
 is left to each driver.
 
@@ -1664,7 +1664,7 @@ The optional ``ETHTOOL_A_MODULE_POWER_MODE_POLICY`` attribute encodes the
 transceiver module power mode policy enforced by the host. The default policy
 is driver-dependent, but "auto" is the recommended default and it should be
 implemented by new drivers and drivers where conformance to a legacy behavior
-is not critical.
+is analt critical.
 
 The optional ``ETHTHOOL_A_MODULE_POWER_MODE`` attribute encodes the operational
 power mode policy of the transceiver module. It is only reported when a module
@@ -1804,14 +1804,14 @@ Kernel response contents:
   ``ETHTOOL_A_PLCA_VERSION``              u16     Supported PLCA management
                                                   interface standard/version
   ``ETHTOOL_A_PLCA_ENABLED``              u8      PLCA Admin State
-  ``ETHTOOL_A_PLCA_NODE_ID``              u32     PLCA unique local node ID
-  ``ETHTOOL_A_PLCA_NODE_CNT``             u32     Number of PLCA nodes on the
+  ``ETHTOOL_A_PLCA_ANALDE_ID``              u32     PLCA unique local analde ID
+  ``ETHTOOL_A_PLCA_ANALDE_CNT``             u32     Number of PLCA analdes on the
                                                   network, including the
                                                   coordinator
   ``ETHTOOL_A_PLCA_TO_TMR``               u32     Transmit Opportunity Timer
                                                   value in bit-times (BT)
   ``ETHTOOL_A_PLCA_BURST_CNT``            u32     Number of additional packets
-                                                  the node is allowed to send
+                                                  the analde is allowed to send
                                                   within a single TO
   ``ETHTOOL_A_PLCA_BURST_TMR``            u32     Time to wait for the MAC to
                                                   transmit a new frame before
@@ -1819,46 +1819,46 @@ Kernel response contents:
   ======================================  ======  =============================
 
 When set, the optional ``ETHTOOL_A_PLCA_VERSION`` attribute indicates which
-standard and version the PLCA management interface complies to. When not set,
+standard and version the PLCA management interface complies to. When analt set,
 the interface is vendor-specific and (possibly) supplied by the driver.
 The OPEN Alliance SIG specifies a standard register map for 10BASE-T1S PHYs
 embedding the PLCA Reconcialiation Sublayer. See "10BASE-T1S PLCA Management
 Registers" at https://www.opensig.org/about/specifications/.
 
 When set, the optional ``ETHTOOL_A_PLCA_ENABLED`` attribute indicates the
-administrative state of the PLCA RS. When not set, the node operates in "plain"
+administrative state of the PLCA RS. When analt set, the analde operates in "plain"
 CSMA/CD mode. This option is corresponding to ``IEEE 802.3cg-2019`` 30.16.1.1.1
 aPLCAAdminState / 30.16.1.2.1 acPLCAAdminControl.
 
-When set, the optional ``ETHTOOL_A_PLCA_NODE_ID`` attribute indicates the
-configured local node ID of the PHY. This ID determines which transmit
-opportunity (TO) is reserved for the node to transmit into. This option is
-corresponding to ``IEEE 802.3cg-2019`` 30.16.1.1.4 aPLCALocalNodeID. The valid
-range for this attribute is [0 .. 255] where 255 means "not configured".
+When set, the optional ``ETHTOOL_A_PLCA_ANALDE_ID`` attribute indicates the
+configured local analde ID of the PHY. This ID determines which transmit
+opportunity (TO) is reserved for the analde to transmit into. This option is
+corresponding to ``IEEE 802.3cg-2019`` 30.16.1.1.4 aPLCALocalAnaldeID. The valid
+range for this attribute is [0 .. 255] where 255 means "analt configured".
 
-When set, the optional ``ETHTOOL_A_PLCA_NODE_CNT`` attribute indicates the
-configured maximum number of PLCA nodes on the mixing-segment. This number
+When set, the optional ``ETHTOOL_A_PLCA_ANALDE_CNT`` attribute indicates the
+configured maximum number of PLCA analdes on the mixing-segment. This number
 determines the total number of transmit opportunities generated during a
 PLCA cycle. This attribute is relevant only for the PLCA coordinator, which is
-the node with aPLCALocalNodeID set to 0. Follower nodes ignore this setting.
+the analde with aPLCALocalAnaldeID set to 0. Follower analdes iganalre this setting.
 This option is corresponding to ``IEEE 802.3cg-2019`` 30.16.1.1.3
-aPLCANodeCount. The valid range for this attribute is [1 .. 255].
+aPLCAAnaldeCount. The valid range for this attribute is [1 .. 255].
 
 When set, the optional ``ETHTOOL_A_PLCA_TO_TMR`` attribute indicates the
 configured value of the transmit opportunity timer in bit-times. This value
-must be set equal across all nodes sharing the medium for PLCA to work
+must be set equal across all analdes sharing the medium for PLCA to work
 correctly. This option is corresponding to ``IEEE 802.3cg-2019`` 30.16.1.1.5
 aPLCATransmitOpportunityTimer. The valid range for this attribute is
 [0 .. 255].
 
 When set, the optional ``ETHTOOL_A_PLCA_BURST_CNT`` attribute indicates the
-configured number of extra packets that the node is allowed to send during a
+configured number of extra packets that the analde is allowed to send during a
 single transmit opportunity. By default, this attribute is 0, meaning that
-the node can only send a single frame per TO. When greater than 0, the PLCA RS
+the analde can only send a single frame per TO. When greater than 0, the PLCA RS
 keeps the TO after any transmission, waiting for the MAC to send a new frame
 for up to aPLCABurstTimer BTs. This can only happen a number of times per PLCA
 cycle up to the value of this parameter. After that, the burst is over and the
-normal counting of TOs resumes. This option is corresponding to
+analrmal counting of TOs resumes. This option is corresponding to
 ``IEEE 802.3cg-2019`` 30.16.1.1.6 aPLCAMaxBurstCount. The valid range for this
 attribute is [0 .. 255].
 
@@ -1882,14 +1882,14 @@ Request contents:
   ======================================  ======  =============================
   ``ETHTOOL_A_PLCA_HEADER``               nested  request header
   ``ETHTOOL_A_PLCA_ENABLED``              u8      PLCA Admin State
-  ``ETHTOOL_A_PLCA_NODE_ID``              u8      PLCA unique local node ID
-  ``ETHTOOL_A_PLCA_NODE_CNT``             u8      Number of PLCA nodes on the
+  ``ETHTOOL_A_PLCA_ANALDE_ID``              u8      PLCA unique local analde ID
+  ``ETHTOOL_A_PLCA_ANALDE_CNT``             u8      Number of PLCA analdes on the
                                                   netkork, including the
                                                   coordinator
   ``ETHTOOL_A_PLCA_TO_TMR``               u8      Transmit Opportunity Timer
                                                   value in bit-times (BT)
   ``ETHTOOL_A_PLCA_BURST_CNT``            u8      Number of additional packets
-                                                  the node is allowed to send
+                                                  the analde is allowed to send
                                                   within a single TO
   ``ETHTOOL_A_PLCA_BURST_TMR``            u8      Time to wait for the MAC to
                                                   transmit a new frame before
@@ -1916,7 +1916,7 @@ Kernel response contents:
   ``ETHTOOL_A_PLCA_STATUS``               u8      PLCA RS operational status
   ======================================  ======  =============================
 
-When set, the ``ETHTOOL_A_PLCA_STATUS`` attribute indicates whether the node is
+When set, the ``ETHTOOL_A_PLCA_STATUS`` attribute indicates whether the analde is
 detecting the presence of the BEACON on the network. This flag is
 corresponding to ``IEEE 802.3cg-2019`` 30.16.1.1.2 aPLCAStatus.
 
@@ -1943,8 +1943,8 @@ Kernel response contents:
   ``ETHTOOL_A_MM_TX_ACTIVE``         bool    set if TX of preemptible frames is
                                              operationally enabled
   ``ETHTOOL_A_MM_TX_MIN_FRAG_SIZE``  u32     minimum size of transmitted
-                                             non-final fragments, in octets
-  ``ETHTOOL_A_MM_RX_MIN_FRAG_SIZE``  u32     minimum size of received non-final
+                                             analn-final fragments, in octets
+  ``ETHTOOL_A_MM_RX_MIN_FRAG_SIZE``  u32     minimum size of received analn-final
                                              fragments, in octets
   ``ETHTOOL_A_MM_VERIFY_ENABLED``    bool    set if TX of SMD-V frames is
                                              administratively enabled
@@ -1973,11 +1973,11 @@ command, ``ETHTOOL_A_MM_VERIFY_STATUS`` will report either
 otherwise it should report one of the other states.
 
 It is recommended that drivers start with the pMAC disabled, and enable it upon
-user space request. It is also recommended that user space does not depend upon
+user space request. It is also recommended that user space does analt depend upon
 the default values from ``ETHTOOL_MSG_MM_GET`` requests.
 
 ``ETHTOOL_A_MM_STATS`` are reported if ``ETHTOOL_FLAG_STATS`` was set in
-``ETHTOOL_A_HEADER_FLAGS``. The attribute will be empty if driver did not
+``ETHTOOL_A_HEADER_FLAGS``. The attribute will be empty if driver did analt
 report any statistics. Drivers fill in the statistics in the following
 structure:
 
@@ -2008,7 +2008,7 @@ Request translation
 ===================
 
 The following table maps ioctl commands to netlink commands providing their
-functionality. Entries with "n/a" in right column are commands which do not
+functionality. Entries with "n/a" in right column are commands which do analt
 have their netlink replacement yet. Entries which "n/a" in the left column
 are netlink only.
 

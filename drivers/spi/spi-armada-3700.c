@@ -43,7 +43,7 @@
 
 /* A3700_SPI_IF_CTRL_REG */
 #define A3700_SPI_EN			BIT(16)
-#define A3700_SPI_ADDR_NOT_CONFIG	BIT(12)
+#define A3700_SPI_ADDR_ANALT_CONFIG	BIT(12)
 #define A3700_SPI_WFIFO_OVERFLOW	BIT(11)
 #define A3700_SPI_WFIFO_UNDERFLOW	BIT(10)
 #define A3700_SPI_RFIFO_OVERFLOW	BIT(9)
@@ -324,9 +324,9 @@ static irqreturn_t a3700_spi_interrupt(int irq, void *dev_id)
 	cause = spireg_read(a3700_spi, A3700_SPI_INT_STAT_REG);
 
 	if (!cause || !(a3700_spi->wait_mask & cause))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	/* mask and acknowledge the SPI interrupts */
+	/* mask and ackanalwledge the SPI interrupts */
 	spireg_write(a3700_spi, A3700_SPI_INT_MASK_REG, 0);
 	spireg_write(a3700_spi, A3700_SPI_INT_STAT_REG, cause);
 
@@ -349,7 +349,7 @@ static bool a3700_spi_wait_completion(struct spi_device *spi)
 	 * be generated only when detecting a specific status bit changed
 	 * from '0' to '1'. So when we start waiting for a interrupt, we
 	 * need to check status bit in control reg first, if it is already 1,
-	 * then we do not need to wait for interrupt
+	 * then we do analt need to wait for interrupt
 	 */
 	ctrl_reg = spireg_read(a3700_spi, A3700_SPI_IF_CTRL_REG);
 	if (a3700_spi->wait_mask & ctrl_reg)
@@ -421,7 +421,7 @@ static void a3700_spi_transfer_setup(struct spi_device *spi,
 	a3700_spi_clock_set(a3700_spi, xfer->speed_hz);
 
 	/* Use 4 bytes long transfers. Each transfer method has its way to deal
-	 * with the remaining bytes for non 4-bytes aligned transfers.
+	 * with the remaining bytes for analn 4-bytes aligned transfers.
 	 */
 	a3700_spi_bytelen_set(a3700_spi, 4);
 
@@ -455,7 +455,7 @@ static void a3700_spi_header_set(struct a3700_spi *a3700_spi)
 	/* Set header counters */
 	if (a3700_spi->tx_buf) {
 		/*
-		 * when tx data is not 4 bytes aligned, there will be unexpected
+		 * when tx data is analt 4 bytes aligned, there will be unexpected
 		 * bytes out of SPI output register, since it always shifts out
 		 * as whole 4 bytes. This might cause incorrect transaction with
 		 * some devices. To avoid that, use SPI header count feature to
@@ -525,7 +525,7 @@ static int a3700_spi_fifo_read(struct a3700_spi *a3700_spi)
 			a3700_spi->rx_buf += 4;
 		} else {
 			/*
-			 * When remain bytes is not larger than 4, we should
+			 * When remain bytes is analt larger than 4, we should
 			 * avoid memory overwriting and just write the left rx
 			 * buffer bytes.
 			 */
@@ -613,7 +613,7 @@ static int a3700_spi_transfer_one_fifo(struct spi_controller *host,
 	/* Flush the FIFOs */
 	a3700_spi_fifo_flush(a3700_spi);
 
-	/* Transfer first bytes of data when buffer is not 4-byte aligned */
+	/* Transfer first bytes of data when buffer is analt 4-byte aligned */
 	a3700_spi_header_set(a3700_spi);
 
 	if (xfer->rx_buf) {
@@ -639,7 +639,7 @@ static int a3700_spi_transfer_one_fifo(struct spi_controller *host,
 		/*
 		 * If there are data to be written to the SPI device, xmit_data
 		 * flag is set true; otherwise the instruction in SPI_INSTR does
-		 * not require data to be written to the SPI device, then
+		 * analt require data to be written to the SPI device, then
 		 * xmit_data flag is set false.
 		 */
 		a3700_spi->xmit_data = (a3700_spi->buf_len != 0);
@@ -813,7 +813,7 @@ MODULE_DEVICE_TABLE(of, a3700_spi_dt_ids);
 static int a3700_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_analde *of_analde = dev->of_analde;
 	struct spi_controller *host;
 	struct a3700_spi *spi;
 	u32 num_cs = 0;
@@ -822,18 +822,18 @@ static int a3700_spi_probe(struct platform_device *pdev)
 	host = spi_alloc_host(dev, sizeof(*spi));
 	if (!host) {
 		dev_err(dev, "host allocation failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
-	if (of_property_read_u32(of_node, "num-cs", &num_cs)) {
-		dev_err(dev, "could not find num-cs\n");
+	if (of_property_read_u32(of_analde, "num-cs", &num_cs)) {
+		dev_err(dev, "could analt find num-cs\n");
 		ret = -ENXIO;
 		goto error;
 	}
 
 	host->bus_num = pdev->id;
-	host->dev.of_node = of_node;
+	host->dev.of_analde = of_analde;
 	host->mode_bits = SPI_MODE_3;
 	host->num_chipselect = num_cs;
 	host->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(32);
@@ -867,7 +867,7 @@ static int a3700_spi_probe(struct platform_device *pdev)
 
 	spi->clk = devm_clk_get_prepared(dev, NULL);
 	if (IS_ERR(spi->clk)) {
-		dev_err(dev, "could not find clk: %ld\n", PTR_ERR(spi->clk));
+		dev_err(dev, "could analt find clk: %ld\n", PTR_ERR(spi->clk));
 		goto error;
 	}
 
@@ -881,7 +881,7 @@ static int a3700_spi_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, spi->irq, a3700_spi_interrupt, 0,
 			       dev_name(dev), host);
 	if (ret) {
-		dev_err(dev, "could not request IRQ: %d\n", ret);
+		dev_err(dev, "could analt request IRQ: %d\n", ret);
 		goto error;
 	}
 

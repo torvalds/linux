@@ -15,7 +15,7 @@ struct mt7996_coredump {
 
 	/* time-of-day stamp */
 	u64 tv_sec;
-	/* time-of-day stamp, nano-seconds */
+	/* time-of-day stamp, naanal-seconds */
 	u64 tv_nsec;
 	/* kernel version */
 	char kernel[64];

@@ -41,7 +41,7 @@ static int xilly_drv_probe(struct platform_device *op)
 	endpoint = xillybus_init_endpoint(dev);
 
 	if (!endpoint)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, endpoint);
 
@@ -58,7 +58,7 @@ static int xilly_drv_probe(struct platform_device *op)
 	if (rc) {
 		dev_err(endpoint->dev,
 			"Failed to register IRQ handler. Aborting.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return xillybus_endpoint_discovery(endpoint);

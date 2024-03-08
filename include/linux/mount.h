@@ -22,14 +22,14 @@ struct fs_context;
 struct file;
 struct path;
 
-#define MNT_NOSUID	0x01
-#define MNT_NODEV	0x02
-#define MNT_NOEXEC	0x04
-#define MNT_NOATIME	0x08
-#define MNT_NODIRATIME	0x10
+#define MNT_ANALSUID	0x01
+#define MNT_ANALDEV	0x02
+#define MNT_ANALEXEC	0x04
+#define MNT_ANALATIME	0x08
+#define MNT_ANALDIRATIME	0x10
 #define MNT_RELATIME	0x20
 #define MNT_READONLY	0x40	/* does the user want this to be r/o? */
-#define MNT_NOSYMFOLLOW	0x80
+#define MNT_ANALSYMFOLLOW	0x80
 
 #define MNT_SHRINKABLE	0x100
 #define MNT_WRITE_HOLD	0x200
@@ -39,15 +39,15 @@ struct path;
 /*
  * MNT_SHARED_MASK is the set of flags that should be cleared when a
  * mount becomes shared.  Currently, this is only the flag that says a
- * mount cannot be bind mounted, since this is how we create a mount
- * that shares events with another mount.  If you add a new MNT_*
+ * mount cananalt be bind mounted, since this is how we create a mount
+ * that shares events with aanalther mount.  If you add a new MNT_*
  * flag, consider how it interacts with shared mounts.
  */
 #define MNT_SHARED_MASK	(MNT_UNBINDABLE)
-#define MNT_USER_SETTABLE_MASK  (MNT_NOSUID | MNT_NODEV | MNT_NOEXEC \
-				 | MNT_NOATIME | MNT_NODIRATIME | MNT_RELATIME \
-				 | MNT_READONLY | MNT_NOSYMFOLLOW)
-#define MNT_ATIME_MASK (MNT_NOATIME | MNT_NODIRATIME | MNT_RELATIME )
+#define MNT_USER_SETTABLE_MASK  (MNT_ANALSUID | MNT_ANALDEV | MNT_ANALEXEC \
+				 | MNT_ANALATIME | MNT_ANALDIRATIME | MNT_RELATIME \
+				 | MNT_READONLY | MNT_ANALSYMFOLLOW)
+#define MNT_ATIME_MASK (MNT_ANALATIME | MNT_ANALDIRATIME | MNT_RELATIME )
 
 #define MNT_INTERNAL_FLAGS (MNT_SHARED | MNT_WRITE_HOLD | MNT_INTERNAL | \
 			    MNT_DOOMED | MNT_SYNC_UMOUNT | MNT_MARKED | MNT_ONRB)
@@ -55,9 +55,9 @@ struct path;
 #define MNT_INTERNAL	0x4000
 
 #define MNT_LOCK_ATIME		0x040000
-#define MNT_LOCK_NOEXEC		0x080000
-#define MNT_LOCK_NOSUID		0x100000
-#define MNT_LOCK_NODEV		0x200000
+#define MNT_LOCK_ANALEXEC		0x080000
+#define MNT_LOCK_ANALSUID		0x100000
+#define MNT_LOCK_ANALDEV		0x200000
 #define MNT_LOCK_READONLY	0x400000
 #define MNT_LOCKED		0x800000
 #define MNT_DOOMED		0x1000000

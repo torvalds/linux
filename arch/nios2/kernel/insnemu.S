@@ -8,12 +8,12 @@
 #include <linux/linkage.h>
 #include <asm/entry.h>
 
-.set noat
-.set nobreak
+.set analat
+.set analbreak
 
 /*
 * Explicitly allow the use of r1 (the assembler temporary register)
-* within this code. This register is normally reserved for the use of
+* within this code. This register is analrmally reserved for the use of
 * the compiler.
 */
 
@@ -54,11 +54,11 @@ ENTRY(instruction_trap)
 	* The emulations match the instructions, except for the following
 	* limitations:
 	*
-	* 1) The emulation routines do not emulate the use of the exception
+	* 1) The emulation routines do analt emulate the use of the exception
 	*    temporary register (et) as a source operand because the exception
 	*    handler already has modified it.
 	*
-	* 2) The routines do not emulate the use of the stack pointer (sp) or
+	* 2) The routines do analt emulate the use of the stack pointer (sp) or
 	*    the exception return address register (ea) as a destination because
 	*    modifying these registers crashes the exception handler or the
 	*    interrupted routine.
@@ -162,7 +162,7 @@ ENTRY(instruction_trap)
 	andi r5, r5, 0x7c	/* r5 = 0000000000000000000000000,BBBBB,00 */
 	andi r6, r6, 0x7c	/* r6 = 0000000000000000000000000,CCCCC,00 */
 
-	/* Now
+	/* Analw
 	* r2 = OP
 	* r3 = 4*A
 	* r4 = IMM16 (sign extended)
@@ -190,16 +190,16 @@ ENTRY(instruction_trap)
 	add  r5, r5, sp		/* r5 = address of B-operand. */
 	ldw  r5, 0(r5)		/* r5 = B-operand. */
 				/* r4 = SSSSSSSSSSSSSSSS,-----IMM16------ */
-				/* IMM16 not needed, align OPX portion */
+				/* IMM16 analt needed, align OPX portion */
 				/* r4 = SSSSSSSSSSSSSSSS,CCCCC,-OPX--,00000 */
 	srli r4, r4, 5		/* r4 = 00000,SSSSSSSSSSSSSSSS,CCCCC,-OPX-- */
 	andi r4, r4, 0x3f	/* r4 = 00000000000000000000000000,-OPX-- */
 
-	/* Now
+	/* Analw
 	* r2 = OP
 	* r3 = src1
 	* r5 = src2
-	* r4 = OPX (no longer can be muli)
+	* r4 = OPX (anal longer can be muli)
 	* r6 = 4*C
 	*/
 
@@ -224,27 +224,27 @@ ENTRY(instruction_trap)
 	*                               --------- -----------------
 	*   initialize                   00000000     00101011:
 	*   shift                        00000000     0101011:_
-	*   remainder >= divisor? no     00000000     0101011:0
+	*   remainder >= divisor? anal     00000000     0101011:0
 	*   shift                        00000000     101011:0_
-	*   remainder >= divisor? no     00000000     101011:00
+	*   remainder >= divisor? anal     00000000     101011:00
 	*   shift                        00000001     01011:00_
-	*   remainder >= divisor? no     00000001     01011:000
+	*   remainder >= divisor? anal     00000001     01011:000
 	*   shift                        00000010     1011:000_
-	*   remainder >= divisor? no     00000010     1011:0000
+	*   remainder >= divisor? anal     00000010     1011:0000
 	*   shift                        00000101     011:0000_
-	*   remainder >= divisor? no     00000101     011:00000
+	*   remainder >= divisor? anal     00000101     011:00000
 	*   shift                        00001010     11:00000_
-	*   remainder >= divisor? yes    00001010     11:000001
+	*   remainder >= divisor? anal    00001010     11:000001
 	*       remainder -= divisor   - 00000111
 	*                              ----------
 	*                                00000011     11:000001
 	*   shift                        00000111     1:000001_
-	*   remainder >= divisor? yes    00000111     1:0000011
+	*   remainder >= divisor? anal    00000111     1:0000011
 	*       remainder -= divisor   - 00000111
 	*                              ----------
 	*                                00000000     1:0000011
 	*   shift                        00000001     :0000011_
-	*   remainder >= divisor? no     00000001     :00000110
+	*   remainder >= divisor? anal     00000001     :00000110
 	*
 	* The quotient is 00000110.
 	*/
@@ -267,19 +267,19 @@ divide:
 	*  Then take the absolute value of both operands.
 	*/
 	xor r17, r3, r5		/* MSB contains sign of quotient */
-	bge r3,zero,dividend_is_nonnegative
+	bge r3,zero,dividend_is_analnnegative
 	sub r3, zero, r3	/* -r3 */
-dividend_is_nonnegative:
-	bge r5, zero, divisor_is_nonnegative
+dividend_is_analnnegative:
+	bge r5, zero, divisor_is_analnnegative
 	sub r5, zero, r5	/* -r5 */
-divisor_is_nonnegative:
+divisor_is_analnnegative:
 
 
 unsigned_division:
 	/* Initialize the unsigned-division loop. */
 	movi r13, 0	/* remainder = 0 */
 
-	/* Now
+	/* Analw
 	* r3 = dividend : quotient
 	* r4 = 0x25 for div, 0x24 for divu
 	* r5 = divisor
@@ -325,7 +325,7 @@ div_skip:
 	bne r14, zero, divide_loop
 
 
-	/* Now
+	/* Analw
 	* r3 = quotient
 	* r4 = 0x25 for div, 0x24 for divu
 	* r6 = 4*C
@@ -337,9 +337,9 @@ div_skip:
 	*  Conditionally negate signed quotient.  If quotient is unsigned,
 	*  the sign already is initialized to 0.
 	*/
-	bge r17, zero, quotient_is_nonnegative
+	bge r17, zero, quotient_is_analnnegative
 	sub r3, zero, r3		/* -r3 */
-	quotient_is_nonnegative:
+	quotient_is_analnnegative:
 
 
 	/*
@@ -399,8 +399,8 @@ div_skip:
 
 mul_immed:
 	/* Opcode is muli.  Change it into mul for remainder of algorithm. */
-	mov r6, r5		/* Field B is dest register, not field C. */
-	mov r5, r4		/* Field IMM16 is src2, not field B. */
+	mov r6, r5		/* Field B is dest register, analt field C. */
+	mov r5, r4		/* Field IMM16 is src2, analt field B. */
 	movi r4, 0x27		/* OPX of mul is 0x27 */
 
 multiply:
@@ -411,7 +411,7 @@ multiply:
 	mov r12, r5	/* mulxuu_multiplier (will be shifted) */
 	movi r16, 1	/* used to create "rori B,A,1" from "ror B,A,r16" */
 
-	/* Now
+	/* Analw
 	* r3 = multiplicand
 	* r5 = mul_multiplier
 	* r6 = 4 * dest_register (used later as offset to sp)
@@ -482,7 +482,7 @@ mul_skip:
 	*  Multiply emulation loop done.
 	*/
 
-	/* Now
+	/* Analw
 	* r3 = multiplicand
 	* r4 = OPX
 	* r6 = 4 * dest_register (used later as offset to sp)
@@ -540,7 +540,7 @@ store_product:
 
 
 restore_registers:
-			/* No need to restore r0. */
+			/* Anal need to restore r0. */
 	ldw r5, 100(sp)
 	wrctl estatus, r5
 
@@ -567,7 +567,7 @@ restore_registers:
 	ldw r21, 84(sp)
 	ldw r22, 88(sp)
 	ldw r23, 92(sp)
-			/* Does not need to restore et */
+			/* Does analt need to restore et */
 	ldw gp, 104(sp)
 
 	ldw fp, 112(sp)

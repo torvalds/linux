@@ -19,12 +19,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -38,7 +38,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/major.h>
@@ -63,7 +63,7 @@ struct per_user_data {
 	struct rb_root evtchns;
 	unsigned int nr_evtchns;
 
-	/* Notification ring, accessed via /dev/xen/evtchn. */
+	/* Analtification ring, accessed via /dev/xen/evtchn. */
 	unsigned int ring_size;
 	evtchn_port_t *ring;
 	unsigned int ring_cons, ring_prod, ring_overflow;
@@ -81,7 +81,7 @@ struct per_user_data {
 #define UNRESTRICTED_DOMID ((domid_t)-1)
 
 struct user_evtchn {
-	struct rb_node node;
+	struct rb_analde analde;
 	struct per_user_data *user;
 	evtchn_port_t port;
 	bool enabled;
@@ -106,14 +106,14 @@ static evtchn_port_t *evtchn_ring_entry(struct per_user_data *u,
 
 static int add_evtchn(struct per_user_data *u, struct user_evtchn *evtchn)
 {
-	struct rb_node **new = &(u->evtchns.rb_node), *parent = NULL;
+	struct rb_analde **new = &(u->evtchns.rb_analde), *parent = NULL;
 
 	u->nr_evtchns++;
 
 	while (*new) {
 		struct user_evtchn *this;
 
-		this = rb_entry(*new, struct user_evtchn, node);
+		this = rb_entry(*new, struct user_evtchn, analde);
 
 		parent = *new;
 		if (this->port < evtchn->port)
@@ -124,9 +124,9 @@ static int add_evtchn(struct per_user_data *u, struct user_evtchn *evtchn)
 			return -EEXIST;
 	}
 
-	/* Add new node and rebalance tree. */
-	rb_link_node(&evtchn->node, parent, new);
-	rb_insert_color(&evtchn->node, &u->evtchns);
+	/* Add new analde and rebalance tree. */
+	rb_link_analde(&evtchn->analde, parent, new);
+	rb_insert_color(&evtchn->analde, &u->evtchns);
 
 	return 0;
 }
@@ -134,24 +134,24 @@ static int add_evtchn(struct per_user_data *u, struct user_evtchn *evtchn)
 static void del_evtchn(struct per_user_data *u, struct user_evtchn *evtchn)
 {
 	u->nr_evtchns--;
-	rb_erase(&evtchn->node, &u->evtchns);
+	rb_erase(&evtchn->analde, &u->evtchns);
 	kfree(evtchn);
 }
 
 static struct user_evtchn *find_evtchn(struct per_user_data *u,
 				       evtchn_port_t port)
 {
-	struct rb_node *node = u->evtchns.rb_node;
+	struct rb_analde *analde = u->evtchns.rb_analde;
 
-	while (node) {
+	while (analde) {
 		struct user_evtchn *evtchn;
 
-		evtchn = rb_entry(node, struct user_evtchn, node);
+		evtchn = rb_entry(analde, struct user_evtchn, analde);
 
 		if (evtchn->port < port)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (evtchn->port > port)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return evtchn;
 	}
@@ -165,7 +165,7 @@ static irqreturn_t evtchn_interrupt(int irq, void *data)
 	unsigned int prod, cons;
 
 	WARN(!evtchn->enabled,
-	     "Interrupt for port %u, but apparently not enabled; per-user %p\n",
+	     "Interrupt for port %u, but apparently analt enabled; per-user %p\n",
 	     evtchn->port, u);
 
 	evtchn->enabled = false;
@@ -222,7 +222,7 @@ static ssize_t evtchn_read(struct file *file, char __user *buf,
 
 		mutex_unlock(&u->ring_cons_mutex);
 
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 
 		rc = wait_event_interruptible(u->evtchn_wait,
@@ -272,7 +272,7 @@ static ssize_t evtchn_write(struct file *file, const char __user *buf,
 	struct per_user_data *u = file->private_data;
 
 	if (kbuf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Whole number of ports. */
 	count &= ~(sizeof(evtchn_port_t)-1);
@@ -316,7 +316,7 @@ static int evtchn_resize_ring(struct per_user_data *u)
 	evtchn_port_t *new_ring, *old_ring;
 
 	/*
-	 * Ensure the ring is large enough to capture all possible
+	 * Ensure the ring is large eanalugh to capture all possible
 	 * events. i.e., one free slot for each bound event.
 	 */
 	if (u->nr_evtchns <= u->ring_size)
@@ -329,7 +329,7 @@ static int evtchn_resize_ring(struct per_user_data *u)
 
 	new_ring = kvmalloc_array(new_size, sizeof(*new_ring), GFP_KERNEL);
 	if (!new_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	old_ring = u->ring;
 
@@ -376,14 +376,14 @@ static int evtchn_bind_to_user(struct per_user_data *u, evtchn_port_t port,
 	 * Ports are never reused, so every caller should pass in a
 	 * unique port.
 	 *
-	 * (Locking not necessary because we haven't registered the
+	 * (Locking analt necessary because we haven't registered the
 	 * interrupt handler yet, and our caller has already
 	 * serialized bind operations.)
 	 */
 
 	evtchn = kzalloc(sizeof(*evtchn), GFP_KERNEL);
 	if (!evtchn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	evtchn->user = u;
 	evtchn->port = port;
@@ -406,7 +406,7 @@ static int evtchn_bind_to_user(struct per_user_data *u, evtchn_port_t port,
 	return rc;
 
 err:
-	/* bind failed, should close the port now */
+	/* bind failed, should close the port analw */
 	if (!is_static)
 		xen_evtchn_close(port);
 
@@ -451,7 +451,7 @@ static long evtchn_ioctl(struct file *file,
 
 		bind_virq.virq = bind.virq;
 		bind_virq.vcpu = xen_vcpu_nr(0);
-		rc = HYPERVISOR_event_channel_op(EVTCHNOP_bind_virq,
+		rc = HYPERVISOR_event_channel_op(EVTCHANALP_bind_virq,
 						 &bind_virq);
 		if (rc != 0)
 			break;
@@ -477,7 +477,7 @@ static long evtchn_ioctl(struct file *file,
 
 		bind_interdomain.remote_dom  = bind.remote_domain;
 		bind_interdomain.remote_port = bind.remote_port;
-		rc = HYPERVISOR_event_channel_op(EVTCHNOP_bind_interdomain,
+		rc = HYPERVISOR_event_channel_op(EVTCHANALP_bind_interdomain,
 						 &bind_interdomain);
 		if (rc != 0)
 			break;
@@ -502,7 +502,7 @@ static long evtchn_ioctl(struct file *file,
 
 		alloc_unbound.dom        = DOMID_SELF;
 		alloc_unbound.remote_dom = bind.remote_domain;
-		rc = HYPERVISOR_event_channel_op(EVTCHNOP_alloc_unbound,
+		rc = HYPERVISOR_event_channel_op(EVTCHANALP_alloc_unbound,
 						 &alloc_unbound);
 		if (rc != 0)
 			break;
@@ -525,7 +525,7 @@ static long evtchn_ioctl(struct file *file,
 		if (unbind.port >= xen_evtchn_nr_channels())
 			break;
 
-		rc = -ENOTCONN;
+		rc = -EANALTCONN;
 		evtchn = find_evtchn(u, unbind.port);
 		if (!evtchn)
 			break;
@@ -553,18 +553,18 @@ static long evtchn_ioctl(struct file *file,
 		break;
 	}
 
-	case IOCTL_EVTCHN_NOTIFY: {
-		struct ioctl_evtchn_notify notify;
+	case IOCTL_EVTCHN_ANALTIFY: {
+		struct ioctl_evtchn_analtify analtify;
 		struct user_evtchn *evtchn;
 
 		rc = -EFAULT;
-		if (copy_from_user(&notify, uarg, sizeof(notify)))
+		if (copy_from_user(&analtify, uarg, sizeof(analtify)))
 			break;
 
-		rc = -ENOTCONN;
-		evtchn = find_evtchn(u, notify.port);
+		rc = -EANALTCONN;
+		evtchn = find_evtchn(u, analtify.port);
 		if (evtchn) {
-			notify_remote_via_evtchn(notify.port);
+			analtify_remote_via_evtchn(analtify.port);
 			rc = 0;
 		}
 		break;
@@ -605,7 +605,7 @@ static long evtchn_ioctl(struct file *file,
 	}
 
 	default:
-		rc = -ENOSYS;
+		rc = -EANALSYS;
 		break;
 	}
 	mutex_unlock(&u->bind_mutex);
@@ -615,12 +615,12 @@ static long evtchn_ioctl(struct file *file,
 
 static __poll_t evtchn_poll(struct file *file, poll_table *wait)
 {
-	__poll_t mask = EPOLLOUT | EPOLLWRNORM;
+	__poll_t mask = EPOLLOUT | EPOLLWRANALRM;
 	struct per_user_data *u = file->private_data;
 
 	poll_wait(file, &u->evtchn_wait, wait);
 	if (READ_ONCE(u->ring_cons) != READ_ONCE(u->ring_prod))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 	if (u->ring_overflow)
 		mask = EPOLLERR;
 	return mask;
@@ -632,18 +632,18 @@ static int evtchn_fasync(int fd, struct file *filp, int on)
 	return fasync_helper(fd, filp, on, &u->evtchn_async_queue);
 }
 
-static int evtchn_open(struct inode *inode, struct file *filp)
+static int evtchn_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct per_user_data *u;
 
 	u = kzalloc(sizeof(*u), GFP_KERNEL);
 	if (u == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	u->name = kasprintf(GFP_KERNEL, "evtchn:%s", current->comm);
 	if (u->name == NULL) {
 		kfree(u);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	init_waitqueue_head(&u->evtchn_wait);
@@ -656,18 +656,18 @@ static int evtchn_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = u;
 
-	return stream_open(inode, filp);
+	return stream_open(ianalde, filp);
 }
 
-static int evtchn_release(struct inode *inode, struct file *filp)
+static int evtchn_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct per_user_data *u = filp->private_data;
-	struct rb_node *node;
+	struct rb_analde *analde;
 
-	while ((node = u->evtchns.rb_node)) {
+	while ((analde = u->evtchns.rb_analde)) {
 		struct user_evtchn *evtchn;
 
-		evtchn = rb_entry(node, struct user_evtchn, node);
+		evtchn = rb_entry(analde, struct user_evtchn, analde);
 		disable_irq(irq_from_evtchn(evtchn->port));
 		evtchn_unbind_from_user(u, evtchn);
 	}
@@ -688,11 +688,11 @@ static const struct file_operations evtchn_fops = {
 	.fasync  = evtchn_fasync,
 	.open    = evtchn_open,
 	.release = evtchn_release,
-	.llseek	 = no_llseek,
+	.llseek	 = anal_llseek,
 };
 
 static struct miscdevice evtchn_miscdev = {
-	.minor        = MISC_DYNAMIC_MINOR,
+	.mianalr        = MISC_DYNAMIC_MIANALR,
 	.name         = "xen/evtchn",
 	.fops         = &evtchn_fops,
 };
@@ -701,12 +701,12 @@ static int __init evtchn_init(void)
 	int err;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Create '/dev/xen/evtchn'. */
 	err = misc_register(&evtchn_miscdev);
 	if (err != 0) {
-		pr_err("Could not register /dev/xen/evtchn\n");
+		pr_err("Could analt register /dev/xen/evtchn\n");
 		return err;
 	}
 

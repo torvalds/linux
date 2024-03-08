@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -37,7 +37,7 @@ static int __init drm_sched_fence_slab_init(void)
 		"drm_sched_fence", sizeof(struct drm_sched_fence), 0,
 		SLAB_HWCACHE_ALIGN, NULL);
 	if (!sched_fence_slab)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -52,7 +52,7 @@ static void drm_sched_fence_set_parent(struct drm_sched_fence *s_fence,
 				       struct dma_fence *fence)
 {
 	/*
-	 * smp_store_release() to ensure another thread racing us
+	 * smp_store_release() to ensure aanalther thread racing us
 	 * in drm_sched_fence_set_deadline_finished() sees the
 	 * fence's parent set before test_bit()
 	 */
@@ -110,11 +110,11 @@ static void drm_sched_fence_free_rcu(struct rcu_head *rcu)
  * @fence: fence to free
  *
  * Free up the fence memory. Should only be used if drm_sched_fence_init()
- * has not been called yet.
+ * has analt been called yet.
  */
 void drm_sched_fence_free(struct drm_sched_fence *fence)
 {
-	/* This function should not be called if the fence has been initialized. */
+	/* This function should analt be called if the fence has been initialized. */
 	if (!WARN_ON_ONCE(fence->sched))
 		kmem_cache_free(sched_fence_slab, fence);
 }
@@ -171,7 +171,7 @@ static void drm_sched_fence_set_deadline_finished(struct dma_fence *f,
 	spin_unlock_irqrestore(&fence->lock, flags);
 
 	/*
-	 * smp_load_aquire() to ensure that if we are racing another
+	 * smp_load_aquire() to ensure that if we are racing aanalther
 	 * thread calling drm_sched_fence_set_parent(), that we see
 	 * the parent set before it calls test_bit(HAS_DEADLINE_BIT)
 	 */

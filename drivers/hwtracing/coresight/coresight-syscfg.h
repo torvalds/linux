@@ -14,11 +14,11 @@
 
 /*
  * Load operation types.
- * When loading or unloading, another load operation cannot be run.
- * When unloading configurations cannot be activated.
+ * When loading or unloading, aanalther load operation cananalt be run.
+ * When unloading configurations cananalt be activated.
  */
 enum cscfg_load_ops {
-	CSCFG_NONE,
+	CSCFG_ANALNE,
 	CSCFG_LOAD,
 	CSCFG_UNLOAD
 };

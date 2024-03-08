@@ -96,20 +96,20 @@ static ssize_t mmio_nvram_get_size(void)
 
 int __init mmio_nvram_init(void)
 {
-	struct device_node *nvram_node;
+	struct device_analde *nvram_analde;
 	unsigned long nvram_addr;
 	struct resource r;
 	int ret;
 
-	nvram_node = of_find_node_by_type(NULL, "nvram");
-	if (!nvram_node)
-		nvram_node = of_find_compatible_node(NULL, NULL, "nvram");
-	if (!nvram_node) {
-		printk(KERN_WARNING "nvram: no node found in device-tree\n");
-		return -ENODEV;
+	nvram_analde = of_find_analde_by_type(NULL, "nvram");
+	if (!nvram_analde)
+		nvram_analde = of_find_compatible_analde(NULL, NULL, "nvram");
+	if (!nvram_analde) {
+		printk(KERN_WARNING "nvram: anal analde found in device-tree\n");
+		return -EANALDEV;
 	}
 
-	ret = of_address_to_resource(nvram_node, 0, &r);
+	ret = of_address_to_resource(nvram_analde, 0, &r);
 	if (ret) {
 		printk(KERN_WARNING "nvram: failed to get address (err %d)\n",
 		       ret);
@@ -126,7 +126,7 @@ int __init mmio_nvram_init(void)
 	mmio_nvram_start = ioremap(nvram_addr, mmio_nvram_len);
 	if (!mmio_nvram_start) {
 		printk(KERN_WARNING "nvram: failed to ioremap\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -140,6 +140,6 @@ int __init mmio_nvram_init(void)
 	ppc_md.nvram_size	= mmio_nvram_get_size;
 
 out:
-	of_node_put(nvram_node);
+	of_analde_put(nvram_analde);
 	return ret;
 }

@@ -158,11 +158,11 @@ static ssize_t time_store(struct device *dev, struct device_attribute *attr,
 {
 	struct acpi_tad_rt rt;
 	char *str, *s;
-	int val, ret = -ENODATA;
+	int val, ret = -EANALDATA;
 
 	str = kmemdup_nul(buf, count, GFP_KERNEL);
 	if (!str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s = acpi_tad_rt_next_field(str, &val);
 	if (!s)
@@ -594,7 +594,7 @@ static int acpi_tad_probe(struct platform_device *pdev)
 	ret = acpi_install_cmos_rtc_space_handler(handle);
 	if (ret < 0) {
 		dev_info(dev, "Unable to install space handler\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/*
 	 * Initialization failure messages are mostly about firmware issues, so
@@ -603,25 +603,25 @@ static int acpi_tad_probe(struct platform_device *pdev)
 	status = acpi_evaluate_integer(handle, "_GCP", NULL, &caps);
 	if (ACPI_FAILURE(status)) {
 		dev_info(dev, "Unable to get capabilities\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto remove_handler;
 	}
 
 	if (!(caps & ACPI_TAD_AC_WAKE)) {
 		dev_info(dev, "Unsupported capabilities\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto remove_handler;
 	}
 
 	if (!acpi_has_method(handle, "_PRW")) {
 		dev_info(dev, "Missing _PRW\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto remove_handler;
 	}
 
 	dd = devm_kzalloc(dev, sizeof(*dd), GFP_KERNEL);
 	if (!dd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto remove_handler;
 	}
 

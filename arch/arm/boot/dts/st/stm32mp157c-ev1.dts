@@ -265,7 +265,7 @@
 	status = "okay";
 
 	flash0: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-rx-bus-width = <4>;
 		spi-max-frequency = <108000000>;
@@ -274,7 +274,7 @@
 	};
 
 	flash1: flash@1 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <1>;
 		spi-rx-bus-width = <4>;
 		spi-max-frequency = <108000000>;
@@ -393,7 +393,7 @@
 	st,trim-hs-impedance = <1>;
 	st,tune-squelch-level = <3>;
 	st,tune-hs-rx-offset = <2>;
-	st,no-lsfs-sc;
+	st,anal-lsfs-sc;
 
 	connector {
 		compatible = "usb-a-connector";
@@ -409,5 +409,5 @@
 	st,trim-hs-impedance = <1>;
 	st,tune-squelch-level = <3>;
 	st,tune-hs-rx-offset = <2>;
-	st,no-lsfs-sc;
+	st,anal-lsfs-sc;
 };

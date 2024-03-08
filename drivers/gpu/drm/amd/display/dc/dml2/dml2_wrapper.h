@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -43,7 +43,7 @@ struct display_stream_compressor;
 
 // Configuration of the MALL on the SoC
 struct dml2_soc_mall_info {
-	// Cache line size of 0 means MALL is not enabled/present
+	// Cache line size of 0 means MALL is analt enabled/present
 	unsigned int cache_line_size_bytes;
 	unsigned int cache_num_ways;
 	unsigned int max_cab_allocation_bytes;
@@ -216,16 +216,16 @@ bool dml2_create_copy(struct dml2_context **dst_dml2,
 	struct dml2_context *src_dml2);
 
 /*
- * dml2_validate - Determines if a display configuration is supported or not.
+ * dml2_validate - Determines if a display configuration is supported or analt.
  * @in_dc: dc.
  * @context: dc_state to be validated.
- * @fast_validate: Fast validate will not populate context.res_ctx.
+ * @fast_validate: Fast validate will analt populate context.res_ctx.
  *
  * DML1.0 compatible interface for validation.
  *
  * Based on fast_validate option internally would call:
  *
- * -dml2_validate_and_build_resource - for non fast_validate option
+ * -dml2_validate_and_build_resource - for analn fast_validate option
  * Calculates if dc_state can be supported on the SOC, and attempts to
  * optimize the power management feature supports versus minimum clocks.
  * If supported, also builds out_new_hw_state to represent the hw programming
@@ -235,7 +235,7 @@ bool dml2_create_copy(struct dml2_context **dst_dml2,
  * Calculates if dc_state can be supported on the SOC (i.e. at maximum
  * clocks) with all mandatory power features enabled.
 
- * Context: Two threads may not invoke this function concurrently unless they reference
+ * Context: Two threads may analt invoke this function concurrently unless they reference
  *          separate dc_states for validation.
  * Return: True if mode is supported, false otherwise.
  */

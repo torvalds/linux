@@ -7,7 +7,7 @@ struct net_device;
 
 #define DSA_MAX_SWITCHES	4
 #define DSA_MAX_PORTS		12
-#define DSA_RTABLE_NONE		-1
+#define DSA_RTABLE_ANALNE		-1
 
 struct dsa_chip_data {
 	/*
@@ -24,21 +24,21 @@ struct dsa_chip_data {
 	/* set to size of eeprom if supported by the switch */
 	int		eeprom_len;
 
-	/* Device tree node pointer for this specific switch chip
+	/* Device tree analde pointer for this specific switch chip
 	 * used during switch setup in case additional properties
 	 * and resources needs to be used
 	 */
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 
 	/*
 	 * The names of the switch's ports.  Use "cpu" to
 	 * designate the switch port that the cpu is connected to,
 	 * "dsa" to indicate that this port is a DSA link to
-	 * another switch, NULL to indicate the port is unused,
+	 * aanalther switch, NULL to indicate the port is unused,
 	 * or any other string to indicate this is a physical port.
 	 */
 	char		*port_names[DSA_MAX_PORTS];
-	struct device_node *port_dn[DSA_MAX_PORTS];
+	struct device_analde *port_dn[DSA_MAX_PORTS];
 
 	/*
 	 * An array of which element [a] indicates which port on this

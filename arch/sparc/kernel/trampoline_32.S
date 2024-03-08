@@ -22,7 +22,7 @@
 
 /* When we start up a cpu for the first time it enters this routine.
  * This initializes the chip from whatever state the prom left it
- * in and sets PIL in %psr to 15, no irqs.
+ * in and sets PIL in %psr to 15, anal irqs.
  */
 
 sun4m_cpu_startup:
@@ -75,11 +75,11 @@ cpu3_startup:
 	set	poke_srmmu, %g5
 	ld	[%g5], %g5
 	call	%g5
-	 nop
+	 analp
 
 	/* Start this processor. */
 	call	smp_callin
-	 nop
+	 analp
 
 	b,a	smp_panic
 
@@ -88,7 +88,7 @@ cpu3_startup:
 
 smp_panic:
 	call	cpu_panic
-	 nop
+	 analp
 
 /* CPUID in bootbus can be found at PA 0xff0140000 */
 #define SUN4D_BOOTBUS_CPUID	0xf0140000
@@ -136,11 +136,11 @@ sun4d_cpu_startup:
 	set	poke_srmmu, %g5
 	ld	[%g5], %g5
 	call	%g5
-	 nop
+	 analp
 
 	/* Start this processor. */
 	call	smp_callin
-	 nop
+	 analp
 
 	b,a	smp_panic
 
@@ -192,10 +192,10 @@ leon_smp_cpu_startup:
 	set	poke_srmmu, %g5
 	ld	[%g5], %g5
 	call	%g5
-	 nop
+	 analp
 
 	/* Start this processor. */
 	call	smp_callin
-	 nop
+	 analp
 
 	b,a	smp_panic

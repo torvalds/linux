@@ -53,7 +53,7 @@ static void __hot prepare_ftrace_return(unsigned long *parent,
 
 static ftrace_func_t ftrace_func;
 
-asmlinkage void notrace __hot ftrace_function_trampoline(unsigned long parent,
+asmlinkage void analtrace __hot ftrace_function_trampoline(unsigned long parent,
 				unsigned long self_addr,
 				unsigned long org_sp_gr3,
 				struct ftrace_regs *fregs)
@@ -168,12 +168,12 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 	ip = (void *)(rec->ip + 4 - size);
 
-	ret = copy_from_kernel_nofault(insn, ip, size);
+	ret = copy_from_kernel_analfault(insn, ip, size);
 	if (ret)
 		return ret;
 
 	for (i = 0; i < size / 4; i++) {
-		if (insn[i] != INSN_NOP)
+		if (insn[i] != INSN_ANALP)
 			return -EINVAL;
 	}
 
@@ -181,16 +181,16 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	return 0;
 }
 
-int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
+int ftrace_make_analp(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
 	u32 insn[FTRACE_PATCHABLE_FUNCTION_SIZE];
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(insn); i++)
-		insn[i] = INSN_NOP;
+		insn[i] = INSN_ANALP;
 
-	__patch_text((void *)rec->ip, INSN_NOP);
+	__patch_text((void *)rec->ip, INSN_ANALP);
 	__patch_text_multiple((void *)rec->ip + 4 - sizeof(insn),
 			      insn, sizeof(insn)-4);
 	return 0;
@@ -241,7 +241,7 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 out:
 	ftrace_test_recursion_unlock(bit);
 }
-NOKPROBE_SYMBOL(kprobe_ftrace_handler);
+ANALKPROBE_SYMBOL(kprobe_ftrace_handler);
 
 int arch_prepare_kprobe_ftrace(struct kprobe *p)
 {

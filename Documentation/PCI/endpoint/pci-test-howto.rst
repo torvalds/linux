@@ -47,7 +47,7 @@ Creating pci-epf-test Device
 PCI endpoint function device can be created using the configfs. To create
 pci-epf-test device, the following commands can be used::
 
-	# mount -t configfs none /sys/kernel/config
+	# mount -t configfs analne /sys/kernel/config
 	# cd /sys/kernel/config/pci_ep/
 	# mkdir functions/pci_epf_test/func1
 
@@ -113,7 +113,7 @@ RootComplex Device
 lspci Output
 ------------
 
-Note that the devices listed here correspond to the value populated in 1.4
+Analte that the devices listed here correspond to the value populated in 1.4
 above::
 
 	00:00.0 PCI bridge: Texas Instruments Device 8888 (rev 01)
@@ -148,13 +148,13 @@ pcitest.sh Output
 	BAR1:           OKAY
 	BAR2:           OKAY
 	BAR3:           OKAY
-	BAR4:           NOT OKAY
-	BAR5:           NOT OKAY
+	BAR4:           ANALT OKAY
+	BAR5:           ANALT OKAY
 
 	Interrupt tests
 
 	SET IRQ TYPE TO LEGACY:         OKAY
-	LEGACY IRQ:     NOT OKAY
+	LEGACY IRQ:     ANALT OKAY
 	SET IRQ TYPE TO MSI:            OKAY
 	MSI1:           OKAY
 	MSI2:           OKAY
@@ -172,22 +172,22 @@ pcitest.sh Output
 	MSI14:          OKAY
 	MSI15:          OKAY
 	MSI16:          OKAY
-	MSI17:          NOT OKAY
-	MSI18:          NOT OKAY
-	MSI19:          NOT OKAY
-	MSI20:          NOT OKAY
-	MSI21:          NOT OKAY
-	MSI22:          NOT OKAY
-	MSI23:          NOT OKAY
-	MSI24:          NOT OKAY
-	MSI25:          NOT OKAY
-	MSI26:          NOT OKAY
-	MSI27:          NOT OKAY
-	MSI28:          NOT OKAY
-	MSI29:          NOT OKAY
-	MSI30:          NOT OKAY
-	MSI31:          NOT OKAY
-	MSI32:          NOT OKAY
+	MSI17:          ANALT OKAY
+	MSI18:          ANALT OKAY
+	MSI19:          ANALT OKAY
+	MSI20:          ANALT OKAY
+	MSI21:          ANALT OKAY
+	MSI22:          ANALT OKAY
+	MSI23:          ANALT OKAY
+	MSI24:          ANALT OKAY
+	MSI25:          ANALT OKAY
+	MSI26:          ANALT OKAY
+	MSI27:          ANALT OKAY
+	MSI28:          ANALT OKAY
+	MSI29:          ANALT OKAY
+	MSI30:          ANALT OKAY
+	MSI31:          ANALT OKAY
+	MSI32:          ANALT OKAY
 	SET IRQ TYPE TO MSI-X:          OKAY
 	MSI-X1:         OKAY
 	MSI-X2:         OKAY
@@ -197,17 +197,17 @@ pcitest.sh Output
 	MSI-X6:         OKAY
 	MSI-X7:         OKAY
 	MSI-X8:         OKAY
-	MSI-X9:         NOT OKAY
-	MSI-X10:        NOT OKAY
-	MSI-X11:        NOT OKAY
-	MSI-X12:        NOT OKAY
-	MSI-X13:        NOT OKAY
-	MSI-X14:        NOT OKAY
-	MSI-X15:        NOT OKAY
-	MSI-X16:        NOT OKAY
+	MSI-X9:         ANALT OKAY
+	MSI-X10:        ANALT OKAY
+	MSI-X11:        ANALT OKAY
+	MSI-X12:        ANALT OKAY
+	MSI-X13:        ANALT OKAY
+	MSI-X14:        ANALT OKAY
+	MSI-X15:        ANALT OKAY
+	MSI-X16:        ANALT OKAY
 	[...]
-	MSI-X2047:      NOT OKAY
-	MSI-X2048:      NOT OKAY
+	MSI-X2047:      ANALT OKAY
+	MSI-X2048:      ANALT OKAY
 
 	Read Tests
 

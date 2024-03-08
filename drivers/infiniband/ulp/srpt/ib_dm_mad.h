@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Mellanox Technology Inc.  All rights reserved.
+ * Copyright (c) 2006 - 2009 Mellaanalx Techanallogy Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -47,7 +47,7 @@ enum {
 	DM_MAD_STATUS_UNSUP_METHOD = 0x0008,
 	DM_MAD_STATUS_UNSUP_METHOD_ATTR = 0x000c,
 	DM_MAD_STATUS_INVALID_FIELD = 0x001c,
-	DM_MAD_STATUS_NO_IOC = 0x0100,
+	DM_MAD_STATUS_ANAL_IOC = 0x0100,
 
 	/*
 	 * See also the Device Management chapter, section 16.3.3 Attributes,
@@ -67,12 +67,12 @@ struct ib_dm_hdr {
 /*
  * Structure of management datagram sent by the SRP target implementation.
  * Contains a management datagram header, reliable multi-packet transaction
- * protocol (RMPP) header and ib_dm_hdr. Notes:
- * - The SRP target implementation does not use RMPP or ib_dm_hdr when sending
+ * protocol (RMPP) header and ib_dm_hdr. Analtes:
+ * - The SRP target implementation does analt use RMPP or ib_dm_hdr when sending
  *   management datagrams.
  * - The header size must be exactly 64 bytes (IB_MGMT_DEVICE_HDR), since this
  *   is the header size that is passed to ib_create_send_mad() in ib_srpt.c.
- * - The maximum supported size for a management datagram when not using RMPP
+ * - The maximum supported size for a management datagram when analt using RMPP
  *   is 256 bytes -- 64 bytes header and 192 (IB_MGMT_DEVICE_DATA) bytes data.
  */
 struct ib_dm_mad {

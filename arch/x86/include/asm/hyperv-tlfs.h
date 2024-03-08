@@ -104,7 +104,7 @@
 #define HV_X64_RELAXED_TIMING_RECOMMENDED		BIT(5)
 
 /*
- * Recommend not using Auto End-Of-Interrupt feature
+ * Recommend analt using Auto End-Of-Interrupt feature
  */
 #define HV_DEPRECATING_AEOI_RECOMMENDED			BIT(9)
 
@@ -135,11 +135,11 @@
 #define HV_X64_RESERVED_IDENTITY_BIT			BIT(31)
 
 /*
- * Virtual processor will never share a physical core with another virtual
+ * Virtual processor will never share a physical core with aanalther virtual
  * processor, except for virtual processors that are reported as sibling SMT
  * threads.
  */
-#define HV_X64_NO_NONARCH_CORESHARING			BIT(18)
+#define HV_X64_ANAL_ANALNARCH_CORESHARING			BIT(18)
 
 /* Nested features. These are HYPERV_CPUID_NESTED_FEATURES.EAX bits. */
 #define HV_X64_NESTED_DIRECT_FLUSH			BIT(17)
@@ -167,7 +167,7 @@
 #define HV_SHARED_GPA_BOUNDARY_BITS			GENMASK(11, 6)
 
 enum hv_isolation_type {
-	HV_ISOLATION_TYPE_NONE	= 0,
+	HV_ISOLATION_TYPE_ANALNE	= 0,
 	HV_ISOLATION_TYPE_VBS	= 1,
 	HV_ISOLATION_TYPE_SNP	= 2,
 	HV_ISOLATION_TYPE_TDX	= 3
@@ -257,7 +257,7 @@ enum hv_isolation_type {
 /* Hyper-V guest idle MSR */
 #define HV_X64_MSR_GUEST_IDLE			0x400000F0
 
-/* Hyper-V guest crash notification MSR's */
+/* Hyper-V guest crash analtification MSR's */
 #define HV_REGISTER_CRASH_P0			0x40000100
 #define HV_REGISTER_CRASH_P1			0x40000101
 #define HV_REGISTER_CRASH_P2			0x40000102
@@ -304,14 +304,14 @@ enum hv_isolation_type {
 
 /*
  * Registers are only accessible via HVCALL_GET_VP_REGISTERS hvcall and
- * there is not associated MSR address.
+ * there is analt associated MSR address.
  */
 #define	HV_X64_REGISTER_VSM_VP_STATUS	0x000D0003
 #define	HV_X64_VTL_MASK			GENMASK(3, 0)
 
 /* Hyper-V memory host visibility */
 enum hv_mem_host_visibility {
-	VMBUS_PAGE_NOT_VISIBLE		= 0,
+	VMBUS_PAGE_ANALT_VISIBLE		= 0,
 	VMBUS_PAGE_VISIBLE_READ_ONLY	= 1,
 	VMBUS_PAGE_VISIBLE_READ_WRITE	= 3
 };
@@ -618,7 +618,7 @@ struct hv_enlightened_vmcs {
 	u64 padding64_6;
 } __packed;
 
-#define HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE			0
+#define HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE			0
 #define HV_VMX_ENLIGHTENED_CLEAN_FIELD_IO_BITMAP		BIT(0)
 #define HV_VMX_ENLIGHTENED_CLEAN_FIELD_MSR_BITMAP		BIT(1)
 #define HV_VMX_ENLIGHTENED_CLEAN_FIELD_CONTROL_GRP2		BIT(2)
@@ -639,11 +639,11 @@ struct hv_enlightened_vmcs {
 #define HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL			0xFFFF
 
 /*
- * Note, Hyper-V isn't actually stealing bit 28 from Intel, just abusing it by
+ * Analte, Hyper-V isn't actually stealing bit 28 from Intel, just abusing it by
  * pairing it with architecturally impossible exit reasons.  Bit 28 is set only
  * on SMI exits to a SMI transfer monitor (STM) and if and only if a MTF VM-Exit
- * is pending.  I.e. it will never be set by hardware for non-SMI exits (there
- * are only three), nor will it ever be set unless the VMM is an STM.
+ * is pending.  I.e. it will never be set by hardware for analn-SMI exits (there
+ * are only three), analr will it ever be set unless the VMM is an STM.
  */
 #define HV_VMX_SYNTHETIC_EXIT_REASON_TRAP_AFTER_FLUSH		0x10000031
 
@@ -731,7 +731,7 @@ struct hv_x64_segment_register {
 	union {
 		struct {
 			u16 segment_type : 4;
-			u16 non_system_segment : 1;
+			u16 analn_system_segment : 1;
 			u16 descriptor_privilege_level : 2;
 			u16 present : 1;
 			u16 reserved : 4;

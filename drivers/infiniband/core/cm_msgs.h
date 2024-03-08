@@ -3,7 +3,7 @@
  * Copyright (c) 2004, 2011 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
- * Copyright (c) 2019, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2019, Mellaanalx Techanallogies inc.  All rights reserved.
  */
 #ifndef CM_MSGS_H
 #define CM_MSGS_H

@@ -169,17 +169,17 @@ static void __init _mx27_clocks_init(unsigned long fref)
 	imx_print_silicon_rev("i.MX27", mx27_revision());
 }
 
-static void __init mx27_clocks_init_dt(struct device_node *np)
+static void __init mx27_clocks_init_dt(struct device_analde *np)
 {
-	struct device_node *refnp;
+	struct device_analde *refnp;
 	u32 fref = 26000000; /* default */
 
-	for_each_compatible_node(refnp, NULL, "fixed-clock") {
+	for_each_compatible_analde(refnp, NULL, "fixed-clock") {
 		if (!of_device_is_compatible(refnp, "fsl,imx-osc26m"))
 			continue;
 
 		if (!of_property_read_u32(refnp, "clock-frequency", &fref)) {
-			of_node_put(refnp);
+			of_analde_put(refnp);
 			break;
 		}
 	}

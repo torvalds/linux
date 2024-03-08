@@ -46,7 +46,7 @@
 static void assert_reg_lock(struct mv88e6xxx_chip *chip)
 {
 	if (unlikely(!mutex_is_locked(&chip->reg_lock))) {
-		dev_err(chip->dev, "Switch registers lock not held!\n");
+		dev_err(chip->dev, "Switch registers lock analt held!\n");
 		dump_stack();
 	}
 }
@@ -91,7 +91,7 @@ int mv88e6xxx_wait_mask(struct mv88e6xxx_chip *chip, int addr, int reg,
 	int err;
 	int i;
 
-	/* There's no bus specific operation to wait for a mask. Even
+	/* There's anal bus specific operation to wait for a mask. Even
 	 * if the initial poll takes longer than 50ms, always do at
 	 * least one more attempt.
 	 */
@@ -194,7 +194,7 @@ unlock:
 	} while (reg & ctl1);
 
 out:
-	return (nhandled > 0 ? IRQ_HANDLED : IRQ_NONE);
+	return (nhandled > 0 ? IRQ_HANDLED : IRQ_ANALNE);
 }
 
 static irqreturn_t mv88e6xxx_g1_irq_thread_fn(int irq, void *dev_id)
@@ -249,7 +249,7 @@ static int mv88e6xxx_g1_irq_domain_map(struct irq_domain *d,
 
 	irq_set_chip_data(irq, d->host_data);
 	irq_set_chip_and_handler(irq, &chip->g1_irq.chip, handle_level_irq);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
@@ -300,7 +300,7 @@ static int mv88e6xxx_g1_irq_setup_common(struct mv88e6xxx_chip *chip)
 		NULL, chip->g1_irq.nirqs, 0,
 		&mv88e6xxx_g1_irq_domain_ops, chip);
 	if (!chip->g1_irq.domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (irq = 0; irq < chip->g1_irq.nirqs; irq++)
 		irq_create_mapping(chip->g1_irq.domain, irq);
@@ -421,14 +421,14 @@ static int mv88e6xxx_port_config_interface(struct mv88e6xxx_chip *chip,
 	if (chip->info->ops->port_set_rgmii_delay) {
 		err = chip->info->ops->port_set_rgmii_delay(chip, port,
 							    interface);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			return err;
 	}
 
 	if (chip->info->ops->port_set_cmode) {
 		err = chip->info->ops->port_set_cmode(chip, port,
 						      interface);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			return err;
 	}
 
@@ -444,7 +444,7 @@ static int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port,
 	if (!chip->info->ops->port_set_link)
 		return 0;
 
-	/* Port's MAC control must not be changed unless the link is down */
+	/* Port's MAC control must analt be changed unless the link is down */
 	err = chip->info->ops->port_set_link(chip, port, LINK_FORCED_DOWN);
 	if (err)
 		return err;
@@ -452,7 +452,7 @@ static int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port,
 	if (chip->info->ops->port_set_speed_duplex) {
 		err = chip->info->ops->port_set_speed_duplex(chip, port,
 							     speed, duplex);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			goto restore_link;
 	}
 
@@ -482,7 +482,7 @@ static int mv88e6xxx_port_ppu_updates(struct mv88e6xxx_chip *chip, int port)
 	u16 reg;
 	int err;
 
-	/* The 88e6250 family does not have the PHY detect bit. Instead,
+	/* The 88e6250 family does analt have the PHY detect bit. Instead,
 	 * report whether the port is internal.
 	 */
 	if (chip->info->family == MV88E6XXX_FAMILY_6250)
@@ -551,7 +551,7 @@ static const u8 mv88e6xxx_phy_interface_modes[] = {
 	[MV88E6XXX_PORT_STS_CMODE_100BASEX]	= PHY_INTERFACE_MODE_100BASEX,
 	[MV88E6XXX_PORT_STS_CMODE_1000BASEX]	= PHY_INTERFACE_MODE_1000BASEX,
 	[MV88E6XXX_PORT_STS_CMODE_SGMII]	= PHY_INTERFACE_MODE_SGMII,
-	/* higher interface modes are not needed here, since ports supporting
+	/* higher interface modes are analt needed here, since ports supporting
 	 * them are writable, and so the supported interfaces are filled in the
 	 * corresponding .phylink_set_interfaces() implementation below
 	 */
@@ -598,7 +598,7 @@ static int mv88e6352_get_port4_serdes_cmode(struct mv88e6xxx_chip *chip)
 	if (err)
 		return err;
 
-	/* If PHY_DETECT is zero, then we are not in auto-media mode */
+	/* If PHY_DETECT is zero, then we are analt in auto-media mode */
 	if (!(reg & MV88E6XXX_PORT_STS_PHY_DETECT))
 		return 0xf;
 
@@ -657,7 +657,7 @@ static void mv88e6341_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
 	/* Translate the default cmode */
 	mv88e6xxx_translate_cmode(chip->ports[port].cmode, supported);
 
-	/* No ethtool bits for 200Mbps */
+	/* Anal ethtool bits for 200Mbps */
 	config->mac_capabilities = MAC_SYM_PAUSE | MAC_10 | MAC_100 |
 				   MAC_1000FD;
 
@@ -679,7 +679,7 @@ static void mv88e6390_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
 	/* Translate the default cmode */
 	mv88e6xxx_translate_cmode(chip->ports[port].cmode, supported);
 
-	/* No ethtool bits for 200Mbps */
+	/* Anal ethtool bits for 200Mbps */
 	config->mac_capabilities = MAC_SYM_PAUSE | MAC_10 | MAC_100 |
 				   MAC_1000FD;
 
@@ -701,7 +701,7 @@ static void mv88e6390x_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
 	mv88e6390_phylink_get_caps(chip, port, config);
 
 	/* For the 6x90X, ports 2-7 can be in automedia mode.
-	 * (Note that 6x90 doesn't support RXAUI nor XAUI).
+	 * (Analte that 6x90 doesn't support RXAUI analr XAUI).
 	 *
 	 * Port 2 can also support 1000BASE-X in automedia mode if port 9 is
 	 * configured for 1000BASE-X, SGMII or 2500BASE-X.
@@ -713,7 +713,7 @@ static void mv88e6390x_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
 	 * Port 6-7 can also support 1000BASE-X in automedia mode if port 10 is
 	 * configured for RXAUI, 1000BASE-X, SGMII or 2500BASE-X.
 	 *
-	 * For now, be permissive (as the old code was) and allow 1000BASE-X
+	 * For analw, be permissive (as the old code was) and allow 1000BASE-X
 	 * on ports 2..7.
 	 */
 	if (port >= 2 && port <= 7)
@@ -784,7 +784,7 @@ static void mv88e6xxx_get_caps(struct dsa_switch *ds, int port,
 	if (mv88e6xxx_phy_is_internal(chip, port)) {
 		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
 			  config->supported_interfaces);
-		/* Internal ports with no phy-mode need GMII for PHYLIB */
+		/* Internal ports with anal phy-mode need GMII for PHYLIB */
 		__set_bit(PHY_INTERFACE_MODE_GMII,
 			  config->supported_interfaces);
 	}
@@ -795,7 +795,7 @@ static struct phylink_pcs *mv88e6xxx_mac_select_pcs(struct dsa_switch *ds,
 						    phy_interface_t interface)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-	struct phylink_pcs *pcs = ERR_PTR(-EOPNOTSUPP);
+	struct phylink_pcs *pcs = ERR_PTR(-EOPANALTSUPP);
 
 	if (chip->info->ops->pcs_ops)
 		pcs = chip->info->ops->pcs_ops->pcs_select(chip, port,
@@ -811,7 +811,7 @@ static int mv88e6xxx_mac_prepare(struct dsa_switch *ds, int port,
 	int err = 0;
 
 	/* In inband mode, the link may come up at any time while the link
-	 * is not forced down. Force the link down while we reconfigure the
+	 * is analt forced down. Force the link down while we reconfigure the
 	 * interface mode.
 	 */
 	if (mode == MLO_AN_INBAND &&
@@ -838,14 +838,14 @@ static void mv88e6xxx_mac_config(struct dsa_switch *ds, int port,
 	if (mode != MLO_AN_PHY || !mv88e6xxx_phy_is_internal(chip, port)) {
 		err = mv88e6xxx_port_config_interface(chip, port,
 						      state->interface);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			goto err_unlock;
 	}
 
 err_unlock:
 	mv88e6xxx_reg_unlock(chip);
 
-	if (err && err != -EOPNOTSUPP)
+	if (err && err != -EOPANALTSUPP)
 		dev_err(ds->dev, "p%d: failed to configure MAC/PCS\n", port);
 }
 
@@ -857,7 +857,7 @@ static int mv88e6xxx_mac_finish(struct dsa_switch *ds, int port,
 
 	/* Undo the forced down state above after completing configuration
 	 * irrespective of its state on entry, which allows the link to come
-	 * up in the in-band case where there is no separate SERDES. Also
+	 * up in the in-band case where there is anal separate SERDES. Also
 	 * ensure that the link can come up if the PPU is in use and we are
 	 * in PHY mode (we treat the PPU as an effective in-band mechanism.)
 	 */
@@ -887,7 +887,7 @@ static void mv88e6xxx_mac_link_down(struct dsa_switch *ds, int port,
 	ops = chip->info->ops;
 
 	mv88e6xxx_reg_lock(chip);
-	/* Force the link down if we know the port may not be automatically
+	/* Force the link down if we kanalw the port may analt be automatically
 	 * updated by the switch or if we are using fixed-link mode.
 	 */
 	if ((!mv88e6xxx_port_ppu_updates(chip, port) ||
@@ -917,7 +917,7 @@ static void mv88e6xxx_mac_link_up(struct dsa_switch *ds, int port,
 	ops = chip->info->ops;
 
 	mv88e6xxx_reg_lock(chip);
-	/* Configure and force the link up if we know that the port may not
+	/* Configure and force the link up if we kanalw that the port may analt
 	 * automatically updated by the switch or if we are using fixed-link
 	 * mode.
 	 */
@@ -926,7 +926,7 @@ static void mv88e6xxx_mac_link_up(struct dsa_switch *ds, int port,
 		if (ops->port_set_speed_duplex) {
 			err = ops->port_set_speed_duplex(chip, port,
 							 speed, duplex);
-			if (err && err != -EOPNOTSUPP)
+			if (err && err != -EOPANALTSUPP)
 				goto error;
 		}
 
@@ -936,7 +936,7 @@ static void mv88e6xxx_mac_link_up(struct dsa_switch *ds, int port,
 error:
 	mv88e6xxx_reg_unlock(chip);
 
-	if (err && err != -EOPNOTSUPP)
+	if (err && err != -EOPANALTSUPP)
 		dev_err(ds->dev,
 			"p%d: failed to configure MAC link up\n", port);
 }
@@ -946,7 +946,7 @@ static int mv88e6xxx_stats_snapshot(struct mv88e6xxx_chip *chip, int port)
 	int err;
 
 	if (!chip->info->ops->stats_snapshot)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mv88e6xxx_reg_lock(chip);
 	err = chip->info->ops->stats_snapshot(chip, port);
@@ -1001,7 +1001,7 @@ static int mv88e6xxx_stats_snapshot(struct mv88e6xxx_chip *chip, int port)
 	_fn(tcam_counter_1,		4, 0x09, STATS_TYPE_BANK1), \
 	_fn(tcam_counter_2,		4, 0x0a, STATS_TYPE_BANK1), \
 	_fn(tcam_counter_3,		4, 0x0b, STATS_TYPE_BANK1), \
-	_fn(in_da_unknown,		4, 0x0e, STATS_TYPE_BANK1), \
+	_fn(in_da_unkanalwn,		4, 0x0e, STATS_TYPE_BANK1), \
 	_fn(in_management,		4, 0x0f, STATS_TYPE_BANK1), \
 	_fn(out_queue_0,		4, 0x10, STATS_TYPE_BANK1), \
 	_fn(out_queue_1,		4, 0x11, STATS_TYPE_BANK1), \
@@ -1453,14 +1453,14 @@ static void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
 static int mv88e6xxx_get_mac_eee(struct dsa_switch *ds, int port,
 				 struct ethtool_eee *e)
 {
-	/* Nothing to do on the port's MAC */
+	/* Analthing to do on the port's MAC */
 	return 0;
 }
 
 static int mv88e6xxx_set_mac_eee(struct dsa_switch *ds, int port,
 				 struct ethtool_eee *e)
 {
-	/* Nothing to do on the port's MAC */
+	/* Analthing to do on the port's MAC */
 	return 0;
 }
 
@@ -1478,7 +1478,7 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 		list_for_each_entry(dp, &dst->ports, list) {
 			if (dp->ds->index == dev && dp->index == port) {
 				/* dp might be a DSA link or a user port, so it
-				 * might or might not have a bridge.
+				 * might or might analt have a bridge.
 				 * Use the "found" variable for both cases.
 				 */
 				found = true;
@@ -1501,7 +1501,7 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 		}
 	}
 
-	/* Prevent frames from unknown switch or virtual bridge */
+	/* Prevent frames from unkanalwn switch or virtual bridge */
 	if (!found)
 		return 0;
 
@@ -1759,9 +1759,9 @@ static int mv88e6xxx_port_fast_age_fid(struct mv88e6xxx_chip *chip, int port,
 	if (dsa_to_port(chip->ds, port)->lag)
 		/* Hardware is incapable of fast-aging a LAG through a
 		 * regular ATU move operation. Until we have something
-		 * more fancy in place this is a no-op.
+		 * more fancy in place this is a anal-op.
 		 */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mv88e6xxx_g1_atu_remove(chip, fid, port, false);
 }
@@ -1794,7 +1794,7 @@ static int mv88e6xxx_vtu_get(struct mv88e6xxx_chip *chip, u16 vid,
 	int err;
 
 	if (!chip->info->ops->vtu_getnext)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	entry->vid = vid ? vid - 1 : mv88e6xxx_max_vid(chip);
 	entry->valid = false;
@@ -1820,7 +1820,7 @@ int mv88e6xxx_vtu_walk(struct mv88e6xxx_chip *chip,
 	int err;
 
 	if (!chip->info->ops->vtu_getnext)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	do {
 		err = chip->info->ops->vtu_getnext(chip, &entry);
@@ -1842,7 +1842,7 @@ static int mv88e6xxx_vtu_loadpurge(struct mv88e6xxx_chip *chip,
 				   struct mv88e6xxx_vtu_entry *entry)
 {
 	if (!chip->info->ops->vtu_loadpurge)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return chip->info->ops->vtu_loadpurge(chip, entry);
 }
@@ -1878,7 +1878,7 @@ static int mv88e6xxx_atu_new(struct mv88e6xxx_chip *chip, u16 *fid)
 
 	*fid = find_first_zero_bit(fid_bitmap, MV88E6XXX_N_FID);
 	if (unlikely(*fid >= mv88e6xxx_num_databases(chip)))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* Clear the database */
 	return mv88e6xxx_g1_atu_flush(chip, *fid, true);
@@ -1888,7 +1888,7 @@ static int mv88e6xxx_stu_loadpurge(struct mv88e6xxx_chip *chip,
 				   struct mv88e6xxx_stu_entry *entry)
 {
 	if (!chip->info->ops->stu_loadpurge)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return chip->info->ops->stu_loadpurge(chip, entry);
 }
@@ -1904,7 +1904,7 @@ static int mv88e6xxx_stu_setup(struct mv88e6xxx_chip *chip)
 		return 0;
 
 	/* Make sure that SID 0 is always valid. This is used by VTU
-	 * entries that do not make use of the STU, e.g. when creating
+	 * entries that do analt make use of the STU, e.g. when creating
 	 * a VLAN upper on a port that is also part of a VLAN
 	 * filtering bridge.
 	 */
@@ -1918,12 +1918,12 @@ static int mv88e6xxx_sid_get(struct mv88e6xxx_chip *chip, u8 *sid)
 
 	__set_bit(0, busy);
 
-	list_for_each_entry(mst, &chip->msts, node)
+	list_for_each_entry(mst, &chip->msts, analde)
 		__set_bit(mst->stu.sid, busy);
 
 	*sid = find_first_zero_bit(busy, MV88E6XXX_N_SID);
 
-	return (*sid >= mv88e6xxx_max_sid(chip)) ? -ENOSPC : 0;
+	return (*sid >= mv88e6xxx_max_sid(chip)) ? -EANALSPC : 0;
 }
 
 static int mv88e6xxx_mst_put(struct mv88e6xxx_chip *chip, u8 sid)
@@ -1934,7 +1934,7 @@ static int mv88e6xxx_mst_put(struct mv88e6xxx_chip *chip, u8 sid)
 	if (!sid)
 		return 0;
 
-	list_for_each_entry_safe(mst, tmp, &chip->msts, node) {
+	list_for_each_entry_safe(mst, tmp, &chip->msts, analde) {
 		if (mst->stu.sid != sid)
 			continue;
 
@@ -1948,12 +1948,12 @@ static int mv88e6xxx_mst_put(struct mv88e6xxx_chip *chip, u8 sid)
 			return err;
 		}
 
-		list_del(&mst->node);
+		list_del(&mst->analde);
 		kfree(mst);
 		return 0;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int mv88e6xxx_mst_get(struct mv88e6xxx_chip *chip, struct net_device *br,
@@ -1963,7 +1963,7 @@ static int mv88e6xxx_mst_get(struct mv88e6xxx_chip *chip, struct net_device *br,
 	int err, i;
 
 	if (!mv88e6xxx_has_stu(chip)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto err;
 	}
 
@@ -1972,7 +1972,7 @@ static int mv88e6xxx_mst_get(struct mv88e6xxx_chip *chip, struct net_device *br,
 		return 0;
 	}
 
-	list_for_each_entry(mst, &chip->msts, node) {
+	list_for_each_entry(mst, &chip->msts, analde) {
 		if (mst->br == br && mst->msti == msti) {
 			refcount_inc(&mst->refcnt);
 			*sid = mst->stu.sid;
@@ -1986,11 +1986,11 @@ static int mv88e6xxx_mst_get(struct mv88e6xxx_chip *chip, struct net_device *br,
 
 	mst = kzalloc(sizeof(*mst), GFP_KERNEL);
 	if (!mst) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
-	INIT_LIST_HEAD(&mst->node);
+	INIT_LIST_HEAD(&mst->analde);
 	refcount_set(&mst->refcnt, 1);
 	mst->br = br;
 	mst->msti = msti;
@@ -2011,7 +2011,7 @@ static int mv88e6xxx_mst_get(struct mv88e6xxx_chip *chip, struct net_device *br,
 	if (err)
 		goto err_free;
 
-	list_add_tail(&mst->node, &chip->msts);
+	list_add_tail(&mst->analde, &chip->msts);
 	return 0;
 
 err_free:
@@ -2030,7 +2030,7 @@ static int mv88e6xxx_port_mst_state_set(struct dsa_switch *ds, int port,
 	int err;
 
 	if (!mv88e6xxx_has_stu(chip))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (st->state) {
 	case BR_STATE_DISABLED:
@@ -2048,7 +2048,7 @@ static int mv88e6xxx_port_mst_state_set(struct dsa_switch *ds, int port,
 		return -EINVAL;
 	}
 
-	list_for_each_entry(mst, &chip->msts, node) {
+	list_for_each_entry(mst, &chip->msts, analde) {
 		if (mst->br == dsa_port_bridge_dev_get(dp) &&
 		    mst->msti == st->msti) {
 			if (mst->stu.state[port] == state)
@@ -2062,7 +2062,7 @@ static int mv88e6xxx_port_mst_state_set(struct dsa_switch *ds, int port,
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
@@ -2088,7 +2088,7 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 		struct net_device *other_br;
 
 		if (vlan.member[other_dp->index] ==
-		    MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER)
+		    MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_ANALN_MEMBER)
 			continue;
 
 		if (dsa_port_bridge_same(dp, other_dp))
@@ -2100,7 +2100,7 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 
 		dev_err(ds->dev, "p%d: hw VLAN %d already used by port %d in %s\n",
 			port, vlan.vid, other_dp->index, netdev_name(other_br));
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -2141,7 +2141,7 @@ static int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
 	int err;
 
 	if (!mv88e6xxx_max_vid(chip))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mv88e6xxx_reg_lock(chip);
 
@@ -2167,10 +2167,10 @@ mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
 	int err;
 
 	if (!mv88e6xxx_max_vid(chip))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* If the requested port doesn't belong to the same bridge as the VLAN
-	 * members, do not support it (yet) and fallback to software VLAN.
+	 * members, do analt support it (yet) and fallback to software VLAN.
 	 */
 	mv88e6xxx_reg_lock(chip);
 	err = mv88e6xxx_port_check_hw_vlan(ds, port, vlan->vid);
@@ -2202,9 +2202,9 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 		if (err)
 			return err;
 
-		/* switchdev expects -EOPNOTSUPP to honor software VLANs */
+		/* switchdev expects -EOPANALTSUPP to hoanalr software VLANs */
 		if (!vlan.valid)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		fid = vlan.fid;
 	}
@@ -2223,7 +2223,7 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 		ether_addr_copy(entry.mac, addr);
 	}
 
-	/* Purge the ATU entry only if no port is using it anymore */
+	/* Purge the ATU entry only if anal port is using it anymore */
 	if (!state) {
 		entry.portvec &= ~BIT(port);
 		if (!entry.portvec)
@@ -2252,12 +2252,12 @@ static int mv88e6xxx_policy_apply(struct mv88e6xxx_chip *chip, int port,
 	int id;
 
 	if (!chip->info->ops->port_set_policy)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (mapping) {
 	case MV88E6XXX_POLICY_MAPPING_DA:
 	case MV88E6XXX_POLICY_MAPPING_SA:
-		if (action == MV88E6XXX_POLICY_ACTION_NORMAL)
+		if (action == MV88E6XXX_POLICY_ACTION_ANALRMAL)
 			state = 0; /* Dissociate the port and address */
 		else if (action == MV88E6XXX_POLICY_ACTION_DISCARD &&
 			 is_multicast_ether_addr(addr))
@@ -2266,7 +2266,7 @@ static int mv88e6xxx_policy_apply(struct mv88e6xxx_chip *chip, int port,
 			 is_unicast_ether_addr(addr))
 			state = MV88E6XXX_G1_ATU_DATA_STATE_UC_STATIC_POLICY;
 		else
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		err = mv88e6xxx_port_db_load_purge(chip, port, addr, vid,
 						   state);
@@ -2274,11 +2274,11 @@ static int mv88e6xxx_policy_apply(struct mv88e6xxx_chip *chip, int port,
 			return err;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Skip the port's policy clearing if the mapping is still in use */
-	if (action == MV88E6XXX_POLICY_ACTION_NORMAL)
+	if (action == MV88E6XXX_POLICY_ACTION_ANALRMAL)
 		idr_for_each_entry(&chip->policies, policy, id)
 			if (policy->port == port &&
 			    policy->mapping == mapping &&
@@ -2307,7 +2307,7 @@ static int mv88e6xxx_policy_insert(struct mv88e6xxx_chip *chip, int port,
 	if (fs->ring_cookie == RX_CLS_FLOW_DISC)
 		action = MV88E6XXX_POLICY_ACTION_DISCARD;
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (fs->flow_type & ~FLOW_EXT) {
 	case ETHER_FLOW:
@@ -2320,17 +2320,17 @@ static int mv88e6xxx_policy_insert(struct mv88e6xxx_chip *chip, int port,
 			mapping = MV88E6XXX_POLICY_MAPPING_SA;
 			addr = mac_entry->h_source;
 		} else {
-			/* Cannot support DA and SA mapping in the same rule */
-			return -EOPNOTSUPP;
+			/* Cananalt support DA and SA mapping in the same rule */
+			return -EOPANALTSUPP;
 		}
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if ((fs->flow_type & FLOW_EXT) && fs->m_ext.vlan_tci) {
 		if (fs->m_ext.vlan_tci != htons(0xffff))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		vid = be16_to_cpu(fs->h_ext.vlan_tci) & VLAN_VID_MASK;
 	}
 
@@ -2343,7 +2343,7 @@ static int mv88e6xxx_policy_insert(struct mv88e6xxx_chip *chip, int port,
 
 	policy = devm_kzalloc(chip->dev, sizeof(*policy), GFP_KERNEL);
 	if (!policy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fs->location = 0;
 	err = idr_alloc_u32(&chip->policies, policy, &fs->location, 0xffffffff,
@@ -2392,7 +2392,7 @@ static int mv88e6xxx_get_rxnfc(struct dsa_switch *ds, int port,
 		err = 0;
 		break;
 	case ETHTOOL_GRXCLSRULE:
-		err = -ENOENT;
+		err = -EANALENT;
 		policy = idr_find(&chip->policies, fs->location);
 		if (policy) {
 			memcpy(fs, &policy->fs, sizeof(*fs));
@@ -2408,7 +2408,7 @@ static int mv88e6xxx_get_rxnfc(struct dsa_switch *ds, int port,
 		err = 0;
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -2432,16 +2432,16 @@ static int mv88e6xxx_set_rxnfc(struct dsa_switch *ds, int port,
 		err = mv88e6xxx_policy_insert(chip, port, fs);
 		break;
 	case ETHTOOL_SRXCLSRLDEL:
-		err = -ENOENT;
+		err = -EANALENT;
 		policy = idr_remove(&chip->policies, fs->location);
 		if (policy) {
-			policy->action = MV88E6XXX_POLICY_ACTION_NORMAL;
+			policy->action = MV88E6XXX_POLICY_ACTION_ANALRMAL;
 			err = mv88e6xxx_policy_apply(chip, port, policy);
 			devm_kfree(chip->dev, policy);
 		}
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -2538,7 +2538,7 @@ static int mv88e6xxx_port_broadcast_sync(struct mv88e6xxx_chip *chip, int port,
 static int mv88e6xxx_port_vlan_join(struct mv88e6xxx_chip *chip, int port,
 				    u16 vid, u8 member, bool warn)
 {
-	const u8 non_member = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER;
+	const u8 analn_member = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_ANALN_MEMBER;
 	struct mv88e6xxx_vtu_entry vlan;
 	int i, err;
 
@@ -2560,7 +2560,7 @@ static int mv88e6xxx_port_vlan_join(struct mv88e6xxx_chip *chip, int port,
 			if (i == port)
 				vlan.member[i] = member;
 			else
-				vlan.member[i] = non_member;
+				vlan.member[i] = analn_member;
 
 		vlan.vid = vid;
 		vlan.valid = true;
@@ -2613,7 +2613,7 @@ static int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 		member = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_TAGGED;
 
 	/* net/dsa/user.c will call dsa_port_vlan_add() for the affected port
-	 * and then the CPU port. Do not warn for duplicates for the CPU port.
+	 * and then the CPU port. Do analt warn for duplicates for the CPU port.
 	 */
 	warn = !dsa_is_cpu_port(ds, port) && !dsa_is_dsa_port(ds, port);
 
@@ -2634,7 +2634,7 @@ static int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 		if (err)
 			goto out;
 	} else if (vlan->vid && p->bridge_pvid.vid == vlan->vid) {
-		/* The old pvid was reinstalled as a non-pvid VLAN */
+		/* The old pvid was reinstalled as a analn-pvid VLAN */
 		p->bridge_pvid.valid = false;
 
 		err = mv88e6xxx_port_commit_pvid(chip, port);
@@ -2665,16 +2665,16 @@ static int mv88e6xxx_port_vlan_leave(struct mv88e6xxx_chip *chip,
 	 * tell switchdev that this VLAN is likely handled in software.
 	 */
 	if (!vlan.valid ||
-	    vlan.member[port] == MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER)
-		return -EOPNOTSUPP;
+	    vlan.member[port] == MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_ANALN_MEMBER)
+		return -EOPANALTSUPP;
 
-	vlan.member[port] = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER;
+	vlan.member[port] = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_ANALN_MEMBER;
 
 	/* keep the VLAN unless all ports are excluded */
 	vlan.valid = false;
 	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
 		if (vlan.member[i] !=
-		    MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER) {
+		    MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_ANALN_MEMBER) {
 			vlan.valid = true;
 			break;
 		}
@@ -2702,7 +2702,7 @@ static int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 	u16 pvid;
 
 	if (!mv88e6xxx_max_vid(chip))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* The ATU removal procedure needs the FID to be mapped in the VTU,
 	 * but FDB deletion runs concurrently with VLAN deletion. Flush the DSA
@@ -2765,7 +2765,7 @@ static int mv88e6xxx_vlan_msti_set(struct dsa_switch *ds,
 	int err;
 
 	if (!mv88e6xxx_has_stu(chip))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mv88e6xxx_reg_lock(chip);
 
@@ -3078,11 +3078,11 @@ static void mv88e6xxx_hardware_reset(struct mv88e6xxx_chip *chip)
 
 	/* If there is a GPIO connected to the reset pin, toggle it */
 	if (gpiod) {
-		/* If the switch has just been reset and not yet completed
+		/* If the switch has just been reset and analt yet completed
 		 * loading EEPROM, the reset may interrupt the I2C transaction
 		 * mid-byte, causing the first EEPROM read after the reset
 		 * from the wrong location resulting in the switch booting
-		 * to wrong mode and inoperable.
+		 * to wrong mode and ianalperable.
 		 */
 		if (chip->info->ops->get_eeprom)
 			mv88e6xxx_g2_eeprom_wait(chip);
@@ -3136,7 +3136,7 @@ static int mv88e6xxx_set_port_mode(struct mv88e6xxx_chip *chip, int port,
 	int err;
 
 	if (!chip->info->ops->port_set_frame_mode)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = mv88e6xxx_port_set_egress_mode(chip, port, egress);
 	if (err)
@@ -3152,9 +3152,9 @@ static int mv88e6xxx_set_port_mode(struct mv88e6xxx_chip *chip, int port,
 	return 0;
 }
 
-static int mv88e6xxx_set_port_mode_normal(struct mv88e6xxx_chip *chip, int port)
+static int mv88e6xxx_set_port_mode_analrmal(struct mv88e6xxx_chip *chip, int port)
 {
-	return mv88e6xxx_set_port_mode(chip, port, MV88E6XXX_FRAME_MODE_NORMAL,
+	return mv88e6xxx_set_port_mode(chip, port, MV88E6XXX_FRAME_MODE_ANALRMAL,
 				       MV88E6XXX_EGRESS_MODE_UNMODIFIED,
 				       MV88E6XXX_PORT_ETH_TYPE_DEFAULT);
 }
@@ -3180,7 +3180,7 @@ static int mv88e6xxx_setup_port_mode(struct mv88e6xxx_chip *chip, int port)
 		return mv88e6xxx_set_port_mode_dsa(chip, port);
 
 	if (dsa_is_user_port(chip->ds, port))
-		return mv88e6xxx_set_port_mode_normal(chip, port);
+		return mv88e6xxx_set_port_mode_analrmal(chip, port);
 
 	/* Setup CPU port mode depending on its supported tag format */
 	if (chip->tag_protocol == DSA_TAG_PROTO_DSA)
@@ -3224,7 +3224,7 @@ static int mv88e6xxx_set_egress_port(struct mv88e6xxx_chip *chip,
 	int err;
 
 	if (!chip->info->ops->set_egress_port)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = chip->info->ops->set_egress_port(chip, direction, port);
 	if (err)
@@ -3263,13 +3263,13 @@ static int mv88e6xxx_setup_upstream_port(struct mv88e6xxx_chip *chip, int port)
 		err = mv88e6xxx_set_egress_port(chip,
 						MV88E6XXX_EGRESS_DIR_INGRESS,
 						upstream_port);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			return err;
 
 		err = mv88e6xxx_set_egress_port(chip,
 						MV88E6XXX_EGRESS_DIR_EGRESS,
 						upstream_port);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			return err;
 	}
 
@@ -3278,7 +3278,7 @@ static int mv88e6xxx_setup_upstream_port(struct mv88e6xxx_chip *chip, int port)
 
 static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 {
-	struct device_node *phy_handle = NULL;
+	struct device_analde *phy_handle = NULL;
 	struct dsa_switch *ds = chip->ds;
 	struct dsa_port *dp;
 	int tx_amp;
@@ -3295,7 +3295,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 		return err;
 
 	/* Port Control: disable Drop-on-Unlock, disable Drop-on-Lock,
-	 * disable Header mode, enable IGMP/MLD snooping, disable VLAN
+	 * disable Header mode, enable IGMP/MLD sanaloping, disable VLAN
 	 * tunneling, determine priority by looking at 802.1p and IP
 	 * priority fields (IP prio has precedence), and set STP state
 	 * to Forwarding.
@@ -3303,18 +3303,18 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	 * If this is the CPU link, use DSA or EDSA tagging depending
 	 * on which tagging mode was configured.
 	 *
-	 * If this is a link to another switch, use DSA tagging mode.
+	 * If this is a link to aanalther switch, use DSA tagging mode.
 	 *
 	 * If this is the upstream port for this switch, enable
-	 * forwarding of unknown unicasts and multicasts.
+	 * forwarding of unkanalwn unicasts and multicasts.
 	 */
 	reg = MV88E6185_PORT_CTL0_USE_TAG | MV88E6185_PORT_CTL0_USE_IP |
 		MV88E6XXX_PORT_CTL0_STATE_FORWARDING;
 	/* Forward any IPv4 IGMP or IPv6 MLD frames received
-	 * by a USER port to the CPU port to allow snooping.
+	 * by a USER port to the CPU port to allow sanaloping.
 	 */
 	if (dsa_is_user_port(ds, port))
-		reg |= MV88E6XXX_PORT_CTL0_IGMP_MLD_SNOOP;
+		reg |= MV88E6XXX_PORT_CTL0_IGMP_MLD_SANALOP;
 
 	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 	if (err)
@@ -3408,10 +3408,10 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	 * on all user ports since they start out in standalone
 	 * mode. When joining a bridge, learning will be configured to
 	 * match the bridge port settings. Enable learning on all
-	 * DSA/CPU ports. NOTE: FROM_CPU frames always bypass the
+	 * DSA/CPU ports. ANALTE: FROM_CPU frames always bypass the
 	 * learning process.
 	 *
-	 * Disable HoldAt1, IntOnAgeOut, LockedPort, IgnoreWrongData,
+	 * Disable HoldAt1, IntOnAgeOut, LockedPort, IganalreWrongData,
 	 * and RefreshLocked. I.e. setup standard automatic learning.
 	 */
 	if (dsa_is_user_port(ds, port))
@@ -3477,7 +3477,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 			err = chip->info->ops->serdes_set_tx_amplitude(chip,
 								port, tx_amp);
 		if (phy_handle) {
-			of_node_put(phy_handle);
+			of_analde_put(phy_handle);
 			if (err)
 				return err;
 		}
@@ -3517,7 +3517,7 @@ static int mv88e6xxx_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int ret = 0;
 
-	/* For families where we don't know how to alter the MTU,
+	/* For families where we don't kanalw how to alter the MTU,
 	 * just accept any value up to ETH_DATA_LEN
 	 */
 	if (!chip->info->ops->port_set_jumbo_size &&
@@ -3617,7 +3617,7 @@ static int mv88e6390_setup_errata(struct mv88e6xxx_chip *chip)
 	return mv88e6xxx_software_reset(chip);
 }
 
-/* prod_id for switch families which do not have a PHY model number */
+/* prod_id for switch families which do analt have a PHY model number */
 static const u16 family_prod_id_table[] = {
 	[MV88E6XXX_FAMILY_6341] = MV88E6XXX_PORT_SWITCH_ID_PROD_6341,
 	[MV88E6XXX_FAMILY_6390] = MV88E6XXX_PORT_SWITCH_ID_PROD_6390,
@@ -3633,7 +3633,7 @@ static int mv88e6xxx_mdio_read(struct mii_bus *bus, int phy, int reg)
 	int err;
 
 	if (!chip->info->ops->phy_read)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mv88e6xxx_reg_lock(chip);
 	err = chip->info->ops->phy_read(chip, bus, phy, reg, &val);
@@ -3675,7 +3675,7 @@ static int mv88e6xxx_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 	int err;
 
 	if (!chip->info->ops->phy_write)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mv88e6xxx_reg_lock(chip);
 	err = chip->info->ops->phy_write(chip, bus, phy, reg, val);
@@ -3692,7 +3692,7 @@ static int mv88e6xxx_mdio_write_c45(struct mii_bus *bus, int phy, int devad,
 	int err;
 
 	if (!chip->info->ops->phy_write_c45)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mv88e6xxx_reg_lock(chip);
 	err = chip->info->ops->phy_write_c45(chip, bus, phy, devad, reg, val);
@@ -3702,7 +3702,7 @@ static int mv88e6xxx_mdio_write_c45(struct mii_bus *bus, int phy, int devad,
 }
 
 static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
-				   struct device_node *np,
+				   struct device_analde *np,
 				   bool external)
 {
 	static int index;
@@ -3721,7 +3721,7 @@ static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
 
 	bus = mdiobus_alloc_size(sizeof(*mdio_bus));
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdio_bus = bus->priv;
 	mdio_bus->bus = bus;
@@ -3754,7 +3754,7 @@ static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
 
 	err = of_mdiobus_register(bus, np);
 	if (err) {
-		dev_err(chip->dev, "Cannot register MDIO bus (%d)\n", err);
+		dev_err(chip->dev, "Cananalt register MDIO bus (%d)\n", err);
 		mv88e6xxx_g2_irq_mdio_free(chip, bus);
 		goto out;
 	}
@@ -3790,8 +3790,8 @@ static void mv88e6xxx_mdios_unregister(struct mv88e6xxx_chip *chip)
 
 static int mv88e6xxx_mdios_register(struct mv88e6xxx_chip *chip)
 {
-	struct device_node *np = chip->dev->of_node;
-	struct device_node *child;
+	struct device_analde *np = chip->dev->of_analde;
+	struct device_analde *child;
 	int err;
 
 	/* Always register one mdio bus for the internal/default mdio
@@ -3800,21 +3800,21 @@ static int mv88e6xxx_mdios_register(struct mv88e6xxx_chip *chip)
 	 */
 	child = of_get_child_by_name(np, "mdio");
 	err = mv88e6xxx_mdio_register(chip, child, false);
-	of_node_put(child);
+	of_analde_put(child);
 	if (err)
 		return err;
 
-	/* Walk the device tree, and see if there are any other nodes
+	/* Walk the device tree, and see if there are any other analdes
 	 * which say they are compatible with the external mdio
 	 * bus.
 	 */
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		if (of_device_is_compatible(
 			    child, "marvell,mv88e6xxx-mdio-external")) {
 			err = mv88e6xxx_mdio_register(chip, child, true);
 			if (err) {
 				mv88e6xxx_mdios_unregister(chip);
-				of_node_put(child);
+				of_analde_put(child);
 				return err;
 			}
 		}
@@ -3849,7 +3849,7 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 
 	/* Since virtual bridges are mapped in the PVT, the number we support
 	 * depends on the physical switch topology. We need to let DSA figure
-	 * that out and therefore we cannot set this at dsa_register_switch()
+	 * that out and therefore we cananalt set this at dsa_register_switch()
 	 * time.
 	 */
 	if (mv88e6xxx_has_pvt(chip))
@@ -4041,7 +4041,7 @@ static int mv88e6xxx_get_eeprom(struct dsa_switch *ds,
 	int err;
 
 	if (!chip->info->ops->get_eeprom)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mv88e6xxx_reg_lock(chip);
 	err = chip->info->ops->get_eeprom(chip, eeprom, data);
@@ -4062,7 +4062,7 @@ static int mv88e6xxx_set_eeprom(struct dsa_switch *ds,
 	int err;
 
 	if (!chip->info->ops->set_eeprom)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (eeprom->magic != 0xc3ec4951)
 		return -EINVAL;
@@ -4130,7 +4130,7 @@ static const struct mv88e6xxx_ops mv88e6095_ops = {
 	.port_sync_link = mv88e6185_port_sync_link,
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_set_frame_mode = mv88e6085_port_set_frame_mode,
-	.port_set_ucast_flood = mv88e6185_port_set_forward_unknown,
+	.port_set_ucast_flood = mv88e6185_port_set_forward_unkanalwn,
 	.port_set_mcast_flood = mv88e6185_port_set_default_forward,
 	.port_set_upstream_port = mv88e6095_port_set_upstream_port,
 	.port_get_cmode = mv88e6185_port_get_cmode,
@@ -4251,7 +4251,7 @@ static const struct mv88e6xxx_ops mv88e6131_ops = {
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_ucast_flood = mv88e6185_port_set_forward_unknown,
+	.port_set_ucast_flood = mv88e6185_port_set_forward_unkanalwn,
 	.port_set_mcast_flood = mv88e6185_port_set_default_forward,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_upstream_port = mv88e6095_port_set_upstream_port,
@@ -4638,7 +4638,7 @@ static const struct mv88e6xxx_ops mv88e6185_ops = {
 	.port_sync_link = mv88e6185_port_sync_link,
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_set_frame_mode = mv88e6085_port_set_frame_mode,
-	.port_set_ucast_flood = mv88e6185_port_set_forward_unknown,
+	.port_set_ucast_flood = mv88e6185_port_set_forward_unkanalwn,
 	.port_set_mcast_flood = mv88e6185_port_set_default_forward,
 	.port_egress_rate_limiting = mv88e6095_port_egress_rate_limiting,
 	.port_set_upstream_port = mv88e6095_port_set_upstream_port,
@@ -5468,7 +5468,7 @@ static const struct mv88e6xxx_ops mv88e6393x_ops = {
 	.stats_get_sset_count = mv88e6320_stats_get_sset_count,
 	.stats_get_strings = mv88e6320_stats_get_strings,
 	.stats_get_stat = mv88e6390_stats_get_stat,
-	/* .set_cpu_port is missing because this family does not support a global
+	/* .set_cpu_port is missing because this family does analt support a global
 	 * CPU port, only per port CPU port which is set via
 	 * .port_set_upstream_port method.
 	 */
@@ -5965,7 +5965,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.name = "Marvell 88E6220",
 		.num_databases = 64,
 
-		/* Ports 2-4 are not routed to pins
+		/* Ports 2-4 are analt routed to pins
 		 * => usable ports 0, 1, 5, 6
 		 */
 		.num_ports = 7,
@@ -6211,7 +6211,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.num_databases = 4096,
 		.num_macs = 16384,
 		.num_ports = 11,
-		/* Ports 1, 2 and 8 are not routed */
+		/* Ports 1, 2 and 8 are analt routed */
 		.invalid_port_mask = BIT(1) | BIT(2) | BIT(8),
 		.num_internal_phys = 5,
 		.internal_phys_offset = 3,
@@ -6335,7 +6335,7 @@ static int mv88e6xxx_detect(struct mv88e6xxx_chip *chip)
 
 	info = mv88e6xxx_lookup_info(prod_num);
 	if (!info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Update the compatible info with the probed one */
 	chip->info = info;
@@ -6359,7 +6359,7 @@ static int mv88e6xxx_single_chip_detect(struct mv88e6xxx_chip *chip,
 	 * (e.g. mv88e6*41) in single chip addressing mode the device may be
 	 * configured in single chip addressing mode. Setup the smi access as
 	 * single chip addressing mode and attempt to detect the model of the
-	 * switch, if this fails the device is not configured in single chip
+	 * switch, if this fails the device is analt configured in single chip
 	 * addressing mode.
 	 */
 	if (mdiodev->addr != 16)
@@ -6411,7 +6411,7 @@ static int mv88e6xxx_change_tag_protocol(struct dsa_switch *ds,
 	case DSA_TAG_PROTO_EDSA:
 		switch (chip->info->edsa_support) {
 		case MV88E6XXX_EDSA_UNSUPPORTED:
-			return -EPROTONOSUPPORT;
+			return -EPROTOANALSUPPORT;
 		case MV88E6XXX_EDSA_UNDOCUMENTED:
 			dev_warn(chip->dev, "Relying on undocumented EDSA tagging behavior\n");
 			fallthrough;
@@ -6422,7 +6422,7 @@ static int mv88e6xxx_change_tag_protocol(struct dsa_switch *ds,
 	case DSA_TAG_PROTO_DSA:
 		break;
 	default:
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	}
 
 	old_protocol = chip->tag_protocol;
@@ -6539,7 +6539,7 @@ static void mv88e6xxx_port_mirror_del(struct dsa_switch *ds, int port,
 				 chip->ports[i].mirror_ingress :
 				 chip->ports[i].mirror_egress;
 
-	/* Reset egress port when no other mirror is active */
+	/* Reset egress port when anal other mirror is active */
 	if (!other_mirrors) {
 		if (mv88e6xxx_set_egress_port(chip, direction,
 					      dsa_upstream_port(ds, port)))
@@ -6644,7 +6644,7 @@ static bool mv88e6xxx_lag_can_offload(struct dsa_switch *ds,
 	int members = 0;
 
 	if (!mv88e6xxx_has_lag(chip)) {
-		NL_SET_ERR_MSG_MOD(extack, "Chip does not support LAG offload");
+		NL_SET_ERR_MSG_MOD(extack, "Chip does analt support LAG offload");
 		return false;
 	}
 
@@ -6657,7 +6657,7 @@ static bool mv88e6xxx_lag_can_offload(struct dsa_switch *ds,
 
 	if (members > 8) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Cannot offload more than 8 LAG ports");
+				   "Cananalt offload more than 8 LAG ports");
 		return false;
 	}
 
@@ -6671,7 +6671,7 @@ static bool mv88e6xxx_lag_can_offload(struct dsa_switch *ds,
 	}
 
 	/* Ideally we would also validate that the hash type matches
-	 * the hardware. Alas, this is always set to unknown on team
+	 * the hardware. Alas, this is always set to unkanalwn on team
 	 * interfaces.
 	 */
 	return true;
@@ -6742,7 +6742,7 @@ static int mv88e6xxx_lag_sync_masks(struct dsa_switch *ds)
 	u16 mask[8];
 	u16 ivec;
 
-	/* Assume no port is a member of any LAG. */
+	/* Assume anal port is a member of any LAG. */
 	ivec = BIT(mv88e6xxx_num_ports(chip)) - 1;
 
 	/* Disable all masks for ports that _are_ members of a LAG. */
@@ -6828,7 +6828,7 @@ static int mv88e6xxx_port_lag_join(struct dsa_switch *ds, int port,
 	int err, id;
 
 	if (!mv88e6xxx_lag_can_offload(ds, lag, info, extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* DSA LAG IDs are one-based */
 	id = lag.id - 1;
@@ -6887,7 +6887,7 @@ static int mv88e6xxx_crosschip_lag_join(struct dsa_switch *ds, int sw_index,
 	int err;
 
 	if (!mv88e6xxx_lag_can_offload(ds, lag, info, extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mv88e6xxx_reg_lock(chip);
 
@@ -6990,7 +6990,7 @@ static int mv88e6xxx_register_switch(struct mv88e6xxx_chip *chip)
 
 	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
 	if (!ds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ds->dev = dev;
 	ds->num_ports = mv88e6xxx_num_ports(chip);
@@ -7001,8 +7001,8 @@ static int mv88e6xxx_register_switch(struct mv88e6xxx_chip *chip)
 	ds->ageing_time_max = chip->info->age_time_coeff * U8_MAX;
 
 	/* Some chips support up to 32, but that requires enabling the
-	 * 5-bit port mode, which we do not support. 640k^W16 ought to
-	 * be enough for anyone.
+	 * 5-bit port mode, which we do analt support. 640k^W16 ought to
+	 * be eanalugh for anyone.
 	 */
 	ds->num_lag_ids = mv88e6xxx_has_lag(chip) ? 16 : 0;
 
@@ -7029,12 +7029,12 @@ static const void *pdata_device_get_match_data(struct device *dev)
 	return NULL;
 }
 
-/* There is no suspend to RAM support at DSA level yet, the switch configuration
+/* There is anal suspend to RAM support at DSA level yet, the switch configuration
  * would be lost after a power cycle so prevent it to be suspended.
  */
 static int __maybe_unused mv88e6xxx_suspend(struct device *dev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int __maybe_unused mv88e6xxx_resume(struct device *dev)
@@ -7049,7 +7049,7 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	struct dsa_mv88e6xxx_pdata *pdata = mdiodev->dev.platform_data;
 	const struct mv88e6xxx_info *compat_info = NULL;
 	struct device *dev = &mdiodev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct mv88e6xxx_chip *chip;
 	int port;
 	int err;
@@ -7081,7 +7081,7 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 
 	chip = mv88e6xxx_alloc_chip(dev);
 	if (!chip) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 

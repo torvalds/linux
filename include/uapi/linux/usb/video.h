@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * USB Video Class definitions.
  *
@@ -177,7 +177,7 @@
 #define UVC_CONTROL_CAP_SET				(1 << 1)
 #define UVC_CONTROL_CAP_DISABLED			(1 << 2)
 #define UVC_CONTROL_CAP_AUTOUPDATE			(1 << 3)
-#define UVC_CONTROL_CAP_ASYNCHRONOUS			(1 << 4)
+#define UVC_CONTROL_CAP_ASYNCHROANALUS			(1 << 4)
 
 /* 3.9.2.6 Color Matching Descriptor Values */
 enum uvc_color_primaries_values {

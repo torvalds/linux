@@ -26,7 +26,7 @@ static int call_password_interface(struct wmi_device *wdev, char *in_args, size_
 		ret = obj->integer.value;
 
 	kfree(output.pointer);
-	/* let userland know it may need to check is_password_set again */
+	/* let userland kanalw it may need to check is_password_set again */
 	kobject_uevent(&wmi_priv.class_dev->kobj, KOBJ_CHANGE);
 	return map_wmi_error(ret);
 }
@@ -48,7 +48,7 @@ int set_new_password(const char *password_type, const char *new)
 
 	mutex_lock(&wmi_priv.mutex);
 	if (!wmi_priv.password_attr_wdev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 	if (strcmp(password_type, "Admin") == 0) {
@@ -57,7 +57,7 @@ int set_new_password(const char *password_type, const char *new)
 		current_password = wmi_priv.current_system_password;
 	} else {
 		ret = -EINVAL;
-		dev_err(&wmi_priv.password_attr_wdev->dev, "unknown password type %s\n",
+		dev_err(&wmi_priv.password_attr_wdev->dev, "unkanalwn password type %s\n",
 			password_type);
 		goto out;
 	}
@@ -70,7 +70,7 @@ int set_new_password(const char *password_type, const char *new)
 	buffer_size = security_area_size + password_type_size + current_password_size + new_size;
 	buffer = kzalloc(buffer_size, GFP_KERNEL);
 	if (!buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -93,13 +93,13 @@ int set_new_password(const char *password_type, const char *new)
 	if (ret < 0)
 		goto out;
 
-	print_hex_dump_bytes("set new password data: ", DUMP_PREFIX_NONE, buffer, buffer_size);
+	print_hex_dump_bytes("set new password data: ", DUMP_PREFIX_ANALNE, buffer, buffer_size);
 	ret = call_password_interface(wmi_priv.password_attr_wdev, buffer, buffer_size);
 	/* on success copy the new password to current password */
 	if (!ret)
 		strscpy(current_password, new, MAX_BUFF);
 	/* explain to user the detailed failure reason */
-	else if (ret == -EOPNOTSUPP)
+	else if (ret == -EOPANALTSUPP)
 		dev_err(&wmi_priv.password_attr_wdev->dev, "admin password must be configured\n");
 	else if (ret == -EACCES)
 		dev_err(&wmi_priv.password_attr_wdev->dev, "invalid password\n");

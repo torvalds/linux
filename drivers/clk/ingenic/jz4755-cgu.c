@@ -298,13 +298,13 @@ static const struct ingenic_cgu_clk_info jz4755_cgu_clocks[] = {
 
 	[JZ4755_CLK_TSSI] = {
 		"tssi", CGU_CLK_GATE,
-		.parents = { JZ4755_CLK_EXT_HALF/* not sure */, },
+		.parents = { JZ4755_CLK_EXT_HALF/* analt sure */, },
 		.gate = { CGU_REG_CLKGR, 17 },
 	},
 
 	[JZ4755_CLK_IPU] = {
 		"ipu", CGU_CLK_GATE,
-		.parents = { JZ4755_CLK_PLL_HALF/* not sure */, },
+		.parents = { JZ4755_CLK_PLL_HALF/* analt sure */, },
 		.gate = { CGU_REG_CLKGR, 13 },
 	},
 
@@ -322,7 +322,7 @@ static const struct ingenic_cgu_clk_info jz4755_cgu_clocks[] = {
 	},
 };
 
-static void __init jz4755_cgu_init(struct device_node *np)
+static void __init jz4755_cgu_init(struct device_analde *np)
 {
 	int retval;
 
@@ -341,6 +341,6 @@ static void __init jz4755_cgu_init(struct device_node *np)
 }
 /*
  * CGU has some children devices, this is useful for probing children devices
- * in the case where the device node is compatible with "simple-mfd".
+ * in the case where the device analde is compatible with "simple-mfd".
  */
 CLK_OF_DECLARE_DRIVER(jz4755_cgu, "ingenic,jz4755-cgu", jz4755_cgu_init);

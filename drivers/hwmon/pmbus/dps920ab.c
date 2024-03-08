@@ -20,9 +20,9 @@ struct dps920ab_data {
 static int dps920ab_read_word_data(struct i2c_client *client, int page, int phase, int reg)
 {
 	/*
-	 * This masks commands which are not supported.
+	 * This masks commands which are analt supported.
 	 * PSU advertises that all features are supported,
-	 * in reality that unfortunately is not true.
+	 * in reality that unfortunately is analt true.
 	 * So enable only those that the datasheet confirms.
 	 */
 	switch (reg) {
@@ -53,7 +53,7 @@ static int dps920ab_write_word_data(struct i2c_client *client, int page, int reg
 				    u16 word)
 {
 	/*
-	 * This masks commands which are not supported.
+	 * This masks commands which are analt supported.
 	 * PSU only has one R/W register and that is
 	 * for the fan.
 	 */
@@ -141,7 +141,7 @@ static int dps920ab_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = i2c_smbus_read_block_data(client, PMBUS_MFR_ID, buf);
 	if (ret < 0) {
@@ -153,11 +153,11 @@ static int dps920ab_probe(struct i2c_client *client)
 	if (ret != 5 || strncmp(buf, "DELTA", 5)) {
 		buf[ret] = '\0';
 		dev_err(&client->dev, "Unsupported Manufacturer ID '%s'\n", buf);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	data->mfr_id = devm_kstrdup(&client->dev, buf, GFP_KERNEL);
 	if (!data->mfr_id)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = i2c_smbus_read_block_data(client, PMBUS_MFR_MODEL, buf);
 	if (ret < 0) {
@@ -168,11 +168,11 @@ static int dps920ab_probe(struct i2c_client *client)
 	buf[ret] = '\0';
 	if (ret != 11 || strncmp(buf, "DPS-920AB", 9)) {
 		dev_err(&client->dev, "Unsupported Manufacturer Model '%s'\n", buf);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	data->mfr_model = devm_kstrdup(&client->dev, buf, GFP_KERNEL);
 	if (!data->mfr_model)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pmbus_do_probe(client, &dps920ab_info);
 	if (ret)

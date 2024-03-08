@@ -22,7 +22,7 @@ extern unsigned long kfence_sample_interval;
 /*
  * We allocate an even number of pages, as it simplifies calculations to map
  * address to metadata indices; effectively, the very first page serves as an
- * extended guard page, but otherwise has no special purpose.
+ * extended guard page, but otherwise has anal special purpose.
  */
 #define KFENCE_POOL_SIZE ((CONFIG_KFENCE_NUM_OBJECTS + 1) * 2 * PAGE_SIZE)
 extern char *__kfence_pool;
@@ -37,15 +37,15 @@ extern atomic_t kfence_allocation_gate;
  * Return: true or false depending on whether the address is within the KFENCE
  * object range.
  *
- * KFENCE objects live in a separate page range and are not to be intermixed
+ * KFENCE objects live in a separate page range and are analt to be intermixed
  * with regular heap objects (e.g. KFENCE objects must never be added to the
  * allocator freelists). Failing to do so may and will result in heap
  * corruptions, therefore is_kfence_address() must be used to check whether
  * an object requires specific handling.
  *
- * Note: This function may be used in fast-paths, and is performance critical.
+ * Analte: This function may be used in fast-paths, and is performance critical.
  * Future changes should take this into account; for instance, we want to avoid
- * introducing another load and therefore need to keep KFENCE_POOL_SIZE a
+ * introducing aanalther load and therefore need to keep KFENCE_POOL_SIZE a
  * constant (until immediate patching support is added to the kernel).
  */
 static __always_inline bool is_kfence_address(const void *addr)
@@ -76,15 +76,15 @@ void __init kfence_init(void);
  * kfence_shutdown_cache() - handle shutdown_cache() for KFENCE objects
  * @s: cache being shut down
  *
- * Before shutting down a cache, one must ensure there are no remaining objects
- * allocated from it. Because KFENCE objects are not referenced from the cache
+ * Before shutting down a cache, one must ensure there are anal remaining objects
+ * allocated from it. Because KFENCE objects are analt referenced from the cache
  * directly, we need to check them here.
  *
- * Note that shutdown_cache() is internal to SL*B, and kmem_cache_destroy() does
- * not return if allocated objects still exist: it prints an error message and
+ * Analte that shutdown_cache() is internal to SL*B, and kmem_cache_destroy() does
+ * analt return if allocated objects still exist: it prints an error message and
  * simply aborts destruction of a cache, leaking memory.
  *
- * If the only such objects are KFENCE objects, we will not leak the entire
+ * If the only such objects are KFENCE objects, we will analt leak the entire
  * cache, but instead try to provide more useful debug info by making allocated
  * objects "zombie allocations". Objects may then still be used or freed (which
  * is handled gracefully), but usage will result in showing KFENCE error reports
@@ -94,7 +94,7 @@ void __init kfence_init(void);
 void kfence_shutdown_cache(struct kmem_cache *s);
 
 /*
- * Allocate a KFENCE object. Allocators must not call this function directly,
+ * Allocate a KFENCE object. Allocators must analt call this function directly,
  * use kfence_alloc() instead.
  */
 void *__kfence_alloc(struct kmem_cache *s, size_t size, gfp_t flags);
@@ -108,7 +108,7 @@ void *__kfence_alloc(struct kmem_cache *s, size_t size, gfp_t flags);
  *
  * Return:
  * * NULL     - must proceed with allocating as usual,
- * * non-NULL - pointer to a KFENCE object.
+ * * analn-NULL - pointer to a KFENCE object.
  *
  * kfence_alloc() should be inserted into the heap allocation fast path,
  * allowing it to transparently return KFENCE-allocated objects with a low
@@ -134,8 +134,8 @@ static __always_inline void *kfence_alloc(struct kmem_cache *s, size_t size, gfp
  * @addr: pointer to a heap object
  *
  * Return:
- * * 0     - not a KFENCE object, must call __ksize() instead,
- * * non-0 - this many bytes can be accessed without causing a memory error.
+ * * 0     - analt a KFENCE object, must call __ksize() instead,
+ * * analn-0 - this many bytes can be accessed without causing a memory error.
  *
  * kfence_ksize() returns the number of bytes requested for a KFENCE object at
  * allocation time. This number may be less than the object size of the
@@ -151,7 +151,7 @@ size_t kfence_ksize(const void *addr);
  *
  * SL[AU]B-allocated objects are laid out within a page one by one, so it is
  * easy to calculate the beginning of an object given a pointer inside it and
- * the object size. The same is not true for KFENCE, which places a single
+ * the object size. The same is analt true for KFENCE, which places a single
  * object at either end of the page. This helper function is used to find the
  * beginning of a KFENCE-allocated object.
  */
@@ -172,13 +172,13 @@ void __kfence_free(void *addr);
  * @addr: object to be freed
  *
  * Return:
- * * false - object doesn't belong to KFENCE pool and was ignored,
+ * * false - object doesn't belong to KFENCE pool and was iganalred,
  * * true  - object was released to KFENCE pool.
  *
  * Release a KFENCE object and mark it as freed. May be called on any object,
- * even non-KFENCE objects, to simplify integration of the hooks into the
+ * even analn-KFENCE objects, to simplify integration of the hooks into the
  * allocator's free codepath. The allocator must check the return value to
- * determine if it was a KFENCE object or not.
+ * determine if it was a KFENCE object or analt.
  */
 static __always_inline __must_check bool kfence_free(void *addr)
 {
@@ -196,7 +196,7 @@ static __always_inline __must_check bool kfence_free(void *addr)
  *
  * Return:
  * * false - address outside KFENCE pool,
- * * true  - page fault handled by KFENCE, no additional handling required.
+ * * true  - page fault handled by KFENCE, anal additional handling required.
  *
  * A page fault inside KFENCE pool indicates a memory error, such as an
  * out-of-bounds access, a use-after-free or an invalid memory access. In these
@@ -213,7 +213,7 @@ struct kmem_obj_info;
  * @object: the object
  *
  * Return:
- * * false - not a KFENCE object
+ * * false - analt a KFENCE object
  * * true - a KFENCE object, filled @kpp
  *
  * Copies information to @kpp for KFENCE objects.

@@ -185,7 +185,7 @@ void plfxlc_mac_tx_to_dev(struct sk_buff *skb, int error)
 	skb_pull(skb, sizeof(struct plfxlc_ctrlset));
 
 	if (unlikely(error ||
-		     (info->flags & IEEE80211_TX_CTL_NO_ACK))) {
+		     (info->flags & IEEE80211_TX_CTL_ANAL_ACK))) {
 		ieee80211_tx_status_irqsafe(hw, skb);
 		return;
 	}
@@ -211,7 +211,7 @@ static int plfxlc_fill_ctrlset(struct plfxlc_mac *mac, struct sk_buff *skb)
 	u32 temp_len = 0;
 
 	if (skb_headroom(skb) < sizeof(struct plfxlc_ctrlset)) {
-		dev_dbg(plfxlc_mac_dev(mac), "Not enough hroom(1)\n");
+		dev_dbg(plfxlc_mac_dev(mac), "Analt eanalugh hroom(1)\n");
 		return 1;
 	}
 
@@ -222,12 +222,12 @@ static int plfxlc_fill_ctrlset(struct plfxlc_mac *mac, struct sk_buff *skb)
 		  sizeof(cs->id) - sizeof(cs->len);
 
 	/* Data packet lengths must be multiple of four bytes and must
-	 * not be a multiple of 512 bytes. First, it is attempted to
+	 * analt be a multiple of 512 bytes. First, it is attempted to
 	 * append the data packet in the tailroom of the skb. In rare
 	 * occasions, the tailroom is too small. In this case, the
 	 * content of the packet is shifted into the headroom of the skb
 	 * by memcpy. Headroom is allocated at startup (below in this
-	 * file). Therefore, there will be always enough headroom. The
+	 * file). Therefore, there will be always eanalugh headroom. The
 	 * call skb_headroom is an additional safety which might be
 	 * dropped.
 	 */
@@ -245,7 +245,7 @@ static int plfxlc_fill_ctrlset(struct plfxlc_mac *mac, struct sk_buff *skb)
 				dest_pt = skb_push(skb, 4 - tmp);
 				memmove(dest_pt, src_pt, len);
 			} else {
-				return -ENOBUFS;
+				return -EANALBUFS;
 			}
 		} else {
 			skb_put(skb, 4 - tmp);
@@ -253,7 +253,7 @@ static int plfxlc_fill_ctrlset(struct plfxlc_mac *mac, struct sk_buff *skb)
 		temp_len += 4 - tmp;
 	}
 
-	/* check if not multiple of 512 and align data */
+	/* check if analt multiple of 512 and align data */
 	tmp = skb->len & 0x1ff;
 	if (!tmp) {
 		if (skb_tailroom(skb) < 4) {
@@ -267,7 +267,7 @@ static int plfxlc_fill_ctrlset(struct plfxlc_mac *mac, struct sk_buff *skb)
 				/* should never happen because
 				 * sufficient headroom was reserved
 				 */
-				return -ENOBUFS;
+				return -EANALBUFS;
 			}
 		} else {
 			skb_put(skb, 4);
@@ -314,7 +314,7 @@ static void plfxlc_op_tx(struct ieee80211_hw *hw,
 			break;
 		}
 
-		/* Default to broadcast address for unknown MACs */
+		/* Default to broadcast address for unkanalwn MACs */
 		if (!found)
 			sidx = STA_BROADCAST_INDEX;
 
@@ -322,7 +322,7 @@ static void plfxlc_op_tx(struct ieee80211_hw *hw,
 		if (skb_queue_len(&tx->station[sidx].data_list) > 60)
 			ieee80211_stop_queues(plfxlc_usb_to_hw(usb));
 
-		/* Schedule packet for transmission if queue is not full */
+		/* Schedule packet for transmission if queue is analt full */
 		if (skb_queue_len(&tx->station[sidx].data_list) > 256)
 			goto fail;
 		skb_queue_tail(&tx->station[sidx].data_list, skb);
@@ -488,7 +488,7 @@ int plfxlc_mac_rx(struct ieee80211_hw *hw, const u8 *buffer,
 
 	skb = dev_alloc_skb(payload_length + (need_padding ? 2 : 0));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (need_padding)
 		/* Make sure that the payload data is 4 byte aligned. */
@@ -510,7 +510,7 @@ static int plfxlc_op_add_interface(struct ieee80211_hw *hw,
 	};
 
 	if (mac->type != NL80211_IFTYPE_UNSPECIFIED)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (vif->type == NL80211_IFTYPE_ADHOC ||
 	    vif->type == NL80211_IFTYPE_STATION) {
@@ -521,7 +521,7 @@ static int plfxlc_op_add_interface(struct ieee80211_hw *hw,
 		return 0;
 	}
 	dev_dbg(plfxlc_mac_dev(mac), "unsupported iftype\n");
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void plfxlc_op_remove_interface(struct ieee80211_hw *hw,
@@ -558,8 +558,8 @@ static void plfxlc_op_configure_filter(struct ieee80211_hw *hw,
 
 	/* If multicast parameter
 	 * (as returned by plfxlc_op_prepare_multicast)
-	 * has changed, no bit in changed_flags is set. To handle this
-	 * situation, we do not return if changed_flags is 0. If we do so,
+	 * has changed, anal bit in changed_flags is set. To handle this
+	 * situation, we do analt return if changed_flags is 0. If we do so,
 	 * we will have some issue with IPv6 which uses multicast for link
 	 * layer address resolution.
 	 */
@@ -572,14 +572,14 @@ static void plfxlc_op_configure_filter(struct ieee80211_hw *hw,
 	mac->multicast_hash = hash;
 	spin_unlock_irqrestore(&mac->lock, flags);
 
-	/* no handling required for FIF_OTHER_BSS as we don't currently
+	/* anal handling required for FIF_OTHER_BSS as we don't currently
 	 * do BSSID filtering
 	 */
 	/* FIXME: in future it would be nice to enable the probe response
 	 * filter (so that the driver doesn't see them) until
 	 * FIF_BCN_PRBRESP_PROMISC is set. however due to atomicity here, we'd
 	 * have to schedule work to enable prbresp reception, which might
-	 * happen too late. For now we'll just listen and forward them all the
+	 * happen too late. For analw we'll just listen and forward them all the
 	 * time.
 	 */
 }
@@ -739,7 +739,7 @@ struct ieee80211_hw *plfxlc_mac_alloc_hw(struct usb_interface *intf)
 		BIT(NL80211_IFTYPE_ADHOC);
 	hw->max_signal = 100;
 	hw->queues = 1;
-	/* 4 for 32 bit alignment if no tailroom */
+	/* 4 for 32 bit alignment if anal tailroom */
 	hw->extra_tx_headroom = sizeof(struct plfxlc_ctrlset) + 4;
 	/* Tell mac80211 that we support multi rate retries */
 	hw->max_rates = IEEE80211_TX_MAX_RATES;

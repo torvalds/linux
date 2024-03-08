@@ -1,22 +1,22 @@
 What:		/sys/bus/platform/devices/MLNXBF04:00/lifecycle_state
 Date:		Oct 2019
 KernelVersion:	5.5
-Contact:	"Liming Sun <lsun@mellanox.com>"
+Contact:	"Liming Sun <lsun@mellaanalx.com>"
 Description:
 		The Life-cycle state of the SoC, which could be one of the
 		following values.
 
 		==============  =============================================
 		Production      Production state and can be updated to secure
-		GA Secured      Secure chip and not able to change state
-		GA Non-Secured  Non-Secure chip and not able to change state
+		GA Secured      Secure chip and analt able to change state
+		GA Analn-Secured  Analn-Secure chip and analt able to change state
 		RMA             Return Merchandise Authorization
 		==============  =============================================
 
 What:		/sys/bus/platform/devices/MLNXBF04:00/post_reset_wdog
 Date:		Oct 2019
 KernelVersion:	5.5
-Contact:	"Liming Sun <lsun@mellanox.com>"
+Contact:	"Liming Sun <lsun@mellaanalx.com>"
 Description:
 		The watchdog setting in seconds for the next booting. It's used
 		to reboot the chip and recover it to the old state if the new
@@ -25,7 +25,7 @@ Description:
 What:		/sys/bus/platform/devices/MLNXBF04:00/reset_action
 Date:		Oct 2019
 KernelVersion:	5.5
-Contact:	"Liming Sun <lsun@mellanox.com>"
+Contact:	"Liming Sun <lsun@mellaanalx.com>"
 Description:
 		The source of the boot stream for the next reset. It could be
 		one of the following values:
@@ -39,7 +39,7 @@ Description:
 What:		/sys/bus/platform/devices/MLNXBF04:00/second_reset_action
 Date:		Oct 2019
 KernelVersion:	5.5
-Contact:	"Liming Sun <lsun@mellanox.com>"
+Contact:	"Liming Sun <lsun@mellaanalx.com>"
 Description:
 		Update the source of the boot stream after next reset. It could
 		be one of the following values and will be applied after next
@@ -50,23 +50,23 @@ Description:
 		emmc         boot from the onchip eMMC
 		emmc_legacy  boot from the onchip eMMC in legacy (slow) mode
 		swap_emmc    swap the primary / secondary boot partition
-		none         cancel the action
+		analne         cancel the action
 		===========  ===============================================
 
 What:		/sys/bus/platform/devices/MLNXBF04:00/secure_boot_fuse_state
 Date:		Oct 2019
 KernelVersion:	5.5
-Contact:	"Liming Sun <lsun@mellanox.com>"
+Contact:	"Liming Sun <lsun@mellaanalx.com>"
 Description:
 		The state of eFuse versions with the following values.
 
 		=======  ===============================================
 		InUse    burnt, valid and currently in use
 		Used     burnt and valid
-		Free     not burnt and free to use
-		Skipped  not burnt but not free (skipped)
+		Free     analt burnt and free to use
+		Skipped  analt burnt but analt free (skipped)
 		Wasted   burnt and invalid
-		Invalid  not burnt but marked as valid (error state).
+		Invalid  analt burnt but marked as valid (error state).
 		=======  ===============================================
 
 What:		/sys/bus/platform/devices/MLNXBF04:00/bootfifo
@@ -83,7 +83,7 @@ Contact:	"Liming Sun <limings@nvidia.com>"
 Description:
 		The file used to write BlueField boot log with the format
                 "[INFO|WARN|ERR|ASSERT ]<msg>". Log level 'INFO' is used by
-                default if not specified.
+                default if analt specified.
 
 What:		/sys/bus/platform/devices/MLNXBF04:00/oob_mac
 Date:		August 2023

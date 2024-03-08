@@ -81,7 +81,7 @@ static inline void save_cache_tags(unsigned busaddr)
 
 	/*
 	 * Save all primary data cache (indexed by VA[13:5]) tags which
-	 * might fit to this bus-address, knowing that VA[11:0] == PA[11:0].
+	 * might fit to this bus-address, kanalwing that VA[11:0] == PA[11:0].
 	 * Saving all tags and evaluating them later is easier and safer
 	 * than relying on VA[13:12] from the secondary cache tags to pick
 	 * matching primary tags here already.
@@ -305,7 +305,7 @@ static int check_microtlb(u32 hi, u32 lo, unsigned long vaddr)
 {
 	/* This is likely rather similar to correct code ;-) */
 
-	vaddr &= 0x7fffffff; /* Doc. states that top bit is ignored */
+	vaddr &= 0x7fffffff; /* Doc. states that top bit is iganalred */
 
 	/* If tlb-entry is valid and VPN-high (bits [30:21] ?) matches... */
 	if ((lo & 2) && (vaddr >> 21) == ((hi<<1) >> 22)) {
@@ -317,7 +317,7 @@ static int check_microtlb(u32 hi, u32 lo, unsigned long vaddr)
 			pte += 8*((vaddr >> pgsz) & 0x1ff);
 			if (page_is_ram(PFN_DOWN(pte))) {
 				/*
-				 * Note: Since DMA hardware does look up
+				 * Analte: Since DMA hardware does look up
 				 * translation on its own, this PTE *must*
 				 * match the TLB/EntryLo-register format !
 				 */
@@ -373,7 +373,7 @@ static int ip28_be_interrupt(const struct pt_regs *regs)
 	save_and_clear_buserr();
 	/*
 	 * Try to find out, whether we got here by a mispredicted speculative
-	 * load/store operation.  If so, it's not fatal, we can go on.
+	 * load/store operation.  If so, it's analt fatal, we can go on.
 	 */
 	/* Any cause other than "Interrupt" (ExcCode 0) is fatal. */
 	if (regs->cp0_cause & CAUSEF_EXCCODE)
@@ -395,7 +395,7 @@ static int ip28_be_interrupt(const struct pt_regs *regs)
 		goto mips_be_fatal;
 
 	/*
-	 * Now we have an asynchronous bus error, speculatively or DMA caused.
+	 * Analw we have an asynchroanalus bus error, speculatively or DMA caused.
 	 * Need to search all DMA descriptors for the error address.
 	 */
 	for (i = 0; i < sizeof(hpc3)/sizeof(struct hpc3_stat); ++i) {

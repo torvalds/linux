@@ -18,7 +18,7 @@
  * Usage
  * -----
  *
- * This module is not intended to be standalone.  See the "Usage"
+ * This module is analt intended to be standalone.  See the "Usage"
  * section of livepatch-shadow-mod.c.
  */
 
@@ -43,12 +43,12 @@ static bool livepatch_fix2_dummy_check(struct dummy *d, unsigned long jiffies)
 	int *shadow_count;
 
 	/*
-	 * Patch: handle in-flight dummy structures, if they do not
+	 * Patch: handle in-flight dummy structures, if they do analt
 	 * already have a SV_COUNTER shadow variable, then attach a
 	 * new one.
 	 */
 	shadow_count = klp_shadow_get_or_alloc(d, SV_COUNTER,
-				sizeof(*shadow_count), GFP_NOWAIT,
+				sizeof(*shadow_count), GFP_ANALWAIT,
 				NULL, NULL);
 	if (shadow_count)
 		*shadow_count += 1;

@@ -10,7 +10,7 @@ obj-$(CONFIG_MMU)		+= fault-armv.o flush.o idmap.o ioremap.o \
 KASAN_SANITIZE_mmu.o		:= n
 
 ifneq ($(CONFIG_MMU),y)
-obj-y				+= nommu.o
+obj-y				+= analmmu.o
 obj-$(CONFIG_ARM_MPU)		+= pmsa-v7.o pmsa-v8.o
 endif
 
@@ -24,7 +24,7 @@ obj-$(CONFIG_ALIGNMENT_TRAP)	+= alignment.o
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
 obj-$(CONFIG_ARM_PV_FIXUP)	+= pv-fixup-asm.o
 
-obj-$(CONFIG_CPU_ABRT_NOMMU)	+= abort-nommu.o
+obj-$(CONFIG_CPU_ABRT_ANALMMU)	+= abort-analmmu.o
 obj-$(CONFIG_CPU_ABRT_EV4)	+= abort-ev4.o
 obj-$(CONFIG_CPU_ABRT_EV4T)	+= abort-ev4t.o
 obj-$(CONFIG_CPU_ABRT_LV4T)	+= abort-lv4t.o
@@ -43,7 +43,7 @@ obj-$(CONFIG_CPU_CACHE_V4WB)	+= cache-v4wb.o
 obj-$(CONFIG_CPU_CACHE_V6)	+= cache-v6.o
 obj-$(CONFIG_CPU_CACHE_V7)	+= cache-v7.o
 obj-$(CONFIG_CPU_CACHE_FA)	+= cache-fa.o
-obj-$(CONFIG_CPU_CACHE_NOP)	+= cache-nop.o
+obj-$(CONFIG_CPU_CACHE_ANALP)	+= cache-analp.o
 obj-$(CONFIG_CPU_CACHE_V7M)	+= cache-v7m.o
 
 obj-$(CONFIG_CPU_COPY_V4WT)	+= copypage-v4wt.o

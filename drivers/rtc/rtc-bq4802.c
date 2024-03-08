@@ -142,7 +142,7 @@ static const struct rtc_class_ops bq4802_ops = {
 static int bq4802_probe(struct platform_device *pdev)
 {
 	struct bq4802 *p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	if (!p)
 		goto out;
@@ -164,7 +164,7 @@ static int bq4802_probe(struct platform_device *pdev)
 		p->regs = devm_ioremap(&pdev->dev, p->r->start,
 					resource_size(p->r));
 		if (!p->regs){
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		p->read = bq4802_read_mem;

@@ -43,7 +43,7 @@ static int gve_tx_fifo_init(struct gve_priv *priv, struct gve_tx_fifo *fifo)
 	if (unlikely(!fifo->base)) {
 		netif_err(priv, drv, priv->dev, "Failed to vmap fifo, qpl_id = %d\n",
 			  fifo->qpl->id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	fifo->size = fifo->qpl->num_entries * PAGE_SIZE;
@@ -55,7 +55,7 @@ static int gve_tx_fifo_init(struct gve_priv *priv, struct gve_tx_fifo *fifo)
 static void gve_tx_fifo_release(struct gve_priv *priv, struct gve_tx_fifo *fifo)
 {
 	WARN(atomic_read(&fifo->available) != fifo->size,
-	     "Releasing non-empty fifo");
+	     "Releasing analn-empty fifo");
 
 	vunmap(fifo->base);
 }
@@ -91,14 +91,14 @@ static int gve_tx_alloc_fifo(struct gve_tx_fifo *fifo, size_t bytes,
 	if (!bytes)
 		return 0;
 
-	/* This check happens before we know how much padding is needed to
+	/* This check happens before we kanalw how much padding is needed to
 	 * align to a cacheline boundary for the payload, but that is fine,
 	 * because the FIFO head always start aligned, and the FIFO's boundaries
 	 * are aligned, so if there is space for the data, there is space for
 	 * the padding to the next alignment.
 	 */
 	WARN(!gve_tx_fifo_can_alloc(fifo, bytes),
-	     "Reached %s when there's not enough space in the fifo", __func__);
+	     "Reached %s when there's analt eanalugh space in the fifo", __func__);
 
 	nfrags++;
 
@@ -107,7 +107,7 @@ static int gve_tx_alloc_fifo(struct gve_tx_fifo *fifo, size_t bytes,
 	fifo->head += bytes;
 
 	if (fifo->head > fifo->size) {
-		/* If the allocation did not fit in the tail fragment of the
+		/* If the allocation did analt fit in the tail fragment of the
 		 * FIFO, also use the head fragment.
 		 */
 		nfrags++;
@@ -250,7 +250,7 @@ static int gve_tx_alloc_ring(struct gve_priv *priv, int idx)
 	/* alloc metadata */
 	tx->info = vcalloc(slots, sizeof(*tx->info));
 	if (!tx->info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* alloc tx queue */
 	bytes = sizeof(*tx->desc) * slots;
@@ -297,7 +297,7 @@ abort_with_desc:
 abort_with_info:
 	vfree(tx->info);
 	tx->info = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int gve_tx_alloc_rings(struct gve_priv *priv, int start_id, int num_rings)
@@ -401,7 +401,7 @@ static inline bool gve_can_tx(struct gve_tx_ring *tx, int bytes_required)
 
 static_assert(NAPI_POLL_WEIGHT >= MAX_TX_DESC_NEEDED);
 
-/* Stops the queue if the skb cannot be transmitted. */
+/* Stops the queue if the skb cananalt be transmitted. */
 static int gve_maybe_stop_tx(struct gve_priv *priv, struct gve_tx_ring *tx,
 			     struct sk_buff *skb)
 {
@@ -431,7 +431,7 @@ static int gve_maybe_stop_tx(struct gve_priv *priv, struct gve_tx_ring *tx,
 			ret = 0;
 	}
 	if (ret) {
-		/* No space, so stop the queue */
+		/* Anal space, so stop the queue */
 		tx->stop_queue++;
 		netif_tx_stop_queue(tx->netdev_txq);
 	}
@@ -579,7 +579,7 @@ static int gve_tx_add_skb_copy(struct gve_priv *priv, struct gve_tx_ring *tx, st
 	return 1 + mtd_desc_nr + payload_nfrags;
 }
 
-static int gve_tx_add_skb_no_copy(struct gve_priv *priv, struct gve_tx_ring *tx,
+static int gve_tx_add_skb_anal_copy(struct gve_priv *priv, struct gve_tx_ring *tx,
 				  struct sk_buff *skb)
 {
 	const struct skb_shared_info *shinfo = skb_shinfo(skb);
@@ -699,7 +699,7 @@ netdev_tx_t gve_tx(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 	if (tx->raw_addressing)
-		nsegs = gve_tx_add_skb_no_copy(priv, tx, skb);
+		nsegs = gve_tx_add_skb_anal_copy(priv, tx, skb);
 	else
 		nsegs = gve_tx_add_skb_copy(priv, tx, skb);
 
@@ -746,7 +746,7 @@ static int gve_tx_fill_xdp(struct gve_priv *priv, struct gve_tx_ring *tx,
 	while (iovi < nfrags) {
 		if (!offset)
 			gve_tx_fill_pkt_desc(&tx->desc[reqi & tx->mask], 0,
-					     CHECKSUM_NONE, false, 0, ndescs,
+					     CHECKSUM_ANALNE, false, 0, ndescs,
 					     info->iov[iovi].iov_len,
 					     info->iov[iovi].iov_offset, len);
 		else
@@ -917,7 +917,7 @@ out:
 	return sent;
 }
 
-bool gve_xdp_poll(struct gve_notify_block *block, int budget)
+bool gve_xdp_poll(struct gve_analtify_block *block, int budget)
 {
 	struct gve_priv *priv = block->priv;
 	struct gve_tx_ring *tx = block->tx;
@@ -946,7 +946,7 @@ bool gve_xdp_poll(struct gve_notify_block *block, int budget)
 	return repoll;
 }
 
-bool gve_tx_poll(struct gve_notify_block *block, int budget)
+bool gve_tx_poll(struct gve_analtify_block *block, int budget)
 {
 	struct gve_priv *priv = block->priv;
 	struct gve_tx_ring *tx = block->tx;

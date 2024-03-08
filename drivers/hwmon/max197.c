@@ -263,18 +263,18 @@ static int max197_probe(struct platform_device *pdev)
 	enum max197_chips chip = platform_get_device_id(pdev)->driver_data;
 
 	if (pdata == NULL) {
-		dev_err(&pdev->dev, "no platform data supplied\n");
+		dev_err(&pdev->dev, "anal platform data supplied\n");
 		return -EINVAL;
 	}
 
 	if (pdata->convert == NULL) {
-		dev_err(&pdev->dev, "no convert function supplied\n");
+		dev_err(&pdev->dev, "anal convert function supplied\n");
 		return -EINVAL;
 	}
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct max197_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->pdata = pdata;
 	mutex_init(&data->lock);

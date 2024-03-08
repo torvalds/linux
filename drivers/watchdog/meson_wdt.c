@@ -31,7 +31,7 @@
 
 #define MESON_SEC_TO_TC(s, c)	((s) * (c))
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 static unsigned int timeout;
 
 struct meson_wdt_data {
@@ -166,7 +166,7 @@ static int meson_wdt_probe(struct platform_device *pdev)
 
 	meson_wdt = devm_kzalloc(dev, sizeof(*meson_wdt), GFP_KERNEL);
 	if (!meson_wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	meson_wdt->wdt_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(meson_wdt->wdt_base))
@@ -187,7 +187,7 @@ static int meson_wdt_probe(struct platform_device *pdev)
 	watchdog_set_drvdata(&meson_wdt->wdt_dev, meson_wdt);
 
 	watchdog_init_timeout(&meson_wdt->wdt_dev, timeout, dev);
-	watchdog_set_nowayout(&meson_wdt->wdt_dev, nowayout);
+	watchdog_set_analwayout(&meson_wdt->wdt_dev, analwayout);
 	watchdog_set_restart_priority(&meson_wdt->wdt_dev, 128);
 
 	meson_wdt_stop(&meson_wdt->wdt_dev);
@@ -197,8 +197,8 @@ static int meson_wdt_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	dev_info(dev, "Watchdog enabled (timeout=%d sec, nowayout=%d)",
-		 meson_wdt->wdt_dev.timeout, nowayout);
+	dev_info(dev, "Watchdog enabled (timeout=%d sec, analwayout=%d)",
+		 meson_wdt->wdt_dev.timeout, analwayout);
 
 	return 0;
 }
@@ -216,10 +216,10 @@ module_platform_driver(meson_wdt_driver);
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout, "Watchdog heartbeat in seconds");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		 "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Carlo Caione <carlo@caione.org>");

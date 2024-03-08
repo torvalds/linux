@@ -203,7 +203,7 @@ struct hclge_shaper_ir_para {
 	u8 ir_s; /* IR_S parameter of IR shaper */
 };
 
-struct hclge_tm_nodes_cmd {
+struct hclge_tm_analdes_cmd {
 	u8 pg_base_id;
 	u8 pri_base_id;
 	__le16 qset_base_id;

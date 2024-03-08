@@ -62,7 +62,7 @@ static int fsl_asrc_dma_prepare_and_submit(struct snd_pcm_substream *substream,
 	unsigned long flags = DMA_CTRL_ACK;
 
 	/* Prepare and submit Front-End DMA channel */
-	if (!substream->runtime->no_period_wakeup)
+	if (!substream->runtime->anal_period_wakeup)
 		flags |= DMA_PREP_INTERRUPT;
 
 	pair->pos = 0;
@@ -73,7 +73,7 @@ static int fsl_asrc_dma_prepare_and_submit(struct snd_pcm_substream *substream,
 			dir == OUT ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM, flags);
 	if (!pair->desc[!dir]) {
 		dev_err(dev, "failed to prepare slave DMA for Front-End\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pair->desc[!dir]->callback = fsl_asrc_dma_complete;
@@ -86,7 +86,7 @@ static int fsl_asrc_dma_prepare_and_submit(struct snd_pcm_substream *substream,
 			pair->dma_chan[dir], 0xffff, 64, 64, DMA_DEV_TO_DEV, 0);
 	if (!pair->desc[dir]) {
 		dev_err(dev, "failed to prepare slave DMA for Back-End\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dmaengine_submit(pair->desc[dir]);
@@ -143,7 +143,7 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 	struct sdma_peripheral_config audio_config;
 	enum asrc_pair_index index = pair->index;
 	struct device *dev = component->dev;
-	struct device_node *of_dma_node;
+	struct device_analde *of_dma_analde;
 	int stream = substream->stream;
 	struct imx_dma_data *tmp_data;
 	struct snd_soc_dpcm *dpcm;
@@ -204,7 +204,7 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 	 * The Back-End device might have already requested a DMA channel,
 	 * so try to reuse it first, and then request a new one upon NULL.
 	 */
-	component_be = snd_soc_lookup_component_nolocked(dev_be, SND_DMAENGINE_PCM_DRV_NAME);
+	component_be = snd_soc_lookup_component_anallocked(dev_be, SND_DMAENGINE_PCM_DRV_NAME);
 	if (component_be) {
 		be_chan = soc_component_to_pcm(component_be)->chan[substream->stream];
 		tmp_chan = be_chan;
@@ -219,7 +219,7 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 
 	/*
 	 * An EDMA DEV_TO_DEV channel is fixed and bound with DMA event of each
-	 * peripheral, unlike SDMA channel that is allocated dynamically. So no
+	 * peripheral, unlike SDMA channel that is allocated dynamically. So anal
 	 * need to configure dma_request and dma_request2, but get dma_chan of
 	 * Back-End device directly via dma_request_chan.
 	 */
@@ -239,14 +239,14 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 		pair->dma_data.priority = tmp_data->priority;
 		dma_release_channel(tmp_chan);
 
-		of_dma_node = pair->dma_chan[!dir]->device->dev->of_node;
+		of_dma_analde = pair->dma_chan[!dir]->device->dev->of_analde;
 		pair->dma_chan[dir] =
 			__dma_request_channel(&mask, filter, &pair->dma_data,
-					      of_dma_node);
+					      of_dma_analde);
 		pair->req_dma_chan = true;
 	} else {
 		pair->dma_chan[dir] = tmp_chan;
-		/* Do not flag to release if we are reusing the Back-End one */
+		/* Do analt flag to release if we are reusing the Back-End one */
 		pair->req_dma_chan = !be_chan;
 	}
 
@@ -350,7 +350,7 @@ static int fsl_asrc_dma_startup(struct snd_soc_component *component,
 
 	pair = kzalloc(sizeof(*pair) + asrc->pair_priv_size, GFP_KERNEL);
 	if (!pair)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pair->asrc = asrc;
 	pair->private = (void *)pair + sizeof(struct fsl_asrc_pair);

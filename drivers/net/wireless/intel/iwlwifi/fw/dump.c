@@ -19,16 +19,16 @@
 #define FW_ASSERT_UMAC_FATAL			0x71
 #define UMAC_RT_NMI_LMAC2_FATAL			0x72
 #define RT_NMI_INTERRUPT_OTHER_LMAC_FATAL	0x73
-#define FW_ASSERT_NMI_UNKNOWN			0x84
+#define FW_ASSERT_NMI_UNKANALWN			0x84
 
 /*
- * Note: This structure is read from the device with IO accesses,
+ * Analte: This structure is read from the device with IO accesses,
  * and the reading already does the endian conversion. As it is
  * read with u32-sized accesses, any members with a different size
  * need to be ordered correctly though!
  */
 struct iwl_error_event_table {
-	u32 valid;		/* (nonzero) valid, (0) log is empty */
+	u32 valid;		/* (analnzero) valid, (0) log is empty */
 	u32 error_id;		/* type of error */
 	u32 trm_hw_status0;	/* TRM HW status */
 	u32 trm_hw_status1;	/* TRM HW status */
@@ -45,7 +45,7 @@ struct iwl_error_event_table {
 	u32 gp2;		/* GP2 timer register */
 	u32 fw_rev_type;	/* firmware revision type */
 	u32 major;		/* uCode version major */
-	u32 minor;		/* uCode version minor */
+	u32 mianalr;		/* uCode version mianalr */
 	u32 hw_ver;		/* HW Silicon version */
 	u32 brd_ver;		/* HW board version */
 	u32 log_pc;		/* log program counter */
@@ -77,13 +77,13 @@ struct iwl_error_event_table {
 
 /*
  * UMAC error struct - relevant starting from family 8000 chip.
- * Note: This structure is read from the device with IO accesses,
+ * Analte: This structure is read from the device with IO accesses,
  * and the reading already does the endian conversion. As it is
  * read with u32-sized accesses, any members with a different size
  * need to be ordered correctly though!
  */
 struct iwl_umac_error_event_table {
-	u32 valid;		/* (nonzero) valid, (0) log is empty */
+	u32 valid;		/* (analnzero) valid, (0) log is empty */
 	u32 error_id;		/* type of error */
 	u32 blink1;		/* branch link */
 	u32 blink2;		/* branch link */
@@ -93,7 +93,7 @@ struct iwl_umac_error_event_table {
 	u32 data2;		/* error-specific data */
 	u32 data3;		/* error-specific data */
 	u32 umac_major;
-	u32 umac_minor;
+	u32 umac_mianalr;
 	u32 frame_pointer;	/* core register 27*/
 	u32 stack_pointer;	/* core register 28 */
 	u32 cmd_header;		/* latest host cmd sent to UMAC */
@@ -109,7 +109,7 @@ static bool iwl_fwrt_if_errorid_other_cpu(u32 err_id)
 
 	if ((err_id >= FW_ASSERT_LMAC_FATAL &&
 	     err_id <= RT_NMI_INTERRUPT_OTHER_LMAC_FATAL) ||
-	    err_id == FW_ASSERT_NMI_UNKNOWN)
+	    err_id == FW_ASSERT_NMI_UNKANALWN)
 		return  true;
 	return false;
 }
@@ -161,7 +161,7 @@ static void iwl_fwrt_dump_umac_error_log(struct iwl_fw_runtime *fwrt)
 	IWL_ERR(fwrt, "0x%08X | umac data2\n", table.data2);
 	IWL_ERR(fwrt, "0x%08X | umac data3\n", table.data3);
 	IWL_ERR(fwrt, "0x%08X | umac major\n", table.umac_major);
-	IWL_ERR(fwrt, "0x%08X | umac minor\n", table.umac_minor);
+	IWL_ERR(fwrt, "0x%08X | umac mianalr\n", table.umac_mianalr);
 	IWL_ERR(fwrt, "0x%08X | frame pointer\n", table.frame_pointer);
 	IWL_ERR(fwrt, "0x%08X | stack pointer\n", table.stack_pointer);
 	IWL_ERR(fwrt, "0x%08X | last host cmd\n", table.cmd_header);
@@ -184,7 +184,7 @@ static void iwl_fwrt_dump_lmac_error_log(struct iwl_fw_runtime *fwrt, u8 lmac_nu
 
 	if (!base) {
 		IWL_ERR(fwrt,
-			"Not valid error log pointer 0x%08X for %s uCode\n",
+			"Analt valid error log pointer 0x%08X for %s uCode\n",
 			base,
 			(fwrt->cur_fw_img == IWL_UCODE_INIT)
 			? "Init" : "RT");
@@ -226,7 +226,7 @@ static void iwl_fwrt_dump_lmac_error_log(struct iwl_fw_runtime *fwrt, u8 lmac_nu
 			fwrt->trans->status, table.valid);
 	}
 
-	/* Do not change this output - scripts rely on it */
+	/* Do analt change this output - scripts rely on it */
 
 	IWL_ERR(fwrt, "Loaded firmware version: %s\n", fwrt->fw->fw_version);
 
@@ -247,7 +247,7 @@ static void iwl_fwrt_dump_lmac_error_log(struct iwl_fw_runtime *fwrt, u8 lmac_nu
 	IWL_ERR(fwrt, "0x%08X | time gp2\n", table.gp2);
 	IWL_ERR(fwrt, "0x%08X | uCode revision type\n", table.fw_rev_type);
 	IWL_ERR(fwrt, "0x%08X | uCode version major\n", table.major);
-	IWL_ERR(fwrt, "0x%08X | uCode version minor\n", table.minor);
+	IWL_ERR(fwrt, "0x%08X | uCode version mianalr\n", table.mianalr);
 	IWL_ERR(fwrt, "0x%08X | hw version\n", table.hw_ver);
 	IWL_ERR(fwrt, "0x%08X | board version\n", table.brd_ver);
 	IWL_ERR(fwrt, "0x%08X | hcmd\n", table.hcmd);
@@ -269,7 +269,7 @@ static void iwl_fwrt_dump_lmac_error_log(struct iwl_fw_runtime *fwrt, u8 lmac_nu
 
 /*
  * TCM error struct.
- * Note: This structure is read from the device with IO accesses,
+ * Analte: This structure is read from the device with IO accesses,
  * and the reading already does the endian conversion. As it is
  * read with u32-sized accesses, any members with a different size
  * need to be ordered correctly though!
@@ -338,7 +338,7 @@ static void iwl_fwrt_dump_tcm_error_log(struct iwl_fw_runtime *fwrt, int idx)
 
 /*
  * RCM error struct.
- * Note: This structure is read from the device with IO accesses,
+ * Analte: This structure is read from the device with IO accesses,
  * and the reading already does the endian conversion. As it is
  * read with u32-sized accesses, any members with a different size
  * need to be ordered correctly though!
@@ -479,7 +479,7 @@ static void iwl_fwrt_dump_fseq_regs(struct iwl_fw_runtime *fwrt)
 
 	for (i = 0; i < ARRAY_SIZE(fseq_regs); i++)
 		IWL_ERR(fwrt, "0x%08X | %s\n",
-			iwl_read_prph_no_grab(trans, fseq_regs[i].addr),
+			iwl_read_prph_anal_grab(trans, fseq_regs[i].addr),
 			fseq_regs[i].str);
 
 	iwl_trans_release_nic_access(trans);
@@ -492,7 +492,7 @@ void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt)
 
 	if (!test_bit(STATUS_DEVICE_ENABLED, &fwrt->trans->status)) {
 		IWL_ERR(fwrt,
-			"DEVICE_ENABLED bit is not set. Aborting dump.\n");
+			"DEVICE_ENABLED bit is analt set. Aborting dump.\n");
 		return;
 	}
 
@@ -517,7 +517,7 @@ void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt)
 		     count++, pc_data++)
 			IWL_ERR(fwrt, "%s: 0x%x\n",
 				pc_data->pc_name,
-				iwl_read_prph_no_grab(fwrt->trans,
+				iwl_read_prph_anal_grab(fwrt->trans,
 						      pc_data->pc_address));
 		iwl_trans_release_nic_access(fwrt->trans);
 	}

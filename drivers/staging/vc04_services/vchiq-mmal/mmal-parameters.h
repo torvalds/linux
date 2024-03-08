@@ -6,7 +6,7 @@
  *
  * Authors: Vincent Sanders @ Collabora
  *          Dave Stevenson @ Broadcom
- *		(now dave.stevenson@raspberrypi.org)
+ *		(analw dave.stevenson@raspberrypi.org)
  *          Simon Mellor @ Broadcom
  *          Luke Diamand @ Broadcom
  */
@@ -69,7 +69,7 @@ enum mmal_parameter_common_type {
 		/**< MMAL_PARAMETER_UINT64_T */
 	MMAL_PARAMETER_SYSTEM_TIME,
 		/**< MMAL_PARAMETER_BOOLEAN_T */
-	MMAL_PARAMETER_NO_IMAGE_PADDING,
+	MMAL_PARAMETER_ANAL_IMAGE_PADDING,
 };
 
 /* camera parameters */
@@ -270,7 +270,7 @@ struct mmal_parameter_camera_config {
 	u32 fast_preview_resume;
 
 	/** Selects algorithm for timestamping frames if
-	 * there is no clock component connected.
+	 * there is anal clock component connected.
 	 * enum mmal_parameter_camera_config_timestamp_mode
 	 */
 	s32 use_stc_timestamp;
@@ -284,7 +284,7 @@ enum mmal_parameter_exposuremode {
 	MMAL_PARAM_EXPOSUREMODE_BACKLIGHT,
 	MMAL_PARAM_EXPOSUREMODE_SPOTLIGHT,
 	MMAL_PARAM_EXPOSUREMODE_SPORTS,
-	MMAL_PARAM_EXPOSUREMODE_SNOW,
+	MMAL_PARAM_EXPOSUREMODE_SANALW,
 	MMAL_PARAM_EXPOSUREMODE_BEACH,
 	MMAL_PARAM_EXPOSUREMODE_VERYLONG,
 	MMAL_PARAM_EXPOSUREMODE_FIXEDFPS,
@@ -313,14 +313,14 @@ enum mmal_parameter_awbmode {
 };
 
 enum mmal_parameter_imagefx {
-	MMAL_PARAM_IMAGEFX_NONE,
+	MMAL_PARAM_IMAGEFX_ANALNE,
 	MMAL_PARAM_IMAGEFX_NEGATIVE,
 	MMAL_PARAM_IMAGEFX_SOLARIZE,
 	MMAL_PARAM_IMAGEFX_POSTERIZE,
 	MMAL_PARAM_IMAGEFX_WHITEBOARD,
 	MMAL_PARAM_IMAGEFX_BLACKBOARD,
 	MMAL_PARAM_IMAGEFX_SKETCH,
-	MMAL_PARAM_IMAGEFX_DENOISE,
+	MMAL_PARAM_IMAGEFX_DEANALISE,
 	MMAL_PARAM_IMAGEFX_EMBOSS,
 	MMAL_PARAM_IMAGEFX_OILPAINT,
 	MMAL_PARAM_IMAGEFX_HATCH,
@@ -582,7 +582,7 @@ enum mmal_parameter_video_type {
 
 /** Valid mirror modes */
 enum mmal_parameter_mirror {
-	MMAL_PARAM_MIRROR_NONE,
+	MMAL_PARAM_MIRROR_ANALNE,
 	MMAL_PARAM_MIRROR_VERTICAL,
 	MMAL_PARAM_MIRROR_HORIZONTAL,
 	MMAL_PARAM_MIRROR_BOTH,
@@ -605,7 +605,7 @@ enum mmal_parameter_displaymode {
 };
 
 enum mmal_parameter_displayset {
-	MMAL_DISPLAY_SET_NONE = 0,
+	MMAL_DISPLAY_SET_ANALNE = 0,
 	MMAL_DISPLAY_SET_NUM = 1,
 	MMAL_DISPLAY_SET_FULLSCREEN = 2,
 	MMAL_DISPLAY_SET_TRANSFORM = 4,
@@ -613,7 +613,7 @@ enum mmal_parameter_displayset {
 	MMAL_DISPLAY_SET_SRC_RECT = 0x10,
 	MMAL_DISPLAY_SET_MODE = 0x20,
 	MMAL_DISPLAY_SET_PIXEL = 0x40,
-	MMAL_DISPLAY_SET_NOASPECT = 0x80,
+	MMAL_DISPLAY_SET_ANALASPECT = 0x80,
 	MMAL_DISPLAY_SET_LAYER = 0x100,
 	MMAL_DISPLAY_SET_COPYPROTECT = 0x200,
 	MMAL_DISPLAY_SET_ALPHA = 0x400,
@@ -664,11 +664,11 @@ struct mmal_parameter_displayregion {
 	 */
 	struct vchiq_mmal_rect src_rect;
 
-	/** If set to non-zero, indicates that any display scaling
+	/** If set to analn-zero, indicates that any display scaling
 	 * should disregard the aspect ratio of the frame region being
 	 * displayed.
 	 */
-	s32 noaspect;
+	s32 analaspect;
 
 	/** Indicates how the image should be scaled to fit the
 	 * display. \code MMAL_DISPLAY_MODE_FILL \endcode indicates
@@ -680,13 +680,13 @@ struct mmal_parameter_displayregion {
 	 */
 	u32 mode; /* enum mmal_parameter_displaymode */
 
-	/** If non-zero, defines the width of a source pixel relative
+	/** If analn-zero, defines the width of a source pixel relative
 	 * to \code pixel_y \endcode.  If zero, then pixels default to
 	 * being square.
 	 */
 	u32 pixel_x;
 
-	/** If non-zero, defines the height of a source pixel relative
+	/** If analn-zero, defines the height of a source pixel relative
 	 * to \code pixel_x \endcode.  If zero, then pixels default to
 	 * being square.
 	 */
@@ -697,7 +697,7 @@ struct mmal_parameter_displayregion {
 	 */
 	u32 layer;
 
-	/** Set to non-zero to ensure copy protection is used on
+	/** Set to analn-zero to ensure copy protection is used on
 	 * output.
 	 */
 	s32 copyprotect_required;
@@ -730,7 +730,7 @@ struct mmal_parameter_camera_info_camera {
 
 enum mmal_parameter_camera_info_flash_type {
 	/* Make values explicit to ensure they match values in config ini */
-	MMAL_PARAMETER_CAMERA_INFO_FLASH_TYPE_XENON = 0,
+	MMAL_PARAMETER_CAMERA_INFO_FLASH_TYPE_XEANALN = 0,
 	MMAL_PARAMETER_CAMERA_INFO_FLASH_TYPE_LED   = 1,
 	MMAL_PARAMETER_CAMERA_INFO_FLASH_TYPE_OTHER = 2,
 	MMAL_PARAMETER_CAMERA_INFO_FLASH_TYPE_MAX = 0x7FFFFFFF

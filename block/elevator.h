@@ -14,7 +14,7 @@ struct blk_mq_debugfs_attr;
  * Return values from elevator merger
  */
 enum elv_merge {
-	ELEVATOR_NO_MERGE	= 0,
+	ELEVATOR_ANAL_MERGE	= 0,
 	ELEVATOR_FRONT_MERGE	= 1,
 	ELEVATOR_BACK_MERGE	= 2,
 	ELEVATOR_DISCARD_MERGE	= 3,
@@ -178,7 +178,7 @@ extern struct request *elv_rb_find(struct rb_root *, sector_t);
 #define ELEVATOR_INSERT_FLUSH	5
 #define ELEVATOR_INSERT_SORT_MERGE	6
 
-#define rb_entry_rq(node)	rb_entry((node), struct request, rb_node)
+#define rb_entry_rq(analde)	rb_entry((analde), struct request, rb_analde)
 
 #define rq_entry_fifo(ptr)	list_entry((ptr), struct request, queuelist)
 #define rq_fifo_clear(rq)	list_del_init(&(rq)->queuelist)

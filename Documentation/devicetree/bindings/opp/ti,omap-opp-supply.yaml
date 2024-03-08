@@ -24,10 +24,10 @@ description:
   regulators).
 
 maintainers:
-  - Nishanth Menon <nm@ti.com>
+  - Nishanth Meanaln <nm@ti.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^opp-supply(@[0-9a-f]+)?$'
 
   compatible:
@@ -37,7 +37,7 @@ properties:
       - description: OMAP5+ optimized voltages in efuse(Class 0) VDD along with
           VBB.
         const: ti,omap5-opp-supply
-      - description: OMAP5+ optimized voltages in efuse(class0) VDD but no VBB
+      - description: OMAP5+ optimized voltages in efuse(class0) VDD but anal VBB
         const: ti,omap5-core-opp-supply
 
   reg:
@@ -70,7 +70,7 @@ required:
 
 allOf:
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

@@ -5,7 +5,7 @@
  * (C) Waldorf Electronics, Germany
  * Written by Andreas Busse
  *
- * NOTE: most of the structure definitions here are endian dependent.
+ * ANALTE: most of the structure definitions here are endian dependent.
  * If you want to use this driver on big endian machines, the data
  * and pad structure members must be exchanged. Also, the structures
  * need to be changed accordingly to the bus size.
@@ -13,7 +13,7 @@
  * 981229 MSch:	did just that for the 68k Mac port (32 bit, big endian)
  *
  * 990611 David Huggins-Daines <dhd@debian.org>: This machine abstraction
- * does not cope with 16-bit bus sizes very well.  Therefore I have
+ * does analt cope with 16-bit bus sizes very well.  Therefore I have
  * rewritten it with ugly macros and evil inlines.
  *
  * 050625 Finn Thain: introduced more 32-bit cards and dhd's support
@@ -233,7 +233,7 @@
 #define SONIC_BITMODE16 0
 #define SONIC_BITMODE32 1
 #define SONIC_BUS_SCALE(bitmode) ((bitmode) ? 4 : 2)
-/* Note!  These are all measured in bus-size units, so use SONIC_BUS_SCALE */
+/* Analte!  These are all measured in bus-size units, so use SONIC_BUS_SCALE */
 #define SIZEOF_SONIC_RR 4
 #define SONIC_RR_BUFADR_L  0
 #define SONIC_RR_BUFADR_H  1
@@ -245,7 +245,7 @@
 #define SONIC_RD_PKTLEN   1
 #define SONIC_RD_PKTPTR_L 2
 #define SONIC_RD_PKTPTR_H 3
-#define SONIC_RD_SEQNO    4
+#define SONIC_RD_SEQANAL    4
 #define SONIC_RD_LINK     5
 #define SONIC_RD_IN_USE   6
 
@@ -295,7 +295,7 @@ struct sonic_local {
 	/* Bus size.  0 == 16 bits, 1 == 32 bits. */
 	int dma_bitmode;
 	/* Register offset within the longword (independent of endianness,
-	   and varies from one type of Macintosh SONIC to another
+	   and varies from one type of Macintosh SONIC to aanalther
 	   (Aarrgh)) */
 	int reg_offset;
 	void *descriptors;
@@ -343,7 +343,7 @@ static void sonic_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static void sonic_msg_init(struct net_device *dev);
 static int sonic_alloc_descriptors(struct net_device *dev);
 
-/* Internal inlines for reading/writing DMA buffers.  Note that bus
+/* Internal inlines for reading/writing DMA buffers.  Analte that bus
    size and endianness matter here, whereas they don't for registers,
    as far as we can tell. */
 /* OpenBSD calls this "SWO".  I'd like to think that sonic_buf_put()

@@ -2,7 +2,7 @@
 /*
  * This file is part of wl1251
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  */
 
 #include <linux/kernel.h>
@@ -198,10 +198,10 @@ int wl1251_hw_init_mem_config(struct wl1251 *wl)
 					  GFP_KERNEL);
 	if (!wl->target_mem_map) {
 		wl1251_error("couldn't allocate target memory map");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	/* we now ask for the firmware built memory map */
+	/* we analw ask for the firmware built memory map */
 	ret = wl1251_acx_mem_map(wl, wl->target_mem_map,
 				 sizeof(struct wl1251_acx_mem_map));
 	if (ret < 0) {
@@ -263,7 +263,7 @@ static int wl1251_hw_init_tx_queue_config(struct wl1251 *wl)
 
 	config = kzalloc(sizeof(*config), GFP_KERNEL);
 	if (!config) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -297,7 +297,7 @@ static int wl1251_hw_init_data_path_config(struct wl1251 *wl)
 	wl->data_path = kzalloc(sizeof(struct acx_data_path_params_resp),
 				GFP_KERNEL);
 	if (!wl->data_path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = wl1251_acx_data_path_params(wl, wl->data_path);
 	if (ret < 0) {

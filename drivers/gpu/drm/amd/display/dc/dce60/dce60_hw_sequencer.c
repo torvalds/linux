@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -75,7 +75,7 @@ static bool dce60_should_enable_fbc(struct dc *dc,
 			if (!pipe_ctx)
 				continue;
 
-			/* fbc not applicable on underlay pipe */
+			/* fbc analt applicable on underlay pipe */
 			if (pipe_ctx->pipe_idx != underlay_idx) {
 				*pipe_idx = i;
 				break;
@@ -93,15 +93,15 @@ static bool dce60_should_enable_fbc(struct dc *dc,
 	if (pipe_ctx->stream->link->connector_signal != SIGNAL_TYPE_EDP)
 		return false;
 
-	/* PSR should not be enabled */
+	/* PSR should analt be enabled */
 	if (pipe_ctx->stream->link->psr_settings.psr_feature_enabled)
 		return false;
 
-	/* Nothing to compress */
+	/* Analthing to compress */
 	if (!pipe_ctx->plane_state)
 		return false;
 
-	/* Only for non-linear tiling */
+	/* Only for analn-linear tiling */
 	if (pipe_ctx->plane_state->tiling_info.gfx8.array_mode == DC_ARRAY_LINEAR_GENERAL)
 		return false;
 
@@ -165,7 +165,7 @@ static void dce60_set_default_colors(struct pipe_ctx *pipe_ctx)
  * In order to turn on surface we will program
  * CRTC
  *
- * DCE6 has no bottom_pipe and no Blender HW
+ * DCE6 has anal bottom_pipe and anal Blender HW
  * We need to set 'blank_target' to false in order to turn on the display
  *
  * |-----------|------------|---------|
@@ -183,7 +183,7 @@ static void dce60_program_surface_visibility(const struct dc *dc,
 {
 	bool blank_target = false;
 
-	/* DCE6 has no bottom_pipe and no Blender HW */
+	/* DCE6 has anal bottom_pipe and anal Blender HW */
 
 	if (!pipe_ctx->plane_state->visible)
 		blank_target = true;

@@ -30,7 +30,7 @@ struct bpf_core_spec {
 	const struct btf *btf;
 	/* high-level spec: named fields and array indices only */
 	struct bpf_core_accessor spec[BPF_CORE_SPEC_MAX_LEN];
-	/* original unresolved (no skip_mods_or_typedefs) root type ID */
+	/* original unresolved (anal skip_mods_or_typedefs) root type ID */
 	__u32 root_type_id;
 	/* CO-RE relocation kind */
 	enum bpf_core_relo_kind relo_kind;

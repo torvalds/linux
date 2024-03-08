@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Author: Dmitry Safonov <dima@arista.com> */
+/* Author: Dmitry Safoanalv <dima@arista.com> */
 #include <inttypes.h>
 #include "aolib.h"
 
@@ -23,7 +23,7 @@ static inline int test_add_key_maclen(int sk, const char *key, uint8_t maclen,
 
 	err = setsockopt(sk, IPPROTO_TCP, TCP_AO_ADD_KEY, &tmp, sizeof(tmp));
 	if (err < 0)
-		return -errno;
+		return -erranal;
 
 	return test_verify_socket_key(sk, &tmp);
 }
@@ -84,7 +84,7 @@ static void try_accept(const char *tst_name, unsigned int port, const char *pwd,
 	after_cnt = netstat_get_one(cnt_name, NULL);
 
 	if (after_cnt <= before_cnt) {
-		test_fail("%s: %s counter did not increase: %zu <= %zu",
+		test_fail("%s: %s counter did analt increase: %zu <= %zu",
 				tst_name, cnt_name, after_cnt, before_cnt);
 	} else {
 		test_ok("%s: counter %s increased %zu => %zu",
@@ -105,21 +105,21 @@ static void *server_fn(void *arg)
 	if (inet_pton(TEST_FAMILY, TEST_WRONG_IP, &wrong_addr) != 1)
 		test_error("Can't convert ip address %s", TEST_WRONG_IP);
 
-	try_accept("Non-AO server + AO client", port++, NULL,
+	try_accept("Analn-AO server + AO client", port++, NULL,
 		   this_ip_dest, -1, 100, 100, 0,
-		   "TCPAOKeyNotFound", 0, FAULT_TIMEOUT);
+		   "TCPAOKeyAnaltFound", 0, FAULT_TIMEOUT);
 
-	try_accept("AO server + Non-AO client", port++, DEFAULT_TEST_PASSWORD,
+	try_accept("AO server + Analn-AO client", port++, DEFAULT_TEST_PASSWORD,
 		   this_ip_dest, -1, 100, 100, 0,
 		   "TCPAORequired", TEST_CNT_AO_REQUIRED, FAULT_TIMEOUT);
 
-	try_accept("Wrong password", port++, "something that is not DEFAULT_TEST_PASSWORD",
+	try_accept("Wrong password", port++, "something that is analt DEFAULT_TEST_PASSWORD",
 		   this_ip_dest, -1, 100, 100, 0,
 		   "TCPAOBad", TEST_CNT_BAD, FAULT_TIMEOUT);
 
 	try_accept("Wrong rcv id", port++, DEFAULT_TEST_PASSWORD,
 		   this_ip_dest, -1, 100, 101, 0,
-		   "TCPAOKeyNotFound", TEST_CNT_AO_KEY_NOT_FOUND, FAULT_TIMEOUT);
+		   "TCPAOKeyAnaltFound", TEST_CNT_AO_KEY_ANALT_FOUND, FAULT_TIMEOUT);
 
 	try_accept("Wrong snd id", port++, DEFAULT_TEST_PASSWORD,
 		   this_ip_dest, -1, 101, 100, 0,
@@ -131,7 +131,7 @@ static void *server_fn(void *arg)
 
 	try_accept("Server: Wrong addr", port++, DEFAULT_TEST_PASSWORD,
 		   wrong_addr, -1, 100, 100, 0,
-		   "TCPAOKeyNotFound", TEST_CNT_AO_KEY_NOT_FOUND, FAULT_TIMEOUT);
+		   "TCPAOKeyAnaltFound", TEST_CNT_AO_KEY_ANALT_FOUND, FAULT_TIMEOUT);
 
 	try_accept("Client: Wrong addr", port++, NULL,
 		   this_ip_dest, -1, 100, 100, 0, NULL, 0, FAULT_TIMEOUT);
@@ -218,10 +218,10 @@ static void *client_fn(void *arg)
 	if (inet_pton(TEST_FAMILY, TEST_WRONG_IP, &wrong_addr) != 1)
 		test_error("Can't convert ip address %s", TEST_WRONG_IP);
 
-	try_connect("Non-AO server + AO client", port++, DEFAULT_TEST_PASSWORD,
+	try_connect("Analn-AO server + AO client", port++, DEFAULT_TEST_PASSWORD,
 			this_ip_dest, -1, 100, 100, 0, FAULT_TIMEOUT);
 
-	try_connect("AO server + Non-AO client", port++, NULL,
+	try_connect("AO server + Analn-AO client", port++, NULL,
 			this_ip_dest, -1, 100, 100, 0, FAULT_TIMEOUT);
 
 	try_connect("Wrong password", port++, DEFAULT_TEST_PASSWORD,

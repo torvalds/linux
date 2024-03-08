@@ -19,7 +19,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, see <http://www.gnu.org/licenses/>.
+ *   along with this library; if analt, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -44,12 +44,12 @@ MODULE_PARM_DESC(debug, "DNS Resolver debugging mask");
 
 const struct cred *dns_resolver_cache;
 
-#define	DNS_ERRORNO_OPTION	"dnserror"
+#define	DNS_ERRORANAL_OPTION	"dnserror"
 
 /*
  * Preparse instantiation data for a dns_resolver key.
  *
- * For normal hostname lookups, the data must be a NUL-terminated string, with
+ * For analrmal hostname lookups, the data must be a NUL-terminated string, with
  * the NUL char accounted in datalen.
  *
  * If the data contains a '#' characters, then we take the clause after each
@@ -60,9 +60,9 @@ const struct cred *dns_resolver_cache;
  *
  * For server list requests, the data must begin with a NUL char and be
  * followed by a byte indicating the version of the data format.  Version 1
- * looks something like (note this is packed):
+ * looks something like (analte this is packed):
  *
- *	u8      Non-string marker (ie. 0)
+ *	u8      Analn-string marker (ie. 0)
  *	u8	Content (DNS_PAYLOAD_IS_*)
  *	u8	Version (e.g. 1)
  *	u8	Source of server list
@@ -77,7 +77,7 @@ const struct cred *dns_resolver_cache;
  *		u8	Lookup status of address list
  *		u8	Protocol (DNS_SERVER_PROTOCOL_*)
  *		u8	Number of addresses
- *		char[]	Name (not NUL-terminated)
+ *		char[]	Name (analt NUL-terminated)
  *		foreach-address {
  *			u8		Family (DNS_ADDRESS_IS_*)
  *			union {
@@ -92,7 +92,7 @@ static int
 dns_resolver_preparse(struct key_preparsed_payload *prep)
 {
 	struct user_key_payload *upayload;
-	unsigned long derrno;
+	unsigned long derranal;
 	int ret;
 	int datalen = prep->datalen, result_len = 0;
 	const char *data = prep->data, *end, *opt;
@@ -143,8 +143,8 @@ dns_resolver_preparse(struct key_preparsed_payload *prep)
 	end = data + datalen;
 	opt = memchr(data, '#', datalen);
 	if (!opt) {
-		/* no options: the entire data is the result */
-		kdebug("no options");
+		/* anal options: the entire data is the result */
+		kdebug("anal options");
 		result_len = datalen;
 	} else {
 		const char *next_opt;
@@ -181,19 +181,19 @@ dns_resolver_preparse(struct key_preparsed_payload *prep)
 
 			/* see if it's an error number representing a DNS error
 			 * that's to be recorded as the result in this key */
-			if (opt_nlen == sizeof(DNS_ERRORNO_OPTION) - 1 &&
-			    memcmp(opt, DNS_ERRORNO_OPTION, opt_nlen) == 0) {
+			if (opt_nlen == sizeof(DNS_ERRORANAL_OPTION) - 1 &&
+			    memcmp(opt, DNS_ERRORANAL_OPTION, opt_nlen) == 0) {
 				kdebug("dns error number option");
 
-				ret = kstrtoul(optval, 10, &derrno);
+				ret = kstrtoul(optval, 10, &derranal);
 				if (ret < 0)
 					goto bad_option_value;
 
-				if (derrno < 1 || derrno > 511)
+				if (derranal < 1 || derranal > 511)
 					goto bad_option_value;
 
-				kdebug("dns error no. = %lu", derrno);
-				prep->payload.data[dns_key_error] = ERR_PTR(-derrno);
+				kdebug("dns error anal. = %lu", derranal);
+				prep->payload.data[dns_key_error] = ERR_PTR(-derranal);
 				continue;
 			}
 
@@ -204,7 +204,7 @@ dns_resolver_preparse(struct key_preparsed_payload *prep)
 		} while (opt = next_opt + 1, opt < end);
 	}
 
-	/* don't cache the result if we're caching an error saying there's no
+	/* don't cache the result if we're caching an error saying there's anal
 	 * result */
 	if (prep->payload.data[dns_key_error]) {
 		kleave(" = 0 [h_error %ld]", PTR_ERR(prep->payload.data[dns_key_error]));
@@ -217,8 +217,8 @@ store_result:
 
 	upayload = kmalloc(sizeof(*upayload) + result_len + 1, GFP_KERNEL);
 	if (!upayload) {
-		kleave(" = -ENOMEM");
-		return -ENOMEM;
+		kleave(" = -EANALMEM");
+		return -EANALMEM;
 	}
 
 	upayload->datalen = result_len;
@@ -255,7 +255,7 @@ static bool dns_resolver_cmp(const struct key *key,
 	kenter("%s,%s", src, dsp);
 
 	if (!src || !dsp)
-		goto no_match;
+		goto anal_match;
 
 	if (strcasecmp(src, dsp) == 0)
 		goto matched;
@@ -263,17 +263,17 @@ static bool dns_resolver_cmp(const struct key *key,
 	slen = strlen(src);
 	dlen = strlen(dsp);
 	if (slen <= 0 || dlen <= 0)
-		goto no_match;
+		goto anal_match;
 	if (src[slen - 1] == '.')
 		slen--;
 	if (dsp[dlen - 1] == '.')
 		dlen--;
 	if (slen != dlen || strncasecmp(src, dsp, slen) != 0)
-		goto no_match;
+		goto anal_match;
 
 matched:
 	ret = 1;
-no_match:
+anal_match:
 	kleave(" = %d", ret);
 	return ret;
 }
@@ -346,13 +346,13 @@ static int __init init_dns_resolver(void)
 	 */
 	cred = prepare_kernel_cred(&init_task);
 	if (!cred)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	keyring = keyring_alloc(".dns_resolver",
 				GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, cred,
 				(KEY_POS_ALL & ~KEY_POS_SETATTR) |
 				KEY_USR_VIEW | KEY_USR_READ,
-				KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
+				KEY_ALLOC_ANALT_IN_QUOTA, NULL, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto failed_put_cred;

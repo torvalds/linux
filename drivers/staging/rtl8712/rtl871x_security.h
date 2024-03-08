@@ -17,7 +17,7 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 
-#define _NO_PRIVACY_	0x0
+#define _ANAL_PRIVACY_	0x0
 #define _WEP40_		0x1
 #define _TKIP_		0x2
 #define _TKIP_WTMIC_	0x3
@@ -28,11 +28,11 @@
 #define _WPA2_IE_ID_	0x30
 
 #ifndef Ndis802_11AuthModeWPA2
-#define Ndis802_11AuthModeWPA2 (Ndis802_11AuthModeWPANone + 1)
+#define Ndis802_11AuthModeWPA2 (Ndis802_11AuthModeWPAAnalne + 1)
 #endif
 
 #ifndef Ndis802_11AuthModeWPA2PSK
-#define Ndis802_11AuthModeWPA2PSK (Ndis802_11AuthModeWPANone + 2)
+#define Ndis802_11AuthModeWPA2PSK (Ndis802_11AuthModeWPAAnalne + 2)
 #endif
 
 union pn48 {
@@ -111,7 +111,7 @@ struct security_priv {
 	s32	sw_encrypt;	/* from registry_priv */
 	s32	sw_decrypt;	/* from registry_priv */
 	s32	hw_decrypted;	/* if the rx packets is hw_decrypted==false,
-				 * it means the hw has not been ready.
+				 * it means the hw has analt been ready.
 				 */
 	u32 ndisauthtype;	/* keeps the auth_type & enc_status from upper
 				 * layer ioctl(wpa_supplicant or wzc)

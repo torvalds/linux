@@ -495,7 +495,7 @@
 	};
 
 	usbphy: phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		#phy-cells = <0>;
 	};
 };

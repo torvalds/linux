@@ -43,7 +43,7 @@ static int sja1105_setup_bcast_policer(struct sja1105_private *priv,
 	if (!rule) {
 		rule = kzalloc(sizeof(*rule), GFP_KERNEL);
 		if (!rule)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		rule->cookie = cookie;
 		rule->type = SJA1105_RULE_BCAST_POLICER;
@@ -53,8 +53,8 @@ static int sja1105_setup_bcast_policer(struct sja1105_private *priv,
 	}
 
 	if (rule->bcast_pol.sharindx == -1) {
-		NL_SET_ERR_MSG_MOD(extack, "No more L2 policers free");
-		rc = -ENOSPC;
+		NL_SET_ERR_MSG_MOD(extack, "Anal more L2 policers free");
+		rc = -EANALSPC;
 		goto out;
 	}
 
@@ -114,7 +114,7 @@ static int sja1105_setup_tc_policer(struct sja1105_private *priv,
 	if (!rule) {
 		rule = kzalloc(sizeof(*rule), GFP_KERNEL);
 		if (!rule)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		rule->cookie = cookie;
 		rule->type = SJA1105_RULE_TC_POLICER;
@@ -125,8 +125,8 @@ static int sja1105_setup_tc_policer(struct sja1105_private *priv,
 	}
 
 	if (rule->tc_pol.sharindx == -1) {
-		NL_SET_ERR_MSG_MOD(extack, "No more L2 policers free");
-		rc = -ENOSPC;
+		NL_SET_ERR_MSG_MOD(extack, "Anal more L2 policers free");
+		rc = -EANALSPC;
 		goto out;
 	}
 
@@ -187,8 +187,8 @@ static int sja1105_flower_policer(struct sja1105_private *priv, int port,
 						key->tc.pcp, rate_bytes_per_sec,
 						burst);
 	default:
-		NL_SET_ERR_MSG_MOD(extack, "Unknown keys for policing");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Unkanalwn keys for policing");
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -211,7 +211,7 @@ static int sja1105_flower_parse_key(struct sja1105_private *priv,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS))) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Unsupported keys used");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
@@ -220,8 +220,8 @@ static int sja1105_flower_parse_key(struct sja1105_private *priv,
 		flow_rule_match_basic(rule, &match);
 		if (match.key->n_proto) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Matching on protocol not supported");
-			return -EOPNOTSUPP;
+					   "Matching on protocol analt supported");
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -235,14 +235,14 @@ static int sja1105_flower_parse_key(struct sja1105_private *priv,
 		if (!ether_addr_equal_masked(match.key->src, null,
 					     match.mask->src)) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Matching on source MAC not supported");
-			return -EOPNOTSUPP;
+					   "Matching on source MAC analt supported");
+			return -EOPANALTSUPP;
 		}
 
 		if (!ether_addr_equal(match.mask->dst, bcast)) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Masked matching on MAC not supported");
-			return -EOPNOTSUPP;
+					   "Masked matching on MAC analt supported");
+			return -EOPANALTSUPP;
 		}
 
 		dmac = ether_addr_to_u64(match.key->dst);
@@ -257,15 +257,15 @@ static int sja1105_flower_parse_key(struct sja1105_private *priv,
 		if (match.mask->vlan_id &&
 		    match.mask->vlan_id != VLAN_VID_MASK) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Masked matching on VID is not supported");
-			return -EOPNOTSUPP;
+					   "Masked matching on VID is analt supported");
+			return -EOPANALTSUPP;
 		}
 
 		if (match.mask->vlan_priority &&
 		    match.mask->vlan_priority != 0x7) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Masked matching on PCP is not supported");
-			return -EOPNOTSUPP;
+					   "Masked matching on PCP is analt supported");
+			return -EOPANALTSUPP;
 		}
 
 		if (match.mask->vlan_id)
@@ -296,8 +296,8 @@ static int sja1105_flower_parse_key(struct sja1105_private *priv,
 		return 0;
 	}
 
-	NL_SET_ERR_MSG_MOD(extack, "Not matching on any known key");
-	return -EOPNOTSUPP;
+	NL_SET_ERR_MSG_MOD(extack, "Analt matching on any kanalwn key");
+	return -EOPANALTSUPP;
 }
 
 static int sja1105_policer_validate(const struct flow_action *action,
@@ -306,35 +306,35 @@ static int sja1105_policer_validate(const struct flow_action *action,
 {
 	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when exceed action is not drop");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when exceed action is analt drop");
+		return -EOPANALTSUPP;
 	}
 
-	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
-	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+	if (act->police.analtexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.analtexceed.act_id != FLOW_ACTION_ACCEPT) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is not pipe or ok");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is analt pipe or ok");
+		return -EOPANALTSUPP;
 	}
 
-	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	if (act->police.analtexceed.act_id == FLOW_ACTION_ACCEPT &&
 	    !flow_action_is_last_entry(action, act)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is ok, but action is not last");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is ok, but action is analt last");
+		return -EOPANALTSUPP;
 	}
 
 	if (act->police.peakrate_bytes_ps ||
 	    act->police.avrate || act->police.overhead) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when peakrate/avrate/overhead is configured");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when peakrate/avrate/overhead is configured");
+		return -EOPANALTSUPP;
 	}
 
 	if (act->police.rate_pkt_ps) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "QoS offload not support packets per second");
-		return -EOPNOTSUPP;
+				   "QoS offload analt support packets per second");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -390,8 +390,8 @@ int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 			to_dp = dsa_port_from_netdev(act->dev);
 			if (IS_ERR(to_dp)) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "Destination not a switch port");
-				return -EOPNOTSUPP;
+						   "Destination analt a switch port");
+				return -EOPANALTSUPP;
 			}
 
 			routing_rule = true;
@@ -428,8 +428,8 @@ int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 			break;
 		default:
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Action not supported");
-			rc = -EOPNOTSUPP;
+					   "Action analt supported");
+			rc = -EOPANALTSUPP;
 			goto out;
 		}
 	}
@@ -442,7 +442,7 @@ int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 			if (!routing_rule) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Can only offload gate action together with redirect or trap");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			rc = sja1105_init_scheduling(priv);
 			if (rc)

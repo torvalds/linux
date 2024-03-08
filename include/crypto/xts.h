@@ -26,7 +26,7 @@ static inline int xts_verify_key(struct crypto_skcipher *tfm,
 		return -EINVAL;
 
 	/*
-	 * Ensure that the AES and tweak key are not identical when
+	 * Ensure that the AES and tweak key are analt identical when
 	 * in FIPS mode or the FORBID_WEAK_KEYS flag is set.
 	 */
 	if ((fips_enabled || (crypto_skcipher_get_flags(tfm) &

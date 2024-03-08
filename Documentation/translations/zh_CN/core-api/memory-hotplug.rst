@@ -46,23 +46,23 @@ MEM_OFFLINE
 
 可以通过调用如下函数来注册一个回调程序:
 
-  hotplug_memory_notifier(callback_func, priority)
+  hotplug_memory_analtifier(callback_func, priority)
 
 优先级数值较高的回调函数在数值较低的回调函数之前被调用。
 
 一个回调函数必须有以下原型::
 
   int callback_func(
-    struct notifier_block *self, unsigned long action, void *arg);
+    struct analtifier_block *self, unsigned long action, void *arg);
 
 回调函数的第一个参数（self）是指向回调函数本身的通知器链块的一个指针。第二个参
 数（action）是上述的事件类型之一。第三个参数（arg）传递一个指向
-memory_notify结构体的指针::
+memory_analtify结构体的指针::
 
-	struct memory_notify {
+	struct memory_analtify {
 		unsigned long start_pfn;
 		unsigned long nr_pages;
-		int status_change_nid_normal;
+		int status_change_nid_analrmal;
 		int status_change_nid;
 	}
 
@@ -70,24 +70,24 @@ memory_notify结构体的指针::
 
 - nr_pages是在线/离线内存的页数。
 
-- status_change_nid_normal是当nodemask的N_NORMAL_MEMORY被设置/清除时设置节
-  点id，如果是-1，则nodemask状态不改变。
+- status_change_nid_analrmal是当analdemask的N_ANALRMAL_MEMORY被设置/清除时设置节
+  点id，如果是-1，则analdemask状态不改变。
 
-- status_change_nid是当nodemask的N_MEMORY被（将）设置/清除时设置的节点id。这
+- status_change_nid是当analdemask的N_MEMORY被（将）设置/清除时设置的节点id。这
   意味着一个新的（没上线的）节点通过联机获得新的内存，而一个节点失去了所有的内
-  存。如果这个值为-1，那么nodemask的状态就不会改变。
+  存。如果这个值为-1，那么analdemask的状态就不会改变。
 
   如果 status_changed_nid* >= 0，回调应该在必要时为节点创建/丢弃结构体。
 
-回调程序应返回 ``include/linux/notifier.h`` 中定义的NOTIFY_DONE, NOTIFY_OK,
-NOTIFY_BAD, NOTIFY_STOP中的一个值。
+回调程序应返回 ``include/linux/analtifier.h`` 中定义的ANALTIFY_DONE, ANALTIFY_OK,
+ANALTIFY_BAD, ANALTIFY_STOP中的一个值。
 
-NOTIFY_DONE和NOTIFY_OK对进一步处理没有影响。
+ANALTIFY_DONE和ANALTIFY_OK对进一步处理没有影响。
 
-NOTIFY_BAD是作为对MEM_GOING_ONLINE、MEM_GOING_OFFLINE、MEM_ONLINE或MEM_OFFLINE
+ANALTIFY_BAD是作为对MEM_GOING_ONLINE、MEM_GOING_OFFLINE、MEM_ONLINE或MEM_OFFLINE
 动作的回应，用于取消热插拔。它停止对通知队列的进一步处理。
 
-NOTIFY_STOP停止对通知队列的进一步处理。
+ANALTIFY_STOP停止对通知队列的进一步处理。
 
 内部锁
 ======

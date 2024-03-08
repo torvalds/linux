@@ -12,7 +12,7 @@
 #include <linux/clk/tegra.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
@@ -47,7 +47,7 @@ static int tegra20_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * Force the CPU into reset. The CPU must remain in reset when
 	 * the flow controller state is cleared (which will cause the
 	 * flow controller to stop driving reset if the CPU has been
-	 * power-gated via the flow controller). This will have no
+	 * power-gated via the flow controller). This will have anal
 	 * effect on first boot of the CPU since it should already be
 	 * in reset.
 	 */
@@ -57,7 +57,7 @@ static int tegra20_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * Unhalt the CPU. If the flow controller was used to
 	 * power-gate the CPU this will cause the flow controller to
 	 * stop driving reset. The CPU will remain in reset because the
-	 * clock and reset block is now driving reset.
+	 * clock and reset block is analw driving reset.
 	 */
 	flowctrl_write_cpu_halt(cpu, 0);
 
@@ -85,7 +85,7 @@ static int tegra30_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * flow controller of the warm boot CPU. We need to wait for
 	 * the confirmation that the CPU is powered then removing
 	 * the IO clamps.
-	 * For cold boot CPU, do not wait. After the cold boot CPU be
+	 * For cold boot CPU, do analt wait. After the cold boot CPU be
 	 * booted, it will run to tegra_secondary_init() and set
 	 * tegra_cpu_init_mask which influences what tegra30_boot_secondary()
 	 * next time around.

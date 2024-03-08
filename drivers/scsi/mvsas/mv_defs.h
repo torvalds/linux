@@ -127,7 +127,7 @@ enum hw_register_bits {
 	CINT_DMA_PCIE		= (1U << 27),	/* DMA to PCIE timeout */
 	CINT_MEM		= (1U << 26),	/* int mem parity err */
 	CINT_I2C_SLAVE		= (1U << 25),	/* slave I2C event */
-	CINT_NON_SPEC_NCQ_ERROR	= (1U << 25),	/* Non specific NCQ error */
+	CINT_ANALN_SPEC_NCQ_ERROR	= (1U << 25),	/* Analn specific NCQ error */
 	CINT_SRS		= (1U << 3),	/* SRS event */
 	CINT_CI_STOP		= (1U << 1),	/* cmd issue stopped */
 	CINT_DONE		= (1U << 0),	/* cmd completion */
@@ -150,8 +150,8 @@ enum hw_register_bits {
 	TXQ_MODE_I		= (1U << 28),	/* mode: 0=target,1=initiator */
 	TXQ_MODE_TARGET 	= 0,
 	TXQ_MODE_INITIATOR	= 1,
-	TXQ_PRIO_HI		= (1U << 27),	/* priority: 0=normal, 1=high */
-	TXQ_PRI_NORMAL		= 0,
+	TXQ_PRIO_HI		= (1U << 27),	/* priority: 0=analrmal, 1=high */
+	TXQ_PRI_ANALRMAL		= 0,
 	TXQ_PRI_HIGH		= 1,
 	TXQ_SRS_SHIFT		= 20,		/* SATA register set */
 	TXQ_SRS_MASK		= 0x7f,
@@ -186,7 +186,7 @@ enum hw_register_bits {
 	MCH_SSP_FR_READ_RESP	= 0x7,		/* ditto, plus RESPONSE */
 
 	MCH_SSP_MODE_PASSTHRU	= 1,
-	MCH_SSP_MODE_NORMAL	= 0,
+	MCH_SSP_MODE_ANALRMAL	= 0,
 	MCH_PASSTHRU		= (1U << 12),	/* pass-through (SSP) */
 	MCH_FBURST		= (1U << 11),	/* first burst (SSP) */
 	MCH_CHK_LEN		= (1U << 10),	/* chk xfer len (SSP) */
@@ -208,7 +208,7 @@ enum hw_register_bits {
 
 	/* MVS_Px_SER_CTLSTAT (per-phy control) */
 	PHY_SSP_RST		= (1U << 3),	/* reset SSP link layer */
-	PHY_BCAST_CHG		= (1U << 2),	/* broadcast(change) notif */
+	PHY_BCAST_CHG		= (1U << 2),	/* broadcast(change) analtif */
 	PHY_RST_HARD		= (1U << 1),	/* hard reset + phy reset */
 	PHY_RST			= (1U << 0),	/* phy reset */
 	PHY_READY_MASK		= (1U << 20),
@@ -218,13 +218,13 @@ enum hw_register_bits {
 	PHYEV_DCDR_ERR		= (1U << 23),	/* STP Deocder Error */
 	PHYEV_CRC_ERR		= (1U << 22),	/* STP CRC Error */
 	PHYEV_UNASSOC_FIS	= (1U << 19),	/* unassociated FIS rx'd */
-	PHYEV_AN		= (1U << 18),	/* SATA async notification */
+	PHYEV_AN		= (1U << 18),	/* SATA async analtification */
 	PHYEV_BIST_ACT		= (1U << 17),	/* BIST activate FIS */
 	PHYEV_SIG_FIS		= (1U << 16),	/* signature FIS */
 	PHYEV_POOF		= (1U << 12),	/* phy ready from 1 -> 0 */
 	PHYEV_IU_BIG		= (1U << 11),	/* IU too long err */
 	PHYEV_IU_SMALL		= (1U << 10),	/* IU too short err */
-	PHYEV_UNK_TAG		= (1U << 9),	/* unknown tag */
+	PHYEV_UNK_TAG		= (1U << 9),	/* unkanalwn tag */
 	PHYEV_BROAD_CH		= (1U << 8),	/* broadcast(CHANGE) */
 	PHYEV_COMWAKE		= (1U << 7),	/* COMWAKE rx'd */
 	PHYEV_PORT_SEL		= (1U << 6),	/* port selector present */
@@ -424,7 +424,7 @@ enum error_info_rec {
 	CMD_PI_ERR	= (1U << 30),	/* Protection info error.  see flags2 */
 	RSP_OVER	= (1U << 29),	/* rsp buffer overflow */
 	RETRY_LIM	= (1U << 28),	/* FIS/frame retry limit exceeded */
-	UNK_FIS 	= (1U << 27),	/* unknown FIS */
+	UNK_FIS 	= (1U << 27),	/* unkanalwn FIS */
 	DMA_TERM	= (1U << 26),	/* DMA terminate primitive rx'd */
 	SYNC_ERR	= (1U << 25),	/* SYNC rx'd during frame xmit */
 	TFILE_ERR	= (1U << 24),	/* SATA taskfile Error bit set */
@@ -439,12 +439,12 @@ enum error_info_rec {
 	CXN_CLOSED	= (1U << 12),	/* cxn closed w/out ack/nak */
 	OPEN_TO 	= (1U << 11),	/* I_T nexus lost, open cxn timeout */
 	PATH_BLOCKED	= (1U << 10),	/* I_T nexus lost, pathway blocked */
-	NO_DEST 	= (1U << 9),	/* I_T nexus lost, no destination */
+	ANAL_DEST 	= (1U << 9),	/* I_T nexus lost, anal destination */
 	STP_RES_BSY	= (1U << 8),	/* STP resources busy */
 	BREAK		= (1U << 7),	/* break received */
 	BAD_DEST	= (1U << 6),	/* bad destination */
-	BAD_PROTO	= (1U << 5),	/* protocol not supported */
-	BAD_RATE	= (1U << 4),	/* cxn rate not supported */
+	BAD_PROTO	= (1U << 5),	/* protocol analt supported */
+	BAD_RATE	= (1U << 4),	/* cxn rate analt supported */
 	WRONG_DEST	= (1U << 3),	/* wrong destination error */
 	CREDIT_TO	= (1U << 2),	/* credit timeout */
 	WDOG_TO 	= (1U << 1),	/* watchdog timeout */
@@ -482,7 +482,7 @@ enum open_frame_protocol {
 
 /* define for response frame datapres field */
 enum datapres_field {
-	NO_DATA		= 0,
+	ANAL_DATA		= 0,
 	RESPONSE_DATA	= 1,
 	SENSE_DATA	= 2,
 };

@@ -5,7 +5,7 @@ Kconfig macro language
 Concept
 -------
 
-The basic idea was inspired by Make. When we look at Make, we notice sort of
+The basic idea was inspired by Make. When we look at Make, we analtice sort of
 two languages in one. One language describes dependency graphs consisting of
 targets and prerequisites. The other is a macro language for performing textual
 substitution.
@@ -54,7 +54,7 @@ Like in Make, a variable in Kconfig works as a macro variable.  A macro
 variable is expanded "in place" to yield a text string that may then be
 expanded further. To get the value of a variable, enclose the variable name in
 $( ). The parentheses are required even for single-letter variable names; $X is
-a syntax error. The curly brace form as in ${CC} is not supported either.
+a syntax error. The curly brace form as in ${CC} is analt supported either.
 
 There are two types of variables: simply expanded variables and recursively
 expanded variables.
@@ -68,7 +68,7 @@ Its righthand side is simply stored as the value of the variable without
 expanding it in any way. Instead, the expansion is performed when the variable
 is used.
 
-There is another type of assignment operator; += is used to append text to a
+There is aanalther type of assignment operator; += is used to append text to a
 variable. The righthand side of += is expanded immediately if the lefthand
 side was originally defined as a simple variable. Otherwise, its evaluation is
 deferred.
@@ -97,7 +97,7 @@ Like Make, Kconfig provides several built-in functions. Every function takes a
 particular number of arguments.
 
 In Make, every built-in function takes at least one argument. Kconfig allows
-zero argument for built-in functions, such as $(filename), $(lineno). You could
+zero argument for built-in functions, such as $(filename), $(lineanal). You could
 consider those as "built-in variable", but it is just a matter of how we call
 it after all. Let's say "built-in function" here to refer to natively supported
 functionality.
@@ -110,7 +110,7 @@ Kconfig currently supports the following built-in functions.
   to a subshell for execution. The standard output of the command is then read
   and returned as the value of the function. Every newline in the output is
   replaced with a space. Any trailing newlines are deleted. The standard error
-  is not returned, nor is any program exit status.
+  is analt returned, analr is any program exit status.
 
  - $(info,text)
 
@@ -130,12 +130,12 @@ Kconfig currently supports the following built-in functions.
 
  - $(filename)
 
-  The 'filename' takes no argument, and $(filename) is expanded to the file
+  The 'filename' takes anal argument, and $(filename) is expanded to the file
   name being parsed.
 
- - $(lineno)
+ - $(lineanal)
 
-  The 'lineno' takes no argument, and $(lineno) is expanded to the line number
+  The 'lineanal' takes anal argument, and $(lineanal) is expanded to the line number
   being parsed.
 
 
@@ -197,7 +197,7 @@ accepts only one. To pass commas in arguments, you can use the following trick::
 Caveats
 -------
 
-A variable (or function) cannot be expanded across tokens. So, you cannot use
+A variable (or function) cananalt be expanded across tokens. So, you cananalt use
 a variable as a shorthand for an expression that consists of multiple tokens.
 The following works::
 
@@ -208,7 +208,7 @@ The following works::
             int "foo"
             range $(RANGE_MIN) $(RANGE_MAX)
 
-But, the following does not work::
+But, the following does analt work::
 
     RANGES := 1 3
 
@@ -216,8 +216,8 @@ But, the following does not work::
             int "foo"
             range $(RANGES)
 
-A variable cannot be expanded to any keyword in Kconfig.  The following does
-not work::
+A variable cananalt be expanded to any keyword in Kconfig.  The following does
+analt work::
 
     MY_TYPE := tristate
 
@@ -226,9 +226,9 @@ not work::
             default y
 
 Obviously from the design, $(shell command) is expanded in the textual
-substitution phase. You cannot pass symbols to the 'shell' function.
+substitution phase. You cananalt pass symbols to the 'shell' function.
 
-The following does not work as expected::
+The following does analt work as expected::
 
     config ENDIAN_FLAG
             string

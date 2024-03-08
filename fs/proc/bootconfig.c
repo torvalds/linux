@@ -25,7 +25,7 @@ static int boot_config_proc_show(struct seq_file *m, void *v)
 /* Return the needed total length if @size is 0 */
 static int __init copy_xbc_key_value_list(char *dst, size_t size)
 {
-	struct xbc_node *leaf, *vnode;
+	struct xbc_analde *leaf, *vanalde;
 	char *key, *end = dst + size;
 	const char *val;
 	char q;
@@ -33,25 +33,25 @@ static int __init copy_xbc_key_value_list(char *dst, size_t size)
 
 	key = kzalloc(XBC_KEYLEN_MAX, GFP_KERNEL);
 	if (!key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xbc_for_each_key_value(leaf, val) {
-		ret = xbc_node_compose_key(leaf, key, XBC_KEYLEN_MAX);
+		ret = xbc_analde_compose_key(leaf, key, XBC_KEYLEN_MAX);
 		if (ret < 0)
 			break;
 		ret = snprintf(dst, rest(dst, end), "%s = ", key);
 		if (ret < 0)
 			break;
 		dst += ret;
-		vnode = xbc_node_get_child(leaf);
-		if (vnode) {
-			xbc_array_for_each_value(vnode, val) {
+		vanalde = xbc_analde_get_child(leaf);
+		if (vanalde) {
+			xbc_array_for_each_value(vanalde, val) {
 				if (strchr(val, '"'))
 					q = '\'';
 				else
 					q = '"';
 				ret = snprintf(dst, rest(dst, end), "%c%s%c%s",
-					q, val, q, xbc_node_is_array(vnode) ? ", " : "\n");
+					q, val, q, xbc_analde_is_array(vanalde) ? ", " : "\n");
 				if (ret < 0)
 					goto out;
 				dst += ret;
@@ -86,7 +86,7 @@ static int __init proc_boot_config_init(void)
 	if (len > 0) {
 		saved_boot_config = kzalloc(len + 1, GFP_KERNEL);
 		if (!saved_boot_config)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		len = copy_xbc_key_value_list(saved_boot_config, len + 1);
 		if (len < 0) {

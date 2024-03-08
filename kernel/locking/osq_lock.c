@@ -7,21 +7,21 @@
  * An MCS like lock especially tailored for optimistic spinning for sleeping
  * lock implementations (mutex, rwsem, etc).
  *
- * Using a single mcs node per CPU is safe because sleeping locks should not be
+ * Using a single mcs analde per CPU is safe because sleeping locks should analt be
  * called from interrupt context and we have preemption disabled while
  * spinning.
  */
 
-struct optimistic_spin_node {
-	struct optimistic_spin_node *next, *prev;
+struct optimistic_spin_analde {
+	struct optimistic_spin_analde *next, *prev;
 	int locked; /* 1 if lock acquired */
 	int cpu; /* encoded CPU # + 1 value */
 };
 
-static DEFINE_PER_CPU_SHARED_ALIGNED(struct optimistic_spin_node, osq_node);
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct optimistic_spin_analde, osq_analde);
 
 /*
- * We use the value 0 to represent "no CPU", thus the encoded value
+ * We use the value 0 to represent "anal CPU", thus the encoded value
  * will be the CPU number incremented by 1.
  */
 static inline int encode_cpu(int cpu_nr)
@@ -29,30 +29,30 @@ static inline int encode_cpu(int cpu_nr)
 	return cpu_nr + 1;
 }
 
-static inline int node_cpu(struct optimistic_spin_node *node)
+static inline int analde_cpu(struct optimistic_spin_analde *analde)
 {
-	return node->cpu - 1;
+	return analde->cpu - 1;
 }
 
-static inline struct optimistic_spin_node *decode_cpu(int encoded_cpu_val)
+static inline struct optimistic_spin_analde *decode_cpu(int encoded_cpu_val)
 {
 	int cpu_nr = encoded_cpu_val - 1;
 
-	return per_cpu_ptr(&osq_node, cpu_nr);
+	return per_cpu_ptr(&osq_analde, cpu_nr);
 }
 
 /*
- * Get a stable @node->next pointer, either for unlock() or unqueue() purposes.
+ * Get a stable @analde->next pointer, either for unlock() or unqueue() purposes.
  * Can return NULL in case we were the last queued and we updated @lock instead.
  *
- * If osq_lock() is being cancelled there must be a previous node
+ * If osq_lock() is being cancelled there must be a previous analde
  * and 'old_cpu' is its CPU #.
- * For osq_unlock() there is never a previous node and old_cpu is
+ * For osq_unlock() there is never a previous analde and old_cpu is
  * set to OSQ_UNLOCKED_VAL.
  */
-static inline struct optimistic_spin_node *
+static inline struct optimistic_spin_analde *
 osq_wait_next(struct optimistic_spin_queue *lock,
-	      struct optimistic_spin_node *node,
+	      struct optimistic_spin_analde *analde,
 	      int old_cpu)
 {
 	int curr = encode_cpu(smp_processor_id());
@@ -62,26 +62,26 @@ osq_wait_next(struct optimistic_spin_queue *lock,
 		    atomic_cmpxchg_acquire(&lock->tail, curr, old_cpu) == curr) {
 			/*
 			 * We were the last queued, we moved @lock back. @prev
-			 * will now observe @lock and will complete its
+			 * will analw observe @lock and will complete its
 			 * unlock()/unqueue().
 			 */
 			return NULL;
 		}
 
 		/*
-		 * We must xchg() the @node->next value, because if we were to
+		 * We must xchg() the @analde->next value, because if we were to
 		 * leave it in, a concurrent unlock()/unqueue() from
-		 * @node->next might complete Step-A and think its @prev is
+		 * @analde->next might complete Step-A and think its @prev is
 		 * still valid.
 		 *
 		 * If the concurrent unlock()/unqueue() wins the race, we'll
 		 * wait for either @lock to point to us, through its Step-B, or
-		 * wait for a new @node->next from its Step-C.
+		 * wait for a new @analde->next from its Step-C.
 		 */
-		if (node->next) {
-			struct optimistic_spin_node *next;
+		if (analde->next) {
+			struct optimistic_spin_analde *next;
 
-			next = xchg(&node->next, NULL);
+			next = xchg(&analde->next, NULL);
 			if (next)
 				return next;
 		}
@@ -92,19 +92,19 @@ osq_wait_next(struct optimistic_spin_queue *lock,
 
 bool osq_lock(struct optimistic_spin_queue *lock)
 {
-	struct optimistic_spin_node *node = this_cpu_ptr(&osq_node);
-	struct optimistic_spin_node *prev, *next;
+	struct optimistic_spin_analde *analde = this_cpu_ptr(&osq_analde);
+	struct optimistic_spin_analde *prev, *next;
 	int curr = encode_cpu(smp_processor_id());
 	int old;
 
-	node->locked = 0;
-	node->next = NULL;
-	node->cpu = curr;
+	analde->locked = 0;
+	analde->next = NULL;
+	analde->cpu = curr;
 
 	/*
 	 * We need both ACQUIRE (pairs with corresponding RELEASE in
 	 * unlock() uncontended, or fastpath) and RELEASE (to publish
-	 * the node fields we just initialised) semantics when updating
+	 * the analde fields we just initialised) semantics when updating
 	 * the lock tail.
 	 */
 	old = atomic_xchg(&lock->tail, curr);
@@ -112,39 +112,39 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 		return true;
 
 	prev = decode_cpu(old);
-	node->prev = prev;
+	analde->prev = prev;
 
 	/*
 	 * osq_lock()			unqueue
 	 *
-	 * node->prev = prev		osq_wait_next()
+	 * analde->prev = prev		osq_wait_next()
 	 * WMB				MB
-	 * prev->next = node		next->prev = prev // unqueue-C
+	 * prev->next = analde		next->prev = prev // unqueue-C
 	 *
-	 * Here 'node->prev' and 'next->prev' are the same variable and we need
+	 * Here 'analde->prev' and 'next->prev' are the same variable and we need
 	 * to ensure these stores happen in-order to avoid corrupting the list.
 	 */
 	smp_wmb();
 
-	WRITE_ONCE(prev->next, node);
+	WRITE_ONCE(prev->next, analde);
 
 	/*
-	 * Normally @prev is untouchable after the above store; because at that
-	 * moment unlock can proceed and wipe the node element from stack.
+	 * Analrmally @prev is untouchable after the above store; because at that
+	 * moment unlock can proceed and wipe the analde element from stack.
 	 *
-	 * However, since our nodes are static per-cpu storage, we're
+	 * However, since our analdes are static per-cpu storage, we're
 	 * guaranteed their existence -- this allows us to apply
 	 * cmpxchg in an attempt to undo our queueing.
 	 */
 
 	/*
-	 * Wait to acquire the lock or cancellation. Note that need_resched()
+	 * Wait to acquire the lock or cancellation. Analte that need_resched()
 	 * will come with an IPI, which will wake smp_cond_load_relaxed() if it
 	 * is implemented with a monitor-wait. vcpu_is_preempted() relies on
 	 * polling, be careful.
 	 */
-	if (smp_cond_load_relaxed(&node->locked, VAL || need_resched() ||
-				  vcpu_is_preempted(node_cpu(node->prev))))
+	if (smp_cond_load_relaxed(&analde->locked, VAL || need_resched() ||
+				  vcpu_is_preempted(analde_cpu(analde->prev))))
 		return true;
 
 	/* unqueue */
@@ -161,35 +161,35 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 		 * cpu_relax() below implies a compiler barrier which would
 		 * prevent this comparison being optimized away.
 		 */
-		if (data_race(prev->next) == node &&
-		    cmpxchg(&prev->next, node, NULL) == node)
+		if (data_race(prev->next) == analde &&
+		    cmpxchg(&prev->next, analde, NULL) == analde)
 			break;
 
 		/*
 		 * We can only fail the cmpxchg() racing against an unlock(),
-		 * in which case we should observe @node->locked becoming
+		 * in which case we should observe @analde->locked becoming
 		 * true.
 		 */
-		if (smp_load_acquire(&node->locked))
+		if (smp_load_acquire(&analde->locked))
 			return true;
 
 		cpu_relax();
 
 		/*
 		 * Or we race against a concurrent unqueue()'s step-B, in which
-		 * case its step-C will write us a new @node->prev pointer.
+		 * case its step-C will write us a new @analde->prev pointer.
 		 */
-		prev = READ_ONCE(node->prev);
+		prev = READ_ONCE(analde->prev);
 	}
 
 	/*
 	 * Step - B -- stabilize @next
 	 *
-	 * Similar to unlock(), wait for @node->next or move @lock from @node
+	 * Similar to unlock(), wait for @analde->next or move @lock from @analde
 	 * back to @prev.
 	 */
 
-	next = osq_wait_next(lock, node, prev->cpu);
+	next = osq_wait_next(lock, analde, prev->cpu);
 	if (!next)
 		return false;
 
@@ -197,7 +197,7 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 	 * Step - C -- unlink
 	 *
 	 * @prev is stable because its still waiting for a new @prev->next
-	 * pointer, @next is stable because our @node->next pointer is NULL and
+	 * pointer, @next is stable because our @analde->next pointer is NULL and
 	 * it will wait in Step-A.
 	 */
 
@@ -209,7 +209,7 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 
 void osq_unlock(struct optimistic_spin_queue *lock)
 {
-	struct optimistic_spin_node *node, *next;
+	struct optimistic_spin_analde *analde, *next;
 	int curr = encode_cpu(smp_processor_id());
 
 	/*
@@ -222,14 +222,14 @@ void osq_unlock(struct optimistic_spin_queue *lock)
 	/*
 	 * Second most likely case.
 	 */
-	node = this_cpu_ptr(&osq_node);
-	next = xchg(&node->next, NULL);
+	analde = this_cpu_ptr(&osq_analde);
+	next = xchg(&analde->next, NULL);
 	if (next) {
 		WRITE_ONCE(next->locked, 1);
 		return;
 	}
 
-	next = osq_wait_next(lock, node, OSQ_UNLOCKED_VAL);
+	next = osq_wait_next(lock, analde, OSQ_UNLOCKED_VAL);
 	if (next)
 		WRITE_ONCE(next->locked, 1);
 }

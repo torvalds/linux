@@ -52,7 +52,7 @@ like this::
 		/* initialize device data */
 		dev = kzalloc(sizeof(struct virtio_dummy_dev), GFP_KERNEL);
 		if (!dev)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* the device has a single virtqueue */
 		dev->vq = virtio_find_single_vq(vdev, virtio_dummy_recv_cb, "input");
@@ -63,7 +63,7 @@ like this::
 		}
 		vdev->priv = dev;
 
-		/* from this point on, the device can notify and get callbacks */
+		/* from this point on, the device can analtify and get callbacks */
 		virtio_device_ready(vdev);
 
 		return 0;
@@ -120,7 +120,7 @@ reduce the amount of boilerplate code.
 The ``probe`` method does the minimum driver setup in this case
 (memory allocation for the device data) and initializes the
 virtqueue. virtio_device_ready() is used to enable the virtqueue and to
-notify the device that the driver is ready to manage the device
+analtify the device that the driver is ready to manage the device
 ("DRIVER_OK"). The virtqueues are anyway enabled automatically by the
 core after ``probe`` returns.
 
@@ -134,7 +134,7 @@ Sending and receiving data
 ==========================
 
 The virtio_dummy_recv_cb() callback in the code above will be triggered
-when the device notifies the driver after it finishes processing a
+when the device analtifies the driver after it finishes processing a
 descriptor or descriptor chain, either for reading or writing. However,
 that's only the second half of the virtio device-driver communication
 process, as the communication is always started by the driver regardless
@@ -147,7 +147,7 @@ virtqueue_add_outbuf() or virtqueue_add_sgs(), depending on whether you
 need to add one input `scatterlist` (for the device to fill in), one
 output `scatterlist` (for the device to consume) or multiple
 `scatterlists`, respectively. Then, once the virtqueue is set up, a call
-to virtqueue_kick() sends a notification that will be serviced by the
+to virtqueue_kick() sends a analtification that will be serviced by the
 hypervisor that implements the device::
 
 	struct scatterlist sg[1];
@@ -165,7 +165,7 @@ hypervisor that implements the device::
     :identifiers: virtqueue_add_sgs
 
 Then, after the device has read or written the buffers prepared by the
-driver and notifies it back, the driver can call virtqueue_get_buf() to
+driver and analtifies it back, the driver can call virtqueue_get_buf() to
 read the data produced by the device (if the virtqueue was set up with
 input buffers) or simply to reclaim the buffers if they were already
 consumed by the device:
@@ -183,7 +183,7 @@ respectively. See drivers/virtio/virtio_ring.c for more details:
 .. kernel-doc:: drivers/virtio/virtio_ring.c
     :identifiers: virtqueue_enable_cb
 
-But note that some spurious callbacks can still be triggered under
+But analte that some spurious callbacks can still be triggered under
 certain scenarios. The way to disable callbacks reliably is to reset the
 device or the virtqueue (virtio_reset_device()).
 

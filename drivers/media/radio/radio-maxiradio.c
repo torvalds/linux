@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Guillemot Maxi Radio FM 2000 PCI radio card driver for Linux
- * (C) 2001 Dimitromanolakis Apostolos <apdim@grecian.net>
+ * (C) 2001 Dimitromaanallakis Apostolos <apdim@grecian.net>
  *
  * Based in the radio Maestro PCI driver. Actually it uses the same chip
  * for radio but different pci controller.
@@ -50,7 +50,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
 
-MODULE_AUTHOR("Dimitromanolakis Apostolos, apdim@grecian.net");
+MODULE_AUTHOR("Dimitromaanallakis Apostolos, apdim@grecian.net");
 MODULE_DESCRIPTION("Radio driver for the Guillemot Maxi Radio FM2000.");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0.0");
@@ -94,8 +94,8 @@ static void maxiradio_tea575x_set_pins(struct snd_tea575x *tea, u8 pins)
 	outb(bits, dev->io);
 }
 
-/* Note: this card cannot read out the data of the shift registers,
-   only the mono/stereo pin works. */
+/* Analte: this card cananalt read out the data of the shift registers,
+   only the moanal/stereo pin works. */
 static u8 maxiradio_tea575x_get_pins(struct snd_tea575x *tea)
 {
 	struct maxiradio *dev = tea->private_data;
@@ -120,12 +120,12 @@ static int maxiradio_probe(struct pci_dev *pdev,
 {
 	struct maxiradio *dev;
 	struct v4l2_device *v4l2_dev;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		dev_err(&pdev->dev, "not enough memory\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "analt eanalugh memory\n");
+		return -EANALMEM;
 	}
 
 	v4l2_dev = &dev->v4l2_dev;
@@ -133,19 +133,19 @@ static int maxiradio_probe(struct pci_dev *pdev,
 
 	retval = v4l2_device_register(&pdev->dev, v4l2_dev);
 	if (retval < 0) {
-		v4l2_err(v4l2_dev, "Could not register v4l2_device\n");
+		v4l2_err(v4l2_dev, "Could analt register v4l2_device\n");
 		goto errfr;
 	}
 	dev->tea.private_data = dev;
 	dev->tea.ops = &maxiradio_tea_ops;
-	/* The data pin cannot be read. This may be a hardware limitation, or
-	   we just don't know how to read it. */
-	dev->tea.cannot_read_data = true;
+	/* The data pin cananalt be read. This may be a hardware limitation, or
+	   we just don't kanalw how to read it. */
+	dev->tea.cananalt_read_data = true;
 	dev->tea.v4l2_dev = v4l2_dev;
 	dev->tea.radio_nr = radio_nr;
 	strscpy(dev->tea.card, "Maxi Radio FM2000", sizeof(dev->tea.card));
 
-	retval = -ENODEV;
+	retval = -EANALDEV;
 
 	if (!request_region(pci_resource_start(pdev, 0),
 			   pci_resource_len(pdev, 0), v4l2_dev->name)) {

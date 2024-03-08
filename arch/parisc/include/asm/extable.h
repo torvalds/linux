@@ -14,8 +14,8 @@
  *   receive -EFAULT when an exception happens if the lowest bit in
  *   the fixup address is set.
  *
- * Note: The register specified in the err_opcode instruction will be
- * modified at runtime if a fault happens. Register %r0 will be ignored.
+ * Analte: The register specified in the err_opcode instruction will be
+ * modified at runtime if a fault happens. Register %r0 will be iganalred.
  *
  * Since relative addresses are used, 32bit values are sufficient even on
  * 64bit kernel.

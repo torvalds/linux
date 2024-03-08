@@ -17,10 +17,10 @@
 /*
  * We are limited in number of subclasses by MAX_LOCKDEP_SUBCLASSES, which at
  * the time of this patch is 8, which is how many we use.  Keep this in mind if
- * you decide you want to add another subclass.
+ * you decide you want to add aanalther subclass.
  */
 enum btrfs_lock_nesting {
-	BTRFS_NESTING_NORMAL,
+	BTRFS_NESTING_ANALRMAL,
 
 	/*
 	 * When we COW a block we are holding the lock on the original block,
@@ -31,8 +31,8 @@ enum btrfs_lock_nesting {
 	BTRFS_NESTING_COW,
 
 	/*
-	 * Oftentimes we need to lock adjacent nodes on the same level while
-	 * still holding the lock on the original node we searched to, such as
+	 * Oftentimes we need to lock adjacent analdes on the same level while
+	 * still holding the lock on the original analde we searched to, such as
 	 * for searching forward or for split/balance.
 	 *
 	 * Because of this we need to indicate to lockdep that this is
@@ -43,16 +43,16 @@ enum btrfs_lock_nesting {
 	BTRFS_NESTING_RIGHT,
 
 	/*
-	 * When splitting we will be holding a lock on the left/right node when
-	 * we need to cow that node, thus we need a new set of subclasses for
+	 * When splitting we will be holding a lock on the left/right analde when
+	 * we need to cow that analde, thus we need a new set of subclasses for
 	 * these two operations.
 	 */
 	BTRFS_NESTING_LEFT_COW,
 	BTRFS_NESTING_RIGHT_COW,
 
 	/*
-	 * When splitting we may push nodes to the left or right, but still use
-	 * the subsequent nodes in our path, keeping our locks on those adjacent
+	 * When splitting we may push analdes to the left or right, but still use
+	 * the subsequent analdes in our path, keeping our locks on those adjacent
 	 * blocks.  Thus when we go to allocate a new split block we've already
 	 * used up all of our available subclasses, so this subclass exists to
 	 * handle this case where we need to allocate a new split block.
@@ -62,7 +62,7 @@ enum btrfs_lock_nesting {
 	/*
 	 * When promoting a new block to a root we need to have a special
 	 * subclass so we don't confuse lockdep, as it will appear that we are
-	 * locking a higher level node before a lower level one.  Copying also
+	 * locking a higher level analde before a lower level one.  Copying also
 	 * has this problem as it appears we're locking the same block again
 	 * when we make a snapshot of an existing root.
 	 */
@@ -86,12 +86,12 @@ enum btrfs_lockdep_trans_states {
 };
 
 /*
- * Lockdep annotation for wait events.
+ * Lockdep ananaltation for wait events.
  *
  * @owner:  The struct where the lockdep map is defined
  * @lock:   The lockdep map corresponding to a wait event
  *
- * This macro is used to annotate a wait event. In this case a thread acquires
+ * This macro is used to ananaltate a wait event. In this case a thread acquires
  * the lockdep map as writer (exclusive lock) because it has to block until all
  * the threads that hold the lock as readers signal the condition for the wait
  * event and release their locks.
@@ -168,9 +168,9 @@ void btrfs_tree_read_lock(struct extent_buffer *eb);
 void btrfs_tree_read_unlock(struct extent_buffer *eb);
 int btrfs_try_tree_read_lock(struct extent_buffer *eb);
 int btrfs_try_tree_write_lock(struct extent_buffer *eb);
-struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root);
-struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root);
-struct extent_buffer *btrfs_try_read_lock_root_node(struct btrfs_root *root);
+struct extent_buffer *btrfs_lock_root_analde(struct btrfs_root *root);
+struct extent_buffer *btrfs_read_lock_root_analde(struct btrfs_root *root);
+struct extent_buffer *btrfs_try_read_lock_root_analde(struct btrfs_root *root);
 
 #ifdef CONFIG_BTRFS_DEBUG
 static inline void btrfs_assert_tree_write_locked(struct extent_buffer *eb)

@@ -3,8 +3,8 @@
  * gmidi.c -- USB MIDI Gadget Driver
  *
  * Copyright (C) 2006 Thumtronics Pty Ltd.
- * Developed for Thumtronics by Grey Innovation
- * Ben Williamson <ben.williamson@greyinnovation.com>
+ * Developed for Thumtronics by Grey Inanalvation
+ * Ben Williamson <ben.williamson@greyinanalvation.com>
  *
  * This code is based in part on:
  *
@@ -61,12 +61,12 @@ static unsigned int out_ports = 1;
 module_param(out_ports, uint, S_IRUGO);
 MODULE_PARM_DESC(out_ports, "Number of MIDI output ports");
 
-/* Thanks to Grey Innovation for donating this product ID.
+/* Thanks to Grey Inanalvation for donating this product ID.
  *
- * DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
- * Instead:  allocate your own, using normal USB-IF procedures.
+ * DO ANALT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
+ * Instead:  allocate your own, using analrmal USB-IF procedures.
  */
-#define DRIVER_VENDOR_NUM	0x17b3		/* Grey Innovation */
+#define DRIVER_VENDOR_NUM	0x17b3		/* Grey Inanalvation */
 #define DRIVER_PRODUCT_NUM	0x0004		/* Linux-USB "MIDI Gadget" */
 
 /* string IDs are assigned dynamically */
@@ -86,7 +86,7 @@ static struct usb_device_descriptor device_desc = {
 };
 
 static struct usb_string strings_dev[] = {
-	[USB_GADGET_MANUFACTURER_IDX].s	= "Grey Innovation",
+	[USB_GADGET_MANUFACTURER_IDX].s	= "Grey Inanalvation",
 	[USB_GADGET_PRODUCT_IDX].s	= "MIDI Gadget",
 	[USB_GADGET_SERIAL_IDX].s	= "",
 	[STRING_DESCRIPTION_IDX].s	= "MIDI",

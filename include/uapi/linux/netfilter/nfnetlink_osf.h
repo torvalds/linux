@@ -14,15 +14,15 @@
 
 #define NF_OSF_LOGLEVEL_ALL		0	/* log all matched fingerprints */
 #define NF_OSF_LOGLEVEL_FIRST		1	/* log only the first matced fingerprint */
-#define NF_OSF_LOGLEVEL_ALL_KNOWN	2	/* do not log unknown packets */
+#define NF_OSF_LOGLEVEL_ALL_KANALWN	2	/* do analt log unkanalwn packets */
 
 #define NF_OSF_TTL_TRUE			0	/* True ip and fingerprint TTL comparison */
 
 /* Check if ip TTL is less than fingerprint one */
 #define NF_OSF_TTL_LESS			1
 
-/* Do not compare ip and fingerprint TTL at all */
-#define NF_OSF_TTL_NOCHECK		2
+/* Do analt compare ip and fingerprint TTL at all */
+#define NF_OSF_TTL_ANALCHECK		2
 
 #define NF_OSF_FLAGMASK		(NF_OSF_GENRE | NF_OSF_TTL | \
 				 NF_OSF_LOG | NF_OSF_INVERT)
@@ -62,7 +62,7 @@ struct nf_osf_user_finger {
 	char	version[MAXGENRELEN];
 	char	subtype[MAXGENRELEN];
 
-	/* MAX_IPOPTLEN is maximum if all options are NOPs or EOLs */
+	/* MAX_IPOPTLEN is maximum if all options are ANALPs or EOLs */
 	struct nf_osf_opt	opt[MAX_IPOPTLEN];
 };
 
@@ -75,7 +75,7 @@ struct nf_osf_nlmsg {
 /* Defines for IANA option kinds */
 enum iana_options {
 	OSFOPT_EOL = 0,		/* End of options */
-	OSFOPT_NOP,		/* NOP */
+	OSFOPT_ANALP,		/* ANALP */
 	OSFOPT_MSS,		/* Maximum segment size */
 	OSFOPT_WSO,		/* Window scale option */
 	OSFOPT_SACKP,		/* SACK permitted */
@@ -86,13 +86,13 @@ enum iana_options {
 	OSFOPT_POCP,		/* Partial Order Connection Permitted */
 	OSFOPT_POSP,		/* Partial Order Service Profile */
 
-	/* Others are not used in the current OSF */
+	/* Others are analt used in the current OSF */
 	OSFOPT_EMPTY = 255,
 };
 
 /* Initial window size option state machine: multiple of mss, mtu or
  * plain numeric value. Can also be made as plain numeric value which
- * is not a multiple of specified value.
+ * is analt a multiple of specified value.
  */
 enum nf_osf_window_size_options {
 	OSF_WSS_PLAIN	= 0,

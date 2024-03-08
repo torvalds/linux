@@ -2,7 +2,7 @@
 /* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  */
 
-/* Qualcomm Technologies, Inc. EMAC Gigabit Ethernet Driver */
+/* Qualcomm Techanallogies, Inc. EMAC Gigabit Ethernet Driver */
 
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
@@ -41,7 +41,7 @@
 #define DMAR_DLY_CNT_DEF				    15
 #define DMAW_DLY_CNT_DEF				     4
 
-#define IMR_NORMAL_MASK		(ISR_ERROR | ISR_OVER | ISR_TX_PKT)
+#define IMR_ANALRMAL_MASK		(ISR_ERROR | ISR_OVER | ISR_TX_PKT)
 
 #define ISR_TX_PKT      (\
 	TX_PKT_INT      |\
@@ -233,7 +233,7 @@ static int emac_open(struct net_device *netdev)
 
 	ret = request_irq(irq->irq, emac_isr, 0, "emac-core0", irq);
 	if (ret) {
-		netdev_err(adpt->netdev, "could not request emac-core0 irq\n");
+		netdev_err(adpt->netdev, "could analt request emac-core0 irq\n");
 		return ret;
 	}
 
@@ -440,7 +440,7 @@ static int emac_clks_get(struct platform_device *pdev,
 
 		if (IS_ERR(clk)) {
 			dev_err(&pdev->dev,
-				"could not claim clock %s (error=%li)\n",
+				"could analt claim clock %s (error=%li)\n",
 				emac_clk_name[i], PTR_ERR(clk));
 
 			return PTR_ERR(clk);
@@ -459,7 +459,7 @@ static int emac_clks_phase1_init(struct platform_device *pdev,
 	int ret;
 
 	/* On ACPI platforms, clocks are controlled by firmware and/or
-	 * ACPI, not by drivers.
+	 * ACPI, analt by drivers.
 	 */
 	if (has_acpi_companion(&pdev->dev))
 		return 0;
@@ -600,17 +600,17 @@ static int emac_probe(struct platform_device *pdev)
 
 	/* The TPD buffer address is limited to:
 	 * 1. PTP:	45bits. (Driver doesn't support yet.)
-	 * 2. NON-PTP:	46bits.
+	 * 2. ANALN-PTP:	46bits.
 	 */
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(46));
 	if (ret) {
-		dev_err(&pdev->dev, "could not set DMA mask\n");
+		dev_err(&pdev->dev, "could analt set DMA mask\n");
 		return ret;
 	}
 
 	netdev = alloc_etherdev(sizeof(struct emac_adapter));
 	if (!netdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&pdev->dev, netdev);
 	SET_NETDEV_DEV(netdev, &pdev->dev);
@@ -626,7 +626,7 @@ static int emac_probe(struct platform_device *pdev)
 	mutex_init(&adpt->reset_lock);
 	spin_lock_init(&adpt->stats.lock);
 
-	adpt->irq.mask = RX_PKT_INT0 | IMR_NORMAL_MASK;
+	adpt->irq.mask = RX_PKT_INT0 | IMR_ANALRMAL_MASK;
 
 	ret = emac_probe_resources(pdev, adpt);
 	if (ret)
@@ -635,7 +635,7 @@ static int emac_probe(struct platform_device *pdev)
 	/* initialize clocks */
 	ret = emac_clks_phase1_init(pdev, adpt);
 	if (ret) {
-		dev_err(&pdev->dev, "could not initialize clocks\n");
+		dev_err(&pdev->dev, "could analt initialize clocks\n");
 		goto err_undo_netdev;
 	}
 
@@ -659,7 +659,7 @@ static int emac_probe(struct platform_device *pdev)
 	/* enable clocks */
 	ret = emac_clks_phase2_init(pdev, adpt);
 	if (ret) {
-		dev_err(&pdev->dev, "could not initialize clocks\n");
+		dev_err(&pdev->dev, "could analt initialize clocks\n");
 		goto err_undo_mdiobus;
 	}
 
@@ -687,7 +687,7 @@ static int emac_probe(struct platform_device *pdev)
 
 	ret = register_netdev(netdev);
 	if (ret) {
-		dev_err(&pdev->dev, "could not register net device\n");
+		dev_err(&pdev->dev, "could analt register net device\n");
 		goto err_undo_napi;
 	}
 
@@ -700,7 +700,7 @@ static int emac_probe(struct platform_device *pdev)
 		   "hardware id %d.%d, hardware version %d.%d.%d\n",
 		   devid, revid,
 		   (reg & MAJOR_BMSK) >> MAJOR_SHFT,
-		   (reg & MINOR_BMSK) >> MINOR_SHFT,
+		   (reg & MIANALR_BMSK) >> MIANALR_SHFT,
 		   (reg & STEP_BMSK)  >> STEP_SHFT);
 
 	return 0;

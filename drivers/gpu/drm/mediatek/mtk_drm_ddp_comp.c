@@ -42,7 +42,7 @@
 
 #define DISP_REG_DSC_CON			0x0000
 #define DSC_EN					BIT(0)
-#define DSC_DUAL_INOUT				BIT(2)
+#define DSC_DUAL_IANALUT				BIT(2)
 #define DSC_BYPASS				BIT(4)
 #define DSC_UFOE_SEL				BIT(16)
 
@@ -198,8 +198,8 @@ static void mtk_dsc_config(struct device *dev, unsigned int w,
 			   DISP_REG_DSC_CON, DSC_BYPASS);
 	mtk_ddp_write_mask(cmdq_pkt, DSC_UFOE_SEL, &priv->cmdq_reg, priv->regs,
 			   DISP_REG_DSC_CON, DSC_UFOE_SEL);
-	mtk_ddp_write_mask(cmdq_pkt, DSC_DUAL_INOUT, &priv->cmdq_reg, priv->regs,
-			   DISP_REG_DSC_CON, DSC_DUAL_INOUT);
+	mtk_ddp_write_mask(cmdq_pkt, DSC_DUAL_IANALUT, &priv->cmdq_reg, priv->regs,
+			   DISP_REG_DSC_CON, DSC_DUAL_IANALUT);
 }
 
 static void mtk_dsc_start(struct device *dev)
@@ -530,7 +530,7 @@ static unsigned int mtk_drm_find_comp_in_ddp_conn_path(struct device *dev,
 		if (dev == ddp_comp[routes[i].route_ddp].dev)
 			return BIT(routes[i].crtc_id);
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 err:
 
 	DRM_INFO("Failed to find comp in ddp table, ret = %d\n", ret);
@@ -538,10 +538,10 @@ err:
 	return 0;
 }
 
-int mtk_ddp_comp_get_id(struct device_node *node,
+int mtk_ddp_comp_get_id(struct device_analde *analde,
 			enum mtk_ddp_comp_type comp_type)
 {
-	int id = of_alias_get_id(node, mtk_ddp_comp_stem[comp_type]);
+	int id = of_alias_get_id(analde, mtk_ddp_comp_stem[comp_type]);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mtk_ddp_matches); i++) {
@@ -577,7 +577,7 @@ unsigned int mtk_drm_find_possible_crtc_by_comp(struct drm_device *drm,
 	return ret;
 }
 
-int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
+int mtk_ddp_comp_init(struct device_analde *analde, struct mtk_ddp_comp *comp,
 		      unsigned int comp_id)
 {
 	struct platform_device *comp_pdev;
@@ -594,15 +594,15 @@ int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
 
 	comp->id = comp_id;
 	comp->funcs = mtk_ddp_matches[comp_id].funcs;
-	/* Not all drm components have a DTS device node, such as ovl_adaptor,
+	/* Analt all drm components have a DTS device analde, such as ovl_adaptor,
 	 * which is the drm bring up sub driver
 	 */
-	if (!node)
+	if (!analde)
 		return 0;
 
-	comp_pdev = of_find_device_by_node(node);
+	comp_pdev = of_find_device_by_analde(analde);
 	if (!comp_pdev) {
-		DRM_INFO("Waiting for device %s\n", node->full_name);
+		DRM_INFO("Waiting for device %s\n", analde->full_name);
 		return -EPROBE_DEFER;
 	}
 	comp->dev = &comp_pdev->dev;
@@ -624,10 +624,10 @@ int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
 
 	priv = devm_kzalloc(comp->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	priv->regs = of_iomap(node, 0);
-	priv->clk = of_clk_get(node, 0);
+	priv->regs = of_iomap(analde, 0);
+	priv->clk = of_clk_get(analde, 0);
 	if (IS_ERR(priv->clk))
 		return PTR_ERR(priv->clk);
 

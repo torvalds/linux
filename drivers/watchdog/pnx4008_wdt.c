@@ -73,7 +73,7 @@
 
 #define WDOG_COUNTER_RATE 13000000	/*the counter clock is 13 MHz fixed */
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 static unsigned int heartbeat;
 
 static DEFINE_SPINLOCK(io_lock);
@@ -131,7 +131,7 @@ static int pnx4008_restart_handler(struct watchdog_device *wdd,
 	 * Verify if a "cmd" passed from the userspace program rebooting
 	 * the system; if available, handle it.
 	 * - For details, see the 'reboot' syscall in kernel/reboot.c
-	 * - If the received "cmd" is not supported, use the default mode.
+	 * - If the received "cmd" is analt supported, use the default mode.
 	 */
 	if (boot_cmd) {
 		if (boot_cmd[0] == 'h')
@@ -143,7 +143,7 @@ static int pnx4008_restart_handler(struct watchdog_device *wdd,
 	if (mode == REBOOT_SOFT) {
 		/* Force match output active */
 		writel(EXT_MATCH0, WDTIM_EMR(wdt_base));
-		/* Internal reset on match output (RESOUT_N not asserted) */
+		/* Internal reset on match output (RESOUT_N analt asserted) */
 		writel(M_RES1, WDTIM_MCTRL(wdt_base));
 	} else {
 		/* Instant assert of RESETOUT_N with pulse length 1mS */
@@ -154,7 +154,7 @@ static int pnx4008_restart_handler(struct watchdog_device *wdd,
 	/* Wait for watchdog to reset system */
 	mdelay(1000);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static const struct watchdog_info pnx4008_wdt_ident = {
@@ -197,7 +197,7 @@ static int pnx4008_wdt_probe(struct platform_device *pdev)
 	pnx4008_wdd.bootstatus = (readl(WDTIM_RES(wdt_base)) & WDOG_RESET) ?
 			WDIOF_CARDRESET : 0;
 	pnx4008_wdd.parent = dev;
-	watchdog_set_nowayout(&pnx4008_wdd, nowayout);
+	watchdog_set_analwayout(&pnx4008_wdd, analwayout);
 	watchdog_set_restart_priority(&pnx4008_wdd, 128);
 
 	if (readl(WDTIM_CTRL(wdt_base)) & COUNT_ENAB)
@@ -240,8 +240,8 @@ MODULE_PARM_DESC(heartbeat,
 		 __MODULE_STRING(MAX_HEARTBEAT) ", default "
 		 __MODULE_STRING(DEFAULT_HEARTBEAT));
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
 		 "Set to 1 to keep watchdog running after device release");
 
 MODULE_LICENSE("GPL");

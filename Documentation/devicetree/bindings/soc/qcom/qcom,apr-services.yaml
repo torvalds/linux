@@ -10,7 +10,7 @@ maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 
 description:
-  Common parts of a static service in Qualcomm APR/GPR (Asynchronous/Generic
+  Common parts of a static service in Qualcomm APR/GPR (Asynchroanalus/Generic
   Packet Router).
 
 properties:

@@ -9,8 +9,8 @@
 /*
  * Start of day structure passed to PVH guests and to HVM guests in %ebx.
  *
- * NOTE: nothing will be loaded at physical address 0, so a 0 value in any
- * of the address fields should be treated as not present.
+ * ANALTE: analthing will be loaded at physical address 0, so a 0 value in any
+ * of the address fields should be treated as analt present.
  *
  *  0 +----------------+
  *    | magic          | Contains the magic value XEN_HVM_START_MAGIC_VALUE
@@ -35,7 +35,7 @@
  *    |                | present in version 1 and newer of the structure.
  * 48 +----------------+
  *    | memmap_entries | Number of entries in the memory map table. Zero
- *    |                | if there is no memory map being provided. Only
+ *    |                | if there is anal memory map being provided. Only
  *    |                | present in version 1 and newer of the structure.
  * 52 +----------------+
  *    | reserved       | Version 1 and newer only.
@@ -80,7 +80,7 @@
  *             padding) to the end of the hvm_start_info struct. These new
  *             fields can be used to pass a memory map to the guest. The
  *             memory map is optional and so guests that understand version 1
- *             of the structure must check that memmap_entries is non-zero
+ *             of the structure must check that memmap_entries is analn-zero
  *             before trying to read the memory map.
  */
 #define XEN_HVM_START_MAGIC_VALUE 0x336ec578
@@ -102,7 +102,7 @@
 /*
  * C representation of the x86/HVM start info layout.
  *
- * The canonical definition of this layout is above, this is just a way to
+ * The caanalnical definition of this layout is above, this is just a way to
  * represent the layout described there using C types.
  */
 struct hvm_start_info {
@@ -120,7 +120,7 @@ struct hvm_start_info {
     uint64_t memmap_paddr;      /* Physical address of an array of           */
                                 /* hvm_memmap_table_entry.                   */
     uint32_t memmap_entries;    /* Number of entries in the memmap table.    */
-                                /* Value will be zero if there is no memory  */
+                                /* Value will be zero if there is anal memory  */
                                 /* map being provided.                       */
     uint32_t reserved;          /* Must be zero.                             */
 };

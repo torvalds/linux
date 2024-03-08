@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -107,7 +107,7 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib)
  * @rdev: radeon_device pointer
  * @ib: IB object to schedule
  * @const_ib: Const IB to schedule (SI only)
- * @hdp_flush: Whether or not to perform an HDP cache flush
+ * @hdp_flush: Whether or analt to perform an HDP cache flush
  *
  * Schedule an IB on the associated ring (all asics).
  * Returns 0 on success, error on failure.
@@ -129,12 +129,12 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 	int r = 0;
 
 	if (!ib->length_dw || !ring->ready) {
-		/* TODO: Nothings in the ib we should report. */
+		/* TODO: Analthings in the ib we should report. */
 		dev_err(rdev->dev, "couldn't schedule ib\n");
 		return -EINVAL;
 	}
 
-	/* 64 dwords should be enough for fence too */
+	/* 64 dwords should be eanalugh for fence too */
 	r = radeon_ring_lock(rdev, ring, 64 + RADEON_NUM_SYNCS * 8);
 	if (r) {
 		dev_err(rdev->dev, "scheduling IB failed (%d).\n", r);
@@ -277,7 +277,7 @@ int radeon_ib_ring_tests(struct radeon_device *rdev)
 				return r;
 
 			} else {
-				/* still not good, but we can live with it */
+				/* still analt good, but we can live with it */
 				DRM_ERROR("radeon: failed testing IB on ring %d (%d).\n", i, r);
 			}
 		}

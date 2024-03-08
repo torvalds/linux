@@ -46,7 +46,7 @@ static int mtrr_save(void)
 	int i;
 
 	if (!mtrr_value)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_var_ranges; i++) {
 		mtrr_if->get(i, &mtrr_value[i].lbase,
@@ -79,12 +79,12 @@ void mtrr_register_syscore(void)
 	mtrr_value = kcalloc(num_var_ranges, sizeof(*mtrr_value), GFP_KERNEL);
 
 	/*
-	 * The CPU has no MTRR and seems to not support SMP. They have
+	 * The CPU has anal MTRR and seems to analt support SMP. They have
 	 * specific drivers, we use a tricky method to support
 	 * suspend/resume for them.
 	 *
 	 * TBD: is there any system with such CPU which supports
-	 * suspend/resume? If no, we should remove the code.
+	 * suspend/resume? If anal, we should remove the code.
 	 */
 	register_syscore_ops(&mtrr_syscore_ops);
 }

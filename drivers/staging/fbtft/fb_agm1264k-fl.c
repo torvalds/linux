@@ -144,7 +144,7 @@ request_gpios_match(struct fbtft_par *par, const struct fbtft_gpio *gpio)
 		return GPIOD_OUT_LOW;
 	}
 
-	return FBTFT_GPIO_NO_MATCH;
+	return FBTFT_GPIO_ANAL_MATCH;
 }
 
 /* This function oses to enter commands
@@ -284,10 +284,10 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 
 	/* buffer to convert RGB565 -> grayscale16 -> Dithered image 1bpp */
 	signed short *convert_buf = kmalloc_array(par->info->var.xres *
-		par->info->var.yres, sizeof(signed short), GFP_NOIO);
+		par->info->var.yres, sizeof(signed short), GFP_ANALIO);
 
 	if (!convert_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* converting to grayscale16 */
 	for (x = 0; x < par->info->var.xres; ++x)

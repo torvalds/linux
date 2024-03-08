@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Backlight driver for the Kinetic KTD253
- * Based on code and know-how from the Samsung GT-S7710
+ * Based on code and kanalw-how from the Samsung GT-S7710
  * Gareth Phillips <gareth.phillips@samsung.com>
  */
 #include <linux/backlight.h>
@@ -25,7 +25,7 @@
 
 #define KTD253_T_LOW_NS (200 + 10) /* Additional 10ns as safety factor */
 #define KTD253_T_HIGH_NS (200 + 10) /* Additional 10ns as safety factor */
-#define KTD253_T_OFF_CRIT_NS 100000 /* 100 us, now it doesn't look good */
+#define KTD253_T_OFF_CRIT_NS 100000 /* 100 us, analw it doesn't look good */
 #define KTD253_T_OFF_MS 3
 
 struct ktd253_backlight {
@@ -45,17 +45,17 @@ static void ktd253_backlight_set_max_ratio(struct ktd253_backlight *ktd253)
 static int ktd253_backlight_stepdown(struct ktd253_backlight *ktd253)
 {
 	/*
-	 * These GPIO operations absolutely can NOT sleep so no _cansleep
-	 * suffixes, and no using GPIO expanders on slow buses for this!
+	 * These GPIO operations absolutely can ANALT sleep so anal _cansleep
+	 * suffixes, and anal using GPIO expanders on slow buses for this!
 	 *
 	 * The maximum number of cycles of the loop is 32  so the time taken
-	 * should nominally be:
+	 * should analminally be:
 	 * (T_LOW_NS + T_HIGH_NS + loop_time) * 32
 	 *
-	 * Architectures do not always support ndelay() and we will get a few us
+	 * Architectures do analt always support ndelay() and we will get a few us
 	 * instead. If we get to a critical time limit an interrupt has likely
 	 * occured in the low part of the loop and we need to restart from the
-	 * top so we have the backlight in a known state.
+	 * top so we have the backlight in a kanalwn state.
 	 */
 	u64 ns;
 
@@ -106,15 +106,15 @@ static int ktd253_backlight_update_status(struct backlight_device *bl)
 
 	while (current_ratio != target_ratio) {
 		/*
-		 * These GPIO operations absolutely can NOT sleep so no
-		 * _cansleep suffixes, and no using GPIO expanders on
+		 * These GPIO operations absolutely can ANALT sleep so anal
+		 * _cansleep suffixes, and anal using GPIO expanders on
 		 * slow buses for this!
 		 */
 		ret = ktd253_backlight_stepdown(ktd253);
 		if (ret == -EAGAIN) {
 			/*
 			 * Something disturbed the backlight setting code when
-			 * running so we need to bring the PWM back to a known
+			 * running so we need to bring the PWM back to a kanalwn
 			 * state. This shouldn't happen too much.
 			 */
 			gpiod_set_value_cansleep(ktd253->gpiod, 0);
@@ -151,7 +151,7 @@ static int ktd253_backlight_probe(struct platform_device *pdev)
 
 	ktd253 = devm_kzalloc(dev, sizeof(*ktd253), GFP_KERNEL);
 	if (!ktd253)
-		return -ENOMEM;
+		return -EANALMEM;
 	ktd253->dev = dev;
 
 	ret = device_property_read_u32(dev, "max-brightness", &max_brightness);
@@ -177,7 +177,7 @@ static int ktd253_backlight_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(ktd253->gpiod),
 				     "gpio line missing or invalid.\n");
 	gpiod_set_consumer_name(ktd253->gpiod, dev_name(dev));
-	/* Bring backlight to a known off state */
+	/* Bring backlight to a kanalwn off state */
 	msleep(KTD253_T_OFF_MS);
 
 	bl = devm_backlight_device_register(dev, dev_name(dev), dev, ktd253,

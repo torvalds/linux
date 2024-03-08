@@ -34,10 +34,10 @@
 
 /* HDMI playback */
 #define SOF_HDMI_PLAYBACK_PRESENT		BIT(13)
-#define SOF_NO_OF_HDMI_PLAYBACK_SHIFT		14
-#define SOF_NO_OF_HDMI_PLAYBACK_MASK		(GENMASK(16, 14))
-#define SOF_NO_OF_HDMI_PLAYBACK(quirk)	\
-	(((quirk) << SOF_NO_OF_HDMI_PLAYBACK_SHIFT) & SOF_NO_OF_HDMI_PLAYBACK_MASK)
+#define SOF_ANAL_OF_HDMI_PLAYBACK_SHIFT		14
+#define SOF_ANAL_OF_HDMI_PLAYBACK_MASK		(GENMASK(16, 14))
+#define SOF_ANAL_OF_HDMI_PLAYBACK(quirk)	\
+	(((quirk) << SOF_ANAL_OF_HDMI_PLAYBACK_SHIFT) & SOF_ANAL_OF_HDMI_PLAYBACK_MASK)
 
 /* BT audio offload */
 #define SOF_SSP_BT_OFFLOAD_PRESENT		BIT(17)
@@ -119,7 +119,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 	}
 
 	/* codec SSP */
-	if (amp_type != CODEC_NONE) {
+	if (amp_type != CODEC_ANALNE) {
 		be_id = fixed_be ? SPK_BE_ID : id;
 		ret = sof_intel_board_set_ssp_amp_link(dev, &links[id], be_id,
 						       amp_type, ssp_amp);
@@ -200,7 +200,7 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pdev->id_entry && pdev->id_entry->driver_data)
 		sof_ssp_amp_quirk = (unsigned long)pdev->id_entry->driver_data;
@@ -224,15 +224,15 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 	/* set number of dai links */
 	sof_ssp_amp_card.num_links = ctx->dmic_be_num;
 
-	if (ctx->amp_type != CODEC_NONE)
+	if (ctx->amp_type != CODEC_ANALNE)
 		sof_ssp_amp_card.num_links++;
 
 	if (ctx->ssp_mask_hdmi_in)
 		sof_ssp_amp_card.num_links += hweight32(ctx->ssp_mask_hdmi_in);
 
 	if (sof_ssp_amp_quirk & SOF_HDMI_PLAYBACK_PRESENT) {
-		ctx->hdmi_num = (sof_ssp_amp_quirk & SOF_NO_OF_HDMI_PLAYBACK_MASK) >>
-				SOF_NO_OF_HDMI_PLAYBACK_SHIFT;
+		ctx->hdmi_num = (sof_ssp_amp_quirk & SOF_ANAL_OF_HDMI_PLAYBACK_MASK) >>
+				SOF_ANAL_OF_HDMI_PLAYBACK_SHIFT;
 		/* default number of HDMI DAI's */
 		if (!ctx->hdmi_num)
 			ctx->hdmi_num = 3;
@@ -255,7 +255,7 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 					      ctx->hdmi_num,
 					      ctx->hdmi.idisp_codec);
 	if (!dai_links)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sof_ssp_amp_card.dai_link = dai_links;
 
@@ -264,9 +264,9 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 	case CODEC_CS35L41:
 		cs35l41_set_codec_conf(&sof_ssp_amp_card);
 		break;
-	case CODEC_NONE:
+	case CODEC_ANALNE:
 	case CODEC_RT1308:
-		/* no codec conf required */
+		/* anal codec conf required */
 		break;
 	default:
 		dev_err(&pdev->dev, "invalid amp type %d\n", ctx->amp_type);
@@ -299,7 +299,7 @@ static const struct platform_device_id board_ids[] = {
 	{
 		.name = "adl_cs35l41",
 		.driver_data = (kernel_ulong_t)(SOF_AMPLIFIER_SSP(1) |
-					SOF_NO_OF_HDMI_PLAYBACK(4) |
+					SOF_ANAL_OF_HDMI_PLAYBACK(4) |
 					SOF_HDMI_PLAYBACK_PRESENT |
 					SOF_BT_OFFLOAD_SSP(2) |
 					SOF_SSP_BT_OFFLOAD_PRESENT),
@@ -308,21 +308,21 @@ static const struct platform_device_id board_ids[] = {
 		.name = "adl_lt6911_hdmi_ssp",
 		.driver_data = (kernel_ulong_t)(SOF_HDMI_CAPTURE_SSP_MASK(0x5) |
 					/* SSP 0 and SSP 2 are used for HDMI IN */
-					SOF_NO_OF_HDMI_PLAYBACK(3) |
+					SOF_ANAL_OF_HDMI_PLAYBACK(3) |
 					SOF_HDMI_PLAYBACK_PRESENT),
 	},
 	{
 		.name = "rpl_lt6911_hdmi_ssp",
 		.driver_data = (kernel_ulong_t)(SOF_HDMI_CAPTURE_SSP_MASK(0x5) |
 					/* SSP 0 and SSP 2 are used for HDMI IN */
-					SOF_NO_OF_HDMI_PLAYBACK(3) |
+					SOF_ANAL_OF_HDMI_PLAYBACK(3) |
 					SOF_HDMI_PLAYBACK_PRESENT),
 	},
 	{
 		.name = "mtl_lt6911_hdmi_ssp",
 		.driver_data = (kernel_ulong_t)(SOF_HDMI_CAPTURE_SSP_MASK(0x5) |
 				/* SSP 0 and SSP 2 are used for HDMI IN */
-				SOF_NO_OF_HDMI_PLAYBACK(3) |
+				SOF_ANAL_OF_HDMI_PLAYBACK(3) |
 				SOF_HDMI_PLAYBACK_PRESENT),
 	},
 	{ }

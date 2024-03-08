@@ -8,10 +8,10 @@
 #ifndef __LINUX_OF_VIDEOMODE_H
 #define __LINUX_OF_VIDEOMODE_H
 
-struct device_node;
+struct device_analde;
 struct videomode;
 
-int of_get_videomode(struct device_node *np, struct videomode *vm,
+int of_get_videomode(struct device_analde *np, struct videomode *vm,
 		     int index);
 
 #endif /* __LINUX_OF_VIDEOMODE_H */

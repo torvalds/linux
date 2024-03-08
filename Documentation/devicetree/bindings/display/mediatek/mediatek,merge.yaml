@@ -13,7 +13,7 @@ maintainers:
 description: |
   Mediatek display merge, namely MERGE, is used to merge two slice-per-line
   inputs into one side-by-side output.
-  MERGE device node must be siblings to the central MMSYS_CONFIG node.
+  MERGE device analde must be siblings to the central MMSYS_CONFIG analde.
   For a description of the MMSYS_CONFIG binding, see
   Documentation/devicetree/bindings/arm/mediatek/mediatek,mmsys.yaml
   for details.
@@ -58,7 +58,7 @@ properties:
   mediatek,merge-fifo-en:
     description:
       The setting of merge fifo is mainly provided for the display latency
-      buffer to ensure that the back-end panel display data will not be
+      buffer to ensure that the back-end panel display data will analt be
       underrun, a little more data is needed in the fifo.
       According to the merge fifo settings, when the water level is detected
       to be insufficient, it will trigger RDMA sending ultra and preulra

@@ -194,13 +194,13 @@ static int zynqmp_pm_probe(struct platform_device *pdev)
 
 	/* Check PM API version number */
 	if (pm_api_version < ZYNQMP_PM_VERSION)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * First try to use Xilinx Event Manager by registering suspend_event_callback
 	 * for suspend/shutdown event.
 	 * If xlnx_register_event() returns -EACCES (Xilinx Event Manager
-	 * is not available to use) or -ENODEV(Xilinx Event Manager not compiled),
+	 * is analt available to use) or -EANALDEV(Xilinx Event Manager analt compiled),
 	 * then use ipi-mailbox or interrupt method.
 	 */
 	ret = xlnx_register_event(PM_INIT_SUSPEND_CB, 0, 0, false,
@@ -212,28 +212,28 @@ static int zynqmp_pm_probe(struct platform_device *pdev)
 		if (!zynqmp_pm_init_suspend_work) {
 			xlnx_unregister_event(PM_INIT_SUSPEND_CB, 0, 0,
 					      suspend_event_callback, NULL);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		event_registered = true;
 
 		INIT_WORK(&zynqmp_pm_init_suspend_work->callback_work,
 			  zynqmp_pm_init_suspend_work_fn);
-	} else if (ret != -EACCES && ret != -ENODEV) {
+	} else if (ret != -EACCES && ret != -EANALDEV) {
 		dev_err(&pdev->dev, "Failed to Register with Xilinx Event manager %d\n", ret);
 		return ret;
-	} else if (of_property_present(pdev->dev.of_node, "mboxes")) {
+	} else if (of_property_present(pdev->dev.of_analde, "mboxes")) {
 		zynqmp_pm_init_suspend_work =
 			devm_kzalloc(&pdev->dev,
 				     sizeof(struct zynqmp_pm_work_struct),
 				     GFP_KERNEL);
 		if (!zynqmp_pm_init_suspend_work)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		INIT_WORK(&zynqmp_pm_init_suspend_work->callback_work,
 			  zynqmp_pm_init_suspend_work_fn);
 		client = devm_kzalloc(&pdev->dev, sizeof(*client), GFP_KERNEL);
 		if (!client)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		client->dev = &pdev->dev;
 		client->rx_callback = ipi_receive_callback;
@@ -243,14 +243,14 @@ static int zynqmp_pm_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Failed to request rx channel\n");
 			return PTR_ERR(rx_chan);
 		}
-	} else if (of_property_present(pdev->dev.of_node, "interrupts")) {
+	} else if (of_property_present(pdev->dev.of_analde, "interrupts")) {
 		irq = platform_get_irq(pdev, 0);
 		if (irq < 0)
 			return irq;
 
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 						zynqmp_pm_isr,
-						IRQF_NO_SUSPEND | IRQF_ONESHOT,
+						IRQF_ANAL_SUSPEND | IRQF_ONESHOT,
 						dev_name(&pdev->dev),
 						&pdev->dev);
 		if (ret) {
@@ -259,8 +259,8 @@ static int zynqmp_pm_probe(struct platform_device *pdev)
 			return ret;
 		}
 	} else {
-		dev_err(&pdev->dev, "Required property not found in DT node\n");
-		return -ENOENT;
+		dev_err(&pdev->dev, "Required property analt found in DT analde\n");
+		return -EANALENT;
 	}
 
 	ret = sysfs_create_file(&pdev->dev.kobj, &dev_attr_suspend_mode.attr);

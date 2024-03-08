@@ -268,7 +268,7 @@ static int s2mps11_regulator_set_suspend_disable(struct regulator_dev *rdev)
 	struct s2mps11_info *s2mps11 = rdev_get_drvdata(rdev);
 	int rdev_id = rdev_get_id(rdev);
 
-	/* Below LDO should be always on or does not support suspend mode. */
+	/* Below LDO should be always on or does analt support suspend mode. */
 	switch (s2mps11->dev_type) {
 	case S2MPS11X:
 		switch (rdev_id) {
@@ -841,15 +841,15 @@ static void s2mps14_pmic_dt_parse_ext_control_gpio(struct platform_device *pdev,
 	for (i = 0; i < ARRAY_SIZE(valid_regulators); i++) {
 		unsigned int reg = valid_regulators[i];
 
-		if (!rdata[reg].init_data || !rdata[reg].of_node)
+		if (!rdata[reg].init_data || !rdata[reg].of_analde)
 			continue;
 
-		gpio[reg] = devm_fwnode_gpiod_get(&pdev->dev,
-				of_fwnode_handle(rdata[reg].of_node),
+		gpio[reg] = devm_fwanalde_gpiod_get(&pdev->dev,
+				of_fwanalde_handle(rdata[reg].of_analde),
 				"samsung,ext-control",
-				GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
+				GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_ANALNEXCLUSIVE,
 				"s2mps11-regulator");
-		if (PTR_ERR(gpio[reg]) == -ENOENT)
+		if (PTR_ERR(gpio[reg]) == -EANALENT)
 			gpio[reg] = NULL;
 		else if (IS_ERR(gpio[reg])) {
 			dev_err(&pdev->dev, "Failed to get control GPIO for %d/%s\n",
@@ -867,11 +867,11 @@ static int s2mps11_pmic_dt_parse(struct platform_device *pdev,
 		struct of_regulator_match *rdata, struct s2mps11_info *s2mps11,
 		unsigned int rdev_num)
 {
-	struct device_node *reg_np;
+	struct device_analde *reg_np;
 
-	reg_np = of_get_child_by_name(pdev->dev.parent->of_node, "regulators");
+	reg_np = of_get_child_by_name(pdev->dev.parent->of_analde, "regulators");
 	if (!reg_np) {
-		dev_err(&pdev->dev, "could not find regulators sub-node\n");
+		dev_err(&pdev->dev, "could analt find regulators sub-analde\n");
 		return -EINVAL;
 	}
 
@@ -879,7 +879,7 @@ static int s2mps11_pmic_dt_parse(struct platform_device *pdev,
 	if (s2mps11->dev_type == S2MPS14X)
 		s2mps14_pmic_dt_parse_ext_control_gpio(pdev, rdata, s2mps11);
 
-	of_node_put(reg_np);
+	of_analde_put(reg_np);
 
 	return 0;
 }
@@ -1130,7 +1130,7 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	s2mps11 = devm_kzalloc(&pdev->dev, sizeof(struct s2mps11_info),
 				GFP_KERNEL);
 	if (!s2mps11)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s2mps11->dev_type = platform_get_device_id(pdev)->driver_data;
 	switch (s2mps11->dev_type) {
@@ -1168,11 +1168,11 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	s2mps11->ext_control_gpiod = devm_kcalloc(&pdev->dev, rdev_num,
 			       sizeof(*s2mps11->ext_control_gpiod), GFP_KERNEL);
 	if (!s2mps11->ext_control_gpiod)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rdata = kcalloc(rdev_num, sizeof(*rdata), GFP_KERNEL);
 	if (!rdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < rdev_num; i++)
 		rdata[i].name = regulators[i].name;
@@ -1190,7 +1190,7 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 		struct regulator_dev *regulator;
 
 		config.init_data = rdata[i].init_data;
-		config.of_node = rdata[i].of_node;
+		config.of_analde = rdata[i].of_analde;
 		config.ena_gpiod = s2mps11->ext_control_gpiod[i];
 		/*
 		 * Hand the GPIO descriptor management over to the regulator
@@ -1238,7 +1238,7 @@ MODULE_DEVICE_TABLE(platform, s2mps11_pmic_id);
 static struct platform_driver s2mps11_pmic_driver = {
 	.driver = {
 		.name = "s2mps11-pmic",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = s2mps11_pmic_probe,
 	.id_table = s2mps11_pmic_id,

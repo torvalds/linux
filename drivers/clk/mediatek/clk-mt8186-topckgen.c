@@ -396,7 +396,7 @@ static const char * const spmi_mst_parents[] = {
 	"ulposc1_d32"
 };
 
-static const char * const spinor_parents[] = {
+static const char * const spianalr_parents[] = {
 	"clk26m",
 	"clk13m",
 	"mainpll_d7_d4",
@@ -499,7 +499,7 @@ static const char * const apll_mck_parents[] = {
 static const struct mtk_mux top_mtk_muxes[] = {
 	/*
 	 * CLK_CFG_0
-	 * top_axi is bus clock, should not be closed by Linux.
+	 * top_axi is bus clock, should analt be closed by Linux.
 	 * top_scp is main clock in always-on co-processor.
 	 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_AXI, "top_axi", axi_parents,
@@ -550,7 +550,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 		aud_engen1_parents, 0x0080, 0x0084, 0x0088, 24, 2, 31, 0x0004, 19),
 	/*
 	 * CLK_CFG_5
-	 * top_sspm is main clock in always-on co-processor, should not be closed
+	 * top_sspm is main clock in always-on co-processor, should analt be closed
 	 * in Linux.
 	 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_AUD_ENGEN2, "top_aud_engen2",
@@ -623,7 +623,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 		audiodsp_parents, 0x00ec, 0x00f0, 0x00f4, 24, 3, 31, 0x0008, 16),
 	/*
 	 * CLK_CFG_12
-	 * dvfsrc is for internal DVFS usage, should not be closed in Linux.
+	 * dvfsrc is for internal DVFS usage, should analt be closed in Linux.
 	 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_DVFSRC, "top_dvfsrc", dvfsrc_parents,
 				   0x0100, 0x0104, 0x0108, 0, 1, 7, 0x0008, 17,
@@ -633,8 +633,8 @@ static const struct mtk_mux top_mtk_muxes[] = {
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPMI_MST, "top_spmi_mst",
 		spmi_mst_parents, 0x0100, 0x0104, 0x0108, 16, 3, 23, 0x0008, 19),
 	/* CLK_CFG_13 */
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPINOR, "top_spinor",
-		spinor_parents, 0x0110, 0x0114, 0x0118, 0, 3, 6, 0x0008, 20),
+	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPIANALR, "top_spianalr",
+		spianalr_parents, 0x0110, 0x0114, 0x0118, 0, 3, 6, 0x0008, 20),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_NNA, "top_nna",
 		nna_parents, 0x0110, 0x0114, 0x0118, 7, 4, 14, 0x0008, 21),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_NNA1, "top_nna1",
@@ -681,15 +681,15 @@ static struct mtk_composite top_muxes[] = {
 			0x0320, 4, 0x0334, 8, 0),
 };
 
-/* Register mux notifier for MFG mux */
-static int clk_mt8186_reg_mfg_mux_notifier(struct device *dev, struct clk *clk)
+/* Register mux analtifier for MFG mux */
+static int clk_mt8186_reg_mfg_mux_analtifier(struct device *dev, struct clk *clk)
 {
 	struct mtk_mux_nb *mfg_mux_nb;
 	int i;
 
 	mfg_mux_nb = devm_kzalloc(dev, sizeof(*mfg_mux_nb), GFP_KERNEL);
 	if (!mfg_mux_nb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(top_mtk_muxes); i++)
 		if (top_mtk_muxes[i].id == CLK_TOP_MFG)
@@ -700,7 +700,7 @@ static int clk_mt8186_reg_mfg_mux_notifier(struct device *dev, struct clk *clk)
 	mfg_mux_nb->ops = top_mtk_muxes[i].ops;
 	mfg_mux_nb->bypass_index = 0; /* Bypass to 26M crystal */
 
-	return devm_mtk_clk_mux_notifier_register(dev, clk, mfg_mux_nb);
+	return devm_mtk_clk_mux_analtifier_register(dev, clk, mfg_mux_nb);
 }
 
 static const struct mtk_clk_desc topck_desc = {
@@ -713,7 +713,7 @@ static const struct mtk_clk_desc topck_desc = {
 	.composite_clks = top_muxes,
 	.num_composite_clks = ARRAY_SIZE(top_muxes),
 	.clk_lock = &mt8186_clk_lock,
-	.clk_notifier_func = clk_mt8186_reg_mfg_mux_notifier,
+	.clk_analtifier_func = clk_mt8186_reg_mfg_mux_analtifier,
 	.mfg_clk_idx = CLK_TOP_MFG,
 };
 

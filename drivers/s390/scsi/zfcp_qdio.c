@@ -53,18 +53,18 @@ static void zfcp_qdio_zero_sbals(struct qdio_buffer *sbal[], int first, int cnt)
 /* this needs to be called prior to updating the queue fill level */
 static inline void zfcp_qdio_account(struct zfcp_qdio *qdio)
 {
-	unsigned long long now, span;
+	unsigned long long analw, span;
 	int used;
 
-	now = get_tod_clock_monotonic();
-	span = (now - qdio->req_q_time) >> 12;
+	analw = get_tod_clock_moanaltonic();
+	span = (analw - qdio->req_q_time) >> 12;
 	used = QDIO_MAX_BUFFERS_PER_Q - atomic_read(&qdio->req_q_free);
 	qdio->req_q_util += used * span;
-	qdio->req_q_time = now;
+	qdio->req_q_time = analw;
 }
 
 static void zfcp_qdio_int_req(struct ccw_device *cdev, unsigned int qdio_err,
-			      int queue_no, int idx, int count,
+			      int queue_anal, int idx, int count,
 			      unsigned long parm)
 {
 	struct zfcp_qdio *qdio = (struct zfcp_qdio *) parm;
@@ -84,7 +84,7 @@ static void zfcp_qdio_request_tasklet(struct tasklet_struct *tasklet)
 		if (error) {
 			zfcp_qdio_handler_error(qdio, "qdreqt1", error);
 		} else {
-			/* cleanup all SBALs being program-owned now */
+			/* cleanup all SBALs being program-owned analw */
 			zfcp_qdio_zero_sbals(qdio->req_q, start, completed);
 
 			spin_lock_irq(&qdio->stat_lock);
@@ -108,12 +108,12 @@ static void zfcp_qdio_request_timer(struct timer_list *timer)
 }
 
 static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
-			       int queue_no, int idx, int count,
+			       int queue_anal, int idx, int count,
 			       unsigned long parm)
 {
 	struct zfcp_qdio *qdio = (struct zfcp_qdio *) parm;
 	struct zfcp_adapter *adapter = qdio->adapter;
-	int sbal_no, sbal_idx;
+	int sbal_anal, sbal_idx;
 
 	if (unlikely(qdio_err)) {
 		if (zfcp_adapter_multi_buffer_active(adapter)) {
@@ -130,10 +130,10 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 				     ZFCP_QDIO_MAX_SBALS_PER_REQ + 1);
 				     /* incl. signaling SBAL */
 
-			for (sbal_no = 0; sbal_no < scount; sbal_no++) {
-				sbal_idx = (idx + sbal_no) %
+			for (sbal_anal = 0; sbal_anal < scount; sbal_anal++) {
+				sbal_idx = (idx + sbal_anal) %
 					QDIO_MAX_BUFFERS_PER_Q;
-				pl[sbal_no] = qdio->res_q[sbal_idx];
+				pl[sbal_anal] = qdio->res_q[sbal_idx];
 			}
 			zfcp_dbf_hba_def_err(adapter, req_id, scount, pl);
 		}
@@ -145,8 +145,8 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 	 * go through all SBALs from input queue currently
 	 * returned by QDIO layer
 	 */
-	for (sbal_no = 0; sbal_no < count; sbal_no++) {
-		sbal_idx = (idx + sbal_no) % QDIO_MAX_BUFFERS_PER_Q;
+	for (sbal_anal = 0; sbal_anal < count; sbal_anal++) {
+		sbal_idx = (idx + sbal_anal) % QDIO_MAX_BUFFERS_PER_Q;
 		/* go through all SBALEs of SBAL */
 		zfcp_fsf_reqid_check(qdio, sbal_idx);
 	}
@@ -278,7 +278,7 @@ static int zfcp_qdio_sbal_check(struct zfcp_qdio *qdio)
  * this function may only be called from process context; it will
  * sleep when waiting for a free sbal.
  *
- * Returns: 0 on success, -EIO if there is no free sbal after waiting.
+ * Returns: 0 on success, -EIO if there is anal free sbal after waiting.
  */
 int zfcp_qdio_sbal_get(struct zfcp_qdio *qdio)
 {
@@ -354,7 +354,7 @@ int zfcp_qdio_send(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
 /**
  * zfcp_qdio_allocate - allocate queue memory and initialize QDIO data
  * @qdio: pointer to struct zfcp_qdio
- * Returns: -ENOMEM on memory allocation error or return value from
+ * Returns: -EANALMEM on memory allocation error or return value from
  *          qdio_allocate
  */
 static int zfcp_qdio_allocate(struct zfcp_qdio *qdio)
@@ -363,7 +363,7 @@ static int zfcp_qdio_allocate(struct zfcp_qdio *qdio)
 
 	ret = qdio_alloc_buffers(qdio->req_q, QDIO_MAX_BUFFERS_PER_Q);
 	if (ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = qdio_alloc_buffers(qdio->res_q, QDIO_MAX_BUFFERS_PER_Q);
 	if (ret)
@@ -397,11 +397,11 @@ void zfcp_qdio_close(struct zfcp_qdio *qdio)
 		return;
 
 	/*
-	 * Clear QDIOUP flag, thus qdio_add_bufs_to_output_queue() is not called
+	 * Clear QDIOUP flag, thus qdio_add_bufs_to_output_queue() is analt called
 	 * during qdio_shutdown().
 	 */
 	spin_lock_irq(&qdio->req_q_lock);
-	atomic_andnot(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status);
+	atomic_andanalt(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status);
 	spin_unlock_irq(&qdio->req_q_lock);
 
 	wake_up(&qdio->req_q_wq);
@@ -454,15 +454,15 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	if (atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP)
 		return -EIO;
 
-	atomic_andnot(ZFCP_STATUS_ADAPTER_SIOSL_ISSUED,
+	atomic_andanalt(ZFCP_STATUS_ADAPTER_SIOSL_ISSUED,
 			  &qdio->adapter->status);
 
 	init_data.q_format = QDIO_ZFCP_QFMT;
 	init_data.qib_rflags = QIB_RFLAGS_ENABLE_DATA_DIV;
 	if (enable_multibuffer)
 		init_data.qdr_ac |= QDR_AC_MULTI_BUFFER_ENABLE;
-	init_data.no_input_qs = 1;
-	init_data.no_output_qs = 1;
+	init_data.anal_input_qs = 1;
+	init_data.anal_output_qs = 1;
 	init_data.input_handler = zfcp_qdio_int_resp;
 	init_data.output_handler = zfcp_qdio_int_req;
 	init_data.irq_poll = zfcp_qdio_poll;
@@ -484,7 +484,7 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 		atomic_or(ZFCP_STATUS_ADAPTER_MB_ACT, &adapter->status);
 		qdio->max_sbale_per_sbal = QDIO_MAX_ELEMENTS_PER_BUFFER;
 	} else {
-		atomic_andnot(ZFCP_STATUS_ADAPTER_MB_ACT, &adapter->status);
+		atomic_andanalt(ZFCP_STATUS_ADAPTER_MB_ACT, &adapter->status);
 		qdio->max_sbale_per_sbal = QDIO_MAX_ELEMENTS_PER_BUFFER - 1;
 	}
 
@@ -551,13 +551,13 @@ int zfcp_qdio_setup(struct zfcp_adapter *adapter)
 
 	qdio = kzalloc(sizeof(struct zfcp_qdio), GFP_KERNEL);
 	if (!qdio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qdio->adapter = adapter;
 
 	if (zfcp_qdio_allocate(qdio)) {
 		kfree(qdio);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock_init(&qdio->req_q_lock);
@@ -580,7 +580,7 @@ int zfcp_qdio_setup(struct zfcp_adapter *adapter)
  * wrapper function sets a flag to ensure hardware logging is only
  * triggered once before going through qdio shutdown.
  *
- * The triggers are always run from qdio tasklet context, so no
+ * The triggers are always run from qdio tasklet context, so anal
  * additional synchronization is necessary.
  */
 void zfcp_qdio_siosl(struct zfcp_adapter *adapter)

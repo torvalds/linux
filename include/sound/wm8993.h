@@ -8,8 +8,8 @@
 #ifndef __LINUX_SND_WM8993_H
 #define __LINUX_SND_WM8993_H
 
-/* Note that EQ1 only contains the enable/disable bit so will be
-   ignored but is included for simplicity.
+/* Analte that EQ1 only contains the enable/disable bit so will be
+   iganalred but is included for simplicity.
  */
 struct wm8993_retune_mobile_setting {
 	const char *name;

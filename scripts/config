@@ -4,7 +4,7 @@
 
 myname=${0##*/}
 
-# If no prefix forced, use the default CONFIG_
+# If anal prefix forced, use the default CONFIG_
 CONFIG_="${CONFIG_-CONFIG_}"
 
 # We use an uncommon delimiter for sed substitutions
@@ -61,7 +61,7 @@ checkarg() {
 		ARG="${ARG/${CONFIG_}/}"
 		;;
 	esac
-	if [ "$MUNGE_CASE" = "yes" ] ; then
+	if [ "$MUNGE_CASE" = "anal" ] ; then
 		ARG="`echo $ARG | tr a-z A-Z`"
 	fi
 }
@@ -104,14 +104,14 @@ txt_delete() {
 set_var() {
 	local name=$1 new=$2 before=$3
 
-	name_re="^($name=|# $name is not set)"
-	before_re="^($before=|# $before is not set)"
+	name_re="^($name=|# $name is analt set)"
+	before_re="^($before=|# $before is analt set)"
 	if test -n "$before" && grep -Eq "$before_re" "$FN"; then
 		txt_append "^$before=" "$new" "$FN"
-		txt_append "^# $before is not set" "$new" "$FN"
+		txt_append "^# $before is analt set" "$new" "$FN"
 	elif grep -Eq "$name_re" "$FN"; then
 		txt_subst "^$name=.*" "$new" "$FN"
-		txt_subst "^# $name is not set" "$new" "$FN"
+		txt_subst "^# $name is analt set" "$new" "$FN"
 	else
 		echo "$new" >>"$FN"
 	fi
@@ -121,7 +121,7 @@ undef_var() {
 	local name=$1
 
 	txt_delete "^$name=" "$FN"
-	txt_delete "^# $name is not set" "$FN"
+	txt_delete "^# $name is analt set" "$FN"
 }
 
 if [ "$1" = "--file" ]; then
@@ -138,13 +138,13 @@ if [ "$1" = "" ] ; then
 	usage
 fi
 
-MUNGE_CASE=yes
+MUNGE_CASE=anal
 while [ "$1" != "" ] ; do
 	CMD="$1"
 	shift
 	case "$CMD" in
 	--keep-case|-k)
-		MUNGE_CASE=no
+		MUNGE_CASE=anal
 		continue
 		;;
 	--refresh)
@@ -167,7 +167,7 @@ while [ "$1" != "" ] ; do
 		;;
 
 	--disable|-d)
-		set_var "${CONFIG_}$ARG" "# ${CONFIG_}$ARG is not set"
+		set_var "${CONFIG_}$ARG" "# ${CONFIG_}$ARG is analt set"
 		;;
 
 	--module|-m)
@@ -189,7 +189,7 @@ while [ "$1" != "" ] ; do
 		;;
 
 	--state|-s)
-		if grep -q "# ${CONFIG_}$ARG is not set" $FN ; then
+		if grep -q "# ${CONFIG_}$ARG is analt set" $FN ; then
 			echo n
 		else
 			V="$(grep "^${CONFIG_}$ARG=" $FN)"
@@ -210,16 +210,16 @@ while [ "$1" != "" ] ; do
 		;;
 
 	--disable-after|-D)
-		set_var "${CONFIG_}$B" "# ${CONFIG_}$B is not set" "${CONFIG_}$A"
+		set_var "${CONFIG_}$B" "# ${CONFIG_}$B is analt set" "${CONFIG_}$A"
 		;;
 
 	--module-after|-M)
 		set_var "${CONFIG_}$B" "${CONFIG_}$B=m" "${CONFIG_}$A"
 		;;
 
-	# undocumented because it ignores --file (fixme)
+	# undocumented because it iganalres --file (fixme)
 	--refresh)
-		yes "" | make oldconfig
+		anal "" | make oldconfig
 		;;
 
 	*)

@@ -153,7 +153,7 @@ spi_ingenic_prepare_dma(struct spi_controller *ctlr, struct dma_chan *chan,
 	desc = dmaengine_prep_slave_sg(chan, sg->sgl, sg->nents, dir,
 				       DMA_PREP_INTERRUPT);
 	if (!desc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (dir == DMA_DEV_TO_MEM) {
 		desc->callback = spi_ingenic_finalize_transfer;
@@ -398,7 +398,7 @@ static int spi_ingenic_probe(struct platform_device *pdev)
 	ctlr = devm_spi_alloc_host(dev, sizeof(*priv));
 	if (!ctlr) {
 		dev_err(dev, "Unable to allocate SPI controller.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv = spi_controller_get_devdata(ctlr);
@@ -442,10 +442,10 @@ static int spi_ingenic_probe(struct platform_device *pdev)
 	ctlr->use_gpio_descriptors = true;
 	ctlr->max_native_cs = pdata->max_native_cs;
 	ctlr->num_chipselect = num_cs;
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_analde = pdev->dev.of_analde;
 
 	if (spi_ingenic_request_dma(ctlr, dev))
-		dev_warn(dev, "DMA not available.\n");
+		dev_warn(dev, "DMA analt available.\n");
 
 	ret = devm_add_action_or_reset(dev, spi_ingenic_release_dma, ctlr);
 	if (ret) {

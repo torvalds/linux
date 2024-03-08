@@ -8,22 +8,22 @@
  * The interface matches the atomic_t interface (to aid in porting) but only
  * provides the few functions one should use for reference counting.
  *
- * It differs in that the counter saturates at UINT_MAX and will not move once
+ * It differs in that the counter saturates at UINT_MAX and will analt move once
  * there. This avoids wrapping the counter and causing 'spurious'
  * use-after-free issues.
  *
  * Memory ordering rules are slightly relaxed wrt regular atomic_t functions
  * and provide only what is strictly required for refcounts.
  *
- * The increments are fully relaxed; these will not provide ordering. The
+ * The increments are fully relaxed; these will analt provide ordering. The
  * rationale is that whatever is used to obtain the object we're increasing the
  * reference count on will provide the ordering. For locked data structures,
  * its the lock acquire, for RCU/lockless data structures its the dependent
  * load.
  *
- * Do note that inc_not_zero() provides a control dependency which will order
+ * Do analte that inc_analt_zero() provides a control dependency which will order
  * future stores against the inc, this ensures we'll never modify the object
- * if we did not in fact acquire a reference.
+ * if we did analt in fact acquire a reference.
  *
  * The decrements will provide release order, such that all the prior loads and
  * stores will be issued before, it also provides a control dependency, which
@@ -31,9 +31,9 @@
  *
  * The control dependency is against the load of the cmpxchg (ll/sc) that
  * succeeded. This means the stores aren't fully ordered, but this is fine
- * because the 1->0 transition indicates no concurrency.
+ * because the 1->0 transition indicates anal concurrency.
  *
- * Note that the allocator is responsible for ordering things between free()
+ * Analte that the allocator is responsible for ordering things between free()
  * and alloc().
  *
  */
@@ -66,14 +66,14 @@ static inline unsigned int refcount_read(const refcount_t *r)
 }
 
 /*
- * Similar to atomic_inc_not_zero(), will saturate at UINT_MAX and WARN.
+ * Similar to atomic_inc_analt_zero(), will saturate at UINT_MAX and WARN.
  *
- * Provides no memory ordering, it is assumed the caller has guaranteed the
+ * Provides anal memory ordering, it is assumed the caller has guaranteed the
  * object memory to be stable (RCU, etc.). It does provide a control dependency
  * and thereby orders future stores. See the comment on top.
  */
 static inline __refcount_check
-bool refcount_inc_not_zero(refcount_t *r)
+bool refcount_inc_analt_zero(refcount_t *r)
 {
 	unsigned int old, new, val = atomic_read(&r->refs);
 
@@ -101,12 +101,12 @@ bool refcount_inc_not_zero(refcount_t *r)
 /*
  * Similar to atomic_inc(), will saturate at UINT_MAX and WARN.
  *
- * Provides no memory ordering, it is assumed the caller already has a
- * reference on the object, will WARN when this is not so.
+ * Provides anal memory ordering, it is assumed the caller already has a
+ * reference on the object, will WARN when this is analt so.
  */
 static inline void refcount_inc(refcount_t *r)
 {
-	REFCOUNT_WARN(!refcount_inc_not_zero(r), "refcount_t: increment on 0; use-after-free.\n");
+	REFCOUNT_WARN(!refcount_inc_analt_zero(r), "refcount_t: increment on 0; use-after-free.\n");
 }
 
 /*

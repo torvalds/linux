@@ -22,16 +22,16 @@
 #define NUM_ACL 64
 
 /* if mode ==0, then the sta is allowed once the addr is hit.
- * if mode ==1, then the sta is rejected once the addr is non-hit.
+ * if mode ==1, then the sta is rejected once the addr is analn-hit.
  */
-struct wlan_acl_node {
+struct wlan_acl_analde {
 	struct list_head list;
 	u8       addr[ETH_ALEN];
 	u8       mode;
 };
 
 struct wlan_acl_pool {
-	struct wlan_acl_node aclnode[NUM_ACL];
+	struct wlan_acl_analde aclanalde[NUM_ACL];
 };
 
 struct	stainfo_stats {
@@ -67,7 +67,7 @@ struct sta_info {
 	/*for A-MPDU Rx reordering buffer control */
 	struct recv_reorder_ctrl recvreorder_ctrl[16];
 	struct ht_priv	htpriv;
-	/* Notes:
+	/* Analtes:
 	 * STA_Mode:
 	 * curr_network(mlme_priv/security_priv/qos/ht)
 	 *   + sta_info: (STA & AP) CAP/INFO

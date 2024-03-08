@@ -2,7 +2,7 @@
 /*
  *  ION iCade input driver
  *
- *  Copyright (c) 2012 Bastien Nocera <hadess@hadess.net>
+ *  Copyright (c) 2012 Bastien Analcera <hadess@hadess.net>
  *  Copyright (c) 2012 Benjamin Tissoires <benjamin.tissoires@gmail.com>
  */
 
@@ -43,7 +43,7 @@
  * #include <stdio.h>
  * #include <assert.h>
  *
- * #define unk     KEY_UNKNOWN
+ * #define unk     KEY_UNKANALWN
  *
  * < copy of hid_keyboard[] from hid-input.c >
  *
@@ -170,7 +170,7 @@ static int icade_event(struct hid_device *hdev, struct hid_field *field,
 			!usage->type)
 		return 0;
 
-	/* We ignore the fake key up, and act only on key down */
+	/* We iganalre the fake key up, and act only on key down */
 	if (!value)
 		return 1;
 
@@ -203,7 +203,7 @@ static int icade_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		return 1;
 	}
 
-	/* ignore others */
+	/* iganalre others */
 	return -1;
 
 }
@@ -235,5 +235,5 @@ static struct hid_driver icade_driver = {
 module_hid_driver(icade_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Bastien Nocera <hadess@hadess.net>");
+MODULE_AUTHOR("Bastien Analcera <hadess@hadess.net>");
 MODULE_DESCRIPTION("ION iCade input driver");

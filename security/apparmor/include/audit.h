@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor auditing function definitions.
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  */
 
 #ifndef __AA_AUDIT_H
@@ -23,10 +23,10 @@
 extern const char *const audit_mode_names[];
 #define AUDIT_MAX_INDEX 5
 enum audit_mode {
-	AUDIT_NORMAL,		/* follow normal auditing of accesses */
+	AUDIT_ANALRMAL,		/* follow analrmal auditing of accesses */
 	AUDIT_QUIET_DENIED,	/* quiet all denied access messages */
 	AUDIT_QUIET,		/* quiet all messages */
-	AUDIT_NOQUIET,		/* do not quiet audit messages */
+	AUDIT_ANALQUIET,		/* do analt quiet audit messages */
 	AUDIT_ALL		/* audit all accesses */
 };
 
@@ -49,7 +49,7 @@ enum audit_type {
 #define OP_UNLINK "unlink"
 #define OP_MKDIR "mkdir"
 #define OP_RMDIR "rmdir"
-#define OP_MKNOD "mknod"
+#define OP_MKANALD "mkanald"
 #define OP_TRUNC "truncate"
 #define OP_LINK "link"
 #define OP_SYMLINK "symlink"
@@ -201,7 +201,7 @@ static inline int complain_error(int error)
 
 void aa_audit_rule_free(void *vrule);
 int aa_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule);
-int aa_audit_rule_known(struct audit_krule *rule);
+int aa_audit_rule_kanalwn(struct audit_krule *rule);
 int aa_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule);
 
 #endif /* __AA_AUDIT_H */

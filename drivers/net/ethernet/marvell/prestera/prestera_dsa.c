@@ -3,7 +3,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 
 #include "prestera_dsa.h"

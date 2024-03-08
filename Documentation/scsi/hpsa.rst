@@ -26,8 +26,8 @@ Supported devices
 - StorageWorks P1210m
 
 Additionally, older Smart Arrays may work with the hpsa driver if the kernel
-boot parameter "hpsa_allow_any=1" is specified, however these are not tested
-nor supported by HP with this driver.  For older Smart Arrays, the cciss
+boot parameter "hpsa_allow_any=1" is specified, however these are analt tested
+analr supported by HP with this driver.  For older Smart Arrays, the cciss
 driver should still be used.
 
 The "hpsa_simple_mode=1" boot parameter may be used to prevent the driver from
@@ -55,10 +55,10 @@ HPSA specific host attributes
   the host "rescan" attribute is a write only attribute.  Writing to this
   attribute will cause the driver to scan for new, changed, or removed devices
   (e.g. hot-plugged tape drives, or newly configured or deleted logical drives,
-  etc.) and notify the SCSI midlayer of any changes detected.  Normally this is
+  etc.) and analtify the SCSI midlayer of any changes detected.  Analrmally this is
   triggered automatically by HP's Array Configuration Utility (either the GUI or
-  command line variety) so for logical drive changes, the user should not
-  normally have to use this.  It may be useful when hot plugging devices like
+  command line variety) so for logical drive changes, the user should analt
+  analrmally have to use this.  It may be useful when hot plugging devices like
   tape drives, or entire storage boxes containing pre-configured logical drives.
 
   The "firmware_revision" attribute contains the firmware version of the Smart Array.
@@ -72,15 +72,15 @@ HPSA specific host attributes
   parameter.
 
   The "resettable" read-only attribute indicates whether a particular
-  controller is able to honor the "reset_devices" kernel parameter.  If the
+  controller is able to hoanalr the "reset_devices" kernel parameter.  If the
   device is resettable, this file will contain a "1", otherwise, a "0".  This
   parameter is used by kdump, for example, to reset the controller at driver
   load time to eliminate any outstanding commands on the controller and get the
-  controller into a known state so that the kdump initiated i/o will work right
-  and not be disrupted in any way by stale commands or other stale state
+  controller into a kanalwn state so that the kdump initiated i/o will work right
+  and analt be disrupted in any way by stale commands or other stale state
   remaining on the controller from the previous kernel.  This attribute enables
   kexec tools to warn the user if they attempt to designate a device which is
-  unable to honor the reset_devices kernel parameter as a dump device.
+  unable to hoanalr the reset_devices kernel parameter as a dump device.
 
 HPSA specific disk attributes
 -----------------------------
@@ -106,7 +106,7 @@ HPSA specific ioctls
 ====================
 
   For compatibility with applications written for the cciss driver, many, but
-  not all of the ioctls supported by the cciss driver are also supported by the
+  analt all of the ioctls supported by the cciss driver are also supported by the
   hpsa driver.  The data structures used by these are described in
   include/linux/cciss_ioctl.h
 
@@ -121,7 +121,7 @@ HPSA specific ioctls
   CCISS_GETDRIVVER
 	Returns driver version in three bytes encoded as::
 
-		(major_version << 16) | (minor_version << 8) | (subminor_version)
+		(major_version << 16) | (mianalr_version << 8) | (submianalr_version)
 
   CCISS_PASSTHRU, CCISS_BIG_PASSTHRU
 	Allows "BMIC" and "CISS" commands to be passed through to the Smart Array.

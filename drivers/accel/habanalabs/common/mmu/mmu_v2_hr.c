@@ -14,7 +14,7 @@ static struct pgt_info *hl_mmu_v2_hr_get_pgt_info(struct hl_ctx *ctx, u64 phys_h
 {
 	struct pgt_info *pgt_info = NULL;
 
-	hash_for_each_possible(ctx->hr_mmu_phys_hash, pgt_info, node,
+	hash_for_each_possible(ctx->hr_mmu_phys_hash, pgt_info, analde,
 				(unsigned long) phys_hop_addr)
 		if (phys_hop_addr == pgt_info->phys_addr)
 			break;
@@ -25,7 +25,7 @@ static struct pgt_info *hl_mmu_v2_hr_get_pgt_info(struct hl_ctx *ctx, u64 phys_h
 static void hl_mmu_v2_hr_add_pgt_info(struct hl_ctx *ctx, struct pgt_info *pgt_info,
 					dma_addr_t phys_addr)
 {
-	hash_add(ctx->hr_mmu_phys_hash, &pgt_info->node, phys_addr);
+	hash_add(ctx->hr_mmu_phys_hash, &pgt_info->analde, phys_addr);
 }
 
 static struct pgt_info *hl_mmu_v2_hr_get_hop0_pgt_info(struct hl_ctx *ctx)
@@ -41,7 +41,7 @@ static struct pgt_info *hl_mmu_v2_hr_get_hop0_pgt_info(struct hl_ctx *ctx)
  * - Create a pool of pages for pgt_infos.
  * - Create a shadow table for pgt
  *
- * Return: 0 for success, non-zero for failure.
+ * Return: 0 for success, analn-zero for failure.
  */
 static inline int hl_mmu_v2_hr_init(struct hl_device *hdev)
 {
@@ -74,7 +74,7 @@ static inline void hl_mmu_v2_hr_fini(struct hl_device *hdev)
  *
  * Initialize a mutex to protect the concurrent mapping flow, a hash to hold all
  * page tables hops related to this context.
- * Return: 0 on success, non-zero otherwise.
+ * Return: 0 on success, analn-zero otherwise.
  */
 static int hl_mmu_v2_hr_ctx_init(struct hl_ctx *ctx)
 {
@@ -88,7 +88,7 @@ static int hl_mmu_v2_hr_ctx_init(struct hl_ctx *ctx)
  * @ctx: pointer to the context structure
  *
  * This function does the following:
- * - Free any pgts which were not freed yet
+ * - Free any pgts which were analt freed yet
  * - Free the mutex
  * - Free DRAM default page mapping hops
  */
@@ -96,16 +96,16 @@ static void hl_mmu_v2_hr_ctx_fini(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
 	struct pgt_info *pgt_info;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int i;
 
 	if (!hash_empty(ctx->hr_mmu_phys_hash))
 		dev_err(hdev->dev, "ctx %d is freed while it has pgts in use\n",
 			ctx->asid);
 
-	hash_for_each_safe(ctx->hr_mmu_phys_hash, i, tmp, pgt_info, node) {
+	hash_for_each_safe(ctx->hr_mmu_phys_hash, i, tmp, pgt_info, analde) {
 		dev_err_ratelimited(hdev->dev,
-			"pgt_info of addr 0x%llx of asid %d was not destroyed, num_ptes: %d\n",
+			"pgt_info of addr 0x%llx of asid %d was analt destroyed, num_ptes: %d\n",
 			pgt_info->phys_addr, ctx->asid, pgt_info->num_of_ptes);
 		hl_mmu_hr_free_hop_remove_pgt(pgt_info, &ctx->hdev->mmu_priv.hr,
 							ctx->hdev->asic_prop.mmu_hop_table_size);
@@ -140,7 +140,7 @@ static int _hl_mmu_v2_hr_unmap(struct hl_ctx *ctx,
 			hops_pgt_info[i] = hl_mmu_hr_get_next_hop_pgt_info(ctx,
 					&ctx->hdev->mmu_func[MMU_HR_PGT].hr_funcs, curr_pte);
 		if (!hops_pgt_info[i])
-			goto not_mapped;
+			goto analt_mapped;
 
 		hop_pte_phys_addr[i] = hl_mmu_get_hop_pte_phys_addr(ctx, mmu_prop, i,
 									hops_pgt_info[i]->phys_addr,
@@ -165,7 +165,7 @@ static int _hl_mmu_v2_hr_unmap(struct hl_ctx *ctx,
 	}
 
 	if (!(curr_pte & PAGE_PRESENT_MASK))
-		goto not_mapped;
+		goto analt_mapped;
 
 	for (i = hop_last ; i > 0 ; i--) {
 		hl_mmu_hr_clear_pte(ctx, hops_pgt_info[i], hop_pte_phys_addr[i],
@@ -181,8 +181,8 @@ static int _hl_mmu_v2_hr_unmap(struct hl_ctx *ctx,
 mapped:
 	return 0;
 
-not_mapped:
-	dev_err(hdev->dev, "virt addr 0x%llx is not mapped to phys addr\n", virt_addr);
+analt_mapped:
+	dev_err(hdev->dev, "virt addr 0x%llx is analt mapped to phys addr\n", virt_addr);
 
 	return -EINVAL;
 }
@@ -213,7 +213,7 @@ static int _hl_mmu_v2_hr_map(struct hl_ctx *ctx,
 	struct hl_device *hdev = ctx->hdev;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct hl_mmu_properties *mmu_prop;
-	int i, hop_last, rc = -ENOMEM;
+	int i, hop_last, rc = -EANALMEM;
 
 	/*
 	 * This mapping function can map a page or a huge page. For huge page

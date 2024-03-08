@@ -19,7 +19,7 @@
 
    You should have received a copy of the GNU Library General Public
    License along with the GNU C Library; see the file COPYING.LIB.  If
-   not, write to the Free Software Foundation, Inc.,
+   analt, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef    __MATH_EMU_DOUBLE_H__
@@ -83,24 +83,24 @@ union _FP_UNION_D
 #define FP_UNPACK_D(X,val)		\
   do {					\
     _FP_UNPACK_RAW_2(D,X,val);		\
-    _FP_UNPACK_CANONICAL(D,2,X);	\
+    _FP_UNPACK_CAANALNICAL(D,2,X);	\
   } while (0)
 
 #define FP_UNPACK_DP(X,val)		\
   do {					\
     _FP_UNPACK_RAW_2_P(D,X,val);	\
-    _FP_UNPACK_CANONICAL(D,2,X);	\
+    _FP_UNPACK_CAANALNICAL(D,2,X);	\
   } while (0)
 
 #define FP_PACK_D(val,X)		\
   do {					\
-    _FP_PACK_CANONICAL(D,2,X);		\
+    _FP_PACK_CAANALNICAL(D,2,X);		\
     _FP_PACK_RAW_2(D,val,X);		\
   } while (0)
 
 #define FP_PACK_DP(val,X)		\
   do {					\
-    _FP_PACK_CANONICAL(D,2,X);		\
+    _FP_PACK_CAANALNICAL(D,2,X);		\
     if (!FP_INHIBIT_RESULTS)		\
       _FP_PACK_RAW_2_P(D,val,X);	\
   } while (0)
@@ -155,24 +155,24 @@ union _FP_UNION_D
 #define FP_UNPACK_D(X,val)		\
   do {					\
     _FP_UNPACK_RAW_1(D,X,val);		\
-    _FP_UNPACK_CANONICAL(D,1,X);	\
+    _FP_UNPACK_CAANALNICAL(D,1,X);	\
   } while (0)
 
 #define FP_UNPACK_DP(X,val)		\
   do {					\
     _FP_UNPACK_RAW_1_P(D,X,val);	\
-    _FP_UNPACK_CANONICAL(D,1,X);	\
+    _FP_UNPACK_CAANALNICAL(D,1,X);	\
   } while (0)
 
 #define FP_PACK_D(val,X)		\
   do {					\
-    _FP_PACK_CANONICAL(D,1,X);		\
+    _FP_PACK_CAANALNICAL(D,1,X);		\
     _FP_PACK_RAW_1(D,val,X);		\
   } while (0)
 
 #define FP_PACK_DP(val,X)		\
   do {					\
-    _FP_PACK_CANONICAL(D,1,X);		\
+    _FP_PACK_CAANALNICAL(D,1,X);		\
     if (!FP_INHIBIT_RESULTS)		\
       _FP_PACK_RAW_1_P(D,val,X);	\
   } while (0)

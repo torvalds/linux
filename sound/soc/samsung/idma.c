@@ -246,7 +246,7 @@ static int idma_mmap(struct snd_soc_component *component,
 	unsigned long size, offset;
 
 	/* From snd_pcm_lib_mmap_iomem */
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 	size = vma->vm_end - vma->vm_start;
 	offset = vma->vm_pgoff << PAGE_SHIFT;
 	return io_remap_pfn_range(vma, vma->vm_start,
@@ -254,7 +254,7 @@ static int idma_mmap(struct snd_soc_component *component,
 			size, vma->vm_page_prot);
 }
 
-static irqreturn_t iis_irq(int irqno, void *dev_id)
+static irqreturn_t iis_irq(int irqanal, void *dev_id)
 {
 	struct idma_ctrl *prtd = (struct idma_ctrl *)dev_id;
 	u32 iisahb, val, addr;
@@ -292,7 +292,7 @@ static int idma_open(struct snd_soc_component *component,
 
 	prtd = kzalloc(sizeof(struct idma_ctrl), GFP_KERNEL);
 	if (prtd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = request_irq(idma_irq, iis_irq, 0, "i2s", prtd);
 	if (ret < 0) {
@@ -358,7 +358,7 @@ static int preallocate_idma_buffer(struct snd_pcm *pcm, int stream)
 	buf->bytes = idma_hardware.buffer_bytes_max;
 	buf->area = (unsigned char * __force)ioremap(buf->addr, buf->bytes);
 	if (!buf->area)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

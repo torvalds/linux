@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroanalme Systems, Inc. */
 
 #include <linux/bitfield.h>
 #include <linux/device.h>
@@ -23,7 +23,7 @@ nfp_net_tls_parse_crypto_ops(struct device *dev, struct nfp_net_tlv_caps *caps,
 			     unsigned int length, unsigned int offset,
 			     bool rx_stream_scan)
 {
-	/* Ignore the legacy TLV if new one was already parsed */
+	/* Iganalre the legacy TLV if new one was already parsed */
 	if (caps->tls_resync_ss && !rx_stream_scan)
 		return true;
 
@@ -65,7 +65,7 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 		data += 4;
 
 		if (length % NFP_NET_CFG_TLV_LENGTH_INC) {
-			dev_err(dev, "TLV size not multiple of %u offset:%u len:%u\n",
+			dev_err(dev, "TLV size analt multiple of %u offset:%u len:%u\n",
 				NFP_NET_CFG_TLV_LENGTH_INC, offset, length);
 			return -EINVAL;
 		}
@@ -76,7 +76,7 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 		}
 
 		switch (FIELD_GET(NFP_NET_CFG_TLV_HEADER_TYPE, hdr)) {
-		case NFP_NET_CFG_TLV_TYPE_UNKNOWN:
+		case NFP_NET_CFG_TLV_TYPE_UNKANALWN:
 			dev_err(dev, "NULL TLV at offset:%u\n", offset);
 			return -EINVAL;
 		case NFP_NET_CFG_TLV_TYPE_RESERVED:
@@ -135,7 +135,7 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 			break;
 		case NFP_NET_CFG_TLV_TYPE_VNIC_STATS:
 			if ((data - ctrl_mem) % 8) {
-				dev_warn(dev, "VNIC STATS TLV misaligned, ignoring offset:%u len:%u\n",
+				dev_warn(dev, "VNIC STATS TLV misaligned, iganalring offset:%u len:%u\n",
 					 offset, length);
 				break;
 			}
@@ -152,7 +152,7 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 			if (!FIELD_GET(NFP_NET_CFG_TLV_HEADER_REQUIRED, hdr))
 				break;
 
-			dev_err(dev, "unknown TLV type:%u offset:%u len:%u\n",
+			dev_err(dev, "unkanalwn TLV type:%u offset:%u len:%u\n",
 				FIELD_GET(NFP_NET_CFG_TLV_HEADER_TYPE, hdr),
 				offset, length);
 			return -EINVAL;
@@ -165,6 +165,6 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 		}
 	}
 
-	/* Not reached */
+	/* Analt reached */
 	return -EINVAL;
 }

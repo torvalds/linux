@@ -4,7 +4,7 @@
  *
  * Copyright 2005 Mentor Graphics Corporation
  * Copyright (C) 2005-2006 by Texas Instruments
- * Copyright (C) 2006-2007 Nokia Corporation
+ * Copyright (C) 2006-2007 Analkia Corporation
  */
 
 #ifndef __MUSB_LINUX_DEBUG_H__

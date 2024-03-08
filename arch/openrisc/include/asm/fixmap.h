@@ -17,7 +17,7 @@
 
 /* Why exactly do we need 2 empty pages between the top of the fixed
  * addresses and the top of virtual memory?  Something is using that
- * memory space but not sure what right now... If you find it, leave
+ * memory space but analt sure what right analw... If you find it, leave
  * a comment here.
  */
 #define FIXADDR_TOP	((unsigned long) (-2*PAGE_SIZE))
@@ -31,7 +31,7 @@
  * early in the boot process before memory initialization is complete.
  * This is used, in particular, by the early serial console code.
  *
- * It's not really 'fixmap', per se, but fits loosely into the same
+ * It's analt really 'fixmap', per se, but fits loosely into the same
  * paradigm.
  */
 enum fixed_addresses {

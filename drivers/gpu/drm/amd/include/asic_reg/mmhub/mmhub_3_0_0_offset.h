@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -141,10 +141,10 @@
 #define regDAGB0_RDCLI_OSD_PENDING_BASE_IDX                                                             0
 #define regDAGB0_RDCLI_ASK_OSD_PENDING                                                                  0x0038
 #define regDAGB0_RDCLI_ASK_OSD_PENDING_BASE_IDX                                                         0
-#define regDAGB0_RDCLI_NOALLOC_OVERRIDE                                                                 0x0039
-#define regDAGB0_RDCLI_NOALLOC_OVERRIDE_BASE_IDX                                                        0
-#define regDAGB0_RDCLI_NOALLOC_OVERRIDE_VALUE                                                           0x003a
-#define regDAGB0_RDCLI_NOALLOC_OVERRIDE_VALUE_BASE_IDX                                                  0
+#define regDAGB0_RDCLI_ANALALLOC_OVERRIDE                                                                 0x0039
+#define regDAGB0_RDCLI_ANALALLOC_OVERRIDE_BASE_IDX                                                        0
+#define regDAGB0_RDCLI_ANALALLOC_OVERRIDE_VALUE                                                           0x003a
+#define regDAGB0_RDCLI_ANALALLOC_OVERRIDE_VALUE_BASE_IDX                                                  0
 #define regDAGB0_WRCLI0                                                                                 0x003b
 #define regDAGB0_WRCLI0_BASE_IDX                                                                        0
 #define regDAGB0_WRCLI1                                                                                 0x003c
@@ -281,14 +281,14 @@
 #define regDAGB0_WRCLI_DBUS_ASK_PENDING_BASE_IDX                                                        0
 #define regDAGB0_WRCLI_DBUS_GO_PENDING                                                                  0x007e
 #define regDAGB0_WRCLI_DBUS_GO_PENDING_BASE_IDX                                                         0
-#define regDAGB0_WRCLI_GPU_SNOOP_OVERRIDE                                                               0x007f
-#define regDAGB0_WRCLI_GPU_SNOOP_OVERRIDE_BASE_IDX                                                      0
-#define regDAGB0_WRCLI_GPU_SNOOP_OVERRIDE_VALUE                                                         0x0080
-#define regDAGB0_WRCLI_GPU_SNOOP_OVERRIDE_VALUE_BASE_IDX                                                0
-#define regDAGB0_WRCLI_NOALLOC_OVERRIDE                                                                 0x0081
-#define regDAGB0_WRCLI_NOALLOC_OVERRIDE_BASE_IDX                                                        0
-#define regDAGB0_WRCLI_NOALLOC_OVERRIDE_VALUE                                                           0x0082
-#define regDAGB0_WRCLI_NOALLOC_OVERRIDE_VALUE_BASE_IDX                                                  0
+#define regDAGB0_WRCLI_GPU_SANALOP_OVERRIDE                                                               0x007f
+#define regDAGB0_WRCLI_GPU_SANALOP_OVERRIDE_BASE_IDX                                                      0
+#define regDAGB0_WRCLI_GPU_SANALOP_OVERRIDE_VALUE                                                         0x0080
+#define regDAGB0_WRCLI_GPU_SANALOP_OVERRIDE_VALUE_BASE_IDX                                                0
+#define regDAGB0_WRCLI_ANALALLOC_OVERRIDE                                                                 0x0081
+#define regDAGB0_WRCLI_ANALALLOC_OVERRIDE_BASE_IDX                                                        0
+#define regDAGB0_WRCLI_ANALALLOC_OVERRIDE_VALUE                                                           0x0082
+#define regDAGB0_WRCLI_ANALALLOC_OVERRIDE_VALUE_BASE_IDX                                                  0
 #define regDAGB0_DAGB_DLY                                                                               0x0083
 #define regDAGB0_DAGB_DLY_BASE_IDX                                                                      0
 #define regDAGB0_CNTL_MISC                                                                              0x0084
@@ -497,10 +497,10 @@
 #define regDAGB1_RDCLI_OSD_PENDING_BASE_IDX                                                             0
 #define regDAGB1_RDCLI_ASK_OSD_PENDING                                                                  0x00f0
 #define regDAGB1_RDCLI_ASK_OSD_PENDING_BASE_IDX                                                         0
-#define regDAGB1_RDCLI_NOALLOC_OVERRIDE                                                                 0x00f1
-#define regDAGB1_RDCLI_NOALLOC_OVERRIDE_BASE_IDX                                                        0
-#define regDAGB1_RDCLI_NOALLOC_OVERRIDE_VALUE                                                           0x00f2
-#define regDAGB1_RDCLI_NOALLOC_OVERRIDE_VALUE_BASE_IDX                                                  0
+#define regDAGB1_RDCLI_ANALALLOC_OVERRIDE                                                                 0x00f1
+#define regDAGB1_RDCLI_ANALALLOC_OVERRIDE_BASE_IDX                                                        0
+#define regDAGB1_RDCLI_ANALALLOC_OVERRIDE_VALUE                                                           0x00f2
+#define regDAGB1_RDCLI_ANALALLOC_OVERRIDE_VALUE_BASE_IDX                                                  0
 #define regDAGB1_DAGB_DLY                                                                               0x00f3
 #define regDAGB1_DAGB_DLY_BASE_IDX                                                                      0
 #define regDAGB1_CNTL_MISC                                                                              0x00f4
@@ -583,10 +583,10 @@
 #define regPCTL_MMHUB_DEEPSLEEP_OVERRIDE_BASE_IDX                                                       0
 #define regPCTL_MMHUB_DEEPSLEEP_OVERRIDE_IB                                                             0x0383
 #define regPCTL_MMHUB_DEEPSLEEP_OVERRIDE_IB_BASE_IDX                                                    0
-#define regPCTL_PG_IGNORE_DEEPSLEEP                                                                     0x0384
-#define regPCTL_PG_IGNORE_DEEPSLEEP_BASE_IDX                                                            0
-#define regPCTL_PG_IGNORE_DEEPSLEEP_IB                                                                  0x0385
-#define regPCTL_PG_IGNORE_DEEPSLEEP_IB_BASE_IDX                                                         0
+#define regPCTL_PG_IGANALRE_DEEPSLEEP                                                                     0x0384
+#define regPCTL_PG_IGANALRE_DEEPSLEEP_BASE_IDX                                                            0
+#define regPCTL_PG_IGANALRE_DEEPSLEEP_IB                                                                  0x0385
+#define regPCTL_PG_IGANALRE_DEEPSLEEP_IB_BASE_IDX                                                         0
 #define regPCTL_SLICE0_CFG_DAGB_WRBUSY                                                                  0x0386
 #define regPCTL_SLICE0_CFG_DAGB_WRBUSY_BASE_IDX                                                         0
 #define regPCTL_SLICE0_CFG_DAGB_RDBUSY                                                                  0x0387
@@ -853,8 +853,8 @@
 #define regMMUTCL2_CREDIT_SAFETY_GROUP_RET_CDC_BASE_IDX                                                 0
 #define regMMUTCL2_CREDIT_SAFETY_GROUP_CLIENTS_INVREQ_CDC                                               0x0727
 #define regMMUTCL2_CREDIT_SAFETY_GROUP_CLIENTS_INVREQ_CDC_BASE_IDX                                      0
-#define regMMUTCL2_CREDIT_SAFETY_GROUP_CLIENTS_INVREQ_NOCDC                                             0x0728
-#define regMMUTCL2_CREDIT_SAFETY_GROUP_CLIENTS_INVREQ_NOCDC_BASE_IDX                                    0
+#define regMMUTCL2_CREDIT_SAFETY_GROUP_CLIENTS_INVREQ_ANALCDC                                             0x0728
+#define regMMUTCL2_CREDIT_SAFETY_GROUP_CLIENTS_INVREQ_ANALCDC_BASE_IDX                                    0
 #define regMMVML2_CREDIT_SAFETY_IH_FAULT_INTERRUPT                                                      0x0729
 #define regMMVML2_CREDIT_SAFETY_IH_FAULT_INTERRUPT_BASE_IDX                                             0
 #define regMMVML2_WALKER_CREDIT_SAFETY_FETCH_RDREQ                                                      0x072a
@@ -1417,8 +1417,8 @@
 #define regMMUTCL2_CGTT_CLK_CTRL_BASE_IDX                                                               0
 #define regMMUTCL2_CGTT_BUSY_CTRL                                                                       0x08e7
 #define regMMUTCL2_CGTT_BUSY_CTRL_BASE_IDX                                                              0
-#define regMMMC_VM_FB_NOALLOC_CNTL                                                                      0x08e8
-#define regMMMC_VM_FB_NOALLOC_CNTL_BASE_IDX                                                             0
+#define regMMMC_VM_FB_ANALALLOC_CNTL                                                                      0x08e8
+#define regMMMC_VM_FB_ANALALLOC_CNTL_BASE_IDX                                                             0
 #define regMMUTCL2_HARVEST_BYPASS_GROUPS                                                                0x08e9
 #define regMMUTCL2_HARVEST_BYPASS_GROUPS_BASE_IDX                                                       0
 #define regMMUTCL2_GROUP_RET_FAULT_STATUS                                                               0x08eb

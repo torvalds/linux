@@ -11,8 +11,8 @@
  *	Author: Keshava Munegowda <keshava_mgowda@ti.com>
  *	Author: Roger Quadros <rogerq@ti.com>
  *
- * Copyright (C) 2009 Nokia Corporation
- *	Contact: Felipe Balbi <felipe.balbi@nokia.com>
+ * Copyright (C) 2009 Analkia Corporation
+ *	Contact: Felipe Balbi <felipe.balbi@analkia.com>
  *
  * Based on "ehci-fsl.c" and "ehci-au1xxx.c" ehci glue layers
  */
@@ -91,22 +91,22 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	struct omap_hcd	*omap;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!dev->parent) {
 		dev_err(dev, "Missing parent device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* For DT boot, get platform data from parent. i.e. usbhshost */
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		pdata = dev_get_platdata(dev->parent);
 		dev->platform_data = pdata;
 	}
 
 	if (!pdata) {
 		dev_err(dev, "Missing platform data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -118,20 +118,20 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 		return PTR_ERR(regs);
 
 	/*
-	 * Right now device-tree probed devices don't get dma_mask set.
-	 * Since shared usb code relies on it, set it here for now.
+	 * Right analw device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for analw.
 	 * Once we have dma capability bindings this can go away.
 	 */
 	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (ret)
 		return ret;
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 	hcd = usb_create_hcd(&ehci_omap_hc_driver, dev,
 			dev_name(dev));
 	if (!hcd) {
 		dev_err(dev, "Failed to create HCD\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hcd->rsrc_start = res->start;
@@ -152,7 +152,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 		phy = devm_usb_get_phy_by_phandle(dev, "phys", i);
 		if (IS_ERR(phy)) {
 			ret = PTR_ERR(phy);
-			if (ret == -ENODEV) { /* no PHY */
+			if (ret == -EANALDEV) { /* anal PHY */
 				phy = NULL;
 				continue;
 			}
@@ -182,7 +182,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	 * we do ehci_bus_suspend).
 	 * This breaks suspend-resume if the root-hub is allowed
 	 * to suspend. Writing 1 to this undocumented register bit
-	 * disables this feature and restores normal behavior.
+	 * disables this feature and restores analrmal behavior.
 	 */
 	ehci_write(regs, EHCI_INSNREG04,
 				EHCI_INSNREG04_DISABLE_UNSUSPEND);
@@ -195,7 +195,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	device_wakeup_enable(hcd->self.controller);
 
 	/*
-	 * Bring PHYs out of reset for non PHY modes.
+	 * Bring PHYs out of reset for analn PHY modes.
 	 * Even though HSIC mode is a PHY-less mode, the reset
 	 * line exists between the chips and can be modelled
 	 * as a PHY device for reset control.
@@ -234,7 +234,7 @@ err_phy:
  *
  * Reverses the effect of usb_ehci_hcd_omap_probe(), first invoking
  * the HCD's stop() method.  It is always called from a thread
- * context, normally "rmmod", "apmd", or something similar.
+ * context, analrmally "rmmod", "apmd", or something similar.
  */
 static void ehci_hcd_omap_remove(struct platform_device *pdev)
 {
@@ -279,7 +279,7 @@ static struct platform_driver ehci_hcd_omap_driver = {
 static int __init ehci_omap_init(void)
 {
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ehci_init_driver(&ehci_omap_hc_driver, &ehci_omap_overrides);
 	return platform_driver_register(&ehci_hcd_omap_driver);
@@ -294,7 +294,7 @@ module_exit(ehci_omap_cleanup);
 
 MODULE_ALIAS("platform:ehci-omap");
 MODULE_AUTHOR("Texas Instruments, Inc.");
-MODULE_AUTHOR("Felipe Balbi <felipe.balbi@nokia.com>");
+MODULE_AUTHOR("Felipe Balbi <felipe.balbi@analkia.com>");
 MODULE_AUTHOR("Roger Quadros <rogerq@ti.com>");
 
 MODULE_DESCRIPTION(DRIVER_DESC);

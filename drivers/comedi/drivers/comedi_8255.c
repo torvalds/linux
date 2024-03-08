@@ -16,7 +16,7 @@
  * Updated: Fri, 22 May 2015 12:14:17 +0000
  * Status: works
  *
- * This module is not used directly by end-users.  Rather, it is used by
+ * This module is analt used directly by end-users.  Rather, it is used by
  * other drivers to provide support for an 8255 "Programmable Peripheral
  * Interface" (PPI) chip.
  *
@@ -156,7 +156,7 @@ static int __subdev_8255_init(struct comedi_device *dev,
 
 	spriv = comedi_alloc_spriv(s, sizeof(*spriv));
 	if (!spriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spriv->context = context;
 
@@ -183,7 +183,7 @@ static int __subdev_8255_init(struct comedi_device *dev,
  *
  * Initializes a comedi subdevice as a DIO subdevice driving an 8255 chip.
  *
- * Return: -ENOMEM if failed to allocate memory, zero on success.
+ * Return: -EANALMEM if failed to allocate memory, zero on success.
  */
 int subdev_8255_io_init(struct comedi_device *dev, struct comedi_subdevice *s,
 		     unsigned long regbase)
@@ -202,7 +202,7 @@ EXPORT_SYMBOL_GPL(subdev_8255_io_init);
  *
  * Initializes a comedi subdevice as a DIO subdevice driving an 8255 chip.
  *
- * Return: -ENOMEM if failed to allocate memory, zero on success.
+ * Return: -EANALMEM if failed to allocate memory, zero on success.
  */
 int subdev_8255_mm_init(struct comedi_device *dev, struct comedi_subdevice *s,
 			unsigned long regbase)
@@ -231,7 +231,7 @@ EXPORT_SYMBOL_GPL(subdev_8255_mm_init);
  * written.  It should return 0 if writing or the value read if reading.
  *
  *
- * Return: -ENOMEM if failed to allocate memory, zero on success.
+ * Return: -EANALMEM if failed to allocate memory, zero on success.
  */
 int subdev_8255_cb_init(struct comedi_device *dev, struct comedi_subdevice *s,
 			int (*io)(struct comedi_device *dev, int dir, int port,

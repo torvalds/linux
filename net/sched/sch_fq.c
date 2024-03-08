@@ -6,7 +6,7 @@
  *
  *  Meant to be mostly used for locally generated traffic :
  *  Fast classification depends on skb->sk being set before reaching us.
- *  If not, (router workload), we use rxhash as fallback, with 32 bits wide hash.
+ *  If analt, (router workload), we use rxhash as fallback, with 32 bits wide hash.
  *  All packets belonging to a socket are considered as a 'flow'.
  *
  *  Flows are dynamically allocated and stored in a hash table of RB trees
@@ -20,14 +20,14 @@
  *
  *  enqueue() :
  *   - lookup one RB tree (out of 1024 or more) to find the flow.
- *     If non existent flow, create it, add it to the tree.
+ *     If analn existent flow, create it, add it to the tree.
  *     Add skb to the per flow list of skb (fifo).
  *   - Use a special fifo for high prio packets
  *
  *  dequeue() : serves flows in Round Robin
- *  Note : When a flow becomes empty, we do not immediately remove it from
+ *  Analte : When a flow becomes empty, we do analt immediately remove it from
  *  rb trees, for performance reasons (its expected to send additional packets,
- *  or SLAB cache will reuse socket for another flow)
+ *  or SLAB cache will reuse socket for aanalther flow)
  */
 
 #include <linux/module.h>
@@ -36,7 +36,7 @@
 #include <linux/jiffies.h>
 #include <linux/string.h>
 #include <linux/in.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
@@ -63,7 +63,7 @@ static inline struct fq_skb_cb *fq_skb_cb(struct sk_buff *skb)
 
 /*
  * Per flow structure, dynamically allocated.
- * If packets have monotically increasing time_to_send, they are placed in O(1)
+ * If packets have moanaltically increasing time_to_send, they are placed in O(1)
  * in linear list (head,tail), otherwise are placed in a rbtree (t_root).
  */
 struct fq_flow {
@@ -75,9 +75,9 @@ struct fq_flow {
 		unsigned long  age;	/* (jiffies | 1UL) when flow was emptied, for gc */
 	};
 	union {
-		struct rb_node	fq_node;	/* anchor in fq_root[] trees */
+		struct rb_analde	fq_analde;	/* anchor in fq_root[] trees */
 		/* Following field is only used for q->internal,
-		 * because q->internal is not hashed in fq_root[]
+		 * because q->internal is analt hashed in fq_root[]
 		 */
 		u64		stat_fastpath_packets;
 	};
@@ -90,7 +90,7 @@ struct fq_flow {
 	int		band;
 	struct fq_flow *next;		/* next pointer in RR lists */
 
-	struct rb_node  rate_node;	/* anchor in q->delayed tree */
+	struct rb_analde  rate_analde;	/* anchor in q->delayed tree */
 	u64		time_next_packet;
 };
 
@@ -138,7 +138,7 @@ struct fq_sched_data {
 
 	u32		band_pkt_count[FQ_BANDS];
 	u32		flows;
-	u32		inactive_flows; /* Flows with no packet to send. */
+	u32		inactive_flows; /* Flows with anal packet to send. */
 	u32		throttled_flows;
 
 	u64		stat_throttled;
@@ -166,7 +166,7 @@ static u8 fq_prio2band(const u8 *prio2band, unsigned int prio)
  * f->tail and f->age share the same location.
  * We can use the low order bit to differentiate if this location points
  * to a sk_buff or contains a jiffies value, if we force this value to be odd.
- * This assumes f->tail low order bit must be 0 since alignof(struct sk_buff) >= 2
+ * This assumes f->tail low order bit must be 0 since aliganalf(struct sk_buff) >= 2
  */
 static void fq_flow_set_detached(struct fq_flow *f)
 {
@@ -178,7 +178,7 @@ static bool fq_flow_is_detached(const struct fq_flow *f)
 	return !!(f->age & 1UL);
 }
 
-/* special value to mark a throttled flow (not on old/new list) */
+/* special value to mark a throttled flow (analt on old/new list) */
 static struct fq_flow throttled;
 
 static bool fq_flow_is_throttled(const struct fq_flow *f)
@@ -209,27 +209,27 @@ static void fq_flow_add_tail(struct fq_sched_data *q, struct fq_flow *flow,
 
 static void fq_flow_unset_throttled(struct fq_sched_data *q, struct fq_flow *f)
 {
-	rb_erase(&f->rate_node, &q->delayed);
+	rb_erase(&f->rate_analde, &q->delayed);
 	q->throttled_flows--;
 	fq_flow_add_tail(q, f, OLD_FLOW);
 }
 
 static void fq_flow_set_throttled(struct fq_sched_data *q, struct fq_flow *f)
 {
-	struct rb_node **p = &q->delayed.rb_node, *parent = NULL;
+	struct rb_analde **p = &q->delayed.rb_analde, *parent = NULL;
 
 	while (*p) {
 		struct fq_flow *aux;
 
 		parent = *p;
-		aux = rb_entry(parent, struct fq_flow, rate_node);
+		aux = rb_entry(parent, struct fq_flow, rate_analde);
 		if (f->time_next_packet >= aux->time_next_packet)
 			p = &parent->rb_right;
 		else
 			p = &parent->rb_left;
 	}
-	rb_link_node(&f->rate_node, parent, p);
-	rb_insert_color(&f->rate_node, &q->delayed);
+	rb_link_analde(&f->rate_analde, parent, p);
+	rb_insert_color(&f->rate_analde, &q->delayed);
 	q->throttled_flows++;
 	q->stat_throttled++;
 
@@ -256,17 +256,17 @@ static void fq_gc(struct fq_sched_data *q,
 		  struct rb_root *root,
 		  struct sock *sk)
 {
-	struct rb_node **p, *parent;
+	struct rb_analde **p, *parent;
 	void *tofree[FQ_GC_MAX];
 	struct fq_flow *f;
 	int i, fcnt = 0;
 
-	p = &root->rb_node;
+	p = &root->rb_analde;
 	parent = NULL;
 	while (*p) {
 		parent = *p;
 
-		f = rb_entry(parent, struct fq_flow, fq_node);
+		f = rb_entry(parent, struct fq_flow, fq_analde);
 		if (f->sk == sk)
 			break;
 
@@ -287,7 +287,7 @@ static void fq_gc(struct fq_sched_data *q,
 
 	for (i = fcnt; i > 0; ) {
 		f = tofree[--i];
-		rb_erase(&f->fq_node, root);
+		rb_erase(&f->fq_analde, root);
 	}
 	q->flows -= fcnt;
 	q->inactive_flows -= fcnt;
@@ -299,32 +299,32 @@ static void fq_gc(struct fq_sched_data *q,
 /* Fast path can be used if :
  * 1) Packet tstamp is in the past.
  * 2) FQ qlen == 0   OR
- *   (no flow is currently eligible for transmit,
+ *   (anal flow is currently eligible for transmit,
  *    AND fast path queue has less than 8 packets)
- * 3) No SO_MAX_PACING_RATE on the socket (if any).
- * 4) No @maxrate attribute on this qdisc,
+ * 3) Anal SO_MAX_PACING_RATE on the socket (if any).
+ * 4) Anal @maxrate attribute on this qdisc,
  *
- * FQ can not use generic TCQ_F_CAN_BYPASS infrastructure.
+ * FQ can analt use generic TCQ_F_CAN_BYPASS infrastructure.
  */
 static bool fq_fastpath_check(const struct Qdisc *sch, struct sk_buff *skb,
-			      u64 now)
+			      u64 analw)
 {
 	const struct fq_sched_data *q = qdisc_priv(sch);
 	const struct sock *sk;
 
-	if (fq_skb_cb(skb)->time_to_send > now)
+	if (fq_skb_cb(skb)->time_to_send > analw)
 		return false;
 
 	if (sch->q.qlen != 0) {
 		/* Even if some packets are stored in this qdisc,
 		 * we can still enable fast path if all of them are
-		 * scheduled in the future (ie no flows are eligible)
+		 * scheduled in the future (ie anal flows are eligible)
 		 * or in the fast path queue.
 		 */
 		if (q->flows != q->inactive_flows + q->throttled_flows)
 			return false;
 
-		/* Do not allow fast path queue to explode, we want Fair Queue mode
+		/* Do analt allow fast path queue to explode, we want Fair Queue mode
 		 * under pressure.
 		 */
 		if (q->internal.qlen >= 8)
@@ -343,27 +343,27 @@ static bool fq_fastpath_check(const struct Qdisc *sch, struct sk_buff *skb,
 }
 
 static struct fq_flow *fq_classify(struct Qdisc *sch, struct sk_buff *skb,
-				   u64 now)
+				   u64 analw)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
-	struct rb_node **p, *parent;
+	struct rb_analde **p, *parent;
 	struct sock *sk = skb->sk;
 	struct rb_root *root;
 	struct fq_flow *f;
 
 	/* SYNACK messages are attached to a TCP_NEW_SYN_RECV request socket
 	 * or a listener (SYNCOOKIE mode)
-	 * 1) request sockets are not full blown,
-	 *    they do not contain sk_pacing_rate
-	 * 2) They are not part of a 'flow' yet
-	 * 3) We do not want to rate limit them (eg SYNFLOOD attack),
+	 * 1) request sockets are analt full blown,
+	 *    they do analt contain sk_pacing_rate
+	 * 2) They are analt part of a 'flow' yet
+	 * 3) We do analt want to rate limit them (eg SYNFLOOD attack),
 	 *    especially if the listener set SO_MAX_PACING_RATE
 	 * 4) We pretend they are orphaned
 	 */
 	if (!sk || sk_listener(sk)) {
 		unsigned long hash = skb_get_hash(skb) & q->orphan_mask;
 
-		/* By forcing low order bit to 1, we make sure to not
+		/* By forcing low order bit to 1, we make sure to analt
 		 * collide with a local flow (socket pointers are word aligned)
 		 */
 		sk = (struct sock *)((hash << 1) | 1UL);
@@ -371,17 +371,17 @@ static struct fq_flow *fq_classify(struct Qdisc *sch, struct sk_buff *skb,
 	} else if (sk->sk_state == TCP_CLOSE) {
 		unsigned long hash = skb_get_hash(skb) & q->orphan_mask;
 		/*
-		 * Sockets in TCP_CLOSE are non connected.
+		 * Sockets in TCP_CLOSE are analn connected.
 		 * Typical use case is UDP sockets, they can send packets
 		 * with sendto() to many different destinations.
 		 * We probably could use a generic bit advertising
-		 * non connected sockets, instead of sk_state == TCP_CLOSE,
-		 * if we care enough.
+		 * analn connected sockets, instead of sk_state == TCP_CLOSE,
+		 * if we care eanalugh.
 		 */
 		sk = (struct sock *)((hash << 1) | 1UL);
 	}
 
-	if (fq_fastpath_check(sch, skb, now)) {
+	if (fq_fastpath_check(sch, skb, analw)) {
 		q->internal.stat_fastpath_packets++;
 		if (skb->sk == sk && q->rate_enable &&
 		    READ_ONCE(sk->sk_pacing_status) != SK_PACING_FQ)
@@ -394,16 +394,16 @@ static struct fq_flow *fq_classify(struct Qdisc *sch, struct sk_buff *skb,
 
 	fq_gc(q, root, sk);
 
-	p = &root->rb_node;
+	p = &root->rb_analde;
 	parent = NULL;
 	while (*p) {
 		parent = *p;
 
-		f = rb_entry(parent, struct fq_flow, fq_node);
+		f = rb_entry(parent, struct fq_flow, fq_analde);
 		if (f->sk == sk) {
 			/* socket might have been reallocated, so check
 			 * if its sk_hash is the same.
-			 * It not, we need to refill credit with
+			 * It analt, we need to refill credit with
 			 * initial quantum
 			 */
 			if (unlikely(skb->sk == sk &&
@@ -425,7 +425,7 @@ static struct fq_flow *fq_classify(struct Qdisc *sch, struct sk_buff *skb,
 			p = &parent->rb_left;
 	}
 
-	f = kmem_cache_zalloc(fq_flow_cachep, GFP_ATOMIC | __GFP_NOWARN);
+	f = kmem_cache_zalloc(fq_flow_cachep, GFP_ATOMIC | __GFP_ANALWARN);
 	if (unlikely(!f)) {
 		q->stat_allocation_errors++;
 		return &q->internal;
@@ -442,8 +442,8 @@ static struct fq_flow *fq_classify(struct Qdisc *sch, struct sk_buff *skb,
 	}
 	f->credit = q->initial_quantum;
 
-	rb_link_node(&f->fq_node, parent, p);
-	rb_insert_color(&f->fq_node, root);
+	rb_link_analde(&f->fq_analde, parent, p);
+	rb_insert_color(&f->fq_analde, root);
 
 	q->flows++;
 	q->inactive_flows++;
@@ -472,7 +472,7 @@ static void fq_erase_head(struct Qdisc *sch, struct fq_flow *flow,
 	if (skb == flow->head) {
 		flow->head = skb->next;
 	} else {
-		rb_erase(&skb->rbnode, &flow->t_root);
+		rb_erase(&skb->rbanalde, &flow->t_root);
 		skb->dev = qdisc_dev(sch);
 	}
 }
@@ -484,14 +484,14 @@ static void fq_dequeue_skb(struct Qdisc *sch, struct fq_flow *flow,
 			   struct sk_buff *skb)
 {
 	fq_erase_head(sch, flow, skb);
-	skb_mark_not_on_list(skb);
+	skb_mark_analt_on_list(skb);
 	qdisc_qstats_backlog_dec(sch, skb);
 	sch->q.qlen--;
 }
 
 static void flow_queue_add(struct fq_flow *flow, struct sk_buff *skb)
 {
-	struct rb_node **p, *parent;
+	struct rb_analde **p, *parent;
 	struct sk_buff *head, *aux;
 
 	head = flow->head;
@@ -506,7 +506,7 @@ static void flow_queue_add(struct fq_flow *flow, struct sk_buff *skb)
 		return;
 	}
 
-	p = &flow->t_root.rb_node;
+	p = &flow->t_root.rb_analde;
 	parent = NULL;
 
 	while (*p) {
@@ -517,14 +517,14 @@ static void flow_queue_add(struct fq_flow *flow, struct sk_buff *skb)
 		else
 			p = &parent->rb_left;
 	}
-	rb_link_node(&skb->rbnode, parent, p);
-	rb_insert_color(&skb->rbnode, &flow->t_root);
+	rb_link_analde(&skb->rbanalde, parent, p);
+	rb_insert_color(&skb->rbanalde, &flow->t_root);
 }
 
 static bool fq_packet_beyond_horizon(const struct sk_buff *skb,
-				     const struct fq_sched_data *q, u64 now)
+				     const struct fq_sched_data *q, u64 analw)
 {
-	return unlikely((s64)skb->tstamp > (s64)(now + q->horizon));
+	return unlikely((s64)skb->tstamp > (s64)(analw + q->horizon));
 }
 
 static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
@@ -532,7 +532,7 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
 	struct fq_flow *f;
-	u64 now;
+	u64 analw;
 	u8 band;
 
 	band = fq_prio2band(q->prio2band, skb->priority & TC_PRIO_MAX);
@@ -541,23 +541,23 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		return qdisc_drop(skb, sch, to_free);
 	}
 
-	now = ktime_get_ns();
+	analw = ktime_get_ns();
 	if (!skb->tstamp) {
-		fq_skb_cb(skb)->time_to_send = now;
+		fq_skb_cb(skb)->time_to_send = analw;
 	} else {
 		/* Check if packet timestamp is too far in the future. */
-		if (fq_packet_beyond_horizon(skb, q, now)) {
+		if (fq_packet_beyond_horizon(skb, q, analw)) {
 			if (q->horizon_drop) {
 					q->stat_horizon_drops++;
 					return qdisc_drop(skb, sch, to_free);
 			}
 			q->stat_horizon_caps++;
-			skb->tstamp = now + q->horizon;
+			skb->tstamp = analw + q->horizon;
 		}
 		fq_skb_cb(skb)->time_to_send = skb->tstamp;
 	}
 
-	f = fq_classify(sch, skb, now);
+	f = fq_classify(sch, skb, analw);
 
 	if (f != &q->internal) {
 		if (unlikely(f->qlen >= q->flow_plimit)) {
@@ -579,7 +579,7 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	}
 
 	f->qlen++;
-	/* Note: this overwrites f->age */
+	/* Analte: this overwrites f->age */
 	flow_queue_add(f, skb);
 
 	qdisc_qstats_backlog_inc(sch, skb);
@@ -588,26 +588,26 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	return NET_XMIT_SUCCESS;
 }
 
-static void fq_check_throttled(struct fq_sched_data *q, u64 now)
+static void fq_check_throttled(struct fq_sched_data *q, u64 analw)
 {
 	unsigned long sample;
-	struct rb_node *p;
+	struct rb_analde *p;
 
-	if (q->time_next_delayed_flow > now)
+	if (q->time_next_delayed_flow > analw)
 		return;
 
 	/* Update unthrottle latency EWMA.
-	 * This is cheap and can help diagnosing timer/latency problems.
+	 * This is cheap and can help diaganalsing timer/latency problems.
 	 */
-	sample = (unsigned long)(now - q->time_next_delayed_flow);
+	sample = (unsigned long)(analw - q->time_next_delayed_flow);
 	q->unthrottle_latency_ns -= q->unthrottle_latency_ns >> 3;
 	q->unthrottle_latency_ns += sample >> 3;
 
 	q->time_next_delayed_flow = ~0ULL;
 	while ((p = rb_first(&q->delayed)) != NULL) {
-		struct fq_flow *f = rb_entry(p, struct fq_flow, rate_node);
+		struct fq_flow *f = rb_entry(p, struct fq_flow, rate_analde);
 
-		if (f->time_next_packet > now) {
+		if (f->time_next_packet > analw) {
 			q->time_next_delayed_flow = f->time_next_packet;
 			break;
 		}
@@ -636,7 +636,7 @@ static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 	unsigned long rate;
 	int retry;
 	u32 plen;
-	u64 now;
+	u64 analw;
 
 	if (!sch->q.qlen)
 		return NULL;
@@ -648,8 +648,8 @@ static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 		goto out;
 	}
 
-	now = ktime_get_ns();
-	fq_check_throttled(q, now);
+	analw = ktime_get_ns();
+	fq_check_throttled(q, analw);
 	retry = 0;
 	pband = &q->band_flows[q->band_nr];
 begin:
@@ -683,14 +683,14 @@ begin:
 		u64 time_next_packet = max_t(u64, fq_skb_cb(skb)->time_to_send,
 					     f->time_next_packet);
 
-		if (now < time_next_packet) {
+		if (analw < time_next_packet) {
 			head->first = f->next;
 			f->time_next_packet = time_next_packet;
 			fq_flow_set_throttled(q, f);
 			goto begin;
 		}
 		prefetch(&skb->end);
-		if ((s64)(now - time_next_packet - q->ce_threshold) > 0) {
+		if ((s64)(analw - time_next_packet - q->ce_threshold) > 0) {
 			INET_ECN_set_ce(skb);
 			q->stat_ce_mark++;
 		}
@@ -748,11 +748,11 @@ begin:
 		}
 		/* Account for schedule/timers drifts.
 		 * f->time_next_packet was set when prior packet was sent,
-		 * and current time (@now) can be too late by tens of us.
+		 * and current time (@analw) can be too late by tens of us.
 		 */
 		if (f->time_next_packet)
-			len -= min(len/2, now - f->time_next_packet);
-		f->time_next_packet = now + len;
+			len -= min(len/2, analw - f->time_next_packet);
+		f->time_next_packet = analw + len;
 	}
 out:
 	qdisc_bstats_update(sch, skb);
@@ -761,13 +761,13 @@ out:
 
 static void fq_flow_purge(struct fq_flow *flow)
 {
-	struct rb_node *p = rb_first(&flow->t_root);
+	struct rb_analde *p = rb_first(&flow->t_root);
 
 	while (p) {
 		struct sk_buff *skb = rb_to_skb(p);
 
 		p = rb_next(p);
-		rb_erase(&skb->rbnode, &flow->t_root);
+		rb_erase(&skb->rbanalde, &flow->t_root);
 		rtnl_kfree_skbs(skb, skb);
 	}
 	rtnl_kfree_skbs(flow->head, flow->tail);
@@ -779,7 +779,7 @@ static void fq_reset(struct Qdisc *sch)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
 	struct rb_root *root;
-	struct rb_node *p;
+	struct rb_analde *p;
 	struct fq_flow *f;
 	unsigned int idx;
 
@@ -794,7 +794,7 @@ static void fq_reset(struct Qdisc *sch)
 	for (idx = 0; idx < (1U << q->fq_trees_log); idx++) {
 		root = &q->fq_root[idx];
 		while ((p = rb_first(root)) != NULL) {
-			f = rb_entry(p, struct fq_flow, fq_node);
+			f = rb_entry(p, struct fq_flow, fq_analde);
 			rb_erase(p, root);
 
 			fq_flow_purge(f);
@@ -816,7 +816,7 @@ static void fq_rehash(struct fq_sched_data *q,
 		      struct rb_root *old_array, u32 old_log,
 		      struct rb_root *new_array, u32 new_log)
 {
-	struct rb_node *op, **np, *parent;
+	struct rb_analde *op, **np, *parent;
 	struct rb_root *oroot, *nroot;
 	struct fq_flow *of, *nf;
 	int fcnt = 0;
@@ -826,7 +826,7 @@ static void fq_rehash(struct fq_sched_data *q,
 		oroot = &old_array[idx];
 		while ((op = rb_first(oroot)) != NULL) {
 			rb_erase(op, oroot);
-			of = rb_entry(op, struct fq_flow, fq_node);
+			of = rb_entry(op, struct fq_flow, fq_analde);
 			if (fq_gc_candidate(of)) {
 				fcnt++;
 				kmem_cache_free(fq_flow_cachep, of);
@@ -834,12 +834,12 @@ static void fq_rehash(struct fq_sched_data *q,
 			}
 			nroot = &new_array[hash_ptr(of->sk, new_log)];
 
-			np = &nroot->rb_node;
+			np = &nroot->rb_analde;
 			parent = NULL;
 			while (*np) {
 				parent = *np;
 
-				nf = rb_entry(parent, struct fq_flow, fq_node);
+				nf = rb_entry(parent, struct fq_flow, fq_analde);
 				BUG_ON(nf->sk == of->sk);
 
 				if (nf->sk > of->sk)
@@ -848,8 +848,8 @@ static void fq_rehash(struct fq_sched_data *q,
 					np = &parent->rb_left;
 			}
 
-			rb_link_node(&of->fq_node, parent, np);
-			rb_insert_color(&of->fq_node, nroot);
+			rb_link_analde(&of->fq_analde, parent, np);
+			rb_insert_color(&of->fq_analde, nroot);
 		}
 	}
 	q->flows -= fcnt;
@@ -872,11 +872,11 @@ static int fq_resize(struct Qdisc *sch, u32 log)
 	if (q->fq_root && log == q->fq_trees_log)
 		return 0;
 
-	/* If XPS was setup, we can allocate memory on right NUMA node */
-	array = kvmalloc_node(sizeof(struct rb_root) << log, GFP_KERNEL | __GFP_RETRY_MAYFAIL,
-			      netdev_queue_numa_node_read(sch->dev_queue));
+	/* If XPS was setup, we can allocate memory on right NUMA analde */
+	array = kvmalloc_analde(sizeof(struct rb_root) << log, GFP_KERNEL | __GFP_RETRY_MAYFAIL,
+			      netdev_queue_numa_analde_read(sch->dev_queue));
 	if (!array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (idx = 0; idx < (1U << log); idx++)
 		array[idx] = RB_ROOT;
@@ -1031,7 +1031,7 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt,
 		q->initial_quantum = nla_get_u32(tb[TCA_FQ_INITIAL_QUANTUM]);
 
 	if (tb[TCA_FQ_FLOW_DEFAULT_RATE])
-		pr_warn_ratelimited("sch_fq: defrate %u ignored.\n",
+		pr_warn_ratelimited("sch_fq: defrate %u iganalred.\n",
 				    nla_get_u32(tb[TCA_FQ_FLOW_DEFAULT_RATE]));
 
 	if (tb[TCA_FQ_FLOW_MAX_RATE]) {
@@ -1147,7 +1147,7 @@ static int fq_init(struct Qdisc *sch, struct nlattr *opt,
 	q->ce_threshold		= (u64)NSEC_PER_USEC * ~0U;
 
 	fq_prio2band_compress_crumb(sch_default_prio2band, q->prio2band);
-	qdisc_watchdog_init_clockid(&q->watchdog, sch, CLOCK_MONOTONIC);
+	qdisc_watchdog_init_clockid(&q->watchdog, sch, CLOCK_MOANALTONIC);
 
 	if (opt)
 		err = fq_change(sch, opt, extack);
@@ -1168,11 +1168,11 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct nlattr *opts;
 	s32 weights[3];
 
-	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	opts = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 
-	/* TCA_FQ_FLOW_DEFAULT_RATE is not used anymore */
+	/* TCA_FQ_FLOW_DEFAULT_RATE is analt used anymore */
 
 	do_div(ce_threshold, NSEC_PER_USEC);
 	do_div(horizon, NSEC_PER_USEC);
@@ -1273,7 +1273,7 @@ static int __init fq_module_init(void)
 					   sizeof(struct fq_flow),
 					   0, SLAB_HWCACHE_ALIGN, NULL);
 	if (!fq_flow_cachep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = register_qdisc(&fq_qdisc_ops);
 	if (ret)

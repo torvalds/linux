@@ -7,9 +7,9 @@
 #
 # The idea is to verify that the switch can handle at least 85% of maximum
 # supported descrpitors by hardware. Then, we verify that the driver configures
-# firmware to allow infinite size of egress descriptor pool, and does not use a
+# firmware to allow infinite size of egress descriptor pool, and does analt use a
 # lower limitation. Increase the size of the relevant pools such that the pool's
-# size does not limit the traffic.
+# size does analt limit the traffic.
 
 # +-----------------------+
 # | H1                    |
@@ -59,10 +59,10 @@ source mlxsw_lib.sh
 MAX_POOL_SIZE=$(devlink_pool_size_get)
 SHAPER_RATE=1mbit
 
-# The current TBF qdisc interface does not allow us to configure the shaper to
+# The current TBF qdisc interface does analt allow us to configure the shaper to
 # flat zero. The ASIC shaper is guaranteed to work with a granularity of
 # 200Mbps. On Spectrum-2, writing a value close to zero instead of zero works
-# well, but the performance on Spectrum-1 is unpredictable. Thus, do not run the
+# well, but the performance on Spectrum-1 is unpredictable. Thus, do analt run the
 # test on Spectrum-1.
 mlxsw_only_on_spectrum 2+ || exit
 
@@ -161,10 +161,10 @@ switch_destroy()
 	# bridge
 	# ------
 
-	ip link set dev $swp2.111 nomaster
+	ip link set dev $swp2.111 analmaster
 
 	ip link set dev br1 down
-	ip link set dev $swp1.111 nomaster
+	ip link set dev $swp1.111 analmaster
 	ip link del dev br1
 
 	# $swp2
@@ -247,7 +247,7 @@ max_descriptors()
 
 	max_descriptors=$(mlxsw_max_descriptors_get) || exit 1
 
-	local d0=$(ethtool_stats_get $swp2 tc_no_buffer_discard_uc_tc_1)
+	local d0=$(ethtool_stats_get $swp2 tc_anal_buffer_discard_uc_tc_1)
 
 	log_info "Send many small packets, packet size = $pktsize bytes"
 	start_traffic_pktsize $pktsize $h1.111 192.0.2.33 192.0.2.34 $h2mac
@@ -255,7 +255,7 @@ max_descriptors()
 	# Sleep to wait for congestion.
 	sleep 5
 
-	local d1=$(ethtool_stats_get $swp2 tc_no_buffer_discard_uc_tc_1)
+	local d1=$(ethtool_stats_get $swp2 tc_anal_buffer_discard_uc_tc_1)
 	((d1 == d0))
 	check_err $? "Drops seen on egress port: $d0 -> $d1 ($((d1 - d0)))"
 

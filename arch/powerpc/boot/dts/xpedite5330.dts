@@ -109,7 +109,7 @@
 			  2 0 0 0xef800000 0x40000   /* CS2: NAND CE1 */
 			  3 0 0 0xef840000 0x40000>; /* CS3: NAND CE2 */
 
-		nor-boot@0,0 {
+		analr-boot@0,0 {
 			compatible = "amd,s29gl01gp", "cfi-flash";
 			bank-width = <2>;
 			reg = <0 0 0x8000000>; /* 128MB */
@@ -138,7 +138,7 @@
 			};
 		};
 
-		nor-alternate@1,0 {
+		analr-alternate@1,0 {
 			compatible = "amd,s29gl01gp", "cfi-flash";
 			bank-width = <2>;
 			//reg = <0xf0000000 0x08000000>; /* 128MB */

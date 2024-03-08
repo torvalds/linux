@@ -24,7 +24,7 @@ struct serdev_device;
  * @receive_buf:	Function called with data received from device;
  *			returns number of bytes accepted; may sleep.
  * @write_wakeup:	Function called when ready to transmit more data; must
- *			not sleep.
+ *			analt sleep.
  */
 struct serdev_device_ops {
 	ssize_t (*receive_buf)(struct serdev_device *, const u8 *, size_t);
@@ -73,7 +73,7 @@ static inline struct serdev_device_driver *to_serdev_device_driver(struct device
 }
 
 enum serdev_parity {
-	SERDEV_PARITY_NONE,
+	SERDEV_PARITY_ANALNE,
 	SERDEV_PARITY_EVEN,
 	SERDEV_PARITY_ODD,
 };
@@ -239,7 +239,7 @@ static inline void serdev_device_driver_unregister(struct serdev_device_driver *
 
 static inline int serdev_device_open(struct serdev_device *sdev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline void serdev_device_close(struct serdev_device *sdev) {}
 static inline unsigned int serdev_device_set_baudrate(struct serdev_device *sdev, unsigned int baudrate)
@@ -251,26 +251,26 @@ static inline int serdev_device_write_buf(struct serdev_device *serdev,
 					  const u8 *buf,
 					  size_t count)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline void serdev_device_wait_until_sent(struct serdev_device *sdev, long timeout) {}
 static inline int serdev_device_get_tiocm(struct serdev_device *serdev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline int serdev_device_set_tiocm(struct serdev_device *serdev, int set, int clear)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline int serdev_device_break_ctl(struct serdev_device *serdev, int break_state)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline ssize_t serdev_device_write(struct serdev_device *sdev,
 					  const u8 *buf, size_t count,
 					  unsigned long timeout)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline void serdev_device_write_flush(struct serdev_device *sdev) {}
 static inline int serdev_device_write_room(struct serdev_device *sdev)
@@ -326,11 +326,11 @@ static inline struct device *serdev_tty_port_register(struct tty_port *port,
 					   struct device *parent,
 					   struct tty_driver *drv, int idx)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 static inline int serdev_tty_port_unregister(struct tty_port *port)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif /* CONFIG_SERIAL_DEV_CTRL_TTYPORT */
 

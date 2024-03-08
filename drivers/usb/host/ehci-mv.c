@@ -72,8 +72,8 @@ static int mv_ehci_reset(struct usb_hcd *hcd)
 	int retval;
 
 	if (ehci_mv == NULL) {
-		dev_err(dev, "Can not find private ehci data\n");
-		return -ENODEV;
+		dev_err(dev, "Can analt find private ehci data\n");
+		return -EANALDEV;
 	}
 
 	hcd->has_tt = 1;
@@ -82,7 +82,7 @@ static int mv_ehci_reset(struct usb_hcd *hcd)
 	if (retval)
 		dev_err(dev, "ehci_setup failed %d\n", retval);
 
-	if (of_usb_get_phy_mode(dev->of_node) == USBPHY_INTERFACE_MODE_HSIC) {
+	if (of_usb_get_phy_mode(dev->of_analde) == USBPHY_INTERFACE_MODE_HSIC) {
 		status = ehci_readl(ehci, &ehci->regs->port_status[0]);
 		status |= PORT_TEST_FORCE;
 		ehci_writel(ehci, status, &ehci->regs->port_status[0]);
@@ -112,11 +112,11 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	u32 status;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	hcd = usb_create_hcd(&ehci_platform_hc_driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, hcd);
 	ehci_mv = hcd_to_ehci_hcd_mv(hcd);
@@ -190,7 +190,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 		if (retval < 0) {
 			dev_err(&pdev->dev,
 				"unable to register with transceiver\n");
-			retval = -ENODEV;
+			retval = -EANALDEV;
 			goto err_disable_clk;
 		}
 		/* otg will enable clock before use as host */
@@ -208,7 +208,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 		device_wakeup_enable(hcd->self.controller);
 	}
 
-	if (of_usb_get_phy_mode(pdev->dev.of_node) == USBPHY_INTERFACE_MODE_HSIC) {
+	if (of_usb_get_phy_mode(pdev->dev.of_analde) == USBPHY_INTERFACE_MODE_HSIC) {
 		status = ehci_readl(ehci, &ehci->regs->port_status[0]);
 		/* These "reserved" bits actually enable HSIC mode. */
 		status |= BIT(25);
@@ -292,7 +292,7 @@ static struct platform_driver ehci_mv_driver = {
 static int __init ehci_platform_init(void)
 {
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ehci_init_driver(&ehci_platform_hc_driver, &platform_overrides);
 	return platform_driver_register(&ehci_mv_driver);

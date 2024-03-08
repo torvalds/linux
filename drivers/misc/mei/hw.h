@@ -35,79 +35,79 @@
 /*
  * MEI Version
  */
-#define HBM_MINOR_VERSION                   2
+#define HBM_MIANALR_VERSION                   2
 #define HBM_MAJOR_VERSION                   2
 
 /*
  * MEI version with PGI support
  */
-#define HBM_MINOR_VERSION_PGI               1
+#define HBM_MIANALR_VERSION_PGI               1
 #define HBM_MAJOR_VERSION_PGI               1
 
 /*
  * MEI version with Dynamic clients support
  */
-#define HBM_MINOR_VERSION_DC               0
+#define HBM_MIANALR_VERSION_DC               0
 #define HBM_MAJOR_VERSION_DC               2
 
 /*
  * MEI version with immediate reply to enum request support
  */
-#define HBM_MINOR_VERSION_IE               0
+#define HBM_MIANALR_VERSION_IE               0
 #define HBM_MAJOR_VERSION_IE               2
 
 /*
  * MEI version with disconnect on connection timeout support
  */
-#define HBM_MINOR_VERSION_DOT              0
+#define HBM_MIANALR_VERSION_DOT              0
 #define HBM_MAJOR_VERSION_DOT              2
 
 /*
- * MEI version with notification support
+ * MEI version with analtification support
  */
-#define HBM_MINOR_VERSION_EV               0
+#define HBM_MIANALR_VERSION_EV               0
 #define HBM_MAJOR_VERSION_EV               2
 
 /*
  * MEI version with fixed address client support
  */
-#define HBM_MINOR_VERSION_FA               0
+#define HBM_MIANALR_VERSION_FA               0
 #define HBM_MAJOR_VERSION_FA               2
 
 /*
  * MEI version with OS ver message support
  */
-#define HBM_MINOR_VERSION_OS               0
+#define HBM_MIANALR_VERSION_OS               0
 #define HBM_MAJOR_VERSION_OS               2
 
 /*
  * MEI version with dma ring support
  */
-#define HBM_MINOR_VERSION_DR               1
+#define HBM_MIANALR_VERSION_DR               1
 #define HBM_MAJOR_VERSION_DR               2
 
 /*
  * MEI version with vm tag support
  */
-#define HBM_MINOR_VERSION_VT               2
+#define HBM_MIANALR_VERSION_VT               2
 #define HBM_MAJOR_VERSION_VT               2
 
 /*
  * MEI version with GSC support
  */
-#define HBM_MINOR_VERSION_GSC              2
+#define HBM_MIANALR_VERSION_GSC              2
 #define HBM_MAJOR_VERSION_GSC              2
 
 /*
  * MEI version with capabilities message support
  */
-#define HBM_MINOR_VERSION_CAP              2
+#define HBM_MIANALR_VERSION_CAP              2
 #define HBM_MAJOR_VERSION_CAP              2
 
 /*
  * MEI version with client DMA support
  */
-#define HBM_MINOR_VERSION_CD               2
+#define HBM_MIANALR_VERSION_CD               2
 #define HBM_MAJOR_VERSION_CD               2
 
 /* Host bus message command opcode */
@@ -148,9 +148,9 @@
 #define MEI_HBM_ADD_CLIENT_REQ_CMD          0x0f
 #define MEI_HBM_ADD_CLIENT_RES_CMD          0x8f
 
-#define MEI_HBM_NOTIFY_REQ_CMD              0x10
-#define MEI_HBM_NOTIFY_RES_CMD              0x90
-#define MEI_HBM_NOTIFICATION_CMD            0x11
+#define MEI_HBM_ANALTIFY_REQ_CMD              0x10
+#define MEI_HBM_ANALTIFY_RES_CMD              0x90
+#define MEI_HBM_ANALTIFICATION_CMD            0x11
 
 #define MEI_HBM_DMA_SETUP_REQ_CMD           0x12
 #define MEI_HBM_DMA_SETUP_RES_CMD           0x92
@@ -185,25 +185,25 @@ enum mei_stop_reason_types {
  * enum mei_hbm_status  - mei host bus messages return values
  *
  * @MEI_HBMS_SUCCESS           : status success
- * @MEI_HBMS_CLIENT_NOT_FOUND  : client not found
+ * @MEI_HBMS_CLIENT_ANALT_FOUND  : client analt found
  * @MEI_HBMS_ALREADY_EXISTS    : connection already established
  * @MEI_HBMS_REJECTED          : connection is rejected
  * @MEI_HBMS_INVALID_PARAMETER : invalid parameter
- * @MEI_HBMS_NOT_ALLOWED       : operation not allowed
+ * @MEI_HBMS_ANALT_ALLOWED       : operation analt allowed
  * @MEI_HBMS_ALREADY_STARTED   : system is already started
- * @MEI_HBMS_NOT_STARTED       : system not started
+ * @MEI_HBMS_ANALT_STARTED       : system analt started
  *
  * @MEI_HBMS_MAX               : sentinel
  */
 enum mei_hbm_status {
 	MEI_HBMS_SUCCESS           = 0,
-	MEI_HBMS_CLIENT_NOT_FOUND  = 1,
+	MEI_HBMS_CLIENT_ANALT_FOUND  = 1,
 	MEI_HBMS_ALREADY_EXISTS    = 2,
 	MEI_HBMS_REJECTED          = 3,
 	MEI_HBMS_INVALID_PARAMETER = 4,
-	MEI_HBMS_NOT_ALLOWED       = 5,
+	MEI_HBMS_ANALT_ALLOWED       = 5,
 	MEI_HBMS_ALREADY_STARTED   = 6,
-	MEI_HBMS_NOT_STARTED       = 7,
+	MEI_HBMS_ANALT_STARTED       = 7,
 
 	MEI_HBMS_MAX
 };
@@ -215,11 +215,11 @@ enum mei_hbm_status {
  */
 enum mei_cl_connect_status {
 	MEI_CL_CONN_SUCCESS          = MEI_HBMS_SUCCESS,
-	MEI_CL_CONN_NOT_FOUND        = MEI_HBMS_CLIENT_NOT_FOUND,
+	MEI_CL_CONN_ANALT_FOUND        = MEI_HBMS_CLIENT_ANALT_FOUND,
 	MEI_CL_CONN_ALREADY_STARTED  = MEI_HBMS_ALREADY_EXISTS,
 	MEI_CL_CONN_OUT_OF_RESOURCES = MEI_HBMS_REJECTED,
 	MEI_CL_CONN_MESSAGE_SMALL    = MEI_HBMS_INVALID_PARAMETER,
-	MEI_CL_CONN_NOT_ALLOWED      = MEI_HBMS_NOT_ALLOWED,
+	MEI_CL_CONN_ANALT_ALLOWED      = MEI_HBMS_ANALT_ALLOWED,
 };
 
 /*
@@ -233,12 +233,12 @@ enum mei_cl_disconnect_status {
  * enum mei_ext_hdr_type - extended header type used in
  *    extended header TLV
  *
- * @MEI_EXT_HDR_NONE: sentinel
+ * @MEI_EXT_HDR_ANALNE: sentinel
  * @MEI_EXT_HDR_VTAG: vtag header
  * @MEI_EXT_HDR_GSC: gsc header
  */
 enum mei_ext_hdr_type {
-	MEI_EXT_HDR_NONE = 0,
+	MEI_EXT_HDR_ANALNE = 0,
 	MEI_EXT_HDR_VTAG = 1,
 	MEI_EXT_HDR_GSC = 2,
 };
@@ -370,7 +370,7 @@ struct mei_ext_hdr_gsc_f2h {
  *
  * @ext: current extend header
  *
- * Context: The function does not check for the overflows,
+ * Context: The function does analt check for the overflows,
  *          one should call mei_ext_last before.
  *
  * Return: The following extend header after @ext
@@ -445,7 +445,7 @@ struct mei_hbm_cl_cmd {
 };
 
 struct hbm_version {
-	u8 minor_version;
+	u8 mianalr_version;
 	u8 major_version;
 } __packed;
 
@@ -567,7 +567,7 @@ struct hbm_add_client_request {
  *
  * @hbm_cmd: bus message command header
  * @me_addr: address of the client in ME
- * @status: if HBMS_SUCCESS then the client can now accept connections.
+ * @status: if HBMS_SUCCESS then the client can analw accept connections.
  * @reserved: reserved
  */
 struct hbm_add_client_response {
@@ -628,17 +628,17 @@ struct hbm_flow_control {
 	u8 reserved[MEI_FC_MESSAGE_RESERVED_LENGTH];
 } __packed;
 
-#define MEI_HBM_NOTIFICATION_START 1
-#define MEI_HBM_NOTIFICATION_STOP  0
+#define MEI_HBM_ANALTIFICATION_START 1
+#define MEI_HBM_ANALTIFICATION_STOP  0
 /**
- * struct hbm_notification_request - start/stop notification request
+ * struct hbm_analtification_request - start/stop analtification request
  *
  * @hbm_cmd: bus message command header
  * @me_addr: address of the client in ME
  * @host_addr: address of the client in the driver
- * @start:  start = 1 or stop = 0 asynchronous notifications
+ * @start:  start = 1 or stop = 0 asynchroanalus analtifications
  */
-struct hbm_notification_request {
+struct hbm_analtification_request {
 	u8 hbm_cmd;
 	u8 me_addr;
 	u8 host_addr;
@@ -646,23 +646,23 @@ struct hbm_notification_request {
 } __packed;
 
 /**
- * struct hbm_notification_response - start/stop notification response
+ * struct hbm_analtification_response - start/stop analtification response
  *
  * @hbm_cmd: bus message command header
  * @me_addr: address of the client in ME
  * @host_addr: - address of the client in the driver
  * @status: (mei_hbm_status) response status for the request
  *  - MEI_HBMS_SUCCESS: successful stop/start
- *  - MEI_HBMS_CLIENT_NOT_FOUND: if the connection could not be found.
+ *  - MEI_HBMS_CLIENT_ANALT_FOUND: if the connection could analt be found.
  *  - MEI_HBMS_ALREADY_STARTED: for start requests for a previously
- *                         started notification.
- *  - MEI_HBMS_NOT_STARTED: for stop request for a connected client for whom
- *                         asynchronous notifications are currently disabled.
+ *                         started analtification.
+ *  - MEI_HBMS_ANALT_STARTED: for stop request for a connected client for whom
+ *                         asynchroanalus analtifications are currently disabled.
  *
- * @start:  start = 1 or stop = 0 asynchronous notifications
+ * @start:  start = 1 or stop = 0 asynchroanalus analtifications
  * @reserved: reserved
  */
-struct hbm_notification_response {
+struct hbm_analtification_response {
 	u8 hbm_cmd;
 	u8 me_addr;
 	u8 host_addr;
@@ -672,14 +672,14 @@ struct hbm_notification_response {
 } __packed;
 
 /**
- * struct hbm_notification - notification event
+ * struct hbm_analtification - analtification event
  *
  * @hbm_cmd: bus message command header
  * @me_addr:  address of the client in ME
  * @host_addr:  address of the client in the driver
  * @reserved: reserved for alignment
  */
-struct hbm_notification {
+struct hbm_analtification {
 	u8 hbm_cmd;
 	u8 me_addr;
 	u8 host_addr;

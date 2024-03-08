@@ -12,7 +12,7 @@
 #ifndef __LINUX_CDNSP_GADGET_H
 #define __LINUX_CDNSP_GADGET_H
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/usb/gadget.h>
 #include <linux/irq.h>
 
@@ -102,7 +102,7 @@ struct cdnsp_cap_regs {
  * @page_size: This indicates the page size that the device controller supports.
  *             If bit n is set, the controller supports a page size of 2^(n+12),
  *             up to a 128MB page size. 4K is the minimum page size.
- * @dnctrl: DNCTRL - Device notification control register.
+ * @dnctrl: DNCTRL - Device analtification control register.
  * @cmd_ring: CRP - 64-bit Command Ring Pointer.
  * @dcbaa_ptr: DCBAAP - 64-bit Device Context Base Address Array Pointer.
  * @config_reg: CONFIG - Configure Register
@@ -161,14 +161,14 @@ struct cdnsp_port_regs {
 #define CDNSP_PORT_RWS	(PORT_PLS_MASK | PORT_WKCONN_E | PORT_WKDISC_E)
 
 /*
- * These bits are RW; writing a 1 clears the bit, writing a 0 has no effect:
+ * These bits are RW; writing a 1 clears the bit, writing a 0 has anal effect:
  * bits 1 (port enable/disable), 17  ( connect changed),
  * 21 (port reset changed) , 22 (Port Link State Change),
  */
 #define CDNSP_PORT_RW1CS (PORT_PED | PORT_CSC | PORT_RC | PORT_PLC)
 
 /* USBCMD - USB command - bitmasks. */
-/* Run/Stop, controller execution - do not write unless controller is halted.*/
+/* Run/Stop, controller execution - do analt write unless controller is halted.*/
 #define CMD_R_S		BIT(0)
 /*
  * Reset device controller - resets internal controller state machine and all
@@ -198,7 +198,7 @@ struct cdnsp_port_regs {
 #define CDNSP_IRQS	(CMD_INTE | CMD_DSEIE | CMD_EWE)
 
 /* USBSTS - USB status - bitmasks */
-/* controller not running - set to 1 when run/stop bit is cleared. */
+/* controller analt running - set to 1 when run/stop bit is cleared. */
 #define STS_HALT	BIT(0)
 /*
  * serious error, e.g. PCI parity error. The controller will clear
@@ -215,7 +215,7 @@ struct cdnsp_port_regs {
 #define STS_RSS		BIT(9)
 /* 1: save or restore error */
 #define STS_SRE		BIT(10)
-/* 1: device Not Ready to accept doorbell or op reg writes after reset. */
+/* 1: device Analt Ready to accept doorbell or op reg writes after reset. */
 #define STS_CNR		BIT(11)
 /* 1: internal Device Controller Error.*/
 #define STS_HCE		BIT(12)
@@ -274,7 +274,7 @@ struct cdnsp_port_regs {
  * bits 10:13 indicate device speed:
  * 0 - undefined speed - port hasn't be initialized by a reset yet
  * 1 - full speed
- * 2 - Reserved (Low Speed not supported
+ * 2 - Reserved (Low Speed analt supported
  * 3 - high speed
  * 4 - super speed
  * 5 - super speed
@@ -389,7 +389,7 @@ struct cdnsp_intr_reg {
 /* IMOD - Interrupter Moderation Register - irq_control bitmasks. */
 /*
  * Minimum interval between interrupts (in 250ns intervals). The interval
- * between interrupts will be longer if there are no events on the event ring.
+ * between interrupts will be longer if there are anal events on the event ring.
  * Default is 4000 (1 ms).
  */
 #define IMOD_INTERVAL_MASK	GENMASK(15, 0)
@@ -786,7 +786,7 @@ struct cdnsp_stream_info {
 #define STREAM_NUM_STREAMS BIT(STREAM_LOG_STREAMS)
 
 #if STREAM_LOG_STREAMS > 16 && STREAM_LOG_STREAMS < 1
-#error "Not suupported stream value"
+#error "Analt suupported stream value"
 #endif
 
 /**
@@ -806,8 +806,8 @@ struct cdnsp_stream_info {
  * @ring: Pointer to transfer ring.
  * @stream_info: Hold stream information.
  * @ep_state: Current state of endpoint.
- * @skip: Sometimes the controller can not process isochronous endpoint ring
- *        quickly enough, and it will miss some isoc tds on the ring and
+ * @skip: Sometimes the controller can analt process isochroanalus endpoint ring
+ *        quickly eanalugh, and it will miss some isoc tds on the ring and
  *        generate Missed Service Error Event.
  *        Set skip flag when receive a Missed Service Error Event and
  *        process the missed tds on the endpoint ring.
@@ -877,10 +877,10 @@ struct cdnsp_transfer_event {
 #define COMP_BABBLE_DETECTED_ERROR		3
 #define COMP_TRB_ERROR				5
 #define COMP_RESOURCE_ERROR			7
-#define COMP_NO_SLOTS_AVAILABLE_ERROR		9
+#define COMP_ANAL_SLOTS_AVAILABLE_ERROR		9
 #define COMP_INVALID_STREAM_TYPE_ERROR		10
-#define COMP_SLOT_NOT_ENABLED_ERROR		11
-#define COMP_ENDPOINT_NOT_ENABLED_ERROR		12
+#define COMP_SLOT_ANALT_ENABLED_ERROR		11
+#define COMP_ENDPOINT_ANALT_ENABLED_ERROR		12
 #define COMP_SHORT_PACKET			13
 #define COMP_RING_UNDERRUN			14
 #define COMP_RING_OVERRUN			15
@@ -949,8 +949,8 @@ struct cdnsp_event_cmd {
 #define TRB_FH_TO_PACKET_TYPE(p)	((p) & GENMASK(4, 0))
 #define TRB_FH_TR_PACKET		0x4
 #define TRB_FH_TO_DEVICE_ADDRESS(p)	(((p) << 25) & GENMASK(31, 25))
-#define TRB_FH_TR_PACKET_DEV_NOT	0x6
-#define TRB_FH_TO_NOT_TYPE(p)		(((p) << 4) & GENMASK(7, 4))
+#define TRB_FH_TR_PACKET_DEV_ANALT	0x6
+#define TRB_FH_TO_ANALT_TYPE(p)		(((p) << 4) & GENMASK(7, 4))
 #define TRB_FH_TR_PACKET_FUNCTION_WAKE	0x1
 #define TRB_FH_TO_INTERFACE(p)		(((p) << 8) & GENMASK(15, 8))
 
@@ -986,7 +986,7 @@ enum cdnsp_setup_dev {
 #define SET_PORT_ID(p)			(((p) << 24) & GENMASK(31, 24))
 #define EVENT_DATA			BIT(2)
 
-/* Normal TRB fields. */
+/* Analrmal TRB fields. */
 /* transfer_len bitmasks - bits 0:16. */
 #define TRB_LEN(p)			((p) & GENMASK(16, 0))
 /* TD Size, packets remaining in this TD, bits 21:17 (5 bits, so max 31). */
@@ -1016,8 +1016,8 @@ enum cdnsp_setup_dev {
 #define TRB_ENT				BIT(1)
 /* Interrupt on short packet. */
 #define TRB_ISP				BIT(2)
-/* Set PCIe no snoop attribute. */
-#define TRB_NO_SNOOP			BIT(3)
+/* Set PCIe anal sanalop attribute. */
+#define TRB_ANAL_SANALOP			BIT(3)
 /* Chain multiple TRBs into a TD. */
 #define TRB_CHAIN			BIT(4)
 /* Interrupt on completion. */
@@ -1045,7 +1045,7 @@ enum cdnsp_setup_dev {
 #define TRB_SETUPSTAT_STALL		0x0
 #define TRB_SETUPSTAT(p)		((p) << 6)
 
-/* Isochronous TRB specific fields */
+/* Isochroanalus TRB specific fields */
 #define TRB_SIA				BIT(31)
 #define TRB_FRAME_ID(p)			(((p) << 20) & GENMASK(30, 20))
 
@@ -1067,7 +1067,7 @@ union cdnsp_trb {
 
 /* TRB type IDs. */
 /* bulk, interrupt, isoc scatter/gather, and control data stage. */
-#define TRB_NORMAL		1
+#define TRB_ANALRMAL		1
 /* Setup Stage for control transfers. */
 #define TRB_SETUP		2
 /* Data Stage for control transfers. */
@@ -1079,8 +1079,8 @@ union cdnsp_trb {
 /* TRB for linking ring segments. */
 #define TRB_LINK		6
 #define TRB_EVENT_DATA		7
-/* Transfer Ring No-op (not for the command ring). */
-#define TRB_TR_NOOP		8
+/* Transfer Ring Anal-op (analt for the command ring). */
+#define TRB_TR_ANALOP		8
 
 /* Command TRBs */
 /* Enable Slot Command. */
@@ -1105,8 +1105,8 @@ union cdnsp_trb {
 #define TRB_FORCE_EVENT		18
 /* Force Header Command - generate a transaction or link management packet. */
 #define TRB_FORCE_HEADER	22
-/* No-op Command - not for transfer rings. */
-#define TRB_CMD_NOOP		23
+/* Anal-op Command - analt for transfer rings. */
+#define TRB_CMD_ANALOP		23
 /* TRB IDs 24-31 reserved. */
 
 /* Event TRBS. */
@@ -1121,7 +1121,7 @@ union cdnsp_trb {
 /* MFINDEX Wrap Event - microframe counter wrapped. */
 #define TRB_MFINDEX_WRAP	39
 /* TRB IDs 40-47 reserved. */
-/* Endpoint Not Ready Event. */
+/* Endpoint Analt Ready Event. */
 #define TRB_ENDPOINT_NRDY	48
 /* TRB IDs 49-53 reserved. */
 /* Halt Endpoint Command. */
@@ -1132,8 +1132,8 @@ union cdnsp_trb {
 #define TRB_TYPE_LINK(x)	(((x) & TRB_TYPE_BITMASK) == TRB_TYPE(TRB_LINK))
 #define TRB_TYPE_LINK_LE32(x)	(((x) & cpu_to_le32(TRB_TYPE_BITMASK)) == \
 					cpu_to_le32(TRB_TYPE(TRB_LINK)))
-#define TRB_TYPE_NOOP_LE32(x)	(((x) & cpu_to_le32(TRB_TYPE_BITMASK)) == \
-					cpu_to_le32(TRB_TYPE(TRB_TR_NOOP)))
+#define TRB_TYPE_ANALOP_LE32(x)	(((x) & cpu_to_le32(TRB_TYPE_BITMASK)) == \
+					cpu_to_le32(TRB_TYPE(TRB_TR_ANALOP)))
 
 /*
  * TRBS_PER_SEGMENT must be a multiple of 4.
@@ -1322,7 +1322,7 @@ enum cdnsp_ep0_stage {
  * @port_num: Port number.
  * @exist: Indicate if port exist.
  * maj_rev: Major revision.
- * min_rev: Minor revision.
+ * min_rev: Mianalr revision.
  */
 struct cdnsp_port {
 	struct cdnsp_port_regs __iomem *regs;
@@ -1333,7 +1333,7 @@ struct cdnsp_port {
 };
 
 #define CDNSP_EXT_PORT_MAJOR(x)		(((x) >> 24) & 0xff)
-#define CDNSP_EXT_PORT_MINOR(x)		(((x) >> 16) & 0xff)
+#define CDNSP_EXT_PORT_MIANALR(x)		(((x) >> 16) & 0xff)
 #define CDNSP_EXT_PORT_OFF(x)		((x) & 0xff)
 #define CDNSP_EXT_PORT_COUNT(x)		(((x) >> 8) & 0xff)
 
@@ -1465,8 +1465,8 @@ struct cdnsp_device {
  *
  * Registers with 64-bit address pointers should be written to with
  * dword accesses by writing the low dword first (ptr[0]), then the high dword
- * (ptr[1]) second. controller implementations that do not support 64-bit
- * address pointers will ignore the high dword, and write order is irrelevant.
+ * (ptr[1]) second. controller implementations that do analt support 64-bit
+ * address pointers will iganalre the high dword, and write order is irrelevant.
  */
 static inline u64 cdnsp_read_64(__le64 __iomem *regs)
 {

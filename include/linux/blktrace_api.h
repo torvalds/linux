@@ -30,7 +30,7 @@ struct blk_trace {
 
 extern int blk_trace_ioctl(struct block_device *, unsigned, char __user *);
 extern void blk_trace_shutdown(struct request_queue *);
-__printf(3, 4) void __blk_trace_note_message(struct blk_trace *bt,
+__printf(3, 4) void __blk_trace_analte_message(struct blk_trace *bt,
 		struct cgroup_subsys_state *css, const char *fmt, ...);
 
 /**
@@ -42,8 +42,8 @@ __printf(3, 4) void __blk_trace_note_message(struct blk_trace *bt,
  * Description:
  *     Records a (simple) message onto the blktrace stream.
  *
- *     NOTE: BLK_TN_MAX_MSG characters are output at most.
- *     NOTE: Can not use 'static inline' due to presence of var args...
+ *     ANALTE: BLK_TN_MAX_MSG characters are output at most.
+ *     ANALTE: Can analt use 'static inline' due to presence of var args...
  *
  **/
 #define blk_add_cgroup_trace_msg(q, css, fmt, ...)			\
@@ -53,21 +53,21 @@ __printf(3, 4) void __blk_trace_note_message(struct blk_trace *bt,
 		rcu_read_lock();					\
 		bt = rcu_dereference((q)->blk_trace);			\
 		if (unlikely(bt))					\
-			__blk_trace_note_message(bt, css, fmt, ##__VA_ARGS__);\
+			__blk_trace_analte_message(bt, css, fmt, ##__VA_ARGS__);\
 		rcu_read_unlock();					\
 	} while (0)
 #define blk_add_trace_msg(q, fmt, ...)					\
 	blk_add_cgroup_trace_msg(q, NULL, fmt, ##__VA_ARGS__)
 #define BLK_TN_MAX_MSG		128
 
-static inline bool blk_trace_note_message_enabled(struct request_queue *q)
+static inline bool blk_trace_analte_message_enabled(struct request_queue *q)
 {
 	struct blk_trace *bt;
 	bool ret;
 
 	rcu_read_lock();
 	bt = rcu_dereference(q->blk_trace);
-	ret = bt && (bt->act_mask & BLK_TC_NOTIFY);
+	ret = bt && (bt->act_mask & BLK_TC_ANALTIFY);
 	rcu_read_unlock();
 	return ret;
 }
@@ -80,18 +80,18 @@ extern int blk_trace_startstop(struct request_queue *q, int start);
 extern int blk_trace_remove(struct request_queue *q);
 
 #else /* !CONFIG_BLK_DEV_IO_TRACE */
-# define blk_trace_ioctl(bdev, cmd, arg)		(-ENOTTY)
+# define blk_trace_ioctl(bdev, cmd, arg)		(-EANALTTY)
 # define blk_trace_shutdown(q)				do { } while (0)
 # define blk_add_driver_data(rq, data, len)		do {} while (0)
-# define blk_trace_setup(q, name, dev, bdev, arg)	(-ENOTTY)
-# define blk_trace_startstop(q, start)			(-ENOTTY)
+# define blk_trace_setup(q, name, dev, bdev, arg)	(-EANALTTY)
+# define blk_trace_startstop(q, start)			(-EANALTTY)
 # define blk_add_trace_msg(q, fmt, ...)			do { } while (0)
 # define blk_add_cgroup_trace_msg(q, cg, fmt, ...)	do { } while (0)
-# define blk_trace_note_message_enabled(q)		(false)
+# define blk_trace_analte_message_enabled(q)		(false)
 
 static inline int blk_trace_remove(struct request_queue *q)
 {
-	return -ENOTTY;
+	return -EANALTTY;
 }
 #endif /* CONFIG_BLK_DEV_IO_TRACE */
 
@@ -115,7 +115,7 @@ void blk_fill_rwbs(char *rwbs, blk_opf_t opf);
 static inline sector_t blk_rq_trace_sector(struct request *rq)
 {
 	/*
-	 * Tracing should ignore starting sector for passthrough requests and
+	 * Tracing should iganalre starting sector for passthrough requests and
 	 * requests where starting sector didn't get set.
 	 */
 	if (blk_rq_is_passthrough(rq) || blk_rq_pos(rq) == (sector_t)-1)

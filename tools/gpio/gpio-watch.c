@@ -8,7 +8,7 @@
  */
 
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <linux/gpio.h>
@@ -65,7 +65,7 @@ int main(int argc, char **argv)
 			rd = read(pfd.fd, &chg, sizeof(chg));
 			if (rd < 0 || rd != sizeof(chg)) {
 				if (rd != sizeof(chg))
-					errno = EIO;
+					erranal = EIO;
 
 				perror("error reading line change event");
 				return EXIT_FAILURE;

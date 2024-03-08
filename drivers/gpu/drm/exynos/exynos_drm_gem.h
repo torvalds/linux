@@ -1,22 +1,22 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/* exynos_drm_gem.h
+/* exyanals_drm_gem.h
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  * Authoer: Inki Dae <inki.dae@samsung.com>
  */
 
-#ifndef _EXYNOS_DRM_GEM_H_
-#define _EXYNOS_DRM_GEM_H_
+#ifndef _EXYANALS_DRM_GEM_H_
+#define _EXYANALS_DRM_GEM_H_
 
 #include <drm/drm_gem.h>
 #include <linux/mm_types.h>
 
-#define to_exynos_gem(x)	container_of(x, struct exynos_drm_gem, base)
+#define to_exyanals_gem(x)	container_of(x, struct exyanals_drm_gem, base)
 
-#define IS_NONCONTIG_BUFFER(f)		(f & EXYNOS_BO_NONCONTIG)
+#define IS_ANALNCONTIG_BUFFER(f)		(f & EXYANALS_BO_ANALNCONTIG)
 
 /*
- * exynos drm buffer structure.
+ * exyanals drm buffer structure.
  *
  * @base: a gem object.
  *	- a new handle to this gem object would be created
@@ -35,7 +35,7 @@
  * P.S. this object would be transferred to user as kms_bo.handle so
  *	user can access the buffer through kms_bo.handle.
  */
-struct exynos_drm_gem {
+struct exyanals_drm_gem {
 	struct drm_gem_object	base;
 	unsigned int		flags;
 	unsigned long		size;
@@ -47,10 +47,10 @@ struct exynos_drm_gem {
 };
 
 /* destroy a buffer with gem object */
-void exynos_drm_gem_destroy(struct exynos_drm_gem *exynos_gem);
+void exyanals_drm_gem_destroy(struct exyanals_drm_gem *exyanals_gem);
 
 /* create a new buffer with gem object */
-struct exynos_drm_gem *exynos_drm_gem_create(struct drm_device *dev,
+struct exyanals_drm_gem *exyanals_drm_gem_create(struct drm_device *dev,
 					     unsigned int flags,
 					     unsigned long size,
 					     bool kvmap);
@@ -60,48 +60,48 @@ struct exynos_drm_gem *exynos_drm_gem_create(struct drm_device *dev,
  * that it is calculated with framebuffer information such as width,
  * height and bpp.
  */
-int exynos_drm_gem_create_ioctl(struct drm_device *dev, void *data,
+int exyanals_drm_gem_create_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 
 /* get fake-offset of gem object that can be used with mmap. */
-int exynos_drm_gem_map_ioctl(struct drm_device *dev, void *data,
+int exyanals_drm_gem_map_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 
 /*
- * get exynos drm object from gem handle, this function could be used for
+ * get exyanals drm object from gem handle, this function could be used for
  * other drivers such as 2d/3d acceleration drivers.
  * with this function call, gem object reference count would be increased.
  */
-struct exynos_drm_gem *exynos_drm_gem_get(struct drm_file *filp,
+struct exyanals_drm_gem *exyanals_drm_gem_get(struct drm_file *filp,
 					  unsigned int gem_handle);
 
 /*
- * put exynos drm object acquired from exynos_drm_gem_get(),
+ * put exyanals drm object acquired from exyanals_drm_gem_get(),
  * gem object reference count would be decreased.
  */
-static inline void exynos_drm_gem_put(struct exynos_drm_gem *exynos_gem)
+static inline void exyanals_drm_gem_put(struct exyanals_drm_gem *exyanals_gem)
 {
-	drm_gem_object_put(&exynos_gem->base);
+	drm_gem_object_put(&exyanals_gem->base);
 }
 
 /* get buffer information to memory region allocated by gem. */
-int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
+int exyanals_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv);
 
 /* free gem object. */
-void exynos_drm_gem_free_object(struct drm_gem_object *obj);
+void exyanals_drm_gem_free_object(struct drm_gem_object *obj);
 
 /* create memory region for drm framebuffer. */
-int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
+int exyanals_drm_gem_dumb_create(struct drm_file *file_priv,
 			       struct drm_device *dev,
 			       struct drm_mode_create_dumb *args);
 
 /* low-level interface prime helpers */
-struct drm_gem_object *exynos_drm_gem_prime_import(struct drm_device *dev,
+struct drm_gem_object *exyanals_drm_gem_prime_import(struct drm_device *dev,
 					    struct dma_buf *dma_buf);
-struct sg_table *exynos_drm_gem_prime_get_sg_table(struct drm_gem_object *obj);
+struct sg_table *exyanals_drm_gem_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *
-exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
+exyanals_drm_gem_prime_import_sg_table(struct drm_device *dev,
 				     struct dma_buf_attachment *attach,
 				     struct sg_table *sgt);
 

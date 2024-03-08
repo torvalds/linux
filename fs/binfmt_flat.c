@@ -12,7 +12,7 @@
  *  linux/fs/binfmt_aout.c:
  *      Copyright (C) 1991, 1992, 1996  Linus Torvalds
  *  linux/fs/binfmt_flat.c for 2.0 kernel
- *	    Copyright (C) 1998  Kenneth Albanowski <kjahds@kjahds.com>
+ *	    Copyright (C) 1998  Kenneth Albaanalwski <kjahds@kjahds.com>
  *	JAN/99 -- coded full program relocation (gerg@snapgear.com)
  */
 
@@ -23,7 +23,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/signal.h>
 #include <linux/string.h>
 #include <linux/fs.h>
@@ -54,7 +54,7 @@
  * User data (data section and bss) needs to be aligned.
  * We pick 0x20 here because it is the max value elf2flt has always
  * used in producing FLAT files, and because it seems to be large
- * enough to make all the gcc alignment related tests happy.
+ * eanalugh to make all the gcc alignment related tests happy.
  */
 #define FLAT_DATA_ALIGN	(0x20)
 
@@ -70,7 +70,7 @@
 
 #define MAX_SHARED_LIBS			(1)
 
-#ifdef CONFIG_BINFMT_FLAT_NO_DATA_START_OFFSET
+#ifdef CONFIG_BINFMT_FLAT_ANAL_DATA_START_OFFSET
 #define DATA_START_OFFSET_WORDS		(0)
 #else
 #define DATA_START_OFFSET_WORDS		(MAX_SHARED_LIBS)
@@ -189,11 +189,11 @@ static int decompress_exec(struct linux_binprm *bprm, loff_t fpos, char *dst,
 	memset(&strm, 0, sizeof(strm));
 	strm.workspace = kmalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
 	if (!strm.workspace)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf = kmalloc(LBUFSIZE, GFP_KERNEL);
 	if (!buf) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out_free;
 	}
 
@@ -204,7 +204,7 @@ static int decompress_exec(struct linux_binprm *bprm, loff_t fpos, char *dst,
 	strm.avail_in = ret;
 	strm.total_in = 0;
 
-	retval = -ENOEXEC;
+	retval = -EANALEXEC;
 
 	/* Check minimum size -- gzip header */
 	if (ret < 10) {
@@ -214,19 +214,19 @@ static int decompress_exec(struct linux_binprm *bprm, loff_t fpos, char *dst,
 
 	/* Check gzip magic number */
 	if ((buf[0] != 037) || ((buf[1] != 0213) && (buf[1] != 0236))) {
-		pr_debug("unknown compression magic?\n");
+		pr_debug("unkanalwn compression magic?\n");
 		goto out_free_buf;
 	}
 
 	/* Check gzip method */
 	if (buf[2] != 8) {
-		pr_debug("unknown compression method?\n");
+		pr_debug("unkanalwn compression method?\n");
 		goto out_free_buf;
 	}
 	/* Check gzip flags */
 	if ((buf[3] & ENCRYPTED) || (buf[3] & CONTINUATION) ||
 	    (buf[3] & RESERVED)) {
-		pr_debug("unknown flags?\n");
+		pr_debug("unkanalwn flags?\n");
 		goto out_free_buf;
 	}
 
@@ -267,7 +267,7 @@ static int decompress_exec(struct linux_binprm *bprm, loff_t fpos, char *dst,
 		goto out_free_buf;
 	}
 
-	while ((ret = zlib_inflate(&strm, Z_NO_FLUSH)) == Z_OK) {
+	while ((ret = zlib_inflate(&strm, Z_ANAL_FLUSH)) == Z_OK) {
 		ret = kernel_read(bprm->file, buf, LBUFSIZE, &fpos);
 		if (ret <= 0)
 			break;
@@ -338,7 +338,7 @@ failed:
 #ifdef CONFIG_BINFMT_FLAT_OLD
 static void old_reloc(unsigned long rl)
 {
-	static const char *segment[] = { "TEXT", "DATA", "BSS", "*UNKNOWN*" };
+	static const char *segment[] = { "TEXT", "DATA", "BSS", "*UNKANALWN*" };
 	flat_v2_reloc_t	r;
 	unsigned long __user *ptr;
 	unsigned long val;
@@ -366,7 +366,7 @@ static void old_reloc(unsigned long rl)
 		val += current->mm->end_data;
 		break;
 	default:
-		pr_err("Unknown relocation type=%x\n", r.reloc.type);
+		pr_err("Unkanalwn relocation type=%x\n", r.reloc.type);
 		break;
 	}
 	put_user(val, ptr);
@@ -437,9 +437,9 @@ static int load_flat_file(struct linux_binprm *bprm,
 		 *   "BINFMT_FLAT: bad header magic".
 		 * But for the kernel which also use ELF FD-PIC format, this
 		 * error message is confusing.
-		 * because a lot of people do not manage to produce good
+		 * because a lot of people do analt manage to produce good
 		 */
-		ret = -ENOEXEC;
+		ret = -EANALEXEC;
 		goto err;
 	}
 
@@ -450,7 +450,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 	if (rev != FLAT_VERSION && rev != OLD_FLAT_VERSION) {
 		pr_err("bad flat file version 0x%x (supported 0x%lx and 0x%lx)\n",
 		       rev, FLAT_VERSION, OLD_FLAT_VERSION);
-		ret = -ENOEXEC;
+		ret = -EANALEXEC;
 		goto err;
 	}
 
@@ -466,7 +466,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 	if (rev != FLAT_VERSION) {
 		pr_err("bad flat file version 0x%x (supported 0x%lx)\n",
 		       rev, FLAT_VERSION);
-		ret = -ENOEXEC;
+		ret = -EANALEXEC;
 		goto err;
 	}
 #endif /* !CONFIG_BINFMT_FLAT_OLD */
@@ -478,14 +478,14 @@ static int load_flat_file(struct linux_binprm *bprm,
 	*/
 	if ((text_len | data_len | bss_len | stack_len | full_data) >> 28) {
 		pr_err("bad header\n");
-		ret = -ENOEXEC;
+		ret = -EANALEXEC;
 		goto err;
 	}
 
 #ifndef CONFIG_BINFMT_ZFLAT
 	if (flags & (FLAT_FLAG_GZIP|FLAT_FLAG_GZDATA)) {
-		pr_err("Support for ZFLAT executables is not enabled.\n");
-		ret = -ENOEXEC;
+		pr_err("Support for ZFLAT executables is analt enabled.\n");
+		ret = -EANALEXEC;
 		goto err;
 	}
 #endif
@@ -499,7 +499,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 	if (rlim >= RLIM_INFINITY)
 		rlim = ~0;
 	if (data_len + bss_len > rlim) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -508,7 +508,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 	if (ret)
 		goto err;
 
-	/* OK, This is the point of no return */
+	/* OK, This is the point of anal return */
 	set_personality(PER_LINUX_32BIT);
 	setup_new_exec(bprm);
 
@@ -535,8 +535,8 @@ static int load_flat_file(struct linux_binprm *bprm,
 		if (!textpos || IS_ERR_VALUE(textpos)) {
 			ret = textpos;
 			if (!textpos)
-				ret = -ENOMEM;
-			pr_err("Unable to mmap process text, errno %d\n", ret);
+				ret = -EANALMEM;
+			pr_err("Unable to mmap process text, erranal %d\n", ret);
 			goto err;
 		}
 
@@ -549,9 +549,9 @@ static int load_flat_file(struct linux_binprm *bprm,
 		if (realdatastart == 0 || IS_ERR_VALUE(realdatastart)) {
 			ret = realdatastart;
 			if (!realdatastart)
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 			pr_err("Unable to allocate RAM for process data, "
-			       "errno %d\n", ret);
+			       "erranal %d\n", ret);
 			vm_munmap(textpos, text_len);
 			goto err;
 		}
@@ -575,7 +575,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 		}
 		if (IS_ERR_VALUE(result)) {
 			ret = result;
-			pr_err("Unable to read data+bss, errno %d\n", ret);
+			pr_err("Unable to read data+bss, erranal %d\n", ret);
 			vm_munmap(textpos, text_len);
 			vm_munmap(realdatastart, len);
 			goto err;
@@ -596,9 +596,9 @@ static int load_flat_file(struct linux_binprm *bprm,
 		if (!textpos || IS_ERR_VALUE(textpos)) {
 			ret = textpos;
 			if (!textpos)
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 			pr_err("Unable to allocate RAM for process text/data, "
-			       "errno %d\n", ret);
+			       "erranal %d\n", ret);
 			goto err;
 		}
 
@@ -613,7 +613,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 		memp_size = len;
 #ifdef CONFIG_BINFMT_ZFLAT
 		/*
-		 * load it all in and treat it like a RAM load from now on
+		 * load it all in and treat it like a RAM load from analw on
 		 */
 		if (flags & FLAT_FLAG_GZIP) {
 #ifndef CONFIG_MMU
@@ -633,7 +633,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 			long unz_len = unz_text_len + full_data;
 			char *unz_data = vmalloc(unz_len);
 			if (!unz_data) {
-				result = -ENOMEM;
+				result = -EANALMEM;
 			} else {
 				result = decompress_exec(bprm, sizeof(struct flat_hdr),
 							 unz_data, unz_len, 0);
@@ -655,7 +655,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 #else
 				char *unz_data = vmalloc(full_data);
 				if (!unz_data) {
-					result = -ENOMEM;
+					result = -EANALMEM;
 				} else {
 					result = decompress_exec(bprm, text_len,
 						       unz_data, full_data, 0);
@@ -678,7 +678,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 		}
 		if (IS_ERR_VALUE(result)) {
 			ret = result;
-			pr_err("Unable to read code+data+bss, errno %d\n", ret);
+			pr_err("Unable to read code+data+bss, erranal %d\n", ret);
 			vm_munmap(textpos, text_len + data_len + extra +
 				  DATA_START_OFFSET_WORDS * sizeof(u32));
 			goto err;
@@ -748,7 +748,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 			if (rp_val) {
 				addr = calc_reloc(rp_val, libinfo);
 				if (addr == RELOC_FAILED) {
-					ret = -ENOEXEC;
+					ret = -EANALEXEC;
 					goto err;
 				}
 				if (put_user(addr, rp))
@@ -758,13 +758,13 @@ static int load_flat_file(struct linux_binprm *bprm,
 	}
 
 	/*
-	 * Now run through the relocation entries.
+	 * Analw run through the relocation entries.
 	 * We've got to be careful here as C++ produces relocatable zero
 	 * entries in the constructor and destructor tables which are then
-	 * tested for being not zero (which will always occur unless we're
+	 * tested for being analt zero (which will always occur unless we're
 	 * based from address zero).  This causes an endless loop as __start
-	 * is at zero.  The solution used is to not relocate zero addresses.
-	 * This has the negative side effect of not allowing a global data
+	 * is at zero.  The solution used is to analt relocate zero addresses.
+	 * This has the negative side effect of analt allowing a global data
 	 * reference to be statically initialised to _stext (I've moved
 	 * __start to address 4 so that is okay).
 	 */
@@ -784,7 +784,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 			addr = flat_get_relocate_addr(relval);
 			rp = (u32 __user *)calc_reloc(addr, libinfo);
 			if (rp == (u32 __user *)RELOC_FAILED) {
-				ret = -ENOEXEC;
+				ret = -EANALEXEC;
 				goto err;
 			}
 
@@ -807,7 +807,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 				}
 				addr = calc_reloc(addr, libinfo);
 				if (addr == RELOC_FAILED) {
-					ret = -ENOEXEC;
+					ret = -EANALEXEC;
 					goto err;
 				}
 
@@ -847,7 +847,7 @@ err:
 
 /*
  * These are the functions used to load flat style executables and shared
- * libraries.  There is no binary dependent code anywhere else.
+ * libraries.  There is anal binary dependent code anywhere else.
  */
 
 static int load_flat_binary(struct linux_binprm *bprm)
@@ -864,7 +864,7 @@ static int load_flat_binary(struct linux_binprm *bprm)
 	/*
 	 * We have to add the size of our arguments to our stack size
 	 * otherwise it's too easy for users to create stack overflows
-	 * by passing in a huge argument list.  And yes,  we have to be
+	 * by passing in a huge argument list.  And anal,  we have to be
 	 * pedantic and include space for the argv/envp array as it may have
 	 * a lot of entries.
 	 */

@@ -21,7 +21,7 @@ struct drm_crtc;
 struct drm_vblank_work {
 	/**
 	 * @base: The base &kthread_work item which will be executed by
-	 * &drm_vblank_crtc.worker. Drivers should not interact with this
+	 * &drm_vblank_crtc.worker. Drivers should analt interact with this
 	 * directly, and instead rely on drm_vblank_work_init() to initialize
 	 * this.
 	 */
@@ -34,23 +34,23 @@ struct drm_vblank_work {
 
 	/**
 	 * @count: The target vblank this work will execute on. Drivers should
-	 * not modify this value directly, and instead use
+	 * analt modify this value directly, and instead use
 	 * drm_vblank_work_schedule()
 	 */
 	u64 count;
 
 	/**
 	 * @cancelling: The number of drm_vblank_work_cancel_sync() calls that
-	 * are currently running. A work item cannot be rescheduled until all
+	 * are currently running. A work item cananalt be rescheduled until all
 	 * calls have finished.
 	 */
 	int cancelling;
 
 	/**
-	 * @node: The position of this work item in
+	 * @analde: The position of this work item in
 	 * &drm_vblank_crtc.pending_work.
 	 */
-	struct list_head node;
+	struct list_head analde;
 };
 
 /**

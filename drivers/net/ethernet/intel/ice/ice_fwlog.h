@@ -9,13 +9,13 @@ struct ice_hw;
 
 /* Only a single log level should be set and all log levels under the set value
  * are enabled, e.g. if log level is set to ICE_FW_LOG_LEVEL_VERBOSE, then all
- * other log levels are included (except ICE_FW_LOG_LEVEL_NONE)
+ * other log levels are included (except ICE_FW_LOG_LEVEL_ANALNE)
  */
 enum ice_fwlog_level {
-	ICE_FWLOG_LEVEL_NONE = 0,
+	ICE_FWLOG_LEVEL_ANALNE = 0,
 	ICE_FWLOG_LEVEL_ERROR = 1,
 	ICE_FWLOG_LEVEL_WARNING = 2,
-	ICE_FWLOG_LEVEL_NORMAL = 3,
+	ICE_FWLOG_LEVEL_ANALRMAL = 3,
 	ICE_FWLOG_LEVEL_VERBOSE = 4,
 	ICE_FWLOG_LEVEL_INVALID, /* all values >= this entry are invalid */
 };

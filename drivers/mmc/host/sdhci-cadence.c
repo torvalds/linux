@@ -54,9 +54,9 @@
 #define SDHCI_CDNS_PHY_DLY_STROBE	0x0d
 
 /*
- * The tuned val register is 6 bit-wide, but not the whole of the range is
+ * The tuned val register is 6 bit-wide, but analt the whole of the range is
  * available.  The range 0-42 seems to be available (then 43 wraps around to 0)
- * but I am not quite sure if it is official.  Use only 0 to 39 for safety.
+ * but I am analt quite sure if it is official.  Use only 0 to 39 for safety.
  */
 #define SDHCI_CDNS_MAX_TUNING_LOOP	40
 
@@ -138,7 +138,7 @@ static int sdhci_cdns_write_phy_reg(struct sdhci_cdns_priv *priv,
 	return ret;
 }
 
-static unsigned int sdhci_cdns_phy_param_count(struct device_node *np)
+static unsigned int sdhci_cdns_phy_param_count(struct device_analde *np)
 {
 	unsigned int count = 0;
 	int i;
@@ -150,7 +150,7 @@ static unsigned int sdhci_cdns_phy_param_count(struct device_node *np)
 	return count;
 }
 
-static void sdhci_cdns_phy_param_parse(struct device_node *np,
+static void sdhci_cdns_phy_param_parse(struct device_analde *np,
 				       struct sdhci_cdns_priv *priv)
 {
 	struct sdhci_cdns_phy_param *p = priv->phy_params;
@@ -252,7 +252,7 @@ static int sdhci_cdns_set_tune_val(struct sdhci_host *host, unsigned int val)
 }
 
 /*
- * In SD mode, software must not use the hardware tuning and instead perform
+ * In SD mode, software must analt use the hardware tuning and instead perform
  * an almost identical procedure to eMMC.
  */
 static int sdhci_cdns_execute_tuning(struct sdhci_host *host, u32 opcode)
@@ -263,7 +263,7 @@ static int sdhci_cdns_execute_tuning(struct sdhci_host *host, u32 opcode)
 	int i;
 
 	/*
-	 * Do not execute tuning for UHS_SDR50 or UHS_DDR50.
+	 * Do analt execute tuning for UHS_SDR50 or UHS_DDR50.
 	 * The delay is set by probe, based on the DT properties.
 	 */
 	if (host->timing != MMC_TIMING_MMC_HS200 &&
@@ -284,7 +284,7 @@ static int sdhci_cdns_execute_tuning(struct sdhci_host *host, u32 opcode)
 	}
 
 	if (!max_streak) {
-		dev_err(mmc_dev(host->mmc), "no tuning point found\n");
+		dev_err(mmc_dev(host->mmc), "anal tuning point found\n");
 		return -EIO;
 	}
 
@@ -495,7 +495,7 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 	if (!data)
 		data = &sdhci_cdns_drv_data;
 
-	nr_phy_params = sdhci_cdns_phy_param_count(dev->of_node);
+	nr_phy_params = sdhci_cdns_phy_param_count(dev->of_analde);
 	host = sdhci_pltfm_init(pdev, &data->pltfm_data,
 				struct_size(priv, phy_params, nr_phy_params));
 	if (IS_ERR(host))
@@ -526,7 +526,7 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 	if (ret)
 		goto free;
 
-	sdhci_cdns_phy_param_parse(dev->of_node, priv);
+	sdhci_cdns_phy_param_parse(dev->of_analde, priv);
 
 	ret = sdhci_cdns_phy_init(priv);
 	if (ret)
@@ -603,7 +603,7 @@ MODULE_DEVICE_TABLE(of, sdhci_cdns_match);
 static struct platform_driver sdhci_cdns_driver = {
 	.driver = {
 		.name = "sdhci-cdns",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm = &sdhci_cdns_pm_ops,
 		.of_match_table = sdhci_cdns_match,
 	},

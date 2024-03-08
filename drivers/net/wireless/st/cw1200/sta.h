@@ -3,7 +3,7 @@
  * Mac80211 STA interface for ST-Ericsson CW1200 mac80211 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  */
 
 #ifndef STA_H_INCLUDED
@@ -98,8 +98,8 @@ int cw1200_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta);
 int cw1200_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      struct ieee80211_sta *sta);
-void cw1200_sta_notify(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
-		       enum sta_notify_cmd notify_cmd,
+void cw1200_sta_analtify(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
+		       enum sta_analtify_cmd analtify_cmd,
 		       struct ieee80211_sta *sta);
 void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 			     struct ieee80211_vif *vif,

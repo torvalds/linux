@@ -111,7 +111,7 @@ smb2_add_credits(struct TCP_Server_Info *server,
 		}
 	} else if ((server->in_flight > 0) && (server->oplock_credits > 3) &&
 		   ((optype & CIFS_OP_MASK) == CIFS_OBREAK_OP))
-		/* if now have too many oplock credits, rebalance so don't starve normal ops */
+		/* if analw have too many oplock credits, rebalance so don't starve analrmal ops */
 		change_conf(server);
 
 	scredits = *val;
@@ -130,7 +130,7 @@ smb2_add_credits(struct TCP_Server_Info *server,
 	if (reconnect_with_invalid_credits) {
 		trace_smb3_reconnect_with_invalid_credits(server->CurrentMid,
 			server->conn_id, server->hostname, scredits, add, in_flight);
-		cifs_dbg(FYI, "Negotiate operation when server credits is non-zero. Optype: %d, server credits: %d, credits added: %d\n",
+		cifs_dbg(FYI, "Negotiate operation when server credits is analn-zero. Optype: %d, server credits: %d, credits added: %d\n",
 			 optype, scredits, add);
 	}
 
@@ -229,7 +229,7 @@ smb2_wait_mtu_credits(struct TCP_Server_Info *server, unsigned int size,
 		spin_lock(&server->srv_lock);
 		if (server->tcpStatus == CifsExiting) {
 			spin_unlock(&server->srv_lock);
-			return -ENOENT;
+			return -EANALENT;
 		}
 		spin_unlock(&server->srv_lock);
 
@@ -297,7 +297,7 @@ smb2_adjust_credits(struct TCP_Server_Info *server,
 		cifs_server_dbg(VFS, "request has less credits (%d) than required (%d)",
 				credits->value, new_val);
 
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	spin_lock(&server->req_lock);
@@ -360,7 +360,7 @@ __smb2_find_mid(struct TCP_Server_Info *server, char *buf, bool dequeue)
 	__u64 wire_mid = le64_to_cpu(shdr->MessageId);
 
 	if (shdr->ProtocolId == SMB2_TRANSFORM_PROTO_NUM) {
-		cifs_server_dbg(VFS, "Encrypted frame parsing not supported yet\n");
+		cifs_server_dbg(VFS, "Encrypted frame parsing analt supported yet\n");
 		return NULL;
 	}
 
@@ -586,7 +586,7 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 	p = buf;
 
 	spin_lock(&ses->iface_lock);
-	/* do not query too frequently, this time with lock held */
+	/* do analt query too frequently, this time with lock held */
 	if (ses->iface_last_update &&
 	    time_before(jiffies, ses->iface_last_update +
 			(SMB_INTERFACE_POLL_INTERVAL * HZ))) {
@@ -611,10 +611,10 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 		/* avoid spamming logs every 10 minutes, so log only in mount */
 		if ((ses->chan_max > 1) && in_mount)
 			cifs_dbg(VFS,
-				 "multichannel not available\n"
+				 "multichannel analt available\n"
 				 "Empty network interface list returned by server %s\n",
 				 ses->server->hostname);
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		ses->iface_last_update = jiffies;
 		goto out;
 	}
@@ -637,7 +637,7 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 			addr4->sin_family = AF_INET;
 			memcpy(&addr4->sin_addr, &p4->IPv4Address, 4);
 
-			/* [MS-SMB2] 2.2.32.5.1.1 Clients MUST ignore these */
+			/* [MS-SMB2] 2.2.32.5.1.1 Clients MUST iganalre these */
 			addr4->sin_port = cpu_to_be16(CIFS_PORT);
 
 			cifs_dbg(FYI, "%s: ipv4 %pI4\n", __func__,
@@ -649,7 +649,7 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 			addr6->sin6_family = AF_INET6;
 			memcpy(&addr6->sin6_addr, &p6->IPv6Address, 16);
 
-			/* [MS-SMB2] 2.2.32.5.1.2 Clients MUST ignore these */
+			/* [MS-SMB2] 2.2.32.5.1.2 Clients MUST iganalre these */
 			addr6->sin6_flowinfo = 0;
 			addr6->sin6_scope_id = 0;
 			addr6->sin6_port = cpu_to_be16(CIFS_PORT);
@@ -686,11 +686,11 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 		}
 		spin_unlock(&ses->iface_lock);
 
-		/* no match. insert the entry in the list */
+		/* anal match. insert the entry in the list */
 		info = kmalloc(sizeof(struct cifs_server_iface),
 			       GFP_KERNEL);
 		if (!info) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 		memcpy(info, &tmp_iface, sizeof(tmp_iface));
@@ -763,19 +763,19 @@ SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon, bool in_
 	struct cifs_ses *ses = tcon->ses;
 	struct TCP_Server_Info *pserver;
 
-	/* do not query too frequently */
+	/* do analt query too frequently */
 	if (ses->iface_last_update &&
 	    time_before(jiffies, ses->iface_last_update +
 			(SMB_INTERFACE_POLL_INTERVAL * HZ)))
 		return 0;
 
-	rc = SMB2_ioctl(xid, tcon, NO_FILE_ID, NO_FILE_ID,
+	rc = SMB2_ioctl(xid, tcon, ANAL_FILE_ID, ANAL_FILE_ID,
 			FSCTL_QUERY_NETWORK_INTERFACE_INFO,
-			NULL /* no data input */, 0 /* no data input */,
+			NULL /* anal data input */, 0 /* anal data input */,
 			CIFSMaxBufSize, (char **)&out_buf, &ret_data_len);
-	if (rc == -EOPNOTSUPP) {
+	if (rc == -EOPANALTSUPP) {
 		cifs_dbg(FYI,
-			 "server does not support query network interfaces\n");
+			 "server does analt support query network interfaces\n");
 		ret_data_len = 0;
 	} else if (rc != 0) {
 		cifs_tcon_dbg(VFS, "error %d on ioctl to get interface list\n", rc);
@@ -807,7 +807,7 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon,
 {
 	int rc;
 	__le16 srch_path = 0; /* Null - open root of share */
-	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	u8 oplock = SMB2_OPLOCK_LEVEL_ANALNE;
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
 	struct cached_fid *cfid = NULL;
@@ -852,7 +852,7 @@ smb2_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon,
 {
 	int rc;
 	__le16 srch_path = 0; /* Null - open root of share */
-	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	u8 oplock = SMB2_OPLOCK_LEVEL_ANALNE;
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
 
@@ -882,8 +882,8 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 			struct cifs_sb_info *cifs_sb, const char *full_path)
 {
 	__le16 *utf16_path;
-	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
-	int err_buftype = CIFS_NO_BUFFER;
+	__u8 oplock = SMB2_OPLOCK_LEVEL_ANALNE;
+	int err_buftype = CIFS_ANAL_BUFFER;
 	struct cifs_open_parms oparms;
 	struct kvec err_iov = {};
 	struct cifs_fid fid;
@@ -902,7 +902,7 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 
 	utf16_path = cifs_convert_path_to_utf16(full_path, cifs_sb);
 	if (!utf16_path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	oparms = (struct cifs_open_parms) {
 		.tcon = tcon,
@@ -918,7 +918,7 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 	if (rc) {
 		struct smb2_hdr *hdr = err_iov.iov_base;
 
-		if (unlikely(!hdr || err_buftype == CIFS_NO_BUFFER))
+		if (unlikely(!hdr || err_buftype == CIFS_ANAL_BUFFER))
 			goto out;
 
 		if (rc != -EREMOTE && hdr->Status == STATUS_OBJECT_NAME_INVALID) {
@@ -932,8 +932,8 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 				rc = -EREMOTE;
 		}
 		if (rc == -EREMOTE && IS_ENABLED(CONFIG_CIFS_DFS_UPCALL) && cifs_sb &&
-		    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS))
-			rc = -EOPNOTSUPP;
+		    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_ANAL_DFS))
+			rc = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -961,7 +961,7 @@ static int smb2_query_file_info(const unsigned int xid, struct cifs_tcon *tcon,
 	if (cfile->symlink_target) {
 		data->symlink_target = kstrdup(cfile->symlink_target, GFP_KERNEL);
 		if (!data->symlink_target)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	return SMB2_query_info(xid, tcon, fid->persistent_fid, fid->volatile_fid, &data->fi);
 }
@@ -1045,7 +1045,7 @@ move_smb2_ea_to_cifs(char *dst, size_t dst_size,
 
 	/* didn't find the named attribute */
 	if (ea_name)
-		rc = -ENODATA;
+		rc = -EANALDATA;
 
 out:
 	return (ssize_t)rc;
@@ -1059,7 +1059,7 @@ smb2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,
 {
 	int rc;
 	struct kvec rsp_iov = {NULL, 0};
-	int buftype = CIFS_NO_BUFFER;
+	int buftype = CIFS_ANAL_BUFFER;
 	struct smb2_query_info_rsp *rsp;
 	struct smb2_file_full_ea_info *info = NULL;
 
@@ -1073,11 +1073,11 @@ smb2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,
 				      &rsp_iov, &buftype, cifs_sb);
 	if (rc) {
 		/*
-		 * If ea_name is NULL (listxattr) and there are no EAs,
-		 * return 0 as it's not an error. Otherwise, the specified
-		 * ea_name was not found.
+		 * If ea_name is NULL (listxattr) and there are anal EAs,
+		 * return 0 as it's analt an error. Otherwise, the specified
+		 * ea_name was analt found.
 		 */
-		if (!ea_name && rc == -ENODATA)
+		if (!ea_name && rc == -EANALDATA)
 			rc = 0;
 		goto qeas_exit;
 	}
@@ -1117,7 +1117,7 @@ smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 	int len;
 	int resp_buftype[3];
 	struct cifs_open_parms oparms;
-	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	__u8 oplock = SMB2_OPLOCK_LEVEL_ANALNE;
 	struct cifs_fid fid;
 	unsigned int size[1];
 	void *data[1];
@@ -1129,7 +1129,7 @@ smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 replay_again:
 	/* reinitialize for possible replay */
 	flags = CIFS_CP_CREATE_CLOSE_OP;
-	oplock = SMB2_OPLOCK_LEVEL_NONE;
+	oplock = SMB2_OPLOCK_LEVEL_ANALNE;
 	server = cifs_pick_channel(ses);
 
 	if (smb3_encryption_required(tcon))
@@ -1140,12 +1140,12 @@ replay_again:
 
 	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
 	if (!utf16_path)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_NO_BUFFER;
+	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_ANAL_BUFFER;
 	vars = kzalloc(sizeof(*vars), GFP_KERNEL);
 	if (!vars) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_path;
 	}
 	rqst = vars->rqst;
@@ -1156,13 +1156,13 @@ replay_again:
 			rc = ses->server->ops->query_all_EAs(xid, tcon, path,
 							     ea_name, NULL, 0,
 							     cifs_sb);
-			if (rc == -ENODATA)
+			if (rc == -EANALDATA)
 				goto sea_exit;
 		} else {
 			/* If we are adding a attribute we should first check
-			 * if there will be enough space available to store
-			 * the new EA. If not we should not add it since we
-			 * would not be able to even read the EAs back.
+			 * if there will be eanalugh space available to store
+			 * the new EA. If analt we should analt add it since we
+			 * would analt be able to even read the EAs back.
 			 */
 			rc = smb2_query_info_compound(xid, tcon, path,
 				      FILE_READ_EA,
@@ -1177,7 +1177,7 @@ replay_again:
 				used_len = le32_to_cpu(rsp->OutputBufferLength);
 			}
 			free_rsp_buf(resp_buftype[1], rsp_iov[1].iov_base);
-			resp_buftype[1] = CIFS_NO_BUFFER;
+			resp_buftype[1] = CIFS_ANAL_BUFFER;
 			memset(&rsp_iov[1], 0, sizeof(rsp_iov[1]));
 			rc = 0;
 
@@ -1187,7 +1187,7 @@ replay_again:
 			if (CIFSMaxBufSize - MAX_SMB2_CREATE_RESPONSE_SIZE -
 			   MAX_SMB2_CLOSE_RESPONSE_SIZE - 256 <
 			   used_len + ea_name_len + ea_value_len + 1) {
-				rc = -ENOSPC;
+				rc = -EANALSPC;
 				goto sea_exit;
 			}
 		}
@@ -1221,7 +1221,7 @@ replay_again:
 	len = sizeof(*ea) + ea_name_len + ea_value_len + 1;
 	ea = kzalloc(len, GFP_KERNEL);
 	if (ea == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto sea_exit;
 	}
 
@@ -1261,7 +1261,7 @@ replay_again:
 	rc = compound_send_recv(xid, ses, server,
 				flags, 3, rqst,
 				resp_buftype, rsp_iov);
-	/* no need to bump num_remote_opens because handle immediately closed */
+	/* anal need to bump num_remote_opens because handle immediately closed */
 
  sea_exit:
 	kfree(ea);
@@ -1315,12 +1315,12 @@ smb2_dump_share_caps(struct seq_file *m, struct cifs_tcon *tcon)
 	if (tcon->capabilities & SMB2_SHARE_CAP_ASYMMETRIC)
 		seq_puts(m, " ASYMMETRIC,");
 	if (tcon->capabilities == 0)
-		seq_puts(m, " None");
+		seq_puts(m, " Analne");
 	if (tcon->ss_flags & SSINFO_FLAGS_ALIGNED_DEVICE)
 		seq_puts(m, " Aligned,");
 	if (tcon->ss_flags & SSINFO_FLAGS_PARTITION_ALIGNED_ON_DEVICE)
 		seq_puts(m, " Partition Aligned,");
-	if (tcon->ss_flags & SSINFO_FLAGS_NO_SEEK_PENALTY)
+	if (tcon->ss_flags & SSINFO_FLAGS_ANAL_SEEK_PENALTY)
 		seq_puts(m, " SSD,");
 	if (tcon->ss_flags & SSINFO_FLAGS_TRIM_ENABLED)
 		seq_puts(m, " TRIM-support,");
@@ -1341,7 +1341,7 @@ smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 
 	/*
 	 *  Can't display SMB2_NEGOTIATE, SESSION_SETUP, LOGOFF, CANCEL and ECHO
-	 *  totals (requests sent) since those SMBs are per-session not per tcon
+	 *  totals (requests sent) since those SMBs are per-session analt per tcon
 	 */
 	seq_printf(m, "\nBytes read: %llu  Bytes written: %llu",
 		   (long long)(tcon->bytes_read),
@@ -1379,9 +1379,9 @@ smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 	seq_printf(m, "\nQueryDirectories: %d total %d failed",
 		   atomic_read(&sent[SMB2_QUERY_DIRECTORY_HE]),
 		   atomic_read(&failed[SMB2_QUERY_DIRECTORY_HE]));
-	seq_printf(m, "\nChangeNotifies: %d total %d failed",
-		   atomic_read(&sent[SMB2_CHANGE_NOTIFY_HE]),
-		   atomic_read(&failed[SMB2_CHANGE_NOTIFY_HE]));
+	seq_printf(m, "\nChangeAnaltifies: %d total %d failed",
+		   atomic_read(&sent[SMB2_CHANGE_ANALTIFY_HE]),
+		   atomic_read(&failed[SMB2_CHANGE_ANALTIFY_HE]));
 	seq_printf(m, "\nQueryInfos: %d total %d failed",
 		   atomic_read(&sent[SMB2_QUERY_INFO_HE]),
 		   atomic_read(&failed[SMB2_QUERY_INFO_HE]));
@@ -1396,7 +1396,7 @@ smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 static void
 smb2_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 {
-	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
+	struct cifsIanaldeInfo *cianalde = CIFS_I(d_ianalde(cfile->dentry));
 	struct TCP_Server_Info *server = tlink_tcon(cfile->tlink)->ses->server;
 
 	cfile->fid.persistent_fid = fid->persistent_fid;
@@ -1405,9 +1405,9 @@ smb2_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 #ifdef CONFIG_CIFS_DEBUG2
 	cfile->fid.mid = fid->mid;
 #endif /* CIFS_DEBUG2 */
-	server->ops->set_oplock_level(cinode, oplock, fid->epoch,
+	server->ops->set_oplock_level(cianalde, oplock, fid->epoch,
 				      &fid->purge_cache);
-	cinode->can_cache_brlcks = CIFS_CACHE_WRITE(cinode);
+	cianalde->can_cache_brlcks = CIFS_CACHE_WRITE(cianalde);
 	memcpy(cfile->fid.create_guid, fid->create_guid, 16);
 }
 
@@ -1423,7 +1423,7 @@ smb2_close_getattr(const unsigned int xid, struct cifs_tcon *tcon,
 		   struct cifsFileInfo *cfile)
 {
 	struct smb2_file_network_open_info file_inf;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int rc;
 
 	rc = __SMB2_close(xid, tcon, cfile->fid.persistent_fid,
@@ -1431,33 +1431,33 @@ smb2_close_getattr(const unsigned int xid, struct cifs_tcon *tcon,
 	if (rc)
 		return;
 
-	inode = d_inode(cfile->dentry);
+	ianalde = d_ianalde(cfile->dentry);
 
-	spin_lock(&inode->i_lock);
-	CIFS_I(inode)->time = jiffies;
+	spin_lock(&ianalde->i_lock);
+	CIFS_I(ianalde)->time = jiffies;
 
-	/* Creation time should not need to be updated on close */
+	/* Creation time should analt need to be updated on close */
 	if (file_inf.LastWriteTime)
-		inode_set_mtime_to_ts(inode,
+		ianalde_set_mtime_to_ts(ianalde,
 				      cifs_NTtimeToUnix(file_inf.LastWriteTime));
 	if (file_inf.ChangeTime)
-		inode_set_ctime_to_ts(inode,
+		ianalde_set_ctime_to_ts(ianalde,
 				      cifs_NTtimeToUnix(file_inf.ChangeTime));
 	if (file_inf.LastAccessTime)
-		inode_set_atime_to_ts(inode,
+		ianalde_set_atime_to_ts(ianalde,
 				      cifs_NTtimeToUnix(file_inf.LastAccessTime));
 
 	/*
-	 * i_blocks is not related to (i_size / i_blksize),
+	 * i_blocks is analt related to (i_size / i_blksize),
 	 * but instead 512 byte (2**9) size is required for
 	 * calculating num blocks.
 	 */
 	if (le64_to_cpu(file_inf.AllocationSize) > 4096)
-		inode->i_blocks =
+		ianalde->i_blocks =
 			(512 - 1 + le64_to_cpu(file_inf.AllocationSize)) >> 9;
 
-	/* End of file and Attributes should not have to be updated on close */
-	spin_unlock(&inode->i_lock);
+	/* End of file and Attributes should analt have to be updated on close */
+	spin_unlock(&ianalde->i_lock);
 }
 
 static int
@@ -1470,11 +1470,11 @@ SMB2_request_res_key(const unsigned int xid, struct cifs_tcon *tcon,
 	struct resume_key_req *res_key;
 
 	rc = SMB2_ioctl(xid, tcon, persistent_fid, volatile_fid,
-			FSCTL_SRV_REQUEST_RESUME_KEY, NULL, 0 /* no input */,
+			FSCTL_SRV_REQUEST_RESUME_KEY, NULL, 0 /* anal input */,
 			CIFSMaxBufSize, (char **)&res_key, &ret_data_len);
 
-	if (rc == -EOPNOTSUPP) {
-		pr_warn_once("Server share %s does not support copy range\n", tcon->tree_name);
+	if (rc == -EOPANALTSUPP) {
+		pr_warn_once("Server share %s does analt support copy range\n", tcon->tree_name);
 		goto req_res_key_exit;
 	} else if (rc) {
 		cifs_tcon_dbg(VFS, "refcpy ioctl error %d getting resume key\n", rc);
@@ -1514,27 +1514,27 @@ smb2_ioctl_query_info(const unsigned int xid,
 	void *buffer = NULL;
 	int resp_buftype[3];
 	struct cifs_open_parms oparms;
-	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	u8 oplock = SMB2_OPLOCK_LEVEL_ANALNE;
 	struct cifs_fid fid;
 	unsigned int size[2];
 	void *data[2];
-	int create_options = is_dir ? CREATE_NOT_FILE : CREATE_NOT_DIR;
+	int create_options = is_dir ? CREATE_ANALT_FILE : CREATE_ANALT_DIR;
 	void (*free_req1_func)(struct smb_rqst *r);
 	int retries = 0, cur_sleep = 1;
 
 replay_again:
 	/* reinitialize for possible replay */
 	flags = CIFS_CP_CREATE_CLOSE_OP;
-	oplock = SMB2_OPLOCK_LEVEL_NONE;
+	oplock = SMB2_OPLOCK_LEVEL_ANALNE;
 	server = cifs_pick_channel(ses);
 
 	vars = kzalloc(sizeof(*vars), GFP_ATOMIC);
 	if (vars == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	rqst = &vars->rqst[0];
 	rsp_iov = &vars->rsp_iov[0];
 
-	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_NO_BUFFER;
+	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_ANAL_BUFFER;
 
 	if (copy_from_user(&qi, arg, sizeof(struct smb_query_info))) {
 		rc = -EFAULT;
@@ -1647,7 +1647,7 @@ replay_again:
 				  qi.input_buffer_length,
 				  qi.output_buffer_length, buffer);
 		free_req1_func = SMB2_query_info_free;
-	} else { /* unknown flags */
+	} else { /* unkanalwn flags */
 		cifs_tcon_dbg(VFS, "Invalid passthru query flags: 0x%x\n",
 			      qi.flags);
 		rc = -EINVAL;
@@ -1680,7 +1680,7 @@ replay_again:
 	if (rc)
 		goto out;
 
-	/* No need to bump num_remote_opens since handle immediately closed */
+	/* Anal need to bump num_remote_opens since handle immediately closed */
 	if (qi.flags & PASSTHRU_FSCTL) {
 		pqi = (struct smb_query_info __user *)arg;
 		io_rsp = (struct smb2_ioctl_rsp *)rsp_iov[1].iov_base;
@@ -1759,7 +1759,7 @@ smb2_copychunk_range(const unsigned int xid,
 
 	pcchunk = kmalloc(sizeof(struct copychunk_ioctl), GFP_KERNEL);
 	if (pcchunk == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cifs_dbg(FYI, "%s: about to call request res key\n", __func__);
 	/* Request a key from the server to identify the source of the copy */
@@ -1767,11 +1767,11 @@ smb2_copychunk_range(const unsigned int xid,
 				srcfile->fid.persistent_fid,
 				srcfile->fid.volatile_fid, pcchunk);
 
-	/* Note: request_res_key sets res_key null only if rc !=0 */
+	/* Analte: request_res_key sets res_key null only if rc !=0 */
 	if (rc)
 		goto cchunk_out;
 
-	/* For now array only one chunk long, will make more flexible later */
+	/* For analw array only one chunk long, will make more flexible later */
 	pcchunk->ChunkCount = cpu_to_le32(1);
 	pcchunk->Reserved = 0;
 	pcchunk->Reserved2 = 0;
@@ -1799,7 +1799,7 @@ smb2_copychunk_range(const unsigned int xid,
 				goto cchunk_out;
 			}
 			if (retbuf->TotalBytesWritten == 0) {
-				cifs_dbg(FYI, "no bytes copied\n");
+				cifs_dbg(FYI, "anal bytes copied\n");
 				rc = -EIO;
 				goto cchunk_out;
 			}
@@ -1843,12 +1843,12 @@ smb2_copychunk_range(const unsigned int xid,
 			 * (ie check if copy succeed once with original sizes
 			 * and check if the server gave us different sizes after
 			 * we already updated max sizes on previous request).
-			 * if not then why is the server returning an error now
+			 * if analt then why is the server returning an error analw
 			 */
 			if ((chunks_copied != 0) || chunk_sizes_updated)
 				goto cchunk_out;
 
-			/* Check that server is not asking us to grow size */
+			/* Check that server is analt asking us to grow size */
 			if (le32_to_cpu(retbuf->ChunkBytesWritten) <
 					tcon->max_bytes_chunk)
 				tcon->max_bytes_chunk =
@@ -1856,7 +1856,7 @@ smb2_copychunk_range(const unsigned int xid,
 			else
 				goto cchunk_out; /* server gave us bogus size */
 
-			/* No need to change MaxChunks since already set to 1 */
+			/* Anal need to change MaxChunks since already set to 1 */
 			chunk_sizes_updated = true;
 		} else
 			goto cchunk_out;
@@ -1921,19 +1921,19 @@ smb2_sync_write(const unsigned int xid, struct cifs_fid *pfid,
 
 /* Set or clear the SPARSE_FILE attribute based on value passed in setsparse */
 static bool smb2_set_sparse(const unsigned int xid, struct cifs_tcon *tcon,
-		struct cifsFileInfo *cfile, struct inode *inode, __u8 setsparse)
+		struct cifsFileInfo *cfile, struct ianalde *ianalde, __u8 setsparse)
 {
-	struct cifsInodeInfo *cifsi;
+	struct cifsIanaldeInfo *cifsi;
 	int rc;
 
-	cifsi = CIFS_I(inode);
+	cifsi = CIFS_I(ianalde);
 
 	/* if file already sparse don't bother setting sparse again */
 	if ((cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE) && setsparse)
 		return true; /* already sparse */
 
 	if (!(cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE) && !setsparse)
-		return true; /* already not sparse */
+		return true; /* already analt sparse */
 
 	/*
 	 * Can't check for sparse support on share the usual way via the
@@ -1941,7 +1941,7 @@ static bool smb2_set_sparse(const unsigned int xid, struct cifs_tcon *tcon,
 	 * since Samba server doesn't set the flag on the share, yet
 	 * supports the set sparse FSCTL and returns sparse correctly
 	 * in the file attributes. If we fail setting sparse though we
-	 * mark that server does not support sparse files for this share
+	 * mark that server does analt support sparse files for this share
 	 * to avoid repeatedly sending the unsupported fsctl to server
 	 * if the file is repeatedly extended.
 	 */
@@ -1969,19 +1969,19 @@ static int
 smb2_set_file_size(const unsigned int xid, struct cifs_tcon *tcon,
 		   struct cifsFileInfo *cfile, __u64 size, bool set_alloc)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	/*
 	 * If extending file more than one page make sparse. Many Linux fs
 	 * make files sparse by default when extending via ftruncate
 	 */
-	inode = d_inode(cfile->dentry);
+	ianalde = d_ianalde(cfile->dentry);
 
-	if (!set_alloc && (size > inode->i_size + 8192)) {
+	if (!set_alloc && (size > ianalde->i_size + 8192)) {
 		__u8 set_sparse = 1;
 
-		/* whether set sparse succeeds or not, extend the file */
-		smb2_set_sparse(xid, tcon, cfile, inode, set_sparse);
+		/* whether set sparse succeeds or analt, extend the file */
+		smb2_set_sparse(xid, tcon, cfile, ianalde, set_sparse);
 	}
 
 	return SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
@@ -1996,14 +1996,14 @@ smb2_duplicate_extents(const unsigned int xid,
 {
 	int rc;
 	unsigned int ret_data_len;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct duplicate_extents_to_file dup_ext_buf;
 	struct cifs_tcon *tcon = tlink_tcon(trgtfile->tlink);
 
 	/* server fileays advertise duplicate extent support with this flag */
 	if ((le32_to_cpu(tcon->fsAttrInfo.Attributes) &
 	     FILE_SUPPORTS_BLOCK_REFCOUNTING) == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	dup_ext_buf.VolatileFileHandle = srcfile->fid.volatile_fid;
 	dup_ext_buf.PersistentFileHandle = srcfile->fid.persistent_fid;
@@ -2013,8 +2013,8 @@ smb2_duplicate_extents(const unsigned int xid,
 	cifs_dbg(FYI, "Duplicate extents: src off %lld dst off %lld len %lld\n",
 		src_off, dest_off, len);
 
-	inode = d_inode(trgtfile->dentry);
-	if (inode->i_size < dest_off + len) {
+	ianalde = d_ianalde(trgtfile->dentry);
+	if (ianalde->i_size < dest_off + len) {
 		rc = smb2_set_file_size(xid, tcon, trgtfile, dest_off + len, false);
 		if (rc)
 			goto duplicate_extents_out;
@@ -2026,7 +2026,7 @@ smb2_duplicate_extents(const unsigned int xid,
 		 * size will be queried on next revalidate, but it is important
 		 * to make sure that file's cached size is updated immediately
 		 */
-		cifs_setsize(inode, dest_off + len);
+		cifs_setsize(ianalde, dest_off + len);
 	}
 	rc = SMB2_ioctl(xid, tcon, trgtfile->fid.persistent_fid,
 			trgtfile->fid.volatile_fid,
@@ -2037,7 +2037,7 @@ smb2_duplicate_extents(const unsigned int xid,
 			&ret_data_len);
 
 	if (ret_data_len > 0)
-		cifs_dbg(FYI, "Non-zero response length in duplicate extents\n");
+		cifs_dbg(FYI, "Analn-zero response length in duplicate extents\n");
 
 duplicate_extents_out:
 	return rc;
@@ -2094,16 +2094,16 @@ smb3_enum_snapshots(const unsigned int xid, struct cifs_tcon *tcon,
 	/*
 	 * On the first query to enumerate the list of snapshots available
 	 * for this volume the buffer begins with 0 (number of snapshots
-	 * which can be returned is zero since at that point we do not know
+	 * which can be returned is zero since at that point we do analt kanalw
 	 * how big the buffer needs to be). On the second query,
 	 * it (ret_data_len) is set to number of snapshots so we can
-	 * know to set the maximum response size larger (see below).
+	 * kanalw to set the maximum response size larger (see below).
 	 */
 	if (get_user(ret_data_len, (unsigned int __user *)ioc_buf))
 		return -EFAULT;
 
 	/*
-	 * Note that for snapshot queries that servers like Azure expect that
+	 * Analte that for snapshot queries that servers like Azure expect that
 	 * the first query be minimal size (and just used to get the number/size
 	 * of previous versions) so response size must be specified as EXACTLY
 	 * sizeof(struct snapshot_array) which is 16 when rounded up to multiple
@@ -2117,7 +2117,7 @@ smb3_enum_snapshots(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
 			cfile->fid.volatile_fid,
 			FSCTL_SRV_ENUMERATE_SNAPSHOTS,
-			NULL, 0 /* no input data */, max_response_size,
+			NULL, 0 /* anal input data */, max_response_size,
 			(char **)&retbuf,
 			&ret_data_len);
 	cifs_dbg(FYI, "enum snaphots ioctl returned %d and ret buflen is %d\n",
@@ -2135,7 +2135,7 @@ smb3_enum_snapshots(const unsigned int xid, struct cifs_tcon *tcon,
 		}
 
 		/*
-		 * Check for min size, ie not large enough to fit even one GMT
+		 * Check for min size, ie analt large eanalugh to fit even one GMT
 		 * token (snapshot).  On the first ioctl some users may pass in
 		 * smaller size (or zero) to simply get the size of the array
 		 * so the user space caller can allocate sufficient memory
@@ -2166,14 +2166,14 @@ smb3_enum_snapshots(const unsigned int xid, struct cifs_tcon *tcon,
 
 
 static int
-smb3_notify(const unsigned int xid, struct file *pfile,
+smb3_analtify(const unsigned int xid, struct file *pfile,
 	    void __user *ioc_buf, bool return_changes)
 {
-	struct smb3_notify_info notify;
-	struct smb3_notify_info __user *pnotify_buf;
+	struct smb3_analtify_info analtify;
+	struct smb3_analtify_info __user *panaltify_buf;
 	struct dentry *dentry = pfile->f_path.dentry;
-	struct inode *inode = file_inode(pfile);
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct ianalde *ianalde = file_ianalde(pfile);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(ianalde->i_sb);
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
 	struct cifs_tcon *tcon;
@@ -2181,33 +2181,33 @@ smb3_notify(const unsigned int xid, struct file *pfile,
 	char *returned_ioctl_info = NULL;
 	void *page = alloc_dentry_path();
 	__le16 *utf16_path = NULL;
-	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	u8 oplock = SMB2_OPLOCK_LEVEL_ANALNE;
 	int rc = 0;
 	__u32 ret_len = 0;
 
 	path = build_path_from_dentry(dentry, page);
 	if (IS_ERR(path)) {
 		rc = PTR_ERR(path);
-		goto notify_exit;
+		goto analtify_exit;
 	}
 
 	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
 	if (utf16_path == NULL) {
-		rc = -ENOMEM;
-		goto notify_exit;
+		rc = -EANALMEM;
+		goto analtify_exit;
 	}
 
 	if (return_changes) {
-		if (copy_from_user(&notify, ioc_buf, sizeof(struct smb3_notify_info))) {
+		if (copy_from_user(&analtify, ioc_buf, sizeof(struct smb3_analtify_info))) {
 			rc = -EFAULT;
-			goto notify_exit;
+			goto analtify_exit;
 		}
 	} else {
-		if (copy_from_user(&notify, ioc_buf, sizeof(struct smb3_notify))) {
+		if (copy_from_user(&analtify, ioc_buf, sizeof(struct smb3_analtify))) {
 			rc = -EFAULT;
-			goto notify_exit;
+			goto analtify_exit;
 		}
-		notify.data_len = 0;
+		analtify.data_len = 0;
 	}
 
 	tcon = cifs_sb_master_tcon(cifs_sb);
@@ -2223,26 +2223,26 @@ smb3_notify(const unsigned int xid, struct file *pfile,
 	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL, NULL,
 		       NULL);
 	if (rc)
-		goto notify_exit;
+		goto analtify_exit;
 
-	rc = SMB2_change_notify(xid, tcon, fid.persistent_fid, fid.volatile_fid,
-				notify.watch_tree, notify.completion_filter,
-				notify.data_len, &returned_ioctl_info, &ret_len);
+	rc = SMB2_change_analtify(xid, tcon, fid.persistent_fid, fid.volatile_fid,
+				analtify.watch_tree, analtify.completion_filter,
+				analtify.data_len, &returned_ioctl_info, &ret_len);
 
 	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 
-	cifs_dbg(FYI, "change notify for path %s rc %d\n", path, rc);
-	if (return_changes && (ret_len > 0) && (notify.data_len > 0)) {
-		if (ret_len > notify.data_len)
-			ret_len = notify.data_len;
-		pnotify_buf = (struct smb3_notify_info __user *)ioc_buf;
-		if (copy_to_user(pnotify_buf->notify_data, returned_ioctl_info, ret_len))
+	cifs_dbg(FYI, "change analtify for path %s rc %d\n", path, rc);
+	if (return_changes && (ret_len > 0) && (analtify.data_len > 0)) {
+		if (ret_len > analtify.data_len)
+			ret_len = analtify.data_len;
+		panaltify_buf = (struct smb3_analtify_info __user *)ioc_buf;
+		if (copy_to_user(panaltify_buf->analtify_data, returned_ioctl_info, ret_len))
 			rc = -EFAULT;
-		else if (copy_to_user(&pnotify_buf->data_len, &ret_len, sizeof(ret_len)))
+		else if (copy_to_user(&panaltify_buf->data_len, &ret_len, sizeof(ret_len)))
 			rc = -EFAULT;
 	}
 	kfree(returned_ioctl_info);
-notify_exit:
+analtify_exit:
 	free_dentry_path(page);
 	kfree(utf16_path);
 	return rc;
@@ -2261,7 +2261,7 @@ smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
 	struct kvec qd_iov[SMB2_QUERY_DIRECTORY_IOV_SIZE];
 	int rc, flags = 0;
-	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	u8 oplock = SMB2_OPLOCK_LEVEL_ANALNE;
 	struct cifs_open_parms oparms;
 	struct smb2_query_directory_rsp *qd_rsp = NULL;
 	struct smb2_create_rsp *op_rsp = NULL;
@@ -2271,18 +2271,18 @@ smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 replay_again:
 	/* reinitialize for possible replay */
 	flags = 0;
-	oplock = SMB2_OPLOCK_LEVEL_NONE;
+	oplock = SMB2_OPLOCK_LEVEL_ANALNE;
 	server = cifs_pick_channel(tcon->ses);
 
 	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
 	if (!utf16_path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
 	memset(rqst, 0, sizeof(rqst));
-	resp_buftype[0] = resp_buftype[1] = CIFS_NO_BUFFER;
+	resp_buftype[0] = resp_buftype[1] = CIFS_ANAL_BUFFER;
 	memset(rsp_iov, 0, sizeof(rsp_iov));
 
 	/* Open */
@@ -2332,7 +2332,7 @@ replay_again:
 				flags, 2, rqst,
 				resp_buftype, rsp_iov);
 
-	/* If the open failed there is nothing to do */
+	/* If the open failed there is analthing to do */
 	op_rsp = (struct smb2_create_rsp *)rsp_iov[0].iov_base;
 	if (op_rsp == NULL || op_rsp->hdr.Status != STATUS_SUCCESS) {
 		cifs_dbg(FYI, "query_dir_first: open failed rc=%d\n", rc);
@@ -2341,8 +2341,8 @@ replay_again:
 	fid->persistent_fid = op_rsp->PersistentFileId;
 	fid->volatile_fid = op_rsp->VolatileFileId;
 
-	/* Anything else than ENODATA means a genuine error */
-	if (rc && rc != -ENODATA) {
+	/* Anything else than EANALDATA means a genuine error */
+	if (rc && rc != -EANALDATA) {
 		SMB2_close(xid, tcon, fid->persistent_fid, fid->volatile_fid);
 		cifs_dbg(FYI, "query_dir_first: query directory failed rc=%d\n", rc);
 		trace_smb3_query_dir_err(xid, fid->persistent_fid,
@@ -2353,7 +2353,7 @@ replay_again:
 	atomic_inc(&tcon->num_remote_opens);
 
 	qd_rsp = (struct smb2_query_directory_rsp *)rsp_iov[1].iov_base;
-	if (qd_rsp->hdr.Status == STATUS_NO_MORE_FILES) {
+	if (qd_rsp->hdr.Status == STATUS_ANAL_MORE_FILES) {
 		trace_smb3_query_dir_done(xid, fid->persistent_fid,
 					  tcon->tid, tcon->ses->Suid, 0, 0);
 		srch_inf->endOfSearch = true;
@@ -2368,7 +2368,7 @@ replay_again:
 			tcon->ses->Suid, 0, 0, rc);
 		goto qdf_free;
 	}
-	resp_buftype[1] = CIFS_NO_BUFFER;
+	resp_buftype[1] = CIFS_ANAL_BUFFER;
 
 	trace_smb3_query_dir_done(xid, fid->persistent_fid, tcon->tid,
 			tcon->ses->Suid, 0, srch_inf->entries_in_buffer);
@@ -2498,14 +2498,14 @@ smb2_is_network_name_deleted(char *buf, struct TCP_Server_Info *server)
 
 static int
 smb2_oplock_response(struct cifs_tcon *tcon, __u64 persistent_fid,
-		__u64 volatile_fid, __u16 net_fid, struct cifsInodeInfo *cinode)
+		__u64 volatile_fid, __u16 net_fid, struct cifsIanaldeInfo *cianalde)
 {
 	if (tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LEASING)
-		return SMB2_lease_break(0, tcon, cinode->lease_key,
-					smb2_get_lease_state(cinode));
+		return SMB2_lease_break(0, tcon, cianalde->lease_key,
+					smb2_get_lease_state(cianalde));
 
 	return SMB2_oplock_break(0, tcon, persistent_fid, volatile_fid,
-				 CIFS_CACHE_READ(cinode) ? 1 : 0);
+				 CIFS_CACHE_READ(cianalde) ? 1 : 0);
 }
 
 void
@@ -2556,14 +2556,14 @@ smb2_set_next_command(struct cifs_tcon *tcon, struct smb_rqst *rqst)
 
 	/* SMB headers in a compound are 8 byte aligned. */
 
-	/* No padding needed */
+	/* Anal padding needed */
 	if (!(len & 7))
 		goto finished;
 
 	num_padding = 8 - (len & 7);
 	if (!smb3_encryption_required(tcon)) {
 		/*
-		 * If we do not have encryption then we can just add an extra
+		 * If we do analt have encryption then we can just add an extra
 		 * iov for the padding.
 		 */
 		rqst->rq_iov[rqst->rq_nvec].iov_base = smb2_padding;
@@ -2572,8 +2572,8 @@ smb2_set_next_command(struct cifs_tcon *tcon, struct smb_rqst *rqst)
 		len += num_padding;
 	} else {
 		/*
-		 * We can not add a small padding iov for the encryption case
-		 * because the encryption framework can not handle the padding
+		 * We can analt add a small padding iov for the encryption case
+		 * because the encryption framework can analt handle the padding
 		 * iovs.
 		 * We have to flatten this into a single buffer and add
 		 * the padding to it.
@@ -2635,7 +2635,7 @@ smb2_query_info_compound(const unsigned int xid, struct cifs_tcon *tcon,
 	struct smb_rqst *rqst;
 	int resp_buftype[3];
 	struct kvec *rsp_iov;
-	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	u8 oplock = SMB2_OPLOCK_LEVEL_ANALNE;
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
 	int rc;
@@ -2646,29 +2646,29 @@ smb2_query_info_compound(const unsigned int xid, struct cifs_tcon *tcon,
 replay_again:
 	/* reinitialize for possible replay */
 	flags = CIFS_CP_CREATE_CLOSE_OP;
-	oplock = SMB2_OPLOCK_LEVEL_NONE;
+	oplock = SMB2_OPLOCK_LEVEL_ANALNE;
 	server = cifs_pick_channel(ses);
 
 	if (!path)
 		path = "";
 	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
 	if (!utf16_path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
-	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_NO_BUFFER;
+	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_ANAL_BUFFER;
 	vars = kzalloc(sizeof(*vars), GFP_KERNEL);
 	if (!vars) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_path;
 	}
 	rqst = vars->rqst;
 	rsp_iov = vars->rsp_iov;
 
 	/*
-	 * We can only call this for things we know are directories.
+	 * We can only call this for things we kanalw are directories.
 	 */
 	if (!strcmp(path, ""))
 		open_cached_dir(xid, tcon, path, cifs_sb, false,
@@ -2784,7 +2784,7 @@ smb2_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 	struct smb2_query_info_rsp *rsp;
 	struct smb2_fs_full_size_info *info = NULL;
 	struct kvec rsp_iov = {NULL, 0};
-	int buftype = CIFS_NO_BUFFER;
+	int buftype = CIFS_ANAL_BUFFER;
 	int rc;
 
 
@@ -2820,7 +2820,7 @@ smb311_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 {
 	int rc;
 	__le16 srch_path = 0; /* Null - open root of share */
-	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	u8 oplock = SMB2_OPLOCK_LEVEL_ANALNE;
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
 
@@ -2867,15 +2867,15 @@ smb2_mand_lock(const unsigned int xid, struct cifsFileInfo *cfile, __u64 offset,
 }
 
 static void
-smb2_get_lease_key(struct inode *inode, struct cifs_fid *fid)
+smb2_get_lease_key(struct ianalde *ianalde, struct cifs_fid *fid)
 {
-	memcpy(fid->lease_key, CIFS_I(inode)->lease_key, SMB2_LEASE_KEY_SIZE);
+	memcpy(fid->lease_key, CIFS_I(ianalde)->lease_key, SMB2_LEASE_KEY_SIZE);
 }
 
 static void
-smb2_set_lease_key(struct inode *inode, struct cifs_fid *fid)
+smb2_set_lease_key(struct ianalde *ianalde, struct cifs_fid *fid)
 {
-	memcpy(CIFS_I(inode)->lease_key, fid->lease_key, SMB2_LEASE_KEY_SIZE);
+	memcpy(CIFS_I(ianalde)->lease_key, fid->lease_key, SMB2_LEASE_KEY_SIZE);
 }
 
 static void
@@ -2887,8 +2887,8 @@ smb2_new_lease_key(struct cifs_fid *fid)
 static int
 smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 		   const char *search_name,
-		   struct dfs_info3_param **target_nodes,
-		   unsigned int *num_of_nodes,
+		   struct dfs_info3_param **target_analdes,
+		   unsigned int *num_of_analdes,
 		   const struct nls_table *nls_codepage, int remap)
 {
 	int rc;
@@ -2917,9 +2917,9 @@ smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 	}
 
 	if (tcon == NULL) {
-		cifs_dbg(VFS, "session %p has no tcon available for a dfs referral request\n",
+		cifs_dbg(VFS, "session %p has anal tcon available for a dfs referral request\n",
 			 ses);
-		rc = -ENOTCONN;
+		rc = -EANALTCONN;
 		goto out;
 	}
 
@@ -2927,14 +2927,14 @@ smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 					   &utf16_path_len,
 					   nls_codepage, remap);
 	if (!utf16_path) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
 	dfs_req_size = sizeof(*dfs_req) + utf16_path_len;
 	dfs_req = kzalloc(dfs_req_size, GFP_KERNEL);
 	if (!dfs_req) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -2945,7 +2945,7 @@ smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 	memcpy(dfs_req->RequestFileName, utf16_path, utf16_path_len);
 
 	do {
-		rc = SMB2_ioctl(xid, tcon, NO_FILE_ID, NO_FILE_ID,
+		rc = SMB2_ioctl(xid, tcon, ANAL_FILE_ID, ANAL_FILE_ID,
 				FSCTL_DFS_GET_REFERRALS,
 				(char *)dfs_req, dfs_req_size, CIFSMaxBufSize,
 				(char **)&dfs_rsp, &dfs_rsp_size);
@@ -2957,13 +2957,13 @@ smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 	if (!rc && !dfs_rsp)
 		rc = -EIO;
 	if (rc) {
-		if (!is_retryable_error(rc) && rc != -ENOENT && rc != -EOPNOTSUPP)
+		if (!is_retryable_error(rc) && rc != -EANALENT && rc != -EOPANALTSUPP)
 			cifs_tcon_dbg(VFS, "%s: ioctl error: rc=%d\n", __func__, rc);
 		goto out;
 	}
 
 	rc = parse_dfs_referrals(dfs_rsp, dfs_rsp_size,
-				 num_of_nodes, target_nodes,
+				 num_of_analdes, target_analdes,
 				 nls_codepage, remap, search_name,
 				 true /* is_unicode */);
 	if (rc) {
@@ -2973,7 +2973,7 @@ smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 
  out:
 	if (tcon && !tcon->ipc) {
-		/* ipc tcons are not refcounted */
+		/* ipc tcons are analt refcounted */
 		spin_lock(&cifs_tcp_ses_lock);
 		tcon->tc_count--;
 		/* tc_count can never go negative */
@@ -2994,14 +2994,14 @@ static int parse_reparse_posix(struct reparse_posix_data *buf,
 	unsigned int len;
 	u64 type;
 
-	switch ((type = le64_to_cpu(buf->InodeType))) {
+	switch ((type = le64_to_cpu(buf->IanaldeType))) {
 	case NFS_SPECFILE_LNK:
 		len = le16_to_cpu(buf->ReparseDataLength);
 		data->symlink_target = cifs_strndup_from_utf16(buf->DataBuffer,
 							       len, true,
 							       cifs_sb->local_nls);
 		if (!data->symlink_target)
-			return -ENOMEM;
+			return -EANALMEM;
 		convert_delimiter(data->symlink_target, '/');
 		cifs_dbg(FYI, "%s: target path: %s\n",
 			 __func__, data->symlink_target);
@@ -3012,9 +3012,9 @@ static int parse_reparse_posix(struct reparse_posix_data *buf,
 	case NFS_SPECFILE_SOCK:
 		break;
 	default:
-		cifs_dbg(VFS, "%s: unhandled inode type: 0x%llx\n",
+		cifs_dbg(VFS, "%s: unhandled ianalde type: 0x%llx\n",
 			 __func__, type);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -3040,7 +3040,7 @@ static int parse_reparse_symlink(struct reparse_symlink_data_buffer *sym,
 						       len, unicode,
 						       cifs_sb->local_nls);
 	if (!data->symlink_target)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	convert_delimiter(data->symlink_target, '/');
 	cifs_dbg(FYI, "%s: target path: %s\n", __func__, data->symlink_target);
@@ -3072,7 +3072,7 @@ int parse_reparse_point(struct reparse_data_buffer *buf,
 	default:
 		cifs_dbg(VFS, "%s: unhandled reparse tag: 0x%08x\n",
 			 __func__, le32_to_cpu(buf->ReparseTag));
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -3095,7 +3095,7 @@ get_smb2_acl_by_fid(struct cifs_sb_info *cifs_sb,
 {
 	struct cifs_ntsd *pntsd = NULL;
 	unsigned int xid;
-	int rc = -EOPNOTSUPP;
+	int rc = -EOPANALTSUPP;
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
 
 	if (IS_ERR(tlink))
@@ -3123,7 +3123,7 @@ get_smb2_acl_by_path(struct cifs_sb_info *cifs_sb,
 		     const char *path, u32 *pacllen, u32 info)
 {
 	struct cifs_ntsd *pntsd = NULL;
-	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	u8 oplock = SMB2_OPLOCK_LEVEL_ANALNE;
 	unsigned int xid;
 	int rc;
 	struct cifs_tcon *tcon;
@@ -3141,7 +3141,7 @@ get_smb2_acl_by_path(struct cifs_sb_info *cifs_sb,
 
 	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
 	if (!utf16_path) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		free_xid(xid);
 		return ERR_PTR(rc);
 	}
@@ -3153,7 +3153,7 @@ get_smb2_acl_by_path(struct cifs_sb_info *cifs_sb,
 		.disposition = FILE_OPEN,
 		/*
 		 * When querying an ACL, even if the file is a symlink
-		 * we want to open the source not the target, and so
+		 * we want to open the source analt the target, and so
 		 * the protocol requires that the client specify this
 		 * flag when opening a reparse point
 		 */
@@ -3186,13 +3186,13 @@ get_smb2_acl_by_path(struct cifs_sb_info *cifs_sb,
 
 static int
 set_smb2_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
-		struct inode *inode, const char *path, int aclflag)
+		struct ianalde *ianalde, const char *path, int aclflag)
 {
-	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	u8 oplock = SMB2_OPLOCK_LEVEL_ANALNE;
 	unsigned int xid;
 	int rc, access_flags = 0;
 	struct cifs_tcon *tcon;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(ianalde->i_sb);
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
 	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
@@ -3214,7 +3214,7 @@ set_smb2_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 
 	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
 	if (!utf16_path) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		free_xid(xid);
 		return rc;
 	}
@@ -3245,14 +3245,14 @@ set_smb2_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 /* Retrieve an ACL from the server */
 static struct cifs_ntsd *
 get_smb2_acl(struct cifs_sb_info *cifs_sb,
-	     struct inode *inode, const char *path,
+	     struct ianalde *ianalde, const char *path,
 	     u32 *pacllen, u32 info)
 {
 	struct cifs_ntsd *pntsd = NULL;
 	struct cifsFileInfo *open_file = NULL;
 
-	if (inode && !(info & SACL_SECINFO))
-		open_file = find_readable_file(CIFS_I(inode), true);
+	if (ianalde && !(info & SACL_SECINFO))
+		open_file = find_readable_file(CIFS_I(ianalde), true);
 	if (!open_file || (info & SACL_SECINFO))
 		return get_smb2_acl_by_path(cifs_sb, path, pacllen, info);
 
@@ -3283,8 +3283,8 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 			    loff_t offset, loff_t len, bool keep_size)
 {
 	struct cifs_ses *ses = tcon->ses;
-	struct inode *inode = file_inode(file);
-	struct cifsInodeInfo *cifsi = CIFS_I(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct cifsIanaldeInfo *cifsi = CIFS_I(ianalde);
 	struct cifsFileInfo *cfile = file->private_data;
 	unsigned long long new_size;
 	long rc;
@@ -3295,17 +3295,17 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 	trace_smb3_zero_enter(xid, cfile->fid.persistent_fid, tcon->tid,
 			      ses->Suid, offset, len);
 
-	inode_lock(inode);
-	filemap_invalidate_lock(inode->i_mapping);
+	ianalde_lock(ianalde);
+	filemap_invalidate_lock(ianalde->i_mapping);
 
 	/*
 	 * We zero the range through ioctl, so we need remove the page caches
 	 * first, otherwise the data may be inconsistent with the server.
 	 */
-	truncate_pagecache_range(inode, offset, offset + len - 1);
+	truncate_pagecache_range(ianalde, offset, offset + len - 1);
 
-	/* if file not oplocked can't be sure whether asking to extend size */
-	rc = -EOPNOTSUPP;
+	/* if file analt oplocked can't be sure whether asking to extend size */
+	rc = -EOPANALTSUPP;
 	if (keep_size == false && !CIFS_CACHE_READ(cifsi))
 		goto zero_range_exit;
 
@@ -3317,21 +3317,21 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 	 * do we also need to change the size of the file?
 	 */
 	new_size = offset + len;
-	if (keep_size == false && (unsigned long long)i_size_read(inode) < new_size) {
+	if (keep_size == false && (unsigned long long)i_size_read(ianalde) < new_size) {
 		rc = SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
 				  cfile->fid.volatile_fid, cfile->pid, new_size);
 		if (rc >= 0) {
-			truncate_setsize(inode, new_size);
+			truncate_setsize(ianalde, new_size);
 			netfs_resize_file(&cifsi->netfs, new_size, true);
 			if (offset < cifsi->netfs.zero_point)
 				cifsi->netfs.zero_point = offset;
-			fscache_resize_cookie(cifs_inode_cookie(inode), new_size);
+			fscache_resize_cookie(cifs_ianalde_cookie(ianalde), new_size);
 		}
 	}
 
  zero_range_exit:
-	filemap_invalidate_unlock(inode->i_mapping);
-	inode_unlock(inode);
+	filemap_invalidate_unlock(ianalde->i_mapping);
+	ianalde_unlock(ianalde);
 	free_xid(xid);
 	if (rc)
 		trace_smb3_zero_err(xid, cfile->fid.persistent_fid, tcon->tid,
@@ -3345,7 +3345,7 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 static long smb3_punch_hole(struct file *file, struct cifs_tcon *tcon,
 			    loff_t offset, loff_t len)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	struct cifsFileInfo *cfile = file->private_data;
 	struct file_zero_data_information fsctl_buf;
 	long rc;
@@ -3354,20 +3354,20 @@ static long smb3_punch_hole(struct file *file, struct cifs_tcon *tcon,
 
 	xid = get_xid();
 
-	inode_lock(inode);
-	/* Need to make file sparse, if not already, before freeing range. */
+	ianalde_lock(ianalde);
+	/* Need to make file sparse, if analt already, before freeing range. */
 	/* Consider adding equivalent for compressed since it could also work */
-	if (!smb2_set_sparse(xid, tcon, cfile, inode, set_sparse)) {
-		rc = -EOPNOTSUPP;
+	if (!smb2_set_sparse(xid, tcon, cfile, ianalde, set_sparse)) {
+		rc = -EOPANALTSUPP;
 		goto out;
 	}
 
-	filemap_invalidate_lock(inode->i_mapping);
+	filemap_invalidate_lock(ianalde->i_mapping);
 	/*
 	 * We implement the punch hole through ioctl, so we need remove the page
 	 * caches first, otherwise the data may be inconsistent with the server.
 	 */
-	truncate_pagecache_range(inode, offset, offset + len - 1);
+	truncate_pagecache_range(ianalde, offset, offset + len - 1);
 
 	cifs_dbg(FYI, "Offset %lld len %lld\n", offset, len);
 
@@ -3379,9 +3379,9 @@ static long smb3_punch_hole(struct file *file, struct cifs_tcon *tcon,
 			(char *)&fsctl_buf,
 			sizeof(struct file_zero_data_information),
 			CIFSMaxBufSize, NULL, NULL);
-	filemap_invalidate_unlock(inode->i_mapping);
+	filemap_invalidate_unlock(ianalde->i_mapping);
 out:
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	free_xid(xid);
 	return rc;
 }
@@ -3447,7 +3447,7 @@ static int smb3_simple_fallocate_range(unsigned int xid,
 
 	buf = kzalloc(1024 * 1024, GFP_KERNEL);
 	if (buf == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -3510,21 +3510,21 @@ static int smb3_simple_fallocate_range(unsigned int xid,
 static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 			    loff_t off, loff_t len, bool keep_size)
 {
-	struct inode *inode;
-	struct cifsInodeInfo *cifsi;
+	struct ianalde *ianalde;
+	struct cifsIanaldeInfo *cifsi;
 	struct cifsFileInfo *cfile = file->private_data;
-	long rc = -EOPNOTSUPP;
+	long rc = -EOPANALTSUPP;
 	unsigned int xid;
 	loff_t new_eof;
 
 	xid = get_xid();
 
-	inode = d_inode(cfile->dentry);
-	cifsi = CIFS_I(inode);
+	ianalde = d_ianalde(cfile->dentry);
+	cifsi = CIFS_I(ianalde);
 
 	trace_smb3_falloc_enter(xid, cfile->fid.persistent_fid, tcon->tid,
 				tcon->ses->Suid, off, len);
-	/* if file not oplocked can't be sure whether asking to extend size */
+	/* if file analt oplocked can't be sure whether asking to extend size */
 	if (!CIFS_CACHE_READ(cifsi))
 		if (keep_size == false) {
 			trace_smb3_falloc_err(xid, cfile->fid.persistent_fid,
@@ -3536,30 +3536,30 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 	/*
 	 * Extending the file
 	 */
-	if ((keep_size == false) && i_size_read(inode) < off + len) {
-		rc = inode_newsize_ok(inode, off + len);
+	if ((keep_size == false) && i_size_read(ianalde) < off + len) {
+		rc = ianalde_newsize_ok(ianalde, off + len);
 		if (rc)
 			goto out;
 
 		if (cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE)
-			smb2_set_sparse(xid, tcon, cfile, inode, false);
+			smb2_set_sparse(xid, tcon, cfile, ianalde, false);
 
 		new_eof = off + len;
 		rc = SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
 				  cfile->fid.volatile_fid, cfile->pid, new_eof);
 		if (rc == 0) {
 			netfs_resize_file(&cifsi->netfs, new_eof, true);
-			cifs_setsize(inode, new_eof);
-			cifs_truncate_page(inode->i_mapping, inode->i_size);
-			truncate_setsize(inode, new_eof);
+			cifs_setsize(ianalde, new_eof);
+			cifs_truncate_page(ianalde->i_mapping, ianalde->i_size);
+			truncate_setsize(ianalde, new_eof);
 		}
 		goto out;
 	}
 
 	/*
-	 * Files are non-sparse by default so falloc may be a no-op
-	 * Must check if file sparse. If not sparse, and since we are not
-	 * extending then no need to do anything since file already allocated
+	 * Files are analn-sparse by default so falloc may be a anal-op
+	 * Must check if file sparse. If analt sparse, and since we are analt
+	 * extending then anal need to do anything since file already allocated
 	 */
 	if ((cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE) == 0) {
 		rc = 0;
@@ -3568,10 +3568,10 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 
 	if (keep_size == true) {
 		/*
-		 * We can not preallocate pages beyond the end of the file
+		 * We can analt preallocate pages beyond the end of the file
 		 * in SMB2
 		 */
-		if (off >= i_size_read(inode)) {
+		if (off >= i_size_read(ianalde)) {
 			rc = 0;
 			goto out;
 		}
@@ -3579,17 +3579,17 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 		 * For fallocates that are partially beyond the end of file,
 		 * clamp len so we only fallocate up to the end of file.
 		 */
-		if (off + len > i_size_read(inode)) {
-			len = i_size_read(inode) - off;
+		if (off + len > i_size_read(ianalde)) {
+			len = i_size_read(ianalde) - off;
 		}
 	}
 
-	if ((keep_size == true) || (i_size_read(inode) >= off + len)) {
+	if ((keep_size == true) || (i_size_read(ianalde) >= off + len)) {
 		/*
 		 * At this point, we are trying to fallocate an internal
-		 * regions of a sparse file. Since smb2 does not have a
+		 * regions of a sparse file. Since smb2 does analt have a
 		 * fallocate command we have two otions on how to emulate this.
-		 * We can either turn the entire file to become non-sparse
+		 * We can either turn the entire file to become analn-sparse
 		 * which we only do if the fallocate is for virtually
 		 * the whole file,  or we can overwrite the region with zeroes
 		 * using SMB2_write, which could be prohibitevly expensive
@@ -3609,17 +3609,17 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 		 * Check if falloc starts within first few pages of file
 		 * and ends within a few pages of the end of file to
 		 * ensure that most of file is being forced to be
-		 * fallocated now. If so then setting whole file sparse
+		 * fallocated analw. If so then setting whole file sparse
 		 * ie potentially making a few extra pages at the beginning
-		 * or end of the file non-sparse via set_sparse is harmless.
+		 * or end of the file analn-sparse via set_sparse is harmless.
 		 */
-		if ((off > 8192) || (off + len + 8192 < i_size_read(inode))) {
-			rc = -EOPNOTSUPP;
+		if ((off > 8192) || (off + len + 8192 < i_size_read(ianalde))) {
+			rc = -EOPANALTSUPP;
 			goto out;
 		}
 	}
 
-	smb2_set_sparse(xid, tcon, cfile, inode, false);
+	smb2_set_sparse(xid, tcon, cfile, ianalde, false);
 	rc = 0;
 
 out:
@@ -3639,29 +3639,29 @@ static long smb3_collapse_range(struct file *file, struct cifs_tcon *tcon,
 {
 	int rc;
 	unsigned int xid;
-	struct inode *inode = file_inode(file);
-	struct cifsInodeInfo *cifsi = CIFS_I(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct cifsIanaldeInfo *cifsi = CIFS_I(ianalde);
 	struct cifsFileInfo *cfile = file->private_data;
-	struct netfs_inode *ictx = &cifsi->netfs;
+	struct netfs_ianalde *ictx = &cifsi->netfs;
 	loff_t old_eof, new_eof;
 
 	xid = get_xid();
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 
-	old_eof = i_size_read(inode);
+	old_eof = i_size_read(ianalde);
 	if ((off >= old_eof) ||
 	    off + len >= old_eof) {
 		rc = -EINVAL;
 		goto out;
 	}
 
-	filemap_invalidate_lock(inode->i_mapping);
-	rc = filemap_write_and_wait_range(inode->i_mapping, off, old_eof - 1);
+	filemap_invalidate_lock(ianalde->i_mapping);
+	rc = filemap_write_and_wait_range(ianalde->i_mapping, off, old_eof - 1);
 	if (rc < 0)
 		goto out_2;
 
-	truncate_pagecache_range(inode, off, old_eof);
+	truncate_pagecache_range(ianalde, off, old_eof);
 	ictx->zero_point = old_eof;
 
 	rc = smb2_copychunk_range(xid, cfile, cfile, off + len,
@@ -3677,14 +3677,14 @@ static long smb3_collapse_range(struct file *file, struct cifs_tcon *tcon,
 
 	rc = 0;
 
-	truncate_setsize(inode, new_eof);
+	truncate_setsize(ianalde, new_eof);
 	netfs_resize_file(&cifsi->netfs, new_eof, true);
 	ictx->zero_point = new_eof;
-	fscache_resize_cookie(cifs_inode_cookie(inode), new_eof);
+	fscache_resize_cookie(cifs_ianalde_cookie(ianalde), new_eof);
 out_2:
-	filemap_invalidate_unlock(inode->i_mapping);
+	filemap_invalidate_unlock(ianalde->i_mapping);
  out:
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	free_xid(xid);
 	return rc;
 }
@@ -3695,15 +3695,15 @@ static long smb3_insert_range(struct file *file, struct cifs_tcon *tcon,
 	int rc;
 	unsigned int xid;
 	struct cifsFileInfo *cfile = file->private_data;
-	struct inode *inode = file_inode(file);
-	struct cifsInodeInfo *cifsi = CIFS_I(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct cifsIanaldeInfo *cifsi = CIFS_I(ianalde);
 	__u64 count, old_eof, new_eof;
 
 	xid = get_xid();
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 
-	old_eof = i_size_read(inode);
+	old_eof = i_size_read(ianalde);
 	if (off >= old_eof) {
 		rc = -EINVAL;
 		goto out;
@@ -3712,20 +3712,20 @@ static long smb3_insert_range(struct file *file, struct cifs_tcon *tcon,
 	count = old_eof - off;
 	new_eof = old_eof + len;
 
-	filemap_invalidate_lock(inode->i_mapping);
-	rc = filemap_write_and_wait_range(inode->i_mapping, off, new_eof - 1);
+	filemap_invalidate_lock(ianalde->i_mapping);
+	rc = filemap_write_and_wait_range(ianalde->i_mapping, off, new_eof - 1);
 	if (rc < 0)
 		goto out_2;
-	truncate_pagecache_range(inode, off, old_eof);
+	truncate_pagecache_range(ianalde, off, old_eof);
 
 	rc = SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
 			  cfile->fid.volatile_fid, cfile->pid, new_eof);
 	if (rc < 0)
 		goto out_2;
 
-	truncate_setsize(inode, new_eof);
-	netfs_resize_file(&cifsi->netfs, i_size_read(inode), true);
-	fscache_resize_cookie(cifs_inode_cookie(inode), i_size_read(inode));
+	truncate_setsize(ianalde, new_eof);
+	netfs_resize_file(&cifsi->netfs, i_size_read(ianalde), true);
+	fscache_resize_cookie(cifs_ianalde_cookie(ianalde), i_size_read(ianalde));
 
 	rc = smb2_copychunk_range(xid, cfile, cfile, off, count, off + len);
 	if (rc < 0)
@@ -3737,9 +3737,9 @@ static long smb3_insert_range(struct file *file, struct cifs_tcon *tcon,
 
 	rc = 0;
 out_2:
-	filemap_invalidate_unlock(inode->i_mapping);
+	filemap_invalidate_unlock(ianalde->i_mapping);
  out:
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	free_xid(xid);
 	return rc;
 }
@@ -3747,8 +3747,8 @@ out_2:
 static loff_t smb3_llseek(struct file *file, struct cifs_tcon *tcon, loff_t offset, int whence)
 {
 	struct cifsFileInfo *wrcfile, *cfile = file->private_data;
-	struct cifsInodeInfo *cifsi;
-	struct inode *inode;
+	struct cifsIanaldeInfo *cifsi;
+	struct ianalde *ianalde;
 	int rc = 0;
 	struct file_allocated_range_buffer in_data, *out_data = NULL;
 	u32 out_data_len;
@@ -3757,35 +3757,35 @@ static loff_t smb3_llseek(struct file *file, struct cifs_tcon *tcon, loff_t offs
 	if (whence != SEEK_HOLE && whence != SEEK_DATA)
 		return generic_file_llseek(file, offset, whence);
 
-	inode = d_inode(cfile->dentry);
-	cifsi = CIFS_I(inode);
+	ianalde = d_ianalde(cfile->dentry);
+	cifsi = CIFS_I(ianalde);
 
-	if (offset < 0 || offset >= i_size_read(inode))
+	if (offset < 0 || offset >= i_size_read(ianalde))
 		return -ENXIO;
 
 	xid = get_xid();
 	/*
 	 * We need to be sure that all dirty pages are written as they
 	 * might fill holes on the server.
-	 * Note that we also MUST flush any written pages since at least
-	 * some servers (Windows2016) will not reflect recent writes in
+	 * Analte that we also MUST flush any written pages since at least
+	 * some servers (Windows2016) will analt reflect recent writes in
 	 * QUERY_ALLOCATED_RANGES until SMB2_flush is called.
 	 */
 	wrcfile = find_writable_file(cifsi, FIND_WR_ANY);
 	if (wrcfile) {
-		filemap_write_and_wait(inode->i_mapping);
+		filemap_write_and_wait(ianalde->i_mapping);
 		smb2_flush_file(xid, tcon, &wrcfile->fid);
 		cifsFileInfo_put(wrcfile);
 	}
 
 	if (!(cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE)) {
 		if (whence == SEEK_HOLE)
-			offset = i_size_read(inode);
+			offset = i_size_read(ianalde);
 		goto lseek_exit;
 	}
 
 	in_data.file_offset = cpu_to_le64(offset);
-	in_data.length = cpu_to_le64(i_size_read(inode));
+	in_data.length = cpu_to_le64(i_size_read(ianalde));
 
 	rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
 			cfile->fid.volatile_fid,
@@ -3823,7 +3823,7 @@ static loff_t smb3_llseek(struct file *file, struct cifs_tcon *tcon, loff_t offs
 	free_xid(xid);
 	kfree(out_data);
 	if (!rc)
-		return vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
+		return vfs_setpos(file, offset, ianalde->i_sb->s_maxbytes);
 	else
 		return rc;
 }
@@ -3838,7 +3838,7 @@ static int smb3_fiemap(struct cifs_tcon *tcon,
 	int i, num, rc, flags, last_blob;
 	u64 next;
 
-	rc = fiemap_prep(d_inode(cfile->dentry), fei, start, &len, 0);
+	rc = fiemap_prep(d_ianalde(cfile->dentry), fei, start, &len, 0);
 	if (rc)
 		return rc;
 
@@ -3922,36 +3922,36 @@ static long smb3_fallocate(struct file *file, struct cifs_tcon *tcon, int mode,
 	else if (mode == 0)
 		return smb3_simple_falloc(file, tcon, off, len, false);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void
 smb2_downgrade_oplock(struct TCP_Server_Info *server,
-		      struct cifsInodeInfo *cinode, __u32 oplock,
+		      struct cifsIanaldeInfo *cianalde, __u32 oplock,
 		      unsigned int epoch, bool *purge_cache)
 {
-	server->ops->set_oplock_level(cinode, oplock, 0, NULL);
+	server->ops->set_oplock_level(cianalde, oplock, 0, NULL);
 }
 
 static void
-smb21_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock,
+smb21_set_oplock_level(struct cifsIanaldeInfo *cianalde, __u32 oplock,
 		       unsigned int epoch, bool *purge_cache);
 
 static void
 smb3_downgrade_oplock(struct TCP_Server_Info *server,
-		       struct cifsInodeInfo *cinode, __u32 oplock,
+		       struct cifsIanaldeInfo *cianalde, __u32 oplock,
 		       unsigned int epoch, bool *purge_cache)
 {
-	unsigned int old_state = cinode->oplock;
-	unsigned int old_epoch = cinode->epoch;
+	unsigned int old_state = cianalde->oplock;
+	unsigned int old_epoch = cianalde->epoch;
 	unsigned int new_state;
 
 	if (epoch > old_epoch) {
-		smb21_set_oplock_level(cinode, oplock, 0, NULL);
-		cinode->epoch = epoch;
+		smb21_set_oplock_level(cianalde, oplock, 0, NULL);
+		cianalde->epoch = epoch;
 	}
 
-	new_state = cinode->oplock;
+	new_state = cianalde->oplock;
 	*purge_cache = false;
 
 	if ((old_state & CIFS_CACHE_READ_FLG) != 0 &&
@@ -3962,44 +3962,44 @@ smb3_downgrade_oplock(struct TCP_Server_Info *server,
 }
 
 static void
-smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock,
+smb2_set_oplock_level(struct cifsIanaldeInfo *cianalde, __u32 oplock,
 		      unsigned int epoch, bool *purge_cache)
 {
 	oplock &= 0xFF;
-	cinode->lease_granted = false;
-	if (oplock == SMB2_OPLOCK_LEVEL_NOCHANGE)
+	cianalde->lease_granted = false;
+	if (oplock == SMB2_OPLOCK_LEVEL_ANALCHANGE)
 		return;
 	if (oplock == SMB2_OPLOCK_LEVEL_BATCH) {
-		cinode->oplock = CIFS_CACHE_RHW_FLG;
-		cifs_dbg(FYI, "Batch Oplock granted on inode %p\n",
-			 &cinode->netfs.inode);
+		cianalde->oplock = CIFS_CACHE_RHW_FLG;
+		cifs_dbg(FYI, "Batch Oplock granted on ianalde %p\n",
+			 &cianalde->netfs.ianalde);
 	} else if (oplock == SMB2_OPLOCK_LEVEL_EXCLUSIVE) {
-		cinode->oplock = CIFS_CACHE_RW_FLG;
-		cifs_dbg(FYI, "Exclusive Oplock granted on inode %p\n",
-			 &cinode->netfs.inode);
+		cianalde->oplock = CIFS_CACHE_RW_FLG;
+		cifs_dbg(FYI, "Exclusive Oplock granted on ianalde %p\n",
+			 &cianalde->netfs.ianalde);
 	} else if (oplock == SMB2_OPLOCK_LEVEL_II) {
-		cinode->oplock = CIFS_CACHE_READ_FLG;
-		cifs_dbg(FYI, "Level II Oplock granted on inode %p\n",
-			 &cinode->netfs.inode);
+		cianalde->oplock = CIFS_CACHE_READ_FLG;
+		cifs_dbg(FYI, "Level II Oplock granted on ianalde %p\n",
+			 &cianalde->netfs.ianalde);
 	} else
-		cinode->oplock = 0;
+		cianalde->oplock = 0;
 }
 
 static void
-smb21_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock,
+smb21_set_oplock_level(struct cifsIanaldeInfo *cianalde, __u32 oplock,
 		       unsigned int epoch, bool *purge_cache)
 {
 	char message[5] = {0};
 	unsigned int new_oplock = 0;
 
 	oplock &= 0xFF;
-	cinode->lease_granted = true;
-	if (oplock == SMB2_OPLOCK_LEVEL_NOCHANGE)
+	cianalde->lease_granted = true;
+	if (oplock == SMB2_OPLOCK_LEVEL_ANALCHANGE)
 		return;
 
 	/* Check if the server granted an oplock rather than a lease */
 	if (oplock & SMB2_OPLOCK_LEVEL_EXCLUSIVE)
-		return smb2_set_oplock_level(cinode, oplock, epoch,
+		return smb2_set_oplock_level(cianalde, oplock, epoch,
 					     purge_cache);
 
 	if (oplock & SMB2_LEASE_READ_CACHING_HE) {
@@ -4015,45 +4015,45 @@ smb21_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock,
 		strcat(message, "W");
 	}
 	if (!new_oplock)
-		strncpy(message, "None", sizeof(message));
+		strncpy(message, "Analne", sizeof(message));
 
-	cinode->oplock = new_oplock;
-	cifs_dbg(FYI, "%s Lease granted on inode %p\n", message,
-		 &cinode->netfs.inode);
+	cianalde->oplock = new_oplock;
+	cifs_dbg(FYI, "%s Lease granted on ianalde %p\n", message,
+		 &cianalde->netfs.ianalde);
 }
 
 static void
-smb3_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock,
+smb3_set_oplock_level(struct cifsIanaldeInfo *cianalde, __u32 oplock,
 		      unsigned int epoch, bool *purge_cache)
 {
-	unsigned int old_oplock = cinode->oplock;
+	unsigned int old_oplock = cianalde->oplock;
 
-	smb21_set_oplock_level(cinode, oplock, epoch, purge_cache);
+	smb21_set_oplock_level(cianalde, oplock, epoch, purge_cache);
 
 	if (purge_cache) {
 		*purge_cache = false;
 		if (old_oplock == CIFS_CACHE_READ_FLG) {
-			if (cinode->oplock == CIFS_CACHE_READ_FLG &&
-			    (epoch - cinode->epoch > 0))
+			if (cianalde->oplock == CIFS_CACHE_READ_FLG &&
+			    (epoch - cianalde->epoch > 0))
 				*purge_cache = true;
-			else if (cinode->oplock == CIFS_CACHE_RH_FLG &&
-				 (epoch - cinode->epoch > 1))
+			else if (cianalde->oplock == CIFS_CACHE_RH_FLG &&
+				 (epoch - cianalde->epoch > 1))
 				*purge_cache = true;
-			else if (cinode->oplock == CIFS_CACHE_RHW_FLG &&
-				 (epoch - cinode->epoch > 1))
+			else if (cianalde->oplock == CIFS_CACHE_RHW_FLG &&
+				 (epoch - cianalde->epoch > 1))
 				*purge_cache = true;
-			else if (cinode->oplock == 0 &&
-				 (epoch - cinode->epoch > 0))
+			else if (cianalde->oplock == 0 &&
+				 (epoch - cianalde->epoch > 0))
 				*purge_cache = true;
 		} else if (old_oplock == CIFS_CACHE_RH_FLG) {
-			if (cinode->oplock == CIFS_CACHE_RH_FLG &&
-			    (epoch - cinode->epoch > 0))
+			if (cianalde->oplock == CIFS_CACHE_RH_FLG &&
+			    (epoch - cianalde->epoch > 0))
 				*purge_cache = true;
-			else if (cinode->oplock == CIFS_CACHE_RHW_FLG &&
-				 (epoch - cinode->epoch > 1))
+			else if (cianalde->oplock == CIFS_CACHE_RHW_FLG &&
+				 (epoch - cianalde->epoch > 1))
 				*purge_cache = true;
 		}
-		cinode->epoch = epoch;
+		cianalde->epoch = epoch;
 	}
 }
 
@@ -4142,9 +4142,9 @@ smb2_parse_lease_buf(void *buf, unsigned int *epoch, char *lease_key)
 {
 	struct create_lease *lc = (struct create_lease *)buf;
 
-	*epoch = 0; /* not used */
+	*epoch = 0; /* analt used */
 	if (lc->lcontext.LeaseFlags & SMB2_LEASE_FLAG_BREAK_IN_PROGRESS_LE)
-		return SMB2_OPLOCK_LEVEL_NOCHANGE;
+		return SMB2_OPLOCK_LEVEL_ANALCHANGE;
 	return le32_to_cpu(lc->lcontext.LeaseState);
 }
 
@@ -4155,16 +4155,16 @@ smb3_parse_lease_buf(void *buf, unsigned int *epoch, char *lease_key)
 
 	*epoch = le16_to_cpu(lc->lcontext.Epoch);
 	if (lc->lcontext.LeaseFlags & SMB2_LEASE_FLAG_BREAK_IN_PROGRESS_LE)
-		return SMB2_OPLOCK_LEVEL_NOCHANGE;
+		return SMB2_OPLOCK_LEVEL_ANALCHANGE;
 	if (lease_key)
 		memcpy(lease_key, &lc->lcontext.LeaseKey, SMB2_LEASE_KEY_SIZE);
 	return le32_to_cpu(lc->lcontext.LeaseState);
 }
 
 static unsigned int
-smb2_wp_retry_size(struct inode *inode)
+smb2_wp_retry_size(struct ianalde *ianalde)
 {
-	return min_t(unsigned int, CIFS_SB(inode->i_sb)->ctx->wsize,
+	return min_t(unsigned int, CIFS_SB(ianalde->i_sb)->ctx->wsize,
 		     SMB2_MAX_BUFFER_SIZE);
 }
 
@@ -4187,9 +4187,9 @@ fill_transform_hdr(struct smb2_transform_hdr *tr_hdr, unsigned int orig_len,
 	tr_hdr->Flags = cpu_to_le16(0x01);
 	if ((cipher_type == SMB2_ENCRYPTION_AES128_GCM) ||
 	    (cipher_type == SMB2_ENCRYPTION_AES256_GCM))
-		get_random_bytes(&tr_hdr->Nonce, SMB3_AES_GCM_NONCE);
+		get_random_bytes(&tr_hdr->Analnce, SMB3_AES_GCM_ANALNCE);
 	else
-		get_random_bytes(&tr_hdr->Nonce, SMB3_AES_CCM_NONCE);
+		get_random_bytes(&tr_hdr->Analnce, SMB3_AES_CCM_ANALNCE);
 	memcpy(&tr_hdr->SessionId, &shdr->SessionId, 8);
 }
 
@@ -4211,19 +4211,19 @@ static void *smb2_aead_req_alloc(struct crypto_aead *tfm, const struct smb_rqst 
 	len += crypto_aead_alignmask(tfm) & ~(crypto_tfm_ctx_alignment() - 1);
 	len = ALIGN(len, crypto_tfm_ctx_alignment());
 	len += req_size;
-	len = ALIGN(len, __alignof__(struct scatterlist));
+	len = ALIGN(len, __aliganalf__(struct scatterlist));
 	len += array_size(*num_sgs, sizeof(struct scatterlist));
 	*sensitive_size = len;
 
-	p = kvzalloc(len, GFP_NOFS);
+	p = kvzalloc(len, GFP_ANALFS);
 	if (!p)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	*iv = (u8 *)PTR_ALIGN(p, crypto_aead_alignmask(tfm) + 1);
 	*req = (struct aead_request *)PTR_ALIGN(*iv + iv_size,
 						crypto_tfm_ctx_alignment());
 	sgt->sgl = (struct scatterlist *)PTR_ALIGN((u8 *)*req + req_size,
-						   __alignof__(struct scatterlist));
+						   __aliganalf__(struct scatterlist));
 	return p;
 }
 
@@ -4246,7 +4246,7 @@ static void *smb2_get_aead_req(struct crypto_aead *tfm, struct smb_rqst *rqst,
 
 	/*
 	 * The first rqst has a transform header where the
-	 * first 20 bytes are not part of the encrypted blob.
+	 * first 20 bytes are analt part of the encrypted blob.
 	 */
 	skip = 20;
 
@@ -4300,7 +4300,7 @@ smb2_get_enc_key(struct TCP_Server_Info *server, __u64 ses_id, int enc, u8 *key)
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
 
-	trace_smb3_ses_not_found(ses_id);
+	trace_smb3_ses_analt_found(ses_id);
 
 	return -EAGAIN;
 }
@@ -4332,7 +4332,7 @@ crypt_message(struct TCP_Server_Info *server, int num_rqst,
 
 	rc = smb2_get_enc_key(server, le64_to_cpu(tr_hdr->SessionId), enc, key);
 	if (rc) {
-		cifs_server_dbg(FYI, "%s: Could not get %scryption key. sid: 0x%llx\n", __func__,
+		cifs_server_dbg(FYI, "%s: Could analt get %scryption key. sid: 0x%llx\n", __func__,
 			 enc ? "en" : "de", le64_to_cpu(tr_hdr->SessionId));
 		return rc;
 	}
@@ -4374,10 +4374,10 @@ crypt_message(struct TCP_Server_Info *server, int num_rqst,
 
 	if ((server->cipher_type == SMB2_ENCRYPTION_AES128_GCM) ||
 	    (server->cipher_type == SMB2_ENCRYPTION_AES256_GCM))
-		memcpy(iv, (char *)tr_hdr->Nonce, SMB3_AES_GCM_NONCE);
+		memcpy(iv, (char *)tr_hdr->Analnce, SMB3_AES_GCM_ANALNCE);
 	else {
 		iv[0] = 3;
-		memcpy(iv + 1, (char *)tr_hdr->Nonce, SMB3_AES_CCM_NONCE);
+		memcpy(iv + 1, (char *)tr_hdr->Analnce, SMB3_AES_CCM_ANALNCE);
 	}
 
 	aead_request_set_tfm(req, tfm);
@@ -4445,7 +4445,7 @@ smb3_init_transform_rq(struct TCP_Server_Info *server, int num_rqst,
 	struct page *page;
 	unsigned int orig_len = 0;
 	int i, j;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	for (i = 1; i < num_rqst; i++) {
 		struct smb_rqst *old = &old_rq[i - 1];
@@ -4465,7 +4465,7 @@ smb3_init_transform_rq(struct TCP_Server_Info *server, int num_rqst,
 			for (j = 0; j < npages; j++) {
 				void *o;
 
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				page = alloc_page(GFP_KERNEL|__GFP_HIGHMEM);
 				if (!page)
 					goto err_free;
@@ -4591,7 +4591,7 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 
 	if (shdr->Command != SMB2_READ) {
 		cifs_server_dbg(VFS, "only big read responses are supported\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (server->ops->is_session_expired &&
@@ -4620,7 +4620,7 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 	if (rdata->result != 0) {
 		cifs_dbg(FYI, "%s: server returned error %d\n",
 			 __func__, rdata->result);
-		/* normal error on read response */
+		/* analrmal error on read response */
 		if (is_offloaded)
 			mid->mid_state = MID_RESPONSE_RECEIVED;
 		else
@@ -4705,8 +4705,8 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 			return length;
 		rdata->got_bytes = data_len;
 	} else {
-		/* read response payload cannot be in both buf and pages */
-		WARN_ONCE(1, "buf can not contain only a part of read data");
+		/* read response payload cananalt be in both buf and pages */
+		WARN_ONCE(1, "buf can analt contain only a part of read data");
 		rdata->result = -EIO;
 		if (is_offloaded)
 			mid->mid_state = MID_RESPONSE_MALFORMED;
@@ -4750,7 +4750,7 @@ static void smb2_decrypt_offload(struct work_struct *work)
 	dw->server->lstrp = jiffies;
 	mid = smb2_find_dequeue_mid(dw->server, dw->buf);
 	if (mid == NULL)
-		cifs_dbg(FYI, "mid not found\n");
+		cifs_dbg(FYI, "mid analt found\n");
 	else {
 		mid->decrypted = true;
 		rc = handle_read_data(dw->server, mid, dw->buf,
@@ -4810,7 +4810,7 @@ receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid,
 
 	dw = kzalloc(sizeof(struct smb2_decrypt_work), GFP_KERNEL);
 	if (!dw)
-		return -ENOMEM;
+		return -EANALMEM;
 	xa_init(&dw->buffer);
 	INIT_WORK(&dw->decrypt, smb2_decrypt_offload);
 	dw->server = server;
@@ -4829,7 +4829,7 @@ receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid,
 	dw->len = len;
 	npages = DIV_ROUND_UP(len, PAGE_SIZE);
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	for (; i < npages; i++) {
 		void *old;
 
@@ -4885,7 +4885,7 @@ receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid,
 
 	*mid = smb2_find_mid(server, buf);
 	if (*mid == NULL) {
-		cifs_dbg(FYI, "mid not found\n");
+		cifs_dbg(FYI, "mid analt found\n");
 	} else {
 		cifs_dbg(FYI, "mid found\n");
 		(*mid)->decrypted = true;
@@ -4934,7 +4934,7 @@ receive_encrypted_standard(struct TCP_Server_Info *server,
 		buf = server->bigbuf;
 	}
 
-	/* now read the rest */
+	/* analw read the rest */
 	length = cifs_read_from_socket(server, buf + HEADER_SIZE(server) - 1,
 				pdu_length - HEADER_SIZE(server) + 1);
 	if (length < 0)
@@ -4962,7 +4962,7 @@ one_more:
 
 	mid_entry = smb2_find_mid(server, buf);
 	if (mid_entry == NULL)
-		cifs_dbg(FYI, "mid not found\n");
+		cifs_dbg(FYI, "mid analt found\n");
 	else {
 		cifs_dbg(FYI, "mid found\n");
 		mid_entry->decrypted = true;
@@ -4993,7 +4993,7 @@ one_more:
 		/*
 		 * ret != 0 here means that we didn't get to handle_mid() thus
 		 * server->smallbuf and server->bigbuf are still valid. We need
-		 * to free next_buffer because it is not going to be used
+		 * to free next_buffer because it is analt going to be used
 		 * anywhere.
 		 */
 		if (next_is_large)
@@ -5046,24 +5046,24 @@ smb3_handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 }
 
 static int smb2_next_header(struct TCP_Server_Info *server, char *buf,
-			    unsigned int *noff)
+			    unsigned int *analff)
 {
 	struct smb2_hdr *hdr = (struct smb2_hdr *)buf;
 	struct smb2_transform_hdr *t_hdr = (struct smb2_transform_hdr *)buf;
 
 	if (hdr->ProtocolId == SMB2_TRANSFORM_PROTO_NUM) {
-		*noff = le32_to_cpu(t_hdr->OriginalMessageSize);
-		if (unlikely(check_add_overflow(*noff, sizeof(*t_hdr), noff)))
+		*analff = le32_to_cpu(t_hdr->OriginalMessageSize);
+		if (unlikely(check_add_overflow(*analff, sizeof(*t_hdr), analff)))
 			return -EINVAL;
 	} else {
-		*noff = le32_to_cpu(hdr->NextCommand);
+		*analff = le32_to_cpu(hdr->NextCommand);
 	}
-	if (unlikely(*noff && *noff < MID_HEADER_SIZE(server)))
+	if (unlikely(*analff && *analff < MID_HEADER_SIZE(server)))
 		return -EINVAL;
 	return 0;
 }
 
-int cifs_sfu_make_node(unsigned int xid, struct inode *inode,
+int cifs_sfu_make_analde(unsigned int xid, struct ianalde *ianalde,
 		       struct dentry *dentry, struct cifs_tcon *tcon,
 		       const char *full_path, umode_t mode, dev_t dev)
 {
@@ -5071,7 +5071,7 @@ int cifs_sfu_make_node(unsigned int xid, struct inode *inode,
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifs_open_parms oparms;
 	struct cifs_io_parms io_parms = {};
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(ianalde->i_sb);
 	struct cifs_fid fid;
 	unsigned int bytes_written;
 	struct win_dev *pdev;
@@ -5086,7 +5086,7 @@ int cifs_sfu_make_node(unsigned int xid, struct inode *inode,
 		.tcon = tcon,
 		.cifs_sb = cifs_sb,
 		.desired_access = GENERIC_WRITE,
-		.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR |
+		.create_options = cifs_create_options(cifs_sb, CREATE_ANALT_DIR |
 						      CREATE_OPTION_SPECIAL),
 		.disposition = FILE_CREATE,
 		.path = full_path,
@@ -5098,7 +5098,7 @@ int cifs_sfu_make_node(unsigned int xid, struct inode *inode,
 		return rc;
 
 	/*
-	 * BB Do not bother to decode buf since no local inode yet to put
+	 * BB Do analt bother to decode buf since anal local ianalde yet to put
 	 * timestamps in, but we can reuse it safely.
 	 */
 	pdev = (struct win_dev *)&buf.fi;
@@ -5110,11 +5110,11 @@ int cifs_sfu_make_node(unsigned int xid, struct inode *inode,
 	if (S_ISCHR(mode)) {
 		memcpy(pdev->type, "IntxCHR", 8);
 		pdev->major = cpu_to_le64(MAJOR(dev));
-		pdev->minor = cpu_to_le64(MINOR(dev));
+		pdev->mianalr = cpu_to_le64(MIANALR(dev));
 	} else if (S_ISBLK(mode)) {
 		memcpy(pdev->type, "IntxBLK", 8);
 		pdev->major = cpu_to_le64(MAJOR(dev));
-		pdev->minor = cpu_to_le64(MINOR(dev));
+		pdev->mianalr = cpu_to_le64(MIANALR(dev));
 	} else if (S_ISFIFO(mode)) {
 		memcpy(pdev->type, "LnxFIFO", 8);
 	}
@@ -5158,28 +5158,28 @@ static int nfs_set_reparse_buf(struct reparse_posix_data *buf,
 		dlen = 0;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	buf->ReparseTag = cpu_to_le32(IO_REPARSE_TAG_NFS);
 	buf->Reserved = 0;
-	buf->InodeType = cpu_to_le64(type);
+	buf->IanaldeType = cpu_to_le64(type);
 	buf->ReparseDataLength = cpu_to_le16(len + dlen -
 					     sizeof(struct reparse_data_buffer));
 	*(__le64 *)buf->DataBuffer = cpu_to_le64(((u64)MAJOR(dev) << 32) |
-						 MINOR(dev));
+						 MIANALR(dev));
 	iov->iov_base = buf;
 	iov->iov_len = len + dlen;
 	return 0;
 }
 
-static int nfs_make_node(unsigned int xid, struct inode *inode,
+static int nfs_make_analde(unsigned int xid, struct ianalde *ianalde,
 			 struct dentry *dentry, struct cifs_tcon *tcon,
 			 const char *full_path, umode_t mode, dev_t dev)
 {
 	struct cifs_open_info_data data;
 	struct reparse_posix_data *p;
-	struct inode *new;
+	struct ianalde *new;
 	struct kvec iov;
 	__u8 buf[sizeof(*p) + sizeof(__le64)];
 	int rc;
@@ -5194,7 +5194,7 @@ static int nfs_make_node(unsigned int xid, struct inode *inode,
 		.reparse = { .tag = IO_REPARSE_TAG_NFS, .posix = p, },
 	};
 
-	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
+	new = smb2_get_reparse_ianalde(&data, ianalde->i_sb, xid,
 				     tcon, full_path, &iov);
 	if (!IS_ERR(new))
 		d_instantiate(dentry, new);
@@ -5205,7 +5205,7 @@ static int nfs_make_node(unsigned int xid, struct inode *inode,
 }
 
 static int smb2_create_reparse_symlink(const unsigned int xid,
-				       struct inode *inode,
+				       struct ianalde *ianalde,
 				       struct dentry *dentry,
 				       struct cifs_tcon *tcon,
 				       const char *full_path,
@@ -5213,8 +5213,8 @@ static int smb2_create_reparse_symlink(const unsigned int xid,
 {
 	struct reparse_symlink_data_buffer *buf = NULL;
 	struct cifs_open_info_data data;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-	struct inode *new;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(ianalde->i_sb);
+	struct ianalde *new;
 	struct kvec iov;
 	__le16 *path;
 	char *sym, sep = CIFS_DIR_SEP(cifs_sb);
@@ -5223,7 +5223,7 @@ static int smb2_create_reparse_symlink(const unsigned int xid,
 
 	sym = kstrdup(symname, GFP_KERNEL);
 	if (!sym)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = (struct cifs_open_info_data) {
 		.reparse_point = true,
@@ -5234,7 +5234,7 @@ static int smb2_create_reparse_symlink(const unsigned int xid,
 	convert_delimiter(sym, sep);
 	path = cifs_convert_path_to_utf16(sym, cifs_sb);
 	if (!path) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -5242,7 +5242,7 @@ static int smb2_create_reparse_symlink(const unsigned int xid,
 	len = sizeof(*buf) + plen * 2;
 	buf = kzalloc(len, GFP_KERNEL);
 	if (!buf) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -5261,7 +5261,7 @@ static int smb2_create_reparse_symlink(const unsigned int xid,
 	convert_delimiter(sym, '/');
 	iov.iov_base = buf;
 	iov.iov_len = len;
-	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
+	new = smb2_get_reparse_ianalde(&data, ianalde->i_sb, xid,
 				     tcon, full_path, &iov);
 	if (!IS_ERR(new))
 		d_instantiate(dentry, new);
@@ -5274,24 +5274,24 @@ out:
 	return rc;
 }
 
-static int smb2_make_node(unsigned int xid, struct inode *inode,
+static int smb2_make_analde(unsigned int xid, struct ianalde *ianalde,
 			  struct dentry *dentry, struct cifs_tcon *tcon,
 			  const char *full_path, umode_t mode, dev_t dev)
 {
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(ianalde->i_sb);
 	int rc;
 
 	/*
 	 * Check if mounted with mount parm 'sfu' mount parm.
 	 * SFU emulation should work with all servers, but only
-	 * supports block and char device (no socket & fifo),
+	 * supports block and char device (anal socket & fifo),
 	 * and was used by default in earlier versions of Windows
 	 */
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
-		rc = cifs_sfu_make_node(xid, inode, dentry, tcon,
+		rc = cifs_sfu_make_analde(xid, ianalde, dentry, tcon,
 					full_path, mode, dev);
 	} else {
-		rc = nfs_make_node(xid, inode, dentry, tcon,
+		rc = nfs_make_analde(xid, ianalde, dentry, tcon,
 				   full_path, mode, dev);
 	}
 	return rc;
@@ -5392,7 +5392,7 @@ struct smb_version_operations smb20_operations = {
 	.set_acl = set_smb2_acl,
 	.next_header = smb2_next_header,
 	.ioctl_query_info = smb2_ioctl_query_info,
-	.make_node = smb2_make_node,
+	.make_analde = smb2_make_analde,
 	.fiemap = smb3_fiemap,
 	.llseek = smb3_llseek,
 	.is_status_io_timeout = smb2_is_status_io_timeout,
@@ -5485,7 +5485,7 @@ struct smb_version_operations smb21_operations = {
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
 	.enum_snapshots = smb3_enum_snapshots,
-	.notify = smb3_notify,
+	.analtify = smb3_analtify,
 	.get_dfs_refer = smb2_get_dfs_refer,
 	.select_sectype = smb2_select_sectype,
 #ifdef CONFIG_CIFS_XATTR
@@ -5497,7 +5497,7 @@ struct smb_version_operations smb21_operations = {
 	.set_acl = set_smb2_acl,
 	.next_header = smb2_next_header,
 	.ioctl_query_info = smb2_ioctl_query_info,
-	.make_node = smb2_make_node,
+	.make_analde = smb2_make_analde,
 	.fiemap = smb3_fiemap,
 	.llseek = smb3_llseek,
 	.is_status_io_timeout = smb2_is_status_io_timeout,
@@ -5597,7 +5597,7 @@ struct smb_version_operations smb30_operations = {
 	.dir_needs_close = smb2_dir_needs_close,
 	.fallocate = smb3_fallocate,
 	.enum_snapshots = smb3_enum_snapshots,
-	.notify = smb3_notify,
+	.analtify = smb3_analtify,
 	.init_transform_rq = smb3_init_transform_rq,
 	.is_transform_hdr = smb3_is_transform_hdr,
 	.receive_transform = smb3_receive_transform,
@@ -5612,7 +5612,7 @@ struct smb_version_operations smb30_operations = {
 	.set_acl = set_smb2_acl,
 	.next_header = smb2_next_header,
 	.ioctl_query_info = smb2_ioctl_query_info,
-	.make_node = smb2_make_node,
+	.make_analde = smb2_make_analde,
 	.fiemap = smb3_fiemap,
 	.llseek = smb3_llseek,
 	.is_status_io_timeout = smb2_is_status_io_timeout,
@@ -5707,12 +5707,12 @@ struct smb_version_operations smb311_operations = {
 	.parse_lease_buf = smb3_parse_lease_buf,
 	.copychunk_range = smb2_copychunk_range,
 	.duplicate_extents = smb2_duplicate_extents,
-/*	.validate_negotiate = smb3_validate_negotiate, */ /* not used in 3.11 */
+/*	.validate_negotiate = smb3_validate_negotiate, */ /* analt used in 3.11 */
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
 	.fallocate = smb3_fallocate,
 	.enum_snapshots = smb3_enum_snapshots,
-	.notify = smb3_notify,
+	.analtify = smb3_analtify,
 	.init_transform_rq = smb3_init_transform_rq,
 	.is_transform_hdr = smb3_is_transform_hdr,
 	.receive_transform = smb3_receive_transform,
@@ -5727,7 +5727,7 @@ struct smb_version_operations smb311_operations = {
 	.set_acl = set_smb2_acl,
 	.next_header = smb2_next_header,
 	.ioctl_query_info = smb2_ioctl_query_info,
-	.make_node = smb2_make_node,
+	.make_analde = smb2_make_analde,
 	.fiemap = smb3_fiemap,
 	.llseek = smb3_llseek,
 	.is_status_io_timeout = smb2_is_status_io_timeout,

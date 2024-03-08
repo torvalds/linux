@@ -74,7 +74,7 @@ mwifiex_info_read(struct file *file, char __user *ubuf,
 	int i = 0;
 
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&info, 0, sizeof(info));
 	ret = mwifiex_get_bss_info(priv, &info);
@@ -174,7 +174,7 @@ mwifiex_getlog_read(struct file *file, char __user *ubuf,
 	struct mwifiex_ds_get_stats stats;
 
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&stats, 0, sizeof(stats));
 	ret = mwifiex_get_stats_info(priv, &stats);
@@ -235,7 +235,7 @@ free_and_exit:
  *      - Number of histogram samples
  *      - Receive packet number of each rx_rate
  *      - Receive packet number of each snr
- *      - Receive packet number of each nosie_flr
+ *      - Receive packet number of each analsie_flr
  *      - Receive packet number of each signal streath
  */
 static ssize_t
@@ -251,7 +251,7 @@ mwifiex_histogram_read(struct file *file, char __user *ubuf,
 	char *p = (char *)page;
 
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!priv || !priv->hist_data) {
 		ret = -EFAULT;
@@ -296,10 +296,10 @@ mwifiex_histogram_read(struct file *file, char __user *ubuf,
 		if (value)
 			p += sprintf(p, "snr[%02ddB] = %d\n", i, value);
 	}
-	for (i = 0; i < MWIFIEX_MAX_NOISE_FLR; i++) {
-		value = atomic_read(&phist_data->noise_flr[i]);
+	for (i = 0; i < MWIFIEX_MAX_ANALISE_FLR; i++) {
+		value = atomic_read(&phist_data->analise_flr[i]);
 		if (value)
-			p += sprintf(p, "noise_flr[%02ddBm] = %d\n",
+			p += sprintf(p, "analise_flr[%02ddBm] = %d\n",
 				(int)(i-128), value);
 	}
 	for (i = 0; i < MWIFIEX_MAX_SIG_STRENGTH; i++) {
@@ -388,7 +388,7 @@ mwifiex_debug_read(struct file *file, char __user *ubuf,
 	ssize_t ret;
 
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mwifiex_get_debug_info(priv, &info);
 	if (ret)
@@ -463,10 +463,10 @@ mwifiex_regrdwr_read(struct file *file, char __user *ubuf,
 	u32 reg_value;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!saved_reg_type) {
-		/* No command has been given */
+		/* Anal command has been given */
 		pos += snprintf(buf, PAGE_SIZE, "0");
 		goto done;
 	}
@@ -517,7 +517,7 @@ mwifiex_debug_mask_read(struct file *file, char __user *ubuf,
 	int pos = 0;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos += snprintf(buf, PAGE_SIZE, "debug mask=0x%08x\n",
 			priv->adapter->debug_mask);
@@ -663,7 +663,7 @@ mwifiex_memrw_read(struct file *file, char __user *ubuf,
 	int ret, pos = 0;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos += snprintf(buf, PAGE_SIZE, "0x%x 0x%x\n", priv->mem_rw.addr,
 			priv->mem_rw.value);
@@ -731,10 +731,10 @@ mwifiex_rdeeprom_read(struct file *file, char __user *ubuf,
 	u8 value[MAX_EEPROM_DATA];
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (saved_offset == -1) {
-		/* No command has been given */
+		/* Anal command has been given */
 		pos = snprintf(buf, PAGE_SIZE, "0");
 		goto done;
 	}
@@ -832,7 +832,7 @@ mwifiex_hscfg_read(struct file *file, char __user *ubuf,
 	struct mwifiex_ds_hs_cfg hscfg;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mwifiex_set_hs_params(priv, HostCmd_ACT_GEN_GET,
 			      MWIFIEX_SYNC_CMD, &hscfg);
@@ -857,7 +857,7 @@ mwifiex_timeshare_coex_read(struct file *file, char __user *ubuf,
 	unsigned int len;
 
 	if (priv->adapter->fw_api_ver != MWIFIEX_FW_V15)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = mwifiex_send_cmd(priv, HostCmd_CMD_ROBUST_COEX,
 			       HostCmd_ACT_GEN_GET, 0, &timeshare_coex, true);
@@ -878,7 +878,7 @@ mwifiex_timeshare_coex_write(struct file *file, const char __user *ubuf,
 	int ret;
 
 	if (priv->adapter->fw_api_ver != MWIFIEX_FW_V15)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(kbuf, 0, sizeof(kbuf));
 

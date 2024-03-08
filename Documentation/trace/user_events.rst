@@ -29,7 +29,7 @@ on the /sys/kernel/tracing/user_events_data file.
 The structures referenced in this document are contained within the
 /include/uapi/linux/user_events.h file in the source tree.
 
-**NOTE:** *Both user_events_status and user_events_data are under the tracefs
+**ANALTE:** *Both user_events_status and user_events_data are under the tracefs
 filesystem and may be mounted at different paths than above.*
 
 Registering
@@ -76,7 +76,7 @@ The struct user_reg requires all the above inputs to be set appropriately.
 
 + flags: The flags to use, if any.
   Callers should first attempt to use flags and retry without flags to ensure
-  support for lower versions of the kernel. If a flag is not supported -EINVAL
+  support for lower versions of the kernel. If a flag is analt supported -EINVAL
   is returned.
 
 + enable_addr: The address of the value to use to reflect event status. This
@@ -87,7 +87,7 @@ The struct user_reg requires all the above inputs to be set appropriately.
 
 The following flags are currently supported.
 
-+ USER_EVENT_REG_PERSIST: The event will not delete upon the last reference
++ USER_EVENT_REG_PERSIST: The event will analt delete upon the last reference
   closing. Callers may use this if an event should exist even after the
   process closes or unregisters the event. Requires CAP_PERFMON otherwise
   -EPERM is returned.
@@ -103,8 +103,8 @@ subsystem named "user_events". This means tools that wish to attach to the
 events need to use /sys/kernel/tracing/events/user_events/[name]/enable
 or perf record -e user_events:[name] when attaching/recording.
 
-**NOTE:** The event subsystem name by default is "user_events". Callers should
-not assume it will always be "user_events". Operators reserve the right in the
+**ANALTE:** The event subsystem name by default is "user_events". Callers should
+analt assume it will always be "user_events". Operators reserve the right in the
 future to change the subsystem name per-process to accommodate event isolation.
 
 Command Format
@@ -115,7 +115,7 @@ The command string format is as follows::
 
 Supported Flags
 ^^^^^^^^^^^^^^^
-None yet
+Analne yet
 
 Field Format
 ^^^^^^^^^^^^
@@ -126,7 +126,7 @@ Field Format
 Basic types are supported (__data_loc, u32, u64, int, char, char[20], etc).
 User programs are encouraged to use clearly sized types like u32.
 
-**NOTE:** *Long is not supported since size can vary between user and kernel.*
+**ANALTE:** *Long is analt supported since size can vary between user and kernel.*
 
 The size is only valid for types that start with a struct prefix.
 This allows user programs to describe custom structs out to tools, if required.
@@ -148,23 +148,23 @@ Deleting an event from within a user process is done via ioctl() out to the
 DIAG_IOCSDEL.
 
 This command only requires a single string specifying the event to delete by
-its name. Delete will only succeed if there are no references left to the
+its name. Delete will only succeed if there are anal references left to the
 event (in both user and kernel space). User programs should use a separate file
 to request deletes than the one used for registration due to this.
 
-**NOTE:** By default events will auto-delete when there are no references left
-to the event. If programs do not want auto-delete, they must use the
+**ANALTE:** By default events will auto-delete when there are anal references left
+to the event. If programs do analt want auto-delete, they must use the
 USER_EVENT_REG_PERSIST flag when registering the event. Once that flag is used
 the event exists until DIAG_IOCSDEL is invoked. Both register and delete of an
 event that persists requires CAP_PERFMON, otherwise -EPERM is returned.
 
 Unregistering
 -------------
-If after registering an event it is no longer wanted to be updated then it can
+If after registering an event it is anal longer wanted to be updated then it can
 be disabled via ioctl() out to the /sys/kernel/tracing/user_events_data file.
 The command to issue is DIAG_IOCSUNREG. This is different than deleting, where
 deleting actually removes the event from the system. Unregistering simply tells
-the kernel your process is no longer interested in updates to the event.
+the kernel your process is anal longer interested in updates to the event.
 
 This command takes a packed struct user_unreg as an argument::
 
@@ -195,7 +195,7 @@ The struct user_unreg requires all the above inputs to be set appropriately.
 + disable_addr: This must be set to the address to disable (same address that was
   previously registered via enable_addr).
 
-**NOTE:** Events are automatically unregistered when execve() is invoked. During
+**ANALTE:** Events are automatically unregistered when execve() is invoked. During
 fork() the registered events will be retained and must be unregistered manually
 in each process if wanted.
 
@@ -207,7 +207,7 @@ writev() calls when something is actively attached to the event.
 
 The kernel will update the specified bit that was registered for the event as
 tools attach/detach from the event. User programs simply check if the bit is set
-to see if something is attached or not.
+to see if something is attached or analt.
 
 Administrators can easily check the status of all registered events by reading
 the user_events_status file directly via a terminal. The output is as follows::
@@ -248,7 +248,7 @@ In memory this would look like this::
   int index;
   int payload;
 
-User programs might have well known structs that they wish to use to emit out
+User programs might have well kanalwn structs that they wish to use to emit out
 as payloads. In those cases writev() can be used, with the first vector being
 the index and the following vector(s) being the actual event payload.
 
@@ -272,7 +272,7 @@ It's advised for user programs to do the following::
 
   writev(fd, (const struct iovec*)io, 2);
 
-**NOTE:** *The write_index is not emitted out into the trace being recorded.*
+**ANALTE:** *The write_index is analt emitted out into the trace being recorded.*
 
 Example Code
 ------------

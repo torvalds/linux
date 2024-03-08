@@ -669,8 +669,8 @@ static void asd_dump_lseq_state(struct asd_ha_struct *asd_ha, int lseq)
 	PRINT_LMIP_byte(asd_ha, lseq, LINK_RESET_RETRY_COUNT);
 	PRINT_LMIP_byte(asd_ha, lseq, NUM_LINK_RESET_RETRIES);
 	PRINT_LMIP_word(asd_ha, lseq, OOB_INT_ENABLES);
-	PRINT_LMIP_word(asd_ha, lseq, NOTIFY_TIMER_TIMEOUT);
-	PRINT_LMIP_word(asd_ha, lseq, NOTIFY_TIMER_DOWN_COUNT);
+	PRINT_LMIP_word(asd_ha, lseq, ANALTIFY_TIMER_TIMEOUT);
+	PRINT_LMIP_word(asd_ha, lseq, ANALTIFY_TIMER_DOWN_COUNT);
 
 	asd_printk("LSEQ%d MDP 1 MODE 0 >>>>\n", lseq);
 	PRINT_LMIP_qword(asd_ha, lseq, SG_LIST_PTR_ADDR0);

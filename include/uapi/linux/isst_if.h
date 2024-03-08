@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Intel Speed Select Interface: OS to hardware Interface
  * Copyright (c) 2019, Intel Corporation.
@@ -18,7 +18,7 @@
  *			can communicate
  * @driver_version:	Driver version, which will help user to send right
  *			commands. Even if the firmware is capable, driver may
- *			not be ready
+ *			analt be ready
  * @max_cmds_per_ioctl:	Returns the maximum number of commands driver will
  *			accept in a single ioctl
  * @mbox_supported:	Support of mail box interface
@@ -56,7 +56,7 @@ struct isst_if_cpu_map {
  *
  * This structure used with ioctl ISST_IF_GET_PHY_ID to send
  * one or more CPU mapping commands. Here IOCTL return value indicates
- * number of commands sent or error number if no commands have been sent.
+ * number of commands sent or error number if anal commands have been sent.
  */
 struct isst_if_cpu_maps {
 	__u32 cmd_count;
@@ -87,7 +87,7 @@ struct isst_if_io_reg {
  *
  * This structure used with ioctl ISST_IF_IO_CMD to send
  * one or more read/write commands to PUNIT. Here IOCTL return value
- * indicates number of requests sent or error number if no requests have
+ * indicates number of requests sent or error number if anal requests have
  * been sent.
  */
 struct isst_if_io_regs {
@@ -124,7 +124,7 @@ struct isst_if_mbox_cmd {
  *
  * This structure used with ioctl ISST_IF_MBOX_COMMAND to send
  * one or more mailbox commands to PUNIT. Here IOCTL return value
- * indicates number of commands sent or error number if no commands have
+ * indicates number of commands sent or error number if anal commands have
  * been sent.
  */
 struct isst_if_mbox_cmds {
@@ -156,7 +156,7 @@ struct isst_if_msr_cmd {
  *
  * This structure used with ioctl ISST_IF_MSR_COMMAND to send
  * one or more MSR commands. IOCTL return value indicates number of
- * commands sent or error number if no commands have been sent.
+ * commands sent or error number if anal commands have been sent.
  */
 struct isst_if_msr_cmds {
 	__u32 cmd_count;
@@ -226,7 +226,7 @@ struct isst_if_clos_assoc {
  * struct isst_if_clos_assoc_cmds - Structure to assign clos to CPUs
  * @cmd_count:	Number of cmds (cpus) in this request
  * @get_set:	Request is for get or set
- * @punit_cpu_map: Set to 1 if the CPU number is punit numbering not
+ * @punit_cpu_map: Set to 1 if the CPU number is punit numbering analt
  *		   Linux CPU number
  *
  * Structure used to get/set associate CPUs to clos using IOCTL
@@ -266,7 +266,7 @@ struct isst_tpmi_instance_count {
  * @current_level: Current performance level
  * @feature_state: SST-BF and SST-TF (enabled/disabled) status at current level
  * @locked: SST-PP performance level change is locked/unlocked
- * @enabled: SST-PP feature is enabled or not
+ * @enabled: SST-PP feature is enabled or analt
  * @sst-tf_support: SST-TF support status at this level
  * @sst-bf_support: SST-BF support status at this level
  *
@@ -380,7 +380,7 @@ struct isst_perf_level_data_info {
  * @socket_id:	Socket/package id
  * @power_domain:	Power Domain id
  * @level:	SST-PP level for which caller wants to get information
- * @punit_cpu_map: Set to 1 if the CPU number is punit numbering not
+ * @punit_cpu_map: Set to 1 if the CPU number is punit numbering analt
  *		   Linux CPU number. If 0 CPU buffer is copied to user space
  *		   supplied cpu_buffer of size cpu_buffer_size. Punit
  *		   cpu mask is copied to "mask" field.

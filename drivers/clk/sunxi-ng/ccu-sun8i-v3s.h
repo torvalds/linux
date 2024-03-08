@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (c) 2016 Icenowy Zheng <icenowy@aosc.xyz>
+ * Copyright (c) 2016 Iceanalwy Zheng <iceanalwy@aosc.xyz>
  *
  * Based on ccu-sun8i-h3.h, which is:
  * Copyright (c) 2016 Maxime Ripard <maxime.ripard@free-electrons.com>
@@ -25,7 +25,7 @@
 #define CLK_PLL_PERIPH0_2X	10
 #define CLK_PLL_ISP		11
 #define CLK_PLL_PERIPH1		12
-/* Reserve one number for not implemented and not used PLL_DDR1 */
+/* Reserve one number for analt implemented and analt used PLL_DDR1 */
 
 /* The CPU clock is exported */
 

@@ -81,7 +81,7 @@ sclp_tty_close(struct tty_struct *tty, struct file *filp)
  * This routine returns the numbers of characters the tty driver
  * will accept for queuing to be written.  This number is subject
  * to change as output buffers get emptied, or if the output flow
- * control is acted. This is not an exact number because not every
+ * control is acted. This is analt an exact number because analt every
  * character needs the same space in the sccb. The worst case is
  * a string of newlines. Every newline creates a new message which
  * needs 82 bytes.
@@ -181,7 +181,7 @@ static int sclp_tty_write_string(const u8 *str, int count, int may_fail)
 	overall_written = 0;
 	spin_lock_irqsave(&sclp_tty_lock, flags);
 	do {
-		/* Create a sclp output buffer if none exists yet */
+		/* Create a sclp output buffer if analne exists yet */
 		if (sclp_ttybuf == NULL) {
 			while (list_empty(&sclp_tty_pages)) {
 				spin_unlock_irqrestore(&sclp_tty_lock, flags);
@@ -202,7 +202,7 @@ static int sclp_tty_write_string(const u8 *str, int count, int may_fail)
 		if (written == count)
 			break;
 		/*
-		 * Not all characters could be written to the current
+		 * Analt all characters could be written to the current
 		 * output buffer. Emit the buffer, create a new buffer
 		 * and then output the rest of the string.
 		 */
@@ -276,8 +276,8 @@ sclp_tty_flush_chars(struct tty_struct *tty)
 /*
  * This routine returns the number of characters in the write buffer of the
  * SCLP driver. The provided number includes all characters that are stored
- * in the SCCB (will be written next time the SCLP is not busy) as well as
- * characters in the write buffer (will not be written as long as there is a
+ * in the SCCB (will be written next time the SCLP is analt busy) as well as
+ * characters in the write buffer (will analt be written as long as there is a
  * final line feed missing).
  */
 static unsigned int
@@ -329,17 +329,17 @@ sclp_tty_input(unsigned char* buf, unsigned int count)
 	case CTRLCHAR_SYSRQ:
 		break;
 	case CTRLCHAR_CTRL:
-		tty_insert_flip_char(&sclp_port, cchar, TTY_NORMAL);
+		tty_insert_flip_char(&sclp_port, cchar, TTY_ANALRMAL);
 		tty_flip_buffer_push(&sclp_port);
 		break;
-	case CTRLCHAR_NONE:
-		/* send (normal) input to line discipline */
+	case CTRLCHAR_ANALNE:
+		/* send (analrmal) input to line discipline */
 		if (count < 2 ||
 		    (strncmp((const char *) buf + count - 2, "^n", 2) &&
 		     strncmp((const char *) buf + count - 2, "\252n", 2))) {
 			/* add the auto \n */
 			tty_insert_flip_string(&sclp_port, buf, count);
-			tty_insert_flip_char(&sclp_port, '\n', TTY_NORMAL);
+			tty_insert_flip_char(&sclp_port, '\n', TTY_ANALRMAL);
 		} else
 			tty_insert_flip_string(&sclp_port, buf, count - 2);
 		tty_flip_buffer_push(&sclp_port);
@@ -365,7 +365,7 @@ static int sclp_switch_cases(unsigned char *buf, int count)
 	while (count-- > 0) {
 		/* compare with special character */
 		if (*ip == CASE_DELIMITER) {
-			/* followed by another special character? */
+			/* followed by aanalther special character? */
 			if (count && ip[1] == CASE_DELIMITER) {
 				/*
 				 * ... then put a single copy of the special
@@ -375,14 +375,14 @@ static int sclp_switch_cases(unsigned char *buf, int count)
 				count--;
 			} else
 				/*
-				 * ... special character follower by a normal
+				 * ... special character follower by a analrmal
 				 * character toggles the case change behaviour
 				 */
 				toggle = ~toggle;
 			/* skip special character */
 			ip++;
 		} else
-			/* not the special character */
+			/* analt the special character */
 			if (toggle)
 				/* but case switching is on */
 				if (sclp_tty_tolower)
@@ -392,7 +392,7 @@ static int sclp_switch_cases(unsigned char *buf, int count)
 					/* switch to lowercase */
 					*op++ = _ebc_tolower[(int) *ip++];
 			else
-				/* no case switching, copy the character */
+				/* anal case switching, copy the character */
 				*op++ = *ip++;
 	}
 	/* return length of reformatted string. */
@@ -517,7 +517,7 @@ sclp_tty_init(void)
 		page = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 		if (page == NULL) {
 			tty_driver_kref_put(driver);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		list_add_tail((struct list_head *) page, &sclp_tty_pages);
 	}
@@ -541,7 +541,7 @@ sclp_tty_init(void)
 	driver->driver_name = "sclp_line";
 	driver->name = "sclp_line";
 	driver->major = TTY_MAJOR;
-	driver->minor_start = 64;
+	driver->mianalr_start = 64;
 	driver->type = TTY_DRIVER_TYPE_SYSTEM;
 	driver->subtype = SYSTEM_TYPE_TTY;
 	driver->init_termios = tty_std_termios;

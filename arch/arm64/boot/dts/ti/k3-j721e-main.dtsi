@@ -946,7 +946,7 @@
 
 		serdes4: serdes@5050000 {
 			/*
-			 * Note: we also map DPTX PHY registers as the Torrent
+			 * Analte: we also map DPTX PHY registers as the Torrent
 			 * needs to manage those.
 			 */
 			compatible = "ti,j721e-serdes-10g";
@@ -1719,7 +1719,7 @@
 	mhdp: dp-bridge@a000000 {
 		compatible = "ti,j721e-mhdp8546";
 		/*
-		 * Note: we do not map DPTX PHY area, as that is handled by
+		 * Analte: we do analt map DPTX PHY area, as that is handled by
 		 * the PHY driver.
 		 */
 		reg = <0x00 0x0a000000 0x00 0x030a00>, /* DSS_EDP0_V2A_CORE_VP_REGS_APB */

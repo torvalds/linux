@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2016 Noralf Trønnes
+ * Copyright (C) 2016 Analralf Trønnes
  */
 
 #ifndef __LINUX_DRM_FORMAT_HELPER_H
@@ -114,7 +114,7 @@ int drm_fb_blit(struct iosys_map *dst, const unsigned int *dst_pitch, uint32_t d
 		const struct iosys_map *src, const struct drm_framebuffer *fb,
 		const struct drm_rect *clip, struct drm_format_conv_state *state);
 
-void drm_fb_xrgb8888_to_mono(struct iosys_map *dst, const unsigned int *dst_pitch,
+void drm_fb_xrgb8888_to_moanal(struct iosys_map *dst, const unsigned int *dst_pitch,
 			     const struct iosys_map *src, const struct drm_framebuffer *fb,
 			     const struct drm_rect *clip, struct drm_format_conv_state *state);
 

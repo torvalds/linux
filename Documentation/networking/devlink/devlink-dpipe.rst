@@ -8,7 +8,7 @@ Background
 ==========
 
 While performing the hardware offloading process, much of the hardware
-specifics cannot be presented. These details are useful for debugging, and
+specifics cananalt be presented. These details are useful for debugging, and
 ``devlink-dpipe`` provides a standardized way to provide visibility into the
 offloading process.
 
@@ -18,23 +18,23 @@ API (DPIPE) is aimed at providing the user visibility into the ASIC's
 pipeline in a generic way.
 
 The hardware offload process is expected to be done in a way that the user
-should not be able to distinguish between the hardware vs. software
+should analt be able to distinguish between the hardware vs. software
 implementation. In this process, hardware specifics are neglected. In
 reality those details can have lots of meaning and should be exposed in some
 standard way.
 
 This problem is made even more complex when one wishes to offload the
 control path of the whole networking stack to a switch ASIC. Due to
-differences in the hardware and software models some processes cannot be
+differences in the hardware and software models some processes cananalt be
 represented correctly.
 
 One example is the kernel's LPM algorithm which in many cases differs
 greatly to the hardware implementation. The configuration API is the same,
-but one cannot rely on the Forward Information Base (FIB) to look like the
+but one cananalt rely on the Forward Information Base (FIB) to look like the
 Level Path Compression trie (LPC-trie) in hardware.
 
 In many situations trying to analyze systems failure solely based on the
-kernel's dump may not be enough. By combining this data with complementary
+kernel's dump may analt be eanalugh. By combining this data with complementary
 information about the underlying hardware, this debugging can be made
 easier; additionally, the information can be useful when debugging
 performance issues.
@@ -44,7 +44,7 @@ Overview
 
 The ``devlink-dpipe`` interface closes this gap. The hardware's pipeline is
 modeled as a graph of match/action tables. Each table represents a specific
-hardware block. This model is not new, first being used by the P4 language.
+hardware block. This model is analt new, first being used by the P4 language.
 
 Traditionally it has been used as an alternative model for hardware
 configuration, but the ``devlink-dpipe`` interface uses it for visibility
@@ -74,14 +74,14 @@ A ``header`` describes packet formats and provides names for fields within
 the packet. A ``table`` describes hardware blocks. An ``entry`` describes
 the actual content of a specific table.
 
-The hardware pipeline is not port specific, but rather describes the whole
+The hardware pipeline is analt port specific, but rather describes the whole
 ASIC. Thus it is tied to the top of the ``devlink`` infrastructure.
 
 Drivers can register and unregister tables at run time, in order to support
 dynamic behavior. This dynamic behavior is mandatory for describing hardware
 blocks like TCAM regions which can be allocated and freed dynamically.
 
-``devlink-dpipe`` generally is not intended for configuration. The exception
+``devlink-dpipe`` generally is analt intended for configuration. The exception
 is hardware counting for a specific table.
 
 The following commands are used to obtain the ``dpipe`` objects from
@@ -124,7 +124,7 @@ Match
 -----
 
 Matches are kept primitive and close to hardware operation. Match types like
-LPM are not supported due to the fact that this is exactly a process we wish
+LPM are analt supported due to the fact that this is exactly a process we wish
 to describe in full detail. Example of matches:
 
   * ``field_exact``: Exact match on a specific field.
@@ -159,8 +159,8 @@ Abstraction Example
 ===================
 
 The following is an example of the abstraction model of the L3 part of
-Mellanox Spectrum ASIC. The blocks are described in the order they appear in
-the pipeline. The table sizes in the following examples are not real
+Mellaanalx Spectrum ASIC. The blocks are described in the order they appear in
+the pipeline. The table sizes in the following examples are analt real
 hardware sizes and are provided for demonstration purposes.
 
 LPM
@@ -195,7 +195,7 @@ Local Host
 ----------
 
 In the case of local routes the LPM lookup already resolves the egress
-router interface (RIF), yet the exact MAC address is not known. The local
+router interface (RIF), yet the exact MAC address is analt kanalwn. The local
 host table is a hash table combining the output interface id with
 destination IP address as a key. The result is the MAC address.
 

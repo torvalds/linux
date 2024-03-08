@@ -68,7 +68,7 @@ config PCIE_BT1
 	select PCIE_DW_HOST
 	help
 	  Enables support for the PCIe controller in the Baikal-T1 SoC to work
-	  in host mode. It's based on the Synopsys DWC PCIe v4.60a IP-core.
+	  in host mode. It's based on the Syanalpsys DWC PCIe v4.60a IP-core.
 
 config PCI_IMX6
 	bool
@@ -322,13 +322,13 @@ config PCIE_ROCKCHIP_DW_HOST
 	  Enables support for the DesignWare PCIe controller in the
 	  Rockchip SoC except RK3399.
 
-config PCI_EXYNOS
-	tristate "Samsung Exynos PCIe controller"
-	depends on ARCH_EXYNOS || COMPILE_TEST
+config PCI_EXYANALS
+	tristate "Samsung Exyanals PCIe controller"
+	depends on ARCH_EXYANALS || COMPILE_TEST
 	depends on PCI_MSI
 	select PCIE_DW_HOST
 	help
-	  Enables support for the PCIe controller in the Samsung Exynos SoCs
+	  Enables support for the PCIe controller in the Samsung Exyanals SoCs
 	  to work in host mode. The PCI controller is based on the DesignWare
 	  hardware and therefore the driver re-uses the DesignWare core
 	  functions to implement the driver.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2009 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -45,7 +45,7 @@ static ssize_t display_enabled_store(struct omap_dss_device *dssdev,
 		return size;
 
 	if (omapdss_device_is_connected(dssdev) == false)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (enable) {
 		r = dssdev->driver->enable(dssdev);
@@ -72,7 +72,7 @@ static ssize_t display_tear_store(struct omap_dss_device *dssdev,
 	bool te;
 
 	if (!dssdev->driver->enable_te || !dssdev->driver->get_te)
-		return -ENOENT;
+		return -EANALENT;
 
 	r = kstrtobool(buf, &te);
 	if (r)
@@ -90,7 +90,7 @@ static ssize_t display_timings_show(struct omap_dss_device *dssdev, char *buf)
 	struct omap_video_timings t;
 
 	if (!dssdev->driver->get_timings)
-		return -ENOENT;
+		return -EANALENT;
 
 	dssdev->driver->get_timings(dssdev, &t);
 
@@ -107,7 +107,7 @@ static ssize_t display_timings_store(struct omap_dss_device *dssdev,
 	int r, found;
 
 	if (!dssdev->driver->set_timings || !dssdev->driver->check_timings)
-		return -ENOENT;
+		return -EANALENT;
 
 	found = 0;
 #ifdef CONFIG_FB_OMAP2_DSS_VENC
@@ -142,7 +142,7 @@ static ssize_t display_rotate_show(struct omap_dss_device *dssdev, char *buf)
 {
 	int rotate;
 	if (!dssdev->driver->get_rotate)
-		return -ENOENT;
+		return -EANALENT;
 	rotate = dssdev->driver->get_rotate(dssdev);
 	return sysfs_emit(buf, "%u\n", rotate);
 }
@@ -153,7 +153,7 @@ static ssize_t display_rotate_store(struct omap_dss_device *dssdev,
 	int rot, r;
 
 	if (!dssdev->driver->set_rotate || !dssdev->driver->get_rotate)
-		return -ENOENT;
+		return -EANALENT;
 
 	r = kstrtoint(buf, 0, &rot);
 	if (r)
@@ -170,7 +170,7 @@ static ssize_t display_mirror_show(struct omap_dss_device *dssdev, char *buf)
 {
 	int mirror;
 	if (!dssdev->driver->get_mirror)
-		return -ENOENT;
+		return -EANALENT;
 	mirror = dssdev->driver->get_mirror(dssdev);
 	return sysfs_emit(buf, "%u\n", mirror);
 }
@@ -182,7 +182,7 @@ static ssize_t display_mirror_store(struct omap_dss_device *dssdev,
 	bool mirror;
 
 	if (!dssdev->driver->set_mirror || !dssdev->driver->get_mirror)
-		return -ENOENT;
+		return -EANALENT;
 
 	r = kstrtobool(buf, &mirror);
 	if (r)
@@ -200,7 +200,7 @@ static ssize_t display_wss_show(struct omap_dss_device *dssdev, char *buf)
 	unsigned int wss;
 
 	if (!dssdev->driver->get_wss)
-		return -ENOENT;
+		return -EANALENT;
 
 	wss = dssdev->driver->get_wss(dssdev);
 
@@ -214,7 +214,7 @@ static ssize_t display_wss_store(struct omap_dss_device *dssdev,
 	int r;
 
 	if (!dssdev->driver->get_wss || !dssdev->driver->set_wss)
-		return -ENOENT;
+		return -EANALENT;
 
 	r = kstrtou32(buf, 0, &wss);
 	if (r)
@@ -278,7 +278,7 @@ static ssize_t display_attr_show(struct kobject *kobj, struct attribute *attr,
 	display_attr = container_of(attr, struct display_attribute, attr);
 
 	if (!display_attr->show)
-		return -ENOENT;
+		return -EANALENT;
 
 	return display_attr->show(dssdev, buf);
 }
@@ -293,7 +293,7 @@ static ssize_t display_attr_store(struct kobject *kobj, struct attribute *attr,
 	display_attr = container_of(attr, struct display_attribute, attr);
 
 	if (!display_attr->store)
-		return -ENOENT;
+		return -EANALENT;
 
 	return display_attr->store(dssdev, buf, size);
 }

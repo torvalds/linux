@@ -79,7 +79,7 @@ void kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu, struct dentry *debugfs_
 }
 
 /*
- * This covers statistics <1024 (11=log(1024)+1), which should be enough to
+ * This covers statistics <1024 (11=log(1024)+1), which should be eanalugh to
  * cover RMAP_RECYCLE_THRESHOLD.
  */
 #define  RMAP_LOG_SIZE  11
@@ -93,14 +93,14 @@ static int kvm_mmu_rmaps_stat_show(struct seq_file *m, void *v)
 	struct kvm_memory_slot *slot;
 	struct kvm_memslots *slots;
 	unsigned int lpage_size, index;
-	/* Still small enough to be on the stack */
+	/* Still small eanalugh to be on the stack */
 	unsigned int *log[KVM_NR_PAGE_SIZES], *cur;
 	int i, j, k, l, ret;
 
 	if (!kvm_memslots_have_rmaps(kvm))
 		return 0;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	memset(log, 0, sizeof(log));
 	for (i = 0; i < KVM_NR_PAGE_SIZES; i++) {
 		log[i] = kcalloc(RMAP_LOG_SIZE, sizeof(unsigned int), GFP_KERNEL);
@@ -132,7 +132,7 @@ static int kvm_mmu_rmaps_stat_show(struct seq_file *m, void *v)
 	write_unlock(&kvm->mmu_lock);
 	mutex_unlock(&kvm->slots_lock);
 
-	/* index=0 counts no rmap; index=1 counts 1 rmap */
+	/* index=0 counts anal rmap; index=1 counts 1 rmap */
 	seq_printf(m, "Rmap_Count:\t0\t1\t");
 	for (i = 2; i < RMAP_LOG_SIZE; i++) {
 		j = 1 << (i - 1);
@@ -157,13 +157,13 @@ out:
 	return ret;
 }
 
-static int kvm_mmu_rmaps_stat_open(struct inode *inode, struct file *file)
+static int kvm_mmu_rmaps_stat_open(struct ianalde *ianalde, struct file *file)
 {
-	struct kvm *kvm = inode->i_private;
+	struct kvm *kvm = ianalde->i_private;
 	int r;
 
 	if (!kvm_get_kvm_safe(kvm))
-		return -ENOENT;
+		return -EANALENT;
 
 	r = single_open(file, kvm_mmu_rmaps_stat_show, kvm);
 	if (r < 0)
@@ -172,13 +172,13 @@ static int kvm_mmu_rmaps_stat_open(struct inode *inode, struct file *file)
 	return r;
 }
 
-static int kvm_mmu_rmaps_stat_release(struct inode *inode, struct file *file)
+static int kvm_mmu_rmaps_stat_release(struct ianalde *ianalde, struct file *file)
 {
-	struct kvm *kvm = inode->i_private;
+	struct kvm *kvm = ianalde->i_private;
 
 	kvm_put_kvm(kvm);
 
-	return single_release(inode, file);
+	return single_release(ianalde, file);
 }
 
 static const struct file_operations mmu_rmaps_stat_fops = {

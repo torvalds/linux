@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2016-2017 Linaro Ltd.
- * Copyright (c) 2016-2017 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016-2017 HiSilicon Techanallogies Co., Ltd.
  */
 
 #include <dt-bindings/clock/hi3660-clock.h>
@@ -471,7 +471,7 @@ static const struct hisi_gate_clock hi3660_iomcu_gate_sep_clks[] = {
 
 static struct hisi_clock_data *clk_crgctrl_data;
 
-static void hi3660_clk_iomcu_init(struct device_node *np)
+static void hi3660_clk_iomcu_init(struct device_analde *np)
 {
 	struct hisi_clock_data *clk_data;
 	int nr = ARRAY_SIZE(hi3660_iomcu_gate_sep_clks);
@@ -485,7 +485,7 @@ static void hi3660_clk_iomcu_init(struct device_node *np)
 				   clk_data);
 }
 
-static void hi3660_clk_pmuctrl_init(struct device_node *np)
+static void hi3660_clk_pmuctrl_init(struct device_analde *np)
 {
 	struct hisi_clock_data *clk_data;
 	int nr = ARRAY_SIZE(hi3660_pmu_gate_clks);
@@ -498,7 +498,7 @@ static void hi3660_clk_pmuctrl_init(struct device_node *np)
 			       ARRAY_SIZE(hi3660_pmu_gate_clks), clk_data);
 }
 
-static void hi3660_clk_pctrl_init(struct device_node *np)
+static void hi3660_clk_pctrl_init(struct device_analde *np)
 {
 	struct hisi_clock_data *clk_data;
 	int nr = ARRAY_SIZE(hi3660_pctrl_gate_clks);
@@ -510,7 +510,7 @@ static void hi3660_clk_pctrl_init(struct device_node *np)
 			       ARRAY_SIZE(hi3660_pctrl_gate_clks), clk_data);
 }
 
-static void hi3660_clk_sctrl_init(struct device_node *np)
+static void hi3660_clk_sctrl_init(struct device_analde *np)
 {
 	struct hisi_clock_data *clk_data;
 	int nr = ARRAY_SIZE(hi3660_sctrl_gate_clks) +
@@ -533,7 +533,7 @@ static void hi3660_clk_sctrl_init(struct device_node *np)
 				  clk_data);
 }
 
-static void hi3660_clk_crgctrl_early_init(struct device_node *np)
+static void hi3660_clk_crgctrl_early_init(struct device_analde *np)
 {
 	int nr = ARRAY_SIZE(hi3660_fixed_rate_clks) +
 		 ARRAY_SIZE(hi3660_crgctrl_gate_sep_clks) +
@@ -557,7 +557,7 @@ static void hi3660_clk_crgctrl_early_init(struct device_node *np)
 CLK_OF_DECLARE_DRIVER(hi3660_clk_crgctrl, "hisilicon,hi3660-crgctrl",
 		      hi3660_clk_crgctrl_early_init);
 
-static void hi3660_clk_crgctrl_init(struct device_node *np)
+static void hi3660_clk_crgctrl_init(struct device_analde *np)
 {
 	struct clk **clks;
 	int i;
@@ -610,12 +610,12 @@ static const struct of_device_id hi3660_clk_match_table[] = {
 static int hi3660_clk_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
-	void (*init_func)(struct device_node *np);
+	struct device_analde *np = pdev->dev.of_analde;
+	void (*init_func)(struct device_analde *np);
 
 	init_func = of_device_get_match_data(dev);
 	if (!init_func)
-		return -ENODEV;
+		return -EANALDEV;
 
 	init_func(np);
 

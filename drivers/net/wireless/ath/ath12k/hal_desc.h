@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 #include "core.h"
 
@@ -40,19 +40,19 @@ struct ath12k_buffer_addr {
  *		Values are defined in enum %HAL_RX_BUF_RBM_
  *
  * sw_buffer_cookie
- *		Cookie field exclusively used by SW. HW ignores the contents,
+ *		Cookie field exclusively used by SW. HW iganalres the contents,
  *		accept that it passes the programmed value on to other
  *		descriptors together with the physical address.
  *
  *		Field can be used by SW to for example associate the buffers
  *		physical address with the virtual address.
  *
- *		NOTE1:
+ *		ANALTE1:
  *		The three most significant bits can have a special meaning
  *		 in case this struct is embedded in a TX_MPDU_DETAILS STRUCT,
  *		and field transmit_bw_restriction is set
  *
- *		In case of NON punctured transmission:
+ *		In case of ANALN punctured transmission:
  *		Sw_buffer_cookie[19:17] = 3'b000: 20 MHz TX only
  *		Sw_buffer_cookie[19:17] = 3'b001: 40 MHz TX only
  *		Sw_buffer_cookie[19:17] = 3'b010: 80 MHz TX only
@@ -76,7 +76,7 @@ struct ath12k_buffer_addr {
  *		Sw_buffer_cookie[19:16] = 4'b1011: pattern 11 only
  *		Sw_buffer_cookie[19:18] = 2'b11: reserved
  *
- *		Note: a punctured transmission is indicated by the presence
+ *		Analte: a punctured transmission is indicated by the presence
  *		 of TLV TX_PUNCTURE_SETUP embedded in the scheduler TLV
  *
  *		Sw_buffer_cookie[20:17]: Tid: The TID field in the QoS control
@@ -92,7 +92,7 @@ enum hal_tlv_tag {
 	HAL_PHYRX_DATA						= 1 /* 0x1 */,
 	HAL_PHYRX_CBF_DATA_RESP					= 2 /* 0x2 */,
 	HAL_PHYRX_ABORT_REQUEST					= 3 /* 0x3 */,
-	HAL_PHYRX_USER_ABORT_NOTIFICATION			= 4 /* 0x4 */,
+	HAL_PHYRX_USER_ABORT_ANALTIFICATION			= 4 /* 0x4 */,
 	HAL_MACTX_DATA_RESP					= 5 /* 0x5 */,
 	HAL_MACTX_CBF_DATA					= 6 /* 0x6 */,
 	HAL_MACTX_CBF_DONE					= 7 /* 0x7 */,
@@ -216,7 +216,7 @@ enum hal_tlv_tag {
 	HAL_PDG_TX_REQ						= 140 /* 0x8c */,
 	HAL_SCH_WAIT_INSTR					= 141 /* 0x8d */,
 	HAL_TQM_FLOWMPTY_STATUS					= 143 /* 0x8f */,
-	HAL_TQM_FLOW_NOTMPTY_STATUS				= 144 /* 0x90 */,
+	HAL_TQM_FLOW_ANALTMPTY_STATUS				= 144 /* 0x90 */,
 	HAL_TQM_GEN_MPDU_LENGTH_LIST				= 145 /* 0x91 */,
 	HAL_TQM_GEN_MPDU_LENGTH_LIST_STATUS			= 146 /* 0x92 */,
 	HAL_TQM_GEN_MPDUS					= 147 /* 0x93 */,
@@ -304,10 +304,10 @@ enum hal_tlv_tag {
 	HAL_RECEIVED_TRIGGER_INFO				= 229 /* 0xe5 */,
 	HAL_COEX_TX_STOP_CTRL					= 230 /* 0xe6 */,
 	HAL_RX_PPDU_ACK_REPORT					= 231 /* 0xe7 */,
-	HAL_RX_PPDU_NO_ACK_REPORT				= 232 /* 0xe8 */,
+	HAL_RX_PPDU_ANAL_ACK_REPORT				= 232 /* 0xe8 */,
 	HAL_SCH_COEX_STATUS					= 233 /* 0xe9 */,
 	HAL_SCHEDULER_COMMAND_STATUS				= 234 /* 0xea */,
-	HAL_SCHEDULER_RX_PPDU_NO_RESPONSE_STATUS		= 235 /* 0xeb */,
+	HAL_SCHEDULER_RX_PPDU_ANAL_RESPONSE_STATUS		= 235 /* 0xeb */,
 	HAL_TX_FES_STATUS_PROT					= 236 /* 0xec */,
 	HAL_TX_FES_STATUS_START_PPDU				= 237 /* 0xed */,
 	HAL_TX_FES_STATUS_START_PROT				= 238 /* 0xee */,
@@ -373,7 +373,7 @@ enum hal_tlv_tag {
 	HAL_TQM_SYNC_CMD					= 300 /* 0x12c */,
 	HAL_TQM_GET_MPDU_HEAD_INFO_STATUS			= 301 /* 0x12d */,
 	HAL_TQM_SYNC_CMD_STATUS					= 302 /* 0x12e */,
-	HAL_TQM_THRESHOLD_DROP_NOTIFICATION_STATUS		= 303 /* 0x12f */,
+	HAL_TQM_THRESHOLD_DROP_ANALTIFICATION_STATUS		= 303 /* 0x12f */,
 	HAL_TQM_DESCRIPTOR_THRESHOLD_REACHED_STATUS		= 304 /* 0x130 */,
 	HAL_REO_FLUSH_TIMEOUT_LIST				= 305 /* 0x131 */,
 	HAL_REO_FLUSH_TIMEOUT_LIST_STATUS			= 306 /* 0x132 */,
@@ -450,15 +450,15 @@ enum hal_tlv_tag {
 	HAL_SRP_INFO						= 377 /* 0x179 */,
 	HAL_OBSS_SR_INFO					= 378 /* 0x17a */,
 	HAL_SCHEDULER_SW_MSG_STATUS				= 379 /* 0x17b */,
-	HAL_HWSCH_RXPCU_MAC_INFO_ANNOUNCEMENT			= 380 /* 0x17c */,
+	HAL_HWSCH_RXPCU_MAC_INFO_ANANALUNCEMENT			= 380 /* 0x17c */,
 	HAL_RXPCU_SETUP_COMPLETE				= 381 /* 0x17d */,
-	HAL_SNOOP_PPDU_START					= 382 /* 0x17e */,
-	HAL_SNOOP_MPDU_USR_DBG_INFO				= 383 /* 0x17f */,
-	HAL_SNOOP_MSDU_USR_DBG_INFO				= 384 /* 0x180 */,
-	HAL_SNOOP_MSDU_USR_DATA					= 385 /* 0x181 */,
-	HAL_SNOOP_MPDU_USR_STAT_INFO				= 386 /* 0x182 */,
-	HAL_SNOOP_PPDU_END					= 387 /* 0x183 */,
-	HAL_SNOOP_SPARE						= 388 /* 0x184 */,
+	HAL_SANALOP_PPDU_START					= 382 /* 0x17e */,
+	HAL_SANALOP_MPDU_USR_DBG_INFO				= 383 /* 0x17f */,
+	HAL_SANALOP_MSDU_USR_DBG_INFO				= 384 /* 0x180 */,
+	HAL_SANALOP_MSDU_USR_DATA					= 385 /* 0x181 */,
+	HAL_SANALOP_MPDU_USR_STAT_INFO				= 386 /* 0x182 */,
+	HAL_SANALOP_PPDU_END					= 387 /* 0x183 */,
+	HAL_SANALOP_SPARE						= 388 /* 0x184 */,
 	HAL_PHYRX_OTHER_RECEIVE_INFO_MU_RSSI_COMMON		= 390 /* 0x186 */,
 	HAL_PHYRX_OTHER_RECEIVE_INFO_MU_RSSI_USER		= 391 /* 0x187 */,
 	HAL_MACTX_OTHER_TRANSMIT_INFO_SCH_DETAILS		= 392 /* 0x188 */,
@@ -490,14 +490,14 @@ enum hal_tlv_tag {
 	HAL_TQM_ACKED_1K_MPDU					= 425 /* 0x1a9 */,
 	HAL_MACRX_INBSS_OBSS_IND				= 426 /* 0x1aa */,
 	HAL_PHYRX_LOCATION					= 427 /* 0x1ab */,
-	HAL_MLO_TX_NOTIFICATION_SU				= 428 /* 0x1ac */,
-	HAL_MLO_TX_NOTIFICATION_MU				= 429 /* 0x1ad */,
+	HAL_MLO_TX_ANALTIFICATION_SU				= 428 /* 0x1ac */,
+	HAL_MLO_TX_ANALTIFICATION_MU				= 429 /* 0x1ad */,
 	HAL_MLO_TX_REQ_SU					= 430 /* 0x1ae */,
 	HAL_MLO_TX_REQ_MU					= 431 /* 0x1af */,
 	HAL_MLO_TX_RESP						= 432 /* 0x1b0 */,
-	HAL_MLO_RX_NOTIFICATION					= 433 /* 0x1b1 */,
+	HAL_MLO_RX_ANALTIFICATION					= 433 /* 0x1b1 */,
 	HAL_MLO_BKOFF_TRUNC_REQ					= 434 /* 0x1b2 */,
-	HAL_MLO_TBTT_NOTIFICATION				= 435 /* 0x1b3 */,
+	HAL_MLO_TBTT_ANALTIFICATION				= 435 /* 0x1b3 */,
 	HAL_MLO_MESSAGE						= 436 /* 0x1b4 */,
 	HAL_MLO_TS_SYNC_MSG					= 437 /* 0x1b5 */,
 	HAL_MLO_FES_SETUP					= 438 /* 0x1b6 */,
@@ -513,7 +513,7 @@ enum hal_tlv_tag {
 	HAL_PHYRX_PKT_END_PART1					= 456 /* 0x1c8 */,
 	HAL_MACTXXPECT_NDP_RECEPTION				= 457 /* 0x1c9 */,
 	HAL_MACTX_SECURE_LTF_SEQ_PTR				= 458 /* 0x1ca */,
-	HAL_MLO_PDG_BKOFF_TRUNC_NOTIFY				= 460 /* 0x1cc */,
+	HAL_MLO_PDG_BKOFF_TRUNC_ANALTIFY				= 460 /* 0x1cc */,
 	HAL_PHYRX_11AZ_INTEGRITY_DATA				= 461 /* 0x1cd */,
 	HAL_PHYTX_LOCATION					= 462 /* 0x1ce */,
 	HAL_PHYTX_11AZ_INTEGRITY_DATA				= 463 /* 0x1cf */,
@@ -545,8 +545,8 @@ enum hal_tlv_tag {
 	HAL_MACTX_CV_CORR_COMMON				= 491 /* 0x1eb */,
 	HAL_MACTX_CV_CORR_MAC_INFO_GROUP			= 492 /* 0x1ec */,
 	HAL_BW_PUNCTUREVAL_WRAPPER				= 493 /* 0x1ed */,
-	HAL_MACTX_RX_NOTIFICATION_FOR_PHY			= 494 /* 0x1ee */,
-	HAL_MACTX_TX_NOTIFICATION_FOR_PHY			= 495 /* 0x1ef */,
+	HAL_MACTX_RX_ANALTIFICATION_FOR_PHY			= 494 /* 0x1ee */,
+	HAL_MACTX_TX_ANALTIFICATION_FOR_PHY			= 495 /* 0x1ef */,
 	HAL_MACTX_MU_UPLINK_COMMON_PER_BW			= 496 /* 0x1f0 */,
 	HAL_MACTX_MU_UPLINK_USER_SETUP_PER_BW			= 497 /* 0x1f1 */,
 	HAL_RX_PPDU_END_USER_STATS_EXT2				= 498 /* 0x1f2 */,
@@ -629,7 +629,7 @@ struct rx_mpdu_desc {
  *		this frame shall be pushed to SW or deleted.
  *
  * valid_pn
- *		When not set, REO will not perform a PN sequence number check.
+ *		When analt set, REO will analt perform a PN sequence number check.
  *
  * raw_mpdu
  *		Field only valid when first_msdu_in_mpdu_flag is set. Indicates
@@ -705,7 +705,7 @@ struct rx_msdu_desc {
  *		the MPDU that this MSDU belongs to only contains a single MSDU.
  *
  * msdu_continuation
- *		When set, this MSDU buffer was not able to hold the entire MSDU.
+ *		When set, this MSDU buffer was analt able to hold the entire MSDU.
  *		The next buffer will therefore contain additional information
  *		related to this MSDU.
  *
@@ -718,7 +718,7 @@ struct rx_msdu_desc {
  *		field).
  *
  * msdu_drop
- *		Indicates that REO shall drop this MSDU and not forward it to
+ *		Indicates that REO shall drop this MSDU and analt forward it to
  *		any other ring.
  *
  * valid_sa
@@ -738,12 +738,12 @@ struct rx_msdu_desc {
  *
  * tcp_udp_checksum_fail
  *		Passed on from 'RX_ATTENTION' TLV
- *		Indicates that the computed checksum did not match the checksum
+ *		Indicates that the computed checksum did analt match the checksum
  *		in the TCP/UDP header.
  *
  * ip_checksum_fail
  *		Passed on from 'RX_ATTENTION' TLV
- *		Indicates that the computed checksum did not match the checksum
+ *		Indicates that the computed checksum did analt match the checksum
  *		in the IP header.
  *
  * from_DS
@@ -809,14 +809,14 @@ enum hal_reo_dest_ring_push_reason {
 enum hal_reo_dest_ring_error_code {
 	HAL_REO_DEST_RING_ERROR_CODE_DESC_ADDR_ZERO,
 	HAL_REO_DEST_RING_ERROR_CODE_DESC_INVALID,
-	HAL_REO_DEST_RING_ERROR_CODE_AMPDU_IN_NON_BA,
-	HAL_REO_DEST_RING_ERROR_CODE_NON_BA_DUPLICATE,
+	HAL_REO_DEST_RING_ERROR_CODE_AMPDU_IN_ANALN_BA,
+	HAL_REO_DEST_RING_ERROR_CODE_ANALN_BA_DUPLICATE,
 	HAL_REO_DEST_RING_ERROR_CODE_BA_DUPLICATE,
 	HAL_REO_DEST_RING_ERROR_CODE_FRAME_2K_JUMP,
 	HAL_REO_DEST_RING_ERROR_CODE_BAR_2K_JUMP,
 	HAL_REO_DEST_RING_ERROR_CODE_FRAME_OOR,
 	HAL_REO_DEST_RING_ERROR_CODE_BAR_OOR,
-	HAL_REO_DEST_RING_ERROR_CODE_NO_BA_SESSION,
+	HAL_REO_DEST_RING_ERROR_CODE_ANAL_BA_SESSION,
 	HAL_REO_DEST_RING_ERROR_CODE_FRAME_SN_EQUALS_SSN,
 	HAL_REO_DEST_RING_ERROR_CODE_PN_CHECK_FAILED,
 	HAL_REO_DEST_RING_ERROR_CODE_2K_ERR_FLAG_SET,
@@ -893,7 +893,7 @@ struct hal_reo_dest_ring {
  *		in the corresponding REO_entrance_ring descriptor.
  *		When set, the REO entrance descriptor is generated by FW,
  *		and the MPDU was processed in the following way:
- *		- NO re-order function is needed.
+ *		- ANAL re-order function is needed.
  *		- MPDU delinking is determined by the setting of Entrance
  *		  ring field: SW_excection_mpdu_delink
  *		- Destination ring selection is based on the setting of
@@ -1083,22 +1083,22 @@ struct hal_reo_entrance_ring {
  *		Rx_mpdu_desc_info_details.Fragment_flag is set.
  *
  * sw_exception
- *		When not set, REO is performing all its default MPDU processing
+ *		When analt set, REO is performing all its default MPDU processing
  *		operations,
  *		When set, this REO entrance descriptor is generated by FW, and
  *		should be processed as an exception. This implies:
- *		NO re-order function is needed.
+ *		ANAL re-order function is needed.
  *		MPDU delinking is determined by the setting of field
  *		SW_excection_mpdu_delink
  *
  * sw_exception_mpdu_delink
  *		Field only valid when SW_exception is set.
- *		1'b0: REO should NOT delink the MPDU, and thus pass this
+ *		1'b0: REO should ANALT delink the MPDU, and thus pass this
  *			MPDU on to the destination ring as is. This implies that
  *			in the REO_DESTINATION_RING struct field
  *			Buf_or_link_desc_addr_info should point to an MSDU link
  *			descriptor
- *		1'b1: REO should perform the normal MPDU delink into MSDU operations.
+ *		1'b1: REO should perform the analrmal MPDU delink into MSDU operations.
  *
  * sw_exception_dest_ring
  *		Field only valid when fields SW_exception and SW
@@ -1109,7 +1109,7 @@ struct hal_reo_entrance_ring {
  *		The field can have two different meanings based on the setting
  *		of sub-field Reo level mpdu frame info.
  *		Rx_mpdu_desc_info_details. BAR_frame
- *		'BAR_frame' is NOT set:
+ *		'BAR_frame' is ANALT set:
  *		The MPDU sequence number of the received frame.
  *		'BAR_frame' is set.
  *		The MPDU Start sequence number from the BAR frame
@@ -1208,7 +1208,7 @@ struct hal_reo_flush_cache {
 #define HAL_TCL_DATA_CMD_INFO0_CMD_TYPE			BIT(0)
 #define HAL_TCL_DATA_CMD_INFO0_DESC_TYPE		BIT(1)
 #define HAL_TCL_DATA_CMD_INFO0_BANK_ID			GENMASK(7, 2)
-#define HAL_TCL_DATA_CMD_INFO0_TX_NOTIFY_FRAME		GENMASK(10, 8)
+#define HAL_TCL_DATA_CMD_INFO0_TX_ANALTIFY_FRAME		GENMASK(10, 8)
 #define HAL_TCL_DATA_CMD_INFO0_HDR_LEN_READ_SEL		BIT(11)
 #define HAL_TCL_DATA_CMD_INFO0_BUF_TIMESTAMP		GENMASK(30, 12)
 #define HAL_TCL_DATA_CMD_INFO0_BUF_TIMESTAMP_VLD	BIT(31)
@@ -1243,7 +1243,7 @@ struct hal_reo_flush_cache {
 enum hal_encrypt_type {
 	HAL_ENCRYPT_TYPE_WEP_40,
 	HAL_ENCRYPT_TYPE_WEP_104,
-	HAL_ENCRYPT_TYPE_TKIP_NO_MIC,
+	HAL_ENCRYPT_TYPE_TKIP_ANAL_MIC,
 	HAL_ENCRYPT_TYPE_WEP_128,
 	HAL_ENCRYPT_TYPE_TKIP_MIC,
 	HAL_ENCRYPT_TYPE_WAPI,
@@ -1273,7 +1273,7 @@ enum hal_wbm_htt_tx_comp_status {
 	HAL_WBM_REL_HTT_TX_COMP_STATUS_TTL,
 	HAL_WBM_REL_HTT_TX_COMP_STATUS_REINJ,
 	HAL_WBM_REL_HTT_TX_COMP_STATUS_INSPECT,
-	HAL_WBM_REL_HTT_TX_COMP_STATUS_MEC_NOTIFY,
+	HAL_WBM_REL_HTT_TX_COMP_STATUS_MEC_ANALTIFY,
 	HAL_WBM_REL_HTT_TX_COMP_STATUS_MAX,
 };
 
@@ -1302,11 +1302,11 @@ struct hal_tcl_data_cmd {
  *
  * bank_id
  *		used to select one of the TCL register banks for fields removed
- *		from 'TCL_DATA_CMD' that do not change often within one virtual
+ *		from 'TCL_DATA_CMD' that do analt change often within one virtual
  *		device or a set of virtual devices:
  *
- * tx_notify_frame
- *		TCL copies this value to 'TQM_ENTRANCE_RING' field FW_tx_notify_frame.
+ * tx_analtify_frame
+ *		TCL copies this value to 'TQM_ENTRANCE_RING' field FW_tx_analtify_frame.
  *
  * hdr_length_read_sel
  *		used to select the per 'encap_type' register set for MSDU header
@@ -1330,7 +1330,7 @@ struct hal_tcl_data_cmd {
  *
  * to_fw
  *		Forward packet to FW along with classification result. The
- *		packet will not be forward to TQM when this bit is set.
+ *		packet will analt be forward to TQM when this bit is set.
  *		1'b0: Use classification result to forward the packet.
  *		1'b1: Override classification result & forward packet only to fw
  *
@@ -1339,7 +1339,7 @@ struct hal_tcl_data_cmd {
  *
  * hlos_tid_overwrite
  *
- *		When set, TCL shall ignore the IP DSCP and VLAN PCP
+ *		When set, TCL shall iganalre the IP DSCP and VLAN PCP
  *		fields and use HLOS_TID as the final TID. Otherwise TCL
  *		shall consider the DSCP and PCP fields as well as HLOS_TID
  *		and choose a final TID based on the configured priority
@@ -1347,7 +1347,7 @@ struct hal_tcl_data_cmd {
  * flow_override_enable
  *		TCL uses this to select the flow pointer from the peer table,
  *		which can be overridden by SW for pre-encrypted raw WiFi packets
- *		that cannot be parsed for UDP or for other MLO
+ *		that cananalt be parsed for UDP or for other MLO
  *		0 - FP_PARSE_IP: Use the flow-pointer based on parsing the IPv4
  *				 or IPv6 header.
  *		1 - FP_USE_OVERRIDE: Use the who_classify_info_sel and
@@ -1362,7 +1362,7 @@ struct hal_tcl_data_cmd {
  *		2: To choose Flow 4 and 5 of any TID use this value.
  *		3: To choose Flow 6 and 7 of any TID use this value.
  *
- *		If who_classify_info sel is not in sync with the num_tx_classify_info
+ *		If who_classify_info sel is analt in sync with the num_tx_classify_info
  *		field from address search, then TCL will set 'who_classify_info_sel'
  *		to 0 use flows 0 and 1.
  *
@@ -1374,8 +1374,8 @@ struct hal_tcl_data_cmd {
  *		Field only valid when flow_override_enable is set to FP_USE_OVERRIDE
  *		TCL uses this to select the flow pointer from the peer table,
  *		which can be overridden by SW for pre-encrypted raw WiFi packets
- *		that cannot be parsed for UDP or for other MLO
- *		0 - FP_USE_NON_UDP: Use the non-UDP flow pointer (flow 0)
+ *		that cananalt be parsed for UDP or for other MLO
+ *		0 - FP_USE_ANALN_UDP: Use the analn-UDP flow pointer (flow 0)
  *		1 - FP_USE_UDP: Use the UDP flow pointer (flow 1)
  *
  * pmac_id
@@ -1402,7 +1402,7 @@ struct hal_tcl_data_cmd {
  *		value should be equal to LSB four bits of the hash value of
  *		match data, in case of search index points to an entry which
  *		may be used in content based search also. The value can be
- *		anything when the entry pointed by search index will not be
+ *		anything when the entry pointed by search index will analt be
  *		used for content based search.
  *
  * index_loop_override
@@ -1433,7 +1433,7 @@ struct hal_tcl_data_cmd {
  *		the SW starts processing an interrupt indicating that new
  *		entries have been put into this ring...
  *
- *		Also note that SW if it wants only needs to look at the
+ *		Also analte that SW if it wants only needs to look at the
  *		LSB bit of this count value.
  */
 
@@ -1474,7 +1474,7 @@ struct hal_tcl_gse_cmd {
 
 enum hal_tcl_cache_op_res {
 	HAL_TCL_CACHE_OP_RES_DONE,
-	HAL_TCL_CACHE_OP_RES_NOT_FOUND,
+	HAL_TCL_CACHE_OP_RES_ANALT_FOUND,
 	HAL_TCL_CACHE_OP_RES_TIMEOUT,
 };
 
@@ -1588,7 +1588,7 @@ struct hal_ce_srng_src_desc {
  *		the SW starts processing an interrupt indicating that new
  *		entries have been put into this ring...
  *
- *		Also note that SW if it wants only needs to look at the
+ *		Also analte that SW if it wants only needs to look at the
  *		LSB bit of this count value.
  */
 
@@ -1637,7 +1637,7 @@ struct hal_ce_srng_dest_desc {
  *		the SW starts processing an interrupt indicating that new
  *		entries have been put into this ring...
  *
- *		Also note that SW if it wants only needs to look at the
+ *		Also analte that SW if it wants only needs to look at the
  *		LSB bit of this count value.
  */
 
@@ -1719,7 +1719,7 @@ struct hal_ce_srng_dst_status_desc {
  *		the SW starts processing an interrupt indicating that new
  *		entries have been put into this ring...
  *
- *		Also note that SW if it wants only needs to look at the
+ *		Also analte that SW if it wants only needs to look at the
  *			LSB bit of this count value.
  */
 
@@ -1820,7 +1820,7 @@ enum hal_wbm_rel_bm_act {
  *
  * put_in_idle_list
  *	Put the buffer or descriptor back in the idle list. In case of MSDU or
- *	MDPU link descriptor, BM does not need to check to release any
+ *	MDPU link descriptor, BM does analt need to check to release any
  *	individual MSDU buffers.
  *
  * release_msdu_list
@@ -1873,7 +1873,7 @@ struct hal_wbm_completion_ring_rx {
 #define HAL_WBM_COMPL_TX_INFO2_ACK_FRAME_RSSI		GENMASK(7, 0)
 #define HAL_WBM_COMPL_TX_INFO2_FIRST_MSDU		BIT(8)
 #define HAL_WBM_COMPL_TX_INFO2_LAST_MSDU		BIT(9)
-#define HAL_WBM_COMPL_TX_INFO2_FW_TX_NOTIF_FRAME	GENMASK(12, 10)
+#define HAL_WBM_COMPL_TX_INFO2_FW_TX_ANALTIF_FRAME	GENMASK(12, 10)
 #define HAL_WBM_COMPL_TX_INFO2_BUFFER_TIMESTAMP		GENMASK(31, 13)
 
 #define HAL_WBM_COMPL_TX_INFO3_PEER_ID			GENMASK(15, 0)
@@ -1907,7 +1907,7 @@ struct hal_wbm_completion_ring_tx {
 #define HAL_WBM_RELEASE_TX_INFO2_ACK_FRAME_RSSI		GENMASK(7, 0)
 #define HAL_WBM_RELEASE_TX_INFO2_FIRST_MSDU		BIT(8)
 #define HAL_WBM_RELEASE_TX_INFO2_LAST_MSDU		BIT(9)
-#define HAL_WBM_RELEASE_TX_INFO2_FW_TX_NOTIF_FRAME	GENMASK(12, 10)
+#define HAL_WBM_RELEASE_TX_INFO2_FW_TX_ANALTIF_FRAME	GENMASK(12, 10)
 #define HAL_WBM_RELEASE_TX_INFO2_BUFFER_TIMESTAMP	GENMASK(31, 13)
 
 #define HAL_WBM_RELEASE_TX_INFO3_PEER_ID		GENMASK(15, 0)
@@ -2028,7 +2028,7 @@ struct hal_wbm_release_ring {
  *	the SW starts processing an interrupt indicating that new
  *	entries have been put into this ring...
  *
- *	Also note that SW if it wants only needs to look at the
+ *	Also analte that SW if it wants only needs to look at the
  *	LSB bit of this count value.
  */
 
@@ -2038,7 +2038,7 @@ struct hal_wbm_release_ring {
  * @HAL_WBM_TQM_REL_REASON_CMD_REMOVE_MPDU: Command remove_mpdus initiated by SW
  * @HAL_WBM_TQM_REL_REASON_CMD_REMOVE_TX: Command remove transmitted_mpdus
  *	initiated by sw.
- * @HAL_WBM_TQM_REL_REASON_CMD_REMOVE_NOTX: Command remove untransmitted_mpdus
+ * @HAL_WBM_TQM_REL_REASON_CMD_REMOVE_ANALTX: Command remove untransmitted_mpdus
  *	initiated by sw.
  * @HAL_WBM_TQM_REL_REASON_CMD_REMOVE_AGED_FRAMES: Command remove aged msdus or
  *	mpdus.
@@ -2053,7 +2053,7 @@ enum hal_wbm_tqm_rel_reason {
 	HAL_WBM_TQM_REL_REASON_FRAME_ACKED,
 	HAL_WBM_TQM_REL_REASON_CMD_REMOVE_MPDU,
 	HAL_WBM_TQM_REL_REASON_CMD_REMOVE_TX,
-	HAL_WBM_TQM_REL_REASON_CMD_REMOVE_NOTX,
+	HAL_WBM_TQM_REL_REASON_CMD_REMOVE_ANALTX,
 	HAL_WBM_TQM_REL_REASON_CMD_REMOVE_AGED_FRAMES,
 	HAL_WBM_TQM_REL_REASON_CMD_REMOVE_RESEAON1,
 	HAL_WBM_TQM_REL_REASON_CMD_REMOVE_RESEAON2,
@@ -2115,27 +2115,27 @@ struct hal_sw_monitor_ring {
  *		pushed this frame to this queue
  *
  *		<enum 1 rxdma_routing_instruction> RXDMA pushed the
- *		frame to this queue per received routing instructions. No
+ *		frame to this queue per received routing instructions. Anal
  *		error within RXDMA was detected
  *
  *		<enum 2 rxdma_rx_flush> RXDMA received an RX_FLUSH. As a
- *		result the MSDU link descriptor might not have the
+ *		result the MSDU link descriptor might analt have the
  *		last_msdu_in_mpdu_flag set, but instead WBM might just see a
  *		NULL pointer in the MSDU link descriptor. This is to be
- *		considered a normal condition for this scenario.
+ *		considered a analrmal condition for this scenario.
  *
  * rxdma_error_code
  *		Field only valid when rxdma_push_reason is set to
  *		'rxdma_error_detected.'
  *
- *		<enum 0 rxdma_overflow_err>MPDU frame is not complete
+ *		<enum 0 rxdma_overflow_err>MPDU frame is analt complete
  *		due to a FIFO overflow error in RXPCU.
  *
- *		<enum 1 rxdma_mpdu_length_err>MPDU frame is not complete
+ *		<enum 1 rxdma_mpdu_length_err>MPDU frame is analt complete
  *		due to receiving incomplete MPDU from the PHY
  *
  *		<enum 3 rxdma_decrypt_err>CRYPTO reported a decryption
- *		error or CRYPTO received an encrypted frame, but did not get
+ *		error or CRYPTO received an encrypted frame, but did analt get
  *		a valid corresponding key id in the peer entry.
  *
  *		<enum 4 rxdma_tkip_mic_err>CRYPTO reported a TKIP MIC
@@ -2178,7 +2178,7 @@ struct hal_sw_monitor_ring {
  *
  *		The fragment number from the 802.11 header.
  *
- *		Note that the sequence number is embedded in the field:
+ *		Analte that the sequence number is embedded in the field:
  *		Reo_level_mpdu_frame_info. Rx_mpdu_desc_info_details.
  *		Mpdu_sequence_number
  *
@@ -2277,7 +2277,7 @@ enum hal_desc_buf_type {
 #define HAL_DESC_REO_OWNED		4
 #define HAL_DESC_REO_QUEUE_DESC		8
 #define HAL_DESC_REO_QUEUE_EXT_DESC	9
-#define HAL_DESC_REO_NON_QOS_TID	16
+#define HAL_DESC_REO_ANALN_QOS_TID	16
 
 #define HAL_DESC_HDR_INFO0_OWNER	GENMASK(3, 0)
 #define HAL_DESC_HDR_INFO0_BUF_TYPE	GENMASK(7, 4)
@@ -2348,7 +2348,7 @@ enum hal_rx_reo_queue_pn_size {
 #define HAL_RX_REO_QUEUE_INFO0_UNEVEN_PN		BIT(23)
 #define HAL_RX_REO_QUEUE_INFO0_PN_HANDLE_ENABLE		BIT(24)
 #define HAL_RX_REO_QUEUE_INFO0_PN_SIZE			GENMASK(26, 25)
-#define HAL_RX_REO_QUEUE_INFO0_IGNORE_AMPDU_FLG		BIT(27)
+#define HAL_RX_REO_QUEUE_INFO0_IGANALRE_AMPDU_FLG		BIT(27)
 
 #define HAL_RX_REO_QUEUE_INFO1_SVLD			BIT(0)
 #define HAL_RX_REO_QUEUE_INFO1_SSN			GENMASK(12, 1)
@@ -2396,7 +2396,7 @@ struct hal_rx_reo_queue {
 /* hal_rx_reo_queue
  *
  * descriptor_header
- *	Details about which module owns this struct. Note that sub field
+ *	Details about which module owns this struct. Analte that sub field
  *	Buffer_type shall be set to receive_reo_queue_descriptor.
  *
  * receive_queue_number
@@ -2410,9 +2410,9 @@ struct hal_rx_reo_queue {
  *	or decremented when link descriptors are added or removed from this
  *	flow queue.
  * disable_duplicate_detection
- *	When set, do not perform any duplicate detection.
+ *	When set, do analt perform any duplicate detection.
  * soft_reorder_enable
- *	When set, REO has been instructed to not perform the actual re-ordering
+ *	When set, REO has been instructed to analt perform the actual re-ordering
  *	of frames for this queue, but just to insert the reorder opcodes.
  * ac
  *	Indicates the access category of the queue descriptor.
@@ -2429,12 +2429,12 @@ struct hal_rx_reo_queue {
  * ba_window_size
  *	Indicates the negotiated (window size + 1). Max of 256 bits.
  *
- *	A value 255 means 256 bitmap, 63 means 64 bitmap, 0 (means non-BA
+ *	A value 255 means 256 bitmap, 63 means 64 bitmap, 0 (means analn-BA
  *	session, with window size of 0). The 3 values here are the main values
  *	validated, but other values should work as well.
  *
  *	A BA window size of 0 (=> one frame entry bitmat), means that there is
- *	no additional rx_reo_queue_ext desc. following rx_reo_queue in memory.
+ *	anal additional rx_reo_queue_ext desc. following rx_reo_queue in memory.
  *	A BA window size of 1 - 105, means that there is 1 rx_reo_queue_ext.
  *	A BA window size of 106 - 210, means that there are 2 rx_reo_queue_ext.
  *	A BA window size of 211 - 256, means that there are 3 rx_reo_queue_ext.
@@ -2442,8 +2442,8 @@ struct hal_rx_reo_queue {
  * pn_size
  *	REO shall perform the PN increment check, even number check, uneven
  *	number check, PN error check and size of the PN field check.
- * ignore_ampdu_flag
- *	REO shall ignore the ampdu_flag on entrance descriptor for this queue.
+ * iganalre_ampdu_flag
+ *	REO shall iganalre the ampdu_flag on entrance descriptor for this queue.
  *
  * svld
  *	Sequence number in next field is valid one.
@@ -2476,7 +2476,7 @@ struct hal_rx_reo_queue {
 #define HAL_REO_UPD_RX_QUEUE_INFO0_UPD_UNEVEN_PN		BIT(21)
 #define HAL_REO_UPD_RX_QUEUE_INFO0_UPD_PN_HANDLE_ENABLE		BIT(22)
 #define HAL_REO_UPD_RX_QUEUE_INFO0_UPD_PN_SIZE			BIT(23)
-#define HAL_REO_UPD_RX_QUEUE_INFO0_UPD_IGNORE_AMPDU_FLG		BIT(24)
+#define HAL_REO_UPD_RX_QUEUE_INFO0_UPD_IGANALRE_AMPDU_FLG		BIT(24)
 #define HAL_REO_UPD_RX_QUEUE_INFO0_UPD_SVLD			BIT(25)
 #define HAL_REO_UPD_RX_QUEUE_INFO0_UPD_SSN			BIT(26)
 #define HAL_REO_UPD_RX_QUEUE_INFO0_UPD_SEQ_2K_ERR		BIT(27)
@@ -2498,7 +2498,7 @@ struct hal_rx_reo_queue {
 #define HAL_REO_UPD_RX_QUEUE_INFO1_EVEN_PN			BIT(28)
 #define HAL_REO_UPD_RX_QUEUE_INFO1_UNEVEN_PN			BIT(29)
 #define HAL_REO_UPD_RX_QUEUE_INFO1_PN_HANDLE_ENABLE		BIT(30)
-#define HAL_REO_UPD_RX_QUEUE_INFO1_IGNORE_AMPDU_FLG		BIT(31)
+#define HAL_REO_UPD_RX_QUEUE_INFO1_IGANALRE_AMPDU_FLG		BIT(31)
 
 #define HAL_REO_UPD_RX_QUEUE_INFO2_BA_WINDOW_SIZE		GENMASK(7, 0)
 #define HAL_REO_UPD_RX_QUEUE_INFO2_PN_SIZE			GENMASK(9, 8)
@@ -2552,8 +2552,8 @@ struct hal_reo_status_hdr {
  *		commands.
  *
  * execution_time (in us)
- *		The amount of time REO took to execute the command. Note that
- *		this time does not include the duration of the command waiting
+ *		The amount of time REO took to execute the command. Analte that
+ *		this time does analt include the duration of the command waiting
  *		in the command ring, before the execution started.
  *
  * execution_status
@@ -2692,7 +2692,7 @@ struct hal_reo_flush_queue_status {
  * error_detected
  *		Status of blocking resource
  *
- *		0 - No error has been detected while executing this command
+ *		0 - Anal error has been detected while executing this command
  *		1 - Error detected. The resource to be used for blocking was
  *		    already in use.
  *
@@ -2727,15 +2727,15 @@ struct hal_reo_flush_cache_status {
  * error_detected
  *		Status for blocking resource handling
  *
- *		0 - No error has been detected while executing this command
+ *		0 - Anal error has been detected while executing this command
  *		1 - An error in the blocking resource management was detected
  *
  * block_error_details
  *		only valid when error_detected is set
  *
- *		0 - No blocking related errors found
+ *		0 - Anal blocking related errors found
  *		1 - Blocking resource is already in use
- *		2 - Resource requested to be unblocked, was not blocked
+ *		2 - Resource requested to be unblocked, was analt blocked
  *
  * cache_controller_flush_status_hit
  *		The status that the cache controller returned on executing the
@@ -2754,7 +2754,7 @@ struct hal_reo_flush_cache_status {
  * cache_controller_flush_status_error
  *		Error condition
  *
- *		0 - No error found
+ *		0 - Anal error found
  *		1 - HW interface is still busy
  *		2 - Line currently locked. Used for one line flush command
  *		3 - At least one line is still locked.
@@ -2787,9 +2787,9 @@ struct hal_reo_unblock_cache_status {
  *		also contains info on how long REO took to execute this command.
  *
  * error_detected
- *		0 - No error has been detected while executing this command
- *		1 - The blocking resource was not in use, and therefore it could
- *		    not be unblocked.
+ *		0 - Anal error has been detected while executing this command
+ *		1 - The blocking resource was analt in use, and therefore it could
+ *		    analt be unblocked.
  *
  * unblock_type
  *		Reference to the type of unblock command
@@ -2824,8 +2824,8 @@ struct hal_reo_flush_timeout_list_status {
  *		also contains info on how long REO took to execute this command.
  *
  * error_detected
- *		0 - No error has been detected while executing this command
- *		1 - Command not properly executed and returned with error
+ *		0 - Anal error has been detected while executing this command
+ *		1 - Command analt properly executed and returned with error
  *
  * timeout_list_empty
  *		When set, REO has depleted the timeout list and all entries are

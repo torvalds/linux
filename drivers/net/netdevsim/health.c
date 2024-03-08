@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2019 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/debugfs.h>
 #include <linux/err.h>
@@ -17,7 +17,7 @@ nsim_dev_empty_reporter_dump(struct devlink_health_reporter *reporter,
 }
 
 static int
-nsim_dev_empty_reporter_diagnose(struct devlink_health_reporter *reporter,
+nsim_dev_empty_reporter_diaganalse(struct devlink_health_reporter *reporter,
 				 struct devlink_fmsg *fmsg,
 				 struct netlink_ext_ack *extack)
 {
@@ -28,7 +28,7 @@ static const
 struct devlink_health_reporter_ops nsim_dev_empty_reporter_ops = {
 	.name = "empty",
 	.dump = nsim_dev_empty_reporter_dump,
-	.diagnose = nsim_dev_empty_reporter_diagnose,
+	.diaganalse = nsim_dev_empty_reporter_diaganalse,
 };
 
 struct nsim_dev_dummy_reporter_ctx {
@@ -55,7 +55,7 @@ nsim_dev_dummy_reporter_recover(struct devlink_health_reporter *reporter,
 		health->recovered_break_msg = kstrdup(ctx->break_msg,
 						      GFP_KERNEL);
 		if (!health->recovered_break_msg)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	return 0;
 }
@@ -71,9 +71,9 @@ static int nsim_dev_dummy_fmsg_put(struct devlink_fmsg *fmsg, u32 binary_len)
 	devlink_fmsg_u64_pair_put(fmsg, "test_u64", 4);
 	devlink_fmsg_string_pair_put(fmsg, "test_string", "somestring");
 
-	binary = kmalloc(binary_len, GFP_KERNEL | __GFP_NOWARN);
+	binary = kmalloc(binary_len, GFP_KERNEL | __GFP_ANALWARN);
 	if (!binary)
-		return -ENOMEM;
+		return -EANALMEM;
 	get_random_bytes(binary, binary_len);
 	devlink_fmsg_binary_pair_put(fmsg, "test_binary", binary, binary_len);
 	kfree(binary);
@@ -119,7 +119,7 @@ nsim_dev_dummy_reporter_dump(struct devlink_health_reporter *reporter,
 }
 
 static int
-nsim_dev_dummy_reporter_diagnose(struct devlink_health_reporter *reporter,
+nsim_dev_dummy_reporter_diaganalse(struct devlink_health_reporter *reporter,
 				 struct devlink_fmsg *fmsg,
 				 struct netlink_ext_ack *extack)
 {
@@ -137,7 +137,7 @@ struct devlink_health_reporter_ops nsim_dev_dummy_reporter_ops = {
 	.name = "dummy",
 	.recover = nsim_dev_dummy_reporter_recover,
 	.dump = nsim_dev_dummy_reporter_dump,
-	.diagnose = nsim_dev_dummy_reporter_diagnose,
+	.diaganalse = nsim_dev_dummy_reporter_diaganalse,
 };
 
 static ssize_t nsim_dev_health_break_write(struct file *file,

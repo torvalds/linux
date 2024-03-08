@@ -77,8 +77,8 @@ static void vdpasim_net_complete(struct vdpasim_virtqueue *vq, size_t len)
 	smp_wmb();
 
 	local_bh_disable();
-	if (vringh_need_notify_iotlb(&vq->vring) > 0)
-		vringh_notify(&vq->vring);
+	if (vringh_need_analtify_iotlb(&vq->vring) > 0)
+		vringh_analtify(&vq->vring);
 	local_bh_enable();
 }
 
@@ -480,7 +480,7 @@ static int vdpasim_net_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 
 	net->buffer = kvmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!net->buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto reg_err;
 	}
 

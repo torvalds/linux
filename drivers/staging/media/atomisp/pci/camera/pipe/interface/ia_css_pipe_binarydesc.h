@@ -29,7 +29,7 @@
  * @param[in/out] in_info
  * @param[in/out] out_info
  * @param[in/out] vf_info
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipe_get_copy_binarydesc(
@@ -45,7 +45,7 @@ void ia_css_pipe_get_copy_binarydesc(
  * @param[out] vfpp_descr
  * @param[in/out] in_info
  * @param[in/out] out_info
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipe_get_vfpp_binarydesc(
@@ -54,7 +54,7 @@ void ia_css_pipe_get_vfpp_binarydesc(
     struct ia_css_frame_info *in_info,
     struct ia_css_frame_info *out_info);
 
-/* @brief Get numerator and denominator of bayer downscaling factor.
+/* @brief Get numerator and deanalminator of bayer downscaling factor.
  *
  * @param[in] bds_factor: The bayer downscaling factor.
  *		(= The bds_factor member in the sh_css_bds_factor structure.)
@@ -111,7 +111,7 @@ int ia_css_pipe_get_video_binarydesc(
  * @param[in/out] out_info
  * @param[in/out] internal_out_info
  * @param[in/out] vf_info
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipe_get_yuvscaler_binarydesc(
@@ -128,7 +128,7 @@ void ia_css_pipe_get_yuvscaler_binarydesc(
  * @param[out] capture_pp_descr
  * @param[in/out] in_info
  * @param[in/out] vf_info
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipe_get_capturepp_binarydesc(
@@ -145,7 +145,7 @@ void ia_css_pipe_get_capturepp_binarydesc(
  * @param[in/out] in_info
  * @param[in/out] out_info
  * @param[in/out] vf_info
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipe_get_primary_binarydesc(
@@ -162,7 +162,7 @@ void ia_css_pipe_get_primary_binarydesc(
  * @param[out] pre_gdc_descr
  * @param[in/out] in_info
  * @param[in/out] out_info
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipe_get_pre_gdc_binarydesc(
@@ -177,7 +177,7 @@ void ia_css_pipe_get_pre_gdc_binarydesc(
  * @param[out] gdc_descr
  * @param[in/out] in_info
  * @param[in/out] out_info
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipe_get_gdc_binarydesc(
@@ -193,7 +193,7 @@ void ia_css_pipe_get_gdc_binarydesc(
  * @param[in/out] in_info
  * @param[in/out] out_info
  * @param[in/out] vf_info
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipe_get_post_gdc_binarydesc(
@@ -209,7 +209,7 @@ void ia_css_pipe_get_post_gdc_binarydesc(
  * @param[out] pre_de_descr
  * @param[in/out] in_info
  * @param[in/out] out_info
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipe_get_pre_de_binarydesc(
@@ -224,7 +224,7 @@ void ia_css_pipe_get_pre_de_binarydesc(
  * @param[out] pre_anr_descr
  * @param[in/out] in_info
  * @param[in/out] out_info
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipe_get_pre_anr_binarydesc(
@@ -239,7 +239,7 @@ void ia_css_pipe_get_pre_anr_binarydesc(
  * @param[out] anr_descr
  * @param[in/out] in_info
  * @param[in/out] out_info
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipe_get_anr_binarydesc(
@@ -255,7 +255,7 @@ void ia_css_pipe_get_anr_binarydesc(
  * @param[in/out] in_info
  * @param[in/out] out_info
  * @param[in/out] vf_info
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipe_get_post_anr_binarydesc(
@@ -271,7 +271,7 @@ void ia_css_pipe_get_post_anr_binarydesc(
  * @param[out] capture_pp_descr
  * @param[in/out] in_info
  * @param[in/out] vf_info
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipe_get_ldc_binarydesc(

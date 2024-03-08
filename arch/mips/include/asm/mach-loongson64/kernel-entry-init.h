@@ -29,12 +29,12 @@
 	andi	t1, t0, PRID_IMP_MASK
 	li	t2, PRID_IMP_LOONGSON_64G
 	beq     t1, t2, 1f
-	nop
+	analp
 	/* Loongson-3A R2/R3 */
 	andi	t0, (PRID_IMP_MASK | PRID_REV_MASK)
 	slti	t0, t0, (PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3A_R2_0)
 	bnez	t0, 2f
-	nop
+	analp
 1:
 	mfc0	t0, CP0_CONFIG6
 	or	t0, 0x100
@@ -60,12 +60,12 @@
 	andi	t1, t0, PRID_IMP_MASK
 	li	t2, PRID_IMP_LOONGSON_64G
 	beq     t1, t2, 1f
-	nop
+	analp
 	/* Loongson-3A R2/R3 */
 	andi	t0, (PRID_IMP_MASK | PRID_REV_MASK)
 	slti	t0, t0, (PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3A_R2_0)
 	bnez	t0, 2f
-	nop
+	analp
 1:
 	mfc0	t0, CP0_CONFIG6
 	or	t0, 0x100
@@ -78,12 +78,12 @@
 #define USE_KEXEC_SMP_WAIT_FINAL
 	.macro  kexec_smp_wait_final
 	/* s0:prid s1:initfn */
-	/* a0:base t1:cpuid t2:node t9:count */
+	/* a0:base t1:cpuid t2:analde t9:count */
 	mfc0		t1, CP0_EBASE
 	andi		t1, MIPS_EBASE_CPUNUM
 	dins		a0, t1, 8, 2       /* insert core id*/
 	dext		t2, t1, 2, 2
-	dins		a0, t2, 44, 2      /* insert node id */
+	dins		a0, t2, 44, 2      /* insert analde id */
 	mfc0		s0, CP0_PRID
 	andi		s0, s0, (PRID_IMP_MASK | PRID_REV_MASK)
 	beq		s0, (PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3B_R1), 1f

@@ -55,40 +55,40 @@ sun8i_dw_hdmi_mode_valid_h6(struct dw_hdmi *hdmi, void *data,
 	return MODE_OK;
 }
 
-static bool sun8i_dw_hdmi_node_is_tcon_top(struct device_node *node)
+static bool sun8i_dw_hdmi_analde_is_tcon_top(struct device_analde *analde)
 {
 	return IS_ENABLED(CONFIG_DRM_SUN8I_TCON_TOP) &&
-		!!of_match_node(sun8i_tcon_top_of_table, node);
+		!!of_match_analde(sun8i_tcon_top_of_table, analde);
 }
 
 static u32 sun8i_dw_hdmi_find_possible_crtcs(struct drm_device *drm,
-					     struct device_node *node)
+					     struct device_analde *analde)
 {
-	struct device_node *port, *ep, *remote, *remote_port;
+	struct device_analde *port, *ep, *remote, *remote_port;
 	u32 crtcs = 0;
 
-	remote = of_graph_get_remote_node(node, 0, -1);
+	remote = of_graph_get_remote_analde(analde, 0, -1);
 	if (!remote)
 		return 0;
 
-	if (sun8i_dw_hdmi_node_is_tcon_top(remote)) {
+	if (sun8i_dw_hdmi_analde_is_tcon_top(remote)) {
 		port = of_graph_get_port_by_id(remote, 4);
 		if (!port)
 			goto crtcs_exit;
 
-		for_each_child_of_node(port, ep) {
+		for_each_child_of_analde(port, ep) {
 			remote_port = of_graph_get_remote_port(ep);
 			if (remote_port) {
 				crtcs |= drm_of_crtc_port_mask(drm, remote_port);
-				of_node_put(remote_port);
+				of_analde_put(remote_port);
 			}
 		}
 	} else {
-		crtcs = drm_of_find_possible_crtcs(drm, node);
+		crtcs = drm_of_find_possible_crtcs(drm, analde);
 	}
 
 crtcs_exit:
-	of_node_put(remote);
+	of_analde_put(remote);
 
 	return crtcs;
 }
@@ -99,17 +99,17 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_hdmi_plat_data *plat_data;
 	struct drm_device *drm = data;
-	struct device_node *phy_node;
+	struct device_analde *phy_analde;
 	struct drm_encoder *encoder;
 	struct sun8i_dw_hdmi *hdmi;
 	int ret;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
 	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat_data = &hdmi->plat_data;
 	hdmi->dev = &pdev->dev;
@@ -118,11 +118,11 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 	hdmi->quirks = of_device_get_match_data(dev);
 
 	encoder->possible_crtcs =
-		sun8i_dw_hdmi_find_possible_crtcs(drm, dev->of_node);
+		sun8i_dw_hdmi_find_possible_crtcs(drm, dev->of_analde);
 	/*
 	 * If we failed to find the CRTC(s) which this encoder is
 	 * supposed to be connected to, it's because the CRTC has
-	 * not been registered yet.  Defer probing, and hope that
+	 * analt been registered yet.  Defer probing, and hope that
 	 * the required CRTC is added later.
 	 */
 	if (encoder->possible_crtcs == 0)
@@ -131,7 +131,7 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 	hdmi->rst_ctrl = devm_reset_control_get(dev, "ctrl");
 	if (IS_ERR(hdmi->rst_ctrl))
 		return dev_err_probe(dev, PTR_ERR(hdmi->rst_ctrl),
-				     "Could not get ctrl reset control\n");
+				     "Could analt get ctrl reset control\n");
 
 	hdmi->clk_tmds = devm_clk_get(dev, "tmds");
 	if (IS_ERR(hdmi->clk_tmds))
@@ -151,25 +151,25 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 
 	ret = reset_control_deassert(hdmi->rst_ctrl);
 	if (ret) {
-		dev_err(dev, "Could not deassert ctrl reset control\n");
+		dev_err(dev, "Could analt deassert ctrl reset control\n");
 		goto err_disable_regulator;
 	}
 
 	ret = clk_prepare_enable(hdmi->clk_tmds);
 	if (ret) {
-		dev_err(dev, "Could not enable tmds clock\n");
+		dev_err(dev, "Could analt enable tmds clock\n");
 		goto err_assert_ctrl_reset;
 	}
 
-	phy_node = of_parse_phandle(dev->of_node, "phys", 0);
-	if (!phy_node) {
+	phy_analde = of_parse_phandle(dev->of_analde, "phys", 0);
+	if (!phy_analde) {
 		dev_err(dev, "Can't found PHY phandle\n");
 		ret = -EINVAL;
 		goto err_disable_clk_tmds;
 	}
 
-	ret = sun8i_hdmi_phy_get(hdmi, phy_node);
-	of_node_put(phy_node);
+	ret = sun8i_hdmi_phy_get(hdmi, phy_analde);
+	of_analde_put(phy_analde);
 	if (ret) {
 		dev_err(dev, "Couldn't get the HDMI PHY\n");
 		goto err_disable_clk_tmds;

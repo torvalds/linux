@@ -13,7 +13,7 @@ struct irq_data;
 struct platform_device;
 struct pt_regs;
 struct clk;
-struct device_node;
+struct device_analde;
 enum mxc_cpu_pwr_mode;
 struct of_device_id;
 

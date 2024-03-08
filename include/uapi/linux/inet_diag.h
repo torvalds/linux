@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_INET_DIAG_H_
 #define _UAPI_INET_DIAG_H_
 
@@ -18,7 +18,7 @@ struct inet_diag_sockid {
 	__be32	idiag_dst[4];
 	__u32	idiag_if;
 	__u32	idiag_cookie[2];
-#define INET_DIAG_NOCOOKIE (~0U)
+#define INET_DIAG_ANALCOOKIE (~0U)
 };
 
 /* Request structure */
@@ -48,7 +48,7 @@ struct inet_diag_req_v2 {
  * SOCK_RAW sockets require the underlied protocol to be
  * additionally specified so we can use @pad member for
  * this, but we can't rename it because userspace programs
- * still may depend on this name. Instead lets use another
+ * still may depend on this name. Instead lets use aanalther
  * structure definition as an alias for struct
  * @inet_diag_req_v2.
  */
@@ -62,7 +62,7 @@ struct inet_diag_req_raw {
 };
 
 enum {
-	INET_DIAG_REQ_NONE,
+	INET_DIAG_REQ_ANALNE,
 	INET_DIAG_REQ_BYTECODE,
 	INET_DIAG_REQ_SK_BPF_STORAGES,
 	INET_DIAG_REQ_PROTOCOL,
@@ -73,18 +73,18 @@ enum {
 
 /* Bytecode is sequence of 4 byte commands followed by variable arguments.
  * All the commands identified by "code" are conditional jumps forward:
- * to offset cc+"yes" or to offset cc+"no". "yes" is supposed to be
+ * to offset cc+"anal" or to offset cc+"anal". "anal" is supposed to be
  * length of the command and its arguments.
  */
  
 struct inet_diag_bc_op {
 	unsigned char	code;
-	unsigned char	yes;
-	unsigned short	no;
+	unsigned char	anal;
+	unsigned short	anal;
 };
 
 enum {
-	INET_DIAG_BC_NOP,
+	INET_DIAG_BC_ANALP,
 	INET_DIAG_BC_JMP,
 	INET_DIAG_BC_S_GE,
 	INET_DIAG_BC_S_LE,
@@ -126,13 +126,13 @@ struct inet_diag_msg {
 	__u32	idiag_rqueue;
 	__u32	idiag_wqueue;
 	__u32	idiag_uid;
-	__u32	idiag_inode;
+	__u32	idiag_ianalde;
 };
 
 /* Extensions */
 
 enum {
-	INET_DIAG_NONE,
+	INET_DIAG_ANALNE,
 	INET_DIAG_MEMINFO,
 	INET_DIAG_INFO,
 	INET_DIAG_VEGASINFO,
@@ -143,7 +143,7 @@ enum {
 	INET_DIAG_SHUTDOWN,
 
 	/*
-	 * Next extenstions cannot be requested in struct inet_diag_req_v2:
+	 * Next extenstions cananalt be requested in struct inet_diag_req_v2:
 	 * its field idiag_ext has only 8 bits.
 	 */
 
@@ -194,8 +194,8 @@ struct inet_diag_sockopt {
 		mc_loop:1,
 		transparent:1,
 		mc_all:1,
-		nodefrag:1;
-	__u8	bind_address_no_port:1,
+		analdefrag:1;
+	__u8	bind_address_anal_port:1,
 		recverr_rfc4884:1,
 		defer_connect:1,
 		unused:5;

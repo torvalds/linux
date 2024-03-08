@@ -19,7 +19,7 @@
 
 		smem_mem: smem_region@fa00000 {
 			reg = <0xfa00000 0x200000>;
-			no-map;
+			anal-map;
 		};
 	};
 

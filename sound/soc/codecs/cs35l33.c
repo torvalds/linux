@@ -323,7 +323,7 @@ static const struct snd_soc_dapm_widget cs35l33_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("VBSTMON", NULL,
 		CS35L33_PWRCTL2, CS35L33_PDN_VBSTMON_SHIFT, 1),
 
-	SND_SOC_DAPM_AIF_OUT_E("SDOUT", NULL, 0, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_AIF_OUT_E("SDOUT", NULL, 0, SND_SOC_ANALPM, 0, 0,
 		cs35l33_sdout_event, SND_SOC_DAPM_PRE_PMU |
 		SND_SOC_DAPM_PRE_PMD),
 };
@@ -753,7 +753,7 @@ static int cs35l33_set_bst_ipk(struct snd_soc_component *component, unsigned int
 	}
 
 	if (bst % 15625) {
-		dev_err(component->dev, "Current not a multiple of 15625uA (%d)\n",
+		dev_err(component->dev, "Current analt a multiple of 15625uA (%d)\n",
 			bst);
 		ret = -EINVAL;
 		goto err;
@@ -914,10 +914,10 @@ static const struct dev_pm_ops cs35l33_pm_ops = {
 			   NULL)
 };
 
-static int cs35l33_get_hg_data(const struct device_node *np,
+static int cs35l33_get_hg_data(const struct device_analde *np,
 			       struct cs35l33_pdata *pdata)
 {
-	struct device_node *hg;
+	struct device_analde *hg;
 	struct cs35l33_hg *hg_config = &pdata->hg_config;
 	u32 val32;
 
@@ -950,7 +950,7 @@ static int cs35l33_get_hg_data(const struct device_node *np,
 			hg_config->vp_hg_va = val32;
 	}
 
-	of_node_put(hg);
+	of_analde_put(hg);
 
 	return 0;
 }
@@ -969,10 +969,10 @@ static irqreturn_t cs35l33_irq_thread(int irq, void *data)
 	regmap_read(cs35l33->regmap, CS35L33_INT_MASK_1, &mask1);
 
 	/* Check to see if the unmasked bits are active,
-	 *  if not then exit.
+	 *  if analt then exit.
 	 */
 	if (!(sticky_val1 & ~mask1) && !(sticky_val2 & ~mask2))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	regmap_read(cs35l33->regmap, CS35L33_INT_STATUS_1,
 		&current_val);
@@ -1075,7 +1075,7 @@ static const char * const cs35l33_core_supplies[] = {
 static int cs35l33_of_get_pdata(struct device *dev,
 				struct cs35l33_private *cs35l33)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct cs35l33_pdata *pdata = &cs35l33->pdata;
 	u32 val32;
 
@@ -1121,7 +1121,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client)
 	cs35l33 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs35l33_private),
 			       GFP_KERNEL);
 	if (!cs35l33)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c_client, cs35l33);
 	cs35l33->regmap = devm_regmap_init_i2c(i2c_client, &cs35l33_regmap);

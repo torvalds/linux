@@ -2,7 +2,7 @@
 #
 # Phy drivers for Renesas platforms
 #
-# NOTE: Please sorted config names alphabetically.
+# ANALTE: Please sorted config names alphabetically.
 config PHY_R8A779F0_ETHERNET_SERDES
 	tristate "Renesas R-Car S4-8 Ethernet SERDES driver"
 	depends on ARCH_RENESAS || COMPILE_TEST
@@ -27,7 +27,7 @@ config PHY_RCAR_GEN3_PCIE
 config PHY_RCAR_GEN3_USB2
 	tristate "Renesas R-Car generation 3 USB 2.0 PHY driver"
 	depends on ARCH_RENESAS
-	depends on EXTCON || !EXTCON # if EXTCON=m, this cannot be built-in
+	depends on EXTCON || !EXTCON # if EXTCON=m, this cananalt be built-in
 	depends on USB_SUPPORT
 	select GENERIC_PHY
 	select USB_COMMON

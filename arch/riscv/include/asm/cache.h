@@ -11,7 +11,7 @@
 
 #define L1_CACHE_BYTES		(1 << L1_CACHE_SHIFT)
 
-#ifdef CONFIG_RISCV_DMA_NONCOHERENT
+#ifdef CONFIG_RISCV_DMA_ANALNCOHERENT
 #define ARCH_DMA_MINALIGN L1_CACHE_BYTES
 #define ARCH_KMALLOC_MINALIGN	(8)
 #endif
@@ -26,7 +26,7 @@
 
 #ifndef __ASSEMBLY__
 
-#ifdef CONFIG_RISCV_DMA_NONCOHERENT
+#ifdef CONFIG_RISCV_DMA_ANALNCOHERENT
 extern int dma_cache_alignment;
 #define dma_get_cache_alignment dma_get_cache_alignment
 static inline int dma_get_cache_alignment(void)

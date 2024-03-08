@@ -17,7 +17,7 @@ static int vsockmon_dev_init(struct net_device *dev)
 {
 	dev->lstats = netdev_alloc_pcpu_stats(struct pcpu_lstats);
 	if (!dev->lstats)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -100,7 +100,7 @@ static const struct ethtool_ops vsockmon_ethtool_ops = {
 static void vsockmon_setup(struct net_device *dev)
 {
 	dev->type = ARPHRD_VSOCKMON;
-	dev->priv_flags |= IFF_NO_QUEUE;
+	dev->priv_flags |= IFF_ANAL_QUEUE;
 
 	dev->netdev_ops	= &vsockmon_ops;
 	dev->ethtool_ops = &vsockmon_ethtool_ops;
@@ -109,7 +109,7 @@ static void vsockmon_setup(struct net_device *dev)
 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST |
 			NETIF_F_HIGHDMA | NETIF_F_LLTX;
 
-	dev->flags = IFF_NOARP;
+	dev->flags = IFF_ANALARP;
 
 	dev->mtu = DEFAULT_MTU;
 }

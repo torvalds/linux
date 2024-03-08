@@ -115,7 +115,7 @@
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <1 0 0xff08>,	/* Secure Phys IRQ */
-			     <1 13 0xff08>,	/* Non-secure Phys IRQ */
+			     <1 13 0xff08>,	/* Analn-secure Phys IRQ */
 			     <1 14 0xff08>,	/* Virt IRQ */
 			     <1 15 0xff08>;	/* Hyp IRQ */
 		clock-frequency = <50000000>;
@@ -814,7 +814,7 @@
 			reg = <0x0 0x1c000000 0x0 0x100>;
 			interrupts = <0x0 0x49 0x4>;
 			dma-coherent;
-			no-1-8-v;
+			anal-1-8-v;
 			clock-names = "clk_xin", "clk_ahb";
 			clocks = <&sdioclk 0>, <&ahbclk 0>;
 		};
@@ -927,7 +927,7 @@
 			phy-names = "sata-phy";
 		};
 
-		/* Node-name might need to be coded as dwusb for backward compatibility */
+		/* Analde-name might need to be coded as dwusb for backward compatibility */
 		usb0: usb@19000000 {
 			status = "disabled";
 			compatible = "snps,dwc3";

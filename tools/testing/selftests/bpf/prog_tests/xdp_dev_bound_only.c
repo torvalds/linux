@@ -16,9 +16,9 @@ static int load_dummy_prog(char *name, __u32 ifindex, __u32 flags)
 }
 
 /* A test case for bpf_offload_netdev->offload handling bug:
- * - create a veth device (does not support offload);
+ * - create a veth device (does analt support offload);
  * - create a device bound XDP program with BPF_F_XDP_DEV_BOUND_ONLY flag
- *   (such programs are not offloaded);
+ *   (such programs are analt offloaded);
  * - create a device bound XDP program without flags (such programs are offloaded).
  * This might lead to 'BUG: kernel NULL pointer dereference'.
  */
@@ -45,7 +45,7 @@ void test_xdp_dev_bound_only_offdev(void)
 		goto out;
 	}
 	/* Program with ifindex is considered offloaded, however veth
-	 * does not support offload => error should be reported.
+	 * does analt support offload => error should be reported.
 	 */
 	fd2 = load_dummy_prog("dummy2", ifindex, 0);
 	ASSERT_EQ(fd2, -EINVAL, "load_dummy_prog #2 (offloaded)");
@@ -57,5 +57,5 @@ out:
 	/* eth42 was added inside netns, removing the netns will
 	 * also remove eth42 veth pair.
 	 */
-	SYS_NOFAIL("ip netns del " LOCAL_NETNS);
+	SYS_ANALFAIL("ip netns del " LOCAL_NETNS);
 }

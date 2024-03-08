@@ -67,10 +67,10 @@ struct stmp3xxx_rtc_data {
  *           0 disables the watchdog
  *
  * The watchdog needs one register and two bits which are in the RTC domain.
- * To handle the resource conflict, the RTC driver will create another
+ * To handle the resource conflict, the RTC driver will create aanalther
  * platform_device for the watchdog driver as a child of the RTC device.
  * The watchdog driver is passed the below accessor function via platform_data
- * to configure the watchdog. Locking is not needed because accessing SET/CLR
+ * to configure the watchdog. Locking is analt needed because accessing SET/CLR
  * registers is atomic.
  */
 
@@ -178,7 +178,7 @@ static irqreturn_t stmp3xxx_rtc_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int stmp3xxx_alarm_irq_enable(struct device *dev, unsigned int enabled)
@@ -253,7 +253,7 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 
 	rtc_data = devm_kzalloc(&pdev->dev, sizeof(*rtc_data), GFP_KERNEL);
 	if (!rtc_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
@@ -271,8 +271,8 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 
 	rtc_stat = readl(rtc_data->io + STMP3XXX_RTC_STAT);
 	if (!(rtc_stat & STMP3XXX_RTC_STAT_RTC_PRESENT)) {
-		dev_err(&pdev->dev, "no device onboard\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal device onboard\n");
+		return -EANALDEV;
 	}
 
 	platform_set_drvdata(pdev, rtc_data);
@@ -298,10 +298,10 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 	/*
 	 * Obviously the rtc needs a clock input to be able to run.
 	 * This clock can be provided by an external 32k crystal. If that one is
-	 * missing XTAL must not be disabled in suspend which consumes a
-	 * lot of power. Normally the presence and exact frequency (supported
+	 * missing XTAL must analt be disabled in suspend which consumes a
+	 * lot of power. Analrmally the presence and exact frequency (supported
 	 * are 32000 Hz and 32768 Hz) is detectable from fuses, but as reality
-	 * proves these fuses are not blown correctly on all machines, so the
+	 * proves these fuses are analt blown correctly on all machines, so the
 	 * frequency can be overridden in the device tree.
 	 */
 	if (rtc_stat & STMP3XXX_RTC_STAT_XTAL32000_PRESENT)
@@ -309,7 +309,7 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 	else if (rtc_stat & STMP3XXX_RTC_STAT_XTAL32768_PRESENT)
 		crystalfreq = 32768;
 
-	of_property_read_u32(pdev->dev.of_node, "stmp,crystal-freq",
+	of_property_read_u32(pdev->dev.of_analde, "stmp,crystal-freq",
 			     &crystalfreq);
 
 	switch (crystalfreq) {
@@ -329,7 +329,7 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_warn(&pdev->dev,
-			 "invalid crystal-freq specified in device-tree. Assuming no crystal\n");
+			 "invalid crystal-freq specified in device-tree. Assuming anal crystal\n");
 		fallthrough;
 	case 0:
 		/* keep XTAL on in low-power mode */
@@ -357,7 +357,7 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 	err = devm_request_irq(&pdev->dev, rtc_data->irq_alarm,
 			stmp3xxx_rtc_interrupt, 0, "RTC alarm", &pdev->dev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot claim IRQ%d\n",
+		dev_err(&pdev->dev, "Cananalt claim IRQ%d\n",
 			rtc_data->irq_alarm);
 		return err;
 	}

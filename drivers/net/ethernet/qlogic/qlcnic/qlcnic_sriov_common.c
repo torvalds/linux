@@ -52,7 +52,7 @@ static struct qlcnic_hardware_ops qlcnic_sriov_vf_hw_ops = {
 	.setup_intr			= qlcnic_83xx_setup_intr,
 	.alloc_mbx_args			= qlcnic_83xx_alloc_mbx_args,
 	.mbx_cmd			= qlcnic_sriov_issue_cmd,
-	.get_func_no			= qlcnic_83xx_get_func_no,
+	.get_func_anal			= qlcnic_83xx_get_func_anal,
 	.api_lock			= qlcnic_83xx_cam_lock,
 	.api_unlock			= qlcnic_83xx_cam_unlock,
 	.process_lb_rcv_ring_diag	= qlcnic_83xx_process_rcv_ring_diag,
@@ -151,7 +151,7 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 
 	sriov  = kzalloc(sizeof(struct qlcnic_sriov), GFP_KERNEL);
 	if (!sriov)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->ahw->sriov = sriov;
 	sriov->num_vfs = num_vfs;
@@ -159,15 +159,15 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 	sriov->vf_info = kcalloc(num_vfs, sizeof(struct qlcnic_vf_info),
 				 GFP_KERNEL);
 	if (!sriov->vf_info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto qlcnic_free_sriov;
 	}
 
 	wq = create_singlethread_workqueue("bc-trans");
 	if (wq == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(&adapter->pdev->dev,
-			"Cannot create bc-trans workqueue\n");
+			"Cananalt create bc-trans workqueue\n");
 		goto qlcnic_free_vf_info;
 	}
 
@@ -175,8 +175,8 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 
 	wq = create_singlethread_workqueue("async");
 	if (wq == NULL) {
-		err = -ENOMEM;
-		dev_err(&adapter->pdev->dev, "Cannot create async workqueue\n");
+		err = -EANALMEM;
+		dev_err(&adapter->pdev->dev, "Cananalt create async workqueue\n");
 		goto qlcnic_destroy_trans_wq;
 	}
 
@@ -203,7 +203,7 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 		if (qlcnic_sriov_pf_check(adapter)) {
 			vp = kzalloc(sizeof(struct qlcnic_vport), GFP_KERNEL);
 			if (!vp) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto qlcnic_destroy_async_wq;
 			}
 			sriov->vf_info[i].vp = vp;
@@ -328,7 +328,7 @@ static int qlcnic_sriov_post_bc_msg(struct qlcnic_adapter *adapter, u32 *hdr,
 	err = mbx->ops->enqueue_cmd(adapter, &cmd, &timeout);
 	if (err) {
 		dev_err(&adapter->pdev->dev,
-			"%s: Mailbox not available, cmd_op=0x%x, cmd_type=0x%x, pci_func=0x%x, op_mode=0x%x\n",
+			"%s: Mailbox analt available, cmd_op=0x%x, cmd_type=0x%x, pci_func=0x%x, op_mode=0x%x\n",
 			__func__, cmd.cmd_op, cmd.type, ahw->pci_func,
 			ahw->op_mode);
 		return err;
@@ -455,7 +455,7 @@ static int qlcnic_sriov_set_guest_vlan_mode(struct qlcnic_adapter *adapter,
 	num_vlans = sriov->num_allowed_vlans;
 	sriov->allowed_vlans = kcalloc(num_vlans, sizeof(u16), GFP_KERNEL);
 	if (!sriov->allowed_vlans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vlans = (u16 *)&cmd->rsp.arg[3];
 	for (i = 0; i < num_vlans; i++)
@@ -536,7 +536,7 @@ static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter)
 	INIT_LIST_HEAD(&adapter->vf_mc_list);
 	if (!qlcnic_use_msi_x && !!qlcnic_use_msi)
 		dev_warn(&adapter->pdev->dev,
-			 "Device does not support MSI interrupts\n");
+			 "Device does analt support MSI interrupts\n");
 
 	/* compute and set default and max tx/sds rings */
 	qlcnic_set_tx_ring_count(adapter, QLCNIC_SINGLE_RING);
@@ -651,7 +651,7 @@ void qlcnic_sriov_vf_set_ops(struct qlcnic_adapter *adapter)
 
 	ahw->op_mode = QLCNIC_SRIOV_VF_FUNC;
 	dev_info(&adapter->pdev->dev,
-		 "HAL Version: %d Non Privileged SRIOV function\n",
+		 "HAL Version: %d Analn Privileged SRIOV function\n",
 		 ahw->fw_hal_version);
 	adapter->nic_ops = &qlcnic_sriov_vf_ops;
 	set_bit(__QLCNIC_SRIOV_ENABLE, &adapter->state);
@@ -699,7 +699,7 @@ static inline int qlcnic_sriov_alloc_bc_trans(struct qlcnic_bc_trans **trans)
 {
 	*trans = kzalloc(sizeof(struct qlcnic_bc_trans), GFP_ATOMIC);
 	if (!*trans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_completion(&(*trans)->resp_cmpl);
 	return 0;
@@ -710,7 +710,7 @@ static inline int qlcnic_sriov_alloc_bc_msg(struct qlcnic_bc_hdr **hdr,
 {
 	*hdr = kcalloc(size, sizeof(struct qlcnic_bc_hdr), GFP_ATOMIC);
 	if (!*hdr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -731,13 +731,13 @@ static int qlcnic_sriov_alloc_bc_mbx_args(struct qlcnic_cmd_args *mbx, u32 type)
 			mbx->req.arg = kcalloc(mbx->req.num, sizeof(u32),
 					       GFP_ATOMIC);
 			if (!mbx->req.arg)
-				return -ENOMEM;
+				return -EANALMEM;
 			mbx->rsp.arg = kcalloc(mbx->rsp.num, sizeof(u32),
 					       GFP_ATOMIC);
 			if (!mbx->rsp.arg) {
 				kfree(mbx->req.arg);
 				mbx->req.arg = NULL;
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			mbx->req.arg[0] = (type | (mbx->req.num << 16) |
 					   (3 << 29));
@@ -773,13 +773,13 @@ static int qlcnic_sriov_prepare_bc_hdr(struct qlcnic_bc_trans *trans,
 			num_frags++;
 		t_num_frags = num_frags;
 		if (qlcnic_sriov_alloc_bc_msg(&trans->req_hdr, num_frags))
-			return -ENOMEM;
+			return -EANALMEM;
 		remainder = (trans->rsp_pay_size) % (bc_pay_sz);
 		num_frags = (trans->rsp_pay_size) / (bc_pay_sz);
 		if (remainder)
 			num_frags++;
 		if (qlcnic_sriov_alloc_bc_msg(&trans->rsp_hdr, num_frags))
-			return -ENOMEM;
+			return -EANALMEM;
 		num_frags  = t_num_frags;
 		hdr = trans->req_hdr;
 	}  else {
@@ -1148,14 +1148,14 @@ static void qlcnic_sriov_handle_pending_trans(struct qlcnic_sriov *sriov,
 					      struct qlcnic_bc_hdr *hdr)
 {
 	struct qlcnic_bc_trans *trans = NULL;
-	struct list_head *node;
+	struct list_head *analde;
 	u32 pay_size, curr_frag;
 	u8 found = 0, active = 0;
 
 	spin_lock(&vf->rcv_pend.lock);
 	if (vf->rcv_pend.count > 0) {
-		list_for_each(node, &vf->rcv_pend.wait_list) {
-			trans = list_entry(node, struct qlcnic_bc_trans, list);
+		list_for_each(analde, &vf->rcv_pend.wait_list) {
+			trans = list_entry(analde, struct qlcnic_bc_trans, list);
 			if (trans->trans_id == hdr->seq_id) {
 				found = 1;
 				break;
@@ -1291,7 +1291,7 @@ static void qlcnic_sriov_handle_flr_event(struct qlcnic_sriov *sriov,
 		qlcnic_sriov_pf_handle_flr(sriov, vf);
 	else
 		dev_err(&adapter->pdev->dev,
-			"Invalid event to VF. VF should not get FLR event\n");
+			"Invalid event to VF. VF should analt get FLR event\n");
 }
 
 void qlcnic_sriov_handle_bc_event(struct qlcnic_adapter *adapter, u32 event)
@@ -1332,7 +1332,7 @@ int qlcnic_sriov_cfg_bc_intr(struct qlcnic_adapter *adapter, u8 enable)
 		return 0;
 
 	if (qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_BC_EVENT_SETUP))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (enable)
 		cmd.req.arg[1] = (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7);
@@ -1392,7 +1392,7 @@ static int __qlcnic_sriov_issue_cmd(struct qlcnic_adapter *adapter,
 retry:
 	if (!test_bit(QLC_83XX_MBX_READY, &mbx->status)) {
 		rsp = -EIO;
-		QLCDB(adapter, DRV, "MBX not Ready!(cmd 0x%x) for VF 0x%x\n",
+		QLCDB(adapter, DRV, "MBX analt Ready!(cmd 0x%x) for VF 0x%x\n",
 		      QLCNIC_MBX_RSP(cmd->req.arg[0]), func);
 		goto err_out;
 	}
@@ -1421,7 +1421,7 @@ retry:
 	    (mbx_err_code == QLCNIC_MBX_PORT_RSP_OK)) {
 		rsp = QLCNIC_RCODE_SUCCESS;
 	} else {
-		if (cmd->type == QLC_83XX_MBX_CMD_NO_WAIT) {
+		if (cmd->type == QLC_83XX_MBX_CMD_ANAL_WAIT) {
 			rsp = QLCNIC_RCODE_SUCCESS;
 		} else {
 			rsp = mbx_err_code;
@@ -1445,7 +1445,7 @@ cleanup_transaction:
 	qlcnic_sriov_cleanup_transaction(trans);
 
 free_cmd:
-	if (cmd->type == QLC_83XX_MBX_CMD_NO_WAIT) {
+	if (cmd->type == QLC_83XX_MBX_CMD_ANAL_WAIT) {
 		qlcnic_free_mbx_args(cmd);
 		kfree(cmd);
 	}
@@ -1457,7 +1457,7 @@ free_cmd:
 static int qlcnic_sriov_issue_cmd(struct qlcnic_adapter *adapter,
 				  struct qlcnic_cmd_args *cmd)
 {
-	if (cmd->type == QLC_83XX_MBX_CMD_NO_WAIT)
+	if (cmd->type == QLC_83XX_MBX_CMD_ANAL_WAIT)
 		return qlcnic_sriov_async_issue_cmd(adapter, cmd);
 	else
 		return __qlcnic_sriov_issue_cmd(adapter, cmd);
@@ -1471,7 +1471,7 @@ static int qlcnic_sriov_channel_cfg_cmd(struct qlcnic_adapter *adapter, u8 cmd_o
 
 	memset(&cmd, 0, sizeof(cmd));
 	if (qlcnic_sriov_alloc_bc_mbx_args(&cmd, cmd_op))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = qlcnic_issue_cmd(adapter, &cmd);
 	if (ret) {
@@ -1569,7 +1569,7 @@ void qlcnic_sriov_vf_set_multi(struct net_device *netdev)
 		}
 	}
 
-	/* configure unicast MAC address, if there is not sufficient space
+	/* configure unicast MAC address, if there is analt sufficient space
 	 * to store all the unicast addresses then enable promiscuous mode
 	 */
 	if (netdev_uc_count(netdev) > ahw->max_uc_count) {
@@ -1886,9 +1886,9 @@ static int qlcnic_sriov_vf_idc_init_reset_state(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-static int qlcnic_sriov_vf_idc_unknown_state(struct qlcnic_adapter *adapter)
+static int qlcnic_sriov_vf_idc_unkanalwn_state(struct qlcnic_adapter *adapter)
 {
-	dev_err(&adapter->pdev->dev, "%s: Device in unknown state\n", __func__);
+	dev_err(&adapter->pdev->dev, "%s: Device in unkanalwn state\n", __func__);
 	return 0;
 }
 
@@ -1925,7 +1925,7 @@ static void qlcnic_sriov_vf_poll_dev_state(struct work_struct *work)
 	case QLC_83XX_IDC_DEV_QUISCENT:
 		break;
 	default:
-		ret = qlcnic_sriov_vf_idc_unknown_state(adapter);
+		ret = qlcnic_sriov_vf_idc_unkanalwn_state(adapter);
 	}
 
 	idc->prev_state = idc->curr_state;
@@ -2168,7 +2168,7 @@ int qlcnic_sriov_alloc_vlans(struct qlcnic_adapter *adapter)
 		vf->sriov_vlans = kcalloc(sriov->num_allowed_vlans,
 					  sizeof(*vf->sriov_vlans), GFP_KERNEL);
 		if (!vf->sriov_vlans)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;

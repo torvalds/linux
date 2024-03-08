@@ -109,8 +109,8 @@ static int mv88e6xxx_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
 		return err;
 
 	dev_dbg(chip->dev, "p%d: delay RXCLK %s, TXCLK %s\n", port,
-		reg & MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_RXCLK ? "yes" : "no",
-		reg & MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_TXCLK ? "yes" : "no");
+		reg & MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_RXCLK ? "anal" : "anal",
+		reg & MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_TXCLK ? "anal" : "anal");
 
 	return 0;
 }
@@ -119,7 +119,7 @@ int mv88e6352_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
 				   phy_interface_t mode)
 {
 	if (port < 5)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mv88e6xxx_port_set_rgmii_delay(chip, port, mode);
 }
@@ -128,7 +128,7 @@ int mv88e6390_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
 				   phy_interface_t mode)
 {
 	if (port != 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mv88e6xxx_port_set_rgmii_delay(chip, port, mode);
 }
@@ -137,7 +137,7 @@ int mv88e6320_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
 				   phy_interface_t mode)
 {
 	if (port != 2 && port != 5 && port != 6)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mv88e6xxx_port_set_rgmii_delay(chip, port, mode);
 }
@@ -163,7 +163,7 @@ int mv88e6xxx_port_set_link(struct mv88e6xxx_chip *chip, int port, int link)
 			MV88E6XXX_PORT_MAC_CTL_LINK_UP;
 		break;
 	case LINK_UNFORCED:
-		/* normal link detection */
+		/* analrmal link detection */
 		break;
 	default:
 		return -EINVAL;
@@ -253,7 +253,7 @@ static int mv88e6xxx_port_set_speed_duplex(struct mv88e6xxx_chip *chip,
 		ctrl = MV88E6XXX_PORT_MAC_CTL_SPEED_UNFORCED;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	switch (duplex) {
@@ -265,10 +265,10 @@ static int mv88e6xxx_port_set_speed_duplex(struct mv88e6xxx_chip *chip,
 			MV88E6XXX_PORT_MAC_CTL_DUPLEX_FULL;
 		break;
 	case DUPLEX_UNFORCED:
-		/* normal duplex detection */
+		/* analrmal duplex detection */
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_MAC_CTL, &reg);
@@ -308,7 +308,7 @@ int mv88e6185_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				    int speed, int duplex)
 {
 	if (speed == 200 || speed > 1000)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mv88e6xxx_port_set_speed_duplex(chip, port, speed, false, false,
 					       duplex);
@@ -319,7 +319,7 @@ int mv88e6250_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				    int speed, int duplex)
 {
 	if (speed > 100)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mv88e6xxx_port_set_speed_duplex(chip, port, speed, false, false,
 					       duplex);
@@ -330,13 +330,13 @@ int mv88e6341_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				    int speed, int duplex)
 {
 	if (speed > 2500)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (speed == 200 && port != 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (speed == 2500 && port < 5)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mv88e6xxx_port_set_speed_duplex(chip, port, speed, !port, true,
 					       duplex);
@@ -356,10 +356,10 @@ int mv88e6352_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				    int speed, int duplex)
 {
 	if (speed > 1000)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (speed == 200 && port < 5)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mv88e6xxx_port_set_speed_duplex(chip, port, speed, true, false,
 					       duplex);
@@ -370,13 +370,13 @@ int mv88e6390_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				    int speed, int duplex)
 {
 	if (speed > 2500)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (speed == 200 && port != 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (speed == 2500 && port < 9)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mv88e6xxx_port_set_speed_duplex(chip, port, speed, true, true,
 					       duplex);
@@ -396,10 +396,10 @@ int mv88e6390x_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				     int speed, int duplex)
 {
 	if (speed == 200 && port != 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (speed >= 2500 && port < 9)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mv88e6xxx_port_set_speed_duplex(chip, port, speed, true, true,
 					       duplex);
@@ -426,13 +426,13 @@ int mv88e6393x_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 
 	if (chip->info->prod_num == MV88E6XXX_PORT_SWITCH_ID_PROD_6361 &&
 	    speed > 2500)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (speed == 200 && port != 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (speed >= 2500 && port > 0 && port < 9)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (speed) {
 	case 10:
@@ -461,7 +461,7 @@ int mv88e6393x_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 		ctrl = MV88E6XXX_PORT_MAC_CTL_SPEED_UNFORCED;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	switch (duplex) {
@@ -473,10 +473,10 @@ int mv88e6393x_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 			MV88E6XXX_PORT_MAC_CTL_DUPLEX_FULL;
 		break;
 	case DUPLEX_UNFORCED:
-		/* normal duplex detection */
+		/* analrmal duplex detection */
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_MAC_CTL, &reg);
@@ -572,7 +572,7 @@ static int mv88e6xxx_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 		cmode = 0;
 	}
 
-	/* cmode doesn't change, nothing to do for us unless forced */
+	/* cmode doesn't change, analthing to do for us unless forced */
 	if (cmode == chip->ports[port].cmode && !force)
 		return 0;
 
@@ -600,7 +600,7 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			      phy_interface_t mode)
 {
 	if (port != 9 && port != 10)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mv88e6xxx_port_set_cmode(chip, port, mode, false);
 }
@@ -609,7 +609,7 @@ int mv88e6390_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			     phy_interface_t mode)
 {
 	if (port != 9 && port != 10)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (mode) {
 	case PHY_INTERFACE_MODE_NA:
@@ -632,7 +632,7 @@ int mv88e6393x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 	u16 reg;
 
 	if (port != 0 && port != 9 && port != 10)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (port == 9 || port == 10) {
 		switch (mode) {
@@ -668,7 +668,7 @@ static int mv88e6341_port_set_cmode_writable(struct mv88e6xxx_chip *chip,
 	u16 reg, bits;
 
 	if (port != 5)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	addr = chip->info->port_base_addr + port;
 
@@ -692,7 +692,7 @@ int mv88e6341_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 	int err;
 
 	if (port != 5)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (mode) {
 	case PHY_INTERFACE_MODE_NA:
@@ -742,7 +742,7 @@ int mv88e6352_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
 
 /* Offset 0x02: Jamming Control
  *
- * Do not limit the period of time that this port can be paused for by
+ * Do analt limit the period of time that this port can be paused for by
  * the remote end or the period of time that this port can pause the
  * remote end.
  */
@@ -864,8 +864,8 @@ int mv88e6085_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
 	reg &= ~MV88E6XXX_PORT_CTL0_FRAME_MODE_MASK;
 
 	switch (mode) {
-	case MV88E6XXX_FRAME_MODE_NORMAL:
-		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_NORMAL;
+	case MV88E6XXX_FRAME_MODE_ANALRMAL:
+		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_ANALRMAL;
 		break;
 	case MV88E6XXX_FRAME_MODE_DSA:
 		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_DSA;
@@ -890,8 +890,8 @@ int mv88e6351_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
 	reg &= ~MV88E6XXX_PORT_CTL0_FRAME_MODE_MASK;
 
 	switch (mode) {
-	case MV88E6XXX_FRAME_MODE_NORMAL:
-		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_NORMAL;
+	case MV88E6XXX_FRAME_MODE_ANALRMAL:
+		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_ANALRMAL;
 		break;
 	case MV88E6XXX_FRAME_MODE_DSA:
 		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_DSA;
@@ -909,7 +909,7 @@ int mv88e6351_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
 	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 }
 
-int mv88e6185_port_set_forward_unknown(struct mv88e6xxx_chip *chip,
+int mv88e6185_port_set_forward_unkanalwn(struct mv88e6xxx_chip *chip,
 				       int port, bool unicast)
 {
 	int err;
@@ -920,9 +920,9 @@ int mv88e6185_port_set_forward_unknown(struct mv88e6xxx_chip *chip,
 		return err;
 
 	if (unicast)
-		reg |= MV88E6185_PORT_CTL0_FORWARD_UNKNOWN;
+		reg |= MV88E6185_PORT_CTL0_FORWARD_UNKANALWN;
 	else
-		reg &= ~MV88E6185_PORT_CTL0_FORWARD_UNKNOWN;
+		reg &= ~MV88E6185_PORT_CTL0_FORWARD_UNKANALWN;
 
 	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 }
@@ -1644,12 +1644,12 @@ mv88e6xxx_port_policy_mapping_get_pos(enum mv88e6xxx_policy_mapping mapping,
 		*mask = MV88E6XXX_PORT_POLICY_CTL_UDP_MASK;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	switch (action) {
-	case MV88E6XXX_POLICY_ACTION_NORMAL:
-		*val = MV88E6XXX_PORT_POLICY_CTL_NORMAL;
+	case MV88E6XXX_POLICY_ACTION_ANALRMAL:
+		*val = MV88E6XXX_PORT_POLICY_CTL_ANALRMAL;
 		break;
 	case MV88E6XXX_POLICY_ACTION_MIRROR:
 		*val = MV88E6XXX_PORT_POLICY_CTL_MIRROR;
@@ -1661,7 +1661,7 @@ mv88e6xxx_port_policy_mapping_get_pos(enum mv88e6xxx_policy_mapping mapping,
 		*val = MV88E6XXX_PORT_POLICY_CTL_DISCARD;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2019, Mellanox Technologies */
+/* Copyright (c) 2019, Mellaanalx Techanallogies */
 
 #ifndef _MLX5DR_H_
 #define _MLX5DR_H_
@@ -101,7 +101,7 @@ struct mlx5dr_action *
 mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 				   struct mlx5dr_action_dest *dests,
 				   u32 num_of_dests,
-				   bool ignore_flow_level,
+				   bool iganalre_flow_level,
 				   u32 flow_source);
 
 struct mlx5dr_action *mlx5dr_action_create_drop(void);
@@ -176,7 +176,7 @@ struct mlx5dr_icm_buddy_mem {
 	unsigned long		**bitmap;
 	unsigned int		*num_free;
 	u32			max_order;
-	struct list_head	list_node;
+	struct list_head	list_analde;
 	struct mlx5dr_icm_mr	*icm_mr;
 	struct mlx5dr_icm_pool	*pool;
 

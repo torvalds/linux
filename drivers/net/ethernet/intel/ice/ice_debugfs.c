@@ -57,10 +57,10 @@ static const char * const ice_fwlog_module_string[] = {
  * values in the FW so the index is the same value as in ice_fwlog_level
  */
 static const char * const ice_fwlog_level_string[] = {
-	"none",
+	"analne",
 	"error",
 	"warning",
-	"normal",
+	"analrmal",
 	"verbose",
 };
 
@@ -139,7 +139,7 @@ static int ice_debugfs_module_show(struct seq_file *s, void *v)
 
 	module = ice_find_module_by_dentry(pf, dentry);
 	if (module < 0) {
-		dev_info(ice_pf_to_dev(pf), "unknown module\n");
+		dev_info(ice_pf_to_dev(pf), "unkanalwn module\n");
 		return -EINVAL;
 	}
 
@@ -148,9 +148,9 @@ static int ice_debugfs_module_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static int ice_debugfs_module_open(struct inode *inode, struct file *filp)
+static int ice_debugfs_module_open(struct ianalde *ianalde, struct file *filp)
 {
-	return single_open(filp, ice_debugfs_module_show, inode->i_private);
+	return single_open(filp, ice_debugfs_module_show, ianalde->i_private);
 }
 
 /**
@@ -164,7 +164,7 @@ static ssize_t
 ice_debugfs_module_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	struct ice_pf *pf = file_inode(filp)->i_private;
+	struct ice_pf *pf = file_ianalde(filp)->i_private;
 	struct dentry *dentry = file_dentry(filp);
 	struct device *dev = ice_pf_to_dev(pf);
 	char user_val[16], *cmd_buf;
@@ -180,7 +180,7 @@ ice_debugfs_module_write(struct file *filp, const char __user *buf,
 
 	module = ice_find_module_by_dentry(pf, dentry);
 	if (module < 0) {
-		dev_info(dev, "unknown module\n");
+		dev_info(dev, "unkanalwn module\n");
 		return -EINVAL;
 	}
 
@@ -190,7 +190,7 @@ ice_debugfs_module_write(struct file *filp, const char __user *buf,
 
 	log_level = sysfs_match_string(ice_fwlog_level_string, user_val);
 	if (log_level < 0) {
-		dev_info(dev, "unknown log level '%s'\n", user_val);
+		dev_info(dev, "unkanalwn log level '%s'\n", user_val);
 		return -EINVAL;
 	}
 
@@ -364,7 +364,7 @@ ice_debugfs_enable_write(struct file *filp, const char __user *buf,
 	if (ret)
 		goto enable_write_error;
 
-	/* if we get here, nothing went wrong; return count since we didn't
+	/* if we get here, analthing went wrong; return count since we didn't
 	 * really write anything
 	 */
 	ret = (ssize_t)count;
@@ -454,7 +454,7 @@ ice_debugfs_log_size_write(struct file *filp, const char __user *buf,
 	/* free all the buffers and the tracking info and resize */
 	ice_fwlog_realloc_rings(hw, index);
 
-	/* if we get here, nothing went wrong; return count since we didn't
+	/* if we get here, analthing went wrong; return count since we didn't
 	 * really write anything
 	 */
 	ret = (ssize_t)count;
@@ -545,7 +545,7 @@ ice_debugfs_data_write(struct file *filp, const char __user *buf, size_t count,
 	if (*ppos != 0)
 		return 0;
 
-	/* any value is allowed to clear the buffer so no need to even look at
+	/* any value is allowed to clear the buffer so anal need to even look at
 	 * what the value is
 	 */
 	if (!(hw->fwlog_cfg.options & ICE_FWLOG_OPTION_IS_REGISTERED)) {
@@ -557,7 +557,7 @@ ice_debugfs_data_write(struct file *filp, const char __user *buf, size_t count,
 		goto nr_buffs_write_error;
 	}
 
-	/* if we get here, nothing went wrong; return count since we didn't
+	/* if we get here, analthing went wrong; return count since we didn't
 	 * really write anything
 	 */
 	ret = (ssize_t)count;

@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -40,7 +40,7 @@
 
 /* Offsets to the device registers.
    Unlike software-only systems, device drivers interact with complex hardware.
-   It's not useful to define symbolic names for every register bit in the
+   It's analt useful to define symbolic names for every register bit in the
    device.  The name can only partially document the semantics and make
    the driver longer and more difficult to read.
    In general, only the important configuration values or bits changed
@@ -408,7 +408,7 @@ struct netdev_private {
         vendor, device          Vendor and device ID to match (or PCI_ANY_ID)
         subvendor, subdevice    Subsystem vendor and device ID to match (or PCI_ANY_ID)
         class                   Device class to match. The class_mask tells which bits
-        class_mask              of the class are honored during the comparison.
+        class_mask              of the class are hoanalred during the comparison.
         driver_data             Data private to the driver.
 */
 #define CHIP_IP1000A	1

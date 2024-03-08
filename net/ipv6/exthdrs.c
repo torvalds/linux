@@ -10,14 +10,14 @@
  */
 
 /* Changes:
- *	yoshfuji		: ensure not to overrun while parsing
+ *	yoshfuji		: ensure analt to overrun while parsing
  *				  tlv options.
  *	Mitsuru KANDA @USAGI and: Remove ipv6_parse_exthdrs().
  *	YOSHIFUJI Hideaki @USAGI  Register inbound extension header
  *				  handlers as inet6_protocol{}.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -59,15 +59,15 @@
   Generic functions
  *********************/
 
-/* An unknown option is detected, decide what to do */
+/* An unkanalwn option is detected, decide what to do */
 
-static bool ip6_tlvopt_unknown(struct sk_buff *skb, int optoff,
-			       bool disallow_unknowns)
+static bool ip6_tlvopt_unkanalwn(struct sk_buff *skb, int optoff,
+			       bool disallow_unkanalwns)
 {
-	if (disallow_unknowns) {
-		/* If unknown TLVs are disallowed by configuration
-		 * then always silently drop packet. Note this also
-		 * means no ICMP parameter problem is sent which
+	if (disallow_unkanalwns) {
+		/* If unkanalwn TLVs are disallowed by configuration
+		 * then always silently drop packet. Analte this also
+		 * means anal ICMP parameter problem is sent which
 		 * could be a good property to mitigate a reflection DOS
 		 * attack.
 		 */
@@ -76,13 +76,13 @@ static bool ip6_tlvopt_unknown(struct sk_buff *skb, int optoff,
 	}
 
 	switch ((skb_network_header(skb)[optoff] & 0xC0) >> 6) {
-	case 0: /* ignore */
+	case 0: /* iganalre */
 		return true;
 
 	case 1: /* drop packet */
 		break;
 
-	case 3: /* Send ICMP if not a multicast address and drop packet */
+	case 3: /* Send ICMP if analt a multicast address and drop packet */
 		/* Actually, it is redundant check. icmp_send
 		   will recheck in any case.
 		 */
@@ -117,12 +117,12 @@ static bool ip6_parse_tlv(bool hopbyhop,
 	int len = (skb_transport_header(skb)[1] + 1) << 3;
 	const unsigned char *nh = skb_network_header(skb);
 	int off = skb_network_header_len(skb);
-	bool disallow_unknowns = false;
+	bool disallow_unkanalwns = false;
 	int tlv_count = 0;
 	int padlen = 0;
 
 	if (unlikely(max_count < 0)) {
-		disallow_unknowns = true;
+		disallow_unkanalwns = true;
 		max_count = -max_count;
 	}
 
@@ -189,8 +189,8 @@ static bool ip6_parse_tlv(bool hopbyhop,
 						return false;
 					break;
 				default:
-					if (!ip6_tlvopt_unknown(skb, off,
-								disallow_unknowns))
+					if (!ip6_tlvopt_unkanalwn(skb, off,
+								disallow_unkanalwns))
 						return false;
 					break;
 				}
@@ -203,8 +203,8 @@ static bool ip6_parse_tlv(bool hopbyhop,
 					break;
 #endif
 				default:
-					if (!ip6_tlvopt_unknown(skb, off,
-								disallow_unknowns))
+					if (!ip6_tlvopt_unkanalwn(skb, off,
+								disallow_unkanalwns))
 						return false;
 					break;
 				}
@@ -252,7 +252,7 @@ static bool ipv6_dest_hao(struct sk_buff *skb, int optoff)
 	}
 
 	if (!(ipv6_addr_type(&hao->addr) & IPV6_ADDR_UNICAST)) {
-		net_dbg_ratelimited("hao is not an unicast addr: %pI6\n",
+		net_dbg_ratelimited("hao is analt an unicast addr: %pI6\n",
 				    &hao->addr);
 		SKB_DR_SET(reason, INVALID_PROTO);
 		goto discard;
@@ -276,7 +276,7 @@ static bool ipv6_dest_hao(struct sk_buff *skb, int optoff)
 	}
 
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 
 	swap(ipv6h->saddr, hao->addr);
 
@@ -343,7 +343,7 @@ static void seg6_update_csum(struct sk_buff *skb)
 	__be32 from, to;
 
 	/* srh is at transport offset and seg_left is already decremented
-	 * but daddr is not yet updated with next segment
+	 * but daddr is analt yet updated with next segment
 	 */
 
 	hdr = (struct ipv6_sr_hdr *)skb_transport_header(skb);
@@ -537,7 +537,7 @@ looped_back:
 	n = (hdr->hdrlen << 3) - hdr->pad - (16 - hdr->cmpre);
 	r = do_div(n, (16 - hdr->cmpri));
 	/* checks if calculation was without remainder and n fits into
-	 * unsigned char which is segments_left field. Should not be
+	 * unsigned char which is segments_left field. Should analt be
 	 * higher than that.
 	 */
 	if (r || (n + 1) > 255) {
@@ -719,7 +719,7 @@ looped_back:
 #if IS_ENABLED(CONFIG_IPV6_MIP6)
 	case IPV6_SRCRT_TYPE_2:
 		if (accept_source_route < 0)
-			goto unknown_rh;
+			goto unkanalwn_rh;
 		/* Silently discard invalid RTH type 2 */
 		if (hdr->hdrlen != 2 || hdr->segments_left != 1) {
 			__IP6_INC_STATS(net, idev, IPSTATS_MIB_INHDRERRORS);
@@ -729,7 +729,7 @@ looped_back:
 		break;
 #endif
 	default:
-		goto unknown_rh;
+		goto unkanalwn_rh;
 	}
 
 	/*
@@ -748,7 +748,7 @@ looped_back:
 	}
 
 	/* We are about to mangle packet header. Be careful!
-	   Do not damage packets queued somewhere.
+	   Do analt damage packets queued somewhere.
 	 */
 	if (skb_cloned(skb)) {
 		/* the copy is a forwarded packet */
@@ -762,7 +762,7 @@ looped_back:
 	}
 
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 
 	i = n - --hdr->segments_left;
 
@@ -822,7 +822,7 @@ looped_back:
 	dst_input(skb);
 	return -1;
 
-unknown_rh:
+unkanalwn_rh:
 	__IP6_INC_STATS(net, idev, IPSTATS_MIB_INHDRERRORS);
 	icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
 			  (&hdr->type) - skb_network_header(skb));
@@ -831,17 +831,17 @@ unknown_rh:
 
 static const struct inet6_protocol rthdr_protocol = {
 	.handler	=	ipv6_rthdr_rcv,
-	.flags		=	INET6_PROTO_NOPOLICY,
+	.flags		=	INET6_PROTO_ANALPOLICY,
 };
 
 static const struct inet6_protocol destopt_protocol = {
 	.handler	=	ipv6_destopt_rcv,
-	.flags		=	INET6_PROTO_NOPOLICY,
+	.flags		=	INET6_PROTO_ANALPOLICY,
 };
 
-static const struct inet6_protocol nodata_protocol = {
+static const struct inet6_protocol analdata_protocol = {
 	.handler	=	dst_discard,
-	.flags		=	INET6_PROTO_NOPOLICY,
+	.flags		=	INET6_PROTO_ANALPOLICY,
 };
 
 int __init ipv6_exthdrs_init(void)
@@ -856,7 +856,7 @@ int __init ipv6_exthdrs_init(void)
 	if (ret)
 		goto out_rthdr;
 
-	ret = inet6_add_protocol(&nodata_protocol, IPPROTO_NONE);
+	ret = inet6_add_protocol(&analdata_protocol, IPPROTO_ANALNE);
 	if (ret)
 		goto out_destopt;
 
@@ -871,7 +871,7 @@ out_rthdr:
 
 void ipv6_exthdrs_exit(void)
 {
-	inet6_del_protocol(&nodata_protocol, IPPROTO_NONE);
+	inet6_del_protocol(&analdata_protocol, IPPROTO_ANALNE);
 	inet6_del_protocol(&destopt_protocol, IPPROTO_DSTOPTS);
 	inet6_del_protocol(&rthdr_protocol, IPPROTO_ROUTING);
 }
@@ -881,7 +881,7 @@ void ipv6_exthdrs_exit(void)
  **********************************/
 
 /*
- * Note: we cannot rely on skb_dst(skb) before we assign it in ip6_route_input().
+ * Analte: we cananalt rely on skb_dst(skb) before we assign it in ip6_route_input().
  */
 static inline struct net *ipv6_skb_net(struct sk_buff *skb)
 {
@@ -917,9 +917,9 @@ static bool ipv6_hop_ioam(struct sk_buff *skb, int optoff)
 	if (optoff & 3)
 		goto drop;
 
-	/* Ignore if IOAM is not enabled on ingress */
+	/* Iganalre if IOAM is analt enabled on ingress */
 	if (!__in6_dev_get(skb->dev)->cnf.ioam6_enabled)
-		goto ignore;
+		goto iganalre;
 
 	/* Truncated Option header */
 	hdr = (struct ioam6_hdr *)(skb_network_header(skb) + optoff);
@@ -937,10 +937,10 @@ static bool ipv6_hop_ioam(struct sk_buff *skb, int optoff)
 		if (hdr->opt_len < 2 + sizeof(*trace) + trace->remlen * 4)
 			goto drop;
 
-		/* Ignore if the IOAM namespace is unknown */
+		/* Iganalre if the IOAM namespace is unkanalwn */
 		ns = ioam6_namespace(ipv6_skb_net(skb), trace->namespace_id);
 		if (!ns)
-			goto ignore;
+			goto iganalre;
 
 		if (!skb_valid_dst(skb))
 			ip6_route_input(skb);
@@ -959,7 +959,7 @@ static bool ipv6_hop_ioam(struct sk_buff *skb, int optoff)
 		break;
 	}
 
-ignore:
+iganalre:
 	return true;
 
 drop:
@@ -1072,7 +1072,7 @@ fail_and_free:
  *	"build" functions work when skb is filled from head to tail (datagram)
  *	"push"	functions work when headers are added from tail to head (tcp)
  *
- *	In both cases we assume, that caller reserved enough room
+ *	In both cases we assume, that caller reserved eanalugh room
  *	for headers.
  */
 
@@ -1184,7 +1184,7 @@ void ipv6_push_nfrag_opts(struct sk_buff *skb, struct ipv6_txoptions *opt,
 	if (opt->srcrt) {
 		ipv6_push_rthdr(skb, proto, opt->srcrt, daddr, saddr);
 		/*
-		 * IPV6_RTHDRDSTOPTS is ignored
+		 * IPV6_RTHDRDSTOPTS is iganalred
 		 * unless IPV6_RTHDR is set (RFC3542).
 		 */
 		if (opt->dst0opt)
@@ -1256,7 +1256,7 @@ static void ipv6_renew_option(int renewtype,
  * containing just @newopt.
  *
  * @newopt may be NULL, in which case the specified option type is
- * not copied into the new set of options.
+ * analt copied into the new set of options.
  *
  * The new set of options is allocated from the socket option memory
  * buffer of @sk.
@@ -1289,7 +1289,7 @@ ipv6_renew_options(struct sock *sk, struct ipv6_txoptions *opt,
 	tot_len += sizeof(*opt2);
 	opt2 = sock_kmalloc(sk, tot_len, GFP_ATOMIC);
 	if (!opt2)
-		return ERR_PTR(-ENOBUFS);
+		return ERR_PTR(-EANALBUFS);
 
 	memset(opt2, 0, tot_len);
 	refcount_set(&opt2->refcnt, 1);
@@ -1322,7 +1322,7 @@ struct ipv6_txoptions *__ipv6_fixup_options(struct ipv6_txoptions *opt_space,
 					    struct ipv6_txoptions *opt)
 {
 	/*
-	 * ignore the dest before srcrt unless srcrt is being included.
+	 * iganalre the dest before srcrt unless srcrt is being included.
 	 * --yoshfuji
 	 */
 	if (opt->dst0opt && !opt->srcrt) {
@@ -1346,7 +1346,7 @@ EXPORT_SYMBOL_GPL(__ipv6_fixup_options);
  * @opt: struct ipv6_txoptions in which to look for srcrt opt
  * @orig: copy of original daddr address if modified
  *
- * Returns NULL if no txoptions or no srcrt, otherwise returns orig
+ * Returns NULL if anal txoptions or anal srcrt, otherwise returns orig
  * and initial value of fl6->daddr set in orig
  */
 struct in6_addr *fl6_update_dst(struct flowi6 *fl6,

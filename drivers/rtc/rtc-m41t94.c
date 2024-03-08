@@ -2,7 +2,7 @@
 /*
  * Driver for ST M41T94 SPI RTC
  *
- * Copyright (C) 2008 Kim B. Heino
+ * Copyright (C) 2008 Kim B. Heianal
  */
 
 #include <linux/module.h>
@@ -116,7 +116,7 @@ static int m41t94_probe(struct spi_device *spi)
 
 	res = spi_w8r8(spi, M41T94_REG_SECONDS);
 	if (res < 0) {
-		dev_err(&spi->dev, "not found.\n");
+		dev_err(&spi->dev, "analt found.\n");
 		return res;
 	}
 
@@ -139,7 +139,7 @@ static struct spi_driver m41t94_driver = {
 
 module_spi_driver(m41t94_driver);
 
-MODULE_AUTHOR("Kim B. Heino <Kim.Heino@bluegiga.com>");
+MODULE_AUTHOR("Kim B. Heianal <Kim.Heianal@bluegiga.com>");
 MODULE_DESCRIPTION("Driver for ST M41T94 SPI RTC");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("spi:rtc-m41t94");

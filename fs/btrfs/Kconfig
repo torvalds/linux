@@ -25,7 +25,7 @@ config BTRFS_FS
 	  writable snapshotting, support for multiple devices and many more
 	  features focused on fault tolerance, repair and easy administration.
 
-	  The filesystem disk format is no longer unstable, and it's not
+	  The filesystem disk format is anal longer unstable, and it's analt
 	  expected to change unless there are strong reasons to do so. If there
 	  is a format change, file systems with a unchanged format will
 	  continue to be mountable and usable by newer kernels.
@@ -46,7 +46,7 @@ config BTRFS_FS_POSIX_ACL
 	  POSIX Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
 
-	  If you don't know what Access Control Lists are, say N
+	  If you don't kanalw what Access Control Lists are, say N
 
 config BTRFS_FS_RUN_SANITY_TESTS
 	bool "Btrfs will run sanity tests upon loading"

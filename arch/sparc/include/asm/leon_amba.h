@@ -55,9 +55,9 @@ struct amba_prom_registers {
 #define LEON23_REG_TIMER_CONTROL_RL    0x00000002 /* 1 = reload at 0 */
 						  /* 0 = stop at 0 */
 #define LEON23_REG_TIMER_CONTROL_LD    0x00000004 /* 1 = load counter */
-						  /* 0 = no function */
+						  /* 0 = anal function */
 #define LEON23_REG_TIMER_CONTROL_IQ    0x00000008 /* 1 = irq enable */
-						  /* 0 = no function */
+						  /* 0 = anal function */
 
 /*
  *  The following defines the bits in the LEON PS/2 Status Registers.
@@ -98,15 +98,15 @@ struct leon3_irqctrl_regs_map {
 	u32 iclear;
 	u32 mpstatus;
 	u32 mpbroadcast;
-	u32 notused02;
-	u32 notused03;
+	u32 analtused02;
+	u32 analtused03;
 	u32 ampctrl;
 	u32 icsel[2];
-	u32 notused13;
-	u32 notused20;
-	u32 notused21;
-	u32 notused22;
-	u32 notused23;
+	u32 analtused13;
+	u32 analtused20;
+	u32 analtused21;
+	u32 analtused22;
+	u32 analtused23;
 	u32 mask[16];
 	u32 force[16];
 	/* Extended IRQ registers */
@@ -177,8 +177,8 @@ struct amba_ahb_device {
 	struct amba_confarea_type *bus;
 };
 
-struct device_node;
-void _amba_init(struct device_node *dp, struct device_node ***nextp);
+struct device_analde;
+void _amba_init(struct device_analde *dp, struct device_analde ***nextp);
 
 extern unsigned long amba_system_id;
 extern struct leon3_irqctrl_regs_map *leon3_irqctrl_regs;

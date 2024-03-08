@@ -12,7 +12,7 @@ maintainers:
 
 description:
   GPMC NAND controller/Flash is represented as a child of the
-  GPMC controller node.
+  GPMC controller analde.
 
 properties:
   compatible:
@@ -102,8 +102,8 @@ examples:
         compatible = "ti,omap2-nand";
         reg = <0 0 4>;          /* device IO registers */
         interrupt-parent = <&gpmc>;
-        interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
-                     <1 IRQ_TYPE_NONE>; /* termcount */
+        interrupts = <0 IRQ_TYPE_ANALNE>, /* fifoevent */
+                     <1 IRQ_TYPE_ANALNE>; /* termcount */
         ti,nand-xfer-type = "prefetch-dma";
         ti,nand-ecc-opt = "bch16";
         ti,elm-id = <&elm>;

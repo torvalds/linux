@@ -13,7 +13,7 @@
 #include <asm/ptrace.h>
 
 #define DAIF_PROCCTX		0
-#define DAIF_PROCCTX_NOIRQ	(PSR_I_BIT | PSR_F_BIT)
+#define DAIF_PROCCTX_ANALIRQ	(PSR_I_BIT | PSR_F_BIT)
 #define DAIF_ERRCTX		(PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
 #define DAIF_MASK		(PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
 
@@ -84,7 +84,7 @@ static inline void local_daif_restore(unsigned long flags)
 		if (!(flags & PSR_A_BIT)) {
 			/*
 			 * If interrupts are disabled but we can take
-			 * asynchronous errors, we can take NMIs
+			 * asynchroanalus errors, we can take NMIs
 			 */
 			flags &= ~(PSR_I_BIT | PSR_F_BIT);
 			pmr = GIC_PRIO_IRQOFF;
@@ -100,12 +100,12 @@ static inline void local_daif_restore(unsigned long flags)
 		 *   Writes to the PSTATE fields have side-effects on
 		 *   various aspects of the PE operation. All of these
 		 *   side-effects are guaranteed:
-		 *     - Not to be visible to earlier instructions in
+		 *     - Analt to be visible to earlier instructions in
 		 *       the execution stream.
 		 *     - To be visible to later instructions in the
 		 *       execution stream
 		 *
-		 * Also, writes to PMR are self-synchronizing, so no
+		 * Also, writes to PMR are self-synchronizing, so anal
 		 * interrupts with a lower priority than PMR is signaled
 		 * to the PE after the write.
 		 *
@@ -121,7 +121,7 @@ static inline void local_daif_restore(unsigned long flags)
 }
 
 /*
- * Called by synchronous exception handlers to restore the DAIF bits that were
+ * Called by synchroanalus exception handlers to restore the DAIF bits that were
  * modified by taking an exception.
  */
 static inline void local_daif_inherit(struct pt_regs *regs)

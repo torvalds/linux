@@ -42,7 +42,7 @@ properties:
       - description: Fatal interrupt
       - description: Ready interrupt
       - description: Handover interrupt
-      - description: Stop acknowledge interrupt
+      - description: Stop ackanalwledge interrupt
 
   interrupt-names:
     items:
@@ -137,7 +137,7 @@ properties:
   smd-edge:
     $ref: qcom,smd-edge.yaml#
     description:
-      Qualcomm SMD subnode which represents communication edge, channels
+      Qualcomm SMD subanalde which represents communication edge, channels
       and devices related to the DSP.
     properties:
       label:

@@ -1,8 +1,8 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-only
 
-# Sergey Senozhatsky, 2015
-# sergey.senozhatsky.work@gmail.com
+# Sergey Seanalzhatsky, 2015
+# sergey.seanalzhatsky.work@gmail.com
 #
 
 
@@ -41,7 +41,7 @@ usage()
 check_file_exist()
 {
 	if [ ! -f "$1" ]; then
-		echo "File '$1' does not exist"
+		echo "File '$1' does analt exist"
 		exit 1
 	fi
 }
@@ -52,7 +52,7 @@ do_slabs_plotting()
 	local out_file
 	local range="every ::$xmin"
 	local xtic=""
-	local xtic_rotate="norotate"
+	local xtic_rotate="analrotate"
 	local lines=2000000
 	local wc_lines
 
@@ -261,7 +261,7 @@ case $mode in
 		done
 		;;
 	*)
-		echo "Unknown mode $mode" >&2
+		echo "Unkanalwn mode $mode" >&2
 		usage
 		exit 1
 	;;

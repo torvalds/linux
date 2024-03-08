@@ -21,7 +21,7 @@
 #include <linux/string.h>
 #include <linux/compat.h>
 #include <sound/core.h>
-#include <sound/minors.h>
+#include <sound/mianalrs.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include "pcm_plugin.h"
@@ -34,7 +34,7 @@
 
 static int dsp_map[SNDRV_CARDS];
 static int adsp_map[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 1};
-static bool nonblock_open = 1;
+static bool analnblock_open = 1;
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, Abramo Bagnara <abramo@alsa-project.org>");
 MODULE_DESCRIPTION("PCM OSS emulation for ALSA.");
@@ -43,10 +43,10 @@ module_param_array(dsp_map, int, NULL, 0444);
 MODULE_PARM_DESC(dsp_map, "PCM device number assigned to 1st OSS device.");
 module_param_array(adsp_map, int, NULL, 0444);
 MODULE_PARM_DESC(adsp_map, "PCM device number assigned to 2nd OSS device.");
-module_param(nonblock_open, bool, 0644);
-MODULE_PARM_DESC(nonblock_open, "Don't block opening busy PCM devices.");
-MODULE_ALIAS_SNDRV_MINOR(SNDRV_MINOR_OSS_PCM);
-MODULE_ALIAS_SNDRV_MINOR(SNDRV_MINOR_OSS_PCM1);
+module_param(analnblock_open, bool, 0644);
+MODULE_PARM_DESC(analnblock_open, "Don't block opening busy PCM devices.");
+MODULE_ALIAS_SNDRV_MIANALR(SNDRV_MIANALR_OSS_PCM);
+MODULE_ALIAS_SNDRV_MIANALR(SNDRV_MIANALR_OSS_PCM1);
 
 static int snd_pcm_oss_get_rate(struct snd_pcm_oss_file *pcm_oss_file);
 static int snd_pcm_oss_get_channels(struct snd_pcm_oss_file *pcm_oss_file);
@@ -73,7 +73,7 @@ static int snd_interval_refine_min(struct snd_interval *i, unsigned int min, int
 		}
 	}
 	if (snd_interval_checkempty(i)) {
-		snd_interval_none(i);
+		snd_interval_analne(i);
 		return -EINVAL;
 	}
 	return changed;
@@ -97,7 +97,7 @@ static int snd_interval_refine_max(struct snd_interval *i, unsigned int max, int
 		}
 	}
 	if (snd_interval_checkempty(i)) {
-		snd_interval_none(i);
+		snd_interval_analne(i);
 		return -EINVAL;
 	}
 	return changed;
@@ -269,7 +269,7 @@ static int _snd_pcm_hw_param_max(struct snd_pcm_hw_params *params,
 	}
 	if (hw_is_mask(var)) {
 		if (val == 0 && open) {
-			snd_mask_none(hw_param_mask(params, var));
+			snd_mask_analne(hw_param_mask(params, var));
 			changed = -EINVAL;
 		} else
 			changed = snd_mask_refine_max(hw_param_mask(params, var),
@@ -368,7 +368,7 @@ static int boundary_nearer(int min, int mindir,
  *
  * Inside configuration space defined by PARAMS set PAR to the available value
  * nearest to VAL. Reduce configuration space accordingly.
- * This function cannot be called for SNDRV_PCM_HW_PARAM_ACCESS,
+ * This function cananalt be called for SNDRV_PCM_HW_PARAM_ACCESS,
  * SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_HW_PARAM_SUBFORMAT.
  * Return the value found.
   */
@@ -399,7 +399,7 @@ static int snd_pcm_hw_param_near(struct snd_pcm_substream *pcm,
 	}
 	save = kmalloc(sizeof(*save), GFP_KERNEL);
 	if (save == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	*save = *params;
 	saved_min = min;
 	min = snd_pcm_hw_param_min(pcm, params, var, min, &mindir);
@@ -412,7 +412,7 @@ static int snd_pcm_hw_param_near(struct snd_pcm_substream *pcm,
 		params1 = kmalloc(sizeof(*params1), GFP_KERNEL);
 		if (params1 == NULL) {
 			kfree(save);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		*params1 = *save;
 		max = snd_pcm_hw_param_max(pcm, params1, var, max, &maxdir);
@@ -452,7 +452,7 @@ static int _snd_pcm_hw_param_set(struct snd_pcm_hw_params *params,
 		struct snd_mask *m = hw_param_mask(params, var);
 		if (val == 0 && dir < 0) {
 			changed = -EINVAL;
-			snd_mask_none(m);
+			snd_mask_analne(m);
 		} else {
 			if (dir > 0)
 				val++;
@@ -464,7 +464,7 @@ static int _snd_pcm_hw_param_set(struct snd_pcm_hw_params *params,
 		struct snd_interval *i = hw_param_interval(params, var);
 		if (val == 0 && dir < 0) {
 			changed = -EINVAL;
-			snd_interval_none(i);
+			snd_interval_analne(i);
 		} else if (dir == 0)
 			changed = snd_interval_refine_set(i, val);
 		else {
@@ -775,9 +775,9 @@ static int snd_pcm_oss_period_size(struct snd_pcm_substream *substream,
 	if (oss_period_size < 16)
 		return -EINVAL;
 
-	/* don't allocate too large period; 1MB period must be enough */
+	/* don't allocate too large period; 1MB period must be eanalugh */
 	if (oss_period_size > 1024 * 1024)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	runtime->oss.period_bytes = oss_period_size;
 	runtime->oss.period_frames = 1;
@@ -794,7 +794,7 @@ static int choose_rate(struct snd_pcm_substream *substream,
 
 	save = kmalloc(sizeof(*save), GFP_KERNEL);
 	if (save == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	*save = *params;
 	it = hw_param_interval_c(save, SNDRV_PCM_HW_PARAM_RATE);
 
@@ -820,7 +820,7 @@ static int choose_rate(struct snd_pcm_substream *substream,
 			break;
 	}
 
-	/* not found, use the nearest rate */
+	/* analt found, use the nearest rate */
 	kfree(save);
 	return snd_pcm_hw_param_near(substream, params, SNDRV_PCM_HW_PARAM_RATE, best_rate, NULL);
 }
@@ -874,7 +874,7 @@ static int snd_pcm_oss_change_params_locked(struct snd_pcm_substream *substream)
 	params = kmalloc(sizeof(*params), GFP_KERNEL);
 	sparams = kmalloc(sizeof(*sparams), GFP_KERNEL);
 	if (!sw_params || !params || !sparams) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failure;
 	}
 
@@ -886,17 +886,17 @@ static int snd_pcm_oss_change_params_locked(struct snd_pcm_substream *substream)
 	_snd_pcm_hw_params_any(sparams);
 	_snd_pcm_hw_param_setinteger(sparams, SNDRV_PCM_HW_PARAM_PERIODS);
 	_snd_pcm_hw_param_min(sparams, SNDRV_PCM_HW_PARAM_PERIODS, 2, 0);
-	snd_mask_none(&mask);
+	snd_mask_analne(&mask);
 	if (atomic_read(&substream->mmap_count))
 		snd_mask_set(&mask, (__force int)SNDRV_PCM_ACCESS_MMAP_INTERLEAVED);
 	else {
 		snd_mask_set(&mask, (__force int)SNDRV_PCM_ACCESS_RW_INTERLEAVED);
 		if (!direct)
-			snd_mask_set(&mask, (__force int)SNDRV_PCM_ACCESS_RW_NONINTERLEAVED);
+			snd_mask_set(&mask, (__force int)SNDRV_PCM_ACCESS_RW_ANALNINTERLEAVED);
 	}
 	err = snd_pcm_hw_param_mask(substream, sparams, SNDRV_PCM_HW_PARAM_ACCESS, &mask);
 	if (err < 0) {
-		pcm_dbg(substream->pcm, "No usable accesses\n");
+		pcm_dbg(substream->pcm, "Anal usable accesses\n");
 		err = -EINVAL;
 		goto failure;
 	}
@@ -925,7 +925,7 @@ static int snd_pcm_oss_change_params_locked(struct snd_pcm_substream *substream)
 			    snd_pcm_oss_format_to(sformat) >= 0)
 				goto format_found;
 		}
-		pcm_dbg(substream->pcm, "Cannot find a format!!!\n");
+		pcm_dbg(substream->pcm, "Cananalt find a format!!!\n");
 		err = -EINVAL;
 		goto failure;
 	}
@@ -1018,12 +1018,12 @@ static int snd_pcm_oss_change_params_locked(struct snd_pcm_substream *substream)
 		sw_params->stop_threshold = runtime->boundary;
 	else
 		sw_params->stop_threshold = runtime->buffer_size;
-	sw_params->tstamp_mode = SNDRV_PCM_TSTAMP_NONE;
+	sw_params->tstamp_mode = SNDRV_PCM_TSTAMP_ANALNE;
 	sw_params->period_step = 1;
 	sw_params->avail_min = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
 		1 : runtime->period_size;
 	if (atomic_read(&substream->mmap_count) ||
-	    substream->oss.setup.nosilence) {
+	    substream->oss.setup.analsilence) {
 		sw_params->silence_threshold = 0;
 		sw_params->silence_size = 0;
 	} else {
@@ -1078,7 +1078,7 @@ static int snd_pcm_oss_change_params_locked(struct snd_pcm_substream *substream)
 	kvfree(runtime->oss.buffer);
 	runtime->oss.buffer = kvzalloc(runtime->oss.period_bytes, GFP_KERNEL);
 	if (!runtime->oss.buffer) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failure;
 	}
 
@@ -1143,8 +1143,8 @@ static int snd_pcm_oss_get_active_substream(struct snd_pcm_oss_file *pcm_oss_fil
 }
 
 /* call with params_lock held */
-/* NOTE: this always call PREPARE unconditionally no matter whether
- * runtime->oss.prepare is set or not
+/* ANALTE: this always call PREPARE unconditionally anal matter whether
+ * runtime->oss.prepare is set or analt
  */
 static int snd_pcm_oss_prepare(struct snd_pcm_substream *substream)
 {
@@ -1256,7 +1256,7 @@ snd_pcm_sframes_t snd_pcm_oss_write3(struct snd_pcm_substream *substream, const 
 		if (ret != -EPIPE && ret != -ESTRPIPE)
 			break;
 		/* test, if we can't store new data, because the stream */
-		/* has not been started */
+		/* has analt been started */
 		if (runtime->state == SNDRV_PCM_STATE_PREPARED)
 			return -EAGAIN;
 	}
@@ -1329,7 +1329,7 @@ snd_pcm_sframes_t snd_pcm_oss_writev3(struct snd_pcm_substream *substream, void 
 			break;
 
 		/* test, if we can't store new data, because the stream */
-		/* has not been started */
+		/* has analt been started */
 		if (runtime->state == SNDRV_PCM_STATE_PREPARED)
 			return -EAGAIN;
 	}
@@ -1442,7 +1442,7 @@ static ssize_t snd_pcm_oss_write1(struct snd_pcm_substream *substream, const cha
 				if (runtime->oss.period_ptr == 0 ||
 				    runtime->oss.period_ptr == runtime->oss.buffer_used)
 					runtime->oss.buffer_used = 0;
-				else if ((substream->f_flags & O_NONBLOCK) != 0) {
+				else if ((substream->f_flags & O_ANALNBLOCK) != 0) {
 					tmp = -EAGAIN;
 					goto err;
 				}
@@ -1457,7 +1457,7 @@ static ssize_t snd_pcm_oss_write1(struct snd_pcm_substream *substream, const cha
 			buf += tmp;
 			bytes -= tmp;
 			xfer += tmp;
-			if ((substream->f_flags & O_NONBLOCK) != 0 &&
+			if ((substream->f_flags & O_ANALNBLOCK) != 0 &&
 			    tmp != runtime->oss.period_bytes)
 				tmp = -EAGAIN;
 		}
@@ -1604,8 +1604,8 @@ static int snd_pcm_oss_post(struct snd_pcm_oss_file *pcm_oss_file)
 			return err;
 		snd_pcm_kernel_ioctl(substream, SNDRV_PCM_IOCTL_START, NULL);
 	}
-	/* note: all errors from the start action are ignored */
-	/* OSS apps do not know, how to handle them */
+	/* analte: all errors from the start action are iganalred */
+	/* OSS apps do analt kanalw, how to handle them */
 	return 0;
 }
 
@@ -1714,7 +1714,7 @@ static int snd_pcm_oss_sync(struct snd_pcm_oss_file *pcm_oss_file)
 			size = runtime->period_size - size;
 			if (runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED)
 				snd_pcm_lib_write(substream, NULL, size);
-			else if (runtime->access == SNDRV_PCM_ACCESS_RW_NONINTERLEAVED)
+			else if (runtime->access == SNDRV_PCM_ACCESS_RW_ANALNINTERLEAVED)
 				snd_pcm_lib_writev(substream, NULL, size);
 		}
 unlock:
@@ -1727,7 +1727,7 @@ unlock:
 		 */
 	      __direct:
 		saved_f_flags = substream->f_flags;
-		substream->f_flags &= ~O_NONBLOCK;
+		substream->f_flags &= ~O_ANALNBLOCK;
 		err = snd_pcm_kernel_ioctl(substream, SNDRV_PCM_IOCTL_DRAIN, NULL);
 		substream->f_flags = saved_f_flags;
 		if (err < 0)
@@ -1869,7 +1869,7 @@ static int snd_pcm_oss_get_formats(struct snd_pcm_oss_file *pcm_oss_file)
 			AFMT_S24_PACKED;
 	params = kmalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
-		return -ENOMEM;
+		return -EANALMEM;
 	_snd_pcm_hw_params_any(params);
 	err = snd_pcm_hw_refine(substream, params);
 	if (err < 0)
@@ -1981,7 +1981,7 @@ static int snd_pcm_oss_set_fragment1(struct snd_pcm_substream *substream, unsign
 	if (runtime->oss.subdivision || runtime->oss.fragshift)
 		return -EINVAL;
 	fragshift = val & 0xffff;
-	if (fragshift >= 25) /* should be large enough */
+	if (fragshift >= 25) /* should be large eanalugh */
 		return -EINVAL;
 	runtime->oss.fragshift = fragshift;
 	runtime->oss.maxfrags = (val >> 16) & 0xffff;
@@ -2015,10 +2015,10 @@ static int snd_pcm_oss_set_fragment(struct snd_pcm_oss_file *pcm_oss_file, unsig
 	return err;
 }
 
-static int snd_pcm_oss_nonblock(struct file * file)
+static int snd_pcm_oss_analnblock(struct file * file)
 {
 	spin_lock(&file->f_lock);
-	file->f_flags |= O_NONBLOCK;
+	file->f_flags |= O_ANALNBLOCK;
 	spin_unlock(&file->f_lock);
 	return 0;
 }
@@ -2369,26 +2369,26 @@ static void snd_pcm_oss_release_substream(struct snd_pcm_substream *substream)
 
 static void snd_pcm_oss_init_substream(struct snd_pcm_substream *substream,
 				       struct snd_pcm_oss_setup *setup,
-				       int minor)
+				       int mianalr)
 {
 	struct snd_pcm_runtime *runtime;
 
 	substream->oss.oss = 1;
 	substream->oss.setup = *setup;
-	if (setup->nonblock)
-		substream->f_flags |= O_NONBLOCK;
+	if (setup->analnblock)
+		substream->f_flags |= O_ANALNBLOCK;
 	else if (setup->block)
-		substream->f_flags &= ~O_NONBLOCK;
+		substream->f_flags &= ~O_ANALNBLOCK;
 	runtime = substream->runtime;
 	runtime->oss.params = 1;
 	runtime->oss.trigger = 1;
 	runtime->oss.rate = 8000;
 	mutex_init(&runtime->oss.params_lock);
-	switch (SNDRV_MINOR_OSS_DEVICE(minor)) {
-	case SNDRV_MINOR_OSS_PCM_8:
+	switch (SNDRV_MIANALR_OSS_DEVICE(mianalr)) {
+	case SNDRV_MIANALR_OSS_PCM_8:
 		runtime->oss.format = AFMT_U8;
 		break;
-	case SNDRV_MINOR_OSS_PCM_16:
+	case SNDRV_MIANALR_OSS_PCM_16:
 		runtime->oss.format = AFMT_S16_LE;
 		break;
 	default:
@@ -2419,7 +2419,7 @@ static int snd_pcm_oss_release_file(struct snd_pcm_oss_file *pcm_oss_file)
 static int snd_pcm_oss_open_file(struct file *file,
 				 struct snd_pcm *pcm,
 				 struct snd_pcm_oss_file **rpcm_oss_file,
-				 int minor,
+				 int mianalr,
 				 struct snd_pcm_oss_setup *setup)
 {
 	int idx, err;
@@ -2432,7 +2432,7 @@ static int snd_pcm_oss_open_file(struct file *file,
 
 	pcm_oss_file = kzalloc(sizeof(*pcm_oss_file), GFP_KERNEL);
 	if (pcm_oss_file == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if ((f_mode & (FMODE_WRITE|FMODE_READ)) == (FMODE_WRITE|FMODE_READ) &&
 	    (pcm->info_flags & SNDRV_PCM_INFO_HALF_DUPLEX))
@@ -2443,7 +2443,7 @@ static int snd_pcm_oss_open_file(struct file *file,
 		if (setup[idx].disable)
 			continue;
 		if (! pcm->streams[idx].substream_count)
-			continue; /* no matching substream */
+			continue; /* anal matching substream */
 		if (idx == SNDRV_PCM_STREAM_PLAYBACK) {
 			if (! (f_mode & FMODE_WRITE))
 				continue;
@@ -2458,7 +2458,7 @@ static int snd_pcm_oss_open_file(struct file *file,
 		}
 
 		pcm_oss_file->streams[idx] = substream;
-		snd_pcm_oss_init_substream(substream, &setup[idx], minor);
+		snd_pcm_oss_init_substream(substream, &setup[idx], mianalr);
 	}
 	
 	if (!pcm_oss_file->streams[0] && !pcm_oss_file->streams[1]) {
@@ -2485,24 +2485,24 @@ static int snd_task_name(struct task_struct *task, char *name, size_t size)
 	return 0;
 }
 
-static int snd_pcm_oss_open(struct inode *inode, struct file *file)
+static int snd_pcm_oss_open(struct ianalde *ianalde, struct file *file)
 {
 	int err;
 	char task_name[32];
 	struct snd_pcm *pcm;
 	struct snd_pcm_oss_file *pcm_oss_file;
 	struct snd_pcm_oss_setup setup[2];
-	int nonblock;
+	int analnblock;
 	wait_queue_entry_t wait;
 
-	err = nonseekable_open(inode, file);
+	err = analnseekable_open(ianalde, file);
 	if (err < 0)
 		return err;
 
-	pcm = snd_lookup_oss_minor_data(iminor(inode),
+	pcm = snd_lookup_oss_mianalr_data(imianalr(ianalde),
 					SNDRV_OSS_DEVICE_TYPE_PCM);
 	if (pcm == NULL) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto __error1;
 	}
 	err = snd_card_file_add(pcm->card, file);
@@ -2524,20 +2524,20 @@ static int snd_pcm_oss_open(struct inode *inode, struct file *file)
 		snd_pcm_oss_look_for_setup(pcm, SNDRV_PCM_STREAM_CAPTURE,
 					   task_name, &setup[1]);
 
-	nonblock = !!(file->f_flags & O_NONBLOCK);
-	if (!nonblock)
-		nonblock = nonblock_open;
+	analnblock = !!(file->f_flags & O_ANALNBLOCK);
+	if (!analnblock)
+		analnblock = analnblock_open;
 
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(&pcm->open_wait, &wait);
 	mutex_lock(&pcm->open_mutex);
 	while (1) {
 		err = snd_pcm_oss_open_file(file, pcm, &pcm_oss_file,
-					    iminor(inode), setup);
+					    imianalr(ianalde), setup);
 		if (err >= 0)
 			break;
 		if (err == -EAGAIN) {
-			if (nonblock) {
+			if (analnblock) {
 				err = -EBUSY;
 				break;
 			}
@@ -2548,7 +2548,7 @@ static int snd_pcm_oss_open(struct inode *inode, struct file *file)
 		schedule();
 		mutex_lock(&pcm->open_mutex);
 		if (pcm->card->shutdown) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			break;
 		}
 		if (signal_pending(current)) {
@@ -2573,7 +2573,7 @@ static int snd_pcm_oss_open(struct inode *inode, struct file *file)
 	return err;
 }
 
-static int snd_pcm_oss_release(struct inode *inode, struct file *file)
+static int snd_pcm_oss_release(struct ianalde *ianalde, struct file *file)
 {
 	struct snd_pcm *pcm;
 	struct snd_pcm_substream *substream;
@@ -2708,8 +2708,8 @@ static long snd_pcm_oss_ioctl(struct file *file, unsigned int cmd, unsigned long
 			cmd == SNDCTL_DSP_GETISPACE ?
 				SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK,
 			(struct audio_buf_info __user *) arg);
-	case SNDCTL_DSP_NONBLOCK:
-		return snd_pcm_oss_nonblock(file);
+	case SNDCTL_DSP_ANALNBLOCK:
+		return snd_pcm_oss_analnblock(file);
 	case SNDCTL_DSP_GETCAPS:
 		res = snd_pcm_oss_get_caps(pcm_oss_file);
 		if (res < 0)
@@ -2737,7 +2737,7 @@ static long snd_pcm_oss_ioctl(struct file *file, unsigned int cmd, unsigned long
 				SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK,
 			(struct buffmem_desc __user *) arg);
 	case SNDCTL_DSP_SETSYNCRO:
-		/* stop DMA now.. */
+		/* stop DMA analw.. */
 		return 0;
 	case SNDCTL_DSP_SETDUPLEX:
 		if (snd_pcm_oss_get_caps(pcm_oss_file) & DSP_CAP_DUPLEX)
@@ -2752,9 +2752,9 @@ static long snd_pcm_oss_ioctl(struct file *file, unsigned int cmd, unsigned long
 		}
 		return put_user(res, p);
 	case SNDCTL_DSP_PROFILE:
-		return 0;	/* silently ignore */
+		return 0;	/* silently iganalre */
 	default:
-		pr_debug("pcm_oss: unknown command = 0x%x\n", cmd);
+		pr_debug("pcm_oss: unkanalwn command = 0x%x\n", cmd);
 	}
 	return -EINVAL;
 }
@@ -2766,7 +2766,7 @@ static long snd_pcm_oss_ioctl_compat(struct file *file, unsigned int cmd,
 {
 	/*
 	 * Everything is compatbile except SNDCTL_DSP_MAPINBUF/SNDCTL_DSP_MAPOUTBUF,
-	 * which are not implemented for the native case either
+	 * which are analt implemented for the native case either
 	 */
 	return snd_pcm_oss_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
 }
@@ -2783,7 +2783,7 @@ static ssize_t snd_pcm_oss_read(struct file *file, char __user *buf, size_t coun
 	substream = pcm_oss_file->streams[SNDRV_PCM_STREAM_CAPTURE];
 	if (substream == NULL)
 		return -ENXIO;
-	substream->f_flags = file->f_flags & O_NONBLOCK;
+	substream->f_flags = file->f_flags & O_ANALNBLOCK;
 #ifndef OSS_DEBUG
 	return snd_pcm_oss_read1(substream, buf, count);
 #else
@@ -2807,7 +2807,7 @@ static ssize_t snd_pcm_oss_write(struct file *file, const char __user *buf, size
 	substream = pcm_oss_file->streams[SNDRV_PCM_STREAM_PLAYBACK];
 	if (substream == NULL)
 		return -ENXIO;
-	substream->f_flags = file->f_flags & O_NONBLOCK;
+	substream->f_flags = file->f_flags & O_ANALNBLOCK;
 	result = snd_pcm_oss_write1(substream, buf, count);
 #ifdef OSS_DEBUG
 	pcm_dbg(substream->pcm, "pcm_oss: write %li bytes (wrote %li bytes)\n",
@@ -2857,7 +2857,7 @@ static __poll_t snd_pcm_oss_poll(struct file *file, poll_table * wait)
 		if (runtime->state != SNDRV_PCM_STATE_DRAINING &&
 		    (runtime->state != SNDRV_PCM_STATE_RUNNING ||
 		     snd_pcm_oss_playback_ready(psubstream)))
-			mask |= EPOLLOUT | EPOLLWRNORM;
+			mask |= EPOLLOUT | EPOLLWRANALRM;
 		snd_pcm_stream_unlock_irq(psubstream);
 	}
 	if (csubstream != NULL) {
@@ -2868,7 +2868,7 @@ static __poll_t snd_pcm_oss_poll(struct file *file, poll_table * wait)
 		ostate = runtime->state;
 		if (ostate != SNDRV_PCM_STATE_RUNNING ||
 		    snd_pcm_oss_capture_ready(csubstream))
-			mask |= EPOLLIN | EPOLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDANALRM;
 		snd_pcm_stream_unlock_irq(csubstream);
 		if (ostate != SNDRV_PCM_STATE_RUNNING && runtime->oss.trigger) {
 			struct snd_pcm_oss_file ofile;
@@ -2973,9 +2973,9 @@ static void snd_pcm_oss_proc_read(struct snd_info_entry *entry,
 			    setup->disable ? " disable" : "",
 			    setup->direct ? " direct" : "",
 			    setup->block ? " block" : "",
-			    setup->nonblock ? " non-block" : "",
+			    setup->analnblock ? " analn-block" : "",
 			    setup->partialfrag ? " partial-frag" : "",
-			    setup->nosilence ? " no-silence" : "");
+			    setup->analsilence ? " anal-silence" : "");
 		setup = setup->next;
 	}
 	mutex_unlock(&pstr->oss.setup_mutex);
@@ -3035,12 +3035,12 @@ static void snd_pcm_oss_proc_write(struct snd_info_entry *entry,
 				template.direct = 1;
 			} else if (!strcmp(str, "block")) {
 				template.block = 1;
-			} else if (!strcmp(str, "non-block")) {
-				template.nonblock = 1;
+			} else if (!strcmp(str, "analn-block")) {
+				template.analnblock = 1;
 			} else if (!strcmp(str, "partial-frag")) {
 				template.partialfrag = 1;
-			} else if (!strcmp(str, "no-silence")) {
-				template.nosilence = 1;
+			} else if (!strcmp(str, "anal-silence")) {
+				template.analsilence = 1;
 			} else if (!strcmp(str, "buggy-ptr")) {
 				template.buggyptr = 1;
 			}
@@ -3048,7 +3048,7 @@ static void snd_pcm_oss_proc_write(struct snd_info_entry *entry,
 		if (setup == NULL) {
 			setup = kmalloc(sizeof(*setup), GFP_KERNEL);
 			if (! setup) {
-				buffer->error = -ENOMEM;
+				buffer->error = -EANALMEM;
 				mutex_unlock(&pstr->oss.setup_mutex);
 				return;
 			}
@@ -3062,7 +3062,7 @@ static void snd_pcm_oss_proc_write(struct snd_info_entry *entry,
 			template.task_name = kstrdup(task_name, GFP_KERNEL);
 			if (! template.task_name) {
 				kfree(setup);
-				buffer->error = -ENOMEM;
+				buffer->error = -EANALMEM;
 				mutex_unlock(&pstr->oss.setup_mutex);
 				return;
 			}
@@ -3126,7 +3126,7 @@ static const struct file_operations snd_pcm_oss_f_reg =
 	.write =	snd_pcm_oss_write,
 	.open =		snd_pcm_oss_open,
 	.release =	snd_pcm_oss_release,
-	.llseek =	no_llseek,
+	.llseek =	anal_llseek,
 	.poll =		snd_pcm_oss_poll,
 	.unlocked_ioctl =	snd_pcm_oss_ioctl,
 	.compat_ioctl =	snd_pcm_oss_ioctl_compat,
@@ -3143,7 +3143,7 @@ static void register_oss_dsp(struct snd_pcm *pcm, int index)
 	}
 }
 
-static int snd_pcm_oss_register_minor(struct snd_pcm *pcm)
+static int snd_pcm_oss_register_mianalr(struct snd_pcm *pcm)
 {
 	pcm->oss.reg = 0;
 	if (dsp_map[pcm->card->number] == (int)pcm->device) {
@@ -3174,7 +3174,7 @@ static int snd_pcm_oss_register_minor(struct snd_pcm *pcm)
 	return 0;
 }
 
-static int snd_pcm_oss_disconnect_minor(struct snd_pcm *pcm)
+static int snd_pcm_oss_disconnect_mianalr(struct snd_pcm *pcm)
 {
 	if (pcm->oss.reg) {
 		if (pcm->oss.reg_mask & 1) {
@@ -3197,18 +3197,18 @@ static int snd_pcm_oss_disconnect_minor(struct snd_pcm *pcm)
 	return 0;
 }
 
-static int snd_pcm_oss_unregister_minor(struct snd_pcm *pcm)
+static int snd_pcm_oss_unregister_mianalr(struct snd_pcm *pcm)
 {
-	snd_pcm_oss_disconnect_minor(pcm);
+	snd_pcm_oss_disconnect_mianalr(pcm);
 	snd_pcm_oss_proc_done(pcm);
 	return 0;
 }
 
-static struct snd_pcm_notify snd_pcm_oss_notify =
+static struct snd_pcm_analtify snd_pcm_oss_analtify =
 {
-	.n_register =	snd_pcm_oss_register_minor,
-	.n_disconnect = snd_pcm_oss_disconnect_minor,
-	.n_unregister =	snd_pcm_oss_unregister_minor,
+	.n_register =	snd_pcm_oss_register_mianalr,
+	.n_disconnect = snd_pcm_oss_disconnect_mianalr,
+	.n_unregister =	snd_pcm_oss_unregister_mianalr,
 };
 
 static int __init alsa_pcm_oss_init(void)
@@ -3229,7 +3229,7 @@ static int __init alsa_pcm_oss_init(void)
 			adsp_map[i] = 1;
 		}
 	}
-	err = snd_pcm_notify(&snd_pcm_oss_notify, 0);
+	err = snd_pcm_analtify(&snd_pcm_oss_analtify, 0);
 	if (err < 0)
 		return err;
 	return 0;
@@ -3237,7 +3237,7 @@ static int __init alsa_pcm_oss_init(void)
 
 static void __exit alsa_pcm_oss_exit(void)
 {
-	snd_pcm_notify(&snd_pcm_oss_notify, 1);
+	snd_pcm_analtify(&snd_pcm_oss_analtify, 1);
 }
 
 module_init(alsa_pcm_oss_init)

@@ -75,7 +75,7 @@ acpi_ns_convert_to_integer(union acpi_operand_object *original_object,
 
 	new_object = acpi_ut_create_integer_object(value);
 	if (!new_object) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	*return_object = new_object;
@@ -116,7 +116,7 @@ acpi_ns_convert_to_string(union acpi_operand_object *original_object,
 
 			new_object = acpi_ut_create_string_object(0);
 			if (!new_object) {
-				return (AE_NO_MEMORY);
+				return (AE_ANAL_MEMORY);
 			}
 		} else {
 			status = acpi_ex_convert_to_string(original_object,
@@ -131,7 +131,7 @@ acpi_ns_convert_to_string(union acpi_operand_object *original_object,
 	case ACPI_TYPE_BUFFER:
 		/*
 		 * Buffer-to-String conversion. Use a to_string
-		 * conversion, no transform performed on the buffer data. The best
+		 * conversion, anal transform performed on the buffer data. The best
 		 * example of this is the _BIF method, where the string data from
 		 * the battery is often (incorrectly) returned as buffer object(s).
 		 */
@@ -145,11 +145,11 @@ acpi_ns_convert_to_string(union acpi_operand_object *original_object,
 
 		new_object = acpi_ut_create_string_object(length);
 		if (!new_object) {
-			return (AE_NO_MEMORY);
+			return (AE_ANAL_MEMORY);
 		}
 
 		/*
-		 * Copy the raw buffer data with no transform. String is already NULL
+		 * Copy the raw buffer data with anal transform. String is already NULL
 		 * terminated at Length+1.
 		 */
 		memcpy(new_object->string.pointer,
@@ -212,7 +212,7 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
 		new_object = acpi_ut_create_buffer_object
 		    (original_object->string.length);
 		if (!new_object) {
-			return (AE_NO_MEMORY);
+			return (AE_ANAL_MEMORY);
 		}
 
 		memcpy(new_object->buffer.pointer,
@@ -244,7 +244,7 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
 
 		new_object = acpi_ut_create_buffer_object(ACPI_MUL_4(count));
 		if (!new_object) {
-			return (AE_NO_MEMORY);
+			return (AE_ANAL_MEMORY);
 		}
 
 		/* Copy the package elements (integers) to the buffer as DWORDs */
@@ -272,7 +272,7 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
  *
  * FUNCTION:    acpi_ns_convert_to_unicode
  *
- * PARAMETERS:  scope               - Namespace node for the method/object
+ * PARAMETERS:  scope               - Namespace analde for the method/object
  *              original_object     - ASCII String Object to be converted
  *              return_object       - Where the new converted object is returned
  *
@@ -283,7 +283,7 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
  ******************************************************************************/
 
 acpi_status
-acpi_ns_convert_to_unicode(struct acpi_namespace_node *scope,
+acpi_ns_convert_to_unicode(struct acpi_namespace_analde *scope,
 			   union acpi_operand_object *original_object,
 			   union acpi_operand_object **return_object)
 {
@@ -319,7 +319,7 @@ acpi_ns_convert_to_unicode(struct acpi_namespace_node *scope,
 
 	new_object = acpi_ut_create_buffer_object(unicode_length);
 	if (!new_object) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	unicode_buffer = ACPI_CAST_PTR(u16, new_object->buffer.pointer);
@@ -338,7 +338,7 @@ acpi_ns_convert_to_unicode(struct acpi_namespace_node *scope,
  *
  * FUNCTION:    acpi_ns_convert_to_resource
  *
- * PARAMETERS:  scope               - Namespace node for the method/object
+ * PARAMETERS:  scope               - Namespace analde for the method/object
  *              original_object     - Object to be converted
  *              return_object       - Where the new converted object is returned
  *
@@ -350,7 +350,7 @@ acpi_ns_convert_to_unicode(struct acpi_namespace_node *scope,
  ******************************************************************************/
 
 acpi_status
-acpi_ns_convert_to_resource(struct acpi_namespace_node *scope,
+acpi_ns_convert_to_resource(struct acpi_namespace_analde *scope,
 			    union acpi_operand_object *original_object,
 			    union acpi_operand_object **return_object)
 {
@@ -359,7 +359,7 @@ acpi_ns_convert_to_resource(struct acpi_namespace_node *scope,
 
 	/*
 	 * We can fix the following cases for an expected resource template:
-	 * 1. No return value (interpreter slack mode is disabled)
+	 * 1. Anal return value (interpreter slack mode is disabled)
 	 * 2. A "Return (Zero)" statement
 	 * 3. A "Return empty buffer" statement
 	 *
@@ -399,7 +399,7 @@ acpi_ns_convert_to_resource(struct acpi_namespace_node *scope,
 
 	new_object = acpi_ut_create_buffer_object(2);
 	if (!new_object) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	buffer = ACPI_CAST_PTR(u8, new_object->buffer.pointer);
@@ -417,7 +417,7 @@ acpi_ns_convert_to_resource(struct acpi_namespace_node *scope,
  *
  * FUNCTION:    acpi_ns_convert_to_reference
  *
- * PARAMETERS:  scope               - Namespace node for the method/object
+ * PARAMETERS:  scope               - Namespace analde for the method/object
  *              original_object     - Object to be converted
  *              return_object       - Where the new converted object is returned
  *
@@ -429,13 +429,13 @@ acpi_ns_convert_to_resource(struct acpi_namespace_node *scope,
  ******************************************************************************/
 
 acpi_status
-acpi_ns_convert_to_reference(struct acpi_namespace_node *scope,
+acpi_ns_convert_to_reference(struct acpi_namespace_analde *scope,
 			     union acpi_operand_object *original_object,
 			     union acpi_operand_object **return_object)
 {
 	union acpi_operand_object *new_object = NULL;
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	union acpi_generic_state scope_info;
 	char *name;
 
@@ -449,14 +449,14 @@ acpi_ns_convert_to_reference(struct acpi_namespace_node *scope,
 		return_ACPI_STATUS(status);
 	}
 
-	/* Find the namespace node */
+	/* Find the namespace analde */
 
-	scope_info.scope.node =
-	    ACPI_CAST_PTR(struct acpi_namespace_node, scope);
+	scope_info.scope.analde =
+	    ACPI_CAST_PTR(struct acpi_namespace_analde, scope);
 	status =
 	    acpi_ns_lookup(&scope_info, name, ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
 			   ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
-			   NULL, &node);
+			   NULL, &analde);
 	if (ACPI_FAILURE(status)) {
 
 		/* Check if we are resolving a named reference within a package */
@@ -470,18 +470,18 @@ acpi_ns_convert_to_reference(struct acpi_namespace_node *scope,
 
 	new_object = acpi_ut_create_internal_object(ACPI_TYPE_LOCAL_REFERENCE);
 	if (!new_object) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto error_exit;
 	}
-	new_object->reference.node = node;
-	new_object->reference.object = node->object;
+	new_object->reference.analde = analde;
+	new_object->reference.object = analde->object;
 	new_object->reference.class = ACPI_REFCLASS_NAME;
 
 	/*
 	 * Increase reference of the object if needed (the object is likely a
-	 * null for device nodes).
+	 * null for device analdes).
 	 */
-	acpi_ut_add_reference(node->object);
+	acpi_ut_add_reference(analde->object);
 
 error_exit:
 	ACPI_FREE(name);

@@ -151,7 +151,7 @@
 #define YT8521_LTCR_EN_AUTOSEN			BIT(15)
 
 /* 0xA000, 0xA001, 0xA003, 0xA006 ~ 0xA00A and 0xA012 are common ext registers
- * of yt8521 phy. There is no need to switch reg space when operating these
+ * of yt8521 phy. There is anal need to switch reg space when operating these
  * registers.
  */
 
@@ -299,7 +299,7 @@ struct yt8521_priv {
  * @phydev: a pointer to a &struct phy_device
  * @regnum: register number to read
  *
- * NOTE:The caller must have taken the MDIO bus lock.
+ * ANALTE:The caller must have taken the MDIO bus lock.
  *
  * returns the value of regnum reg or negative error code
  */
@@ -338,7 +338,7 @@ static int ytphy_read_ext_with_lock(struct phy_device *phydev, u16 regnum)
  * @regnum: register number to write
  * @val: value to write to @regnum
  *
- * NOTE:The caller must have taken the MDIO bus lock.
+ * ANALTE:The caller must have taken the MDIO bus lock.
  *
  * returns 0 or negative error code
  */
@@ -380,7 +380,7 @@ static int ytphy_write_ext_with_lock(struct phy_device *phydev, u16 regnum,
  * @mask: bit mask of bits to clear
  * @set: bit mask of bits to set
  *
- * NOTE: Convenience function which allows a PHY's extended register to be
+ * ANALTE: Convenience function which allows a PHY's extended register to be
  * modified as new register value = (old register value & ~mask) | set.
  * The caller must have taken the MDIO bus lock.
  *
@@ -405,7 +405,7 @@ static int ytphy_modify_ext(struct phy_device *phydev, u16 regnum, u16 mask,
  * @mask: bit mask of bits to clear
  * @set: bit mask of bits to set
  *
- * NOTE: Convenience function which allows a PHY's extended register to be
+ * ANALTE: Convenience function which allows a PHY's extended register to be
  * modified as new register value = (old register value & ~mask) | set.
  *
  * returns 0 or negative error code
@@ -427,7 +427,7 @@ static int ytphy_modify_ext_with_lock(struct phy_device *phydev, u16 regnum,
  * @phydev: a pointer to a &struct phy_device
  * @wol: a pointer to a &struct ethtool_wolinfo
  *
- * NOTE: YTPHY_WOL_CONFIG_REG is common ext reg.
+ * ANALTE: YTPHY_WOL_CONFIG_REG is common ext reg.
  */
 static void ytphy_get_wol(struct phy_device *phydev,
 			  struct ethtool_wolinfo *wol)
@@ -450,11 +450,11 @@ static void ytphy_get_wol(struct phy_device *phydev,
  * @phydev: a pointer to a &struct phy_device
  * @wol: a pointer to a &struct ethtool_wolinfo
  *
- * NOTE: YTPHY_WOL_CONFIG_REG, YTPHY_WOL_MACADDR2_REG, YTPHY_WOL_MACADDR1_REG
+ * ANALTE: YTPHY_WOL_CONFIG_REG, YTPHY_WOL_MACADDR2_REG, YTPHY_WOL_MACADDR1_REG
  * and YTPHY_WOL_MACADDR0_REG are common ext reg. The
  * YTPHY_INTERRUPT_ENABLE_REG of UTP is special, fiber also use this register.
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int ytphy_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
 {
@@ -474,7 +474,7 @@ static int ytphy_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts & WAKE_MAGIC) {
 		p_attached_dev = phydev->attached_dev;
 		if (!p_attached_dev)
-			return -ENODEV;
+			return -EANALDEV;
 
 		mac_addr = (const u8 *)p_attached_dev->dev_addr;
 		if (!is_valid_ether_addr(mac_addr))
@@ -620,8 +620,8 @@ static int yt8511_config_init(struct phy_device *phydev)
 		ge = YT8511_DELAY_RX | YT8511_DELAY_GE_TX_EN;
 		fe = YT8511_DELAY_FE_TX_EN;
 		break;
-	default: /* do not support other modes */
-		ret = -EOPNOTSUPP;
+	default: /* do analt support other modes */
+		ret = -EOPANALTSUPP;
 		goto err_restore_page;
 	}
 
@@ -661,7 +661,7 @@ err_restore_page:
  * @phydev: a pointer to a &struct phy_device
  *
  * returns current reg space of yt8521 (YT8521_RSSR_FIBER_SPACE/
- * YT8521_RSSR_UTP_SPACE) or negative errno code
+ * YT8521_RSSR_UTP_SPACE) or negative erranal code
  */
 static int yt8521_read_page(struct phy_device *phydev)
 {
@@ -682,7 +682,7 @@ static int yt8521_read_page(struct phy_device *phydev)
  * @phydev: a pointer to a &struct phy_device
  * @page: The reg page(YT8521_RSSR_FIBER_SPACE/YT8521_RSSR_UTP_SPACE) to write.
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int yt8521_write_page(struct phy_device *phydev, int page)
 {
@@ -708,7 +708,7 @@ struct ytphy_cfg_reg_map {
 };
 
 static const struct ytphy_cfg_reg_map ytphy_rgmii_delays[] = {
-	/* for tx delay / rx delay with YT8521_CCR_RXC_DLY_EN is not set. */
+	/* for tx delay / rx delay with YT8521_CCR_RXC_DLY_EN is analt set. */
 	{ 0,	YT8521_RC1R_RGMII_0_000_NS },
 	{ 150,	YT8521_RC1R_RGMII_0_150_NS },
 	{ 300,	YT8521_RC1R_RGMII_0_300_NS },
@@ -752,12 +752,12 @@ static u32 ytphy_get_delay_reg_value(struct phy_device *phydev,
 				     u16 *rxc_dly_en,
 				     u32 dflt)
 {
-	struct device_node *node = phydev->mdio.dev.of_node;
+	struct device_analde *analde = phydev->mdio.dev.of_analde;
 	int tb_size_half = tb_size / 2;
 	u32 val;
 	int i;
 
-	if (of_property_read_u32(node, prop_name, &val))
+	if (of_property_read_u32(analde, prop_name, &val))
 		goto err_dts_val;
 
 	/* when rxc_dly_en is NULL, it is get the delay for tx, only half of
@@ -778,9 +778,9 @@ static u32 ytphy_get_delay_reg_value(struct phy_device *phydev,
 		    val, prop_name, dflt);
 
 err_dts_val:
-	/* when rxc_dly_en is not NULL, it is get the delay for rx.
+	/* when rxc_dly_en is analt NULL, it is get the delay for rx.
 	 * The rx default in dts and ytphy_rgmii_clk_delay_config is 1950 ps,
-	 * so YT8521_CCR_RXC_DLY_EN should not be set.
+	 * so YT8521_CCR_RXC_DLY_EN should analt be set.
 	 */
 	if (rxc_dly_en)
 		*rxc_dly_en = 0;
@@ -819,8 +819,8 @@ static int ytphy_rgmii_clk_delay_config(struct phy_device *phydev)
 		val |= FIELD_PREP(YT8521_RC1R_RX_DELAY_MASK, rx_reg) |
 		       FIELD_PREP(YT8521_RC1R_GE_TX_DELAY_MASK, tx_reg);
 		break;
-	default: /* do not support other modes */
-		return -EOPNOTSUPP;
+	default: /* do analt support other modes */
+		return -EOPANALTSUPP;
 	}
 
 	ret = ytphy_modify_ext(phydev, YT8521_CHIP_CONFIG_REG,
@@ -828,7 +828,7 @@ static int ytphy_rgmii_clk_delay_config(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	/* Generally, it is not necessary to adjust YT8521_RC1R_FE_TX_DELAY */
+	/* Generally, it is analt necessary to adjust YT8521_RC1R_FE_TX_DELAY */
 	mask = YT8521_RC1R_RX_DELAY_MASK | YT8521_RC1R_GE_TX_DELAY_MASK;
 	return ytphy_modify_ext(phydev, YT8521_RGMII_CONFIG1_REG, mask, val);
 }
@@ -901,16 +901,16 @@ static int yt8531_get_ds_map(struct phy_device *phydev, u32 cur)
 
 static int yt8531_set_ds(struct phy_device *phydev)
 {
-	struct device_node *node = phydev->mdio.dev.of_node;
+	struct device_analde *analde = phydev->mdio.dev.of_analde;
 	u32 ds_field_low, ds_field_hi, val;
 	int ret, ds;
 
 	/* set rgmii rx clk driver strength */
-	if (!of_property_read_u32(node, "motorcomm,rx-clk-drv-microamp", &val)) {
+	if (!of_property_read_u32(analde, "motorcomm,rx-clk-drv-microamp", &val)) {
 		ds = yt8531_get_ds_map(phydev, val);
 		if (ds < 0)
 			return dev_err_probe(&phydev->mdio.dev, ds,
-					     "No matching current value was found.\n");
+					     "Anal matching current value was found.\n");
 	} else {
 		ds = YT8531_RGMII_RX_DS_DEFAULT;
 	}
@@ -923,11 +923,11 @@ static int yt8531_set_ds(struct phy_device *phydev)
 		return ret;
 
 	/* set rgmii rx data driver strength */
-	if (!of_property_read_u32(node, "motorcomm,rx-data-drv-microamp", &val)) {
+	if (!of_property_read_u32(analde, "motorcomm,rx-data-drv-microamp", &val)) {
 		ds = yt8531_get_ds_map(phydev, val);
 		if (ds < 0)
 			return dev_err_probe(&phydev->mdio.dev, ds,
-					     "No matching current value was found.\n");
+					     "Anal matching current value was found.\n");
 	} else {
 		ds = YT8531_RGMII_RX_DS_DEFAULT;
 	}
@@ -952,11 +952,11 @@ static int yt8531_set_ds(struct phy_device *phydev)
  * yt8521_probe() - read chip config then set suitable polling_mode
  * @phydev: a pointer to a &struct phy_device
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int yt8521_probe(struct phy_device *phydev)
 {
-	struct device_node *node = phydev->mdio.dev.of_node;
+	struct device_analde *analde = phydev->mdio.dev.of_analde;
 	struct device *dev = &phydev->mdio.dev;
 	struct yt8521_priv *priv;
 	int chip_config;
@@ -966,7 +966,7 @@ static int yt8521_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phydev->priv = priv;
 
@@ -988,7 +988,7 @@ static int yt8521_probe(struct phy_device *phydev)
 	case YT8521_CCR_MODE_UTP_TO_FIBER_FORCE:
 		priv->polling_mode = YT8521_MODE_POLL;
 		priv->reg_page = YT8521_RSSR_TO_BE_ARBITRATED;
-		phydev->port = PORT_NONE;
+		phydev->port = PORT_ANALNE;
 		break;
 	case YT8521_CCR_MODE_UTP_TO_SGMII:
 	case YT8521_CCR_MODE_UTP_TO_RGMII:
@@ -1006,7 +1006,7 @@ static int yt8521_probe(struct phy_device *phydev)
 			return ret;
 	}
 
-	if (of_property_read_u32(node, "motorcomm,clk-out-frequency-hz", &freq))
+	if (of_property_read_u32(analde, "motorcomm,clk-out-frequency-hz", &freq))
 		freq = YTPHY_DTS_OUTPUT_CLK_DIS;
 
 	if (phydev->drv->phy_id == PHY_ID_YT8521) {
@@ -1074,11 +1074,11 @@ static int yt8521_probe(struct phy_device *phydev)
 
 static int yt8531_probe(struct phy_device *phydev)
 {
-	struct device_node *node = phydev->mdio.dev.of_node;
+	struct device_analde *analde = phydev->mdio.dev.of_analde;
 	u16 mask, val;
 	u32 freq;
 
-	if (of_property_read_u32(node, "motorcomm,clk-out-frequency-hz", &freq))
+	if (of_property_read_u32(analde, "motorcomm,clk-out-frequency-hz", &freq))
 		freq = YTPHY_DTS_OUTPUT_CLK_DIS;
 
 	switch (freq) {
@@ -1113,9 +1113,9 @@ static int yt8531_probe(struct phy_device *phydev)
  * ytphy_utp_read_lpa() - read LPA then setup lp_advertising for utp
  * @phydev: a pointer to a &struct phy_device
  *
- * NOTE:The caller must have taken the MDIO bus lock.
+ * ANALTE:The caller must have taken the MDIO bus lock.
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int ytphy_utp_read_lpa(struct phy_device *phydev)
 {
@@ -1144,7 +1144,7 @@ static int ytphy_utp_read_lpa(struct phy_device *phydev)
 					phydev_err(phydev, "Master/Slave resolution failed, maybe conflicting manual settings?\n");
 				else
 					phydev_err(phydev, "Master/Slave resolution failed\n");
-				return -ENOLINK;
+				return -EANALLINK;
 			}
 
 			mii_stat1000_mod_linkmode_lpa_t(phydev->lp_advertising,
@@ -1170,7 +1170,7 @@ static int ytphy_utp_read_lpa(struct phy_device *phydev)
  * @status: yt8521 status read from YTPHY_SPECIFIC_STATUS_REG
  * @is_utp: false(yt8521 work in fiber mode) or true(yt8521 work in utp mode)
  *
- * NOTE:The caller must have taken the MDIO bus lock.
+ * ANALTE:The caller must have taken the MDIO bus lock.
  *
  * returns 0
  */
@@ -1196,9 +1196,9 @@ static int yt8521_adjust_status(struct phy_device *phydev, int status,
 			speed = SPEED_10;
 		else
 			/* for fiber, it will never run here, default to
-			 * SPEED_UNKNOWN
+			 * SPEED_UNKANALWN
 			 */
-			speed = SPEED_UNKNOWN;
+			speed = SPEED_UNKANALWN;
 		break;
 	case YTPHY_SSR_SPEED_100M:
 		speed = SPEED_100;
@@ -1207,7 +1207,7 @@ static int yt8521_adjust_status(struct phy_device *phydev, int status,
 		speed = SPEED_1000;
 		break;
 	default:
-		speed = SPEED_UNKNOWN;
+		speed = SPEED_UNKANALWN;
 		break;
 	}
 
@@ -1250,7 +1250,7 @@ static int yt8521_adjust_status(struct phy_device *phydev, int status,
  * @page: The reg page(YT8521_RSSR_FIBER_SPACE/YT8521_RSSR_UTP_SPACE) to
  * operate.
  *
- * returns 1 (utp or fiber link),0 (no link) or negative errno code
+ * returns 1 (utp or fiber link),0 (anal link) or negative erranal code
  */
 static int yt8521_read_status_paged(struct phy_device *phydev, int page)
 {
@@ -1262,8 +1262,8 @@ static int yt8521_read_status_paged(struct phy_device *phydev, int page)
 	int link;
 
 	linkmode_zero(phydev->lp_advertising);
-	phydev->duplex = DUPLEX_UNKNOWN;
-	phydev->speed = SPEED_UNKNOWN;
+	phydev->duplex = DUPLEX_UNKANALWN;
+	phydev->speed = SPEED_UNKANALWN;
 	phydev->asym_pause = 0;
 	phydev->pause = 0;
 
@@ -1290,7 +1290,7 @@ static int yt8521_read_status_paged(struct phy_device *phydev, int page)
 	link = !!(status & YTPHY_SSR_LINK);
 
 	/* When PHY is in fiber mode, speed transferred from 1000Mbps to
-	 * 100Mbps,there is not link down from YTPHY_SPECIFIC_STATUS_REG, so
+	 * 100Mbps,there is analt link down from YTPHY_SPECIFIC_STATUS_REG, so
 	 * we need check MII_BMSR to identify such case.
 	 */
 	if (page == YT8521_RSSR_FIBER_SPACE) {
@@ -1335,7 +1335,7 @@ err_restore_page:
  * yt8521_read_status() -  determines the negotiated speed and duplex
  * @phydev: a pointer to a &struct phy_device
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int yt8521_read_status(struct phy_device *phydev)
 {
@@ -1406,7 +1406,7 @@ static int yt8521_read_status(struct phy_device *phydev)
 			 */
 			if (priv->polling_mode == YT8521_MODE_POLL) {
 				priv->reg_page = YT8521_RSSR_TO_BE_ARBITRATED;
-				phydev->port = PORT_NONE;
+				phydev->port = PORT_ANALNE;
 			}
 		}
 
@@ -1423,13 +1423,13 @@ static int yt8521_read_status(struct phy_device *phydev)
  * @mask: bit mask of bits to clear
  * @set: bit mask of bits to set
  *
- * NOTE: Convenience function which allows a PHY's BMCR register to be
+ * ANALTE: Convenience function which allows a PHY's BMCR register to be
  * modified as new register value = (old register value & ~mask) | set.
  * YT8521 has two space (utp/fiber) and three mode (utp/fiber/poll), each space
  * has MII_BMCR. poll mode combines utp and faber,so need do both.
  * If it is reset, it will wait for completion.
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int yt8521_modify_bmcr_paged(struct phy_device *phydev, int page,
 				    u16 mask, u16 set)
@@ -1469,12 +1469,12 @@ err_restore_page:
  * @mask: bit mask of bits to clear
  * @set: bit mask of bits to set
  *
- * NOTE: Convenience function which allows a PHY's BMCR register to be
+ * ANALTE: Convenience function which allows a PHY's BMCR register to be
  * modified as new register value = (old register value & ~mask) | set.
  * YT8521 has two space (utp/fiber) and three mode (utp/fiber/poll), each space
  * has MII_BMCR. poll mode combines utp and faber,so need do both.
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int yt8521_modify_utp_fiber_bmcr(struct phy_device *phydev, u16 mask,
 					u16 set)
@@ -1505,7 +1505,7 @@ static int yt8521_modify_utp_fiber_bmcr(struct phy_device *phydev, u16 mask,
  * yt8521_soft_reset() - called to issue a PHY software reset
  * @phydev: a pointer to a &struct phy_device
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int yt8521_soft_reset(struct phy_device *phydev)
 {
@@ -1516,7 +1516,7 @@ static int yt8521_soft_reset(struct phy_device *phydev)
  * yt8521_suspend() - suspend the hardware
  * @phydev: a pointer to a &struct phy_device
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int yt8521_suspend(struct phy_device *phydev)
 {
@@ -1527,7 +1527,7 @@ static int yt8521_suspend(struct phy_device *phydev)
 	if (wol_config < 0)
 		return wol_config;
 
-	/* if wol enable, do nothing */
+	/* if wol enable, do analthing */
 	if (wol_config & YTPHY_WCR_ENABLE)
 		return 0;
 
@@ -1538,7 +1538,7 @@ static int yt8521_suspend(struct phy_device *phydev)
  * yt8521_resume() - resume the hardware
  * @phydev: a pointer to a &struct phy_device
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int yt8521_resume(struct phy_device *phydev)
 {
@@ -1556,7 +1556,7 @@ static int yt8521_resume(struct phy_device *phydev)
 	if (wol_config < 0)
 		return wol_config;
 
-	/* if wol enable, do nothing */
+	/* if wol enable, do analthing */
 	if (wol_config & YTPHY_WCR_ENABLE)
 		return 0;
 
@@ -1567,11 +1567,11 @@ static int yt8521_resume(struct phy_device *phydev)
  * yt8521_config_init() - called to initialize the PHY
  * @phydev: a pointer to a &struct phy_device
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int yt8521_config_init(struct phy_device *phydev)
 {
-	struct device_node *node = phydev->mdio.dev.of_node;
+	struct device_analde *analde = phydev->mdio.dev.of_analde;
 	int old_page;
 	int ret = 0;
 
@@ -1586,7 +1586,7 @@ static int yt8521_config_init(struct phy_device *phydev)
 			goto err_restore_page;
 	}
 
-	if (of_property_read_bool(node, "motorcomm,auto-sleep-disabled")) {
+	if (of_property_read_bool(analde, "motorcomm,auto-sleep-disabled")) {
 		/* disable auto sleep */
 		ret = ytphy_modify_ext(phydev, YT8521_EXTREG_SLEEP_CONTROL1_REG,
 				       YT8521_ESC1R_SLEEP_SW, 0);
@@ -1594,8 +1594,8 @@ static int yt8521_config_init(struct phy_device *phydev)
 			goto err_restore_page;
 	}
 
-	if (of_property_read_bool(node, "motorcomm,keep-pll-enabled")) {
-		/* enable RXC clock when no wire plug */
+	if (of_property_read_bool(analde, "motorcomm,keep-pll-enabled")) {
+		/* enable RXC clock when anal wire plug */
 		ret = ytphy_modify_ext(phydev, YT8521_CLOCK_GATING_REG,
 				       YT8521_CGR_RX_CLK_EN, 0);
 		if (ret < 0)
@@ -1607,14 +1607,14 @@ err_restore_page:
 
 static int yt8531_config_init(struct phy_device *phydev)
 {
-	struct device_node *node = phydev->mdio.dev.of_node;
+	struct device_analde *analde = phydev->mdio.dev.of_analde;
 	int ret;
 
 	ret = ytphy_rgmii_clk_delay_config_with_lock(phydev);
 	if (ret < 0)
 		return ret;
 
-	if (of_property_read_bool(node, "motorcomm,auto-sleep-disabled")) {
+	if (of_property_read_bool(analde, "motorcomm,auto-sleep-disabled")) {
 		/* disable auto sleep */
 		ret = ytphy_modify_ext_with_lock(phydev,
 						 YT8521_EXTREG_SLEEP_CONTROL1_REG,
@@ -1623,8 +1623,8 @@ static int yt8531_config_init(struct phy_device *phydev)
 			return ret;
 	}
 
-	if (of_property_read_bool(node, "motorcomm,keep-pll-enabled")) {
-		/* enable RXC clock when no wire plug */
+	if (of_property_read_bool(analde, "motorcomm,keep-pll-enabled")) {
+		/* enable RXC clock when anal wire plug */
 		ret = ytphy_modify_ext_with_lock(phydev,
 						 YT8521_CLOCK_GATING_REG,
 						 YT8521_CGR_RX_CLK_EN, 0);
@@ -1640,17 +1640,17 @@ static int yt8531_config_init(struct phy_device *phydev)
 }
 
 /**
- * yt8531_link_change_notify() - Adjust the tx clock direction according to
+ * yt8531_link_change_analtify() - Adjust the tx clock direction according to
  * the current speed and dts config.
  * @phydev: a pointer to a &struct phy_device
  *
- * NOTE: This function is only used to adapt to VF2 with JH7110 SoC. Please
- * keep "motorcomm,tx-clk-adj-enabled" not exist in dts when the soc is not
+ * ANALTE: This function is only used to adapt to VF2 with JH7110 SoC. Please
+ * keep "motorcomm,tx-clk-adj-enabled" analt exist in dts when the soc is analt
  * JH7110.
  */
-static void yt8531_link_change_notify(struct phy_device *phydev)
+static void yt8531_link_change_analtify(struct phy_device *phydev)
 {
-	struct device_node *node = phydev->mdio.dev.of_node;
+	struct device_analde *analde = phydev->mdio.dev.of_analde;
 	bool tx_clk_1000_inverted = false;
 	bool tx_clk_100_inverted = false;
 	bool tx_clk_10_inverted = false;
@@ -1658,17 +1658,17 @@ static void yt8531_link_change_notify(struct phy_device *phydev)
 	u16 val = 0;
 	int ret;
 
-	if (of_property_read_bool(node, "motorcomm,tx-clk-adj-enabled"))
+	if (of_property_read_bool(analde, "motorcomm,tx-clk-adj-enabled"))
 		tx_clk_adj_enabled = true;
 
 	if (!tx_clk_adj_enabled)
 		return;
 
-	if (of_property_read_bool(node, "motorcomm,tx-clk-10-inverted"))
+	if (of_property_read_bool(analde, "motorcomm,tx-clk-10-inverted"))
 		tx_clk_10_inverted = true;
-	if (of_property_read_bool(node, "motorcomm,tx-clk-100-inverted"))
+	if (of_property_read_bool(analde, "motorcomm,tx-clk-100-inverted"))
 		tx_clk_100_inverted = true;
-	if (of_property_read_bool(node, "motorcomm,tx-clk-1000-inverted"))
+	if (of_property_read_bool(analde, "motorcomm,tx-clk-1000-inverted"))
 		tx_clk_1000_inverted = true;
 
 	if (phydev->speed < 0)
@@ -1716,9 +1716,9 @@ static void yt8521_prepare_fiber_features(struct phy_device *phydev,
  * yt8521_fiber_setup_forced - configures/forces speed from @phydev
  * @phydev: target phy_device struct
  *
- * NOTE:The caller must have taken the MDIO bus lock.
+ * ANALTE:The caller must have taken the MDIO bus lock.
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int yt8521_fiber_setup_forced(struct phy_device *phydev)
 {
@@ -1756,9 +1756,9 @@ static int yt8521_fiber_setup_forced(struct phy_device *phydev)
  * @phydev: target phy_device struct
  * @restart: whether aneg restart is requested
  *
- * NOTE:The caller must have taken the MDIO bus lock.
+ * ANALTE:The caller must have taken the MDIO bus lock.
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int ytphy_check_and_restart_aneg(struct phy_device *phydev, bool restart)
 {
@@ -1790,9 +1790,9 @@ static int ytphy_check_and_restart_aneg(struct phy_device *phydev, bool restart)
  * YTPHY_MISC_CONFIG_REG.
  * @phydev: target phy_device struct
  *
- * NOTE:The caller must have taken the MDIO bus lock.
+ * ANALTE:The caller must have taken the MDIO bus lock.
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int yt8521_fiber_config_aneg(struct phy_device *phydev)
 {
@@ -1849,9 +1849,9 @@ static int yt8521_fiber_config_aneg(struct phy_device *phydev)
  * ytphy_setup_master_slave
  * @phydev: target phy_device struct
  *
- * NOTE: The caller must have taken the MDIO bus lock.
+ * ANALTE: The caller must have taken the MDIO bus lock.
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int ytphy_setup_master_slave(struct phy_device *phydev)
 {
@@ -1872,12 +1872,12 @@ static int ytphy_setup_master_slave(struct phy_device *phydev)
 	case MASTER_SLAVE_CFG_SLAVE_FORCE:
 		ctl |= CTL1000_ENABLE_MASTER;
 		break;
-	case MASTER_SLAVE_CFG_UNKNOWN:
+	case MASTER_SLAVE_CFG_UNKANALWN:
 	case MASTER_SLAVE_CFG_UNSUPPORTED:
 		return 0;
 	default:
 		phydev_warn(phydev, "Unsupported Master/Slave mode\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return __phy_modify_changed(phydev, MII_CTRL1000,
@@ -1889,13 +1889,13 @@ static int ytphy_setup_master_slave(struct phy_device *phydev)
  * ytphy_utp_config_advert - sanitize and advertise auto-negotiation parameters
  * @phydev: target phy_device struct
  *
- * NOTE: Writes MII_ADVERTISE with the appropriate values,
+ * ANALTE: Writes MII_ADVERTISE with the appropriate values,
  * after sanitizing the values to make sure we only advertise
  * what is supported.  Returns < 0 on error, 0 if the PHY's advertisement
  * hasn't changed, and > 0 if it has changed.
  * The caller must have taken the MDIO bus lock.
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int ytphy_utp_config_advert(struct phy_device *phydev)
 {
@@ -1947,12 +1947,12 @@ static int ytphy_utp_config_advert(struct phy_device *phydev)
  * @phydev: target phy_device struct
  * @changed: whether autoneg is requested
  *
- * NOTE: If auto-negotiation is enabled, we configure the
- * advertising, and then restart auto-negotiation.  If it is not
+ * ANALTE: If auto-negotiation is enabled, we configure the
+ * advertising, and then restart auto-negotiation.  If it is analt
  * enabled, then we write the BMCR.
  * The caller must have taken the MDIO bus lock.
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int ytphy_utp_config_aneg(struct phy_device *phydev, bool changed)
 {
@@ -1990,7 +1990,7 @@ static int ytphy_utp_config_aneg(struct phy_device *phydev, bool changed)
  * @page: The reg page(YT8521_RSSR_FIBER_SPACE/YT8521_RSSR_UTP_SPACE) to
  * operate.
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int yt8521_config_aneg_paged(struct phy_device *phydev, int page)
 {
@@ -2024,7 +2024,7 @@ static int yt8521_config_aneg_paged(struct phy_device *phydev, int page)
 			/* ETHTOOL_LINK_MODE_Autoneg_BIT is also used in utp */
 			linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
 					   fiber_supported);
-			linkmode_andnot(phydev->advertising,
+			linkmode_andanalt(phydev->advertising,
 					priv->combo_advertising,
 					fiber_supported);
 		}
@@ -2043,7 +2043,7 @@ err_restore_page:
  * yt8521_config_aneg() - change reg space then call yt8521_config_aneg_paged
  * @phydev: a pointer to a &struct phy_device
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int yt8521_config_aneg(struct phy_device *phydev)
 {
@@ -2073,7 +2073,7 @@ static int yt8521_config_aneg(struct phy_device *phydev)
 		if (ret < 0)
 			return ret;
 
-		/* we don't known which will be link, so restore
+		/* we don't kanalwn which will be link, so restore
 		 * phydev->advertising as default value.
 		 */
 		linkmode_copy(phydev->advertising, priv->combo_advertising);
@@ -2088,7 +2088,7 @@ static int yt8521_config_aneg(struct phy_device *phydev)
  * @page: The reg page(YT8521_RSSR_FIBER_SPACE/YT8521_RSSR_UTP_SPACE) to
  * operate.
  *
- * returns 0(no link)or 1(fiber or utp link) or negative errno code
+ * returns 0(anal link)or 1(fiber or utp link) or negative erranal code
  */
 static int yt8521_aneg_done_paged(struct phy_device *phydev, int page)
 {
@@ -2115,7 +2115,7 @@ err_restore_page:
  * yt8521_aneg_done() - determines the auto negotiation result
  * @phydev: a pointer to a &struct phy_device
  *
- * returns 0(no link)or 1(fiber or utp link) or negative errno code
+ * returns 0(anal link)or 1(fiber or utp link) or negative erranal code
  */
 static int yt8521_aneg_done(struct phy_device *phydev)
 {
@@ -2150,11 +2150,11 @@ static int yt8521_aneg_done(struct phy_device *phydev)
  * ytphy_utp_read_abilities - read PHY abilities from Clause 22 registers
  * @phydev: target phy_device struct
  *
- * NOTE: Reads the PHY's abilities and populates
+ * ANALTE: Reads the PHY's abilities and populates
  * phydev->supported accordingly.
  * The caller must have taken the MDIO bus lock.
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int ytphy_utp_read_abilities(struct phy_device *phydev)
 {
@@ -2202,7 +2202,7 @@ static int ytphy_utp_read_abilities(struct phy_device *phydev)
  * @page: The reg page(YT8521_RSSR_FIBER_SPACE/YT8521_RSSR_UTP_SPACE) to
  * operate.
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int yt8521_get_features_paged(struct phy_device *phydev, int page)
 {
@@ -2231,7 +2231,7 @@ err_restore_page:
  * yt8521_get_features - switch reg space then call yt8521_get_features_paged
  * @phydev: target phy_device struct
  *
- * returns 0 or negative errno code
+ * returns 0 or negative erranal code
  */
 static int yt8521_get_features(struct phy_device *phydev)
 {
@@ -2288,7 +2288,7 @@ static struct phy_driver motorcomm_phy_drvs[] = {
 		.resume		= genphy_resume,
 		.get_wol	= ytphy_get_wol,
 		.set_wol	= yt8531_set_wol,
-		.link_change_notify = yt8531_link_change_notify,
+		.link_change_analtify = yt8531_link_change_analtify,
 	},
 	{
 		PHY_ID_MATCH_EXACT(PHY_ID_YT8531S),

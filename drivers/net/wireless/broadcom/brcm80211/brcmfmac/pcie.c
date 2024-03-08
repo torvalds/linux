@@ -254,7 +254,7 @@ static const struct brcmf_firmware_mapping brcmf_pcie_fwnames[] = {
 
 #define BRCMF_D2H_DEV_D3_ACK			0x00000001
 #define BRCMF_D2H_DEV_DS_ENTER_REQ		0x00000002
-#define BRCMF_D2H_DEV_DS_EXIT_NOTE		0x00000004
+#define BRCMF_D2H_DEV_DS_EXIT_ANALTE		0x00000004
 #define BRCMF_D2H_DEV_FWHALT			0x10000000
 
 #define BRCMF_H2D_HOST_D3_INFORM		0x00000001
@@ -714,7 +714,7 @@ static void brcmf_pcie_attach(struct brcmf_pciedev_info *devinfo)
 {
 	u32 config;
 
-	/* BAR1 window may not be sized properly */
+	/* BAR1 window may analt be sized properly */
 	brcmf_pcie_select_core(devinfo, BCMA_CORE_PCIE2);
 	brcmf_pcie_write_reg32(devinfo, BRCMF_PCIE_PCIE2REG_CONFIGADDR, 0x4e0);
 	config = brcmf_pcie_read_reg32(devinfo, BRCMF_PCIE_PCIE2REG_CONFIGDATA);
@@ -816,7 +816,7 @@ static void brcmf_pcie_handle_mb_data(struct brcmf_pciedev_info *devinfo)
 		brcmf_pcie_send_mb_data(devinfo, BRCMF_H2D_HOST_DS_ACK);
 		brcmf_dbg(PCIE, "D2H_MB_DATA: sent DEEP SLEEP ACK\n");
 	}
-	if (dtoh_mb_data & BRCMF_D2H_DEV_DS_EXIT_NOTE)
+	if (dtoh_mb_data & BRCMF_D2H_DEV_DS_EXIT_ANALTE)
 		brcmf_dbg(PCIE, "D2H_MB_DATA: DEEP SLEEP EXIT\n");
 	if (dtoh_mb_data & BRCMF_D2H_DEV_D3_ACK) {
 		brcmf_dbg(PCIE, "D2H_MB_DATA: D3 ACK\n");
@@ -932,7 +932,7 @@ static irqreturn_t brcmf_pcie_quick_check_isr(int irq, void *arg)
 		brcmf_dbg(PCIE, "Enter\n");
 		return IRQ_WAKE_THREAD;
 	}
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 
@@ -1374,7 +1374,7 @@ static int brcmf_pcie_init_ringbuffers(struct brcmf_pciedev_info *devinfo)
 fail:
 	brcmf_err(bus, "Allocating ring buffers failed\n");
 	brcmf_pcie_release_ringbuffers(devinfo);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 
@@ -1437,7 +1437,7 @@ static int brcmf_pcie_init_scratchbuffers(struct brcmf_pciedev_info *devinfo)
 fail:
 	brcmf_err(bus, "Allocating scratch buffers failed\n");
 	brcmf_pcie_release_scratchbuffers(devinfo);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 
@@ -1532,11 +1532,11 @@ static int brcmf_pcie_get_blob(struct device *dev, const struct firmware **fw,
 		devinfo->txcap_fw = NULL;
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (!*fw)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -1563,7 +1563,7 @@ static int brcmf_pcie_reset(struct device *dev)
 	fwreq = brcmf_pcie_prepare_fw_request(devinfo);
 	if (!fwreq) {
 		dev_err(dev, "Failed to prepare FW request\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = brcmf_fw_get_firmwares(dev, fwreq, brcmf_pcie_setup);
@@ -1735,7 +1735,7 @@ static int brcmf_pcie_download_fw_nvram(struct brcmf_pciedev_info *devinfo,
 			kfree(randbuf);
 		}
 	} else {
-		brcmf_dbg(PCIE, "No matching NVRAM file found %s\n",
+		brcmf_dbg(PCIE, "Anal matching NVRAM file found %s\n",
 			  devinfo->nvram_name);
 	}
 
@@ -1759,13 +1759,13 @@ static int brcmf_pcie_download_fw_nvram(struct brcmf_pciedev_info *devinfo,
 	}
 	if (sharedram_addr == sharedram_addr_written) {
 		brcmf_err(bus, "FW failed to initialize\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (sharedram_addr < devinfo->ci->rambase ||
 	    sharedram_addr >= devinfo->ci->rambase + devinfo->ci->ramsize) {
 		brcmf_err(bus, "Invalid shared RAM address 0x%08x\n",
 			  sharedram_addr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	brcmf_dbg(PCIE, "Shared RAM addr: 0x%08x\n", sharedram_addr);
 
@@ -1796,7 +1796,7 @@ static int brcmf_pcie_get_resource(struct brcmf_pciedev_info *devinfo)
 	/* read Bar-1 mapped memory range */
 	bar1_size = pci_resource_len(pdev, 2);
 	if ((bar1_size == 0) || (bar1_addr == 0)) {
-		brcmf_err(bus, "BAR1 Not enabled, device size=%ld, addr=%#016llx\n",
+		brcmf_err(bus, "BAR1 Analt enabled, device size=%ld, addr=%#016llx\n",
 			  bar1_size, (unsigned long long)bar1_addr);
 		return -EINVAL;
 	}
@@ -1875,7 +1875,7 @@ static int brcmf_pcie_buscore_reset(void *ctx, struct brcmf_chip *chip)
 	devinfo->ci = chip;
 	brcmf_pcie_reset_device(devinfo);
 
-	/* reginfo is not ready yet */
+	/* reginfo is analt ready yet */
 	core = brcmf_chip_get_core(chip, BCMA_CORE_PCIE2);
 	if (core->rev >= 64)
 		reg = BRCMF_PCIE_64_PCIE2REG_MAILBOXINT;
@@ -2024,7 +2024,7 @@ brcmf_pcie_parse_otp(struct brcmf_pciedev_info *devinfo, u8 *otp, size_t size)
 				  p, length);
 			break;
 		default:
-			brcmf_dbg(PCIE, "OTP @ 0x%x (%d): Unknown type 0x%x\n",
+			brcmf_dbg(PCIE, "OTP @ 0x%x (%d): Unkanalwn type 0x%x\n",
 				  p, length, type);
 			break;
 		}
@@ -2067,14 +2067,14 @@ static int brcmf_pcie_read_otp(struct brcmf_pciedev_info *devinfo)
 		words = 0x170;
 		break;
 	default:
-		/* OTP not supported on this chip */
+		/* OTP analt supported on this chip */
 		return 0;
 	}
 
 	core = brcmf_chip_get_core(devinfo->ci, coreid);
 	if (!core) {
-		brcmf_err(bus, "No OTP core\n");
-		return -ENODEV;
+		brcmf_err(bus, "Anal OTP core\n");
+		return -EANALDEV;
 	}
 
 	if (coreid == BCMA_CORE_CHIPCOMMON) {
@@ -2098,7 +2098,7 @@ static int brcmf_pcie_read_otp(struct brcmf_pciedev_info *devinfo)
 
 	otp = kcalloc(words, sizeof(u16), GFP_KERNEL);
 	if (!otp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Map bus window to SROM/OTP shadow area in core */
 	base = brcmf_pcie_buscore_prep_addr(devinfo->pdev, base + core->base);
@@ -2164,7 +2164,7 @@ static void brcmf_pcie_setup(struct device *dev, int ret,
 	/* Some of the firmwares have the size of the memory of the device
 	 * defined inside the firmware. This is because part of the memory in
 	 * the device is shared and the devision is determined by FW. Parse
-	 * the firmware and adjust the chip memory size now.
+	 * the firmware and adjust the chip memory size analw.
 	 */
 	brcmf_pcie_adjust_ramsize(devinfo, (u8 *)fw->data, fw->size);
 
@@ -2332,7 +2332,7 @@ brcmf_pcie_fwcon(struct timer_list *t)
 
 	brcmf_pcie_bus_console_read(devinfo, false);
 
-	/* Reschedule the timer if console interval is not zero */
+	/* Reschedule the timer if console interval is analt zero */
 	mod_timer(&devinfo->timer, jiffies + devinfo->console_interval);
 }
 
@@ -2410,14 +2410,14 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!id) {
 		id = pci_match_id(brcmf_pcie_devid_table, pdev);
 		if (!id) {
-			pci_err(pdev, "Error could not find pci_device_id for %x:%x\n", pdev->vendor, pdev->device);
-			return -ENODEV;
+			pci_err(pdev, "Error could analt find pci_device_id for %x:%x\n", pdev->vendor, pdev->device);
+			return -EANALDEV;
 		}
 	}
 
 	brcmf_dbg(PCIE, "Enter %x:%x\n", pdev->vendor, pdev->device);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	devinfo = kzalloc(sizeof(*devinfo), GFP_KERNEL);
 	if (devinfo == NULL)
 		return ret;
@@ -2440,7 +2440,7 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pcie_bus_dev = kzalloc(sizeof(*pcie_bus_dev), GFP_KERNEL);
 	if (pcie_bus_dev == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -2449,18 +2449,18 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 						   devinfo->ci->chip,
 						   devinfo->ci->chiprev);
 	if (!devinfo->settings) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
 	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
 	if (!bus) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 	bus->msgbuf = kzalloc(sizeof(*bus->msgbuf), GFP_KERNEL);
 	if (!bus->msgbuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		kfree(bus);
 		goto fail;
 	}
@@ -2494,7 +2494,7 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	fwreq = brcmf_pcie_prepare_fw_request(devinfo);
 	if (!fwreq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_brcmf;
 	}
 

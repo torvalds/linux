@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -69,7 +69,7 @@ static void mock_device_release(struct drm_device *dev)
 	i915_gem_drain_workqueue(i915);
 
 	mock_fini_ggtt(to_gt(i915)->ggtt);
-	destroy_workqueue(i915->unordered_wq);
+	destroy_workqueue(i915->uanalrdered_wq);
 	destroy_workqueue(i915->wq);
 
 	intel_region_ttm_device_fini(i915);
@@ -128,7 +128,7 @@ static const struct intel_device_info mock_info = {
 	/* simply use legacy cache level for mock device */
 	.max_pat_index = 3,
 	.cachelevel_to_pat = {
-		[I915_CACHE_NONE]   = 0,
+		[I915_CACHE_ANALNE]   = 0,
 		[I915_CACHE_LLC]    = 1,
 		[I915_CACHE_L3_LLC] = 2,
 		[I915_CACHE_WT]     = 3,
@@ -190,7 +190,7 @@ struct drm_i915_private *mock_gem_device(void)
 
 	intel_runtime_pm_init_early(&i915->runtime_pm);
 	/* wakeref tracking has significant overhead */
-	i915->runtime_pm.no_wakeref_tracking = true;
+	i915->runtime_pm.anal_wakeref_tracking = true;
 
 	/* Using the global GTT may ask questions about KMS users, so prepare */
 	drm_mode_config_init(&i915->drm);
@@ -202,8 +202,8 @@ struct drm_i915_private *mock_gem_device(void)
 	i915_gem_init__mm(i915);
 	intel_root_gt_init_early(i915);
 	mock_uncore_init(&i915->uncore, i915);
-	atomic_inc(&to_gt(i915)->wakeref.count); /* disable; no hw support */
-	to_gt(i915)->awake = -ENODEV;
+	atomic_inc(&to_gt(i915)->wakeref.count); /* disable; anal hw support */
+	to_gt(i915)->awake = -EANALDEV;
 	mock_gt_probe(i915);
 
 	ret = intel_region_ttm_device_init(i915);
@@ -214,8 +214,8 @@ struct drm_i915_private *mock_gem_device(void)
 	if (!i915->wq)
 		goto err_drv;
 
-	i915->unordered_wq = alloc_workqueue("mock-unordered", 0, 0);
-	if (!i915->unordered_wq)
+	i915->uanalrdered_wq = alloc_workqueue("mock-uanalrdered", 0, 0);
+	if (!i915->uanalrdered_wq)
 		goto err_wq;
 
 	mock_init_contexts(i915);
@@ -248,7 +248,7 @@ struct drm_i915_private *mock_gem_device(void)
 err_context:
 	intel_gt_driver_remove(to_gt(i915));
 err_unlock:
-	destroy_workqueue(i915->unordered_wq);
+	destroy_workqueue(i915->uanalrdered_wq);
 err_wq:
 	destroy_workqueue(i915->wq);
 err_drv:

@@ -2,7 +2,7 @@
 |	sto_res.sa 3.1 12/10/90
 |
 |	Takes the result and puts it in where the user expects it.
-|	Library functions return result in fp0.	If fp0 is not the
+|	Library functions return result in fp0.	If fp0 is analt the
 |	users destination register then fp0 is moved to the
 |	correct floating-point destination register.  fp0 and fp1
 |	are then restored to the original contents.
@@ -36,7 +36,7 @@ sto_cos:
 	bles		c_fp0123
 	fmovemx	%fp1-%fp1,-(%a7)
 	moveql		#7,%d1
-	subl		%d0,%d1		|d1 = 7- (dest. reg. no.)
+	subl		%d0,%d1		|d1 = 7- (dest. reg. anal.)
 	clrl		%d0
 	bsetl		%d1,%d0		|d0 is dynamic register mask
 	fmovemx	(%a7)+,%d0
@@ -69,7 +69,7 @@ sto_res:
 	bles		fp0123
 	fmovemx	%fp0-%fp0,-(%a7)
 	moveql		#7,%d1
-	subl		%d0,%d1		|d1 = 7- (dest. reg. no.)
+	subl		%d0,%d1		|d1 = 7- (dest. reg. anal.)
 	clrl		%d0
 	bsetl		%d1,%d0		|d0 is dynamic register mask
 	fmovemx	(%a7)+,%d0

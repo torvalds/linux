@@ -11,10 +11,10 @@ maintainers:
 
 description: |
   Define a memory region used for communication between CPU-NS and BPMP.
-  Typically this node is created by the bootloader as the physical address
-  has to be known to both CPU-NS and BPMP for correct IPC operation.
-  The memory region is defined using a child node under /reserved-memory.
-  The sub-node is named shmem@<address>.
+  Typically this analde is created by the bootloader as the physical address
+  has to be kanalwn to both CPU-NS and BPMP for correct IPC operation.
+  The memory region is defined using a child analde under /reserved-memory.
+  The sub-analde is named shmem@<address>.
 
 allOf:
   - $ref: reserved-memory.yaml
@@ -31,7 +31,7 @@ unevaluatedProperties: false
 required:
   - compatible
   - reg
-  - no-map
+  - anal-map
 
 examples:
   - |
@@ -41,7 +41,7 @@ examples:
        dram_cpu_bpmp_mail: shmem@f1be0000 {
            compatible = "nvidia,tegra264-bpmp-shmem";
            reg = <0x0 0xf1be0000 0x0 0x2000>;
-           no-map;
+           anal-map;
        };
     };
 ...

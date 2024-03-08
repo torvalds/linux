@@ -28,7 +28,7 @@
 # define FLAGS_SHARED		0x0010
 #else
 /*
- * NOMMU does not have per process address space. Let the compiler optimize
+ * ANALMMU does analt have per process address space. Let the compiler optimize
  * code away.
  */
 # define FLAGS_SHARED		0x0000
@@ -81,7 +81,7 @@ static inline bool futex_flags_valid(unsigned int flags)
 			return false;
 	}
 
-	/* Only 32bit futexes are implemented -- for now */
+	/* Only 32bit futexes are implemented -- for analw */
 	if ((flags & FLAGS_SIZE_MASK) != FLAGS_SIZE_32)
 		return false;
 
@@ -157,11 +157,11 @@ typedef void (futex_wake_fn)(struct wake_q_head *wake_q, struct futex_q *q);
  * @requeue_state:	State field for futex_requeue_pi()
  * @requeue_wait:	RCU wait for futex_requeue_pi() (RT only)
  *
- * We use this hashed waitqueue, instead of a normal wait_queue_entry_t, so
+ * We use this hashed waitqueue, instead of a analrmal wait_queue_entry_t, so
  * we can wake only the relevant ones (hashed queues may be shared).
  *
  * A futex_q has a woken state, just like tasks have TASK_RUNNING.
- * It is considered woken when plist_node_empty(&q->list) || q->lock_ptr == 0.
+ * It is considered woken when plist_analde_empty(&q->list) || q->lock_ptr == 0.
  * The order of wakeup is always to make the first condition true, then
  * the second.
  *
@@ -169,7 +169,7 @@ typedef void (futex_wake_fn)(struct wake_q_head *wake_q, struct futex_q *q);
  * the rt_mutex code. See futex_unqueue_pi().
  */
 struct futex_q {
-	struct plist_node list;
+	struct plist_analde list;
 
 	struct task_struct *task;
 	spinlock_t *lock_ptr;
@@ -241,7 +241,7 @@ extern int futex_unqueue(struct futex_q *q);
  * The hb->lock must be held by the caller, and is released here. A call to
  * futex_queue() is typically paired with exactly one call to futex_unqueue().  The
  * exceptions involve the PI related operations, which may use futex_unqueue_pi()
- * or nothing if the unqueue is done as part of the wake process and the unqueue
+ * or analthing if the unqueue is done as part of the wake process and the unqueue
  * state is implicit in the state of woken task (see futex_wait_requeue_pi() for
  * an example).
  */

@@ -1,4 +1,4 @@
-   0		Unnamed devices (e.g. non-device mounts)
+   0		Unnamed devices (e.g. analn-device mounts)
 		  0 = reserved as null device number
 		See block major 144, 145, 146 for expansion areas.
 
@@ -9,10 +9,10 @@
 		  4 = /dev/port		I/O port access
 		  5 = /dev/zero		Null byte source
 		  6 = /dev/core		OBSOLETE - replaced by /proc/kcore
-		  7 = /dev/full		Returns ENOSPC on write
-		  8 = /dev/random	Nondeterministic random number gen.
+		  7 = /dev/full		Returns EANALSPC on write
+		  8 = /dev/random	Analndeterministic random number gen.
 		  9 = /dev/urandom	Faster, less secure random number gen.
-		 10 = /dev/aio		Asynchronous I/O notification interface
+		 10 = /dev/aio		Asynchroanalus I/O analtification interface
 		 11 = /dev/kmsg		Writes to this come out as printk's, reads
 					export the buffered printk records.
 		 12 = /dev/oldmem	OBSOLETE - replaced by /proc/vmcore
@@ -96,7 +96,7 @@
 		(2) Autodetectable format in a Double Density (720K) drive only
 		(3) Autodetectable format in a High Density (1440K) drive only
 
-		NOTE: The letter in the device name (d, q, h or u)
+		ANALTE: The letter in the device name (d, q, h or u)
 		signifies the type of drive: 5.25" Double Density (d),
 		5.25" Quad Density (q), 5.25" High Density (h) or 3.5"
 		(any model, u).	 The use of the capital letters D, H
@@ -142,10 +142,10 @@
 
 		Older versions of the Linux kernel used this major
 		number for BSD PTY devices.  As of Linux 2.1.115, this
-		is no longer supported.	 Use major numbers 2 and 3.
+		is anal longer supported.	 Use major numbers 2 and 3.
 
    4 block	Aliases for dynamically allocated major devices to be used
-		when its not possible to create the real device nodes
+		when its analt possible to create the real device analdes
 		because the root filesystem is mounted read-only.
 
 		   0 = /dev/root
@@ -168,7 +168,7 @@
 		  1 = /dev/lp1		Parallel printer on parport1
 		    ...
 
-		Current Linux kernels no longer have a fixed mapping
+		Current Linux kernels anal longer have a fixed mapping
 		between parallel ports and I/O addresses.  Instead,
 		they are redirected through the parport multiplex layer.
 
@@ -186,14 +186,14 @@
 		    ...
 		191 = /dev/vcsa63	tty63 text/attribute (glyph) contents
 
-		NOTE: These devices permit both read and write access.
+		ANALTE: These devices permit both read and write access.
 
    7 block	Loopback devices
 		  0 = /dev/loop0	First loop device
 		  1 = /dev/loop1	Second loop device
 		    ...
 
-		The loop devices are used to mount filesystems not
+		The loop devices are used to mount filesystems analt
 		associated with block devices.	The binding to the
 		loop devices is handled by mount(8) or losetup(8).
 
@@ -221,20 +221,20 @@
 		 96 = /dev/st0a		First SCSI tape, mode 3
 		 97 = /dev/st1a		Second SCSI tape, mode 3
 		      ...
-		128 = /dev/nst0		First SCSI tape, mode 0, no rewind
-		129 = /dev/nst1		Second SCSI tape, mode 0, no rewind
+		128 = /dev/nst0		First SCSI tape, mode 0, anal rewind
+		129 = /dev/nst1		Second SCSI tape, mode 0, anal rewind
 		    ...
-		160 = /dev/nst0l	First SCSI tape, mode 1, no rewind
-		161 = /dev/nst1l	Second SCSI tape, mode 1, no rewind
+		160 = /dev/nst0l	First SCSI tape, mode 1, anal rewind
+		161 = /dev/nst1l	Second SCSI tape, mode 1, anal rewind
 		    ...
-		192 = /dev/nst0m	First SCSI tape, mode 2, no rewind
-		193 = /dev/nst1m	Second SCSI tape, mode 2, no rewind
+		192 = /dev/nst0m	First SCSI tape, mode 2, anal rewind
+		193 = /dev/nst1m	Second SCSI tape, mode 2, anal rewind
 		    ...
-		224 = /dev/nst0a	First SCSI tape, mode 3, no rewind
-		225 = /dev/nst1a	Second SCSI tape, mode 3, no rewind
+		224 = /dev/nst0a	First SCSI tape, mode 3, anal rewind
+		225 = /dev/nst1a	Second SCSI tape, mode 3, anal rewind
 		    ...
 
-		"No rewind" refers to the omission of the default
+		"Anal rewind" refers to the omission of the default
 		automatic rewind on device close.  The MTREW or MTOFFL
 		ioctl()'s can be used to rewind the tape regardless of
 		the device used to access it.
@@ -247,7 +247,7 @@
 		The metadisk driver is used to span a
 		filesystem across multiple physical disks.
 
-  10 char	Non-serial mice, misc features
+  10 char	Analn-serial mice, misc features
 		  0 = /dev/logibm	Logitech bus mouse
 		  1 = /dev/psaux	PS/2-style mouse port
 		  2 = /dev/inportbm	Microsoft Inport bus mouse
@@ -278,7 +278,7 @@
 		141 = /dev/relay16	Berkshire Products ISO-16 relay card
 		142 =
 		143 = /dev/pciconf	PCI configuration space
-		144 = /dev/nvram	Non-volatile configuration RAM
+		144 = /dev/nvram	Analn-volatile configuration RAM
 		145 = /dev/hfmodem	Soundcard shortwave modem control
 		146 = /dev/graphics	Linux/SGI graphics device
 		147 = /dev/opengl	Linux/SGI OpenGL pipe
@@ -302,7 +302,7 @@
 		165 = /dev/vmmon	VMware virtual machine monitor
 		166 = /dev/i2o/ctl	I2O configuration manager
 		167 = /dev/specialix_sxctl Specialix serial control
-		168 = /dev/tcldrv	Technology Concepts serial control
+		168 = /dev/tcldrv	Techanallogy Concepts serial control
 		169 = /dev/specialix_rioctl Specialix RIO serial control
 		170 = /dev/thinkpad/thinkpad	IBM Thinkpad devices
 		171 = /dev/srripc	QNX4 API IPC manager
@@ -327,7 +327,7 @@
 		191 = /dev/pcl181	<information missing>
 		192 = /dev/nas_xbus	NAS xbus LCD/buttons access
 		193 = /dev/d7s		SPARC 7-segment display
-		194 = /dev/zkshim	Zero-Knowledge network shim control
+		194 = /dev/zkshim	Zero-Kanalwledge network shim control
 		195 = /dev/elographics/e2201	Elographics touchscreen E271-2201
 		196 = /dev/vfio/vfio	VFIO userspace driver interface
 		197 = /dev/pxa3xx-gcu	PXA3xx graphics controller unit driver
@@ -353,7 +353,7 @@
 		217 = /dev/ni/natmotn		National Instruments Motion
 		218 = /dev/kchuid	Inter-process chuid control
 		219 = /dev/modems/mwave	MWave modem firmware upload
-		220 = /dev/mptctl	Message passing technology (MPT) control
+		220 = /dev/mptctl	Message passing techanallogy (MPT) control
 		221 = /dev/mvista/hssdsi	Montavista PICMG hot swap system driver
 		222 = /dev/mvista/hasi		Montavista PICMG high availability
 		223 = /dev/input/uinput		User level driver support for input
@@ -378,7 +378,7 @@
 		242 = /dev/rfkill	Turning off radio transmissions (rfkill)
 
 		243-254			Reserved for local use
-		255			Reserved for MISC_DYNAMIC_MINOR
+		255			Reserved for MISC_DYNAMIC_MIANALR
 
   11 char	Raw keyboard device	(Linux/SPARC only)
 		  0 = /dev/kbd		Raw keyboard device
@@ -396,17 +396,17 @@
 		The prefix /dev/sr (instead of /dev/scd) has been deprecated.
 
   12 char	QIC-02 tape
-		  2 = /dev/ntpqic11	QIC-11, no rewind-on-close
+		  2 = /dev/ntpqic11	QIC-11, anal rewind-on-close
 		  3 = /dev/tpqic11	QIC-11, rewind-on-close
-		  4 = /dev/ntpqic24	QIC-24, no rewind-on-close
+		  4 = /dev/ntpqic24	QIC-24, anal rewind-on-close
 		  5 = /dev/tpqic24	QIC-24, rewind-on-close
-		  6 = /dev/ntpqic120	QIC-120, no rewind-on-close
+		  6 = /dev/ntpqic120	QIC-120, anal rewind-on-close
 		  7 = /dev/tpqic120	QIC-120, rewind-on-close
-		  8 = /dev/ntpqic150	QIC-150, no rewind-on-close
+		  8 = /dev/ntpqic150	QIC-150, anal rewind-on-close
 		  9 = /dev/tpqic150	QIC-150, rewind-on-close
 
 		The device names specified are proposed -- if there
-		are "standard" names for these devices, please let me know.
+		are "standard" names for these devices, please let me kanalw.
 
   12 block
 
@@ -422,7 +422,7 @@
 		 65 = /dev/input/event1	Second event queue
 		    ...
 
-		Each device type has 5 bits (32 minors).
+		Each device type has 5 bits (32 mianalrs).
 
   13 block	Previously used for the XT disk (/dev/xdN)
 		Deleted in kernel v3.9.
@@ -457,7 +457,7 @@
   15 block	Sony CDU-31A/CDU-33A CD-ROM
 		  0 = /dev/sonycd	Sony CDU-31a CD-ROM
 
-  16 char	Non-SCSI scanners
+  16 char	Analn-SCSI scanners
 		  0 = /dev/gs4500	Genius 4500 handheld scanner
 
   16 block	GoldStar CD-ROM
@@ -575,26 +575,26 @@
 		  1 = /dev/qft1		Unit 1, rewind-on-close
 		  2 = /dev/qft2		Unit 2, rewind-on-close
 		  3 = /dev/qft3		Unit 3, rewind-on-close
-		  4 = /dev/nqft0	Unit 0, no rewind-on-close
-		  5 = /dev/nqft1	Unit 1, no rewind-on-close
-		  6 = /dev/nqft2	Unit 2, no rewind-on-close
-		  7 = /dev/nqft3	Unit 3, no rewind-on-close
+		  4 = /dev/nqft0	Unit 0, anal rewind-on-close
+		  5 = /dev/nqft1	Unit 1, anal rewind-on-close
+		  6 = /dev/nqft2	Unit 2, anal rewind-on-close
+		  7 = /dev/nqft3	Unit 3, anal rewind-on-close
 		 16 = /dev/zqft0	Unit 0, rewind-on-close, compression
 		 17 = /dev/zqft1	Unit 1, rewind-on-close, compression
 		 18 = /dev/zqft2	Unit 2, rewind-on-close, compression
 		 19 = /dev/zqft3	Unit 3, rewind-on-close, compression
-		 20 = /dev/nzqft0	Unit 0, no rewind-on-close, compression
-		 21 = /dev/nzqft1	Unit 1, no rewind-on-close, compression
-		 22 = /dev/nzqft2	Unit 2, no rewind-on-close, compression
-		 23 = /dev/nzqft3	Unit 3, no rewind-on-close, compression
-		 32 = /dev/rawqft0	Unit 0, rewind-on-close, no file marks
-		 33 = /dev/rawqft1	Unit 1, rewind-on-close, no file marks
-		 34 = /dev/rawqft2	Unit 2, rewind-on-close, no file marks
-		 35 = /dev/rawqft3	Unit 3, rewind-on-close, no file marks
-		 36 = /dev/nrawqft0	Unit 0, no rewind-on-close, no file marks
-		 37 = /dev/nrawqft1	Unit 1, no rewind-on-close, no file marks
-		 38 = /dev/nrawqft2	Unit 2, no rewind-on-close, no file marks
-		 39 = /dev/nrawqft3	Unit 3, no rewind-on-close, no file marks
+		 20 = /dev/nzqft0	Unit 0, anal rewind-on-close, compression
+		 21 = /dev/nzqft1	Unit 1, anal rewind-on-close, compression
+		 22 = /dev/nzqft2	Unit 2, anal rewind-on-close, compression
+		 23 = /dev/nzqft3	Unit 3, anal rewind-on-close, compression
+		 32 = /dev/rawqft0	Unit 0, rewind-on-close, anal file marks
+		 33 = /dev/rawqft1	Unit 1, rewind-on-close, anal file marks
+		 34 = /dev/rawqft2	Unit 2, rewind-on-close, anal file marks
+		 35 = /dev/rawqft3	Unit 3, rewind-on-close, anal file marks
+		 36 = /dev/nrawqft0	Unit 0, anal rewind-on-close, anal file marks
+		 37 = /dev/nrawqft1	Unit 1, anal rewind-on-close, anal file marks
+		 38 = /dev/nrawqft2	Unit 2, anal rewind-on-close, anal file marks
+		 39 = /dev/nrawqft3	Unit 3, anal rewind-on-close, anal file marks
 
   27 block	Third Matsushita (Panasonic/SoundBlaster) CD-ROM
 		  0 = /dev/sbpcd8	Panasonic CD-ROM controller 2 unit 0
@@ -635,7 +635,7 @@
 		    ...
 		 31 = /dev/fb31		32nd frame buffer
 
-  29 block	Aztech/Orchid/Okano/Wearnes CD-ROM
+  29 block	Aztech/Orchid/Okaanal/Wearnes CD-ROM
 		  0 = /dev/aztcd	Aztech CD-ROM
 
   30 char	iBCS-2 compatibility devices
@@ -667,13 +667,13 @@
 		/dev/inet/arp -> /dev/inet/udp
 		/dev/inet/rip -> /dev/inet/udp
 		/dev/nfsd -> /dev/socksys
-		/dev/X0R -> /dev/null (? apparently not required ?)
+		/dev/X0R -> /dev/null (? apparently analt required ?)
 
   30 block	Philips LMS CM-205 CD-ROM
 		  0 = /dev/cm205cd	Philips LMS CM-205 CD-ROM
 
 		/dev/lmscd is an older name for this device.  This
-		driver does not work with the CM-205MS CD-ROM.
+		driver does analt work with the CM-205MS CD-ROM.
 
   31 char	MPU-401 MIDI
 		  0 = /dev/mpu401data	MPU-401 data port
@@ -765,8 +765,8 @@
 		  0 = /dev/ht0		First IDE tape
 		  1 = /dev/ht1		Second IDE tape
 		    ...
-		128 = /dev/nht0		First IDE tape, no rewind-on-close
-		129 = /dev/nht1		Second IDE tape, no rewind-on-close
+		128 = /dev/nht0		First IDE tape, anal rewind-on-close
+		129 = /dev/nht1		Second IDE tape, anal rewind-on-close
 		    ...
 
 		Currently, only one IDE tape drive is supported.
@@ -809,8 +809,8 @@
 
   40 block
 
-  41 char	Yet Another Micro Monitor
-		  0 = /dev/yamm		Yet Another Micro Monitor
+  41 char	Yet Aanalther Micro Monitor
+		  0 = /dev/yamm		Yet Aanalther Micro Monitor
 
   41 block
 
@@ -823,11 +823,11 @@
 		should never be used for a device driver that is being
 		distributed; either obtain an official number or use
 		the local/experimental range.  The sudden addition or
-		removal of a driver with this number should not cause
+		removal of a driver with this number should analt cause
 		ill effects to the system (bugs excepted.)
 
 		IN PARTICULAR, ANY DISTRIBUTION WHICH CONTAINS A
-		DEVICE DRIVER USING MAJOR NUMBER 42 IS NONCOMPLIANT.
+		DEVICE DRIVER USING MAJOR NUMBER 42 IS ANALNCOMPLIANT.
 
   43 char	isdn4linux virtual modem
 		  0 = /dev/ttyI0	First virtual modem
@@ -852,11 +852,11 @@
 		 63 = /dev/cui63	Callout device for ttyI63
 
   44 block	Flash Translation Layer (FTL) filesystems
-		  0 = /dev/ftla		FTL on first Memory Technology Device
-		 16 = /dev/ftlb		FTL on second Memory Technology Device
-		 32 = /dev/ftlc		FTL on third Memory Technology Device
+		  0 = /dev/ftla		FTL on first Memory Techanallogy Device
+		 16 = /dev/ftlb		FTL on second Memory Techanallogy Device
+		 32 = /dev/ftlc		FTL on third Memory Techanallogy Device
 		    ...
-		240 = /dev/ftlp		FTL on 16th Memory Technology Device
+		240 = /dev/ftlp		FTL on 16th Memory Techanallogy Device
 
 		Partitions are handled in the same way as for IDE
 		disks (see major number 3) except that the partition
@@ -907,7 +907,7 @@
 		  3 = /dev/pf3		Fourth parallel port ATAPI disk
 
 		This driver is intended for floppy disks and similar
-		devices and hence does not support partitioning.
+		devices and hence does analt support partitioning.
 
   48 char	SDL RISCom serial card
 		  0 = /dev/ttyL0	First RISCom port
@@ -993,12 +993,12 @@
 
 		Partitions are handled as for major 48.
 
-  54 char	Electrocardiognosis Holter serial card
+  54 char	Electrocardioganalsis Holter serial card
 		  0 = /dev/holter0	First Holter port
 		  1 = /dev/holter1	Second Holter port
 		  2 = /dev/holter2	Third Holter port
 
-		A custom serial card used by Electrocardiognosis SRL
+		A custom serial card used by Electrocardioganalsis SRL
 		<mseritan@ottonel.pub.ro> to transfer data from Holter
 		24-hour heart monitoring equipment.
 
@@ -1034,7 +1034,7 @@
 		Partitions are handled the same way as for the first
 		interface (see major number 3).
 
-  57 char	Hayes ESP serial card
+  57 char	Haanal ESP serial card
 		  0 = /dev/ttyP0	First ESP port
 		  1 = /dev/ttyP1	Second ESP port
 		    ...
@@ -1046,7 +1046,7 @@
 		Partitions are handled the same way as for the first
 		interface (see major number 3).
 
-  58 char	Hayes ESP serial card - alternate devices
+  58 char	Haanal ESP serial card - alternate devices
 		  0 = /dev/cup0		Callout device for ttyP0
 		  1 = /dev/cup1		Callout device for ttyP1
 		    ...
@@ -1072,7 +1072,7 @@
   60-63 char	LOCAL/EXPERIMENTAL USE
 
   60-63 block	LOCAL/EXPERIMENTAL USE
-		Allocated for local/experimental use.  For devices not
+		Allocated for local/experimental use.  For devices analt
 		assigned official numbers, these ranges should be
 		used in order to avoid conflicting with future assignments.
 
@@ -1080,7 +1080,7 @@
 		  0 = /dev/enskip	Communication with ENskip kernel module
 
   64 block	Scramdisk/DriveCrypt encrypted devices
-		  0 = /dev/scramdisk/master    Master node for ioctls
+		  0 = /dev/scramdisk/master    Master analde for ioctls
 		  1 = /dev/scramdisk/1         First encrypted device
 		  2 = /dev/scramdisk/2         Second encrypted device
 		  ...
@@ -1088,8 +1088,8 @@
 
 		The filename of the encrypted container and the passwords
 		are sent via ioctls (using the sdmount tool) to the master
-		node which then activates them via one of the
-		/dev/scramdisk/x nodes for loop mounting (all handled
+		analde which then activates them via one of the
+		/dev/scramdisk/x analdes for loop mounting (all handled
 		through the sdmount tool).
 
 		Requested by: andy@scramdisklinux.org
@@ -1343,8 +1343,8 @@
 		partitions is 15.
 
 
-  77 char	ComScire Quantum Noise Generator
-		  0 = /dev/qng		ComScire Quantum Noise Generator
+  77 char	ComScire Quantum Analise Generator
+		  0 = /dev/qng		ComScire Quantum Analise Generator
 
   77 block	Compaq Intelligent Drive Array, sixth controller
 		  0 = /dev/ida/c5d0	First logical drive whole disk
@@ -1413,8 +1413,8 @@
 		    ...
 		255 = /dev/vbi31	Vertical blank interrupt
 
-		Minor numbers are allocated dynamically unless
-		CONFIG_VIDEO_FIXED_MINOR_RANGES (default n)
+		Mianalr numbers are allocated dynamically unless
+		CONFIG_VIDEO_FIXED_MIANALR_RANGES (default n)
 		configuration option is set.
 
   81 block	I2O hard disk
@@ -1522,7 +1522,7 @@
 		disks (see major number 3) except that the limit on
 		partitions is 15.
 
-  88 char	COMX synchronous serial card
+  88 char	COMX synchroanalus serial card
 		  0 = /dev/comx0	COMX channel 0
 		  1 = /dev/comx1	COMX channel 1
 		    ...
@@ -1546,7 +1546,7 @@
 		Partitions are handled the same way as for the first
 		interface (see major number 3).
 
-  90 char	Memory Technology Device (RAM, ROM, Flash)
+  90 char	Memory Techanallogy Device (RAM, ROM, Flash)
 		  0 = /dev/mtd0		First MTD (rw)
 		  1 = /dev/mtdr0	First MTD (ro)
 		    ...
@@ -1615,8 +1615,8 @@
 		  0 = /dev/pt0		First parallel port ATAPI tape
 		  1 = /dev/pt1		Second parallel port ATAPI tape
 		    ...
-		128 = /dev/npt0		First p.p. ATAPI tape, no rewind
-		129 = /dev/npt1		Second p.p. ATAPI tape, no rewind
+		128 = /dev/npt0		First p.p. ATAPI tape, anal rewind
+		129 = /dev/npt1		Second p.p. ATAPI tape, anal rewind
 		    ...
 
   96 block	Inverse NAND Flash Translation Layer
@@ -1640,12 +1640,12 @@
 		    ...
 		 47 = /dev/comedi47	48th comedi device
 
-		Minors 48 to 255 are reserved for comedi subdevices with
+		Mianalrs 48 to 255 are reserved for comedi subdevices with
 		pathnames of the form "/dev/comediX_subdY", where "X" is the
-		minor number of the associated comedi device and "Y" is the
-		subdevice number.  These subdevice minors are assigned
-		dynamically, so there is no fixed mapping from subdevice
-		pathnames to minor numbers.
+		mianalr number of the associated comedi device and "Y" is the
+		subdevice number.  These subdevice mianalrs are assigned
+		dynamically, so there is anal fixed mapping from subdevice
+		pathnames to mianalr numbers.
 
 		See https://www.comedi.org/ for information about the Comedi
 		project.
@@ -1861,14 +1861,14 @@
 		  0 = /dev/ise0		First ISE board
 		  1 = /dev/ise1		Second ISE board
 		    ...
-		128 = /dev/isex0	Control node for first ISE board
-		129 = /dev/isex1	Control node for second ISE board
+		128 = /dev/isex0	Control analde for first ISE board
+		129 = /dev/isex1	Control analde for second ISE board
 		    ...
 
 		The ISE board is an embedded computer, optimized for
-		image processing. The /dev/iseN nodes are the general
-		I/O access to the board, the /dev/isex0 nodes command
-		nodes used to control the board.
+		image processing. The /dev/iseN analdes are the general
+		I/O access to the board, the /dev/isex0 analdes command
+		analdes used to control the board.
 
  114 block       IDE BIOS powered software RAID interfaces such as the
 		Promise Fastrak
@@ -1933,7 +1933,7 @@
 		    ...
 		255= /dev/umem/d15p15  15th partition of 16th board.
 
- 117 char	[REMOVED] COSA/SRP synchronous serial card
+ 117 char	[REMOVED] COSA/SRP synchroanalus serial card
 		  0 = /dev/cosa0c0	1st board, 1st channel
 		  1 = /dev/cosa0c1	1st board, 2nd channel
 		    ...
@@ -1949,7 +1949,7 @@
 		of various levels of volume management.  Requested by
 		Mark Peloquin (peloquin at us.ibm.com).
 
-		Note: EVMS populates and manages all the devnodes in
+		Analte: EVMS populates and manages all the devanaldes in
 		/dev/evms.
 
 		http://sf.net/projects/evms
@@ -1963,7 +1963,7 @@
 		 254 = /dev/evms/EVMSname2      Second EVMS native device
 		 255 = /dev/evms/EVMSname1      First EVMS native device
 
-		Note: legacyname(s) are derived from the normal legacy
+		Analte: legacyname(s) are derived from the analrmal legacy
 		device names.  For example, /dev/hda5 would become
 		/dev/evms/hda5.
 
@@ -1981,14 +1981,14 @@
  120-127 char	LOCAL/EXPERIMENTAL USE
 
  120-127 block	LOCAL/EXPERIMENTAL USE
-		Allocated for local/experimental use.  For devices not
+		Allocated for local/experimental use.  For devices analt
 		assigned official numbers, these ranges should be
 		used in order to avoid conflicting with future assignments.
 
  128-135 char	Unix98 PTY masters
 
-		These devices should not have corresponding device
-		nodes; instead they should be accessed through the
+		These devices should analt have corresponding device
+		analdes; instead they should be accessed through the
 		/dev/ptmx cloning interface.
 
  128 block       SCSI disk devices (128-143)
@@ -2086,7 +2086,7 @@
 		  1 = /dev/pts/1	Second Unix98 pseudo-TTY
 		    ...
 
-		These device nodes are automatically generated with
+		These device analdes are automatically generated with
 		the proper permissions and modes by mounting the
 		devpts filesystem onto /dev/pts with the appropriate
 		mount options (distribution dependent, however, on
@@ -2167,7 +2167,7 @@
 		The SST 5136-DN DeviceNet interface driver has been
 		relocated to major 183 due to an unfortunate conflict.
 
- 144 block	Expansion Area #1 for more non-device (e.g. NFS) mounts
+ 144 block	Expansion Area #1 for more analn-device (e.g. NFS) mounts
 		  0 = mounted device 256
 		255 = mounted device 511
 
@@ -2192,7 +2192,7 @@
 		addons, which are sam9407 specific.  OSS can be
 		operated simultaneously, taking care of the codec.
 
- 145 block	Expansion Area #2 for more non-device (e.g. NFS) mounts
+ 145 block	Expansion Area #2 for more analn-device (e.g. NFS) mounts
 		  0 = mounted device 512
 		255 = mounted device 767
 
@@ -2201,7 +2201,7 @@
 		  1 = /dev/scramnet1	Second SCRAMNet device
 		    ...
 
- 146 block	Expansion Area #3 for more non-device (e.g. NFS) mounts
+ 146 block	Expansion Area #3 for more analn-device (e.g. NFS) mounts
 		  0 = mounted device 768
 		255 = mounted device 1023
 
@@ -2215,12 +2215,12 @@
 		  1 = /dev/drbd1	Second DRBD device
 		    ...
 
- 148 char	Technology Concepts serial card
+ 148 char	Techanallogy Concepts serial card
 		  0 = /dev/ttyT0	First TCL port
 		  1 = /dev/ttyT1	Second TCL port
 		    ...
 
- 149 char	Technology Concepts serial card - alternate devices
+ 149 char	Techanallogy Concepts serial card - alternate devices
 		  0 = /dev/cut0		Callout device for ttyT0
 		  1 = /dev/cut0		Callout device for ttyT1
 		    ...
@@ -2339,7 +2339,7 @@
 		disks (see major number 3) except that the limit on
 		partitions is 31.
 
- 162 char	Used for (now removed) raw block device interface
+ 162 char	Used for (analw removed) raw block device interface
 
  163 char
 
@@ -2440,8 +2440,8 @@
 		    ...
 
 		The start of next SD/MMC card can be configured with
-		CONFIG_MMC_BLOCK_MINORS, or overridden at boot/modprobe
-		time using the mmcblk.perdev_minors option. That would
+		CONFIG_MMC_BLOCK_MIANALRS, or overridden at boot/modprobe
+		time using the mmcblk.perdev_mianalrs option. That would
 		bump the offset between each card to be the configured
 		value instead of the default 8.
 
@@ -2620,11 +2620,11 @@
 		the user space VxVM software.
 
  200 char	Veritas VxVM configuration interface
-		   0 = /dev/vx/config		Configuration access node
-		   1 = /dev/vx/trace		Volume i/o trace access node
-		   2 = /dev/vx/iod		Volume i/o daemon access node
-		   3 = /dev/vx/info		Volume information access node
-		   4 = /dev/vx/task		Volume tasks access node
+		   0 = /dev/vx/config		Configuration access analde
+		   1 = /dev/vx/trace		Volume i/o trace access analde
+		   2 = /dev/vx/iod		Volume i/o daemon access analde
+		   3 = /dev/vx/info		Volume information access analde
+		   4 = /dev/vx/task		Volume tasks access analde
 		   5 = /dev/vx/taskmon		Volume tasks monitor daemon
 
  201 char	Veritas VxVM dynamic multipathing driver
@@ -2772,22 +2772,22 @@
 		 96 = /dev/osst0a		First OnStream SCSI tape, mode 3
 		 97 = /dev/osst1a		Second OnStream SCSI tape, mode 3
 		    ...
-		128 = /dev/nosst0		No rewind version of /dev/osst0
-		129 = /dev/nosst1		No rewind version of /dev/osst1
+		128 = /dev/analsst0		Anal rewind version of /dev/osst0
+		129 = /dev/analsst1		Anal rewind version of /dev/osst1
 		    ...
-		160 = /dev/nosst0l		No rewind version of /dev/osst0l
-		161 = /dev/nosst1l		No rewind version of /dev/osst1l
+		160 = /dev/analsst0l		Anal rewind version of /dev/osst0l
+		161 = /dev/analsst1l		Anal rewind version of /dev/osst1l
 		    ...
-		192 = /dev/nosst0m		No rewind version of /dev/osst0m
-		193 = /dev/nosst1m		No rewind version of /dev/osst1m
+		192 = /dev/analsst0m		Anal rewind version of /dev/osst0m
+		193 = /dev/analsst1m		Anal rewind version of /dev/osst1m
 		    ...
-		224 = /dev/nosst0a		No rewind version of /dev/osst0a
-		225 = /dev/nosst1a		No rewind version of /dev/osst1a
+		224 = /dev/analsst0a		Anal rewind version of /dev/osst0a
+		225 = /dev/analsst1a		Anal rewind version of /dev/osst1a
 		    ...
 
-		The OnStream SC-x0 SCSI tapes do not support the
+		The OnStream SC-x0 SCSI tapes do analt support the
 		standard SCSI SASD command set and therefore need
-		their own driver "osst". Note that the IDE, USB (and
+		their own driver "osst". Analte that the IDE, USB (and
 		maybe ParPort) versions may be driven via ide-scsi or
 		usb-storage SCSI emulation and this osst device and
 		driver as well.  The ADR-x0 drives are QIC-157
@@ -2840,7 +2840,7 @@
 		 19 = /dev/sbei/wanc13		WAN clone device, port 3, board 1
 		    ...
 
-		Yes, each board is really spaced 10 (decimal) apart.
+		Anal, each board is really spaced 10 (decimal) apart.
 
  211 char	Addinum CPCI1500 digital I/O card
 		  0 = /dev/addinum/cpci1500/0	First CPCI1500 card
@@ -2951,20 +2951,20 @@
 		 96 = /dev/iseries/vt0a		First virtual tape, mode 3
 		 97 = /dev/iseries/vt1a		Second virtual tape, mode 3
 		      ...
-		128 = /dev/iseries/nvt0		First virtual tape, mode 0, no rewind
-		129 = /dev/iseries/nvt1		Second virtual tape, mode 0, no rewind
+		128 = /dev/iseries/nvt0		First virtual tape, mode 0, anal rewind
+		129 = /dev/iseries/nvt1		Second virtual tape, mode 0, anal rewind
 		    ...
-		160 = /dev/iseries/nvt0l	First virtual tape, mode 1, no rewind
-		161 = /dev/iseries/nvt1l	Second virtual tape, mode 1, no rewind
+		160 = /dev/iseries/nvt0l	First virtual tape, mode 1, anal rewind
+		161 = /dev/iseries/nvt1l	Second virtual tape, mode 1, anal rewind
 		    ...
-		192 = /dev/iseries/nvt0m	First virtual tape, mode 2, no rewind
-		193 = /dev/iseries/nvt1m	Second virtual tape, mode 2, no rewind
+		192 = /dev/iseries/nvt0m	First virtual tape, mode 2, anal rewind
+		193 = /dev/iseries/nvt1m	Second virtual tape, mode 2, anal rewind
 		    ...
-		224 = /dev/iseries/nvt0a	First virtual tape, mode 3, no rewind
-		225 = /dev/iseries/nvt1a	Second virtual tape, mode 3, no rewind
+		224 = /dev/iseries/nvt0a	First virtual tape, mode 3, anal rewind
+		225 = /dev/iseries/nvt1a	Second virtual tape, mode 3, anal rewind
 		    ...
 
-		"No rewind" refers to the omission of the default
+		"Anal rewind" refers to the omission of the default
 		automatic rewind on device close.  The MTREW or MTOFFL
 		ioctl()'s can be used to rewind the tape regardless of
 		the device used to access it.
@@ -3003,14 +3003,14 @@
 		  ...
 		4 = /dev/ipath3       Access specifically to unit 3
 		129 = /dev/ipath_sma    Device used by Subnet Management Agent
-		130 = /dev/ipath_diag   Device used by diagnostics programs
+		130 = /dev/ipath_diag   Device used by diaganalstics programs
 
  234-254	char	RESERVED FOR DYNAMIC ASSIGNMENT
 		Character devices that request a dynamic allocation of major number will
 		take numbers starting from 254 and downward.
 
  240-254 block	LOCAL/EXPERIMENTAL USE
-		Allocated for local/experimental use.  For devices not
+		Allocated for local/experimental use.  For devices analt
 		assigned official numbers, these ranges should be
 		used in order to avoid conflicting with future assignments.
 
@@ -3019,19 +3019,19 @@
  255 block	RESERVED
 
 		This major is reserved to assist the expansion to a
-		larger number space.  No device nodes with this major
+		larger number space.  Anal device analdes with this major
 		should ever be created on the filesystem.
-		(This is probably not true anymore, but I'll leave it
-		for now /Torben)
+		(This is probably analt true anymore, but I'll leave it
+		for analw /Torben)
 
  ---LARGE MAJORS!!!!!---
 
- 256 char	Equinox SST multi-port serial boards
-		   0 = /dev/ttyEQ0	First serial port on first Equinox SST board
-		 127 = /dev/ttyEQ127	Last serial port on first Equinox SST board
-		 128 = /dev/ttyEQ128	First serial port on second Equinox SST board
+ 256 char	Equianalx SST multi-port serial boards
+		   0 = /dev/ttyEQ0	First serial port on first Equianalx SST board
+		 127 = /dev/ttyEQ127	Last serial port on first Equianalx SST board
+		 128 = /dev/ttyEQ128	First serial port on second Equianalx SST board
 		  ...
-		1027 = /dev/ttyEQ1027	Last serial port on eighth Equinox SST board
+		1027 = /dev/ttyEQ1027	Last serial port on eighth Equianalx SST board
 
  256 block	Resident Flash Disk Flash Translation Layer
 		  0 = /dev/rfda		First RFD FTL layer
@@ -3039,7 +3039,7 @@
 		  ...
 		240 = /dev/rfdp		16th RFD FTL layer
 
- 257 char	Phoenix Technologies Cryptographic Services Driver
+ 257 char	Phoenix Techanallogies Cryptographic Services Driver
 		  0 = /dev/ptlsec	Crypto Services Driver
 
  257 block	SSFDC Flash Translation Layer filesystem
@@ -3058,7 +3058,7 @@
 		  ...
 
  259 block	Block Extended Major
-		  Used dynamically to hold additional partition minor
+		  Used dynamically to hold additional partition mianalr
 		  numbers and allow large numbers of partitions per device
 
  259 char	FPGA configuration interfaces

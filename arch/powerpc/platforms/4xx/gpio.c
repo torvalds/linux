@@ -156,9 +156,9 @@ ppc4xx_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 
 static int __init ppc4xx_add_gpiochips(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_compatible_node(np, NULL, "ibm,ppc4xx-gpio") {
+	for_each_compatible_analde(np, NULL, "ibm,ppc4xx-gpio") {
 		int ret;
 		struct ppc4xx_gpio_chip *ppc4xx_gc;
 		struct of_mm_gpio_chip *mm_gc;
@@ -166,7 +166,7 @@ static int __init ppc4xx_add_gpiochips(void)
 
 		ppc4xx_gc = kzalloc(sizeof(*ppc4xx_gc), GFP_KERNEL);
 		if (!ppc4xx_gc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 

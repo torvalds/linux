@@ -137,7 +137,7 @@ static void nft_reject_netdev_eval(const struct nft_expr *expr,
 		}
 		break;
 	default:
-		/* No explicit way to reject this protocol, drop it. */
+		/* Anal explicit way to reject this protocol, drop it. */
 		break;
 	}
 out:

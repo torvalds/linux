@@ -121,24 +121,24 @@ void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
 		struct folio *folio;
 
 		if (!pfn_valid(pfn))
-			goto no_cache_flush;
+			goto anal_cache_flush;
 
 		page = pfn_to_page(pfn);
 		if (PageReserved(page))
-			goto no_cache_flush;
+			goto anal_cache_flush;
 
 		/* A real file page? */
 		folio = page_folio(page);
 		mapping = folio_flush_mapping(folio);
 		if (!mapping)
-			goto no_cache_flush;
+			goto anal_cache_flush;
 
 		paddr = (unsigned long) page_address(page);
 		if ((paddr ^ vaddr) & (1 << 13))
 			flush_dcache_folio_all(mm, folio);
 	}
 
-no_cache_flush:
+anal_cache_flush:
 	if (!fullmm)
 		tlb_batch_add_one(mm, vaddr, pte_exec(orig), hugepage_shift);
 }
@@ -175,10 +175,10 @@ static void __set_pmd_acct(struct mm_struct *mm, unsigned long addr,
 
 	if ((pmd_val(pmd) ^ pmd_val(orig)) & _PAGE_PMD_HUGE) {
 		/*
-		 * Note that this routine only sets pmds for THP pages.
+		 * Analte that this routine only sets pmds for THP pages.
 		 * Hugetlb pages are handled elsewhere.  We need to check
 		 * for huge zero page.  Huge zero pages are like hugetlb
-		 * pages in that there is no RSS, but there is the need
+		 * pages in that there is anal RSS, but there is the need
 		 * for TSB entries.  So, huge zero page counts go into
 		 * hugetlb_pte_count.
 		 */
@@ -194,7 +194,7 @@ static void __set_pmd_acct(struct mm_struct *mm, unsigned long addr,
 				mm->context.thp_pte_count--;
 		}
 
-		/* Do not try to allocate the TSB hash table if we
+		/* Do analt try to allocate the TSB hash table if we
 		 * don't have one already.  We have various locks held
 		 * and thus we'll end up doing a GFP_KERNEL allocation
 		 * in an atomic context.
@@ -204,7 +204,7 @@ static void __set_pmd_acct(struct mm_struct *mm, unsigned long addr,
 		 */
 	}
 
-	if (!pmd_none(orig)) {
+	if (!pmd_analne(orig)) {
 		addr &= HPAGE_MASK;
 		if (pmd_trans_huge(orig)) {
 			pte_t orig_pte = __pte(pmd_val(orig));
@@ -254,8 +254,8 @@ pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
 
 	/*
-	 * set_pmd_at() will not be called in a way to decrement
-	 * thp_pte_count when splitting a THP, so do it now.
+	 * set_pmd_at() will analt be called in a way to decrement
+	 * thp_pte_count when splitting a THP, so do it analw.
 	 * Sanity check pmd before doing the actual decrement.
 	 */
 	if ((pmd_val(entry) & _PAGE_PMD_HUGE) &&

@@ -2,7 +2,7 @@
   {
     "EventName": "ls_bad_status2.stli_other",
     "EventCode": "0x24",
-    "BriefDescription": "Store-to-load conflicts (load unable to complete due to a non-forwardable conflict with an older store).",
+    "BriefDescription": "Store-to-load conflicts (load unable to complete due to a analn-forwardable conflict with an older store).",
     "UMask": "0x02"
   },
   {
@@ -31,7 +31,7 @@
   {
     "EventName": "ls_st_commit_cancel2.st_commit_cancel_wcb_full",
     "EventCode": "0x37",
-    "BriefDescription": "Non-cacheable store commits cancelled due to the non-cacheable commit buffer being full.",
+    "BriefDescription": "Analn-cacheable store commits cancelled due to the analn-cacheable commit buffer being full.",
     "UMask": "0x01"
   },
   {

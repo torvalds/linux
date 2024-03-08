@@ -111,7 +111,7 @@ int alloc_str_data(void)
 					sizeof(struct str_data), GFP_KERNEL);
 	if (!wmi_priv.str_data) {
 		wmi_priv.str_instances_count = 0;
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 	return ret;
 }

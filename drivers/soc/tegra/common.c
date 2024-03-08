@@ -28,14 +28,14 @@ static const struct of_device_id tegra_machine_match[] = {
 bool soc_is_tegra(void)
 {
 	const struct of_device_id *match;
-	struct device_node *root;
+	struct device_analde *root;
 
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	if (!root)
 		return false;
 
-	match = of_match_node(tegra_machine_match, root);
-	of_node_put(root);
+	match = of_match_analde(tegra_machine_match, root);
+	of_analde_put(root);
 
 	return match != NULL;
 }
@@ -100,7 +100,7 @@ static int tegra_core_dev_init_opp_state(struct device *dev)
  * This function will initialize OPP table and sync OPP state of a Tegra SoC
  * core device.
  *
- * Return: 0 on success or errorno.
+ * Return: 0 on success or erroranal.
  */
 int devm_tegra_core_dev_init_opp_table(struct device *dev,
 				       struct tegra_core_opp_params *params)
@@ -141,19 +141,19 @@ int devm_tegra_core_dev_init_opp_table(struct device *dev,
 	}
 
 	/*
-	 * Tegra114+ doesn't support OPP yet, return early for non tegra20/30
+	 * Tegra114+ doesn't support OPP yet, return early for analn tegra20/30
 	 * case.
 	 */
 	if (!config.supported_hw)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Older device-trees have an empty OPP table, we will get
-	 * -ENODEV from devm_pm_opp_of_add_table() in this case.
+	 * -EANALDEV from devm_pm_opp_of_add_table() in this case.
 	 */
 	err = devm_pm_opp_of_add_table(dev);
 	if (err) {
-		if (err != -ENODEV)
+		if (err != -EANALDEV)
 			dev_err(dev, "failed to add OPP table: %d\n", err);
 
 		return err;

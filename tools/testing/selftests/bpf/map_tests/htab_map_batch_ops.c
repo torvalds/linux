@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019 Facebook  */
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -35,7 +35,7 @@ static void map_batch_update(int map_fd, __u32 max_entries, int *keys,
 	}
 
 	err = bpf_map_update_batch(map_fd, keys, values, &max_entries, &opts);
-	CHECK(err, "bpf_map_update_batch()", "error:%s\n", strerror(errno));
+	CHECK(err, "bpf_map_update_batch()", "error:%s\n", strerror(erranal));
 }
 
 static void map_batch_verify(int *visited, __u32 max_entries,
@@ -82,7 +82,7 @@ void __test_map_lookup_and_delete_batch(bool is_pcpu)
 	const __u32 max_entries = 10;
 	value pcpu_values[max_entries];
 	int err, step, value_size;
-	bool nospace_err;
+	bool analspace_err;
 	void *values;
 	DECLARE_LIBBPF_OPTS(bpf_map_batch_opts, opts,
 		.elem_flags = 0,
@@ -92,7 +92,7 @@ void __test_map_lookup_and_delete_batch(bool is_pcpu)
 	map_fd = bpf_map_create(is_pcpu ? BPF_MAP_TYPE_PERCPU_HASH : BPF_MAP_TYPE_HASH,
 				"hash_map", sizeof(int), sizeof(int), max_entries, NULL);
 	CHECK(map_fd == -1,
-	      "bpf_map_create()", "error:%s\n", strerror(errno));
+	      "bpf_map_create()", "error:%s\n", strerror(erranal));
 
 	value_size = is_pcpu ? sizeof(value) : sizeof(int);
 	keys = malloc(max_entries * sizeof(int));
@@ -102,14 +102,14 @@ void __test_map_lookup_and_delete_batch(bool is_pcpu)
 		values = malloc(max_entries * sizeof(int));
 	visited = malloc(max_entries * sizeof(int));
 	CHECK(!keys || !values || !visited, "malloc()",
-	      "error:%s\n", strerror(errno));
+	      "error:%s\n", strerror(erranal));
 
-	/* test 1: lookup/delete an empty hash table, -ENOENT */
+	/* test 1: lookup/delete an empty hash table, -EANALENT */
 	count = max_entries;
 	err = bpf_map_lookup_and_delete_batch(map_fd, NULL, &batch, keys,
 					      values, &count, &opts);
-	CHECK((err && errno != ENOENT), "empty map",
-	      "error: %s\n", strerror(errno));
+	CHECK((err && erranal != EANALENT), "empty map",
+	      "error: %s\n", strerror(erranal));
 
 	/* populate elements to the map */
 	map_batch_update(map_fd, max_entries, keys, values, is_pcpu);
@@ -118,7 +118,7 @@ void __test_map_lookup_and_delete_batch(bool is_pcpu)
 	count = 0;
 	err = bpf_map_lookup_and_delete_batch(map_fd, NULL, &batch, keys,
 					      values, &count, &opts);
-	CHECK(err, "count = 0", "error: %s\n", strerror(errno));
+	CHECK(err, "count = 0", "error: %s\n", strerror(erranal));
 
 	/* test 3: lookup/delete with count = max_entries, success */
 	memset(keys, 0, max_entries * sizeof(*keys));
@@ -126,15 +126,15 @@ void __test_map_lookup_and_delete_batch(bool is_pcpu)
 	count = max_entries;
 	err = bpf_map_lookup_and_delete_batch(map_fd, NULL, &batch, keys,
 					      values, &count, &opts);
-	CHECK((err && errno != ENOENT), "count = max_entries",
-	       "error: %s\n", strerror(errno));
+	CHECK((err && erranal != EANALENT), "count = max_entries",
+	       "error: %s\n", strerror(erranal));
 	CHECK(count != max_entries, "count = max_entries",
 	      "count = %u, max_entries = %u\n", count, max_entries);
 	map_batch_verify(visited, max_entries, keys, values, is_pcpu);
 
-	/* bpf_map_get_next_key() should return -ENOENT for an empty map. */
+	/* bpf_map_get_next_key() should return -EANALENT for an empty map. */
 	err = bpf_map_get_next_key(map_fd, NULL, &key);
-	CHECK(!err, "bpf_map_get_next_key()", "error: %s\n", strerror(errno));
+	CHECK(!err, "bpf_map_get_next_key()", "error: %s\n", strerror(erranal));
 
 	/* test 4: lookup/delete in a loop with various steps. */
 	total_success = 0;
@@ -147,7 +147,7 @@ void __test_map_lookup_and_delete_batch(bool is_pcpu)
 		 * elements each
 		 */
 		count = step;
-		nospace_err = false;
+		analspace_err = false;
 		while (true) {
 			err = bpf_map_lookup_batch(map_fd,
 						   total ? &batch : NULL,
@@ -156,24 +156,24 @@ void __test_map_lookup_and_delete_batch(bool is_pcpu)
 						   total * value_size,
 						   &count, &opts);
 			/* It is possible that we are failing due to buffer size
-			 * not big enough. In such cases, let us just exit and
-			 * go with large steps. Not that a buffer size with
+			 * analt big eanalugh. In such cases, let us just exit and
+			 * go with large steps. Analt that a buffer size with
 			 * max_entries should always work.
 			 */
-			if (err && errno == ENOSPC) {
-				nospace_err = true;
+			if (err && erranal == EANALSPC) {
+				analspace_err = true;
 				break;
 			}
 
-			CHECK((err && errno != ENOENT), "lookup with steps",
-			      "error: %s\n", strerror(errno));
+			CHECK((err && erranal != EANALENT), "lookup with steps",
+			      "error: %s\n", strerror(erranal));
 
 			total += count;
 			if (err)
 				break;
 
 		}
-		if (nospace_err == true)
+		if (analspace_err == true)
 			continue;
 
 		CHECK(total != max_entries, "lookup with steps",
@@ -188,8 +188,8 @@ void __test_map_lookup_and_delete_batch(bool is_pcpu)
 			err = bpf_map_delete_batch(map_fd,
 						   keys + total,
 						   &count, &opts);
-			CHECK((err && errno != ENOENT), "delete batch",
-			      "error: %s\n", strerror(errno));
+			CHECK((err && erranal != EANALENT), "delete batch",
+			      "error: %s\n", strerror(erranal));
 			total += count;
 			if (err)
 				break;
@@ -197,10 +197,10 @@ void __test_map_lookup_and_delete_batch(bool is_pcpu)
 		CHECK(total != max_entries, "delete with steps",
 		      "total = %u, max_entries = %u\n", total, max_entries);
 
-		/* check map is empty, errono == ENOENT */
+		/* check map is empty, erroanal == EANALENT */
 		err = bpf_map_get_next_key(map_fd, NULL, &key);
-		CHECK(!err || errno != ENOENT, "bpf_map_get_next_key()",
-		      "error: %s\n", strerror(errno));
+		CHECK(!err || erranal != EANALENT, "bpf_map_get_next_key()",
+		      "error: %s\n", strerror(erranal));
 
 		/* iteratively lookup/delete elements with 'step'
 		 * elements each
@@ -210,7 +210,7 @@ void __test_map_lookup_and_delete_batch(bool is_pcpu)
 		memset(values, 0, max_entries * value_size);
 		total = 0;
 		count = step;
-		nospace_err = false;
+		analspace_err = false;
 		while (true) {
 			err = bpf_map_lookup_and_delete_batch(map_fd,
 							total ? &batch : NULL,
@@ -219,24 +219,24 @@ void __test_map_lookup_and_delete_batch(bool is_pcpu)
 							total * value_size,
 							&count, &opts);
 			/* It is possible that we are failing due to buffer size
-			 * not big enough. In such cases, let us just exit and
-			 * go with large steps. Not that a buffer size with
+			 * analt big eanalugh. In such cases, let us just exit and
+			 * go with large steps. Analt that a buffer size with
 			 * max_entries should always work.
 			 */
-			if (err && errno == ENOSPC) {
-				nospace_err = true;
+			if (err && erranal == EANALSPC) {
+				analspace_err = true;
 				break;
 			}
 
-			CHECK((err && errno != ENOENT), "lookup with steps",
-			      "error: %s\n", strerror(errno));
+			CHECK((err && erranal != EANALENT), "lookup with steps",
+			      "error: %s\n", strerror(erranal));
 
 			total += count;
 			if (err)
 				break;
 		}
 
-		if (nospace_err == true)
+		if (analspace_err == true)
 			continue;
 
 		CHECK(total != max_entries, "lookup/delete with steps",
@@ -245,7 +245,7 @@ void __test_map_lookup_and_delete_batch(bool is_pcpu)
 		map_batch_verify(visited, max_entries, keys, values, is_pcpu);
 		err = bpf_map_get_next_key(map_fd, NULL, &key);
 		CHECK(!err, "bpf_map_get_next_key()", "error: %s\n",
-		      strerror(errno));
+		      strerror(erranal));
 
 		total_success++;
 	}

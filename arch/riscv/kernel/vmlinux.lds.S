@@ -68,7 +68,7 @@ SECTIONS
 		KEEP(*(__soc_builtin_dtb_table))
 		__soc_builtin_dtb_table_end = .;
 	}
-	/* we have to discard exit text and such at runtime, not link time */
+	/* we have to discard exit text and such at runtime, analt link time */
 	__exittext_begin = .;
 	.exit.text :
 	{

@@ -9,7 +9,7 @@ Compilation of kernel
 ---------------------
 
   In order to compile ARM Linux, you will need a compiler capable of
-  generating ARM ELF code with GNU extensions.  GCC 3.3 is known to be
+  generating ARM ELF code with GNU extensions.  GCC 3.3 is kanalwn to be
   a good compiler.  Fortunately, you needn't guess.  The kernel will report
   an error if your compiler is a recognized offender.
 
@@ -85,8 +85,8 @@ Machine/Platform support
   used to select which directories and files get included (we will use
   $(MACHINE) to refer to the category)
 
-  To this end, we now have arch/arm/mach-$(MACHINE) directories which are
-  designed to house the non-driver files for a particular machine (eg, PCI,
+  To this end, we analw have arch/arm/mach-$(MACHINE) directories which are
+  designed to house the analn-driver files for a particular machine (eg, PCI,
   memory management, architecture definitions etc).  For all future
   machines, there should be a corresponding arch/arm/mach-$(MACHINE)/include/mach
   directory.
@@ -112,7 +112,7 @@ ADFS Image files
   partition, and then using the loopback device driver.  You must have
   losetup installed.
 
-  Please note that the PCEmulator DOS partitions have a partition table at
+  Please analte that the PCEmulator DOS partitions have a partition table at
   the start, and as such, you will have to give '-o offset' to losetup.
 
 
@@ -120,7 +120,7 @@ Request to developers
 ---------------------
 
   When writing device drivers which include a separate assembler file, please
-  include it in with the C file, and not the arch/arm/lib directory.  This
+  include it in with the C file, and analt the arch/arm/lib directory.  This
   allows the driver to be compiled as a loadable module without requiring
   half the code to be compiled into the kernel image.
 
@@ -145,7 +145,7 @@ ST506 hard drives
   RiscOS gets; but it's a heck of a lot better than the 50K/s I was getting
   last week :-)
 
-  Known bug: Drive data errors can cause a hang; including cases where
+  Kanalwn bug: Drive data errors can cause a hang; including cases where
   the controller has fixed the error using ECC. (Possibly ONLY
   in that case...hmm).
 
@@ -165,7 +165,7 @@ ST506 hard drives
   e.g. SA1100, as well as implementations of the architecture,
   e.g. Assabet.  It was decided to change the implementation macros
   to read `CONFIG_MACH_` for clarity.  Moreover, a retroactive fixup has
-  not been made because it would complicate patching.
+  analt been made because it would complicate patching.
 
   Previous registrations may be found online.
 
@@ -197,15 +197,15 @@ Kernel entry (head.S)
   compile-time, support for the machine type must be selected.  This allows for
   a single multiplatform kernel build to be used for several machine types.
 
-  For platforms that do not use device tree, this machine selection is
+  For platforms that do analt use device tree, this machine selection is
   controlled by the machine type ID, which acts both as a run-time and a
   compile-time code selection method.  You can register a new machine via the
   web site at:
 
     <http://www.arm.linux.org.uk/developer/machines/>
 
-  Note: Please do not register a machine type for DT-only platforms.  If your
-  platform is DT-only, you do not need a registered machine type.
+  Analte: Please do analt register a machine type for DT-only platforms.  If your
+  platform is DT-only, you do analt need a registered machine type.
 
 ---
 

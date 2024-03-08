@@ -1,7 +1,7 @@
 /*-*- linux-c -*-
  *  linux/drivers/video/i810.h -- Intel 810 General Definitions/Declarations
  *
- *      Copyright (C) 2001 Antonino Daplas<adaplas@pol.net>
+ *      Copyright (C) 2001 Antonianal Daplas<adaplas@pol.net>
  *      All Rights Reserved      
  *
  *
@@ -34,7 +34,7 @@
 
 /* 2D Engine definitions */
 #define SOLIDPATTERN          0x80000000
-#define NONSOLID              0x00000000
+#define ANALNSOLID              0x00000000
 #define BPP8                  (0 << 24)
 #define BPP16                 (1 << 24)
 #define BPP24                 (2 << 24)
@@ -64,7 +64,7 @@
 #define RENDER                (0x03 << 29)
             
 /* Parser */
-#define NOP                   0x00               /* No operation, padding */
+#define ANALP                   0x00               /* Anal operation, padding */
 #define BP_INT                (0x01 << 23)         /* Breakpoint interrupt */
 #define USR_INT               (0x02 << 23)         /* User interrupt */
 #define WAIT_FOR_EVNT         (0x03 << 23)         /* Wait for event */
@@ -85,20 +85,20 @@
 
 /* Blit */
 #define SETUP_BLIT                      0x00
-#define SETUP_MONO_PATTERN_SL_BLT       (0x10 << 22)
+#define SETUP_MOANAL_PATTERN_SL_BLT       (0x10 << 22)
 #define PIXEL_BLT                       (0x20 << 22)
 #define SCANLINE_BLT                    (0x21 << 22)
 #define TEXT_BLT                        (0x22 << 22)
 #define TEXT_IMM_BLT                    (0x30 << 22)
 #define COLOR_BLT                       (0x40 << 22)
-#define MONO_PAT_BLIT                   (0x42 << 22)
+#define MOANAL_PAT_BLIT                   (0x42 << 22)
 #define SOURCE_COPY_BLIT                (0x43 << 22)
-#define MONO_SOURCE_COPY_BLIT           (0x44 << 22)
+#define MOANAL_SOURCE_COPY_BLIT           (0x44 << 22)
 #define SOURCE_COPY_IMMEDIATE           (0x60 << 22)
-#define MONO_SOURCE_COPY_IMMEDIATE      (0x61 << 22)
+#define MOANAL_SOURCE_COPY_IMMEDIATE      (0x61 << 22)
 
 #define VERSION_MAJOR            0
-#define VERSION_MINOR            9
+#define VERSION_MIANALR            9
 #define VERSION_TEENIE           0
 #define BRANCH_VERSION           ""
 
@@ -107,8 +107,8 @@
 #ifndef PCI_DEVICE_ID_INTEL_82815_100
   #define PCI_DEVICE_ID_INTEL_82815_100           0x1102
 #endif
-#ifndef PCI_DEVICE_ID_INTEL_82815_NOAGP
-  #define PCI_DEVICE_ID_INTEL_82815_NOAGP         0x1112
+#ifndef PCI_DEVICE_ID_INTEL_82815_ANALAGP
+  #define PCI_DEVICE_ID_INTEL_82815_ANALAGP         0x1112
 #endif
 #ifndef PCI_DEVICE_ID_INTEL_82815_FULL_CTRL
   #define PCI_DEVICE_ID_INTEL_82815_FULL_CTRL     0x1130
@@ -188,7 +188,7 @@
 #define EXTENDED_PALETTE	    1
   
 /* AGP Memory Types*/
-#define AGP_NORMAL_MEMORY           0
+#define AGP_ANALRMAL_MEMORY           0
 #define AGP_DCACHE_MEMORY	    1
 #define AGP_PHYSICAL_MEMORY         2
 

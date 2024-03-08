@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include "item.h"
 #include "core_acl_flex_keys.h"
@@ -263,11 +263,11 @@ static int mlxsw_afk_picker(struct mlxsw_afk *mlxsw_afk,
 
 	picker = kcalloc(mlxsw_afk->blocks_count, sizeof(*picker), GFP_KERNEL);
 	if (!picker)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chosen_blocks_bm = bitmap_zalloc(mlxsw_afk->blocks_count, GFP_KERNEL);
 	if (!chosen_blocks_bm) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_bitmap_alloc;
 	}
 
@@ -329,7 +329,7 @@ mlxsw_afk_key_info_create(struct mlxsw_afk *mlxsw_afk,
 	key_info = kzalloc(struct_size(key_info, blocks, mlxsw_afk->max_blocks),
 			   GFP_KERNEL);
 	if (!key_info)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	err = mlxsw_afk_picker(mlxsw_afk, key_info, elusage);
 	if (err)
 		goto err_picker;

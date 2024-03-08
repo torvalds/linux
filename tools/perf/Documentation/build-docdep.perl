@@ -4,7 +4,7 @@ my %include = ();
 my %included = ();
 
 for my $text (<*.txt>) {
-    open I, '<', $text || die "cannot read: $text";
+    open I, '<', $text || die "cananalt read: $text";
     while (<I>) {
 	if (/^include::/) {
 	    chomp;

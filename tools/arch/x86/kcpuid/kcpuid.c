@@ -55,7 +55,7 @@ struct subleaf {
 /* Represent one leaf (basic or extended) */
 struct cpuid_func {
 	/*
-	 * Array of subleafs for this func, if there is no subleafs
+	 * Array of subleafs for this func, if there is anal subleafs
 	 * then the leafs[0] is the main leaf
 	 */
 	struct subleaf *leafs;
@@ -340,13 +340,13 @@ static int parse_line(char *line)
 		range = leafs_basic;
 
 	index &= 0x7FFFFFFF;
-	/* Skip line parsing for non-existing indexes */
+	/* Skip line parsing for analn-existing indexes */
 	if ((int)index >= range->nr)
 		return -1;
 
 	func = &range->funcs[index];
 
-	/* Return if the index has no valid item on this platform */
+	/* Return if the index has anal valid item on this platform */
 	if (!func->nr)
 		return 0;
 
@@ -599,13 +599,13 @@ static void usage(void)
 }
 
 static struct option opts[] = {
-	{ "all", no_argument, NULL, 'a' },		/* show both bit flags and fields */
-	{ "bitflags", no_argument, NULL, 'b' },		/* only show bit flags, default on */
-	{ "detail", no_argument, NULL, 'd' },		/* show detail descriptions */
+	{ "all", anal_argument, NULL, 'a' },		/* show both bit flags and fields */
+	{ "bitflags", anal_argument, NULL, 'b' },		/* only show bit flags, default on */
+	{ "detail", anal_argument, NULL, 'd' },		/* show detail descriptions */
 	{ "file", required_argument, NULL, 'f' },	/* use user's cpuid file */
-	{ "help", no_argument, NULL, 'h'},		/* show usage */
+	{ "help", anal_argument, NULL, 'h'},		/* show usage */
 	{ "leaf", required_argument, NULL, 'l'},	/* only check a specific leaf */
-	{ "raw", no_argument, NULL, 'r'},		/* show raw CPUID leaf data */
+	{ "raw", anal_argument, NULL, 'r'},		/* show raw CPUID leaf data */
 	{ "subleaf", required_argument, NULL, 's'},	/* check a specific subleaf */
 	{ NULL, 0, NULL, 0 }
 };
@@ -656,7 +656,7 @@ static int parse_options(int argc, char *argv[])
  * Do 4 things in turn:
  * 1. Parse user options
  * 2. Parse and store all the CPUID leaf data supported on this platform
- * 2. Parse the csv file, while skipping leafs which are not available
+ * 2. Parse the csv file, while skipping leafs which are analt available
  *    on this platform
  * 3. Print leafs info based on user options
  */

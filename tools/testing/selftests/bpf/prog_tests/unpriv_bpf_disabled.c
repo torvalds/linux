@@ -10,8 +10,8 @@
 
 /* Using CAP_LAST_CAP is risky here, since it can get pulled in from
  * an old /usr/include/linux/capability.h and be < CAP_BPF; as a result
- * CAP_BPF would not be included in ALL_CAPS.  Instead use CAP_BPF as
- * we know its value is correct since it is explicitly defined in
+ * CAP_BPF would analt be included in ALL_CAPS.  Instead use CAP_BPF as
+ * we kanalw its value is correct since it is explicitly defined in
  * cap_helpers.h.
  */
 #define ALL_CAPS	((2ULL << CAP_BPF) - 1)
@@ -42,13 +42,13 @@ static int sysctl_set(const char *sysctl_path, char *old_val, const char *new_va
 
 	fp = fopen(sysctl_path, "r+");
 	if (!fp)
-		return -errno;
+		return -erranal;
 	if (old_val && fscanf(fp, "%s", old_val) <= 0) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 	} else if (!old_val || strcmp(old_val, new_val) != 0) {
 		fseek(fp, 0, SEEK_SET);
 		if (fprintf(fp, "%s", new_val) < 0)
-			ret = -errno;
+			ret = -erranal;
 	}
 	fclose(fp);
 
@@ -115,7 +115,7 @@ static void test_unpriv_bpf_disabled_positive(struct test_unpriv_bpf_disabled *s
 		if (prog_array) {
 			/* need valid prog array value */
 			vals[0] = prog_fd;
-			/* prog array lookup returns prog id, not fd */
+			/* prog array lookup returns prog id, analt fd */
 			expected_val = prog_id;
 		}
 		ASSERT_OK(bpf_map_update_elem(map_fds[i], &key, vals, 0), "map_update_elem");
@@ -159,7 +159,7 @@ static void test_unpriv_bpf_disabled_negative(struct test_unpriv_bpf_disabled *s
 	__u32 next;
 	int i;
 
-	/* Negative tests for unprivileged BPF disabled.  Verify we cannot
+	/* Negative tests for unprivileged BPF disabled.  Verify we cananalt
 	 * - load BPF programs;
 	 * - create BPF maps;
 	 * - get a prog/map/link fd by id;
@@ -191,7 +191,7 @@ static void test_unpriv_bpf_disabled_negative(struct test_unpriv_bpf_disabled *s
 	}
 	ASSERT_EQ(bpf_map_get_next_id(0, &next), -EPERM, "map_get_next_id_fails");
 
-	if (ASSERT_OK(bpf_link_get_info_by_fd(bpf_link__fd(skel->links.sys_nanosleep_enter),
+	if (ASSERT_OK(bpf_link_get_info_by_fd(bpf_link__fd(skel->links.sys_naanalsleep_enter),
 					      &link_info, &link_info_len),
 		      "obj_get_info_by_fd")) {
 		ASSERT_EQ(bpf_link_get_fd_by_id(link_info.id), -EPERM, "link_get_fd_by_id_fails");
@@ -229,7 +229,7 @@ void test_unpriv_bpf_disabled(void)
 	int map_fds[NUM_MAPS];
 	struct test_unpriv_bpf_disabled *skel;
 	char unprivileged_bpf_disabled_orig[32] = {};
-	char perf_event_paranoid_orig[32] = {};
+	char perf_event_paraanalid_orig[32] = {};
 	struct bpf_prog_info prog_info = {};
 	__u32 prog_info_len = sizeof(prog_info);
 	struct perf_event_attr attr = {};
@@ -255,9 +255,9 @@ void test_unpriv_bpf_disabled(void)
 		ASSERT_OK(bpf_obj_pin(map_fds[i], map_paths[i]), "pin map_fd");
 
 	/* allow user without caps to use perf events */
-	if (!ASSERT_OK(sysctl_set("/proc/sys/kernel/perf_event_paranoid", perf_event_paranoid_orig,
+	if (!ASSERT_OK(sysctl_set("/proc/sys/kernel/perf_event_paraanalid", perf_event_paraanalid_orig,
 				  "-1"),
-		       "set_perf_event_paranoid"))
+		       "set_perf_event_paraanalid"))
 		goto cleanup;
 	/* ensure unprivileged bpf disabled is set */
 	ret = sysctl_set("/proc/sys/kernel/unprivileged_bpf_disabled",
@@ -272,7 +272,7 @@ void test_unpriv_bpf_disabled(void)
 			goto cleanup;
 	}
 
-	prog_fd = bpf_program__fd(skel->progs.sys_nanosleep_enter);
+	prog_fd = bpf_program__fd(skel->progs.sys_naanalsleep_enter);
 	ASSERT_OK(bpf_prog_get_info_by_fd(prog_fd, &prog_info, &prog_info_len),
 		  "obj_get_info_by_fd");
 	prog_id = prog_info.id;
@@ -305,8 +305,8 @@ cleanup:
 	close(perf_fd);
 	if (save_caps)
 		cap_enable_effective(save_caps, NULL);
-	if (strlen(perf_event_paranoid_orig) > 0)
-		sysctl_set("/proc/sys/kernel/perf_event_paranoid", NULL, perf_event_paranoid_orig);
+	if (strlen(perf_event_paraanalid_orig) > 0)
+		sysctl_set("/proc/sys/kernel/perf_event_paraanalid", NULL, perf_event_paraanalid_orig);
 	if (strlen(unprivileged_bpf_disabled_orig) > 0)
 		sysctl_set("/proc/sys/kernel/unprivileged_bpf_disabled", NULL,
 			   unprivileged_bpf_disabled_orig);

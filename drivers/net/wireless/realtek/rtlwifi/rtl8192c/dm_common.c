@@ -8,7 +8,7 @@
 #include "../base.h"
 #include "../core.h"
 
-#define BT_RSSI_STATE_NORMAL_POWER	BIT(0)
+#define BT_RSSI_STATE_ANALRMAL_POWER	BIT(0)
 #define BT_RSSI_STATE_AMDPU_OFF		BIT(1)
 #define BT_RSSI_STATE_SPECIAL_LOW	BIT(2)
 #define BT_RSSI_STATE_BG_EDCA_LOW	BIT(3)
@@ -287,7 +287,7 @@ static void rtl92c_dm_ctrl_initgain_by_rssi(struct ieee80211_hw *hw)
 	struct dig_t *digtable = &rtlpriv->dm_digtable;
 	u32 isbt;
 
-	/* modify DIG lower bound, deal with abnormally large false alarm */
+	/* modify DIG lower bound, deal with abanalrmally large false alarm */
 	if (rtlpriv->falsealm_cnt.cnt_all > 10000) {
 		digtable->large_fa_hit++;
 		if (digtable->forbidden_igi < digtable->cur_igvalue) {
@@ -528,8 +528,8 @@ static void rtl92c_dm_init_dynamic_txpower(struct ieee80211_hw *hw)
 	} else {
 		rtlpriv->dm.dynamic_txpower_enable = false;
 	}
-	rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_NORMAL;
-	rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+	rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_ANALRMAL;
+	rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 }
 
 void rtl92c_dm_write_dig(struct ieee80211_hw *hw)
@@ -607,7 +607,7 @@ void rtl92c_dm_init_edca_turbo(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtlpriv->dm.current_turbo_edca = false;
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_analnbepkts = false;
 	rtlpriv->dm.is_cur_rdlstate = false;
 }
 EXPORT_SYMBOL(rtl92c_dm_init_edca_turbo);
@@ -657,7 +657,7 @@ static void rtl92c_dm_check_edca_turbo(struct ieee80211_hw *hw)
 			edca_be_dl |= 0x005e0000;
 	}
 
-	if ((bt_change_edca) || ((!rtlpriv->dm.is_any_nonbepkts) &&
+	if ((bt_change_edca) || ((!rtlpriv->dm.is_any_analnbepkts) &&
 	     (!rtlpriv->dm.disable_framebursting))) {
 		cur_txok_cnt = rtlpriv->stats.txbytesunicast - last_txok_cnt;
 		cur_rxok_cnt = rtlpriv->stats.rxbytesunicast - last_rxok_cnt;
@@ -690,7 +690,7 @@ static void rtl92c_dm_check_edca_turbo(struct ieee80211_hw *hw)
 		}
 	}
 
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_analnbepkts = false;
 	last_txok_cnt = rtlpriv->stats.txbytesunicast;
 	last_rxok_cnt = rtlpriv->stats.rxbytesunicast;
 }
@@ -1195,7 +1195,7 @@ static void rtl92c_dm_init_dynamic_bb_powersaving(struct ieee80211_hw *hw)
 	dm_pstable->rssi_val_min = 0;
 }
 
-void rtl92c_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal)
+void rtl92c_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_analrmal)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct ps_t *dm_pstable = &rtlpriv->dm_pstable;
@@ -1217,16 +1217,16 @@ void rtl92c_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal)
 		rtlpriv->reg_init = true;
 	}
 
-	if (!bforce_in_normal) {
+	if (!bforce_in_analrmal) {
 		if (dm_pstable->rssi_val_min != 0) {
-			if (dm_pstable->pre_rfstate == RF_NORMAL) {
+			if (dm_pstable->pre_rfstate == RF_ANALRMAL) {
 				if (dm_pstable->rssi_val_min >= 30)
 					dm_pstable->cur_rfstate = RF_SAVE;
 				else
-					dm_pstable->cur_rfstate = RF_NORMAL;
+					dm_pstable->cur_rfstate = RF_ANALRMAL;
 			} else {
 				if (dm_pstable->rssi_val_min <= 25)
-					dm_pstable->cur_rfstate = RF_NORMAL;
+					dm_pstable->cur_rfstate = RF_ANALRMAL;
 				else
 					dm_pstable->cur_rfstate = RF_SAVE;
 			}
@@ -1234,7 +1234,7 @@ void rtl92c_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal)
 			dm_pstable->cur_rfstate = RF_MAX;
 		}
 	} else {
-		dm_pstable->cur_rfstate = RF_NORMAL;
+		dm_pstable->cur_rfstate = RF_ANALRMAL;
 	}
 
 	if (dm_pstable->pre_rfstate != dm_pstable->cur_rfstate) {
@@ -1273,10 +1273,10 @@ static void rtl92c_dm_dynamic_bb_powersaving(struct ieee80211_hw *hw)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 
 	/* Determine the minimum RSSI */
-	if (((mac->link_state == MAC80211_NOLINK)) &&
+	if (((mac->link_state == MAC80211_ANALLINK)) &&
 	    (rtlpriv->dm.entry_min_undec_sm_pwdb == 0)) {
 		dm_pstable->rssi_val_min = 0;
-		rtl_dbg(rtlpriv, DBG_LOUD, DBG_LOUD, "Not connected to any\n");
+		rtl_dbg(rtlpriv, DBG_LOUD, DBG_LOUD, "Analt connected to any\n");
 	}
 
 	if (mac->link_state == MAC80211_LINKED) {
@@ -1344,18 +1344,18 @@ void rtl92c_dm_dynamic_txpower(struct ieee80211_hw *hw)
 		return;
 
 	if (rtlpriv->dm.dm_flag & HAL_DM_HIPWR_DISABLE) {
-		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 		return;
 	}
 
 	if ((mac->link_state < MAC80211_LINKED) &&
 	    (rtlpriv->dm.entry_min_undec_sm_pwdb == 0)) {
 		rtl_dbg(rtlpriv, COMP_POWER, DBG_TRACE,
-			"Not connected to any\n");
+			"Analt connected to any\n");
 
-		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 
-		rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 		return;
 	}
 
@@ -1390,9 +1390,9 @@ void rtl92c_dm_dynamic_txpower(struct ieee80211_hw *hw)
 		rtl_dbg(rtlpriv, COMP_POWER, DBG_LOUD,
 			"TXHIGHPWRLEVEL_LEVEL1 (TxPwr=0x10)\n");
 	} else if (undec_sm_pwdb < (TX_POWER_NEAR_FIELD_THRESH_LVL1 - 5)) {
-		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 		rtl_dbg(rtlpriv, COMP_POWER, DBG_LOUD,
-			"TXHIGHPWRLEVEL_NORMAL\n");
+			"TXHIGHPWRLEVEL_ANALRMAL\n");
 	}
 
 	if ((rtlpriv->dm.dynamic_txhighpower_lvl != rtlpriv->dm.last_dtp_lvl)) {
@@ -1401,7 +1401,7 @@ void rtl92c_dm_dynamic_txpower(struct ieee80211_hw *hw)
 			 rtlphy->current_channel);
 		rtl92c_phy_set_txpower_level(hw, rtlphy->current_channel);
 		if (rtlpriv->dm.dynamic_txhighpower_lvl ==
-		    TXHIGHPWRLEVEL_NORMAL)
+		    TXHIGHPWRLEVEL_ANALRMAL)
 			dm_restorepowerindex(hw);
 		else if (rtlpriv->dm.dynamic_txhighpower_lvl ==
 			 TXHIGHPWRLEVEL_LEVEL1)
@@ -1459,12 +1459,12 @@ u8 rtl92c_bt_rssi_state_change(struct ieee80211_hw *hw)
 			undec_sm_pwdb = rtlpriv->dm.entry_min_undec_sm_pwdb;
 	}
 
-	/* Check RSSI to determine HighPower/NormalPower state for
+	/* Check RSSI to determine HighPower/AnalrmalPower state for
 	 * BT coexistence. */
 	if (undec_sm_pwdb >= 67)
-		curr_bt_rssi_state &= (~BT_RSSI_STATE_NORMAL_POWER);
+		curr_bt_rssi_state &= (~BT_RSSI_STATE_ANALRMAL_POWER);
 	else if (undec_sm_pwdb < 62)
-		curr_bt_rssi_state |= BT_RSSI_STATE_NORMAL_POWER;
+		curr_bt_rssi_state |= BT_RSSI_STATE_ANALRMAL_POWER;
 
 	/* Check RSSI to determine AMPDU setting for BT coexistence. */
 	if (undec_sm_pwdb >= 40)
@@ -1558,8 +1558,8 @@ static bool rtl92c_bt_state_change(struct ieee80211_hw *hw)
 			   ((rtlpriv->btcoexist.bt_service != BT_IDLE) ?
 			   0 : BIT(2));
 
-			/* Add interrupt migration when bt is not ini
-			 * idle state (no traffic). */
+			/* Add interrupt migration when bt is analt ini
+			 * idle state (anal traffic). */
 			if (rtlpriv->btcoexist.bt_service != BT_IDLE) {
 				rtl_write_word(rtlpriv, 0x504, 0x0ccc);
 				rtl_write_byte(rtlpriv, 0x506, 0x54);
@@ -1596,7 +1596,7 @@ static bool rtl92c_bt_wifi_connect_change(struct ieee80211_hw *hw)
 	return false;
 }
 
-static void rtl92c_bt_set_normal(struct ieee80211_hw *hw)
+static void rtl92c_bt_set_analrmal(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -1640,7 +1640,7 @@ static void rtl92c_bt_ant_isolation(struct ieee80211_hw *hw, u8 tmp1byte)
 	} else {
 		if ((rtlpriv->btcoexist.bt_service == BT_BUSY) &&
 		    (rtlpriv->btcoexist.bt_rssi_state &
-		     BT_RSSI_STATE_NORMAL_POWER)) {
+		     BT_RSSI_STATE_ANALRMAL_POWER)) {
 			rtl_write_byte(rtlpriv, REG_GPIO_MUXCFG, 0xa0);
 		} else if ((rtlpriv->btcoexist.bt_service ==
 			    BT_OTHER_ACTION) && (rtlpriv->mac80211.mode <
@@ -1659,8 +1659,8 @@ static void rtl92c_bt_ant_isolation(struct ieee80211_hw *hw, u8 tmp1byte)
 		rtl_write_dword(rtlpriv, REG_GPIO_PIN_CTRL, 0x0);
 
 	if (rtlpriv->btcoexist.bt_rssi_state &
-	    BT_RSSI_STATE_NORMAL_POWER) {
-		rtl92c_bt_set_normal(hw);
+	    BT_RSSI_STATE_ANALRMAL_POWER) {
+		rtl92c_bt_set_analrmal(hw);
 	} else {
 		rtlpriv->btcoexist.bt_edca_ul = 0;
 		rtlpriv->btcoexist.bt_edca_dl = 0;
@@ -1689,7 +1689,7 @@ static void rtl92c_bt_ant_isolation(struct ieee80211_hw *hw, u8 tmp1byte)
 			}
 		} else {
 			rtlpriv->dm.dynamic_txhighpower_lvl =
-				TXHIGHPWRLEVEL_NORMAL;
+				TXHIGHPWRLEVEL_ANALRMAL;
 		}
 		rtl92c_phy_set_txpower_level(hw,
 			rtlpriv->phy.current_channel);

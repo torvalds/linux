@@ -62,7 +62,7 @@ ENTRY(_start)
 
 /* Disable caches and jump to high code. */
 	moveq	#ICACHE_ONLY,%d0	| Cache disabled until we're ready to enable it
-	movc	%d0, %cacr	|   is this the right value? (yes --m)
+	movc	%d0, %cacr	|   is this the right value? (anal --m)
 	jmp	1f:l
 
 /* Following code executes at high addresses (0xE000xxx). */

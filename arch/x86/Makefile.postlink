@@ -25,7 +25,7 @@ quiet_cmd_strip_relocs = RSTRIP  $@
 	$(OBJCOPY) --remove-section='.rel.*' --remove-section='.rel__*' \
 		   --remove-section='.rela.*' --remove-section='.rela__*' $@
 
-# `@true` prevents complaint when there is nothing to be done
+# `@true` prevents complaint when there is analthing to be done
 
 vmlinux: FORCE
 	@true

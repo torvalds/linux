@@ -12,7 +12,7 @@
  * entries, representing per power domain information.
  *
  * There is one dev file for complete SST information and control same as the
- * prior generation of hardware. User spaces don't need to know how the
+ * prior generation of hardware. User spaces don't need to kanalw how the
  * information is presented by the hardware. The TPMI core module implements
  * the hardware mapping.
  */
@@ -31,13 +31,13 @@
 
 /* Supported SST hardware version by this driver */
 #define ISST_MAJOR_VERSION	0
-#define ISST_MINOR_VERSION	1
+#define ISST_MIANALR_VERSION	1
 
 /*
  * Used to indicate if value read from MMIO needs to get multiplied
- * to get to a standard unit or not.
+ * to get to a standard unit or analt.
  */
-#define SST_MUL_FACTOR_NONE    1
+#define SST_MUL_FACTOR_ANALNE    1
 
 /* Define 100 as a scaling factor frequency ratio to frequency conversion */
 #define SST_MUL_FACTOR_FREQ    100
@@ -176,15 +176,15 @@ struct pp_control_offset {
  * struct pp_status_offset -	Offsets for SST PP status fields
  * @sst_pp_level:	Returns the current SST-PP level
  * @sst_pp_lock:	Returns the lock bit setting of perf_level_lock in pp_control_offset
- * @error_type:		Returns last error of SST-PP level change request. 0: no error,
- *			1: level change not allowed, others: reserved
+ * @error_type:		Returns last error of SST-PP level change request. 0: anal error,
+ *			1: level change analt allowed, others: reserved
  * @feature_state:	Bit mask to indicate the enable(1)/disable(0) state of each feature of the
  *			current PP level. bit 0 = BF, bit 1 = TF, bit 2-7 reserved
  * @reserved0:		Reserved for future use
  * @feature_error_type: Returns last error of the specific feature. Three error_type bits per
  *			feature. i.e. ERROR_TYPE[2:0] for BF, ERROR_TYPE[5:3] for TF, etc.
- *			0x0: no error, 0x1: The specific feature is not supported by the hardware.
- *			0x2-0x6: Reserved. 0x7: feature state change is not allowed.
+ *			0x0: anal error, 0x1: The specific feature is analt supported by the hardware.
+ *			0x2-0x6: Reserved. 0x7: feature state change is analt allowed.
  * @reserved1:		Reserved for future use
  *
  * This structure is used store offsets of SST PP status in the register bank.
@@ -356,17 +356,17 @@ static int sst_main(struct auxiliary_device *auxdev, struct tpmi_per_power_domai
 	pd_info->sst_header.pp_offset *= 8;
 
 	if (pd_info->sst_header.interface_version == TPMI_VERSION_INVALID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (TPMI_MAJOR_VERSION(pd_info->sst_header.interface_version) != ISST_MAJOR_VERSION) {
 		dev_err(&auxdev->dev, "SST: Unsupported major version:%lx\n",
 			TPMI_MAJOR_VERSION(pd_info->sst_header.interface_version));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	if (TPMI_MINOR_VERSION(pd_info->sst_header.interface_version) != ISST_MINOR_VERSION)
-		dev_info(&auxdev->dev, "SST: Ignore: Unsupported minor version:%lx\n",
-			 TPMI_MINOR_VERSION(pd_info->sst_header.interface_version));
+	if (TPMI_MIANALR_VERSION(pd_info->sst_header.interface_version) != ISST_MIANALR_VERSION)
+		dev_info(&auxdev->dev, "SST: Iganalre: Unsupported mianalr version:%lx\n",
+			 TPMI_MIANALR_VERSION(pd_info->sst_header.interface_version));
 
 	/* Read SST CP Header */
 	*((u64 *)&pd_info->cp_header) = readq(pd_info->sst_base + pd_info->sst_header.cp_offset);
@@ -474,17 +474,17 @@ static long isst_if_core_power_state(void __user *argp)
 
 	if (core_power.get_set) {
 		_write_cp_info("cp_enable", core_power.enable, SST_CP_CONTROL_OFFSET,
-			       SST_CP_ENABLE_START, SST_CP_ENABLE_WIDTH, SST_MUL_FACTOR_NONE)
+			       SST_CP_ENABLE_START, SST_CP_ENABLE_WIDTH, SST_MUL_FACTOR_ANALNE)
 		_write_cp_info("cp_prio_type", core_power.priority_type, SST_CP_CONTROL_OFFSET,
 			       SST_CP_PRIORITY_TYPE_START, SST_CP_PRIORITY_TYPE_WIDTH,
-			       SST_MUL_FACTOR_NONE)
+			       SST_MUL_FACTOR_ANALNE)
 	} else {
 		/* get */
 		_read_cp_info("cp_enable", core_power.enable, SST_CP_STATUS_OFFSET,
-			      SST_CP_ENABLE_START, SST_CP_ENABLE_WIDTH, SST_MUL_FACTOR_NONE)
+			      SST_CP_ENABLE_START, SST_CP_ENABLE_WIDTH, SST_MUL_FACTOR_ANALNE)
 		_read_cp_info("cp_prio_type", core_power.priority_type, SST_CP_STATUS_OFFSET,
 			      SST_CP_PRIORITY_TYPE_START, SST_CP_PRIORITY_TYPE_WIDTH,
-			      SST_MUL_FACTOR_NONE)
+			      SST_MUL_FACTOR_ANALNE)
 		core_power.supported = !!(power_domain_info->sst_header.cap_mask & BIT(0));
 		if (copy_to_user(argp, &core_power, sizeof(core_power)))
 			return -EFAULT;
@@ -531,7 +531,7 @@ static long isst_if_clos_param(void __user *argp)
 		_write_cp_info("clos.prio", clos_param.prop_prio,
 			       (SST_CLOS_CONFIG_0_OFFSET + clos_param.clos * SST_REG_SIZE),
 			       SST_CLOS_CONFIG_PRIO_START, SST_CLOS_CONFIG_PRIO_WIDTH,
-			       SST_MUL_FACTOR_NONE);
+			       SST_MUL_FACTOR_ANALNE);
 	} else {
 		/* get */
 		_read_cp_info("clos.min_freq", clos_param.min_freq_mhz,
@@ -545,7 +545,7 @@ static long isst_if_clos_param(void __user *argp)
 		_read_cp_info("clos.prio", clos_param.prop_prio,
 				(SST_CLOS_CONFIG_0_OFFSET + clos_param.clos * SST_REG_SIZE),
 				SST_CLOS_CONFIG_PRIO_START, SST_CLOS_CONFIG_PRIO_WIDTH,
-				SST_MUL_FACTOR_NONE)
+				SST_MUL_FACTOR_ANALNE)
 
 		if (copy_to_user(argp, &clos_param, sizeof(clos_param)))
 			return -EFAULT;
@@ -575,7 +575,7 @@ static long isst_if_clos_assoc(void __user *argp)
 	for (i = 0; i < assoc_cmds.cmd_count; ++i) {
 		struct tpmi_per_power_domain_info *power_domain_info;
 		struct isst_if_clos_assoc clos_assoc;
-		int punit_id, punit_cpu_no, pkg_id;
+		int punit_id, punit_cpu_anal, pkg_id;
 		struct tpmi_sst_struct *sst_inst;
 		int offset, shift, cpu;
 		u64 val, mask, clos;
@@ -590,11 +590,11 @@ static long isst_if_clos_assoc(void __user *argp)
 		clos = clos_assoc.clos;
 
 		if (assoc_cmds.punit_cpu_map)
-			punit_cpu_no = cpu;
+			punit_cpu_anal = cpu;
 		else
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
-		if (punit_cpu_no < 0)
+		if (punit_cpu_anal < 0)
 			return -EINVAL;
 
 		punit_id = clos_assoc.power_domain_id;
@@ -611,8 +611,8 @@ static long isst_if_clos_assoc(void __user *argp)
 			return -EPERM;
 
 		offset = SST_CLOS_ASSOC_0_OFFSET +
-				(punit_cpu_no / SST_CLOS_ASSOC_CPUS_PER_REG) * SST_REG_SIZE;
-		shift = punit_cpu_no % SST_CLOS_ASSOC_CPUS_PER_REG;
+				(punit_cpu_anal / SST_CLOS_ASSOC_CPUS_PER_REG) * SST_REG_SIZE;
+		shift = punit_cpu_anal % SST_CLOS_ASSOC_CPUS_PER_REG;
 		shift *= SST_CLOS_ASSOC_BITS_PER_CPU;
 
 		val = readq(power_domain_info->sst_base +
@@ -720,19 +720,19 @@ static int isst_if_get_perf_level(void __user *argp)
 	perf_level.level_mask = power_domain_info->pp_header.level_en_mask;
 	perf_level.feature_rev = power_domain_info->pp_header.feature_rev;
 	_read_pp_info("current_level", perf_level.current_level, SST_PP_STATUS_OFFSET,
-		      SST_PP_LEVEL_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_NONE)
+		      SST_PP_LEVEL_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_ANALNE)
 	_read_pp_info("locked", perf_level.locked, SST_PP_STATUS_OFFSET,
-		      SST_PP_LOCK_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_NONE)
+		      SST_PP_LOCK_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_ANALNE)
 	_read_pp_info("feature_state", perf_level.feature_state, SST_PP_STATUS_OFFSET,
-		      SST_PP_FEATURE_STATE_START, SST_PP_FEATURE_STATE_WIDTH, SST_MUL_FACTOR_NONE)
+		      SST_PP_FEATURE_STATE_START, SST_PP_FEATURE_STATE_WIDTH, SST_MUL_FACTOR_ANALNE)
 	perf_level.enabled = !!(power_domain_info->sst_header.cap_mask & BIT(1));
 
 	_read_bf_level_info("bf_support", perf_level.sst_bf_support, 0, 0,
 			    SST_BF_FEATURE_SUPPORTED_START, SST_BF_FEATURE_SUPPORTED_WIDTH,
-			    SST_MUL_FACTOR_NONE);
+			    SST_MUL_FACTOR_ANALNE);
 	_read_tf_level_info("tf_support", perf_level.sst_tf_support, 0, 0,
 			    SST_TF_FEATURE_SUPPORTED_START, SST_TF_FEATURE_SUPPORTED_WIDTH,
-			    SST_MUL_FACTOR_NONE);
+			    SST_MUL_FACTOR_ANALNE);
 
 	if (copy_to_user(argp, &perf_level, sizeof(perf_level)))
 		return -EFAULT;
@@ -767,14 +767,14 @@ static int isst_if_set_perf_level(void __user *argp)
 		return -EINVAL;
 
 	_read_pp_info("current_level", level, SST_PP_STATUS_OFFSET,
-		      SST_PP_LEVEL_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_NONE)
+		      SST_PP_LEVEL_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_ANALNE)
 
 	/* If the requested new level is same as the current level, reject */
 	if (perf_level.level == level)
 		return -EINVAL;
 
 	_write_pp_info("perf_level", perf_level.level, SST_PP_CONTROL_OFFSET,
-		       SST_PP_LEVEL_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_NONE)
+		       SST_PP_LEVEL_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_ANALNE)
 
 	/* It is possible that firmware is busy (although unlikely), so retry */
 	do {
@@ -782,7 +782,7 @@ static int isst_if_set_perf_level(void __user *argp)
 		msleep(SST_PP_LEVEL_CHANGE_TIME_MS);
 
 		_read_pp_info("current_level", level, SST_PP_STATUS_OFFSET,
-			      SST_PP_LEVEL_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_NONE)
+			      SST_PP_LEVEL_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_ANALNE)
 
 		/* Check if the new level is active */
 		if (perf_level.level == level)
@@ -797,7 +797,7 @@ static int isst_if_set_perf_level(void __user *argp)
 	/* Reset the feature state on level change */
 	_write_pp_info("perf_feature", 0, SST_PP_CONTROL_OFFSET,
 		       SST_PP_FEATURE_STATE_START, SST_PP_FEATURE_STATE_WIDTH,
-		       SST_MUL_FACTOR_NONE)
+		       SST_MUL_FACTOR_ANALNE)
 
 	/* Give time to FW to process */
 	msleep(SST_PP_LEVEL_CHANGE_TIME_MS);
@@ -825,7 +825,7 @@ static int isst_if_set_perf_feature(void __user *argp)
 
 	_write_pp_info("perf_feature", perf_feature.feature, SST_PP_CONTROL_OFFSET,
 		       SST_PP_FEATURE_STATE_START, SST_PP_FEATURE_STATE_WIDTH,
-		       SST_MUL_FACTOR_NONE)
+		       SST_MUL_FACTOR_ANALNE)
 
 	return 0;
 }
@@ -926,7 +926,7 @@ static int isst_if_get_perf_level_info(void __user *argp)
 
 	_read_pp_level_info("tdp_ratio", perf_level.tdp_ratio, perf_level.level,
 			    SST_PP_INFO_0_OFFSET, SST_PP_P1_SSE_START, SST_PP_P1_SSE_WIDTH,
-			    SST_MUL_FACTOR_NONE)
+			    SST_MUL_FACTOR_ANALNE)
 	_read_pp_level_info("base_freq_mhz", perf_level.base_freq_mhz, perf_level.level,
 			    SST_PP_INFO_0_OFFSET, SST_PP_P1_SSE_START, SST_PP_P1_SSE_WIDTH,
 			    SST_MUL_FACTOR_FREQ)
@@ -942,17 +942,17 @@ static int isst_if_get_perf_level_info(void __user *argp)
 
 	_read_pp_level_info("thermal_design_power_w", perf_level.thermal_design_power_w,
 			    perf_level.level, SST_PP_INFO_1_OFFSET, SST_PP_TDP_START,
-			    SST_PP_TDP_WIDTH, SST_MUL_FACTOR_NONE)
+			    SST_PP_TDP_WIDTH, SST_MUL_FACTOR_ANALNE)
 	perf_level.thermal_design_power_w /= 8; /* units are in 1/8th watt */
 	_read_pp_level_info("tjunction_max_c", perf_level.tjunction_max_c, perf_level.level,
 			    SST_PP_INFO_1_OFFSET, SST_PP_T_PROCHOT_START, SST_PP_T_PROCHOT_WIDTH,
-			    SST_MUL_FACTOR_NONE)
+			    SST_MUL_FACTOR_ANALNE)
 	_read_pp_level_info("max_memory_freq_mhz", perf_level.max_memory_freq_mhz,
 			    perf_level.level, SST_PP_INFO_1_OFFSET, SST_PP_MAX_MEMORY_FREQ_START,
 			    SST_PP_MAX_MEMORY_FREQ_WIDTH, SST_MUL_FACTOR_FREQ)
 	_read_pp_level_info("cooling_type", perf_level.cooling_type, perf_level.level,
 			    SST_PP_INFO_1_OFFSET, SST_PP_COOLING_TYPE_START,
-			    SST_PP_COOLING_TYPE_WIDTH, SST_MUL_FACTOR_NONE)
+			    SST_PP_COOLING_TYPE_WIDTH, SST_MUL_FACTOR_ANALNE)
 
 	for (i = 0; i < TRL_MAX_LEVELS; ++i) {
 		for (j = 0; j < TRL_MAX_BUCKETS; ++j)
@@ -968,7 +968,7 @@ static int isst_if_get_perf_level_info(void __user *argp)
 		_read_pp_level_info("bucket*_core_count", perf_level.bucket_core_counts[i],
 				    perf_level.level, SST_PP_INFO_10_OFFSET,
 				    SST_PP_TRL_CORES_BUCKET_0_WIDTH * i,
-				    SST_PP_TRL_CORES_BUCKET_0_WIDTH, SST_MUL_FACTOR_NONE)
+				    SST_PP_TRL_CORES_BUCKET_0_WIDTH, SST_MUL_FACTOR_ANALNE)
 
 	perf_level.max_buckets = TRL_MAX_BUCKETS;
 	perf_level.max_trl_levels = TRL_MAX_LEVELS;
@@ -1028,12 +1028,12 @@ static int isst_if_get_perf_level_mask(void __user *argp)
 
 	_read_pp_level_info("mask", mask, cpumask.level, SST_PP_INFO_2_OFFSET,
 			    SST_PP_RSLVD_CORE_MASK_START, SST_PP_RSLVD_CORE_MASK_WIDTH,
-			    SST_MUL_FACTOR_NONE)
+			    SST_MUL_FACTOR_ANALNE)
 
 	cpumask.mask = mask;
 
 	if (!cpumask.punit_cpu_map)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_to_user(argp, &cpumask, sizeof(cpumask)))
 		return -EFAULT;
@@ -1079,10 +1079,10 @@ static int isst_if_get_base_freq_info(void __user *argp)
 			    SST_MUL_FACTOR_FREQ)
 	_read_bf_level_info("BF-TJ", base_freq.tjunction_max_c, base_freq.level,
 			    SST_BF_INFO_0_OFFSET, SST_BF_T_PROHOT_START, SST_BF_T_PROHOT_WIDTH,
-			    SST_MUL_FACTOR_NONE)
+			    SST_MUL_FACTOR_ANALNE)
 	_read_bf_level_info("BF-tdp", base_freq.thermal_design_power_w, base_freq.level,
 			    SST_BF_INFO_0_OFFSET, SST_BF_TDP_START, SST_BF_TDP_WIDTH,
-			    SST_MUL_FACTOR_NONE)
+			    SST_MUL_FACTOR_ANALNE)
 	base_freq.thermal_design_power_w /= 8; /*unit = 1/8th watt*/
 
 	if (copy_to_user(argp, &base_freq, sizeof(base_freq)))
@@ -1109,12 +1109,12 @@ static int isst_if_get_base_freq_mask(void __user *argp)
 
 	_read_bf_level_info("BF-cpumask", mask, cpumask.level, SST_BF_INFO_1_OFFSET,
 			    P1_HI_CORE_MASK_START, P1_HI_CORE_MASK_WIDTH,
-			    SST_MUL_FACTOR_NONE)
+			    SST_MUL_FACTOR_ANALNE)
 
 	cpumask.mask = mask;
 
 	if (!cpumask.punit_cpu_map)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_to_user(argp, &cpumask, sizeof(cpumask)))
 		return -EFAULT;
@@ -1207,7 +1207,7 @@ static int isst_if_get_turbo_freq_info(void __user *argp)
 		_read_tf_level_info("bucket_*_core_count", turbo_freq.bucket_core_counts[i],
 				    turbo_freq.level, SST_TF_INFO_1_OFFSET,
 				    SST_TF_NUM_CORE_0_WIDTH * i, SST_TF_NUM_CORE_0_WIDTH,
-				    SST_MUL_FACTOR_NONE)
+				    SST_MUL_FACTOR_ANALNE)
 
 	if (copy_to_user(argp, &turbo_freq, sizeof(turbo_freq)))
 		return -EFAULT;
@@ -1219,7 +1219,7 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 			      unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
-	long ret = -ENOTTY;
+	long ret = -EANALTTY;
 
 	mutex_lock(&isst_tpmi_dev_lock);
 	switch (cmd) {
@@ -1279,16 +1279,16 @@ int tpmi_sst_dev_add(struct auxiliary_device *auxdev)
 
 	ret = tpmi_get_feature_status(auxdev, TPMI_ID_SST, &read_blocked, &write_blocked);
 	if (ret)
-		dev_info(&auxdev->dev, "Can't read feature status: ignoring read/write blocked status\n");
+		dev_info(&auxdev->dev, "Can't read feature status: iganalring read/write blocked status\n");
 
 	if (read_blocked) {
 		dev_info(&auxdev->dev, "Firmware has blocked reads, exiting\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	plat_info = tpmi_get_platform_data(auxdev);
 	if (!plat_info) {
-		dev_err(&auxdev->dev, "No platform info\n");
+		dev_err(&auxdev->dev, "Anal platform info\n");
 		return -EINVAL;
 	}
 
@@ -1308,13 +1308,13 @@ int tpmi_sst_dev_add(struct auxiliary_device *auxdev)
 
 	tpmi_sst = devm_kzalloc(&auxdev->dev, sizeof(*tpmi_sst), GFP_KERNEL);
 	if (!tpmi_sst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tpmi_sst->power_domain_info = devm_kcalloc(&auxdev->dev, num_resources,
 						   sizeof(*tpmi_sst->power_domain_info),
 						   GFP_KERNEL);
 	if (!tpmi_sst->power_domain_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tpmi_sst->number_of_power_domains = num_resources;
 
@@ -1346,7 +1346,7 @@ int tpmi_sst_dev_add(struct auxiliary_device *auxdev)
 	}
 
 	if (!inst)
-		return -ENODEV;
+		return -EANALDEV;
 
 	tpmi_sst->package_id = pkg;
 	auxiliary_set_drvdata(auxdev, tpmi_sst);
@@ -1430,7 +1430,7 @@ int tpmi_sst_init(void)
 				       sizeof(*isst_common.sst_inst),
 				       GFP_KERNEL);
 	if (!isst_common.sst_inst) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto init_done;
 	}
 

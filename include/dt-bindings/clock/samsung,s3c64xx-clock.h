@@ -11,7 +11,7 @@
 /*
  * Let each exported clock get a unique index, which is used on DT-enabled
  * platforms to lookup the clock from a clock specifier. These indices are
- * therefore considered an ABI and so must not be changed. This implies
+ * therefore considered an ABI and so must analt be changed. This implies
  * that new clocks should be added either in free spaces between clock groups
  * or at the end.
  */

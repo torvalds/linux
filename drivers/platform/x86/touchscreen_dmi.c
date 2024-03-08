@@ -13,7 +13,7 @@
 #include <linux/dmi.h>
 #include <linux/efi_embedded_fw.h>
 #include <linux/i2c.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/property.h>
 #include <linux/string.h>
 
@@ -24,7 +24,7 @@ struct ts_dmi_data {
 	const struct property_entry *properties;
 };
 
-/* NOTE: Please keep all entries sorted alphabetically */
+/* ANALTE: Please keep all entries sorted alphabetically */
 
 static const struct property_entry archos_101_cesium_educ_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1850),
@@ -337,20 +337,20 @@ static const struct ts_dmi_data cube_iwork8_air_data = {
 	.properties	= cube_iwork8_air_props,
 };
 
-static const struct property_entry cube_knote_i1101_props[] = {
+static const struct property_entry cube_kanalte_i1101_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-min-x", 20),
 	PROPERTY_ENTRY_U32("touchscreen-min-y",  22),
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1961),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 1513),
-	PROPERTY_ENTRY_STRING("firmware-name", "gsl3692-cube-knote-i1101.fw"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl3692-cube-kanalte-i1101.fw"),
 	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
 	PROPERTY_ENTRY_BOOL("silead,home-button"),
 	{ }
 };
 
-static const struct ts_dmi_data cube_knote_i1101_data = {
+static const struct ts_dmi_data cube_kanalte_i1101_data = {
 	.acpi_name	= "MSSL1680:00",
-	.properties	= cube_knote_i1101_props,
+	.properties	= cube_kanalte_i1101_props,
 };
 
 static const struct property_entry dexp_ursus_7w_props[] = {
@@ -865,19 +865,19 @@ static const struct ts_dmi_data rca_cambio_w101_v2_data = {
 	.properties = rca_cambio_w101_v2_props,
 };
 
-static const struct property_entry rwc_nanote_p8_props[] = {
+static const struct property_entry rwc_naanalte_p8_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-min-y", 46),
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1728),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 1140),
 	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
-	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-rwc-nanote-p8.fw"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-rwc-naanalte-p8.fw"),
 	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
 	{ }
 };
 
-static const struct ts_dmi_data rwc_nanote_p8_data = {
+static const struct ts_dmi_data rwc_naanalte_p8_data = {
 	.acpi_name = "MSSL1680:00",
-	.properties = rwc_nanote_p8_props,
+	.properties = rwc_naanalte_p8_props,
 };
 
 static const struct property_entry schneider_sct101ctm_props[] = {
@@ -1112,7 +1112,7 @@ static const struct ts_dmi_data vinga_twizzle_j116_data = {
 	.properties	= vinga_twizzle_j116_props,
 };
 
-/* NOTE: Please keep this table sorted alphabetically */
+/* ANALTE: Please keep this table sorted alphabetically */
 const struct dmi_system_id touchscreen_dmi_table[] = {
 	{
 		/* Archos 101 Cesium Educ */
@@ -1166,7 +1166,7 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		/* Chuwi Hi10 Air */
 		.driver_data = (void *)&chuwi_hi10_air_data,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "CHUWI INNOVATION AND TECHNOLOGY(SHENZHEN)CO.LTD"),
+			DMI_MATCH(DMI_SYS_VENDOR, "CHUWI INANALVATION AND TECHANALLOGY(SHENZHEN)CO.LTD"),
 			DMI_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
 			DMI_MATCH(DMI_PRODUCT_SKU, "P1W6_C109D_B"),
 		},
@@ -1270,8 +1270,8 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		},
 	},
 	{
-		/* Cube KNote i1101 */
-		.driver_data = (void *)&cube_knote_i1101_data,
+		/* Cube KAnalte i1101 */
+		.driver_data = (void *)&cube_kanalte_i1101_data,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Hampoo"),
 			DMI_MATCH(DMI_BOARD_NAME, "L1W6_I1101"),
@@ -1406,7 +1406,7 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		},
 	},
 	{
-		/* Juno Tablet */
+		/* Juanal Tablet */
 		.driver_data = (void *)&gdix1002_upside_down_data,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Default string"),
@@ -1542,7 +1542,7 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		/* Positivo C4128B */
 		.driver_data = (void *)&positivo_c4128b_data,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Positivo Tecnologia SA"),
+			DMI_MATCH(DMI_SYS_VENDOR, "Positivo Tecanallogia SA"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "C4128B-1"),
 		},
 	},
@@ -1584,7 +1584,7 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Insyde"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "BayTrail"),
-			/* Note 105b is Foxcon's USB/PCI vendor id */
+			/* Analte 105b is Foxcon's USB/PCI vendor id */
 			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "105B"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "0E57"),
 		},
@@ -1599,8 +1599,8 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		},
 	},
 	{
-		/* RWC NANOTE P8 */
-		.driver_data = (void *)&rwc_nanote_p8_data,
+		/* RWC NAANALTE P8 */
+		.driver_data = (void *)&rwc_naanalte_p8_data,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Default string"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AY07J"),
@@ -1683,7 +1683,7 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		.matches = {
 			/*
 			 * Only match BIOS date, because the manufacturers
-			 * BIOS does not report the board name at all
+			 * BIOS does analt report the board name at all
 			 * (sometimes)...
 			 */
 			DMI_MATCH(DMI_BOARD_VENDOR, "TECLAST"),
@@ -1817,20 +1817,20 @@ static void ts_dmi_add_props(struct i2c_client *client)
 
 	if (has_acpi_companion(dev) &&
 	    strstarts(client->name, ts_data->acpi_name)) {
-		error = device_create_managed_software_node(dev, ts_data->properties, NULL);
+		error = device_create_managed_software_analde(dev, ts_data->properties, NULL);
 		if (error)
 			dev_err(dev, "failed to add properties: %d\n", error);
 	}
 }
 
-static int ts_dmi_notifier_call(struct notifier_block *nb,
+static int ts_dmi_analtifier_call(struct analtifier_block *nb,
 				unsigned long action, void *data)
 {
 	struct device *dev = data;
 	struct i2c_client *client;
 
 	switch (action) {
-	case BUS_NOTIFY_ADD_DEVICE:
+	case BUS_ANALTIFY_ADD_DEVICE:
 		client = i2c_verify_client(dev);
 		if (client)
 			ts_dmi_add_props(client);
@@ -1843,8 +1843,8 @@ static int ts_dmi_notifier_call(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block ts_dmi_notifier = {
-	.notifier_call = ts_dmi_notifier_call,
+static struct analtifier_block ts_dmi_analtifier = {
+	.analtifier_call = ts_dmi_analtifier_call,
 };
 
 static int __init ts_dmi_init(void)
@@ -1854,23 +1854,23 @@ static int __init ts_dmi_init(void)
 
 	dmi_id = dmi_first_match(touchscreen_dmi_table);
 	if (!dmi_id)
-		return 0; /* Not an error */
+		return 0; /* Analt an error */
 
 	ts_data = dmi_id->driver_data;
 	/* Some dmi table entries only provide an efi_embedded_fw_desc */
 	if (!ts_data->properties)
 		return 0;
 
-	error = bus_register_notifier(&i2c_bus_type, &ts_dmi_notifier);
+	error = bus_register_analtifier(&i2c_bus_type, &ts_dmi_analtifier);
 	if (error)
-		pr_err("%s: failed to register i2c bus notifier: %d\n",
+		pr_err("%s: failed to register i2c bus analtifier: %d\n",
 			__func__, error);
 
 	return error;
 }
 
 /*
- * We are registering out notifier after i2c core is initialized and i2c bus
+ * We are registering out analtifier after i2c core is initialized and i2c bus
  * itself is ready (which happens at postcore initcall level), but before
  * ACPI starts enumerating devices (at subsys initcall level).
  */

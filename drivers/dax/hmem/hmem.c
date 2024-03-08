@@ -20,7 +20,7 @@ static int dax_hmem_probe(struct platform_device *pdev)
 	/*
 	 * @region_idle == true indicates that an administrative agent
 	 * wants to manipulate the range partitioning before the devices
-	 * are created, so do not send them to the dax_kmem driver by
+	 * are created, so do analt send them to the dax_kmem driver by
 	 * default.
 	 */
 	if (region_idle)
@@ -28,9 +28,9 @@ static int dax_hmem_probe(struct platform_device *pdev)
 
 	mri = dev->platform_data;
 	dax_region = alloc_dax_region(dev, pdev->id, &mri->range,
-				      mri->target_node, PMD_SIZE, flags);
+				      mri->target_analde, PMD_SIZE, flags);
 	if (!dax_region)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = (struct dev_dax_data) {
 		.dax_region = dax_region,
@@ -82,7 +82,7 @@ static int hmem_register_device(struct device *host, int target_nid,
 	id = memregion_alloc(GFP_KERNEL);
 	if (id < 0) {
 		dev_err(host, "memregion allocation failure for %pr\n", res);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rc = devm_add_action_or_reset(host, release_memregion, (void *) id);
 	if (rc)
@@ -91,12 +91,12 @@ static int hmem_register_device(struct device *host, int target_nid,
 	pdev = platform_device_alloc("hmem", id);
 	if (!pdev) {
 		dev_err(host, "device allocation failure for %pr\n", res);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	pdev->dev.numa_node = numa_map_to_online_node(target_nid);
+	pdev->dev.numa_analde = numa_map_to_online_analde(target_nid);
 	info = (struct memregion_info) {
-		.target_node = target_nid,
+		.target_analde = target_nid,
 		.range = {
 			.start = res->start,
 			.end = res->end,

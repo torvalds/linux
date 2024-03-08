@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -31,16 +31,16 @@
 
 
 /**
- * Note: the brcmfmac can be loaded as module or be statically built-in into
- * the kernel. If built-in then do note that it uses module_init (and
+ * Analte: the brcmfmac can be loaded as module or be statically built-in into
+ * the kernel. If built-in then do analte that it uses module_init (and
  * module_exit) routines which equal device_initcall. So if you intend to
  * create a module with the platform specific data for the brcmfmac and have
  * it built-in to the kernel then use a higher initcall then device_initcall
- * (see init.h). If this is not done then brcmfmac will load without problems
- * but will not pickup the platform data.
+ * (see init.h). If this is analt done then brcmfmac will load without problems
+ * but will analt pickup the platform data.
  *
- * When the driver does not "detect" platform driver data then it will continue
- * without reporting anything and just assume there is no data needed. Which is
+ * When the driver does analt "detect" platform driver data then it will continue
+ * without reporting anything and just assume there is anal data needed. Which is
  * probably true for most platforms.
  */
 
@@ -163,14 +163,14 @@ struct brcmfmac_pd_device {
  * @power_on:	This function is called by the brcmfmac driver when the module
  *		gets loaded. This can be particularly useful for low power
  *		devices. The platform spcific routine may for example decide to
- *		power up the complete device. If there is no use-case for this
+ *		power up the complete device. If there is anal use-case for this
  *		function then provide NULL.
  * @power_off:	This function is called by the brcmfmac when the module gets
  *		unloaded. At this point the devices can be powered down or
- *		otherwise be reset. So if an actual power_off is not supported
+ *		otherwise be reset. So if an actual power_off is analt supported
  *		but reset is supported by the devices then reset the devices
  *		when this function gets called. This can be particularly useful
- *		for low power devices. If there is no use-case for this
+ *		for low power devices. If there is anal use-case for this
  *		function then provide NULL.
  */
 struct brcmfmac_platform_data {

@@ -144,7 +144,7 @@ menuconfig ARCH_SUNPLUS
 	help
 	  Support for Sunplus SoC family: SP7021 and succeeding SoC-based systems,
 	  such as the Banana Pi BPI-F2S development board (and derivatives).
-	  (<http://www.sinovoip.com.cn/ecp_view.asp?id=586>)
+	  (<http://www.sianalvoip.com.cn/ecp_view.asp?id=586>)
 	  (<https://tibbo.com/store/plus1.html>)
 
 if ARCH_SUNPLUS

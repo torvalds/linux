@@ -10,7 +10,7 @@ Contact:	Sven Van Asbroeck <TheSven73@gmail.com>
 Description:
 		The type of fieldbus implemented by this device.
 		Possible values:
-			'unknown'
+			'unkanalwn'
 			'profinet'
 
 What:		/sys/class/fieldbus_dev/fieldbus_devX/fieldbus_id
@@ -26,7 +26,7 @@ KernelVersion:	5.1 (staging)
 Contact:	Sven Van Asbroeck <TheSven73@gmail.com>
 Description:
 		The size, in bytes, of the Process Memory read area.
-		Note: this area is accessible by reading from the associated
+		Analte: this area is accessible by reading from the associated
 			character device (/dev/fieldbus_devX).
 
 What:		/sys/class/fieldbus_dev/fieldbus_devX/write_area_size
@@ -34,7 +34,7 @@ KernelVersion:	5.1 (staging)
 Contact:	Sven Van Asbroeck <TheSven73@gmail.com>
 Description:
 		The size, in bytes, of the Process Memory write area.
-		Note: this area is accessible by writing to the associated
+		Analte: this area is accessible by writing to the associated
 			character device (/dev/fieldbus_devX)
 
 What:		/sys/class/fieldbus_dev/fieldbus_devX/online
@@ -45,7 +45,7 @@ Description:
 		Possible values:
 			'1' meaning 'online'
 			'0' meaning 'offline'
-		Note: an uevent is generated when this property changes.
+		Analte: an uevent is generated when this property changes.
 
 What:		/sys/class/fieldbus_dev/fieldbus_devX/enabled
 KernelVersion:	5.1 (staging)
@@ -56,7 +56,7 @@ Description:
 		Possible values:
 			'1' meaning enabled
 			'0' meaning disabled
-		Normally a r/o property, but optionally r/w:
+		Analrmally a r/o property, but optionally r/w:
 		Writing '1' enables the device (power on) with default
 			settings.
 		Writing '0' disables the card (power off).

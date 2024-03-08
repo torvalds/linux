@@ -31,7 +31,7 @@ static int channels_prepare_data(const struct ethnl_req_info *req_base,
 	int ret;
 
 	if (!dev->ethtool_ops->get_channels)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		return ret;
@@ -103,7 +103,7 @@ ethnl_set_channels_validate(struct ethnl_req_info *req_info,
 {
 	const struct ethtool_ops *ops = req_info->dev->ethtool_ops;
 
-	return ops->get_channels && ops->set_channels ? 1 : -EOPNOTSUPP;
+	return ops->get_channels && ops->set_channels ? 1 : -EOPANALTSUPP;
 }
 
 static int
@@ -162,7 +162,7 @@ ethnl_set_channels(struct ethnl_req_info *req_info, struct genl_info *info)
 		if (mod_combined)
 			err_attr = ETHTOOL_A_CHANNELS_COMBINED_COUNT;
 		NL_SET_ERR_MSG_ATTR(info->extack, tb[err_attr],
-				    "requested channel counts would result in no RX or TX channel being configured");
+				    "requested channel counts would result in anal RX or TX channel being configured");
 		return -EINVAL;
 	}
 

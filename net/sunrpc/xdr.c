@@ -13,7 +13,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/pagemap.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/msg_prot.h>
 #include <linux/bvec.h>
@@ -59,7 +59,7 @@ EXPORT_SYMBOL_GPL(xdr_decode_netobj);
  * Copy the array of data of length nbytes at ptr to the XDR buffer
  * at position p, then align to the next 32-bit boundary by padding
  * with zero bytes (see RFC1832).
- * Note: if ptr is NULL, only the padding is performed.
+ * Analte: if ptr is NULL, only the padding is performed.
  *
  * Returns the updated current XDR buffer position
  *
@@ -148,7 +148,7 @@ xdr_alloc_bvec(struct xdr_buf *buf, gfp_t gfp)
 	if (n != 0 && buf->bvec == NULL) {
 		buf->bvec = kmalloc_array(n, sizeof(buf->bvec[0]), gfp);
 		if (!buf->bvec)
-			return -ENOMEM;
+			return -EANALMEM;
 		for (i = 0; i < n; i++) {
 			bvec_set_page(&buf->bvec[i], buf->pages[i], PAGE_SIZE,
 				      0);
@@ -255,11 +255,11 @@ EXPORT_SYMBOL_GPL(xdr_inline_pages);
  * @pgfrom_base: page vector address of source
  * @len: number of bytes to copy
  *
- * Note: the addresses pgto_base and pgfrom_base are both calculated in
+ * Analte: the addresses pgto_base and pgfrom_base are both calculated in
  *       the same way:
  *            if a memory area starts at byte 'base' in page 'pages[i]',
  *            then its address is given as (i << PAGE_CACHE_SHIFT) + base
- * Alse note: pgto_base must be < pgfrom_base, but the memory areas
+ * Alse analte: pgto_base must be < pgfrom_base, but the memory areas
  * 	they point to may overlap.
  */
 static void
@@ -320,11 +320,11 @@ _shift_data_left_pages(struct page **pages, size_t pgto_base,
  * @pgfrom_base: page vector address of source
  * @len: number of bytes to copy
  *
- * Note: the addresses pgto_base and pgfrom_base are both calculated in
+ * Analte: the addresses pgto_base and pgfrom_base are both calculated in
  *       the same way:
  *            if a memory area starts at byte 'base' in page 'pages[i]',
  *            then its address is given as (i << PAGE_SHIFT) + base
- * Also note: pgfrom_base must be < pgto_base, but the memory areas
+ * Also analte: pgfrom_base must be < pgto_base, but the memory areas
  * 	they point to may overlap.
  */
 static void
@@ -389,7 +389,7 @@ _shift_data_right_pages(struct page **pages, size_t pgto_base,
  * @len: length
  *
  * Copies data from an arbitrary memory location into an array of pages
- * The copy is assumed to be non-overlapping.
+ * The copy is assumed to be analn-overlapping.
  */
 static void
 _copy_to_pages(struct page **pages, size_t pgbase, const char *p, size_t len)
@@ -436,7 +436,7 @@ _copy_to_pages(struct page **pages, size_t pgbase, const char *p, size_t len)
  * @len: length
  *
  * Copies data into an arbitrary memory location from an array of pages
- * The copy is assumed to be non-overlapping.
+ * The copy is assumed to be analn-overlapping.
  */
 void
 _copy_from_pages(char *p, struct page **pages, size_t pgbase, size_t len)
@@ -858,7 +858,7 @@ static void xdr_buf_head_shift_left(const struct xdr_buf *buf,
  * @len: new length of buf->head[0]
  *
  * Shrinks XDR buffer's header kvec buf->head[0], setting it to
- * 'len' bytes. The extra data is not lost, but is instead
+ * 'len' bytes. The extra data is analt lost, but is instead
  * moved into the inlined pages and/or the tail.
  */
 static unsigned int xdr_shrink_bufhead(struct xdr_buf *buf, unsigned int len)
@@ -887,7 +887,7 @@ static unsigned int xdr_shrink_bufhead(struct xdr_buf *buf, unsigned int len)
  * @buf: xdr_buf
  * @len: new page buffer length
  *
- * The extra data is not lost, but is instead moved into buf->tail.
+ * The extra data is analt lost, but is instead moved into buf->tail.
  * Returns the actual number of bytes moved.
  */
 static unsigned int xdr_shrink_pagelen(struct xdr_buf *buf, unsigned int len)
@@ -954,7 +954,7 @@ EXPORT_SYMBOL_GPL(xdr_page_pos);
  * @p: current pointer inside XDR buffer
  * @rqst: pointer to controlling rpc_rqst, for debugging
  *
- * Note: at the moment the RPC client only passes the length of our
+ * Analte: at the moment the RPC client only passes the length of our
  *	 scratch buffer in the xdr_buf's header kvec. Previously this
  *	 meant we needed to call xdr_adjust_iovec() after encoding the
  *	 data. With the new scheme, the xdr_stream manages the details
@@ -1018,7 +1018,7 @@ EXPORT_SYMBOL_GPL(xdr_init_encode_pages);
  * temporary location to write to, then later copying the data into
  * place; xdr_commit_encode does that copying.
  *
- * Normally the caller doesn't need to call this directly, as the
+ * Analrmally the caller doesn't need to call this directly, as the
  * following xdr_reserve_space will do it.  But an explicit call may be
  * required at the end of encoding, or any other time when the xdr_buf
  * data might be read.
@@ -1040,7 +1040,7 @@ EXPORT_SYMBOL_GPL(__xdr_commit_encode);
  * xdr->buf->head and xdr->buf->pages, or between two pages
  * in xdr->buf->pages.
  */
-static noinline __be32 *xdr_get_next_encode_buffer(struct xdr_stream *xdr,
+static analinline __be32 *xdr_get_next_encode_buffer(struct xdr_stream *xdr,
 						   size_t nbytes)
 {
 	int space_left;
@@ -1094,7 +1094,7 @@ out_overflow:
  * @xdr: pointer to xdr_stream
  * @nbytes: number of bytes to reserve
  *
- * Checks that we have enough buffer space to encode 'nbytes' more
+ * Checks that we have eanalugh buffer space to encode 'nbytes' more
  * bytes of data. If so, update the total xdr_buf length, and
  * adjust the length of the current kvec.
  */
@@ -1131,7 +1131,7 @@ EXPORT_SYMBOL_GPL(xdr_reserve_space);
  *
  * Return values:
  *   %0: success
- *   %-EMSGSIZE: not enough space is available in @xdr
+ *   %-EMSGSIZE: analt eanalugh space is available in @xdr
  */
 int xdr_reserve_space_vec(struct xdr_stream *xdr, size_t nbytes)
 {
@@ -1177,9 +1177,9 @@ EXPORT_SYMBOL_GPL(xdr_reserve_space_vec);
  * except in the case of the head buffer when we assume the head
  * buffer's current length represents the end of the available buffer.
  *
- * This is *not* safe to use on a buffer that already has inlined page
+ * This is *analt* safe to use on a buffer that already has inlined page
  * cache pages (as in a zero-copy server read reply), except for the
- * simple case of truncating from one position in the tail to another.
+ * simple case of truncating from one position in the tail to aanalther.
  *
  */
 void xdr_truncate_encode(struct xdr_stream *xdr, size_t len)
@@ -1255,7 +1255,7 @@ EXPORT_SYMBOL_GPL(xdr_truncate_decode);
  * Adjust our idea of how much space is available in the buffer.
  * If we've already used too much space in the buffer, returns -1.
  * If the available space is already smaller than newbuflen, returns 0
- * and does nothing.  Otherwise, adjusts xdr->buf->buflen to newbuflen
+ * and does analthing.  Otherwise, adjusts xdr->buf->buflen to newbuflen
  * and ensures xdr->end is set at most offset newbuflen from the start
  * of the buffer.
  */
@@ -1515,7 +1515,7 @@ out_overflow:
  * @xdr: pointer to xdr_stream struct
  * @nbytes: number of bytes of data to decode
  *
- * Check if the input buffer is long enough to enable us to decode
+ * Check if the input buffer is long eanalugh to enable us to decode
  * 'nbytes' more bytes of data starting at the current position.
  * If so return the current pointer, then update the current
  * pointer position.
@@ -1587,7 +1587,7 @@ static unsigned int xdr_align_pages(struct xdr_stream *xdr, unsigned int len)
  * bytes is moved into the XDR tail[]. The xdr_stream current position is
  * then advanced past that data to align to the next XDR object in the tail.
  *
- * Returns the number of XDR encoded bytes now contained in the pages
+ * Returns the number of XDR encoded bytes analw contained in the pages
  */
 unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 {
@@ -1779,7 +1779,7 @@ bool xdr_stream_subsegment(struct xdr_stream *xdr, struct xdr_buf *subbuf,
 EXPORT_SYMBOL_GPL(xdr_stream_subsegment);
 
 /**
- * xdr_stream_move_subsegment - Move part of a stream to another position
+ * xdr_stream_move_subsegment - Move part of a stream to aanalther position
  * @xdr: the source xdr_stream
  * @offset: the source offset of the segment
  * @target: the target offset of the segment
@@ -1837,7 +1837,7 @@ EXPORT_SYMBOL_GPL(xdr_stream_zero);
  * @buf: buf to be trimmed
  * @len: number of bytes to reduce "buf" by
  *
- * Trim an xdr_buf by the given number of bytes by fixing up the lengths. Note
+ * Trim an xdr_buf by the given number of bytes by fixing up the lengths. Analte
  * that it's possible that we'll trim less than that amount if the xdr_buf is
  * too small, or if (for instance) it's all in the head and the parser has
  * already read too far into it.
@@ -2001,7 +2001,7 @@ static int xdr_xcode_array2(const struct xdr_buf *buf, unsigned int base,
 		if (avail_here) {
 			if (!elem) {
 				elem = kmalloc(desc->elem_size, GFP_KERNEL);
-				err = -ENOMEM;
+				err = -EANALMEM;
 				if (!elem)
 					goto out;
 			}
@@ -2040,7 +2040,7 @@ static int xdr_xcode_array2(const struct xdr_buf *buf, unsigned int base,
 				if (!elem) {
 					elem = kmalloc(desc->elem_size,
 						       GFP_KERNEL);
-					err = -ENOMEM;
+					err = -EANALMEM;
 					if (!elem)
 						goto out;
 				}
@@ -2080,7 +2080,7 @@ static int xdr_xcode_array2(const struct xdr_buf *buf, unsigned int base,
 				if (!elem) {
 					elem = kmalloc(desc->elem_size,
 						       GFP_KERNEL);
-					err = -ENOMEM;
+					err = -EANALMEM;
 					if (!elem)
 						goto out;
 				}
@@ -2275,7 +2275,7 @@ EXPORT_SYMBOL_GPL(xdr_stream_decode_opaque);
  *   On success, returns size of object stored in *@ptr
  *   %-EBADMSG on XDR buffer overflow
  *   %-EMSGSIZE if the size of the object would exceed @maxlen
- *   %-ENOMEM on memory allocation failure
+ *   %-EANALMEM on memory allocation failure
  */
 ssize_t xdr_stream_decode_opaque_dup(struct xdr_stream *xdr, void **ptr,
 		size_t maxlen, gfp_t gfp_flags)
@@ -2288,7 +2288,7 @@ ssize_t xdr_stream_decode_opaque_dup(struct xdr_stream *xdr, void **ptr,
 		*ptr = kmemdup(p, ret, gfp_flags);
 		if (*ptr != NULL)
 			return ret;
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 	*ptr = NULL;
 	return ret;
@@ -2333,7 +2333,7 @@ EXPORT_SYMBOL_GPL(xdr_stream_decode_string);
  *   On success, returns length of NUL-terminated string stored in *@ptr
  *   %-EBADMSG on XDR buffer overflow
  *   %-EMSGSIZE if the size of the string would exceed @maxlen
- *   %-ENOMEM on memory allocation failure
+ *   %-EANALMEM on memory allocation failure
  */
 ssize_t xdr_stream_decode_string_dup(struct xdr_stream *xdr, char **str,
 		size_t maxlen, gfp_t gfp_flags)
@@ -2348,7 +2348,7 @@ ssize_t xdr_stream_decode_string_dup(struct xdr_stream *xdr, char **str,
 			*str = s;
 			return strlen(s);
 		}
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 	*str = NULL;
 	return ret;

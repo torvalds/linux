@@ -3,7 +3,7 @@
 // ak4642.c  --  AK4642/AK4643 ALSA Soc Audio driver
 //
 // Copyright (C) 2009 Renesas Solutions Corp.
-// Kuninori Morimoto <morimoto.kuninori@renesas.com>
+// Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
 //
 // Based on wm8731.c by Richard Purdie
 // Based on ak4535.c by Richard Purdie
@@ -202,7 +202,7 @@ static const struct snd_soc_dapm_widget ak4642_dapm_widgets[] = {
 
 	SND_SOC_DAPM_PGA("HPL Out", PW_MGMT2, 5, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("HPR Out", PW_MGMT2, 4, 0, NULL, 0),
-	SND_SOC_DAPM_SWITCH("Headphone Enable", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Headphone Enable", SND_SOC_ANALPM, 0, 0,
 			    &ak4642_headphone_control),
 
 	SND_SOC_DAPM_PGA("DACH", MD_CTL4, 0, 0, NULL, 0),
@@ -604,7 +604,7 @@ static const struct ak4642_drvdata ak4648_drvdata = {
 #ifdef CONFIG_COMMON_CLK
 static struct clk *ak4642_of_parse_mcko(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct clk *clk;
 	const char *clk_name = np->name;
 	const char *parent_clk_name = NULL;
@@ -636,7 +636,7 @@ static int ak4642_i2c_probe(struct i2c_client *i2c)
 	struct ak4642_priv *priv;
 	struct clk *mcko = NULL;
 
-	if (dev_fwnode(dev)) {
+	if (dev_fwanalde(dev)) {
 		mcko = ak4642_of_parse_mcko(dev);
 		if (IS_ERR(mcko))
 			mcko = NULL;
@@ -644,11 +644,11 @@ static int ak4642_i2c_probe(struct i2c_client *i2c)
 
 	drvdata = i2c_get_match_data(i2c);
 	if (!drvdata)
-		return dev_err_probe(dev, -EINVAL, "Unknown device type\n");
+		return dev_err_probe(dev, -EINVAL, "Unkanalwn device type\n");
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->drvdata = drvdata;
 	priv->mcko = mcko;
@@ -691,5 +691,5 @@ static struct i2c_driver ak4642_i2c_driver = {
 module_i2c_driver(ak4642_i2c_driver);
 
 MODULE_DESCRIPTION("Soc AK4642 driver");
-MODULE_AUTHOR("Kuninori Morimoto <morimoto.kuninori@renesas.com>");
+MODULE_AUTHOR("Kunianalri Morimoto <morimoto.kunianalri@renesas.com>");
 MODULE_LICENSE("GPL v2");

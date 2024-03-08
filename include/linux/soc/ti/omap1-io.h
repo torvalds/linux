@@ -7,7 +7,7 @@
 
 #ifdef CONFIG_ARCH_OMAP1
 /*
- * NOTE: Please use ioremap + __raw_read/write where possible instead of these
+ * ANALTE: Please use ioremap + __raw_read/write where possible instead of these
  */
 extern u8 omap_readb(u32 pa);
 extern u16 omap_readw(u32 pa);
@@ -42,7 +42,7 @@ static inline void omap_writel(u32 v, u32 pa)  { }
 #define ULPD_IT_STATUS		(ULPD_REG_BASE + 0x14)
 #define ULPD_SETUP_ANALOG_CELL_3	(ULPD_REG_BASE + 0x24)
 #define ULPD_CLOCK_CTRL		(ULPD_REG_BASE + 0x30)
-#	define DIS_USB_PVCI_CLK		(1 << 5)	/* no USB/FAC synch */
+#	define DIS_USB_PVCI_CLK		(1 << 5)	/* anal USB/FAC synch */
 #	define USB_MCLK_EN		(1 << 4)	/* enable W4_USB_CLKO */
 #define ULPD_SOFT_REQ		(ULPD_REG_BASE + 0x34)
 #	define SOFT_UDC_REQ		(1 << 4)

@@ -66,8 +66,8 @@ static int stadiaff_init(struct hid_device *hid)
 	int error;
 
 	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
-		return -ENODEV;
+		hid_err(hid, "anal inputs found\n");
+		return -EANALDEV;
 	}
 	hidinput = list_entry(hid->inputs.next, struct hid_input, list);
 	dev = hidinput->input;
@@ -75,12 +75,12 @@ static int stadiaff_init(struct hid_device *hid)
 	report = hid_validate_values(hid, HID_OUTPUT_REPORT,
 				     STADIA_FF_REPORT_ID, 0, 2);
 	if (!report)
-		return -ENODEV;
+		return -EANALDEV;
 
 	stadiaff = devm_kzalloc(&hid->dev, sizeof(struct stadiaff_device),
 				GFP_KERNEL);
 	if (!stadiaff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hid_set_drvdata(hid, stadiaff);
 

@@ -11,7 +11,7 @@ maintainers:
   - Jon Hunter <jonathanh@nvidia.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^dc@[0-9a-f]+$"
 
   compatible:
@@ -107,7 +107,7 @@ allOf:
             - const: cursor
 
         rgb:
-          description: Each display controller node has a child node, named "rgb", that represents
+          description: Each display controller analde has a child analde, named "rgb", that represents
             the RGB output associated with the controller.
           type: object
           properties:

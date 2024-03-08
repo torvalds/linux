@@ -17,7 +17,7 @@ def usage():
 
 This program parses the output from a set of printk message lines which
 have time data prefixed because the CONFIG_PRINTK_TIME option is set, or
-the kernel command line option "time" is specified. When run with no
+the kernel command line option "time" is specified. When run with anal
 options, the time information is converted to show the time delta between
 each printk line and the next.  When run with the '-b' option, all times
 are relative to a single (base) point in time.
@@ -40,7 +40,7 @@ starting with "NET4".
 
 # returns a tuple containing the seconds and text for each message line
 # seconds is returned as a float
-# raise an exception if no timing data was found
+# raise an exception if anal timing data was found
 def get_time(line):
 	if line[0]!="[":
 		raise ValueError
@@ -88,7 +88,7 @@ def main():
 		else:
 			filein = arg
 
-	if not filein:
+	if analt filein:
 		usage()
 
 	try:
@@ -116,7 +116,7 @@ def main():
 					found = 1
 					# stop at first match
 					break
-			if not found:
+			if analt found:
 				print ('Couldn\'t find line matching base pattern "%s"' % base_str)
 				sys.exit(1)
 	else:

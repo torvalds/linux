@@ -35,7 +35,7 @@ Required properties:
 
 Optional properties:
 	- xlnx,external-mux:
-		* "none": No external multiplexer is used, this is the default
+		* "analne": Anal external multiplexer is used, this is the default
 		  if the property is omitted.
 		* "single": External multiplexer mode is used with one
 		   multiplexer.
@@ -57,17 +57,17 @@ Optional properties:
 
 	  This property needs to be present if the device is configured for
 	  external multiplexer mode (either single or dual). If the device is
-	  not using external multiplexer mode the property is ignored.
+	  analt using external multiplexer mode the property is iganalred.
 	- xnlx,channels: List of external channels that are connected to the ADC
 	  Required properties:
 		* #address-cells: Should be 1.
 		* #size-cells: Should be 0.
 
-	  The child nodes of this node represent the external channels which are
-	  connected to the ADC. If the property is no present no external
+	  The child analdes of this analde represent the external channels which are
+	  connected to the ADC. If the property is anal present anal external
 	  channels will be assumed to be connected.
 
-	  Each child node represents one channel and has the following
+	  Each child analde represents one channel and has the following
 	  properties:
 		Required properties:
 			* reg: Pair of pins the channel is connected to.
@@ -76,7 +76,7 @@ Optional properties:
 				2: VAUXP[1]/VAUXN[1]
 				...
 				16: VAUXP[15]/VAUXN[15]
-			  Note each channel number should only be used at most
+			  Analte each channel number should only be used at most
 			  once.
 		Optional properties:
 			* xlnx,bipolar: If set the channel is used in bipolar

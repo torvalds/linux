@@ -37,11 +37,11 @@
 
 static int dsi_populate_dsc_params(struct msm_dsi_host *msm_host, struct drm_dsc_config *dsc);
 
-static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
+static int dsi_get_version(const void __iomem *base, u32 *major, u32 *mianalr)
 {
 	u32 ver;
 
-	if (!major || !minor)
+	if (!major || !mianalr)
 		return -EINVAL;
 
 	/*
@@ -50,19 +50,19 @@ static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
 	 *
 	 * In order to identify between DSI6G(v3) and beyond, and DSIv2 and
 	 * older, we read the DSI_VERSION register without any shift(offset
-	 * 0x1f0). In the case of DSIv2, this hast to be a non-zero value. In
+	 * 0x1f0). In the case of DSIv2, this hast to be a analn-zero value. In
 	 * the case of DSI6G, this has to be zero (the offset points to a
 	 * scratch register which we never touch)
 	 */
 
 	ver = msm_readl(base + REG_DSI_VERSION);
 	if (ver) {
-		/* older dsi host, there is no register shift */
+		/* older dsi host, there is anal register shift */
 		ver = FIELD(ver, DSI_VERSION_MAJOR);
 		if (ver <= MSM_DSI_VER_MAJOR_V2) {
 			/* old versions */
 			*major = ver;
-			*minor = 0;
+			*mianalr = 0;
 			return 0;
 		} else {
 			return -EINVAL;
@@ -78,7 +78,7 @@ static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
 		if (ver == MSM_DSI_VER_MAJOR_6G) {
 			/* 6G version */
 			*major = ver;
-			*minor = msm_readl(base + REG_DSI_6G_HW_VERSION);
+			*mianalr = msm_readl(base + REG_DSI_6G_HW_VERSION);
 			return 0;
 		} else {
 			return -EINVAL;
@@ -210,11 +210,11 @@ static const struct msm_dsi_cfg_handler *dsi_get_config(
 	struct device *dev = &msm_host->pdev->dev;
 	struct clk *ahb_clk;
 	int ret;
-	u32 major = 0, minor = 0;
+	u32 major = 0, mianalr = 0;
 
 	ahb_clk = msm_clk_get(msm_host->pdev, "iface");
 	if (IS_ERR(ahb_clk)) {
-		pr_err("%s: cannot get interface clock\n", __func__);
+		pr_err("%s: cananalt get interface clock\n", __func__);
 		goto exit;
 	}
 
@@ -226,15 +226,15 @@ static const struct msm_dsi_cfg_handler *dsi_get_config(
 		goto runtime_put;
 	}
 
-	ret = dsi_get_version(msm_host->ctrl_base, &major, &minor);
+	ret = dsi_get_version(msm_host->ctrl_base, &major, &mianalr);
 	if (ret) {
 		pr_err("%s: Invalid version\n", __func__);
 		goto disable_clks;
 	}
 
-	cfg_hnd = msm_dsi_cfg_get(major, minor);
+	cfg_hnd = msm_dsi_cfg_get(major, mianalr);
 
-	DBG("%s: Version %x:%x\n", __func__, major, minor);
+	DBG("%s: Version %x:%x\n", __func__, major, mianalr);
 
 disable_clks:
 	clk_disable_unprepare(ahb_clk);
@@ -599,7 +599,7 @@ static void dsi_calc_pclk(struct msm_dsi_host *msm_host, bool is_bonded_dsi)
 int dsi_calc_clk_rate_6g(struct msm_dsi_host *msm_host, bool is_bonded_dsi)
 {
 	if (!msm_host->mode) {
-		pr_err("%s: mode not set\n", __func__);
+		pr_err("%s: mode analt set\n", __func__);
 		return -EINVAL;
 	}
 
@@ -633,7 +633,7 @@ int dsi_calc_clk_rate_v2(struct msm_dsi_host *msm_host, bool is_bonded_dsi)
 		esc_div = DIV_ROUND_UP(byte_mhz, esc_mhz);
 
 		/*
-		 * TODO: Ideally, we shouldn't know what sort of divider
+		 * TODO: Ideally, we shouldn't kanalw what sort of divider
 		 * is available in mmss_cc, we're just assuming that
 		 * it'll always be a 4 bit divider. Need to come up with
 		 * a better way here.
@@ -677,9 +677,9 @@ static inline enum dsi_traffic_mode dsi_get_traffic_mode(const u32 mode_flags)
 	if (mode_flags & MIPI_DSI_MODE_VIDEO_BURST)
 		return BURST_MODE;
 	else if (mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE)
-		return NON_BURST_SYNCH_PULSE;
+		return ANALN_BURST_SYNCH_PULSE;
 
-	return NON_BURST_SYNCH_EVENT;
+	return ANALN_BURST_SYNCH_EVENT;
 }
 
 static inline enum dsi_vid_dst_format dsi_get_vid_fmt(
@@ -717,7 +717,7 @@ bool msm_dsi_host_is_wide_bus_enabled(struct mipi_dsi_host *host)
 
 	return msm_host->dsc &&
 		(msm_host->cfg_hnd->major == MSM_DSI_VER_MAJOR_6G &&
-		 msm_host->cfg_hnd->minor >= MSM_DSI_6G_VER_MINOR_V2_5_0);
+		 msm_host->cfg_hnd->mianalr >= MSM_DSI_6G_VER_MIANALR_V2_5_0);
 }
 
 static void dsi_ctrl_enable(struct msm_dsi_host *msm_host,
@@ -731,11 +731,11 @@ static void dsi_ctrl_enable(struct msm_dsi_host *msm_host,
 	if (flags & MIPI_DSI_MODE_VIDEO) {
 		if (flags & MIPI_DSI_MODE_VIDEO_HSE)
 			data |= DSI_VID_CFG0_PULSE_MODE_HSA_HE;
-		if (flags & MIPI_DSI_MODE_VIDEO_NO_HFP)
+		if (flags & MIPI_DSI_MODE_VIDEO_ANAL_HFP)
 			data |= DSI_VID_CFG0_HFP_POWER_STOP;
-		if (flags & MIPI_DSI_MODE_VIDEO_NO_HBP)
+		if (flags & MIPI_DSI_MODE_VIDEO_ANAL_HBP)
 			data |= DSI_VID_CFG0_HBP_POWER_STOP;
-		if (flags & MIPI_DSI_MODE_VIDEO_NO_HSA)
+		if (flags & MIPI_DSI_MODE_VIDEO_ANAL_HSA)
 			data |= DSI_VID_CFG0_HSA_POWER_STOP;
 		/* Always set low power stop mode for BLLP
 		 * to let command engine send packets
@@ -747,11 +747,11 @@ static void dsi_ctrl_enable(struct msm_dsi_host *msm_host,
 		data |= DSI_VID_CFG0_VIRT_CHANNEL(msm_host->channel);
 		dsi_write(msm_host, REG_DSI_VID_CFG0, data);
 
-		/* Do not swap RGB colors */
+		/* Do analt swap RGB colors */
 		data = DSI_VID_CFG1_RGB_SWAP(SWAP_RGB);
 		dsi_write(msm_host, REG_DSI_VID_CFG1, 0);
 	} else {
-		/* Do not swap RGB colors */
+		/* Do analt swap RGB colors */
 		data = DSI_CMD_CFG0_RGB_SWAP(SWAP_RGB);
 		data |= DSI_CMD_CFG0_DST_FORMAT(dsi_get_cmd_fmt(mipi_fmt));
 		dsi_write(msm_host, REG_DSI_CMD_CFG0, data);
@@ -766,7 +766,7 @@ static void dsi_ctrl_enable(struct msm_dsi_host *msm_host,
 		if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) {
 			data = dsi_read(msm_host, REG_DSI_CMD_MODE_MDP_CTRL2);
 
-			if (cfg_hnd->minor >= MSM_DSI_6G_VER_MINOR_V1_3)
+			if (cfg_hnd->mianalr >= MSM_DSI_6G_VER_MIANALR_V1_3)
 				data |= DSI_CMD_MODE_MDP_CTRL2_BURST_MODE;
 
 			/* TODO: Allow for video-mode support once tested/fixed */
@@ -784,11 +784,11 @@ static void dsi_ctrl_enable(struct msm_dsi_host *msm_host,
 	data = 0;
 	/* Always assume dedicated TE pin */
 	data |= DSI_TRIG_CTRL_TE;
-	data |= DSI_TRIG_CTRL_MDP_TRIGGER(TRIGGER_NONE);
+	data |= DSI_TRIG_CTRL_MDP_TRIGGER(TRIGGER_ANALNE);
 	data |= DSI_TRIG_CTRL_DMA_TRIGGER(TRIGGER_SW);
 	data |= DSI_TRIG_CTRL_STREAM(msm_host->channel);
 	if ((cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) &&
-		(cfg_hnd->minor >= MSM_DSI_6G_VER_MINOR_V1_2))
+		(cfg_hnd->mianalr >= MSM_DSI_6G_VER_MIANALR_V1_2))
 		data |= DSI_TRIG_CTRL_BLOCK_DMA_WITHIN_FRAME;
 	dsi_write(msm_host, REG_DSI_TRIG_CTRL, data);
 
@@ -797,13 +797,13 @@ static void dsi_ctrl_enable(struct msm_dsi_host *msm_host,
 	dsi_write(msm_host, REG_DSI_CLKOUT_TIMING_CTRL, data);
 
 	if ((cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) &&
-	    (cfg_hnd->minor > MSM_DSI_6G_VER_MINOR_V1_0) &&
+	    (cfg_hnd->mianalr > MSM_DSI_6G_VER_MIANALR_V1_0) &&
 	    phy_shared_timings->clk_pre_inc_by_2)
 		dsi_write(msm_host, REG_DSI_T_CLK_PRE_EXTEND,
 			  DSI_T_CLK_PRE_EXTEND_INC_BY_2_BYTECLK);
 
 	data = 0;
-	if (!(flags & MIPI_DSI_MODE_NO_EOT_PACKET))
+	if (!(flags & MIPI_DSI_MODE_ANAL_EOT_PACKET))
 		data |= DSI_EOT_PACKET_CTRL_TX_EOT_APPEND;
 	dsi_write(msm_host, REG_DSI_EOT_PACKET_CTRL, data);
 
@@ -822,7 +822,7 @@ static void dsi_ctrl_enable(struct msm_dsi_host *msm_host,
 	dsi_write(msm_host, REG_DSI_LANE_SWAP_CTRL,
 		  DSI_LANE_SWAP_CTRL_DLN_SWAP_SEL(msm_host->dlane_swap));
 
-	if (!(flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)) {
+	if (!(flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS)) {
 		lane_ctrl = dsi_read(msm_host, REG_DSI_LANE_CTRL);
 
 		if (msm_dsi_phy_set_continuous_clock(phy, true))
@@ -861,7 +861,7 @@ static void dsi_update_dsc_timing(struct msm_dsi_host *msm_host, bool is_cmd_mod
 	 * Typically, pkt_per_line = slice_per_intf * slice_per_pkt.
 	 *
 	 * Since the current driver only supports slice_per_pkt = 1,
-	 * pkt_per_line will be equal to slice per intf for now.
+	 * pkt_per_line will be equal to slice per intf for analw.
 	 */
 	pkt_per_line = slice_per_intf;
 
@@ -1113,10 +1113,10 @@ static void dsi_wait4video_eng_busy(struct msm_dsi_host *msm_host)
 
 	data = dsi_read(msm_host, REG_DSI_STATUS0);
 
-	/* if video mode engine is not busy, its because
-	 * either timing engine was not turned on or the
+	/* if video mode engine is analt busy, its because
+	 * either timing engine was analt turned on or the
 	 * DSI controller has finished transmitting the video
-	 * data already, so no need to wait in those cases
+	 * data already, so anal need to wait in those cases
 	 */
 	if (!(data & DSI_STATUS0_VIDEO_MODE_ENGINE_BUSY))
 		return;
@@ -1160,7 +1160,7 @@ int dsi_tx_buf_alloc_v2(struct msm_dsi_host *msm_host, int size)
 	msm_host->tx_buf = dma_alloc_coherent(dev->dev, size,
 					&msm_host->tx_buf_paddr, GFP_KERNEL);
 	if (!msm_host->tx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msm_host->tx_size = size;
 
@@ -1273,7 +1273,7 @@ static int dsi_short_read1_resp(u8 *buf, const struct mipi_dsi_msg *msg)
 		*data = buf[1]; /* strip out dcs type */
 		return 1;
 	} else {
-		pr_err("%s: read data does not match with rx_buf len %zu\n",
+		pr_err("%s: read data does analt match with rx_buf len %zu\n",
 			__func__, msg->rx_len);
 		return -EINVAL;
 	}
@@ -1290,7 +1290,7 @@ static int dsi_short_read2_resp(u8 *buf, const struct mipi_dsi_msg *msg)
 		data[1] = buf[2];
 		return 2;
 	} else {
-		pr_err("%s: read data does not match with rx_buf len %zu\n",
+		pr_err("%s: read data does analt match with rx_buf len %zu\n",
 			__func__, msg->rx_len);
 		return -EINVAL;
 	}
@@ -1422,7 +1422,7 @@ static int dsi_cmds2buf_tx(struct msm_dsi_host *msm_host,
 		return len;
 	}
 
-	/* for video mode, do not send cmds more than
+	/* for video mode, do analt send cmds more than
 	* one pixel line, since it only transmit it
 	* during BLLP.
 	*/
@@ -1432,7 +1432,7 @@ static int dsi_cmds2buf_tx(struct msm_dsi_host *msm_host,
 	 * command can be fit into one BLLP.
 	 */
 	if ((msm_host->mode_flags & MIPI_DSI_MODE_VIDEO) && (len > bllp_len)) {
-		pr_err("%s: cmd cannot fit into BLLP period, len=%d\n",
+		pr_err("%s: cmd cananalt fit into BLLP period, len=%d\n",
 			__func__, len);
 		return -EINVAL;
 	}
@@ -1601,7 +1601,7 @@ static int dsi_host_init_panel_gpios(struct msm_dsi_host *msm_host,
 							 "disp-enable",
 							 GPIOD_OUT_LOW);
 	if (IS_ERR(msm_host->disp_en_gpio)) {
-		DBG("cannot get disp-enable-gpios %ld",
+		DBG("cananalt get disp-enable-gpios %ld",
 				PTR_ERR(msm_host->disp_en_gpio));
 		return PTR_ERR(msm_host->disp_en_gpio);
 	}
@@ -1609,7 +1609,7 @@ static int dsi_host_init_panel_gpios(struct msm_dsi_host *msm_host,
 	msm_host->te_gpio = devm_gpiod_get_optional(panel_device, "disp-te",
 								GPIOD_IN);
 	if (IS_ERR(msm_host->te_gpio)) {
-		DBG("cannot get disp-te-gpios %ld", PTR_ERR(msm_host->te_gpio));
+		DBG("cananalt get disp-te-gpios %ld", PTR_ERR(msm_host->te_gpio));
 		return PTR_ERR(msm_host->te_gpio);
 	}
 
@@ -1698,7 +1698,7 @@ static const int supported_data_lane_swaps[][4] = {
 };
 
 static int dsi_host_parse_lane_data(struct msm_dsi_host *msm_host,
-				    struct device_node *ep)
+				    struct device_analde *ep)
 {
 	struct device *dev = &msm_host->pdev->dev;
 	struct property *prop;
@@ -1767,13 +1767,13 @@ static int dsi_populate_dsc_params(struct msm_dsi_host *msm_host, struct drm_dsc
 	int ret;
 
 	if (dsc->bits_per_pixel & 0xf) {
-		DRM_DEV_ERROR(&msm_host->pdev->dev, "DSI does not support fractional bits_per_pixel\n");
+		DRM_DEV_ERROR(&msm_host->pdev->dev, "DSI does analt support fractional bits_per_pixel\n");
 		return -EINVAL;
 	}
 
 	if (dsc->bits_per_component != 8) {
-		DRM_DEV_ERROR(&msm_host->pdev->dev, "DSI does not support bits_per_component != 8 yet\n");
-		return -EOPNOTSUPP;
+		DRM_DEV_ERROR(&msm_host->pdev->dev, "DSI does analt support bits_per_component != 8 yet\n");
+		return -EOPANALTSUPP;
 	}
 
 	dsc->simple_422 = 0;
@@ -1786,7 +1786,7 @@ static int dsi_populate_dsc_params(struct msm_dsi_host *msm_host, struct drm_dsc
 	/* handle only bpp = bpc = 8, pre-SCR panels */
 	ret = drm_dsc_setup_rc_params(dsc, DRM_DSC_1_1_PRE_SCR);
 	if (ret) {
-		DRM_DEV_ERROR(&msm_host->pdev->dev, "could not find DSC RC parameters\n");
+		DRM_DEV_ERROR(&msm_host->pdev->dev, "could analt find DSC RC parameters\n");
 		return ret;
 	}
 
@@ -1799,19 +1799,19 @@ static int dsi_populate_dsc_params(struct msm_dsi_host *msm_host, struct drm_dsc
 static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 {
 	struct device *dev = &msm_host->pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *endpoint;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *endpoint;
 	int ret = 0;
 
 	/*
 	 * Get the endpoint of the output port of the DSI host. In our case,
 	 * this is mapped to port number with reg = 1. Don't return an error if
 	 * the remote endpoint isn't defined. It's possible that there is
-	 * nothing connected to the dsi output.
+	 * analthing connected to the dsi output.
 	 */
 	endpoint = of_graph_get_endpoint_by_regs(np, 1, -1);
 	if (!endpoint) {
-		DRM_DEV_DEBUG(dev, "%s: no endpoint\n", __func__);
+		DRM_DEV_DEBUG(dev, "%s: anal endpoint\n", __func__);
 		return 0;
 	}
 
@@ -1834,7 +1834,7 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 	}
 
 err:
-	of_node_put(endpoint);
+	of_analde_put(endpoint);
 
 	return ret;
 }
@@ -1867,7 +1867,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 
 	msm_host = devm_kzalloc(&pdev->dev, sizeof(*msm_host), GFP_KERNEL);
 	if (!msm_host) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	msm_host->pdev = pdev;
@@ -1918,7 +1918,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 	msm_host->rx_buf = devm_kzalloc(&pdev->dev, SZ_4K, GFP_KERNEL);
 	if (!msm_host->rx_buf) {
 		pr_err("%s: alloc rx temp buf failed\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = devm_pm_opp_set_clkname(&pdev->dev, "byte");
@@ -1926,20 +1926,20 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 		return ret;
 	/* OPP table is optional */
 	ret = devm_pm_opp_of_add_table(&pdev->dev);
-	if (ret && ret != -ENODEV) {
+	if (ret && ret != -EANALDEV) {
 		dev_err(&pdev->dev, "invalid OPP table in device tree\n");
 		return ret;
 	}
 
-	msm_host->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	msm_host->irq = irq_of_parse_and_map(pdev->dev.of_analde, 0);
 	if (!msm_host->irq) {
 		dev_err(&pdev->dev, "failed to get irq\n");
 		return -EINVAL;
 	}
 
-	/* do not autoenable, will be enabled later */
+	/* do analt autoenable, will be enabled later */
 	ret = devm_request_irq(&pdev->dev, msm_host->irq, dsi_host_irq,
-			IRQF_TRIGGER_HIGH | IRQF_NO_AUTOEN,
+			IRQF_TRIGGER_HIGH | IRQF_ANAL_AUTOEN,
 			"dsi_isr", msm_host);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request IRQ%u: %d\n",
@@ -1956,7 +1956,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 	/* setup workqueue */
 	msm_host->workqueue = alloc_ordered_workqueue("dsi_drm_work", 0);
 	if (!msm_host->workqueue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&msm_host->err_work, dsi_err_worker);
 
@@ -2039,7 +2039,7 @@ int msm_dsi_host_xfer_prepare(struct mipi_dsi_host *host,
 
 	/* TODO: make sure dsi_cmd_mdp is idle.
 	 * Since DSI6G v1.2.0, we can set DSI_TRIG_CTRL.BLOCK_DMA_WITHIN_FRAME
-	 * to ask H/W to wait until cmd mdp is idle. S/W wait is not needed.
+	 * to ask H/W to wait until cmd mdp is idle. S/W wait is analt needed.
 	 * How to handle the old versions? Wait for mdp cmd done?
 	 */
 
@@ -2139,7 +2139,7 @@ int msm_dsi_host_cmd_rx(struct mipi_dsi_host *host,
 		}
 
 		if ((cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) &&
-			(cfg_hnd->minor >= MSM_DSI_6G_VER_MINOR_V1_1)) {
+			(cfg_hnd->mianalr >= MSM_DSI_6G_VER_MIANALR_V1_1)) {
 			/* Clear the RDBK_DATA registers */
 			dsi_write(msm_host, REG_DSI_RDBK_DATA_CTRL,
 					DSI_RDBK_DATA_CTRL_CLR);
@@ -2184,7 +2184,7 @@ int msm_dsi_host_cmd_rx(struct mipi_dsi_host *host,
 			dlen -= 2; /* 2 crc */
 			dlen -= diff;
 			buf += dlen;	/* next start position */
-			data_byte = 14;	/* NOT first read */
+			data_byte = 14;	/* ANALT first read */
 			if (rlen < data_byte)
 				pkt_size += rlen;
 			else
@@ -2196,7 +2196,7 @@ int msm_dsi_host_cmd_rx(struct mipi_dsi_host *host,
 	/*
 	 * For single Long read, if the requested rlen < 10,
 	 * we need to shift the start position of rx
-	 * data buffer to skip the bytes which are not
+	 * data buffer to skip the bytes which are analt
 	 * updated.
 	 */
 	if (pkt_size < 10 && !short_response)
@@ -2206,7 +2206,7 @@ int msm_dsi_host_cmd_rx(struct mipi_dsi_host *host,
 
 	cmd = buf[0];
 	switch (cmd) {
-	case MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT:
+	case MIPI_DSI_RX_ACKANALWLEDGE_AND_ERROR_REPORT:
 		pr_err("%s: rx ACK_ERR_PACLAGE\n", __func__);
 		ret = 0;
 		break;
@@ -2469,8 +2469,8 @@ int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 
 	msm_host->mode = drm_mode_duplicate(msm_host->dev, mode);
 	if (!msm_host->mode) {
-		pr_err("%s: cannot duplicate mode\n", __func__);
-		return -ENOMEM;
+		pr_err("%s: cananalt duplicate mode\n", __func__);
+		return -EANALMEM;
 	}
 
 	return 0;

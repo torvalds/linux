@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Network node table
+ * Network analde table
  *
- * SELinux must keep a mapping of network nodes to labels/SIDs.  This
- * mapping is maintained as part of the normal policy but a fast cache is
+ * SELinux must keep a mapping of network analdes to labels/SIDs.  This
+ * mapping is maintained as part of the analrmal policy but a fast cache is
  * needed to reduce the lookup overhead since most of these queries happen on
  * a per-packet basis.
  *
@@ -14,13 +14,13 @@
  * (c) Copyright Hewlett-Packard Development Company, L.P., 2007
  */
 
-#ifndef _SELINUX_NETNODE_H
-#define _SELINUX_NETNODE_H
+#ifndef _SELINUX_NETANALDE_H
+#define _SELINUX_NETANALDE_H
 
 #include <linux/types.h>
 
-void sel_netnode_flush(void);
+void sel_netanalde_flush(void);
 
-int sel_netnode_sid(void *addr, u16 family, u32 *sid);
+int sel_netanalde_sid(void *addr, u16 family, u32 *sid);
 
 #endif

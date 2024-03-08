@@ -28,12 +28,12 @@ void test_hash_large_key(void)
 		goto cleanup;
 
 	err = bpf_map_update_elem(hash_map_fd, &key, &value, BPF_ANY);
-	if (CHECK(err, "bpf_map_update_elem", "errno=%d\n", errno))
+	if (CHECK(err, "bpf_map_update_elem", "erranal=%d\n", erranal))
 		goto cleanup;
 
 	key.c = 1;
 	err = bpf_map_lookup_elem(hash_map_fd, &key, &value);
-	if (CHECK(err, "bpf_map_lookup_elem", "errno=%d\n", errno))
+	if (CHECK(err, "bpf_map_lookup_elem", "erranal=%d\n", erranal))
 		goto cleanup;
 
 	CHECK_FAIL(value != 42);

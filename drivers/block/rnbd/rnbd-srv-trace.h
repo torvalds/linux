@@ -2,7 +2,7 @@
 /*
  * RDMA Network Block Driver
  *
- * Copyright (c) 2022 1&1 IONOS SE. All rights reserved.
+ * Copyright (c) 2022 1&1 IOANALS SE. All rights reserved.
  */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM rnbd_srv

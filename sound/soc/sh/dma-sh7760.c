@@ -2,13 +2,13 @@
 //
 // SH7760 ("camelot") DMABRG audio DMA unit support
 //
-// Copyright (C) 2007 Manuel Lauss <mano@roarinelk.homelinux.net>
+// Copyright (C) 2007 Manuel Lauss <maanal@roarinelk.homelinux.net>
 //
 // The SH7760 DMABRG provides 4 dma channels (2x rec, 2x play), which
 // trigger an interrupt when one half of the programmed transfer size
 // has been xmitted.
 //
-// FIXME: little-endian only for now
+// FIXME: little-endian only for analw
 
 #include <linux/module.h>
 #include <linux/gfp.h>
@@ -39,10 +39,10 @@
 #define ACR_TDE		(1 << 0)
 
 /* receiver/transmitter data alignment */
-#define ACR_RAM_NONE	(0 << 24)
+#define ACR_RAM_ANALNE	(0 << 24)
 #define ACR_RAM_4BYTE	(1 << 24)
 #define ACR_RAM_2WORD	(2 << 24)
-#define ACR_TAM_NONE	(0 << 8)
+#define ACR_TAM_ANALNE	(0 << 8)
 #define ACR_TAM_4BYTE	(1 << 8)
 #define ACR_TAM_2WORD	(2 << 8)
 
@@ -78,7 +78,7 @@ struct camelot_pcm {
  * better for overall system performance. (The SH7760 is a puny CPU
  * with a slow SDRAM interface and poor internal bus bandwidth,
  * *especially* when the LCDC is active).  The minimum for the DMAC
- * is 8 bytes; 16kbytes are enough to get skip-free playback of a
+ * is 8 bytes; 16kbytes are eanalugh to get skip-free playback of a
  * 44kHz/16bit/stereo MP3 on a lightly loaded system, and maintain
  * reasonable responsiveness in MPlayer.
  */
@@ -273,7 +273,7 @@ static snd_pcm_uframes_t camelot_pos(struct snd_soc_component *component,
 	int recv = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? 0:1;
 	unsigned long pos;
 
-	/* cannot use the DMABRG pointer register: under load, by the
+	/* cananalt use the DMABRG pointer register: under load, by the
 	 * time ALSA comes around to read the register, it is already
 	 * far ahead (or worse, already done with the fragment) of the
 	 * position at the time the IRQ was triggered, which results in
@@ -331,4 +331,4 @@ module_platform_driver(sh7760_pcm_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("SH7760 Audio DMA (DMABRG) driver");
-MODULE_AUTHOR("Manuel Lauss <mano@roarinelk.homelinux.net>");
+MODULE_AUTHOR("Manuel Lauss <maanal@roarinelk.homelinux.net>");

@@ -54,7 +54,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	}
 
 	if (len > TASK_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (addr) {
 		if (do_align)
@@ -98,7 +98,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 
 	/* requested length too big for entire address space */
 	if (len > TASK_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (flags & MAP_FIXED) {
 		if (aliasing && flags & MAP_SHARED &&
@@ -134,7 +134,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	 * allocations.
 	 */
 	if (addr & ~PAGE_MASK) {
-		VM_BUG_ON(addr != -ENOMEM);
+		VM_BUG_ON(addr != -EANALMEM);
 		info.flags = 0;
 		info.low_limit = mm->mmap_base;
 		info.high_limit = TASK_SIZE;
@@ -159,7 +159,7 @@ int valid_phys_addr_range(phys_addr_t addr, size_t size)
 }
 
 /*
- * Do not allow /dev/mem mappings beyond the supported physical range.
+ * Do analt allow /dev/mem mappings beyond the supported physical range.
  */
 int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
 {

@@ -30,7 +30,7 @@
  * @cb:			fence callback information
  *
  * flags:
- * POLL_ENABLED: whether userspace is currently poll()'ing or not
+ * POLL_ENABLED: whether userspace is currently poll()'ing or analt
  */
 struct sync_file {
 	struct file		*file;

@@ -28,7 +28,7 @@ static const struct mfd_cell bcm2835_power_devs[] = {
 static int bcm2835_pm_get_pdata(struct platform_device *pdev,
 				struct bcm2835_pm *pm)
 {
-	if (of_property_present(pm->dev->of_node, "reg-names")) {
+	if (of_property_present(pm->dev->of_analde, "reg-names")) {
 		struct resource *res;
 
 		pm->base = devm_platform_ioremap_resource_byname(pdev, "pm");
@@ -53,7 +53,7 @@ static int bcm2835_pm_get_pdata(struct platform_device *pdev,
 		return 0;
 	}
 
-	/* If no 'reg-names' property is found we can assume we're using old DTB. */
+	/* If anal 'reg-names' property is found we can assume we're using old DTB. */
 	pm->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pm->base))
 		return PTR_ERR(pm->base);
@@ -77,7 +77,7 @@ static int bcm2835_pm_probe(struct platform_device *pdev)
 
 	pm = devm_kzalloc(dev, sizeof(*pm), GFP_KERNEL);
 	if (!pm)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, pm);
 
 	pm->dev = dev;

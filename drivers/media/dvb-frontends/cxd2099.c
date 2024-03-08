@@ -515,7 +515,7 @@ static int campoll(struct cxd *ci)
 			if (ci->slot_stat) {
 				ci->slot_stat = 0;
 				write_regm(ci, 0x03, 0x00, 0x08);
-				dev_info(&ci->client->dev, "NO CAM\n");
+				dev_info(&ci->client->dev, "ANAL CAM\n");
 				ci->ready = 0;
 			}
 		}
@@ -611,7 +611,7 @@ static int cxd2099_probe(struct i2c_client *client)
 
 	ci = kzalloc(sizeof(*ci), GFP_KERNEL);
 	if (!ci) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -626,7 +626,7 @@ static int cxd2099_probe(struct i2c_client *client)
 
 	ret = regmap_read(ci->regmap, 0x00, &val);
 	if (ret < 0) {
-		dev_info(&client->dev, "No CXD2099AR detected at 0x%02x\n",
+		dev_info(&client->dev, "Anal CXD2099AR detected at 0x%02x\n",
 			 client->addr);
 		goto err_rmexit;
 	}

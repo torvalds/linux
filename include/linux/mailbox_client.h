@@ -18,7 +18,7 @@ struct mbox_chan;
  * @tx_block:		If the mbox_send_message should block until data is
  *			transmitted.
  * @tx_tout:		Max block period in ms before TX is assumed failure
- * @knows_txdone:	If the client could run the TX state machine. Usually
+ * @kanalws_txdone:	If the client could run the TX state machine. Usually
  *			if the client receives some ACK packet for transmission.
  *			Unused if the controller already has TX_Done/RTR IRQ.
  * @rx_callback:	Atomic callback to provide client the data received
@@ -30,7 +30,7 @@ struct mbox_client {
 	struct device *dev;
 	bool tx_block;
 	unsigned long tx_tout;
-	bool knows_txdone;
+	bool kanalws_txdone;
 
 	void (*rx_callback)(struct mbox_client *cl, void *mssg);
 	void (*tx_prepare)(struct mbox_client *cl, void *mssg);

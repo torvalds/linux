@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/kernel.h>
 #include <linux/acpi.h>
@@ -29,7 +29,7 @@ void machine_halt(void)
 	local_irq_disable();
 	clear_csr_ecfg(ECFG0_IM);
 
-	pr_notice("\n\n** You can safely turn off the power now **\n\n");
+	pr_analtice("\n\n** You can safely turn off the power analw **\n\n");
 	console_flush_on_panic(CONSOLE_FLUSH_PENDING);
 
 	while (true) {

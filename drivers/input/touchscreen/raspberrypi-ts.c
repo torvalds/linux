@@ -39,7 +39,7 @@ struct rpi_ts {
 	void __iomem *fw_regs_va;
 	dma_addr_t fw_regs_phys;
 
-	int known_ids;
+	int kanalwn_ids;
 };
 
 struct rpi_ts_regs {
@@ -51,8 +51,8 @@ struct rpi_ts_regs {
 		u8 xl;
 		u8 yh;
 		u8 yl;
-		u8 pressure; /* Not supported */
-		u8 area;     /* Not supported */
+		u8 pressure; /* Analt supported */
+		u8 area;     /* Analt supported */
 	} point[RPI_TS_MAX_SUPPORTED_POINTS];
 };
 
@@ -70,7 +70,7 @@ static void rpi_ts_poll(struct input_dev *input)
 	memcpy_fromio(&regs, ts->fw_regs_va, sizeof(regs));
 	/*
 	 * We poll the memory based register copy of the touchscreen chip using
-	 * the number of points register to know whether the copy has been
+	 * the number of points register to kanalw whether the copy has been
 	 * updated (we write 99 to the memory copy, the GPU will write between
 	 * 0 - 10 points)
 	 */
@@ -78,7 +78,7 @@ static void rpi_ts_poll(struct input_dev *input)
 		 ts->fw_regs_va + offsetof(struct rpi_ts_regs, num_points));
 
 	if (regs.num_points == RPI_TS_NPOINTS_REG_INVALIDATE ||
-	    (regs.num_points == 0 && ts->known_ids == 0))
+	    (regs.num_points == 0 && ts->kanalwn_ids == 0))
 		return;
 
 	for (i = 0; i < regs.num_points; i++) {
@@ -97,13 +97,13 @@ static void rpi_ts_poll(struct input_dev *input)
 		}
 	}
 
-	released_ids = ts->known_ids & ~modified_ids;
+	released_ids = ts->kanalwn_ids & ~modified_ids;
 	for_each_set_bit(i, &released_ids, RPI_TS_MAX_SUPPORTED_POINTS) {
 		input_mt_slot(input, i);
 		input_mt_report_slot_inactive(input);
 		modified_ids &= ~(BIT(i));
 	}
-	ts->known_ids = modified_ids;
+	ts->kanalwn_ids = modified_ids;
 
 	input_mt_sync_frame(input);
 	input_sync(input);
@@ -120,35 +120,35 @@ static void rpi_ts_dma_cleanup(void *data)
 static int rpi_ts_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct input_dev *input;
-	struct device_node *fw_node;
+	struct device_analde *fw_analde;
 	struct rpi_firmware *fw;
 	struct rpi_ts *ts;
 	u32 touchbuf;
 	int error;
 
-	fw_node = of_get_parent(np);
-	if (!fw_node) {
-		dev_err(dev, "Missing firmware node\n");
-		return -ENOENT;
+	fw_analde = of_get_parent(np);
+	if (!fw_analde) {
+		dev_err(dev, "Missing firmware analde\n");
+		return -EANALENT;
 	}
 
-	fw = devm_rpi_firmware_get(&pdev->dev, fw_node);
-	of_node_put(fw_node);
+	fw = devm_rpi_firmware_get(&pdev->dev, fw_analde);
+	of_analde_put(fw_analde);
 	if (!fw)
 		return -EPROBE_DEFER;
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 	ts->pdev = pdev;
 
 	ts->fw_regs_va = dma_alloc_coherent(dev, PAGE_SIZE, &ts->fw_regs_phys,
 					    GFP_KERNEL);
 	if (!ts->fw_regs_va) {
 		dev_err(dev, "failed to dma_alloc_coherent\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	error = devm_add_action_or_reset(dev, rpi_ts_dma_cleanup, ts);
@@ -168,7 +168,7 @@ static int rpi_ts_probe(struct platform_device *pdev)
 	input = devm_input_allocate_device(dev);
 	if (!input) {
 		dev_err(dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ts->input = input;
@@ -186,13 +186,13 @@ static int rpi_ts_probe(struct platform_device *pdev)
 	error = input_mt_init_slots(input, RPI_TS_MAX_SUPPORTED_POINTS,
 				    INPUT_MT_DIRECT);
 	if (error) {
-		dev_err(dev, "could not init mt slots, %d\n", error);
+		dev_err(dev, "could analt init mt slots, %d\n", error);
 		return error;
 	}
 
 	error = input_setup_polling(input, rpi_ts_poll);
 	if (error) {
-		dev_err(dev, "could not set up polling mode, %d\n", error);
+		dev_err(dev, "could analt set up polling mode, %d\n", error);
 		return error;
 	}
 
@@ -200,7 +200,7 @@ static int rpi_ts_probe(struct platform_device *pdev)
 
 	error = input_register_device(input);
 	if (error) {
-		dev_err(dev, "could not register input device, %d\n", error);
+		dev_err(dev, "could analt register input device, %d\n", error);
 		return error;
 	}
 

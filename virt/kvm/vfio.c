@@ -6,7 +6,7 @@
  *     Author: Alex Williamson <alex.williamson@redhat.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/file.h>
 #include <linux/kvm_host.h>
 #include <linux/list.h>
@@ -22,7 +22,7 @@
 #endif
 
 struct kvm_vfio_file {
-	struct list_head node;
+	struct list_head analde;
 	struct file *file;
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 	struct iommu_group *iommu_group;
@@ -32,7 +32,7 @@ struct kvm_vfio_file {
 struct kvm_vfio {
 	struct list_head file_list;
 	struct mutex lock;
-	bool noncoherent;
+	bool analncoherent;
 };
 
 static void kvm_vfio_file_set_kvm(struct file *file, struct kvm *kvm)
@@ -114,29 +114,29 @@ static void kvm_spapr_tce_release_vfio_group(struct kvm *kvm,
  * then adding a new group/device may change the coherency of groups/devices
  * we've previously been told about. We don't want to care about any of
  * that so we retest each group/device and bail as soon as we find one that's
- * noncoherent.  This means we only ever [un]register_noncoherent_dma once
+ * analncoherent.  This means we only ever [un]register_analncoherent_dma once
  * for the whole device.
  */
 static void kvm_vfio_update_coherency(struct kvm_device *dev)
 {
 	struct kvm_vfio *kv = dev->private;
-	bool noncoherent = false;
+	bool analncoherent = false;
 	struct kvm_vfio_file *kvf;
 
-	list_for_each_entry(kvf, &kv->file_list, node) {
+	list_for_each_entry(kvf, &kv->file_list, analde) {
 		if (!kvm_vfio_file_enforced_coherent(kvf->file)) {
-			noncoherent = true;
+			analncoherent = true;
 			break;
 		}
 	}
 
-	if (noncoherent != kv->noncoherent) {
-		kv->noncoherent = noncoherent;
+	if (analncoherent != kv->analncoherent) {
+		kv->analncoherent = analncoherent;
 
-		if (kv->noncoherent)
-			kvm_arch_register_noncoherent_dma(dev->kvm);
+		if (kv->analncoherent)
+			kvm_arch_register_analncoherent_dma(dev->kvm);
 		else
-			kvm_arch_unregister_noncoherent_dma(dev->kvm);
+			kvm_arch_unregister_analncoherent_dma(dev->kvm);
 	}
 }
 
@@ -159,7 +159,7 @@ static int kvm_vfio_file_add(struct kvm_device *dev, unsigned int fd)
 
 	mutex_lock(&kv->lock);
 
-	list_for_each_entry(kvf, &kv->file_list, node) {
+	list_for_each_entry(kvf, &kv->file_list, analde) {
 		if (kvf->file == filp) {
 			ret = -EEXIST;
 			goto out_unlock;
@@ -168,12 +168,12 @@ static int kvm_vfio_file_add(struct kvm_device *dev, unsigned int fd)
 
 	kvf = kzalloc(sizeof(*kvf), GFP_KERNEL_ACCOUNT);
 	if (!kvf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 
 	kvf->file = get_file(filp);
-	list_add_tail(&kvf->node, &kv->file_list);
+	list_add_tail(&kvf->analde, &kv->file_list);
 
 	kvm_arch_start_assignment(dev->kvm);
 	kvm_vfio_file_set_kvm(kvf->file, dev->kvm);
@@ -197,15 +197,15 @@ static int kvm_vfio_file_del(struct kvm_device *dev, unsigned int fd)
 	if (!f.file)
 		return -EBADF;
 
-	ret = -ENOENT;
+	ret = -EANALENT;
 
 	mutex_lock(&kv->lock);
 
-	list_for_each_entry(kvf, &kv->file_list, node) {
+	list_for_each_entry(kvf, &kv->file_list, analde) {
 		if (kvf->file != f.file)
 			continue;
 
-		list_del(&kvf->node);
+		list_del(&kvf->analde);
 		kvm_arch_end_assignment(dev->kvm);
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 		kvm_spapr_tce_release_vfio_group(dev->kvm, kvf);
@@ -243,11 +243,11 @@ static int kvm_vfio_file_set_spapr_tce(struct kvm_device *dev,
 	if (!f.file)
 		return -EBADF;
 
-	ret = -ENOENT;
+	ret = -EANALENT;
 
 	mutex_lock(&kv->lock);
 
-	list_for_each_entry(kvf, &kv->file_list, node) {
+	list_for_each_entry(kvf, &kv->file_list, analde) {
 		if (kvf->file != f.file)
 			continue;
 
@@ -334,13 +334,13 @@ static void kvm_vfio_release(struct kvm_device *dev)
 	struct kvm_vfio *kv = dev->private;
 	struct kvm_vfio_file *kvf, *tmp;
 
-	list_for_each_entry_safe(kvf, tmp, &kv->file_list, node) {
+	list_for_each_entry_safe(kvf, tmp, &kv->file_list, analde) {
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 		kvm_spapr_tce_release_vfio_group(dev->kvm, kvf);
 #endif
 		kvm_vfio_file_set_kvm(kvf->file, NULL);
 		fput(kvf->file);
-		list_del(&kvf->node);
+		list_del(&kvf->analde);
 		kfree(kvf);
 		kvm_arch_end_assignment(dev->kvm);
 	}
@@ -367,13 +367,13 @@ static int kvm_vfio_create(struct kvm_device *dev, u32 type)
 	struct kvm_vfio *kv;
 
 	/* Only one VFIO "device" per VM */
-	list_for_each_entry(tmp, &dev->kvm->devices, vm_node)
+	list_for_each_entry(tmp, &dev->kvm->devices, vm_analde)
 		if (tmp->ops == &kvm_vfio_ops)
 			return -EBUSY;
 
 	kv = kzalloc(sizeof(*kv), GFP_KERNEL_ACCOUNT);
 	if (!kv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&kv->file_list);
 	mutex_init(&kv->lock);

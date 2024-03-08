@@ -20,15 +20,15 @@ static int pool_op_gen_alloc(struct tee_shm_pool *pool, struct tee_shm *shm,
 
 	va = gen_pool_alloc_algo(genpool, s, gen_pool_first_fit_align, &data);
 	if (!va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset((void *)va, 0, s);
 	shm->kaddr = (void *)va;
 	shm->paddr = gen_pool_virt_to_phys(genpool, va);
 	shm->size = s;
 	/*
-	 * This is from a static shared memory pool so no need to register
-	 * each chunk, and no need to unregister later either.
+	 * This is from a static shared memory pool so anal need to register
+	 * each chunk, and anal need to unregister later either.
 	 */
 	shm->flags &= ~TEE_SHM_DYNAMIC;
 	return 0;
@@ -67,11 +67,11 @@ struct tee_shm_pool *tee_shm_pool_alloc_res_mem(unsigned long vaddr,
 
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 	if (!pool)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pool->private_data = gen_pool_create(min_alloc_order, -1);
 	if (!pool->private_data) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 

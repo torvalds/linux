@@ -26,7 +26,7 @@ lowpan_addr_info *lowpan_skb_priv(const struct sk_buff *skb)
 /* This callback will be called from AF_PACKET and IPv6 stack, the AF_PACKET
  * sockets gives an 8 byte array for addresses only!
  *
- * TODO I think AF_PACKET DGRAM (sending/receiving) RAW (sending) makes no
+ * TODO I think AF_PACKET DGRAM (sending/receiving) RAW (sending) makes anal
  * sense here. We should disable it, the right use-case would be AF_INET6
  * RAW/DGRAM sockets.
  */
@@ -127,7 +127,7 @@ lowpan_alloc_frag(struct sk_buff *skb, int size,
 			}
 		}
 	} else {
-		frag = ERR_PTR(-ENOMEM);
+		frag = ERR_PTR(-EANALMEM);
 	}
 
 	return frag;

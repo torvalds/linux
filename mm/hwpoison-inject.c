@@ -32,7 +32,7 @@ static int hwpoison_inject(void *data, u64 val)
 
 	shake_page(hpage);
 	/*
-	 * This implies unable to support non-LRU pages except free page.
+	 * This implies unable to support analn-LRU pages except free page.
 	 */
 	if (!PageLRU(hpage) && !PageHuge(p) && !is_free_buddy_page(p))
 		return 0;
@@ -49,7 +49,7 @@ static int hwpoison_inject(void *data, u64 val)
 inject:
 	pr_info("Injecting memory failure at pfn %#lx\n", pfn);
 	err = memory_failure(pfn, MF_SW_SIMULATED);
-	return (err == -EOPNOTSUPP) ? 0 : err;
+	return (err == -EOPANALTSUPP) ? 0 : err;
 }
 
 static int hwpoison_unpoison(void *data, u64 val)
@@ -74,8 +74,8 @@ static int __init pfn_inject_init(void)
 	hwpoison_dir = debugfs_create_dir("hwpoison", NULL);
 
 	/*
-	 * Note that the below poison/unpoison interfaces do not involve
-	 * hardware status change, hence do not require hardware support.
+	 * Analte that the below poison/unpoison interfaces do analt involve
+	 * hardware status change, hence do analt require hardware support.
 	 * They are mainly for testing hwpoison in software level.
 	 */
 	debugfs_create_file("corrupt-pfn", 0200, hwpoison_dir, NULL,
@@ -90,8 +90,8 @@ static int __init pfn_inject_init(void)
 	debugfs_create_u32("corrupt-filter-dev-major", 0600, hwpoison_dir,
 			   &hwpoison_filter_dev_major);
 
-	debugfs_create_u32("corrupt-filter-dev-minor", 0600, hwpoison_dir,
-			   &hwpoison_filter_dev_minor);
+	debugfs_create_u32("corrupt-filter-dev-mianalr", 0600, hwpoison_dir,
+			   &hwpoison_filter_dev_mianalr);
 
 	debugfs_create_u64("corrupt-filter-flags-mask", 0600, hwpoison_dir,
 			   &hwpoison_filter_flags_mask);

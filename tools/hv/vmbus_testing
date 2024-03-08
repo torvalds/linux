@@ -21,13 +21,13 @@ from argparse import RawDescriptionHelpFormatter
 from argparse import RawTextHelpFormatter
 from enum import Enum
 
-# Do not change unless, you change the debugfs attributes
+# Do analt change unless, you change the debugfs attributes
 # in /drivers/hv/debugfs.c. All fuzz testing
 # attributes will start with "fuzz_test".
 
 # debugfs path for hyperv must exist before proceeding
 debugfs_hyperv_path = "/sys/kernel/debug/hyperv"
-if not os.path.isdir(debugfs_hyperv_path):
+if analt os.path.isdir(debugfs_hyperv_path):
         print("{} doesn't exist/check permissions".format(debugfs_hyperv_path))
         exit(-1)
 
@@ -44,7 +44,7 @@ class f_names(Enum):
 
 # Both single_actions and all_actions are used
 # for error checking and to allow for some subparser
-# names to be abbreviated. Do not abbreviate the
+# names to be abbreviated. Do analt abbreviate the
 # test method names, as it will become less intuitive
 # as to what the user can do. If you do decide to
 # abbreviate the test method name, make sure the main
@@ -70,12 +70,12 @@ def main():
 
         file_map = recursive_file_lookup(debugfs_hyperv_path, dict())
         args = parse_args()
-        if (not args.action):
-                print ("Error, no options selected...exiting")
+        if (analt args.action):
+                print ("Error, anal options selected...exiting")
                 exit(-1)
         arg_set = { k for (k,v) in vars(args).items() if v and k != "action" }
         arg_set.add(args.action)
-        path = args.path if "path" in arg_set else None
+        path = args.path if "path" in arg_set else Analne
         if (path and path[-1] == "/"):
                 path = path[:-1]
         validate_args_path(path, arg_set, file_map)
@@ -121,17 +121,17 @@ def validate_delay_values(delay):
 # Validate argument path
 def validate_args_path(path, arg_set, file_map):
 
-        if (not path and any(element in arg_set for element in single_actions)):
+        if (analt path and any(element in arg_set for element in single_actions)):
                 print("Error, path (-p) REQUIRED for the specified option. "
                       "Use (-h) to check usage.")
                 exit(-1)
         elif (path and any(item in arg_set for item in all_actions)):
-                print("Error, path (-p) NOT REQUIRED for the specified option. "
+                print("Error, path (-p) ANALT REQUIRED for the specified option. "
                       "Use (-h) to check usage." )
                 exit(-1)
-        elif (path not in file_map and any(item in arg_set
+        elif (path analt in file_map and any(item in arg_set
                                            for item in single_actions)):
-                print("Error, path '{}' not a valid vmbus device".format(path))
+                print("Error, path '{}' analt a valid vmbus device".format(path))
                 exit(-1)
 
 # display Testing status of single device
@@ -179,9 +179,9 @@ def read_test_files(path):
                 return int(file_value)
 
         except IOError as e:
-                errno, strerror = e.args
+                erranal, strerror = e.args
                 print("I/O error({0}): {1} on file {2}"
-                      .format(errno, strerror, path))
+                      .format(erranal, strerror, path))
                 exit(-1)
         except ValueError:
                 print ("Element to int conversion error in: \n{}".format(path))
@@ -194,9 +194,9 @@ def write_test_files(path, value):
                 with open(path,"w") as f:
                         f.write("{}".format(value))
         except IOError as e:
-                errno, strerror = e.args
+                erranal, strerror = e.args
                 print("I/O error({0}): {1} on file {2}"
-                      .format(errno, strerror, path))
+                      .format(erranal, strerror, path))
                 exit(-1)
 
 # set testing state of device
@@ -204,11 +204,11 @@ def set_test_state(state_path, state_value, quiet):
 
         write_test_files(state_path, state_value)
         if (get_test_state(state_path) == 1):
-                if (not quiet):
+                if (analt quiet):
                         print("Testing = ON for device: {}"
                               .format(state_path.split("/")[5]))
         else:
-                if (not quiet):
+                if (analt quiet):
                         print("Testing = OFF for device: {}"
                               .format(state_path.split("/")[5]))
 
@@ -232,7 +232,7 @@ def set_delay_values(device, file_map, delay_length, quiet):
                         write_test_files(interrupt, delay_length[0])
                 if (delay_length[1] >= 0 and delay_length[1] <= 1000):
                         write_test_files(message, delay_length[1])
-                if (not quiet):
+                if (analt quiet):
                         print("Buffer delay testing = {} for: {}"
                               .format(read_test_files(interrupt),
                                       interrupt.split("/")[5]))
@@ -240,9 +240,9 @@ def set_delay_values(device, file_map, delay_length, quiet):
                               .format(read_test_files(message),
                                       message.split("/")[5]))
         except IOError as e:
-                errno, strerror = e.args
+                erranal, strerror = e.args
                 print("I/O error({0}): {1} on files {2}{3}"
-                      .format(errno, strerror, interrupt, message))
+                      .format(erranal, strerror, interrupt, message))
                 exit(-1)
 
 # enabling delay testing on all devices
@@ -260,7 +260,7 @@ def disable_testing_single_device(device, file_map):
         for name in file_map[device]:
                 file_location = file_map[device][name]
                 write_test_files(file_location, dev_state.off.value)
-        print("ALL testing now OFF for {}".format(device.split("/")[-1]))
+        print("ALL testing analw OFF for {}".format(device.split("/")[-1]))
 
 # disable all testing on ALL devices
 def disable_all_testing(file_map):
@@ -284,7 +284,7 @@ def parse_args():
         parser.add_argument("--version", action = "version",
                 version = '%(prog)s 0.1.0')
         parser.add_argument("-q","--quiet", action = "store_true",
-                help = "silence none important test messages."
+                help = "silence analne important test messages."
                        " This will only work when enabling testing"
                        " on a device.")
         # Use the path parser to hold the --path attribute so it can

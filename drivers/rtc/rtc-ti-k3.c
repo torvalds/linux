@@ -188,7 +188,7 @@ static int k3rtc_unlock_rtc(struct ti_k3_rtc *priv)
 
 /*
  * This is the list of SoCs affected by TI's i2327 errata causing the RTC
- * state-machine to break if not unlocked fast enough during boot. These
+ * state-machine to break if analt unlocked fast eanalugh during boot. These
  * SoCs must have the bootloader unlock this device very early in the
  * boot-flow before we (Linux) can use this device.
  */
@@ -204,7 +204,7 @@ static int k3rtc_configure(struct device *dev)
 
 	/*
 	 * HWBUG: The compare state machine is broken if the RTC module
-	 * is NOT unlocked in under one second of boot - which is pretty long
+	 * is ANALT unlocked in under one second of boot - which is pretty long
 	 * time from the perspective of Linux driver (module load, u-boot
 	 * shell all can take much longer than this.
 	 *
@@ -215,7 +215,7 @@ static int k3rtc_configure(struct device *dev)
 		/* If there is an error OR if we are locked, return error */
 		if (ret) {
 			dev_err(dev,
-				HW_ERR "Erratum i2327 unlock QUIRK! Cannot operate!!\n");
+				HW_ERR "Erratum i2327 unlock QUIRK! Cananalt operate!!\n");
 			return -EFAULT;
 		}
 	} else {
@@ -284,8 +284,8 @@ static int ti_k3_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	/*
 	 * Read operation on LSW will freeze the RTC, so to update
-	 * the time, we cannot use field operations. Just write since the
-	 * reserved bits are ignored.
+	 * the time, we cananalt use field operations. Just write since the
+	 * reserved bits are iganalred.
 	 */
 	regmap_write(priv->regmap, REG_K3RTC_S_CNT_LSW, seconds);
 	regmap_write(priv->regmap, REG_K3RTC_S_CNT_MSW, seconds >> 32);
@@ -306,7 +306,7 @@ static int ti_k3_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	k3rtc_field_write(priv, offset, 0x1);
 
 	/*
-	 * Ensure the write sync is through - NOTE: it should be OK to have
+	 * Ensure the write sync is through - ANALTE: it should be OK to have
 	 * ISR to fire as we are checking sync (which should be done in a 32k
 	 * cycle or so).
 	 */
@@ -429,12 +429,12 @@ static irqreturn_t ti_k3_rtc_interrupt(s32 irq, void *dev_id)
 		dev_err(dev,
 			HW_ERR
 			"Erratum i2327/IRQ trig: status: 0x%08x / 0x%08x\n", reg, raw);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/*
 	 * Write 1 to clear status reg
-	 * We cannot use a field operation here due to a potential race between
+	 * We cananalt use a field operation here due to a potential race between
 	 * 32k domain and vbus domain.
 	 */
 	regmap_write(priv->regmap, REG_K3RTC_IRQSTATUS_SYS, 0x1);
@@ -443,7 +443,7 @@ static irqreturn_t ti_k3_rtc_interrupt(s32 irq, void *dev_id)
 	ret = k3rtc_fence(priv);
 	if (ret) {
 		dev_err(dev, "Failed to fence irq status clr(%d)!\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/*
@@ -456,18 +456,18 @@ static irqreturn_t ti_k3_rtc_interrupt(s32 irq, void *dev_id)
 	ret = k3rtc_fence(priv);
 	if (ret) {
 		dev_err(dev, "Failed to fence reload from bbd(%d)!\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
-	/* Now we ensure that the status bit is cleared */
+	/* Analw we ensure that the status bit is cleared */
 	ret = regmap_field_read_poll_timeout(priv->r_fields[K3RTC_IRQ_STATUS],
 					     ret, !ret, 2, priv->sync_timeout_us);
 	if (ret) {
 		dev_err(dev, "Time out waiting for status clear\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
-	/* Notify RTC core on event */
+	/* Analtify RTC core on event */
 	rtc_update_irq(priv->rtc_dev, 1, RTC_IRQF | RTC_AF);
 
 	return IRQ_HANDLED;
@@ -525,7 +525,7 @@ static int k3rtc_get_32kclk(struct device *dev, struct ti_k3_rtc *priv)
 
 	/* Make sure we are exact 32k clock. Else, try to compensate delay */
 	if (priv->rate_32k != 32768)
-		dev_warn(dev, "Clock rate %ld is not 32768! Could misbehave!\n",
+		dev_warn(dev, "Clock rate %ld is analt 32768! Could misbehave!\n",
 			 priv->rate_32k);
 
 	/*
@@ -542,7 +542,7 @@ static int k3rtc_get_vbusclk(struct device *dev, struct ti_k3_rtc *priv)
 {
 	struct clk *clk;
 
-	/* Note: VBUS isn't a context clock, it is needed for hardware operation */
+	/* Analte: VBUS isn't a context clock, it is needed for hardware operation */
 	clk = devm_clk_get_enabled(dev, "vbus");
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
@@ -559,7 +559,7 @@ static int ti_k3_rtc_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(struct ti_k3_rtc), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc_base))
@@ -599,7 +599,7 @@ static int ti_k3_rtc_probe(struct platform_device *pdev)
 					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 					dev_name(dev), dev);
 	if (ret) {
-		dev_err(dev, "Could not request IRQ: %d\n", ret);
+		dev_err(dev, "Could analt request IRQ: %d\n", ret);
 		return ret;
 	}
 
@@ -660,4 +660,4 @@ module_platform_driver(ti_k3_rtc_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("TI K3 RTC driver");
-MODULE_AUTHOR("Nishanth Menon");
+MODULE_AUTHOR("Nishanth Meanaln");

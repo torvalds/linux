@@ -17,7 +17,7 @@
    ELF local label prefixes by J"orn Rennecke
    amylaar@cygnus.com  */
 
-/* This code used shld, thus is not suitable for SH1 / SH2.  */
+/* This code used shld, thus is analt suitable for SH1 / SH2.  */
 
 /* Signed / unsigned division without use of FPU, optimized for SH4.
    Uses a lookup table for divisors in the range -128 .. +128, and
@@ -442,7 +442,7 @@ div_table_clz:
 	.byte	-6
 	.byte	-6
 /* Lookup table translating positive divisor to index into table of
-   normalized inverse.  N.B. the '0' entry is also the last entry of the
+   analrmalized inverse.  N.B. the '0' entry is also the last entry of the
  previous table, and causes an unaligned access for division by zero.  */
 div_table_ix:
 	.byte	-6
@@ -574,7 +574,7 @@ div_table_ix:
 	.byte	120
 	.byte	124
 	.byte	-128
-/* 1/64 .. 1/127, normalized.  There is an implicit leading 1 in bit 32.  */
+/* 1/64 .. 1/127, analrmalized.  There is an implicit leading 1 in bit 32.  */
 	.balign 4
 zero_l:
 	.long	0x0

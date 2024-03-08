@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -92,7 +92,7 @@ int qib_enable_wc(struct qib_devdata *dd)
 	}
 
 	for (bits = 0; !(piolen & (1ULL << bits)); bits++)
-		; /* do nothing */
+		; /* do analthing */
 
 	if (piolen != (1ULL << bits)) {
 		piolen >>= bits;
@@ -105,10 +105,10 @@ int qib_enable_wc(struct qib_devdata *dd)
 
 		if (atmp < addr || (atmp + piolen) > (addr + len)) {
 			qib_dev_err(dd,
-				"No way to align address/size (%llx/%llx), no WC mtrr\n",
+				"Anal way to align address/size (%llx/%llx), anal WC mtrr\n",
 				(unsigned long long) atmp,
 				(unsigned long long) piolen << 1);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		} else {
 			pioaddr = atmp;
 			piolen <<= 1;
@@ -135,16 +135,16 @@ void qib_disable_wc(struct qib_devdata *dd)
 }
 
 /**
- * qib_unordered_wc - indicate whether write combining is ordered
+ * qib_uanalrdered_wc - indicate whether write combining is ordered
  *
  * Because our performance depends on our ability to do write combining mmio
- * writes in the most efficient way, we need to know if we are on an Intel
+ * writes in the most efficient way, we need to kanalw if we are on an Intel
  * or AMD x86_64 processor.  AMD x86_64 processors flush WC buffers out in
- * the order completed, and so no special flushing is required to get
+ * the order completed, and so anal special flushing is required to get
  * correct ordering.  Intel processors, however, will flush write buffers
  * out in "random" orders, and so explicit ordering is needed at times.
  */
-int qib_unordered_wc(void)
+int qib_uanalrdered_wc(void)
 {
 	return boot_cpu_data.x86_vendor != X86_VENDOR_AMD;
 }

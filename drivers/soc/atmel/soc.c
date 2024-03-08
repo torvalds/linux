@@ -250,21 +250,21 @@ static const struct at91_soc socs[] __initconst = {
 
 static int __init at91_get_cidr_exid_from_dbgu(u32 *cidr, u32 *exid)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *regs;
 
-	np = of_find_compatible_node(NULL, NULL, "atmel,at91rm9200-dbgu");
+	np = of_find_compatible_analde(NULL, NULL, "atmel,at91rm9200-dbgu");
 	if (!np)
-		np = of_find_compatible_node(NULL, NULL,
+		np = of_find_compatible_analde(NULL, NULL,
 					     "atmel,at91sam9260-dbgu");
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	regs = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (!regs) {
-		pr_warn("Could not map DBGU iomem range");
+		pr_warn("Could analt map DBGU iomem range");
 		return -ENXIO;
 	}
 
@@ -278,7 +278,7 @@ static int __init at91_get_cidr_exid_from_dbgu(u32 *cidr, u32 *exid)
 
 static int __init at91_get_cidr_exid_from_chipid(u32 *cidr, u32 *exid)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *regs;
 	static const struct of_device_id chipids[] = {
 		{ .compatible = "atmel,sama5d2-chipid" },
@@ -286,15 +286,15 @@ static int __init at91_get_cidr_exid_from_chipid(u32 *cidr, u32 *exid)
 		{ },
 	};
 
-	np = of_find_matching_node(NULL, chipids);
+	np = of_find_matching_analde(NULL, chipids);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	regs = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (!regs) {
-		pr_warn("Could not map DBGU iomem range");
+		pr_warn("Could analt map DBGU iomem range");
 		return -ENXIO;
 	}
 
@@ -315,7 +315,7 @@ struct soc_device * __init at91_soc_init(const struct at91_soc *socs)
 	int ret;
 
 	/*
-	 * With SAMA5D2 and later SoCs, CIDR and EXID registers are no more
+	 * With SAMA5D2 and later SoCs, CIDR and EXID registers are anal more
 	 * in the dbgu device but in the chipid device whose purpose is only
 	 * to expose these two registers.
 	 */
@@ -323,8 +323,8 @@ struct soc_device * __init at91_soc_init(const struct at91_soc *socs)
 	if (ret)
 		ret = at91_get_cidr_exid_from_chipid(&cidr, &exid);
 	if (ret) {
-		if (ret == -ENODEV)
-			pr_warn("Could not find identification node");
+		if (ret == -EANALDEV)
+			pr_warn("Could analt find identification analde");
 		return NULL;
 	}
 
@@ -337,7 +337,7 @@ struct soc_device * __init at91_soc_init(const struct at91_soc *socs)
 	}
 
 	if (!soc->name) {
-		pr_warn("Could not find matching SoC description\n");
+		pr_warn("Could analt find matching SoC description\n");
 		return NULL;
 	}
 
@@ -353,7 +353,7 @@ struct soc_device * __init at91_soc_init(const struct at91_soc *socs)
 	if (IS_ERR(soc_dev)) {
 		kfree(soc_dev_attr->revision);
 		kfree(soc_dev_attr);
-		pr_warn("Could not register SoC device\n");
+		pr_warn("Could analt register SoC device\n");
 		return NULL;
 	}
 
@@ -376,9 +376,9 @@ static const struct of_device_id at91_soc_allowed_list[] __initconst = {
 
 static int __init atmel_soc_device_init(void)
 {
-	struct device_node *np = of_find_node_by_path("/");
+	struct device_analde *np = of_find_analde_by_path("/");
 
-	if (!of_match_node(at91_soc_allowed_list, np))
+	if (!of_match_analde(at91_soc_allowed_list, np))
 		return 0;
 
 	at91_soc_init(socs);

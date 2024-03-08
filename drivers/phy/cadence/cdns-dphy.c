@@ -310,14 +310,14 @@ static int cdns_dphy_tx_get_band_ctrl(unsigned long hs_clk_rate)
 	rate = hs_clk_rate / 1000000UL;
 
 	if (rate < tx_bands[0])
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	for (i = 0; i < ARRAY_SIZE(tx_bands) - 1; i++) {
 		if (rate >= tx_bands[i] && rate < tx_bands[i + 1])
 			return i;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int cdns_dphy_validate(struct phy *phy, enum phy_mode mode, int submode,
@@ -415,7 +415,7 @@ static int cdns_dphy_probe(struct platform_device *pdev)
 
 	dphy = devm_kzalloc(&pdev->dev, sizeof(*dphy), GFP_KERNEL);
 	if (!dphy)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(&pdev->dev, dphy);
 
 	dphy->ops = of_device_get_match_data(&pdev->dev);

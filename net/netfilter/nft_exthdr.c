@@ -29,7 +29,7 @@ struct nft_exthdr {
 static unsigned int optlen(const u8 *opt, unsigned int offset)
 {
 	/* Beware zero-length options: make finite progress */
-	if (opt[offset] <= TCPOPT_NOP || opt[offset + 1] == 0)
+	if (opt[offset] <= TCPOPT_ANALP || opt[offset + 1] == 0)
 		return 1;
 	else
 		return opt[offset + 1];
@@ -97,7 +97,7 @@ static int ipv4_find_option(struct net *net, struct sk_buff *skb,
 
 	optlen = iph->ihl * 4 - (int)sizeof(struct iphdr);
 	if (optlen <= 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	memset(opt, 0, sizeof(struct ip_options));
 	/* Copy the options since __ip_options_compile() modifies
@@ -133,9 +133,9 @@ static int ipv4_find_option(struct net *net, struct sk_buff *skb,
 		found = true;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
-	return found ? target : -ENOENT;
+	return found ? target : -EANALENT;
 }
 
 static void nft_exthdr_ipv4_eval(const struct nft_expr *expr,
@@ -342,7 +342,7 @@ static void nft_exthdr_tcp_strip_eval(const struct nft_expr *expr,
 			goto drop;
 
 		for (j = 0; j < optl; ++j) {
-			u16 n = TCPOPT_NOP;
+			u16 n = TCPOPT_ANALP;
 			u16 o = opt[i+j];
 
 			if ((i + j) % 2 == 0) {
@@ -352,11 +352,11 @@ static void nft_exthdr_tcp_strip_eval(const struct nft_expr *expr,
 			inet_proto_csum_replace2(&tcph->check, pkt->skb, htons(o),
 						 htons(n), false);
 		}
-		memset(opt + i, TCPOPT_NOP, optl);
+		memset(opt + i, TCPOPT_ANALP, optl);
 		return;
 	}
 
-	/* option not found, continue. This allows to do multiple
+	/* option analt found, continue. This allows to do multiple
 	 * option removals per rule.
 	 */
 	return;
@@ -364,7 +364,7 @@ err:
 	regs->verdict.code = NFT_BREAK;
 	return;
 drop:
-	/* can't remove, no choice but to drop */
+	/* can't remove, anal choice but to drop */
 	regs->verdict.code = NF_DROP;
 }
 
@@ -569,13 +569,13 @@ static int nft_exthdr_tcp_set_init(const struct nft_ctx *ctx,
 		return err;
 
 	if (offset < 2)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (len) {
 	case 2: break;
 	case 4: break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = nft_parse_u32_check(tb[NFTA_EXTHDR_OP], U8_MAX, &op);
@@ -631,7 +631,7 @@ static int nft_exthdr_ipv4_init(const struct nft_ctx *ctx,
 	case IPOPT_RA:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -647,7 +647,7 @@ static int nft_exthdr_dccp_init(const struct nft_ctx *ctx,
 		return err;
 
 	if (!(priv->flags & NFT_EXTHDR_F_PRESENT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -800,7 +800,7 @@ nft_exthdr_select_ops(const struct nft_ctx *ctx,
 		return &nft_exthdr_ipv6_ops;
 
 	if (tb[NFTA_EXTHDR_SREG] && tb[NFTA_EXTHDR_DREG])
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	op = ntohl(nla_get_be32(tb[NFTA_EXTHDR_OP]));
 	switch (op) {
@@ -830,7 +830,7 @@ nft_exthdr_select_ops(const struct nft_ctx *ctx,
 		break;
 	}
 
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 struct nft_expr_type nft_exthdr_type __read_mostly = {

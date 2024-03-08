@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -34,7 +34,7 @@ struct dc_bios;
 struct crtc_position {
 	int32_t vertical_count;
 	int32_t horizontal_count;
-	int32_t nominal_vcount;
+	int32_t analminal_vcount;
 };
 
 struct dcp_gsl_params {
@@ -89,13 +89,13 @@ struct crtc_stereo_flags {
 enum crc_selection {
 	/* Order must match values expected by hardware */
 	UNION_WINDOW_A_B = 0,
-	UNION_WINDOW_A_NOT_B,
-	UNION_WINDOW_NOT_A_B,
-	UNION_WINDOW_NOT_A_NOT_B,
+	UNION_WINDOW_A_ANALT_B,
+	UNION_WINDOW_ANALT_A_B,
+	UNION_WINDOW_ANALT_A_ANALT_B,
 	INTERSECT_WINDOW_A_B,
-	INTERSECT_WINDOW_A_NOT_B,
-	INTERSECT_WINDOW_NOT_A_B,
-	INTERSECT_WINDOW_NOT_A_NOT_B,
+	INTERSECT_WINDOW_A_ANALT_B,
+	INTERSECT_WINDOW_ANALT_A_B,
+	INTERSECT_WINDOW_ANALT_A_ANALT_B,
 };
 
 enum otg_out_mux_dest {
@@ -104,14 +104,14 @@ enum otg_out_mux_dest {
 };
 
 enum h_timing_div_mode {
-	H_TIMING_NO_DIV,
+	H_TIMING_ANAL_DIV,
 	H_TIMING_DIV_BY2,
 	H_TIMING_RESERVED,
 	H_TIMING_DIV_BY4,
 };
 
 enum timing_synchronization_type {
-	NOT_SYNCHRONIZABLE,
+	ANALT_SYNCHRONIZABLE,
 	TIMING_SYNCHRONIZABLE,
 	VBLANK_SYNCHRONIZABLE
 };
@@ -192,7 +192,7 @@ struct timing_generator_funcs {
 				struct crtc_position *position);
 
 	uint32_t (*get_frame_count)(struct timing_generator *tg);
-	void (*get_scanoutpos)(
+	void (*get_scaanalutpos)(
 		struct timing_generator *tg,
 		uint32_t *v_blank_start,
 		uint32_t *v_blank_end,
@@ -275,14 +275,14 @@ struct timing_generator_funcs {
 
 	/**
 	 * Configure CRCs for the given timing generator. Return false if TG is
-	 * not on.
+	 * analt on.
 	 */
 	bool (*configure_crc)(struct timing_generator *tg,
 			       const struct crc_params *params);
 
 	/**
 	 * @get_crc: Get CRCs for the given timing generator. Return false if
-	 * CRCs are not enabled (via configure_crc).
+	 * CRCs are analt enabled (via configure_crc).
 	 */
 	bool (*get_crc)(struct timing_generator *tg,
 			uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb);

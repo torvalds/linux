@@ -36,5 +36,5 @@ targets += aesp10-ppc.S ghashp10-ppc.S
 $(obj)/aesp10-ppc.S $(obj)/ghashp10-ppc.S: $(obj)/%.S: $(src)/%.pl FORCE
 	$(call if_changed,perl)
 
-OBJECT_FILES_NON_STANDARD_aesp10-ppc.o := y
-OBJECT_FILES_NON_STANDARD_ghashp10-ppc.o := y
+OBJECT_FILES_ANALN_STANDARD_aesp10-ppc.o := y
+OBJECT_FILES_ANALN_STANDARD_ghashp10-ppc.o := y

@@ -13,7 +13,7 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
@@ -189,12 +189,12 @@ static irqreturn_t tiny_spi_irq(int irq, void *dev)
 static int tiny_spi_of_probe(struct platform_device *pdev)
 {
 	struct tiny_spi *hw = platform_get_drvdata(pdev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	u32 val;
 
 	if (!np)
 		return 0;
-	hw->bitbang.master->dev.of_node = pdev->dev.of_node;
+	hw->bitbang.master->dev.of_analde = pdev->dev.of_analde;
 	if (!of_property_read_u32(np, "clock-frequency", &val))
 		hw->freq = val;
 	if (!of_property_read_u32(np, "baud-width", &val))
@@ -213,7 +213,7 @@ static int tiny_spi_probe(struct platform_device *pdev)
 	struct tiny_spi_platform_data *platp = dev_get_platdata(&pdev->dev);
 	struct tiny_spi *hw;
 	struct spi_controller *host;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	host = spi_alloc_host(&pdev->dev, sizeof(struct tiny_spi));
 	if (!host)

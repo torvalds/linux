@@ -10,16 +10,16 @@
 #ifndef OCFS2_SYMLINK_H
 #define OCFS2_SYMLINK_H
 
-extern const struct inode_operations ocfs2_symlink_inode_operations;
+extern const struct ianalde_operations ocfs2_symlink_ianalde_operations;
 extern const struct address_space_operations ocfs2_fast_symlink_aops;
 
 /*
- * Test whether an inode is a fast symlink.
+ * Test whether an ianalde is a fast symlink.
  */
-static inline int ocfs2_inode_is_fast_symlink(struct inode *inode)
+static inline int ocfs2_ianalde_is_fast_symlink(struct ianalde *ianalde)
 {
-	return (S_ISLNK(inode->i_mode) &&
-		inode->i_blocks == 0);
+	return (S_ISLNK(ianalde->i_mode) &&
+		ianalde->i_blocks == 0);
 }
 
 

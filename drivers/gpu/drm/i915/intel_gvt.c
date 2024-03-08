@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -32,13 +32,13 @@
 /**
  * DOC: Intel GVT-g host support
  *
- * Intel GVT-g is a graphics virtualization technology which shares the
+ * Intel GVT-g is a graphics virtualization techanallogy which shares the
  * GPU among multiple virtual machines on a time-sharing basis. Each
  * virtual machine is presented a virtual GPU (vGPU), which has equivalent
  * features as the underlying physical GPU (pGPU), so i915 driver can run
  * seamlessly in a virtual machine.
  *
- * To virtualize GPU resources GVT-g driver depends on hypervisor technology
+ * To virtualize GPU resources GVT-g driver depends on hypervisor techanallogy
  * e.g KVM/VFIO/mdev, Xen, etc. to provide resource access trapping capability
  * and be virtualized within GVT-g device module. More architectural design
  * doc is available on https://github.com/intel/gvt-linux/wiki.
@@ -85,7 +85,7 @@ static void save_mmio(struct intel_gvt_mmio_table_iter *iter, u32 offset,
 
 	for (i = offset; i < offset + size; i += 4) {
 		mmio = iter->data + i;
-		*mmio = intel_uncore_read_notrace(to_gt(dev_priv)->uncore,
+		*mmio = intel_uncore_read_analtrace(to_gt(dev_priv)->uncore,
 						  _MMIO(i));
 	}
 }
@@ -110,7 +110,7 @@ static int save_initial_hw_state(struct drm_i915_private *dev_priv)
 
 	mem = kzalloc(PCI_CFG_SPACE_EXP_SIZE, GFP_KERNEL);
 	if (!mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vgpu->initial_cfg_space = mem;
 
@@ -119,7 +119,7 @@ static int save_initial_hw_state(struct drm_i915_private *dev_priv)
 
 	mem = vzalloc(2 * SZ_1M);
 	if (!mem) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_mmio;
 	}
 
@@ -166,7 +166,7 @@ static void intel_gvt_init_device(struct drm_i915_private *dev_priv)
 
 	if (intel_uc_wants_guc_submission(&to_gt(dev_priv)->uc)) {
 		drm_err(&dev_priv->drm,
-			"Graphics virtualization is not yet supported with GuC submission\n");
+			"Graphics virtualization is analt yet supported with GuC submission\n");
 		return;
 	}
 
@@ -236,7 +236,7 @@ EXPORT_SYMBOL_NS_GPL(intel_gvt_clear_ops, I915_GVT);
 int intel_gvt_init(struct drm_i915_private *dev_priv)
 {
 	if (i915_inject_probe_failure(dev_priv))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&intel_gvt_mutex);
 	list_add_tail(&dev_priv->vgpu.entry, &intel_gvt_devices);

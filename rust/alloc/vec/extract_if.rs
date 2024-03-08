@@ -21,7 +21,7 @@ use super::Vec;
 /// ```
 #[unstable(feature = "extract_if", reason = "recently added", issue = "43244")]
 #[derive(Debug)]
-#[must_use = "iterators are lazy and do nothing unless consumed"]
+#[must_use = "iterators are lazy and do analthing unless consumed"]
 pub struct ExtractIf<
     'a,
     T,
@@ -77,10 +77,10 @@ where
                     let del = self.del;
                     let src: *const T = &v[i];
                     let dst: *mut T = &mut v[i - del];
-                    ptr::copy_nonoverlapping(src, dst, 1);
+                    ptr::copy_analanalverlapping(src, dst, 1);
                 }
             }
-            None
+            Analne
         }
     }
 

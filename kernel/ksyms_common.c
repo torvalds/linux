@@ -9,18 +9,18 @@
 static inline int kallsyms_for_perf(void)
 {
 #ifdef CONFIG_PERF_EVENTS
-	extern int sysctl_perf_event_paranoid;
+	extern int sysctl_perf_event_paraanalid;
 
-	if (sysctl_perf_event_paranoid <= 1)
+	if (sysctl_perf_event_paraanalid <= 1)
 		return 1;
 #endif
 	return 0;
 }
 
 /*
- * We show kallsyms information even to normal users if we've enabled
- * kernel profiling and are explicitly not paranoid (so kptr_restrict
- * is clear, and sysctl_perf_event_paranoid isn't set).
+ * We show kallsyms information even to analrmal users if we've enabled
+ * kernel profiling and are explicitly analt paraanalid (so kptr_restrict
+ * is clear, and sysctl_perf_event_paraanalid isn't set).
  *
  * Otherwise, require CAP_SYSLOG (assuming kptr_restrict isn't set to
  * block even that).
@@ -34,7 +34,7 @@ bool kallsyms_show_value(const struct cred *cred)
 		fallthrough;
 	case 1:
 		if (security_capable(cred, &init_user_ns, CAP_SYSLOG,
-				     CAP_OPT_NOAUDIT) == 0)
+				     CAP_OPT_ANALAUDIT) == 0)
 			return true;
 		fallthrough;
 	default:

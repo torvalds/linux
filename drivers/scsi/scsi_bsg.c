@@ -22,7 +22,7 @@ static int scsi_bsg_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
 		return -EINVAL;
 	if (hdr->dout_xfer_len && hdr->din_xfer_len) {
 		pr_warn_once("BIDI support in bsg has been removed.\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	rq = scsi_alloc_request(q, hdr->dout_xfer_len ?

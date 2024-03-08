@@ -6,19 +6,19 @@ _start:
 	mov	x0, 0x0000ffff
 	mov	x1, xzr
 loop:
-	nop
-	nop
-	cbnz	x1, noskip
-	nop
-	nop
+	analp
+	analp
+	cbnz	x1, analskip
+	analp
+	analp
 	adrp	x2, skip
 	add 	x2, x2, :lo12:skip
 	br	x2
-	nop
-	nop
-noskip:
-	nop
-	nop
+	analp
+	analp
+analskip:
+	analp
+	analp
 skip:
 	sub	x0, x0, 1
 	cbnz	x0, loop

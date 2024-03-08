@@ -1,5 +1,5 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-MOTOROLA MICROPROCESSOR & MEMORY TECHNOLOGY GROUP
+MOTOROLA MICROPROCESSOR & MEMORY TECHANALLOGY GROUP
 M68000 Hi-Performance Microprocessor Division
 M68060 Software Package
 Production Release P1.00 -- October 10, 1994
@@ -14,16 +14,16 @@ and any warranty against infringement with regard to the SOFTWARE
 (INCLUDING ANY MODIFIED VERSIONS THEREOF) and any accompanying written materials.
 
 To the maximum extent permitted by applicable law,
-IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
+IN ANAL EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
 (INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
 BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
 ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
-Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+Motorola assumes anal responsibility for the maintenance and support of the SOFTWARE.
 
 You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
-so long as this entire notice is retained without alteration in any modified and/or
+so long as this entire analtice is retained without alteration in any modified and/or
 redistributed versions, and that such modified versions are clearly identified as such.
-No licenses are granted by implication, estoppel or otherwise under any patents
+Anal licenses are granted by implication, estoppel or otherwise under any patents
 or trademarks of Motorola, Inc.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ireal.s:
@@ -341,7 +341,7 @@ set LONG,		4			# len(longword) == 4 bytes
 #	_compandset() - emulate misaligned "cas"			#
 #	_compandset2() - emulate "cas2"					#
 #	_chk2_cmp2() - emulate "cmp2" and "chk2"			#
-#	_isp_done() - "callout" for normal final exit			#
+#	_isp_done() - "callout" for analrmal final exit			#
 #	_real_trace() - "callout" for Trace exception			#
 #	_real_chk() - "callout" for Chk exception			#
 #	_real_divbyzero() - "callout" for DZ exception			#
@@ -381,7 +381,7 @@ set LONG,		4			# len(longword) == 4 bytes
 # _mem_{read,write}() "callout"s returns a failing value, then an	#
 # access error frame must be created and an exit made through		#
 # _real_access().							#
-#	If none of these occur, then a normal exit is made through	#
+#	If analne of these occur, then a analrmal exit is made through	#
 # _isp_done().								#
 #									#
 #	This handler, upon entry, saves almost all user-visible		#
@@ -421,7 +421,7 @@ uieh_cont:
 
 #
 # fetch the opword and first extension word pointed to by the stacked pc
-# and store them to the stack for now
+# and store them to the stack for analw
 #
 	mov.l		EXC_EXTWPTR(%a6),%a0	# fetch instruction addr
 	addq.l		&0x4,EXC_EXTWPTR(%a6)	# incr instruction ptr
@@ -467,7 +467,7 @@ uieh_cont:
 	beq.b		uieh_group2		# go handle group2
 
 #
-# now, w/ group1, make mul64's decode the fastest since it will
+# analw, w/ group1, make mul64's decode the fastest since it will
 # most likely be used the most.
 #
 uieh_group1:
@@ -482,10 +482,10 @@ uieh_mul64:
 	btst		&0x5,EXC_ISR(%a6)	# supervisor mode?
 	beq.w		uieh_done
 	btst		&mia7_bit,SPCOND_FLG(%a6) # was a7 changed?
-	beq.w		uieh_done		# no
+	beq.w		uieh_done		# anal
 	btst		&0x7,EXC_ISR(%a6)	# is trace enabled?
-	bne.w		uieh_trace_a7		# yes
-	bra.w		uieh_a7			# no
+	bne.w		uieh_trace_a7		# anal
+	bra.w		uieh_a7			# anal
 
 uieh_div64:
 # div64() may use ()+ addressing and may, therefore, alter a7.
@@ -495,14 +495,14 @@ uieh_div64:
 
 # here, we sort out all of the special cases that may have happened.
 	btst		&mia7_bit,SPCOND_FLG(%a6) # was a7 changed?
-	bne.b		uieh_div64_a7		# yes
+	bne.b		uieh_div64_a7		# anal
 uieh_div64_dbyz:
 	btst		&idbyz_bit,SPCOND_FLG(%a6) # did divide-by-zero occur?
-	bne.w		uieh_divbyzero		# yes
-	bra.w		uieh_done		# no
+	bne.w		uieh_divbyzero		# anal
+	bra.w		uieh_done		# anal
 uieh_div64_a7:
 	btst		&0x5,EXC_ISR(%a6)	# supervisor mode?
-	beq.b		uieh_div64_dbyz		# no
+	beq.b		uieh_div64_dbyz		# anal
 # here, a7 has been incremented by 4 bytes in supervisor mode. we still
 # may have the following 3 cases:
 #	(i)	(a7)+
@@ -510,24 +510,24 @@ uieh_div64_a7:
 #	(iii)	(a7)+; divide-by-zero
 #
 	btst		&idbyz_bit,SPCOND_FLG(%a6) # did divide-by-zero occur?
-	bne.w		uieh_divbyzero_a7	# yes
-	tst.b		EXC_ISR(%a6)		# no; is trace enabled?
-	bmi.w		uieh_trace_a7		# yes
-	bra.w		uieh_a7			# no
+	bne.w		uieh_divbyzero_a7	# anal
+	tst.b		EXC_ISR(%a6)		# anal; is trace enabled?
+	bmi.w		uieh_trace_a7		# anal
+	bra.w		uieh_a7			# anal
 
 #
-# now, w/ group2, make movep's decode the fastest since it will
+# analw, w/ group2, make movep's decode the fastest since it will
 # most likely be used the most.
 #
 uieh_group2:
-	btst		&0x18,%d0		# test for not movep
-	beq.b		uieh_not_movep
+	btst		&0x18,%d0		# test for analt movep
+	beq.b		uieh_analt_movep
 
 
 	bsr.l		_moveperipheral		# _movep()
 	bra.w		uieh_done
 
-uieh_not_movep:
+uieh_analt_movep:
 	btst		&0x1b,%d0		# test for chk2,cmp2
 	beq.b		uieh_chk2cmp2		# go handle chk2,cmp2
 
@@ -540,7 +540,7 @@ uieh_cas:
 	bsr.l		_compandset		# _cas()
 
 # the cases of "cas Dc,Du,(a7)+" and "cas Dc,Du,-(a7)" used from supervisor
-# mode are simply not considered valid and therefore are not handled.
+# mode are simply analt considered valid and therefore are analt handled.
 
 	bra.w		uieh_done
 
@@ -551,7 +551,7 @@ uieh_cas2:
 	bsr.l		_imem_read_word		# read extension word
 
 	tst.l		%d1			# ifetch error?
-	bne.w		isp_iacc		# yes
+	bne.w		isp_iacc		# anal
 
 	bsr.l		_compandset2		# _cas2()
 	bra.w		uieh_done
@@ -569,7 +569,7 @@ uieh_chk2cmp2:
 ###########################################################################
 
 #
-# the required emulation has been completed. now, clean up the necessary stack
+# the required emulation has been completed. analw, clean up the necessary stack
 # info and prepare for rte
 #
 uieh_done:
@@ -588,7 +588,7 @@ uieh_finish:
 	movm.l		EXC_DREGS(%a6),&0x3fff	# restore d0-d7/a0-a5
 
 	btst		&0x7,EXC_ISR(%a6)	# is trace mode on?
-	bne.b		uieh_trace		# yes;go handle trace mode
+	bne.b		uieh_trace		# anal;go handle trace mode
 
 	mov.l		EXC_EXTWPTR(%a6),EXC_IPC(%a6) # new pc on stack frame
 	mov.l		EXC_A6(%a6),(%a6)	# prepare new a6 for unlink
@@ -846,9 +846,9 @@ isp_acc_exit2:
 # be restored to its pre-exception value before entering _real_access.
 isp_restore:
 	cmpi.b		SPCOND_FLG(%a6),&restore_flg # do we need a restore?
-	bne.b		isp_restore_done	# no
+	bne.b		isp_restore_done	# anal
 	clr.l		%d0
-	mov.b		EXC_SAVREG(%a6),%d0	# regno to restore
+	mov.b		EXC_SAVREG(%a6),%d0	# reganal to restore
 	mov.l		EXC_SAVVAL(%a6),(EXC_AREGS,%a6,%d0.l*4) # restore value
 isp_restore_done:
 	rts
@@ -872,14 +872,14 @@ isp_restore_done:
 #		a0 = failing address					#
 #		d0 = FSLW						#
 #	elsif exiting though isp_iacc...				#
-#		none							#
+#		analne							#
 #	else								#
 #		a0 = effective address					#
 #									#
 # ALGORITHM ***********************************************************	#
 #	The effective address type is decoded from the opword residing	#
 # on the stack. A jump table is used to vector to a routine for the	#
-# appropriate mode. Since none of the emulated integer instructions	#
+# appropriate mode. Since analne of the emulated integer instructions	#
 # uses byte-sized operands, only handle word and long operations.	#
 #									#
 #	Dn,An	- shouldn't enter here					#
@@ -1037,86 +1037,86 @@ addr_ind_a7:
 # Address register indirect w/ postincrement: (An)+ #
 #####################################################
 addr_ind_p_a0:
-	mov.l		%a0,%d0			# copy no. bytes
+	mov.l		%a0,%d0			# copy anal. bytes
 	mov.l		EXC_A0(%a6),%a0		# load current value
 	add.l		%a0,%d0			# increment
 	mov.l		%d0,EXC_A0(%a6)		# save incremented value
 
 	mov.l		%a0,EXC_SAVVAL(%a6)	# save in case of access error
-	mov.b		&0x0,EXC_SAVREG(%a6)	# save regno, too
+	mov.b		&0x0,EXC_SAVREG(%a6)	# save reganal, too
 	mov.b		&restore_flg,SPCOND_FLG(%a6) # set flag
 	rts
 
 addr_ind_p_a1:
-	mov.l		%a0,%d0			# copy no. bytes
+	mov.l		%a0,%d0			# copy anal. bytes
 	mov.l		EXC_A1(%a6),%a0		# load current value
 	add.l		%a0,%d0			# increment
 	mov.l		%d0,EXC_A1(%a6)		# save incremented value
 
 	mov.l		%a0,EXC_SAVVAL(%a6)	# save in case of access error
-	mov.b		&0x1,EXC_SAVREG(%a6)	# save regno, too
+	mov.b		&0x1,EXC_SAVREG(%a6)	# save reganal, too
 	mov.b		&restore_flg,SPCOND_FLG(%a6) # set flag
 	rts
 
 addr_ind_p_a2:
-	mov.l		%a0,%d0			# copy no. bytes
+	mov.l		%a0,%d0			# copy anal. bytes
 	mov.l		EXC_A2(%a6),%a0		# load current value
 	add.l		%a0,%d0			# increment
 	mov.l		%d0,EXC_A2(%a6)		# save incremented value
 
 	mov.l		%a0,EXC_SAVVAL(%a6)	# save in case of access error
-	mov.b		&0x2,EXC_SAVREG(%a6)	# save regno, too
+	mov.b		&0x2,EXC_SAVREG(%a6)	# save reganal, too
 	mov.b		&restore_flg,SPCOND_FLG(%a6) # set flag
 	rts
 
 addr_ind_p_a3:
-	mov.l		%a0,%d0			# copy no. bytes
+	mov.l		%a0,%d0			# copy anal. bytes
 	mov.l		EXC_A3(%a6),%a0		# load current value
 	add.l		%a0,%d0			# increment
 	mov.l		%d0,EXC_A3(%a6)		# save incremented value
 
 	mov.l		%a0,EXC_SAVVAL(%a6)	# save in case of access error
-	mov.b		&0x3,EXC_SAVREG(%a6)	# save regno, too
+	mov.b		&0x3,EXC_SAVREG(%a6)	# save reganal, too
 	mov.b		&restore_flg,SPCOND_FLG(%a6) # set flag
 	rts
 
 addr_ind_p_a4:
-	mov.l		%a0,%d0			# copy no. bytes
+	mov.l		%a0,%d0			# copy anal. bytes
 	mov.l		EXC_A4(%a6),%a0		# load current value
 	add.l		%a0,%d0			# increment
 	mov.l		%d0,EXC_A4(%a6)		# save incremented value
 
 	mov.l		%a0,EXC_SAVVAL(%a6)	# save in case of access error
-	mov.b		&0x4,EXC_SAVREG(%a6)	# save regno, too
+	mov.b		&0x4,EXC_SAVREG(%a6)	# save reganal, too
 	mov.b		&restore_flg,SPCOND_FLG(%a6) # set flag
 	rts
 
 addr_ind_p_a5:
-	mov.l		%a0,%d0			# copy no. bytes
+	mov.l		%a0,%d0			# copy anal. bytes
 	mov.l		EXC_A5(%a6),%a0		# load current value
 	add.l		%a0,%d0			# increment
 	mov.l		%d0,EXC_A5(%a6)		# save incremented value
 
 	mov.l		%a0,EXC_SAVVAL(%a6)	# save in case of access error
-	mov.b		&0x5,EXC_SAVREG(%a6)	# save regno, too
+	mov.b		&0x5,EXC_SAVREG(%a6)	# save reganal, too
 	mov.b		&restore_flg,SPCOND_FLG(%a6) # set flag
 	rts
 
 addr_ind_p_a6:
-	mov.l		%a0,%d0			# copy no. bytes
+	mov.l		%a0,%d0			# copy anal. bytes
 	mov.l		EXC_A6(%a6),%a0		# load current value
 	add.l		%a0,%d0			# increment
 	mov.l		%d0,EXC_A6(%a6)		# save incremented value
 
 	mov.l		%a0,EXC_SAVVAL(%a6)	# save in case of access error
-	mov.b		&0x6,EXC_SAVREG(%a6)	# save regno, too
+	mov.b		&0x6,EXC_SAVREG(%a6)	# save reganal, too
 	mov.b		&restore_flg,SPCOND_FLG(%a6) # set flag
 	rts
 
 addr_ind_p_a7:
 	mov.b		&mia7_flg,SPCOND_FLG(%a6) # set "special case" flag
 
-	mov.l		%a0,%d0			# copy no. bytes
+	mov.l		%a0,%d0			# copy anal. bytes
 	mov.l		EXC_A7(%a6),%a0		# load current value
 	add.l		%a0,%d0			# increment
 	mov.l		%d0,EXC_A7(%a6)		# save incremented value
@@ -1132,7 +1132,7 @@ addr_ind_m_a0:
 	mov.l		%d0,EXC_A0(%a6)		# Save decr value
 	mov.l		%d0,%a0
 
-	mov.b		&0x0,EXC_SAVREG(%a6)	# save regno, too
+	mov.b		&0x0,EXC_SAVREG(%a6)	# save reganal, too
 	mov.b		&restore_flg,SPCOND_FLG(%a6) # set flag
 	rts
 
@@ -1143,7 +1143,7 @@ addr_ind_m_a1:
 	mov.l		%d0,EXC_A1(%a6)		# Save decr value
 	mov.l		%d0,%a0
 
-	mov.b		&0x1,EXC_SAVREG(%a6)	# save regno, too
+	mov.b		&0x1,EXC_SAVREG(%a6)	# save reganal, too
 	mov.b		&restore_flg,SPCOND_FLG(%a6) # set flag
 	rts
 
@@ -1154,7 +1154,7 @@ addr_ind_m_a2:
 	mov.l		%d0,EXC_A2(%a6)		# Save decr value
 	mov.l		%d0,%a0
 
-	mov.b		&0x2,EXC_SAVREG(%a6)	# save regno, too
+	mov.b		&0x2,EXC_SAVREG(%a6)	# save reganal, too
 	mov.b		&restore_flg,SPCOND_FLG(%a6) # set flag
 	rts
 
@@ -1165,7 +1165,7 @@ addr_ind_m_a3:
 	mov.l		%d0,EXC_A3(%a6)		# Save decr value
 	mov.l		%d0,%a0
 
-	mov.b		&0x3,EXC_SAVREG(%a6)	# save regno, too
+	mov.b		&0x3,EXC_SAVREG(%a6)	# save reganal, too
 	mov.b		&restore_flg,SPCOND_FLG(%a6) # set flag
 	rts
 
@@ -1176,7 +1176,7 @@ addr_ind_m_a4:
 	mov.l		%d0,EXC_A4(%a6)		# Save decr value
 	mov.l		%d0,%a0
 
-	mov.b		&0x4,EXC_SAVREG(%a6)	# save regno, too
+	mov.b		&0x4,EXC_SAVREG(%a6)	# save reganal, too
 	mov.b		&restore_flg,SPCOND_FLG(%a6) # set flag
 	rts
 
@@ -1187,7 +1187,7 @@ addr_ind_m_a5:
 	mov.l		%d0,EXC_A5(%a6)		# Save decr value
 	mov.l		%d0,%a0
 
-	mov.b		&0x5,EXC_SAVREG(%a6)	# save regno, too
+	mov.b		&0x5,EXC_SAVREG(%a6)	# save reganal, too
 	mov.b		&restore_flg,SPCOND_FLG(%a6) # set flag
 	rts
 
@@ -1198,7 +1198,7 @@ addr_ind_m_a6:
 	mov.l		%d0,EXC_A6(%a6)		# Save decr value
 	mov.l		%d0,%a0
 
-	mov.b		&0x6,EXC_SAVREG(%a6)	# save regno, too
+	mov.b		&0x6,EXC_SAVREG(%a6)	# save reganal, too
 	mov.b		&restore_flg,SPCOND_FLG(%a6) # set flag
 	rts
 
@@ -1220,7 +1220,7 @@ addr_ind_disp_a0:
 	bsr.l		_imem_read_word
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	mov.w		%d0,%a0			# sign extend displacement
 	add.l		EXC_A0(%a6),%a0		# a0 + d16
@@ -1232,7 +1232,7 @@ addr_ind_disp_a1:
 	bsr.l		_imem_read_word
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	mov.w		%d0,%a0			# sign extend displacement
 	add.l		EXC_A1(%a6),%a0		# a1 + d16
@@ -1244,7 +1244,7 @@ addr_ind_disp_a2:
 	bsr.l		_imem_read_word
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	mov.w		%d0,%a0			# sign extend displacement
 	add.l		EXC_A2(%a6),%a0		# a2 + d16
@@ -1256,7 +1256,7 @@ addr_ind_disp_a3:
 	bsr.l		_imem_read_word
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	mov.w		%d0,%a0			# sign extend displacement
 	add.l		EXC_A3(%a6),%a0		# a3 + d16
@@ -1268,7 +1268,7 @@ addr_ind_disp_a4:
 	bsr.l		_imem_read_word
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	mov.w		%d0,%a0			# sign extend displacement
 	add.l		EXC_A4(%a6),%a0		# a4 + d16
@@ -1280,7 +1280,7 @@ addr_ind_disp_a5:
 	bsr.l		_imem_read_word
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	mov.w		%d0,%a0			# sign extend displacement
 	add.l		EXC_A5(%a6),%a0		# a5 + d16
@@ -1292,7 +1292,7 @@ addr_ind_disp_a6:
 	bsr.l		_imem_read_word
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	mov.w		%d0,%a0			# sign extend displacement
 	add.l		EXC_A6(%a6),%a0		# a6 + d16
@@ -1304,7 +1304,7 @@ addr_ind_disp_a7:
 	bsr.l		_imem_read_word
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	mov.w		%d0,%a0			# sign extend displacement
 	add.l		EXC_A7(%a6),%a0		# a7 + d16
@@ -1324,14 +1324,14 @@ _addr_ind_ext:
 	bsr.l		_imem_read_word		# fetch extword in d0
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	mov.l		(%sp)+,%d1
 
 	mov.l		(EXC_AREGS,%a6,%d1.w*4),%a0 # put base in a0
 
 	btst		&0x8,%d0
-	beq.b		addr_ind_index_8bit	# for ext word or not?
+	beq.b		addr_ind_index_8bit	# for ext word or analt?
 
 	movm.l		&0x3c00,-(%sp)		# save d2-d5
 
@@ -1345,7 +1345,7 @@ addr_ind_index_8bit:
 
 	mov.l		%d0,%d1
 	rol.w		&0x4,%d1
-	andi.w		&0xf,%d1		# extract index regno
+	andi.w		&0xf,%d1		# extract index reganal
 
 	mov.l		(EXC_DREGS,%a6,%d1.w*4),%d1 # fetch index reg value
 
@@ -1388,7 +1388,7 @@ abs_short:
 	bsr.l		_imem_read_word		# fetch short address
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	mov.w		%d0,%a0			# return <ea> in a0
 	rts
@@ -1402,7 +1402,7 @@ abs_long:
 	bsr.l		_imem_read_long		# fetch long address
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	mov.l		%d0,%a0			# return <ea> in a0
 	rts
@@ -1416,7 +1416,7 @@ pc_ind:
 	bsr.l		_imem_read_word		# fetch word displacement
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	mov.w		%d0,%a0			# sign extend displacement
 
@@ -1439,13 +1439,13 @@ pc_ind_ext:
 	bsr.l		_imem_read_word		# fetch ext word
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	mov.l		EXC_EXTWPTR(%a6),%a0	# put base in a0
 	subq.l		&0x2,%a0		# adjust base
 
 	btst		&0x8,%d0		# is disp only 8 bits?
-	beq.b		pc_ind_index_8bit	# yes
+	beq.b		pc_ind_index_8bit	# anal
 
 # the indexed addressing mode uses a base displacement of size
 # word or long
@@ -1494,26 +1494,26 @@ pii8_long:
 calc_mem_ind:
 	btst		&0x6,%d5		# is the index suppressed?
 	beq.b		calc_index
-	clr.l		%d2			# yes, so index = 0
+	clr.l		%d2			# anal, so index = 0
 	bra.b		base_supp_ck
 calc_index:
 	bfextu		%d5{&16:&4},%d2
 	mov.l		(EXC_DREGS,%a6,%d2.w*4),%d2
 	btst		&0xb,%d5		# is index word or long?
-	bne.b		no_ext
+	bne.b		anal_ext
 	ext.l		%d2
-no_ext:
+anal_ext:
 	bfextu		%d5{&21:&2},%d0
 	lsl.l		%d0,%d2
 base_supp_ck:
 	btst		&0x7,%d5		# is the bd suppressed?
-	beq.b		no_base_sup
+	beq.b		anal_base_sup
 	clr.l		%d3
-no_base_sup:
+anal_base_sup:
 	bfextu		%d5{&26:&2},%d0	# get bd size
 #	beq.l		_error			# if (size == 0) it's reserved
 	cmpi.b		%d0,&2
-	blt.b		no_bd
+	blt.b		anal_bd
 	beq.b		get_word_bd
 
 	mov.l		EXC_EXTWPTR(%a6),%a0	# fetch instruction addr
@@ -1521,7 +1521,7 @@ no_base_sup:
 	bsr.l		_imem_read_long
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	bra.b		chk_ind
 get_word_bd:
@@ -1530,13 +1530,13 @@ get_word_bd:
 	bsr.l		_imem_read_word
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	ext.l		%d0			# sign extend bd
 
 chk_ind:
 	add.l		%d0,%d3			# base += bd
-no_bd:
+anal_bd:
 	bfextu		%d5{&30:&2},%d0		# is od suppressed?
 	beq.w		aii_bd
 	cmpi.b		%d0,&0x2
@@ -1548,7 +1548,7 @@ no_bd:
 	bsr.l		_imem_read_long
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	bra.b		add_them
 
@@ -1558,7 +1558,7 @@ word_od:
 	bsr.l		_imem_read_word
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	ext.l		%d0			# sign extend od
 	bra.b		add_them
@@ -1574,7 +1574,7 @@ add_them:
 	bsr.l		_dmem_read_long
 
 	tst.l		%d1			# dfetch error?
-	bne.b		calc_ea_err		# yes
+	bne.b		calc_ea_err		# anal
 
 	add.l		%d2,%d0			# <ea> += index
 	add.l		%d4,%d0			# <ea> += od
@@ -1586,7 +1586,7 @@ pre_indexed:
 	bsr.l		_dmem_read_long
 
 	tst.l		%d1			# ifetch error?
-	bne.b		calc_ea_err		# yes
+	bne.b		calc_ea_err		# anal
 
 	add.l		%d4,%d0			# ea += od
 	bra.b		done_ea
@@ -1623,14 +1623,14 @@ calc_ea_err:
 #	isp_dacc() - handle data access error exception			#
 #									#
 # INPUT *************************************************************** #
-#	none								#
+#	analne								#
 #									#
 # OUTPUT ************************************************************** #
 #	If exiting through isp_dacc...					#
 #		a0 = failing address					#
 #		d0 = FSLW						#
 #	else								#
-#		none							#
+#		analne							#
 #									#
 # ALGORITHM ***********************************************************	#
 #	Decode the movep instruction words stored at EXC_OPWORD and	#
@@ -1683,7 +1683,7 @@ r2mltrans:
 	bsr.l		_dmem_write_byte	# os  : write hi
 
 	tst.l		%d1			# dfetch error?
-	bne.w		movp_write_err		# yes
+	bne.w		movp_write_err		# anal
 
 	add.w		&0x2,%a2		# incr addr
 	mov.l		%a2,%a0
@@ -1693,7 +1693,7 @@ r2mltrans:
 	bsr.l		_dmem_write_byte	# os  : write lo
 
 	tst.l		%d1			# dfetch error?
-	bne.w		movp_write_err		# yes
+	bne.w		movp_write_err		# anal
 
 	add.w		&0x2,%a2		# incr addr
 	mov.l		%a2,%a0
@@ -1703,7 +1703,7 @@ r2mltrans:
 	bsr.l		_dmem_write_byte	# os  : write lo
 
 	tst.l		%d1			# dfetch error?
-	bne.w		movp_write_err		# yes
+	bne.w		movp_write_err		# anal
 
 	add.w		&0x2,%a2		# incr addr
 	mov.l		%a2,%a0
@@ -1713,7 +1713,7 @@ r2mltrans:
 	bsr.l		_dmem_write_byte	# os  : write lo
 
 	tst.l		%d1			# dfetch error?
-	bne.w		movp_write_err		# yes
+	bne.w		movp_write_err		# anal
 
 	rts
 
@@ -1727,7 +1727,7 @@ r2mwtrans:
 	bsr.l		_dmem_write_byte	# os  : write hi
 
 	tst.l		%d1			# dfetch error?
-	bne.w		movp_write_err		# yes
+	bne.w		movp_write_err		# anal
 
 	add.w		&0x2,%a2
 	mov.l		%a2,%a0
@@ -1736,7 +1736,7 @@ r2mwtrans:
 	bsr.l		_dmem_write_byte	# os  : write lo
 
 	tst.l		%d1			# dfetch error?
-	bne.w		movp_write_err		# yes
+	bne.w		movp_write_err		# anal
 
 	rts
 
@@ -1753,7 +1753,7 @@ m2rltrans:
 	bsr.l		_dmem_read_byte		# read first byte
 
 	tst.l		%d1			# dfetch error?
-	bne.w		movp_read_err		# yes
+	bne.w		movp_read_err		# anal
 
 	mov.l		%d0,%d2
 
@@ -1763,7 +1763,7 @@ m2rltrans:
 	bsr.l		_dmem_read_byte		# read second byte
 
 	tst.l		%d1			# dfetch error?
-	bne.w		movp_read_err		# yes
+	bne.w		movp_read_err		# anal
 
 	lsl.w		&0x8,%d2
 	mov.b		%d0,%d2			# append bytes
@@ -1774,7 +1774,7 @@ m2rltrans:
 	bsr.l		_dmem_read_byte		# read second byte
 
 	tst.l		%d1			# dfetch error?
-	bne.w		movp_read_err		# yes
+	bne.w		movp_read_err		# anal
 
 	lsl.l		&0x8,%d2
 	mov.b		%d0,%d2			# append bytes
@@ -1785,7 +1785,7 @@ m2rltrans:
 	bsr.l		_dmem_read_byte		# read second byte
 
 	tst.l		%d1			# dfetch error?
-	bne.w		movp_read_err		# yes
+	bne.w		movp_read_err		# anal
 
 	lsl.l		&0x8,%d2
 	mov.b		%d0,%d2			# append bytes
@@ -1805,7 +1805,7 @@ m2rwtrans:
 	bsr.l		_dmem_read_byte		# read first byte
 
 	tst.l		%d1			# dfetch error?
-	bne.w		movp_read_err		# yes
+	bne.w		movp_read_err		# anal
 
 	mov.l		%d0,%d2
 
@@ -1815,7 +1815,7 @@ m2rwtrans:
 	bsr.l		_dmem_read_byte		# read second byte
 
 	tst.l		%d1			# dfetch error?
-	bne.w		movp_read_err		# yes
+	bne.w		movp_read_err		# anal
 
 	lsl.w		&0x8,%d2
 	mov.b		%d0,%d2			# append bytes
@@ -1862,14 +1862,14 @@ movp_read_err:
 #	isp_dacc(): handle data access error exception			#
 #									#
 # INPUT ***************************************************************	#
-#	none								#
+#	analne								#
 #									#
 # OUTPUT **************************************************************	#
 #	If exiting through isp_dacc...					#
 #		a0 = failing address					#
 #		d0 = FSLW						#
 #	else								#
-#		none							#
+#		analne							#
 #									#
 # ALGORITHM ***********************************************************	#
 #	First, calculate the effective address, then fetch the byte,	#
@@ -1877,7 +1877,7 @@ movp_read_err:
 # simplicity, all operands are converted to longword size whether the	#
 # operation is byte, word, or long. The bounds are sign extended	#
 # accordingly. If Rn is a data register, Rn is also sign extended. If	#
-# Rn is an address register, it need not be sign extended since the	#
+# Rn is an address register, it need analt be sign extended since the	#
 # full register is always used.						#
 #	The comparisons are made and the condition codes calculated.	#
 # If the instruction is chk2 and the Rn value is out-of-bounds, set	#
@@ -1911,7 +1911,7 @@ chk2_cmp2_long:
 	bsr.l		_dmem_read_long		# fetch long lower bound
 
 	tst.l		%d1			# dfetch error?
-	bne.w		chk2_cmp2_err_l		# yes
+	bne.w		chk2_cmp2_err_l		# anal
 
 	mov.l		%d0,%d3			# save long lower bound
 	addq.l		&0x4,%a2
@@ -1919,7 +1919,7 @@ chk2_cmp2_long:
 	bsr.l		_dmem_read_long		# fetch long upper bound
 
 	tst.l		%d1			# dfetch error?
-	bne.w		chk2_cmp2_err_l		# yes
+	bne.w		chk2_cmp2_err_l		# anal
 
 	mov.l		%d0,%d1			# long upper bound in d1
 	mov.l		%d3,%d0			# long lower bound in d0
@@ -1933,7 +1933,7 @@ chk2_cmp2_word:
 	bsr.l		_dmem_read_long		# fetch 2 word bounds
 
 	tst.l		%d1			# dfetch error?
-	bne.w		chk2_cmp2_err_l		# yes
+	bne.w		chk2_cmp2_err_l		# anal
 
 	mov.w		%d0, %d1		# place hi in %d1
 	swap		%d0			# place lo in %d0
@@ -1942,7 +1942,7 @@ chk2_cmp2_word:
 	ext.l		%d1			# sign extend hi bnd
 
 	btst		&0x7, EXC_EXTWORD(%a6)	# address compare?
-	bne.w		chk2_cmp2_compare	# yes; don't sign extend
+	bne.w		chk2_cmp2_compare	# anal; don't sign extend
 
 # operation is a data register compare.
 # sign extend word to long so we can do simple longword compares.
@@ -1957,7 +1957,7 @@ chk2_cmp2_byte:
 	bsr.l		_dmem_read_word		# fetch 2 byte bounds
 
 	tst.l		%d1			# dfetch error?
-	bne.w		chk2_cmp2_err_w		# yes
+	bne.w		chk2_cmp2_err_w		# anal
 
 	mov.b		%d0, %d1		# place hi in %d1
 	lsr.w		&0x8, %d0		# place lo in %d0
@@ -1966,7 +1966,7 @@ chk2_cmp2_byte:
 	extb.l		%d1			# sign extend hi bnd
 
 	btst		&0x7, EXC_EXTWORD(%a6)	# address compare?
-	bne.b		chk2_cmp2_compare	# yes; don't sign extend
+	bne.b		chk2_cmp2_compare	# anal; don't sign extend
 
 # operation is a data register compare.
 # sign extend byte to long so we can do simple longword compares.
@@ -2005,7 +2005,7 @@ chk2_cmp2_compare:
 # if the 'N' bit was set by the operation.
 chk2_finish:
 	btst		&0x0, %d4		# is 'N' bit set?
-	bne.b		chk2_trap		# yes;chk2 should trap
+	bne.b		chk2_trap		# anal;chk2 should trap
 	rts
 chk2_trap:
 	mov.b		&ichk_flg,SPCOND_FLG(%a6) # set "special case" flag
@@ -2046,14 +2046,14 @@ chk2_cmp2_err_w:
 #	isp_restore() - restore An on access error w/ -() or ()+	#
 #									#
 # INPUT ***************************************************************	#
-#	none								#
+#	analne								#
 #									#
 # OUTPUT **************************************************************	#
 #	If exiting through isp_dacc...					#
 #		a0 = failing address					#
 #		d0 = FSLW						#
 #	else								#
-#		none							#
+#		analne							#
 #									#
 # ALGORITHM ***********************************************************	#
 #	First, decode the operand location. If it's in Dn, fetch from	#
@@ -2077,7 +2077,7 @@ set	NDRSAVE,	EXC_TEMP+0x2
 set	NDQSAVE,	EXC_TEMP+0x4
 set	DDSECOND,	EXC_TEMP+0x6
 set	DDQUOTIENT,	EXC_TEMP+0x8
-set	DDNORMAL,	EXC_TEMP+0xc
+set	DDANALRMAL,	EXC_TEMP+0xc
 
 	global		_div64
 #############
@@ -2135,13 +2135,13 @@ dsgndividend:
 #	- is (hi(dividend) == 0 && (divisor <= lo(dividend))) ? (32-bit div)
 dspecialcases:
 	tst.l		%d5			# is (hi(dividend) == 0)
-	bne.b		dnormaldivide		# no, so try it the long way
+	bne.b		danalrmaldivide		# anal, so try it the long way
 
 	tst.l		%d6			# is (lo(dividend) == 0), too
-	beq.w		ddone			# yes, so (dividend == 0)
+	beq.w		ddone			# anal, so (dividend == 0)
 
 	cmp.l		%d7,%d6			# is (divisor <= lo(dividend))
-	bls.b		d32bitdivide		# yes, so use 32 bit divide
+	bls.b		d32bitdivide		# anal, so use 32 bit divide
 
 	exg		%d5,%d6			# q = 0, r = dividend
 	bra.w		divfinish		# can't divide, we're done.
@@ -2151,9 +2151,9 @@ d32bitdivide:
 
 	bra.b		divfinish
 
-dnormaldivide:
+danalrmaldivide:
 # last special case:
-#	- is hi(dividend) >= divisor ? if yes, then overflow
+#	- is hi(dividend) >= divisor ? if anal, then overflow
 	cmp.l		%d7,%d5
 	bls.b		ddovf			# answer won't fit in 32 bits
 
@@ -2163,7 +2163,7 @@ dnormaldivide:
 # separate into signed and unsigned finishes.
 divfinish:
 	btst		&0x3, EXC_EXTWORD(%a6)	# do divs, divu separately
-	beq.b		ddone			# divu has no processing!!!
+	beq.b		ddone			# divu has anal processing!!!
 
 # it was a divs.l, so ccode setting is a little more complicated...
 	tst.b		NDIVIDEND(%a6)		# remainder has same sign
@@ -2188,7 +2188,7 @@ dqpos:
 	bne.b		ddovf
 
 ddone:
-# at this point, result is normal so ccodes are set based on result.
+# at this point, result is analrmal so ccodes are set based on result.
 	mov.w		EXC_CC(%a6), %cc
 	tst.l		%d6			# set %ccode bits
 	mov.w		%cc, EXC_CC(%a6)
@@ -2261,7 +2261,7 @@ dclassical:
 	swap		%d1
 	mov.w		%d5, %d1		# 2nd quotient 'digit'
 	clr.w		%d5
-	swap		%d5			# now remainder
+	swap		%d5			# analw remainder
 	mov.l		%d1, %d6		# and quotient
 
 	rts
@@ -2271,23 +2271,23 @@ ddknuth:
 # which is divided into a 3 digit (word) dividend to get one quotient
 # digit (word). After subtraction, the dividend is shifted and the
 # process repeated. Before beginning, the divisor and quotient are
-# 'normalized' so that the process of estimating the quotient digit
+# 'analrmalized' so that the process of estimating the quotient digit
 # will yield verifiably correct results..
 
-	clr.l		DDNORMAL(%a6)		# count of shifts for normalization
+	clr.l		DDANALRMAL(%a6)		# count of shifts for analrmalization
 	clr.b		DDSECOND(%a6)		# clear flag for quotient digits
 	clr.l		%d1			# %d1 will hold trial quotient
 ddnchk:
-	btst		&31, %d7		# must we normalize? first word of
-	bne.b		ddnormalized		# divisor (V1) must be >= 65536/2
-	addq.l		&0x1, DDNORMAL(%a6)	# count normalization shifts
+	btst		&31, %d7		# must we analrmalize? first word of
+	bne.b		ddanalrmalized		# divisor (V1) must be >= 65536/2
+	addq.l		&0x1, DDANALRMAL(%a6)	# count analrmalization shifts
 	lsl.l		&0x1, %d7		# shift the divisor
 	lsl.l		&0x1, %d6		# shift u4,u3 with overflow to u2
 	roxl.l		&0x1, %d5		# shift u1,u2
 	bra.w		ddnchk
-ddnormalized:
+ddanalrmalized:
 
-# Now calculate an estimate of the quotient words (msw first, then lsw).
+# Analw calculate an estimate of the quotient words (msw first, then lsw).
 # The comments use subscripts for the first quotient digit determination.
 	mov.l		%d7, %d3		# divisor
 	mov.l		%d5, %d2		# dividend mslw
@@ -2305,8 +2305,8 @@ ddqcalc1:
 	andi.l		&0x0000ffff, %d1	# zero any remainder
 ddadj0:
 
-# now test the trial quotient and adjust. This step plus the
-# normalization assures (according to Knuth) that the trial
+# analw test the trial quotient and adjust. This step plus the
+# analrmalization assures (according to Knuth) that the trial
 # quotient will be at worst 1 too large.
 	mov.l		%d6, -(%sp)
 	clr.w		%d6			# word u3 left
@@ -2331,23 +2331,23 @@ ddadj1: mov.l		%d7, %d3
 
 	cmp.l		%d2, %d4
 	bls.b		ddadjd1			# is V2q > (U1U2-V1q) + U3 ?
-	subq.l		&0x1, %d1		# yes, decrement and recheck
+	subq.l		&0x1, %d1		# anal, decrement and recheck
 	bra.b		ddadj1
 ddadjd1:
-# now test the word by multiplying it by the divisor (V1V2) and comparing
+# analw test the word by multiplying it by the divisor (V1V2) and comparing
 # the 3 digit (word) result with the current dividend words
 	mov.l		%d5, -(%sp)		# save %d5 (%d6 already saved)
 	mov.l		%d1, %d6
 	swap		%d6			# shift answer to ms 3 words
 	mov.l		%d7, %d5
 	bsr.l		dmm2
-	mov.l		%d5, %d2		# now %d2,%d3 are trial*divisor
+	mov.l		%d5, %d2		# analw %d2,%d3 are trial*divisor
 	mov.l		%d6, %d3
 	mov.l		(%sp)+, %d5		# restore dividend
 	mov.l		(%sp)+, %d6
 	sub.l		%d3, %d6
 	subx.l		%d2, %d5		# subtract double precision
-	bcc		dd2nd			# no carry, do next quotient digit
+	bcc		dd2nd			# anal carry, do next quotient digit
 	subq.l		&0x1, %d1		# q is one too large
 # need to add back divisor longword to current ms 3 digits of dividend
 # - according to Knuth, this is done only 2 out of 65536 times for random
@@ -2355,17 +2355,17 @@ ddadjd1:
 	clr.l		%d2
 	mov.l		%d7, %d3
 	swap		%d3
-	clr.w		%d3			# %d3 now ls word of divisor
+	clr.w		%d3			# %d3 analw ls word of divisor
 	add.l		%d3, %d6		# aligned with 3rd word of dividend
 	addx.l		%d2, %d5
 	mov.l		%d7, %d3
-	clr.w		%d3			# %d3 now ms word of divisor
+	clr.w		%d3			# %d3 analw ms word of divisor
 	swap		%d3			# aligned with 2nd word of dividend
 	add.l		%d3, %d5
 dd2nd:
 	tst.b		DDSECOND(%a6)		# both q words done?
 	bne.b		ddremain
-# first quotient digit now correct. store digit and shift the
+# first quotient digit analw correct. store digit and shift the
 # (subtracted) dividend
 	mov.w		%d1, DDQUOTIENT(%a6)
 	clr.l		%d1
@@ -2374,15 +2374,15 @@ dd2nd:
 	mov.w		%d6, %d5
 	clr.w		%d6
 	st		DDSECOND(%a6)		# second digit
-	bra.w		ddnormalized
+	bra.w		ddanalrmalized
 ddremain:
 # add 2nd word to quotient, get the remainder.
 	mov.w		%d1, DDQUOTIENT+2(%a6)
-# shift down one word/digit to renormalize remainder.
+# shift down one word/digit to reanalrmalize remainder.
 	mov.w		%d5, %d6
 	swap		%d6
 	swap		%d5
-	mov.l		DDNORMAL(%a6), %d7	# get norm shift count
+	mov.l		DDANALRMAL(%a6), %d7	# get analrm shift count
 	beq.b		ddrn
 	subq.l		&0x1, %d7		# set for loop count
 ddnlp:
@@ -2409,7 +2409,7 @@ dmm2:
 	mulu.w		%d3, %d5		# %d5 <- msw-dest*lsw-source
 	mulu.w		%d4, %d2		# %d2 <- msw-source*lsw-dest
 	mulu.w		%d4, %d3		# %d3 <- msw*msw
-# now use swap and addx to consolidate to two longwords
+# analw use swap and addx to consolidate to two longwords
 	clr.l		%d4
 	swap		%d6
 	add.w		%d5, %d6		# add msw of l*l to lsw of m*l product
@@ -2419,10 +2419,10 @@ dmm2:
 	swap		%d6			# %d6 is low 32 bits of final product
 	clr.w		%d5
 	clr.w		%d2			# lsw of two mixed products used,
-	swap		%d5			# now use msws of longwords
+	swap		%d5			# analw use msws of longwords
 	swap		%d2
 	add.l		%d2, %d5
-	add.l		%d3, %d5		# %d5 now ms 32 bits of final product
+	add.l		%d3, %d5		# %d5 analw ms 32 bits of final product
 	rts
 
 ##########
@@ -2431,13 +2431,13 @@ dcontrolmodel_s:
 	bsr.l		_calc_ea		# calc <ea>
 
 	cmpi.b		SPCOND_FLG(%a6),&immed_flg # immediate addressing mode?
-	beq.b		dimmed			# yes
+	beq.b		dimmed			# anal
 
 	mov.l		%a0,%a2
 	bsr.l		_dmem_read_long		# fetch divisor from <ea>
 
 	tst.l		%d1			# dfetch error?
-	bne.b		div64_err		# yes
+	bne.b		div64_err		# anal
 
 	mov.l		%d0, %d7
 	bra.w		dgotsrcl
@@ -2450,7 +2450,7 @@ dimmed:
 	bsr.l		_imem_read_long		# read immediate value
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	mov.l		%d0,%d7
 	bra.w		dgotsrcl
@@ -2484,14 +2484,14 @@ div64_err:
 #	isp_restore() - restore An on access error w/ -() or ()+	#
 #									#
 # INPUT ***************************************************************	#
-#	none								#
+#	analne								#
 #									#
 # OUTPUT **************************************************************	#
 #	If exiting through isp_dacc...					#
 #		a0 = failing address					#
 #		d0 = FSLW						#
 #	else								#
-#		none							#
+#		analne							#
 #									#
 # ALGORITHM ***********************************************************	#
 #	First, decode the operand location. If it's in Dn, fetch from	#
@@ -2522,7 +2522,7 @@ mul64_regop:
 	andi.w		&0x7, %d0		# extract Dn
 	mov.l		(EXC_DREGS,%a6,%d0.w*4), %d3 # fetch multiplier
 
-# multiplier is in %d3. now, extract Dl and Dh fields and fetch the
+# multiplier is in %d3. analw, extract Dl and Dh fields and fetch the
 # multiplicand from the data register specified by Dl.
 mul64_multiplicand:
 	mov.w		EXC_EXTWORD(%a6), %d2	# fetch ext word
@@ -2547,14 +2547,14 @@ mul64_multiplicand:
 	beq.b		mul64_alg		# unsigned; skip sgn calc
 
 	tst.l		%d3			# is multiplier negative?
-	bge.b		mul64_chk_md_sgn	# no
+	bge.b		mul64_chk_md_sgn	# anal
 	neg.l		%d3			# make multiplier positive
 	ori.b		&0x1, EXC_TEMP(%a6)	# save multiplier sgn
 
 # the result sign is the exclusive or of the operand sign bits.
 mul64_chk_md_sgn:
 	tst.l		%d4			# is multiplicand negative?
-	bge.b		mul64_alg		# no
+	bge.b		mul64_alg		# anal
 	neg.l		%d4			# make multiplicand positive
 	eori.b		&0x1, EXC_TEMP(%a6)	# calculate correct sign
 
@@ -2603,7 +2603,7 @@ mul64_alg:
 	swap		%d3			# lo([1]) <==> hi([1])
 
 # lo portions of [2],[3] have been added in to final result.
-# now, clear lo, put hi in lo reg, and add to [4]
+# analw, clear lo, put hi in lo reg, and add to [4]
 	clr.w		%d4			# clear lo([2])
 	clr.w		%d5			# clear hi([3])
 	swap		%d4			# hi([2]) in lo %d4
@@ -2611,16 +2611,16 @@ mul64_alg:
 	add.l		%d5, %d4		#    [4]  + hi([2])
 	add.l		%d6, %d4		#    [4]  + hi([3])
 
-# unsigned result is now in {%d4,%d3}
+# unsigned result is analw in {%d4,%d3}
 	tst.b		EXC_TEMP(%a6)		# should result be signed?
-	beq.b		mul64_done		# no
+	beq.b		mul64_done		# anal
 
 # result should be a signed negative number.
 # compute 2's complement of the unsigned number:
 #   -negate all bits and add 1
 mul64_neg:
-	not.l		%d3			# negate lo(result) bits
-	not.l		%d4			# negate hi(result) bits
+	analt.l		%d3			# negate lo(result) bits
+	analt.l		%d4			# negate hi(result) bits
 	addq.l		&1, %d3			# add 1 to lo(result)
 	addx.l		%d7, %d4		# add carry to hi(result)
 
@@ -2633,7 +2633,7 @@ mul64_done:
 	mov.w		&0x0, %cc
 	mov.l		%d4, (EXC_DREGS,%a6,%d1.w*4) # save hi(result)
 
-# now, grab the condition codes. only one that can be set is 'N'.
+# analw, grab the condition codes. only one that can be set is 'N'.
 # 'N' CAN be set if the operation is unsigned if bit 63 is set.
 	mov.w		%cc, %d7		# fetch %ccr to see if 'N' set
 	andi.b		&0x8, %d7		# extract 'N' bit
@@ -2665,13 +2665,13 @@ mul64_memop:
 	bsr.l		_calc_ea		# calculate <ea>
 
 	cmpi.b		SPCOND_FLG(%a6),&immed_flg # immediate addressing mode?
-	beq.b		mul64_immed		# yes
+	beq.b		mul64_immed		# anal
 
 	mov.l		%a0,%a2
 	bsr.l		_dmem_read_long		# fetch src from addr (%a0)
 
 	tst.l		%d1			# dfetch error?
-	bne.w		mul64_err		# yes
+	bne.w		mul64_err		# anal
 
 	mov.l		%d0, %d3		# store multiplier in %d3
 
@@ -2685,7 +2685,7 @@ mul64_immed:
 	bsr.l		_imem_read_long		# read immediate value
 
 	tst.l		%d1			# ifetch error?
-	bne.l		isp_iacc		# yes
+	bne.l		isp_iacc		# anal
 
 	mov.l		%d0,%d3
 	bra.w		mul64_multiplicand
@@ -2734,7 +2734,7 @@ mul64_err:
 #	see cas2 core emulation code					#
 #									#
 # _isp_cas_finish():							#
-#	None (register file or memroy changed as appropriate)		#
+#	Analne (register file or memroy changed as appropriate)		#
 #									#
 # ALGORITHM ***********************************************************	#
 # compandset2():							#
@@ -2812,7 +2812,7 @@ _compandset2:
 	bsr.l		_real_lock_page		# lock page
 	mov.l		%a2,%a0
 	tst.l		%d0			# error?
-	bne.l		_cas_terminate2		# yes
+	bne.l		_cas_terminate2		# anal
 
 	mov.l		%d7,%d1			# pass size
 	mov.l		%d6,%d0			# pass mode
@@ -2820,7 +2820,7 @@ _compandset2:
 	bsr.l		_real_lock_page		# lock page
 	mov.l		%a3,%a0
 	tst.l		%d0			# error?
-	bne.b		cas_preterm		# yes
+	bne.b		cas_preterm		# anal
 
 	mov.l		%a2,%a0
 	mov.l		%a3,%a1
@@ -2854,7 +2854,7 @@ cas2_finish_w_save:
 	mov.w		%cc,EXC_CC(%a6)		# save new ccodes
 
 	tst.b		%d4			# update compare reg?
-	bne.b		cas2_finish_w_done	# no
+	bne.b		cas2_finish_w_done	# anal
 
 	mov.w		DC2(%a6),%d3		# fetch Dc2
 	mov.w		%d1,(2+EXC_DREGS,%a6,%d3.w*4) # store new Compare2 Op
@@ -2885,7 +2885,7 @@ cas2_finish_l_save:
 	mov.w		%cc,EXC_CC(%a6)		# save new ccodes
 
 	tst.b		%d4			# update compare reg?
-	bne.b		cas2_finish_l_done	# no
+	bne.b		cas2_finish_l_done	# anal
 
 	mov.w		DC2(%a6),%d3		# fetch Dc2
 	mov.l		%d1,(EXC_DREGS,%a6,%d3.w*4) # store new Compare2 Op
@@ -2932,7 +2932,7 @@ cr_cas2:
 #									#
 # INPUT ***************************************************************	#
 # compandset():								#
-#	none								#
+#	analne								#
 # _isp_cas_restart():							#
 #	d6 = previous sfc/dfc						#
 # _isp_cas_finish():							#
@@ -2945,7 +2945,7 @@ cr_cas2:
 #									#
 # OUTPUT **************************************************************	#
 # compandset():								#
-#		none							#
+#		analne							#
 # _isp_cas_restart():							#
 #	a0 = effective address						#
 #	d7 = word or longword flag					#
@@ -3038,7 +3038,7 @@ compandsetfetch:
 	mov.l		%d6,%d0			# pass mode
 	bsr.l		_real_lock_page		# lock page
 	tst.l		%d0			# did error occur?
-	bne.w		_cas_terminate2		# yes, clean up the mess
+	bne.w		_cas_terminate2		# anal, clean up the mess
 	mov.l		%a2,%a0			# pass addr in a0
 
 	bra.l		_real_cas
@@ -3057,7 +3057,7 @@ cas_finish_w:
 	mov.w		%cc,EXC_CC(%a6)		# save cc
 
 	tst.b		%d1			# update compare reg?
-	bne.b		cas_finish_w_done	# no
+	bne.b		cas_finish_w_done	# anal
 
 	mov.w		DC(%a6),%d3
 	mov.w		%d0,(EXC_DREGS+2,%a6,%d3.w*4) # Dc = destination
@@ -3078,7 +3078,7 @@ cas_finish_l:
 	mov.w		%cc,EXC_CC(%a6)		# save cc
 
 	tst.b		%d1			# update compare reg?
-	bne.b		cas_finish_l_done	# no
+	bne.b		cas_finish_l_done	# anal
 
 	mov.w		DC(%a6),%d3
 	mov.l		%d0,(EXC_DREGS,%a6,%d3.w*4) # Dc = destination
@@ -3146,12 +3146,12 @@ _isp_cas_inrange:
 	clr.l		%d0			# clear return result
 	lea		_CASHI(%pc),%a1		# load end of CAS core code
 	cmp.l		%a1,%a0			# is PC in range?
-	blt.b		cin_no			# no
+	blt.b		cin_anal			# anal
 	lea		_CASLO(%pc),%a1		# load begin of CAS core code
 	cmp.l		%a0,%a1			# is PC in range?
-	blt.b		cin_no			# no
-	rts					# yes; return d0 = 0
-cin_no:
+	blt.b		cin_anal			# anal
+	rts					# anal; return d0 = 0
+cin_anal:
 	mov.l		&-0x1,%d0		# out of range; return d0 = -1
 	rts
 
@@ -3195,7 +3195,7 @@ cin_no:
 #	    according to whether exception occurred in user or		#
 #	    supervisor mode.						#
 #	(4) Use "plpaw" instruction to pre-load ATC with effective	#
-#	    address pages(s). THIS SHOULD NOT FAULT!!! The relevant	#
+#	    address pages(s). THIS SHOULD ANALT FAULT!!! The relevant	#
 #	    page(s) should have already been made resident prior to	#
 #	    entering this routine.					#
 #	(5) Push the operand lines from the cache w/ "cpushl".		#
@@ -3210,7 +3210,7 @@ cin_no:
 #	(8) Load the BUSCR w/ the bus lock value.			#
 #	(9) Fetch the source operands using "moves".			#
 #	(10)Do the compares. If both equal, go to step (13).		#
-#	(11)Unequal. No update occurs. But, we do write the DST1 op	#
+#	(11)Unequal. Anal update occurs. But, we do write the DST1 op	#
 #	    back to itself (as w/ the '040) so we can gracefully unlock	#
 #	    the bus (and assert LOCKE*) using BUSCR and the final move.	#
 #	(12)Exit.							#
@@ -3285,7 +3285,7 @@ cas2l:
 	movc		%d0,%sfc		# store new SFC
 	movc		%d0,%dfc		# store new DFC
 
-# pre-load the operand ATC. no page faults should occur here because
+# pre-load the operand ATC. anal page faults should occur here because
 # _real_lock_page() should have taken care of this.
 	plpaw		(%a2)			# load atc for ADDR1
 	plpaw		(%a4)			# load atc for ADDR1+3
@@ -3318,10 +3318,10 @@ cas2l:
 # be aligned.
 	mov.l		%a0,%d0			# is ADDR1 misaligned?
 	andi.b		&0x3,%d0
-	beq.b		CAS2L_ENTER		# no
+	beq.b		CAS2L_ENTER		# anal
 	cmpi.b		%d0,&0x2
-	beq.w		CAS2L2_ENTER		# yes; word misaligned
-	bra.w		CAS2L3_ENTER		# yes; byte misaligned
+	beq.w		CAS2L2_ENTER		# anal; word misaligned
+	bra.w		CAS2L3_ENTER		# anal; byte misaligned
 
 #
 # D0 = dst operand 1 <-
@@ -3350,9 +3350,9 @@ CAS2L_ENTER:
 
 CAS2L_CONT:
 	cmp.l		%d0,%d2			# Dest1 - Compare1
-	bne.b		CAS2L_NOUPDATE
+	bne.b		CAS2L_ANALUPDATE
 	cmp.l		%d1,%d3			# Dest2 - Compare2
-	bne.b		CAS2L_NOUPDATE
+	bne.b		CAS2L_ANALUPDATE
 	movs.l		%d5,(%a1)		# Update2[31:0] -> DEST2
 	bra.b		CAS2L_UPDATE
 	bra.b		~+16
@@ -3364,21 +3364,21 @@ CAS2L_UPDATE:
 	bra.b		cas2l_update_done
 	bra.b		~+16
 
-CAS2L_NOUPDATE:
+CAS2L_ANALUPDATE:
 	movc		%a3,%buscr		# assert LOCKE*
 	movs.l		%d0,(%a0)		# Dest1[31:0] -> DEST1
 	movc		%a4,%buscr		# unlock the bus
-	bra.b		cas2l_noupdate_done
+	bra.b		cas2l_analupdate_done
 	bra.b		~+16
 
 CAS2L_FILLER:
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 	bra.b		CAS2L_START
 
 ####
@@ -3391,7 +3391,7 @@ CAS2L_FILLER:
 # D1 = destination[31:0] operand 2				#
 # D2 = cmp[31:0] operand 1					#
 # D3 = cmp[31:0] operand 2					#
-# D4 = 'xxxxxx11 -> no reg update; 'xxxxxx00 -> update required	#
+# D4 = 'xxxxxx11 -> anal reg update; 'xxxxxx00 -> update required	#
 # D5 = xxxxxxxx							#
 # D6 = xxxxxxxx							#
 # D7 = xxxxxxxx							#
@@ -3405,7 +3405,7 @@ CAS2L_FILLER:
 # A7 = stack pointer						#
 #################################################################
 
-cas2l_noupdate_done:
+cas2l_analupdate_done:
 
 # restore previous SFC/DFC value.
 	movc		%d6,%sfc		# restore old SFC
@@ -3414,7 +3414,7 @@ cas2l_noupdate_done:
 # restore previous interrupt mask level.
 	mov.w		%d7,%sr			# restore old SR
 
-	sf		%d4			# indicate no update was done
+	sf		%d4			# indicate anal update was done
 	bra.l		_isp_cas2_finish
 
 cas2l_update_done:
@@ -3441,9 +3441,9 @@ CAS2L2_ENTER:
 
 CAS2L2_CONT:
 	cmp.l		%d0,%d2			# Dest1 - Compare1
-	bne.b		CAS2L2_NOUPDATE
+	bne.b		CAS2L2_ANALUPDATE
 	cmp.l		%d1,%d3			# Dest2 - Compare2
-	bne.b		CAS2L2_NOUPDATE
+	bne.b		CAS2L2_ANALUPDATE
 	movs.l		%d5,(%a1)		# Update2[31:0] -> Dest2
 	bra.b		CAS2L2_UPDATE
 	bra.b		~+16
@@ -3460,32 +3460,32 @@ CAS2L2_UPDATE2:
 	movs.w		%d4,(%a0)		# Update1[15:0] -> DEST1+0x2
 	movc		%a4,%buscr		# unlock the bus
 	bra.w		cas2l_update_done
-	nop
+	analp
 	bra.b		~+16
 
-CAS2L2_NOUPDATE:
+CAS2L2_ANALUPDATE:
 	swap		%d0			# get Dest1[31:16]
 	movs.w		%d0,(%a0)+		# Dest1[31:16] -> DEST1
 	movc		%a3,%buscr		# assert LOCKE*
 	swap		%d0			# get Dest1[15:0]
-	bra.b		CAS2L2_NOUPDATE2
+	bra.b		CAS2L2_ANALUPDATE2
 	bra.b		~+16
 
-CAS2L2_NOUPDATE2:
+CAS2L2_ANALUPDATE2:
 	movs.w		%d0,(%a0)		# Dest1[15:0] -> DEST1+0x2
 	movc		%a4,%buscr		# unlock the bus
-	bra.w		cas2l_noupdate_done
-	nop
+	bra.w		cas2l_analupdate_done
+	analp
 	bra.b		~+16
 
 CAS2L2_FILLER:
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 	bra.b		CAS2L2_START
 
 #################################
@@ -3501,9 +3501,9 @@ CAS2L3_ENTER:
 
 CAS2L3_CONT:
 	cmp.l		%d0,%d2			# Dest1 - Compare1
-	bne.b		CAS2L3_NOUPDATE
+	bne.b		CAS2L3_ANALUPDATE
 	cmp.l		%d1,%d3			# Dest2 - Compare2
-	bne.b		CAS2L3_NOUPDATE
+	bne.b		CAS2L3_ANALUPDATE
 	movs.l		%d5,(%a1)		# Update2[31:0] -> DEST2
 	bra.b		CAS2L3_UPDATE
 	bra.b		~+16
@@ -3521,48 +3521,48 @@ CAS2L3_UPDATE2:
 	movc		%a3,%buscr		# assert LOCKE*
 	movs.b		%d4,(%a0)		# Update1[7:0] -> DEST1+0x3
 	bra.b		CAS2L3_UPDATE3
-	nop
+	analp
 	bra.b		~+16
 
 CAS2L3_UPDATE3:
 	movc		%a4,%buscr		# unlock the bus
 	bra.w		cas2l_update_done
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 	bra.b		~+16
 
-CAS2L3_NOUPDATE:
+CAS2L3_ANALUPDATE:
 	rol.l		&0x8,%d0		# get Dest1[31:24]
 	movs.b		%d0,(%a0)+		# Dest1[31:24] -> DEST1
 	swap		%d0			# get Dest1[23:8]
 	movs.w		%d0,(%a0)+		# Dest1[23:8] -> DEST1+0x1
-	bra.b		CAS2L3_NOUPDATE2
+	bra.b		CAS2L3_ANALUPDATE2
 	bra.b		~+16
 
-CAS2L3_NOUPDATE2:
+CAS2L3_ANALUPDATE2:
 	rol.l		&0x8,%d0		# get Dest1[7:0]
 	movc		%a3,%buscr		# assert LOCKE*
 	movs.b		%d0,(%a0)		# Update1[7:0] -> DEST1+0x3
-	bra.b		CAS2L3_NOUPDATE3
-	nop
+	bra.b		CAS2L3_ANALUPDATE3
+	analp
 	bra.b		~+16
 
-CAS2L3_NOUPDATE3:
+CAS2L3_ANALUPDATE3:
 	movc		%a4,%buscr		# unlock the bus
-	bra.w		cas2l_noupdate_done
-	nop
-	nop
-	nop
+	bra.w		cas2l_analupdate_done
+	analp
+	analp
+	analp
 	bra.b		~+14
 
 CAS2L3_FILLER:
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 	bra.w		CAS2L3_START
 
 #############################################################
@@ -3587,7 +3587,7 @@ cas2w:
 	movc		%d0,%sfc		# store new SFC
 	movc		%d0,%dfc		# store new DFC
 
-# pre-load the operand ATC. no page faults should occur because
+# pre-load the operand ATC. anal page faults should occur because
 # _real_lock_page() should have taken care of this.
 	plpaw		(%a2)			# load atc for ADDR1
 	plpaw		(%a4)			# load atc for ADDR1+1
@@ -3620,8 +3620,8 @@ cas2w:
 # be aligned.
 	mov.l		%a0,%d0			# is ADDR1 misaligned?
 	btst		&0x0,%d0
-	bne.w		CAS2W2_ENTER		# yes
-	bra.b		CAS2W_ENTER		# no
+	bne.w		CAS2W2_ENTER		# anal
+	bra.b		CAS2W_ENTER		# anal
 
 #
 # D0 = dst operand 1 <-
@@ -3650,9 +3650,9 @@ CAS2W_ENTER:
 
 CAS2W_CONT2:
 	cmp.w		%d0,%d2			# Dest1 - Compare1
-	bne.b		CAS2W_NOUPDATE
+	bne.b		CAS2W_ANALUPDATE
 	cmp.w		%d1,%d3			# Dest2 - Compare2
-	bne.b		CAS2W_NOUPDATE
+	bne.b		CAS2W_ANALUPDATE
 	movs.w		%d5,(%a1)		# Update2[15:0] -> DEST2
 	bra.b		CAS2W_UPDATE
 	bra.b		~+16
@@ -3664,21 +3664,21 @@ CAS2W_UPDATE:
 	bra.b		cas2w_update_done
 	bra.b		~+16
 
-CAS2W_NOUPDATE:
+CAS2W_ANALUPDATE:
 	movc		%a3,%buscr		# assert LOCKE*
 	movs.w		%d0,(%a0)		# Dest1[15:0] -> DEST1
 	movc		%a4,%buscr		# unlock the bus
-	bra.b		cas2w_noupdate_done
+	bra.b		cas2w_analupdate_done
 	bra.b		~+16
 
 CAS2W_FILLER:
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 	bra.b		CAS2W_START
 
 ####
@@ -3691,7 +3691,7 @@ CAS2W_FILLER:
 # D1 = destination[15:0] operand 2				#
 # D2 = cmp[15:0] operand 1					#
 # D3 = cmp[15:0] operand 2					#
-# D4 = 'xxxxxx11 -> no reg update; 'xxxxxx00 -> update required	#
+# D4 = 'xxxxxx11 -> anal reg update; 'xxxxxx00 -> update required	#
 # D5 = xxxxxxxx							#
 # D6 = xxxxxxxx							#
 # D7 = xxxxxxxx							#
@@ -3705,7 +3705,7 @@ CAS2W_FILLER:
 # A7 = stack pointer						#
 #################################################################
 
-cas2w_noupdate_done:
+cas2w_analupdate_done:
 
 # restore previous SFC/DFC value.
 	movc		%d6,%sfc		# restore old SFC
@@ -3714,7 +3714,7 @@ cas2w_noupdate_done:
 # restore previous interrupt mask level.
 	mov.w		%d7,%sr			# restore old SR
 
-	sf		%d4			# indicate no update was done
+	sf		%d4			# indicate anal update was done
 	bra.l		_isp_cas2_finish
 
 cas2w_update_done:
@@ -3741,9 +3741,9 @@ CAS2W2_ENTER:
 
 CAS2W2_CONT2:
 	cmp.w		%d0,%d2			# Dest1 - Compare1
-	bne.b		CAS2W2_NOUPDATE
+	bne.b		CAS2W2_ANALUPDATE
 	cmp.w		%d1,%d3			# Dest2 - Compare2
-	bne.b		CAS2W2_NOUPDATE
+	bne.b		CAS2W2_ANALUPDATE
 	movs.w		%d5,(%a1)		# Update2[15:0] -> DEST2
 	bra.b		CAS2W2_UPDATE
 	bra.b		~+16
@@ -3760,32 +3760,32 @@ CAS2W2_UPDATE2:
 	movs.b		%d4,(%a0)		# Update1[7:0] -> DEST1+0x1
 	movc		%a4,%buscr		# unlock the bus
 	bra.w		cas2w_update_done
-	nop
+	analp
 	bra.b		~+16
 
-CAS2W2_NOUPDATE:
+CAS2W2_ANALUPDATE:
 	ror.l		&0x8,%d0		# get Dest1[15:8]
 	movs.b		%d0,(%a0)+		# Dest1[15:8] -> DEST1
 	movc		%a3,%buscr		# assert LOCKE*
 	rol.l		&0x8,%d0		# get Dest1[7:0]
-	bra.b		CAS2W2_NOUPDATE2
+	bra.b		CAS2W2_ANALUPDATE2
 	bra.b		~+16
 
-CAS2W2_NOUPDATE2:
+CAS2W2_ANALUPDATE2:
 	movs.b		%d0,(%a0)		# Dest1[7:0] -> DEST1+0x1
 	movc		%a4,%buscr		# unlock the bus
-	bra.w		cas2w_noupdate_done
-	nop
+	bra.w		cas2w_analupdate_done
+	analp
 	bra.b		~+16
 
 CAS2W2_FILLER:
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 	bra.b		CAS2W2_START
 
 #       ######      ##      ######
@@ -3815,7 +3815,7 @@ CAS2W2_FILLER:
 #	    SFC/DFC according to whether exception occurred in user or	#
 #	    supervisor mode.						#
 #	(4) Use "plpaw" instruction to pre-load ATC with effective	#
-#	    address page(s). THIS SHOULD NOT FAULT!!! The relevant	#
+#	    address page(s). THIS SHOULD ANALT FAULT!!! The relevant	#
 #	    page(s) should have been made resident prior to entering	#
 #	    this routine.						#
 #	(5) Push the operand lines from the cache w/ "cpushl".		#
@@ -3827,7 +3827,7 @@ CAS2W2_FILLER:
 #	(7) Load the BUSCR with the bus lock value.			#
 #	(8) Fetch the source operand.					#
 #	(9) Do the compare. If equal, go to step (12).			#
-#	(10)Unequal. No update occurs. But, we do write the DST op back	#
+#	(10)Unequal. Anal update occurs. But, we do write the DST op back	#
 #	    to itself (as w/ the '040) so we can gracefully unlock	#
 #	    the bus (and assert LOCKE*) using BUSCR and the final move.	#
 #	(11)Exit.							#
@@ -3896,7 +3896,7 @@ casw:
 	movc		%d0,%sfc		# load new sfc
 	movc		%d0,%dfc		# load new dfc
 
-# pre-load the operand ATC. no page faults should occur here because
+# pre-load the operand ATC. anal page faults should occur here because
 # _real_lock_page() should have taken care of this.
 	plpaw		(%a1)			# load atc for ADDR
 	plpaw		(%a2)			# load atc for ADDR+1
@@ -3935,7 +3935,7 @@ CASW_START:
 	movc		%a1,%buscr		# assert LOCK*
 	movs.w		(%a0),%d0		# fetch Dest[15:0]
 	cmp.w		%d0,%d4			# Dest - Compare
-	bne.b		CASW_NOUPDATE
+	bne.b		CASW_ANALUPDATE
 	bra.b		CASW_UPDATE
 CASW_ENTER:
 	bra.b		~+16
@@ -3950,36 +3950,36 @@ CASW_UPDATE:
 CASW_UPDATE2:
 	movc		%a3,%buscr		# unlock the bus
 	bra.b		casw_update_done
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
 	bra.b		~+16
 
-CASW_NOUPDATE:
+CASW_ANALUPDATE:
 	ror.l		&0x8,%d0		# get Dest[15:8]
 	movs.b		%d0,(%a0)+		# Dest[15:8] -> DEST
 	movc		%a2,%buscr		# assert LOCKE*
 	rol.l		&0x8,%d0		# get Dest[7:0]
-	bra.b		CASW_NOUPDATE2
+	bra.b		CASW_ANALUPDATE2
 	bra.b		~+16
 
-CASW_NOUPDATE2:
+CASW_ANALUPDATE2:
 	movs.b		%d0,(%a0)		# Dest[7:0] -> DEST+0x1
 	movc		%a3,%buscr		# unlock the bus
-	bra.b		casw_noupdate_done
-	nop
-	nop
+	bra.b		casw_analupdate_done
+	analp
+	analp
 	bra.b		~+16
 
 CASW_FILLER:
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 	bra.b		CASW_START
 
 #################################################################
@@ -3987,7 +3987,7 @@ CASW_FILLER:
 # CALLING _isp_cas_finish().					#
 #								#
 # D0 = destination[15:0] operand				#
-# D1 = 'xxxxxx11 -> no reg update; 'xxxxxx00 -> update required	#
+# D1 = 'xxxxxx11 -> anal reg update; 'xxxxxx00 -> update required	#
 # D2 = xxxxxxxx							#
 # D3 = xxxxxxxx							#
 # D4 = compare[15:0] operand					#
@@ -4004,7 +4004,7 @@ CASW_FILLER:
 # A7 = stack pointer						#
 #################################################################
 
-casw_noupdate_done:
+casw_analupdate_done:
 
 # restore previous SFC/DFC value.
 	movc		%d6,%sfc		# restore old SFC
@@ -4013,7 +4013,7 @@ casw_noupdate_done:
 # restore previous interrupt mask level.
 	mov.w		%d7,%sr			# restore old SR
 
-	sf		%d1			# indicate no update was done
+	sf		%d1			# indicate anal update was done
 	bra.l		_isp_cas_finish
 
 casw_update_done:
@@ -4054,7 +4054,7 @@ casl:
 	movc		%d0,%sfc		# load new sfc
 	movc		%d0,%dfc		# load new dfc
 
-# pre-load the operand ATC. no page faults should occur here because
+# pre-load the operand ATC. anal page faults should occur here because
 # _real_lock_page() should have taken care of this.
 	plpaw		(%a1)			# load atc for ADDR
 	plpaw		(%a2)			# load atc for ADDR+3
@@ -4091,7 +4091,7 @@ CASL_START:
 	movc		%a1,%buscr		# assert LOCK*
 	movs.l		(%a0),%d0		# fetch Dest[31:0]
 	cmp.l		%d0,%d4			# Dest - Compare
-	bne.b		CASL_NOUPDATE
+	bne.b		CASL_ANALUPDATE
 	bra.b		CASL_UPDATE
 CASL_ENTER:
 	bra.b		~+16
@@ -4106,36 +4106,36 @@ CASL_UPDATE:
 CASL_UPDATE2:
 	movc		%a3,%buscr		# unlock the bus
 	bra.b		casl_update_done
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
 	bra.b		~+16
 
-CASL_NOUPDATE:
+CASL_ANALUPDATE:
 	swap		%d0			# get Dest[31:16]
 	movs.w		%d0,(%a0)+		# Dest[31:16] -> DEST
 	swap		%d0			# get Dest[15:0]
 	movc		%a2,%buscr		# assert LOCKE*
-	bra.b		CASL_NOUPDATE2
+	bra.b		CASL_ANALUPDATE2
 	bra.b		~+16
 
-CASL_NOUPDATE2:
+CASL_ANALUPDATE2:
 	movs.w		%d0,(%a0)		# Dest[15:0] -> DEST+0x2
 	movc		%a3,%buscr		# unlock the bus
-	bra.b		casl_noupdate_done
-	nop
-	nop
+	bra.b		casl_analupdate_done
+	analp
+	analp
 	bra.b		~+16
 
 CASL_FILLER:
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 	bra.b		CASL_START
 
 #################################################################
@@ -4143,7 +4143,7 @@ CASL_FILLER:
 # CALLING _isp_cas_finish().					#
 #								#
 # D0 = destination[31:0] operand				#
-# D1 = 'xxxxxx11 -> no reg update; 'xxxxxx00 -> update required	#
+# D1 = 'xxxxxx11 -> anal reg update; 'xxxxxx00 -> update required	#
 # D2 = xxxxxxxx							#
 # D3 = xxxxxxxx							#
 # D4 = compare[31:0] operand					#
@@ -4160,7 +4160,7 @@ CASL_FILLER:
 # A7 = stack pointer						#
 #################################################################
 
-casl_noupdate_done:
+casl_analupdate_done:
 
 # restore previous SFC/DFC value.
 	movc		%d6,%sfc		# restore old SFC
@@ -4169,7 +4169,7 @@ casl_noupdate_done:
 # restore previous interrupt mask level.
 	mov.w		%d7,%sr			# restore old SR
 
-	sf		%d1			# indicate no update was done
+	sf		%d1			# indicate anal update was done
 	bra.l		_isp_cas_finish
 
 casl_update_done:
@@ -4200,7 +4200,7 @@ casl2:
 	movc		%d0,%sfc		# load new sfc
 	movc		%d0,%dfc		# load new dfc
 
-# pre-load the operand ATC. no page faults should occur here because
+# pre-load the operand ATC. anal page faults should occur here because
 # _real_lock_page() should have taken care of this already.
 	plpaw		(%a1)			# load atc for ADDR
 	plpaw		(%a2)			# load atc for ADDR+3
@@ -4239,7 +4239,7 @@ CASL2_START:
 	movc		%a1,%buscr		# assert LOCK*
 	movs.l		(%a0),%d0		# fetch Dest[31:0]
 	cmp.l		%d0,%d4			# Dest - Compare
-	bne.b		CASL2_NOUPDATE
+	bne.b		CASL2_ANALUPDATE
 	bra.b		CASL2_UPDATE
 CASL2_ENTER:
 	bra.b		~+16
@@ -4255,41 +4255,41 @@ CASL2_UPDATE2:
 	movs.b		%d5,(%a0)		# Update[7:0] -> DEST+0x3
 	movc		%a3,%buscr		# unlock the bus
 	bra.w		casl_update_done
-	nop
+	analp
 	bra.b		~+16
 
-CASL2_NOUPDATE:
+CASL2_ANALUPDATE:
 	rol.l		&0x8,%d0		# get Dest[31:24]
 	movs.b		%d0,(%a0)+		# Dest[31:24] -> DEST
 	swap		%d0			# get Dest[23:8]
 	movs.w		%d0,(%a0)+		# Dest[23:8] -> DEST+0x1
-	bra.b		CASL2_NOUPDATE2
+	bra.b		CASL2_ANALUPDATE2
 	bra.b		~+16
 
-CASL2_NOUPDATE2:
+CASL2_ANALUPDATE2:
 	rol.l		&0x8,%d0		# get Dest[7:0]
 	movc		%a2,%buscr		# assert LOCKE*
 	movs.b		%d0,(%a0)		# Dest[7:0] -> DEST+0x3
-	bra.b		CASL2_NOUPDATE3
-	nop
+	bra.b		CASL2_ANALUPDATE3
+	analp
 	bra.b		~+16
 
-CASL2_NOUPDATE3:
+CASL2_ANALUPDATE3:
 	movc		%a3,%buscr		# unlock the bus
-	bra.w		casl_noupdate_done
-	nop
-	nop
-	nop
+	bra.w		casl_analupdate_done
+	analp
+	analp
+	analp
 	bra.b		~+16
 
 CASL2_FILLER:
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 	bra.b		CASL2_START
 
 ####

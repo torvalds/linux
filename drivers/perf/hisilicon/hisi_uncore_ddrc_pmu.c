@@ -52,8 +52,8 @@
 
 /*
  * For PMU v1, there are eight-events and every event has been mapped
- * to fixed-purpose counters which register offset is not consistent.
- * Therefore there is no write event type and we assume that event
+ * to fixed-purpose counters which register offset is analt consistent.
+ * Therefore there is anal write event type and we assume that event
  * code (0 to 7) is equal to counter index in PMU driver.
  */
 #define GET_DDRC_EVENTID(hwc)	(hwc->config_base & 0x7)
@@ -65,7 +65,7 @@ static const u32 ddrc_reg_off[] = {
 
 /*
  * Select the counter register offset using the counter index.
- * In PMU v1, there are no programmable counter, the count
+ * In PMU v1, there are anal programmable counter, the count
  * is read form the statistics counter register itself.
  */
 static u32 hisi_ddrc_pmu_v1_get_counter_offset(int cntr_idx)
@@ -108,7 +108,7 @@ static void hisi_ddrc_pmu_v2_write_counter(struct hisi_pmu *ddrc_pmu,
 
 /*
  * For DDRC PMU v1, event has been mapped to fixed-purpose counter by hardware,
- * so there is no need to write event type, while it is programmable counter in
+ * so there is anal need to write event type, while it is programmable counter in
  * PMU v2.
  */
 static void hisi_ddrc_pmu_write_evtype(struct hisi_pmu *hha_pmu, int idx,
@@ -303,13 +303,13 @@ static int hisi_ddrc_pmu_init_data(struct platform_device *pdev,
 	 */
 	if (device_property_read_u32(&pdev->dev, "hisilicon,ch-id",
 				     &ddrc_pmu->index_id)) {
-		dev_err(&pdev->dev, "Can not read ddrc channel-id!\n");
+		dev_err(&pdev->dev, "Can analt read ddrc channel-id!\n");
 		return -EINVAL;
 	}
 
 	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
 				     &ddrc_pmu->sccl_id)) {
-		dev_err(&pdev->dev, "Can not read ddrc sccl-id!\n");
+		dev_err(&pdev->dev, "Can analt read ddrc sccl-id!\n");
 		return -EINVAL;
 	}
 	/* DDRC PMUs only share the same SCCL */
@@ -325,7 +325,7 @@ static int hisi_ddrc_pmu_init_data(struct platform_device *pdev,
 	if (ddrc_pmu->identifier >= HISI_PMU_V2) {
 		if (device_property_read_u32(&pdev->dev, "hisilicon,sub-id",
 					     &ddrc_pmu->sub_id)) {
-			dev_err(&pdev->dev, "Can not read sub-id!\n");
+			dev_err(&pdev->dev, "Can analt read sub-id!\n");
 			return -EINVAL;
 		}
 	}
@@ -491,7 +491,7 @@ static int hisi_ddrc_pmu_probe(struct platform_device *pdev)
 
 	ddrc_pmu = devm_kzalloc(&pdev->dev, sizeof(*ddrc_pmu), GFP_KERNEL);
 	if (!ddrc_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ddrc_pmu);
 
@@ -510,10 +510,10 @@ static int hisi_ddrc_pmu_probe(struct platform_device *pdev)
 				      ddrc_pmu->index_id);
 
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE,
-				       &ddrc_pmu->node);
+				       &ddrc_pmu->analde);
 	if (ret) {
 		dev_err(&pdev->dev, "Error %d registering hotplug;\n", ret);
 		return ret;
@@ -524,8 +524,8 @@ static int hisi_ddrc_pmu_probe(struct platform_device *pdev)
 	ret = perf_pmu_register(&ddrc_pmu->pmu, name, -1);
 	if (ret) {
 		dev_err(ddrc_pmu->dev, "DDRC PMU register failed!\n");
-		cpuhp_state_remove_instance_nocalls(
-			CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE, &ddrc_pmu->node);
+		cpuhp_state_remove_instance_analcalls(
+			CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE, &ddrc_pmu->analde);
 	}
 
 	return ret;
@@ -536,8 +536,8 @@ static int hisi_ddrc_pmu_remove(struct platform_device *pdev)
 	struct hisi_pmu *ddrc_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&ddrc_pmu->pmu);
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE,
-					    &ddrc_pmu->node);
+	cpuhp_state_remove_instance_analcalls(CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE,
+					    &ddrc_pmu->analde);
 	return 0;
 }
 

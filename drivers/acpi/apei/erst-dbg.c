@@ -29,12 +29,12 @@ static unsigned int erst_dbg_buf_len;
 /* Prevent erst_dbg_read/write from being invoked concurrently */
 static DEFINE_MUTEX(erst_dbg_mutex);
 
-static int erst_dbg_open(struct inode *inode, struct file *file)
+static int erst_dbg_open(struct ianalde *ianalde, struct file *file)
 {
 	int rc, *pos;
 
 	if (erst_disable)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pos = (int *)&file->private_data;
 
@@ -42,10 +42,10 @@ static int erst_dbg_open(struct inode *inode, struct file *file)
 	if (rc)
 		return rc;
 
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
-static int erst_dbg_release(struct inode *inode, struct file *file)
+static int erst_dbg_release(struct ianalde *ianalde, struct file *file)
 {
 	erst_get_record_id_end();
 
@@ -75,7 +75,7 @@ static long erst_dbg_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 			return rc;
 		return 0;
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -98,11 +98,11 @@ retry_next:
 	rc = erst_get_record_id_next(pos, &id);
 	if (rc)
 		goto out;
-	/* no more record */
+	/* anal more record */
 	if (id == APEI_ERST_INVALID_RECORD_ID) {
 		/*
 		 * If the persistent store is empty initially, the function
-		 * 'erst_read' below will return "-ENOENT" value. This causes
+		 * 'erst_read' below will return "-EANALENT" value. This causes
 		 * 'retry_next' label is entered again. The returned value
 		 * should be zero indicating the read operation is EOF.
 		 */
@@ -114,7 +114,7 @@ retry:
 	rc = len = erst_read_record(id, erst_dbg_buf, erst_dbg_buf_len,
 			erst_dbg_buf_len, NULL);
 	/* The record may be cleared by others, try read next record */
-	if (rc == -ENOENT)
+	if (rc == -EANALENT)
 		goto retry_next;
 	if (rc < 0)
 		goto out;
@@ -126,7 +126,7 @@ retry:
 	}
 	if (len > erst_dbg_buf_len) {
 		void *p;
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		p = kmalloc(len, GFP_KERNEL);
 		if (!p)
 			goto out;
@@ -167,7 +167,7 @@ static ssize_t erst_dbg_write(struct file *filp, const char __user *ubuf,
 		return -EINTR;
 	if (usize > erst_dbg_buf_len) {
 		void *p;
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		p = kmalloc(usize, GFP_KERNEL);
 		if (!p)
 			goto out;
@@ -199,11 +199,11 @@ static const struct file_operations erst_dbg_ops = {
 	.read		= erst_dbg_read,
 	.write		= erst_dbg_write,
 	.unlocked_ioctl	= erst_dbg_ioctl,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static struct miscdevice erst_dbg_dev = {
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 	.name	= "erst_dbg",
 	.fops	= &erst_dbg_ops,
 };
@@ -212,7 +212,7 @@ static __init int erst_dbg_init(void)
 {
 	if (erst_disable) {
 		pr_info(ERST_DBG_PFX "ERST support is disabled.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return misc_register(&erst_dbg_dev);
 }

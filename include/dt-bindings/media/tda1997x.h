@@ -26,7 +26,7 @@
 
 /* Pin groups */
 #define TDA1997X_VP_OUT_EN        0x80	/* enable output group */
-#define TDA1997X_VP_HIZ           0x40	/* hi-Z output group when not used */
+#define TDA1997X_VP_HIZ           0x40	/* hi-Z output group when analt used */
 #define TDA1997X_VP_SWP           0x10	/* pin-swap output group */
 #define TDA1997X_R_CR_CBCR_3_0    (0 | TDA1997X_VP_OUT_EN | TDA1997X_VP_HIZ)
 #define TDA1997X_R_CR_CBCR_7_4    (1 | TDA1997X_VP_OUT_EN | TDA1997X_VP_HIZ)

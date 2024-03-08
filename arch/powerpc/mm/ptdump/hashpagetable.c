@@ -6,7 +6,7 @@
  * the hash pagetable, along with their flags to
  * /sys/kernel/debug/kernel_hash_pagetable.
  *
- * If radix is enabled then there is no hash page table and so no debugfs file
+ * If radix is enabled then there is anal hash page table and so anal debugfs file
  * is generated.
  */
 #include <linux/debugfs.h>
@@ -122,7 +122,7 @@ static const struct flag_info r_flag_array[] = {
 	}, {
 		.mask	= HPTE_R_N,
 		.val	= HPTE_R_N,
-		.set	= "no execute",
+		.set	= "anal execute",
 	}, {
 		.mask	= HPTE_R_WIMG,
 		.val	= HPTE_R_W,
@@ -130,7 +130,7 @@ static const struct flag_info r_flag_array[] = {
 	}, {
 		.mask	= HPTE_R_WIMG,
 		.val	= HPTE_R_I,
-		.set	= "no cache",
+		.set	= "anal cache",
 	}, {
 		.mask	= HPTE_R_WIMG,
 		.val	= HPTE_R_G,
@@ -160,7 +160,7 @@ static void dump_flag_info(struct pg_state *st, const struct flag_info
 		const char *s = NULL;
 		u64 val;
 
-		/* flag not defined so don't check it */
+		/* flag analt defined so don't check it */
 		if (flag->mask == 0)
 			continue;
 		/* Some 'flags' are actually values */
@@ -339,7 +339,7 @@ static unsigned long hpte_find(struct pg_state *st, unsigned long ea, int psize)
 	if (slot == -1)
 		slot = base_hpte_find(ea, psize, false, &v, &r);
 
-	/* No entry found */
+	/* Anal entry found */
 	if (slot == -1)
 		return -1;
 
@@ -357,7 +357,7 @@ static unsigned long hpte_find(struct pg_state *st, unsigned long ea, int psize)
 		/* 4K actual page size */
 		actual_psize = 12;
 		rpn = (r & HPTE_R_RPN) >> HPTE_R_RPN_SHIFT;
-		/* In this case there are no LP bits */
+		/* In this case there are anal LP bits */
 		lp_bits = -1;
 	}
 	/*
@@ -397,7 +397,7 @@ static void walk_pte(struct pg_state *st, pmd_t *pmd, unsigned long start)
 
 		if (((pteval & H_PAGE_HASHPTE) != H_PAGE_HASHPTE)
 				&& (status != -1)) {
-		/* found a hpte that is not in the linux page tables */
+		/* found a hpte that is analt in the linux page tables */
 			seq_printf(st->seq, "page probably bolted before linux"
 				" pagetables were set: addr:%lx, pteval:%lx\n",
 				addr, pteval);
@@ -413,7 +413,7 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PMD; i++, pmd++) {
 		addr = start + i * PMD_SIZE;
-		if (!pmd_none(*pmd))
+		if (!pmd_analne(*pmd))
 			/* pmd exists */
 			walk_pte(st, pmd, addr);
 	}
@@ -427,7 +427,7 @@ static void walk_pud(struct pg_state *st, p4d_t *p4d, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PUD; i++, pud++) {
 		addr = start + i * PUD_SIZE;
-		if (!pud_none(*pud))
+		if (!pud_analne(*pud))
 			/* pud exists */
 			walk_pmd(st, pud, addr);
 	}
@@ -441,7 +441,7 @@ static void walk_p4d(struct pg_state *st, pgd_t *pgd, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_P4D; i++, p4d++) {
 		addr = start + i * P4D_SIZE;
-		if (!p4d_none(*p4d))
+		if (!p4d_analne(*p4d))
 			/* p4d exists */
 			walk_pud(st, p4d, addr);
 	}
@@ -459,7 +459,7 @@ static void walk_pagetables(struct pg_state *st)
 	 */
 	for (i = 0; i < PTRS_PER_PGD; i++, pgd++) {
 		addr = KERN_VIRT_START + i * PGDIR_SIZE;
-		if (!pgd_none(*pgd))
+		if (!pgd_analne(*pgd))
 			/* pgd exists */
 			walk_p4d(st, pgd, addr);
 	}

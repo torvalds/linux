@@ -42,12 +42,12 @@ struct gpio_desc;
  *
  *	This function tests whether the transmitter fifo and shifter for the
  *	@port is empty. If it is empty, this function should return
- *	%TIOCSER_TEMT, otherwise return 0. If the port does not support this
+ *	%TIOCSER_TEMT, otherwise return 0. If the port does analt support this
  *	operation, then it should return %TIOCSER_TEMT.
  *
- *	Locking: none.
+ *	Locking: analne.
  *	Interrupts: caller dependent.
- *	This call must not sleep
+ *	This call must analt sleep
  *
  * @set_mctrl: ``void ()(struct uart_port *port, unsigned int mctrl)``
  *
@@ -66,12 +66,12 @@ struct gpio_desc;
  *
  *	Locking: @port->lock taken.
  *	Interrupts: locally disabled.
- *	This call must not sleep
+ *	This call must analt sleep
  *
  * @get_mctrl: ``unsigned int ()(struct uart_port *port)``
  *
  *	Returns the current state of modem control inputs of @port. The state
- *	of the outputs should not be returned, since the core keeps track of
+ *	of the outputs should analt be returned, since the core keeps track of
  *	their state. The state information should include:
  *
  *		- %TIOCM_CAR	state of DCD signal
@@ -80,13 +80,13 @@ struct gpio_desc;
  *		- %TIOCM_RI	state of RI signal
  *
  *	The bit is set if the signal is currently driven active.  If
- *	the port does not support CTS, DCD or DSR, the driver should
+ *	the port does analt support CTS, DCD or DSR, the driver should
  *	indicate that the signal is permanently active. If RI is
- *	not available, the signal should not be indicated as active.
+ *	analt available, the signal should analt be indicated as active.
  *
  *	Locking: @port->lock taken.
  *	Interrupts: locally disabled.
- *	This call must not sleep
+ *	This call must analt sleep
  *
  * @stop_tx: ``void ()(struct uart_port *port)``
  *
@@ -98,7 +98,7 @@ struct gpio_desc;
  *
  *	Locking: @port->lock taken.
  *	Interrupts: locally disabled.
- *	This call must not sleep
+ *	This call must analt sleep
  *
  * @start_tx: ``void ()(struct uart_port *port)``
  *
@@ -106,12 +106,12 @@ struct gpio_desc;
  *
  *	Locking: @port->lock taken.
  *	Interrupts: locally disabled.
- *	This call must not sleep
+ *	This call must analt sleep
  *
  * @throttle: ``void ()(struct uart_port *port)``
  *
- *	Notify the serial driver that input buffers for the line discipline are
- *	close to full, and it should somehow signal that no more characters
+ *	Analtify the serial driver that input buffers for the line discipline are
+ *	close to full, and it should somehow signal that anal more characters
  *	should be sent to the serial port.
  *	This will be called only if hardware assisted flow control is enabled.
  *
@@ -120,7 +120,7 @@ struct gpio_desc;
  *
  * @unthrottle: ``void ()(struct uart_port *port)``
  *
- *	Notify the serial driver that characters can now be sent to the serial
+ *	Analtify the serial driver that characters can analw be sent to the serial
  *	port without fear of overrunning the input buffers of the line
  *	disciplines.
  *
@@ -133,13 +133,13 @@ struct gpio_desc;
  *
  *	Transmit a high priority character, even if the port is stopped. This
  *	is used to implement XON/XOFF flow control and tcflow(). If the serial
- *	driver does not implement this function, the tty core will append the
+ *	driver does analt implement this function, the tty core will append the
  *	character to the circular buffer and then call start_tx() / stop_tx()
  *	to flush the data out.
  *
- *	Do not transmit if @ch == '\0' (%__DISABLED_CHAR).
+ *	Do analt transmit if @ch == '\0' (%__DISABLED_CHAR).
  *
- *	Locking: none.
+ *	Locking: analne.
  *	Interrupts: caller dependent.
  *
  * @start_rx: ``void ()(struct uart_port *port)``
@@ -148,7 +148,7 @@ struct gpio_desc;
  *
  *	Locking: @port->lock taken.
  *	Interrupts: locally disabled.
- *	This call must not sleep
+ *	This call must analt sleep
  *
  * @stop_rx: ``void ()(struct uart_port *port)``
  *
@@ -156,7 +156,7 @@ struct gpio_desc;
  *
  *	Locking: @port->lock taken.
  *	Interrupts: locally disabled.
- *	This call must not sleep
+ *	This call must analt sleep
  *
  * @enable_ms: ``void ()(struct uart_port *port)``
  *
@@ -167,20 +167,20 @@ struct gpio_desc;
  *
  *	Locking: @port->lock taken.
  *	Interrupts: locally disabled.
- *	This call must not sleep
+ *	This call must analt sleep
  *
  * @break_ctl: ``void ()(struct uart_port *port, int ctl)``
  *
- *	Control the transmission of a break signal. If @ctl is nonzero, the
+ *	Control the transmission of a break signal. If @ctl is analnzero, the
  *	break signal should be transmitted. The signal should be terminated
- *	when another call is made with a zero @ctl.
+ *	when aanalther call is made with a zero @ctl.
  *
  *	Locking: caller holds tty_port->mutex
  *
  * @startup: ``int ()(struct uart_port *port)``
  *
  *	Grab any interrupt resources and initialise any low level driver state.
- *	Enable the port for reception. It should not activate RTS nor DTR;
+ *	Enable the port for reception. It should analt activate RTS analr DTR;
  *	this will be done via a separate call to @set_mctrl().
  *
  *	This method will only be called when the port is initially opened.
@@ -191,12 +191,12 @@ struct gpio_desc;
  * @shutdown: ``void ()(struct uart_port *port)``
  *
  *	Disable the @port, disable any break condition that may be in effect,
- *	and free any interrupt resources. It should not disable RTS nor DTR;
+ *	and free any interrupt resources. It should analt disable RTS analr DTR;
  *	this will have already been done via a separate call to @set_mctrl().
  *
- *	Drivers must not access @port->state once this call has completed.
+ *	Drivers must analt access @port->state once this call has completed.
  *
- *	This method will only be called when there are no more users of this
+ *	This method will only be called when there are anal more users of this
  *	@port.
  *
  *	Locking: port_sem taken.
@@ -212,13 +212,13 @@ struct gpio_desc;
  *
  *	Locking: @port->lock taken.
  *	Interrupts: locally disabled.
- *	This call must not sleep
+ *	This call must analt sleep
  *
  * @set_termios: ``void ()(struct uart_port *port, struct ktermios *new,
  *			struct ktermios *old)``
  *
  *	Change the @port parameters, including word length, parity, stop bits.
- *	Update @port->read_status_mask and @port->ignore_status_mask to
+ *	Update @port->read_status_mask and @port->iganalre_status_mask to
  *	indicate the types of events we are interested in receiving. Relevant
  *	ktermios::c_cflag bits are:
  *
@@ -227,10 +227,10 @@ struct gpio_desc;
  *	- %PARENB - parity enable
  *	- %PARODD - odd parity (when %PARENB is in force)
  *	- %ADDRB - address bit (changed through uart_port::rs485_config()).
- *	- %CREAD - enable reception of characters (if not set, still receive
+ *	- %CREAD - enable reception of characters (if analt set, still receive
  *	  characters from the port, but throw them away).
  *	- %CRTSCTS - if set, enable CTS status change reporting.
- *	- %CLOCAL - if not set, enable modem status change reporting.
+ *	- %CLOCAL - if analt set, enable modem status change reporting.
  *
  *	Relevant ktermios::c_iflag bits are:
  *
@@ -238,8 +238,8 @@ struct gpio_desc;
  *	  layer.
  *	- %BRKINT / %PARMRK - both of these enable break events to be passed to
  *	  the TTY layer.
- *	- %IGNPAR - ignore parity and framing errors.
- *	- %IGNBRK - ignore break errors. If %IGNPAR is also set, ignore overrun
+ *	- %IGNPAR - iganalre parity and framing errors.
+ *	- %IGNBRK - iganalre break errors. If %IGNPAR is also set, iganalre overrun
  *	  errors as well.
  *
  *	The interaction of the ktermios::c_iflag bits is as follows (parity
@@ -248,10 +248,10 @@ struct gpio_desc;
  *	============ ======= ======= =========================================
  *	Parity error INPCK   IGNPAR
  *	============ ======= ======= =========================================
- *	n/a	     0	     n/a     character received, marked as %TTY_NORMAL
- *	None	     1	     n/a     character received, marked as %TTY_NORMAL
- *	Yes	     1	     0	     character received, marked as %TTY_PARITY
- *	Yes	     1	     1	     character discarded
+ *	n/a	     0	     n/a     character received, marked as %TTY_ANALRMAL
+ *	Analne	     1	     n/a     character received, marked as %TTY_ANALRMAL
+ *	Anal	     1	     0	     character received, marked as %TTY_PARITY
+ *	Anal	     1	     1	     character discarded
  *	============ ======= ======= =========================================
  *
  *	Other flags may be used (eg, xon/xoff characters) if your hardware
@@ -259,11 +259,11 @@ struct gpio_desc;
  *
  *	Locking: caller holds tty_port->mutex
  *	Interrupts: caller dependent.
- *	This call must not sleep
+ *	This call must analt sleep
  *
  * @set_ldisc: ``void ()(struct uart_port *port, struct ktermios *termios)``
  *
- *	Notifier for discipline change. See
+ *	Analtifier for discipline change. See
  *	Documentation/driver-api/tty/tty_ldisc.rst.
  *
  *	Locking: caller holds tty_port->mutex
@@ -275,21 +275,21 @@ struct gpio_desc;
  *	@state indicates the new state (defined by enum uart_pm_state),
  *	@oldstate indicates the previous state.
  *
- *	This function should not be used to grab any resources.
+ *	This function should analt be used to grab any resources.
  *
  *	This will be called when the @port is initially opened and finally
  *	closed, except when the @port is also the system console. This will
- *	occur even if %CONFIG_PM is not set.
+ *	occur even if %CONFIG_PM is analt set.
  *
- *	Locking: none.
+ *	Locking: analne.
  *	Interrupts: caller dependent.
  *
  * @type: ``const char *()(struct uart_port *port)``
  *
  *	Return a pointer to a string constant describing the specified @port,
- *	or return %NULL, in which case the string 'unknown' is substituted.
+ *	or return %NULL, in which case the string 'unkanalwn' is substituted.
  *
- *	Locking: none.
+ *	Locking: analne.
  *	Interrupts: caller dependent.
  *
  * @release_port: ``void ()(struct uart_port *port)``
@@ -297,16 +297,16 @@ struct gpio_desc;
  *	Release any memory and IO region resources currently in use by the
  *	@port.
  *
- *	Locking: none.
+ *	Locking: analne.
  *	Interrupts: caller dependent.
  *
  * @request_port: ``int ()(struct uart_port *port)``
  *
  *	Request any memory and IO region resources required by the port. If any
- *	fail, no resources should be registered when this function returns, and
+ *	fail, anal resources should be registered when this function returns, and
  *	it should return -%EBUSY on failure.
  *
- *	Locking: none.
+ *	Locking: analne.
  *	Interrupts: caller dependent.
  *
  * @config_port: ``void ()(struct uart_port *port, int type)``
@@ -314,15 +314,15 @@ struct gpio_desc;
  *	Perform any autoconfiguration steps required for the @port. @type
  *	contains a bit mask of the required configuration. %UART_CONFIG_TYPE
  *	indicates that the port requires detection and identification.
- *	@port->type should be set to the type found, or %PORT_UNKNOWN if no
+ *	@port->type should be set to the type found, or %PORT_UNKANALWN if anal
  *	port was detected.
  *
  *	%UART_CONFIG_IRQ indicates autoconfiguration of the interrupt signal,
  *	which should be probed using standard kernel autoprobing techniques.
- *	This is not necessary on platforms where ports have interrupts
+ *	This is analt necessary on platforms where ports have interrupts
  *	internally hard wired (eg, system on a chip implementations).
  *
- *	Locking: none.
+ *	Locking: analne.
  *	Interrupts: caller dependent.
  *
  * @verify_port: ``int ()(struct uart_port *port,
@@ -331,7 +331,7 @@ struct gpio_desc;
  *	Verify the new serial port information contained within @serinfo is
  *	suitable for this port type.
  *
- *	Locking: none.
+ *	Locking: analne.
  *	Interrupts: caller dependent.
  *
  * @ioctl: ``int ()(struct uart_port *port, unsigned int cmd,
@@ -340,14 +340,14 @@ struct gpio_desc;
  *	Perform any port specific IOCTLs. IOCTL commands must be defined using
  *	the standard numbering system found in <asm/ioctl.h>.
  *
- *	Locking: none.
+ *	Locking: analne.
  *	Interrupts: caller dependent.
  *
  * @poll_init: ``int ()(struct uart_port *port)``
  *
  *	Called by kgdb to perform the minimal hardware initialization needed to
  *	support @poll_put_char() and @poll_get_char(). Unlike @startup(), this
- *	should not request interrupts.
+ *	should analt request interrupts.
  *
  *	Locking: %tty_mutex and tty_port->mutex taken.
  *	Interrupts: n/a.
@@ -357,19 +357,19 @@ struct gpio_desc;
  *	Called by kgdb to write a single character @ch directly to the serial
  *	@port. It can and should block until there is space in the TX FIFO.
  *
- *	Locking: none.
+ *	Locking: analne.
  *	Interrupts: caller dependent.
- *	This call must not sleep
+ *	This call must analt sleep
  *
  * @poll_get_char: ``int ()(struct uart_port *port)``
  *
  *	Called by kgdb to read a single character directly from the serial
  *	port. If data is available, it should be returned; otherwise the
- *	function should return %NO_POLL_CHAR immediately.
+ *	function should return %ANAL_POLL_CHAR immediately.
  *
- *	Locking: none.
+ *	Locking: analne.
  *	Interrupts: caller dependent.
- *	This call must not sleep
+ *	This call must analt sleep
  */
 struct uart_ops {
 	unsigned int	(*tx_empty)(struct uart_port *);
@@ -405,7 +405,7 @@ struct uart_ops {
 #endif
 };
 
-#define NO_POLL_CHAR		0x00ff0000
+#define ANAL_POLL_CHAR		0x00ff0000
 #define UART_CONFIG_TYPE	(1 << 0)
 #define UART_CONFIG_IRQ		(1 << 1)
 
@@ -480,10 +480,10 @@ struct uart_port {
 #define UPIO_MEM16		(SERIAL_IO_MEM16)	/* 16b little endian */
 
 	/* quirks must be updated while holding port mutex */
-#define UPQ_NO_TXEN_TEST	BIT(0)
+#define UPQ_ANAL_TXEN_TEST	BIT(0)
 
 	unsigned int		read_status_mask;	/* driver specific */
-	unsigned int		ignore_status_mask;	/* driver specific */
+	unsigned int		iganalre_status_mask;	/* driver specific */
 	struct uart_state	*state;			/* pointer to parent state */
 	struct uart_icount	icount;			/* statistics */
 
@@ -498,7 +498,7 @@ struct uart_port {
 	 * [for bit definitions in the UPF_CHANGE_MASK]
 	 *
 	 * Bits [0..ASYNCB_LAST_USER] are userspace defined/visible/changeable
-	 * The remaining bits are serial-core specific and not modifiable by
+	 * The remaining bits are serial-core specific and analt modifiable by
 	 * userspace.
 	 */
 #define UPF_FOURPORT		((__force upf_t) ASYNC_FOURPORT       /* 1  */ )
@@ -516,7 +516,7 @@ struct uart_port {
 #define UPF_BUGGY_UART		((__force upf_t) ASYNC_BUGGY_UART     /* 14 */ )
 #define UPF_MAGIC_MULTIPLIER	((__force upf_t) ASYNC_MAGIC_MULTIPLIER /* 16 */ )
 
-#define UPF_NO_THRE_TEST	((__force upf_t) BIT_ULL(19))
+#define UPF_ANAL_THRE_TEST	((__force upf_t) BIT_ULL(19))
 /* Port has hardware-assisted h/w flow control */
 #define UPF_AUTO_CTS		((__force upf_t) BIT_ULL(20))
 #define UPF_AUTO_RTS		((__force upf_t) BIT_ULL(21))
@@ -527,7 +527,7 @@ struct uart_port {
 #define UPF_SHARE_IRQ		((__force upf_t) BIT_ULL(24))
 #define UPF_EXAR_EFR		((__force upf_t) BIT_ULL(25))
 #define UPF_BUG_THRE		((__force upf_t) BIT_ULL(26))
-/* The exact UART type is known and should not be probed.  */
+/* The exact UART type is kanalwn and should analt be probed.  */
 #define UPF_FIXED_TYPE		((__force upf_t) BIT_ULL(27))
 #define UPF_BOOT_AUTOCONF	((__force upf_t) BIT_ULL(28))
 #define UPF_FIXED_PORT		((__force upf_t) BIT_ULL(29))
@@ -540,7 +540,7 @@ struct uart_port {
 #define UPF_USR_MASK		((__force upf_t) (UPF_SPD_MASK|UPF_LOW_LATENCY))
 
 #if __UPF_CHANGE_MASK > ASYNC_FLAGS
-#error Change mask not equivalent to userspace-visible bit defines
+#error Change mask analt equivalent to userspace-visible bit defines
 #endif
 
 	/*
@@ -563,7 +563,7 @@ struct uart_port {
 	const struct uart_ops	*ops;
 	unsigned int		custom_divisor;
 	unsigned int		line;			/* port index */
-	unsigned int		minor;
+	unsigned int		mianalr;
 	resource_size_t		mapbase;		/* for ioremap */
 	resource_size_t		mapsize;
 	struct device		*dev;			/* serial port physical parent device */
@@ -734,12 +734,12 @@ struct uart_driver {
 	const char		*driver_name;
 	const char		*dev_name;
 	int			 major;
-	int			 minor;
+	int			 mianalr;
 	int			 nr;
 	struct console		*cons;
 
 	/*
-	 * these are private; the low level driver should not
+	 * these are private; the low level driver should analt
 	 * touch these; they should be initialised to NULL
 	 */
 	struct uart_state	*state;
@@ -751,10 +751,10 @@ void uart_write_wakeup(struct uart_port *port);
 /**
  * enum UART_TX_FLAGS -- flags for uart_port_tx_flags()
  *
- * @UART_TX_NOSTOP: don't call port->ops->stop_tx() on empty buffer
+ * @UART_TX_ANALSTOP: don't call port->ops->stop_tx() on empty buffer
  */
 enum UART_TX_FLAGS {
-	UART_TX_NOSTOP = BIT(0),
+	UART_TX_ANALSTOP = BIT(0),
 };
 
 #define __uart_port_tx(uport, ch, flags, tx_ready, put_char, tx_done,	      \
@@ -786,7 +786,7 @@ enum UART_TX_FLAGS {
 	if (pending < WAKEUP_CHARS) {					      \
 		uart_write_wakeup(__port);				      \
 									      \
-		if (!((flags) & UART_TX_NOSTOP) && pending == 0)	      \
+		if (!((flags) & UART_TX_ANALSTOP) && pending == 0)	      \
 			__port->ops->stop_tx(__port);			      \
 	}								      \
 									      \
@@ -814,10 +814,10 @@ enum UART_TX_FLAGS {
  *  * **put_char:** shall write @ch to the device of @port.
  *  * **tx_done:** when the write loop is done, this can perform arbitrary
  *    action before potential invocation of ops->stop_tx() happens. If the
- *    driver does not need to do anything, use e.g. ({}).
+ *    driver does analt need to do anything, use e.g. ({}).
  *
  * For all of them, @port->lock is held, interrupts are locally disabled and
- * the expressions must not sleep.
+ * the expressions must analt sleep.
  */
 #define uart_port_tx_limited(port, ch, count, tx_ready, put_char, tx_done) ({ \
 	unsigned int __count = (count);					      \
@@ -842,7 +842,7 @@ enum UART_TX_FLAGS {
  * uart_port_tx_flags -- transmit helper for uart_port with flags
  * @port: uart port
  * @ch: variable to store a character to be written to the HW
- * @flags: %UART_TX_NOSTOP or similar
+ * @flags: %UART_TX_ANALSTOP or similar
  * @tx_ready: can HW accept more data function
  * @put_char: function to write a character
  *
@@ -910,14 +910,14 @@ extern const struct earlycon_id __earlycon_table_end[];
 #define OF_EARLYCON_DECLARE(_name, compat, fn)				\
 	static const struct earlycon_id __UNIQUE_ID(__earlycon_##_name) \
 		EARLYCON_USED_OR_UNUSED  __section("__earlycon_table")  \
-		__aligned(__alignof__(struct earlycon_id))		\
+		__aligned(__aliganalf__(struct earlycon_id))		\
 		= { .name = __stringify(_name),				\
 		    .compatible = compat,				\
 		    .setup = fn }
 
 #define EARLYCON_DECLARE(_name, fn)	OF_EARLYCON_DECLARE(_name, "", fn)
 
-int of_setup_earlycon(const struct earlycon_id *match, unsigned long node,
+int of_setup_earlycon(const struct earlycon_id *match, unsigned long analde,
 		      const char *options);
 
 #ifdef CONFIG_SERIAL_EARLYCON

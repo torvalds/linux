@@ -15,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/debugfs.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/reboot.h>
 #include <linux/uio.h>
 
@@ -57,7 +57,7 @@ static DEFINE_MUTEX(hsa_buf_mutex);
 static char hsa_buf[PAGE_SIZE] __aligned(PAGE_SIZE);
 
 /*
- * Copy memory from HSA to iterator (not reentrant):
+ * Copy memory from HSA to iterator (analt reentrant):
  *
  * @iter:  Iterator where memory should be copied to
  * @src:   Start address within HSA where data should be copied
@@ -91,7 +91,7 @@ size_t memcpy_hsa_iter(struct iov_iter *iter, unsigned long src, size_t count)
 }
 
 /*
- * Copy memory from HSA to kernel memory (not reentrant):
+ * Copy memory from HSA to kernel memory (analt reentrant):
  *
  * @dest:  Kernel or user buffer where memory should be copied to
  * @src:   Start address within HSA where data should be copied
@@ -117,9 +117,9 @@ static int __init init_cpu_info(void)
 	/* get info for boot cpu from lowcore, stored in the HSA */
 	sa = save_area_boot_cpu();
 	if (!sa)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (memcpy_hsa_kernel(hsa_buf, __LC_FPREGS_SAVE_AREA, 512) < 0) {
-		TRACE("could not copy from HSA\n");
+		TRACE("could analt copy from HSA\n");
 		return -EIO;
 	}
 	save_area_add_regs(sa, hsa_buf); /* vx registers are saved in smp.c */
@@ -142,21 +142,21 @@ static ssize_t zcore_reipl_write(struct file *filp, const char __user *buf,
 		diag308(DIAG308_SET, zcore_ipl_block);
 		if (os_info_flags & OS_INFO_FLAG_REIPL_CLEAR)
 			diag308(DIAG308_LOAD_CLEAR, NULL);
-		/* Use special diag308 subcode for CCW normal ipl */
+		/* Use special diag308 subcode for CCW analrmal ipl */
 		if (zcore_ipl_block->pb0_hdr.pbt == IPL_PBT_CCW)
-			diag308(DIAG308_LOAD_NORMAL_DUMP, NULL);
+			diag308(DIAG308_LOAD_ANALRMAL_DUMP, NULL);
 		else
-			diag308(DIAG308_LOAD_NORMAL, NULL);
+			diag308(DIAG308_LOAD_ANALRMAL, NULL);
 	}
 	return count;
 }
 
-static int zcore_reipl_open(struct inode *inode, struct file *filp)
+static int zcore_reipl_open(struct ianalde *ianalde, struct file *filp)
 {
-	return stream_open(inode, filp);
+	return stream_open(ianalde, filp);
 }
 
-static int zcore_reipl_release(struct inode *inode, struct file *filp)
+static int zcore_reipl_release(struct ianalde *ianalde, struct file *filp)
 {
 	return 0;
 }
@@ -166,7 +166,7 @@ static const struct file_operations zcore_reipl_fops = {
 	.write		= zcore_reipl_write,
 	.open		= zcore_reipl_open,
 	.release	= zcore_reipl_release,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static ssize_t zcore_hsa_read(struct file *filp, char __user *buf,
@@ -200,15 +200,15 @@ static const struct file_operations zcore_hsa_fops = {
 	.owner		= THIS_MODULE,
 	.write		= zcore_hsa_write,
 	.read		= zcore_hsa_read,
-	.open		= nonseekable_open,
-	.llseek		= no_llseek,
+	.open		= analnseekable_open,
+	.llseek		= anal_llseek,
 };
 
 static int __init check_sdias(void)
 {
 	if (!sclp.hsa_size) {
-		TRACE("Could not determine HSA size\n");
-		return -ENODEV;
+		TRACE("Could analt determine HSA size\n");
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -232,7 +232,7 @@ static int __init zcore_reipl_init(void)
 		return 0;
 	zcore_ipl_block = (void *) __get_free_page(GFP_KERNEL);
 	if (!zcore_ipl_block)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (ipib_info.ipib < sclp.hsa_size)
 		rc = memcpy_hsa_kernel(zcore_ipl_block, ipib_info.ipib,
 				       PAGE_SIZE);
@@ -240,7 +240,7 @@ static int __init zcore_reipl_init(void)
 		rc = memcpy_real(zcore_ipl_block, ipib_info.ipib, PAGE_SIZE);
 	if (rc || (__force u32)csum_partial(zcore_ipl_block, zcore_ipl_block->hdr.len, 0) !=
 	    ipib_info.checksum) {
-		TRACE("Checksum does not match\n");
+		TRACE("Checksum does analt match\n");
 		free_page((unsigned long) zcore_ipl_block);
 		zcore_ipl_block = NULL;
 	}
@@ -252,7 +252,7 @@ static int __init zcore_reipl_init(void)
 	 */
 	os_info = (void *)__get_free_page(GFP_KERNEL);
 	if (!os_info)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = memcpy_hsa_kernel(&os_info_addr, __LC_OS_INFO, sizeof(os_info_addr));
 	if (rc)
 		goto out;
@@ -276,25 +276,25 @@ out:
 	return 0;
 }
 
-static int zcore_reboot_and_on_panic_handler(struct notifier_block *self,
+static int zcore_reboot_and_on_panic_handler(struct analtifier_block *self,
 					     unsigned long	   event,
 					     void		   *data)
 {
 	if (hsa_available)
 		release_hsa();
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block zcore_reboot_notifier = {
-	.notifier_call	= zcore_reboot_and_on_panic_handler,
-	/* we need to be notified before reipl and kdump */
+static struct analtifier_block zcore_reboot_analtifier = {
+	.analtifier_call	= zcore_reboot_and_on_panic_handler,
+	/* we need to be analtified before reipl and kdump */
 	.priority	= INT_MAX,
 };
 
-static struct notifier_block zcore_on_panic_notifier = {
-	.notifier_call	= zcore_reboot_and_on_panic_handler,
-	/* we need to be notified before reipl and kdump */
+static struct analtifier_block zcore_on_panic_analtifier = {
+	.analtifier_call	= zcore_reboot_and_on_panic_handler,
+	/* we need to be analtified before reipl and kdump */
 	.priority	= INT_MAX,
 };
 
@@ -304,9 +304,9 @@ static int __init zcore_init(void)
 	int rc;
 
 	if (!is_ipl_type_dump())
-		return -ENODATA;
+		return -EANALDATA;
 	if (oldmem_data.start)
-		return -ENODATA;
+		return -EANALDATA;
 
 	zcore_dbf = debug_register("zcore", 4, 1, 4 * sizeof(long));
 	debug_register_view(zcore_dbf, &debug_sprintf_view);
@@ -314,7 +314,7 @@ static int __init zcore_init(void)
 
 	if (ipl_info.type == IPL_TYPE_FCP_DUMP) {
 		TRACE("type:   fcp\n");
-		TRACE("devno:  %x\n", ipl_info.data.fcp.dev_id.devno);
+		TRACE("devanal:  %x\n", ipl_info.data.fcp.dev_id.devanal);
 		TRACE("wwpn:   %llx\n", (unsigned long long) ipl_info.data.fcp.wwpn);
 		TRACE("lun:    %llx\n", (unsigned long long) ipl_info.data.fcp.lun);
 	} else if (ipl_info.type == IPL_TYPE_NVME_DUMP) {
@@ -323,7 +323,7 @@ static int __init zcore_init(void)
 		TRACE("nsid:   %x\n", ipl_info.data.nvme.nsid);
 	} else if (ipl_info.type == IPL_TYPE_ECKD_DUMP) {
 		TRACE("type:   eckd\n");
-		TRACE("devno:  %x\n", ipl_info.data.eckd.dev_id.devno);
+		TRACE("devanal:  %x\n", ipl_info.data.eckd.dev_id.devanal);
 		TRACE("ssid:   %x\n", ipl_info.data.eckd.dev_id.ssid);
 	}
 
@@ -341,7 +341,7 @@ static int __init zcore_init(void)
 		goto fail;
 
 	if (arch == ARCH_S390) {
-		pr_alert("The 64-bit dump tool cannot be used for a "
+		pr_alert("The 64-bit dump tool cananalt be used for a "
 			 "32-bit system\n");
 		rc = -EINVAL;
 		goto fail;
@@ -362,8 +362,8 @@ static int __init zcore_init(void)
 	zcore_hsa_file = debugfs_create_file("hsa", S_IRUSR|S_IWUSR, zcore_dir,
 					     NULL, &zcore_hsa_fops);
 
-	register_reboot_notifier(&zcore_reboot_notifier);
-	atomic_notifier_chain_register(&panic_notifier_list, &zcore_on_panic_notifier);
+	register_reboot_analtifier(&zcore_reboot_analtifier);
+	atomic_analtifier_chain_register(&panic_analtifier_list, &zcore_on_panic_analtifier);
 
 	return 0;
 fail:

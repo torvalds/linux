@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved.
  */
 
 #include <rdma/rdma_cm.h>
@@ -27,7 +27,7 @@ int rdma_restrack_init(struct ib_device *dev)
 
 	dev->res = kcalloc(RDMA_RESTRACK_MAX, sizeof(*rt), GFP_KERNEL);
 	if (!dev->res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt = dev->res;
 
@@ -81,7 +81,7 @@ void rdma_restrack_clean(struct ib_device *dev)
 					owner = e->kern_name;
 				} else {
 					/*
-					 * There is no need to call get_task_struct here,
+					 * There is anal need to call get_task_struct here,
 					 * because we can be here only if there are more
 					 * get_task_struct() call than put_task_struct().
 					 */
@@ -89,7 +89,7 @@ void rdma_restrack_clean(struct ib_device *dev)
 					owner = buf;
 				}
 
-				pr_err("restrack: %s %s object allocated by %s is not freed\n",
+				pr_err("restrack: %s %s object allocated by %s is analt freed\n",
 				       rdma_is_kernel_res(e) ? "Kernel" :
 							       "User",
 				       type2str(e->type), owner);
@@ -229,7 +229,7 @@ void rdma_restrack_add(struct rdma_restrack_entry *res)
 	if (!dev)
 		return;
 
-	if (res->no_track)
+	if (res->anal_track)
 		goto out;
 
 	rt = &dev->res[res->type];
@@ -278,7 +278,7 @@ EXPORT_SYMBOL(rdma_restrack_get);
  * @type: resource track type
  * @id: ID to take a look
  *
- * Return: Pointer to restrack entry or -ENOENT in case of error.
+ * Return: Pointer to restrack entry or -EANALENT in case of error.
  */
 struct rdma_restrack_entry *
 rdma_restrack_get_byid(struct ib_device *dev,
@@ -290,7 +290,7 @@ rdma_restrack_get_byid(struct ib_device *dev,
 	xa_lock(&rt->xa);
 	res = xa_load(&rt->xa, id);
 	if (!res || !rdma_restrack_get(res))
-		res = ERR_PTR(-ENOENT);
+		res = ERR_PTR(-EANALENT);
 	xa_unlock(&rt->xa);
 
 	return res;
@@ -333,7 +333,7 @@ void rdma_restrack_del(struct rdma_restrack_entry *res)
 		return;
 	}
 
-	if (res->no_track)
+	if (res->anal_track)
 		goto out;
 
 	dev = res_to_dev(res);

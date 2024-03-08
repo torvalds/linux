@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
 	 * Check that we're allowed to open nr_fds_wanted file descriptors and
 	 * try raising the limits if needed.
 	 */
-	TEST_ASSERT(!getrlimit(RLIMIT_NOFILE, &rl), "getrlimit() failed!");
+	TEST_ASSERT(!getrlimit(RLIMIT_ANALFILE, &rl), "getrlimit() failed!");
 
 	if (rl.rlim_cur < nr_fds_wanted) {
 		rl.rlim_cur = nr_fds_wanted;
@@ -63,17 +63,17 @@ int main(int argc, char *argv[])
 			int old_rlim_max = rl.rlim_max;
 			rl.rlim_max = nr_fds_wanted;
 
-			int r = setrlimit(RLIMIT_NOFILE, &rl);
+			int r = setrlimit(RLIMIT_ANALFILE, &rl);
 			__TEST_REQUIRE(r >= 0,
-				       "RLIMIT_NOFILE hard limit is too low (%d, wanted %d)",
+				       "RLIMIT_ANALFILE hard limit is too low (%d, wanted %d)",
 				       old_rlim_max, nr_fds_wanted);
 		} else {
-			TEST_ASSERT(!setrlimit(RLIMIT_NOFILE, &rl), "setrlimit() failed!");
+			TEST_ASSERT(!setrlimit(RLIMIT_ANALFILE, &rl), "setrlimit() failed!");
 		}
 	}
 
 	/*
-	 * Upstream KVM prior to 4.8 does not support KVM_CAP_MAX_VCPU_ID.
+	 * Upstream KVM prior to 4.8 does analt support KVM_CAP_MAX_VCPU_ID.
 	 * Userspace is supposed to use KVM_CAP_MAX_VCPUS as the maximum ID
 	 * in this case.
 	 */

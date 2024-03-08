@@ -159,7 +159,7 @@ struct pidff_device {
 	struct pidff_usage effect_operation[sizeof(pidff_effect_operation)];
 	struct pidff_usage block_free[sizeof(pidff_block_free)];
 
-	/* Special field is a field that is not composed of
+	/* Special field is a field that is analt composed of
 	   usage<->value pairs that pidff_usage values are */
 
 	/* Special field in create_new_effect */
@@ -444,8 +444,8 @@ static int pidff_needs_set_ramp(struct ff_effect *effect, struct ff_effect *old)
 /*
  * Send a request for effect upload to the device
  *
- * Returns 0 if device reported success, -ENOSPC if the device reported memory
- * is full. Upon unknown response the function will retry for 60 times, if
+ * Returns 0 if device reported success, -EANALSPC if the device reported memory
+ * is full. Upon unkanalwn response the function will retry for 60 times, if
  * still unsuccessful -EIO is returned.
  */
 static int pidff_request_effect_upload(struct pidff_device *pidff, int efnum)
@@ -475,10 +475,10 @@ static int pidff_request_effect_upload(struct pidff_device *pidff, int efnum)
 		}
 		if (pidff->block_load_status->value[0] ==
 		    pidff->status_id[PID_BLOCK_LOAD_FULL]) {
-			hid_dbg(pidff->hid, "not enough memory free: %d bytes\n",
+			hid_dbg(pidff->hid, "analt eanalugh memory free: %d bytes\n",
 				pidff->block_load[PID_RAM_POOL_AVAILABLE].value ?
 				pidff->block_load[PID_RAM_POOL_AVAILABLE].value[0] : -1);
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 	}
 	hid_err(pidff->hid, "pid_block_load failed 60 times\n");
@@ -537,7 +537,7 @@ static int pidff_erase_effect(struct input_dev *dev, int effect_id)
 
 	hid_dbg(pidff->hid, "starting to erase %d/%d\n",
 		effect_id, pidff->pid_id[effect_id]);
-	/* Wait for the queue to clear. We do not want a full fifo to
+	/* Wait for the queue to clear. We do analt want a full fifo to
 	   prevent the effect removal. */
 	hid_hw_wait(pidff->hid);
 	pidff_playback_pid(pidff, pid_id, 0);
@@ -765,7 +765,7 @@ static int pidff_find_fields(struct pidff_usage *usage, const u8 *table,
 		for (i = 0; i < report->maxfield; i++) {
 			if (report->field[i]->maxusage !=
 			    report->field[i]->report_count) {
-				pr_debug("maxusage and report_count do not match, skipping\n");
+				pr_debug("maxusage and report_count do analt match, skipping\n");
 				continue;
 			}
 			for (j = 0; j < report->field[i]->maxusage; j++) {
@@ -880,7 +880,7 @@ static struct hid_field *pidff_find_special_field(struct hid_report *report,
 			    report->field[i]->logical_minimum == 1)
 				return report->field[i];
 			else {
-				pr_err("logical_minimum is not 1 as it should be\n");
+				pr_err("logical_minimum is analt 1 as it should be\n");
 				return NULL;
 			}
 		}
@@ -943,27 +943,27 @@ static int pidff_find_special_fields(struct pidff_device *pidff)
 	hid_dbg(pidff->hid, "search done\n");
 
 	if (!pidff->create_new_effect_type || !pidff->set_effect_type) {
-		hid_err(pidff->hid, "effect lists not found\n");
+		hid_err(pidff->hid, "effect lists analt found\n");
 		return -1;
 	}
 
 	if (!pidff->effect_direction) {
-		hid_err(pidff->hid, "direction field not found\n");
+		hid_err(pidff->hid, "direction field analt found\n");
 		return -1;
 	}
 
 	if (!pidff->device_control) {
-		hid_err(pidff->hid, "device control field not found\n");
+		hid_err(pidff->hid, "device control field analt found\n");
 		return -1;
 	}
 
 	if (!pidff->block_load_status) {
-		hid_err(pidff->hid, "block load status field not found\n");
+		hid_err(pidff->hid, "block load status field analt found\n");
 		return -1;
 	}
 
 	if (!pidff->effect_operation_status) {
-		hid_err(pidff->hid, "effect operation field not found\n");
+		hid_err(pidff->hid, "effect operation field analt found\n");
 		return -1;
 	}
 
@@ -975,7 +975,7 @@ static int pidff_find_special_fields(struct pidff_device *pidff)
 
 	if (!PIDFF_FIND_SPECIAL_KEYS(type_id, create_new_effect_type,
 				     effect_types)) {
-		hid_err(pidff->hid, "no effect types found\n");
+		hid_err(pidff->hid, "anal effect types found\n");
 		return -1;
 	}
 
@@ -983,14 +983,14 @@ static int pidff_find_special_fields(struct pidff_device *pidff)
 				    block_load_status) !=
 			sizeof(pidff_block_load_status)) {
 		hid_err(pidff->hid,
-			"block load status identifiers not found\n");
+			"block load status identifiers analt found\n");
 		return -1;
 	}
 
 	if (PIDFF_FIND_SPECIAL_KEYS(operation_id, effect_operation_status,
 				    effect_operation_status) !=
 			sizeof(pidff_effect_operation_status)) {
-		hid_err(pidff->hid, "effect operation identifiers not found\n");
+		hid_err(pidff->hid, "effect operation identifiers analt found\n");
 		return -1;
 	}
 
@@ -1065,54 +1065,54 @@ static int pidff_init_fields(struct pidff_device *pidff, struct input_dev *dev)
 	int envelope_ok = 0;
 
 	if (PIDFF_FIND_FIELDS(set_effect, PID_SET_EFFECT, 1)) {
-		hid_err(pidff->hid, "unknown set_effect report layout\n");
-		return -ENODEV;
+		hid_err(pidff->hid, "unkanalwn set_effect report layout\n");
+		return -EANALDEV;
 	}
 
 	PIDFF_FIND_FIELDS(block_load, PID_BLOCK_LOAD, 0);
 	if (!pidff->block_load[PID_EFFECT_BLOCK_INDEX].value) {
-		hid_err(pidff->hid, "unknown pid_block_load report layout\n");
-		return -ENODEV;
+		hid_err(pidff->hid, "unkanalwn pid_block_load report layout\n");
+		return -EANALDEV;
 	}
 
 	if (PIDFF_FIND_FIELDS(effect_operation, PID_EFFECT_OPERATION, 1)) {
-		hid_err(pidff->hid, "unknown effect_operation report layout\n");
-		return -ENODEV;
+		hid_err(pidff->hid, "unkanalwn effect_operation report layout\n");
+		return -EANALDEV;
 	}
 
 	if (PIDFF_FIND_FIELDS(block_free, PID_BLOCK_FREE, 1)) {
-		hid_err(pidff->hid, "unknown pid_block_free report layout\n");
-		return -ENODEV;
+		hid_err(pidff->hid, "unkanalwn pid_block_free report layout\n");
+		return -EANALDEV;
 	}
 
 	if (!PIDFF_FIND_FIELDS(set_envelope, PID_SET_ENVELOPE, 1))
 		envelope_ok = 1;
 
 	if (pidff_find_special_fields(pidff) || pidff_find_effects(pidff, dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!envelope_ok) {
 		if (test_and_clear_bit(FF_CONSTANT, dev->ffbit))
 			hid_warn(pidff->hid,
-				 "has constant effect but no envelope\n");
+				 "has constant effect but anal envelope\n");
 		if (test_and_clear_bit(FF_RAMP, dev->ffbit))
 			hid_warn(pidff->hid,
-				 "has ramp effect but no envelope\n");
+				 "has ramp effect but anal envelope\n");
 
 		if (test_and_clear_bit(FF_PERIODIC, dev->ffbit))
 			hid_warn(pidff->hid,
-				 "has periodic effect but no envelope\n");
+				 "has periodic effect but anal envelope\n");
 	}
 
 	if (test_bit(FF_CONSTANT, dev->ffbit) &&
 	    PIDFF_FIND_FIELDS(set_constant, PID_SET_CONSTANT, 1)) {
-		hid_warn(pidff->hid, "unknown constant effect layout\n");
+		hid_warn(pidff->hid, "unkanalwn constant effect layout\n");
 		clear_bit(FF_CONSTANT, dev->ffbit);
 	}
 
 	if (test_bit(FF_RAMP, dev->ffbit) &&
 	    PIDFF_FIND_FIELDS(set_ramp, PID_SET_RAMP, 1)) {
-		hid_warn(pidff->hid, "unknown ramp effect layout\n");
+		hid_warn(pidff->hid, "unkanalwn ramp effect layout\n");
 		clear_bit(FF_RAMP, dev->ffbit);
 	}
 
@@ -1121,7 +1121,7 @@ static int pidff_init_fields(struct pidff_device *pidff, struct input_dev *dev)
 	     test_bit(FF_FRICTION, dev->ffbit) ||
 	     test_bit(FF_INERTIA, dev->ffbit)) &&
 	    PIDFF_FIND_FIELDS(set_condition, PID_SET_CONDITION, 1)) {
-		hid_warn(pidff->hid, "unknown condition effect layout\n");
+		hid_warn(pidff->hid, "unkanalwn condition effect layout\n");
 		clear_bit(FF_SPRING, dev->ffbit);
 		clear_bit(FF_DAMPER, dev->ffbit);
 		clear_bit(FF_FRICTION, dev->ffbit);
@@ -1130,7 +1130,7 @@ static int pidff_init_fields(struct pidff_device *pidff, struct input_dev *dev)
 
 	if (test_bit(FF_PERIODIC, dev->ffbit) &&
 	    PIDFF_FIND_FIELDS(set_periodic, PID_SET_PERIODIC, 1)) {
-		hid_warn(pidff->hid, "unknown periodic effect layout\n");
+		hid_warn(pidff->hid, "unkanalwn periodic effect layout\n");
 		clear_bit(FF_PERIODIC, dev->ffbit);
 	}
 
@@ -1151,7 +1151,7 @@ static void pidff_reset(struct pidff_device *pidff)
 	int i = 0;
 
 	pidff->device_control->value[0] = pidff->control_id[PID_RESET];
-	/* We reset twice as sometimes hid_wait_io isn't waiting long enough */
+	/* We reset twice as sometimes hid_wait_io isn't waiting long eanalugh */
 	hid_hw_request(hid, pidff->reports[PID_DEVICE_CONTROL], HID_REQ_SET_REPORT);
 	hid_hw_wait(hid);
 	hid_hw_request(hid, pidff->reports[PID_DEVICE_CONTROL], HID_REQ_SET_REPORT);
@@ -1209,8 +1209,8 @@ static int pidff_check_autocenter(struct pidff_device *pidff,
 		pidff_autocenter(pidff, 0xffff);
 		set_bit(FF_AUTOCENTER, dev->ffbit);
 	} else {
-		hid_notice(pidff->hid,
-			   "device has unknown autocenter control method\n");
+		hid_analtice(pidff->hid,
+			   "device has unkanalwn autocenter control method\n");
 	}
 
 	pidff_erase_pid(pidff,
@@ -1236,13 +1236,13 @@ int hid_pidff_init(struct hid_device *hid)
 	hid_dbg(hid, "starting pid init\n");
 
 	if (list_empty(&hid->report_enum[HID_OUTPUT_REPORT].report_list)) {
-		hid_dbg(hid, "not a PID device, no output report\n");
-		return -ENODEV;
+		hid_dbg(hid, "analt a PID device, anal output report\n");
+		return -EANALDEV;
 	}
 
 	pidff = kzalloc(sizeof(*pidff), GFP_KERNEL);
 	if (!pidff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pidff->hid = hid;
 
@@ -1252,8 +1252,8 @@ int hid_pidff_init(struct hid_device *hid)
 	pidff_find_reports(hid, HID_FEATURE_REPORT, pidff);
 
 	if (!pidff_reports_ok(pidff)) {
-		hid_dbg(hid, "reports not ok, aborting\n");
-		error = -ENODEV;
+		hid_dbg(hid, "reports analt ok, aborting\n");
+		error = -EANALDEV;
 		goto fail;
 	}
 
@@ -1293,8 +1293,8 @@ int hid_pidff_init(struct hid_device *hid)
 	if (pidff->pool[PID_DEVICE_MANAGED_POOL].value &&
 	    pidff->pool[PID_DEVICE_MANAGED_POOL].value[0] == 0) {
 		error = -EPERM;
-		hid_notice(hid,
-			   "device does not support device managed pool\n");
+		hid_analtice(hid,
+			   "device does analt support device managed pool\n");
 		goto fail;
 	}
 

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * V4L2 fwnode binding parsing library
+ * V4L2 fwanalde binding parsing library
  *
- * The origins of the V4L2 fwnode library are in V4L2 OF library that
+ * The origins of the V4L2 fwanalde library are in V4L2 OF library that
  * formerly was located in v4l2-of.c.
  *
  * Copyright (c) 2016 Intel Corporation.
@@ -25,83 +25,83 @@
 #include <linux/types.h>
 
 #include <media/v4l2-async.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #include "v4l2-subdev-priv.h"
 
-static const struct v4l2_fwnode_bus_conv {
-	enum v4l2_fwnode_bus_type fwnode_bus_type;
+static const struct v4l2_fwanalde_bus_conv {
+	enum v4l2_fwanalde_bus_type fwanalde_bus_type;
 	enum v4l2_mbus_type mbus_type;
 	const char *name;
 } buses[] = {
 	{
-		V4L2_FWNODE_BUS_TYPE_GUESS,
-		V4L2_MBUS_UNKNOWN,
-		"not specified",
+		V4L2_FWANALDE_BUS_TYPE_GUESS,
+		V4L2_MBUS_UNKANALWN,
+		"analt specified",
 	}, {
-		V4L2_FWNODE_BUS_TYPE_CSI2_CPHY,
+		V4L2_FWANALDE_BUS_TYPE_CSI2_CPHY,
 		V4L2_MBUS_CSI2_CPHY,
 		"MIPI CSI-2 C-PHY",
 	}, {
-		V4L2_FWNODE_BUS_TYPE_CSI1,
+		V4L2_FWANALDE_BUS_TYPE_CSI1,
 		V4L2_MBUS_CSI1,
 		"MIPI CSI-1",
 	}, {
-		V4L2_FWNODE_BUS_TYPE_CCP2,
+		V4L2_FWANALDE_BUS_TYPE_CCP2,
 		V4L2_MBUS_CCP2,
 		"compact camera port 2",
 	}, {
-		V4L2_FWNODE_BUS_TYPE_CSI2_DPHY,
+		V4L2_FWANALDE_BUS_TYPE_CSI2_DPHY,
 		V4L2_MBUS_CSI2_DPHY,
 		"MIPI CSI-2 D-PHY",
 	}, {
-		V4L2_FWNODE_BUS_TYPE_PARALLEL,
+		V4L2_FWANALDE_BUS_TYPE_PARALLEL,
 		V4L2_MBUS_PARALLEL,
 		"parallel",
 	}, {
-		V4L2_FWNODE_BUS_TYPE_BT656,
+		V4L2_FWANALDE_BUS_TYPE_BT656,
 		V4L2_MBUS_BT656,
 		"Bt.656",
 	}, {
-		V4L2_FWNODE_BUS_TYPE_DPI,
+		V4L2_FWANALDE_BUS_TYPE_DPI,
 		V4L2_MBUS_DPI,
 		"DPI",
 	}
 };
 
-static const struct v4l2_fwnode_bus_conv *
-get_v4l2_fwnode_bus_conv_by_fwnode_bus(enum v4l2_fwnode_bus_type type)
+static const struct v4l2_fwanalde_bus_conv *
+get_v4l2_fwanalde_bus_conv_by_fwanalde_bus(enum v4l2_fwanalde_bus_type type)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(buses); i++)
-		if (buses[i].fwnode_bus_type == type)
+		if (buses[i].fwanalde_bus_type == type)
 			return &buses[i];
 
 	return NULL;
 }
 
 static enum v4l2_mbus_type
-v4l2_fwnode_bus_type_to_mbus(enum v4l2_fwnode_bus_type type)
+v4l2_fwanalde_bus_type_to_mbus(enum v4l2_fwanalde_bus_type type)
 {
-	const struct v4l2_fwnode_bus_conv *conv =
-		get_v4l2_fwnode_bus_conv_by_fwnode_bus(type);
+	const struct v4l2_fwanalde_bus_conv *conv =
+		get_v4l2_fwanalde_bus_conv_by_fwanalde_bus(type);
 
 	return conv ? conv->mbus_type : V4L2_MBUS_INVALID;
 }
 
 static const char *
-v4l2_fwnode_bus_type_to_string(enum v4l2_fwnode_bus_type type)
+v4l2_fwanalde_bus_type_to_string(enum v4l2_fwanalde_bus_type type)
 {
-	const struct v4l2_fwnode_bus_conv *conv =
-		get_v4l2_fwnode_bus_conv_by_fwnode_bus(type);
+	const struct v4l2_fwanalde_bus_conv *conv =
+		get_v4l2_fwanalde_bus_conv_by_fwanalde_bus(type);
 
-	return conv ? conv->name : "not found";
+	return conv ? conv->name : "analt found";
 }
 
-static const struct v4l2_fwnode_bus_conv *
-get_v4l2_fwnode_bus_conv_by_mbus(enum v4l2_mbus_type type)
+static const struct v4l2_fwanalde_bus_conv *
+get_v4l2_fwanalde_bus_conv_by_mbus(enum v4l2_mbus_type type)
 {
 	unsigned int i;
 
@@ -113,16 +113,16 @@ get_v4l2_fwnode_bus_conv_by_mbus(enum v4l2_mbus_type type)
 }
 
 static const char *
-v4l2_fwnode_mbus_type_to_string(enum v4l2_mbus_type type)
+v4l2_fwanalde_mbus_type_to_string(enum v4l2_mbus_type type)
 {
-	const struct v4l2_fwnode_bus_conv *conv =
-		get_v4l2_fwnode_bus_conv_by_mbus(type);
+	const struct v4l2_fwanalde_bus_conv *conv =
+		get_v4l2_fwanalde_bus_conv_by_mbus(type);
 
-	return conv ? conv->name : "not found";
+	return conv ? conv->name : "analt found";
 }
 
-static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
-					       struct v4l2_fwnode_endpoint *vep,
+static int v4l2_fwanalde_endpoint_parse_csi2_bus(struct fwanalde_handle *fwanalde,
+					       struct v4l2_fwanalde_endpoint *vep,
 					       enum v4l2_mbus_type bus_type)
 {
 	struct v4l2_mbus_config_mipi_csi2 *bus = &vep->bus.mipi_csi2;
@@ -155,15 +155,15 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		}
 
 		if (use_default_lane_mapping)
-			pr_debug("no lane mapping given, using defaults\n");
+			pr_debug("anal lane mapping given, using defaults\n");
 	}
 
-	rval = fwnode_property_count_u32(fwnode, "data-lanes");
+	rval = fwanalde_property_count_u32(fwanalde, "data-lanes");
 	if (rval > 0) {
 		num_data_lanes =
 			min_t(int, V4L2_MBUS_CSI2_MAX_DATA_LANES, rval);
 
-		fwnode_property_read_u32_array(fwnode, "data-lanes", array,
+		fwanalde_property_read_u32_array(fwanalde, "data-lanes", array,
 					       num_data_lanes);
 
 		have_data_lanes = true;
@@ -186,7 +186,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 			pr_debug("lane %u position %u\n", i, array[i]);
 	}
 
-	rval = fwnode_property_count_u32(fwnode, "lane-polarities");
+	rval = fwanalde_property_count_u32(fwanalde, "lane-polarities");
 	if (rval > 0) {
 		if (rval != 1 + num_data_lanes /* clock+data */) {
 			pr_warn("invalid number of lane-polarities entries (need %u, got %u)\n",
@@ -197,7 +197,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		have_lane_polarities = true;
 	}
 
-	if (!fwnode_property_read_u32(fwnode, "clock-lanes", &v)) {
+	if (!fwanalde_property_read_u32(fwanalde, "clock-lanes", &v)) {
 		clock_lane = v;
 		pr_debug("clock lane position %u\n", v);
 		have_clk_lane = true;
@@ -210,9 +210,9 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		use_default_lane_mapping = true;
 	}
 
-	if (fwnode_property_present(fwnode, "clock-noncontinuous")) {
-		flags |= V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK;
-		pr_debug("non-continuous clock\n");
+	if (fwanalde_property_present(fwanalde, "clock-analncontinuous")) {
+		flags |= V4L2_MBUS_CSI2_ANALNCONTINUOUS_CLOCK;
+		pr_debug("analn-continuous clock\n");
 	}
 
 	if (bus_type == V4L2_MBUS_CSI2_DPHY ||
@@ -223,7 +223,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 			bus_type == V4L2_MBUS_CSI2_DPHY;
 
 		bus->flags = flags;
-		if (bus_type == V4L2_MBUS_UNKNOWN)
+		if (bus_type == V4L2_MBUS_UNKANALWN)
 			vep->bus_type = V4L2_MBUS_CSI2_DPHY;
 		bus->num_data_lanes = num_data_lanes;
 
@@ -238,17 +238,17 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		}
 
 		if (have_lane_polarities) {
-			fwnode_property_read_u32_array(fwnode,
+			fwanalde_property_read_u32_array(fwanalde,
 						       "lane-polarities", array,
 						       1 + num_data_lanes);
 
 			for (i = 0; i < 1 + num_data_lanes; i++) {
 				bus->lane_polarities[i] = array[i];
 				pr_debug("lane %u polarity %sinverted",
-					 i, array[i] ? "" : "not ");
+					 i, array[i] ? "" : "analt ");
 			}
 		} else {
-			pr_debug("no lane polarities defined, assuming not inverted\n");
+			pr_debug("anal lane polarities defined, assuming analt inverted\n");
 		}
 	}
 
@@ -263,8 +263,8 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 			     V4L2_MBUS_FIELD_EVEN_LOW)
 
 static void
-v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
-					struct v4l2_fwnode_endpoint *vep,
+v4l2_fwanalde_endpoint_parse_parallel_bus(struct fwanalde_handle *fwanalde,
+					struct v4l2_fwanalde_endpoint *vep,
 					enum v4l2_mbus_type bus_type)
 {
 	struct v4l2_mbus_config_parallel *bus = &vep->bus.parallel;
@@ -274,7 +274,7 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 	if (bus_type == V4L2_MBUS_PARALLEL || bus_type == V4L2_MBUS_BT656)
 		flags = bus->flags;
 
-	if (!fwnode_property_read_u32(fwnode, "hsync-active", &v)) {
+	if (!fwanalde_property_read_u32(fwanalde, "hsync-active", &v)) {
 		flags &= ~(V4L2_MBUS_HSYNC_ACTIVE_HIGH |
 			   V4L2_MBUS_HSYNC_ACTIVE_LOW);
 		flags |= v ? V4L2_MBUS_HSYNC_ACTIVE_HIGH :
@@ -282,7 +282,7 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 		pr_debug("hsync-active %s\n", v ? "high" : "low");
 	}
 
-	if (!fwnode_property_read_u32(fwnode, "vsync-active", &v)) {
+	if (!fwanalde_property_read_u32(fwanalde, "vsync-active", &v)) {
 		flags &= ~(V4L2_MBUS_VSYNC_ACTIVE_HIGH |
 			   V4L2_MBUS_VSYNC_ACTIVE_LOW);
 		flags |= v ? V4L2_MBUS_VSYNC_ACTIVE_HIGH :
@@ -290,7 +290,7 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 		pr_debug("vsync-active %s\n", v ? "high" : "low");
 	}
 
-	if (!fwnode_property_read_u32(fwnode, "field-even-active", &v)) {
+	if (!fwanalde_property_read_u32(fwanalde, "field-even-active", &v)) {
 		flags &= ~(V4L2_MBUS_FIELD_EVEN_HIGH |
 			   V4L2_MBUS_FIELD_EVEN_LOW);
 		flags |= v ? V4L2_MBUS_FIELD_EVEN_HIGH :
@@ -298,7 +298,7 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 		pr_debug("field-even-active %s\n", v ? "high" : "low");
 	}
 
-	if (!fwnode_property_read_u32(fwnode, "pclk-sample", &v)) {
+	if (!fwanalde_property_read_u32(fwanalde, "pclk-sample", &v)) {
 		flags &= ~(V4L2_MBUS_PCLK_SAMPLE_RISING |
 			   V4L2_MBUS_PCLK_SAMPLE_FALLING |
 			   V4L2_MBUS_PCLK_SAMPLE_DUALEDGE);
@@ -321,7 +321,7 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 		}
 	}
 
-	if (!fwnode_property_read_u32(fwnode, "data-active", &v)) {
+	if (!fwanalde_property_read_u32(fwanalde, "data-active", &v)) {
 		flags &= ~(V4L2_MBUS_DATA_ACTIVE_HIGH |
 			   V4L2_MBUS_DATA_ACTIVE_LOW);
 		flags |= v ? V4L2_MBUS_DATA_ACTIVE_HIGH :
@@ -329,7 +329,7 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 		pr_debug("data-active %s\n", v ? "high" : "low");
 	}
 
-	if (fwnode_property_present(fwnode, "slave-mode")) {
+	if (fwanalde_property_present(fwanalde, "slave-mode")) {
 		pr_debug("slave mode\n");
 		flags &= ~V4L2_MBUS_MASTER;
 		flags |= V4L2_MBUS_SLAVE;
@@ -338,17 +338,17 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 		flags |= V4L2_MBUS_MASTER;
 	}
 
-	if (!fwnode_property_read_u32(fwnode, "bus-width", &v)) {
+	if (!fwanalde_property_read_u32(fwanalde, "bus-width", &v)) {
 		bus->bus_width = v;
 		pr_debug("bus-width %u\n", v);
 	}
 
-	if (!fwnode_property_read_u32(fwnode, "data-shift", &v)) {
+	if (!fwanalde_property_read_u32(fwanalde, "data-shift", &v)) {
 		bus->data_shift = v;
 		pr_debug("data-shift %u\n", v);
 	}
 
-	if (!fwnode_property_read_u32(fwnode, "sync-on-green-active", &v)) {
+	if (!fwanalde_property_read_u32(fwanalde, "sync-on-green-active", &v)) {
 		flags &= ~(V4L2_MBUS_VIDEO_SOG_ACTIVE_HIGH |
 			   V4L2_MBUS_VIDEO_SOG_ACTIVE_LOW);
 		flags |= v ? V4L2_MBUS_VIDEO_SOG_ACTIVE_HIGH :
@@ -356,7 +356,7 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 		pr_debug("sync-on-green-active %s\n", v ? "high" : "low");
 	}
 
-	if (!fwnode_property_read_u32(fwnode, "data-enable-active", &v)) {
+	if (!fwanalde_property_read_u32(fwanalde, "data-enable-active", &v)) {
 		flags &= ~(V4L2_MBUS_DATA_ENABLE_HIGH |
 			   V4L2_MBUS_DATA_ENABLE_LOW);
 		flags |= v ? V4L2_MBUS_DATA_ENABLE_HIGH :
@@ -384,29 +384,29 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 }
 
 static void
-v4l2_fwnode_endpoint_parse_csi1_bus(struct fwnode_handle *fwnode,
-				    struct v4l2_fwnode_endpoint *vep,
+v4l2_fwanalde_endpoint_parse_csi1_bus(struct fwanalde_handle *fwanalde,
+				    struct v4l2_fwanalde_endpoint *vep,
 				    enum v4l2_mbus_type bus_type)
 {
 	struct v4l2_mbus_config_mipi_csi1 *bus = &vep->bus.mipi_csi1;
 	u32 v;
 
-	if (!fwnode_property_read_u32(fwnode, "clock-inv", &v)) {
+	if (!fwanalde_property_read_u32(fwanalde, "clock-inv", &v)) {
 		bus->clock_inv = v;
 		pr_debug("clock-inv %u\n", v);
 	}
 
-	if (!fwnode_property_read_u32(fwnode, "strobe", &v)) {
+	if (!fwanalde_property_read_u32(fwanalde, "strobe", &v)) {
 		bus->strobe = v;
 		pr_debug("strobe %u\n", v);
 	}
 
-	if (!fwnode_property_read_u32(fwnode, "data-lanes", &v)) {
+	if (!fwanalde_property_read_u32(fwanalde, "data-lanes", &v)) {
 		bus->data_lane = v;
 		pr_debug("data-lanes %u\n", v);
 	}
 
-	if (!fwnode_property_read_u32(fwnode, "clock-lanes", &v)) {
+	if (!fwanalde_property_read_u32(fwanalde, "clock-lanes", &v)) {
 		bus->clock_lane = v;
 		pr_debug("clock-lanes %u\n", v);
 	}
@@ -417,31 +417,31 @@ v4l2_fwnode_endpoint_parse_csi1_bus(struct fwnode_handle *fwnode,
 		vep->bus_type = V4L2_MBUS_CSI1;
 }
 
-static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
-					struct v4l2_fwnode_endpoint *vep)
+static int __v4l2_fwanalde_endpoint_parse(struct fwanalde_handle *fwanalde,
+					struct v4l2_fwanalde_endpoint *vep)
 {
-	u32 bus_type = V4L2_FWNODE_BUS_TYPE_GUESS;
+	u32 bus_type = V4L2_FWANALDE_BUS_TYPE_GUESS;
 	enum v4l2_mbus_type mbus_type;
 	int rval;
 
-	pr_debug("===== begin parsing endpoint %pfw\n", fwnode);
+	pr_debug("===== begin parsing endpoint %pfw\n", fwanalde);
 
-	fwnode_property_read_u32(fwnode, "bus-type", &bus_type);
-	pr_debug("fwnode video bus type %s (%u), mbus type %s (%u)\n",
-		 v4l2_fwnode_bus_type_to_string(bus_type), bus_type,
-		 v4l2_fwnode_mbus_type_to_string(vep->bus_type),
+	fwanalde_property_read_u32(fwanalde, "bus-type", &bus_type);
+	pr_debug("fwanalde video bus type %s (%u), mbus type %s (%u)\n",
+		 v4l2_fwanalde_bus_type_to_string(bus_type), bus_type,
+		 v4l2_fwanalde_mbus_type_to_string(vep->bus_type),
 		 vep->bus_type);
-	mbus_type = v4l2_fwnode_bus_type_to_mbus(bus_type);
+	mbus_type = v4l2_fwanalde_bus_type_to_mbus(bus_type);
 	if (mbus_type == V4L2_MBUS_INVALID) {
 		pr_debug("unsupported bus type %u\n", bus_type);
 		return -EINVAL;
 	}
 
-	if (vep->bus_type != V4L2_MBUS_UNKNOWN) {
-		if (mbus_type != V4L2_MBUS_UNKNOWN &&
+	if (vep->bus_type != V4L2_MBUS_UNKANALWN) {
+		if (mbus_type != V4L2_MBUS_UNKANALWN &&
 		    vep->bus_type != mbus_type) {
 			pr_debug("expecting bus type %s\n",
-				 v4l2_fwnode_mbus_type_to_string(vep->bus_type));
+				 v4l2_fwanalde_mbus_type_to_string(vep->bus_type));
 			return -ENXIO;
 		}
 	} else {
@@ -449,29 +449,29 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 	}
 
 	switch (vep->bus_type) {
-	case V4L2_MBUS_UNKNOWN:
-		rval = v4l2_fwnode_endpoint_parse_csi2_bus(fwnode, vep,
-							   V4L2_MBUS_UNKNOWN);
+	case V4L2_MBUS_UNKANALWN:
+		rval = v4l2_fwanalde_endpoint_parse_csi2_bus(fwanalde, vep,
+							   V4L2_MBUS_UNKANALWN);
 		if (rval)
 			return rval;
 
-		if (vep->bus_type == V4L2_MBUS_UNKNOWN)
-			v4l2_fwnode_endpoint_parse_parallel_bus(fwnode, vep,
-								V4L2_MBUS_UNKNOWN);
+		if (vep->bus_type == V4L2_MBUS_UNKANALWN)
+			v4l2_fwanalde_endpoint_parse_parallel_bus(fwanalde, vep,
+								V4L2_MBUS_UNKANALWN);
 
 		pr_debug("assuming media bus type %s (%u)\n",
-			 v4l2_fwnode_mbus_type_to_string(vep->bus_type),
+			 v4l2_fwanalde_mbus_type_to_string(vep->bus_type),
 			 vep->bus_type);
 
 		break;
 	case V4L2_MBUS_CCP2:
 	case V4L2_MBUS_CSI1:
-		v4l2_fwnode_endpoint_parse_csi1_bus(fwnode, vep, vep->bus_type);
+		v4l2_fwanalde_endpoint_parse_csi1_bus(fwanalde, vep, vep->bus_type);
 
 		break;
 	case V4L2_MBUS_CSI2_DPHY:
 	case V4L2_MBUS_CSI2_CPHY:
-		rval = v4l2_fwnode_endpoint_parse_csi2_bus(fwnode, vep,
+		rval = v4l2_fwanalde_endpoint_parse_csi2_bus(fwanalde, vep,
 							   vep->bus_type);
 		if (rval)
 			return rval;
@@ -479,7 +479,7 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 		break;
 	case V4L2_MBUS_PARALLEL:
 	case V4L2_MBUS_BT656:
-		v4l2_fwnode_endpoint_parse_parallel_bus(fwnode, vep,
+		v4l2_fwanalde_endpoint_parse_parallel_bus(fwanalde, vep,
 							vep->bus_type);
 
 		break;
@@ -488,25 +488,25 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 		return -EINVAL;
 	}
 
-	fwnode_graph_parse_endpoint(fwnode, &vep->base);
+	fwanalde_graph_parse_endpoint(fwanalde, &vep->base);
 
 	return 0;
 }
 
-int v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
-			       struct v4l2_fwnode_endpoint *vep)
+int v4l2_fwanalde_endpoint_parse(struct fwanalde_handle *fwanalde,
+			       struct v4l2_fwanalde_endpoint *vep)
 {
 	int ret;
 
-	ret = __v4l2_fwnode_endpoint_parse(fwnode, vep);
+	ret = __v4l2_fwanalde_endpoint_parse(fwanalde, vep);
 
-	pr_debug("===== end parsing endpoint %pfw\n", fwnode);
+	pr_debug("===== end parsing endpoint %pfw\n", fwanalde);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(v4l2_fwnode_endpoint_parse);
+EXPORT_SYMBOL_GPL(v4l2_fwanalde_endpoint_parse);
 
-void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep)
+void v4l2_fwanalde_endpoint_free(struct v4l2_fwanalde_endpoint *vep)
 {
 	if (IS_ERR_OR_NULL(vep))
 		return;
@@ -514,18 +514,18 @@ void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep)
 	kfree(vep->link_frequencies);
 	vep->link_frequencies = NULL;
 }
-EXPORT_SYMBOL_GPL(v4l2_fwnode_endpoint_free);
+EXPORT_SYMBOL_GPL(v4l2_fwanalde_endpoint_free);
 
-int v4l2_fwnode_endpoint_alloc_parse(struct fwnode_handle *fwnode,
-				     struct v4l2_fwnode_endpoint *vep)
+int v4l2_fwanalde_endpoint_alloc_parse(struct fwanalde_handle *fwanalde,
+				     struct v4l2_fwanalde_endpoint *vep)
 {
 	int rval;
 
-	rval = __v4l2_fwnode_endpoint_parse(fwnode, vep);
+	rval = __v4l2_fwanalde_endpoint_parse(fwanalde, vep);
 	if (rval < 0)
 		return rval;
 
-	rval = fwnode_property_count_u64(fwnode, "link-frequencies");
+	rval = fwanalde_property_count_u64(fwanalde, "link-frequencies");
 	if (rval > 0) {
 		unsigned int i;
 
@@ -533,16 +533,16 @@ int v4l2_fwnode_endpoint_alloc_parse(struct fwnode_handle *fwnode,
 			kmalloc_array(rval, sizeof(*vep->link_frequencies),
 				      GFP_KERNEL);
 		if (!vep->link_frequencies)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		vep->nr_of_link_frequencies = rval;
 
-		rval = fwnode_property_read_u64_array(fwnode,
+		rval = fwanalde_property_read_u64_array(fwanalde,
 						      "link-frequencies",
 						      vep->link_frequencies,
 						      vep->nr_of_link_frequencies);
 		if (rval < 0) {
-			v4l2_fwnode_endpoint_free(vep);
+			v4l2_fwanalde_endpoint_free(vep);
 			return rval;
 		}
 
@@ -551,57 +551,57 @@ int v4l2_fwnode_endpoint_alloc_parse(struct fwnode_handle *fwnode,
 				 vep->link_frequencies[i]);
 	}
 
-	pr_debug("===== end parsing endpoint %pfw\n", fwnode);
+	pr_debug("===== end parsing endpoint %pfw\n", fwanalde);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(v4l2_fwnode_endpoint_alloc_parse);
+EXPORT_SYMBOL_GPL(v4l2_fwanalde_endpoint_alloc_parse);
 
-int v4l2_fwnode_parse_link(struct fwnode_handle *fwnode,
-			   struct v4l2_fwnode_link *link)
+int v4l2_fwanalde_parse_link(struct fwanalde_handle *fwanalde,
+			   struct v4l2_fwanalde_link *link)
 {
-	struct fwnode_endpoint fwep;
+	struct fwanalde_endpoint fwep;
 
 	memset(link, 0, sizeof(*link));
 
-	fwnode_graph_parse_endpoint(fwnode, &fwep);
+	fwanalde_graph_parse_endpoint(fwanalde, &fwep);
 	link->local_id = fwep.id;
 	link->local_port = fwep.port;
-	link->local_node = fwnode_graph_get_port_parent(fwnode);
-	if (!link->local_node)
-		return -ENOLINK;
+	link->local_analde = fwanalde_graph_get_port_parent(fwanalde);
+	if (!link->local_analde)
+		return -EANALLINK;
 
-	fwnode = fwnode_graph_get_remote_endpoint(fwnode);
-	if (!fwnode)
-		goto err_put_local_node;
+	fwanalde = fwanalde_graph_get_remote_endpoint(fwanalde);
+	if (!fwanalde)
+		goto err_put_local_analde;
 
-	fwnode_graph_parse_endpoint(fwnode, &fwep);
+	fwanalde_graph_parse_endpoint(fwanalde, &fwep);
 	link->remote_id = fwep.id;
 	link->remote_port = fwep.port;
-	link->remote_node = fwnode_graph_get_port_parent(fwnode);
-	if (!link->remote_node)
+	link->remote_analde = fwanalde_graph_get_port_parent(fwanalde);
+	if (!link->remote_analde)
 		goto err_put_remote_endpoint;
 
 	return 0;
 
 err_put_remote_endpoint:
-	fwnode_handle_put(fwnode);
+	fwanalde_handle_put(fwanalde);
 
-err_put_local_node:
-	fwnode_handle_put(link->local_node);
+err_put_local_analde:
+	fwanalde_handle_put(link->local_analde);
 
-	return -ENOLINK;
+	return -EANALLINK;
 }
-EXPORT_SYMBOL_GPL(v4l2_fwnode_parse_link);
+EXPORT_SYMBOL_GPL(v4l2_fwanalde_parse_link);
 
-void v4l2_fwnode_put_link(struct v4l2_fwnode_link *link)
+void v4l2_fwanalde_put_link(struct v4l2_fwanalde_link *link)
 {
-	fwnode_handle_put(link->local_node);
-	fwnode_handle_put(link->remote_node);
+	fwanalde_handle_put(link->local_analde);
+	fwanalde_handle_put(link->remote_analde);
 }
-EXPORT_SYMBOL_GPL(v4l2_fwnode_put_link);
+EXPORT_SYMBOL_GPL(v4l2_fwanalde_put_link);
 
-static const struct v4l2_fwnode_connector_conv {
+static const struct v4l2_fwanalde_connector_conv {
 	enum v4l2_connector_type type;
 	const char *compatible;
 } connectors[] = {
@@ -615,7 +615,7 @@ static const struct v4l2_fwnode_connector_conv {
 };
 
 static enum v4l2_connector_type
-v4l2_fwnode_string_to_connector_type(const char *con_str)
+v4l2_fwanalde_string_to_connector_type(const char *con_str)
 {
 	unsigned int i;
 
@@ -623,135 +623,135 @@ v4l2_fwnode_string_to_connector_type(const char *con_str)
 		if (!strcmp(con_str, connectors[i].compatible))
 			return connectors[i].type;
 
-	return V4L2_CONN_UNKNOWN;
+	return V4L2_CONN_UNKANALWN;
 }
 
 static void
-v4l2_fwnode_connector_parse_analog(struct fwnode_handle *fwnode,
-				   struct v4l2_fwnode_connector *vc)
+v4l2_fwanalde_connector_parse_analog(struct fwanalde_handle *fwanalde,
+				   struct v4l2_fwanalde_connector *vc)
 {
 	u32 stds;
 	int ret;
 
-	ret = fwnode_property_read_u32(fwnode, "sdtv-standards", &stds);
+	ret = fwanalde_property_read_u32(fwanalde, "sdtv-standards", &stds);
 
 	/* The property is optional. */
 	vc->connector.analog.sdtv_stds = ret ? V4L2_STD_ALL : stds;
 }
 
-void v4l2_fwnode_connector_free(struct v4l2_fwnode_connector *connector)
+void v4l2_fwanalde_connector_free(struct v4l2_fwanalde_connector *connector)
 {
 	struct v4l2_connector_link *link, *tmp;
 
-	if (IS_ERR_OR_NULL(connector) || connector->type == V4L2_CONN_UNKNOWN)
+	if (IS_ERR_OR_NULL(connector) || connector->type == V4L2_CONN_UNKANALWN)
 		return;
 
 	list_for_each_entry_safe(link, tmp, &connector->links, head) {
-		v4l2_fwnode_put_link(&link->fwnode_link);
+		v4l2_fwanalde_put_link(&link->fwanalde_link);
 		list_del(&link->head);
 		kfree(link);
 	}
 
 	kfree(connector->label);
 	connector->label = NULL;
-	connector->type = V4L2_CONN_UNKNOWN;
+	connector->type = V4L2_CONN_UNKANALWN;
 }
-EXPORT_SYMBOL_GPL(v4l2_fwnode_connector_free);
+EXPORT_SYMBOL_GPL(v4l2_fwanalde_connector_free);
 
 static enum v4l2_connector_type
-v4l2_fwnode_get_connector_type(struct fwnode_handle *fwnode)
+v4l2_fwanalde_get_connector_type(struct fwanalde_handle *fwanalde)
 {
 	const char *type_name;
 	int err;
 
-	if (!fwnode)
-		return V4L2_CONN_UNKNOWN;
+	if (!fwanalde)
+		return V4L2_CONN_UNKANALWN;
 
 	/* The connector-type is stored within the compatible string. */
-	err = fwnode_property_read_string(fwnode, "compatible", &type_name);
+	err = fwanalde_property_read_string(fwanalde, "compatible", &type_name);
 	if (err)
-		return V4L2_CONN_UNKNOWN;
+		return V4L2_CONN_UNKANALWN;
 
-	return v4l2_fwnode_string_to_connector_type(type_name);
+	return v4l2_fwanalde_string_to_connector_type(type_name);
 }
 
-int v4l2_fwnode_connector_parse(struct fwnode_handle *fwnode,
-				struct v4l2_fwnode_connector *connector)
+int v4l2_fwanalde_connector_parse(struct fwanalde_handle *fwanalde,
+				struct v4l2_fwanalde_connector *connector)
 {
-	struct fwnode_handle *connector_node;
+	struct fwanalde_handle *connector_analde;
 	enum v4l2_connector_type connector_type;
 	const char *label;
 	int err;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return -EINVAL;
 
 	memset(connector, 0, sizeof(*connector));
 
 	INIT_LIST_HEAD(&connector->links);
 
-	connector_node = fwnode_graph_get_port_parent(fwnode);
-	connector_type = v4l2_fwnode_get_connector_type(connector_node);
-	if (connector_type == V4L2_CONN_UNKNOWN) {
-		fwnode_handle_put(connector_node);
-		connector_node = fwnode_graph_get_remote_port_parent(fwnode);
-		connector_type = v4l2_fwnode_get_connector_type(connector_node);
+	connector_analde = fwanalde_graph_get_port_parent(fwanalde);
+	connector_type = v4l2_fwanalde_get_connector_type(connector_analde);
+	if (connector_type == V4L2_CONN_UNKANALWN) {
+		fwanalde_handle_put(connector_analde);
+		connector_analde = fwanalde_graph_get_remote_port_parent(fwanalde);
+		connector_type = v4l2_fwanalde_get_connector_type(connector_analde);
 	}
 
-	if (connector_type == V4L2_CONN_UNKNOWN) {
-		pr_err("Unknown connector type\n");
-		err = -ENOTCONN;
+	if (connector_type == V4L2_CONN_UNKANALWN) {
+		pr_err("Unkanalwn connector type\n");
+		err = -EANALTCONN;
 		goto out;
 	}
 
 	connector->type = connector_type;
-	connector->name = fwnode_get_name(connector_node);
-	err = fwnode_property_read_string(connector_node, "label", &label);
+	connector->name = fwanalde_get_name(connector_analde);
+	err = fwanalde_property_read_string(connector_analde, "label", &label);
 	connector->label = err ? NULL : kstrdup_const(label, GFP_KERNEL);
 
 	/* Parse the connector specific properties. */
 	switch (connector->type) {
 	case V4L2_CONN_COMPOSITE:
 	case V4L2_CONN_SVIDEO:
-		v4l2_fwnode_connector_parse_analog(connector_node, connector);
+		v4l2_fwanalde_connector_parse_analog(connector_analde, connector);
 		break;
 	/* Avoid compiler warnings */
-	case V4L2_CONN_UNKNOWN:
+	case V4L2_CONN_UNKANALWN:
 		break;
 	}
 
 out:
-	fwnode_handle_put(connector_node);
+	fwanalde_handle_put(connector_analde);
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(v4l2_fwnode_connector_parse);
+EXPORT_SYMBOL_GPL(v4l2_fwanalde_connector_parse);
 
-int v4l2_fwnode_connector_add_link(struct fwnode_handle *fwnode,
-				   struct v4l2_fwnode_connector *connector)
+int v4l2_fwanalde_connector_add_link(struct fwanalde_handle *fwanalde,
+				   struct v4l2_fwanalde_connector *connector)
 {
-	struct fwnode_handle *connector_ep;
+	struct fwanalde_handle *connector_ep;
 	struct v4l2_connector_link *link;
 	int err;
 
-	if (!fwnode || !connector || connector->type == V4L2_CONN_UNKNOWN)
+	if (!fwanalde || !connector || connector->type == V4L2_CONN_UNKANALWN)
 		return -EINVAL;
 
-	connector_ep = fwnode_graph_get_remote_endpoint(fwnode);
+	connector_ep = fwanalde_graph_get_remote_endpoint(fwanalde);
 	if (!connector_ep)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	link = kzalloc(sizeof(*link), GFP_KERNEL);
 	if (!link) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
-	err = v4l2_fwnode_parse_link(connector_ep, &link->fwnode_link);
+	err = v4l2_fwanalde_parse_link(connector_ep, &link->fwanalde_link);
 	if (err)
 		goto err;
 
-	fwnode_handle_put(connector_ep);
+	fwanalde_handle_put(connector_ep);
 
 	list_add(&link->head, &connector->links);
 	connector->nr_of_links++;
@@ -760,28 +760,28 @@ int v4l2_fwnode_connector_add_link(struct fwnode_handle *fwnode,
 
 err:
 	kfree(link);
-	fwnode_handle_put(connector_ep);
+	fwanalde_handle_put(connector_ep);
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(v4l2_fwnode_connector_add_link);
+EXPORT_SYMBOL_GPL(v4l2_fwanalde_connector_add_link);
 
-int v4l2_fwnode_device_parse(struct device *dev,
-			     struct v4l2_fwnode_device_properties *props)
+int v4l2_fwanalde_device_parse(struct device *dev,
+			     struct v4l2_fwanalde_device_properties *props)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
 	u32 val;
 	int ret;
 
 	memset(props, 0, sizeof(*props));
 
-	props->orientation = V4L2_FWNODE_PROPERTY_UNSET;
-	ret = fwnode_property_read_u32(fwnode, "orientation", &val);
+	props->orientation = V4L2_FWANALDE_PROPERTY_UNSET;
+	ret = fwanalde_property_read_u32(fwanalde, "orientation", &val);
 	if (!ret) {
 		switch (val) {
-		case V4L2_FWNODE_ORIENTATION_FRONT:
-		case V4L2_FWNODE_ORIENTATION_BACK:
-		case V4L2_FWNODE_ORIENTATION_EXTERNAL:
+		case V4L2_FWANALDE_ORIENTATION_FRONT:
+		case V4L2_FWANALDE_ORIENTATION_BACK:
+		case V4L2_FWANALDE_ORIENTATION_EXTERNAL:
 			break;
 		default:
 			dev_warn(dev, "Unsupported device orientation: %u\n", val);
@@ -792,8 +792,8 @@ int v4l2_fwnode_device_parse(struct device *dev,
 		dev_dbg(dev, "device orientation: %u\n", val);
 	}
 
-	props->rotation = V4L2_FWNODE_PROPERTY_UNSET;
-	ret = fwnode_property_read_u32(fwnode, "rotation", &val);
+	props->rotation = V4L2_FWANALDE_PROPERTY_UNSET;
+	ret = fwanalde_property_read_u32(fwanalde, "rotation", &val);
 	if (!ret) {
 		if (val >= 360) {
 			dev_warn(dev, "Unsupported device rotation: %u\n", val);
@@ -806,38 +806,38 @@ int v4l2_fwnode_device_parse(struct device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(v4l2_fwnode_device_parse);
+EXPORT_SYMBOL_GPL(v4l2_fwanalde_device_parse);
 
 /*
- * v4l2_fwnode_reference_parse - parse references for async sub-devices
- * @dev: the device node the properties of which are parsed for references
- * @notifier: the async notifier where the async subdevs will be added
+ * v4l2_fwanalde_reference_parse - parse references for async sub-devices
+ * @dev: the device analde the properties of which are parsed for references
+ * @analtifier: the async analtifier where the async subdevs will be added
  * @prop: the name of the property
  *
  * Return: 0 on success
- *	   -ENOENT if no entries were found
- *	   -ENOMEM if memory allocation failed
+ *	   -EANALENT if anal entries were found
+ *	   -EANALMEM if memory allocation failed
  *	   -EINVAL if property parsing failed
  */
-static int v4l2_fwnode_reference_parse(struct device *dev,
-				       struct v4l2_async_notifier *notifier,
+static int v4l2_fwanalde_reference_parse(struct device *dev,
+				       struct v4l2_async_analtifier *analtifier,
 				       const char *prop)
 {
-	struct fwnode_reference_args args;
+	struct fwanalde_reference_args args;
 	unsigned int index;
 	int ret;
 
 	for (index = 0;
-	     !(ret = fwnode_property_get_reference_args(dev_fwnode(dev), prop,
+	     !(ret = fwanalde_property_get_reference_args(dev_fwanalde(dev), prop,
 							NULL, 0, index, &args));
 	     index++) {
 		struct v4l2_async_connection *asd;
 
-		asd = v4l2_async_nf_add_fwnode(notifier, args.fwnode,
+		asd = v4l2_async_nf_add_fwanalde(analtifier, args.fwanalde,
 					       struct v4l2_async_connection);
-		fwnode_handle_put(args.fwnode);
+		fwanalde_handle_put(args.fwanalde);
 		if (IS_ERR(asd)) {
-			/* not an error if asd already exists */
+			/* analt an error if asd already exists */
 			if (PTR_ERR(asd) == -EEXIST)
 				continue;
 
@@ -845,47 +845,47 @@ static int v4l2_fwnode_reference_parse(struct device *dev,
 		}
 	}
 
-	/* -ENOENT here means successful parsing */
-	if (ret != -ENOENT)
+	/* -EANALENT here means successful parsing */
+	if (ret != -EANALENT)
 		return ret;
 
-	/* Return -ENOENT if no references were found */
-	return index ? 0 : -ENOENT;
+	/* Return -EANALENT if anal references were found */
+	return index ? 0 : -EANALENT;
 }
 
 /*
- * v4l2_fwnode_reference_get_int_prop - parse a reference with integer
+ * v4l2_fwanalde_reference_get_int_prop - parse a reference with integer
  *					arguments
- * @fwnode: fwnode to read @prop from
- * @notifier: notifier for @dev
+ * @fwanalde: fwanalde to read @prop from
+ * @analtifier: analtifier for @dev
  * @prop: the name of the property
  * @index: the index of the reference to get
  * @props: the array of integer property names
  * @nprops: the number of integer property names in @nprops
  *
- * First find an fwnode referred to by the reference at @index in @prop.
+ * First find an fwanalde referred to by the reference at @index in @prop.
  *
- * Then under that fwnode, @nprops times, for each property in @props,
- * iteratively follow child nodes starting from fwnode such that they have the
- * property in @props array at the index of the child node distance from the
- * root node and the value of that property matching with the integer argument
+ * Then under that fwanalde, @nprops times, for each property in @props,
+ * iteratively follow child analdes starting from fwanalde such that they have the
+ * property in @props array at the index of the child analde distance from the
+ * root analde and the value of that property matching with the integer argument
  * of the reference, at the same index.
  *
- * The child fwnode reached at the end of the iteration is then returned to the
+ * The child fwanalde reached at the end of the iteration is then returned to the
  * caller.
  *
- * The core reason for this is that you cannot refer to just any node in ACPI.
+ * The core reason for this is that you cananalt refer to just any analde in ACPI.
  * So to refer to an endpoint (easy in DT) you need to refer to a device, then
  * provide a list of (property name, property value) tuples where each tuple
- * uniquely identifies a child node. The first tuple identifies a child directly
- * underneath the device fwnode, the next tuple identifies a child node
- * underneath the fwnode identified by the previous tuple, etc. until you
- * reached the fwnode you need.
+ * uniquely identifies a child analde. The first tuple identifies a child directly
+ * underneath the device fwanalde, the next tuple identifies a child analde
+ * underneath the fwanalde identified by the previous tuple, etc. until you
+ * reached the fwanalde you need.
  *
- * THIS EXAMPLE EXISTS MERELY TO DOCUMENT THIS FUNCTION. DO NOT USE IT AS A
+ * THIS EXAMPLE EXISTS MERELY TO DOCUMENT THIS FUNCTION. DO ANALT USE IT AS A
  * REFERENCE IN HOW ACPI TABLES SHOULD BE WRITTEN!! See documentation under
  * Documentation/firmware-guide/acpi/dsd/ instead and especially graph.txt,
- * data-node-references.txt and leds.txt .
+ * data-analde-references.txt and leds.txt .
  *
  *	Scope (\_SB.PCI0.I2C2)
  *	{
@@ -896,7 +896,7 @@ static int v4l2_fwnode_reference_parse(struct device *dev,
  *				Package () {
  *					Package () {
  *						"compatible",
- *						Package () { "nokia,smia" }
+ *						Package () { "analkia,smia" }
  *					},
  *				},
  *				ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
@@ -967,24 +967,24 @@ static int v4l2_fwnode_reference_parse(struct device *dev,
  *		}
  *	}
  *
- * From the EP40 node under ISP device, you could parse the graph remote
- * endpoint using v4l2_fwnode_reference_get_int_prop with these arguments:
+ * From the EP40 analde under ISP device, you could parse the graph remote
+ * endpoint using v4l2_fwanalde_reference_get_int_prop with these arguments:
  *
- *  @fwnode: fwnode referring to EP40 under ISP.
+ *  @fwanalde: fwanalde referring to EP40 under ISP.
  *  @prop: "remote-endpoint"
  *  @index: 0
  *  @props: "port", "endpoint"
  *  @nprops: 2
  *
- * And you'd get back fwnode referring to EP00 under CAM0.
+ * And you'd get back fwanalde referring to EP00 under CAM0.
  *
  * The same works the other way around: if you use EP00 under CAM0 as the
- * fwnode, you'll get fwnode referring to EP40 under ISP.
+ * fwanalde, you'll get fwanalde referring to EP40 under ISP.
  *
  * The same example in DT syntax would look like this:
  *
  * cam: cam0 {
- *	compatible = "nokia,smia";
+ *	compatible = "analkia,smia";
  *
  *	port {
  *		port = <0>;
@@ -1008,44 +1008,44 @@ static int v4l2_fwnode_reference_parse(struct device *dev,
  * };
  *
  * Return: 0 on success
- *	   -ENOENT if no entries (or the property itself) were found
+ *	   -EANALENT if anal entries (or the property itself) were found
  *	   -EINVAL if property parsing otherwise failed
- *	   -ENOMEM if memory allocation failed
+ *	   -EANALMEM if memory allocation failed
  */
-static struct fwnode_handle *
-v4l2_fwnode_reference_get_int_prop(struct fwnode_handle *fwnode,
+static struct fwanalde_handle *
+v4l2_fwanalde_reference_get_int_prop(struct fwanalde_handle *fwanalde,
 				   const char *prop,
 				   unsigned int index,
 				   const char * const *props,
 				   unsigned int nprops)
 {
-	struct fwnode_reference_args fwnode_args;
-	u64 *args = fwnode_args.args;
-	struct fwnode_handle *child;
+	struct fwanalde_reference_args fwanalde_args;
+	u64 *args = fwanalde_args.args;
+	struct fwanalde_handle *child;
 	int ret;
 
 	/*
-	 * Obtain remote fwnode as well as the integer arguments.
+	 * Obtain remote fwanalde as well as the integer arguments.
 	 *
-	 * Note that right now both -ENODATA and -ENOENT may signal
-	 * out-of-bounds access. Return -ENOENT in that case.
+	 * Analte that right analw both -EANALDATA and -EANALENT may signal
+	 * out-of-bounds access. Return -EANALENT in that case.
 	 */
-	ret = fwnode_property_get_reference_args(fwnode, prop, NULL, nprops,
-						 index, &fwnode_args);
+	ret = fwanalde_property_get_reference_args(fwanalde, prop, NULL, nprops,
+						 index, &fwanalde_args);
 	if (ret)
-		return ERR_PTR(ret == -ENODATA ? -ENOENT : ret);
+		return ERR_PTR(ret == -EANALDATA ? -EANALENT : ret);
 
 	/*
-	 * Find a node in the tree under the referred fwnode corresponding to
+	 * Find a analde in the tree under the referred fwanalde corresponding to
 	 * the integer arguments.
 	 */
-	fwnode = fwnode_args.fwnode;
+	fwanalde = fwanalde_args.fwanalde;
 	while (nprops--) {
 		u32 val;
 
-		/* Loop over all child nodes under fwnode. */
-		fwnode_for_each_child_node(fwnode, child) {
-			if (fwnode_property_read_u32(child, *props, &val))
+		/* Loop over all child analdes under fwanalde. */
+		fwanalde_for_each_child_analde(fwanalde, child) {
+			if (fwanalde_property_read_u32(child, *props, &val))
 				continue;
 
 			/* Found property, see if its value matches. */
@@ -1053,57 +1053,57 @@ v4l2_fwnode_reference_get_int_prop(struct fwnode_handle *fwnode,
 				break;
 		}
 
-		fwnode_handle_put(fwnode);
+		fwanalde_handle_put(fwanalde);
 
-		/* No property found; return an error here. */
+		/* Anal property found; return an error here. */
 		if (!child) {
-			fwnode = ERR_PTR(-ENOENT);
+			fwanalde = ERR_PTR(-EANALENT);
 			break;
 		}
 
 		props++;
 		args++;
-		fwnode = child;
+		fwanalde = child;
 	}
 
-	return fwnode;
+	return fwanalde;
 }
 
-struct v4l2_fwnode_int_props {
+struct v4l2_fwanalde_int_props {
 	const char *name;
 	const char * const *props;
 	unsigned int nprops;
 };
 
 /*
- * v4l2_fwnode_reference_parse_int_props - parse references for async
+ * v4l2_fwanalde_reference_parse_int_props - parse references for async
  *					   sub-devices
  * @dev: struct device pointer
- * @notifier: notifier for @dev
+ * @analtifier: analtifier for @dev
  * @prop: the name of the property
  * @props: the array of integer property names
  * @nprops: the number of integer properties
  *
- * Use v4l2_fwnode_reference_get_int_prop to find fwnodes through reference in
- * property @prop with integer arguments with child nodes matching in properties
- * @props. Then, set up V4L2 async sub-devices for those fwnodes in the notifier
+ * Use v4l2_fwanalde_reference_get_int_prop to find fwanaldes through reference in
+ * property @prop with integer arguments with child analdes matching in properties
+ * @props. Then, set up V4L2 async sub-devices for those fwanaldes in the analtifier
  * accordingly.
  *
  * While it is technically possible to use this function on DT, it is only
- * meaningful on ACPI. On Device tree you can refer to any node in the tree but
+ * meaningful on ACPI. On Device tree you can refer to any analde in the tree but
  * on ACPI the references are limited to devices.
  *
  * Return: 0 on success
- *	   -ENOENT if no entries (or the property itself) were found
+ *	   -EANALENT if anal entries (or the property itself) were found
  *	   -EINVAL if property parsing otherwisefailed
- *	   -ENOMEM if memory allocation failed
+ *	   -EANALMEM if memory allocation failed
  */
 static int
-v4l2_fwnode_reference_parse_int_props(struct device *dev,
-				      struct v4l2_async_notifier *notifier,
-				      const struct v4l2_fwnode_int_props *p)
+v4l2_fwanalde_reference_parse_int_props(struct device *dev,
+				      struct v4l2_async_analtifier *analtifier,
+				      const struct v4l2_fwanalde_int_props *p)
 {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	unsigned int index;
 	int ret;
 	const char *prop = p->name;
@@ -1112,38 +1112,38 @@ v4l2_fwnode_reference_parse_int_props(struct device *dev,
 
 	index = 0;
 	do {
-		fwnode = v4l2_fwnode_reference_get_int_prop(dev_fwnode(dev),
+		fwanalde = v4l2_fwanalde_reference_get_int_prop(dev_fwanalde(dev),
 							    prop, index,
 							    props, nprops);
-		if (IS_ERR(fwnode)) {
+		if (IS_ERR(fwanalde)) {
 			/*
-			 * Note that right now both -ENODATA and -ENOENT may
+			 * Analte that right analw both -EANALDATA and -EANALENT may
 			 * signal out-of-bounds access. Return the error in
 			 * cases other than that.
 			 */
-			if (PTR_ERR(fwnode) != -ENOENT &&
-			    PTR_ERR(fwnode) != -ENODATA)
-				return PTR_ERR(fwnode);
+			if (PTR_ERR(fwanalde) != -EANALENT &&
+			    PTR_ERR(fwanalde) != -EANALDATA)
+				return PTR_ERR(fwanalde);
 			break;
 		}
-		fwnode_handle_put(fwnode);
+		fwanalde_handle_put(fwanalde);
 		index++;
 	} while (1);
 
 	for (index = 0;
-	     !IS_ERR((fwnode = v4l2_fwnode_reference_get_int_prop(dev_fwnode(dev),
+	     !IS_ERR((fwanalde = v4l2_fwanalde_reference_get_int_prop(dev_fwanalde(dev),
 								  prop, index,
 								  props,
 								  nprops)));
 	     index++) {
 		struct v4l2_async_connection *asd;
 
-		asd = v4l2_async_nf_add_fwnode(notifier, fwnode,
+		asd = v4l2_async_nf_add_fwanalde(analtifier, fwanalde,
 					       struct v4l2_async_connection);
-		fwnode_handle_put(fwnode);
+		fwanalde_handle_put(fwanalde);
 		if (IS_ERR(asd)) {
 			ret = PTR_ERR(asd);
-			/* not an error if asd already exists */
+			/* analt an error if asd already exists */
 			if (ret == -EEXIST)
 				continue;
 
@@ -1151,33 +1151,33 @@ v4l2_fwnode_reference_parse_int_props(struct device *dev,
 		}
 	}
 
-	return !fwnode || PTR_ERR(fwnode) == -ENOENT ? 0 : PTR_ERR(fwnode);
+	return !fwanalde || PTR_ERR(fwanalde) == -EANALENT ? 0 : PTR_ERR(fwanalde);
 }
 
 /**
- * v4l2_async_nf_parse_fwnode_sensor - parse common references on
+ * v4l2_async_nf_parse_fwanalde_sensor - parse common references on
  *					     sensors for async sub-devices
- * @dev: the device node the properties of which are parsed for references
- * @notifier: the async notifier where the async subdevs will be added
+ * @dev: the device analde the properties of which are parsed for references
+ * @analtifier: the async analtifier where the async subdevs will be added
  *
  * Parse common sensor properties for remote devices related to the
  * sensor and set up async sub-devices for them.
  *
- * Any notifier populated using this function must be released with a call to
+ * Any analtifier populated using this function must be released with a call to
  * v4l2_async_nf_release() after it has been unregistered and the async
- * sub-devices are no longer in use, even in the case the function returned an
+ * sub-devices are anal longer in use, even in the case the function returned an
  * error.
  *
  * Return: 0 on success
- *	   -ENOMEM if memory allocation failed
+ *	   -EANALMEM if memory allocation failed
  *	   -EINVAL if property parsing failed
  */
 static int
-v4l2_async_nf_parse_fwnode_sensor(struct device *dev,
-				  struct v4l2_async_notifier *notifier)
+v4l2_async_nf_parse_fwanalde_sensor(struct device *dev,
+				  struct v4l2_async_analtifier *analtifier)
 {
 	static const char * const led_props[] = { "led" };
-	static const struct v4l2_fwnode_int_props props[] = {
+	static const struct v4l2_fwanalde_int_props props[] = {
 		{ "flash-leds", led_props, ARRAY_SIZE(led_props) },
 		{ "mipi-img-flash-leds", },
 		{ "lens-focus", },
@@ -1188,14 +1188,14 @@ v4l2_async_nf_parse_fwnode_sensor(struct device *dev,
 	for (i = 0; i < ARRAY_SIZE(props); i++) {
 		int ret;
 
-		if (props[i].props && is_acpi_node(dev_fwnode(dev)))
-			ret = v4l2_fwnode_reference_parse_int_props(dev,
-								    notifier,
+		if (props[i].props && is_acpi_analde(dev_fwanalde(dev)))
+			ret = v4l2_fwanalde_reference_parse_int_props(dev,
+								    analtifier,
 								    &props[i]);
 		else
-			ret = v4l2_fwnode_reference_parse(dev, notifier,
+			ret = v4l2_fwanalde_reference_parse(dev, analtifier,
 							  props[i].name);
-		if (ret && ret != -ENOENT) {
+		if (ret && ret != -EANALENT) {
 			dev_warn(dev, "parsing property \"%s\" failed (%d)\n",
 				 props[i].name, ret);
 			return ret;
@@ -1207,27 +1207,27 @@ v4l2_async_nf_parse_fwnode_sensor(struct device *dev,
 
 int v4l2_async_register_subdev_sensor(struct v4l2_subdev *sd)
 {
-	struct v4l2_async_notifier *notifier;
+	struct v4l2_async_analtifier *analtifier;
 	int ret;
 
 	if (WARN_ON(!sd->dev))
-		return -ENODEV;
+		return -EANALDEV;
 
-	notifier = kzalloc(sizeof(*notifier), GFP_KERNEL);
-	if (!notifier)
-		return -ENOMEM;
+	analtifier = kzalloc(sizeof(*analtifier), GFP_KERNEL);
+	if (!analtifier)
+		return -EANALMEM;
 
-	v4l2_async_subdev_nf_init(notifier, sd);
+	v4l2_async_subdev_nf_init(analtifier, sd);
 
 	ret = v4l2_subdev_get_privacy_led(sd);
 	if (ret < 0)
 		goto out_cleanup;
 
-	ret = v4l2_async_nf_parse_fwnode_sensor(sd->dev, notifier);
+	ret = v4l2_async_nf_parse_fwanalde_sensor(sd->dev, analtifier);
 	if (ret < 0)
 		goto out_cleanup;
 
-	ret = v4l2_async_nf_register(notifier);
+	ret = v4l2_async_nf_register(analtifier);
 	if (ret < 0)
 		goto out_cleanup;
 
@@ -1235,17 +1235,17 @@ int v4l2_async_register_subdev_sensor(struct v4l2_subdev *sd)
 	if (ret < 0)
 		goto out_unregister;
 
-	sd->subdev_notifier = notifier;
+	sd->subdev_analtifier = analtifier;
 
 	return 0;
 
 out_unregister:
-	v4l2_async_nf_unregister(notifier);
+	v4l2_async_nf_unregister(analtifier);
 
 out_cleanup:
 	v4l2_subdev_put_privacy_led(sd);
-	v4l2_async_nf_cleanup(notifier);
-	kfree(notifier);
+	v4l2_async_nf_cleanup(analtifier);
+	kfree(analtifier);
 
 	return ret;
 }

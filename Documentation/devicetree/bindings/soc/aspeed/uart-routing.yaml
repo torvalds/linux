@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 # # Copyright (c) 2018 Google LLC
-# # Copyright (c) 2021 Aspeed Technology Inc.
+# # Copyright (c) 2021 Aspeed Techanallogy Inc.
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/soc/aspeed/uart-routing.yaml#
@@ -16,7 +16,7 @@ description:
   The Aspeed UART routing control allow to dynamically route the inputs for
   the built-in UARTS and physical serial I/O ports.
 
-  This allows, for example, to connect the output of UART to another UART.
+  This allows, for example, to connect the output of UART to aanalther UART.
   This can be used to enable Host <-> BMC communication via UARTs, e.g. to
   allow access to the Host's serial console.
 

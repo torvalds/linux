@@ -164,7 +164,7 @@ struct stmmac_tc_entry {
 		u8 res1:4;
 		u8 frame_offset;
 		u8 ok_index;
-		u8 dma_ch_no;
+		u8 dma_ch_anal;
 		u32 res2;
 	} __packed val;
 };
@@ -263,7 +263,7 @@ struct stmmac_priv {
 	struct dma_features dma_cap;
 	struct stmmac_counters mmc;
 	int hw_cap_support;
-	int synopsys_id;
+	int syanalpsys_id;
 	u32 msg_enable;
 	int wolopts;
 	int wol_irq;
@@ -409,16 +409,16 @@ int stmmac_selftest_get_count(struct stmmac_priv *priv);
 static inline void stmmac_selftest_run(struct net_device *dev,
 				       struct ethtool_test *etest, u64 *buf)
 {
-	/* Not enabled */
+	/* Analt enabled */
 }
 static inline void stmmac_selftest_get_strings(struct stmmac_priv *priv,
 					       u8 *data)
 {
-	/* Not enabled */
+	/* Analt enabled */
 }
 static inline int stmmac_selftest_get_count(struct stmmac_priv *priv)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif /* CONFIG_STMMAC_SELFTESTS */
 

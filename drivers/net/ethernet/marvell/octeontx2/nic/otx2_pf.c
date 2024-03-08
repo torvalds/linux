@@ -58,7 +58,7 @@ static int otx2_change_mtu(struct net_device *netdev, int new_mtu)
 	int err = 0;
 
 	if (pf->xdp_prog && new_mtu > MAX_XDP_MTU) {
-		netdev_warn(netdev, "Jumbo frames not yet supported with XDP, current MTU %d.\n",
+		netdev_warn(netdev, "Jumbo frames analt yet supported with XDP, current MTU %d.\n",
 			    netdev->mtu);
 		return -EINVAL;
 	}
@@ -275,13 +275,13 @@ static int otx2_pf_flr_init(struct otx2_nic *pf, int num_vfs)
 
 	pf->flr_wq = alloc_ordered_workqueue("otx2_pf_flr_wq", WQ_HIGHPRI);
 	if (!pf->flr_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pf->flr_wrk = devm_kcalloc(pf->dev, num_vfs,
 				   sizeof(struct flr_work), GFP_KERNEL);
 	if (!pf->flr_wrk) {
 		destroy_workqueue(pf->flr_wq);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (vf = 0; vf < num_vfs; vf++) {
@@ -403,7 +403,7 @@ static int otx2_forward_vf_mbox_msgs(struct otx2_nic *pf,
 		 */
 		if (err == -EIO) {
 			dev_warn(pf->dev,
-				 "AF not responding to VF%d messages\n", vf);
+				 "AF analt responding to VF%d messages\n", vf);
 			/* restore PF mbase and exit */
 			dst_mdev->mbase = pf->mbox.bbuf_base;
 			mutex_unlock(&pf->mbox.lock);
@@ -441,7 +441,7 @@ static int otx2_forward_vf_mbox_msgs(struct otx2_nic *pf,
 		err = otx2_sync_mbox_up_msg(dst_mbox, vf);
 		if (err) {
 			dev_warn(pf->dev,
-				 "VF%d is not responding to mailbox\n", vf);
+				 "VF%d is analt responding to mailbox\n", vf);
 			return err;
 		}
 	} else if (dir == MBOX_DIR_VFPF_UP) {
@@ -522,7 +522,7 @@ static void otx2_pfvf_mbox_up_handler(struct work_struct *work)
 
 		if (msg->id >= MBOX_MSG_MAX) {
 			dev_err(pf->dev,
-				"Mbox msg with unknown ID 0x%x\n", msg->id);
+				"Mbox msg with unkanalwn ID 0x%x\n", msg->id);
 			goto end;
 		}
 
@@ -595,12 +595,12 @@ static int otx2_pfvf_mbox_init(struct otx2_nic *pf, int numvfs)
 	pf->mbox_pfvf = devm_kcalloc(&pf->pdev->dev, numvfs,
 				     sizeof(struct mbox), GFP_KERNEL);
 	if (!pf->mbox_pfvf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pf->mbox_pfvf_wq = alloc_ordered_workqueue("otx2_pfvf_mailbox",
 						   WQ_HIGHPRI | WQ_MEM_RECLAIM);
 	if (!pf->mbox_pfvf_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* On CN10K platform, PF <-> VF mailbox region follows after
 	 * PF <-> AF mailbox region.
@@ -614,7 +614,7 @@ static int otx2_pfvf_mbox_init(struct otx2_nic *pf, int numvfs)
 
 	hwbase = ioremap_wc(base, MBOX_SIZE * pf->total_vfs);
 	if (!hwbase) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_wq;
 	}
 
@@ -750,7 +750,7 @@ static void otx2_process_pfaf_mbox_msg(struct otx2_nic *pf,
 
 	if (msg->id >= MBOX_MSG_MAX) {
 		dev_err(pf->dev,
-			"Mbox msg with unknown ID 0x%x\n", msg->id);
+			"Mbox msg with unkanalwn ID 0x%x\n", msg->id);
 		return;
 	}
 
@@ -858,7 +858,7 @@ static void otx2_handle_link_event(struct otx2_nic *pf)
 	}
 }
 
-int otx2_mbox_up_handler_mcs_intr_notify(struct otx2_nic *pf,
+int otx2_mbox_up_handler_mcs_intr_analtify(struct otx2_nic *pf,
 					 struct mcs_intr_info *event,
 					 struct msg_rsp *rsp)
 {
@@ -876,7 +876,7 @@ int otx2_mbox_up_handler_cgx_link_event(struct otx2_nic *pf,
 	/* Copy the link info sent by AF */
 	pf->linfo = msg->link_info;
 
-	/* notify VFs about link event */
+	/* analtify VFs about link event */
 	for (i = 0; i < pci_num_vf(pf->pdev); i++) {
 		struct otx2_vf_config *config = &pf->vf_configs[i];
 		struct delayed_work *dwork = &config->link_event_work;
@@ -887,7 +887,7 @@ int otx2_mbox_up_handler_cgx_link_event(struct otx2_nic *pf,
 		schedule_delayed_work(dwork, msecs_to_jiffies(100));
 	}
 
-	/* interface has not been fully configured yet */
+	/* interface has analt been fully configured yet */
 	if (pf->flags & OTX2_FLAG_INTF_DOWN)
 		return 0;
 
@@ -898,10 +898,10 @@ int otx2_mbox_up_handler_cgx_link_event(struct otx2_nic *pf,
 static int otx2_process_mbox_msg_up(struct otx2_nic *pf,
 				    struct mbox_msghdr *req)
 {
-	/* Check if valid, if not reply with a invalid msg */
+	/* Check if valid, if analt reply with a invalid msg */
 	if (req->sig != OTX2_MBOX_REQ_SIG) {
 		otx2_reply_invalid_msg(&pf->mbox.mbox_up, 0, 0, req->id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	switch (req->id) {
@@ -914,7 +914,7 @@ static int otx2_process_mbox_msg_up(struct otx2_nic *pf,
 			&pf->mbox.mbox_up, 0,				\
 			sizeof(struct _rsp_type));			\
 		if (!rsp)						\
-			return -ENOMEM;					\
+			return -EANALMEM;					\
 									\
 		rsp->hdr.id = _id;					\
 		rsp->hdr.sig = OTX2_MBOX_RSP_SIG;			\
@@ -931,7 +931,7 @@ MBOX_UP_MCS_MESSAGES
 		break;
 	default:
 		otx2_reply_invalid_msg(&pf->mbox.mbox_up, 0, 0, req->id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -1026,12 +1026,12 @@ static int otx2_register_mbox_intr(struct otx2_nic *pf, bool probe_af)
 	req = otx2_mbox_alloc_msg_ready(&pf->mbox);
 	if (!req) {
 		otx2_disable_mbox_intr(pf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	err = otx2_sync_mbox_msg(&pf->mbox);
 	if (err) {
 		dev_warn(pf->dev,
-			 "AF not responding to mailbox, deferring probe\n");
+			 "AF analt responding to mailbox, deferring probe\n");
 		otx2_disable_mbox_intr(pf);
 		return -EPROBE_DEFER;
 	}
@@ -1065,7 +1065,7 @@ static int otx2_pfaf_mbox_init(struct otx2_nic *pf)
 	pf->mbox_wq = alloc_ordered_workqueue("otx2_pfaf_mailbox",
 					      WQ_HIGHPRI | WQ_MEM_RECLAIM);
 	if (!pf->mbox_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Mailbox is a reserved memory (in RAM) region shared between
 	 * admin function (i.e AF) and this PF, shouldn't be mapped as
@@ -1075,7 +1075,7 @@ static int otx2_pfaf_mbox_init(struct otx2_nic *pf)
 			    MBOX_SIZE);
 	if (!hwbase) {
 		dev_err(pf->dev, "Unable to map PFAF mailbox region\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit;
 	}
 
@@ -1116,7 +1116,7 @@ static int otx2_cgx_config_linkevents(struct otx2_nic *pf, bool enable)
 
 	if (!msg) {
 		mutex_unlock(&pf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = otx2_sync_mbox_msg(&pf->mbox);
@@ -1132,7 +1132,7 @@ static int otx2_cgx_config_loopback(struct otx2_nic *pf, bool enable)
 	if (enable && !bitmap_empty(pf->flow_cfg->dmacflt_bmap,
 				    pf->flow_cfg->dmacflt_max_flows))
 		netdev_warn(pf->netdev,
-			    "CGX/RPM internal loopback might not work as DMAC filters are active\n");
+			    "CGX/RPM internal loopback might analt work as DMAC filters are active\n");
 
 	mutex_lock(&pf->mbox.lock);
 	if (enable)
@@ -1142,7 +1142,7 @@ static int otx2_cgx_config_loopback(struct otx2_nic *pf, bool enable)
 
 	if (!msg) {
 		mutex_unlock(&pf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = otx2_sync_mbox_msg(&pf->mbox);
@@ -1158,14 +1158,14 @@ int otx2_set_real_num_queues(struct net_device *netdev,
 	err = netif_set_real_num_tx_queues(netdev, tx_queues);
 	if (err) {
 		netdev_err(netdev,
-			   "Failed to set no of Tx queues: %d\n", tx_queues);
+			   "Failed to set anal of Tx queues: %d\n", tx_queues);
 		return err;
 	}
 
 	err = netif_set_real_num_rx_queues(netdev, rx_queues);
 	if (err)
 		netdev_err(netdev,
-			   "Failed to set no of Rx queues: %d\n", rx_queues);
+			   "Failed to set anal of Rx queues: %d\n", rx_queues);
 	return err;
 }
 EXPORT_SYMBOL(otx2_set_real_num_queues);
@@ -1300,7 +1300,7 @@ static irqreturn_t otx2_q_intr_handler(int irq, void *data)
 		if (sq_op_err_code == NIX_SQOPERR_SQB_NULL)
 			goto chk_mnq_err_dbg;
 
-		/* Err is not NIX_SQOPERR_SQB_NULL, call aq function to read SQ structure.
+		/* Err is analt NIX_SQOPERR_SQB_NULL, call aq function to read SQ structure.
 		 * TODO: But we are in irq context. How to call mbox functions which does sleep
 		 */
 
@@ -1400,7 +1400,7 @@ static void otx2_free_sq_res(struct otx2_nic *pf)
 	otx2_sq_free_sqbs(pf);
 	for (qidx = 0; qidx < otx2_get_total_tx_queues(pf); qidx++) {
 		sq = &qset->sq[qidx];
-		/* Skip freeing Qos queues if they are not initialized */
+		/* Skip freeing Qos queues if they are analt initialized */
 		if (!sq->sqe)
 			continue;
 		qmem_free(pf->dev, sq->sqe);
@@ -1654,7 +1654,7 @@ static bool otx2_promisc_use_mce_list(struct otx2_nic *pfvf)
 {
 	int vf;
 
-	/* The AF driver will determine whether to allow the VF netdev or not */
+	/* The AF driver will determine whether to allow the VF netdev or analt */
 	if (is_otx2_vf(pfvf->pcifunc))
 		return true;
 
@@ -1744,7 +1744,7 @@ int otx2_open(struct net_device *netdev)
 	/* RQ and SQs are mapped to different CQs,
 	 * so find out max CQ IRQs (i.e CINTs) needed.
 	 */
-	pf->hw.non_qos_queues =  pf->hw.tx_queues + pf->hw.xdp_queues;
+	pf->hw.analn_qos_queues =  pf->hw.tx_queues + pf->hw.xdp_queues;
 	pf->hw.cint_cnt = max3(pf->hw.rx_queues, pf->hw.tx_queues,
 			       pf->hw.tc_tx_queues);
 
@@ -1752,14 +1752,14 @@ int otx2_open(struct net_device *netdev)
 
 	qset->napi = kcalloc(pf->hw.cint_cnt, sizeof(*cq_poll), GFP_KERNEL);
 	if (!qset->napi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* CQ size of RQ */
 	qset->rqe_cnt = qset->rqe_cnt ? qset->rqe_cnt : Q_COUNT(Q_SIZE_256);
 	/* CQ size of SQ */
 	qset->sqe_cnt = qset->sqe_cnt ? qset->sqe_cnt : Q_COUNT(Q_SIZE_4K);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	qset->cq = kcalloc(pf->qset.cq_cnt,
 			   sizeof(struct otx2_cq_queue), GFP_KERNEL);
 	if (!qset->cq)
@@ -1802,7 +1802,7 @@ int otx2_open(struct net_device *netdev)
 
 		cq_poll->cq_ids[CQ_QOS] = (qidx < pf->hw.tc_tx_queues) ?
 					  (qidx + pf->hw.rx_queues +
-					   pf->hw.non_qos_queues) :
+					   pf->hw.analn_qos_queues) :
 					  CINT_INVALID_CQ;
 
 		cq_poll->dev = (void *)pf;
@@ -1891,7 +1891,7 @@ int otx2_open(struct net_device *netdev)
 	/* Enable QoS configuration before starting tx queues */
 	otx2_qos_config_txschq(pf);
 
-	/* we have already received link status notification */
+	/* we have already received link status analtification */
 	if (pf->linfo.link_up && !(pf->pcifunc & RVU_PFVF_FUNC_MASK))
 		otx2_handle_link_event(pf);
 
@@ -2005,7 +2005,7 @@ int otx2_stop(struct net_device *netdev)
 	kfree(qset->cq);
 	kfree(qset->rq);
 	kfree(qset->napi);
-	/* Do not clear RQ/SQ ringsize settings */
+	/* Do analt clear RQ/SQ ringsize settings */
 	memset_startat(qset, 0, sqe_cnt);
 	return 0;
 }
@@ -2019,7 +2019,7 @@ static netdev_tx_t otx2_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct netdev_queue *txq;
 	int sq_idx;
 
-	/* XDP SQs are not mapped with TXQs
+	/* XDP SQs are analt mapped with TXQs
 	 * advance qid to derive correct sq mapped with QOS
 	 */
 	sq_idx = (qidx >= pf->hw.tx_queues) ? (qidx + pf->hw.xdp_queues) : qidx;
@@ -2184,7 +2184,7 @@ static int otx2_config_hw_rx_tstamp(struct otx2_nic *pfvf, bool enable)
 		req = otx2_mbox_alloc_msg_cgx_ptp_rx_disable(&pfvf->mbox);
 	if (!req) {
 		mutex_unlock(&pfvf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = otx2_sync_mbox_msg(&pfvf->mbox);
@@ -2216,7 +2216,7 @@ static int otx2_config_hw_tx_tstamp(struct otx2_nic *pfvf, bool enable)
 		req = otx2_mbox_alloc_msg_nix_lf_ptp_tx_disable(&pfvf->mbox);
 	if (!req) {
 		mutex_unlock(&pfvf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = otx2_sync_mbox_msg(&pfvf->mbox);
@@ -2239,7 +2239,7 @@ int otx2_config_hwtstamp(struct net_device *netdev, struct ifreq *ifr)
 	struct hwtstamp_config config;
 
 	if (!pfvf->ptp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
 		return -EFAULT;
@@ -2267,7 +2267,7 @@ int otx2_config_hwtstamp(struct net_device *netdev, struct ifreq *ifr)
 	}
 
 	switch (config.rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		otx2_config_hw_rx_tstamp(pfvf, false);
 		break;
 	case HWTSTAMP_FILTER_ALL:
@@ -2310,7 +2310,7 @@ int otx2_ioctl(struct net_device *netdev, struct ifreq *req, int cmd)
 		return copy_to_user(req->ifr_data, cfg,
 				    sizeof(*cfg)) ? -EFAULT : 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 EXPORT_SYMBOL(otx2_ioctl);
@@ -2323,7 +2323,7 @@ static int otx2_do_set_vf_mac(struct otx2_nic *pf, int vf, const u8 *mac)
 	mutex_lock(&pf->mbox.lock);
 	req = otx2_mbox_alloc_msg_npc_install_flow(&pf->mbox);
 	if (!req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -2393,7 +2393,7 @@ static int otx2_do_set_vf_vlan(struct otx2_nic *pf, int vf, u16 vlan, u8 qos,
 	if (config->vlan) {
 		vtag_req = otx2_mbox_alloc_msg_nix_vtag_cfg(&pf->mbox);
 		if (!vtag_req) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		vtag_req->cfg_type = 0;
@@ -2409,7 +2409,7 @@ static int otx2_do_set_vf_vlan(struct otx2_nic *pf, int vf, u16 vlan, u8 qos,
 		/* rx */
 		del_req = otx2_mbox_alloc_msg_npc_delete_flow(&pf->mbox);
 		if (!del_req) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		idx = ((vf * OTX2_PER_VF_VLAN_FLOWS) + OTX2_VF_VLAN_RX_INDEX);
@@ -2422,7 +2422,7 @@ static int otx2_do_set_vf_vlan(struct otx2_nic *pf, int vf, u16 vlan, u8 qos,
 		/* tx */
 		del_req = otx2_mbox_alloc_msg_npc_delete_flow(&pf->mbox);
 		if (!del_req) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		idx = ((vf * OTX2_PER_VF_VLAN_FLOWS) + OTX2_VF_VLAN_TX_INDEX);
@@ -2436,7 +2436,7 @@ static int otx2_do_set_vf_vlan(struct otx2_nic *pf, int vf, u16 vlan, u8 qos,
 	/* rx */
 	req = otx2_mbox_alloc_msg_npc_install_flow(&pf->mbox);
 	if (!req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -2462,7 +2462,7 @@ static int otx2_do_set_vf_vlan(struct otx2_nic *pf, int vf, u16 vlan, u8 qos,
 	/* tx */
 	vtag_req = otx2_mbox_alloc_msg_nix_vtag_cfg(&pf->mbox);
 	if (!vtag_req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -2486,7 +2486,7 @@ static int otx2_do_set_vf_vlan(struct otx2_nic *pf, int vf, u16 vlan, u8 qos,
 
 	req = otx2_mbox_alloc_msg_npc_install_flow(&pf->mbox);
 	if (!req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -2497,7 +2497,7 @@ static int otx2_do_set_vf_vlan(struct otx2_nic *pf, int vf, u16 vlan, u8 qos,
 	req->channel = pf->hw.tx_chan_base;
 	req->intf = NIX_INTF_TX;
 	req->vf = vf + 1;
-	req->op = NIX_TX_ACTIONOP_UCAST_DEFAULT;
+	req->op = NIX_TX_ACTIOANALP_UCAST_DEFAULT;
 	req->vtag0_def = vtag_rsp->vtag0_idx;
 	req->vtag0_op = VTAG_INSERT;
 	req->set_cntr = 1;
@@ -2526,10 +2526,10 @@ static int otx2_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos,
 		return -EINVAL;
 
 	if (proto != htons(ETH_P_8021Q))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if (!(pf->flags & OTX2_FLAG_VF_VLAN_SUPPORT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return otx2_do_set_vf_vlan(pf, vf, vlan, qos, proto);
 }
@@ -2567,14 +2567,14 @@ static int otx2_xdp_xmit_tx(struct otx2_nic *pf, struct xdp_frame *xdpf,
 				     offset_in_page(xdpf->data), xdpf->len,
 				     DMA_TO_DEVICE);
 	if (dma_mapping_error(pf->dev, dma_addr))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = otx2_xdp_sq_append_pkt(pf, dma_addr, xdpf->len, qidx);
 	if (!err) {
 		otx2_dma_unmap_page(pf, dma_addr, xdpf->len, DMA_TO_DEVICE);
 		page = virt_to_page(xdpf->data);
 		put_page(page);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -2593,7 +2593,7 @@ static int otx2_xdp_xmit(struct net_device *netdev, int n,
 	qidx += pf->hw.tx_queues;
 	sq = pf->xdp_prog ? &pf->qset.sq[qidx] : NULL;
 
-	/* Abort xmit if xdp queue is not */
+	/* Abort xmit if xdp queue is analt */
 	if (unlikely(!sq))
 		return -ENXIO;
 
@@ -2618,8 +2618,8 @@ static int otx2_xdp_setup(struct otx2_nic *pf, struct bpf_prog *prog)
 	struct bpf_prog *old_prog;
 
 	if (prog && dev->mtu > MAX_XDP_MTU) {
-		netdev_warn(dev, "Jumbo frames not yet supported with XDP\n");
-		return -EOPNOTSUPP;
+		netdev_warn(dev, "Jumbo frames analt yet supported with XDP\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (if_up)
@@ -2671,7 +2671,7 @@ static int otx2_set_vf_permissions(struct otx2_nic *pf, int vf,
 	mutex_lock(&pf->mbox.lock);
 	req = otx2_mbox_alloc_msg_set_vf_perm(&pf->mbox);
 	if (!req) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -2710,7 +2710,7 @@ static int otx2_ndo_set_vf_trust(struct net_device *netdev, int vf,
 		pf->vf_configs[vf].trusted = !enable;
 	} else {
 		netdev_info(pf->netdev, "VF %d is %strusted\n",
-			    vf, enable ? "" : "not ");
+			    vf, enable ? "" : "analt ");
 		otx2_set_rx_mode(netdev);
 	}
 
@@ -2743,7 +2743,7 @@ static int otx2_wq_init(struct otx2_nic *pf)
 {
 	pf->otx2_wq = create_singlethread_workqueue("otx2_wq");
 	if (!pf->otx2_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&pf->rx_mode_work, otx2_rx_mode_wrk_handler);
 	INIT_WORK(&pf->reset_task, otx2_reset_task);
@@ -2762,7 +2762,7 @@ static int otx2_check_pf_usable(struct otx2_nic *nic)
 	 */
 	if (!rev) {
 		dev_warn(nic->dev,
-			 "AF is not initialized, deferring probe\n");
+			 "AF is analt initialized, deferring probe\n");
 		return -EPROBE_DEFER;
 	}
 	return 0;
@@ -2773,7 +2773,7 @@ static int otx2_realloc_msix_vectors(struct otx2_nic *pf)
 	struct otx2_hw *hw = &pf->hw;
 	int num_vec, err;
 
-	/* NPA interrupts are inot registered, so alloc only
+	/* NPA interrupts are ianalt registered, so alloc only
 	 * upto NIX vector offset.
 	 */
 	num_vec = hw->nix_msixoff;
@@ -2799,7 +2799,7 @@ static int otx2_sriov_vfcfg_init(struct otx2_nic *pf)
 				      sizeof(struct otx2_vf_config),
 				      GFP_KERNEL);
 	if (!pf->vf_configs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pf->total_vfs; i++) {
 		pf->vf_configs[i].pf = pf;
@@ -2856,11 +2856,11 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Set number of queues */
 	qcount = min_t(int, num_online_cpus(), OTX2_MAX_CQ_CNT);
-	qos_txqs = min_t(int, qcount, OTX2_QOS_MAX_LEAF_NODES);
+	qos_txqs = min_t(int, qcount, OTX2_QOS_MAX_LEAF_ANALDES);
 
 	netdev = alloc_etherdev_mqs(sizeof(*pf), qcount + qos_txqs, qcount);
 	if (!netdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_release_regions;
 	}
 
@@ -2877,7 +2877,7 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hw->pdev = pdev;
 	hw->rx_queues = qcount;
 	hw->tx_queues = qcount;
-	hw->non_qos_queues = qcount;
+	hw->analn_qos_queues = qcount;
 	hw->max_queues = qcount;
 	hw->rbuf_len = OTX2_DEFAULT_RBUF_LEN;
 	/* Use CQE of 128 byte descriptor size by default */
@@ -2887,14 +2887,14 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hw->irq_name = devm_kmalloc_array(&hw->pdev->dev, num_vec, NAME_SIZE,
 					  GFP_KERNEL);
 	if (!hw->irq_name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_netdev;
 	}
 
 	hw->affinity_mask = devm_kcalloc(&hw->pdev->dev, num_vec,
 					 sizeof(cpumask_var_t), GFP_KERNEL);
 	if (!hw->affinity_mask) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_netdev;
 	}
 
@@ -2902,7 +2902,7 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pf->reg_base = pcim_iomap(pdev, PCI_CFG_REG_BAR_NUM, 0);
 	if (!pf->reg_base) {
 		dev_err(dev, "Unable to map physical function CSRs, aborting\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_netdev;
 	}
 
@@ -3037,7 +3037,7 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_pf_sriov_init;
 
-	/* Enable link notifications */
+	/* Enable link analtifications */
 	otx2_cgx_config_linkevents(pf, true);
 
 #ifdef CONFIG_DCB
@@ -3209,7 +3209,7 @@ static void otx2_remove(struct pci_dev *pdev)
 	}
 #endif
 	cancel_work_sync(&pf->reset_task);
-	/* Disable link notifications */
+	/* Disable link analtifications */
 	otx2_cgx_config_linkevents(pf, false);
 
 	otx2_unregister_dl(pf);

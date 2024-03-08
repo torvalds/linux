@@ -65,7 +65,7 @@
 			device-width = <2>;
 		};
 
-		/* Note: CAN support needs be enabled in U-Boot */
+		/* Analte: CAN support needs be enabled in U-Boot */
 		can@3,0 {
 			compatible = "intc,82527";
 			reg = <3 0x0 0x80>;

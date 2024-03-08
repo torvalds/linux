@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -795,10 +795,10 @@ static const struct pinfunction sm4450_functions[] = {
 };
 
 /*
- * Every pin is maintained as a single group, and missing or non-existing pin
+ * Every pin is maintained as a single group, and missing or analn-existing pin
  * would be maintained as dummy group to synchronize pin group index with
  * pin descriptor registered with pinctrl core.
- * Clients would not be able to request these dummy pin groups.
+ * Clients would analt be able to request these dummy pin groups.
  */
 static const struct msm_pingroup sm4450_groups[] = {
 	[0] = PINGROUP(0, qup1_se0, ibi_i3c_qup1, cmu_rng, qdss_gpio, _, _, _, _, _),

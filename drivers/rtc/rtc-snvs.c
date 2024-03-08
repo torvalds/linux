@@ -35,7 +35,7 @@
 /* The maximum RTC clock cycles that are allowed to pass between two
  * consecutive clock counter register reads. If the values are corrupted a
  * bigger difference is expected. The RTC frequency is 32kHz. With 320 cycles
- * we end at 10ms which should be enough for most cases. If it once takes
+ * we end at 10ms which should be eanalugh for most cases. If it once takes
  * longer than expected we do a retry.
  */
 #define MAX_RTC_READ_DIFF_CYCLES	320
@@ -300,7 +300,7 @@ static irqreturn_t snvs_rtc_irq_handler(int irq, void *dev_id)
 
 	clk_disable(data->clk);
 
-	return events ? IRQ_HANDLED : IRQ_NONE;
+	return events ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static const struct regmap_config snvs_rtc_config = {
@@ -322,13 +322,13 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(data->rtc))
 		return PTR_ERR(data->rtc);
 
-	data->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node, "regmap");
+	data->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde, "regmap");
 
 	if (IS_ERR(data->regmap)) {
 		dev_warn(&pdev->dev, "snvs rtc: you use old dts file, please update it\n");
@@ -340,12 +340,12 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 		data->regmap = devm_regmap_init_mmio(&pdev->dev, mmio, &snvs_rtc_config);
 	} else {
 		data->offset = SNVS_LPREGISTER_OFFSET;
-		of_property_read_u32(pdev->dev.of_node, "offset", &data->offset);
+		of_property_read_u32(pdev->dev.of_analde, "offset", &data->offset);
 	}
 
 	if (IS_ERR(data->regmap)) {
 		dev_err(&pdev->dev, "Can't find snvs syscon\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data->irq = platform_get_irq(pdev, 0);
@@ -359,7 +359,7 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 		ret = clk_prepare_enable(data->clk);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"Could not prepare or enable the snvs clock\n");
+				"Could analt prepare or enable the snvs clock\n");
 			return ret;
 		}
 	}
@@ -402,7 +402,7 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 	return devm_rtc_register_device(data->rtc);
 }
 
-static int __maybe_unused snvs_rtc_suspend_noirq(struct device *dev)
+static int __maybe_unused snvs_rtc_suspend_analirq(struct device *dev)
 {
 	struct snvs_rtc_data *data = dev_get_drvdata(dev);
 
@@ -411,7 +411,7 @@ static int __maybe_unused snvs_rtc_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused snvs_rtc_resume_noirq(struct device *dev)
+static int __maybe_unused snvs_rtc_resume_analirq(struct device *dev)
 {
 	struct snvs_rtc_data *data = dev_get_drvdata(dev);
 
@@ -422,7 +422,7 @@ static int __maybe_unused snvs_rtc_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops snvs_rtc_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(snvs_rtc_suspend_noirq, snvs_rtc_resume_noirq)
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(snvs_rtc_suspend_analirq, snvs_rtc_resume_analirq)
 };
 
 static const struct of_device_id snvs_dt_ids[] = {

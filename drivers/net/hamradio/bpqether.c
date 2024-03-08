@@ -10,22 +10,22 @@
  *
  *		- things got unreadable within the protocol stack
  *		- to cure the protocol stack from "feature-ism"
- *		- a protocol implementation shouldn't need to know on
+ *		- a protocol implementation shouldn't need to kanalw on
  *		  which hardware it is running
  *		- user-level programs like the AX.25 utilities shouldn't
- *		  need to know about the hardware.
+ *		  need to kanalw about the hardware.
  *		- IP over ethernet encapsulated AX.25 was impossible
- *		- rxecho.c did not work
+ *		- rxecho.c did analt work
  *		- to have room for extensions
  *		- it just deserves to "live" as an own driver
  *
  *	This driver can use any ethernet destination address, and can be
  *	limited to accept frames from one dedicated ethernet card only.
  *
- *	Note that the driver sets up the BPQ devices automagically on
+ *	Analte that the driver sets up the BPQ devices automagically on
  *	startup or (if started before the "insmod" of an ethernet device)
  *	on "ifconfig up". It hopefully will remove the BPQ on "rmmod"ing
- *	the ethernet device (in fact: as soon as another ethernet or bpq
+ *	the ethernet device (in fact: as soon as aanalther ethernet or bpq
  *	device gets "ifconfig"ured).
  *
  *	I have heard that several people are thinking of experiments
@@ -46,10 +46,10 @@
  *						call.
  *						Fixed to match Linux networking
  *						changes - 2.1.15.
- *	BPQ   004	Joerg(DL1BKE)		Fixed to not lock up on ifconfig.
+ *	BPQ   004	Joerg(DL1BKE)		Fixed to analt lock up on ifconfig.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -67,7 +67,7 @@
 #include <linux/uaccess.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/stat.h>
@@ -85,15 +85,15 @@ static const char banner[] __initconst = KERN_INFO \
 	"AX.25: bpqether driver version 004\n";
 
 static int bpq_rcv(struct sk_buff *, struct net_device *, struct packet_type *, struct net_device *);
-static int bpq_device_event(struct notifier_block *, unsigned long, void *);
+static int bpq_device_event(struct analtifier_block *, unsigned long, void *);
 
 static struct packet_type bpq_packet_type __read_mostly = {
 	.type	= cpu_to_be16(ETH_P_BPQ),
 	.func	= bpq_rcv,
 };
 
-static struct notifier_block bpq_dev_notifier = {
-	.notifier_call = bpq_device_event,
+static struct analtifier_block bpq_dev_analtifier = {
+	.analtifier_call = bpq_device_event,
 };
 
 
@@ -109,7 +109,7 @@ static LIST_HEAD(bpq_devices);
 
 /*
  * bpqether network devices are paired with ethernet devices below them, so
- * form a special "super class" of normal ethernet devices; split their locks
+ * form a special "super class" of analrmal ethernet devices; split their locks
  * off into a separate class since they always nest.
  */
 static struct lock_class_key bpq_netdev_xmit_lock_key;
@@ -246,7 +246,7 @@ static netdev_tx_t bpq_xmit(struct sk_buff *skb, struct net_device *dev)
 		return ax25_ip_xmit(skb);
 
 	/*
-	 * Just to be *really* sure not to send anything if the interface
+	 * Just to be *really* sure analt to send anything if the interface
 	 * is down, the ethernet device may have gone.
 	 */
 	if (!netif_running(dev)) {
@@ -259,7 +259,7 @@ static netdev_tx_t bpq_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/*
 	 * We're about to mess with the skb which may still shared with the
-	 * generic networking code so unshare and ensure it's got enough
+	 * generic networking code so unshare and ensure it's got eanalugh
 	 * space for the BPQ headers.
 	 */
 	if (skb_cow(skb, AX25_BPQ_HEADER_LEN)) {
@@ -482,10 +482,10 @@ static int bpq_new_device(struct net_device *edev)
 	struct net_device *ndev;
 	struct bpqdev *bpq;
 
-	ndev = alloc_netdev(sizeof(struct bpqdev), "bpq%d", NET_NAME_UNKNOWN,
+	ndev = alloc_netdev(sizeof(struct bpqdev), "bpq%d", NET_NAME_UNKANALWN,
 			    bpq_setup);
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 		
 	bpq = netdev_priv(ndev);
@@ -525,16 +525,16 @@ static void bpq_free_device(struct net_device *ndev)
 /*
  *	Handle device status changes.
  */
-static int bpq_device_event(struct notifier_block *this,
+static int bpq_device_event(struct analtifier_block *this,
 			    unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 
 	if (!net_eq(dev_net(dev), &init_net))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (!dev_is_ethdev(dev) && !bpq_get_ax25_dev(dev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_UP:		/* new ethernet device -> new BPQ interface */
@@ -555,14 +555,14 @@ static int bpq_device_event(struct notifier_block *this,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 
 /* ------------------------------------------------------------------------ */
 
 /*
- * Initialize driver. To be called from af_ax25 if not compiled as a
+ * Initialize driver. To be called from af_ax25 if analt compiled as a
  * module
  */
 static int __init bpq_init_driver(void)
@@ -570,14 +570,14 @@ static int __init bpq_init_driver(void)
 #ifdef CONFIG_PROC_FS
 	if (!proc_create_seq("bpqether", 0444, init_net.proc_net, &bpq_seqops)) {
 		printk(KERN_ERR
-			"bpq: cannot create /proc/net/bpqether entry.\n");
-		return -ENOENT;
+			"bpq: cananalt create /proc/net/bpqether entry.\n");
+		return -EANALENT;
 	}
 #endif  /* CONFIG_PROC_FS */
 
 	dev_add_pack(&bpq_packet_type);
 
-	register_netdevice_notifier(&bpq_dev_notifier);
+	register_netdevice_analtifier(&bpq_dev_analtifier);
 
 	printk(banner);
 
@@ -590,7 +590,7 @@ static void __exit bpq_cleanup_driver(void)
 
 	dev_remove_pack(&bpq_packet_type);
 
-	unregister_netdevice_notifier(&bpq_dev_notifier);
+	unregister_netdevice_analtifier(&bpq_dev_analtifier);
 
 	remove_proc_entry("bpqether", init_net.proc_net);
 

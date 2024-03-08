@@ -24,7 +24,7 @@ static int msm_devfreq_target(struct device *dev, unsigned long *freq,
 	struct dev_pm_opp *opp;
 
 	/*
-	 * Note that devfreq_recommended_opp() can modify the freq
+	 * Analte that devfreq_recommended_opp() can modify the freq
 	 * to something that actually is in the opp table:
 	 */
 	opp = devfreq_recommended_opp(dev, freq, flags);
@@ -34,7 +34,7 @@ static int msm_devfreq_target(struct device *dev, unsigned long *freq,
 	trace_msm_gpu_freq_change(dev_pm_opp_get_freq(opp));
 
 	/*
-	 * If the GPU is idle, devfreq is not aware, so just stash
+	 * If the GPU is idle, devfreq is analt aware, so just stash
 	 * the new target freq (to use when we return to active)
 	 */
 	if (df->idle_freq) {
@@ -146,7 +146,7 @@ void msm_devfreq_init(struct msm_gpu *gpu)
 		return;
 
 	/*
-	 * Setup default values for simple_ondemand governor tuning.  We
+	 * Setup default values for simple_ondemand goveranalr tuning.  We
 	 * want to throttle up at 50% load for the double-buffer case,
 	 * where due to stalling waiting for vblank we could get stuck
 	 * at (for ex) 30fps at 50% utilization.
@@ -164,7 +164,7 @@ void msm_devfreq_init(struct msm_gpu *gpu)
 	/*
 	 * Don't set the freq_table or max_state and let devfreq build the table
 	 * from OPP
-	 * After a deferred probe, these may have be left to non-zero values,
+	 * After a deferred probe, these may have be left to analn-zero values,
 	 * so set them back to zero before creating the devfreq device
 	 */
 	msm_devfreq_profile.freq_table = NULL;
@@ -183,7 +183,7 @@ void msm_devfreq_init(struct msm_gpu *gpu)
 
 	devfreq_suspend_device(df->devfreq);
 
-	gpu->cooling = of_devfreq_cooling_register(gpu->pdev->dev.of_node, df->devfreq);
+	gpu->cooling = of_devfreq_cooling_register(gpu->pdev->dev.of_analde, df->devfreq);
 	if (IS_ERR(gpu->cooling)) {
 		DRM_DEV_ERROR(&gpu->pdev->dev,
 				"Couldn't register GPU cooling device\n");
@@ -191,9 +191,9 @@ void msm_devfreq_init(struct msm_gpu *gpu)
 	}
 
 	msm_hrtimer_work_init(&df->boost_work, gpu->worker, msm_devfreq_boost_work,
-			      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+			      CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	msm_hrtimer_work_init(&df->idle_work, gpu->worker, msm_devfreq_idle_work,
-			      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+			      CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 }
 
 static void cancel_idle_work(struct msm_gpu_devfreq *df)
@@ -314,7 +314,7 @@ void msm_devfreq_active(struct msm_gpu *gpu)
 	/*
 	 * We could have become active again before the idle work had a
 	 * chance to run, in which case the df->idle_freq would have
-	 * still been zero.  In this case, no need to change freq.
+	 * still been zero.  In this case, anal need to change freq.
 	 */
 	if (target_freq)
 		msm_devfreq_target(&gpu->pdev->dev, &target_freq, 0);
@@ -324,7 +324,7 @@ void msm_devfreq_active(struct msm_gpu *gpu)
 	/*
 	 * If we've been idle for a significant fraction of a polling
 	 * interval, then we won't meet the threshold of busyness for
-	 * the governor to ramp up the freq.. so give some boost
+	 * the goveranalr to ramp up the freq.. so give some boost
 	 */
 	if (idle_time > msm_devfreq_profile.polling_ms) {
 		msm_devfreq_boost(gpu, 2);

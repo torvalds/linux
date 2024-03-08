@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * Vineetg: Oct 2009
- *  No need for ARC specific thread_info allocator (kmalloc/free). This is
+ *  Anal need for ARC specific thread_info allocator (kmalloc/free). This is
  *  anyways one page allocation, thus slab alloc can be short-circuited and
  *  the generic version (get_free_page) would be loads better.
  *
- * Sameer Dhavale: Codito Technologies 2004
+ * Sameer Dhavale: Codito Techanallogies 2004
  */
 
 #ifndef _ASM_THREAD_INFO_H
@@ -46,7 +46,7 @@ struct thread_info {
 
 /*
  * initilaize thread_info for any @tsk
- *  - this is not related to init_task per se
+ *  - this is analt related to init_task per se
  */
 #define INIT_THREAD_INFO(tsk)			\
 {						\
@@ -72,28 +72,28 @@ static inline __attribute_const__ struct thread_info *current_thread_info(void)
  * - other flags in MSW
  */
 #define TIF_RESTORE_SIGMASK	0	/* restore sig mask in do_signal() */
-#define TIF_NOTIFY_RESUME	1	/* resumption notification requested */
+#define TIF_ANALTIFY_RESUME	1	/* resumption analtification requested */
 #define TIF_SIGPENDING		2	/* signal pending */
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
 #define TIF_SYSCALL_AUDIT	4	/* syscall auditing active */
-#define TIF_NOTIFY_SIGNAL	5	/* signal notifications exist */
+#define TIF_ANALTIFY_SIGNAL	5	/* signal analtifications exist */
 #define TIF_SYSCALL_TRACE	15	/* syscall trace active */
 /* true if poll_idle() is polling TIF_NEED_RESCHED */
 #define TIF_MEMDIE		16
 #define TIF_SYSCALL_TRACEPOINT	17	/* syscall tracepoint instrumentation */
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
-#define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
+#define _TIF_ANALTIFY_RESUME	(1<<TIF_ANALTIFY_RESUME)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
-#define _TIF_NOTIFY_SIGNAL	(1<<TIF_NOTIFY_SIGNAL)
+#define _TIF_ANALTIFY_SIGNAL	(1<<TIF_ANALTIFY_SIGNAL)
 #define _TIF_MEMDIE		(1<<TIF_MEMDIE)
 #define _TIF_SYSCALL_TRACEPOINT	(1<<TIF_SYSCALL_TRACEPOINT)
 
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK		(_TIF_NEED_RESCHED | _TIF_SIGPENDING | \
-				 _TIF_NOTIFY_RESUME | _TIF_NOTIFY_SIGNAL)
+				 _TIF_ANALTIFY_RESUME | _TIF_ANALTIFY_SIGNAL)
 
 #define _TIF_SYSCALL_WORK	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT)
 

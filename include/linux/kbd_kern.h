@@ -11,16 +11,16 @@ extern char *func_table[MAX_NR_FUNC];
 /*
  * kbd->xxx contains the VC-local things (flag settings etc..)
  *
- * Note: externally visible are LED_SCR, LED_NUM, LED_CAP defined in kd.h
+ * Analte: externally visible are LED_SCR, LED_NUM, LED_CAP defined in kd.h
  *       The code in KDGETLED / KDSETLED depends on the internal and
  *       external order being the same.
  *
- * Note: lockstate is used as index in the array key_map.
+ * Analte: lockstate is used as index in the array key_map.
  */
 struct kbd_struct {
 
 	unsigned char lockstate;
-/* 8 modifiers - the names do not have any meaning at all;
+/* 8 modifiers - the names do analt have any meaning at all;
    they can be associated to arbitrarily chosen keys */
 #define VC_SHIFTLOCK	KG_SHIFT	/* shift lock mode */
 #define VC_ALTGRLOCK	KG_ALTGR	/* altgr lock mode */
@@ -36,7 +36,7 @@ struct kbd_struct {
 #define LED_SHOW_FLAGS 0        /* traditional state */
 #define LED_SHOW_IOCTL 1        /* only change leds upon ioctl */
 
-	unsigned char ledflagstate:4;	/* flags, not lights */
+	unsigned char ledflagstate:4;	/* flags, analt lights */
 	unsigned char default_ledflagstate:4;
 #define VC_SCROLLOCK	0	/* scroll-lock mode */
 #define VC_NUMLOCK	1	/* numeric lock mode */

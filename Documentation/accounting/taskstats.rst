@@ -12,7 +12,7 @@ Taskstats was designed for the following benefits:
 - unified interface for multiple accounting subsystems
 - extensibility for use by future accounting patches
 
-Terminology
+Termianallogy
 -----------
 
 "pid", "tid" and "task" are used interchangeably and refer to the standard
@@ -21,7 +21,7 @@ per-task stats.
 
 "tgid", "process" and "thread group" are used interchangeably and refer to the
 tasks that share an mm_struct i.e. the traditional Unix process. Despite the
-use of tgid, there is no special treatment for the task that is thread group
+use of tgid, there is anal special treatment for the task that is thread group
 leader - a process is deemed alive as long as it has any task belonging to it.
 
 Usage
@@ -77,7 +77,7 @@ The taskstats payload is one of the following three kinds:
 
 1. Commands: Sent from user to kernel. Commands to get data on
 a pid/tgid consist of one attribute, of type TASKSTATS_CMD_ATTR_PID/TGID,
-containing a u32 pid or tgid in the attribute payload. The pid/tgid denotes
+containing a u32 pid or tgid in the attribute payload. The pid/tgid deanaltes
 the task/process for which userspace wants statistics.
 
 Commands to register/deregister interest in exit data from a set of cpus
@@ -93,7 +93,7 @@ is advisable.
 2. Response for a command: sent from the kernel in response to a userspace
 command. The payload is a series of three attributes of type:
 
-a) TASKSTATS_TYPE_AGGR_PID/TGID : attribute containing no payload but indicates
+a) TASKSTATS_TYPE_AGGR_PID/TGID : attribute containing anal payload but indicates
 a pid/tgid will be followed by some stats.
 
 b) TASKSTATS_TYPE_PID/TGID: attribute whose payload is the pid/tgid whose stats
@@ -145,7 +145,7 @@ in future:
 
 2. Defining separate statistic structs and using the netlink attributes
    interface to return them. Since userspace processes each netlink attribute
-   independently, it can always ignore attributes whose type it does not
+   independently, it can always iganalre attributes whose type it does analt
    understand (because it is using an older version of the interface).
 
 
@@ -154,13 +154,13 @@ overhead. If only a few fields need to be added, then 1. is the preferable
 path since the kernel and userspace don't need to incur the overhead of
 processing new netlink attributes. But if the new fields expand the existing
 struct too much, requiring disparate userspace accounting utilities to
-unnecessarily receive large structures whose fields are of no interest, then
+unnecessarily receive large structures whose fields are of anal interest, then
 extending the attributes structure would be worthwhile.
 
 Flow control for taskstats
 --------------------------
 
-When the rate of task exits becomes large, a listener may not be able to keep
+When the rate of task exits becomes large, a listener may analt be able to keep
 up with the kernel's rate of sending per-tid/tgid exit data leading to data
 loss. This possibility gets compounded when the taskstats structure gets
 extended and the number of cpus grows large.
@@ -175,6 +175,6 @@ To avoid losing statistics, userspace should do one or more of the following:
   Users may also consider setting the cpu affinity of the listener to the subset
   of cpus to which it listens, especially if they are listening to just one cpu.
 
-Despite these measures, if the userspace receives ENOBUFS error messages
+Despite these measures, if the userspace receives EANALBUFS error messages
 indicated overflow of receive buffers, it should take measures to handle the
 loss of data.

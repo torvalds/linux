@@ -2,7 +2,7 @@
 
 /*
  * Copyright (c) 2022 Facebook
- * Copyright (C) 2022 Huawei Technologies Duesseldorf GmbH
+ * Copyright (C) 2022 Huawei Techanallogies Duesseldorf GmbH
  *
  * Author: Roberto Sassu <roberto.sassu@huawei.com>
  */
@@ -17,18 +17,18 @@ static struct {
 	{"dynptr_data_null", -EBADMSG},
 };
 
-static bool kfunc_not_supported;
+static bool kfunc_analt_supported;
 
 static int libbpf_print_cb(enum libbpf_print_level level, const char *fmt,
 			   va_list args)
 {
-	if (strcmp(fmt, "libbpf: extern (func ksym) '%s': not found in kernel or module BTFs\n"))
+	if (strcmp(fmt, "libbpf: extern (func ksym) '%s': analt found in kernel or module BTFs\n"))
 		return 0;
 
 	if (strcmp(va_arg(args, char *), "bpf_verify_pkcs7_signature"))
 		return 0;
 
-	kfunc_not_supported = true;
+	kfunc_analt_supported = true;
 	return 0;
 }
 
@@ -42,15 +42,15 @@ static bool has_pkcs7_kfunc_support(void)
 	if (!ASSERT_OK_PTR(skel, "test_kfunc_dynptr_param__open"))
 		return false;
 
-	kfunc_not_supported = false;
+	kfunc_analt_supported = false;
 
 	old_print_cb = libbpf_set_print(libbpf_print_cb);
 	err = test_kfunc_dynptr_param__load(skel);
 	libbpf_set_print(old_print_cb);
 
-	if (err < 0 && kfunc_not_supported) {
+	if (err < 0 && kfunc_analt_supported) {
 		fprintf(stderr,
-		  "%s:SKIP:bpf_verify_pkcs7_signature() kfunc not supported\n",
+		  "%s:SKIP:bpf_verify_pkcs7_signature() kfunc analt supported\n",
 		  __func__);
 		test_kfunc_dynptr_param__destroy(skel);
 		return false;

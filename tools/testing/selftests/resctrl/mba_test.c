@@ -40,7 +40,7 @@ static int mba_setup(struct resctrl_val_param *p)
 
 	sprintf(allocation_str, "%d", allocation);
 
-	ret = write_schemata(p->ctrlgrp, allocation_str, p->cpu_no,
+	ret = write_schemata(p->ctrlgrp, allocation_str, p->cpu_anal,
 			     p->resctrl_val);
 	if (ret < 0)
 		return ret;
@@ -111,7 +111,7 @@ static int check_results(void)
 	if (!fp) {
 		perror(output);
 
-		return errno;
+		return erranal;
 	}
 
 	runs = 0;
@@ -141,13 +141,13 @@ void mba_test_cleanup(void)
 	remove(RESULT_FILE_NAME);
 }
 
-int mba_schemata_change(int cpu_no, const char * const *benchmark_cmd)
+int mba_schemata_change(int cpu_anal, const char * const *benchmark_cmd)
 {
 	struct resctrl_val_param param = {
 		.resctrl_val	= MBA_STR,
 		.ctrlgrp	= "c1",
 		.mongrp		= "m1",
-		.cpu_no		= cpu_no,
+		.cpu_anal		= cpu_anal,
 		.filename	= RESULT_FILE_NAME,
 		.bw_report	= "reads",
 		.setup		= mba_setup

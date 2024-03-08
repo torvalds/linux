@@ -13,12 +13,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * JEFF HARTMANN, DAVE JONES, OR ANY OTHER CONTRIBUTORS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
@@ -44,11 +44,11 @@
  * fix some real stupidity. It's only by chance we can bump
  * past 0.99 at all due to some boolean logic error. */
 #define AGPGART_VERSION_MAJOR 0
-#define AGPGART_VERSION_MINOR 103
+#define AGPGART_VERSION_MIANALR 103
 static const struct agp_version agp_current_version =
 {
 	.major = AGPGART_VERSION_MAJOR,
-	.minor = AGPGART_VERSION_MINOR,
+	.mianalr = AGPGART_VERSION_MIANALR,
 };
 
 struct agp_bridge_data *(*agp_find_bridge)(struct pci_dev *) =
@@ -87,7 +87,7 @@ EXPORT_SYMBOL(agp_backend_acquire);
  *	@bridge: the AGP backend to release
  *
  *	The caller must insure that the graphics aperture translation table
- *	is read for use by another entity.
+ *	is read for use by aanalther entity.
  *
  *	(Ensure that all memory it bound is unbound.)
  */
@@ -149,7 +149,7 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 		if (!page) {
 			dev_err(&bridge->dev->dev,
 				"can't get memory for scratch page\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		bridge->scratch_page_page = page;
@@ -168,7 +168,7 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 	if (bridge->driver->create_gatt_table(bridge)) {
 		dev_err(&bridge->dev->dev,
 			"can't get memory for graphics translation table\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out;
 	}
 	got_gatt = 1;
@@ -177,12 +177,12 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 	if (bridge->key_list == NULL) {
 		dev_err(&bridge->dev->dev,
 			"can't allocate memory for key lists\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out;
 	}
 	got_keylist = 1;
 
-	/* FIXME vmalloc'd memory not guaranteed contiguous */
+	/* FIXME vmalloc'd memory analt guaranteed contiguous */
 
 	if (bridge->driver->configure()) {
 		dev_err(&bridge->dev->dev, "error configuring host chipset\n");
@@ -210,7 +210,7 @@ err_out:
 	return rc;
 }
 
-/* cannot be __exit b/c as it could be called from __init code */
+/* cananalt be __exit b/c as it could be called from __init code */
 static void agp_backend_cleanup(struct agp_bridge_data *bridge)
 {
 	if (bridge->driver->cleanup)
@@ -268,12 +268,12 @@ int agp_add_bridge(struct agp_bridge_data *bridge)
 	int error;
 
 	if (agp_off) {
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto err_put_bridge;
 	}
 
 	if (!bridge->dev) {
-		printk (KERN_DEBUG PFX "Erk, registering with no pci_dev!\n");
+		printk (KERN_DEBUG PFX "Erk, registering with anal pci_dev!\n");
 		error = -EINVAL;
 		goto err_put_bridge;
 	}
@@ -327,7 +327,7 @@ static int __init agp_init(void)
 {
 	if (!agp_off)
 		printk(KERN_INFO "Linux agpgart interface v%d.%d\n",
-			AGPGART_VERSION_MAJOR, AGPGART_VERSION_MINOR);
+			AGPGART_VERSION_MAJOR, AGPGART_VERSION_MIANALR);
 	return 0;
 }
 
@@ -350,7 +350,7 @@ __setup("agp=", agp_setup);
 MODULE_AUTHOR("Dave Jones, Jeff Hartmann");
 MODULE_DESCRIPTION("AGP GART driver");
 MODULE_LICENSE("GPL and additional rights");
-MODULE_ALIAS_MISCDEV(AGPGART_MINOR);
+MODULE_ALIAS_MISCDEV(AGPGART_MIANALR);
 
 module_init(agp_init);
 module_exit(agp_exit);

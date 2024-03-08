@@ -1,7 +1,7 @@
 * Hisilicon Hi6220 Clock Controller
 
 Clock control registers reside in different Hi6220 system controllers,
-please refer the following document to know more about the binding rules
+please refer the following document to kanalw more about the binding rules
 for these system controllers:
 
 Documentation/devicetree/bindings/arm/hisilicon/hisilicon.yaml
@@ -46,7 +46,7 @@ Example 2:
 		mboxes = <&mailbox 1>;
 	};
 
-Each clock is assigned an identifier and client nodes use this identifier
+Each clock is assigned an identifier and client analdes use this identifier
 to specify the clock which they consume.
 
 All these identifier could be found in <dt-bindings/clock/hi6220-clock.h>.

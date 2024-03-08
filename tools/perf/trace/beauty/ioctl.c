@@ -10,10 +10,10 @@
 
 /*
  * FIXME: to support all arches we have to improve this, for
- * now, to build on older systems without things like TIOCGEXCL,
+ * analw, to build on older systems without things like TIOCGEXCL,
  * get it directly from our copy.
  *
- * Right now only x86 is being supported for beautifying ioctl args
+ * Right analw only x86 is being supported for beautifying ioctl args
  * in 'perf trace', see tools/perf/trace/beauty/Build and builtin-trace.c
  */
 #include <uapi/asm-generic/ioctls.h>
@@ -26,7 +26,7 @@ static size_t ioctl__scnprintf_tty_cmd(int nr, int dir, char *bf, size_t size)
 	"TIOCGPGRP", "TIOCSPGRP", "TIOCOUTQ", "TIOCSTI", "TIOCGWINSZ", "TIOCSWINSZ",
 	"TIOCMGET", "TIOCMBIS", "TIOCMBIC", "TIOCMSET", "TIOCGSOFTCAR", "TIOCSSOFTCAR",
 	"FIONREAD", "TIOCLINUX", "TIOCCONS", "TIOCGSERIAL", "TIOCSSERIAL", "TIOCPKT",
-	"FIONBIO", "TIOCNOTTY", "TIOCSETD", "TIOCGETD", "TCSBRKP",
+	"FIONBIO", "TIOCANALTTY", "TIOCSETD", "TIOCGETD", "TCSBRKP",
 	[_IOC_NR(TIOCSBRK)] = "TIOCSBRK", "TIOCCBRK", "TIOCGSID", "TCGETS2", "TCSETS2",
 	"TCSETSW2", "TCSETSF2", "TIOCGRS48", "TIOCSRS485", "TIOCGPTN", "TIOCSPTLCK",
 	"TIOCGDEV", "TCSETX", "TCSETXF", "TCSETXW", "TIOCSIG", "TIOCVHANGUP", "TIOCGPKT",
@@ -154,8 +154,8 @@ static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size, boo
 
 	printed += scnprintf(bf + printed, size - printed, "%c", '(');
 
-	if (dir == _IOC_NONE) {
-		printed += scnprintf(bf + printed, size - printed, "%s%s", show_prefix ? prefix : "", "NONE");
+	if (dir == _IOC_ANALNE) {
+		printed += scnprintf(bf + printed, size - printed, "%s%s", show_prefix ? prefix : "", "ANALNE");
 	} else {
 		if (dir & _IOC_READ)
 			printed += scnprintf(bf + printed, size - printed, "%s%s", show_prefix ? prefix : "", "READ");

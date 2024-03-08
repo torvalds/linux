@@ -8,12 +8,12 @@
     and/or sell copies of the Software, and to permit persons to whom the
     Software is furnished to do so, subject to the following conditions:
 
-    The above copyright notice and this permission notice shall be included in
+    The above copyright analtice and this permission analtice shall be included in
     all copies or substantial portions of the Software.
 
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+    IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
     THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -45,8 +45,8 @@
 #define NV906F_SEMAPHORED_RELEASE_SIZE                                   24:24
 #define NV906F_SEMAPHORED_RELEASE_SIZE_16BYTE                       0x00000000
 #define NV906F_SEMAPHORED_RELEASE_SIZE_4BYTE                        0x00000001
-#define NV906F_NON_STALL_INTERRUPT                                 (0x00000020)
-#define NV906F_NON_STALL_INTERRUPT_HANDLE                                 31:0
+#define NV906F_ANALN_STALL_INTERRUPT                                 (0x00000020)
+#define NV906F_ANALN_STALL_INTERRUPT_HANDLE                                 31:0
 #define NV906F_SET_REFERENCE                                       (0x00000050)
 #define NV906F_SET_REFERENCE_COUNT                                        31:0
 
@@ -59,14 +59,14 @@
 #define NV906F_DMA_TERT_OP_GRP0_SET_SUB_DEV_MASK                   (0x00000001)
 #define NV906F_DMA_TERT_OP_GRP0_STORE_SUB_DEV_MASK                 (0x00000002)
 #define NV906F_DMA_TERT_OP_GRP0_USE_SUB_DEV_MASK                   (0x00000003)
-#define NV906F_DMA_TERT_OP_GRP2_NON_INC_METHOD                     (0x00000000)
+#define NV906F_DMA_TERT_OP_GRP2_ANALN_INC_METHOD                     (0x00000000)
 #define NV906F_DMA_METHOD_COUNT                                    28:16
 #define NV906F_DMA_IMMD_DATA                                       28:16
 #define NV906F_DMA_SEC_OP                                          31:29
 #define NV906F_DMA_SEC_OP_GRP0_USE_TERT                            (0x00000000)
 #define NV906F_DMA_SEC_OP_INC_METHOD                               (0x00000001)
 #define NV906F_DMA_SEC_OP_GRP2_USE_TERT                            (0x00000002)
-#define NV906F_DMA_SEC_OP_NON_INC_METHOD                           (0x00000003)
+#define NV906F_DMA_SEC_OP_ANALN_INC_METHOD                           (0x00000003)
 #define NV906F_DMA_SEC_OP_IMMD_DATA_METHOD                         (0x00000004)
 #define NV906F_DMA_SEC_OP_ONE_INC                                  (0x00000005)
 #define NV906F_DMA_SEC_OP_RESERVED6                                (0x00000006)

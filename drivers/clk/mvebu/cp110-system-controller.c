@@ -163,7 +163,7 @@ static struct clk_hw *cp110_register_gate(const char *name,
 
 	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 	if (!gate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	memset(&init, 0, sizeof(init));
 
@@ -213,11 +213,11 @@ static struct clk_hw *cp110_of_clk_get(struct of_phandle_args *clkspec,
 }
 
 static int cp110_syscon_common_probe(struct platform_device *pdev,
-				     struct device_node *syscon_node)
+				     struct device_analde *syscon_analde)
 {
 	struct regmap *regmap;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const char *ppv2_name, *pll0_name, *core_name, *x2core_name, *nand_name,
 		*sdio_name;
 	struct clk_hw_onecell_data *cp110_clk_data;
@@ -226,7 +226,7 @@ static int cp110_syscon_common_probe(struct platform_device *pdev,
 	int i, ret;
 	char *gate_name[ARRAY_SIZE(gate_base_names)];
 
-	regmap = syscon_node_to_regmap(syscon_node);
+	regmap = syscon_analde_to_regmap(syscon_analde);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
@@ -239,13 +239,13 @@ static int cp110_syscon_common_probe(struct platform_device *pdev,
 						       CP110_CLK_NUM),
 				      GFP_KERNEL);
 	if (!cp110_clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	cp110_clk_data->num = CP110_CLK_NUM;
 
 	cp110_clks = cp110_clk_data->hws;
 
 	/* Register the PLL0 which is the root of the hw tree */
-	pll0_name = ap_cp_unique_name(dev, syscon_node, "pll0");
+	pll0_name = ap_cp_unique_name(dev, syscon_analde, "pll0");
 	hw = clk_hw_register_fixed_rate(NULL, pll0_name, NULL, 0,
 					1000 * 1000 * 1000);
 	if (IS_ERR(hw)) {
@@ -256,7 +256,7 @@ static int cp110_syscon_common_probe(struct platform_device *pdev,
 	cp110_clks[CP110_CORE_PLL0] = hw;
 
 	/* PPv2 is PLL0/3 */
-	ppv2_name = ap_cp_unique_name(dev, syscon_node, "ppv2-core");
+	ppv2_name = ap_cp_unique_name(dev, syscon_analde, "ppv2-core");
 	hw = clk_hw_register_fixed_factor(NULL, ppv2_name, pll0_name, 0, 1, 3);
 	if (IS_ERR(hw)) {
 		ret = PTR_ERR(hw);
@@ -266,7 +266,7 @@ static int cp110_syscon_common_probe(struct platform_device *pdev,
 	cp110_clks[CP110_CORE_PPV2] = hw;
 
 	/* X2CORE clock is PLL0/2 */
-	x2core_name = ap_cp_unique_name(dev, syscon_node, "x2core");
+	x2core_name = ap_cp_unique_name(dev, syscon_analde, "x2core");
 	hw = clk_hw_register_fixed_factor(NULL, x2core_name, pll0_name,
 					  0, 1, 2);
 	if (IS_ERR(hw)) {
@@ -277,7 +277,7 @@ static int cp110_syscon_common_probe(struct platform_device *pdev,
 	cp110_clks[CP110_CORE_X2CORE] = hw;
 
 	/* Core clock is X2CORE/2 */
-	core_name = ap_cp_unique_name(dev, syscon_node, "core");
+	core_name = ap_cp_unique_name(dev, syscon_analde, "core");
 	hw = clk_hw_register_fixed_factor(NULL, core_name, x2core_name,
 					  0, 1, 2);
 	if (IS_ERR(hw)) {
@@ -287,7 +287,7 @@ static int cp110_syscon_common_probe(struct platform_device *pdev,
 
 	cp110_clks[CP110_CORE_CORE] = hw;
 	/* NAND can be either PLL0/2.5 or core clock */
-	nand_name = ap_cp_unique_name(dev, syscon_node, "nand-core");
+	nand_name = ap_cp_unique_name(dev, syscon_analde, "nand-core");
 	if (nand_clk_ctrl & NF_CLOCK_SEL_400_MASK)
 		hw = clk_hw_register_fixed_factor(NULL, nand_name,
 						   pll0_name, 0, 2, 5);
@@ -302,7 +302,7 @@ static int cp110_syscon_common_probe(struct platform_device *pdev,
 	cp110_clks[CP110_CORE_NAND] = hw;
 
 	/* SDIO clock is PLL0/2.5 */
-	sdio_name = ap_cp_unique_name(dev, syscon_node, "sdio-core");
+	sdio_name = ap_cp_unique_name(dev, syscon_analde, "sdio-core");
 	hw = clk_hw_register_fixed_factor(NULL, sdio_name,
 					  pll0_name, 0, 2, 5);
 	if (IS_ERR(hw)) {
@@ -314,7 +314,7 @@ static int cp110_syscon_common_probe(struct platform_device *pdev,
 
 	/* create the unique name for all the gate clocks */
 	for (i = 0; i < ARRAY_SIZE(gate_base_names); i++)
-		gate_name[i] =	ap_cp_unique_name(dev, syscon_node,
+		gate_name[i] =	ap_cp_unique_name(dev, syscon_analde,
 						  gate_base_names[i]);
 
 	for (i = 0; i < ARRAY_SIZE(gate_base_names); i++) {
@@ -395,12 +395,12 @@ static int cp110_syscon_legacy_clk_probe(struct platform_device *pdev)
 	dev_warn(&pdev->dev, FW_WARN
 		 "This binding won't be supported in future kernels\n");
 
-	return cp110_syscon_common_probe(pdev, pdev->dev.of_node);
+	return cp110_syscon_common_probe(pdev, pdev->dev.of_analde);
 }
 
 static int cp110_clk_probe(struct platform_device *pdev)
 {
-	return cp110_syscon_common_probe(pdev, pdev->dev.of_node->parent);
+	return cp110_syscon_common_probe(pdev, pdev->dev.of_analde->parent);
 }
 
 static const struct of_device_id cp110_syscon_legacy_of_match[] = {

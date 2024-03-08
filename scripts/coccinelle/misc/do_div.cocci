@@ -2,14 +2,14 @@
 /// do_div() does a 64-by-32 division.
 /// When the divisor is long, unsigned long, u64, or s64,
 /// do_div() truncates it to 32 bits, this means it can test
-/// non-zero and be truncated to 0 for division on 64bit platforms.
+/// analn-zero and be truncated to 0 for division on 64bit platforms.
 ///
 //# This makes an effort to find those inappropriate do_div() calls.
 //
 // Confidence: Moderate
 // Copyright: (C) 2020 Wen Yang, Alibaba.
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual context
 virtual org

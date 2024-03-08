@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Ethernet device driver for Cortina Systems Gemini SoC
- * Also known as the StorLink SL3512 and SL3516 (SL351x) or Lepus
+ * Also kanalwn as the StorLink SL3512 and SL3516 (SL351x) or Lepus
  * Net Engine and Gigabit Ethernet MAC (GMAC)
  * This hardware contains a TCP Offload Engine (TOE) but currently the
- * driver does not make use of it.
+ * driver does analt make use of it.
  *
  * Authors:
  * Linus Walleij <linus.walleij@linaro.org>
@@ -48,7 +48,7 @@
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 static int debug = -1;
 module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Debug level (0=analne,...,16=all)");
 
 #define HSIZE_8			0x00
 #define HSIZE_16		0x01
@@ -95,7 +95,7 @@ struct gmac_txq {
 	struct gmac_txdesc *ring;
 	struct sk_buff	**skb;
 	unsigned int	cptr;
-	unsigned int	noirq_packets;
+	unsigned int	analirq_packets;
 };
 
 struct gemini_ethernet;
@@ -176,7 +176,7 @@ static const char gmac_stats_strings[GMAC_STATS_NUM][ETH_GSTRING_LEN] = {
 	"RX_STATUS_GOOD_FRAME",
 	"RX_STATUS_TOO_LONG_GOOD_CRC",
 	"RX_STATUS_RUNT_FRAME",
-	"RX_STATUS_SFD_NOT_FOUND",
+	"RX_STATUS_SFD_ANALT_FOUND",
 	"RX_STATUS_CRC_ERROR",
 	"RX_STATUS_TOO_LONG_BAD_CRC",
 	"RX_STATUS_ALIGNMENT_ERROR",
@@ -191,9 +191,9 @@ static const char gmac_stats_strings[GMAC_STATS_NUM][ETH_GSTRING_LEN] = {
 	"RX_STATUS_15",
 	"RX_CHKSUM_IP_UDP_TCP_OK",
 	"RX_CHKSUM_IP_OK_ONLY",
-	"RX_CHKSUM_NONE",
+	"RX_CHKSUM_ANALNE",
 	"RX_CHKSUM_3",
-	"RX_CHKSUM_IP_ERR_UNKNOWN",
+	"RX_CHKSUM_IP_ERR_UNKANALWN",
 	"RX_CHKSUM_IP_ERR",
 	"RX_CHKSUM_TCP_UDP_ERR",
 	"RX_CHKSUM_7",
@@ -348,7 +348,7 @@ static void gmac_speed_set(struct net_device *netdev)
 		netdev_info(netdev, "link flow control: %s\n",
 			    phydev->pause
 			    ? (phydev->asym_pause ? "tx" : "both")
-			    : (phydev->asym_pause ? "rx" : "none")
+			    : (phydev->asym_pause ? "rx" : "analne")
 		);
 	}
 
@@ -365,10 +365,10 @@ static int gmac_setup_phy(struct net_device *netdev)
 	struct phy_device *phy;
 
 	phy = of_phy_get_and_connect(netdev,
-				     dev->of_node,
+				     dev->of_analde,
 				     gmac_speed_set);
 	if (!phy)
-		return -ENODEV;
+		return -EANALDEV;
 	netdev->phydev = phy;
 
 	phy_set_max_speed(phy, SPEED_1000);
@@ -408,7 +408,7 @@ static int gmac_setup_phy(struct net_device *netdev)
 	return 0;
 }
 
-/* The maximum frame length is not logically enumerated in the
+/* The maximum frame length is analt logically enumerated in the
  * hardware, so we do a table lookup to find the applicable max
  * frame length.
  */
@@ -559,22 +559,22 @@ static int gmac_setup_txqs(struct net_device *netdev)
 
 	skb_tab = kcalloc(len, sizeof(*skb_tab), GFP_KERNEL);
 	if (!skb_tab)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc_ring = dma_alloc_coherent(geth->dev, len * sizeof(*desc_ring),
 				       &port->txq_dma_base, GFP_KERNEL);
 
 	if (!desc_ring) {
 		kfree(skb_tab);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (port->txq_dma_base & ~DMA_Q_BASE_MASK) {
-		dev_warn(geth->dev, "TX queue base is not aligned\n");
+		dev_warn(geth->dev, "TX queue base is analt aligned\n");
 		dma_free_coherent(geth->dev, len * sizeof(*desc_ring),
 				  desc_ring, port->txq_dma_base);
 		kfree(skb_tab);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	writel(port->txq_dma_base | port->txq_order,
@@ -583,7 +583,7 @@ static int gmac_setup_txqs(struct net_device *netdev)
 	for (i = 0; i < n_txq; i++) {
 		txq->ring = desc_ring;
 		txq->skb = skb_tab;
-		txq->noirq_packets = 0;
+		txq->analirq_packets = 0;
 
 		r = readw(rwptr_reg);
 		rwptr_reg += 2;
@@ -701,7 +701,7 @@ static int gmac_setup_rxq(struct net_device *netdev)
 {
 	struct gemini_ethernet_port *port = netdev_priv(netdev);
 	struct gemini_ethernet *geth = port->geth;
-	struct nontoe_qhdr __iomem *qhdr;
+	struct analntoe_qhdr __iomem *qhdr;
 
 	qhdr = geth->base + TOE_DEFAULT_Q_HDR_BASE(netdev->dev_id);
 	port->rxq_rwptr = &qhdr->word1;
@@ -711,10 +711,10 @@ static int gmac_setup_rxq(struct net_device *netdev)
 				sizeof(*port->rxq_ring) << port->rxq_order,
 				&port->rxq_dma_base, GFP_KERNEL);
 	if (!port->rxq_ring)
-		return -ENOMEM;
-	if (port->rxq_dma_base & ~NONTOE_QHDR0_BASE_MASK) {
-		dev_warn(geth->dev, "RX queue base is not aligned\n");
-		return -ENOMEM;
+		return -EANALMEM;
+	if (port->rxq_dma_base & ~ANALNTOE_QHDR0_BASE_MASK) {
+		dev_warn(geth->dev, "RX queue base is analt aligned\n");
+		return -EANALMEM;
 	}
 
 	writel(port->rxq_dma_base | port->rxq_order, &qhdr->word0);
@@ -735,7 +735,7 @@ gmac_get_queue_page(struct gemini_ethernet *geth,
 	mapping = addr & PAGE_MASK;
 
 	if (!geth->freeq_pages) {
-		dev_err(geth->dev, "try to get page with no page list\n");
+		dev_err(geth->dev, "try to get page with anal page list\n");
 		return NULL;
 	}
 
@@ -755,7 +755,7 @@ static void gmac_cleanup_rxq(struct net_device *netdev)
 	struct gemini_ethernet *geth = port->geth;
 	struct gmac_rxdesc *rxd = port->rxq_ring;
 	static struct gmac_queue_page *gpage;
-	struct nontoe_qhdr __iomem *qhdr;
+	struct analntoe_qhdr __iomem *qhdr;
 	void __iomem *dma_reg;
 	void __iomem *ptr_reg;
 	dma_addr_t mapping;
@@ -788,7 +788,7 @@ static void gmac_cleanup_rxq(struct net_device *netdev)
 		/* Freeq pointers are one page off */
 		gpage = gmac_get_queue_page(geth, port, mapping + PAGE_SIZE);
 		if (!gpage) {
-			dev_err(geth->dev, "could not find page\n");
+			dev_err(geth->dev, "could analt find page\n");
 			continue;
 		}
 		/* Release the RX queue reference to the page */
@@ -826,7 +826,7 @@ static struct page *geth_freeq_alloc_map_page(struct gemini_ethernet *geth,
 	 * in the hardware queue. PAGE_SHIFT on ARM is 12 (1 page is 4096 bytes,
 	 * 4k), and the default RX frag order is 11 (fragments are up 20 2048
 	 * bytes, 2k) so fpp_order (fragments per page order) is default 1. Thus
-	 * each page normally needs two entries in the queue.
+	 * each page analrmally needs two entries in the queue.
 	 */
 	frag_len = 1 << geth->freeq_frag_order; /* Usually 2048 */
 	fpp_order = PAGE_SHIFT - geth->freeq_frag_order;
@@ -936,9 +936,9 @@ static int geth_setup_freeq(struct gemini_ethernet *geth)
 		sizeof(*geth->freeq_ring) << geth->freeq_order,
 		&geth->freeq_dma_base, GFP_KERNEL);
 	if (!geth->freeq_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (geth->freeq_dma_base & ~DMA_Q_BASE_MASK) {
-		dev_warn(geth->dev, "queue ring base is not aligned\n");
+		dev_warn(geth->dev, "queue ring base is analt aligned\n");
 		goto err_freeq;
 	}
 
@@ -987,7 +987,7 @@ err_freeq:
 			  sizeof(*geth->freeq_ring) << geth->freeq_order,
 			  geth->freeq_ring, geth->freeq_dma_base);
 	geth->freeq_ring = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -1090,7 +1090,7 @@ static int geth_resize_freeq(struct gemini_ethernet_port *port)
 	geth->freeq_order = new_order;
 	ret = geth_setup_freeq(geth);
 
-	/* Restart the interrupts - NOTE if this is the first resize
+	/* Restart the interrupts - ANALTE if this is the first resize
 	 * after probe(), this is where the interrupts get turned on
 	 * in the first place.
 	 */
@@ -1167,9 +1167,9 @@ static int gmac_map_tx_bufs(struct net_device *netdev, struct sk_buff *skb,
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		int tcp = 0;
 
-		/* We do not switch off the checksumming on non TCP/UDP
+		/* We do analt switch off the checksumming on analn TCP/UDP
 		 * frames: as is shown from tests, the checksumming engine
-		 * is smart enough to see that a frame is not actually TCP
+		 * is smart eanalugh to see that a frame is analt actually TCP
 		 * or UDP and then just pass it through without any changes
 		 * to the frame.
 		 */
@@ -1229,7 +1229,7 @@ map_error:
 			       txq->ring[w].word0.bits.buffer_size,
 			       DMA_TO_DEVICE);
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static netdev_tx_t gmac_start_xmit(struct sk_buff *skb,
@@ -1373,7 +1373,7 @@ static struct sk_buff *gmac_skb_if_good_frame(struct gemini_ethernet_port *port,
 
 	if (word0.bits.derr || word0.bits.perr ||
 	    rx_status || frame_len < ETH_ZLEN ||
-	    rx_csum >= RX_CHKSUM_IP_ERR_UNKNOWN) {
+	    rx_csum >= RX_CHKSUM_IP_ERR_UNKANALWN) {
 		port->stats.rx_errors++;
 
 		if (frame_len < ETH_ZLEN || RX_ERROR_LENGTH(rx_status))
@@ -1450,7 +1450,7 @@ static unsigned int gmac_rx(struct net_device *netdev, unsigned int budget)
 		/* Freeq pointers are one page off */
 		gpage = gmac_get_queue_page(geth, port, mapping + PAGE_SIZE);
 		if (!gpage) {
-			dev_err(geth->dev, "could not find mapping\n");
+			dev_err(geth->dev, "could analt find mapping\n");
 			continue;
 		}
 		page = gpage->page;
@@ -1673,7 +1673,7 @@ static enum hrtimer_restart gmac_coalesce_delay_expired(struct hrtimer *timer)
 			     rx_coalesce_timer);
 
 	napi_schedule(&port->napi);
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static irqreturn_t gmac_irq(int irq, void *data)
@@ -1694,7 +1694,7 @@ static irqreturn_t gmac_irq(int irq, void *data)
 		netdev_err(netdev, "hw failure/sw bug\n");
 		gmac_dump_dma_state(netdev);
 
-		/* don't know how to recover, just reduce losses */
+		/* don't kanalw how to recover, just reduce losses */
 		gmac_enable_irq(netdev, 0);
 		return IRQ_HANDLED;
 	}
@@ -1736,7 +1736,7 @@ static irqreturn_t gmac_irq(int irq, void *data)
 		spin_unlock(&geth->irq_lock);
 	}
 
-	return orr ? IRQ_HANDLED : IRQ_NONE;
+	return orr ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static void gmac_start_dma(struct gemini_ethernet_port *port)
@@ -1779,7 +1779,7 @@ static int gmac_open(struct net_device *netdev)
 	err = request_irq(netdev->irq, gmac_irq,
 			  IRQF_SHARED, netdev->name, netdev);
 	if (err) {
-		netdev_err(netdev, "no IRQ\n");
+		netdev_err(netdev, "anal IRQ\n");
 		return err;
 	}
 
@@ -1791,19 +1791,19 @@ static int gmac_open(struct net_device *netdev)
 	 * the freeq in that case.
 	 */
 	if (err && (err != -EBUSY)) {
-		netdev_err(netdev, "could not resize freeq\n");
+		netdev_err(netdev, "could analt resize freeq\n");
 		goto err_stop_phy;
 	}
 
 	err = gmac_setup_rxq(netdev);
 	if (err) {
-		netdev_err(netdev, "could not setup RXQ\n");
+		netdev_err(netdev, "could analt setup RXQ\n");
 		goto err_stop_phy;
 	}
 
 	err = gmac_setup_txqs(netdev);
 	if (err) {
-		netdev_err(netdev, "could not setup TXQs\n");
+		netdev_err(netdev, "could analt setup TXQs\n");
 		gmac_cleanup_rxq(netdev);
 		goto err_stop_phy;
 	}
@@ -1815,7 +1815,7 @@ static int gmac_open(struct net_device *netdev)
 	gmac_enable_tx_rx(netdev);
 	netif_tx_start_all_queues(netdev);
 
-	hrtimer_init(&port->rx_coalesce_timer, CLOCK_MONOTONIC,
+	hrtimer_init(&port->rx_coalesce_timer, CLOCK_MOANALTONIC,
 		     HRTIMER_MODE_REL);
 	port->rx_coalesce_timer.function = &gmac_coalesce_delay_expired;
 
@@ -2263,7 +2263,7 @@ static irqreturn_t gemini_port_irq(int irq, void *data)
 {
 	struct gemini_ethernet_port *port = data;
 	struct gemini_ethernet *geth;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 val, en;
 
 	geth = port->geth;
@@ -2275,7 +2275,7 @@ static irqreturn_t gemini_port_irq(int irq, void *data)
 	if (val & en & SWFQ_EMPTY_INT_BIT) {
 		/* Disable the queue empty interrupt while we work on
 		 * processing the queue. Also disable overrun interrupts
-		 * as there is not much we can do about it here.
+		 * as there is analt much we can do about it here.
 		 */
 		en &= ~(SWFQ_EMPTY_INT_BIT | GMAC0_RX_OVERRUN_INT_BIT
 					   | GMAC1_RX_OVERRUN_INT_BIT);
@@ -2363,7 +2363,7 @@ static void gemini_port_save_mac_addr(struct gemini_ethernet_port *port)
 static int gemini_ethernet_port_probe(struct platform_device *pdev)
 {
 	char *port_names[2] = { "ethernet0", "ethernet1" };
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct gemini_ethernet_port *port;
 	struct device *dev = &pdev->dev;
 	struct gemini_ethernet *geth;
@@ -2382,14 +2382,14 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 	else if (!strcmp(dev_name(dev), "6000c000.ethernet-port"))
 		id = 1;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_info(dev, "probe %s ID %d\n", dev_name(dev), id);
 
 	netdev = devm_alloc_etherdev_mqs(dev, sizeof(*port), TX_QUEUE_NUM, TX_QUEUE_NUM);
 	if (!netdev) {
 		dev_err(dev, "Can't allocate ethernet device #%d\n", id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	port = netdev_priv(netdev);
@@ -2423,7 +2423,7 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 	/* Clock the port */
 	port->pclk = devm_clk_get(dev, "PCLK");
 	if (IS_ERR(port->pclk)) {
-		dev_err(dev, "no PCLK\n");
+		dev_err(dev, "anal PCLK\n");
 		return PTR_ERR(port->pclk);
 	}
 	ret = clk_prepare_enable(port->pclk);
@@ -2436,7 +2436,7 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 	/* Reset the port */
 	port->reset = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(port->reset)) {
-		dev_err(dev, "no reset\n");
+		dev_err(dev, "anal reset\n");
 		ret = PTR_ERR(port->reset);
 		goto unprepare;
 	}
@@ -2554,7 +2554,7 @@ static int gemini_ethernet_probe(struct platform_device *pdev)
 	/* Global registers */
 	geth = devm_kzalloc(dev, sizeof(*geth), GFP_KERNEL);
 	if (!geth)
-		return -ENOMEM;
+		return -EANALMEM;
 	geth->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(geth->base))
 		return PTR_ERR(geth->base);

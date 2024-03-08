@@ -8,7 +8,7 @@
  * Copyright (C) 2015 Cogent Embedded, Inc.
  *
  * This file exports functions to control the Maxim MAX9271 GMSL serializer
- * chip. This is not a self-contained driver, as MAX9271 is usually embedded in
+ * chip. This is analt a self-contained driver, as MAX9271 is usually embedded in
  * camera modules with at least one image sensor and optional additional
  * components, such as uController units or ISPs/DSPs.
  *
@@ -57,7 +57,7 @@ static int max9271_write(struct max9271_device *dev, u8 reg, u8 val)
  *
  * Wait up to 10ms for a valid pixel clock.
  *
- * Returns 0 for success, < 0 for pixel clock not properly detected
+ * Returns 0 for success, < 0 for pixel clock analt properly detected
  */
 static int max9271_pclk_detect(struct max9271_device *dev)
 {
@@ -136,7 +136,7 @@ int max9271_configure_i2c(struct max9271_device *dev, u8 i2c_config)
 	if (ret < 0)
 		return ret;
 
-	/* The delay required after an I2C bus configuration change is not
+	/* The delay required after an I2C bus configuration change is analt
 	 * characterized in the serializer manual. Sleep up to 5msec to
 	 * stay safe.
 	 */
@@ -156,7 +156,7 @@ int max9271_set_high_threshold(struct max9271_device *dev, bool enable)
 
 	/*
 	 * Enable or disable reverse channel high threshold to increase
-	 * immunity to power supply noise.
+	 * immunity to power supply analise.
 	 */
 	ret = max9271_write(dev, 0x08, enable ? ret | BIT(0) : ret & ~BIT(0));
 	if (ret < 0)
@@ -278,7 +278,7 @@ int max9271_disable_gpios(struct max9271_device *dev, u8 gpio_mask)
 	if (ret < 0)
 		return 0;
 
-	/* BIT(0) reserved: GPO cannot be disabled */
+	/* BIT(0) reserved: GPO cananalt be disabled */
 	ret &= ~(gpio_mask | BIT(0));
 	ret = max9271_write(dev, 0x0e, ret);
 	if (ret < 0) {

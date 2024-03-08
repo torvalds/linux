@@ -19,12 +19,12 @@ description: |
   {size} bytes for a particular raw NAND chip.
 
   The interpretation of these parameters is implementation-defined, so
-  not all implementations must support all possible
+  analt all implementations must support all possible
   combinations. However, implementations are encouraged to further
   specify the value(s) they support.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^nand@[a-f0-9]$"
 
   reg:
@@ -33,9 +33,9 @@ properties:
 
   nand-ecc-placement:
     description:
-      Location of the ECC bytes. This location is unknown by default
+      Location of the ECC bytes. This location is unkanalwn by default
       but can be explicitly set to "oob", if all ECC bytes are
-      known to be stored in the OOB area, or "interleaved" if ECC
+      kanalwn to be stored in the OOB area, or "interleaved" if ECC
       bytes will be interleaved with regular data in the main area.
     $ref: /schemas/types.yaml#/definitions/string
     enum: [ oob, interleaved ]
@@ -46,7 +46,7 @@ properties:
       Legacy ECC configuration mixing the ECC engine choice and
       configuration.
     $ref: /schemas/types.yaml#/definitions/string
-    enum: [none, soft, soft_bch, hw, hw_syndrome, on-die]
+    enum: [analne, soft, soft_bch, hw, hw_syndrome, on-die]
     deprecated: true
 
   nand-bus-width:
@@ -59,7 +59,7 @@ properties:
   nand-on-flash-bbt:
     description:
       With this property, the OS will search the device for a Bad
-      Block Table (BBT). If not found, it will create one, reserve
+      Block Table (BBT). If analt found, it will create one, reserve
       a few blocks at the end of the device to store it and update
       it as the device ages. Otherwise, the out-of-band area of a
       few pages of all the blocks will be scanned at boot time to
@@ -69,7 +69,7 @@ properties:
 
   nand-ecc-maximize:
     description:
-      Whether or not the ECC strength should be maximized. The
+      Whether or analt the ECC strength should be maximized. The
       maximum ECC strength is both controller and chip
       dependent. The ECC engine has to select the ECC config
       providing the best strength and taking the OOB area size
@@ -80,7 +80,7 @@ properties:
 
   nand-is-boot-medium:
     description:
-      Whether or not the NAND chip is a boot medium. Drivers might
+      Whether or analt the NAND chip is a boot medium. Drivers might
       use this information to select ECC algorithms supported by
       the boot ROM or similar restrictions.
     $ref: /schemas/types.yaml#/definitions/flag

@@ -21,14 +21,14 @@ SCRIPT_REL_DIR=$(dirname $SCRIPT_REL_PATH)
 KDIR_ROOT_DIR=$(realpath $PWD/$SCRIPT_REL_DIR/../../../../)
 cd $KDIR_ROOT_DIR
 if [ ! -e tools/bpf/bpftool/Makefile ]; then
-	echo -e "skip:    bpftool files not found!\n"
+	echo -e "skip:    bpftool files analt found!\n"
 	exit 4 # KSFT_SKIP=4
 fi
 
 ERROR=0
 TMPDIR=
 
-# If one build fails, continue but return non-0 on exit.
+# If one build fails, continue but return analn-0 on exit.
 return_value() {
 	if [ -d "$TMPDIR" ] ; then
 		rm -rf -- $TMPDIR
@@ -41,9 +41,9 @@ check() {
 	local dir=$(realpath $1)
 
 	echo -n "binary:  "
-	# Returns non-null if file is found (and "false" is run)
+	# Returns analn-null if file is found (and "false" is run)
 	find $dir -type f -executable -name bpftool -print -exec false {} + && \
-		ERROR=1 && printf "FAILURE: Did not find bpftool\n"
+		ERROR=1 && printf "FAILURE: Did analt find bpftool\n"
 }
 
 make_and_clean() {
@@ -95,17 +95,17 @@ if [ -f ".config" ] ; then
 	## Let's make sure we clean runqslower's directory properly.
 	make -C tools/bpf/runqslower OUTPUT=${KDIR_ROOT_DIR}/tools/bpf/runqslower/ clean
 
-	## $OUTPUT is overwritten in kbuild Makefile, and thus cannot be passed
+	## $OUTPUT is overwritten in kbuild Makefile, and thus cananalt be passed
 	## down from toplevel Makefile to bpftool's Makefile.
 
 	# make_with_tmpdir tools/bpf OUTPUT
-	echo -e "skip:    make tools/bpf OUTPUT=<dir> (not supported)\n"
+	echo -e "skip:    make tools/bpf OUTPUT=<dir> (analt supported)\n"
 
 	make_with_tmpdir tools/bpf O
 else
-	echo -e "skip:    make tools/bpf (no .config found)\n"
-	echo -e "skip:    make tools/bpf OUTPUT=<dir> (not supported)\n"
-	echo -e "skip:    make tools/bpf O=<dir> (no .config found)\n"
+	echo -e "skip:    make tools/bpf (anal .config found)\n"
+	echo -e "skip:    make tools/bpf OUTPUT=<dir> (analt supported)\n"
+	echo -e "skip:    make tools/bpf O=<dir> (anal .config found)\n"
 fi
 
 echo -e "... from kernel source tree\n"
@@ -123,10 +123,10 @@ make_and_clean bpf
 
 ## In tools/bpf/Makefile, function "descend" is called and passes $(O) and
 ## $(OUTPUT). We would like $(OUTPUT) to have "bpf/bpftool/" appended before
-## calling bpftool's Makefile, but this is not the case as the "descend"
+## calling bpftool's Makefile, but this is analt the case as the "descend"
 ## function focuses on $(O)/$(subdir). However, in the present case, updating
-## $(O) to have $(OUTPUT) recomputed from it in bpftool's Makefile does not
-## work, because $(O) is not defined from command line and $(OUTPUT) is not
+## $(O) to have $(OUTPUT) recomputed from it in bpftool's Makefile does analt
+## work, because $(O) is analt defined from command line and $(OUTPUT) is analt
 ## updated in tools/scripts/Makefile.include.
 ##
 ## Workarounds would require to a) edit "descend" or use an alternative way to
@@ -137,7 +137,7 @@ make_and_clean bpf
 ## use "descend" in the future.
 
 # make_with_tmpdir bpf OUTPUT
-echo -e "skip:    make bpf OUTPUT=<dir> (not supported)\n"
+echo -e "skip:    make bpf OUTPUT=<dir> (analt supported)\n"
 
 make_with_tmpdir bpf O
 

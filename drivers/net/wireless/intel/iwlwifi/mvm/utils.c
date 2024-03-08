@@ -28,9 +28,9 @@ int iwl_mvm_send_cmd(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd)
 #endif
 
 	/*
-	 * Synchronous commands from this op-mode must hold
+	 * Synchroanalus commands from this op-mode must hold
 	 * the mutex, this ensures we don't try to send two
-	 * (or more) synchronous commands at a time.
+	 * (or more) synchroanalus commands at a time.
 	 */
 	if (!(cmd->flags & CMD_ASYNC))
 		lockdep_assert_held(&mvm->mutex);
@@ -46,7 +46,7 @@ int iwl_mvm_send_cmd(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd)
 		return ret;
 
 	/*
-	 * Silently ignore failures if RFKILL is asserted or
+	 * Silently iganalre failures if RFKILL is asserted or
 	 * we are in suspend\resume process
 	 */
 	if (!ret || ret == -ERFKILL || ret == -EHOSTDOWN)
@@ -85,7 +85,7 @@ int iwl_mvm_send_cmd_status(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd,
 #endif
 
 	/*
-	 * Only synchronous commands can wait for status,
+	 * Only synchroanalus commands can wait for status,
 	 * we use WANT_SKB so the caller can't.
 	 */
 	if (WARN_ONCE(cmd->flags & (CMD_ASYNC | CMD_WANT_SKB),
@@ -146,7 +146,7 @@ int iwl_mvm_legacy_hw_idx_to_mac80211_idx(u32 rate_n_flags,
 		return is_LB ? rate + IWL_FIRST_OFDM_RATE :
 			rate;
 
-	/* CCK is not allowed in HB */
+	/* CCK is analt allowed in HB */
 	return is_LB ? rate : -1;
 }
 
@@ -197,12 +197,12 @@ void iwl_mvm_rx_fw_error(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_error_resp *err_resp = (void *)pkt->data;
 
-	IWL_ERR(mvm, "FW Error notification: type 0x%08X cmd_id 0x%02X\n",
+	IWL_ERR(mvm, "FW Error analtification: type 0x%08X cmd_id 0x%02X\n",
 		le32_to_cpu(err_resp->error_type), err_resp->cmd_id);
-	IWL_ERR(mvm, "FW Error notification: seq 0x%04X service 0x%08X\n",
+	IWL_ERR(mvm, "FW Error analtification: seq 0x%04X service 0x%08X\n",
 		le16_to_cpu(err_resp->bad_cmd_seq_num),
 		le32_to_cpu(err_resp->error_service));
-	IWL_ERR(mvm, "FW Error notification: timestamp 0x%016llX\n",
+	IWL_ERR(mvm, "FW Error analtification: timestamp 0x%016llX\n",
 		le64_to_cpu(err_resp->timestamp));
 }
 
@@ -212,7 +212,7 @@ void iwl_mvm_rx_fw_error(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
  */
 u8 first_antenna(u8 mask)
 {
-	BUILD_BUG_ON(ANT_A != BIT(0)); /* using ffs is wrong if not */
+	BUILD_BUG_ON(ANT_A != BIT(0)); /* using ffs is wrong if analt */
 	if (WARN_ON_ONCE(!mask)) /* ffs will return 0 if mask is zeroed */
 		return BIT(0);
 	return BIT(ffs(mask) - 1);
@@ -334,10 +334,10 @@ void iwl_mvm_update_smps_on_active_links(struct iwl_mvm *mvm,
 	rcu_read_unlock();
 }
 
-static bool iwl_wait_stats_complete(struct iwl_notif_wait_data *notif_wait,
+static bool iwl_wait_stats_complete(struct iwl_analtif_wait_data *analtif_wait,
 				    struct iwl_rx_packet *pkt, void *data)
 {
-	WARN_ON(pkt->hdr.cmd != STATISTICS_NOTIFICATION);
+	WARN_ON(pkt->hdr.cmd != STATISTICS_ANALTIFICATION);
 
 	return true;
 }
@@ -358,9 +358,9 @@ static int iwl_mvm_request_system_statistics(struct iwl_mvm *mvm, bool clear,
 		.len[0] = sizeof(system_cmd),
 		.data[0] = &system_cmd,
 	};
-	struct iwl_notification_wait stats_wait;
+	struct iwl_analtification_wait stats_wait;
 	static const u16 stats_complete[] = {
-		WIDE_ID(SYSTEM_GROUP, SYSTEM_STATISTICS_END_NOTIF),
+		WIDE_ID(SYSTEM_GROUP, SYSTEM_STATISTICS_END_ANALTIF),
 	};
 	int ret;
 
@@ -368,25 +368,25 @@ static int iwl_mvm_request_system_statistics(struct iwl_mvm *mvm, bool clear,
 		IWL_FW_CHECK_FAILED(mvm,
 				    "Invalid system statistics command version:%d\n",
 				    cmd_ver);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	iwl_init_notification_wait(&mvm->notif_wait, &stats_wait,
+	iwl_init_analtification_wait(&mvm->analtif_wait, &stats_wait,
 				   stats_complete, ARRAY_SIZE(stats_complete),
 				   NULL, NULL);
 
 	mvm->statistics_clear = clear;
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
 	if (ret) {
-		iwl_remove_notification(&mvm->notif_wait, &stats_wait);
+		iwl_remove_analtification(&mvm->analtif_wait, &stats_wait);
 		return ret;
 	}
 
-	/* 500ms for OPERATIONAL, PART1 and END notification should be enough
+	/* 500ms for OPERATIONAL, PART1 and END analtification should be eanalugh
 	 * for FW to collect data from all LMACs and send
-	 * STATISTICS_NOTIFICATION to host
+	 * STATISTICS_ANALTIFICATION to host
 	 */
-	ret = iwl_wait_notification(&mvm->notif_wait, &stats_wait, HZ / 2);
+	ret = iwl_wait_analtification(&mvm->analtif_wait, &stats_wait, HZ / 2);
 	if (ret)
 		return ret;
 
@@ -410,18 +410,18 @@ int iwl_mvm_request_statistics(struct iwl_mvm *mvm, bool clear)
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
 					   WIDE_ID(SYSTEM_GROUP,
 						   SYSTEM_STATISTICS_CMD),
-					   IWL_FW_CMD_VER_UNKNOWN);
+					   IWL_FW_CMD_VER_UNKANALWN);
 	int ret;
 
-	if (cmd_ver != IWL_FW_CMD_VER_UNKNOWN)
+	if (cmd_ver != IWL_FW_CMD_VER_UNKANALWN)
 		return iwl_mvm_request_system_statistics(mvm, clear, cmd_ver);
 
-	/* From version 15 - STATISTICS_NOTIFICATION, the reply for
+	/* From version 15 - STATISTICS_ANALTIFICATION, the reply for
 	 * STATISTICS_CMD is empty, and the response is with
-	 * STATISTICS_NOTIFICATION notification
+	 * STATISTICS_ANALTIFICATION analtification
 	 */
-	if (iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
-				    STATISTICS_NOTIFICATION, 0) < 15) {
+	if (iwl_fw_lookup_analtif_ver(mvm->fw, LEGACY_GROUP,
+				    STATISTICS_ANALTIFICATION, 0) < 15) {
 		cmd.flags = CMD_WANT_SKB;
 
 		ret = iwl_mvm_send_cmd(mvm, &cmd);
@@ -431,25 +431,25 @@ int iwl_mvm_request_statistics(struct iwl_mvm *mvm, bool clear)
 		iwl_mvm_handle_rx_statistics(mvm, cmd.resp_pkt);
 		iwl_free_resp(&cmd);
 	} else {
-		struct iwl_notification_wait stats_wait;
+		struct iwl_analtification_wait stats_wait;
 		static const u16 stats_complete[] = {
-			STATISTICS_NOTIFICATION,
+			STATISTICS_ANALTIFICATION,
 		};
 
-		iwl_init_notification_wait(&mvm->notif_wait, &stats_wait,
+		iwl_init_analtification_wait(&mvm->analtif_wait, &stats_wait,
 					   stats_complete, ARRAY_SIZE(stats_complete),
 					   iwl_wait_stats_complete, NULL);
 
 		ret = iwl_mvm_send_cmd(mvm, &cmd);
 		if (ret) {
-			iwl_remove_notification(&mvm->notif_wait, &stats_wait);
+			iwl_remove_analtification(&mvm->analtif_wait, &stats_wait);
 			return ret;
 		}
 
-		/* 200ms should be enough for FW to collect data from all
-		 * LMACs and send STATISTICS_NOTIFICATION to host
+		/* 200ms should be eanalugh for FW to collect data from all
+		 * LMACs and send STATISTICS_ANALTIFICATION to host
 		 */
-		ret = iwl_wait_notification(&mvm->notif_wait, &stats_wait, HZ / 5);
+		ret = iwl_wait_analtification(&mvm->analtif_wait, &stats_wait, HZ / 5);
 		if (ret)
 			return ret;
 	}
@@ -516,7 +516,7 @@ bool iwl_mvm_rx_diversity_allowed(struct iwl_mvm *mvm,
 		return false;
 
 	ieee80211_iterate_active_interfaces_atomic(
-			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+			mvm->hw, IEEE80211_IFACE_ITER_ANALRMAL,
 			iwl_mvm_diversity_iter, &data);
 
 	return data.result;
@@ -600,7 +600,7 @@ bool iwl_mvm_low_latency(struct iwl_mvm *mvm)
 	struct iwl_mvm_low_latency_iter data = {};
 
 	ieee80211_iterate_active_interfaces_atomic(
-			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+			mvm->hw, IEEE80211_IFACE_ITER_ANALRMAL,
 			iwl_mvm_ll_iter, &data);
 
 	return data.result;
@@ -611,7 +611,7 @@ bool iwl_mvm_low_latency_band(struct iwl_mvm *mvm, enum nl80211_band band)
 	struct iwl_mvm_low_latency_iter data = {};
 
 	ieee80211_iterate_active_interfaces_atomic(
-			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+			mvm->hw, IEEE80211_IFACE_ITER_ANALRMAL,
 			iwl_mvm_ll_iter, &data);
 
 	return data.result_per_band[band];
@@ -643,7 +643,7 @@ struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm)
 	struct iwl_bss_iter_data bss_iter_data = {};
 
 	ieee80211_iterate_active_interfaces_atomic(
-		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		mvm->hw, IEEE80211_IFACE_ITER_ANALRMAL,
 		iwl_mvm_bss_iface_iterator, &bss_iter_data);
 
 	if (bss_iter_data.error) {
@@ -678,7 +678,7 @@ struct ieee80211_vif *iwl_mvm_get_vif_by_macid(struct iwl_mvm *mvm, u32 macid)
 	lockdep_assert_held(&mvm->mutex);
 
 	ieee80211_iterate_active_interfaces_atomic(
-		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		mvm->hw, IEEE80211_IFACE_ITER_ANALRMAL,
 		iwl_mvm_bss_find_iface_iterator, &data);
 
 	return data.vif;
@@ -707,7 +707,7 @@ bool iwl_mvm_is_vif_assoc(struct iwl_mvm *mvm)
 	};
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-						   IEEE80211_IFACE_ITER_NORMAL,
+						   IEEE80211_IFACE_ITER_ANALRMAL,
 						   iwl_mvm_sta_iface_iterator,
 						   &data);
 	return data.assoc;
@@ -725,11 +725,11 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 
 	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS)) {
 		/*
-		 * We can't know when the station is asleep or awake, so we
+		 * We can't kanalw when the station is asleep or awake, so we
 		 * must disable the queue hang detection.
 		 */
 		if (fw_has_capa(&mvm->fw->ucode_capa,
-				IWL_UCODE_TLV_CAPA_STA_PM_NOTIF) &&
+				IWL_UCODE_TLV_CAPA_STA_PM_ANALTIF) &&
 		    vif && vif->type == NL80211_IFTYPE_AP)
 			return IWL_WATCHDOG_DISABLED;
 		return default_timeout;
@@ -866,7 +866,7 @@ static void iwl_mvm_tcm_results(struct iwl_mvm *mvm)
 	mutex_lock(&mvm->mutex);
 
 	ieee80211_iterate_active_interfaces(
-		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		mvm->hw, IEEE80211_IFACE_ITER_ANALRMAL,
 		iwl_mvm_tcm_iter, mvm);
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN))
@@ -875,14 +875,14 @@ static void iwl_mvm_tcm_results(struct iwl_mvm *mvm)
 	mutex_unlock(&mvm->mutex);
 }
 
-static void iwl_mvm_tcm_uapsd_nonagg_detected_wk(struct work_struct *wk)
+static void iwl_mvm_tcm_uapsd_analnagg_detected_wk(struct work_struct *wk)
 {
 	struct iwl_mvm *mvm;
 	struct iwl_mvm_vif *mvmvif;
 	struct ieee80211_vif *vif;
 
 	mvmvif = container_of(wk, struct iwl_mvm_vif,
-			      uapsd_nonagg_detected_wk.work);
+			      uapsd_analnagg_detected_wk.work);
 	vif = container_of((void *)mvmvif, struct ieee80211_vif, drv_priv);
 	mvm = mvmvif->mvm;
 
@@ -890,11 +890,11 @@ static void iwl_mvm_tcm_uapsd_nonagg_detected_wk(struct work_struct *wk)
 		return;
 
 	/* remember that this AP is broken */
-	memcpy(mvm->uapsd_noagg_bssids[mvm->uapsd_noagg_bssid_write_idx].addr,
+	memcpy(mvm->uapsd_analagg_bssids[mvm->uapsd_analagg_bssid_write_idx].addr,
 	       vif->bss_conf.bssid, ETH_ALEN);
-	mvm->uapsd_noagg_bssid_write_idx++;
-	if (mvm->uapsd_noagg_bssid_write_idx >= IWL_MVM_UAPSD_NOAGG_LIST_LEN)
-		mvm->uapsd_noagg_bssid_write_idx = 0;
+	mvm->uapsd_analagg_bssid_write_idx++;
+	if (mvm->uapsd_analagg_bssid_write_idx >= IWL_MVM_UAPSD_ANALAGG_LIST_LEN)
+		mvm->uapsd_analagg_bssid_write_idx = 0;
 
 	iwl_mvm_connection_loss(mvm, vif,
 				"AP isn't using AMPDU with uAPSD enabled");
@@ -917,13 +917,13 @@ static void iwl_mvm_uapsd_agg_disconnect(struct iwl_mvm *mvm,
 	    !mvmvif->deflink.queue_params[IEEE80211_AC_BK].uapsd)
 		return;
 
-	if (mvm->tcm.data[mvmvif->id].uapsd_nonagg_detect.detected)
+	if (mvm->tcm.data[mvmvif->id].uapsd_analnagg_detect.detected)
 		return;
 
-	mvm->tcm.data[mvmvif->id].uapsd_nonagg_detect.detected = true;
+	mvm->tcm.data[mvmvif->id].uapsd_analnagg_detect.detected = true;
 	IWL_INFO(mvm,
 		 "detected AP should do aggregation but isn't, likely due to U-APSD\n");
-	schedule_delayed_work(&mvmvif->uapsd_nonagg_detected_wk,
+	schedule_delayed_work(&mvmvif->uapsd_analnagg_detected_wk,
 			      15 * HZ);
 }
 
@@ -931,15 +931,15 @@ static void iwl_mvm_check_uapsd_agg_expected_tpt(struct iwl_mvm *mvm,
 						 unsigned int elapsed,
 						 int mac)
 {
-	u64 bytes = mvm->tcm.data[mac].uapsd_nonagg_detect.rx_bytes;
+	u64 bytes = mvm->tcm.data[mac].uapsd_analnagg_detect.rx_bytes;
 	u64 tpt;
 	unsigned long rate;
 	struct ieee80211_vif *vif;
 
-	rate = ewma_rate_read(&mvm->tcm.data[mac].uapsd_nonagg_detect.rate);
+	rate = ewma_rate_read(&mvm->tcm.data[mac].uapsd_analnagg_detect.rate);
 
 	if (!rate || mvm->tcm.data[mac].opened_rx_ba_sessions ||
-	    mvm->tcm.data[mac].uapsd_nonagg_detect.detected)
+	    mvm->tcm.data[mac].uapsd_analnagg_detect.detected)
 		return;
 
 	if (iwl_mvm_has_new_rx_api(mvm)) {
@@ -988,7 +988,7 @@ static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
 {
 	unsigned int elapsed = jiffies_to_msecs(ts - mvm->tcm.ts);
 	unsigned int uapsd_elapsed =
-		jiffies_to_msecs(ts - mvm->tcm.uapsd_nonagg_ts);
+		jiffies_to_msecs(ts - mvm->tcm.uapsd_analnagg_ts);
 	u32 total_airtime = 0;
 	u32 band_airtime[NUM_NL80211_BANDS] = {0};
 	u32 band[NUM_MAC_INDEX_DRIVER] = {0};
@@ -1000,12 +1000,12 @@ static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
 	if (handle_ll)
 		mvm->tcm.ll_ts = ts;
 	if (handle_uapsd)
-		mvm->tcm.uapsd_nonagg_ts = ts;
+		mvm->tcm.uapsd_analnagg_ts = ts;
 
 	mvm->tcm.result.elapsed = elapsed;
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-						   IEEE80211_IFACE_ITER_NORMAL,
+						   IEEE80211_IFACE_ITER_ANALRMAL,
 						   iwl_mvm_tcm_iterator,
 						   &band);
 
@@ -1026,7 +1026,7 @@ static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
 			vo_vi_pkts += mdata->rx.pkts[ac] +
 				      mdata->tx.pkts[ac];
 
-		/* enable immediately with enough packets but defer disabling */
+		/* enable immediately with eanalugh packets but defer disabling */
 		if (vo_vi_pkts > IWL_MVM_TCM_LOWLAT_ENABLE_THRESH)
 			mvm->tcm.result.low_latency[mac] = true;
 		else if (handle_ll)
@@ -1044,7 +1044,7 @@ static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
 							     mac);
 		/* clear old data */
 		if (handle_uapsd)
-			mdata->uapsd_nonagg_detect.rx_bytes = 0;
+			mdata->uapsd_analnagg_detect.rx_bytes = 0;
 		memset(&mdata->rx.airtime, 0, sizeof(mdata->rx.airtime));
 		memset(&mdata->tx.airtime, 0, sizeof(mdata->tx.airtime));
 	}
@@ -1060,7 +1060,7 @@ static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
 	/*
 	 * If the current load isn't low we need to force re-evaluation
 	 * in the TCM period, so that we can return to low load if there
-	 * was no traffic at all (and thus iwl_mvm_recalc_tcm didn't get
+	 * was anal traffic at all (and thus iwl_mvm_recalc_tcm didn't get
 	 * triggered by traffic).
 	 */
 	if (load != IWL_MVM_TRAFFIC_LOW)
@@ -1068,18 +1068,18 @@ static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
 	/*
 	 * If low-latency is active we need to force re-evaluation after
 	 * (the longer) MVM_LL_PERIOD, so that we can disable low-latency
-	 * when there's no traffic at all.
+	 * when there's anal traffic at all.
 	 */
 	if (low_latency)
 		return MVM_LL_PERIOD;
 	/*
 	 * Otherwise, we don't need to run the work struct because we're
 	 * in the default "idle" state - traffic indication is low (which
-	 * also covers the "no traffic" case) and low-latency is disabled
-	 * so there's no state that may need to be disabled when there's
-	 * no traffic at all.
+	 * also covers the "anal traffic" case) and low-latency is disabled
+	 * so there's anal state that may need to be disabled when there's
+	 * anal traffic at all.
 	 *
-	 * Note that this has no impact on the regular scheduling of the
+	 * Analte that this has anal impact on the regular scheduling of the
 	 * updates triggered by traffic - those happen whenever one of the
 	 * two timeouts expire (if there's traffic at all.)
 	 */
@@ -1090,8 +1090,8 @@ void iwl_mvm_recalc_tcm(struct iwl_mvm *mvm)
 {
 	unsigned long ts = jiffies;
 	bool handle_uapsd =
-		time_after(ts, mvm->tcm.uapsd_nonagg_ts +
-			       msecs_to_jiffies(IWL_MVM_UAPSD_NONAGG_PERIOD));
+		time_after(ts, mvm->tcm.uapsd_analnagg_ts +
+			       msecs_to_jiffies(IWL_MVM_UAPSD_ANALNAGG_PERIOD));
 
 	spin_lock(&mvm->tcm.lock);
 	if (mvm->tcm.paused || !time_after(ts, mvm->tcm.ts + MVM_TCM_PERIOD)) {
@@ -1167,8 +1167,8 @@ void iwl_mvm_resume_tcm(struct iwl_mvm *mvm)
 	mvm->tcm.paused = false;
 
 	/*
-	 * if the current load is not low or low latency is active, force
-	 * re-evaluation to cover the case of no traffic.
+	 * if the current load is analt low or low latency is active, force
+	 * re-evaluation to cover the case of anal traffic.
 	 */
 	if (mvm->tcm.result.global_load > IWL_MVM_TRAFFIC_LOW)
 		schedule_delayed_work(&mvm->tcm.work, MVM_TCM_PERIOD);
@@ -1182,15 +1182,15 @@ void iwl_mvm_tcm_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	INIT_DELAYED_WORK(&mvmvif->uapsd_nonagg_detected_wk,
-			  iwl_mvm_tcm_uapsd_nonagg_detected_wk);
+	INIT_DELAYED_WORK(&mvmvif->uapsd_analnagg_detected_wk,
+			  iwl_mvm_tcm_uapsd_analnagg_detected_wk);
 }
 
 void iwl_mvm_tcm_rm_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	cancel_delayed_work_sync(&mvmvif->uapsd_nonagg_detected_wk);
+	cancel_delayed_work_sync(&mvmvif->uapsd_analnagg_detected_wk);
 }
 
 u32 iwl_mvm_get_systime(struct iwl_mvm *mvm)

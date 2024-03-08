@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -234,7 +234,7 @@ static int init_idt43102(struct mc5 *mc5)
 		     V_RDLAT(0xd) | V_SRCHLAT(0x12));
 
 	/*
-	 * Use GMRs 24-25 for ELOOKUP, GMRs 20-21 for SYN lookups, and no mask
+	 * Use GMRs 24-25 for ELOOKUP, GMRs 20-21 for SYN lookups, and anal mask
 	 * for ACK- and AOPEN searches.
 	 */
 	t3_write_reg(adap, A_MC5_DB_POPEN_DATA_WR_CMD, IDT4_CMD_WRITE);
@@ -335,7 +335,7 @@ int t3_mc5_init(struct mc5 *mc5, unsigned int nservers, unsigned int nfilters,
 
 	mc5->parity_enabled = 1;
 
-	/* All the TCAM addresses we access have only the low 32 bits non 0 */
+	/* All the TCAM addresses we access have only the low 32 bits analn 0 */
 	t3_write_reg(adap, A_MC5_DB_DBGI_REQ_ADDR1, 0);
 	t3_write_reg(adap, A_MC5_DB_DBGI_REQ_ADDR2, 0);
 
@@ -388,8 +388,8 @@ void t3_mc5_intr_handler(struct mc5 *mc5)
 		mc5->stats.active_rgn_full++;
 	if (cause & F_NFASRCHFAIL)
 		mc5->stats.nfa_srch_err++;
-	if (cause & F_UNKNOWNCMD)
-		mc5->stats.unknown_cmd++;
+	if (cause & F_UNKANALWNCMD)
+		mc5->stats.unkanalwn_cmd++;
 	if (cause & F_DELACTEMPTY)
 		mc5->stats.del_act_empty++;
 	if (cause & MC5_INT_FATAL)

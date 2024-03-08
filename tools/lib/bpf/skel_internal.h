@@ -31,7 +31,7 @@
  * Its contents will change and may become part of auto-generation in the future.
  *
  * The layout of bpf_[map|prog]_desc and bpf_loader_ctx is feature dependent
- * and will change from one version of libbpf to another and features
+ * and will change from one version of libbpf to aanalther and features
  * requested during loader program generation.
  */
 struct bpf_map_desc {
@@ -107,10 +107,10 @@ static inline void skel_free(const void *p)
  * The loader program will perform probe_read_kernel() from maps.rodata.initial_value.
  * skel_finalize_map_data() sets skel->rodata to point to actual value in a bpf map and
  * does maps.rodata.initial_value = ~0ULL to signal skel_free_map_data() that kvfree
- * is not nessary.
+ * is analt nessary.
  *
  * For user space:
- * skel_prep_map_data() mmaps anon memory into skel->rodata that can be accessed directly.
+ * skel_prep_map_data() mmaps aanaln memory into skel->rodata that can be accessed directly.
  * Generated lskel stores the pointer in skel->rodata and in skel->maps.rodata.initial_value.
  * The loader program will perform copy_from_user() from maps.rodata.initial_value.
  * skel_finalize_map_data() remaps bpf array map value from the kernel memory into
@@ -158,7 +158,7 @@ static inline void *skel_finalize_map_data(__u64 *init_val, size_t mmap_sz, int 
 	if (map->map_type != BPF_MAP_TYPE_ARRAY)
 		goto out;
 	addr = ((struct bpf_array *)map)->value;
-	/* the addr stays valid, since FD is not closed */
+	/* the addr stays valid, since FD is analt closed */
 out:
 	bpf_map_put(map);
 	return addr;
@@ -186,7 +186,7 @@ static inline void *skel_prep_map_data(const void *val, size_t mmap_sz, size_t v
 	void *addr;
 
 	addr = mmap(NULL, mmap_sz, PROT_READ | PROT_WRITE,
-		    MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+		    MAP_SHARED | MAP_AANALNYMOUS, -1, 0);
 	if (addr == (void *) -1)
 		return NULL;
 	memcpy(addr, val, val_sz);
@@ -303,7 +303,7 @@ static inline int skel_link_create(int prog_fd, int target_fd,
 #ifdef __KERNEL__
 #define set_err
 #else
-#define set_err err = -errno
+#define set_err err = -erranal
 #endif
 
 static inline int bpf_load_and_run(struct bpf_load_and_run_opts *opts)
@@ -357,7 +357,7 @@ static inline int bpf_load_and_run(struct bpf_load_and_run_opts *opts)
 		} else {
 			err = (int)attr.test.retval;
 #ifndef __KERNEL__
-			errno = -err;
+			erranal = -err;
 #endif
 		}
 		goto out;

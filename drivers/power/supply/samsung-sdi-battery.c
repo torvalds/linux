@@ -22,7 +22,7 @@ struct samsung_sdi_battery {
 /*
  * Voltage to internal resistance tables. The internal resistance varies
  * depending on the VBAT voltage, so look this up from a table. Different
- * tables apply depending on whether we are charging or not.
+ * tables apply depending on whether we are charging or analt.
  */
 
 static struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb_l1m7flu[] = {
@@ -427,7 +427,7 @@ static struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb585157lu[] 
  * "resistance" is the percentage of the resistance determined from the voltage
  * so this represents the capacity ratio at different temperatures.
  *
- * FIXME: the proper table is missing: Samsung does not provide the necessary
+ * FIXME: the proper table is missing: Samsung does analt provide the necessary
  * temperature compensation tables so we just state 100% for every temperature.
  * If you have the datasheets, please provide these tables.
  */
@@ -638,7 +638,7 @@ static struct samsung_sdi_battery samsung_sdi_batteries[] = {
 		.name = "EB-L1M7FLU",
 		.info = {
 			.charge_full_design_uah = 1500000,
-			.technology = POWER_SUPPLY_TECHNOLOGY_LION,
+			.techanallogy = POWER_SUPPLY_TECHANALLOGY_LION,
 			.factory_internal_resistance_uohm = 100000,
 			.factory_internal_resistance_charging_uohm = 200000,
 			/* If you have data on this fix the min_design_uv */
@@ -682,7 +682,7 @@ static struct samsung_sdi_battery samsung_sdi_batteries[] = {
 		.name = "EB425161LA",
 		.info = {
 			.charge_full_design_uah = 1500000,
-			.technology = POWER_SUPPLY_TECHNOLOGY_LION,
+			.techanallogy = POWER_SUPPLY_TECHANALLOGY_LION,
 			.factory_internal_resistance_uohm = 136000,
 			.factory_internal_resistance_charging_uohm = 200000,
 			/* If you have data on this fix the min_design_uv */
@@ -726,7 +726,7 @@ static struct samsung_sdi_battery samsung_sdi_batteries[] = {
 		.name = "EB425161LU",
 		.info = {
 			.charge_full_design_uah = 1500000,
-			.technology = POWER_SUPPLY_TECHNOLOGY_LION,
+			.techanallogy = POWER_SUPPLY_TECHANALLOGY_LION,
 			.factory_internal_resistance_uohm = 100000,
 			.factory_internal_resistance_charging_uohm = 200000,
 			/* If you have data on this fix the min_design_uv */
@@ -770,7 +770,7 @@ static struct samsung_sdi_battery samsung_sdi_batteries[] = {
 		.name = "EB485159LU",
 		.info = {
 			.charge_full_design_uah = 1700000,
-			.technology = POWER_SUPPLY_TECHNOLOGY_LION,
+			.techanallogy = POWER_SUPPLY_TECHANALLOGY_LION,
 			.factory_internal_resistance_uohm = 100000,
 			.factory_internal_resistance_charging_uohm = 200000,
 			.voltage_min_design_uv = 3320000,
@@ -814,7 +814,7 @@ static struct samsung_sdi_battery samsung_sdi_batteries[] = {
 		.name = "EB535151VU",
 		.info = {
 			.charge_full_design_uah = 1500000,
-			.technology = POWER_SUPPLY_TECHNOLOGY_LION,
+			.techanallogy = POWER_SUPPLY_TECHANALLOGY_LION,
 			.factory_internal_resistance_uohm = 100000,
 			.factory_internal_resistance_charging_uohm = 200000,
 			/* If you have data on this fix the min_design_uv */
@@ -858,7 +858,7 @@ static struct samsung_sdi_battery samsung_sdi_batteries[] = {
 		.name = "EB585157LU",
 		.info = {
 			.charge_full_design_uah = 2000000,
-			.technology = POWER_SUPPLY_TECHNOLOGY_LION,
+			.techanallogy = POWER_SUPPLY_TECHANALLOGY_LION,
 			.factory_internal_resistance_uohm = 105000,
 			.factory_internal_resistance_charging_uohm = 160000,
 			/* If you have data on this fix the min_design_uv */
@@ -909,7 +909,7 @@ int samsung_sdi_battery_get_info(struct device *dev,
 	}
 
 	if (i == ARRAY_SIZE(samsung_sdi_batteries))
-		return -ENODEV;
+		return -EANALDEV;
 
 	*info = &batt->info;
 	dev_info(dev, "Samsung SDI %s battery %d mAh\n",

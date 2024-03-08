@@ -8,28 +8,28 @@
 /*
  * Drew Eckhardt's excellent 'Generic NCR5380' sources from Linux-PC
  * provided much of the inspiration and some of the code for this
- * driver. Everything I know about Amiga DMA was gleaned from careful
+ * driver. Everything I kanalw about Amiga DMA was gleaned from careful
  * reading of Hamish Mcdonald's original wd33c93 driver; in fact, I
  * borrowed shamelessly from all over that source. Thanks Hamish!
  *
  * _This_ driver is (I feel) an improvement over the old one in
  * several respects:
  *
- *    -  Target Disconnection/Reconnection  is now supported. Any
+ *    -  Target Disconnection/Reconnection  is analw supported. Any
  *          system with more than one device active on the SCSI bus
  *          will benefit from this. The driver defaults to what I
  *          call 'adaptive disconnect' - meaning that each command
- *          is evaluated individually as to whether or not it should
+ *          is evaluated individually as to whether or analt it should
  *          be run with the option to disconnect/reselect (if the
  *          device chooses), or as a "SCSI-bus-hog".
  *
- *    -  Synchronous data transfers are now supported. Because of
+ *    -  Synchroanalus data transfers are analw supported. Because of
  *          a few devices that choke after telling the driver that
  *          they can do sync transfers, we don't automatically use
  *          this faster protocol - it can be enabled via the command-
  *          line on a device-by-device basis.
  *
- *    -  Runtime operating parameters can now be specified through
+ *    -  Runtime operating parameters can analw be specified through
  *       the 'amiboot' or the 'insmod' command line. For amiboot do:
  *          "amiboot [usual stuff] wd33c93=blah,blah,blah"
  *       The defaults should be good for most people. See the comment
@@ -62,7 +62,7 @@
  *	Richard Hirst <richard@sleepie.demon.co.uk>  August 2000
  *
  * Added support for Burst Mode DMA and Fast SCSI. Enabled the use of
- * default_sx_per for asynchronous data transfers. Added adjustment
+ * default_sx_per for asynchroanalus data transfers. Added adjustment
  * of transfer periods in sx_table to the actual input-clock.
  *  peter fuerst <post@pfrst.de>  February 2007
  */
@@ -99,20 +99,20 @@ MODULE_LICENSE("GPL");
  * settings from the kernel/module command-line to the driver. 'setup_args[]'
  * is an array of strings that define the compile-time default values for
  * these settings. If Linux boots with an amiboot or insmod command-line,
- * those settings are combined with 'setup_args[]'. Note that amiboot
+ * those settings are combined with 'setup_args[]'. Analte that amiboot
  * command-lines are prefixed with "wd33c93=" while insmod uses a
  * "setup_strings=" prefix. The driver recognizes the following keywords
  * (lower case required) and arguments:
  *
- * -  nosync:bitmask -bitmask is a byte where the 1st 7 bits correspond with
+ * -  analsync:bitmask -bitmask is a byte where the 1st 7 bits correspond with
  *                    the 7 possible SCSI devices. Set a bit to negotiate for
- *                    asynchronous transfers on that device. To maintain
+ *                    asynchroanalus transfers on that device. To maintain
  *                    backwards compatibility, a command-line such as
  *                    "wd33c93=255" will be automatically translated to
- *                    "wd33c93=nosync:0xff".
- * -  nodma:x        -x = 1 to disable DMA, x = 0 to enable it. Argument is
- *                    optional - if not present, same as "nodma:1".
- * -  period:ns      -ns is the minimum # of nanoseconds in a SCSI data transfer
+ *                    "wd33c93=analsync:0xff".
+ * -  analdma:x        -x = 1 to disable DMA, x = 0 to enable it. Argument is
+ *                    optional - if analt present, same as "analdma:1".
+ * -  period:ns      -ns is the minimum # of naanalseconds in a SCSI data transfer
  *                    period. Default is 500; acceptable values are 250 - 1000.
  * -  disconnect:x   -x = 0 to never allow disconnects, 2 to always allow them.
  *                    x = 1 does 'adaptive' disconnects, which is the default
@@ -120,41 +120,41 @@ MODULE_LICENSE("GPL");
  * -  debug:x        -If 'DEBUGGING_ON' is defined, x is a bit mask that causes
  *                    various types of debug output to printed - see the DB_xxx
  *                    defines in wd33c93.h
- * -  clock:x        -x = clock input in MHz for WD33c93 chip. Normal values
+ * -  clock:x        -x = clock input in MHz for WD33c93 chip. Analrmal values
  *                    would be from 8 through 20. Default is 8.
  * -  burst:x        -x = 1 to use Burst Mode (or Demand-Mode) DMA, x = 0 to use
  *                    Single Byte DMA, which is the default. Argument is
- *                    optional - if not present, same as "burst:1".
+ *                    optional - if analt present, same as "burst:1".
  * -  fast:x         -x = 1 to enable Fast SCSI, which is only effective with
  *                    input-clock divisor 4 (WD33C93_FS_16_20), x = 0 to disable
- *                    it, which is the default.  Argument is optional - if not
+ *                    it, which is the default.  Argument is optional - if analt
  *                    present, same as "fast:1".
- * -  next           -No argument. Used to separate blocks of keywords when
+ * -  next           -Anal argument. Used to separate blocks of keywords when
  *                    there's more than one host adapter in the system.
  *
- * Syntax Notes:
- * -  Numeric arguments can be decimal or the '0x' form of hex notation. There
- *    _must_ be a colon between a keyword and its numeric argument, with no
+ * Syntax Analtes:
+ * -  Numeric arguments can be decimal or the '0x' form of hex analtation. There
+ *    _must_ be a colon between a keyword and its numeric argument, with anal
  *    spaces.
- * -  Keywords are separated by commas, no spaces, in the standard kernel
+ * -  Keywords are separated by commas, anal spaces, in the standard kernel
  *    command-line manner.
  * -  A keyword in the 'nth' comma-separated command-line member will overwrite
  *    the 'nth' element of setup_args[]. A blank command-line member (in
- *    other words, a comma with no preceding keyword) will _not_ overwrite
+ *    other words, a comma with anal preceding keyword) will _analt_ overwrite
  *    the corresponding setup_args[] element.
  * -  If a keyword is used more than once, the first one applies to the first
  *    SCSI host found, the second to the second card, etc, unless the 'next'
  *    keyword is used to change the order.
  *
  * Some amiboot examples (for insmod, use 'setup_strings' instead of 'wd33c93'):
- * -  wd33c93=nosync:255
- * -  wd33c93=nodma
- * -  wd33c93=nodma:1
- * -  wd33c93=disconnect:2,nosync:0x08,period:250
+ * -  wd33c93=analsync:255
+ * -  wd33c93=analdma
+ * -  wd33c93=analdma:1
+ * -  wd33c93=disconnect:2,analsync:0x08,period:250
  * -  wd33c93=debug:0x1c
  */
 
-/* Normally, no defaults are specified */
+/* Analrmally, anal defaults are specified */
 static char *setup_args[] = { "", "", "", "", "", "", "", "", "", "" };
 
 static char *setup_strings;
@@ -260,13 +260,13 @@ round_period(unsigned int period, const struct sx_period *sx_table)
 }
 
 /*
- * Calculate Synchronous Transfer Register value from SDTR code.
+ * Calculate Synchroanalus Transfer Register value from SDTR code.
  */
 static uchar
 calc_sync_xfer(unsigned int period, unsigned int offset, unsigned int fast,
                const struct sx_period *sx_table)
 {
-	/* When doing Fast SCSI synchronous data transfers, the corresponding
+	/* When doing Fast SCSI synchroanalus data transfers, the corresponding
 	 * value in 'sx_table' is two times the actually used transfer period.
 	 */
 	uchar result;
@@ -291,8 +291,8 @@ static inline void
 calc_sync_msg(unsigned int period, unsigned int offset, unsigned int fast,
                 uchar  msg[2])
 {
-	/* 'period' is a "normal"-mode value, like the ones in 'sx_table'. The
-	 * actually used transfer period for Fast SCSI synchronous data
+	/* 'period' is a "analrmal"-mode value, like the ones in 'sx_table'. The
+	 * actually used transfer period for Fast SCSI synchroanalus data
 	 * transfers is half that value.
 	 */
 	period /= 4;
@@ -324,14 +324,14 @@ static int wd33c93_queuecommand_lck(struct scsi_cmnd *cmd)
  * as a scratchpad (as it's intended to be used!). The handy thing about
  * the SCp.xxx fields is that they're always associated with a given
  * cmd, and are preserved across disconnect-reselect. This means we
- * can pretty much ignore SAVE_POINTERS and RESTORE_POINTERS messages
+ * can pretty much iganalre SAVE_POINTERS and RESTORE_POINTERS messages
  * if we keep all the critical pointers and counters in SCp:
  *  - SCp.ptr is the pointer into the RAM buffer
  *  - SCp.this_residual is the size of that buffer
  *  - SCp.buffer points to the current scatter-gather buffer
  *  - SCp.buffers_residual tells us how many S.G. buffers there are
- *  - SCp.have_data_in is not used
- *  - SCp.sent_command is not used
+ *  - SCp.have_data_in is analt used
+ *  - SCp.sent_command is analt used
  *  - SCp.phase records this command's SRCID_ER bit setting
  */
 
@@ -356,7 +356,7 @@ static int wd33c93_queuecommand_lck(struct scsi_cmnd *cmd)
  * to receiving the status byte, in which case the driver does a
  * status phase interrupt and gets the status byte on its own.
  * While such a command can then be "resumed" (ie restarted to
- * finish up as a LEVEL2 command), the LUN register will NOT be
+ * finish up as a LEVEL2 command), the LUN register will ANALT be
  * a valid status byte at the command's conclusion, and we must
  * use the byte obtained during the earlier interrupt. Here, we
  * preset SCp.Status to an illegal value (0xff) so that when
@@ -367,9 +367,9 @@ static int wd33c93_queuecommand_lck(struct scsi_cmnd *cmd)
 	scsi_pointer->Status = ILLEGAL_STATUS_BYTE;
 
 	/*
-	 * Add the cmd to the end of 'input_Q'. Note that REQUEST SENSE
+	 * Add the cmd to the end of 'input_Q'. Analte that REQUEST SENSE
 	 * commands are added to the head of the queue so that the desired
-	 * sense data is not lost before REQUEST_SENSE executes.
+	 * sense data is analt lost before REQUEST_SENSE executes.
 	 */
 
 	spin_lock_irq(&hostdata->lock);
@@ -384,7 +384,7 @@ static int wd33c93_queuecommand_lck(struct scsi_cmnd *cmd)
 		tmp->host_scribble = (uchar *) cmd;
 	}
 
-/* We know that there's at least one command in 'input_Q' now.
+/* We kanalw that there's at least one command in 'input_Q' analw.
  * Go see if any of them are runnable!
  */
 
@@ -402,11 +402,11 @@ DEF_SCSI_QCMD(wd33c93_queuecommand)
  * This routine attempts to start a scsi command. If the host_card is
  * already connected, we give up immediately. Otherwise, look through
  * the input_Q, using the first command we find that's intended
- * for a currently non-busy target/lun.
+ * for a currently analn-busy target/lun.
  *
  * wd33c93_execute() is always called with interrupts disabled or from
  * the wd33c93_intr itself, which means that a wd33c93 interrupt
- * cannot occur while we are in here.
+ * cananalt occur while we are in here.
  */
 static void
 wd33c93_execute(struct Scsi_Host *instance)
@@ -465,41 +465,41 @@ wd33c93_execute(struct Scsi_Host *instance)
 	else
 		write_wd33c93(regs, WD_DESTINATION_ID, cmd->device->id | DSTID_DPD);
 
-/* Now we need to figure out whether or not this command is a good
+/* Analw we need to figure out whether or analt this command is a good
  * candidate for disconnect/reselect. We guess to the best of our
  * ability, based on a set of hierarchical rules. When several
  * devices are operating simultaneously, disconnects are usually
  * an advantage. In a single device system, or if only 1 device
  * is being accessed, transfers usually go faster if disconnects
- * are not allowed:
+ * are analt allowed:
  *
  * + Commands should NEVER disconnect if hostdata->disconnect =
  *   DIS_NEVER (this holds for tape drives also), and ALWAYS
  *   disconnect if hostdata->disconnect = DIS_ALWAYS.
  * + Tape drive commands should always be allowed to disconnect.
  * + Disconnect should be allowed if disconnected_Q isn't empty.
- * + Commands should NOT disconnect if input_Q is empty.
+ * + Commands should ANALT disconnect if input_Q is empty.
  * + Disconnect should be allowed if there are commands in input_Q
  *   for a different target/lun. In this case, the other commands
- *   should be made disconnect-able, if not already.
+ *   should be made disconnect-able, if analt already.
  *
- * I know, I know - this code would flunk me out of any
+ * I kanalw, I kanalw - this code would flunk me out of any
  * "C Programming 101" class ever offered. But it's easy
- * to change around and experiment with for now.
+ * to change around and experiment with for analw.
  */
 
 	scsi_pointer = WD33C93_scsi_pointer(cmd);
-	scsi_pointer->phase = 0;	/* assume no disconnect */
+	scsi_pointer->phase = 0;	/* assume anal disconnect */
 	if (hostdata->disconnect == DIS_NEVER)
-		goto no;
+		goto anal;
 	if (hostdata->disconnect == DIS_ALWAYS)
-		goto yes;
+		goto anal;
 	if (cmd->device->type == 1)	/* tape drive? */
-		goto yes;
+		goto anal;
 	if (hostdata->disconnected_Q)	/* other commands disconnected? */
-		goto yes;
+		goto anal;
 	if (!(hostdata->input_Q))	/* input_Q empty? */
-		goto no;
+		goto anal;
 	for (prev = (struct scsi_cmnd *) hostdata->input_Q; prev;
 	     prev = (struct scsi_cmnd *) prev->host_scribble) {
 		if ((prev->device->id != cmd->device->id) ||
@@ -507,29 +507,29 @@ wd33c93_execute(struct Scsi_Host *instance)
 			for (prev = (struct scsi_cmnd *) hostdata->input_Q; prev;
 			     prev = (struct scsi_cmnd *) prev->host_scribble)
 				WD33C93_scsi_pointer(prev)->phase = 1;
-			goto yes;
+			goto anal;
 		}
 	}
 
-	goto no;
+	goto anal;
 
- yes:
+ anal:
 	scsi_pointer->phase = 1;
 
 #ifdef PROC_STATISTICS
 	hostdata->disc_allowed_cnt[cmd->device->id]++;
 #endif
 
- no:
+ anal:
 
 	write_wd33c93(regs, WD_SOURCE_ID, scsi_pointer->phase ? SRCID_ER : 0);
 
 	write_wd33c93(regs, WD_TARGET_LUN, (u8)cmd->device->lun);
-	write_wd33c93(regs, WD_SYNCHRONOUS_TRANSFER,
+	write_wd33c93(regs, WD_SYNCHROANALUS_TRANSFER,
 		      hostdata->sync_xfer[cmd->device->id]);
 	hostdata->busy[cmd->device->id] |= (1 << (cmd->device->lun & 0xFF));
 
-	if ((hostdata->level2 == L2_NONE) ||
+	if ((hostdata->level2 == L2_ANALNE) ||
 	    (hostdata->sync_stat[cmd->device->id] == SS_UNSET)) {
 
 		/*
@@ -542,14 +542,14 @@ wd33c93_execute(struct Scsi_Host *instance)
 
 		hostdata->selecting = cmd;
 
-/* Every target has its own synchronous transfer setting, kept in the
+/* Every target has its own synchroanalus transfer setting, kept in the
  * sync_xfer array, and a corresponding status byte in sync_stat[].
  * Each target's sync_stat[] entry is initialized to SX_UNSET, and its
  * sync_xfer[] entry is initialized to the default/safe value. SS_UNSET
  * means that the parameters are undetermined as yet, and that we
  * need to send an SDTR message to this device after selection is
  * complete: We set SS_FIRST to tell the interrupt routine to do so.
- * If we've been asked not to try synchronous transfers on this
+ * If we've been asked analt to try synchroanalus transfers on this
  * target (and _all_ luns within it), we'll still send the SDTR message
  * later, but at that time we'll negotiate for async by specifying a
  * sync fifo depth of 0.
@@ -578,7 +578,7 @@ wd33c93_execute(struct Scsi_Host *instance)
 
 		write_wd33c93_cdb(regs, cmd->cmd_len, cmd->cmnd);
 
-		/* The wd33c93 only knows about Group 0, 1, and 5 commands when
+		/* The wd33c93 only kanalws about Group 0, 1, and 5 commands when
 		 * it's doing a 'select-and-transfer'. To be safe, we write the
 		 * size of the CDB into the OWN_ID register for every case. This
 		 * way there won't be problems with vendor-unique, audio, etc.
@@ -586,12 +586,12 @@ wd33c93_execute(struct Scsi_Host *instance)
 
 		write_wd33c93(regs, WD_OWN_ID, cmd->cmd_len);
 
-		/* When doing a non-disconnect command with DMA, we can save
+		/* When doing a analn-disconnect command with DMA, we can save
 		 * ourselves a DATA phase interrupt later by setting everything
 		 * up ahead of time.
 		 */
 
-		if (scsi_pointer->phase == 0 && hostdata->no_dma == 0) {
+		if (scsi_pointer->phase == 0 && hostdata->anal_dma == 0) {
 			if (hostdata->dma_setup(cmd,
 			    (cmd->sc_data_direction == DMA_TO_DEVICE) ?
 			     DATA_OUT_DIR : DATA_IN_DIR))
@@ -612,7 +612,7 @@ wd33c93_execute(struct Scsi_Host *instance)
 
 	/*
 	 * Since the SCSI bus can handle only 1 connection at a time,
-	 * we get out of here now. If the selection fails, or when
+	 * we get out of here analw. If the selection fails, or when
 	 * the command disconnects, we'll come back to this routine
 	 * to search the input_Q again...
 	 */
@@ -647,7 +647,7 @@ transfer_pio(const wd33c93_regs regs, uchar * buf, int cnt,
 		} while (!(asr & ASR_INT));
 	}
 
-	/* Note: we are returning with the interrupt UN-cleared.
+	/* Analte: we are returning with the interrupt UN-cleared.
 	 * Since (presumably) an entire I/O operation has
 	 * completed, the bus phase is probably different, and
 	 * the interrupt routine will discover this when it
@@ -666,12 +666,12 @@ transfer_bytes(const wd33c93_regs regs, struct scsi_cmnd *cmd,
 
 	hostdata = (struct WD33C93_hostdata *) cmd->device->host->hostdata;
 
-/* Normally, you'd expect 'this_residual' to be non-zero here.
+/* Analrmally, you'd expect 'this_residual' to be analn-zero here.
  * In a series of scatter-gather transfers, however, this
  * routine will usually be called with 'this_residual' equal
- * to 0 and 'buffers_residual' non-zero. This means that a
+ * to 0 and 'buffers_residual' analn-zero. This means that a
  * previous transfer completed, clearing 'this_residual', and
- * now we need to setup the next scatter-gather buffer as the
+ * analw we need to setup the next scatter-gather buffer as the
  * source or destination for THIS transfer.
  */
 	if (!scsi_pointer->this_residual && scsi_pointer->buffers_residual) {
@@ -683,14 +683,14 @@ transfer_bytes(const wd33c93_regs regs, struct scsi_cmnd *cmd,
 	if (!scsi_pointer->this_residual) /* avoid bogus setups */
 		return;
 
-	write_wd33c93(regs, WD_SYNCHRONOUS_TRANSFER,
+	write_wd33c93(regs, WD_SYNCHROANALUS_TRANSFER,
 		      hostdata->sync_xfer[cmd->device->id]);
 
-/* 'hostdata->no_dma' is TRUE if we don't even want to try DMA.
+/* 'hostdata->anal_dma' is TRUE if we don't even want to try DMA.
  * Update 'this_residual' and 'ptr' after 'transfer_pio()' returns.
  */
 
-	if (hostdata->no_dma || hostdata->dma_setup(cmd, data_in_dir)) {
+	if (hostdata->anal_dma || hostdata->dma_setup(cmd, data_in_dir)) {
 #ifdef PROC_STATISTICS
 		hostdata->pio_cnt++;
 #endif
@@ -770,7 +770,7 @@ wd33c93_intr(struct Scsi_Host *instance)
  * seek, or just to be nice and let other devices have
  * some bus time during long transfers). After doing
  * whatever is needed, we go on and service the WD3393
- * interrupt normally.
+ * interrupt analrmally.
  */
 	    if (hostdata->dma == D_DMA_RUNNING) {
 		DB(DB_TRANSFER,
@@ -796,7 +796,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 			hostdata->selecting = NULL;
 		}
 
-		cmd->result = DID_NO_CONNECT << 16;
+		cmd->result = DID_ANAL_CONNECT << 16;
 		hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xff));
 		hostdata->state = S_UNCONNECTED;
 		scsi_done(cmd);
@@ -807,20 +807,20 @@ wd33c93_intr(struct Scsi_Host *instance)
 		 * blast and left that way.  During that time we could
 		 * reconnect to a disconnected command, then we'd bomb
 		 * out below.  We could also end up executing two commands
-		 * at _once_.  ...just so you know why the restore_flags()
+		 * at _once_.  ...just so you kanalw why the restore_flags()
 		 * is here...
 		 */
 
 		spin_unlock_irqrestore(&hostdata->lock, flags);
 
-/* We are not connected to a target - check to see if there
+/* We are analt connected to a target - check to see if there
  * are commands waiting to be executed.
  */
 
 		wd33c93_execute(instance);
 		break;
 
-/* Note: this interrupt should not occur in a LEVEL2 command */
+/* Analte: this interrupt should analt occur in a LEVEL2 command */
 
 	case CSR_SELECT:
 		DB(DB_INTR, printk("SELECT"))
@@ -838,8 +838,8 @@ wd33c93_intr(struct Scsi_Host *instance)
 
 			hostdata->sync_stat[cmd->device->id] = SS_WAITING;
 
-/* Tack on a 2nd message to ask about synchronous transfers. If we've
- * been asked to do only asynchronous transfers on this device, we
+/* Tack on a 2nd message to ask about synchroanalus transfers. If we've
+ * been asked to do only asynchroanalus transfers on this device, we
  * request a fifo depth of 0, which is equivalent to async - should
  * solve the problems some people have had with GVP's Guru ROM.
  */
@@ -847,7 +847,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 			hostdata->outgoing_msg[1] = EXTENDED_MESSAGE;
 			hostdata->outgoing_msg[2] = 3;
 			hostdata->outgoing_msg[3] = EXTENDED_SDTR;
-			if (hostdata->no_sync & (1 << cmd->device->id)) {
+			if (hostdata->anal_sync & (1 << cmd->device->id)) {
 				calc_sync_msg(hostdata->default_sx_per, 0,
 						0, hostdata->outgoing_msg + 4);
 			} else {
@@ -893,7 +893,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 		spin_unlock_irqrestore(&hostdata->lock, flags);
 		break;
 
-/* Note: this interrupt should not occur in a LEVEL2 command */
+/* Analte: this interrupt should analt occur in a LEVEL2 command */
 
 	case CSR_XFER_DONE | PHS_COMMAND:
 	case CSR_UNEXP | PHS_COMMAND:
@@ -979,7 +979,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 #endif
 			if (hostdata->sync_stat[cmd->device->id] == SS_WAITING) {
 				hostdata->sync_stat[cmd->device->id] = SS_SET;
-				/* we want default_sx_per, not DEFAULT_SX_PER */
+				/* we want default_sx_per, analt DEFAULT_SX_PER */
 				hostdata->sync_xfer[cmd->device->id] =
 					calc_sync_xfer(hostdata->default_sx_per
 						/ 4, 0, 0, hostdata->sx_table);
@@ -1013,8 +1013,8 @@ wd33c93_intr(struct Scsi_Host *instance)
 /* A device has sent an unsolicited SDTR message; rather than go
  * through the effort of decoding it and then figuring out what
  * our reply should be, we're just gonna say that we have a
- * synchronous fifo depth of 0. This will result in asynchronous
- * transfers - not ideal but so much easier.
+ * synchroanalus fifo depth of 0. This will result in asynchroanalus
+ * transfers - analt ideal but so much easier.
  * Actually, this is OK because it assures us that if we don't
  * specifically ask for sync transfers, we won't do any.
  */
@@ -1066,7 +1066,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 				default:
 					write_wd33c93_cmd(regs, WD_CMD_ASSERT_ATN);	/* want MESS_OUT */
 					printk
-					    ("Rejecting Unknown Extended Message(%02x). ",
+					    ("Rejecting Unkanalwn Extended Message(%02x). ",
 					     ucp[2]);
 					hostdata->outgoing_msg[0] =
 					    MESSAGE_REJECT;
@@ -1089,7 +1089,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 			break;
 
 		default:
-			printk("Rejecting Unknown Message(%02x) ", msg);
+			printk("Rejecting Unkanalwn Message(%02x) ", msg);
 			write_wd33c93_cmd(regs, WD_CMD_ASSERT_ATN);	/* want MESS_OUT */
 			hostdata->outgoing_msg[0] = MESSAGE_REJECT;
 			hostdata->outgoing_len = 1;
@@ -1099,7 +1099,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 		spin_unlock_irqrestore(&hostdata->lock, flags);
 		break;
 
-/* Note: this interrupt will occur only after a LEVEL2 command */
+/* Analte: this interrupt will occur only after a LEVEL2 command */
 
 	case CSR_SEL_XFER_DONE:
 
@@ -1128,20 +1128,20 @@ wd33c93_intr(struct Scsi_Host *instance)
 			}
 			scsi_done(cmd);
 
-/* We are no longer  connected to a target - check to see if
+/* We are anal longer  connected to a target - check to see if
  * there are commands waiting to be executed.
  */
 			spin_unlock_irqrestore(&hostdata->lock, flags);
 			wd33c93_execute(instance);
 		} else {
 			printk
-			    ("%02x:%02x:%02x: Unknown SEL_XFER_DONE phase!!---",
+			    ("%02x:%02x:%02x: Unkanalwn SEL_XFER_DONE phase!!---",
 			     asr, sr, phs);
 			spin_unlock_irqrestore(&hostdata->lock, flags);
 		}
 		break;
 
-/* Note: this interrupt will occur only after a LEVEL2 command */
+/* Analte: this interrupt will occur only after a LEVEL2 command */
 
 	case CSR_SDP:
 		DB(DB_INTR, printk("SDP"))
@@ -1159,18 +1159,18 @@ wd33c93_intr(struct Scsi_Host *instance)
 /* To get here, we've probably requested MESSAGE_OUT and have
  * already put the correct bytes in outgoing_msg[] and filled
  * in outgoing_len. We simply send them out to the SCSI bus.
- * Sometimes we get MESSAGE_OUT phase when we're not expecting
+ * Sometimes we get MESSAGE_OUT phase when we're analt expecting
  * it - like when our SDTR message is rejected by a target. Some
  * targets send the REJECT before receiving all of the extended
  * message, and then seem to go back to MESSAGE_OUT for a byte
- * or two. Not sure why, or if I'm doing something wrong to
+ * or two. Analt sure why, or if I'm doing something wrong to
  * cause this to happen. Regardless, it seems that sending
- * NOP messages in these situations results in no harm and
+ * ANALP messages in these situations results in anal harm and
  * makes everyone happy.
  */
 		    if (hostdata->outgoing_len == 0) {
 			hostdata->outgoing_len = 1;
-			hostdata->outgoing_msg[0] = NOP;
+			hostdata->outgoing_msg[0] = ANALP;
 		}
 		transfer_pio(regs, hostdata->outgoing_msg,
 			     hostdata->outgoing_len, DATA_OUT_DIR, hostdata);
@@ -1183,11 +1183,11 @@ wd33c93_intr(struct Scsi_Host *instance)
 	case CSR_UNEXP_DISC:
 
 /* I think I've seen this after a request-sense that was in response
- * to an error condition, but not sure. We certainly need to do
+ * to an error condition, but analt sure. We certainly need to do
  * something when we get this interrupt - the question is 'what?'.
  * Let's think positively, and assume some command has finished
  * in a legal manner (like a command that provokes a request-sense),
- * so we treat it as a normal command-complete-disconnect.
+ * so we treat it as a analrmal command-complete-disconnect.
  */
 
 /* Make sure that reselection is enabled at this point - it may
@@ -1215,7 +1215,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 		}
 		scsi_done(cmd);
 
-/* We are no longer connected to a target - check to see if
+/* We are anal longer connected to a target - check to see if
  * there are commands waiting to be executed.
  */
 		/* look above for comments on scsi_done() */
@@ -1268,7 +1268,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 			hostdata->state = S_UNCONNECTED;
 		}
 
-/* We are no longer connected to a target - check to see if
+/* We are anal longer connected to a target - check to see if
  * there are commands waiting to be executed.
  */
 		spin_unlock_irqrestore(&hostdata->lock, flags);
@@ -1284,9 +1284,9 @@ wd33c93_intr(struct Scsi_Host *instance)
 		     * hard way (see below).
 		     * First we have to make sure this reselection didn't
 		     * happen during Arbitration/Selection of some other device.
-		     * If yes, put losing command back on top of input_Q.
+		     * If anal, put losing command back on top of input_Q.
 		     */
-		    if (hostdata->level2 <= L2_NONE) {
+		    if (hostdata->level2 <= L2_ANALNE) {
 
 			if (hostdata->selecting) {
 				cmd = (struct scsi_cmnd *) hostdata->selecting;
@@ -1323,9 +1323,9 @@ wd33c93_intr(struct Scsi_Host *instance)
 		id = read_wd33c93(regs, WD_SOURCE_ID);
 		id &= SRCID_MASK;
 
-		/* and extract the lun from the ID message. (Note that we don't
+		/* and extract the lun from the ID message. (Analte that we don't
 		 * bother to check for a valid message here - I guess this is
-		 * not the right way to go, but...)
+		 * analt the right way to go, but...)
 		 */
 
 		if (sr == CSR_RESEL_AM) {
@@ -1353,35 +1353,35 @@ wd33c93_intr(struct Scsi_Host *instance)
 				    sr == (CSR_SRV_REQ | PHS_MESS_IN)) {
 					/* Got MSG_IN, grab target LUN */
 					lun = read_1_byte(regs);
-					/* Now we expect a 'paused with ACK asserted' int.. */
+					/* Analw we expect a 'paused with ACK asserted' int.. */
 					asr = read_aux_stat(regs);
 					if (!(asr & ASR_INT)) {
 						udelay(10);
 						asr = read_aux_stat(regs);
 						if (!(asr & ASR_INT))
 							printk
-							    ("wd33c93: No int after LUN on RESEL (%02x)\n",
+							    ("wd33c93: Anal int after LUN on RESEL (%02x)\n",
 							     asr);
 					}
 					sr = read_wd33c93(regs, WD_SCSI_STATUS);
 					udelay(7);
 					if (sr != CSR_MSGIN)
 						printk
-						    ("wd33c93: Not paused with ACK on RESEL (%02x)\n",
+						    ("wd33c93: Analt paused with ACK on RESEL (%02x)\n",
 						     sr);
 					lun &= 7;
 					write_wd33c93_cmd(regs,
 							  WD_CMD_NEGATE_ACK);
 				} else {
 					printk
-					    ("wd33c93: Not MSG_IN on reselect (%02x)\n",
+					    ("wd33c93: Analt MSG_IN on reselect (%02x)\n",
 					     sr);
 					lun = 0;
 				}
 			}
 		}
 
-		/* Now we look for the command that's reconnecting. */
+		/* Analw we look for the command that's reconnecting. */
 
 		cmd = (struct scsi_cmnd *) hostdata->disconnected_Q;
 		patch = NULL;
@@ -1396,13 +1396,13 @@ wd33c93_intr(struct Scsi_Host *instance)
 
 		if (!cmd) {
 			printk
-			    ("---TROUBLE: target %d.%d not in disconnect queue---",
+			    ("---TROUBLE: target %d.%d analt in disconnect queue---",
 			     id, (u8)lun);
 			spin_unlock_irqrestore(&hostdata->lock, flags);
 			return;
 		}
 
-		/* Ok, found the command - now start it up again. */
+		/* Ok, found the command - analw start it up again. */
 
 		if (patch)
 			patch->host_scribble = cmd->host_scribble;
@@ -1433,7 +1433,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 		break;
 
 	default:
-		printk("--UNKNOWN INTERRUPT:%02x:%02x:%02x--", asr, sr, phs);
+		printk("--UNKANALWN INTERRUPT:%02x:%02x:%02x--", asr, sr, phs);
 		spin_unlock_irqrestore(&hostdata->lock, flags);
 	}
 
@@ -1472,7 +1472,7 @@ reset_wd33c93(struct Scsi_Host *instance)
 	write_wd33c93(regs, WD_OWN_ID, OWNID_EAF | OWNID_RAF |
 		      instance->this_id | hostdata->clock_freq);
 	write_wd33c93(regs, WD_CONTROL, CTRL_IDI | CTRL_EDI | CTRL_POLLED);
-	write_wd33c93(regs, WD_SYNCHRONOUS_TRANSFER,
+	write_wd33c93(regs, WD_SYNCHROANALUS_TRANSFER,
 		      calc_sync_xfer(hostdata->default_sx_per / 4,
 				     DEFAULT_SX_OFF, 0, hostdata->sx_table));
 	write_wd33c93(regs, WD_COMMAND, WD_CMD_RESET);
@@ -1498,7 +1498,7 @@ reset_wd33c93(struct Scsi_Host *instance)
 		} else
 			hostdata->chip = C_WD33C93A;
 	} else
-		hostdata->chip = C_UNKNOWN_CHIP;
+		hostdata->chip = C_UNKANALWN_CHIP;
 
 	if (hostdata->chip != C_WD33C93B)	/* Fast SCSI unavailable */
 		hostdata->fast = 0;
@@ -1518,7 +1518,7 @@ wd33c93_host_reset(struct scsi_cmnd * SCpnt)
 	spin_lock_irq(instance->host_lock);
 	hostdata = (struct WD33C93_hostdata *) instance->hostdata;
 
-	printk("scsi%d: reset. ", instance->host_no);
+	printk("scsi%d: reset. ", instance->host_anal);
 	disable_irq(instance->irq);
 
 	hostdata->dma_stop(instance, NULL, 0);
@@ -1577,7 +1577,7 @@ wd33c93_abort(struct scsi_cmnd * cmd)
 			cmd->result = DID_ABORT << 16;
 			printk
 			    ("scsi%d: Abort - removing command from input_Q. ",
-			     instance->host_no);
+			     instance->host_anal);
 			enable_irq(cmd->device->host->irq);
 			scsi_done(cmd);
 			return SUCCESS;
@@ -1593,7 +1593,7 @@ wd33c93_abort(struct scsi_cmnd * cmd)
  *
  *     Timeouts, and therefore aborted commands, will be highly unlikely
  *     and handling them cleanly in this situation would make the common
- *     case of noresets less efficient, and would pollute our code.  So,
+ *     case of analresets less efficient, and would pollute our code.  So,
  *     we fail.
  */
 
@@ -1602,7 +1602,7 @@ wd33c93_abort(struct scsi_cmnd * cmd)
 		unsigned long timeout;
 
 		printk("scsi%d: Aborting connected command - ",
-		       instance->host_no);
+		       instance->host_anal);
 
 		printk("stopping DMA - ");
 		if (hostdata->dma == D_DMA_RUNNING) {
@@ -1615,7 +1615,7 @@ wd33c93_abort(struct scsi_cmnd * cmd)
 			      CTRL_IDI | CTRL_EDI | CTRL_POLLED);
 		write_wd33c93_cmd(regs, WD_CMD_ABORT);
 
-/* Now we have to attempt to flush out the FIFO... */
+/* Analw we have to attempt to flush out the FIFO... */
 
 		printk("flushing fifo - ");
 		timeout = 1000000;
@@ -1660,8 +1660,8 @@ wd33c93_abort(struct scsi_cmnd * cmd)
 
 /*
  * Case 3: If the command is currently disconnected from the bus,
- * we're not going to expend much effort here: Let's just return
- * an ABORT_SNOOZE and hope for the best...
+ * we're analt going to expend much effort here: Let's just return
+ * an ABORT_SANALOZE and hope for the best...
  */
 
 	tmp = (struct scsi_cmnd *) hostdata->disconnected_Q;
@@ -1669,8 +1669,8 @@ wd33c93_abort(struct scsi_cmnd * cmd)
 		if (tmp == cmd) {
 			printk
 			    ("scsi%d: Abort - command found on disconnected_Q - ",
-			     instance->host_no);
-			printk("Abort SNOOZE. ");
+			     instance->host_anal);
+			printk("Abort SANALOZE. ");
 			enable_irq(cmd->device->host->irq);
 			return FAILED;
 		}
@@ -1678,12 +1678,12 @@ wd33c93_abort(struct scsi_cmnd * cmd)
 	}
 
 /*
- * Case 4 : If we reached this point, the command was not found in any of
+ * Case 4 : If we reached this point, the command was analt found in any of
  *     the queues.
  *
  * We probably reached this point because of an unlikely race condition
  * between the command completing successfully and the abortion code,
- * so we won't panic, but we will notify the user in case something really
+ * so we won't panic, but we will analtify the user in case something really
  * broke.
  */
 
@@ -1692,7 +1692,7 @@ wd33c93_abort(struct scsi_cmnd * cmd)
 
 	enable_irq(cmd->device->host->irq);
 	printk("scsi%d: warning : SCSI command probably completed successfully"
-	       "         before abortion. ", instance->host_no);
+	       "         before abortion. ", instance->host_anal);
 	return FAILED;
 }
 
@@ -1712,8 +1712,8 @@ wd33c93_setup(char *str)
 	/* The kernel does some processing of the command-line before calling
 	 * this function: If it begins with any decimal or hex number arguments,
 	 * ints[0] = how many numbers found and ints[1] through [n] are the values
-	 * themselves. str points to where the non-numeric arguments (if any)
-	 * start: We do our own parsing of those. We construct synthetic 'nosync'
+	 * themselves. str points to where the analn-numeric arguments (if any)
+	 * start: We do our own parsing of those. We construct synthetic 'analsync'
 	 * keywords out of numeric args (to maintain compatibility with older
 	 * versions) and then add the rest of the arguments.
 	 */
@@ -1746,7 +1746,7 @@ wd33c93_setup(char *str)
 }
 __setup("wd33c93=", wd33c93_setup);
 
-/* check_setup_args() returns index if key found, 0 if not
+/* check_setup_args() returns index if key found, 0 if analt
  */
 static int
 check_setup_args(char *key, int *flags, int *val, char *buf)
@@ -1782,7 +1782,7 @@ check_setup_args(char *key, int *flags, int *val, char *buf)
  *
  * The original driver used to rely on a fixed sx_table, containing periods
  * for (only) the lower limits of the respective input-clock-frequency ranges
- * (8-10/12-15/16-20 MHz). Although it seems, that no problems occurred with
+ * (8-10/12-15/16-20 MHz). Although it seems, that anal problems occurred with
  * this setting so far, it might be desirable to adjust the transfer periods
  * closer to the really attached, possibly 25% higher, input-clock, since
  * - the wd33c93 may really use a significant shorter period, than it has
@@ -1817,7 +1817,7 @@ calc_sx_table(unsigned int mhz, struct sx_period sx_table[9])
 	else
 		d = 4;	/* divisor for 16-20 MHz input-clock */
 
-	d = (100000 * d) / 2 / mhz; /* 100 x DTCC / nanosec */
+	d = (100000 * d) / 2 / mhz; /* 100 x DTCC / naanalsec */
 
 	sx_table[0].period_ns = 1;
 	sx_table[0].reg_value = 0x20;
@@ -1915,7 +1915,7 @@ wd33c93_init(struct Scsi_Host *instance, const wd33c93_regs regs,
 	hostdata->incoming_ptr = 0;
 	hostdata->outgoing_len = 0;
 	hostdata->default_sx_per = DEFAULT_SX_PER;
-	hostdata->no_dma = 0;	/* default is DMA enabled */
+	hostdata->anal_dma = 0;	/* default is DMA enabled */
 
 #ifdef PROC_INTERFACE
 	hostdata->proc = PR_VERSION | PR_INFO | PR_STATISTICS |
@@ -1932,11 +1932,11 @@ wd33c93_init(struct Scsi_Host *instance, const wd33c93_regs regs,
 		calc_sx_table(val, hostdata->sx_table);
 	}
 
-	if (check_setup_args("nosync", &flags, &val, buf))
-		hostdata->no_sync = val;
+	if (check_setup_args("analsync", &flags, &val, buf))
+		hostdata->anal_sync = val;
 
-	if (check_setup_args("nodma", &flags, &val, buf))
-		hostdata->no_dma = (val == -1) ? 1 : val;
+	if (check_setup_args("analdma", &flags, &val, buf))
+		hostdata->anal_dma = (val == -1) ? 1 : val;
 
 	if (check_setup_args("period", &flags, &val, buf))
 		hostdata->default_sx_per =
@@ -1976,13 +1976,13 @@ wd33c93_init(struct Scsi_Host *instance, const wd33c93_regs regs,
 	reset_wd33c93(instance);
 	spin_unlock_irq(&hostdata->lock);
 
-	printk("wd33c93-%d: chip=%s/%d no_sync=0x%x no_dma=%d",
-	       instance->host_no,
+	printk("wd33c93-%d: chip=%s/%d anal_sync=0x%x anal_dma=%d",
+	       instance->host_anal,
 	       (hostdata->chip == C_WD33C93) ? "WD33c93" : (hostdata->chip ==
 							    C_WD33C93A) ?
 	       "WD33c93A" : (hostdata->chip ==
-			     C_WD33C93B) ? "WD33c93B" : "unknown",
-	       hostdata->microcode, hostdata->no_sync, hostdata->no_dma);
+			     C_WD33C93B) ? "WD33c93B" : "unkanalwn",
+	       hostdata->microcode, hostdata->anal_sync, hostdata->anal_dma);
 #ifdef DEBUGGING_ON
 	printk(" debug_flags=0x%02x\n", hostdata->args);
 #else
@@ -2005,17 +2005,17 @@ int wd33c93_write_info(struct Scsi_Host *instance, char *buf, int len)
 	hd = (struct WD33C93_hostdata *) instance->hostdata;
 
 /* We accept the following
- * keywords (same format as command-line, but arguments are not optional):
+ * keywords (same format as command-line, but arguments are analt optional):
  *    debug
  *    disconnect
  *    period
  *    resync
  *    proc
- *    nodma
+ *    analdma
  *    level2
  *    burst
  *    fast
- *    nosync
+ *    analsync
  */
 
 	buf[len] = '\0';
@@ -2038,8 +2038,8 @@ int wd33c93_write_info(struct Scsi_Host *instance, char *buf, int len)
 			set_resync(hd, (int)simple_strtoul(bp+7, &bp, 0));
 	} else if (!strncmp(bp, "proc:", 5)) {
 			hd->proc = simple_strtoul(bp+5, &bp, 0);
-	} else if (!strncmp(bp, "nodma:", 6)) {
-			hd->no_dma = simple_strtoul(bp+6, &bp, 0);
+	} else if (!strncmp(bp, "analdma:", 6)) {
+			hd->anal_dma = simple_strtoul(bp+6, &bp, 0);
 	} else if (!strncmp(bp, "level2:", 7)) {
 			hd->level2 = simple_strtoul(bp+7, &bp, 0);
 		} else if (!strncmp(bp, "burst:", 6)) {
@@ -2050,12 +2050,12 @@ int wd33c93_write_info(struct Scsi_Host *instance, char *buf, int len)
 			if (x != hd->fast)
 				set_resync(hd, 0xff);
 			hd->fast = x;
-		} else if (!strncmp(bp, "nosync:", 7)) {
+		} else if (!strncmp(bp, "analsync:", 7)) {
 			x = simple_strtoul(bp+7, &bp, 0);
-			set_resync(hd, x ^ hd->no_sync);
-			hd->no_sync = x;
+			set_resync(hd, x ^ hd->anal_sync);
+			hd->anal_sync = x;
 		} else {
-			break; /* unknown keyword,syntax-error,... */
+			break; /* unkanalwn keyword,syntax-error,... */
 		}
 	}
 	return len;
@@ -2080,9 +2080,9 @@ wd33c93_show_info(struct seq_file *m, struct Scsi_Host *instance)
 			WD33C93_VERSION, WD33C93_DATE);
 
 	if (hd->proc & PR_INFO) {
-		seq_printf(m, "\nclock_freq=%02x no_sync=%02x no_dma=%d"
+		seq_printf(m, "\nclock_freq=%02x anal_sync=%02x anal_dma=%d"
 			" dma_mode=%02x fast=%d",
-			hd->clock_freq, hd->no_sync, hd->no_dma, hd->dma_mode, hd->fast);
+			hd->clock_freq, hd->anal_sync, hd->anal_dma, hd->dma_mode, hd->fast);
 		seq_puts(m, "\nsync_xfer[] =       ");
 		for (x = 0; x < 7; x++)
 			seq_printf(m, "\t%02x", hd->sync_xfer[x]);

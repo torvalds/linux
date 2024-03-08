@@ -51,15 +51,15 @@ void pte_free_defer(struct mm_struct *mm, pgtable_t pgtable);
 
 /*
  * Functions that deal with pagetables that could be at any level of
- * the table need to be passed an "index_size" so they know how to
+ * the table need to be passed an "index_size" so they kanalw how to
  * handle allocation.  For PTE pages, the allocation size will be
  * (2^index_size * sizeof(pointer)) and allocations are drawn from
  * the kmem_cache in PGT_CACHE(index_size).
  *
- * The maximum index size needs to be big enough to allow any
- * pagetable sizes we need, but small enough to fit in the low bits of
+ * The maximum index size needs to be big eanalugh to allow any
+ * pagetable sizes we need, but small eanalugh to fit in the low bits of
  * any page table pointer.  In other words all pagetables, even tiny
- * ones, must be aligned to allow at least enough low 0 bits to
+ * ones, must be aligned to allow at least eanalugh low 0 bits to
  * contain this value.  This value is also used as a mask, so it must
  * be one less than a power of two.
  */
@@ -71,7 +71,7 @@ extern struct kmem_cache *pgtable_cache[];
 #ifdef CONFIG_PPC_BOOK3S
 #include <asm/book3s/pgalloc.h>
 #else
-#include <asm/nohash/pgalloc.h>
+#include <asm/analhash/pgalloc.h>
 #endif
 
 #endif /* _ASM_POWERPC_PGALLOC_H */

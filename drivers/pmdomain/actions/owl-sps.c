@@ -80,7 +80,7 @@ static int owl_sps_init_domain(struct owl_sps *sps, int index)
 
 	pd = devm_kzalloc(sps->dev, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pd->info = &sps->info->domains[index];
 	pd->sps = sps;
@@ -104,7 +104,7 @@ static int owl_sps_probe(struct platform_device *pdev)
 
 	sps_info = device_get_match_data(&pdev->dev);
 	if (!sps_info) {
-		dev_err(&pdev->dev, "unknown compatible or missing data\n");
+		dev_err(&pdev->dev, "unkanalwn compatible or missing data\n");
 		return -EINVAL;
 	}
 
@@ -112,9 +112,9 @@ static int owl_sps_probe(struct platform_device *pdev)
 			   struct_size(sps, domains, sps_info->num_domains),
 			   GFP_KERNEL);
 	if (!sps)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	sps->base = of_io_request_and_map(pdev->dev.of_node, 0, "owl-sps");
+	sps->base = of_io_request_and_map(pdev->dev.of_analde, 0, "owl-sps");
 	if (IS_ERR(sps->base)) {
 		dev_err(&pdev->dev, "failed to map sps registers\n");
 		return PTR_ERR(sps->base);
@@ -131,7 +131,7 @@ static int owl_sps_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	ret = of_genpd_add_provider_onecell(pdev->dev.of_node, &sps->genpd_data);
+	ret = of_genpd_add_provider_onecell(pdev->dev.of_analde, &sps->genpd_data);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add provider (%d)", ret);
 		return ret;

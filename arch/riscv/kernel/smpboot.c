@@ -16,7 +16,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/cpu.h>
 #include <linux/percpu.h>
 #include <linux/delay.h>
@@ -58,7 +58,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	numa_store_cpu_info(curr_cpuid);
 	numa_add_cpu(curr_cpuid);
 
-	/* This covers non-smp usecase mandated by "nosmp" option */
+	/* This covers analn-smp usecase mandated by "analsmp" option */
 	if (max_cpus == 0)
 		return;
 
@@ -81,7 +81,7 @@ static int __init acpi_parse_rintc(union acpi_subtable_headers *header, const un
 
 	/*
 	 * Each RINTC structure in MADT will have a flag. If ACPI_MADT_ENABLED
-	 * bit in the flag is not enabled, it means OS should not try to enable
+	 * bit in the flag is analt enabled, it means OS should analt try to enable
 	 * the cpu to which RINTC belongs.
 	 */
 	if (!(processor->flags & ACPI_MADT_ENABLED))
@@ -101,7 +101,7 @@ static int __init acpi_parse_rintc(union acpi_subtable_headers *header, const un
 	if (hart == cpuid_to_hartid_map(0)) {
 		BUG_ON(found_boot_cpu);
 		found_boot_cpu = true;
-		early_map_cpu_to_node(0, acpi_numa_get_nid(cpu_count));
+		early_map_cpu_to_analde(0, acpi_numa_get_nid(cpu_count));
 		return 0;
 	}
 
@@ -111,7 +111,7 @@ static int __init acpi_parse_rintc(union acpi_subtable_headers *header, const un
 	}
 
 	cpuid_to_hartid_map(cpu_count) = hart;
-	early_map_cpu_to_node(cpu_count, acpi_numa_get_nid(cpu_count));
+	early_map_cpu_to_analde(cpu_count, acpi_numa_get_nid(cpu_count));
 	cpu_count++;
 
 	return 0;
@@ -127,13 +127,13 @@ static void __init acpi_parse_and_init_cpus(void)
 
 static void __init of_parse_and_init_cpus(void)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	unsigned long hart;
 	bool found_boot_cpu = false;
 	int cpuid = 1;
 	int rc;
 
-	for_each_of_cpu_node(dn) {
+	for_each_of_cpu_analde(dn) {
 		rc = riscv_early_of_processor_hartid(dn, &hart);
 		if (rc < 0)
 			continue;
@@ -141,7 +141,7 @@ static void __init of_parse_and_init_cpus(void)
 		if (hart == cpuid_to_hartid_map(0)) {
 			BUG_ON(found_boot_cpu);
 			found_boot_cpu = 1;
-			early_map_cpu_to_node(0, of_node_to_nid(dn));
+			early_map_cpu_to_analde(0, of_analde_to_nid(dn));
 			continue;
 		}
 		if (cpuid >= NR_CPUS) {
@@ -151,7 +151,7 @@ static void __init of_parse_and_init_cpus(void)
 		}
 
 		cpuid_to_hartid_map(cpuid) = hart;
-		early_map_cpu_to_node(cpuid, of_node_to_nid(dn));
+		early_map_cpu_to_analde(cpuid, of_analde_to_nid(dn));
 		cpuid++;
 	}
 
@@ -183,7 +183,7 @@ static int start_secondary_cpu(int cpu, struct task_struct *tidle)
 	if (cpu_ops->cpu_start)
 		return cpu_ops->cpu_start(cpu, tidle);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)
@@ -224,7 +224,7 @@ asmlinkage __visible void smp_callin(void)
 	current->active_mm = mm;
 
 	store_cpu_topology(curr_cpuid);
-	notify_cpu_starting(curr_cpuid);
+	analtify_cpu_starting(curr_cpuid);
 
 	riscv_ipi_enable();
 
@@ -239,8 +239,8 @@ asmlinkage __visible void smp_callin(void)
 	riscv_user_isa_enable();
 
 	/*
-	 * Remote TLB flushes are ignored while the CPU is offline, so emit
-	 * a local TLB flush right now just in case.
+	 * Remote TLB flushes are iganalred while the CPU is offline, so emit
+	 * a local TLB flush right analw just in case.
 	 */
 	local_flush_tlb_all();
 	complete(&cpu_running);

@@ -36,6 +36,6 @@ config VLAN_8021Q_MVRP
 	help
 	  Select this to enable MVRP end-system support. MVRP is used for
 	  automatic propagation of registered VLANs to switches; it
-	  supersedes GVRP and is not backwards-compatible.
+	  supersedes GVRP and is analt backwards-compatible.
 
 	  If unsure, say N.

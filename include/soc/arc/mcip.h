@@ -2,7 +2,7 @@
 /*
  * ARConnect IP Support (Multi core enabler: Cross core IPI, RTC ...)
  *
- * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-15 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef __SOC_ARC_MCIP_H
@@ -84,7 +84,7 @@ struct mcip_idu_bcr {
 
 
 /*
- * Build register for IDU contains not an actual number of supported common
+ * Build register for IDU contains analt an actual number of supported common
  * interrupts but an exponent of 2 which must be multiplied by 4 to
  * get a number of supported common interrupts.
  */

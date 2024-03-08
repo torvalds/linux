@@ -43,7 +43,7 @@ int get_gadget_descs(struct vudc *udc)
 	if (ret < 0)
 		goto out;
 
-	/* assuming request queue is empty; request is now on top */
+	/* assuming request queue is empty; request is analw on top */
 	usb_req = list_last_entry(&ep0->req_queue, struct vrequest, req_entry);
 	list_del(&usb_req->req_entry);
 
@@ -78,7 +78,7 @@ static ssize_t dev_desc_read(struct file *file, struct kobject *kobj,
 
 	spin_lock_irqsave(&udc->lock, flags);
 	if (!udc->desc_cached) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock;
 	}
 
@@ -109,15 +109,15 @@ static ssize_t usbip_sockfd_store(struct device *dev,
 		return -EINVAL;
 
 	if (!udc) {
-		dev_err(dev, "no device");
-		return -ENODEV;
+		dev_err(dev, "anal device");
+		return -EANALDEV;
 	}
 	mutex_lock(&udc->ud.sysfs_lock);
 	spin_lock_irqsave(&udc->lock, flags);
 	/* Don't export what we don't have */
 	if (!udc->driver || !udc->pullup) {
-		dev_err(dev, "gadget not bound");
-		ret = -ENODEV;
+		dev_err(dev, "gadget analt bound");
+		ret = -EANALDEV;
 		goto unlock;
 	}
 
@@ -167,7 +167,7 @@ static ssize_t usbip_sockfd_store(struct device *dev,
 			return -EINVAL;
 		}
 
-		/* get task structs now */
+		/* get task structs analw */
 		get_task_struct(tcp_rx);
 		get_task_struct(tcp_tx);
 
@@ -196,7 +196,7 @@ static ssize_t usbip_sockfd_store(struct device *dev,
 
 	} else {
 		if (!udc->connected) {
-			dev_err(dev, "Device not connected");
+			dev_err(dev, "Device analt connected");
 			ret = -EINVAL;
 			goto unlock;
 		}
@@ -235,8 +235,8 @@ static ssize_t usbip_status_show(struct device *dev,
 	int status;
 
 	if (!udc) {
-		dev_err(dev, "no device");
-		return -ENODEV;
+		dev_err(dev, "anal device");
+		return -EANALDEV;
 	}
 	spin_lock_irq(&udc->ud.lock);
 	status = udc->ud.status;

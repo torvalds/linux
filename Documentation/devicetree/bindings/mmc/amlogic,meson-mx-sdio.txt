@@ -21,17 +21,17 @@ Required properties:
  - clocks : phandle to clock providers
  - clock-names : must contain "core" and "clkin"
 
-Required child nodes:
-A node for each slot provided by the MMC controller is required.
-NOTE: due to a driver limitation currently only one slot (= child node)
+Required child analdes:
+A analde for each slot provided by the MMC controller is required.
+ANALTE: due to a driver limitation currently only one slot (= child analde)
       is supported!
 
-Required properties on each child node (= slot):
+Required properties on each child analde (= slot):
  - compatible : must be "mmc-slot" (see mmc.txt within this directory)
  - reg : the slot (or "port") ID
 
-Optional properties on each child node (= slot):
- - bus-width : must be 1 or 4 (8-bit bus is not supported)
+Optional properties on each child analde (= slot):
+ - bus-width : must be 1 or 4 (8-bit bus is analt supported)
  - for cd and all other additional generic mmc parameters
    please refer to mmc.txt within this directory
 

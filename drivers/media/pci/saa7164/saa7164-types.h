@@ -54,7 +54,7 @@ struct tmComResBusDescr {
 };
 
 enum tmBusType {
-	NONE		= 0,
+	ANALNE		= 0,
 	TYPE_BUS_PCI	= 1,
 	TYPE_BUS_PCIe	= 2,
 	TYPE_BUS_USB	= 3,
@@ -84,7 +84,7 @@ struct tmComResInfo {
 	u16	size;
 	u32	command;
 	u16	controlselector;
-	u8	seqno;
+	u8	seqanal;
 } __attribute__((packed));
 
 enum tmComResCmd {
@@ -99,7 +99,7 @@ enum tmComResCmd {
 };
 
 struct cmd {
-	u8 seqno;
+	u8 seqanal;
 	u32 inuse;
 	u32 timeout;
 	u32 signalled;
@@ -179,7 +179,7 @@ struct tmComResTunerDescrHeader {
 } __attribute__((packed));
 
 enum tmBufferFlag {
-	/* the buffer does not contain any valid data */
+	/* the buffer does analt contain any valid data */
 	TM_BUFFER_FLAG_EMPTY,
 
 	/* the buffer is filled with valid data */
@@ -248,7 +248,7 @@ struct tmComResDMATermDescrHeader {
  *  bLength                 - The size of this descriptor in bytes.
  *  bDescriptorType         - CS_INTERFACE.
  *  bDescriptorSubtype      - VS_FORMAT_MPEG2TS descriptor subtype.
- *  bFormatIndex            - A non-zero constant that uniquely identifies the
+ *  bFormatIndex            - A analn-zero constant that uniquely identifies the
  *                            format.
  *  bDataOffset             - Offset to TSP packet within MPEG-2 TS transport
  *                            stride, in bytes.
@@ -256,8 +256,8 @@ struct tmComResDMATermDescrHeader {
  *  bStrideLength           - Length of MPEG-2 TS transport stride.
  *  guidStrideFormat        - A Globally Unique Identifier indicating the
  *                            format of the stride data (if any). Set to zeros
- *                            if there is no Stride Data, or if the Stride
- *                            Data is to be ignored by the application.
+ *                            if there is anal Stride Data, or if the Stride
+ *                            Data is to be iganalred by the application.
  *
  */
 struct tmComResTSFormatDescrHeader {
@@ -354,7 +354,7 @@ struct tmComResAFeatureDescrHeader {
 struct tmComResAudioDefaults {
 	u8	ucDecoderLevel;
 	u8	ucDecoderFM_Level;
-	u8	ucMonoLevel;
+	u8	ucMoanalLevel;
 	u8	ucNICAM_Level;
 	u8	ucSAP_Level;
 	u8	ucADC_Level;

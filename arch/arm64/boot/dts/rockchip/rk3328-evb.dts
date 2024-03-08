@@ -92,7 +92,7 @@
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 	status = "okay";
@@ -226,7 +226,7 @@
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 		rockchip,pins =
-			<1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+			<1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -238,7 +238,7 @@
 	keep-power-in-suspend;
 	max-frequency = <150000000>;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc1_bus4 &sdmmc1_cmd &sdmmc1_clk>;
 	status = "okay";

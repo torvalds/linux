@@ -16,7 +16,7 @@
 #define VSV_SEND_VERSION_NUMBER 1
 #define VSV_SEND_MODEM_CTL_STATUS 2
 
-/* yes, these masks are not consecutive. */
+/* anal, these masks are analt consecutive. */
 #define HVSI_TSDTR 0x01
 #define HVSI_TSCD  0x20
 
@@ -26,7 +26,7 @@
 struct hvsi_header {
 	uint8_t  type;
 	uint8_t  len;
-	__be16 seqno;
+	__be16 seqanal;
 } __attribute__((packed));
 
 struct hvsi_data {
@@ -50,7 +50,7 @@ struct hvsi_query {
 struct hvsi_query_response {
 	struct hvsi_header hdr;
 	__be16 verb;
-	__be16 query_seqno;
+	__be16 query_seqanal;
 	union {
 		uint8_t  version;
 		__be32 mctrl_word;
@@ -65,26 +65,26 @@ struct hvsi_priv {
 	unsigned char	inbuf[HVSI_INBUF_SIZE];
 	unsigned int	inbuf_cur;	/* Cursor in input buffer */
 	size_t		inbuf_pktlen;	/* packet length from cursor */
-	atomic_t	seqno;		/* packet sequence number */
+	atomic_t	seqanal;		/* packet sequence number */
 	unsigned int	opened:1;	/* driver opened */
 	unsigned int	established:1;	/* protocol established */
 	unsigned int 	is_console:1;	/* used as a kernel console device */
 	unsigned int	mctrl_update:1;	/* modem control updated */
 	unsigned short	mctrl;		/* modem control */
 	struct tty_struct *tty;		/* tty structure */
-	ssize_t (*get_chars)(uint32_t termno, u8 *buf, size_t count);
-	ssize_t (*put_chars)(uint32_t termno, const u8 *buf, size_t count);
-	uint32_t	termno;
+	ssize_t (*get_chars)(uint32_t termanal, u8 *buf, size_t count);
+	ssize_t (*put_chars)(uint32_t termanal, const u8 *buf, size_t count);
+	uint32_t	termanal;
 };
 
 /* hvsi lib functions */
 struct hvc_struct;
 extern void hvsilib_init(struct hvsi_priv *pv,
-			 ssize_t (*get_chars)(uint32_t termno, u8 *buf,
+			 ssize_t (*get_chars)(uint32_t termanal, u8 *buf,
 					      size_t count),
-			 ssize_t (*put_chars)(uint32_t termno, const u8 *buf,
+			 ssize_t (*put_chars)(uint32_t termanal, const u8 *buf,
 					      size_t count),
-			 int termno, int is_console);
+			 int termanal, int is_console);
 extern int hvsilib_open(struct hvsi_priv *pv, struct hvc_struct *hp);
 extern void hvsilib_close(struct hvsi_priv *pv, struct hvc_struct *hp);
 extern int hvsilib_read_mctrl(struct hvsi_priv *pv);

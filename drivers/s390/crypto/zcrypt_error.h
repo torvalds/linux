@@ -24,7 +24,7 @@
  *    88:  Error (see below)
  * Both type 82 and type 88 have the same structure in the header.
  *
- * Request reply messages are of three known types:
+ * Request reply messages are of three kanalwn types:
  *    80:  Reply from a Type 50 Request (see CEX2A-RELATED STRUCTS)
  *    84:  Reply from a Type 4 Request (see PCICA-RELATED STRUCTS)
  *    86:  Reply from a Type 6 Request (see PCICC/PCIXCC/CEX2C-RELATED STRUCTS)

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -12,7 +12,7 @@
 #include <linux/types.h>
 
 /**
- * struct sof_abi_hdr - Header for all non IPC ABI data.
+ * struct sof_abi_hdr - Header for all analn IPC ABI data.
  * @magic: Magic number for validation
  *	   for IPC3 data: 0x00464F53 ('S', 'O', 'F', '\0')
  *	   for IPC4 data: 0x34464F53 ('S', 'O', 'F', '4')
@@ -21,7 +21,7 @@
  *	  for IPC4: parameter ID (param_id) of the data
  * @size: The size in bytes of the data, excluding this struct
  * @abi: SOF ABI version. The version is valid in scope of the 'magic', IPC3 and
- *	 IPC4 ABI version numbers have no relationship.
+ *	 IPC4 ABI version numbers have anal relationship.
  * @reserved: Reserved for future use
  * @data: Component data - opaque to core
  *
@@ -42,7 +42,7 @@ struct sof_abi_hdr {
 /**
  * struct sof_manifest_tlv - SOF manifest TLV data
  * @type: type of data
- * @size: data size (not including the size of this struct)
+ * @size: data size (analt including the size of this struct)
  * @data: payload data
  */
 struct sof_manifest_tlv {
@@ -54,14 +54,14 @@ struct sof_manifest_tlv {
 /**
  * struct sof_manifest - SOF topology manifest
  * @abi_major: Major ABI version
- * @abi_minor: Minor ABI version
+ * @abi_mianalr: Mianalr ABI version
  * @abi_patch: ABI patch
  * @count: count of tlv items
  * @items: consecutive variable size tlv items
  */
 struct sof_manifest {
 	__le16 abi_major;
-	__le16 abi_minor;
+	__le16 abi_mianalr;
 	__le16 abi_patch;
 	__le16 count;
 	struct sof_manifest_tlv items[];

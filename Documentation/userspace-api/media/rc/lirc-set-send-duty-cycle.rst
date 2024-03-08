@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: RC
 
 .. _lirc_set_send_duty_cycle:
@@ -13,7 +13,7 @@ Name
 LIRC_SET_SEND_DUTY_CYCLE - Set the duty cycle of the carrier signal for
 IR transmit.
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: LIRC_SET_SEND_DUTY_CYCLE
@@ -35,13 +35,13 @@ Description
 
 Get/set the duty cycle of the carrier signal for IR transmit.
 
-Currently, no special meaning is defined for 0 or 100, but this
+Currently, anal special meaning is defined for 0 or 100, but this
 could be used to switch off carrier generation in the future, so
 these values should be reserved.
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

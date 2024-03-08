@@ -107,9 +107,9 @@ static int armada_ap806_pinctrl_probe(struct platform_device *pdev)
 	struct mvebu_pinctrl_soc_info *soc = &armada_ap806_pinctrl_info;
 
 	if (!pdev->dev.parent)
-		return -ENODEV;
+		return -EANALDEV;
 
-	soc->variant = 0; /* no variants for Armada AP806 */
+	soc->variant = 0; /* anal variants for Armada AP806 */
 	soc->controls = armada_ap806_mpp_controls;
 	soc->ncontrols = ARRAY_SIZE(armada_ap806_mpp_controls);
 	soc->gpioranges = armada_ap806_mpp_gpio_ranges;

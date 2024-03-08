@@ -47,7 +47,7 @@ bool filter_reg(__u64 reg)
 {
 	/*
 	 * DEMUX register presence depends on the host's CLIDR_EL1.
-	 * This means there's no set of them that we can bless.
+	 * This means there's anal set of them that we can bless.
 	 */
 	if ((reg & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_DEMUX)
 		return true;
@@ -142,7 +142,7 @@ static const char *core_id_to_str(const char *prefix, __u64 id)
 		return "KVM_REG_ARM_CORE_REG(fp_regs.fpcr)";
 	}
 
-	TEST_FAIL("%s: Unknown core reg id: 0x%llx", prefix, id);
+	TEST_FAIL("%s: Unkanalwn core reg id: 0x%llx", prefix, id);
 	return NULL;
 }
 

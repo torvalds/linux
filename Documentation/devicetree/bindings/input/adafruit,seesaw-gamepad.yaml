@@ -27,7 +27,7 @@ description: |
 
   Datasheet: https://cdn-learn.adafruit.com/downloads/pdf/gamepad-qt.pdf
   Product page: https://www.adafruit.com/product/5743
-  Arduino Driver: https://github.com/adafruit/Adafruit_Seesaw
+  Arduianal Driver: https://github.com/adafruit/Adafruit_Seesaw
 
 properties:
   compatible:

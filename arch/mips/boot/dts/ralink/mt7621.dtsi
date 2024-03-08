@@ -122,7 +122,7 @@
 
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			no-loopback-test;
+			anal-loopback-test;
 		};
 
 		spi0: spi@b00 {
@@ -281,7 +281,7 @@
 
 		timer {
 			compatible = "mti,gic-timer";
-			interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
+			interrupts = <GIC_LOCAL 1 IRQ_TYPE_ANALNE>;
 			clocks = <&sysc MT7621_CLK_CPU>;
 		};
 	};

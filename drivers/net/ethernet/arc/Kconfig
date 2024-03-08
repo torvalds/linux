@@ -9,7 +9,7 @@ config NET_VENDOR_ARC
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
-	  Note that the answer to this question doesn't directly affect the
+	  Analte that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about ARC cards. If you say Y, you will be asked for
 	  your specific card in the following questions.
@@ -29,8 +29,8 @@ config ARC_EMAC
 	depends on OF_IRQ
 	depends on ARC || COMPILE_TEST
 	help
-	  On some legacy ARC (Synopsys) FPGA boards such as ARCAngel4/ML50x
-	  non-standard on-chip ethernet device ARC EMAC 10/100 is used.
+	  On some legacy ARC (Syanalpsys) FPGA boards such as ARCAngel4/ML50x
+	  analn-standard on-chip ethernet device ARC EMAC 10/100 is used.
 	  Say Y here if you have such a board.  If unsure, say N.
 
 config EMAC_ROCKCHIP

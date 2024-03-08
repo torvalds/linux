@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /**
  * file phonet.h
  *
  * Phonet sockets kernel interface
  *
- * Copyright (C) 2008 Nokia Corporation. All rights reserved.
+ * Copyright (C) 2008 Analkia Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
@@ -46,7 +46,7 @@
 #define PNPORT_RESOURCE_ROUTING	0
 
 /* Values for PNPIPE_ENCAP option */
-#define PNPIPE_ENCAP_NONE	0
+#define PNPIPE_ENCAP_ANALNE	0
 #define PNPIPE_ENCAP_IP		1
 
 /* ioctls */
@@ -91,8 +91,8 @@ struct phonetmsg {
 #define pn_e_data		pn_msg_u.ext.pn_e_data
 
 /* data for unreachable errors */
-#define PN_COMM_SERVICE_NOT_IDENTIFIED_RESP	0x01
-#define PN_COMM_ISA_ENTITY_NOT_REACHABLE_RESP	0x14
+#define PN_COMM_SERVICE_ANALT_IDENTIFIED_RESP	0x01
+#define PN_COMM_ISA_ENTITY_ANALT_REACHABLE_RESP	0x14
 #define pn_orig_msg_id		pn_data[0]
 #define pn_status		pn_data[1]
 #define pn_e_orig_msg_id	pn_e_data[0]
@@ -107,7 +107,7 @@ struct sockaddr_pn {
 	__u8 spn_zero[sizeof(struct sockaddr) - sizeof(__kernel_sa_family_t) - 3];
 } __attribute__((packed));
 
-/* Well known address */
+/* Well kanalwn address */
 #define PN_DEV_PC	0x10
 
 static inline __u16 pn_object(__u8 addr, __u16 port)

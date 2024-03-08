@@ -2,7 +2,7 @@
 /*
  * Thunderbolt control channel messages
  *
- * Copyright (C) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (C) 2014 Andreas Analever <andreas.analever@gmail.com>
  * Copyright (C) 2017, Intel Corporation
  */
 
@@ -20,10 +20,10 @@ enum tb_cfg_space {
 };
 
 enum tb_cfg_error {
-	TB_CFG_ERROR_PORT_NOT_CONNECTED = 0,
+	TB_CFG_ERROR_PORT_ANALT_CONNECTED = 0,
 	TB_CFG_ERROR_LINK_ERROR = 1,
 	TB_CFG_ERROR_INVALID_CONFIG_SPACE = 2,
-	TB_CFG_ERROR_NO_SUCH_PORT = 4,
+	TB_CFG_ERROR_ANAL_SUCH_PORT = 4,
 	TB_CFG_ERROR_ACK_PLUG_EVENT = 7, /* send as reply to TB_CFG_PKG_EVENT */
 	TB_CFG_ERROR_LOOP = 8,
 	TB_CFG_ERROR_HEC_ERROR_DETECTED = 12,
@@ -42,7 +42,7 @@ enum tb_cfg_error {
 /* common header */
 struct tb_cfg_header {
 	u32 route_hi:22;
-	u32 unknown:10; /* highest order bit is set on replies */
+	u32 unkanalwn:10; /* highest order bit is set on replies */
 	u32 route_lo;
 } __packed;
 
@@ -135,7 +135,7 @@ struct icm_pkg_header {
 };
 
 #define ICM_FLAGS_ERROR			BIT(0)
-#define ICM_FLAGS_NO_KEY		BIT(1)
+#define ICM_FLAGS_ANAL_KEY		BIT(1)
 #define ICM_FLAGS_SLEVEL_SHIFT		3
 #define ICM_FLAGS_SLEVEL_MASK		GENMASK(4, 3)
 #define ICM_FLAGS_DUAL_LANE		BIT(5)
@@ -652,10 +652,10 @@ struct tb_xdp_properties_changed_response {
 
 enum tb_xdp_error {
 	ERROR_SUCCESS,
-	ERROR_UNKNOWN_PACKET,
-	ERROR_UNKNOWN_DOMAIN,
-	ERROR_NOT_SUPPORTED,
-	ERROR_NOT_READY,
+	ERROR_UNKANALWN_PACKET,
+	ERROR_UNKANALWN_DOMAIN,
+	ERROR_ANALT_SUPPORTED,
+	ERROR_ANALT_READY,
 };
 
 #endif

@@ -55,7 +55,7 @@ static const char *myrb_devstate_name(enum myrb_devstate state)
 		if (entry[i].state == state)
 			return entry[i].name;
 	}
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 static struct myrb_raidlevel_name_entry {
@@ -113,7 +113,7 @@ static bool myrb_create_mempools(struct pci_dev *pdev, struct myrb_hba *cb)
 	}
 
 	snprintf(cb->work_q_name, sizeof(cb->work_q_name),
-		 "myrb_wq_%d", cb->host->host_no);
+		 "myrb_wq_%d", cb->host->host_anal);
 	cb->work_q = create_singlethread_workqueue(cb->work_q_name);
 	if (!cb->work_q) {
 		dma_pool_destroy(cb->dcdb_pool);
@@ -271,7 +271,7 @@ static char *myrb_event_msg[] = {
 	"killed because of 'kill drive' command from system",
 	"killed because of selection timeout",
 	"killed due to SCSI phase sequence error",
-	"killed due to unknown status",
+	"killed due to unkanalwn status",
 };
 
 /**
@@ -312,7 +312,7 @@ static void myrb_get_event(struct myrb_hba *cb, unsigned int event)
 		struct scsi_sense_hdr sshdr;
 
 		memset(&sshdr, 0, sizeof(sshdr));
-		scsi_normalize_sense(ev_buf->sense, 32, &sshdr);
+		scsi_analrmalize_sense(ev_buf->sense, 32, &sshdr);
 
 		if (sshdr.sense_key == VENDOR_SPECIFIC &&
 		    sshdr.asc == 0x80 &&
@@ -415,11 +415,11 @@ static unsigned short myrb_get_ldev_info(struct myrb_hba *cb)
 		old = sdev->hostdata;
 		if (new->state != old->state)
 			shost_printk(KERN_INFO, shost,
-				     "Logical Drive %d is now %s\n",
+				     "Logical Drive %d is analw %s\n",
 				     ldev_num, myrb_devstate_name(new->state));
 		if (new->wb_enabled != old->wb_enabled)
 			sdev_printk(KERN_INFO, sdev,
-				    "Logical Drive is now WRITE %s\n",
+				    "Logical Drive is analw WRITE %s\n",
 				    (new->wb_enabled ? "BACK" : "THRU"));
 		memcpy(old, new, sizeof(*new));
 		scsi_device_put(sdev);
@@ -448,7 +448,7 @@ static unsigned short myrb_get_rbld_progress(struct myrb_hba *cb,
 				      sizeof(struct myrb_rbld_progress),
 				      &rbld_addr, GFP_KERNEL);
 	if (!rbld_buf)
-		return MYRB_STATUS_RBLD_NOT_CHECKED;
+		return MYRB_STATUS_RBLD_ANALT_CHECKED;
 
 	myrb_reset_cmd(cmd_blk);
 	mbox->type3.id = MYRB_MCMD_TAG;
@@ -473,10 +473,10 @@ static void myrb_update_rbld_progress(struct myrb_hba *cb)
 	unsigned short status;
 
 	status = myrb_get_rbld_progress(cb, &rbld_buf);
-	if (status == MYRB_NO_STDBY_RBLD_OR_CHECK_IN_PROGRESS &&
+	if (status == MYRB_ANAL_STDBY_RBLD_OR_CHECK_IN_PROGRESS &&
 	    cb->last_rbld_status == MYRB_STATUS_SUCCESS)
 		status = MYRB_STATUS_RBLD_SUCCESS;
-	if (status != MYRB_NO_STDBY_RBLD_OR_CHECK_IN_PROGRESS) {
+	if (status != MYRB_ANAL_STDBY_RBLD_OR_CHECK_IN_PROGRESS) {
 		unsigned int blocks_done =
 			rbld_buf.ldev_size - rbld_buf.blocks_left;
 		struct scsi_device *sdev;
@@ -649,7 +649,7 @@ static void myrb_bgi_control(struct myrb_hba *cb)
 			sdev_printk(KERN_INFO, sdev,
 				    "Background Initialization Aborted\n");
 		fallthrough;
-	case MYRB_STATUS_NO_BGI_INPROGRESS:
+	case MYRB_STATUS_ANAL_BGI_INPROGRESS:
 		cb->bgi_status.status = MYRB_BGI_INVALID;
 		break;
 	}
@@ -683,7 +683,7 @@ static unsigned short myrb_hba_enquiry(struct myrb_hba *cb)
 
 		while (++ldev_num < new->ldev_count)
 			shost_printk(KERN_CRIT, cb->host,
-				     "Logical Drive %d Now Exists\n",
+				     "Logical Drive %d Analw Exists\n",
 				     ldev_num);
 	}
 	if (new->ldev_count < old.ldev_count) {
@@ -691,12 +691,12 @@ static unsigned short myrb_hba_enquiry(struct myrb_hba *cb)
 
 		while (++ldev_num < old.ldev_count)
 			shost_printk(KERN_CRIT, cb->host,
-				     "Logical Drive %d No Longer Exists\n",
+				     "Logical Drive %d Anal Longer Exists\n",
 				     ldev_num);
 	}
 	if (new->status.deferred != old.status.deferred)
 		shost_printk(KERN_CRIT, cb->host,
-			     "Deferred Write Error Flag is now %s\n",
+			     "Deferred Write Error Flag is analw %s\n",
 			     (new->status.deferred ? "TRUE" : "FALSE"));
 	if (new->ev_seq != old.ev_seq) {
 		cb->new_ev_seq = new->ev_seq;
@@ -734,7 +734,7 @@ static unsigned short myrb_hba_enquiry(struct myrb_hba *cb)
 	}
 	if (old.rbld == MYRB_BG_CHECK_IN_PROGRESS)
 		switch (new->rbld) {
-		case MYRB_NO_STDBY_RBLD_OR_CHECK_IN_PROGRESS:
+		case MYRB_ANAL_STDBY_RBLD_OR_CHECK_IN_PROGRESS:
 			shost_printk(KERN_INFO, cb->host,
 				     "Consistency Check Completed Successfully\n");
 			break;
@@ -798,7 +798,7 @@ static unsigned short myrb_set_pdev_state(struct myrb_hba *cb,
 /*
  * myrb_enable_mmio - enables the Memory Mailbox Interface
  *
- * PD and P controller types have no memory mailbox, but still need the
+ * PD and P controller types have anal memory mailbox, but still need the
  * other dma mapped memory.
  *
  * Return: true on success, false otherwise.
@@ -906,7 +906,7 @@ static bool myrb_enable_mmio(struct myrb_hba *cb, mbox_mmio_init_t mmio_init_fn)
  * Reads the configuration information from the controller and
  * initializes the controller structure.
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erranal otherwise
  */
 static int myrb_get_hba_config(struct myrb_hba *cb)
 {
@@ -918,14 +918,14 @@ static int myrb_get_hba_config(struct myrb_hba *cb)
 	struct pci_dev *pdev = cb->pdev;
 	int pchan_max = 0, pchan_cur = 0;
 	unsigned short status;
-	int ret = -ENODEV, memsize = 0;
+	int ret = -EANALDEV, memsize = 0;
 
 	enquiry2 = dma_alloc_coherent(&pdev->dev, sizeof(struct myrb_enquiry2),
 				      &enquiry2_addr, GFP_KERNEL);
 	if (!enquiry2) {
 		shost_printk(KERN_ERR, cb->host,
 			     "Failed to allocate V1 enquiry2 memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	config2 = dma_alloc_coherent(&pdev->dev, sizeof(struct myrb_config2),
 				     &config2_addr, GFP_KERNEL);
@@ -934,7 +934,7 @@ static int myrb_get_hba_config(struct myrb_hba *cb)
 			     "Failed to allocate V1 config2 memory\n");
 		dma_free_coherent(&pdev->dev, sizeof(struct myrb_enquiry2),
 				  enquiry2, enquiry2_addr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	mutex_lock(&cb->dma_mutex);
 	status = myrb_hba_enquiry(cb);
@@ -1005,7 +1005,7 @@ static int myrb_get_hba_config(struct myrb_hba *cb)
 		break;
 	default:
 		shost_printk(KERN_WARNING, cb->host,
-			     "Unknown Model %X\n",
+			     "Unkanalwn Model %X\n",
 			     enquiry2->hw.sub_model);
 		goto out;
 	}
@@ -1043,22 +1043,22 @@ static int myrb_get_hba_config(struct myrb_hba *cb)
 
 	if (enquiry2->fw.major_version == 0) {
 		enquiry2->fw.major_version = cb->enquiry->fw_major_version;
-		enquiry2->fw.minor_version = cb->enquiry->fw_minor_version;
+		enquiry2->fw.mianalr_version = cb->enquiry->fw_mianalr_version;
 		enquiry2->fw.firmware_type = '0';
 		enquiry2->fw.turn_id = 0;
 	}
 	snprintf(cb->fw_version, sizeof(cb->fw_version),
 		"%u.%02u-%c-%02u",
 		enquiry2->fw.major_version,
-		enquiry2->fw.minor_version,
+		enquiry2->fw.mianalr_version,
 		enquiry2->fw.firmware_type,
 		enquiry2->fw.turn_id);
 	if (!((enquiry2->fw.major_version == 5 &&
-	       enquiry2->fw.minor_version >= 6) ||
+	       enquiry2->fw.mianalr_version >= 6) ||
 	      (enquiry2->fw.major_version == 4 &&
-	       enquiry2->fw.minor_version >= 6) ||
+	       enquiry2->fw.mianalr_version >= 6) ||
 	      (enquiry2->fw.major_version == 3 &&
-	       enquiry2->fw.minor_version >= 51) ||
+	       enquiry2->fw.mianalr_version >= 51) ||
 	      (enquiry2->fw.major_version == 2 &&
 	       strcmp(cb->fw_version, FIRMWARE_27X) >= 0))) {
 		shost_printk(KERN_WARNING, cb->host,
@@ -1143,7 +1143,7 @@ static int myrb_get_hba_config(struct myrb_hba *cb)
 		cb->bgi_status_supported = true;
 		myrb_bgi_control(cb);
 	}
-	cb->last_rbld_status = MYRB_NO_STDBY_RBLD_OR_CHECK_IN_PROGRESS;
+	cb->last_rbld_status = MYRB_ANAL_STDBY_RBLD_OR_CHECK_IN_PROGRESS;
 	ret = 0;
 
 out:
@@ -1293,8 +1293,8 @@ static int myrb_pthru_queuecommand(struct Scsi_Host *shost,
 	dcdb->channel = sdev->channel;
 	dcdb->target = sdev->id;
 	switch (scmd->sc_data_direction) {
-	case DMA_NONE:
-		dcdb->data_xfer = MYRB_DCDB_XFER_NONE;
+	case DMA_ANALNE:
+		dcdb->data_xfer = MYRB_DCDB_XFER_ANALNE;
 		break;
 	case DMA_TO_DEVICE:
 		dcdb->data_xfer = MYRB_DCDB_XFER_SYSTEM_TO_DEVICE;
@@ -1315,7 +1315,7 @@ static int myrb_pthru_queuecommand(struct Scsi_Host *shost,
 		dcdb->timeout = MYRB_DCDB_TMO_10_MINS;
 	else
 		dcdb->timeout = MYRB_DCDB_TMO_24_HRS;
-	dcdb->no_autosense = false;
+	dcdb->anal_autosense = false;
 	dcdb->allow_disconnect = true;
 	sgl = scsi_sglist(scmd);
 	dcdb->dma_addr = sg_dma_address(sgl);
@@ -1399,7 +1399,7 @@ myrb_mode_sense(struct myrb_hba *cb, struct scsi_cmnd *scmd,
 static void myrb_request_sense(struct myrb_hba *cb,
 		struct scsi_cmnd *scmd)
 {
-	scsi_build_sense(scmd, 0, NO_SENSE, 0, 0);
+	scsi_build_sense(scmd, 0, ANAL_SENSE, 0, 0);
 	scsi_sg_copy_from_buffer(scmd, scmd->sense_buffer,
 				 SCSI_SENSE_BUFFERSIZE);
 }
@@ -1492,7 +1492,7 @@ static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
 		myrb_request_sense(cb, scmd);
 		scmd->result = (DID_OK << 16);
 		return 0;
-	case SEND_DIAGNOSTIC:
+	case SEND_DIAGANALSTIC:
 		if (scmd->cmnd[1] != 0x04) {
 			/* Illegal request, invalid field in CDB */
 			scsi_build_sense(scmd, 0, ILLEGAL_REQUEST, 0x24, 0);
@@ -1553,7 +1553,7 @@ static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
 
 	myrb_reset_cmd(cmd_blk);
 	mbox->type5.id = scsi_cmd_to_rq(scmd)->tag + 3;
-	if (scmd->sc_data_direction == DMA_NONE)
+	if (scmd->sc_data_direction == DMA_ANALNE)
 		goto submit;
 	nsge = scsi_dma_map(scmd);
 	if (nsge == 1) {
@@ -1633,7 +1633,7 @@ static int myrb_ldev_slave_alloc(struct scsi_device *sdev)
 
 	sdev->hostdata = kzalloc(sizeof(*ldev_info), GFP_KERNEL);
 	if (!sdev->hostdata)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_dbg(&sdev->sdev_gendev,
 		"slave alloc ldev %d state %x\n",
 		ldev_num, ldev_info->state);
@@ -1659,7 +1659,7 @@ static int myrb_ldev_slave_alloc(struct scsi_device *sdev)
 		level = RAID_LEVEL_JBOD;
 		break;
 	default:
-		level = RAID_LEVEL_UNKNOWN;
+		level = RAID_LEVEL_UNKANALWN;
 		break;
 	}
 	raid_set_level(myrb_raid_template, &sdev->sdev_gendev, level);
@@ -1677,7 +1677,7 @@ static int myrb_pdev_slave_alloc(struct scsi_device *sdev)
 
 	pdev_info = kzalloc(sizeof(*pdev_info), GFP_KERNEL);
 	if (!pdev_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = myrb_exec_type3D(cb, MYRB_CMD_GET_DEVICE_STATE,
 				  sdev, pdev_info);
@@ -1690,7 +1690,7 @@ static int myrb_pdev_slave_alloc(struct scsi_device *sdev)
 	}
 	if (!pdev_info->present) {
 		dev_dbg(&sdev->sdev_gendev,
-			"device not present, skip\n");
+			"device analt present, skip\n");
 		kfree(pdev_info);
 		return -ENXIO;
 	}
@@ -1724,7 +1724,7 @@ static int myrb_slave_configure(struct scsi_device *sdev)
 		return -ENXIO;
 
 	if (sdev->channel < myrb_logical_channel(sdev->host)) {
-		sdev->no_uld_attach = 1;
+		sdev->anal_uld_attach = 1;
 		return 0;
 	}
 	if (sdev->lun != 0)
@@ -1767,7 +1767,7 @@ static ssize_t raid_state_show(struct device *dev,
 	int ret;
 
 	if (!sdev->hostdata)
-		return snprintf(buf, 16, "Unknown\n");
+		return snprintf(buf, 16, "Unkanalwn\n");
 
 	if (sdev->channel == myrb_logical_channel(sdev->host)) {
 		struct myrb_ldev_info *ldev_info = sdev->hostdata;
@@ -1826,12 +1826,12 @@ static ssize_t raid_state_store(struct device *dev,
 	pdev_info = sdev->hostdata;
 	if (!pdev_info) {
 		sdev_printk(KERN_INFO, sdev,
-			    "Failed - no physical device information\n");
+			    "Failed - anal physical device information\n");
 		return -ENXIO;
 	}
 	if (!pdev_info->present) {
 		sdev_printk(KERN_INFO, sdev,
-			    "Failed - device not present\n");
+			    "Failed - device analt present\n");
 		return -ENXIO;
 	}
 
@@ -1847,10 +1847,10 @@ static ssize_t raid_state_store(struct device *dev,
 			     "Failed - Unable to Start Device\n");
 		count = -EAGAIN;
 		break;
-	case MYRB_STATUS_NO_DEVICE:
+	case MYRB_STATUS_ANAL_DEVICE:
 		sdev_printk(KERN_INFO, sdev,
-			    "Failed - No Device at Address\n");
-		count = -ENODEV;
+			    "Failed - Anal Device at Address\n");
+		count = -EANALDEV;
 		break;
 	case MYRB_STATUS_INVALID_CHANNEL_OR_TARGET:
 		sdev_printk(KERN_INFO, sdev,
@@ -1903,13 +1903,13 @@ static ssize_t rebuild_show(struct device *dev,
 	unsigned char status;
 
 	if (sdev->channel < myrb_logical_channel(sdev->host))
-		return snprintf(buf, 32, "physical device - not rebuilding\n");
+		return snprintf(buf, 32, "physical device - analt rebuilding\n");
 
 	status = myrb_get_rbld_progress(cb, &rbld_buf);
 
 	if (rbld_buf.ldev_num != sdev->id ||
 	    status != MYRB_STATUS_SUCCESS)
-		return snprintf(buf, 32, "not rebuilding\n");
+		return snprintf(buf, 32, "analt rebuilding\n");
 
 	return snprintf(buf, 32, "rebuilding block %u of %u\n",
 			rbld_buf.ldev_size - rbld_buf.blocks_left,
@@ -1938,7 +1938,7 @@ static ssize_t rebuild_store(struct device *dev,
 	if (start) {
 		if (status == MYRB_STATUS_SUCCESS) {
 			sdev_printk(KERN_INFO, sdev,
-				    "Rebuild Not Initiated; already in progress\n");
+				    "Rebuild Analt Initiated; already in progress\n");
 			return -EALREADY;
 		}
 		mutex_lock(&cb->dcmd_mutex);
@@ -1958,7 +1958,7 @@ static ssize_t rebuild_store(struct device *dev,
 
 		if (status != MYRB_STATUS_SUCCESS) {
 			sdev_printk(KERN_INFO, sdev,
-				    "Rebuild Not Cancelled; not in progress\n");
+				    "Rebuild Analt Cancelled; analt in progress\n");
 			return 0;
 		}
 
@@ -1967,7 +1967,7 @@ static ssize_t rebuild_store(struct device *dev,
 		if (rate == NULL) {
 			sdev_printk(KERN_INFO, sdev,
 				    "Cancellation of Rebuild Failed - Out of Memory\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		mutex_lock(&cb->dcmd_mutex);
 		cmd_blk = &cb->dcmd_blk;
@@ -1988,7 +1988,7 @@ static ssize_t rebuild_store(struct device *dev,
 	}
 	if (!start) {
 		sdev_printk(KERN_INFO, sdev,
-			    "Rebuild Not Cancelled, status 0x%x\n",
+			    "Rebuild Analt Cancelled, status 0x%x\n",
 			    status);
 		return -EIO;
 	}
@@ -2045,7 +2045,7 @@ static ssize_t consistency_check_store(struct device *dev,
 	if (start) {
 		if (status == MYRB_STATUS_SUCCESS) {
 			sdev_printk(KERN_INFO, sdev,
-				    "Check Consistency Not Initiated; already in progress\n");
+				    "Check Consistency Analt Initiated; already in progress\n");
 			return -EALREADY;
 		}
 		mutex_lock(&cb->dcmd_mutex);
@@ -2066,7 +2066,7 @@ static ssize_t consistency_check_store(struct device *dev,
 
 		if (ldev_num != sdev->id) {
 			sdev_printk(KERN_INFO, sdev,
-				    "Check Consistency Not Cancelled; not in progress\n");
+				    "Check Consistency Analt Cancelled; analt in progress\n");
 			return 0;
 		}
 		rate = dma_alloc_coherent(&pdev->dev, sizeof(char),
@@ -2074,7 +2074,7 @@ static ssize_t consistency_check_store(struct device *dev,
 		if (rate == NULL) {
 			sdev_printk(KERN_INFO, sdev,
 				    "Cancellation of Check Consistency Failed - Out of Memory\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		mutex_lock(&cb->dcmd_mutex);
 		cmd_blk = &cb->dcmd_blk;
@@ -2095,7 +2095,7 @@ static ssize_t consistency_check_store(struct device *dev,
 	}
 	if (!start) {
 		sdev_printk(KERN_INFO, sdev,
-			    "Check Consistency Not Cancelled, status 0x%x\n",
+			    "Check Consistency Analt Cancelled, status 0x%x\n",
 			    status);
 		return -EIO;
 	}
@@ -2108,7 +2108,7 @@ static ssize_t consistency_check_store(struct device *dev,
 		msg = "New Disk Failed During Rebuild";
 		break;
 	case MYRB_STATUS_INVALID_ADDRESS:
-		msg = "Invalid or Nonredundant Logical Drive";
+		msg = "Invalid or Analnredundant Logical Drive";
 		break;
 	case MYRB_STATUS_RBLD_OR_CHECK_INPROGRESS:
 		msg = "Already in Progress";
@@ -2266,11 +2266,11 @@ static void myrb_get_state(struct device *dev)
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct myrb_hba *cb = shost_priv(sdev->host);
 	struct myrb_ldev_info *ldev_info = sdev->hostdata;
-	enum raid_state state = RAID_STATE_UNKNOWN;
+	enum raid_state state = RAID_STATE_UNKANALWN;
 	unsigned short status;
 
 	if (sdev->channel < myrb_logical_channel(sdev->host) || !ldev_info)
-		state = RAID_STATE_UNKNOWN;
+		state = RAID_STATE_UNKANALWN;
 	else {
 		status = myrb_get_rbld_progress(cb, NULL);
 		if (status == MYRB_STATUS_SUCCESS)
@@ -2345,19 +2345,19 @@ static void myrb_handle_scsi(struct myrb_hba *cb, struct myrb_cmdblk *cmd_blk,
 			/* Write error, auto-reallocation failed */
 			scsi_build_sense(scmd, 0, MEDIUM_ERROR, 0x0C, 0x02);
 		break;
-	case MYRB_STATUS_LDRV_NONEXISTENT_OR_OFFLINE:
+	case MYRB_STATUS_LDRV_ANALNEXISTENT_OR_OFFLINE:
 		dev_dbg(&scmd->device->sdev_gendev,
-			    "Logical Drive Nonexistent or Offline");
+			    "Logical Drive Analnexistent or Offline");
 		scmd->result = (DID_BAD_TARGET << 16);
 		break;
 	case MYRB_STATUS_ACCESS_BEYOND_END_OF_LDRV:
 		dev_dbg(&scmd->device->sdev_gendev,
 			    "Attempt to Access Beyond End of Logical Drive");
 		/* Logical block address out of range */
-		scsi_build_sense(scmd, 0, NOT_READY, 0x21, 0);
+		scsi_build_sense(scmd, 0, ANALT_READY, 0x21, 0);
 		break;
-	case MYRB_STATUS_DEVICE_NONRESPONSIVE:
-		dev_dbg(&scmd->device->sdev_gendev, "Device nonresponsive\n");
+	case MYRB_STATUS_DEVICE_ANALNRESPONSIVE:
+		dev_dbg(&scmd->device->sdev_gendev, "Device analnresponsive\n");
 		scmd->result = (DID_BAD_TARGET << 16);
 		break;
 	default:
@@ -2393,7 +2393,7 @@ static void myrb_monitor(struct work_struct *work)
 		int event = cb->old_ev_seq;
 
 		dev_dbg(&shost->shost_gendev,
-			"get event log no %d/%d\n",
+			"get event log anal %d/%d\n",
 			cb->new_ev_seq, event);
 		myrb_get_event(cb, event);
 		cb->old_ev_seq = event + 1;
@@ -2467,39 +2467,39 @@ static bool myrb_err_status(struct myrb_hba *cb, unsigned char error,
 	switch (error) {
 	case 0x00:
 		dev_info(&pdev->dev,
-			 "Physical Device %d:%d Not Responding\n",
+			 "Physical Device %d:%d Analt Responding\n",
 			 parm1, parm0);
 		break;
 	case 0x08:
-		dev_notice(&pdev->dev, "Spinning Up Drives\n");
+		dev_analtice(&pdev->dev, "Spinning Up Drives\n");
 		break;
 	case 0x30:
-		dev_notice(&pdev->dev, "Configuration Checksum Error\n");
+		dev_analtice(&pdev->dev, "Configuration Checksum Error\n");
 		break;
 	case 0x60:
-		dev_notice(&pdev->dev, "Mirror Race Recovery Failed\n");
+		dev_analtice(&pdev->dev, "Mirror Race Recovery Failed\n");
 		break;
 	case 0x70:
-		dev_notice(&pdev->dev, "Mirror Race Recovery In Progress\n");
+		dev_analtice(&pdev->dev, "Mirror Race Recovery In Progress\n");
 		break;
 	case 0x90:
-		dev_notice(&pdev->dev, "Physical Device %d:%d COD Mismatch\n",
+		dev_analtice(&pdev->dev, "Physical Device %d:%d COD Mismatch\n",
 			   parm1, parm0);
 		break;
 	case 0xA0:
-		dev_notice(&pdev->dev, "Logical Drive Installation Aborted\n");
+		dev_analtice(&pdev->dev, "Logical Drive Installation Aborted\n");
 		break;
 	case 0xB0:
-		dev_notice(&pdev->dev, "Mirror Race On A Critical Logical Drive\n");
+		dev_analtice(&pdev->dev, "Mirror Race On A Critical Logical Drive\n");
 		break;
 	case 0xD0:
-		dev_notice(&pdev->dev, "New Controller Configuration Found\n");
+		dev_analtice(&pdev->dev, "New Controller Configuration Found\n");
 		break;
 	case 0xF0:
 		dev_err(&pdev->dev, "Fatal Memory Parity Error\n");
 		return true;
 	default:
-		dev_err(&pdev->dev, "Unknown Initialization Error %02X\n",
+		dev_err(&pdev->dev, "Unkanalwn Initialization Error %02X\n",
 			error);
 		return true;
 	}
@@ -2678,7 +2678,7 @@ static int DAC960_LA_hw_init(struct pci_dev *pdev,
 		if (DAC960_LA_read_error_status(base, &error,
 					      &parm0, &parm1) &&
 		    myrb_err_status(cb, error, parm0, parm1))
-			return -ENODEV;
+			return -EANALDEV;
 		udelay(10);
 		timeout++;
 	}
@@ -2691,7 +2691,7 @@ static int DAC960_LA_hw_init(struct pci_dev *pdev,
 		dev_err(&pdev->dev,
 			"Unable to Enable Memory Mailbox Interface\n");
 		DAC960_LA_reset_ctrl(base);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	DAC960_LA_enable_intr(base);
 	cb->qcmd = myrb_qcmd;
@@ -2939,7 +2939,7 @@ static int DAC960_PG_hw_init(struct pci_dev *pdev,
 		dev_err(&pdev->dev,
 			"Unable to Enable Memory Mailbox Interface\n");
 		DAC960_PG_reset_ctrl(base);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	DAC960_PG_enable_intr(base);
 	cb->qcmd = myrb_qcmd;
@@ -3140,7 +3140,7 @@ static int DAC960_PD_hw_init(struct pci_dev *pdev,
 		dev_err(&pdev->dev,
 			"Unable to Enable Memory Mailbox Interface\n");
 		DAC960_PD_reset_ctrl(base);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	DAC960_PD_enable_intr(base);
 	cb->qcmd = DAC960_PD_qcmd;
@@ -3466,7 +3466,7 @@ static int myrb_probe(struct pci_dev *dev, const struct pci_device_id *entry)
 
 	cb = myrb_detect(dev, entry);
 	if (!cb)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = myrb_get_hba_config(cb);
 	if (ret < 0) {
@@ -3475,7 +3475,7 @@ static int myrb_probe(struct pci_dev *dev, const struct pci_device_id *entry)
 	}
 
 	if (!myrb_create_mempools(dev, cb)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto failed;
 	}
 
@@ -3497,7 +3497,7 @@ static void myrb_remove(struct pci_dev *pdev)
 {
 	struct myrb_hba *cb = pci_get_drvdata(pdev);
 
-	shost_printk(KERN_NOTICE, cb->host, "Flushing Cache...");
+	shost_printk(KERN_ANALTICE, cb->host, "Flushing Cache...");
 	myrb_exec_type3(cb, MYRB_CMD_FLUSH, 0);
 	myrb_cleanup(cb);
 	myrb_destroy_mempools(cb);
@@ -3539,7 +3539,7 @@ static int __init myrb_init_module(void)
 
 	myrb_raid_template = raid_class_attach(&myrb_raid_functions);
 	if (!myrb_raid_template)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = pci_register_driver(&myrb_pci_driver);
 	if (ret)

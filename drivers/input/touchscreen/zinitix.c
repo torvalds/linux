@@ -39,7 +39,7 @@
 
 #define ZINITIX_USB_DETECT			0x116
 
-#define ZINITIX_MINOR_FW_VERSION		0x0121
+#define ZINITIX_MIANALR_FW_VERSION		0x0121
 
 #define ZINITIX_VENDOR_ID			0x001C
 #define ZINITIX_HW_ID				0x0014
@@ -102,7 +102,7 @@
 #define BIT_RESERVED_0				BIT(6)
 #define BIT_RESERVED_1				BIT(7)
 #define BIT_WEIGHT_CHANGE			BIT(8)
-#define BIT_PT_NO_CHANGE			BIT(9)
+#define BIT_PT_ANAL_CHANGE			BIT(9)
 #define BIT_REJECT				BIT(10)
 #define BIT_PT_EXIST				BIT(11)
 #define BIT_RESERVED_2				BIT(12)
@@ -129,7 +129,7 @@ struct point_coord {
 	u8	width;
 	u8	sub_status;
 	// currently unused, but needed as padding:
-	u8	minor_width;
+	u8	mianalr_width;
 	u8	angle;
 };
 
@@ -154,7 +154,7 @@ static int zinitix_read_data(struct i2c_client *client,
 	__le16 reg_le = cpu_to_le16(reg);
 	int ret;
 
-	/* A single i2c_transfer() transaction does not work here. */
+	/* A single i2c_transfer() transaction does analt work here. */
 	ret = i2c_master_send(client, (u8 *)&reg_le, sizeof(reg_le));
 	if (ret != sizeof(reg_le))
 		return ret < 0 ? ret : -EIO;
@@ -260,7 +260,7 @@ static int zinitix_init_regulators(struct bt541_ts_data *bt541)
 	 * so check if "vddo" is present and in that case use these names.
 	 * Else use the proper supply names on the component.
 	 */
-	if (of_property_present(dev->of_node, "vddo-supply")) {
+	if (of_property_present(dev->of_analde, "vddo-supply")) {
 		bt541->supplies[0].supply = "vdd";
 		bt541->supplies[1].supply = "vddo";
 	} else {
@@ -326,7 +326,7 @@ static void zinitix_report_finger(struct bt541_ts_data *bt541, int slot,
 
 	if (unlikely(!(p->sub_status &
 		       (SUB_BIT_UP | SUB_BIT_DOWN | SUB_BIT_MOVE)))) {
-		dev_dbg(&bt541->client->dev, "unknown finger event %#02x\n",
+		dev_dbg(&bt541->client->dev, "unkanalwn finger event %#02x\n",
 			p->sub_status);
 		return;
 	}
@@ -458,7 +458,7 @@ static int zinitix_init_input_dev(struct bt541_ts_data *bt541)
 	if (!input_dev) {
 		dev_err(&bt541->client->dev,
 			"Failed to allocate input device.");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_set_drvdata(input_dev, bt541);
@@ -478,7 +478,7 @@ static int zinitix_init_input_dev(struct bt541_ts_data *bt541)
 	touchscreen_parse_properties(input_dev, true, &bt541->prop);
 	if (!bt541->prop.max_x || !bt541->prop.max_y) {
 		dev_err(&bt541->client->dev,
-			"Touchscreen-size-x and/or touchscreen-size-y not set in dts\n");
+			"Touchscreen-size-x and/or touchscreen-size-y analt set in dts\n");
 		return -EINVAL;
 	}
 
@@ -513,7 +513,7 @@ static int zinitix_ts_probe(struct i2c_client *client)
 
 	bt541 = devm_kzalloc(&client->dev, sizeof(*bt541), GFP_KERNEL);
 	if (!bt541)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bt541->client = client;
 	i2c_set_clientdata(client, bt541);
@@ -527,7 +527,7 @@ static int zinitix_ts_probe(struct i2c_client *client)
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  NULL, zinitix_ts_irq_handler,
-					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
+					  IRQF_ONESHOT | IRQF_ANAL_AUTOEN,
 					  client->name, bt541);
 	if (error) {
 		dev_err(&client->dev, "Failed to request IRQ: %d\n", error);

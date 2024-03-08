@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Amlogic Meson IR transmitter
 
 maintainers:
-  - Viktor Prutyanov <viktor.prutyanov@phystech.edu>
+  - Viktor Prutyaanalv <viktor.prutyaanalv@phystech.edu>
 
 description: |
   Some Amlogic SoCs such as A311D and T950D4 have IR transmitter

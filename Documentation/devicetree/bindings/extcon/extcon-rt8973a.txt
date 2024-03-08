@@ -3,7 +3,7 @@
 
 The Richtek RT8973A is Micro USB Switch with OVP and I2C interface. The RT8973A
 is a USB port accessory detector and switch that is optimized to protect low
-voltage system from abnormal high input voltage (up to 28V) and supports high
+voltage system from abanalrmal high input voltage (up to 28V) and supports high
 speed USB operation. Also, RT8973A support 'auto-configuration' mode.
 If auto-configuration mode is enabled, RT8973A would control internal h/w patch
 for USB D-/D+ switching.

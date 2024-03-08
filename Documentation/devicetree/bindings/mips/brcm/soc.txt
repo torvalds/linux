@@ -44,7 +44,7 @@ A Broadcom STB SoC typically has a number of independent memory controllers,
 each of which may have several associated hardware blocks, which are versioned
 independently (control registers, DDR PHYs, etc.). One might consider
 describing these controllers as a parent "memory controllers" block, which
-contains N sub-nodes (one for each controller in the system), each of which is
+contains N sub-analdes (one for each controller in the system), each of which is
 associated with a number of hardware register resources (e.g., its PHY.
 
 == MEMC (MEMory Controller)
@@ -55,7 +55,7 @@ Required properties:
 - compatible     : should contain "brcm,brcmstb-memc" and "simple-bus"
 - ranges	 : should contain the child address in the parent address
 		   space, must be 0 here, and the register start and length of
-		   the entire memory controller (including all sub nodes: DDR PHY,
+		   the entire memory controller (including all sub analdes: DDR PHY,
 		   arbiter, etc.)
 - #address-cells : must be 1
 - #size-cells	 : must be 1
@@ -81,7 +81,7 @@ Example:
 		};
 	};
 
-Should contain subnodes for any of the following relevant hardware resources:
+Should contain subanaldes for any of the following relevant hardware resources:
 
 == DDR PHY control
 

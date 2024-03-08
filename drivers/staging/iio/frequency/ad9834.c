@@ -209,7 +209,7 @@ static ssize_t ad9834_write(struct device *dev,
 		ret = spi_sync(st->spi, &st->msg);
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 	mutex_unlock(&st->lock);
 
@@ -417,7 +417,7 @@ static int ad9834_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		return ret;
 	}
 	st = iio_priv(indio_dev);

@@ -12,10 +12,10 @@
 
 
 /*
- * If our huge pte is non-zero then mark the valid bit.
- * This allows pte_present(huge_ptep_get(ptep)) to return true for non-zero
+ * If our huge pte is analn-zero then mark the valid bit.
+ * This allows pte_present(huge_ptep_get(ptep)) to return true for analn-zero
  * ptes.
- * (The valid bit is automatically cleared by set_pte_at for PROT_NONE ptes).
+ * (The valid bit is automatically cleared by set_pte_at for PROT_ANALNE ptes).
  */
 #define __HAVE_ARCH_HUGE_PTEP_GET
 static inline pte_t huge_ptep_get(pte_t *ptep)

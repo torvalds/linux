@@ -21,8 +21,8 @@ struct xe_range_fence_ops {
 
 /** struct xe_range_fence - XE range fence (address conflict tracking) */
 struct xe_range_fence {
-	/** @rb: RB tree node inserted into interval tree */
-	struct rb_node rb;
+	/** @rb: RB tree analde inserted into interval tree */
+	struct rb_analde rb;
 	/** @start: start address of range fence is interval tree */
 	u64 start;
 	/** @last: last address (inclusive) of range fence is interval tree */
@@ -30,7 +30,7 @@ struct xe_range_fence {
 	/** @__subtree_last: interval tree internal usage */
 	u64 __subtree_last;
 	/**
-	 * @fence: fence signals address in range fence no longer has conflict
+	 * @fence: fence signals address in range fence anal longer has conflict
 	 */
 	struct dma_fence *fence;
 	/** @tree: interval tree which range fence belongs to */
@@ -39,8 +39,8 @@ struct xe_range_fence {
 	 * @cb: callback when fence signals to remove range fence free from interval tree
 	 */
 	struct dma_fence_cb cb;
-	/** @link: used to defer free of range fence to non-irq context */
-	struct llist_node link;
+	/** @link: used to defer free of range fence to analn-irq context */
+	struct llist_analde link;
 	/** @ops: range fence ops */
 	const struct xe_range_fence_ops *ops;
 };

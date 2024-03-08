@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
@@ -27,8 +27,8 @@
  *  including format and featueres.
  */
 typedef struct dasd_information2_t {
-	unsigned int devno;	    /* S/390 devno */
-	unsigned int real_devno;    /* for aliases */
+	unsigned int devanal;	    /* S/390 devanal */
+	unsigned int real_devanal;    /* for aliases */
 	unsigned int schid;	    /* S/390 subchannel identifier */
 	unsigned int cu_type  : 16; /* from SenseID */
 	unsigned int cu_model :  8; /* from SenseID */
@@ -37,7 +37,7 @@ typedef struct dasd_information2_t {
 	unsigned int open_count;
 	unsigned int req_queue_len;
 	unsigned int chanq_len;     /* length of chanq */
-	char type[4];		    /* from discipline.name, 'none' for unknown */
+	char type[4];		    /* from discipline.name, 'analne' for unkanalwn */
 	unsigned int status;	    /* current device level */
 	unsigned int label_block;   /* where to find the VOLSER */
 	unsigned int FBA_layout;    /* fixed block size (like AIXVOL) */
@@ -59,11 +59,11 @@ typedef struct dasd_information2_t {
 
 /*
  * values to be used for dasd_information_t.format
- * 0x00: NOT formatted
+ * 0x00: ANALT formatted
  * 0x01: Linux disc layout
  * 0x02: Common disc layout
  */
-#define DASD_FORMAT_NONE 0
+#define DASD_FORMAT_ANALNE 0
 #define DASD_FORMAT_LDL  1
 #define DASD_FORMAT_CDL  2
 /*
@@ -99,8 +99,8 @@ typedef struct dasd_information2_t {
  * represents any data about the data, which is visible to userspace
  */
 typedef struct dasd_information_t {
-	unsigned int devno;	    /* S/390 devno */
-	unsigned int real_devno;    /* for aliases */
+	unsigned int devanal;	    /* S/390 devanal */
+	unsigned int real_devanal;    /* for aliases */
 	unsigned int schid;	    /* S/390 subchannel identifier */
 	unsigned int cu_type  : 16; /* from SenseID */
 	unsigned int cu_model :  8; /* from SenseID */
@@ -109,7 +109,7 @@ typedef struct dasd_information_t {
 	unsigned int open_count;
 	unsigned int req_queue_len;
 	unsigned int chanq_len;     /* length of chanq */
-	char type[4];		    /* from discipline.name, 'none' for unknown */
+	char type[4];		    /* from discipline.name, 'analne' for unkanalwn */
 	unsigned int status;	    /* current device level */
 	unsigned int label_block;   /* where to find the VOLSER */
 	unsigned int FBA_layout;    /* fixed block size (like AIXVOL) */
@@ -128,10 +128,10 @@ typedef struct dasd_rssd_perf_stats_t {
 	unsigned char  data_format:4;
 	unsigned char  unit_address;
 	unsigned short device_status;
-	unsigned int   nr_read_normal;
-	unsigned int   nr_read_normal_hits;
-	unsigned int   nr_write_normal;
-	unsigned int   nr_write_fast_normal_hits;
+	unsigned int   nr_read_analrmal;
+	unsigned int   nr_read_analrmal_hits;
+	unsigned int   nr_write_analrmal;
+	unsigned int   nr_write_fast_analrmal_hits;
 	unsigned int   nr_read_seq;
 	unsigned int   nr_read_seq_hits;
 	unsigned int   nr_write_seq;
@@ -146,7 +146,7 @@ typedef struct dasd_rssd_perf_stats_t {
 	unsigned int   nr_dasd_to_cache;
 	unsigned int   nr_cache_to_dasd;
 	unsigned int   nr_delayed_fast_write;
-	unsigned int   nr_normal_fast_write;
+	unsigned int   nr_analrmal_fast_write;
 	unsigned int   nr_seq_fast_write;
 	unsigned int   nr_cache_miss;
 	unsigned char  status2;
@@ -198,7 +198,7 @@ struct dasd_copypair_swap_data_t {
 
 /*
  * values to be used for format_data_t.intensity
- * 0/8: normal format
+ * 0/8: analrmal format
  * 1/9: also write record zero
  * 3/11: also write home address
  * 4/12: invalidate track
@@ -207,7 +207,7 @@ struct dasd_copypair_swap_data_t {
 #define DASD_FMT_INT_FMT_HA	2	/* write home address, also set FMT_R0 ! */
 #define DASD_FMT_INT_INVAL	4	/* invalidate tracks */
 #define DASD_FMT_INT_COMPAT	8	/* use OS/390 compatible disk layout */
-#define DASD_FMT_INT_FMT_NOR0	16	/* remove permission to write record zero */
+#define DASD_FMT_INT_FMT_ANALR0	16	/* remove permission to write record zero */
 #define DASD_FMT_INT_ESE_FULL	32	/* release space for entire volume */
 
 /*
@@ -249,12 +249,12 @@ typedef struct format_check_t {
 typedef struct attrib_data_t {
 	unsigned char operation:3;     /* cache operation mode */
 	unsigned char reserved:5;      /* cache operation mode */
-	__u16         nr_cyl;          /* no of cyliners for read ahaed */
+	__u16         nr_cyl;          /* anal of cyliners for read ahaed */
 	__u8          reserved2[29];   /* for future use */
 } __attribute__ ((packed)) attrib_data_t;
 
 /* definition of operation (cache) bits within attributes of DE */
-#define DASD_NORMAL_CACHE  0x0
+#define DASD_ANALRMAL_CACHE  0x0
 #define DASD_BYPASS_CACHE  0x1
 #define DASD_INHIBIT_LOAD  0x2
 #define DASD_SEQ_ACCESS    0x3

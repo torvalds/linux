@@ -10,7 +10,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -38,7 +38,7 @@
 #define LCR_STOP_2             0x04	/* 2 stop bits   (if 6-8 bits/char) */
 #define LCR_STOP_MASK          0x04	/* Mask for stop bits field */
 
-#define LCR_PAR_NONE           0x00	/* No parity */
+#define LCR_PAR_ANALNE           0x00	/* Anal parity */
 #define LCR_PAR_ODD            0x08	/* Odd parity */
 #define LCR_PAR_EVEN           0x18	/* Even parity */
 #define LCR_PAR_MARK           0x28	/* Force parity bit to 1 */
@@ -92,7 +92,7 @@
 /*
  * Vendor id and device id defines
  *
- * NOTE: Do not add new defines, add entries directly to the id_table instead.
+ * ANALTE: Do analt add new defines, add entries directly to the id_table instead.
  */
 #define USB_VENDOR_ID_BANDB              0x0856
 #define BANDB_DEVICE_ID_USO9ML2_2        0xAC22
@@ -251,7 +251,7 @@ static int mos7840_get_reg_sync(struct usb_serial_port *port, __u16 reg,
 
 	buf = kmalloc(VENDOR_READ_LENGTH, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), MCS_RDREQ,
 			      MCS_RD_RTYPE, 0, reg, buf, VENDOR_READ_LENGTH,
@@ -309,7 +309,7 @@ static int mos7840_get_uart_reg(struct usb_serial_port *port, __u16 reg,
 
 	buf = kmalloc(VENDOR_READ_LENGTH, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Wval  is same as application number */
 	if (port->serial->num_ports == 2 && port->port_number != 0)
@@ -355,14 +355,14 @@ static void mos7840_set_led_callback(struct urb *urb)
 		/* Success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* This urb is terminated, clean up */
 		dev_dbg(&urb->dev->dev, "%s - urb shutting down: %d\n",
 			__func__, urb->status);
 		break;
 	default:
-		dev_dbg(&urb->dev->dev, "%s - nonzero urb status: %d\n",
+		dev_dbg(&urb->dev->dev, "%s - analnzero urb status: %d\n",
 			__func__, urb->status);
 	}
 }
@@ -438,7 +438,7 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	int status = urb->status;
 
 	if (status) {
-		dev_dbg(&urb->dev->dev, "nonzero read bulk status received: %d\n", status);
+		dev_dbg(&urb->dev->dev, "analnzero read bulk status received: %d\n", status);
 		mos7840_port->read_urb_busy = false;
 		return;
 	}
@@ -490,7 +490,7 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 	spin_unlock_irqrestore(&mos7840_port->pool_lock, flags);
 
 	if (status) {
-		dev_dbg(&port->dev, "nonzero write bulk status received:%d\n", status);
+		dev_dbg(&port->dev, "analnzero write bulk status received:%d\n", status);
 		return;
 	}
 
@@ -672,7 +672,7 @@ static int mos7840_open(struct tty_struct *tty, struct usb_serial_port *port)
 									Data);
 
 	dev_dbg(&port->dev, "port number is %d\n", port->port_number);
-	dev_dbg(&port->dev, "minor number is %d\n", port->minor);
+	dev_dbg(&port->dev, "mianalr number is %d\n", port->mianalr);
 	dev_dbg(&port->dev, "Bulkin endpoint is %d\n", port->bulk_in_endpointAddress);
 	dev_dbg(&port->dev, "BulkOut endpoint is %d\n", port->bulk_out_endpointAddress);
 	dev_dbg(&port->dev, "Interrupt endpoint is %d\n", port->interrupt_in_endpointAddress);
@@ -725,7 +725,7 @@ err:
 
 /*****************************************************************************
  * mos7840_chars_in_buffer
- *	this function is called by the tty driver when it wants to know how many
+ *	this function is called by the tty driver when it wants to kanalw how many
  *	bytes of data we currently have outstanding in the port (data that has
  *	been written, but hasn't made it out the port yet)
  *****************************************************************************/
@@ -798,7 +798,7 @@ static int mos7840_break(struct tty_struct *tty, int break_state)
 	else
 		data = mos7840_port->shadowLCR & ~LCR_SET_BREAK;
 
-	/* FIXME: no locking on shadowLCR anywhere in driver */
+	/* FIXME: anal locking on shadowLCR anywhere in driver */
 	mos7840_port->shadowLCR = data;
 	dev_dbg(&port->dev, "%s mos7840_port->shadowLCR is %x\n", __func__, mos7840_port->shadowLCR);
 
@@ -808,7 +808,7 @@ static int mos7840_break(struct tty_struct *tty, int break_state)
 
 /*****************************************************************************
  * mos7840_write_room
- *	this function is called by the tty driver when it wants to know how many
+ *	this function is called by the tty driver when it wants to kanalw how many
  *	bytes of data we can accept for a specific port.
  *****************************************************************************/
 
@@ -870,7 +870,7 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 	spin_unlock_irqrestore(&mos7840_port->pool_lock, flags);
 
 	if (urb == NULL) {
-		dev_dbg(&port->dev, "%s - no more free urbs\n", __func__);
+		dev_dbg(&port->dev, "%s - anal more free urbs\n", __func__);
 		goto exit;
 	}
 
@@ -878,7 +878,7 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 		urb->transfer_buffer = kmalloc(URB_TRANSFER_BUFFER_SIZE,
 					       GFP_ATOMIC);
 		if (!urb->transfer_buffer) {
-			bytes_sent = -ENOMEM;
+			bytes_sent = -EANALMEM;
 			goto exit;
 		}
 	}
@@ -1108,7 +1108,7 @@ static int mos7840_send_cmd_write_baud_rate(struct moschip_port *mos7840_port,
 	/* reset clk_uart_sel in spregOffset */
 	if (baudRate > 115200) {
 #ifdef HW_flow_control
-		/* NOTE: need to see the pther register to modify */
+		/* ANALTE: need to see the pther register to modify */
 		/* setting h/w flow control bit to 1 */
 		Data = 0x2b;
 		mos7840_port->shadowMCR = Data;
@@ -1203,7 +1203,7 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 
 	lData = LCR_BITS_8;
 	lStop = LCR_STOP_1;
-	lParity = LCR_PAR_NONE;
+	lParity = LCR_PAR_ANALNE;
 
 	cflag = tty->termios.c_cflag;
 
@@ -1238,7 +1238,7 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 		}
 
 	} else {
-		dev_dbg(&port->dev, "%s - parity = none\n", __func__);
+		dev_dbg(&port->dev, "%s - parity = analne\n", __func__);
 	}
 
 	if (cflag & CMSPAR)
@@ -1358,7 +1358,7 @@ static void mos7840_set_termios(struct tty_struct *tty,
  * Purpose: Let user call ioctl() to get info when the UART physically
  * 	    is emptied.  On bus types like RS485, the transmitter must
  * 	    release the bus after transmitting. This must be done when
- * 	    the transmit shift register is empty, not be done when the
+ * 	    the transmit shift register is empty, analt be done when the
  * 	    transmit holding register is empty.  This functionality
  * 	    allows an RS485 driver to be written in user space.
  *****************************************************************************/
@@ -1399,14 +1399,14 @@ static int mos7840_ioctl(struct tty_struct *tty,
 	default:
 		break;
 	}
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 /*
  * Check if GPO (pin 42) is connected to GPI (pin 33) as recommended by ASIX
  * for MCS7810 by bit-banging a 16-bit word.
  *
- * Note that GPO is really RTS of the third port so this will toggle RTS of
+ * Analte that GPO is really RTS of the third port so this will toggle RTS of
  * port two or three on two- and four-port devices.
  */
 static int mos7810_check(struct usb_serial *serial)
@@ -1475,7 +1475,7 @@ static int mos7840_probe(struct usb_serial *serial,
 
 	buf = kzalloc(VENDOR_READ_LENGTH, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 			MCS_RDREQ, MCS_RD_RTYPE, 0, GPIO_REGISTER, buf,
@@ -1503,11 +1503,11 @@ static int mos7840_calc_num_ports(struct usb_serial *serial,
 	int num_ports = MCS_PORTS(device_flags);
 
 	if (num_ports == 0 || num_ports > 4)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (epds->num_bulk_in < num_ports || epds->num_bulk_out < num_ports) {
 		dev_err(&serial->interface->dev, "missing endpoints\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return num_ports;
@@ -1547,7 +1547,7 @@ static int mos7840_port_probe(struct usb_serial_port *port)
 	dev_dbg(&port->dev, "mos7840_startup: configuring port %d\n", pnum);
 	mos7840_port = kzalloc(sizeof(struct moschip_port), GFP_KERNEL);
 	if (!mos7840_port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize all port interrupt end point to port 0 int
 	 * endpoint. Our device has only one interrupt end point
@@ -1556,11 +1556,11 @@ static int mos7840_port_probe(struct usb_serial_port *port)
 	mos7840_port->port = port;
 	spin_lock_init(&mos7840_port->pool_lock);
 
-	/* minor is not initialised until later by
-	 * usb-serial.c:get_free_serial() and cannot therefore be used
+	/* mianalr is analt initialised until later by
+	 * usb-serial.c:get_free_serial() and cananalt therefore be used
 	 * to index device instances */
 	mos7840_port->port_num = pnum + 1;
-	dev_dbg(&port->dev, "port->minor = %d\n", port->minor);
+	dev_dbg(&port->dev, "port->mianalr = %d\n", port->mianalr);
 	dev_dbg(&port->dev, "mos7840_port->port_num = %d\n", mos7840_port->port_num);
 
 	if (mos7840_port->port_num == 1) {
@@ -1693,7 +1693,7 @@ static int mos7840_port_probe(struct usb_serial_port *port)
 		mos7840_port->led_dr = kmalloc(sizeof(*mos7840_port->led_dr),
 								GFP_KERNEL);
 		if (!mos7840_port->led_urb || !mos7840_port->led_dr) {
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto error;
 		}
 

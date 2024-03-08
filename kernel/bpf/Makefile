@@ -2,16 +2,16 @@
 obj-y := core.o
 ifneq ($(CONFIG_BPF_JIT_ALWAYS_ON),y)
 # ___bpf_prog_run() needs GCSE disabled on x86; see 3193c0836f203 for details
-cflags-nogcse-$(CONFIG_X86)$(CONFIG_CC_IS_GCC) := -fno-gcse
+cflags-analgcse-$(CONFIG_X86)$(CONFIG_CC_IS_GCC) := -fanal-gcse
 endif
-CFLAGS_core.o += $(call cc-disable-warning, override-init) $(cflags-nogcse-yy)
+CFLAGS_core.o += $(call cc-disable-warning, override-init) $(cflags-analgcse-yy)
 
-obj-$(CONFIG_BPF_SYSCALL) += syscall.o verifier.o inode.o helpers.o tnum.o log.o
+obj-$(CONFIG_BPF_SYSCALL) += syscall.o verifier.o ianalde.o helpers.o tnum.o log.o
 obj-$(CONFIG_BPF_SYSCALL) += bpf_iter.o map_iter.o task_iter.o prog_iter.o link_iter.o
 obj-$(CONFIG_BPF_SYSCALL) += hashtab.o arraymap.o percpu_freelist.o bpf_lru_list.o lpm_trie.o map_in_map.o bloom_filter.o
 obj-$(CONFIG_BPF_SYSCALL) += local_storage.o queue_stack_maps.o ringbuf.o
 obj-$(CONFIG_BPF_SYSCALL) += bpf_local_storage.o bpf_task_storage.o
-obj-${CONFIG_BPF_LSM}	  += bpf_inode_storage.o
+obj-${CONFIG_BPF_LSM}	  += bpf_ianalde_storage.o
 obj-$(CONFIG_BPF_SYSCALL) += disasm.o mprog.o
 obj-$(CONFIG_BPF_JIT) += trampoline.o
 obj-$(CONFIG_BPF_SYSCALL) += btf.o memalloc.o

@@ -32,7 +32,7 @@ struct clk_branch {
 #define BRANCH_HALT_VOTED		(BRANCH_HALT | BRANCH_VOTED)
 #define BRANCH_HALT_ENABLE		1 /* pol: 0 = halt */
 #define BRANCH_HALT_ENABLE_VOTED	(BRANCH_HALT_ENABLE | BRANCH_VOTED)
-#define BRANCH_HALT_DELAY		2 /* No bit to check; just delay */
+#define BRANCH_HALT_DELAY		2 /* Anal bit to check; just delay */
 #define BRANCH_HALT_SKIP		3 /* Don't check halt bit */
 
 	struct clk_regmap clkr;
@@ -57,7 +57,7 @@ struct clk_mem_branch {
 
 /* Branch clock common bits for HLOS-owned clocks */
 #define CBCR_CLK_OFF			BIT(31)
-#define CBCR_NOC_FSM_STATUS		GENMASK(30, 28)
+#define CBCR_ANALC_FSM_STATUS		GENMASK(30, 28)
  #define FSM_STATUS_ON			BIT(1)
 #define CBCR_FORCE_MEM_CORE_ON		BIT(14)
 #define CBCR_FORCE_MEM_PERIPH_ON	BIT(13)

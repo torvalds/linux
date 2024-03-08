@@ -27,14 +27,14 @@
 #include <sys/timex.h>
 #include <string.h>
 #include <signal.h>
-#include <errno.h>
+#include <erranal.h>
 #include <mqueue.h>
 #include "../kselftest.h"
 
 #define NSEC_PER_SEC 1000000000ULL
 
-#define TARGET_TIMEOUT		100000000	/* 100ms in nanoseconds */
-#define UNRESONABLE_LATENCY	40000000	/* 40ms in nanosecs */
+#define TARGET_TIMEOUT		100000000	/* 100ms in naanalseconds */
+#define UNRESONABLE_LATENCY	40000000	/* 40ms in naanalsecs */
 
 
 long long timespec_sub(struct timespec a, struct timespec b)
@@ -60,7 +60,7 @@ int mqueue_lat_test(void)
 
 	mqd_t q;
 	struct mq_attr attr;
-	struct timespec start, end, now, target;
+	struct timespec start, end, analw, target;
 	int i, count, ret;
 
 	q = mq_open("/foo", O_CREAT | O_RDONLY, 0666, NULL);
@@ -72,22 +72,22 @@ int mqueue_lat_test(void)
 
 
 	count = 100;
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(CLOCK_MOANALTONIC, &start);
 
 	for (i = 0; i < count; i++) {
 		char buf[attr.mq_msgsize];
 
-		clock_gettime(CLOCK_REALTIME, &now);
-		target = now;
-		target = timespec_add(now, TARGET_TIMEOUT); /* 100ms */
+		clock_gettime(CLOCK_REALTIME, &analw);
+		target = analw;
+		target = timespec_add(analw, TARGET_TIMEOUT); /* 100ms */
 
 		ret = mq_timedreceive(q, buf, sizeof(buf), NULL, &target);
-		if (ret < 0 && errno != ETIMEDOUT) {
+		if (ret < 0 && erranal != ETIMEDOUT) {
 			perror("mq_timedreceive");
 			return -1;
 		}
 	}
-	clock_gettime(CLOCK_MONOTONIC, &end);
+	clock_gettime(CLOCK_MOANALTONIC, &end);
 
 	mq_close(q);
 

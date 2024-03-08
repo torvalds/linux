@@ -11,11 +11,11 @@
 #define __LINUX_FS_NFS_NFS4_FS_H
 
 #if defined(CONFIG_NFS_V4_2)
-#define NFS4_MAX_MINOR_VERSION 2
+#define NFS4_MAX_MIANALR_VERSION 2
 #elif defined(CONFIG_NFS_V4_1)
-#define NFS4_MAX_MINOR_VERSION 1
+#define NFS4_MAX_MIANALR_VERSION 1
 #else
-#define NFS4_MAX_MINOR_VERSION 0
+#define NFS4_MAX_MIANALR_VERSION 0
 #endif
 
 #if IS_ENABLED(CONFIG_NFS_V4)
@@ -32,7 +32,7 @@ enum nfs4_client_state {
 	NFS4CLNT_CHECK_LEASE,
 	NFS4CLNT_LEASE_EXPIRED,
 	NFS4CLNT_RECLAIM_REBOOT,
-	NFS4CLNT_RECLAIM_NOGRACE,
+	NFS4CLNT_RECLAIM_ANALGRACE,
 	NFS4CLNT_DELEGRETURN,
 	NFS4CLNT_SESSION_RESET,
 	NFS4CLNT_LEASE_CONFIRM,
@@ -54,8 +54,8 @@ enum nfs4_client_state {
 #define NFS4_RENEW_DELEGATION_CB	0x02
 
 struct nfs_seqid_counter;
-struct nfs4_minor_version_ops {
-	u32	minor_version;
+struct nfs4_mianalr_version_ops {
+	u32	mianalr_version;
 	unsigned init_caps;
 
 	int	(*init_client)(struct nfs_client *);
@@ -74,7 +74,7 @@ struct nfs4_minor_version_ops {
 			struct rpc_xprt *xprt, void *data);
 	const struct rpc_call_ops *call_sync_ops;
 	const struct nfs4_state_recovery_ops *reboot_recovery_ops;
-	const struct nfs4_state_recovery_ops *nograce_recovery_ops;
+	const struct nfs4_state_recovery_ops *analgrace_recovery_ops;
 	const struct nfs4_state_maintenance_ops *state_renewal_ops;
 	const struct nfs4_mig_recovery_ops *mig_recovery_ops;
 };
@@ -111,7 +111,7 @@ struct nfs4_state_owner {
 	struct nfs_server    *so_server;
 	struct list_head     so_lru;
 	unsigned long        so_expires;
-	struct rb_node	     so_server_node;
+	struct rb_analde	     so_server_analde;
 
 	const struct cred    *so_cred;	 /* Associated cred */
 
@@ -126,7 +126,7 @@ struct nfs4_state_owner {
 
 enum {
 	NFS_OWNER_RECLAIM_REBOOT,
-	NFS_OWNER_RECLAIM_NOGRACE
+	NFS_OWNER_RECLAIM_ANALGRACE
 };
 
 #define NFS_LOCK_NEW		0
@@ -135,12 +135,12 @@ enum {
 
 /*
  * struct nfs4_state maintains the client-side state for a given
- * (state_owner,inode) tuple (OPEN) or state_owner (LOCK).
+ * (state_owner,ianalde) tuple (OPEN) or state_owner (LOCK).
  *
  * OPEN:
- * In order to know when to OPEN_DOWNGRADE or CLOSE the state on the server,
- * we need to know how many files are open for reading or writing on a
- * given inode. This information too is stored here.
+ * In order to kanalw when to OPEN_DOWNGRADE or CLOSE the state on the server,
+ * we need to kanalw how many files are open for reading or writing on a
+ * given ianalde. This information too is stored here.
  *
  * LOCK: one nfs4_state (LOCK) to hold the lock stateid nfs4_state(OPEN)
  */
@@ -167,10 +167,10 @@ enum {
 	NFS_O_WRONLY_STATE,		/* OPEN stateid has write-only state */
 	NFS_O_RDWR_STATE,		/* OPEN stateid has read/write state */
 	NFS_STATE_RECLAIM_REBOOT,	/* OPEN stateid server rebooted */
-	NFS_STATE_RECLAIM_NOGRACE,	/* OPEN stateid needs to recover state */
+	NFS_STATE_RECLAIM_ANALGRACE,	/* OPEN stateid needs to recover state */
 	NFS_STATE_POSIX_LOCKS,		/* Posix locks are supported */
 	NFS_STATE_RECOVERY_FAILED,	/* OPEN stateid state recovery failed */
-	NFS_STATE_MAY_NOTIFY_LOCK,	/* server may CB_NOTIFY_LOCK */
+	NFS_STATE_MAY_ANALTIFY_LOCK,	/* server may CB_ANALTIFY_LOCK */
 	NFS_STATE_CHANGE_WAIT,		/* A state changing operation is outstanding */
 	NFS_CLNT_DST_SSC_COPY_STATE,    /* dst server open state on client*/
 	NFS_CLNT_SRC_SSC_COPY_STATE,    /* src server open state on client*/
@@ -179,11 +179,11 @@ enum {
 
 struct nfs4_state {
 	struct list_head open_states;	/* List of states for the same state_owner */
-	struct list_head inode_states;	/* List of states for the same inode */
+	struct list_head ianalde_states;	/* List of states for the same ianalde */
 	struct list_head lock_states;	/* List of subservient lock stateids */
 
 	struct nfs4_state_owner *owner;	/* Pointer to the open owner */
-	struct inode *inode;		/* Pointer to the inode */
+	struct ianalde *ianalde;		/* Pointer to the ianalde */
 
 	unsigned long flags;		/* Do we hold any locks? */
 	spinlock_t state_lock;		/* Protects the lock_states list */
@@ -206,7 +206,7 @@ struct nfs4_state {
 
 struct nfs4_exception {
 	struct nfs4_state *state;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	nfs4_stateid *stateid;
 	long timeout;
 	unsigned short retrans;
@@ -266,20 +266,20 @@ struct nfs4_state_maintenance_ops {
 struct nfs4_mig_recovery_ops {
 	int (*get_locations)(struct nfs_server *, struct nfs_fh *,
 		struct nfs4_fs_locations *, struct page *, const struct cred *);
-	int (*fsid_present)(struct inode *, const struct cred *);
+	int (*fsid_present)(struct ianalde *, const struct cred *);
 };
 
 extern const struct dentry_operations nfs4_dentry_operations;
 
 /* dir.c */
-int nfs_atomic_open(struct inode *, struct dentry *, struct file *,
+int nfs_atomic_open(struct ianalde *, struct dentry *, struct file *,
 		    unsigned, umode_t);
 
 /* fs_context.c */
 extern struct file_system_type nfs4_fs_type;
 
 /* nfs4namespace.c */
-struct rpc_clnt *nfs4_negotiate_security(struct rpc_clnt *, struct inode *,
+struct rpc_clnt *nfs4_negotiate_security(struct rpc_clnt *, struct ianalde *,
 					 const struct qstr *);
 int nfs4_submount(struct fs_context *, struct nfs_server *);
 int nfs4_replace_transport(struct nfs_server *server,
@@ -305,26 +305,26 @@ extern int nfs4_init_clientid(struct nfs_client *, const struct cred *);
 extern int nfs41_init_clientid(struct nfs_client *, const struct cred *);
 extern int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait);
 extern int nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle);
-extern int nfs4_proc_fs_locations(struct rpc_clnt *, struct inode *, const struct qstr *,
+extern int nfs4_proc_fs_locations(struct rpc_clnt *, struct ianalde *, const struct qstr *,
 				  struct nfs4_fs_locations *, struct page *);
 extern int nfs4_proc_get_locations(struct nfs_server *, struct nfs_fh *,
 				   struct nfs4_fs_locations *,
 				   struct page *page, const struct cred *);
-extern int nfs4_proc_fsid_present(struct inode *, const struct cred *);
-extern struct rpc_clnt *nfs4_proc_lookup_mountpoint(struct inode *,
+extern int nfs4_proc_fsid_present(struct ianalde *, const struct cred *);
+extern struct rpc_clnt *nfs4_proc_lookup_mountpoint(struct ianalde *,
 						    struct dentry *,
 						    struct nfs_fh *,
 						    struct nfs_fattr *);
-extern int nfs4_proc_secinfo(struct inode *, const struct qstr *, struct nfs4_secinfo_flavors *);
+extern int nfs4_proc_secinfo(struct ianalde *, const struct qstr *, struct nfs4_secinfo_flavors *);
 extern const struct xattr_handler * const nfs4_xattr_handlers[];
 extern int nfs4_set_rw_stateid(nfs4_stateid *stateid,
 		const struct nfs_open_context *ctx,
 		const struct nfs_lock_context *l_ctx,
 		fmode_t fmode);
 extern void nfs4_bitmask_set(__u32 bitmask[], const __u32 src[],
-			     struct inode *inode, unsigned long cache_validity);
+			     struct ianalde *ianalde, unsigned long cache_validity);
 extern int nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
-			     struct nfs_fattr *fattr, struct inode *inode);
+			     struct nfs_fattr *fattr, struct ianalde *ianalde);
 extern int update_open_stateid(struct nfs4_state *state,
 				const nfs4_stateid *open_stateid,
 				const nfs4_stateid *deleg_stateid,
@@ -333,11 +333,11 @@ extern int nfs4_proc_setlease(struct file *file, int arg,
 			      struct file_lock **lease, void **priv);
 extern int nfs4_proc_get_lease_time(struct nfs_client *clp,
 		struct nfs_fsinfo *fsinfo);
-extern void nfs4_update_changeattr(struct inode *dir,
+extern void nfs4_update_changeattr(struct ianalde *dir,
 				   struct nfs4_change_info *cinfo,
 				   unsigned long timestamp,
 				   unsigned long cache_validity);
-extern int nfs4_buf_to_pages_noslab(const void *buf, size_t buflen,
+extern int nfs4_buf_to_pages_analslab(const void *buf, size_t buflen,
 				    struct page **pages);
 
 #if defined(CONFIG_NFS_V4_1)
@@ -407,7 +407,7 @@ nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_mode,
 
 /*
  * Special wrapper to nfs4_state_protect for write.
- * If WRITE can use machine cred but COMMIT cannot, make sure all writes
+ * If WRITE can use machine cred but COMMIT cananalt, make sure all writes
  * that use machine cred use NFS_FILE_SYNC.
  */
 static inline void
@@ -444,7 +444,7 @@ nfs4_state_protect_write(struct nfs_client *clp, struct rpc_clnt **clntp,
 }
 #endif /* CONFIG_NFS_V4_1 */
 
-extern const struct nfs4_minor_version_ops *nfs_v4_minor_ops[];
+extern const struct nfs4_mianalr_version_ops *nfs_v4_mianalr_ops[];
 
 extern const u32 nfs4_fattr_bitmap[3];
 extern const u32 nfs4_statfs_bitmap[3];
@@ -481,7 +481,7 @@ int nfs40_discover_server_trunking(struct nfs_client *clp,
 int nfs41_discover_server_trunking(struct nfs_client *clp,
 			struct nfs_client **, const struct cred *);
 extern void nfs4_schedule_session_recovery(struct nfs4_session *, int);
-extern void nfs41_notify_server(struct nfs_client *);
+extern void nfs41_analtify_server(struct nfs_client *);
 bool nfs4_check_serverowner_major_id(struct nfs41_server_owner *o1,
 			struct nfs41_server_owner *o2);
 #else
@@ -494,14 +494,14 @@ extern struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *, const 
 extern void nfs4_put_state_owner(struct nfs4_state_owner *);
 extern void nfs4_purge_state_owners(struct nfs_server *, struct list_head *);
 extern void nfs4_free_state_owners(struct list_head *head);
-extern struct nfs4_state * nfs4_get_open_state(struct inode *, struct nfs4_state_owner *);
+extern struct nfs4_state * nfs4_get_open_state(struct ianalde *, struct nfs4_state_owner *);
 extern void nfs4_put_open_state(struct nfs4_state *);
 extern void nfs4_close_state(struct nfs4_state *, fmode_t);
 extern void nfs4_close_sync(struct nfs4_state *, fmode_t);
 extern void nfs4_state_set_mode_locked(struct nfs4_state *, fmode_t);
-extern void nfs_inode_find_state_and_recover(struct inode *inode,
+extern void nfs_ianalde_find_state_and_recover(struct ianalde *ianalde,
 		const nfs4_stateid *stateid);
-extern int nfs4_state_mark_reclaim_nograce(struct nfs_client *, struct nfs4_state *);
+extern int nfs4_state_mark_reclaim_analgrace(struct nfs_client *, struct nfs4_state *);
 extern void nfs4_schedule_lease_recovery(struct nfs_client *);
 extern int nfs4_wait_clnt_recover(struct nfs_client *clp);
 extern int nfs4_client_recover_expired_lease(struct nfs_client *clp);
@@ -647,19 +647,19 @@ static inline bool nfs4_state_match_open_stateid_other(const struct nfs4_state *
 #ifdef CONFIG_NFS_V4_2
 extern int __init nfs4_xattr_cache_init(void);
 extern void nfs4_xattr_cache_exit(void);
-extern void nfs4_xattr_cache_add(struct inode *inode, const char *name,
+extern void nfs4_xattr_cache_add(struct ianalde *ianalde, const char *name,
 				 const char *buf, struct page **pages,
 				 ssize_t buflen);
-extern void nfs4_xattr_cache_remove(struct inode *inode, const char *name);
-extern ssize_t nfs4_xattr_cache_get(struct inode *inode, const char *name,
+extern void nfs4_xattr_cache_remove(struct ianalde *ianalde, const char *name);
+extern ssize_t nfs4_xattr_cache_get(struct ianalde *ianalde, const char *name,
 				char *buf, ssize_t buflen);
-extern void nfs4_xattr_cache_set_list(struct inode *inode, const char *buf,
+extern void nfs4_xattr_cache_set_list(struct ianalde *ianalde, const char *buf,
 				      ssize_t buflen);
-extern ssize_t nfs4_xattr_cache_list(struct inode *inode, char *buf,
+extern ssize_t nfs4_xattr_cache_list(struct ianalde *ianalde, char *buf,
 				     ssize_t buflen);
-extern void nfs4_xattr_cache_zap(struct inode *inode);
+extern void nfs4_xattr_cache_zap(struct ianalde *ianalde);
 #else
-static inline void nfs4_xattr_cache_zap(struct inode *inode)
+static inline void nfs4_xattr_cache_zap(struct ianalde *ianalde)
 {
 }
 #endif /* CONFIG_NFS_V4_2 */

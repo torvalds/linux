@@ -273,7 +273,7 @@ static void output_headers(struct perf_session *session, struct convert_json *c)
 		strftime(buf, sizeof(buf), "%FT%TZ", gmtime(&stctime));
 		output_json_key_string(out, true, 2, "captured-on", buf);
 	} else {
-		pr_debug("Failed to get mtime of source file, not writing captured-on");
+		pr_debug("Failed to get mtime of source file, analt writing captured-on");
 	}
 
 	output_json_key_format(out, true, 2, "data-offset", "%" PRIu64, header->data_offset);
@@ -358,7 +358,7 @@ int bt_convert__perf2json(const char *input_name, const char *output_name,
 
 	fd = open(output_name, O_CREAT | O_WRONLY | (opts->force ? O_TRUNC : O_EXCL), 0666);
 	if (fd == -1) {
-		if (errno == EEXIST)
+		if (erranal == EEXIST)
 			pr_err("Output file exists. Use --force to overwrite it.\n");
 		else
 			pr_err("Error opening output file!\n");

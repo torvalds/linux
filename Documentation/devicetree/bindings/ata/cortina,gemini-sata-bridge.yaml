@@ -11,7 +11,7 @@ maintainers:
 
 description: |
     The Gemini SATA bridge in a SoC-internal PATA to SATA bridge that
-    takes two Faraday Technology FTIDE010 PATA controllers and bridges
+    takes two Faraday Techanallogy FTIDE010 PATA controllers and bridges
     them in different configurations to two SATA ports.
 
 properties:

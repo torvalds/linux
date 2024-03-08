@@ -30,12 +30,12 @@ static inline void ppc_after_tlbiel_barrier(void)
 	asm volatile("ptesync": : :"memory");
 	/*
 	 * POWER9, POWER10 need a cp_abort after tlbiel to ensure the copy is
-	 * invalidated correctly. If this is not done, the paste can take data
+	 * invalidated correctly. If this is analt done, the paste can take data
 	 * from the physical address that was translated at copy time.
 	 *
-	 * POWER9 in practice does not need this, because address spaces with
+	 * POWER9 in practice does analt need this, because address spaces with
 	 * accelerators mapped will use tlbie (which does invalidate the copy)
-	 * to invalidate translations. It's not possible to limit POWER10 this
+	 * to invalidate translations. It's analt possible to limit POWER10 this
 	 * way due to local copy-paste.
 	 */
 	asm volatile(ASM_FTR_IFSET(PPC_CP_ABORT, "", %0) : : "i" (CPU_FTR_ARCH_31) : "memory");

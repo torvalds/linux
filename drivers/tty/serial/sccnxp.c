@@ -26,10 +26,10 @@
 
 #define SCCNXP_NAME			"uart-sccnxp"
 #define SCCNXP_MAJOR			204
-#define SCCNXP_MINOR			205
+#define SCCNXP_MIANALR			205
 
 #define SCCNXP_MR_REG			(0x00)
-#	define MR0_BAUD_NORMAL		(0 << 0)
+#	define MR0_BAUD_ANALRMAL		(0 << 0)
 #	define MR0_BAUD_EXT1		(1 << 0)
 #	define MR0_BAUD_EXT2		(5 << 0)
 #	define MR0_FIFO			(1 << 3)
@@ -40,7 +40,7 @@
 #	define MR1_BITS_8		(3 << 0)
 #	define MR1_PAR_EVN		(0 << 2)
 #	define MR1_PAR_ODD		(1 << 2)
-#	define MR1_PAR_NO		(4 << 2)
+#	define MR1_PAR_ANAL		(4 << 2)
 #	define MR2_STOP1		(7 << 0)
 #	define MR2_STOP2		(0xf << 0)
 #define SCCNXP_SR_REG			(0x01)
@@ -269,31 +269,31 @@ static const struct {
 	u8	mr0;
 	int	baud;
 } baud_std[] = {
-	{ 0,	ACR_BAUD0,	MR0_BAUD_NORMAL,	50, },
-	{ 0,	ACR_BAUD1,	MR0_BAUD_NORMAL,	75, },
-	{ 1,	ACR_BAUD0,	MR0_BAUD_NORMAL,	110, },
-	{ 2,	ACR_BAUD0,	MR0_BAUD_NORMAL,	134, },
-	{ 3,	ACR_BAUD1,	MR0_BAUD_NORMAL,	150, },
-	{ 3,	ACR_BAUD0,	MR0_BAUD_NORMAL,	200, },
-	{ 4,	ACR_BAUD0,	MR0_BAUD_NORMAL,	300, },
+	{ 0,	ACR_BAUD0,	MR0_BAUD_ANALRMAL,	50, },
+	{ 0,	ACR_BAUD1,	MR0_BAUD_ANALRMAL,	75, },
+	{ 1,	ACR_BAUD0,	MR0_BAUD_ANALRMAL,	110, },
+	{ 2,	ACR_BAUD0,	MR0_BAUD_ANALRMAL,	134, },
+	{ 3,	ACR_BAUD1,	MR0_BAUD_ANALRMAL,	150, },
+	{ 3,	ACR_BAUD0,	MR0_BAUD_ANALRMAL,	200, },
+	{ 4,	ACR_BAUD0,	MR0_BAUD_ANALRMAL,	300, },
 	{ 0,	ACR_BAUD1,	MR0_BAUD_EXT1,		450, },
 	{ 1,	ACR_BAUD0,	MR0_BAUD_EXT2,		880, },
 	{ 3,	ACR_BAUD1,	MR0_BAUD_EXT1,		900, },
-	{ 5,	ACR_BAUD0,	MR0_BAUD_NORMAL,	600, },
-	{ 7,	ACR_BAUD0,	MR0_BAUD_NORMAL,	1050, },
+	{ 5,	ACR_BAUD0,	MR0_BAUD_ANALRMAL,	600, },
+	{ 7,	ACR_BAUD0,	MR0_BAUD_ANALRMAL,	1050, },
 	{ 2,	ACR_BAUD0,	MR0_BAUD_EXT2,		1076, },
-	{ 6,	ACR_BAUD0,	MR0_BAUD_NORMAL,	1200, },
-	{ 10,	ACR_BAUD1,	MR0_BAUD_NORMAL,	1800, },
-	{ 7,	ACR_BAUD1,	MR0_BAUD_NORMAL,	2000, },
-	{ 8,	ACR_BAUD0,	MR0_BAUD_NORMAL,	2400, },
+	{ 6,	ACR_BAUD0,	MR0_BAUD_ANALRMAL,	1200, },
+	{ 10,	ACR_BAUD1,	MR0_BAUD_ANALRMAL,	1800, },
+	{ 7,	ACR_BAUD1,	MR0_BAUD_ANALRMAL,	2000, },
+	{ 8,	ACR_BAUD0,	MR0_BAUD_ANALRMAL,	2400, },
 	{ 5,	ACR_BAUD1,	MR0_BAUD_EXT1,		3600, },
-	{ 9,	ACR_BAUD0,	MR0_BAUD_NORMAL,	4800, },
-	{ 10,	ACR_BAUD0,	MR0_BAUD_NORMAL,	7200, },
-	{ 11,	ACR_BAUD0,	MR0_BAUD_NORMAL,	9600, },
+	{ 9,	ACR_BAUD0,	MR0_BAUD_ANALRMAL,	4800, },
+	{ 10,	ACR_BAUD0,	MR0_BAUD_ANALRMAL,	7200, },
+	{ 11,	ACR_BAUD0,	MR0_BAUD_ANALRMAL,	9600, },
 	{ 8,	ACR_BAUD0,	MR0_BAUD_EXT1,		14400, },
-	{ 12,	ACR_BAUD1,	MR0_BAUD_NORMAL,	19200, },
+	{ 12,	ACR_BAUD1,	MR0_BAUD_ANALRMAL,	19200, },
 	{ 9,	ACR_BAUD0,	MR0_BAUD_EXT1,		28800, },
-	{ 12,	ACR_BAUD0,	MR0_BAUD_NORMAL,	38400, },
+	{ 12,	ACR_BAUD0,	MR0_BAUD_ANALRMAL,	38400, },
 	{ 11,	ACR_BAUD0,	MR0_BAUD_EXT1,		57600, },
 	{ 12,	ACR_BAUD1,	MR0_BAUD_EXT1,		115200, },
 	{ 12,	ACR_BAUD0,	MR0_BAUD_EXT1,		230400, },
@@ -394,7 +394,7 @@ static void sccnxp_handle_rx(struct uart_port *port)
 		ch = sccnxp_port_read(port, SCCNXP_RHR_REG);
 
 		port->icount.rx++;
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 
 		if (unlikely(sr)) {
 			if (sr & SR_BRK) {
@@ -427,7 +427,7 @@ static void sccnxp_handle_rx(struct uart_port *port)
 		if (uart_handle_sysrq_char(port, ch))
 			continue;
 
-		if (sr & port->ignore_status_mask)
+		if (sr & port->iganalre_status_mask)
 			continue;
 
 		uart_insert_char(port, sr, SR_OVR, ch, flag);
@@ -536,7 +536,7 @@ static void sccnxp_start_tx(struct uart_port *port)
 
 static void sccnxp_stop_tx(struct uart_port *port)
 {
-	/* Do nothing */
+	/* Do analthing */
 }
 
 static void sccnxp_stop_rx(struct uart_port *port)
@@ -676,7 +676,7 @@ static void sccnxp_set_termios(struct uart_port *port,
 		if (termios->c_cflag & PARODD)
 			mr1 |= MR1_PAR_ODD;
 	} else
-		mr1 |= MR1_PAR_NO;
+		mr1 |= MR1_PAR_ANAL;
 
 	/* Stop bits */
 	mr2 = (termios->c_cflag & CSTOPB) ? MR2_STOP2 : MR2_STOP1;
@@ -693,14 +693,14 @@ static void sccnxp_set_termios(struct uart_port *port,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= SR_BRK;
 
-	/* Set status ignore mask */
-	port->ignore_status_mask = 0;
+	/* Set status iganalre mask */
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNBRK)
-		port->ignore_status_mask |= SR_BRK;
+		port->iganalre_status_mask |= SR_BRK;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= SR_PE;
+		port->iganalre_status_mask |= SR_PE;
 	if (!(termios->c_cflag & CREAD))
-		port->ignore_status_mask |= SR_PE | SR_OVR | SR_FE | SR_BRK;
+		port->iganalre_status_mask |= SR_PE | SR_OVR | SR_FE | SR_BRK;
 
 	/* Setup baudrate */
 	baud = uart_get_baud_rate(port, termios, old, 50,
@@ -783,12 +783,12 @@ static const char *sccnxp_type(struct uart_port *port)
 
 static void sccnxp_release_port(struct uart_port *port)
 {
-	/* Do nothing */
+	/* Do analthing */
 }
 
 static int sccnxp_request_port(struct uart_port *port)
 {
-	/* Do nothing */
+	/* Do analthing */
 	return 0;
 }
 
@@ -800,7 +800,7 @@ static void sccnxp_config_port(struct uart_port *port, int flags)
 
 static int sccnxp_verify_port(struct uart_port *port, struct serial_struct *s)
 {
-	if ((s->type == PORT_UNKNOWN) || (s->type == PORT_SC26XX))
+	if ((s->type == PORT_UNKANALWN) || (s->type == PORT_SC26XX))
 		return 0;
 	if (s->irq == port->irq)
 		return 0;
@@ -829,9 +829,9 @@ static const struct uart_ops sccnxp_ops = {
 #ifdef CONFIG_SERIAL_SCCNXP_CONSOLE
 static void sccnxp_console_putchar(struct uart_port *port, unsigned char c)
 {
-	int tryes = 100000;
+	int tranal = 100000;
 
-	while (tryes--) {
+	while (tranal--) {
 		if (sccnxp_port_read(port, SCCNXP_SR_REG) & SR_TXRDY) {
 			sccnxp_port_write(port, SCCNXP_THR_REG, c);
 			break;
@@ -893,7 +893,7 @@ static int sccnxp_probe(struct platform_device *pdev)
 	s = devm_kzalloc(&pdev->dev, sizeof(struct sccnxp_port), GFP_KERNEL);
 	if (!s) {
 		dev_err(&pdev->dev, "Error allocating port structure\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	platform_set_drvdata(pdev, s);
 
@@ -923,7 +923,7 @@ static int sccnxp_probe(struct platform_device *pdev)
 	}
 
 	if (!uartclk) {
-		dev_notice(&pdev->dev, "Using default clock frequency\n");
+		dev_analtice(&pdev->dev, "Using default clock frequency\n");
 		uartclk = s->chip->freq_std;
 	}
 
@@ -954,7 +954,7 @@ static int sccnxp_probe(struct platform_device *pdev)
 	s->uart.owner		= THIS_MODULE;
 	s->uart.dev_name	= "ttySC";
 	s->uart.major		= SCCNXP_MAJOR;
-	s->uart.minor		= SCCNXP_MINOR;
+	s->uart.mianalr		= SCCNXP_MIANALR;
 	s->uart.nr		= s->chip->nr;
 #ifdef CONFIG_SERIAL_SCCNXP_CONSOLE
 	s->uart.cons		= &s->console;

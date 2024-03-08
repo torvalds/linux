@@ -80,7 +80,7 @@ static void dwmac1000_dma_init(void __iomem *ioaddr,
 	/*
 	 * Set the DMA PBL (Programmable Burst Length) mode.
 	 *
-	 * Note: before stmmac core 3.50 this mode bit was 4xPBL, and
+	 * Analte: before stmmac core 3.50 this mode bit was 4xPBL, and
 	 * post 3.5 mode bit acts as 8*PBL.
 	 */
 	if (dma_cfg->pblx8)
@@ -94,7 +94,7 @@ static void dwmac1000_dma_init(void __iomem *ioaddr,
 	if (dma_cfg->fixed_burst)
 		value |= DMA_BUS_MODE_FB;
 
-	/* Mixed Burst has no effect when fb is set */
+	/* Mixed Burst has anal effect when fb is set */
 	if (dma_cfg->mixed_burst)
 		value |= DMA_BUS_MODE_MB;
 
@@ -186,7 +186,7 @@ static void dwmac1000_dma_operation_mode_tx(struct stmmac_priv *priv,
 
 	if (mode == SF_DMA_MODE) {
 		pr_debug("GMAC: enable TX store and forward mode\n");
-		/* Transmit COE type 2 cannot be done in cut-through mode. */
+		/* Transmit COE type 2 cananalt be done in cut-through mode. */
 		csr6 |= DMA_CONTROL_TSF;
 		/* Operating on second frame increase the performance
 		 * especially when transmit store-and-forward is used.
@@ -229,10 +229,10 @@ static int dwmac1000_get_hw_feature(void __iomem *ioaddr,
 	u32 hw_cap = readl(ioaddr + DMA_HW_FEATURE);
 
 	if (!hw_cap) {
-		/* 0x00000000 is the value read on old hardware that does not
+		/* 0x00000000 is the value read on old hardware that does analt
 		 * implement this register
 		 */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	dma_cap->mbps_10_100 = (hw_cap & DMA_HW_FEAT_MIISEL);

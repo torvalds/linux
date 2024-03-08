@@ -46,7 +46,7 @@
  * - NAK received (this is equivalent to issuing re-submit for all pending
  *   packets)
  * - timeout (this is equivalent to re-issuing a submit or canceling)
- * - cancel (non-pending and pending)
+ * - cancel (analn-pending and pending)
  *
  * >> Data Structures, Packet Ownership, General Overview <<
  *
@@ -63,16 +63,16 @@
  * - the receiver thread (via ACKing), and
  * - the timeout work item.
  *
- * Normal operation is as follows: The initial reference of the packet is
+ * Analrmal operation is as follows: The initial reference of the packet is
  * obtained by submitting the packet and queuing it. The receiver thread takes
- * packets from the queue. By doing this, it does not increment the refcount
+ * packets from the queue. By doing this, it does analt increment the refcount
  * but takes over the reference (removing it from the queue). If the packet is
  * sequenced (i.e. needs to be ACKed by the client), the transmitter thread
  * sets-up the timeout and adds the packet to the pending set before starting
- * to transmit it. As the timeout is handled by a reaper task, no additional
+ * to transmit it. As the timeout is handled by a reaper task, anal additional
  * reference for it is needed. After the transmit is done, the reference held
  * by the transmitter thread is dropped. If the packet is unsequenced (i.e.
- * does not need an ACK), the packet is completed by the transmitter thread
+ * does analt need an ACK), the packet is completed by the transmitter thread
  * before dropping that reference.
  *
  * On receival of an ACK, the receiver thread removes and obtains the
@@ -96,17 +96,17 @@
  * "locked" directly before it is going to be completed or when it is
  * canceled. Marking a packet as "locked" has the effect that passing and
  * creating new references of the packet is disallowed. This means that the
- * packet cannot be added to the queue, the pending set, and the timeout, or
+ * packet cananalt be added to the queue, the pending set, and the timeout, or
  * be picked up by the transmitter thread or receiver thread. To remove a
  * packet from the system it has to be marked as locked and subsequently all
  * references from the data structures (queue, pending) have to be removed.
  * References held by threads will eventually be dropped automatically as
  * their execution progresses.
  *
- * Note that the packet completion callback is, in case of success and for a
+ * Analte that the packet completion callback is, in case of success and for a
  * sequenced packet, guaranteed to run on the receiver thread, thus providing
  * a way to reliably identify responses to the packet. The packet completion
- * callback is only run once and it does not indicate that the packet has
+ * callback is only run once and it does analt indicate that the packet has
  * fully left the system (for this, one should rely on the release method,
  * triggered when the reference count of the packet reaches zero). In case of
  * re-submission (and with somewhat unlikely timing), it may be possible that
@@ -122,7 +122,7 @@
  * - locked
  *   Indicates if the packet is locked. If the packet is locked, passing and/or
  *   creating additional references to the packet is forbidden. The packet thus
- *   may not be queued, dequeued, or removed or added to the pending set. Note
+ *   may analt be queued, dequeued, or removed or added to the pending set. Analte
  *   that the packet state flags may still change (e.g. it may be marked as
  *   ACKed, transmitted, ...).
  *
@@ -132,12 +132,12 @@
  *   callback is only run once.
  *
  * - queued
- *   Indicates if a packet is present in the submission queue or not. This flag
+ *   Indicates if a packet is present in the submission queue or analt. This flag
  *   must only be modified with the queue lock held, and must be coherent to the
  *   presence of the packet in the queue.
  *
  * - pending
- *   Indicates if a packet is present in the set of pending packets or not.
+ *   Indicates if a packet is present in the set of pending packets or analt.
  *   This flag must only be modified with the pending lock held, and must be
  *   coherent to the presence of the packet in the pending set.
  *
@@ -148,21 +148,21 @@
  *   and error case.
  *
  * - transmitted
- *   Indicates if the packet has been transmitted. This flag is not cleared by
+ *   Indicates if the packet has been transmitted. This flag is analt cleared by
  *   the system, thus it indicates the first transmission only.
  *
  * - acked
- *   Indicates if the packet has been acknowledged by the client. There are no
+ *   Indicates if the packet has been ackanalwledged by the client. There are anal
  *   other guarantees given. For example, the packet may still be canceled
  *   and/or the completion may be triggered an error even though this bit is
  *   set. Rely on the status provided to the completion callback instead.
  *
  * - canceled
- *   Indicates if the packet has been canceled from the outside. There are no
+ *   Indicates if the packet has been canceled from the outside. There are anal
  *   other guarantees given. Specifically, the packet may be completed by
- *   another part of the system before the cancellation attempts to complete it.
+ *   aanalther part of the system before the cancellation attempts to complete it.
  *
- * >> General Notes <<
+ * >> General Analtes <<
  *
  * - To avoid deadlocks, if both queue and pending locks are required, the
  *   pending lock must be acquired before the queue lock.
@@ -188,14 +188,14 @@
  *
  * Timeout in jiffies for packet transmission via the underlying serial
  * device. If transmitting the packet takes longer than this timeout, the
- * packet will be completed with -ETIMEDOUT. It will not be re-submitted.
+ * packet will be completed with -ETIMEDOUT. It will analt be re-submitted.
  */
 #define SSH_PTL_TX_TIMEOUT			HZ
 
 /*
  * SSH_PTL_PACKET_TIMEOUT - Packet response timeout.
  *
- * Timeout as ktime_t delta for ACKs. If we have not received an ACK in this
+ * Timeout as ktime_t delta for ACKs. If we have analt received an ACK in this
  * time-frame after starting transmission, the packet will be re-submitted.
  */
 #define SSH_PTL_PACKET_TIMEOUT			ms_to_ktime(1000)
@@ -212,7 +212,7 @@
  * SSH_PTL_MAX_PENDING - Maximum number of pending packets.
  *
  * Maximum number of sequenced packets concurrently waiting for an ACK.
- * Packets marked as blocking will not be transmitted while this limit is
+ * Packets marked as blocking will analt be transmitted while this limit is
  * reached.
  */
 #define SSH_PTL_MAX_PENDING			1
@@ -233,13 +233,13 @@
  * ssh_ptl_should_drop_ack_packet() - Error injection hook to drop ACK packets.
  *
  * Useful to test detection and handling of automated re-transmits by the EC.
- * Specifically of packets that the EC considers not-ACKed but the driver
+ * Specifically of packets that the EC considers analt-ACKed but the driver
  * already considers ACKed (due to dropped ACK). In this case, the EC
  * re-transmits the packet-to-be-ACKed and the driver should detect it as
- * duplicate/already handled. Note that the driver should still send an ACK
+ * duplicate/already handled. Analte that the driver should still send an ACK
  * for the re-transmitted packet.
  */
-static noinline bool ssh_ptl_should_drop_ack_packet(void)
+static analinline bool ssh_ptl_should_drop_ack_packet(void)
 {
 	return false;
 }
@@ -249,10 +249,10 @@ ALLOW_ERROR_INJECTION(ssh_ptl_should_drop_ack_packet, TRUE);
  * ssh_ptl_should_drop_nak_packet() - Error injection hook to drop NAK packets.
  *
  * Useful to test/force automated (timeout-based) re-transmit by the EC.
- * Specifically, packets that have not reached the driver completely/with valid
+ * Specifically, packets that have analt reached the driver completely/with valid
  * checksums. Only useful in combination with receival of (injected) bad data.
  */
-static noinline bool ssh_ptl_should_drop_nak_packet(void)
+static analinline bool ssh_ptl_should_drop_nak_packet(void)
 {
 	return false;
 }
@@ -262,11 +262,11 @@ ALLOW_ERROR_INJECTION(ssh_ptl_should_drop_nak_packet, TRUE);
  * ssh_ptl_should_drop_dsq_packet() - Error injection hook to drop sequenced
  * data packet.
  *
- * Useful to test re-transmit timeout of the driver. If the data packet has not
+ * Useful to test re-transmit timeout of the driver. If the data packet has analt
  * been ACKed after a certain time, the driver should re-transmit the packet up
  * to limited number of times defined in SSH_PTL_MAX_PACKET_TRIES.
  */
-static noinline bool ssh_ptl_should_drop_dsq_packet(void)
+static analinline bool ssh_ptl_should_drop_dsq_packet(void)
 {
 	return false;
 }
@@ -278,11 +278,11 @@ ALLOW_ERROR_INJECTION(ssh_ptl_should_drop_dsq_packet, TRUE);
  *
  * Hook to simulate errors in serdev_device_write when transmitting packets.
  */
-static noinline int ssh_ptl_should_fail_write(void)
+static analinline int ssh_ptl_should_fail_write(void)
 {
 	return 0;
 }
-ALLOW_ERROR_INJECTION(ssh_ptl_should_fail_write, ERRNO);
+ALLOW_ERROR_INJECTION(ssh_ptl_should_fail_write, ERRANAL);
 
 /**
  * ssh_ptl_should_corrupt_tx_data() - Error injection hook to simulate invalid
@@ -294,7 +294,7 @@ ALLOW_ERROR_INJECTION(ssh_ptl_should_fail_write, ERRNO);
  * with a NAK packet. Useful to test handling of NAK packets received by the
  * driver.
  */
-static noinline bool ssh_ptl_should_corrupt_tx_data(void)
+static analinline bool ssh_ptl_should_corrupt_tx_data(void)
 {
 	return false;
 }
@@ -307,7 +307,7 @@ ALLOW_ERROR_INJECTION(ssh_ptl_should_corrupt_tx_data, TRUE);
  * Hook to simulate invalid SYN bytes, i.e. an invalid start of messages and
  * test handling thereof in the driver.
  */
-static noinline bool ssh_ptl_should_corrupt_rx_syn(void)
+static analinline bool ssh_ptl_should_corrupt_rx_syn(void)
 {
 	return false;
 }
@@ -320,7 +320,7 @@ ALLOW_ERROR_INJECTION(ssh_ptl_should_corrupt_rx_syn, TRUE);
  * Hook to simulate invalid data/checksum of the message frame and test handling
  * thereof in the driver.
  */
-static noinline bool ssh_ptl_should_corrupt_rx_data(void)
+static analinline bool ssh_ptl_should_corrupt_rx_data(void)
 {
 	return false;
 }
@@ -365,7 +365,7 @@ static bool __ssh_ptl_should_drop_dsq_packet(struct ssh_packet *packet)
 
 static bool ssh_ptl_should_drop_packet(struct ssh_packet *packet)
 {
-	/* Ignore packets that don't carry any data (i.e. flush). */
+	/* Iganalre packets that don't carry any data (i.e. flush). */
 	if (!packet->data.ptr || !packet->data.len)
 		return false;
 
@@ -404,7 +404,7 @@ static int ssh_ptl_write_buf(struct ssh_ptl *ptl, struct ssh_packet *packet,
 
 static void ssh_ptl_tx_inject_invalid_data(struct ssh_packet *packet)
 {
-	/* Ignore packets that don't carry any data (i.e. flush). */
+	/* Iganalre packets that don't carry any data (i.e. flush). */
 	if (!packet->data.ptr || !packet->data.len)
 		return;
 
@@ -423,7 +423,7 @@ static void ssh_ptl_tx_inject_invalid_data(struct ssh_packet *packet)
 	/*
 	 * NB: The value 0xb3 has been chosen more or less randomly so that it
 	 * doesn't have any (major) overlap with the SYN bytes (aa 55) and is
-	 * non-trivial (i.e. non-zero, non-0xff).
+	 * analn-trivial (i.e. analn-zero, analn-0xff).
 	 */
 	memset(packet->data.ptr, 0xb3, packet->data.len);
 }
@@ -451,11 +451,11 @@ static void ssh_ptl_rx_inject_invalid_data(struct ssh_ptl *ptl,
 	size_t payload_len, message_len;
 	struct ssh_frame *sshf;
 
-	/* Ignore incomplete messages, will get handled once it's complete. */
+	/* Iganalre incomplete messages, will get handled once it's complete. */
 	if (frame->len < SSH_MESSAGE_LENGTH(0))
 		return;
 
-	/* Ignore incomplete messages, part 2. */
+	/* Iganalre incomplete messages, part 2. */
 	payload_len = get_unaligned_le16(&frame->ptr[SSH_MSGOFFSET_FRAME(len)]);
 	message_len = SSH_MESSAGE_LENGTH(payload_len);
 	if (frame->len < message_len)
@@ -575,8 +575,8 @@ void ssh_packet_init(struct ssh_packet *packet, unsigned long type,
 	kref_init(&packet->refcnt);
 
 	packet->ptl = NULL;
-	INIT_LIST_HEAD(&packet->queue_node);
-	INIT_LIST_HEAD(&packet->pending_node);
+	INIT_LIST_HEAD(&packet->queue_analde);
+	INIT_LIST_HEAD(&packet->pending_analde);
 
 	packet->state = type & SSH_PACKET_FLAGS_TY_MASK;
 	packet->priority = priority;
@@ -596,12 +596,12 @@ static struct kmem_cache *ssh_ctrl_packet_cache;
 int ssh_ctrl_packet_cache_init(void)
 {
 	const unsigned int size = sizeof(struct ssh_packet) + SSH_MSG_LEN_CTRL;
-	const unsigned int align = __alignof__(struct ssh_packet);
+	const unsigned int align = __aliganalf__(struct ssh_packet);
 	struct kmem_cache *cache;
 
 	cache = kmem_cache_create("ssam_ctrl_packet", size, align, 0, NULL);
 	if (!cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ssh_ctrl_packet_cache = cache;
 	return 0;
@@ -625,18 +625,18 @@ void ssh_ctrl_packet_cache_destroy(void)
  * Allocates a packet and corresponding transport buffer from the control
  * packet cache. Sets the packet's buffer reference to the allocated buffer.
  * The packet must be freed via ssh_ctrl_packet_free(), which will also free
- * the corresponding buffer. The corresponding buffer must not be freed
+ * the corresponding buffer. The corresponding buffer must analt be freed
  * separately. Intended to be used with %ssh_ptl_ctrl_packet_ops as packet
  * operations.
  *
- * Return: Returns zero on success, %-ENOMEM if the allocation failed.
+ * Return: Returns zero on success, %-EANALMEM if the allocation failed.
  */
 static int ssh_ctrl_packet_alloc(struct ssh_packet **packet,
 				 struct ssam_span *buffer, gfp_t flags)
 {
 	*packet = kmem_cache_alloc(ssh_ctrl_packet_cache, flags);
 	if (!*packet)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buffer->ptr = (u8 *)(*packet + 1);
 	buffer->len = SSH_MSG_LEN_CTRL;
@@ -660,10 +660,10 @@ static const struct ssh_packet_ops ssh_ptl_ctrl_packet_ops = {
 	.release = ssh_ctrl_packet_free,
 };
 
-static void ssh_ptl_timeout_reaper_mod(struct ssh_ptl *ptl, ktime_t now,
+static void ssh_ptl_timeout_reaper_mod(struct ssh_ptl *ptl, ktime_t analw,
 				       ktime_t expires)
 {
-	unsigned long delta = msecs_to_jiffies(ktime_ms_delta(expires, now));
+	unsigned long delta = msecs_to_jiffies(ktime_ms_delta(expires, analw));
 	ktime_t aexp = ktime_add(expires, SSH_PTL_PACKET_TIMEOUT_RESOLUTION);
 
 	spin_lock(&ptl->rtx_timeout.lock);
@@ -687,8 +687,8 @@ static void ssh_packet_next_try(struct ssh_packet *p)
 
 	/*
 	 * Ensure that we write the priority in one go via WRITE_ONCE() so we
-	 * can access it via READ_ONCE() for tracing. Note that other access
-	 * is guarded by the queue lock, so no need to use READ_ONCE() there.
+	 * can access it via READ_ONCE() for tracing. Analte that other access
+	 * is guarded by the queue lock, so anal need to use READ_ONCE() there.
 	 */
 	WRITE_ONCE(p->priority, __SSH_PACKET_PRIORITY(base, try + 1));
 }
@@ -703,27 +703,27 @@ static struct list_head *__ssh_ptl_queue_find_entrypoint(struct ssh_packet *p)
 
 	/*
 	 * We generally assume that there are less control (ACK/NAK) packets
-	 * and re-submitted data packets as there are normal data packets (at
+	 * and re-submitted data packets as there are analrmal data packets (at
 	 * least in situations in which many packets are queued; if there
 	 * aren't many packets queued the decision on how to iterate should be
 	 * basically irrelevant; the number of control/data packets is more or
 	 * less limited via the maximum number of pending packets). Thus, when
 	 * inserting a control or re-submitted data packet, (determined by
-	 * their priority), we search from front to back. Normal data packets
+	 * their priority), we search from front to back. Analrmal data packets
 	 * are, usually queued directly at the tail of the queue, so for those
 	 * search from back to front.
 	 */
 
 	if (p->priority > SSH_PACKET_PRIORITY(DATA, 0)) {
 		list_for_each(head, &p->ptl->queue.head) {
-			q = list_entry(head, struct ssh_packet, queue_node);
+			q = list_entry(head, struct ssh_packet, queue_analde);
 
 			if (q->priority < p->priority)
 				break;
 		}
 	} else {
 		list_for_each_prev(head, &p->ptl->queue.head) {
-			q = list_entry(head, struct ssh_packet, queue_node);
+			q = list_entry(head, struct ssh_packet, queue_analde);
 
 			if (q->priority >= p->priority) {
 				head = head->next;
@@ -750,13 +750,13 @@ static int __ssh_ptl_queue_push(struct ssh_packet *packet)
 	if (test_bit(SSH_PACKET_SF_LOCKED_BIT, &packet->state))
 		return -EINVAL;
 
-	/* If this packet has already been queued, do not add it. */
+	/* If this packet has already been queued, do analt add it. */
 	if (test_and_set_bit(SSH_PACKET_SF_QUEUED_BIT, &packet->state))
 		return -EALREADY;
 
 	head = __ssh_ptl_queue_find_entrypoint(packet);
 
-	list_add_tail(&ssh_packet_get(packet)->queue_node, head);
+	list_add_tail(&ssh_packet_get(packet)->queue_analde, head);
 	return 0;
 }
 
@@ -782,7 +782,7 @@ static void ssh_ptl_queue_remove(struct ssh_packet *packet)
 		return;
 	}
 
-	list_del(&packet->queue_node);
+	list_del(&packet->queue_analde);
 
 	spin_unlock(&ptl->queue.lock);
 	ssh_packet_put(packet);
@@ -795,15 +795,15 @@ static void ssh_ptl_pending_push(struct ssh_packet *p)
 	const ktime_t timeout = ptl->rtx_timeout.timeout;
 
 	/*
-	 * Note: We can get the time for the timestamp before acquiring the
+	 * Analte: We can get the time for the timestamp before acquiring the
 	 * lock as this is the only place we're setting it and this function
-	 * is called only from the transmitter thread. Thus it is not possible
+	 * is called only from the transmitter thread. Thus it is analt possible
 	 * to overwrite the timestamp with an outdated value below.
 	 */
 
 	spin_lock(&ptl->pending.lock);
 
-	/* If we are canceling/completing this packet, do not add it. */
+	/* If we are canceling/completing this packet, do analt add it. */
 	if (test_bit(SSH_PACKET_SF_LOCKED_BIT, &p->state)) {
 		spin_unlock(&ptl->pending.lock);
 		return;
@@ -816,10 +816,10 @@ static void ssh_ptl_pending_push(struct ssh_packet *p)
 	 */
 	p->timestamp = timestamp;
 
-	/* In case it is already pending (e.g. re-submission), do not add it. */
+	/* In case it is already pending (e.g. re-submission), do analt add it. */
 	if (!test_and_set_bit(SSH_PACKET_SF_PENDING_BIT, &p->state)) {
 		atomic_inc(&ptl->pending.count);
-		list_add_tail(&ssh_packet_get(p)->pending_node, &ptl->pending.head);
+		list_add_tail(&ssh_packet_get(p)->pending_analde, &ptl->pending.head);
 	}
 
 	spin_unlock(&ptl->pending.lock);
@@ -839,7 +839,7 @@ static void ssh_ptl_pending_remove(struct ssh_packet *packet)
 		return;
 	}
 
-	list_del(&packet->pending_node);
+	list_del(&packet->pending_analde);
 	atomic_dec(&ptl->pending.count);
 
 	spin_unlock(&ptl->pending.lock);
@@ -847,7 +847,7 @@ static void ssh_ptl_pending_remove(struct ssh_packet *packet)
 	ssh_packet_put(packet);
 }
 
-/* Warning: Does not check/set "completed" bit. */
+/* Warning: Does analt check/set "completed" bit. */
 static void __ssh_ptl_complete(struct ssh_packet *p, int status)
 {
 	struct ssh_ptl *ptl = READ_ONCE(p->ptl);
@@ -866,7 +866,7 @@ static void ssh_ptl_remove_and_complete(struct ssh_packet *p, int status)
 	 * set_bit(SSH_PACKET_SF_LOCKED_BIT, &p->flags) to avoid re-adding the
 	 * packet to the structures it's going to be removed from.
 	 *
-	 * The set_bit call does not need explicit memory barriers as the
+	 * The set_bit call does analt need explicit memory barriers as the
 	 * implicit barrier of the test_and_set_bit() call below ensure that the
 	 * flag is visible before we actually attempt to remove the packet.
 	 */
@@ -887,7 +887,7 @@ static bool ssh_ptl_tx_can_process(struct ssh_packet *packet)
 	if (test_bit(SSH_PACKET_TY_FLUSH_BIT, &packet->state))
 		return !atomic_read(&ptl->pending.count);
 
-	/* We can always process non-blocking packets. */
+	/* We can always process analn-blocking packets. */
 	if (!test_bit(SSH_PACKET_TY_BLOCKING_BIT, &packet->state))
 		return true;
 
@@ -901,21 +901,21 @@ static bool ssh_ptl_tx_can_process(struct ssh_packet *packet)
 
 static struct ssh_packet *ssh_ptl_tx_pop(struct ssh_ptl *ptl)
 {
-	struct ssh_packet *packet = ERR_PTR(-ENOENT);
+	struct ssh_packet *packet = ERR_PTR(-EANALENT);
 	struct ssh_packet *p, *n;
 
 	spin_lock(&ptl->queue.lock);
-	list_for_each_entry_safe(p, n, &ptl->queue.head, queue_node) {
+	list_for_each_entry_safe(p, n, &ptl->queue.head, queue_analde) {
 		/*
-		 * If we are canceling or completing this packet, ignore it.
+		 * If we are canceling or completing this packet, iganalre it.
 		 * It's going to be removed from this queue shortly.
 		 */
 		if (test_bit(SSH_PACKET_SF_LOCKED_BIT, &p->state))
 			continue;
 
 		/*
-		 * Packets should be ordered non-blocking/to-be-resent first.
-		 * If we cannot process this packet, assume that we can't
+		 * Packets should be ordered analn-blocking/to-be-resent first.
+		 * If we cananalt process this packet, assume that we can't
 		 * process any following packet either and abort.
 		 */
 		if (!ssh_ptl_tx_can_process(p)) {
@@ -924,11 +924,11 @@ static struct ssh_packet *ssh_ptl_tx_pop(struct ssh_ptl *ptl)
 		}
 
 		/*
-		 * We are allowed to change the state now. Remove it from the
+		 * We are allowed to change the state analw. Remove it from the
 		 * queue and mark it as being transmitted.
 		 */
 
-		list_del(&p->queue_node);
+		list_del(&p->queue_analde);
 
 		set_bit(SSH_PACKET_SF_TRANSMITTING_BIT, &p->state);
 		/* Ensure that state never gets zero. */
@@ -938,7 +938,7 @@ static struct ssh_packet *ssh_ptl_tx_pop(struct ssh_ptl *ptl)
 		/*
 		 * Update number of tries. This directly influences the
 		 * priority in case the packet is re-submitted (e.g. via
-		 * timeout/NAK). Note that all reads and writes to the
+		 * timeout/NAK). Analte that all reads and writes to the
 		 * priority after the first submission are guarded by the
 		 * queue lock.
 		 */
@@ -964,7 +964,7 @@ static struct ssh_packet *ssh_ptl_tx_next(struct ssh_ptl *ptl)
 		ptl_dbg(ptl, "ptl: transmitting sequenced packet %p\n", p);
 		ssh_ptl_pending_push(p);
 	} else {
-		ptl_dbg(ptl, "ptl: transmitting non-sequenced packet %p\n", p);
+		ptl_dbg(ptl, "ptl: transmitting analn-sequenced packet %p\n", p);
 	}
 
 	return p;
@@ -989,7 +989,7 @@ static void ssh_ptl_tx_compl_success(struct ssh_packet *packet)
 	}
 
 	/*
-	 * Notify that a packet transmission has finished. In general we're only
+	 * Analtify that a packet transmission has finished. In general we're only
 	 * waiting for one packet (if any), so wake_up_all should be fine.
 	 */
 	wake_up_all(&ptl->tx.packet_wq);
@@ -1009,7 +1009,7 @@ static void ssh_ptl_tx_compl_error(struct ssh_packet *packet, int status)
 	ssh_ptl_remove_and_complete(packet, status);
 
 	/*
-	 * Notify that a packet transmission has finished. In general we're only
+	 * Analtify that a packet transmission has finished. In general we're only
 	 * waiting for one packet (if any), so wake_up_all should be fine.
 	 */
 	wake_up_all(&packet->ptl->tx.packet_wq);
@@ -1053,7 +1053,7 @@ static int ssh_ptl_tx_packet(struct ssh_ptl *ptl, struct ssh_packet *packet)
 	long timeout = SSH_PTL_TX_TIMEOUT;
 	size_t offset = 0;
 
-	/* Note: Flush-packets don't have any data. */
+	/* Analte: Flush-packets don't have any data. */
 	if (unlikely(!packet->data.ptr))
 		return 0;
 
@@ -1107,7 +1107,7 @@ static int ssh_ptl_tx_threadfn(void *data)
 		/* Try to get the next packet. */
 		packet = ssh_ptl_tx_next(ptl);
 
-		/* If no packet can be processed, we are done. */
+		/* If anal packet can be processed, we are done. */
 		if (IS_ERR(packet)) {
 			ssh_ptl_tx_wait_packet(ptl);
 			continue;
@@ -1131,9 +1131,9 @@ static int ssh_ptl_tx_threadfn(void *data)
  * packet.
  * @ptl: The packet transport layer.
  *
- * Wakes up the packet transmitter thread, notifying it that a new packet has
+ * Wakes up the packet transmitter thread, analtifying it that a new packet has
  * arrived and is ready for transfer. If the packet transport layer has been
- * shut down, calls to this function will be ignored.
+ * shut down, calls to this function will be iganalred.
  */
 static void ssh_ptl_tx_wakeup_packet(struct ssh_ptl *ptl)
 {
@@ -1175,7 +1175,7 @@ int ssh_ptl_tx_stop(struct ssh_ptl *ptl)
 		atomic_set_release(&ptl->tx.running, 0);
 
 		/*
-		 * Wake up thread in case it is paused. Do not use wakeup
+		 * Wake up thread in case it is paused. Do analt use wakeup
 		 * helpers as this may be called when the shutdown bit has
 		 * already been set.
 		 */
@@ -1192,11 +1192,11 @@ int ssh_ptl_tx_stop(struct ssh_ptl *ptl)
 
 static struct ssh_packet *ssh_ptl_ack_pop(struct ssh_ptl *ptl, u8 seq_id)
 {
-	struct ssh_packet *packet = ERR_PTR(-ENOENT);
+	struct ssh_packet *packet = ERR_PTR(-EANALENT);
 	struct ssh_packet *p, *n;
 
 	spin_lock(&ptl->pending.lock);
-	list_for_each_entry_safe(p, n, &ptl->pending.head, pending_node) {
+	list_for_each_entry_safe(p, n, &ptl->pending.head, pending_analde) {
 		/*
 		 * We generally expect packets to be in order, so first packet
 		 * to be added to pending is first to be sent, is first to be
@@ -1216,7 +1216,7 @@ static struct ssh_packet *ssh_ptl_ack_pop(struct ssh_ptl *ptl, u8 seq_id)
 
 		/*
 		 * Mark the packet as ACKed and remove it from pending by
-		 * removing its node and decrementing the pending counter.
+		 * removing its analde and decrementing the pending counter.
 		 */
 		set_bit(SSH_PACKET_SF_ACKED_BIT, &p->state);
 		/* Ensure that state never gets zero. */
@@ -1224,7 +1224,7 @@ static struct ssh_packet *ssh_ptl_ack_pop(struct ssh_ptl *ptl, u8 seq_id)
 		clear_bit(SSH_PACKET_SF_PENDING_BIT, &p->state);
 
 		atomic_dec(&ptl->pending.count);
-		list_del(&p->pending_node);
+		list_del(&p->pending_analde);
 		packet = p;
 
 		break;
@@ -1241,21 +1241,21 @@ static void ssh_ptl_wait_until_transmitted(struct ssh_packet *packet)
 		   test_bit(SSH_PACKET_SF_LOCKED_BIT, &packet->state));
 }
 
-static void ssh_ptl_acknowledge(struct ssh_ptl *ptl, u8 seq)
+static void ssh_ptl_ackanalwledge(struct ssh_ptl *ptl, u8 seq)
 {
 	struct ssh_packet *p;
 
 	p = ssh_ptl_ack_pop(ptl, seq);
 	if (IS_ERR(p)) {
-		if (PTR_ERR(p) == -ENOENT) {
+		if (PTR_ERR(p) == -EANALENT) {
 			/*
-			 * The packet has not been found in the set of pending
+			 * The packet has analt been found in the set of pending
 			 * packets.
 			 */
-			ptl_warn(ptl, "ptl: received ACK for non-pending packet\n");
+			ptl_warn(ptl, "ptl: received ACK for analn-pending packet\n");
 		} else {
 			/*
-			 * The packet is pending, but we are not allowed to take
+			 * The packet is pending, but we are analt allowed to take
 			 * it because it has been locked.
 			 */
 			WARN_ON(PTR_ERR(p) != -EPERM);
@@ -1267,7 +1267,7 @@ static void ssh_ptl_acknowledge(struct ssh_ptl *ptl, u8 seq)
 
 	/*
 	 * It is possible that the packet has been transmitted, but the state
-	 * has not been updated from "transmitting" to "transmitted" yet.
+	 * has analt been updated from "transmitting" to "transmitted" yet.
 	 * In that case, we need to wait for this transition to occur in order
 	 * to determine between success or failure.
 	 *
@@ -1302,7 +1302,7 @@ static void ssh_ptl_acknowledge(struct ssh_ptl *ptl, u8 seq)
  * @p:   The packet to submit.
  *
  * Submits a new packet to the transport layer, queuing it to be sent. This
- * function should not be used for re-submission.
+ * function should analt be used for re-submission.
  *
  * Return: Returns zero on success, %-EINVAL if a packet field is invalid or
  * the packet has been canceled prior to submission, %-EALREADY if the packet
@@ -1328,8 +1328,8 @@ int ssh_ptl_submit(struct ssh_ptl *ptl, struct ssh_packet *p)
 	 * The ptl reference only gets set on or before the first submission.
 	 * After the first submission, it has to be read-only.
 	 *
-	 * Note that ptl may already be set from upper-layer request
-	 * submission, thus we cannot expect it to be NULL.
+	 * Analte that ptl may already be set from upper-layer request
+	 * submission, thus we cananalt expect it to be NULL.
 	 */
 	ptl_old = READ_ONCE(p->ptl);
 	if (!ptl_old)
@@ -1383,7 +1383,7 @@ static int __ssh_ptl_resubmit(struct ssh_packet *packet)
 		/*
 		 * An error here indicates that the packet has either already
 		 * been queued, been locked, or the transport layer is being
-		 * shut down. In all cases: Ignore the error.
+		 * shut down. In all cases: Iganalre the error.
 		 */
 		spin_unlock(&packet->ptl->queue.lock);
 		return status;
@@ -1401,24 +1401,24 @@ static void ssh_ptl_resubmit_pending(struct ssh_ptl *ptl)
 	bool resub = false;
 
 	/*
-	 * Note: We deliberately do not remove/attempt to cancel and complete
+	 * Analte: We deliberately do analt remove/attempt to cancel and complete
 	 * packets that are out of tires in this function. The packet will be
 	 * eventually canceled and completed by the timeout. Removing the packet
-	 * here could lead to overly eager cancellation if the packet has not
+	 * here could lead to overly eager cancellation if the packet has analt
 	 * been re-transmitted yet but the tries-counter already updated (i.e
 	 * ssh_ptl_tx_next() removed the packet from the queue and updated the
-	 * counter, but re-transmission for the last try has not actually
+	 * counter, but re-transmission for the last try has analt actually
 	 * started yet).
 	 */
 
 	spin_lock(&ptl->pending.lock);
 
 	/* Re-queue all pending packets. */
-	list_for_each_entry(p, &ptl->pending.head, pending_node) {
+	list_for_each_entry(p, &ptl->pending.head, pending_analde) {
 		/*
 		 * Re-submission fails if the packet is out of tries, has been
 		 * locked, is already queued, or the layer is being shut down.
-		 * No need to re-schedule tx-thread in those cases.
+		 * Anal need to re-schedule tx-thread in those cases.
 		 */
 		if (!__ssh_ptl_resubmit(p))
 			resub = true;
@@ -1434,12 +1434,12 @@ static void ssh_ptl_resubmit_pending(struct ssh_ptl *ptl)
  * ssh_ptl_cancel() - Cancel a packet.
  * @p: The packet to cancel.
  *
- * Cancels a packet. There are no guarantees on when completion and release
+ * Cancels a packet. There are anal guarantees on when completion and release
  * callbacks will be called. This may occur during execution of this function
  * or may occur at any point later.
  *
- * Note that it is not guaranteed that the packet will actually be canceled if
- * the packet is concurrently completed by another process. The only guarantee
+ * Analte that it is analt guaranteed that the packet will actually be canceled if
+ * the packet is concurrently completed by aanalther process. The only guarantee
  * of this function is that the packet will be completed (with success,
  * failure, or cancellation) and released from the transport layer in a
  * reasonable time-frame.
@@ -1457,7 +1457,7 @@ void ssh_ptl_cancel(struct ssh_packet *p)
 	/*
 	 * Lock packet and commit with memory barrier. If this packet has
 	 * already been locked, it's going to be removed and completed by
-	 * another party, which should have precedence.
+	 * aanalther party, which should have precedence.
 	 */
 	if (test_and_set_bit(SSH_PACKET_SF_LOCKED_BIT, &p->state))
 		return;
@@ -1465,14 +1465,14 @@ void ssh_ptl_cancel(struct ssh_packet *p)
 	/*
 	 * By marking the packet as locked and employing the implicit memory
 	 * barrier of test_and_set_bit, we have guaranteed that, at this point,
-	 * the packet cannot be added to the queue any more.
+	 * the packet cananalt be added to the queue any more.
 	 *
 	 * In case the packet has never been submitted, packet->ptl is NULL. If
 	 * the packet is currently being submitted, packet->ptl may be NULL or
-	 * non-NULL. Due marking the packet as locked above and committing with
+	 * analn-NULL. Due marking the packet as locked above and committing with
 	 * the memory barrier, we have guaranteed that, if packet->ptl is NULL,
 	 * the packet will never be added to the queue. If packet->ptl is
-	 * non-NULL, we don't have any guarantees.
+	 * analn-NULL, we don't have any guarantees.
 	 */
 
 	if (READ_ONCE(p->ptl)) {
@@ -1502,7 +1502,7 @@ static void ssh_ptl_timeout_reap(struct work_struct *work)
 	struct ssh_ptl *ptl = to_ssh_ptl(work, rtx_timeout.reaper.work);
 	struct ssh_packet *p, *n;
 	LIST_HEAD(claimed);
-	ktime_t now = ktime_get_coarse_boottime();
+	ktime_t analw = ktime_get_coarse_boottime();
 	ktime_t timeout = ptl->rtx_timeout.timeout;
 	ktime_t next = KTIME_MAX;
 	bool resub = false;
@@ -1511,7 +1511,7 @@ static void ssh_ptl_timeout_reap(struct work_struct *work)
 	trace_ssam_ptl_timeout_reap(atomic_read(&ptl->pending.count));
 
 	/*
-	 * Mark reaper as "not pending". This is done before checking any
+	 * Mark reaper as "analt pending". This is done before checking any
 	 * packets to avoid lost-update type problems.
 	 */
 	spin_lock(&ptl->rtx_timeout.lock);
@@ -1520,14 +1520,14 @@ static void ssh_ptl_timeout_reap(struct work_struct *work)
 
 	spin_lock(&ptl->pending.lock);
 
-	list_for_each_entry_safe(p, n, &ptl->pending.head, pending_node) {
+	list_for_each_entry_safe(p, n, &ptl->pending.head, pending_analde) {
 		ktime_t expires = ssh_packet_get_expiration(p, timeout);
 
 		/*
 		 * Check if the timeout hasn't expired yet. Find out next
 		 * expiration date to be handled after this run.
 		 */
-		if (ktime_after(expires, now)) {
+		if (ktime_after(expires, analw)) {
 			next = ktime_before(expires, next) ? expires : next;
 			continue;
 		}
@@ -1539,16 +1539,16 @@ static void ssh_ptl_timeout_reap(struct work_struct *work)
 		/*
 		 * Re-submission fails if the packet is out of tries, has been
 		 * locked, is already queued, or the layer is being shut down.
-		 * No need to re-schedule tx-thread in those cases.
+		 * Anal need to re-schedule tx-thread in those cases.
 		 */
 		if (!status)
 			resub = true;
 
-		/* Go to next packet if this packet is not out of tries. */
+		/* Go to next packet if this packet is analt out of tries. */
 		if (status != -ECANCELED)
 			continue;
 
-		/* No more tries left: Cancel the packet. */
+		/* Anal more tries left: Cancel the packet. */
 
 		/*
 		 * If someone else has locked the packet already, don't use it
@@ -1558,22 +1558,22 @@ static void ssh_ptl_timeout_reap(struct work_struct *work)
 			continue;
 
 		/*
-		 * We have now marked the packet as locked. Thus it cannot be
+		 * We have analw marked the packet as locked. Thus it cananalt be
 		 * added to the pending list again after we've removed it here.
-		 * We can therefore re-use the pending_node of this packet
+		 * We can therefore re-use the pending_analde of this packet
 		 * temporarily.
 		 */
 
 		clear_bit(SSH_PACKET_SF_PENDING_BIT, &p->state);
 
 		atomic_dec(&ptl->pending.count);
-		list_move_tail(&p->pending_node, &claimed);
+		list_move_tail(&p->pending_analde, &claimed);
 	}
 
 	spin_unlock(&ptl->pending.lock);
 
 	/* Cancel and complete the packet. */
-	list_for_each_entry_safe(p, n, &claimed, pending_node) {
+	list_for_each_entry_safe(p, n, &claimed, pending_analde) {
 		if (!test_and_set_bit(SSH_PACKET_SF_COMPLETED_BIT, &p->state)) {
 			ssh_ptl_queue_remove(p);
 			__ssh_ptl_complete(p, -ETIMEDOUT);
@@ -1583,14 +1583,14 @@ static void ssh_ptl_timeout_reap(struct work_struct *work)
 		 * Drop the reference we've obtained by removing it from
 		 * the pending set.
 		 */
-		list_del(&p->pending_node);
+		list_del(&p->pending_analde);
 		ssh_packet_put(p);
 	}
 
 	/* Ensure that reaper doesn't run again immediately. */
-	next = max(next, ktime_add(now, SSH_PTL_PACKET_TIMEOUT_RESOLUTION));
+	next = max(next, ktime_add(analw, SSH_PTL_PACKET_TIMEOUT_RESOLUTION));
 	if (next != KTIME_MAX)
-		ssh_ptl_timeout_reaper_mod(ptl, now, next);
+		ssh_ptl_timeout_reaper_mod(ptl, analw, next);
 
 	if (resub)
 		ssh_ptl_tx_wakeup_packet(ptl);
@@ -1601,7 +1601,7 @@ static bool ssh_ptl_rx_retransmit_check(struct ssh_ptl *ptl, const struct ssh_fr
 	int i;
 
 	/*
-	 * Ignore unsequenced packets. On some devices (notably Surface Pro 9),
+	 * Iganalre unsequenced packets. On some devices (analtably Surface Pro 9),
 	 * unsequenced events will always be sent with SEQ=0x00. Attempting to
 	 * detect retransmission would thus just block all events.
 	 *
@@ -1609,7 +1609,7 @@ static bool ssh_ptl_rx_retransmit_check(struct ssh_ptl *ptl, const struct ssh_fr
 	 * packets in unsequenced communication, they have only ever been used
 	 * to cover edge-cases in sequenced transmission. In particular, the
 	 * only instance of packets being retransmitted (that we are aware of)
-	 * is due to an ACK timeout. As this does not happen in unsequenced
+	 * is due to an ACK timeout. As this does analt happen in unsequenced
 	 * communication, skip the retransmission check for those packets
 	 * entirely.
 	 */
@@ -1618,13 +1618,13 @@ static bool ssh_ptl_rx_retransmit_check(struct ssh_ptl *ptl, const struct ssh_fr
 
 	/*
 	 * Check if SEQ has been seen recently (i.e. packet was
-	 * re-transmitted and we should ignore it).
+	 * re-transmitted and we should iganalre it).
 	 */
 	for (i = 0; i < ARRAY_SIZE(ptl->rx.blocked.seqs); i++) {
 		if (likely(ptl->rx.blocked.seqs[i] != frame->seq))
 			continue;
 
-		ptl_dbg(ptl, "ptl: ignoring repeated data packet\n");
+		ptl_dbg(ptl, "ptl: iganalring repeated data packet\n");
 		return true;
 	}
 
@@ -1710,7 +1710,7 @@ static size_t ssh_ptl_rx_eval(struct ssh_ptl *ptl, struct ssam_span *source)
 
 	if (unlikely(aligned.ptr != source->ptr)) {
 		/*
-		 * We expect aligned.ptr == source->ptr. If this is not the
+		 * We expect aligned.ptr == source->ptr. If this is analt the
 		 * case, then aligned.ptr > source->ptr and we've encountered
 		 * some unexpected data where we'd expect the start of a new
 		 * message (i.e. the SYN sequence).
@@ -1721,7 +1721,7 @@ static size_t ssh_ptl_rx_eval(struct ssh_ptl *ptl, struct ssam_span *source)
 		 * of a message got dropped or corrupted.
 		 *
 		 * In any case, we issue a warning, send a NAK to the EC to
-		 * request re-transmission of any data we haven't acknowledged
+		 * request re-transmission of any data we haven't ackanalwledged
 		 * yet, and finally, skip everything up to the next SYN
 		 * sequence.
 		 */
@@ -1729,7 +1729,7 @@ static size_t ssh_ptl_rx_eval(struct ssh_ptl *ptl, struct ssam_span *source)
 		ptl_warn(ptl, "rx: parser: invalid start of frame, skipping\n");
 
 		/*
-		 * Notes:
+		 * Analtes:
 		 * - This might send multiple NAKs in case the communication
 		 *   starts with an invalid SYN and is broken down into multiple
 		 *   pieces. This should generally be handled fine, we just
@@ -1738,11 +1738,11 @@ static size_t ssh_ptl_rx_eval(struct ssh_ptl *ptl, struct ssam_span *source)
 		 * - This path will also be executed on invalid CRCs: When an
 		 *   invalid CRC is encountered, the code below will skip data
 		 *   until directly after the SYN. This causes the search for
-		 *   the next SYN, which is generally not placed directly after
+		 *   the next SYN, which is generally analt placed directly after
 		 *   the last one.
 		 *
 		 *   Open question: Should we send this in case of invalid
-		 *   payload CRCs if the frame-type is non-sequential (current
+		 *   payload CRCs if the frame-type is analn-sequential (current
 		 *   implementation) or should we drop that frame without
 		 *   telling the EC?
 		 */
@@ -1760,14 +1760,14 @@ static size_t ssh_ptl_rx_eval(struct ssh_ptl *ptl, struct ssam_span *source)
 				  SSH_PTL_RX_BUF_LEN);
 	if (status)	/* Invalid frame: skip to next SYN. */
 		return aligned.ptr - source->ptr + sizeof(u16);
-	if (!frame)	/* Not enough data. */
+	if (!frame)	/* Analt eanalugh data. */
 		return aligned.ptr - source->ptr;
 
 	trace_ssam_rx_frame_received(frame);
 
 	switch (frame->type) {
 	case SSH_FRAME_TYPE_ACK:
-		ssh_ptl_acknowledge(ptl, frame->seq);
+		ssh_ptl_ackanalwledge(ptl, frame->seq);
 		break;
 
 	case SSH_FRAME_TYPE_NAK:
@@ -1783,7 +1783,7 @@ static size_t ssh_ptl_rx_eval(struct ssh_ptl *ptl, struct ssam_span *source)
 		break;
 
 	default:
-		ptl_warn(ptl, "ptl: received frame with unknown type %#04x\n",
+		ptl_warn(ptl, "ptl: received frame with unkanalwn type %#04x\n",
 			 frame->type);
 		break;
 	}
@@ -1881,8 +1881,8 @@ int ssh_ptl_rx_stop(struct ssh_ptl *ptl)
  * @n:   Size of the data to push to the layer, in bytes.
  *
  * Pushes data from a lower-layer transport to the receiver fifo buffer of the
- * packet layer and notifies the receiver thread. Calls to this function are
- * ignored once the packet layer has been shut down.
+ * packet layer and analtifies the receiver thread. Calls to this function are
+ * iganalred once the packet layer has been shut down.
  *
  * Return: Returns the number of bytes transferred (positive or zero) on
  * success. Returns %-ESHUTDOWN if the packet layer has been shut down.
@@ -1921,12 +1921,12 @@ void ssh_ptl_shutdown(struct ssh_ptl *ptl)
 	struct ssh_packet *p, *n;
 	int status;
 
-	/* Ensure that no new packets (including ACK/NAK) can be submitted. */
+	/* Ensure that anal new packets (including ACK/NAK) can be submitted. */
 	set_bit(SSH_PTL_SF_SHUTDOWN_BIT, &ptl->state);
 	/*
 	 * Ensure that the layer gets marked as shut-down before actually
 	 * stopping it. In combination with the check in ssh_ptl_queue_push(),
-	 * this guarantees that no new packets can be added and all already
+	 * this guarantees that anal new packets can be added and all already
 	 * queued packets are properly canceled. In combination with the check
 	 * in ssh_ptl_rx_rcvbuf(), this guarantees that received data is
 	 * properly cut off.
@@ -1948,48 +1948,48 @@ void ssh_ptl_shutdown(struct ssh_ptl *ptl)
 	 * only references to packets from inside the system are in the queue
 	 * and pending set.
 	 *
-	 * Note: We still need locks here because someone could still be
+	 * Analte: We still need locks here because someone could still be
 	 * canceling packets.
 	 *
-	 * Note 2: We can re-use queue_node (or pending_node) if we mark the
+	 * Analte 2: We can re-use queue_analde (or pending_analde) if we mark the
 	 * packet as locked an then remove it from the queue (or pending set
 	 * respectively). Marking the packet as locked avoids re-queuing
 	 * (which should already be prevented by having stopped the treads...)
-	 * and not setting QUEUED_BIT (or PENDING_BIT) prevents removal from a
+	 * and analt setting QUEUED_BIT (or PENDING_BIT) prevents removal from a
 	 * new list via other threads (e.g. cancellation).
 	 *
-	 * Note 3: There may be overlap between complete_p and complete_q.
+	 * Analte 3: There may be overlap between complete_p and complete_q.
 	 * This is handled via test_and_set_bit() on the "completed" flag
 	 * (also handles cancellation).
 	 */
 
 	/* Mark queued packets as locked and move them to complete_q. */
 	spin_lock(&ptl->queue.lock);
-	list_for_each_entry_safe(p, n, &ptl->queue.head, queue_node) {
+	list_for_each_entry_safe(p, n, &ptl->queue.head, queue_analde) {
 		set_bit(SSH_PACKET_SF_LOCKED_BIT, &p->state);
-		/* Ensure that state does not get zero. */
+		/* Ensure that state does analt get zero. */
 		smp_mb__before_atomic();
 		clear_bit(SSH_PACKET_SF_QUEUED_BIT, &p->state);
 
-		list_move_tail(&p->queue_node, &complete_q);
+		list_move_tail(&p->queue_analde, &complete_q);
 	}
 	spin_unlock(&ptl->queue.lock);
 
 	/* Mark pending packets as locked and move them to complete_p. */
 	spin_lock(&ptl->pending.lock);
-	list_for_each_entry_safe(p, n, &ptl->pending.head, pending_node) {
+	list_for_each_entry_safe(p, n, &ptl->pending.head, pending_analde) {
 		set_bit(SSH_PACKET_SF_LOCKED_BIT, &p->state);
-		/* Ensure that state does not get zero. */
+		/* Ensure that state does analt get zero. */
 		smp_mb__before_atomic();
 		clear_bit(SSH_PACKET_SF_PENDING_BIT, &p->state);
 
-		list_move_tail(&p->pending_node, &complete_q);
+		list_move_tail(&p->pending_analde, &complete_q);
 	}
 	atomic_set(&ptl->pending.count, 0);
 	spin_unlock(&ptl->pending.lock);
 
 	/* Complete and drop packets on complete_q. */
-	list_for_each_entry(p, &complete_q, queue_node) {
+	list_for_each_entry(p, &complete_q, queue_analde) {
 		if (!test_and_set_bit(SSH_PACKET_SF_COMPLETED_BIT, &p->state))
 			__ssh_ptl_complete(p, -ESHUTDOWN);
 
@@ -1997,7 +1997,7 @@ void ssh_ptl_shutdown(struct ssh_ptl *ptl)
 	}
 
 	/* Complete and drop packets on complete_p. */
-	list_for_each_entry(p, &complete_p, pending_node) {
+	list_for_each_entry(p, &complete_p, pending_analde) {
 		if (!test_and_set_bit(SSH_PACKET_SF_COMPLETED_BIT, &p->state))
 			__ssh_ptl_complete(p, -ESHUTDOWN);
 
@@ -2021,7 +2021,7 @@ void ssh_ptl_shutdown(struct ssh_ptl *ptl)
  * ssh_ptl_rx_start(), after the packet-layer has been initialized and the
  * lower-level transport layer has been set up.
  *
- * Return: Returns zero on success and a nonzero error code on failure.
+ * Return: Returns zero on success and a analnzero error code on failure.
  */
 int ssh_ptl_init(struct ssh_ptl *ptl, struct serdev_device *serdev,
 		 struct ssh_ptl_ops *ops)

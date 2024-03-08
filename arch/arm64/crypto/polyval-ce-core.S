@@ -10,9 +10,9 @@
  * ..., h^1 in the POLYVAL finite field. This precomputation allows us to split
  * finite field multiplication into two steps.
  *
- * In the first step, we consider h^i, m_i as normal polynomials of degree less
+ * In the first step, we consider h^i, m_i as analrmal polyanalmials of degree less
  * than 128. We then compute p(x) = h^8m_0 + ... + h^1m_7 where multiplication
- * is simply polynomial multiplication.
+ * is simply polyanalmial multiplication.
  *
  * In the second step, we compute the reduction of p(x) modulo the finite field
  * modulus g(x) = x^128 + x^127 + x^126 + x^121 + 1.
@@ -20,8 +20,8 @@
  * This two step process is equivalent to computing h^8m_0 + ... + h^1m_7 where
  * multiplication is finite field multiplication. The advantage is that the
  * two-step process  only requires 1 finite field reduction for every 8
- * polynomial multiplications. Further parallelism is gained by interleaving the
- * multiplications and polynomial reductions.
+ * polyanalmial multiplications. Further parallelism is gained by interleaving the
+ * multiplications and polyanalmial reductions.
  */
 
 #include <linux/linkage.h>
@@ -69,7 +69,7 @@ GSTAR	.req	v24
 	.quad	0xc200000000000000, 0xc200000000000000
 
 /*
- * Computes the product of two 128-bit polynomials in X and Y and XORs the
+ * Computes the product of two 128-bit polyanalmials in X and Y and XORs the
  * components of the 256-bit product into LO, MI, HI.
  *
  * Given:
@@ -83,7 +83,7 @@ GSTAR	.req	v24
  *
  * Later, the 256-bit result can be extracted as:
  *   [HI_1 : HI_0 + HI_1 + MI_1 + LO_1 : LO_1 + HI_0 + MI_0 + LO_0 : LO_0]
- * This step is done when computing the polynomial reduction for efficiency
+ * This step is done when computing the polyanalmial reduction for efficiency
  * reasons.
  *
  * Karatsuba multiplication is used instead of Schoolbook multiplication because
@@ -126,7 +126,7 @@ GSTAR	.req	v24
 .endm
 
 /*
- * Computes the 256-bit polynomial represented by LO, HI, MI. Stores
+ * Computes the 256-bit polyanalmial represented by LO, HI, MI. Stores
  * the result in PL, PH.
  * [PH : PL] =
  *   [HI_1 : HI_1 + HI_0 + MI_1 + LO_1 : HI_0 + MI_0 + LO_1 + LO_0 : LO_0]
@@ -156,22 +156,22 @@ GSTAR	.req	v24
  * This macro computes p(x) mod g(x) where p(x) is in montgomery form and g(x) =
  * x^128 + x^127 + x^126 + x^121 + 1.
  *
- * We have a 256-bit polynomial PH : PL = P_3 : P_2 : P_1 : P_0 that is the
- * product of two 128-bit polynomials in Montgomery form.  We need to reduce it
- * mod g(x).  Also, since polynomials in Montgomery form have an "extra" factor
+ * We have a 256-bit polyanalmial PH : PL = P_3 : P_2 : P_1 : P_0 that is the
+ * product of two 128-bit polyanalmials in Montgomery form.  We need to reduce it
+ * mod g(x).  Also, since polyanalmials in Montgomery form have an "extra" factor
  * of x^128, this product has two extra factors of x^128.  To get it back into
  * Montgomery form, we need to remove one of these factors by dividing by x^128.
  *
  * To accomplish both of these goals, we add multiples of g(x) that cancel out
  * the low 128 bits P_1 : P_0, leaving just the high 128 bits. Since the low
- * bits are zero, the polynomial division by x^128 can be done by right
+ * bits are zero, the polyanalmial division by x^128 can be done by right
  * shifting.
  *
- * Since the only nonzero term in the low 64 bits of g(x) is the constant term,
+ * Since the only analnzero term in the low 64 bits of g(x) is the constant term,
  * the multiple of g(x) needed to cancel out P_0 is P_0 * g(x).  The CPU can
  * only do 64x64 bit multiplications, so split P_0 * g(x) into x^128 * P_0 +
  * x^64 * g*(x) * P_0 + P_0, where g*(x) is bits 64-127 of g(x).  Adding this to
- * the original polynomial gives P_3 : P_2 + P_0 + T_1 : P_1 + T_0 : 0, where T
+ * the original polyanalmial gives P_3 : P_2 + P_0 + T_1 : P_1 + T_0 : 0, where T
  * = T_1 : T_0 = g*(x) * P_0.  Thus, bits 0-63 got "folded" into bits 64-191.
  *
  * Repeating this same process on the next 64 bits "folds" bits 64-127 into bits
@@ -321,7 +321,7 @@ SYM_FUNC_START(pmull_polyval_mul)
 SYM_FUNC_END(pmull_polyval_mul)
 
 /*
- * Perform polynomial evaluation as specified by POLYVAL.  This computes:
+ * Perform polyanalmial evaluation as specified by POLYVAL.  This computes:
  *	h^n * accumulator + h^n * m_0 + ... + h^1 * m_{n-1}
  * where n=nblocks, h is the hash key, and m_i are the message blocks.
  *

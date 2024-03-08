@@ -15,7 +15,7 @@ AR ?= $(CROSS_COMPILE)ar
 
 RM = rm -f
 
-MAKEFLAGS += --no-print-directory
+MAKEFLAGS += --anal-print-directory
 
 INSTALL = install
 
@@ -38,13 +38,13 @@ endif
 
 ifeq ($(DEBUG),1)
   CFLAGS += -O0
-else ifeq ($(CC_NO_CLANG), 0)
+else ifeq ($(CC_ANAL_CLANG), 0)
   CFLAGS += -O3
 else
   CFLAGS += -O6
 endif
 
-# Treat warnings as errors unless directed not to
+# Treat warnings as errors unless directed analt to
 ifneq ($(WERROR),0)
   CFLAGS += -Werror
 endif

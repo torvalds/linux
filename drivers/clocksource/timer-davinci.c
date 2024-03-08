@@ -91,7 +91,7 @@ static void davinci_tim12_shutdown(void __iomem *base)
 	/*
 	 * This function is only ever called if we're using both timer
 	 * halves. In this case TIM34 runs in periodic mode and we must
-	 * not modify it.
+	 * analt modify it.
 	 */
 	tcr |= DAVINCI_TIMER_ENAMODE_PERIODIC <<
 		DAVINCI_TIMER_ENAMODE_SHIFT_TIM34;
@@ -177,7 +177,7 @@ static irqreturn_t davinci_timer_irq_timer(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static u64 notrace davinci_timer_read_sched_clock(void)
+static u64 analtrace davinci_timer_read_sched_clock(void)
 {
 	return readl_relaxed(davinci_clocksource.base +
 			     davinci_clocksource.tim_off);
@@ -229,7 +229,7 @@ static void davinci_timer_init(void __iomem *base)
 	/* Set clock to internal mode and disable it. */
 	writel_relaxed(0x0, base + DAVINCI_TIMER_REG_TCR);
 	/*
-	 * Reset both 32-bit timers, set no prescaler for timer 34, set the
+	 * Reset both 32-bit timers, set anal prescaler for timer 34, set the
 	 * timer to dual 32-bit unchained mode, unreset both 32-bit timers.
 	 */
 	writel_relaxed(DAVINCI_TIMER_TGCR_DEFAULT,
@@ -264,7 +264,7 @@ int __init davinci_timer_register(struct clk *clk,
 	base = ioremap(timer_cfg->reg.start, resource_size(&timer_cfg->reg));
 	if (!base) {
 		pr_err("Unable to map the register range\n");
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto exit_mem_region;
 	}
 
@@ -273,7 +273,7 @@ int __init davinci_timer_register(struct clk *clk,
 
 	clockevent = kzalloc(sizeof(*clockevent), GFP_KERNEL);
 	if (!clockevent) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto exit_iounmap_base;
 	}
 
@@ -350,7 +350,7 @@ exit_clk_disable:
 	return rv;
 }
 
-static int __init of_davinci_timer_register(struct device_node *np)
+static int __init of_davinci_timer_register(struct device_analde *np)
 {
 	struct davinci_timer_cfg timer_cfg = { };
 	struct clk *clk;

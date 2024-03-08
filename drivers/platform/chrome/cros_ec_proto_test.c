@@ -23,7 +23,7 @@ struct cros_ec_proto_test_priv {
 	u8 _msg[BUFSIZE];
 };
 
-static void cros_ec_proto_test_prepare_tx_legacy_normal(struct kunit *test)
+static void cros_ec_proto_test_prepare_tx_legacy_analrmal(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -81,7 +81,7 @@ static void cros_ec_proto_test_prepare_tx_legacy_bad_msg_outsize(struct kunit *t
 	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
 }
 
-static void cros_ec_proto_test_prepare_tx_normal(struct kunit *test)
+static void cros_ec_proto_test_prepare_tx_analrmal(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -190,7 +190,7 @@ static void cros_ec_proto_test_query_all_pretest(struct kunit *test)
 	ec_dev->dout = NULL;
 }
 
-static void cros_ec_proto_test_query_all_normal(struct kunit *test)
+static void cros_ec_proto_test_query_all_analrmal(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -344,7 +344,7 @@ static void cros_ec_proto_test_query_all_normal(struct kunit *test)
 	}
 }
 
-static void cros_ec_proto_test_query_all_no_pd_return_error(struct kunit *test)
+static void cros_ec_proto_test_query_all_anal_pd_return_error(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -409,7 +409,7 @@ static void cros_ec_proto_test_query_all_no_pd_return_error(struct kunit *test)
 	}
 }
 
-static void cros_ec_proto_test_query_all_no_pd_return0(struct kunit *test)
+static void cros_ec_proto_test_query_all_anal_pd_return0(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -474,7 +474,7 @@ static void cros_ec_proto_test_query_all_no_pd_return0(struct kunit *test)
 	}
 }
 
-static void cros_ec_proto_test_query_all_legacy_normal_v3_return_error(struct kunit *test)
+static void cros_ec_proto_test_query_all_legacy_analrmal_v3_return_error(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -539,7 +539,7 @@ static void cros_ec_proto_test_query_all_legacy_normal_v3_return_error(struct ku
 	}
 }
 
-static void cros_ec_proto_test_query_all_legacy_normal_v3_return0(struct kunit *test)
+static void cros_ec_proto_test_query_all_legacy_analrmal_v3_return0(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -626,7 +626,7 @@ static void cros_ec_proto_test_query_all_legacy_xfer_error(struct kunit *test)
 	cros_ec_proto_test_query_all_pretest(test);
 	ret = cros_ec_query_all(ec_dev);
 	KUNIT_EXPECT_EQ(test, ret, -EIO);
-	KUNIT_EXPECT_EQ(test, ec_dev->proto_version, EC_PROTO_VERSION_UNKNOWN);
+	KUNIT_EXPECT_EQ(test, ec_dev->proto_version, EC_PROTO_VERSION_UNKANALWN);
 
 	/* For cros_ec_get_proto_info() without passthru. */
 	{
@@ -673,8 +673,8 @@ static void cros_ec_proto_test_query_all_legacy_return_error(struct kunit *test)
 
 	cros_ec_proto_test_query_all_pretest(test);
 	ret = cros_ec_query_all(ec_dev);
-	KUNIT_EXPECT_EQ(test, ret, -EOPNOTSUPP);
-	KUNIT_EXPECT_EQ(test, ec_dev->proto_version, EC_PROTO_VERSION_UNKNOWN);
+	KUNIT_EXPECT_EQ(test, ret, -EOPANALTSUPP);
+	KUNIT_EXPECT_EQ(test, ec_dev->proto_version, EC_PROTO_VERSION_UNKANALWN);
 
 	/* For cros_ec_get_proto_info() without passthru. */
 	{
@@ -727,7 +727,7 @@ static void cros_ec_proto_test_query_all_legacy_data_error(struct kunit *test)
 	cros_ec_proto_test_query_all_pretest(test);
 	ret = cros_ec_query_all(ec_dev);
 	KUNIT_EXPECT_EQ(test, ret, -EBADMSG);
-	KUNIT_EXPECT_EQ(test, ec_dev->proto_version, EC_PROTO_VERSION_UNKNOWN);
+	KUNIT_EXPECT_EQ(test, ec_dev->proto_version, EC_PROTO_VERSION_UNKANALWN);
 
 	/* For cros_ec_get_proto_info() without passthru. */
 	{
@@ -775,7 +775,7 @@ static void cros_ec_proto_test_query_all_legacy_return0(struct kunit *test)
 	cros_ec_proto_test_query_all_pretest(test);
 	ret = cros_ec_query_all(ec_dev);
 	KUNIT_EXPECT_EQ(test, ret, -EPROTO);
-	KUNIT_EXPECT_EQ(test, ec_dev->proto_version, EC_PROTO_VERSION_UNKNOWN);
+	KUNIT_EXPECT_EQ(test, ec_dev->proto_version, EC_PROTO_VERSION_UNKANALWN);
 
 	/* For cros_ec_get_proto_info() without passthru. */
 	{
@@ -801,7 +801,7 @@ static void cros_ec_proto_test_query_all_legacy_return0(struct kunit *test)
 	}
 }
 
-static void cros_ec_proto_test_query_all_no_mkbp(struct kunit *test)
+static void cros_ec_proto_test_query_all_anal_mkbp(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -894,7 +894,7 @@ static void cros_ec_proto_test_query_all_no_mkbp(struct kunit *test)
 	}
 }
 
-static void cros_ec_proto_test_query_all_no_mkbp_return_error(struct kunit *test)
+static void cros_ec_proto_test_query_all_anal_mkbp_return_error(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -982,7 +982,7 @@ static void cros_ec_proto_test_query_all_no_mkbp_return_error(struct kunit *test
 	}
 }
 
-static void cros_ec_proto_test_query_all_no_mkbp_return0(struct kunit *test)
+static void cros_ec_proto_test_query_all_anal_mkbp_return0(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -1070,7 +1070,7 @@ static void cros_ec_proto_test_query_all_no_mkbp_return0(struct kunit *test)
 	}
 }
 
-static void cros_ec_proto_test_query_all_no_host_sleep(struct kunit *test)
+static void cros_ec_proto_test_query_all_anal_host_sleep(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -1176,7 +1176,7 @@ static void cros_ec_proto_test_query_all_no_host_sleep(struct kunit *test)
 	}
 }
 
-static void cros_ec_proto_test_query_all_no_host_sleep_return0(struct kunit *test)
+static void cros_ec_proto_test_query_all_anal_host_sleep_return0(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -1537,7 +1537,7 @@ static void cros_ec_proto_test_query_all_default_wake_mask_return0(struct kunit 
 	}
 }
 
-static void cros_ec_proto_test_cmd_xfer_normal(struct kunit *test)
+static void cros_ec_proto_test_cmd_xfer_analrmal(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -1682,7 +1682,7 @@ static void cros_ec_proto_test_cmd_xfer_excess_msg_outsize_with_passthru(struct 
 	KUNIT_EXPECT_EQ(test, ret, -EMSGSIZE);
 }
 
-static void cros_ec_proto_test_cmd_xfer_protocol_v3_normal(struct kunit *test)
+static void cros_ec_proto_test_cmd_xfer_protocol_v3_analrmal(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -1702,7 +1702,7 @@ static void cros_ec_proto_test_cmd_xfer_protocol_v3_normal(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, cros_kunit_ec_pkt_xfer_mock_called, 1);
 }
 
-static void cros_ec_proto_test_cmd_xfer_protocol_v3_no_op(struct kunit *test)
+static void cros_ec_proto_test_cmd_xfer_protocol_v3_anal_op(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -1719,7 +1719,7 @@ static void cros_ec_proto_test_cmd_xfer_protocol_v3_no_op(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, ret, -EIO);
 }
 
-static void cros_ec_proto_test_cmd_xfer_protocol_v2_normal(struct kunit *test)
+static void cros_ec_proto_test_cmd_xfer_protocol_v2_analrmal(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -1739,7 +1739,7 @@ static void cros_ec_proto_test_cmd_xfer_protocol_v2_normal(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, cros_kunit_ec_pkt_xfer_mock_called, 0);
 }
 
-static void cros_ec_proto_test_cmd_xfer_protocol_v2_no_op(struct kunit *test)
+static void cros_ec_proto_test_cmd_xfer_protocol_v2_anal_op(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -1756,7 +1756,7 @@ static void cros_ec_proto_test_cmd_xfer_protocol_v2_no_op(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, ret, -EIO);
 }
 
-static void cros_ec_proto_test_cmd_xfer_in_progress_normal(struct kunit *test)
+static void cros_ec_proto_test_cmd_xfer_in_progress_analrmal(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -1966,7 +1966,7 @@ static void cros_ec_proto_test_cmd_xfer_in_progress_return0(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, cros_kunit_ec_pkt_xfer_mock_called, 2);
 }
 
-static void cros_ec_proto_test_cmd_xfer_status_normal(struct kunit *test)
+static void cros_ec_proto_test_cmd_xfer_status_analrmal(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -2015,21 +2015,21 @@ static void cros_ec_proto_test_cmd_xfer_status_return_error(struct kunit *test)
 	struct cros_ec_command msg;
 	static const int map[] = {
 		[EC_RES_SUCCESS] = 0,
-		[EC_RES_INVALID_COMMAND] = -EOPNOTSUPP,
+		[EC_RES_INVALID_COMMAND] = -EOPANALTSUPP,
 		[EC_RES_ERROR] = -EIO,
 		[EC_RES_INVALID_PARAM] = -EINVAL,
 		[EC_RES_ACCESS_DENIED] = -EACCES,
 		[EC_RES_INVALID_RESPONSE] = -EPROTO,
-		[EC_RES_INVALID_VERSION] = -ENOPROTOOPT,
+		[EC_RES_INVALID_VERSION] = -EANALPROTOOPT,
 		[EC_RES_INVALID_CHECKSUM] = -EBADMSG,
 		/*
 		 * EC_RES_IN_PROGRESS is special because cros_ec_send_command() has extra logic to
-		 * handle it.  Note that default cros_kunit_ec_xfer_mock_default_ret == 0 thus
+		 * handle it.  Analte that default cros_kunit_ec_xfer_mock_default_ret == 0 thus
 		 * cros_ec_xfer_command() in cros_ec_wait_until_complete() returns 0.  As a result,
 		 * it returns -EPROTO without calling cros_ec_map_error().
 		 */
 		[EC_RES_IN_PROGRESS] = -EPROTO,
-		[EC_RES_UNAVAILABLE] = -ENODATA,
+		[EC_RES_UNAVAILABLE] = -EANALDATA,
 		[EC_RES_TIMEOUT] = -ETIMEDOUT,
 		[EC_RES_OVERFLOW] = -EOVERFLOW,
 		[EC_RES_INVALID_HEADER] = -EBADR,
@@ -2040,7 +2040,7 @@ static void cros_ec_proto_test_cmd_xfer_status_return_error(struct kunit *test)
 		[EC_RES_INVALID_HEADER_VERSION] = -EBADMSG,
 		[EC_RES_INVALID_HEADER_CRC] = -EBADMSG,
 		[EC_RES_INVALID_DATA_CRC] = -EBADMSG,
-		[EC_RES_DUP_UNAVAILABLE] = -ENODATA,
+		[EC_RES_DUP_UNAVAILABLE] = -EANALDATA,
 	};
 
 	memset(&msg, 0, sizeof(msg));
@@ -2054,7 +2054,7 @@ static void cros_ec_proto_test_cmd_xfer_status_return_error(struct kunit *test)
 	}
 }
 
-static void cros_ec_proto_test_get_next_event_no_mkbp_event(struct kunit *test)
+static void cros_ec_proto_test_get_next_event_anal_mkbp_event(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -2313,7 +2313,7 @@ static void cros_ec_proto_test_get_next_event_mkbp_event_host_event_masked(struc
 	}
 }
 
-static void cros_ec_proto_test_get_host_event_no_mkbp_event(struct kunit *test)
+static void cros_ec_proto_test_get_host_event_anal_mkbp_event(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -2325,7 +2325,7 @@ static void cros_ec_proto_test_get_host_event_no_mkbp_event(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, ret, 0);
 }
 
-static void cros_ec_proto_test_get_host_event_not_host_event(struct kunit *test)
+static void cros_ec_proto_test_get_host_event_analt_host_event(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -2352,7 +2352,7 @@ static void cros_ec_proto_test_get_host_event_wrong_event_size(struct kunit *tes
 	KUNIT_EXPECT_EQ(test, ret, 0);
 }
 
-static void cros_ec_proto_test_get_host_event_normal(struct kunit *test)
+static void cros_ec_proto_test_get_host_event_analrmal(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -2390,7 +2390,7 @@ static void cros_ec_proto_test_check_features_cached(struct kunit *test)
 	}
 }
 
-static void cros_ec_proto_test_check_features_not_cached(struct kunit *test)
+static void cros_ec_proto_test_check_features_analt_cached(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -2443,7 +2443,7 @@ static void cros_ec_proto_test_check_features_not_cached(struct kunit *test)
 	}
 }
 
-static void cros_ec_proto_test_get_sensor_count_normal(struct kunit *test)
+static void cros_ec_proto_test_get_sensor_count_analrmal(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv = test->priv;
 	struct cros_ec_device *ec_dev = &priv->ec_dev;
@@ -2651,7 +2651,7 @@ static int cros_ec_proto_test_init(struct kunit *test)
 
 	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	test->priv = priv;
 
 	ec_dev = &priv->ec_dev;
@@ -2662,7 +2662,7 @@ static int cros_ec_proto_test_init(struct kunit *test)
 	ec_dev->proto_version = EC_HOST_REQUEST_VERSION;
 	ec_dev->dev = kunit_kzalloc(test, sizeof(*ec_dev->dev), GFP_KERNEL);
 	if (!ec_dev->dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	device_initialize(ec_dev->dev);
 	dev_set_name(ec_dev->dev, "cros_ec_proto_test");
 	ec_dev->dev->release = cros_ec_proto_test_release;
@@ -2686,57 +2686,57 @@ static void cros_ec_proto_test_exit(struct kunit *test)
 }
 
 static struct kunit_case cros_ec_proto_test_cases[] = {
-	KUNIT_CASE(cros_ec_proto_test_prepare_tx_legacy_normal),
+	KUNIT_CASE(cros_ec_proto_test_prepare_tx_legacy_analrmal),
 	KUNIT_CASE(cros_ec_proto_test_prepare_tx_legacy_bad_msg_outsize),
-	KUNIT_CASE(cros_ec_proto_test_prepare_tx_normal),
+	KUNIT_CASE(cros_ec_proto_test_prepare_tx_analrmal),
 	KUNIT_CASE(cros_ec_proto_test_prepare_tx_bad_msg_outsize),
 	KUNIT_CASE(cros_ec_proto_test_check_result),
-	KUNIT_CASE(cros_ec_proto_test_query_all_normal),
-	KUNIT_CASE(cros_ec_proto_test_query_all_no_pd_return_error),
-	KUNIT_CASE(cros_ec_proto_test_query_all_no_pd_return0),
-	KUNIT_CASE(cros_ec_proto_test_query_all_legacy_normal_v3_return_error),
-	KUNIT_CASE(cros_ec_proto_test_query_all_legacy_normal_v3_return0),
+	KUNIT_CASE(cros_ec_proto_test_query_all_analrmal),
+	KUNIT_CASE(cros_ec_proto_test_query_all_anal_pd_return_error),
+	KUNIT_CASE(cros_ec_proto_test_query_all_anal_pd_return0),
+	KUNIT_CASE(cros_ec_proto_test_query_all_legacy_analrmal_v3_return_error),
+	KUNIT_CASE(cros_ec_proto_test_query_all_legacy_analrmal_v3_return0),
 	KUNIT_CASE(cros_ec_proto_test_query_all_legacy_xfer_error),
 	KUNIT_CASE(cros_ec_proto_test_query_all_legacy_return_error),
 	KUNIT_CASE(cros_ec_proto_test_query_all_legacy_data_error),
 	KUNIT_CASE(cros_ec_proto_test_query_all_legacy_return0),
-	KUNIT_CASE(cros_ec_proto_test_query_all_no_mkbp),
-	KUNIT_CASE(cros_ec_proto_test_query_all_no_mkbp_return_error),
-	KUNIT_CASE(cros_ec_proto_test_query_all_no_mkbp_return0),
-	KUNIT_CASE(cros_ec_proto_test_query_all_no_host_sleep),
-	KUNIT_CASE(cros_ec_proto_test_query_all_no_host_sleep_return0),
+	KUNIT_CASE(cros_ec_proto_test_query_all_anal_mkbp),
+	KUNIT_CASE(cros_ec_proto_test_query_all_anal_mkbp_return_error),
+	KUNIT_CASE(cros_ec_proto_test_query_all_anal_mkbp_return0),
+	KUNIT_CASE(cros_ec_proto_test_query_all_anal_host_sleep),
+	KUNIT_CASE(cros_ec_proto_test_query_all_anal_host_sleep_return0),
 	KUNIT_CASE(cros_ec_proto_test_query_all_default_wake_mask_return_error),
 	KUNIT_CASE(cros_ec_proto_test_query_all_default_wake_mask_return0),
-	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_normal),
+	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_analrmal),
 	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_excess_msg_insize),
 	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_excess_msg_outsize_without_passthru),
 	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_excess_msg_outsize_with_passthru),
-	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_protocol_v3_normal),
-	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_protocol_v3_no_op),
-	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_protocol_v2_normal),
-	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_protocol_v2_no_op),
-	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_in_progress_normal),
+	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_protocol_v3_analrmal),
+	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_protocol_v3_anal_op),
+	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_protocol_v2_analrmal),
+	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_protocol_v2_anal_op),
+	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_in_progress_analrmal),
 	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_in_progress_retries_eagain),
 	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_in_progress_retries_status_processing),
 	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_in_progress_xfer_error),
 	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_in_progress_return_error),
 	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_in_progress_return0),
-	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_status_normal),
+	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_status_analrmal),
 	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_status_xfer_error),
 	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_status_return_error),
-	KUNIT_CASE(cros_ec_proto_test_get_next_event_no_mkbp_event),
+	KUNIT_CASE(cros_ec_proto_test_get_next_event_anal_mkbp_event),
 	KUNIT_CASE(cros_ec_proto_test_get_next_event_mkbp_event_ec_suspended),
 	KUNIT_CASE(cros_ec_proto_test_get_next_event_mkbp_event_version0),
 	KUNIT_CASE(cros_ec_proto_test_get_next_event_mkbp_event_version2),
 	KUNIT_CASE(cros_ec_proto_test_get_next_event_mkbp_event_host_event_rtc),
 	KUNIT_CASE(cros_ec_proto_test_get_next_event_mkbp_event_host_event_masked),
-	KUNIT_CASE(cros_ec_proto_test_get_host_event_no_mkbp_event),
-	KUNIT_CASE(cros_ec_proto_test_get_host_event_not_host_event),
+	KUNIT_CASE(cros_ec_proto_test_get_host_event_anal_mkbp_event),
+	KUNIT_CASE(cros_ec_proto_test_get_host_event_analt_host_event),
 	KUNIT_CASE(cros_ec_proto_test_get_host_event_wrong_event_size),
-	KUNIT_CASE(cros_ec_proto_test_get_host_event_normal),
+	KUNIT_CASE(cros_ec_proto_test_get_host_event_analrmal),
 	KUNIT_CASE(cros_ec_proto_test_check_features_cached),
-	KUNIT_CASE(cros_ec_proto_test_check_features_not_cached),
-	KUNIT_CASE(cros_ec_proto_test_get_sensor_count_normal),
+	KUNIT_CASE(cros_ec_proto_test_check_features_analt_cached),
+	KUNIT_CASE(cros_ec_proto_test_get_sensor_count_analrmal),
 	KUNIT_CASE(cros_ec_proto_test_get_sensor_count_xfer_error),
 	KUNIT_CASE(cros_ec_proto_test_get_sensor_count_legacy),
 	KUNIT_CASE(cros_ec_proto_test_ec_cmd),

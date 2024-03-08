@@ -29,12 +29,12 @@ u64 id_aa64mmfr2_el1_sys_val;
 u64 id_aa64smfr0_el1_sys_val;
 
 /*
- * Inject an unknown/undefined exception to an AArch64 guest while most of its
+ * Inject an unkanalwn/undefined exception to an AArch64 guest while most of its
  * sysregs are live.
  */
 static void inject_undef64(struct kvm_vcpu *vcpu)
 {
-	u64 esr = (ESR_ELx_EC_UNKNOWN << ESR_ELx_EC_SHIFT);
+	u64 esr = (ESR_ELx_EC_UNKANALWN << ESR_ELx_EC_SHIFT);
 
 	*vcpu_pc(vcpu) = read_sysreg_el2(SYS_ELR);
 	*vcpu_cpsr(vcpu) = read_sysreg_el2(SYS_SPSR);
@@ -52,8 +52,8 @@ static void inject_undef64(struct kvm_vcpu *vcpu)
 /*
  * Returns the restricted features values of the feature register based on the
  * limitations in restrict_fields.
- * A feature id field value of 0b0000 does not impose any restrictions.
- * Note: Use only for unsigned feature field values.
+ * A feature id field value of 0b0000 does analt impose any restrictions.
+ * Analte: Use only for unsigned feature field values.
  */
 static u64 get_restricted_features_unsigned(u64 sys_reg_val,
 					    u64 restrict_fields)
@@ -108,7 +108,7 @@ static u64 get_pvm_id_aa64pfr1(const struct kvm_vcpu *vcpu)
 static u64 get_pvm_id_aa64zfr0(const struct kvm_vcpu *vcpu)
 {
 	/*
-	 * No support for Scalable Vectors, therefore, hyp has no sanitized
+	 * Anal support for Scalable Vectors, therefore, hyp has anal sanitized
 	 * copy of the feature id register.
 	 */
 	BUILD_BUG_ON(PVM_ID_AA64ZFR0_ALLOW != 0ULL);
@@ -118,8 +118,8 @@ static u64 get_pvm_id_aa64zfr0(const struct kvm_vcpu *vcpu)
 static u64 get_pvm_id_aa64dfr0(const struct kvm_vcpu *vcpu)
 {
 	/*
-	 * No support for debug, including breakpoints, and watchpoints,
-	 * therefore, pKVM has no sanitized copy of the feature id register.
+	 * Anal support for debug, including breakpoints, and watchpoints,
+	 * therefore, pKVM has anal sanitized copy of the feature id register.
 	 */
 	BUILD_BUG_ON(PVM_ID_AA64DFR0_ALLOW != 0ULL);
 	return 0;
@@ -128,7 +128,7 @@ static u64 get_pvm_id_aa64dfr0(const struct kvm_vcpu *vcpu)
 static u64 get_pvm_id_aa64dfr1(const struct kvm_vcpu *vcpu)
 {
 	/*
-	 * No support for debug, therefore, hyp has no sanitized copy of the
+	 * Anal support for debug, therefore, hyp has anal sanitized copy of the
 	 * feature id register.
 	 */
 	BUILD_BUG_ON(PVM_ID_AA64DFR1_ALLOW != 0ULL);
@@ -138,7 +138,7 @@ static u64 get_pvm_id_aa64dfr1(const struct kvm_vcpu *vcpu)
 static u64 get_pvm_id_aa64afr0(const struct kvm_vcpu *vcpu)
 {
 	/*
-	 * No support for implementation defined features, therefore, hyp has no
+	 * Anal support for implementation defined features, therefore, hyp has anal
 	 * sanitized copy of the feature id register.
 	 */
 	BUILD_BUG_ON(PVM_ID_AA64AFR0_ALLOW != 0ULL);
@@ -148,7 +148,7 @@ static u64 get_pvm_id_aa64afr0(const struct kvm_vcpu *vcpu)
 static u64 get_pvm_id_aa64afr1(const struct kvm_vcpu *vcpu)
 {
 	/*
-	 * No support for implementation defined features, therefore, hyp has no
+	 * Anal support for implementation defined features, therefore, hyp has anal
 	 * sanitized copy of the feature id register.
 	 */
 	BUILD_BUG_ON(PVM_ID_AA64AFR1_ALLOW != 0ULL);
@@ -259,7 +259,7 @@ static bool pvm_access_raz_wi(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 /*
  * Accessor for AArch32 feature id registers.
  *
- * The value of these registers is "unknown" according to the spec if AArch32
+ * The value of these registers is "unkanalwn" according to the spec if AArch32
  * isn't supported.
  */
 static bool pvm_access_id_aarch32(struct kvm_vcpu *vcpu,
@@ -272,7 +272,7 @@ static bool pvm_access_id_aarch32(struct kvm_vcpu *vcpu,
 	}
 
 	/*
-	 * No support for AArch32 guests, therefore, pKVM has no sanitized copy
+	 * Anal support for AArch32 guests, therefore, pKVM has anal sanitized copy
 	 * of AArch32 feature id registers.
 	 */
 	BUILD_BUG_ON(FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_EL1),
@@ -328,17 +328,17 @@ static bool pvm_gic_read_sre(struct kvm_vcpu *vcpu,
 	.access = pvm_access_id_aarch64,		\
 }
 
-/* Mark the specified system register as Read-As-Zero/Write-Ignored */
+/* Mark the specified system register as Read-As-Zero/Write-Iganalred */
 #define RAZ_WI(REG) { SYS_DESC(REG), .access = pvm_access_raz_wi }
 
-/* Mark the specified system register as not being handled in hyp. */
+/* Mark the specified system register as analt being handled in hyp. */
 #define HOST_HANDLED(REG) { SYS_DESC(REG), .access = NULL }
 
 /*
  * Architected system registers.
  * Important: Must be sorted ascending by Op0, Op1, CRn, CRm, Op2
  *
- * NOTE: Anything not explicitly listed here is *restricted by default*, i.e.,
+ * ANALTE: Anything analt explicitly listed here is *restricted by default*, i.e.,
  * it will lead to injecting an exception into the guest.
  */
 static const struct sys_reg_desc pvm_sys_reg_descs[] = {

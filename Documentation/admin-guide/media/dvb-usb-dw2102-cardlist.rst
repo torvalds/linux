@@ -36,7 +36,7 @@ dvb-usb-dw2102 cards list
      - 0x9022:d650
    * - TeVii S662
      - 0x9022:d662
-   * - TechnoTrend TT-connect S2-4600
+   * - TechanalTrend TT-connect S2-4600
      - 0b48:3011
    * - TerraTec Cinergy S USB
      - 0ccd:0064

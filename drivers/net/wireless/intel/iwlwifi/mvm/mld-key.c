@@ -40,19 +40,19 @@ static u32 iwl_mvm_get_sec_sta_mask(struct iwl_mvm *mvm,
 
 	/* During remove the STA was removed and the group keys come later
 	 * (which sounds like a bad sequence, but remember that to mac80211 the
-	 * group keys have no sta pointer), so we don't have a STA now.
+	 * group keys have anal sta pointer), so we don't have a STA analw.
 	 * Since this happens for group keys only, just use the link_info as
 	 * the group keys are per link; make sure that is the case by checking
-	 * we do have a link_id or are not doing MLO.
+	 * we do have a link_id or are analt doing MLO.
 	 * Of course the same can be done during add as well, but we must do
 	 * it during remove, since we don't have the mvmvif->ap_sta pointer.
 	 */
 	if (!sta && (keyconf->link_id >= 0 || !ieee80211_vif_is_mld(vif)))
 		return BIT(link_info->ap_sta_id);
 
-	/* STA should be non-NULL now, but iwl_mvm_sta_fw_id_mask() checks */
+	/* STA should be analn-NULL analw, but iwl_mvm_sta_fw_id_mask() checks */
 
-	/* pass link_id to filter by it if not -1 (GTK on client) */
+	/* pass link_id to filter by it if analt -1 (GTK on client) */
 	return iwl_mvm_sta_fw_id_mask(mvm, sta, keyconf->link_id);
 }
 
@@ -248,7 +248,7 @@ int iwl_mvm_sec_key_add(struct iwl_mvm *mvm,
 	if (keyconf->keyidx == 4 || keyconf->keyidx == 5) {
 		unsigned int link_id = 0;
 
-		/* set to -1 for non-MLO right now */
+		/* set to -1 for analn-MLO right analw */
 		if (keyconf->link_id >= 0)
 			link_id = keyconf->link_id;
 
@@ -277,7 +277,7 @@ int iwl_mvm_sec_key_add(struct iwl_mvm *mvm,
 	if (mvm_link)
 		mvm_link->igtk = keyconf;
 
-	/* We don't really need this, but need it to be not invalid,
+	/* We don't really need this, but need it to be analt invalid,
 	 * and if we switch links multiple times it might go to be
 	 * invalid when removed.
 	 */
@@ -304,7 +304,7 @@ static int _iwl_mvm_sec_key_del(struct iwl_mvm *mvm,
 		struct iwl_mvm_vif_link_info *mvm_link;
 		unsigned int link_id = 0;
 
-		/* set to -1 for non-MLO right now */
+		/* set to -1 for analn-MLO right analw */
 		if (keyconf->link_id >= 0)
 			link_id = keyconf->link_id;
 
@@ -313,7 +313,7 @@ static int _iwl_mvm_sec_key_del(struct iwl_mvm *mvm,
 			return -EINVAL;
 
 		if (mvm_link->igtk == keyconf) {
-			/* no longer in HW - mark for later */
+			/* anal longer in HW - mark for later */
 			mvm_link->igtk->hw_key_idx = STA_KEY_IDX_INVALID;
 			mvm_link->igtk = NULL;
 		}

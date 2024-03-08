@@ -53,7 +53,7 @@ properties:
               - 4 # MIPI CSI-2 D-PHY
           data-lanes: true
           link-frequencies: true
-          clock-noncontinuous: true
+          clock-analncontinuous: true
           remote-endpoint: true
 
         required:

@@ -24,7 +24,7 @@
 struct pci_epf_mhi_dma_transfer {
 	struct pci_epf_mhi *epf_mhi;
 	struct mhi_ep_buf_info buf_info;
-	struct list_head node;
+	struct list_head analde;
 	dma_addr_t paddr;
 	enum dma_data_direction dir;
 	size_t size;
@@ -33,7 +33,7 @@ struct pci_epf_mhi_dma_transfer {
 struct pci_epf_mhi_ep_info {
 	const struct mhi_ep_cntrl_config *config;
 	struct pci_epf_header *epf_header;
-	enum pci_barno bar_num;
+	enum pci_baranal bar_num;
 	u32 epf_flags;
 	u32 msi_count;
 	u32 mru;
@@ -157,9 +157,9 @@ static int __pci_epf_mhi_alloc_map(struct mhi_ep_cntrl *mhi_cntrl, u64 pci_addr,
 
 	*vaddr = pci_epc_mem_alloc_addr(epc, paddr, size + offset);
 	if (!*vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = pci_epc_map_addr(epc, epf->func_no, epf->vfunc_no, *paddr,
+	ret = pci_epc_map_addr(epc, epf->func_anal, epf->vfunc_anal, *paddr,
 			       pci_addr - offset, size + offset);
 	if (ret) {
 		pci_epc_mem_free_addr(epc, *paddr, *vaddr, size + offset);
@@ -192,7 +192,7 @@ static void __pci_epf_mhi_unmap_free(struct mhi_ep_cntrl *mhi_cntrl,
 	struct pci_epf *epf = epf_mhi->epf;
 	struct pci_epc *epc = epf->epc;
 
-	pci_epc_unmap_addr(epc, epf->func_no, epf->vfunc_no, paddr - offset);
+	pci_epc_unmap_addr(epc, epf->func_anal, epf->vfunc_anal, paddr - offset);
 	pci_epc_mem_free_addr(epc, paddr - offset, vaddr - offset,
 			      size + offset);
 }
@@ -218,7 +218,7 @@ static void pci_epf_mhi_raise_irq(struct mhi_ep_cntrl *mhi_cntrl, u32 vector)
 	 * MHI supplies 0 based MSI vectors but the API expects the vector
 	 * number to start from 1, so we need to increment the vector by 1.
 	 */
-	pci_epc_raise_irq(epc, epf->func_no, epf->vfunc_no, PCI_IRQ_MSI,
+	pci_epc_raise_irq(epc, epf->func_anal, epf->vfunc_anal, PCI_IRQ_MSI,
 			  vector + 1);
 }
 
@@ -444,8 +444,8 @@ static void pci_epf_mhi_dma_worker(struct work_struct *work)
 	list_splice_tail_init(&epf_mhi->dma_list, &head);
 	spin_unlock_irqrestore(&epf_mhi->list_lock, flags);
 
-	list_for_each_entry_safe(itr, tmp, &head, node) {
-		list_del(&itr->node);
+	list_for_each_entry_safe(itr, tmp, &head, analde) {
+		list_del(&itr->analde);
 		dma_unmap_single(dma_dev, itr->paddr, itr->size, itr->dir);
 		buf_info = &itr->buf_info;
 		buf_info->cb(buf_info);
@@ -459,7 +459,7 @@ static void pci_epf_mhi_dma_async_callback(void *param)
 	struct pci_epf_mhi *epf_mhi = transfer->epf_mhi;
 
 	spin_lock(&epf_mhi->list_lock);
-	list_add_tail(&transfer->node, &epf_mhi->dma_list);
+	list_add_tail(&transfer->analde, &epf_mhi->dma_list);
 	spin_unlock(&epf_mhi->list_lock);
 
 	queue_work(epf_mhi->dma_wq, &epf_mhi->dma_work);
@@ -510,7 +510,7 @@ static int pci_epf_mhi_edma_read_async(struct mhi_ep_cntrl *mhi_cntrl,
 
 	transfer = kzalloc(sizeof(*transfer), GFP_KERNEL);
 	if (!transfer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unmap;
 	}
 
@@ -589,7 +589,7 @@ static int pci_epf_mhi_edma_write_async(struct mhi_ep_cntrl *mhi_cntrl,
 
 	transfer = kzalloc(sizeof(*transfer), GFP_KERNEL);
 	if (!transfer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unmap;
 	}
 
@@ -628,9 +628,9 @@ struct epf_dma_filter {
 	u32 dma_mask;
 };
 
-static bool pci_epf_mhi_filter(struct dma_chan *chan, void *node)
+static bool pci_epf_mhi_filter(struct dma_chan *chan, void *analde)
 {
-	struct epf_dma_filter *filter = node;
+	struct epf_dma_filter *filter = analde;
 	struct dma_slave_caps caps;
 
 	memset(&caps, 0, sizeof(caps));
@@ -657,7 +657,7 @@ static int pci_epf_mhi_dma_init(struct pci_epf_mhi *epf_mhi)
 						   &filter);
 	if (IS_ERR_OR_NULL(epf_mhi->dma_chan_tx)) {
 		dev_err(dev, "Failed to request tx channel\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	filter.dma_mask = BIT(DMA_DEV_TO_MEM);
@@ -665,13 +665,13 @@ static int pci_epf_mhi_dma_init(struct pci_epf_mhi *epf_mhi)
 						   &filter);
 	if (IS_ERR_OR_NULL(epf_mhi->dma_chan_rx)) {
 		dev_err(dev, "Failed to request rx channel\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_release_tx;
 	}
 
 	epf_mhi->dma_wq = alloc_workqueue("pci_epf_mhi_dma_wq", 0, 0);
 	if (!epf_mhi->dma_wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_release_rx;
 	}
 
@@ -711,31 +711,31 @@ static int pci_epf_mhi_core_init(struct pci_epf *epf)
 
 	epf_bar->phys_addr = epf_mhi->mmio_phys;
 	epf_bar->size = epf_mhi->mmio_size;
-	epf_bar->barno = info->bar_num;
+	epf_bar->baranal = info->bar_num;
 	epf_bar->flags = info->epf_flags;
-	ret = pci_epc_set_bar(epc, epf->func_no, epf->vfunc_no, epf_bar);
+	ret = pci_epc_set_bar(epc, epf->func_anal, epf->vfunc_anal, epf_bar);
 	if (ret) {
 		dev_err(dev, "Failed to set BAR: %d\n", ret);
 		return ret;
 	}
 
-	ret = pci_epc_set_msi(epc, epf->func_no, epf->vfunc_no,
+	ret = pci_epc_set_msi(epc, epf->func_anal, epf->vfunc_anal,
 			      order_base_2(info->msi_count));
 	if (ret) {
 		dev_err(dev, "Failed to set MSI configuration: %d\n", ret);
 		return ret;
 	}
 
-	ret = pci_epc_write_header(epc, epf->func_no, epf->vfunc_no,
+	ret = pci_epc_write_header(epc, epf->func_anal, epf->vfunc_anal,
 				   epf->header);
 	if (ret) {
 		dev_err(dev, "Failed to set Configuration header: %d\n", ret);
 		return ret;
 	}
 
-	epf_mhi->epc_features = pci_epc_get_features(epc, epf->func_no, epf->vfunc_no);
+	epf_mhi->epc_features = pci_epc_get_features(epc, epf->func_anal, epf->vfunc_anal);
 	if (!epf_mhi->epc_features)
-		return -ENODATA;
+		return -EANALDATA;
 
 	return 0;
 }
@@ -843,7 +843,7 @@ static int pci_epf_mhi_bind(struct pci_epf *epf)
 
 	epf_mhi->mmio = ioremap(epf_mhi->mmio_phys, epf_mhi->mmio_size);
 	if (!epf_mhi->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = platform_get_irq_byname(pdev, "doorbell");
 	if (ret < 0) {
@@ -877,7 +877,7 @@ static void pci_epf_mhi_unbind(struct pci_epf *epf)
 	}
 
 	iounmap(epf_mhi->mmio);
-	pci_epc_clear_bar(epc, epf->func_no, epf->vfunc_no, epf_bar);
+	pci_epc_clear_bar(epc, epf->func_anal, epf->vfunc_anal, epf_bar);
 }
 
 static const struct pci_epc_event_ops pci_epf_mhi_event_ops = {
@@ -897,7 +897,7 @@ static int pci_epf_mhi_probe(struct pci_epf *epf,
 
 	epf_mhi = devm_kzalloc(dev, sizeof(*epf_mhi), GFP_KERNEL);
 	if (!epf_mhi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	epf->header = info->epf_header;
 	epf_mhi->info = info;

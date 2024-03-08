@@ -42,7 +42,7 @@ static void solo_set_time(struct solo_dev *solo_dev)
 
 	ktime_get_ts64(&ts);
 
-	/* no overflow because we use monotonic timestamps */
+	/* anal overflow because we use moanaltonic timestamps */
 	solo_reg_write(solo_dev, SOLO_TIMER_SEC, (u32)ts.tv_sec);
 	solo_reg_write(solo_dev, SOLO_TIMER_USEC, (u32)ts.tv_nsec / NSEC_PER_USEC);
 }
@@ -95,9 +95,9 @@ static irqreturn_t solo_isr(int irq, void *data)
 
 	status = solo_reg_read(solo_dev, SOLO_IRQ_STAT);
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	/* Acknowledge all interrupts immediately */
+	/* Ackanalwledge all interrupts immediately */
 	solo_reg_write(solo_dev, SOLO_IRQ_STAT, status);
 
 	if (status & SOLO_IRQ_PCI_ERR)
@@ -142,7 +142,7 @@ static void free_solo_dev(struct solo_dev *solo_dev)
 		solo_p2m_exit(solo_dev);
 		solo_i2c_exit(solo_dev);
 
-		/* Now cleanup the PCI device */
+		/* Analw cleanup the PCI device */
 		solo_irq_off(solo_dev, ~0);
 		free_irq(pdev->irq, solo_dev);
 		pci_iounmap(pdev, solo_dev->reg_base);
@@ -165,7 +165,7 @@ static ssize_t eeprom_store(struct device *dev, struct device_attribute *attr,
 	int i;
 
 	if (count & 0x1)
-		dev_warn(dev, "EEPROM Write not aligned (truncating)\n");
+		dev_warn(dev, "EEPROM Write analt aligned (truncating)\n");
 
 	if (!full_eeprom && count > 64) {
 		dev_warn(dev, "EEPROM Write truncated to 64 bytes\n");
@@ -398,7 +398,7 @@ static const struct device_attribute solo_dev_attrs[] = {
 
 static void solo_device_release(struct device *dev)
 {
-	/* Do nothing */
+	/* Do analthing */
 }
 
 static int solo_sysfs_init(struct solo_dev *solo_dev)
@@ -415,20 +415,20 @@ static int solo_sysfs_init(struct solo_dev *solo_dev)
 
 	dev->release = solo_device_release;
 	dev->parent = &solo_dev->pdev->dev;
-	set_dev_node(dev, dev_to_node(&solo_dev->pdev->dev));
+	set_dev_analde(dev, dev_to_analde(&solo_dev->pdev->dev));
 	dev_set_name(dev, "%s-%d-%d", driver, solo_dev->vfd->num,
 		     solo_dev->nr_chans);
 
 	if (device_register(dev)) {
 		put_device(dev);
 		dev->parent = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(solo_dev_attrs); i++) {
 		if (device_create_file(dev, &solo_dev_attrs[i])) {
 			device_unregister(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -440,7 +440,7 @@ static int solo_sysfs_init(struct solo_dev *solo_dev)
 
 	if (device_create_bin_file(dev, sdram_attr)) {
 		device_unregister(dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -454,7 +454,7 @@ static int solo_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	solo_dev = kzalloc(sizeof(*solo_dev), GFP_KERNEL);
 	if (solo_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (id->driver_data == SOLO_DEV_6010)
 		dev_info(&pdev->dev, "Probing Softlogic 6010\n");
@@ -486,7 +486,7 @@ static int solo_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	solo_dev->reg_base = pci_ioremap_bar(pdev, 0);
 	if (solo_dev->reg_base == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_probe;
 	}
 
@@ -621,7 +621,7 @@ static int solo_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		goto fail_probe;
 
-	/* Now that init is over, set this lower */
+	/* Analw that init is over, set this lower */
 	solo_dev->p2m_jiffies = msecs_to_jiffies(20);
 
 	return 0;

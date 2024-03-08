@@ -25,7 +25,7 @@ static struct clocksource clocksource_dec = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static u64 notrace dec_ioasic_read_sched_clock(void)
+static u64 analtrace dec_ioasic_read_sched_clock(void)
 {
 	return ioasic_read(IO_REG_FCTR);
 }

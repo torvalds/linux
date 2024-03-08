@@ -67,7 +67,7 @@ static struct dm_uevent *dm_build_path_uevent(struct mapped_device *md,
 	event = dm_uevent_alloc(md);
 	if (!event) {
 		DMERR("%s: dm_uevent_alloc() failed", __func__);
-		goto err_nomem;
+		goto err_analmem;
 	}
 
 	event->action = action;
@@ -107,8 +107,8 @@ static struct dm_uevent *dm_build_path_uevent(struct mapped_device *md,
 
 err_add:
 	dm_uevent_free(event);
-err_nomem:
-	return ERR_PTR(-ENOMEM);
+err_analmem:
+	return ERR_PTR(-EANALMEM);
 }
 
 /**
@@ -193,7 +193,7 @@ int dm_uevent_init(void)
 {
 	_dm_event_cache = KMEM_CACHE(dm_uevent, 0);
 	if (!_dm_event_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	DMINFO("version 1.0.3");
 

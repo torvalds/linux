@@ -67,7 +67,7 @@ int acp_dsp_block_write(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_t
 							    &adata->sha_dma_addr,
 							    GFP_ATOMIC);
 			if (!adata->bin_buf)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		adata->fw_bin_size = size + offset;
 		dest = adata->bin_buf + offset;
@@ -79,7 +79,7 @@ int acp_dsp_block_write(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_t
 							     &adata->dma_addr,
 							     GFP_ATOMIC);
 			if (!adata->data_buf)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		dest = adata->data_buf + offset;
 		adata->fw_data_bin_size = size + offset;
@@ -92,7 +92,7 @@ int acp_dsp_block_write(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_t
 								  &adata->sram_dma_addr,
 								  GFP_ATOMIC);
 			if (!adata->sram_data_buf)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		adata->fw_sram_data_bin_size = size + offset;
 		dest = adata->sram_data_buf + offset;
@@ -253,7 +253,7 @@ int acp_sof_dsp_run(struct snd_sof_dev *sdev)
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_DSP0_RUNSTALL);
 	dev_dbg(sdev->dev, "ACP_DSP0_RUNSTALL : 0x%0x\n", val);
 
-	/* Some platforms won't support fusion DSP,keep offset zero for no support */
+	/* Some platforms won't support fusion DSP,keep offset zero for anal support */
 	if (desc->fusion_dsp_offset && adata->enable_fw_debug) {
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->fusion_dsp_offset, ACP_DSP_RUN);
 		val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->fusion_dsp_offset);

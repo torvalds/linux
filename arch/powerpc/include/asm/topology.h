@@ -5,89 +5,89 @@
 
 
 struct device;
-struct device_node;
+struct device_analde;
 struct drmem_lmb;
 
 #ifdef CONFIG_NUMA
 
 /*
  * If zone_reclaim_mode is enabled, a RECLAIM_DISTANCE of 10 will mean that
- * all zones on all nodes will be eligible for zone_reclaim().
+ * all zones on all analdes will be eligible for zone_reclaim().
  */
 #define RECLAIM_DISTANCE 10
 
 #include <asm/mmzone.h>
 
-#define cpumask_of_node(node) ((node) == -1 ?				\
+#define cpumask_of_analde(analde) ((analde) == -1 ?				\
 			       cpu_all_mask :				\
-			       node_to_cpumask_map[node])
+			       analde_to_cpumask_map[analde])
 
 struct pci_bus;
 #ifdef CONFIG_PCI
-extern int pcibus_to_node(struct pci_bus *bus);
+extern int pcibus_to_analde(struct pci_bus *bus);
 #else
-static inline int pcibus_to_node(struct pci_bus *bus)
+static inline int pcibus_to_analde(struct pci_bus *bus)
 {
 	return -1;
 }
 #endif
 
-#define cpumask_of_pcibus(bus)	(pcibus_to_node(bus) == -1 ?		\
+#define cpumask_of_pcibus(bus)	(pcibus_to_analde(bus) == -1 ?		\
 				 cpu_all_mask :				\
-				 cpumask_of_node(pcibus_to_node(bus)))
+				 cpumask_of_analde(pcibus_to_analde(bus)))
 
 int cpu_relative_distance(__be32 *cpu1_assoc, __be32 *cpu2_assoc);
-extern int __node_distance(int, int);
-#define node_distance(a, b) __node_distance(a, b)
+extern int __analde_distance(int, int);
+#define analde_distance(a, b) __analde_distance(a, b)
 
 extern void __init dump_numa_cpu_topology(void);
 
-extern int sysfs_add_device_to_node(struct device *dev, int nid);
-extern void sysfs_remove_device_from_node(struct device *dev, int nid);
+extern int sysfs_add_device_to_analde(struct device *dev, int nid);
+extern void sysfs_remove_device_from_analde(struct device *dev, int nid);
 
-static inline void update_numa_cpu_lookup_table(unsigned int cpu, int node)
+static inline void update_numa_cpu_lookup_table(unsigned int cpu, int analde)
 {
-	numa_cpu_lookup_table[cpu] = node;
+	numa_cpu_lookup_table[cpu] = analde;
 }
 
-static inline int early_cpu_to_node(int cpu)
+static inline int early_cpu_to_analde(int cpu)
 {
 	int nid;
 
 	nid = numa_cpu_lookup_table[cpu];
 
 	/*
-	 * Fall back to node 0 if nid is unset (it should be, except bugs).
-	 * This allows callers to safely do NODE_DATA(early_cpu_to_node(cpu)).
+	 * Fall back to analde 0 if nid is unset (it should be, except bugs).
+	 * This allows callers to safely do ANALDE_DATA(early_cpu_to_analde(cpu)).
 	 */
 	return (nid < 0) ? 0 : nid;
 }
 
 int of_drconf_to_nid_single(struct drmem_lmb *lmb);
-void update_numa_distance(struct device_node *node);
+void update_numa_distance(struct device_analde *analde);
 
-extern void map_cpu_to_node(int cpu, int node);
+extern void map_cpu_to_analde(int cpu, int analde);
 #ifdef CONFIG_HOTPLUG_CPU
-extern void unmap_cpu_from_node(unsigned long cpu);
+extern void unmap_cpu_from_analde(unsigned long cpu);
 #endif /* CONFIG_HOTPLUG_CPU */
 
 #else
 
-static inline int early_cpu_to_node(int cpu) { return 0; }
+static inline int early_cpu_to_analde(int cpu) { return 0; }
 
 static inline void dump_numa_cpu_topology(void) {}
 
-static inline int sysfs_add_device_to_node(struct device *dev, int nid)
+static inline int sysfs_add_device_to_analde(struct device *dev, int nid)
 {
 	return 0;
 }
 
-static inline void sysfs_remove_device_from_node(struct device *dev,
+static inline void sysfs_remove_device_from_analde(struct device *dev,
 						int nid)
 {
 }
 
-static inline void update_numa_cpu_lookup_table(unsigned int cpu, int node) {}
+static inline void update_numa_cpu_lookup_table(unsigned int cpu, int analde) {}
 
 static inline int cpu_relative_distance(__be32 *cpu1_assoc, __be32 *cpu2_assoc)
 {
@@ -96,15 +96,15 @@ static inline int cpu_relative_distance(__be32 *cpu1_assoc, __be32 *cpu2_assoc)
 
 static inline int of_drconf_to_nid_single(struct drmem_lmb *lmb)
 {
-	return first_online_node;
+	return first_online_analde;
 }
 
-static inline void update_numa_distance(struct device_node *node) {}
+static inline void update_numa_distance(struct device_analde *analde) {}
 
 #ifdef CONFIG_SMP
-static inline void map_cpu_to_node(int cpu, int node) {}
+static inline void map_cpu_to_analde(int cpu, int analde) {}
 #ifdef CONFIG_HOTPLUG_CPU
-static inline void unmap_cpu_from_node(unsigned long cpu) {}
+static inline void unmap_cpu_from_analde(unsigned long cpu) {}
 #endif /* CONFIG_HOTPLUG_CPU */
 #endif /* CONFIG_SMP */
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /***************************************************************************
- *   Copyright (C) 2010-2012 by Bruno Prémont <bonbons@linux-vserver.org>  *
+ *   Copyright (C) 2010-2012 by Bruanal Prémont <bonbons@linux-vserver.org>  *
  *                                                                         *
  *   Based on Logitech G13 driver (v0.4)                                   *
  *     Copyright (C) 2009 by Rick L. Vinyard, Jr. <rvinyard@cs.nmsu.edu>   *
@@ -15,7 +15,7 @@
 #define   ERR_PARAMETER_MISSING  0x01
 #define   ERR_DATA_MISSING       0x02
 #define   ERR_BLOCK_READ_ONLY    0x03
-#define   ERR_BLOCK_NOT_ERASABLE 0x04
+#define   ERR_BLOCK_ANALT_ERASABLE 0x04
 #define   ERR_BLOCK_TOO_BIG      0x05
 #define   ERR_SECTION_OVERFLOW   0x06
 #define   ERR_INVALID_CMD_LEN    0x07

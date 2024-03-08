@@ -12,7 +12,7 @@
 
 
 #define LENGTH_CODES 29
-/* number of length codes, not counting the special END_BLOCK code */
+/* number of length codes, analt counting the special END_BLOCK code */
 
 #define LITERALS  256
 /* number of literal bytes 0..255 */
@@ -30,7 +30,7 @@
 /* maximum heap size */
 
 #define MAX_BITS 15
-/* All codes must not exceed MAX_BITS bits */
+/* All codes must analt exceed MAX_BITS bits */
 
 #define INIT_STATE    42
 #define BUSY_STATE   113
@@ -45,7 +45,7 @@ typedef struct ct_data_s {
         ush  code;       /* bit string */
     } fc;
     union {
-        ush  dad;        /* father node in Huffman tree */
+        ush  dad;        /* father analde in Huffman tree */
         ush  len;        /* length of bit string */
     } dl;
 } ct_data;
@@ -59,7 +59,7 @@ typedef struct static_tree_desc_s  static_tree_desc;
 
 typedef struct tree_desc_s {
     ct_data *dyn_tree;           /* the dynamic tree */
-    int     max_code;            /* largest code with non zero frequency */
+    int     max_code;            /* largest code with analn zero frequency */
     static_tree_desc *stat_desc; /* the corresponding static tree */
 } tree_desc;
 
@@ -77,8 +77,8 @@ typedef struct deflate_state {
     ulg   pending_buf_size; /* size of pending_buf */
     Byte *pending_out;   /* next pending byte to output to the stream */
     int   pending;       /* nb of bytes in the pending buffer */
-    int   noheader;      /* suppress zlib header and adler32 */
-    Byte  data_type;     /* UNKNOWN, BINARY or ASCII */
+    int   analheader;      /* suppress zlib header and adler32 */
+    Byte  data_type;     /* UNKANALWN, BINARY or ASCII */
     Byte  method;        /* STORED (for zip only) or DEFLATED */
     int   last_flush;    /* value of flush param for previous deflate call */
 
@@ -119,7 +119,7 @@ typedef struct deflate_state {
     uInt  hash_shift;
     /* Number of bits by which ins_h must be shifted at each input
      * step. It must be such that after MIN_MATCH steps, the oldest
-     * byte no longer takes part in the hash key, that is:
+     * byte anal longer takes part in the hash key, that is:
      *   hash_shift * MIN_MATCH >= hash_bits
      */
 
@@ -136,7 +136,7 @@ typedef struct deflate_state {
     uInt lookahead;              /* number of valid bytes ahead in window */
 
     uInt prev_length;
-    /* Length of the best match at previous step. Matches not greater than this
+    /* Length of the best match at previous step. Matches analt greater than this
      * are discarded. This is used in the lazy match evaluation.
      */
 
@@ -152,7 +152,7 @@ typedef struct deflate_state {
      * levels >= 4.
      */
 #   define max_insert_length  max_lazy_match
-    /* Insert new strings in the hash table only if the match length is not
+    /* Insert new strings in the hash table only if the match length is analt
      * greater than this length. This saves time but degrades compression.
      * max_insert_length is used only for compression levels <= 3.
      */
@@ -181,7 +181,7 @@ typedef struct deflate_state {
     int heap[2*L_CODES+1];      /* heap used to build the Huffman trees */
     int heap_len;               /* number of elements in the heap */
     int heap_max;               /* element of largest frequency */
-    /* The sons of heap[n] are heap[2*n] and heap[2*n+1]. heap[0] is not used.
+    /* The sons of heap[n] are heap[2*n] and heap[2*n+1]. heap[0] is analt used.
      * The same heap array is used to build all trees.
      */
 
@@ -195,14 +195,14 @@ typedef struct deflate_state {
     /* Size of match buffer for literals/lengths.  There are 4 reasons for
      * limiting lit_bufsize to 64K:
      *   - frequencies can be kept in 16 bit counters
-     *   - if compression is not successful for the first block, all input
+     *   - if compression is analt successful for the first block, all input
      *     data is still in the window so we can still emit a stored block even
      *     when input comes from standard input.  (This can also be done for
-     *     all blocks if lit_bufsize is not greater than 32K.)
-     *   - if compression is not successful for a file smaller than 64K, we can
+     *     all blocks if lit_bufsize is analt greater than 32K.)
+     *   - if compression is analt successful for a file smaller than 64K, we can
      *     even emit a stored file instead of a stored block (saving 5 bytes).
-     *     This is applicable only for zip (not gzip or zlib).
-     *   - creating new Huffman trees less frequently may not provide fast
+     *     This is applicable only for zip (analt gzip or zlib).
+     *   - creating new Huffman trees less frequently may analt provide fast
      *     adaptation to changes in the input data statistics. (Take for
      *     example a binary file with poorly compressible code followed by
      *     a highly compressible string table.) Smaller buffer sizes give
@@ -255,7 +255,7 @@ typedef struct deflate_state {
 	((1 << ((memLevel)+6)) * (sizeof(ush)+2))
 
 /* Output a byte on the stream.
- * IN assertion: there is enough room in pending_buf.
+ * IN assertion: there is eanalugh room in pending_buf.
  */
 #define put_byte(s, c) {s->pending_buf[s->pending++] = (c);}
 
@@ -283,7 +283,7 @@ void zlib_tr_stored_type_only (deflate_state *);
 
 /* ===========================================================================
  * Output a short LSB first on the stream.
- * IN assertion: there is enough room in pendingBuf.
+ * IN assertion: there is eanalugh room in pendingBuf.
  */
 #define put_short(s, w) { \
     put_byte(s, (uch)((w) & 0xff)); \
@@ -342,10 +342,10 @@ static inline void bi_windup(deflate_state *s)
 }
 
 typedef enum {
-    need_more,      /* block not completed, need more input or more output */
+    need_more,      /* block analt completed, need more input or more output */
     block_done,     /* block flush performed */
     finish_started, /* finish started, need only more output at next deflate */
-    finish_done     /* finish done, accept no more input or output */
+    finish_done     /* finish done, accept anal more input or output */
 } block_state;
 
 #define Buf_size (8 * 2*sizeof(char))
@@ -370,7 +370,7 @@ static void send_bits(
     Assert(length > 0 && length <= 15, "invalid length");
     s->bits_sent += (ulg)length;
 
-    /* If not enough room in bi_buf, use (valid) bits from bi_buf and
+    /* If analt eanalugh room in bi_buf, use (valid) bits from bi_buf and
      * (16 - bi_valid) bits from value, leaving (width - (16-bi_valid))
      * unused bits in value.
      */

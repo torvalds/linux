@@ -10,7 +10,7 @@
  *    Copyright 2002-2005 MontaVista Software Inc.
  *
  *    Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
- *    Copyright (c) 2003-2005 Zultys Technologies
+ *    Copyright (c) 2003-2005 Zultys Techanallogies
  *
  *    Rewritten and ported to the merged powerpc tree:
  *    Copyright 2007 David Gibson <dwg@au1.ibm.com>, IBM Corporation.
@@ -54,7 +54,7 @@ static void quirk_ppc_currituck_usb_fixup(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(0x1033, 0x0035, quirk_ppc_currituck_usb_fixup);
 
-/* Akebono has an AVR microcontroller attached to the I2C bus
+/* Akeboanal has an AVR microcontroller attached to the I2C bus
  * which is used to power off/reset the system. */
 
 /* AVR I2C Commands */
@@ -65,7 +65,7 @@ DECLARE_PCI_FIXUP_HEADER(0x1033, 0x0035, quirk_ppc_currituck_usb_fixup);
 #define AVR_PWRCTL_RESET (0x02)
 
 static struct i2c_client *avr_i2c_client;
-static void __noreturn avr_halt_system(int pwrctl_flags)
+static void __analreturn avr_halt_system(int pwrctl_flags)
 {
 	/* Request the AVR to reset the system */
 	i2c_smbus_write_byte_data(avr_i2c_client,
@@ -81,7 +81,7 @@ static void avr_power_off_system(void)
 	avr_halt_system(AVR_PWRCTL_PWROFF);
 }
 
-static void __noreturn avr_reset_system(char *cmd)
+static void __analreturn avr_reset_system(char *cmd)
 {
 	avr_halt_system(AVR_PWRCTL_RESET);
 }
@@ -95,13 +95,13 @@ static int avr_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id avr_id[] = {
-	{ "akebono-avr", 0 },
+	{ "akeboanal-avr", 0 },
 	{ }
 };
 
 static struct i2c_driver avr_driver = {
 	.driver = {
-		.name = "akebono-avr",
+		.name = "akeboanal-avr",
 	},
 	.probe = avr_probe,
 	.id_table = avr_id,
@@ -114,15 +114,15 @@ static int __init ppc47x_device_probe(void)
 
 	return 0;
 }
-machine_device_initcall(ppc47x_akebono, ppc47x_device_probe);
+machine_device_initcall(ppc47x_akeboanal, ppc47x_device_probe);
 machine_device_initcall(ppc47x_currituck, ppc47x_device_probe);
 
 static void __init ppc47x_init_irq(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	/* Find top level interrupt controller */
-	for_each_node_with_property(np, "interrupt-controller") {
+	for_each_analde_with_property(np, "interrupt-controller") {
 		if (!of_property_present(np, "interrupts"))
 			break;
 	}
@@ -135,14 +135,14 @@ static void __init ppc47x_init_irq(void)
 		 * device-tree, just pass 0 to all arguments
 		 */
 		struct mpic *mpic =
-			mpic_alloc(np, 0, MPIC_NO_RESET, 0, 0, " MPIC     ");
+			mpic_alloc(np, 0, MPIC_ANAL_RESET, 0, 0, " MPIC     ");
 		BUG_ON(mpic == NULL);
 		mpic_init(mpic);
 		ppc_md.get_irq = mpic_get_irq;
 	} else
 		panic("Unrecognized top level interrupt controller");
 
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 #ifdef CONFIG_SMP
@@ -153,19 +153,19 @@ static void smp_ppc47x_setup_cpu(int cpu)
 
 static int smp_ppc47x_kick_cpu(int cpu)
 {
-	struct device_node *cpunode = of_get_cpu_node(cpu, NULL);
+	struct device_analde *cpuanalde = of_get_cpu_analde(cpu, NULL);
 	const u64 *spin_table_addr_prop;
 	u32 *spin_table;
 	extern void start_secondary_47x(void);
 
-	BUG_ON(cpunode == NULL);
+	BUG_ON(cpuanalde == NULL);
 
 	/* Assume spin table. We could test for the enable-method in
 	 * the device-tree but currently there's little point as it's
 	 * our only supported method
 	 */
 	spin_table_addr_prop =
-		of_get_property(cpunode, "cpu-release-addr", NULL);
+		of_get_property(cpuanalde, "cpu-release-addr", NULL);
 
 	if (spin_table_addr_prop == NULL) {
 		pr_err("CPU%d: Can't start, missing cpu-release-addr !\n",
@@ -174,7 +174,7 @@ static int smp_ppc47x_kick_cpu(int cpu)
 	}
 
 	/* Assume it's mapped as part of the linear mapping. This is a bit
-	 * fishy but will work fine for now
+	 * fishy but will work fine for analw
 	 *
 	 * XXX: Is there any reason to assume differently?
 	 */
@@ -211,7 +211,7 @@ static void __init ppc47x_smp_init(void) { }
 static void __init ppc47x_setup_arch(void)
 {
 
-	/* No need to check the DMA config as we /know/ our windows are all of
+	/* Anal need to check the DMA config as we /kanalw/ our windows are all of
 	 * RAM.  Lets hope that doesn't change */
 	swiotlb_detect_4g();
 
@@ -223,13 +223,13 @@ static int __init ppc47x_get_board_rev(void)
 {
 	int reg;
 	u8 __iomem *fpga;
-	struct device_node *np = NULL;
+	struct device_analde *np = NULL;
 
 	if (of_machine_is_compatible("ibm,currituck")) {
-		np = of_find_compatible_node(NULL, NULL, "ibm,currituck-fpga");
+		np = of_find_compatible_analde(NULL, NULL, "ibm,currituck-fpga");
 		reg = 0;
-	} else if (of_machine_is_compatible("ibm,akebono")) {
-		np = of_find_compatible_node(NULL, NULL, "ibm,akebono-fpga");
+	} else if (of_machine_is_compatible("ibm,akeboanal")) {
+		np = of_find_compatible_analde(NULL, NULL, "ibm,akeboanal-fpga");
 		reg = 2;
 	}
 
@@ -237,7 +237,7 @@ static int __init ppc47x_get_board_rev(void)
 		goto fail;
 
 	fpga = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!fpga)
 		goto fail;
 
@@ -250,7 +250,7 @@ fail:
 	pr_info("%s: Unable to find board revision\n", __func__);
 	return 0;
 }
-machine_arch_initcall(ppc47x_akebono, ppc47x_get_board_rev);
+machine_arch_initcall(ppc47x_akeboanal, ppc47x_get_board_rev);
 machine_arch_initcall(ppc47x_currituck, ppc47x_get_board_rev);
 
 /* Use USB controller should have been hardware swizzled but it wasn't :( */
@@ -265,14 +265,14 @@ static void ppc47x_pci_irq_fixup(struct pci_dev *dev)
 			dev->irq = irq_create_mapping(NULL, 49);
 			pr_info("%s: Mapping irq %d\n", __func__, dev->irq);
 		} else {
-			pr_alert("%s: Unknown board revision\n", __func__);
+			pr_alert("%s: Unkanalwn board revision\n", __func__);
 		}
 	}
 }
 
-define_machine(ppc47x_akebono) {
-	.name			= "PowerPC 47x (akebono)",
-	.compatible		= "ibm,akebono",
+define_machine(ppc47x_akeboanal) {
+	.name			= "PowerPC 47x (akeboanal)",
+	.compatible		= "ibm,akeboanal",
 	.progress		= udbg_progress,
 	.init_IRQ		= ppc47x_init_irq,
 	.setup_arch		= ppc47x_setup_arch,

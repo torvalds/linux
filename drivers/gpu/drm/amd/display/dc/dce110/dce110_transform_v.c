@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -49,7 +49,7 @@ static void calculate_viewport(
 		struct rect *luma_viewport,
 		struct rect *chroma_viewport)
 {
-	/*Do not set chroma vp for rgb444 pixel format*/
+	/*Do analt set chroma vp for rgb444 pixel format*/
 	luma_viewport->x = scl_data->viewport.x - scl_data->viewport.x % 2;
 	luma_viewport->y = scl_data->viewport.y - scl_data->viewport.y % 2;
 	luma_viewport->width =
@@ -619,7 +619,7 @@ static void dce110_xfmv_set_gamut_remap(
 	struct transform *xfm,
 	const struct xfm_grph_csc_adjustment *adjust)
 {
-	/* DO NOTHING*/
+	/* DO ANALTHING*/
 }
 
 static void dce110_xfmv_set_pixel_storage_depth(
@@ -671,7 +671,7 @@ static void dce110_xfmv_set_pixel_storage_depth(
 	if (!(xfm_dce->lb_pixel_depth_supported & depth)) {
 		/*we should use unsupported capabilities
 		 *  unless it is required by w/a*/
-		DC_LOG_WARNING("%s: Capability not supported",
+		DC_LOG_WARNING("%s: Capability analt supported",
 			__func__);
 	}
 }

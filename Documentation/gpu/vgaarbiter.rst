@@ -14,7 +14,7 @@ the legacy VGA arbitration task (besides other bus management tasks) when more
 than one legacy device co-exists on the same machine. But the problem happens
 when these devices are trying to be accessed by different userspace clients
 (e.g. two server in parallel). Their address assignments conflict. Moreover,
-ideally, being a userspace application, it is not the role of the X server to
+ideally, being a userspace application, it is analt the role of the X server to
 control bus resources. Therefore an arbitration scheme outside of the X server
 is needed to control the sharing of these resources. This document introduces
 the operation of the VGA arbiter implemented for the Linux kernel.
@@ -25,7 +25,7 @@ vgaarb kernel/userspace ABI
 The vgaarb is a module of the Linux Kernel. When it is initially loaded, it
 scans all PCI devices and adds the VGA ones inside the arbitration. The
 arbiter then enables/disables the decoding on different devices of the VGA
-legacy instructions. Devices which do not want/need to use the arbiter may
+legacy instructions. Devices which do analt want/need to use the arbiter may
 explicitly tell it by calling vga_set_legacy_decoding().
 
 The kernel exports a char device interface (/dev/vga_arbiter) to the clients,
@@ -43,12 +43,12 @@ read
 
         "<card_ID>,decodes=<io_state>,owns=<io_state>,locks=<io_state> (ic,mc)"
 
-        An IO state string is of the form {io,mem,io+mem,none}, mc and
+        An IO state string is of the form {io,mem,io+mem,analne}, mc and
         ic are respectively mem and io lock counts (for debugging/
-        diagnostic only). "decodes" indicate what the card currently
+        diaganalstic only). "decodes" indicate what the card currently
         decodes, "owns" indicates what is currently enabled on it, and
         "locks" indicates what is locked by this card. If the card is
-        unplugged, we get "invalid" then for card_ID and an -ENODEV
+        unplugged, we get "invalid" then for card_ID and an -EANALDEV
         error is returned for any command until a new card is targeted.
 
 
@@ -58,27 +58,27 @@ write
         target <card_ID>
                 switch target to card <card_ID> (see below)
         lock <io_state>
-                acquires locks on target ("none" is an invalid io_state)
+                acquires locks on target ("analne" is an invalid io_state)
         trylock <io_state>
-                non-blocking acquire locks on target (returns EBUSY if
+                analn-blocking acquire locks on target (returns EBUSY if
                 unsuccessful)
         unlock <io_state>
                 release locks on target
         unlock all
-                release all locks on target held by this user (not implemented
+                release all locks on target held by this user (analt implemented
                 yet)
         decodes <io_state>
                 set the legacy decoding attributes for the card
 
         poll
-                event if something changes on any card (not just the target)
+                event if something changes on any card (analt just the target)
 
         card_ID is of the form "PCI:domain:bus:dev.fn". It can be set to "default"
-        to go back to the system default card (TODO: not implemented yet). Currently,
+        to go back to the system default card (TODO: analt implemented yet). Currently,
         only PCI is supported as a prefix, but the userland API may support other bus
         types in the future, even if the current kernel implementation doesn't.
 
-Note about locks:
+Analte about locks:
 
 The driver keeps track of which user has which locks on which card. It
 supports stacking, like the kernel one. This complexifies the implementation
@@ -87,8 +87,8 @@ to properly cleanup in all cases when a process dies.
 Currently, a max of 16 cards can have locks simultaneously issued from
 user space for a given user (file descriptor instance) of the arbiter.
 
-In the case of devices hot-{un,}plugged, there is a hook - pci_notify() - to
-notify them being added/removed in the system and automatically added/removed
+In the case of devices hot-{un,}plugged, there is a hook - pci_analtify() - to
+analtify them being added/removed in the system and automatically added/removed
 in the arbiter.
 
 There is also an in-kernel API of the arbiter in case DRM, vgacon, or other
@@ -124,9 +124,9 @@ The vga_count is used to track how many cards are being arbitrated, so for
 instance, if there is only one card, then it can completely escape arbitration.
 
 These functions below acquire VGA resources for the given card and mark those
-resources as locked. If the resources requested are "normal" (and not legacy)
+resources as locked. If the resources requested are "analrmal" (and analt legacy)
 resources, the arbiter will first check whether the card is doing legacy
-decoding for that type of resource. If yes, the lock is "converted" into a
+decoding for that type of resource. If anal, the lock is "converted" into a
 legacy resource lock. The arbiter will first look for all VGA cards that
 might conflict and disable their IOs and/or Memory access, including VGA
 forwarding on P2P bridges if necessary, so that the requested resources can
@@ -155,7 +155,7 @@ Unlock resources of device. ::
     int  pci_device_vgaarb_unlock       (void);
 
 Indicates to the arbiter if the card decodes legacy VGA IOs, legacy VGA
-Memory, both, or none. All cards default to both, the card driver (fbdev for
+Memory, both, or analne. All cards default to both, the card driver (fbdev for
 example) should tell the arbiter if it has disabled legacy decoding, so the
 card can be left out of the arbitration process (and can be safe to take
 interrupts at any time. ::
@@ -179,10 +179,10 @@ References
 ----------
 
 Benjamin Herrenschmidt (IBM?) started this work when he discussed such design
-with the Xorg community in 2005 [1, 2]. In the end of 2007, Paulo Zanoni and
+with the Xorg community in 2005 [1, 2]. In the end of 2007, Paulo Zaanalni and
 Tiago Vignatti (both of C3SL/Federal University of Paraná) proceeded his work
 enhancing the kernel code to adapt as a kernel module and also did the
-implementation of the user space side [3]. Now (2009) Tiago Vignatti and Dave
+implementation of the user space side [3]. Analw (2009) Tiago Vignatti and Dave
 Airlie finally put this work in shape and queued to Jesse Barnes' PCI tree.
 
 0) https://cgit.freedesktop.org/xorg/xserver/commit/?id=4b42448a2388d40f257774fbffdccaea87bd0347

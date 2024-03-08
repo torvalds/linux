@@ -9,23 +9,23 @@ Required properties:
 - #address-cells : should be 1.
 - #size-cells	 : should be 1.
 - compatible	 : "nuvoton,npcm750-pinctrl" for Poleg NPCM7XX.
-- ranges	 : defines mapping ranges between pin controller node (parent)
-			to GPIO bank node (children).
+- ranges	 : defines mapping ranges between pin controller analde (parent)
+			to GPIO bank analde (children).
 
-=== GPIO Bank Subnode ===
+=== GPIO Bank Subanalde ===
 
 The NPCM7XX has 8 GPIO Banks each GPIO bank supports 32 GPIO.
 
-Required GPIO Bank subnode-properties:
+Required GPIO Bank subanalde-properties:
 - reg 			: specifies physical base address and size of the GPIO
 				bank registers.
-- gpio-controller	: Marks the device node as a GPIO controller.
+- gpio-controller	: Marks the device analde as a GPIO controller.
 - #gpio-cells		: Must be <2>. The first cell is the gpio pin number
 				and the second cell is used for optional parameters.
 - interrupts		: contain the GPIO bank interrupt with flags for falling edge.
 - gpio-ranges		: defines the range of pins managed by the GPIO bank controller.
 
-For example, GPIO bank subnodes like the following:
+For example, GPIO bank subanaldes like the following:
 	gpio0: gpio@f0010000 {
 		gpio-controller;
 		#gpio-cells = <2>;
@@ -34,7 +34,7 @@ For example, GPIO bank subnodes like the following:
 		gpio-ranges = <&pinctrl 0 0 32>;
 	};
 
-=== Pin Mux Subnode ===
+=== Pin Mux Subanalde ===
 
 - pin: A string containing the name of the pin
 	An array of strings, each string containing the name of a pin.
@@ -120,7 +120,7 @@ Optional Properties:
 				<16> - 16mA
 				<24> - 24mA
 
-For example, pinctrl might have pinmux subnodes like the following:
+For example, pinctrl might have pinmux subanaldes like the following:
 
 	gpio0_iox1d1_pin: gpio0-iox1d1-pin {
 		pins = "GPIO0/IOX1DI";
@@ -131,9 +131,9 @@ For example, pinctrl might have pinmux subnodes like the following:
 		output_high;
 	};
 
-=== Pin Group Subnode ===
+=== Pin Group Subanalde ===
 
-Required pin group subnode-properties:
+Required pin group subanalde-properties:
 - groups : A string containing the name of the group to mux.
 - function: A string containing the name of the function to mux to the
   group.
@@ -153,7 +153,7 @@ The following are the list of the available groups and functions :
 	spi3quad, spi3cs2, spi3cs3, spi0cs1, lpc, lpcclk, espi, lkgpo0, lkgpo1,
 	lkgpo2, nprd_smi
 
-For example, pinctrl might have group subnodes like the following:
+For example, pinctrl might have group subanaldes like the following:
 	r1err_pins: r1err-pins {
 		groups = "r1err";
 		function = "r1err";

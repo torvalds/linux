@@ -32,7 +32,7 @@
  *	to be deciphered for the format file. Although these macros
  *	may become out of sync with the internal structure, they
  *	will create a compile error if it happens. Since the
- *	internal structures are just tracing helpers, this is not
+ *	internal structures are just tracing helpers, this is analt
  *	an issue.
  *
  *	When an internal structure is used, it should use:
@@ -161,8 +161,8 @@ FTRACE_ENTRY(context_switch, ctx_switch_entry,
 );
 
 /*
- * FTRACE_ENTRY_DUP only creates the format file, it will not
- *  create another structure.
+ * FTRACE_ENTRY_DUP only creates the format file, it will analt
+ *  create aanalther structure.
  */
 FTRACE_ENTRY_DUP(wakeup, ctx_switch_entry,
 
@@ -387,12 +387,12 @@ FTRACE_ENTRY(func_repeats, func_repeats_entry,
 		 FUNC_REPEATS_GET_DELTA_TS(__entry))
 );
 
-FTRACE_ENTRY(osnoise, osnoise_entry,
+FTRACE_ENTRY(osanalise, osanalise_entry,
 
-	TRACE_OSNOISE,
+	TRACE_OSANALISE,
 
 	F_STRUCT(
-		__field(	u64,			noise		)
+		__field(	u64,			analise		)
 		__field(	u64,			runtime		)
 		__field(	u64,			max_sample	)
 		__field(	unsigned int,		hw_count	)
@@ -402,8 +402,8 @@ FTRACE_ENTRY(osnoise, osnoise_entry,
 		__field(	unsigned int,		thread_count	)
 	),
 
-	F_printk("noise:%llu\tmax_sample:%llu\thw:%u\tnmi:%u\tirq:%u\tsoftirq:%u\tthread:%u\n",
-		 __entry->noise,
+	F_printk("analise:%llu\tmax_sample:%llu\thw:%u\tnmi:%u\tirq:%u\tsoftirq:%u\tthread:%u\n",
+		 __entry->analise,
 		 __entry->max_sample,
 		 __entry->hw_count,
 		 __entry->nmi_count,

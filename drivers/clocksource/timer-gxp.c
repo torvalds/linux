@@ -38,7 +38,7 @@ static inline struct gxp_timer *to_gxp_timer(struct clock_event_device *evt_dev)
 	return container_of(evt_dev, struct gxp_timer, evt);
 }
 
-static u64 notrace gxp_sched_read(void)
+static u64 analtrace gxp_sched_read(void)
 {
 	return readl_relaxed(system_clock);
 }
@@ -60,7 +60,7 @@ static irqreturn_t gxp_timer_interrupt(int irq, void *dev_id)
 	struct gxp_timer *timer = (struct gxp_timer *)dev_id;
 
 	if (!(readb_relaxed(timer->control) & MASK_TCS_TC))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	writeb_relaxed(MASK_TCS_TC, timer->control);
 
@@ -69,7 +69,7 @@ static irqreturn_t gxp_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init gxp_timer_init(struct device_node *node)
+static int __init gxp_timer_init(struct device_analde *analde)
 {
 	void __iomem *base;
 	struct clk *clk;
@@ -78,25 +78,25 @@ static int __init gxp_timer_init(struct device_node *node)
 
 	gxp_timer = kzalloc(sizeof(*gxp_timer), GFP_KERNEL);
 	if (!gxp_timer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		pr_err("Can't allocate gxp_timer");
 		return ret;
 	}
 
-	clk = of_clk_get(node, 0);
+	clk = of_clk_get(analde, 0);
 	if (IS_ERR(clk)) {
 		ret = (int)PTR_ERR(clk);
-		pr_err("%pOFn clock not found: %d\n", node, ret);
+		pr_err("%pOFn clock analt found: %d\n", analde, ret);
 		goto err_free;
 	}
 
 	ret = clk_prepare_enable(clk);
 	if (ret) {
-		pr_err("%pOFn clock enable failed: %d\n", node, ret);
+		pr_err("%pOFn clock enable failed: %d\n", analde, ret);
 		goto err_clk_enable;
 	}
 
-	base = of_iomap(node, 0);
+	base = of_iomap(analde, 0);
 	if (!base) {
 		ret = -ENXIO;
 		pr_err("Can't map timer base registers");
@@ -108,13 +108,13 @@ static int __init gxp_timer_init(struct device_node *node)
 	gxp_timer->control = base + GXP_TIMER_CTRL_OFS;
 	system_clock = base + GXP_TIMESTAMP_OFS;
 
-	gxp_timer->evt.name = node->name;
+	gxp_timer->evt.name = analde->name;
 	gxp_timer->evt.rating = 300;
 	gxp_timer->evt.features = CLOCK_EVT_FEAT_ONESHOT;
 	gxp_timer->evt.set_next_event = gxp_time_set_next_event;
 	gxp_timer->evt.cpumask = cpumask_of(0);
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(analde, 0);
 	if (irq <= 0) {
 		ret = -EINVAL;
 		pr_err("GXP Timer Can't parse IRQ %d", irq);
@@ -123,19 +123,19 @@ static int __init gxp_timer_init(struct device_node *node)
 
 	freq = clk_get_rate(clk);
 
-	ret = clocksource_mmio_init(system_clock, node->name, freq,
+	ret = clocksource_mmio_init(system_clock, analde->name, freq,
 				    300, 32, clocksource_mmio_readl_up);
 	if (ret) {
-		pr_err("%pOFn init clocksource failed: %d", node, ret);
+		pr_err("%pOFn init clocksource failed: %d", analde, ret);
 		goto err_exit;
 	}
 
 	sched_clock_register(gxp_sched_read, 32, freq);
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(analde, 0);
 	if (irq <= 0) {
 		ret = -EINVAL;
-		pr_err("%pOFn Can't parse IRQ %d", node, irq);
+		pr_err("%pOFn Can't parse IRQ %d", analde, irq);
 		goto err_exit;
 	}
 
@@ -143,9 +143,9 @@ static int __init gxp_timer_init(struct device_node *node)
 					0xf, 0xffffffff);
 
 	ret = request_irq(irq, gxp_timer_interrupt, IRQF_TIMER | IRQF_SHARED,
-			  node->name, gxp_timer);
+			  analde->name, gxp_timer);
 	if (ret) {
-		pr_err("%pOFn request_irq() failed: %d", node, ret);
+		pr_err("%pOFn request_irq() failed: %d", analde, ret);
 		goto err_exit;
 	}
 
@@ -175,17 +175,17 @@ static int gxp_timer_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!gxp_timer) {
-		pr_err("Gxp Timer not initialized, cannot create watchdog");
-		return -ENOMEM;
+		pr_err("Gxp Timer analt initialized, cananalt create watchdog");
+		return -EANALMEM;
 	}
 
 	gxp_watchdog_device = platform_device_alloc("gxp-wdt", -1);
 	if (!gxp_watchdog_device) {
 		pr_err("Timer failed to allocate gxp-wdt");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	/* Pass the base address (counter) as platform data and nothing else */
+	/* Pass the base address (counter) as platform data and analthing else */
 	gxp_watchdog_device->dev.platform_data = gxp_timer->counter;
 	gxp_watchdog_device->dev.parent = dev;
 

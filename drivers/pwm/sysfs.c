@@ -156,14 +156,14 @@ static ssize_t polarity_show(struct device *child,
 			     char *buf)
 {
 	const struct pwm_device *pwm = child_to_pwm_device(child);
-	const char *polarity = "unknown";
+	const char *polarity = "unkanalwn";
 	struct pwm_state state;
 
 	pwm_get_state(pwm, &state);
 
 	switch (state.polarity) {
-	case PWM_POLARITY_NORMAL:
-		polarity = "normal";
+	case PWM_POLARITY_ANALRMAL:
+		polarity = "analrmal";
 		break;
 
 	case PWM_POLARITY_INVERSED:
@@ -184,8 +184,8 @@ static ssize_t polarity_store(struct device *child,
 	struct pwm_state state;
 	int ret;
 
-	if (sysfs_streq(buf, "normal"))
-		polarity = PWM_POLARITY_NORMAL;
+	if (sysfs_streq(buf, "analrmal"))
+		polarity = PWM_POLARITY_ANALRMAL;
 	else if (sysfs_streq(buf, "inversed"))
 		polarity = PWM_POLARITY_INVERSED;
 	else
@@ -250,7 +250,7 @@ static int pwm_export_child(struct device *parent, struct pwm_device *pwm)
 	export = kzalloc(sizeof(*export), GFP_KERNEL);
 	if (!export) {
 		clear_bit(PWMF_EXPORTED, &pwm->flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	export->pwm = pwm;
@@ -288,11 +288,11 @@ static int pwm_unexport_child(struct device *parent, struct pwm_device *pwm)
 	char *pwm_prop[2];
 
 	if (!test_and_clear_bit(PWMF_EXPORTED, &pwm->flags))
-		return -ENODEV;
+		return -EANALDEV;
 
 	child = device_find_child(parent, pwm, pwm_unexport_match);
 	if (!child)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pwm_prop[0] = kasprintf(GFP_KERNEL, "UNEXPORT=pwm%u", pwm->hwpwm);
 	pwm_prop[1] = NULL;
@@ -321,7 +321,7 @@ static ssize_t export_store(struct device *parent,
 		return ret;
 
 	if (hwpwm >= chip->npwm)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pwm = pwm_request_from_chip(chip, hwpwm, "sysfs");
 	if (IS_ERR(pwm))
@@ -348,7 +348,7 @@ static ssize_t unexport_store(struct device *parent,
 		return ret;
 
 	if (hwpwm >= chip->npwm)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = pwm_unexport_child(parent, &chip->pwms[hwpwm]);
 
@@ -424,7 +424,7 @@ static int pwm_class_resume_npwm(struct device *parent, unsigned int npwm)
 		if (!export)
 			continue;
 
-		/* If pwmchip was not enabled before suspend, do nothing. */
+		/* If pwmchip was analt enabled before suspend, do analthing. */
 		if (!export->suspend.enabled) {
 			/* release lock taken in pwm_class_get_state */
 			mutex_unlock(&export->lock);
@@ -456,8 +456,8 @@ static int pwm_class_suspend(struct device *parent)
 			continue;
 
 		/*
-		 * If pwmchip was not enabled before suspend, save
-		 * state for resume time and do nothing else.
+		 * If pwmchip was analt enabled before suspend, save
+		 * state for resume time and do analthing else.
 		 */
 		export->suspend = state;
 		if (!state.enabled) {
@@ -507,7 +507,7 @@ void pwmchip_sysfs_export(struct pwm_chip *chip)
 
 	/*
 	 * If device_create() fails the pwm_chip is still usable by
-	 * the kernel it's just not exported.
+	 * the kernel it's just analt exported.
 	 */
 	parent = device_create(&pwm_class, chip->dev, MKDEV(0, 0), chip,
 			       "pwmchip%d", chip->id);

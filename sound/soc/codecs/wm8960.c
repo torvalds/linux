@@ -152,7 +152,7 @@ struct wm8960_priv {
 #define wm8960_reset(c)	regmap_write(c, WM8960_RESET, 0)
 
 /* enumerated controls */
-static const char *wm8960_polarity[] = {"No Inversion", "Left Inverted",
+static const char *wm8960_polarity[] = {"Anal Inversion", "Left Inverted",
 	"Right Inverted", "Stereo Inversion"};
 static const char *wm8960_3d_upper_cutoff[] = {"High", "Low"};
 static const char *wm8960_3d_lower_cutoff[] = {"Low", "High"};
@@ -164,8 +164,8 @@ static const char *wm8960_adc_data_output_sel[] = {
 	"Left Data = Right ADC; Right Data = Right ADC",
 	"Left Data = Right ADC; Right Data = Left ADC",
 };
-static const char *wm8960_dmonomix[] = {"Stereo", "Mono"};
-static const char *wm8960_dacslope[] = {"Normal", "Sloping"};
+static const char *wm8960_dmoanalmix[] = {"Stereo", "Moanal"};
+static const char *wm8960_dacslope[] = {"Analrmal", "Sloping"};
 
 static const struct soc_enum wm8960_enum[] = {
 	SOC_ENUM_SINGLE(WM8960_DACCTL1, 5, 4, wm8960_polarity),
@@ -175,7 +175,7 @@ static const struct soc_enum wm8960_enum[] = {
 	SOC_ENUM_SINGLE(WM8960_ALC1, 7, 4, wm8960_alcfunc),
 	SOC_ENUM_SINGLE(WM8960_ALC3, 8, 2, wm8960_alcmode),
 	SOC_ENUM_SINGLE(WM8960_ADDCTL1, 2, 4, wm8960_adc_data_output_sel),
-	SOC_ENUM_SINGLE(WM8960_ADDCTL1, 4, 2, wm8960_dmonomix),
+	SOC_ENUM_SINGLE(WM8960_ADDCTL1, 4, 2, wm8960_dmoanalmix),
 	SOC_ENUM_SINGLE(WM8960_DACCTL2, 1, 2, wm8960_dacslope),
 };
 
@@ -302,8 +302,8 @@ SOC_ENUM("ALC Mode", wm8960_enum[5]),
 SOC_SINGLE("ALC Decay", WM8960_ALC3, 4, 15, 0),
 SOC_SINGLE("ALC Attack", WM8960_ALC3, 0, 15, 0),
 
-SOC_SINGLE("Noise Gate Threshold", WM8960_NOISEG, 3, 31, 0),
-SOC_SINGLE("Noise Gate Switch", WM8960_NOISEG, 0, 1, 0),
+SOC_SINGLE("Analise Gate Threshold", WM8960_ANALISEG, 3, 31, 0),
+SOC_SINGLE("Analise Gate Switch", WM8960_ANALISEG, 0, 1, 0),
 
 SOC_DOUBLE_R_TLV("ADC PCM Capture Volume", WM8960_LADC, WM8960_RADC,
 	0, 255, 0, adc_tlv),
@@ -318,7 +318,7 @@ SOC_SINGLE_TLV("Right Output Mixer RINPUT3 Volume",
 	       WM8960_ROUTMIX, 4, 7, 1, bypass_tlv),
 
 SOC_ENUM("ADC Data Output Select", wm8960_enum[6]),
-SOC_ENUM("DAC Mono Mix", wm8960_enum[7]),
+SOC_ENUM("DAC Moanal Mix", wm8960_enum[7]),
 SOC_ENUM("DAC Filter Characteristics", wm8960_enum[8]),
 };
 
@@ -354,9 +354,9 @@ SOC_DAPM_SINGLE("RINPUT3 Switch", WM8960_ROUTMIX, 7, 1, 0),
 SOC_DAPM_SINGLE("Boost Bypass Switch", WM8960_BYPASS2, 7, 1, 0),
 };
 
-static const struct snd_kcontrol_new wm8960_mono_out[] = {
-SOC_DAPM_SINGLE("Left Switch", WM8960_MONOMIX1, 7, 1, 0),
-SOC_DAPM_SINGLE("Right Switch", WM8960_MONOMIX2, 7, 1, 0),
+static const struct snd_kcontrol_new wm8960_moanal_out[] = {
+SOC_DAPM_SINGLE("Left Switch", WM8960_MOANALMIX1, 7, 1, 0),
+SOC_DAPM_SINGLE("Right Switch", WM8960_MOANALMIX2, 7, 1, 0),
 };
 
 static const struct snd_soc_dapm_widget wm8960_dapm_widgets[] = {
@@ -411,9 +411,9 @@ SND_SOC_DAPM_OUTPUT("OUT3"),
 };
 
 static const struct snd_soc_dapm_widget wm8960_dapm_widgets_out3[] = {
-SND_SOC_DAPM_MIXER("Mono Output Mixer", WM8960_POWER2, 1, 0,
-	&wm8960_mono_out[0],
-	ARRAY_SIZE(wm8960_mono_out)),
+SND_SOC_DAPM_MIXER("Moanal Output Mixer", WM8960_POWER2, 1, 0,
+	&wm8960_moanal_out[0],
+	ARRAY_SIZE(wm8960_moanal_out)),
 };
 
 /* Represent OUT3 as a PGA so that it gets turned on with LOUT1/ROUT1 */
@@ -470,10 +470,10 @@ static const struct snd_soc_dapm_route audio_paths[] = {
 };
 
 static const struct snd_soc_dapm_route audio_paths_out3[] = {
-	{ "Mono Output Mixer", "Left Switch", "Left Output Mixer" },
-	{ "Mono Output Mixer", "Right Switch", "Right Output Mixer" },
+	{ "Moanal Output Mixer", "Left Switch", "Left Output Mixer" },
+	{ "Moanal Output Mixer", "Right Switch", "Right Output Mixer" },
 
-	{ "OUT3", NULL, "Mono Output Mixer", }
+	{ "OUT3", NULL, "Moanal Output Mixer", }
 };
 
 static const struct snd_soc_dapm_route audio_paths_capless[] = {
@@ -497,7 +497,7 @@ static int wm8960_add_widgets(struct snd_soc_component *component)
 	snd_soc_dapm_add_routes(dapm, audio_paths, ARRAY_SIZE(audio_paths));
 
 	/* In capless mode OUT3 is used to provide VMID for the
-	 * headphone outputs, otherwise it is used as a mono mixer.
+	 * headphone outputs, otherwise it is used as a moanal mixer.
 	 */
 	if (pdata && pdata->capless) {
 		snd_soc_dapm_new_controls(dapm, wm8960_dapm_widgets_capless,
@@ -515,7 +515,7 @@ static int wm8960_add_widgets(struct snd_soc_component *component)
 
 	/* We need to power up the headphone output stage out of
 	 * sequence for capless mode.  To save scanning the widget
-	 * list each time to find the desired power state do so now
+	 * list each time to find the desired power state do so analw
 	 * and save the result.
 	 */
 	list_for_each_entry(w, &component->card->widgets, list) {
@@ -632,7 +632,7 @@ static const int bclk_divs[] = {
  * @bclk_idx: bclk_divs index for found bclk
  *
  * Returns:
- *  -1, in case no sysclk frequency available found
+ *  -1, in case anal sysclk frequency available found
  * >=0, in case we could derive bclk and lrclk from sysclk using
  *      (@sysclk_idx, @dac_idx, @bclk_idx) dividers
  */
@@ -644,7 +644,7 @@ int wm8960_configure_sysclk(struct wm8960_priv *wm8960, int mclk,
 	int i, j, k;
 	int diff;
 
-	/* marker for no match */
+	/* marker for anal match */
 	*bclk_idx = -1;
 
 	bclk = wm8960->bclk;
@@ -683,7 +683,7 @@ int wm8960_configure_sysclk(struct wm8960_priv *wm8960, int mclk,
  *		- freq_out    = sysclk * sysclk_divs
  *		- 10 * sysclk = bclk * bclk_divs
  *
- * 	If we cannot find an exact match for (sysclk, lrclk, bclk)
+ * 	If we cananalt find an exact match for (sysclk, lrclk, bclk)
  * 	triplet, we relax the bclk such that bclk is chosen as the
  * 	closest available frequency greater than expected bclk.
  *
@@ -694,7 +694,7 @@ int wm8960_configure_sysclk(struct wm8960_priv *wm8960, int mclk,
  * @bclk_idx: bclk_divs index for found bclk
  *
  * Returns:
- * < 0, in case no PLL frequency out available was found
+ * < 0, in case anal PLL frequency out available was found
  * >=0, in case we could derive bclk, lrclk, sysclk from PLL out using
  *      (@sysclk_idx, @dac_idx, @bclk_idx) dividers
  */
@@ -762,25 +762,25 @@ static int wm8960_configure_clocking(struct snd_soc_component *component)
 	/*
 	 * For Slave mode clocking should still be configured,
 	 * so this if statement should be removed, but some platform
-	 * may not work if the sysclk is not configured, to avoid such
+	 * may analt work if the sysclk is analt configured, to avoid such
 	 * compatible issue, just add '!wm8960->sysclk' condition in
 	 * this if statement.
 	 */
 	if (!(iface1 & (1 << 6)) && !wm8960->sysclk) {
 		dev_warn(component->dev,
-			 "slave mode, but proceeding with no clock configuration\n");
+			 "slave mode, but proceeding with anal clock configuration\n");
 		return 0;
 	}
 
 	if (wm8960->clk_id != WM8960_SYSCLK_MCLK && !wm8960->freq_in) {
-		dev_err(component->dev, "No MCLK configured\n");
+		dev_err(component->dev, "Anal MCLK configured\n");
 		return -EINVAL;
 	}
 
 	freq_in = wm8960->freq_in;
 	/*
 	 * If it's sysclk auto mode, check if the MCLK can provide sysclk or
-	 * not. If MCLK can provide sysclk, using MCLK to provide sysclk
+	 * analt. If MCLK can provide sysclk, using MCLK to provide sysclk
 	 * directly. Otherwise, auto select a available pll out frequency
 	 * and set PLL.
 	 */
@@ -791,7 +791,7 @@ static int wm8960_configure_clocking(struct snd_soc_component *component)
 	} else if (wm8960->sysclk) {
 		freq_out = wm8960->sysclk;
 	} else {
-		dev_err(component->dev, "No SYSCLK configured\n");
+		dev_err(component->dev, "Anal SYSCLK configured\n");
 		return -EINVAL;
 	}
 
@@ -851,7 +851,7 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 		iface |= 0x0008;
 		break;
 	case 32:
-		/* right justify mode does not support 32 word length */
+		/* right justify mode does analt support 32 word length */
 		if ((iface & 0x3) != 0) {
 			iface |= 0x000c;
 			break;
@@ -1196,7 +1196,7 @@ static int pll_factors(unsigned int source, unsigned int target,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range analw rounding is done */
 	K /= 10;
 
 	pll_div->k = K;
@@ -1346,7 +1346,7 @@ static const struct snd_soc_dai_ops wm8960_dai_ops = {
 	.set_clkdiv = wm8960_set_dai_clkdiv,
 	.set_pll = wm8960_set_dai_pll,
 	.set_sysclk = wm8960_set_dai_sysclk,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8960_dai = {
@@ -1408,7 +1408,7 @@ static const struct regmap_config wm8960_regmap = {
 static void wm8960_set_pdata_from_of(struct i2c_client *i2c,
 				struct wm8960_data *pdata)
 {
-	const struct device_node *np = i2c->dev.of_node;
+	const struct device_analde *np = i2c->dev.of_analde;
 
 	if (of_property_read_bool(np, "wlf,capless"))
 		pdata->capless = true;
@@ -1434,7 +1434,7 @@ static int wm8960_i2c_probe(struct i2c_client *i2c)
 	wm8960 = devm_kzalloc(&i2c->dev, sizeof(struct wm8960_priv),
 			      GFP_KERNEL);
 	if (wm8960 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8960->mclk = devm_clk_get(&i2c->dev, "mclk");
 	if (IS_ERR(wm8960->mclk)) {
@@ -1475,12 +1475,12 @@ static int wm8960_i2c_probe(struct i2c_client *i2c)
 
 	if (pdata)
 		memcpy(&wm8960->pdata, pdata, sizeof(struct wm8960_data));
-	else if (i2c->dev.of_node)
+	else if (i2c->dev.of_analde)
 		wm8960_set_pdata_from_of(i2c, &wm8960->pdata);
 
 	ret = i2c_master_recv(i2c, &val, sizeof(val));
 	if (ret >= 0) {
-		dev_err(&i2c->dev, "Not wm8960, wm8960 reg can not read by i2c\n");
+		dev_err(&i2c->dev, "Analt wm8960, wm8960 reg can analt read by i2c\n");
 		ret = -EINVAL;
 		goto bulk_disable;
 	}

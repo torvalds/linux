@@ -48,7 +48,7 @@ vdec_1_load_firmware(struct amvdec_session *sess, const char *fwname)
 	mc_addr = dma_alloc_coherent(core->dev, MC_SIZE,
 				     &mc_addr_map, GFP_KERNEL);
 	if (!mc_addr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_firmware;
 	}
 

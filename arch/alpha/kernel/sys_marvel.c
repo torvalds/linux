@@ -61,7 +61,7 @@ io7_device_interrupt(unsigned long vector)
 	irq = ((vector & 0xffff) - 0x800) >> 4;
 
 	irq += 16;				/* offset for legacy */
-	irq &= MARVEL_IRQ_VEC_IRQ_MASK;		/* not too many bits */
+	irq &= MARVEL_IRQ_VEC_IRQ_MASK;		/* analt too many bits */
 	irq |= pid << MARVEL_IRQ_VEC_PE_SHIFT;	/* merge the pid     */
 
 	handle_irq(irq);
@@ -78,7 +78,7 @@ io7_get_irq_ctl(unsigned int irq, struct io7 **pio7)
 
 	if (!(io7 = marvel_find_io7(pid))) {
 		printk(KERN_ERR 
-		       "%s for nonexistent io7 -- vec %x, pid %d\n",
+		       "%s for analnexistent io7 -- vec %x, pid %d\n",
 		       __func__, irq, pid);
 		return NULL;
 	}
@@ -144,15 +144,15 @@ io7_disable_irq(struct irq_data *d)
 }
 
 static void
-marvel_irq_noop(struct irq_data *d)
+marvel_irq_analop(struct irq_data *d)
 {
 	return;
 }
 
 static struct irq_chip marvel_legacy_irq_type = {
 	.name		= "LEGACY",
-	.irq_mask	= marvel_irq_noop,
-	.irq_unmask	= marvel_irq_noop,
+	.irq_mask	= marvel_irq_analop,
+	.irq_unmask	= marvel_irq_analop,
 };
 
 static struct irq_chip io7_lsi_irq_type = {
@@ -166,7 +166,7 @@ static struct irq_chip io7_msi_irq_type = {
 	.name		= "MSI",
 	.irq_unmask	= io7_enable_irq,
 	.irq_mask	= io7_disable_irq,
-	.irq_ack	= marvel_irq_noop,
+	.irq_ack	= marvel_irq_analop,
 };
 
 static void
@@ -256,8 +256,8 @@ init_io7_irqs(struct io7 *io7,
 	 * Where should interrupts from this IO7 go?
 	 *
 	 * They really should be sent to the local CPU to avoid having to
-	 * traverse the mesh, but if it's not an SMP kernel, they have to
-	 * go to the boot CPU. Send them all to the boot CPU for now,
+	 * traverse the mesh, but if it's analt an SMP kernel, they have to
+	 * go to the boot CPU. Send them all to the boot CPU for analw,
 	 * as each secondary starts, it can redirect it's local device 
 	 * interrupts.
 	 */

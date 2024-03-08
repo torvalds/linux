@@ -2,7 +2,7 @@
 /*
  * Load ELF vmlinux file for the kexec_file_load syscall.
  *
- * Copyright (C) 2021 Huawei Technologies Co, Ltd.
+ * Copyright (C) 2021 Huawei Techanallogies Co, Ltd.
  *
  * Author: Liao Chang (liaochang1@huawei.com)
  *
@@ -105,7 +105,7 @@ static int elf_find_pbase(struct kimage *image, unsigned long kernel_len,
 	 *
 	 */
 	kbuf.buf_align = PMD_SIZE;
-	kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+	kbuf.mem = KEXEC_BUF_MEM_UNKANALWN;
 	kbuf.memsz = ALIGN(kernel_len, PAGE_SIZE);
 	kbuf.top_down = false;
 	ret = arch_kexec_locate_mem_hole(&kbuf);
@@ -147,7 +147,7 @@ static int prepare_elf_headers(void **addr, unsigned long *sz)
 
 	cmem = kmalloc(struct_size(cmem, ranges, nr_ranges), GFP_KERNEL);
 	if (!cmem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmem->max_nr_ranges = nr_ranges;
 	cmem->nr_ranges = 0;
@@ -237,7 +237,7 @@ static void *elf_kexec_load(struct kimage *image, char *kernel_buf,
 
 		kbuf.buffer = headers;
 		kbuf.bufsz = headers_sz;
-		kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+		kbuf.mem = KEXEC_BUF_MEM_UNKANALWN;
 		kbuf.memsz = headers_sz;
 		kbuf.buf_align = ELF_CORE_HEADER_ALIGN;
 		kbuf.top_down = true;
@@ -268,7 +268,7 @@ static void *elf_kexec_load(struct kimage *image, char *kernel_buf,
 #ifdef CONFIG_ARCH_SUPPORTS_KEXEC_PURGATORY
 	/* Add purgatory to the image */
 	kbuf.top_down = true;
-	kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+	kbuf.mem = KEXEC_BUF_MEM_UNKANALWN;
 	ret = kexec_load_purgatory(image, &kbuf);
 	if (ret) {
 		pr_err("Error loading purgatory ret=%d\n", ret);
@@ -289,7 +289,7 @@ static void *elf_kexec_load(struct kimage *image, char *kernel_buf,
 		kbuf.bufsz = kbuf.memsz = initrd_len;
 		kbuf.buf_align = PAGE_SIZE;
 		kbuf.top_down = true;
-		kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+		kbuf.mem = KEXEC_BUF_MEM_UNKANALWN;
 		ret = kexec_add_buffer(&kbuf);
 		if (ret)
 			goto out;
@@ -310,7 +310,7 @@ static void *elf_kexec_load(struct kimage *image, char *kernel_buf,
 	kbuf.buffer = fdt;
 	kbuf.bufsz = kbuf.memsz = fdt_totalsize(fdt);
 	kbuf.buf_align = PAGE_SIZE;
-	kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+	kbuf.mem = KEXEC_BUF_MEM_UNKANALWN;
 	kbuf.top_down = true;
 	ret = kexec_add_buffer(&kbuf);
 	if (ret) {
@@ -404,7 +404,7 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 		else if (sym->st_shndx >= pi->ehdr->e_shnum) {
 			pr_err("Invalid section %d for symbol %s\n",
 			       sym->st_shndx, name);
-			return -ENOEXEC;
+			return -EANALEXEC;
 		} else
 			sec_base = pi->sechdrs[sym->st_shndx].sh_addr;
 
@@ -426,7 +426,7 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 				 ENCODE_JTYPE_IMM(val - addr);
 			break;
 		/*
-		 * With no R_RISCV_PCREL_LO12_S, R_RISCV_PCREL_LO12_I
+		 * With anal R_RISCV_PCREL_LO12_S, R_RISCV_PCREL_LO12_I
 		 * sym is expected to be next to R_RISCV_PCREL_HI20
 		 * in purgatory relsec. Handle it like R_RISCV_CALL
 		 * sym, instead of searching the whole relsec.
@@ -457,8 +457,8 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 		case R_RISCV_RELAX:
 			break;
 		default:
-			pr_err("Unknown rela relocation: %d\n", r_type);
-			return -ENOEXEC;
+			pr_err("Unkanalwn rela relocation: %d\n", r_type);
+			return -EANALEXEC;
 		}
 	}
 	return 0;

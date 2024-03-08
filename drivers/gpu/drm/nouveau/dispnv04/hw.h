@@ -8,20 +8,20 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
  * OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
 
-#ifndef __NOUVEAU_HW_H__
-#define __NOUVEAU_HW_H__
+#ifndef __ANALUVEAU_HW_H__
+#define __ANALUVEAU_HW_H__
 
 #include "disp.h"
 #include "nvreg.h"
@@ -40,26 +40,26 @@ void NVWriteVgaGr(struct drm_device *, int head, uint8_t index, uint8_t value);
 uint8_t NVReadVgaGr(struct drm_device *, int head, uint8_t index);
 void NVSetOwner(struct drm_device *, int owner);
 void NVBlankScreen(struct drm_device *, int head, bool blank);
-int nouveau_hw_get_pllvals(struct drm_device *, enum nvbios_pll_type plltype,
+int analuveau_hw_get_pllvals(struct drm_device *, enum nvbios_pll_type plltype,
 			   struct nvkm_pll_vals *pllvals);
-int nouveau_hw_pllvals_to_clk(struct nvkm_pll_vals *pllvals);
-int nouveau_hw_get_clock(struct drm_device *, enum nvbios_pll_type plltype);
-void nouveau_hw_save_vga_fonts(struct drm_device *, bool save);
-void nouveau_hw_save_state(struct drm_device *, int head,
+int analuveau_hw_pllvals_to_clk(struct nvkm_pll_vals *pllvals);
+int analuveau_hw_get_clock(struct drm_device *, enum nvbios_pll_type plltype);
+void analuveau_hw_save_vga_fonts(struct drm_device *, bool save);
+void analuveau_hw_save_state(struct drm_device *, int head,
 			   struct nv04_mode_state *state);
-void nouveau_hw_load_state(struct drm_device *, int head,
+void analuveau_hw_load_state(struct drm_device *, int head,
 			   struct nv04_mode_state *state);
-void nouveau_hw_load_state_palette(struct drm_device *, int head,
+void analuveau_hw_load_state_palette(struct drm_device *, int head,
 				   struct nv04_mode_state *state);
 
-/* nouveau_calc.c */
-extern void nouveau_calc_arb(struct drm_device *, int vclk, int bpp,
+/* analuveau_calc.c */
+extern void analuveau_calc_arb(struct drm_device *, int vclk, int bpp,
 			     int *burst, int *lwm);
 
 static inline uint32_t NVReadCRTC(struct drm_device *dev,
 					int head, uint32_t reg)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
 	uint32_t val;
 	if (head)
 		reg += NV_PCRTC0_SIZE;
@@ -70,7 +70,7 @@ static inline uint32_t NVReadCRTC(struct drm_device *dev,
 static inline void NVWriteCRTC(struct drm_device *dev,
 					int head, uint32_t reg, uint32_t val)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
 	if (head)
 		reg += NV_PCRTC0_SIZE;
 	nvif_wr32(device, reg, val);
@@ -79,7 +79,7 @@ static inline void NVWriteCRTC(struct drm_device *dev,
 static inline uint32_t NVReadRAMDAC(struct drm_device *dev,
 					int head, uint32_t reg)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
 	uint32_t val;
 	if (head)
 		reg += NV_PRAMDAC0_SIZE;
@@ -90,7 +90,7 @@ static inline uint32_t NVReadRAMDAC(struct drm_device *dev,
 static inline void NVWriteRAMDAC(struct drm_device *dev,
 					int head, uint32_t reg, uint32_t val)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
 	if (head)
 		reg += NV_PRAMDAC0_SIZE;
 	nvif_wr32(device, reg, val);
@@ -119,7 +119,7 @@ static inline void nv_write_tmds(struct drm_device *dev,
 static inline void NVWriteVgaCrtc(struct drm_device *dev,
 					int head, uint8_t index, uint8_t value)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
 	nvif_wr08(device, NV_PRMCIO_CRX__COLOR + head * NV_PRMCIO_SIZE, index);
 	nvif_wr08(device, NV_PRMCIO_CR__COLOR + head * NV_PRMCIO_SIZE, value);
 }
@@ -127,7 +127,7 @@ static inline void NVWriteVgaCrtc(struct drm_device *dev,
 static inline uint8_t NVReadVgaCrtc(struct drm_device *dev,
 					int head, uint8_t index)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
 	uint8_t val;
 	nvif_wr08(device, NV_PRMCIO_CRX__COLOR + head * NV_PRMCIO_SIZE, index);
 	val = nvif_rd08(device, NV_PRMCIO_CR__COLOR + head * NV_PRMCIO_SIZE);
@@ -135,10 +135,10 @@ static inline uint8_t NVReadVgaCrtc(struct drm_device *dev,
 }
 
 /* CR57 and CR58 are a fun pair of regs. CR57 provides an index (0-0xf) for CR58
- * I suspect they in fact do nothing, but are merely a way to carry useful
+ * I suspect they in fact do analthing, but are merely a way to carry useful
  * per-head variables around
  *
- * Known uses:
+ * Kanalwn uses:
  * CR57		CR58
  * 0x00		index to the appropriate dcb entry (or 7f for inactive)
  * 0x02		dcb entry's "or" value (or 00 for inactive)
@@ -164,8 +164,8 @@ static inline uint8_t NVReadVgaCrtc5758(struct drm_device *dev, int head, uint8_
 static inline uint8_t NVReadPRMVIO(struct drm_device *dev,
 					int head, uint32_t reg)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	uint8_t val;
 
 	/* Only NV4x have two pvio ranges; other twoHeads cards MUST call
@@ -180,8 +180,8 @@ static inline uint8_t NVReadPRMVIO(struct drm_device *dev,
 static inline void NVWritePRMVIO(struct drm_device *dev,
 					int head, uint32_t reg, uint8_t value)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
+	struct analuveau_drm *drm = analuveau_drm(dev);
 
 	/* Only NV4x have two pvio ranges; other twoHeads cards MUST call
 	 * NVSetOwner for the relevant head to be programmed */
@@ -193,14 +193,14 @@ static inline void NVWritePRMVIO(struct drm_device *dev,
 
 static inline void NVSetEnablePalette(struct drm_device *dev, int head, bool enable)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
 	nvif_rd08(device, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
 	nvif_wr08(device, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE, enable ? 0 : 0x20);
 }
 
 static inline bool NVGetEnablePalette(struct drm_device *dev, int head)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
 	nvif_rd08(device, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
 	return !(nvif_rd08(device, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE) & 0x20);
 }
@@ -208,7 +208,7 @@ static inline bool NVGetEnablePalette(struct drm_device *dev, int head)
 static inline void NVWriteVgaAttr(struct drm_device *dev,
 					int head, uint8_t index, uint8_t value)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
 	if (NVGetEnablePalette(dev, head))
 		index &= ~0x20;
 	else
@@ -222,7 +222,7 @@ static inline void NVWriteVgaAttr(struct drm_device *dev,
 static inline uint8_t NVReadVgaAttr(struct drm_device *dev,
 					int head, uint8_t index)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
 	uint8_t val;
 	if (NVGetEnablePalette(dev, head))
 		index &= ~0x20;
@@ -258,8 +258,8 @@ static inline void NVVgaProtect(struct drm_device *dev, int head, bool protect)
 static inline bool
 nv_heads_tied(struct drm_device *dev)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
+	struct analuveau_drm *drm = analuveau_drm(dev);
 
 	if (drm->client.device.info.chipset == 0x11)
 		return !!(nvif_rd32(device, NV_PBUS_DEBUG_1) & (1 << 28));
@@ -311,7 +311,7 @@ nv_lock_vga_crtc_shadow(struct drm_device *dev, int head, int lock)
 static inline bool
 NVLockVgaCrtcs(struct drm_device *dev, bool lock)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	bool waslocked = !NVReadVgaCrtc(dev, 0, NV_CIO_SR_LOCK_INDEX);
 
 	NVWriteVgaCrtc(dev, 0, NV_CIO_SR_LOCK_INDEX,
@@ -332,7 +332,7 @@ NVLockVgaCrtcs(struct drm_device *dev, bool lock)
 
 static inline int nv_cursor_width(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 
 	return drm->client.device.info.family >= NV_DEVICE_INFO_V0_CELSIUS ? NV10_CURSOR_SIZE : NV04_CURSOR_SIZE;
 }
@@ -352,7 +352,7 @@ nv_fix_nv40_hw_cursor(struct drm_device *dev, int head)
 static inline void
 nv_set_crtc_base(struct drm_device *dev, int head, uint32_t offset)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 
 	NVWriteCRTC(dev, head, NV_PCRTC_START, offset);
 
@@ -371,7 +371,7 @@ nv_set_crtc_base(struct drm_device *dev, int head, uint32_t offset)
 static inline void
 nv_show_cursor(struct drm_device *dev, int head, bool show)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	uint8_t *curctl1 =
 		&nv04_display(dev)->mode_reg.crtc_reg[head].CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX];
 
@@ -388,7 +388,7 @@ nv_show_cursor(struct drm_device *dev, int head, bool show)
 static inline uint32_t
 nv_pitch_align(struct drm_device *dev, uint32_t width, int bpp)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	int mask;
 
 	if (bpp == 15)
@@ -405,4 +405,4 @@ nv_pitch_align(struct drm_device *dev, uint32_t width, int bpp)
 	return (width + mask) & ~mask;
 }
 
-#endif	/* __NOUVEAU_HW_H__ */
+#endif	/* __ANALUVEAU_HW_H__ */

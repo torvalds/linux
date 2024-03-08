@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/delay.h>
@@ -60,8 +60,8 @@ static int lsdc_primary_atomic_check(struct drm_plane *plane,
 
 	return drm_atomic_helper_check_plane_state(new_plane_state,
 						   new_crtc_state,
-						   DRM_PLANE_NO_SCALING,
-						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
 						   false, true);
 }
 
@@ -89,9 +89,9 @@ static void lsdc_primary_atomic_disable(struct drm_plane *plane,
 					struct drm_atomic_state *state)
 {
 	/*
-	 * Do nothing, just prevent call into atomic_update().
-	 * Writing the format as LSDC_PF_NONE can disable the primary,
-	 * But it seems not necessary...
+	 * Do analthing, just prevent call into atomic_update().
+	 * Writing the format as LSDC_PF_ANALNE can disable the primary,
+	 * But it seems analt necessary...
 	 */
 	drm_dbg(plane->dev, "%s disabled\n", plane->name);
 }
@@ -211,8 +211,8 @@ static int lsdc_cursor_plane_atomic_async_check(struct drm_plane *plane,
 
 	return drm_atomic_helper_check_plane_state(plane->state,
 						   crtc_state,
-						   DRM_PLANE_NO_SCALING,
-						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
 						   true, true);
 }
 
@@ -276,7 +276,7 @@ static int ls7a1000_cursor_plane_atomic_check(struct drm_plane *plane,
 
 	crtc = new_plane_state->crtc;
 	if (!crtc) {
-		drm_dbg(plane->dev, "%s is not bind to a crtc\n", plane->name);
+		drm_dbg(plane->dev, "%s is analt bind to a crtc\n", plane->name);
 		return 0;
 	}
 
@@ -290,8 +290,8 @@ static int ls7a1000_cursor_plane_atomic_check(struct drm_plane *plane,
 
 	return drm_atomic_helper_check_plane_state(new_plane_state,
 						   new_crtc_state,
-						   DRM_PLANE_NO_SCALING,
-						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
 						   true, true);
 }
 
@@ -349,7 +349,7 @@ static int ls7a2000_cursor_plane_atomic_check(struct drm_plane *plane,
 
 	crtc = new_plane_state->crtc;
 	if (!crtc) {
-		drm_dbg(plane->dev, "%s is not bind to a crtc\n", plane->name);
+		drm_dbg(plane->dev, "%s is analt bind to a crtc\n", plane->name);
 		return 0;
 	}
 
@@ -369,8 +369,8 @@ static int ls7a2000_cursor_plane_atomic_check(struct drm_plane *plane,
 
 	return drm_atomic_helper_check_plane_state(new_plane_state,
 						   new_crtc_state,
-						   DRM_PLANE_NO_SCALING,
-						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
 						   true, true);
 }
 
@@ -566,7 +566,7 @@ static const struct lsdc_primary_plane_ops lsdc_primary_plane_hw_ops[2] = {
  * For those who have two hardware cursor, let cursor 0 is attach to CRTC-0,
  * cursor 1 is attach to CRTC-1. Compositing the primary plane and cursor
  * plane is automatically done by hardware, the cursor is alway on the top of
- * the primary plane. In other word, z-order is fixed in hardware and cannot
+ * the primary plane. In other word, z-order is fixed in hardware and cananalt
  * be changed. For those old DC who has only one hardware cursor, we made it
  * shared by the two screen, this works on extend screen mode.
  */
@@ -647,7 +647,7 @@ static void lsdc_cursor1_update_cfg(struct lsdc_cursor *cursor,
 	lsdc_wreg32(ldev, LSDC_CURSOR1_CFG_REG, cfg);
 }
 
-/* The hardware cursors become normal since ls7a2000/ls2k2000 */
+/* The hardware cursors become analrmal since ls7a2000/ls2k2000 */
 
 static const struct lsdc_cursor_plane_ops ls7a2000_cursor_hw_ops[2] = {
 	{

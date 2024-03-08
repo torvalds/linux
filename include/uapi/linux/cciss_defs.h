@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef CCISS_DEFS_H
 #define CCISS_DEFS_H
 
 #include <linux/types.h>
 
 /* general boundary definitions */
-#define SENSEINFOBYTES          32 /* note that this value may vary
+#define SENSEINFOBYTES          32 /* analte that this value may vary
 				      between host implementations */
 
 /* Command Status value */
@@ -24,7 +24,7 @@
 #define CMD_UNABORTABLE		0x000C
 
 /* transfer direction */
-#define XFER_NONE               0x00
+#define XFER_ANALNE               0x00
 #define XFER_WRITE              0x01
 #define XFER_READ               0x02
 #define XFER_RSVD               0x03

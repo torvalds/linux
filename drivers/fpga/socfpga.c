@@ -35,22 +35,22 @@
 #define SOCFPGA_FPGMGR_STAT_CFG					0x2
 #define SOCFPGA_FPGMGR_STAT_INIT				0x3
 #define SOCFPGA_FPGMGR_STAT_USER_MODE				0x4
-#define SOCFPGA_FPGMGR_STAT_UNKNOWN				0x5
+#define SOCFPGA_FPGMGR_STAT_UNKANALWN				0x5
 #define SOCFPGA_FPGMGR_STAT_STATE_MASK				0x7
 /* This is a flag value that doesn't really happen in this register field */
 #define SOCFPGA_FPGMGR_STAT_POWER_OFF				0x0
 
-#define MSEL_PP16_FAST_NOAES_NODC				0x0
-#define MSEL_PP16_FAST_AES_NODC					0x1
+#define MSEL_PP16_FAST_ANALAES_ANALDC				0x0
+#define MSEL_PP16_FAST_AES_ANALDC					0x1
 #define MSEL_PP16_FAST_AESOPT_DC				0x2
-#define MSEL_PP16_SLOW_NOAES_NODC				0x4
-#define MSEL_PP16_SLOW_AES_NODC					0x5
+#define MSEL_PP16_SLOW_ANALAES_ANALDC				0x4
+#define MSEL_PP16_SLOW_AES_ANALDC					0x5
 #define MSEL_PP16_SLOW_AESOPT_DC				0x6
-#define MSEL_PP32_FAST_NOAES_NODC				0x8
-#define MSEL_PP32_FAST_AES_NODC					0x9
+#define MSEL_PP32_FAST_ANALAES_ANALDC				0x8
+#define MSEL_PP32_FAST_AES_ANALDC					0x9
 #define MSEL_PP32_FAST_AESOPT_DC				0xa
-#define MSEL_PP32_SLOW_NOAES_NODC				0xc
-#define MSEL_PP32_SLOW_AES_NODC					0xd
+#define MSEL_PP32_SLOW_ANALAES_ANALDC				0xc
+#define MSEL_PP32_SLOW_AES_ANALDC					0xd
 #define MSEL_PP32_SLOW_AESOPT_DC				0xe
 #define SOCFPGA_FPGMGR_STAT_MSEL_MASK				0x000000f8
 #define SOCFPGA_FPGMGR_STAT_MSEL_SHIFT				3
@@ -117,17 +117,17 @@ struct cfgmgr_mode {
 
 /* For SOCFPGA_FPGMGR_STAT_MSEL field */
 static struct cfgmgr_mode cfgmgr_modes[] = {
-	[MSEL_PP16_FAST_NOAES_NODC] = { CFGWDTH_16 | CDRATIO_X1, 1 },
-	[MSEL_PP16_FAST_AES_NODC] =   { CFGWDTH_16 | CDRATIO_X2, 1 },
+	[MSEL_PP16_FAST_ANALAES_ANALDC] = { CFGWDTH_16 | CDRATIO_X1, 1 },
+	[MSEL_PP16_FAST_AES_ANALDC] =   { CFGWDTH_16 | CDRATIO_X2, 1 },
 	[MSEL_PP16_FAST_AESOPT_DC] =  { CFGWDTH_16 | CDRATIO_X4, 1 },
-	[MSEL_PP16_SLOW_NOAES_NODC] = { CFGWDTH_16 | CDRATIO_X1, 1 },
-	[MSEL_PP16_SLOW_AES_NODC] =   { CFGWDTH_16 | CDRATIO_X2, 1 },
+	[MSEL_PP16_SLOW_ANALAES_ANALDC] = { CFGWDTH_16 | CDRATIO_X1, 1 },
+	[MSEL_PP16_SLOW_AES_ANALDC] =   { CFGWDTH_16 | CDRATIO_X2, 1 },
 	[MSEL_PP16_SLOW_AESOPT_DC] =  { CFGWDTH_16 | CDRATIO_X4, 1 },
-	[MSEL_PP32_FAST_NOAES_NODC] = { CFGWDTH_32 | CDRATIO_X1, 1 },
-	[MSEL_PP32_FAST_AES_NODC] =   { CFGWDTH_32 | CDRATIO_X4, 1 },
+	[MSEL_PP32_FAST_ANALAES_ANALDC] = { CFGWDTH_32 | CDRATIO_X1, 1 },
+	[MSEL_PP32_FAST_AES_ANALDC] =   { CFGWDTH_32 | CDRATIO_X4, 1 },
 	[MSEL_PP32_FAST_AESOPT_DC] =  { CFGWDTH_32 | CDRATIO_X8, 1 },
-	[MSEL_PP32_SLOW_NOAES_NODC] = { CFGWDTH_32 | CDRATIO_X1, 1 },
-	[MSEL_PP32_SLOW_AES_NODC] =   { CFGWDTH_32 | CDRATIO_X4, 1 },
+	[MSEL_PP32_SLOW_ANALAES_ANALDC] = { CFGWDTH_32 | CDRATIO_X1, 1 },
+	[MSEL_PP32_SLOW_AES_ANALDC] =   { CFGWDTH_32 | CDRATIO_X4, 1 },
 	[MSEL_PP32_SLOW_AESOPT_DC] =  { CFGWDTH_32 | CDRATIO_X8, 1 },
 };
 
@@ -404,7 +404,7 @@ static int socfpga_fpga_ops_configure_init(struct fpga_manager *mgr,
 	int ret;
 
 	if (info->flags & FPGA_MGR_PARTIAL_RECONFIG) {
-		dev_err(&mgr->dev, "Partial reconfiguration not supported.\n");
+		dev_err(&mgr->dev, "Partial reconfiguration analt supported.\n");
 		return -EINVAL;
 	}
 	/* Steps 1 - 5: Reset the FPGA */
@@ -446,7 +446,7 @@ static int socfpga_fpga_ops_configure_write(struct fpga_manager *mgr,
 		count -= sizeof(u32);
 	}
 
-	/* Write out remaining non 32-bit chunks. */
+	/* Write out remaining analn 32-bit chunks. */
 	switch (count) {
 	case 3:
 		socfpga_fpga_data_writel(priv, buffer_32[i++] & 0x00ffffff);
@@ -514,7 +514,7 @@ static const enum fpga_mgr_states socfpga_state_to_framework_state[] = {
 	[SOCFPGA_FPGMGR_STAT_CFG] = FPGA_MGR_STATE_WRITE_INIT,
 	[SOCFPGA_FPGMGR_STAT_INIT] = FPGA_MGR_STATE_WRITE_INIT,
 	[SOCFPGA_FPGMGR_STAT_USER_MODE] = FPGA_MGR_STATE_OPERATING,
-	[SOCFPGA_FPGMGR_STAT_UNKNOWN] = FPGA_MGR_STATE_UNKNOWN,
+	[SOCFPGA_FPGMGR_STAT_UNKANALWN] = FPGA_MGR_STATE_UNKANALWN,
 };
 
 static enum fpga_mgr_states socfpga_fpga_ops_state(struct fpga_manager *mgr)
@@ -528,7 +528,7 @@ static enum fpga_mgr_states socfpga_fpga_ops_state(struct fpga_manager *mgr)
 	if (state < ARRAY_SIZE(socfpga_state_to_framework_state))
 		ret = socfpga_state_to_framework_state[state];
 	else
-		ret = FPGA_MGR_STATE_UNKNOWN;
+		ret = FPGA_MGR_STATE_UNKANALWN;
 
 	return ret;
 }
@@ -549,7 +549,7 @@ static int socfpga_fpga_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->fpga_base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->fpga_base_addr))

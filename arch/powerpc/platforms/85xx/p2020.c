@@ -52,15 +52,15 @@ static void __init p2020_setup_arch(void)
  */
 static int __init p2020_probe(void)
 {
-	struct device_node *p2020_cpu;
+	struct device_analde *p2020_cpu;
 
 	/*
-	 * There is no common compatible string for all P2020 boards.
-	 * The only common thing is "PowerPC,P2020@0" cpu node.
-	 * So check for P2020 board via this cpu node.
+	 * There is anal common compatible string for all P2020 boards.
+	 * The only common thing is "PowerPC,P2020@0" cpu analde.
+	 * So check for P2020 board via this cpu analde.
 	 */
-	p2020_cpu = of_find_node_by_path("/cpus/PowerPC,P2020@0");
-	of_node_put(p2020_cpu);
+	p2020_cpu = of_find_analde_by_path("/cpus/PowerPC,P2020@0");
+	of_analde_put(p2020_cpu);
 
 	return !!p2020_cpu;
 }

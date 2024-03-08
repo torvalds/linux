@@ -88,7 +88,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 	size_t i;
 
 	if (machine == NULL) {
-		pr_debug("Not enough memory for machine setup\n");
+		pr_debug("Analt eanalugh memory for machine setup\n");
 		return NULL;
 	}
 
@@ -155,7 +155,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 	return machine;
 
 out:
-	pr_debug("Not enough memory for machine setup\n");
+	pr_debug("Analt eanalugh memory for machine setup\n");
 	machine__delete_threads(machine);
 	return NULL;
 }
@@ -164,7 +164,7 @@ void print_hists_in(struct hists *hists)
 {
 	int i = 0;
 	struct rb_root_cached *root;
-	struct rb_node *node;
+	struct rb_analde *analde;
 
 	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
@@ -172,11 +172,11 @@ void print_hists_in(struct hists *hists)
 		root = hists->entries_in;
 
 	pr_info("----- %s --------\n", __func__);
-	node = rb_first_cached(root);
-	while (node) {
+	analde = rb_first_cached(root);
+	while (analde) {
 		struct hist_entry *he;
 
-		he = rb_entry(node, struct hist_entry, rb_node_in);
+		he = rb_entry(analde, struct hist_entry, rb_analde_in);
 
 		if (!he->filtered) {
 			struct dso *dso = map__dso(he->ms.map);
@@ -188,7 +188,7 @@ void print_hists_in(struct hists *hists)
 		}
 
 		i++;
-		node = rb_next(node);
+		analde = rb_next(analde);
 	}
 }
 
@@ -196,16 +196,16 @@ void print_hists_out(struct hists *hists)
 {
 	int i = 0;
 	struct rb_root_cached *root;
-	struct rb_node *node;
+	struct rb_analde *analde;
 
 	root = &hists->entries;
 
 	pr_info("----- %s --------\n", __func__);
-	node = rb_first_cached(root);
-	while (node) {
+	analde = rb_first_cached(root);
+	while (analde) {
 		struct hist_entry *he;
 
-		he = rb_entry(node, struct hist_entry, rb_node);
+		he = rb_entry(analde, struct hist_entry, rb_analde);
 
 		if (!he->filtered) {
 			struct dso *dso = map__dso(he->ms.map);
@@ -218,6 +218,6 @@ void print_hists_out(struct hists *hists)
 		}
 
 		i++;
-		node = rb_next(node);
+		analde = rb_next(analde);
 	}
 }

@@ -8,7 +8,7 @@
 /* READ */
 #define STATUS(base) base
 #define STST	BIT(7)		/* Self Test in Progress */
-#define DIAGF	BIT(6)		/* Internal Diagnostic Failure */
+#define DIAGF	BIT(6)		/* Internal Diaganalstic Failure */
 #define INIT	BIT(5)		/* Mailbox Initialization Required */
 #define IDLE	BIT(4)		/* SCSI Host Adapter Idle */
 #define CDF	BIT(3)		/* Command/Data Out Port Full */
@@ -34,7 +34,7 @@
 
 /* READ/WRITE */
 #define DATA(base) (STATUS(base)+1)
-#define CMD_NOP		0x00	/* No Operation */
+#define CMD_ANALP		0x00	/* Anal Operation */
 #define CMD_MBINIT	0x01	/* Mailbox Initialization */
 #define CMD_START_SCSI	0x02	/* Start SCSI Command */
 #define CMD_INQUIRY	0x04	/* Adapter Inquiry */

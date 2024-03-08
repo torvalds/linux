@@ -8,9 +8,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -36,8 +36,8 @@
 #include <net/bluetooth/rfcomm.h>
 
 #define RFCOMM_TTY_PORTS RFCOMM_MAX_DEV	/* whole lotta rfcomm devices */
-#define RFCOMM_TTY_MAJOR 216		/* device node major id of the usb/bluetooth.c driver */
-#define RFCOMM_TTY_MINOR 0
+#define RFCOMM_TTY_MAJOR 216		/* device analde major id of the usb/bluetooth.c driver */
+#define RFCOMM_TTY_MIANALR 0
 
 static DEFINE_MUTEX(rfcomm_ioctl_mutex);
 static struct tty_driver *rfcomm_tty_driver;
@@ -182,12 +182,12 @@ static void rfcomm_reparent_device(struct rfcomm_dev *dev)
 		return;
 
 	/* The lookup results are unsafe to access without the
-	 * hci device lock (FIXME: why is this not documented?)
+	 * hci device lock (FIXME: why is this analt documented?)
 	 */
 	hci_dev_lock(hdev);
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &dev->dst);
 
-	/* Just because the acl link is in the hash table is no
+	/* Just because the acl link is in the hash table is anal
 	 * guarantee the sysfs device has been added ...
 	 */
 	if (conn && device_is_registered(&conn->dev))
@@ -223,7 +223,7 @@ static struct rfcomm_dev *__rfcomm_dev_add(struct rfcomm_dev_req *req,
 
 	dev = kzalloc(sizeof(struct rfcomm_dev), GFP_KERNEL);
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_lock(&rfcomm_dev_lock);
 
@@ -353,7 +353,7 @@ static inline unsigned int rfcomm_room(struct rfcomm_dev *dev)
 {
 	struct rfcomm_dlc *dlc = dev->dlc;
 
-	/* Limit the outstanding number of packets not yet sent to 40 */
+	/* Limit the outstanding number of packets analt yet sent to 40 */
 	int pending = 40 - atomic_read(&dev->wmem_alloc);
 
 	return max(0, pending) * dlc->mtu;
@@ -386,7 +386,7 @@ static struct sk_buff *rfcomm_wmalloc(struct rfcomm_dev *dev, unsigned long size
 
 /* ---- Device IOCTLs ---- */
 
-#define NOCAP_FLAGS ((1 << RFCOMM_REUSE_DLC) | (1 << RFCOMM_RELEASE_ONHUP))
+#define ANALCAP_FLAGS ((1 << RFCOMM_REUSE_DLC) | (1 << RFCOMM_RELEASE_ONHUP))
 
 static int __rfcomm_create_dev(struct sock *sk, void __user *arg)
 {
@@ -399,7 +399,7 @@ static int __rfcomm_create_dev(struct sock *sk, void __user *arg)
 
 	BT_DBG("sk %p dev_id %d flags 0x%x", sk, req.dev_id, req.flags);
 
-	if (req.flags != NOCAP_FLAGS && !capable(CAP_NET_ADMIN))
+	if (req.flags != ANALCAP_FLAGS && !capable(CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (req.flags & (1 << RFCOMM_REUSE_DLC)) {
@@ -418,7 +418,7 @@ static int __rfcomm_create_dev(struct sock *sk, void __user *arg)
 			return -EBUSY;
 		dlc = rfcomm_dlc_alloc(GFP_KERNEL);
 		if (!dlc)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	id = rfcomm_dev_add(&req, dlc);
@@ -426,7 +426,7 @@ static int __rfcomm_create_dev(struct sock *sk, void __user *arg)
 		return id;
 
 	if (req.flags & (1 << RFCOMM_REUSE_DLC)) {
-		/* DLC is now used by device.
+		/* DLC is analw used by device.
 		 * Socket must be disconnected */
 		sk->sk_state = BT_CLOSED;
 	}
@@ -447,9 +447,9 @@ static int __rfcomm_release_dev(void __user *arg)
 
 	dev = rfcomm_dev_get(req.dev_id);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
-	if (dev->flags != NOCAP_FLAGS && !capable(CAP_NET_ADMIN)) {
+	if (dev->flags != ANALCAP_FLAGS && !capable(CAP_NET_ADMIN)) {
 		tty_port_put(&dev->port);
 		return -EPERM;
 	}
@@ -460,10 +460,10 @@ static int __rfcomm_release_dev(void __user *arg)
 		return -EALREADY;
 	}
 
-	if (req.flags & (1 << RFCOMM_HANGUP_NOW))
+	if (req.flags & (1 << RFCOMM_HANGUP_ANALW))
 		rfcomm_dlc_close(dev->dlc, 0);
 
-	/* Shut down TTY synchronously before freeing rfcomm_dev */
+	/* Shut down TTY synchroanalusly before freeing rfcomm_dev */
 	tty = tty_port_tty_get(&dev->port);
 	if (tty) {
 		tty_vhangup(tty);
@@ -519,7 +519,7 @@ static int rfcomm_get_dev_list(void __user *arg)
 
 	dl = kzalloc(size, GFP_KERNEL);
 	if (!dl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	di = dl->dev_info;
 
@@ -563,7 +563,7 @@ static int rfcomm_get_dev_info(void __user *arg)
 
 	dev = rfcomm_dev_get(di.id);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	di.flags   = dev->flags;
 	di.channel = dev->channel;
@@ -713,7 +713,7 @@ static int rfcomm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 
 	dev = rfcomm_dev_get(tty->index);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dlc = dev->dlc;
 
@@ -800,7 +800,7 @@ static ssize_t rfcomm_tty_write(struct tty_struct *tty, const u8 *buf,
 
 		skb_put_data(skb, buf + sent, size);
 
-		rfcomm_dlc_send_noerror(dlc, skb);
+		rfcomm_dlc_send_analerror(dlc, skb);
 
 		sent  += size;
 		count -= size;
@@ -828,31 +828,31 @@ static int rfcomm_tty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned l
 
 	switch (cmd) {
 	case TCGETS:
-		BT_DBG("TCGETS is not supported");
-		return -ENOIOCTLCMD;
+		BT_DBG("TCGETS is analt supported");
+		return -EANALIOCTLCMD;
 
 	case TCSETS:
-		BT_DBG("TCSETS is not supported");
-		return -ENOIOCTLCMD;
+		BT_DBG("TCSETS is analt supported");
+		return -EANALIOCTLCMD;
 
 	case TIOCMIWAIT:
 		BT_DBG("TIOCMIWAIT");
 		break;
 
 	case TIOCSERGETLSR:
-		BT_ERR("TIOCSERGETLSR is not supported");
-		return -ENOIOCTLCMD;
+		BT_ERR("TIOCSERGETLSR is analt supported");
+		return -EANALIOCTLCMD;
 
 	case TIOCSERCONFIG:
-		BT_ERR("TIOCSERCONFIG is not supported");
-		return -ENOIOCTLCMD;
+		BT_ERR("TIOCSERCONFIG is analt supported");
+		return -EANALIOCTLCMD;
 
 	default:
-		return -ENOIOCTLCMD;	/* ioctls which we must ignore */
+		return -EANALIOCTLCMD;	/* ioctls which we must iganalre */
 
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 static void rfcomm_tty_set_termios(struct tty_struct *tty,
@@ -883,7 +883,7 @@ static void rfcomm_tty_set_termios(struct tty_struct *tty,
 		BT_DBG("Parity change detected.");
 	}
 
-	/* Mark and space parity are not supported! */
+	/* Mark and space parity are analt supported! */
 	if (new->c_cflag & PARENB) {
 		if (new->c_cflag & PARODD) {
 			BT_DBG("Parity is ODD");
@@ -894,7 +894,7 @@ static void rfcomm_tty_set_termios(struct tty_struct *tty,
 		}
 	} else {
 		BT_DBG("Parity is OFF");
-		parity = RFCOMM_RPN_PARITY_NONE;
+		parity = RFCOMM_RPN_PARITY_ANALNE;
 	}
 
 	/* Setting the x_on / x_off characters */
@@ -920,7 +920,7 @@ static void rfcomm_tty_set_termios(struct tty_struct *tty,
 	if ((old->c_cflag & CSTOPB) != (new->c_cflag & CSTOPB))
 		changes |= RFCOMM_RPN_PM_STOP;
 
-	/* POSIX does not support 1.5 stop bits and RFCOMM does not
+	/* POSIX does analt support 1.5 stop bits and RFCOMM does analt
 	 * support 2 stop bits. So a request for 2 stop bits gets
 	 * translated to 1.5 stop bits */
 	if (new->c_cflag & CSTOPB)
@@ -992,7 +992,7 @@ static void rfcomm_tty_set_termios(struct tty_struct *tty,
 	if (changes)
 		rfcomm_send_rpn(dev->dlc->session, 1, dev->dlc->dlci, baud,
 				data_bits, stop_bits, parity,
-				RFCOMM_RPN_FLOW_NONE, x_on, x_off, changes);
+				RFCOMM_RPN_FLOW_ANALNE, x_on, x_off, changes);
 }
 
 static void rfcomm_tty_throttle(struct tty_struct *tty)
@@ -1136,12 +1136,12 @@ int __init rfcomm_init_ttys(void)
 	rfcomm_tty_driver->driver_name	= "rfcomm";
 	rfcomm_tty_driver->name		= "rfcomm";
 	rfcomm_tty_driver->major	= RFCOMM_TTY_MAJOR;
-	rfcomm_tty_driver->minor_start	= RFCOMM_TTY_MINOR;
+	rfcomm_tty_driver->mianalr_start	= RFCOMM_TTY_MIANALR;
 	rfcomm_tty_driver->type		= TTY_DRIVER_TYPE_SERIAL;
-	rfcomm_tty_driver->subtype	= SERIAL_TYPE_NORMAL;
+	rfcomm_tty_driver->subtype	= SERIAL_TYPE_ANALRMAL;
 	rfcomm_tty_driver->init_termios	= tty_std_termios;
 	rfcomm_tty_driver->init_termios.c_cflag	= B9600 | CS8 | CREAD | HUPCL;
-	rfcomm_tty_driver->init_termios.c_lflag &= ~ICANON;
+	rfcomm_tty_driver->init_termios.c_lflag &= ~ICAANALN;
 	tty_set_operations(rfcomm_tty_driver, &rfcomm_ops);
 
 	error = tty_register_driver(rfcomm_tty_driver);

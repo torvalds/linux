@@ -15,13 +15,13 @@ static const struct of_device_id __timer_of_table_sentinel
 
 void __init timer_probe(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const struct of_device_id *match;
 	of_init_fn_1_ret init_func_ret;
 	unsigned timers = 0;
 	int ret;
 
-	for_each_matching_node_and_match(np, __timer_of_table, &match) {
+	for_each_matching_analde_and_match(np, __timer_of_table, &match) {
 		if (!of_device_is_available(np))
 			continue;
 
@@ -41,5 +41,5 @@ void __init timer_probe(void)
 	timers += acpi_probe_device_table(timer);
 
 	if (!timers)
-		pr_crit("%s: no matching timers found\n", __func__);
+		pr_crit("%s: anal matching timers found\n", __func__);
 }

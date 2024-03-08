@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020 NovaTech LLC
+ * Copyright (C) 2020 AnalvaTech LLC
  * George McCollister <george.mccollister@gmail.com>
  */
 
@@ -100,7 +100,7 @@ static void xrs700x_get_strings(struct dsa_switch *ds, int port,
 static int xrs700x_get_sset_count(struct dsa_switch *ds, int port, int sset)
 {
 	if (sset != ETH_SS_STATS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ARRAY_SIZE(xrs700x_mibs);
 }
@@ -336,7 +336,7 @@ static int xrs700x_port_add_bpdu_ipf(struct dsa_switch *ds, int port)
 
 /* Add an inbound policy filter which matches the HSR/PRP supervision MAC
  * range and forwards to the CPU port without discarding duplicates.
- * This is required to correctly populate the HSR/PRP node_table.
+ * This is required to correctly populate the HSR/PRP analde_table.
  * Leave the policy disabled, it will be enabled as needed.
  */
 static int xrs700x_port_add_hsrsup_ipf(struct dsa_switch *ds, int port,
@@ -391,7 +391,7 @@ static int xrs700x_port_setup(struct dsa_switch *ds, int port)
 
 	xrs700x_port_stp_state_set(ds, port, BR_STATE_DISABLED);
 
-	/* Disable forwarding to non-CPU ports */
+	/* Disable forwarding to analn-CPU ports */
 	for (i = 0; i < ds->num_ports; i++) {
 		if (!dsa_is_cpu_port(ds, i))
 			val |= BIT(i);
@@ -402,7 +402,7 @@ static int xrs700x_port_setup(struct dsa_switch *ds, int port)
 	if (ret)
 		return ret;
 
-	val = cpu_port ? XRS_PORT_MODE_MANAGEMENT : XRS_PORT_MODE_NORMAL;
+	val = cpu_port ? XRS_PORT_MODE_MANAGEMENT : XRS_PORT_MODE_ANALRMAL;
 	ret = regmap_fields_write(priv->ps_management, port, val);
 	if (ret)
 		return ret;
@@ -566,7 +566,7 @@ static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
 	if (port != 1 && port != 2) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Only ports 1 and 2 can offload HSR/PRP");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (ver == HSR_V1) {
@@ -576,7 +576,7 @@ static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
 	} else {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Only HSR v1 and PRP v1 can be offloaded");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	dsa_hsr_foreach_port(dp, ds, hsr) {
@@ -742,7 +742,7 @@ static int xrs700x_detect(struct xrs700x *priv)
 	dev_err(priv->dev, "expected switch id 0x%x but found 0x%x.\n",
 		info->id, id);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 struct xrs700x *xrs700x_switch_alloc(struct device *base, void *devpriv)
@@ -780,7 +780,7 @@ static int xrs700x_alloc_port_mib(struct xrs700x *priv, int port)
 	p->mib_data = devm_kcalloc(priv->dev, ARRAY_SIZE(xrs700x_mibs),
 				   sizeof(*p->mib_data), GFP_KERNEL);
 	if (!p->mib_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&p->mib_mutex);
 	u64_stats_init(&p->syncp);
@@ -804,7 +804,7 @@ int xrs700x_switch_register(struct xrs700x *priv)
 	priv->ports = devm_kcalloc(priv->dev, priv->ds->num_ports,
 				   sizeof(*priv->ports), GFP_KERNEL);
 	if (!priv->ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < priv->ds->num_ports; i++) {
 		ret = xrs700x_alloc_port_mib(priv, i);

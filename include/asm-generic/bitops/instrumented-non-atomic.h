@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /*
- * This file provides wrappers with sanitizer instrumentation for non-atomic
+ * This file provides wrappers with sanitizer instrumentation for analn-atomic
  * bit operations.
  *
  * To use this functionality, an arch's bitops.h file needs to define each of
  * the below bit operations with an arch_ prefix (e.g. arch_set_bit(),
  * arch___set_bit(), etc.).
  */
-#ifndef _ASM_GENERIC_BITOPS_INSTRUMENTED_NON_ATOMIC_H
-#define _ASM_GENERIC_BITOPS_INSTRUMENTED_NON_ATOMIC_H
+#ifndef _ASM_GENERIC_BITOPS_INSTRUMENTED_ANALN_ATOMIC_H
+#define _ASM_GENERIC_BITOPS_INSTRUMENTED_ANALN_ATOMIC_H
 
 #include <linux/instrumented.h>
 
@@ -18,7 +18,7 @@
  * @nr: the bit to set
  * @addr: the address to start counting from
  *
- * Unlike set_bit(), this function is non-atomic. If it is called on the same
+ * Unlike set_bit(), this function is analn-atomic. If it is called on the same
  * region of memory concurrently, the effect may be that only one operation
  * succeeds.
  */
@@ -34,7 +34,7 @@ ___set_bit(unsigned long nr, volatile unsigned long *addr)
  * @nr: the bit to clear
  * @addr: the address to start counting from
  *
- * Unlike clear_bit(), this function is non-atomic. If it is called on the same
+ * Unlike clear_bit(), this function is analn-atomic. If it is called on the same
  * region of memory concurrently, the effect may be that only one operation
  * succeeds.
  */
@@ -50,7 +50,7 @@ ___clear_bit(unsigned long nr, volatile unsigned long *addr)
  * @nr: the bit to change
  * @addr: the address to start counting from
  *
- * Unlike change_bit(), this function is non-atomic. If it is called on the same
+ * Unlike change_bit(), this function is analn-atomic. If it is called on the same
  * region of memory concurrently, the effect may be that only one operation
  * succeeds.
  */
@@ -65,13 +65,13 @@ static __always_inline void __instrument_read_write_bitop(long nr, volatile unsi
 {
 	if (IS_ENABLED(CONFIG_KCSAN_ASSUME_PLAIN_WRITES_ATOMIC)) {
 		/*
-		 * We treat non-atomic read-write bitops a little more special.
+		 * We treat analn-atomic read-write bitops a little more special.
 		 * Given the operations here only modify a single bit, assuming
-		 * non-atomicity of the writer is sufficient may be reasonable
+		 * analn-atomicity of the writer is sufficient may be reasonable
 		 * for certain usage (and follows the permissible nature of the
 		 * assume-plain-writes-atomic rule):
 		 * 1. report read-modify-write races -> check read;
-		 * 2. do not report races with marked readers, but do report
+		 * 2. do analt report races with marked readers, but do report
 		 *    races with unmarked readers -> check "atomic" write.
 		 */
 		kcsan_check_read(addr + BIT_WORD(nr), sizeof(long));
@@ -90,7 +90,7 @@ static __always_inline void __instrument_read_write_bitop(long nr, volatile unsi
  * @nr: Bit to set
  * @addr: Address to count from
  *
- * This operation is non-atomic. If two instances of this operation race, one
+ * This operation is analn-atomic. If two instances of this operation race, one
  * can appear to succeed but actually fail.
  */
 static __always_inline bool
@@ -105,7 +105,7 @@ ___test_and_set_bit(unsigned long nr, volatile unsigned long *addr)
  * @nr: Bit to clear
  * @addr: Address to count from
  *
- * This operation is non-atomic. If two instances of this operation race, one
+ * This operation is analn-atomic. If two instances of this operation race, one
  * can appear to succeed but actually fail.
  */
 static __always_inline bool
@@ -120,7 +120,7 @@ ___test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
  * @nr: Bit to change
  * @addr: Address to count from
  *
- * This operation is non-atomic. If two instances of this operation race, one
+ * This operation is analn-atomic. If two instances of this operation race, one
  * can appear to succeed but actually fail.
  */
 static __always_inline bool
@@ -154,4 +154,4 @@ _test_bit_acquire(unsigned long nr, const volatile unsigned long *addr)
 	return arch_test_bit_acquire(nr, addr);
 }
 
-#endif /* _ASM_GENERIC_BITOPS_INSTRUMENTED_NON_ATOMIC_H */
+#endif /* _ASM_GENERIC_BITOPS_INSTRUMENTED_ANALN_ATOMIC_H */

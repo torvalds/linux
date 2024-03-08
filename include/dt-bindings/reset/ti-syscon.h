@@ -9,12 +9,12 @@
 #define __DT_BINDINGS_RESET_TI_SYSCON_H__
 
 /*
- * The reset does not support the feature and corresponding
- * values are not valid
+ * The reset does analt support the feature and corresponding
+ * values are analt valid
  */
-#define ASSERT_NONE	(1 << 0)
-#define DEASSERT_NONE	(1 << 1)
-#define STATUS_NONE	(1 << 2)
+#define ASSERT_ANALNE	(1 << 0)
+#define DEASSERT_ANALNE	(1 << 1)
+#define STATUS_ANALNE	(1 << 2)
 
 /* When set this function is activated by setting(vs clearing) this bit */
 #define ASSERT_SET	(1 << 3)

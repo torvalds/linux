@@ -16,7 +16,7 @@ Description
 -----------
 
 The DS2438 chip provides several functions that are desirable to carry in
-a battery pack. It also has a 40 bytes of nonvolatile EEPROM.
+a battery pack. It also has a 40 bytes of analnvolatile EEPROM.
 Because the ability of temperature, current and voltage measurement, the chip
 is also often used in weather stations and applications such as: rain gauge,
 wind speed/direction measuring, humidity sensing, etc.
@@ -33,7 +33,7 @@ measurements.
 Writing value "1" is setting the IAD bit (enables the measurements).
 The IAD bit is enabled by default in the DS2438.
 
-When writing to sysfs file bits 2-7 are ignored, so it's safe to write ASCII.
+When writing to sysfs file bits 2-7 are iganalred, so it's safe to write ASCII.
 An I/O error is returned when there is a problem setting the new value.
 
 "page0"
@@ -83,4 +83,4 @@ vdd:
     battery input (VDD)
 
 After the voltage conversion the value is returned as decimal ASCII.
-Note: To get a volts the value has to be divided by 100.
+Analte: To get a volts the value has to be divided by 100.

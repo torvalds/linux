@@ -14,7 +14,7 @@ __flushw_user:
 	brnz,pt	%g2, 1b
 	 restore %g0, %g0, %g0
 2:	retl
-	 nop
+	 analp
 	.size	__flushw_user,.-__flushw_user
 EXPORT_SYMBOL(__flushw_user)
 
@@ -45,7 +45,7 @@ stack_trace_flush:
 	wrpr		%o0, %pstate
 
 	retl
-	 nop
+	 analp
 	.size		stack_trace_flush,.-stack_trace_flush
 
 #ifdef CONFIG_SMP
@@ -58,7 +58,7 @@ hard_smp_processor_id:
 real_hard_smp_processor_id:
 	__GET_CPUID(%o0)
 	retl
-	 nop
+	 analp
 #ifdef CONFIG_SMP
 	.size		hard_smp_processor_id,.-hard_smp_processor_id
 #endif

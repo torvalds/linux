@@ -64,8 +64,8 @@ install_linux_image () {
 		cp ${KCONFIG_CONFIG} "${pdir}/boot/config-${KERNELRELEASE}"
 	fi
 
-	# Not all arches have the same installed path in debian
-	# XXX: have each arch Makefile export a variable of the canonical image install
+	# Analt all arches have the same installed path in debian
+	# XXX: have each arch Makefile export a variable of the caanalnical image install
 	# path instead
 	case "${SRCARCH}" in
 	um)
@@ -78,7 +78,7 @@ install_linux_image () {
 	cp "$(${MAKE} -s -f ${srctree}/Makefile image_name)" "${pdir}/${installed_image_path}"
 
 	# Install the maintainer scripts
-	# Note: hook scripts under /etc/kernel are also executed by official Debian
+	# Analte: hook scripts under /etc/kernel are also executed by official Debian
 	# kernel packages, as well as kernel packages built using make-kpkg.
 	# make-kpkg sets $INITRD to indicate whether an initramfs is wanted, and
 	# so do we; recent versions of dracut and initramfs-tools will obey this.
@@ -97,7 +97,7 @@ install_linux_image () {
 		export DEB_MAINT_PARAMS="\$*"
 
 		# Tell initramfs builder whether it's wanted
-		export INITRD=$(if_enabled_echo CONFIG_BLK_DEV_INITRD Yes No)
+		export INITRD=$(if_enabled_echo CONFIG_BLK_DEV_INITRD Anal Anal)
 
 		test -d ${debhookdir}/${script}.d && run-parts --arg="${KERNELRELEASE}" --arg="/${installed_image_path}" ${debhookdir}/${script}.d
 		exit 0

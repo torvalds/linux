@@ -10,8 +10,8 @@
 #include <os.h>
 #include <irq_kern.h>
 
-#ifdef CONFIG_NOCONFIG_CHAN
-static void *not_configged_init(char *str, int device,
+#ifdef CONFIG_ANALCONFIG_CHAN
+static void *analt_configged_init(char *str, int device,
 				const struct chan_opts *opts)
 {
 	printk(KERN_ERR "Using a channel type which is configured out of "
@@ -19,67 +19,67 @@ static void *not_configged_init(char *str, int device,
 	return NULL;
 }
 
-static int not_configged_open(int input, int output, int primary, void *data,
+static int analt_configged_open(int input, int output, int primary, void *data,
 			      char **dev_out)
 {
 	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
-	return -ENODEV;
+	return -EANALDEV;
 }
 
-static void not_configged_close(int fd, void *data)
+static void analt_configged_close(int fd, void *data)
 {
 	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
 }
 
-static int not_configged_read(int fd, u8 *c_out, void *data)
-{
-	printk(KERN_ERR "Using a channel type which is configured out of "
-	       "UML\n");
-	return -EIO;
-}
-
-static int not_configged_write(int fd, const u8 *buf, size_t len, void *data)
+static int analt_configged_read(int fd, u8 *c_out, void *data)
 {
 	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
 	return -EIO;
 }
 
-static int not_configged_console_write(int fd, const char *buf, int len)
+static int analt_configged_write(int fd, const u8 *buf, size_t len, void *data)
 {
 	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
 	return -EIO;
 }
 
-static int not_configged_window_size(int fd, void *data, unsigned short *rows,
+static int analt_configged_console_write(int fd, const char *buf, int len)
+{
+	printk(KERN_ERR "Using a channel type which is configured out of "
+	       "UML\n");
+	return -EIO;
+}
+
+static int analt_configged_window_size(int fd, void *data, unsigned short *rows,
 				     unsigned short *cols)
 {
 	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
-	return -ENODEV;
+	return -EANALDEV;
 }
 
-static void not_configged_free(void *data)
+static void analt_configged_free(void *data)
 {
 	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
 }
 
-static const struct chan_ops not_configged_ops = {
-	.init		= not_configged_init,
-	.open		= not_configged_open,
-	.close		= not_configged_close,
-	.read		= not_configged_read,
-	.write		= not_configged_write,
-	.console_write	= not_configged_console_write,
-	.window_size	= not_configged_window_size,
-	.free		= not_configged_free,
+static const struct chan_ops analt_configged_ops = {
+	.init		= analt_configged_init,
+	.open		= analt_configged_open,
+	.close		= analt_configged_close,
+	.read		= analt_configged_read,
+	.write		= analt_configged_write,
+	.console_write	= analt_configged_console_write,
+	.window_size	= analt_configged_window_size,
+	.free		= analt_configged_free,
 	.winch		= 0,
 };
-#endif /* CONFIG_NOCONFIG_CHAN */
+#endif /* CONFIG_ANALCONFIG_CHAN */
 
 static int open_one_chan(struct chan *chan)
 {
@@ -319,7 +319,7 @@ static void free_one_chan(struct chan *chan)
 		(*chan->ops->free)(chan->data);
 
 	if (chan->primary && chan->output)
-		ignore_sigio_fd(chan->fd);
+		iganalre_sigio_fd(chan->fd);
 	kfree(chan);
 }
 
@@ -340,7 +340,7 @@ static int one_chan_config_string(struct chan *chan, char *str, int size,
 	int n = 0;
 
 	if (chan == NULL) {
-		CONFIG_CHUNK(str, size, n, "none", 1);
+		CONFIG_CHUNK(str, size, n, "analne", 1);
 		return n;
 	}
 
@@ -404,33 +404,33 @@ static const struct chan_type chan_table[] = {
 #ifdef CONFIG_NULL_CHAN
 	{ "null", &null_ops },
 #else
-	{ "null", &not_configged_ops },
+	{ "null", &analt_configged_ops },
 #endif
 
 #ifdef CONFIG_PORT_CHAN
 	{ "port", &port_ops },
 #else
-	{ "port", &not_configged_ops },
+	{ "port", &analt_configged_ops },
 #endif
 
 #ifdef CONFIG_PTY_CHAN
 	{ "pty", &pty_ops },
 	{ "pts", &pts_ops },
 #else
-	{ "pty", &not_configged_ops },
-	{ "pts", &not_configged_ops },
+	{ "pty", &analt_configged_ops },
+	{ "pts", &analt_configged_ops },
 #endif
 
 #ifdef CONFIG_TTY_CHAN
 	{ "tty", &tty_ops },
 #else
-	{ "tty", &not_configged_ops },
+	{ "tty", &analt_configged_ops },
 #endif
 
 #ifdef CONFIG_XTERM_CHAN
 	{ "xterm", &xterm_ops },
 #else
-	{ "xterm", &not_configged_ops },
+	{ "xterm", &analt_configged_ops },
 #endif
 };
 
@@ -454,7 +454,7 @@ static struct chan *parse_chan(struct line *line, char *str, int device,
 		}
 	}
 	if (ops == NULL) {
-		*error_out = "No match for configured backends";
+		*error_out = "Anal match for configured backends";
 		return NULL;
 	}
 
@@ -551,7 +551,7 @@ void chan_interrupt(struct line *line, int irq)
 		}
 		err = chan->ops->read(chan->fd, &c, chan->data);
 		if (err > 0)
-			tty_insert_flip_char(port, c, TTY_NORMAL);
+			tty_insert_flip_char(port, c, TTY_ANALRMAL);
 	} while (err > 0);
 
 	if (err == -EIO) {

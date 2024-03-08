@@ -10,7 +10,7 @@ static const char * const cpumask_success_testcases[] = {
 	"test_set_clear_cpu",
 	"test_setall_clear_cpu",
 	"test_first_firstzero_cpu",
-	"test_firstand_nocpu",
+	"test_firstand_analcpu",
 	"test_test_and_set_clear",
 	"test_and_or_xor",
 	"test_intersects_subset",

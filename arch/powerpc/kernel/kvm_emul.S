@@ -72,11 +72,11 @@ kvm_emulate_mtmsrd_reg:
 	/* Check if we have to fetch an interrupt */
 	lwz	r31, (KVM_MAGIC_PAGE + KVM_MAGIC_INT)(0)
 	cmpwi	r31, 0
-	beq+	no_check
+	beq+	anal_check
 
 	/* Check if we may trigger an interrupt */
 	andi.	r30, r30, MSR_EE
-	beq	no_check
+	beq	anal_check
 
 	SCRATCH_RESTORE
 
@@ -86,7 +86,7 @@ kvm_emulate_mtmsrd_orig_ins:
 
 	b	kvm_emulate_mtmsrd_branch
 
-no_check:
+anal_check:
 
 	SCRATCH_RESTORE
 
@@ -132,7 +132,7 @@ kvm_emulate_mtmsr_reg1:
 	LOAD_REG_IMMEDIATE(r30, MSR_CRITICAL_BITS)
 	and.	r31, r31, r30
 
-	/* No critical bits changed? Maybe we can stay in the guest. */
+	/* Anal critical bits changed? Maybe we can stay in the guest. */
 	beq	maybe_stay_in_guest
 
 do_mtmsr:
@@ -157,13 +157,13 @@ kvm_emulate_mtmsr_reg2:
 	/* Check if we have to fetch an interrupt */
 	lwz	r31, (KVM_MAGIC_PAGE + KVM_MAGIC_INT)(0)
 	cmpwi	r31, 0
-	beq+	no_mtmsr
+	beq+	anal_mtmsr
 
 	/* Check if we may trigger an interrupt */
 	andi.	r31, r30, MSR_EE
 	bne	do_mtmsr
 
-no_mtmsr:
+anal_mtmsr:
 
 	SCRATCH_RESTORE
 
@@ -209,7 +209,7 @@ kvm_emulate_wrtee_reg:
 	rlwimi	r31, r30, 0, MSR_EE
 
 	/*
-	 * If MSR[EE] is now set, check for a pending interrupt.
+	 * If MSR[EE] is analw set, check for a pending interrupt.
 	 * We could skip this if MSR[EE] was already on, but that
 	 * should be rare, so don't bother.
 	 */
@@ -218,14 +218,14 @@ kvm_emulate_wrtee_reg:
 	/* Put MSR into magic page because we don't call wrtee */
 	STL64(r31, KVM_MAGIC_PAGE + KVM_MAGIC_MSR, 0)
 
-	beq	no_wrtee
+	beq	anal_wrtee
 
 	/* Check if we have to fetch an interrupt */
 	lwz	r30, (KVM_MAGIC_PAGE + KVM_MAGIC_INT)(0)
 	cmpwi	r30, 0
 	bne	do_wrtee
 
-no_wrtee:
+anal_wrtee:
 	SCRATCH_RESTORE
 
 	/* Go back to caller */
@@ -303,7 +303,7 @@ kvm_emulate_mtsrin:
 	SCRATCH_RESTORE
 
 kvm_emulate_mtsrin_orig_ins:
-	nop
+	analp
 	b	kvm_emulate_mtsrin_branch
 
 kvm_emulate_mtsrin_reg1:

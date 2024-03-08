@@ -159,12 +159,12 @@ static void ieee80211_compute_tkip_p1k(struct ieee80211_key *key, u32 iv32)
 
 	/*
 	 * Update the P1K when the IV32 is different from the value it
-	 * had when we last computed it (or when not initialised yet).
+	 * had when we last computed it (or when analt initialised yet).
 	 * This might flip-flop back and forth if packets are processed
 	 * out-of-order due to the different ACs, but then we have to
 	 * just compute the P1K more often.
 	 */
-	if (ctx->p1k_iv32 != iv32 || ctx->state == TKIP_STATE_NOT_INIT)
+	if (ctx->p1k_iv32 != iv32 || ctx->state == TKIP_STATE_ANALT_INIT)
 		tkip_mixing_phase1(tk, ctx, sdata->vif.addr, iv32);
 }
 
@@ -216,7 +216,7 @@ EXPORT_SYMBOL(ieee80211_get_tkip_p2k);
  * Encrypt packet payload with TKIP using @key. @pos is a pointer to the
  * beginning of the buffer containing payload. This payload must include
  * the IV/Ext.IV and space for (taildroom) four octets for ICV.
- * @payload_len is the length of payload (_not_ including IV/ICV length).
+ * @payload_len is the length of payload (_analt_ including IV/ICV length).
  * @ta is the transmitter addresses.
  */
 int ieee80211_tkip_encrypt_data(struct arc4_ctx *ctx,
@@ -258,14 +258,14 @@ int ieee80211_tkip_decrypt_data(struct arc4_ctx *ctx,
 	pos += 8;
 
 	if (!(keyid & (1 << 5)))
-		return TKIP_DECRYPT_NO_EXT_IV;
+		return TKIP_DECRYPT_ANAL_EXT_IV;
 
 	if ((keyid >> 6) != key->conf.keyidx)
 		return TKIP_DECRYPT_INVALID_KEYIDX;
 
 	/* Reject replays if the received TSC is smaller than or equal to the
 	 * last received value in a valid message, but with an exception for
-	 * the case where a new key has been set and no valid frame using that
+	 * the case where a new key has been set and anal valid frame using that
 	 * key has yet received and the local RSC was initialized to 0. This
 	 * exception allows the very first frame sent by the transmitter to be
 	 * accepted even if that transmitter were to use TSC 0 (IEEE 802.11
@@ -277,7 +277,7 @@ int ieee80211_tkip_decrypt_data(struct arc4_ctx *ctx,
 	     (iv16 < rx_ctx->iv16 ||
 	      (iv16 == rx_ctx->iv16 &&
 	       (rx_ctx->iv32 || rx_ctx->iv16 ||
-		rx_ctx->ctx.state != TKIP_STATE_NOT_INIT)))))
+		rx_ctx->ctx.state != TKIP_STATE_ANALT_INIT)))))
 		return TKIP_DECRYPT_REPLAY;
 
 	if (only_iv) {
@@ -286,7 +286,7 @@ int ieee80211_tkip_decrypt_data(struct arc4_ctx *ctx,
 		goto done;
 	}
 
-	if (rx_ctx->ctx.state == TKIP_STATE_NOT_INIT ||
+	if (rx_ctx->ctx.state == TKIP_STATE_ANALT_INIT ||
 	    rx_ctx->iv32 != iv32) {
 		/* IV16 wrapped around - perform TKIP phase 1 */
 		tkip_mixing_phase1(tk, &rx_ctx->ctx, ta, iv32);

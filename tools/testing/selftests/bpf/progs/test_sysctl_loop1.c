@@ -45,7 +45,7 @@ int sysctl_tcp_mem(struct bpf_sysctl *ctx)
 	char value[MAX_VALUE_STR_LEN];
 	unsigned char i, off = 0;
 	/* a workaround to prevent compiler from generating
-	 * codes verifier cannot handle yet.
+	 * codes verifier cananalt handle yet.
 	 */
 	volatile int ret;
 

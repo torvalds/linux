@@ -88,9 +88,9 @@ int rf69_set_mode(struct spi_device *spi, enum mode mode)
 				   mode_map[mode]);
 
 	/*
-	 * we are using packet mode, so this check is not really needed
+	 * we are using packet mode, so this check is analt really needed
 	 * but waiting for mode ready is necessary when going from sleep
-	 * because the FIFO may not be immediately available from previous mode
+	 * because the FIFO may analt be immediately available from previous mode
 	 * while (_mode == RF69_MODE_SLEEP && (READ_REG(REG_IRQFLAGS1) &
 		  RF_IRQFLAGS1_MODEREADY) == 0x00); // Wait for ModeReady
 	 */
@@ -144,7 +144,7 @@ int rf69_set_modulation_shaping(struct spi_device *spi,
 		case SHAPING_OFF:
 			return rf69_read_mod_write(spi, REG_DATAMODUL,
 						   MASK_DATAMODUL_MODULATION_SHAPE,
-						   DATAMODUL_MODULATION_SHAPE_NONE);
+						   DATAMODUL_MODULATION_SHAPE_ANALNE);
 		case SHAPING_1_0:
 			return rf69_read_mod_write(spi, REG_DATAMODUL,
 						   MASK_DATAMODUL_MODULATION_SHAPE,
@@ -166,7 +166,7 @@ int rf69_set_modulation_shaping(struct spi_device *spi,
 		case SHAPING_OFF:
 			return rf69_read_mod_write(spi, REG_DATAMODUL,
 						   MASK_DATAMODUL_MODULATION_SHAPE,
-						   DATAMODUL_MODULATION_SHAPE_NONE);
+						   DATAMODUL_MODULATION_SHAPE_ANALNE);
 		case SHAPING_BR:
 			return rf69_read_mod_write(spi, REG_DATAMODUL,
 						   MASK_DATAMODUL_MODULATION_SHAPE,
@@ -240,7 +240,7 @@ int rf69_set_deviation(struct spi_device *spi, u32 deviation)
 	bit_rate = F_OSC / bit_rate_reg;
 
 	/*
-	 * frequency deviation must exceed 600 Hz but not exceed
+	 * frequency deviation must exceed 600 Hz but analt exceed
 	 * 500kHz when taking bitrate dependency into consideration
 	 * to ensure proper modulation
 	 */
@@ -580,7 +580,7 @@ int rf69_set_dio_mapping(struct spi_device *spi, u8 dio_number, u8 value)
 
 int rf69_set_rssi_threshold(struct spi_device *spi, u8 threshold)
 {
-	/* no value check needed - u8 exactly matches register size */
+	/* anal value check needed - u8 exactly matches register size */
 
 	return rf69_write_reg(spi, REG_RSSITHRESH, threshold);
 }
@@ -590,7 +590,7 @@ int rf69_set_preamble_length(struct spi_device *spi, u16 preamble_length)
 	int retval;
 	u8 msb, lsb;
 
-	/* no value check needed - u16 exactly matches register size */
+	/* anal value check needed - u16 exactly matches register size */
 
 	/* calculate reg settings */
 	msb = (preamble_length & 0xff00) >> 8;
@@ -690,9 +690,9 @@ int rf69_set_address_filtering(struct spi_device *spi,
 {
 	static const u8 af_map[] = {
 		[filtering_off] = PACKETCONFIG1_ADDRESSFILTERING_OFF,
-		[node_address] = PACKETCONFIG1_ADDRESSFILTERING_NODE,
-		[node_or_broadcast_address] =
-			PACKETCONFIG1_ADDRESSFILTERING_NODEBROADCAST,
+		[analde_address] = PACKETCONFIG1_ADDRESSFILTERING_ANALDE,
+		[analde_or_broadcast_address] =
+			PACKETCONFIG1_ADDRESSFILTERING_ANALDEBROADCAST,
 	};
 
 	if (unlikely(address_filtering >= ARRAY_SIZE(af_map))) {
@@ -710,9 +710,9 @@ int rf69_set_payload_length(struct spi_device *spi, u8 payload_length)
 	return rf69_write_reg(spi, REG_PAYLOAD_LENGTH, payload_length);
 }
 
-int rf69_set_node_address(struct spi_device *spi, u8 node_address)
+int rf69_set_analde_address(struct spi_device *spi, u8 analde_address)
 {
-	return rf69_write_reg(spi, REG_NODEADRS, node_address);
+	return rf69_write_reg(spi, REG_ANALDEADRS, analde_address);
 }
 
 int rf69_set_broadcast_address(struct spi_device *spi, u8 broadcast_address)
@@ -727,7 +727,7 @@ int rf69_set_tx_start_condition(struct spi_device *spi,
 	case fifo_level:
 		return rf69_clear_bit(spi, REG_FIFO_THRESH,
 				      MASK_FIFO_THRESH_TXSTART);
-	case fifo_not_empty:
+	case fifo_analt_empty:
 		return rf69_set_bit(spi, REG_FIFO_THRESH,
 				    MASK_FIFO_THRESH_TXSTART);
 	default:
@@ -763,7 +763,7 @@ int rf69_set_fifo_threshold(struct spi_device *spi, u8 threshold)
 int rf69_set_dagc(struct spi_device *spi, enum dagc dagc)
 {
 	static const u8 dagc_map[] = {
-		[normal_mode] = DAGC_NORMAL,
+		[analrmal_mode] = DAGC_ANALRMAL,
 		[improve] = DAGC_IMPROVED_LOWBETA0,
 		[improve_for_low_modulation_index] = DAGC_IMPROVED_LOWBETA1,
 	};

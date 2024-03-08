@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -31,7 +31,7 @@
  *
  */
 #include <linux/bug.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/spinlock.h>
 
 #include "usnic_log.h"
@@ -63,7 +63,7 @@ const char *usnic_ib_qp_grp_state_to_string(enum ib_qp_state state)
 	case IB_QPS_ERR:
 		return "ERR";
 	default:
-		return "UNKNOWN STATE";
+		return "UNKANALWN STATE";
 
 	}
 }
@@ -234,7 +234,7 @@ create_roce_custom_flow(struct usnic_ib_qp_grp *qp_grp,
 	/* Create Flow Handle */
 	qp_flow = kzalloc(sizeof(*qp_flow), GFP_ATOMIC);
 	if (!qp_flow) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_dealloc_flow;
 	}
 	qp_flow->flow = flow;
@@ -287,7 +287,7 @@ create_udp_flow(struct usnic_ib_qp_grp *qp_grp,
 		goto out_put_sock;
 
 	if (proto != IPPROTO_UDP) {
-		usnic_err("Protocol for fd %d is not UDP", sock_fd);
+		usnic_err("Protocol for fd %d is analt UDP", sock_fd);
 		err = -EPERM;
 		goto out_put_sock;
 	}
@@ -307,7 +307,7 @@ create_udp_flow(struct usnic_ib_qp_grp *qp_grp,
 	/* Create qp_flow */
 	qp_flow = kzalloc(sizeof(*qp_flow), GFP_ATOMIC);
 	if (!qp_flow) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_dealloc_flow;
 	}
 	qp_flow->flow = flow;
@@ -404,7 +404,7 @@ int usnic_ib_qp_grp_modify(struct usnic_ib_qp_grp *qp_grp,
 	case IB_QPS_RESET:
 		switch (old_state) {
 		case IB_QPS_RESET:
-			/* NO-OP */
+			/* ANAL-OP */
 			break;
 		case IB_QPS_INIT:
 			release_and_remove_all_flows(qp_grp);
@@ -475,7 +475,7 @@ int usnic_ib_qp_grp_modify(struct usnic_ib_qp_grp *qp_grp,
 	case IB_QPS_RTS:
 		switch (old_state) {
 		case IB_QPS_RTR:
-			/* NO-OP FOR NOW */
+			/* ANAL-OP FOR ANALW */
 			break;
 		default:
 			status = -EINVAL;
@@ -539,13 +539,13 @@ alloc_res_chunk_list(struct usnic_vnic *vnic,
 	for (res_lst_sz = 0;
 		res_spec->resources[res_lst_sz].type != USNIC_VNIC_RES_TYPE_EOL;
 		res_lst_sz++) {
-		/* Do Nothing */
+		/* Do Analthing */
 	}
 
 	res_chunk_list = kcalloc(res_lst_sz + 1, sizeof(*res_chunk_list),
 					GFP_ATOMIC);
 	if (!res_chunk_list)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; res_spec->resources[i].type != USNIC_VNIC_RES_TYPE_EOL;
 		i++) {
@@ -556,7 +556,7 @@ alloc_res_chunk_list(struct usnic_vnic *vnic,
 					res_cnt, owner_obj);
 		if (IS_ERR_OR_NULL(res_chunk_list[i])) {
 			err = res_chunk_list[i] ?
-					PTR_ERR(res_chunk_list[i]) : -ENOMEM;
+					PTR_ERR(res_chunk_list[i]) : -EANALMEM;
 			usnic_err("Failed to get %s from %s with err %d\n",
 				usnic_vnic_res_type_to_str(res_type),
 				usnic_vnic_pci_name(vnic),
@@ -679,7 +679,7 @@ int usnic_ib_qp_grp_create(struct usnic_ib_qp_grp *qp_grp,
 	err = usnic_vnic_res_spec_satisfied(&min_transport_spec[transport],
 						res_spec);
 	if (err) {
-		usnic_err("Spec does not meet minimum req for transport %d\n",
+		usnic_err("Spec does analt meet minimum req for transport %d\n",
 				transport);
 		log_spec(res_spec);
 		return err;
@@ -690,7 +690,7 @@ int usnic_ib_qp_grp_create(struct usnic_ib_qp_grp *qp_grp,
 	if (IS_ERR_OR_NULL(qp_grp->res_chunk_list))
 		return qp_grp->res_chunk_list ?
 				     PTR_ERR(qp_grp->res_chunk_list) :
-				     -ENOMEM;
+				     -EANALMEM;
 
 	err = qp_grp_and_vf_bind(vf, pd, qp_grp);
 	if (err)

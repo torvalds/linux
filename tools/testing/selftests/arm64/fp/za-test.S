@@ -183,7 +183,7 @@ function terminate_handler
 	puts	"Terminated by signal "
 	mov	w0, w21
 	bl	putdec
-	puts	", no error, iterations="
+	puts	", anal error, iterations="
 	ldr	x0, [x20, #ucontext_regs + 8 * 22]
 	bl	putdec
 	puts	", signals="
@@ -246,13 +246,13 @@ function _start
 	mov	w0, #SIGUSR1
 	adr	x1, irritator_handler
 	mov	w2, #SA_SIGINFO
-	orr	w2, w2, #SA_NODEFER
+	orr	w2, w2, #SA_ANALDEFER
 	bl	setsignal
 
 	mov	w0, #SIGUSR2
 	adr	x1, tickle_handler
 	mov	w2, #SA_SIGINFO
-	orr	w2, w2, #SA_NODEFER
+	orr	w2, w2, #SA_ANALDEFER
 	bl	setsignal
 
 	puts	"Streaming mode "

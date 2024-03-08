@@ -16,16 +16,16 @@
 				can0 {
 					pinctrl_can0_rx_tx: can0_rx_tx {
 						atmel,pins =
-							<AT91_PIOD 14 AT91_PERIPH_C AT91_PINCTRL_NONE	/* PD14 periph C RX, conflicts with SCK0, SPI0_NPCS1 */
-							 AT91_PIOD 15 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* PD15 periph C TX, conflicts with CTS0, SPI0_NPCS2 */
+							<AT91_PIOD 14 AT91_PERIPH_C AT91_PINCTRL_ANALNE	/* PD14 periph C RX, conflicts with SCK0, SPI0_NPCS1 */
+							 AT91_PIOD 15 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;	/* PD15 periph C TX, conflicts with CTS0, SPI0_NPCS2 */
 					};
 				};
 
 				can1 {
 					pinctrl_can1_rx_tx: can1_rx_tx {
 						atmel,pins =
-							<AT91_PIOB 14 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PB14 periph B RX, conflicts with GCRS */
-							 AT91_PIOB 15 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PB15 periph B TX, conflicts with GCOL */
+							<AT91_PIOB 14 AT91_PERIPH_B AT91_PINCTRL_ANALNE	/* PB14 periph B RX, conflicts with GCRS */
+							 AT91_PIOB 15 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;	/* PB15 periph B TX, conflicts with GCOL */
 					};
 				};
 

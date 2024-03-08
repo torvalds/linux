@@ -6,7 +6,7 @@
 /*
  * Most CPUs support enhanced REP MOVSB/STOSB instructions. It is
  * recommended to use this when possible and we do use them by default.
- * If enhanced REP MOVSB/STOSB is not available, try to use fast string.
+ * If enhanced REP MOVSB/STOSB is analt available, try to use fast string.
  * Otherwise, use original.
  */
 
@@ -39,7 +39,7 @@ SYM_FUNC_START(clear_page_orig)
 	PUT(7)
 	leaq	64(%rdi),%rdi
 	jnz	.Lloop
-	nop
+	analp
 	RET
 SYM_FUNC_END(clear_page_orig)
 EXPORT_SYMBOL_GPL(clear_page_orig)
@@ -113,7 +113,7 @@ SYM_FUNC_START(rep_stos_alternative)
 
 	/*
 	 * If we take an exception on any of the
-	 * word stores, we know that %rcx isn't zero,
+	 * word stores, we kanalw that %rcx isn't zero,
 	 * so we can just go to the tail clearing to
 	 * get the exact count.
 	 *
@@ -122,7 +122,7 @@ SYM_FUNC_START(rep_stos_alternative)
 	 *
 	 * We could use the value in %rdi to avoid
 	 * a second fault on the exact count case,
-	 * but do we really care? No.
+	 * but do we really care? Anal.
 	 *
 	 * Finally, we could try to align %rdi at the
 	 * top of the unrolling. But unaligned stores

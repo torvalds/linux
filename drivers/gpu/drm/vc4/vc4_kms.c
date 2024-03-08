@@ -104,7 +104,7 @@ static int vc4_ctm_obj_init(struct vc4_dev *vc4)
 
 	ctm_state = kzalloc(sizeof(*ctm_state), GFP_KERNEL);
 	if (!ctm_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_atomic_private_obj_init(&vc4->base, &vc4->ctm_manager, &ctm_state->base,
 				    &vc4_ctm_state_funcs);
@@ -462,7 +462,7 @@ static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
 	struct drm_mode_fb_cmd2 mode_cmd_local;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	/* If the user didn't specify a modifier, use the
 	 * vc4_set_tiling_ioctl() state for the BO.
@@ -476,7 +476,7 @@ static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
 		if (!gem_obj) {
 			DRM_DEBUG("Failed to look up GEM BO %d\n",
 				  mode_cmd->handles[0]);
-			return ERR_PTR(-ENOENT);
+			return ERR_PTR(-EANALENT);
 		}
 		bo = to_vc4_bo(gem_obj);
 
@@ -486,7 +486,7 @@ static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
 			mode_cmd_local.modifier[0] =
 				DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED;
 		} else {
-			mode_cmd_local.modifier[0] = DRM_FORMAT_MOD_NONE;
+			mode_cmd_local.modifier[0] = DRM_FORMAT_MOD_ANALNE;
 		}
 
 		drm_gem_object_put(gem_obj);
@@ -499,7 +499,7 @@ static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
 
 /* Our CTM has some peculiar limitations: we can only enable it for one CRTC
  * at a time and the HW only supports S0.9 scalars. To account for the latter,
- * we don't allow userland to set a CTM that we have no hope of approximating.
+ * we don't allow userland to set a CTM that we have anal hope of approximating.
  */
 static int
 vc4_ctm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
@@ -549,7 +549,7 @@ vc4_ctm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 
 			/* Check we can approximate the specified CTM.
 			 * We disallow scalars |c| > 1.0 since the HW has
-			 * no integer bits.
+			 * anal integer bits.
 			 */
 			ctm = new_crtc_state->ctm->data;
 			for (i = 0; i < ARRAY_SIZE(ctm->matrix); i++) {
@@ -608,13 +608,13 @@ static int vc4_load_tracker_atomic_check(struct drm_atomic_state *state)
 	 * the system work when other blocks are accessing the memory.
 	 */
 	if (load_state->membus_load > SZ_1G + SZ_512M)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* HVS clock is supposed to run @ 250Mhz, let's take a margin and
 	 * consider the maximum number of cycles is 240M.
 	 */
 	if (load_state->hvs_load > 240000000ULL)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	return 0;
 }
@@ -660,7 +660,7 @@ static int vc4_load_tracker_obj_init(struct vc4_dev *vc4)
 
 	load_state = kzalloc(sizeof(*load_state), GFP_KERNEL);
 	if (!load_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_atomic_private_obj_init(&vc4->base, &vc4->load_tracker,
 				    &load_state->base,
@@ -743,7 +743,7 @@ static int vc4_hvs_channels_obj_init(struct vc4_dev *vc4)
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_atomic_private_obj_init(&vc4->base, &vc4->hvs_channels,
 				    &state->base,
@@ -780,7 +780,7 @@ static int cmp_vc4_crtc_hvs_output(const void *a, const void *b)
  *   its mode using xrandr under X11) without affecting the other. In
  *   this case, the other CRTC wouldn't be in the state at all, so we
  *   need to consider all the running CRTCs in the DRM device to assign
- *   a FIFO, not just the one in the state.
+ *   a FIFO, analt just the one in the state.
  *
  * - To fix the above, we can't use drm_atomic_get_crtc_state on all
  *   enabled CRTCs to pull their CRTC state into the global state, since
@@ -837,7 +837,7 @@ static int vc4_pv_muxing_atomic_check(struct drm_device *dev,
 	 */
 	sorted_crtcs = kmalloc_array(dev->num_crtcs, sizeof(*sorted_crtcs), GFP_KERNEL);
 	if (!sorted_crtcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	drm_for_each_crtc(crtc, dev)
@@ -869,13 +869,13 @@ static int vc4_pv_muxing_atomic_check(struct drm_device *dev,
 
 		drm_dbg(dev, "%s: Trying to find a channel.\n", crtc->name);
 
-		/* Nothing to do here, let's skip it */
+		/* Analthing to do here, let's skip it */
 		if (old_crtc_state->enable == new_crtc_state->enable) {
 			if (new_crtc_state->enable)
 				drm_dbg(dev, "%s: Already enabled, reusing channel %d.\n",
 					crtc->name, new_vc4_crtc_state->assigned_channel);
 			else
-				drm_dbg(dev, "%s: Disabled, ignoring.\n", crtc->name);
+				drm_dbg(dev, "%s: Disabled, iganalring.\n", crtc->name);
 
 			continue;
 		}
@@ -1068,7 +1068,7 @@ int vc4_kms_load(struct drm_device *dev)
 	dev->mode_config.helper_private = &vc4_mode_config_helpers;
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.async_page_flip = true;
-	dev->mode_config.normalize_zpos = true;
+	dev->mode_config.analrmalize_zpos = true;
 
 	ret = vc4_ctm_obj_init(vc4);
 	if (ret)

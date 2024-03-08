@@ -87,7 +87,7 @@ static void bcm_vk_tty_wq_handler(struct work_struct *work)
 		/* Fetch the wr offset in buffer from VK */
 		wr = vkread32(vk, BAR_1, VK_BAR_CHAN_WR(vktty, from));
 
-		/* safe to ignore until bar read gives proper size */
+		/* safe to iganalre until bar read gives proper size */
 		if (vktty->from_size == 0)
 			continue;
 
@@ -109,7 +109,7 @@ static void bcm_vk_tty_wq_handler(struct work_struct *work)
 			vktty->rd++;
 			if (vktty->rd >= vktty->from_size)
 				vktty->rd = 0;
-			tty_insert_flip_char(&vktty->port, c, TTY_NORMAL);
+			tty_insert_flip_char(&vktty->port, c, TTY_ANALRMAL);
 			count++;
 		}
 
@@ -145,7 +145,7 @@ static int bcm_vk_tty_open(struct tty_struct *tty, struct file *file)
 	vktty->to_offset = TO_TTYK_BASE(index);
 	vktty->from_offset = FROM_TTYK_BASE(index);
 
-	/* Do not allow tty device to be opened if tty on card not ready */
+	/* Do analt allow tty device to be opened if tty on card analt ready */
 	card_status = vkread32(vk, BAR_0, BAR_CARD_STATUS);
 	if (BCM_VK_INTF_IS_DOWN(card_status) || ((card_status & BIT(index)) == 0))
 		return -EBUSY;
@@ -247,11 +247,11 @@ int bcm_vk_tty_init(struct bcm_vk *vk, char *name)
 	tty_drv->driver_name = KBUILD_MODNAME;
 	tty_drv->name = kstrdup(name, GFP_KERNEL);
 	if (!tty_drv->name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_tty_driver_kref_put;
 	}
 	tty_drv->type = TTY_DRIVER_TYPE_SERIAL;
-	tty_drv->subtype = SERIAL_TYPE_NORMAL;
+	tty_drv->subtype = SERIAL_TYPE_ANALRMAL;
 	tty_drv->init_termios = tty_std_termios;
 	tty_set_operations(tty_drv, &serial_ops);
 
@@ -280,7 +280,7 @@ int bcm_vk_tty_init(struct bcm_vk *vk, char *name)
 	vk->tty_wq_thread = create_singlethread_workqueue("tty");
 	if (!vk->tty_wq_thread) {
 		dev_err(dev, "Fail to create tty workqueue thread\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unwind;
 	}
 	return 0;

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -200,7 +200,7 @@ skip_tuning:
 	if (btcoex->duty_cycle > ATH_MCI_MAX_DUTY_CYCLE)
 		btcoex->duty_cycle = ATH_MCI_MAX_DUTY_CYCLE;
 
-	btcoex->btcoex_no_stomp =  btcoex->btcoex_period *
+	btcoex->btcoex_anal_stomp =  btcoex->btcoex_period *
 		(100 - btcoex->duty_cycle) / 100;
 
 	ath9k_hw_btcoex_enable(sc->sc_ah);
@@ -228,7 +228,7 @@ static void ath_mci_cal_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 					16, false, true);
 		break;
 	default:
-		ath_dbg(common, MCI, "Unknown GPM CAL message\n");
+		ath_dbg(common, MCI, "Unkanalwn GPM CAL message\n");
 		break;
 	}
 }
@@ -242,8 +242,8 @@ static void ath9k_mci_work(struct work_struct *work)
 
 static void ath_mci_update_stomp_txprio(u8 cur_txprio, u8 *stomp_prio)
 {
-	if (cur_txprio < stomp_prio[ATH_BTCOEX_STOMP_NONE])
-		stomp_prio[ATH_BTCOEX_STOMP_NONE] = cur_txprio;
+	if (cur_txprio < stomp_prio[ATH_BTCOEX_STOMP_ANALNE])
+		stomp_prio[ATH_BTCOEX_STOMP_ANALNE] = cur_txprio;
 
 	if (cur_txprio > stomp_prio[ATH_BTCOEX_STOMP_ALL])
 		stomp_prio[ATH_BTCOEX_STOMP_ALL] = cur_txprio;
@@ -263,7 +263,7 @@ static void ath_mci_set_concur_txprio(struct ath_softc *sc)
 	if (mci->num_mgmt) {
 		stomp_txprio[ATH_BTCOEX_STOMP_ALL] = ATH_MCI_INQUIRY_PRIO;
 		if (!mci->num_pan && !mci->num_other_acl)
-			stomp_txprio[ATH_BTCOEX_STOMP_NONE] =
+			stomp_txprio[ATH_BTCOEX_STOMP_ANALNE] =
 				ATH_MCI_INQUIRY_PRIO;
 	} else {
 		static const u8 prof_prio[] = {
@@ -271,7 +271,7 @@ static void ath_mci_set_concur_txprio(struct ath_softc *sc)
 		}; /* RFCOMM, A2DP, HID, PAN */
 
 		stomp_txprio[ATH_BTCOEX_STOMP_LOW] =
-		stomp_txprio[ATH_BTCOEX_STOMP_NONE] = 0xff;
+		stomp_txprio[ATH_BTCOEX_STOMP_ANALNE] = 0xff;
 
 		if (mci->num_sco)
 			ath_mci_update_stomp_txprio(mci->voice_priority,
@@ -285,8 +285,8 @@ static void ath_mci_set_concur_txprio(struct ath_softc *sc)
 		if (mci->num_pan)
 			ath_mci_update_stomp_txprio(prof_prio[3], stomp_txprio);
 
-		if (stomp_txprio[ATH_BTCOEX_STOMP_NONE] == 0xff)
-			stomp_txprio[ATH_BTCOEX_STOMP_NONE] = 0;
+		if (stomp_txprio[ATH_BTCOEX_STOMP_ANALNE] == 0xff)
+			stomp_txprio[ATH_BTCOEX_STOMP_ANALNE] = 0;
 
 		if (stomp_txprio[ATH_BTCOEX_STOMP_LOW] == 0xff)
 			stomp_txprio[ATH_BTCOEX_STOMP_LOW] = 0;
@@ -337,7 +337,7 @@ static u8 ath_mci_process_status(struct ath_softc *sc,
 	struct ath_mci_profile_info info;
 	int i = 0, old_num_mgmt = mci->num_mgmt;
 
-	/* Link status type are not handled */
+	/* Link status type are analt handled */
 	if (status->is_link)
 		return 0;
 
@@ -372,7 +372,7 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 	struct ath_mci_profile_info profile_info;
 	struct ath_mci_profile_status profile_status;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	u8 major, minor, update_scheme = 0;
+	u8 major, mianalr, update_scheme = 0;
 	u32 seq_num;
 
 	if (ar9003_mci_state(ah, MCI_STATE_NEED_FLUSH_BT_INFO) &&
@@ -388,8 +388,8 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 		break;
 	case MCI_GPM_COEX_VERSION_RESPONSE:
 		major = *(rx_payload + MCI_GPM_COEX_B_MAJOR_VERSION);
-		minor = *(rx_payload + MCI_GPM_COEX_B_MINOR_VERSION);
-		ar9003_mci_set_bt_version(ah, major, minor);
+		mianalr = *(rx_payload + MCI_GPM_COEX_B_MIANALR_VERSION);
+		ar9003_mci_set_bt_version(ah, major, mianalr);
 		break;
 	case MCI_GPM_COEX_STATUS_QUERY:
 		ar9003_mci_send_wlan_channels(ah);
@@ -398,7 +398,7 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 		memcpy(&profile_info,
 		       (rx_payload + MCI_GPM_COEX_B_PROFILE_TYPE), 10);
 
-		if ((profile_info.type == MCI_GPM_COEX_PROFILE_UNKNOWN) ||
+		if ((profile_info.type == MCI_GPM_COEX_PROFILE_UNKANALWN) ||
 		    (profile_info.type >= MCI_GPM_COEX_PROFILE_MAX)) {
 			ath_dbg(common, MCI,
 				"Illegal profile type = %d, state = %d\n",
@@ -426,7 +426,7 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 		update_scheme += ath_mci_process_status(sc, &profile_status);
 		break;
 	default:
-		ath_dbg(common, MCI, "Unknown GPM COEX message = 0x%02x\n", opcode);
+		ath_dbg(common, MCI, "Unkanalwn GPM COEX message = 0x%02x\n", opcode);
 		break;
 	}
 	if (update_scheme)
@@ -446,7 +446,7 @@ int ath_mci_setup(struct ath_softc *sc)
 
 	if (buf->bf_addr == NULL) {
 		ath_dbg(common, FATAL, "MCI buffer alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(buf->bf_addr, MCI_GPM_RSVD_PATTERN,
@@ -507,7 +507,7 @@ void ath_mci_intr(struct ath_softc *sc)
 
 		/*
 		 * The following REMOTE_RESET and SYS_WAKING used to sent
-		 * only when BT wake up. Now they are always sent, as a
+		 * only when BT wake up. Analw they are always sent, as a
 		 * recovery method to reset BT MCI's RX alignment.
 		 */
 		ar9003_mci_send_message(ah, MCI_REMOTE_RESET, 0,
@@ -626,7 +626,7 @@ void ath_mci_intr(struct ath_softc *sc)
 	    (mci_int & AR_MCI_INTERRUPT_CONT_INFO_TIMEOUT)) {
 		mci_int &= ~(AR_MCI_INTERRUPT_RX_INVALID_HDR |
 			     AR_MCI_INTERRUPT_CONT_INFO_TIMEOUT);
-		ath_mci_msg(sc, MCI_GPM_COEX_NOOP, NULL);
+		ath_mci_msg(sc, MCI_GPM_COEX_ANALOP, NULL);
 	}
 }
 

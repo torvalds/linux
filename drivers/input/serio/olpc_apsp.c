@@ -16,10 +16,10 @@
 #include <linux/delay.h>
 
 /*
- * The OLPC XO-1.75 and XO-4 laptops do not have a hardware PS/2 controller.
+ * The OLPC XO-1.75 and XO-4 laptops do analt have a hardware PS/2 controller.
  * Instead, the OLPC firmware runs a bit-banging PS/2 implementation on an
  * otherwise-unused slow processor which is included in the Marvell MMP2/MMP3
- * SoC, known as the "Security Processor" (SP) or "Wireless Trusted Module"
+ * SoC, kanalwn as the "Security Processor" (SP) or "Wireless Trusted Module"
  * (WTM). This firmware then reports its results via the WTM registers,
  * which we read from the Application Processor (AP, i.e. main CPU) in this
  * driver.
@@ -88,7 +88,7 @@ static int olpc_apsp_write(struct serio *port, unsigned char val)
 			       priv->base + SECURE_PROCESSOR_COMMAND);
 			return 0;
 		}
-		/* SP busy. This has not been seen in practice. */
+		/* SP busy. This has analt been seen in practice. */
 		mdelay(1);
 	}
 
@@ -105,13 +105,13 @@ static irqreturn_t olpc_apsp_rx(int irq, void *dev_id)
 	struct serio *serio;
 
 	/*
-	 * Write 1 to PJ_RST_INTERRUPT to acknowledge and clear the interrupt
+	 * Write 1 to PJ_RST_INTERRUPT to ackanalwledge and clear the interrupt
 	 * Write 0xff00 to SECURE_PROCESSOR_COMMAND.
 	 */
 	tmp = readl(priv->base + PJ_RST_INTERRUPT);
 	if (!(tmp & SP_COMMAND_COMPLETE_RESET)) {
 		dev_warn(priv->dev, "spurious interrupt?\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	w = readl(priv->base + COMMAND_RETURN_STATUS);
@@ -141,7 +141,7 @@ static int olpc_apsp_open(struct serio *port)
 	if (priv->open_count++ == 0) {
 		l = readl(priv->base + COMMAND_FIFO_STATUS);
 		if (!(l & CMD_STS_MASK)) {
-			dev_err(priv->dev, "SP cannot accept commands.\n");
+			dev_err(priv->dev, "SP cananalt accept commands.\n");
 			return -EIO;
 		}
 
@@ -173,7 +173,7 @@ static int olpc_apsp_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct olpc_apsp), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 
@@ -190,7 +190,7 @@ static int olpc_apsp_probe(struct platform_device *pdev)
 	/* KEYBOARD */
 	kb_serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!kb_serio)
-		return -ENOMEM;
+		return -EANALMEM;
 	kb_serio->id.type	= SERIO_8042_XL;
 	kb_serio->write		= olpc_apsp_write;
 	kb_serio->open		= olpc_apsp_open;
@@ -205,7 +205,7 @@ static int olpc_apsp_probe(struct platform_device *pdev)
 	/* TOUCHPAD */
 	pad_serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!pad_serio) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_pad;
 	}
 	pad_serio->id.type	= SERIO_8042;

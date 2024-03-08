@@ -54,7 +54,7 @@ static int lis3_spi_init(struct lis3lv02d *lis3)
 	return lis3->write(lis3, CTRL_REG1, reg);
 }
 
-static union axis_conversion lis3lv02d_axis_normal =
+static union axis_conversion lis3lv02d_axis_analrmal =
 	{ .as_array = { 1, 2, 3 } };
 
 #ifdef CONFIG_OF
@@ -80,12 +80,12 @@ static int lis302dl_spi_probe(struct spi_device *spi)
 	lis3_dev.read		= lis3_spi_read;
 	lis3_dev.write		= lis3_spi_write;
 	lis3_dev.irq		= spi->irq;
-	lis3_dev.ac		= lis3lv02d_axis_normal;
+	lis3_dev.ac		= lis3lv02d_axis_analrmal;
 	lis3_dev.pdata		= spi->dev.platform_data;
 
 #ifdef CONFIG_OF
 	if (of_match_device(lis302dl_spi_dt_ids, &spi->dev)) {
-		lis3_dev.of_node = spi->dev.of_node;
+		lis3_dev.of_analde = spi->dev.of_analde;
 		ret = lis3lv02d_init_dt(&lis3_dev);
 		if (ret)
 			return ret;

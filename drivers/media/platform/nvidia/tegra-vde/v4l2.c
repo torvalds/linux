@@ -117,7 +117,7 @@ static int tegra_buf_out_validate(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	return 0;
 }
 
@@ -345,7 +345,7 @@ static int tegra_queue_init(void *priv,
 	/*
 	 * TODO: Switch to use of vb2_dma_contig_memops uniformly once we
 	 * will add IOMMU_DOMAIN support for video decoder to tegra-smmu
-	 * driver. For now we need to stick with SG ops in order to be able
+	 * driver. For analw we need to stick with SG ops in order to be able
 	 * to get SGT table easily. This is suboptimal since SG mappings are
 	 * wasting CPU cache and we don't need that caching.
 	 */
@@ -378,10 +378,10 @@ static int tegra_queue_init(void *priv,
 
 	/*
 	 * We may need to zero the end of bitstream in kernel if userspace
-	 * doesn't do that, hence kmap is needed for the coded data. It's not
+	 * doesn't do that, hence kmap is needed for the coded data. It's analt
 	 * needed for framebuffers.
 	 */
-	dma_attrs |= DMA_ATTR_NO_KERNEL_MAPPING;
+	dma_attrs |= DMA_ATTR_ANAL_KERNEL_MAPPING;
 
 	dst_vq->buf_struct_size = sizeof(struct tegra_m2m_buffer);
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
@@ -409,7 +409,7 @@ static void tegra_reset_fmt(struct tegra_ctx *ctx, struct v4l2_format *f,
 {
 	memset(f, 0, sizeof(*f));
 	f->fmt.pix_mp.pixelformat = fourcc;
-	f->fmt.pix_mp.field = V4L2_FIELD_NONE;
+	f->fmt.pix_mp.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix_mp.xfer_func = V4L2_XFER_FUNC_DEFAULT;
 	f->fmt.pix_mp.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	f->fmt.pix_mp.colorspace = V4L2_COLORSPACE_REC709;
@@ -540,7 +540,7 @@ static int tegra_try_decoded_fmt(struct file *file, void *priv,
 
 	/*
 	 * The codec context should point to a coded format desc, if the format
-	 * on the coded end has not been set yet, it should point to the
+	 * on the coded end has analt been set yet, it should point to the
 	 * default value.
 	 */
 	coded_desc = ctx->coded_fmt_desc;
@@ -565,7 +565,7 @@ static int tegra_try_decoded_fmt(struct file *file, void *priv,
 
 	tegra_fill_pixfmt_mp(pix_mp, pix_mp->pixelformat,
 			     pix_mp->width, pix_mp->height);
-	pix_mp->field = V4L2_FIELD_NONE;
+	pix_mp->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -577,7 +577,7 @@ static int tegra_s_decoded_fmt(struct file *file, void *priv,
 	struct vb2_queue *vq;
 	int err;
 
-	/* change not allowed if queue is busy */
+	/* change analt allowed if queue is busy */
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
 			     V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
 	if (vb2_is_busy(vq))
@@ -649,7 +649,7 @@ static int tegra_try_coded_fmt(struct file *file, void *priv,
 				       &desc->frmsize);
 
 	pix_mp->plane_fmt[0].sizeimage = max(ALIGN(size, SXE_BUFFER), SZ_2M);
-	pix_mp->field = V4L2_FIELD_NONE;
+	pix_mp->field = V4L2_FIELD_ANALNE;
 	pix_mp->num_planes = 1;
 
 	return 0;
@@ -703,7 +703,7 @@ static int tegra_s_coded_fmt(struct file *file, void *priv,
 	 * the decoded format again after we return, so we don't need
 	 * anything smarter.
 	 *
-	 * Note that this will propagates any size changes to the decoded format.
+	 * Analte that this will propagates any size changes to the decoded format.
 	 */
 	tegra_reset_decoded_fmt(ctx);
 
@@ -816,7 +816,7 @@ static int tegra_open(struct file *file)
 	ctx = kzalloc(struct_size(ctx, ctrls, ARRAY_SIZE(ctrl_cfgs)),
 		      GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->vde = vde;
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
@@ -908,7 +908,7 @@ static int tegra_request_validate(struct media_request *req)
 
 	count = vb2_request_buffer_cnt(req);
 	if (!count)
-		return -ENOENT;
+		return -EANALENT;
 	else if (count > 1)
 		return -EINVAL;
 
@@ -948,7 +948,7 @@ int tegra_vde_v4l2_init(struct tegra_vde *vde)
 
 	vde->wq = create_workqueue("tegra-vde");
 	if (!vde->wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = media_device_register(&vde->mdev);
 	if (err) {

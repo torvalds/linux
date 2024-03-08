@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -51,7 +51,7 @@ int ipoib_mcast_attach(struct net_device *dev, struct ib_device *hca,
 	set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 
 	if (set_qkey) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		qp_attr = kmalloc(sizeof(*qp_attr), GFP_KERNEL);
 		if (!qp_attr)
 			goto out;
@@ -169,7 +169,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		else
 			size += ipoib_recvq_size * ipoib_max_conn_qp;
 	} else
-		if (ret != -EOPNOTSUPP)
+		if (ret != -EOPANALTSUPP)
 			return ret;
 
 	req_vec = atomic_inc_return(&counter) * 2;
@@ -191,7 +191,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		goto out_free_recv_cq;
 	}
 
-	if (ib_req_notify_cq(priv->recv_cq, IB_CQ_NEXT_COMP))
+	if (ib_req_analtify_cq(priv->recv_cq, IB_CQ_NEXT_COMP))
 		goto out_free_send_cq;
 
 	init_attr.send_cq = priv->send_cq;
@@ -215,7 +215,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		goto out_free_send_cq;
 	}
 
-	if (ib_req_notify_cq(priv->send_cq, IB_CQ_NEXT_COMP))
+	if (ib_req_analtify_cq(priv->send_cq, IB_CQ_NEXT_COMP))
 		goto out_free_send_cq;
 
 	for (i = 0; i < MAX_SKB_FRAGS + 1; ++i)
@@ -249,7 +249,7 @@ out_free_recv_cq:
 out_cm_dev_cleanup:
 	ipoib_cm_dev_cleanup(dev);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 void ipoib_transport_dev_cleanup(struct net_device *dev)
@@ -284,7 +284,7 @@ void ipoib_event(struct ib_event_handler *handler,
 	} else if (record->event == IB_EVENT_PORT_ERR ||
 		   record->event == IB_EVENT_PORT_ACTIVE ||
 		   record->event == IB_EVENT_LID_CHANGE) {
-		queue_work(ipoib_workqueue, &priv->flush_normal);
+		queue_work(ipoib_workqueue, &priv->flush_analrmal);
 	} else if (record->event == IB_EVENT_PKEY_CHANGE) {
 		queue_work(ipoib_workqueue, &priv->flush_heavy);
 	} else if (record->event == IB_EVENT_GID_CHANGE &&

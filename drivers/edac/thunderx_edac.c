@@ -27,12 +27,12 @@
 
 #define phys_to_pfn(phys)	(PFN_DOWN(phys))
 
-#define THUNDERX_NODE		GENMASK(45, 44)
+#define THUNDERX_ANALDE		GENMASK(45, 44)
 
 enum {
 	ERR_CORRECTED	= 1,
 	ERR_UNCORRECTED	= 2,
-	ERR_UNKNOWN	= 3,
+	ERR_UNKANALWN	= 3,
 };
 
 #define MAX_SYNDROME_REGS 4
@@ -139,7 +139,7 @@ static const struct error_descr lmc_errors[] = {
 	{
 		.type = ERR_UNCORRECTED,
 		.mask = LMC_INT_NXM_WR_MASK,
-		.descr = "Non-existent memory write",
+		.descr = "Analn-existent memory write",
 	},
 	{0, 0, NULL},
 };
@@ -190,7 +190,7 @@ struct thunderx_lmc {
 	u64 mask0;
 	u64 mask2;
 	u64 parity_test;
-	u64 node;
+	u64 analde;
 
 	int xbits;
 	int bank_width;
@@ -415,14 +415,14 @@ static ssize_t thunderx_lmc_inject_ecc_write(struct file *file,
 
 	atomic_set(&lmc->ecc_int, 0);
 
-	lmc->mem = alloc_pages_node(lmc->node, GFP_KERNEL, 0);
+	lmc->mem = alloc_pages_analde(lmc->analde, GFP_KERNEL, 0);
 	if (!lmc->mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tmp = kmalloc(cline_size, GFP_KERNEL);
 	if (!tmp) {
 		__free_pages(lmc->mem, 0);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	addr = page_address(lmc->mem);
@@ -463,7 +463,7 @@ static struct debugfs_entry *lmc_dfs_ents[] = {
 	&debugfs_int_w1c,
 };
 
-static int thunderx_create_debugfs_nodes(struct dentry *parent,
+static int thunderx_create_debugfs_analdes(struct dentry *parent,
 					  struct debugfs_entry *attrs[],
 					  void *data,
 					  size_t num)
@@ -475,7 +475,7 @@ static int thunderx_create_debugfs_nodes(struct dentry *parent,
 		return 0;
 
 	if (!parent)
-		return -ENOENT;
+		return -EANALENT;
 
 	for (i = 0; i < num; i++) {
 		ent = edac_debugfs_create_file(attrs[i]->name, attrs[i]->mode,
@@ -493,7 +493,7 @@ static phys_addr_t thunderx_faddr_to_phys(u64 faddr, struct thunderx_lmc *lmc)
 	phys_addr_t addr = 0;
 	int bank, xbits;
 
-	addr |= lmc->node << 40;
+	addr |= lmc->analde << 40;
 	addr |= LMC_FADR_FDIMM(faddr) << lmc->dimm_lsb;
 	addr |= LMC_FADR_FBUNK(faddr) << lmc->rank_lsb;
 	addr |= LMC_FADR_FROW(faddr) << lmc->row_lsb;
@@ -517,7 +517,7 @@ static phys_addr_t thunderx_faddr_to_phys(u64 faddr, struct thunderx_lmc *lmc)
 	return addr;
 }
 
-static unsigned int thunderx_get_num_lmcs(unsigned int node)
+static unsigned int thunderx_get_num_lmcs(unsigned int analde)
 {
 	unsigned int number = 0;
 	struct pci_dev *pdev = NULL;
@@ -528,7 +528,7 @@ static unsigned int thunderx_get_num_lmcs(unsigned int node)
 				      pdev);
 		if (pdev) {
 #ifdef CONFIG_NUMA
-			if (pdev->dev.numa_node == node)
+			if (pdev->dev.numa_analde == analde)
 				number++;
 #else
 			number++;
@@ -579,7 +579,7 @@ static irqreturn_t thunderx_lmc_threaded_isr(int irq, void *dev_id)
 	unsigned long tail;
 	struct lmc_err_ctx *ctx;
 
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	char *msg;
 	char *other;
@@ -650,10 +650,10 @@ static const struct pci_device_id thunderx_lmc_pci_tbl[] = {
 
 static inline int pci_dev_to_mc_idx(struct pci_dev *pdev)
 {
-	int node = dev_to_node(&pdev->dev);
+	int analde = dev_to_analde(&pdev->dev);
 	int ret = PCI_FUNC(pdev->devfn);
 
-	ret += max(node, 0) << 3;
+	ret += max(analde, 0) << 3;
 
 	return ret;
 }
@@ -675,20 +675,20 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 
 	ret = pcim_enable_device(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable PCI device: %d\n", ret);
+		dev_err(&pdev->dev, "Cananalt enable PCI device: %d\n", ret);
 		return ret;
 	}
 
 	ret = pcim_iomap_regions(pdev, BIT(0), "thunderx_lmc");
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot map PCI resources: %d\n", ret);
+		dev_err(&pdev->dev, "Cananalt map PCI resources: %d\n", ret);
 		return ret;
 	}
 
 	mci = edac_mc_alloc(pci_dev_to_mc_idx(pdev), 1, &layer,
 			    sizeof(struct thunderx_lmc));
 	if (!mci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mci->pdev = &pdev->dev;
 	lmc = mci->pvt_info;
@@ -711,13 +711,13 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 				MEM_DDR4 : MEM_DDR3;
 	}
 
-	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 
 	mci->mod_name = "thunderx-lmc";
 	mci->ctl_name = "thunderx-lmc";
 	mci->dev_name = dev_name(&pdev->dev);
-	mci->scrub_mode = SCRUB_NONE;
+	mci->scrub_mode = SCRUB_ANALNE;
 
 	lmc->pdev = pdev;
 	lmc->msix_ent.entry = 0;
@@ -727,7 +727,7 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 
 	ret = pci_enable_msix_exact(pdev, &lmc->msix_ent, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable interrupt: %d\n", ret);
+		dev_err(&pdev->dev, "Cananalt enable interrupt: %d\n", ret);
 		goto err_free;
 	}
 
@@ -736,13 +736,13 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 					thunderx_lmc_threaded_isr, 0,
 					"[EDAC] ThunderX LMC", mci);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot set ISR: %d\n", ret);
+		dev_err(&pdev->dev, "Cananalt set ISR: %d\n", ret);
 		goto err_free;
 	}
 
-	lmc->node = FIELD_GET(THUNDERX_NODE, pci_resource_start(pdev, 0));
+	lmc->analde = FIELD_GET(THUNDERX_ANALDE, pci_resource_start(pdev, 0));
 
-	lmc->xbits = thunderx_get_num_lmcs(lmc->node) >> 1;
+	lmc->xbits = thunderx_get_num_lmcs(lmc->analde) >> 1;
 	lmc->bank_width = (FIELD_GET(LMC_DDR_PLL_CTL_DDR4, lmc_ddr_pll_ctl) &&
 			   FIELD_GET(LMC_CONFIG_BG2, lmc_config)) ? 4 : 3;
 
@@ -757,10 +757,10 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 
 	lmc->xor_bank = lmc_control & LMC_CONTROL_XOR_BANK;
 
-	l2c_ioaddr = ioremap(L2C_CTL | FIELD_PREP(THUNDERX_NODE, lmc->node), PAGE_SIZE);
+	l2c_ioaddr = ioremap(L2C_CTL | FIELD_PREP(THUNDERX_ANALDE, lmc->analde), PAGE_SIZE);
 	if (!l2c_ioaddr) {
-		dev_err(&pdev->dev, "Cannot map L2C_CTL\n");
-		ret = -ENOMEM;
+		dev_err(&pdev->dev, "Cananalt map L2C_CTL\n");
+		ret = -EANALMEM;
 		goto err_free;
 	}
 
@@ -770,7 +770,7 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 
 	ret = edac_mc_add_mc(mci);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot add the MC: %d\n", ret);
+		dev_err(&pdev->dev, "Cananalt add the MC: %d\n", ret);
 		goto err_free;
 	}
 
@@ -780,7 +780,7 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 	writeq(LMC_INT_ENA_ALL, lmc->regs + LMC_INT_ENA_W1S);
 
 	if (IS_ENABLED(CONFIG_EDAC_DEBUG)) {
-		ret = thunderx_create_debugfs_nodes(mci->debugfs,
+		ret = thunderx_create_debugfs_analdes(mci->debugfs,
 						    lmc_dfs_ents,
 						    lmc,
 						    ARRAY_SIZE(lmc_dfs_ents));
@@ -851,22 +851,22 @@ static const struct error_descr ocx_com_errors[] = {
 	{
 		.type  = ERR_CORRECTED,
 		.mask  = OCX_COM_IO_BADID,
-		.descr = "Invalid IO transaction node ID",
+		.descr = "Invalid IO transaction analde ID",
 	},
 	{
 		.type  = ERR_CORRECTED,
 		.mask  = OCX_COM_MEM_BADID,
-		.descr = "Invalid memory transaction node ID",
+		.descr = "Invalid memory transaction analde ID",
 	},
 	{
 		.type  = ERR_CORRECTED,
 		.mask  = OCX_COM_COPR_BADID,
-		.descr = "Invalid coprocessor transaction node ID",
+		.descr = "Invalid coprocessor transaction analde ID",
 	},
 	{
 		.type  = ERR_CORRECTED,
 		.mask  = OCX_COM_WIN_REQ_BADID,
-		.descr = "Invalid SLI transaction node ID",
+		.descr = "Invalid SLI transaction analde ID",
 	},
 	{
 		.type  = ERR_CORRECTED,
@@ -1010,7 +1010,7 @@ static const struct error_descr ocx_lane_errors[] = {
 	{
 		.type  = ERR_CORRECTED,
 		.mask  = OCX_LANE_UKWN_CNTL_WORD,
-		.descr = "Unknown control word",
+		.descr = "Unkanalwn control word",
 	},
 	{
 		.type  = ERR_CORRECTED,
@@ -1107,7 +1107,7 @@ static irqreturn_t thunderx_ocx_com_threaded_isr(int irq, void *irq_id)
 	struct thunderx_ocx *ocx = container_of(msix, struct thunderx_ocx,
 						msix_ent[msix->entry]);
 
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	unsigned long tail;
 	struct ocx_com_err_ctx *ctx;
@@ -1189,7 +1189,7 @@ static irqreturn_t thunderx_ocx_lnk_threaded_isr(int irq, void *irq_id)
 	struct msix_entry *msix = irq_id;
 	struct thunderx_ocx *ocx = container_of(msix, struct thunderx_ocx,
 						msix_ent[msix->entry]);
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	unsigned long tail;
 	struct ocx_link_err_ctx *ctx;
 
@@ -1352,13 +1352,13 @@ static int thunderx_ocx_probe(struct pci_dev *pdev,
 
 	ret = pcim_enable_device(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable PCI device: %d\n", ret);
+		dev_err(&pdev->dev, "Cananalt enable PCI device: %d\n", ret);
 		return ret;
 	}
 
 	ret = pcim_iomap_regions(pdev, BIT(0), "thunderx_ocx");
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot map PCI resources: %d\n", ret);
+		dev_err(&pdev->dev, "Cananalt map PCI resources: %d\n", ret);
 		return ret;
 	}
 
@@ -1368,8 +1368,8 @@ static int thunderx_ocx_probe(struct pci_dev *pdev,
 					      name, 1, "CCPI", 1,
 					      0, NULL, 0, idx);
 	if (!edac_dev) {
-		dev_err(&pdev->dev, "Cannot allocate EDAC device\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "Cananalt allocate EDAC device\n");
+		return -EANALMEM;
 	}
 	ocx = edac_dev->pvt_info;
 	ocx->edac_dev = edac_dev;
@@ -1380,8 +1380,8 @@ static int thunderx_ocx_probe(struct pci_dev *pdev,
 
 	ocx->regs = pcim_iomap_table(pdev)[0];
 	if (!ocx->regs) {
-		dev_err(&pdev->dev, "Cannot map PCI resources\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "Cananalt map PCI resources\n");
+		ret = -EANALDEV;
 		goto err_free;
 	}
 
@@ -1394,7 +1394,7 @@ static int thunderx_ocx_probe(struct pci_dev *pdev,
 
 	ret = pci_enable_msix_exact(pdev, ocx->msix_ent, OCX_INTS);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable interrupt: %d\n", ret);
+		dev_err(&pdev->dev, "Cananalt enable interrupt: %d\n", ret);
 		goto err_free;
 	}
 
@@ -1420,14 +1420,14 @@ static int thunderx_ocx_probe(struct pci_dev *pdev,
 
 	ret = edac_device_add_device(edac_dev);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot add EDAC device: %d\n", ret);
+		dev_err(&pdev->dev, "Cananalt add EDAC device: %d\n", ret);
 		goto err_free;
 	}
 
 	if (IS_ENABLED(CONFIG_EDAC_DEBUG)) {
 		ocx->debugfs = edac_debugfs_create_dir(pdev->dev.kobj.name);
 
-		ret = thunderx_create_debugfs_nodes(ocx->debugfs,
+		ret = thunderx_create_debugfs_analdes(ocx->debugfs,
 						    ocx_dfs_ents,
 						    ocx,
 						    ARRAY_SIZE(ocx_dfs_ents));
@@ -1847,7 +1847,7 @@ static irqreturn_t thunderx_l2c_threaded_isr(int irq, void *irq_id)
 
 	unsigned long tail = ring_pos(l2c->ring_tail, ARRAY_SIZE(l2c->err_ctx));
 	struct l2c_err_ctx *ctx = &l2c->err_ctx[tail];
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	u64 mask_ue, mask_ce;
 	const struct error_descr *l2_errors;
@@ -1958,13 +1958,13 @@ static int thunderx_l2c_probe(struct pci_dev *pdev,
 
 	ret = pcim_enable_device(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable PCI device: %d\n", ret);
+		dev_err(&pdev->dev, "Cananalt enable PCI device: %d\n", ret);
 		return ret;
 	}
 
 	ret = pcim_iomap_regions(pdev, BIT(0), "thunderx_l2c");
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot map PCI resources: %d\n", ret);
+		dev_err(&pdev->dev, "Cananalt map PCI resources: %d\n", ret);
 		return ret;
 	}
 
@@ -2007,8 +2007,8 @@ static int thunderx_l2c_probe(struct pci_dev *pdev,
 					      name, 1, "L2C", 1, 0,
 					      NULL, 0, idx);
 	if (!edac_dev) {
-		dev_err(&pdev->dev, "Cannot allocate EDAC device\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "Cananalt allocate EDAC device\n");
+		return -EANALMEM;
 	}
 
 	l2c = edac_dev->pvt_info;
@@ -2016,8 +2016,8 @@ static int thunderx_l2c_probe(struct pci_dev *pdev,
 
 	l2c->regs = pcim_iomap_table(pdev)[0];
 	if (!l2c->regs) {
-		dev_err(&pdev->dev, "Cannot map PCI resources\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "Cananalt map PCI resources\n");
+		ret = -EANALDEV;
 		goto err_free;
 	}
 
@@ -2031,7 +2031,7 @@ static int thunderx_l2c_probe(struct pci_dev *pdev,
 
 	ret = pci_enable_msix_exact(pdev, &l2c->msix_ent, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable interrupt: %d\n", ret);
+		dev_err(&pdev->dev, "Cananalt enable interrupt: %d\n", ret);
 		goto err_free;
 	}
 
@@ -2050,14 +2050,14 @@ static int thunderx_l2c_probe(struct pci_dev *pdev,
 
 	ret = edac_device_add_device(edac_dev);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot add EDAC device: %d\n", ret);
+		dev_err(&pdev->dev, "Cananalt add EDAC device: %d\n", ret);
 		goto err_free;
 	}
 
 	if (IS_ENABLED(CONFIG_EDAC_DEBUG)) {
 		l2c->debugfs = edac_debugfs_create_dir(pdev->dev.kobj.name);
 
-		ret = thunderx_create_debugfs_nodes(l2c->debugfs, l2c_devattr,
+		ret = thunderx_create_debugfs_analdes(l2c->debugfs, l2c_devattr,
 					      l2c, dfs_entries);
 
 		if (ret != dfs_entries) {

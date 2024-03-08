@@ -22,7 +22,7 @@
 #define RVIN_DEFAULT_FORMAT	V4L2_PIX_FMT_YUYV
 #define RVIN_DEFAULT_WIDTH	800
 #define RVIN_DEFAULT_HEIGHT	600
-#define RVIN_DEFAULT_FIELD	V4L2_FIELD_NONE
+#define RVIN_DEFAULT_FIELD	V4L2_FIELD_ANALNE
 #define RVIN_DEFAULT_COLORSPACE	V4L2_COLORSPACE_SRGB
 
 /* -----------------------------------------------------------------------------
@@ -166,7 +166,7 @@ static void rvin_format_align(struct rvin_dev *vin, struct v4l2_pix_format *pix)
 	switch (pix->field) {
 	case V4L2_FIELD_TOP:
 	case V4L2_FIELD_BOTTOM:
-	case V4L2_FIELD_NONE:
+	case V4L2_FIELD_ANALNE:
 	case V4L2_FIELD_INTERLACED_TB:
 	case V4L2_FIELD_INTERLACED_BT:
 	case V4L2_FIELD_INTERLACED:
@@ -191,7 +191,7 @@ static void rvin_format_align(struct rvin_dev *vin, struct v4l2_pix_format *pix)
 	case V4L2_PIX_FMT_UYVY:
 		walign = 1;
 		break;
-	/* No multiple for RGB. */
+	/* Anal multiple for RGB. */
 	default:
 		walign = 0;
 		break;
@@ -263,7 +263,7 @@ static int rvin_try_format(struct rvin_dev *vin, u32 which,
 	int ret;
 
 	/*
-	 * FIXME: Drop this call, drivers are not supposed to use
+	 * FIXME: Drop this call, drivers are analt supposed to use
 	 * __v4l2_subdev_state_alloc().
 	 */
 	sd_state = __v4l2_subdev_state_alloc(sd, "rvin:state->lock", &key);
@@ -281,7 +281,7 @@ static int rvin_try_format(struct rvin_dev *vin, u32 which,
 	height = pix->height;
 
 	ret = v4l2_subdev_call(sd, pad, set_fmt, sd_state, &format);
-	if (ret < 0 && ret != -ENOIOCTLCMD)
+	if (ret < 0 && ret != -EANALIOCTLCMD)
 		goto done;
 	ret = 0;
 
@@ -372,7 +372,7 @@ static int rvin_enum_fmt_vid_cap(struct file *file, void *priv,
 	 * If mbus_code is set only enumerate supported pixel formats for that
 	 * bus code. Converting from YCbCr to RGB and RGB to YCbCr is possible
 	 * with VIN, so all supported YCbCr and RGB media bus codes can produce
-	 * all of the related pixel formats. If mbus_code is not set enumerate
+	 * all of the related pixel formats. If mbus_code is analt set enumerate
 	 * all possible pixelformats.
 	 *
 	 * TODO: Once raw MEDIA_BUS_FMT_SRGGB12_1X12 format is added to the
@@ -478,7 +478,7 @@ static int rvin_g_selection(struct file *file, void *fh,
 	int ret;
 
 	if (!vin->scaler)
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -524,7 +524,7 @@ static int rvin_s_selection(struct file *file, void *fh,
 	int ret;
 
 	if (!vin->scaler)
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -628,7 +628,7 @@ static int rvin_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 
 	ret = v4l2_subdev_call(sd, video, g_input_status, &i->status);
-	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
+	if (ret < 0 && ret != -EANALIOCTLCMD && ret != -EANALDEV)
 		return ret;
 
 	i->type = V4L2_INPUT_TYPE_CAMERA;
@@ -638,7 +638,7 @@ static int rvin_enum_input(struct file *file, void *priv,
 		i->std = 0;
 	} else {
 		i->capabilities = V4L2_IN_CAP_STD;
-		i->std = vin->vdev.tvnorms;
+		i->std = vin->vdev.tvanalrms;
 	}
 
 	strscpy(i->name, "Camera", sizeof(i->name));
@@ -687,7 +687,7 @@ static int rvin_g_std(struct file *file, void *priv, v4l2_std_id *a)
 	struct rvin_dev *vin = video_drvdata(file);
 
 	if (v4l2_subdev_has_op(vin_to_source(vin), pad, dv_timings_cap))
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	*a = vin->std;
 
@@ -947,7 +947,7 @@ static int rvin_power_parallel(struct rvin_dev *vin, bool on)
 	int ret;
 
 	ret = v4l2_subdev_call(sd, core, s_power, power);
-	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
+	if (ret < 0 && ret != -EANALIOCTLCMD && ret != -EANALDEV)
 		return ret;
 
 	return 0;
@@ -1046,17 +1046,17 @@ void rvin_v4l2_unregister(struct rvin_dev *vin)
 		return;
 
 	v4l2_info(&vin->v4l2_dev, "Removing %s\n",
-		  video_device_node_name(&vin->vdev));
+		  video_device_analde_name(&vin->vdev));
 
-	/* Checks internally if vdev have been init or not */
+	/* Checks internally if vdev have been init or analt */
 	video_unregister_device(&vin->vdev);
 }
 
-static void rvin_notify_video_device(struct rvin_dev *vin,
-				     unsigned int notification, void *arg)
+static void rvin_analtify_video_device(struct rvin_dev *vin,
+				     unsigned int analtification, void *arg)
 {
-	switch (notification) {
-	case V4L2_DEVICE_NOTIFY_EVENT:
+	switch (analtification) {
+	case V4L2_DEVICE_ANALTIFY_EVENT:
 		v4l2_event_queue(&vin->vdev, arg);
 		break;
 	default:
@@ -1064,8 +1064,8 @@ static void rvin_notify_video_device(struct rvin_dev *vin,
 	}
 }
 
-static void rvin_notify(struct v4l2_subdev *sd,
-			unsigned int notification, void *arg)
+static void rvin_analtify(struct v4l2_subdev *sd,
+			unsigned int analtification, void *arg)
 {
 	struct v4l2_subdev *remote;
 	struct rvin_group *group;
@@ -1074,9 +1074,9 @@ static void rvin_notify(struct v4l2_subdev *sd,
 		container_of(sd->v4l2_dev, struct rvin_dev, v4l2_dev);
 	unsigned int i;
 
-	/* If no media controller, no need to route the event. */
+	/* If anal media controller, anal need to route the event. */
 	if (!vin->info->use_mc) {
-		rvin_notify_video_device(vin, notification, arg);
+		rvin_analtify_video_device(vin, analtification, arg);
 		return;
 	}
 
@@ -1095,7 +1095,7 @@ static void rvin_notify(struct v4l2_subdev *sd,
 		if (remote != sd)
 			continue;
 
-		rvin_notify_video_device(vin, notification, arg);
+		rvin_analtify_video_device(vin, analtification, arg);
 	}
 }
 
@@ -1104,9 +1104,9 @@ int rvin_v4l2_register(struct rvin_dev *vin)
 	struct video_device *vdev = &vin->vdev;
 	int ret;
 
-	vin->v4l2_dev.notify = rvin_notify;
+	vin->v4l2_dev.analtify = rvin_analtify;
 
-	/* video node */
+	/* video analde */
 	vdev->v4l2_dev = &vin->v4l2_dev;
 	vdev->queue = &vin->queue;
 	snprintf(vdev->name, sizeof(vdev->name), "VIN%u output", vin->id);
@@ -1142,7 +1142,7 @@ int rvin_v4l2_register(struct rvin_dev *vin)
 	video_set_drvdata(&vin->vdev, vin);
 
 	v4l2_info(&vin->v4l2_dev, "Device registered as %s\n",
-		  video_device_node_name(&vin->vdev));
+		  video_device_analde_name(&vin->vdev));
 
 	return ret;
 }

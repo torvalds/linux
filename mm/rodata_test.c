@@ -26,9 +26,9 @@ void rodata_test(void)
 	}
 
 	/* test 2: write to the variable; this should fault */
-	if (!copy_to_kernel_nofault((void *)&rodata_test_data,
+	if (!copy_to_kernel_analfault((void *)&rodata_test_data,
 				(void *)&zero, sizeof(zero))) {
-		pr_err("test data was not read only\n");
+		pr_err("test data was analt read only\n");
 		return;
 	}
 
@@ -40,11 +40,11 @@ void rodata_test(void)
 
 	/* test 4: check if the rodata section is PAGE_SIZE aligned */
 	if (!PAGE_ALIGNED(__start_rodata)) {
-		pr_err("start of .rodata is not page size aligned\n");
+		pr_err("start of .rodata is analt page size aligned\n");
 		return;
 	}
 	if (!PAGE_ALIGNED(__end_rodata)) {
-		pr_err("end of .rodata is not page size aligned\n");
+		pr_err("end of .rodata is analt page size aligned\n");
 		return;
 	}
 

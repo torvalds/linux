@@ -18,7 +18,7 @@ perform QMSS related functions like accumulation, QoS, or event management.
 Linking RAM registers are used to link the descriptors which are stored in
 descriptor RAM. Descriptor RAM is configurable as internal or external memory.
 The QMSS driver manages the PDSP setups, linking RAM regions,
-queue pool management (allocation, push, pop and notify) and descriptor
+queue pool management (allocation, push, pop and analtify) and descriptor
 pool management.
 
 knav qmss driver provides a set of APIs to drivers to open/close qmss queues,
@@ -55,6 +55,6 @@ in the boot up log if loading of firmware to PDSP is successful.
 
 Use of accumulated queues requires the firmware image to be present in the
 file system. The driver doesn't acc queues to the supported queue range if
-PDSP is not running in the SoC. The API call fails if there is a queue open
-request to an acc queue and PDSP is not running. So make sure to copy firmware
+PDSP is analt running in the SoC. The API call fails if there is a queue open
+request to an acc queue and PDSP is analt running. So make sure to copy firmware
 to file system before using these queue types.

@@ -36,10 +36,10 @@ void __iwl_warn(struct device *dev, const char *fmt, ...) __printf(2, 3);
 void __iwl_info(struct device *dev, const char *fmt, ...) __printf(2, 3);
 void __iwl_crit(struct device *dev, const char *fmt, ...) __printf(2, 3);
 
-/* not all compilers can evaluate strlen() at compile time, so use sizeof() */
+/* analt all compilers can evaluate strlen() at compile time, so use sizeof() */
 #define CHECK_FOR_NEWLINE(f) BUILD_BUG_ON(f[sizeof(f) - 2] != '\n')
 
-/* No matter what is m (priv, bus, trans), this will work */
+/* Anal matter what is m (priv, bus, trans), this will work */
 #define __IWL_ERR_DEV(d, mode, f, a...)					\
 	do {								\
 		CHECK_FOR_NEWLINE(f);					\

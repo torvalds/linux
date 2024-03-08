@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Data Technology Inc. ESPT-GIGA board support
+ * Data Techanallogy Inc. ESPT-GIGA board support
  *
  * Copyright (C) 2008, 2009 Renesas Solutions Corp.
- * Copyright (C) 2008, 2009 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
+ * Copyright (C) 2008, 2009 Analbuhiro Iwamatsu <iwamatsu.analbuhiro@renesas.com>
  */
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -15,8 +15,8 @@
 #include <asm/machvec.h>
 #include <linux/sizes.h>
 
-/* NOR Flash */
-static struct mtd_partition espt_nor_flash_partitions[] = {
+/* ANALR Flash */
+static struct mtd_partition espt_analr_flash_partitions[] = {
 	{
 		.name = "U-Boot",
 		.offset = 0,
@@ -33,27 +33,27 @@ static struct mtd_partition espt_nor_flash_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data espt_nor_flash_data = {
+static struct physmap_flash_data espt_analr_flash_data = {
 	.width = 2,
-	.parts = espt_nor_flash_partitions,
-	.nr_parts = ARRAY_SIZE(espt_nor_flash_partitions),
+	.parts = espt_analr_flash_partitions,
+	.nr_parts = ARRAY_SIZE(espt_analr_flash_partitions),
 };
 
-static struct resource espt_nor_flash_resources[] = {
+static struct resource espt_analr_flash_resources[] = {
 	[0] = {
-		.name = "NOR Flash",
+		.name = "ANALR Flash",
 		.start = 0,
 		.end = SZ_8M - 1,
 		.flags = IORESOURCE_MEM,
 	},
 };
 
-static struct platform_device espt_nor_flash_device = {
+static struct platform_device espt_analr_flash_device = {
 	.name = "physmap-flash",
-	.resource = espt_nor_flash_resources,
-	.num_resources = ARRAY_SIZE(espt_nor_flash_resources),
+	.resource = espt_analr_flash_resources,
+	.num_resources = ARRAY_SIZE(espt_analr_flash_resources),
 	.dev = {
-		.platform_data = &espt_nor_flash_data,
+		.platform_data = &espt_analr_flash_data,
 	},
 };
 
@@ -89,7 +89,7 @@ static struct platform_device espt_eth_device = {
 };
 
 static struct platform_device *espt_devices[] __initdata = {
-	&espt_nor_flash_device,
+	&espt_analr_flash_device,
 	&espt_eth_device,
 };
 

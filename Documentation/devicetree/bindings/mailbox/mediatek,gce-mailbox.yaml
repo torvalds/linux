@@ -58,7 +58,7 @@ required:
 
 allOf:
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

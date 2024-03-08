@@ -11,7 +11,7 @@
 #include <linux/ioport.h>
 #include <linux/device.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-analnatomic-hi-lo.h>
 #include <linux/fsl/mc.h>
 
 #include "fsl-mc-private.h"
@@ -48,15 +48,15 @@ static int mc_status_to_error(enum mc_cmd_status status)
 	static const int mc_status_to_error_map[] = {
 		[MC_CMD_STATUS_OK] = 0,
 		[MC_CMD_STATUS_AUTH_ERR] = -EACCES,
-		[MC_CMD_STATUS_NO_PRIVILEGE] = -EPERM,
+		[MC_CMD_STATUS_ANAL_PRIVILEGE] = -EPERM,
 		[MC_CMD_STATUS_DMA_ERR] = -EIO,
 		[MC_CMD_STATUS_CONFIG_ERR] = -ENXIO,
 		[MC_CMD_STATUS_TIMEOUT] = -ETIMEDOUT,
-		[MC_CMD_STATUS_NO_RESOURCE] = -ENAVAIL,
-		[MC_CMD_STATUS_NO_MEMORY] = -ENOMEM,
+		[MC_CMD_STATUS_ANAL_RESOURCE] = -ENAVAIL,
+		[MC_CMD_STATUS_ANAL_MEMORY] = -EANALMEM,
 		[MC_CMD_STATUS_BUSY] = -EBUSY,
-		[MC_CMD_STATUS_UNSUPPORTED_OP] = -ENOTSUPP,
-		[MC_CMD_STATUS_INVALID_STATE] = -ENODEV,
+		[MC_CMD_STATUS_UNSUPPORTED_OP] = -EANALTSUPP,
+		[MC_CMD_STATUS_INVALID_STATE] = -EANALDEV,
 	};
 
 	if ((u32)status >= ARRAY_SIZE(mc_status_to_error_map))
@@ -71,19 +71,19 @@ static const char *mc_status_to_string(enum mc_cmd_status status)
 		[MC_CMD_STATUS_OK] = "Command completed successfully",
 		[MC_CMD_STATUS_READY] = "Command ready to be processed",
 		[MC_CMD_STATUS_AUTH_ERR] = "Authentication error",
-		[MC_CMD_STATUS_NO_PRIVILEGE] = "No privilege",
+		[MC_CMD_STATUS_ANAL_PRIVILEGE] = "Anal privilege",
 		[MC_CMD_STATUS_DMA_ERR] = "DMA or I/O error",
 		[MC_CMD_STATUS_CONFIG_ERR] = "Configuration error",
 		[MC_CMD_STATUS_TIMEOUT] = "Operation timed out",
-		[MC_CMD_STATUS_NO_RESOURCE] = "No resources",
-		[MC_CMD_STATUS_NO_MEMORY] = "No memory available",
+		[MC_CMD_STATUS_ANAL_RESOURCE] = "Anal resources",
+		[MC_CMD_STATUS_ANAL_MEMORY] = "Anal memory available",
 		[MC_CMD_STATUS_BUSY] = "Device is busy",
 		[MC_CMD_STATUS_UNSUPPORTED_OP] = "Unsupported operation",
 		[MC_CMD_STATUS_INVALID_STATE] = "Invalid state"
 	};
 
 	if ((unsigned int)status >= ARRAY_SIZE(status_strings))
-		return "Unknown MC error";
+		return "Unkanalwn MC error";
 
 	return status_strings[status];
 }

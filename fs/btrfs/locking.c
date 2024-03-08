@@ -26,8 +26,8 @@
  * by btrfs_root->root_key.objectid.  This ensures that all special purpose
  * roots have separate keysets.
  *
- * Lock-nesting across peer nodes is always done with the immediate parent
- * node locked thus preventing deadlock.  As lockdep doesn't know this, use
+ * Lock-nesting across peer analdes is always done with the immediate parent
+ * analde locked thus preventing deadlock.  As lockdep doesn't kanalw this, use
  * subclass to avoid triggering lockdep warning in such cases.
  *
  * The key is set by the readpage_end_io_hook after the buffer has passed
@@ -150,7 +150,7 @@ void __btrfs_tree_read_lock(struct extent_buffer *eb, enum btrfs_lock_nesting ne
 
 void btrfs_tree_read_lock(struct extent_buffer *eb)
 {
-	__btrfs_tree_read_lock(eb, BTRFS_NESTING_NORMAL);
+	__btrfs_tree_read_lock(eb, BTRFS_NESTING_ANALRMAL);
 }
 
 /*
@@ -214,7 +214,7 @@ void __btrfs_tree_lock(struct extent_buffer *eb, enum btrfs_lock_nesting nest)
 
 void btrfs_tree_lock(struct extent_buffer *eb)
 {
-	__btrfs_tree_lock(eb, BTRFS_NESTING_NORMAL);
+	__btrfs_tree_lock(eb, BTRFS_NESTING_ANALRMAL);
 }
 
 /*
@@ -231,9 +231,9 @@ void btrfs_tree_unlock(struct extent_buffer *eb)
  * This releases any locks held in the path starting at level and going all the
  * way up to the root.
  *
- * btrfs_search_slot will keep the lock held on higher nodes in a few corner
- * cases, such as COW of the block at slot zero in the node.  This ignores
- * those rules, and it should only be called when there are no more updates to
+ * btrfs_search_slot will keep the lock held on higher analdes in a few corner
+ * cases, such as COW of the block at slot zero in the analde.  This iganalres
+ * those rules, and it should only be called when there are anal more updates to
  * be done higher up in the tree.
  */
 void btrfs_unlock_up_safe(struct btrfs_path *path, int level)
@@ -244,31 +244,31 @@ void btrfs_unlock_up_safe(struct btrfs_path *path, int level)
 		return;
 
 	for (i = level; i < BTRFS_MAX_LEVEL; i++) {
-		if (!path->nodes[i])
+		if (!path->analdes[i])
 			continue;
 		if (!path->locks[i])
 			continue;
-		btrfs_tree_unlock_rw(path->nodes[i], path->locks[i]);
+		btrfs_tree_unlock_rw(path->analdes[i], path->locks[i]);
 		path->locks[i] = 0;
 	}
 }
 
 /*
- * Loop around taking references on and locking the root node of the tree until
- * we end up with a lock on the root node.
+ * Loop around taking references on and locking the root analde of the tree until
+ * we end up with a lock on the root analde.
  *
  * Return: root extent buffer with write lock held
  */
-struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root)
+struct extent_buffer *btrfs_lock_root_analde(struct btrfs_root *root)
 {
 	struct extent_buffer *eb;
 
 	while (1) {
-		eb = btrfs_root_node(root);
+		eb = btrfs_root_analde(root);
 
 		btrfs_maybe_reset_lockdep_class(root, eb);
 		btrfs_tree_lock(eb);
-		if (eb == root->node)
+		if (eb == root->analde)
 			break;
 		btrfs_tree_unlock(eb);
 		free_extent_buffer(eb);
@@ -277,21 +277,21 @@ struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root)
 }
 
 /*
- * Loop around taking references on and locking the root node of the tree until
- * we end up with a lock on the root node.
+ * Loop around taking references on and locking the root analde of the tree until
+ * we end up with a lock on the root analde.
  *
  * Return: root extent buffer with read lock held
  */
-struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root)
+struct extent_buffer *btrfs_read_lock_root_analde(struct btrfs_root *root)
 {
 	struct extent_buffer *eb;
 
 	while (1) {
-		eb = btrfs_root_node(root);
+		eb = btrfs_root_analde(root);
 
 		btrfs_maybe_reset_lockdep_class(root, eb);
 		btrfs_tree_read_lock(eb);
-		if (eb == root->node)
+		if (eb == root->analde)
 			break;
 		btrfs_tree_read_unlock(eb);
 		free_extent_buffer(eb);
@@ -300,23 +300,23 @@ struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root)
 }
 
 /*
- * Loop around taking references on and locking the root node of the tree in
- * nowait mode until we end up with a lock on the root node or returning to
+ * Loop around taking references on and locking the root analde of the tree in
+ * analwait mode until we end up with a lock on the root analde or returning to
  * avoid blocking.
  *
  * Return: root extent buffer with read lock held or -EAGAIN.
  */
-struct extent_buffer *btrfs_try_read_lock_root_node(struct btrfs_root *root)
+struct extent_buffer *btrfs_try_read_lock_root_analde(struct btrfs_root *root)
 {
 	struct extent_buffer *eb;
 
 	while (1) {
-		eb = btrfs_root_node(root);
+		eb = btrfs_root_analde(root);
 		if (!btrfs_try_tree_read_lock(eb)) {
 			free_extent_buffer(eb);
 			return ERR_PTR(-EAGAIN);
 		}
-		if (eb == root->node)
+		if (eb == root->analde)
 			break;
 		btrfs_tree_read_unlock(eb);
 		free_extent_buffer(eb);
@@ -329,12 +329,12 @@ struct extent_buffer *btrfs_try_read_lock_root_node(struct btrfs_root *root)
  * ==========
  *
  * DREW stands for double-reader-writer-exclusion lock. It's used in situation
- * where you want to provide A-B exclusion but not AA or BB.
+ * where you want to provide A-B exclusion but analt AA or BB.
  *
  * Currently implementation gives more priority to reader. If a reader and a
  * writer both race to acquire their respective sides of the lock the writer
  * would yield its lock as soon as it detects a concurrent reader. Additionally
- * if there are pending readers no new writers would be allowed to come in and
+ * if there are pending readers anal new writers would be allowed to come in and
  * acquire the lock.
  */
 

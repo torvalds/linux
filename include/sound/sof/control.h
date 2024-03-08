@@ -18,9 +18,9 @@
 
 /* channel positions - uses same values as ALSA */
 enum sof_ipc_chmap {
-	SOF_CHMAP_UNKNOWN = 0,
+	SOF_CHMAP_UNKANALWN = 0,
 	SOF_CHMAP_NA,		/**< N/A, silent */
-	SOF_CHMAP_MONO,		/**< mono stream */
+	SOF_CHMAP_MOANAL,		/**< moanal stream */
 	SOF_CHMAP_FL,		/**< front left */
 	SOF_CHMAP_FR,		/**< front right */
 	SOF_CHMAP_RL,		/**< rear left */
@@ -134,7 +134,7 @@ enum sof_ipc_ctrl_event_type {
 };
 
 /**
- * Generic notification data.
+ * Generic analtification data.
  */
 struct sof_ipc_comp_event {
 	struct sof_ipc_reply rhdr;

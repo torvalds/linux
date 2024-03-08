@@ -30,7 +30,7 @@ static DEFINE_SPINLOCK(syscon_list_slock);
 static LIST_HEAD(syscon_list);
 
 struct syscon {
-	struct device_node *np;
+	struct device_analde *np;
 	struct regmap *regmap;
 	struct reset_control *reset;
 	struct list_head list;
@@ -42,7 +42,7 @@ static const struct regmap_config syscon_regmap_config = {
 	.reg_stride = 4,
 };
 
-static struct syscon *of_syscon_register(struct device_node *np, bool check_res)
+static struct syscon *of_syscon_register(struct device_analde *np, bool check_res)
 {
 	struct clk *clk;
 	struct syscon *syscon;
@@ -56,20 +56,20 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_res)
 
 	syscon = kzalloc(sizeof(*syscon), GFP_KERNEL);
 	if (!syscon)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (of_address_to_resource(np, 0, &res)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_map;
 	}
 
 	base = of_iomap(np, 0);
 	if (!base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_map;
 	}
 
-	/* Parse the device's DT node for an endianness specification */
+	/* Parse the device's DT analde for an endianness specification */
 	if (of_property_read_bool(np, "big-endian"))
 		syscon_config.val_format_endian = REGMAP_ENDIAN_BIG;
 	else if (of_property_read_bool(np, "little-endian"))
@@ -78,9 +78,9 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_res)
 		syscon_config.val_format_endian = REGMAP_ENDIAN_NATIVE;
 
 	/*
-	 * search for reg-io-width property in DT. If it is not provided,
+	 * search for reg-io-width property in DT. If it is analt provided,
 	 * default to 4 bytes. regmap_init_mmio will return an error if values
-	 * are invalid so there is no need to check them here.
+	 * are invalid so there is anal need to check them here.
 	 */
 	ret = of_property_read_u32(np, "reg-io-width", &reg_io_width);
 	if (ret)
@@ -93,8 +93,8 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_res)
 		syscon_config.hwlock_mode = HWLOCK_IRQSTATE;
 	} else if (ret < 0) {
 		switch (ret) {
-		case -ENOENT:
-			/* Ignore missing hwlock, it's optional. */
+		case -EANALENT:
+			/* Iganalre missing hwlock, it's optional. */
 			break;
 		default:
 			pr_err("Failed to retrieve valid hwlock: %d\n", ret);
@@ -106,7 +106,7 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_res)
 
 	syscon_config.name = kasprintf(GFP_KERNEL, "%pOFn@%pa", np, &res.start);
 	if (!syscon_config.name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_regmap;
 	}
 	syscon_config.reg_stride = reg_io_width;
@@ -126,7 +126,7 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_res)
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
 			/* clock is optional */
-			if (ret != -ENOENT)
+			if (ret != -EANALENT)
 				goto err_clk;
 		} else {
 			ret = regmap_mmio_attach_clk(regmap, clk);
@@ -168,7 +168,7 @@ err_map:
 	return ERR_PTR(ret);
 }
 
-static struct regmap *device_node_get_regmap(struct device_node *np,
+static struct regmap *device_analde_get_regmap(struct device_analde *np,
 					     bool check_res)
 {
 	struct syscon *entry, *syscon = NULL;
@@ -192,41 +192,41 @@ static struct regmap *device_node_get_regmap(struct device_node *np,
 	return syscon->regmap;
 }
 
-struct regmap *device_node_to_regmap(struct device_node *np)
+struct regmap *device_analde_to_regmap(struct device_analde *np)
 {
-	return device_node_get_regmap(np, false);
+	return device_analde_get_regmap(np, false);
 }
-EXPORT_SYMBOL_GPL(device_node_to_regmap);
+EXPORT_SYMBOL_GPL(device_analde_to_regmap);
 
-struct regmap *syscon_node_to_regmap(struct device_node *np)
+struct regmap *syscon_analde_to_regmap(struct device_analde *np)
 {
 	if (!of_device_is_compatible(np, "syscon"))
 		return ERR_PTR(-EINVAL);
 
-	return device_node_get_regmap(np, true);
+	return device_analde_get_regmap(np, true);
 }
-EXPORT_SYMBOL_GPL(syscon_node_to_regmap);
+EXPORT_SYMBOL_GPL(syscon_analde_to_regmap);
 
 struct regmap *syscon_regmap_lookup_by_compatible(const char *s)
 {
-	struct device_node *syscon_np;
+	struct device_analde *syscon_np;
 	struct regmap *regmap;
 
-	syscon_np = of_find_compatible_node(NULL, NULL, s);
+	syscon_np = of_find_compatible_analde(NULL, NULL, s);
 	if (!syscon_np)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
-	regmap = syscon_node_to_regmap(syscon_np);
-	of_node_put(syscon_np);
+	regmap = syscon_analde_to_regmap(syscon_np);
+	of_analde_put(syscon_np);
 
 	return regmap;
 }
 EXPORT_SYMBOL_GPL(syscon_regmap_lookup_by_compatible);
 
-struct regmap *syscon_regmap_lookup_by_phandle(struct device_node *np,
+struct regmap *syscon_regmap_lookup_by_phandle(struct device_analde *np,
 					const char *property)
 {
-	struct device_node *syscon_np;
+	struct device_analde *syscon_np;
 	struct regmap *regmap;
 
 	if (property)
@@ -235,21 +235,21 @@ struct regmap *syscon_regmap_lookup_by_phandle(struct device_node *np,
 		syscon_np = np;
 
 	if (!syscon_np)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
-	regmap = syscon_node_to_regmap(syscon_np);
-	of_node_put(syscon_np);
+	regmap = syscon_analde_to_regmap(syscon_np);
+	of_analde_put(syscon_np);
 
 	return regmap;
 }
 EXPORT_SYMBOL_GPL(syscon_regmap_lookup_by_phandle);
 
-struct regmap *syscon_regmap_lookup_by_phandle_args(struct device_node *np,
+struct regmap *syscon_regmap_lookup_by_phandle_args(struct device_analde *np,
 					const char *property,
 					int arg_count,
 					unsigned int *out_args)
 {
-	struct device_node *syscon_np;
+	struct device_analde *syscon_np;
 	struct of_phandle_args args;
 	struct regmap *regmap;
 	unsigned int index;
@@ -262,12 +262,12 @@ struct regmap *syscon_regmap_lookup_by_phandle_args(struct device_node *np,
 
 	syscon_np = args.np;
 	if (!syscon_np)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
-	regmap = syscon_node_to_regmap(syscon_np);
+	regmap = syscon_analde_to_regmap(syscon_np);
 	for (index = 0; index < arg_count; index++)
 		out_args[index] = args.args[index];
-	of_node_put(syscon_np);
+	of_analde_put(syscon_np);
 
 	return regmap;
 }
@@ -275,16 +275,16 @@ EXPORT_SYMBOL_GPL(syscon_regmap_lookup_by_phandle_args);
 
 /*
  * It behaves the same as syscon_regmap_lookup_by_phandle() except where
- * there is no regmap phandle. In this case, instead of returning -ENODEV,
+ * there is anal regmap phandle. In this case, instead of returning -EANALDEV,
  * the function returns NULL.
  */
-struct regmap *syscon_regmap_lookup_by_phandle_optional(struct device_node *np,
+struct regmap *syscon_regmap_lookup_by_phandle_optional(struct device_analde *np,
 					const char *property)
 {
 	struct regmap *regmap;
 
 	regmap = syscon_regmap_lookup_by_phandle(np, property);
-	if (IS_ERR(regmap) && PTR_ERR(regmap) == -ENODEV)
+	if (IS_ERR(regmap) && PTR_ERR(regmap) == -EANALDEV)
 		return NULL;
 
 	return regmap;
@@ -302,15 +302,15 @@ static int syscon_probe(struct platform_device *pdev)
 
 	syscon = devm_kzalloc(dev, sizeof(*syscon), GFP_KERNEL);
 	if (!syscon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENOENT;
+		return -EANALENT;
 
 	base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	syscon_config.max_register = resource_size(res) - 4;
 	if (pdata)

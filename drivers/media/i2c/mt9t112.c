@@ -5,11 +5,11 @@
  * Copyright (C) 2018 Jacopo Mondi <jacopo+renesas@jmondi.org>
  *
  * Copyright (C) 2009 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
  *
  * Based on ov772x driver, mt9m111 driver,
  *
- * Copyright (C) 2008 Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Copyright (C) 2008 Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
  * Copyright (C) 2008, Robert Jarzmik <robert.jarzmik@free.fr>
  * Copyright 2006-7 Jonathan Corbet <corbet@lwn.net>
  * Copyright (C) 2008 Magnus Damm
@@ -803,7 +803,7 @@ static int mt9t112_s_stream(struct v4l2_subdev *sd, int enable)
 		 * If user selected large output size, and used it long time,
 		 * mt9t112 camera will be very warm.
 		 *
-		 * But current driver can not stop mt9t112 camera.
+		 * But current driver can analt stop mt9t112 camera.
 		 * So, set small size here to solve this problem.
 		 */
 		mt9t112_set_a_frame_size(client, VGA_WIDTH, VGA_HEIGHT);
@@ -926,7 +926,7 @@ static int mt9t112_get_fmt(struct v4l2_subdev *sd,
 	mf->height	= priv->frame.height;
 	mf->colorspace	= priv->format->colorspace;
 	mf->code	= priv->format->code;
-	mf->field	= V4L2_FIELD_NONE;
+	mf->field	= V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -978,7 +978,7 @@ static int mt9t112_set_fmt(struct v4l2_subdev *sd,
 	v4l_bound_align_image(&mf->width, 0, MAX_WIDTH, 0,
 			      &mf->height, 0, MAX_HEIGHT, 0, 0);
 
-	mf->field = V4L2_FIELD_NONE;
+	mf->field = V4L2_FIELD_ANALNE;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		return mt9t112_s_fmt(sd, mf);
@@ -1047,7 +1047,7 @@ static int mt9t112_camera_probe(struct i2c_client *client)
 		break;
 	default:
 		dev_err(&client->dev, "Product ID error %04x\n", chipid);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto done;
 	}
 
@@ -1071,7 +1071,7 @@ static int mt9t112_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->info = client->dev.platform_data;
 	priv->init_done = false;
@@ -1079,7 +1079,7 @@ static int mt9t112_probe(struct i2c_client *client)
 	v4l2_i2c_subdev_init(&priv->subdev, client, &mt9t112_subdev_ops);
 
 	priv->clk = devm_clk_get(&client->dev, "extclk");
-	if (PTR_ERR(priv->clk) == -ENOENT) {
+	if (PTR_ERR(priv->clk) == -EANALENT) {
 		priv->clk = NULL;
 	} else if (IS_ERR(priv->clk)) {
 		dev_err(&client->dev, "Unable to get clock \"extclk\"\n");
@@ -1126,5 +1126,5 @@ static struct i2c_driver mt9t112_i2c_driver = {
 module_i2c_driver(mt9t112_i2c_driver);
 
 MODULE_DESCRIPTION("V4L2 driver for MT9T111/MT9T112 camera sensor");
-MODULE_AUTHOR("Kuninori Morimoto");
+MODULE_AUTHOR("Kunianalri Morimoto");
 MODULE_LICENSE("GPL v2");

@@ -19,7 +19,7 @@
 #include <linux/types.h>
 
 /**
- * whether SSP is in loopback mode or not
+ * whether SSP is in loopback mode or analt
  */
 enum ssp_loopback {
 	LOOPBACK_DISABLED,
@@ -29,7 +29,7 @@ enum ssp_loopback {
 /**
  * enum ssp_interface - interfaces allowed for this SSP Controller
  * @SSP_INTERFACE_MOTOROLA_SPI: Motorola Interface
- * @SSP_INTERFACE_TI_SYNC_SERIAL: Texas Instrument Synchronous Serial
+ * @SSP_INTERFACE_TI_SYNC_SERIAL: Texas Instrument Synchroanalus Serial
  * interface
  * @SSP_INTERFACE_NATIONAL_MICROWIRE: National Semiconductor Microwire
  * interface
@@ -164,7 +164,7 @@ enum ssp_microwire_ctrl_len {
 
 /**
  * enum Microwire Wait State
- * @SSP_MWIRE_WAIT_ZERO: No wait state inserted after last command bit
+ * @SSP_MWIRE_WAIT_ZERO: Anal wait state inserted after last command bit
  * @SSP_MWIRE_WAIT_ONE: One wait state inserted after last command bit
  */
 enum ssp_microwire_wait_state {
@@ -176,7 +176,7 @@ enum ssp_microwire_wait_state {
  * enum ssp_duplex - whether Full/Half Duplex on microwire, only
  * available in the ST Micro variant.
  * @SSP_MICROWIRE_CHANNEL_FULL_DUPLEX: SSPTXD becomes bi-directional,
- *     SSPRXD not used
+ *     SSPRXD analt used
  * @SSP_MICROWIRE_CHANNEL_HALF_DUPLEX: SSPTXD is an output, SSPRXD is
  *     an input.
  */
@@ -188,7 +188,7 @@ enum ssp_duplex {
 /**
  * enum ssp_clkdelay - an optional clock delay on the feedback clock
  * only available in the ST Micro PL023 variant.
- * @SSP_FEEDBACK_CLK_DELAY_NONE: no delay, the data coming in from the
+ * @SSP_FEEDBACK_CLK_DELAY_ANALNE: anal delay, the data coming in from the
  * slave is sampled directly
  * @SSP_FEEDBACK_CLK_DELAY_1T: the incoming slave data is sampled with
  * a delay of T-dt
@@ -200,7 +200,7 @@ enum ssp_duplex {
  * @SSP_FEEDBACK_CLK_DELAY_7T: dito with a delay if 7T-dt
  */
 enum ssp_clkdelay {
-	SSP_FEEDBACK_CLK_DELAY_NONE,
+	SSP_FEEDBACK_CLK_DELAY_ANALNE,
 	SSP_FEEDBACK_CLK_DELAY_1T,
 	SSP_FEEDBACK_CLK_DELAY_2T,
 	SSP_FEEDBACK_CLK_DELAY_3T,
@@ -228,7 +228,7 @@ struct dma_chan;
  * @dma_tx_param: parameter to locate a TX DMA channel.
  * @autosuspend_delay: delay in ms following transfer completion before the
  *     runtime power management system suspends the device. A setting of 0
- *     indicates no delay and the device will be suspended immediately.
+ *     indicates anal delay and the device will be suspended immediately.
  * @rt: indicates the controller should run the message pump with realtime
  *     priority to minimise the transfer latency on the bus.
  */

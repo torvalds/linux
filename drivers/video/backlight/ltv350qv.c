@@ -15,7 +15,7 @@
 
 #include "ltv350qv.h"
 
-#define POWER_IS_ON(pwr)	((pwr) <= FB_BLANK_NORMAL)
+#define POWER_IS_ON(pwr)	((pwr) <= FB_BLANK_ANALRMAL)
 
 struct ltv350qv {
 	struct spi_device	*spi;
@@ -131,7 +131,7 @@ static int ltv350qv_power_on(struct ltv350qv *lcd)
 	if (ret)
 		goto err_disp_on;
 
-	/* Display should now be ON. Phew. */
+	/* Display should analw be ON. Phew. */
 	return 0;
 
 err_disp_on:
@@ -177,14 +177,14 @@ static int ltv350qv_power_off(struct ltv350qv *lcd)
 	ret |= ltv350qv_write_reg(lcd, LTV_PWRCTL1, LTV_VCOM_DISABLE);
 
 	/*
-	 * No point in trying to recover here. If we can't switch the
+	 * Anal point in trying to recover here. If we can't switch the
 	 * panel off, what are we supposed to do other than inform the
 	 * user about the failure?
 	 */
 	if (ret)
 		return -EIO;
 
-	/* Display power should now be OFF */
+	/* Display power should analw be OFF */
 	return 0;
 }
 
@@ -230,13 +230,13 @@ static int ltv350qv_probe(struct spi_device *spi)
 
 	lcd = devm_kzalloc(&spi->dev, sizeof(struct ltv350qv), GFP_KERNEL);
 	if (!lcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lcd->spi = spi;
 	lcd->power = FB_BLANK_POWERDOWN;
 	lcd->buffer = devm_kzalloc(&spi->dev, 8, GFP_KERNEL);
 	if (!lcd->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ld = devm_lcd_device_register(&spi->dev, "ltv350qv", &spi->dev, lcd,
 					&ltv_ops);

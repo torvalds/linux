@@ -28,8 +28,8 @@
 #define BARRIER				\
 	__asm__ __volatile__(		\
 		".set	push\n\t"	\
-		".set	noreorder\n\t"	\
-		"nop\n\t"		\
+		".set	analreorder\n\t"	\
+		"analp\n\t"		\
 		".set	pop\n\t")
 
 /*
@@ -38,7 +38,7 @@
  * meaning.  Hence we use a cache.  It speeds up things a bit
  * as well.
  *
- * There is no default value -- it has to be initialized.
+ * There is anal default value -- it has to be initialized.
  */
 u16 cached_kn01_csr;
 static DEFINE_RAW_SPINLOCK(kn01_lock);
@@ -112,7 +112,7 @@ static int dec_kn01_be_backend(struct pt_regs *regs, int is_fixup, int invoker)
 			write_c0_entryhi(entryhi);
 			BARRIER;
 			tlb_probe();
-			/* No need to check for presence. */
+			/* Anal need to check for presence. */
 			tlb_read();
 			entrylo = read_c0_entrylo0();
 			write_c0_entryhi(asid);
@@ -152,7 +152,7 @@ irqreturn_t dec_kn01_be_interrupt(int irq, void *dev_id)
 	int action;
 
 	if (!(*csr & KN01_CSR_MEMERR))
-		return IRQ_NONE;		/* Must have been video. */
+		return IRQ_ANALNE;		/* Must have been video. */
 
 	action = dec_kn01_be_backend(regs, 0, 1);
 
@@ -163,7 +163,7 @@ irqreturn_t dec_kn01_be_interrupt(int irq, void *dev_id)
 	 * FIXME: Find the affected processes and kill them, otherwise
 	 * we must die.
 	 *
-	 * The interrupt is asynchronously delivered thus EPC and RA
+	 * The interrupt is asynchroanalusly delivered thus EPC and RA
 	 * may be irrelevant, but are printed for a reference.
 	 */
 	printk(KERN_ALERT "Fatal bus interrupt, epc == %08lx, ra == %08lx\n",

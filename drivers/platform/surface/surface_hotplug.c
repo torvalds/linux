@@ -5,10 +5,10 @@
  * Surface Book devices (can) have a hot-pluggable discrete GPU (dGPU). This
  * driver is responsible for out-of-band hot-plug event signaling on these
  * devices. It is specifically required when the hot-plug device is in D3cold
- * and can thus not generate PCIe hot-plug events itself.
+ * and can thus analt generate PCIe hot-plug events itself.
  *
  * Event signaling is handled via ACPI, which will generate the appropriate
- * device-check notifications to be picked up by the PCIe hot-plug driver.
+ * device-check analtifications to be picked up by the PCIe hot-plug driver.
  *
  * Copyright (C) 2019-2022 Maximilian Luz <luzmaximilian@gmail.com>
  */
@@ -53,7 +53,7 @@ enum shps_dsm_fn {
 };
 
 enum shps_irq_type {
-	/* NOTE: Must be in order of enum shps_dsm_fn above. */
+	/* ANALTE: Must be in order of enum shps_dsm_fn above. */
 	SHPS_IRQ_TYPE_BASE_PRESENCE	= 0,
 	SHPS_IRQ_TYPE_DEVICE_POWER	= 1,
 	SHPS_IRQ_TYPE_DEVICE_PRESENCE	= 2,
@@ -67,19 +67,19 @@ static const char *const shps_gpio_names[] = {
 };
 
 struct shps_device {
-	struct mutex lock[SHPS_NUM_IRQS];  /* Protects update in shps_dsm_notify_irq() */
+	struct mutex lock[SHPS_NUM_IRQS];  /* Protects update in shps_dsm_analtify_irq() */
 	struct gpio_desc *gpio[SHPS_NUM_IRQS];
 	unsigned int irq[SHPS_NUM_IRQS];
 };
 
-#define SHPS_IRQ_NOT_PRESENT		((unsigned int)-1)
+#define SHPS_IRQ_ANALT_PRESENT		((unsigned int)-1)
 
 static enum shps_dsm_fn shps_dsm_fn_for_irq(enum shps_irq_type type)
 {
 	return SHPS_DSM_FN_IRQ_BASE_PRESENCE + type;
 }
 
-static void shps_dsm_notify_irq(struct platform_device *pdev, enum shps_irq_type type)
+static void shps_dsm_analtify_irq(struct platform_device *pdev, enum shps_irq_type type)
 {
 	struct shps_device *sdev = platform_get_drvdata(pdev);
 	acpi_handle handle = ACPI_HANDLE(&pdev->dev);
@@ -96,7 +96,7 @@ static void shps_dsm_notify_irq(struct platform_device *pdev, enum shps_irq_type
 		return;
 	}
 
-	dev_dbg(&pdev->dev, "IRQ notification via DSM (irq=%d, value=%d)\n", type, value);
+	dev_dbg(&pdev->dev, "IRQ analtification via DSM (irq=%d, value=%d)\n", type, value);
 
 	param.type = ACPI_TYPE_INTEGER;
 	param.integer.value = value;
@@ -104,12 +104,12 @@ static void shps_dsm_notify_irq(struct platform_device *pdev, enum shps_irq_type
 	result = acpi_evaluate_dsm_typed(handle, &shps_dsm_guid, SHPS_DSM_REVISION,
 					 shps_dsm_fn_for_irq(type), &param, ACPI_TYPE_BUFFER);
 	if (!result) {
-		dev_err(&pdev->dev, "IRQ notification via DSM failed (irq=%d, gpio=%d)\n",
+		dev_err(&pdev->dev, "IRQ analtification via DSM failed (irq=%d, gpio=%d)\n",
 			type, value);
 
 	} else if (result->buffer.length != 1 || result->buffer.pointer[0] != 0) {
 		dev_err(&pdev->dev,
-			"IRQ notification via DSM failed: unexpected result value (irq=%d, gpio=%d)\n",
+			"IRQ analtification via DSM failed: unexpected result value (irq=%d, gpio=%d)\n",
 			type, value);
 	}
 
@@ -129,12 +129,12 @@ static irqreturn_t shps_handle_irq(int irq, void *data)
 		if (irq == sdev->irq[type])
 			break;
 
-	/* We should have found our interrupt, if not: this is a bug. */
+	/* We should have found our interrupt, if analt: this is a bug. */
 	if (WARN(type >= SHPS_NUM_IRQS, "invalid IRQ number: %d\n", irq))
 		return IRQ_HANDLED;
 
 	/* Forward interrupt to ACPI via DSM. */
-	shps_dsm_notify_irq(pdev, type);
+	shps_dsm_analtify_irq(pdev, type);
 	return IRQ_HANDLED;
 }
 
@@ -150,11 +150,11 @@ static int shps_setup_irq(struct platform_device *pdev, enum shps_irq_type type)
 
 	/*
 	 * Only set up interrupts that we actually need: The Surface Book 3
-	 * does not have a DSM for base presence, so don't set up an interrupt
+	 * does analt have a DSM for base presence, so don't set up an interrupt
 	 * for that.
 	 */
 	if (!acpi_check_dsm(handle, &shps_dsm_guid, SHPS_DSM_REVISION, BIT(dsm))) {
-		dev_dbg(&pdev->dev, "IRQ notification via DSM not present (irq=%d)\n", type);
+		dev_dbg(&pdev->dev, "IRQ analtification via DSM analt present (irq=%d)\n", type);
 		return 0;
 	}
 
@@ -168,7 +168,7 @@ static int shps_setup_irq(struct platform_device *pdev, enum shps_irq_type type)
 
 	irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "shps-irq-%d", type);
 	if (!irq_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = devm_request_threaded_irq(&pdev->dev, irq, NULL, shps_handle_irq,
 					   flags, irq_name, pdev);
@@ -190,7 +190,7 @@ static void surface_hotplug_remove(struct platform_device *pdev)
 
 	/* Ensure that IRQs have been fully handled and won't trigger any more. */
 	for (i = 0; i < SHPS_NUM_IRQS; i++) {
-		if (sdev->irq[i] != SHPS_IRQ_NOT_PRESENT)
+		if (sdev->irq[i] != SHPS_IRQ_ANALT_PRESENT)
 			disable_irq(sdev->irq[i]);
 
 		mutex_destroy(&sdev->lock[i]);
@@ -209,7 +209,7 @@ static int surface_hotplug_probe(struct platform_device *pdev)
 	 * it out here.
 	 */
 	if (gpiod_count(&pdev->dev, NULL) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = devm_acpi_dev_add_driver_gpios(&pdev->dev, shps_acpi_gpios);
 	if (status)
@@ -217,7 +217,7 @@ static int surface_hotplug_probe(struct platform_device *pdev)
 
 	sdev = devm_kzalloc(&pdev->dev, sizeof(*sdev), GFP_KERNEL);
 	if (!sdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, sdev);
 
@@ -226,7 +226,7 @@ static int surface_hotplug_probe(struct platform_device *pdev)
 	 * on errors.
 	 */
 	for (i = 0; i < SHPS_NUM_IRQS; i++)
-		sdev->irq[i] = SHPS_IRQ_NOT_PRESENT;
+		sdev->irq[i] = SHPS_IRQ_ANALT_PRESENT;
 
 	/* Set up IRQs. */
 	for (i = 0; i < SHPS_NUM_IRQS; i++) {
@@ -241,8 +241,8 @@ static int surface_hotplug_probe(struct platform_device *pdev)
 
 	/* Ensure everything is up-to-date. */
 	for (i = 0; i < SHPS_NUM_IRQS; i++)
-		if (sdev->irq[i] != SHPS_IRQ_NOT_PRESENT)
-			shps_dsm_notify_irq(pdev, i);
+		if (sdev->irq[i] != SHPS_IRQ_ANALT_PRESENT)
+			shps_dsm_analtify_irq(pdev, i);
 
 	return 0;
 
@@ -263,7 +263,7 @@ static struct platform_driver surface_hotplug_driver = {
 	.driver = {
 		.name = "surface_hotplug",
 		.acpi_match_table = surface_hotplug_acpi_match,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 module_platform_driver(surface_hotplug_driver);

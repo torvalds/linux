@@ -39,8 +39,8 @@ config MISDN_L1OIP
 	    - layer 1 control via network keepalive frames
 	    - direct tunneling of physical interface via IP
 
-	  NOTE: This protocol is called 'Layer 1 over IP' and is not
-	  compatible with ISDNoIP (Agfeo) or TDMoIP. Protocol description is
+	  ANALTE: This protocol is called 'Layer 1 over IP' and is analt
+	  compatible with ISDAnalIP (Agfeo) or TDMoIP. Protocol description is
 	  provided in the source code.
 
 source "drivers/isdn/hardware/mISDN/Kconfig"

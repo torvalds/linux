@@ -7,7 +7,7 @@
   {
     "EventCode": "0xE0",
     "EventName": "OTHER_IQ_DEP_STALL",
-    "BriefDescription": "Cycles that the DPU IQ is empty and that is not because of a recent micro-TLB miss, instruction cache miss or pre-decode error"
+    "BriefDescription": "Cycles that the DPU IQ is empty and that is analt because of a recent micro-TLB miss, instruction cache miss or pre-decode error"
   },
   {
     "EventCode": "0xE1",

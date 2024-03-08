@@ -71,7 +71,7 @@ static int iqs620_temp_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, 0);
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iio_device_set_drvdata(indio_dev, iqs62x);
 

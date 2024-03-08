@@ -41,7 +41,7 @@ int imx_pcm_dma_init(struct platform_device *pdev)
 	config = devm_kzalloc(&pdev->dev,
 			sizeof(struct snd_dmaengine_pcm_config), GFP_KERNEL);
 	if (!config)
-		return -ENOMEM;
+		return -EANALMEM;
 	*config = imx_dmaengine_pcm_config;
 
 	return devm_snd_dmaengine_pcm_register(&pdev->dev,

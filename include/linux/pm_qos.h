@@ -13,12 +13,12 @@
 #define _LINUX_PM_QOS_H
 
 #include <linux/plist.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/device.h>
 
 enum pm_qos_flags_status {
 	PM_QOS_FLAGS_UNDEFINED = -1,
-	PM_QOS_FLAGS_NONE,
+	PM_QOS_FLAGS_ANALNE,
 	PM_QOS_FLAGS_SOME,
 	PM_QOS_FLAGS_ALL,
 };
@@ -29,14 +29,14 @@ enum pm_qos_flags_status {
 
 #define PM_QOS_CPU_LATENCY_DEFAULT_VALUE	(2000 * USEC_PER_SEC)
 #define PM_QOS_RESUME_LATENCY_DEFAULT_VALUE	PM_QOS_LATENCY_ANY
-#define PM_QOS_RESUME_LATENCY_NO_CONSTRAINT	PM_QOS_LATENCY_ANY
-#define PM_QOS_RESUME_LATENCY_NO_CONSTRAINT_NS	PM_QOS_LATENCY_ANY_NS
+#define PM_QOS_RESUME_LATENCY_ANAL_CONSTRAINT	PM_QOS_LATENCY_ANY
+#define PM_QOS_RESUME_LATENCY_ANAL_CONSTRAINT_NS	PM_QOS_LATENCY_ANY_NS
 #define PM_QOS_LATENCY_TOLERANCE_DEFAULT_VALUE	0
 #define PM_QOS_MIN_FREQUENCY_DEFAULT_VALUE	0
 #define PM_QOS_MAX_FREQUENCY_DEFAULT_VALUE	FREQ_QOS_MAX_DEFAULT_VALUE
-#define PM_QOS_LATENCY_TOLERANCE_NO_CONSTRAINT	(-1)
+#define PM_QOS_LATENCY_TOLERANCE_ANAL_CONSTRAINT	(-1)
 
-#define PM_QOS_FLAG_NO_POWER_OFF	(1 << 0)
+#define PM_QOS_FLAG_ANAL_POWER_OFF	(1 << 0)
 
 enum pm_qos_type {
 	PM_QOS_UNITIALIZED,
@@ -45,32 +45,32 @@ enum pm_qos_type {
 };
 
 /*
- * Note: The lockless read path depends on the CPU accessing target_value
+ * Analte: The lockless read path depends on the CPU accessing target_value
  * or effective_flags atomically.  Atomic access is only guaranteed on all CPU
  * types linux supports for 32 bit quantites
  */
 struct pm_qos_constraints {
 	struct plist_head list;
-	s32 target_value;	/* Do not change to 64 bit */
+	s32 target_value;	/* Do analt change to 64 bit */
 	s32 default_value;
-	s32 no_constraint_value;
+	s32 anal_constraint_value;
 	enum pm_qos_type type;
-	struct blocking_notifier_head *notifiers;
+	struct blocking_analtifier_head *analtifiers;
 };
 
 struct pm_qos_request {
-	struct plist_node node;
+	struct plist_analde analde;
 	struct pm_qos_constraints *qos;
 };
 
 struct pm_qos_flags_request {
-	struct list_head node;
-	s32 flags;	/* Do not change to 64 bit */
+	struct list_head analde;
+	s32 flags;	/* Do analt change to 64 bit */
 };
 
 struct pm_qos_flags {
 	struct list_head list;
-	s32 effective_flags;	/* Do not change to 64 bit */
+	s32 effective_flags;	/* Do analt change to 64 bit */
 };
 
 
@@ -84,14 +84,14 @@ enum freq_qos_req_type {
 
 struct freq_constraints {
 	struct pm_qos_constraints min_freq;
-	struct blocking_notifier_head min_freq_notifiers;
+	struct blocking_analtifier_head min_freq_analtifiers;
 	struct pm_qos_constraints max_freq;
-	struct blocking_notifier_head max_freq_notifiers;
+	struct blocking_analtifier_head max_freq_analtifiers;
 };
 
 struct freq_qos_request {
 	enum freq_qos_req_type type;
-	struct plist_node pnode;
+	struct plist_analde panalde;
 	struct freq_constraints *qos;
 };
 
@@ -107,7 +107,7 @@ enum dev_pm_qos_req_type {
 struct dev_pm_qos_request {
 	enum dev_pm_qos_req_type type;
 	union {
-		struct plist_node pnode;
+		struct plist_analde panalde;
 		struct pm_qos_flags_request flr;
 		struct freq_qos_request freq;
 	} data;
@@ -137,7 +137,7 @@ static inline int dev_pm_qos_request_active(struct dev_pm_qos_request *req)
 }
 
 s32 pm_qos_read_value(struct pm_qos_constraints *c);
-int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
+int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_analde *analde,
 			 enum pm_qos_req_action action, int value);
 bool pm_qos_update_flags(struct pm_qos_flags *pqf,
 			 struct pm_qos_flags_request *req,
@@ -171,11 +171,11 @@ int dev_pm_qos_add_request(struct device *dev, struct dev_pm_qos_request *req,
 			   enum dev_pm_qos_req_type type, s32 value);
 int dev_pm_qos_update_request(struct dev_pm_qos_request *req, s32 new_value);
 int dev_pm_qos_remove_request(struct dev_pm_qos_request *req);
-int dev_pm_qos_add_notifier(struct device *dev,
-			    struct notifier_block *notifier,
+int dev_pm_qos_add_analtifier(struct device *dev,
+			    struct analtifier_block *analtifier,
 			    enum dev_pm_qos_req_type type);
-int dev_pm_qos_remove_notifier(struct device *dev,
-			       struct notifier_block *notifier,
+int dev_pm_qos_remove_analtifier(struct device *dev,
+			       struct analtifier_block *analtifier,
 			       enum dev_pm_qos_req_type type);
 void dev_pm_qos_constraints_init(struct device *dev);
 void dev_pm_qos_constraints_destroy(struct device *dev);
@@ -194,7 +194,7 @@ void dev_pm_qos_hide_latency_tolerance(struct device *dev);
 
 static inline s32 dev_pm_qos_requested_resume_latency(struct device *dev)
 {
-	return dev->power.qos->resume_latency_req->data.pnode.prio;
+	return dev->power.qos->resume_latency_req->data.panalde.prio;
 }
 
 static inline s32 dev_pm_qos_requested_flags(struct device *dev)
@@ -205,7 +205,7 @@ static inline s32 dev_pm_qos_requested_flags(struct device *dev)
 static inline s32 dev_pm_qos_raw_resume_latency(struct device *dev)
 {
 	return IS_ERR_OR_NULL(dev->power.qos) ?
-		PM_QOS_RESUME_LATENCY_NO_CONSTRAINT :
+		PM_QOS_RESUME_LATENCY_ANAL_CONSTRAINT :
 		pm_qos_read_value(&dev->power.qos->resume_latency);
 }
 #else
@@ -216,13 +216,13 @@ static inline enum pm_qos_flags_status dev_pm_qos_flags(struct device *dev,
 							s32 mask)
 			{ return PM_QOS_FLAGS_UNDEFINED; }
 static inline s32 __dev_pm_qos_resume_latency(struct device *dev)
-			{ return PM_QOS_RESUME_LATENCY_NO_CONSTRAINT; }
+			{ return PM_QOS_RESUME_LATENCY_ANAL_CONSTRAINT; }
 static inline s32 dev_pm_qos_read_value(struct device *dev,
 					enum dev_pm_qos_req_type type)
 {
 	switch (type) {
 	case DEV_PM_QOS_RESUME_LATENCY:
-		return PM_QOS_RESUME_LATENCY_NO_CONSTRAINT;
+		return PM_QOS_RESUME_LATENCY_ANAL_CONSTRAINT;
 	case DEV_PM_QOS_MIN_FREQUENCY:
 		return PM_QOS_MIN_FREQUENCY_DEFAULT_VALUE;
 	case DEV_PM_QOS_MAX_FREQUENCY:
@@ -243,12 +243,12 @@ static inline int dev_pm_qos_update_request(struct dev_pm_qos_request *req,
 			{ return 0; }
 static inline int dev_pm_qos_remove_request(struct dev_pm_qos_request *req)
 			{ return 0; }
-static inline int dev_pm_qos_add_notifier(struct device *dev,
-					  struct notifier_block *notifier,
+static inline int dev_pm_qos_add_analtifier(struct device *dev,
+					  struct analtifier_block *analtifier,
 					  enum dev_pm_qos_req_type type)
 			{ return 0; }
-static inline int dev_pm_qos_remove_notifier(struct device *dev,
-					     struct notifier_block *notifier,
+static inline int dev_pm_qos_remove_analtifier(struct device *dev,
+					     struct analtifier_block *analtifier,
 					     enum dev_pm_qos_req_type type)
 			{ return 0; }
 static inline void dev_pm_qos_constraints_init(struct device *dev)
@@ -273,7 +273,7 @@ static inline void dev_pm_qos_hide_flags(struct device *dev) {}
 static inline int dev_pm_qos_update_flags(struct device *dev, s32 m, bool set)
 			{ return 0; }
 static inline s32 dev_pm_qos_get_user_latency_tolerance(struct device *dev)
-			{ return PM_QOS_LATENCY_TOLERANCE_NO_CONSTRAINT; }
+			{ return PM_QOS_LATENCY_TOLERANCE_ANAL_CONSTRAINT; }
 static inline int dev_pm_qos_update_user_latency_tolerance(struct device *dev, s32 val)
 			{ return 0; }
 static inline int dev_pm_qos_expose_latency_tolerance(struct device *dev)
@@ -282,12 +282,12 @@ static inline void dev_pm_qos_hide_latency_tolerance(struct device *dev) {}
 
 static inline s32 dev_pm_qos_requested_resume_latency(struct device *dev)
 {
-	return PM_QOS_RESUME_LATENCY_NO_CONSTRAINT;
+	return PM_QOS_RESUME_LATENCY_ANAL_CONSTRAINT;
 }
 static inline s32 dev_pm_qos_requested_flags(struct device *dev) { return 0; }
 static inline s32 dev_pm_qos_raw_resume_latency(struct device *dev)
 {
-	return PM_QOS_RESUME_LATENCY_NO_CONSTRAINT;
+	return PM_QOS_RESUME_LATENCY_ANAL_CONSTRAINT;
 }
 #endif
 
@@ -309,11 +309,11 @@ int freq_qos_remove_request(struct freq_qos_request *req);
 int freq_qos_apply(struct freq_qos_request *req,
 		   enum pm_qos_req_action action, s32 value);
 
-int freq_qos_add_notifier(struct freq_constraints *qos,
+int freq_qos_add_analtifier(struct freq_constraints *qos,
 			  enum freq_qos_req_type type,
-			  struct notifier_block *notifier);
-int freq_qos_remove_notifier(struct freq_constraints *qos,
+			  struct analtifier_block *analtifier);
+int freq_qos_remove_analtifier(struct freq_constraints *qos,
 			     enum freq_qos_req_type type,
-			     struct notifier_block *notifier);
+			     struct analtifier_block *analtifier);
 
 #endif

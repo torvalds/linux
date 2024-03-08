@@ -2,7 +2,7 @@
 /*
  * usb.c - Hardware dependent module for USB
  *
- * Copyright (C) 2013-2015 Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2013-2015 Microchip Techanallogy Germany II GmbH & Co. KG
  */
 
 #include <linux/module.h>
@@ -25,7 +25,7 @@
 #include <linux/most.h>
 
 #define USB_MTU			512
-#define NO_ISOCHRONOUS_URB	0
+#define ANAL_ISOCHROANALUS_URB	0
 #define AV_PACKETS_PER_XACT	2
 #define BUF_CHAIN_SIZE		0xFFFF
 #define MAX_NUM_ENDPOINTS	30
@@ -41,8 +41,8 @@
 /* DRCI Addresses */
 #define DRCI_REG_NI_STATE	0x0100
 #define DRCI_REG_PACKET_BW	0x0101
-#define DRCI_REG_NODE_ADDR	0x0102
-#define DRCI_REG_NODE_POS	0x0103
+#define DRCI_REG_ANALDE_ADDR	0x0102
+#define DRCI_REG_ANALDE_POS	0x0103
 #define DRCI_REG_MEP_FILTER	0x0140
 #define DRCI_REG_HASH_TBL0	0x0141
 #define DRCI_REG_HASH_TBL1	0x0142
@@ -144,7 +144,7 @@ static inline int drci_rd_reg(struct usb_device *dev, u16 reg, u16 *buf)
 
 	dma_buf = kzalloc(sizeof(*dma_buf), GFP_KERNEL);
 	if (!dma_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
 				 DRCI_READ_REQ, req_type,
@@ -215,7 +215,7 @@ static unsigned int get_stream_frame_size(struct device *dev,
 		}
 		break;
 	default:
-		dev_warn(dev, "Query frame size of non-streaming channel\n");
+		dev_warn(dev, "Query frame size of analn-streaming channel\n");
 		frame_size = 0;
 		break;
 	}
@@ -364,7 +364,7 @@ static void hdm_write_completion(struct urb *urb)
 			mdev->clear_work[channel].pipe = urb->pipe;
 			schedule_work(&mdev->clear_work[channel].ws);
 			break;
-		case -ENODEV:
+		case -EANALDEV:
 		case -EPROTO:
 			mbo->status = MBO_E_CLOSE;
 			break;
@@ -421,7 +421,7 @@ static void hdm_read_completion(struct urb *urb)
 			mdev->clear_work[channel].pipe = urb->pipe;
 			schedule_work(&mdev->clear_work[channel].ws);
 			break;
-		case -ENODEV:
+		case -EANALDEV:
 		case -EPROTO:
 			mbo->status = MBO_E_CLOSE;
 			break;
@@ -469,15 +469,15 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	if (iface->num_channels <= channel || channel < 0)
 		return -ECHRNG;
 
-	urb = usb_alloc_urb(NO_ISOCHRONOUS_URB, GFP_KERNEL);
+	urb = usb_alloc_urb(ANAL_ISOCHROANALUS_URB, GFP_KERNEL);
 	if (!urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	conf = &mdev->conf[channel];
 
 	mutex_lock(&mdev->io_mutex);
 	if (!mdev->usb_device) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto err_free_urb;
 	}
 
@@ -511,7 +511,7 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 				  hdm_read_completion,
 				  mbo);
 	}
-	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	usb_anchor_urb(urb, &mdev->busy_urbs[channel]);
 
@@ -556,9 +556,9 @@ static void hdm_dma_free(struct mbo *mbo, u32 size)
  *
  * The attached network interface controller (NIC) supports a padding mode
  * to avoid short packets on USB, hence increasing the performance due to a
- * lower interrupt load. This mode is default for synchronous data and can
- * be switched on for isochronous data. In case padding is active the
- * driver needs to know the frame size of the payload in order to calculate
+ * lower interrupt load. This mode is default for synchroanalus data and can
+ * be switched on for isochroanalus data. In case padding is active the
+ * driver needs to kanalw the frame size of the payload in order to calculate
  * the number of bytes it needs to pad when transmitting or to cut off when
  * receiving data.
  *
@@ -595,7 +595,7 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 	      conf->packets_per_xact != 0xFF)) {
 		mdev->padding_active[channel] = false;
 		/*
-		 * Since the NIC's padding mode is not going to be
+		 * Since the NIC's padding mode is analt going to be
 		 * used, we can skip the frame size calculations and
 		 * move directly on to exit.
 		 */
@@ -741,11 +741,11 @@ static void wq_clear_halt(struct work_struct *wq_obj)
 		dev_warn(&mdev->usb_device->dev, "Failed to reset endpoint.\n");
 
 	/* If the functional Stall condition has been set on an
-	 * asynchronous rx channel, we need to clear the tx channel
+	 * asynchroanalus rx channel, we need to clear the tx channel
 	 * too, since the hardware runs its clean-up sequence on both
 	 * channels, as they are physically one on the network.
 	 *
-	 * The USB interface that exposes the asynchronous channels
+	 * The USB interface that exposes the asynchroanalus channels
 	 * contains always two endpoints, and two only.
 	 */
 	if (mdev->conf[channel].data_type == MOST_CH_ASYNC &&
@@ -789,8 +789,8 @@ struct regs {
 static const struct regs ro_regs[] = {
 	{ "ni_state", DRCI_REG_NI_STATE },
 	{ "packet_bandwidth", DRCI_REG_PACKET_BW },
-	{ "node_address", DRCI_REG_NODE_ADDR },
-	{ "node_position", DRCI_REG_NODE_POS },
+	{ "analde_address", DRCI_REG_ANALDE_ADDR },
+	{ "analde_position", DRCI_REG_ANALDE_POS },
 };
 
 static const struct regs rw_regs[] = {
@@ -882,8 +882,8 @@ static ssize_t value_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(ni_state, 0444, value_show, NULL);
 static DEVICE_ATTR(packet_bandwidth, 0444, value_show, NULL);
-static DEVICE_ATTR(node_address, 0444, value_show, NULL);
-static DEVICE_ATTR(node_position, 0444, value_show, NULL);
+static DEVICE_ATTR(analde_address, 0444, value_show, NULL);
+static DEVICE_ATTR(analde_position, 0444, value_show, NULL);
 static DEVICE_ATTR(sync_ep, 0200, NULL, value_store);
 static DEVICE_ATTR(mep_filter, 0644, value_show, value_store);
 static DEVICE_ATTR(mep_hash0, 0644, value_show, value_store);
@@ -899,8 +899,8 @@ static DEVICE_ATTR(arb_value, 0644, value_show, value_store);
 static struct attribute *dci_attrs[] = {
 	&dev_attr_ni_state.attr,
 	&dev_attr_packet_bandwidth.attr,
-	&dev_attr_node_address.attr,
-	&dev_attr_node_position.attr,
+	&dev_attr_analde_address.attr,
+	&dev_attr_analde_position.attr,
 	&dev_attr_sync_ep.attr,
 	&dev_attr_mep_filter.attr,
 	&dev_attr_mep_hash0.attr,
@@ -954,11 +954,11 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	unsigned int num_endpoints;
 	struct most_channel_capability *tmp_cap;
 	struct usb_endpoint_descriptor *ep_desc;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_set_intfdata(interface, mdev);
 	num_endpoints = usb_iface_desc->desc.bNumEndpoints;
@@ -1064,7 +1064,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		if (!mdev->dci) {
 			mutex_unlock(&mdev->io_mutex);
 			most_deregister_interface(&mdev->iface);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_busy_urbs;
 		}
 
@@ -1075,7 +1075,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		if (device_register(&mdev->dci->dev)) {
 			mutex_unlock(&mdev->io_mutex);
 			most_deregister_interface(&mdev->iface);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_dci;
 		}
 		mdev->dci->usb_device = mdev->usb_device;

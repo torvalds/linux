@@ -21,7 +21,7 @@
 #define MMA9551_RESPONSE_COCO		BIT(7)
 
 /* Error-Status codes returned in mailbox read command */
-#define MMA9551_MCI_ERROR_NONE			0x00
+#define MMA9551_MCI_ERROR_ANALNE			0x00
 #define MMA9551_MCI_ERROR_PARAM			0x04
 #define MMA9551_MCI_INVALID_COUNT		0x19
 #define MMA9551_MCI_ERROR_COMMAND		0x1C
@@ -178,7 +178,7 @@ static int mma9551_transfer(struct i2c_client *client,
 	}
 
 	err_code = rsp.coco_err & ~MMA9551_RESPONSE_COCO;
-	if (err_code != MMA9551_MCI_ERROR_NONE) {
+	if (err_code != MMA9551_MCI_ERROR_ANALNE) {
 		dev_err(&client->dev, "read returned error %x\n", err_code);
 		return -EINVAL;
 	}
@@ -207,8 +207,8 @@ static int mma9551_transfer(struct i2c_client *client,
  * Commands to the MMA955xL platform consist of a write followed
  * by one or more reads.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking analte: This function must be called with the device lock held.
+ * Locking is analt handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -232,8 +232,8 @@ EXPORT_SYMBOL_NS(mma9551_read_config_byte, IIO_MMA9551);
  * Commands to the MMA955xL platform consist of a write followed by one or
  * more reads.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking analte: This function must be called with the device lock held.
+ * Locking is analt handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -257,8 +257,8 @@ EXPORT_SYMBOL_NS(mma9551_write_config_byte, IIO_MMA9551);
  * Commands to the MMA955xL platform consist of a write followed by one or
  * more reads.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking analte: This function must be called with the device lock held.
+ * Locking is analt handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -282,8 +282,8 @@ EXPORT_SYMBOL_NS(mma9551_read_status_byte, IIO_MMA9551);
  * Commands to the MMA955xL platform consist of a write followed by one or
  * more reads.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking analte: This function must be called with the device lock held.
+ * Locking is analt handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -316,8 +316,8 @@ EXPORT_SYMBOL_NS(mma9551_read_config_word, IIO_MMA9551);
  * Commands to the MMA955xL platform consist of a write followed by one or
  * more reads.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking analte: This function must be called with the device lock held.
+ * Locking is analt handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -343,8 +343,8 @@ EXPORT_SYMBOL_NS(mma9551_write_config_word, IIO_MMA9551);
  * Commands to the MMA955xL platform consist of a write followed by one or
  * more reads.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking analte: This function must be called with the device lock held.
+ * Locking is analt handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -376,8 +376,8 @@ EXPORT_SYMBOL_NS(mma9551_read_status_word, IIO_MMA9551);
  *
  * Read multiple configuration registers (word-sized registers).
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking analte: This function must be called with the device lock held.
+ * Locking is analt handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -415,8 +415,8 @@ EXPORT_SYMBOL_NS(mma9551_read_config_words, IIO_MMA9551);
  *
  * Read multiple status registers (word-sized registers).
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking analte: This function must be called with the device lock held.
+ * Locking is analt handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -454,8 +454,8 @@ EXPORT_SYMBOL_NS(mma9551_read_status_words, IIO_MMA9551);
  *
  * Write multiple configuration registers (word-sized registers).
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking analte: This function must be called with the device lock held.
+ * Locking is analt handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -489,8 +489,8 @@ EXPORT_SYMBOL_NS(mma9551_write_config_words, IIO_MMA9551);
  *
  * Update bits in the given register using a bit mask.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking analte: This function must be called with the device lock held.
+ * Locking is analt handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -528,8 +528,8 @@ EXPORT_SYMBOL_NS(mma9551_update_config_bits, IIO_MMA9551);
  *
  * Assign a bit from an application’s status register to a specific GPIO pin.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking analte: This function must be called with the device lock held.
+ * Locking is analt handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -600,8 +600,8 @@ EXPORT_SYMBOL_NS(mma9551_gpio_config, IIO_MMA9551);
  *
  * Read version information and print device id and firmware version.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking analte: This function must be called with the device lock held.
+ * Locking is analt handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -635,8 +635,8 @@ EXPORT_SYMBOL_NS(mma9551_read_version, IIO_MMA9551);
  * When enable is false, enter sleep mode (device remains in the
  * lowest-power mode).
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking analte: This function must be called with the device lock held.
+ * Locking is analt handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -716,8 +716,8 @@ EXPORT_SYMBOL_NS(mma9551_sleep, IIO_MMA9551);
  *
  * Read accelerometer value for the specified channel.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking analte: This function must be called with the device lock held.
+ * Locking is analt handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: IIO_VAL_INT on success, negative value on failure.

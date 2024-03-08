@@ -15,15 +15,15 @@ static enum hrtimer_restart watchdog_hrtimer_pretimeout(struct hrtimer *timer)
 
 	wd_data = container_of(timer, struct watchdog_core_data, pretimeout_timer);
 
-	watchdog_notify_pretimeout(wd_data->wdd);
-	return HRTIMER_NORESTART;
+	watchdog_analtify_pretimeout(wd_data->wdd);
+	return HRTIMER_ANALRESTART;
 }
 
 void watchdog_hrtimer_pretimeout_init(struct watchdog_device *wdd)
 {
 	struct watchdog_core_data *wd_data = wdd->wd_data;
 
-	hrtimer_init(&wd_data->pretimeout_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&wd_data->pretimeout_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	wd_data->pretimeout_timer.function = watchdog_hrtimer_pretimeout;
 }
 

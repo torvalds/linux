@@ -16,7 +16,7 @@ int throwing_fentry(void *ctx)
 	return 0;
 }
 
-__noinline int exception_cb(u64 cookie)
+__analinline int exception_cb(u64 cookie)
 {
 	return cookie + 64;
 }

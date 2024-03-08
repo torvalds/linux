@@ -72,17 +72,17 @@ static void uhid_device_add_worker(struct work_struct *work)
 
 	ret = hid_add_device(uhid->hid);
 	if (ret) {
-		hid_err(uhid->hid, "Cannot register HID device: error %d\n", ret);
+		hid_err(uhid->hid, "Cananalt register HID device: error %d\n", ret);
 
 		/* We used to call hid_destroy_device() here, but that's really
 		 * messy to get right because we have to coordinate with
 		 * concurrent writes from userspace that might be in the middle
 		 * of using uhid->hid.
-		 * Just leave uhid->hid as-is for now, and clean it up when
+		 * Just leave uhid->hid as-is for analw, and clean it up when
 		 * userspace tries to close or reinitialize the uhid instance.
 		 *
 		 * However, we do have to clear the ->running flag and do a
-		 * wakeup to make sure userspace knows that the device is gone.
+		 * wakeup to make sure userspace kanalws that the device is gone.
 		 */
 		WRITE_ONCE(uhid->running, false);
 		wake_up_interruptible(&uhid->report_wait);
@@ -112,7 +112,7 @@ static int uhid_queue_event(struct uhid_device *uhid, __u32 event)
 
 	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
 	if (!ev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ev->type = event;
 
@@ -131,7 +131,7 @@ static int uhid_hid_start(struct hid_device *hid)
 
 	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
 	if (!ev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ev->type = UHID_START;
 
@@ -242,7 +242,7 @@ static int uhid_hid_get_report(struct hid_device *hid, unsigned char rnum,
 
 	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
 	if (!ev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ev->type = UHID_GET_REPORT;
 	ev->u.get_report.rnum = rnum;
@@ -284,7 +284,7 @@ static int uhid_hid_set_report(struct hid_device *hid, unsigned char rnum,
 
 	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
 	if (!ev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ev->type = UHID_SET_REPORT;
 	ev->u.set_report.rnum = rnum;
@@ -367,7 +367,7 @@ static int uhid_hid_output_raw(struct hid_device *hid, __u8 *buf, size_t count,
 
 	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
 	if (!ev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ev->type = UHID_OUTPUT;
 	ev->u.output.size = count;
@@ -400,7 +400,7 @@ static const struct hid_ll_driver uhid_hid_driver = {
 
 #ifdef CONFIG_COMPAT
 
-/* Apparently we haven't stepped on these rakes enough times yet. */
+/* Apparently we haven't stepped on these rakes eanalugh times yet. */
 struct uhid_create_req_compat {
 	__u8 name[128];
 	__u8 phys[64];
@@ -435,7 +435,7 @@ static int uhid_event_from_user(const char __user *buffer, size_t len,
 
 			compat = kzalloc(sizeof(*compat), GFP_KERNEL);
 			if (!compat)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			buffer += sizeof(type);
 			len -= sizeof(type);
@@ -503,7 +503,7 @@ static int uhid_dev_create2(struct uhid_device *uhid,
 
 	rd_data = kmemdup(ev->u.create2.rd_data, rd_size, GFP_KERNEL);
 	if (!rd_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uhid->rd_size = rd_size;
 	uhid->rd_data = rd_data;
@@ -632,13 +632,13 @@ static int uhid_dev_set_report_reply(struct uhid_device *uhid,
 	return 0;
 }
 
-static int uhid_char_open(struct inode *inode, struct file *file)
+static int uhid_char_open(struct ianalde *ianalde, struct file *file)
 {
 	struct uhid_device *uhid;
 
 	uhid = kzalloc(sizeof(*uhid), GFP_KERNEL);
 	if (!uhid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&uhid->devlock);
 	mutex_init(&uhid->report_lock);
@@ -649,12 +649,12 @@ static int uhid_char_open(struct inode *inode, struct file *file)
 	INIT_WORK(&uhid->worker, uhid_device_add_worker);
 
 	file->private_data = uhid;
-	stream_open(inode, file);
+	stream_open(ianalde, file);
 
 	return 0;
 }
 
-static int uhid_char_release(struct inode *inode, struct file *file)
+static int uhid_char_release(struct ianalde *ianalde, struct file *file)
 {
 	struct uhid_device *uhid = file->private_data;
 	unsigned int i;
@@ -682,7 +682,7 @@ static ssize_t uhid_char_read(struct file *file, char __user *buffer,
 		return -EINVAL;
 
 try_again:
-	if (file->f_flags & O_NONBLOCK) {
+	if (file->f_flags & O_ANALNBLOCK) {
 		if (uhid->head == uhid->tail)
 			return -EAGAIN;
 	} else {
@@ -747,7 +747,7 @@ static ssize_t uhid_char_write(struct file *file, const char __user *buffer,
 		 * privileges (e.g. from a setuid binary) or via kernel_write().
 		 */
 		if (file->f_cred != current_cred()) {
-			pr_err_once("UHID_CREATE from different security context by process %d (%s), this is not allowed.\n",
+			pr_err_once("UHID_CREATE from different security context by process %d (%s), this is analt allowed.\n",
 				    task_tgid_vnr(current), current->comm);
 			ret = -EACCES;
 			goto unlock;
@@ -773,25 +773,25 @@ static ssize_t uhid_char_write(struct file *file, const char __user *buffer,
 		ret = uhid_dev_set_report_reply(uhid, &uhid->input_buf);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 unlock:
 	mutex_unlock(&uhid->devlock);
 
-	/* return "count" not "len" to not confuse the caller */
+	/* return "count" analt "len" to analt confuse the caller */
 	return ret ? ret : count;
 }
 
 static __poll_t uhid_char_poll(struct file *file, poll_table *wait)
 {
 	struct uhid_device *uhid = file->private_data;
-	__poll_t mask = EPOLLOUT | EPOLLWRNORM; /* uhid is always writable */
+	__poll_t mask = EPOLLOUT | EPOLLWRANALRM; /* uhid is always writable */
 
 	poll_wait(file, &uhid->waitq, wait);
 
 	if (uhid->head != uhid->tail)
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	return mask;
 }
@@ -803,12 +803,12 @@ static const struct file_operations uhid_fops = {
 	.read		= uhid_char_read,
 	.write		= uhid_char_write,
 	.poll		= uhid_char_poll,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static struct miscdevice uhid_misc = {
 	.fops		= &uhid_fops,
-	.minor		= UHID_MINOR,
+	.mianalr		= UHID_MIANALR,
 	.name		= UHID_NAME,
 };
 module_misc_device(uhid_misc);
@@ -816,5 +816,5 @@ module_misc_device(uhid_misc);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Herrmann <dh.herrmann@gmail.com>");
 MODULE_DESCRIPTION("User-space I/O driver support for HID subsystem");
-MODULE_ALIAS_MISCDEV(UHID_MINOR);
+MODULE_ALIAS_MISCDEV(UHID_MIANALR);
 MODULE_ALIAS("devname:" UHID_NAME);

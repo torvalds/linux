@@ -83,7 +83,7 @@ int pcf50633_mbc_usb_curlim_set(struct pcf50633 *pcf, int ma)
 	mbcs2 = pcf50633_reg_read(mbc->pcf, PCF50633_REG_MBCS2);
 	chgmod = (mbcs2 & PCF50633_MBCS2_MBC_MASK);
 
-	/* If chgmod == BATFULL, setting chgena has no effect.
+	/* If chgmod == BATFULL, setting chgena has anal effect.
 	 * Datasheet says we need to set resume instead but when autoresume is
 	 * used resume doesn't work. Clear and set chgena instead.
 	 */
@@ -203,7 +203,7 @@ show_chglim(struct device *dev, struct device_attribute *attr, char *buf)
 	unsigned int ma;
 
 	if (!mbc->pcf->pdata->charger_reference_current_ma)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ma = (mbc->pcf->pdata->charger_reference_current_ma *  mbcc5) >> 8;
 
@@ -219,7 +219,7 @@ static ssize_t set_chglim(struct device *dev,
 	int ret;
 
 	if (!mbc->pcf->pdata->charger_reference_current_ma)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = kstrtoul(buf, 10, &ma);
 	if (ret)
@@ -389,7 +389,7 @@ static int pcf50633_mbc_probe(struct platform_device *pdev)
 
 	mbc = devm_kzalloc(&pdev->dev, sizeof(*mbc), GFP_KERNEL);
 	if (!mbc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, mbc);
 	mbc->pcf = dev_to_pcf50633(pdev->dev.parent);

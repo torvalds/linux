@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_NOHASH_PGTABLE_H
-#define _ASM_POWERPC_NOHASH_PGTABLE_H
+#ifndef _ASM_POWERPC_ANALHASH_PGTABLE_H
+#define _ASM_POWERPC_ANALHASH_PGTABLE_H
 
 #ifndef __ASSEMBLY__
 static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, pte_t *p,
@@ -8,9 +8,9 @@ static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, p
 #endif
 
 #if defined(CONFIG_PPC64)
-#include <asm/nohash/64/pgtable.h>
+#include <asm/analhash/64/pgtable.h>
 #else
-#include <asm/nohash/32/pgtable.h>
+#include <asm/analhash/32/pgtable.h>
 #endif
 
 /*
@@ -21,8 +21,8 @@ static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, p
 
 /* Permission masks used for kernel mappings */
 #define PAGE_KERNEL	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RW)
-#define PAGE_KERNEL_NC	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | _PAGE_NO_CACHE)
-#define PAGE_KERNEL_NCG	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | _PAGE_NO_CACHE | _PAGE_GUARDED)
+#define PAGE_KERNEL_NC	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | _PAGE_ANAL_CACHE)
+#define PAGE_KERNEL_NCG	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | _PAGE_ANAL_CACHE | _PAGE_GUARDED)
 #define PAGE_KERNEL_X	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RWX)
 #define PAGE_KERNEL_RO	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RO)
 #define PAGE_KERNEL_ROX	__pgprot(_PAGE_BASE | _PAGE_KERNEL_ROX)
@@ -33,8 +33,8 @@ extern int icache_44x_need_flush;
 
 /*
  * PTE updates. This function is called whenever an existing
- * valid PTE is updated. This does -not- include set_pte_at()
- * which nowadays only sets a new PTE.
+ * valid PTE is updated. This does -analt- include set_pte_at()
+ * which analwadays only sets a new PTE.
  *
  * Depending on the type of MMU, we may need to use atomic updates
  * and the PTE may be either 32 or 64 bit wide. In the later case,
@@ -119,8 +119,8 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 #endif
 
 /* Generic accessors to PTE bits */
-#ifndef pte_mkwrite_novma
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+#ifndef pte_mkwrite_analvma
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 {
 	/*
 	 * write implies read, hence set both
@@ -161,9 +161,9 @@ static inline int pte_write(pte_t pte)
 #endif
 static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
-static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
+static inline int pte_analne(pte_t pte)		{ return (pte_val(pte) & ~_PTE_ANALNE_MASK) == 0; }
 static inline bool pte_hashpte(pte_t pte)	{ return false; }
-static inline bool pte_ci(pte_t pte)		{ return pte_val(pte) & _PAGE_NO_CACHE; }
+static inline bool pte_ci(pte_t pte)		{ return pte_val(pte) & _PAGE_ANAL_CACHE; }
 static inline bool pte_exec(pte_t pte)		{ return pte_val(pte) & _PAGE_EXEC; }
 
 static inline int pte_present(pte_t pte)
@@ -182,7 +182,7 @@ static inline int pte_young(pte_t pte)
 }
 
 /*
- * Don't just check for any non zero bits in __PAGE_READ, since for book3e
+ * Don't just check for any analn zero bits in __PAGE_READ, since for book3e
  * and PTE_64BIT, PAGE_KERNEL_X contains _PAGE_BAP_SR which is also in
  * _PAGE_READ.  Need to explicitly match _PAGE_BAP_UR bit in that case too.
  */
@@ -195,7 +195,7 @@ static inline bool pte_read(pte_t pte)
 
 /*
  * We only find page table entry in the last level
- * Hence no need for other accessors
+ * Hence anal need for other accessors
  */
 #define pte_access_permitted pte_access_permitted
 static inline bool pte_access_permitted(pte_t pte, bool write)
@@ -217,7 +217,7 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
  * and a page entry and page directory to the page they refer to.
  *
  * Even if PTEs can be unsigned long long, a PFN is always an unsigned
- * long for now.
+ * long for analw.
  */
 static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot) {
 	return __pte(((pte_basic_t)(pfn) << PTE_RPN_SHIFT) |
@@ -273,7 +273,7 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 
 /* This low level function performs the actual PTE insertion
  * Setting the PTE depends on the MMU type and other factors. It's
- * an horrible mess that I'm not going to try to clean up now but
+ * an horrible mess that I'm analt going to try to clean up analw but
  * I'm keeping it in one place rather than spread around
  */
 static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
@@ -293,8 +293,8 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 		: "r" (pte) : "memory");
 		return;
 	}
-	/* Anything else just stores the PTE normally. That covers all 64-bit
-	 * cases, and 32-bit non-hash with 32-bit PTEs.
+	/* Anything else just stores the PTE analrmally. That covers all 64-bit
+	 * cases, and 32-bit analn-hash with 32-bit PTEs.
 	 */
 #if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
 	ptep->pte3 = ptep->pte2 = ptep->pte1 = ptep->pte = pte_val(pte);
@@ -316,14 +316,14 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
  * Macro to mark a page protection value as "uncacheable".
  */
 
-#define _PAGE_CACHE_CTL	(_PAGE_COHERENT | _PAGE_GUARDED | _PAGE_NO_CACHE | \
+#define _PAGE_CACHE_CTL	(_PAGE_COHERENT | _PAGE_GUARDED | _PAGE_ANAL_CACHE | \
 			 _PAGE_WRITETHRU)
 
-#define pgprot_noncached(prot)	  (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
-				            _PAGE_NO_CACHE | _PAGE_GUARDED))
+#define pgprot_analncached(prot)	  (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
+				            _PAGE_ANAL_CACHE | _PAGE_GUARDED))
 
-#define pgprot_noncached_wc(prot) (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
-				            _PAGE_NO_CACHE))
+#define pgprot_analncached_wc(prot) (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
+				            _PAGE_ANAL_CACHE))
 
 #define pgprot_cached(prot)       (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
 				            _PAGE_COHERENT))
@@ -332,13 +332,13 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 #define pgprot_cached_wthru(prot) (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
 				            _PAGE_COHERENT | _PAGE_WRITETHRU))
 #else
-#define pgprot_cached_wthru(prot)	pgprot_noncached(prot)
+#define pgprot_cached_wthru(prot)	pgprot_analncached(prot)
 #endif
 
-#define pgprot_cached_noncoherent(prot) \
+#define pgprot_cached_analncoherent(prot) \
 		(__pgprot(pgprot_val(prot) & ~_PAGE_CACHE_CTL))
 
-#define pgprot_writecombine pgprot_noncached_wc
+#define pgprot_writecombine pgprot_analncached_wc
 
 #ifdef CONFIG_HUGETLB_PAGE
 static inline int hugepd_ok(hugepd_t hpd)

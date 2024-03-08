@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2018 Mellanox Technologies. */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. */
 
 #include <net/bareudp.h>
 #include <net/mpls.h>
@@ -65,10 +65,10 @@ static int parse_tunnel(struct mlx5e_priv *priv,
 
 	if (!MLX5_CAP_ETH(priv->mdev, tunnel_stateless_mpls_over_udp) &&
 	    !(MLX5_CAP_GEN(priv->mdev, flex_parser_protocols) & MLX5_FLEX_PROTO_CW_MPLS_UDP))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_MPLS))
 		return 0;
@@ -77,7 +77,7 @@ static int parse_tunnel(struct mlx5e_priv *priv,
 
 	/* Only support matching the first LSE */
 	if (match.mask->used_lses != 1)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	misc2_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
 			       misc_parameters_2);

@@ -18,7 +18,7 @@ Required Properties:
 			bindings/input/matrix-keymap.txt
 
 Optional Properties:
-- linux,no-autorepeat:	do no enable autorepeat feature.
+- linux,anal-autorepeat:	do anal enable autorepeat feature.
 - wakeup-source:	use any event on keypad as wakeup event.
 			(Legacy property supported: "linux,wakeup")
 - debounce-delay-ms:	debounce interval in milliseconds

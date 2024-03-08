@@ -5,11 +5,11 @@
  *
  * KVM/MIPS: Support for hardware virtualization extensions
  *
- * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012  MIPS Techanallogies, Inc.  All rights reserved.
  * Authors: Yann Le Du <ledu@kymasys.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/preempt.h>
@@ -59,7 +59,7 @@ static inline void kvm_vz_write_gc0_ebase(long v)
 	/*
 	 * First write with WG=1 to write upper bits, then write again in case
 	 * WG should be left at 0.
-	 * write_gc0_ebase_64() is no longer UNDEFINED since R6.
+	 * write_gc0_ebase_64() is anal longer UNDEFINED since R6.
 	 */
 	if (sizeof(long) == 8 &&
 	    (cpu_has_mips64r6 || cpu_has_ebase_wg)) {
@@ -74,7 +74,7 @@ static inline void kvm_vz_write_gc0_ebase(long v)
 /*
  * These Config bits may be writable by the guest:
  * Config:	[K23, KU] (!TLB), K0
- * Config1:	(none)
+ * Config1:	(analne)
  * Config2:	[TU, SU] (impl)
  * Config3:	ISAOnExc
  * Config4:	FTLBPageSize
@@ -103,7 +103,7 @@ static inline unsigned int kvm_vz_config3_guest_wrmask(struct kvm_vcpu *vcpu)
 
 static inline unsigned int kvm_vz_config4_guest_wrmask(struct kvm_vcpu *vcpu)
 {
-	/* no need to be exact */
+	/* anal need to be exact */
 	return MIPS_CONF4_VFTLBPAGESIZE;
 }
 
@@ -215,7 +215,7 @@ static void kvm_vz_dequeue_irq(struct kvm_vcpu *vcpu, unsigned int priority)
 static void kvm_vz_queue_timer_int_cb(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * timer expiry is asynchronous to vcpu execution therefore defer guest
+	 * timer expiry is asynchroanalus to vcpu execution therefore defer guest
 	 * cp0 accesses
 	 */
 	kvm_vz_queue_irq(vcpu, MIPS_EXC_INT_TIMER);
@@ -224,7 +224,7 @@ static void kvm_vz_queue_timer_int_cb(struct kvm_vcpu *vcpu)
 static void kvm_vz_dequeue_timer_int_cb(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * timer expiry is asynchronous to vcpu execution therefore defer guest
+	 * timer expiry is asynchroanalus to vcpu execution therefore defer guest
 	 * cp0 accesses
 	 */
 	kvm_vz_dequeue_irq(vcpu, MIPS_EXC_INT_TIMER);
@@ -236,7 +236,7 @@ static void kvm_vz_queue_io_int_cb(struct kvm_vcpu *vcpu,
 	int intr = (int)irq->irq;
 
 	/*
-	 * interrupts are asynchronous to vcpu execution therefore defer guest
+	 * interrupts are asynchroanalus to vcpu execution therefore defer guest
 	 * cp0 accesses
 	 */
 	kvm_vz_queue_irq(vcpu, kvm_irq_to_priority(intr));
@@ -248,7 +248,7 @@ static void kvm_vz_dequeue_io_int_cb(struct kvm_vcpu *vcpu,
 	int intr = (int)irq->irq;
 
 	/*
-	 * interrupts are asynchronous to vcpu execution therefore defer guest
+	 * interrupts are asynchroanalus to vcpu execution therefore defer guest
 	 * cp0 accesses
 	 */
 	kvm_vz_dequeue_irq(vcpu, kvm_irq_to_priority(-intr));
@@ -293,8 +293,8 @@ static int kvm_vz_irq_clear_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 	case MIPS_EXC_INT_TIMER:
 		/*
 		 * Explicitly clear irq associated with Cause.IP[IPTI]
-		 * if GuestCtl2 virtual interrupt register not
-		 * supported or if not using GuestCtl2 Hardware Clear.
+		 * if GuestCtl2 virtual interrupt register analt
+		 * supported or if analt using GuestCtl2 Hardware Clear.
 		 */
 		if (cpu_has_guestctl2) {
 			if (!(read_c0_guestctl2() & (irq << 14)))
@@ -308,7 +308,7 @@ static int kvm_vz_irq_clear_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 	case MIPS_EXC_INT_IO_2:
 	case MIPS_EXC_INT_IPI_1:
 	case MIPS_EXC_INT_IPI_2:
-		/* Clear GuestCtl2.VIP irq if not using Hardware Clear */
+		/* Clear GuestCtl2.VIP irq if analt using Hardware Clear */
 		if (cpu_has_guestctl2) {
 			if (!(read_c0_guestctl2() & (irq << 14)))
 				clear_c0_guestctl2(irq);
@@ -405,7 +405,7 @@ static void _kvm_vz_restore_htimer(struct kvm_vcpu *vcpu,
 
 	/*
 	 * The above sequence isn't atomic and would result in lost timer
-	 * interrupts if we're not careful. Detect if a timer interrupt is due
+	 * interrupts if we're analt careful. Detect if a timer interrupt is due
 	 * and assert it.
 	 */
 	back_to_back_c0_hazard();
@@ -478,7 +478,7 @@ static void _kvm_vz_save_htimer(struct kvm_vcpu *vcpu,
 
 	/*
 	 * Record the CP0_Count *prior* to saving CP0_Cause, so we have a time
-	 * at which no pending timer interrupt is missing.
+	 * at which anal pending timer interrupt is missing.
 	 */
 	before_count = read_gc0_count();
 	back_to_back_c0_hazard();
@@ -502,7 +502,7 @@ static void _kvm_vz_save_htimer(struct kvm_vcpu *vcpu,
 		kvm_vz_queue_irq(vcpu, MIPS_EXC_INT_TIMER);
 
 	/*
-	 * Restore soft-timer, ignoring a small amount of negative drift due to
+	 * Restore soft-timer, iganalring a small amount of negative drift due to
 	 * delay between freeze_hrtimer and setting CP0_GTOffset.
 	 */
 	kvm_mips_restore_hrtimer(vcpu, before_time, end_count, -0x10000);
@@ -538,7 +538,7 @@ static void kvm_vz_save_timer(struct kvm_vcpu *vcpu)
 }
 
 /**
- * kvm_vz_lose_htimer() - Ensure hard guest timer is not in use.
+ * kvm_vz_lose_htimer() - Ensure hard guest timer is analt in use.
  * @vcpu:	Virtual CPU.
  *
  * Transfers the state of the hard guest timer to the soft guest timer, leaving
@@ -633,7 +633,7 @@ static bool is_eva_am_mapped(struct kvm_vcpu *vcpu, unsigned int am, bool eu)
 	 * UUSK  7 111  Unm Unm Unm   0      0
 	 *
 	 * We shift a magic value by AM across the sign bit to find if always
-	 * TLB mapped, and if not shift by 8 again to find if it depends on KM.
+	 * TLB mapped, and if analt shift by 8 again to find if it depends on KM.
 	 */
 	am_lookup = 0x70080000 << am;
 	if ((s32)am_lookup < 0) {
@@ -652,7 +652,7 @@ static bool is_eva_am_mapped(struct kvm_vcpu *vcpu, unsigned int am, bool eu)
 
 			/*
 			 * MUSUK
-			 * TLB mapped if not in kernel mode
+			 * TLB mapped if analt in kernel mode
 			 */
 			status = read_gc0_status();
 			if (!(status & (ST0_EXL | ST0_ERL)) &&
@@ -684,7 +684,7 @@ static bool is_eva_am_mapped(struct kvm_vcpu *vcpu, unsigned int am, bool eu)
  * context, to a guest physical address (GPA).
  *
  * Returns:	0 on success.
- *		-errno on failure.
+ *		-erranal on failure.
  */
 static int kvm_vz_gva_to_gpa(struct kvm_vcpu *vcpu, unsigned long gva,
 			     unsigned long *gpa)
@@ -693,7 +693,7 @@ static int kvm_vz_gva_to_gpa(struct kvm_vcpu *vcpu, unsigned long gva,
 	unsigned long segctl;
 
 	if ((long)gva == (s32)gva32) {
-		/* Handle canonical 32-bit virtual address */
+		/* Handle caanalnical 32-bit virtual address */
 		if (cpu_guest_has_segments) {
 			unsigned long mask, pa;
 
@@ -726,7 +726,7 @@ static int kvm_vz_gva_to_gpa(struct kvm_vcpu *vcpu, unsigned long gva,
 				break;
 			default:
 				/*
-				 * GCC 4.9 isn't smart enough to figure out that
+				 * GCC 4.9 isn't smart eanalugh to figure out that
 				 * segctl and mask are always initialised.
 				 */
 				unreachable();
@@ -791,7 +791,7 @@ tlb_mapped:
  * state.
  *
  * Returns:	0 on success.
- *		-errno on failure.
+ *		-erranal on failure.
  */
 static int kvm_vz_badvaddr_to_gpa(struct kvm_vcpu *vcpu, unsigned long badvaddr,
 				  unsigned long *gpa)
@@ -814,7 +814,7 @@ static int kvm_vz_badvaddr_to_gpa(struct kvm_vcpu *vcpu, unsigned long badvaddr,
 	return kvm_vz_gva_to_gpa(vcpu, badvaddr, gpa);
 }
 
-static int kvm_trap_vz_no_handler(struct kvm_vcpu *vcpu)
+static int kvm_trap_vz_anal_handler(struct kvm_vcpu *vcpu)
 {
 	u32 *opc = (u32 *) vcpu->arch.pc;
 	u32 cause = vcpu->arch.host_cp0_cause;
@@ -829,7 +829,7 @@ static int kvm_trap_vz_no_handler(struct kvm_vcpu *vcpu)
 		opc += 1;
 	kvm_get_badinstr(opc, vcpu, &inst);
 
-	kvm_err("Exception Code: %d not handled @ PC: %p, inst: 0x%08x BadVaddr: %#lx Status: %#x\n",
+	kvm_err("Exception Code: %d analt handled @ PC: %p, inst: 0x%08x BadVaddr: %#lx Status: %#x\n",
 		exccode, opc, inst, badvaddr,
 		read_gc0_status());
 	kvm_arch_vcpu_dump_regs(vcpu);
@@ -1021,7 +1021,7 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 				cop0->reg[rd][sel] = (int)val;
 			} else if (rd == MIPS_CP0_ERRCTL &&
 				   (sel == 0)) {	/* ErrCtl */
-				/* ignore the written value */
+				/* iganalre the written value */
 #ifdef CONFIG_CPU_LOONGSON64
 			} else if (rd == MIPS_CP0_DIAG &&
 				   (sel == 0)) {	/* Diag */
@@ -1104,7 +1104,7 @@ static enum emulation_result kvm_vz_gpsi_cache(union mips_instruction inst,
 	kvm_debug("CACHE (cache: %#x, op: %#x, base[%d]: %#lx, offset: %#x\n",
 		  cache, op, base, arch->gprs[base], offset);
 
-	/* Secondary or tirtiary cache ops ignored */
+	/* Secondary or tirtiary cache ops iganalred */
 	if (cache != Cache_I && cache != Cache_D)
 		return EMULATE_DONE;
 
@@ -1191,7 +1191,7 @@ static enum emulation_result kvm_vz_gpsi_lwc2(union mips_instruction inst,
 		break;
 
 	default:
-		kvm_err("lwc2 emulate not impl %d rs %lx @%lx\n",
+		kvm_err("lwc2 emulate analt impl %d rs %lx @%lx\n",
 			inst.loongson3_lscsr_format.fr, vcpu->arch.gprs[rs], curr_pc);
 		er = EMULATE_FAIL;
 		break;
@@ -1252,7 +1252,7 @@ static enum emulation_result kvm_trap_vz_handle_gpsi(u32 cause, u32 *opc,
 #endif
 		case rdhwr_op:
 			if (inst.r_format.rs || (inst.r_format.re >> 3))
-				goto unknown;
+				goto unkanalwn;
 
 			rd = inst.r_format.rd;
 			rt = inst.r_format.rt;
@@ -1266,7 +1266,7 @@ static enum emulation_result kvm_trap_vz_handle_gpsi(u32 cause, u32 *opc,
 			default:
 				trace_kvm_hwr(vcpu, KVM_TRACE_RDHWR,
 					      KVM_TRACE_HWR(rd, sel), 0);
-				goto unknown;
+				goto unkanalwn;
 			}
 
 			trace_kvm_hwr(vcpu, KVM_TRACE_RDHWR,
@@ -1275,13 +1275,13 @@ static enum emulation_result kvm_trap_vz_handle_gpsi(u32 cause, u32 *opc,
 			er = update_pc(vcpu, cause);
 			break;
 		default:
-			goto unknown;
+			goto unkanalwn;
 		}
 		break;
-unknown:
+unkanalwn:
 
 	default:
-		kvm_err("GPSI exception not supported (%p/%#x)\n",
+		kvm_err("GPSI exception analt supported (%p/%#x)\n",
 				opc, inst.word);
 		kvm_arch_vcpu_dump_regs(vcpu);
 		er = EMULATE_FAIL;
@@ -1322,7 +1322,7 @@ static enum emulation_result kvm_trap_vz_handle_gsfc(u32 cause, u32 *opc,
 			      val);
 
 		if ((rd == MIPS_CP0_STATUS) && (sel == 0)) {
-			/* FR bit should read as zero if no FPU */
+			/* FR bit should read as zero if anal FPU */
 			if (!kvm_mips_guest_has_fpu(&vcpu->arch))
 				val &= ~(ST0_CU1 | ST0_FR);
 
@@ -1459,7 +1459,7 @@ static enum emulation_result kvm_trap_vz_handle_hc(u32 cause, u32 *opc,
 	return er;
 }
 
-static enum emulation_result kvm_trap_vz_no_handler_guest_exit(u32 gexccode,
+static enum emulation_result kvm_trap_vz_anal_handler_guest_exit(u32 gexccode,
 							u32 cause,
 							u32 *opc,
 							struct kvm_vcpu *vcpu)
@@ -1473,7 +1473,7 @@ static enum emulation_result kvm_trap_vz_no_handler_guest_exit(u32 gexccode,
 		opc += 1;
 	kvm_get_badinstr(opc, vcpu, &inst);
 
-	kvm_err("Guest Exception Code: %d not yet handled @ PC: %p, inst: 0x%08x  Status: %#x\n",
+	kvm_err("Guest Exception Code: %d analt yet handled @ PC: %p, inst: 0x%08x  Status: %#x\n",
 		gexccode, opc, inst, read_gc0_status());
 
 	return EMULATE_FAIL;
@@ -1504,12 +1504,12 @@ static int kvm_trap_vz_handle_guest_exit(struct kvm_vcpu *vcpu)
 		break;
 	case MIPS_GCTL0_GEXC_GRR:
 		++vcpu->stat.vz_grr_exits;
-		er = kvm_trap_vz_no_handler_guest_exit(gexccode, cause, opc,
+		er = kvm_trap_vz_anal_handler_guest_exit(gexccode, cause, opc,
 						       vcpu);
 		break;
 	case MIPS_GCTL0_GEXC_GVA:
 		++vcpu->stat.vz_gva_exits;
-		er = kvm_trap_vz_no_handler_guest_exit(gexccode, cause, opc,
+		er = kvm_trap_vz_anal_handler_guest_exit(gexccode, cause, opc,
 						       vcpu);
 		break;
 	case MIPS_GCTL0_GEXC_GHFC:
@@ -1518,12 +1518,12 @@ static int kvm_trap_vz_handle_guest_exit(struct kvm_vcpu *vcpu)
 		break;
 	case MIPS_GCTL0_GEXC_GPA:
 		++vcpu->stat.vz_gpa_exits;
-		er = kvm_trap_vz_no_handler_guest_exit(gexccode, cause, opc,
+		er = kvm_trap_vz_anal_handler_guest_exit(gexccode, cause, opc,
 						       vcpu);
 		break;
 	default:
 		++vcpu->stat.vz_resvd_exits;
-		er = kvm_trap_vz_no_handler_guest_exit(gexccode, cause, opc,
+		er = kvm_trap_vz_anal_handler_guest_exit(gexccode, cause, opc,
 						       vcpu);
 		break;
 
@@ -1558,7 +1558,7 @@ static int kvm_trap_vz_handle_cop_unusable(struct kvm_vcpu *vcpu)
 
 	if (((cause & CAUSEF_CE) >> CAUSEB_CE) == 1) {
 		/*
-		 * If guest FPU not present, the FPU operation should have been
+		 * If guest FPU analt present, the FPU operation should have been
 		 * treated as a reserved instruction!
 		 * If FPU already in use, we shouldn't get this at all.
 		 */
@@ -1571,7 +1571,7 @@ static int kvm_trap_vz_handle_cop_unusable(struct kvm_vcpu *vcpu)
 		kvm_own_fpu(vcpu);
 		er = EMULATE_DONE;
 	}
-	/* other coprocessors not handled */
+	/* other coprocessors analt handled */
 
 	switch (er) {
 	case EMULATE_DONE:
@@ -1602,7 +1602,7 @@ static int kvm_trap_vz_handle_cop_unusable(struct kvm_vcpu *vcpu)
 static int kvm_trap_vz_handle_msa_disabled(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * If MSA not present or not exposed to guest or FR=0, the MSA operation
+	 * If MSA analt present or analt exposed to guest or FR=0, the MSA operation
 	 * should have been treated as a reserved instruction!
 	 * Same if CU1=1, FR=0.
 	 * If MSA already in use, we shouldn't get this at all.
@@ -1897,7 +1897,7 @@ static inline unsigned long entrylo_user_to_kvm(s64 v)
 
 	if (BITS_PER_LONG == 32) {
 		/*
-		 * KVM API exposes 64-bit versiono of the register, so move the
+		 * KVM API exposes 64-bit versioanal of the register, so move the
 		 * RI/XI bits down into place.
 		 */
 		mask = MIPS_ENTRYLO_RI | MIPS_ENTRYLO_XI;
@@ -2249,7 +2249,7 @@ static int kvm_vz_set_one_reg(struct kvm_vcpu *vcpu,
 		/*
 		 * If the timer is stopped or started (DC bit) it must look
 		 * atomic with changes to the timer interrupt pending bit (TI).
-		 * A timer interrupt should not happen in between.
+		 * A timer interrupt should analt happen in between.
 		 */
 		if ((read_gc0_cause() ^ v) & CAUSEF_DC) {
 			if (v & CAUSEF_DC) {
@@ -2514,7 +2514,7 @@ static void kvm_vz_vcpu_load_tlb(struct kvm_vcpu *vcpu, int cpu)
 
 	/*
 	 * A vcpu's GuestID is set in GuestCtl1.ID when the vcpu is loaded and
-	 * remains set until another vcpu is loaded in.  As a rule GuestRID
+	 * remains set until aanalther vcpu is loaded in.  As a rule GuestRID
 	 * remains zeroed when in root context unless the kernel is busy
 	 * manipulating guest tlb entries.
 	 */
@@ -2523,8 +2523,8 @@ static void kvm_vz_vcpu_load_tlb(struct kvm_vcpu *vcpu, int cpu)
 		 * Check if our GuestID is of an older version and thus invalid.
 		 *
 		 * We also discard the stored GuestID if we've executed on
-		 * another CPU, as the guest mappings may have changed without
-		 * hypervisor knowledge.
+		 * aanalther CPU, as the guest mappings may have changed without
+		 * hypervisor kanalwledge.
 		 */
 		if (migrated ||
 		    (vcpu->arch.vzguestid[cpu] ^ guestid_cache(cpu)) &
@@ -2540,10 +2540,10 @@ static void kvm_vz_vcpu_load_tlb(struct kvm_vcpu *vcpu, int cpu)
 	} else {
 		/*
 		 * The Guest TLB only stores a single guest's TLB state, so
-		 * flush it if another VCPU has executed on this CPU.
+		 * flush it if aanalther VCPU has executed on this CPU.
 		 *
-		 * We also flush if we've executed on another CPU, as the guest
-		 * mappings may have changed without hypervisor knowledge.
+		 * We also flush if we've executed on aanalther CPU, as the guest
+		 * mappings may have changed without hypervisor kanalwledge.
 		 */
 		if (migrated || last_exec_vcpu[cpu] != vcpu)
 			kvm_vz_local_flush_guesttlb_all();
@@ -2573,7 +2573,7 @@ static int kvm_vz_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	/*
 	 * Was this the last VCPU to run on this CPU?
-	 * If not, any old guest state from this VCPU will have been clobbered.
+	 * If analt, any old guest state from this VCPU will have been clobbered.
 	 */
 	all = migrated || (last_vcpu[cpu] != vcpu);
 	last_vcpu[cpu] = vcpu;
@@ -2608,7 +2608,7 @@ static int kvm_vz_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	/*
 	 * Restore config registers first, as some implementations restrict
 	 * writes to other registers when the corresponding feature bits aren't
-	 * set. For example Status.CU1 cannot be set unless Config1.FP is set.
+	 * set. For example Status.CU1 cananalt be set unless Config1.FP is set.
 	 */
 	kvm_restore_gc0_config(cop0);
 	if (cpu_guest_has_conf1)
@@ -2837,9 +2837,9 @@ static unsigned int kvm_vz_resize_guest_vtlb(unsigned int size)
 	}
 
 	/*
-	 * Set Guest.Wired.Limit = 0 (no limit up to Guest.MMUSize-1), unless it
+	 * Set Guest.Wired.Limit = 0 (anal limit up to Guest.MMUSize-1), unless it
 	 * would exceed Root.Wired.Limit (clearing Guest.Wired.Wired so write
-	 * not dropped)
+	 * analt dropped)
 	 */
 	if (cpu_has_mips_r6) {
 		limit = (read_c0_wired() & MIPSR6_WIRED_LIMIT) >>
@@ -2885,7 +2885,7 @@ static int kvm_vz_hardware_enable(void)
 		write_gc0_cvmctl(guest_cvmctl);
 
 		cvmvmconfig = read_c0_cvmvmconfig();
-		/* No I/O hole translation. */
+		/* Anal I/O hole translation. */
 		cvmvmconfig |= CVMVMCONF_DGHT;
 		/* Halve the root MMU size */
 		mmu_size = ((cvmvmconfig & CVMVMCONF_MMUSIZEM1)
@@ -2920,7 +2920,7 @@ static int kvm_vz_hardware_enable(void)
 
 		/*
 		 * Reduce to make space for root wired entries and at least 2
-		 * root non-wired entries. This does assume that long-term wired
+		 * root analn-wired entries. This does assume that long-term wired
 		 * entries won't be added later.
 		 */
 		guest_mmu_size = mmu_size - num_wired_entries() - 2;
@@ -2928,7 +2928,7 @@ static int kvm_vz_hardware_enable(void)
 		current_cpu_data.guest.tlbsize = guest_mmu_size + ftlb_size;
 
 		/*
-		 * Write the VTLB size, but if another CPU has already written,
+		 * Write the VTLB size, but if aanalther CPU has already written,
 		 * check it matches or we won't provide a consistent view to the
 		 * guest. If this ever happens it suggests an asymmetric number
 		 * of wired entries.
@@ -3062,7 +3062,7 @@ static void kvm_vz_vcpu_uninit(struct kvm_vcpu *vcpu)
 	int cpu;
 
 	/*
-	 * If the VCPU is freed and reused as another VCPU, we don't want the
+	 * If the VCPU is freed and reused as aanalther VCPU, we don't want the
 	 * matching pointer wrongly hanging around in last_vcpu[] or
 	 * last_exec_vcpu[].
 	 */
@@ -3205,7 +3205,7 @@ static int kvm_vz_vcpu_setup(struct kvm_vcpu *vcpu)
 		kvm_write_sw_gc0_pwsize(cop0, 1 << MIPS_PWSIZE_PTW_SHIFT);
 	}
 
-	/* start with no pending virtual guest interrupts */
+	/* start with anal pending virtual guest interrupts */
 	if (cpu_has_guestctl2)
 		cop0->reg[MIPS_CP0_GUESTCTL2][MIPS_CP0_GUESTCTL2_SEL] = 0;
 
@@ -3272,11 +3272,11 @@ static struct kvm_mips_callbacks kvm_vz_callbacks = {
 	.handle_tlb_mod = kvm_trap_vz_handle_tlb_st_miss,
 	.handle_tlb_ld_miss = kvm_trap_vz_handle_tlb_ld_miss,
 	.handle_tlb_st_miss = kvm_trap_vz_handle_tlb_st_miss,
-	.handle_addr_err_st = kvm_trap_vz_no_handler,
-	.handle_addr_err_ld = kvm_trap_vz_no_handler,
-	.handle_syscall = kvm_trap_vz_no_handler,
-	.handle_res_inst = kvm_trap_vz_no_handler,
-	.handle_break = kvm_trap_vz_no_handler,
+	.handle_addr_err_st = kvm_trap_vz_anal_handler,
+	.handle_addr_err_ld = kvm_trap_vz_anal_handler,
+	.handle_syscall = kvm_trap_vz_anal_handler,
+	.handle_res_inst = kvm_trap_vz_anal_handler,
+	.handle_break = kvm_trap_vz_anal_handler,
 	.handle_msa_disabled = kvm_trap_vz_handle_msa_disabled,
 	.handle_guest_exit = kvm_trap_vz_handle_guest_exit,
 
@@ -3304,21 +3304,21 @@ static struct kvm_mips_callbacks kvm_vz_callbacks = {
 	.vcpu_reenter = kvm_vz_vcpu_reenter,
 };
 
-/* FIXME: Get rid of the callbacks now that trap-and-emulate is gone. */
+/* FIXME: Get rid of the callbacks analw that trap-and-emulate is gone. */
 const struct kvm_mips_callbacks * const kvm_mips_callbacks = &kvm_vz_callbacks;
 
 int kvm_mips_emulation_init(void)
 {
 	if (!cpu_has_vz)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * VZ requires at least 2 KScratch registers, so it should have been
 	 * possible to allocate pgd_reg.
 	 */
 	if (WARN(pgd_reg == -1,
-		 "pgd_reg not allocated even though cpu_has_vz\n"))
-		return -ENODEV;
+		 "pgd_reg analt allocated even though cpu_has_vz\n"))
+		return -EANALDEV;
 
 	pr_info("Starting KVM with MIPS VZ extensions\n");
 	return 0;

@@ -5,7 +5,7 @@
 
 targets := linux.bin linux.bin.gz linux.bin.ub simpleImage.*
 
-OBJCOPYFLAGS := -R .note -R .comment -R .note.gnu.build-id -O binary
+OBJCOPYFLAGS := -R .analte -R .comment -R .analte.gnu.build-id -O binary
 
 $(obj)/linux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)

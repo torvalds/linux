@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <string.h>
 #include <linux/perf_event.h>
@@ -111,7 +111,7 @@ static void print_ip_map(int fd)
 		if (counts[i].ip > _text_addr) {
 			sym = ksym_search(counts[i].ip);
 			if (!sym) {
-				printf("ksym not found. Is kallsyms loaded?\n");
+				printf("ksym analt found. Is kallsyms loaded?\n");
 				continue;
 			}
 
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
 	/* used to determine whether the address is kernel space */
 	_text_addr = ksym_get_addr("_text");
 	if (!_text_addr) {
-		fprintf(stderr, "ERROR: no '_text' in /proc/kallsyms\n");
+		fprintf(stderr, "ERROR: anal '_text' in /proc/kallsyms\n");
 		return 3;
 	}
 

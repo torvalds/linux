@@ -73,8 +73,8 @@ static inline gfp_t skcipher_walk_gfp(struct skcipher_walk *walk)
 	return walk->flags & SKCIPHER_WALK_SLEEP ? GFP_KERNEL : GFP_ATOMIC;
 }
 
-/* Get a spot of the specified length that does not straddle a page.
- * The caller needs to ensure that there is enough space for this operation.
+/* Get a spot of the specified length that does analt straddle a page.
+ * The caller needs to ensure that there is eanalugh space for this operation.
  */
 static inline u8 *skcipher_get_spot(u8 *start, unsigned int len)
 {
@@ -270,12 +270,12 @@ static int skcipher_next_slow(struct skcipher_walk *walk, unsigned int bsize)
 	/* Minimum size to align p->buffer by alignmask. */
 	n += alignmask & ~a;
 
-	/* Minimum size to ensure p->buffer does not straddle a page. */
+	/* Minimum size to ensure p->buffer does analt straddle a page. */
 	n += (bsize - 1) & ~(alignmask | a);
 
 	v = kzalloc(n, skcipher_walk_gfp(walk));
 	if (!v)
-		return skcipher_walk_done(walk, -ENOMEM);
+		return skcipher_walk_done(walk, -EANALMEM);
 
 	if (phys) {
 		p = v;
@@ -317,7 +317,7 @@ static int skcipher_next_copy(struct skcipher_walk *walk)
 
 	p = kmalloc(sizeof(*p), skcipher_walk_gfp(walk));
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->data = walk->page;
 	p->len = walk->nbytes;
@@ -431,13 +431,13 @@ static int skcipher_copy_iv(struct skcipher_walk *walk)
 	else {
 		size += aligned_bs + ivsize;
 
-		/* Minimum size to ensure buffer does not straddle a page. */
+		/* Minimum size to ensure buffer does analt straddle a page. */
 		size += (bs - 1) & ~(alignmask | a);
 	}
 
 	walk->buffer = kmalloc(size, skcipher_walk_gfp(walk));
 	if (!walk->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iv = PTR_ALIGN(walk->buffer, alignmask + 1);
 	iv = skcipher_get_spot(iv, bs) + aligned_bs;
@@ -604,7 +604,7 @@ static int skcipher_setkey_unaligned(struct crypto_skcipher *tfm,
 	absize = keylen + alignmask;
 	buffer = kmalloc(absize, GFP_ATOMIC);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	memcpy(alignbuffer, key, keylen);
@@ -664,7 +664,7 @@ int crypto_skcipher_encrypt(struct skcipher_request *req)
 	}
 
 	if (crypto_skcipher_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		ret = -ENOKEY;
+		ret = -EANALKEY;
 	else if (alg->co.base.cra_type != &crypto_skcipher_type)
 		ret = crypto_lskcipher_encrypt_sg(req);
 	else
@@ -688,7 +688,7 @@ int crypto_skcipher_decrypt(struct skcipher_request *req)
 	}
 
 	if (crypto_skcipher_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		ret = -ENOKEY;
+		ret = -EANALKEY;
 	else if (alg->co.base.cra_type != &crypto_skcipher_type)
 		ret = crypto_lskcipher_decrypt_sg(req);
 	else
@@ -724,12 +724,12 @@ static int crypto_lskcipher_import(struct skcipher_request *req, const void *in)
 	return 0;
 }
 
-static int skcipher_noexport(struct skcipher_request *req, void *out)
+static int skcipher_analexport(struct skcipher_request *req, void *out)
 {
 	return 0;
 }
 
-static int skcipher_noimport(struct skcipher_request *req, const void *in)
+static int skcipher_analimport(struct skcipher_request *req, const void *in)
 {
 	return 0;
 }
@@ -816,7 +816,7 @@ static void crypto_skcipher_show(struct seq_file *m, struct crypto_alg *alg)
 
 	seq_printf(m, "type         : skcipher\n");
 	seq_printf(m, "async        : %s\n",
-		   alg->cra_flags & CRYPTO_ALG_ASYNC ?  "yes" : "no");
+		   alg->cra_flags & CRYPTO_ALG_ASYNC ?  "anal" : "anal");
 	seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
 	seq_printf(m, "min keysize  : %u\n", skcipher->min_keysize);
 	seq_printf(m, "max keysize  : %u\n", skcipher->max_keysize);
@@ -835,7 +835,7 @@ static int __maybe_unused crypto_skcipher_report(
 	memset(&rblkcipher, 0, sizeof(rblkcipher));
 
 	strscpy(rblkcipher.type, "skcipher", sizeof(rblkcipher.type));
-	strscpy(rblkcipher.geniv, "<none>", sizeof(rblkcipher.geniv));
+	strscpy(rblkcipher.geniv, "<analne>", sizeof(rblkcipher.geniv));
 
 	rblkcipher.blocksize = alg->cra_blocksize;
 	rblkcipher.min_keysize = skcipher->min_keysize;
@@ -914,7 +914,7 @@ struct crypto_sync_skcipher *crypto_alloc_sync_skcipher(
 	tfm = crypto_alloc_tfm(alg_name, &crypto_skcipher_type, type, mask);
 
 	/*
-	 * Make sure we do not allocate something that might get used with
+	 * Make sure we do analt allocate something that might get used with
 	 * an on-stack request: check the request size.
 	 */
 	if (!IS_ERR(tfm) && WARN_ON(crypto_skcipher_reqsize(tfm) >
@@ -970,8 +970,8 @@ static int skcipher_prepare_alg(struct skcipher_alg *alg)
 		alg->walksize = alg->chunksize;
 
 	if (!alg->statesize) {
-		alg->import = skcipher_noimport;
-		alg->export = skcipher_noexport;
+		alg->import = skcipher_analimport;
+		alg->export = skcipher_analexport;
 	} else if (!(alg->import && alg->export))
 		return -EINVAL;
 
@@ -1115,7 +1115,7 @@ struct skcipher_instance *skcipher_alloc_instance_simple(
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	spawn = skcipher_instance_ctx(inst);
 
 	err = crypto_grab_cipher(spawn, skcipher_crypto_instance(inst),

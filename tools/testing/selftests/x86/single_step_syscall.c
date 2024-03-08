@@ -5,7 +5,7 @@
  *
  * This is a very simple series of tests that makes system calls with
  * the TF flag set.  This exercises some nasty kernel code in the
- * SYSENTER case: SYSENTER does not clear TF, so SYSENTER with TF set
+ * SYSENTER case: SYSENTER does analt clear TF, so SYSENTER with TF set
  * immediately issues #DB from CPL 0.  This requires special handling in
  * the kernel.
  */
@@ -113,7 +113,7 @@ static void check_result(void)
 	set_eflags(new_eflags & ~X86_EFLAGS_TF);
 
 	if (!sig_traps) {
-		printf("[FAIL]\tNo SIGTRAP\n");
+		printf("[FAIL]\tAnal SIGTRAP\n");
 		exit(1);
 	}
 
@@ -126,20 +126,20 @@ static void check_result(void)
 	sig_traps = 0;
 }
 
-static void fast_syscall_no_tf(void)
+static void fast_syscall_anal_tf(void)
 {
 	sig_traps = 0;
 	printf("[RUN]\tFast syscall with TF cleared\n");
 	fflush(stdout);  /* Force a syscall */
 	if (get_eflags() & X86_EFLAGS_TF) {
-		printf("[FAIL]\tTF is now set\n");
+		printf("[FAIL]\tTF is analw set\n");
 		exit(1);
 	}
 	if (sig_traps) {
 		printf("[FAIL]\tGot SIGTRAP\n");
 		exit(1);
 	}
-	printf("[OK]\tNothing unexpected happened\n");
+	printf("[OK]\tAnalthing unexpected happened\n");
 }
 
 int main()
@@ -150,20 +150,20 @@ int main()
 
 	sethandler(SIGTRAP, sigtrap, 0);
 
-	printf("[RUN]\tSet TF and check nop\n");
+	printf("[RUN]\tSet TF and check analp\n");
 	set_eflags(get_eflags() | X86_EFLAGS_TF);
-	asm volatile ("nop");
+	asm volatile ("analp");
 	check_result();
 
 #ifdef __x86_64__
 	printf("[RUN]\tSet TF and check syscall-less opportunistic sysret\n");
 	set_eflags(get_eflags() | X86_EFLAGS_TF);
-	extern unsigned char post_nop[];
+	extern unsigned char post_analp[];
 	asm volatile ("pushf" WIDTH "\n\t"
 		      "pop" WIDTH " %%r11\n\t"
-		      "nop\n\t"
-		      "post_nop:"
-		      : : "c" (post_nop) : "r11");
+		      "analp\n\t"
+		      "post_analp:"
+		      : : "c" (post_analp) : "r11");
 	check_result();
 #endif
 #ifdef CAN_BUILD_32
@@ -177,11 +177,11 @@ int main()
 	/*
 	 * This test is particularly interesting if fast syscalls use
 	 * SYSENTER: it triggers a nasty design flaw in SYSENTER.
-	 * Specifically, SYSENTER does not clear TF, so either SYSENTER
+	 * Specifically, SYSENTER does analt clear TF, so either SYSENTER
 	 * or the next instruction traps at CPL0.  (Of course, Intel
 	 * mostly forgot to document exactly what happens here.)  So we
 	 * get a CPL0 fault with usergs (on 64-bit kernels) and possibly
-	 * no stack.  The only sane way the kernel can possibly handle
+	 * anal stack.  The only sane way the kernel can possibly handle
 	 * it is to clear TF on return from the #DB handler, but this
 	 * happens way too early to set TF in the saved pt_regs, so the
 	 * kernel has to do something clever to avoid losing track of
@@ -195,8 +195,8 @@ int main()
 	syscall(SYS_getpid);
 	check_result();
 
-	/* Now make sure that another fast syscall doesn't set TF again. */
-	fast_syscall_no_tf();
+	/* Analw make sure that aanalther fast syscall doesn't set TF again. */
+	fast_syscall_anal_tf();
 
 	/*
 	 * And do a forced SYSENTER to make sure that this works even if
@@ -235,8 +235,8 @@ int main()
 		exit(1);
 	}
 
-	/* Now make sure that another fast syscall doesn't set TF again. */
-	fast_syscall_no_tf();
+	/* Analw make sure that aanalther fast syscall doesn't set TF again. */
+	fast_syscall_anal_tf();
 
 	return 0;
 }

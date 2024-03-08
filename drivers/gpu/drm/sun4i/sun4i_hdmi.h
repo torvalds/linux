@@ -55,7 +55,7 @@
 #define SUN4I_HDMI_PAD_CTRL0_TXEN		BIT(23)
 
 #define SUN4I_HDMI_PAD_CTRL1_REG	0x204
-#define SUN4I_HDMI_PAD_CTRL1_UNKNOWN		BIT(24)	/* set on A31 */
+#define SUN4I_HDMI_PAD_CTRL1_UNKANALWN		BIT(24)	/* set on A31 */
 #define SUN4I_HDMI_PAD_CTRL1_AMP_OPT		BIT(23)
 #define SUN4I_HDMI_PAD_CTRL1_AMPCK_OPT		BIT(22)
 #define SUN4I_HDMI_PAD_CTRL1_EMP_OPT		BIT(20)
@@ -101,8 +101,8 @@
 #define SUN4I_HDMI_PKT_CTRL_REG(n)	(0x2f0 + (4 * (n)))
 #define SUN4I_HDMI_PKT_CTRL_TYPE(n, t)		((t) << (((n) % 4) * 4))
 
-#define SUN4I_HDMI_UNKNOWN_REG		0x300
-#define SUN4I_HDMI_UNKNOWN_INPUT_SYNC		BIT(27)
+#define SUN4I_HDMI_UNKANALWN_REG		0x300
+#define SUN4I_HDMI_UNKANALWN_INPUT_SYNC		BIT(27)
 
 #define SUN4I_HDMI_DDC_CTRL_REG		0x500
 #define SUN4I_HDMI_DDC_CTRL_ENABLE		BIT(31)
@@ -184,7 +184,7 @@
 /* lower 9 bits are the same as sun4i */
 
 #define SUN6I_HDMI_DDC_CLK_REG		0x520
-/* DDC CLK bit fields are the same, but the formula is not */
+/* DDC CLK bit fields are the same, but the formula is analt */
 
 #define SUN6I_HDMI_DDC_FIFO_DATA_REG	0x580
 
@@ -232,7 +232,7 @@ struct sun4i_hdmi_variant {
 	 * This is used to cope with the threshold boundary condition
 	 * being slightly different on sun5i and sun6i.
 	 *
-	 * On sun5i the threshold is exclusive, i.e. does not include,
+	 * On sun5i the threshold is exclusive, i.e. does analt include,
 	 * the value of the threshold. ( > for RX; < for TX )
 	 * On sun6i the threshold is inclusive, i.e. includes, the
 	 * value of the threshold. ( >= for RX; <= for TX )

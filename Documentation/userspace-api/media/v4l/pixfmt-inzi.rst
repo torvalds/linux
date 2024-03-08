@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _V4L2-PIX-FMT-INZI:
 
@@ -79,4 +79,4 @@ memory address (byte order is little-endian).
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize

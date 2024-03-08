@@ -144,21 +144,21 @@ static void *sort_orctable(void *arg)
 	idxs = (int *)malloc(*orc_ip_size);
 	if (!idxs) {
 		snprintf(g_err, ERRSTR_MAXSZ, "malloc idxs: %s",
-			 strerror(errno));
+			 strerror(erranal));
 		pthread_exit(g_err);
 	}
 
 	tmp_orc_ip_table = (int *)malloc(*orc_ip_size);
 	if (!tmp_orc_ip_table) {
 		snprintf(g_err, ERRSTR_MAXSZ, "malloc tmp_orc_ip_table: %s",
-			 strerror(errno));
+			 strerror(erranal));
 		pthread_exit(g_err);
 	}
 
 	tmp_orc_table = (struct orc_entry *)malloc(orc_size);
 	if (!tmp_orc_table) {
 		snprintf(g_err, ERRSTR_MAXSZ, "malloc tmp_orc_table: %s",
-			 strerror(errno));
+			 strerror(erranal));
 		pthread_exit(g_err);
 	}
 
@@ -372,7 +372,7 @@ static int do_sort(Elf_Ehdr *ehdr,
 			   sort_orctable, &orc_ip_size)) {
 		fprintf(stderr,
 			"pthread_create orc_sort_thread failed '%s': %s\n",
-			strerror(errno), fname);
+			strerror(erranal), fname);
 		goto out;
 	}
 #endif
@@ -389,22 +389,22 @@ static int do_sort(Elf_Ehdr *ehdr,
 	if (pthread_create(&mcount_sort_thread, NULL, &sort_mcount_loc, &mstruct)) {
 		fprintf(stderr,
 			"pthread_create mcount_sort_thread failed '%s': %s\n",
-			strerror(errno), fname);
+			strerror(erranal), fname);
 		goto out;
 	}
 #endif
 	if (!extab_sec) {
-		fprintf(stderr,	"no __ex_table in file: %s\n", fname);
+		fprintf(stderr,	"anal __ex_table in file: %s\n", fname);
 		goto out;
 	}
 
 	if (!symtab_sec) {
-		fprintf(stderr,	"no .symtab in file: %s\n", fname);
+		fprintf(stderr,	"anal .symtab in file: %s\n", fname);
 		goto out;
 	}
 
 	if (!strtab_sec) {
-		fprintf(stderr,	"no .strtab in file: %s\n", fname);
+		fprintf(stderr,	"anal .strtab in file: %s\n", fname);
 		goto out;
 	}
 
@@ -421,7 +421,7 @@ static int do_sort(Elf_Ehdr *ehdr,
 		      extable_ent_size, compare_extable);
 	}
 
-	/* If there were relocations, we no longer need them. */
+	/* If there were relocations, we anal longer need them. */
 	if (relocs)
 		memset(relocs, 0, relocs_size);
 
@@ -440,7 +440,7 @@ static int do_sort(Elf_Ehdr *ehdr,
 
 	if (!sort_needed_sym) {
 		fprintf(stderr,
-			"no main_extable_sort_needed symbol in file: %s\n",
+			"anal main_extable_sort_needed symbol in file: %s\n",
 			fname);
 		goto out;
 	}
@@ -466,7 +466,7 @@ out:
 		if (rc) {
 			fprintf(stderr,
 				"pthread_join failed '%s': %s\n",
-				strerror(errno), fname);
+				strerror(erranal), fname);
 		} else if (retval) {
 			rc = -1;
 			fprintf(stderr,
@@ -484,7 +484,7 @@ out:
 		if (rc) {
 			fprintf(stderr,
 				"pthread_join failed '%s': %s\n",
-				strerror(errno), fname);
+				strerror(erranal), fname);
 		} else if (retval) {
 			rc = -1;
 			fprintf(stderr,

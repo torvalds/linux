@@ -34,7 +34,7 @@ perf-$(CONFIG_LIBTRACEEVENT) += switch-tracking.o
 perf-y += keep-tracking.o
 perf-y += code-reading.o
 perf-y += sample-parsing.o
-perf-y += parse-no-sample-id-all.o
+perf-y += parse-anal-sample-id-all.o
 perf-y += kmod-path.o
 perf-y += thread-map.o
 perf-y += topology.o
@@ -50,7 +50,7 @@ perf-y += is_printable_array.o
 perf-y += bitmap.o
 perf-y += perf-hooks.o
 perf-y += unit_number__scnprintf.o
-perf-y += mem2node.o
+perf-y += mem2analde.o
 perf-y += maps.o
 perf-y += time-utils-test.o
 perf-y += genelf.o
@@ -74,7 +74,7 @@ endif
 
 CFLAGS_attr.o         += -DBINDIR="BUILD_STR($(bindir_SQ))" -DPYTHON="BUILD_STR($(PYTHON_WORD))"
 CFLAGS_python-use.o   += -DPYTHONPATH="BUILD_STR($(OUTPUT)python)" -DPYTHON="BUILD_STR($(PYTHON_WORD))"
-CFLAGS_dwarf-unwind.o += -fno-optimize-sibling-calls
+CFLAGS_dwarf-unwind.o += -fanal-optimize-sibling-calls
 
 perf-y += workloads/
 

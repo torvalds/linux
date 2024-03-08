@@ -12,7 +12,7 @@
 #include <linux/sysctl.h>
 #include <linux/string.h>
 #include <linux/socket.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fcntl.h>
 #include <linux/in.h>
 #include <linux/if_ether.h>	/* For the statistics structure. */
@@ -174,5 +174,5 @@ void nr_setup(struct net_device *dev)
 	dev->type		= ARPHRD_NETROM;
 
 	/* New-style flags. */
-	dev->flags		= IFF_NOARP;
+	dev->flags		= IFF_ANALARP;
 }

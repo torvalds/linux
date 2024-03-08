@@ -7,7 +7,7 @@
  */
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/mfd/cs42l43-regs.h>
 #include <linux/module.h>
@@ -38,7 +38,7 @@ static int cs42l43_i2c_probe(struct i2c_client *i2c)
 
 	cs42l43 = devm_kzalloc(&i2c->dev, sizeof(*cs42l43), GFP_KERNEL);
 	if (!cs42l43)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cs42l43->dev = &i2c->dev;
 	cs42l43->irq = i2c->irq;

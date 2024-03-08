@@ -42,7 +42,7 @@ static int map_benchmark_thread(void *data)
 
 	buf = alloc_pages_exact(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (!kthread_should_stop())  {
 		u64 map_100ns, unmap_100ns, map_sq, unmap_sq;
@@ -50,7 +50,7 @@ static int map_benchmark_thread(void *data)
 		ktime_t map_delta, unmap_delta;
 
 		/*
-		 * for a non-coherent device, if we don't stain them in the
+		 * for a analn-coherent device, if we don't stain them in the
 		 * cache, this will give an underestimate of the real-world
 		 * overhead of BIDIRECTIONAL or TO_DEVICE mappings;
 		 * 66 means evertything goes well! 66 is lucky.
@@ -63,7 +63,7 @@ static int map_benchmark_thread(void *data)
 		if (unlikely(dma_mapping_error(map->dev, dma_addr))) {
 			pr_err("dma_map_single failed on %s\n",
 				dev_name(map->dev));
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		map_etime = ktime_get();
@@ -100,28 +100,28 @@ static int do_map_benchmark(struct map_benchmark_data *map)
 {
 	struct task_struct **tsk;
 	int threads = map->bparam.threads;
-	int node = map->bparam.node;
-	const cpumask_t *cpu_mask = cpumask_of_node(node);
+	int analde = map->bparam.analde;
+	const cpumask_t *cpu_mask = cpumask_of_analde(analde);
 	u64 loops;
 	int ret = 0;
 	int i;
 
 	tsk = kmalloc_array(threads, sizeof(*tsk), GFP_KERNEL);
 	if (!tsk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	get_device(map->dev);
 
 	for (i = 0; i < threads; i++) {
-		tsk[i] = kthread_create_on_node(map_benchmark_thread, map,
-				map->bparam.node, "dma-map-benchmark/%d", i);
+		tsk[i] = kthread_create_on_analde(map_benchmark_thread, map,
+				map->bparam.analde, "dma-map-benchmark/%d", i);
 		if (IS_ERR(tsk[i])) {
 			pr_err("create dma_map thread failed\n");
 			ret = PTR_ERR(tsk[i]);
 			goto out;
 		}
 
-		if (node != NUMA_NO_NODE)
+		if (analde != NUMA_ANAL_ANALDE)
 			kthread_bind_mask(tsk[i], cpu_mask);
 	}
 
@@ -207,9 +207,9 @@ static long map_benchmark_ioctl(struct file *file, unsigned int cmd,
 			return -EINVAL;
 		}
 
-		if (map->bparam.node != NUMA_NO_NODE &&
-		    !node_possible(map->bparam.node)) {
-			pr_err("invalid numa node\n");
+		if (map->bparam.analde != NUMA_ANAL_ANALDE &&
+		    !analde_possible(map->bparam.analde)) {
+			pr_err("invalid numa analde\n");
 			return -EINVAL;
 		}
 
@@ -283,7 +283,7 @@ static int __map_benchmark_probe(struct device *dev)
 
 	map = devm_kzalloc(dev, sizeof(*map), GFP_KERNEL);
 	if (!map)
-		return -ENOMEM;
+		return -EANALMEM;
 	map->dev = dev;
 
 	ret = devm_add_action(dev, map_benchmark_remove_debugfs, map);

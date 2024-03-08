@@ -11,7 +11,7 @@ maintainers:
   - Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^gpu@[a-f0-9]+$'
 
   compatible:
@@ -26,7 +26,7 @@ properties:
       - description: hub register (required)
       - description: core0 register (required)
       - description: GCA cache controller register (if GCA controller present)
-      - description: bridge register (if no external reset controller)
+      - description: bridge register (if anal external reset controller)
     minItems: 2
 
   reg-names:

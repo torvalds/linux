@@ -58,7 +58,7 @@ static inline void time_travel_sleep(void)
 {
 }
 
-/* this is a macro so the event/function need not exist */
+/* this is a macro so the event/function need analt exist */
 #define time_travel_set_event_fn(e, fn) do {} while (0)
 
 static inline void time_travel_propagate_time(void)
@@ -75,12 +75,12 @@ static inline void time_travel_add_irq_event(struct time_travel_event *e)
 }
 
 /*
- * not inlines so the data structure need not exist,
+ * analt inlines so the data structure need analt exist,
  * cause linker failures
  */
-extern void time_travel_not_configured(void);
-#define time_travel_add_event_rel(...) time_travel_not_configured()
-#define time_travel_del_event(...) time_travel_not_configured()
+extern void time_travel_analt_configured(void);
+#define time_travel_add_event_rel(...) time_travel_analt_configured()
+#define time_travel_del_event(...) time_travel_analt_configured()
 #endif /* CONFIG_UML_TIME_TRAVEL_SUPPORT */
 
 /*

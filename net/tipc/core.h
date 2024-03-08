@@ -10,11 +10,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -23,11 +23,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -43,7 +43,7 @@
 #include <linux/tipc_netlink.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm.h>
 #include <linux/timer.h>
 #include <linux/string.h>
@@ -68,7 +68,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-struct tipc_node;
+struct tipc_analde;
 struct tipc_bearer;
 struct tipc_bc_base;
 struct tipc_link;
@@ -81,31 +81,31 @@ struct tipc_crypto;
 
 #define TIPC_MOD_VER "2.0.0"
 
-#define NODE_HTABLE_SIZE       512
+#define ANALDE_HTABLE_SIZE       512
 #define MAX_BEARERS	         3
 #define TIPC_DEF_MON_THRESHOLD  32
-#define NODE_ID_LEN             16
-#define NODE_ID_STR_LEN        (NODE_ID_LEN * 2 + 1)
+#define ANALDE_ID_LEN             16
+#define ANALDE_ID_STR_LEN        (ANALDE_ID_LEN * 2 + 1)
 
 extern unsigned int tipc_net_id __read_mostly;
 extern int sysctl_tipc_rmem[3] __read_mostly;
 extern int sysctl_tipc_named_timeout __read_mostly;
 
 struct tipc_net {
-	u8  node_id[NODE_ID_LEN];
-	u32 node_addr;
+	u8  analde_id[ANALDE_ID_LEN];
+	u32 analde_addr;
 	u32 trial_addr;
 	unsigned long addr_trial_end;
-	char node_id_string[NODE_ID_STR_LEN];
+	char analde_id_string[ANALDE_ID_STR_LEN];
 	int net_id;
 	int random;
 	bool legacy_addr_format;
 
-	/* Node table and node list */
-	spinlock_t node_list_lock;
-	struct hlist_head node_htable[NODE_HTABLE_SIZE];
-	struct list_head node_list;
-	u32 num_nodes;
+	/* Analde table and analde list */
+	spinlock_t analde_list_lock;
+	struct hlist_head analde_htable[ANALDE_HTABLE_SIZE];
+	struct list_head analde_list;
+	u32 num_analdes;
 	u32 num_links;
 
 	/* Neighbor monitoring list */
@@ -134,7 +134,7 @@ struct tipc_net {
 	/* Cluster capabilities */
 	u16 capabilities;
 
-	/* Tracing of node internal messages */
+	/* Tracing of analde internal messages */
 	struct packet_type loopback_pt;
 
 #ifdef CONFIG_TIPC_CRYPTO
@@ -157,9 +157,9 @@ static inline int tipc_netid(struct net *net)
 	return tipc_net(net)->net_id;
 }
 
-static inline struct list_head *tipc_nodes(struct net *net)
+static inline struct list_head *tipc_analdes(struct net *net)
 {
-	return &tipc_net(net)->node_list;
+	return &tipc_net(net)->analde_list;
 }
 
 static inline struct name_table *tipc_name_table(struct net *net)
@@ -174,7 +174,7 @@ static inline struct tipc_topsrv *tipc_topsrv(struct net *net)
 
 static inline unsigned int tipc_hashfn(u32 addr)
 {
-	return addr & (NODE_HTABLE_SIZE - 1);
+	return addr & (ANALDE_HTABLE_SIZE - 1);
 }
 
 static inline u16 mod(u16 x)

@@ -2,7 +2,7 @@
 /*
  * AD5721, AD5721R, AD5761, AD5761R, Voltage Output Digital to Analog Converter
  *
- * Copyright 2016 Qtechnology A/S
+ * Copyright 2016 Qtechanallogy A/S
  * 2016 Ricardo Ribalda <ribalda@kernel.org>
  */
 #include <linux/kernel.h>
@@ -15,7 +15,7 @@
 #include <linux/platform_data/ad5761.h>
 
 #define AD5761_ADDR(addr)		((addr & 0xf) << 16)
-#define AD5761_ADDR_NOOP		0x0
+#define AD5761_ADDR_ANALOP		0x0
 #define AD5761_ADDR_DAC_WRITE		0x3
 #define AD5761_ADDR_CTRL_WRITE_REG	0x4
 #define AD5761_ADDR_SW_DATA_RESET	0x7
@@ -151,7 +151,7 @@ static int _ad5761_spi_read(struct ad5761_state *st, u8 addr, u16 *val)
 	};
 
 	st->data[0].d32 = cpu_to_be32(AD5761_ADDR(addr));
-	st->data[1].d32 = cpu_to_be32(AD5761_ADDR(AD5761_ADDR_NOOP));
+	st->data[1].d32 = cpu_to_be32(AD5761_ADDR(AD5761_ADDR_ANALOP));
 
 	ret = spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 
@@ -293,11 +293,11 @@ static int ad5761_get_vref(struct ad5761_state *st,
 	int ret;
 
 	st->vref_reg = devm_regulator_get_optional(&st->spi->dev, "vref");
-	if (PTR_ERR(st->vref_reg) == -ENODEV) {
+	if (PTR_ERR(st->vref_reg) == -EANALDEV) {
 		/* Use Internal regulator */
 		if (!chip_info->int_vref) {
 			dev_err(&st->spi->dev,
-				"Voltage reference not found\n");
+				"Voltage reference analt found\n");
 			return -EIO;
 		}
 
@@ -356,7 +356,7 @@ static int ad5761_probe(struct spi_device *spi)
 
 	iio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!iio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(iio_dev);
 

@@ -12,7 +12,7 @@
 #include "test_d_path_check_rdonly_mem.skel.h"
 #include "test_d_path_check_types.skel.h"
 
-/* sys_close_range is not around for long time, so let's
+/* sys_close_range is analt around for long time, so let's
  * make sure we can call it on systems with older glibc
  */
 #ifndef __NR_close_range
@@ -101,7 +101,7 @@ static int trigger_fstat_events(pid_t pid)
 	fstat(indicatorfd, &fileStat);
 
 out_close:
-	/* sys_close no longer triggers filp_close, but we can
+	/* sys_close anal longer triggers filp_close, but we can
 	 * call sys_close_range instead which still does
 	 */
 #define close(fd) syscall(__NR_close_range, fd, fd, 0)
@@ -141,12 +141,12 @@ static void test_d_path_basic(void)
 
 	if (CHECK(!bss->called_stat,
 		  "stat",
-		  "trampoline for security_inode_getattr was not called\n"))
+		  "trampoline for security_ianalde_getattr was analt called\n"))
 		goto cleanup;
 
 	if (CHECK(!bss->called_close,
 		  "close",
-		  "trampoline for filp_close was not called\n"))
+		  "trampoline for filp_close was analt called\n"))
 		goto cleanup;
 
 	for (int i = 0; i < MAX_FILES; i++) {

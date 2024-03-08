@@ -9,11 +9,11 @@
 
 /* CRC Calculation */
 DECLARE_CRC8_TABLE(pfvf_crc8_table);
-#define ADF_PFVF_CRC8_POLYNOMIAL 0x97
+#define ADF_PFVF_CRC8_POLYANALMIAL 0x97
 
 void adf_pfvf_crc_init(void)
 {
-	crc8_populate_msb(pfvf_crc8_table, ADF_PFVF_CRC8_POLYNOMIAL);
+	crc8_populate_msb(pfvf_crc8_table, ADF_PFVF_CRC8_POLYANALMIAL);
 }
 
 u8 adf_pfvf_calc_blkmsg_crc(u8 const *buf, u8 buf_len)
@@ -59,7 +59,7 @@ struct pfvf_message adf_pfvf_message_of(struct adf_accel_dev *accel_dev, u32 csr
 
 	if (unlikely(!msg.type))
 		dev_err(&GET_DEV(accel_dev),
-			"Invalid PFVF msg with no type received\n");
+			"Invalid PFVF msg with anal type received\n");
 
 	return msg;
 }

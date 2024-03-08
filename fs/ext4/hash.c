@@ -186,22 +186,22 @@ static void str2hashbuf_unsigned(const char *msg, int len, __u32 *buf, int num)
 
 /*
  * Returns the hash of a filename.  If len is 0 and name is NULL, then
- * this function can be used to test whether or not a hash version is
+ * this function can be used to test whether or analt a hash version is
  * supported.
  *
  * The seed is an 4 longword (32 bits) "secret" which can be used to
  * uniquify a hash.  If the seed is all zero's, then some default seed
  * may be used.
  *
- * A particular hash version specifies whether or not the seed is
- * represented, and whether or not the returned hash is 32 bits or 64
- * bits.  32 bit hashes will return 0 for the minor hash.
+ * A particular hash version specifies whether or analt the seed is
+ * represented, and whether or analt the returned hash is 32 bits or 64
+ * bits.  32 bit hashes will return 0 for the mianalr hash.
  */
-static int __ext4fs_dirhash(const struct inode *dir, const char *name, int len,
+static int __ext4fs_dirhash(const struct ianalde *dir, const char *name, int len,
 			    struct dx_hash_info *hinfo)
 {
 	__u32	hash;
-	__u32	minor_hash = 0;
+	__u32	mianalr_hash = 0;
 	const char	*p;
 	int		i;
 	__u32		in[8], buf[4];
@@ -242,7 +242,7 @@ static int __ext4fs_dirhash(const struct inode *dir, const char *name, int len,
 			len -= 32;
 			p += 32;
 		}
-		minor_hash = buf[2];
+		mianalr_hash = buf[2];
 		hash = buf[1];
 		break;
 	case DX_HASH_TEA_UNSIGNED:
@@ -257,7 +257,7 @@ static int __ext4fs_dirhash(const struct inode *dir, const char *name, int len,
 			p += 16;
 		}
 		hash = buf[0];
-		minor_hash = buf[1];
+		mianalr_hash = buf[1];
 		break;
 	case DX_HASH_SIPHASH:
 	{
@@ -267,17 +267,17 @@ static int __ext4fs_dirhash(const struct inode *dir, const char *name, int len,
 		if (fscrypt_has_encryption_key(dir)) {
 			combined_hash = fscrypt_fname_siphash(dir, &qname);
 		} else {
-			ext4_warning_inode(dir, "Siphash requires key");
+			ext4_warning_ianalde(dir, "Siphash requires key");
 			return -1;
 		}
 
 		hash = (__u32)(combined_hash >> 32);
-		minor_hash = (__u32)combined_hash;
+		mianalr_hash = (__u32)combined_hash;
 		break;
 	}
 	default:
 		hinfo->hash = 0;
-		hinfo->minor_hash = 0;
+		hinfo->mianalr_hash = 0;
 		ext4_warning(dir->i_sb,
 			     "invalid/unsupported hash tree version %u",
 			     hinfo->hash_version);
@@ -287,11 +287,11 @@ static int __ext4fs_dirhash(const struct inode *dir, const char *name, int len,
 	if (hash == (EXT4_HTREE_EOF_32BIT << 1))
 		hash = (EXT4_HTREE_EOF_32BIT - 1) << 1;
 	hinfo->hash = hash;
-	hinfo->minor_hash = minor_hash;
+	hinfo->mianalr_hash = mianalr_hash;
 	return 0;
 }
 
-int ext4fs_dirhash(const struct inode *dir, const char *name, int len,
+int ext4fs_dirhash(const struct ianalde *dir, const char *name, int len,
 		   struct dx_hash_info *hinfo)
 {
 #if IS_ENABLED(CONFIG_UNICODE)
@@ -304,7 +304,7 @@ int ext4fs_dirhash(const struct inode *dir, const char *name, int len,
 	   (!IS_ENCRYPTED(dir) || fscrypt_has_encryption_key(dir))) {
 		buff = kzalloc(sizeof(char) * PATH_MAX, GFP_KERNEL);
 		if (!buff)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dlen = utf8_casefold(um, &qstr, buff, PATH_MAX);
 		if (dlen < 0) {

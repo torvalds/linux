@@ -315,7 +315,7 @@ static int ep93xx_gpio_set_config(struct gpio_chip *gc, unsigned offset,
 	u32 debounce;
 
 	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	debounce = pinconf_to_config_argument(config);
 	ep93xx_gpio_int_debounce(gc, offset, debounce ? true : false);
@@ -368,7 +368,7 @@ static int ep93xx_gpio_add_bank(struct ep93xx_gpio_chip *egc,
 					sizeof(*egc->eic),
 					GFP_KERNEL);
 		if (!egc->eic)
-			return -ENOMEM;
+			return -EANALMEM;
 		egc->eic->irq_offset = bank->irq;
 		gpio_irq_chip_set_chip(girq, &gpio_eic_irq_chip);
 	}
@@ -382,8 +382,8 @@ static int ep93xx_gpio_add_bank(struct ep93xx_gpio_chip *egc,
 					     sizeof(*girq->parents),
 					     GFP_KERNEL);
 		if (!girq->parents)
-			return -ENOMEM;
-		girq->default_type = IRQ_TYPE_NONE;
+			return -EANALMEM;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_level_irq;
 		girq->parents[0] = ab_parent_irq;
 		girq->first = bank->irq_base;
@@ -404,7 +404,7 @@ static int ep93xx_gpio_add_bank(struct ep93xx_gpio_chip *egc,
 					     sizeof(*girq->parents),
 					     GFP_KERNEL);
 		if (!girq->parents)
-			return -ENOMEM;
+			return -EANALMEM;
 		/* Pick resources 1..8 for these IRQs */
 		for (i = 0; i < girq->num_parents; i++) {
 			girq->parents[i] = platform_get_irq(pdev, i + 1);
@@ -413,9 +413,9 @@ static int ep93xx_gpio_add_bank(struct ep93xx_gpio_chip *egc,
 			irq_set_chip_and_handler(gpio_irq,
 						 girq->chip,
 						 handle_level_irq);
-			irq_clear_status_flags(gpio_irq, IRQ_NOREQUEST);
+			irq_clear_status_flags(gpio_irq, IRQ_ANALREQUEST);
 		}
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_level_irq;
 		girq->first = bank->irq_base;
 	}
@@ -430,7 +430,7 @@ static int ep93xx_gpio_probe(struct platform_device *pdev)
 
 	epg = devm_kzalloc(&pdev->dev, sizeof(*epg), GFP_KERNEL);
 	if (!epg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	epg->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(epg->base))

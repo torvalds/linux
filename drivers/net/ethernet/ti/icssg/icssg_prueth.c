@@ -155,7 +155,7 @@ static int emac_tx_complete_packets(struct prueth_emac *emac, int chn,
 
 	while (true) {
 		res = k3_udma_glue_pop_tx_chn(tx_chn->tx_chn, &desc_dma);
-		if (res == -ENODATA)
+		if (res == -EANALDATA)
 			break;
 
 		/* teardown completion */
@@ -187,8 +187,8 @@ static int emac_tx_complete_packets(struct prueth_emac *emac, int chn,
 	netdev_tx_completed_queue(netif_txq, num_tx, total_bytes);
 
 	if (netif_tx_queue_stopped(netif_txq)) {
-		/* If the TX queue was stopped, wake it now
-		 * if we have enough room.
+		/* If the TX queue was stopped, wake it analw
+		 * if we have eanalugh room.
 		 */
 		__netif_tx_lock(netif_txq, smp_processor_id());
 		if (netif_running(ndev) &&
@@ -222,7 +222,7 @@ static irqreturn_t prueth_tx_irq(int irq, void *dev_id)
 {
 	struct prueth_tx_chn *tx_chn = dev_id;
 
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 	napi_schedule(&tx_chn->napi_tx);
 
 	return IRQ_HANDLED;
@@ -450,7 +450,7 @@ static int prueth_dma_rx_push(struct prueth_emac *emac,
 	desc_rx = k3_cppi_desc_pool_alloc(rx_chn->desc_pool);
 	if (!desc_rx) {
 		netdev_err(ndev, "rx push: failed to allocate descriptor\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	desc_dma = k3_cppi_desc_pool_virt2dma(rx_chn->desc_pool, desc_rx);
 
@@ -518,7 +518,7 @@ static int emac_rx_packet(struct prueth_emac *emac, u32 flow_id)
 
 	ret = k3_udma_glue_pop_rx_chn(rx_chn->rx_chn, flow_id, &desc_dma);
 	if (ret) {
-		if (ret != -ENODATA)
+		if (ret != -EANALDATA)
 			netdev_err(ndev, "rx pop: failed: %d\n", ret);
 		return ret;
 	}
@@ -563,7 +563,7 @@ static int emac_rx_packet(struct prueth_emac *emac, u32 flow_id)
 		ndev->stats.rx_packets++;
 	}
 
-	/* queue another RX DMA */
+	/* queue aanalther RX DMA */
 	ret = prueth_dma_rx_push(emac, new_skb, &emac->rx_chns);
 	if (WARN_ON(ret < 0)) {
 		dev_kfree_skb_any(new_skb);
@@ -628,7 +628,7 @@ static void tx_ts_work(struct prueth_emac *emac)
 	/* There may be more than one pending requests */
 	while (1) {
 		ret = emac_get_tx_ts(emac, &tsr);
-		if (ret) /* nothing more */
+		if (ret) /* analthing more */
 			break;
 
 		if (tsr.cookie >= PRUETH_MAX_TX_TS_REQUESTS ||
@@ -656,7 +656,7 @@ static void tx_ts_work(struct prueth_emac *emac)
 		skb_tstamp_tx(skb, &ssh);
 		dev_consume_skb_any(skb);
 
-		if (atomic_dec_and_test(&emac->tx_ts_pending))	/* no more? */
+		if (atomic_dec_and_test(&emac->tx_ts_pending))	/* anal more? */
 			break;
 	}
 }
@@ -796,7 +796,7 @@ static enum netdev_tx emac_ndo_start_xmit(struct sk_buff *skb, struct net_device
 	desc_dma = k3_cppi_desc_pool_virt2dma(tx_chn->desc_pool, first_desc);
 	/* cppi5_desc_dump(first_desc, 64); */
 
-	skb_tx_timestamp(skb);  /* SW timestamp if SKBTX_IN_PROGRESS not set */
+	skb_tx_timestamp(skb);  /* SW timestamp if SKBTX_IN_PROGRESS analt set */
 	ret = k3_udma_glue_push_tx_chn(tx_chn->tx_chn, first_desc, desc_dma);
 	if (ret) {
 		netdev_err(ndev, "tx: push failed: %d\n", ret);
@@ -877,7 +877,7 @@ static irqreturn_t prueth_rx_irq(int irq, void *dev_id)
 {
 	struct prueth_emac *emac = dev_id;
 
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 	napi_schedule(&emac->napi_rx);
 
 	return IRQ_HANDLED;
@@ -1018,7 +1018,7 @@ static void emac_adjust_link(struct net_device *ndev)
 		/* f/w should support 100 & 1000 */
 		emac->speed = SPEED_1000;
 
-		/* half duplex may not be supported by f/w */
+		/* half duplex may analt be supported by f/w */
 		emac->duplex = DUPLEX_FULL;
 	}
 
@@ -1094,12 +1094,12 @@ static int prueth_prepare_rx_chan(struct prueth_emac *emac,
 	for (i = 0; i < chn->descs_num; i++) {
 		skb = __netdev_alloc_skb_ip_align(NULL, buf_size, GFP_KERNEL);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = prueth_dma_rx_push(emac, skb, chn);
 		if (ret < 0) {
 			netdev_err(emac->ndev,
-				   "cannot submit skb for rx chan %s ret %d\n",
+				   "cananalt submit skb for rx chan %s ret %d\n",
 				   chn->name, ret);
 			kfree_skb(skb);
 			return ret;
@@ -1140,17 +1140,17 @@ static int emac_phy_connect(struct prueth_emac *emac)
 	struct prueth *prueth = emac->prueth;
 	struct net_device *ndev = emac->ndev;
 	/* connect PHY */
-	ndev->phydev = of_phy_connect(emac->ndev, emac->phy_node,
+	ndev->phydev = of_phy_connect(emac->ndev, emac->phy_analde,
 				      &emac_adjust_link, 0,
 				      emac->phy_if);
 	if (!ndev->phydev) {
 		dev_err(prueth->dev, "couldn't connect to phy %s\n",
-			emac->phy_node->full_name);
-		return -ENODEV;
+			emac->phy_analde->full_name);
+		return -EANALDEV;
 	}
 
 	if (!emac->half_duplex) {
-		dev_dbg(prueth->dev, "half duplex mode is not supported\n");
+		dev_dbg(prueth->dev, "half duplex mode is analt supported\n");
 		phy_remove_link_mode(ndev->phydev, ETHTOOL_LINK_MODE_10baseT_Half_BIT);
 		phy_remove_link_mode(ndev->phydev, ETHTOOL_LINK_MODE_100baseT_Half_BIT);
 	}
@@ -1233,7 +1233,7 @@ static void prueth_iep_settime(void *clockops_data, u64 ns)
 
 	timeout = 5;	/* fw should take 2-3 ms */
 	while (timeout--) {
-		if (readb(&sc_descp->acknowledgment))
+		if (readb(&sc_descp->ackanalwledgment))
 			return;
 
 		usleep_range(500, 1000);
@@ -1274,7 +1274,7 @@ static int prueth_perout_enable(void *clockops_data,
 
 	/* if offset is close to cycle time then we will miss
 	 * the CMP event for last tick when IEP rolls over.
-	 * In normal mode, IEP tick is 4ns.
+	 * In analrmal mode, IEP tick is 4ns.
 	 * In slow compensation it could be 0ns or 8ns at
 	 * every slow compensation cycle.
 	 */
@@ -1331,10 +1331,10 @@ static int emac_ndo_open(struct net_device *ndev)
 
 	icssg_class_default(prueth->miig_rt, slice, 0);
 
-	/* Notify the stack of the actual queue counts. */
+	/* Analtify the stack of the actual queue counts. */
 	ret = netif_set_real_num_tx_queues(ndev, num_data_chn);
 	if (ret) {
-		dev_err(dev, "cannot set real number of tx queues\n");
+		dev_err(dev, "cananalt set real number of tx queues\n");
 		return ret;
 	}
 
@@ -1357,7 +1357,7 @@ static int emac_ndo_open(struct net_device *ndev)
 	if (ret)
 		goto cleanup_rx;
 
-	/* we use only the highest priority flow for now i.e. @irq[3] */
+	/* we use only the highest priority flow for analw i.e. @irq[3] */
 	rx_flow = PRUETH_RX_FLOW_DATA;
 	ret = request_irq(emac->rx_chns.irq[rx_flow], prueth_rx_irq,
 			  IRQF_TRIGGER_HIGH, dev_name(dev), emac);
@@ -1413,7 +1413,7 @@ static int emac_ndo_open(struct net_device *ndev)
 	return 0;
 
 reset_tx_chan:
-	/* Since interface is not yet up, there is wouldn't be
+	/* Since interface is analt yet up, there is wouldn't be
 	 * any SKB for completion. So set false to free_skb
 	 */
 	prueth_reset_tx_chan(emac, i, false);
@@ -1582,7 +1582,7 @@ static int emac_set_ts_config(struct net_device *ndev, struct ifreq *ifr)
 	}
 
 	switch (config.rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		emac->rx_ts_enabled = 0;
 		break;
 	case HWTSTAMP_FILTER_ALL:
@@ -1618,7 +1618,7 @@ static int emac_get_ts_config(struct net_device *ndev, struct ifreq *ifr)
 
 	config.flags = 0;
 	config.tx_type = emac->tx_ts_enabled ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
-	config.rx_filter = emac->rx_ts_enabled ? HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_NONE;
+	config.rx_filter = emac->rx_ts_enabled ? HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_ANALNE;
 
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 			    -EFAULT : 0;
@@ -1685,13 +1685,13 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_get_phys_port_name = emac_ndo_get_phys_port_name,
 };
 
-/* get emac_port corresponding to eth_node name */
-static int prueth_node_port(struct device_node *eth_node)
+/* get emac_port corresponding to eth_analde name */
+static int prueth_analde_port(struct device_analde *eth_analde)
 {
 	u32 port_id;
 	int ret;
 
-	ret = of_property_read_u32(eth_node, "reg", &port_id);
+	ret = of_property_read_u32(eth_analde, "reg", &port_id);
 	if (ret)
 		return ret;
 
@@ -1703,13 +1703,13 @@ static int prueth_node_port(struct device_node *eth_node)
 		return PRUETH_PORT_INVALID;
 }
 
-/* get MAC instance corresponding to eth_node name */
-static int prueth_node_mac(struct device_node *eth_node)
+/* get MAC instance corresponding to eth_analde name */
+static int prueth_analde_mac(struct device_analde *eth_analde)
 {
 	u32 port_id;
 	int ret;
 
-	ret = of_property_read_u32(eth_node, "reg", &port_id);
+	ret = of_property_read_u32(eth_analde, "reg", &port_id);
 	if (ret)
 		return ret;
 
@@ -1722,7 +1722,7 @@ static int prueth_node_mac(struct device_node *eth_node)
 }
 
 static int prueth_netdev_init(struct prueth *prueth,
-			      struct device_node *eth_node)
+			      struct device_analde *eth_analde)
 {
 	int ret, num_tx_chn = PRUETH_MAX_TX_QUEUES;
 	struct prueth_emac *emac;
@@ -1731,17 +1731,17 @@ static int prueth_netdev_init(struct prueth *prueth,
 	const char *irq_name;
 	enum prueth_mac mac;
 
-	port = prueth_node_port(eth_node);
+	port = prueth_analde_port(eth_analde);
 	if (port == PRUETH_PORT_INVALID)
 		return -EINVAL;
 
-	mac = prueth_node_mac(eth_node);
+	mac = prueth_analde_mac(eth_analde);
 	if (mac == PRUETH_MAC_INVALID)
 		return -EINVAL;
 
 	ndev = alloc_etherdev_mq(sizeof(*emac), num_tx_chn);
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	emac = netdev_priv(ndev);
 	emac->prueth = prueth;
@@ -1749,7 +1749,7 @@ static int prueth_netdev_init(struct prueth *prueth,
 	emac->port_id = port;
 	emac->cmd_wq = create_singlethread_workqueue("icssg_cmd_wq");
 	if (!emac->cmd_wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_ndev;
 	}
 	INIT_WORK(&emac->rx_mode_work, emac_ndo_set_rx_mode_work);
@@ -1762,7 +1762,7 @@ static int prueth_netdev_init(struct prueth *prueth,
 				       &emac->dram);
 	if (ret) {
 		dev_err(prueth->dev, "unable to get DRAM: %d\n", ret);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_wq;
 	}
 
@@ -1773,7 +1773,7 @@ static int prueth_netdev_init(struct prueth *prueth,
 		irq_name = "tx_ts1";
 	emac->tx_ts_irq = platform_get_irq_byname_optional(prueth->pdev, irq_name);
 	if (emac->tx_ts_irq < 0) {
-		ret = dev_err_probe(prueth->dev, emac->tx_ts_irq, "could not get tx_ts_irq\n");
+		ret = dev_err_probe(prueth->dev, emac->tx_ts_irq, "could analt get tx_ts_irq\n");
 		goto free;
 	}
 
@@ -1781,25 +1781,25 @@ static int prueth_netdev_init(struct prueth *prueth,
 	spin_lock_init(&emac->lock);
 	mutex_init(&emac->cmd_lock);
 
-	emac->phy_node = of_parse_phandle(eth_node, "phy-handle", 0);
-	if (!emac->phy_node && !of_phy_is_fixed_link(eth_node)) {
+	emac->phy_analde = of_parse_phandle(eth_analde, "phy-handle", 0);
+	if (!emac->phy_analde && !of_phy_is_fixed_link(eth_analde)) {
 		dev_err(prueth->dev, "couldn't find phy-handle\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free;
-	} else if (of_phy_is_fixed_link(eth_node)) {
-		ret = of_phy_register_fixed_link(eth_node);
+	} else if (of_phy_is_fixed_link(eth_analde)) {
+		ret = of_phy_register_fixed_link(eth_analde);
 		if (ret) {
 			ret = dev_err_probe(prueth->dev, ret,
 					    "failed to register fixed-link phy\n");
 			goto free;
 		}
 
-		emac->phy_node = eth_node;
+		emac->phy_analde = eth_analde;
 	}
 
-	ret = of_get_phy_mode(eth_node, &emac->phy_if);
+	ret = of_get_phy_mode(eth_analde, &emac->phy_if);
 	if (ret) {
-		dev_err(prueth->dev, "could not get phy-mode property\n");
+		dev_err(prueth->dev, "could analt get phy-mode property\n");
 		goto free;
 	}
 
@@ -1811,7 +1811,7 @@ static int prueth_netdev_init(struct prueth *prueth,
 	}
 
 	/* AM65 SR2.0 has TX Internal delay always enabled by hardware
-	 * and it is not possible to disable TX Internal delay. The below
+	 * and it is analt possible to disable TX Internal delay. The below
 	 * switch case block describes how we handle different phy modes
 	 * based on hardware restriction.
 	 */
@@ -1824,7 +1824,7 @@ static int prueth_netdev_init(struct prueth *prueth,
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
-		dev_err(prueth->dev, "RGMII mode without TX delay is not supported");
+		dev_err(prueth->dev, "RGMII mode without TX delay is analt supported");
 		ret = -EINVAL;
 		goto free;
 	default:
@@ -1832,7 +1832,7 @@ static int prueth_netdev_init(struct prueth *prueth,
 	}
 
 	/* get mac address from DT and set private and netdev addr */
-	ret = of_get_ethdev_address(eth_node, ndev);
+	ret = of_get_ethdev_address(eth_analde, ndev);
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		eth_hw_addr_random(ndev);
 		dev_warn(prueth->dev, "port %d: using random MAC addr: %pM\n",
@@ -1865,12 +1865,12 @@ free_ndev:
 }
 
 static void prueth_netdev_exit(struct prueth *prueth,
-			       struct device_node *eth_node)
+			       struct device_analde *eth_analde)
 {
 	struct prueth_emac *emac;
 	enum prueth_mac mac;
 
-	mac = prueth_node_mac(eth_node);
+	mac = prueth_analde_mac(eth_analde);
 	if (mac == PRUETH_MAC_INVALID)
 		return;
 
@@ -1878,8 +1878,8 @@ static void prueth_netdev_exit(struct prueth *prueth,
 	if (!emac)
 		return;
 
-	if (of_phy_is_fixed_link(emac->phy_node))
-		of_phy_deregister_fixed_link(emac->phy_node);
+	if (of_phy_is_fixed_link(emac->phy_analde))
+		of_phy_deregister_fixed_link(emac->phy_analde);
 
 	netif_napi_del(&emac->napi_rx);
 
@@ -1893,10 +1893,10 @@ static int prueth_get_cores(struct prueth *prueth, int slice)
 {
 	struct device *dev = prueth->dev;
 	enum pruss_pru_id pruss_id;
-	struct device_node *np;
+	struct device_analde *np;
 	int idx = -1, ret;
 
-	np = dev->of_node;
+	np = dev->of_analde;
 
 	switch (slice) {
 	case ICSS_SLICE0:
@@ -1950,106 +1950,106 @@ static void prueth_put_cores(struct prueth *prueth, int slice)
 
 static int prueth_probe(struct platform_device *pdev)
 {
-	struct device_node *eth_node, *eth_ports_node;
-	struct device_node  *eth0_node = NULL;
-	struct device_node  *eth1_node = NULL;
+	struct device_analde *eth_analde, *eth_ports_analde;
+	struct device_analde  *eth0_analde = NULL;
+	struct device_analde  *eth1_analde = NULL;
 	struct genpool_data_align gp_data = {
 		.align = SZ_64K,
 	};
 	struct device *dev = &pdev->dev;
-	struct device_node *np;
+	struct device_analde *np;
 	struct prueth *prueth;
 	struct pruss *pruss;
 	u32 msmc_ram_size;
 	int i, ret;
 
-	np = dev->of_node;
+	np = dev->of_analde;
 
 	prueth = devm_kzalloc(dev, sizeof(*prueth), GFP_KERNEL);
 	if (!prueth)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, prueth);
 	prueth->pdev = pdev;
 	prueth->pdata = *(const struct prueth_pdata *)device_get_match_data(dev);
 
 	prueth->dev = dev;
-	eth_ports_node = of_get_child_by_name(np, "ethernet-ports");
-	if (!eth_ports_node)
-		return -ENOENT;
+	eth_ports_analde = of_get_child_by_name(np, "ethernet-ports");
+	if (!eth_ports_analde)
+		return -EANALENT;
 
-	for_each_child_of_node(eth_ports_node, eth_node) {
+	for_each_child_of_analde(eth_ports_analde, eth_analde) {
 		u32 reg;
 
-		if (strcmp(eth_node->name, "port"))
+		if (strcmp(eth_analde->name, "port"))
 			continue;
-		ret = of_property_read_u32(eth_node, "reg", &reg);
+		ret = of_property_read_u32(eth_analde, "reg", &reg);
 		if (ret < 0) {
 			dev_err(dev, "%pOF error reading port_id %d\n",
-				eth_node, ret);
+				eth_analde, ret);
 		}
 
-		of_node_get(eth_node);
+		of_analde_get(eth_analde);
 
 		if (reg == 0) {
-			eth0_node = eth_node;
-			if (!of_device_is_available(eth0_node)) {
-				of_node_put(eth0_node);
-				eth0_node = NULL;
+			eth0_analde = eth_analde;
+			if (!of_device_is_available(eth0_analde)) {
+				of_analde_put(eth0_analde);
+				eth0_analde = NULL;
 			}
 		} else if (reg == 1) {
-			eth1_node = eth_node;
-			if (!of_device_is_available(eth1_node)) {
-				of_node_put(eth1_node);
-				eth1_node = NULL;
+			eth1_analde = eth_analde;
+			if (!of_device_is_available(eth1_analde)) {
+				of_analde_put(eth1_analde);
+				eth1_analde = NULL;
 			}
 		} else {
 			dev_err(dev, "port reg should be 0 or 1\n");
 		}
 	}
 
-	of_node_put(eth_ports_node);
+	of_analde_put(eth_ports_analde);
 
-	/* At least one node must be present and available else we fail */
-	if (!eth0_node && !eth1_node) {
-		dev_err(dev, "neither port0 nor port1 node available\n");
-		return -ENODEV;
+	/* At least one analde must be present and available else we fail */
+	if (!eth0_analde && !eth1_analde) {
+		dev_err(dev, "neither port0 analr port1 analde available\n");
+		return -EANALDEV;
 	}
 
-	if (eth0_node == eth1_node) {
+	if (eth0_analde == eth1_analde) {
 		dev_err(dev, "port0 and port1 can't have same reg\n");
-		of_node_put(eth0_node);
-		return -ENODEV;
+		of_analde_put(eth0_analde);
+		return -EANALDEV;
 	}
 
-	prueth->eth_node[PRUETH_MAC0] = eth0_node;
-	prueth->eth_node[PRUETH_MAC1] = eth1_node;
+	prueth->eth_analde[PRUETH_MAC0] = eth0_analde;
+	prueth->eth_analde[PRUETH_MAC1] = eth1_analde;
 
 	prueth->miig_rt = syscon_regmap_lookup_by_phandle(np, "ti,mii-g-rt");
 	if (IS_ERR(prueth->miig_rt)) {
 		dev_err(dev, "couldn't get ti,mii-g-rt syscon regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	prueth->mii_rt = syscon_regmap_lookup_by_phandle(np, "ti,mii-rt");
 	if (IS_ERR(prueth->mii_rt)) {
 		dev_err(dev, "couldn't get ti,mii-rt syscon regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	if (eth0_node) {
+	if (eth0_analde) {
 		ret = prueth_get_cores(prueth, ICSS_SLICE0);
 		if (ret)
 			goto put_cores;
 	}
 
-	if (eth1_node) {
+	if (eth1_analde) {
 		ret = prueth_get_cores(prueth, ICSS_SLICE1);
 		if (ret)
 			goto put_cores;
 	}
 
-	pruss = pruss_get(eth0_node ?
+	pruss = pruss_get(eth0_analde ?
 			  prueth->pru[ICSS_SLICE0] : prueth->pru[ICSS_SLICE1]);
 	if (IS_ERR(pruss)) {
 		ret = PTR_ERR(pruss);
@@ -2069,14 +2069,14 @@ static int prueth_probe(struct platform_device *pdev)
 	prueth->sram_pool = of_gen_pool_get(np, "sram", 0);
 	if (!prueth->sram_pool) {
 		dev_err(dev, "unable to get SRAM pool\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 
 		goto put_mem;
 	}
 
 	msmc_ram_size = MSMC_RAM_SIZE;
 
-	/* NOTE: FW bug needs buffer base to be 64KB aligned */
+	/* ANALTE: FW bug needs buffer base to be 64KB aligned */
 	prueth->msmcram.va =
 		(void __iomem *)gen_pool_alloc_algo(prueth->sram_pool,
 						    msmc_ram_size,
@@ -2084,7 +2084,7 @@ static int prueth_probe(struct platform_device *pdev)
 						    &gp_data);
 
 	if (!prueth->msmcram.va) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		dev_err(dev, "unable to allocate MSMC resource\n");
 		goto put_mem;
 	}
@@ -2116,36 +2116,36 @@ static int prueth_probe(struct platform_device *pdev)
 	}
 
 	/* setup netdev interfaces */
-	if (eth0_node) {
-		ret = prueth_netdev_init(prueth, eth0_node);
+	if (eth0_analde) {
+		ret = prueth_netdev_init(prueth, eth0_analde);
 		if (ret) {
 			dev_err_probe(dev, ret, "netdev init %s failed\n",
-				      eth0_node->name);
+				      eth0_analde->name);
 			goto exit_iep;
 		}
 
-		if (of_find_property(eth0_node, "ti,half-duplex-capable", NULL))
+		if (of_find_property(eth0_analde, "ti,half-duplex-capable", NULL))
 			prueth->emac[PRUETH_MAC0]->half_duplex = 1;
 
 		prueth->emac[PRUETH_MAC0]->iep = prueth->iep0;
 	}
 
-	if (eth1_node) {
-		ret = prueth_netdev_init(prueth, eth1_node);
+	if (eth1_analde) {
+		ret = prueth_netdev_init(prueth, eth1_analde);
 		if (ret) {
 			dev_err_probe(dev, ret, "netdev init %s failed\n",
-				      eth1_node->name);
+				      eth1_analde->name);
 			goto netdev_exit;
 		}
 
-		if (of_find_property(eth1_node, "ti,half-duplex-capable", NULL))
+		if (of_find_property(eth1_analde, "ti,half-duplex-capable", NULL))
 			prueth->emac[PRUETH_MAC1]->half_duplex = 1;
 
 		prueth->emac[PRUETH_MAC1]->iep = prueth->iep0;
 	}
 
 	/* register the network devices */
-	if (eth0_node) {
+	if (eth0_analde) {
 		ret = register_netdev(prueth->emac[PRUETH_MAC0]->ndev);
 		if (ret) {
 			dev_err(dev, "can't register netdev for port MII0");
@@ -2158,7 +2158,7 @@ static int prueth_probe(struct platform_device *pdev)
 		phy_attached_info(prueth->emac[PRUETH_MAC0]->ndev->phydev);
 	}
 
-	if (eth1_node) {
+	if (eth1_analde) {
 		ret = register_netdev(prueth->emac[PRUETH_MAC1]->ndev);
 		if (ret) {
 			dev_err(dev, "can't register netdev for port MII1");
@@ -2171,12 +2171,12 @@ static int prueth_probe(struct platform_device *pdev)
 	}
 
 	dev_info(dev, "TI PRU ethernet driver initialized: %s EMAC mode\n",
-		 (!eth0_node || !eth1_node) ? "single" : "dual");
+		 (!eth0_analde || !eth1_analde) ? "single" : "dual");
 
-	if (eth1_node)
-		of_node_put(eth1_node);
-	if (eth0_node)
-		of_node_put(eth0_node);
+	if (eth1_analde)
+		of_analde_put(eth1_analde);
+	if (eth0_analde)
+		of_analde_put(eth0_analde);
 	return 0;
 
 netdev_unregister:
@@ -2192,11 +2192,11 @@ netdev_unregister:
 
 netdev_exit:
 	for (i = 0; i < PRUETH_NUM_MACS; i++) {
-		eth_node = prueth->eth_node[i];
-		if (!eth_node)
+		eth_analde = prueth->eth_analde[i];
+		if (!eth_analde)
 			continue;
 
-		prueth_netdev_exit(prueth, eth_node);
+		prueth_netdev_exit(prueth, eth_analde);
 	}
 
 exit_iep:
@@ -2220,14 +2220,14 @@ put_pruss:
 	pruss_put(prueth->pruss);
 
 put_cores:
-	if (eth1_node) {
+	if (eth1_analde) {
 		prueth_put_cores(prueth, ICSS_SLICE1);
-		of_node_put(eth1_node);
+		of_analde_put(eth1_analde);
 	}
 
-	if (eth0_node) {
+	if (eth0_analde) {
 		prueth_put_cores(prueth, ICSS_SLICE0);
-		of_node_put(eth0_node);
+		of_analde_put(eth0_analde);
 	}
 
 	return ret;
@@ -2236,7 +2236,7 @@ put_cores:
 static void prueth_remove(struct platform_device *pdev)
 {
 	struct prueth *prueth = platform_get_drvdata(pdev);
-	struct device_node *eth_node;
+	struct device_analde *eth_analde;
 	int i;
 
 	for (i = 0; i < PRUETH_NUM_MACS; i++) {
@@ -2249,11 +2249,11 @@ static void prueth_remove(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < PRUETH_NUM_MACS; i++) {
-		eth_node = prueth->eth_node[i];
-		if (!eth_node)
+		eth_analde = prueth->eth_analde[i];
+		if (!eth_analde)
 			continue;
 
-		prueth_netdev_exit(prueth, eth_node);
+		prueth_netdev_exit(prueth, eth_analde);
 	}
 
 	if (prueth->pdata.quirk_10m_link_issue)
@@ -2270,10 +2270,10 @@ static void prueth_remove(struct platform_device *pdev)
 
 	pruss_put(prueth->pruss);
 
-	if (prueth->eth_node[PRUETH_MAC1])
+	if (prueth->eth_analde[PRUETH_MAC1])
 		prueth_put_cores(prueth, ICSS_SLICE1);
 
-	if (prueth->eth_node[PRUETH_MAC0])
+	if (prueth->eth_analde[PRUETH_MAC0])
 		prueth_put_cores(prueth, ICSS_SLICE0);
 }
 

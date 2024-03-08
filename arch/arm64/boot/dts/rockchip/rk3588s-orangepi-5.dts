@@ -244,13 +244,13 @@
 &pinctrl {
 	gpio-func {
 		leds_gpio: leds-gpio {
-			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	hym8563 {
 		hym8563_int: hym8563-int {
-			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -260,7 +260,7 @@
 		};
 
 		typec5v_pwren: typec5v-pwren {
-			rockchip,pins = <3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -275,8 +275,8 @@
 	cap-sd-highspeed;
 	disable-wp;
 	max-frequency = <150000000>;
-	no-mmc;
-	no-sdio;
+	anal-mmc;
+	anal-sdio;
 	sd-uhs-sdr104;
 	vmmc-supply = <&vcc_3v3_sd_s0>;
 	vqmmc-supply = <&vccio_sd_s0>;
@@ -289,7 +289,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0x0>;
 		spi-max-frequency = <100000000>;
 		spi-rx-bus-width = <4>;

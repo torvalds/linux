@@ -16,7 +16,7 @@
  * Copyrights (c) 1994,1995,1996 by M.Hipp (hippm@informatik.uni-tuebingen.de)
  * --------------------------
  *
- * Consult ni52.c for further notes from the original driver.
+ * Consult ni52.c for further analtes from the original driver.
  *
  * This incarnation currently supports the OBIO version of the i82586 chip
  * used in certain sun3 models.  It should be fairly doable to expand this
@@ -32,7 +32,7 @@ static int fifo=0x8;	/* don't change */
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -58,10 +58,10 @@ static int fifo=0x8;	/* don't change */
 #define SUN3_82586_TOTAL_SIZE	PAGE_SIZE
 
 #define sun3_attn586()  {*(volatile unsigned char *)(dev->base_addr) |= IEOB_ATTEN; *(volatile unsigned char *)(dev->base_addr) &= ~IEOB_ATTEN;}
-#define sun3_reset586() {*(volatile unsigned char *)(dev->base_addr) = 0; udelay(100); *(volatile unsigned char *)(dev->base_addr) = IEOB_NORSET;}
+#define sun3_reset586() {*(volatile unsigned char *)(dev->base_addr) = 0; udelay(100); *(volatile unsigned char *)(dev->base_addr) = IEOB_ANALRSET;}
 #define sun3_disint()   {*(volatile unsigned char *)(dev->base_addr) &= ~IEOB_IENAB;}
 #define sun3_enaint()   {*(volatile unsigned char *)(dev->base_addr) |= IEOB_IENAB;}
-#define sun3_active()   {*(volatile unsigned char *)(dev->base_addr) |= (IEOB_IENAB|IEOB_ONAIR|IEOB_NORSET);}
+#define sun3_active()   {*(volatile unsigned char *)(dev->base_addr) |= (IEOB_IENAB|IEOB_ONAIR|IEOB_ANALRSET);}
 
 #define make32(ptr16) (p->memtop + (swab16((unsigned short) (ptr16))) )
 #define make24(ptr32) (char *)swab32(( ((unsigned long) (ptr32)) - p->base))
@@ -69,17 +69,17 @@ static int fifo=0x8;	/* don't change */
 
 /******************* how to calculate the buffers *****************************
 
-  * IMPORTANT NOTE: if you configure only one NUM_XMIT_BUFFS, the driver works
+  * IMPORTANT ANALTE: if you configure only one NUM_XMIT_BUFFS, the driver works
   * --------------- in a different (more stable?) mode. Only in this mode it's
-  *                 possible to configure the driver with 'NO_NOPCOMMANDS'
+  *                 possible to configure the driver with 'ANAL_ANALPCOMMANDS'
 
 sizeof(scp)=12; sizeof(scb)=16; sizeof(iscp)=8;
 sizeof(scp)+sizeof(iscp)+sizeof(scb) = 36 = INIT
 sizeof(rfd) = 24; sizeof(rbd) = 12;
 sizeof(tbd) = 8; sizeof(transmit_cmd) = 16;
-sizeof(nop_cmd) = 8;
+sizeof(analp_cmd) = 8;
 
-  * if you don't know the driver, better do not change these values: */
+  * if you don't kanalw the driver, better do analt change these values: */
 
 #define RECV_BUFF_SIZE 1536 /* slightly oversized */
 #define XMIT_BUFF_SIZE 1536 /* slightly oversized */
@@ -87,7 +87,7 @@ sizeof(nop_cmd) = 8;
 #define NUM_RECV_BUFFS_8 4 /* config for 32K shared mem */
 #define NUM_RECV_BUFFS_16 9 /* config for 32K shared mem */
 #define NUM_RECV_BUFFS_32 16 /* config for 32K shared mem */
-#define NO_NOPCOMMANDS      /* only possible with NUM_XMIT_BUFFS=1 */
+#define ANAL_ANALPCOMMANDS      /* only possible with NUM_XMIT_BUFFS=1 */
 
 /**************************************************************************/
 
@@ -155,11 +155,11 @@ struct priv
 	volatile struct tbd_struct	*xmit_buffs[NUM_XMIT_BUFFS];
 	volatile struct transmit_cmd_struct *xmit_cmds[NUM_XMIT_BUFFS];
 #if (NUM_XMIT_BUFFS == 1)
-	volatile struct nop_cmd_struct *nop_cmds[2];
+	volatile struct analp_cmd_struct *analp_cmds[2];
 #else
-	volatile struct nop_cmd_struct *nop_cmds[NUM_XMIT_BUFFS];
+	volatile struct analp_cmd_struct *analp_cmds[NUM_XMIT_BUFFS];
 #endif
-	volatile int		nop_point,num_recv_buffs;
+	volatile int		analp_point,num_recv_buffs;
 	volatile char		*xmit_cbuffs[NUM_XMIT_BUFFS];
 	volatile int		xmit_count,xmit_last;
 };
@@ -283,7 +283,7 @@ static int __init sun3_82586_probe(void)
 	struct net_device *dev;
 	unsigned long ioaddr;
 	static int found = 0;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/* check that this machine has an onboard 82586 */
 	switch(idprom->id_machtype) {
@@ -293,15 +293,15 @@ static int __init sun3_82586_probe(void)
 		break;
 
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (found)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ioaddr = (unsigned long)ioremap(IE_OBIO, SUN3_82586_TOTAL_SIZE);
 	if (!ioaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 	found = 1;
 
 	dev = alloc_etherdev(sizeof(struct priv));
@@ -360,12 +360,12 @@ static int __init sun3_82586_probe1(struct net_device *dev,int ioaddr)
 
 	if(size != 0x2000 && size != 0x4000 && size != 0x8000) {
 		printk("\n%s: Illegal memory size %d. Allowed is 0x2000 or 0x4000 or 0x8000 bytes.\n",dev->name,size);
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto out;
 	}
 	if(!check586(dev,(char *) dev->mem_start,size)) {
 		printk("?memcheck, Can't find memory at 0x%lx with size %d!\n",dev->mem_start,size);
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto out;
 	}
 
@@ -476,7 +476,7 @@ static int init586(struct net_device *dev)
 	}
 
 	/*
-	 * TDR, wire check .. e.g. no resistor e.t.c
+	 * TDR, wire check .. e.g. anal resistor e.t.c
 	 */
 
 	tdr_cmd = (struct tdr_cmd_struct *)ptr;
@@ -509,14 +509,14 @@ static int init586(struct net_device *dev)
 		else if(result & TDR_XCVR_PRB)
 			printk("%s: TDR: Transceiver problem. Check the cable(s)!\n",dev->name);
 		else if(result & TDR_ET_OPN)
-			printk("%s: TDR: No correct termination %d clocks away.\n",dev->name,result & TDR_TIMEMASK);
+			printk("%s: TDR: Anal correct termination %d clocks away.\n",dev->name,result & TDR_TIMEMASK);
 		else if(result & TDR_ET_SRT)
 		{
 			if (result & TDR_TIMEMASK) /* time == 0 -> strange :-) */
 				printk("%s: TDR: Detected a short circuit %d clocks away.\n",dev->name,result & TDR_TIMEMASK);
 		}
 		else
-			printk("%s: TDR: Unknown status %04x\n",dev->name,result);
+			printk("%s: TDR: Unkanalwn status %04x\n",dev->name,result);
 	}
 
 	/*
@@ -546,25 +546,25 @@ static int init586(struct net_device *dev)
 	}
 
 	/*
-	 * alloc nop/xmit-cmds
+	 * alloc analp/xmit-cmds
 	 */
 #if (NUM_XMIT_BUFFS == 1)
 	for(i=0;i<2;i++)
 	{
-		p->nop_cmds[i] 			= (struct nop_cmd_struct *)ptr;
-		p->nop_cmds[i]->cmd_cmd		= swab16(CMD_NOP);
-		p->nop_cmds[i]->cmd_status 	= 0;
-		p->nop_cmds[i]->cmd_link	= make16((p->nop_cmds[i]));
-		ptr = (char *) ptr + sizeof(struct nop_cmd_struct);
+		p->analp_cmds[i] 			= (struct analp_cmd_struct *)ptr;
+		p->analp_cmds[i]->cmd_cmd		= swab16(CMD_ANALP);
+		p->analp_cmds[i]->cmd_status 	= 0;
+		p->analp_cmds[i]->cmd_link	= make16((p->analp_cmds[i]));
+		ptr = (char *) ptr + sizeof(struct analp_cmd_struct);
 	}
 #else
 	for(i=0;i<NUM_XMIT_BUFFS;i++)
 	{
-		p->nop_cmds[i]			= (struct nop_cmd_struct *)ptr;
-		p->nop_cmds[i]->cmd_cmd		= swab16(CMD_NOP);
-		p->nop_cmds[i]->cmd_status	= 0;
-		p->nop_cmds[i]->cmd_link	= make16((p->nop_cmds[i]));
-		ptr = (char *) ptr + sizeof(struct nop_cmd_struct);
+		p->analp_cmds[i]			= (struct analp_cmd_struct *)ptr;
+		p->analp_cmds[i]->cmd_cmd		= swab16(CMD_ANALP);
+		p->analp_cmds[i]->cmd_status	= 0;
+		p->analp_cmds[i]->cmd_link	= make16((p->analp_cmds[i]));
+		ptr = (char *) ptr + sizeof(struct analp_cmd_struct);
 	}
 #endif
 
@@ -583,12 +583,12 @@ static int init586(struct net_device *dev)
 		ptr = (char *) ptr + sizeof(struct tbd_struct);
 		if(ptr > (void *)dev->mem_end)
 		{
-			printk("%s: not enough shared-mem for your configuration!\n",dev->name);
+			printk("%s: analt eanalugh shared-mem for your configuration!\n",dev->name);
 			return 1;
 		}
 		memset((char *)(p->xmit_cmds[i]) ,0, sizeof(struct transmit_cmd_struct));
 		memset((char *)(p->xmit_buffs[i]),0, sizeof(struct tbd_struct));
-		p->xmit_cmds[i]->cmd_link = make16(p->nop_cmds[(i+1)%NUM_XMIT_BUFFS]);
+		p->xmit_cmds[i]->cmd_link = make16(p->analp_cmds[(i+1)%NUM_XMIT_BUFFS]);
 		p->xmit_cmds[i]->cmd_status = swab16(STAT_COMPL);
 		p->xmit_cmds[i]->cmd_cmd = swab16(CMD_XMIT | CMD_INT);
 		p->xmit_cmds[i]->tbd_offset = make16((p->xmit_buffs[i]));
@@ -598,15 +598,15 @@ static int init586(struct net_device *dev)
 
 	p->xmit_count = 0;
 	p->xmit_last	= 0;
-#ifndef NO_NOPCOMMANDS
-	p->nop_point	= 0;
+#ifndef ANAL_ANALPCOMMANDS
+	p->analp_point	= 0;
 #endif
 
 	 /*
 		* 'start transmitter'
 		*/
-#ifndef NO_NOPCOMMANDS
-	p->scb->cbl_offset = make16(p->nop_cmds[0]);
+#ifndef ANAL_ANALPCOMMANDS
+	p->scb->cbl_offset = make16(p->analp_cmds[0]);
 	p->scb->cmd_cuc = CUC_START;
 	sun3_attn586();
 	WAIT_4_SCB_CMD();
@@ -687,8 +687,8 @@ static irqreturn_t sun3_82586_interrupt(int irq,void *dev_id)
 	struct priv *p;
 
 	if (!dev) {
-		printk ("sun3_82586-interrupt: irq %d for unknown device.\n",irq);
-		return IRQ_NONE;
+		printk ("sun3_82586-interrupt: irq %d for unkanalwn device.\n",irq);
+		return IRQ_ANALNE;
 	}
 	p = netdev_priv(dev);
 
@@ -705,7 +705,7 @@ static irqreturn_t sun3_82586_interrupt(int irq,void *dev_id)
 		if(stat & STAT_FR)	 /* received a frame */
 			sun3_82586_rcv_int(dev);
 
-		if(stat & STAT_RNR) /* RU went 'not ready' */
+		if(stat & STAT_RNR) /* RU went 'analt ready' */
 		{
 			printk("(R)");
 			if(p->scb->rus & RU_SUSPEND) /* special case: RU_SUSPEND */
@@ -717,7 +717,7 @@ static irqreturn_t sun3_82586_interrupt(int irq,void *dev_id)
 			}
 			else
 			{
-				printk("%s: Receiver-Unit went 'NOT READY': %04x/%02x.\n",dev->name,(int) stat,(int) p->scb->rus);
+				printk("%s: Receiver-Unit went 'ANALT READY': %04x/%02x.\n",dev->name,(int) stat,(int) p->scb->rus);
 				sun3_82586_rnr_int(dev);
 			}
 		}
@@ -725,8 +725,8 @@ static irqreturn_t sun3_82586_interrupt(int irq,void *dev_id)
 		if(stat & STAT_CX)		/* command with I-bit set complete */
 			 sun3_82586_xmt_int(dev);
 
-#ifndef NO_NOPCOMMANDS
-		if(stat & STAT_CNA)	/* CU went 'not ready' */
+#ifndef ANAL_ANALPCOMMANDS
+		if(stat & STAT_CNA)	/* CU went 'analt ready' */
 		{
 			if(netif_running(dev))
 				printk("%s: oops! CU has left active state. stat: %04x/%02x.\n",dev->name,(int) stat,(int) p->scb->cus);
@@ -739,7 +739,7 @@ static irqreturn_t sun3_82586_interrupt(int irq,void *dev_id)
 		WAIT_4_SCB_CMD(); /* wait for ack. (sun3_82586_xmt_int can be faster than ack!!) */
 		if(p->scb->cmd_cuc)	 /* timed out? */
 		{
-			printk("%s: Acknowledge timed out.\n",dev->name);
+			printk("%s: Ackanalwledge timed out.\n",dev->name);
 			sun3_disint();
 			break;
 		}
@@ -798,7 +798,7 @@ static void sun3_82586_rcv_int(struct net_device *dev)
 						totlen += rstat & RBD_MASK;
 						if(!rstat)
 						{
-							printk("%s: Whoops .. no end mark in RBD list\n",dev->name);
+							printk("%s: Whoops .. anal end mark in RBD list\n",dev->name);
 							break;
 						}
 						rbd->status = 0;
@@ -844,7 +844,7 @@ static void sun3_82586_rcv_int(struct net_device *dev)
 				break;
 			DELAY_16();
 			if(i == 1023)
-				printk("%s: RU hasn't fetched next RFD (not busy/complete)\n",dev->name);
+				printk("%s: RU hasn't fetched next RFD (analt busy/complete)\n",dev->name);
 		}
 	}
 #endif
@@ -873,7 +873,7 @@ static void sun3_82586_rcv_int(struct net_device *dev)
 }
 
 /**********************************************************
- * handle 'Receiver went not ready'.
+ * handle 'Receiver went analt ready'.
  */
 
 static void sun3_82586_rnr_int(struct net_device *dev)
@@ -883,7 +883,7 @@ static void sun3_82586_rnr_int(struct net_device *dev)
 	dev->stats.rx_errors++;
 
 	WAIT_4_SCB_CMD();		/* wait for the last cmd, WAIT_4_FULLSTAT?? */
-	p->scb->cmd_ruc = RUC_ABORT; /* usually the RU is in the 'no resource'-state .. abort it now. */
+	p->scb->cmd_ruc = RUC_ABORT; /* usually the RU is in the 'anal resource'-state .. abort it analw. */
 	sun3_attn586();
 	WAIT_4_SCB_CMD_RUC();		/* wait for accept cmd. */
 
@@ -923,9 +923,9 @@ static void sun3_82586_xmt_int(struct net_device *dev)
 			printk("%s: late collision detected.\n",dev->name);
 			dev->stats.collisions++;
 		}
-		else if(status & TCMD_NOCARRIER) {
+		else if(status & TCMD_ANALCARRIER) {
 			dev->stats.tx_carrier_errors++;
-			printk("%s: no carrier detected.\n",dev->name);
+			printk("%s: anal carrier detected.\n",dev->name);
 		}
 		else if(status & TCMD_LOSTCTS)
 			printk("%s: loss of CTS detected.\n",dev->name);
@@ -959,24 +959,24 @@ static void startrecv586(struct net_device *dev)
 	p->scb->rfa_offset = make16(p->rfd_first);
 	p->scb->cmd_ruc = RUC_START;
 	sun3_attn586();		/* start cmd. */
-	WAIT_4_SCB_CMD_RUC();	/* wait for accept cmd. (no timeout!!) */
+	WAIT_4_SCB_CMD_RUC();	/* wait for accept cmd. (anal timeout!!) */
 }
 
 static void sun3_82586_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct priv *p = netdev_priv(dev);
-#ifndef NO_NOPCOMMANDS
+#ifndef ANAL_ANALPCOMMANDS
 	if(p->scb->cus & CU_ACTIVE) /* COMMAND-UNIT active? */
 	{
 		netif_wake_queue(dev);
 #ifdef DEBUG
 		printk("%s: strange ... timeout with CU active?!?\n",dev->name);
-		printk("%s: X0: %04x N0: %04x N1: %04x %d\n",dev->name,(int)swab16(p->xmit_cmds[0]->cmd_status),(int)swab16(p->nop_cmds[0]->cmd_status),(int)swab16(p->nop_cmds[1]->cmd_status),(int)p->nop_point);
+		printk("%s: X0: %04x N0: %04x N1: %04x %d\n",dev->name,(int)swab16(p->xmit_cmds[0]->cmd_status),(int)swab16(p->analp_cmds[0]->cmd_status),(int)swab16(p->analp_cmds[1]->cmd_status),(int)p->analp_point);
 #endif
 		p->scb->cmd_cuc = CUC_ABORT;
 		sun3_attn586();
 		WAIT_4_SCB_CMD();
-		p->scb->cbl_offset = make16(p->nop_cmds[p->nop_point]);
+		p->scb->cbl_offset = make16(p->analp_cmds[p->analp_point]);
 		p->scb->cmd_cuc = CUC_START;
 		sun3_attn586();
 		WAIT_4_SCB_CMD();
@@ -1004,8 +1004,8 @@ static netdev_tx_t
 sun3_82586_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
 	int len,i;
-#ifndef NO_NOPCOMMANDS
-	int next_nop;
+#ifndef ANAL_ANALPCOMMANDS
+	int next_analp;
 #endif
 	struct priv *p = netdev_priv(dev);
 
@@ -1034,7 +1034,7 @@ sun3_82586_send_packet(struct sk_buff *skb, struct net_device *dev)
 		skb_copy_from_linear_data(skb, (void *)p->xmit_cbuffs[p->xmit_count], skb->len);
 
 #if (NUM_XMIT_BUFFS == 1)
-#	ifdef NO_NOPCOMMANDS
+#	ifdef ANAL_ANALPCOMMANDS
 
 #ifdef DEBUG
 		if(p->scb->cus & CU_ACTIVE)
@@ -1069,29 +1069,29 @@ sun3_82586_send_packet(struct sk_buff *skb, struct net_device *dev)
 				printk("%s: Can't start transmit-command.\n",dev->name);
 		}
 #	else
-		next_nop = (p->nop_point + 1) & 0x1;
+		next_analp = (p->analp_point + 1) & 0x1;
 		p->xmit_buffs[0]->size = swab16(TBD_LAST | len);
 
-		p->xmit_cmds[0]->cmd_link	 = p->nop_cmds[next_nop]->cmd_link
-			= make16((p->nop_cmds[next_nop]));
-		p->xmit_cmds[0]->cmd_status = p->nop_cmds[next_nop]->cmd_status = 0;
+		p->xmit_cmds[0]->cmd_link	 = p->analp_cmds[next_analp]->cmd_link
+			= make16((p->analp_cmds[next_analp]));
+		p->xmit_cmds[0]->cmd_status = p->analp_cmds[next_analp]->cmd_status = 0;
 
-		p->nop_cmds[p->nop_point]->cmd_link = make16((p->xmit_cmds[0]));
-		p->nop_point = next_nop;
+		p->analp_cmds[p->analp_point]->cmd_link = make16((p->xmit_cmds[0]));
+		p->analp_point = next_analp;
 		dev_kfree_skb(skb);
 #	endif
 #else
 		p->xmit_buffs[p->xmit_count]->size = swab16(TBD_LAST | len);
-		if( (next_nop = p->xmit_count + 1) == NUM_XMIT_BUFFS )
-			next_nop = 0;
+		if( (next_analp = p->xmit_count + 1) == NUM_XMIT_BUFFS )
+			next_analp = 0;
 
 		p->xmit_cmds[p->xmit_count]->cmd_status	= 0;
-		/* linkpointer of xmit-command already points to next nop cmd */
-		p->nop_cmds[next_nop]->cmd_link = make16((p->nop_cmds[next_nop]));
-		p->nop_cmds[next_nop]->cmd_status = 0;
+		/* linkpointer of xmit-command already points to next analp cmd */
+		p->analp_cmds[next_analp]->cmd_link = make16((p->analp_cmds[next_analp]));
+		p->analp_cmds[next_analp]->cmd_status = 0;
 
-		p->nop_cmds[p->xmit_count]->cmd_link = make16((p->xmit_cmds[p->xmit_count]));
-		p->xmit_count = next_nop;
+		p->analp_cmds[p->xmit_count]->cmd_link = make16((p->xmit_cmds[p->xmit_count]));
+		p->xmit_count = next_analp;
 
 		{
 			unsigned long flags;
@@ -1150,7 +1150,7 @@ static void set_multicast_list(struct net_device *dev)
 
 #if 0
 /*
- * DUMP .. we expect a not running CMD unit and enough space
+ * DUMP .. we expect a analt running CMD unit and eanalugh space
  */
 void sun3_82586_dump(struct net_device *dev,void *ptr)
 {

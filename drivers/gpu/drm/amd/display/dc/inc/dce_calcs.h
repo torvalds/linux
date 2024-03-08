@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -57,9 +57,9 @@ enum bw_calcs_version {
 
 enum bw_defines {
 	//Common
-	bw_def_no = 0,
-	bw_def_none = 0,
-	bw_def_yes = 1,
+	bw_def_anal = 0,
+	bw_def_analne = 0,
+	bw_def_anal = 1,
 	bw_def_ok = 1,
 	bw_def_high = 2,
 	bw_def_mid = 1,
@@ -99,7 +99,7 @@ enum bw_defines {
 	bw_def_blend,
 
 	//Stereo mode
-	bw_def_mono,
+	bw_def_moanal,
 	bw_def_side_by_side,
 	bw_def_top_bottom,
 
@@ -121,20 +121,20 @@ enum bw_defines {
 	bw_def_hbm,
 
 	//Voltage
-	bw_def_high_no_nbp_state_change,
+	bw_def_high_anal_nbp_state_change,
 	bw_def_0_72,
 	bw_def_0_8,
 	bw_def_0_9,
 
-	bw_def_notok = -1,
+	bw_def_analtok = -1,
 	bw_def_na = -1
 };
 
 struct bw_calcs_dceip {
 	enum bw_calcs_version version;
 	uint32_t percent_of_ideal_port_bw_received_after_urgent_latency;
-	uint32_t max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation;
-	uint32_t max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation;
+	uint32_t max_average_percent_of_ideal_port_bw_display_can_use_in_analrmal_system_operation;
+	uint32_t max_average_percent_of_ideal_drambw_display_can_use_in_analrmal_system_operation;
 	bool large_cursor;
 	uint32_t cursor_max_outstanding_group_num;
 	bool dmif_pipe_en_fbc_chunk_tracker;
@@ -163,7 +163,7 @@ struct bw_calcs_dceip {
 	bool underlay_downscale_prefetch_enabled;
 	struct bw_fixed lb_write_pixels_per_dispclk;
 	struct bw_fixed lb_size_per_component444;
-	bool graphics_lb_nodownscaling_multi_line_prefetching;
+	bool graphics_lb_analdownscaling_multi_line_prefetching;
 	struct bw_fixed stutter_and_dram_clock_state_change_gated_before_cursor;
 	struct bw_fixed underlay420_luma_lb_size_per_component;
 	struct bw_fixed underlay420_chroma_lb_size_per_component;
@@ -173,7 +173,7 @@ struct bw_calcs_dceip {
 	struct bw_fixed underlay_maximum_width_efficient_for_tiling;
 	struct bw_fixed underlay_maximum_height_efficient_for_tiling;
 	struct bw_fixed peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display;
-	struct bw_fixed peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation;
+	struct bw_fixed peak_pte_request_to_eviction_ratio_limiting_single_display_anal_rotation;
 	struct bw_fixed minimum_outstanding_pte_request_limit;
 	struct bw_fixed maximum_total_outstanding_pte_requests_allowed_by_saw;
 	bool limit_excessive_outstanding_dmif_requests;
@@ -338,7 +338,7 @@ struct bw_calcs_data {
 	struct bw_fixed line_source_pixels_transfer_time;
 	struct bw_fixed dmifdram_access_efficiency;
 	struct bw_fixed mcifwrdram_access_efficiency;
-	struct bw_fixed total_average_bandwidth_no_compression;
+	struct bw_fixed total_average_bandwidth_anal_compression;
 	struct bw_fixed total_average_bandwidth;
 	struct bw_fixed total_stutter_cycle_duration;
 	struct bw_fixed stutter_burst_time;
@@ -346,8 +346,8 @@ struct bw_calcs_data {
 	struct bw_fixed stutter_efficiency;
 	struct bw_fixed worst_number_of_trips_to_memory;
 	struct bw_fixed immediate_flip_time;
-	struct bw_fixed latency_for_non_dmif_clients;
-	struct bw_fixed latency_for_non_mcifwr_clients;
+	struct bw_fixed latency_for_analn_dmif_clients;
+	struct bw_fixed latency_for_analn_mcifwr_clients;
 	struct bw_fixed dmifmc_urgent_latency_supported_in_high_sclk_and_yclk;
 	struct bw_fixed nbp_state_dram_speed_change_margin;
 	struct bw_fixed display_reads_time_for_data_transfer_and_urgent_latency;
@@ -372,7 +372,7 @@ struct bw_calcs_data {
 	bool display_pstate_change_enable[maximum_number_of_surfaces];
 	bool line_buffer_prefetch[maximum_number_of_surfaces];
 	uint32_t bytes_per_pixel[maximum_number_of_surfaces];
-	uint32_t max_chunks_non_fbc_mode[maximum_number_of_surfaces];
+	uint32_t max_chunks_analn_fbc_mode[maximum_number_of_surfaces];
 	uint32_t lb_bpc[maximum_number_of_surfaces];
 	uint32_t output_bpphdmi[maximum_number_of_surfaces];
 	uint32_t output_bppdp4_lane_hbr[maximum_number_of_surfaces];
@@ -421,7 +421,7 @@ struct bw_calcs_data {
 	struct bw_fixed v_filter_init[maximum_number_of_surfaces];
 	struct bw_fixed stutter_cycle_duration[maximum_number_of_surfaces];
 	struct bw_fixed average_bandwidth[maximum_number_of_surfaces];
-	struct bw_fixed average_bandwidth_no_compression[maximum_number_of_surfaces];
+	struct bw_fixed average_bandwidth_anal_compression[maximum_number_of_surfaces];
 	struct bw_fixed scatter_gather_pte_request_limit[maximum_number_of_surfaces];
 	struct bw_fixed lb_size_per_component[maximum_number_of_surfaces];
 	struct bw_fixed memory_chunk_size_in_bytes[maximum_number_of_surfaces];
@@ -464,7 +464,7 @@ struct bw_calcs_data {
 };
 
 /**
- * Initialize structures with data which will NOT change at runtime.
+ * Initialize structures with data which will ANALT change at runtime.
  */
 void bw_calcs_init(
 	struct bw_calcs_dceip *bw_dceip,
@@ -475,7 +475,7 @@ void bw_calcs_init(
  * Return:
  *	true -	Display(s) configuration supported.
  *		In this case 'calcs_output' contains data for HW programming
- *	false - Display(s) configuration not supported (not enough bandwidth).
+ *	false - Display(s) configuration analt supported (analt eanalugh bandwidth).
  */
 bool bw_calcs(
 	struct dc_context *ctx,

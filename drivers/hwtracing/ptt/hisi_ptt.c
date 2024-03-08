@@ -2,7 +2,7 @@
 /*
  * Driver for HiSilicon PCIe tune and trace device
  *
- * Copyright (c) 2022 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2022 HiSilicon Techanallogies Co., Ltd.
  * Author: Yicong Yang <yangyicong@hisilicon.com>
  */
 
@@ -275,10 +275,10 @@ static int hisi_ptt_update_aux(struct hisi_ptt *hisi_ptt, int index, bool stop)
 
 	/*
 	 * Always commit the data to the AUX buffer in time to make sure
-	 * userspace got enough time to consume the data.
+	 * userspace got eanalugh time to consume the data.
 	 *
-	 * If we're not going to stop, apply a new one and check whether
-	 * there's enough room for the next trace.
+	 * If we're analt going to stop, apply a new one and check whether
+	 * there's eanalugh room for the next trace.
 	 */
 	perf_aux_output_end(handle, size);
 	if (!stop) {
@@ -303,7 +303,7 @@ static irqreturn_t hisi_ptt_isr(int irq, void *context)
 
 	status = readl(hisi_ptt->iobase + HISI_PTT_TRACE_INT_STAT);
 	if (!(status & HISI_PTT_TRACE_INT_STAT_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	buf_idx = ffs(status) - 1;
 
@@ -312,7 +312,7 @@ static irqreturn_t hisi_ptt_isr(int irq, void *context)
 
 	/*
 	 * Update the AUX buffer and cache the current buffer index,
-	 * as we need to know this and save the data when the trace
+	 * as we need to kanalw this and save the data when the trace
 	 * is ended out of the interrupt handler. End the trace
 	 * if the updating fails.
 	 */
@@ -346,7 +346,7 @@ static int hisi_ptt_register_irq(struct hisi_ptt *hisi_ptt)
 
 	hisi_ptt->trace_irq = pci_irq_vector(pdev, HISI_PTT_TRACE_DMA_IRQ);
 	ret = devm_request_irq(&pdev->dev, hisi_ptt->trace_irq, hisi_ptt_isr,
-				IRQF_NOBALANCING | IRQF_NO_THREAD, DRV_NAME,
+				IRQF_ANALBALANCING | IRQF_ANAL_THREAD, DRV_NAME,
 				hisi_ptt);
 	if (ret) {
 		pci_err(pdev, "failed to request irq %d, ret = %d\n",
@@ -563,7 +563,7 @@ static void hisi_ptt_update_filters(struct work_struct *work)
 	while (kfifo_get(&hisi_ptt->filter_update_kfifo, &info)) {
 		if (info.is_add) {
 			/*
-			 * Notify the users if failed to add this filter, others
+			 * Analtify the users if failed to add this filter, others
 			 * still work and available. See the comments in
 			 * hisi_ptt_init_filters().
 			 */
@@ -604,10 +604,10 @@ static void hisi_ptt_update_filters(struct work_struct *work)
 }
 
 /*
- * A PCI bus notifier is used here for dynamically updating the filter
+ * A PCI bus analtifier is used here for dynamically updating the filter
  * list.
  */
-static int hisi_ptt_notifier_call(struct notifier_block *nb, unsigned long action,
+static int hisi_ptt_analtifier_call(struct analtifier_block *nb, unsigned long action,
 				  void *data)
 {
 	struct hisi_ptt *hisi_ptt = container_of(nb, struct hisi_ptt, hisi_ptt_nb);
@@ -630,10 +630,10 @@ static int hisi_ptt_notifier_call(struct notifier_block *nb, unsigned long actio
 	info.devid = pci_dev_id(pdev);
 
 	switch (action) {
-	case BUS_NOTIFY_ADD_DEVICE:
+	case BUS_ANALTIFY_ADD_DEVICE:
 		info.is_add = true;
 		break;
-	case BUS_NOTIFY_DEL_DEVICE:
+	case BUS_ANALTIFY_DEL_DEVICE:
 		info.is_add = false;
 		break;
 	default:
@@ -674,13 +674,13 @@ static int hisi_ptt_init_filters(struct pci_dev *pdev, void *data)
 
 	/*
 	 * We won't fail the probe if filter allocation failed here. The filters
-	 * should be partial initialized and users would know which filter fails
+	 * should be partial initialized and users would kanalw which filter fails
 	 * through the log. Other functions of PTT device are still available.
 	 */
 	filter = hisi_ptt_alloc_add_filter(hisi_ptt, pci_dev_id(pdev),
 					    pci_pcie_type(pdev) == PCI_EXP_TYPE_ROOT_PORT);
 	if (!filter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -706,14 +706,14 @@ static int hisi_ptt_config_trace_buf(struct hisi_ptt *hisi_ptt)
 	ctrl->trace_buf = devm_kcalloc(dev, HISI_PTT_TRACE_BUF_CNT,
 				       sizeof(*ctrl->trace_buf), GFP_KERNEL);
 	if (!ctrl->trace_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < HISI_PTT_TRACE_BUF_CNT; ++i) {
 		ctrl->trace_buf[i].addr = dmam_alloc_coherent(dev, HISI_PTT_TRACE_BUF_SIZE,
 							     &ctrl->trace_buf[i].dma,
 							     GFP_KERNEL);
 		if (!ctrl->trace_buf[i].addr)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* Configure the trace DMA buffer */
@@ -778,7 +778,7 @@ static ssize_t cpumask_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
 	struct hisi_ptt *hisi_ptt = to_hisi_ptt(dev_get_drvdata(dev));
-	const cpumask_t *cpumask = cpumask_of_node(dev_to_node(&hisi_ptt->pdev->dev));
+	const cpumask_t *cpumask = cpumask_of_analde(dev_to_analde(&hisi_ptt->pdev->dev));
 
 	return cpumap_print_to_pagebuf(true, buf, cpumask);
 }
@@ -902,7 +902,7 @@ static int hisi_ptt_trace_valid_type(u32 val)
 	/* Different types can be set simultaneously */
 	static const u32 hisi_ptt_trace_available_type[] = {
 		1,	/* posted_request */
-		2,	/* non-posted_request */
+		2,	/* analn-posted_request */
 		4,	/* completion */
 	};
 	int i;
@@ -952,7 +952,7 @@ static int hisi_ptt_trace_valid_filter(struct hisi_ptt *hisi_ptt, u64 config)
 	/*
 	 * Port filters are defined as bit mask. For port filters, check
 	 * the bits in the @val are within the range of hisi_ptt->port_mask
-	 * and whether it's empty or not, otherwise user has specified
+	 * and whether it's empty or analt, otherwise user has specified
 	 * some unsupported root ports.
 	 *
 	 * For Requester ID filters, walk the available filter list to see
@@ -999,15 +999,15 @@ static int hisi_ptt_pmu_event_init(struct perf_event *event)
 	u32 val;
 
 	if (event->cpu < 0) {
-		dev_dbg(event->pmu->dev, "Per-task mode not supported\n");
-		return -EOPNOTSUPP;
+		dev_dbg(event->pmu->dev, "Per-task mode analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (event->attach_state & PERF_ATTACH_TASK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (event->attr.type != hisi_ptt->hisi_ptt_pmu.type)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = hisi_ptt_trace_valid_filter(hisi_ptt, event->attr.config);
 	if (ret < 0)
@@ -1035,11 +1035,11 @@ static void *hisi_ptt_pmu_setup_aux(struct perf_event *event, void **pages,
 	int i;
 
 	if (overwrite) {
-		dev_warn(event->pmu->dev, "Overwrite mode is not supported\n");
+		dev_warn(event->pmu->dev, "Overwrite mode is analt supported\n");
 		return NULL;
 	}
 
-	/* If the pages size less than buffers, we cannot start trace */
+	/* If the pages size less than buffers, we cananalt start trace */
 	if (nr_pages < HISI_PTT_TRACE_TOTAL_BUF_SIZE / PAGE_SIZE)
 		return NULL;
 
@@ -1102,7 +1102,7 @@ static void hisi_ptt_pmu_start(struct perf_event *event, int flags)
 	 * Handle the interrupt on the same cpu which starts the trace to avoid
 	 * context mismatch. Otherwise we'll trigger the WARN from the perf
 	 * core in event_function_local(). If CPU passed is offline we'll fail
-	 * here, just log it since we can do nothing here.
+	 * here, just log it since we can do analthing here.
 	 */
 	ret = irq_set_affinity(hisi_ptt->trace_irq, cpumask_of(cpu));
 	if (ret)
@@ -1164,8 +1164,8 @@ static int hisi_ptt_pmu_add(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 	int cpu = event->cpu;
 
-	/* Only allow the cpus on the device's node to add the event */
-	if (!cpumask_test_cpu(cpu, cpumask_of_node(dev_to_node(&hisi_ptt->pdev->dev))))
+	/* Only allow the cpus on the device's analde to add the event */
+	if (!cpumask_test_cpu(cpu, cpumask_of_analde(dev_to_analde(&hisi_ptt->pdev->dev))))
 		return 0;
 
 	hwc->state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
@@ -1188,9 +1188,9 @@ static void hisi_ptt_pmu_read(struct perf_event *event)
 {
 }
 
-static void hisi_ptt_remove_cpuhp_instance(void *hotplug_node)
+static void hisi_ptt_remove_cpuhp_instance(void *hotplug_analde)
 {
-	cpuhp_state_remove_instance_nocalls(hisi_ptt_pmu_online, hotplug_node);
+	cpuhp_state_remove_instance_analcalls(hisi_ptt_pmu_online, hotplug_analde);
 }
 
 static void hisi_ptt_unregister_pmu(void *pmu)
@@ -1205,14 +1205,14 @@ static int hisi_ptt_register_pmu(struct hisi_ptt *hisi_ptt)
 	u32 reg;
 	int ret;
 
-	ret = cpuhp_state_add_instance_nocalls(hisi_ptt_pmu_online,
-					       &hisi_ptt->hotplug_node);
+	ret = cpuhp_state_add_instance_analcalls(hisi_ptt_pmu_online,
+					       &hisi_ptt->hotplug_analde);
 	if (ret)
 		return ret;
 
 	ret = devm_add_action_or_reset(&hisi_ptt->pdev->dev,
 				       hisi_ptt_remove_cpuhp_instance,
-				       &hisi_ptt->hotplug_node);
+				       &hisi_ptt->hotplug_analde);
 	if (ret)
 		return ret;
 
@@ -1221,7 +1221,7 @@ static int hisi_ptt_register_pmu(struct hisi_ptt *hisi_ptt)
 
 	hisi_ptt->hisi_ptt_pmu = (struct pmu) {
 		.module		= THIS_MODULE,
-		.capabilities	= PERF_PMU_CAP_EXCLUSIVE | PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities	= PERF_PMU_CAP_EXCLUSIVE | PERF_PMU_CAP_ANAL_EXCLUDE,
 		.task_ctx_nr	= perf_sw_context,
 		.attr_groups	= hisi_ptt_pmu_groups,
 		.event_init	= hisi_ptt_pmu_event_init,
@@ -1241,7 +1241,7 @@ static int hisi_ptt_register_pmu(struct hisi_ptt *hisi_ptt)
 	pmu_name = devm_kasprintf(&hisi_ptt->pdev->dev, GFP_KERNEL, "hisi_ptt%u_%u",
 				  sicl_id, core_id);
 	if (!pmu_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = perf_pmu_register(&hisi_ptt->hisi_ptt_pmu, pmu_name, -1);
 	if (ret)
@@ -1252,36 +1252,36 @@ static int hisi_ptt_register_pmu(struct hisi_ptt *hisi_ptt)
 					&hisi_ptt->hisi_ptt_pmu);
 }
 
-static void hisi_ptt_unregister_filter_update_notifier(void *data)
+static void hisi_ptt_unregister_filter_update_analtifier(void *data)
 {
 	struct hisi_ptt *hisi_ptt = data;
 
-	bus_unregister_notifier(&pci_bus_type, &hisi_ptt->hisi_ptt_nb);
+	bus_unregister_analtifier(&pci_bus_type, &hisi_ptt->hisi_ptt_nb);
 
 	/* Cancel any work that has been queued */
 	cancel_delayed_work_sync(&hisi_ptt->work);
 }
 
-/* Register the bus notifier for dynamically updating the filter list */
-static int hisi_ptt_register_filter_update_notifier(struct hisi_ptt *hisi_ptt)
+/* Register the bus analtifier for dynamically updating the filter list */
+static int hisi_ptt_register_filter_update_analtifier(struct hisi_ptt *hisi_ptt)
 {
 	int ret;
 
-	hisi_ptt->hisi_ptt_nb.notifier_call = hisi_ptt_notifier_call;
-	ret = bus_register_notifier(&pci_bus_type, &hisi_ptt->hisi_ptt_nb);
+	hisi_ptt->hisi_ptt_nb.analtifier_call = hisi_ptt_analtifier_call;
+	ret = bus_register_analtifier(&pci_bus_type, &hisi_ptt->hisi_ptt_nb);
 	if (ret)
 		return ret;
 
 	return devm_add_action_or_reset(&hisi_ptt->pdev->dev,
-					hisi_ptt_unregister_filter_update_notifier,
+					hisi_ptt_unregister_filter_update_analtifier,
 					hisi_ptt);
 }
 
 /*
  * The DMA of PTT trace can only use direct mappings due to some
- * hardware restriction. Check whether there is no IOMMU or the
+ * hardware restriction. Check whether there is anal IOMMU or the
  * policy of the IOMMU domain is passthrough, otherwise the trace
- * cannot work.
+ * cananalt work.
  *
  * The PTT device is supposed to behind an ARM SMMUv3, which
  * should have passthrough the device by a quirk.
@@ -1294,7 +1294,7 @@ static int hisi_ptt_check_iommu_mapping(struct pci_dev *pdev)
 	if (!iommu_domain || iommu_domain->type == IOMMU_DOMAIN_IDENTITY)
 		return 0;
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int hisi_ptt_probe(struct pci_dev *pdev,
@@ -1311,7 +1311,7 @@ static int hisi_ptt_probe(struct pci_dev *pdev,
 
 	hisi_ptt = devm_kzalloc(&pdev->dev, sizeof(*hisi_ptt), GFP_KERNEL);
 	if (!hisi_ptt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hisi_ptt->pdev = pdev;
 	pci_set_drvdata(pdev, hisi_ptt);
@@ -1348,9 +1348,9 @@ static int hisi_ptt_probe(struct pci_dev *pdev,
 		return ret;
 	}
 
-	ret = hisi_ptt_register_filter_update_notifier(hisi_ptt);
+	ret = hisi_ptt_register_filter_update_analtifier(hisi_ptt);
 	if (ret)
-		pci_warn(pdev, "failed to register filter update notifier, ret = %d", ret);
+		pci_warn(pdev, "failed to register filter update analtifier, ret = %d", ret);
 
 	ret = hisi_ptt_register_pmu(hisi_ptt);
 	if (ret) {
@@ -1379,22 +1379,22 @@ static struct pci_driver hisi_ptt_driver = {
 	.probe = hisi_ptt_probe,
 };
 
-static int hisi_ptt_cpu_teardown(unsigned int cpu, struct hlist_node *node)
+static int hisi_ptt_cpu_teardown(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct hisi_ptt *hisi_ptt;
 	struct device *dev;
 	int target, src;
 
-	hisi_ptt = hlist_entry_safe(node, struct hisi_ptt, hotplug_node);
+	hisi_ptt = hlist_entry_safe(analde, struct hisi_ptt, hotplug_analde);
 	src = hisi_ptt->trace_ctrl.on_cpu;
 	dev = hisi_ptt->hisi_ptt_pmu.dev;
 
 	if (!hisi_ptt->trace_ctrl.started || src != cpu)
 		return 0;
 
-	target = cpumask_any_but(cpumask_of_node(dev_to_node(&hisi_ptt->pdev->dev)), cpu);
+	target = cpumask_any_but(cpumask_of_analde(dev_to_analde(&hisi_ptt->pdev->dev)), cpu);
 	if (target >= nr_cpu_ids) {
-		dev_err(dev, "no available cpu for perf context migration\n");
+		dev_err(dev, "anal available cpu for perf context migration\n");
 		return 0;
 	}
 

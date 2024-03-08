@@ -6,13 +6,13 @@
  *
  * Based on the pxa27x matrix keypad controller by Rodolfo Giometti.
  *
- * NOTE:
+ * ANALTE:
  *
  * The 3-key reset is triggered by pressing the 3 keys in
  * Row 0, Columns 2, 4, and 7 at the same time.  This action can
  * be disabled by setting the EP93XX_KEYPAD_DISABLE_3_KEY flag.
  *
- * Normal operation for the matrix does not autorepeat the key press.
+ * Analrmal operation for the matrix does analt autorepeat the key press.
  * This action can be enabled by setting the EP93XX_KEYPAD_AUTOREPEAT
  * flag.
  */
@@ -34,7 +34,7 @@
  * Keypad Interface Register offsets
  */
 #define KEY_INIT		0x00	/* Key Scan Initialization register */
-#define KEY_DIAG		0x04	/* Key Scan Diagnostic register */
+#define KEY_DIAG		0x04	/* Key Scan Diaganalstic register */
 #define KEY_REG			0x08	/* Key Value Capture register */
 
 /* Key Scan Initialization Register bit defines */
@@ -47,7 +47,7 @@
 #define KEY_INIT_PRSCL_MASK	GENMASK(9, 0)
 #define KEY_INIT_PRSCL_SHIFT	0
 
-/* Key Scan Diagnostic Register bit defines */
+/* Key Scan Diaganalstic Register bit defines */
 #define KEY_DIAG_MASK		GENMASK(5, 0)
 #define KEY_DIAG_SHIFT		0
 
@@ -236,7 +236,7 @@ static int ep93xx_keypad_probe(struct platform_device *pdev)
 
 	keypad = devm_kzalloc(&pdev->dev, sizeof(*keypad), GFP_KERNEL);
 	if (!keypad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	keypad->pdata = dev_get_platdata(&pdev->dev);
 	if (!keypad->pdata)
@@ -269,7 +269,7 @@ static int ep93xx_keypad_probe(struct platform_device *pdev)
 
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	keypad->input_dev = input_dev;
 

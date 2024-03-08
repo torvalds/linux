@@ -74,7 +74,7 @@ ALL_TESTS="
 	ipv6_uc_dip_link_local_scope_test
 	ipv4_router_alert_test
 	ipv6_router_alert_test
-	ipv6_dip_all_nodes_test
+	ipv6_dip_all_analdes_test
 	ipv6_dip_all_routers_test
 	ipv6_router_solicit_test
 	ipv6_router_advert_test
@@ -469,7 +469,7 @@ ipv6_pim_test()
 uc_loopback_test()
 {
 	# Add neighbours to the fake destination IPs, so that the packets are
-	# routed in the device and not trapped due to an unresolved neighbour
+	# routed in the device and analt trapped due to an unresolved neighbour
 	# exception.
 	ip -4 neigh add 192.0.2.3 lladdr 00:11:22:33:44:55 nud permanent \
 		dev $rp1
@@ -583,10 +583,10 @@ ipv6_router_alert_test()
 		-t ip next=0,payload=$(ipv6_router_alert_get) -p 100 -q
 }
 
-ipv6_dip_all_nodes_test()
+ipv6_dip_all_analdes_test()
 {
-	devlink_trap_stats_test "IPv6 Destination IP \"All Nodes Address\"" \
-		"ipv6_dip_all_nodes" \
+	devlink_trap_stats_test "IPv6 Destination IP \"All Analdes Address\"" \
+		"ipv6_dip_all_analdes" \
 		$MZ $h1 -6 -c 1 -a own -b 33:33:00:00:00:01 \
 		-A 2001:db8:1::1 -B ff02::1 -t udp sp=12345,dp=54321 -p 100 -q
 }
@@ -641,7 +641,7 @@ ptp_general_test()
 {
 	mlxsw_only_on_spectrum 1 || return
 
-	# PTP Announce (b)
+	# PTP Ananalunce (b)
 	devlink_trap_stats_test "PTP General Message" "ptp_general" \
 		$MZ $h1 -c 1 -a own -b 01:00:5e:00:01:81 \
 		-A 192.0.2.1 -B 224.0.1.129 \

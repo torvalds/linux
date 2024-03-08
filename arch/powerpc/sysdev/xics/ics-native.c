@@ -23,14 +23,14 @@
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/xics.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
 
 struct ics_native {
 	struct ics		ics;
-	struct device_node	*node;
+	struct device_analde	*analde;
 	void __iomem    	*base;
 	u32             	ibase;
 	u32             	icount;
@@ -108,7 +108,7 @@ static int ics_native_set_affinity(struct irq_data *d,
 
 	server = xics_get_irq_server(d->irq, cpumask, 1);
 	if (server == -1) {
-		pr_warn("%s: No online cpus in the mask %*pb for irq %d\n",
+		pr_warn("%s: Anal online cpus in the mask %*pb for irq %d\n",
 			__func__, cpumask_pr_args(cpumask), d->irq);
 		return -1;
 	}
@@ -143,7 +143,7 @@ static int ics_native_check(struct ics *ics, unsigned int hw_irq)
 	return 0;
 }
 
-static void ics_native_mask_unknown(struct ics *ics, unsigned long vec)
+static void ics_native_mask_unkanalwn(struct ics *ics, unsigned long vec)
 {
 	struct ics_native *in = to_ics_native(ics);
 
@@ -165,22 +165,22 @@ static long ics_native_get_server(struct ics *ics, unsigned long vec)
 	return (xive >> 8) & 0xfff;
 }
 
-static int ics_native_host_match(struct ics *ics, struct device_node *node)
+static int ics_native_host_match(struct ics *ics, struct device_analde *analde)
 {
 	struct ics_native *in = to_ics_native(ics);
 
-	return in->node == node;
+	return in->analde == analde;
 }
 
 static struct ics ics_native_template = {
 	.check		= ics_native_check,
-	.mask_unknown	= ics_native_mask_unknown,
+	.mask_unkanalwn	= ics_native_mask_unkanalwn,
 	.get_server	= ics_native_get_server,
 	.host_match	= ics_native_host_match,
 	.chip = &ics_native_irq_chip,
 };
 
-static int __init ics_native_add_one(struct device_node *np)
+static int __init ics_native_add_one(struct device_analde *np)
 {
 	struct ics_native *ics;
 	u32 ranges[2];
@@ -188,14 +188,14 @@ static int __init ics_native_add_one(struct device_node *np)
 
 	ics = kzalloc(sizeof(struct ics_native), GFP_KERNEL);
 	if (!ics)
-		return -ENOMEM;
-	ics->node = of_node_get(np);
+		return -EANALMEM;
+	ics->analde = of_analde_get(np);
 	memcpy(&ics->ics, &ics_native_template, sizeof(struct ics));
 
 	ics->base = of_iomap(np, 0);
 	if (!ics->base) {
 		pr_err("Failed to map %pOFP\n", np);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail;
 	}
 
@@ -226,14 +226,14 @@ static int __init ics_native_add_one(struct device_node *np)
 
 	return 0;
 fail:
-	of_node_put(ics->node);
+	of_analde_put(ics->analde);
 	kfree(ics);
 	return rc;
 }
 
 int __init ics_native_init(void)
 {
-	struct device_node *ics;
+	struct device_analde *ics;
 	bool found_one = false;
 
 	/* We need to patch our irq chip's EOI to point to the
@@ -242,7 +242,7 @@ int __init ics_native_init(void)
 	ics_native_irq_chip.irq_eoi = icp_ops->eoi;
 
 	/* Find native ICS in the device-tree */
-	for_each_compatible_node(ics, NULL, "openpower,xics-sources") {
+	for_each_compatible_analde(ics, NULL, "openpower,xics-sources") {
 		if (ics_native_add_one(ics) == 0)
 			found_one = true;
 	}
@@ -250,5 +250,5 @@ int __init ics_native_init(void)
 	if (found_one)
 		pr_info("ICS native backend registered\n");
 
-	return found_one ? 0 : -ENODEV;
+	return found_one ? 0 : -EANALDEV;
 }

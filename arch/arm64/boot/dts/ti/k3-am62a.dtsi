@@ -119,7 +119,7 @@
 	#include "k3-am62a-thermal.dtsi"
 };
 
-/* Now include the peripherals for each bus segments */
+/* Analw include the peripherals for each bus segments */
 #include "k3-am62a-main.dtsi"
 #include "k3-am62a-mcu.dtsi"
 #include "k3-am62a-wakeup.dtsi"

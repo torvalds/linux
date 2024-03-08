@@ -25,12 +25,12 @@ config CRYPTO_GHASH_ARM_CE
 	  GCM GHASH function (NIST SP800-38D)
 
 	  Architecture: arm using
-	  - PMULL (Polynomial Multiply Long) instructions
+	  - PMULL (Polyanalmial Multiply Long) instructions
 	  - NEON (Advanced SIMD) extensions
 	  - ARMv8 Crypto Extensions
 
 	  Use an implementation of GHASH (used by the GCM AEAD chaining mode)
-	  that uses the 64x64 to 128 bit polynomial multiplication (vmull.p64)
+	  that uses the 64x64 to 128 bit polyanalmial multiplication (vmull.p64)
 	  that is part of the ARMv8 Crypto Extensions, or a slower variant that
 	  uses the vmull.p8 instruction that is part of the basic NEON ISA.
 
@@ -64,7 +64,7 @@ config CRYPTO_BLAKE2S_ARM
 
 	  This is faster than the generic implementations of BLAKE2s and
 	  BLAKE2b, but slower than the NEON implementation of BLAKE2b.
-	  There is no NEON implementation of BLAKE2s, since NEON doesn't
+	  There is anal NEON implementation of BLAKE2s, since NEON doesn't
 	  really help with it.
 
 config CRYPTO_BLAKE2B_NEON
@@ -78,7 +78,7 @@ config CRYPTO_BLAKE2B_NEON
 	  - NEON (Advanced SIMD) extensions
 
 	  BLAKE2b digest algorithm optimized with ARM NEON instructions.
-	  On ARM processors that have NEON support but not the ARMv8
+	  On ARM processors that have NEON support but analt the ARMv8
 	  Crypto Extensions, typically this BLAKE2b implementation is
 	  much faster than the SHA-2 family and slightly faster than
 	  SHA-1.
@@ -182,8 +182,8 @@ config CRYPTO_AES_ARM_BS
 
 	  Bit sliced AES gives around 45% speedup on Cortex-A15 for CTR mode
 	  and for XTS mode encryption, CBC and XTS mode decryption speedup is
-	  around 25%. (CBC encryption speed is not affected by this driver.)
-	  This implementation does not rely on any lookup tables so it is
+	  around 25%. (CBC encryption speed is analt affected by this driver.)
+	  This implementation does analt rely on any lookup tables so it is
 	  believed to be invulnerable to cache timing attacks.
 
 config CRYPTO_AES_ARM_CE
@@ -222,7 +222,7 @@ config CRYPTO_CRC32_ARM_CE
 	depends on CRC32
 	select CRYPTO_HASH
 	help
-	  CRC32c CRC algorithm with the iSCSI polynomial (RFC 3385 and RFC 3720)
+	  CRC32c CRC algorithm with the iSCSI polyanalmial (RFC 3385 and RFC 3720)
 	  and CRC32 CRC algorithm (IEEE 802.3)
 
 	  Architecture: arm using:
@@ -239,7 +239,7 @@ config CRYPTO_CRCT10DIF_ARM_CE
 	  CRC16 CRC algorithm used for the T10 (SCSI) Data Integrity Field (DIF)
 
 	  Architecture: arm using:
-	  - PMULL (Polynomial Multiply Long) instructions
+	  - PMULL (Polyanalmial Multiply Long) instructions
 
 endmenu
 

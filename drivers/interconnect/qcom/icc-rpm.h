@@ -20,9 +20,9 @@
 	container_of(_provider, struct qcom_icc_provider, provider)
 
 enum qcom_icc_type {
-	QCOM_ICC_NOC,
+	QCOM_ICC_ANALC,
 	QCOM_ICC_BIMC,
-	QCOM_ICC_QNOC,
+	QCOM_ICC_QANALC,
 };
 
 /**
@@ -71,12 +71,12 @@ struct qcom_icc_provider {
 
 /**
  * struct qcom_icc_qos - Qualcomm specific interconnect QoS parameters
- * @areq_prio: node requests priority
+ * @areq_prio: analde requests priority
  * @prio_level: priority level for bus communication
  * @limit_commands: activate/deactivate limiter mode during runtime
- * @ap_owned: indicates if the node is owned by the AP or by the RPM
- * @qos_mode: default qos mode for this node
- * @qos_port: qos port number for finding qos registers of this node
+ * @ap_owned: indicates if the analde is owned by the AP or by the RPM
+ * @qos_mode: default qos mode for this analde
+ * @qos_port: qos port number for finding qos registers of this analde
  * @urg_fwd_en: enable urgent forwarding
  */
 struct qcom_icc_qos {
@@ -90,24 +90,24 @@ struct qcom_icc_qos {
 };
 
 /**
- * struct qcom_icc_node - Qualcomm specific interconnect nodes
- * @name: the node name used in debugfs
- * @id: a unique node identifier
- * @links: an array of nodes where we can go next while traversing
+ * struct qcom_icc_analde - Qualcomm specific interconnect analdes
+ * @name: the analde name used in debugfs
+ * @id: a unique analde identifier
+ * @links: an array of analdes where we can go next while traversing
  * @num_links: the total number of @links
- * @channels: number of channels at this node (e.g. DDR channels)
- * @buswidth: width of the interconnect between a node and the bus (bytes)
+ * @channels: number of channels at this analde (e.g. DDR channels)
+ * @buswidth: width of the interconnect between a analde and the bus (bytes)
  * @bus_clk_desc: a pointer to a rpm_clk_resource description of bus clocks
  * @sum_avg: current sum aggregate value of all avg bw requests
  * @max_peak: current max aggregate value of all peak bw requests
  * @mas_rpm_id:	RPM id for devices that are bus masters
  * @slv_rpm_id:	RPM id for devices that are bus slaves
- * @qos: NoC QoS setting parameters
+ * @qos: AnalC QoS setting parameters
  * @ab_coeff: a percentage-based coefficient for compensating the AB calculations
  * @ib_coeff: an inverse-percentage-based coefficient for compensating the IB calculations
  * @bus_clk_rate: a pointer to an array containing bus clock rates in Hz
  */
-struct qcom_icc_node {
+struct qcom_icc_analde {
 	unsigned char *name;
 	u16 id;
 	const u16 *links;
@@ -126,8 +126,8 @@ struct qcom_icc_node {
 };
 
 struct qcom_icc_desc {
-	struct qcom_icc_node * const *nodes;
-	size_t num_nodes;
+	struct qcom_icc_analde * const *analdes;
+	size_t num_analdes;
 	const struct rpm_clk_resource *bus_clk_desc;
 	const char * const *intf_clocks;
 	size_t num_intf_clocks;
@@ -141,9 +141,9 @@ struct qcom_icc_desc {
 
 /* Valid for all bus types */
 enum qos_mode {
-	NOC_QOS_MODE_INVALID = 0,
-	NOC_QOS_MODE_FIXED,
-	NOC_QOS_MODE_BYPASS,
+	ANALC_QOS_MODE_INVALID = 0,
+	ANALC_QOS_MODE_FIXED,
+	ANALC_QOS_MODE_BYPASS,
 };
 
 extern const struct rpm_clk_resource aggre1_clk;
@@ -160,8 +160,8 @@ extern const struct rpm_clk_resource qup_clk;
 extern const struct rpm_clk_resource aggre1_branch_clk;
 extern const struct rpm_clk_resource aggre2_branch_clk;
 
-int qnoc_probe(struct platform_device *pdev);
-void qnoc_remove(struct platform_device *pdev);
+int qanalc_probe(struct platform_device *pdev);
+void qanalc_remove(struct platform_device *pdev);
 
 bool qcom_icc_rpm_smd_available(void);
 int qcom_icc_rpm_smd_send(int ctx, int rsc_type, int id, u32 val);

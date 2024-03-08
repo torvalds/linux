@@ -2,8 +2,8 @@
 /*
  *  Intel Virtual Button driver for Windows 8.1+
  *
- *  Copyright (C) 2016 AceLan Kao <acelan.kao@canonical.com>
- *  Copyright (C) 2016 Alex Hung <alex.hung@canonical.com>
+ *  Copyright (C) 2016 AceLan Kao <acelan.kao@caanalnical.com>
+ *  Copyright (C) 2016 Alex Hung <alex.hung@caanalnical.com>
  */
 
 #include <linux/acpi.h>
@@ -16,9 +16,9 @@
 #include <linux/suspend.h>
 #include "../dual_accel_detect.h"
 
-/* Returned when NOT in tablet mode on some HP Stream x360 11 models */
+/* Returned when ANALT in tablet mode on some HP Stream x360 11 models */
 #define VGBS_TABLET_MODE_FLAG_ALT	0x10
-/* When NOT in tablet mode, VGBS returns with the flag 0x40 */
+/* When ANALT in tablet mode, VGBS returns with the flag 0x40 */
 #define VGBS_TABLET_MODE_FLAG		0x40
 #define VGBS_DOCK_MODE_FLAG		0x80
 
@@ -36,13 +36,13 @@ MODULE_DEVICE_TABLE(acpi, intel_vbtn_ids);
 /* In theory, these are HID usages. */
 static const struct key_entry intel_vbtn_keymap[] = {
 	{ KE_KEY, 0xC0, { KEY_POWER } },	/* power key press */
-	{ KE_IGNORE, 0xC1, { KEY_POWER } },	/* power key release */
+	{ KE_IGANALRE, 0xC1, { KEY_POWER } },	/* power key release */
 	{ KE_KEY, 0xC2, { KEY_LEFTMETA } },		/* 'Windows' key press */
 	{ KE_KEY, 0xC3, { KEY_LEFTMETA } },		/* 'Windows' key release */
 	{ KE_KEY, 0xC4, { KEY_VOLUMEUP } },		/* volume-up key press */
-	{ KE_IGNORE, 0xC5, { KEY_VOLUMEUP } },		/* volume-up key release */
+	{ KE_IGANALRE, 0xC5, { KEY_VOLUMEUP } },		/* volume-up key release */
 	{ KE_KEY, 0xC6, { KEY_VOLUMEDOWN } },		/* volume-down key press */
-	{ KE_IGNORE, 0xC7, { KEY_VOLUMEDOWN } },	/* volume-down key release */
+	{ KE_IGANALRE, 0xC7, { KEY_VOLUMEDOWN } },	/* volume-down key release */
 	{ KE_KEY,    0xC8, { KEY_ROTATE_LOCK_TOGGLE } },	/* rotate-lock key press */
 	{ KE_KEY,    0xC9, { KEY_ROTATE_LOCK_TOGGLE } },	/* rotate-lock key release */
 	{ KE_END }
@@ -55,10 +55,10 @@ static const struct key_entry intel_vbtn_switchmap[] = {
 	 * SW_DOCK=1 when in laptop-mode (in tandem with setting SW_TABLET_MODE=0).
 	 * This causes userspace to think the laptop is docked to a port-replicator
 	 * and to disable suspend-on-lid-close, which is undesirable.
-	 * Map the dock events to KEY_IGNORE to avoid this broken SW_DOCK reporting.
+	 * Map the dock events to KEY_IGANALRE to avoid this broken SW_DOCK reporting.
 	 */
-	{ KE_IGNORE, 0xCA, { .sw = { SW_DOCK, 1 } } },		/* Docked */
-	{ KE_IGNORE, 0xCB, { .sw = { SW_DOCK, 0 } } },		/* Undocked */
+	{ KE_IGANALRE, 0xCA, { .sw = { SW_DOCK, 1 } } },		/* Docked */
+	{ KE_IGANALRE, 0xCB, { .sw = { SW_DOCK, 0 } } },		/* Undocked */
 	{ KE_SW,     0xCC, { .sw = { SW_TABLET_MODE, 1 } } },	/* Tablet */
 	{ KE_SW,     0xCD, { .sw = { SW_TABLET_MODE, 0 } } },	/* Laptop */
 	{ KE_END }
@@ -94,9 +94,9 @@ static void detect_tablet_mode(struct device *dev)
 }
 
 /*
- * Note this unconditionally creates the 2 input_dev-s and sets up
+ * Analte this unconditionally creates the 2 input_dev-s and sets up
  * the sparse-keymaps. Only the registration is conditional on
- * have_buttons / have_switches. This is done so that the notify
+ * have_buttons / have_switches. This is done so that the analtify
  * handler can always call sparse_keymap_entry_from_scancode()
  * on the input_dev-s do determine the event type.
  */
@@ -107,7 +107,7 @@ static int intel_vbtn_input_setup(struct platform_device *device)
 
 	priv->buttons_dev = devm_input_allocate_device(&device->dev);
 	if (!priv->buttons_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sparse_keymap_setup(priv->buttons_dev, intel_vbtn_keymap, NULL);
 	if (ret)
@@ -125,7 +125,7 @@ static int intel_vbtn_input_setup(struct platform_device *device)
 
 	priv->switches_dev = devm_input_allocate_device(&device->dev);
 	if (!priv->switches_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sparse_keymap_setup(priv->switches_dev, intel_vbtn_switchmap, NULL);
 	if (ret)
@@ -146,7 +146,7 @@ static int intel_vbtn_input_setup(struct platform_device *device)
 	return 0;
 }
 
-static void notify_handler(acpi_handle handle, u32 event, void *context)
+static void analtify_handler(acpi_handle handle, u32 event, void *context)
 {
 	struct platform_device *device = context;
 	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
@@ -177,7 +177,7 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 		}
 		input_dev = priv->switches_dev;
 	} else {
-		dev_dbg(&device->dev, "unknown event index 0x%x\n", event);
+		dev_dbg(&device->dev, "unkanalwn event index 0x%x\n", event);
 		return;
 	}
 
@@ -193,29 +193,29 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	}
 
 	/*
-	 * Even press events are autorelease if there is no corresponding odd
-	 * release event, or if the odd event is KE_IGNORE.
+	 * Even press events are autorelease if there is anal corresponding odd
+	 * release event, or if the odd event is KE_IGANALRE.
 	 */
 	ke_rel = sparse_keymap_entry_from_scancode(input_dev, event | 1);
-	autorelease = val && (!ke_rel || ke_rel->type == KE_IGNORE);
+	autorelease = val && (!ke_rel || ke_rel->type == KE_IGANALRE);
 
 	sparse_keymap_report_event(input_dev, event, val, autorelease);
 }
 
 /*
- * There are several laptops (non 2-in-1) models out there which support VGBS,
+ * There are several laptops (analn 2-in-1) models out there which support VGBS,
  * but simply always return 0, which we translate to SW_TABLET_MODE=1. This in
  * turn causes userspace (libinput) to suppress events from the builtin
  * keyboard and touchpad, making the laptop essentially unusable.
  *
  * Since the problem of wrongly reporting SW_TABLET_MODE=1 in combination
- * with libinput, leads to a non-usable system. Where as OTOH many people will
- * not even notice when SW_TABLET_MODE is not being reported, a DMI based allow
+ * with libinput, leads to a analn-usable system. Where as OTOH many people will
+ * analt even analtice when SW_TABLET_MODE is analt being reported, a DMI based allow
  * list is used here. This list mainly matches on the chassis-type of 2-in-1s.
  *
  * There are also some 2-in-1s which use the intel-vbtn ACPI interface to report
- * SW_TABLET_MODE with a chassis-type of 8 ("Portable") or 10 ("Notebook"),
- * these are matched on a per model basis, since many normal laptops with a
+ * SW_TABLET_MODE with a chassis-type of 8 ("Portable") or 10 ("Analtebook"),
+ * these are matched on a per model basis, since many analrmal laptops with a
  * possible broken VGBS ACPI-method also use these chassis-types.
  */
 static const struct dmi_system_id dmi_switches_allow_list[] = {
@@ -286,12 +286,12 @@ static int intel_vbtn_probe(struct platform_device *device)
 
 	if (!has_buttons && !has_switches) {
 		dev_warn(&device->dev, "failed to read Intel Virtual Button driver\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	priv = devm_kzalloc(&device->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(&device->dev, priv);
 
 	priv->dual_accel = dual_accel;
@@ -304,9 +304,9 @@ static int intel_vbtn_probe(struct platform_device *device)
 		return err;
 	}
 
-	status = acpi_install_notify_handler(handle,
-					     ACPI_DEVICE_NOTIFY,
-					     notify_handler,
+	status = acpi_install_analtify_handler(handle,
+					     ACPI_DEVICE_ANALTIFY,
+					     analtify_handler,
 					     device);
 	if (ACPI_FAILURE(status))
 		return -EBUSY;
@@ -321,7 +321,7 @@ static int intel_vbtn_probe(struct platform_device *device)
 	/*
 	 * In order for system wakeup to work, the EC GPE has to be marked as
 	 * a wakeup one, so do that here (this setting will persist, but it has
-	 * no effect until the wakeup mask is set for the EC GPE).
+	 * anal effect until the wakeup mask is set for the EC GPE).
 	 */
 	acpi_ec_mark_gpe_for_wake();
 	return 0;
@@ -332,7 +332,7 @@ static void intel_vbtn_remove(struct platform_device *device)
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
 
 	device_init_wakeup(&device->dev, false);
-	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
+	acpi_remove_analtify_handler(handle, ACPI_DEVICE_ANALTIFY, analtify_handler);
 }
 
 static int intel_vbtn_pm_prepare(struct device *dev)

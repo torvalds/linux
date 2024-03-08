@@ -12,7 +12,7 @@
 #include "feat.h"
 
 #ifndef CONFIG_SYSCTL
-#error This file should not be compiled without CONFIG_SYSCTL defined
+#error This file should analt be compiled without CONFIG_SYSCTL defined
 #endif
 
 /* Boundary values */
@@ -101,7 +101,7 @@ int __init dccp_sysctl_init(void)
 	dccp_table_header = register_net_sysctl(&init_net, "net/dccp/default",
 			dccp_default_table);
 
-	return dccp_table_header != NULL ? 0 : -ENOMEM;
+	return dccp_table_header != NULL ? 0 : -EANALMEM;
 }
 
 void dccp_sysctl_exit(void)

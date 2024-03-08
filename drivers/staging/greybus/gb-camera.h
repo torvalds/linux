@@ -21,10 +21,10 @@
  * @pixel_code: Media bus pixel code.
  * @vc: MIPI CSI virtual channel.
  * @dt: MIPI CSI data types. Most formats use a single data type, in which case
- *      the second element will be ignored.
+ *      the second element will be iganalred.
  * @max_size: Maximum size of a frame in bytes. The camera module guarantees
  *            that all data between the Frame Start and Frame End packet for
- *            the associated virtual channel and data type(s) will not exceed
+ *            the associated virtual channel and data type(s) will analt exceed
  *            this size.
  */
 struct gb_camera_stream {
@@ -117,8 +117,8 @@ struct gb_camera_module {
 };
 
 #define gb_camera_call(f, op, args...)      \
-	(!(f) ? -ENODEV : (((f)->ops->op) ?  \
-	(f)->ops->op((f)->priv, ##args) : -ENOIOCTLCMD))
+	(!(f) ? -EANALDEV : (((f)->ops->op) ?  \
+	(f)->ops->op((f)->priv, ##args) : -EANALIOCTLCMD))
 
 int gb_camera_register(struct gb_camera_module *module);
 int gb_camera_unregister(struct gb_camera_module *module);

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_STREAM_H
 #define PVR_STREAM_H
@@ -31,8 +31,8 @@ enum pvr_stream_size {
 	PVR_STREAM_SIZE_ARRAY,
 };
 
-#define PVR_FEATURE_NOT  BIT(31)
-#define PVR_FEATURE_NONE U32_MAX
+#define PVR_FEATURE_ANALT  BIT(31)
+#define PVR_FEATURE_ANALNE U32_MAX
 
 struct pvr_stream_def {
 	u32 offset;

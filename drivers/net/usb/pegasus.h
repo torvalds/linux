@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 1999-2013 Petko Manolov (petkan@nucleusys.com)
+ * Copyright (c) 1999-2013 Petko Maanallov (petkan@nucleusys.com)
  */
 
 
@@ -40,7 +40,7 @@
 #define	TX_UNDERRUN		0x80
 #define	EXCESSIVE_COL		0x40
 #define	LATE_COL		0x20
-#define	NO_CARRIER		0x10
+#define	ANAL_CARRIER		0x10
 #define	LOSS_CARRIER		0x08
 #define	JABBER_TIMEOUT		0x04
 

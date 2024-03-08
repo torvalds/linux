@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/iio/adc/samsung,exynos-adc.yaml#
+$id: http://devicetree.org/schemas/iio/adc/samsung,exyanals-adc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos Analog to Digital Converter (ADC)
+title: Samsung Exyanals Analog to Digital Converter (ADC)
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -13,11 +13,11 @@ properties:
   compatible:
     oneOf:
       - enum:
-          - samsung,exynos-adc-v1                 # Exynos5250
-          - samsung,exynos-adc-v2
-          - samsung,exynos3250-adc
-          - samsung,exynos4212-adc                # Exynos4212 and Exynos4412
-          - samsung,exynos7-adc
+          - samsung,exyanals-adc-v1                 # Exyanals5250
+          - samsung,exyanals-adc-v2
+          - samsung,exyanals3250-adc
+          - samsung,exyanals4212-adc                # Exyanals4212 and Exyanals4412
+          - samsung,exyanals7-adc
           - samsung,s3c2410-adc
           - samsung,s3c2416-adc
           - samsung,s3c2440-adc
@@ -26,15 +26,15 @@ properties:
           - samsung,s5pv210-adc
       - items:
           - enum:
-              - samsung,exynos5433-adc
-          - const: samsung,exynos7-adc
+              - samsung,exyanals5433-adc
+          - const: samsung,exyanals7-adc
 
   reg:
     maxItems: 1
 
   clocks:
     description:
-      Phandle to ADC bus clock. For Exynos3250 additional clock is needed.
+      Phandle to ADC bus clock. For Exyanals3250 additional clock is needed.
     minItems: 1
     maxItems: 2
 
@@ -59,8 +59,8 @@ properties:
   samsung,syscon-phandle:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Phandle to the PMU system controller node (to access the ADC_PHY
-      register on Exynos3250/4x12/5250/5420/5800).
+      Phandle to the PMU system controller analde (to access the ADC_PHY
+      register on Exyanals3250/4x12/5250/5420/5800).
 
   has-touchscreen:
     description:
@@ -85,10 +85,10 @@ allOf:
         compatible:
           contains:
             enum:
-              - samsung,exynos-adc-v1
-              - samsung,exynos-adc-v2
-              - samsung,exynos3250-adc
-              - samsung,exynos4212-adc
+              - samsung,exyanals-adc-v1
+              - samsung,exyanals-adc-v2
+              - samsung,exyanals3250-adc
+              - samsung,exyanals4212-adc
     then:
       required:
         - samsung,syscon-phandle
@@ -98,7 +98,7 @@ allOf:
         compatible:
           contains:
             enum:
-              - samsung,exynos3250-adc
+              - samsung,exyanals3250-adc
     then:
       properties:
         clocks:
@@ -129,7 +129,7 @@ allOf:
 examples:
   - |
     adc: adc@12d10000 {
-        compatible = "samsung,exynos-adc-v1";
+        compatible = "samsung,exyanals-adc-v1";
         reg = <0x12d10000 0x100>;
         interrupts = <0 106 0>;
         #io-channel-cells = <1>;
@@ -151,10 +151,10 @@ examples:
     };
 
   - |
-    #include <dt-bindings/clock/exynos3250.h>
+    #include <dt-bindings/clock/exyanals3250.h>
 
     adc@126c0000 {
-        compatible = "samsung,exynos3250-adc";
+        compatible = "samsung,exyanals3250-adc";
         reg = <0x126c0000 0x100>;
         interrupts = <0 137 0>;
         #io-channel-cells = <1>;

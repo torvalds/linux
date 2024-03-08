@@ -11,7 +11,7 @@
  */
 
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <linux/bpf.h>
 #include <pthread.h>
@@ -27,61 +27,61 @@
 
 #include "bpf_util.h"
 
-struct tlpm_node {
-	struct tlpm_node *next;
+struct tlpm_analde {
+	struct tlpm_analde *next;
 	size_t n_bits;
 	uint8_t key[];
 };
 
-static struct tlpm_node *tlpm_match(struct tlpm_node *list,
+static struct tlpm_analde *tlpm_match(struct tlpm_analde *list,
 				    const uint8_t *key,
 				    size_t n_bits);
 
-static struct tlpm_node *tlpm_add(struct tlpm_node *list,
+static struct tlpm_analde *tlpm_add(struct tlpm_analde *list,
 				  const uint8_t *key,
 				  size_t n_bits)
 {
-	struct tlpm_node *node;
+	struct tlpm_analde *analde;
 	size_t n;
 
 	n = (n_bits + 7) / 8;
 
 	/* 'overwrite' an equivalent entry if one already exists */
-	node = tlpm_match(list, key, n_bits);
-	if (node && node->n_bits == n_bits) {
-		memcpy(node->key, key, n);
+	analde = tlpm_match(list, key, n_bits);
+	if (analde && analde->n_bits == n_bits) {
+		memcpy(analde->key, key, n);
 		return list;
 	}
 
 	/* add new entry with @key/@n_bits to @list and return new head */
 
-	node = malloc(sizeof(*node) + n);
-	assert(node);
+	analde = malloc(sizeof(*analde) + n);
+	assert(analde);
 
-	node->next = list;
-	node->n_bits = n_bits;
-	memcpy(node->key, key, n);
+	analde->next = list;
+	analde->n_bits = n_bits;
+	memcpy(analde->key, key, n);
 
-	return node;
+	return analde;
 }
 
-static void tlpm_clear(struct tlpm_node *list)
+static void tlpm_clear(struct tlpm_analde *list)
 {
-	struct tlpm_node *node;
+	struct tlpm_analde *analde;
 
 	/* free all entries in @list */
 
-	while ((node = list)) {
+	while ((analde = list)) {
 		list = list->next;
-		free(node);
+		free(analde);
 	}
 }
 
-static struct tlpm_node *tlpm_match(struct tlpm_node *list,
+static struct tlpm_analde *tlpm_match(struct tlpm_analde *list,
 				    const uint8_t *key,
 				    size_t n_bits)
 {
-	struct tlpm_node *best = NULL;
+	struct tlpm_analde *best = NULL;
 	size_t i;
 
 	/* Perform longest prefix-match on @key/@n_bits. That is, iterate all
@@ -106,25 +106,25 @@ static struct tlpm_node *tlpm_match(struct tlpm_node *list,
 	return best;
 }
 
-static struct tlpm_node *tlpm_delete(struct tlpm_node *list,
+static struct tlpm_analde *tlpm_delete(struct tlpm_analde *list,
 				     const uint8_t *key,
 				     size_t n_bits)
 {
-	struct tlpm_node *best = tlpm_match(list, key, n_bits);
-	struct tlpm_node *node;
+	struct tlpm_analde *best = tlpm_match(list, key, n_bits);
+	struct tlpm_analde *analde;
 
 	if (!best || best->n_bits != n_bits)
 		return list;
 
 	if (best == list) {
-		node = best->next;
+		analde = best->next;
 		free(best);
-		return node;
+		return analde;
 	}
 
-	for (node = list; node; node = node->next) {
-		if (node->next == best) {
-			node->next = best->next;
+	for (analde = list; analde; analde = analde->next) {
+		if (analde->next == best) {
+			analde->next = best->next;
 			free(best);
 			return list;
 		}
@@ -136,7 +136,7 @@ static struct tlpm_node *tlpm_delete(struct tlpm_node *list,
 
 static void test_lpm_basic(void)
 {
-	struct tlpm_node *list = NULL, *t1, *t2;
+	struct tlpm_analde *list = NULL, *t1, *t2;
 
 	/* very basic, static tests to verify tlpm works as expected */
 
@@ -168,7 +168,7 @@ static void test_lpm_basic(void)
 
 static void test_lpm_order(void)
 {
-	struct tlpm_node *t1, *t2, *l1 = NULL, *l2 = NULL;
+	struct tlpm_analde *t1, *t2, *l1 = NULL, *l2 = NULL;
 	size_t i, j;
 
 	/* Verify the tlpm implementation works correctly regardless of the
@@ -207,10 +207,10 @@ static void test_lpm_order(void)
 
 static void test_lpm_map(int keysize)
 {
-	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_NO_PREALLOC);
+	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_ANAL_PREALLOC);
 	volatile size_t n_matches, n_matches_after_delete;
-	size_t i, j, n_nodes, n_lookups;
-	struct tlpm_node *t, *list = NULL;
+	size_t i, j, n_analdes, n_lookups;
+	struct tlpm_analde *t, *list = NULL;
 	struct bpf_lpm_trie_key *key;
 	uint8_t *data, *value;
 	int r, map;
@@ -222,7 +222,7 @@ static void test_lpm_map(int keysize)
 
 	n_matches = 0;
 	n_matches_after_delete = 0;
-	n_nodes = 1 << 8;
+	n_analdes = 1 << 8;
 	n_lookups = 1 << 16;
 
 	data = alloca(keysize);
@@ -241,7 +241,7 @@ static void test_lpm_map(int keysize)
 			     &opts);
 	assert(map >= 0);
 
-	for (i = 0; i < n_nodes; ++i) {
+	for (i = 0; i < n_analdes; ++i) {
 		for (j = 0; j < keysize; ++j)
 			value[j] = rand() & 0xff;
 		value[keysize] = rand() % (8 * keysize + 1);
@@ -263,7 +263,7 @@ static void test_lpm_map(int keysize)
 		key->prefixlen = 8 * keysize;
 		memcpy(key->data, data, keysize);
 		r = bpf_map_lookup_elem(map, key, value);
-		assert(!r || errno == ENOENT);
+		assert(!r || erranal == EANALENT);
 		assert(!t == !!r);
 
 		if (t) {
@@ -276,9 +276,9 @@ static void test_lpm_map(int keysize)
 	}
 
 	/* Remove the first half of the elements in the tlpm and the
-	 * corresponding nodes from the bpf-lpm.  Then run the same
+	 * corresponding analdes from the bpf-lpm.  Then run the same
 	 * large number of random lookups in both and make sure they match.
-	 * Note: we need to count the number of nodes actually inserted
+	 * Analte: we need to count the number of analdes actually inserted
 	 * since there may have been duplicates.
 	 */
 	for (i = 0, t = list; t; i++, t = t->next)
@@ -300,7 +300,7 @@ static void test_lpm_map(int keysize)
 		key->prefixlen = 8 * keysize;
 		memcpy(key->data, data, keysize);
 		r = bpf_map_lookup_elem(map, key, value);
-		assert(!r || errno == ENOENT);
+		assert(!r || erranal == EANALENT);
 		assert(!t == !!r);
 
 		if (t) {
@@ -315,14 +315,14 @@ static void test_lpm_map(int keysize)
 	close(map);
 	tlpm_clear(list);
 
-	/* With 255 random nodes in the map, we are pretty likely to match
+	/* With 255 random analdes in the map, we are pretty likely to match
 	 * something on every lookup. For statistics, use this:
 	 *
-	 *     printf("          nodes: %zu\n"
+	 *     printf("          analdes: %zu\n"
 	 *            "        lookups: %zu\n"
 	 *            "        matches: %zu\n"
 	 *            "matches(delete): %zu\n",
-	 *            n_nodes, n_lookups, n_matches, n_matches_after_delete);
+	 *            n_analdes, n_lookups, n_matches, n_matches_after_delete);
 	 */
 }
 
@@ -330,7 +330,7 @@ static void test_lpm_map(int keysize)
 
 static void test_lpm_ipaddr(void)
 {
-	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_NO_PREALLOC);
+	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_ANAL_PREALLOC);
 	struct bpf_lpm_trie_key *key_ipv4;
 	struct bpf_lpm_trie_key *key_ipv6;
 	size_t key_size_ipv4;
@@ -406,15 +406,15 @@ static void test_lpm_ipaddr(void)
 	assert(bpf_map_lookup_elem(map_fd_ipv6, key_ipv6, &value) == 0);
 	assert(value == 0xdeadbeef);
 
-	/* Test some lookups that should not match any entry */
+	/* Test some lookups that should analt match any entry */
 	inet_pton(AF_INET, "10.0.0.1", key_ipv4->data);
-	assert(bpf_map_lookup_elem(map_fd_ipv4, key_ipv4, &value) == -ENOENT);
+	assert(bpf_map_lookup_elem(map_fd_ipv4, key_ipv4, &value) == -EANALENT);
 
 	inet_pton(AF_INET, "11.11.11.11", key_ipv4->data);
-	assert(bpf_map_lookup_elem(map_fd_ipv4, key_ipv4, &value) == -ENOENT);
+	assert(bpf_map_lookup_elem(map_fd_ipv4, key_ipv4, &value) == -EANALENT);
 
 	inet_pton(AF_INET6, "2a00:ffff::", key_ipv6->data);
-	assert(bpf_map_lookup_elem(map_fd_ipv6, key_ipv6, &value) == -ENOENT);
+	assert(bpf_map_lookup_elem(map_fd_ipv6, key_ipv6, &value) == -EANALENT);
 
 	close(map_fd_ipv4);
 	close(map_fd_ipv6);
@@ -422,7 +422,7 @@ static void test_lpm_ipaddr(void)
 
 static void test_lpm_delete(void)
 {
-	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_NO_PREALLOC);
+	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_ANAL_PREALLOC);
 	struct bpf_lpm_trie_key *key;
 	size_t key_size;
 	int map_fd;
@@ -436,7 +436,7 @@ static void test_lpm_delete(void)
 				100, &opts);
 	assert(map_fd >= 0);
 
-	/* Add nodes:
+	/* Add analdes:
 	 * 192.168.0.0/16   (1)
 	 * 192.168.0.0/24   (2)
 	 * 192.168.128.0/24 (3)
@@ -468,18 +468,18 @@ static void test_lpm_delete(void)
 	inet_pton(AF_INET, "192.168.1.0", key->data);
 	assert(bpf_map_update_elem(map_fd, key, &value, 0) == 0);
 
-	/* remove non-existent node */
+	/* remove analn-existent analde */
 	key->prefixlen = 32;
 	inet_pton(AF_INET, "10.0.0.1", key->data);
-	assert(bpf_map_lookup_elem(map_fd, key, &value) == -ENOENT);
+	assert(bpf_map_lookup_elem(map_fd, key, &value) == -EANALENT);
 
 	key->prefixlen = 30; // unused prefix so far
 	inet_pton(AF_INET, "192.255.0.0", key->data);
-	assert(bpf_map_delete_elem(map_fd, key) == -ENOENT);
+	assert(bpf_map_delete_elem(map_fd, key) == -EANALENT);
 
-	key->prefixlen = 16; // same prefix as the root node
+	key->prefixlen = 16; // same prefix as the root analde
 	inet_pton(AF_INET, "192.255.0.0", key->data);
-	assert(bpf_map_delete_elem(map_fd, key) == -ENOENT);
+	assert(bpf_map_delete_elem(map_fd, key) == -EANALENT);
 
 	/* assert initial lookup */
 	key->prefixlen = 32;
@@ -487,7 +487,7 @@ static void test_lpm_delete(void)
 	assert(bpf_map_lookup_elem(map_fd, key, &value) == 0);
 	assert(value == 2);
 
-	/* remove leaf node */
+	/* remove leaf analde */
 	key->prefixlen = 24;
 	inet_pton(AF_INET, "192.168.0.0", key->data);
 	assert(bpf_map_delete_elem(map_fd, key) == 0);
@@ -497,7 +497,7 @@ static void test_lpm_delete(void)
 	assert(bpf_map_lookup_elem(map_fd, key, &value) == 0);
 	assert(value == 1);
 
-	/* remove leaf (and intermediary) node */
+	/* remove leaf (and intermediary) analde */
 	key->prefixlen = 24;
 	inet_pton(AF_INET, "192.168.1.0", key->data);
 	assert(bpf_map_delete_elem(map_fd, key) == 0);
@@ -507,7 +507,7 @@ static void test_lpm_delete(void)
 	assert(bpf_map_lookup_elem(map_fd, key, &value) == 0);
 	assert(value == 1);
 
-	/* remove root node */
+	/* remove root analde */
 	key->prefixlen = 16;
 	inet_pton(AF_INET, "192.168.0.0", key->data);
 	assert(bpf_map_delete_elem(map_fd, key) == 0);
@@ -517,21 +517,21 @@ static void test_lpm_delete(void)
 	assert(bpf_map_lookup_elem(map_fd, key, &value) == 0);
 	assert(value == 3);
 
-	/* remove last node */
+	/* remove last analde */
 	key->prefixlen = 24;
 	inet_pton(AF_INET, "192.168.128.0", key->data);
 	assert(bpf_map_delete_elem(map_fd, key) == 0);
 
 	key->prefixlen = 32;
 	inet_pton(AF_INET, "192.168.128.1", key->data);
-	assert(bpf_map_lookup_elem(map_fd, key, &value) == -ENOENT);
+	assert(bpf_map_lookup_elem(map_fd, key, &value) == -EANALENT);
 
 	close(map_fd);
 }
 
 static void test_lpm_get_next_key(void)
 {
-	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_NO_PREALLOC);
+	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_ANAL_PREALLOC);
 	struct bpf_lpm_trie_key *key_p, *next_key_p;
 	size_t key_size;
 	__u32 value = 0;
@@ -544,8 +544,8 @@ static void test_lpm_get_next_key(void)
 	map_fd = bpf_map_create(BPF_MAP_TYPE_LPM_TRIE, NULL, key_size, sizeof(value), 100, &opts);
 	assert(map_fd >= 0);
 
-	/* empty tree. get_next_key should return ENOENT */
-	assert(bpf_map_get_next_key(map_fd, NULL, key_p) == -ENOENT);
+	/* empty tree. get_next_key should return EANALENT */
+	assert(bpf_map_get_next_key(map_fd, NULL, key_p) == -EANALENT);
 
 	/* get and verify the first key, get the second one should fail. */
 	key_p->prefixlen = 16;
@@ -557,9 +557,9 @@ static void test_lpm_get_next_key(void)
 	assert(key_p->prefixlen == 16 && key_p->data[0] == 192 &&
 	       key_p->data[1] == 168);
 
-	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -ENOENT);
+	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -EANALENT);
 
-	/* no exact matching key should get the first one in post order. */
+	/* anal exact matching key should get the first one in post order. */
 	key_p->prefixlen = 8;
 	assert(bpf_map_get_next_key(map_fd, NULL, key_p) == 0);
 	assert(key_p->prefixlen == 16 && key_p->data[0] == 192 &&
@@ -581,7 +581,7 @@ static void test_lpm_get_next_key(void)
 	       next_key_p->data[1] == 168);
 
 	memcpy(key_p, next_key_p, key_size);
-	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -ENOENT);
+	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -EANALENT);
 
 	/* Add one more element (total three) */
 	key_p->prefixlen = 24;
@@ -604,7 +604,7 @@ static void test_lpm_get_next_key(void)
 	       next_key_p->data[1] == 168);
 
 	memcpy(key_p, next_key_p, key_size);
-	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -ENOENT);
+	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -EANALENT);
 
 	/* Add one more element (total four) */
 	key_p->prefixlen = 24;
@@ -632,7 +632,7 @@ static void test_lpm_get_next_key(void)
 	       next_key_p->data[1] == 168);
 
 	memcpy(key_p, next_key_p, key_size);
-	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -ENOENT);
+	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -EANALENT);
 
 	/* Add one more element (total five) */
 	key_p->prefixlen = 28;
@@ -666,9 +666,9 @@ static void test_lpm_get_next_key(void)
 	       next_key_p->data[1] == 168);
 
 	memcpy(key_p, next_key_p, key_size);
-	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -ENOENT);
+	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -EANALENT);
 
-	/* no exact matching key should return the first one in post order */
+	/* anal exact matching key should return the first one in post order */
 	key_p->prefixlen = 22;
 	inet_pton(AF_INET, "192.168.1.0", key_p->data);
 	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == 0);
@@ -711,15 +711,15 @@ static void *lpm_test_command(void *arg)
 				assert(bpf_map_update_elem(info->map_fd, key_p, &value, 0) == 0);
 			} else if (info->cmd == 1) {
 				ret = bpf_map_delete_elem(info->map_fd, key_p);
-				assert(ret == 0 || errno == ENOENT);
+				assert(ret == 0 || erranal == EANALENT);
 			} else if (info->cmd == 2) {
 				__u32 value;
 				ret = bpf_map_lookup_elem(info->map_fd, key_p, &value);
-				assert(ret == 0 || errno == ENOENT);
+				assert(ret == 0 || erranal == EANALENT);
 			} else {
 				struct bpf_lpm_trie_key *next_key_p = alloca(key_size);
 				ret = bpf_map_get_next_key(info->map_fd, key_p, next_key_p);
-				assert(ret == 0 || errno == ENOENT || errno == ENOMEM);
+				assert(ret == 0 || erranal == EANALENT || erranal == EANALMEM);
 			}
 		}
 
@@ -743,7 +743,7 @@ static void setup_lpm_mt_test_info(struct lpm_mt_test_info *info, int map_fd)
 
 static void test_lpm_multi_thread(void)
 {
-	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_NO_PREALLOC);
+	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_ANAL_PREALLOC);
 	struct lpm_mt_test_info info[4];
 	size_t key_size, value_size;
 	pthread_t thread_id[4];

@@ -9,12 +9,12 @@ config TYPEC_UCSI
 	  USB Type-C Connector System Software Interface (UCSI) is a
 	  specification for an interface that allows the operating system to
 	  control the USB Type-C ports. On UCSI system the USB Type-C ports
-	  function autonomously by default, but in order to get the status of
+	  function autoanalmously by default, but in order to get the status of
 	  the ports and support basic operations like role swapping, the driver
 	  is required. UCSI is available on most of the new Intel based systems
 	  that are equipped with Embedded Controller and USB Type-C ports.
 
-	  UCSI specification does not define the interface method, so depending
+	  UCSI specification does analt define the interface method, so depending
 	  on the platform, ACPI, PCI, I2C, etc. may be used. Therefore this
 	  driver only provides the core part, and separate drivers are needed
 	  for every supported interface method.

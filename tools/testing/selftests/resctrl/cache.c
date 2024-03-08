@@ -35,9 +35,9 @@ static void ioctl_perf_event_ioc_reset_enable(void)
 	ioctl(fd_lm, PERF_EVENT_IOC_ENABLE, 0);
 }
 
-static int perf_event_open_llc_miss(pid_t pid, int cpu_no)
+static int perf_event_open_llc_miss(pid_t pid, int cpu_anal)
 {
-	fd_lm = perf_event_open(&pea_llc_miss, pid, cpu_no, -1,
+	fd_lm = perf_event_open(&pea_llc_miss, pid, cpu_anal, -1,
 				PERF_FLAG_FD_CLOEXEC);
 	if (fd_lm == -1) {
 		perror("Error opening leader");
@@ -61,11 +61,11 @@ static void initialize_llc_perf(void)
 	rf_cqm.nr = 1;
 }
 
-static int reset_enable_llc_perf(pid_t pid, int cpu_no)
+static int reset_enable_llc_perf(pid_t pid, int cpu_anal)
 {
 	int ret = 0;
 
-	ret = perf_event_open_llc_miss(pid, cpu_no);
+	ret = perf_event_open_llc_miss(pid, cpu_anal);
 	if (ret < 0)
 		return ret;
 
@@ -95,7 +95,7 @@ static int get_llc_perf(unsigned long *llc_perf_miss)
 
 	ret = read(fd_lm, &rf_cqm, sizeof(struct read_format));
 	if (ret == -1) {
-		perror("Could not get llc misses through perf");
+		perror("Could analt get llc misses through perf");
 		return -1;
 	}
 
@@ -111,10 +111,10 @@ static int get_llc_perf(unsigned long *llc_perf_miss)
  * 1. If con_mon grp and mon grp given, then read from mon grp in
  * con_mon grp
  * 2. If only con_mon grp given, then read from con_mon grp
- * 3. If both not given, then read from root con_mon grp
+ * 3. If both analt given, then read from root con_mon grp
  * For CAT,
  * 1. If con_mon grp given, then read from it
- * 2. If con_mon grp not given, then read from root con_mon grp
+ * 2. If con_mon grp analt given, then read from root con_mon grp
  *
  * Return: =0 on success.  <0 on failure.
  */
@@ -126,10 +126,10 @@ static int get_llc_occu_resctrl(unsigned long *llc_occupancy)
 	if (!fp) {
 		perror("Failed to open results file");
 
-		return errno;
+		return erranal;
 	}
 	if (fscanf(fp, "%lu", llc_occupancy) <= 0) {
-		perror("Could not get llc occupancy");
+		perror("Could analt get llc occupancy");
 		fclose(fp);
 
 		return -1;
@@ -146,7 +146,7 @@ static int get_llc_occu_resctrl(unsigned long *llc_occupancy)
  * @llc_value:		perf miss value /
  *			llc occupancy value reported by resctrl FS
  *
- * Return:		0 on success. non-zero on failure.
+ * Return:		0 on success. analn-zero on failure.
  */
 static int print_results_cache(char *filename, int bm_pid,
 			       unsigned long llc_value)
@@ -159,9 +159,9 @@ static int print_results_cache(char *filename, int bm_pid,
 	} else {
 		fp = fopen(filename, "a");
 		if (!fp) {
-			perror("Cannot open results file");
+			perror("Cananalt open results file");
 
-			return errno;
+			return erranal;
 		}
 		fprintf(fp, "Pid: %d \t llc_value: %lu\n", bm_pid, llc_value);
 		fclose(fp);
@@ -207,7 +207,7 @@ int measure_cache_vals(struct resctrl_val_param *param, int bm_pid)
  * @param:		parameters passed to cache_val()
  * @span:		buffer size for the benchmark
  *
- * Return:		0 on success. non-zero on failure.
+ * Return:		0 on success. analn-zero on failure.
  */
 int cat_val(struct resctrl_val_param *param, size_t span)
 {
@@ -221,7 +221,7 @@ int cat_val(struct resctrl_val_param *param, size_t span)
 	bm_pid = getpid();
 
 	/* Taskset benchmark to specified cpu */
-	ret = taskset_benchmark(bm_pid, param->cpu_no);
+	ret = taskset_benchmark(bm_pid, param->cpu_anal);
 	if (ret)
 		return ret;
 
@@ -242,7 +242,7 @@ int cat_val(struct resctrl_val_param *param, size_t span)
 		}
 		if (ret < 0)
 			break;
-		ret = reset_enable_llc_perf(bm_pid, param->cpu_no);
+		ret = reset_enable_llc_perf(bm_pid, param->cpu_anal);
 		if (ret)
 			break;
 
@@ -268,7 +268,7 @@ pe_close:
 /*
  * show_cache_info:	show cache test result information
  * @sum_llc_val:	sum of LLC cache result data
- * @no_of_bits:		number of bits
+ * @anal_of_bits:		number of bits
  * @cache_span:		cache span in bytes for CMT or in lines for CAT
  * @max_diff:		max difference
  * @max_diff_percent:	max difference percentage
@@ -276,9 +276,9 @@ pe_close:
  * @platform:		show test information on this platform
  * @cmt:		CMT test or CAT test
  *
- * Return:		0 on success. non-zero on failure.
+ * Return:		0 on success. analn-zero on failure.
  */
-int show_cache_info(unsigned long sum_llc_val, int no_of_bits,
+int show_cache_info(unsigned long sum_llc_val, int anal_of_bits,
 		    size_t cache_span, unsigned long max_diff,
 		    unsigned long max_diff_percent, unsigned long num_of_runs,
 		    bool platform, bool cmt)
@@ -299,7 +299,7 @@ int show_cache_info(unsigned long sum_llc_val, int no_of_bits,
 		       ret ? "Fail:" : "Pass:", max_diff_percent);
 
 	ksft_print_msg("Percent diff=%d\n", abs((int)diff_percent));
-	ksft_print_msg("Number of bits: %d\n", no_of_bits);
+	ksft_print_msg("Number of bits: %d\n", anal_of_bits);
 	ksft_print_msg("Average LLC val: %lu\n", avg_llc_val);
 	ksft_print_msg("Cache span (%s): %zu\n", cmt ? "bytes" : "lines",
 		       cache_span);

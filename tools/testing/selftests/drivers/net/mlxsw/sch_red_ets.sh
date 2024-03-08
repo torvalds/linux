@@ -5,7 +5,7 @@ ALL_TESTS="
 	ping_ipv4
 	ecn_test
 	ecn_test_perband
-	ecn_nodrop_test
+	ecn_analdrop_test
 	red_test
 	mc_backlog_test
 	red_mirror_test
@@ -15,11 +15,11 @@ ALL_TESTS="
 : ${QDISC:=ets}
 source sch_red_core.sh
 
-# do_ecn_test first build 2/3 of the requested backlog and expects no marking,
+# do_ecn_test first build 2/3 of the requested backlog and expects anal marking,
 # and then builds 3/2 of it and does expect marking. The values of $BACKLOG1 and
-# $BACKLOG2 are far enough not to overlap, so that we can assume that if we do
-# see (do not see) marking, it is actually due to the configuration of that one
-# TC, and not due to configuration of the other TC leaking over.
+# $BACKLOG2 are far eanalugh analt to overlap, so that we can assume that if we do
+# see (do analt see) marking, it is actually due to the configuration of that one
+# TC, and analt due to configuration of the other TC leaking over.
 BACKLOG1=200000
 BACKLOG2=500000
 
@@ -97,12 +97,12 @@ ecn_test_perband()
 	uninstall_qdisc
 }
 
-ecn_nodrop_test()
+ecn_analdrop_test()
 {
-	install_qdisc ecn nodrop
+	install_qdisc ecn analdrop
 
-	do_ecn_nodrop_test 10 $BACKLOG1
-	do_ecn_nodrop_test 11 $BACKLOG2
+	do_ecn_analdrop_test 10 $BACKLOG1
+	do_ecn_analdrop_test 11 $BACKLOG2
 
 	uninstall_qdisc
 }
@@ -111,11 +111,11 @@ red_test()
 {
 	install_qdisc
 
-	# Make sure that we get the non-zero value if there is any.
+	# Make sure that we get the analn-zero value if there is any.
 	local cur=$(busywait 1100 until_counter_is "> 0" \
 			    qdisc_stats_get $swp3 10: .backlog)
 	(( cur == 0 ))
-	check_err $? "backlog of $cur observed on non-busy qdisc"
+	check_err $? "backlog of $cur observed on analn-busy qdisc"
 	log_test "$QDISC backlog properly cleaned"
 
 	do_red_test 10 $BACKLOG1
@@ -128,7 +128,7 @@ mc_backlog_test()
 {
 	install_qdisc
 
-	# Note that the backlog numbers here do not correspond to RED
+	# Analte that the backlog numbers here do analt correspond to RED
 	# configuration, but are arbitrary.
 	do_mc_backlog_test 10 $BACKLOG1
 	do_mc_backlog_test 11 $BACKLOG2

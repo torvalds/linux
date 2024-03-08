@@ -7,7 +7,7 @@
 #define __LINUX_USB_OTG_FSM_H
 
 #include <linux/mutex.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #define PROTO_UNDEF	(0)
 #define PROTO_HOST	(1)
@@ -85,7 +85,7 @@ enum otg_fsm_timer {
  * @b_bus_req:	TRUE during the time that the Application running on the
  *		B-device wants to use the bus
  *
- *	Auxiliary inputs (OTG v1.3 only. Obsolete now.)
+ *	Auxiliary inputs (OTG v1.3 only. Obsolete analw.)
  * @a_sess_vld:	TRUE if the A-device detects that VBUS is above VA_SESS_VLD
  * @b_bus_suspend: TRUE when the A-device detects that the B-device has put
  *		the bus into suspend
@@ -159,7 +159,7 @@ struct otg_fsm {
 	int b_hnp_enable;
 	int a_clr_err;
 
-	/* Informative variables. All unused as of now */
+	/* Informative variables. All unused as of analw */
 	int a_bus_drop_inf;
 	int a_bus_req_inf;
 	int a_clr_err_inf;
@@ -205,7 +205,7 @@ struct otg_fsm_ops {
 static inline int otg_chrg_vbus(struct otg_fsm *fsm, int on)
 {
 	if (!fsm->ops->chrg_vbus)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	fsm->ops->chrg_vbus(fsm, on);
 	return 0;
 }
@@ -213,7 +213,7 @@ static inline int otg_chrg_vbus(struct otg_fsm *fsm, int on)
 static inline int otg_drv_vbus(struct otg_fsm *fsm, int on)
 {
 	if (!fsm->ops->drv_vbus)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (fsm->drv_vbus != on) {
 		fsm->drv_vbus = on;
 		fsm->ops->drv_vbus(fsm, on);
@@ -224,7 +224,7 @@ static inline int otg_drv_vbus(struct otg_fsm *fsm, int on)
 static inline int otg_loc_conn(struct otg_fsm *fsm, int on)
 {
 	if (!fsm->ops->loc_conn)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (fsm->loc_conn != on) {
 		fsm->loc_conn = on;
 		fsm->ops->loc_conn(fsm, on);
@@ -235,7 +235,7 @@ static inline int otg_loc_conn(struct otg_fsm *fsm, int on)
 static inline int otg_loc_sof(struct otg_fsm *fsm, int on)
 {
 	if (!fsm->ops->loc_sof)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (fsm->loc_sof != on) {
 		fsm->loc_sof = on;
 		fsm->ops->loc_sof(fsm, on);
@@ -246,7 +246,7 @@ static inline int otg_loc_sof(struct otg_fsm *fsm, int on)
 static inline int otg_start_pulse(struct otg_fsm *fsm)
 {
 	if (!fsm->ops->start_pulse)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!fsm->data_pulse) {
 		fsm->data_pulse = 1;
 		fsm->ops->start_pulse(fsm);
@@ -257,7 +257,7 @@ static inline int otg_start_pulse(struct otg_fsm *fsm)
 static inline int otg_start_adp_prb(struct otg_fsm *fsm)
 {
 	if (!fsm->ops->start_adp_prb)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!fsm->adp_prb) {
 		fsm->adp_sns = 0;
 		fsm->adp_prb = 1;
@@ -269,7 +269,7 @@ static inline int otg_start_adp_prb(struct otg_fsm *fsm)
 static inline int otg_start_adp_sns(struct otg_fsm *fsm)
 {
 	if (!fsm->ops->start_adp_sns)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!fsm->adp_sns) {
 		fsm->adp_sns = 1;
 		fsm->ops->start_adp_sns(fsm);
@@ -280,7 +280,7 @@ static inline int otg_start_adp_sns(struct otg_fsm *fsm)
 static inline int otg_add_timer(struct otg_fsm *fsm, enum otg_fsm_timer timer)
 {
 	if (!fsm->ops->add_timer)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	fsm->ops->add_timer(fsm, timer);
 	return 0;
 }
@@ -288,7 +288,7 @@ static inline int otg_add_timer(struct otg_fsm *fsm, enum otg_fsm_timer timer)
 static inline int otg_del_timer(struct otg_fsm *fsm, enum otg_fsm_timer timer)
 {
 	if (!fsm->ops->del_timer)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	fsm->ops->del_timer(fsm, timer);
 	return 0;
 }
@@ -296,14 +296,14 @@ static inline int otg_del_timer(struct otg_fsm *fsm, enum otg_fsm_timer timer)
 static inline int otg_start_host(struct otg_fsm *fsm, int on)
 {
 	if (!fsm->ops->start_host)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return fsm->ops->start_host(fsm, on);
 }
 
 static inline int otg_start_gadget(struct otg_fsm *fsm, int on)
 {
 	if (!fsm->ops->start_gadget)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return fsm->ops->start_gadget(fsm, on);
 }
 

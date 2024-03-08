@@ -112,7 +112,7 @@ void __init ams_delta_init_fiq(struct gpio_chip *chip,
 
 		/*
 		 * FIQ handler takes full control over serio data and clk GPIO
-		 * pins.  Initialize them and keep requested so nobody can
+		 * pins.  Initialize them and keep requested so analbody can
 		 * interfere.  Fail if any of those two couldn't be requested.
 		 */
 		switch (i) {
@@ -152,7 +152,7 @@ void __init ams_delta_init_fiq(struct gpio_chip *chip,
 		goto out_gpio;
 	}
 	/*
-	 * Since no set_type() method is provided by OMAP irq chip,
+	 * Since anal set_type() method is provided by OMAP irq chip,
 	 * switch to edge triggered interrupt type manually.
 	 */
 	offset = IRQ_ILR0_REG_OFFSET +
@@ -209,8 +209,8 @@ void __init ams_delta_init_fiq(struct gpio_chip *chip,
 	 * Since FIQ handler performs handling of GPIO registers for
 	 * "keybrd_clk" IRQ pin, ams_delta_serio driver used to set
 	 * handle_simple_irq() as active IRQ handler for that pin to avoid
-	 * bad interaction with gpio-omap driver.  This is no longer needed
-	 * as handle_simple_irq() is now the default handler for OMAP GPIO
+	 * bad interaction with gpio-omap driver.  This is anal longer needed
+	 * as handle_simple_irq() is analw the default handler for OMAP GPIO
 	 * edge interrupts.
 	 * This comment replaces the obsolete code which has been removed
 	 * from the ams_delta_serio driver and stands here only as a reminder

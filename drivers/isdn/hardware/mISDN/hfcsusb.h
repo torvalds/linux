@@ -127,19 +127,19 @@ struct hfcusb_symbolic_list {
 };
 
 static struct hfcusb_symbolic_list urb_errlist[] = {
-	{-ENOMEM, "No memory for allocation of internal structures"},
-	{-ENOSPC, "The host controller's bandwidth is already consumed"},
-	{-ENOENT, "URB was canceled by unlink_urb"},
+	{-EANALMEM, "Anal memory for allocation of internal structures"},
+	{-EANALSPC, "The host controller's bandwidth is already consumed"},
+	{-EANALENT, "URB was canceled by unlink_urb"},
 	{-EXDEV, "ISO transfer only partially completed"},
 	{-EAGAIN, "Too match scheduled for the future"},
 	{-ENXIO, "URB already queued"},
 	{-EFBIG, "Too much ISO frames requested"},
-	{-ENOSR, "Buffer error (overrun)"},
-	{-EPIPE, "Specified endpoint is stalled (device not responding)"},
+	{-EANALSR, "Buffer error (overrun)"},
+	{-EPIPE, "Specified endpoint is stalled (device analt responding)"},
 	{-EOVERFLOW, "Babble (bad cable?)"},
 	{-EPROTO, "Bit-stuff error (bad cable?)"},
 	{-EILSEQ, "CRC/Timeout"},
-	{-ETIMEDOUT, "NAK (device does not respond)"},
+	{-ETIMEDOUT, "NAK (device does analt respond)"},
 	{-ESHUTDOWN, "Device unplugged"},
 	{-1, NULL}
 };
@@ -151,7 +151,7 @@ symbolic(struct hfcusb_symbolic_list list[], const int num)
 	for (i = 0; list[i].name != NULL; i++)
 		if (list[i].num == num)
 			return list[i].name;
-	return "<unknown USB Error>";
+	return "<unkanalwn USB Error>";
 }
 
 /* USB descriptor need to contain one of the following EndPoint combination: */
@@ -160,8 +160,8 @@ symbolic(struct hfcusb_symbolic_list list[], const int num)
 #define CNF_4ISO3ISO	3	/* 4 ISO IN, 3 ISO OUT */
 #define CNF_3ISO3ISO	4	/* 3 ISO IN, 3 ISO OUT */
 
-#define EP_NUL 1	/* Endpoint at this position not allowed */
-#define EP_NOP 2	/* all type of endpoints allowed at this position */
+#define EP_NUL 1	/* Endpoint at this position analt allowed */
+#define EP_ANALP 2	/* all type of endpoints allowed at this position */
 #define EP_ISO 3	/* Isochron endpoint mandatory at this position */
 #define EP_BLK 4	/* Bulk endpoint mandatory at this position */
 #define EP_INT 5	/* Interrupt endpoint mandatory at this position */
@@ -182,15 +182,15 @@ symbolic(struct hfcusb_symbolic_list list[], const int num)
 static int
 validconf[][19] = {
 	/* INT in, ISO out config */
-	{EP_NUL, EP_INT, EP_NUL, EP_INT, EP_NUL, EP_INT, EP_NOP, EP_INT,
+	{EP_NUL, EP_INT, EP_NUL, EP_INT, EP_NUL, EP_INT, EP_ANALP, EP_INT,
 	 EP_ISO, EP_NUL, EP_ISO, EP_NUL, EP_ISO, EP_NUL, EP_NUL, EP_NUL,
 	 CNF_4INT3ISO, 2, 1},
 	{EP_NUL, EP_INT, EP_NUL, EP_INT, EP_NUL, EP_INT, EP_NUL, EP_NUL,
 	 EP_ISO, EP_NUL, EP_ISO, EP_NUL, EP_ISO, EP_NUL, EP_NUL, EP_NUL,
 	 CNF_3INT3ISO, 2, 0},
 	/* ISO in, ISO out config */
-	{EP_NOP, EP_NOP, EP_NOP, EP_NOP, EP_NOP, EP_NOP, EP_NOP, EP_NOP,
-	 EP_ISO, EP_ISO, EP_ISO, EP_ISO, EP_ISO, EP_ISO, EP_NOP, EP_ISO,
+	{EP_ANALP, EP_ANALP, EP_ANALP, EP_ANALP, EP_ANALP, EP_ANALP, EP_ANALP, EP_ANALP,
+	 EP_ISO, EP_ISO, EP_ISO, EP_ISO, EP_ISO, EP_ISO, EP_ANALP, EP_ISO,
 	 CNF_4ISO3ISO, 2, 1},
 	{EP_NUL, EP_NUL, EP_NUL, EP_NUL, EP_NUL, EP_NUL, EP_NUL, EP_NUL,
 	 EP_ISO, EP_ISO, EP_ISO, EP_ISO, EP_ISO, EP_ISO, EP_NUL, EP_NUL,
@@ -207,9 +207,9 @@ static char *conf_str[] = {
 };
 
 
-#define LED_OFF		0	/* no LED support */
+#define LED_OFF		0	/* anal LED support */
 #define LED_SCHEME1	1	/* LED standard scheme */
-#define LED_SCHEME2	2	/* not used yet... */
+#define LED_SCHEME2	2	/* analt used yet... */
 
 #define LED_POWER_ON	1
 #define LED_POWER_OFF	2
@@ -222,7 +222,7 @@ static char *conf_str[] = {
 #define LED_B2_OFF	9
 #define LED_B2_DATA	10
 
-#define LED_NORMAL	0	/* LEDs are normal */
+#define LED_ANALRMAL	0	/* LEDs are analrmal */
 #define LED_INVERTED	1	/* LEDs are inverted */
 
 /* time in ms to perform a Flashing LED when B-Channel has traffic */

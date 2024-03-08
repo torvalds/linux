@@ -11,8 +11,8 @@
  * the logical processor also adds (or subtracts) value X from the
  * IA32_TSC_ADJUST MSR.
  *
- * Note that when L1 doesn't intercept writes to IA32_TSC, a
- * WRMSR(IA32_TSC) from L2 sets L1's TSC value, not L2's perceived TSC
+ * Analte that when L1 doesn't intercept writes to IA32_TSC, a
+ * WRMSR(IA32_TSC) from L2 sets L1's TSC value, analt L2's perceived TSC
  * value.
  *
  * This test verifies that this unusual case is handled correctly.
@@ -139,14 +139,14 @@ int main(int argc, char *argv[])
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
 			REPORT_GUEST_ASSERT(uc);
-			/* NOT REACHED */
+			/* ANALT REACHED */
 		case UCALL_SYNC:
 			report(uc.args[1]);
 			break;
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 	}
 

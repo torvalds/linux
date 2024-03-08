@@ -2,7 +2,7 @@
 /*
  * linux/arch/sh/boards/renesas/sdk7780/irq.c
  *
- * Renesas Technology Europe SDK7780 Support.
+ * Renesas Techanallogy Europe SDK7780 Support.
  *
  * Copyright (C) 2008  Nicholas Beck <nbeck@mpc-data.co.uk>
  */

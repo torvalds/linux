@@ -2,7 +2,7 @@
 /*
  * Hardware monitoring driver for MPS Multi-phase Digital VR Controllers
  *
- * Copyright (C) 2020 Nvidia Technologies Ltd.
+ * Copyright (C) 2020 Nvidia Techanallogies Ltd.
  */
 
 #include <linux/err.h>
@@ -43,7 +43,7 @@ static int mp2888_read_byte_data(struct i2c_client *client, int page, int reg)
 		/* Enforce VOUT direct format. */
 		return PB_VOUT_MODE_DIRECT;
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 }
 
@@ -114,7 +114,7 @@ mp2888_read_phase(struct i2c_client *client, struct mp2888_data *data, int page,
 	 *   assembly. By default it is set to 1kΩ. In case of different assembly, user should
 	 *   scale this parameter by dividing it by Rcs.
 	 * If phase current resolution bit is set to 1, READ_CSx value should be doubled.
-	 * Note, that current phase sensing, providing by the device is not accurate. This is
+	 * Analte, that current phase sensing, providing by the device is analt accurate. This is
 	 * because sampling of current occurrence of bit weight has a big deviation, especially for
 	 * light load.
 	 */
@@ -146,7 +146,7 @@ mp2888_read_phases(struct i2c_client *client, struct mp2888_data *data, int page
 		ret = mp2888_read_phase(client, data, page, phase, MP2888_MFR_READ_CS9_10);
 		break;
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 	return ret;
 }
@@ -225,8 +225,8 @@ static int mp2888_read_word_data(struct i2c_client *client, int page, int phase,
 		ret = data->total_curr_resolution ? ret * 2 : ret;
 		break;
 	/*
-	 * The below registers are not implemented by device or implemented not according to the
-	 * spec. Skip all of them to avoid exposing non-relevant inputs to sysfs.
+	 * The below registers are analt implemented by device or implemented analt according to the
+	 * spec. Skip all of them to avoid exposing analn-relevant inputs to sysfs.
 	 */
 	case PMBUS_OT_FAULT_LIMIT:
 	case PMBUS_UT_WARN_LIMIT:
@@ -254,7 +254,7 @@ static int mp2888_read_word_data(struct i2c_client *client, int page, int phase,
 	case PMBUS_MFR_MAX_TEMP_1:
 		return -ENXIO;
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	return ret;
@@ -286,7 +286,7 @@ static int mp2888_write_word_data(struct i2c_client *client, int page, int reg, 
 		word = clamp_val(word, 0, GENMASK(9, 0));
 		break;
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 	return pmbus_write_word_data(client, page, reg, word);
 }
@@ -359,7 +359,7 @@ static int mp2888_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(&client->dev, sizeof(struct mp2888_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(&data->info, &mp2888_info, sizeof(*info));
 	info = &data->info;

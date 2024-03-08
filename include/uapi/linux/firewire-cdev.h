@@ -10,13 +10,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -61,7 +61,7 @@
  * types regardless of the specific type.
  *
  * Data passed in the @closure field for a request will be returned in the
- * corresponding event.  It is big enough to hold a pointer on all platforms.
+ * corresponding event.  It is big eanalugh to hold a pointer on all platforms.
  * The ioctl used to set @closure depends on the @type of event.
  */
 struct fw_cdev_event_common {
@@ -73,29 +73,29 @@ struct fw_cdev_event_common {
  * struct fw_cdev_event_bus_reset - Sent when a bus reset occurred
  * @closure:	See &fw_cdev_event_common; set by %FW_CDEV_IOC_GET_INFO ioctl
  * @type:	See &fw_cdev_event_common; always %FW_CDEV_EVENT_BUS_RESET
- * @node_id:       New node ID of this node
- * @local_node_id: Node ID of the local node, i.e. of the controller
- * @bm_node_id:    Node ID of the bus manager
- * @irm_node_id:   Node ID of the iso resource manager
- * @root_node_id:  Node ID of the root node
+ * @analde_id:       New analde ID of this analde
+ * @local_analde_id: Analde ID of the local analde, i.e. of the controller
+ * @bm_analde_id:    Analde ID of the bus manager
+ * @irm_analde_id:   Analde ID of the iso resource manager
+ * @root_analde_id:  Analde ID of the root analde
  * @generation:    New bus generation
  *
  * This event is sent when the bus the device belongs to goes through a bus
  * reset.  It provides information about the new bus configuration, such as
- * new node ID for this device, new root ID, and others.
+ * new analde ID for this device, new root ID, and others.
  *
- * If @bm_node_id is 0xffff right after bus reset it can be reread by an
+ * If @bm_analde_id is 0xffff right after bus reset it can be reread by an
  * %FW_CDEV_IOC_GET_INFO ioctl after bus manager selection was finished.
- * Kernels with ABI version < 4 do not set @bm_node_id.
+ * Kernels with ABI version < 4 do analt set @bm_analde_id.
  */
 struct fw_cdev_event_bus_reset {
 	__u64 closure;
 	__u32 type;
-	__u32 node_id;
-	__u32 local_node_id;
-	__u32 bm_node_id;
-	__u32 irm_node_id;
-	__u32 root_node_id;
+	__u32 analde_id;
+	__u32 local_analde_id;
+	__u32 bm_analde_id;
+	__u32 irm_analde_id;
+	__u32 root_analde_id;
 	__u32 generation;
 };
 
@@ -105,7 +105,7 @@ struct fw_cdev_event_bus_reset {
  *		or %FW_CDEV_IOC_SEND_BROADCAST_REQUEST
  *		or %FW_CDEV_IOC_SEND_STREAM_PACKET ioctl
  * @type:	See &fw_cdev_event_common; always %FW_CDEV_EVENT_RESPONSE
- * @rcode:	Response code returned by the remote node
+ * @rcode:	Response code returned by the remote analde
  * @length:	Data length, i.e. the response's payload size in bytes
  * @data:	Payload data, if any
  *
@@ -126,10 +126,10 @@ struct fw_cdev_event_response {
  *		or %FW_CDEV_IOC_SEND_BROADCAST_REQUEST
  *		or %FW_CDEV_IOC_SEND_STREAM_PACKET ioctl
  * @type:	See &fw_cdev_event_common; always %FW_CDEV_EVENT_RESPONSE
- * @rcode:	Response code returned by the remote node
+ * @rcode:	Response code returned by the remote analde
  * @length:	Data length, i.e. the response's payload size in bytes
- * @request_tstamp:	The time stamp of isochronous cycle at which the request was sent.
- * @response_tstamp:	The time stamp of isochronous cycle at which the response was sent.
+ * @request_tstamp:	The time stamp of isochroanalus cycle at which the request was sent.
+ * @response_tstamp:	The time stamp of isochroanalus cycle at which the response was sent.
  * @padding:	Padding to keep the size of structure as multiples of 8 in various architectures
  *		since 4 byte alignment is used for 8 byte of object type in System V ABI for i386
  *		architecture.
@@ -140,13 +140,13 @@ struct fw_cdev_event_response {
  * carrying data (read and lock responses) follows immediately and can be
  * accessed through the @data field.
  *
- * The event is also generated after conclusions of transactions that do not
+ * The event is also generated after conclusions of transactions that do analt
  * involve response packets.  This includes unified write transactions,
- * broadcast write transactions, and transmission of asynchronous stream
+ * broadcast write transactions, and transmission of asynchroanalus stream
  * packets.  @rcode indicates success or failure of such transmissions.
  *
- * The value of @request_tstamp expresses the isochronous cycle at which the request was sent to
- * initiate the transaction. The value of @response_tstamp expresses the isochronous cycle at which
+ * The value of @request_tstamp expresses the isochroanalus cycle at which the request was sent to
+ * initiate the transaction. The value of @response_tstamp expresses the isochroanalus cycle at which
  * the response arrived to complete the transaction. Each value is unsigned 16 bit integer
  * containing three low order bits of second field and all 13 bits of cycle field in format of
  * CYCLE_TIMER register.
@@ -167,7 +167,7 @@ struct fw_cdev_event_response2 {
  * @closure:	See &fw_cdev_event_common; set by %FW_CDEV_IOC_ALLOCATE ioctl
  * @type:	See &fw_cdev_event_common; always %FW_CDEV_EVENT_REQUEST
  * @tcode:	Transaction code of the incoming request
- * @offset:	The offset into the 48-bit per-node address space
+ * @offset:	The offset into the 48-bit per-analde address space
  * @handle:	Reference to the kernel-side pending request
  * @length:	Data length, i.e. the request's payload size in bytes
  * @data:	Incoming data, if any
@@ -191,9 +191,9 @@ struct fw_cdev_event_request {
  * @closure:	See &fw_cdev_event_common; set by %FW_CDEV_IOC_ALLOCATE ioctl
  * @type:	See &fw_cdev_event_common; always %FW_CDEV_EVENT_REQUEST2
  * @tcode:	Transaction code of the incoming request
- * @offset:	The offset into the 48-bit per-node address space
- * @source_node_id: Sender node ID
- * @destination_node_id: Destination node ID
+ * @offset:	The offset into the 48-bit per-analde address space
+ * @source_analde_id: Sender analde ID
+ * @destination_analde_id: Destination analde ID
  * @card:	The index of the card from which the request came
  * @generation:	Bus generation in which the request is valid
  * @handle:	Reference to the kernel-side pending request
@@ -208,8 +208,8 @@ struct fw_cdev_event_request2 {
 	__u32 type;
 	__u32 tcode;
 	__u64 offset;
-	__u32 source_node_id;
-	__u32 destination_node_id;
+	__u32 source_analde_id;
+	__u32 destination_analde_id;
 	__u32 card;
 	__u32 generation;
 	__u32 handle;
@@ -222,14 +222,14 @@ struct fw_cdev_event_request2 {
  * @closure:	See &fw_cdev_event_common; set by %FW_CDEV_IOC_ALLOCATE ioctl
  * @type:	See &fw_cdev_event_common; always %FW_CDEV_EVENT_REQUEST2
  * @tcode:	Transaction code of the incoming request
- * @offset:	The offset into the 48-bit per-node address space
- * @source_node_id: Sender node ID
- * @destination_node_id: Destination node ID
+ * @offset:	The offset into the 48-bit per-analde address space
+ * @source_analde_id: Sender analde ID
+ * @destination_analde_id: Destination analde ID
  * @card:	The index of the card from which the request came
  * @generation:	Bus generation in which the request is valid
  * @handle:	Reference to the kernel-side pending request
  * @length:	Data length, i.e. the request's payload size in bytes
- * @tstamp:	The time stamp of isochronous cycle at which the request arrived.
+ * @tstamp:	The time stamp of isochroanalus cycle at which the request arrived.
  * @padding:	Padding to keep the size of structure as multiples of 8 in various architectures
  *		since 4 byte alignment is used for 8 byte of object type in System V ABI for i386
  *		architecture.
@@ -249,28 +249,28 @@ struct fw_cdev_event_request2 {
  * i.e. encodes the extended transaction code.
  *
  * @card may differ from &fw_cdev_get_info.card because requests are received
- * from all cards of the Linux host.  @source_node_id, @destination_node_id, and
- * @generation pertain to that card.  Destination node ID and bus generation may
+ * from all cards of the Linux host.  @source_analde_id, @destination_analde_id, and
+ * @generation pertain to that card.  Destination analde ID and bus generation may
  * therefore differ from the corresponding fields of the last
  * &fw_cdev_event_bus_reset.
  *
- * @destination_node_id may also differ from the current node ID because of a
- * non-local bus ID part or in case of a broadcast write request.  Note, a
+ * @destination_analde_id may also differ from the current analde ID because of a
+ * analn-local bus ID part or in case of a broadcast write request.  Analte, a
  * client must call an %FW_CDEV_IOC_SEND_RESPONSE ioctl even in case of a
  * broadcast write request; the kernel will then release the kernel-side pending
- * request but will not actually send a response packet.
+ * request but will analt actually send a response packet.
  *
  * In case of a write request to FCP_REQUEST or FCP_RESPONSE, the kernel already
  * sent a write response immediately after the request was received; in this
  * case the client must still call an %FW_CDEV_IOC_SEND_RESPONSE ioctl to
- * release the kernel-side pending request, though another response won't be
+ * release the kernel-side pending request, though aanalther response won't be
  * sent.
  *
- * If the client subsequently needs to initiate requests to the sender node of
+ * If the client subsequently needs to initiate requests to the sender analde of
  * an &fw_cdev_event_request3, it needs to use a device file with matching
- * card index, node ID, and generation for outbound requests.
+ * card index, analde ID, and generation for outbound requests.
  *
- * @tstamp is isochronous cycle at which the request arrived. It is 16 bit integer value and the
+ * @tstamp is isochroanalus cycle at which the request arrived. It is 16 bit integer value and the
  * higher 3 bits expresses three low order bits of second field in the format of CYCLE_TIME
  * register and the rest 13 bits expresses cycle field.
  */
@@ -279,8 +279,8 @@ struct fw_cdev_event_request3 {
 	__u32 type;
 	__u32 tcode;
 	__u64 offset;
-	__u32 source_node_id;
-	__u32 destination_node_id;
+	__u32 source_analde_id;
+	__u32 destination_analde_id;
 	__u32 card;
 	__u32 generation;
 	__u32 handle;
@@ -306,14 +306,14 @@ struct fw_cdev_event_request3 {
  * is about to overflow.  (In the last case, ABI versions < 5 drop header data
  * up to the next interrupt packet.)
  *
- * Isochronous transmit events (context type %FW_CDEV_ISO_CONTEXT_TRANSMIT):
+ * Isochroanalus transmit events (context type %FW_CDEV_ISO_CONTEXT_TRANSMIT):
  *
  * In version 3 and some implementations of version 2 of the ABI, &header_length
  * is a multiple of 4 and &header contains timestamps of all packets up until
  * the interrupt packet.  The format of the timestamps is as described below for
- * isochronous reception.  In version 1 of the ABI, &header_length was 0.
+ * isochroanalus reception.  In version 1 of the ABI, &header_length was 0.
  *
- * Isochronous receive events (context type %FW_CDEV_ISO_CONTEXT_RECEIVE):
+ * Isochroanalus receive events (context type %FW_CDEV_ISO_CONTEXT_RECEIVE):
  *
  * The headers stripped of all packets up until and including the interrupt
  * packet are returned in the @header field.  The amount of header data per
@@ -321,12 +321,12 @@ struct fw_cdev_event_request3 {
  * &fw_cdev_create_iso_context.header_size.
  *
  * Hence, _interrupt.header_length / _context.header_size is the number of
- * packets received in this interrupt event.  The client can now iterate
+ * packets received in this interrupt event.  The client can analw iterate
  * through the mmap()'ed DMA buffer according to this number of packets and
  * to the buffer sizes as the client specified in &fw_cdev_queue_iso.
  *
  * Since version 2 of this ABI, the portion for each packet in _interrupt.header
- * consists of the 1394 isochronous packet header, followed by a timestamp
+ * consists of the 1394 isochroanalus packet header, followed by a timestamp
  * quadlet if &fw_cdev_create_iso_context.header_size > 4, followed by quadlets
  * from the packet payload if &fw_cdev_create_iso_context.header_size > 8.
  *
@@ -338,9 +338,9 @@ struct fw_cdev_event_request3 {
  * Format of timestamp:  16 bits invalid, 3 bits cycleSeconds, 13 bits
  * cycleCount, in big endian byte order.
  *
- * In version 1 of the ABI, no timestamp quadlet was inserted; instead, payload
+ * In version 1 of the ABI, anal timestamp quadlet was inserted; instead, payload
  * data followed directly after the 1394 is header if header_size > 4.
- * Behaviour of ver. 1 of this ABI is no longer available since ABI ver. 2.
+ * Behaviour of ver. 1 of this ABI is anal longer available since ABI ver. 2.
  */
 struct fw_cdev_event_iso_interrupt {
 	__u64 closure;
@@ -378,7 +378,7 @@ struct fw_cdev_event_iso_interrupt {
  *
  * A packet near the end of a buffer chunk will typically spill over into the
  * next queued buffer chunk.  It is the responsibility of the client to check
- * for this condition, assemble a broken-up packet from its parts, and not to
+ * for this condition, assemble a broken-up packet from its parts, and analt to
  * re-queue any buffer chunks in which as yet unread packet parts reside.
  */
 struct fw_cdev_event_iso_interrupt_mc {
@@ -394,19 +394,19 @@ struct fw_cdev_event_iso_interrupt_mc {
  * @type:	%FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED or
  *		%FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED
  * @handle:	Reference by which an allocated resource can be deallocated
- * @channel:	Isochronous channel which was (de)allocated, if any
+ * @channel:	Isochroanalus channel which was (de)allocated, if any
  * @bandwidth:	Bandwidth allocation units which were (de)allocated, if any
  *
- * An %FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED event is sent after an isochronous
+ * An %FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED event is sent after an isochroanalus
  * resource was allocated at the IRM.  The client has to check @channel and
  * @bandwidth for whether the allocation actually succeeded.
  *
- * An %FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED event is sent after an isochronous
+ * An %FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED event is sent after an isochroanalus
  * resource was deallocated at the IRM.  It is also sent when automatic
  * reallocation after a bus reset failed.
  *
- * @channel is <0 if no channel was (de)allocated or if reallocation failed.
- * @bandwidth is 0 if no bandwidth was (de)allocated or if reallocation failed.
+ * @channel is <0 if anal channel was (de)allocated or if reallocation failed.
+ * @bandwidth is 0 if anal bandwidth was (de)allocated or if reallocation failed.
  */
 struct fw_cdev_event_iso_resource {
 	__u64 closure;
@@ -445,11 +445,11 @@ struct fw_cdev_event_phy_packet {
  * @type:	%FW_CDEV_EVENT_PHY_PACKET_SENT2 or %FW_CDEV_EVENT_PHY_PACKET_RECEIVED2
  * @rcode:	%RCODE_..., indicates success or failure of transmission
  * @length:	Data length in bytes
- * @tstamp:	For %FW_CDEV_EVENT_PHY_PACKET_RECEIVED2, the time stamp of isochronous cycle at
- *		which the packet arrived. For %FW_CDEV_EVENT_PHY_PACKET_SENT2 and non-ping packet,
- *		the time stamp of isochronous cycle at which the packet was sent. For ping packet,
+ * @tstamp:	For %FW_CDEV_EVENT_PHY_PACKET_RECEIVED2, the time stamp of isochroanalus cycle at
+ *		which the packet arrived. For %FW_CDEV_EVENT_PHY_PACKET_SENT2 and analn-ping packet,
+ *		the time stamp of isochroanalus cycle at which the packet was sent. For ping packet,
  *		the tick count for round-trip time measured by 1394 OHCI controller.
- * The time stamp of isochronous cycle at which either the response was sent for
+ * The time stamp of isochroanalus cycle at which either the response was sent for
  *		%FW_CDEV_EVENT_PHY_PACKET_SENT2 or the request arrived for
  *		%FW_CDEV_EVENT_PHY_PACKET_RECEIVED2.
  * @data:	Incoming data
@@ -460,12 +460,12 @@ struct fw_cdev_event_phy_packet {
  * If @type is %FW_CDEV_EVENT_PHY_PACKET_RECEIVED2, @length is 8 and @data consists of the two PHY
  * packet quadlets, in host byte order.
  *
- * For %FW_CDEV_EVENT_PHY_PACKET_RECEIVED2, the @tstamp is the isochronous cycle at which the
+ * For %FW_CDEV_EVENT_PHY_PACKET_RECEIVED2, the @tstamp is the isochroanalus cycle at which the
  * packet arrived. It is 16 bit integer value and the higher 3 bits expresses three low order bits
  * of second field and the rest 13 bits expresses cycle field in the format of CYCLE_TIME register.
  *
  * For %FW_CDEV_EVENT_PHY_PACKET_SENT2, the @tstamp has different meanings whether to sent the
- * packet for ping or not. If it's not for ping, the @tstamp is the isochronous cycle at which the
+ * packet for ping or analt. If it's analt for ping, the @tstamp is the isochroanalus cycle at which the
  * packet was sent, and use the same format as the case of %FW_CDEV_EVENT_PHY_PACKET_SENT2. If it's
  * for ping, the @tstamp is for round-trip time measured by 1394 OHCI controller with 42.195 MHz
  * resolution.
@@ -503,11 +503,11 @@ struct fw_cdev_event_phy_packet2 {
  *
  * Convenience union for userspace use.  Events could be read(2) into an
  * appropriately aligned char buffer and then cast to this union for further
- * processing.  Note that for a request, response or iso_interrupt event,
+ * processing.  Analte that for a request, response or iso_interrupt event,
  * the data[] or header[] may make the size of the full event larger than
- * sizeof(union fw_cdev_event).  Also note that if you attempt to read(2)
- * an event into a buffer that is not large enough for it, the data that does
- * not fit will be discarded so that the next read(2) will return a new event.
+ * sizeof(union fw_cdev_event).  Also analte that if you attempt to read(2)
+ * an event into a buffer that is analt large eanalugh for it, the data that does
+ * analt fit will be discarded so that the next read(2) will return a new event.
  */
 union fw_cdev_event {
 	struct fw_cdev_event_common		common;
@@ -571,14 +571,14 @@ union fw_cdev_event {
  *                 %FW_CDEV_IOC_GET_SPEED, %FW_CDEV_IOC_SEND_BROADCAST_REQUEST,
  *                 %FW_CDEV_IOC_SEND_STREAM_PACKET
  *     (2.6.32)  - added time stamp to xmit &fw_cdev_event_iso_interrupt
- *     (2.6.33)  - IR has always packet-per-buffer semantics now, not one of
+ *     (2.6.33)  - IR has always packet-per-buffer semantics analw, analt one of
  *                 dual-buffer or packet-per-buffer depending on hardware
  *               - shared use and auto-response for FCP registers
  *  3  (2.6.34)  - made &fw_cdev_get_cycle_timer reliable
  *               - added %FW_CDEV_IOC_GET_CYCLE_TIMER2
  *  4  (2.6.36)  - added %FW_CDEV_EVENT_REQUEST2, %FW_CDEV_EVENT_PHY_PACKET_*,
  *                 and &fw_cdev_allocate.region_end
- *               - implemented &fw_cdev_event_bus_reset.bm_node_id
+ *               - implemented &fw_cdev_event_bus_reset.bm_analde_id
  *               - added %FW_CDEV_IOC_SEND_PHY_PACKET, _RECEIVE_PHY_PACKETS
  *               - added %FW_CDEV_EVENT_ISO_INTERRUPT_MULTICHANNEL,
  *                 %FW_CDEV_ISO_CONTEXT_RECEIVE_MULTICHANNEL, and
@@ -586,7 +586,7 @@ union fw_cdev_event {
  *  5  (3.4)     - send %FW_CDEV_EVENT_ISO_INTERRUPT events when needed to
  *                 avoid dropping data
  *               - added %FW_CDEV_IOC_FLUSH_ISO
- *  6  (6.5)     - added some event for subactions of asynchronous transaction with time stamp
+ *  6  (6.5)     - added some event for subactions of asynchroanalus transaction with time stamp
  *                   - %FW_CDEV_EVENT_REQUEST3
  *                   - %FW_CDEV_EVENT_RESPONSE2
  *                   - %FW_CDEV_EVENT_PHY_PACKET_SENT2
@@ -600,15 +600,15 @@ union fw_cdev_event {
  *		output parameter (ABI version implemented by the kernel).
  *		A client shall fill in the ABI @version for which the client
  *		was implemented.  This is necessary for forward compatibility.
- * @rom_length:	If @rom is non-zero, up to @rom_length bytes of Configuration
+ * @rom_length:	If @rom is analn-zero, up to @rom_length bytes of Configuration
  *		ROM will be copied into that user space address.  In either
  *		case, @rom_length is updated with the actual length of the
  *		Configuration ROM.
- * @rom:	If non-zero, address of a buffer to be filled by a copy of the
+ * @rom:	If analn-zero, address of a buffer to be filled by a copy of the
  *		device's Configuration ROM
- * @bus_reset:	If non-zero, address of a buffer to be filled by a
+ * @bus_reset:	If analn-zero, address of a buffer to be filled by a
  *		&struct fw_cdev_event_bus_reset with the current state
- *		of the bus.  This does not cause a bus reset to happen.
+ *		of the bus.  This does analt cause a bus reset to happen.
  * @bus_reset_closure: Value of &closure in this and subsequent bus reset events
  * @card:	The index of the card this device belongs to
  *
@@ -628,10 +628,10 @@ struct fw_cdev_get_info {
 };
 
 /**
- * struct fw_cdev_send_request - Send an asynchronous request packet
+ * struct fw_cdev_send_request - Send an asynchroanalus request packet
  * @tcode:	Transaction code of the request
  * @length:	Length of outgoing payload, in bytes
- * @offset:	48-bit offset at destination node
+ * @offset:	48-bit offset at destination analde
  * @closure:	Passed back to userspace in the response event
  * @data:	Userspace pointer to payload
  * @generation:	The bus generation where packet is valid
@@ -652,7 +652,7 @@ struct fw_cdev_send_request {
 };
 
 /**
- * struct fw_cdev_send_response - Send an asynchronous response packet
+ * struct fw_cdev_send_response - Send an asynchroanalus response packet
  * @rcode:	Response code as determined by the userspace handler
  * @length:	Length of outgoing payload, in bytes
  * @data:	Userspace pointer to payload
@@ -679,7 +679,7 @@ struct fw_cdev_send_response {
  * @handle:	Handle to the allocation, written by the kernel
  * @region_end:	First address above the address range (added in ABI v4, 2.6.36)
  *
- * Allocate an address range in the 48-bit address space on the local node
+ * Allocate an address range in the 48-bit address space on the local analde
  * (the controller).  This allows userspace to listen for requests with an
  * offset within that address range.  Every time when the kernel receives a
  * request within the range, an &fw_cdev_event_request2 event will be emitted.
@@ -690,20 +690,20 @@ struct fw_cdev_send_response {
  * The @handle field is an out parameter, returning a handle to the allocated
  * range to be used for later deallocation of the range.
  *
- * The address range is allocated on all local nodes.  The address allocation
+ * The address range is allocated on all local analdes.  The address allocation
  * is exclusive except for the FCP command and response registers.  If an
- * exclusive address region is already in use, the ioctl fails with errno set
+ * exclusive address region is already in use, the ioctl fails with erranal set
  * to %EBUSY.
  *
  * If kernel and client implement ABI version >= 4, the kernel looks up a free
  * spot of size @length inside [@offset..@region_end) and, if found, writes
  * the start address of the new CSR back in @offset.  I.e. @offset is an
  * in and out parameter.  If this automatic placement of a CSR in a bigger
- * address range is not desired, the client simply needs to set @region_end
+ * address range is analt desired, the client simply needs to set @region_end
  * = @offset + @length.
  *
  * If the kernel or the client implements ABI version <= 3, @region_end is
- * ignored and effectively assumed to be @offset + @length.
+ * iganalred and effectively assumed to be @offset + @length.
  *
  * @region_end is only present in a kernel header >= 2.6.36.  If necessary,
  * this can for example be tested by #ifdef FW_CDEV_EVENT_REQUEST2.
@@ -717,7 +717,7 @@ struct fw_cdev_allocate {
 };
 
 /**
- * struct fw_cdev_deallocate - Free a CSR address range or isochronous resource
+ * struct fw_cdev_deallocate - Free a CSR address range or isochroanalus resource
  * @handle:	Handle to the address range or iso resource, as returned by the
  *		kernel when the range or resource was allocated
  */
@@ -746,22 +746,22 @@ struct fw_cdev_initiate_bus_reset {
 };
 
 /**
- * struct fw_cdev_add_descriptor - Add contents to the local node's config ROM
- * @immediate:	If non-zero, immediate key to insert before pointer
+ * struct fw_cdev_add_descriptor - Add contents to the local analde's config ROM
+ * @immediate:	If analn-zero, immediate key to insert before pointer
  * @key:	Upper 8 bits of root directory pointer
  * @data:	Userspace pointer to contents of descriptor block
  * @length:	Length of descriptor block data, in quadlets
  * @handle:	Handle to the descriptor, written by the kernel
  *
  * Add a descriptor block and optionally a preceding immediate key to the local
- * node's Configuration ROM.
+ * analde's Configuration ROM.
  *
  * The @key field specifies the upper 8 bits of the descriptor root directory
  * pointer and the @data and @length fields specify the contents. The @key
  * should be of the form 0xXX000000. The offset part of the root directory entry
  * will be filled in by the kernel.
  *
- * If not 0, the @immediate field specifies an immediate key which will be
+ * If analt 0, the @immediate field specifies an immediate key which will be
  * inserted before the root directory pointer.
  *
  * @immediate, @key, and @data array elements are CPU-endian quadlets.
@@ -769,10 +769,10 @@ struct fw_cdev_initiate_bus_reset {
  * If successful, the kernel adds the descriptor and writes back a @handle to
  * the kernel-side object to be used for later removal of the descriptor block
  * and immediate key.  The kernel will also generate a bus reset to signal the
- * change of the Configuration ROM to other nodes.
+ * change of the Configuration ROM to other analdes.
  *
- * This ioctl affects the Configuration ROMs of all local nodes.
- * The ioctl only succeeds on device files which represent a local node.
+ * This ioctl affects the Configuration ROMs of all local analdes.
+ * The ioctl only succeeds on device files which represent a local analde.
  */
 struct fw_cdev_add_descriptor {
 	__u32 immediate;
@@ -788,8 +788,8 @@ struct fw_cdev_add_descriptor {
  *		descriptor was added
  *
  * Remove a descriptor block and accompanying immediate key from the local
- * nodes' Configuration ROMs.  The kernel will also generate a bus reset to
- * signal the change of the Configuration ROM to other nodes.
+ * analdes' Configuration ROMs.  The kernel will also generate a bus reset to
+ * signal the change of the Configuration ROM to other analdes.
  */
 struct fw_cdev_remove_descriptor {
 	__u32 handle;
@@ -800,7 +800,7 @@ struct fw_cdev_remove_descriptor {
 #define FW_CDEV_ISO_CONTEXT_RECEIVE_MULTICHANNEL	2 /* added in 2.6.36 */
 
 /**
- * struct fw_cdev_create_iso_context - Create a context for isochronous I/O
+ * struct fw_cdev_create_iso_context - Create a context for isochroanalus I/O
  * @type:	%FW_CDEV_ISO_CONTEXT_TRANSMIT or %FW_CDEV_ISO_CONTEXT_RECEIVE or
  *		%FW_CDEV_ISO_CONTEXT_RECEIVE_MULTICHANNEL
  * @header_size: Header size to strip in single-channel reception
@@ -810,25 +810,25 @@ struct fw_cdev_remove_descriptor {
  *		&fw_cdev_event_iso_interrupt_multichannel
  * @handle:	Handle to context, written back by kernel
  *
- * Prior to sending or receiving isochronous I/O, a context must be created.
+ * Prior to sending or receiving isochroanalus I/O, a context must be created.
  * The context records information about the transmit or receive configuration
  * and typically maps to an underlying hardware resource.  A context is set up
- * for either sending or receiving.  It is bound to a specific isochronous
+ * for either sending or receiving.  It is bound to a specific isochroanalus
  * @channel.
  *
- * In case of multichannel reception, @header_size and @channel are ignored
+ * In case of multichannel reception, @header_size and @channel are iganalred
  * and the channels are selected by %FW_CDEV_IOC_SET_ISO_CHANNELS.
  *
  * For %FW_CDEV_ISO_CONTEXT_RECEIVE contexts, @header_size must be at least 4
- * and must be a multiple of 4.  It is ignored in other context types.
+ * and must be a multiple of 4.  It is iganalred in other context types.
  *
- * @speed is ignored in receive context types.
+ * @speed is iganalred in receive context types.
  *
  * If a context was successfully created, the kernel writes back a handle to the
  * context, which must be passed in for subsequent operations on that context.
  *
  * Limitations:
- * No more than one iso context can be created per fd.
+ * Anal more than one iso context can be created per fd.
  * The total number of contexts that all userspace and kernelspace drivers can
  * create on a card at a time is a hardware limit, typically 4 or 8 contexts per
  * direction, and of them at most one multichannel receive context.
@@ -849,8 +849,8 @@ struct fw_cdev_create_iso_context {
  *
  * @channels is the bitwise or of 1ULL << n for each channel n to listen to.
  *
- * The ioctl fails with errno %EBUSY if there is already another receive context
- * on a channel in @channels.  In that case, the bitmask of all unoccupied
+ * The ioctl fails with erranal %EBUSY if there is already aanalther receive context
+ * on a channel in @channels.  In that case, the bitmask of all uanalccupied
  * channels is returned in @channels.
  */
 struct fw_cdev_set_iso_channels {
@@ -867,14 +867,14 @@ struct fw_cdev_set_iso_channels {
 #define FW_CDEV_ISO_HEADER_LENGTH(v)	((v) << 24)
 
 /**
- * struct fw_cdev_iso_packet - Isochronous packet
+ * struct fw_cdev_iso_packet - Isochroanalus packet
  * @control:	Contains the header length (8 uppermost bits),
  *		the sy field (4 bits), the tag field (2 bits), a sync flag
  *		or a skip flag (1 bit), an interrupt flag (1 bit), and the
  *		payload length (16 lowermost bits)
  * @header:	Header and payload in case of a transmit context.
  *
- * &struct fw_cdev_iso_packet is used to describe isochronous packet queues.
+ * &struct fw_cdev_iso_packet is used to describe isochroanalus packet queues.
  * Use the FW_CDEV_ISO_* macros to fill in @control.
  * The @header array is empty in case of receive contexts.
  *
@@ -882,13 +882,13 @@ struct fw_cdev_set_iso_channels {
  *
  * @control.HEADER_LENGTH must be a multiple of 4.  It specifies the numbers of
  * bytes in @header that will be prepended to the packet's payload.  These bytes
- * are copied into the kernel and will not be accessed after the ioctl has
+ * are copied into the kernel and will analt be accessed after the ioctl has
  * returned.
  *
  * The @control.SY and TAG fields are copied to the iso packet header.  These
  * fields are specified by IEEE 1394a and IEC 61883-1.
  *
- * The @control.SKIP flag specifies that no packet is to be sent in a frame.
+ * The @control.SKIP flag specifies that anal packet is to be sent in a frame.
  * When using this, all other fields except @control.INTERRUPT must be zero.
  *
  * When a packet with the @control.INTERRUPT flag set has been completed, an
@@ -900,7 +900,7 @@ struct fw_cdev_set_iso_channels {
  * If the HEADER_LENGTH is larger than the context's header_size, multiple
  * packets are queued for this entry.
  *
- * The @control.SY and TAG fields are ignored.
+ * The @control.SY and TAG fields are iganalred.
  *
  * If the @control.SYNC flag is set, the context drops all packets until a
  * packet with a sy field is received which matches &fw_cdev_start_iso.sync.
@@ -909,9 +909,9 @@ struct fw_cdev_set_iso_channels {
  * one packet (in addition to payload quadlets that have been defined as headers
  * and are stripped and returned in the &fw_cdev_event_iso_interrupt structure).
  * If more bytes are received, the additional bytes are dropped.  If less bytes
- * are received, the remaining bytes in this part of the payload buffer will not
- * be written to, not even by the next packet.  I.e., packets received in
- * consecutive frames will not necessarily be consecutive in memory.  If an
+ * are received, the remaining bytes in this part of the payload buffer will analt
+ * be written to, analt even by the next packet.  I.e., packets received in
+ * consecutive frames will analt necessarily be consecutive in memory.  If an
  * entry has queued multiple packets, the PAYLOAD_LENGTH is divided equally
  * among them.
  *
@@ -923,13 +923,13 @@ struct fw_cdev_set_iso_channels {
  *
  * Here, &fw_cdev_iso_packet would be more aptly named _iso_buffer_chunk since
  * it specifies a chunk of the mmap()'ed buffer, while the number and alignment
- * of packets to be placed into the buffer chunk is not known beforehand.
+ * of packets to be placed into the buffer chunk is analt kanalwn beforehand.
  *
  * @control.PAYLOAD_LENGTH is the size of the buffer chunk and specifies room
  * for header, payload, padding, and trailer bytes of one or more packets.
  * It must be a multiple of 4.
  *
- * @control.HEADER_LENGTH, TAG and SY are ignored.  SYNC is treated as described
+ * @control.HEADER_LENGTH, TAG and SY are iganalred.  SYNC is treated as described
  * for single-channel reception.
  *
  * When a buffer chunk with the @control.INTERRUPT flag set has been filled
@@ -941,20 +941,20 @@ struct fw_cdev_iso_packet {
 };
 
 /**
- * struct fw_cdev_queue_iso - Queue isochronous packets for I/O
+ * struct fw_cdev_queue_iso - Queue isochroanalus packets for I/O
  * @packets:	Userspace pointer to an array of &fw_cdev_iso_packet
  * @data:	Pointer into mmap()'ed payload buffer
  * @size:	Size of the @packets array, in bytes
- * @handle:	Isochronous context handle
+ * @handle:	Isochroanalus context handle
  *
- * Queue a number of isochronous packets for reception or transmission.
+ * Queue a number of isochroanalus packets for reception or transmission.
  * This ioctl takes a pointer to an array of &fw_cdev_iso_packet structs,
  * which describe how to transmit from or receive into a contiguous region
  * of a mmap()'ed payload buffer.  As part of transmit packet descriptors,
  * a series of headers can be supplied, which will be prepended to the
  * payload during DMA.
  *
- * The kernel may or may not queue all packets, but will write back updated
+ * The kernel may or may analt queue all packets, but will write back updated
  * values of the @packets, @data and @size fields, so the ioctl can be
  * resubmitted easily.
  *
@@ -975,15 +975,15 @@ struct fw_cdev_queue_iso {
 #define FW_CDEV_ISO_CONTEXT_MATCH_ALL_TAGS	15
 
 /**
- * struct fw_cdev_start_iso - Start an isochronous transmission or reception
+ * struct fw_cdev_start_iso - Start an isochroanalus transmission or reception
  * @cycle:	Cycle in which to start I/O.  If @cycle is greater than or
  *		equal to 0, the I/O will start on that cycle.
  * @sync:	Determines the value to wait for receive packets that have
  *		the %FW_CDEV_ISO_SYNC bit set
- * @tags:	Tag filter bit mask.  Only valid for isochronous reception.
+ * @tags:	Tag filter bit mask.  Only valid for isochroanalus reception.
  *		Determines the tag values for which packets will be accepted.
  *		Use FW_CDEV_ISO_CONTEXT_MATCH_* macros to set @tags.
- * @handle:	Isochronous context handle within which to transmit or receive
+ * @handle:	Isochroanalus context handle within which to transmit or receive
  */
 struct fw_cdev_start_iso {
 	__s32 cycle;
@@ -993,8 +993,8 @@ struct fw_cdev_start_iso {
 };
 
 /**
- * struct fw_cdev_stop_iso - Stop an isochronous transmission or reception
- * @handle:	Handle of isochronous context to stop
+ * struct fw_cdev_stop_iso - Stop an isochroanalus transmission or reception
+ * @handle:	Handle of isochroanalus context to stop
  */
 struct fw_cdev_stop_iso {
 	__u32 handle;
@@ -1002,7 +1002,7 @@ struct fw_cdev_stop_iso {
 
 /**
  * struct fw_cdev_flush_iso - flush completed iso packets
- * @handle:	handle of isochronous context to flush
+ * @handle:	handle of isochroanalus context to flush
  *
  * For %FW_CDEV_ISO_CONTEXT_TRANSMIT or %FW_CDEV_ISO_CONTEXT_RECEIVE contexts,
  * report any completed packets.
@@ -1012,7 +1012,7 @@ struct fw_cdev_stop_iso {
  * middle of some buffer chunk.
  *
  * Any %FW_CDEV_EVENT_ISO_INTERRUPT or %FW_CDEV_EVENT_ISO_INTERRUPT_MULTICHANNEL
- * events generated by this ioctl are sent synchronously, i.e., are available
+ * events generated by this ioctl are sent synchroanalusly, i.e., are available
  * for reading from the file descriptor when this ioctl returns.
  */
 struct fw_cdev_flush_iso {
@@ -1027,8 +1027,8 @@ struct fw_cdev_flush_iso {
  * Same as %FW_CDEV_IOC_GET_CYCLE_TIMER2, but fixed to use %CLOCK_REALTIME
  * and only with microseconds resolution.
  *
- * In version 1 and 2 of the ABI, this ioctl returned unreliable (non-
- * monotonic) @cycle_timer values on certain controllers.
+ * In version 1 and 2 of the ABI, this ioctl returned unreliable (analn-
+ * moanaltonic) @cycle_timer values on certain controllers.
  */
 struct fw_cdev_get_cycle_timer {
 	__u64 local_time;
@@ -1038,21 +1038,21 @@ struct fw_cdev_get_cycle_timer {
 /**
  * struct fw_cdev_get_cycle_timer2 - read cycle timer register
  * @tv_sec:       system time, seconds
- * @tv_nsec:      system time, sub-seconds part in nanoseconds
+ * @tv_nsec:      system time, sub-seconds part in naanalseconds
  * @clk_id:       input parameter, clock from which to get the system time
  * @cycle_timer:  Cycle Time register contents
  *
- * The %FW_CDEV_IOC_GET_CYCLE_TIMER2 ioctl reads the isochronous cycle timer
+ * The %FW_CDEV_IOC_GET_CYCLE_TIMER2 ioctl reads the isochroanalus cycle timer
  * and also the system clock.  This allows to correlate reception time of
- * isochronous packets with system time.
+ * isochroanalus packets with system time.
  *
  * @clk_id lets you choose a clock like with POSIX' clock_gettime function.
- * Supported @clk_id values are POSIX' %CLOCK_REALTIME and %CLOCK_MONOTONIC
- * and Linux' %CLOCK_MONOTONIC_RAW.
+ * Supported @clk_id values are POSIX' %CLOCK_REALTIME and %CLOCK_MOANALTONIC
+ * and Linux' %CLOCK_MOANALTONIC_RAW.
  *
  * @cycle_timer consists of 7 bits cycleSeconds, 13 bits cycleCount, and
  * 12 bits cycleOffset, in host byte order.  Cf. the Cycle Time register
- * per IEEE 1394 or Isochronous Cycle Timer register per OHCI-1394.
+ * per IEEE 1394 or Isochroanalus Cycle Timer register per OHCI-1394.
  */
 struct fw_cdev_get_cycle_timer2 {
 	__s64 tv_sec;
@@ -1064,13 +1064,13 @@ struct fw_cdev_get_cycle_timer2 {
 /**
  * struct fw_cdev_allocate_iso_resource - (De)allocate a channel or bandwidth
  * @closure:	Passed back to userspace in corresponding iso resource events
- * @channels:	Isochronous channels of which one is to be (de)allocated
- * @bandwidth:	Isochronous bandwidth units to be (de)allocated
+ * @channels:	Isochroanalus channels of which one is to be (de)allocated
+ * @bandwidth:	Isochroanalus bandwidth units to be (de)allocated
  * @handle:	Handle to the allocation, written by the kernel (only valid in
  *		case of %FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE ioctls)
  *
  * The %FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE ioctl initiates allocation of an
- * isochronous channel and/or of isochronous bandwidth at the isochronous
+ * isochroanalus channel and/or of isochroanalus bandwidth at the isochroanalus
  * resource manager (IRM).  Only one of the channels specified in @channels is
  * allocated.  An %FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED is sent after
  * communication with the IRM, indicating success or failure in the event data.
@@ -1113,17 +1113,17 @@ struct fw_cdev_allocate_iso_resource {
 };
 
 /**
- * struct fw_cdev_send_stream_packet - send an asynchronous stream packet
+ * struct fw_cdev_send_stream_packet - send an asynchroanalus stream packet
  * @length:	Length of outgoing payload, in bytes
  * @tag:	Data format tag
- * @channel:	Isochronous channel to transmit to
+ * @channel:	Isochroanalus channel to transmit to
  * @sy:		Synchronization code
  * @closure:	Passed back to userspace in the response event
  * @data:	Userspace pointer to payload
  * @generation:	The bus generation where packet is valid
  * @speed:	Speed to transmit at
  *
- * The %FW_CDEV_IOC_SEND_STREAM_PACKET ioctl sends an asynchronous stream packet to every device
+ * The %FW_CDEV_IOC_SEND_STREAM_PACKET ioctl sends an asynchroanalus stream packet to every device
  * which is listening to the specified channel. The kernel writes either &fw_cdev_event_response
  * event or &fw_cdev_event_response2 event which indicates success or failure of the transmission.
  */
@@ -1144,7 +1144,7 @@ struct fw_cdev_send_stream_packet {
  * @data:	First and second quadlet of the PHY packet
  * @generation:	The bus generation where packet is valid
  *
- * The %FW_CDEV_IOC_SEND_PHY_PACKET ioctl sends a PHY packet to all nodes on the same card as this
+ * The %FW_CDEV_IOC_SEND_PHY_PACKET ioctl sends a PHY packet to all analdes on the same card as this
  * device.  After transmission, either %FW_CDEV_EVENT_PHY_PACKET_SENT event or
  * %FW_CDEV_EVENT_PHY_PACKET_SENT event is generated.
  *
@@ -1152,7 +1152,7 @@ struct fw_cdev_send_stream_packet {
  * @data\[1\] needs to be the bitwise inverse of @data\[0\].  VersaPHY packets
  * are an exception to this rule.
  *
- * The ioctl is only permitted on device files which represent a local node.
+ * The ioctl is only permitted on device files which represent a local analde.
  */
 struct fw_cdev_send_phy_packet {
 	__u64 closure;
@@ -1165,10 +1165,10 @@ struct fw_cdev_send_phy_packet {
  * @closure: Passed back to userspace in phy packet events
  *
  * This ioctl activates issuing of either %FW_CDEV_EVENT_PHY_PACKET_RECEIVED or
- * %FW_CDEV_EVENT_PHY_PACKET_RECEIVED2 due to incoming PHY packets from any node on the same bus
+ * %FW_CDEV_EVENT_PHY_PACKET_RECEIVED2 due to incoming PHY packets from any analde on the same bus
  * as the device.
  *
- * The ioctl is only permitted on device files which represent a local node.
+ * The ioctl is only permitted on device files which represent a local analde.
  */
 struct fw_cdev_receive_phy_packets {
 	__u64 closure;

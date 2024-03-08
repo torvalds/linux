@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Driver for the Surface ACPI Notify (SAN) interface/shim.
+ * Driver for the Surface ACPI Analtify (SAN) interface/shim.
  *
  * Translates communication from ACPI to Surface System Aggregator Module
  * (SSAM/SAM) requests and back, specifically SAM-over-SSH. Translates SSAM
- * events back to ACPI notifications. Allows handling of discrete GPU
- * notifications sent from ACPI via the SAN interface by providing them to any
+ * events back to ACPI analtifications. Allows handling of discrete GPU
+ * analtifications sent from ACPI via the SAN interface by providing them to any
  * registered external driver.
  *
  * Copyright (C) 2019-2022 Maximilian Luz <luzmaximilian@gmail.com>
@@ -17,12 +17,12 @@
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/platform_device.h>
 #include <linux/rwsem.h>
 
 #include <linux/surface_aggregator/controller.h>
-#include <linux/surface_acpi_notify.h>
+#include <linux/surface_acpi_analtify.h>
 
 struct san_data {
 	struct device *dev;
@@ -30,8 +30,8 @@ struct san_data {
 
 	struct acpi_connection_info info;
 
-	struct ssam_event_notifier nf_bat;
-	struct ssam_event_notifier nf_tmp;
+	struct ssam_event_analtifier nf_bat;
+	struct ssam_event_analtifier nf_tmp;
 };
 
 #define to_san_data(ptr, member) \
@@ -39,18 +39,18 @@ struct san_data {
 
 static struct workqueue_struct *san_wq;
 
-/* -- dGPU notifier interface. ---------------------------------------------- */
+/* -- dGPU analtifier interface. ---------------------------------------------- */
 
 struct san_rqsg_if {
 	struct rw_semaphore lock;
 	struct device *dev;
-	struct blocking_notifier_head nh;
+	struct blocking_analtifier_head nh;
 };
 
 static struct san_rqsg_if san_rqsg_if = {
 	.lock = __RWSEM_INITIALIZER(san_rqsg_if.lock),
 	.dev = NULL,
-	.nh = BLOCKING_NOTIFIER_INIT(san_rqsg_if.nh),
+	.nh = BLOCKING_ANALTIFIER_INIT(san_rqsg_if.nh),
 };
 
 static int san_set_rqsg_interface_device(struct device *dev)
@@ -75,13 +75,13 @@ static int san_set_rqsg_interface_device(struct device *dev)
  * the SAN device as provider. This function can be used to ensure that the
  * SAN interface has been set up and will be set up for as long as the driver
  * of the client device is bound. This guarantees that, during that time, all
- * dGPU events will be received by any registered notifier.
+ * dGPU events will be received by any registered analtifier.
  *
  * The link will be automatically removed once the client device's driver is
  * unbound.
  *
- * Return: Returns zero on success, %-ENXIO if the SAN interface has not been
- * set up yet, and %-ENOMEM if device link creation failed.
+ * Return: Returns zero on success, %-ENXIO if the SAN interface has analt been
+ * set up yet, and %-EANALMEM if device link creation failed.
  */
 int san_client_link(struct device *client)
 {
@@ -98,7 +98,7 @@ int san_client_link(struct device *client)
 	link = device_link_add(client, san_rqsg_if.dev, flags);
 	if (!link) {
 		up_read(&san_rqsg_if.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (READ_ONCE(link->status) == DL_STATE_SUPPLIER_UNBIND) {
@@ -112,35 +112,35 @@ int san_client_link(struct device *client)
 EXPORT_SYMBOL_GPL(san_client_link);
 
 /**
- * san_dgpu_notifier_register() - Register a SAN dGPU notifier.
- * @nb: The notifier-block to register.
+ * san_dgpu_analtifier_register() - Register a SAN dGPU analtifier.
+ * @nb: The analtifier-block to register.
  *
- * Registers a SAN dGPU notifier, receiving any new SAN dGPU events sent from
- * ACPI. The registered notifier will be called with &struct san_dgpu_event
- * as notifier data and the command ID of that event as notifier action.
+ * Registers a SAN dGPU analtifier, receiving any new SAN dGPU events sent from
+ * ACPI. The registered analtifier will be called with &struct san_dgpu_event
+ * as analtifier data and the command ID of that event as analtifier action.
  */
-int san_dgpu_notifier_register(struct notifier_block *nb)
+int san_dgpu_analtifier_register(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&san_rqsg_if.nh, nb);
+	return blocking_analtifier_chain_register(&san_rqsg_if.nh, nb);
 }
-EXPORT_SYMBOL_GPL(san_dgpu_notifier_register);
+EXPORT_SYMBOL_GPL(san_dgpu_analtifier_register);
 
 /**
- * san_dgpu_notifier_unregister() - Unregister a SAN dGPU notifier.
- * @nb: The notifier-block to unregister.
+ * san_dgpu_analtifier_unregister() - Unregister a SAN dGPU analtifier.
+ * @nb: The analtifier-block to unregister.
  */
-int san_dgpu_notifier_unregister(struct notifier_block *nb)
+int san_dgpu_analtifier_unregister(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&san_rqsg_if.nh, nb);
+	return blocking_analtifier_chain_unregister(&san_rqsg_if.nh, nb);
 }
-EXPORT_SYMBOL_GPL(san_dgpu_notifier_unregister);
+EXPORT_SYMBOL_GPL(san_dgpu_analtifier_unregister);
 
-static int san_dgpu_notifier_call(struct san_dgpu_event *evt)
+static int san_dgpu_analtifier_call(struct san_dgpu_event *evt)
 {
 	int ret;
 
-	ret = blocking_notifier_call_chain(&san_rqsg_if.nh, evt->command, evt);
-	return notifier_to_errno(ret);
+	ret = blocking_analtifier_call_chain(&san_rqsg_if.nh, evt->command, evt);
+	return analtifier_to_erranal(ret);
 }
 
 
@@ -182,7 +182,7 @@ struct san_event_work {
 	struct ssam_event event;	/* must be last */
 };
 
-static int san_acpi_notify_event(struct device *dev, u64 func,
+static int san_acpi_analtify_event(struct device *dev, u64 func,
 				 union acpi_object *param)
 {
 	acpi_handle san = ACPI_HANDLE(dev);
@@ -192,7 +192,7 @@ static int san_acpi_notify_event(struct device *dev, u64 func,
 	if (!acpi_check_dsm(san, &SAN_DSM_UUID, SAN_DSM_REVISION, BIT_ULL(func)))
 		return 0;
 
-	dev_dbg(dev, "notify event %#04llx\n", func);
+	dev_dbg(dev, "analtify event %#04llx\n", func);
 
 	obj = acpi_evaluate_dsm_typed(san, &SAN_DSM_UUID, SAN_DSM_REVISION,
 				      func, param, ACPI_TYPE_BUFFER);
@@ -212,22 +212,22 @@ static int san_evt_bat_adp(struct device *dev, const struct ssam_event *event)
 {
 	int status;
 
-	status = san_acpi_notify_event(dev, SAN_DSM_EVENT_FN_ADP1_STAT, NULL);
+	status = san_acpi_analtify_event(dev, SAN_DSM_EVENT_FN_ADP1_STAT, NULL);
 	if (status)
 		return status;
 
 	/*
 	 * Ensure that the battery states get updated correctly. When the
 	 * battery is fully charged and an adapter is plugged in, it sometimes
-	 * is not updated correctly, instead showing it as charging.
+	 * is analt updated correctly, instead showing it as charging.
 	 * Explicitly trigger battery updates to fix this.
 	 */
 
-	status = san_acpi_notify_event(dev, SAN_DSM_EVENT_FN_BAT1_STAT, NULL);
+	status = san_acpi_analtify_event(dev, SAN_DSM_EVENT_FN_BAT1_STAT, NULL);
 	if (status)
 		return status;
 
-	return san_acpi_notify_event(dev, SAN_DSM_EVENT_FN_BAT2_STAT, NULL);
+	return san_acpi_analtify_event(dev, SAN_DSM_EVENT_FN_BAT2_STAT, NULL);
 }
 
 static int san_evt_bat_bix(struct device *dev, const struct ssam_event *event)
@@ -239,7 +239,7 @@ static int san_evt_bat_bix(struct device *dev, const struct ssam_event *event)
 	else
 		fn = SAN_DSM_EVENT_FN_BAT1_INFO;
 
-	return san_acpi_notify_event(dev, fn, NULL);
+	return san_acpi_analtify_event(dev, fn, NULL);
 }
 
 static int san_evt_bat_bst(struct device *dev, const struct ssam_event *event)
@@ -251,7 +251,7 @@ static int san_evt_bat_bst(struct device *dev, const struct ssam_event *event)
 	else
 		fn = SAN_DSM_EVENT_FN_BAT1_STAT;
 
-	return san_acpi_notify_event(dev, fn, NULL);
+	return san_acpi_analtify_event(dev, fn, NULL);
 }
 
 static int san_evt_bat_dptf(struct device *dev, const struct ssam_event *event)
@@ -259,15 +259,15 @@ static int san_evt_bat_dptf(struct device *dev, const struct ssam_event *event)
 	union acpi_object payload;
 
 	/*
-	 * The Surface ACPI expects a buffer and not a package. It specifically
+	 * The Surface ACPI expects a buffer and analt a package. It specifically
 	 * checks for ObjectType (Arg3) == 0x03. This will cause a warning in
-	 * acpica/nsarguments.c, but that warning can be safely ignored.
+	 * acpica/nsarguments.c, but that warning can be safely iganalred.
 	 */
 	payload.type = ACPI_TYPE_BUFFER;
 	payload.buffer.length = event->length;
 	payload.buffer.pointer = (u8 *)&event->data[0];
 
-	return san_acpi_notify_event(dev, SAN_DSM_EVENT_FN_DPTF, &payload);
+	return san_acpi_analtify_event(dev, SAN_DSM_EVENT_FN_DPTF, &payload);
 }
 
 static unsigned long san_evt_bat_delay(u8 cid)
@@ -281,7 +281,7 @@ static unsigned long san_evt_bat_delay(u8 cid)
 		return msecs_to_jiffies(5000);
 
 	case SAM_EVENT_CID_BAT_BST:
-		/* Ensure we do not miss anything important due to caching. */
+		/* Ensure we do analt miss anything important due to caching. */
 		return msecs_to_jiffies(2000);
 
 	default:
@@ -338,7 +338,7 @@ static void san_evt_bat_workfn(struct work_struct *work)
 	kfree(ev);
 }
 
-static u32 san_evt_bat_nf(struct ssam_event_notifier *nf,
+static u32 san_evt_bat_nf(struct ssam_event_analtifier *nf,
 			  const struct ssam_event *event)
 {
 	struct san_data *d = to_san_data(nf, nf_bat);
@@ -346,11 +346,11 @@ static u32 san_evt_bat_nf(struct ssam_event_notifier *nf,
 	unsigned long delay = san_evt_bat_delay(event->command_id);
 
 	if (delay == 0)
-		return san_evt_bat(event, d->dev) ? SSAM_NOTIF_HANDLED : 0;
+		return san_evt_bat(event, d->dev) ? SSAM_ANALTIF_HANDLED : 0;
 
 	work = kzalloc(sizeof(*work) + event->length, GFP_KERNEL);
 	if (!work)
-		return ssam_notifier_from_errno(-ENOMEM);
+		return ssam_analtifier_from_erranal(-EANALMEM);
 
 	INIT_DELAYED_WORK(&work->work, san_evt_bat_workfn);
 	work->dev = d->dev;
@@ -359,7 +359,7 @@ static u32 san_evt_bat_nf(struct ssam_event_notifier *nf,
 	memcpy(work->event.data, event->data, event->length);
 
 	queue_delayed_work(san_wq, &work->work, delay);
-	return SSAM_NOTIF_HANDLED;
+	return SSAM_ANALTIF_HANDLED;
 }
 
 static int san_evt_tmp_trip(struct device *dev, const struct ssam_event *event)
@@ -367,14 +367,14 @@ static int san_evt_tmp_trip(struct device *dev, const struct ssam_event *event)
 	union acpi_object param;
 
 	/*
-	 * The Surface ACPI expects an integer and not a package. This will
+	 * The Surface ACPI expects an integer and analt a package. This will
 	 * cause a warning in acpica/nsarguments.c, but that warning can be
-	 * safely ignored.
+	 * safely iganalred.
 	 */
 	param.type = ACPI_TYPE_INTEGER;
 	param.integer.value = event->instance_id;
 
-	return san_acpi_notify_event(dev, SAN_DSM_EVENT_FN_THERMAL, &param);
+	return san_acpi_analtify_event(dev, SAN_DSM_EVENT_FN_THERMAL, &param);
 }
 
 static bool san_evt_tmp(const struct ssam_event *event, struct device *dev)
@@ -398,12 +398,12 @@ static bool san_evt_tmp(const struct ssam_event *event, struct device *dev)
 	return true;
 }
 
-static u32 san_evt_tmp_nf(struct ssam_event_notifier *nf,
+static u32 san_evt_tmp_nf(struct ssam_event_analtifier *nf,
 			  const struct ssam_event *event)
 {
 	struct san_data *d = to_san_data(nf, nf_tmp);
 
-	return san_evt_tmp(event, d->dev) ? SSAM_NOTIF_HANDLED : 0;
+	return san_evt_tmp(event, d->dev) ? SSAM_ANALTIF_HANDLED : 0;
 }
 
 
@@ -426,8 +426,8 @@ struct gsb_data_rqsx {
 
 struct gsb_data_etwl {
 	u8 cv;				/* Command value (should be 0x02). */
-	u8 etw3;			/* Unknown. */
-	u8 etw4;			/* Unknown. */
+	u8 etw3;			/* Unkanalwn. */
+	u8 etw4;			/* Unkanalwn. */
 	u8 msg[];			/* Error message (ASCIIZ). */
 } __packed;
 
@@ -543,10 +543,10 @@ static acpi_status san_rqst_fixup_suspended(struct san_data *d,
 		 * 0x02). Furthermore, we will only get here if the device (and
 		 * EC) have been suspended.
 		 *
-		 * We now assume that the device is in laptop mode (0x01). This
+		 * We analw assume that the device is in laptop mode (0x01). This
 		 * has the drawback that it will wake the device when unfolding
 		 * it in studio mode, but it also allows us to avoid actively
-		 * waiting for the EC to wake up, which may incur a notable
+		 * waiting for the EC to wake up, which may incur a analtable
 		 * delay.
 		 */
 
@@ -586,7 +586,7 @@ static acpi_status san_rqst(struct san_data *d, struct gsb_buffer *buffer)
 
 	/* Handle suspended device. */
 	if (d->dev->power.is_suspended) {
-		dev_warn(d->dev, "rqst: device is suspended, not executing\n");
+		dev_warn(d->dev, "rqst: device is suspended, analt executing\n");
 		return san_rqst_fixup_suspended(d, &rqst, buffer);
 	}
 
@@ -620,7 +620,7 @@ static acpi_status san_rqsg(struct san_data *d, struct gsb_buffer *buffer)
 	evt.length = get_unaligned(&gsb_rqsg->cdl);
 	evt.payload = &gsb_rqsg->pld[0];
 
-	status = san_dgpu_notifier_call(&evt);
+	status = san_dgpu_analtifier_call(&evt);
 	if (!status) {
 		gsb_rqsx_response_success(buffer, NULL, 0);
 	} else {
@@ -696,13 +696,13 @@ static int san_events_register(struct platform_device *pdev)
 	d->nf_tmp.event.mask = SSAM_EVENT_MASK_TARGET;
 	d->nf_tmp.event.flags = SSAM_EVENT_SEQUENCED;
 
-	status = ssam_notifier_register(d->ctrl, &d->nf_bat);
+	status = ssam_analtifier_register(d->ctrl, &d->nf_bat);
 	if (status)
 		return status;
 
-	status = ssam_notifier_register(d->ctrl, &d->nf_tmp);
+	status = ssam_analtifier_register(d->ctrl, &d->nf_tmp);
 	if (status)
-		ssam_notifier_unregister(d->ctrl, &d->nf_bat);
+		ssam_analtifier_unregister(d->ctrl, &d->nf_bat);
 
 	return status;
 }
@@ -711,8 +711,8 @@ static void san_events_unregister(struct platform_device *pdev)
 {
 	struct san_data *d = platform_get_drvdata(pdev);
 
-	ssam_notifier_unregister(d->ctrl, &d->nf_bat);
-	ssam_notifier_unregister(d->ctrl, &d->nf_tmp);
+	ssam_analtifier_unregister(d->ctrl, &d->nf_bat);
+	ssam_analtifier_unregister(d->ctrl, &d->nf_tmp);
 }
 
 #define san_consumer_printk(level, dev, handle, fmt, ...)			\
@@ -747,14 +747,14 @@ static acpi_status san_consumer_setup(acpi_handle handle, u32 lvl,
 	if (!acpi_device_dep(handle, ACPI_HANDLE(&pdev->dev)))
 		return AE_OK;
 
-	/* Ignore ACPI devices that are not present. */
+	/* Iganalre ACPI devices that are analt present. */
 	adev = acpi_fetch_acpi_dev(handle);
 	if (!adev)
 		return AE_OK;
 
 	san_consumer_dbg(&pdev->dev, handle, "creating device link\n");
 
-	/* Try to set up device links, ignore but log errors. */
+	/* Try to set up device links, iganalre but log errors. */
 	link = device_link_add(&adev->dev, &pdev->dev, flags);
 	if (!link) {
 		san_consumer_warn(&pdev->dev, handle, "failed to create device link\n");
@@ -785,7 +785,7 @@ static int san_probe(struct platform_device *pdev)
 
 	ctrl = ssam_client_bind(&pdev->dev);
 	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl) == -ENODEV ? -EPROBE_DEFER : PTR_ERR(ctrl);
+		return PTR_ERR(ctrl) == -EANALDEV ? -EPROBE_DEFER : PTR_ERR(ctrl);
 
 	status = san_consumer_links_setup(pdev);
 	if (status)
@@ -793,7 +793,7 @@ static int san_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = &pdev->dev;
 	data->ctrl = ctrl;
@@ -836,7 +836,7 @@ static void san_remove(struct platform_device *pdev)
 	san_events_unregister(pdev);
 
 	/*
-	 * We have unregistered our event sources. Now we need to ensure that
+	 * We have unregistered our event sources. Analw we need to ensure that
 	 * all delayed works they may have spawned are run to completion.
 	 */
 	flush_workqueue(san_wq);
@@ -848,13 +848,13 @@ static const struct acpi_device_id san_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, san_match);
 
-static struct platform_driver surface_acpi_notify = {
+static struct platform_driver surface_acpi_analtify = {
 	.probe = san_probe,
 	.remove_new = san_remove,
 	.driver = {
-		.name = "surface_acpi_notify",
+		.name = "surface_acpi_analtify",
 		.acpi_match_table = san_match,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 
@@ -864,8 +864,8 @@ static int __init san_init(void)
 
 	san_wq = alloc_workqueue("san_wq", 0, 0);
 	if (!san_wq)
-		return -ENOMEM;
-	ret = platform_driver_register(&surface_acpi_notify);
+		return -EANALMEM;
+	ret = platform_driver_register(&surface_acpi_analtify);
 	if (ret)
 		destroy_workqueue(san_wq);
 	return ret;
@@ -874,11 +874,11 @@ module_init(san_init);
 
 static void __exit san_exit(void)
 {
-	platform_driver_unregister(&surface_acpi_notify);
+	platform_driver_unregister(&surface_acpi_analtify);
 	destroy_workqueue(san_wq);
 }
 module_exit(san_exit);
 
 MODULE_AUTHOR("Maximilian Luz <luzmaximilian@gmail.com>");
-MODULE_DESCRIPTION("Surface ACPI Notify driver for Surface System Aggregator Module");
+MODULE_DESCRIPTION("Surface ACPI Analtify driver for Surface System Aggregator Module");
 MODULE_LICENSE("GPL");

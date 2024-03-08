@@ -9,7 +9,7 @@
  * Author: Raymond Tan <raymond.tan@intel.com>
  *
  * Limitations:
- * - The hardware cannot generate a 0 % or 100 % duty cycle. Both high and low
+ * - The hardware cananalt generate a 0 % or 100 % duty cycle. Both high and low
  *   periods are one or more input clock periods long.
  */
 
@@ -33,7 +33,7 @@ static int dwc_pwm_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	dwc = dwc_pwm_alloc(dev);
 	if (!dwc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pcim_enable_device(pci);
 	if (ret) {
@@ -52,7 +52,7 @@ static int dwc_pwm_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	dwc->base = pcim_iomap_table(pci)[0];
 	if (!dwc->base) {
 		dev_err(dev, "Base address missing\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = devm_pwmchip_add(dev, &dwc->chip);
@@ -68,7 +68,7 @@ static int dwc_pwm_probe(struct pci_dev *pci, const struct pci_device_id *id)
 static void dwc_pwm_remove(struct pci_dev *pci)
 {
 	pm_runtime_forbid(&pci->dev);
-	pm_runtime_get_noresume(&pci->dev);
+	pm_runtime_get_analresume(&pci->dev);
 }
 
 static int dwc_pwm_suspend(struct device *dev)

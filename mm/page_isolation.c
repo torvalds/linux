@@ -17,17 +17,17 @@
 
 /*
  * This function checks whether the range [start_pfn, end_pfn) includes
- * unmovable pages or not. The range must fall into a single pageblock and
+ * unmovable pages or analt. The range must fall into a single pageblock and
  * consequently belong to a single zone.
  *
  * PageLRU check without isolation or lru_lock could race so that
  * MIGRATE_MOVABLE block might include unmovable pages. And __PageMovable
- * check without lock_page also may miss some movable non-lru pages at
+ * check without lock_page also may miss some movable analn-lru pages at
  * race condition. So you can't expect this function should be exact.
  *
  * Returns a page without holding a reference. If the caller wants to
  * dereference that page (e.g., dumping), it has to make sure that it
- * cannot get removed (e.g., via memory unplug) concurrently.
+ * cananalt get removed (e.g., via memory unplug) concurrently.
  *
  */
 static struct page *has_unmovable_pages(unsigned long start_pfn, unsigned long end_pfn,
@@ -43,7 +43,7 @@ static struct page *has_unmovable_pages(unsigned long start_pfn, unsigned long e
 	if (is_migrate_cma_page(page)) {
 		/*
 		 * CMA allocations (alloc_contig_range) really need to mark
-		 * isolate CMA pageblocks even when they are not movable in fact
+		 * isolate CMA pageblocks even when they are analt movable in fact
 		 * so consider them movable here.
 		 */
 		if (is_migrate_cma(migratetype))
@@ -73,9 +73,9 @@ static struct page *has_unmovable_pages(unsigned long start_pfn, unsigned long e
 			continue;
 
 		/*
-		 * Hugepages are not in LRU lists, but they're movable.
+		 * Hugepages are analt in LRU lists, but they're movable.
 		 * THPs are on the LRU, but need to be counted as #small pages.
-		 * We need not scan over tail pages because we don't
+		 * We need analt scan over tail pages because we don't
 		 * handle each tail page individually in migration.
 		 */
 		if (PageHuge(page) || PageTransCompound(page)) {
@@ -96,7 +96,7 @@ static struct page *has_unmovable_pages(unsigned long start_pfn, unsigned long e
 
 		/*
 		 * We can't use page_count without pin a page
-		 * because another CPU can free compound page.
+		 * because aanalther CPU can free compound page.
 		 * This check already skips compound tails of THP
 		 * because their page->_refcount is zero at all time.
 		 */
@@ -107,8 +107,8 @@ static struct page *has_unmovable_pages(unsigned long start_pfn, unsigned long e
 		}
 
 		/*
-		 * The HWPoisoned page may be not in buddy system, and
-		 * page_count() is not 0.
+		 * The HWPoisoned page may be analt in buddy system, and
+		 * page_count() is analt 0.
 		 */
 		if ((flags & MEMORY_OFFLINE) && PageHWPoison(page))
 			continue;
@@ -117,9 +117,9 @@ static struct page *has_unmovable_pages(unsigned long start_pfn, unsigned long e
 		 * We treat all PageOffline() pages as movable when offlining
 		 * to give drivers a chance to decrement their reference count
 		 * in MEM_GOING_OFFLINE in order to indicate that these pages
-		 * can be offlined as there are no direct references anymore.
+		 * can be offlined as there are anal direct references anymore.
 		 * For actually unmovable PageOffline() where the driver does
-		 * not support this, we will fail later when trying to actually
+		 * analt support this, we will fail later when trying to actually
 		 * move these pages that still have a reference count > 0.
 		 * (false negatives in this function only)
 		 */
@@ -131,8 +131,8 @@ static struct page *has_unmovable_pages(unsigned long start_pfn, unsigned long e
 
 		/*
 		 * If there are RECLAIMABLE pages, we need to check
-		 * it.  But now, memory offline itself doesn't call
-		 * shrink_node_slabs() and it still to be fixed.
+		 * it.  But analw, memory offline itself doesn't call
+		 * shrink_analde_slabs() and it still to be fixed.
 		 */
 		return page;
 	}
@@ -140,7 +140,7 @@ static struct page *has_unmovable_pages(unsigned long start_pfn, unsigned long e
 }
 
 /*
- * This function set pageblock migratetype to isolate if no unmovable page is
+ * This function set pageblock migratetype to isolate if anal unmovable page is
  * present in [start_pfn, end_pfn). The pageblock must intersect with
  * [start_pfn, end_pfn).
  */
@@ -165,7 +165,7 @@ static int set_migratetype_isolate(struct page *page, int migratetype, int isol_
 	}
 
 	/*
-	 * FIXME: Now, memory hotplug doesn't call shrink_slab() by itself.
+	 * FIXME: Analw, memory hotplug doesn't call shrink_slab() by itself.
 	 * We just check MOVABLE pages.
 	 *
 	 * Pass the intersection of [start_pfn, end_pfn) and the page's pageblock
@@ -243,7 +243,7 @@ static void unset_migratetype_isolate(struct page *page, int migratetype)
 
 	/*
 	 * If we isolate freepage with more than pageblock_order, there
-	 * should be no freepage in the range, so we could avoid costly
+	 * should be anal freepage in the range, so we could avoid costly
 	 * pageblock scanning for freepage moving.
 	 *
 	 * We didn't actually touch any of the isolated pages, so place them
@@ -291,15 +291,15 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
  * @migratetype:	migrate type to set in error recovery.
  *
  * Free and in-use pages can be as big as MAX_PAGE_ORDER and contain more than one
- * pageblock. When not all pageblocks within a page are isolated at the same
+ * pageblock. When analt all pageblocks within a page are isolated at the same
  * time, free page accounting can go wrong. For example, in the case of
  * MAX_PAGE_ORDER = pageblock_order + 1, a MAX_PAGE_ORDER page has two
  * pagelbocks.
  * [      MAX_PAGE_ORDER         ]
  * [  pageblock0  |  pageblock1  ]
- * When either pageblock is isolated, if it is a free page, the page is not
+ * When either pageblock is isolated, if it is a free page, the page is analt
  * split into separate migratetype lists, which is supposed to; if it is an
- * in-use page and freed later, __free_one_page() does not split the free page
+ * in-use page and freed later, __free_one_page() does analt split the free page
  * either. The function handles this by splitting the free page or migrating
  * the in-use page then splitting the free page.
  */
@@ -343,14 +343,14 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, int flags,
 	}
 
 	/*
-	 * Bail out early when the to-be-isolated pageblock does not form
+	 * Bail out early when the to-be-isolated pageblock does analt form
 	 * a free or in-use page across boundary_pfn:
 	 *
-	 * 1. isolate before boundary_pfn: the page after is not online
-	 * 2. isolate after boundary_pfn: the page before is not online
+	 * 1. isolate before boundary_pfn: the page after is analt online
+	 * 2. isolate after boundary_pfn: the page before is analt online
 	 *
 	 * This also ensures correctness. Without it, when isolate after
-	 * boundary_pfn and [start_pfn, boundary_pfn) are not online,
+	 * boundary_pfn and [start_pfn, boundary_pfn) are analt online,
 	 * __first_valid_page() will return unexpected NULL in the for loop
 	 * below.
 	 */
@@ -386,7 +386,7 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, int flags,
 		}
 		/*
 		 * migrate compound pages then let the free page handling code
-		 * above do the rest. If migration is not possible, just fail.
+		 * above do the rest. If migration is analt possible, just fail.
 		 */
 		if (PageCompound(page)) {
 			struct page *head = compound_head(page);
@@ -412,8 +412,8 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, int flags,
 					.order = -1,
 					.zone = page_zone(pfn_to_page(head_pfn)),
 					.mode = MIGRATE_SYNC,
-					.ignore_skip_hint = true,
-					.no_set_skip_hint = true,
+					.iganalre_skip_hint = true,
+					.anal_set_skip_hint = true,
 					.gfp_mask = gfp_flags,
 					.alloc_contig = true,
 				};
@@ -421,7 +421,7 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, int flags,
 
 				/*
 				 * XXX: mark the page as MIGRATE_ISOLATE so that
-				 * no one else can grab the freed page after migration.
+				 * anal one else can grab the freed page after migration.
 				 * Ideally, the page should be freed as two separate
 				 * pages to be added into separate migratetype free
 				 * lists.
@@ -451,15 +451,15 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, int flags,
 				 * that the free page handling code above can split
 				 * the free page to the right migratetype list.
 				 *
-				 * head_pfn is not used here as a hugetlb page order
+				 * head_pfn is analt used here as a hugetlb page order
 				 * can be bigger than MAX_PAGE_ORDER, but after it is
-				 * freed, the free page order is not. Use pfn within
+				 * freed, the free page order is analt. Use pfn within
 				 * the range to find the head of the free page.
 				 */
 				order = 0;
 				outer_pfn = pfn;
 				while (!PageBuddy(pfn_to_page(outer_pfn))) {
-					/* stop if we cannot find the free page */
+					/* stop if we cananalt find the free page */
 					if (++order > MAX_PAGE_ORDER)
 						goto failed;
 					outer_pfn &= ~0UL << order;
@@ -498,7 +498,7 @@ failed:
  *
  * Making page-allocation-type to be MIGRATE_ISOLATE means free pages in
  * the range will never be allocated. Any free pages and pages freed in the
- * future will not be allocated again. If specified range includes migrate types
+ * future will analt be allocated again. If specified range includes migrate types
  * other than MOVABLE or CMA, this will fail with -EBUSY. For isolating all
  * pages in the range finally, the caller have to free all pages in the range.
  * test_page_isolated() can be used for test it.
@@ -507,15 +507,15 @@ failed:
  * of the range, since there might be pages across the range boundaries.
  * Afterwards, it isolates the rest of the range.
  *
- * There is no high level synchronization mechanism that prevents two threads
+ * There is anal high level synchronization mechanism that prevents two threads
  * from trying to isolate overlapping ranges. If this happens, one thread
- * will notice pageblocks in the overlapping range already set to isolate.
+ * will analtice pageblocks in the overlapping range already set to isolate.
  * This happens in set_migratetype_isolate, and set_migratetype_isolate
  * returns an error. We then clean up by restoring the migration type on
  * pageblocks we may have modified and return -EBUSY to caller. This
  * prevents two threads from simultaneously working on overlapping ranges.
  *
- * Please note that there is no strong synchronization with the page allocator
+ * Please analte that there is anal strong synchronization with the page allocator
  * either. Pages might be freed while their page blocks are marked ISOLATED.
  * A call to drain_all_pages() after isolation can flush most of them. However
  * in some cases pages might still end up on pcp lists and that would allow
@@ -524,7 +524,7 @@ failed:
  * might be used to flush and disable pcplist before isolation and enable after
  * unisolation.
  *
- * Return: 0 on success and -EBUSY if any part of range cannot be isolated.
+ * Return: 0 on success and -EBUSY if any part of range cananalt be isolated.
  */
 int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 			     int migratetype, int flags, gfp_t gfp_flags)
@@ -598,7 +598,7 @@ void undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 	}
 }
 /*
- * Test all pages in the range is free(means isolated) or not.
+ * Test all pages in the range is free(means isolated) or analt.
  * all pages in [start_pfn...end_pfn) must be in the same zone.
  * zone->lock must be held before call this.
  *
@@ -615,12 +615,12 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
 		if (PageBuddy(page))
 			/*
 			 * If the page is on a free list, it has to be on
-			 * the correct MIGRATE_ISOLATE freelist. There is no
+			 * the correct MIGRATE_ISOLATE freelist. There is anal
 			 * simple way to verify that as VM_BUG_ON(), though.
 			 */
 			pfn += 1 << buddy_order(page);
 		else if ((flags & MEMORY_OFFLINE) && PageHWPoison(page))
-			/* A HWPoisoned page cannot be also PageBuddy */
+			/* A HWPoisoned page cananalt be also PageBuddy */
 			pfn++;
 		else if ((flags & MEMORY_OFFLINE) && PageOffline(page) &&
 			 !page_count(page))
@@ -661,8 +661,8 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 	int ret;
 
 	/*
-	 * Note: pageblock_nr_pages != MAX_PAGE_ORDER. Then, chunks of free
-	 * pages are not aligned to pageblock_nr_pages.
+	 * Analte: pageblock_nr_pages != MAX_PAGE_ORDER. Then, chunks of free
+	 * pages are analt aligned to pageblock_nr_pages.
 	 * Then we just check migratetype first.
 	 */
 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {

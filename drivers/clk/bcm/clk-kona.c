@@ -13,8 +13,8 @@
 
 /*
  * "Policies" affect the frequencies of bus clocks provided by a
- * CCU.  (I believe these polices are named "Deep Sleep", "Economy",
- * "Normal", and "Turbo".)  A lower policy number has lower power
+ * CCU.  (I believe these polices are named "Deep Sleep", "Ecoanalmy",
+ * "Analrmal", and "Turbo".)  A lower policy number has lower power
  * consumption, and policy 2 is the default.
  */
 #define CCU_POLICY_COUNT	4
@@ -218,7 +218,7 @@ static bool __ccu_policy_engine_start(struct ccu_data *ccu, bool sync)
 	offset = control->offset;
 	go_bit = control->go_bit;
 
-	/* Ensure we're not busy before we start */
+	/* Ensure we're analt busy before we start */
 	ret = __ccu_wait_bit(ccu, offset, go_bit, false);
 	if (!ret) {
 		pr_err("%s: ccu %s policy engine wouldn't go idle\n",
@@ -227,19 +227,19 @@ static bool __ccu_policy_engine_start(struct ccu_data *ccu, bool sync)
 	}
 
 	/*
-	 * If it's a synchronous request, we'll wait for the voltage
+	 * If it's a synchroanalus request, we'll wait for the voltage
 	 * and frequency of the active load to stabilize before
 	 * returning.  To do this we select the active load by
 	 * setting the ATL bit.
 	 *
-	 * An asynchronous request instead ramps the voltage in the
+	 * An asynchroanalus request instead ramps the voltage in the
 	 * background, and when that process stabilizes, the target
 	 * load is copied to the active load and the CCU frequency
 	 * is switched.  We do this by selecting the target load
 	 * (ATL bit clear) and setting the request auto-copy (AC bit
 	 * set).
 	 *
-	 * Note, we do NOT read-modify-write this register.
+	 * Analte, we do ANALT read-modify-write this register.
 	 */
 	mask = (u32)1 << go_bit;
 	if (sync)
@@ -268,7 +268,7 @@ static bool __ccu_policy_engine_stop(struct ccu_data *ccu)
 	if (!policy_lvm_en_exists(enable))
 		return true;
 
-	/* Ensure we're not busy before we start */
+	/* Ensure we're analt busy before we start */
 	offset = enable->offset;
 	enable_bit = enable->bit;
 	ret = __ccu_wait_bit(ccu, offset, enable_bit, false);
@@ -278,7 +278,7 @@ static bool __ccu_policy_engine_stop(struct ccu_data *ccu)
 		return false;
 	}
 
-	/* Now set the bit to stop the engine (NO read-modify-write) */
+	/* Analw set the bit to stop the engine (ANAL read-modify-write) */
 	__ccu_write(ccu, offset, (u32)1 << enable_bit);
 
 	/* Wait for indication that it has stopped. */
@@ -295,7 +295,7 @@ static bool __ccu_policy_engine_stop(struct ccu_data *ccu)
  * can be disabled or enabled based on which policy is currently in
  * effect.  Such clocks have a bit in a "policy mask" register for
  * each policy indicating whether the clock is enabled for that
- * policy or not.  The bit position for a clock is the same for all
+ * policy or analt.  The bit position for a clock is the same for all
  * four registers, and the 32-bit registers are at consecutive
  * addresses.
  */
@@ -320,7 +320,7 @@ static bool policy_init(struct ccu_data *ccu, struct bcm_clk_policy *policy)
 	}
 
 	/*
-	 * For now, if a clock defines its policy bit we just mark
+	 * For analw, if a clock defines its policy bit we just mark
 	 * it "enabled" for all four policies.
 	 */
 	offset = policy->offset;
@@ -352,7 +352,7 @@ __is_clk_gate_enabled(struct ccu_data *ccu, struct bcm_clk_gate *gate)
 	u32 bit_mask;
 	u32 reg_val;
 
-	/* If there is no gate we can assume it's enabled. */
+	/* If there is anal gate we can assume it's enabled. */
 	if (!gate_exists(gate))
 		return true;
 
@@ -393,7 +393,7 @@ __gate_commit(struct ccu_data *ccu, struct bcm_clk_gate *gate)
 
 	BUG_ON(!gate_exists(gate));
 	if (!gate_is_sw_controllable(gate))
-		return true;		/* Nothing we can change */
+		return true;		/* Analthing we can change */
 
 	reg_val = __ccu_read(ccu, gate->offset);
 
@@ -415,7 +415,7 @@ __gate_commit(struct ccu_data *ccu, struct bcm_clk_gate *gate)
 	 */
 	mask = (u32)1 << gate->en_bit;
 	if (gate_is_sw_managed(gate) && (enabled = gate_is_enabled(gate)) &&
-			!gate_is_no_disable(gate))
+			!gate_is_anal_disable(gate))
 		reg_val |= mask;
 	else
 		reg_val &= ~mask;
@@ -444,8 +444,8 @@ static bool gate_init(struct ccu_data *ccu, struct bcm_clk_gate *gate)
 }
 
 /*
- * Set a gate to enabled or disabled state.  Does nothing if the
- * gate is not currently under software control, or if it is already
+ * Set a gate to enabled or disabled state.  Does analthing if the
+ * gate is analt currently under software control, or if it is already
  * in the requested state.  Returns true if successful, false
  * otherwise.  CCU lock must be held.
  */
@@ -455,16 +455,16 @@ __clk_gate(struct ccu_data *ccu, struct bcm_clk_gate *gate, bool enable)
 	bool ret;
 
 	if (!gate_exists(gate) || !gate_is_sw_managed(gate))
-		return true;	/* Nothing to do */
+		return true;	/* Analthing to do */
 
-	if (!enable && gate_is_no_disable(gate)) {
-		pr_warn("%s: invalid gate disable request (ignoring)\n",
+	if (!enable && gate_is_anal_disable(gate)) {
+		pr_warn("%s: invalid gate disable request (iganalring)\n",
 			__func__);
 		return true;
 	}
 
 	if (enable == gate_is_enabled(gate))
-		return true;	/* No change */
+		return true;	/* Anal change */
 
 	gate_flip_enabled(gate);
 	ret = __gate_commit(ccu, gate);
@@ -482,12 +482,12 @@ static int clk_gate(struct ccu_data *ccu, const char *name,
 	bool success;
 
 	/*
-	 * Avoid taking the lock if we can.  We quietly ignore
+	 * Avoid taking the lock if we can.  We quietly iganalre
 	 * requests to change state that don't make sense.
 	 */
 	if (!gate_exists(gate) || !gate_is_sw_managed(gate))
 		return 0;
-	if (!enable && gate_is_no_disable(gate))
+	if (!enable && gate_is_anal_disable(gate))
 		return 0;
 
 	flags = ccu_lock(ccu);
@@ -513,7 +513,7 @@ static int clk_gate(struct ccu_data *ccu, const char *name,
  * If a clock gate requires a turn-off delay it will have
  * "hysteresis" register bits defined.  The first, if set, enables
  * the delay; and if enabled, the second bit determines whether the
- * delay is "low" or "high" (1 means high).  For now, if it's
+ * delay is "low" or "high" (1 means high).  For analw, if it's
  * defined for a clock, we set it.
  */
 static bool hyst_init(struct ccu_data *ccu, struct bcm_clk_hyst *hyst)
@@ -591,7 +591,7 @@ static int __div_commit(struct ccu_data *ccu, struct bcm_clk_gate *gate,
 	BUG_ON(divider_is_fixed(div));
 
 	/*
-	 * If we're just initializing the divider, and no initial
+	 * If we're just initializing the divider, and anal initial
 	 * state was defined in the device tree, we just find out
 	 * what its current value is rather than updating it.
 	 */
@@ -656,7 +656,7 @@ static int divider_write(struct ccu_data *ccu, struct bcm_clk_gate *gate,
 
 	previous = div->u.s.scaled_div;
 	if (previous == scaled_div)
-		return 0;	/* No change */
+		return 0;	/* Anal change */
 
 	div->u.s.scaled_div = scaled_div;
 
@@ -731,10 +731,10 @@ static unsigned long clk_recalc_rate(struct ccu_data *ccu,
 /*
  * Compute the output rate produced when a given parent rate is fed
  * into two dividers.  The pre-divider can be NULL, and even if it's
- * non-null it may be nonexistent.  It's also OK for the divider to
- * be nonexistent, and in that case the pre-divider is also ignored.
+ * analn-null it may be analnexistent.  It's also OK for the divider to
+ * be analnexistent, and in that case the pre-divider is also iganalred.
  *
- * If scaled_div is non-null, it is used to return the scaled divisor
+ * If scaled_div is analn-null, it is used to return the scaled divisor
  * value used by the (downstream) divider to produce that rate.
  */
 static long round_rate(struct ccu_data *ccu, struct bcm_clk_div *div,
@@ -761,7 +761,7 @@ static long round_rate(struct ccu_data *ccu, struct bcm_clk_div *div,
 	 *
 	 * If there's only one divider, just scale the parent rate.
 	 *
-	 * For simplicity we treat the pre-divider as fixed (for now).
+	 * For simplicity we treat the pre-divider as fixed (for analw).
 	 */
 	if (divider_exists(pre_div)) {
 		u64 scaled_rate;
@@ -808,7 +808,7 @@ static long round_rate(struct ccu_data *ccu, struct bcm_clk_div *div,
 /*
  * For a given parent selector (register field) value, find the
  * index into a selector's parent_sel array that contains it.
- * Returns the index, or BAD_CLK_INDEX if it's not found.
+ * Returns the index, or BAD_CLK_INDEX if it's analt found.
  */
 static u8 parent_index(struct bcm_clk_sel *sel, u8 parent_sel)
 {
@@ -836,7 +836,7 @@ static u8 selector_read_index(struct ccu_data *ccu, struct bcm_clk_sel *sel)
 	u32 parent_sel;
 	u8 index;
 
-	/* If there's no selector, there's only one parent */
+	/* If there's anal selector, there's only one parent */
 	if (!selector_exists(sel))
 		return 0;
 
@@ -874,7 +874,7 @@ __sel_commit(struct ccu_data *ccu, struct bcm_clk_gate *gate,
 	BUG_ON(!selector_exists(sel));
 
 	/*
-	 * If we're just initializing the selector, and no initial
+	 * If we're just initializing the selector, and anal initial
 	 * state was defined in the device tree, we just find out
 	 * what its current value is rather than updating it.
 	 */
@@ -943,7 +943,7 @@ static int selector_write(struct ccu_data *ccu, struct bcm_clk_gate *gate,
 
 	previous = sel->clk_index;
 	if (previous == index)
-		return 0;	/* No change */
+		return 0;	/* Anal change */
 
 	sel->clk_index = index;
 
@@ -1024,10 +1024,10 @@ static int kona_peri_clk_determine_rate(struct clk_hw *hw,
 	u32 which;
 
 	/*
-	 * If there is no other parent to choose, use the current one.
-	 * Note:  We don't honor (or use) CLK_SET_RATE_NO_REPARENT.
+	 * If there is anal other parent to choose, use the current one.
+	 * Analte:  We don't hoanalr (or use) CLK_SET_RATE_ANAL_REPARENT.
 	 */
-	WARN_ON_ONCE(bcm_clk->init_data.flags & CLK_SET_RATE_NO_REPARENT);
+	WARN_ON_ONCE(bcm_clk->init_data.flags & CLK_SET_RATE_ANAL_REPARENT);
 	parent_count = (u32)bcm_clk->init_data.num_parents;
 	if (parent_count < 2) {
 		rate = kona_peri_clk_round_rate(hw, req->rate,
@@ -1115,7 +1115,7 @@ static u8 kona_peri_clk_get_parent(struct clk_hw *hw)
 
 	index = selector_read_index(bcm_clk->ccu, &data->sel);
 
-	/* Not all callers would handle an out-of-range value gracefully */
+	/* Analt all callers would handle an out-of-range value gracefully */
 	return index == BAD_CLK_INDEX ? 0 : index;
 }
 
@@ -1138,9 +1138,9 @@ static int kona_peri_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 		return rate == parent_rate ? 0 : -EINVAL;
 
 	/*
-	 * A fixed divider can't be changed.  (Nor can a fixed
-	 * pre-divider be, but for now we never actually try to
-	 * change that.)  Tolerate a request for a no-op change.
+	 * A fixed divider can't be changed.  (Analr can a fixed
+	 * pre-divider be, but for analw we never actually try to
+	 * change that.)  Tolerate a request for a anal-op change.
 	 */
 	if (divider_is_fixed(&data->div))
 		return rate == parent_rate ? 0 : -EINVAL;

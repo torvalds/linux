@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * This may not use any stack, nor any variable that is not "NoSave":
+ * This may analt use any stack, analr any variable that is analt "AnalSave":
  *
- * Its rewriting one kernel image with another. What is stack in "old"
+ * Its rewriting one kernel image with aanalther. What is stack in "old"
  * image could very well be data page in "new" image, and overwriting
  * your own stack under you is bad idea.
  */

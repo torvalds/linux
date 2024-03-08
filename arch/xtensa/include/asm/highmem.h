@@ -43,7 +43,7 @@ static inline unsigned int get_next_pkmap_nr(unsigned int color)
 	return last_pkmap_nr_arr[color] + color;
 }
 
-static inline int no_more_pkmaps(unsigned int pkmap_nr, unsigned int color)
+static inline int anal_more_pkmaps(unsigned int pkmap_nr, unsigned int color)
 {
 	return pkmap_nr < DCACHE_N_COLORS;
 }

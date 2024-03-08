@@ -23,10 +23,10 @@
 	structs and constants for tracing
 */
 
-/* one tracer item: major, minor and counter. The counter value can be used for GP data */
+/* one tracer item: major, mianalr and counter. The counter value can be used for GP data */
 struct trace_item_t {
 	u8   major;
-	u8   minor;
+	u8   mianalr;
 	u16  counter;
 };
 
@@ -91,7 +91,7 @@ enum TRACE_CORE_ID {
 
 /* TODO: add timing format? */
 enum TRACE_DUMP_FORMAT {
-	TRACE_DUMP_FORMAT_POINT_NO_TID,
+	TRACE_DUMP_FORMAT_POINT_ANAL_TID,
 	TRACE_DUMP_FORMAT_VALUE24,
 	TRACE_DUMP_FORMAT_VALUE24_TIMING,
 	TRACE_DUMP_FORMAT_VALUE24_TIMING_DELTA,
@@ -148,7 +148,7 @@ enum TRACE_DUMP_FORMAT {
 
 /* check if it's a legal division */
 #if (TRACE_BUFF_SIZE < TRACE_SP0_SIZE + TRACE_SP1_SIZE + TRACE_ISP_SIZE)
-#error trace sizes are not divided correctly and are above limit
+#error trace sizes are analt divided correctly and are above limit
 #endif
 
 #define TRACE_SP0_HEADER_ADDR (TRACE_SP0_ADDR)
@@ -216,13 +216,13 @@ typedef enum {
 #define FIELD_VALUE_PACK(f)		FIELD_PACK(f, FIELD_VALUE_MASK, FIELD_VALUE_OFFSET)
 #define FIELD_VALUE_UNPACK(f)		FIELD_UNPACK(f, FIELD_VALUE_MASK, FIELD_VALUE_OFFSET)
 
-#define FIELD_MINOR_OFFSET		(FIELD_VALUE_OFFSET + FIELD_VALUE_WIDTH)
-#define FIELD_MINOR_WIDTH		(8)
-#define FIELD_MINOR_MASK		FIELD_MASK(FIELD_MINOR_WIDTH)
-#define FIELD_MINOR_PACK(f)		FIELD_PACK(f, FIELD_MINOR_MASK, FIELD_MINOR_OFFSET)
-#define FIELD_MINOR_UNPACK(f)		FIELD_UNPACK(f, FIELD_MINOR_MASK, FIELD_MINOR_OFFSET)
+#define FIELD_MIANALR_OFFSET		(FIELD_VALUE_OFFSET + FIELD_VALUE_WIDTH)
+#define FIELD_MIANALR_WIDTH		(8)
+#define FIELD_MIANALR_MASK		FIELD_MASK(FIELD_MIANALR_WIDTH)
+#define FIELD_MIANALR_PACK(f)		FIELD_PACK(f, FIELD_MIANALR_MASK, FIELD_MIANALR_OFFSET)
+#define FIELD_MIANALR_UNPACK(f)		FIELD_UNPACK(f, FIELD_MIANALR_MASK, FIELD_MIANALR_OFFSET)
 
-#define FIELD_MAJOR_OFFSET		(FIELD_MINOR_OFFSET + FIELD_MINOR_WIDTH)
+#define FIELD_MAJOR_OFFSET		(FIELD_MIANALR_OFFSET + FIELD_MIANALR_WIDTH)
 #define FIELD_MAJOR_WIDTH		(5)
 #define FIELD_MAJOR_MASK		FIELD_MASK(FIELD_MAJOR_WIDTH)
 #define FIELD_MAJOR_PACK(f)		FIELD_PACK(f, FIELD_MAJOR_MASK, FIELD_MAJOR_OFFSET)
@@ -263,14 +263,14 @@ typedef enum {
 #define FIELD_VALUE_24_PACK(f)		FIELD_PACK(f, FIELD_VALUE_24_MASK, FIELD_VALUE_24_OFFSET)
 #define FIELD_VALUE_24_UNPACK(f)	FIELD_UNPACK(f, FIELD_VALUE_24_MASK, FIELD_VALUE_24_OFFSET)
 
-#define PACK_TRACEPOINT(tid, major, minor, value)	\
-	(FIELD_TID_PACK(tid) | FIELD_MAJOR_PACK(major) | FIELD_MINOR_PACK(minor) | FIELD_VALUE_PACK(value))
+#define PACK_TRACEPOINT(tid, major, mianalr, value)	\
+	(FIELD_TID_PACK(tid) | FIELD_MAJOR_PACK(major) | FIELD_MIANALR_PACK(mianalr) | FIELD_VALUE_PACK(value))
 
-#define PACK_QUICK_TRACEPOINT(major, minor)	\
-	(FIELD_FULL_MAJOR_PACK(major) | FIELD_MINOR_PACK(minor))
+#define PACK_QUICK_TRACEPOINT(major, mianalr)	\
+	(FIELD_FULL_MAJOR_PACK(major) | FIELD_MIANALR_PACK(mianalr))
 
-#define PACK_FORMATTED_TRACEPOINT(format, major, minor, value)	\
-	(FIELD_TID_PACK(FIELD_TID_SEL_FORMAT_PAT) | FIELD_FORMAT_PACK(format) | FIELD_MAJOR_PACK(major) | FIELD_MINOR_PACK(minor) | FIELD_VALUE_PACK(value))
+#define PACK_FORMATTED_TRACEPOINT(format, major, mianalr, value)	\
+	(FIELD_TID_PACK(FIELD_TID_SEL_FORMAT_PAT) | FIELD_FORMAT_PACK(format) | FIELD_MAJOR_PACK(major) | FIELD_MIANALR_PACK(mianalr) | FIELD_VALUE_PACK(value))
 
 #define PACK_TRACE_VALUE24(major, value)	\
 	(FIELD_TID_PACK(FIELD_TID_SEL_FORMAT_PAT) | FIELD_MAJOR_PACK(major) | FIELD_VALUE_24_PACK(value))

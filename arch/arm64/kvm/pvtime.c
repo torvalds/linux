@@ -35,7 +35,7 @@ void kvm_update_stolen_time(struct kvm_vcpu *vcpu)
 long kvm_hypercall_pv_features(struct kvm_vcpu *vcpu)
 {
 	u32 feature = smccc_get_arg1(vcpu);
-	long val = SMCCC_RET_NOT_SUPPORTED;
+	long val = SMCCC_RET_ANALT_SUPPORTED;
 
 	switch (feature) {
 	case ARM_SMCCC_HV_PV_TIME_FEATURES:

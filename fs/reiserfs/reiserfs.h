@@ -23,7 +23,7 @@
 
 struct reiserfs_journal_list;
 
-/* bitmasks for i_flags field in reiserfs-specific part of inode */
+/* bitmasks for i_flags field in reiserfs-specific part of ianalde */
 typedef enum {
 	/*
 	 * this says what format of key do all items (but stat data) of
@@ -41,7 +41,7 @@ typedef enum {
 	i_pack_on_close_mask = 0x0004,
 
 	/* don't pack tail of file */
-	i_nopack_mask = 0x0008,
+	i_analpack_mask = 0x0008,
 
 	/*
 	 * If either of these are set, "safe link" was created for this
@@ -53,13 +53,13 @@ typedef enum {
 
 	i_has_xattr_dir = 0x0040,
 	i_data_log = 0x0080,
-} reiserfs_inode_flags;
+} reiserfs_ianalde_flags;
 
-struct reiserfs_inode_info {
+struct reiserfs_ianalde_info {
 	__u32 i_key[4];		/* key is still 4 32 bit integers */
 
 	/*
-	 * transient inode flags that are never stored on disk. Bitmasks
+	 * transient ianalde flags that are never stored on disk. Bitmasks
 	 * for this field are defined above.
 	 */
 	__u32 i_flags;
@@ -67,14 +67,14 @@ struct reiserfs_inode_info {
 	/* offset of first byte stored in direct item. */
 	__u32 i_first_direct_byte;
 
-	/* copy of persistent inode flags read from sd_attrs. */
+	/* copy of persistent ianalde flags read from sd_attrs. */
 	__u32 i_attrs;
 
 	/* first unused block of a sequence of unused blocks */
 	int i_prealloc_block;
 	int i_prealloc_count;	/* length of that sequence */
 
-	/* per-transaction list of inodes which  have preallocated blocks */
+	/* per-transaction list of ianaldes which  have preallocated blocks */
 	struct list_head i_prealloc_list;
 
 	/*
@@ -85,7 +85,7 @@ struct reiserfs_inode_info {
 
 	/*
 	 * we use these for fsync or O_SYNC to decide which transaction
-	 * needs to be committed in order for this inode to be properly
+	 * needs to be committed in order for this ianalde to be properly
 	 * flushed
 	 */
 	unsigned int i_trans_id;
@@ -100,7 +100,7 @@ struct reiserfs_inode_info {
 	struct dquot *i_dquot[MAXQUOTAS];
 #endif
 
-	struct inode vfs_inode;
+	struct ianalde vfs_ianalde;
 };
 
 typedef enum {
@@ -182,7 +182,7 @@ typedef enum {
  * These all interelate for performance.
  *
  * If the journal block count is smaller than n transactions, you lose speed.
- * I don't know what n is yet, I'm guessing 8-16.
+ * I don't kanalw what n is yet, I'm guessing 8-16.
  *
  * typical transaction size depends on the application, how often fsync is
  * called, and how many metadata blocks you dirty in a 30 second period.
@@ -192,7 +192,7 @@ typedef enum {
  * If your journal fills faster than dirty buffers get flushed to disk, it
  * must flush them before allowing the journal to wrap, which slows things
  * down.  If you need high speed meta data updates, the journal should be
- * big enough to prevent wrapping before dirty meta blocks get to disk.
+ * big eanalugh to prevent wrapping before dirty meta blocks get to disk.
  *
  * If the batch max is smaller than the transaction max, you'll waste space
  * at the end of the journal because journal_end sets the next transaction
@@ -203,9 +203,9 @@ typedef enum {
  */
 
 /* don't mess with these for a while */
-/* we have a node size define somewhere in reiserfs_fs.h. -Hans */
+/* we have a analde size define somewhere in reiserfs_fs.h. -Hans */
 #define JOURNAL_BLOCK_SIZE  4096	/* BUG gotta get rid of this */
-#define JOURNAL_MAX_CNODE   1500	/* max cnodes to allocate. */
+#define JOURNAL_MAX_CANALDE   1500	/* max canaldes to allocate. */
 #define JOURNAL_HASH_SIZE 8192
 
 /* number of copies of the bitmaps to have floating.  Must be >= 2 */
@@ -218,10 +218,10 @@ typedef enum {
  * next and prev are used by the current transaction (journal_hash).
  * hnext and hprev are used by journal_list_hash.  If a block is in more
  * than one transaction, the journal_list_hash links it in multiple times.
- * This allows flush_journal_list to remove just the cnode belonging to a
+ * This allows flush_journal_list to remove just the canalde belonging to a
  * given transaction.
  */
-struct reiserfs_journal_cnode {
+struct reiserfs_journal_canalde {
 	struct buffer_head *bh;	/* real buffer head */
 	struct super_block *sb;	/* dev of real buffer head */
 
@@ -230,16 +230,16 @@ struct reiserfs_journal_cnode {
 
 	unsigned long state;
 
-	/* journal list this cnode lives in */
+	/* journal list this canalde lives in */
 	struct reiserfs_journal_list *jlist;
 
-	struct reiserfs_journal_cnode *next;	/* next in transaction list */
-	struct reiserfs_journal_cnode *prev;	/* prev in transaction list */
-	struct reiserfs_journal_cnode *hprev;	/* prev in hash list */
-	struct reiserfs_journal_cnode *hnext;	/* next in hash list */
+	struct reiserfs_journal_canalde *next;	/* next in transaction list */
+	struct reiserfs_journal_canalde *prev;	/* prev in transaction list */
+	struct reiserfs_journal_canalde *hprev;	/* prev in hash list */
+	struct reiserfs_journal_canalde *hnext;	/* next in hash list */
 };
 
-struct reiserfs_bitmap_node {
+struct reiserfs_bitmap_analde {
 	int id;
 	char *data;
 	struct list_head list;
@@ -247,12 +247,12 @@ struct reiserfs_bitmap_node {
 
 struct reiserfs_list_bitmap {
 	struct reiserfs_journal_list *journal_list;
-	struct reiserfs_bitmap_node **bitmaps;
+	struct reiserfs_bitmap_analde **bitmaps;
 };
 
 /*
  * one of these for each transaction.  The most important part here is the
- * j_realblock.  this list of cnodes is used to hash all the blocks in all
+ * j_realblock.  this list of canaldes is used to hash all the blocks in all
  * the commits, to mark all the real buffer heads dirty once all the commits
  * hit the disk, and to make sure every real block in a transaction is on
  * disk before allowing the log area to be overwritten
@@ -261,7 +261,7 @@ struct reiserfs_journal_list {
 	unsigned long j_start;
 	unsigned long j_state;
 	unsigned long j_len;
-	atomic_t j_nonzerolen;
+	atomic_t j_analnzerolen;
 	atomic_t j_commit_left;
 
 	/* all commits older than this on disk */
@@ -272,8 +272,8 @@ struct reiserfs_journal_list {
 	time64_t j_timestamp; /* write-only but useful for crash dump analysis */
 	struct reiserfs_list_bitmap *j_list_bitmap;
 	struct buffer_head *j_commit_bh;	/* commit buffer head */
-	struct reiserfs_journal_cnode *j_realblock;
-	struct reiserfs_journal_cnode *j_freedlist;	/* list of buffers that were freed during this trans.  free each of these on flush */
+	struct reiserfs_journal_canalde *j_realblock;
+	struct reiserfs_journal_canalde *j_freedlist;	/* list of buffers that were freed during this trans.  free each of these on flush */
 	/* time ordered list of all active transactions */
 	struct list_head j_list;
 
@@ -294,10 +294,10 @@ struct reiserfs_journal_list {
 struct reiserfs_journal {
 	struct buffer_head **j_ap_blocks;	/* journal blocks on disk */
 	/* newest journal block */
-	struct reiserfs_journal_cnode *j_last;
+	struct reiserfs_journal_canalde *j_last;
 
 	/* oldest journal block.  start here for traverse */
-	struct reiserfs_journal_cnode *j_first;
+	struct reiserfs_journal_canalde *j_first;
 
 	struct bdev_handle *j_bdev_handle;
 
@@ -338,7 +338,7 @@ struct reiserfs_journal {
 	atomic_t j_jlock;		/* lock for j_join_wait */
 	int j_list_bitmap_index;	/* number of next list bitmap to use */
 
-	/* no more journal begins allowed. MUST sleep on j_join_wait */
+	/* anal more journal begins allowed. MUST sleep on j_join_wait */
 	int j_must_wait;
 
 	/* next journal_end will flush all journal list */
@@ -347,8 +347,8 @@ struct reiserfs_journal {
 	/* next journal_end will flush all async commits */
 	int j_next_async_flush;
 
-	int j_cnode_used;	/* number of cnodes on the used list */
-	int j_cnode_free;	/* number of cnodes on the free list */
+	int j_canalde_used;	/* number of canaldes on the used list */
+	int j_canalde_free;	/* number of canaldes on the free list */
 
 	/* max number of blocks in a transaction.  */
 	unsigned int j_trans_max;
@@ -365,14 +365,14 @@ struct reiserfs_journal {
 	/* the default for the max commit age */
 	unsigned int j_default_max_commit_age;
 
-	struct reiserfs_journal_cnode *j_cnode_free_list;
+	struct reiserfs_journal_canalde *j_canalde_free_list;
 
 	/* orig pointer returned from vmalloc */
-	struct reiserfs_journal_cnode *j_cnode_free_orig;
+	struct reiserfs_journal_canalde *j_canalde_free_orig;
 
 	struct reiserfs_journal_list *j_current_jl;
-	int j_free_bitmap_nodes;
-	int j_used_bitmap_nodes;
+	int j_free_bitmap_analdes;
+	int j_used_bitmap_analdes;
 
 	int j_num_lists;	/* total number of active transactions */
 	int j_num_work_lists;	/* number that need attention from kreiserfsd */
@@ -383,7 +383,7 @@ struct reiserfs_journal {
 	/* debugging to make sure things are committed in order */
 	unsigned int j_last_commit_id;
 
-	struct list_head j_bitmap_nodes;
+	struct list_head j_bitmap_analdes;
 	struct list_head j_dirty_buffers;
 	spinlock_t j_dirty_buffers_lock;	/* protects j_dirty_buffers */
 
@@ -394,21 +394,21 @@ struct reiserfs_journal {
 	struct list_head j_working_list;
 
 	/* hash table for real buffer heads in current trans */
-	struct reiserfs_journal_cnode *j_hash_table[JOURNAL_HASH_SIZE];
+	struct reiserfs_journal_canalde *j_hash_table[JOURNAL_HASH_SIZE];
 
 	/* hash table for all the real buffer heads in all the transactions */
-	struct reiserfs_journal_cnode *j_list_hash_table[JOURNAL_HASH_SIZE];
+	struct reiserfs_journal_canalde *j_list_hash_table[JOURNAL_HASH_SIZE];
 
 	/* array of bitmaps to record the deleted blocks */
 	struct reiserfs_list_bitmap j_list_bitmap[JOURNAL_NUM_BITMAPS];
 
-	/* list of inodes which have preallocated blocks */
+	/* list of ianaldes which have preallocated blocks */
 	struct list_head j_prealloc_list;
 	int j_persistent_trans;
 	unsigned long j_max_trans_size;
 	unsigned long j_max_batch_size;
 
-	int j_errno;
+	int j_erranal;
 
 	/* when flushing ordered buffers, throttle new ordered writers */
 	struct delayed_work j_work;
@@ -417,7 +417,7 @@ struct reiserfs_journal {
 };
 
 enum journal_state_bits {
-	J_WRITERS_BLOCKED = 1,	/* set when new writers not allowed */
+	J_WRITERS_BLOCKED = 1,	/* set when new writers analt allowed */
 	J_WRITERS_QUEUED,    /* set when log is full due to too many writers */
 	J_ABORTED,           /* set when log is aborted */
 };
@@ -457,7 +457,7 @@ typedef struct reiserfs_proc_info_data {
 
 	/*
 	 * balances per level.
-	 * Use explicit 5 as MAX_HEIGHT is not visible yet.
+	 * Use explicit 5 as MAX_HEIGHT is analt visible yet.
 	 */
 	stat_cnt_t balance_at[5];	/* XXX */
 	/* sbk == search_by_key */
@@ -466,7 +466,7 @@ typedef struct reiserfs_proc_info_data {
 	stat_cnt_t sbk_restarted[5];
 	stat_cnt_t items_at[5];	/* XXX */
 	stat_cnt_t free_at[5];	/* XXX */
-	stat_cnt_t can_node_be_removed[5];	/* XXX */
+	stat_cnt_t can_analde_be_removed[5];	/* XXX */
 	long int lnum[5];	/* XXX */
 	long int rnum[5];	/* XXX */
 	long int lbytes[5];	/* XXX */
@@ -483,7 +483,7 @@ typedef struct reiserfs_proc_info_data {
 		stat_cnt_t bmap;
 		stat_cnt_t retry;
 		stat_cnt_t in_journal_hint;
-		stat_cnt_t in_journal_nohint;
+		stat_cnt_t in_journal_analhint;
 		stat_cnt_t stolen;
 	} scan_bitmap;
 	struct __journal_stats {
@@ -497,7 +497,7 @@ typedef struct reiserfs_proc_info_data {
 		stat_cnt_t journal_relock_wcount;
 		stat_cnt_t mark_dirty;
 		stat_cnt_t mark_dirty_already;
-		stat_cnt_t mark_dirty_notjournal;
+		stat_cnt_t mark_dirty_analtjournal;
 		stat_cnt_t restore_prepared;
 		stat_cnt_t prepare;
 		stat_cnt_t prepare_retry;
@@ -586,7 +586,7 @@ struct reiserfs_sb_info {
 	/* session statistics */
 	int s_disk_reads;
 	int s_disk_writes;
-	int s_fix_nodes;
+	int s_fix_analdes;
 	int s_do_balance;
 	int s_unneeded_left_neighbor;
 	int s_good_search_by_key_reada;
@@ -596,8 +596,8 @@ struct reiserfs_sb_info {
 	int s_indirect2direct;
 
 	/*
-	 * set up when it's ok for reiserfs_read_inode2() to read from
-	 * disk inode with nlink==0. Currently this is only used during
+	 * set up when it's ok for reiserfs_read_ianalde2() to read from
+	 * disk ianalde with nlink==0. Currently this is only used during
 	 * finish_unfinished() processing at mount time
 	 */
 	int s_is_unlinked_ok;
@@ -609,13 +609,13 @@ struct reiserfs_sb_info {
 	int reserved_blocks;
 
 
-	/* this lock on now only used to protect reserved_blocks variable */
+	/* this lock on analw only used to protect reserved_blocks variable */
 	spinlock_t bitmap_lock;
 	struct dentry *priv_root;	/* root of /.reiserfs_priv */
 	struct dentry *xattr_root;	/* root of /.reiserfs_priv/xattrs */
-	int j_errno;
+	int j_erranal;
 
-	int work_queued;              /* non-zero delayed work is queued */
+	int work_queued;              /* analn-zero delayed work is queued */
 	struct delayed_work old_work; /* old transactions flush delayed work */
 	spinlock_t old_work_lock;     /* protects old_work and work_queued */
 
@@ -629,7 +629,7 @@ struct reiserfs_sb_info {
 	/*
 	 * Detects whether more than one copy of tb exists per superblock
 	 * as a means of checking whether do_balance is executing
-	 * concurrently against another tree reader/writer on a same
+	 * concurrently against aanalther tree reader/writer on a same
 	 * mount point.
 	 */
 	struct tree_balance *cur_tb;
@@ -656,7 +656,7 @@ enum reiserfs_mount_options {
 
 	/*
 	 * -o conv: causes conversion of old format super block to the
-	 * new format. If not specified - old partition will be dealt
+	 * new format. If analt specified - old partition will be dealt
 	 * with in a manner of 3.5.x
 	 */
 	REISERFS_CONVERT,
@@ -664,7 +664,7 @@ enum reiserfs_mount_options {
 	/*
 	 * -o hash={tea, rupasov, r5, detect} is meant for properly mounting
 	 * reiserfs disks from 3.5.19 or earlier.  99% of the time, this
-	 * option is not required.  If the normal autodection code can't
+	 * option is analt required.  If the analrmal autodection code can't
 	 * determine which hash to use (because both hashes had the same
 	 * value for a file) use this option to force a specific hash.
 	 * It won't allow you to override the existing hash on the FS, so
@@ -686,14 +686,14 @@ enum reiserfs_mount_options {
 	 * users in any code shipped to users (ideally)
 	 */
 
-	REISERFS_NO_BORDER,
-	REISERFS_NO_UNHASHED_RELOCATION,
+	REISERFS_ANAL_BORDER,
+	REISERFS_ANAL_UNHASHED_RELOCATION,
 	REISERFS_HASHED_RELOCATION,
 	REISERFS_ATTRS,
 	REISERFS_XATTRS_USER,
 	REISERFS_POSIXACL,
 	REISERFS_EXPOSE_PRIVROOT,
-	REISERFS_BARRIER_NONE,
+	REISERFS_BARRIER_ANALNE,
 	REISERFS_BARRIER_FLUSH,
 
 	/* Actions on error */
@@ -715,8 +715,8 @@ enum reiserfs_mount_options {
 #define reiserfs_rupasov_hash(s) (REISERFS_SB(s)->s_mount_opt & (1 << FORCE_RUPASOV_HASH))
 #define reiserfs_tea_hash(s) (REISERFS_SB(s)->s_mount_opt & (1 << FORCE_TEA_HASH))
 #define reiserfs_hash_detect(s) (REISERFS_SB(s)->s_mount_opt & (1 << FORCE_HASH_DETECT))
-#define reiserfs_no_border(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_NO_BORDER))
-#define reiserfs_no_unhashed_relocation(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_NO_UNHASHED_RELOCATION))
+#define reiserfs_anal_border(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_ANAL_BORDER))
+#define reiserfs_anal_unhashed_relocation(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_ANAL_UNHASHED_RELOCATION))
 #define reiserfs_hashed_relocation(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_HASHED_RELOCATION))
 #define reiserfs_test4(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_TEST4))
 
@@ -733,7 +733,7 @@ enum reiserfs_mount_options {
 #define reiserfs_posixacl(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_POSIXACL))
 #define reiserfs_expose_privroot(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_EXPOSE_PRIVROOT))
 #define reiserfs_xattrs_optional(s) (reiserfs_xattrs_user(s) || reiserfs_posixacl(s))
-#define reiserfs_barrier_none(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_BARRIER_NONE))
+#define reiserfs_barrier_analne(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_BARRIER_ANALNE))
 #define reiserfs_barrier_flush(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_BARRIER_FLUSH))
 
 #define reiserfs_error_panic(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_ERROR_PANIC))
@@ -783,7 +783,7 @@ static inline void reiserfs_lock_check_recursive(struct super_block *s) { }
  * these mutexes, according to the release/reacquire on schedule()
  * properties of the Bkl that were used.
  * Reiserfs performances and locking were based on this scheme.
- * Now that the write lock is a mutex and not the bkl anymore, doing so
+ * Analw that the write lock is a mutex and analt the bkl anymore, doing so
  * may result in a deadlock:
  *
  * A acquire write_lock
@@ -802,7 +802,7 @@ static inline void reiserfs_lock_check_recursive(struct super_block *s) { }
  * - The commit mutex of a journal list
  * - The flush mutex
  * - The journal lock
- * - The inode mutex
+ * - The ianalde mutex
  */
 static inline void reiserfs_mutex_lock_safe(struct mutex *m,
 					    struct super_block *s)
@@ -858,14 +858,14 @@ struct fid;
  *  B = Buffer
  *  I = Item header
  *  H = Height within the tree (should be changed to LEV)
- *  N = Number of the item in the node
+ *  N = Number of the item in the analde
  *  STAT = stat data
  *  DEH = Directory Entry Header
  *  EC = Entry Count
  *  E = Entry number
  *  UL = Unsigned Long
  *  BLKH = BLocK Header
- *  UNFM = UNForMatted node
+ *  UNFM = UNForMatted analde
  *  DC = Disk Child
  *  P = Path
  *
@@ -874,7 +874,7 @@ struct fid;
  *  of the macro.
  */
 
-#define USE_INODE_GENERATION_COUNTER
+#define USE_IANALDE_GENERATION_COUNTER
 
 #define REISERFS_PREALLOCATE
 #define DISPLACE_NEW_PACKING_LOCALITIES
@@ -886,12 +886,12 @@ struct fid;
 /*
  * to be ok for alpha and others we have to align structures to 8 byte
  * boundary.
- * FIXME: do not change 4 by anything else: there is code which relies on that
+ * FIXME: do analt change 4 by anything else: there is code which relies on that
  */
 #define ROUND_UP(x) _ROUND_UP(x,8LL)
 
 /*
- * debug levels.  Right now, CONFIG_REISERFS_CHECK means print all debug
+ * debug levels.  Right analw, CONFIG_REISERFS_CHECK means print all debug
  * messages.
  */
 #define REISERFS_DEBUG_CODE 5	/* extra messages to help find/debug errors */
@@ -980,7 +980,7 @@ struct reiserfs_super_block_v1 {
 	__le16 s_oid_maxsize;
 	__le16 s_oid_cursize;	/* current size of object id array */
 
-	/* this is set to 1 when filesystem was umounted, to 2 - when not */
+	/* this is set to 1 when filesystem was umounted, to 2 - when analt */
 	__le16 s_umount_state;
 
 	/*
@@ -1008,13 +1008,13 @@ struct reiserfs_super_block_v1 {
 	__le16 s_bmap_nr;
 
 	/*
-	 * this field is only reliable on filesystem with non-standard journal
+	 * this field is only reliable on filesystem with analn-standard journal
 	 */
 	__le16 s_version;
 
 	/*
 	 * size in blocks of journal area on main device, we need to
-	 * keep after making fs with non-standard journal
+	 * keep after making fs with analn-standard journal
 	 */
 	__le16 s_reserved_for_journal;
 } __attribute__ ((__packed__));
@@ -1024,9 +1024,9 @@ struct reiserfs_super_block_v1 {
 /* this is the on disk super block */
 struct reiserfs_super_block {
 	struct reiserfs_super_block_v1 s_v1;
-	__le32 s_inode_generation;
+	__le32 s_ianalde_generation;
 
-	/* Right now used only by inode-attributes, if enabled */
+	/* Right analw used only by ianalde-attributes, if enabled */
 	__le32 s_flags;
 
 	unsigned char s_uuid[16];	/* filesystem unique identifier */
@@ -1104,8 +1104,8 @@ int is_reiserfs_jr(struct reiserfs_super_block *rs);
 
 /*
  * ReiserFS leaves the first 64k unused, so that partition labels have
- * enough space.  If someone wants to write a fancy bootloader that
- * needs more than 64k, let us know, and this will be increased in size.
+ * eanalugh space.  If someone wants to write a fancy bootloader that
+ * needs more than 64k, let us kanalw, and this will be increased in size.
  * This number must be larger than the largest block size on any
  * platform, or code will break.  -Hans
  */
@@ -1116,20 +1116,20 @@ int is_reiserfs_jr(struct reiserfs_super_block *rs);
 /* the spot for the super in versions 3.5 - 3.5.10 (inclusive) */
 #define REISERFS_OLD_DISK_OFFSET_IN_BYTES (8 * 1024)
 
-/* reiserfs internal error code (used by search_by_key and fix_nodes)) */
+/* reiserfs internal error code (used by search_by_key and fix_analdes)) */
 #define CARRY_ON      0
 #define REPEAT_SEARCH -1
 #define IO_ERROR      -2
-#define NO_DISK_SPACE -3
-#define NO_BALANCING_NEEDED  (-4)
-#define NO_MORE_UNUSED_CONTIGUOUS_BLOCKS (-5)
+#define ANAL_DISK_SPACE -3
+#define ANAL_BALANCING_NEEDED  (-4)
+#define ANAL_MORE_UNUSED_CONTIGUOUS_BLOCKS (-5)
 #define QUOTA_EXCEEDED -6
 
 typedef __u32 b_blocknr_t;
 typedef __le32 unp_t;
 
-struct unfm_nodeinfo {
-	unp_t unfm_nodenum;
+struct unfm_analdeinfo {
+	unp_t unfm_analdenum;
 	unsigned short unfm_freespace;
 };
 
@@ -1141,9 +1141,9 @@ struct unfm_nodeinfo {
 #define STAT_DATA_V1 0
 #define STAT_DATA_V2 1
 
-static inline struct reiserfs_inode_info *REISERFS_I(const struct inode *inode)
+static inline struct reiserfs_ianalde_info *REISERFS_I(const struct ianalde *ianalde)
 {
-	return container_of(inode, struct reiserfs_inode_info, vfs_inode);
+	return container_of(ianalde, struct reiserfs_ianalde_info, vfs_ianalde);
 }
 
 static inline struct reiserfs_sb_info *REISERFS_SB(const struct super_block *sb)
@@ -1171,32 +1171,32 @@ extern const struct xattr_handler * const reiserfs_xattr_handlers[];
  * this says about version of key of all items (but stat data) the
  * object consists of
  */
-#define get_inode_item_key_version( inode )                                    \
-    ((REISERFS_I(inode)->i_flags & i_item_key_version_mask) ? KEY_FORMAT_3_6 : KEY_FORMAT_3_5)
+#define get_ianalde_item_key_version( ianalde )                                    \
+    ((REISERFS_I(ianalde)->i_flags & i_item_key_version_mask) ? KEY_FORMAT_3_6 : KEY_FORMAT_3_5)
 
-#define set_inode_item_key_version( inode, version )                           \
+#define set_ianalde_item_key_version( ianalde, version )                           \
          ({ if((version)==KEY_FORMAT_3_6)                                      \
-                REISERFS_I(inode)->i_flags |= i_item_key_version_mask;      \
+                REISERFS_I(ianalde)->i_flags |= i_item_key_version_mask;      \
             else                                                               \
-                REISERFS_I(inode)->i_flags &= ~i_item_key_version_mask; })
+                REISERFS_I(ianalde)->i_flags &= ~i_item_key_version_mask; })
 
-#define get_inode_sd_version(inode)                                            \
-    ((REISERFS_I(inode)->i_flags & i_stat_data_version_mask) ? STAT_DATA_V2 : STAT_DATA_V1)
+#define get_ianalde_sd_version(ianalde)                                            \
+    ((REISERFS_I(ianalde)->i_flags & i_stat_data_version_mask) ? STAT_DATA_V2 : STAT_DATA_V1)
 
-#define set_inode_sd_version(inode, version)                                   \
+#define set_ianalde_sd_version(ianalde, version)                                   \
          ({ if((version)==STAT_DATA_V2)                                        \
-                REISERFS_I(inode)->i_flags |= i_stat_data_version_mask;     \
+                REISERFS_I(ianalde)->i_flags |= i_stat_data_version_mask;     \
             else                                                               \
-                REISERFS_I(inode)->i_flags &= ~i_stat_data_version_mask; })
+                REISERFS_I(ianalde)->i_flags &= ~i_stat_data_version_mask; })
 
 /*
  * This is an aggressive tail suppression policy, I am hoping it
  * improves our benchmarks. The principle behind it is that percentage
- * space saving is what matters, not absolute space saving.  This is
- * non-intuitive, but it helps to understand it if you consider that the
- * cost to access 4 blocks is not much more than the cost to access 1
+ * space saving is what matters, analt absolute space saving.  This is
+ * analn-intuitive, but it helps to understand it if you consider that the
+ * cost to access 4 blocks is analt much more than the cost to access 1
  * block, if you have to do a seek and rotate.  A tail risks a
- * non-linear disk access that is significant as a percentage of total
+ * analn-linear disk access that is significant as a percentage of total
  * time cost for a 4 block file and saves an amount of space that is
  * less significant as a percentage of space, or so goes the hypothesis.
  * -Hans
@@ -1215,7 +1215,7 @@ extern const struct xattr_handler * const reiserfs_xattr_handlers[];
 )
 
 /*
- * Another strategy for tails, this one means only create a tail if all the
+ * Aanalther strategy for tails, this one means only create a tail if all the
  * file would fit into one DIRECT item.
  * Primary intention for this one is to increase performance by decreasing
  * seeking.
@@ -1323,28 +1323,28 @@ struct cpu_key {
 #define SECOND_GREATER -1
 #define KEYS_IDENTICAL 0
 #define KEY_FOUND 1
-#define KEY_NOT_FOUND 0
+#define KEY_ANALT_FOUND 0
 
 #define KEY_SIZE (sizeof(struct reiserfs_key))
 
 /* return values for search_by_key and clones */
 #define ITEM_FOUND 1
-#define ITEM_NOT_FOUND 0
+#define ITEM_ANALT_FOUND 0
 #define ENTRY_FOUND 1
-#define ENTRY_NOT_FOUND 0
-#define DIRECTORY_NOT_FOUND -1
+#define ENTRY_ANALT_FOUND 0
+#define DIRECTORY_ANALT_FOUND -1
 #define REGULAR_FILE_FOUND -2
 #define DIRECTORY_FOUND -3
 #define BYTE_FOUND 1
-#define BYTE_NOT_FOUND 0
-#define FILE_NOT_FOUND -1
+#define BYTE_ANALT_FOUND 0
+#define FILE_ANALT_FOUND -1
 
 #define POSITION_FOUND 1
-#define POSITION_NOT_FOUND 0
+#define POSITION_ANALT_FOUND 0
 
 /* return values for reiserfs_find_entry and search_by_entry_key */
 #define NAME_FOUND 1
-#define NAME_NOT_FOUND 0
+#define NAME_ANALT_FOUND 0
 #define GOTO_PREVIOUS_ITEM 2
 #define NAME_FOUND_INVISIBLE 3
 
@@ -1363,10 +1363,10 @@ struct item_head {
 	struct reiserfs_key ih_key;
 	union {
 		/*
-		 * The free space in the last unformatted node of an
+		 * The free space in the last unformatted analde of an
 		 * indirect item if this is an indirect item.  This
 		 * equals 0xFFFF iff this is a direct item or stat data
-		 * item. Note that the key, not this field, is used to
+		 * item. Analte that the key, analt this field, is used to
 		 * determine the item type, and thus which field this
 		 * union contains.
 		 */
@@ -1411,7 +1411,7 @@ struct item_head {
 
 /*
  * these operate on indirect items, where you've got an array of ints
- * at a possibly unaligned location.  These are a noop on ia32
+ * at a possibly unaligned location.  These are a analop on ia32
  *
  * p is the array of __u32, i is the index into the array, v is the value
  * to store there.
@@ -1465,7 +1465,7 @@ static inline __u32 type2uniqueness(int type)
 
 /*
  * key is pointer to on disk key which is stored in le, result is cpu,
- * there is no way to get version of object from key, so, provide
+ * there is anal way to get version of object from key, so, provide
  * version to these defines
  */
 static inline loff_t le_key_k_offset(int version,
@@ -1639,7 +1639,7 @@ extern struct reiserfs_key root_key;
 
 /*
  * Header of a disk block.  More precisely, header of a formatted leaf
- * or internal node, and not the header of an unformatted node.
+ * or internal analde, and analt the header of an unformatted analde.
  */
 struct block_head {
 	__le16 blk_level;	/* Level of a block in the tree. */
@@ -1667,16 +1667,16 @@ struct block_head {
 /* values for blk_level field of the struct block_head */
 
 /*
- * When node gets removed from the tree its blk_level is set to FREE_LEVEL.
- * It is then  used to see whether the node is still in the tree
+ * When analde gets removed from the tree its blk_level is set to FREE_LEVEL.
+ * It is then  used to see whether the analde is still in the tree
  */
 #define FREE_LEVEL 0
 
-#define DISK_LEAF_NODE_LEVEL  1	/* Leaf node level. */
+#define DISK_LEAF_ANALDE_LEVEL  1	/* Leaf analde level. */
 
 /*
- * Given the buffer head of a formatted node, resolve to the
- * block head of that node.
+ * Given the buffer head of a formatted analde, resolve to the
+ * block head of that analde.
  */
 #define B_BLK_HEAD(bh)			((struct block_head *)((bh)->b_data))
 /* Number of items that are in buffer. */
@@ -1692,10 +1692,10 @@ struct block_head {
 #define B_PRIGHT_DELIM_KEY(bh)		(&(blk_right_delim_key(B_BLK_HEAD(bh))))
 
 /* Does the buffer contain a disk leaf. */
-#define B_IS_ITEMS_LEVEL(bh)		(B_LEVEL(bh) == DISK_LEAF_NODE_LEVEL)
+#define B_IS_ITEMS_LEVEL(bh)		(B_LEVEL(bh) == DISK_LEAF_ANALDE_LEVEL)
 
-/* Does the buffer contain a disk internal node */
-#define B_IS_KEYS_LEVEL(bh)      (B_LEVEL(bh) > DISK_LEAF_NODE_LEVEL \
+/* Does the buffer contain a disk internal analde */
+#define B_IS_KEYS_LEVEL(bh)      (B_LEVEL(bh) > DISK_LEAF_ANALDE_LEVEL \
 					    && B_LEVEL(bh) <= MAX_HEIGHT)
 
 /***************************************************************************
@@ -1716,7 +1716,7 @@ struct stat_data_v1 {
 	__le32 sd_mtime;	/* time file was last modified  */
 
 	/*
-	 * time inode (stat data) was last changed
+	 * time ianalde (stat data) was last changed
 	 * (except changes to sd_atime and sd_mtime)
 	 */
 	__le32 sd_ctime;
@@ -1727,7 +1727,7 @@ struct stat_data_v1 {
 
 	/*
 	 * first byte of file which is stored in a direct item: except that if
-	 * it equals 1 it is a symlink and if it equals ~(__u32)0 there is no
+	 * it equals 1 it is a symlink and if it equals ~(__u32)0 there is anal
 	 * direct item.  The existence of this field really grates on me.
 	 * Let's replace it with a macro based on sd_size and our tail
 	 * suppression policy.  Someday.  -Hans
@@ -1762,7 +1762,7 @@ struct stat_data_v1 {
 #define set_sd_v1_first_direct_byte(sdp,v) \
                                 ((sdp)->sd_first_direct_byte = cpu_to_le32(v))
 
-/* inode flags stored in sd_attrs (nee sd_reserved) */
+/* ianalde flags stored in sd_attrs (nee sd_reserved) */
 
 /*
  * we want common flags to have the same values as in ext2,
@@ -1771,29 +1771,29 @@ struct stat_data_v1 {
 #define REISERFS_IMMUTABLE_FL FS_IMMUTABLE_FL
 #define REISERFS_APPEND_FL    FS_APPEND_FL
 #define REISERFS_SYNC_FL      FS_SYNC_FL
-#define REISERFS_NOATIME_FL   FS_NOATIME_FL
-#define REISERFS_NODUMP_FL    FS_NODUMP_FL
+#define REISERFS_ANALATIME_FL   FS_ANALATIME_FL
+#define REISERFS_ANALDUMP_FL    FS_ANALDUMP_FL
 #define REISERFS_SECRM_FL     FS_SECRM_FL
 #define REISERFS_UNRM_FL      FS_UNRM_FL
 #define REISERFS_COMPR_FL     FS_COMPR_FL
-#define REISERFS_NOTAIL_FL    FS_NOTAIL_FL
+#define REISERFS_ANALTAIL_FL    FS_ANALTAIL_FL
 
 /* persistent flags that file inherits from the parent directory */
 #define REISERFS_INHERIT_MASK ( REISERFS_IMMUTABLE_FL |	\
 				REISERFS_SYNC_FL |	\
-				REISERFS_NOATIME_FL |	\
-				REISERFS_NODUMP_FL |	\
+				REISERFS_ANALATIME_FL |	\
+				REISERFS_ANALDUMP_FL |	\
 				REISERFS_SECRM_FL |	\
 				REISERFS_COMPR_FL |	\
-				REISERFS_NOTAIL_FL )
+				REISERFS_ANALTAIL_FL )
 
 /*
- * Stat Data on disk (reiserfs version of UFS disk inode minus the
+ * Stat Data on disk (reiserfs version of UFS disk ianalde minus the
  * address blocks)
  */
 struct stat_data {
 	__le16 sd_mode;		/* file type, permissions */
-	__le16 sd_attrs;	/* persistent inode flags */
+	__le16 sd_attrs;	/* persistent ianalde flags */
 	__le32 sd_nlink;	/* number of hard links */
 	__le64 sd_size;		/* file size */
 	__le32 sd_uid;		/* owner */
@@ -1802,7 +1802,7 @@ struct stat_data {
 	__le32 sd_mtime;	/* time file was last modified  */
 
 	/*
-	 * time inode (stat data) was last changed
+	 * time ianalde (stat data) was last changed
 	 * (except changes to sd_atime and sd_mtime)
 	 */
 	__le32 sd_ctime;
@@ -1877,7 +1877,7 @@ struct stat_data {
  */
 
 /*
- * NOT IMPLEMENTED:
+ * ANALT IMPLEMENTED:
  * Directory will someday contain stat data of object
  */
 
@@ -1920,7 +1920,7 @@ struct reiserfs_de_head {
 /* old format directories have this size when empty */
 #define EMPTY_DIR_SIZE_V1 (DEH_SIZE * 2 + 3)
 
-#define DEH_Statdata 0		/* not used now */
+#define DEH_Statdata 0		/* analt used analw */
 #define DEH_Visible 2
 
 /* 64 bit systems (and the S/390) need to be aligned explicitly -jdm */
@@ -1972,7 +1972,7 @@ extern void make_empty_dir_item(char *body, __le32 dirid, __le32 objid,
 
 /*
  * this structure is used for operations on directory entries. It is
- * not a disk structure.
+ * analt a disk structure.
  *
  * When reiserfs_find_entry or search_by_entry_key find directory
  * entry, they return filled reiserfs_dir_entry structure
@@ -2016,7 +2016,7 @@ struct reiserfs_dir_entry {
 #define SET_GENERATION_NUMBER(offset,gen_number) (GET_HASH_VALUE(offset)|(gen_number))
 
 /*
- * Picture represents an internal node of the reiserfs tree
+ * Picture represents an internal analde of the reiserfs tree
  *  ______________________________________________________
  * |      |  Array of     |  Array of         |  Free     |
  * |block |    keys       |  pointers         | space     |
@@ -2029,7 +2029,7 @@ struct reiserfs_dir_entry {
  ***************************************************************************/
 /*
  * Disk child pointer:
- * The pointer from an internal node of the tree to a node that is on disk.
+ * The pointer from an internal analde of the tree to a analde that is on disk.
  */
 struct disk_child {
 	__le32 dc_block_number;	/* Disk child's block number. */
@@ -2043,11 +2043,11 @@ struct disk_child {
 #define put_dc_block_number(dc_p, val)   do { (dc_p)->dc_block_number = cpu_to_le32(val); } while(0)
 #define put_dc_size(dc_p, val)   do { (dc_p)->dc_size = cpu_to_le16(val); } while(0)
 
-/* Get disk child by buffer header and position in the tree node. */
+/* Get disk child by buffer header and position in the tree analde. */
 #define B_N_CHILD(bh, n_pos)  ((struct disk_child *)\
 ((bh)->b_data + BLKH_SIZE + B_NR_ITEMS(bh) * KEY_SIZE + DC_SIZE * (n_pos)))
 
-/* Get disk child number by buffer header and position in the tree node. */
+/* Get disk child number by buffer header and position in the tree analde. */
 #define B_N_CHILD_NUM(bh, n_pos) (dc_block_number(B_N_CHILD(bh, n_pos)))
 #define PUT_B_N_CHILD_NUM(bh, n_pos, val) \
 				(put_dc_block_number(B_N_CHILD(bh, n_pos), val))
@@ -2056,10 +2056,10 @@ struct disk_child {
  /* child size is the combined size of all items and their headers */
 #define MAX_CHILD_SIZE(bh) ((int)( (bh)->b_size - BLKH_SIZE ))
 
-/* amount of used space in buffer (not including block head) */
+/* amount of used space in buffer (analt including block head) */
 #define B_CHILD_SIZE(cur) (MAX_CHILD_SIZE(cur)-(B_FREE_SPACE(cur)))
 
-/* max and min number of keys in internal node */
+/* max and min number of keys in internal analde */
 #define MAX_NR_KEY(bh) ( (MAX_CHILD_SIZE(bh)-DC_SIZE)/(KEY_SIZE+DC_SIZE) )
 #define MIN_NR_KEY(bh)    (MAX_NR_KEY(bh)/2)
 
@@ -2070,12 +2070,12 @@ struct disk_child {
 /*
  * search_by_key fills up the path from the root to the leaf as it descends
  * the tree looking for the key.  It uses reiserfs_bread to try to find
- * buffers in the cache given their block number.  If it does not find
- * them in the cache it reads them from disk.  For each node search_by_key
+ * buffers in the cache given their block number.  If it does analt find
+ * them in the cache it reads them from disk.  For each analde search_by_key
  * finds using reiserfs_bread it then uses bin_search to look through that
- * node.  bin_search will find the position of the block_number of the next
- * node if it is looking through an internal node.  If it is looking through
- * a leaf node bin_search will find the position of the item which has key
+ * analde.  bin_search will find the position of the block_number of the next
+ * analde if it is looking through an internal analde.  If it is looking through
+ * a leaf analde bin_search will find the position of the item which has key
  * either equal to given key, or which is the maximal key less than the
  * given key.
  */
@@ -2083,7 +2083,7 @@ struct disk_child {
 struct path_element {
 	/* Pointer to the buffer at the path in the tree. */
 	struct buffer_head *pe_buffer;
-	/* Position in the tree node which is placed in the buffer above. */
+	/* Position in the tree analde which is placed in the buffer above. */
 	int pe_position;
 };
 
@@ -2106,22 +2106,22 @@ struct path_element {
 #define MAX_FEB_SIZE 6
 
 /*
- * We need to keep track of who the ancestors of nodes are.  When we
- * perform a search we record which nodes were visited while
- * descending the tree looking for the node we searched for. This list
- * of nodes is called the path.  This information is used while
- * performing balancing.  Note that this path information may become
+ * We need to keep track of who the ancestors of analdes are.  When we
+ * perform a search we record which analdes were visited while
+ * descending the tree looking for the analde we searched for. This list
+ * of analdes is called the path.  This information is used while
+ * performing balancing.  Analte that this path information may become
  * invalid, and this means we must check it when using it to see if it
  * is still valid. You'll need to read search_by_key and the comments
  * in it, especially about decrement_counters_in_path(), to understand
  * this structure.
  *
  * Paths make the code so much harder to work with and debug.... An
- * enormous number of bugs are due to them, and trying to write or modify
+ * eanalrmous number of bugs are due to them, and trying to write or modify
  * code that uses them just makes my head hurt.  They are based on an
  * excessive effort to avoid disturbing the precious VFS code.:-( The
- * gods only know how we are going to SMP the code that uses them.
- * znodes are the way!
+ * gods only kanalw how we are going to SMP the code that uses them.
+ * zanaldes are the way!
  */
 
 #define PATH_READA	0x1	/* do read ahead */
@@ -2152,7 +2152,7 @@ struct treepath var = {.path_length = ILLEGAL_PATH_ELEMENT_OFFSET, .reada = 0,}
 #define PATH_PLAST_BUFFER(path) (PATH_OFFSET_PBUFFER((path), (path)->path_length))
 
 /*
- * you know, to the person who didn't write this the macro name does not
+ * you kanalw, to the person who didn't write this the macro name does analt
  * at first suggest what it does.  Maybe POSITION_FROM_PATH_END? Or
  * maybe we should just focus on dumping paths... -Hans
  */
@@ -2178,30 +2178,30 @@ struct treepath var = {.path_length = ILLEGAL_PATH_ELEMENT_OFFSET, .reada = 0,}
 
 #define PATH_H_PATH_OFFSET(path, n_h) ((path)->path_length - (n_h))
 
-static inline void *reiserfs_node_data(const struct buffer_head *bh)
+static inline void *reiserfs_analde_data(const struct buffer_head *bh)
 {
 	return bh->b_data + sizeof(struct block_head);
 }
 
-/* get key from internal node */
+/* get key from internal analde */
 static inline struct reiserfs_key *internal_key(struct buffer_head *bh,
 						int item_num)
 {
-	struct reiserfs_key *key = reiserfs_node_data(bh);
+	struct reiserfs_key *key = reiserfs_analde_data(bh);
 
 	return &key[item_num];
 }
 
-/* get the item header from leaf node */
+/* get the item header from leaf analde */
 static inline struct item_head *item_head(const struct buffer_head *bh,
 					  int item_num)
 {
-	struct item_head *ih = reiserfs_node_data(bh);
+	struct item_head *ih = reiserfs_analde_data(bh);
 
 	return &ih[item_num];
 }
 
-/* get the key from leaf node */
+/* get the key from leaf analde */
 static inline struct reiserfs_key *leaf_key(const struct buffer_head *bh,
 					    int item_num)
 {
@@ -2214,7 +2214,7 @@ static inline void *ih_item_body(const struct buffer_head *bh,
 	return bh->b_data + ih_location(ih);
 }
 
-/* get item body from leaf node */
+/* get item body from leaf analde */
 static inline void *item_body(const struct buffer_head *bh, int item_num)
 {
 	return ih_item_body(bh, item_head(bh, item_num));
@@ -2244,7 +2244,7 @@ static inline void *tp_item_body(const struct treepath *path)
  * calculates length of i-th directory entry using directory entry
  * locations from dir entry head. When it calculates length of 0-th
  * directory entry, it uses length of whole item in place of entry
- * location of the non-existent following entry in the calculation.
+ * location of the analn-existent following entry in the calculation.
  * See picture above.
  */
 static inline int entry_length(const struct buffer_head *bh,
@@ -2263,21 +2263,21 @@ static inline int entry_length(const struct buffer_head *bh,
  *                       MISC                                              *
  ***************************************************************************/
 
-/* Size of pointer to the unformatted node. */
+/* Size of pointer to the unformatted analde. */
 #define UNFM_P_SIZE (sizeof(unp_t))
 #define UNFM_P_SHIFT 2
 
-/* in in-core inode key is stored on le form */
-#define INODE_PKEY(inode) ((struct reiserfs_key *)(REISERFS_I(inode)->i_key))
+/* in in-core ianalde key is stored on le form */
+#define IANALDE_PKEY(ianalde) ((struct reiserfs_key *)(REISERFS_I(ianalde)->i_key))
 
 #define MAX_UL_INT 0xffffffff
 #define MAX_INT    0x7ffffff
 #define MAX_US_INT 0xffff
 
 // reiserfs version 2 has max offset 60 bits. Version 1 - 32 bit offset
-static inline loff_t max_reiserfs_offset(struct inode *inode)
+static inline loff_t max_reiserfs_offset(struct ianalde *ianalde)
 {
-	if (get_inode_item_key_version(inode) == KEY_FORMAT_3_5)
+	if (get_ianalde_item_key_version(ianalde) == KEY_FORMAT_3_5)
 		return (loff_t) U32_MAX;
 
 	return (loff_t) ((~(__u64) 0) >> 4);
@@ -2309,25 +2309,25 @@ static inline loff_t max_reiserfs_offset(struct inode *inode)
 })
 
 /***************************************************************************
- *                  FIXATE NODES                                           *
+ *                  FIXATE ANALDES                                           *
  ***************************************************************************/
 
 #define VI_TYPE_LEFT_MERGEABLE 1
 #define VI_TYPE_RIGHT_MERGEABLE 2
 
 /*
- * To make any changes in the tree we always first find node, that
+ * To make any changes in the tree we always first find analde, that
  * contains item to be changed/deleted or place to insert a new
- * item. We call this node S. To do balancing we need to decide what
- * we will shift to left/right neighbor, or to a new node, where new
+ * item. We call this analde S. To do balancing we need to decide what
+ * we will shift to left/right neighbor, or to a new analde, where new
  * item will be etc. To make this analysis simpler we build virtual
- * node. Virtual node is an array of items, that will replace items of
- * node S. (For instance if we are going to delete an item, virtual
- * node does not contain it). Virtual node keeps information about
+ * analde. Virtual analde is an array of items, that will replace items of
+ * analde S. (For instance if we are going to delete an item, virtual
+ * analde does analt contain it). Virtual analde keeps information about
  * item sizes and types, mergeability of first and last items, sizes
  * of all entries in directory item. We use this array of items when
- * calculating what we can shift to neighbors and how many nodes we
- * have to have if we do not any shiftings, if we shift to left/right
+ * calculating what we can shift to neighbors and how many analdes we
+ * have to have if we do analt any shiftings, if we shift to left/right
  * neighbor or to both.
  */
 struct virtual_item {
@@ -2343,15 +2343,15 @@ struct virtual_item {
 	void *vi_uarea;		/* item specific area */
 };
 
-struct virtual_node {
+struct virtual_analde {
 	/* this is a pointer to the free space in the buffer */
 	char *vn_free_ptr;
 
-	unsigned short vn_nr_item;	/* number of items in virtual node */
+	unsigned short vn_nr_item;	/* number of items in virtual analde */
 
 	/*
-	 * size of node , that node would have if it has
-	 * unlimited size and no balancing is performed
+	 * size of analde , that analde would have if it has
+	 * unlimited size and anal balancing is performed
 	 */
 	short vn_size;
 
@@ -2369,7 +2369,7 @@ struct virtual_node {
 	struct virtual_item *vn_vi;
 };
 
-/* used by directory items when creating virtual nodes */
+/* used by directory items when creating virtual analdes */
 struct direntry_uarea {
 	int flags;
 	__u16 entry_count;
@@ -2383,13 +2383,13 @@ struct direntry_uarea {
 /*
  * This temporary structure is used in tree balance algorithms, and
  * constructed as we go to the extent that its various parts are
- * needed.  It contains arrays of nodes that can potentially be
- * involved in the balancing of node S, and parameters that define how
- * each of the nodes must be balanced.  Note that in these algorithms
- * for balancing the worst case is to need to balance the current node
+ * needed.  It contains arrays of analdes that can potentially be
+ * involved in the balancing of analde S, and parameters that define how
+ * each of the analdes must be balanced.  Analte that in these algorithms
+ * for balancing the worst case is to need to balance the current analde
  * S and the left and right neighbors and all of their parents plus
- * create a new node.  We implement S1 balancing for the leaf nodes
- * and S0 balancing for the internal nodes (S1 and S0 are defined in
+ * create a new analde.  We implement S1 balancing for the leaf analdes
+ * and S0 balancing for the internal analdes (S1 and S0 are defined in
  * our papers.)
  */
 
@@ -2407,10 +2407,10 @@ struct tree_balance {
 	struct reiserfs_transaction_handle *transaction_handle;
 	struct treepath *tb_path;
 
-	/* array of left neighbors of nodes in the path */
+	/* array of left neighbors of analdes in the path */
 	struct buffer_head *L[MAX_HEIGHT];
 
-	/* array of right neighbors of nodes in the path */
+	/* array of right neighbors of analdes in the path */
 	struct buffer_head *R[MAX_HEIGHT];
 
 	/* array of fathers of the left neighbors */
@@ -2418,10 +2418,10 @@ struct tree_balance {
 
 	/* array of fathers of the right neighbors */
 	struct buffer_head *FR[MAX_HEIGHT];
-	/* array of common parents of center node and its left neighbor */
+	/* array of common parents of center analde and its left neighbor */
 	struct buffer_head *CFL[MAX_HEIGHT];
 
-	/* array of common parents of center node and its right neighbor */
+	/* array of common parents of center analde and its right neighbor */
 	struct buffer_head *CFR[MAX_HEIGHT];
 
 	/*
@@ -2434,8 +2434,8 @@ struct tree_balance {
 
 	/*
 	 * array of number of items which must be shifted to the left in
-	 * order to balance the current node; for leaves includes item that
-	 * will be partially shifted; for internal nodes, it is the number
+	 * order to balance the current analde; for leaves includes item that
+	 * will be partially shifted; for internal analdes, it is the number
 	 * of child pointers rather than items. It includes the new item
 	 * being created. The code sometimes subtracts one to get the
 	 * number of wholly shifted items for other purposes.
@@ -2447,7 +2447,7 @@ struct tree_balance {
 
 	/*
 	 * array indexed by height h mapping the key delimiting L[h] and
-	 * S[h] to its item number within the node CFL[h]
+	 * S[h] to its item number within the analde CFL[h]
 	 */
 	int lkey[MAX_HEIGHT];
 
@@ -2461,10 +2461,10 @@ struct tree_balance {
 	int insert_size[MAX_HEIGHT];
 
 	/*
-	 * number of nodes that will replace node S[h] after balancing
+	 * number of analdes that will replace analde S[h] after balancing
 	 * on the level h of the tree.  If 0 then S is being deleted,
-	 * if 1 then S is remaining and no new nodes are being created,
-	 * if 2 or 3 then 1 or 2 new nodes is being created
+	 * if 1 then S is remaining and anal new analdes are being created,
+	 * if 2 or 3 then 1 or 2 new analdes is being created
 	 */
 	int blknum[MAX_HEIGHT];
 
@@ -2473,20 +2473,20 @@ struct tree_balance {
 	/* number of empty blocks having been already allocated */
 	int cur_blknum;
 
-	/* number of items that fall into left most node when S[0] splits */
+	/* number of items that fall into left most analde when S[0] splits */
 	int s0num;
 
 	/*
 	 * number of bytes which can flow to the left neighbor from the left
-	 * most liquid item that cannot be shifted from S[0] entirely
-	 * if -1 then nothing will be partially shifted
+	 * most liquid item that cananalt be shifted from S[0] entirely
+	 * if -1 then analthing will be partially shifted
 	 */
 	int lbytes;
 
 	/*
 	 * number of bytes which will flow to the right neighbor from the right
-	 * most liquid item that cannot be shifted from S[0] entirely
-	 * if -1 then nothing will be partially shifted
+	 * most liquid item that cananalt be shifted from S[0] entirely
+	 * if -1 then analthing will be partially shifted
 	 */
 	int rbytes;
 
@@ -2497,18 +2497,18 @@ struct tree_balance {
 	 */
 	int item_pos;
 
-	/* new nodes allocated to hold what could not fit into S */
+	/* new analdes allocated to hold what could analt fit into S */
 	struct buffer_head *S_new[2];
 
 	/*
-	 * number of items that will be placed into nodes in S_new
+	 * number of items that will be placed into analdes in S_new
 	 * when S[0] splits
 	 */
 	int snum[2];
 
 	/*
-	 * number of bytes which flow to nodes in S_new when S[0] splits
-	 * note: if S[0] splits into 3 nodes, then items do not need to be cut
+	 * number of bytes which flow to analdes in S_new when S[0] splits
+	 * analte: if S[0] splits into 3 analdes, then items do analt need to be cut
 	 */
 	int sbytes[2];
 
@@ -2517,12 +2517,12 @@ struct tree_balance {
 
 	/*
 	 * buffers which are to be freed after do_balance finishes
-	 * by unfix_nodes
+	 * by unfix_analdes
 	 */
 	struct buffer_head *buf_to_free[MAX_FREE_BLOCK];
 
 	/*
-	 * kmalloced memory. Used to create virtual node and keep
+	 * kmalloced memory. Used to create virtual analde and keep
 	 * map of dirtied bitmap blocks
 	 */
 	char *vn_buf;
@@ -2530,7 +2530,7 @@ struct tree_balance {
 	int vn_buf_size;	/* size of the vn_buf */
 
 	/* VN starts after bitmap of bitmap blocks */
-	struct virtual_node *tb_vn;
+	struct virtual_analde *tb_vn;
 
 	/*
 	 * saved value of `reiserfs_generation' counter see
@@ -2541,7 +2541,7 @@ struct tree_balance {
 #ifdef DISPLACE_NEW_PACKING_LOCALITIES
 	/*
 	 * key pointer, to pass to block allocator or
-	 * another low-level subsystem
+	 * aanalther low-level subsystem
 	 */
 	struct in_core_key key;
 #endif
@@ -2565,7 +2565,7 @@ struct tree_balance {
 #define M_INTERNAL	'n'
 
 /*
- * When further balancing is not needed, then do_balance does not need
+ * When further balancing is analt needed, then do_balance does analt need
  * to be called.
  */
 #define M_SKIP_BALANCING		's'
@@ -2582,7 +2582,7 @@ struct tree_balance {
 #define LAST_TO_FIRST 1
 
 /*
- * used in do_balance for passing parent of node information that has
+ * used in do_balance for passing parent of analde information that has
  * been gotten from tb struct
  */
 struct buffer_info {
@@ -2607,10 +2607,10 @@ static inline struct super_block *sb_from_bi(struct buffer_info *bi)
  * +-------------------+------------+--------------+------------+
  * |                   |  k_offset  | k_uniqueness | mergeable? |
  * +-------------------+------------+--------------+------------+
- * |     stat data     |     0      |      0       |   no       |
+ * |     stat data     |     0      |      0       |   anal       |
  * +-------------------+------------+--------------+------------+
- * | 1st directory item| DOT_OFFSET | DIRENTRY_ .. |   no       |
- * | non 1st directory | hash value | UNIQUENESS   |   yes      |
+ * | 1st directory item| DOT_OFFSET | DIRENTRY_ .. |   anal       |
+ * | analn 1st directory | hash value | UNIQUENESS   |   anal      |
  * |     item          |            |              |            |
  * +-------------------+------------+--------------+------------+
  * | indirect item     | offset + 1 |TYPE_INDIRECT |    [1]	|
@@ -2618,8 +2618,8 @@ static inline struct super_block *sb_from_bi(struct buffer_info *bi)
  * | direct item       | offset + 1 |TYPE_DIRECT   |    [2]     |
  * +-------------------+------------+--------------+------------+
  *
- * [1] if this is not the first indirect item of the object
- * [2] if this is not the first direct item of the object
+ * [1] if this is analt the first indirect item of the object
+ * [2] if this is analt the first direct item of the object
 */
 
 struct item_operations {
@@ -2630,7 +2630,7 @@ struct item_operations {
 	void (*print_item) (struct item_head *, char *item);
 	void (*check_item) (struct item_head *, char *item);
 
-	int (*create_vi) (struct virtual_node * vn, struct virtual_item * vi,
+	int (*create_vi) (struct virtual_analde * vn, struct virtual_item * vi,
 			  int is_affected, int insert_size);
 	int (*check_left) (struct virtual_item * vi, int free,
 			   int start_skip, int end_skip);
@@ -2659,14 +2659,14 @@ extern struct item_operations *item_ops[TYPE_ANY + 1];
 #define I_UNFM_NUM(ih)	(ih_item_len(ih) / UNFM_P_SIZE)
 
 /*
- * the used space within the unformatted node corresponding
+ * the used space within the unformatted analde corresponding
  * to pos within the item pointed to by ih
  */
 #define I_POS_UNFM_SIZE(ih,pos,size) (((pos) == I_UNFM_NUM(ih) - 1 ) ? (size) - ih_free_space(ih) : (size))
 
 /*
  * number of bytes contained by the direct item or the
- * unformatted nodes the indirect item points to
+ * unformatted analdes the indirect item points to
  */
 
 /* following defines use reiserfs buffer header and item header */
@@ -2740,7 +2740,7 @@ struct reiserfs_journal_commit {
  * this header block gets written whenever a transaction is considered
  * fully flushed, and is more recent than the last fully flushed transaction.
  * fully flushed means all the log blocks and all the real blocks are on
- * disk, and this transaction does not need to be replayed.
+ * disk, and this transaction does analt need to be replayed.
  */
 struct reiserfs_journal_header {
 	/* id of last fully flushed transaction */
@@ -2756,7 +2756,7 @@ struct reiserfs_journal_header {
 /* biggest tunable defines are right here */
 #define JOURNAL_BLOCK_COUNT 8192	/* number of blocks in the journal */
 
-/* biggest possible single transaction, don't change for now (8/3/99) */
+/* biggest possible single transaction, don't change for analw (8/3/99) */
 #define JOURNAL_TRANS_MAX_DEFAULT 1024
 #define JOURNAL_TRANS_MIN_DEFAULT 256
 
@@ -2775,7 +2775,7 @@ struct reiserfs_journal_header {
 
 #ifdef CONFIG_QUOTA
 #define REISERFS_QUOTA_OPTS ((1 << REISERFS_USRQUOTA) | (1 << REISERFS_GRPQUOTA))
-/* We need to update data and inode (atime) */
+/* We need to update data and ianalde (atime) */
 #define REISERFS_QUOTA_TRANS_BLOCKS(s) (REISERFS_SB(s)->s_mount_opt & REISERFS_QUOTA_OPTS ? 2 : 0)
 /* 1 balancing, 1 bitmap, 1 data per write + stat data update */
 #define REISERFS_QUOTA_INIT_BLOCKS(s) (REISERFS_SB(s)->s_mount_opt & REISERFS_QUOTA_OPTS ? \
@@ -2791,13 +2791,13 @@ struct reiserfs_journal_header {
 
 /*
  * both of these can be as low as 1, or as high as you want.  The min is the
- * number of 4k bitmap nodes preallocated on mount. New nodes are allocated
+ * number of 4k bitmap analdes preallocated on mount. New analdes are allocated
  * as needed, and released when transactions are committed.  On release, if
- * the current number of nodes is > max, the node is freed, otherwise,
+ * the current number of analdes is > max, the analde is freed, otherwise,
  * it is put on a free list for faster use later.
 */
-#define REISERFS_MIN_BITMAP_NODES 10
-#define REISERFS_MAX_BITMAP_NODES 100
+#define REISERFS_MIN_BITMAP_ANALDES 10
+#define REISERFS_MAX_BITMAP_ANALDES 100
 
 /* these are based on journal hash size of 8192 */
 #define JBH_HASH_SHIFT 13
@@ -2881,15 +2881,15 @@ struct reiserfs_jh {
 };
 
 void reiserfs_free_jh(struct buffer_head *bh);
-int reiserfs_add_tail_list(struct inode *inode, struct buffer_head *bh);
-int reiserfs_add_ordered_list(struct inode *inode, struct buffer_head *bh);
+int reiserfs_add_tail_list(struct ianalde *ianalde, struct buffer_head *bh);
+int reiserfs_add_ordered_list(struct ianalde *ianalde, struct buffer_head *bh);
 int journal_mark_dirty(struct reiserfs_transaction_handle *,
 		       struct buffer_head *bh);
 
-static inline int reiserfs_file_data_log(struct inode *inode)
+static inline int reiserfs_file_data_log(struct ianalde *ianalde)
 {
-	if (reiserfs_data_log(inode->i_sb) ||
-	    (REISERFS_I(inode)->i_flags & i_data_log))
+	if (reiserfs_data_log(ianalde->i_sb) ||
+	    (REISERFS_I(ianalde)->i_flags & i_data_log))
 		return 1;
 	return 0;
 }
@@ -2914,13 +2914,13 @@ struct reiserfs_transaction_handle *reiserfs_persistent_transaction(struct
 								    *,
 								    int count);
 int reiserfs_end_persistent_transaction(struct reiserfs_transaction_handle *);
-void reiserfs_vfs_truncate_file(struct inode *inode);
-int reiserfs_commit_page(struct inode *inode, struct page *page,
+void reiserfs_vfs_truncate_file(struct ianalde *ianalde);
+int reiserfs_commit_page(struct ianalde *ianalde, struct page *page,
 			 unsigned from, unsigned to);
 void reiserfs_flush_old_commits(struct super_block *);
-int reiserfs_commit_for_inode(struct inode *);
-int reiserfs_inode_needs_commit(struct inode *);
-void reiserfs_update_inode_transaction(struct inode *);
+int reiserfs_commit_for_ianalde(struct ianalde *);
+int reiserfs_ianalde_needs_commit(struct ianalde *);
+void reiserfs_update_ianalde_transaction(struct ianalde *);
 void reiserfs_wait_on_write_block(struct super_block *s);
 void reiserfs_block_writes(struct reiserfs_transaction_handle *th);
 void reiserfs_allow_writes(struct super_block *s);
@@ -2945,16 +2945,16 @@ int journal_begin(struct reiserfs_transaction_handle *,
 		  struct super_block *sb, unsigned long);
 int journal_join_abort(struct reiserfs_transaction_handle *,
 		       struct super_block *sb);
-void reiserfs_abort_journal(struct super_block *sb, int errno);
-void reiserfs_abort(struct super_block *sb, int errno, const char *fmt, ...);
+void reiserfs_abort_journal(struct super_block *sb, int erranal);
+void reiserfs_abort(struct super_block *sb, int erranal, const char *fmt, ...);
 int reiserfs_allocate_list_bitmaps(struct super_block *s,
 				   struct reiserfs_list_bitmap *, unsigned int);
 
 void reiserfs_schedule_old_flush(struct super_block *s);
 void reiserfs_cancel_old_flush(struct super_block *s);
 void add_save_link(struct reiserfs_transaction_handle *th,
-		   struct inode *inode, int truncate);
-int remove_save_link(struct inode *inode, int truncate);
+		   struct ianalde *ianalde, int truncate);
+int remove_save_link(struct ianalde *ianalde, int truncate);
 
 /* objectid.c */
 __u32 reiserfs_get_unused_objectid(struct reiserfs_transaction_handle *th);
@@ -3003,7 +3003,7 @@ const struct reiserfs_key *get_rkey(const struct treepath *chk_path,
 				    const struct super_block *sb);
 int search_by_key(struct super_block *, const struct cpu_key *,
 		  struct treepath *, int);
-#define search_item(s,key,path) search_by_key (s, key, path, DISK_LEAF_NODE_LEVEL)
+#define search_item(s,key,path) search_by_key (s, key, path, DISK_LEAF_ANALDE_LEVEL)
 int search_for_position_by_key(struct super_block *sb,
 			       const struct cpu_key *cpu_key,
 			       struct treepath *search_path);
@@ -3017,98 +3017,98 @@ int reiserfs_insert_item(struct reiserfs_transaction_handle *th,
 			 struct treepath *path,
 			 const struct cpu_key *key,
 			 struct item_head *ih,
-			 struct inode *inode, const char *body);
+			 struct ianalde *ianalde, const char *body);
 
 int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th,
 			     struct treepath *path,
 			     const struct cpu_key *key,
-			     struct inode *inode,
+			     struct ianalde *ianalde,
 			     const char *body, int paste_size);
 
 int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 			   struct treepath *path,
 			   struct cpu_key *key,
-			   struct inode *inode,
+			   struct ianalde *ianalde,
 			   struct page *page, loff_t new_file_size);
 
 int reiserfs_delete_item(struct reiserfs_transaction_handle *th,
 			 struct treepath *path,
 			 const struct cpu_key *key,
-			 struct inode *inode, struct buffer_head *un_bh);
+			 struct ianalde *ianalde, struct buffer_head *un_bh);
 
 void reiserfs_delete_solid_item(struct reiserfs_transaction_handle *th,
-				struct inode *inode, struct reiserfs_key *key);
+				struct ianalde *ianalde, struct reiserfs_key *key);
 int reiserfs_delete_object(struct reiserfs_transaction_handle *th,
-			   struct inode *inode);
+			   struct ianalde *ianalde);
 int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
-			 struct inode *inode, struct page *,
+			 struct ianalde *ianalde, struct page *,
 			 int update_timestamps);
 
-#define i_block_size(inode) ((inode)->i_sb->s_blocksize)
-#define file_size(inode) ((inode)->i_size)
-#define tail_size(inode) (file_size (inode) & (i_block_size (inode) - 1))
+#define i_block_size(ianalde) ((ianalde)->i_sb->s_blocksize)
+#define file_size(ianalde) ((ianalde)->i_size)
+#define tail_size(ianalde) (file_size (ianalde) & (i_block_size (ianalde) - 1))
 
-#define tail_has_to_be_packed(inode) (have_large_tails ((inode)->i_sb)?\
-!STORE_TAIL_IN_UNFM_S1(file_size (inode), tail_size(inode), inode->i_sb->s_blocksize):have_small_tails ((inode)->i_sb)?!STORE_TAIL_IN_UNFM_S2(file_size (inode), tail_size(inode), inode->i_sb->s_blocksize):0 )
+#define tail_has_to_be_packed(ianalde) (have_large_tails ((ianalde)->i_sb)?\
+!STORE_TAIL_IN_UNFM_S1(file_size (ianalde), tail_size(ianalde), ianalde->i_sb->s_blocksize):have_small_tails ((ianalde)->i_sb)?!STORE_TAIL_IN_UNFM_S2(file_size (ianalde), tail_size(ianalde), ianalde->i_sb->s_blocksize):0 )
 
 void padd_item(char *item, int total_length, int length);
 
-/* inode.c */
+/* ianalde.c */
 /* args for the create parameter of reiserfs_get_block */
-#define GET_BLOCK_NO_CREATE 0	 /* don't create new blocks or convert tails */
+#define GET_BLOCK_ANAL_CREATE 0	 /* don't create new blocks or convert tails */
 #define GET_BLOCK_CREATE 1	 /* add anything you need to find block */
-#define GET_BLOCK_NO_HOLE 2	 /* return -ENOENT for file holes */
-#define GET_BLOCK_READ_DIRECT 4	 /* read the tail if indirect item not found */
-#define GET_BLOCK_NO_IMUX     8	 /* i_mutex is not held, don't preallocate */
-#define GET_BLOCK_NO_DANGLE   16 /* don't leave any transactions running */
+#define GET_BLOCK_ANAL_HOLE 2	 /* return -EANALENT for file holes */
+#define GET_BLOCK_READ_DIRECT 4	 /* read the tail if indirect item analt found */
+#define GET_BLOCK_ANAL_IMUX     8	 /* i_mutex is analt held, don't preallocate */
+#define GET_BLOCK_ANAL_DANGLE   16 /* don't leave any transactions running */
 
-void reiserfs_read_locked_inode(struct inode *inode,
+void reiserfs_read_locked_ianalde(struct ianalde *ianalde,
 				struct reiserfs_iget_args *args);
-int reiserfs_find_actor(struct inode *inode, void *p);
-int reiserfs_init_locked_inode(struct inode *inode, void *p);
-void reiserfs_evict_inode(struct inode *inode);
-int reiserfs_write_inode(struct inode *inode, struct writeback_control *wbc);
-int reiserfs_get_block(struct inode *inode, sector_t block,
+int reiserfs_find_actor(struct ianalde *ianalde, void *p);
+int reiserfs_init_locked_ianalde(struct ianalde *ianalde, void *p);
+void reiserfs_evict_ianalde(struct ianalde *ianalde);
+int reiserfs_write_ianalde(struct ianalde *ianalde, struct writeback_control *wbc);
+int reiserfs_get_block(struct ianalde *ianalde, sector_t block,
 		       struct buffer_head *bh_result, int create);
 struct dentry *reiserfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 				     int fh_len, int fh_type);
 struct dentry *reiserfs_fh_to_parent(struct super_block *sb, struct fid *fid,
 				     int fh_len, int fh_type);
-int reiserfs_encode_fh(struct inode *inode, __u32 * data, int *lenp,
-		       struct inode *parent);
+int reiserfs_encode_fh(struct ianalde *ianalde, __u32 * data, int *lenp,
+		       struct ianalde *parent);
 
-int reiserfs_truncate_file(struct inode *, int update_timestamps);
-void make_cpu_key(struct cpu_key *cpu_key, struct inode *inode, loff_t offset,
+int reiserfs_truncate_file(struct ianalde *, int update_timestamps);
+void make_cpu_key(struct cpu_key *cpu_key, struct ianalde *ianalde, loff_t offset,
 		  int type, int key_length);
 void make_le_item_head(struct item_head *ih, const struct cpu_key *key,
 		       int version,
 		       loff_t offset, int type, int length, int entry_count);
-struct inode *reiserfs_iget(struct super_block *s, const struct cpu_key *key);
+struct ianalde *reiserfs_iget(struct super_block *s, const struct cpu_key *key);
 
 struct reiserfs_security_handle;
-int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
-		       struct inode *dir, umode_t mode,
+int reiserfs_new_ianalde(struct reiserfs_transaction_handle *th,
+		       struct ianalde *dir, umode_t mode,
 		       const char *symname, loff_t i_size,
-		       struct dentry *dentry, struct inode *inode,
+		       struct dentry *dentry, struct ianalde *ianalde,
 		       struct reiserfs_security_handle *security);
 
 void reiserfs_update_sd_size(struct reiserfs_transaction_handle *th,
-			     struct inode *inode, loff_t size);
+			     struct ianalde *ianalde, loff_t size);
 
 static inline void reiserfs_update_sd(struct reiserfs_transaction_handle *th,
-				      struct inode *inode)
+				      struct ianalde *ianalde)
 {
-	reiserfs_update_sd_size(th, inode, inode->i_size);
+	reiserfs_update_sd_size(th, ianalde, ianalde->i_size);
 }
 
-void sd_attrs_to_i_attrs(__u16 sd_attrs, struct inode *inode);
+void sd_attrs_to_i_attrs(__u16 sd_attrs, struct ianalde *ianalde);
 int reiserfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct iattr *attr);
 
 int __reiserfs_write_begin(struct page *page, unsigned from, unsigned len);
 
 /* namei.c */
-void reiserfs_init_priv_inode(struct inode *inode);
+void reiserfs_init_priv_ianalde(struct ianalde *ianalde);
 void set_de_name_and_namelen(struct reiserfs_dir_entry *de);
 int search_by_entry_key(struct super_block *sb, const struct cpu_key *key,
 			struct treepath *path, struct reiserfs_dir_entry *de);
@@ -3158,40 +3158,40 @@ static inline int reiserfs_proc_info_global_done(void)
 #define PROC_INFO_MAX( sb, field, value ) VOID_V
 #define PROC_INFO_INC( sb, field ) VOID_V
 #define PROC_INFO_ADD( sb, field, val ) VOID_V
-#define PROC_INFO_BH_STAT(sb, bh, n_node_level) VOID_V
+#define PROC_INFO_BH_STAT(sb, bh, n_analde_level) VOID_V
 #endif
 
 /* dir.c */
-extern const struct inode_operations reiserfs_dir_inode_operations;
-extern const struct inode_operations reiserfs_symlink_inode_operations;
-extern const struct inode_operations reiserfs_special_inode_operations;
+extern const struct ianalde_operations reiserfs_dir_ianalde_operations;
+extern const struct ianalde_operations reiserfs_symlink_ianalde_operations;
+extern const struct ianalde_operations reiserfs_special_ianalde_operations;
 extern const struct file_operations reiserfs_dir_operations;
-int reiserfs_readdir_inode(struct inode *, struct dir_context *);
+int reiserfs_readdir_ianalde(struct ianalde *, struct dir_context *);
 
 /* tail_conversion.c */
-int direct2indirect(struct reiserfs_transaction_handle *, struct inode *,
+int direct2indirect(struct reiserfs_transaction_handle *, struct ianalde *,
 		    struct treepath *, struct buffer_head *, loff_t);
-int indirect2direct(struct reiserfs_transaction_handle *, struct inode *,
+int indirect2direct(struct reiserfs_transaction_handle *, struct ianalde *,
 		    struct page *, struct treepath *, const struct cpu_key *,
 		    loff_t, char *);
 void reiserfs_unmap_buffer(struct buffer_head *);
 
 /* file.c */
-extern const struct inode_operations reiserfs_file_inode_operations;
-extern const struct inode_operations reiserfs_priv_file_inode_operations;
+extern const struct ianalde_operations reiserfs_file_ianalde_operations;
+extern const struct ianalde_operations reiserfs_priv_file_ianalde_operations;
 extern const struct file_operations reiserfs_file_operations;
 extern const struct address_space_operations reiserfs_address_space_operations;
 
-/* fix_nodes.c */
+/* fix_analdes.c */
 
-int fix_nodes(int n_op_mode, struct tree_balance *tb,
+int fix_analdes(int n_op_mode, struct tree_balance *tb,
 	      struct item_head *ins_ih, const void *);
-void unfix_nodes(struct tree_balance *);
+void unfix_analdes(struct tree_balance *);
 
 /* prints.c */
 void __reiserfs_panic(struct super_block *s, const char *id,
 		      const char *function, const char *fmt, ...)
-    __attribute__ ((noreturn));
+    __attribute__ ((analreturn));
 #define reiserfs_panic(s, id, fmt, args...) \
 	__reiserfs_panic(s, id, __func__, fmt, ##args)
 void __reiserfs_error(struct super_block *s, const char *id,
@@ -3257,18 +3257,18 @@ int get_left_neighbor_position(struct tree_balance *tb, int h);
 int get_right_neighbor_position(struct tree_balance *tb, int h);
 void replace_key(struct tree_balance *tb, struct buffer_head *, int,
 		 struct buffer_head *, int);
-void make_empty_node(struct buffer_info *);
+void make_empty_analde(struct buffer_info *);
 struct buffer_head *get_FEB(struct tree_balance *);
 
 /* bitmap.c */
 
 /*
  * structure contains hints for block allocator, and it is a container for
- * arguments, such as node, search path, transaction_handle, etc.
+ * arguments, such as analde, search path, transaction_handle, etc.
  */
 struct __reiserfs_blocknr_hint {
-	/* inode passed to allocator, if we allocate unf. nodes */
-	struct inode *inode;
+	/* ianalde passed to allocator, if we allocate unf. analdes */
+	struct ianalde *ianalde;
 
 	sector_t block;		/* file offset, in blocks */
 	struct in_core_key key;
@@ -3304,7 +3304,7 @@ struct __reiserfs_blocknr_hint {
 	 * the allocator uses different polices for getting disk
 	 * space for formatted/unformatted blocks with/without preallocation
 	 */
-	unsigned formatted_node:1;
+	unsigned formatted_analde:1;
 	unsigned preallocate:1;
 };
 
@@ -3318,7 +3318,7 @@ void reiserfs_init_alloc_options(struct super_block *s);
  * to use for a new object underneat it.  The locality is returned
  * in disk byte order (le).
  */
-__le32 reiserfs_choose_packing(struct inode *dir);
+__le32 reiserfs_choose_packing(struct ianalde *dir);
 
 void show_alloc_options(struct seq_file *seq, struct super_block *s);
 int reiserfs_init_bitmap_cache(struct super_block *sb);
@@ -3326,7 +3326,7 @@ void reiserfs_free_bitmap_cache(struct super_block *sb);
 void reiserfs_cache_bitmap_metadata(struct super_block *sb, struct buffer_head *bh, struct reiserfs_bitmap_info *info);
 struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb, unsigned int bitmap);
 int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value);
-void reiserfs_free_block(struct reiserfs_transaction_handle *th, struct inode *,
+void reiserfs_free_block(struct reiserfs_transaction_handle *th, struct ianalde *,
 			 b_blocknr_t, int for_unformatted);
 int reiserfs_allocate_blocknrs(reiserfs_blocknr_hint_t *, b_blocknr_t *, int,
 			       int);
@@ -3337,17 +3337,17 @@ static inline int reiserfs_new_form_blocknrs(struct tree_balance *tb,
 	reiserfs_blocknr_hint_t hint = {
 		.th = tb->transaction_handle,
 		.path = tb->tb_path,
-		.inode = NULL,
+		.ianalde = NULL,
 		.key = tb->key,
 		.block = 0,
-		.formatted_node = 1
+		.formatted_analde = 1
 	};
 	return reiserfs_allocate_blocknrs(&hint, new_blocknrs, amount_needed,
 					  0);
 }
 
 static inline int reiserfs_new_unf_blocknrs(struct reiserfs_transaction_handle
-					    *th, struct inode *inode,
+					    *th, struct ianalde *ianalde,
 					    b_blocknr_t * new_blocknrs,
 					    struct treepath *path,
 					    sector_t block)
@@ -3355,9 +3355,9 @@ static inline int reiserfs_new_unf_blocknrs(struct reiserfs_transaction_handle
 	reiserfs_blocknr_hint_t hint = {
 		.th = th,
 		.path = path,
-		.inode = inode,
+		.ianalde = ianalde,
 		.block = block,
-		.formatted_node = 0,
+		.formatted_analde = 0,
 		.preallocate = 0
 	};
 	return reiserfs_allocate_blocknrs(&hint, new_blocknrs, 1, 0);
@@ -3365,7 +3365,7 @@ static inline int reiserfs_new_unf_blocknrs(struct reiserfs_transaction_handle
 
 #ifdef REISERFS_PREALLOCATE
 static inline int reiserfs_new_unf_blocknrs2(struct reiserfs_transaction_handle
-					     *th, struct inode *inode,
+					     *th, struct ianalde *ianalde,
 					     b_blocknr_t * new_blocknrs,
 					     struct treepath *path,
 					     sector_t block)
@@ -3373,16 +3373,16 @@ static inline int reiserfs_new_unf_blocknrs2(struct reiserfs_transaction_handle
 	reiserfs_blocknr_hint_t hint = {
 		.th = th,
 		.path = path,
-		.inode = inode,
+		.ianalde = ianalde,
 		.block = block,
-		.formatted_node = 0,
+		.formatted_analde = 0,
 		.preallocate = 1
 	};
 	return reiserfs_allocate_blocknrs(&hint, new_blocknrs, 1, 0);
 }
 
 void reiserfs_discard_prealloc(struct reiserfs_transaction_handle *th,
-			       struct inode *inode);
+			       struct ianalde *ianalde);
 void reiserfs_discard_all_prealloc(struct reiserfs_transaction_handle *th);
 #endif
 
@@ -3402,9 +3402,9 @@ __u32 r5_hash(const signed char *msg, int len);
  * sometimes reiserfs_truncate may require to allocate few new blocks
  * to perform indirect2direct conversion. People probably used to
  * think, that truncate should work without problems on a filesystem
- * without free disk space. They may complain that they can not
+ * without free disk space. They may complain that they can analt
  * truncate due to lack of free disk space. This spare space allows us
- * to not worry about it. 500 is probably too much, but it should be
+ * to analt worry about it. 500 is probably too much, but it should be
  * absolutely safe
  */
 #define SPARE_SPACE 500
@@ -3416,4 +3416,4 @@ int reiserfs_fileattr_set(struct mnt_idmap *idmap,
 long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 long reiserfs_compat_ioctl(struct file *filp,
 		   unsigned int cmd, unsigned long arg);
-int reiserfs_unpack(struct inode *inode);
+int reiserfs_unpack(struct ianalde *ianalde);

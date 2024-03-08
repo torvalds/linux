@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/consumer.h>
 #include <linux/spi/spi.h>
 #include "fbtft.h"
@@ -34,7 +34,7 @@ EXPORT_SYMBOL(fbtft_write_spi);
  * @buf: Buffer to write
  * @len: Length of buffer (must be divisible by 8)
  *
- * When 9-bit SPI is not available, this function can be used to emulate that.
+ * When 9-bit SPI is analt available, this function can be used to emulate that.
  * par->extra must hold a transformation buffer used for transfer.
  */
 int fbtft_write_spi_emulate_9(struct fbtft_par *par, void *buf, size_t len)
@@ -96,7 +96,7 @@ int fbtft_read_spi(struct fbtft_par *par, void *buf, size_t len)
 	if (!par->spi) {
 		dev_err(par->info->device,
 			"%s: par->spi is unexpectedly NULL\n", __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (par->startbyte) {
@@ -124,14 +124,14 @@ int fbtft_read_spi(struct fbtft_par *par, void *buf, size_t len)
 EXPORT_SYMBOL(fbtft_read_spi);
 
 /*
- * Optimized use of gpiolib is twice as fast as no optimization
+ * Optimized use of gpiolib is twice as fast as anal optimization
  * only one driver can use the optimized version at a time
  */
 int fbtft_write_gpio8_wr(struct fbtft_par *par, void *buf, size_t len)
 {
 	u8 data;
 	int i;
-#ifndef DO_NOT_OPTIMIZE_FBTFT_WRITE_GPIO
+#ifndef DO_ANALT_OPTIMIZE_FBTFT_WRITE_GPIO
 	static u8 prev_data;
 #endif
 
@@ -145,7 +145,7 @@ int fbtft_write_gpio8_wr(struct fbtft_par *par, void *buf, size_t len)
 		gpiod_set_value(par->gpio.wr, 1);
 
 		/* Set data */
-#ifndef DO_NOT_OPTIMIZE_FBTFT_WRITE_GPIO
+#ifndef DO_ANALT_OPTIMIZE_FBTFT_WRITE_GPIO
 		if (data == prev_data) {
 			gpiod_set_value(par->gpio.wr, 1); /* used as delay */
 		} else {
@@ -167,7 +167,7 @@ int fbtft_write_gpio8_wr(struct fbtft_par *par, void *buf, size_t len)
 		/* Pullup /WR */
 		gpiod_set_value(par->gpio.wr, 0);
 
-#ifndef DO_NOT_OPTIMIZE_FBTFT_WRITE_GPIO
+#ifndef DO_ANALT_OPTIMIZE_FBTFT_WRITE_GPIO
 		prev_data = *(u8 *)buf;
 #endif
 		buf++;
@@ -181,7 +181,7 @@ int fbtft_write_gpio16_wr(struct fbtft_par *par, void *buf, size_t len)
 {
 	u16 data;
 	int i;
-#ifndef DO_NOT_OPTIMIZE_FBTFT_WRITE_GPIO
+#ifndef DO_ANALT_OPTIMIZE_FBTFT_WRITE_GPIO
 	static u16 prev_data;
 #endif
 
@@ -195,7 +195,7 @@ int fbtft_write_gpio16_wr(struct fbtft_par *par, void *buf, size_t len)
 		gpiod_set_value(par->gpio.wr, 1);
 
 		/* Set data */
-#ifndef DO_NOT_OPTIMIZE_FBTFT_WRITE_GPIO
+#ifndef DO_ANALT_OPTIMIZE_FBTFT_WRITE_GPIO
 		if (data == prev_data) {
 			gpiod_set_value(par->gpio.wr, 1); /* used as delay */
 		} else {
@@ -217,7 +217,7 @@ int fbtft_write_gpio16_wr(struct fbtft_par *par, void *buf, size_t len)
 		/* Pullup /WR */
 		gpiod_set_value(par->gpio.wr, 0);
 
-#ifndef DO_NOT_OPTIMIZE_FBTFT_WRITE_GPIO
+#ifndef DO_ANALT_OPTIMIZE_FBTFT_WRITE_GPIO
 		prev_data = *(u16 *)buf;
 #endif
 		buf += 2;
@@ -230,7 +230,7 @@ EXPORT_SYMBOL(fbtft_write_gpio16_wr);
 
 int fbtft_write_gpio16_wr_latched(struct fbtft_par *par, void *buf, size_t len)
 {
-	dev_err(par->info->device, "%s: function not implemented\n", __func__);
+	dev_err(par->info->device, "%s: function analt implemented\n", __func__);
 	return -1;
 }
 EXPORT_SYMBOL(fbtft_write_gpio16_wr_latched);

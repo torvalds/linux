@@ -74,7 +74,7 @@ int snd_emu10k1_timer(struct snd_emu10k1 *emu, int device)
 	int err;
 
 	tid.dev_class = SNDRV_TIMER_CLASS_CARD;
-	tid.dev_sclass = SNDRV_TIMER_SCLASS_NONE;
+	tid.dev_sclass = SNDRV_TIMER_SCLASS_ANALNE;
 	tid.card = emu->card->number;
 	tid.device = device;
 	tid.subdevice = 0;

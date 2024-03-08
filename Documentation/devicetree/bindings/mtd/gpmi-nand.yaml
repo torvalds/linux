@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   The GPMI nand controller provides an interface to control the NAND
-  flash chips. The device tree may optionally contain sub-nodes
+  flash chips. The device tree may optionally contain sub-analdes
   describing partitions of the address space. See partition.txt for
   more detail.
 
@@ -65,19 +65,19 @@ properties:
     description: |
       Protect this NAND flash with the minimum ECC strength required.
       The required ECC strength is automatically discoverable for some
-      flash (e.g., according to the ONFI standard). However, note that
-      if this strength is not discoverable or this property is not enabled,
+      flash (e.g., according to the ONFI standard). However, analte that
+      if this strength is analt discoverable or this property is analt enabled,
       the software may chooses an implementation-defined ECC scheme.
 
-  fsl,no-blockmark-swap:
+  fsl,anal-blockmark-swap:
     type: boolean
     description: |
       Don't swap the bad block marker from the OOB area with the byte in
       the data area but rely on the flash based BBT for identifying bad blocks.
-      NOTE: this is only valid in conjunction with 'nand-on-flash-bbt'.
-      WARNING: on i.MX28 blockmark swapping cannot be disabled for the BootROM
+      ANALTE: this is only valid in conjunction with 'nand-on-flash-bbt'.
+      WARNING: on i.MX28 blockmark swapping cananalt be disabled for the BootROM
       in the FCB. Thus, partitions written from Linux with this feature turned
-      on may not be accessible by the BootROM code.
+      on may analt be accessible by the BootROM code.
 
 required:
   - compatible

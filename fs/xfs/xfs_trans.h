@@ -13,7 +13,7 @@ struct xfs_buf;
 struct xfs_buftarg;
 struct xfs_efd_log_item;
 struct xfs_efi_log_item;
-struct xfs_inode;
+struct xfs_ianalde;
 struct xfs_item_ops;
 struct xfs_log_iovec;
 struct xfs_mount;
@@ -128,7 +128,7 @@ typedef struct xfs_trans {
 	unsigned int		t_rtx_res;	/* # of rt extents resvd */
 	unsigned int		t_rtx_res_used;	/* # of resvd rt extents used */
 	unsigned int		t_flags;	/* misc flags */
-	xfs_agnumber_t		t_highest_agno;	/* highest AGF locked */
+	xfs_agnumber_t		t_highest_aganal;	/* highest AGF locked */
 	struct xlog_ticket	*t_ticket;	/* log mgr ticket */
 	struct xfs_mount	*t_mountp;	/* ptr to fs mount struct */
 	struct xfs_dquot_acct   *t_dqinfo;	/* acctg info for dquots */
@@ -178,12 +178,12 @@ static inline int
 xfs_trans_get_buf(
 	struct xfs_trans	*tp,
 	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkanal,
 	int			numblks,
 	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp)
 {
-	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+	DEFINE_SINGLE_BUF_MAP(map, blkanal, numblks);
 	return xfs_trans_get_buf_map(tp, target, &map, 1, flags, bpp);
 }
 
@@ -200,13 +200,13 @@ xfs_trans_read_buf(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkanal,
 	int			numblks,
 	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp,
 	const struct xfs_buf_ops *ops)
 {
-	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+	DEFINE_SINGLE_BUF_MAP(map, blkanal, numblks);
 	return xfs_trans_read_buf_map(mp, tp, target, &map, 1,
 				      flags, bpp, ops);
 }
@@ -218,22 +218,22 @@ void		xfs_trans_bjoin(xfs_trans_t *, struct xfs_buf *);
 void		xfs_trans_bhold(xfs_trans_t *, struct xfs_buf *);
 void		xfs_trans_bhold_release(xfs_trans_t *, struct xfs_buf *);
 void		xfs_trans_binval(xfs_trans_t *, struct xfs_buf *);
-void		xfs_trans_inode_buf(xfs_trans_t *, struct xfs_buf *);
-void		xfs_trans_stale_inode_buf(xfs_trans_t *, struct xfs_buf *);
+void		xfs_trans_ianalde_buf(xfs_trans_t *, struct xfs_buf *);
+void		xfs_trans_stale_ianalde_buf(xfs_trans_t *, struct xfs_buf *);
 bool		xfs_trans_ordered_buf(xfs_trans_t *, struct xfs_buf *);
 void		xfs_trans_dquot_buf(xfs_trans_t *, struct xfs_buf *, uint);
-void		xfs_trans_inode_alloc_buf(xfs_trans_t *, struct xfs_buf *);
-void		xfs_trans_ichgtime(struct xfs_trans *, struct xfs_inode *, int);
-void		xfs_trans_ijoin(struct xfs_trans *, struct xfs_inode *, uint);
+void		xfs_trans_ianalde_alloc_buf(xfs_trans_t *, struct xfs_buf *);
+void		xfs_trans_ichgtime(struct xfs_trans *, struct xfs_ianalde *, int);
+void		xfs_trans_ijoin(struct xfs_trans *, struct xfs_ianalde *, uint);
 void		xfs_trans_log_buf(struct xfs_trans *, struct xfs_buf *, uint,
 				  uint);
 void		xfs_trans_dirty_buf(struct xfs_trans *, struct xfs_buf *);
 bool		xfs_trans_buf_is_dirty(struct xfs_buf *bp);
-void		xfs_trans_log_inode(xfs_trans_t *, struct xfs_inode *, uint);
+void		xfs_trans_log_ianalde(xfs_trans_t *, struct xfs_ianalde *, uint);
 
 int		xfs_trans_commit(struct xfs_trans *);
 int		xfs_trans_roll(struct xfs_trans **);
-int		xfs_trans_roll_inode(struct xfs_trans **, struct xfs_inode *);
+int		xfs_trans_roll_ianalde(struct xfs_trans **, struct xfs_ianalde *);
 void		xfs_trans_cancel(xfs_trans_t *);
 int		xfs_trans_ail_init(struct xfs_mount *);
 void		xfs_trans_ail_destroy(struct xfs_mount *);
@@ -247,28 +247,28 @@ extern struct kmem_cache	*xfs_trans_cache;
 
 struct xfs_dquot;
 
-int xfs_trans_alloc_inode(struct xfs_inode *ip, struct xfs_trans_res *resv,
+int xfs_trans_alloc_ianalde(struct xfs_ianalde *ip, struct xfs_trans_res *resv,
 		unsigned int dblocks, unsigned int rblocks, bool force,
 		struct xfs_trans **tpp);
-int xfs_trans_reserve_more_inode(struct xfs_trans *tp, struct xfs_inode *ip,
+int xfs_trans_reserve_more_ianalde(struct xfs_trans *tp, struct xfs_ianalde *ip,
 		unsigned int dblocks, unsigned int rblocks, bool force_quota);
 int xfs_trans_alloc_icreate(struct xfs_mount *mp, struct xfs_trans_res *resv,
 		struct xfs_dquot *udqp, struct xfs_dquot *gdqp,
 		struct xfs_dquot *pdqp, unsigned int dblocks,
 		struct xfs_trans **tpp);
-int xfs_trans_alloc_ichange(struct xfs_inode *ip, struct xfs_dquot *udqp,
+int xfs_trans_alloc_ichange(struct xfs_ianalde *ip, struct xfs_dquot *udqp,
 		struct xfs_dquot *gdqp, struct xfs_dquot *pdqp, bool force,
 		struct xfs_trans **tpp);
-int xfs_trans_alloc_dir(struct xfs_inode *dp, struct xfs_trans_res *resv,
-		struct xfs_inode *ip, unsigned int *dblocks,
-		struct xfs_trans **tpp, int *nospace_error);
+int xfs_trans_alloc_dir(struct xfs_ianalde *dp, struct xfs_trans_res *resv,
+		struct xfs_ianalde *ip, unsigned int *dblocks,
+		struct xfs_trans **tpp, int *analspace_error);
 
 static inline void
 xfs_trans_set_context(
 	struct xfs_trans	*tp)
 {
 	ASSERT(current->journal_info == NULL);
-	tp->t_pflags = memalloc_nofs_save();
+	tp->t_pflags = memalloc_analfs_save();
 	current->journal_info = tp;
 }
 
@@ -277,7 +277,7 @@ xfs_trans_clear_context(
 	struct xfs_trans	*tp)
 {
 	if (current->journal_info == tp) {
-		memalloc_nofs_restore(tp->t_pflags);
+		memalloc_analfs_restore(tp->t_pflags);
 		current->journal_info = NULL;
 	}
 }

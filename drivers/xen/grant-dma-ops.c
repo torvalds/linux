@@ -175,7 +175,7 @@ static dma_addr_t xen_grant_dma_map_page(struct device *dev, struct page *page,
 	grant_ref_t grant;
 	dma_addr_t dma_handle;
 
-	if (WARN_ON(dir == DMA_NONE))
+	if (WARN_ON(dir == DMA_ANALNE))
 		return DMA_MAPPING_ERROR;
 
 	data = find_xen_grant_dma_data(dev);
@@ -208,7 +208,7 @@ static void xen_grant_dma_unmap_page(struct device *dev, dma_addr_t dma_handle,
 	unsigned int i, n_pages = XEN_PFN_UP(dma_offset + size);
 	grant_ref_t grant;
 
-	if (WARN_ON(dir == DMA_NONE))
+	if (WARN_ON(dir == DMA_ANALNE))
 		return;
 
 	data = find_xen_grant_dma_data(dev);
@@ -238,7 +238,7 @@ static void xen_grant_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 	struct scatterlist *s;
 	unsigned int i;
 
-	if (WARN_ON(dir == DMA_NONE))
+	if (WARN_ON(dir == DMA_ANALNE))
 		return;
 
 	for_each_sg(sg, s, nents, i)
@@ -253,7 +253,7 @@ static int xen_grant_dma_map_sg(struct device *dev, struct scatterlist *sg,
 	struct scatterlist *s;
 	unsigned int i;
 
-	if (WARN_ON(dir == DMA_NONE))
+	if (WARN_ON(dir == DMA_ANALNE))
 		return -EINVAL;
 
 	for_each_sg(sg, s, nents, i) {
@@ -293,7 +293,7 @@ static const struct dma_map_ops xen_grant_dma_ops = {
 	.dma_supported = xen_grant_dma_supported,
 };
 
-static struct device_node *xen_dt_get_node(struct device *dev)
+static struct device_analde *xen_dt_get_analde(struct device *dev)
 {
 	if (dev_is_pci(dev)) {
 		struct pci_dev *pdev = to_pci_dev(dev);
@@ -305,14 +305,14 @@ static struct device_node *xen_dt_get_node(struct device *dev)
 
 		if (!bus->bridge->parent)
 			return NULL;
-		return of_node_get(bus->bridge->parent->of_node);
+		return of_analde_get(bus->bridge->parent->of_analde);
 	}
 
-	return of_node_get(dev->of_node);
+	return of_analde_get(dev->of_analde);
 }
 
 static int xen_dt_grant_init_backend_domid(struct device *dev,
-					   struct device_node *np,
+					   struct device_analde *np,
 					   domid_t *backend_domid)
 {
 	struct of_phandle_args iommu_spec = { .args_count = 1 };
@@ -323,25 +323,25 @@ static int xen_dt_grant_init_backend_domid(struct device *dev,
 
 		if (of_map_id(np, rid, "iommu-map", "iommu-map-mask", &iommu_spec.np,
 				iommu_spec.args)) {
-			dev_dbg(dev, "Cannot translate ID\n");
+			dev_dbg(dev, "Cananalt translate ID\n");
 			return -ESRCH;
 		}
 	} else {
 		if (of_parse_phandle_with_args(np, "iommus", "#iommu-cells",
 				0, &iommu_spec)) {
-			dev_dbg(dev, "Cannot parse iommus property\n");
+			dev_dbg(dev, "Cananalt parse iommus property\n");
 			return -ESRCH;
 		}
 	}
 
 	if (!of_device_is_compatible(iommu_spec.np, "xen,grant-dma") ||
 			iommu_spec.args_count != 1) {
-		dev_dbg(dev, "Incompatible IOMMU node\n");
-		of_node_put(iommu_spec.np);
+		dev_dbg(dev, "Incompatible IOMMU analde\n");
+		of_analde_put(iommu_spec.np);
 		return -ESRCH;
 	}
 
-	of_node_put(iommu_spec.np);
+	of_analde_put(iommu_spec.np);
 
 	/*
 	 * The endpoint ID here means the ID of the domain where the
@@ -355,13 +355,13 @@ static int xen_dt_grant_init_backend_domid(struct device *dev,
 static int xen_grant_init_backend_domid(struct device *dev,
 					domid_t *backend_domid)
 {
-	struct device_node *np;
-	int ret = -ENODEV;
+	struct device_analde *np;
+	int ret = -EANALDEV;
 
-	np = xen_dt_get_node(dev);
+	np = xen_dt_get_analde(dev);
 	if (np) {
 		ret = xen_dt_grant_init_backend_domid(dev, np, backend_domid);
-		of_node_put(np);
+		of_analde_put(np);
 	} else if (IS_ENABLED(CONFIG_XEN_VIRTIO_FORCE_GRANT) || xen_pv_domain()) {
 		dev_info(dev, "Using dom0 as backend\n");
 		*backend_domid = 0;
@@ -388,7 +388,7 @@ static void xen_grant_setup_dma_ops(struct device *dev, domid_t backend_domid)
 	data->backend_domid = backend_domid;
 
 	if (store_xen_grant_dma_data(dev, data)) {
-		dev_err(dev, "Cannot store Xen grant DMA data\n");
+		dev_err(dev, "Cananalt store Xen grant DMA data\n");
 		goto err;
 	}
 
@@ -398,7 +398,7 @@ static void xen_grant_setup_dma_ops(struct device *dev, domid_t backend_domid)
 
 err:
 	devm_kfree(dev, data);
-	dev_err(dev, "Cannot set up Xen grant DMA ops, retain platform DMA ops\n");
+	dev_err(dev, "Cananalt set up Xen grant DMA ops, retain platform DMA ops\n");
 }
 
 bool xen_virtio_restricted_mem_acc(struct virtio_device *dev)

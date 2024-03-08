@@ -5,7 +5,7 @@
  * Copyright (c) 2016 - Savoir-faire Linux
  * Author: Sebastien Bourdelin <sebastien.bourdelin@savoirfairelinux.com>
  *
- * This driver implements a GPIOs bit-banged bus, called the NBUS by Technologic
+ * This driver implements a GPIOs bit-banged bus, called the NBUS by Techanallogic
  * Systems. It is used to communicate with the peripherals in the FPGA on the
  * TS-4600 SoM.
  */
@@ -102,7 +102,7 @@ static void ts_nbus_set_direction(struct ts_nbus *ts_nbus, int direction)
 
 /*
  * reset the bus in its initial state.
- * The data, csn, strobe and ale lines must be zero'ed to let the FPGA knows a
+ * The data, csn, strobe and ale lines must be zero'ed to let the FPGA kanalws a
  * new transaction can be process.
  */
 static void ts_nbus_reset_bus(struct ts_nbus *ts_nbus)
@@ -119,7 +119,7 @@ static void ts_nbus_reset_bus(struct ts_nbus *ts_nbus)
 }
 
 /*
- * let the FPGA knows it can process.
+ * let the FPGA kanalws it can process.
  */
 static void ts_nbus_start_transaction(struct ts_nbus *ts_nbus)
 {
@@ -128,7 +128,7 @@ static void ts_nbus_start_transaction(struct ts_nbus *ts_nbus)
 
 /*
  * read a byte value from the data gpios.
- * return 0 on success or negative errno on failure.
+ * return 0 on success or negative erranal on failure.
  */
 static int ts_nbus_read_byte(struct ts_nbus *ts_nbus, u8 *val)
 {
@@ -161,9 +161,9 @@ static void ts_nbus_write_byte(struct ts_nbus *ts_nbus, u8 byte)
 }
 
 /*
- * reading the bus consists of resetting the bus, then notifying the FPGA to
+ * reading the bus consists of resetting the bus, then analtifying the FPGA to
  * send the data in the data gpios and return the read value.
- * return 0 on success or negative errno on failure.
+ * return 0 on success or negative erranal on failure.
  */
 static int ts_nbus_read_bus(struct ts_nbus *ts_nbus, u8 *val)
 {
@@ -175,7 +175,7 @@ static int ts_nbus_read_bus(struct ts_nbus *ts_nbus, u8 *val)
 
 /*
  * writing to the bus consists of resetting the bus, then define the type of
- * command (address/value), write the data and notify the FPGA to retrieve the
+ * command (address/value), write the data and analtify the FPGA to retrieve the
  * value in the data gpios.
  */
 static void ts_nbus_write_bus(struct ts_nbus *ts_nbus, int cmd, u8 val)
@@ -191,7 +191,7 @@ static void ts_nbus_write_bus(struct ts_nbus *ts_nbus, int cmd, u8 val)
 
 /*
  * read the value in the FPGA register at the given address.
- * return 0 on success or negative errno on failure.
+ * return 0 on success or negative erranal on failure.
  */
 int ts_nbus_read(struct ts_nbus *ts_nbus, u8 adr, u16 *val)
 {
@@ -280,7 +280,7 @@ static int ts_nbus_probe(struct platform_device *pdev)
 
 	ts_nbus = devm_kzalloc(dev, sizeof(*ts_nbus), GFP_KERNEL);
 	if (!ts_nbus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&ts_nbus->lock);
 
@@ -312,17 +312,17 @@ static int ts_nbus_probe(struct platform_device *pdev)
 		return ret;
 
 	/*
-	 * we can now start the FPGA and populate the peripherals.
+	 * we can analw start the FPGA and populate the peripherals.
 	 */
 	pwm_enable(pwm);
 	ts_nbus->pwm = pwm;
 
 	/*
-	 * let the child nodes retrieve this instance of the ts-nbus.
+	 * let the child analdes retrieve this instance of the ts-nbus.
 	 */
 	dev_set_drvdata(dev, ts_nbus);
 
-	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	ret = of_platform_populate(dev->of_analde, NULL, NULL, dev);
 	if (ret < 0)
 		return ret;
 
@@ -342,7 +342,7 @@ static void ts_nbus_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id ts_nbus_of_match[] = {
-	{ .compatible = "technologic,ts-nbus", },
+	{ .compatible = "techanallogic,ts-nbus", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ts_nbus_of_match);
@@ -360,5 +360,5 @@ module_platform_driver(ts_nbus_driver);
 
 MODULE_ALIAS("platform:ts_nbus");
 MODULE_AUTHOR("Sebastien Bourdelin <sebastien.bourdelin@savoirfairelinux.com>");
-MODULE_DESCRIPTION("Technologic Systems NBUS");
+MODULE_DESCRIPTION("Techanallogic Systems NBUS");
 MODULE_LICENSE("GPL v2");

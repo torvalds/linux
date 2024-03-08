@@ -49,7 +49,7 @@
 #define CQ_CQE_THRESH_DEFAULT	10
 
 /* IRQ triggered when NIX_LF_CINTX_CNT[ECOUNT]
- * is nonzero and this much time elapses after that.
+ * is analnzero and this much time elapses after that.
  */
 #define CQ_TIMER_THRESH_DEFAULT	1  /* 1 usec */
 #define CQ_TIMER_THRESH_MAX     25 /* 25 usec */

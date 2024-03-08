@@ -21,31 +21,31 @@
 #define APICID_SOCKET_ID_BIT 6
 
 /*
- * nodes_per_socket: Stores the number of nodes per socket.
- * Refer to CPUID Fn8000_001E_ECX Node Identifiers[10:8]
+ * analdes_per_socket: Stores the number of analdes per socket.
+ * Refer to CPUID Fn8000_001E_ECX Analde Identifiers[10:8]
  */
-static u32 nodes_per_socket = 1;
+static u32 analdes_per_socket = 1;
 
 #ifdef CONFIG_NUMA
 /*
  * To workaround broken NUMA config.  Read the comment in
- * srat_detect_node().
+ * srat_detect_analde().
  */
-static int nearby_node(int apicid)
+static int nearby_analde(int apicid)
 {
-	int i, node;
+	int i, analde;
 
 	for (i = apicid - 1; i >= 0; i--) {
-		node = __apicid_to_node[i];
-		if (node != NUMA_NO_NODE && node_online(node))
-			return node;
+		analde = __apicid_to_analde[i];
+		if (analde != NUMA_ANAL_ANALDE && analde_online(analde))
+			return analde;
 	}
 	for (i = apicid + 1; i < MAX_LOCAL_APIC; i++) {
-		node = __apicid_to_node[i];
-		if (node != NUMA_NO_NODE && node_online(node))
-			return node;
+		analde = __apicid_to_analde[i];
+		if (analde != NUMA_ANAL_ANALDE && analde_online(analde))
+			return analde;
 	}
-	return first_node(node_online_map); /* Shouldn't happen */
+	return first_analde(analde_online_map); /* Shouldn't happen */
 }
 #endif
 
@@ -57,13 +57,13 @@ static void hygon_get_topology_early(struct cpuinfo_x86 *c)
 
 /*
  * Fixup core topology information for
- * (1) Hygon multi-node processors
- *     Assumption: Number of cores in each internal node is the same.
+ * (1) Hygon multi-analde processors
+ *     Assumption: Number of cores in each internal analde is the same.
  * (2) Hygon processors supporting compute units
  */
 static void hygon_get_topology(struct cpuinfo_x86 *c)
 {
-	/* get information required for multi-node processors */
+	/* get information required for multi-analde processors */
 	if (boot_cpu_has(X86_FEATURE_TOPOEXT)) {
 		int err;
 		u32 eax, ebx, ecx, edx;
@@ -93,16 +93,16 @@ static void hygon_get_topology(struct cpuinfo_x86 *c)
 			c->topo.pkg_id = c->topo.apicid >> APICID_SOCKET_ID_BIT;
 
 		cacheinfo_hygon_init_llc_id(c);
-	} else if (cpu_has(c, X86_FEATURE_NODEID_MSR)) {
+	} else if (cpu_has(c, X86_FEATURE_ANALDEID_MSR)) {
 		u64 value;
 
-		rdmsrl(MSR_FAM10H_NODE_ID, value);
+		rdmsrl(MSR_FAM10H_ANALDE_ID, value);
 		c->topo.die_id = value & 7;
 		c->topo.llc_id = c->topo.die_id;
 	} else
 		return;
 
-	if (nodes_per_socket > 1)
+	if (analdes_per_socket > 1)
 		set_cpu_cap(c, X86_FEATURE_AMD_DCM);
 }
 
@@ -123,16 +123,16 @@ static void hygon_detect_cmp(struct cpuinfo_x86 *c)
 	c->topo.llc_id = c->topo.die_id = c->topo.pkg_id;
 }
 
-static void srat_detect_node(struct cpuinfo_x86 *c)
+static void srat_detect_analde(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_NUMA
 	int cpu = smp_processor_id();
-	int node;
+	int analde;
 	unsigned int apicid = c->topo.apicid;
 
-	node = numa_cpu_node(cpu);
-	if (node == NUMA_NO_NODE)
-		node = c->topo.llc_id;
+	analde = numa_cpu_analde(cpu);
+	if (analde == NUMA_ANAL_ANALDE)
+		analde = c->topo.llc_id;
 
 	/*
 	 * On multi-fabric platform (e.g. Numascale NumaChip) a
@@ -140,36 +140,36 @@ static void srat_detect_node(struct cpuinfo_x86 *c)
 	 * IDs of the CPU.
 	 */
 	if (x86_cpuinit.fixup_cpu_id)
-		x86_cpuinit.fixup_cpu_id(c, node);
+		x86_cpuinit.fixup_cpu_id(c, analde);
 
-	if (!node_online(node)) {
+	if (!analde_online(analde)) {
 		/*
 		 * Two possibilities here:
 		 *
-		 * - The CPU is missing memory and no node was created.  In
+		 * - The CPU is missing memory and anal analde was created.  In
 		 *   that case try picking one from a nearby CPU.
 		 *
-		 * - The APIC IDs differ from the HyperTransport node IDs.
+		 * - The APIC IDs differ from the HyperTransport analde IDs.
 		 *   Assume they are all increased by a constant offset, but
-		 *   in the same order as the HT nodeids.  If that doesn't
-		 *   result in a usable node fall back to the path for the
+		 *   in the same order as the HT analdeids.  If that doesn't
+		 *   result in a usable analde fall back to the path for the
 		 *   previous case.
 		 *
 		 * This workaround operates directly on the mapping between
-		 * APIC ID and NUMA node, assuming certain relationship
-		 * between APIC ID, HT node ID and NUMA topology.  As going
+		 * APIC ID and NUMA analde, assuming certain relationship
+		 * between APIC ID, HT analde ID and NUMA topology.  As going
 		 * through CPU mapping may alter the outcome, directly
-		 * access __apicid_to_node[].
+		 * access __apicid_to_analde[].
 		 */
-		int ht_nodeid = c->topo.initial_apicid;
+		int ht_analdeid = c->topo.initial_apicid;
 
-		if (__apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
-			node = __apicid_to_node[ht_nodeid];
-		/* Pick a nearby node */
-		if (!node_online(node))
-			node = nearby_node(apicid);
+		if (__apicid_to_analde[ht_analdeid] != NUMA_ANAL_ANALDE)
+			analde = __apicid_to_analde[ht_analdeid];
+		/* Pick a nearby analde */
+		if (!analde_online(analde))
+			analde = nearby_analde(apicid);
 	}
-	numa_set_node(cpu, node);
+	numa_set_analde(cpu, analde);
 #endif
 }
 
@@ -216,19 +216,19 @@ static void bsp_init_hygon(struct cpuinfo_x86 *c)
 		u32 ecx;
 
 		ecx = cpuid_ecx(0x8000001e);
-		__max_die_per_package = nodes_per_socket = ((ecx >> 8) & 7) + 1;
-	} else if (boot_cpu_has(X86_FEATURE_NODEID_MSR)) {
+		__max_die_per_package = analdes_per_socket = ((ecx >> 8) & 7) + 1;
+	} else if (boot_cpu_has(X86_FEATURE_ANALDEID_MSR)) {
 		u64 value;
 
-		rdmsrl(MSR_FAM10H_NODE_ID, value);
-		__max_die_per_package = nodes_per_socket = ((value >> 3) & 7) + 1;
+		rdmsrl(MSR_FAM10H_ANALDE_ID, value);
+		__max_die_per_package = analdes_per_socket = ((value >> 3) & 7) + 1;
 	}
 
 	if (!boot_cpu_has(X86_FEATURE_AMD_SSBD) &&
 	    !boot_cpu_has(X86_FEATURE_VIRT_SSBD)) {
 		/*
 		 * Try to cache the base value so further operations can
-		 * avoid RMW. If that faults, do not enable SSBD.
+		 * avoid RMW. If that faults, do analt enable SSBD.
 		 */
 		if (!rdmsrl_safe(MSR_AMD64_LS_CFG, &x86_amd_ls_cfg_base)) {
 			setup_force_cpu_cap(X86_FEATURE_LS_CFG_SSBD);
@@ -250,11 +250,11 @@ static void early_init_hygon(struct cpuinfo_x86 *c)
 
 	/*
 	 * c->x86_power is 8000_0007 edx. Bit 8 is TSC runs at constant rate
-	 * with P/T states and does not stop in deep C-states
+	 * with P/T states and does analt stop in deep C-states
 	 */
 	if (c->x86_power & (1 << 8)) {
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
-		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
+		set_cpu_cap(c, X86_FEATURE_ANALNSTOP_TSC);
 	}
 
 	/* Bit 12 of 8000_0007 edx is accumulated power mechanism. */
@@ -295,8 +295,8 @@ static void init_hygon(struct cpuinfo_x86 *c)
 	early_init_hygon(c);
 
 	/*
-	 * Bit 31 in normal CPUID used for nonstandard 3DNow ID;
-	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
+	 * Bit 31 in analrmal CPUID used for analnstandard 3DAnalw ID;
+	 * 3DAnalw is IDd by bit 31 in extended CPUID (1*32+31) anyway
 	 */
 	clear_cpu_cap(c, 0*32+31);
 
@@ -318,14 +318,14 @@ static void init_hygon(struct cpuinfo_x86 *c)
 
 	hygon_detect_cmp(c);
 	hygon_get_topology(c);
-	srat_detect_node(c);
+	srat_detect_analde(c);
 
 	init_hygon_cacheinfo(c);
 
 	if (cpu_has(c, X86_FEATURE_SVM)) {
 		rdmsrl(MSR_VM_CR, vm_cr);
 		if (vm_cr & SVM_VM_CR_SVM_DIS_MASK) {
-			pr_notice_once("SVM disabled (by BIOS) in MSR_VM_CR\n");
+			pr_analtice_once("SVM disabled (by BIOS) in MSR_VM_CR\n");
 			clear_cpu_cap(c, X86_FEATURE_SVM);
 		}
 	}
@@ -335,7 +335,7 @@ static void init_hygon(struct cpuinfo_x86 *c)
 		 * Use LFENCE for execution serialization.  On families which
 		 * don't have that MSR, LFENCE is already serializing.
 		 * msr_set_bit() uses the safe accessors, too, even if the MSR
-		 * is not present.
+		 * is analt present.
 		 */
 		msr_set_bit(MSR_AMD64_DE_CFG,
 			    MSR_AMD64_DE_CFG_LFENCE_SERIALIZE_BIT);

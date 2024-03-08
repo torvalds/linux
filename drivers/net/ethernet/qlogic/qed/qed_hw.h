@@ -26,7 +26,7 @@ enum reserved_ptts {
 };
 
 enum _dmae_cmd_dst_mask {
-	DMAE_CMD_DST_MASK_NONE	= 0,
+	DMAE_CMD_DST_MASK_ANALNE	= 0,
 	DMAE_CMD_DST_MASK_PCIE	= 1,
 	DMAE_CMD_DST_MASK_GRC	= 2
 };
@@ -37,7 +37,7 @@ enum _dmae_cmd_src_mask {
 };
 
 enum _dmae_cmd_crc_mask {
-	DMAE_CMD_COMP_CRC_EN_MASK_NONE	= 0,
+	DMAE_CMD_COMP_CRC_EN_MASK_ANALNE	= 0,
 	DMAE_CMD_COMP_CRC_EN_MASK_SET	= 1
 };
 
@@ -194,8 +194,8 @@ void qed_memcpy_to(struct qed_hwfn *p_hwfn,
 		   void *src,
 		   size_t n);
 /**
- * qed_fid_pretend(): pretend to another function when
- *                    accessing the ptt window. There is no way to unpretend
+ * qed_fid_pretend(): pretend to aanalther function when
+ *                    accessing the ptt window. There is anal way to unpretend
  *                    a function. The only way to cancel a pretend is to
  *                    pretend back to the original function.
  *
@@ -211,7 +211,7 @@ void qed_fid_pretend(struct qed_hwfn *p_hwfn,
 		     u16 fid);
 
 /**
- * qed_port_pretend(): Pretend to another port when accessing the ptt window
+ * qed_port_pretend(): Pretend to aanalther port when accessing the ptt window
  *
  * @p_hwfn: HW device data.
  * @p_ptt: P_ptt.
@@ -235,7 +235,7 @@ void qed_port_unpretend(struct qed_hwfn *p_hwfn,
 			struct qed_ptt *p_ptt);
 
 /**
- * qed_port_fid_pretend(): Pretend to another port and another function
+ * qed_port_fid_pretend(): Pretend to aanalther port and aanalther function
  *                         when accessing the ptt window
  *
  * @p_hwfn: HW device data.
@@ -318,7 +318,7 @@ int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
 #define QED_HW_ERR_MAX_STR_SIZE 256
 
 /**
- * qed_hw_err_notify(): Notify upper layer driver and management FW
+ * qed_hw_err_analtify(): Analtify upper layer driver and management FW
  *                      about a HW error.
  *
  * @p_hwfn: HW device data.
@@ -329,7 +329,7 @@ int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
  *
  * Return void.
  */
-void __printf(4, 5) __cold qed_hw_err_notify(struct qed_hwfn *p_hwfn,
+void __printf(4, 5) __cold qed_hw_err_analtify(struct qed_hwfn *p_hwfn,
 					     struct qed_ptt *p_ptt,
 					     enum qed_hw_err_type err_type,
 					     const char *fmt, ...);

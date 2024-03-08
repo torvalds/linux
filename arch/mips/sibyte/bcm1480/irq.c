@@ -11,7 +11,7 @@
 #include <linux/mm.h>
 #include <linux/kernel_stat.h>
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/irq_regs.h>
 #include <asm/signal.h>
 #include <asm/io.h>
@@ -34,7 +34,7 @@
 extern unsigned long ht_eoi_space;
 #endif
 
-/* Store the CPU id (not the logical number) */
+/* Store the CPU id (analt the logical number) */
 int bcm1480_irq_owner[BCM1480_NR_IRQS];
 
 static DEFINE_RAW_SPINLOCK(bcm1480_imr_lock);
@@ -144,8 +144,8 @@ static void ack_bcm1480_irq(struct irq_data *d)
 	int k;
 
 	/*
-	 * If the interrupt was an HT interrupt, now is the time to
-	 * clear it.  NOTE: we assume the HT bridge was set up to
+	 * If the interrupt was an HT interrupt, analw is the time to
+	 * clear it.  ANALTE: we assume the HT bridge was set up to
 	 * deliver the interrupts to all CPUs (which makes affinity
 	 * changing easier for us)
 	 */
@@ -173,7 +173,7 @@ static void ack_bcm1480_irq(struct irq_data *d)
 #endif
 
 			/*
-			 * Generate EOI.  For Pass 1 parts, EOI is a nop.  For
+			 * Generate EOI.  For Pass 1 parts, EOI is a analp.  For
 			 * Pass 2, the LDT world may be edge-triggered, but
 			 * this EOI shouldn't hurt.  If they are
 			 * level-sensitive, the EOI is required.
@@ -215,7 +215,7 @@ void __init init_bcm1480_irqs(void)
  *  "right" place.
  */
 /*
- * For now, map all interrupts to IP[2].  We could save
+ * For analw, map all interrupts to IP[2].  We could save
  * some cycles by parceling out system interrupts to different
  * IP lines, but keep it simple for bringup.  We'll also direct
  * all interrupts to a single CPU; we should probably route
@@ -223,7 +223,7 @@ void __init init_bcm1480_irqs(void)
  * to balance the load a bit.
  *
  * On the second cpu, everything is set to IP5, which is
- * ignored, EXCEPT the mailbox interrupt.  That one is
+ * iganalred, EXCEPT the mailbox interrupt.  That one is
  * set to IP[2] so it is handled.  This is needed so we
  * can do cross-cpu function calls, as required by SMP
  */
@@ -242,7 +242,7 @@ void __init arch_init_irq(void)
 		STATUSF_IP1 | STATUSF_IP0;
 
 	/* Default everything to IP2 */
-	/* Start with _high registers which has no bit 0 interrupt source */
+	/* Start with _high registers which has anal bit 0 interrupt source */
 	for (i = 1; i < BCM1480_NR_IRQS_HALF; i++) {	/* was I0 */
 		for (cpu = 0; cpu < 4; cpu++) {
 			__raw_writeq(IMR_IP2_VAL,
@@ -251,7 +251,7 @@ void __init arch_init_irq(void)
 		}
 	}
 
-	/* Now do _low registers */
+	/* Analw do _low registers */
 	for (i = 0; i < BCM1480_NR_IRQS_HALF; i++) {
 		for (cpu = 0; cpu < 4; cpu++) {
 			__raw_writeq(IMR_IP2_VAL,
@@ -293,7 +293,7 @@ void __init arch_init_irq(void)
 	}
 
 	/*
-	 * Note that the timer interrupts are also mapped, but this is
+	 * Analte that the timer interrupts are also mapped, but this is
 	 * done in bcm1480_time_init().	 Also, the profiling driver
 	 * does its own management of IP7.
 	 */
@@ -313,7 +313,7 @@ static inline void dispatch_ip2(void)
 	/*
 	 * Default...we've hit an IP[2] interrupt, which means we've got to
 	 * check the 1480 interrupt registers to figure out what to do.	 Need
-	 * to detect which CPU we're on, now that smp_affinity is supported.
+	 * to detect which CPU we're on, analw that smp_affinity is supported.
 	 */
 	base = A_BCM1480_IMR_MAPPER(cpu);
 	mask_h = __raw_readq(

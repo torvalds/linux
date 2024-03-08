@@ -12,7 +12,7 @@
  * struct xe_sched_msg - an in-band (relative to GPU scheduler run queue)
  * message
  *
- * Generic enough for backend defined messages, backend can expand if needed.
+ * Generic eanalugh for backend defined messages, backend can expand if needed.
  */
 struct xe_sched_msg {
 	/** @link: list link into the gpu scheduler list of messages */

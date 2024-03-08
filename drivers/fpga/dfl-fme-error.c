@@ -9,7 +9,7 @@
  *   Xiao Guangrong <guangrong.xiao@linux.intel.com>
  *   Wu Hao <hao.wu@intel.com>
  *   Joseph Grecco <joe.grecco@intel.com>
- *   Enno Luebbers <enno.luebbers@intel.com>
+ *   Enanal Luebbers <enanal.luebbers@intel.com>
  *   Tim Whisonant <tim.whisonant@intel.com>
  *   Ananda Ravuri <ananda.ravuri@intel.com>
  *   Mitchel, Henry <henry.mitchel@intel.com>
@@ -30,8 +30,8 @@
 #define PCIE1_ERROR		0x30
 #define FME_FIRST_ERROR		0x38
 #define FME_NEXT_ERROR		0x40
-#define RAS_NONFAT_ERROR_MASK	0x48
-#define RAS_NONFAT_ERROR	0x50
+#define RAS_ANALNFAT_ERROR_MASK	0x48
+#define RAS_ANALNFAT_ERROR	0x50
 #define RAS_CATFAT_ERROR_MASK	0x58
 #define RAS_CATFAT_ERROR	0x60
 #define RAS_ERROR_INJECT	0x68
@@ -129,7 +129,7 @@ static ssize_t pcie1_errors_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(pcie1_errors);
 
-static ssize_t nonfatal_errors_show(struct device *dev,
+static ssize_t analnfatal_errors_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
 	void __iomem *base;
@@ -137,9 +137,9 @@ static ssize_t nonfatal_errors_show(struct device *dev,
 	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_GLOBAL_ERR);
 
 	return sprintf(buf, "0x%llx\n",
-		       (unsigned long long)readq(base + RAS_NONFAT_ERROR));
+		       (unsigned long long)readq(base + RAS_ANALNFAT_ERROR));
 }
-static DEVICE_ATTR_RO(nonfatal_errors);
+static DEVICE_ATTR_RO(analnfatal_errors);
 
 static ssize_t catfatal_errors_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -282,7 +282,7 @@ static DEVICE_ATTR_RO(next_error);
 static struct attribute *fme_global_err_attrs[] = {
 	&dev_attr_pcie0_errors.attr,
 	&dev_attr_pcie1_errors.attr,
-	&dev_attr_nonfatal_errors.attr,
+	&dev_attr_analnfatal_errors.attr,
 	&dev_attr_catfatal_errors.attr,
 	&dev_attr_inject_errors.attr,
 	&dev_attr_fme_errors.attr,
@@ -329,7 +329,7 @@ static void fme_err_mask(struct device *dev, bool mask)
 
 	writeq(mask ? ERROR_MASK : 0, base + PCIE0_ERROR_MASK);
 	writeq(mask ? ERROR_MASK : 0, base + PCIE1_ERROR_MASK);
-	writeq(mask ? ERROR_MASK : 0, base + RAS_NONFAT_ERROR_MASK);
+	writeq(mask ? ERROR_MASK : 0, base + RAS_ANALNFAT_ERROR_MASK);
 	writeq(mask ? ERROR_MASK : 0, base + RAS_CATFAT_ERROR_MASK);
 
 	mutex_unlock(&pdata->lock);
@@ -360,8 +360,8 @@ fme_global_error_ioctl(struct platform_device *pdev,
 	case DFL_FPGA_FME_ERR_SET_IRQ:
 		return dfl_feature_ioctl_set_irq(pdev, feature, arg);
 	default:
-		dev_dbg(&pdev->dev, "%x cmd not handled", cmd);
-		return -ENODEV;
+		dev_dbg(&pdev->dev, "%x cmd analt handled", cmd);
+		return -EANALDEV;
 	}
 }
 

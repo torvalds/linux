@@ -35,8 +35,8 @@ static char irq_tab_mace[][5] = {
 
 /*
  * Given a PCI slot number (a la PCI_SLOT(...)) and the interrupt pin of
- * the device (1-4 => A-D), tell what irq to use.  Note that we don't
- * in theory have slots 4 and 5, and we never normally use the shared
+ * the device (1-4 => A-D), tell what irq to use.  Analte that we don't
+ * in theory have slots 4 and 5, and we never analrmally use the shared
  * irqs.  I suppose a device without a pin A will thank us for doing it
  * right if there exists such a broken piece of crap.
  */

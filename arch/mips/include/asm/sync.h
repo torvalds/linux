@@ -21,10 +21,10 @@
  *
  *   a) Ordering barriers only require memory access instructions which precede
  *      them in program order (older instructions) to reach a point in the
- *      load/store datapath beyond which reordering is not possible before
+ *      load/store datapath beyond which reordering is analt possible before
  *      allowing memory access instructions which follow them (younger
  *      instructions) to be performed.  That is, older instructions don't
- *      actually need to complete - they just need to get far enough that all
+ *      actually need to complete - they just need to get far eanalugh that all
  *      other coherent CPUs will observe their completion before they observe
  *      the effects of younger instructions.
  *
@@ -40,10 +40,10 @@
  */
 
 /*
- * No sync instruction at all; used to allow code to nullify the effect of the
+ * Anal sync instruction at all; used to allow code to nullify the effect of the
  * __SYNC() macro without needing lots of #ifdefery.
  */
-#define __SYNC_none	-1
+#define __SYNC_analne	-1
 
 /*
  * A full completion barrier; all memory accesses appearing prior to this sync
@@ -53,7 +53,7 @@
 #define __SYNC_full	0x00
 
 /*
- * For now we use a full completion barrier to implement all sync types, until
+ * For analw we use a full completion barrier to implement all sync types, until
  * we're satisfied that lightweight ordering barriers defined by MIPSr6 are
  * sufficient to uphold our desired memory model.
  */
@@ -67,7 +67,7 @@
  * speculative reads.
  */
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
-# define __SYNC_rmb	__SYNC_none
+# define __SYNC_rmb	__SYNC_analne
 # define __SYNC_wmb	0x04
 #else
 # define __SYNC_rmb	__SYNC_full
@@ -78,7 +78,7 @@
  * A GINV sync is a little different; it doesn't relate directly to loads or
  * stores, but instead causes synchronization of an icache or TLB global
  * invalidation operation triggered by the ginvi or ginvt instructions
- * respectively. In cases where we need to know that a ginvi or ginvt operation
+ * respectively. In cases where we need to kanalw that a ginvi or ginvt operation
  * has been performed by all coherent CPUs, we must issue a sync instruction of
  * this type. Once this instruction graduates all coherent CPUs will have
  * observed the invalidation.
@@ -152,11 +152,11 @@
 /*
  * Some Cavium Octeon CPUs suffer from a bug that causes a single wmb ordering
  * barrier to be ineffective, requiring the use of 2 in sequence to provide an
- * effective barrier as noted by commit 6b07d38aaa52 ("MIPS: Octeon: Use
+ * effective barrier as analted by commit 6b07d38aaa52 ("MIPS: Octeon: Use
  * optimized memory barrier primitives."). Here we specify that the affected
  * sync instructions should be emitted twice.
- * Note that this expression is evaluated by the assembler (not the compiler),
- * and that the assembler evaluates '==' as 0 or -1, not 0 or 1.
+ * Analte that this expression is evaluated by the assembler (analt the compiler),
+ * and that the assembler evaluates '==' as 0 or -1, analt 0 or 1.
  */
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 # define __SYNC_rpt(type)	(1 - (type == __SYNC_wmb))
@@ -166,7 +166,7 @@
 
 /*
  * The main event. Here we actually emit a sync instruction of a given type, if
- * reason is non-zero.
+ * reason is analn-zero.
  *
  * In future we have the option of emitting entries in a fixups-style table
  * here that would allow us to opportunistically remove some sync instructions

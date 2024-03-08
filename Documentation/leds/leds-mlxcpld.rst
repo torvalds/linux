@@ -1,8 +1,8 @@
 =======================================
-Kernel driver for Mellanox systems LEDs
+Kernel driver for Mellaanalx systems LEDs
 =======================================
 
-Provide system LED support for the nex Mellanox systems:
+Provide system LED support for the nex Mellaanalx systems:
 "msx6710", "msx6720", "msb7700", "msn2700", "msx1410",
 "msn2410", "msb7800", "msn2740", "msn2100".
 

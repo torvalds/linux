@@ -202,7 +202,7 @@ static int max6900_probe(struct i2c_client *client)
 	struct rtc_device *rtc;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	rtc = devm_rtc_device_register(&client->dev, max6900_driver.driver.name,
 					&max6900_rtc_ops, THIS_MODULE);

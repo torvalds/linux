@@ -25,7 +25,7 @@ static const struct omap_clkctrl_reg_data dra7_mpu_clkctrl_regs[] __initconst = 
 };
 
 static const struct omap_clkctrl_reg_data dra7_dsp1_clkctrl_regs[] __initconst = {
-	{ DRA7_DSP1_MMU0_DSP1_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_dsp_m2_ck" },
+	{ DRA7_DSP1_MMU0_DSP1_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_ANAL_IDLEST, "dpll_dsp_m2_ck" },
 	{ 0 },
 };
 
@@ -41,7 +41,7 @@ static const struct omap_clkctrl_bit_data dra7_mmu_ipu1_bit_data[] __initconst =
 };
 
 static const struct omap_clkctrl_reg_data dra7_ipu1_clkctrl_regs[] __initconst = {
-	{ DRA7_IPU1_MMU_IPU1_CLKCTRL, dra7_mmu_ipu1_bit_data, CLKF_HW_SUP | CLKF_NO_IDLEST, "ipu1-clkctrl:0000:24" },
+	{ DRA7_IPU1_MMU_IPU1_CLKCTRL, dra7_mmu_ipu1_bit_data, CLKF_HW_SUP | CLKF_ANAL_IDLEST, "ipu1-clkctrl:0000:24" },
 	{ 0 },
 };
 
@@ -137,7 +137,7 @@ static const struct omap_clkctrl_reg_data dra7_ipu_clkctrl_regs[] __initconst = 
 };
 
 static const struct omap_clkctrl_reg_data dra7_dsp2_clkctrl_regs[] __initconst = {
-	{ DRA7_DSP2_MMU0_DSP2_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_dsp_m2_ck" },
+	{ DRA7_DSP2_MMU0_DSP2_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_ANAL_IDLEST, "dpll_dsp_m2_ck" },
 	{ 0 },
 };
 
@@ -187,7 +187,7 @@ static const struct omap_clkctrl_reg_data dra7_l3main1_clkctrl_regs[] __initcons
 };
 
 static const struct omap_clkctrl_reg_data dra7_ipu2_clkctrl_regs[] __initconst = {
-	{ DRA7_IPU2_MMU_IPU2_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_core_h22x2_ck" },
+	{ DRA7_IPU2_MMU_IPU2_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_ANAL_IDLEST, "dpll_core_h22x2_ck" },
 	{ 0 },
 };
 
@@ -253,7 +253,7 @@ static const struct omap_clkctrl_reg_data dra7_l3instr_clkctrl_regs[] __initcons
 };
 
 static const struct omap_clkctrl_reg_data dra7_iva_clkctrl_regs[] __initconst = {
-	{ DRA7_IVA_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_iva_h12x2_ck" },
+	{ DRA7_IVA_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_ANAL_IDLEST, "dpll_iva_h12x2_ck" },
 	{ DRA7_SL2IF_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_iva_h12x2_ck" },
 	{ 0 },
 };
@@ -641,7 +641,7 @@ static const struct omap_clkctrl_reg_data dra7_l4sec_clkctrl_regs[] __initconst 
 	{ DRA7_L4SEC_AES1_CLKCTRL, NULL, CLKF_HW_SUP, "l3_iclk_div" },
 	{ DRA7_L4SEC_AES2_CLKCTRL, NULL, CLKF_HW_SUP, "l3_iclk_div" },
 	{ DRA7_L4SEC_DES_CLKCTRL, NULL, CLKF_HW_SUP, "l3_iclk_div" },
-	{ DRA7_L4SEC_RNG_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "l4_root_clk_div" },
+	{ DRA7_L4SEC_RNG_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_ANALNSEC, "l4_root_clk_div" },
 	{ DRA7_L4SEC_SHAM_CLKCTRL, NULL, CLKF_HW_SUP, "l3_iclk_div" },
 	{ DRA7_L4SEC_SHAM2_CLKCTRL, NULL, CLKF_HW_SUP, "l3_iclk_div" },
 	{ 0 },
@@ -809,7 +809,7 @@ static const struct omap_clkctrl_reg_data dra7_wkupaon_clkctrl_regs[] __initcons
 	{ DRA7_WKUPAON_WD_TIMER2_CLKCTRL, NULL, CLKF_SW_SUP, "sys_32k_ck" },
 	{ DRA7_WKUPAON_GPIO1_CLKCTRL, dra7_gpio1_bit_data, CLKF_HW_SUP, "wkupaon_iclk_mux" },
 	{ DRA7_WKUPAON_TIMER1_CLKCTRL, dra7_timer1_bit_data, CLKF_SW_SUP, "wkupaon-clkctrl:0020:24" },
-	{ DRA7_WKUPAON_TIMER12_CLKCTRL, NULL, CLKF_SOC_NONSEC, "secure_32k_clk_src_ck" },
+	{ DRA7_WKUPAON_TIMER12_CLKCTRL, NULL, CLKF_SOC_ANALNSEC, "secure_32k_clk_src_ck" },
 	{ DRA7_WKUPAON_COUNTER_32K_CLKCTRL, NULL, 0, "wkupaon_iclk_mux" },
 	{ DRA7_WKUPAON_UART10_CLKCTRL, dra7_uart10_bit_data, CLKF_SW_SUP, "wkupaon-clkctrl:0060:24" },
 	{ DRA7_WKUPAON_DCAN1_CLKCTRL, dra7_dcan1_bit_data, CLKF_SW_SUP, "wkupaon-clkctrl:0068:24" },
@@ -938,7 +938,7 @@ static struct ti_dt_clk dra7xx_clks[] = {
 	DT_CLK(NULL, "uart9_gfclk_mux", "l4per2-clkctrl:01dc:24"),
 	DT_CLK(NULL, "usb_otg_ss1_refclk960m", "l3init-clkctrl:00d0:8"),
 	DT_CLK(NULL, "usb_otg_ss2_refclk960m", "l3init-clkctrl:0020:8"),
-	{ .node_name = NULL },
+	{ .analde_name = NULL },
 };
 
 int __init dra7xx_dt_clk_init(void)

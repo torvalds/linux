@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2004 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2004 Mellaanalx Techanallogies Ltd.  All rights reserved.
  * Copyright (c) 2004 Infinicon Corporation.  All rights reserved.
  * Copyright (c) 2004 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
@@ -75,7 +75,7 @@
 #define IB_MGMT_RMPP_FLAG_FIRST			(1<<1)
 #define IB_MGMT_RMPP_FLAG_LAST			(1<<2)
 
-#define IB_MGMT_RMPP_NO_RESPTIME		0x1F
+#define IB_MGMT_RMPP_ANAL_RESPTIME		0x1F
 
 #define	IB_MGMT_RMPP_STATUS_SUCCESS		0
 #define	IB_MGMT_RMPP_STATUS_RESX		1
@@ -101,21 +101,21 @@
 #define IB_DEFAULT_PKEY_FULL	0xFFFF
 
 /*
- * Generic trap/notice types
+ * Generic trap/analtice types
  */
-#define IB_NOTICE_TYPE_FATAL	0x80
-#define IB_NOTICE_TYPE_URGENT	0x81
-#define IB_NOTICE_TYPE_SECURITY	0x82
-#define IB_NOTICE_TYPE_SM	0x83
-#define IB_NOTICE_TYPE_INFO	0x84
+#define IB_ANALTICE_TYPE_FATAL	0x80
+#define IB_ANALTICE_TYPE_URGENT	0x81
+#define IB_ANALTICE_TYPE_SECURITY	0x82
+#define IB_ANALTICE_TYPE_SM	0x83
+#define IB_ANALTICE_TYPE_INFO	0x84
 
 /*
- * Generic trap/notice producers
+ * Generic trap/analtice producers
  */
-#define IB_NOTICE_PROD_CA		cpu_to_be16(1)
-#define IB_NOTICE_PROD_SWITCH		cpu_to_be16(2)
-#define IB_NOTICE_PROD_ROUTER		cpu_to_be16(3)
-#define IB_NOTICE_PROD_CLASS_MGR	cpu_to_be16(4)
+#define IB_ANALTICE_PROD_CA		cpu_to_be16(1)
+#define IB_ANALTICE_PROD_SWITCH		cpu_to_be16(2)
+#define IB_ANALTICE_PROD_ROUTER		cpu_to_be16(3)
+#define IB_ANALTICE_PROD_CLASS_MGR	cpu_to_be16(4)
 
 enum {
 	IB_MGMT_MAD_HDR = 24,
@@ -238,7 +238,7 @@ struct ib_class_port_info {
 /* PortInfo CapabilityMask */
 enum ib_port_capability_mask_bits {
 	IB_PORT_SM = 1 << 1,
-	IB_PORT_NOTICE_SUP = 1 << 2,
+	IB_PORT_ANALTICE_SUP = 1 << 2,
 	IB_PORT_TRAP_SUP = 1 << 3,
 	IB_PORT_OPT_IPD_SUP = 1 << 4,
 	IB_PORT_AUTO_MIGR_SUP = 1 << 5,
@@ -256,8 +256,8 @@ enum ib_port_capability_mask_bits {
 	IB_PORT_REINIT_SUP = 1 << 18,
 	IB_PORT_DEVICE_MGMT_SUP = 1 << 19,
 	IB_PORT_VENDOR_CLASS_SUP = 1 << 20,
-	IB_PORT_DR_NOTICE_SUP = 1 << 21,
-	IB_PORT_CAP_MASK_NOTICE_SUP = 1 << 22,
+	IB_PORT_DR_ANALTICE_SUP = 1 << 21,
+	IB_PORT_CAP_MASK_ANALTICE_SUP = 1 << 22,
 	IB_PORT_BOOT_MGMT_SUP = 1 << 23,
 	IB_PORT_LINK_LATENCY_SUP = 1 << 24,
 	IB_PORT_CLIENT_REG_SUP = 1 << 25,
@@ -270,7 +270,7 @@ enum ib_port_capability_mask_bits {
 };
 
 enum ib_port_capability_mask2_bits {
-	IB_PORT_SET_NODE_DESC_SUP		= 1 << 0,
+	IB_PORT_SET_ANALDE_DESC_SUP		= 1 << 0,
 	IB_PORT_EX_PORT_INFO_EX_SUP		= 1 << 1,
 	IB_PORT_VIRT_SUP			= 1 << 2,
 	IB_PORT_SWITCH_PORT_STATE_TABLE_SUP	= 1 << 3,
@@ -372,7 +372,7 @@ static inline u32 opa_get_cpi_capmask2(struct opa_class_port_info *cpi)
 		IB_CLASS_PORT_INFO_RESP_TIME_FIELD_SIZE);
 }
 
-struct ib_mad_notice_attr {
+struct ib_mad_analtice_attr {
 	u8 generic_type;
 	u8 prod_type_msb;
 	__be16 prod_type_lsb;
@@ -439,7 +439,7 @@ struct ib_mad_notice_attr {
 /**
  * ib_mad_send_buf - MAD data buffer and work request for sends.
  * @next: A pointer used to chain together MADs for posting.
- * @mad: References an allocated MAD data buffer for MADs that do not have
+ * @mad: References an allocated MAD data buffer for MADs that do analt have
  *   RMPP active.  For MADs using RMPP, references the common and management
  *   class specific headers.
  * @mad_agent: MAD agent that allocated the buffer.
@@ -449,7 +449,7 @@ struct ib_mad_notice_attr {
  *   includes the common MAD, RMPP, and class specific headers.
  * @data_len: Indicates the total size of user-transferred data.
  * @seg_count: The number of RMPP segments allocated for this send.
- * @seg_size: Size of the data in each RMPP segment.  This does not include
+ * @seg_size: Size of the data in each RMPP segment.  This does analt include
  *   class specific headers.
  * @seg_rmpp_size: Size of each RMPP segment including the class specific
  *   headers.
@@ -639,7 +639,7 @@ struct ib_mad_recv_wc {
  * @mgmt_class_version: Indicates which version of MADs for the given
  *   management class to receive.
  * @oui: Indicates IEEE OUI when mgmt_class is a vendor class
- *   in the range from 0x30 to 0x4f. Otherwise not used.
+ *   in the range from 0x30 to 0x4f. Otherwise analt used.
  * @method_mask: The caller will receive unsolicited MADs for any method
  *   where @method_mask = 1.
  *
@@ -662,7 +662,7 @@ struct ib_mad_reg_req {
  *   wishes to receive solicited responses.
  * @rmpp_version: If set, indicates that the client will send
  *   and receive MADs that contain the RMPP header for the given version.
- *   If set to 0, indicates that RMPP is not used by this client.
+ *   If set to 0, indicates that RMPP is analt used by this client.
  * @send_handler: The completion callback routine invoked after a send
  *   request has completed.
  * @recv_handler: The completion callback routine invoked for a received
@@ -683,7 +683,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
  * ib_unregister_mad_agent - Unregisters a client from using MAD services.
  * @mad_agent: Corresponding MAD registration request to deregister.
  *
- * After invoking this routine, MAD services are no longer usable by the
+ * After invoking this routine, MAD services are anal longer usable by the
  * client on the associated QP.
  */
 void ib_unregister_mad_agent(struct ib_mad_agent *mad_agent);
@@ -695,11 +695,11 @@ void ib_unregister_mad_agent(struct ib_mad_agent *mad_agent);
  * @bad_send_buf: Specifies the MAD on which an error was encountered.  This
  *   parameter is optional if only a single MAD is posted.
  *
- * Sent MADs are not guaranteed to complete in the order that they were posted.
+ * Sent MADs are analt guaranteed to complete in the order that they were posted.
  *
  * If the MAD requires RMPP, the data buffer should contain a single copy
  * of the common MAD, RMPP, and class specific headers, followed by the class
- * defined data.  If the class defined data would not divide evenly into
+ * defined data.  If the class defined data would analt divide evenly into
  * RMPP segments, then space must be allocated at the end of the referenced
  * buffer for any required padding.  To indicate the amount of class defined
  * data being transferred, the paylen_newwin field in the RMPP header should
@@ -746,7 +746,7 @@ static inline void ib_cancel_mad(struct ib_mad_send_buf *send_buf)
  * ib_create_send_mad - Allocate and initialize a data buffer and work request
  *   for sending a MAD.
  * @mad_agent: Specifies the registered MAD service to associate with the MAD.
- * @remote_qpn: Specifies the QPN of the receiving node.
+ * @remote_qpn: Specifies the QPN of the receiving analde.
  * @pkey_index: Specifies which PKey the MAD will be sent using.  This field
  *   is valid only if the remote_qpn is QP 1.
  * @rmpp_active: Indicates if the send will enable RMPP.

@@ -66,7 +66,7 @@ int mdiobus_register_board_info(const struct mdio_board_info *info,
 
 	be = kcalloc(n, sizeof(*be), GFP_KERNEL);
 	if (!be)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < n; i++, be++, info++) {
 		memcpy(&be->board_info, info, sizeof(*info));

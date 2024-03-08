@@ -41,11 +41,11 @@ MODULE_DEVICE_TABLE(vio, tpm_ibmvtpm_device_table);
  *
  * Return:
  *	0 - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static int ibmvtpm_send_crq_word(struct vio_dev *vdev, u64 w1)
 {
-	return plpar_hcall_norets(H_SEND_CRQ, vdev->unit_address, w1, 0);
+	return plpar_hcall_analrets(H_SEND_CRQ, vdev->unit_address, w1, 0);
 }
 
 /**
@@ -82,7 +82,7 @@ static int ibmvtpm_send_crq_word(struct vio_dev *vdev, u64 w1)
  *
  * Return:
  *	0 (H_SUCCESS) - Success
- *	Non-zero - Failure
+ *	Analn-zero - Failure
  */
 static int ibmvtpm_send_crq(struct vio_dev *vdev,
 		u8 valid, u8 msg, u16 len, u32 data)
@@ -108,7 +108,7 @@ static int tpm_ibmvtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	u16 len;
 
 	if (!ibmvtpm->rtce_buf) {
-		dev_err(ibmvtpm->dev, "ibmvtpm device is not ready\n");
+		dev_err(ibmvtpm->dev, "ibmvtpm device is analt ready\n");
 		return 0;
 	}
 
@@ -135,7 +135,7 @@ static int tpm_ibmvtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
  *
  * Return:
  *	0 on success.
- *	Non-zero on failure.
+ *	Analn-zero on failure.
  */
 static int ibmvtpm_crq_send_init(struct ibmvtpm_dev *ibmvtpm)
 {
@@ -165,7 +165,7 @@ static int tpm_ibmvtpm_resume(struct device *dev)
 	do {
 		if (rc)
 			msleep(100);
-		rc = plpar_hcall_norets(H_ENABLE_CRQ,
+		rc = plpar_hcall_analrets(H_ENABLE_CRQ,
 					ibmvtpm->vdev->unit_address);
 	} while (rc == H_IN_PROGRESS || rc == H_BUSY || H_IS_LONG_BUSY(rc));
 
@@ -195,7 +195,7 @@ static int tpm_ibmvtpm_resume(struct device *dev)
  *
  * Return:
  *   0 on success,
- *   -errno on error
+ *   -erranal on error
  */
 static int tpm_ibmvtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 {
@@ -204,7 +204,7 @@ static int tpm_ibmvtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 	int rc, sig;
 
 	if (!ibmvtpm->rtce_buf) {
-		dev_err(ibmvtpm->dev, "ibmvtpm device is not ready\n");
+		dev_err(ibmvtpm->dev, "ibmvtpm device is analt ready\n");
 		return 0;
 	}
 
@@ -276,7 +276,7 @@ static u8 tpm_ibmvtpm_status(struct tpm_chip *chip)
  *
  * Return:
  *	0 on success.
- *	Non-zero on failure.
+ *	Analn-zero on failure.
  */
 static int ibmvtpm_crq_get_rtce_size(struct ibmvtpm_dev *ibmvtpm)
 {
@@ -293,13 +293,13 @@ static int ibmvtpm_crq_get_rtce_size(struct ibmvtpm_dev *ibmvtpm)
 
 /**
  * ibmvtpm_crq_get_version - Send a CRQ request to get vtpm version
- *			   - Note that this is vtpm version and not tpm version
+ *			   - Analte that this is vtpm version and analt tpm version
  *
  * @ibmvtpm:	vtpm device struct
  *
  * Return:
  *	0 on success.
- *	Non-zero on failure.
+ *	Analn-zero on failure.
  */
 static int ibmvtpm_crq_get_version(struct ibmvtpm_dev *ibmvtpm)
 {
@@ -320,7 +320,7 @@ static int ibmvtpm_crq_get_version(struct ibmvtpm_dev *ibmvtpm)
  *
  * Return:
  *	0 on success.
- *	Non-zero on failure.
+ *	Analn-zero on failure.
  */
 static int ibmvtpm_crq_send_init_complete(struct ibmvtpm_dev *ibmvtpm)
 {
@@ -353,7 +353,7 @@ static void tpm_ibmvtpm_remove(struct vio_dev *vdev)
 	do {
 		if (rc)
 			msleep(100);
-		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
+		rc = plpar_hcall_analrets(H_FREE_CRQ, vdev->unit_address);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
 
 	dma_unmap_single(ibmvtpm->dev, ibmvtpm->crq_dma_handle,
@@ -385,7 +385,7 @@ static unsigned long tpm_ibmvtpm_get_desired_dma(struct vio_dev *vdev)
 
 	/*
 	 * ibmvtpm initializes at probe time, so the data we are
-	 * asking for may not be set yet. Estimate that 4K required
+	 * asking for may analt be set yet. Estimate that 4K required
 	 * for TCE-mapped buffer in addition to CRQ.
 	 */
 	if (chip)
@@ -424,7 +424,7 @@ static int tpm_ibmvtpm_suspend(struct device *dev)
  *
  * Return:
  *	0 on success.
- *	Non-zero on failure.
+ *	Analn-zero on failure.
  */
 static int ibmvtpm_reset_crq(struct ibmvtpm_dev *ibmvtpm)
 {
@@ -433,14 +433,14 @@ static int ibmvtpm_reset_crq(struct ibmvtpm_dev *ibmvtpm)
 	do {
 		if (rc)
 			msleep(100);
-		rc = plpar_hcall_norets(H_FREE_CRQ,
+		rc = plpar_hcall_analrets(H_FREE_CRQ,
 					ibmvtpm->vdev->unit_address);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
 
 	memset(ibmvtpm->crq_queue.crq_addr, 0, CRQ_RES_BUF_SIZE);
 	ibmvtpm->crq_queue.index = 0;
 
-	return plpar_hcall_norets(H_REG_CRQ, ibmvtpm->vdev->unit_address,
+	return plpar_hcall_analrets(H_REG_CRQ, ibmvtpm->vdev->unit_address,
 				  ibmvtpm->crq_dma_handle, CRQ_RES_BUF_SIZE);
 }
 
@@ -511,7 +511,7 @@ static void ibmvtpm_crq_process(struct ibmvtpm_crq *crq,
 				 "CRQ initialization completed\n");
 			return;
 		default:
-			dev_err(ibmvtpm->dev, "Unknown crq message type: %d\n", crq->msg);
+			dev_err(ibmvtpm->dev, "Unkanalwn crq message type: %d\n", crq->msg);
 			return;
 		}
 	case IBMVTPM_VALID_CMD:
@@ -593,7 +593,7 @@ static irqreturn_t ibmvtpm_interrupt(int irq, void *vtpm_instance)
  *
  * Return:
  *	0 on success.
- *	Non-zero on failure.
+ *	Analn-zero on failure.
  */
 static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 				   const struct vio_device_id *id)
@@ -602,7 +602,7 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 	struct device *dev = &vio_dev->dev;
 	struct ibmvtpm_crq_queue *crq_q;
 	struct tpm_chip *chip;
-	int rc = -ENOMEM, rc1;
+	int rc = -EANALMEM, rc1;
 
 	chip = tpmm_chip_alloc(dev, &tpm_ibmvtpm);
 	if (IS_ERR(chip))
@@ -635,7 +635,7 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 		goto cleanup;
 	}
 
-	rc = plpar_hcall_norets(H_REG_CRQ, vio_dev->unit_address,
+	rc = plpar_hcall_analrets(H_REG_CRQ, vio_dev->unit_address,
 				ibmvtpm->crq_dma_handle, CRQ_RES_BUF_SIZE);
 	if (rc == H_RESOURCE)
 		rc = ibmvtpm_reset_crq(ibmvtpm);
@@ -681,7 +681,7 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 	if (!wait_event_timeout(ibmvtpm->crq_queue.wq,
 				ibmvtpm->rtce_buf != NULL,
 				HZ)) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		dev_err(dev, "CRQ response timed out\n");
 		goto init_irq_cleanup;
 	}
@@ -703,7 +703,7 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 	return tpm_chip_register(chip);
 init_irq_cleanup:
 	do {
-		rc1 = plpar_hcall_norets(H_FREE_CRQ, vio_dev->unit_address);
+		rc1 = plpar_hcall_analrets(H_FREE_CRQ, vio_dev->unit_address);
 	} while (rc1 == H_BUSY || H_IS_LONG_BUSY(rc1));
 reg_crq_cleanup:
 	dma_unmap_single(dev, ibmvtpm->crq_dma_handle, CRQ_RES_BUF_SIZE,
@@ -733,7 +733,7 @@ static struct vio_driver ibmvtpm_driver = {
  *
  * Return:
  *	0 on success.
- *	Non-zero on failure.
+ *	Analn-zero on failure.
  */
 static int __init ibmvtpm_module_init(void)
 {

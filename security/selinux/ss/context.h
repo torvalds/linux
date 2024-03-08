@@ -30,7 +30,7 @@ struct context {
 	u32 type;
 	u32 len;        /* length of string in bytes */
 	struct mls_range range;
-	char *str;	/* string representation if context cannot be mapped. */
+	char *str;	/* string representation if context cananalt be mapped. */
 };
 
 static inline void mls_context_init(struct context *c)
@@ -105,7 +105,7 @@ static inline int mls_context_glblub(struct context *dst,
 
 	if (r1->level[1].sens < r2->level[0].sens ||
 	    r2->level[1].sens < r1->level[0].sens)
-		/* These ranges have no common sensitivities */
+		/* These ranges have anal common sensitivities */
 		return -EINVAL;
 
 	/* Take the greatest of the low */
@@ -158,7 +158,7 @@ static inline int context_cpy(struct context *dst, const struct context *src)
 	if (src->str) {
 		dst->str = kstrdup(src->str, GFP_ATOMIC);
 		if (!dst->str)
-			return -ENOMEM;
+			return -EANALMEM;
 		dst->len = src->len;
 	} else {
 		dst->str = NULL;

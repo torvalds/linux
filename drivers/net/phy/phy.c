@@ -10,7 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -49,7 +49,7 @@ static const char *phy_state_to_str(enum phy_state st)
 	PHY_STATE_STR(READY)
 	PHY_STATE_STR(UP)
 	PHY_STATE_STR(RUNNING)
-	PHY_STATE_STR(NOLINK)
+	PHY_STATE_STR(ANALLINK)
 	PHY_STATE_STR(CABLETEST)
 	PHY_STATE_STR(HALTED)
 	PHY_STATE_STR(ERROR)
@@ -65,8 +65,8 @@ static void phy_process_state_change(struct phy_device *phydev,
 		phydev_dbg(phydev, "PHY state change %s -> %s\n",
 			   phy_state_to_str(old_state),
 			   phy_state_to_str(phydev->state));
-		if (phydev->drv && phydev->drv->link_change_notify)
-			phydev->drv->link_change_notify(phydev);
+		if (phydev->drv && phydev->drv->link_change_analtify)
+			phydev->drv->link_change_analtify(phydev);
 	}
 }
 
@@ -88,7 +88,7 @@ static const char *phy_pause_str(struct phy_device *phydev)
 	bool local_pause, local_asym_pause;
 
 	if (phydev->autoneg == AUTONEG_DISABLE)
-		goto no_pause;
+		goto anal_pause;
 
 	local_pause = linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
 					phydev->advertising);
@@ -105,7 +105,7 @@ static const char *phy_pause_str(struct phy_device *phydev)
 			return "tx";
 	}
 
-no_pause:
+anal_pause:
 	return "off";
 }
 
@@ -138,12 +138,12 @@ EXPORT_SYMBOL(phy_print_status);
  * interface supports rate matching.
  *
  * Return: The type of rate matching @phy supports for @iface, or
- *         %RATE_MATCH_NONE.
+ *         %RATE_MATCH_ANALNE.
  */
 int phy_get_rate_matching(struct phy_device *phydev,
 			  phy_interface_t iface)
 {
-	int ret = RATE_MATCH_NONE;
+	int ret = RATE_MATCH_ANALNE;
 
 	if (phydev->drv->get_rate_matching) {
 		mutex_lock(&phydev->lock);
@@ -176,7 +176,7 @@ static int phy_config_interrupt(struct phy_device *phydev, bool interrupts)
  * @phydev: target phy_device struct
  *
  * Restart the autonegotiation on @phydev.  Returns >= 0 on success or
- * negative errno on error.
+ * negative erranal on error.
  */
 int phy_restart_aneg(struct phy_device *phydev)
 {
@@ -220,7 +220,7 @@ EXPORT_SYMBOL(phy_aneg_done);
  * - an exact match for the specified speed and duplex mode
  * - a match for the specified speed, or slower speed
  * - the slowest supported speed
- * Returns the matched phy_setting entry, or %NULL if no supported phy
+ * Returns the matched phy_setting entry, or %NULL if anal supported phy
  * settings were found.
  */
 static const struct phy_setting *
@@ -279,9 +279,9 @@ static void phy_sanitize_settings(struct phy_device *phydev)
 		phydev->speed = setting->speed;
 		phydev->duplex = setting->duplex;
 	} else {
-		/* We failed to find anything (no supported speeds?) */
-		phydev->speed = SPEED_UNKNOWN;
-		phydev->duplex = DUPLEX_UNKNOWN;
+		/* We failed to find anything (anal supported speeds?) */
+		phydev->speed = SPEED_UNKANALWN;
+		phydev->duplex = DUPLEX_UNKANALWN;
 	}
 }
 
@@ -318,7 +318,7 @@ EXPORT_SYMBOL(phy_ethtool_ksettings_get);
  * @ifr: &struct ifreq for socket ioctl's
  * @cmd: ioctl cmd to execute
  *
- * Note that this function is currently incompatible with the
+ * Analte that this function is currently incompatible with the
  * PHYCONTROL layer.  It changes registers without regard to
  * current state.  Use at own risk.
  */
@@ -393,7 +393,7 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 				change_autoneg = true;
 				break;
 			default:
-				/* do nothing */
+				/* do analthing */
 				break;
 			}
 		}
@@ -433,7 +433,7 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 		fallthrough;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 EXPORT_SYMBOL(phy_mii_ioctl);
@@ -447,7 +447,7 @@ EXPORT_SYMBOL(phy_mii_ioctl);
 int phy_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	if (!dev->phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return phy_mii_ioctl(dev->phydev, ifr, cmd);
 }
@@ -466,7 +466,7 @@ EXPORT_SYMBOL(phy_do_ioctl);
 int phy_do_ioctl_running(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	if (!netif_running(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return phy_do_ioctl(dev, ifr, cmd);
 }
@@ -484,9 +484,9 @@ int __phy_hwtstamp_get(struct phy_device *phydev,
 		       struct kernel_hwtstamp_config *config)
 {
 	if (!phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -501,12 +501,12 @@ int __phy_hwtstamp_set(struct phy_device *phydev,
 		       struct netlink_ext_ack *extack)
 {
 	if (!phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (phydev->mii_ts && phydev->mii_ts->hwtstamp)
 		return phydev->mii_ts->hwtstamp(phydev->mii_ts, config, extack);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -523,7 +523,7 @@ void phy_queue_state_machine(struct phy_device *phydev, unsigned long jiffies)
 EXPORT_SYMBOL(phy_queue_state_machine);
 
 /**
- * phy_trigger_machine - Trigger the state machine to run now
+ * phy_trigger_machine - Trigger the state machine to run analw
  *
  * @phydev: the phy_device struct
  */
@@ -585,7 +585,7 @@ int phy_ethtool_get_sset_count(struct phy_device *phydev)
 		return ret;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 EXPORT_SYMBOL(phy_ethtool_get_sset_count);
 
@@ -629,7 +629,7 @@ int phy_ethtool_get_plca_cfg(struct phy_device *phydev,
 	}
 
 	if (!phydev->drv->get_plca_cfg) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -649,7 +649,7 @@ out:
  *
  * Checks whether the PLCA and PHY configuration are consistent and it is safe
  * to enable PLCA. Returns 0 on success or a negative value if the PLCA or PHY
- * configuration is not consistent.
+ * configuration is analt consistent.
  */
 static int plca_check_valid(struct phy_device *phydev,
 			    const struct phy_plca_cfg *plca_cfg,
@@ -659,11 +659,11 @@ static int plca_check_valid(struct phy_device *phydev,
 
 	if (!linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1S_P2MP_Half_BIT,
 			       phydev->advertising)) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		NL_SET_ERR_MSG(extack,
-			       "Point to Multi-Point mode is not enabled");
-	} else if (plca_cfg->node_id >= 255) {
-		NL_SET_ERR_MSG(extack, "PLCA node ID is not set");
+			       "Point to Multi-Point mode is analt enabled");
+	} else if (plca_cfg->analde_id >= 255) {
+		NL_SET_ERR_MSG(extack, "PLCA analde ID is analt set");
 		ret = -EINVAL;
 	}
 
@@ -693,13 +693,13 @@ int phy_ethtool_set_plca_cfg(struct phy_device *phydev,
 
 	if (!phydev->drv->set_plca_cfg ||
 	    !phydev->drv->get_plca_cfg) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
 	curr_plca_cfg = kmalloc(sizeof(*curr_plca_cfg), GFP_KERNEL);
 	if (!curr_plca_cfg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -711,51 +711,51 @@ int phy_ethtool_set_plca_cfg(struct phy_device *phydev,
 
 	if (curr_plca_cfg->enabled < 0 && plca_cfg->enabled >= 0) {
 		NL_SET_ERR_MSG(extack,
-			       "PHY does not support changing the PLCA 'enable' attribute");
+			       "PHY does analt support changing the PLCA 'enable' attribute");
 		ret = -EINVAL;
 		goto out_drv;
 	}
 
-	if (curr_plca_cfg->node_id < 0 && plca_cfg->node_id >= 0) {
+	if (curr_plca_cfg->analde_id < 0 && plca_cfg->analde_id >= 0) {
 		NL_SET_ERR_MSG(extack,
-			       "PHY does not support changing the PLCA 'local node ID' attribute");
+			       "PHY does analt support changing the PLCA 'local analde ID' attribute");
 		ret = -EINVAL;
 		goto out_drv;
 	}
 
-	if (curr_plca_cfg->node_cnt < 0 && plca_cfg->node_cnt >= 0) {
+	if (curr_plca_cfg->analde_cnt < 0 && plca_cfg->analde_cnt >= 0) {
 		NL_SET_ERR_MSG(extack,
-			       "PHY does not support changing the PLCA 'node count' attribute");
+			       "PHY does analt support changing the PLCA 'analde count' attribute");
 		ret = -EINVAL;
 		goto out_drv;
 	}
 
 	if (curr_plca_cfg->to_tmr < 0 && plca_cfg->to_tmr >= 0) {
 		NL_SET_ERR_MSG(extack,
-			       "PHY does not support changing the PLCA 'TO timer' attribute");
+			       "PHY does analt support changing the PLCA 'TO timer' attribute");
 		ret = -EINVAL;
 		goto out_drv;
 	}
 
 	if (curr_plca_cfg->burst_cnt < 0 && plca_cfg->burst_cnt >= 0) {
 		NL_SET_ERR_MSG(extack,
-			       "PHY does not support changing the PLCA 'burst count' attribute");
+			       "PHY does analt support changing the PLCA 'burst count' attribute");
 		ret = -EINVAL;
 		goto out_drv;
 	}
 
 	if (curr_plca_cfg->burst_tmr < 0 && plca_cfg->burst_tmr >= 0) {
 		NL_SET_ERR_MSG(extack,
-			       "PHY does not support changing the PLCA 'burst timer' attribute");
+			       "PHY does analt support changing the PLCA 'burst timer' attribute");
 		ret = -EINVAL;
 		goto out_drv;
 	}
 
 	// if enabling PLCA, perform a few sanity checks
 	if (plca_cfg->enabled > 0) {
-		// allow setting node_id concurrently with enabled
-		if (plca_cfg->node_id >= 0)
-			curr_plca_cfg->node_id = plca_cfg->node_id;
+		// allow setting analde_id concurrently with enabled
+		if (plca_cfg->analde_id >= 0)
+			curr_plca_cfg->analde_id = plca_cfg->analde_id;
 
 		ret = plca_check_valid(phydev, curr_plca_cfg, extack);
 		if (ret)
@@ -790,7 +790,7 @@ int phy_ethtool_get_plca_status(struct phy_device *phydev,
 	}
 
 	if (!phydev->drv->get_plca_status) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -812,14 +812,14 @@ int phy_start_cable_test(struct phy_device *phydev,
 			 struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = phydev->attached_dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	if (!(phydev->drv &&
 	      phydev->drv->cable_test_start &&
 	      phydev->drv->cable_test_get_status)) {
 		NL_SET_ERR_MSG(extack,
-			       "PHY driver does not support cable testing");
-		return -EOPNOTSUPP;
+			       "PHY driver does analt support cable testing");
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&phydev->lock);
@@ -833,7 +833,7 @@ int phy_start_cable_test(struct phy_device *phydev,
 	if (phydev->state < PHY_UP ||
 	    phydev->state > PHY_CABLETEST) {
 		NL_SET_ERR_MSG(extack,
-			       "PHY not configured. Try setting interface up");
+			       "PHY analt configured. Try setting interface up");
 		err = -EBUSY;
 		goto out;
 	}
@@ -883,14 +883,14 @@ int phy_start_cable_test_tdr(struct phy_device *phydev,
 			     const struct phy_tdr_config *config)
 {
 	struct net_device *dev = phydev->attached_dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	if (!(phydev->drv &&
 	      phydev->drv->cable_test_tdr_start &&
 	      phydev->drv->cable_test_get_status)) {
 		NL_SET_ERR_MSG(extack,
-			       "PHY driver does not support cable test TDR");
-		return -EOPNOTSUPP;
+			       "PHY driver does analt support cable test TDR");
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&phydev->lock);
@@ -904,7 +904,7 @@ int phy_start_cable_test_tdr(struct phy_device *phydev,
 	if (phydev->state < PHY_UP ||
 	    phydev->state > PHY_CABLETEST) {
 		NL_SET_ERR_MSG(extack,
-			       "PHY not configured. Try setting interface up");
+			       "PHY analt configured. Try setting interface up");
 		err = -EBUSY;
 		goto out;
 	}
@@ -947,7 +947,7 @@ int phy_config_aneg(struct phy_device *phydev)
 	if (phydev->drv->config_aneg)
 		return phydev->drv->config_aneg(phydev);
 
-	/* Clause 45 PHYs that don't implement Clause 22 registers are not
+	/* Clause 45 PHYs that don't implement Clause 22 registers are analt
 	 * allowed to call genphy_config_aneg()
 	 */
 	if (phydev->is_c45 && !(phydev->c45_ids.devices_in_package & BIT(0)))
@@ -984,8 +984,8 @@ static int phy_check_link_status(struct phy_device *phydev)
 		phy_check_downshift(phydev);
 		phydev->state = PHY_RUNNING;
 		phy_link_up(phydev);
-	} else if (!phydev->link && phydev->state != PHY_NOLINK) {
-		phydev->state = PHY_NOLINK;
+	} else if (!phydev->link && phydev->state != PHY_ANALLINK) {
+		phydev->state = PHY_ANALLINK;
 		phy_link_down(phydev);
 	}
 
@@ -996,7 +996,7 @@ static int phy_check_link_status(struct phy_device *phydev)
  * _phy_start_aneg - start auto-negotiation for this PHY device
  * @phydev: the phy_device struct
  *
- * Description: Sanitizes the settings (if we're not autonegotiating
+ * Description: Sanitizes the settings (if we're analt autonegotiating
  *   them), and then calls the driver's config_aneg function.
  *   If the PHYCONTROL Layer is operating, we change the state to
  *   reflect the beginning of Auto-negotiation or forcing.
@@ -1028,7 +1028,7 @@ EXPORT_SYMBOL(_phy_start_aneg);
  * phy_start_aneg - start auto-negotiation for this PHY device
  * @phydev: the phy_device struct
  *
- * Description: Sanitizes the settings (if we're not autonegotiating
+ * Description: Sanitizes the settings (if we're analt autonegotiating
  *   them), and then calls the driver's config_aneg function.
  *   If the PHYCONTROL Layer is operating, we change the state to
  *   reflect the beginning of Auto-negotiation or forcing.
@@ -1124,7 +1124,7 @@ EXPORT_SYMBOL(phy_ethtool_ksettings_set);
 /**
  * phy_speed_down - set speed to lowest speed supported by both link partners
  * @phydev: the phy_device struct
- * @sync: perform action synchronously
+ * @sync: perform action synchroanalusly
  *
  * Description: Typically used to save energy when waiting for a WoL packet
  *
@@ -1211,7 +1211,7 @@ EXPORT_SYMBOL_GPL(phy_speed_up);
  *   which tracks whether the PHY is starting up, negotiating,
  *   etc.  This function starts the delayed workqueue which tracks
  *   the state of the PHY. If you want to maintain your own state machine,
- *   do not call this function.
+ *   do analt call this function.
  */
 void phy_start_machine(struct phy_device *phydev)
 {
@@ -1311,7 +1311,7 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 		}
 
 		phydev->irq_rerun = 1;
-		disable_irq_nosync(irq);
+		disable_irq_analsync(irq);
 		return IRQ_HANDLED;
 	}
 
@@ -1375,14 +1375,14 @@ void phy_free_interrupt(struct phy_device *phydev)
 EXPORT_SYMBOL(phy_free_interrupt);
 
 enum phy_state_work {
-	PHY_STATE_WORK_NONE,
+	PHY_STATE_WORK_ANALNE,
 	PHY_STATE_WORK_ANEG,
 	PHY_STATE_WORK_SUSPEND,
 };
 
 static enum phy_state_work _phy_state_machine(struct phy_device *phydev)
 {
-	enum phy_state_work state_work = PHY_STATE_WORK_NONE;
+	enum phy_state_work state_work = PHY_STATE_WORK_ANALNE;
 	struct net_device *dev = phydev->attached_dev;
 	enum phy_state old_state = phydev->state;
 	const void *func = NULL;
@@ -1396,7 +1396,7 @@ static enum phy_state_work _phy_state_machine(struct phy_device *phydev)
 	case PHY_UP:
 		state_work = PHY_STATE_WORK_ANEG;
 		break;
-	case PHY_NOLINK:
+	case PHY_ANALLINK:
 	case PHY_RUNNING:
 		err = phy_check_link_status(phydev);
 		func = &phy_check_link_status;
@@ -1433,7 +1433,7 @@ static enum phy_state_work _phy_state_machine(struct phy_device *phydev)
 		func = &_phy_start_aneg;
 	}
 
-	if (err == -ENODEV)
+	if (err == -EANALDEV)
 		return state_work;
 
 	if (err < 0)
@@ -1447,7 +1447,7 @@ static enum phy_state_work _phy_state_machine(struct phy_device *phydev)
 	 *
 	 * In state PHY_HALTED the PHY gets suspended, so rescheduling the
 	 * state machine would be pointless and possibly error prone when
-	 * called from phy_disconnect() synchronously.
+	 * called from phy_disconnect() synchroanalusly.
 	 */
 	if (phy_polling_mode(phydev) && phy_is_started(phydev))
 		phy_queue_state_machine(phydev, PHY_STATE_TIME);
@@ -1518,9 +1518,9 @@ void phy_stop(struct phy_device *phydev)
 	_phy_state_machine_post_work(phydev, state_work);
 	phy_stop_machine(phydev);
 
-	/* Cannot call flush_scheduled_work() here as desired because
+	/* Cananalt call flush_scheduled_work() here as desired because
 	 * of rtnl_lock(), but PHY_HALTED shall guarantee irq handler
-	 * will not reenable interrupts.
+	 * will analt reenable interrupts.
 	 */
 }
 EXPORT_SYMBOL(phy_stop);
@@ -1594,7 +1594,7 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 	if (ret < 0)
 		return ret;
 	if (!ret)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if (clk_stop_enable)
 		/* Configure the PHY to stop receiving xMII
@@ -1612,7 +1612,7 @@ EXPORT_SYMBOL(phy_init_eee);
  * @phydev: target phy_device struct
  *
  * Description: it is to report the number of time where the PHY
- * failed to complete its normal wake sequence.
+ * failed to complete its analrmal wake sequence.
  */
 int phy_get_eee_err(struct phy_device *phydev)
 {
@@ -1692,7 +1692,7 @@ int phy_ethtool_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
 		return ret;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 EXPORT_SYMBOL(phy_ethtool_set_wol);
 
@@ -1718,7 +1718,7 @@ int phy_ethtool_get_link_ksettings(struct net_device *ndev,
 	struct phy_device *phydev = ndev->phydev;
 
 	if (!phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy_ethtool_ksettings_get(phydev, cmd);
 
@@ -1732,7 +1732,7 @@ int phy_ethtool_set_link_ksettings(struct net_device *ndev,
 	struct phy_device *phydev = ndev->phydev;
 
 	if (!phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return phy_ethtool_ksettings_set(phydev, cmd);
 }
@@ -1748,7 +1748,7 @@ int phy_ethtool_nway_reset(struct net_device *ndev)
 	int ret;
 
 	if (!phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!phydev->drv)
 		return -EIO;

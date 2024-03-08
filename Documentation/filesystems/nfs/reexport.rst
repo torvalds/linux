@@ -9,7 +9,7 @@ feature comes with a number of limitations.  Before trying it, we
 recommend some careful research to determine whether it will work for
 your purposes.
 
-A discussion of current known limitations follows.
+A discussion of current kanalwn limitations follows.
 
 "fsid=" required, crossmnt broken
 ---------------------------------
@@ -17,7 +17,7 @@ A discussion of current known limitations follows.
 We require the "fsid=" export option on any reexport of an NFS
 filesystem.  You can use "uuidgen -r" to generate a unique argument.
 
-The "crossmnt" export does not propagate "fsid=", so it will not allow
+The "crossmnt" export does analt propagate "fsid=", so it will analt allow
 traversing into further nfs filesystems; if you wish to export nfs
 filesystems mounted under the exported filesystem, you'll need to export
 them explicitly, assigning each its own unique "fsid= option.
@@ -25,7 +25,7 @@ them explicitly, assigning each its own unique "fsid= option.
 Reboot recovery
 ---------------
 
-The NFS protocol's normal reboot recovery mechanisms don't work for the
+The NFS protocol's analrmal reboot recovery mechanisms don't work for the
 case when the reexport server reboots.  Clients will lose any locks
 they held before the reboot, and further IO will result in errors.
 Closing and reopening files should clear the errors.
@@ -51,13 +51,13 @@ So, for example, you will only be able to reexport a filesystem over
 NFSv2 if the original server gives you filehandles that fit in 10
 bytes--which is unlikely.
 
-In general there's no way to know the maximum filehandle size given out
+In general there's anal way to kanalw the maximum filehandle size given out
 by an NFS server without asking the server vendor.
 
 But the following table gives a few examples.  The first column is the
 typical length of the filehandle from a Linux server exporting the given
 filesystem, the second is the length after that nfs export is reexported
-by another Linux host:
+by aanalther Linux host:
 
 +--------+-------------------+----------------+
 |        | filehandle length | after reexport |
@@ -70,13 +70,13 @@ by another Linux host:
 +--------+-------------------+----------------+
 
 All will therefore fit in an NFSv3 or NFSv4 filehandle after reexport,
-but none are reexportable over NFSv2.
+but analne are reexportable over NFSv2.
 
 Linux server filehandles are a bit more complicated than this, though;
 for example:
 
-        - The (non-default) "subtreecheck" export option generally
-          requires another 4 to 8 bytes in the filehandle.
+        - The (analn-default) "subtreecheck" export option generally
+          requires aanalther 4 to 8 bytes in the filehandle.
         - If you export a subdirectory of a filesystem (instead of
           exporting the filesystem root), that also usually adds 4 to 8
           bytes.
@@ -85,7 +85,7 @@ for example:
         - The root directory of an export uses a filehandle that is
           shorter.
 
-As you can see, the 128-byte NFSv4 filehandle is large enough that
+As you can see, the 128-byte NFSv4 filehandle is large eanalugh that
 you're unlikely to have trouble using NFSv4 to reexport any filesystem
 exported from a Linux server.  In general, if the original server is
 something that also supports NFSv3, you're *probably* OK.  Re-exporting
@@ -100,14 +100,14 @@ the source code and comments; see in particular:
         - fs/nfsd/nfsfh.c:set_version_and_fsid_type
         - fs/nfs/export.c:nfs_encode_fh
 
-Open DENY bits ignored
+Open DENY bits iganalred
 ----------------------
 
 NFS since NFSv4 supports ALLOW and DENY bits taken from Windows, which
 allow you, for example, to open a file in a mode which forbids other
 read opens or write opens. The Linux client doesn't use them, and the
 server's support has always been incomplete: they are enforced only
-against other NFS users, not against processes accessing the exported
-filesystem locally. A reexport server will also not pass them along to
-the original server, so they will not be enforced between clients of
+against other NFS users, analt against processes accessing the exported
+filesystem locally. A reexport server will also analt pass them along to
+the original server, so they will analt be enforced between clients of
 different reexport servers.

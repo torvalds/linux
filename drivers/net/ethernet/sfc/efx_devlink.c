@@ -41,7 +41,7 @@ static int efx_devlink_port_addr_get(struct devlink_port *port, u8 *hw_addr,
 	if (!ef100_mport_on_local_intf(devlink->efx, mport_desc)) {
 		rc = -EINVAL;
 		NL_SET_ERR_MSG_FMT(extack,
-				   "Port not on local interface (mport: %u)",
+				   "Port analt on local interface (mport: %u)",
 				   mport_desc->mport_id);
 		goto out;
 	}
@@ -60,7 +60,7 @@ static int efx_devlink_port_addr_get(struct devlink_port *port, u8 *hw_addr,
 	rc = efx_ef100_lookup_client_id(devlink->efx, pciefn, &client_id);
 	if (rc) {
 		NL_SET_ERR_MSG_FMT(extack,
-				   "No internal client_ID for port (mport: %u)",
+				   "Anal internal client_ID for port (mport: %u)",
 				   mport_desc->mport_id);
 		goto out;
 	}
@@ -68,7 +68,7 @@ static int efx_devlink_port_addr_get(struct devlink_port *port, u8 *hw_addr,
 	rc = ef100_get_mac_address(devlink->efx, hw_addr, client_id, true);
 	if (rc != 0)
 		NL_SET_ERR_MSG_FMT(extack,
-				   "No available MAC for port (mport: %u)",
+				   "Anal available MAC for port (mport: %u)",
 				   mport_desc->mport_id);
 out:
 	*hw_addr_len = ETH_ALEN;
@@ -90,7 +90,7 @@ static int efx_devlink_port_addr_set(struct devlink_port *port,
 
 	if (!ef100_mport_is_vf(mport_desc)) {
 		NL_SET_ERR_MSG_FMT(extack,
-				   "port mac change not allowed (mport: %u)",
+				   "port mac change analt allowed (mport: %u)",
 				   mport_desc->mport_id);
 		return -EPERM;
 	}
@@ -103,7 +103,7 @@ static int efx_devlink_port_addr_set(struct devlink_port *port,
 	rc = efx_ef100_lookup_client_id(devlink->efx, pciefn, &client_id);
 	if (rc) {
 		NL_SET_ERR_MSG_FMT(extack,
-				   "No internal client_ID for port (mport: %u)",
+				   "Anal internal client_ID for port (mport: %u)",
 				   mport_desc->mport_id);
 		return rc;
 	}
@@ -180,8 +180,8 @@ static int efx_devlink_info_nvram_partition(struct efx_nic *efx,
 	rc = efx_mcdi_nvram_metadata(efx, partition_type, NULL, version, NULL,
 				     0);
 
-	/* If the partition does not exist, that is not an error. */
-	if (rc == -ENOENT)
+	/* If the partition does analt exist, that is analt an error. */
+	if (rc == -EANALENT)
 		return 0;
 
 	if (rc) {
@@ -202,7 +202,7 @@ static int efx_devlink_info_stored_versions(struct efx_nic *efx,
 {
 	int err;
 
-	/* We do not care here about the specific error but just if an error
+	/* We do analt care here about the specific error but just if an error
 	 * happened. The specific error will be reported inside the call
 	 * through system messages, and if any error happened in any call
 	 * below, we report it through extack.
@@ -630,22 +630,22 @@ static struct devlink_port *ef100_set_devlink_port(struct efx_nic *efx, u32 idx)
 		return NULL;
 
 	if (efx_mae_lookup_mport(efx, idx, &id)) {
-		/* This should not happen. */
+		/* This should analt happen. */
 		if (idx == MAE_MPORT_DESC_VF_IDX_NULL)
-			pci_warn_once(efx->pci_dev, "No mport ID found for PF.\n");
+			pci_warn_once(efx->pci_dev, "Anal mport ID found for PF.\n");
 		else
-			pci_warn_once(efx->pci_dev, "No mport ID found for VF %u.\n",
+			pci_warn_once(efx->pci_dev, "Anal mport ID found for VF %u.\n",
 				      idx);
 		return NULL;
 	}
 
 	mport = efx_mae_get_mport(efx, id);
 	if (!mport) {
-		/* This should not happen. */
+		/* This should analt happen. */
 		if (idx == MAE_MPORT_DESC_VF_IDX_NULL)
-			pci_warn_once(efx->pci_dev, "No mport found for PF.\n");
+			pci_warn_once(efx->pci_dev, "Anal mport found for PF.\n");
 		else
-			pci_warn_once(efx->pci_dev, "No mport found for VF %u.\n",
+			pci_warn_once(efx->pci_dev, "Anal mport found for VF %u.\n",
 				      idx);
 		return NULL;
 	}
@@ -713,7 +713,7 @@ int efx_probe_devlink_and_lock(struct efx_nic *efx)
 				     sizeof(struct efx_devlink),
 				     &efx->pci_dev->dev);
 	if (!efx->devlink)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devl_lock(efx->devlink);
 	devlink_private = devlink_priv(efx->devlink);

@@ -17,7 +17,7 @@
  * system - but need to retain the legacy algorithm for backward comparibility
  * in certain situations:-
  * a) new perf running on older systems that generate the legacy mapping
- * b) older tools that may not update at the same time as the kernel.
+ * b) older tools that may analt update at the same time as the kernel.
  */
 #define CORESIGHT_LEGACY_CPU_TRACE_ID(cpu)  (0x10 + (cpu * 2))
 

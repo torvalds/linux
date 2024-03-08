@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/message/fusion/mptspi.c
  *      For use with LSI PCI chip/adapter(s)
- *      running LSI Fusion MPT (Message Passing Technology) firmware.
+ *      running LSI Fusion MPT (Message Passing Techanallogy) firmware.
  *
  *  Copyright (c) 1999-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
@@ -18,19 +18,19 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    NO WARRANTY
+    ANAL WARRANTY
     THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
     CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
-    LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+    LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
     MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
     solely responsible for determining the appropriateness of using and
     distributing the Program and assumes all risks associated with its
-    exercise of rights under this Agreement, including but not limited to
+    exercise of rights under this Agreement, including but analt limited to
     the risks and costs of program errors, damage to or loss of data,
     programs or equipment, and unavailability or interruption of operations.
 
     DISCLAIMER OF LIABILITY
-    NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+    NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
     DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
     ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -39,7 +39,7 @@
     HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if analt, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -48,12 +48,12 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kdev_t.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>	/* for mdelay */
 #include <linux/interrupt.h>
-#include <linux/reboot.h>	/* notifier code */
+#include <linux/reboot.h>	/* analtifier code */
 #include <linux/workqueue.h>
 #include <linux/raid_class.h>
 
@@ -116,15 +116,15 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 	u8 factor = MPT_ASYNC;
 	u8 offset = 0;
 	u8 nfactor;
-	u8 noQas = 1;
+	u8 analQas = 1;
 
-	target->negoFlags = pspi_data->noQas;
+	target->negoFlags = pspi_data->analQas;
 
 	if (sdev->scsi_level < SCSI_2) {
 		width = 0;
 		factor = MPT_ULTRA2;
 		offset = pspi_data->maxSyncOffset;
-		target->tflags &= ~MPT_TARGET_FLAGS_Q_YES;
+		target->tflags &= ~MPT_TARGET_FLAGS_Q_ANAL;
 	} else {
 		if (scsi_device_wide(sdev))
 			width = 1;
@@ -144,7 +144,7 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 						printk(MYIOC_s_DEBUG_FMT "Enabling QAS due to "
 						"byte56=%02x on id=%d!\n", ioc->name,
 						scsi_device_qas(sdev), id));
-						noQas = 0;
+						analQas = 0;
 					}
 					if (sdev->type == TYPE_TAPE &&
 					    scsi_device_ius(sdev))
@@ -154,13 +154,13 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 			offset = pspi_data->maxSyncOffset;
 
 			/* If RAID, never disable QAS
-			 * else if non RAID, do not disable
+			 * else if analn RAID, do analt disable
 			 *   QAS if bit 1 is set
-			 * bit 1 QAS support, non-raid only
+			 * bit 1 QAS support, analn-raid only
 			 * bit 0 IU support
 			 */
 			if (target->raidVolume == 1)
-				noQas = 0;
+				analQas = 0;
 		} else {
 			factor = MPT_ASYNC;
 			offset = 0;
@@ -168,7 +168,7 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 	}
 
 	if (!sdev->tagged_supported)
-		target->tflags &= ~MPT_TARGET_FLAGS_Q_YES;
+		target->tflags &= ~MPT_TARGET_FLAGS_Q_ANAL;
 
 	/* Update tflags based on NVRAM settings. (SCSI only)
 	 */
@@ -219,23 +219,23 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 	/* Disable unused features.
 	 */
 	if (!width)
-		target->negoFlags |= MPT_TARGET_NO_NEGO_WIDE;
+		target->negoFlags |= MPT_TARGET_ANAL_NEGO_WIDE;
 
 	if (!offset)
-		target->negoFlags |= MPT_TARGET_NO_NEGO_SYNC;
+		target->negoFlags |= MPT_TARGET_ANAL_NEGO_SYNC;
 
 	if ( factor > MPT_ULTRA320 )
-		noQas = 0;
+		analQas = 0;
 
-	if (noQas && (pspi_data->noQas == 0)) {
-		pspi_data->noQas |= MPT_TARGET_NO_NEGO_QAS;
-		target->negoFlags |= MPT_TARGET_NO_NEGO_QAS;
+	if (analQas && (pspi_data->analQas == 0)) {
+		pspi_data->analQas |= MPT_TARGET_ANAL_NEGO_QAS;
+		target->negoFlags |= MPT_TARGET_ANAL_NEGO_QAS;
 
 		/* Disable QAS in a mixed configuration case
 		 */
 
 		ddvprintk(ioc, printk(MYIOC_s_DEBUG_FMT
-			"Disabling QAS due to noQas=%02x on id=%d!\n", ioc->name, noQas, id));
+			"Disabling QAS due to analQas=%02x on id=%d!\n", ioc->name, analQas, id));
 	}
 }
 
@@ -248,7 +248,7 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
  *	Return: -EAGAIN if unable to obtain a Message Frame
  *		or 0 if success.
  *
- *	Remark: We do not wait for a return, write pages sequentially.
+ *	Remark: We do analt wait for a return, write pages sequentially.
  **/
 static int
 mptspi_writeIOCPage4(MPT_SCSI_HOST *hd, u8 channel , u8 id)
@@ -265,7 +265,7 @@ mptspi_writeIOCPage4(MPT_SCSI_HOST *hd, u8 channel , u8 id)
 	 */
 	if ((mf = mpt_get_msg_frame(ioc->DoneCtx, ioc)) == NULL) {
 		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT
-				"writeIOCPage4 : no msg frames!\n",ioc->name));
+				"writeIOCPage4 : anal msg frames!\n",ioc->name));
 		return -EAGAIN;
 	}
 
@@ -317,7 +317,7 @@ mptspi_writeIOCPage4(MPT_SCSI_HOST *hd, u8 channel , u8 id)
  *	@vtarget: per target private data
  *	@sdev: SCSI device
  *
- *	NOTE: It's only SAFE to call this routine if data points to
+ *	ANALTE: It's only SAFE to call this routine if data points to
  *	sane & valid STANDARD INQUIRY data!
  *
  *	Allocate and initialize memory for this target.
@@ -368,7 +368,7 @@ mptspi_initTarget(MPT_SCSI_HOST *hd, VirtTarget *vtarget,
  *	@id: target device id
  *
  *	Return:
- *		non-zero = true
+ *		analn-zero = true
  *		zero = false
  *
  */
@@ -402,15 +402,15 @@ static int mptspi_target_alloc(struct scsi_target *starget)
 	MPT_ADAPTER *ioc;
 
 	if (hd == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ioc = hd->ioc;
 	vtarget = kzalloc(sizeof(VirtTarget), GFP_KERNEL);
 	if (!vtarget)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vtarget->ioc_id = ioc->id;
-	vtarget->tflags = MPT_TARGET_FLAGS_Q_YES;
+	vtarget->tflags = MPT_TARGET_FLAGS_Q_ANAL;
 	vtarget->id = (u8)starget->id;
 	vtarget->channel = (u8)starget->channel;
 	vtarget->starget = starget;
@@ -523,7 +523,7 @@ static int mptspi_read_spi_device_pg0(struct scsi_target *starget,
 	struct _CONFIG_PAGE_HEADER hdr;
 	int err = -EBUSY;
 
-	/* No SPI parameters for RAID devices */
+	/* Anal SPI parameters for RAID devices */
 	if (starget->channel == 0 &&
 	    mptspi_is_raid(hd, starget->id))
 		return -1;
@@ -629,7 +629,7 @@ mptscsih_quiesce_raid(MPT_SCSI_HOST *hd, int quiesce, u8 channel, u8 id)
 	 */
 	if ((mf = mpt_get_msg_frame(ioc->InternalCtx, ioc)) == NULL) {
 		dfailprintk(hd->ioc, printk(MYIOC_s_WARN_FMT
-			"%s: no msg frames!\n", ioc->name, __func__));
+			"%s: anal msg frames!\n", ioc->name, __func__));
 		ret = -EAGAIN;
 		goto out;
 	}
@@ -686,7 +686,7 @@ static void mptspi_dv_device(struct _MPT_SCSI_HOST *hd,
 	VirtTarget *vtarget = scsi_target(sdev)->hostdata;
 	MPT_ADAPTER *ioc = hd->ioc;
 
-	/* no DV on RAID devices */
+	/* anal DV on RAID devices */
 	if (sdev->channel == 0 &&
 	    mptspi_is_raid(hd, sdev->id))
 		return;
@@ -729,7 +729,7 @@ static int mptspi_slave_alloc(struct scsi_device *sdev)
 	if (!vdevice) {
 		printk(MYIOC_s_ERR_FMT "slave_alloc kmalloc(%zd) FAILED!\n",
 				ioc->name, sizeof(VirtDevice));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	vdevice->lun = sdev->lun;
@@ -741,7 +741,7 @@ static int mptspi_slave_alloc(struct scsi_device *sdev)
 	vtarget->num_luns++;
 
 	if (sdev->channel == 1)
-		sdev->no_uld_attach = 1;
+		sdev->anal_uld_attach = 1;
 
 	return 0;
 }
@@ -781,14 +781,14 @@ mptspi_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt)
 	MPT_ADAPTER *ioc = hd->ioc;
 
 	if (!vdevice || !vdevice->vtarget) {
-		SCpnt->result = DID_NO_CONNECT << 16;
+		SCpnt->result = DID_ANAL_CONNECT << 16;
 		scsi_done(SCpnt);
 		return 0;
 	}
 
 	if (SCpnt->device->channel == 1 &&
 		mptscsih_is_phys_disk(ioc, 0, SCpnt->device->id) == 0) {
-		SCpnt->result = DID_NO_CONNECT << 16;
+		SCpnt->result = DID_ANAL_CONNECT << 16;
 		scsi_done(SCpnt);
 		return 0;
 	}
@@ -805,7 +805,7 @@ static void mptspi_slave_destroy(struct scsi_device *sdev)
 	VirtTarget *vtarget = starget->hostdata;
 	VirtDevice *vdevice = sdev->hostdata;
 
-	/* Will this be the last lun on a non-raid device? */
+	/* Will this be the last lun on a analn-raid device? */
 	if (vtarget->num_luns == 1 && vdevice->configured_lun) {
 		struct _CONFIG_PAGE_SCSI_DEVICE_1 pg1;
 
@@ -1064,8 +1064,8 @@ static void mptspi_write_qas(struct scsi_target *starget, int qas)
 	VirtTarget *vtarget = starget->hostdata;
 	u32 nego;
 
-	if ((vtarget->negoFlags & MPT_TARGET_NO_NEGO_QAS) ||
-	    hd->ioc->spi_data.noQas)
+	if ((vtarget->negoFlags & MPT_TARGET_ANAL_NEGO_QAS) ||
+	    hd->ioc->spi_data.analQas)
 		spi_qas(starget) = 0;
 	else
 		spi_qas(starget) = qas;
@@ -1167,7 +1167,7 @@ static void mpt_dv_raid(struct _MPT_SCSI_HOST *hd, int disk)
 }
 
 static int
-mptspi_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
+mptspi_event_process(MPT_ADAPTER *ioc, EventAnaltificationReply_t *pEvReply)
 {
 	u8 event = le32_to_cpu(pEvReply->Event) & 0xFF;
 	struct _MPT_SCSI_HOST *hd = shost_priv(ioc->sh);
@@ -1345,7 +1345,7 @@ mptspi_resume(struct pci_dev *pdev)
  *	mptspi_probe - Installs scsi devices per bus.
  *	@pdev: Pointer to pci_dev structure
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, analn-zero for failure.
  *
  */
 static int
@@ -1374,16 +1374,16 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	if (ioc->last_state != MPI_IOC_STATE_OPERATIONAL) {
 		printk(MYIOC_s_WARN_FMT
-		  "Skipping because it's not operational!\n",
+		  "Skipping because it's analt operational!\n",
 		  ioc->name);
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto out_mptspi_probe;
 	}
 
 	if (!ioc->active) {
 		printk(MYIOC_s_WARN_FMT "Skipping because it's disabled!\n",
 		  ioc->name);
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto out_mptspi_probe;
 	}
 
@@ -1398,7 +1398,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (!ioc_cap) {
 		printk(MYIOC_s_WARN_FMT
-			"Skipping ioc=%p because SCSI Initiator mode is NOT enabled!\n",
+			"Skipping ioc=%p because SCSI Initiator mode is ANALT enabled!\n",
 			ioc->name, ioc);
 		return 0;
 	}
@@ -1416,7 +1416,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* VMWare emulation doesn't properly implement WRITE_SAME
 	 */
 	if (pdev->subsystem_vendor == 0x15AD)
-		sh->no_write_same = 1;
+		sh->anal_write_same = 1;
 
 	spin_lock_irqsave(&ioc->FreeQlock, flags);
 
@@ -1435,7 +1435,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * Otherwise, by default, linux
 	 * only scans target IDs 0-7!
 	 * pfactsN->MaxDevices unreliable
-	 * (not supported in early
+	 * (analt supported in early
 	 *	versions of the FW).
 	 * max_id = 1 + actual max id,
 	 * max_lun = 1 + actual last lun,
@@ -1495,7 +1495,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	ioc->ScsiLookup = kcalloc(ioc->req_depth, sizeof(void *), GFP_KERNEL);
 	if (!ioc->ScsiLookup) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out_mptspi_probe;
 	}
 	spin_lock_init(&ioc->scsi_lookup_lock);
@@ -1508,7 +1508,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		"saf_te %x\n",
 		ioc->name,
 		mpt_saf_te));
-	ioc->spi_data.noQas = 0;
+	ioc->spi_data.analQas = 0;
 
 	hd->last_queue_full = 0;
 	hd->spi_pending = 0;
@@ -1566,7 +1566,7 @@ static struct pci_driver mptspi_driver = {
 /**
  *	mptspi_init - Register MPT adapter(s) as SCSI host(s) with SCSI mid-layer.
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, analn-zero for failure.
  */
 static int __init
 mptspi_init(void)
@@ -1577,7 +1577,7 @@ mptspi_init(void)
 
 	mptspi_transport_template = spi_attach_transport(&mptspi_transport_functions);
 	if (!mptspi_transport_template)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mptspiDoneCtx = mpt_register(mptscsih_io_done, MPTSPI_DRIVER,
 	    "mptscsih_io_done");

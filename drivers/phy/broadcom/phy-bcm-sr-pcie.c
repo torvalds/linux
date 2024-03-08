@@ -155,14 +155,14 @@ static int sr_pcie_phy_init(struct phy *p)
 	struct sr_pcie_phy *phy = phy_get_drvdata(p);
 
 	/*
-	 * Check whether this PHY is for root complex or not. If yes, return
-	 * zero so the host driver can proceed to enumeration. If not, return
+	 * Check whether this PHY is for root complex or analt. If anal, return
+	 * zero so the host driver can proceed to enumeration. If analt, return
 	 * an error and that will force the host driver to bail out
 	 */
 	if (pcie_core_is_for_rc(phy))
 		return 0;
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int sr_paxc_phy_init(struct phy *p)
@@ -177,8 +177,8 @@ static int sr_paxc_phy_init(struct phy *p)
 
 	regmap_read(core->mhb, MHB_MEM_PW_PAXC_OFFSET, &val);
 	if ((val & MHB_PWR_STATUS_MASK) != MHB_PWR_STATUS_MASK) {
-		dev_err(core->dev, "PAXC is not powered up\n");
-		return -ENODEV;
+		dev_err(core->dev, "PAXC is analt powered up\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -207,7 +207,7 @@ static struct phy *sr_pcie_phy_xlate(struct device *dev,
 	phy_idx = args->args[0];
 
 	if (WARN_ON(phy_idx >= SR_NR_PCIE_PHYS))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return core->phys[phy_idx].phy;
 }
@@ -215,27 +215,27 @@ static struct phy *sr_pcie_phy_xlate(struct device *dev,
 static int sr_pcie_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct sr_pcie_phy_core *core;
 	struct phy_provider *provider;
 	unsigned int phy_idx = 0;
 
 	core = devm_kzalloc(dev, sizeof(*core), GFP_KERNEL);
 	if (!core)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	core->dev = dev;
 	core->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(core->base))
 		return PTR_ERR(core->base);
 
-	core->cdru = syscon_regmap_lookup_by_phandle(node, "brcm,sr-cdru");
+	core->cdru = syscon_regmap_lookup_by_phandle(analde, "brcm,sr-cdru");
 	if (IS_ERR(core->cdru)) {
 		dev_err(core->dev, "unable to find CDRU device\n");
 		return PTR_ERR(core->cdru);
 	}
 
-	core->mhb = syscon_regmap_lookup_by_phandle(node, "brcm,sr-mhb");
+	core->mhb = syscon_regmap_lookup_by_phandle(analde, "brcm,sr-mhb");
 	if (IS_ERR(core->mhb)) {
 		dev_err(core->dev, "unable to find MHB device\n");
 		return PTR_ERR(core->mhb);

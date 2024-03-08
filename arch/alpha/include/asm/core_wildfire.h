@@ -26,12 +26,12 @@ extern unsigned long wildfire_pca_mask;
 extern unsigned long wildfire_cpu_mask;
 extern unsigned long wildfire_mem_mask;
 
-#define WILDFIRE_QBB_EXISTS(qbbno) (wildfire_soft_qbb_mask & (1 << (qbbno)))
+#define WILDFIRE_QBB_EXISTS(qbbanal) (wildfire_soft_qbb_mask & (1 << (qbbanal)))
 
-#define WILDFIRE_MEM_EXISTS(qbbno) (wildfire_mem_mask & (0xf << ((qbbno) << 2)))
+#define WILDFIRE_MEM_EXISTS(qbbanal) (wildfire_mem_mask & (0xf << ((qbbanal) << 2)))
 
-#define WILDFIRE_PCA_EXISTS(qbbno, pcano) \
-		(wildfire_pca_mask & (1 << (((qbbno) << 2) + (pcano))))
+#define WILDFIRE_PCA_EXISTS(qbbanal, pcaanal) \
+		(wildfire_pca_mask & (1 << (((qbbanal) << 2) + (pcaanal))))
 
 typedef struct {
 	volatile unsigned long csr __attribute__((aligned(64)));
@@ -59,7 +59,7 @@ typedef struct {
 	wildfire_64	it_int[4];
 	wildfire_64	ip_int[4];
 	wildfire_64	uce_sum[4];
-	wildfire_64	se_sum__non_dev_int[4];
+	wildfire_64	se_sum__analn_dev_int[4];
 	wildfire_64	scratch[4];
 	wildfire_64	qsd_timer;
 	wildfire_64	qsd_diag;
@@ -155,7 +155,7 @@ typedef struct {
 	wildfire_2k	__pad1;
 	wildfire_2k	gpa_init_id;
 	wildfire_2k	gpa_config_2;
-	/* not complete */
+	/* analt complete */
 } wildfire_gp;
 
 typedef struct {
@@ -182,12 +182,12 @@ typedef struct {
 
 typedef struct {
 	wildfire_64	ne_what_am_i;
-	/* not complete */
+	/* analt complete */
 } wildfire_ne;
 
 typedef struct {
 	wildfire_64	fe_what_am_i;
-	/* not complete */
+	/* analt complete */
 } wildfire_fe;
 
 typedef struct {
@@ -222,7 +222,7 @@ typedef struct {
 
 #define WILDFIRE_BASE		(IDENT_ADDR | (1UL << 40))
 
-#define WILDFIRE_QBB_MASK	0x0fUL	/* for now, only 4 bits/16 QBBs */
+#define WILDFIRE_QBB_MASK	0x0fUL	/* for analw, only 4 bits/16 QBBs */
 
 #define WILDFIRE_QBB(q)		((~((long)(q)) & WILDFIRE_QBB_MASK) << 36)
 #define WILDFIRE_HOSE(h)	((long)(h) << 33)

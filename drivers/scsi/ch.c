@@ -2,7 +2,7 @@
 /*
  * SCSI Media Changer device driver for Linux 2.6
  *
- *     (c) 1996-2003 Gerd Knorr <kraxel@bytesex.org>
+ *     (c) 1996-2003 Gerd Kanalrr <kraxel@bytesex.org>
  *
  */
 
@@ -15,7 +15,7 @@
 #include <linux/mm.h>
 #include <linux/major.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/completion.h>
@@ -39,7 +39,7 @@
 #define CH_MAX_DEVS     128
 
 MODULE_DESCRIPTION("device driver for scsi media changer devices");
-MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org>");
+MODULE_AUTHOR("Gerd Kanalrr <kraxel@bytesex.org>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV_MAJOR(SCSI_CHANGER_MAJOR);
 MODULE_ALIAS_SCSI_DEVICE(TYPE_MEDIUM_CHANGER);
@@ -107,7 +107,7 @@ static struct class * ch_sysfs_class;
 typedef struct {
 	struct kref         ref;
 	struct list_head    list;
-	int                 minor;
+	int                 mianalr;
 	char                name[8];
 	struct scsi_device  *device;
 	struct scsi_device  **dt;        /* ptrs to data transfer elements */
@@ -125,35 +125,35 @@ static const struct {
 	unsigned char  sense;
 	unsigned char  asc;
 	unsigned char  ascq;
-	int	       errno;
+	int	       erranal;
 } ch_err[] = {
 /* Just filled in what looks right. Hav'nt checked any standard paper for
-   these errno assignments, so they may be wrong... */
+   these erranal assignments, so they may be wrong... */
 	{
 		.sense  = ILLEGAL_REQUEST,
 		.asc    = 0x21,
 		.ascq   = 0x01,
-		.errno  = EBADSLT, /* Invalid element address */
+		.erranal  = EBADSLT, /* Invalid element address */
 	},{
 		.sense  = ILLEGAL_REQUEST,
 		.asc    = 0x28,
 		.ascq   = 0x01,
-		.errno  = EBADE,   /* Import or export element accessed */
+		.erranal  = EBADE,   /* Import or export element accessed */
 	},{
 		.sense  = ILLEGAL_REQUEST,
 		.asc    = 0x3B,
 		.ascq   = 0x0D,
-		.errno  = EXFULL,  /* Medium destination element full */
+		.erranal  = EXFULL,  /* Medium destination element full */
 	},{
 		.sense  = ILLEGAL_REQUEST,
 		.asc    = 0x3B,
 		.ascq   = 0x0E,
-		.errno  = EBADE,   /* Medium source element empty */
+		.erranal  = EBADE,   /* Medium source element empty */
 	},{
 		.sense  = ILLEGAL_REQUEST,
 		.asc    = 0x20,
 		.ascq   = 0x00,
-		.errno  = EBADRQC, /* Invalid command operation code */
+		.erranal  = EBADRQC, /* Invalid command operation code */
 	},{
 	        /* end of list */
 	}
@@ -161,32 +161,32 @@ static const struct {
 
 /* ------------------------------------------------------------------- */
 
-static int ch_find_errno(struct scsi_sense_hdr *sshdr)
+static int ch_find_erranal(struct scsi_sense_hdr *sshdr)
 {
-	int i,errno = 0;
+	int i,erranal = 0;
 
 	/* Check to see if additional sense information is available */
 	if (scsi_sense_valid(sshdr) &&
 	    sshdr->asc != 0) {
-		for (i = 0; ch_err[i].errno != 0; i++) {
+		for (i = 0; ch_err[i].erranal != 0; i++) {
 			if (ch_err[i].sense == sshdr->sense_key &&
 			    ch_err[i].asc   == sshdr->asc &&
 			    ch_err[i].ascq  == sshdr->ascq) {
-				errno = -ch_err[i].errno;
+				erranal = -ch_err[i].erranal;
 				break;
 			}
 		}
 	}
-	if (errno == 0)
-		errno = -EIO;
-	return errno;
+	if (erranal == 0)
+		erranal = -EIO;
+	return erranal;
 }
 
 static int
 ch_do_scsi(scsi_changer *ch, unsigned char *cmd, int cmd_len,
 	   void *buffer, unsigned int buflength, enum req_op op)
 {
-	int errno, retries = 0, timeout, result;
+	int erranal, retries = 0, timeout, result;
 	struct scsi_sense_hdr sshdr;
 	const struct scsi_exec_args exec_args = {
 		.sshdr = &sshdr,
@@ -196,7 +196,7 @@ ch_do_scsi(scsi_changer *ch, unsigned char *cmd, int cmd_len,
 		? timeout_init : timeout_move;
 
  retry:
-	errno = 0;
+	erranal = 0;
 	result = scsi_execute_cmd(ch->device, cmd, op, buffer, buflength,
 				  timeout * HZ, MAX_RETRIES, &exec_args);
 	if (result < 0)
@@ -204,7 +204,7 @@ ch_do_scsi(scsi_changer *ch, unsigned char *cmd, int cmd_len,
 	if (scsi_sense_valid(&sshdr)) {
 		if (debug)
 			scsi_print_sense_hdr(ch->device, ch->name, &sshdr);
-		errno = ch_find_errno(&sshdr);
+		erranal = ch_find_erranal(&sshdr);
 
 		switch(sshdr.sense_key) {
 		case UNIT_ATTENTION:
@@ -214,7 +214,7 @@ ch_do_scsi(scsi_changer *ch, unsigned char *cmd, int cmd_len,
 			break;
 		}
 	}
-	return errno;
+	return erranal;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -242,7 +242,7 @@ ch_read_element_status(scsi_changer *ch, u_int elem, char *data)
 
 	buffer = kmalloc(512, GFP_KERNEL);
 	if(!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
  retry:
 	memset(cmd,0,sizeof(cmd));
@@ -266,7 +266,7 @@ ch_read_element_status(scsi_changer *ch, u_int elem, char *data)
 	} else {
 		if (ch->voltags) {
 			ch->voltags = 0;
-			VPRINTK(KERN_INFO, "device has no volume tag support\n");
+			VPRINTK(KERN_INFO, "device has anal volume tag support\n");
 			goto retry;
 		}
 		DPRINTK("READ ELEMENT STATUS for element 0x%x failed\n",elem);
@@ -300,7 +300,7 @@ ch_readconfig(scsi_changer *ch)
 
 	buffer = kzalloc(512, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(cmd,0,sizeof(cmd));
 	cmd[0] = MODE_SENSE;
@@ -364,7 +364,7 @@ ch_readconfig(scsi_changer *ch)
 
 	if (!ch->dt) {
 		kfree(buffer);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (elem = 0; elem < ch->counts[CHET_DT]; elem++) {
@@ -382,10 +382,10 @@ ch_readconfig(scsi_changer *ch)
 		} else {
 			VPRINTK(KERN_INFO, "dt 0x%x: ",elem+ch->firsts[CHET_DT]);
 			if (data[6] & 0x80) {
-				VPRINTK(KERN_CONT, "not this SCSI bus\n");
+				VPRINTK(KERN_CONT, "analt this SCSI bus\n");
 				ch->dt[elem] = NULL;
 			} else if (0 == (data[6] & 0x30)) {
-				VPRINTK(KERN_CONT, "ID/LUN unknown\n");
+				VPRINTK(KERN_CONT, "ID/LUN unkanalwn\n");
 				ch->dt[elem] = NULL;
 			} else {
 				id  = ch->device->id;
@@ -401,8 +401,8 @@ ch_readconfig(scsi_changer *ch)
 						   ch->device->channel,
 						   id,lun);
 			if (!ch->dt[elem]) {
-				/* should not happen */
-				VPRINTK(KERN_CONT, "Huh? device not found!\n");
+				/* should analt happen */
+				VPRINTK(KERN_CONT, "Huh? device analt found!\n");
 			} else {
 				VPRINTK(KERN_CONT, "name: %8.8s %16.16s %4.4s\n",
 					ch->dt[elem]->vendor,
@@ -511,7 +511,7 @@ ch_set_voltag(scsi_changer *ch, u_int elem,
 
 	buffer = kzalloc(512, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	DPRINTK("%s %s voltag: 0x%x => \"%s\"\n",
 		clear     ? "clear"     : "set",
@@ -576,7 +576,7 @@ static void ch_destroy(struct kref *ref)
 }
 
 static int
-ch_release(struct inode *inode, struct file *file)
+ch_release(struct ianalde *ianalde, struct file *file)
 {
 	scsi_changer *ch = file->private_data;
 
@@ -587,13 +587,13 @@ ch_release(struct inode *inode, struct file *file)
 }
 
 static int
-ch_open(struct inode *inode, struct file *file)
+ch_open(struct ianalde *ianalde, struct file *file)
 {
 	scsi_changer *ch;
-	int minor = iminor(inode);
+	int mianalr = imianalr(ianalde);
 
 	spin_lock(&ch_index_lock);
-	ch = idr_find(&ch_index_idr, minor);
+	ch = idr_find(&ch_index_idr, mianalr);
 
 	if (ch == NULL || !kref_get_unless_zero(&ch->ref)) {
 		spin_unlock(&ch_index_lock);
@@ -790,7 +790,7 @@ static long ch_ioctl(struct file *file,
 
 		buffer = kmalloc(512, GFP_KERNEL);
 		if (!buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 		mutex_lock(&ch->lock);
 
 	voltag_retry:
@@ -809,7 +809,7 @@ static long ch_ioctl(struct file *file,
 			cge.cge_status = buffer[18];
 			cge.cge_flags = 0;
 			if (buffer[18] & CESTATUS_EXCEPT) {
-				cge.cge_errno = EIO;
+				cge.cge_erranal = EIO;
 			}
 			if (buffer[25] & 0x80) {
 				cge.cge_flags |= CGE_SRC;
@@ -839,7 +839,7 @@ static long ch_ioctl(struct file *file,
 			}
 		} else if (ch->voltags) {
 			ch->voltags = 0;
-			VPRINTK(KERN_INFO, "device has no volume tag support\n");
+			VPRINTK(KERN_INFO, "device has anal volume tag support\n");
 			goto voltag_retry;
 		}
 		kfree(buffer);
@@ -897,30 +897,30 @@ static int ch_probe(struct device *dev)
 	scsi_changer *ch;
 
 	if (sd->type != TYPE_MEDIUM_CHANGER)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ch = kzalloc(sizeof(*ch), GFP_KERNEL);
 	if (NULL == ch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idr_preload(GFP_KERNEL);
 	spin_lock(&ch_index_lock);
-	ret = idr_alloc(&ch_index_idr, ch, 0, CH_MAX_DEVS + 1, GFP_NOWAIT);
+	ret = idr_alloc(&ch_index_idr, ch, 0, CH_MAX_DEVS + 1, GFP_ANALWAIT);
 	spin_unlock(&ch_index_lock);
 	idr_preload_end();
 
 	if (ret < 0) {
-		if (ret == -ENOSPC)
-			ret = -ENODEV;
+		if (ret == -EANALSPC)
+			ret = -EANALDEV;
 		goto free_ch;
 	}
 
-	ch->minor = ret;
-	sprintf(ch->name,"ch%d",ch->minor);
+	ch->mianalr = ret;
+	sprintf(ch->name,"ch%d",ch->mianalr);
 	ret = scsi_device_get(sd);
 	if (ret) {
 		sdev_printk(KERN_WARNING, sd, "ch%d: failed to get device\n",
-			    ch->minor);
+			    ch->mianalr);
 		goto remove_idr;
 	}
 
@@ -928,11 +928,11 @@ static int ch_probe(struct device *dev)
 	kref_init(&ch->ref);
 	ch->device = sd;
 	class_dev = device_create(ch_sysfs_class, dev,
-				  MKDEV(SCSI_CHANGER_MAJOR, ch->minor), ch,
+				  MKDEV(SCSI_CHANGER_MAJOR, ch->mianalr), ch,
 				  "s%s", ch->name);
 	if (IS_ERR(class_dev)) {
 		sdev_printk(KERN_WARNING, sd, "ch%d: device_create failed\n",
-			    ch->minor);
+			    ch->mianalr);
 		ret = PTR_ERR(class_dev);
 		goto put_device;
 	}
@@ -952,11 +952,11 @@ static int ch_probe(struct device *dev)
 
 	return 0;
 destroy_dev:
-	device_destroy(ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR, ch->minor));
+	device_destroy(ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR, ch->mianalr));
 put_device:
 	scsi_device_put(sd);
 remove_idr:
-	idr_remove(&ch_index_idr, ch->minor);
+	idr_remove(&ch_index_idr, ch->mianalr);
 free_ch:
 	kfree(ch);
 	return ret;
@@ -967,11 +967,11 @@ static int ch_remove(struct device *dev)
 	scsi_changer *ch = dev_get_drvdata(dev);
 
 	spin_lock(&ch_index_lock);
-	idr_remove(&ch_index_idr, ch->minor);
+	idr_remove(&ch_index_idr, ch->mianalr);
 	dev_set_drvdata(dev, NULL);
 	spin_unlock(&ch_index_lock);
 
-	device_destroy(ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR,ch->minor));
+	device_destroy(ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR,ch->mianalr));
 	scsi_device_put(ch->device);
 	kref_put(&ch->ref, ch_destroy);
 	return 0;
@@ -992,7 +992,7 @@ static const struct file_operations changer_fops = {
 	.release	= ch_release,
 	.unlocked_ioctl	= ch_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static int __init init_ch_module(void)

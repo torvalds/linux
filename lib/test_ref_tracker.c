@@ -14,7 +14,7 @@
 static struct ref_tracker_dir ref_dir;
 static struct ref_tracker *tracker[20];
 
-#define TRT_ALLOC(X) static noinline void 				\
+#define TRT_ALLOC(X) static analinline void 				\
 	alloctest_ref_tracker_alloc##X(struct ref_tracker_dir *dir, 	\
 				    struct ref_tracker **trackerp)	\
 	{								\
@@ -43,7 +43,7 @@ TRT_ALLOC(19)
 
 #undef TRT_ALLOC
 
-static noinline void
+static analinline void
 alloctest_ref_tracker_free(struct ref_tracker_dir *dir,
 			   struct ref_tracker **trackerp)
 {
@@ -99,7 +99,7 @@ static int __init test_ref_tracker_init(void)
 	while (!atomic_read(&test_ref_timer_done))
 		msleep(1);
 
-	/* This should warn about tracker[0] & tracker[1] being not freed. */
+	/* This should warn about tracker[0] & tracker[1] being analt freed. */
 	ref_tracker_dir_exit(&ref_dir);
 
 	return 0;

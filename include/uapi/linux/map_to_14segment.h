@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2021 Glider bv
  *
@@ -11,12 +11,12 @@
 #define MAP_TO_14SEGMENT_H
 
 /* This file provides translation primitives and tables for the conversion
- * of (ASCII) characters to a 14-segments notation.
+ * of (ASCII) characters to a 14-segments analtation.
  *
- * The 14 segment's wikipedia notation below is used as standard.
+ * The 14 segment's wikipedia analtation below is used as standard.
  * See: https://en.wikipedia.org/wiki/Fourteen-segment_display
  *
- * Notation:	+---a---+
+ * Analtation:	+---a---+
  *		|\  |  /|
  *		f h i j b
  *		|  \|/  |
@@ -56,7 +56,7 @@
  * }
  * static DEVICE_ATTR_RW(map_seg14);
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 
 #include <asm/byteorder.h>
@@ -113,7 +113,7 @@ static __inline__ int map_to_seg14(struct seg14_conversion_map *map, int c)
 		       k << BIT_SEG14_J  |  l << BIT_SEG14_K  |	\
 		       m << BIT_SEG14_L  |  n << BIT_SEG14_M )
 
-#define _MAP_0_32_ASCII_SEG14_NON_PRINTABLE				\
+#define _MAP_0_32_ASCII_SEG14_ANALN_PRINTABLE				\
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 
 #define _MAP_33_47_ASCII_SEG14_SYMBOL				\
@@ -226,7 +226,7 @@ static __inline__ int map_to_seg14(struct seg14_conversion_map *map, int c)
 
 /* Maps */
 #define MAP_ASCII14SEG_ALPHANUM			\
-	_MAP_0_32_ASCII_SEG14_NON_PRINTABLE	\
+	_MAP_0_32_ASCII_SEG14_ANALN_PRINTABLE	\
 	_MAP_33_47_ASCII_SEG14_SYMBOL		\
 	_MAP_48_57_ASCII_SEG14_NUMERIC		\
 	_MAP_58_64_ASCII_SEG14_SYMBOL		\

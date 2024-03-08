@@ -21,21 +21,21 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE
  * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
  * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -60,7 +60,7 @@
  * @props: the device properties
  * @uhw: user data
  *
- * @return: 0 on success, otherwise negative errno
+ * @return: 0 on success, otherwise negative erranal
  */
 int pvrdma_query_device(struct ib_device *ibdev,
 			struct ib_device_attr *props,
@@ -97,7 +97,7 @@ int pvrdma_query_device(struct ib_device *ibdev,
 	props->atomic_cap =
 		dev->dsr->caps.atomic_ops &
 		(PVRDMA_ATOMIC_OP_COMP_SWAP | PVRDMA_ATOMIC_OP_FETCH_ADD) ?
-		IB_ATOMIC_HCA : IB_ATOMIC_NONE;
+		IB_ATOMIC_HCA : IB_ATOMIC_ANALNE;
 	props->masked_atomic_cap = props->atomic_cap;
 	props->max_ah = dev->dsr->caps.max_ah;
 	props->max_pkeys = dev->dsr->caps.max_pkeys;
@@ -123,7 +123,7 @@ int pvrdma_query_device(struct ib_device *ibdev,
  * @port: the port number
  * @props: the device properties
  *
- * @return: 0 on success, otherwise negative errno
+ * @return: 0 on success, otherwise negative erranal
  */
 int pvrdma_query_port(struct ib_device *ibdev, u32 port,
 		      struct ib_port_attr *props)
@@ -142,7 +142,7 @@ int pvrdma_query_port(struct ib_device *ibdev, u32 port,
 	err = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_QUERY_PORT_RESP);
 	if (err < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not query port, error: %d\n", err);
+			 "could analt query port, error: %d\n", err);
 		return err;
 	}
 
@@ -181,7 +181,7 @@ int pvrdma_query_port(struct ib_device *ibdev, u32 port,
  * @index: the index
  * @gid: the device gid value
  *
- * @return: 0 on success, otherwise negative errno
+ * @return: 0 on success, otherwise negative erranal
  */
 int pvrdma_query_gid(struct ib_device *ibdev, u32 port, int index,
 		     union ib_gid *gid)
@@ -203,7 +203,7 @@ int pvrdma_query_gid(struct ib_device *ibdev, u32 port, int index,
  * @index: the index
  * @pkey: the device P_Key value
  *
- * @return: 0 on success, otherwise negative errno
+ * @return: 0 on success, otherwise negative erranal
  */
 int pvrdma_query_pkey(struct ib_device *ibdev, u32 port, u16 index,
 		      u16 *pkey)
@@ -222,7 +222,7 @@ int pvrdma_query_pkey(struct ib_device *ibdev, u32 port, u16 index,
 			      PVRDMA_CMD_QUERY_PKEY_RESP);
 	if (err < 0) {
 		dev_warn(&to_vdev(ibdev)->pdev->dev,
-			 "could not query pkey, error: %d\n", err);
+			 "could analt query pkey, error: %d\n", err);
 		return err;
 	}
 
@@ -243,15 +243,15 @@ int pvrdma_modify_device(struct ib_device *ibdev, int mask,
 	unsigned long flags;
 
 	if (mask & ~(IB_DEVICE_MODIFY_SYS_IMAGE_GUID |
-		     IB_DEVICE_MODIFY_NODE_DESC)) {
+		     IB_DEVICE_MODIFY_ANALDE_DESC)) {
 		dev_warn(&to_vdev(ibdev)->pdev->dev,
 			 "unsupported device modify mask %#x\n", mask);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	if (mask & IB_DEVICE_MODIFY_NODE_DESC) {
+	if (mask & IB_DEVICE_MODIFY_ANALDE_DESC) {
 		spin_lock_irqsave(&to_vdev(ibdev)->desc_lock, flags);
-		memcpy(ibdev->node_desc, props->node_desc, 64);
+		memcpy(ibdev->analde_desc, props->analde_desc, 64);
 		spin_unlock_irqrestore(&to_vdev(ibdev)->desc_lock, flags);
 	}
 
@@ -272,7 +272,7 @@ int pvrdma_modify_device(struct ib_device *ibdev, int mask,
  * @mask: attributes to modify
  * @props: the device properties
  *
- * @return: 0 on success, otherwise negative errno
+ * @return: 0 on success, otherwise negative erranal
  */
 int pvrdma_modify_port(struct ib_device *ibdev, u32 port, int mask,
 		       struct ib_port_modify *props)
@@ -284,7 +284,7 @@ int pvrdma_modify_port(struct ib_device *ibdev, u32 port, int mask,
 	if (mask & ~IB_PORT_SHUTDOWN) {
 		dev_warn(&vdev->pdev->dev,
 			 "unsupported port modify mask %#x\n", mask);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&vdev->port_mutex);
@@ -308,7 +308,7 @@ out:
  * @uctx: the uverbs countext
  * @udata: user data
  *
- * @return:  zero on success, otherwise errno.
+ * @return:  zero on success, otherwise erranal.
  */
 int pvrdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 {
@@ -328,7 +328,7 @@ int pvrdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 	context->dev = vdev;
 	ret = pvrdma_uar_alloc(vdev, &context->uar);
 	if (ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* get ctx_handle from host */
 	if (vdev->dsr_version < PVRDMA_PPN64_VERSION)
@@ -340,7 +340,7 @@ int pvrdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 	ret = pvrdma_cmd_post(vdev, &req, &rsp, PVRDMA_CMD_CREATE_UC_RESP);
 	if (ret < 0) {
 		dev_warn(&vdev->pdev->dev,
-			 "could not create ucontext, error: %d\n", ret);
+			 "could analt create ucontext, error: %d\n", ret);
 		goto err;
 	}
 
@@ -390,7 +390,7 @@ void pvrdma_dealloc_ucontext(struct ib_ucontext *ibcontext)
  * @ibcontext: the user context
  * @vma: the VMA
  *
- * @return: 0 on success, otherwise errno.
+ * @return: 0 on success, otherwise erranal.
  */
 int pvrdma_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vma)
 {
@@ -409,7 +409,7 @@ int pvrdma_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vma)
 
 	/* Map UAR to kernel space, VM_LOCKED? */
 	vm_flags_set(vma, VM_DONTCOPY | VM_DONTEXPAND);
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 	if (io_remap_pfn_range(vma, start, context->uar.pfn, size,
 			       vma->vm_page_prot))
 		return -EAGAIN;
@@ -422,7 +422,7 @@ int pvrdma_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vma)
  * @ibpd: PD pointer
  * @udata: user data
  *
- * @return: the ib_pd protection domain pointer on success, otherwise errno.
+ * @return: the ib_pd protection domain pointer on success, otherwise erranal.
  */
 int pvrdma_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
@@ -440,7 +440,7 @@ int pvrdma_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 
 	/* Check allowed max pds */
 	if (!atomic_add_unless(&dev->num_pds, 1, dev->dsr->caps.max_pd))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->hdr.cmd = PVRDMA_CMD_CREATE_PD;
 	cmd->ctx_handle = context ? context->ctx_handle : 0;
@@ -494,7 +494,7 @@ int pvrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 	ret = pvrdma_cmd_post(dev, &req, NULL, 0);
 	if (ret)
 		dev_warn(&dev->pdev->dev,
-			 "could not dealloc protection domain, error: %d\n",
+			 "could analt dealloc protection domain, error: %d\n",
 			 ret);
 
 	atomic_dec(&dev->num_pds);
@@ -507,7 +507,7 @@ int pvrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
  * @init_attr: the attributes of the AH
  * @udata: pointer to user data
  *
- * @return: 0 on success, otherwise errno.
+ * @return: 0 on success, otherwise erranal.
  */
 int pvrdma_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 		     struct ib_udata *udata)
@@ -527,7 +527,7 @@ int pvrdma_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 		return -EINVAL;
 
 	if (!atomic_add_unless(&dev->num_ahs, 1, dev->dsr->caps.max_ah))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ah->av.port_pd = to_vpd(ibah->pd)->pd_handle | (port_num << 24);
 	ah->av.src_path_bits = rdma_ah_get_path_bits(ah_attr);

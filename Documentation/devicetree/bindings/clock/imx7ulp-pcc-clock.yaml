@@ -23,7 +23,7 @@ description: |
   M4 clock management consists of SCG0, PCC0, PCC1, and CMC0 modules.
   A7 clock management consists of SCG1, PCC2, PCC3, and CMC1 modules.
 
-  Note: this binding doc is only for A7 clock domain.
+  Analte: this binding doc is only for A7 clock domain.
 
   The Peripheral Clock Control (PCC) is responsible for clock selection,
   optional division and clock gating mode for peripherals in their

@@ -50,7 +50,7 @@
  *
  * efi_mokvar_table_size is set to the computed size of the
  * MOK config table by efi_mokvar_table_init(). This will be
- * non-zero if and only if the table if present and has been
+ * analn-zero if and only if the table if present and has been
  * validated by efi_mokvar_table_init().
  */
 static size_t efi_mokvar_table_size;
@@ -67,11 +67,11 @@ static struct efi_mokvar_table_entry *efi_mokvar_table_va;
  * bin_attr.private points to the associated EFI MOK config table entry.
  *
  * This list is created during boot and then remains unchanged.
- * So no synchronization is currently required to walk the list.
+ * So anal synchronization is currently required to walk the list.
  */
 struct efi_mokvar_sysfs_attr {
 	struct bin_attribute bin_attr;
-	struct list_head node;
+	struct list_head analde;
 };
 
 static LIST_HEAD(efi_mokvar_sysfs_list);
@@ -90,12 +90,12 @@ static struct kobject *mokvar_kobj;
  *
  * Implicit inputs:
  * efi.mokvar_table:	Physical address of EFI MOK variable config table
- *			or special value that indicates no such table.
+ *			or special value that indicates anal such table.
  *
  * Implicit outputs:
  * efi_mokvar_table_size: Computed size of EFI MOK variable config table.
  *			The table is considered present and valid if this
- *			is non-zero.
+ *			is analn-zero.
  */
 void __init efi_mokvar_table_init(void)
 {
@@ -120,14 +120,14 @@ void __init efi_mokvar_table_init(void)
 	 */
 	err = efi_mem_desc_lookup(efi.mokvar_table, &md);
 	if (err) {
-		pr_warn("EFI MOKvar config table is not within the EFI memory map\n");
+		pr_warn("EFI MOKvar config table is analt within the EFI memory map\n");
 		return;
 	}
 
 	offset_limit = efi_mem_desc_end(&md) - efi.mokvar_table;
 
 	/*
-	 * Validate the MOK config table. Since there is no table header
+	 * Validate the MOK config table. Since there is anal table header
 	 * from which we could get the total size of the MOK config table,
 	 * we compute the total size as we validate each variably sized
 	 * entry, remapping as necessary.
@@ -177,7 +177,7 @@ void __init efi_mokvar_table_init(void)
 	if (va)
 		early_memunmap(va, map_size);
 	if (err) {
-		pr_err("EFI MOKvar config table is not valid\n");
+		pr_err("EFI MOKvar config table is analt valid\n");
 		return;
 	}
 
@@ -196,7 +196,7 @@ void __init efi_mokvar_table_init(void)
  *			same value as the return value.
  *
  * Returns:		Pointer to next EFI MOK config table entry
- *			or null, if there are no more entries.
+ *			or null, if there are anal more entries.
  *			Same value is returned in the mokvar_entry
  *			parameter.
  *
@@ -290,7 +290,7 @@ static ssize_t efi_mokvar_sysfs_read(struct file *file, struct kobject *kobj,
  * and create the sysfs entries in /sys/firmware/efi/mok-variables/
  *
  * This routine just returns if a valid EFI MOK variable config table
- * was not found earlier during boot.
+ * was analt found earlier during boot.
  *
  * This routine must be called during a "middle" initcall phase, i.e.
  * after efi_mokvar_table_init() but before UEFI certs are loaded
@@ -298,11 +298,11 @@ static ssize_t efi_mokvar_sysfs_read(struct file *file, struct kobject *kobj,
  *
  * Implicit inputs:
  * efi.mokvar_table:	Physical address of EFI MOK variable config table
- *			or special value that indicates no such table.
+ *			or special value that indicates anal such table.
  *
  * efi_mokvar_table_size: Computed size of EFI MOK variable config table.
  *			The table is considered present and valid if this
- *			is non-zero.
+ *			is analn-zero.
  *
  * Implicit outputs:
  * efi_mokvar_table_va:	Start virtual address of the EFI MOK config table.
@@ -315,26 +315,26 @@ static int __init efi_mokvar_sysfs_init(void)
 	int err = 0;
 
 	if (efi_mokvar_table_size == 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	config_va = memremap(efi.mokvar_table, efi_mokvar_table_size,
 			     MEMREMAP_WB);
 	if (!config_va) {
 		pr_err("Failed to map EFI MOKvar config table\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	efi_mokvar_table_va = config_va;
 
 	mokvar_kobj = kobject_create_and_add("mok-variables", efi_kobj);
 	if (!mokvar_kobj) {
 		pr_err("Failed to create EFI mok-variables sysfs entry\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	while (efi_mokvar_entry_next(&mokvar_entry)) {
 		mokvar_sysfs = kzalloc(sizeof(*mokvar_sysfs), GFP_KERNEL);
 		if (!mokvar_sysfs) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -350,7 +350,7 @@ static int __init efi_mokvar_sysfs_init(void)
 		if (err)
 			break;
 
-		list_add_tail(&mokvar_sysfs->node, &efi_mokvar_sysfs_list);
+		list_add_tail(&mokvar_sysfs->analde, &efi_mokvar_sysfs_list);
 	}
 
 	if (err) {

@@ -24,7 +24,7 @@
 
 
 /* THREAD_SIZE is the size of the task_struct/kernel_stack combo.
- * normally, the stack is found by doing something like p + THREAD_SIZE
+ * analrmally, the stack is found by doing something like p + THREAD_SIZE
  * in or1k, a page is 8192 bytes, which seems like a sane size
  */
 
@@ -85,13 +85,13 @@ register struct thread_info *current_thread_info_reg asm("r10");
  *   - other flags in MSW
  */
 #define TIF_SYSCALL_TRACE	0	/* syscall trace active */
-#define TIF_NOTIFY_RESUME	1	/* resumption notification requested */
+#define TIF_ANALTIFY_RESUME	1	/* resumption analtification requested */
 #define TIF_SIGPENDING		2	/* signal pending */
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
 #define TIF_SINGLESTEP		4	/* restore singlestep on return to user
 					 * mode
 					 */
-#define TIF_NOTIFY_SIGNAL	5	/* signal notifications exist */
+#define TIF_ANALTIFY_SIGNAL	5	/* signal analtifications exist */
 #define TIF_SYSCALL_TRACEPOINT  8       /* for ftrace syscall instrumentation */
 #define TIF_RESTORE_SIGMASK     9
 #define TIF_POLLING_NRFLAG	16	/* true if poll_idle() is polling						 * TIF_NEED_RESCHED
@@ -99,11 +99,11 @@ register struct thread_info *current_thread_info_reg asm("r10");
 #define TIF_MEMDIE              17
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
-#define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
+#define _TIF_ANALTIFY_RESUME	(1<<TIF_ANALTIFY_RESUME)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_SINGLESTEP		(1<<TIF_SINGLESTEP)
-#define _TIF_NOTIFY_SIGNAL	(1<<TIF_NOTIFY_SIGNAL)
+#define _TIF_ANALTIFY_SIGNAL	(1<<TIF_ANALTIFY_SIGNAL)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 
 

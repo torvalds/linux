@@ -13,7 +13,7 @@ description: |
   This module is part of the MAX77650 MFD device. For more details
   see Documentation/devicetree/bindings/mfd/max77650.yaml.
 
-  The charger is represented as a sub-node of the PMIC node on the device tree.
+  The charger is represented as a sub-analde of the PMIC analde on the device tree.
 
 properties:
   compatible:

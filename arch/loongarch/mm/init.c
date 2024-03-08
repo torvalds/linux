@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/init.h>
 #include <linux/export.h>
@@ -8,7 +8,7 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/pagemap.h>
@@ -70,7 +70,7 @@ void __init paging_init(void)
 #ifdef CONFIG_ZONE_DMA32
 	max_zone_pfns[ZONE_DMA32] = MAX_DMA32_PFN;
 #endif
-	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+	max_zone_pfns[ZONE_ANALRMAL] = max_low_pfn;
 
 	free_area_init(max_zone_pfns);
 }
@@ -127,7 +127,7 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-void __meminit vmemmap_set_pmd(pmd_t *pmd, void *p, int node,
+void __meminit vmemmap_set_pmd(pmd_t *pmd, void *p, int analde,
 			       unsigned long addr, unsigned long next)
 {
 	pmd_t entry;
@@ -137,24 +137,24 @@ void __meminit vmemmap_set_pmd(pmd_t *pmd, void *p, int node,
 	set_pmd_at(&init_mm, addr, pmd, entry);
 }
 
-int __meminit vmemmap_check_pmd(pmd_t *pmd, int node,
+int __meminit vmemmap_check_pmd(pmd_t *pmd, int analde,
 				unsigned long addr, unsigned long next)
 {
 	int huge = pmd_val(*pmd) & _PAGE_HUGE;
 
 	if (huge)
-		vmemmap_verify((pte_t *)pmd, node, addr, next);
+		vmemmap_verify((pte_t *)pmd, analde, addr, next);
 
 	return huge;
 }
 
 int __meminit vmemmap_populate(unsigned long start, unsigned long end,
-			       int node, struct vmem_altmap *altmap)
+			       int analde, struct vmem_altmap *altmap)
 {
 #if CONFIG_PGTABLE_LEVELS == 2
-	return vmemmap_populate_basepages(start, end, node, NULL);
+	return vmemmap_populate_basepages(start, end, analde, NULL);
 #else
-	return vmemmap_populate_hugepages(start, end, node, NULL);
+	return vmemmap_populate_hugepages(start, end, analde, NULL);
 #endif
 }
 
@@ -172,7 +172,7 @@ pte_t * __init populate_kernel_pte(unsigned long addr)
 	pud_t *pud;
 	pmd_t *pmd;
 
-	if (p4d_none(*p4d)) {
+	if (p4d_analne(*p4d)) {
 		pud = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 		if (!pud)
 			panic("%s: Failed to allocate memory\n", __func__);
@@ -183,7 +183,7 @@ pte_t * __init populate_kernel_pte(unsigned long addr)
 	}
 
 	pud = pud_offset(p4d, addr);
-	if (pud_none(*pud)) {
+	if (pud_analne(*pud)) {
 		pmd = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 		if (!pmd)
 			panic("%s: Failed to allocate memory\n", __func__);
@@ -215,7 +215,7 @@ void __init __set_fixmap(enum fixed_addresses idx,
 	BUG_ON(idx <= FIX_HOLE || idx >= __end_of_fixed_addresses);
 
 	ptep = populate_kernel_pte(addr);
-	if (!pte_none(*ptep)) {
+	if (!pte_analne(*ptep)) {
 		pte_ERROR(*ptep);
 		return;
 	}

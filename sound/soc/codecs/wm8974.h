@@ -28,10 +28,10 @@
 #define WM8974_EQ5		0x16
 #define WM8974_DACLIM1		0x18
 #define WM8974_DACLIM2		0x19
-#define WM8974_NOTCH1		0x1b
-#define WM8974_NOTCH2		0x1c
-#define WM8974_NOTCH3		0x1d
-#define WM8974_NOTCH4		0x1e
+#define WM8974_ANALTCH1		0x1b
+#define WM8974_ANALTCH2		0x1c
+#define WM8974_ANALTCH3		0x1d
+#define WM8974_ANALTCH4		0x1e
 #define WM8974_ALC1		0x20
 #define WM8974_ALC2		0x21
 #define WM8974_ALC3		0x22
@@ -47,7 +47,7 @@
 #define WM8974_OUTPUT		0x31
 #define WM8974_SPKMIX		0x32
 #define WM8974_SPKVOL		0x36
-#define WM8974_MONOMIX		0x38
+#define WM8974_MOANALMIX		0x38
 
 #define WM8974_CACHEREGNUM 	57
 

@@ -39,10 +39,10 @@ static ssize_t timeout_show(const struct class *class, const struct class_attrib
  * @count: number of bytes in @buf
  *
  *	Sets the number of seconds to wait for the firmware.  Once
- *	this expires an error will be returned to the driver and no
+ *	this expires an error will be returned to the driver and anal
  *	firmware will be provided.
  *
- *	Note: zero means 'wait forever'.
+ *	Analte: zero means 'wait forever'.
  **/
 static ssize_t timeout_store(const struct class *class, const struct class_attribute *attr,
 			     const char *buf, size_t count)
@@ -67,11 +67,11 @@ ATTRIBUTE_GROUPS(firmware_class);
 static int do_firmware_uevent(const struct fw_sysfs *fw_sysfs, struct kobj_uevent_env *env)
 {
 	if (add_uevent_var(env, "FIRMWARE=%s", fw_sysfs->fw_priv->fw_name))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (add_uevent_var(env, "TIMEOUT=%i", __firmware_loading_timeout()))
-		return -ENOMEM;
-	if (add_uevent_var(env, "ASYNC=%d", fw_sysfs->nowait))
-		return -ENOMEM;
+		return -EANALMEM;
+	if (add_uevent_var(env, "ASYNC=%d", fw_sysfs->analwait))
+		return -EANALMEM;
 
 	return 0;
 }
@@ -192,7 +192,7 @@ static ssize_t firmware_loading_store(struct device *dev,
 
 			/*
 			 * Same logic as fw_load_abort, only the DONE bit
-			 * is ignored and we set ABORT only on failure.
+			 * is iganalred and we set ABORT only on failure.
 			 */
 			if (rc) {
 				fw_state_aborted(fw_priv);
@@ -202,7 +202,7 @@ static ssize_t firmware_loading_store(struct device *dev,
 
 				/*
 				 * If this is a user-initiated firmware upload
-				 * then start the upload in a worker thread now.
+				 * then start the upload in a worker thread analw.
 				 */
 				rc = fw_upload_start(fw_sysfs);
 				if (rc)
@@ -270,7 +270,7 @@ static ssize_t firmware_data_read(struct file *filp, struct kobject *kobj,
 	mutex_lock(&fw_lock);
 	fw_priv = fw_sysfs->fw_priv;
 	if (!fw_priv || fw_state_is_done(fw_priv)) {
-		ret_count = -ENODEV;
+		ret_count = -EANALDEV;
 		goto out;
 	}
 	if (offset > fw_priv->size) {
@@ -330,13 +330,13 @@ static ssize_t firmware_data_write(struct file *filp, struct kobject *kobj,
 	mutex_lock(&fw_lock);
 	fw_priv = fw_sysfs->fw_priv;
 	if (!fw_priv || fw_state_is_done(fw_priv)) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto out;
 	}
 
 	if (fw_priv->data) {
 		if (offset + count > fw_priv->allocated_size) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto out;
 		}
 		firmware_rw_data(fw_priv, buffer, offset, count, false);
@@ -401,11 +401,11 @@ fw_create_instance(struct firmware *firmware, const char *fw_name,
 
 	fw_sysfs = kzalloc(sizeof(*fw_sysfs), GFP_KERNEL);
 	if (!fw_sysfs) {
-		fw_sysfs = ERR_PTR(-ENOMEM);
+		fw_sysfs = ERR_PTR(-EANALMEM);
 		goto exit;
 	}
 
-	fw_sysfs->nowait = !!(opt_flags & FW_OPT_NOWAIT);
+	fw_sysfs->analwait = !!(opt_flags & FW_OPT_ANALWAIT);
 	fw_sysfs->fw = firmware;
 	f_dev = &fw_sysfs->dev;
 

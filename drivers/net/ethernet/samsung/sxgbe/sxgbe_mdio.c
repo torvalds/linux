@@ -88,7 +88,7 @@ static int sxgbe_mdio_access_c22(struct sxgbe_priv_data *sp, u32 cmd,
 
 	/* Ports 0-3 only support C22. */
 	if (phyaddr >= 4)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sxgbe_mdio_c22(sp, cmd, phyaddr, phyreg, phydata);
 
@@ -206,7 +206,7 @@ int sxgbe_mdio_register(struct net_device *ndev)
 	mdio_bus = mdiobus_alloc();
 	if (!mdio_bus) {
 		netdev_err(ndev, "%s: mii bus allocation failed\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (mdio_data->irqs)
@@ -249,7 +249,7 @@ int sxgbe_mdio_register(struct net_device *ndev)
 			}
 
 			/* If we're  going to bind the MAC to this PHY bus,
-			 * and no PHY number was provided to the MAC,
+			 * and anal PHY number was provided to the MAC,
 			 * use the one probed here.
 			 */
 			if (priv->plat->phy_addr == -1)
@@ -276,7 +276,7 @@ int sxgbe_mdio_register(struct net_device *ndev)
 	}
 
 	if (!phy_found) {
-		netdev_err(ndev, "PHY not found\n");
+		netdev_err(ndev, "PHY analt found\n");
 		goto phyfound_err;
 	}
 
@@ -285,7 +285,7 @@ int sxgbe_mdio_register(struct net_device *ndev)
 	return 0;
 
 phyfound_err:
-	err = -ENODEV;
+	err = -EANALDEV;
 	mdiobus_unregister(mdio_bus);
 mdiobus_err:
 	mdiobus_free(mdio_bus);

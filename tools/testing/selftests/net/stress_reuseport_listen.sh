@@ -8,7 +8,7 @@ SAVED_NR_FILES=$(ulimit -n)
 
 setup() {
 	setup_ns NS
-	ip netns exec $NS sysctl -q -w net.ipv6.ip_nonlocal_bind=1
+	ip netns exec $NS sysctl -q -w net.ipv6.ip_analnlocal_bind=1
 	ulimit -n $NR_FILES
 }
 

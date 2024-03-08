@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synopsys DesignWare I2C adapter driver.
+ * Syanalpsys DesignWare I2C adapter driver.
  *
  * Based on the TI DAVINCI I2C adapter driver.
  *
@@ -14,7 +14,7 @@
 #include <linux/delay.h>
 #include <linux/dmi.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -46,8 +46,8 @@ static const struct acpi_device_id dw_i2c_acpi_match[] = {
 	{ "INT33C3", 0 },
 	{ "INT3432", 0 },
 	{ "INT3433", 0 },
-	{ "80860F41", ACCESS_NO_IRQ_SUSPEND },
-	{ "808622C1", ACCESS_NO_IRQ_SUSPEND },
+	{ "80860F41", ACCESS_ANAL_IRQ_SUSPEND },
+	{ "808622C1", ACCESS_ANAL_IRQ_SUSPEND },
 	{ "AMD0010", ACCESS_INTR_MASK },
 	{ "AMDI0010", ACCESS_INTR_MASK },
 	{ "AMDI0019", ACCESS_INTR_MASK | ARBITRATION_SEMAPHORE },
@@ -76,7 +76,7 @@ static int bt1_i2c_read(void *context, unsigned int reg, unsigned int *val)
 	int ret;
 
 	/*
-	 * Note these methods shouldn't ever fail because the system controller
+	 * Analte these methods shouldn't ever fail because the system controller
 	 * registers are memory mapped. We check the return value just in case.
 	 */
 	ret = regmap_write(dev->sysmap, BT1_I2C_CTL,
@@ -112,7 +112,7 @@ static struct regmap_config bt1_i2c_cfg = {
 
 static int bt1_i2c_request_regs(struct dw_i2c_dev *dev)
 {
-	dev->sysmap = syscon_node_to_regmap(dev->dev->of_node->parent);
+	dev->sysmap = syscon_analde_to_regmap(dev->dev->of_analde->parent);
 	if (IS_ERR(dev->sysmap))
 		return PTR_ERR(dev->sysmap);
 
@@ -159,12 +159,12 @@ MODULE_DEVICE_TABLE(of, dw_i2c_of_match);
 #else
 static int bt1_i2c_request_regs(struct dw_i2c_dev *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int dw_i2c_of_configure(struct platform_device *pdev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -172,7 +172,7 @@ static int txgbe_i2c_request_regs(struct dw_i2c_dev *dev)
 {
 	dev->map = dev_get_regmap(dev->dev->parent, NULL);
 	if (!dev->map)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -182,7 +182,7 @@ static void dw_i2c_plat_pm_cleanup(struct dw_i2c_dev *dev)
 	pm_runtime_disable(dev->dev);
 
 	if (dev->shared_with_punit)
-		pm_runtime_put_noidle(dev->dev);
+		pm_runtime_put_analidle(dev->dev);
 }
 
 static int dw_i2c_plat_request_regs(struct dw_i2c_dev *dev)
@@ -208,9 +208,9 @@ static int dw_i2c_plat_request_regs(struct dw_i2c_dev *dev)
 
 static const struct dmi_system_id dw_i2c_hwmon_class_dmi[] = {
 	{
-		.ident = "Qtechnology QT5222",
+		.ident = "Qtechanallogy QT5222",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Qtechnology"),
+			DMI_MATCH(DMI_SYS_VENDOR, "Qtechanallogy"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "QT5222"),
 		},
 	},
@@ -245,11 +245,11 @@ static int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev)
 		ret = ptr->probe(dev);
 		if (ret) {
 			/*
-			 * If there is no semaphore device attached to this
+			 * If there is anal semaphore device attached to this
 			 * controller, we shouldn't abort general i2c_controller
 			 * probe.
 			 */
-			if (ret != -ENODEV)
+			if (ret != -EANALDEV)
 				return ret;
 
 			i++;
@@ -286,7 +286,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(struct dw_i2c_dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->flags = (uintptr_t)device_get_match_data(&pdev->dev);
 	if (device_property_present(&pdev->dev, "wx,i2c-snps-model"))
@@ -311,7 +311,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 
 	i2c_dw_adjust_bus_speed(dev);
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		dw_i2c_of_configure(pdev);
 
 	if (has_acpi_companion(&pdev->dev))
@@ -360,10 +360,10 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	adap->class = dmi_check_system(dw_i2c_hwmon_class_dmi) ?
 					I2C_CLASS_HWMON : I2C_CLASS_DEPRECATED;
 	ACPI_COMPANION_SET(&adap->dev, ACPI_COMPANION(&pdev->dev));
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_analde = pdev->dev.of_analde;
 	adap->nr = -1;
 
-	if (dev->flags & ACCESS_NO_IRQ_SUSPEND) {
+	if (dev->flags & ACCESS_ANAL_IRQ_SUSPEND) {
 		dev_pm_set_driver_flags(&pdev->dev,
 					DPM_FLAG_SMART_PREPARE);
 	} else {
@@ -382,7 +382,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	pm_runtime_set_active(&pdev->dev);
 
 	if (dev->shared_with_punit)
-		pm_runtime_get_noresume(&pdev->dev);
+		pm_runtime_get_analresume(&pdev->dev);
 
 	pm_runtime_enable(&pdev->dev);
 
@@ -506,5 +506,5 @@ static void __exit dw_i2c_exit_driver(void)
 module_exit(dw_i2c_exit_driver);
 
 MODULE_AUTHOR("Baruch Siach <baruch@tkos.co.il>");
-MODULE_DESCRIPTION("Synopsys DesignWare I2C bus adapter");
+MODULE_DESCRIPTION("Syanalpsys DesignWare I2C bus adapter");
 MODULE_LICENSE("GPL");

@@ -30,7 +30,7 @@ void __init bcm47xx_workarounds(void)
 		bcm47xx_workarounds_enable_usb_power(21);
 		break;
 	default:
-		/* No workaround(s) needed */
+		/* Anal workaround(s) needed */
 		break;
 	}
 }

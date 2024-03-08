@@ -162,7 +162,7 @@ static void rgmii_dump(void *priv)
 }
 
 /* Clock rates */
-#define RGMII_1000_NOM_CLK_FREQ			(250 * 1000 * 1000UL)
+#define RGMII_1000_ANALM_CLK_FREQ			(250 * 1000 * 1000UL)
 #define RGMII_ID_MODE_100_LOW_SVS_CLK_FREQ	 (50 * 1000 * 1000UL)
 #define RGMII_ID_MODE_10_LOW_SVS_CLK_FREQ	  (5 * 1000 * 1000UL)
 
@@ -171,7 +171,7 @@ ethqos_update_link_clk(struct qcom_ethqos *ethqos, unsigned int speed)
 {
 	switch (speed) {
 	case SPEED_1000:
-		ethqos->link_clk_rate =  RGMII_1000_NOM_CLK_FREQ;
+		ethqos->link_clk_rate =  RGMII_1000_ANALM_CLK_FREQ;
 		break;
 
 	case SPEED_100:
@@ -722,7 +722,7 @@ static void ethqos_ptp_clk_freq_config(struct stmmac_priv *priv)
 
 static int qcom_ethqos_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct ethqos_emac_driver_data *data;
 	struct plat_stmmacenet_data *plat_dat;
 	struct stmmac_resources stmmac_res;
@@ -745,7 +745,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 
 	ethqos = devm_kzalloc(dev, sizeof(*ethqos), GFP_KERNEL);
 	if (!ethqos)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_get_phy_mode(np, &ethqos->phy_mode);
 	if (ret)

@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * PowerPC specific definitions for NOLIBC
+ * PowerPC specific definitions for ANALLIBC
  * Copyright (C) 2023 Zhangjin Wu <falcon@tinylab.org>
  */
 
-#ifndef _NOLIBC_ARCH_POWERPC_H
-#define _NOLIBC_ARCH_POWERPC_H
+#ifndef _ANALLIBC_ARCH_POWERPC_H
+#define _ANALLIBC_ARCH_POWERPC_H
 
 #include "compiler.h"
 #include "crt.h"
@@ -16,13 +16,13 @@
  *   - arguments are in r3, r4, r5, r6, r7, r8, r9
  *   - the system call is performed by calling "sc"
  *   - syscall return comes in r3, and the summary overflow bit is checked
- *     to know if an error occurred, in which case errno is in r3.
+ *     to kanalw if an error occurred, in which case erranal is in r3.
  *   - the arguments are cast to long and assigned into the target
  *     registers which are then simply passed as registers to the asm code,
  *     so that we don't have to experience issues with register constraints.
  */
 
-#define _NOLIBC_SYSCALL_CLOBBERLIST \
+#define _ANALLIBC_SYSCALL_CLOBBERLIST \
 	"memory", "cr0", "r12", "r11", "r10", "r9"
 
 #define my_syscall0(num)                                                     \
@@ -37,7 +37,7 @@
 		"1:\n"                                                       \
 		: "=r"(_ret), "+r"(_num)                                     \
 		:                                                            \
-		: _NOLIBC_SYSCALL_CLOBBERLIST, "r8", "r7", "r6", "r5", "r4"  \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST, "r8", "r7", "r6", "r5", "r4"  \
 	);                                                                   \
 	_ret;                                                                \
 })
@@ -55,7 +55,7 @@
 		"1:\n"                                                       \
 		: "=r"(_ret), "+r"(_num)                                     \
 		: "0"(_arg1)                                                 \
-		: _NOLIBC_SYSCALL_CLOBBERLIST, "r8", "r7", "r6", "r5", "r4"  \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST, "r8", "r7", "r6", "r5", "r4"  \
 	);                                                                   \
 	_ret;                                                                \
 })
@@ -75,7 +75,7 @@
 		"1:\n"                                                       \
 		: "=r"(_ret), "+r"(_num), "+r"(_arg2)                        \
 		: "0"(_arg1)                                                 \
-		: _NOLIBC_SYSCALL_CLOBBERLIST, "r8", "r7", "r6", "r5"        \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST, "r8", "r7", "r6", "r5"        \
 	);                                                                   \
 	_ret;                                                                \
 })
@@ -96,7 +96,7 @@
 		"1:\n"                                                       \
 		: "=r"(_ret), "+r"(_num), "+r"(_arg2), "+r"(_arg3)           \
 		: "0"(_arg1)                                                 \
-		: _NOLIBC_SYSCALL_CLOBBERLIST, "r8", "r7", "r6"              \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST, "r8", "r7", "r6"              \
 	);                                                                   \
 	_ret;                                                                \
 })
@@ -119,7 +119,7 @@
 		: "=r"(_ret), "+r"(_num), "+r"(_arg2), "+r"(_arg3),          \
 		  "+r"(_arg4)                                                \
 		: "0"(_arg1)                                                 \
-		: _NOLIBC_SYSCALL_CLOBBERLIST, "r8", "r7"                    \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST, "r8", "r7"                    \
 	);                                                                   \
 	_ret;                                                                \
 })
@@ -143,7 +143,7 @@
 		: "=r"(_ret), "+r"(_num), "+r"(_arg2), "+r"(_arg3),          \
 		  "+r"(_arg4), "+r"(_arg5)                                   \
 		: "0"(_arg1)                                                 \
-		: _NOLIBC_SYSCALL_CLOBBERLIST, "r8"                          \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST, "r8"                          \
 	);                                                                   \
 	_ret;                                                                \
 })
@@ -167,24 +167,24 @@
 		: "=r"(_ret), "+r"(_num), "+r"(_arg2), "+r"(_arg3),          \
 		  "+r"(_arg4), "+r"(_arg5), "+r"(_arg6)                      \
 		: "0"(_arg1)                                                 \
-		: _NOLIBC_SYSCALL_CLOBBERLIST                                \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST                                \
 	);                                                                   \
 	_ret;                                                                \
 })
 
 #ifndef __powerpc64__
 /* FIXME: For 32-bit PowerPC, with newer gcc compilers (e.g. gcc 13.1.0),
- * "omit-frame-pointer" fails with __attribute__((no_stack_protector)) but
- * works with __attribute__((__optimize__("-fno-stack-protector")))
+ * "omit-frame-pointer" fails with __attribute__((anal_stack_protector)) but
+ * works with __attribute__((__optimize__("-fanal-stack-protector")))
  */
-#ifdef __no_stack_protector
-#undef __no_stack_protector
-#define __no_stack_protector __attribute__((__optimize__("-fno-stack-protector")))
+#ifdef __anal_stack_protector
+#undef __anal_stack_protector
+#define __anal_stack_protector __attribute__((__optimize__("-fanal-stack-protector")))
 #endif
 #endif /* !__powerpc64__ */
 
 /* startup code */
-void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_stack_protector _start(void)
+void __attribute__((weak, analreturn, optimize("Os", "omit-frame-pointer"))) __anal_stack_protector _start(void)
 {
 #ifdef __powerpc64__
 #if _CALL_ELF == 2
@@ -218,4 +218,4 @@ void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_
 	__builtin_unreachable();
 }
 
-#endif /* _NOLIBC_ARCH_POWERPC_H */
+#endif /* _ANALLIBC_ARCH_POWERPC_H */

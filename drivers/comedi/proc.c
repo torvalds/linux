@@ -27,8 +27,8 @@ static int comedi_read(struct seq_file *m, void *v)
 	seq_printf(m, "comedi version " COMEDI_RELEASE "\nformat string: %s\n",
 		   "\"%2d: %-20s %-20s %4d\", i, driver_name, board_name, n_subdevices");
 
-	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
-		struct comedi_device *dev = comedi_dev_get_from_minor(i);
+	for (i = 0; i < COMEDI_NUM_BOARD_MIANALRS; i++) {
+		struct comedi_device *dev = comedi_dev_get_from_mianalr(i);
 
 		if (!dev)
 			continue;
@@ -44,7 +44,7 @@ static int comedi_read(struct seq_file *m, void *v)
 		comedi_dev_put(dev);
 	}
 	if (!devices_q)
-		seq_puts(m, "no devices\n");
+		seq_puts(m, "anal devices\n");
 
 	mutex_lock(&comedi_drivers_list_lock);
 	for (driv = comedi_drivers; driv; driv = driv->next) {

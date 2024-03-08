@@ -125,7 +125,7 @@
 #define EDCCA_MAX 249
 #define EDCCA_TH_L2H_LB 66
 #define EDCCA_TH_REF 3
-#define EDCCA_HL_DIFF_NORMAL 8
+#define EDCCA_HL_DIFF_ANALRMAL 8
 #define RSSI_UNIT_CONVER 110
 #define EDCCA_UNIT_CONVER 128
 
@@ -355,12 +355,12 @@ const struct rtw89_phy_reg3_tbl _name ## _tbl = {	\
 }
 
 struct rtw89_nbi_reg_def {
-	struct rtw89_reg_def notch1_idx;
-	struct rtw89_reg_def notch1_frac_idx;
-	struct rtw89_reg_def notch1_en;
-	struct rtw89_reg_def notch2_idx;
-	struct rtw89_reg_def notch2_frac_idx;
-	struct rtw89_reg_def notch2_en;
+	struct rtw89_reg_def analtch1_idx;
+	struct rtw89_reg_def analtch1_frac_idx;
+	struct rtw89_reg_def analtch1_en;
+	struct rtw89_reg_def analtch2_idx;
+	struct rtw89_reg_def analtch2_frac_idx;
+	struct rtw89_reg_def analtch2_en;
 };
 
 struct rtw89_ccx_regs {
@@ -737,7 +737,7 @@ bool rtw89_phy_write_rf(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 bool rtw89_phy_write_rf_v1(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 			   u32 addr, u32 mask, u32 data);
 void rtw89_phy_init_bb_reg(struct rtw89_dev *rtwdev);
-void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev, bool noio);
+void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev, bool analio);
 void rtw89_phy_config_rf_reg_v1(struct rtw89_dev *rtwdev,
 				const struct rtw89_reg2_def *reg,
 				enum rtw89_rf_path rf_path,

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/rhashtable.h>
 #include <linux/list.h>
 #include <linux/idr.h>
@@ -39,8 +39,8 @@ MLXSW_ITEM32(afa, set, goto_g, 0xA4, 29, 1);
 
 enum mlxsw_afa_set_goto_binding_cmd {
 	/* continue go the next binding point */
-	MLXSW_AFA_SET_GOTO_BINDING_CMD_NONE,
-	/* jump to the next binding point no return */
+	MLXSW_AFA_SET_GOTO_BINDING_CMD_ANALNE,
+	/* jump to the next binding point anal return */
 	MLXSW_AFA_SET_GOTO_BINDING_CMD_JUMP,
 	/* terminate the acl binding */
 	MLXSW_AFA_SET_GOTO_BINDING_CMD_TERM = 4,
@@ -87,7 +87,7 @@ struct mlxsw_afa_set_ht_key {
  */
 
 struct mlxsw_afa_set {
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	struct mlxsw_afa_set_ht_key ht_key;
 	u32 kvdl_index;
 	u8 shared:1, /* Inserted in hashtable (doesn't mean that
@@ -98,7 +98,7 @@ struct mlxsw_afa_set {
 	unsigned int ref_count;
 	struct mlxsw_afa_set *next; /* Pointer to the next set. */
 	struct mlxsw_afa_set *prev; /* Pointer to the previous set,
-				     * note that set may have multiple
+				     * analte that set may have multiple
 				     * sets from multiple blocks
 				     * pointing at it. This is only
 				     * usable until commit.
@@ -108,7 +108,7 @@ struct mlxsw_afa_set {
 static const struct rhashtable_params mlxsw_afa_set_ht_params = {
 	.key_len = sizeof(struct mlxsw_afa_set_ht_key),
 	.key_offset = offsetof(struct mlxsw_afa_set, ht_key),
-	.head_offset = offsetof(struct mlxsw_afa_set, ht_node),
+	.head_offset = offsetof(struct mlxsw_afa_set, ht_analde),
 	.automatic_shrinking = true,
 };
 
@@ -117,7 +117,7 @@ struct mlxsw_afa_fwd_entry_ht_key {
 };
 
 struct mlxsw_afa_fwd_entry {
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	struct mlxsw_afa_fwd_entry_ht_key ht_key;
 	u32 kvdl_index;
 	unsigned int ref_count;
@@ -126,12 +126,12 @@ struct mlxsw_afa_fwd_entry {
 static const struct rhashtable_params mlxsw_afa_fwd_entry_ht_params = {
 	.key_len = sizeof(struct mlxsw_afa_fwd_entry_ht_key),
 	.key_offset = offsetof(struct mlxsw_afa_fwd_entry, ht_key),
-	.head_offset = offsetof(struct mlxsw_afa_fwd_entry, ht_node),
+	.head_offset = offsetof(struct mlxsw_afa_fwd_entry, ht_analde),
 	.automatic_shrinking = true,
 };
 
 struct mlxsw_afa_cookie {
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	refcount_t ref_count;
 	struct rcu_head rcu;
 	u32 cookie_index;
@@ -172,7 +172,7 @@ static int mlxsw_afa_cookie_obj_cmpfn(struct rhashtable_compare_arg *arg,
 }
 
 static const struct rhashtable_params mlxsw_afa_cookie_ht_params = {
-	.head_offset = offsetof(struct mlxsw_afa_cookie, ht_node),
+	.head_offset = offsetof(struct mlxsw_afa_cookie, ht_analde),
 	.hashfn	= mlxsw_afa_cookie_key_hashfn,
 	.obj_hashfn = mlxsw_afa_cookie_obj_hashfn,
 	.obj_cmpfn = mlxsw_afa_cookie_obj_cmpfn,
@@ -180,7 +180,7 @@ static const struct rhashtable_params mlxsw_afa_cookie_ht_params = {
 };
 
 struct mlxsw_afa_policer {
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	struct list_head list; /* Member of policer_list */
 	refcount_t ref_count;
 	u32 fa_index;
@@ -190,7 +190,7 @@ struct mlxsw_afa_policer {
 static const struct rhashtable_params mlxsw_afa_policer_ht_params = {
 	.key_len = sizeof(u32),
 	.key_offset = offsetof(struct mlxsw_afa_policer, fa_index),
-	.head_offset = offsetof(struct mlxsw_afa_policer, ht_node),
+	.head_offset = offsetof(struct mlxsw_afa_policer, ht_analde),
 	.automatic_shrinking = true,
 };
 
@@ -203,7 +203,7 @@ struct mlxsw_afa *mlxsw_afa_create(unsigned int max_acts_per_set,
 
 	mlxsw_afa = kzalloc(sizeof(*mlxsw_afa), GFP_KERNEL);
 	if (!mlxsw_afa)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	err = rhashtable_init(&mlxsw_afa->set_ht, &mlxsw_afa_set_ht_params);
 	if (err)
 		goto err_set_rhashtable_init;
@@ -296,7 +296,7 @@ static int mlxsw_afa_set_share(struct mlxsw_afa *mlxsw_afa,
 {
 	int err;
 
-	err = rhashtable_insert_fast(&mlxsw_afa->set_ht, &set->ht_node,
+	err = rhashtable_insert_fast(&mlxsw_afa->set_ht, &set->ht_analde,
 				     mlxsw_afa_set_ht_params);
 	if (err)
 		return err;
@@ -311,7 +311,7 @@ static int mlxsw_afa_set_share(struct mlxsw_afa *mlxsw_afa,
 	return 0;
 
 err_kvdl_set_add:
-	rhashtable_remove_fast(&mlxsw_afa->set_ht, &set->ht_node,
+	rhashtable_remove_fast(&mlxsw_afa->set_ht, &set->ht_analde,
 			       mlxsw_afa_set_ht_params);
 	return err;
 }
@@ -322,7 +322,7 @@ static void mlxsw_afa_set_unshare(struct mlxsw_afa *mlxsw_afa,
 	mlxsw_afa->ops->kvdl_set_del(mlxsw_afa->ops_priv,
 				     set->kvdl_index,
 				     set->ht_key.is_first);
-	rhashtable_remove_fast(&mlxsw_afa->set_ht, &set->ht_node,
+	rhashtable_remove_fast(&mlxsw_afa->set_ht, &set->ht_analde,
 			       mlxsw_afa_set_ht_params);
 	set->shared = false;
 }
@@ -408,7 +408,7 @@ struct mlxsw_afa_block *mlxsw_afa_block_create(struct mlxsw_afa *mlxsw_afa)
 
 	block = kzalloc(sizeof(*block), GFP_KERNEL);
 	if (!block)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	INIT_LIST_HEAD(&block->resource_list);
 	block->afa = mlxsw_afa;
 
@@ -418,7 +418,7 @@ struct mlxsw_afa_block *mlxsw_afa_block_create(struct mlxsw_afa *mlxsw_afa)
 		goto err_first_set_create;
 
 	/* In case user instructs to have dummy first set, we leave it
-	 * empty here and create another, real, set right away.
+	 * empty here and create aanalther, real, set right away.
 	 */
 	if (mlxsw_afa->ops->dummy_first_set) {
 		block->cur_set = mlxsw_afa_set_create(false);
@@ -436,7 +436,7 @@ err_second_set_create:
 	mlxsw_afa_set_destroy(block->first_set);
 err_first_set_create:
 	kfree(block);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 EXPORT_SYMBOL(mlxsw_afa_block_create);
 
@@ -465,14 +465,14 @@ int mlxsw_afa_block_commit(struct mlxsw_afa_block *block)
 
 	/* Go over all linked sets starting from last
 	 * and try to find existing set in the hash table.
-	 * In case it is not there, assign a KVD linear index
+	 * In case it is analt there, assign a KVD linear index
 	 * and insert it.
 	 */
 	do {
 		prev_set = set->prev;
 		set = mlxsw_afa_set_get(block->afa, set);
 		if (IS_ERR(set))
-			/* No rollback is needed since the chain is
+			/* Anal rollback is needed since the chain is
 			 * in consistent state and mlxsw_afa_block_destroy
 			 * will take care of putting it away.
 			 */
@@ -526,7 +526,7 @@ int mlxsw_afa_block_continue(struct mlxsw_afa_block *block)
 	if (block->finished)
 		return -EINVAL;
 	mlxsw_afa_set_goto_set(block->cur_set,
-			       MLXSW_AFA_SET_GOTO_BINDING_CMD_NONE, 0);
+			       MLXSW_AFA_SET_GOTO_BINDING_CMD_ANALNE, 0);
 	block->finished = true;
 	return 0;
 }
@@ -562,12 +562,12 @@ mlxsw_afa_fwd_entry_create(struct mlxsw_afa *mlxsw_afa, u16 local_port)
 
 	fwd_entry = kzalloc(sizeof(*fwd_entry), GFP_KERNEL);
 	if (!fwd_entry)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	fwd_entry->ht_key.local_port = local_port;
 	fwd_entry->ref_count = 1;
 
 	err = rhashtable_insert_fast(&mlxsw_afa->fwd_entry_ht,
-				     &fwd_entry->ht_node,
+				     &fwd_entry->ht_analde,
 				     mlxsw_afa_fwd_entry_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
@@ -580,7 +580,7 @@ mlxsw_afa_fwd_entry_create(struct mlxsw_afa *mlxsw_afa, u16 local_port)
 	return fwd_entry;
 
 err_kvdl_fwd_entry_add:
-	rhashtable_remove_fast(&mlxsw_afa->fwd_entry_ht, &fwd_entry->ht_node,
+	rhashtable_remove_fast(&mlxsw_afa->fwd_entry_ht, &fwd_entry->ht_analde,
 			       mlxsw_afa_fwd_entry_ht_params);
 err_rhashtable_insert:
 	kfree(fwd_entry);
@@ -592,7 +592,7 @@ static void mlxsw_afa_fwd_entry_destroy(struct mlxsw_afa *mlxsw_afa,
 {
 	mlxsw_afa->ops->kvdl_fwd_entry_del(mlxsw_afa->ops_priv,
 					   fwd_entry->kvdl_index);
-	rhashtable_remove_fast(&mlxsw_afa->fwd_entry_ht, &fwd_entry->ht_node,
+	rhashtable_remove_fast(&mlxsw_afa->fwd_entry_ht, &fwd_entry->ht_analde,
 			       mlxsw_afa_fwd_entry_ht_params);
 	kfree(fwd_entry);
 }
@@ -655,7 +655,7 @@ mlxsw_afa_fwd_entry_ref_create(struct mlxsw_afa_block *block, u16 local_port)
 
 	fwd_entry_ref = kzalloc(sizeof(*fwd_entry_ref), GFP_KERNEL);
 	if (!fwd_entry_ref)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	fwd_entry = mlxsw_afa_fwd_entry_get(block->afa, local_port);
 	if (IS_ERR(fwd_entry)) {
 		err = PTR_ERR(fwd_entry);
@@ -704,7 +704,7 @@ mlxsw_afa_counter_create(struct mlxsw_afa_block *block)
 
 	counter = kzalloc(sizeof(*counter), GFP_KERNEL);
 	if (!counter)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = block->afa->ops->counter_index_get(block->afa->ops_priv,
 						 &counter->counter_index);
@@ -735,19 +735,19 @@ mlxsw_afa_cookie_create(struct mlxsw_afa *mlxsw_afa,
 
 	cookie = kzalloc(sizeof(*cookie) + fa_cookie->cookie_len, GFP_KERNEL);
 	if (!cookie)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	refcount_set(&cookie->ref_count, 1);
 	cookie->fa_cookie = *fa_cookie;
 	memcpy(cookie->fa_cookie.cookie, fa_cookie->cookie,
 	       fa_cookie->cookie_len);
 
-	err = rhashtable_insert_fast(&mlxsw_afa->cookie_ht, &cookie->ht_node,
+	err = rhashtable_insert_fast(&mlxsw_afa->cookie_ht, &cookie->ht_analde,
 				     mlxsw_afa_cookie_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
 
 	/* Start cookie indexes with 1. Leave the 0 index unused. Packets
-	 * that come from the HW which are not dropped by drop-with-cookie
+	 * that come from the HW which are analt dropped by drop-with-cookie
 	 * action are going to pass cookie_index 0 to lookup.
 	 */
 	cookie_index = 1;
@@ -759,7 +759,7 @@ mlxsw_afa_cookie_create(struct mlxsw_afa *mlxsw_afa,
 	return cookie;
 
 err_idr_alloc:
-	rhashtable_remove_fast(&mlxsw_afa->cookie_ht, &cookie->ht_node,
+	rhashtable_remove_fast(&mlxsw_afa->cookie_ht, &cookie->ht_analde,
 			       mlxsw_afa_cookie_ht_params);
 err_rhashtable_insert:
 	kfree(cookie);
@@ -770,7 +770,7 @@ static void mlxsw_afa_cookie_destroy(struct mlxsw_afa *mlxsw_afa,
 				     struct mlxsw_afa_cookie *cookie)
 {
 	idr_remove(&mlxsw_afa->cookie_idr, cookie->cookie_index);
-	rhashtable_remove_fast(&mlxsw_afa->cookie_ht, &cookie->ht_node,
+	rhashtable_remove_fast(&mlxsw_afa->cookie_ht, &cookie->ht_analde,
 			       mlxsw_afa_cookie_ht_params);
 	kfree_rcu(cookie, rcu);
 }
@@ -804,7 +804,7 @@ mlxsw_afa_cookie_lookup(struct mlxsw_afa *mlxsw_afa, u32 cookie_index)
 {
 	struct mlxsw_afa_cookie *cookie;
 
-	/* 0 index means no cookie */
+	/* 0 index means anal cookie */
 	if (!cookie_index)
 		return NULL;
 	cookie = idr_find(&mlxsw_afa->cookie_idr, cookie_index);
@@ -849,7 +849,7 @@ mlxsw_afa_cookie_ref_create(struct mlxsw_afa_block *block,
 
 	cookie_ref = kzalloc(sizeof(*cookie_ref), GFP_KERNEL);
 	if (!cookie_ref)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	cookie = mlxsw_afa_cookie_get(block->afa, fa_cookie);
 	if (IS_ERR(cookie)) {
 		err = PTR_ERR(cookie);
@@ -875,7 +875,7 @@ mlxsw_afa_policer_create(struct mlxsw_afa *mlxsw_afa, u32 fa_index,
 
 	policer = kzalloc(sizeof(*policer), GFP_KERNEL);
 	if (!policer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = mlxsw_afa->ops->policer_add(mlxsw_afa->ops_priv, rate_bytes_ps,
 					  burst, &policer->policer_index,
@@ -886,7 +886,7 @@ mlxsw_afa_policer_create(struct mlxsw_afa *mlxsw_afa, u32 fa_index,
 	refcount_set(&policer->ref_count, 1);
 	policer->fa_index = fa_index;
 
-	err = rhashtable_insert_fast(&mlxsw_afa->policer_ht, &policer->ht_node,
+	err = rhashtable_insert_fast(&mlxsw_afa->policer_ht, &policer->ht_analde,
 				     mlxsw_afa_policer_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
@@ -907,7 +907,7 @@ static void mlxsw_afa_policer_destroy(struct mlxsw_afa *mlxsw_afa,
 				      struct mlxsw_afa_policer *policer)
 {
 	list_del(&policer->list);
-	rhashtable_remove_fast(&mlxsw_afa->policer_ht, &policer->ht_node,
+	rhashtable_remove_fast(&mlxsw_afa->policer_ht, &policer->ht_analde,
 			       mlxsw_afa_policer_ht_params);
 	mlxsw_afa->ops->policer_del(mlxsw_afa->ops_priv,
 				    policer->policer_index);
@@ -976,7 +976,7 @@ mlxsw_afa_policer_ref_create(struct mlxsw_afa_block *block, u32 fa_index,
 
 	policer_ref = kzalloc(sizeof(*policer_ref), GFP_KERNEL);
 	if (!policer_ref)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	policer = mlxsw_afa_policer_get(block->afa, fa_index, rate_bytes_ps,
 					burst, extack);
@@ -1011,7 +1011,7 @@ mlxsw_afa_block_need_split(const struct mlxsw_afa_block *block,
 {
 	struct mlxsw_afa_set *cur_set = block->cur_set;
 
-	/* Due to a hardware limitation, police action cannot be in the same
+	/* Due to a hardware limitation, police action cananalt be in the same
 	 * action set with MLXSW_AFA_TRAP_CODE or MLXSW_AFA_TRAPWU_CODE
 	 * actions. Work around this limitation by creating a new action set
 	 * and place the new action there.
@@ -1038,7 +1038,7 @@ static char *mlxsw_afa_block_append_action_ext(struct mlxsw_afa_block *block,
 		 */
 		set = mlxsw_afa_set_create(false);
 		if (!set)
-			return ERR_PTR(-ENOBUFS);
+			return ERR_PTR(-EANALBUFS);
 		set->prev = block->cur_set;
 		block->cur_act_index = 0;
 		block->cur_set->next = set;
@@ -1082,13 +1082,13 @@ static char *mlxsw_afa_block_append_action(struct mlxsw_afa_block *block,
 #define MLXSW_AFA_VLAN_SIZE 1
 
 enum mlxsw_afa_vlan_vlan_tag_cmd {
-	MLXSW_AFA_VLAN_VLAN_TAG_CMD_NOP,
+	MLXSW_AFA_VLAN_VLAN_TAG_CMD_ANALP,
 	MLXSW_AFA_VLAN_VLAN_TAG_CMD_PUSH_TAG,
 	MLXSW_AFA_VLAN_VLAN_TAG_CMD_POP_TAG,
 };
 
 enum mlxsw_afa_vlan_cmd {
-	MLXSW_AFA_VLAN_CMD_NOP,
+	MLXSW_AFA_VLAN_CMD_ANALP,
 	MLXSW_AFA_VLAN_CMD_SET_OUTER,
 	MLXSW_AFA_VLAN_CMD_SET_INNER,
 	MLXSW_AFA_VLAN_CMD_COPY_OUTER_TO_INNER,
@@ -1097,7 +1097,7 @@ enum mlxsw_afa_vlan_cmd {
 };
 
 /* afa_vlan_vlan_tag_cmd
- * Tag command: push, pop, nop VLAN header.
+ * Tag command: push, pop, analp VLAN header.
  */
 MLXSW_ITEM32(afa, vlan, vlan_tag_cmd, 0x00, 29, 3);
 
@@ -1146,10 +1146,10 @@ int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
 						  MLXSW_AFA_VLAN_SIZE);
 
 	if (IS_ERR(act)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append vlan_modify action");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt append vlan_modify action");
 		return PTR_ERR(act);
 	}
-	mlxsw_afa_vlan_pack(act, MLXSW_AFA_VLAN_VLAN_TAG_CMD_NOP,
+	mlxsw_afa_vlan_pack(act, MLXSW_AFA_VLAN_VLAN_TAG_CMD_ANALP,
 			    MLXSW_AFA_VLAN_CMD_SET_OUTER, vid,
 			    MLXSW_AFA_VLAN_CMD_SET_OUTER, pcp,
 			    MLXSW_AFA_VLAN_CMD_SET_OUTER, et);
@@ -1177,7 +1177,7 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_vlan_modify);
 #define MLXSW_AFA_TRAPWU_SIZE 2
 
 enum mlxsw_afa_trap_trap_action {
-	MLXSW_AFA_TRAP_TRAP_ACTION_NOP = 0,
+	MLXSW_AFA_TRAP_TRAP_ACTION_ANALP = 0,
 	MLXSW_AFA_TRAP_TRAP_ACTION_TRAP = 2,
 };
 
@@ -1286,7 +1286,7 @@ mlxsw_afa_block_append_drop_with_cookie(struct mlxsw_afa_block *block,
 
 	cookie_ref = mlxsw_afa_cookie_ref_create(block, fa_cookie);
 	if (IS_ERR(cookie_ref)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot create cookie for drop action");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt create cookie for drop action");
 		return PTR_ERR(cookie_ref);
 	}
 	cookie_index = cookie_ref->cookie->cookie_index;
@@ -1294,7 +1294,7 @@ mlxsw_afa_block_append_drop_with_cookie(struct mlxsw_afa_block *block,
 	act = mlxsw_afa_block_append_action_trap(block, MLXSW_AFA_TRAPWU_CODE,
 						 MLXSW_AFA_TRAPWU_SIZE);
 	if (IS_ERR(act)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append drop with cookie action");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt append drop with cookie action");
 		err = PTR_ERR(act);
 		goto err_append_action;
 	}
@@ -1388,7 +1388,7 @@ mlxsw_afa_mirror_create(struct mlxsw_afa_block *block, u16 local_in_port,
 
 	mirror = kzalloc(sizeof(*mirror), GFP_KERNEL);
 	if (!mirror)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = block->afa->ops->mirror_add(block->afa->ops_priv,
 					  local_in_port, out_dev,
@@ -1417,7 +1417,7 @@ mlxsw_afa_block_append_allocated_mirror(struct mlxsw_afa_block *block,
 
 	if (IS_ERR(act))
 		return PTR_ERR(act);
-	mlxsw_afa_trap_pack(act, MLXSW_AFA_TRAP_TRAP_ACTION_NOP,
+	mlxsw_afa_trap_pack(act, MLXSW_AFA_TRAP_TRAP_ACTION_ANALP,
 			    MLXSW_AFA_TRAP_FORWARD_ACTION_FORWARD, 0);
 	mlxsw_afa_trap_mirror_pack(act, true, mirror_agent);
 	return 0;
@@ -1434,12 +1434,12 @@ mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block, u16 local_in_port,
 	mirror = mlxsw_afa_mirror_create(block, local_in_port, out_dev,
 					 ingress);
 	if (IS_ERR(mirror)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot create mirror action");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt create mirror action");
 		return PTR_ERR(mirror);
 	}
 	err = mlxsw_afa_block_append_allocated_mirror(block, mirror->span_id);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append mirror action");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt append mirror action");
 		goto err_append_allocated_mirror;
 	}
 
@@ -1455,15 +1455,15 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_mirror);
  * ----------
  * The QOS_ACTION is used for manipulating the QoS attributes of a packet. It
  * can be used to change the DCSP, ECN, Color and Switch Priority of the packet.
- * Note that PCP field can be changed using the VLAN action.
+ * Analte that PCP field can be changed using the VLAN action.
  */
 
 #define MLXSW_AFA_QOS_CODE 0x06
 #define MLXSW_AFA_QOS_SIZE 1
 
 enum mlxsw_afa_qos_ecn_cmd {
-	/* Do nothing */
-	MLXSW_AFA_QOS_ECN_CMD_NOP,
+	/* Do analthing */
+	MLXSW_AFA_QOS_ECN_CMD_ANALP,
 	/* Set ECN to afa_qos_ecn */
 	MLXSW_AFA_QOS_ECN_CMD_SET,
 };
@@ -1478,8 +1478,8 @@ MLXSW_ITEM32(afa, qos, ecn_cmd, 0x04, 29, 3);
 MLXSW_ITEM32(afa, qos, ecn, 0x04, 24, 2);
 
 enum mlxsw_afa_qos_dscp_cmd {
-	/* Do nothing */
-	MLXSW_AFA_QOS_DSCP_CMD_NOP,
+	/* Do analthing */
+	MLXSW_AFA_QOS_DSCP_CMD_ANALP,
 	/* Set DSCP 3 LSB bits according to dscp[2:0] */
 	MLXSW_AFA_QOS_DSCP_CMD_SET_3LSB,
 	/* Set DSCP 3 MSB bits according to dscp[5:3] */
@@ -1499,8 +1499,8 @@ MLXSW_ITEM32(afa, qos, dscp_cmd, 0x04, 14, 2);
 MLXSW_ITEM32(afa, qos, dscp, 0x04, 0, 6);
 
 enum mlxsw_afa_qos_switch_prio_cmd {
-	/* Do nothing */
-	MLXSW_AFA_QOS_SWITCH_PRIO_CMD_NOP,
+	/* Do analthing */
+	MLXSW_AFA_QOS_SWITCH_PRIO_CMD_ANALP,
 	/* Set Switch Priority to afa_qos_switch_prio */
 	MLXSW_AFA_QOS_SWITCH_PRIO_CMD_SET,
 };
@@ -1560,7 +1560,7 @@ static int __mlxsw_afa_block_append_qos_dsfield(struct mlxsw_afa_block *block,
 						  MLXSW_AFA_QOS_SIZE);
 
 	if (IS_ERR(act)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append QOS action");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt append QOS action");
 		return PTR_ERR(act);
 	}
 
@@ -1615,7 +1615,7 @@ int mlxsw_afa_block_append_qos_switch_prio(struct mlxsw_afa_block *block,
 						  MLXSW_AFA_QOS_SIZE);
 
 	if (IS_ERR(act)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append QOS action");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt append QOS action");
 		return PTR_ERR(act);
 	}
 	mlxsw_afa_qos_switch_prio_pack(act, MLXSW_AFA_QOS_SWITCH_PRIO_CMD_SET,
@@ -1673,12 +1673,12 @@ int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
 	int err;
 
 	if (in_port) {
-		NL_SET_ERR_MSG_MOD(extack, "Forwarding to ingress port is not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Forwarding to ingress port is analt supported");
+		return -EOPANALTSUPP;
 	}
 	fwd_entry_ref = mlxsw_afa_fwd_entry_ref_create(block, local_port);
 	if (IS_ERR(fwd_entry_ref)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot create forward action");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt create forward action");
 		return PTR_ERR(fwd_entry_ref);
 	}
 	kvdl_index = fwd_entry_ref->fwd_entry->kvdl_index;
@@ -1686,7 +1686,7 @@ int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
 	act = mlxsw_afa_block_append_action(block, MLXSW_AFA_FORWARD_CODE,
 					    MLXSW_AFA_FORWARD_SIZE);
 	if (IS_ERR(act)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append forward action");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt append forward action");
 		err = PTR_ERR(act);
 		goto err_append_action;
 	}
@@ -1723,8 +1723,8 @@ enum {
 MLXSW_ITEM32(afa, polcnt, c_p, 0x00, 31, 1);
 
 enum mlxsw_afa_polcnt_counter_set_type {
-	/* No count */
-	MLXSW_AFA_POLCNT_COUNTER_SET_TYPE_NO_COUNT = 0x00,
+	/* Anal count */
+	MLXSW_AFA_POLCNT_COUNTER_SET_TYPE_ANAL_COUNT = 0x00,
 	/* Count packets and bytes */
 	MLXSW_AFA_POLCNT_COUNTER_SET_TYPE_PACKETS_BYTES = 0x03,
 	/* Count only packets */
@@ -1786,14 +1786,14 @@ int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
 
 	counter = mlxsw_afa_counter_create(block);
 	if (IS_ERR(counter)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot create count action");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt create count action");
 		return PTR_ERR(counter);
 	}
 	counter_index = counter->counter_index;
 
 	err = mlxsw_afa_block_append_allocated_counter(block, counter_index);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append count action");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt append count action");
 		goto err_append_allocated_counter;
 	}
 	if (p_counter_index)
@@ -1826,7 +1826,7 @@ int mlxsw_afa_block_append_police(struct mlxsw_afa_block *block,
 						MLXSW_AFA_POLCNT_SIZE,
 						MLXSW_AFA_ACTION_TYPE_POLICE);
 	if (IS_ERR(act)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append police action");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt append police action");
 		err = PTR_ERR(act);
 		goto err_append_action;
 	}
@@ -1850,8 +1850,8 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_police);
 #define MLXSW_AFA_VIRFWD_SIZE 1
 
 enum mlxsw_afa_virfwd_fid_cmd {
-	/* Do nothing */
-	MLXSW_AFA_VIRFWD_FID_CMD_NOOP,
+	/* Do analthing */
+	MLXSW_AFA_VIRFWD_FID_CMD_ANALOP,
 	/* Set the Forwarding Identifier (FID) to fid */
 	MLXSW_AFA_VIRFWD_FID_CMD_SET,
 };
@@ -1879,7 +1879,7 @@ int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid,
 						  MLXSW_AFA_VIRFWD_CODE,
 						  MLXSW_AFA_VIRFWD_SIZE);
 	if (IS_ERR(act)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append fid_set action");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt append fid_set action");
 		return PTR_ERR(act);
 	}
 	mlxsw_afa_virfwd_pack(act, MLXSW_AFA_VIRFWD_FID_CMD_SET, fid);
@@ -1887,45 +1887,45 @@ int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid,
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_fid_set);
 
-/* Ignore Action
+/* Iganalre Action
  * -------------
- * The ignore action is used to ignore basic switching functions such as
+ * The iganalre action is used to iganalre basic switching functions such as
  * learning on a per-packet basis.
  */
 
-#define MLXSW_AFA_IGNORE_CODE 0x0F
-#define MLXSW_AFA_IGNORE_SIZE 1
+#define MLXSW_AFA_IGANALRE_CODE 0x0F
+#define MLXSW_AFA_IGANALRE_SIZE 1
 
-/* afa_ignore_disable_learning
+/* afa_iganalre_disable_learning
  * Disable learning on ingress.
  */
-MLXSW_ITEM32(afa, ignore, disable_learning, 0x00, 29, 1);
+MLXSW_ITEM32(afa, iganalre, disable_learning, 0x00, 29, 1);
 
-/* afa_ignore_disable_security
+/* afa_iganalre_disable_security
  * Disable security lookup on ingress.
  * Reserved when Spectrum-1.
  */
-MLXSW_ITEM32(afa, ignore, disable_security, 0x00, 28, 1);
+MLXSW_ITEM32(afa, iganalre, disable_security, 0x00, 28, 1);
 
-static void mlxsw_afa_ignore_pack(char *payload, bool disable_learning,
+static void mlxsw_afa_iganalre_pack(char *payload, bool disable_learning,
 				  bool disable_security)
 {
-	mlxsw_afa_ignore_disable_learning_set(payload, disable_learning);
-	mlxsw_afa_ignore_disable_security_set(payload, disable_security);
+	mlxsw_afa_iganalre_disable_learning_set(payload, disable_learning);
+	mlxsw_afa_iganalre_disable_security_set(payload, disable_security);
 }
 
-int mlxsw_afa_block_append_ignore(struct mlxsw_afa_block *block,
+int mlxsw_afa_block_append_iganalre(struct mlxsw_afa_block *block,
 				  bool disable_learning, bool disable_security)
 {
-	char *act = mlxsw_afa_block_append_action(block, MLXSW_AFA_IGNORE_CODE,
-						  MLXSW_AFA_IGNORE_SIZE);
+	char *act = mlxsw_afa_block_append_action(block, MLXSW_AFA_IGANALRE_CODE,
+						  MLXSW_AFA_IGANALRE_SIZE);
 
 	if (IS_ERR(act))
 		return PTR_ERR(act);
-	mlxsw_afa_ignore_pack(act, disable_learning, disable_security);
+	mlxsw_afa_iganalre_pack(act, disable_learning, disable_security);
 	return 0;
 }
-EXPORT_SYMBOL(mlxsw_afa_block_append_ignore);
+EXPORT_SYMBOL(mlxsw_afa_block_append_iganalre);
 
 /* MC Routing Action
  * -----------------
@@ -1937,7 +1937,7 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_ignore);
 #define MLXSW_AFA_MCROUTER_SIZE 2
 
 enum mlxsw_afa_mcrouter_rpf_action {
-	MLXSW_AFA_MCROUTER_RPF_ACTION_NOP,
+	MLXSW_AFA_MCROUTER_RPF_ACTION_ANALP,
 	MLXSW_AFA_MCROUTER_RPF_ACTION_TRAP,
 	MLXSW_AFA_MCROUTER_RPF_ACTION_DISCARD_ERROR,
 };
@@ -2002,7 +2002,7 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_mcrouter);
  * --------------
  * The SIP_DIP_ACTION is used for modifying the SIP and DIP fields of the
  * packet, e.g. for NAT. The L3 checksum is updated. Also, if the L4 is TCP or
- * if the L4 is UDP and the checksum field is not zero, then the L4 checksum is
+ * if the L4 is UDP and the checksum field is analt zero, then the L4 checksum is
  * updated.
  */
 
@@ -2066,7 +2066,7 @@ int mlxsw_afa_block_append_ip(struct mlxsw_afa_block *block, bool is_dip,
 						  MLXSW_AFA_IP_SIZE);
 
 	if (IS_ERR(act)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append IP action");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt append IP action");
 		return PTR_ERR(act);
 	}
 
@@ -2117,7 +2117,7 @@ int mlxsw_afa_block_append_l4port(struct mlxsw_afa_block *block, bool is_dport, 
 						  MLXSW_AFA_L4PORT_SIZE);
 
 	if (IS_ERR(act)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append L4_PORT action");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt append L4_PORT action");
 		return PTR_ERR(act);
 	}
 
@@ -2189,7 +2189,7 @@ mlxsw_afa_sampler_create(struct mlxsw_afa_block *block, u16 local_port,
 
 	sampler = kzalloc(sizeof(*sampler), GFP_KERNEL);
 	if (!sampler)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = block->afa->ops->sampler_add(block->afa->ops_priv, local_port,
 					   psample_group, rate, trunc_size,
@@ -2245,7 +2245,7 @@ int mlxsw_afa_block_append_sampler(struct mlxsw_afa_block *block, u16 local_port
 	err = mlxsw_afa_block_append_allocated_sampler(block, sampler->span_id,
 						       rate);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append sampler action");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt append sampler action");
 		goto err_append_allocated_sampler;
 	}
 

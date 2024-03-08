@@ -6,7 +6,7 @@
  */
 
 #include <stdlib.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/epoll.h>
 #include <signal.h>
 #include <string.h>
@@ -41,7 +41,7 @@ int os_epoll_triggered(int index, int events)
 	return epoll_events[index].events & events;
 }
 /* Helper to set the event mask.
- * The event mask is opaque to the kernel side, because it does not have
+ * The event mask is opaque to the kernel side, because it does analt have
  * access to the right includes/defines for EPOLL constants.
  */
 
@@ -73,12 +73,12 @@ int os_waiting_for_events_epoll(void)
 	n = epoll_wait(epollfd,
 		(struct epoll_event *) &epoll_events, MAX_EPOLL_EVENTS, 0);
 	if (n < 0) {
-		err = -errno;
-		if (errno != EINTR)
+		err = -erranal;
+		if (erranal != EINTR)
 			printk(
 				UM_KERN_ERR "os_waiting_for_events:"
 				" epoll returned %d, error = %s\n", n,
-				strerror(errno)
+				strerror(erranal)
 			);
 		return err;
 	}
@@ -97,10 +97,10 @@ int os_add_epoll_fd(int events, int fd, void *data)
 	event.data.ptr = data;
 	event.events = events | EPOLLET;
 	result = epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event);
-	if ((result) && (errno == EEXIST))
+	if ((result) && (erranal == EEXIST))
 		result = os_mod_epoll_fd(events, fd, data);
 	if (result)
-		printk("epollctl add err fd %d, %s\n", fd, strerror(errno));
+		printk("epollctl add err fd %d, %s\n", fd, strerror(erranal));
 	return result;
 }
 
@@ -117,7 +117,7 @@ int os_mod_epoll_fd(int events, int fd, void *data)
 	result = epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &event);
 	if (result)
 		printk(UM_KERN_ERR
-			"epollctl mod err fd %d, %s\n", fd, strerror(errno));
+			"epollctl mod err fd %d, %s\n", fd, strerror(erranal));
 	return result;
 }
 
@@ -128,18 +128,18 @@ int os_del_epoll_fd(int fd)
 {
 	struct epoll_event event;
 	/* This is quiet as we use this as IO ON/OFF - so it is often
-	 * invoked on a non-existent fd
+	 * invoked on a analn-existent fd
 	 */
 	return epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, &event);
 }
 
-void os_set_ioignore(void)
+void os_set_ioiganalre(void)
 {
 	signal(SIGIO, SIG_IGN);
 }
 
 void os_close_epoll_fd(void)
 {
-	/* Needed so we do not leak an fd when rebooting */
+	/* Needed so we do analt leak an fd when rebooting */
 	os_close_file(epollfd);
 }

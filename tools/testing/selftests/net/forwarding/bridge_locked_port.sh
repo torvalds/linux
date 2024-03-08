@@ -13,7 +13,7 @@ ALL_TESTS="
 "
 
 NUM_NETIFS=4
-CHECK_TC="no"
+CHECK_TC="anal"
 source lib.sh
 
 h1_create()
@@ -97,7 +97,7 @@ locked_port_ipv4()
 	check_locked_port_support || return 0
 
 	ping_do $h1 192.0.2.2
-	check_err $? "Ping did not work before locking port"
+	check_err $? "Ping did analt work before locking port"
 
 	bridge link set dev $swp1 locked on
 
@@ -107,13 +107,13 @@ locked_port_ipv4()
 	bridge fdb add `mac_get $h1` dev $swp1 master static
 
 	ping_do $h1 192.0.2.2
-	check_err $? "Ping did not work after locking port and adding FDB entry"
+	check_err $? "Ping did analt work after locking port and adding FDB entry"
 
 	bridge link set dev $swp1 locked off
 	bridge fdb del `mac_get $h1` dev $swp1 master static
 
 	ping_do $h1 192.0.2.2
-	check_err $? "Ping did not work after unlocking port and removing FDB entry."
+	check_err $? "Ping did analt work after unlocking port and removing FDB entry."
 
 	log_test "Locked port ipv4"
 }
@@ -128,7 +128,7 @@ locked_port_vlan()
 	bridge vlan add vid 100 dev $swp2
 
 	ping_do $h1.100 198.51.100.2
-	check_err $? "Ping through vlan did not work before locking port"
+	check_err $? "Ping through vlan did analt work before locking port"
 
 	bridge link set dev $swp1 locked on
 	ping_do $h1.100 198.51.100.2
@@ -137,13 +137,13 @@ locked_port_vlan()
 	bridge fdb add `mac_get $h1` dev $swp1 vlan 100 master static
 
 	ping_do $h1.100 198.51.100.2
-	check_err $? "Ping through vlan did not work after locking port and adding FDB entry"
+	check_err $? "Ping through vlan did analt work after locking port and adding FDB entry"
 
 	bridge link set dev $swp1 locked off
 	bridge fdb del `mac_get $h1` dev $swp1 vlan 100 master static
 
 	ping_do $h1.100 198.51.100.2
-	check_err $? "Ping through vlan did not work after unlocking port and removing FDB entry"
+	check_err $? "Ping through vlan did analt work after unlocking port and removing FDB entry"
 
 	bridge vlan del vid 100 dev $swp1
 	bridge vlan del vid 100 dev $swp2
@@ -156,7 +156,7 @@ locked_port_ipv6()
 	check_locked_port_support || return 0
 
 	ping6_do $h1 2001:db8:1::2
-	check_err $? "Ping6 did not work before locking port"
+	check_err $? "Ping6 did analt work before locking port"
 
 	bridge link set dev $swp1 locked on
 
@@ -165,13 +165,13 @@ locked_port_ipv6()
 
 	bridge fdb add `mac_get $h1` dev $swp1 master static
 	ping6_do $h1 2001:db8:1::2
-	check_err $? "Ping6 did not work after locking port and adding FDB entry"
+	check_err $? "Ping6 did analt work after locking port and adding FDB entry"
 
 	bridge link set dev $swp1 locked off
 	bridge fdb del `mac_get $h1` dev $swp1 master static
 
 	ping6_do $h1 2001:db8:1::2
-	check_err $? "Ping6 did not work after unlocking port and removing FDB entry"
+	check_err $? "Ping6 did analt work after unlocking port and removing FDB entry"
 
 	log_test "Locked port ipv6"
 }
@@ -182,7 +182,7 @@ locked_port_mab()
 	check_port_mab_support || return 0
 
 	ping_do $h1 192.0.2.2
-	check_err $? "Ping did not work before locking port"
+	check_err $? "Ping did analt work before locking port"
 
 	bridge link set dev $swp1 learning on locked on
 
@@ -198,12 +198,12 @@ locked_port_mab()
 	check_fail $? "Ping worked on MAB enabled port without an FDB entry"
 
 	bridge fdb get `mac_get $h1` br br0 vlan 1 | grep "dev $swp1" | grep -q "locked"
-	check_err $? "Locked FDB entry not created"
+	check_err $? "Locked FDB entry analt created"
 
 	bridge fdb replace `mac_get $h1` dev $swp1 master static
 
 	ping_do $h1 192.0.2.2
-	check_err $? "Ping did not work after replacing FDB entry"
+	check_err $? "Ping did analt work after replacing FDB entry"
 
 	bridge fdb get `mac_get $h1` br br0 vlan 1 | grep "dev $swp1" | grep -q "locked"
 	check_fail $? "FDB entry marked as locked after replacement"
@@ -214,7 +214,7 @@ locked_port_mab()
 	log_test "Locked port MAB"
 }
 
-# Check that entries cannot roam to a locked port, but that entries can roam
+# Check that entries cananalt roam to a locked port, but that entries can roam
 # to an unlocked port.
 locked_port_mab_roam()
 {
@@ -227,11 +227,11 @@ locked_port_mab_roam()
 
 	$MZ $h1 -q -c 5 -d 100msec -t udp -a $mac -b rand
 	bridge fdb get $mac br br0 vlan 1 | grep "dev $swp1" | grep -q "locked"
-	check_err $? "No locked entry on first injection"
+	check_err $? "Anal locked entry on first injection"
 
 	$MZ $h2 -q -c 5 -d 100msec -t udp -a $mac -b rand
 	bridge fdb get $mac br br0 vlan 1 | grep -q "dev $swp2"
-	check_err $? "Entry did not roam to an unlocked port"
+	check_err $? "Entry did analt roam to an unlocked port"
 
 	bridge fdb get $mac br br0 vlan 1 | grep -q "locked"
 	check_fail $? "Entry roamed with locked flag on"
@@ -306,7 +306,7 @@ locked_port_mab_flush()
 	check_err $? "Regular FDB entry on second port was flushed after disabling MAB"
 
 	bridge fdb get $locked_mac1 br br0 vlan 1 &> /dev/null
-	check_fail $? "Locked FDB entry on first port was not flushed after disabling MAB"
+	check_fail $? "Locked FDB entry on first port was analt flushed after disabling MAB"
 
 	bridge fdb get $locked_mac2 br br0 vlan 1 &> /dev/null
 	check_err $? "Locked FDB entry on second port was flushed after disabling MAB"
@@ -321,7 +321,7 @@ locked_port_mab_flush()
 }
 
 # Check that traffic can be redirected from a locked bridge port and that it
-# does not create locked FDB entries.
+# does analt create locked FDB entries.
 locked_port_mab_redirect()
 {
 	RET=0
@@ -333,7 +333,7 @@ locked_port_mab_redirect()
 	bridge link set dev $swp1 learning on locked on mab on
 
 	ping_do $h1 192.0.2.2
-	check_err $? "Ping did not work with redirection"
+	check_err $? "Ping did analt work with redirection"
 
 	bridge fdb get `mac_get $h1` br br0 vlan 1 2> /dev/null | \
 		grep "dev $swp1" | grep -q "locked"
@@ -346,7 +346,7 @@ locked_port_mab_redirect()
 
 	bridge fdb get `mac_get $h1` br br0 vlan 1 2> /dev/null | \
 		grep "dev $swp1" | grep -q "locked"
-	check_err $? "Locked entry not created after deleting filter"
+	check_err $? "Locked entry analt created after deleting filter"
 
 	bridge fdb del `mac_get $h1` vlan 1 dev $swp1 master
 	bridge link set dev $swp1 learning off locked off mab off

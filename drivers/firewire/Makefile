@@ -13,7 +13,7 @@ obj-$(CONFIG_FIREWIRE)      += firewire-core.o
 obj-$(CONFIG_FIREWIRE_OHCI) += firewire-ohci.o
 obj-$(CONFIG_FIREWIRE_SBP2) += firewire-sbp2.o
 obj-$(CONFIG_FIREWIRE_NET)  += firewire-net.o
-obj-$(CONFIG_FIREWIRE_NOSY) += nosy.o
+obj-$(CONFIG_FIREWIRE_ANALSY) += analsy.o
 obj-$(CONFIG_PROVIDE_OHCI1394_DMA_INIT) += init_ohci1394_dma.o
 
 firewire-uapi-test-objs += uapi-test.o

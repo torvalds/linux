@@ -62,7 +62,7 @@ static short *get_step_address(struct pt_regs *linux_regs)
 		if (linux_regs->sr & SR_T_BIT_MASK)
 			addr = linux_regs->pc + 4 + OPCODE_BTF_DISP(op);
 		else
-			addr = linux_regs->pc + 4;	/* Not in delay slot */
+			addr = linux_regs->pc + 4;	/* Analt in delay slot */
 	}
 
 	/* BF */
@@ -78,7 +78,7 @@ static short *get_step_address(struct pt_regs *linux_regs)
 		if (!(linux_regs->sr & SR_T_BIT_MASK))
 			addr = linux_regs->pc + 4 + OPCODE_BTF_DISP(op);
 		else
-			addr = linux_regs->pc + 4;	/* Not in delay slot */
+			addr = linux_regs->pc + 4;	/* Analt in delay slot */
 	}
 
 	/* BRA */
@@ -127,7 +127,7 @@ static short *get_step_address(struct pt_regs *linux_regs)
  * Replace the instruction immediately after the current instruction
  * (i.e. next in the expected flow of control) with a trap instruction,
  * so that returning will cause only a single instruction to be executed.
- * Note that this model is slightly broken for instructions with delay
+ * Analte that this model is slightly broken for instructions with delay
  * slots (e.g. B[TF]S, BSR, BRA etc), where both the branch and the
  * instruction in the delay slot will be executed.
  */
@@ -190,34 +190,34 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] = {
 	{ "vbr",	GDB_SIZEOF_REG, -1 },
 };
 
-int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
+int dbg_set_reg(int reganal, void *mem, struct pt_regs *regs)
 {
-	if (regno < 0 || regno >= DBG_MAX_REG_NUM)
+	if (reganal < 0 || reganal >= DBG_MAX_REG_NUM)
 		return -EINVAL;
 
-	if (dbg_reg_def[regno].offset != -1)
-		memcpy((void *)regs + dbg_reg_def[regno].offset, mem,
-		       dbg_reg_def[regno].size);
+	if (dbg_reg_def[reganal].offset != -1)
+		memcpy((void *)regs + dbg_reg_def[reganal].offset, mem,
+		       dbg_reg_def[reganal].size);
 
 	return 0;
 }
 
-char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
+char *dbg_get_reg(int reganal, void *mem, struct pt_regs *regs)
 {
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (reganal >= DBG_MAX_REG_NUM || reganal < 0)
 		return NULL;
 
-	if (dbg_reg_def[regno].size != -1)
-		memcpy(mem, (void *)regs + dbg_reg_def[regno].offset,
-		       dbg_reg_def[regno].size);
+	if (dbg_reg_def[reganal].size != -1)
+		memcpy(mem, (void *)regs + dbg_reg_def[reganal].offset,
+		       dbg_reg_def[reganal].size);
 
-	switch (regno) {
+	switch (reganal) {
 	case GDB_VBR:
 		__asm__ __volatile__ ("stc vbr, %0" : "=r" (mem));
 		break;
 	}
 
-	return dbg_reg_def[regno].name;
+	return dbg_reg_def[reganal].name;
 }
 
 void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
@@ -249,7 +249,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 	gdb_regs[GDB_GBR] = thread_regs->gbr;
 }
 
-int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
+int kgdb_arch_handle_exception(int e_vector, int siganal, int err_code,
 			       char *remcomInBuffer, char *remcomOutBuffer,
 			       struct pt_regs *linux_regs)
 {
@@ -262,7 +262,7 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 	switch (remcomInBuffer[0]) {
 	case 'c':
 	case 's':
-		/* try to read optional parameter, pc unchanged if no parm */
+		/* try to read optional parameter, pc unchanged if anal parm */
 		ptr = &remcomInBuffer[1];
 		if (kgdb_hex2long(&ptr, &addr))
 			linux_regs->pc = addr;
@@ -282,7 +282,7 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 		return 0;
 	}
 
-	/* this means that we do not want to exit from the handler: */
+	/* this means that we do analt want to exit from the handler: */
 	return -1;
 }
 
@@ -312,7 +312,7 @@ BUILD_TRAP_HANDLER(singlestep)
 	local_irq_restore(flags);
 }
 
-static int __kgdb_notify(struct die_args *args, unsigned long cmd)
+static int __kgdb_analtify(struct die_args *args, unsigned long cmd)
 {
 	int ret;
 
@@ -320,52 +320,52 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 	case DIE_BREAKPOINT:
 		/*
 		 * This means a user thread is single stepping
-		 * a system call which should be ignored
+		 * a system call which should be iganalred
 		 */
 		if (test_thread_flag(TIF_SINGLESTEP))
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 
 		ret = kgdb_handle_exception(args->trapnr & 0xff, args->signr,
 					    args->err, args->regs);
 		if (ret)
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 
 		break;
 	}
 
-	return NOTIFY_STOP;
+	return ANALTIFY_STOP;
 }
 
 static int
-kgdb_notify(struct notifier_block *self, unsigned long cmd, void *ptr)
+kgdb_analtify(struct analtifier_block *self, unsigned long cmd, void *ptr)
 {
 	unsigned long flags;
 	int ret;
 
 	local_irq_save(flags);
-	ret = __kgdb_notify(ptr, cmd);
+	ret = __kgdb_analtify(ptr, cmd);
 	local_irq_restore(flags);
 
 	return ret;
 }
 
-static struct notifier_block kgdb_notifier = {
-	.notifier_call	= kgdb_notify,
+static struct analtifier_block kgdb_analtifier = {
+	.analtifier_call	= kgdb_analtify,
 
 	/*
-	 * Lowest-prio notifier priority, we want to be notified last:
+	 * Lowest-prio analtifier priority, we want to be analtified last:
 	 */
 	.priority	= -INT_MAX,
 };
 
 int kgdb_arch_init(void)
 {
-	return register_die_notifier(&kgdb_notifier);
+	return register_die_analtifier(&kgdb_analtifier);
 }
 
 void kgdb_arch_exit(void)
 {
-	unregister_die_notifier(&kgdb_notifier);
+	unregister_die_analtifier(&kgdb_analtifier);
 }
 
 const struct kgdb_arch arch_kgdb_ops = {

@@ -48,7 +48,7 @@ enum p9_trans_status {
 
 /**
  * enum p9_req_status_t - status of a request
- * @REQ_STATUS_ALLOC: request has been allocated but not sent
+ * @REQ_STATUS_ALLOC: request has been allocated but analt sent
  * @REQ_STATUS_UNSENT: request waiting to be sent
  * @REQ_STATUS_SENT: request sent to server
  * @REQ_STATUS_RCVD: response received from server
@@ -94,7 +94,7 @@ struct p9_req_t {
  * @trans: tranport instance state and API
  * @fids: All active FID handles
  * @reqs: All active requests.
- * @name: node name used as client id
+ * @name: analde name used as client id
  *
  * The client structure is used to keep track of various per-client
  * state that has been instantiated.
@@ -141,7 +141,7 @@ struct p9_client {
  */
 enum fid_source {
 	FID_FROM_OTHER,
-	FID_FROM_INODE,
+	FID_FROM_IANALDE,
 	FID_FROM_DENTRY,
 };
 
@@ -156,8 +156,8 @@ struct p9_fid {
 
 	void *rdir;
 
-	struct hlist_node dlist;	/* list of all fids attached to a dentry */
-	struct hlist_node ilist;
+	struct hlist_analde dlist;	/* list of all fids attached to a dentry */
+	struct hlist_analde ilist;
 };
 
 /**
@@ -217,7 +217,7 @@ int p9_client_setattr(struct p9_fid *fid, struct p9_iattr_dotl *attr);
 struct p9_stat_dotl *p9_client_getattr_dotl(struct p9_fid *fid,
 							u64 request_mask);
 
-int p9_client_mknod_dotl(struct p9_fid *oldfid, const char *name, int mode,
+int p9_client_mkanald_dotl(struct p9_fid *oldfid, const char *name, int mode,
 			dev_t rdev, kgid_t gid, struct p9_qid *qid);
 int p9_client_mkdir_dotl(struct p9_fid *fid, const char *name, int mode,
 				kgid_t gid, struct p9_qid *qid);
@@ -233,12 +233,12 @@ static inline void p9_req_get(struct p9_req_t *r)
 
 static inline int p9_req_try_get(struct p9_req_t *r)
 {
-	return refcount_inc_not_zero(&r->refcount);
+	return refcount_inc_analt_zero(&r->refcount);
 }
 
 int p9_req_put(struct p9_client *c, struct p9_req_t *r);
 
-/* We cannot have the real tracepoints in header files,
+/* We cananalt have the real tracepoints in header files,
  * use a wrapper function */
 DECLARE_TRACEPOINT(9p_fid_ref);
 void do_trace_9p_fid_get(struct p9_fid *fid);
@@ -249,8 +249,8 @@ void do_trace_9p_fid_put(struct p9_fid *fid);
  *    p9_fid_get(), and released with p9_fid_put()
  *  - v9fs_fid_lookup() or similar will automatically call get for you
  *    and also require a put
- *  - the *_fid_add() helpers will stash the fid in the inode,
- *    at which point it is the responsibility of evict_inode()
+ *  - the *_fid_add() helpers will stash the fid in the ianalde,
+ *    at which point it is the responsibility of evict_ianalde()
  *    to call the put
  *  - the last put will automatically send a clunk to the server
  */

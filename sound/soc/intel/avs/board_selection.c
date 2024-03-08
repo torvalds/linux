@@ -279,7 +279,7 @@ static struct snd_soc_acpi_mach avs_test_i2s_machines[] = {
 		},
 		.tplg_filename = "i2s-test-tplg.bin",
 	},
-	/* no NULL terminator, as we depend on ARRAY SIZE due to .id == NULL */
+	/* anal NULL terminator, as we depend on ARRAY SIZE due to .id == NULL */
 };
 
 struct avs_acpi_boards {
@@ -328,7 +328,7 @@ static int __maybe_unused avs_register_probe_board(struct avs_dev *adev)
 
 	mach.mach_params.platform = "probe-platform";
 
-	board = platform_device_register_data(NULL, "avs_probe_mb", PLATFORM_DEVID_NONE,
+	board = platform_device_register_data(NULL, "avs_probe_mb", PLATFORM_DEVID_ANALNE,
 					      (const void *)&mach, sizeof(mach));
 	if (IS_ERR(board)) {
 		dev_err(adev->dev, "probe board register failed\n");
@@ -351,11 +351,11 @@ static int avs_register_dmic_board(struct avs_dev *adev)
 
 	if (!adev->nhlt ||
 	    !intel_nhlt_has_endpoint_type(adev->nhlt, NHLT_LINK_DMIC)) {
-		dev_dbg(adev->dev, "no DMIC endpoints present\n");
+		dev_dbg(adev->dev, "anal DMIC endpoints present\n");
 		return 0;
 	}
 
-	codec = platform_device_register_simple("dmic-codec", PLATFORM_DEVID_NONE, NULL, 0);
+	codec = platform_device_register_simple("dmic-codec", PLATFORM_DEVID_ANALNE, NULL, 0);
 	if (IS_ERR(codec)) {
 		dev_err(adev->dev, "dmic codec register failed\n");
 		return PTR_ERR(codec);
@@ -374,7 +374,7 @@ static int avs_register_dmic_board(struct avs_dev *adev)
 	mach.tplg_filename = "dmic-tplg.bin";
 	mach.mach_params.platform = "dmic-platform";
 
-	board = platform_device_register_data(NULL, "avs_dmic", PLATFORM_DEVID_NONE,
+	board = platform_device_register_data(NULL, "avs_dmic", PLATFORM_DEVID_ANALNE,
 					(const void *)&mach, sizeof(mach));
 	if (IS_ERR(board)) {
 		dev_err(adev->dev, "dmic board register failed\n");
@@ -402,13 +402,13 @@ static int avs_register_i2s_board(struct avs_dev *adev, struct snd_soc_acpi_mach
 		dev_err(adev->dev, "Platform supports %d SSPs but board %s requires SSP%ld\n",
 			num_ssps, mach->drv_name,
 			(unsigned long)__fls(mach->mach_params.i2s_link_mask));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	name = devm_kasprintf(adev->dev, GFP_KERNEL, "%s.%d-platform", mach->drv_name,
 			      mach->mach_params.i2s_link_mask);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = avs_i2s_platform_register(adev, name, mach->mach_params.i2s_link_mask, mach->pdata);
 	if (ret < 0)
@@ -439,7 +439,7 @@ static int avs_register_i2s_boards(struct avs_dev *adev)
 	int ret;
 
 	if (!adev->nhlt || !intel_nhlt_has_endpoint_type(adev->nhlt, NHLT_LINK_SSP)) {
-		dev_dbg(adev->dev, "no I2S endpoints present\n");
+		dev_dbg(adev->dev, "anal I2S endpoints present\n");
 		return 0;
 	}
 
@@ -463,7 +463,7 @@ static int avs_register_i2s_boards(struct avs_dev *adev)
 
 	boards = avs_get_i2s_boards(adev);
 	if (!boards) {
-		dev_dbg(adev->dev, "no I2S endpoints supported\n");
+		dev_dbg(adev->dev, "anal I2S endpoints supported\n");
 		return 0;
 	}
 
@@ -493,7 +493,7 @@ static int avs_register_hda_board(struct avs_dev *adev, struct hda_codec *codec)
 
 	pname = devm_kasprintf(adev->dev, GFP_KERNEL, "%s-platform", dev_name(&hdev->dev));
 	if (!pname)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = avs_hda_platform_register(adev, pname);
 	if (ret < 0)
@@ -504,7 +504,7 @@ static int avs_register_hda_board(struct avs_dev *adev, struct hda_codec *codec)
 	mach.tplg_filename = devm_kasprintf(adev->dev, GFP_KERNEL, "hda-%08x-tplg.bin",
 					    hdev->vendor_id);
 	if (!mach.tplg_filename)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	id = adev->base.core.idx * HDA_MAX_CODECS + hdev->addr;
 	board = platform_device_register_data(NULL, "avs_hdaudio", id, (const void *)&mach,
@@ -530,7 +530,7 @@ static int avs_register_hda_boards(struct avs_dev *adev)
 	int ret;
 
 	if (!bus->num_codecs) {
-		dev_dbg(adev->dev, "no HDA endpoints present\n");
+		dev_dbg(adev->dev, "anal HDA endpoints present\n");
 		return 0;
 	}
 

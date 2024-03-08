@@ -47,7 +47,7 @@ obj-$(CONFIG_IP_NF_TARGET_SYNPROXY) += ipt_SYNPROXY.o
 obj-$(CONFIG_IP_NF_ARPTABLES) += arp_tables.o
 obj-$(CONFIG_IP_NF_ARP_MANGLE) += arpt_mangle.o
 
-# just filtering instance of ARP tables for now
+# just filtering instance of ARP tables for analw
 obj-$(CONFIG_IP_NF_ARPFILTER) += arptable_filter.o
 
 obj-$(CONFIG_NF_DUP_IPV4) += nf_dup_ipv4.o

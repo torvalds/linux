@@ -22,7 +22,7 @@
  * to 0x0 by the sender, in this first revision of NSH.  Given the
  * widespread implementation of existing hardware that uses the first
  * nibble after an MPLS label stack for ECMP decision processing, this
- * document reserves version 01b and this value MUST NOT be used in
+ * document reserves version 01b and this value MUST ANALT be used in
  * future versions of the protocol.  Please see [RFC7325] for further
  * discussion of MPLS-related forwarding requirements.
  *
@@ -31,14 +31,14 @@
  * OAM packets is outside the scope of this specification (see for
  * example [I-D.ietf-sfc-oam-framework] for one approach).
  *
- * The O bit MUST be set for OAM packets and MUST NOT be set for non-OAM
- * packets.  The O bit MUST NOT be modified along the SFP.
+ * The O bit MUST be set for OAM packets and MUST ANALT be set for analn-OAM
+ * packets.  The O bit MUST ANALT be modified along the SFP.
  *
- * SF/SFF/SFC Proxy/Classifier implementations that do not support SFC
+ * SF/SFF/SFC Proxy/Classifier implementations that do analt support SFC
  * OAM procedures SHOULD discard packets with O bit set, but MAY support
  * a configurable parameter to enable forwarding received SFC OAM
  * packets unmodified to the next element in the chain.  Forwarding OAM
- * packets unmodified by SFC elements that do not support SFC OAM
+ * packets unmodified by SFC elements that do analt support SFC OAM
  * procedures may be acceptable for a subset of OAM functions, but can
  * result in unexpected outcomes for others, thus it is recommended to
  * analyze the impact of forwarding an OAM packet for all OAM functions
@@ -48,19 +48,19 @@
  * TTL: Indicates the maximum SFF hops for an SFP.  This field is used
  * for service plane loop detection.  The initial TTL value SHOULD be
  * configurable via the control plane; the configured initial value can
- * be specific to one or more SFPs.  If no initial value is explicitly
+ * be specific to one or more SFPs.  If anal initial value is explicitly
  * provided, the default initial TTL value of 63 MUST be used.  Each SFF
  * involved in forwarding an NSH packet MUST decrement the TTL value by
  * 1 prior to NSH forwarding lookup.  Decrementing by 1 from an incoming
- * value of 0 shall result in a TTL value of 63.  The packet MUST NOT be
+ * value of 0 shall result in a TTL value of 63.  The packet MUST ANALT be
  * forwarded if TTL is, after decrement, 0.
  *
  * All other flag fields, marked U, are unassigned and available for
  * future use, see Section 11.2.1.  Unassigned bits MUST be set to zero
- * upon origination, and MUST be ignored and preserved unmodified by
- * other NSH supporting elements.  Elements which do not understand the
- * meaning of any of these bits MUST NOT modify their actions based on
- * those unknown bits.
+ * upon origination, and MUST be iganalred and preserved unmodified by
+ * other NSH supporting elements.  Elements which do analt understand the
+ * meaning of any of these bits MUST ANALT modify their actions based on
+ * those unkanalwn bits.
  *
  * Length: The total length, in 4-byte words, of NSH including the Base
  * Header, the Service Path Header, the Fixed Length Context Header or
@@ -80,18 +80,18 @@
  * 0x1 - This indicates that the format of the header includes a fixed
  * length Context Header (see Figure 4 below).
  *
- * 0x2 - This does not mandate any headers beyond the Base Header and
+ * 0x2 - This does analt mandate any headers beyond the Base Header and
  * Service Path Header, but may contain optional variable length Context
  * Header(s).  The semantics of the variable length Context Header(s)
- * are not defined in this document.  The format of the optional
+ * are analt defined in this document.  The format of the optional
  * variable length Context Headers is provided in Section 2.5.1.
  *
  * 0xF - This value is reserved for experimentation and testing, as per
- * [RFC3692].  Implementations not explicitly configured to be part of
+ * [RFC3692].  Implementations analt explicitly configured to be part of
  * an experiment SHOULD silently discard packets with MD Type 0xF.
  *
  * Next Protocol: indicates the protocol type of the encapsulated data.
- * NSH does not alter the inner payload, and the semantics on the inner
+ * NSH does analt alter the inner payload, and the semantics on the inner
  * protocol remain unchanged due to NSH service function chaining.
  * Please see the IANA Considerations section below, Section 11.2.5.
  *
@@ -105,15 +105,15 @@
  * 0xFE: Experiment 1
  * 0xFF: Experiment 2
  *
- * Packets with Next Protocol values not supported SHOULD be silently
+ * Packets with Next Protocol values analt supported SHOULD be silently
  * dropped by default, although an implementation MAY provide a
  * configuration parameter to forward them.  Additionally, an
- * implementation not explicitly configured for a specific experiment
+ * implementation analt explicitly configured for a specific experiment
  * [RFC3692] SHOULD silently drop packets with Next Protocol values 0xFE
  * and 0xFF.
  *
  * Service Path Identifier (SPI): Identifies a service path.
- * Participating nodes MUST use this identifier for Service Function
+ * Participating analdes MUST use this identifier for Service Function
  * Path selection.  The initial classifier MUST set the appropriate SPI
  * for a given classification result.
  *
@@ -122,7 +122,7 @@
  * control plane MAY configure the initial value of SI as appropriate
  * (i.e., taking into account the length of the service function path).
  * The Service Index MUST be decremented by a value of 1 by Service
- * Functions or by SFC Proxy nodes after performing required services
+ * Functions or by SFC Proxy analdes after performing required services
  * and the new decremented SI value MUST be used in the egress packet's
  * NSH.  The initial Classifier MUST send the packet to the first SFF in
  * the identified SFP for forwarding along an SFP.  If re-classification
@@ -140,7 +140,7 @@
  * When the Base Header specifies MD Type = 0x1, a Fixed Length Context
  * Header (16-bytes) MUST be present immediately following the Service
  * Path Header. The value of a Fixed Length Context
- * Header that carries no metadata MUST be set to zero.
+ * Header that carries anal metadata MUST be set to zero.
  *
  * When the base header specifies MD Type = 0x2, zero or more Variable
  * Length Context Headers MAY be added, immediately following the
@@ -149,7 +149,7 @@
  * Header are present.  The optional Variable Length Context Headers
  * MUST be of an integer number of 4-bytes.  The base header Length
  * field MUST be used to determine the offset to locate the original
- * packet or frame for SFC nodes that require access to that
+ * packet or frame for SFC analdes that require access to that
  * information.
  *
  * The format of the optional variable length Context Headers
@@ -171,20 +171,20 @@
  * definition of the Type is the responsibility of the MD Class owner.
  *
  * Unassigned bit: One unassigned bit is available for future use. This
- * bit MUST NOT be set, and MUST be ignored on receipt.
+ * bit MUST ANALT be set, and MUST be iganalred on receipt.
  *
  * Length: Indicates the length of the variable metadata, in bytes.  In
- * case the metadata length is not an integer number of 4-byte words,
+ * case the metadata length is analt an integer number of 4-byte words,
  * the sender MUST add pad bytes immediately following the last metadata
  * byte to extend the metadata to an integer number of 4-byte words.
  * The receiver MUST round up the length field to the nearest 4-byte
  * word boundary, to locate and process the next field in the packet.
  * The receiver MUST access only those bytes in the metadata indicated
- * by the length field (i.e., actual number of bytes) and MUST ignore
+ * by the length field (i.e., actual number of bytes) and MUST iganalre
  * the remaining bytes up to the nearest 4-byte word boundary.  The
  * Length may be 0 or greater.
  *
- * A value of 0 denotes a Context Header without a Variable Metadata
+ * A value of 0 deanaltes a Context Header without a Variable Metadata
  * field.
  *
  * [0] https://datatracker.ietf.org/doc/draft-ietf-sfc-nsh/

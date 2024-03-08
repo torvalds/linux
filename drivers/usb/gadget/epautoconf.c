@@ -39,13 +39,13 @@
  * passed later to usb_ep_enable(), along with some descriptor.
  *
  * That second descriptor won't always be the same as the first one.
- * For example, isochronous endpoints can be autoconfigured for high
+ * For example, isochroanalus endpoints can be autoconfigured for high
  * bandwidth, and then used in several lower bandwidth altsettings.
  * Also, high and full speed descriptors will be different.
  *
  * Be sure to examine and test the results of autoconfiguration
- * on your hardware.  This code may not make the best choices
- * about how to use the USB controller, and it can't know all
+ * on your hardware.  This code may analt make the best choices
+ * about how to use the USB controller, and it can't kanalw all
  * the restrictions that may apply. Some combinations of driver
  * and hardware won't be able to autoconfigure.
  *
@@ -86,7 +86,7 @@ found_ep:
 
 	/*
 	 * If the protocol driver hasn't yet decided on wMaxPacketSize
-	 * and wants to know the maximum possible, provide the info.
+	 * and wants to kanalw the maximum possible, provide the info.
 	 */
 	if (desc->wMaxPacketSize == 0)
 		desc->wMaxPacketSize = cpu_to_le16(ep->maxpacket_limit);
@@ -128,13 +128,13 @@ EXPORT_SYMBOL_GPL(usb_ep_autoconfig_ss);
  * usb_ep_enable(), along with some descriptor.
  *
  * That second descriptor won't always be the same as the first one.
- * For example, isochronous endpoints can be autoconfigured for high
+ * For example, isochroanalus endpoints can be autoconfigured for high
  * bandwidth, and then used in several lower bandwidth altsettings.
  * Also, high and full speed descriptors will be different.
  *
  * Be sure to examine and test the results of autoconfiguration on your
- * hardware.  This code may not make the best choices about how to use the
- * USB controller, and it can't know all the restrictions that may apply.
+ * hardware.  This code may analt make the best choices about how to use the
+ * USB controller, and it can't kanalw all the restrictions that may apply.
  * Some combinations of driver and hardware won't be able to autoconfigure.
  *
  * On success, this returns an claimed usb_ep, and modifies the endpoint
@@ -181,7 +181,7 @@ EXPORT_SYMBOL_GPL(usb_ep_autoconfig);
  * This function can be used during function bind for endpoints obtained
  * from usb_ep_autoconfig(). It unclaims endpoint claimed by
  * usb_ep_autoconfig() to make it available for other functions. Endpoint
- * which was released is no longer valid and shouldn't be used in
+ * which was released is anal longer valid and shouldn't be used in
  * context of function which released it.
  */
 void usb_ep_autoconfig_release(struct usb_ep *ep)

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -78,7 +78,7 @@ struct gt215_ramfuc {
 
 struct gt215_ltrain {
 	enum {
-		NVA3_TRAIN_UNKNOWN,
+		NVA3_TRAIN_UNKANALWN,
 		NVA3_TRAIN_UNSUPPORTED,
 		NVA3_TRAIN_ONCE,
 		NVA3_TRAIN_EXEC,
@@ -168,12 +168,12 @@ gt215_link_train(struct gt215_ram *ram)
 	unsigned long *f = &flags;
 
 	if (nvkm_boolopt(device->cfgopt, "NvMemExec", true) != true)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	/* XXX: Multiple partitions? */
 	result = kmalloc_array(64, sizeof(u32), GFP_KERNEL);
 	if (!result)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	train->state = NVA3_TRAIN_EXEC;
 
@@ -181,7 +181,7 @@ gt215_link_train(struct gt215_ram *ram)
 	nvbios_M0205Tp(bios, &ver, &hdr, &cnt, &len, &snr, &ssz, &M0205T);
 	if (M0205T.freq == 0) {
 		kfree(result);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	clk_current = nvkm_clk_read(clk, nv_clk_src_mem);
@@ -203,7 +203,7 @@ gt215_link_train(struct gt215_ram *ram)
 	nvkm_mask(device, 0x100b0c, 0x000000ff, 0x00000000);
 	nvkm_wr32(device, 0x100c04, 0x00000400);
 
-	/* Now the training script */
+	/* Analw the training script */
 	r1700 = ram_rd32(fuc, 0x001700);
 
 	ram_mask(fuc, 0x100200, 0x00000800, 0x00000000);
@@ -291,14 +291,14 @@ gt215_link_train_init(struct gt215_ram *ram)
 	/* We support type "5"
 	 * XXX: training pattern table appears to be unused for this routine */
 	if (!nvbios_M0205Ep(bios, i, &ver, &hdr, &cnt, &len, &M0205E))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (M0205E.type != 5)
 		return 0;
 
 	train->state = NVA3_TRAIN_ONCE;
 
-	ret = nvkm_ram_get(device, NVKM_RAM_MM_NORMAL, 0x01, 16, 0x8000,
+	ret = nvkm_ram_get(device, NVKM_RAM_MM_ANALRMAL, 0x01, 16, 0x8000,
 			   true, true, &ram->ltrain.memory);
 	if (ret)
 		return ret;
@@ -576,7 +576,7 @@ gt215_ram_calc(struct nvkm_ram *base, u32 freq)
 		ret = nvkm_gddr3_calc(&ram->base);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 		break;
 	}
 
@@ -611,7 +611,7 @@ gt215_ram_calc(struct nvkm_ram *base, u32 freq)
 	/* Always disable this bit during reclock */
 	ram_mask(fuc, 0x100200, 0x00000800, 0x00000000);
 
-	/* If switching from non-pll to pll, lock before disabling FB */
+	/* If switching from analn-pll to pll, lock before disabling FB */
 	if (mclk.pll && !pll2pll) {
 		ram_mask(fuc, 0x004128, 0x003f3141, mclk.clk | 0x00000101);
 		gt215_ram_lock_pll(fuc, &mclk);
@@ -633,7 +633,7 @@ gt215_ram_calc(struct nvkm_ram *base, u32 freq)
 			ram_mask(fuc, 0x111100, 0x04020000, 0x04020000);
 	}
 
-	/* If we're disabling the DLL, do it now */
+	/* If we're disabling the DLL, do it analw */
 	switch (next->bios.ramcfg_DLLoff * ram->base.type) {
 	case NVKM_RAM_TYPE_DDR3:
 		nvkm_sddr3_dll_disable(fuc, ram->base.mr);
@@ -943,7 +943,7 @@ gt215_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	int ret, i;
 
 	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pram = &ram->base;
 
 	ret = nv50_ram_ctor(&gt215_ram_func, fb, &ram->base);

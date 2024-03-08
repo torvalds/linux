@@ -74,7 +74,7 @@ int br_validate_ipv6(struct net *net, struct sk_buff *skb)
 	}
 
 	memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
-	/* No IP options in IPv6 header; however it should be
+	/* Anal IP options in IPv6 header; however it should be
 	 * checked if some next headers need special treatment
 	 */
 	return 0;
@@ -145,7 +145,7 @@ static int br_nf_pre_routing_finish_ipv6(struct net *net, struct sock *sk, struc
 			return 0;
 		}
 		skb_dst_drop(skb);
-		skb_dst_set_noref(skb, &rt->dst);
+		skb_dst_set_analref(skb, &rt->dst);
 	}
 
 	skb->dev = br_indev;
@@ -171,7 +171,7 @@ unsigned int br_nf_pre_routing_ipv6(void *priv,
 
 	nf_bridge = nf_bridge_alloc(skb);
 	if (!nf_bridge)
-		return NF_DROP_REASON(skb, SKB_DROP_REASON_NOMEM, 0);
+		return NF_DROP_REASON(skb, SKB_DROP_REASON_ANALMEM, 0);
 	if (!setup_pre_routing(skb, state->net))
 		return NF_DROP_REASON(skb, SKB_DROP_REASON_DEV_READY, 0);
 

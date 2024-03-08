@@ -11,7 +11,7 @@
  *
  * and the Mach Sources
  *
- * Copyright (C) 199x  the Anonymous
+ * Copyright (C) 199x  the Aanalnymous
  * Copyright (C) 2002, 2003  Maciej W. Rozycki
  */
 
@@ -143,7 +143,7 @@
  * The lower 16 bits are system-specific.  Bits 15,11:8 are common and
  * defined here.  The rest is defined in system-specific headers.
  */
-#define KN0X_IO_SSR_DIAGDN	(1<<15)		/* diagnostic jumper */
+#define KN0X_IO_SSR_DIAGDN	(1<<15)		/* diaganalstic jumper */
 #define KN0X_IO_SSR_SCC_RST	(1<<11)		/* ~SCC0,1 (Z85C30) reset */
 #define KN0X_IO_SSR_RTC_RST	(1<<10)		/* ~RTC (DS1287) reset */
 #define KN0X_IO_SSR_ASC_RST	(1<<9)		/* ~ASC (NCR53C94) reset */

@@ -11,10 +11,10 @@ clocksource and clockevents via the standard arm_arch_timer.c
 driver, just as they would on bare metal. Linux vDSO support for the
 architectural system counter is functional in guest VMs on Hyper-V.
 While Hyper-V also provides a synthetic system clock and four synthetic
-per-CPU timers as described in the TLFS, they are not used by the
+per-CPU timers as described in the TLFS, they are analt used by the
 Linux kernel in a Hyper-V guest on arm64.  However, older versions
 of Hyper-V for arm64 only partially virtualize the ARMv8
-architectural timer, such that the timer does not generate
+architectural timer, such that the timer does analt generate
 interrupts in the VM. Because of this limitation, running current
 Linux kernel versions on these older Hyper-V versions requires an
 out-of-tree patch to use the Hyper-V synthetic clocks/timers instead.
@@ -24,14 +24,14 @@ x86/x64
 On x86/x64, Hyper-V provides guest VMs with a synthetic system clock
 and four synthetic per-CPU timers as described in the TLFS. Hyper-V
 also provides access to the virtualized TSC via the RDTSC and
-related instructions. These TSC instructions do not trap to
+related instructions. These TSC instructions do analt trap to
 the hypervisor and so provide excellent performance in a VM.
 Hyper-V performs TSC calibration, and provides the TSC frequency
 to the guest VM via a synthetic MSR.  Hyper-V initialization code
 in Linux reads this MSR to get the frequency, so it skips TSC
 calibration and sets tsc_reliable. Hyper-V provides virtualized
 versions of the PIT (in Hyper-V  Generation 1 VMs only), local
-APIC timer, and RTC. Hyper-V does not provide a virtualized HPET in
+APIC timer, and RTC. Hyper-V does analt provide a virtualized HPET in
 guest VMs.
 
 The Hyper-V synthetic system clock can be read via a synthetic MSR,

@@ -1088,14 +1088,14 @@ static struct clk_rcg2 gcc_usb3_sec_phy_aux_clk_src = {
 	},
 };
 
-static struct clk_branch gcc_aggre_noc_pcie_tbu_clk = {
+static struct clk_branch gcc_aggre_analc_pcie_tbu_clk = {
 	.halt_reg = 0x90018,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x90018,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_aggre_noc_pcie_tbu_clk",
+			.name = "gcc_aggre_analc_pcie_tbu_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -1227,7 +1227,7 @@ static struct clk_branch gcc_boot_rom_ahb_clk = {
 };
 
 /*
- * Clock ON depends on external parent 'config noc', so cant poll
+ * Clock ON depends on external parent 'config analc', so cant poll
  * delay and also mark as crtitical for camss boot
  */
 static struct clk_branch gcc_camera_ahb_clk = {
@@ -1272,7 +1272,7 @@ static struct clk_branch gcc_camera_sf_axi_clk = {
 	},
 };
 
-/* XO critical input to camss, so no need to poll */
+/* XO critical input to camss, so anal need to poll */
 static struct clk_branch gcc_camera_xo_clk = {
 	.halt_reg = 0xb044,
 	.halt_check = BRANCH_HALT_DELAY,
@@ -1287,14 +1287,14 @@ static struct clk_branch gcc_camera_xo_clk = {
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb3_prim_axi_clk = {
+static struct clk_branch gcc_cfg_analc_usb3_prim_axi_clk = {
 	.halt_reg = 0xf078,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0xf078,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_cfg_noc_usb3_prim_axi_clk",
+			.name = "gcc_cfg_analc_usb3_prim_axi_clk",
 			.parent_hws = (const struct clk_hw *[]){
 				      &gcc_usb30_prim_master_clk_src.clkr.hw },
 			.num_parents = 1,
@@ -1304,14 +1304,14 @@ static struct clk_branch gcc_cfg_noc_usb3_prim_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb3_sec_axi_clk = {
+static struct clk_branch gcc_cfg_analc_usb3_sec_axi_clk = {
 	.halt_reg = 0x10078,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x10078,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_cfg_noc_usb3_sec_axi_clk",
+			.name = "gcc_cfg_analc_usb3_sec_axi_clk",
 			.parent_hws = (const struct clk_hw *[]){
 				      &gcc_usb30_sec_master_clk_src.clkr.hw },
 			.num_parents = 1,
@@ -1354,7 +1354,7 @@ static struct clk_branch gcc_cpuss_dvm_bus_clk = {
 	},
 };
 
-static struct clk_branch gcc_cpuss_gnoc_clk = {
+static struct clk_branch gcc_cpuss_ganalc_clk = {
 	.halt_reg = 0x48004,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x48004,
@@ -1363,7 +1363,7 @@ static struct clk_branch gcc_cpuss_gnoc_clk = {
 		.enable_reg = 0x52004,
 		.enable_mask = BIT(22),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_cpuss_gnoc_clk",
+			.name = "gcc_cpuss_ganalc_clk",
 			 /* required for cpuss */
 			.flags = CLK_IS_CRITICAL,
 			.ops = &clk_branch2_ops,
@@ -1398,7 +1398,7 @@ static struct clk_branch gcc_ddrss_gpu_axi_clk = {
 };
 
 /*
- * Clock ON depends on external parent 'config noc', so cant poll
+ * Clock ON depends on external parent 'config analc', so cant poll
  * delay and also mark as crtitical for disp boot
  */
 static struct clk_branch gcc_disp_ahb_clk = {
@@ -1443,7 +1443,7 @@ static struct clk_branch gcc_disp_sf_axi_clk = {
 	},
 };
 
-/* XO critical input to disp, so no need to poll */
+/* XO critical input to disp, so anal need to poll */
 static struct clk_branch gcc_disp_xo_clk = {
 	.halt_reg = 0xb048,
 	.halt_check = BRANCH_HALT_DELAY,
@@ -1633,27 +1633,27 @@ static struct clk_branch gcc_gpu_iref_clk = {
 	},
 };
 
-static struct clk_branch gcc_gpu_memnoc_gfx_clk = {
+static struct clk_branch gcc_gpu_memanalc_gfx_clk = {
 	.halt_reg = 0x7100c,
 	.halt_check = BRANCH_VOTED,
 	.clkr = {
 		.enable_reg = 0x7100c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_gpu_memnoc_gfx_clk",
+			.name = "gcc_gpu_memanalc_gfx_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_gpu_snoc_dvm_gfx_clk = {
+static struct clk_branch gcc_gpu_sanalc_dvm_gfx_clk = {
 	.halt_reg = 0x71018,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x71018,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_gpu_snoc_dvm_gfx_clk",
+			.name = "gcc_gpu_sanalc_dvm_gfx_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2131,14 +2131,14 @@ static struct clk_branch gcc_qmip_video_vcodec_ahb_clk = {
 	},
 };
 
-static struct clk_branch gcc_qspi_cnoc_periph_ahb_clk = {
+static struct clk_branch gcc_qspi_canalc_periph_ahb_clk = {
 	.halt_reg = 0x4b000,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x4b000,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_qspi_cnoc_periph_ahb_clk",
+			.name = "gcc_qspi_canalc_periph_ahb_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2645,14 +2645,14 @@ static struct clk_branch gcc_sdcc4_apps_clk = {
 	},
 };
 
-static struct clk_branch gcc_sys_noc_cpuss_ahb_clk = {
+static struct clk_branch gcc_sys_analc_cpuss_ahb_clk = {
 	.halt_reg = 0x4819c,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0x52004,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_sys_noc_cpuss_ahb_clk",
+			.name = "gcc_sys_analc_cpuss_ahb_clk",
 			.parent_hws = (const struct clk_hw *[]){
 				      &gcc_cpuss_ahb_clk_src.clkr.hw },
 			.num_parents = 1,
@@ -3357,7 +3357,7 @@ static struct clk_branch gcc_usb3_sec_phy_pipe_clk = {
 };
 
 /*
- * Clock ON depends on external parent 'config noc', so cant poll
+ * Clock ON depends on external parent 'config analc', so cant poll
  * delay and also mark as crtitical for video boot
  */
 static struct clk_branch gcc_video_ahb_clk = {
@@ -3415,7 +3415,7 @@ static struct clk_branch gcc_video_axic_clk = {
 	},
 };
 
-/* XO critical input to video, so no need to poll */
+/* XO critical input to video, so anal need to poll */
 static struct clk_branch gcc_video_xo_clk = {
 	.halt_reg = 0xb040,
 	.halt_check = BRANCH_HALT_DELAY,
@@ -3494,7 +3494,7 @@ static struct gdsc usb30_sec_gdsc = {
 };
 
 static struct clk_regmap *gcc_sm8150_clocks[] = {
-	[GCC_AGGRE_NOC_PCIE_TBU_CLK] = &gcc_aggre_noc_pcie_tbu_clk.clkr,
+	[GCC_AGGRE_ANALC_PCIE_TBU_CLK] = &gcc_aggre_analc_pcie_tbu_clk.clkr,
 	[GCC_AGGRE_UFS_CARD_AXI_CLK] = &gcc_aggre_ufs_card_axi_clk.clkr,
 	[GCC_AGGRE_UFS_CARD_AXI_HW_CTL_CLK] =
 		&gcc_aggre_ufs_card_axi_hw_ctl_clk.clkr,
@@ -3508,12 +3508,12 @@ static struct clk_regmap *gcc_sm8150_clocks[] = {
 	[GCC_CAMERA_HF_AXI_CLK] = &gcc_camera_hf_axi_clk.clkr,
 	[GCC_CAMERA_SF_AXI_CLK] = &gcc_camera_sf_axi_clk.clkr,
 	[GCC_CAMERA_XO_CLK] = &gcc_camera_xo_clk.clkr,
-	[GCC_CFG_NOC_USB3_PRIM_AXI_CLK] = &gcc_cfg_noc_usb3_prim_axi_clk.clkr,
-	[GCC_CFG_NOC_USB3_SEC_AXI_CLK] = &gcc_cfg_noc_usb3_sec_axi_clk.clkr,
+	[GCC_CFG_ANALC_USB3_PRIM_AXI_CLK] = &gcc_cfg_analc_usb3_prim_axi_clk.clkr,
+	[GCC_CFG_ANALC_USB3_SEC_AXI_CLK] = &gcc_cfg_analc_usb3_sec_axi_clk.clkr,
 	[GCC_CPUSS_AHB_CLK] = &gcc_cpuss_ahb_clk.clkr,
 	[GCC_CPUSS_AHB_CLK_SRC] = &gcc_cpuss_ahb_clk_src.clkr,
 	[GCC_CPUSS_DVM_BUS_CLK] = &gcc_cpuss_dvm_bus_clk.clkr,
-	[GCC_CPUSS_GNOC_CLK] = &gcc_cpuss_gnoc_clk.clkr,
+	[GCC_CPUSS_GANALC_CLK] = &gcc_cpuss_ganalc_clk.clkr,
 	[GCC_CPUSS_RBCPR_CLK] = &gcc_cpuss_rbcpr_clk.clkr,
 	[GCC_DDRSS_GPU_AXI_CLK] = &gcc_ddrss_gpu_axi_clk.clkr,
 	[GCC_DISP_AHB_CLK] = &gcc_disp_ahb_clk.clkr,
@@ -3536,8 +3536,8 @@ static struct clk_regmap *gcc_sm8150_clocks[] = {
 	[GCC_GPU_GPLL0_CLK_SRC] = &gcc_gpu_gpll0_clk_src.clkr,
 	[GCC_GPU_GPLL0_DIV_CLK_SRC] = &gcc_gpu_gpll0_div_clk_src.clkr,
 	[GCC_GPU_IREF_CLK] = &gcc_gpu_iref_clk.clkr,
-	[GCC_GPU_MEMNOC_GFX_CLK] = &gcc_gpu_memnoc_gfx_clk.clkr,
-	[GCC_GPU_SNOC_DVM_GFX_CLK] = &gcc_gpu_snoc_dvm_gfx_clk.clkr,
+	[GCC_GPU_MEMANALC_GFX_CLK] = &gcc_gpu_memanalc_gfx_clk.clkr,
+	[GCC_GPU_SANALC_DVM_GFX_CLK] = &gcc_gpu_sanalc_dvm_gfx_clk.clkr,
 	[GCC_NPU_AT_CLK] = &gcc_npu_at_clk.clkr,
 	[GCC_NPU_AXI_CLK] = &gcc_npu_axi_clk.clkr,
 	[GCC_NPU_CFG_AHB_CLK] = &gcc_npu_cfg_ahb_clk.clkr,
@@ -3574,7 +3574,7 @@ static struct clk_regmap *gcc_sm8150_clocks[] = {
 	[GCC_QMIP_DISP_AHB_CLK] = &gcc_qmip_disp_ahb_clk.clkr,
 	[GCC_QMIP_VIDEO_CVP_AHB_CLK] = &gcc_qmip_video_cvp_ahb_clk.clkr,
 	[GCC_QMIP_VIDEO_VCODEC_AHB_CLK] = &gcc_qmip_video_vcodec_ahb_clk.clkr,
-	[GCC_QSPI_CNOC_PERIPH_AHB_CLK] = &gcc_qspi_cnoc_periph_ahb_clk.clkr,
+	[GCC_QSPI_CANALC_PERIPH_AHB_CLK] = &gcc_qspi_canalc_periph_ahb_clk.clkr,
 	[GCC_QSPI_CORE_CLK] = &gcc_qspi_core_clk.clkr,
 	[GCC_QSPI_CORE_CLK_SRC] = &gcc_qspi_core_clk_src.clkr,
 	[GCC_QUPV3_WRAP0_S0_CLK] = &gcc_qupv3_wrap0_s0_clk.clkr,
@@ -3629,7 +3629,7 @@ static struct clk_regmap *gcc_sm8150_clocks[] = {
 	[GCC_SDCC4_AHB_CLK] = &gcc_sdcc4_ahb_clk.clkr,
 	[GCC_SDCC4_APPS_CLK] = &gcc_sdcc4_apps_clk.clkr,
 	[GCC_SDCC4_APPS_CLK_SRC] = &gcc_sdcc4_apps_clk_src.clkr,
-	[GCC_SYS_NOC_CPUSS_AHB_CLK] = &gcc_sys_noc_cpuss_ahb_clk.clkr,
+	[GCC_SYS_ANALC_CPUSS_AHB_CLK] = &gcc_sys_analc_cpuss_ahb_clk.clkr,
 	[GCC_TSIF_AHB_CLK] = &gcc_tsif_ahb_clk.clkr,
 	[GCC_TSIF_INACTIVITY_TIMERS_CLK] = &gcc_tsif_inactivity_timers_clk.clkr,
 	[GCC_TSIF_REF_CLK] = &gcc_tsif_ref_clk.clkr,

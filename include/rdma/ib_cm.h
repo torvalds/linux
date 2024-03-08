@@ -4,7 +4,7 @@
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
- * Copyright (c) 2019, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2019, Mellaanalx Techanallogies inc.  All rights reserved.
  */
 
 #ifndef IB_CM_H
@@ -96,7 +96,7 @@ struct ib_cm_req_event_param {
 	/*
 	 * SGID attribute of the primary path. Currently only
 	 * useful for RoCE. Alternate path GID attributes
-	 * are not yet supported.
+	 * are analt yet supported.
 	 */
 	const struct ib_gid_attr *ppath_sgid_attr;
 
@@ -133,9 +133,9 @@ struct ib_cm_rep_event_param {
 };
 
 enum ib_cm_rej_reason {
-	IB_CM_REJ_NO_QP				= 1,
-	IB_CM_REJ_NO_EEC			= 2,
-	IB_CM_REJ_NO_RESOURCES			= 3,
+	IB_CM_REJ_ANAL_QP				= 1,
+	IB_CM_REJ_ANAL_EEC			= 2,
+	IB_CM_REJ_ANAL_RESOURCES			= 3,
 	IB_CM_REJ_TIMEOUT			= 4,
 	IB_CM_REJ_UNSUPPORTED			= 5,
 	IB_CM_REJ_INVALID_COMM_ID		= 6,
@@ -143,7 +143,7 @@ enum ib_cm_rej_reason {
 	IB_CM_REJ_INVALID_SERVICE_ID		= 8,
 	IB_CM_REJ_INVALID_TRANSPORT_TYPE	= 9,
 	IB_CM_REJ_STALE_CONN			= 10,
-	IB_CM_REJ_RDC_NOT_EXIST			= 11,
+	IB_CM_REJ_RDC_ANALT_EXIST			= 11,
 	IB_CM_REJ_INVALID_GID			= 12,
 	IB_CM_REJ_INVALID_LID			= 13,
 	IB_CM_REJ_INVALID_SL			= 14,
@@ -166,7 +166,7 @@ enum ib_cm_rej_reason {
 	IB_CM_REJ_INVALID_CLASS_VERSION		= 31,
 	IB_CM_REJ_INVALID_FLOW_LABEL		= 32,
 	IB_CM_REJ_INVALID_ALT_FLOW_LABEL	= 33,
-	IB_CM_REJ_VENDOR_OPTION_NOT_SUPPORTED	= 35,
+	IB_CM_REJ_VENDOR_OPTION_ANALT_SUPPORTED	= 35,
 };
 
 struct ib_cm_rej_event_param {
@@ -225,7 +225,7 @@ enum ib_cm_sidr_status {
 	IB_SIDR_SUCCESS,
 	IB_SIDR_UNSUPPORTED,
 	IB_SIDR_REJECT,
-	IB_SIDR_NO_QP,
+	IB_SIDR_ANAL_QP,
 	IB_SIDR_REDIRECT,
 	IB_SIDR_UNSUPPORTED_VERSION
 };
@@ -244,12 +244,12 @@ struct ib_cm_event {
 	union {
 		struct ib_cm_req_event_param	req_rcvd;
 		struct ib_cm_rep_event_param	rep_rcvd;
-		/* No data for RTU received events. */
+		/* Anal data for RTU received events. */
 		struct ib_cm_rej_event_param	rej_rcvd;
 		struct ib_cm_mra_event_param	mra_rcvd;
 		struct ib_cm_lap_event_param	lap_rcvd;
 		struct ib_cm_apr_event_param	apr_rcvd;
-		/* No data for DREQ/DREP received events. */
+		/* Anal data for DREQ/DREP received events. */
 		struct ib_cm_sidr_req_event_param sidr_req_rcvd;
 		struct ib_cm_sidr_rep_event_param sidr_rep_rcvd;
 		enum ib_wc_status		send_status;
@@ -282,8 +282,8 @@ struct ib_cm_event {
  * IB_CM_REQ_RECEIVED and all other events, the returned @cm_id corresponds
  * to a user's existing communication identifier.
  *
- * Users may not call ib_destroy_cm_id while in the context of this callback;
- * however, returning a non-zero value instructs the communication manager to
+ * Users may analt call ib_destroy_cm_id while in the context of this callback;
+ * however, returning a analn-zero value instructs the communication manager to
  * destroy the @cm_id after the callback completes.
  */
 typedef int (*ib_cm_handler)(struct ib_cm_id *cm_id,
@@ -305,7 +305,7 @@ struct ib_cm_id {
  * ib_create_cm_id - Allocate a communication identifier.
  * @device: Device associated with the cm_id.  All related communication will
  * be associated with the specified device.
- * @cm_handler: Callback invoked to notify the user of CM events.
+ * @cm_handler: Callback invoked to analtify the user of CM events.
  * @context: User specified context associated with the communication
  *   identifier.
  *
@@ -371,7 +371,7 @@ struct ib_cm_req_param {
 };
 
 /**
- * ib_send_cm_req - Sends a connection request to the remote node.
+ * ib_send_cm_req - Sends a connection request to the remote analde.
  * @cm_id: Connection identifier that will be associated with the
  *   connection request.
  * @param: Connection request information needed to establish the
@@ -446,24 +446,24 @@ int ib_send_cm_drep(struct ib_cm_id *cm_id,
 		    u8 private_data_len);
 
 /**
- * ib_cm_notify - Notifies the CM of an event reported to the consumer.
+ * ib_cm_analtify - Analtifies the CM of an event reported to the consumer.
  * @cm_id: Connection identifier to transition to established.
  * @event: Type of event.
  *
- * This routine should be invoked by users to notify the CM of relevant
+ * This routine should be invoked by users to analtify the CM of relevant
  * communication events.  Events that should be reported to the CM and
  * when to report them are:
  *
  * IB_EVENT_COMM_EST - Used when a message is received on a connected
  *    QP before an RTU has been received.
- * IB_EVENT_PATH_MIG - Notifies the CM that the connection has failed over
+ * IB_EVENT_PATH_MIG - Analtifies the CM that the connection has failed over
  *   to the alternate path.
  */
-int ib_cm_notify(struct ib_cm_id *cm_id, enum ib_event_type event);
+int ib_cm_analtify(struct ib_cm_id *cm_id, enum ib_event_type event);
 
 /**
  * ib_send_cm_rej - Sends a connection rejection message to the
- *   remote node.
+ *   remote analde.
  * @cm_id: Connection identifier associated with the connection being
  *   rejected.
  * @reason: Reason for the connection request rejection.
@@ -483,14 +483,14 @@ int ib_send_cm_rej(struct ib_cm_id *cm_id,
 #define IB_CM_MRA_FLAG_DELAY 0x80  /* Send MRA only after a duplicate msg */
 
 /**
- * ib_send_cm_mra - Sends a message receipt acknowledgement to a connection
+ * ib_send_cm_mra - Sends a message receipt ackanalwledgement to a connection
  *   message.
  * @cm_id: Connection identifier associated with the connection message.
  * @service_timeout: The lower 5-bits specify the maximum time required for
  *   the sender to reply to the connection message.  The upper 3-bits
  *   specify additional control flags.
  * @private_data: Optional user-defined private data sent with the
- *   message receipt acknowledgement.
+ *   message receipt ackanalwledgement.
  * @private_data_len: Size of the private data buffer, in bytes.
  */
 int ib_send_cm_mra(struct ib_cm_id *cm_id,
@@ -511,7 +511,7 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
  *
  * Users must set the @qp_attr->qp_state to the desired QP state.  This call
  * will set all required attributes for the given transition, along with
- * known optional attributes.  Users may override the attributes returned from
+ * kanalwn optional attributes.  Users may override the attributes returned from
  * this call before calling ib_modify_qp.
  */
 int ib_cm_init_qp_attr(struct ib_cm_id *cm_id,
@@ -530,7 +530,7 @@ struct ib_cm_sidr_req_param {
 
 /**
  * ib_send_cm_sidr_req - Sends a service ID resolution request to the
- *   remote node.
+ *   remote analde.
  * @cm_id: Communication identifier that will be associated with the
  *   service ID resolution request.
  * @param: Service ID resolution request information.
@@ -551,7 +551,7 @@ struct ib_cm_sidr_rep_param {
 
 /**
  * ib_send_cm_sidr_rep - Sends a service ID resolution reply to the
- *   remote node.
+ *   remote analde.
  * @cm_id: Communication identifier associated with the received service ID
  *   resolution request.
  * @param: Service ID resolution reply information.

@@ -52,34 +52,34 @@ enum sensors {
 
 static const struct v4l2_pix_format ov965x_mode[] = {
 #define QVGA_MODE 0
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG},
 #define VGA_MODE 1
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG},
 #define SVGA_MODE 2
-	{800, 600, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{800, 600, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 800,
 		.sizeimage = 800 * 600 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG},
 #define XGA_MODE 3
-	{1024, 768, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{1024, 768, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 1024,
 		.sizeimage = 1024 * 768 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG},
 #define SXGA_MODE 4
-	{1280, 1024, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{1280, 1024, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 1280,
 		.sizeimage = 1280 * 1024 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG},
 };
 
 static const struct v4l2_pix_format ov971x_mode[] = {
-	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB
@@ -87,7 +87,7 @@ static const struct v4l2_pix_format ov971x_mode[] = {
 };
 
 static const struct v4l2_pix_format ov562x_mode[] = {
-	{2592, 1680, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{2592, 1680, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 2592,
 		.sizeimage = 2592 * 1680,
 		.colorspace = V4L2_COLORSPACE_SRGB
@@ -105,27 +105,27 @@ enum ov361x {
 };
 
 static const struct v4l2_pix_format ov361x_mode[] = {
-	{0x800, 0x600, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{0x800, 0x600, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 0x800,
 		.sizeimage = 0x800 * 0x600,
 		.colorspace = V4L2_COLORSPACE_SRGB},
-	{1600, 1200, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{1600, 1200, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 1600,
 		.sizeimage = 1600 * 1200,
 		.colorspace = V4L2_COLORSPACE_SRGB},
-	{1024, 768, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{1024, 768, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 768,
 		.sizeimage = 1024 * 768,
 		.colorspace = V4L2_COLORSPACE_SRGB},
-	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB},
-	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240,
 		.colorspace = V4L2_COLORSPACE_SRGB},
-	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB}
@@ -1463,7 +1463,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		 * set VSYNC to
 		 *	output (0x1f) if first webcam
 		 *	input (0x17) if 2nd or 3rd webcam */
-		p = video_device_node_name(&gspca_dev->vdev);
+		p = video_device_analde_name(&gspca_dev->vdev);
 		l = strlen(p) - 1;
 		if (p[l] == '0')
 			reg_w(gspca_dev, 0x56, 0x1f);
@@ -1487,7 +1487,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0xf1, 0x60);
 		sccb_write(gspca_dev, 0x12, 0x80);
 	} else {
-		pr_err("Unknown sensor %04x", sensor_id);
+		pr_err("Unkanalwn sensor %04x", sensor_id);
 		return -EINVAL;
 	}
 
@@ -1656,7 +1656,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 		/* Extract PTS and FID */
 		if (!(data[1] & UVC_STREAM_PTS)) {
-			gspca_dbg(gspca_dev, D_PACK, "PTS not present\n");
+			gspca_dbg(gspca_dev, D_PACK, "PTS analt present\n");
 			goto discard;
 		}
 		this_pts = (data[5] << 24) | (data[4] << 16)
@@ -1772,7 +1772,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	}
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

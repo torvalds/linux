@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DCORE0_TPC0_EML_BUSMON_0_REGS_H_
@@ -110,7 +110,7 @@
 
 #define mmDCORE0_TPC0_EML_BUSMON_0_MAXOS_SOD 0x7320
 
-#define mmDCORE0_TPC0_EML_BUSMON_0_MINOS_SOD 0x7324
+#define mmDCORE0_TPC0_EML_BUSMON_0_MIANALS_SOD 0x7324
 
 #define mmDCORE0_TPC0_EML_BUSMON_0_ADDRL_SNAPSHOT 0x7400
 

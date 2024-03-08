@@ -2,7 +2,7 @@
 /*
  * driver for Earthsoft PT1/PT2
  *
- * Copyright (C) 2009 HIRANO Takahito <hiranotaka@zng.info>
+ * Copyright (C) 2009 HIRAANAL Takahito <hiraanaltaka@zng.info>
  *
  * based on pt1dvr - http://pt1dvr.sourceforge.jp/
  *	by Tomoaki Ishikawa <tomy@users.sourceforge.jp>
@@ -247,7 +247,7 @@ static int config_demod(struct i2c_client *cl, enum pt1_fe_clk clk)
 
 /*
  * Init registers for (each pair of) terrestrial/satellite block in demod.
- * Note that resetting terr. block also resets its peer sat. block as well.
+ * Analte that resetting terr. block also resets its peer sat. block as well.
  * This function must be called before configuring any demod block
  * (before pt1_wakeup(), fe->ops.init()).
  */
@@ -327,7 +327,7 @@ static int pt1_sync(struct pt1 *pt1)
 			return 0;
 		pt1_write_reg(pt1, 0, 0x00000008);
 	}
-	dev_err(&pt1->pdev->dev, "could not sync\n");
+	dev_err(&pt1->pdev->dev, "could analt sync\n");
 	return -EIO;
 }
 
@@ -351,7 +351,7 @@ static int pt1_unlock(struct pt1 *pt1)
 			return 0;
 		usleep_range(1000, 2000);
 	}
-	dev_err(&pt1->pdev->dev, "could not unlock\n");
+	dev_err(&pt1->pdev->dev, "could analt unlock\n");
 	return -EIO;
 }
 
@@ -365,7 +365,7 @@ static int pt1_reset_pci(struct pt1 *pt1)
 			return 0;
 		usleep_range(1000, 2000);
 	}
-	dev_err(&pt1->pdev->dev, "could not reset PCI\n");
+	dev_err(&pt1->pdev->dev, "could analt reset PCI\n");
 	return -EIO;
 }
 
@@ -379,7 +379,7 @@ static int pt1_reset_ram(struct pt1 *pt1)
 			return 0;
 		usleep_range(1000, 2000);
 	}
-	dev_err(&pt1->pdev->dev, "could not reset RAM\n");
+	dev_err(&pt1->pdev->dev, "could analt reset RAM\n");
 	return -EIO;
 }
 
@@ -396,7 +396,7 @@ static int pt1_do_enable_ram(struct pt1 *pt1)
 		}
 		usleep_range(1000, 2000);
 	}
-	dev_err(&pt1->pdev->dev, "could not enable RAM\n");
+	dev_err(&pt1->pdev->dev, "could analt enable RAM\n");
 	return -EIO;
 }
 
@@ -564,7 +564,7 @@ pt1_init_buffer(struct pt1 *pt1, struct pt1_buffer *buf,  u32 *pfnp)
 
 	page = pt1_alloc_page(pt1, &addr, pfnp);
 	if (page == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	page->upackets[PT1_NR_UPACKETS - 1] = 0;
 
@@ -593,7 +593,7 @@ pt1_init_table(struct pt1 *pt1, struct pt1_table *table, u32 *pfnp)
 
 	page = pt1_alloc_page(pt1, &addr, pfnp);
 	if (page == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < PT1_NR_BUFS; i++) {
 		ret = pt1_init_buffer(pt1, &table->bufs[i], &buf_pfn);
@@ -641,7 +641,7 @@ static int pt1_init_tables(struct pt1 *pt1)
 
 	tables = vmalloc(array_size(pt1_nr_tables, sizeof(struct pt1_table)));
 	if (tables == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pt1_init_table_count(pt1);
 
@@ -835,7 +835,7 @@ pt1_alloc_adapter(struct pt1 *pt1)
 
 	adap = kzalloc(sizeof(struct pt1_adapter), GFP_KERNEL);
 	if (!adap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -846,7 +846,7 @@ pt1_alloc_adapter(struct pt1 *pt1)
 
 	buf = (u8 *)__get_free_page(GFP_KERNEL);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_kfree;
 	}
 
@@ -975,7 +975,7 @@ static int pt1_init_frontends(struct pt1 *pt1)
 		dcfg = pt1_configs[i].demod_cfg;
 		dcfg.tuner_i2c = NULL;
 
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		cl = dvb_module_probe("tc90522", info->type, &pt1->i2c_adap,
 				      info->addr, &dcfg);
 		if (!cl)
@@ -1149,7 +1149,7 @@ static int pt1_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	for (i = 0; i < num; i++) {
 		msg = &msgs[i];
 		if (msg->flags & I2C_M_RD)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		if (i + 1 < num)
 			next_msg = &msgs[i + 1];
@@ -1161,7 +1161,7 @@ static int pt1_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 
 			len = next_msg->len;
 			if (len > 4)
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 
 			pt1_i2c_begin(pt1, &addr);
 			pt1_i2c_write_msg(pt1, addr, &addr, msg);
@@ -1358,7 +1358,7 @@ static int pt1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pt1 = kzalloc(sizeof(struct pt1), GFP_KERNEL);
 	if (!pt1) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_pci_iounmap;
 	}
 
@@ -1477,6 +1477,6 @@ static struct pci_driver pt1_driver = {
 
 module_pci_driver(pt1_driver);
 
-MODULE_AUTHOR("Takahito HIRANO <hiranotaka@zng.info>");
+MODULE_AUTHOR("Takahito HIRAANAL <hiraanaltaka@zng.info>");
 MODULE_DESCRIPTION("Earthsoft PT1/PT2 Driver");
 MODULE_LICENSE("GPL");

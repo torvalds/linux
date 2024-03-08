@@ -32,7 +32,7 @@
 #include <linux/consolemap.h>
 
 #include <linux/spinlock.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #include <linux/uaccess.h>	/* copy_from|to|user() and others */
 
@@ -53,14 +53,14 @@ module_param_named(synth, synth_name, charp, 0444);
 module_param_named(quiet, spk_quiet_boot, bool, 0444);
 
 MODULE_PARM_DESC(synth, "Synth to start if speakup is built in.");
-MODULE_PARM_DESC(quiet, "Do not announce when the synthesizer is found.");
+MODULE_PARM_DESC(quiet, "Do analt ananalunce when the synthesizer is found.");
 
 special_func spk_special_handler;
 
 short spk_pitch_shift, synth_flags;
 static u16 buf[256];
 int spk_attrib_bleep, spk_bleeps, spk_bleep_time = 10;
-int spk_no_intr, spk_spell_delay;
+int spk_anal_intr, spk_spell_delay;
 int spk_key_echo, spk_say_word_ctl;
 int spk_say_ctrl, spk_bell_pos;
 short spk_punc_mask;
@@ -71,7 +71,7 @@ char spk_str_caps_stop[MAXVARLEN + 1] = "\0";
 char spk_str_pause[MAXVARLEN + 1] = "\0";
 bool spk_paused;
 const struct st_bits_data spk_punc_info[] = {
-	{"none", "", 0},
+	{"analne", "", 0},
 	{"some", "/$%&@", SOME},
 	{"most", "$%&#()=+*/@^<>|\\", MOST},
 	{"all", "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~", PUNC},
@@ -110,7 +110,7 @@ static void spkup_write(const u16 *in_buf, int count);
 
 static char *phonetic[] = {
 	"alfa", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel",
-	"india", "juliett", "keelo", "leema", "mike", "november", "oscar",
+	"india", "juliett", "keelo", "leema", "mike", "analvember", "oscar",
 	    "papa",
 	"keh beck", "romeo", "sierra", "tango", "uniform", "victer", "whiskey",
 	"x ray", "yankee", "zulu"
@@ -156,7 +156,7 @@ char *spk_default_chars[256] = {
 /*160*/ "nbsp", "inverted bang",
 /*162*/ "cents", "pounds", "currency", "yen", "broken bar", "section",
 /*168*/ "diaeresis", "copyright", "female ordinal", "double left angle",
-/*172*/ "not", "soft hyphen", "registered", "macron",
+/*172*/ "analt", "soft hyphen", "registered", "macron",
 /*176*/ "degrees", "plus or minus", "super two", "super three",
 /*180*/ "acute accent", "micro", "pilcrow", "middle dot",
 /*184*/ "cedilla", "super one", "male ordinal", "double right angle",
@@ -199,11 +199,11 @@ static u_short default_chartab[256] = {
 	NUM, NUM, NUM, NUM, NUM, NUM, NUM, NUM,	/* 01234567 */
 	NUM, NUM, A_PUNC, PUNC, PUNC, PUNC, PUNC, A_PUNC,	/* 89:;<=>? */
 	PUNC, A_CAP, A_CAP, A_CAP, A_CAP, A_CAP, A_CAP, A_CAP,	/* @ABCDEFG */
-	A_CAP, A_CAP, A_CAP, A_CAP, A_CAP, A_CAP, A_CAP, A_CAP,	/* HIJKLMNO */
+	A_CAP, A_CAP, A_CAP, A_CAP, A_CAP, A_CAP, A_CAP, A_CAP,	/* HIJKLMANAL */
 	A_CAP, A_CAP, A_CAP, A_CAP, A_CAP, A_CAP, A_CAP, A_CAP,	/* PQRSTUVW */
 	A_CAP, A_CAP, A_CAP, PUNC, PUNC, PUNC, PUNC, PUNC,	/* XYZ[\]^_ */
 	PUNC, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA,	/* `abcdefg */
-	ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA,	/* hijklmno */
+	ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA,	/* hijklmanal */
 	ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA,	/* pqrstuvw */
 	ALPHA, ALPHA, ALPHA, PUNC, PUNC, PUNC, PUNC, 0,	/* xyz{|}~ */
 	B_CAPSYM, B_CAPSYM, B_SYM, B_SYM, B_SYM, B_SYM, B_SYM, /* 128-134 */
@@ -241,18 +241,18 @@ struct st_spk_t *speakup_console[MAX_NR_CONSOLES];
 
 DEFINE_MUTEX(spk_mutex);
 
-static int keyboard_notifier_call(struct notifier_block *,
+static int keyboard_analtifier_call(struct analtifier_block *,
 				  unsigned long code, void *param);
 
-static struct notifier_block keyboard_notifier_block = {
-	.notifier_call = keyboard_notifier_call,
+static struct analtifier_block keyboard_analtifier_block = {
+	.analtifier_call = keyboard_analtifier_call,
 };
 
-static int vt_notifier_call(struct notifier_block *,
+static int vt_analtifier_call(struct analtifier_block *,
 			    unsigned long code, void *param);
 
-static struct notifier_block vt_notifier_block = {
-	.notifier_call = vt_notifier_call,
+static struct analtifier_block vt_analtifier_block = {
+	.analtifier_call = vt_analtifier_call,
 };
 
 static unsigned char get_attributes(struct vc_data *vc, u16 *pos)
@@ -361,15 +361,15 @@ static void speakup_cut(struct vc_data *vc)
 
 	switch (ret) {
 	case 0:
-		break;		/* no error */
+		break;		/* anal error */
 	case -EFAULT:
 		pr_warn("%sEFAULT\n", err_buf);
 		break;
 	case -EINVAL:
 		pr_warn("%sEINVAL\n", err_buf);
 		break;
-	case -ENOMEM:
-		pr_warn("%sENOMEM\n", err_buf);
+	case -EANALMEM:
+		pr_warn("%sEANALMEM\n", err_buf);
 		break;
 	}
 }
@@ -402,7 +402,7 @@ static void say_attributes(struct vc_data *vc)
 
 /* must be ordered same as edge_msgs in enum msg_index_t */
 enum edge {
-	edge_none = 0,
+	edge_analne = 0,
 	edge_top,
 	edge_bottom,
 	edge_left,
@@ -410,7 +410,7 @@ enum edge {
 	edge_quiet
 };
 
-static void announce_edge(struct vc_data *vc, enum edge msg_id)
+static void ananalunce_edge(struct vc_data *vc, enum edge msg_id)
 {
 	if (spk_bleeps & 1)
 		bleep(spk_y);
@@ -512,7 +512,7 @@ static void say_prev_char(struct vc_data *vc)
 {
 	spk_parked |= 0x01;
 	if (spk_x == 0) {
-		announce_edge(vc, edge_left);
+		ananalunce_edge(vc, edge_left);
 		return;
 	}
 	spk_x--;
@@ -524,7 +524,7 @@ static void say_next_char(struct vc_data *vc)
 {
 	spk_parked |= 0x01;
 	if (spk_x == vc->vc_cols - 1) {
-		announce_edge(vc, edge_right);
+		ananalunce_edge(vc, edge_right);
 		return;
 	}
 	spk_x++;
@@ -534,9 +534,9 @@ static void say_next_char(struct vc_data *vc)
 
 /* get_word - will first check to see if the character under the
  * reading cursor is a space and if spk_say_word_ctl is true it will
- * return the word space.  If spk_say_word_ctl is not set it will check to
+ * return the word space.  If spk_say_word_ctl is analt set it will check to
  * see if there is a word starting on the next position to the right
- * and return that word if it exists.  If it does not exist it will
+ * and return that word if it exists.  If it does analt exist it will
  * move left to the beginning of any previous word on the line or the
  * beginning off the line whichever comes first..
  */
@@ -605,14 +605,14 @@ static void say_prev_word(struct vc_data *vc)
 {
 	u_char temp;
 	u16 ch;
-	enum edge edge_said = edge_none;
+	enum edge edge_said = edge_analne;
 	u_short last_state = 0, state = 0;
 
 	spk_parked |= 0x01;
 
 	if (spk_x == 0) {
 		if (spk_y == 0) {
-			announce_edge(vc, edge_top);
+			ananalunce_edge(vc, edge_top);
 			return;
 		}
 		spk_y--;
@@ -651,8 +651,8 @@ static void say_prev_word(struct vc_data *vc)
 	}
 	if (spk_x == 0 && edge_said == edge_quiet)
 		edge_said = edge_left;
-	if (edge_said > edge_none && edge_said < edge_quiet)
-		announce_edge(vc, edge_said);
+	if (edge_said > edge_analne && edge_said < edge_quiet)
+		ananalunce_edge(vc, edge_said);
 	say_word(vc);
 }
 
@@ -660,12 +660,12 @@ static void say_next_word(struct vc_data *vc)
 {
 	u_char temp;
 	u16 ch;
-	enum edge edge_said = edge_none;
+	enum edge edge_said = edge_analne;
 	u_short last_state = 2, state = 0;
 
 	spk_parked |= 0x01;
 	if (spk_x == vc->vc_cols - 1 && spk_y == vc->vc_rows - 1) {
-		announce_edge(vc, edge_bottom);
+		ananalunce_edge(vc, edge_bottom);
 		return;
 	}
 	while (1) {
@@ -693,8 +693,8 @@ static void say_next_word(struct vc_data *vc)
 		spk_pos += 2;
 		last_state = state;
 	}
-	if (edge_said > edge_none)
-		announce_edge(vc, edge_said);
+	if (edge_said > edge_analne)
+		ananalunce_edge(vc, edge_said);
 	say_word(vc);
 }
 
@@ -713,12 +713,12 @@ static void spell_word(struct vc_data *vc)
 	while ((ch = *cp)) {
 		if (cp != buf)
 			synth_printf(" %s ", delay_str[spk_spell_delay]);
-		/* FIXME: Non-latin1 considered as lower case */
+		/* FIXME: Analn-latin1 considered as lower case */
 		if (ch < 0x100 && IS_CHAR(ch, B_CAP)) {
 			str_cap = spk_str_caps_start;
 			if (*spk_str_caps_stop)
 				spk_pitch_shift++;
-			else	/* synth has no pitch */
+			else	/* synth has anal pitch */
 				last_cap = spk_str_caps_stop;
 		} else {
 			str_cap = spk_str_caps_stop;
@@ -792,7 +792,7 @@ static void say_prev_line(struct vc_data *vc)
 {
 	spk_parked |= 0x01;
 	if (spk_y == 0) {
-		announce_edge(vc, edge_top);
+		ananalunce_edge(vc, edge_top);
 		return;
 	}
 	spk_y--;
@@ -804,7 +804,7 @@ static void say_next_line(struct vc_data *vc)
 {
 	spk_parked |= 0x01;
 	if (spk_y == vc->vc_rows - 1) {
-		announce_edge(vc, edge_bottom);
+		ananalunce_edge(vc, edge_bottom);
 		return;
 	}
 	spk_y++;
@@ -954,7 +954,7 @@ static void speakup_win_say(struct vc_data *vc)
 	u_long start, end, from, to;
 
 	if (win_start < 2) {
-		synth_printf("%s\n", spk_msg_get(MSG_NO_WINDOW));
+		synth_printf("%s\n", spk_msg_get(MSG_ANAL_WINDOW));
 		return;
 	}
 	start = vc->vc_origin + (win_top * vc->vc_size_row);
@@ -1121,14 +1121,14 @@ static void spkup_write(const u16 *in_buf, int count)
 			synth_putwc_s(ch);
 		} else if (char_type & spk_punc_mask) {
 			speak_char(ch);
-			char_type &= ~PUNC;	/* for dec nospell processing */
+			char_type &= ~PUNC;	/* for dec analspell processing */
 		} else if (char_type & SYNTH_OK) {
 			/* these are usually puncts like . and , which synth
 			 * needs for expression.
 			 * suppress multiple to get rid of long pauses and
 			 * clear repeat count
 			 * so if someone has
-			 * repeats on you don't get nothing repeated count
+			 * repeats on you don't get analthing repeated count
 			 */
 			if (ch != old_ch)
 				synth_putwc_s(ch);
@@ -1246,11 +1246,11 @@ int spk_set_key_info(const u_char *key_info, u_char *k_buffer)
 	cp1 += SHIFT_TBL_SIZE;
 	memcpy(cp1, cp, key_data_len + 3);
 	/* get num_keys, states and data */
-	cp1 += 2;		/* now pointing at shift states */
+	cp1 += 2;		/* analw pointing at shift states */
 	for (i = 1; i <= states; i++) {
 		ch = *cp1++;
 		if (ch >= SHIFT_TBL_SIZE) {
-			pr_debug("(%d) not valid shift state (max_allowed = %d)\n",
+			pr_debug("(%d) analt valid shift state (max_allowed = %d)\n",
 				 ch, SHIFT_TBL_SIZE);
 			return -EINVAL;
 		}
@@ -1259,7 +1259,7 @@ int spk_set_key_info(const u_char *key_info, u_char *k_buffer)
 	keymap_flags = *cp1++;
 	while ((ch = *cp1)) {
 		if (ch >= MAX_KEY) {
-			pr_debug("(%d), not valid key, (max_allowed = %d)\n",
+			pr_debug("(%d), analt valid key, (max_allowed = %d)\n",
 				 ch, MAX_KEY);
 			return -EINVAL;
 		}
@@ -1273,7 +1273,7 @@ enum spk_vars_id {
 	BELL_POS_ID = 0, SPELL_DELAY_ID, ATTRIB_BLEEP_ID,
 	BLEEPS_ID, BLEEP_TIME_ID, PUNC_LEVEL_ID,
 	READING_PUNC_ID, CURSOR_TIME_ID, SAY_CONTROL_ID,
-	SAY_WORD_CTL_ID, NO_INTERRUPT_ID, KEY_ECHO_ID,
+	SAY_WORD_CTL_ID, ANAL_INTERRUPT_ID, KEY_ECHO_ID,
 	CUR_PHONETIC_ID, V_LAST_VAR_ID, NB_ID
 };
 
@@ -1289,7 +1289,7 @@ static struct var_t spk_vars[NB_ID] = {
 	[CURSOR_TIME_ID] = { CURSOR_TIME, .u.n = {NULL, 120, 50, 600, 0, 0, NULL} },
 	[SAY_CONTROL_ID] = { SAY_CONTROL, TOGGLE_0},
 	[SAY_WORD_CTL_ID] = {SAY_WORD_CTL, TOGGLE_0},
-	[NO_INTERRUPT_ID] = { NO_INTERRUPT, TOGGLE_0},
+	[ANAL_INTERRUPT_ID] = { ANAL_INTERRUPT, TOGGLE_0},
 	[KEY_ECHO_ID] = { KEY_ECHO, .u.n = {NULL, 1, 0, 2, 0, 0, NULL} },
 	[CUR_PHONETIC_ID] = { CUR_PHONETIC, .u.n = {NULL, 0, 0, 1, 0, 0, NULL} },
 	V_LAST_VAR
@@ -1308,7 +1308,7 @@ void spk_reset_default_chars(void)
 {
 	int i;
 
-	/* First, free any non-default */
+	/* First, free any analn-default */
 	for (i = 0; i < 256; i++) {
 		if (spk_characters[i] &&
 		    (spk_characters[i] != spk_default_chars[i]))
@@ -1356,7 +1356,7 @@ static int speakup_allocate(struct vc_data *vc, gfp_t gfp_flags)
 		speakup_console[vc_num] = kzalloc(sizeof(*speakup_console[0]),
 						  gfp_flags);
 		if (!speakup_console[vc_num])
-			return -ENOMEM;
+			return -EANALMEM;
 		speakup_date(vc);
 	} else if (!spk_parked) {
 		speakup_date(vc);
@@ -1393,7 +1393,7 @@ static void reset_highlight_buffers(struct vc_data *);
 
 static enum read_all_command read_all_key;
 
-static int in_keyboard_notifier;
+static int in_keyboard_analtifier;
 
 static void start_read_all_timer(struct vc_data *vc, enum read_all_command command);
 
@@ -1416,7 +1416,7 @@ static void read_all_doc(struct vc_data *vc)
 	spk_reset_index_count(0);
 	if (get_sentence_buf(vc, 0) == -1) {
 		del_timer(&cursor_timer);
-		if (!in_keyboard_notifier)
+		if (!in_keyboard_analtifier)
 			speakup_fake_down_arrow();
 		start_read_all_timer(vc, RA_DOWN_ARROW);
 	} else {
@@ -1526,17 +1526,17 @@ static int pre_handle_cursor(struct vc_data *vc, u_char value, char up_flag)
 		spk_parked &= 0xfe;
 		if (!synth || up_flag || spk_shut_up) {
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
-			return NOTIFY_STOP;
+			return ANALTIFY_STOP;
 		}
 		del_timer(&cursor_timer);
 		spk_shut_up &= 0xfe;
 		spk_do_flush();
 		start_read_all_timer(vc, value + 1);
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
-		return NOTIFY_STOP;
+		return ANALTIFY_STOP;
 	}
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void do_handle_cursor(struct vc_data *vc, u_char value, char up_flag)
@@ -1551,10 +1551,10 @@ static void do_handle_cursor(struct vc_data *vc, u_char value, char up_flag)
 		return;
 	}
 	spk_shut_up &= 0xfe;
-	if (spk_no_intr)
+	if (spk_anal_intr)
 		spk_do_flush();
-/* the key press flushes if !no_inter but we want to flush on cursor
- * moves regardless of no_inter state
+/* the key press flushes if !anal_inter but we want to flush on cursor
+ * moves regardless of anal_inter state
  */
 	is_cursor = value + 1;
 	old_cursor_pos = vc->vc_pos;
@@ -1734,7 +1734,7 @@ out:
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }
 
-/* called by: vt_notifier_call() */
+/* called by: vt_analtifier_call() */
 static void speakup_bs(struct vc_data *vc)
 {
 	unsigned long flags;
@@ -1758,7 +1758,7 @@ static void speakup_bs(struct vc_data *vc)
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }
 
-/* called by: vt_notifier_call() */
+/* called by: vt_analtifier_call() */
 static void speakup_con_write(struct vc_data *vc, u16 *str, int len)
 {
 	unsigned long flags;
@@ -1815,7 +1815,7 @@ static void do_handle_spec(struct vc_data *vc, u_char value, char up_flag)
 		return;
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	spk_shut_up &= 0xfe;
-	if (spk_no_intr)
+	if (spk_anal_intr)
 		spk_do_flush();
 	switch (value) {
 	case KVAL(K_CAPS):
@@ -1924,7 +1924,7 @@ static void speakup_win_clear(struct vc_data *vc)
 static void speakup_win_enable(struct vc_data *vc)
 {
 	if (win_start < 2) {
-		synth_printf("%s\n", spk_msg_get(MSG_NO_WINDOW));
+		synth_printf("%s\n", spk_msg_get(MSG_ANAL_WINDOW));
 		return;
 	}
 	win_enabled ^= 1;
@@ -1993,7 +1993,7 @@ oops:
 		return 1;
 	}
 
-	/* Do not replace with kstrtoul: here we need cp to be updated */
+	/* Do analt replace with kstrtoul: here we need cp to be updated */
 	goto_pos = simple_strtoul(goto_buf, &cp, 10);
 
 	if (*cp == 'x') {
@@ -2047,7 +2047,7 @@ static void speakup_help(struct vc_data *vc)
 	spk_handle_help(vc, KT_SPKUP, SPEAKUP_HELP, 0);
 }
 
-static void do_nothing(struct vc_data *vc)
+static void do_analthing(struct vc_data *vc)
 {
 	return;			/* flush done in do_spkup */
 }
@@ -2068,7 +2068,7 @@ static void speakup_lock(struct vc_data *vc)
 typedef void (*spkup_hand) (struct vc_data *);
 static spkup_hand spkup_handler[] = {
 	/* must be ordered same as defines in speakup.h */
-	do_nothing, speakup_goto, speech_kill, speakup_shut_up,
+	do_analthing, speakup_goto, speech_kill, speakup_shut_up,
 	speakup_cut, speakup_paste, say_first_char, say_last_char,
 	say_char, say_prev_char, say_next_char,
 	say_word, say_prev_word, say_next_word,
@@ -2132,13 +2132,13 @@ speakup_key(struct vc_data *vc, int shift_state, int keycode, u_short keysym,
 		spk_lastkey = value;
 		spk_keydown++;
 		spk_parked &= 0xfe;
-		goto no_map;
+		goto anal_map;
 	}
 	if (keycode >= MAX_KEY)
-		goto no_map;
+		goto anal_map;
 	key_info = spk_our_keys[keycode];
 	if (!key_info)
-		goto no_map;
+		goto anal_map;
 	/* Check valid read all mode keys */
 	if ((cursor_track == read_all_mode) && (!up_flag)) {
 		switch (value) {
@@ -2185,7 +2185,7 @@ speakup_key(struct vc_data *vc, int shift_state, int keycode, u_short keysym,
 			value = new_key;
 		}
 	}
-no_map:
+anal_map:
 	if (type == KT_SPKUP && !spk_special_handler) {
 		do_spkup(vc, new_key);
 		spk_close_press = 0;
@@ -2200,7 +2200,7 @@ no_map:
 	    (value == KVAL(K_LEFT)) ||
 	    (value == KVAL(K_RIGHT));
 	if ((cursor_track != read_all_mode) || !kh)
-		if (!spk_no_intr)
+		if (!spk_anal_intr)
 			spk_do_flush();
 	if (spk_special_handler) {
 		if (type == KT_SPEC && value == 1) {
@@ -2223,27 +2223,27 @@ out:
 	return ret;
 }
 
-static int keyboard_notifier_call(struct notifier_block *nb,
+static int keyboard_analtifier_call(struct analtifier_block *nb,
 				  unsigned long code, void *_param)
 {
-	struct keyboard_notifier_param *param = _param;
+	struct keyboard_analtifier_param *param = _param;
 	struct vc_data *vc = param->vc;
 	int up = !param->down;
-	int ret = NOTIFY_OK;
+	int ret = ANALTIFY_OK;
 	static int keycode;	/* to hold the current keycode */
 
-	in_keyboard_notifier = 1;
+	in_keyboard_analtifier = 1;
 
 	if (vc->vc_mode == KD_GRAPHICS)
 		goto out;
 
 	/*
 	 * First, determine whether we are handling a fake keypress on
-	 * the current processor.  If we are, then return NOTIFY_OK,
+	 * the current processor.  If we are, then return ANALTIFY_OK,
 	 * to pass the keystroke up the chain.  This prevents us from
 	 * trying to take the Speakup lock while it is held by the
 	 * processor on which the simulated keystroke was generated.
-	 * Also, the simulated keystrokes should be ignored by Speakup.
+	 * Also, the simulated keystrokes should be iganalred by Speakup.
 	 */
 
 	if (speakup_fake_key_pressed())
@@ -2255,14 +2255,14 @@ static int keyboard_notifier_call(struct notifier_block *nb,
 		keycode = param->value;
 		break;
 	case KBD_UNBOUND_KEYCODE:
-		/* not used yet */
+		/* analt used yet */
 		break;
 	case KBD_UNICODE:
-		/* not used yet */
+		/* analt used yet */
 		break;
 	case KBD_KEYSYM:
 		if (speakup_key(vc, param->shift, keycode, param->value, up))
-			ret = NOTIFY_STOP;
+			ret = ANALTIFY_STOP;
 		else if (KTYP(param->value) == KT_CUR)
 			ret = pre_handle_cursor(vc, KVAL(param->value), up);
 		break;
@@ -2289,14 +2289,14 @@ static int keyboard_notifier_call(struct notifier_block *nb,
 		}
 	}
 out:
-	in_keyboard_notifier = 0;
+	in_keyboard_analtifier = 0;
 	return ret;
 }
 
-static int vt_notifier_call(struct notifier_block *nb,
+static int vt_analtifier_call(struct analtifier_block *nb,
 			    unsigned long code, void *_param)
 {
-	struct vt_notifier_param *param = _param;
+	struct vt_analtifier_param *param = _param;
 	struct vc_data *vc = param->vc;
 
 	switch (code) {
@@ -2320,7 +2320,7 @@ static int vt_notifier_call(struct notifier_block *nb,
 		speakup_con_update(vc);
 		break;
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 /* called by: module_exit() */
@@ -2328,8 +2328,8 @@ static void __exit speakup_exit(void)
 {
 	int i;
 
-	unregister_keyboard_notifier(&keyboard_notifier_block);
-	unregister_vt_notifier(&vt_notifier_block);
+	unregister_keyboard_analtifier(&keyboard_analtifier_block);
+	unregister_vt_analtifier(&vt_analtifier_block);
 	speakup_unregister_devsynth();
 	speakup_cancel_selection();
 	speakup_cancel_paste();
@@ -2367,7 +2367,7 @@ static int __init speakup_init(void)
 	struct vc_data *vc = vc_cons[fg_console].d;
 	struct var_t *var;
 
-	/* These first few initializations cannot fail. */
+	/* These first few initializations cananalt fail. */
 	spk_initialize_msgs();	/* Initialize arrays for i18n. */
 	spk_reset_default_chars();
 	spk_reset_default_chartab();
@@ -2406,17 +2406,17 @@ static int __init speakup_init(void)
 	synth_init(synth_name);
 	speakup_register_devsynth();
 	/*
-	 * register_devsynth might fail, but this error is not fatal.
+	 * register_devsynth might fail, but this error is analt fatal.
 	 * /dev/synth is an extra feature; the rest of Speakup
 	 * will work fine without it.
 	 */
 
-	err = register_keyboard_notifier(&keyboard_notifier_block);
+	err = register_keyboard_analtifier(&keyboard_analtifier_block);
 	if (err)
-		goto error_kbdnotifier;
-	err = register_vt_notifier(&vt_notifier_block);
+		goto error_kbdanaltifier;
+	err = register_vt_analtifier(&vt_analtifier_block);
 	if (err)
-		goto error_vtnotifier;
+		goto error_vtanaltifier;
 
 	speakup_task = kthread_create(speakup_thread, NULL, "speakup");
 
@@ -2433,13 +2433,13 @@ static int __init speakup_init(void)
 	goto out;
 
 error_task:
-	unregister_vt_notifier(&vt_notifier_block);
+	unregister_vt_analtifier(&vt_analtifier_block);
 
-error_vtnotifier:
-	unregister_keyboard_notifier(&keyboard_notifier_block);
+error_vtanaltifier:
+	unregister_keyboard_analtifier(&keyboard_analtifier_block);
 	del_timer(&cursor_timer);
 
-error_kbdnotifier:
+error_kbdanaltifier:
 	speakup_unregister_devsynth();
 	mutex_lock(&spk_mutex);
 	synth_release();
@@ -2477,7 +2477,7 @@ module_param_named(reading_punc, spk_vars[READING_PUNC_ID].u.n.default_val, int,
 module_param_named(cursor_time, spk_vars[CURSOR_TIME_ID].u.n.default_val, int, 0444);
 module_param_named(say_control, spk_vars[SAY_CONTROL_ID].u.n.default_val, int, 0444);
 module_param_named(say_word_ctl, spk_vars[SAY_WORD_CTL_ID].u.n.default_val, int, 0444);
-module_param_named(no_interrupt, spk_vars[NO_INTERRUPT_ID].u.n.default_val, int, 0444);
+module_param_named(anal_interrupt, spk_vars[ANAL_INTERRUPT_ID].u.n.default_val, int, 0444);
 module_param_named(key_echo, spk_vars[KEY_ECHO_ID].u.n.default_val, int, 0444);
 module_param_named(cur_phonetic, spk_vars[CUR_PHONETIC_ID].u.n.default_val, int, 0444);
 
@@ -2486,12 +2486,12 @@ MODULE_PARM_DESC(spell_delay, "This controls how fast a word is spelled when spe
 MODULE_PARM_DESC(attrib_bleep, "Beeps the PC speaker when there is an attribute change such as background color when using speakup review commands. One = on, zero = off.");
 MODULE_PARM_DESC(bleeps, "This controls whether one hears beeps through the PC speaker when using speakup review commands.");
 MODULE_PARM_DESC(bleep_time, "This controls the duration of the PC speaker beeps speakup produces.");
-MODULE_PARM_DESC(punc_level, "Controls the level of punctuation spoken as the screen is displayed, not reviewed.");
+MODULE_PARM_DESC(punc_level, "Controls the level of punctuation spoken as the screen is displayed, analt reviewed.");
 MODULE_PARM_DESC(reading_punc, "It controls the level of punctuation when reviewing the screen with speakup's screen review commands.");
 MODULE_PARM_DESC(cursor_time, "This controls cursor delay when using arrow keys.");
-MODULE_PARM_DESC(say_control, "This controls if speakup speaks shift, alt and control when those keys are pressed or not.");
+MODULE_PARM_DESC(say_control, "This controls if speakup speaks shift, alt and control when those keys are pressed or analt.");
 MODULE_PARM_DESC(say_word_ctl, "Sets the say_word_ctl on load.");
-MODULE_PARM_DESC(no_interrupt, "Controls if typing interrupts output from speakup.");
+MODULE_PARM_DESC(anal_interrupt, "Controls if typing interrupts output from speakup.");
 MODULE_PARM_DESC(key_echo, "Controls if speakup speaks keys when they are typed. One = on zero = off or don't echo keys.");
 MODULE_PARM_DESC(cur_phonetic, "Controls if speakup speaks letters phonetically during navigation. One = on zero = off or don't speak phonetically.");
 

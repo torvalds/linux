@@ -27,11 +27,11 @@ struct rcpm {
 
 static void copy_ippdexpcr1_setting(u32 val)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *regs;
 	u32 reg_val;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,ls1021a-scfg");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,ls1021a-scfg");
 	if (!np)
 		return;
 
@@ -57,7 +57,7 @@ static int rcpm_pm_prepare(struct device *dev)
 	void __iomem *base;
 	struct wakeup_source	*ws;
 	struct rcpm		*rcpm;
-	struct device_node	*np = dev->of_node;
+	struct device_analde	*np = dev->of_analde;
 	u32 value[RCPM_WAKEUP_CELL_MAX_SIZE + 1];
 	u32 setting[RCPM_WAKEUP_CELL_MAX_SIZE] = {0};
 
@@ -71,7 +71,7 @@ static int rcpm_pm_prepare(struct device *dev)
 	/* Begin with first registered wakeup source */
 	for_each_wakeup_source(ws) {
 
-		/* skip object which is not attached to device */
+		/* skip object which is analt attached to device */
 		if (!ws->dev || !ws->dev->parent)
 			continue;
 
@@ -84,19 +84,19 @@ static int rcpm_pm_prepare(struct device *dev)
 
 		/*
 		 * For DT mode, would handle devices with "fsl,rcpm-wakeup"
-		 * pointing to the current RCPM node.
+		 * pointing to the current RCPM analde.
 		 *
 		 * For ACPI mode, currently we assume there is only one
 		 * RCPM controller existing.
 		 */
-		if (is_of_node(dev->fwnode))
+		if (is_of_analde(dev->fwanalde))
 			if (np->phandle != value[0])
 				continue;
 
-		/* Property "#fsl,rcpm-wakeup-cells" of rcpm node defines the
+		/* Property "#fsl,rcpm-wakeup-cells" of rcpm analde defines the
 		 * number of IPPDEXPCR register cells, and "fsl,rcpm-wakeup"
 		 * of wakeup source IP contains an integer array: <phandle to
-		 * RCPM node, IPPDEXPCR0 setting, IPPDEXPCR1 setting,
+		 * RCPM analde, IPPDEXPCR0 setting, IPPDEXPCR1 setting,
 		 * IPPDEXPCR2 setting, etc>.
 		 *
 		 * So we will go thought them to collect setting data.
@@ -131,7 +131,7 @@ static int rcpm_pm_prepare(struct device *dev)
 		 * to register SCFG_SPARECR8.And the value of
 		 * ippdexpcr1 will be read from SCFG_SPARECR8.
 		 */
-		if (dev_of_node(dev) && (i == 1))
+		if (dev_of_analde(dev) && (i == 1))
 			if (of_device_is_compatible(np, "fsl,ls1021a-rcpm"))
 				copy_ippdexpcr1_setting(tmp);
 	}
@@ -151,7 +151,7 @@ static int rcpm_probe(struct platform_device *pdev)
 
 	rcpm = devm_kzalloc(dev, sizeof(*rcpm), GFP_KERNEL);
 	if (!rcpm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rcpm->ippdexpcr_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rcpm->ippdexpcr_base)) {

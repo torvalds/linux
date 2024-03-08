@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * DTS file for AMD Seattle Overdrive Development Board
- * Note: For Seattle Rev.B1
+ * Analte: For Seattle Rev.B1
  *
  * Copyright (C) 2015 Advanced Micro Devices, Inc.
  */
@@ -31,7 +31,7 @@
 };
 
 /**
- * NOTE: In Rev.B, gpio0 is reserved.
+ * ANALTE: In Rev.B, gpio0 is reserved.
  */
 &gpio1 {
 	status = "okay";

@@ -15,7 +15,7 @@
  * Updated: Mon, 14 Apr 2008 15:42:42 +0100
  * Status: tested
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: analt applicable, uses PCI auto config
  */
 
 #include <linux/module.h>
@@ -128,7 +128,7 @@ static int ke_counter_insn_config(struct comedi_device *dev,
 			break;
 		case KE_OSC_SEL_EXT:
 			data[1] = KE_CLK_EXT;
-			data[2] = 0;	/* Unknown */
+			data[2] = 0;	/* Unkanalwn */
 			break;
 		default:
 			return -EINVAL;
@@ -178,7 +178,7 @@ static int ke_counter_auto_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_READABLE;
 	s->n_chan	= 3;
 	s->maxdata	= 0x01ffffff;
-	s->range_table	= &range_unknown;
+	s->range_table	= &range_unkanalwn;
 	s->insn_read	= ke_counter_insn_read;
 	s->insn_write	= ke_counter_insn_write;
 	s->insn_config	= ke_counter_insn_config;

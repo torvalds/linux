@@ -39,7 +39,7 @@
 };
 
 &sdhost {
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&reg_3v3>;
 	vqmmc-supply = <&reg_1v8>;
 };

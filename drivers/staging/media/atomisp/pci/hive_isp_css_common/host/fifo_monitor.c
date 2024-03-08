@@ -238,13 +238,13 @@ void fifo_channel_get_state(
 			hrt_data	value = ia_css_device_load_uint32(0x0000000000380014ULL);
 
 			state->fifo_valid  = !_hrt_get_bit(value, 0);
-			state->sink_accept = false; /* no monitor connected */
+			state->sink_accept = false; /* anal monitor connected */
 		}
 		break;
 	case FIFO_CHANNEL_HOST0_TO_ISP0: {
 		hrt_data	value = ia_css_device_load_uint32(0x000000000038001CULL);
 
-		state->fifo_valid  = false; /* no monitor connected */
+		state->fifo_valid  = false; /* anal monitor connected */
 		state->sink_accept = !_hrt_get_bit(value, 0);
 	}
 	state->src_valid   = fifo_monitor_status_valid(ID,
@@ -433,13 +433,13 @@ void fifo_channel_get_state(
 			hrt_data	value = ia_css_device_load_uint32(0x0000000000380010ULL);
 
 			state->fifo_valid  = !_hrt_get_bit(value, 0);
-			state->sink_accept = false; /* no monitor connected */
+			state->sink_accept = false; /* anal monitor connected */
 		}
 		break;
 	case FIFO_CHANNEL_HOST0_TO_SP0: {
 		hrt_data	value = ia_css_device_load_uint32(0x0000000000380018ULL);
 
-		state->fifo_valid  = false; /* no monitor connected */
+		state->fifo_valid  = false; /* anal monitor connected */
 		state->sink_accept = !_hrt_get_bit(value, 0);
 	}
 	state->src_valid   = fifo_monitor_status_valid(ID,
@@ -520,7 +520,7 @@ void fifo_switch_get_state(
 
 	data = gp_device_reg_load(GP_DEVICE0_ID, FIFO_SWITCH_ADDR[switch_id]);
 
-	state->is_none = (data == HIVE_ISP_CSS_STREAM_SWITCH_NONE);
+	state->is_analne = (data == HIVE_ISP_CSS_STREAM_SWITCH_ANALNE);
 	state->is_sp = (data == HIVE_ISP_CSS_STREAM_SWITCH_SP);
 	state->is_isp = (data == HIVE_ISP_CSS_STREAM_SWITCH_ISP);
 

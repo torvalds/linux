@@ -81,7 +81,7 @@ static u64 atari_read_clk(struct clocksource *cs)
 	u32 ticks;
 
 	local_irq_save(flags);
-	/* Ensure that the count is monotonically decreasing, even though
+	/* Ensure that the count is moanaltonically decreasing, even though
 	 * the result may briefly stop changing after counter wrap-around.
 	 */
 	count = min(st_mfp.tim_dt_c, last_timer_count);
@@ -246,10 +246,10 @@ int atari_tt_hwclk( int op, struct rtc_time *t )
      * progress, registers 0..9 shouldn't be touched.
      * The problem is solved like that: If an update is currently in
      * progress (the UIP bit is set), the process sleeps for a while
-     * (50ms). This really should be enough, since the update cycle
-     * normally needs 2 ms.
+     * (50ms). This really should be eanalugh, since the update cycle
+     * analrmally needs 2 ms.
      * If the UIP bit reads as 0, we have at least 244 usecs until the
-     * update starts. This should be enough... But to be sure,
+     * update starts. This should be eanalugh... But to be sure,
      * additionally the RTC_SET bit is set to prevent an update cycle.
      */
 

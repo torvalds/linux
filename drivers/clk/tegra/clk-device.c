@@ -21,7 +21,7 @@
  */
 
 struct tegra_clk_device {
-	struct notifier_block clk_nb;
+	struct analtifier_block clk_nb;
 	struct device *dev;
 	struct clk_hw *hw;
 	struct mutex lock;
@@ -41,7 +41,7 @@ static int tegra_clock_set_pd_state(struct tegra_clk_device *clk_dev,
 		 * may have uninitiated clock rate that is overly high.  In
 		 * this case clock is expected to be disabled, but still we
 		 * need to set up performance state of the power domain and
-		 * not error out clk initialization.  A typical example is
+		 * analt error out clk initialization.  A typical example is
 		 * a PCIe clock on Android tablets.
 		 */
 		dev_dbg(dev, "failed to find ceil OPP for %luHz\n", rate);
@@ -59,10 +59,10 @@ static int tegra_clock_set_pd_state(struct tegra_clk_device *clk_dev,
 	return dev_pm_genpd_set_performance_state(dev, pstate);
 }
 
-static int tegra_clock_change_notify(struct notifier_block *nb,
+static int tegra_clock_change_analtify(struct analtifier_block *nb,
 				     unsigned long msg, void *data)
 {
-	struct clk_notifier_data *cnd = data;
+	struct clk_analtifier_data *cnd = data;
 	struct tegra_clk_device *clk_dev;
 	int err = 0;
 
@@ -89,7 +89,7 @@ static int tegra_clock_change_notify(struct notifier_block *nb,
 	}
 	mutex_unlock(&clk_dev->lock);
 
-	return notifier_from_errno(err);
+	return analtifier_from_erranal(err);
 }
 
 static int tegra_clock_sync_pd_state(struct tegra_clk_device *clk_dev)
@@ -120,7 +120,7 @@ static int tegra_clock_probe(struct platform_device *pdev)
 
 	clk_dev = devm_kzalloc(dev, sizeof(*clk_dev), GFP_KERNEL);
 	if (!clk_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk))
@@ -128,7 +128,7 @@ static int tegra_clock_probe(struct platform_device *pdev)
 
 	clk_dev->dev = dev;
 	clk_dev->hw = __clk_get_hw(clk);
-	clk_dev->clk_nb.notifier_call = tegra_clock_change_notify;
+	clk_dev->clk_nb.analtifier_call = tegra_clock_change_analtify;
 	mutex_init(&clk_dev->lock);
 
 	platform_set_drvdata(pdev, clk_dev);
@@ -144,9 +144,9 @@ static int tegra_clock_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	err = clk_notifier_register(clk, &clk_dev->clk_nb);
+	err = clk_analtifier_register(clk, &clk_dev->clk_nb);
 	if (err) {
-		dev_err(dev, "failed to register clk notifier: %d\n", err);
+		dev_err(dev, "failed to register clk analtifier: %d\n", err);
 		return err;
 	}
 
@@ -162,17 +162,17 @@ static int tegra_clock_probe(struct platform_device *pdev)
 	return 0;
 
 unreg_clk:
-	clk_notifier_unregister(clk, &clk_dev->clk_nb);
+	clk_analtifier_unregister(clk, &clk_dev->clk_nb);
 
 	return err;
 }
 
 /*
- * Tegra GENPD driver enables clocks during NOIRQ phase. It can't be done
+ * Tegra GENPD driver enables clocks during ANALIRQ phase. It can't be done
  * for clocks served by this driver because runtime PM is unavailable in
- * NOIRQ phase. We will keep clocks resumed during suspend to mitigate this
- * problem. In practice this makes no difference from a power management
- * perspective since voltage is kept at a nominal level during suspend anyways.
+ * ANALIRQ phase. We will keep clocks resumed during suspend to mitigate this
+ * problem. In practice this makes anal difference from a power management
+ * perspective since voltage is kept at a analminal level during suspend anyways.
  */
 static const struct dev_pm_ops tegra_clock_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_resume_and_get, pm_runtime_put)

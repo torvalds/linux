@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,7 +35,7 @@
 #include <uapi/linux/kfd_ioctl.h>
 
 enum hqd_dequeue_request_type {
-	NO_ACTION = 0,
+	ANAL_ACTION = 0,
 	DRAIN_PIPE,
 	RESET_WAVES,
 	SAVE_WAVES
@@ -87,7 +87,7 @@ static void kgd_program_sh_mem_settings(struct amdgpu_device *adev, uint32_t vmi
 
 	WREG32_SOC15(GC, 0, mmSH_MEM_CONFIG, sh_mem_config);
 	WREG32_SOC15(GC, 0, mmSH_MEM_BASES, sh_mem_bases);
-	/* APE1 no longer exists on GFX9 */
+	/* APE1 anal longer exists on GFX9 */
 
 	unlock_srbm(adev);
 }
@@ -96,7 +96,7 @@ static int kgd_set_pasid_vmid_mapping(struct amdgpu_device *adev, u32 pasid,
 					unsigned int vmid, uint32_t inst)
 {
 	/*
-	 * We have to assume that there is no outstanding mapping.
+	 * We have to assume that there is anal outstanding mapping.
 	 * The ATC_VMID_PASID_MAPPING_UPDATE_STATUS bit could be 0 because
 	 * a mapping is in progress or because a mapping finished
 	 * and the SW cleared it.
@@ -164,7 +164,7 @@ static uint32_t get_sdma_rlc_reg_offset(struct amdgpu_device *adev,
 	uint32_t sdma_engine_reg_base[2] = {
 		SOC15_REG_OFFSET(SDMA0, 0,
 				 mmSDMA0_RLC0_RB_CNTL) - mmSDMA0_RLC0_RB_CNTL,
-		/* On gfx10, mmSDMA1_xxx registers are defined NOT based
+		/* On gfx10, mmSDMA1_xxx registers are defined ANALT based
 		 * on SDMA1 base address (dw 0x1860) but based on SDMA0
 		 * base address (dw 0x1260). Therefore use mmSDMA0_RLC0_RB_CNTL
 		 * instead of mmSDMA1_RLC0_RB_CNTL for the base address calc
@@ -235,7 +235,7 @@ static int kgd_hqd_load(struct amdgpu_device *adev, void *mqd,
 
 	if (wptr) {
 		/* Don't read wptr with get_user because the user
-		 * context may not be accessible (if this function
+		 * context may analt be accessible (if this function
 		 * runs in a work queue). Instead trigger a one-shot
 		 * polling read from memory in the CP. This assumes
 		 * that wptr is GPU-accessible in the queue's VMID via
@@ -320,7 +320,7 @@ static int kgd_hiq_mqd_load(struct amdgpu_device *adev, void *mqd,
 			  PACKET3_MAP_QUEUES_QUEUE(queue_id) |
 			  PACKET3_MAP_QUEUES_PIPE(pipe) |
 			  PACKET3_MAP_QUEUES_ME((mec - 1)) |
-			  PACKET3_MAP_QUEUES_QUEUE_TYPE(0) | /*queue_type: normal compute queue */
+			  PACKET3_MAP_QUEUES_QUEUE_TYPE(0) | /*queue_type: analrmal compute queue */
 			  PACKET3_MAP_QUEUES_ALLOC_FORMAT(0) | /* alloc format: all_on_one_pipe */
 			  PACKET3_MAP_QUEUES_ENGINE_SEL(1) | /* engine_sel: hiq */
 			  PACKET3_MAP_QUEUES_NUM_QUEUES(1)); /* num_queues: must be 1 */
@@ -354,7 +354,7 @@ static int kgd_hqd_dump(struct amdgpu_device *adev,
 
 	*dump = kmalloc(HQD_N_REGS*2*sizeof(uint32_t), GFP_KERNEL);
 	if (*dump == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	acquire_queue(adev, pipe_id, queue_id);
 
@@ -393,7 +393,7 @@ static int kgd_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
 		if (data & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC analt idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -410,7 +410,7 @@ static int kgd_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
 	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_RPTR_HI,
 				m->sdmax_rlcx_rb_rptr_hi);
 
-	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MINOR_PTR_UPDATE, 1);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MIANALR_PTR_UPDATE, 1);
 	if (read_user_wptr(mm, wptr64, data64)) {
 		WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_WPTR,
 		       lower_32_bits(data64));
@@ -422,7 +422,7 @@ static int kgd_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
 		WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_WPTR_HI,
 		       m->sdmax_rlcx_rb_rptr_hi);
 	}
-	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MINOR_PTR_UPDATE, 0);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MIANALR_PTR_UPDATE, 0);
 
 	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_BASE, m->sdmax_rlcx_rb_base);
 	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_BASE_HI,
@@ -451,14 +451,14 @@ static int kgd_hqd_sdma_dump(struct amdgpu_device *adev,
 
 	*dump = kmalloc(HQD_N_REGS*2*sizeof(uint32_t), GFP_KERNEL);
 	if (*dump == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (reg = mmSDMA0_RLC0_RB_CNTL; reg <= mmSDMA0_RLC0_DOORBELL; reg++)
 		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = mmSDMA0_RLC0_STATUS; reg <= mmSDMA0_RLC0_CSA_ADDR_HI; reg++)
 		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = mmSDMA0_RLC0_IB_SUB_REMAIN;
-	     reg <= mmSDMA0_RLC0_MINOR_PTR_UPDATE; reg++)
+	     reg <= mmSDMA0_RLC0_MIANALR_PTR_UPDATE; reg++)
 		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = mmSDMA0_RLC0_MIDCMD_DATA0;
 	     reg <= mmSDMA0_RLC0_MIDCMD_CNTL; reg++)
@@ -550,7 +550,7 @@ static int kgd_hqd_destroy(struct amdgpu_device *adev, void *mqd,
 
 #if 0 /* Is this still needed? */
 	/* Workaround: If IQ timer is active and the wait time is close to or
-	 * equal to 0, dequeueing is not safe. Wait until either the wait time
+	 * equal to 0, dequeueing is analt safe. Wait until either the wait time
 	 * is larger or timer is cleared. Also, ensure that IQ_REQ_PEND is
 	 * cleared before continuing. Also, ensure wait times are set to at
 	 * least 0x3.
@@ -644,7 +644,7 @@ static int kgd_hqd_sdma_destroy(struct amdgpu_device *adev, void *mqd,
 		if (temp & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC analt idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -725,8 +725,8 @@ static void set_vm_context_page_table_base(struct amdgpu_device *adev,
  *   SPI_GDBG_WAVE_CNTL translates to ~32 clock cycles.
  *   KGD_GFX_V10_WAVE_LAUNCH_SPI_DRAIN_LATENCY indicates the number of reads required.
  *
- *   NOTE: We can afford to clear the entire STALL_VMID field on unstall
- *   because current GFX10 chips cannot support multi-process debugging due to
+ *   ANALTE: We can afford to clear the entire STALL_VMID field on unstall
+ *   because current GFX10 chips cananalt support multi-process debugging due to
  *   trap configuration and masking being limited to global scope.  Always
  *   assume single process conditions.
  *
@@ -759,7 +759,7 @@ uint32_t kgd_gfx_v10_enable_debug_trap(struct amdgpu_device *adev,
 
 	kgd_gfx_v10_set_wave_launch_stall(adev, vmid, true);
 
-	/* assume gfx off is disabled for the debug session if rlc restore not supported. */
+	/* assume gfx off is disabled for the debug session if rlc restore analt supported. */
 	if (restore_dbg_registers) {
 		uint32_t data = 0;
 
@@ -985,7 +985,7 @@ void kgd_gfx_v10_build_grace_period_packet_info(struct amdgpu_device *adev,
 	*reg_data = wait_times;
 
 	/*
-	 * The CP cannont handle a 0 grace period input and will result in
+	 * The CP cananalnt handle a 0 grace period input and will result in
 	 * an infinite grace period being set so set to 1 to prevent this.
 	 */
 	if (grace_period == 0)

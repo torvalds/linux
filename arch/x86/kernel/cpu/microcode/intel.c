@@ -124,7 +124,7 @@ EXPORT_SYMBOL_GPL(intel_find_matching_signature);
  * intel_microcode_sanity_check() - Sanity check microcode file.
  * @mc: Pointer to the microcode file contents.
  * @print_err: Display failure reason if true, silent if false.
- * @hdr_type: Type of file, i.e. normal microcode file or In Field Scan file.
+ * @hdr_type: Type of file, i.e. analrmal microcode file or In Field Scan file.
  *            Validate if the microcode header type matches with the type
  *            specified here.
  *
@@ -153,7 +153,7 @@ int intel_microcode_sanity_check(void *mc, bool print_err, int hdr_type)
 
 	if (mc_header->ldrver != 1 || mc_header->hdrver != hdr_type) {
 		if (print_err)
-			pr_err("Error: invalid/unknown microcode update format. Header type %d\n",
+			pr_err("Error: invalid/unkanalwn microcode update format. Header type %d\n",
 			       mc_header->hdrver);
 		return -EINVAL;
 	}
@@ -383,9 +383,9 @@ static __init struct microcode_intel *get_microcode_blob(struct ucode_cpu_info *
 
 /*
  * Invoked from an early init call to save the microcode blob which was
- * selected during early boot when mm was not usable. The microcode must be
+ * selected during early boot when mm was analt usable. The microcode must be
  * saved because initrd is going away. It's an early init call so the APs
- * just can use the pointer and do not have to scan initrd/builtin firmware
+ * just can use the pointer and do analt have to scan initrd/builtin firmware
  * again.
  */
 static int __init save_builtin_microcode(void)
@@ -474,7 +474,7 @@ static bool ucode_validate_minrev(struct microcode_header_intel *mc_header)
 	 * is 0 in older microcode blobs.
 	 */
 	if (!mc_header->min_req_ver) {
-		pr_info("Unsafe microcode update: Microcode header does not specify a required min version\n");
+		pr_info("Unsafe microcode update: Microcode header does analt specify a required min version\n");
 		return false;
 	}
 
@@ -651,7 +651,7 @@ struct microcode_ops * __init init_intel_microcode(void)
 
 	if (c->x86_vendor != X86_VENDOR_INTEL || c->x86 < 6 ||
 	    cpu_has(c, X86_FEATURE_IA64)) {
-		pr_err("Intel CPU family 0x%x not supported\n", c->x86);
+		pr_err("Intel CPU family 0x%x analt supported\n", c->x86);
 		return NULL;
 	}
 

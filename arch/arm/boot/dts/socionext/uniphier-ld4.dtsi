@@ -289,7 +289,7 @@
 			bus-width = <8>;
 			cap-mmc-highspeed;
 			cap-mmc-hw-reset;
-			non-removable;
+			analn-removable;
 		};
 
 		usb0: usb@5a800100 {

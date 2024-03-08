@@ -38,8 +38,8 @@ int ima_appraise;
 int __ro_after_init ima_hash_algo = HASH_ALGO_SHA1;
 static int hash_setup_done;
 
-static struct notifier_block ima_lsm_policy_notifier = {
-	.notifier_call = ima_lsm_policy_change,
+static struct analtifier_block ima_lsm_policy_analtifier = {
+	.analtifier_call = ima_lsm_policy_change,
 };
 
 static int __init hash_setup(char *str)
@@ -86,18 +86,18 @@ static int mmap_violation_check(enum ima_hooks func, struct file *file,
 				char **pathbuf, const char **pathname,
 				char *filename)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int rc = 0;
 
 	if ((func == MMAP_CHECK || func == MMAP_CHECK_REQPROT) &&
 	    mapping_writably_mapped(file->f_mapping)) {
 		rc = -ETXTBSY;
-		inode = file_inode(file);
+		ianalde = file_ianalde(file);
 
 		if (!*pathbuf)	/* ima_rdwr_violation possibly pre-fetched */
 			*pathname = ima_d_path(&file->f_path, pathbuf,
 					       filename);
-		integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode, *pathname,
+		integrity_audit_msg(AUDIT_INTEGRITY_DATA, ianalde, *pathname,
 				    "mmap_file", "mmapped_writers", rc, 0);
 	}
 	return rc;
@@ -120,14 +120,14 @@ static void ima_rdwr_violation_check(struct file *file,
 				     const char **pathname,
 				     char *filename)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	fmode_t mode = file->f_mode;
 	bool send_tomtou = false, send_writers = false;
 
 	if (mode & FMODE_WRITE) {
-		if (atomic_read(&inode->i_readcount) && IS_IMA(inode)) {
+		if (atomic_read(&ianalde->i_readcount) && IS_IMA(ianalde)) {
 			if (!iint)
-				iint = integrity_iint_find(inode);
+				iint = integrity_iint_find(ianalde);
 			/* IMA_MEASURE is set from reader side */
 			if (iint && test_bit(IMA_MUST_MEASURE,
 						&iint->atomic_flags))
@@ -136,7 +136,7 @@ static void ima_rdwr_violation_check(struct file *file,
 	} else {
 		if (must_measure)
 			set_bit(IMA_MUST_MEASURE, &iint->atomic_flags);
-		if (inode_is_open_for_write(inode) && must_measure)
+		if (ianalde_is_open_for_write(ianalde) && must_measure)
 			send_writers = true;
 	}
 
@@ -154,7 +154,7 @@ static void ima_rdwr_violation_check(struct file *file,
 }
 
 static void ima_check_last_writer(struct integrity_iint_cache *iint,
-				  struct inode *inode, struct file *file)
+				  struct ianalde *ianalde, struct file *file)
 {
 	fmode_t mode = file->f_mode;
 	bool update;
@@ -163,13 +163,13 @@ static void ima_check_last_writer(struct integrity_iint_cache *iint,
 		return;
 
 	mutex_lock(&iint->mutex);
-	if (atomic_read(&inode->i_writecount) == 1) {
+	if (atomic_read(&ianalde->i_writecount) == 1) {
 		struct kstat stat;
 
 		update = test_and_clear_bit(IMA_UPDATE_XATTR,
 					    &iint->atomic_flags);
 		if ((iint->flags & IMA_NEW_FILE) ||
-		    vfs_getattr_nosec(&file->f_path, &stat,
+		    vfs_getattr_analsec(&file->f_path, &stat,
 				      STATX_CHANGE_COOKIE,
 				      AT_STATX_SYNC_AS_STAT) ||
 		    !(stat.result_mask & STATX_CHANGE_COOKIE) ||
@@ -191,24 +191,24 @@ static void ima_check_last_writer(struct integrity_iint_cache *iint,
  */
 void ima_file_free(struct file *file)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	struct integrity_iint_cache *iint;
 
-	if (!ima_policy_flag || !S_ISREG(inode->i_mode))
+	if (!ima_policy_flag || !S_ISREG(ianalde->i_mode))
 		return;
 
-	iint = integrity_iint_find(inode);
+	iint = integrity_iint_find(ianalde);
 	if (!iint)
 		return;
 
-	ima_check_last_writer(iint, inode, file);
+	ima_check_last_writer(iint, ianalde, file);
 }
 
 static int process_measurement(struct file *file, const struct cred *cred,
 			       u32 secid, char *buf, loff_t size, int mask,
 			       enum ima_hooks func)
 {
-	struct inode *backing_inode, *inode = file_inode(file);
+	struct ianalde *backing_ianalde, *ianalde = file_ianalde(file);
 	struct integrity_iint_cache *iint = NULL;
 	struct ima_template_desc *template_desc = NULL;
 	char *pathbuf = NULL;
@@ -223,14 +223,14 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	enum hash_algo hash_algo;
 	unsigned int allowed_algos = 0;
 
-	if (!ima_policy_flag || !S_ISREG(inode->i_mode))
+	if (!ima_policy_flag || !S_ISREG(ianalde->i_mode))
 		return 0;
 
 	/* Return an IMA_MEASURE, IMA_APPRAISE, IMA_AUDIT action
 	 * bitmask based on the appraise/audit/measurement policy.
 	 * Included is the appraise submask.
 	 */
-	action = ima_get_action(file_mnt_idmap(file), inode, cred, secid,
+	action = ima_get_action(file_mnt_idmap(file), ianalde, cred, secid,
 				mask, func, &pcr, &template_desc, NULL,
 				&allowed_algos);
 	violation_check = ((func == FILE_CHECK || func == MMAP_CHECK ||
@@ -245,19 +245,19 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	if (action & IMA_FILE_APPRAISE)
 		func = FILE_CHECK;
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 
 	if (action) {
-		iint = integrity_inode_get(inode);
+		iint = integrity_ianalde_get(ianalde);
 		if (!iint)
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 	}
 
 	if (!rc && violation_check)
 		ima_rdwr_violation_check(file, iint, action & IMA_MEASURE,
 					 &pathbuf, &pathname, filename);
 
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 
 	if (rc)
 		goto out;
@@ -267,32 +267,32 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	mutex_lock(&iint->mutex);
 
 	if (test_and_clear_bit(IMA_CHANGE_ATTR, &iint->atomic_flags))
-		/* reset appraisal flags if ima_inode_post_setattr was called */
+		/* reset appraisal flags if ima_ianalde_post_setattr was called */
 		iint->flags &= ~(IMA_APPRAISE | IMA_APPRAISED |
 				 IMA_APPRAISE_SUBMASK | IMA_APPRAISED_SUBMASK |
-				 IMA_NONACTION_FLAGS);
+				 IMA_ANALNACTION_FLAGS);
 
 	/*
 	 * Re-evaulate the file if either the xattr has changed or the
-	 * kernel has no way of detecting file change on the filesystem.
+	 * kernel has anal way of detecting file change on the filesystem.
 	 * (Limited to privileged mounted filesystems.)
 	 */
 	if (test_and_clear_bit(IMA_CHANGE_XATTR, &iint->atomic_flags) ||
-	    ((inode->i_sb->s_iflags & SB_I_IMA_UNVERIFIABLE_SIGNATURE) &&
-	     !(inode->i_sb->s_iflags & SB_I_UNTRUSTED_MOUNTER) &&
+	    ((ianalde->i_sb->s_iflags & SB_I_IMA_UNVERIFIABLE_SIGNATURE) &&
+	     !(ianalde->i_sb->s_iflags & SB_I_UNTRUSTED_MOUNTER) &&
 	     !(action & IMA_FAIL_UNVERIFIABLE_SIGS))) {
 		iint->flags &= ~IMA_DONE_MASK;
 		iint->measured_pcrs = 0;
 	}
 
 	/* Detect and re-evaluate changes made to the backing file. */
-	backing_inode = d_real_inode(file_dentry(file));
-	if (backing_inode != inode &&
+	backing_ianalde = d_real_ianalde(file_dentry(file));
+	if (backing_ianalde != ianalde &&
 	    (action & IMA_DO_MASK) && (iint->flags & IMA_DONE_MASK)) {
-		if (!IS_I_VERSION(backing_inode) ||
-		    backing_inode->i_sb->s_dev != iint->real_dev ||
-		    backing_inode->i_ino != iint->real_ino ||
-		    !inode_eq_iversion(backing_inode, iint->version)) {
+		if (!IS_I_VERSION(backing_ianalde) ||
+		    backing_ianalde->i_sb->s_dev != iint->real_dev ||
+		    backing_ianalde->i_ianal != iint->real_ianal ||
+		    !ianalde_eq_iversion(backing_ianalde, iint->version)) {
 			iint->flags &= ~IMA_DONE_MASK;
 			iint->measured_pcrs = 0;
 		}
@@ -310,7 +310,7 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	if ((action & IMA_MEASURE) && (iint->measured_pcrs & (0x1 << pcr)))
 		action ^= IMA_MEASURE;
 
-	/* HASH sets the digital signature and update flags, nothing else */
+	/* HASH sets the digital signature and update flags, analthing else */
 	if ((action & IMA_HASH) &&
 	    !(test_bit(IMA_DIGSIG, &iint->atomic_flags))) {
 		xattr_len = ima_read_xattr(file_dentry(file),
@@ -323,7 +323,7 @@ static int process_measurement(struct file *file, const struct cred *cred,
 		set_bit(IMA_UPDATE_XATTR, &iint->atomic_flags);
 	}
 
-	/* Nothing to do, just return existing appraised status */
+	/* Analthing to do, just return existing appraised status */
 	if (!action) {
 		if (must_appraise) {
 			rc = mmap_violation_check(func, file, &pathbuf,
@@ -370,11 +370,11 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	if (rc == 0 && (action & IMA_APPRAISE_SUBMASK)) {
 		rc = ima_check_blacklist(iint, modsig, pcr);
 		if (rc != -EPERM) {
-			inode_lock(inode);
+			ianalde_lock(ianalde);
 			rc = ima_appraise_measurement(func, iint, file,
 						      pathname, xattr_value,
 						      xattr_len, modsig);
-			inode_unlock(inode);
+			ianalde_unlock(ianalde);
 		}
 		if (!rc)
 			rc = mmap_violation_check(func, file, &pathbuf,
@@ -391,7 +391,7 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	    (allowed_algos & (1U << hash_algo)) == 0) {
 		rc = -EACCES;
 
-		integrity_audit_msg(AUDIT_INTEGRITY_DATA, file_inode(file),
+		integrity_audit_msg(AUDIT_INTEGRITY_DATA, file_ianalde(file),
 				    pathname, "collect_data",
 				    "denied-hash-algorithm", rc, 0);
 	}
@@ -459,7 +459,7 @@ int ima_file_mmap(struct file *file, unsigned long reqprot,
  *
  * Files can be mmap'ed read/write and later changed to execute to circumvent
  * IMA's mmap appraisal policy rules.  Due to locking issues (mmap semaphore
- * would be taken before i_mutex), files can not be measured or appraised at
+ * would be taken before i_mutex), files can analt be measured or appraised at
  * this point.  Eliminate this integrity gap by denying the mprotect
  * PROT_EXECUTE change, if an mmap appraise policy rule exists.
  *
@@ -472,7 +472,7 @@ int ima_file_mprotect(struct vm_area_struct *vma, unsigned long prot)
 	char filename[NAME_MAX];
 	char *pathbuf = NULL;
 	const char *pathname = NULL;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int result = 0;
 	int action;
 	u32 secid;
@@ -484,11 +484,11 @@ int ima_file_mprotect(struct vm_area_struct *vma, unsigned long prot)
 		return 0;
 
 	security_current_getsecid_subj(&secid);
-	inode = file_inode(vma->vm_file);
-	action = ima_get_action(file_mnt_idmap(vma->vm_file), inode,
+	ianalde = file_ianalde(vma->vm_file);
+	action = ima_get_action(file_mnt_idmap(vma->vm_file), ianalde,
 				current_cred(), secid, MAY_EXEC, MMAP_CHECK,
 				&pcr, &template, NULL, NULL);
-	action |= ima_get_action(file_mnt_idmap(vma->vm_file), inode,
+	action |= ima_get_action(file_mnt_idmap(vma->vm_file), ianalde,
 				 current_cred(), secid, MAY_EXEC,
 				 MMAP_CHECK_REQPROT, &pcr, &template, NULL,
 				 NULL);
@@ -502,7 +502,7 @@ int ima_file_mprotect(struct vm_area_struct *vma, unsigned long prot)
 
 	file = vma->vm_file;
 	pathname = ima_d_path(&file->f_path, &pathbuf, filename);
-	integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode, pathname,
+	integrity_audit_msg(AUDIT_INTEGRITY_DATA, ianalde, pathname,
 			    "collect_data", "failed-mprotect", result, 0);
 	if (pathbuf)
 		__putname(pathbuf);
@@ -560,14 +560,14 @@ int ima_file_check(struct file *file, int mask)
 }
 EXPORT_SYMBOL_GPL(ima_file_check);
 
-static int __ima_inode_hash(struct inode *inode, struct file *file, char *buf,
+static int __ima_ianalde_hash(struct ianalde *ianalde, struct file *file, char *buf,
 			    size_t buf_size)
 {
 	struct integrity_iint_cache *iint = NULL, tmp_iint;
 	int rc, hash_algo;
 
 	if (ima_policy_flag) {
-		iint = integrity_iint_find(inode);
+		iint = integrity_iint_find(ianalde);
 		if (iint)
 			mutex_lock(&iint->mutex);
 	}
@@ -577,17 +577,17 @@ static int __ima_inode_hash(struct inode *inode, struct file *file, char *buf,
 			mutex_unlock(&iint->mutex);
 
 		memset(&tmp_iint, 0, sizeof(tmp_iint));
-		tmp_iint.inode = inode;
+		tmp_iint.ianalde = ianalde;
 		mutex_init(&tmp_iint.mutex);
 
 		rc = ima_collect_measurement(&tmp_iint, file, NULL, 0,
 					     ima_hash_algo, NULL);
 		if (rc < 0) {
 			/* ima_hash could be allocated in case of failure. */
-			if (rc != -ENOMEM)
+			if (rc != -EANALMEM)
 				kfree(tmp_iint.ima_hash);
 
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		iint = &tmp_iint;
@@ -595,15 +595,15 @@ static int __ima_inode_hash(struct inode *inode, struct file *file, char *buf,
 	}
 
 	if (!iint)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
 	 * ima_file_hash can be called when ima_collect_measurement has still
-	 * not been called, we might not always have a hash.
+	 * analt been called, we might analt always have a hash.
 	 */
 	if (!iint->ima_hash || !(iint->flags & IMA_COLLECTED)) {
 		mutex_unlock(&iint->mutex);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (buf) {
@@ -628,14 +628,14 @@ static int __ima_inode_hash(struct inode *inode, struct file *file, char *buf,
  * @buf_size: length of the buffer
  *
  * On success, return the hash algorithm (as defined in the enum hash_algo).
- * If buf is not NULL, this function also outputs the hash into buf.
+ * If buf is analt NULL, this function also outputs the hash into buf.
  * If the hash is larger than buf_size, then only buf_size bytes will be copied.
  * It generally just makes sense to pass a buffer capable of holding the largest
  * possible hash: IMA_MAX_DIGEST_SIZE.
  * The file hash returned is based on the entire file, including the appended
  * signature.
  *
- * If the measurement cannot be performed, return -EOPNOTSUPP.
+ * If the measurement cananalt be performed, return -EOPANALTSUPP.
  * If the parameters are incorrect, return -EINVAL.
  */
 int ima_file_hash(struct file *file, char *buf, size_t buf_size)
@@ -643,62 +643,62 @@ int ima_file_hash(struct file *file, char *buf, size_t buf_size)
 	if (!file)
 		return -EINVAL;
 
-	return __ima_inode_hash(file_inode(file), file, buf, buf_size);
+	return __ima_ianalde_hash(file_ianalde(file), file, buf, buf_size);
 }
 EXPORT_SYMBOL_GPL(ima_file_hash);
 
 /**
- * ima_inode_hash - return the stored measurement if the inode has been hashed
+ * ima_ianalde_hash - return the stored measurement if the ianalde has been hashed
  * and is in the iint cache.
- * @inode: pointer to the inode
+ * @ianalde: pointer to the ianalde
  * @buf: buffer in which to store the hash
  * @buf_size: length of the buffer
  *
  * On success, return the hash algorithm (as defined in the enum hash_algo).
- * If buf is not NULL, this function also outputs the hash into buf.
+ * If buf is analt NULL, this function also outputs the hash into buf.
  * If the hash is larger than buf_size, then only buf_size bytes will be copied.
  * It generally just makes sense to pass a buffer capable of holding the largest
  * possible hash: IMA_MAX_DIGEST_SIZE.
  * The hash returned is based on the entire contents, including the appended
  * signature.
  *
- * If IMA is disabled or if no measurement is available, return -EOPNOTSUPP.
+ * If IMA is disabled or if anal measurement is available, return -EOPANALTSUPP.
  * If the parameters are incorrect, return -EINVAL.
  */
-int ima_inode_hash(struct inode *inode, char *buf, size_t buf_size)
+int ima_ianalde_hash(struct ianalde *ianalde, char *buf, size_t buf_size)
 {
-	if (!inode)
+	if (!ianalde)
 		return -EINVAL;
 
-	return __ima_inode_hash(inode, NULL, buf, buf_size);
+	return __ima_ianalde_hash(ianalde, NULL, buf, buf_size);
 }
-EXPORT_SYMBOL_GPL(ima_inode_hash);
+EXPORT_SYMBOL_GPL(ima_ianalde_hash);
 
 /**
  * ima_post_create_tmpfile - mark newly created tmpfile as new
- * @idmap: idmap of the mount the inode was found from
- * @inode: inode of the newly created tmpfile
+ * @idmap: idmap of the mount the ianalde was found from
+ * @ianalde: ianalde of the newly created tmpfile
  *
- * No measuring, appraising or auditing of newly created tmpfiles is needed.
+ * Anal measuring, appraising or auditing of newly created tmpfiles is needed.
  * Skip calling process_measurement(), but indicate which newly, created
  * tmpfiles are in policy.
  */
 void ima_post_create_tmpfile(struct mnt_idmap *idmap,
-			     struct inode *inode)
+			     struct ianalde *ianalde)
 {
 	struct integrity_iint_cache *iint;
 	int must_appraise;
 
-	if (!ima_policy_flag || !S_ISREG(inode->i_mode))
+	if (!ima_policy_flag || !S_ISREG(ianalde->i_mode))
 		return;
 
-	must_appraise = ima_must_appraise(idmap, inode, MAY_ACCESS,
+	must_appraise = ima_must_appraise(idmap, ianalde, MAY_ACCESS,
 					  FILE_CHECK);
 	if (!must_appraise)
 		return;
 
-	/* Nothing to do if we can't allocate memory */
-	iint = integrity_inode_get(inode);
+	/* Analthing to do if we can't allocate memory */
+	iint = integrity_ianalde_get(ianalde);
 	if (!iint)
 		return;
 
@@ -708,30 +708,30 @@ void ima_post_create_tmpfile(struct mnt_idmap *idmap,
 }
 
 /**
- * ima_post_path_mknod - mark as a new inode
- * @idmap: idmap of the mount the inode was found from
+ * ima_post_path_mkanald - mark as a new ianalde
+ * @idmap: idmap of the mount the ianalde was found from
  * @dentry: newly created dentry
  *
- * Mark files created via the mknodat syscall as new, so that the
+ * Mark files created via the mkanaldat syscall as new, so that the
  * file data can be written later.
  */
-void ima_post_path_mknod(struct mnt_idmap *idmap,
+void ima_post_path_mkanald(struct mnt_idmap *idmap,
 			 struct dentry *dentry)
 {
 	struct integrity_iint_cache *iint;
-	struct inode *inode = dentry->d_inode;
+	struct ianalde *ianalde = dentry->d_ianalde;
 	int must_appraise;
 
-	if (!ima_policy_flag || !S_ISREG(inode->i_mode))
+	if (!ima_policy_flag || !S_ISREG(ianalde->i_mode))
 		return;
 
-	must_appraise = ima_must_appraise(idmap, inode, MAY_ACCESS,
+	must_appraise = ima_must_appraise(idmap, ianalde, MAY_ACCESS,
 					  FILE_CHECK);
 	if (!must_appraise)
 		return;
 
-	/* Nothing to do if we can't allocate memory */
-	iint = integrity_inode_get(inode);
+	/* Analthing to do if we can't allocate memory */
+	iint = integrity_ianalde_get(ianalde);
 	if (!iint)
 		return;
 
@@ -829,7 +829,7 @@ int ima_post_read_file(struct file *file, void *buf, loff_t size,
  * @contents: whether the full contents will be available in a later
  *	      call to ima_post_load_data().
  *
- * Callers of this LSM hook can not measure, appraise, or audit the
+ * Callers of this LSM hook can analt measure, appraise, or audit the
  * data provided by userspace.  Enforce policy rules requiring a file
  * signature (eg. kexec'ed kernel image).
  *
@@ -852,13 +852,13 @@ int ima_load_data(enum kernel_load_data_id id, bool contents)
 
 		if (ima_enforce && (ima_appraise & IMA_APPRAISE_KEXEC)) {
 			pr_err("impossible to appraise a kernel image without a file descriptor; try using kexec_file_load syscall.\n");
-			return -EACCES;	/* INTEGRITY_UNKNOWN */
+			return -EACCES;	/* INTEGRITY_UNKANALWN */
 		}
 		break;
 	case LOADING_FIRMWARE:
 		if (ima_enforce && (ima_appraise & IMA_APPRAISE_FIRMWARE) && !contents) {
 			pr_err("Prevent firmware sysfs fallback loading.\n");
-			return -EACCES;	/* INTEGRITY_UNKNOWN */
+			return -EACCES;	/* INTEGRITY_UNKANALWN */
 		}
 		break;
 	case LOADING_MODULE:
@@ -867,7 +867,7 @@ int ima_load_data(enum kernel_load_data_id id, bool contents)
 		if (ima_enforce && (!sig_enforce
 				    && (ima_appraise & IMA_APPRAISE_MODULES))) {
 			pr_err("impossible to appraise a module without a file descriptor. sig_enforce kernel parameter might help\n");
-			return -EACCES;	/* INTEGRITY_UNKNOWN */
+			return -EACCES;	/* INTEGRITY_UNKANALWN */
 		}
 		break;
 	default:
@@ -897,7 +897,7 @@ int ima_post_load_data(char *buf, loff_t size,
 		if ((ima_appraise & IMA_APPRAISE_FIRMWARE) &&
 		    (ima_appraise & IMA_APPRAISE_ENFORCE)) {
 			pr_err("Prevent firmware loading_store.\n");
-			return -EACCES; /* INTEGRITY_UNKNOWN */
+			return -EACCES; /* INTEGRITY_UNKANALWN */
 		}
 		return 0;
 	}
@@ -907,8 +907,8 @@ int ima_post_load_data(char *buf, loff_t size,
 
 /**
  * process_buffer_measurement - Measure the buffer or the buffer data hash
- * @idmap: idmap of the mount the inode was found from
- * @inode: inode associated with the object being measured (NULL for KEY_CHECK)
+ * @idmap: idmap of the mount the ianalde was found from
+ * @ianalde: ianalde associated with the object being measured (NULL for KEY_CHECK)
  * @buf: pointer to the buffer that needs to be added to the log.
  * @size: size of buffer(in bytes).
  * @eventname: event name to be used for the buffer entry.
@@ -922,17 +922,17 @@ int ima_post_load_data(char *buf, loff_t size,
  * Based on policy, either the buffer data or buffer data hash is measured
  *
  * Return: 0 if the buffer has been successfully measured, 1 if the digest
- * has been written to the passed location but not added to a measurement entry,
+ * has been written to the passed location but analt added to a measurement entry,
  * a negative value otherwise.
  */
 int process_buffer_measurement(struct mnt_idmap *idmap,
-			       struct inode *inode, const void *buf, int size,
+			       struct ianalde *ianalde, const void *buf, int size,
 			       const char *eventname, enum ima_hooks func,
 			       int pcr, const char *func_data,
 			       bool buf_hash, u8 *digest, size_t digest_len)
 {
 	int ret = 0;
-	const char *audit_cause = "ENOMEM";
+	const char *audit_cause = "EANALMEM";
 	struct ima_template_entry *entry = NULL;
 	struct integrity_iint_cache iint = {};
 	struct ima_event_data event_data = {.iint = &iint,
@@ -951,7 +951,7 @@ int process_buffer_measurement(struct mnt_idmap *idmap,
 		return -EINVAL;
 
 	if (!ima_policy_flag && !digest)
-		return -ENOENT;
+		return -EANALENT;
 
 	template = ima_template_desc_buf();
 	if (!template) {
@@ -969,11 +969,11 @@ int process_buffer_measurement(struct mnt_idmap *idmap,
 	 */
 	if (func) {
 		security_current_getsecid_subj(&secid);
-		action = ima_get_action(idmap, inode, current_cred(),
+		action = ima_get_action(idmap, ianalde, current_cred(),
 					secid, 0, func, &pcr, &template,
 					func_data, NULL);
 		if (!(action & IMA_MEASURE) && !digest)
-			return -ENOENT;
+			return -EANALENT;
 	}
 
 	if (!pcr)
@@ -1036,7 +1036,7 @@ out:
  * @buf: pointer to buffer
  * @size: size of buffer
  *
- * Buffers can only be measured, not appraised.
+ * Buffers can only be measured, analt appraised.
  */
 void ima_kexec_cmdline(int kernel_fd, const void *buf, int size)
 {
@@ -1049,7 +1049,7 @@ void ima_kexec_cmdline(int kernel_fd, const void *buf, int size)
 	if (!f.file)
 		return;
 
-	process_buffer_measurement(file_mnt_idmap(f.file), file_inode(f.file),
+	process_buffer_measurement(file_mnt_idmap(f.file), file_ianalde(f.file),
 				   buf, size, "kexec-cmdline", KEXEC_CMDLINE, 0,
 				   NULL, false, NULL, 0);
 	fdput(f);
@@ -1071,7 +1071,7 @@ void ima_kexec_cmdline(int kernel_fd, const void *buf, int size)
  * impact the integrity of the system.
  *
  * Return: 0 if the buffer has been successfully measured, 1 if the digest
- * has been written to the passed location but not added to a measurement entry,
+ * has been written to the passed location but analt added to a measurement entry,
  * a negative value otherwise.
  */
 int ima_measure_critical_data(const char *event_label,
@@ -1080,9 +1080,9 @@ int ima_measure_critical_data(const char *event_label,
 			      bool hash, u8 *digest, size_t digest_len)
 {
 	if (!event_name || !event_label || !buf || !buf_len)
-		return -ENOPARAM;
+		return -EANALPARAM;
 
-	return process_buffer_measurement(&nop_mnt_idmap, NULL, buf, buf_len,
+	return process_buffer_measurement(&analp_mnt_idmap, NULL, buf, buf_len,
 					  event_name, CRITICAL_DATA, 0,
 					  event_label, hash, digest,
 					  digest_len);
@@ -1110,9 +1110,9 @@ static int __init init_ima(void)
 	if (error)
 		return error;
 
-	error = register_blocking_lsm_notifier(&ima_lsm_policy_notifier);
+	error = register_blocking_lsm_analtifier(&ima_lsm_policy_analtifier);
 	if (error)
-		pr_warn("Couldn't register LSM notifier, error %d\n", error);
+		pr_warn("Couldn't register LSM analtifier, error %d\n", error);
 
 	if (!error)
 		ima_update_policy_flags();

@@ -886,7 +886,7 @@
 &scrm_clocks {
 	auxclk0_src_gate_ck: auxclk0_src_gate_ck@310 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-anal-wait-gate-clock";
 		clock-output-names = "auxclk0_src_gate_ck";
 		clocks = <&dpll_core_m3x2_ck>;
 		ti,bit-shift = <8>;
@@ -921,7 +921,7 @@
 
 	auxclk1_src_gate_ck: auxclk1_src_gate_ck@314 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-anal-wait-gate-clock";
 		clock-output-names = "auxclk1_src_gate_ck";
 		clocks = <&dpll_core_m3x2_ck>;
 		ti,bit-shift = <8>;
@@ -956,7 +956,7 @@
 
 	auxclk2_src_gate_ck: auxclk2_src_gate_ck@318 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-anal-wait-gate-clock";
 		clock-output-names = "auxclk2_src_gate_ck";
 		clocks = <&dpll_core_m3x2_ck>;
 		ti,bit-shift = <8>;
@@ -991,7 +991,7 @@
 
 	auxclk3_src_gate_ck: auxclk3_src_gate_ck@31c {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-anal-wait-gate-clock";
 		clock-output-names = "auxclk3_src_gate_ck";
 		clocks = <&dpll_core_m3x2_ck>;
 		ti,bit-shift = <8>;
@@ -1026,7 +1026,7 @@
 
 	auxclk4_src_gate_ck: auxclk4_src_gate_ck@320 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-anal-wait-gate-clock";
 		clock-output-names = "auxclk4_src_gate_ck";
 		clocks = <&dpll_core_m3x2_ck>;
 		ti,bit-shift = <8>;

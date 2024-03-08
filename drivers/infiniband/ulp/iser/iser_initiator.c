@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005, 2006 Voltaire, Inc. All rights reserved.
- * Copyright (c) 2013-2014 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2014 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright analtice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright analtice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -186,7 +186,7 @@ static int iser_alloc_login_buf(struct iser_conn *iser_conn)
 
 	desc->req = kmalloc(ISCSI_DEF_MAX_RECV_SEG_LEN, GFP_KERNEL);
 	if (!desc->req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc->req_dma = ib_dma_map_single(device->ib_device, desc->req,
 					  ISCSI_DEF_MAX_RECV_SEG_LEN,
@@ -217,7 +217,7 @@ unmap_req:
 free_req:
 	kfree(desc->req);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int iser_alloc_rx_descriptors(struct iser_conn *iser_conn,
@@ -277,7 +277,7 @@ alloc_login_buf_fail:
 	iser_free_fastreg_pool(ib_conn);
 create_rdma_reg_res_failed:
 	iser_err("failed allocating rx descriptors / data buffers\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void iser_free_rx_descriptors(struct iser_conn *iser_conn)
@@ -317,7 +317,7 @@ static int iser_post_rx_bufs(struct iscsi_conn *conn, struct iscsi_hdr *req)
 		goto out;
 	}
 
-	iser_info("Normal session, posting batch of RX %d buffers\n",
+	iser_info("Analrmal session, posting batch of RX %d buffers\n",
 		  iser_conn->qp_max_recv_dtos - 1);
 
 	/*
@@ -431,7 +431,7 @@ int iser_send_data_out(struct iscsi_conn *conn, struct iscsi_task *task,
 
 	tx_desc = kmem_cache_zalloc(ig.desc_cache, GFP_ATOMIC);
 	if (!tx_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tx_desc->type = ISCSI_TX_DATAOUT;
 	tx_desc->cqe.done = iser_dataout_comp;
@@ -492,7 +492,7 @@ int iser_send_control(struct iscsi_conn *conn, struct iscsi_task *task)
 		struct ib_sge *tx_dsg = &mdesc->tx_sg[1];
 
 		if (task != conn->login_task) {
-			iser_err("data present on non login task!!!\n");
+			iser_err("data present on analn login task!!!\n");
 			goto send_control_error;
 		}
 

@@ -17,8 +17,8 @@
 #define __MISC_SUPPORT_H_INCLUDED__
 
 /* suppress compiler warnings on unused variables */
-#ifndef NOT_USED
-#define NOT_USED(a) ((void)(a))
+#ifndef ANALT_USED
+#define ANALT_USED(a) ((void)(a))
 #endif
 
 /* Calculate the  total bytes for pow(2) byte alignment */

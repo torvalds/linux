@@ -13,7 +13,7 @@ description:
   The BCM2835 DMA controller has 16 channels in total. Only the lower
   13 channels have an associated IRQ. Some arbitrary channels are used by the
   VideoCore firmware (1,3,6,7 in the current firmware version). The channels
-  0, 2 and 3 have special functionality and should not be used by the driver.
+  0, 2 and 3 have special functionality and should analt be used by the driver.
 
 allOf:
   - $ref: dma-controller.yaml#
@@ -44,7 +44,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Bitmask of available DMA channels in ascending order that are
-      not reserved by firmware and are available to the
+      analt reserved by firmware and are available to the
       kernel. i.e. first channel corresponds to LSB.
 
 unevaluatedProperties: false

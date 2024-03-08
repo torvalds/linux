@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  (C) 2010,2011      Thomas Renninger <trenn@suse.de>, Novell Inc.
+ *  (C) 2010,2011      Thomas Renninger <trenn@suse.de>, Analvell Inc.
  *
  *  PCI initialization based on example code from:
  *  Andreas Herrmann <andreas.herrmann3@amd.com>
@@ -19,13 +19,13 @@
 #include "idle_monitor/cpupower-monitor.h"
 #include "helpers/helpers.h"
 
-#define PCI_NON_PC0_OFFSET	0xb0
+#define PCI_ANALN_PC0_OFFSET	0xb0
 #define PCI_PC1_OFFSET		0xb4
 #define PCI_PC6_OFFSET		0xb8
 
 #define PCI_MONITOR_ENABLE_REG  0xe0
 
-#define PCI_NON_PC0_ENABLE_BIT	0
+#define PCI_ANALN_PC0_ENABLE_BIT	0
 #define PCI_PC1_ENABLE_BIT	1
 #define PCI_PC6_ENABLE_BIT	2
 
@@ -39,7 +39,7 @@
 #define OVERFLOW_MS		343597 /* 32 bit register filled at 12500 HZ
 					  (1 tick per 80ns) */
 
-enum amd_fam14h_states {NON_PC0 = 0, PC1, PC6, NBP1,
+enum amd_fam14h_states {ANALN_PC0 = 0, PC1, PC6, NBP1,
 			AMD_FAM14H_STATE_NUM};
 
 static int fam14h_get_count_percent(unsigned int self_id, double *percent,
@@ -51,7 +51,7 @@ static cstate_t amd_fam14h_cstates[AMD_FAM14H_STATE_NUM] = {
 	{
 		.name			= "!PC0",
 		.desc			= N_("Package in sleep state (PC1 or deeper)"),
-		.id			= NON_PC0,
+		.id			= ANALN_PC0,
 		.range			= RANGE_PACKAGE,
 		.get_count_percent	= fam14h_get_count_percent,
 	},
@@ -71,7 +71,7 @@ static cstate_t amd_fam14h_cstates[AMD_FAM14H_STATE_NUM] = {
 	},
 	{
 		.name			= "NBP1",
-		.desc			= N_("North Bridge P1 boolean counter (returns 0 or 1)"),
+		.desc			= N_("Analrth Bridge P1 boolean counter (returns 0 or 1)"),
 		.id			= NBP1,
 		.range			= RANGE_PACKAGE,
 		.get_count		= fam14h_nbp1_count,
@@ -99,9 +99,9 @@ static int amd_fam14h_get_pci_info(struct cstate *state,
 				   unsigned int cpu)
 {
 	switch (state->id) {
-	case NON_PC0:
-		*enable_bit = PCI_NON_PC0_ENABLE_BIT;
-		*pci_offset = PCI_NON_PC0_OFFSET;
+	case ANALN_PC0:
+		*enable_bit = PCI_ANALN_PC0_ENABLE_BIT;
+		*pci_offset = PCI_ANALN_PC0_OFFSET;
 		break;
 	case PC1:
 		*enable_bit = PCI_PC1_ENABLE_BIT;
@@ -174,7 +174,7 @@ static int amd_fam14h_disable(cstate_t *state, unsigned int cpu)
 
 		dprint("NBP1 was %sentered - 0x%x - enable_bit: "
 		       "%d - pci_offset: 0x%x\n",
-		       nbp1_entered ? "" : "not ",
+		       nbp1_entered ? "" : "analt ",
 		       val, enable_bit, pci_offset);
 		return ret;
 	}
@@ -289,7 +289,7 @@ struct cpuidle_monitor *amd_fam14h_register(void)
 	else
 		return NULL;
 
-	/* We do not alloc for nbp1 machine wide counter */
+	/* We do analt alloc for nbp1 machine wide counter */
 	for (num = 0; num < AMD_FAM14H_STATE_NUM - 1; num++) {
 		previous_count[num] = calloc(cpu_count,
 					      sizeof(unsigned long long));

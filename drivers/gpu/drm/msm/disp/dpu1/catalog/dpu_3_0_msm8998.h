@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022. Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022. Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  */
 
@@ -161,13 +161,13 @@ static const struct dpu_lm_cfg msm8998_lm[] = {
 		.base = 0x47000, .len = 0x320,
 		.features = MIXER_MSM8998_MASK,
 		.sblk = &msm8998_lm_sblk,
-		.pingpong = PINGPONG_NONE,
+		.pingpong = PINGPONG_ANALNE,
 	}, {
 		.name = "lm_4", .id = LM_4,
 		.base = 0x48000, .len = 0x320,
 		.features = MIXER_MSM8998_MASK,
 		.sblk = &msm8998_lm_sblk,
-		.pingpong = PINGPONG_NONE,
+		.pingpong = PINGPONG_ANALNE,
 	}, {
 		.name = "lm_5", .id = LM_5,
 		.base = 0x49000, .len = 0x320,
@@ -307,7 +307,7 @@ static const struct dpu_perf_cfg msm8998_perf_data = {
 
 static const struct dpu_mdss_version msm8998_mdss_ver = {
 	.core_major_ver = 3,
-	.core_minor_ver = 0,
+	.core_mianalr_ver = 0,
 };
 
 const struct dpu_mdss_cfg dpu_msm8998_cfg = {

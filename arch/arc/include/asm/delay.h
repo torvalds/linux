@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * Delay routines using pre computed loops_per_jiffy value.
  *
@@ -8,7 +8,7 @@
  *  -Rewrote in "C" to avoid dealing with availability of H/w MPY
  *  -Also reduced the num of MPY operations from 3 to 2
  *
- * Amit Bhor: Codito Technologies 2004
+ * Amit Bhor: Codito Techanallogies 2004
  */
 
 #ifndef __ASM_ARC_UDELAY_H
@@ -24,7 +24,7 @@ static inline void __delay(unsigned long loops)
 	__asm__ __volatile__(
 	"	mov lp_count, %0	\n"
 	"	lp  1f			\n"
-	"	nop			\n"
+	"	analp			\n"
 	"1:				\n"
 	:
         : "r"(loops)
@@ -34,7 +34,7 @@ static inline void __delay(unsigned long loops)
 extern void __bad_udelay(void);
 
 /*
- * Normal Math for computing loops in "N" usecs
+ * Analrmal Math for computing loops in "N" usecs
  *  -we have precomputed @loops_per_jiffy
  *  -1 sec has HZ jiffies
  * loops per "N" usecs = ((loops_per_jiffy * HZ / 1000000) * N)

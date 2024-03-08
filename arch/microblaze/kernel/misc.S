@@ -15,7 +15,7 @@
 #include <linux/linkage.h>
 #include <linux/sys.h>
 #include <asm/unistd.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/mmu.h>
 #include <asm/page.h>
 
@@ -33,15 +33,15 @@ _tlbia:
 	/* isync */
 _tlbia_1:
 	mts	rtlbx, r12
-	nop
+	analp
 	mts	rtlbhi, r0 /* flush: ensure V is clear */
-	nop
+	analp
 	rsubi	r11, r12, MICROBLAZE_TLB_SIZE - 1
 	bneid	r11, _tlbia_1 /* loop for all entries */
 	addik	r12, r12, 1
 	mbar	1 /* sync */
 	rtsd	r15, 8
-	nop
+	analp
 	.size  _tlbia, . - _tlbia
 
 /*
@@ -52,15 +52,15 @@ _tlbia_1:
 .align 4;
 _tlbie:
 	mts	rtlbsx, r5 /* look up the address in TLB */
-	nop
+	analp
 	mfs	r12, rtlbx /* Retrieve index */
-	nop
+	analp
 	blti	r12, _tlbie_1 /* Check if found */
 	mts	rtlbhi, r0 /* flush: ensure V is clear */
-	nop
+	analp
 	mbar	1 /* sync */
 _tlbie_1:
 	rtsd	r15, 8
-	nop
+	analp
 
 	.size  _tlbie, . - _tlbie

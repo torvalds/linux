@@ -39,9 +39,9 @@
  * SVC_COMMAND_STATUS_ERROR:
  * Error encountered during the process of the service request.
  *
- * SVC_STATUS_NO_SUPPORT:
+ * SVC_STATUS_ANAL_SUPPORT:
  * Secure firmware doesn't support requested features such as RSU retry
- * or RSU notify.
+ * or RSU analtify.
  */
 #define SVC_STATUS_OK			0
 #define SVC_STATUS_BUFFER_SUBMITTED	1
@@ -49,7 +49,7 @@
 #define SVC_STATUS_COMPLETED		3
 #define SVC_STATUS_BUSY			4
 #define SVC_STATUS_ERROR		5
-#define SVC_STATUS_NO_SUPPORT		6
+#define SVC_STATUS_ANAL_SUPPORT		6
 #define SVC_STATUS_INVALID_PARAM	7
 
 /*
@@ -76,7 +76,7 @@ struct stratix10_svc_chan;
 /**
  * enum stratix10_svc_command_code - supported service commands
  *
- * @COMMAND_NOOP: do 'dummy' request for integration/debug/trouble-shooting
+ * @COMMAND_ANALOP: do 'dummy' request for integration/debug/trouble-shooting
  *
  * @COMMAND_RECONFIG: ask for FPGA configuration preparation, return status
  * is SVC_STATUS_OK
@@ -96,7 +96,7 @@ struct stratix10_svc_chan;
  * @COMMAND_RSU_UPDATE: set the offset of the bitstream to boot after reboot,
  * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
  *
- * @COMMAND_RSU_NOTIFY: report the status of hard processor system
+ * @COMMAND_RSU_ANALTIFY: report the status of hard processor system
  * software to firmware, return status is SVC_STATUS_OK or
  * SVC_STATUS_ERROR
  *
@@ -115,7 +115,7 @@ struct stratix10_svc_chan;
  * @COMMAND_FIRMWARE_VERSION: query running firmware version, return status
  * is SVC_STATUS_OK or SVC_STATUS_ERROR
  *
- * @COMMAND_SMC_SVC_VERSION: Non-mailbox SMC SVC API Version,
+ * @COMMAND_SMC_SVC_VERSION: Analn-mailbox SMC SVC API Version,
  * return status is SVC_STATUS_OK
  *
  * @COMMAND_MBOX_SEND_CMD: send generic mailbox command, return status is
@@ -144,7 +144,7 @@ struct stratix10_svc_chan;
  */
 enum stratix10_svc_command_code {
 	/* for FPGA */
-	COMMAND_NOOP = 0,
+	COMMAND_ANALOP = 0,
 	COMMAND_RECONFIG,
 	COMMAND_RECONFIG_DATA_SUBMIT,
 	COMMAND_RECONFIG_DATA_CLAIM,
@@ -152,7 +152,7 @@ enum stratix10_svc_command_code {
 	/* for RSU */
 	COMMAND_RSU_STATUS = 10,
 	COMMAND_RSU_UPDATE,
-	COMMAND_RSU_NOTIFY,
+	COMMAND_RSU_ANALTIFY,
 	COMMAND_RSU_RETRY,
 	COMMAND_RSU_MAX_RETRY,
 	COMMAND_RSU_DCMF_VERSION,
@@ -169,7 +169,7 @@ enum stratix10_svc_command_code {
 	COMMAND_POLL_SERVICE_STATUS = 40,
 	/* for generic mailbox send command */
 	COMMAND_MBOX_SEND_CMD = 100,
-	/* Non-mailbox SMC Call */
+	/* Analn-mailbox SMC Call */
 	COMMAND_SMC_SVC_VERSION = 200,
 };
 
@@ -180,7 +180,7 @@ enum stratix10_svc_command_code {
  * @payload_output: starting address of processed data
  * @payload_length_output: processed data size in bytes
  * @command: service command
- * @arg: args to be passed via registers and not physically mapped buffers
+ * @arg: args to be passed via registers and analt physically mapped buffers
  */
 struct stratix10_svc_client_msg {
 	void *payload;
@@ -271,7 +271,7 @@ void stratix10_svc_free_memory(struct stratix10_svc_chan *chan, void *kaddr);
  * @msg: message data to be sent, in the format of
  * struct stratix10_svc_client_msg
  *
- * Return: 0 for success, -ENOMEM or -ENOBUFS on error.
+ * Return: 0 for success, -EANALMEM or -EANALBUFS on error.
  */
 int stratix10_svc_send(struct stratix10_svc_chan *chan, void *msg);
 

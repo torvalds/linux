@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright(c) 2007 Intel Corporation. All rights reserved.
  *
@@ -40,13 +40,13 @@ enum fc_els_cmd {
 	ELS_RRQ =	0x12,	/* reinstate recovery qualifier */
 	ELS_REC =	0x13,	/* read exchange concise */
 	ELS_SRR =	0x14,	/* sequence retransmission request */
-	ELS_FPIN =	0x16,	/* Fabric Performance Impact Notification */
-	ELS_EDC =	0x17,	/* Exchange Diagnostic Capabilities */
-	ELS_RDP =	0x18,	/* Read Diagnostic Parameters */
-	ELS_RDF =	0x19,	/* Register Diagnostic Functions */
+	ELS_FPIN =	0x16,	/* Fabric Performance Impact Analtification */
+	ELS_EDC =	0x17,	/* Exchange Diaganalstic Capabilities */
+	ELS_RDP =	0x18,	/* Read Diaganalstic Parameters */
+	ELS_RDF =	0x19,	/* Register Diaganalstic Functions */
 	ELS_PRLI =	0x20,	/* process login */
 	ELS_PRLO =	0x21,	/* process logout */
-	ELS_SCN =	0x22,	/* state change notification */
+	ELS_SCN =	0x22,	/* state change analtification */
 	ELS_TPLS =	0x23,	/* test process login state */
 	ELS_TPRLO =	0x24,	/* third party process logout */
 	ELS_LCLM =	0x25,	/* login control list mgmt (obs) */
@@ -60,21 +60,21 @@ enum fc_els_cmd {
 	ELS_PDISC =	0x50,	/* discover N_port service params */
 	ELS_FDISC =	0x51,	/* discover F_port service params */
 	ELS_ADISC =	0x52,	/* discover address */
-	ELS_RNC =	0x53,	/* report node cap (obs) */
+	ELS_RNC =	0x53,	/* report analde cap (obs) */
 	ELS_FARP_REQ =	0x54,	/* FC ARP request */
 	ELS_FARP_REPL =	0x55,	/* FC ARP reply */
 	ELS_RPS =	0x56,	/* read port status block */
 	ELS_RPL =	0x57,	/* read port list */
 	ELS_RPBC =	0x58,	/* read port buffer condition */
-	ELS_FAN =	0x60,	/* fabric address notification */
-	ELS_RSCN =	0x61,	/* registered state change notification */
+	ELS_FAN =	0x60,	/* fabric address analtification */
+	ELS_RSCN =	0x61,	/* registered state change analtification */
 	ELS_SCR =	0x62,	/* state change registration */
-	ELS_RNFT =	0x63,	/* report node FC-4 types */
+	ELS_RNFT =	0x63,	/* report analde FC-4 types */
 	ELS_CSR =	0x68,	/* clock synch. request */
 	ELS_CSU =	0x69,	/* clock synch. update */
 	ELS_LINIT =	0x70,	/* loop initialize */
 	ELS_LSTS =	0x72,	/* loop status */
-	ELS_RNID =	0x78,	/* request node ID data */
+	ELS_RNID =	0x78,	/* request analde ID data */
 	ELS_RLIR =	0x79,	/* registered link incident report */
 	ELS_LIRR =	0x7a,	/* link incident record registration */
 	ELS_SRL =	0x7b,	/* scan remote loop */
@@ -180,13 +180,13 @@ struct fc_els_ls_rjt {
  * ELS reject reason codes (er_reason).
  */
 enum fc_els_rjt_reason {
-	ELS_RJT_NONE =		0,	/* no reject - not to be sent */
+	ELS_RJT_ANALNE =		0,	/* anal reject - analt to be sent */
 	ELS_RJT_INVAL =		0x01,	/* invalid ELS command code */
 	ELS_RJT_LOGIC =		0x03,	/* logical error */
 	ELS_RJT_BUSY =		0x05,	/* logical busy */
 	ELS_RJT_PROT =		0x07,	/* protocol error */
 	ELS_RJT_UNAB =		0x09,	/* unable to perform command request */
-	ELS_RJT_UNSUP =		0x0b,	/* command not supported */
+	ELS_RJT_UNSUP =		0x0b,	/* command analt supported */
 	ELS_RJT_INPROG =	0x0e,	/* command already in progress */
 	ELS_RJT_FIP =		0x20,	/* FIP error */
 	ELS_RJT_VENDOR =	0xff,	/* vendor specific error */
@@ -197,7 +197,7 @@ enum fc_els_rjt_reason {
  * reason code explanation (er_explan).
  */
 enum fc_els_rjt_explan {
-	ELS_EXPL_NONE =		0x00,	/* No additional explanation */
+	ELS_EXPL_ANALNE =		0x00,	/* Anal additional explanation */
 	ELS_EXPL_SPP_OPT_ERR =	0x01,	/* service parameter error - options */
 	ELS_EXPL_SPP_ICTL_ERR =	0x03,	/* service parm error - initiator ctl */
 	ELS_EXPL_AH =		0x11,	/* invalid association header */
@@ -208,9 +208,9 @@ enum fc_els_rjt_explan {
 	ELS_EXPL_PLOGI_REQD =	0x1e,	/* N_Port login required */
 	ELS_EXPL_INSUF_RES =	0x29,	/* insufficient resources */
 	ELS_EXPL_UNAB_DATA =	0x2a,	/* unable to supply requested data */
-	ELS_EXPL_UNSUPR =	0x2c,	/* Request not supported */
+	ELS_EXPL_UNSUPR =	0x2c,	/* Request analt supported */
 	ELS_EXPL_INV_LEN =	0x2d,	/* Invalid payload length */
-	ELS_EXPL_NOT_NEIGHBOR = 0x62,	/* VN2VN_Port not in neighbor set */
+	ELS_EXPL_ANALT_NEIGHBOR = 0x62,	/* VN2VN_Port analt in neighbor set */
 	/* TBD - above definitions incomplete */
 };
 
@@ -225,13 +225,13 @@ enum fc_ls_tlv_dtag {
 	ELS_DTAG_CG_SIGNAL_CAP =	0x0001000F,
 		/* Congestion Signaling Capability Descriptor */
 	ELS_DTAG_LNK_INTEGRITY =	0x00020001,
-		/* Link Integrity Notification Descriptor */
+		/* Link Integrity Analtification Descriptor */
 	ELS_DTAG_DELIVERY =		0x00020002,
-		/* Delivery Notification Descriptor */
+		/* Delivery Analtification Descriptor */
 	ELS_DTAG_PEER_CONGEST =		0x00020003,
-		/* Peer Congestion Notification Descriptor */
+		/* Peer Congestion Analtification Descriptor */
 	ELS_DTAG_CONGESTION =		0x00020004,
-		/* Congestion Notification Descriptor */
+		/* Congestion Analtification Descriptor */
 	ELS_DTAG_FPIN_REGISTER =	0x00030001,
 		/* FPIN Registration Descriptor */
 };
@@ -244,10 +244,10 @@ enum fc_ls_tlv_dtag {
 	{ ELS_DTAG_LS_REQ_INFO,		"Link Service Request Information" }, \
 	{ ELS_DTAG_LNK_FAULT_CAP,	"Link Fault Capability" },	      \
 	{ ELS_DTAG_CG_SIGNAL_CAP,	"Congestion Signaling Capability" },  \
-	{ ELS_DTAG_LNK_INTEGRITY,	"Link Integrity Notification" },      \
-	{ ELS_DTAG_DELIVERY,		"Delivery Notification Present" },    \
-	{ ELS_DTAG_PEER_CONGEST,	"Peer Congestion Notification" },     \
-	{ ELS_DTAG_CONGESTION,		"Congestion Notification" },	      \
+	{ ELS_DTAG_LNK_INTEGRITY,	"Link Integrity Analtification" },      \
+	{ ELS_DTAG_DELIVERY,		"Delivery Analtification Present" },    \
+	{ ELS_DTAG_PEER_CONGEST,	"Peer Congestion Analtification" },     \
+	{ ELS_DTAG_CONGESTION,		"Congestion Analtification" },	      \
 	{ ELS_DTAG_FPIN_REGISTER,	"FPIN Registration" },		      \
 }
 
@@ -255,11 +255,11 @@ enum fc_ls_tlv_dtag {
 /*
  * Generic Link Service TLV Descriptor format
  *
- * This structure, as it defines no payload, will also be referred to
+ * This structure, as it defines anal payload, will also be referred to
  * as the "tlv header" - which contains the tag and len fields.
  */
 struct fc_tlv_desc {
-	__be32		desc_tag;	/* Notification Descriptor Tag */
+	__be32		desc_tag;	/* Analtification Descriptor Tag */
 	__be32		desc_len;	/* Length of Descriptor (in bytes).
 					 * Size of descriptor excluding
 					 * desc_tag and desc_len fields.
@@ -356,7 +356,7 @@ struct fc_els_csp {
 #define	FC_SP_FT_NPIV_ACC	0x2000	/* NPIV assignment (FLOGI LS_ACC) */
 #define	FC_SP_FT_FPORT	0x1000	/* F port (1) vs. N port (0) */
 #define	FC_SP_FT_ABB	0x0800	/* alternate BB_credit management */
-#define	FC_SP_FT_EDTR	0x0400	/* E_D_TOV Resolution is nanoseconds */
+#define	FC_SP_FT_EDTR	0x0400	/* E_D_TOV Resolution is naanalseconds */
 #define	FC_SP_FT_MCAST	0x0200	/* multicast */
 #define	FC_SP_FT_BCAST	0x0100	/* broadcast */
 #define	FC_SP_FT_HUNT	0x0080	/* hunt group */
@@ -394,7 +394,7 @@ struct fc_els_cssp {
 
 /*
  * cp_init flags.
- * (TBD: not all flags defined here).
+ * (TBD: analt all flags defined here).
  */
 #define	FC_CPI_CSYN	0x0010		/* clock synch. capable */
 
@@ -412,7 +412,7 @@ struct fc_els_flogi {
 	__u8		_fl_resvd[3];	/* must be zero */
 	struct fc_els_csp fl_csp;	/* common service parameters */
 	__be64		fl_wwpn;	/* port name */
-	__be64		fl_wwnn;	/* node name */
+	__be64		fl_wwnn;	/* analde name */
 	struct fc_els_cssp fl_cssp[4];	/* class 1-4 service parameters */
 	__u8		fl_vend[16];	/* vendor version level */
 } __attribute__((__packed__));
@@ -444,8 +444,8 @@ struct fc_els_spp {
 enum fc_els_spp_resp {
 	FC_SPP_RESP_ACK	=	1,	/* request executed */
 	FC_SPP_RESP_RES =	2,	/* unable due to lack of resources */
-	FC_SPP_RESP_INIT =	3,	/* initialization not complete */
-	FC_SPP_RESP_NO_PA = 	4,	/* unknown process associator */
+	FC_SPP_RESP_INIT =	3,	/* initialization analt complete */
+	FC_SPP_RESP_ANAL_PA = 	4,	/* unkanalwn process associator */
 	FC_SPP_RESP_CONF = 	5,	/* configuration precludes image pair */
 	FC_SPP_RESP_COND = 	6,	/* request completed conditionally */
 	FC_SPP_RESP_MULT = 	7,	/* unable to handle multiple SPPs */
@@ -578,7 +578,7 @@ enum fc_els_scr_func {
 };
 
 /*
- * ELS_RSCN - registered state change notification payload.
+ * ELS_RSCN - registered state change analtification payload.
  */
 struct fc_els_rscn {
 	__u8		rscn_cmd;	/* RSCN opcode (0x61) */
@@ -599,7 +599,7 @@ struct fc_els_rscn_page {
 #define	ELS_RSCN_ADDR_FMT_MASK	0x3	/* mask for address format */
 
 enum fc_els_rscn_ev_qual {
-	ELS_EV_QUAL_NONE = 0,		/* unspecified */
+	ELS_EV_QUAL_ANALNE = 0,		/* unspecified */
 	ELS_EV_QUAL_NS_OBJ = 1,		/* changed name server object */
 	ELS_EV_QUAL_PORT_ATTR = 2,	/* changed port attribute */
 	ELS_EV_QUAL_SERV_OBJ = 3,	/* changed service object */
@@ -615,7 +615,7 @@ enum fc_els_rscn_addr_fmt {
 };
 
 /*
- * ELS_RNID - request Node ID.
+ * ELS_RNID - request Analde ID.
  */
 struct fc_els_rnid {
 	__u8		rnid_cmd;	/* RNID opcode (0x78) */
@@ -625,10 +625,10 @@ struct fc_els_rnid {
 };
 
 /*
- * Node Identification Data formats (rnid_fmt)
+ * Analde Identification Data formats (rnid_fmt)
  */
 enum fc_els_rnid_fmt {
-	ELS_RNIDF_NONE = 0,		/* no specific identification data */
+	ELS_RNIDF_ANALNE = 0,		/* anal specific identification data */
 	ELS_RNIDF_GEN = 0xdf,		/* general topology discovery format */
 };
 
@@ -646,15 +646,15 @@ struct fc_els_rnid_resp {
 
 struct fc_els_rnid_cid {
 	__be64		rnid_wwpn;	/* N port name */
-	__be64		rnid_wwnn;	/* node name */
+	__be64		rnid_wwnn;	/* analde name */
 };
 
 struct fc_els_rnid_gen {
 	__u8		rnid_vend_id[16]; /* vendor-unique ID */
 	__be32		rnid_atype;	/* associated type (see below) */
 	__be32		rnid_phys_port;	/* physical port number */
-	__be32		rnid_att_nodes;	/* number of attached nodes */
-	__u8		rnid_node_mgmt;	/* node management (see below) */
+	__be32		rnid_att_analdes;	/* number of attached analdes */
+	__u8		rnid_analde_mgmt;	/* analde management (see below) */
 	__u8		rnid_ip_ver;	/* IP version (see below) */
 	__be16		rnid_prot_port;	/* UDP / TCP port number */
 	__be32		rnid_ip_addr[4]; /* IP address */
@@ -663,14 +663,14 @@ struct fc_els_rnid_gen {
 };
 
 enum fc_els_rnid_atype {
-	ELS_RNIDA_UNK =		0x01,	/* unknown */
-	ELS_RNIDA_OTHER =	0x02,	/* none of the following */
+	ELS_RNIDA_UNK =		0x01,	/* unkanalwn */
+	ELS_RNIDA_OTHER =	0x02,	/* analne of the following */
 	ELS_RNIDA_HUB =		0x03,
 	ELS_RNIDA_SWITCH =	0x04,
 	ELS_RNIDA_GATEWAY =	0x05,
-	ELS_RNIDA_CONV =	0x06,   /* Obsolete, do not use this value */
-	ELS_RNIDA_HBA =	        0x07,   /* Obsolete, do not use this value */
-	ELS_RNIDA_PROXY =       0x08,   /* Obsolete, do not use this value */
+	ELS_RNIDA_CONV =	0x06,   /* Obsolete, do analt use this value */
+	ELS_RNIDA_HBA =	        0x07,   /* Obsolete, do analt use this value */
+	ELS_RNIDA_PROXY =       0x08,   /* Obsolete, do analt use this value */
 	ELS_RNIDA_STORAGE =	0x09,
 	ELS_RNIDA_HOST =	0x0a,
 	ELS_RNIDA_SUBSYS =	0x0b,	/* storage subsystem (e.g., RAID) */
@@ -701,7 +701,7 @@ enum fc_els_rnid_mgmt {
 };
 
 enum fc_els_rnid_ipver {
-	ELS_RNIDIP_NONE =	0,	/* no IP support or node mgmt. */
+	ELS_RNIDIP_ANALNE =	0,	/* anal IP support or analde mgmt. */
 	ELS_RNIDIP_V4 =		1,	/* IPv4 */
 	ELS_RNIDIP_V6 =		2,	/* IPv6 */
 };
@@ -789,8 +789,8 @@ enum fc_els_rps_resp_status {
 	FC_ELS_RPS_PTP =	1 << 5,	/* point-to-point connection */
 	FC_ELS_RPS_LOOP =	1 << 4,	/* loop mode */
 	FC_ELS_RPS_FAB =	1 << 3,	/* fabric present */
-	FC_ELS_RPS_NO_SIG =	1 << 2,	/* loss of signal */
-	FC_ELS_RPS_NO_SYNC =	1 << 1,	/* loss of synchronization */
+	FC_ELS_RPS_ANAL_SIG =	1 << 2,	/* loss of signal */
+	FC_ELS_RPS_ANAL_SYNC =	1 << 1,	/* loss of synchronization */
 	FC_ELS_RPS_RESET =	1 << 0,	/* in link reset protocol */
 };
 
@@ -864,12 +864,12 @@ struct fc_els_rlir {
  */
 struct fc_els_clir {
 	__be64		clir_wwpn;	/* incident port name */
-	__be64		clir_wwnn;	/* incident port node name */
+	__be64		clir_wwnn;	/* incident port analde name */
 	__u8		clir_port_type;	/* incident port type */
 	__u8		clir_port_id[3];	/* incident port ID */
 
 	__be64		clir_conn_wwpn;	/* connected port name */
-	__be64		clir_conn_wwnn;	/* connected node name */
+	__be64		clir_conn_wwnn;	/* connected analde name */
 	__be64		clir_fab_name;	/* fabric name */
 	__be32		clir_phys_port;	/* physical port number */
 	__be32		clir_trans_id;	/* transaction ID */
@@ -882,7 +882,7 @@ struct fc_els_clir {
  * CLIR clir_ts_fmt - time stamp format values.
  */
 enum fc_els_clir_ts_fmt {
-	ELS_CLIR_TS_UNKNOWN = 	0,	/* time stamp field unknown */
+	ELS_CLIR_TS_UNKANALWN = 	0,	/* time stamp field unkanalwn */
 	ELS_CLIR_TS_SEC_FRAC = 	1,	/* time in seconds and fractions */
 	ELS_CLIR_TS_CSU =	2,	/* time in clock synch update format */
 };
@@ -900,11 +900,11 @@ struct fc_els_clid {
  * CLID incident qualifier flags.
  */
 enum fc_els_clid_iq {
-	ELS_CLID_SWITCH =	0x20,	/* incident port is a switch node */
+	ELS_CLID_SWITCH =	0x20,	/* incident port is a switch analde */
 	ELS_CLID_E_PORT =	0x10,	/* incident is an ISL (E) port */
 	ELS_CLID_SEV_MASK =	0x0c,	/* severity 2-bit field mask */
 	ELS_CLID_SEV_INFO =	0x00,	/* report is informational */
-	ELS_CLID_SEV_INOP =	0x08,	/* link not operational */
+	ELS_CLID_SEV_IANALP =	0x08,	/* link analt operational */
 	ELS_CLID_SEV_DEG =	0x04,	/* link degraded but operational */
 	ELS_CLID_LASER =	0x02,	/* subassembly is a laser */
 	ELS_CLID_FRU =		0x01,	/* format can identify a FRU */
@@ -917,7 +917,7 @@ enum fc_els_clid_ic {
 	ELS_CLID_IC_IMPL =	1,	/* implicit incident */
 	ELS_CLID_IC_BER =	2,	/* bit-error-rate threshold exceeded */
 	ELS_CLID_IC_LOS =	3,	/* loss of synch or signal */
-	ELS_CLID_IC_NOS =	4,	/* non-operational primitive sequence */
+	ELS_CLID_IC_ANALS =	4,	/* analn-operational primitive sequence */
 	ELS_CLID_IC_PST =	5,	/* primitive sequence timeout */
 	ELS_CLID_IC_INVAL =	6,	/* invalid primitive sequence */
 	ELS_CLID_IC_LOOP_TO =	7,	/* loop initialization time out */
@@ -928,7 +928,7 @@ enum fc_els_clid_ic {
  * Link Integrity event types
  */
 enum fc_fpin_li_event_types {
-	FPIN_LI_UNKNOWN =		0x0,
+	FPIN_LI_UNKANALWN =		0x0,
 	FPIN_LI_LINK_FAILURE =		0x1,
 	FPIN_LI_LOSS_OF_SYNC =		0x2,
 	FPIN_LI_LOSS_OF_SIG =		0x3,
@@ -943,7 +943,7 @@ enum fc_fpin_li_event_types {
  * Please keep this in sync with the above definitions.
  */
 #define FC_FPIN_LI_EVT_TYPES_INIT {					\
-	{ FPIN_LI_UNKNOWN,		"Unknown" },			\
+	{ FPIN_LI_UNKANALWN,		"Unkanalwn" },			\
 	{ FPIN_LI_LINK_FAILURE,		"Link Failure" },		\
 	{ FPIN_LI_LOSS_OF_SYNC,		"Loss of Synchronization" },	\
 	{ FPIN_LI_LOSS_OF_SIG,		"Loss of Signal" },		\
@@ -957,7 +957,7 @@ enum fc_fpin_li_event_types {
  * Delivery event types
  */
 enum fc_fpin_deli_event_types {
-	FPIN_DELI_UNKNOWN =		0x0,
+	FPIN_DELI_UNKANALWN =		0x0,
 	FPIN_DELI_TIMEOUT =		0x1,
 	FPIN_DELI_UNABLE_TO_ROUTE =	0x2,
 	FPIN_DELI_DEVICE_SPEC =		0xF,
@@ -968,7 +968,7 @@ enum fc_fpin_deli_event_types {
  * Please keep this in sync with the above definitions.
  */
 #define FC_FPIN_DELI_EVT_TYPES_INIT {					\
-	{ FPIN_DELI_UNKNOWN,		"Unknown" },			\
+	{ FPIN_DELI_UNKANALWN,		"Unkanalwn" },			\
 	{ FPIN_DELI_TIMEOUT,		"Timeout" },			\
 	{ FPIN_DELI_UNABLE_TO_ROUTE,	"Unable to Route" },		\
 	{ FPIN_DELI_DEVICE_SPEC,	"Device Specific" },		\
@@ -1003,7 +1003,7 @@ enum fc_fpin_congn_severity_types {
 };
 
 /*
- * Link Integrity Notification Descriptor
+ * Link Integrity Analtification Descriptor
  */
 struct fc_fn_li_desc {
 	__be32		desc_tag;	/* Descriptor Tag (0x00020001) */
@@ -1033,7 +1033,7 @@ struct fc_fn_li_desc {
 };
 
 /*
- * Delivery Notification Descriptor
+ * Delivery Analtification Descriptor
  */
 struct fc_fn_deli_desc {
 	__be32		desc_tag;	/* Descriptor Tag (0x00020002) */
@@ -1049,7 +1049,7 @@ struct fc_fn_deli_desc {
 };
 
 /*
- * Peer Congestion Notification Descriptor
+ * Peer Congestion Analtification Descriptor
  */
 struct fc_fn_peer_congn_desc {
 	__be32		desc_tag;	/* Descriptor Tag (0x00020003) */
@@ -1075,7 +1075,7 @@ struct fc_fn_peer_congn_desc {
 };
 
 /*
- * Congestion Notification Descriptor
+ * Congestion Analtification Descriptor
  */
 struct fc_fn_congn_desc {
 	__be32		desc_tag;	/* Descriptor Tag (0x00020004) */
@@ -1095,7 +1095,7 @@ struct fc_fn_congn_desc {
 };
 
 /*
- * ELS_FPIN - Fabric Performance Impact Notification
+ * ELS_FPIN - Fabric Performance Impact Analtification
  */
 struct fc_els_fpin {
 	__u8		fpin_cmd;	/* command (0x16) */
@@ -1107,7 +1107,7 @@ struct fc_els_fpin {
 	struct fc_tlv_desc	fpin_desc[];	/* Descriptor list */
 };
 
-/* Diagnostic Function Descriptor - FPIN Registration */
+/* Diaganalstic Function Descriptor - FPIN Registration */
 struct fc_df_desc_fpin_reg {
 	__be32		desc_tag;	/* FPIN Registration (0x00030001) */
 	__be32		desc_len;	/* Length of Descriptor (in bytes).
@@ -1126,7 +1126,7 @@ struct fc_df_desc_fpin_reg {
 };
 
 /*
- * ELS_RDF - Register Diagnostic Functions
+ * ELS_RDF - Register Diaganalstic Functions
  */
 struct fc_els_rdf {
 	__u8		fpin_cmd;	/* command (0x19) */
@@ -1153,11 +1153,11 @@ struct fc_els_rdf_resp {
 
 
 /*
- * Diagnostic Capability Descriptors for EDC ELS
+ * Diaganalstic Capability Descriptors for EDC ELS
  */
 
 /*
- * Diagnostic: Link Fault Capability Descriptor
+ * Diaganalstic: Link Fault Capability Descriptor
  */
 struct fc_diag_lnkflt_desc {
 	__be32		desc_tag;	/* Descriptor Tag (0x0001000D) */
@@ -1172,8 +1172,8 @@ struct fc_diag_lnkflt_desc {
 };
 
 enum fc_edc_cg_signal_cap_types {
-	/* Note: Capability: bits 31:4 Rsvd; bits 3:0 are capabilities */
-	EDC_CG_SIG_NOTSUPPORTED =	0x00, /* neither supported */
+	/* Analte: Capability: bits 31:4 Rsvd; bits 3:0 are capabilities */
+	EDC_CG_SIG_ANALTSUPPORTED =	0x00, /* neither supported */
 	EDC_CG_SIG_WARN_ONLY =		0x01,
 	EDC_CG_SIG_WARN_ALARM =		0x02, /* both supported */
 };
@@ -1183,7 +1183,7 @@ enum fc_edc_cg_signal_cap_types {
  * Please keep this in sync with the above definitions.
  */
 #define FC_EDC_CG_SIGNAL_CAP_TYPES_INIT {				\
-	{ EDC_CG_SIG_NOTSUPPORTED,	"Signaling Not Supported" },	\
+	{ EDC_CG_SIG_ANALTSUPPORTED,	"Signaling Analt Supported" },	\
 	{ EDC_CG_SIG_WARN_ONLY,		"Warning Signal" },		\
 	{ EDC_CG_SIG_WARN_ALARM,	"Warning and Alarm Signals" },	\
 }
@@ -1198,15 +1198,15 @@ enum fc_diag_cg_sig_freq_types {
 
 struct fc_diag_cg_sig_freq {
 	__be16		count;		/* Time between signals
-					 * note: upper 6 bits rsvd
+					 * analte: upper 6 bits rsvd
 					 */
 	__be16		units;		/* Time unit for count
-					 * note: upper 12 bits rsvd
+					 * analte: upper 12 bits rsvd
 					 */
 };
 
 /*
- * Diagnostic: Congestion Signaling Capability Descriptor
+ * Diaganalstic: Congestion Signaling Capability Descriptor
  */
 struct fc_diag_cg_sig_desc {
 	__be32		desc_tag;	/* Descriptor Tag (0x0001000F) */
@@ -1222,7 +1222,7 @@ struct fc_diag_cg_sig_desc {
 };
 
 /*
- * ELS_EDC - Exchange Diagnostic Capabilities
+ * ELS_EDC - Exchange Diaganalstic Capabilities
  */
 struct fc_els_edc {
 	__u8		edc_cmd;	/* command (0x17) */
@@ -1232,7 +1232,7 @@ struct fc_els_edc {
 					 * edc_zero and desc_len fields.
 					 */
 	struct fc_tlv_desc	desc[];
-					/* Diagnostic Descriptor list */
+					/* Diaganalstic Descriptor list */
 };
 
 /*
@@ -1246,7 +1246,7 @@ struct fc_els_edc_resp {
 						 */
 	struct fc_els_lsri_desc	lsri;
 	struct fc_tlv_desc	desc[];
-				    /* Supported Diagnostic Descriptor list */
+				    /* Supported Diaganalstic Descriptor list */
 };
 
 

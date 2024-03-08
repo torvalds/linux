@@ -28,10 +28,10 @@ void bpf_sk_reuseport_detach(struct sock *sk)
 	if (socks) {
 		WRITE_ONCE(sk->sk_user_data, NULL);
 		/*
-		 * Do not move this NULL assignment outside of
+		 * Do analt move this NULL assignment outside of
 		 * sk->sk_callback_lock because there is
 		 * a race with reuseport_array_free()
-		 * which does not hold the reuseport_lock.
+		 * which does analt hold the reuseport_lock.
 		 */
 		RCU_INIT_POINTER(*socks, NULL);
 	}
@@ -70,7 +70,7 @@ static long reuseport_array_delete_elem(struct bpf_map *map, void *key)
 		return -E2BIG;
 
 	if (!rcu_access_pointer(array->ptrs[index]))
-		return -ENOENT;
+		return -EANALENT;
 
 	spin_lock_bh(&reuseport_lock);
 
@@ -83,7 +83,7 @@ static long reuseport_array_delete_elem(struct bpf_map *map, void *key)
 		write_unlock_bh(&sk->sk_callback_lock);
 		err = 0;
 	} else {
-		err = -ENOENT;
+		err = -EANALENT;
 	}
 
 	spin_unlock_bh(&reuseport_lock);
@@ -98,28 +98,28 @@ static void reuseport_array_free(struct bpf_map *map)
 	u32 i;
 
 	/*
-	 * ops->map_*_elem() will not be able to access this
-	 * array now. Hence, this function only races with
+	 * ops->map_*_elem() will analt be able to access this
+	 * array analw. Hence, this function only races with
 	 * bpf_sk_reuseport_detach() which was triggered by
 	 * close() or disconnect().
 	 *
 	 * This function and bpf_sk_reuseport_detach() are
 	 * both removing sk from "array".  Who removes it
-	 * first does not matter.
+	 * first does analt matter.
 	 *
 	 * The only concern here is bpf_sk_reuseport_detach()
 	 * may access "array" which is being freed here.
 	 * bpf_sk_reuseport_detach() access this "array"
 	 * through sk->sk_user_data _and_ with sk->sk_callback_lock
-	 * held which is enough because this "array" is not freed
+	 * held which is eanalugh because this "array" is analt freed
 	 * until all sk->sk_user_data has stopped referencing this "array".
 	 *
-	 * Hence, due to the above, taking "reuseport_lock" is not
+	 * Hence, due to the above, taking "reuseport_lock" is analt
 	 * needed here.
 	 */
 
 	/*
-	 * Since reuseport_lock is not taken, sk is accessed under
+	 * Since reuseport_lock is analt taken, sk is accessed under
 	 * rcu_read_lock()
 	 */
 	rcu_read_lock();
@@ -128,8 +128,8 @@ static void reuseport_array_free(struct bpf_map *map)
 		if (sk) {
 			write_lock_bh(&sk->sk_callback_lock);
 			/*
-			 * No need for WRITE_ONCE(). At this point,
-			 * no one is reading it without taking the
+			 * Anal need for WRITE_ONCE(). At this point,
+			 * anal one is reading it without taking the
 			 * sk->sk_callback_lock.
 			 */
 			sk->sk_user_data = NULL;
@@ -140,21 +140,21 @@ static void reuseport_array_free(struct bpf_map *map)
 	rcu_read_unlock();
 
 	/*
-	 * Once reaching here, all sk->sk_user_data is not
-	 * referencing this "array". "array" can be freed now.
+	 * Once reaching here, all sk->sk_user_data is analt
+	 * referencing this "array". "array" can be freed analw.
 	 */
 	bpf_map_area_free(array);
 }
 
 static struct bpf_map *reuseport_array_alloc(union bpf_attr *attr)
 {
-	int numa_node = bpf_map_attr_numa_node(attr);
+	int numa_analde = bpf_map_attr_numa_analde(attr);
 	struct reuseport_array *array;
 
 	/* allocate all map elements and zero-initialize them */
-	array = bpf_map_area_alloc(struct_size(array, ptrs, attr->max_entries), numa_node);
+	array = bpf_map_area_alloc(struct_size(array, ptrs, attr->max_entries), numa_analde);
 	if (!array)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* copy mandatory map attributes */
 	bpf_map_init_from_attr(&array->map, attr);
@@ -169,7 +169,7 @@ int bpf_fd_reuseport_array_lookup_elem(struct bpf_map *map, void *key,
 	int err;
 
 	if (map->value_size != sizeof(u64))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	rcu_read_lock();
 	sk = reuseport_array_lookup_elem(map, key);
@@ -177,7 +177,7 @@ int bpf_fd_reuseport_array_lookup_elem(struct bpf_map *map, void *key,
 		*(u64 *)value = __sock_gen_cookie(sk);
 		err = 0;
 	} else {
-		err = -ENOENT;
+		err = -EANALENT;
 	}
 	rcu_read_unlock();
 
@@ -191,25 +191,25 @@ reuseport_array_update_check(const struct reuseport_array *array,
 			     const struct sock_reuseport *nsk_reuse,
 			     u32 map_flags)
 {
-	if (osk && map_flags == BPF_NOEXIST)
+	if (osk && map_flags == BPF_ANALEXIST)
 		return -EEXIST;
 
 	if (!osk && map_flags == BPF_EXIST)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (nsk->sk_protocol != IPPROTO_UDP && nsk->sk_protocol != IPPROTO_TCP)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (nsk->sk_family != AF_INET && nsk->sk_family != AF_INET6)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (nsk->sk_type != SOCK_STREAM && nsk->sk_type != SOCK_DGRAM)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/*
 	 * sk must be hashed (i.e. listening in the TCP case or binded
 	 * in the UDP case) and
-	 * it must also be a SO_REUSEPORT sk (i.e. reuse cannot be NULL).
+	 * it must also be a SO_REUSEPORT sk (i.e. reuse cananalt be NULL).
 	 *
 	 * Also, sk will be used in bpf helper that is protected by
 	 * rcu_read_lock().
@@ -217,7 +217,7 @@ reuseport_array_update_check(const struct reuseport_array *array,
 	if (!sock_flag(nsk, SOCK_RCU_FREE) || !sk_hashed(nsk) || !nsk_reuse)
 		return -EINVAL;
 
-	/* READ_ONCE because the sk->sk_callback_lock may not be held here */
+	/* READ_ONCE because the sk->sk_callback_lock may analt be held here */
 	if (READ_ONCE(nsk->sk_user_data))
 		return -EBUSY;
 
@@ -290,7 +290,7 @@ int bpf_fd_reuseport_array_update_elem(struct bpf_map *map, void *key,
 	if (err)
 		goto put_file_unlock;
 
-	sk_user_data = (uintptr_t)&array->ptrs[index] | SK_USER_DATA_NOCOPY |
+	sk_user_data = (uintptr_t)&array->ptrs[index] | SK_USER_DATA_ANALCOPY |
 		SK_USER_DATA_BPF;
 	WRITE_ONCE(nsk->sk_user_data, (void *)sk_user_data);
 	rcu_assign_pointer(array->ptrs[index], nsk);
@@ -326,7 +326,7 @@ static int reuseport_array_get_next_key(struct bpf_map *map, void *key,
 	}
 
 	if (index == array->map.max_entries - 1)
-		return -ENOENT;
+		return -EANALENT;
 
 	*next = index + 1;
 	return 0;

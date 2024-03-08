@@ -22,7 +22,7 @@ assemble them into a CXL.mem decode topology. The need for runtime configuration
 of the CXL.mem topology is also similar to RAID in that different environments
 with the same hardware configuration may decide to assemble the topology in
 contrasting ways. One may choose performance (RAID0) striping memory across
-multiple Host Bridges and endpoints while another may opt for fault tolerance
+multiple Host Bridges and endpoints while aanalther may opt for fault tolerance
 and disable any striping in the CXL.mem topology.
 
 Platform firmware enumerates a menu of interleave options at the "CXL root port"
@@ -61,7 +61,7 @@ connected to those downstream ports for a total of 8 endpoints::
                     "pmem_size":"256.00 MiB (268.44 MB)",
                     "ram_size":"256.00 MiB (268.44 MB)",
                     "serial":"0x1",
-                    "numa_node":1,
+                    "numa_analde":1,
                     "host":"cxl_mem.1"
                   }
                 },
@@ -73,7 +73,7 @@ connected to those downstream ports for a total of 8 endpoints::
                     "pmem_size":"256.00 MiB (268.44 MB)",
                     "ram_size":"256.00 MiB (268.44 MB)",
                     "serial":"0x5",
-                    "numa_node":1,
+                    "numa_analde":1,
                     "host":"cxl_mem.5"
                   }
                 }
@@ -91,7 +91,7 @@ connected to those downstream ports for a total of 8 endpoints::
                     "pmem_size":"256.00 MiB (268.44 MB)",
                     "ram_size":"256.00 MiB (268.44 MB)",
                     "serial":"0x7",
-                    "numa_node":1,
+                    "numa_analde":1,
                     "host":"cxl_mem.7"
                   }
                 },
@@ -103,7 +103,7 @@ connected to those downstream ports for a total of 8 endpoints::
                     "pmem_size":"256.00 MiB (268.44 MB)",
                     "ram_size":"256.00 MiB (268.44 MB)",
                     "serial":"0x3",
-                    "numa_node":1,
+                    "numa_analde":1,
                     "host":"cxl_mem.3"
                   }
                 }
@@ -127,7 +127,7 @@ connected to those downstream ports for a total of 8 endpoints::
                     "pmem_size":"256.00 MiB (268.44 MB)",
                     "ram_size":"256.00 MiB (268.44 MB)",
                     "serial":"0",
-                    "numa_node":0,
+                    "numa_analde":0,
                     "host":"cxl_mem.0"
                   }
                 },
@@ -139,7 +139,7 @@ connected to those downstream ports for a total of 8 endpoints::
                     "pmem_size":"256.00 MiB (268.44 MB)",
                     "ram_size":"256.00 MiB (268.44 MB)",
                     "serial":"0x4",
-                    "numa_node":0,
+                    "numa_analde":0,
                     "host":"cxl_mem.4"
                   }
                 }
@@ -157,7 +157,7 @@ connected to those downstream ports for a total of 8 endpoints::
                     "pmem_size":"256.00 MiB (268.44 MB)",
                     "ram_size":"256.00 MiB (268.44 MB)",
                     "serial":"0x6",
-                    "numa_node":0,
+                    "numa_analde":0,
                     "host":"cxl_mem.6"
                   }
                 },
@@ -169,7 +169,7 @@ connected to those downstream ports for a total of 8 endpoints::
                     "pmem_size":"256.00 MiB (268.44 MB)",
                     "ram_size":"256.00 MiB (268.44 MB)",
                     "serial":"0x2",
-                    "numa_node":0,
+                    "numa_analde":0,
                     "host":"cxl_mem.2"
                   }
                 }
@@ -182,7 +182,7 @@ connected to those downstream ports for a total of 8 endpoints::
 
 In that listing each "root", "port", and "endpoint" object correspond a kernel
 'struct cxl_port' object. A 'cxl_port' is a device that can decode CXL.mem to
-its descendants. So "root" claims non-PCIe enumerable platform decode ranges and
+its descendants. So "root" claims analn-PCIe enumerable platform decode ranges and
 decodes them to "ports", "ports" decode to "endpoints", and "endpoints"
 represent the decode from SPA (System Physical Address) to DPA (Device Physical
 Address).
@@ -191,8 +191,8 @@ Continuing the RAID analogy, disks have both topology metadata and on device
 metadata that determine RAID set assembly. CXL Port topology and CXL Port link
 status is metadata for CXL.mem set assembly. The CXL Port topology is enumerated
 by the arrival of a CXL.mem device. I.e. unless and until the PCIe core attaches
-the cxl_pci driver to a CXL Memory Expander there is no role for CXL Port
-objects. Conversely for hot-unplug / removal scenarios, there is no need for
+the cxl_pci driver to a CXL Memory Expander there is anal role for CXL Port
+objects. Conversely for hot-unplug / removal scenarios, there is anal need for
 the Linux PCI core to tear down switch-level CXL resources because the endpoint
 ->remove() event cleans up the port data that was established to support that
 Memory Expander.
@@ -240,7 +240,7 @@ participate can be determined via a command like::
           "pmem_size":"256.00 MiB (268.44 MB)",
           "ram_size":"256.00 MiB (268.44 MB)",
           "serial":"0x2",
-          "numa_node":0,
+          "numa_analde":0,
           "host":"cxl_mem.2"
         }
       ]
@@ -267,7 +267,7 @@ decode scheme can be determined via a command like the following::
             "pmem_size":"256.00 MiB (268.44 MB)",
             "ram_size":"256.00 MiB (268.44 MB)",
             "serial":"0",
-            "numa_node":0,
+            "numa_analde":0,
             "host":"cxl_mem.0"
           },
           {
@@ -275,7 +275,7 @@ decode scheme can be determined via a command like the following::
             "pmem_size":"256.00 MiB (268.44 MB)",
             "ram_size":"256.00 MiB (268.44 MB)",
             "serial":"0x4",
-            "numa_node":0,
+            "numa_analde":0,
             "host":"cxl_mem.4"
           },
           {
@@ -283,7 +283,7 @@ decode scheme can be determined via a command like the following::
             "pmem_size":"256.00 MiB (268.44 MB)",
             "ram_size":"256.00 MiB (268.44 MB)",
             "serial":"0x6",
-            "numa_node":0,
+            "numa_analde":0,
             "host":"cxl_mem.6"
           },
           {
@@ -291,7 +291,7 @@ decode scheme can be determined via a command like the following::
             "pmem_size":"256.00 MiB (268.44 MB)",
             "ram_size":"256.00 MiB (268.44 MB)",
             "serial":"0x2",
-            "numa_node":0,
+            "numa_analde":0,
             "host":"cxl_mem.2"
           }
         ]

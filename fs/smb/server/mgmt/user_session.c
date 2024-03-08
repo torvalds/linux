@@ -100,7 +100,7 @@ int ksmbd_session_rpc_open(struct ksmbd_session *sess, char *rpc_name)
 
 	entry = kzalloc(sizeof(struct ksmbd_session_rpc), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry->method = method;
 	entry->id = ksmbd_ipc_id_alloc();
@@ -203,7 +203,7 @@ static int ksmbd_chann_del(struct ksmbd_conn *conn, struct ksmbd_session *sess)
 
 	chann = xa_erase(&sess->ksmbd_chann_list, (long)conn);
 	if (!chann)
-		return -ENOENT;
+		return -EANALENT;
 
 	kfree(chann);
 	return 0;
@@ -217,7 +217,7 @@ void ksmbd_sessions_deregister(struct ksmbd_conn *conn)
 	down_write(&sessions_table_lock);
 	if (conn->binding) {
 		int bkt;
-		struct hlist_node *tmp;
+		struct hlist_analde *tmp;
 
 		hash_for_each_safe(sessions_table, bkt, tmp, sess, hlist) {
 			if (!ksmbd_chann_del(conn, sess) &&

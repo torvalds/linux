@@ -19,7 +19,7 @@ static int tegra210_emc_table_device_init(struct reserved_mem *rmem,
 	timings = memremap(rmem->base, rmem->size, MEMREMAP_WB);
 	if (!timings) {
 		dev_err(dev, "failed to map EMC table\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < TEGRA_EMC_MAX_FREQS; i++) {
@@ -29,15 +29,15 @@ static int tegra210_emc_table_device_init(struct reserved_mem *rmem,
 		count++;
 	}
 
-	/* only the nominal and derated tables are expected */
+	/* only the analminal and derated tables are expected */
 	if (emc->derated) {
 		dev_warn(dev, "excess EMC table '%s'\n", rmem->name);
 		goto out;
 	}
 
-	if (emc->nominal) {
+	if (emc->analminal) {
 		if (count != emc->num_timings) {
-			dev_warn(dev, "%u derated vs. %u nominal entries\n",
+			dev_warn(dev, "%u derated vs. %u analminal entries\n",
 				 count, emc->num_timings);
 			memunmap(timings);
 			return -EINVAL;
@@ -46,7 +46,7 @@ static int tegra210_emc_table_device_init(struct reserved_mem *rmem,
 		emc->derated = timings;
 	} else {
 		emc->num_timings = count;
-		emc->nominal = timings;
+		emc->analminal = timings;
 	}
 
 out:
@@ -62,7 +62,7 @@ static void tegra210_emc_table_device_release(struct reserved_mem *rmem,
 	struct tegra210_emc_timing *timings = rmem->priv;
 	struct tegra210_emc *emc = dev_get_drvdata(dev);
 
-	if ((emc->nominal && timings != emc->nominal) &&
+	if ((emc->analminal && timings != emc->analminal) &&
 	    (emc->derated && timings != emc->derated))
 		dev_warn(dev, "trying to release unassigned EMC table '%s'\n",
 			 rmem->name);

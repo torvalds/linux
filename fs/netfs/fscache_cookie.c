@@ -105,7 +105,7 @@ static void fscache_init_access_gate(struct fscache_cookie *cookie)
 	n_accesses = atomic_read(&cookie->n_accesses);
 	trace_fscache_access(cookie->debug_id, refcount_read(&cookie->ref),
 			     n_accesses, fscache_access_cache_pin);
-	set_bit(FSCACHE_COOKIE_NO_ACCESS_WAKE, &cookie->flags);
+	set_bit(FSCACHE_COOKIE_ANAL_ACCESS_WAKE, &cookie->flags);
 }
 
 /**
@@ -128,7 +128,7 @@ void fscache_end_cookie_access(struct fscache_cookie *cookie,
 	trace_fscache_access(cookie->debug_id, refcount_read(&cookie->ref),
 			     n_accesses, why);
 	if (n_accesses == 0 &&
-	    !test_bit(FSCACHE_COOKIE_NO_ACCESS_WAKE, &cookie->flags))
+	    !test_bit(FSCACHE_COOKIE_ANAL_ACCESS_WAKE, &cookie->flags))
 		fscache_queue_cookie(cookie, fscache_cookie_get_end_access);
 }
 EXPORT_SYMBOL(fscache_end_cookie_access);
@@ -157,8 +157,8 @@ static void __fscache_begin_cookie_access(struct fscache_cookie *cookie,
  * Attempt to pin the cache to prevent it from going away whilst we're
  * accessing data and returns true if successful.  This works as follows:
  *
- *  (1) If the cookie is not being cached (ie. FSCACHE_COOKIE_IS_CACHING is not
- *      set), we return false to indicate access was not permitted.
+ *  (1) If the cookie is analt being cached (ie. FSCACHE_COOKIE_IS_CACHING is analt
+ *      set), we return false to indicate access was analt permitted.
  *
  *  (2) If the cookie is being cached, we increment its n_accesses count and
  *      then recheck the IS_CACHING flag, ending the access if it got cleared.
@@ -221,18 +221,18 @@ static void fscache_set_cookie_state(struct fscache_cookie *cookie,
 }
 
 /**
- * fscache_cookie_lookup_negative - Note negative lookup
+ * fscache_cookie_lookup_negative - Analte negative lookup
  * @cookie: The cookie that was being looked up
  *
- * Note that some part of the metadata path in the cache doesn't exist and so
- * we can release any waiting readers in the certain knowledge that there's
- * nothing for them to actually read.
+ * Analte that some part of the metadata path in the cache doesn't exist and so
+ * we can release any waiting readers in the certain kanalwledge that there's
+ * analthing for them to actually read.
  *
- * This function uses no locking and must only be called from the state machine.
+ * This function uses anal locking and must only be called from the state machine.
  */
 void fscache_cookie_lookup_negative(struct fscache_cookie *cookie)
 {
-	set_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags);
+	set_bit(FSCACHE_COOKIE_ANAL_DATA_TO_READ, &cookie->flags);
 	fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_CREATING);
 }
 EXPORT_SYMBOL(fscache_cookie_lookup_negative);
@@ -257,7 +257,7 @@ EXPORT_SYMBOL(fscache_resume_after_invalidation);
  * Tell fscache that caching on a cookie needs to be stopped due to some sort
  * of failure.
  *
- * This function uses no locking and must only be called from the state machine.
+ * This function uses anal locking and must only be called from the state machine.
  */
 void fscache_caching_failed(struct fscache_cookie *cookie)
 {
@@ -270,7 +270,7 @@ EXPORT_SYMBOL(fscache_caching_failed);
 
 /*
  * Set the index key in a cookie.  The cookie struct has space for a 16-byte
- * key plus length and hash, but if that's not big enough, it's instead a
+ * key plus length and hash, but if that's analt big eanalugh, it's instead a
  * pointer to a buffer containing 3 bytes of hash, 1 byte of length and then
  * the key data.
  */
@@ -285,7 +285,7 @@ static int fscache_set_key(struct fscache_cookie *cookie,
 	if (index_key_len > sizeof(cookie->inline_key)) {
 		buf = kzalloc(buf_size, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		cookie->key = buf;
 	} else {
 		buf = cookie->inline_key;
@@ -343,17 +343,17 @@ static struct fscache_cookie *fscache_alloc_cookie(
 	cookie->aux_len		= aux_data_len;
 	cookie->object_size	= object_size;
 	if (object_size == 0)
-		__set_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags);
+		__set_bit(FSCACHE_COOKIE_ANAL_DATA_TO_READ, &cookie->flags);
 
 	if (fscache_set_key(cookie, index_key, index_key_len) < 0)
-		goto nomem;
+		goto analmem;
 
 	if (cookie->aux_len <= sizeof(cookie->inline_aux)) {
 		memcpy(cookie->inline_aux, aux_data, cookie->aux_len);
 	} else {
 		cookie->aux = kmemdup(aux_data, cookie->aux_len, GFP_KERNEL);
 		if (!cookie->aux)
-			goto nomem;
+			goto analmem;
 	}
 
 	refcount_set(&cookie->ref, 1);
@@ -369,7 +369,7 @@ static struct fscache_cookie *fscache_alloc_cookie(
 	fscache_see_cookie(cookie, fscache_cookie_new_acquire);
 	return cookie;
 
-nomem:
+analmem:
 	fscache_free_cookie(cookie);
 	return NULL;
 }
@@ -387,7 +387,7 @@ static void fscache_wait_on_collision(struct fscache_cookie *candidate,
 	wait_var_event_timeout(statep, fscache_cookie_is_dropped(wait_for),
 			       20 * HZ);
 	if (!fscache_cookie_is_dropped(wait_for)) {
-		pr_notice("Potential collision c=%08x old: c=%08x",
+		pr_analtice("Potential collision c=%08x old: c=%08x",
 			  candidate->debug_id, wait_for->debug_id);
 		wait_var_event(statep, fscache_cookie_is_dropped(wait_for));
 	}
@@ -402,7 +402,7 @@ static bool fscache_hash_cookie(struct fscache_cookie *candidate)
 {
 	struct fscache_cookie *cursor, *wait_for = NULL;
 	struct hlist_bl_head *h;
-	struct hlist_bl_node *p;
+	struct hlist_bl_analde *p;
 	unsigned int bucket;
 
 	bucket = candidate->key_hash & (ARRAY_SIZE(fscache_cookie_hash) - 1);
@@ -608,7 +608,7 @@ again:
 		/*
 		 * We could race with cookie_lru which may set LRU_DISCARD bit
 		 * but has yet to run the cookie state machine.  If this happens
-		 * and another thread tries to use the cookie, clear LRU_DISCARD
+		 * and aanalther thread tries to use the cookie, clear LRU_DISCARD
 		 * so we don't end up withdrawing the cookie while in use.
 		 */
 		if (test_and_clear_bit(FSCACHE_COOKIE_DO_LRU_DISCARD, &cookie->flags))
@@ -695,7 +695,7 @@ EXPORT_SYMBOL(__fscache_unuse_cookie);
  * Perform work upon the cookie, such as committing its cache state,
  * relinquishing it or withdrawing the backing cache.  We're protected from the
  * cache going away under us as object withdrawal must come through this
- * non-reentrant work item.
+ * analn-reentrant work item.
  */
 static void fscache_cookie_state_machine(struct fscache_cookie *cookie)
 {
@@ -802,7 +802,7 @@ again_locked:
 		clear_bit(FSCACHE_COOKIE_DO_WITHDRAW, &cookie->flags);
 		clear_bit(FSCACHE_COOKIE_DO_LRU_DISCARD, &cookie->flags);
 		clear_bit(FSCACHE_COOKIE_DO_PREP_TO_WRITE, &cookie->flags);
-		set_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags);
+		set_bit(FSCACHE_COOKIE_ANAL_DATA_TO_READ, &cookie->flags);
 		__fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_QUIESCENT);
 		wake = true;
 		goto again_locked;
@@ -842,7 +842,7 @@ static void __fscache_withdraw_cookie(struct fscache_cookie *cookie)
 	int n_accesses;
 	bool unpinned;
 
-	unpinned = test_and_clear_bit(FSCACHE_COOKIE_NO_ACCESS_WAKE, &cookie->flags);
+	unpinned = test_and_clear_bit(FSCACHE_COOKIE_ANAL_ACCESS_WAKE, &cookie->flags);
 
 	/* Need to read the access count after unpinning */
 	n_accesses = atomic_read(&cookie->n_accesses);
@@ -1063,7 +1063,7 @@ void __fscache_invalidate(struct fscache_cookie *cookie,
 		return;
 
 	spin_lock(&cookie->lock);
-	set_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags);
+	set_bit(FSCACHE_COOKIE_ANAL_DATA_TO_READ, &cookie->flags);
 	fscache_update_aux(cookie, aux_data, &new_size);
 	cookie->inval_counter++;
 	trace_fscache_invalidate(cookie, new_size);
@@ -1072,7 +1072,7 @@ void __fscache_invalidate(struct fscache_cookie *cookie,
 	case FSCACHE_COOKIE_STATE_INVALIDATING: /* is_still_valid will catch it */
 	default:
 		spin_unlock(&cookie->lock);
-		_leave(" [no %u]", cookie->state);
+		_leave(" [anal %u]", cookie->state);
 		return;
 
 	case FSCACHE_COOKIE_STATE_LOOKING_UP:

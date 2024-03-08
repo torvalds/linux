@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Fuel gauge driver for Maxim 17042 / 8966 / 8997
- *  Note that Maxim 8966 and 8997 are mfd and this is its subdevice.
+ *  Analte that Maxim 8966 and 8997 are mfd and this is its subdevice.
  *
  * Copyright (C) 2011 Samsung Electronics
  * MyungJoo Ham <myungjoo.ham@samsung.com>
@@ -59,8 +59,8 @@ enum max17042_register {
 	MAX17042_ManName	= 0x20,
 	MAX17042_DevName	= 0x21,
 
-	MAX17042_FullCAPNom	= 0x23,
-	MAX17042_TempNom	= 0x24,
+	MAX17042_FullCAPAnalm	= 0x23,
+	MAX17042_TempAnalm	= 0x24,
 	MAX17042_TempLim	= 0x25,
 	MAX17042_TempHot	= 0x26,
 	MAX17042_AIN		= 0x27,
@@ -168,7 +168,7 @@ enum max17047_register {
 };
 
 enum max170xx_chip_type {
-	MAXIM_DEVICE_TYPE_UNKNOWN	= 0,
+	MAXIM_DEVICE_TYPE_UNKANALWN	= 0,
 	MAXIM_DEVICE_TYPE_MAX17042,
 	MAXIM_DEVICE_TYPE_MAX17047,
 	MAXIM_DEVICE_TYPE_MAX17050,
@@ -219,7 +219,7 @@ struct max17042_config_data {
 
 	/* MG3 save and restore */
 	u16	fullcap;	/* 0x10 */
-	u16	fullcapnom;	/* 0x23 */
+	u16	fullcapanalm;	/* 0x23 */
 	u16	socempty;	/* 0x33 */
 	u16	iavg_empty;	/* 0x36 */
 	u16	dqacc;		/* 0x45 */
@@ -229,12 +229,12 @@ struct max17042_config_data {
 	u16	qrtbl20;	/* 0x32 */
 	u16	qrtbl30;	/* 0x42 */
 
-	/* Cell technology from power_supply.h */
-	u16	cell_technology;
+	/* Cell techanallogy from power_supply.h */
+	u16	cell_techanallogy;
 
 	/* Cell Data */
 	u16	vempty;		/* 0x12 */
-	u16	temp_nom;	/* 0x24 */
+	u16	temp_analm;	/* 0x24 */
 	u16	temp_lim;	/* 0x25 */
 	u16	fctc;		/* 0x37 */
 	u16	rcomp0;		/* 0x38 */
@@ -249,7 +249,7 @@ struct max17042_platform_data {
 	struct max17042_config_data *config_data;
 	int num_init_data; /* Number of enties in init_data array */
 	bool enable_current_sense;
-	bool enable_por_init; /* Use POR init from Maxim appnote */
+	bool enable_por_init; /* Use POR init from Maxim appanalte */
 
 	/*
 	 * R_sns in micro-ohms.

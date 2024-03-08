@@ -52,9 +52,9 @@ OpenRISC工具链和Linux的构建指南
 3) 在FPGA上运行（可选)
 
 OpenRISC社区通常使用FuseSoC来管理构建和编程SoC到FPGA中。 下面是用
-OpenRISC SoC对De0 Nano开发板进行编程的一个例子。 在构建过程中，
+OpenRISC SoC对De0 Naanal开发板进行编程的一个例子。 在构建过程中，
 FPGA RTL是从FuseSoC IP核库中下载的代码，并使用FPGA供应商工具构建。
-二进制文件用openocd加载到电路板上。
+二进制文件用opeanalcd加载到电路板上。
 
 ::
 
@@ -63,10 +63,10 @@ FPGA RTL是从FuseSoC IP核库中下载的代码，并使用FPGA供应商工具�
 	sudo pip install -e .
 
 	fusesoc init
-	fusesoc build de0_nano
-	fusesoc pgm de0_nano
+	fusesoc build de0_naanal
+	fusesoc pgm de0_naanal
 
-	openocd -f interface/altera-usb-blaster.cfg \
+	opeanalcd -f interface/altera-usb-blaster.cfg \
 		-f board/or1k_generic.cfg
 
 	telnet localhost 4444

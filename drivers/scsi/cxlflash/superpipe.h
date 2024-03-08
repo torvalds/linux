@@ -2,7 +2,7 @@
 /*
  * CXL Flash Device Driver
  *
- * Written by: Manoj N. Kumar <manoj@linux.vnet.ibm.com>, IBM Corporation
+ * Written by: Maanalj N. Kumar <maanalj@linux.vnet.ibm.com>, IBM Corporation
  *             Matthew R. Ochs <mrochs@linux.vnet.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2015 IBM Corporation
@@ -14,12 +14,12 @@
 extern struct cxlflash_global global;
 
 /*
- * Terminology: use afu (and not adapter) to refer to the HW.
+ * Termianallogy: use afu (and analt adapter) to refer to the HW.
  * Adapter is the entire slot and includes PSL out of which
  * only the AFU is visible to user space.
  */
 
-/* Chunk size parms: note sislite minimum chunk size is
+/* Chunk size parms: analte sislite minimum chunk size is
  * 0x10000 LBAs corresponding to a NMASK or 16.
  */
 #define MC_CHUNK_SIZE     (1 << MC_RHT_NMASK)	/* in LBAs */
@@ -30,7 +30,7 @@ extern struct cxlflash_global global;
 #define MAX_SECTOR_UNIT  512 /* max_sector is in 512 byte multiples */
 
 enum lun_mode {
-	MODE_NONE = 0,
+	MODE_ANALNE = 0,
 	MODE_VIRTUAL,
 	MODE_PHYSICAL
 };
@@ -39,7 +39,7 @@ enum lun_mode {
 struct glun_info {
 	u64 max_lba;		/* from read cap(16) */
 	u32 blk_len;		/* from read cap(16) */
-	enum lun_mode mode;	/* NONE, VIRTUAL, PHYSICAL */
+	enum lun_mode mode;	/* ANALNE, VIRTUAL, PHYSICAL */
 	int users;		/* Number of users w/ references to LUN */
 
 	u8 wwid[16];
@@ -54,7 +54,7 @@ struct glun_info {
 struct llun_info {
 	u64 lun_id[MAX_FC_PORTS]; /* from REPORT_LUNS */
 	u32 lun_index;		/* Index in the LUN table */
-	u32 host_no;		/* host_no from Scsi_host */
+	u32 host_anal;		/* host_anal from Scsi_host */
 	u32 port_sel;		/* What port to use for this LUN */
 	bool in_table;		/* Whether a LUN table entry was created */
 
@@ -75,7 +75,7 @@ enum ctx_ctrl {
 	CTX_CTRL_CLONE		= (1 << 1),
 	CTX_CTRL_ERR		= (1 << 2),
 	CTX_CTRL_ERR_FALLBACK	= (1 << 3),
-	CTX_CTRL_NOPID		= (1 << 4),
+	CTX_CTRL_ANALPID		= (1 << 4),
 	CTX_CTRL_FILE		= (1 << 5)
 };
 
@@ -111,7 +111,7 @@ struct ctx_info {
 struct cxlflash_global {
 	struct mutex mutex;
 	struct list_head gluns;/* list of glun_info structs */
-	struct page *err_page; /* One page of all 0xF for error notification */
+	struct page *err_page; /* One page of all 0xF for error analtification */
 };
 
 int cxlflash_vlun_resize(struct scsi_device *sdev,

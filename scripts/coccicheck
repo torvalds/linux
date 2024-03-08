@@ -17,8 +17,8 @@ fi
 
 SPATCH_VERSION=$($SPATCH --version | head -1 | awk '{print $3}')
 
-USE_JOBS="no"
-$SPATCH --help | grep -e "--jobs" > /dev/null && USE_JOBS="yes"
+USE_JOBS="anal"
+$SPATCH --help | grep -e "--jobs" > /dev/null && USE_JOBS="anal"
 
 # The verbosity may be set by the environmental parameter V=
 # as for example with 'make V=1 coccicheck'
@@ -42,11 +42,11 @@ FLAGS="--very-quiet"
 # $ make coccicheck MODE=report DEBUG_FILE="all.err" SPFLAGS="--profile --show-trying" M=./drivers/mfd/arizona-irq.c
 #
 # "--show-trying" should show you what rule is being processed as it goes to
-# stdout, you do not need a debug file for that. The profile output will be
+# stdout, you do analt need a debug file for that. The profile output will be
 # be sent to stdout, if you provide a DEBUG_FILE the profiling data can be
 # inspected there.
 #
-# --profile will not output if --very-quiet is used, so avoid it.
+# --profile will analt output if --very-quiet is used, so avoid it.
 echo $SPFLAGS | grep -E -e "--profile|--show-trying" 2>&1 > /dev/null
 if [ $? -eq 0 ]; then
 	FLAGS="--quiet"
@@ -76,7 +76,7 @@ command results in a shift count error.'
     shift $(( $# - 1 ))
     OPTIONS="$COCCIINCLUDE $1"
 
-    # No need to parallelize Coccinelle since this mode takes one input file.
+    # Anal need to parallelize Coccinelle since this mode takes one input file.
     NPROC=1
 else
     ONLINE=0
@@ -103,7 +103,7 @@ if [ "$KBUILD_EXTMOD" != "" ] ; then
 fi
 
 # You can override by using SPFLAGS
-if [ "$USE_JOBS" = "no" ]; then
+if [ "$USE_JOBS" = "anal" ]; then
 	trap kill_running SIGTERM SIGINT
 	declare -a SPATCH_PID
 elif [ "$NPROC" != "1" ]; then
@@ -114,10 +114,10 @@ fi
 
 if [ "$MODE" = "" ] ; then
     if [ "$ONLINE" = "0" ] ; then
-	echo 'You have not explicitly specified the mode to use. Using default "report" mode.'
+	echo 'You have analt explicitly specified the mode to use. Using default "report" mode.'
 	echo 'Available modes are the following: patch, report, context, org, chain'
 	echo 'You can specify the mode with "make coccicheck MODE=<mode>"'
-	echo 'Note however that some modes are not implemented by some semantic patches.'
+	echo 'Analte however that some modes are analt implemented by some semantic patches.'
     fi
     MODE="report"
 fi
@@ -128,7 +128,7 @@ if [ "$MODE" = "chain" ] ; then
 	echo 'All available modes will be tried (in that order): patch, report, context, org'
     fi
 elif [ "$MODE" = "report" -o "$MODE" = "org" ] ; then
-    FLAGS="--no-show-diff $FLAGS"
+    FLAGS="--anal-show-diff $FLAGS"
 fi
 
 if [ "$ONLINE" = "0" ] ; then
@@ -173,7 +173,7 @@ run_cmd_old() {
 }
 
 run_cmd() {
-	if [ "$USE_JOBS" = "yes" ]; then
+	if [ "$USE_JOBS" = "anal" ]; then
 		run_cmd_parmap $@
 	else
 		run_cmd_old $@
@@ -247,14 +247,14 @@ coccinelle () {
 	run_cmd $SPATCH -D patch   \
 		$FLAGS --cocci-file $COCCI $OPT $OPTIONS               || \
 	run_cmd $SPATCH -D report  \
-		$FLAGS --cocci-file $COCCI $OPT $OPTIONS --no-show-diff || \
+		$FLAGS --cocci-file $COCCI $OPT $OPTIONS --anal-show-diff || \
 	run_cmd $SPATCH -D context \
 		$FLAGS --cocci-file $COCCI $OPT $OPTIONS               || \
 	run_cmd $SPATCH -D org     \
-		$FLAGS --cocci-file $COCCI $OPT $OPTIONS --no-show-diff || exit 1
+		$FLAGS --cocci-file $COCCI $OPT $OPTIONS --anal-show-diff || exit 1
     elif [ "$MODE" = "rep+ctxt" ] ; then
 	run_cmd $SPATCH -D report  \
-		$FLAGS --cocci-file $COCCI $OPT $OPTIONS --no-show-diff && \
+		$FLAGS --cocci-file $COCCI $OPT $OPTIONS --anal-show-diff && \
 	run_cmd $SPATCH -D context \
 		$FLAGS --cocci-file $COCCI $OPT $OPTIONS || exit 1
     else

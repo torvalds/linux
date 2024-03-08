@@ -33,10 +33,10 @@ static u32 rxrpc_bound_rto(u32 rto)
 /*
  * Called to compute a smoothed rtt estimate. The data fed to this
  * routine either comes from timestamps, or from segments that were
- * known _not_ to have been retransmitted [see Karn/Partridge
+ * kanalwn _analt_ to have been retransmitted [see Karn/Partridge
  * Proceedings SIGCOMM 87]. The algorithm is from the SIGCOMM 88
  * piece by Van Jacobson.
- * NOTE: the next three routines used to be one big routine.
+ * ANALTE: the next three routines used to be one big routine.
  * To save cycles in the RFC 1323 implementation it was better to break
  * it up into three procedures. -- erics
  */
@@ -46,7 +46,7 @@ static void rxrpc_rtt_estimator(struct rxrpc_peer *peer, long sample_rtt_us)
 	u32 srtt = peer->srtt_us;
 
 	/*	The following amusing code comes from Jacobson's
-	 *	article in SIGCOMM '88.  Note that rtt and mdev
+	 *	article in SIGCOMM '88.  Analte that rtt and mdev
 	 *	are scaled versions of rtt and mean deviation.
 	 *	This is designed to be as fast as possible
 	 *	m stands for "measurement".
@@ -58,14 +58,14 @@ static void rxrpc_rtt_estimator(struct rxrpc_peer *peer, long sample_rtt_us)
 	 * These formulae increase RTO, when it should be decreased, increase
 	 * too slowly, when it should be increased quickly, decrease too quickly
 	 * etc. I guess in BSD RTO takes ONE value, so that it is absolutely
-	 * does not matter how to _calculate_ it. Seems, it was trap
+	 * does analt matter how to _calculate_ it. Seems, it was trap
 	 * that VJ failed to avoid. 8)
 	 */
 	if (srtt != 0) {
-		m -= (srtt >> 3);	/* m is now error in rtt est */
+		m -= (srtt >> 3);	/* m is analw error in rtt est */
 		srtt += m;		/* rtt = 7/8 rtt + 1/8 new */
 		if (m < 0) {
-			m = -m;		/* m is now abs(error) */
+			m = -m;		/* m is analw abs(error) */
 			m -= (peer->mdev_us >> 2);   /* similar update on mdev */
 			/* This is similar to one of Eifel findings.
 			 * Eifel blocks mdev updates when rtt decreases.
@@ -88,7 +88,7 @@ static void rxrpc_rtt_estimator(struct rxrpc_peer *peer, long sample_rtt_us)
 				peer->rttvar_us = peer->mdev_max_us;
 		}
 	} else {
-		/* no previous measure. */
+		/* anal previous measure. */
 		srtt = m << 3;		/* take the measured time to be rtt */
 		peer->mdev_us = m << 1;	/* make sure rto = 3*rtt */
 		peer->rttvar_us = max(peer->mdev_us, rxrpc_rto_min_us(peer));
@@ -107,21 +107,21 @@ static void rxrpc_set_rto(struct rxrpc_peer *peer)
 	u32 rto;
 
 	/* 1. If rtt variance happened to be less 50msec, it is hallucination.
-	 *    It cannot be less due to utterly erratic ACK generation made
-	 *    at least by solaris and freebsd. "Erratic ACKs" has _nothing_
+	 *    It cananalt be less due to utterly erratic ACK generation made
+	 *    at least by solaris and freebsd. "Erratic ACKs" has _analthing_
 	 *    to do with delayed acks, because at cwnd>2 true delack timeout
 	 *    is invisible. Actually, Linux-2.4 also generates erratic
 	 *    ACKs in some circumstances.
 	 */
 	rto = __rxrpc_set_rto(peer);
 
-	/* 2. Fixups made earlier cannot be right.
-	 *    If we do not estimate RTO correctly without them,
+	/* 2. Fixups made earlier cananalt be right.
+	 *    If we do analt estimate RTO correctly without them,
 	 *    all the algo is pure shit and should be replaced
 	 *    with correct one. It is exactly, which we pretend to do.
 	 */
 
-	/* NOTE: clamping at RXRPC_RTO_MIN is not required, current algo
+	/* ANALTE: clamping at RXRPC_RTO_MIN is analt required, current algo
 	 * guarantees that rto is higher.
 	 */
 	peer->rto_j = rxrpc_bound_rto(rto);

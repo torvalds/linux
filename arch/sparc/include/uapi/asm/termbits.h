@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_SPARC_TERMBITS_H
 #define _UAPI_SPARC_TERMBITS_H
 
@@ -117,8 +117,8 @@ struct ktermios {
 #define FFDLY	0x08000
 #define   FF0	0x00000
 #define   FF1	0x08000
-#define PAGEOUT 0x10000			/* SUNOS specific */
-#define WRAP    0x20000			/* SUNOS specific */
+#define PAGEOUT 0x10000			/* SUANALS specific */
+#define WRAP    0x20000			/* SUANALS specific */
 
 /* c_cflag bit meaning */
 #define CBAUD		0x0000100f
@@ -154,29 +154,29 @@ struct ktermios {
 #define   B1152000	0x0000100d
 #define   B1500000	0x0000100e
 #define   B2000000	0x0000100f
-/* These have totally bogus values and nobody uses them
+/* These have totally bogus values and analbody uses them
    so far. Later on we'd have to use say 0x10000x and
    adjust CBAUD constant and drivers accordingly.
 #define   B2500000	0x00001010
 #define   B3000000	0x00001011
 #define   B3500000	0x00001012
 #define   B4000000	0x00001013 */
-#define CIBAUD		0x100f0000	/* input baud rate (not used) */
+#define CIBAUD		0x100f0000	/* input baud rate (analt used) */
 
 /* c_lflag bits */
 #define ISIG	0x00000001
-#define ICANON	0x00000002
+#define ICAANALN	0x00000002
 #define XCASE	0x00000004
 #define ECHO	0x00000008
 #define ECHOE	0x00000010
 #define ECHOK	0x00000020
 #define ECHONL	0x00000040
-#define NOFLSH	0x00000080
+#define ANALFLSH	0x00000080
 #define TOSTOP	0x00000100
 #define ECHOCTL	0x00000200
 #define ECHOPRT	0x00000400
 #define ECHOKE	0x00000800
-#define DEFECHO 0x00001000		/* SUNOS thing, what is it? */
+#define DEFECHO 0x00001000		/* SUANALS thing, what is it? */
 #define FLUSHO	0x00002000
 #define PENDIN	0x00004000
 #define IEXTEN	0x00008000
@@ -202,7 +202,7 @@ struct ktermios {
 #define TIOCSER_TEMT    0x01	/* Transmitter physically empty */
 
 /* tcsetattr uses these */
-#define TCSANOW		0
+#define TCSAANALW		0
 #define TCSADRAIN	1
 #define TCSAFLUSH	2
 

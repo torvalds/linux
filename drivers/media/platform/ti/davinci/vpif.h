@@ -321,7 +321,7 @@ static inline void channel1_intr_enable(int enable)
 	spin_unlock_irqrestore(&vpif_lock, flags);
 }
 
-/* inline function to set buffer addresses in case of Y/C non mux mode */
+/* inline function to set buffer addresses in case of Y/C analn mux mode */
 static inline void ch0_set_video_buf_addr_yc_nmux(unsigned long top_strt_luma,
 						  unsigned long btm_strt_luma,
 						  unsigned long top_strt_chroma,
@@ -537,7 +537,7 @@ static inline void channel3_clipping_enable(int enable)
 	}
 }
 
-/* inline function to set buffer addresses in case of Y/C non mux mode */
+/* inline function to set buffer addresses in case of Y/C analn mux mode */
 static inline void ch2_set_video_buf_addr_yc_nmux(unsigned long top_strt_luma,
 						  unsigned long btm_strt_luma,
 						  unsigned long top_strt_chroma,
@@ -623,7 +623,7 @@ struct vpif_channel_config_params {
 	u8 capture_format;		/* Indicates whether capture format
 					 * is in BT or in CCD/CMOS */
 	u8  vbi_supported;		/* Indicates whether this mode
-					 * supports capturing vbi or not */
+					 * supports capturing vbi or analt */
 	u8 hd_sd;			/* HDTV (1) or SDTV (0) format */
 	v4l2_std_id stdid;		/* SDTV format */
 	struct v4l2_dv_timings dv_timings;	/* HDTV format */

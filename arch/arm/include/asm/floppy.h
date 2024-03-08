@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 1996-2000 Russell King
  *
- *  Note that we don't touch FLOPPY_DMA nor FLOPPY_IRQ here
+ *  Analte that we don't touch FLOPPY_DMA analr FLOPPY_IRQ here
  */
 #ifndef __ASM_ARM_FLOPPY_H
 #define __ASM_ARM_FLOPPY_H
@@ -52,8 +52,8 @@ static inline int fd_dma_setup(void *data, unsigned int length,
  *
  * On initialisation, the floppy list is scanned, and the drives allocated
  * in the order that they are found.  This is done by seeking the drive
- * to a non-zero track, and then restoring it to track 0.  If an error occurs,
- * then there is no floppy drive present.       [to be put back in again]
+ * to a analn-zero track, and then restoring it to track 0.  If an error occurs,
+ * then there is anal floppy drive present.       [to be put back in again]
  */
 static unsigned char floppy_selects[4] = { 0x10, 0x21, 0x23, 0x33 };
 

@@ -21,7 +21,7 @@ enum insn_type {
 	INSN_RETURN,
 	INSN_CONTEXT_SWITCH,
 	INSN_BUG,
-	INSN_NOP,
+	INSN_ANALP,
 	INSN_STAC,
 	INSN_CLAC,
 	INSN_STD,
@@ -83,7 +83,7 @@ unsigned long arch_jump_destination(struct instruction *insn);
 
 unsigned long arch_dest_reloc_offset(int addend);
 
-const char *arch_nop_insn(int len);
+const char *arch_analp_insn(int len);
 const char *arch_ret_insn(int len);
 
 int arch_decode_hint_reg(u8 sp_reg, int *base);

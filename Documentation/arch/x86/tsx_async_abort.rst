@@ -11,8 +11,8 @@ Overview
 TSX Async Abort (TAA) is a side channel attack on internal buffers in some
 Intel processors similar to Microachitectural Data Sampling (MDS).  In this
 case certain loads may speculatively pass invalid data to dependent operations
-when an asynchronous abort condition is pending in a Transactional
-Synchronization Extensions (TSX) transaction.  This includes loads with no
+when an asynchroanalus abort condition is pending in a Transactional
+Synchronization Extensions (TSX) transaction.  This includes loads with anal
 fault or assist condition. Such loads may speculatively expose stale data from
 the same uarch data structures as in MDS, with same scope of exposure i.e.
 same-thread and cross-thread. This issue affects all current processors that
@@ -34,7 +34,7 @@ Kernel internal mitigation modes
 --------------------------------
 
  =============    ============================================================
- off              Mitigation is disabled. Either the CPU is not affected or
+ off              Mitigation is disabled. Either the CPU is analt affected or
                   tsx_async_abort=off is supplied on the kernel command line.
 
  tsx disabled     Mitigation is enabled. TSX feature is disabled by default at
@@ -43,15 +43,15 @@ Kernel internal mitigation modes
  verw             Mitigation is enabled. CPU is affected and MD_CLEAR is
                   advertised in CPUID.
 
- ucode needed     Mitigation is enabled. CPU is affected and MD_CLEAR is not
+ ucode needed     Mitigation is enabled. CPU is affected and MD_CLEAR is analt
                   advertised in CPUID. That is mainly for virtualization
                   scenarios where the host has the updated microcode but the
-                  hypervisor does not expose MD_CLEAR in CPUID. It's a best
+                  hypervisor does analt expose MD_CLEAR in CPUID. It's a best
                   effort approach without guarantee.
  =============    ============================================================
 
 If the CPU is affected and the "tsx_async_abort" kernel command line parameter is
-not provided then the kernel selects an appropriate mitigation depending on the
+analt provided then the kernel selects an appropriate mitigation depending on the
 status of RTM and MD_CLEAR CPUID bits.
 
 Below tables indicate the impact of tsx=on|off|auto cmdline options on state of
@@ -63,14 +63,14 @@ MSR_IA32_ARCH_CAPABILITIES bits.
 =========  =========  ============  ============  ==============  ===================  ======================
 MSR_IA32_ARCH_CAPABILITIES bits     Result with cmdline tsx=off
 ----------------------------------  -------------------------------------------------------------------------
-TAA_NO     MDS_NO     TSX_CTRL_MSR  TSX state     VERW can clear  TAA mitigation       TAA mitigation
+TAA_ANAL     MDS_ANAL     TSX_CTRL_MSR  TSX state     VERW can clear  TAA mitigation       TAA mitigation
                                     after bootup  CPU buffers     tsx_async_abort=off  tsx_async_abort=full
 =========  =========  ============  ============  ==============  ===================  ======================
-    0          0           0         HW default         Yes           Same as MDS           Same as MDS
+    0          0           0         HW default         Anal           Same as MDS           Same as MDS
     0          0           1        Invalid case   Invalid case       Invalid case          Invalid case
-    0          1           0         HW default         No         Need ucode update     Need ucode update
-    0          1           1          Disabled          Yes           TSX disabled          TSX disabled
-    1          X           1          Disabled           X             None needed           None needed
+    0          1           0         HW default         Anal         Need ucode update     Need ucode update
+    0          1           1          Disabled          Anal           TSX disabled          TSX disabled
+    1          X           1          Disabled           X             Analne needed           Analne needed
 =========  =========  ============  ============  ==============  ===================  ======================
 
 2. "tsx=on"
@@ -78,14 +78,14 @@ TAA_NO     MDS_NO     TSX_CTRL_MSR  TSX state     VERW can clear  TAA mitigation
 =========  =========  ============  ============  ==============  ===================  ======================
 MSR_IA32_ARCH_CAPABILITIES bits     Result with cmdline tsx=on
 ----------------------------------  -------------------------------------------------------------------------
-TAA_NO     MDS_NO     TSX_CTRL_MSR  TSX state     VERW can clear  TAA mitigation       TAA mitigation
+TAA_ANAL     MDS_ANAL     TSX_CTRL_MSR  TSX state     VERW can clear  TAA mitigation       TAA mitigation
                                     after bootup  CPU buffers     tsx_async_abort=off  tsx_async_abort=full
 =========  =========  ============  ============  ==============  ===================  ======================
-    0          0           0         HW default        Yes            Same as MDS          Same as MDS
+    0          0           0         HW default        Anal            Same as MDS          Same as MDS
     0          0           1        Invalid case   Invalid case       Invalid case         Invalid case
-    0          1           0         HW default        No          Need ucode update     Need ucode update
-    0          1           1          Enabled          Yes               None              Same as MDS
-    1          X           1          Enabled          X              None needed          None needed
+    0          1           0         HW default        Anal          Need ucode update     Need ucode update
+    0          1           1          Enabled          Anal               Analne              Same as MDS
+    1          X           1          Enabled          X              Analne needed          Analne needed
 =========  =========  ============  ============  ==============  ===================  ======================
 
 3. "tsx=auto"
@@ -93,14 +93,14 @@ TAA_NO     MDS_NO     TSX_CTRL_MSR  TSX state     VERW can clear  TAA mitigation
 =========  =========  ============  ============  ==============  ===================  ======================
 MSR_IA32_ARCH_CAPABILITIES bits     Result with cmdline tsx=auto
 ----------------------------------  -------------------------------------------------------------------------
-TAA_NO     MDS_NO     TSX_CTRL_MSR  TSX state     VERW can clear  TAA mitigation       TAA mitigation
+TAA_ANAL     MDS_ANAL     TSX_CTRL_MSR  TSX state     VERW can clear  TAA mitigation       TAA mitigation
                                     after bootup  CPU buffers     tsx_async_abort=off  tsx_async_abort=full
 =========  =========  ============  ============  ==============  ===================  ======================
-    0          0           0         HW default    Yes                Same as MDS           Same as MDS
+    0          0           0         HW default    Anal                Same as MDS           Same as MDS
     0          0           1        Invalid case  Invalid case        Invalid case          Invalid case
-    0          1           0         HW default    No              Need ucode update     Need ucode update
-    0          1           1          Disabled      Yes               TSX disabled          TSX disabled
-    1          X           1          Enabled       X                 None needed           None needed
+    0          1           0         HW default    Anal              Need ucode update     Need ucode update
+    0          1           1          Disabled      Anal               TSX disabled          TSX disabled
+    1          X           1          Enabled       X                 Analne needed           Analne needed
 =========  =========  ============  ============  ==============  ===================  ======================
 
 In the tables, TSX_CTRL_MSR is a new bit in MSR_IA32_ARCH_CAPABILITIES that

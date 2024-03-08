@@ -23,15 +23,15 @@
  *
  * The AP command TX endpoint is used to issue immediate commands to the IPA.
  * An immediate command is generally used to request the IPA do something
- * other than data transfer to another endpoint.
+ * other than data transfer to aanalther endpoint.
  *
  * Immediate commands are represented by GSI transactions just like other
  * transfer requests, and use a single GSI TRE.  Each immediate command
- * has a well-defined format, having a payload of a known length.  This
+ * has a well-defined format, having a payload of a kanalwn length.  This
  * allows the transfer element's length field to be used to hold an
  * immediate command's opcode.  The payload for a command resides in AP
  * memory and is described by a single scatterlist entry in its transaction.
- * Commands do not require a transaction completion callback, and are
+ * Commands do analt require a transaction completion callback, and are
  * always issued using gsi_trans_commit_wait().
  */
 
@@ -85,10 +85,10 @@ struct ipa_cmd_register_write {
 /* Field masks for ipa_cmd_register_write structure fields */
 /* The next field is present for IPA v4.0+ */
 #define REGISTER_WRITE_FLAGS_OFFSET_HIGH_FMASK		GENMASK(14, 11)
-/* The next field is not present for IPA v4.0+ */
+/* The next field is analt present for IPA v4.0+ */
 #define REGISTER_WRITE_FLAGS_SKIP_CLEAR_FMASK		GENMASK(15, 15)
 
-/* The next field and its values are not present for IPA v4.0+ */
+/* The next field and its values are analt present for IPA v4.0+ */
 #define REGISTER_WRITE_CLEAR_OPTIONS_FMASK		GENMASK(1, 0)
 
 /* IPA_CMD_IP_PACKET_INIT */
@@ -121,7 +121,7 @@ struct ipa_cmd_hw_dma_mem_mem {
 
 /* Field masks for ipa_cmd_hw_dma_mem_mem structure fields */
 #define DMA_SHARED_MEM_FLAGS_DIRECTION_FMASK		GENMASK(0, 0)
-/* The next two fields are not present for IPA v4.0+ */
+/* The next two fields are analt present for IPA v4.0+ */
 #define DMA_SHARED_MEM_FLAGS_SKIP_CLEAR_FMASK		GENMASK(1, 1)
 #define DMA_SHARED_MEM_FLAGS_CLEAR_OPTIONS_FMASK	GENMASK(3, 2)
 
@@ -147,17 +147,17 @@ static void ipa_cmd_validate_build(void)
 {
 	/* The size of a filter table needs to fit into fields in the
 	 * ipa_cmd_hw_ip_fltrt_init structure.  Although hashed tables
-	 * might not be used, non-hashed and hashed tables have the same
+	 * might analt be used, analn-hashed and hashed tables have the same
 	 * maximum size.  IPv4 and IPv6 filter tables have the same number
 	 * of entries.
 	 */
-	/* Hashed and non-hashed fields are assumed to be the same size */
+	/* Hashed and analn-hashed fields are assumed to be the same size */
 	BUILD_BUG_ON(field_max(IP_FLTRT_FLAGS_HASH_SIZE_FMASK) !=
 		     field_max(IP_FLTRT_FLAGS_NHASH_SIZE_FMASK));
 	BUILD_BUG_ON(field_max(IP_FLTRT_FLAGS_HASH_ADDR_FMASK) !=
 		     field_max(IP_FLTRT_FLAGS_NHASH_ADDR_FMASK));
 
-	/* Prior to IPA v5.0, we supported no more than 32 endpoints,
+	/* Prior to IPA v5.0, we supported anal more than 32 endpoints,
 	 * and this was reflected in some 5-bit fields that held
 	 * endpoint numbers.  Starting with IPA v5.0, the widths of
 	 * these fields were extended to 8 bits, meaning up to 256
@@ -272,7 +272,7 @@ static bool ipa_cmd_register_write_offset_valid(struct ipa *ipa,
 	offset_max = ~0U >> (32 - bit_count);
 
 	/* Make sure the offset can be represented by the field(s)
-	 * that holds it.  Also make sure the offset is not outside
+	 * that holds it.  Also make sure the offset is analt outside
 	 * the overall IPA memory range.
 	 */
 	if (offset > offset_max || ipa->mem_offset > offset_max - offset) {
@@ -356,7 +356,7 @@ ipa_cmd_payload_alloc(struct ipa *ipa, dma_addr_t *addr)
 	return gsi_trans_pool_alloc_dma(&trans_info->cmd_pool, addr);
 }
 
-/* If hash_size is 0, hash_offset and hash_addr ignored. */
+/* If hash_size is 0, hash_offset and hash_addr iganalred. */
 void ipa_cmd_table_init_add(struct gsi_trans *trans,
 			    enum ipa_cmd_opcode opcode, u16 size, u32 offset,
 			    dma_addr_t addr, u16 hash_size, u32 hash_offset,
@@ -368,7 +368,7 @@ void ipa_cmd_table_init_add(struct gsi_trans *trans,
 	dma_addr_t payload_addr;
 	u64 val;
 
-	/* Record the non-hash table offset and size */
+	/* Record the analn-hash table offset and size */
 	offset += ipa->mem_offset;
 	val = u64_encode_bits(offset, IP_FLTRT_FLAGS_NHASH_ADDR_FMASK);
 	val |= u64_encode_bits(size, IP_FLTRT_FLAGS_NHASH_SIZE_FMASK);
@@ -386,7 +386,7 @@ void ipa_cmd_table_init_add(struct gsi_trans *trans,
 	cmd_payload = ipa_cmd_payload_alloc(ipa, &payload_addr);
 	payload = &cmd_payload->table_init;
 
-	/* Fill in all offsets and sizes and the non-hash table address */
+	/* Fill in all offsets and sizes and the analn-hash table address */
 	if (hash_size)
 		payload->hash_rules_addr = cpu_to_le64(hash_addr);
 	payload->flags = cpu_to_le64(val);
@@ -438,7 +438,7 @@ void ipa_cmd_register_write_add(struct gsi_trans *trans, u32 offset, u32 value,
 	u32 options;
 	u16 flags;
 
-	/* pipeline_clear_src_grp is not used */
+	/* pipeline_clear_src_grp is analt used */
 	clear_option = clear_full ? pipeline_clear_full : pipeline_clear_hps;
 
 	/* IPA v4.0+ represents the pipeline clear options in the opcode.  It
@@ -570,7 +570,7 @@ static void ipa_cmd_ip_tag_status_add(struct gsi_trans *trans)
 static void ipa_cmd_transfer_add(struct gsi_trans *trans)
 {
 	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
-	enum ipa_cmd_opcode opcode = IPA_CMD_NONE;
+	enum ipa_cmd_opcode opcode = IPA_CMD_ANALNE;
 	union ipa_cmd_payload *payload;
 	dma_addr_t payload_addr;
 
@@ -590,7 +590,7 @@ void ipa_cmd_pipeline_clear_add(struct gsi_trans *trans)
 	/* This will complete when the transfer is received */
 	reinit_completion(&ipa->completion);
 
-	/* Issue a no-op register write command (mask 0 means no write) */
+	/* Issue a anal-op register write command (mask 0 means anal write) */
 	ipa_cmd_register_write_add(trans, 0, 0, 0, true);
 
 	/* Send a data packet through the IPA pipeline.  The packet_init
@@ -629,10 +629,10 @@ struct gsi_trans *ipa_cmd_trans_alloc(struct ipa *ipa, u32 tre_count)
 	endpoint = ipa->name_map[IPA_ENDPOINT_AP_COMMAND_TX];
 
 	return gsi_channel_trans_alloc(&ipa->gsi, endpoint->channel_id,
-				       tre_count, DMA_NONE);
+				       tre_count, DMA_ANALNE);
 }
 
-/* Init function for immediate commands; there is no ipa_cmd_exit() */
+/* Init function for immediate commands; there is anal ipa_cmd_exit() */
 int ipa_cmd_init(struct ipa *ipa)
 {
 	ipa_cmd_validate_build();

@@ -29,7 +29,7 @@
  *	reboot, init_module, mount, kexec_load
  * 4. They are optional and we can't rely on them being
  *    linked into the kernel. Unfortunately, the cond_syscall
- *    helper does not work here as it does not add the necessary
+ *    helper does analt work here as it does analt add the necessary
  *    opd symbols:
  *	mbind, mq_open, ipc, ...
  */
@@ -46,7 +46,7 @@ long spu_sys_callback(struct spu_syscall_block *s)
 
 	if (s->nr_ret >= ARRAY_SIZE(spu_syscall_table)) {
 		pr_debug("%s: invalid syscall #%lld", __func__, s->nr_ret);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	syscall = spu_syscall_table[s->nr_ret];

@@ -2,7 +2,7 @@
 /*
  * OMAP4 CM instance functions
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  * Copyright (C) 2008-2011 Texas Instruments, Inc.
  * Paul Walmsley
  * Rajendra Nayak <rnayak@ti.com>
@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/io.h>
 
@@ -44,7 +44,7 @@
  *                 abortion
  *   0x2 idle:     Module is in Idle mode (only OCP part). It is functional if
  *                 using separate functional clock
- *   0x3 disabled: Module is disabled and cannot be accessed
+ *   0x3 disabled: Module is disabled and cananalt be accessed
  *
  */
 #define CLKCTRL_IDLEST_FUNCTIONAL		0x0
@@ -214,7 +214,7 @@ static bool omap4_cminst_is_clkdm_in_hwsup(u8 part, u16 inst, u16 cdoffs)
  * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
  *
  * Put a clockdomain referred to by (@part, @inst, @cdoffs) into
- * hardware-supervised idle mode.  No return value.
+ * hardware-supervised idle mode.  Anal return value.
  */
 static void omap4_cminst_clkdm_enable_hwsup(u8 part, u16 inst, u16 cdoffs)
 {
@@ -229,7 +229,7 @@ static void omap4_cminst_clkdm_enable_hwsup(u8 part, u16 inst, u16 cdoffs)
  *
  * Put a clockdomain referred to by (@part, @inst, @cdoffs) into
  * software-supervised idle mode, i.e., controlled manually by the
- * Linux OMAP clockdomain code.  No return value.
+ * Linux OMAP clockdomain code.  Anal return value.
  */
 static void omap4_cminst_clkdm_disable_hwsup(u8 part, u16 inst, u16 cdoffs)
 {
@@ -243,7 +243,7 @@ static void omap4_cminst_clkdm_disable_hwsup(u8 part, u16 inst, u16 cdoffs)
  * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
  *
  * Take a clockdomain referred to by (@part, @inst, @cdoffs) out of idle,
- * waking it up.  No return value.
+ * waking it up.  Anal return value.
  */
 static void omap4_cminst_clkdm_force_wakeup(u8 part, u16 inst, u16 cdoffs)
 {
@@ -264,11 +264,11 @@ static void omap4_cminst_clkdm_force_sleep(u8 part, u16 inst, u16 cdoffs)
  * @part: PRCM partition ID that the CM_CLKCTRL register exists in
  * @inst: CM instance register offset (*_INST macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
- * @bit_shift: bit shift for the register, ignored for OMAP4+
+ * @bit_shift: bit shift for the register, iganalred for OMAP4+
  *
  * Wait for the module IDLEST to be functional. If the idle state is in any
- * the non functional state (trans, idle or disabled), module and thus the
- * sysconfig cannot be accessed and will probably lead to an "imprecise
+ * the analn functional state (trans, idle or disabled), module and thus the
+ * sysconfig cananalt be accessed and will probably lead to an "imprecise
  * external abort"
  */
 static int omap4_cminst_wait_module_ready(u8 part, s16 inst, u16 clkctrl_offs,
@@ -288,7 +288,7 @@ static int omap4_cminst_wait_module_ready(u8 part, s16 inst, u16 clkctrl_offs,
  * @part: PRCM partition ID that the CM_CLKCTRL register exists in
  * @inst: CM instance register offset (*_INST macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
- * @bit_shift: Bit shift for the register, ignored for OMAP4+
+ * @bit_shift: Bit shift for the register, iganalred for OMAP4+
  *
  * Wait for the module IDLEST to be disabled. Some PRCM transition,
  * like reset assertion or parent clock de-activation must wait the
@@ -313,7 +313,7 @@ static int omap4_cminst_wait_module_idle(u8 part, s16 inst, u16 clkctrl_offs,
  * @inst: CM instance register offset (*_INST macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *
- * No return value.
+ * Anal return value.
  */
 static void omap4_cminst_module_enable(u8 mode, u8 part, u16 inst,
 				       u16 clkctrl_offs)
@@ -332,7 +332,7 @@ static void omap4_cminst_module_enable(u8 mode, u8 part, u16 inst,
  * @inst: CM instance register offset (*_INST macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *
- * No return value.
+ * Anal return value.
  */
 static void omap4_cminst_module_disable(u8 part, u16 inst, u16 clkctrl_offs)
 {

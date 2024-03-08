@@ -11,7 +11,7 @@ maintainers:
 
 description:
   This document describes the hardware for a component that loads and boots firmware
-  on the Qualcomm Technology Inc. ADSP.
+  on the Qualcomm Techanallogy Inc. ADSP.
 
 properties:
   compatible:
@@ -25,7 +25,7 @@ properties:
 
   iommus:
     items:
-      - description: Phandle to apps_smmu node with sid mask
+      - description: Phandle to apps_smmu analde with sid mask
 
   interrupts:
     items:
@@ -33,8 +33,8 @@ properties:
       - description: Fatal interrupt
       - description: Ready interrupt
       - description: Handover interrupt
-      - description: Stop acknowledge interrupt
-      - description: Shutdown acknowledge interrupt
+      - description: Stop ackanalwledge interrupt
+      - description: Shutdown ackanalwledge interrupt
 
   interrupt-names:
     items:
@@ -48,12 +48,12 @@ properties:
   clocks:
     items:
       - description: XO clock
-      - description: GCC CFG NOC LPASS clock
+      - description: GCC CFG ANALC LPASS clock
 
   clock-names:
     items:
       - const: xo
-      - const: gcc_cfg_noc_lpass
+      - const: gcc_cfg_analc_lpass
 
   power-domains:
     items:
@@ -105,7 +105,7 @@ properties:
     type: object
     unevaluatedProperties: false
     description: |
-      Qualcomm G-Link subnode which represents communication edge, channels
+      Qualcomm G-Link subanalde which represents communication edge, channels
       and devices related to the ADSP.
 
     properties:
@@ -164,8 +164,8 @@ examples:
                 "handover", "stop-ack", "shutdown-ack";
 
         clocks = <&rpmhcc RPMH_CXO_CLK>,
-                 <&gcc GCC_CFG_NOC_LPASS_CLK>;
-        clock-names = "xo", "gcc_cfg_noc_lpass";
+                 <&gcc GCC_CFG_ANALC_LPASS_CLK>;
+        clock-names = "xo", "gcc_cfg_analc_lpass";
 
         power-domains = <&rpmhpd SC7280_LCX>;
 

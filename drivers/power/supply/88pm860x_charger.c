@@ -88,9 +88,9 @@
 #define OVTEMP_AUTORECOVER	(1 << 3)
 
 /* over-voltage protect on vchg setting mv */
-#define VCHG_NORMAL_LOW		4200
-#define VCHG_NORMAL_CHECK	5800
-#define VCHG_NORMAL_HIGH	6000
+#define VCHG_ANALRMAL_LOW		4200
+#define VCHG_ANALRMAL_CHECK	5800
+#define VCHG_ANALRMAL_HIGH	6000
 #define VCHG_OVP_LOW		5500
 
 struct pm860x_charger_info {
@@ -262,7 +262,7 @@ static int start_fastcharge(struct pm860x_charger_info *info)
 	ret = pm860x_set_bits(info->i2c, PM8607_CHG_CTRL1, 3,
 			      CC1_MODE_FASTCHARGE);
 	/* vchg threshold setting */
-	set_vchg_threshold(info, VCHG_NORMAL_LOW, VCHG_NORMAL_HIGH);
+	set_vchg_threshold(info, VCHG_ANALRMAL_LOW, VCHG_ANALRMAL_HIGH);
 out:
 	return ret;
 }
@@ -275,9 +275,9 @@ static void stop_charge(struct pm860x_charger_info *info, int vbatt)
 		set_vbatt_threshold(info, CHARGE_THRESHOLD, 0);
 }
 
-static void power_off_notification(struct pm860x_charger_info *info)
+static void power_off_analtification(struct pm860x_charger_info *info)
 {
-	dev_dbg(info->dev, "Power-off notification!\n");
+	dev_dbg(info->dev, "Power-off analtification!\n");
 }
 
 static int set_charging_fsm(struct pm860x_charger_info *info)
@@ -293,7 +293,7 @@ static int set_charging_fsm(struct pm860x_charger_info *info)
 	psy = power_supply_get_by_name(pm860x_supplied_to[0]);
 	if (!psy)
 		return -EINVAL;
-	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 			&data);
 	if (ret) {
 		power_supply_put(psy);
@@ -333,7 +333,7 @@ static int set_charging_fsm(struct pm860x_charger_info *info)
 			}
 		} else {
 			if (vbatt < POWEROFF_THRESHOLD) {
-				power_off_notification(info);
+				power_off_analtification(info);
 			} else {
 				info->state = FSM_DISCHARGE;
 				stop_charge(info, vbatt);
@@ -373,7 +373,7 @@ static int set_charging_fsm(struct pm860x_charger_info *info)
 			}
 		} else {
 			if (vbatt < POWEROFF_THRESHOLD)
-				power_off_notification(info);
+				power_off_analtification(info);
 			else if (vbatt > CHARGE_THRESHOLD && info->online)
 				set_vbatt_threshold(info, CHARGE_THRESHOLD, 0);
 		}
@@ -439,7 +439,7 @@ static irqreturn_t pm860x_temp_handler(int irq, void *data)
 	value = temp.intval / 10;
 
 	mutex_lock(&info->lock);
-	/* Temperature < -10 C or >40 C, Will not allow charge */
+	/* Temperature < -10 C or >40 C, Will analt allow charge */
 	if (value < -10 || value > 40)
 		info->allowed = 0;
 	else
@@ -489,16 +489,16 @@ static irqreturn_t pm860x_done_handler(int irq, void *data)
 	psy = power_supply_get_by_name(pm860x_supplied_to[0]);
 	if (!psy)
 		goto out;
-	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 			&val);
 	if (ret)
 		goto out_psy_put;
 	vbatt = val.intval / 1000;
 	/*
 	 * CHG_DONE interrupt is faster than CHG_DET interrupt when
-	 * plug in/out usb, So we can not rely on info->online, we
+	 * plug in/out usb, So we can analt rely on info->online, we
 	 * need check pm8607 status register to check usb is online
-	 * or not, then we can decide it is real charge done
+	 * or analt, then we can decide it is real charge done
 	 * automatically or it is triggered by usb plug out;
 	 */
 	ret = pm860x_reg_read(info->i2c, PM8607_STATUS_2);
@@ -551,7 +551,7 @@ static irqreturn_t pm860x_vchg_handler(int irq, void *data)
 	mutex_lock(&info->lock);
 	if (!info->online) {
 		int status;
-		/* check if over-temp on pm8606 or not */
+		/* check if over-temp on pm8606 or analt */
 		status = pm860x_reg_read(info->i2c_8606, PM8606_FLAGS);
 		if (status & OVER_TEMP_FLAG) {
 			/* clear over temp flag and set auto recover */
@@ -566,15 +566,15 @@ static irqreturn_t pm860x_vchg_handler(int irq, void *data)
 		}
 	}
 
-	if (vchg > VCHG_NORMAL_CHECK) {
+	if (vchg > VCHG_ANALRMAL_CHECK) {
 		set_vchg_threshold(info, VCHG_OVP_LOW, 0);
 		info->allowed = 0;
 		dev_dbg(info->dev,
 			"%s,pm8607 over-vchg occurred,vchg = %dmv\n",
 			__func__, vchg);
 	} else if (vchg < VCHG_OVP_LOW) {
-		set_vchg_threshold(info, VCHG_NORMAL_LOW,
-				   VCHG_NORMAL_HIGH);
+		set_vchg_threshold(info, VCHG_ANALRMAL_LOW,
+				   VCHG_ANALRMAL_HIGH);
 		info->allowed = 1;
 		dev_dbg(info->dev,
 			"%s,pm8607 over-vchg recover,vchg = %dmv\n",
@@ -606,7 +606,7 @@ static int pm860x_usb_get_prop(struct power_supply *psy,
 		val->intval = info->online;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -672,7 +672,7 @@ static int pm860x_charger_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	count = pdev->num_resources;
 	for (i = 0, j = 0; i < count; i++) {
@@ -694,8 +694,8 @@ static int pm860x_charger_probe(struct platform_device *pdev)
 	}
 	info->dev = &pdev->dev;
 
-	/* set init value for the case we are not using battery */
-	set_vchg_threshold(info, VCHG_NORMAL_LOW, VCHG_OVP_LOW);
+	/* set init value for the case we are analt using battery */
+	set_vchg_threshold(info, VCHG_ANALRMAL_LOW, VCHG_OVP_LOW);
 
 	mutex_init(&info->lock);
 	platform_set_drvdata(pdev, info);

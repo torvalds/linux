@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
- * Copyright (C) 1996 Mike Shaver (shaver@zeroknowledge.com)
+ * Copyright (C) 1996 Mike Shaver (shaver@zerokanalwledge.com)
  */
 #include <linux/mm.h>
 #include <linux/sysctl.h>
@@ -59,8 +59,8 @@ static struct ctl_table rose_table[] = {
 		.extra2		= &max_timer
 	},
 	{
-		.procname	= "no_activity_timeout",
-		.data		= &sysctl_rose_no_activity_timeout,
+		.procname	= "anal_activity_timeout",
+		.data		= &sysctl_rose_anal_activity_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
@@ -68,7 +68,7 @@ static struct ctl_table rose_table[] = {
 		.extra2		= &max_idle
 	},
 	{
-		.procname	= "acknowledge_hold_back_timeout",
+		.procname	= "ackanalwledge_hold_back_timeout",
 		.data		= &sysctl_rose_ack_hold_back_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,

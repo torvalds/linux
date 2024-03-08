@@ -13,12 +13,12 @@
 #include <asm/archrandom.h>
 
 static u32 smccc_version = ARM_SMCCC_VERSION_1_0;
-static enum arm_smccc_conduit smccc_conduit = SMCCC_CONDUIT_NONE;
+static enum arm_smccc_conduit smccc_conduit = SMCCC_CONDUIT_ANALNE;
 
 bool __ro_after_init smccc_trng_available = false;
 u64 __ro_after_init smccc_has_sve_hint = false;
-s32 __ro_after_init smccc_soc_id_version = SMCCC_RET_NOT_SUPPORTED;
-s32 __ro_after_init smccc_soc_id_revision = SMCCC_RET_NOT_SUPPORTED;
+s32 __ro_after_init smccc_soc_id_version = SMCCC_RET_ANALT_SUPPORTED;
+s32 __ro_after_init smccc_soc_id_revision = SMCCC_RET_ANALT_SUPPORTED;
 
 void __init arm_smccc_version_init(u32 version, enum arm_smccc_conduit conduit)
 {
@@ -33,7 +33,7 @@ void __init arm_smccc_version_init(u32 version, enum arm_smccc_conduit conduit)
 		smccc_has_sve_hint = true;
 
 	if ((smccc_version >= ARM_SMCCC_VERSION_1_2) &&
-	    (smccc_conduit != SMCCC_CONDUIT_NONE)) {
+	    (smccc_conduit != SMCCC_CONDUIT_ANALNE)) {
 		arm_smccc_1_1_invoke(ARM_SMCCC_ARCH_FEATURES_FUNC_ID,
 				     ARM_SMCCC_ARCH_SOC_ID, &res);
 		if ((s32)res.a0 >= 0) {
@@ -48,7 +48,7 @@ void __init arm_smccc_version_init(u32 version, enum arm_smccc_conduit conduit)
 enum arm_smccc_conduit arm_smccc_1_1_get_conduit(void)
 {
 	if (smccc_version < ARM_SMCCC_VERSION_1_1)
-		return SMCCC_CONDUIT_NONE;
+		return SMCCC_CONDUIT_ANALNE;
 
 	return smccc_conduit;
 }
@@ -78,7 +78,7 @@ static int __init smccc_devices_init(void)
 		pdev = platform_device_register_simple("smccc_trng", -1,
 						       NULL, 0);
 		if (IS_ERR(pdev))
-			pr_err("smccc_trng: could not register device: %ld\n",
+			pr_err("smccc_trng: could analt register device: %ld\n",
 			       PTR_ERR(pdev));
 	}
 

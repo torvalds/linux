@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 
@@ -77,7 +77,7 @@ static int mlxsw_sp2_acl_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv,
 	int i;
 	int err;
 
-	/* Some TCAM regions are not exposed to the host and used internally
+	/* Some TCAM regions are analt exposed to the host and used internally
 	 * by the device. Allocate KVDL entries for the default actions of
 	 * these regions to avoid the host from overwriting them.
 	 */

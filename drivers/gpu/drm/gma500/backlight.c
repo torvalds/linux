@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2009-2011, Intel Corporation.
  *
- * Authors: Eric Knopp
+ * Authors: Eric Kanalpp
  */
 
 #include <linux/backlight.h>

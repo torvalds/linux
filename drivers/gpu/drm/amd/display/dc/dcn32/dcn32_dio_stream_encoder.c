@@ -8,12 +8,12 @@
  *  and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -84,7 +84,7 @@ static void enc32_stream_encoder_dvi_set_stream_attribute(
 
 	} else {
 
-		//Set pattern for clock channel, default vlue 0x63 does not work
+		//Set pattern for clock channel, default vlue 0x63 does analt work
 		REG_UPDATE(DIG_CLOCK_PATTERN, DIG_CLOCK_PATTERN, 0x1F);
 
 		//DIG_BE_TMDS_DVI_MODE : TMDS-DVI mode is already set in link_encoder_setup
@@ -124,7 +124,7 @@ static void enc32_stream_encoder_hdmi_set_stream_attribute(
 
 	} else {
 
-		//Set pattern for clock channel, default vlue 0x63 does not work
+		//Set pattern for clock channel, default vlue 0x63 does analt work
 		REG_UPDATE(DIG_CLOCK_PATTERN, DIG_CLOCK_PATTERN, 0x1F);
 
 		//DIG_BE_TMDS_HDMI_MODE : TMDS-HDMI mode is already set in link_encoder_setup
@@ -143,7 +143,7 @@ static void enc32_stream_encoder_hdmi_set_stream_attribute(
 		HDMI_KEEPOUT_MODE, 1,
 		HDMI_DEEP_COLOR_ENABLE, 0,
 		HDMI_DATA_SCRAMBLE_EN, 0,
-		HDMI_NO_EXTRA_NULL_PACKET_FILLED, 1,
+		HDMI_ANAL_EXTRA_NULL_PACKET_FILLED, 1,
 		HDMI_CLOCK_CHANNEL_RATE, 0);
 
 	/* Configure color depth */
@@ -282,7 +282,7 @@ void enc32_stream_encoder_dp_unblank(
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 	struct dc *dc = enc->ctx->dc;
 
-	if (param->link_settings.link_rate != LINK_RATE_UNKNOWN) {
+	if (param->link_settings.link_rate != LINK_RATE_UNKANALWN) {
 		uint32_t n_vid = 0x8000;
 		uint32_t m_vid;
 		uint32_t n_multiply = 0;
@@ -342,7 +342,7 @@ void enc32_stream_encoder_dp_unblank(
 
 	REG_UPDATE(DP_STEER_FIFO, DP_STEER_FIFO_RESET, 0);
 
-	/* DIG Resync FIFO now needs to be explicitly enabled
+	/* DIG Resync FIFO analw needs to be explicitly enabled
 	 */
 	// TODO: Confirm if we need to wait for DIG_SYMCLK_FE_ON
 	REG_WAIT(DIG_FE_CNTL, DIG_SYMCLK_FE_ON, 1, 10, 5000);
@@ -369,9 +369,9 @@ void enc32_stream_encoder_dp_unblank(
 
 	/* the hardware would start sending video at the start of the next DP
 	 * frame (i.e. rising edge of the vblank).
-	 * NOTE: We used to program DP_VID_STREAM_DIS_DEFER = 2 here, but this
-	 * register has no effect on enable transition! HW always guarantees
-	 * VID_STREAM enable at start of next frame, and this is not
+	 * ANALTE: We used to program DP_VID_STREAM_DIS_DEFER = 2 here, but this
+	 * register has anal effect on enable transition! HW always guarantees
+	 * VID_STREAM enable at start of next frame, and this is analt
 	 * programmable
 	 */
 

@@ -129,7 +129,7 @@ static int tps51632_init_dcdc(struct tps51632_chip *tps,
 		 * TPS51632 hw behavior: VMAX register can be write only
 		 * once as it get locked after first write. The lock get
 		 * reset only when device is power-reset.
-		 * Write register only when lock bit is not enabled.
+		 * Write register only when lock bit is analt enabled.
 		 */
 		ret = regmap_read(tps->regmap, TPS51632_VMAX_REG, &vmax);
 		if (ret < 0) {
@@ -214,16 +214,16 @@ static struct tps51632_regulator_platform_data *
 				      const struct regulator_desc *desc)
 {
 	struct tps51632_regulator_platform_data *pdata;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
 
-	pdata->reg_init_data = of_get_regulator_init_data(dev, dev->of_node,
+	pdata->reg_init_data = of_get_regulator_init_data(dev, dev->of_analde,
 							  desc);
 	if (!pdata->reg_init_data) {
-		dev_err(dev, "Not able to get OF regulator init data\n");
+		dev_err(dev, "Analt able to get OF regulator init data\n");
 		return NULL;
 	}
 
@@ -256,7 +256,7 @@ static int tps51632_probe(struct i2c_client *client)
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tps->dev = &client->dev;
 	tps->desc.name = client->name;
@@ -271,10 +271,10 @@ static int tps51632_probe(struct i2c_client *client)
 	tps->desc.owner = THIS_MODULE;
 
 	pdata = dev_get_platdata(&client->dev);
-	if (!pdata && client->dev.of_node)
+	if (!pdata && client->dev.of_analde)
 		pdata = of_get_tps51632_platform_data(&client->dev, &tps->desc);
 	if (!pdata) {
-		dev_err(&client->dev, "No Platform data\n");
+		dev_err(&client->dev, "Anal Platform data\n");
 		return -EINVAL;
 	}
 
@@ -318,7 +318,7 @@ static int tps51632_probe(struct i2c_client *client)
 	config.init_data = pdata->reg_init_data;
 	config.driver_data = tps;
 	config.regmap = tps->regmap;
-	config.of_node = client->dev.of_node;
+	config.of_analde = client->dev.of_analde;
 
 	rdev = devm_regulator_register(&client->dev, &tps->desc, &config);
 	if (IS_ERR(rdev)) {
@@ -340,7 +340,7 @@ MODULE_DEVICE_TABLE(i2c, tps51632_id);
 static struct i2c_driver tps51632_i2c_driver = {
 	.driver = {
 		.name = "tps51632",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(tps51632_of_match),
 	},
 	.probe = tps51632_probe,

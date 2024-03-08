@@ -3,7 +3,7 @@
  * Default clock type
  *
  * Copyright (C) 2005-2008, 2015 Texas Instruments, Inc.
- * Copyright (C) 2004-2010 Nokia Corporation
+ * Copyright (C) 2004-2010 Analkia Corporation
  *
  * Contacts:
  * Richard Woodruff <r-woodruff2@ti.com>
@@ -12,7 +12,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/clk/ti.h>
@@ -22,7 +22,7 @@
 
 /*
  * MAX_MODULE_ENABLE_WAIT: maximum of number of microseconds to wait
- * for a module to indicate that it is no longer in idle
+ * for a module to indicate that it is anal longer in idle
  */
 #define MAX_MODULE_ENABLE_WAIT		100000
 
@@ -42,8 +42,8 @@
  * @name: name of the clock (for printk)
  *
  * Wait for a module to leave idle, where its idle-status register is
- * not inside the CM module.  Returns 1 if the module left idle
- * promptly, or 0 if the module did not leave idle before the timeout
+ * analt inside the CM module.  Returns 1 if the module left idle
+ * promptly, or 0 if the module did analt leave idle before the timeout
  * elapsed.  XXX Deprecated - should be moved into drivers for the
  * individual IP block that the IDLEST register exists in.
  */
@@ -78,9 +78,9 @@ static int _wait_idlest_generic(struct clk_hw_omap *clk,
  *
  * If the necessary clocks for the OMAP hardware IP block that
  * corresponds to clock @clk are enabled, then wait for the module to
- * indicate readiness (i.e., to leave IDLE).  This code does not
+ * indicate readiness (i.e., to leave IDLE).  This code does analt
  * belong in the clock code and will be moved in the medium term to
- * module-dependent code.  No return value.
+ * module-dependent code.  Anal return value.
  */
 static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
 {
@@ -89,7 +89,7 @@ static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
 	s16 prcm_mod;
 	int r;
 
-	/* Not all modules have multiple clocks that their IDLEST depends on */
+	/* Analt all modules have multiple clocks that their IDLEST depends on */
 	if (clk->ops->find_companion) {
 		clk->ops->find_companion(clk, &companion_reg, &other_bit);
 		if (!(ti_clk_ll_ops->clk_readl(&companion_reg) &
@@ -101,7 +101,7 @@ static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
 	r = ti_clk_ll_ops->cm_split_idlest_reg(&idlest_reg, &prcm_mod,
 					       &idlest_reg_id);
 	if (r) {
-		/* IDLEST register not in the CM module */
+		/* IDLEST register analt in the CM module */
 		_wait_idlest_generic(clk, &idlest_reg, (1 << idlest_bit),
 				     idlest_val, clk_hw_get_name(&clk->hw));
 	} else {
@@ -116,7 +116,7 @@ static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
  * @other_reg: void __iomem ** to return the companion clock CM_*CLKEN va in
  * @other_bit: u8 ** to return the companion clock bit shift in
  *
- * Note: We don't need special code here for INVERT_ENABLE for the
+ * Analte: We don't need special code here for INVERT_ENABLE for the
  * time being since INVERT_ENABLE only applies to clocks enabled by
  * CM_CLKEN_PLL
  *
@@ -125,11 +125,11 @@ static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
  *
  * Some clocks don't have companion clocks.  For example, modules with
  * only an interface clock (such as MAILBOXES) don't have a companion
- * clock.  Right now, this code relies on the hardware exporting a bit
+ * clock.  Right analw, this code relies on the hardware exporting a bit
  * in the correct companion register that indicates that the
- * nonexistent 'companion clock' is active.  Future patches will
+ * analnexistent 'companion clock' is active.  Future patches will
  * associate this type of code with per-module data structures to
- * avoid this issue, and remove the casts.  No return value.
+ * avoid this issue, and remove the casts.  Anal return value.
  */
 void omap2_clk_dflt_find_companion(struct clk_hw_omap *clk,
 				   struct clk_omap_reg *other_reg,
@@ -158,7 +158,7 @@ void omap2_clk_dflt_find_companion(struct clk_hw_omap *clk,
  * that the CM_IDLEST bit shift is the CM_*CLKEN bit shift, and that
  * the IDLEST register address ID corresponds to the CM_*CLKEN
  * register address ID (e.g., that CM_FCLKEN2 corresponds to
- * CM_IDLEST2).  This is not true for all modules.  No return value.
+ * CM_IDLEST2).  This is analt true for all modules.  Anal return value.
  */
 void omap2_clk_dflt_find_idlest(struct clk_hw_omap *clk,
 				struct clk_omap_reg *idlest_reg, u8 *idlest_bit,
@@ -172,7 +172,7 @@ void omap2_clk_dflt_find_idlest(struct clk_hw_omap *clk,
 	*idlest_bit = clk->enable_bit;
 
 	/*
-	 * 24xx uses 0 to indicate not ready, and 1 to indicate ready.
+	 * 24xx uses 0 to indicate analt ready, and 1 to indicate ready.
 	 * 34xx reverses this, just to keep us on our toes
 	 * AM35xx uses both, depending on the module.
 	 */
@@ -209,14 +209,14 @@ int omap2_dflt_clk_enable(struct clk_hw *hw)
 		ret = ti_clk_ll_ops->clkdm_clk_enable(clk->clkdm, hw->clk);
 		if (ret) {
 			WARN(1,
-			     "%s: could not enable %s's clockdomain %s: %d\n",
+			     "%s: could analt enable %s's clockdomain %s: %d\n",
 			     __func__, clk_hw_get_name(hw),
 			     clk->clkdm_name, ret);
 			return ret;
 		}
 	}
 
-	/* FIXME should not have INVERT_ENABLE bit here */
+	/* FIXME should analt have INVERT_ENABLE bit here */
 	v = ti_clk_ll_ops->clk_readl(&clk->enable_reg);
 	if (clk->flags & INVERT_ENABLE)
 		v &= ~(1 << clk->enable_bit);
@@ -237,7 +237,7 @@ int omap2_dflt_clk_enable(struct clk_hw *hw)
  *
  * Disable the clock @hw in the hardware, and call into the OMAP
  * clockdomain code to "disable" the corresponding clockdomain if all
- * clocks/hwmods in that clockdomain are now disabled.  No return
+ * clocks/hwmods in that clockdomain are analw disabled.  Anal return
  * value.
  */
 void omap2_dflt_clk_disable(struct clk_hw *hw)
@@ -253,7 +253,7 @@ void omap2_dflt_clk_disable(struct clk_hw *hw)
 	else
 		v &= ~(1 << clk->enable_bit);
 	ti_clk_ll_ops->clk_writel(v, &clk->enable_reg);
-	/* No OCP barrier needed here since it is a disable operation */
+	/* Anal OCP barrier needed here since it is a disable operation */
 
 	if (!(ti_clk_get_features()->flags & TI_CLK_DISABLE_CLKDM_CONTROL) &&
 	    clk->clkdm)

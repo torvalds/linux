@@ -8,21 +8,21 @@
 #include "../bpf_experimental.h"
 #include "../bpf_testmod/bpf_testmod_kfunc.h"
 
-struct node_data {
+struct analde_data {
 	long key;
 	long data;
-	struct bpf_rb_node node;
+	struct bpf_rb_analde analde;
 };
 
-struct refcounted_node {
+struct refcounted_analde {
 	long data;
-	struct bpf_rb_node rb_node;
+	struct bpf_rb_analde rb_analde;
 	struct bpf_refcount refcount;
 };
 
 struct stash {
 	struct bpf_spin_lock l;
-	struct refcounted_node __kptr *stashed;
+	struct refcounted_analde __kptr *stashed;
 };
 
 struct {
@@ -30,7 +30,7 @@ struct {
 	__type(key, int);
 	__type(value, struct stash);
 	__uint(max_entries, 10);
-} refcounted_node_stash SEC(".maps");
+} refcounted_analde_stash SEC(".maps");
 
 struct plain_local {
 	long key;
@@ -40,55 +40,55 @@ struct plain_local {
 struct local_with_root {
 	long key;
 	struct bpf_spin_lock l;
-	struct bpf_rb_root r __contains(node_data, node);
+	struct bpf_rb_root r __contains(analde_data, analde);
 };
 
 struct map_value {
-	struct prog_test_ref_kfunc *not_kptr;
+	struct prog_test_ref_kfunc *analt_kptr;
 	struct prog_test_ref_kfunc __kptr *val;
-	struct node_data __kptr *node;
+	struct analde_data __kptr *analde;
 	struct plain_local __kptr *plain;
 	struct local_with_root __kptr *local_root;
 };
 
-/* This is necessary so that LLVM generates BTF for node_data struct
- * If it's not included, a fwd reference for node_data will be generated but
- * no struct. Example BTF of "node" field in map_value when not included:
+/* This is necessary so that LLVM generates BTF for analde_data struct
+ * If it's analt included, a fwd reference for analde_data will be generated but
+ * anal struct. Example BTF of "analde" field in map_value when analt included:
  *
- * [10] PTR '(anon)' type_id=35
- * [34] FWD 'node_data' fwd_kind=struct
+ * [10] PTR '(aanaln)' type_id=35
+ * [34] FWD 'analde_data' fwd_kind=struct
  * [35] TYPE_TAG 'kptr_ref' type_id=34
  *
- * (with no node_data struct defined)
+ * (with anal analde_data struct defined)
  * Had to do the same w/ bpf_kfunc_call_test_release below
  */
-struct node_data *just_here_because_btf_bug;
-struct refcounted_node *just_here_because_btf_bug2;
+struct analde_data *just_here_because_btf_bug;
+struct refcounted_analde *just_here_because_btf_bug2;
 
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__type(key, int);
 	__type(value, struct map_value);
 	__uint(max_entries, 2);
-} some_nodes SEC(".maps");
+} some_analdes SEC(".maps");
 
-static bool less(struct bpf_rb_node *a, const struct bpf_rb_node *b)
+static bool less(struct bpf_rb_analde *a, const struct bpf_rb_analde *b)
 {
-	struct node_data *node_a;
-	struct node_data *node_b;
+	struct analde_data *analde_a;
+	struct analde_data *analde_b;
 
-	node_a = container_of(a, struct node_data, node);
-	node_b = container_of(b, struct node_data, node);
+	analde_a = container_of(a, struct analde_data, analde);
+	analde_b = container_of(b, struct analde_data, analde);
 
-	return node_a->key < node_b->key;
+	return analde_a->key < analde_b->key;
 }
 
 static int create_and_stash(int idx, int val)
 {
 	struct map_value *mapval;
-	struct node_data *res;
+	struct analde_data *res;
 
-	mapval = bpf_map_lookup_elem(&some_nodes, &idx);
+	mapval = bpf_map_lookup_elem(&some_analdes, &idx);
 	if (!mapval)
 		return 1;
 
@@ -97,14 +97,14 @@ static int create_and_stash(int idx, int val)
 		return 1;
 	res->key = val;
 
-	res = bpf_kptr_xchg(&mapval->node, res);
+	res = bpf_kptr_xchg(&mapval->analde, res);
 	if (res)
 		bpf_obj_drop(res);
 	return 0;
 }
 
 SEC("tc")
-long stash_rb_nodes(void *ctx)
+long stash_rb_analdes(void *ctx)
 {
 	return create_and_stash(0, 41) ?: create_and_stash(1, 42);
 }
@@ -116,7 +116,7 @@ long stash_plain(void *ctx)
 	struct plain_local *res;
 	int idx = 0;
 
-	mapval = bpf_map_lookup_elem(&some_nodes, &idx);
+	mapval = bpf_map_lookup_elem(&some_analdes, &idx);
 	if (!mapval)
 		return 1;
 
@@ -136,10 +136,10 @@ long stash_local_with_root(void *ctx)
 {
 	struct local_with_root *res;
 	struct map_value *mapval;
-	struct node_data *n;
+	struct analde_data *n;
 	int idx = 0;
 
-	mapval = bpf_map_lookup_elem(&some_nodes, &idx);
+	mapval = bpf_map_lookup_elem(&some_analdes, &idx);
 	if (!mapval)
 		return 1;
 
@@ -155,7 +155,7 @@ long stash_local_with_root(void *ctx)
 	}
 
 	bpf_spin_lock(&res->l);
-	bpf_rbtree_add(&res->r, &n->node, less);
+	bpf_rbtree_add(&res->r, &n->analde, less);
 	bpf_spin_unlock(&res->l);
 
 	res = bpf_kptr_xchg(&mapval->local_root, res);
@@ -167,18 +167,18 @@ long stash_local_with_root(void *ctx)
 }
 
 SEC("tc")
-long unstash_rb_node(void *ctx)
+long unstash_rb_analde(void *ctx)
 {
 	struct map_value *mapval;
-	struct node_data *res;
+	struct analde_data *res;
 	long retval;
 	int key = 1;
 
-	mapval = bpf_map_lookup_elem(&some_nodes, &key);
+	mapval = bpf_map_lookup_elem(&some_analdes, &key);
 	if (!mapval)
 		return 1;
 
-	res = bpf_kptr_xchg(&mapval->node, NULL);
+	res = bpf_kptr_xchg(&mapval->analde, NULL);
 	if (res) {
 		retval = res->key;
 		bpf_obj_drop(res);
@@ -194,7 +194,7 @@ long stash_test_ref_kfunc(void *ctx)
 	struct map_value *mapval;
 	int key = 0;
 
-	mapval = bpf_map_lookup_elem(&some_nodes, &key);
+	mapval = bpf_map_lookup_elem(&some_analdes, &key);
 	if (!mapval)
 		return 1;
 
@@ -207,16 +207,16 @@ long stash_test_ref_kfunc(void *ctx)
 SEC("tc")
 long refcount_acquire_without_unstash(void *ctx)
 {
-	struct refcounted_node *p;
+	struct refcounted_analde *p;
 	struct stash *s;
 	int ret = 0;
 
-	s = bpf_map_lookup_elem(&refcounted_node_stash, &ret);
+	s = bpf_map_lookup_elem(&refcounted_analde_stash, &ret);
 	if (!s)
 		return 1;
 
 	if (!s->stashed)
-		/* refcount_acquire failure is expected when no refcounted_node
+		/* refcount_acquire failure is expected when anal refcounted_analde
 		 * has been stashed before this program executes
 		 */
 		return 2;
@@ -232,13 +232,13 @@ long refcount_acquire_without_unstash(void *ctx)
 
 /* Helper for refcount_acquire_without_unstash test */
 SEC("tc")
-long stash_refcounted_node(void *ctx)
+long stash_refcounted_analde(void *ctx)
 {
-	struct refcounted_node *p;
+	struct refcounted_analde *p;
 	struct stash *s;
 	int key = 0;
 
-	s = bpf_map_lookup_elem(&refcounted_node_stash, &key);
+	s = bpf_map_lookup_elem(&refcounted_analde_stash, &key);
 	if (!s)
 		return 1;
 

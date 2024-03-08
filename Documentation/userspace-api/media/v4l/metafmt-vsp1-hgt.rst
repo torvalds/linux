@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _v4l2-meta-fmt-vsp1-hgt:
 
@@ -53,7 +53,7 @@ Areas which can be configured to cover overlapping Hue values:
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 When two consecutive areas don't overlap (n+1L is equal to nU) the boundary
 value is considered as part of the lower area.

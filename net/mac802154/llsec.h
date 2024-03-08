@@ -35,8 +35,8 @@ struct mac802154_llsec_device_key {
 struct mac802154_llsec_device {
 	struct ieee802154_llsec_device dev;
 
-	struct hlist_node bucket_s;
-	struct hlist_node bucket_hw;
+	struct hlist_analde bucket_s;
+	struct hlist_analde bucket_hw;
 
 	/* protects dev.frame_counter and the elements of dev.keys */
 	spinlock_t lock;

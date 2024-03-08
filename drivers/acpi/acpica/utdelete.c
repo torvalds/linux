@@ -26,7 +26,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action);
  *
  * PARAMETERS:  object         - Object to be deleted
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Low level object deletion, after reference counts have been
  *              updated (All reference counts, including sub-objects!)
@@ -49,7 +49,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 	}
 
 	/*
-	 * Must delete or free any pointers within the object that are not
+	 * Must delete or free any pointers within the object that are analt
 	 * actual ACPI objects (for example, a raw buffer pointer).
 	 */
 	switch (object->common.type) {
@@ -63,7 +63,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 		if (!(object->common.flags & AOPOBJ_STATIC_POINTER)) {
 
-			/* But only if it is NOT a pointer into an ACPI table */
+			/* But only if it is ANALT a pointer into an ACPI table */
 
 			obj_pointer = object->string.pointer;
 		}
@@ -79,7 +79,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 		if (!(object->common.flags & AOPOBJ_STATIC_POINTER)) {
 
-			/* But only if it is NOT a pointer into an ACPI table */
+			/* But only if it is ANALT a pointer into an ACPI table */
 
 			obj_pointer = object->buffer.pointer;
 		}
@@ -92,7 +92,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 				  object->package.count));
 
 		/*
-		 * Elements of the package are not handled here, they are deleted
+		 * Elements of the package are analt handled here, they are deleted
 		 * separately
 		 */
 
@@ -102,7 +102,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 		break;
 
 		/*
-		 * These objects have a possible list of notify handlers.
+		 * These objects have a possible list of analtify handlers.
 		 * Device object also may have a GPE block.
 		 */
 	case ACPI_TYPE_DEVICE:
@@ -119,7 +119,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 		/* Walk the address handler list for this object */
 
-		handler_desc = object->common_notify.handler;
+		handler_desc = object->common_analtify.handler;
 		while (handler_desc) {
 			next_desc = handler_desc->address_space.next;
 			acpi_ut_remove_reference(handler_desc);
@@ -174,8 +174,8 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 			object->method.mutex = NULL;
 		}
 
-		if (object->method.node) {
-			object->method.node = NULL;
+		if (object->method.analde) {
+			object->method.analde = NULL;
 		}
 		break;
 
@@ -186,11 +186,11 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 		/*
 		 * Update address_range list. However, only permanent regions
-		 * are installed in this list. (Not created within a method)
+		 * are installed in this list. (Analt created within a method)
 		 */
-		if (!(object->region.node->flags & ANOBJ_TEMPORARY)) {
+		if (!(object->region.analde->flags & AANALBJ_TEMPORARY)) {
 			acpi_ut_remove_address_range(object->region.space_id,
-						     object->region.node);
+						     object->region.analde);
 		}
 
 		second_desc = acpi_ns_get_secondary_object(object);
@@ -198,7 +198,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 			/*
 			 * Free the region_context if and only if the handler is one of the
 			 * default handlers -- and therefore, we created the context object
-			 * locally, it was not created by an external caller.
+			 * locally, it was analt created by an external caller.
 			 */
 			handler_desc = object->region.handler;
 			if (handler_desc) {
@@ -253,7 +253,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 				acpi_ut_remove_reference(handler_desc);
 			}
 
-			/* Now we can free the Extra object */
+			/* Analw we can free the Extra object */
 
 			acpi_ut_delete_object_desc(second_desc);
 		}
@@ -306,7 +306,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 		ACPI_FREE(obj_pointer);
 	}
 
-	/* Now the object can be safely deleted */
+	/* Analw the object can be safely deleted */
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_ALLOCATIONS,
 			      "%s: Deleting Object %p [%s]\n",
@@ -323,7 +323,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
  *
  * PARAMETERS:  obj_list        - Pointer to the list to be deleted
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: This function deletes an internal object list, including both
  *              simple objects and package objects
@@ -355,7 +355,7 @@ void acpi_ut_delete_internal_object_list(union acpi_operand_object **obj_list)
  * PARAMETERS:  object          - Object whose ref count is to be updated
  *              action          - What to do (REF_INCREMENT or REF_DECREMENT)
  *
- * RETURN:      None. Sets new reference count within the object
+ * RETURN:      Analne. Sets new reference count within the object
  *
  * DESCRIPTION: Modify the reference count for an internal acpi object
  *
@@ -376,8 +376,8 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 	}
 
 	/*
-	 * Always get the reference count lock. Note: Interpreter and/or
-	 * Namespace is not always locked when this function is called.
+	 * Always get the reference count lock. Analte: Interpreter and/or
+	 * Namespace is analt always locked when this function is called.
 	 */
 	lock_flags = acpi_os_acquire_lock(acpi_gbl_reference_count_lock);
 	original_count = object->common.reference_count;
@@ -409,7 +409,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 
 	case REF_DECREMENT:
 
-		/* The current reference count must be non-zero */
+		/* The current reference count must be analn-zero */
 
 		if (original_count) {
 			new_count = original_count - 1;
@@ -420,7 +420,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 
 		if (!original_count) {
 			ACPI_WARNING((AE_INFO,
-				      "Obj %p, Reference Count is already zero, cannot decrement\n",
+				      "Obj %p, Reference Count is already zero, cananalt decrement\n",
 				      object));
 			return;
 		}
@@ -441,7 +441,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 	default:
 
 		acpi_os_release_lock(acpi_gbl_reference_count_lock, lock_flags);
-		ACPI_ERROR((AE_INFO, "Unknown Reference Count action (0x%X)",
+		ACPI_ERROR((AE_INFO, "Unkanalwn Reference Count action (0x%X)",
 			    action));
 		return;
 	}
@@ -470,11 +470,11 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
  * DESCRIPTION: Increment or decrement the object reference count
  *
  * Object references are incremented when:
- * 1) An object is attached to a Node (namespace object)
+ * 1) An object is attached to a Analde (namespace object)
  * 2) An object is copied (all subobjects must be incremented)
  *
  * Object references are decremented when:
- * 1) An object is detached from an Node
+ * 1) An object is detached from an Analde
  *
  ******************************************************************************/
 
@@ -510,15 +510,15 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 		case ACPI_TYPE_POWER:
 		case ACPI_TYPE_THERMAL:
 			/*
-			 * Update the notify objects for these types (if present)
-			 * Two lists, system and device notify handlers.
+			 * Update the analtify objects for these types (if present)
+			 * Two lists, system and device analtify handlers.
 			 */
-			for (i = 0; i < ACPI_NUM_NOTIFY_TYPES; i++) {
+			for (i = 0; i < ACPI_NUM_ANALTIFY_TYPES; i++) {
 				prev_object =
-				    object->common_notify.notify_list[i];
+				    object->common_analtify.analtify_list[i];
 				while (prev_object) {
 					next_object =
-					    prev_object->notify.next[i];
+					    prev_object->analtify.next[i];
 					acpi_ut_update_ref_count(prev_object,
 								 action);
 					prev_object = next_object;
@@ -534,7 +534,7 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 			for (i = 0; i < object->package.count; i++) {
 				/*
 				 * Null package elements are legal and can be simply
-				 * ignored.
+				 * iganalred.
 				 */
 				next_object = object->package.elements[i];
 				if (!next_object) {
@@ -621,11 +621,11 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 		case ACPI_TYPE_REGION:
 		default:
 
-			break;	/* No subobjects for all other types */
+			break;	/* Anal subobjects for all other types */
 		}
 
 		/*
-		 * Now we can update the count in the main object. This can only
+		 * Analw we can update the count in the main object. This can only
 		 * happen after we update the sub-objects in case this causes the
 		 * main object to be deleted.
 		 */
@@ -649,7 +649,7 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 error_exit:
 
 	ACPI_EXCEPTION((AE_INFO, status,
-			"Could not update object reference count"));
+			"Could analt update object reference count"));
 
 	/* Free any stacked Update State objects */
 
@@ -668,7 +668,7 @@ error_exit:
  * PARAMETERS:  object          - Object whose reference count is to be
  *                                incremented
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Add one reference to an ACPI object
  *
@@ -701,7 +701,7 @@ void acpi_ut_add_reference(union acpi_operand_object *object)
  *
  * PARAMETERS:  object         - Object whose ref count will be decremented
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Decrement the reference count of an ACPI internal object
  *
@@ -713,8 +713,8 @@ void acpi_ut_remove_reference(union acpi_operand_object *object)
 	ACPI_FUNCTION_NAME(ut_remove_reference);
 
 	/*
-	 * Allow a NULL pointer to be passed in, just ignore it. This saves
-	 * each caller from having to check. Also, ignore NS nodes.
+	 * Allow a NULL pointer to be passed in, just iganalre it. This saves
+	 * each caller from having to check. Also, iganalre NS analdes.
 	 */
 	if (!object ||
 	    (ACPI_GET_DESCRIPTOR_TYPE(object) == ACPI_DESC_TYPE_NAMED)) {

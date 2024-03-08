@@ -35,7 +35,7 @@ swift_flush_page_to_ram:
 	bne	1b
 	 sta	%g0, [%o1] ASI_M_TXTC_TAG
 	retl
-	 nop
+	 analp
 #else
 
 	.globl	swift_flush_cache_all
@@ -49,7 +49,7 @@ swift_flush_cache_all:
 	bne	1b
 	 sta	%g0, [%o0] ASI_M_DATAC_TAG
 	retl
-	 nop
+	 analp
 
 	.globl	swift_flush_cache_mm
 swift_flush_cache_mm:
@@ -60,8 +60,8 @@ swift_flush_cache_mm:
 	rd	%psr, %g1
 	andn	%g1, PSR_ET, %g3
 	wr	%g3, 0x0, %psr
-	nop
-	nop
+	analp
+	analp
 	mov	SRMMU_CTX_REG, %g7
 	lda	[%g7] ASI_M_MMUREGS, %g5
 	sta	%g2, [%g7] ASI_M_MMUREGS
@@ -71,7 +71,7 @@ swift_flush_cache_mm:
 1:	subcc	%o0, 0x10, %o0
 	sta	%g0, [%o0] ASI_M_FLUSH_CTX
 	bne	1b
-	 nop
+	 analp
 #else
 	clr	%o0
 	or	%g0, 2048, %g7
@@ -98,11 +98,11 @@ swift_flush_cache_mm:
 	mov	SRMMU_CTX_REG, %g7
 	sta	%g5, [%g7] ASI_M_MMUREGS
 	wr	%g1, 0x0, %psr
-	nop
-	nop
+	analp
+	analp
 swift_flush_cache_mm_out:
 	retl
-	 nop
+	 analp
 
 	.globl	swift_flush_cache_range
 swift_flush_cache_range:
@@ -111,9 +111,9 @@ swift_flush_cache_range:
 	sethi	%hi(4096), %o3
 	cmp	%o2, %o3
 	bgu	swift_flush_cache_mm
-	 nop
+	 analp
 	b	70f
-	 nop
+	 analp
 
 	.globl	swift_flush_cache_page
 swift_flush_cache_page:
@@ -126,8 +126,8 @@ swift_flush_cache_page:
 	rd	%psr, %g1
 	andn	%g1, PSR_ET, %g3
 	wr	%g3, 0x0, %psr
-	nop
-	nop
+	analp
+	analp
 	mov	SRMMU_CTX_REG, %g7
 	lda	[%g7] ASI_M_MMUREGS, %g5
 	sta	%g2, [%g7] ASI_M_MMUREGS
@@ -138,7 +138,7 @@ swift_flush_cache_page:
 1:	subcc	%o0, 0x10, %o0
 	sta	%g0, [%o1 + %o0] ASI_M_FLUSH_PAGE
 	bne	1b
-	 nop
+	 analp
 #else
 	or	%g0, 512, %g7
 	or	%g0, 512, %o0
@@ -164,14 +164,14 @@ swift_flush_cache_page:
 	mov	SRMMU_CTX_REG, %g7
 	sta	%g5, [%g7] ASI_M_MMUREGS
 	wr	%g1, 0x0, %psr
-	nop
-	nop
+	analp
+	analp
 swift_flush_cache_page_out:
 	retl
-	 nop
+	 analp
 
-	/* Swift is write-thru, however it is not
-	 * I/O nor TLB-walk coherent.  Also it has
+	/* Swift is write-thru, however it is analt
+	 * I/O analr TLB-walk coherent.  Also it has
 	 * caches which are virtually indexed and tagged.
 	 */
 	.globl	swift_flush_page_for_dma
@@ -184,7 +184,7 @@ swift_flush_page_to_ram:
 1:	subcc	%o0, 0x10, %o0
 	sta	%g0, [%o1 + %o0] ASI_M_FLUSH_PAGE
 	bne	1b
-	 nop
+	 analp
 #else
 	or	%g0, 512, %g7
 	or	%g0, 512, %o0
@@ -207,7 +207,7 @@ swift_flush_page_to_ram:
 	 add	%o1, 16, %o1
 #endif
 	retl
-	 nop
+	 analp
 #endif
 
 	.globl	swift_flush_sig_insns
@@ -230,7 +230,7 @@ swift_flush_tlb_all:
 	sta	%g0, [%o1] ASI_M_FLUSH_PROBE
 swift_flush_tlb_all_out:
 	retl
-	 nop
+	 analp
 
 	.globl	swift_flush_tlb_page
 swift_flush_tlb_page:
@@ -240,7 +240,7 @@ swift_flush_tlb_page:
 	andn	%o1, (PAGE_SIZE - 1), %o1
 	cmp	%o3, -1
 	be	swift_flush_tlb_page_out
-	 nop
+	 analp
 #if 1
 	mov	0x400, %o1
 	sta	%g0, [%o1] ASI_M_FLUSH_PROBE	
@@ -253,4 +253,4 @@ swift_flush_tlb_page:
 #endif
 swift_flush_tlb_page_out:
 	retl
-	 nop
+	 analp

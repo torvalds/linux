@@ -42,9 +42,9 @@ acpi_ut_get_element_length(u8 object_type,
  *
  * DESCRIPTION: Create and initialize a new internal object.
  *
- * NOTE:        We always allocate the worst-case object descriptor because
+ * ANALTE:        We always allocate the worst-case object descriptor because
  *              these objects are cached, and we want them to be
- *              one-size-satisfies-any-request. This in itself may not be
+ *              one-size-satisfies-any-request. This in itself may analt be
  *              the most memory efficient, but the efficiency of the object
  *              cache should more than make up for this!
  *
@@ -71,7 +71,7 @@ union acpi_operand_object *acpi_ut_create_internal_object_dbg(const char
 	if (!object) {
 		return_PTR(NULL);
 	}
-	kmemleak_not_leak(object);
+	kmemleak_analt_leak(object);
 
 	switch (type) {
 	case ACPI_TYPE_REGION:
@@ -98,7 +98,7 @@ union acpi_operand_object *acpi_ut_create_internal_object_dbg(const char
 
 	default:
 
-		/* All others have no secondary object */
+		/* All others have anal secondary object */
 		break;
 	}
 
@@ -220,7 +220,7 @@ union acpi_operand_object *acpi_ut_create_buffer_object(acpi_size buffer_size)
 
 		buffer = ACPI_ALLOCATE_ZEROED(buffer_size);
 		if (!buffer) {
-			ACPI_ERROR((AE_INFO, "Could not allocate size %u",
+			ACPI_ERROR((AE_INFO, "Could analt allocate size %u",
 				    (u32)buffer_size));
 
 			acpi_ut_remove_reference(buffer_desc);
@@ -243,7 +243,7 @@ union acpi_operand_object *acpi_ut_create_buffer_object(acpi_size buffer_size)
  *
  * FUNCTION:    acpi_ut_create_string_object
  *
- * PARAMETERS:  string_size         - Size of string to be created. Does not
+ * PARAMETERS:  string_size         - Size of string to be created. Does analt
  *                                    include NULL terminator, this is added
  *                                    automatically.
  *
@@ -269,11 +269,11 @@ union acpi_operand_object *acpi_ut_create_string_object(acpi_size string_size)
 
 	/*
 	 * Allocate the actual string buffer -- (Size + 1) for NULL terminator.
-	 * NOTE: Zero-length strings are NULL terminated
+	 * ANALTE: Zero-length strings are NULL terminated
 	 */
 	string = ACPI_ALLOCATE_ZEROED(string_size + 1);
 	if (!string) {
-		ACPI_ERROR((AE_INFO, "Could not allocate size %u",
+		ACPI_ERROR((AE_INFO, "Could analt allocate size %u",
 			    (u32)string_size));
 
 		acpi_ut_remove_reference(string_desc);
@@ -326,7 +326,7 @@ u8 acpi_ut_valid_internal_object(void *object)
 	default:
 
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "%p is not an ACPI operand obj [%s]\n",
+				  "%p is analt an ACPI operand obj [%s]\n",
 				  object, acpi_ut_get_descriptor_name(object)));
 		break;
 	}
@@ -359,7 +359,7 @@ void *acpi_ut_allocate_object_desc_dbg(const char *module_name,
 	object = acpi_os_acquire_object(acpi_gbl_operand_cache);
 	if (!object) {
 		ACPI_ERROR((module_name, line_number,
-			    "Could not allocate an object descriptor"));
+			    "Could analt allocate an object descriptor"));
 
 		return_PTR(NULL);
 	}
@@ -380,7 +380,7 @@ void *acpi_ut_allocate_object_desc_dbg(const char *module_name,
  *
  * PARAMETERS:  object          - An Acpi internal object to be deleted
  *
- * RETURN:      None.
+ * RETURN:      Analne.
  *
  * DESCRIPTION: Free an ACPI object descriptor or add it to the object cache
  *
@@ -394,7 +394,7 @@ void acpi_ut_delete_object_desc(union acpi_operand_object *object)
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(object) != ACPI_DESC_TYPE_OPERAND) {
 		ACPI_ERROR((AE_INFO,
-			    "%p is not an ACPI Operand object [%s]", object,
+			    "%p is analt an ACPI Operand object [%s]", object,
 			    acpi_ut_get_descriptor_name(object)));
 		return_VOID;
 	}
@@ -445,16 +445,16 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* A Namespace Node should never appear here */
+	/* A Namespace Analde should never appear here */
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(internal_object) == ACPI_DESC_TYPE_NAMED) {
 
-		/* A namespace node should never get here */
+		/* A namespace analde should never get here */
 
 		ACPI_ERROR((AE_INFO,
-			    "Received a namespace node [%4.4s] "
+			    "Received a namespace analde [%4.4s] "
 			    "where an operand object is required",
-			    ACPI_CAST_PTR(struct acpi_namespace_node,
+			    ACPI_CAST_PTR(struct acpi_namespace_analde,
 					  internal_object)->name.ascii));
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
@@ -480,7 +480,7 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_POWER:
 
-		/* No extra data for these types */
+		/* Anal extra data for these types */
 
 		break;
 
@@ -494,7 +494,7 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 			 */
 			size =
 			    acpi_ns_get_pathname_length(internal_object->
-							reference.node);
+							reference.analde);
 			if (!size) {
 				return_ACPI_STATUS(AE_BAD_PARAMETER);
 			}
@@ -504,12 +504,12 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 
 		default:
 			/*
-			 * No other reference opcodes are supported.
-			 * Notably, Locals and Args are not supported, but this may be
+			 * Anal other reference opcodes are supported.
+			 * Analtably, Locals and Args are analt supported, but this may be
 			 * required eventually.
 			 */
 			ACPI_ERROR((AE_INFO,
-				    "Cannot convert to external object - "
+				    "Cananalt convert to external object - "
 				    "unsupported Reference Class [%s] 0x%X in object %p",
 				    acpi_ut_get_reference_name(internal_object),
 				    internal_object->reference.class,
@@ -521,7 +521,7 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Cannot convert to external object - "
+		ACPI_ERROR((AE_INFO, "Cananalt convert to external object - "
 			    "unsupported type [%s] 0x%X in object %p",
 			    acpi_ut_get_object_type_name(internal_object),
 			    internal_object->common.type, internal_object));
@@ -578,7 +578,7 @@ acpi_ut_get_element_length(u8 object_type,
 
 	case ACPI_COPY_TYPE_PACKAGE:
 
-		/* Package object - nothing much to do here, let the walk handle it */
+		/* Package object - analthing much to do here, let the walk handle it */
 
 		info->num_packages++;
 		state->pkg.this_target_obj = NULL;
@@ -586,7 +586,7 @@ acpi_ut_get_element_length(u8 object_type,
 
 	default:
 
-		/* No other types allowed */
+		/* Anal other types allowed */
 
 		return (AE_BAD_PARAMETER);
 	}

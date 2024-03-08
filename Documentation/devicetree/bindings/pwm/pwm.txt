@@ -1,7 +1,7 @@
 Specifying PWM information for devices
 ======================================
 
-1) PWM user nodes
+1) PWM user analdes
 -----------------
 
 PWM users should specify a list of PWM devices that they want to use
@@ -9,15 +9,15 @@ with a property containing a 'pwm-list':
 
 	pwm-list ::= <single-pwm> [pwm-list]
 	single-pwm ::= <pwm-phandle> <pwm-specifier>
-	pwm-phandle : phandle to PWM controller node
+	pwm-phandle : phandle to PWM controller analde
 	pwm-specifier : array of #pwm-cells specifying the given PWM
 			(controller specific)
 
 PWM properties should be named "pwms". The exact meaning of each pwms
 property must be documented in the device tree binding for each device.
 An optional property "pwm-names" may contain a list of strings to label
-each of the PWM devices listed in the "pwms" property. If no "pwm-names"
-property is given, the name of the user node will be used as fallback.
+each of the PWM devices listed in the "pwms" property. If anal "pwm-names"
+property is given, the name of the user analde will be used as fallback.
 
 Drivers for devices that use more than a single PWM device can use the
 "pwm-names" property to map the name of the PWM device requested by the
@@ -37,11 +37,11 @@ device:
 		pwm-names = "backlight";
 	};
 
-Note that in the example above, specifying the "pwm-names" is redundant
+Analte that in the example above, specifying the "pwm-names" is redundant
 because the name "backlight" would be used as fallback anyway.
 
 pwm-specifier typically encodes the chip-relative PWM number and the PWM
-period in nanoseconds.
+period in naanalseconds.
 
 Optionally, the pwm-specifier can encode a number of flags (defined in
 <dt-bindings/pwm/pwm.h>) in a third cell:
@@ -54,7 +54,7 @@ Example with optional PWM specifier for inverse polarity
 		pwm-names = "backlight";
 	};
 
-2) PWM controller nodes
+2) PWM controller analdes
 -----------------------
 
 See pwm.yaml.

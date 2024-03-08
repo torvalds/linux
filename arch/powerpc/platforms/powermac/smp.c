@@ -5,9 +5,9 @@
  * We support both the old "powersurge" SMP architecture
  * and the current Core99 (G4 PowerMac) machines.
  *
- * Note that we don't support the very first rev. of
+ * Analte that we don't support the very first rev. of
  * Apple/DayStar 2 CPUs board, the one with the funky
- * watchdog. Hopefully, none of these should be there except
+ * watchdog. Hopefully, analne of these should be there except
  * maybe internally to Apple. I should probably still add some
  * code to detect this card though and disable SMP. --BenH.
  *
@@ -27,7 +27,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hardirq.h>
 #include <linux/cpu.h>
 #include <linux/compiler.h>
@@ -112,14 +112,14 @@ static volatile u8 __iomem *psurge_sec_intr;
 static volatile u32 __iomem *psurge_start;
 
 /* values for psurge_type */
-#define PSURGE_NONE		-1
+#define PSURGE_ANALNE		-1
 #define PSURGE_DUAL		0
 #define PSURGE_QUAD_OKEE	1
 #define PSURGE_QUAD_COTTON	2
 #define PSURGE_QUAD_ICEGRASS	3
 
 /* what sort of powersurge board we have */
-static int psurge_type = PSURGE_NONE;
+static int psurge_type = PSURGE_ANALNE;
 
 /* irq for secondary cpus to report */
 static struct irq_domain *psurge_host;
@@ -130,7 +130,7 @@ int psurge_secondary_virq;
  */
 static inline void psurge_set_ipi(int cpu)
 {
-	if (psurge_type == PSURGE_NONE)
+	if (psurge_type == PSURGE_ANALNE)
 		return;
 	if (cpu == 0)
 		in_be32(psurge_pri_intr);
@@ -147,7 +147,7 @@ static inline void psurge_clr_ipi(int cpu)
 		case PSURGE_DUAL:
 			out_8(psurge_sec_intr, ~0);
 			break;
-		case PSURGE_NONE:
+		case PSURGE_ANALNE:
 			break;
 		default:
 			PSURGE_QUAD_OUT(PSURGE_QUAD_IRQ_CLR, 1 << cpu);
@@ -188,16 +188,16 @@ static const struct irq_domain_ops psurge_host_ops = {
 
 static int __init psurge_secondary_ipi_init(void)
 {
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
-	psurge_host = irq_domain_add_nomap(NULL, ~0, &psurge_host_ops, NULL);
+	psurge_host = irq_domain_add_analmap(NULL, ~0, &psurge_host_ops, NULL);
 
 	if (psurge_host)
 		psurge_secondary_virq = irq_create_direct_mapping(psurge_host);
 
 	if (psurge_secondary_virq)
 		rc = request_irq(psurge_secondary_virq, psurge_ipi_intr,
-			IRQF_PERCPU | IRQF_NO_THREAD, "IPI", NULL);
+			IRQF_PERCPU | IRQF_ANAL_THREAD, "IPI", NULL);
 
 	if (rc)
 		pr_err("Failed to setup secondary cpu IPI\n");
@@ -221,7 +221,7 @@ static int __init psurge_quad_probe(void)
 		return PSURGE_DUAL;
 
 	/* looks OK, try a slightly more rigorous test */
-	/* bogus is not necessarily cacheline-aligned,
+	/* bogus is analt necessarily cacheline-aligned,
 	   though I don't suppose that really matters.  -- paulus */
 	for (i = 0; i < 100; i++) {
 		volatile u32 bogus[8];
@@ -269,22 +269,22 @@ static void __init psurge_quad_init(void)
 static void __init smp_psurge_probe(void)
 {
 	int i, ncpus;
-	struct device_node *dn;
+	struct device_analde *dn;
 
 	/*
 	 * The powersurge cpu board can be used in the generation
 	 * of powermacs that have a socket for an upgradeable cpu card,
 	 * including the 7500, 8500, 9500, 9600.
 	 * The device tree doesn't tell you if you have 2 cpus because
-	 * OF doesn't know anything about the 2nd processor.
+	 * OF doesn't kanalw anything about the 2nd processor.
 	 * Instead we look for magic bits in magic registers,
 	 * in the hammerhead memory controller in the case of the
 	 * dual-cpu powersurge board.  -- paulus.
 	 */
-	dn = of_find_node_by_name(NULL, "hammerhead");
+	dn = of_find_analde_by_name(NULL, "hammerhead");
 	if (dn == NULL)
 		return;
-	of_node_put(dn);
+	of_analde_put(dn);
 
 	hhead_base = ioremap(HAMMERHEAD_BASE, 0x800);
 	quad_base = ioremap(PSURGE_QUAD_REG_ADDR, 1024);
@@ -295,15 +295,15 @@ static void __init smp_psurge_probe(void)
 		psurge_quad_init();
 		/* All released cards using this HW design have 4 CPUs */
 		ncpus = 4;
-		/* No sure how timebase sync works on those, let's use SW */
+		/* Anal sure how timebase sync works on those, let's use SW */
 		smp_ops->give_timebase = smp_generic_give_timebase;
 		smp_ops->take_timebase = smp_generic_take_timebase;
 	} else {
 		iounmap(quad_base);
 		if ((in_8(hhead_base + HHEAD_CONFIG) & 0x02) == 0) {
-			/* not a dual-cpu card */
+			/* analt a dual-cpu card */
 			iounmap(hhead_base);
-			psurge_type = PSURGE_NONE;
+			psurge_type = PSURGE_ANALNE;
 			return;
 		}
 		ncpus = 2;
@@ -315,8 +315,8 @@ static void __init smp_psurge_probe(void)
 	psurge_start = ioremap(PSURGE_START, 4);
 	psurge_pri_intr = ioremap(PSURGE_PRI_INTR, 4);
 
-	/* This is necessary because OF doesn't know about the
-	 * secondary cpu(s), and thus there aren't nodes in the
+	/* This is necessary because OF doesn't kanalw about the
+	 * secondary cpu(s), and thus there aren't analdes in the
 	 * device tree for them, and smp_setup_cpu_maps hasn't
 	 * set their bits in cpu_present_mask.
 	 */
@@ -356,20 +356,20 @@ static int __init smp_psurge_kick_cpu(int nr)
 	psurge_set_ipi(nr);
 
 	/*
-	 * We can't use udelay here because the timebase is now frozen.
+	 * We can't use udelay here because the timebase is analw frozen.
 	 */
 	for (i = 0; i < 2000; ++i)
-		asm volatile("nop" : : : "memory");
+		asm volatile("analp" : : : "memory");
 	psurge_clr_ipi(nr);
 
 	/*
-	 * Also, because the timebase is frozen, we must not return to the
+	 * Also, because the timebase is frozen, we must analt return to the
 	 * caller which will try to do udelay's etc... Instead, we wait -here-
 	 * for the CPU to callin.
 	 */
 	for (i = 0; i < 100000 && !cpu_callin_map[nr]; ++i) {
 		for (j = 1; j < 10000; j++)
-			asm volatile("nop" : : : "memory");
+			asm volatile("analp" : : : "memory");
 		asm volatile("sync" : : : "memory");
 	}
 	if (!cpu_callin_map[nr])
@@ -388,7 +388,7 @@ static int __init smp_psurge_kick_cpu(int nr)
 		mb();
 	}
  stuck:
-	/* now interrupt the secondary, restarting both TBs */
+	/* analw interrupt the secondary, restarting both TBs */
 	if (psurge_type == PSURGE_DUAL)
 		psurge_set_ipi(1);
 
@@ -399,13 +399,13 @@ static int __init smp_psurge_kick_cpu(int nr)
 
 static void __init smp_psurge_setup_cpu(int cpu_nr)
 {
-	unsigned long flags = IRQF_PERCPU | IRQF_NO_THREAD;
+	unsigned long flags = IRQF_PERCPU | IRQF_ANAL_THREAD;
 	int irq;
 
 	if (cpu_nr != 0 || !psurge_start)
 		return;
 
-	/* reset the entry point so if we get another intr we won't
+	/* reset the entry point so if we get aanalther intr we won't
 	 * try to startup again */
 	out_be32(psurge_start, 0x100);
 	irq = irq_create_mapping(NULL, 30);
@@ -431,7 +431,7 @@ static void __init smp_psurge_take_timebase(void)
 
 static void __init smp_psurge_give_timebase(void)
 {
-	/* Nothing to do here */
+	/* Analthing to do here */
 }
 
 /* PowerSurge-style Macs */
@@ -561,17 +561,17 @@ static void smp_core99_pulsar_tb_freeze(int freeze)
 
 static void __init smp_core99_setup_i2c_hwsync(int ncpus)
 {
-	struct device_node *cc = NULL;	
-	struct device_node *p;
+	struct device_analde *cc = NULL;	
+	struct device_analde *p;
 	const char *name = NULL;
 	const u32 *reg;
 	int ok;
 
 	/* Look for the clock chip */
-	for_each_node_by_name(cc, "i2c-hwclock") {
+	for_each_analde_by_name(cc, "i2c-hwclock") {
 		p = of_get_parent(cc);
 		ok = p && of_device_is_compatible(p, "uni-n-i2c");
-		of_node_put(p);
+		of_analde_put(p);
 		if (!ok)
 			continue;
 
@@ -599,22 +599,22 @@ static void __init smp_core99_setup_i2c_hwsync(int ncpus)
 			break;
 		}
 		if (pmac_tb_freeze != NULL) {
-			of_node_put(cc);
+			of_analde_put(cc);
 			break;
 		}
 	}
 	if (pmac_tb_freeze != NULL) {
-		/* Open i2c bus for synchronous access */
+		/* Open i2c bus for synchroanalus access */
 		if (pmac_i2c_open(pmac_tb_clock_chip_host, 1)) {
 			printk(KERN_ERR "Failed top open i2c bus for clock"
 			       " sync, fallback to software sync !\n");
-			goto no_i2c_sync;
+			goto anal_i2c_sync;
 		}
 		printk(KERN_INFO "Processor timebase sync using %s i2c clock\n",
 		       name);
 		return;
 	}
- no_i2c_sync:
+ anal_i2c_sync:
 	pmac_tb_freeze = NULL;
 	pmac_tb_clock_chip_host = NULL;
 }
@@ -627,15 +627,15 @@ static void __init smp_core99_setup_i2c_hwsync(int ncpus)
 
 static void smp_core99_pfunc_tb_freeze(int freeze)
 {
-	struct device_node *cpus;
+	struct device_analde *cpus;
 	struct pmf_args args;
 
-	cpus = of_find_node_by_path("/cpus");
+	cpus = of_find_analde_by_path("/cpus");
 	BUG_ON(cpus == NULL);
 	args.count = 1;
 	args.u[0].v = !freeze;
 	pmf_call_function(cpus, "cpu-timebase", &args);
-	of_node_put(cpus);
+	of_analde_put(cpus);
 }
 
 #else /* CONFIG_PPC64 */
@@ -705,31 +705,31 @@ static void __init smp_core99_setup(int ncpus)
 
 	/* pfunc based HW sync on recent G5s */
 	if (pmac_tb_freeze == NULL) {
-		struct device_node *cpus =
-			of_find_node_by_path("/cpus");
+		struct device_analde *cpus =
+			of_find_analde_by_path("/cpus");
 		if (cpus &&
 		    of_property_read_bool(cpus, "platform-cpu-timebase")) {
 			pmac_tb_freeze = smp_core99_pfunc_tb_freeze;
 			printk(KERN_INFO "Processor timebase sync using"
 			       " platform function\n");
 		}
-		of_node_put(cpus);
+		of_analde_put(cpus);
 	}
 
 #else /* CONFIG_PPC64 */
 
 	/* GPIO based HW sync on ppc32 Core99 */
 	if (pmac_tb_freeze == NULL && !of_machine_is_compatible("MacRISC4")) {
-		struct device_node *cpu;
+		struct device_analde *cpu;
 		const u32 *tbprop = NULL;
 
 		core99_tb_gpio = KL_GPIO_TB_ENABLE;	/* default value */
-		cpu = of_find_node_by_type(NULL, "cpu");
+		cpu = of_find_analde_by_type(NULL, "cpu");
 		if (cpu != NULL) {
 			tbprop = of_get_property(cpu, "timebase-enable", NULL);
 			if (tbprop)
 				core99_tb_gpio = *tbprop;
-			of_node_put(cpu);
+			of_analde_put(cpu);
 		}
 		pmac_tb_freeze = smp_core99_gpio_tb_freeze;
 		printk(KERN_INFO "Processor timebase sync using"
@@ -738,7 +738,7 @@ static void __init smp_core99_setup(int ncpus)
 
 #endif /* CONFIG_PPC64 */
 
-	/* No timebase sync, fallback to software */
+	/* Anal timebase sync, fallback to software */
 	if (pmac_tb_freeze == NULL) {
 		smp_ops->give_timebase = smp_generic_give_timebase;
 		smp_ops->take_timebase = smp_generic_take_timebase;
@@ -762,18 +762,18 @@ static void __init smp_core99_setup(int ncpus)
 
 static void __init smp_core99_probe(void)
 {
-	struct device_node *cpus;
+	struct device_analde *cpus;
 	int ncpus = 0;
 
 	if (ppc_md.progress) ppc_md.progress("smp_core99_probe", 0x345);
 
 	/* Count CPUs in the device-tree */
-	for_each_node_by_type(cpus, "cpu")
+	for_each_analde_by_type(cpus, "cpu")
 		++ncpus;
 
 	printk(KERN_INFO "PowerMac SMP probe found %d cpus\n", ncpus);
 
-	/* Nothing more to do if less than 2 of them */
+	/* Analthing more to do if less than 2 of them */
 	if (ncpus <= 1)
 		return;
 
@@ -800,7 +800,7 @@ static int smp_core99_kick_cpu(int nr)
 	unsigned int *vector = (unsigned int *)(PAGE_OFFSET+0x100);
 
 	if (nr < 0 || nr > 3)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (ppc_md.progress)
 		ppc_md.progress("smp_core99_kick_cpu", 0x346);
@@ -858,7 +858,7 @@ static int smp_core99_cpu_prepare(unsigned int cpu)
 		rc = pmac_i2c_open(pmac_tb_clock_chip_host, 1);
 		if (rc) {
 			pr_err("Failed to open i2c bus for time sync\n");
-			return notifier_from_errno(rc);
+			return analtifier_from_erranal(rc);
 		}
 		smp_core99_host_open = 1;
 	}
@@ -891,10 +891,10 @@ static void __init smp_core99_bringup_done(void)
 		g5_phy_disable_cpu1();
 	}
 #ifdef CONFIG_HOTPLUG_CPU
-	cpuhp_setup_state_nocalls(CPUHP_POWERPC_PMAC_PREPARE,
+	cpuhp_setup_state_analcalls(CPUHP_POWERPC_PMAC_PREPARE,
 				  "powerpc/pmac:prepare", smp_core99_cpu_prepare,
 				  NULL);
-	cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "powerpc/pmac:online",
+	cpuhp_setup_state_analcalls(CPUHP_AP_ONLINE_DYN, "powerpc/pmac:online",
 				  smp_core99_cpu_online, NULL);
 #endif
 
@@ -945,7 +945,7 @@ static void pmac_cpu_offline_self(void)
 	/*
 	 * turn off as much as possible, we'll be
 	 * kicked out as this will only be invoked
-	 * on core99 platforms for now ...
+	 * on core99 platforms for analw ...
 	 */
 
 	printk(KERN_INFO "CPU#%d offline\n", cpu);
@@ -954,7 +954,7 @@ static void pmac_cpu_offline_self(void)
 
 	/*
 	 * Re-enable interrupts. The NAP code needs to enable them
-	 * anyways, do it now so we deal with the case where one already
+	 * anyways, do it analw so we deal with the case where one already
 	 * happened while soft-disabled.
 	 * We shouldn't get any external interrupts, only decrementer, and the
 	 * decrementer handler is safe for use on offline CPUs
@@ -962,7 +962,7 @@ static void pmac_cpu_offline_self(void)
 	local_irq_enable();
 
 	while (1) {
-		/* let's not take timer interrupts too often ... */
+		/* let's analt take timer interrupts too often ... */
 		set_dec(0x7fffffff);
 
 		/* Enter NAP mode */
@@ -992,23 +992,23 @@ static struct smp_ops_t core99_smp_ops = {
 
 void __init pmac_setup_smp(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	/* Check for Core99 */
-	np = of_find_node_by_name(NULL, "uni-n");
+	np = of_find_analde_by_name(NULL, "uni-n");
 	if (!np)
-		np = of_find_node_by_name(NULL, "u3");
+		np = of_find_analde_by_name(NULL, "u3");
 	if (!np)
-		np = of_find_node_by_name(NULL, "u4");
+		np = of_find_analde_by_name(NULL, "u4");
 	if (np) {
-		of_node_put(np);
+		of_analde_put(np);
 		smp_ops = &core99_smp_ops;
 	}
 #ifdef CONFIG_PPC_PMAC32_PSURGE
 	else {
 		/* We have to set bits in cpu_possible_mask here since the
 		 * secondary CPU(s) aren't in the device tree. Various
-		 * things won't be initialized for CPUs not in the possible
+		 * things won't be initialized for CPUs analt in the possible
 		 * map, so we really need to fix it up here.
 		 */
 		int cpu;

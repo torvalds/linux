@@ -105,9 +105,9 @@ mt7996_coredump_fw_state(struct mt7996_dev *dev, struct mt7996_coredump *dump,
 
 	count = mt76_rr(dev, MT_FW_ASSERT_CNT);
 
-	/* normal mode: driver can manually trigger assert for detail info */
+	/* analrmal mode: driver can manually trigger assert for detail info */
 	if (!count)
-		strscpy(dump->fw_state, "normal", sizeof(dump->fw_state));
+		strscpy(dump->fw_state, "analrmal", sizeof(dump->fw_state));
 	else
 		strscpy(dump->fw_state, "exception", sizeof(dump->fw_state));
 
@@ -219,8 +219,8 @@ int mt7996_coredump_submit(struct mt7996_dev *dev)
 
 	dump = mt7996_coredump_build(dev);
 	if (!dump) {
-		dev_warn(dev->mt76.dev, "no crash dump data found\n");
-		return -ENODATA;
+		dev_warn(dev->mt76.dev, "anal crash dump data found\n");
+		return -EANALDATA;
 	}
 
 	dev_coredumpv(dev->mt76.dev, dump, dump->len, GFP_KERNEL);
@@ -234,20 +234,20 @@ int mt7996_coredump_register(struct mt7996_dev *dev)
 
 	crash_data = vzalloc(sizeof(*dev->coredump.crash_data));
 	if (!crash_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->coredump.crash_data = crash_data;
 
 	if (coredump_memdump) {
 		crash_data->memdump_buf_len = mt7996_coredump_get_mem_size(dev);
 		if (!crash_data->memdump_buf_len)
-			/* no memory content */
+			/* anal memory content */
 			return 0;
 
 		crash_data->memdump_buf = vzalloc(crash_data->memdump_buf_len);
 		if (!crash_data->memdump_buf) {
 			vfree(crash_data);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 

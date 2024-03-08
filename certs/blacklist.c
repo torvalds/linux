@@ -20,7 +20,7 @@
 #include "blacklist.h"
 
 /*
- * According to crypto/asymmetric_keys/x509_cert_parser.c:x509_note_pkey_algo(),
+ * According to crypto/asymmetric_keys/x509_cert_parser.c:x509_analte_pkey_algo(),
  * the size of the currently longest supported hash algorithm is 512 bits,
  * which translates into 128 hex characters.
  */
@@ -75,7 +75,7 @@ found_colon:
 	}
 	if (*desc)
 		/* The hash is greater than MAX_HASH_LEN. */
-		return -ENOPKG;
+		return -EANALPKG;
 
 	/* Checks for an even number of hexadecimal characters. */
 	if (i == 0 || i & 1)
@@ -94,7 +94,7 @@ static int blacklist_key_instantiate(struct key *key,
 	key->perm = BLACKLIST_KEY_PERM;
 
 	/*
-	 * Skips the authentication step for builtin hashes, they are not
+	 * Skips the authentication step for builtin hashes, they are analt
 	 * signed but still trusted.
 	 */
 	if (key->flags & (1 << KEY_FLAG_BUILTIN))
@@ -112,7 +112,7 @@ static int blacklist_key_instantiate(struct key *key,
 		return err;
 #else
 	/*
-	 * It should not be possible to come here because the keyring doesn't
+	 * It should analt be possible to come here because the keyring doesn't
 	 * have KEY_USR_WRITE and the only other way to call this function is
 	 * for builtin hashes.
 	 */
@@ -165,7 +165,7 @@ static char *get_raw_hash(const u8 *hash, size_t hash_len,
 	}
 	buffer = kmalloc(type_len + 1 + hash_len * 2 + 1, GFP_KERNEL);
 	if (!buffer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	p = memcpy(buffer, type_prefix, type_len);
 	p += type_len;
 	*p++ = ':';
@@ -189,7 +189,7 @@ static int mark_raw_hash_blacklisted(const char *hash)
 			 NULL,
 			 0,
 			 BLACKLIST_KEY_PERM,
-			 KEY_ALLOC_NOT_IN_QUOTA |
+			 KEY_ALLOC_ANALT_IN_QUOTA |
 			 KEY_ALLOC_BUILT_IN);
 	if (IS_ERR(key)) {
 		if (PTR_ERR(key) == -EEXIST)
@@ -270,7 +270,7 @@ int add_key_to_revocation_list(const char *data, size_t size)
 				   size,
 				   KEY_POS_VIEW | KEY_POS_READ | KEY_POS_SEARCH
 				   | KEY_USR_VIEW,
-				   KEY_ALLOC_NOT_IN_QUOTA | KEY_ALLOC_BUILT_IN
+				   KEY_ALLOC_ANALT_IN_QUOTA | KEY_ALLOC_BUILT_IN
 				   | KEY_ALLOC_BYPASS_RESTRICTION);
 
 	if (IS_ERR(key)) {
@@ -294,7 +294,7 @@ int is_key_on_revocation_list(struct pkcs7_message *pkcs7)
 	if (ret == 0)
 		return -EKEYREJECTED;
 
-	return -ENOKEY;
+	return -EANALKEY;
 }
 #endif
 
@@ -304,7 +304,7 @@ static int restrict_link_for_blacklist(struct key *dest_keyring,
 {
 	if (type == &key_type_blacklist)
 		return 0;
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /*
@@ -312,8 +312,8 @@ static int restrict_link_for_blacklist(struct key *dest_keyring,
  *
  * The blacklist_init() function is registered as an initcall via
  * device_initcall().  As a result if the blacklist_init() function fails for
- * any reason the kernel continues to execute.  While cleanly returning -ENODEV
- * could be acceptable for some non-critical kernel parts, if the blacklist
+ * any reason the kernel continues to execute.  While cleanly returning -EANALDEV
+ * could be acceptable for some analn-critical kernel parts, if the blacklist
  * keyring fails to load it defeats the certificate/key based deny list for
  * signed modules.  If a critical piece of security functionality that users
  * expect to be present fails to initialize, panic()ing is likely the right
@@ -341,7 +341,7 @@ static int __init blacklist_init(void)
 #ifdef CONFIG_SYSTEM_BLACKLIST_AUTH_UPDATE
 			      | KEY_USR_WRITE
 #endif
-			      , KEY_ALLOC_NOT_IN_QUOTA |
+			      , KEY_ALLOC_ANALT_IN_QUOTA |
 			      KEY_ALLOC_SET_KEEP,
 			      restriction, NULL);
 	if (IS_ERR(blacklist_keyring))
@@ -365,7 +365,7 @@ device_initcall(blacklist_init);
 static __init int load_revocation_certificate_list(void)
 {
 	if (revocation_certificate_list_size)
-		pr_notice("Loading compiled-in revocation X.509 certificates\n");
+		pr_analtice("Loading compiled-in revocation X.509 certificates\n");
 
 	return x509_load_certificate_list(revocation_certificate_list,
 					  revocation_certificate_list_size,

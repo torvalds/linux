@@ -51,15 +51,15 @@ static inline const char *dp_parser_pm_name(enum dp_pm_type module)
 /**
  * struct dp_display_data  - display related device tree data.
  *
- * @ctrl_node: referece to controller device
- * @phy_node:  reference to phy device
+ * @ctrl_analde: referece to controller device
+ * @phy_analde:  reference to phy device
  * @is_active: is the controller currently active
  * @name: name of the display
  * @display_type: type of the display
  */
 struct dp_display_data {
-	struct device_node *ctrl_node;
-	struct device_node *phy_node;
+	struct device_analde *ctrl_analde;
+	struct device_analde *phy_analde;
 	bool is_active;
 	const char *name;
 	const char *display_type;
@@ -148,7 +148,7 @@ struct dp_parser *dp_parser_get(struct platform_device *pdev);
  * This function is used to find any additional bridge attached to
  * the DP controller. The eDP interface requires a panel bridge.
  *
- * Return: 0 if able to get the bridge, otherwise negative errno for failure.
+ * Return: 0 if able to get the bridge, otherwise negative erranal for failure.
  */
 int devm_dp_parser_find_next_bridge(struct device *dev, struct dp_parser *parser);
 

@@ -27,32 +27,32 @@ static int __init davinci_init_id(struct davinci_soc_info *soc_info)
 	int			i;
 	struct davinci_id	*dip;
 	u8			variant;
-	u16			part_no;
+	u16			part_anal;
 	void __iomem		*base;
 
 	base = ioremap(soc_info->jtag_id_reg, SZ_4K);
 	if (!base) {
 		pr_err("Unable to map JTAG ID register\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	soc_info->jtag_id = __raw_readl(base);
 	iounmap(base);
 
 	variant = (soc_info->jtag_id & 0xf0000000) >> 28;
-	part_no = (soc_info->jtag_id & 0x0ffff000) >> 12;
+	part_anal = (soc_info->jtag_id & 0x0ffff000) >> 12;
 
 	for (i = 0, dip = soc_info->ids; i < soc_info->ids_num;
 			i++, dip++)
-		/* Don't care about the manufacturer right now */
-		if ((dip->part_no == part_no) && (dip->variant == variant)) {
+		/* Don't care about the manufacturer right analw */
+		if ((dip->part_anal == part_anal) && (dip->variant == variant)) {
 			soc_info->cpu_id = dip->cpu_id;
 			pr_info("DaVinci %s variant 0x%x\n", dip->name,
 					dip->variant);
 			return 0;
 		}
 
-	pr_err("Unknown DaVinci JTAG ID 0x%x\n", soc_info->jtag_id);
+	pr_err("Unkanalwn DaVinci JTAG ID 0x%x\n", soc_info->jtag_id);
 	return -EINVAL;
 }
 
@@ -72,7 +72,7 @@ void __init davinci_common_init(const struct davinci_soc_info *soc_info)
 				davinci_soc_info.io_desc_num);
 
 	/*
-	 * Normally devicemaps_init() would flush caches and tlb after
+	 * Analrmally devicemaps_init() would flush caches and tlb after
 	 * mdesc->map_io(), but we must also do it here because of the CPU
 	 * revision check below.
 	 */

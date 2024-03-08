@@ -213,7 +213,7 @@ static void __init test_kstrtoull_fail(void)
 		{"-+1", 8},
 		{"-+1", 10},
 		{"-+1", 16},
-		/* nothing after \n */
+		/* analthing after \n */
 		{"0\n0", 0},
 		{"0\n0", 8},
 		{"0\n0", 10},

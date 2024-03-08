@@ -16,13 +16,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -43,11 +43,11 @@ struct file;
 
 /**
  * drm_ioctl_t - DRM ioctl function type.
- * @dev: DRM device inode
+ * @dev: DRM device ianalde
  * @data: private pointer of the ioctl call
  * @file_priv: DRM file this ioctl was made on
  *
- * This is the DRM ioctl typedef. Note that drm_ioctl() has alrady copied @data
+ * This is the DRM ioctl typedef. Analte that drm_ioctl() has alrady copied @data
  * into kernel-space, and will also copy it back, depending upon the read/write
  * settings in the ioctl command code.
  */
@@ -82,19 +82,19 @@ enum drm_ioctl_flags {
 	 * @DRM_AUTH:
 	 *
 	 * This is for ioctl which are used for rendering, and require that the
-	 * file descriptor is either for a render node, or if it's a
-	 * legacy/primary node, then it must be authenticated.
+	 * file descriptor is either for a render analde, or if it's a
+	 * legacy/primary analde, then it must be authenticated.
 	 */
 	DRM_AUTH		= BIT(0),
 	/**
 	 * @DRM_MASTER:
 	 *
 	 * This must be set for any ioctl which can change the modeset or
-	 * display state. Userspace must call the ioctl through a primary node,
+	 * display state. Userspace must call the ioctl through a primary analde,
 	 * while it is the active master.
 	 *
-	 * Note that read-only modeset ioctl can also be called by
-	 * unauthenticated clients, or when a master is not the currently active
+	 * Analte that read-only modeset ioctl can also be called by
+	 * unauthenticated clients, or when a master is analt the currently active
 	 * one.
 	 */
 	DRM_MASTER		= BIT(1),
@@ -103,7 +103,7 @@ enum drm_ioctl_flags {
 	 *
 	 * Anything that could potentially wreak a master file descriptor needs
 	 * to have this flag set. Current that's only for the SETMASTER and
-	 * DROPMASTER ioctl, which e.g. logind can call to force a non-behaving
+	 * DROPMASTER ioctl, which e.g. logind can call to force a analn-behaving
 	 * master (display compositor) into compliance.
 	 *
 	 * This is equivalent to callers with the SYSADMIN capability.
@@ -113,10 +113,10 @@ enum drm_ioctl_flags {
 	 * @DRM_RENDER_ALLOW:
 	 *
 	 * This is used for all ioctl needed for rendering only, for drivers
-	 * which support render nodes. This should be all new render drivers,
+	 * which support render analdes. This should be all new render drivers,
 	 * and hence it should be always set for any ioctl with DRM_AUTH set.
-	 * Note though that read-only query ioctl might have this set, but have
-	 * not set DRM_AUTH because they do not require authentication.
+	 * Analte though that read-only query ioctl might have this set, but have
+	 * analt set DRM_AUTH because they do analt require authentication.
 	 */
 	DRM_RENDER_ALLOW	= BIT(5),
 };
@@ -166,7 +166,7 @@ long drm_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 #endif
 bool drm_ioctl_flags(unsigned int nr, unsigned int *flags);
 
-int drm_noop(struct drm_device *dev, void *data,
+int drm_analop(struct drm_device *dev, void *data,
 	     struct drm_file *file_priv);
 int drm_invalid_op(struct drm_device *dev, void *data,
 		   struct drm_file *file_priv);

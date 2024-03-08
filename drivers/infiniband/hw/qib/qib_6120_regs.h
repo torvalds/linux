@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -45,8 +45,8 @@
 #define QIB_6120_Revision_R_Arch_RMASK 0xFF
 #define QIB_6120_Revision_R_ChipRevMajor_LSB 0x8
 #define QIB_6120_Revision_R_ChipRevMajor_RMASK 0xFF
-#define QIB_6120_Revision_R_ChipRevMinor_LSB 0x0
-#define QIB_6120_Revision_R_ChipRevMinor_RMASK 0xFF
+#define QIB_6120_Revision_R_ChipRevMianalr_LSB 0x0
+#define QIB_6120_Revision_R_ChipRevMianalr_RMASK 0xFF
 
 #define QIB_6120_Control_OFFS 0x8
 #define QIB_6120_Control_TxLatency_LSB 0x4
@@ -429,12 +429,12 @@
 #define QIB_6120_HwErrMask_IBCBusToSPCParityErrMask_RMASK 0x1
 #define QIB_6120_HwErrMask_Reserved_LSB 0x3D
 #define QIB_6120_HwErrMask_Reserved_RMASK 0x1
-#define QIB_6120_HwErrMask_IBSerdesPClkNotDetectMask_LSB 0x3C
-#define QIB_6120_HwErrMask_IBSerdesPClkNotDetectMask_RMASK 0x1
-#define QIB_6120_HwErrMask_PCIESerdesQ0PClkNotDetectMask_LSB 0x3B
-#define QIB_6120_HwErrMask_PCIESerdesQ0PClkNotDetectMask_RMASK 0x1
-#define QIB_6120_HwErrMask_PCIESerdesQ1PClkNotDetectMask_LSB 0x3A
-#define QIB_6120_HwErrMask_PCIESerdesQ1PClkNotDetectMask_RMASK 0x1
+#define QIB_6120_HwErrMask_IBSerdesPClkAnaltDetectMask_LSB 0x3C
+#define QIB_6120_HwErrMask_IBSerdesPClkAnaltDetectMask_RMASK 0x1
+#define QIB_6120_HwErrMask_PCIESerdesQ0PClkAnaltDetectMask_LSB 0x3B
+#define QIB_6120_HwErrMask_PCIESerdesQ0PClkAnaltDetectMask_RMASK 0x1
+#define QIB_6120_HwErrMask_PCIESerdesQ1PClkAnaltDetectMask_LSB 0x3A
+#define QIB_6120_HwErrMask_PCIESerdesQ1PClkAnaltDetectMask_RMASK 0x1
 #define QIB_6120_HwErrMask_Reserved1_LSB 0x39
 #define QIB_6120_HwErrMask_Reserved1_RMASK 0x1
 #define QIB_6120_HwErrMask_IBPLLrfSlipMask_LSB 0x38
@@ -469,12 +469,12 @@
 #define QIB_6120_HwErrStatus_IBCBusToSPCParityErr_RMASK 0x1
 #define QIB_6120_HwErrStatus_Reserved_LSB 0x3D
 #define QIB_6120_HwErrStatus_Reserved_RMASK 0x1
-#define QIB_6120_HwErrStatus_IBSerdesPClkNotDetect_LSB 0x3C
-#define QIB_6120_HwErrStatus_IBSerdesPClkNotDetect_RMASK 0x1
-#define QIB_6120_HwErrStatus_PCIESerdesQ0PClkNotDetect_LSB 0x3B
-#define QIB_6120_HwErrStatus_PCIESerdesQ0PClkNotDetect_RMASK 0x1
-#define QIB_6120_HwErrStatus_PCIESerdesQ1PClkNotDetect_LSB 0x3A
-#define QIB_6120_HwErrStatus_PCIESerdesQ1PClkNotDetect_RMASK 0x1
+#define QIB_6120_HwErrStatus_IBSerdesPClkAnaltDetect_LSB 0x3C
+#define QIB_6120_HwErrStatus_IBSerdesPClkAnaltDetect_RMASK 0x1
+#define QIB_6120_HwErrStatus_PCIESerdesQ0PClkAnaltDetect_LSB 0x3B
+#define QIB_6120_HwErrStatus_PCIESerdesQ0PClkAnaltDetect_RMASK 0x1
+#define QIB_6120_HwErrStatus_PCIESerdesQ1PClkAnaltDetect_LSB 0x3A
+#define QIB_6120_HwErrStatus_PCIESerdesQ1PClkAnaltDetect_RMASK 0x1
 #define QIB_6120_HwErrStatus_Reserved1_LSB 0x39
 #define QIB_6120_HwErrStatus_Reserved1_RMASK 0x1
 #define QIB_6120_HwErrStatus_IBPLLrfSlip_LSB 0x38
@@ -509,12 +509,12 @@
 #define QIB_6120_HwErrClear_IBCBusToSPCparityErrClear_RMASK 0x1
 #define QIB_6120_HwErrClear_Reserved_LSB 0x3D
 #define QIB_6120_HwErrClear_Reserved_RMASK 0x1
-#define QIB_6120_HwErrClear_IBSerdesPClkNotDetectClear_LSB 0x3C
-#define QIB_6120_HwErrClear_IBSerdesPClkNotDetectClear_RMASK 0x1
-#define QIB_6120_HwErrClear_PCIESerdesQ0PClkNotDetectClear_LSB 0x3B
-#define QIB_6120_HwErrClear_PCIESerdesQ0PClkNotDetectClear_RMASK 0x1
-#define QIB_6120_HwErrClear_PCIESerdesQ1PClkNotDetectClear_LSB 0x3A
-#define QIB_6120_HwErrClear_PCIESerdesQ1PClkNotDetectClear_RMASK 0x1
+#define QIB_6120_HwErrClear_IBSerdesPClkAnaltDetectClear_LSB 0x3C
+#define QIB_6120_HwErrClear_IBSerdesPClkAnaltDetectClear_RMASK 0x1
+#define QIB_6120_HwErrClear_PCIESerdesQ0PClkAnaltDetectClear_LSB 0x3B
+#define QIB_6120_HwErrClear_PCIESerdesQ0PClkAnaltDetectClear_RMASK 0x1
+#define QIB_6120_HwErrClear_PCIESerdesQ1PClkAnaltDetectClear_LSB 0x3A
+#define QIB_6120_HwErrClear_PCIESerdesQ1PClkAnaltDetectClear_RMASK 0x1
 #define QIB_6120_HwErrClear_Reserved1_LSB 0x39
 #define QIB_6120_HwErrClear_Reserved1_RMASK 0x1
 #define QIB_6120_HwErrClear_IBPLLrfSlipClear_LSB 0x38

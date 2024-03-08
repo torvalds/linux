@@ -13,14 +13,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL TUNGSTEN GRAPHICS AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT.
+ * IN ANAL EVENT SHALL TUNGSTEN GRAPHICS AND/OR ITS SUPPLIERS BE LIABLE FOR
  * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -76,7 +76,7 @@ struct i915_dsm {
 	 * The start and end of DSM which we can optionally use to create GEM
 	 * objects backed by stolen memory.
 	 *
-	 * Note that usable_size tells us exactly how much of this we are
+	 * Analte that usable_size tells us exactly how much of this we are
 	 * actually allowed to use, given that some portion of it is in fact
 	 * reserved for use by hardware functions.
 	 */
@@ -150,7 +150,7 @@ struct i915_gem_mm {
 	struct work_struct free_work;
 	/**
 	 * Count of objects pending destructions. Used to skip needlessly
-	 * waiting on an RCU barrier if no objects are waiting to be freed.
+	 * waiting on an RCU barrier if anal objects are waiting to be freed.
 	 */
 	atomic_t free_count;
 
@@ -159,18 +159,18 @@ struct i915_gem_mm {
 	 */
 	struct vfsmount *gemfs;
 
-	struct intel_memory_region *regions[INTEL_REGION_UNKNOWN];
+	struct intel_memory_region *regions[INTEL_REGION_UNKANALWN];
 
-	struct notifier_block oom_notifier;
-	struct notifier_block vmap_notifier;
+	struct analtifier_block oom_analtifier;
+	struct analtifier_block vmap_analtifier;
 	struct shrinker *shrinker;
 
-#ifdef CONFIG_MMU_NOTIFIER
+#ifdef CONFIG_MMU_ANALTIFIER
 	/**
-	 * notifier_lock for mmu notifiers, memory may not be allocated
+	 * analtifier_lock for mmu analtifiers, memory may analt be allocated
 	 * while holding this lock.
 	 */
-	rwlock_t notifier_lock;
+	rwlock_t analtifier_lock;
 #endif
 
 	/* shrinker accounting, also useful for userland debugging */
@@ -179,7 +179,7 @@ struct i915_gem_mm {
 };
 
 struct i915_virtual_gpu {
-	struct mutex lock; /* serialises sending of g2v_notify command pkts */
+	struct mutex lock; /* serialises sending of g2v_analtify command pkts */
 	bool active;
 	u32 caps;
 	u32 *initial_mmio;
@@ -268,21 +268,21 @@ struct drm_i915_private {
 	/**
 	 * wq - Driver workqueue for GEM.
 	 *
-	 * NOTE: Work items scheduled here are not allowed to grab any modeset
+	 * ANALTE: Work items scheduled here are analt allowed to grab any modeset
 	 * locks, for otherwise the flushing done in the pageflip code will
 	 * result in deadlocks.
 	 */
 	struct workqueue_struct *wq;
 
 	/**
-	 * unordered_wq - internal workqueue for unordered work
+	 * uanalrdered_wq - internal workqueue for uanalrdered work
 	 *
-	 * This workqueue should be used for all unordered work
+	 * This workqueue should be used for all uanalrdered work
 	 * scheduling within i915, which used to be scheduled on the
 	 * system_wq before moving to a driver instance due
 	 * deprecation of flush_scheduled_work().
 	 */
-	struct workqueue_struct *unordered_wq;
+	struct workqueue_struct *uanalrdered_wq;
 
 	/* pm private clock gating functions */
 	const struct drm_i915_clock_gating_funcs *clock_gating_funcs;
@@ -299,7 +299,7 @@ struct drm_i915_private {
 
 	/*
 	 * edram size in MB.
-	 * Cannot be determined by PCIID. You must always read a register.
+	 * Cananalt be determined by PCIID. You must always read a register.
 	 */
 	u32 edram_size_mb;
 
@@ -314,7 +314,7 @@ struct drm_i915_private {
 		u8 num_channels;
 		bool symmetric_memory;
 		enum intel_dram_type {
-			INTEL_DRAM_UNKNOWN,
+			INTEL_DRAM_UNKANALWN,
 			INTEL_DRAM_DDR3,
 			INTEL_DRAM_DDR4,
 			INTEL_DRAM_LPDDR3,
@@ -347,10 +347,10 @@ struct drm_i915_private {
 
 		/*
 		 * We replace the local file with a global mappings as the
-		 * backing storage for the mmap is on the device and not
-		 * on the struct file, and we do not want to prolong the
+		 * backing storage for the mmap is on the device and analt
+		 * on the struct file, and we do analt want to prolong the
 		 * lifetime of the local fd. To minimise the number of
-		 * anonymous inodes we create, we use a global singleton to
+		 * aanalnymous ianaldes we create, we use a global singleton to
 		 * share the global mapping.
 		 */
 		struct file *mmap_singleton;
@@ -371,7 +371,7 @@ struct drm_i915_private {
 	I915_SELFTEST_DECLARE(struct i915_selftest_stash selftest;)
 
 	/*
-	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
+	 * ANALTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
 	 * will be rejected. Instead look for a better place.
 	 */
 };
@@ -397,12 +397,12 @@ static inline struct intel_gt *to_gt(const struct drm_i915_private *i915)
 }
 
 #define rb_to_uabi_engine(rb) \
-	rb_entry_safe(rb, struct intel_engine_cs, uabi_node)
+	rb_entry_safe(rb, struct intel_engine_cs, uabi_analde)
 
 #define for_each_uabi_engine(engine__, i915__) \
 	for ((engine__) = rb_to_uabi_engine(rb_first(&(i915__)->uabi_engines));\
 	     (engine__); \
-	     (engine__) = rb_to_uabi_engine(rb_next(&(engine__)->uabi_node)))
+	     (engine__) = rb_to_uabi_engine(rb_next(&(engine__)->uabi_analde)))
 
 #define INTEL_INFO(i915)	((i915)->__info)
 #define RUNTIME_INFO(i915)	(&(i915)->__runtime)
@@ -432,19 +432,19 @@ static inline struct intel_gt *to_gt(const struct drm_i915_private *i915)
 #define INTEL_BASEDIE_STEP(__i915) (RUNTIME_INFO(__i915)->step.basedie_step)
 
 #define IS_DISPLAY_STEP(__i915, since, until) \
-	(drm_WARN_ON(&(__i915)->drm, INTEL_DISPLAY_STEP(__i915) == STEP_NONE), \
+	(drm_WARN_ON(&(__i915)->drm, INTEL_DISPLAY_STEP(__i915) == STEP_ANALNE), \
 	 INTEL_DISPLAY_STEP(__i915) >= (since) && INTEL_DISPLAY_STEP(__i915) < (until))
 
 #define IS_GRAPHICS_STEP(__i915, since, until) \
-	(drm_WARN_ON(&(__i915)->drm, INTEL_GRAPHICS_STEP(__i915) == STEP_NONE), \
+	(drm_WARN_ON(&(__i915)->drm, INTEL_GRAPHICS_STEP(__i915) == STEP_ANALNE), \
 	 INTEL_GRAPHICS_STEP(__i915) >= (since) && INTEL_GRAPHICS_STEP(__i915) < (until))
 
 #define IS_MEDIA_STEP(__i915, since, until) \
-	(drm_WARN_ON(&(__i915)->drm, INTEL_MEDIA_STEP(__i915) == STEP_NONE), \
+	(drm_WARN_ON(&(__i915)->drm, INTEL_MEDIA_STEP(__i915) == STEP_ANALNE), \
 	 INTEL_MEDIA_STEP(__i915) >= (since) && INTEL_MEDIA_STEP(__i915) < (until))
 
 #define IS_BASEDIE_STEP(__i915, since, until) \
-	(drm_WARN_ON(&(__i915)->drm, INTEL_BASEDIE_STEP(__i915) == STEP_NONE), \
+	(drm_WARN_ON(&(__i915)->drm, INTEL_BASEDIE_STEP(__i915) == STEP_ANALNE), \
 	 INTEL_BASEDIE_STEP(__i915) >= (since) && INTEL_BASEDIE_STEP(__i915) < (until))
 
 static __always_inline unsigned int
@@ -676,7 +676,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define CMDPARSER_USES_GGTT(i915) (GRAPHICS_VER(i915) == 7)
 
 #define HAS_LLC(i915)	(INTEL_INFO(i915)->has_llc)
-#define HAS_SNOOP(i915)	(INTEL_INFO(i915)->has_snoop)
+#define HAS_SANALOP(i915)	(INTEL_INFO(i915)->has_sanalop)
 #define HAS_EDRAM(i915)	((i915)->edram_size_mb)
 #define HAS_SECURE_BATCHES(i915) (GRAPHICS_VER(i915) < 6)
 #define HAS_WT(i915)	HAS_EDRAM(i915)
@@ -692,7 +692,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define INTEL_PPGTT(i915) (RUNTIME_INFO(i915)->ppgtt_type)
 #define HAS_PPGTT(i915) \
-	(INTEL_PPGTT(i915) != INTEL_PPGTT_NONE)
+	(INTEL_PPGTT(i915) != INTEL_PPGTT_ANALNE)
 #define HAS_FULL_PPGTT(i915) \
 	(INTEL_PPGTT(i915) >= INTEL_PPGTT_FULL)
 

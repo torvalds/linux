@@ -1,41 +1,41 @@
 ===============
-rtla-osnoise
+rtla-osanalise
 ===============
 ------------------------------------------------------------------
-Measure the operating system noise
+Measure the operating system analise
 ------------------------------------------------------------------
 
 :Manual section: 1
 
-SYNOPSIS
+SYANALPSIS
 ========
-**rtla osnoise** [*MODE*] ...
+**rtla osanalise** [*MODE*] ...
 
 DESCRIPTION
 ===========
 
-.. include:: common_osnoise_description.rst
+.. include:: common_osanalise_description.rst
 
-The *osnoise* tracer outputs information in two ways. It periodically prints
-a summary of the noise of the operating system, including the counters of
+The *osanalise* tracer outputs information in two ways. It periodically prints
+a summary of the analise of the operating system, including the counters of
 the occurrence of the source of interference. It also provides information
-for each noise via the **osnoise:** tracepoints. The **rtla osnoise top**
-mode displays information about the periodic summary from the *osnoise* tracer.
-The **rtla osnoise hist** mode displays information about the noise using
-the **osnoise:** tracepoints. For further details, please refer to the
+for each analise via the **osanalise:** tracepoints. The **rtla osanalise top**
+mode displays information about the periodic summary from the *osanalise* tracer.
+The **rtla osanalise hist** mode displays information about the analise using
+the **osanalise:** tracepoints. For further details, please refer to the
 respective man page.
 
 MODES
 =====
 **top**
 
-        Prints the summary from osnoise tracer.
+        Prints the summary from osanalise tracer.
 
 **hist**
 
-        Prints a histogram of osnoise samples.
+        Prints a histogram of osanalise samples.
 
-If no MODE is given, the top mode is called, passing the arguments.
+If anal MODE is given, the top mode is called, passing the arguments.
 
 OPTIONS
 =======
@@ -48,9 +48,9 @@ For other options, see the man page for the corresponding mode.
 
 SEE ALSO
 ========
-**rtla-osnoise-top**\(1), **rtla-osnoise-hist**\(1)
+**rtla-osanalise-top**\(1), **rtla-osanalise-hist**\(1)
 
-Osnoise tracer documentation: <https://www.kernel.org/doc/html/latest/trace/osnoise-tracer.html>
+Osanalise tracer documentation: <https://www.kernel.org/doc/html/latest/trace/osanalise-tracer.html>
 
 AUTHOR
 ======

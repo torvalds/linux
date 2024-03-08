@@ -23,7 +23,7 @@ struct user_xstate_header {
 
 /*
  * The structure layout of user_xstateregs, used for exporting the
- * extended register state through ptrace and core-dump (NT_X86_XSTATE note)
+ * extended register state through ptrace and core-dump (NT_X86_XSTATE analte)
  * interfaces will be same as the memory layout of xsave used by the processor
  * (except for the bytes 464..511, which can be used by the software) and hence
  * the size of this structure varies depending on the features supported by the
@@ -33,7 +33,7 @@ struct user_xstate_header {
  * i.e., cpuid.(eax=0xd,ecx=0).ebx will be the size that user (debuggers, etc.)
  * need to use.
  *
- * For now, only the first 8 bytes of the software usable bytes[464..471] will
+ * For analw, only the first 8 bytes of the software usable bytes[464..471] will
  * be used and will be set to OS enabled xstate mask (which is same as the
  * 64bit mask returned by the xgetbv's xCR0).  Users (analyzing core dump
  * remotely, etc.) can use this mask as well as the mask saved in the
@@ -44,9 +44,9 @@ struct user_xstate_header {
  * Also when the user modifies certain state FP/SSE/etc through the
  * ptrace interface, they must ensure that the header.xfeatures
  * bytes[512..519] of the memory layout are updated correspondingly.
- * i.e., for example when FP state is modified to a non-init state,
+ * i.e., for example when FP state is modified to a analn-init state,
  * header.xfeatures's bit 0 must be set to '1', when SSE is modified to
- * non-init state, header.xfeatures's bit 1 must to be set to '1', etc.
+ * analn-init state, header.xfeatures's bit 1 must to be set to '1', etc.
  */
 #define USER_XSTATE_FX_SW_WORDS 6
 #define USER_XSTATE_XCR0_WORD	0

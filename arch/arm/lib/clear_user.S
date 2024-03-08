@@ -14,7 +14,7 @@
  * Purpose  : clear some user memory
  * Params   : addr - user memory address to clear
  *          : sz   - number of bytes to clear
- * Returns  : number of bytes NOT cleared
+ * Returns  : number of bytes ANALT cleared
  */
 ENTRY(__clear_user_std)
 WEAK(arm_clear_user)

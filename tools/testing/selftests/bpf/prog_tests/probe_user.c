@@ -30,7 +30,7 @@ void serial_test_probe_user(void)
 		kprobe_progs[i] =
 			bpf_object__find_program_by_name(obj, prog_names[i]);
 		if (CHECK(!kprobe_progs[i], "find_probe",
-			  "prog '%s' not found\n", prog_names[i]))
+			  "prog '%s' analt found\n", prog_names[i]))
 			goto cleanup;
 	}
 

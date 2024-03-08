@@ -22,13 +22,13 @@ static void qnx6_mmi_copy_sb(struct qnx6_super_block *qsb,
 	qsb->sb_checksum = sb->sb_checksum;
 	qsb->sb_serial = sb->sb_serial;
 	qsb->sb_blocksize = sb->sb_blocksize;
-	qsb->sb_num_inodes = sb->sb_num_inodes;
-	qsb->sb_free_inodes = sb->sb_free_inodes;
+	qsb->sb_num_ianaldes = sb->sb_num_ianaldes;
+	qsb->sb_free_ianaldes = sb->sb_free_ianaldes;
 	qsb->sb_num_blocks = sb->sb_num_blocks;
 	qsb->sb_free_blocks = sb->sb_free_blocks;
 
 	/* the rest of the superblock is the same */
-	memcpy(&qsb->Inode, &sb->Inode, sizeof(sb->Inode));
+	memcpy(&qsb->Ianalde, &sb->Ianalde, sizeof(sb->Ianalde));
 	memcpy(&qsb->Bitmap, &sb->Bitmap, sizeof(sb->Bitmap));
 	memcpy(&qsb->Longfile, &sb->Longfile, sizeof(sb->Longfile));
 }

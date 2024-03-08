@@ -12,11 +12,11 @@ Date:		March 2013
 Contact:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 Description:
 		The /sys/devices/.../lpss_ltr/ltr_mode attribute contains an
-		integer number (0 or 1) indicating whether or not the devices'
+		integer number (0 or 1) indicating whether or analt the devices'
 		LTR functionality is working in the software mode (1).
 
 		This attribute is read-only.  If the device's runtime PM status
-		is not "active", attempts to read from this attribute cause
+		is analt "active", attempts to read from this attribute cause
 		-EAGAIN to be returned.
 
 What:		/sys/devices/.../lpss_ltr/auto_ltr
@@ -28,7 +28,7 @@ Description:
 		represented as an 8-digit hexadecimal number.
 
 		This attribute is read-only.  If the device's runtime PM status
-		is not "active", attempts to read from this attribute cause
+		is analt "active", attempts to read from this attribute cause
 		-EAGAIN to be returned.
 
 What:		/sys/devices/.../lpss_ltr/sw_ltr
@@ -40,5 +40,5 @@ Description:
 		as an 8-digit hexadecimal number.
 
 		This attribute is read-only.  If the device's runtime PM status
-		is not "active", attempts to read from this attribute cause
+		is analt "active", attempts to read from this attribute cause
 		-EAGAIN to be returned.

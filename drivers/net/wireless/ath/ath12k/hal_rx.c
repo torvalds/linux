@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include "debug.h"
@@ -54,7 +54,7 @@ static int ath12k_hal_reo_cmd_flush_cache(struct ath12k_hal *hal,
 
 	if (cmd->flag & HAL_REO_CMD_FLG_FLUSH_BLOCK_LATER) {
 		if (avail_slot >= HAL_MAX_AVAIL_BLK_RES)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		hal->current_blk_index = avail_slot;
 	}
@@ -83,7 +83,7 @@ static int ath12k_hal_reo_cmd_flush_cache(struct ath12k_hal *hal,
 					 HAL_REO_FLUSH_CACHE_INFO0_BLOCK_RESRC_IDX);
 	}
 
-	if (cmd->flag & HAL_REO_CMD_FLG_FLUSH_NO_INVAL)
+	if (cmd->flag & HAL_REO_CMD_FLG_FLUSH_ANAL_INVAL)
 		desc->info0 |= cpu_to_le32(HAL_REO_FLUSH_CACHE_INFO0_FLUSH_WO_INVALIDATE);
 
 	if (cmd->flag & HAL_REO_CMD_FLG_FLUSH_ALL)
@@ -143,8 +143,8 @@ static int ath12k_hal_reo_cmd_update_rx_queue(struct hal_tlv_64_hdr *tlv,
 				 HAL_REO_UPD_RX_QUEUE_INFO0_UPD_PN_HANDLE_ENABLE) |
 		le32_encode_bits(!!(cmd->upd0 & HAL_REO_CMD_UPD0_PN_SIZE),
 				 HAL_REO_UPD_RX_QUEUE_INFO0_UPD_PN_SIZE) |
-		le32_encode_bits(!!(cmd->upd0 & HAL_REO_CMD_UPD0_IGNORE_AMPDU_FLG),
-				 HAL_REO_UPD_RX_QUEUE_INFO0_UPD_IGNORE_AMPDU_FLG) |
+		le32_encode_bits(!!(cmd->upd0 & HAL_REO_CMD_UPD0_IGANALRE_AMPDU_FLG),
+				 HAL_REO_UPD_RX_QUEUE_INFO0_UPD_IGANALRE_AMPDU_FLG) |
 		le32_encode_bits(!!(cmd->upd0 & HAL_REO_CMD_UPD0_SVLD),
 				 HAL_REO_UPD_RX_QUEUE_INFO0_UPD_SVLD) |
 		le32_encode_bits(!!(cmd->upd0 & HAL_REO_CMD_UPD0_SSN),
@@ -185,8 +185,8 @@ static int ath12k_hal_reo_cmd_update_rx_queue(struct hal_tlv_64_hdr *tlv,
 				 HAL_REO_UPD_RX_QUEUE_INFO1_UNEVEN_PN) |
 		le32_encode_bits(!!(cmd->upd1 & HAL_REO_CMD_UPD1_PN_HANDLE_ENABLE),
 				 HAL_REO_UPD_RX_QUEUE_INFO1_PN_HANDLE_ENABLE) |
-		le32_encode_bits(!!(cmd->upd1 & HAL_REO_CMD_UPD1_IGNORE_AMPDU_FLG),
-				 HAL_REO_UPD_RX_QUEUE_INFO1_IGNORE_AMPDU_FLG);
+		le32_encode_bits(!!(cmd->upd1 & HAL_REO_CMD_UPD1_IGANALRE_AMPDU_FLG),
+				 HAL_REO_UPD_RX_QUEUE_INFO1_IGANALRE_AMPDU_FLG);
 
 	if (cmd->pn_size == 24)
 		cmd->pn_size = HAL_RX_REO_QUEUE_PN_SIZE_24;
@@ -229,7 +229,7 @@ int ath12k_hal_reo_cmd_send(struct ath12k_base *ab, struct hal_srng *srng,
 	ath12k_hal_srng_access_begin(ab, srng);
 	reo_desc = ath12k_hal_srng_src_get_next_entry(ab, srng);
 	if (!reo_desc) {
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		goto out;
 	}
 
@@ -247,10 +247,10 @@ int ath12k_hal_reo_cmd_send(struct ath12k_base *ab, struct hal_srng *srng,
 	case HAL_REO_CMD_UNBLOCK_CACHE:
 	case HAL_REO_CMD_FLUSH_TIMEOUT_LIST:
 		ath12k_warn(ab, "Unsupported reo command %d\n", type);
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		break;
 	default:
-		ath12k_warn(ab, "Unknown reo command %d\n", type);
+		ath12k_warn(ab, "Unkanalwn reo command %d\n", type);
 		ret = -EINVAL;
 		break;
 	}
@@ -691,7 +691,7 @@ u32 ath12k_hal_reo_qdesc_size(u32 ba_window_size, u8 tid)
 	u32 num_ext_desc;
 
 	if (ba_window_size <= 1) {
-		if (tid != HAL_DESC_REO_NON_QOS_TID)
+		if (tid != HAL_DESC_REO_ANALN_QOS_TID)
 			num_ext_desc = 1;
 		else
 			num_ext_desc = 0;
@@ -727,7 +727,7 @@ void ath12k_hal_reo_qdesc_setup(struct hal_rx_reo_queue *qdesc,
 	if (ba_window_size < 1)
 		ba_window_size = 1;
 
-	if (ba_window_size == 1 && tid != HAL_DESC_REO_NON_QOS_TID)
+	if (ba_window_size == 1 && tid != HAL_DESC_REO_ANALN_QOS_TID)
 		ba_window_size++;
 
 	if (ba_window_size == 1)
@@ -736,7 +736,7 @@ void ath12k_hal_reo_qdesc_setup(struct hal_rx_reo_queue *qdesc,
 	qdesc->info0 |= le32_encode_bits(ba_window_size - 1,
 					 HAL_RX_REO_QUEUE_INFO0_BA_WINDOW_SIZE);
 	switch (type) {
-	case HAL_PN_TYPE_NONE:
+	case HAL_PN_TYPE_ANALNE:
 	case HAL_PN_TYPE_WAPI_EVEN:
 	case HAL_PN_TYPE_WAPI_UNEVEN:
 		break;
@@ -748,10 +748,10 @@ void ath12k_hal_reo_qdesc_setup(struct hal_rx_reo_queue *qdesc,
 		break;
 	}
 
-	/* TODO: Set Ignore ampdu flags based on BA window size and/or
+	/* TODO: Set Iganalre ampdu flags based on BA window size and/or
 	 * AMPDU capabilities
 	 */
-	qdesc->info0 |= le32_encode_bits(1, HAL_RX_REO_QUEUE_INFO0_IGNORE_AMPDU_FLG);
+	qdesc->info0 |= le32_encode_bits(1, HAL_RX_REO_QUEUE_INFO0_IGANALRE_AMPDU_FLG);
 
 	qdesc->info1 |= le32_encode_bits(0, HAL_RX_REO_QUEUE_INFO1_SVLD);
 
@@ -759,7 +759,7 @@ void ath12k_hal_reo_qdesc_setup(struct hal_rx_reo_queue *qdesc,
 		qdesc->info1 = le32_encode_bits(start_seq,
 						HAL_RX_REO_QUEUE_INFO1_SSN);
 
-	if (tid == HAL_DESC_REO_NON_QOS_TID)
+	if (tid == HAL_DESC_REO_ANALN_QOS_TID)
 		return;
 
 	ext_desc = qdesc->ext_desc;
@@ -768,7 +768,7 @@ void ath12k_hal_reo_qdesc_setup(struct hal_rx_reo_queue *qdesc,
 	 * window size for all QOS TIDs so that same descriptor can be used
 	 * later when ADDBA request is received. This should be changed to
 	 * allocate HW queue descriptors based on BA window size being
-	 * negotiated (0 for non BA cases), and reallocate when BA window
+	 * negotiated (0 for analn BA cases), and reallocate when BA window
 	 * size changes and also send WMI message to FW to change the REO
 	 * queue descriptor in Rx peer entry as part of dp_rx_tid_update.
 	 */

@@ -3,7 +3,7 @@
  * IIO driver for the 3-axis accelerometer Domintech ARD10.
  *
  * Copyright (c) 2016 Hans de Goede <hdegoede@redhat.com>
- * Copyright (c) 2012 Domintech Technology Co., Ltd
+ * Copyright (c) 2012 Domintech Techanallogy Co., Ltd
  */
 
 #include <linux/module.h>
@@ -25,8 +25,8 @@
 #define DMARD10_MODE_READ_OTP			0x12
 #define DMARD10_MODE_RESET_DATA_PATH		0x82
 
-/* AFEN set 1, ATM[2:0]=b'000 (normal), EN_Z/Y/X/T=1 */
-#define DMARD10_VALUE_AFEM_AFEN_NORMAL		0x8f
+/* AFEN set 1, ATM[2:0]=b'000 (analrmal), EN_Z/Y/X/T=1 */
+#define DMARD10_VALUE_AFEM_AFEN_ANALRMAL		0x8f
 /* ODR[3:0]=b'0111 (100Hz), CCK[3:0]=b'0100 (204.8kHZ) */
 #define DMARD10_VALUE_CKSEL_ODR_100_204		0x74
 /* INTC[6:5]=b'00 */
@@ -96,7 +96,7 @@ static int dmard10_reset(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
-	/* 3. OSCA_EN = 1, TSTO = b'000 (INT1 = normal, TEST0 = normal) */
+	/* 3. OSCA_EN = 1, TSTO = b'000 (INT1 = analrmal, TEST0 = analrmal) */
 	ret = i2c_smbus_write_byte_data(client, DMARD10_REG_MISC2,
 						DMARD10_VALUE_MISC2_OSCA_EN);
 	if (ret < 0)
@@ -104,11 +104,11 @@ static int dmard10_reset(struct i2c_client *client)
 
 	/* 4. AFEN = 1 (AFE will powerdown after ADC) */
 	buffer[0] = DMARD10_REG_AFEM;
-	buffer[1] = DMARD10_VALUE_AFEM_AFEN_NORMAL;
+	buffer[1] = DMARD10_VALUE_AFEM_AFEN_ANALRMAL;
 	buffer[2] = DMARD10_VALUE_CKSEL_ODR_100_204;
 	buffer[3] = DMARD10_VALUE_INTC;
 	buffer[4] = DMARD10_VALUE_TAPNS_AVE_2;
-	buffer[5] = 0x00; /* DLYC, no delay timing */
+	buffer[5] = 0x00; /* DLYC, anal delay timing */
 	buffer[6] = 0x07; /* INTD=1 push-pull, INTA=1 active high, AUTOT=1 */
 	ret = i2c_master_send(client, buffer, 7);
 	if (ret < 0)
@@ -160,7 +160,7 @@ static int dmard10_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
 		*val2 = dmard10_nscale;
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return -EINVAL;
 	}
@@ -184,16 +184,16 @@ static int dmard10_probe(struct i2c_client *client)
 	/* These 2 registers have special POR reset values used for id */
 	ret = i2c_smbus_read_byte_data(client, DMARD10_REG_STADR);
 	if (ret != DMARD10_VALUE_STADR)
-		return (ret < 0) ? ret : -ENODEV;
+		return (ret < 0) ? ret : -EANALDEV;
 
 	ret = i2c_smbus_read_byte_data(client, DMARD10_REG_STAINT);
 	if (ret != DMARD10_VALUE_STAINT)
-		return (ret < 0) ? ret : -ENODEV;
+		return (ret < 0) ? ret : -EANALDEV;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev) {
 		dev_err(&client->dev, "iio allocation failed!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data = iio_priv(indio_dev);

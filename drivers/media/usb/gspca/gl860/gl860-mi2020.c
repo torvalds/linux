@@ -359,7 +359,7 @@ void mi2020_init_settings(struct gspca_dev *gspca_dev)
 	sd->vcur.gamma      =  0;
 	sd->vcur.hue        =  0;
 	sd->vcur.saturation = 60;
-	sd->vcur.whitebal   =  0; /* 50, not done by hardware */
+	sd->vcur.whitebal   =  0; /* 50, analt done by hardware */
 	sd->vcur.mirror = 0;
 	sd->vcur.flip   = 0;
 	sd->vcur.AC50Hz = 1;
@@ -369,9 +369,9 @@ void mi2020_init_settings(struct gspca_dev *gspca_dev)
 	sd->vmax.sharpness  =  40;
 	sd->vmax.contrast   =   3;
 	sd->vmax.gamma      =   2;
-	sd->vmax.hue        =   0 + 1; /* 200, not done by hardware */
-	sd->vmax.saturation =   0;     /* 100, not done by hardware */
-	sd->vmax.whitebal   =   2;     /* 100, not done by hardware */
+	sd->vmax.hue        =   0 + 1; /* 200, analt done by hardware */
+	sd->vmax.saturation =   0;     /* 100, analt done by hardware */
+	sd->vmax.whitebal   =   2;     /* 100, analt done by hardware */
 	sd->vmax.mirror = 1;
 	sd->vmax.flip   = 1;
 	sd->vmax.AC50Hz = 1;
@@ -426,7 +426,7 @@ static int mi2020_init_pre_alt(struct gspca_dev *gspca_dev)
 	sd->vold.brightness = -1;
 	sd->vold.sharpness  = -1;
 
-	/* If not different from default, they do not need to be set */
+	/* If analt different from default, they do analt need to be set */
 	sd->vold.contrast  = 0;
 	sd->vold.gamma     = 0;
 	sd->vold.backlight = 0;

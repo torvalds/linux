@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <dt-bindings/clock/qcom,qdu1000-gcc.h>
@@ -222,142 +222,142 @@
 
 		hyp_mem: hyp@80000000 {
 			reg = <0x0 0x80000000 0x0 0x600000>;
-			no-map;
+			anal-map;
 		};
 
 		xbl_dt_log_mem: xbl-dt-log@80600000 {
 			reg = <0x0 0x80600000 0x0 0x40000>;
-			no-map;
+			anal-map;
 		};
 
 		xbl_ramdump_mem: xbl-ramdump@80640000 {
 			reg = <0x0 0x80640000 0x0 0x1c0000>;
-			no-map;
+			anal-map;
 		};
 
 		aop_image_mem: aop-image@80800000 {
 			reg = <0x0 0x80800000 0x0 0x60000>;
-			no-map;
+			anal-map;
 		};
 
 		aop_cmd_db_mem: aop-cmd-db@80860000 {
 			compatible = "qcom,cmd-db";
 			reg = <0x0 0x80860000 0x0 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		aop_config_mem: aop-config@80880000 {
 			reg = <0x0 0x80880000 0x0 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		tme_crash_dump_mem: tme-crash-dump@808a0000 {
 			reg = <0x0 0x808a0000 0x0 0x40000>;
-			no-map;
+			anal-map;
 		};
 
 		tme_log_mem: tme-log@808e0000 {
 			reg = <0x0 0x808e0000 0x0 0x4000>;
-			no-map;
+			anal-map;
 		};
 
 		uefi_log_mem: uefi-log@808e4000 {
 			reg = <0x0 0x808e4000 0x0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_mem: smem@80900000 {
 			compatible = "qcom,smem";
 			reg = <0x0 0x80900000 0x0 0x200000>;
-			no-map;
+			anal-map;
 			hwlocks = <&tcsr_mutex 3>;
 		};
 
 		cpucp_fw_mem: cpucp-fw@80b00000 {
 			reg = <0x0 0x80b00000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		xbl_sc_mem: memory@80c00000 {
 			reg = <0x0 0x80c00000 0x0 0x40000>;
-			no-map;
+			anal-map;
 		};
 
 		tz_stat_mem: tz-stat@81d00000 {
 			reg = <0x0 0x81d00000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		tags_mem: tags@81e00000 {
 			reg = <0x0 0x81e00000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		qtee_mem: qtee@82300000 {
 			reg = <0x0 0x82300000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		ta_mem: ta@82800000 {
 			reg = <0x0 0x82800000 0x0 0xa00000>;
-			no-map;
+			anal-map;
 		};
 
 		fs1_mem: fs1@83200000 {
 			reg = <0x0 0x83200000 0x0 0x400000>;
-			no-map;
+			anal-map;
 		};
 
 		fs2_mem: fs2@83600000 {
 			reg = <0x0 0x83600000 0x0 0x400000>;
-			no-map;
+			anal-map;
 		};
 
 		fs3_mem: fs3@83a00000 {
 			reg = <0x0 0x83a00000 0x0 0x400000>;
-			no-map;
+			anal-map;
 		};
 
 		/* Linux kernel image is loaded at 0x83e00000 */
 
 		ipa_fw_mem: ipa-fw@8be00000 {
 			reg = <0x0 0x8be00000 0x0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_gsi_mem: ipa-gsi@8be10000 {
 			reg = <0x0 0x8be10000 0x0 0x14000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_mem: mpss@8c000000 {
 			reg = <0x0 0x8c000000 0x0 0x12c00000>;
-			no-map;
+			anal-map;
 		};
 
 		q6_mpss_dtb_mem: q6-mpss-dtb@9ec00000 {
 			reg = <0x0 0x9ec00000 0x0 0x80000>;
-			no-map;
+			anal-map;
 		};
 
 		tenx_mem: tenx@a0000000 {
 			reg = <0x0 0xa0000000 0x0 0x19600000>;
-			no-map;
+			anal-map;
 		};
 
 		oem_tenx_mem: oem-tenx@b9600000 {
 			reg = <0x0 0xb9600000 0x0 0x6a00000>;
-			no-map;
+			anal-map;
 		};
 
 		tenx_q6_buffer_mem: tenx-q6-buffer@c0000000 {
 			reg = <0x0 0xc0000000 0x0 0x3200000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_buffer_mem: ipa-buffer@c3200000 {
 			reg = <0x0 0xc3200000 0x0 0x12c00000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -853,8 +853,8 @@
 			};
 		};
 
-		system_noc: interconnect@1640000 {
-			compatible = "qcom,qdu1000-system-noc";
+		system_analc: interconnect@1640000 {
+			compatible = "qcom,qdu1000-system-analc";
 			reg = <0x0 0x1640000 0x0 0x45080>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 			#interconnect-cells = <2>;
@@ -885,8 +885,8 @@
 
 			resets = <&gcc GCC_SDCC5_BCR>;
 
-			interconnects = <&system_noc MASTER_SDCC_1 0 &mc_virt SLAVE_EBI1 0>,
-					<&gem_noc MASTER_APPSS_PROC 0 &system_noc SLAVE_SDCC_2 0>;
+			interconnects = <&system_analc MASTER_SDCC_1 0 &mc_virt SLAVE_EBI1 0>,
+					<&gem_analc MASTER_APPSS_PROC 0 &system_analc SLAVE_SDCC_2 0>;
 			interconnect-names = "sdhc-ddr", "cpu-sdhc";
 			power-domains = <&rpmhpd QDU1000_CX>;
 			operating-points-v2 = <&sdhc1_opp_table>;
@@ -906,7 +906,7 @@
 
 				opp-384000000 {
 					opp-hz = /bits/ 64 <384000000>;
-					required-opps = <&rpmhpd_opp_nom>;
+					required-opps = <&rpmhpd_opp_analm>;
 					opp-peak-kBps = <6528000 1652800>;
 					opp-avg-kBps = <400000 0>;
 				};
@@ -1417,16 +1417,16 @@
 						opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
 					};
 
-					rpmhpd_opp_nom: opp6 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+					rpmhpd_opp_analm: opp6 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM>;
 					};
 
-					rpmhpd_opp_nom_l1: opp7 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+					rpmhpd_opp_analm_l1: opp7 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L1>;
 					};
 
-					rpmhpd_opp_nom_l2: opp8 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L2>;
+					rpmhpd_opp_analm_l2: opp8 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L2>;
 					};
 
 					rpmhpd_opp_turbo: opp9 {
@@ -1450,8 +1450,8 @@
 			#clock-cells = <1>;
 		};
 
-		gem_noc: interconnect@19100000 {
-			compatible = "qcom,qdu1000-gem-noc";
+		gem_analc: interconnect@19100000 {
+			compatible = "qcom,qdu1000-gem-analc";
 			reg = <0x0 0x19100000 0x0 0xB8080>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 			#interconnect-cells = <2>;

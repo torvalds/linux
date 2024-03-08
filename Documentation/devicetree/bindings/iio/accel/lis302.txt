@@ -62,7 +62,7 @@ Optional properties for all bus drivers:
 				(used by self-test)
 
 
-Example for a SPI device node:
+Example for a SPI device analde:
 
 	accelerometer@0 {
 		compatible = "st,lis302dl-spi";
@@ -87,7 +87,7 @@ Example for a SPI device node:
 		st,wakeup-z-hi;
 	};
 
-Example for a I2C device node:
+Example for a I2C device analde:
 
 	lis331dlh: accelerometer@18 {
 		compatible = "st,lis331dlh", "st,lis3lv02d";

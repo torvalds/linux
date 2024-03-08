@@ -161,7 +161,7 @@ static int mtk_hci_wmt_sync(struct hci_dev *hdev,
 
 	wc = kzalloc(hlen, GFP_KERNEL);
 	if (!wc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr = &wc->hdr;
 	hdr->dir = 1;
@@ -179,7 +179,7 @@ static int mtk_hci_wmt_sync(struct hci_dev *hdev,
 	}
 
 	/* The vendor specific WMT commands are all answered by a vendor
-	 * specific event and will not have the Command Status or Command
+	 * specific event and will analt have the Command Status or Command
 	 * Complete as with usual HCI command flow control.
 	 *
 	 * After sending the command, wait for BTMTKSDIO_TX_WAIT_VND_EVT
@@ -260,7 +260,7 @@ static int btmtksdio_tx_packet(struct btmtksdio_dev *bdev,
 	struct mtkbtsdio_hdr *sdio_hdr;
 	int err;
 
-	/* Make sure that there are enough rooms for SDIO header */
+	/* Make sure that there are eanalugh rooms for SDIO header */
 	if (unlikely(skb_headroom(skb) < sizeof(*sdio_hdr))) {
 		err = pskb_expand_head(skb, sizeof(*sdio_hdr), 0,
 				       GFP_ATOMIC);
@@ -324,7 +324,7 @@ static int btmtksdio_fw_pmctrl(struct btmtksdio_dev *bdev)
 					 status, !(status & PD2HRM0R_DRV_OWN),
 					 2000, 1000000);
 		if (err < 0) {
-			bt_dev_err(bdev->hdev, "mailbox ACK not cleared");
+			bt_dev_err(bdev->hdev, "mailbox ACK analt cleared");
 			goto out;
 		}
 	}
@@ -341,7 +341,7 @@ out:
 	sdio_release_host(bdev->func);
 
 	if (err < 0)
-		bt_dev_err(bdev->hdev, "Cannot return ownership to device");
+		bt_dev_err(bdev->hdev, "Cananalt return ownership to device");
 
 	return err;
 }
@@ -371,7 +371,7 @@ out:
 	sdio_release_host(bdev->func);
 
 	if (err < 0)
-		bt_dev_err(bdev->hdev, "Cannot get ownership from device");
+		bt_dev_err(bdev->hdev, "Cananalt get ownership from device");
 
 	return err;
 }
@@ -389,7 +389,7 @@ static int btmtksdio_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 	if (test_bit(BTMTKSDIO_TX_WAIT_VND_EVT, &bdev->tx_state)) {
 		bdev->evt_skb = skb_clone(skb, GFP_KERNEL);
 		if (!bdev->evt_skb) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out;
 		}
 	}
@@ -425,7 +425,7 @@ static int btmtksdio_recv_acl(struct hci_dev *hdev, struct sk_buff *skb)
 	switch (handle) {
 	case 0xfc6f:
 		/* Firmware dump from device: when the firmware hangs, the
-		 * device can no longer suspend and thus disable auto-suspend.
+		 * device can anal longer suspend and thus disable auto-suspend.
 		 */
 		pm_runtime_forbid(bdev->dev);
 		fallthrough;
@@ -459,7 +459,7 @@ static int btmtksdio_rx_packet(struct btmtksdio_dev *bdev, u16 rx_size)
 	/* A SDIO packet is exactly containing a Bluetooth packet */
 	skb = bt_skb_alloc(rx_size, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, rx_size);
 
@@ -484,7 +484,7 @@ static int btmtksdio_rx_packet(struct btmtksdio_dev *bdev, u16 rx_size)
 	/* Remove MediaTek SDIO header */
 	skb_pull(skb, sizeof(*sdio_hdr));
 
-	/* We have to dig into the packet to get payload size and then know how
+	/* We have to dig into the packet to get payload size and then kanalw how
 	 * many padding bytes at the tail, these padding bytes should be removed
 	 * before the packet is indicated to the core layer.
 	 */
@@ -499,7 +499,7 @@ static int btmtksdio_rx_packet(struct btmtksdio_dev *bdev, u16 rx_size)
 		goto err_kfree_skb;
 	}
 
-	/* Remaining bytes cannot hold a header*/
+	/* Remaining bytes cananalt hold a header*/
 	if (skb->len < (&pkts[i])->hlen) {
 		bt_dev_err(bdev->hdev, "The size of bt header is mismatched");
 		goto err_kfree_skb;
@@ -519,7 +519,7 @@ static int btmtksdio_rx_packet(struct btmtksdio_dev *bdev, u16 rx_size)
 
 	pad_size = skb->len - (&pkts[i])->hlen -  dlen;
 
-	/* Remaining bytes cannot hold a payload */
+	/* Remaining bytes cananalt hold a payload */
 	if (pad_size < 0) {
 		bt_dev_err(bdev->hdev, "The size of bt payload is mismatched");
 		goto err_kfree_skb;
@@ -565,10 +565,10 @@ static void btmtksdio_txrx_work(struct work_struct *work)
 		/* Ack an interrupt as soon as possible before any operation on
 		 * hardware.
 		 *
-		 * Note that we don't ack any status during operations to avoid race
+		 * Analte that we don't ack any status during operations to avoid race
 		 * condition between the host and the device such as it's possible to
 		 * mistakenly ack RX_DONE for the next packet and then cause interrupts
-		 * not be raised again but there is still pending data in the hardware
+		 * analt be raised again but there is still pending data in the hardware
 		 * FIFO.
 		 */
 		sdio_writel(bdev->func, int_status, MTK_REG_CHISR, NULL);
@@ -669,7 +669,7 @@ static int btmtksdio_open(struct hci_dev *hdev)
 		goto err_release_irq;
 
 	/* SDIO CMD 5 allows the SDIO device back to idle state an
-	 * synchronous interrupt is supported in SDIO 4-bit mode
+	 * synchroanalus interrupt is supported in SDIO 4-bit mode
 	 */
 	val = sdio_readl(bdev->func, MTK_REG_CSDIOCSR, &err);
 	if (err < 0)
@@ -797,7 +797,7 @@ static int mt76xx_setup(struct hci_dev *hdev, const char *fwname)
 
 	if (status == BTMTK_WMT_PATCH_DONE) {
 		bt_dev_info(hdev, "Firmware already downloaded");
-		goto ignore_setup_fw;
+		goto iganalre_setup_fw;
 	}
 
 	/* Setup a firmware which the device definitely requires */
@@ -805,7 +805,7 @@ static int mt76xx_setup(struct hci_dev *hdev, const char *fwname)
 	if (err < 0)
 		return err;
 
-ignore_setup_fw:
+iganalre_setup_fw:
 	/* Query whether the device is already enabled */
 	err = readx_poll_timeout(btmtksdio_func_query, hdev, status,
 				 status < 0 || status != BTMTK_WMT_ON_PROGRESS,
@@ -820,7 +820,7 @@ ignore_setup_fw:
 
 	if (status == BTMTK_WMT_ON_DONE) {
 		bt_dev_info(hdev, "function already on");
-		goto ignore_func_on;
+		goto iganalre_func_on;
 	}
 
 	/* Enable Bluetooth protocol */
@@ -838,7 +838,7 @@ ignore_setup_fw:
 
 	set_bit(BTMTKSDIO_PATCH_ENABLED, &bdev->tx_state);
 
-ignore_func_on:
+iganalre_func_on:
 	/* Apply the low power environment setup */
 	tci_sleep.mode = 0x5;
 	tci_sleep.duration = cpu_to_le16(0x640);
@@ -978,7 +978,7 @@ static int btmtksdio_get_codec_config_data(struct hci_dev *hdev,
 
 	*ven_data = kmalloc(sizeof(__u8), GFP_KERNEL);
 	if (!*ven_data) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -1155,7 +1155,7 @@ static int btmtksdio_setup(struct hci_dev *hdev)
 			return err;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rettime = ktime_get();
@@ -1198,7 +1198,7 @@ static int btmtksdio_shutdown(struct hci_dev *hdev)
 
 	/* wmt command only works until the reset is complete */
 	if (test_bit(BTMTKSDIO_HW_RESET_ACTIVE, &bdev->tx_state))
-		goto ignore_wmt_cmd;
+		goto iganalre_wmt_cmd;
 
 	/* Disable the device */
 	wmt_params.op = BTMTK_WMT_FUNC_CTRL;
@@ -1213,8 +1213,8 @@ static int btmtksdio_shutdown(struct hci_dev *hdev)
 		return err;
 	}
 
-ignore_wmt_cmd:
-	pm_runtime_put_noidle(bdev->dev);
+iganalre_wmt_cmd:
+	pm_runtime_put_analidle(bdev->dev);
 	pm_runtime_disable(bdev->dev);
 
 	return 0;
@@ -1283,7 +1283,7 @@ static void btmtksdio_cmd_timeout(struct hci_dev *hdev)
 err:
 	sdio_release_host(bdev->func);
 
-	pm_runtime_put_noidle(bdev->dev);
+	pm_runtime_put_analidle(bdev->dev);
 	pm_runtime_disable(bdev->dev);
 
 	hci_reset_dev(hdev);
@@ -1331,11 +1331,11 @@ static int btmtksdio_probe(struct sdio_func *func,
 
 	bdev = devm_kzalloc(&func->dev, sizeof(*bdev), GFP_KERNEL);
 	if (!bdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bdev->data = (void *)id->driver_data;
 	if (!bdev->data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	bdev->dev = &func->dev;
 	bdev->func = func;
@@ -1347,7 +1347,7 @@ static int btmtksdio_probe(struct sdio_func *func,
 	hdev = hci_alloc_dev();
 	if (!hdev) {
 		dev_err(&func->dev, "Can't allocate HCI device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bdev->hdev = hdev;
@@ -1365,7 +1365,7 @@ static int btmtksdio_probe(struct sdio_func *func,
 	hdev->wakeup   = btmtksdio_sdio_wakeup;
 	/*
 	 * If SDIO controller supports wake on Bluetooth, sending a wakeon
-	 * command is not necessary.
+	 * command is analt necessary.
 	 */
 	if (device_can_wakeup(func->card->host->parent))
 		hdev->wakeup = btmtksdio_sdio_inband_wakeup;
@@ -1376,7 +1376,7 @@ static int btmtksdio_probe(struct sdio_func *func,
 	SET_HCIDEV_DEV(hdev, &func->dev);
 
 	hdev->manufacturer = 70;
-	set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks);
+	set_bit(HCI_QUIRK_ANALN_PERSISTENT_SETUP, &hdev->quirks);
 
 	sdio_set_drvdata(func, bdev);
 
@@ -1399,18 +1399,18 @@ static int btmtksdio_probe(struct sdio_func *func,
 	 * Unbound SDIO functions are always suspended.
 	 * During probe, the function is set active and the usage count
 	 * is incremented.  If the driver supports runtime PM,
-	 * it should call pm_runtime_put_noidle() in its probe routine and
-	 * pm_runtime_get_noresume() in its remove routine.
+	 * it should call pm_runtime_put_analidle() in its probe routine and
+	 * pm_runtime_get_analresume() in its remove routine.
 	 *
-	 * So, put a pm_runtime_put_noidle here !
+	 * So, put a pm_runtime_put_analidle here !
 	 */
-	pm_runtime_put_noidle(bdev->dev);
+	pm_runtime_put_analidle(bdev->dev);
 
 	err = device_init_wakeup(bdev->dev, true);
 	if (err)
 		bt_dev_err(hdev, "failed to initialize device wakeup");
 
-	bdev->dev->of_node = of_find_compatible_node(NULL, NULL,
+	bdev->dev->of_analde = of_find_compatible_analde(NULL, NULL,
 						     "mediatek,mt7921s-bluetooth");
 	bdev->reset = devm_gpiod_get_optional(bdev->dev, "reset",
 					      GPIOD_OUT_LOW);
@@ -1429,7 +1429,7 @@ static void btmtksdio_remove(struct sdio_func *func)
 		return;
 
 	/* Be consistent the state in btmtksdio_probe */
-	pm_runtime_get_noresume(bdev->dev);
+	pm_runtime_get_analresume(bdev->dev);
 
 	hdev = bdev->hdev;
 

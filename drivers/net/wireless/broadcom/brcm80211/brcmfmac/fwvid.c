@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2022 Broadcom Corporation
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/kmod.h>
@@ -119,7 +119,7 @@ int brcmf_fwvid_unregister_vendor(enum brcmf_fwvendor fwvid, struct module *mod)
 		return -ERANGE;
 
 	if (WARN_ON(fwvid_list[fwvid].vmod != mod))
-		return -ENOENT;
+		return -EANALENT;
 
 	mutex_lock(&fwvid_list_lock);
 

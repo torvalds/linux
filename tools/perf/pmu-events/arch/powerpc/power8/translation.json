@@ -26,13 +26,13 @@
   {
     "EventCode": "0x4e048",
     "EventName": "PM_DPTEG_FROM_DL2L3_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x3e048",
     "EventName": "PM_DPTEG_FROM_DL2L3_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a data side request",
     "PublicDescription": ""
   },
   {
@@ -55,7 +55,7 @@
   },
   {
     "EventCode": "0x1e040",
-    "EventName": "PM_DPTEG_FROM_L2_NO_CONFLICT",
+    "EventName": "PM_DPTEG_FROM_L2_ANAL_CONFLICT",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L2 without conflict due to a data side request",
     "PublicDescription": ""
   },
@@ -79,7 +79,7 @@
   },
   {
     "EventCode": "0x1e044",
-    "EventName": "PM_DPTEG_FROM_L3_NO_CONFLICT",
+    "EventName": "PM_DPTEG_FROM_L3_ANAL_CONFLICT",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 without conflict due to a data side request",
     "PublicDescription": ""
   },
@@ -104,31 +104,31 @@
   {
     "EventCode": "0x4e04a",
     "EventName": "PM_DPTEG_FROM_OFF_CHIP_CACHE",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from aanalther core's L2/L3 on a different chip (remote or distant) due to a data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x1e048",
     "EventName": "PM_DPTEG_FROM_ON_CHIP_CACHE",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on the same chip due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from aanalther core's L2/L3 on the same chip due to a data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x2e046",
     "EventName": "PM_DPTEG_FROM_RL2L3_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x1e04a",
     "EventName": "PM_DPTEG_FROM_RL2L3_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x2e04a",
     "EventName": "PM_DPTEG_FROM_RL4",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's L4 on the same Node or Group ( Remote) due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's L4 on the same Analde or Group ( Remote) due to a data side request",
     "PublicDescription": ""
   },
   {

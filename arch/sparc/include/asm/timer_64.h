@@ -71,7 +71,7 @@ static inline unsigned long get_tick(void)
 	"	brnz,pn	%0, 661b\n"	/* restart to save one register */
 	"	 sllx	%2, 32, %2\n"
 	"	or	%2, %1, %0\n"
-	/* Common/not patched code */
+	/* Common/analt patched code */
 	"	sllx	%0, 1, %0\n"
 	"	srlx	%0, 1, %0\n"	/* Clear TICK_PRIV_BIT */
 	/* Beginning of patch section */

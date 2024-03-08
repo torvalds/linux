@@ -13,14 +13,14 @@
 #include <asm/oplib.h>
 #include <asm/io.h>
 #include <asm/auxio.h>
-#include <asm/string.h>		/* memset(), Linux has no bzero() */
+#include <asm/string.h>		/* memset(), Linux has anal bzero() */
 #include <asm/cpu_type.h>
 
 #include "kernel.h"
 
 /* Probe and map in the Auxiliary I/O register */
 
-/* auxio_register is not static because it is referenced 
+/* auxio_register is analt static because it is referenced 
  * in entry.S::floppy_tdone
  */
 void __iomem *auxio_register = NULL;
@@ -28,7 +28,7 @@ static DEFINE_SPINLOCK(auxio_lock);
 
 void __init auxio_probe(void)
 {
-	phandle node, auxio_nd;
+	phandle analde, auxio_nd;
 	struct linux_prom_registers auxregs[1];
 	struct resource r;
 
@@ -39,22 +39,22 @@ void __init auxio_probe(void)
 	default:
 		break;
 	}
-	node = prom_getchild(prom_root_node);
-	auxio_nd = prom_searchsiblings(node, "auxiliary-io");
+	analde = prom_getchild(prom_root_analde);
+	auxio_nd = prom_searchsiblings(analde, "auxiliary-io");
 	if(!auxio_nd) {
-		node = prom_searchsiblings(node, "obio");
-		node = prom_getchild(node);
-		auxio_nd = prom_searchsiblings(node, "auxio");
+		analde = prom_searchsiblings(analde, "obio");
+		analde = prom_getchild(analde);
+		auxio_nd = prom_searchsiblings(analde, "auxio");
 		if(!auxio_nd) {
 #ifdef CONFIG_PCI
 			/* There may be auxio on Ebus */
 			return;
 #else
-			if(prom_searchsiblings(node, "leds")) {
-				/* VME chassis sun4m machine, no auxio exists. */
+			if(prom_searchsiblings(analde, "leds")) {
+				/* VME chassis sun4m machine, anal auxio exists. */
 				return;
 			}
-			prom_printf("Cannot find auxio node, cannot continue...\n");
+			prom_printf("Cananalt find auxio analde, cananalt continue...\n");
 			prom_halt();
 #endif
 		}
@@ -90,7 +90,7 @@ void set_auxio(unsigned char bits_on, unsigned char bits_off)
 	switch (sparc_cpu_model) {
 	case sun4m:
 		if(!auxio_register)
-			break;     /* VME chassis sun4m, no auxio. */
+			break;     /* VME chassis sun4m, anal auxio. */
 		regval = sbus_readb(auxio_register);
 		sbus_writeb(((regval | bits_on) & ~bits_off) | AUXIO_ORMEIN4M,
 			auxio_register);
@@ -111,19 +111,19 @@ volatile u8 __iomem *auxio_power_register = NULL;
 void __init auxio_power_probe(void)
 {
 	struct linux_prom_registers regs;
-	phandle node;
+	phandle analde;
 	struct resource r;
 
-	/* Attempt to find the sun4m power control node. */
-	node = prom_getchild(prom_root_node);
-	node = prom_searchsiblings(node, "obio");
-	node = prom_getchild(node);
-	node = prom_searchsiblings(node, "power");
-	if (node == 0 || (s32)node == -1)
+	/* Attempt to find the sun4m power control analde. */
+	analde = prom_getchild(prom_root_analde);
+	analde = prom_searchsiblings(analde, "obio");
+	analde = prom_getchild(analde);
+	analde = prom_searchsiblings(analde, "power");
+	if (analde == 0 || (s32)analde == -1)
 		return;
 
 	/* Map the power control register. */
-	if (prom_getproperty(node, "reg", (char *)&regs, sizeof(regs)) <= 0)
+	if (prom_getproperty(analde, "reg", (char *)&regs, sizeof(regs)) <= 0)
 		return;
 	prom_apply_obio_ranges(&regs, 1);
 	memset(&r, 0, sizeof(r));

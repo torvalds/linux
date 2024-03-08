@@ -89,9 +89,9 @@ static struct regulator_init_data ab8500_ext_regulators[] = {
  * @update_mask: mask to enable/disable and set mode of regulator
  * @update_val: bits holding the regulator current mode
  * @update_val_hp: bits to set EN pin active (LPn pin deactive)
- *                 normally this means high power mode
+ *                 analrmally this means high power mode
  * @update_val_lp: bits to set EN pin active and LPn pin active
- *                 normally this means low power mode
+ *                 analrmally this means low power mode
  * @update_val_hw: bits to set regulator pins in HW control
  *                 SysClkReq pins and logic will choose mode
  */
@@ -225,7 +225,7 @@ static int ab8500_ext_regulator_set_mode(struct regulator_dev *rdev,
 	}
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		regval = info->update_val_hp;
 		break;
 	case REGULATOR_MODE_IDLE:
@@ -247,7 +247,7 @@ static int ab8500_ext_regulator_set_mode(struct regulator_dev *rdev,
 					info->update_mask, regval);
 		if (ret < 0) {
 			dev_err(rdev_get_dev(rdev),
-				"Could not set regulator mode.\n");
+				"Could analt set regulator mode.\n");
 			return ret;
 		}
 
@@ -274,7 +274,7 @@ static unsigned int ab8500_ext_regulator_get_mode(struct regulator_dev *rdev)
 	}
 
 	if (info->update_val == info->update_val_hp)
-		ret = REGULATOR_MODE_NORMAL;
+		ret = REGULATOR_MODE_ANALRMAL;
 	else if (info->update_val == info->update_val_lp)
 		ret = REGULATOR_MODE_IDLE;
 	else
@@ -289,7 +289,7 @@ static int ab8500_ext_set_voltage(struct regulator_dev *rdev, int min_uV,
 	struct regulation_constraints *regu_constraints = rdev->constraints;
 
 	if (!regu_constraints) {
-		dev_err(rdev_get_dev(rdev), "No regulator constraints\n");
+		dev_err(rdev_get_dev(rdev), "Anal regulator constraints\n");
 		return -EINVAL;
 	}
 
@@ -446,7 +446,7 @@ static struct platform_driver ab8500_ext_regulator_driver = {
 	.probe = ab8500_ext_regulator_probe,
 	.driver         = {
 		.name   = "ab8500-ext-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

@@ -15,10 +15,10 @@
  * offset.  On x86_32, the stack canary is just a regular percpu
  * variable.
  *
- * Putting percpu data in %fs on 32-bit is a minor optimization compared to
- * using %gs.  Since 32-bit userspace normally has %fs == 0, we are likely
+ * Putting percpu data in %fs on 32-bit is a mianalr optimization compared to
+ * using %gs.  Since 32-bit userspace analrmally has %fs == 0, we are likely
  * to load 0 into %fs on exit to usermode, whereas with percpu data in
- * %gs, we are likely to load a non-null %gs on return to user mode.
+ * %gs, we are likely to load a analn-null %gs on return to user mode.
  *
  * Once we are willing to require GCC 8.1 or better for 64-bit stackprotector
  * support, we can remove some of this complexity.
@@ -39,11 +39,11 @@
 /*
  * Initialize the stackprotector canary value.
  *
- * NOTE: this must only be called from functions that never return
+ * ANALTE: this must only be called from functions that never return
  * and it must always be inlined.
  *
  * In addition, it should be called from a compilation unit for which
- * stack protector is disabled. Alternatively, the caller should not end
+ * stack protector is disabled. Alternatively, the caller should analt end
  * with a function call which gets tail-call optimized as that would
  * lead to checking a modified canary value.
  */

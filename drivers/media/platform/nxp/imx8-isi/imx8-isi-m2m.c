@@ -10,7 +10,7 @@
 
 #include <linux/container_of.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/limits.h>
 #include <linux/minmax.h>
@@ -652,7 +652,7 @@ static int mxc_isi_m2m_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->m2m = m2m;
 	mutex_init(&ctx->vb2_lock);
@@ -744,7 +744,7 @@ int mxc_isi_m2m_register(struct mxc_isi_dev *isi, struct v4l2_device *v4l2_dev)
 	vdev->fops	= &mxc_isi_m2m_fops;
 	vdev->ioctl_ops	= &mxc_isi_m2m_ioctl_ops;
 	vdev->v4l2_dev	= v4l2_dev;
-	vdev->minor	= -1;
+	vdev->mianalr	= -1;
 	vdev->release	= video_device_release_empty;
 	vdev->vfl_dir	= VFL_DIR_M2M;
 
@@ -801,10 +801,10 @@ int mxc_isi_m2m_register(struct mxc_isi_dev *isi, struct v4l2_device *v4l2_dev)
 	if (ret)
 		goto err_entity_unreg;
 
-	m2m->intf = media_devnode_create(v4l2_dev->mdev, MEDIA_INTF_T_V4L_VIDEO,
-					 0, VIDEO_MAJOR, vdev->minor);
+	m2m->intf = media_devanalde_create(v4l2_dev->mdev, MEDIA_INTF_T_V4L_VIDEO,
+					 0, VIDEO_MAJOR, vdev->mianalr);
 	if (!m2m->intf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_entity_unreg;
 	}
 
@@ -812,8 +812,8 @@ int mxc_isi_m2m_register(struct mxc_isi_dev *isi, struct v4l2_device *v4l2_dev)
 				      MEDIA_LNK_FL_IMMUTABLE |
 				      MEDIA_LNK_FL_ENABLED);
 	if (!link) {
-		ret = -ENOMEM;
-		goto err_devnode;
+		ret = -EANALMEM;
+		goto err_devanalde;
 	}
 
 	link = media_create_intf_link(&m2m->pipe->video.vdev.entity,
@@ -821,14 +821,14 @@ int mxc_isi_m2m_register(struct mxc_isi_dev *isi, struct v4l2_device *v4l2_dev)
 				      MEDIA_LNK_FL_IMMUTABLE |
 				      MEDIA_LNK_FL_ENABLED);
 	if (!link) {
-		ret = -ENOMEM;
-		goto err_devnode;
+		ret = -EANALMEM;
+		goto err_devanalde;
 	}
 
 	return 0;
 
-err_devnode:
-	media_devnode_remove(m2m->intf);
+err_devanalde:
+	media_devanalde_remove(m2m->intf);
 err_entity_unreg:
 	media_device_unregister_entity(&vdev->entity);
 err_entity_cleanup:
@@ -850,7 +850,7 @@ int mxc_isi_m2m_unregister(struct mxc_isi_dev *isi)
 	video_unregister_device(vdev);
 
 	v4l2_m2m_release(m2m->m2m_dev);
-	media_devnode_remove(m2m->intf);
+	media_devanalde_remove(m2m->intf);
 	media_entity_cleanup(&vdev->entity);
 	mutex_destroy(&m2m->lock);
 

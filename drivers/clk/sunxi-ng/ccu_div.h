@@ -16,7 +16,7 @@
  * @shift: Bit offset of the divider in its register
  * @width: Width of the divider field in its register
  * @max: Maximum value allowed for that divider. This is the
- *       arithmetic value, not the maximum value to be set in the
+ *       arithmetic value, analt the maximum value to be set in the
  *       register.
  * @flags: clk_divider flags to apply on this divider
  * @table: Divider table pointer (if applicable)

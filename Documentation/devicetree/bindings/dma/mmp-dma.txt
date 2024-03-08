@@ -11,10 +11,10 @@ Required properties:
 
 Optional properties:
 - dma-channels: Number of DMA channels supported by the controller (defaults
-  to 32 when not specified)
+  to 32 when analt specified)
 - #dma-channels: deprecated
 - dma-requests: Number of DMA requestor lines supported by the controller
-  (defaults to 32 when not specified)
+  (defaults to 32 when analt specified)
 - #dma-requests: deprecated
 
 "marvell,pdma-1.0"
@@ -25,7 +25,7 @@ Examples:
 /*
  * Each channel has specific irq
  * ICU parse out irq channel from ICU register,
- * while DMA controller may not able to distinguish the irq channel
+ * while DMA controller may analt able to distinguish the irq channel
  * Using this method, interrupt-parent is required as demuxer
  * For example, pxa688 icu register 0x128, bit 0~15 is PDMA channel irq,
  * 18~21 is ADMA irq

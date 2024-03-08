@@ -41,10 +41,10 @@
 #define MMCM_REG_FILTER1	0x4e
 #define MMCM_REG_FILTER2	0x4f
 
-#define MMCM_CLKOUT_NOCOUNT	BIT(6)
+#define MMCM_CLKOUT_ANALCOUNT	BIT(6)
 
 #define MMCM_CLK_DIV_DIVIDE	BIT(11)
-#define MMCM_CLK_DIV_NOCOUNT	BIT(12)
+#define MMCM_CLK_DIV_ANALCOUNT	BIT(12)
 
 struct axi_clkgen_limits {
 	unsigned int fpfd_min;
@@ -182,7 +182,7 @@ struct axi_clkgen_div_params {
 	unsigned int low;
 	unsigned int high;
 	unsigned int edge;
-	unsigned int nocount;
+	unsigned int analcount;
 	unsigned int frac_en;
 	unsigned int frac;
 	unsigned int frac_wf_f;
@@ -197,7 +197,7 @@ static void axi_clkgen_calc_clk_params(unsigned int divider,
 	memset(params, 0x0, sizeof(*params));
 
 	if (divider == 1) {
-		params->nocount = 1;
+		params->analcount = 1;
 		return;
 	}
 
@@ -240,7 +240,7 @@ static void axi_clkgen_read(struct axi_clkgen *axi_clkgen,
 	*val = readl(axi_clkgen->base + reg);
 }
 
-static int axi_clkgen_wait_non_busy(struct axi_clkgen *axi_clkgen)
+static int axi_clkgen_wait_analn_busy(struct axi_clkgen *axi_clkgen)
 {
 	unsigned int timeout = 10000;
 	unsigned int val;
@@ -261,7 +261,7 @@ static int axi_clkgen_mmcm_read(struct axi_clkgen *axi_clkgen,
 	unsigned int reg_val;
 	int ret;
 
-	ret = axi_clkgen_wait_non_busy(axi_clkgen);
+	ret = axi_clkgen_wait_analn_busy(axi_clkgen);
 	if (ret < 0)
 		return ret;
 
@@ -270,7 +270,7 @@ static int axi_clkgen_mmcm_read(struct axi_clkgen *axi_clkgen,
 
 	axi_clkgen_write(axi_clkgen, AXI_CLKGEN_V2_REG_DRP_CNTRL, reg_val);
 
-	ret = axi_clkgen_wait_non_busy(axi_clkgen);
+	ret = axi_clkgen_wait_analn_busy(axi_clkgen);
 	if (ret < 0)
 		return ret;
 
@@ -285,7 +285,7 @@ static int axi_clkgen_mmcm_write(struct axi_clkgen *axi_clkgen,
 	unsigned int reg_val = 0;
 	int ret;
 
-	ret = axi_clkgen_wait_non_busy(axi_clkgen);
+	ret = axi_clkgen_wait_analn_busy(axi_clkgen);
 	if (ret < 0)
 		return ret;
 
@@ -326,7 +326,7 @@ static void axi_clkgen_set_div(struct axi_clkgen *axi_clkgen,
 	axi_clkgen_mmcm_write(axi_clkgen, reg2,
 		(params->frac << 12) | (params->frac_en << 11) |
 		(params->frac_wf_r << 10) | (params->edge << 7) |
-		(params->nocount << 6), 0x7fff);
+		(params->analcount << 6), 0x7fff);
 	if (reg3 != 0) {
 		axi_clkgen_mmcm_write(axi_clkgen, reg3,
 			(params->frac_phase << 11) | (params->frac_wf_f << 10), 0x3c00);
@@ -366,7 +366,7 @@ static int axi_clkgen_set_rate(struct clk_hw *clk_hw,
 
 	axi_clkgen_calc_clk_params(d, 0, &params);
 	axi_clkgen_mmcm_write(axi_clkgen, MMCM_REG_CLK_DIV,
-		(params.edge << 13) | (params.nocount << 12) |
+		(params.edge << 13) | (params.analcount << 12) |
 		(params.high << 6) | params.low, 0x3fff);
 
 	axi_clkgen_calc_clk_params(m >> 3, m & 0x7, &params);
@@ -412,7 +412,7 @@ static unsigned int axi_clkgen_get_div(struct axi_clkgen *axi_clkgen,
 	unsigned int div;
 
 	axi_clkgen_mmcm_read(axi_clkgen, reg2, &val2);
-	if (val2 & MMCM_CLKOUT_NOCOUNT)
+	if (val2 & MMCM_CLKOUT_ANALCOUNT)
 		return 8;
 
 	axi_clkgen_mmcm_read(axi_clkgen, reg1, &val1);
@@ -446,7 +446,7 @@ static unsigned long axi_clkgen_recalc_rate(struct clk_hw *clk_hw,
 		MMCM_REG_CLK_FB2);
 
 	axi_clkgen_mmcm_read(axi_clkgen, MMCM_REG_CLK_DIV, &val);
-	if (val & MMCM_CLK_DIV_NOCOUNT)
+	if (val & MMCM_CLK_DIV_ANALCOUNT)
 		d = 1;
 	else
 		d = (val & 0x3f) + ((val >> 6) & 0x3f);
@@ -517,30 +517,30 @@ static int axi_clkgen_probe(struct platform_device *pdev)
 
 	dflt_limits = device_get_match_data(&pdev->dev);
 	if (!dflt_limits)
-		return -ENODEV;
+		return -EANALDEV;
 
 	axi_clkgen = devm_kzalloc(&pdev->dev, sizeof(*axi_clkgen), GFP_KERNEL);
 	if (!axi_clkgen)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	axi_clkgen->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(axi_clkgen->base))
 		return PTR_ERR(axi_clkgen->base);
 
-	init.num_parents = of_clk_get_parent_count(pdev->dev.of_node);
+	init.num_parents = of_clk_get_parent_count(pdev->dev.of_analde);
 	if (init.num_parents < 1 || init.num_parents > 2)
 		return -EINVAL;
 
 	for (i = 0; i < init.num_parents; i++) {
-		parent_names[i] = of_clk_get_parent_name(pdev->dev.of_node, i);
+		parent_names[i] = of_clk_get_parent_name(pdev->dev.of_analde, i);
 		if (!parent_names[i])
 			return -EINVAL;
 	}
 
 	memcpy(&axi_clkgen->limits, dflt_limits, sizeof(axi_clkgen->limits));
 
-	clk_name = pdev->dev.of_node->name;
-	of_property_read_string(pdev->dev.of_node, "clock-output-names",
+	clk_name = pdev->dev.of_analde->name;
+	of_property_read_string(pdev->dev.of_analde, "clock-output-names",
 		&clk_name);
 
 	init.name = clk_name;

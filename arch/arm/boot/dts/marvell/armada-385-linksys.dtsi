@@ -32,7 +32,7 @@
 	};
 
 	usb3_1_phy: usb3_1-phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&usb3_1_vbus>;
 		#phy-cells = <0>;
 	};
@@ -258,6 +258,6 @@
 };
 
 &rtc {
-	/* No crystal connected to the internal RTC */
+	/* Anal crystal connected to the internal RTC */
 	status = "disabled";
 };

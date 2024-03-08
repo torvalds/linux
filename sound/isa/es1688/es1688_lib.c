@@ -44,7 +44,7 @@ static int snd_es1688_dsp_get_byte(struct snd_es1688 *chip)
 		if (inb(ES1688P(chip, DATA_AVAIL)) & 0x80)
 			return inb(ES1688P(chip, READ));
 	snd_printd("es1688 get byte failed: 0x%lx = 0x%x!!!\n", ES1688P(chip, DATA_AVAIL), inb(ES1688P(chip, DATA_AVAIL)));
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int snd_es1688_write(struct snd_es1688 *chip,
@@ -96,7 +96,7 @@ int snd_es1688_reset(struct snd_es1688 *chip)
 	for (i = 0; i < 1000 && !(inb(ES1688P(chip, DATA_AVAIL)) & 0x80); i++);
 	if (inb(ES1688P(chip, READ)) != 0xaa) {
 		snd_printd("ess_reset at 0x%lx: failed!!!\n", chip->port);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	snd_es1688_dsp_command(chip, 0xc6);	/* enable extended mode */
 	return 0;
@@ -106,7 +106,7 @@ EXPORT_SYMBOL(snd_es1688_reset);
 static int snd_es1688_probe(struct snd_es1688 *chip)
 {
 	unsigned long flags;
-	unsigned short major, minor;
+	unsigned short major, mianalr;
 	int i;
 
 	/*
@@ -129,40 +129,40 @@ static int snd_es1688_probe(struct snd_es1688 *chip)
 	if (snd_es1688_reset(chip) < 0) {
 		snd_printdd("ESS: [0x%lx] reset failed... 0x%x\n", chip->port, inb(ES1688P(chip, READ)));
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	snd_es1688_dsp_command(chip, 0xe7);	/* return identification */
 
-	for (i = 1000, major = minor = 0; i; i--) {
+	for (i = 1000, major = mianalr = 0; i; i--) {
 		if (inb(ES1688P(chip, DATA_AVAIL)) & 0x80) {
 			if (major == 0) {
 				major = inb(ES1688P(chip, READ));
 			} else {
-				minor = inb(ES1688P(chip, READ));
+				mianalr = inb(ES1688P(chip, READ));
 			}
 		}
 	}
 
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
-	snd_printdd("ESS: [0x%lx] found.. major = 0x%x, minor = 0x%x\n", chip->port, major, minor);
+	snd_printdd("ESS: [0x%lx] found.. major = 0x%x, mianalr = 0x%x\n", chip->port, major, mianalr);
 
-	chip->version = (major << 8) | minor;
+	chip->version = (major << 8) | mianalr;
 	if (!chip->version)
-		return -ENODEV;	/* probably SB */
+		return -EANALDEV;	/* probably SB */
 
 	switch (chip->version & 0xfff0) {
 	case 0x4880:
 		snd_printk(KERN_ERR "[0x%lx] ESS: AudioDrive ES488 detected, "
-			   "but driver is in another place\n", chip->port);
-		return -ENODEV;
+			   "but driver is in aanalther place\n", chip->port);
+		return -EANALDEV;
 	case 0x6880:
 		break;
 	default:
-		snd_printk(KERN_ERR "[0x%lx] ESS: unknown AudioDrive chip "
+		snd_printk(KERN_ERR "[0x%lx] ESS: unkanalwn AudioDrive chip "
 			   "with version 0x%x (Jazz16 soundcard?)\n",
 			   chip->port, chip->version);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -352,12 +352,12 @@ static int snd_es1688_playback_prepare(struct snd_pcm_substream *substream)
 	snd_es1688_write(chip, 0xb9, 2);	/* demand mode (4 bytes/request) */
 	if (runtime->channels == 1) {
 		if (snd_pcm_format_width(runtime->format) == 8) {
-			/* 8. bit mono */
+			/* 8. bit moanal */
 			snd_es1688_write(chip, 0xb6, 0x80);
 			snd_es1688_write(chip, 0xb7, 0x51);
 			snd_es1688_write(chip, 0xb7, 0xd0);
 		} else {
-			/* 16. bit mono */
+			/* 16. bit moanal */
 			snd_es1688_write(chip, 0xb6, 0x00);
 			snd_es1688_write(chip, 0xb7, 0x71);
 			snd_es1688_write(chip, 0xb7, 0xf4);
@@ -414,11 +414,11 @@ static int snd_es1688_capture_prepare(struct snd_pcm_substream *substream)
 	snd_es1688_write(chip, 0xb9, 2);	/* demand mode (4 bytes/request) */
 	if (runtime->channels == 1) {
 		if (snd_pcm_format_width(runtime->format) == 8) {
-			/* 8. bit mono */
+			/* 8. bit moanal */
 			snd_es1688_write(chip, 0xb7, 0x51);
 			snd_es1688_write(chip, 0xb7, 0xd0);
 		} else {
-			/* 16. bit mono */
+			/* 16. bit moanal */
 			snd_es1688_write(chip, 0xb7, 0x71);
 			snd_es1688_write(chip, 0xb7, 0xf4);
 		}
@@ -619,7 +619,7 @@ int snd_es1688_create(struct snd_card *card,
 	int err;
 
 	if (chip == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	chip->irq = -1;
 	chip->dma8 = -1;
 	chip->hardware = ES1688_HW_UNDEF;

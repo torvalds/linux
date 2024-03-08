@@ -3,7 +3,7 @@
  * several functions that help interpret ARC instructions
  * used for unaligned accesses, kprobes and kgdb
  *
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/types.h>
@@ -27,16 +27,16 @@ void __kprobes disasm_instr(unsigned long addr, struct disasm_state *state,
 	int subopcode, is_linked, op_format;
 	uint16_t *ins_ptr;
 	uint16_t ins_buf[4];
-	int bytes_not_copied = 0;
+	int bytes_analt_copied = 0;
 
 	memset(state, 0, sizeof(struct disasm_state));
 
 	/* This fetches the upper part of the 32 bit instruction
 	 * in both the cases of Little Endian or Big Endian configurations. */
 	if (userspace) {
-		bytes_not_copied = copy_from_user(ins_buf,
+		bytes_analt_copied = copy_from_user(ins_buf,
 						(const void __user *) addr, 8);
-		if (bytes_not_copied > 6)
+		if (bytes_analt_copied > 6)
 			goto fault;
 		ins_ptr = ins_buf;
 	} else {
@@ -49,7 +49,7 @@ void __kprobes disasm_instr(unsigned long addr, struct disasm_state *state,
 
 	/* Check if the instruction is 32 bit or 16 bit instruction */
 	if (state->major_opcode < 0x0B) {
-		if (bytes_not_copied > 4)
+		if (bytes_analt_copied > 4)
 			goto fault;
 		state->instr_len = 4;
 		word0 = *((uint16_t *)(addr+2));
@@ -145,7 +145,7 @@ void __kprobes disasm_instr(unsigned long addr, struct disasm_state *state,
 		break;
 
 	case op_MAJOR_4:
-		subopcode = MINOR_OPCODE(state->words[0]);
+		subopcode = MIANALR_OPCODE(state->words[0]);
 		switch (subopcode) {
 		case 32:	/* Jcc */
 		case 33:	/* Jcc.D */
@@ -256,7 +256,7 @@ void __kprobes disasm_instr(unsigned long addr, struct disasm_state *state,
 
 
 		default:
-			/* Not a Load, Jump or Loop instruction */
+			/* Analt a Load, Jump or Loop instruction */
 			/* still need to check for limm to extract instr len */
 			switch (BITS(state->words[0], 22, 23)) {
 			case 0: /* OP a,b,c */
@@ -288,7 +288,7 @@ void __kprobes disasm_instr(unsigned long addr, struct disasm_state *state,
 		break;
 
 	case op_ADD_MOV_CMP:
-		/* check for limm, ignore mov_s h,b (== mov_s 0,b) */
+		/* check for limm, iganalre mov_s h,b (== mov_s 0,b) */
 		if ((BITS(state->words[0], 3, 4) < 3) &&
 		    (FIELD_S_H(state->words[0]) == REG_LIMM))
 			state->instr_len += 4;
@@ -332,7 +332,7 @@ void __kprobes disasm_instr(unsigned long addr, struct disasm_state *state,
 
 	case op_LDB_S:
 	case op_STB_S:
-		/* no further handling required as byte accesses should not
+		/* anal further handling required as byte accesses should analt
 		 * cause an unaligned access exception */
 		state->zz = 1;
 		break;
@@ -364,13 +364,13 @@ void __kprobes disasm_instr(unsigned long addr, struct disasm_state *state,
 		break;
 
 	case op_SP:	/* LD_S|LDB_S b,[sp,u7], ST_S|STB_S b,[sp,u7] */
-		/* note: we are ignoring possibility of:
-		 * ADD_S, SUB_S, PUSH_S, POP_S as these should not
+		/* analte: we are iganalring possibility of:
+		 * ADD_S, SUB_S, PUSH_S, POP_S as these should analt
 		 * cause unaligned exception anyway */
 		state->write = BITS(state->words[0], 6, 6);
 		state->zz = BITS(state->words[0], 5, 5);
 		if (state->zz)
-			break;	/* byte accesses should not come here */
+			break;	/* byte accesses should analt come here */
 		if (!state->write) {
 			state->src1 = get_reg(28, regs, cregs);
 			state->src2 = FIELD_S_u7(state->words[0]);
@@ -384,7 +384,7 @@ void __kprobes disasm_instr(unsigned long addr, struct disasm_state *state,
 		break;
 
 	case op_GP:	/* LD_S|LDB_S|LDW_S r0,[gp,s11/s9/s10] */
-		/* note: ADD_S r0, gp, s11 is ignored */
+		/* analte: ADD_S r0, gp, s11 is iganalred */
 		state->zz = BITS(state->words[0], 9, 10);
 		state->src1 = get_reg(26, regs, cregs);
 		state->src2 = state->zz ? FIELD_S_s10(state->words[0]) :
@@ -423,7 +423,7 @@ void __kprobes disasm_instr(unsigned long addr, struct disasm_state *state,
 		break;
 	}
 
-	if (bytes_not_copied <= (8 - state->instr_len))
+	if (bytes_analt_copied <= (8 - state->instr_len))
 		return;
 
 fault:	state->fault = 1;

@@ -5,7 +5,7 @@
  * (c) 2006 Andrew de Quincey
  *
  * Based on code found in budget-av.c, which has the following:
- * Compiled from various sources by Michael Hunold <michael@mihu.de>
+ * Compiled from various sources by Michael Huanalld <michael@mihu.de>
  *
  * CI interface support (c) 2004 Olivier Gournet <ogournet@anevia.com> &
  *                               Andrew de Quincey <adq_dvb@lidskialf.net>
@@ -99,7 +99,7 @@ static int tua6100_set_params(struct dvb_frontend *fe)
 		reg2[1] |= 0x1c;
 
 	/*
-	 * The N divisor ratio (note: c->frequency is in kHz, but we
+	 * The N divisor ratio (analte: c->frequency is in kHz, but we
 	 * need it in Hz)
 	 */
 	prediv = (c->frequency * _R_VAL) / (_ri / 1000);

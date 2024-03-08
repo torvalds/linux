@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Renesas Technology Europe SDK7786 Support.
+ * Renesas Techanallogy Europe SDK7786 Support.
  *
  * Copyright (C) 2010  Matt Fleming
  * Copyright (C) 2010  Paul Mundt
@@ -239,7 +239,7 @@ static void sdk7786_power_off(void)
 /* Initialize the board */
 static void __init sdk7786_setup(char **cmdline_p)
 {
-	pr_info("Renesas Technology Europe SDK7786 support:\n");
+	pr_info("Renesas Techanallogy Europe SDK7786 support:\n");
 
 	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 

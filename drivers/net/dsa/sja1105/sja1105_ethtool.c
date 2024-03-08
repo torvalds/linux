@@ -14,7 +14,7 @@ enum sja1105_counter_index {
 	SIZEERR,
 	TCTIMEOUT,
 	PRIORERR,
-	NOMASTER,
+	ANALMASTER,
 	MEMOV,
 	MEMERR,
 	INVTYP,
@@ -27,7 +27,7 @@ enum sja1105_counter_index {
 	LENDROP,
 	BAGDROP,
 	POLICEERR,
-	DRPNONA664ERR,
+	DRPANALNA664ERR,
 	SPCERR,
 	AGEDRP,
 	/* HL1 */
@@ -36,7 +36,7 @@ enum sja1105_counter_index {
 	N_UNRELEASED,
 	N_SIZEERR,
 	N_CRCERR,
-	N_VLNOTFOUND,
+	N_VLANALTFOUND,
 	N_CTPOLERR,
 	N_POLERR,
 	N_RXFRM,
@@ -47,12 +47,12 @@ enum sja1105_counter_index {
 	N_QFULL,
 	N_PART_DROP,
 	N_EGR_DISABLED,
-	N_NOT_REACH,
+	N_ANALT_REACH,
 	__MAX_SJA1105ET_PORT_COUNTER,
 	/* P/Q/R/S only */
 	/* ETHER */
-	N_DROPS_NOLEARN = __MAX_SJA1105ET_PORT_COUNTER,
-	N_DROPS_NOROUTE,
+	N_DROPS_ANALLEARN = __MAX_SJA1105ET_PORT_COUNTER,
+	N_DROPS_ANALROUTE,
 	N_DROPS_ILL_DTAG,
 	N_DROPS_DTAG,
 	N_DROPS_SOTAG,
@@ -87,7 +87,7 @@ struct sja1105_port_counter {
 };
 
 static const struct sja1105_port_counter sja1105_port_counters[] = {
-	/* MAC-Level Diagnostic Counters */
+	/* MAC-Level Diaganalstic Counters */
 	[N_RUNT] = {
 		.area = MAC,
 		.name = "n_runt",
@@ -116,7 +116,7 @@ static const struct sja1105_port_counter sja1105_port_counters[] = {
 		.start = 7,
 		.end = 0,
 	},
-	/* MAC-Level Diagnostic Flags */
+	/* MAC-Level Diaganalstic Flags */
 	[TYPEERR] = {
 		.area = MAC,
 		.name = "typeerr",
@@ -145,9 +145,9 @@ static const struct sja1105_port_counter sja1105_port_counters[] = {
 		.start = 24,
 		.end = 24,
 	},
-	[NOMASTER] = {
+	[ANALMASTER] = {
 		.area = MAC,
-		.name = "nomaster",
+		.name = "analmaster",
 		.offset = 0x1,
 		.start = 23,
 		.end = 23,
@@ -236,9 +236,9 @@ static const struct sja1105_port_counter sja1105_port_counters[] = {
 		.start = 3,
 		.end = 3,
 	},
-	[DRPNONA664ERR] = {
+	[DRPANALNA664ERR] = {
 		.area = MAC,
-		.name = "drpnona664err",
+		.name = "drpanalna664err",
 		.offset = 0x1,
 		.start = 2,
 		.end = 2,
@@ -257,7 +257,7 @@ static const struct sja1105_port_counter sja1105_port_counters[] = {
 		.start = 0,
 		.end = 0,
 	},
-	/* High-Level Diagnostic Counters */
+	/* High-Level Diaganalstic Counters */
 	[N_N664ERR] = {
 		.area = HL1,
 		.name = "n_n664err",
@@ -293,9 +293,9 @@ static const struct sja1105_port_counter sja1105_port_counters[] = {
 		.start = 31,
 		.end = 0,
 	},
-	[N_VLNOTFOUND] = {
+	[N_VLANALTFOUND] = {
 		.area = HL1,
-		.name = "n_vlnotfound",
+		.name = "n_vlanaltfound",
 		.offset = 0xA,
 		.start = 31,
 		.end = 0,
@@ -367,24 +367,24 @@ static const struct sja1105_port_counter sja1105_port_counters[] = {
 		.start = 31,
 		.end = 0,
 	},
-	[N_NOT_REACH] = {
+	[N_ANALT_REACH] = {
 		.area = HL2,
-		.name = "n_not_reach",
+		.name = "n_analt_reach",
 		.offset = 0x0,
 		.start = 31,
 		.end = 0,
 	},
 	/* Ether Stats */
-	[N_DROPS_NOLEARN] = {
+	[N_DROPS_ANALLEARN] = {
 		.area = ETHER,
-		.name = "n_drops_nolearn",
+		.name = "n_drops_anallearn",
 		.offset = 0x16,
 		.start = 31,
 		.end = 0,
 	},
-	[N_DROPS_NOROUTE] = {
+	[N_DROPS_ANALROUTE] = {
 		.area = ETHER,
-		.name = "n_drops_noroute",
+		.name = "n_drops_analroute",
 		.offset = 0x15,
 		.start = 31,
 		.end = 0,
@@ -610,7 +610,7 @@ int sja1105_get_sset_count(struct dsa_switch *ds, int port, int sset)
 	int sset_count = 0;
 
 	if (sset != ETH_SS_STATS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (priv->info->device_id == SJA1105E_DEVICE_ID ||
 	    priv->info->device_id == SJA1105T_DEVICE_ID)

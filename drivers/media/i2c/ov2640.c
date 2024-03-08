@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010 Alberto Panizzo <maramaopercheseimorto@gmail.com>
  *
- * Based on ov772x, ov9640 drivers and previous non merged implementations.
+ * Based on ov772x, ov9640 drivers and previous analn merged implementations.
  *
  * Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright (C) 2006, OmniVision
@@ -102,7 +102,7 @@
 #define   CTRL1_AWB_GAIN     0x04
 #define   CTRL1_LENC         0x02
 #define   CTRL1_PRE          0x01
-/*      REG 0xC7 (unknown name): affects Auto White Balance (AWB)
+/*      REG 0xC7 (unkanalwn name): affects Auto White Balance (AWB)
  *	  AWB_OFF            0x40
  *	  AWB_SIMPLE         0x10
  *	  AWB_ON             0x00	(Advanced AWB ?) */
@@ -192,7 +192,7 @@
 #define COM7        0x12 /* Common control 7 */
 #define   COM7_SRST            0x80 /* Initiates system reset. All registers are
 				     * set to factory default values after which
-				     * the chip resumes normal operation */
+				     * the chip resumes analrmal operation */
 #define   COM7_RES_UXGA        0x00 /* Resolution selectors for UXGA */
 #define   COM7_RES_SVGA        0x40 /* SVGA */
 #define   COM7_RES_CIF         0x20 /* CIF */
@@ -719,7 +719,7 @@ static int ov2640_s_ctrl(struct v4l2_ctrl *ctrl)
 	/* v4l2_ctrl_lock() locks our own mutex */
 
 	/*
-	 * If the device is not powered up by the host driver, do not apply any
+	 * If the device is analt powered up by the host driver, do analt apply any
 	 * controls to H/W at this time. Instead the controls will be restored
 	 * when the streaming is started.
 	 */
@@ -735,7 +735,7 @@ static int ov2640_s_ctrl(struct v4l2_ctrl *ctrl)
 		val = ctrl->val ? REG04_VFLIP_IMG | REG04_VREF_EN : 0x00;
 		return ov2640_mask_set(client, REG04,
 				       REG04_VFLIP_IMG | REG04_VREF_EN, val);
-		/* NOTE: REG04_VREF_EN: 1 line shift / even/odd line swap */
+		/* ANALTE: REG04_VREF_EN: 1 line shift / even/odd line swap */
 	case V4L2_CID_HFLIP:
 		val = ctrl->val ? REG04_HFLIP_IMG : 0x00;
 		return ov2640_mask_set(client, REG04, REG04_HFLIP_IMG, val);
@@ -929,7 +929,7 @@ static int ov2640_get_fmt(struct v4l2_subdev *sd,
 	mf->height	= priv->win->height;
 	mf->code	= priv->cfmt_code;
 	mf->colorspace	= V4L2_COLORSPACE_SRGB;
-	mf->field	= V4L2_FIELD_NONE;
+	mf->field	= V4L2_FIELD_ANALNE;
 	mf->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
 	mf->quantization = V4L2_QUANTIZATION_DEFAULT;
 	mf->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
@@ -957,7 +957,7 @@ static int ov2640_set_fmt(struct v4l2_subdev *sd,
 	mf->width	= win->width;
 	mf->height	= win->height;
 
-	mf->field	= V4L2_FIELD_NONE;
+	mf->field	= V4L2_FIELD_ANALNE;
 	mf->colorspace	= V4L2_COLORSPACE_SRGB;
 	mf->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
 	mf->quantization = V4L2_QUANTIZATION_DEFAULT;
@@ -1008,7 +1008,7 @@ static int ov2640_init_state(struct v4l2_subdev *sd,
 	try_fmt->height = win->height;
 	try_fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 	try_fmt->colorspace = V4L2_COLORSPACE_SRGB;
-	try_fmt->field = V4L2_FIELD_NONE;
+	try_fmt->field = V4L2_FIELD_ANALNE;
 	try_fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	try_fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
 	try_fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
@@ -1096,7 +1096,7 @@ static int ov2640_video_probe(struct i2c_client *client)
 	default:
 		dev_err(&client->dev,
 			"Product ID error %x:%x\n", pid, ver);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto done;
 	}
 
@@ -1155,10 +1155,10 @@ static int ov2640_probe_dt(struct i2c_client *client,
 			GPIOD_OUT_LOW);
 
 	if (!priv->resetb_gpio)
-		dev_dbg(&client->dev, "resetb gpio is not assigned!\n");
+		dev_dbg(&client->dev, "resetb gpio is analt assigned!\n");
 
 	ret = PTR_ERR_OR_ZERO(priv->resetb_gpio);
-	if (ret && ret != -ENOSYS) {
+	if (ret && ret != -EANALSYS) {
 		dev_dbg(&client->dev,
 			"Error %d while getting resetb gpio\n", ret);
 		return ret;
@@ -1169,10 +1169,10 @@ static int ov2640_probe_dt(struct i2c_client *client,
 			GPIOD_OUT_HIGH);
 
 	if (!priv->pwdn_gpio)
-		dev_dbg(&client->dev, "pwdn gpio is not assigned!\n");
+		dev_dbg(&client->dev, "pwdn gpio is analt assigned!\n");
 
 	ret = PTR_ERR_OR_ZERO(priv->pwdn_gpio);
-	if (ret && ret != -ENOSYS) {
+	if (ret && ret != -EANALSYS) {
 		dev_dbg(&client->dev,
 			"Error %d while getting pwdn gpio\n", ret);
 		return ret;
@@ -1198,9 +1198,9 @@ static int ov2640_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (client->dev.of_node) {
+	if (client->dev.of_analde) {
 		priv->clk = devm_clk_get_enabled(&client->dev, "xvclk");
 		if (IS_ERR(priv->clk))
 			return PTR_ERR(priv->clk);
@@ -1215,7 +1215,7 @@ static int ov2640_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov2640_subdev_ops);
 	priv->subdev.internal_ops = &ov2640_internal_ops;
-	priv->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	priv->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 			      V4L2_SUBDEV_FL_HAS_EVENTS;
 	mutex_init(&priv->lock);
 	v4l2_ctrl_handler_init(&priv->hdl, 3);

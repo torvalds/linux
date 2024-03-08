@@ -3,7 +3,7 @@
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
  *  Copyright (c) 2003-2013  LSI Corporation
- *  Copyright (c) 2013-2016  Avago Technologies
+ *  Copyright (c) 2013-2016  Avago Techanallogies
  *  Copyright (c) 2016-2018  Broadcom Inc.
  *
  *  FILE: megaraid_sas.h
@@ -145,7 +145,7 @@
  * MFI_ADP_TRIGGER_SNAP_DUMP: Inform firmware to initiate snap dump
  */
 #define WRITE_SEQUENCE_OFFSET		(0x0000000FC) /* I20 */
-#define HOST_DIAGNOSTIC_OFFSET		(0x000000F8)  /* I20 */
+#define HOST_DIAGANALSTIC_OFFSET		(0x000000F8)  /* I20 */
 #define DIAG_WRITE_ENABLE			(0x00000080)
 #define DIAG_RESET_ADAPTER			(0x00000004)
 
@@ -171,7 +171,7 @@
 #define MFI_FRAME_SGL64				0x0002
 #define MFI_FRAME_SENSE32			0x0000
 #define MFI_FRAME_SENSE64			0x0004
-#define MFI_FRAME_DIR_NONE			0x0000
+#define MFI_FRAME_DIR_ANALNE			0x0000
 #define MFI_FRAME_DIR_WRITE			0x0008
 #define MFI_FRAME_DIR_READ			0x0010
 #define MFI_FRAME_DIR_BOTH			0x0018
@@ -246,38 +246,38 @@ enum MFI_STAT {
 	MFI_STAT_INVALID_DCMD = 0x02,
 	MFI_STAT_INVALID_PARAMETER = 0x03,
 	MFI_STAT_INVALID_SEQUENCE_NUMBER = 0x04,
-	MFI_STAT_ABORT_NOT_POSSIBLE = 0x05,
-	MFI_STAT_APP_HOST_CODE_NOT_FOUND = 0x06,
+	MFI_STAT_ABORT_ANALT_POSSIBLE = 0x05,
+	MFI_STAT_APP_HOST_CODE_ANALT_FOUND = 0x06,
 	MFI_STAT_APP_IN_USE = 0x07,
-	MFI_STAT_APP_NOT_INITIALIZED = 0x08,
+	MFI_STAT_APP_ANALT_INITIALIZED = 0x08,
 	MFI_STAT_ARRAY_INDEX_INVALID = 0x09,
-	MFI_STAT_ARRAY_ROW_NOT_EMPTY = 0x0a,
+	MFI_STAT_ARRAY_ROW_ANALT_EMPTY = 0x0a,
 	MFI_STAT_CONFIG_RESOURCE_CONFLICT = 0x0b,
-	MFI_STAT_DEVICE_NOT_FOUND = 0x0c,
+	MFI_STAT_DEVICE_ANALT_FOUND = 0x0c,
 	MFI_STAT_DRIVE_TOO_SMALL = 0x0d,
 	MFI_STAT_FLASH_ALLOC_FAIL = 0x0e,
 	MFI_STAT_FLASH_BUSY = 0x0f,
 	MFI_STAT_FLASH_ERROR = 0x10,
 	MFI_STAT_FLASH_IMAGE_BAD = 0x11,
 	MFI_STAT_FLASH_IMAGE_INCOMPLETE = 0x12,
-	MFI_STAT_FLASH_NOT_OPEN = 0x13,
-	MFI_STAT_FLASH_NOT_STARTED = 0x14,
+	MFI_STAT_FLASH_ANALT_OPEN = 0x13,
+	MFI_STAT_FLASH_ANALT_STARTED = 0x14,
 	MFI_STAT_FLUSH_FAILED = 0x15,
-	MFI_STAT_HOST_CODE_NOT_FOUNT = 0x16,
+	MFI_STAT_HOST_CODE_ANALT_FOUNT = 0x16,
 	MFI_STAT_LD_CC_IN_PROGRESS = 0x17,
 	MFI_STAT_LD_INIT_IN_PROGRESS = 0x18,
 	MFI_STAT_LD_LBA_OUT_OF_RANGE = 0x19,
 	MFI_STAT_LD_MAX_CONFIGURED = 0x1a,
-	MFI_STAT_LD_NOT_OPTIMAL = 0x1b,
+	MFI_STAT_LD_ANALT_OPTIMAL = 0x1b,
 	MFI_STAT_LD_RBLD_IN_PROGRESS = 0x1c,
 	MFI_STAT_LD_RECON_IN_PROGRESS = 0x1d,
 	MFI_STAT_LD_WRONG_RAID_LEVEL = 0x1e,
 	MFI_STAT_MAX_SPARES_EXCEEDED = 0x1f,
-	MFI_STAT_MEMORY_NOT_AVAILABLE = 0x20,
+	MFI_STAT_MEMORY_ANALT_AVAILABLE = 0x20,
 	MFI_STAT_MFC_HW_ERROR = 0x21,
-	MFI_STAT_NO_HW_PRESENT = 0x22,
-	MFI_STAT_NOT_FOUND = 0x23,
-	MFI_STAT_NOT_IN_ENCL = 0x24,
+	MFI_STAT_ANAL_HW_PRESENT = 0x22,
+	MFI_STAT_ANALT_FOUND = 0x23,
+	MFI_STAT_ANALT_IN_ENCL = 0x24,
 	MFI_STAT_PD_CLEAR_IN_PROGRESS = 0x25,
 	MFI_STAT_PD_TYPE_WRONG = 0x26,
 	MFI_STAT_PR_DISABLED = 0x27,
@@ -290,11 +290,11 @@ enum MFI_STAT {
 	MFI_STAT_SCSI_IO_FAILED = 0x2e,
 	MFI_STAT_SCSI_RESERVATION_CONFLICT = 0x2f,
 	MFI_STAT_SHUTDOWN_FAILED = 0x30,
-	MFI_STAT_TIME_NOT_SET = 0x31,
+	MFI_STAT_TIME_ANALT_SET = 0x31,
 	MFI_STAT_WRONG_STATE = 0x32,
 	MFI_STAT_LD_OFFLINE = 0x33,
-	MFI_STAT_PEER_NOTIFICATION_REJECTED = 0x34,
-	MFI_STAT_PEER_NOTIFICATION_FAILED = 0x35,
+	MFI_STAT_PEER_ANALTIFICATION_REJECTED = 0x34,
+	MFI_STAT_PEER_ANALTIFICATION_FAILED = 0x35,
 	MFI_STAT_RESERVATION_IN_PROGRESS = 0x36,
 	MFI_STAT_I2C_ERRORS_DETECTED = 0x37,
 	MFI_STAT_PCI_ERRORS_DETECTED = 0x38,
@@ -365,7 +365,7 @@ enum MR_EVT_LOCALE {
 
 enum MR_EVT_ARGS {
 
-	MR_EVT_ARGS_NONE,
+	MR_EVT_ARGS_ANALNE,
 	MR_EVT_ARGS_CDB_SENSE,
 	MR_EVT_ARGS_LD,
 	MR_EVT_ARGS_LD_COUNT,
@@ -490,7 +490,7 @@ union MR_PD_DDF_TYPE {
 	 } ddf;
 	 struct {
 		 u32	reserved;
-	 } nonDisk;
+	 } analnDisk;
 	 u32	 type;
 } __packed;
 
@@ -563,7 +563,7 @@ struct  MR_PD_INFO {
 	union MR_PD_REF	ref;
 	u8 inquiryData[96];
 	u8 vpdPage83[64];
-	u8 notSupported;
+	u8 analtSupported;
 	u8 scsiDevType;
 
 	union {
@@ -601,7 +601,7 @@ struct  MR_PD_INFO {
 	} pathInfo;
 
 	u64 rawSize;
-	u64 nonCoercedSize;
+	u64 analnCoercedSize;
 	u64 coercedSize;
 	u16 enclDeviceId;
 	u8 enclIndex;
@@ -640,7 +640,7 @@ struct  MR_PD_INFO {
 #endif
 	} security;
 	u8 mediaType;
-	u8 notCertified;
+	u8 analtCertified;
 	u8 bridgeVendor[8];
 	u8 bridgeProductIdentification[16];
 	u8 bridgeProductRevisionLevel[4];
@@ -987,8 +987,8 @@ struct megasas_ctrl_info {
 
 	/*
 	 * List of flash components that have been flashed on the card, but
-	 * are not in use, pending reset of the adapter. This list will be
-	 * empty if a flash operation has not occurred. All stings are null
+	 * are analt in use, pending reset of the adapter. This list will be
+	 * empty if a flash operation has analt occurred. All stings are null
 	 * terminated
 	 */
 	__le32 pending_image_component_count;
@@ -1008,7 +1008,7 @@ struct megasas_ctrl_info {
 	u8 max_lds;
 
 	char product_name[80];
-	char serial_no[32];
+	char serial_anal[32];
 
 	/*
 	 * Other physical/controller/operation information. Indicates the
@@ -1097,7 +1097,7 @@ struct megasas_ctrl_info {
 		u32 dedicated_hotspares:1;
 		u32 revertible_hotspares:1;
 		u32 foreign_config_import:1;
-		u32 self_diagnostic:1;
+		u32 self_diaganalstic:1;
 		u32 mixed_redundancy_arr:1;
 		u32 global_hot_spares:1;
 		u32 reserved:17;
@@ -1237,7 +1237,7 @@ struct megasas_ctrl_info {
 		u32     dedicatedHotSparesLimited:1;
 		u32     headlessMode:1;
 		u32     supportEmulatedDrives:1;
-		u32     supportResetNow:1;
+		u32     supportResetAnalw:1;
 		u32     realTimeScheduler:1;
 		u32     supportSSDPatrolRead:1;
 		u32     supportPerfTuning:1;
@@ -1272,7 +1272,7 @@ struct megasas_ctrl_info {
 		u32     supportSSDPatrolRead:1;
 		u32     realTimeScheduler:1;
 
-		u32     supportResetNow:1;
+		u32     supportResetAnalw:1;
 		u32     supportEmulatedDrives:1;
 		u32     headlessMode:1;
 		u32     dedicatedHotSparesLimited:1;
@@ -1541,15 +1541,15 @@ struct megasas_ctrl_info {
 
 enum MR_SCSI_CMD_TYPE {
 	READ_WRITE_LDIO = 0,
-	NON_READ_WRITE_LDIO = 1,
+	ANALN_READ_WRITE_LDIO = 1,
 	READ_WRITE_SYSPDIO = 2,
-	NON_READ_WRITE_SYSPDIO = 3,
+	ANALN_READ_WRITE_SYSPDIO = 3,
 };
 
 enum DCMD_TIMEOUT_ACTION {
 	INITIATE_OCR = 0,
 	KILL_ADAPTER = 1,
-	IGNORE_TIMEOUT = 2,
+	IGANALRE_TIMEOUT = 2,
 };
 
 enum FW_BOOT_CONTEXT {
@@ -1563,14 +1563,14 @@ enum FW_BOOT_CONTEXT {
 
 /*
  * When SCSI mid-layer calls driver's reset routine, driver waits for
- * MEGASAS_RESET_WAIT_TIME seconds for all outstanding IO to complete. Note
- * that the driver cannot _actually_ abort or reset pending commands. While
- * it is waiting for the commands to complete, it prints a diagnostic message
- * every MEGASAS_RESET_NOTICE_INTERVAL seconds
+ * MEGASAS_RESET_WAIT_TIME seconds for all outstanding IO to complete. Analte
+ * that the driver cananalt _actually_ abort or reset pending commands. While
+ * it is waiting for the commands to complete, it prints a diaganalstic message
+ * every MEGASAS_RESET_ANALTICE_INTERVAL seconds
  */
 #define MEGASAS_RESET_WAIT_TIME			180
 #define MEGASAS_INTERNAL_CMD_WAIT_TIME		180
-#define	MEGASAS_RESET_NOTICE_INTERVAL		5
+#define	MEGASAS_RESET_ANALTICE_INTERVAL		5
 #define MEGASAS_IOCTL_CMD			0
 #define MEGASAS_DEFAULT_CMD_TIMEOUT		90
 #define MEGASAS_THROTTLE_QUEUE_DEPTH		16
@@ -2230,7 +2230,7 @@ struct MR_DRV_SYSTEM_INFO {
 };
 
 enum MR_PD_TYPE {
-	UNKNOWN_DRIVE = 0,
+	UNKANALWN_DRIVE = 0,
 	PARALLEL_SCSI = 1,
 	SAS_PD = 2,
 	SATA_PD = 3,
@@ -2264,7 +2264,7 @@ enum MR_PERF_MODE {
 		((mode) == MR_BALANCED_PERF_MODE ? "Balanced" : \
 		 (mode) == MR_IOPS_PERF_MODE ? "IOPS" : \
 		 (mode) == MR_LATENCY_PERF_MODE ? "Latency" : \
-		 "Unknown")
+		 "Unkanalwn")
 
 enum MEGASAS_LD_TARGET_ID_STATUS {
 	LD_TARGET_ID_INITIAL,
@@ -2384,7 +2384,7 @@ struct megasas_instance {
 
 	atomic_t fw_outstanding;
 	atomic_t ldio_outstanding;
-	atomic_t fw_reset_no_pci_access;
+	atomic_t fw_reset_anal_pci_access;
 	atomic64_t total_io_count;
 	atomic64_t high_iops_outstanding;
 
@@ -2403,7 +2403,7 @@ struct megasas_instance {
 	u8 UnevenSpanSupport;
 
 	u8 supportmax256vd;
-	u8 pd_list_not_supported;
+	u8 pd_list_analt_supported;
 	u16 fw_supported_vd_count;
 	u16 fw_supported_pd_count;
 
@@ -2516,7 +2516,7 @@ struct MR_CTRL_HB_HOST_MEM {
 		u32 fwCounter;	/* Firmware heart beat counter */
 		struct {
 			u32 debugmode:1; /* 1=Firmware is in debug mode.
-					    Heart beat will not be updated. */
+					    Heart beat will analt be updated. */
 			u32 reserved:31;
 		} debug;
 		u32 reserved_fw[6];
@@ -2616,7 +2616,7 @@ static inline struct megasas_cmd_priv *megasas_priv(struct scsi_cmnd *cmd)
 
 struct megasas_iocpacket {
 
-	u16 host_no;
+	u16 host_anal;
 	u16 __pad1;
 	u32 sgl_off;
 	u32 sge_count;
@@ -2632,14 +2632,14 @@ struct megasas_iocpacket {
 } __attribute__ ((packed));
 
 struct megasas_aen {
-	u16 host_no;
+	u16 host_anal;
 	u16 __pad1;
 	u32 seq_num;
 	u32 class_locale_word;
 } __attribute__ ((packed));
 
 struct compat_megasas_iocpacket {
-	u16 host_no;
+	u16 host_anal;
 	u16 __pad1;
 	u32 sgl_off;
 	u32 sge_count;

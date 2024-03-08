@@ -39,7 +39,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
       A phandle referencing the FCP that handles memory accesses for the FDP1.
-      Not allowed on R-Car Gen2, mandatory on R-Car Gen3.
+      Analt allowed on R-Car Gen2, mandatory on R-Car Gen3.
 
 required:
   - compatible

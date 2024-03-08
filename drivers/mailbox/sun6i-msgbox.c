@@ -74,7 +74,7 @@ static irqreturn_t sun6i_msgbox_irq(int irq, void *dev_id)
 		 readl(mbox->regs + LOCAL_IRQ_STAT_REG);
 
 	if (!(status & RX_IRQ_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (n = 0; n < NUM_CHANS; ++n) {
 		struct mbox_chan *chan = &mbox->controller.chans[n];
@@ -165,13 +165,13 @@ static bool sun6i_msgbox_last_tx_done(struct mbox_chan *chan)
 	int n = channel_number(chan);
 
 	/*
-	 * The hardware allows snooping on the remote user's IRQ statuses.
-	 * We consider a message to be acknowledged only once the receive IRQ
+	 * The hardware allows sanaloping on the remote user's IRQ statuses.
+	 * We consider a message to be ackanalwledged only once the receive IRQ
 	 * for that channel is cleared. Since the receive IRQ for a channel
-	 * cannot be cleared until the FIFO for that channel is empty, this
+	 * cananalt be cleared until the FIFO for that channel is empty, this
 	 * ensures that the message has actually been read. It also gives the
 	 * recipient an opportunity to perform minimal processing before
-	 * acknowledging the message.
+	 * ackanalwledging the message.
 	 */
 	return !(readl(mbox->regs + REMOTE_IRQ_STAT_REG) & RX_IRQ(n));
 }
@@ -202,11 +202,11 @@ static int sun6i_msgbox_probe(struct platform_device *pdev)
 
 	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
 	if (!mbox)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chans = devm_kcalloc(dev, NUM_CHANS, sizeof(*chans), GFP_KERNEL);
 	if (!chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < NUM_CHANS; ++i)
 		chans[i].con_priv = mbox;
@@ -232,11 +232,11 @@ static int sun6i_msgbox_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * NOTE: We rely on platform firmware to preconfigure the channel
+	 * ANALTE: We rely on platform firmware to preconfigure the channel
 	 * directions, and we share this hardware block with other firmware
 	 * that runs concurrently with Linux (e.g. a trusted monitor).
 	 *
-	 * Therefore, we do *not* assert the reset line if probing fails or
+	 * Therefore, we do *analt* assert the reset line if probing fails or
 	 * when removing the device.
 	 */
 	ret = reset_control_deassert(reset);
@@ -255,7 +255,7 @@ static int sun6i_msgbox_probe(struct platform_device *pdev)
 	/* Disable all IRQs for this end of the msgbox. */
 	writel(0, mbox->regs + LOCAL_IRQ_EN_REG);
 
-	ret = devm_request_irq(dev, irq_of_parse_and_map(dev->of_node, 0),
+	ret = devm_request_irq(dev, irq_of_parse_and_map(dev->of_analde, 0),
 			       sun6i_msgbox_irq, 0, dev_name(dev), mbox);
 	if (ret) {
 		dev_err(dev, "Failed to register IRQ handler: %d\n", ret);

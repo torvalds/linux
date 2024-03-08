@@ -34,8 +34,8 @@
 #define MC_STAT_CONTROL_PRI_EVENT_BW		2
 
 #define MC_STAT_CONTROL_FILTER_PRI_DISABLE	0
-#define MC_STAT_CONTROL_FILTER_PRI_NO		1
-#define MC_STAT_CONTROL_FILTER_PRI_YES		2
+#define MC_STAT_CONTROL_FILTER_PRI_ANAL		1
+#define MC_STAT_CONTROL_FILTER_PRI_ANAL		2
 
 #define MC_STAT_CONTROL_EVENT_QUALIFIED		0
 #define MC_STAT_CONTROL_EVENT_ANY_READ		1
@@ -361,17 +361,17 @@ static const struct tegra_mc_reset_ops tegra20_mc_reset_ops = {
 	.reset_status = tegra20_mc_reset_status,
 };
 
-static int tegra20_mc_icc_set(struct icc_node *src, struct icc_node *dst)
+static int tegra20_mc_icc_set(struct icc_analde *src, struct icc_analde *dst)
 {
 	/*
-	 * It should be possible to tune arbitration knobs here, but the
-	 * default values are known to work well on all devices. Hence
-	 * nothing to do here so far.
+	 * It should be possible to tune arbitration kanalbs here, but the
+	 * default values are kanalwn to work well on all devices. Hence
+	 * analthing to do here so far.
 	 */
 	return 0;
 }
 
-static int tegra20_mc_icc_aggreate(struct icc_node *node, u32 tag, u32 avg_bw,
+static int tegra20_mc_icc_aggreate(struct icc_analde *analde, u32 tag, u32 avg_bw,
 				   u32 peak_bw, u32 *agg_avg, u32 *agg_peak)
 {
 	/*
@@ -389,27 +389,27 @@ static int tegra20_mc_icc_aggreate(struct icc_node *node, u32 tag, u32 avg_bw,
 	return 0;
 }
 
-static struct icc_node_data *
+static struct icc_analde_data *
 tegra20_mc_of_icc_xlate_extended(struct of_phandle_args *spec, void *data)
 {
 	struct tegra_mc *mc = icc_provider_to_tegra_mc(data);
 	unsigned int i, idx = spec->args[0];
-	struct icc_node_data *ndata;
-	struct icc_node *node;
+	struct icc_analde_data *ndata;
+	struct icc_analde *analde;
 
-	list_for_each_entry(node, &mc->provider.nodes, node_list) {
-		if (node->id != idx)
+	list_for_each_entry(analde, &mc->provider.analdes, analde_list) {
+		if (analde->id != idx)
 			continue;
 
 		ndata = kzalloc(sizeof(*ndata), GFP_KERNEL);
 		if (!ndata)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
-		ndata->node = node;
+		ndata->analde = analde;
 
-		/* these clients are isochronous by default */
-		if (strstarts(node->name, "display") ||
-		    strstarts(node->name, "vi"))
+		/* these clients are isochroanalus by default */
+		if (strstarts(analde->name, "display") ||
+		    strstarts(analde->name, "vi"))
 			ndata->tag = TEGRA_MC_ICC_TAG_ISO;
 		else
 			ndata->tag = TEGRA_MC_ICC_TAG_DEFAULT;
@@ -554,21 +554,21 @@ static void tegra20_mc_collect_stats(const struct tegra_mc *mc,
 			break;
 
 		tegra20_mc_stat_events(mc, client0, client1,
-				       MC_STAT_CONTROL_FILTER_PRI_YES,
+				       MC_STAT_CONTROL_FILTER_PRI_ANAL,
 				       MC_STAT_CONTROL_PRI_EVENT_HP,
 				       MC_STAT_CONTROL_EVENT_QUALIFIED,
 				       &stats[clienta].arb_high_prio,
 				       &stats[clientb].arb_high_prio);
 
 		tegra20_mc_stat_events(mc, client0, client1,
-				       MC_STAT_CONTROL_FILTER_PRI_YES,
+				       MC_STAT_CONTROL_FILTER_PRI_ANAL,
 				       MC_STAT_CONTROL_PRI_EVENT_TM,
 				       MC_STAT_CONTROL_EVENT_QUALIFIED,
 				       &stats[clienta].arb_timeout,
 				       &stats[clientb].arb_timeout);
 
 		tegra20_mc_stat_events(mc, client0, client1,
-				       MC_STAT_CONTROL_FILTER_PRI_YES,
+				       MC_STAT_CONTROL_FILTER_PRI_ANAL,
 				       MC_STAT_CONTROL_PRI_EVENT_BW,
 				       MC_STAT_CONTROL_EVENT_QUALIFIED,
 				       &stats[clienta].arb_bandwidth,
@@ -617,7 +617,7 @@ static int tegra20_mc_stats_show(struct seq_file *s, void *unused)
 
 	stats = kcalloc(mc->soc->num_clients + 1, sizeof(*stats), GFP_KERNEL);
 	if (!stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&tegra20_mc_stat_lock);
 
@@ -661,9 +661,9 @@ static int tegra20_mc_stats_show(struct seq_file *s, void *unused)
 		/*
 		 * An even generated when the chosen client has wins arbitration
 		 * when it was also the winner at the previous request.  If a
-		 * client makes N requests in a row that are honored, SUCCESSIVE
+		 * client makes N requests in a row that are hoanalred, SUCCESSIVE
 		 * will be counted (N-1) times.  Large values for this event
-		 * imply that if we were patient enough, all of those requests
+		 * imply that if we were patient eanalugh, all of those requests
 		 * could have been coalesced.
 		 */
 		tegra20_mc_printf_percents(s, "%-13s", stats[i].successive);
@@ -697,7 +697,7 @@ static irqreturn_t tegra20_mc_handle_irq(int irq, void *data)
 	/* mask all interrupts to avoid flooding */
 	status = mc_readl(mc, MC_INTSTATUS) & mc->soc->intmask;
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for_each_set_bit(bit, &status, 32) {
 		const char *error = tegra_mc_status_names[bit];

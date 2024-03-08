@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Interfaces for vfio-ccw
  *
@@ -24,8 +24,8 @@ struct ccw_io_region {
 } __packed;
 
 /*
- * used for processing commands that trigger asynchronous actions
- * Note: this is controlled by a capability
+ * used for processing commands that trigger asynchroanalus actions
+ * Analte: this is controlled by a capability
  */
 #define VFIO_CCW_ASYNC_CMD_HSCH (1 << 0)
 #define VFIO_CCW_ASYNC_CMD_CSCH (1 << 1)
@@ -37,7 +37,7 @@ struct ccw_cmd_region {
 /*
  * Used for processing commands that read the subchannel-information block
  * Reading this region triggers a stsch() to hardware
- * Note: this is controlled by a capability
+ * Analte: this is controlled by a capability
  */
 struct ccw_schib_region {
 #define SCHIB_AREA_SIZE 52
@@ -46,7 +46,7 @@ struct ccw_schib_region {
 
 /*
  * Used for returning a Channel Report Word to userspace.
- * Note: this is controlled by a capability
+ * Analte: this is controlled by a capability
  */
 struct ccw_crw_region {
 	__u32 crw;

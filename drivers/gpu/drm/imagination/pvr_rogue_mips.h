@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_ROGUE_MIPS_H
 #define PVR_ROGUE_MIPS_H
@@ -39,7 +39,7 @@
 #define ROGUE_MIPSFW_UNCACHED_CACHE_POLICY (2)
 /* "Write-back write-allocate" caching policy. */
 #define ROGUE_MIPSFW_WRITEBACK_CACHE_POLICY (3)
-/* "Write-through no write-allocate" caching policy. */
+/* "Write-through anal write-allocate" caching policy. */
 #define ROGUE_MIPSFW_WRITETHROUGH_CACHE_POLICY (1)
 /* Cached policy used by MIPS in case of physical bus on 32 bit. */
 #define ROGUE_MIPSFW_CACHED_POLICY (ROGUE_MIPSFW_WRITEBACK_CACHE_POLICY)
@@ -183,7 +183,7 @@
 
 /*
  * MIPS private data in the bootloader data page.
- * Memory below this offset is used by the FW only, no interface data allowed.
+ * Memory below this offset is used by the FW only, anal interface data allowed.
  */
 #define ROGUE_MIPSFW_PRIVATE_DATA_OFFSET (0x800)
 
@@ -287,7 +287,7 @@ struct rogue_mipsfw_boot_data {
 #define ROGUE_MIPSFW_TLB_GET_VPN2(entry_hi) ((entry_hi) >> 13)
 #define ROGUE_MIPSFW_TLB_GET_COHERENCY(entry_lo) (((entry_lo) >> 3) & 0x7U)
 #define ROGUE_MIPSFW_TLB_GET_PFN(entry_lo) (((entry_lo) >> 6) & 0XFFFFFU)
-/* GET_PA uses a non-standard PFN mask for 36 bit addresses. */
+/* GET_PA uses a analn-standard PFN mask for 36 bit addresses. */
 #define ROGUE_MIPSFW_TLB_GET_PA(entry_lo) (((u64)(entry_lo) & \
 					    ROGUE_MIPSFW_ENTRYLO_PFN_MASK_ABOVE_32BIT) << 6)
 #define ROGUE_MIPSFW_TLB_GET_INHIBIT(entry_lo) (((entry_lo) >> 30) & 0x3U)

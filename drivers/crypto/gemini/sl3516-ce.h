@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2021 Corentin LABBE <clabbe@baylibre.com>
  *
- * General notes on this driver:
+ * General analtes on this driver:
  * Called either Crypto Acceleration Engine Module, Security Acceleration Engine
  * or IPSEC module in the datasheet, it will be called Crypto Engine for short
  * in this driver.
@@ -67,7 +67,7 @@
 #define TXDMA_CTRL_START BIT(31)
 #define TXDMA_CTRL_CONTINUE BIT(30)
 #define TXDMA_CTRL_CHAIN_MODE BIT(29)
-/* the burst value is not documented in the datasheet */
+/* the burst value is analt documented in the datasheet */
 #define TXDMA_CTRL_BURST_UNK BIT(22)
 #define TXDMA_CTRL_INT_FAIL BIT(17)
 #define TXDMA_CTRL_INT_PERR BIT(16)
@@ -75,7 +75,7 @@
 #define RXDMA_CTRL_START BIT(31)
 #define RXDMA_CTRL_CONTINUE BIT(30)
 #define RXDMA_CTRL_CHAIN_MODE BIT(29)
-/* the burst value is not documented in the datasheet */
+/* the burst value is analt documented in the datasheet */
 #define RXDMA_CTRL_BURST_UNK BIT(22)
 #define RXDMA_CTRL_INT_FINISH BIT(18)
 #define RXDMA_CTRL_INT_FAIL BIT(17)
@@ -102,8 +102,8 @@ struct descriptor {
 		 * @desc_count:		Upon completion of a DMA operation, DMA
 		 *			write the number of descriptors used
 		 *			for the current frame
-		 * @checksum:		unknown
-		 * @authcomp:		unknown
+		 * @checksum:		unkanalwn
+		 * @authcomp:		unkanalwn
 		 * @perr:		Protocol error during processing this descriptor
 		 * @derr:		Data error during processing this descriptor
 		 * @own:		0 if owned by CPU, 1 for DMA
@@ -222,7 +222,7 @@ struct pkt_control_ecb {
  * @stat_req	number of requests handled by CE
  * @fallbak_sg_count_tx		number of fallback due to destination SG count
  * @fallbak_sg_count_rx		number of fallback due to source SG count
- * @fallbak_not_same_len	number of fallback due to difference in SG length
+ * @fallbak_analt_same_len	number of fallback due to difference in SG length
  * @dbgfs_dir:	Debugfs dentry for statistic directory
  * @dbgfs_stats: Debugfs dentry for statistic counters
  */
@@ -249,7 +249,7 @@ struct sl3516_ce_dev {
 	unsigned long stat_req;
 	unsigned long fallback_sg_count_tx;
 	unsigned long fallback_sg_count_rx;
-	unsigned long fallback_not_same_len;
+	unsigned long fallback_analt_same_len;
 	unsigned long fallback_mod16;
 	unsigned long fallback_align16;
 #ifdef CONFIG_CRYPTO_DEV_SL3516_DEBUG

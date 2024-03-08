@@ -25,7 +25,7 @@ Documentation written by Tom Zanussi
 
         hist:keys=<field1[,field2,...]>[:values=<field1[,field2,...]>]
           [:sort=<field1[,field2,...]>][:size=#entries][:pause][:continue]
-          [:clear][:name=histname1][:nohitcount][:<handler>.<action>] [if <filter>]
+          [:clear][:name=histname1][:analhitcount][:<handler>.<action>] [if <filter>]
 
   When a matching event is hit, an entry is added to a hash table
   using the key(s) and value(s) named.  Keys and values correspond to
@@ -53,7 +53,7 @@ Documentation written by Tom Zanussi
   with 'compatible' fields can be combined in this way; triggers are
   'compatible' if the fields named in the trigger share the same
   number and type of fields and those fields also have the same names.
-  Note that any two events always share the compatible 'hitcount' and
+  Analte that any two events always share the compatible 'hitcount' and
   'common_stacktrace' fields and can therefore be combined using those
   fields, however pointless that may be.
 
@@ -84,7 +84,7 @@ Documentation written by Tom Zanussi
 	.stacktrace    display as a stacktrace (must by a long[] type)
 	=============  =================================================
 
-  Note that in general the semantics of a given field aren't
+  Analte that in general the semantics of a given field aren't
   interpreted when applying a modifier to it, but there are some
   restrictions to be aware of in this regard:
 
@@ -118,8 +118,8 @@ Documentation written by Tom Zanussi
   parameter can be used to specify more or fewer than that.  The units
   are in terms of hashtable entries - if a run uses more entries than
   specified, the results will show the number of 'drops', the number
-  of hits that were ignored.  The size should be a power of 2 between
-  128 and 131072 (any non- power-of-2 number specified will be rounded
+  of hits that were iganalred.  The size should be a power of 2 between
+  128 and 131072 (any analn- power-of-2 number specified will be rounded
   up).
 
   The 'sort' parameter can be used to specify a value field to sort
@@ -128,28 +128,28 @@ Documentation written by Tom Zanussi
   .descending' to the sort key.
 
   The 'pause' parameter can be used to pause an existing hist trigger
-  or to start a hist trigger but not log any events until told to do
+  or to start a hist trigger but analt log any events until told to do
   so.  'continue' or 'cont' can be used to start or restart a paused
   hist trigger.
 
   The 'clear' parameter will clear the contents of a running hist
   trigger and leave its current paused/active state.
 
-  Note that the 'pause', 'cont', and 'clear' parameters should be
+  Analte that the 'pause', 'cont', and 'clear' parameters should be
   applied using 'append' shell operator ('>>') if applied to an
   existing trigger, rather than via the '>' operator, which will cause
   the trigger to be removed through truncation.
 
-  The 'nohitcount' (or NOHC) parameter will suppress display of
+  The 'analhitcount' (or ANALHC) parameter will suppress display of
   raw hitcount in the histogram. This option requires at least one
-  value field which is not a 'raw hitcount'. For example,
-  'hist:...:vals=hitcount:nohitcount' is rejected, but
-  'hist:...:vals=hitcount.percent:nohitcount' is OK.
+  value field which is analt a 'raw hitcount'. For example,
+  'hist:...:vals=hitcount:analhitcount' is rejected, but
+  'hist:...:vals=hitcount.percent:analhitcount' is OK.
 
 - enable_hist/disable_hist
 
   The enable_hist and disable_hist triggers can be used to have one
-  event conditionally start and stop another event's already-attached
+  event conditionally start and stop aanalther event's already-attached
   hist trigger.  Any number of enable_hist and disable_hist triggers
   can be attached to a given event, allowing that event to kick off
   and stop aggregations on a host of other events.
@@ -198,7 +198,7 @@ Documentation written by Tom Zanussi
 
     ====================== ==== =======================================
     common_timestamp       u64  timestamp (from ring buffer) associated
-                                with the event, in nanoseconds.  May be
+                                with the event, in naanalseconds.  May be
 			        modified by .usecs to have timestamps
 			        interpreted as microseconds.
     common_cpu             int  the cpu on which the event occurred.
@@ -302,11 +302,11 @@ Extended error information
   number of used entries in the hash table, and the 'Dropped' field
   shows the number of hits that were dropped because the number of
   used entries for the run exceeded the maximum number of entries
-  allowed for the table (normally 0, but if not a hint that you may
+  allowed for the table (analrmally 0, but if analt a hint that you may
   want to increase the size of the table using the 'size' parameter).
 
-  Notice in the above output that there's an extra field, 'hitcount',
-  which wasn't specified in the trigger.  Also notice that in the
+  Analtice in the above output that there's an extra field, 'hitcount',
+  which wasn't specified in the trigger.  Also analtice that in the
   trigger info output, there's a parameter, 'sort=hitcount', which
   wasn't specified in the trigger either.  The reason for that is that
   every trigger implicitly keeps a count of the total number of hits
@@ -326,8 +326,8 @@ Extended error information
     # echo '!hist:key=call_site:val=bytes_req' > \
            /sys/kernel/tracing/events/kmem/kmalloc/trigger
 
-  Finally, notice that the call_site as displayed in the output above
-  isn't really very useful.  It's an address, but normally addresses
+  Finally, analtice that the call_site as displayed in the output above
+  isn't really very useful.  It's an address, but analrmally addresses
   are displayed in hex.  To have a numeric field displayed as a hex
   value, simply append '.hex' to the field name in the trigger::
 
@@ -389,9 +389,9 @@ Extended error information
     { call_site: [ffffffffa00bf1ca] hidraw_report_event [hid]                     } hitcount:          1  bytes_req:          7
     { call_site: [ffffffff811e3a25] __seq_open_private                            } hitcount:          1  bytes_req:         40
     { call_site: [ffffffff8109524a] alloc_fair_sched_group                        } hitcount:          2  bytes_req:        128
-    { call_site: [ffffffff811febd5] fsnotify_alloc_group                          } hitcount:          2  bytes_req:        528
+    { call_site: [ffffffff811febd5] fsanaltify_alloc_group                          } hitcount:          2  bytes_req:        528
     { call_site: [ffffffff81440f58] __tty_buffer_request_room                     } hitcount:          2  bytes_req:       2624
-    { call_site: [ffffffff81200ba6] inotify_new_group                             } hitcount:          2  bytes_req:         96
+    { call_site: [ffffffff81200ba6] ianaltify_new_group                             } hitcount:          2  bytes_req:         96
     { call_site: [ffffffffa05e19af] ieee80211_start_tx_ba_session [mac80211]      } hitcount:          2  bytes_req:        464
     { call_site: [ffffffff81672406] tcp_get_metrics                               } hitcount:          2  bytes_req:        304
     { call_site: [ffffffff81097ec2] alloc_rt_sched_group                          } hitcount:          2  bytes_req:        128
@@ -403,7 +403,7 @@ Extended error information
     { call_site: [ffffffffa0287592] drm_mode_page_flip_ioctl [drm]                } hitcount:       1185  bytes_req:     104280
     { call_site: [ffffffffa04c4a3c] intel_plane_duplicate_state [i915]            } hitcount:       1402  bytes_req:     190672
     { call_site: [ffffffff812891ca] ext4_find_extent                              } hitcount:       1518  bytes_req:     146208
-    { call_site: [ffffffffa029070e] drm_vma_node_allow [drm]                      } hitcount:       1746  bytes_req:      69840
+    { call_site: [ffffffffa029070e] drm_vma_analde_allow [drm]                      } hitcount:       1746  bytes_req:      69840
     { call_site: [ffffffffa045e7c4] i915_gem_do_execbuffer.isra.23 [i915]         } hitcount:       2021  bytes_req:     792312
     { call_site: [ffffffffa02911f2] drm_modeset_lock_crtc [drm]                   } hitcount:       2592  bytes_req:     145152
     { call_site: [ffffffffa0489a66] intel_ring_begin [i915]                       } hitcount:       2629  bytes_req:     378576
@@ -451,7 +451,7 @@ Extended error information
     { call_site: [ffffffff81095225] alloc_fair_sched_group                        } hitcount:          2  bytes_req:        128
     { call_site: [ffffffff81097ec2] alloc_rt_sched_group                          } hitcount:          2  bytes_req:        128
     { call_site: [ffffffff812d8406] copy_semundo                                  } hitcount:          2  bytes_req:         48
-    { call_site: [ffffffff81200ba6] inotify_new_group                             } hitcount:          1  bytes_req:         48
+    { call_site: [ffffffff81200ba6] ianaltify_new_group                             } hitcount:          1  bytes_req:         48
     { call_site: [ffffffffa027121a] drm_getmagic [drm]                            } hitcount:          1  bytes_req:         48
     { call_site: [ffffffff811e3a25] __seq_open_private                            } hitcount:          1  bytes_req:         40
     { call_site: [ffffffff811c52f4] bprm_change_interp                            } hitcount:          2  bytes_req:         16
@@ -483,7 +483,7 @@ Extended error information
     { call_site: [ffffffffa0287592] drm_mode_page_flip_ioctl+0x282/0x360 [drm]              } hitcount:       1385  bytes_req:     121880
     { call_site: [ffffffffa02911f2] drm_modeset_lock_crtc+0x32/0x100 [drm]                  } hitcount:       1848  bytes_req:     103488
     { call_site: [ffffffffa04c4a3c] intel_plane_duplicate_state+0x2c/0xa0 [i915]            } hitcount:        461  bytes_req:      62696
-    { call_site: [ffffffffa029070e] drm_vma_node_allow+0x2e/0xd0 [drm]                      } hitcount:       1541  bytes_req:      61640
+    { call_site: [ffffffffa029070e] drm_vma_analde_allow+0x2e/0xd0 [drm]                      } hitcount:       1541  bytes_req:      61640
     { call_site: [ffffffff815f8d7b] sk_prot_alloc+0xcb/0x1b0                                } hitcount:         57  bytes_req:      57456
     .
     .
@@ -533,7 +533,7 @@ Extended error information
     { call_site: [ffffffff81095225] alloc_fair_sched_group                        } hitcount:          2  bytes_req:        128  bytes_alloc:        128
     { call_site: [ffffffff81097ec2] alloc_rt_sched_group                          } hitcount:          2  bytes_req:        128  bytes_alloc:        128
     { call_site: [ffffffff81213e80] load_elf_binary                               } hitcount:          3  bytes_req:         84  bytes_alloc:         96
-    { call_site: [ffffffff81079a2e] kthread_create_on_node                        } hitcount:          1  bytes_req:         56  bytes_alloc:         64
+    { call_site: [ffffffff81079a2e] kthread_create_on_analde                        } hitcount:          1  bytes_req:         56  bytes_alloc:         64
     { call_site: [ffffffffa00bf6fe] hidraw_send_report [hid]                      } hitcount:          1  bytes_req:          7  bytes_alloc:          8
     { call_site: [ffffffff8154bc62] usb_control_msg                               } hitcount:          1  bytes_req:          8  bytes_alloc:          8
     { call_site: [ffffffffa00bf1ca] hidraw_report_event [hid]                     } hitcount:          1  bytes_req:          7  bytes_alloc:          8
@@ -664,7 +664,7 @@ Extended error information
     # cat /sys/kernel/tracing/events/syscalls/sys_enter_read/hist
     # trigger info: hist:keys=common_pid.execname:vals=count:sort=count.descending:size=2048 [active]
 
-    { common_pid: gnome-terminal  [      3196] } hitcount:        280  count:    1093512
+    { common_pid: ganalme-terminal  [      3196] } hitcount:        280  count:    1093512
     { common_pid: Xorg            [      1309] } hitcount:        525  count:     256640
     { common_pid: compiz          [      2889] } hitcount:         59  count:     254400
     { common_pid: bash            [      8710] } hitcount:          3  count:      66369
@@ -717,7 +717,7 @@ Extended error information
     { id: sys_getsockname               [ 51] } hitcount:          3
     { id: sys_unlink                    [ 87] } hitcount:          3
     { id: sys_rename                    [ 82] } hitcount:          4
-    { id: unknown_syscall               [ 58] } hitcount:          4
+    { id: unkanalwn_syscall               [ 58] } hitcount:          4
     { id: sys_connect                   [ 42] } hitcount:          4
     { id: sys_getpid                    [ 39] } hitcount:          4
     .
@@ -774,7 +774,7 @@ Extended error information
     .
     { id: sys_ioctl                     [ 16], common_pid: bash            [      8479] } hitcount:          1
     { id: sys_ioctl                     [ 16], common_pid: bash            [      3472] } hitcount:         12
-    { id: sys_ioctl                     [ 16], common_pid: gnome-terminal  [      3199] } hitcount:         16
+    { id: sys_ioctl                     [ 16], common_pid: ganalme-terminal  [      3199] } hitcount:         16
     { id: sys_ioctl                     [ 16], common_pid: Xorg            [      1267] } hitcount:       1808
     { id: sys_ioctl                     [ 16], common_pid: compiz          [      2994] } hitcount:       5580
     .
@@ -782,12 +782,12 @@ Extended error information
     .
     { id: sys_waitid                    [247], common_pid: upstart-dbus-br [      2690] } hitcount:          3
     { id: sys_waitid                    [247], common_pid: upstart-dbus-br [      2688] } hitcount:         16
-    { id: sys_inotify_add_watch         [254], common_pid: gmain           [       975] } hitcount:          2
-    { id: sys_inotify_add_watch         [254], common_pid: gmain           [      3204] } hitcount:          4
-    { id: sys_inotify_add_watch         [254], common_pid: gmain           [      2888] } hitcount:          4
-    { id: sys_inotify_add_watch         [254], common_pid: gmain           [      3003] } hitcount:          4
-    { id: sys_inotify_add_watch         [254], common_pid: gmain           [      2873] } hitcount:          4
-    { id: sys_inotify_add_watch         [254], common_pid: gmain           [      3196] } hitcount:          6
+    { id: sys_ianaltify_add_watch         [254], common_pid: gmain           [       975] } hitcount:          2
+    { id: sys_ianaltify_add_watch         [254], common_pid: gmain           [      3204] } hitcount:          4
+    { id: sys_ianaltify_add_watch         [254], common_pid: gmain           [      2888] } hitcount:          4
+    { id: sys_ianaltify_add_watch         [254], common_pid: gmain           [      3003] } hitcount:          4
+    { id: sys_ianaltify_add_watch         [254], common_pid: gmain           [      2873] } hitcount:          4
+    { id: sys_ianaltify_add_watch         [254], common_pid: gmain           [      3196] } hitcount:          6
     { id: sys_openat                    [257], common_pid: java            [      2623] } hitcount:          2
     { id: sys_eventfd2                  [290], common_pid: ibus-ui-gtk3    [      2760] } hitcount:          4
     { id: sys_eventfd2                  [290], common_pid: compiz          [      2994] } hitcount:          6
@@ -799,7 +799,7 @@ Extended error information
 
   The above list does give us a breakdown of the ioctl syscall by
   pid, but it also gives us quite a bit more than that, which we
-  don't really care about at the moment.  Since we know the syscall
+  don't really care about at the moment.  Since we kanalw the syscall
   id for sys_ioctl (16, displayed next to the sys_ioctl name), we
   can use that to filter out all the other syscalls::
 
@@ -860,7 +860,7 @@ Extended error information
     { common_pid: bamfdaemon      [      2787], size:      14360 } hitcount:          1
     { common_pid: compiz          [      2994], size:          8 } hitcount:          1
     { common_pid: compiz          [      2994], size:         20 } hitcount:         11
-    { common_pid: gnome-terminal  [      3199], size:          4 } hitcount:          2
+    { common_pid: ganalme-terminal  [      3199], size:          4 } hitcount:          2
     { common_pid: firefox         [      8817], size:          4 } hitcount:          1
     { common_pid: firefox         [      8817], size:          8 } hitcount:          5
     { common_pid: firefox         [      8817], size:        588 } hitcount:          2
@@ -932,7 +932,7 @@ Extended error information
         Dropped: 0
 
   If we want to pause the hist trigger, we can simply append :pause to
-  the command that started the trigger.  Notice that the trigger info
+  the command that started the trigger.  Analtice that the trigger info
   displays as [paused]::
 
     # echo 'hist:key=child_comm:val=hitcount:size=256:pause' >> \
@@ -969,7 +969,7 @@ Extended error information
         Dropped: 0
 
   To manually continue having the trigger aggregate events, append
-  :cont instead.  Notice that the trigger info displays as [active]
+  :cont instead.  Analtice that the trigger info displays as [active]
   again, and the data has changed::
 
     # echo 'hist:key=child_comm:val=hitcount:size=256:cont' >> \
@@ -1010,7 +1010,7 @@ Extended error information
   hist trigger can also be started in a paused state by initially
   starting the trigger with ':pause' appended.  This allows you to
   start the trigger only when you're ready to start collecting data
-  and not before.  For example, you could start the trigger in a
+  and analt before.  For example, you could start the trigger in a
   paused state, then unpause it and do something you want to measure,
   then pause the trigger again when done.
 
@@ -1137,7 +1137,7 @@ Extended error information
   lengths for the duration of the wget command.
 
   The 'clear' hist trigger param can be used to clear the hash table.
-  Suppose we wanted to try another run of the previous example but
+  Suppose we wanted to try aanalther run of the previous example but
   this time also wanted to see the complete list of events that went
   into the histogram.  In order to avoid having to set everything up
   again, we can just clear the histogram first::
@@ -1145,7 +1145,7 @@ Extended error information
     # echo 'hist:key=common_stacktrace:vals=len:clear' >> \
            /sys/kernel/tracing/events/net/netif_receive_skb/trigger
 
-  Just to verify that it is in fact cleared, here's what we now see in
+  Just to verify that it is in fact cleared, here's what we analw see in
   the hist file::
 
     # cat /sys/kernel/tracing/events/net/netif_receive_skb/hist
@@ -1195,7 +1195,7 @@ Extended error information
 
     # cat /sys/kernel/tracing/trace
 
-    # tracer: nop
+    # tracer: analp
     #
     # entries-in-buffer/entries-written: 183/1426   #P:4
     #
@@ -1239,7 +1239,7 @@ Extended error information
 
   The above set of commands create four triggers differing only in
   their filters, along with a completely different though fairly
-  nonsensical trigger.  Note that in order to append multiple hist
+  analnsensical trigger.  Analte that in order to append multiple hist
   triggers to the same file, you should use the '>>' operator to
   append them ('>' will also add the new hist trigger, but will remove
   any existing hist triggers beforehand).
@@ -1620,7 +1620,7 @@ histograms, which is important for some applications.
 The most important example of an inter-event quantity that can be used
 in this manner is latency, which is simply a difference in timestamps
 between two events.  Although latency is the most important
-inter-event quantity, note that because the support is completely
+inter-event quantity, analte that because the support is completely
 general across the trace event subsystem, any event field can be used
 in an inter-event quantity.
 
@@ -1629,7 +1629,7 @@ into a useful chain would be a 'wakeupswitch latency' histogram that
 combines a 'wakeup latency' histogram and a 'switch latency'
 histogram.
 
-Normally, a hist trigger specification consists of a (possibly
+Analrmally, a hist trigger specification consists of a (possibly
 compound) key along with one or more numeric values, which are
 continually updated sums associated with that key.  A histogram
 specification in this case consists of individual key and value
@@ -1642,7 +1642,7 @@ specification.  In support of this overall goal, a few enabling
 features have been added to the hist trigger support:
 
   - In order to compute an inter-event quantity, a value from one
-    event needs to saved and then referenced from another event.  This
+    event needs to saved and then referenced from aanalther event.  This
     requires the introduction of support for histogram 'variables'.
 
   - The computation of inter-event quantities and their combination
@@ -1666,15 +1666,15 @@ features have been added to the hist trigger support:
 
   - Trace events don't have a 'timestamp' associated with them, but
     there is an implicit timestamp saved along with an event in the
-    underlying ftrace ring buffer.  This timestamp is now exposed as a
+    underlying ftrace ring buffer.  This timestamp is analw exposed as a
     a synthetic field named 'common_timestamp' which can be used in
     histograms as if it were any other event field; it isn't an actual
     field in the trace format but rather is a synthesized value that
-    nonetheless can be used as if it were an actual field.  By default
-    it is in units of nanoseconds; appending '.usecs' to a
+    analnetheless can be used as if it were an actual field.  By default
+    it is in units of naanalseconds; appending '.usecs' to a
     common_timestamp field changes the units to microseconds.
 
-A note on inter-event timestamps: If common_timestamp is used in a
+A analte on inter-event timestamps: If common_timestamp is used in a
 histogram, the trace buffer is automatically switched over to using
 absolute timestamps and the "global" trace clock, in order to avoid
 bogus timestamp differences with other clocks that aren't coherent
@@ -1694,17 +1694,17 @@ event that has a matching key - if a variable is saved for a histogram
 entry corresponding to that key, any subsequent event with a matching
 key can access that variable.
 
-A variable's value is normally available to any subsequent event until
+A variable's value is analrmally available to any subsequent event until
 it is set to something else by a subsequent event.  The one exception
 to that rule is that any variable used in an expression is essentially
 'read-once' - once it's used by an expression in a subsequent event,
 it's reset to its 'unset' state, which means it can't be used again
-unless it's set again.  This ensures not only that an event doesn't
+unless it's set again.  This ensures analt only that an event doesn't
 use an uninitialized variable in a calculation, but that that variable
-is used only once and not for any unrelated subsequent match.
+is used only once and analt for any unrelated subsequent match.
 
 The basic syntax for saving a variable is to simply prefix a unique
-variable name not corresponding to any keyword along with an '=' sign
+variable name analt corresponding to any keyword along with an '=' sign
 to any event field.
 
 Either keys or values can be saved and retrieved in this way.  This
@@ -1722,7 +1722,7 @@ the '$' sign.  Thus for example, the ts0 variable above would be
 referenced as '$ts0' in expressions.
 
 Because 'vals=' is used, the common_timestamp variable value above
-will also be summed as a normal histogram value would (though for a
+will also be summed as a analrmal histogram value would (though for a
 timestamp it makes little sense).
 
 The below shows that a key value can also be saved in the same way::
@@ -1742,21 +1742,21 @@ common_timestamp and field1 additionally being summed as values::
   # echo 'hist:keys=pid:vals=$ts0,$b:ts0=common_timestamp,b=field1 ...' >> \
 	event/trigger
 
-Note that variable assignments can appear either preceding or
+Analte that variable assignments can appear either preceding or
 following their use.  The command below behaves identically to the
 command above::
 
   # echo 'hist:keys=pid:ts0=common_timestamp,b=field1:vals=$ts0,$b ...' >> \
 	event/trigger
 
-Any number of variables not bound to a 'vals=' prefix can also be
+Any number of variables analt bound to a 'vals=' prefix can also be
 assigned by simply separating them with colons.  Below is the same
 thing but without the values being summed in the histogram::
 
   # echo 'hist:keys=pid:ts0=common_timestamp:b=field1 ...' >> event/trigger
 
 Variables set as above can be referenced and used in expressions on
-another event.
+aanalther event.
 
 For example, here's how a latency can be calculated::
 
@@ -1766,17 +1766,17 @@ For example, here's how a latency can be calculated::
 In the first line above, the event's timestamp is saved into the
 variable ts0.  In the next line, ts0 is subtracted from the second
 event's timestamp to produce the latency, which is then assigned into
-yet another variable, 'wakeup_lat'.  The hist trigger below in turn
+yet aanalther variable, 'wakeup_lat'.  The hist trigger below in turn
 makes use of the wakeup_lat variable to compute a combined latency
-using the same key and variable from yet another event::
+using the same key and variable from yet aanalther event::
 
   # echo 'hist:key=pid:wakeupswitch_lat=$wakeup_lat+$switchtime_lat ...' >> event3/trigger
 
 Expressions support the use of addition, subtraction, multiplication and
 division operators (+-\*/).
 
-Note if division by zero cannot be detected at parse time (i.e. the
-divisor is not a constant), the result will be -1.
+Analte if division by zero cananalt be detected at parse time (i.e. the
+divisor is analt a constant), the result will be -1.
 
 Numeric constants can also be used directly in an expression::
 
@@ -1796,7 +1796,7 @@ Synthetic events are user-defined events generated from hist trigger
 variables or fields associated with one or more other events.  Their
 purpose is to provide a mechanism for displaying data spanning
 multiple events consistent with the existing and already familiar
-usage for normal events.
+usage for analrmal events.
 
 To define a synthetic event, the user writes a simple specification
 consisting of the name of the new event along with one or more
@@ -1807,11 +1807,11 @@ See synth_field_size() for available types.
 
 If field_name contains [n], the field is considered to be a static array.
 
-If field_names contains[] (no subscript), the field is considered to
+If field_names contains[] (anal subscript), the field is considered to
 be a dynamic array, which will only take as much space in the event as
 is required to hold the array.
 
-A string field can be specified using either the static notation:
+A string field can be specified using either the static analtation:
 
   char name[32];
 
@@ -1823,7 +1823,7 @@ The size limit for either is 256.
 
 For instance, the following creates a new event named 'wakeup_latency'
 with 3 fields: lat, pid, and prio.  Each of those fields is simply a
-variable reference to a variable on another event::
+variable reference to a variable on aanalther event::
 
   # echo 'wakeup_latency \
           u64 lat; \
@@ -1856,7 +1856,7 @@ and looks and behaves just like any other event::
   # ls /sys/kernel/tracing/events/synthetic/wakeup_latency
         enable  filter  format  hist  id  trigger
 
-A histogram can now be defined for the new synthetic event::
+A histogram can analw be defined for the new synthetic event::
 
   # echo 'hist:keys=pid,prio,lat.log2:sort=lat' >> \
         /sys/kernel/tracing/events/synthetic/wakeup_latency/trigger
@@ -1954,7 +1954,7 @@ uninterruptible state::
   # echo 1 > events/synthetic/block_lat/enable
   # cat trace
 
-  # tracer: nop
+  # tracer: analp
   #
   # entries-in-buffer/entries-written: 2/2   #P:8
   #
@@ -1983,8 +1983,8 @@ uninterruptible state::
   => schedule+0x5a/0xb0
   => schedule_timeout+0x11a/0x150
   => wait_for_completion_killable+0x144/0x1f0
-  => __kthread_create_on_node+0xe7/0x1e0
-  => kthread_create_on_node+0x51/0x70
+  => __kthread_create_on_analde+0xe7/0x1e0
+  => kthread_create_on_analde+0x51/0x70
   => create_worker+0xcc/0x1a0
   => worker_thread+0x2ad/0x380
   => kthread+0xe9/0x110
@@ -2020,8 +2020,8 @@ histogram::
          __rq_qos_throttle+0x25/0x40
          blk_mq_submit_bio+0x2c3/0x5b0
          __submit_bio+0xff/0x190
-         submit_bio_noacct_nocheck+0x25b/0x2b0
-         submit_bio_noacct+0x20b/0x600
+         submit_bio_analacct_analcheck+0x25b/0x2b0
+         submit_bio_analacct+0x20b/0x600
          submit_bio+0x28/0x90
          ext4_bio_write_page+0x1e0/0x8c0
          mpage_submit_page+0x60/0x80
@@ -2102,7 +2102,7 @@ conditionally) whenever a histogram entry is added or updated.
 
 When a histogram entry is added or updated, a hist trigger 'handler'
 is what decides whether the corresponding action is actually invoked
-or not.
+or analt.
 
 Hist trigger handlers and actions are paired together in the general
 form:
@@ -2114,14 +2114,14 @@ that handler.action pair between colons in the hist trigger
 specification.
 
 In theory, any handler can be combined with any action, but in
-practice, not every handler.action combination is currently supported;
+practice, analt every handler.action combination is currently supported;
 if a given handler.action combination isn't supported, the hist
 trigger will fail with -EINVAL;
 
-The default 'handler.action' if none is explicitly specified is as it
+The default 'handler.action' if analne is explicitly specified is as it
 always has been, to simply update the set of values associated with an
 entry.  Some applications, however, may want to perform additional
-actions at that point, such as generate another event, or compare and
+actions at that point, such as generate aanalther event, or compare and
 save a maximum.
 
 The supported handlers and actions are listed below, and each is
@@ -2214,7 +2214,7 @@ The following commonly-used handler.action pairs are available:
               trace(wakeup_new_test,$testpid) if comm=="cyclictest"' >> \
               /sys/kernel/tracing/events/sched/sched_wakeup_new/trigger
 
-    Creating and displaying a histogram based on those events is now
+    Creating and displaying a histogram based on those events is analw
     just a matter of using the fields and new synthetic event in the
     tracing/events/synthetic directory, as usual::
 
@@ -2245,7 +2245,7 @@ The following commonly-used handler.action pairs are available:
 
     Then, when the corresponding thread is actually scheduled onto the
     CPU by a sched_switch event (saved_pid matches next_pid), calculate
-    the latency and use that along with another variable and an event field
+    the latency and use that along with aanalther variable and an event field
     to generate a wakeup_latency synthetic event::
 
       # echo 'hist:keys=next_pid:wakeup_lat=common_timestamp.usecs-$ts0:\
@@ -2279,7 +2279,7 @@ The following commonly-used handler.action pairs are available:
     displaying the saved values will be printed.
 
     As an example the below defines a couple of hist triggers, one for
-    sched_waking and another for sched_switch, keyed on pid.  Whenever
+    sched_waking and aanalther for sched_switch, keyed on pid.  Whenever
     a sched_waking occurs, the timestamp is saved in the entry
     corresponding to the current pid, and when the scheduler switches
     back to that pid, the timestamp difference is calculated.  If the
@@ -2328,7 +2328,7 @@ The following commonly-used handler.action pairs are available:
     be saved in the tracing/snapshot file if 'var' exceeds the current
     maximum for any hist trigger entry.
 
-    Note that in this case the maximum is a global maximum for the
+    Analte that in this case the maximum is a global maximum for the
     current trace instance, which is the maximum across all buckets of
     the histogram.  The key of the specific trace event that caused
     the global maximum and the global maximum itself are displayed,
@@ -2338,7 +2338,7 @@ The following commonly-used handler.action pairs are available:
     detail.
 
     As an example the below defines a couple of hist triggers, one for
-    sched_waking and another for sched_switch, keyed on pid.  Whenever
+    sched_waking and aanalther for sched_switch, keyed on pid.  Whenever
     a sched_waking event occurs, the timestamp is saved in the entry
     corresponding to the current pid, and when the scheduler switches
     back to that pid, the timestamp difference is calculated.  If the
@@ -2413,10 +2413,10 @@ The following commonly-used handler.action pairs are available:
          <idle>-0     [005] dNh3   309.874628: sched_waking: comm=cyclictest pid=2103 prio=19 target_cpu=005
          <idle>-0     [005] dNh4   309.874630: sched_wakeup: comm=cyclictest pid=2103 prio=19 target_cpu=005
          <idle>-0     [005] d..3   309.874633: sched_switch: prev_comm=swapper/5 prev_pid=0 prev_prio=120 prev_state=S ==> next_comm=cyclictest next_pid=2102 next_prio=19
-         <idle>-0     [004] d.h3   309.874757: sched_waking: comm=gnome-terminal- pid=1699 prio=120 target_cpu=004
-         <idle>-0     [004] dNh4   309.874762: sched_wakeup: comm=gnome-terminal- pid=1699 prio=120 target_cpu=004
-         <idle>-0     [004] d..3   309.874766: sched_switch: prev_comm=swapper/4 prev_pid=0 prev_prio=120 prev_state=S ==> next_comm=gnome-terminal- next_pid=1699 next_prio=120
-     gnome-terminal--1699  [004] d.h2   309.874941: sched_stat_runtime: comm=gnome-terminal- pid=1699 runtime=180706 [ns] vruntime=1126870572 [ns]
+         <idle>-0     [004] d.h3   309.874757: sched_waking: comm=ganalme-terminal- pid=1699 prio=120 target_cpu=004
+         <idle>-0     [004] dNh4   309.874762: sched_wakeup: comm=ganalme-terminal- pid=1699 prio=120 target_cpu=004
+         <idle>-0     [004] d..3   309.874766: sched_switch: prev_comm=swapper/4 prev_pid=0 prev_prio=120 prev_state=S ==> next_comm=ganalme-terminal- next_pid=1699 next_prio=120
+     ganalme-terminal--1699  [004] d.h2   309.874941: sched_stat_runtime: comm=ganalme-terminal- pid=1699 runtime=180706 [ns] vruntime=1126870572 [ns]
          <idle>-0     [003] d.s4   309.874956: sched_waking: comm=rcu_sched pid=9 prio=120 target_cpu=007
          <idle>-0     [003] d.s5   309.874960: sched_wake_idle_without_ipi: cpu=7
          <idle>-0     [003] d.s5   309.874961: sched_wakeup: comm=rcu_sched pid=9 prio=120 target_cpu=007
@@ -2450,7 +2450,7 @@ The following commonly-used handler.action pairs are available:
     be saved in the tracing/snapshot file if 'var' changes for any
     hist trigger entry.
 
-    Note that in this case the changed value is a global variable
+    Analte that in this case the changed value is a global variable
     associated with current trace instance.  The key of the specific
     trace event that caused the value to change and the global value
     itself are displayed, along with a message stating that a snapshot
@@ -2517,12 +2517,12 @@ The following commonly-used handler.action pairs are available:
 
       # cat /sys/kernel/tracing/snapshot
 
-         gnome-shell-1261  [006] dN.3    49.823113: sched_stat_runtime: comm=gnome-shell pid=1261 runtime=49347 [ns] vruntime=1835730389 [ns]
+         ganalme-shell-1261  [006] dN.3    49.823113: sched_stat_runtime: comm=ganalme-shell pid=1261 runtime=49347 [ns] vruntime=1835730389 [ns]
        kworker/u16:4-773   [003] d..3    49.823114: sched_switch: prev_comm=kworker/u16:4 prev_pid=773 prev_prio=120 prev_state=R+ ==> next_comm=kworker/3:2 next_pid=135 next_prio=120
-         gnome-shell-1261  [006] d..3    49.823114: sched_switch: prev_comm=gnome-shell prev_pid=1261 prev_prio=120 prev_state=R+ ==> next_comm=kworker/6:2 next_pid=387 next_prio=120
+         ganalme-shell-1261  [006] d..3    49.823114: sched_switch: prev_comm=ganalme-shell prev_pid=1261 prev_prio=120 prev_state=R+ ==> next_comm=kworker/6:2 next_pid=387 next_prio=120
          kworker/3:2-135   [003] d..3    49.823118: sched_stat_runtime: comm=kworker/3:2 pid=135 runtime=5339 [ns] vruntime=17815800388 [ns]
          kworker/6:2-387   [006] d..3    49.823120: sched_stat_runtime: comm=kworker/6:2 pid=387 runtime=9594 [ns] vruntime=14589605367 [ns]
-         kworker/6:2-387   [006] d..3    49.823122: sched_switch: prev_comm=kworker/6:2 prev_pid=387 prev_prio=120 prev_state=R+ ==> next_comm=gnome-shell next_pid=1261 next_prio=120
+         kworker/6:2-387   [006] d..3    49.823122: sched_switch: prev_comm=kworker/6:2 prev_pid=387 prev_prio=120 prev_state=R+ ==> next_comm=ganalme-shell next_pid=1261 next_prio=120
          kworker/3:2-135   [003] d..3    49.823123: sched_switch: prev_comm=kworker/3:2 prev_pid=135 prev_prio=120 prev_state=T ==> next_comm=swapper/3 next_pid=0 next_prio=120
               <idle>-0     [004] ..s7    49.823798: tcp_probe: src=10.0.0.10:54326 dest=23.215.104.193:80 mark=0x0 length=32 snd_nxt=0xe3ae2ff5 snd_una=0xe3ae2ecd snd_cwnd=10 ssthresh=2147483647 snd_wnd=28960 srtt=19604 rcv_wnd=29312
 
@@ -2548,7 +2548,7 @@ and after it wakes up, something like this::
 And later add something like::
 
 	traceputs("start");
-	clock_nanosleep(...);
+	clock_naanalsleep(...);
 	traceputs("end");
 
 We can make a histogram from this::
@@ -2566,20 +2566,20 @@ it will call the "latency" synthetic event with the calculated latency as its
 parameter. Finally, a histogram is added to the latency synthetic event to
 record the calculated latency along with the pid.
 
-Now running cyclictest with::
+Analw running cyclictest with::
 
  # ./cyclictest -p80 -d0 -i250 -n -a -t --tracemark -b 1000
 
  -p80  : run threads at priority 80
  -d0   : have all threads run at the same interval
  -i250 : start the interval at 250 microseconds (all threads will do this)
- -n    : sleep with nanosleep
+ -n    : sleep with naanalsleep
  -a    : affine all threads to a separate CPU
  -t    : one thread per available CPU
  --tracemark : enable trace mark writing
  -b 1000 : stop if any latency is greater than 1000 microseconds
 
-Note, the -b 1000 is used just to make --tracemark available.
+Analte, the -b 1000 is used just to make --tracemark available.
 
 Then we can see the histogram created by this with::
 
@@ -2873,7 +2873,7 @@ Then we can see the histogram created by this with::
      Entries: 278
      Dropped: 0
 
-Note, the writes are around the sleep, so ideally they will all be of 250
+Analte, the writes are around the sleep, so ideally they will all be of 250
 microseconds. If you are wondering how there are several that are under
 250 microseconds, that is because the way cyclictest works, is if one
 iteration comes in late, the next one will set the timer to wake up less that
@@ -2894,7 +2894,7 @@ The difference this time is that instead of using the trace_marker to start
 the latency, the sched_waking event is used, matching the common_pid for the
 trace_marker write with the pid that is being woken by sched_waking.
 
-After running cyclictest again with the same parameters, we now have::
+After running cyclictest again with the same parameters, we analw have::
 
  # cat events/synthetic/latency/hist
  # event histogram

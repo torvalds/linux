@@ -112,12 +112,12 @@ static int connbytes_mt_check(const struct xt_mtchk_param *par)
 
 	ret = nf_ct_netns_get(par->net, par->family);
 	if (ret < 0)
-		pr_info_ratelimited("cannot load conntrack support for proto=%u\n",
+		pr_info_ratelimited("cananalt load conntrack support for proto=%u\n",
 				    par->family);
 
 	/*
-	 * This filter cannot function correctly unless connection tracking
-	 * accounting is enabled, so complain in the hope that someone notices.
+	 * This filter cananalt function correctly unless connection tracking
+	 * accounting is enabled, so complain in the hope that someone analtices.
 	 */
 	if (!nf_ct_acct_enabled(par->net)) {
 		pr_warn("Forcing CT accounting to be enabled\n");

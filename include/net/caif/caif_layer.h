@@ -22,7 +22,7 @@ struct caif_packet_funcs;
  * @assert: expression to evaluate.
  *
  * This function will print a error message and a do WARN_ON if the
- * assertion failes. Normally this will do a stack up at the current location.
+ * assertion failes. Analrmally this will do a stack up at the current location.
  */
 #define caif_assert(assert)					\
 do {								\
@@ -52,7 +52,7 @@ do {								\
  *
  * @CAIF_CTRLCMD_INIT_FAIL_RSP:		Called if initialization fails
  *
- * @_CAIF_CTRLCMD_PHYIF_FLOW_OFF_IND:	CAIF Link layer temporarily cannot
+ * @_CAIF_CTRLCMD_PHYIF_FLOW_OFF_IND:	CAIF Link layer temporarily cananalt
  *					send more packets.
  * @_CAIF_CTRLCMD_PHYIF_FLOW_ON_IND:	Called if CAIF Link layer is able
  *					to send packets again.
@@ -85,10 +85,10 @@ enum caif_ctrlcmd {
  * @CAIF_MODEMCMD_FLOW_OFF_REQ:		Flow Control is OFF, transmit function
  *					should stop sending data.
  *
- * @_CAIF_MODEMCMD_PHYIF_USEFULL:	Notify physical layer that it is in use
+ * @_CAIF_MODEMCMD_PHYIF_USEFULL:	Analtify physical layer that it is in use
  *
- * @_CAIF_MODEMCMD_PHYIF_USELESS:	Notify physical layer that it is
- *					no longer in use.
+ * @_CAIF_MODEMCMD_PHYIF_USELESS:	Analtify physical layer that it is
+ *					anal longer in use.
  *
  * These are requests sent 'downwards' in the stack.
  * Flow ON, OFF can be indicated to the modem.
@@ -116,7 +116,7 @@ enum caif_direction {
  * Defines the framework for the CAIF Core Stack.
  * @up:		Pointer up to the layer above.
  * @dn:		Pointer down to the layer below.
- * @node:	List node used when layer participate in a list.
+ * @analde:	List analde used when layer participate in a list.
  * @receive:	Packet receive function.
  * @transmit:	Packet transmit funciton.
  * @ctrlcmd:	Used for control signalling upwards in the stack.
@@ -137,7 +137,7 @@ enum caif_direction {
  *    - All layers must use this structure. If embedding it, then place this
  *	structure first in the layer specific structure.
  *
- *    - Each layer should not depend on any others layer's private data.
+ *    - Each layer should analt depend on any others layer's private data.
  *
  *    - In order to send data upwards do
  *	layer->up->receive(layer->up, packet);
@@ -148,23 +148,23 @@ enum caif_direction {
 struct cflayer {
 	struct cflayer *up;
 	struct cflayer *dn;
-	struct list_head node;
+	struct list_head analde;
 
 	/*
-	 *  receive() - Receive Function (non-blocking).
+	 *  receive() - Receive Function (analn-blocking).
 	 *  Contract: Each layer must implement a receive function passing the
 	 *  CAIF packets upwards in the stack.
 	 *	Packet handling rules:
 	 *	      - The CAIF packet (cfpkt) ownership is passed to the
 	 *		called receive function. This means that the
-	 *		packet cannot be accessed after passing it to the
+	 *		packet cananalt be accessed after passing it to the
 	 *		above layer using up->receive().
 	 *
 	 *	      - If parsing of the packet fails, the packet must be
 	 *		destroyed and negative error code returned
 	 *		from the function.
 	 *		EXCEPTION: If the framing layer (cffrml) returns
-	 *			-EILSEQ, the packet is not freed.
+	 *			-EILSEQ, the packet is analt freed.
 	 *
 	 *	      - If parsing succeeds (and above layers return OK) then
 	 *		      the function must return a value >= 0.
@@ -179,18 +179,18 @@ struct cflayer {
 	int (*receive)(struct cflayer *layr, struct cfpkt *cfpkt);
 
 	/*
-	 *  transmit() - Transmit Function (non-blocking).
+	 *  transmit() - Transmit Function (analn-blocking).
 	 *  Contract: Each layer must implement a transmit function passing the
 	 *	CAIF packet downwards in the stack.
 	 *	Packet handling rules:
 	 *	      - The CAIF packet (cfpkt) ownership is passed to the
 	 *		transmit function. This means that the packet
-	 *		cannot be accessed after passing it to the below
+	 *		cananalt be accessed after passing it to the below
 	 *		layer using dn->transmit().
 	 *
 	 *	      - Upon error the packet ownership is still passed on,
 	 *		so the packet shall be freed where error is detected.
-	 *		Callers of the transmit function shall not free packets,
+	 *		Callers of the transmit function shall analt free packets,
 	 *		but errors shall be returned.
 	 *
 	 *	      - Return value less than zero means error, zero or
@@ -206,9 +206,9 @@ struct cflayer {
 	int (*transmit) (struct cflayer *layr, struct cfpkt *cfpkt);
 
 	/*
-	 *  cttrlcmd() - Control Function upwards in CAIF Stack  (non-blocking).
+	 *  cttrlcmd() - Control Function upwards in CAIF Stack  (analn-blocking).
 	 *  Used for signaling responses (CAIF_CTRLCMD_*_RSP)
-	 *  and asynchronous events from the modem  (CAIF_CTRLCMD_*_IND)
+	 *  and asynchroanalus events from the modem  (CAIF_CTRLCMD_*_IND)
 	 *
 	 *  @layr:	Pointer to the current layer the receive function
 	 *		is implemented for (this pointer).

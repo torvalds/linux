@@ -8,7 +8,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/asm-offsets.h>
 
 		.text
@@ -73,7 +73,7 @@
 #include "csumpartialcopygeneric.S"
 
 /*
- * We report fault by returning 0 csum - impossible in normal case, since
+ * We report fault by returning 0 csum - impossible in analrmal case, since
  * we start with 0xffffffff for initial sum.
  */
 		.pushsection .text.fixup,"ax"

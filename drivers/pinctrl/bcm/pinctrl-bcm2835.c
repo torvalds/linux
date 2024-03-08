@@ -5,7 +5,7 @@
  * Copyright (C) 2012 Chris Boot, Simon Arlott, Stephen Warren
  *
  * This driver is inspired by:
- * pinctrl-nomadik.c, please see original file for copyright information
+ * pinctrl-analmadik.c, please see original file for copyright information
  * pinctrl-tegra.c, please see original file for copyright information
  */
 
@@ -71,7 +71,7 @@
 /* argument: bcm2835_pinconf_pull */
 #define BCM2835_PINCONF_PARAM_PULL	(PIN_CONFIG_END + 1)
 
-#define BCM2711_PULL_NONE	0x0
+#define BCM2711_PULL_ANALNE	0x0
 #define BCM2711_PULL_UP		0x1
 #define BCM2711_PULL_DOWN	0x2
 
@@ -80,7 +80,7 @@ struct bcm2835_pinctrl {
 	void __iomem *base;
 	int *wake_irq;
 
-	/* note: locking assumes each bank will have its own unsigned long */
+	/* analte: locking assumes each bank will have its own unsigned long */
 	unsigned long enabled_irq_map[BCM2835_NUM_BANKS];
 	unsigned int irq_type[BCM2711_NUM_GPIOS];
 
@@ -236,7 +236,7 @@ static const char * const bcm2835_functions[BCM2835_FSEL_COUNT] = {
 };
 
 static const char * const irq_type_names[] = {
-	[IRQ_TYPE_NONE] = "none",
+	[IRQ_TYPE_ANALNE] = "analne",
 	[IRQ_TYPE_EDGE_RISING] = "edge-rising",
 	[IRQ_TYPE_EDGE_FALLING] = "edge-falling",
 	[IRQ_TYPE_EDGE_BOTH] = "edge-both",
@@ -262,7 +262,7 @@ static inline int bcm2835_gpio_get_bit(struct bcm2835_pinctrl *pc, unsigned reg,
 	return (bcm2835_gpio_rd(pc, reg) >> GPIO_REG_SHIFT(bit)) & 1;
 }
 
-/* note NOT a read/modify/write cycle */
+/* analte ANALT a read/modify/write cycle */
 static inline void bcm2835_gpio_set_bit(struct bcm2835_pinctrl *pc,
 		unsigned reg, unsigned bit)
 {
@@ -370,7 +370,7 @@ static int bcm2835_gpio_direction_output(struct gpio_chip *chip,
 
 static int bcm2835_add_pin_ranges_fallback(struct gpio_chip *gc)
 {
-	struct device_node *np = dev_of_node(gc->parent);
+	struct device_analde *np = dev_of_analde(gc->parent);
 	struct pinctrl_dev *pctldev = of_pinctrl_get(np);
 
 	if (!pctldev)
@@ -446,7 +446,7 @@ static void bcm2835_gpio_irq_handler(struct irq_desc *desc)
 			break;
 		}
 	}
-	/* This should not happen, every IRQ has a bank */
+	/* This should analt happen, every IRQ has a bank */
 	BUG_ON(i == BCM2835_NUM_IRQS);
 
 	chained_irq_enter(host_chip, desc);
@@ -553,7 +553,7 @@ static int __bcm2835_gpio_irq_set_type_disabled(struct bcm2835_pinctrl *pc,
 	unsigned offset, unsigned int type)
 {
 	switch (type) {
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 	case IRQ_TYPE_EDGE_RISING:
 	case IRQ_TYPE_EDGE_FALLING:
 	case IRQ_TYPE_EDGE_BOTH:
@@ -573,7 +573,7 @@ static int __bcm2835_gpio_irq_set_type_enabled(struct bcm2835_pinctrl *pc,
 	unsigned offset, unsigned int type)
 {
 	switch (type) {
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 		if (pc->irq_type[offset] != type) {
 			bcm2835_gpio_irq_config(pc, offset, false);
 			pc->irq_type[offset] = type;
@@ -764,8 +764,8 @@ static void bcm2835_pctl_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(maps);
 }
 
-static int bcm2835_pctl_dt_node_to_map_func(struct bcm2835_pinctrl *pc,
-		struct device_node *np, u32 pin, u32 fnum,
+static int bcm2835_pctl_dt_analde_to_map_func(struct bcm2835_pinctrl *pc,
+		struct device_analde *np, u32 pin, u32 fnum,
 		struct pinctrl_map **maps)
 {
 	struct pinctrl_map *map = *maps;
@@ -783,8 +783,8 @@ static int bcm2835_pctl_dt_node_to_map_func(struct bcm2835_pinctrl *pc,
 	return 0;
 }
 
-static int bcm2835_pctl_dt_node_to_map_pull(struct bcm2835_pinctrl *pc,
-		struct device_node *np, u32 pin, u32 pull,
+static int bcm2835_pctl_dt_analde_to_map_pull(struct bcm2835_pinctrl *pc,
+		struct device_analde *np, u32 pin, u32 pull,
 		struct pinctrl_map **maps)
 {
 	struct pinctrl_map *map = *maps;
@@ -797,7 +797,7 @@ static int bcm2835_pctl_dt_node_to_map_pull(struct bcm2835_pinctrl *pc,
 
 	configs = kzalloc(sizeof(*configs), GFP_KERNEL);
 	if (!configs)
-		return -ENOMEM;
+		return -EANALMEM;
 	configs[0] = pinconf_to_config_packed(BCM2835_PINCONF_PARAM_PULL, pull);
 
 	map->type = PIN_MAP_TYPE_CONFIGS_PIN;
@@ -809,8 +809,8 @@ static int bcm2835_pctl_dt_node_to_map_pull(struct bcm2835_pinctrl *pc,
 	return 0;
 }
 
-static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
-		struct device_node *np,
+static int bcm2835_pctl_dt_analde_to_map(struct pinctrl_dev *pctldev,
+		struct device_analde *np,
 		struct pinctrl_map **map, unsigned int *num_maps)
 {
 	struct bcm2835_pinctrl *pc = pinctrl_dev_get_drvdata(pctldev);
@@ -820,12 +820,12 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	int i, err;
 	u32 pin, func, pull;
 
-	/* Check for generic binding in this node */
-	err = pinconf_generic_dt_node_to_map_all(pctldev, np, map, num_maps);
+	/* Check for generic binding in this analde */
+	err = pinconf_generic_dt_analde_to_map_all(pctldev, np, map, num_maps);
 	if (err || *num_maps)
 		return err;
 
-	/* Generic binding did not find anything continue with legacy parse */
+	/* Generic binding did analt find anything continue with legacy parse */
 	pins = of_find_property(np, "brcm,pins", NULL);
 	if (!pins) {
 		dev_err(pc->dev, "%pOF: missing brcm,pins property\n", np);
@@ -837,7 +837,7 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	if (!funcs && !pulls) {
 		dev_err(pc->dev,
-			"%pOF: neither brcm,function nor brcm,pull specified\n",
+			"%pOF: neither brcm,function analr brcm,pull specified\n",
 			np);
 		return -EINVAL;
 	}
@@ -868,7 +868,7 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	cur_map = maps = kcalloc(num_pins * maps_per_pin, sizeof(*maps),
 				 GFP_KERNEL);
 	if (!maps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_pins; i++) {
 		err = of_property_read_u32_index(np, "brcm,pins", i, &pin);
@@ -886,7 +886,7 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 					(num_funcs > 1) ? i : 0, &func);
 			if (err)
 				goto out;
-			err = bcm2835_pctl_dt_node_to_map_func(pc, np, pin,
+			err = bcm2835_pctl_dt_analde_to_map_func(pc, np, pin,
 							func, &cur_map);
 			if (err)
 				goto out;
@@ -896,7 +896,7 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 					(num_pulls > 1) ? i : 0, &pull);
 			if (err)
 				goto out;
-			err = bcm2835_pctl_dt_node_to_map_pull(pc, np, pin,
+			err = bcm2835_pctl_dt_analde_to_map_pull(pc, np, pin,
 							pull, &cur_map);
 			if (err)
 				goto out;
@@ -918,7 +918,7 @@ static const struct pinctrl_ops bcm2835_pctl_ops = {
 	.get_group_name = bcm2835_pctl_get_group_name,
 	.get_group_pins = bcm2835_pctl_get_group_pins,
 	.pin_dbg_show = bcm2835_pctl_pin_dbg_show,
-	.dt_node_to_map = bcm2835_pctl_dt_node_to_map,
+	.dt_analde_to_map = bcm2835_pctl_dt_analde_to_map,
 	.dt_free_map = bcm2835_pctl_dt_free_map,
 };
 
@@ -1003,8 +1003,8 @@ static const struct pinmux_ops bcm2835_pmx_ops = {
 static int bcm2835_pinconf_get(struct pinctrl_dev *pctldev,
 			unsigned pin, unsigned long *config)
 {
-	/* No way to read back config in HW */
-	return -ENOTSUPP;
+	/* Anal way to read back config in HW */
+	return -EANALTSUPP;
 }
 
 static void bcm2835_pull_config_set(struct bcm2835_pinctrl *pc,
@@ -1017,7 +1017,7 @@ static void bcm2835_pull_config_set(struct bcm2835_pinctrl *pc,
 
 	bcm2835_gpio_wr(pc, GPPUD, arg & 3);
 	/*
-	 * BCM2835 datasheet say to wait 150 cycles, but not of what.
+	 * BCM2835 datasheet say to wait 150 cycles, but analt of what.
 	 * But the VideoCore firmware delay for this operation
 	 * based nearly on the same amount of VPU cycles and this clock
 	 * runs at 250 MHz.
@@ -1065,7 +1065,7 @@ static int bcm2835_pinconf_set(struct pinctrl_dev *pctldev,
 			break;
 
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		} /* switch param type */
 	} /* for each config */
@@ -1115,14 +1115,14 @@ static int bcm2711_pinconf_set(struct pinctrl_dev *pctldev,
 			else if (arg == BCM2835_PUD_DOWN)
 				arg = BCM2711_PULL_DOWN;
 			else
-				arg = BCM2711_PULL_NONE;
+				arg = BCM2711_PULL_ANALNE;
 
 			bcm2711_pull_config_set(pc, pin, arg);
 			break;
 
 		/* Set pull generic bindings */
 		case PIN_CONFIG_BIAS_DISABLE:
-			bcm2711_pull_config_set(pc, pin, BCM2711_PULL_NONE);
+			bcm2711_pull_config_set(pc, pin, BCM2711_PULL_ANALNE);
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 			bcm2711_pull_config_set(pc, pin, BCM2711_PULL_DOWN);
@@ -1137,7 +1137,7 @@ static int bcm2711_pinconf_set(struct pinctrl_dev *pctldev,
 			break;
 
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	} /* for each config */
 
@@ -1217,7 +1217,7 @@ static const struct of_device_id bcm2835_pinctrl_match[] = {
 static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const struct bcm_plat_data *pdata;
 	struct bcm2835_pinctrl *pc;
 	struct gpio_irq_chip *girq;
@@ -1231,14 +1231,14 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 
 	pc = devm_kzalloc(dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, pc);
 	pc->dev = dev;
 
 	err = of_address_to_resource(np, 0, &iomem);
 	if (err) {
-		dev_err(dev, "could not get IO memory\n");
+		dev_err(dev, "could analt get IO memory\n");
 		return err;
 	}
 
@@ -1246,7 +1246,7 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(pc->base))
 		return PTR_ERR(pc->base);
 
-	match = of_match_node(bcm2835_pinctrl_match, pdev->dev.of_node);
+	match = of_match_analde(bcm2835_pinctrl_match, pdev->dev.of_analde);
 	if (!match)
 		return -EINVAL;
 
@@ -1297,7 +1297,7 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 				     sizeof(*girq->parents),
 				     GFP_KERNEL);
 	if (!girq->parents) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_remove;
 	}
 
@@ -1306,7 +1306,7 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 					    sizeof(*pc->wake_irq),
 					    GFP_KERNEL);
 		if (!pc->wake_irq) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_remove;
 		}
 	}
@@ -1337,7 +1337,7 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 		len = strlen(dev_name(pc->dev)) + 16;
 		name = devm_kzalloc(pc->dev, len, GFP_KERNEL);
 		if (!name) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_remove;
 		}
 
@@ -1352,12 +1352,12 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 				 pc->wake_irq[i]);
 	}
 
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_level_irq;
 
 	err = gpiochip_add_data(&pc->gpio_chip, pc);
 	if (err) {
-		dev_err(dev, "could not add GPIO chip\n");
+		dev_err(dev, "could analt add GPIO chip\n");
 		goto out_remove;
 	}
 

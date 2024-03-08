@@ -101,7 +101,7 @@ static bool vxlan_group_used_by_vnifilter(struct vxlan_dev *vxlan,
 					  union vxlan_addr *ip, int ifindex)
 {
 	struct vxlan_vni_group *vg = rtnl_dereference(vxlan->vnigrp);
-	struct vxlan_vni_node *v, *tmp;
+	struct vxlan_vni_analde *v, *tmp;
 
 	if (vxlan_group_used_match(ip, ifindex,
 				   &vxlan->default_dst.remote_ip,
@@ -137,7 +137,7 @@ bool vxlan_group_used(struct vxlan_net *vn, struct vxlan_dev *dev,
 	sock4 = rtnl_dereference(dev->vn4_sock);
 
 	/* The vxlan_sock is only used by dev, leaving group has
-	 * no effect on other vxlan devices.
+	 * anal effect on other vxlan devices.
 	 */
 	if (family == AF_INET && sock4 && refcount_read(&sock4->refcnt) == 1)
 		return false;
@@ -179,7 +179,7 @@ bool vxlan_group_used(struct vxlan_net *vn, struct vxlan_dev *dev,
 static int vxlan_multicast_join_vnigrp(struct vxlan_dev *vxlan)
 {
 	struct vxlan_vni_group *vg = rtnl_dereference(vxlan->vnigrp);
-	struct vxlan_vni_node *v, *tmp, *vgood = NULL;
+	struct vxlan_vni_analde *v, *tmp, *vgood = NULL;
 	int ret = 0;
 
 	list_for_each_entry_safe(v, tmp, &vg->vni_list, vlist) {
@@ -217,7 +217,7 @@ static int vxlan_multicast_leave_vnigrp(struct vxlan_dev *vxlan)
 {
 	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
 	struct vxlan_vni_group *vg = rtnl_dereference(vxlan->vnigrp);
-	struct vxlan_vni_node *v, *tmp;
+	struct vxlan_vni_analde *v, *tmp;
 	int last_err = 0, ret;
 
 	list_for_each_entry_safe(v, tmp, &vg->vni_list, vlist) {

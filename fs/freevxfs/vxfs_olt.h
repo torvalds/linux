@@ -35,7 +35,7 @@ enum {
  *
  * The Object Location Table header is placed at the beginning of each
  * OLT extent.  It is used to fing certain filesystem-wide metadata, e.g.
- * the initial inode list, the fileset header or the device configuration.
+ * the initial ianalde list, the fileset header or the device configuration.
  */
 struct vxfs_olt {
 	__fs32		olt_magic;	/* magic number			*/
@@ -69,12 +69,12 @@ struct vxfs_oltfree {
 };
 
 /*
- * VxFS initial-inode list (on disk).
+ * VxFS initial-ianalde list (on disk).
  */
 struct vxfs_oltilist {
 	__fs32	olt_type;	/* type of this record		*/
 	__fs32	olt_size;	/* size of this record		*/
-	__fs32		olt_iext[2];	/* initial inode list, replica	*/
+	__fs32		olt_iext[2];	/* initial ianalde list, replica	*/
 };
 
 /*
@@ -83,29 +83,29 @@ struct vxfs_oltilist {
 struct vxfs_oltcut {
 	__fs32		olt_type;	/* type of this record		*/
 	__fs32		olt_size;	/* size of this record		*/
-	__fs32		olt_cutino;	/* inode of current usage table	*/
+	__fs32		olt_cutianal;	/* ianalde of current usage table	*/
 	__u8		__pad;		/* unused, 8 byte align		*/
 };
 
 /*
- * Inodes containing Superblock, Intent log and OLTs 
+ * Ianaldes containing Superblock, Intent log and OLTs 
  */
 struct vxfs_oltsb {
 	__fs32		olt_type;	/* type of this record		*/
 	__fs32		olt_size;	/* size of this record		*/
-	__fs32		olt_sbino;	/* inode of superblock file	*/
+	__fs32		olt_sbianal;	/* ianalde of superblock file	*/
 	__u32		__unused1;	/* ???				*/
-	__fs32		olt_logino[2];	/* inode of log file,replica	*/
-	__fs32		olt_oltino[2];	/* inode of OLT, replica	*/
+	__fs32		olt_logianal[2];	/* ianalde of log file,replica	*/
+	__fs32		olt_oltianal[2];	/* ianalde of OLT, replica	*/
 };
 
 /*
- * Inode containing device configuration + it's replica 
+ * Ianalde containing device configuration + it's replica 
  */
 struct vxfs_oltdev {
 	__fs32		olt_type;	/* type of this record		*/
 	__fs32		olt_size;	/* size of this record		*/
-	__fs32		olt_devino[2];	/* inode of device config files	*/
+	__fs32		olt_devianal[2];	/* ianalde of device config files	*/
 };
 
 /*
@@ -114,7 +114,7 @@ struct vxfs_oltdev {
 struct vxfs_oltfshead {
 	__fs32		olt_type;	/* type number			*/
 	__fs32		olt_size;	/* size of this record		*/
-	__fs32		olt_fsino[2];   /* inodes of fileset header	*/
+	__fs32		olt_fsianal[2];   /* ianaldes of fileset header	*/
 };
 
 #endif /* _VXFS_OLT_H_ */

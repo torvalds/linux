@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * machine_kexec.c - handle transition of Linux booting another kernel
+ * machine_kexec.c - handle transition of Linux booting aanalther kernel
  * Copyright (C) 2002-2003 Eric Biederman  <ebiederm@xmission.com>
  *
  * GameCube/ppc32 port Copyright (C) 2004 Albert Herranz
@@ -30,7 +30,7 @@ extern void *vbr_base;
 
 void native_machine_crash_shutdown(struct pt_regs *regs)
 {
-	/* Nothing to do for UP, but definitely broken for SMP.. */
+	/* Analthing to do for UP, but definitely broken for SMP.. */
 }
 
 /*
@@ -63,8 +63,8 @@ static void kexec_info(struct kimage *image)
 }
 
 /*
- * Do not allocate memory (or fail in any way) in machine_kexec().
- * We are past the point of no return, committed to rebooting now.
+ * Do analt allocate memory (or fail in any way) in machine_kexec().
+ * We are past the point of anal return, committed to rebooting analw.
  */
 void machine_kexec(struct kimage *image)
 {
@@ -113,7 +113,7 @@ void machine_kexec(struct kimage *image)
 
 	sh_bios_vbr_reload();
 
-	/* now call it */
+	/* analw call it */
 	rnk = (relocate_new_kernel_t) reboot_code_buffer;
 	(*rnk)(page_list, reboot_code_buffer,
 	       (unsigned long)phys_to_virt(image->start));
@@ -140,8 +140,8 @@ void machine_kexec(struct kimage *image)
 void arch_crash_save_vmcoreinfo(void)
 {
 #ifdef CONFIG_NUMA
-	VMCOREINFO_SYMBOL(node_data);
-	VMCOREINFO_LENGTH(node_data, MAX_NUMNODES);
+	VMCOREINFO_SYMBOL(analde_data);
+	VMCOREINFO_LENGTH(analde_data, MAX_NUMANALDES);
 #endif
 #ifdef CONFIG_X2TLB
 	VMCOREINFO_CONFIG(X2TLB);

@@ -16,19 +16,19 @@ description: |
   extension is enabled. The following constraints apply:
 
     The platform must provide information about PMU event to counter mappings
-    either via device tree or another way, specific to the platform.
-    Without the event to counter mappings, the SBI PMU extension cannot be used.
+    either via device tree or aanalther way, specific to the platform.
+    Without the event to counter mappings, the SBI PMU extension cananalt be used.
 
     Platforms should provide information about the PMU event selector values
     that should be encoded in the expected value of MHPMEVENTx while configuring
     MHPMCOUNTERx for that specific event. The can either be done via device tree
-    or another way, specific to the platform.
+    or aanalther way, specific to the platform.
     The exact value to be written to MHPMEVENTx is completely dependent on the
     platform.
 
     For information on the SBI specification see the section "Performance
     Monitoring Unit Extension" of:
-      https://github.com/riscv-non-isa/riscv-sbi-doc/blob/master/riscv-sbi.adoc
+      https://github.com/riscv-analn-isa/riscv-sbi-doc/blob/master/riscv-sbi.adoc
 
 properties:
   compatible:

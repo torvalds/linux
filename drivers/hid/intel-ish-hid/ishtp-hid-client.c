@@ -379,7 +379,7 @@ void hid_ishtp_set_feature(struct hid_device *hid, char *buf, unsigned int len,
 
 	rv = ishtp_hid_link_ready_wait(client_data);
 	if (rv) {
-		hid_ishtp_trace(client_data,  "%s hid %p link not ready\n",
+		hid_ishtp_trace(client_data,  "%s hid %p link analt ready\n",
 				__func__, hid);
 		return;
 	}
@@ -424,7 +424,7 @@ void hid_ishtp_get_report(struct hid_device *hid, int report_id,
 	hid_ishtp_trace(client_data,  "%s hid %p\n", __func__, hid);
 	rv = ishtp_hid_link_ready_wait(client_data);
 	if (rv) {
-		hid_ishtp_trace(client_data,  "%s hid %p link not ready\n",
+		hid_ishtp_trace(client_data,  "%s hid %p link analt ready\n",
 				__func__, hid);
 		return;
 	}
@@ -457,7 +457,7 @@ void hid_ishtp_get_report(struct hid_device *hid, int report_id,
  * If the transport link started suspend process, then wait, till either
  * resumed or timeout
  *
- * Return: 0 on success, non zero on error
+ * Return: 0 on success, analn zero on error
  */
 int ishtp_hid_link_ready_wait(struct ishtp_cl_data *client_data)
 {
@@ -471,7 +471,7 @@ int ishtp_hid_link_ready_wait(struct ishtp_cl_data *client_data)
 					5 * HZ);
 
 		if (rc == 0) {
-			hid_ishtp_trace(client_data,  "link not ready\n");
+			hid_ishtp_trace(client_data,  "link analt ready\n");
 			return -EIO;
 		}
 		hid_ishtp_trace(client_data,  "link ready\n");
@@ -486,7 +486,7 @@ int ishtp_hid_link_ready_wait(struct ishtp_cl_data *client_data)
  *
  * Helper function to send request to firmware to enumerate HID devices
  *
- * Return: 0 on success, non zero on error
+ * Return: 0 on success, analn zero on error
  */
 static int ishtp_enum_enum_devices(struct ishtp_cl *hid_ishtp_cl)
 {
@@ -524,7 +524,7 @@ static int ishtp_enum_enum_devices(struct ishtp_cl *hid_ishtp_cl)
 	if (!client_data->hid_devices) {
 		dev_err(cl_data_to_dev(client_data),
 			"[hid-ish]: failed to allocate HID dev structures\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	client_data->num_hid_devices = client_data->hid_dev_count;
@@ -542,7 +542,7 @@ static int ishtp_enum_enum_devices(struct ishtp_cl *hid_ishtp_cl)
  *
  * Helper function to send request to firmware get HID descriptor of a device
  *
- * Return: 0 on success, non zero on error
+ * Return: 0 on success, analn zero on error
  */
 static int ishtp_get_hid_descriptor(struct ishtp_cl *hid_ishtp_cl, int index)
 {
@@ -573,7 +573,7 @@ static int ishtp_get_hid_descriptor(struct ishtp_cl *hid_ishtp_cl, int index)
 		if (!client_data->hid_descr[index]) {
 			dev_err(cl_data_to_dev(client_data),
 				"[hid-ish]: allocation HID desc fail\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -588,7 +588,7 @@ static int ishtp_get_hid_descriptor(struct ishtp_cl *hid_ishtp_cl, int index)
  * Helper function to send request to firmware get HID report descriptor of
  * a device
  *
- * Return: 0 on success, non zero on error
+ * Return: 0 on success, analn zero on error
  */
 static int ishtp_get_report_descriptor(struct ishtp_cl *hid_ishtp_cl,
 				       int index)
@@ -619,7 +619,7 @@ static int ishtp_get_report_descriptor(struct ishtp_cl *hid_ishtp_cl,
 	if (!client_data->report_descr[index]) {
 		dev_err(cl_data_to_dev(client_data),
 			"[hid-ish]: failed to alloc report descr\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -637,7 +637,7 @@ static int ishtp_get_report_descriptor(struct ishtp_cl *hid_ishtp_cl,
  *	Get report description of each device
  *	Register each device wik hid core by calling ishtp_hid_probe
  *
- * Return: 0 on success, non zero on error
+ * Return: 0 on success, analn zero on error
  */
 static int hid_ishtp_cl_init(struct ishtp_cl *hid_ishtp_cl, bool reset)
 {
@@ -771,7 +771,7 @@ ishtp_print_log ishtp_hid_print_trace;
  *
  * This function gets called on device create on ISHTP bus
  *
- * Return: 0 on success, non zero on error
+ * Return: 0 on success, analn zero on error
  */
 static int hid_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 {
@@ -780,17 +780,17 @@ static int hid_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 	int rv;
 
 	if (!cl_device)
-		return	-ENODEV;
+		return	-EANALDEV;
 
 	client_data = devm_kzalloc(ishtp_device(cl_device),
 				   sizeof(*client_data),
 				   GFP_KERNEL);
 	if (!client_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hid_ishtp_cl = ishtp_cl_allocate(cl_device);
 	if (!hid_ishtp_cl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ishtp_set_drvdata(cl_device, hid_ishtp_cl);
 	ishtp_set_client_data(hid_ishtp_cl, client_data);

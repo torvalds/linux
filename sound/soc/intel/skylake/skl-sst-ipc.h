@@ -46,15 +46,15 @@ struct skl_dsp_cores {
  * skl_d0i3_data: skl D0i3 counters data struct
  *
  * @streaming: Count of usecases that can attempt streaming D0i3
- * @non_streaming: Count of usecases that can attempt non-streaming D0i3
- * @non_d0i3: Count of usecases that cannot attempt D0i3
+ * @analn_streaming: Count of usecases that can attempt analn-streaming D0i3
+ * @analn_d0i3: Count of usecases that cananalt attempt D0i3
  * @state: current state
  * @work: D0i3 worker thread
  */
 struct skl_d0i3_data {
 	int streaming;
-	int non_streaming;
-	int non_d0i3;
+	int analn_streaming;
+	int analn_d0i3;
 	enum skl_dsp_d0i3_states state;
 	struct delayed_work work;
 };
@@ -162,7 +162,7 @@ void skl_clear_module_cnt(struct sst_dsp *ctx);
 
 void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
 		struct skl_ipc_header header);
-int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
+int skl_ipc_process_analtification(struct sst_generic_ipc *ipc,
 		struct skl_ipc_header header);
 void skl_ipc_tx_data_copy(struct ipc_message *msg, char *tx_data,
 		size_t tx_size);

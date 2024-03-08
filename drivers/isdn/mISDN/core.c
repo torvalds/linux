@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@analvell.com>
  */
 
 #include <linux/slab.h>
@@ -25,7 +25,7 @@ static DEFINE_RWLOCK(bp_lock);
 
 static void mISDN_dev_release(struct device *dev)
 {
-	/* nothing to do: the device is part of its parent's data structure */
+	/* analthing to do: the device is part of its parent's data structure */
 }
 
 static ssize_t id_show(struct device *dev,
@@ -34,7 +34,7 @@ static ssize_t id_show(struct device *dev,
 	struct mISDNdevice *mdev = dev_to_mISDN(dev);
 
 	if (!mdev)
-		return -ENODEV;
+		return -EANALDEV;
 	return sprintf(buf, "%d\n", mdev->id);
 }
 static DEVICE_ATTR_RO(id);
@@ -45,7 +45,7 @@ static ssize_t nrbchan_show(struct device *dev,
 	struct mISDNdevice *mdev = dev_to_mISDN(dev);
 
 	if (!mdev)
-		return -ENODEV;
+		return -EANALDEV;
 	return sprintf(buf, "%d\n", mdev->nrbchan);
 }
 static DEVICE_ATTR_RO(nrbchan);
@@ -56,7 +56,7 @@ static ssize_t d_protocols_show(struct device *dev,
 	struct mISDNdevice *mdev = dev_to_mISDN(dev);
 
 	if (!mdev)
-		return -ENODEV;
+		return -EANALDEV;
 	return sprintf(buf, "%d\n", mdev->Dprotocols);
 }
 static DEVICE_ATTR_RO(d_protocols);
@@ -67,7 +67,7 @@ static ssize_t b_protocols_show(struct device *dev,
 	struct mISDNdevice *mdev = dev_to_mISDN(dev);
 
 	if (!mdev)
-		return -ENODEV;
+		return -EANALDEV;
 	return sprintf(buf, "%d\n", mdev->Bprotocols | get_all_Bprotocols());
 }
 static DEVICE_ATTR_RO(b_protocols);
@@ -78,7 +78,7 @@ static ssize_t protocol_show(struct device *dev,
 	struct mISDNdevice *mdev = dev_to_mISDN(dev);
 
 	if (!mdev)
-		return -ENODEV;
+		return -EANALDEV;
 	return sprintf(buf, "%d\n", mdev->D.protocol);
 }
 static DEVICE_ATTR_RO(protocol);
@@ -99,7 +99,7 @@ static ssize_t name_set(struct device *dev, struct device_attribute *attr,
 	char *out = kmalloc(count + 1, GFP_KERNEL);
 
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(out, buf, count);
 	if (count && out[count - 1] == '\n')
@@ -147,7 +147,7 @@ static int mISDN_uevent(const struct device *dev, struct kobj_uevent_env *env)
 		return 0;
 
 	if (add_uevent_var(env, "nchans=%d", mdev->nrbchan))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -299,7 +299,7 @@ get_Bprotocol4id(u_int id)
 	u_int	m;
 
 	if (id < ISDN_P_B_START || id > 63) {
-		printk(KERN_WARNING "%s id not in range  %d\n",
+		printk(KERN_WARNING "%s id analt in range  %d\n",
 		       __func__, id);
 		return NULL;
 	}
@@ -344,18 +344,18 @@ mISDN_unregister_Bprotocol(struct Bprotocol *bp)
 }
 EXPORT_SYMBOL(mISDN_unregister_Bprotocol);
 
-static const char *msg_no_channel = "<no channel>";
-static const char *msg_no_stack = "<no stack>";
-static const char *msg_no_stackdev = "<no stack device>";
+static const char *msg_anal_channel = "<anal channel>";
+static const char *msg_anal_stack = "<anal stack>";
+static const char *msg_anal_stackdev = "<anal stack device>";
 
 const char *mISDNDevName4ch(struct mISDNchannel *ch)
 {
 	if (!ch)
-		return msg_no_channel;
+		return msg_anal_channel;
 	if (!ch->st)
-		return msg_no_stack;
+		return msg_anal_stack;
 	if (!ch->st->dev)
-		return msg_no_stackdev;
+		return msg_anal_stackdev;
 	return dev_name(&ch->st->dev->dev);
 };
 EXPORT_SYMBOL(mISDNDevName4ch);
@@ -366,7 +366,7 @@ mISDNInit(void)
 	int	err;
 
 	printk(KERN_INFO "Modular ISDN core version %d.%d.%d\n",
-	       MISDN_MAJOR_VERSION, MISDN_MINOR_VERSION, MISDN_RELEASE);
+	       MISDN_MAJOR_VERSION, MISDN_MIANALR_VERSION, MISDN_RELEASE);
 	mISDN_init_clock(&debug);
 	mISDN_initstack(&debug);
 	err = class_register(&mISDN_class);

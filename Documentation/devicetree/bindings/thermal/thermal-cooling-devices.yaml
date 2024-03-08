@@ -15,11 +15,11 @@ description: |
   and the software abstraction of cooling devices and thermal zones required to
   take appropriate action to mitigate thermal overload.
 
-  The following node types are used to completely describe a thermal management
+  The following analde types are used to completely describe a thermal management
   system in devicetree:
    - thermal-sensor: device that measures temperature, has SoC-specific bindings
    - cooling-device: device used to dissipate heat either passively or actively
-   - thermal-zones: a container of the following node types used to describe all
+   - thermal-zones: a container of the following analde types used to describe all
      thermal data for the platform
 
   This binding describes the cooling devices.

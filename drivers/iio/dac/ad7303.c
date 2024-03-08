@@ -27,7 +27,7 @@
  * struct ad7303_state - driver instance specific data
  * @spi:		the device for this driver instance
  * @config:		cached config register value
- * @dac_cache:		current DAC raw value (chip does not support readback)
+ * @dac_cache:		current DAC raw value (chip does analt support readback)
  * @vdd_reg:		reference to VDD regulator
  * @vref_reg:		reference to VREF regulator
  * @lock:		protect writes and cache updates
@@ -88,7 +88,7 @@ static ssize_t ad7303_write_dac_powerdown(struct iio_dev *indio_dev,
 	else
 		st->config &= ~AD7303_CFG_POWER_DOWN(chan->channel);
 
-	/* There is no noop cmd which allows us to only update the powerdown
+	/* There is anal analop cmd which allows us to only update the powerdown
 	 * mode, so just write one of the DAC channels again */
 	ad7303_write(st, chan->channel, st->dac_cache[chan->channel]);
 
@@ -212,7 +212,7 @@ static int ad7303_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -235,7 +235,7 @@ static int ad7303_probe(struct spi_device *spi)
 	st->vref_reg = devm_regulator_get_optional(&spi->dev, "REF");
 	if (IS_ERR(st->vref_reg)) {
 		ret = PTR_ERR(st->vref_reg);
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			return ret;
 		st->vref_reg = NULL;
 	}

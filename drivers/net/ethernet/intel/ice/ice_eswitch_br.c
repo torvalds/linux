@@ -14,7 +14,7 @@
 static const struct rhashtable_params ice_fdb_ht_params = {
 	.key_offset = offsetof(struct ice_esw_br_fdb_entry, data),
 	.key_len = sizeof(struct ice_esw_br_fdb_data),
-	.head_offset = offsetof(struct ice_esw_br_fdb_entry, ht_node),
+	.head_offset = offsetof(struct ice_esw_br_fdb_entry, ht_analde),
 	.automatic_shrinking = true,
 };
 
@@ -131,11 +131,11 @@ ice_eswitch_br_fwd_rule_create(struct ice_hw *hw, int vsi_idx, int port_type,
 
 	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
 	if (!rule)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	list = kcalloc(lkups_cnt, sizeof(*list), GFP_ATOMIC);
 	if (!list) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_list_alloc;
 	}
 
@@ -185,7 +185,7 @@ ice_eswitch_br_guard_rule_create(struct ice_hw *hw, u16 vsi_idx,
 	struct ice_adv_rule_info rule_info = { 0 };
 	struct ice_rule_query_data *rule;
 	struct ice_adv_lkup_elem *list;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	u16 lkups_cnt;
 
 	lkups_cnt = ice_eswitch_br_get_lkups_cnt(vid);
@@ -206,7 +206,7 @@ ice_eswitch_br_guard_rule_create(struct ice_hw *hw, u16 vsi_idx,
 
 	rule_info.allow_pass_l2 = true;
 	rule_info.sw_act.vsi_handle = vsi_idx;
-	rule_info.sw_act.fltr_act = ICE_NOP;
+	rule_info.sw_act.fltr_act = ICE_ANALP;
 	rule_info.priority = 2;
 
 	err = ice_add_adv_rule(hw, list, lkups_cnt, &rule_info, rule);
@@ -235,7 +235,7 @@ ice_eswitch_br_flow_create(struct device *dev, struct ice_hw *hw, int vsi_idx,
 
 	flow = kzalloc(sizeof(*flow), GFP_KERNEL);
 	if (!flow)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	fwd_rule = ice_eswitch_br_fwd_rule_create(hw, vsi_idx, port_type, mac,
 						  vid);
@@ -331,7 +331,7 @@ ice_eswitch_br_fdb_entry_delete(struct ice_esw_br *bridge,
 {
 	struct ice_pf *pf = bridge->br_offloads->pf;
 
-	rhashtable_remove_fast(&bridge->fdb_ht, &fdb_entry->ht_node,
+	rhashtable_remove_fast(&bridge->fdb_ht, &fdb_entry->ht_analde,
 			       ice_fdb_ht_params);
 	list_del(&fdb_entry->list);
 
@@ -341,25 +341,25 @@ ice_eswitch_br_fdb_entry_delete(struct ice_esw_br *bridge,
 }
 
 static void
-ice_eswitch_br_fdb_offload_notify(struct net_device *dev,
+ice_eswitch_br_fdb_offload_analtify(struct net_device *dev,
 				  const unsigned char *mac, u16 vid,
 				  unsigned long val)
 {
-	struct switchdev_notifier_fdb_info fdb_info = {
+	struct switchdev_analtifier_fdb_info fdb_info = {
 		.addr = mac,
 		.vid = vid,
 		.offloaded = true,
 	};
 
-	call_switchdev_notifiers(val, dev, &fdb_info.info, NULL);
+	call_switchdev_analtifiers(val, dev, &fdb_info.info, NULL);
 }
 
 static void
-ice_eswitch_br_fdb_entry_notify_and_cleanup(struct ice_esw_br *bridge,
+ice_eswitch_br_fdb_entry_analtify_and_cleanup(struct ice_esw_br *bridge,
 					    struct ice_esw_br_fdb_entry *entry)
 {
 	if (!(entry->flags & ICE_ESWITCH_BR_FDB_ADDED_BY_USER))
-		ice_eswitch_br_fdb_offload_notify(entry->dev, entry->data.addr,
+		ice_eswitch_br_fdb_offload_analtify(entry->dev, entry->data.addr,
 						  entry->data.vid,
 						  SWITCHDEV_FDB_DEL_TO_BRIDGE);
 	ice_eswitch_br_fdb_entry_delete(bridge, entry);
@@ -375,13 +375,13 @@ ice_eswitch_br_fdb_entry_find_and_delete(struct ice_esw_br *bridge,
 
 	fdb_entry = ice_eswitch_br_fdb_find(bridge, mac, vid);
 	if (!fdb_entry) {
-		dev_err(dev, "FDB entry with mac: %pM and vid: %u not found\n",
+		dev_err(dev, "FDB entry with mac: %pM and vid: %u analt found\n",
 			mac, vid);
 		return;
 	}
 
 	trace_ice_eswitch_br_fdb_entry_find_and_delete(fdb_entry);
-	ice_eswitch_br_fdb_entry_notify_and_cleanup(bridge, fdb_entry);
+	ice_eswitch_br_fdb_entry_analtify_and_cleanup(bridge, fdb_entry);
 }
 
 static void
@@ -400,7 +400,7 @@ ice_eswitch_br_fdb_entry_create(struct net_device *netdev,
 	unsigned long event;
 	int err;
 
-	/* untagged filtering is not yet supported */
+	/* untagged filtering is analt yet supported */
 	if (!(bridge->flags & ICE_ESWITCH_BR_VLAN_FILTERING) && vid)
 		return;
 
@@ -416,11 +416,11 @@ ice_eswitch_br_fdb_entry_create(struct net_device *netdev,
 
 	fdb_entry = ice_eswitch_br_fdb_find(bridge, mac, vid);
 	if (fdb_entry)
-		ice_eswitch_br_fdb_entry_notify_and_cleanup(bridge, fdb_entry);
+		ice_eswitch_br_fdb_entry_analtify_and_cleanup(bridge, fdb_entry);
 
 	fdb_entry = kzalloc(sizeof(*fdb_entry), GFP_KERNEL);
 	if (!fdb_entry) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_exit;
 	}
 
@@ -444,7 +444,7 @@ ice_eswitch_br_fdb_entry_create(struct net_device *netdev,
 		event = SWITCHDEV_FDB_OFFLOADED;
 	}
 
-	err = rhashtable_insert_fast(&bridge->fdb_ht, &fdb_entry->ht_node,
+	err = rhashtable_insert_fast(&bridge->fdb_ht, &fdb_entry->ht_analde,
 				     ice_fdb_ht_params);
 	if (err)
 		goto err_fdb_insert;
@@ -452,7 +452,7 @@ ice_eswitch_br_fdb_entry_create(struct net_device *netdev,
 	list_add(&fdb_entry->list, &bridge->fdb_list);
 	trace_ice_eswitch_br_fdb_entry_create(fdb_entry);
 
-	ice_eswitch_br_fdb_offload_notify(netdev, mac, vid, event);
+	ice_eswitch_br_fdb_offload_analtify(netdev, mac, vid, event);
 
 	return;
 
@@ -506,7 +506,7 @@ err_exit:
 }
 
 static struct ice_esw_br_fdb_work *
-ice_eswitch_br_fdb_work_alloc(struct switchdev_notifier_fdb_info *fdb_info,
+ice_eswitch_br_fdb_work_alloc(struct switchdev_analtifier_fdb_info *fdb_info,
 			      struct net_device *dev,
 			      unsigned long event)
 {
@@ -515,7 +515,7 @@ ice_eswitch_br_fdb_work_alloc(struct switchdev_notifier_fdb_info *fdb_info,
 
 	work = kzalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_WORK(&work->work, ice_eswitch_br_fdb_event_work);
 	memcpy(&work->fdb_info, fdb_info, sizeof(work->fdb_info));
@@ -523,7 +523,7 @@ ice_eswitch_br_fdb_work_alloc(struct switchdev_notifier_fdb_info *fdb_info,
 	mac = kzalloc(ETH_ALEN, GFP_ATOMIC);
 	if (!mac) {
 		kfree(work);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	ether_addr_copy(mac, fdb_info->addr);
@@ -535,32 +535,32 @@ ice_eswitch_br_fdb_work_alloc(struct switchdev_notifier_fdb_info *fdb_info,
 }
 
 static int
-ice_eswitch_br_switchdev_event(struct notifier_block *nb,
+ice_eswitch_br_switchdev_event(struct analtifier_block *nb,
 			       unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
-	struct switchdev_notifier_fdb_info *fdb_info;
-	struct switchdev_notifier_info *info = ptr;
+	struct net_device *dev = switchdev_analtifier_info_to_dev(ptr);
+	struct switchdev_analtifier_fdb_info *fdb_info;
+	struct switchdev_analtifier_info *info = ptr;
 	struct ice_esw_br_offloads *br_offloads;
 	struct ice_esw_br_fdb_work *work;
 	struct netlink_ext_ack *extack;
 	struct net_device *upper;
 
 	br_offloads = ice_nb_to_br_offloads(nb, switchdev_nb);
-	extack = switchdev_notifier_info_to_extack(ptr);
+	extack = switchdev_analtifier_info_to_extack(ptr);
 
 	upper = netdev_master_upper_dev_get_rcu(dev);
 	if (!upper)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (!netif_is_bridge_master(upper))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (!ice_eswitch_br_is_dev_valid(dev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (!ice_eswitch_br_netdev_to_port(dev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
@@ -570,7 +570,7 @@ ice_eswitch_br_switchdev_event(struct notifier_block *nb,
 		work = ice_eswitch_br_fdb_work_alloc(fdb_info, dev, event);
 		if (IS_ERR(work)) {
 			NL_SET_ERR_MSG_MOD(extack, "Failed to init switchdev fdb work");
-			return notifier_from_errno(PTR_ERR(work));
+			return analtifier_from_erranal(PTR_ERR(work));
 		}
 		dev_hold(dev);
 
@@ -579,7 +579,7 @@ ice_eswitch_br_switchdev_event(struct notifier_block *nb,
 	default:
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static void ice_eswitch_br_fdb_flush(struct ice_esw_br *bridge)
@@ -587,7 +587,7 @@ static void ice_eswitch_br_fdb_flush(struct ice_esw_br *bridge)
 	struct ice_esw_br_fdb_entry *entry, *tmp;
 
 	list_for_each_entry_safe(entry, tmp, &bridge->fdb_list, list)
-		ice_eswitch_br_fdb_entry_notify_and_cleanup(bridge, entry);
+		ice_eswitch_br_fdb_entry_analtify_and_cleanup(bridge, entry);
 }
 
 static void
@@ -662,7 +662,7 @@ ice_eswitch_br_set_pvid(struct ice_esw_br_port *port,
 
 	/* Setting port vlan on uplink isn't supported by hw */
 	if (port->type == ICE_ESWITCH_BR_UPLINK_PORT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (port->pvid) {
 		dev_info(dev,
@@ -697,7 +697,7 @@ ice_eswitch_br_vlan_create(u16 vid, u16 flags, struct ice_esw_br_port *port)
 
 	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
 	if (!vlan)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vlan->vid = vid;
 	vlan->flags = flags;
@@ -709,7 +709,7 @@ ice_eswitch_br_vlan_create(u16 vid, u16 flags, struct ice_esw_br_port *port)
 	} else if ((flags & BRIDGE_VLAN_INFO_PVID) ||
 		   (flags & BRIDGE_VLAN_INFO_UNTAGGED)) {
 		dev_info(dev, "VLAN push and pop are supported only simultaneously\n");
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto err_set_pvid;
 	}
 
@@ -802,7 +802,7 @@ ice_eswitch_br_port_obj_add(struct net_device *netdev, const void *ctx,
 						   vlan->flags, extack);
 		return err;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -823,7 +823,7 @@ ice_eswitch_br_port_obj_del(struct net_device *netdev, const void *ctx,
 					     vlan->vid);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -847,15 +847,15 @@ ice_eswitch_br_port_obj_attr_set(struct net_device *netdev, const void *ctx,
 			clock_t_to_jiffies(attr->u.ageing_time);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
 static int
-ice_eswitch_br_event_blocking(struct notifier_block *nb, unsigned long event,
+ice_eswitch_br_event_blocking(struct analtifier_block *nb, unsigned long event,
 			      void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_analtifier_info_to_dev(ptr);
 	int err;
 
 	switch (event) {
@@ -878,7 +878,7 @@ ice_eswitch_br_event_blocking(struct notifier_block *nb, unsigned long event,
 		err = 0;
 	}
 
-	return notifier_from_errno(err);
+	return analtifier_from_erranal(err);
 }
 
 static void
@@ -914,7 +914,7 @@ ice_eswitch_br_port_init(struct ice_esw_br *bridge)
 
 	br_port = kzalloc(sizeof(*br_port), GFP_KERNEL);
 	if (!br_port)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	xa_init(&br_port->vlans);
 
@@ -990,7 +990,7 @@ ice_eswitch_br_deinit(struct ice_esw_br_offloads *br_offloads,
 	if (!bridge)
 		return;
 
-	/* Cleanup all the ports that were added asynchronously
+	/* Cleanup all the ports that were added asynchroanalusly
 	 * through NETDEV_CHANGEUPPER event.
 	 */
 	ice_eswitch_br_ports_flush(bridge);
@@ -1010,7 +1010,7 @@ ice_eswitch_br_init(struct ice_esw_br_offloads *br_offloads, int ifindex)
 
 	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = rhashtable_init(&bridge->fdb_ht, &ice_fdb_ht_params);
 	if (err) {
@@ -1038,7 +1038,7 @@ ice_eswitch_br_get(struct ice_esw_br_offloads *br_offloads, int ifindex,
 		if (bridge->ifindex != ifindex) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Only one bridge is supported per eswitch");
-			return ERR_PTR(-EOPNOTSUPP);
+			return ERR_PTR(-EOPANALTSUPP);
 		}
 		return bridge;
 	}
@@ -1055,7 +1055,7 @@ static void
 ice_eswitch_br_verify_deinit(struct ice_esw_br_offloads *br_offloads,
 			     struct ice_esw_br *bridge)
 {
-	/* Remove the bridge if it exists and there are no ports left */
+	/* Remove the bridge if it exists and there are anal ports left */
 	if (!bridge || !xa_empty(&bridge->ports))
 		return;
 
@@ -1072,13 +1072,13 @@ ice_eswitch_br_port_unlink(struct ice_esw_br_offloads *br_offloads,
 
 	if (!br_port) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Port representor is not attached to any bridge");
+				   "Port representor is analt attached to any bridge");
 		return -EINVAL;
 	}
 
 	if (br_port->bridge->ifindex != ifindex) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Port representor is attached to another bridge");
+				   "Port representor is attached to aanalther bridge");
 		return -EINVAL;
 	}
 
@@ -1144,10 +1144,10 @@ err_port_init:
 }
 
 static int
-ice_eswitch_br_port_changeupper(struct notifier_block *nb, void *ptr)
+ice_eswitch_br_port_changeupper(struct analtifier_block *nb, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct netdev_notifier_changeupper_info *info = ptr;
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
+	struct netdev_analtifier_changeupper_info *info = ptr;
 	struct ice_esw_br_offloads *br_offloads;
 	struct netlink_ext_ack *extack;
 	struct net_device *upper;
@@ -1161,7 +1161,7 @@ ice_eswitch_br_port_changeupper(struct notifier_block *nb, void *ptr)
 	if (!netif_is_bridge_master(upper))
 		return 0;
 
-	extack = netdev_notifier_info_to_extack(&info->info);
+	extack = netdev_analtifier_info_to_extack(&info->info);
 
 	if (info->linking)
 		return ice_eswitch_br_port_link(br_offloads, dev,
@@ -1172,7 +1172,7 @@ ice_eswitch_br_port_changeupper(struct notifier_block *nb, void *ptr)
 }
 
 static int
-ice_eswitch_br_port_event(struct notifier_block *nb,
+ice_eswitch_br_port_event(struct analtifier_block *nb,
 			  unsigned long event, void *ptr)
 {
 	int err = 0;
@@ -1183,7 +1183,7 @@ ice_eswitch_br_port_event(struct notifier_block *nb,
 		break;
 	}
 
-	return notifier_from_errno(err);
+	return analtifier_from_erranal(err);
 }
 
 static void
@@ -1214,7 +1214,7 @@ ice_eswitch_br_offloads_alloc(struct ice_pf *pf)
 
 	br_offloads = kzalloc(sizeof(*br_offloads), GFP_KERNEL);
 	if (!br_offloads)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pf->eswitch.br_offloads = br_offloads;
 	br_offloads->pf = pf;
@@ -1232,11 +1232,11 @@ ice_eswitch_br_offloads_deinit(struct ice_pf *pf)
 		return;
 
 	cancel_delayed_work_sync(&br_offloads->update_work);
-	unregister_netdevice_notifier(&br_offloads->netdev_nb);
-	unregister_switchdev_blocking_notifier(&br_offloads->switchdev_blk);
-	unregister_switchdev_notifier(&br_offloads->switchdev_nb);
+	unregister_netdevice_analtifier(&br_offloads->netdev_nb);
+	unregister_switchdev_blocking_analtifier(&br_offloads->switchdev_blk);
+	unregister_switchdev_analtifier(&br_offloads->switchdev_nb);
 	destroy_workqueue(br_offloads->wq);
-	/* Although notifier block is unregistered just before,
+	/* Although analtifier block is unregistered just before,
 	 * so we don't get any new events, some events might be
 	 * already in progress. Hold the rtnl lock and wait for
 	 * them to finished.
@@ -1263,7 +1263,7 @@ static void ice_eswitch_br_update(struct ice_esw_br_offloads *br_offloads)
 					     bridge->ageing_time))
 			continue;
 
-		ice_eswitch_br_fdb_entry_notify_and_cleanup(bridge, entry);
+		ice_eswitch_br_fdb_entry_analtify_and_cleanup(bridge, entry);
 	}
 	rtnl_unlock();
 }
@@ -1297,34 +1297,34 @@ ice_eswitch_br_offloads_init(struct ice_pf *pf)
 
 	br_offloads->wq = alloc_ordered_workqueue("ice_bridge_wq", 0);
 	if (!br_offloads->wq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(dev, "Failed to allocate bridge workqueue\n");
 		goto err_alloc_wq;
 	}
 
-	br_offloads->switchdev_nb.notifier_call =
+	br_offloads->switchdev_nb.analtifier_call =
 		ice_eswitch_br_switchdev_event;
-	err = register_switchdev_notifier(&br_offloads->switchdev_nb);
+	err = register_switchdev_analtifier(&br_offloads->switchdev_nb);
 	if (err) {
 		dev_err(dev,
-			"Failed to register switchdev notifier\n");
+			"Failed to register switchdev analtifier\n");
 		goto err_reg_switchdev_nb;
 	}
 
-	br_offloads->switchdev_blk.notifier_call =
+	br_offloads->switchdev_blk.analtifier_call =
 		ice_eswitch_br_event_blocking;
-	err = register_switchdev_blocking_notifier(&br_offloads->switchdev_blk);
+	err = register_switchdev_blocking_analtifier(&br_offloads->switchdev_blk);
 	if (err) {
 		dev_err(dev,
-			"Failed to register bridge blocking switchdev notifier\n");
+			"Failed to register bridge blocking switchdev analtifier\n");
 		goto err_reg_switchdev_blk;
 	}
 
-	br_offloads->netdev_nb.notifier_call = ice_eswitch_br_port_event;
-	err = register_netdevice_notifier(&br_offloads->netdev_nb);
+	br_offloads->netdev_nb.analtifier_call = ice_eswitch_br_port_event;
+	err = register_netdevice_analtifier(&br_offloads->netdev_nb);
 	if (err) {
 		dev_err(dev,
-			"Failed to register bridge port event notifier\n");
+			"Failed to register bridge port event analtifier\n");
 		goto err_reg_netdev_nb;
 	}
 
@@ -1336,9 +1336,9 @@ ice_eswitch_br_offloads_init(struct ice_pf *pf)
 	return 0;
 
 err_reg_netdev_nb:
-	unregister_switchdev_blocking_notifier(&br_offloads->switchdev_blk);
+	unregister_switchdev_blocking_analtifier(&br_offloads->switchdev_blk);
 err_reg_switchdev_blk:
-	unregister_switchdev_notifier(&br_offloads->switchdev_nb);
+	unregister_switchdev_analtifier(&br_offloads->switchdev_nb);
 err_reg_switchdev_nb:
 	destroy_workqueue(br_offloads->wq);
 err_alloc_wq:

@@ -64,7 +64,7 @@ static int nft_counter_do_init(const struct nlattr * const tb[],
 
 	cpu_stats = alloc_percpu_gfp(struct nft_counter, GFP_KERNEL_ACCOUNT);
 	if (cpu_stats == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	preempt_disable();
 	this_cpu = this_cpu_ptr(cpu_stats);
@@ -238,7 +238,7 @@ static int nft_counter_clone(struct nft_expr *dst, const struct nft_expr *src)
 
 	cpu_stats = alloc_percpu_gfp(struct nft_counter, GFP_ATOMIC);
 	if (cpu_stats == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	preempt_disable();
 	this_cpu = this_cpu_ptr(cpu_stats);
@@ -254,7 +254,7 @@ static int nft_counter_offload(struct nft_offload_ctx *ctx,
 			       struct nft_flow_rule *flow,
 			       const struct nft_expr *expr)
 {
-	/* No specific offload action is needed, but report success. */
+	/* Anal specific offload action is needed, but report success. */
 	return 0;
 }
 

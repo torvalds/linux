@@ -53,7 +53,7 @@ static inline struct cramfs_sb_info *CRAMFS_SB(struct super_block *sb)
 }
 
 static const struct super_operations cramfs_ops;
-static const struct inode_operations cramfs_dir_inode_operations;
+static const struct ianalde_operations cramfs_dir_ianalde_operations;
 static const struct file_operations cramfs_directory_operations;
 static const struct file_operations cramfs_physmem_fops;
 static const struct address_space_operations cramfs_aops;
@@ -61,88 +61,88 @@ static const struct address_space_operations cramfs_aops;
 static DEFINE_MUTEX(read_mutex);
 
 
-/* These macros may change in future, to provide better st_ino semantics. */
-#define OFFSET(x)	((x)->i_ino)
+/* These macros may change in future, to provide better st_ianal semantics. */
+#define OFFSET(x)	((x)->i_ianal)
 
-static unsigned long cramino(const struct cramfs_inode *cino, unsigned int offset)
+static unsigned long cramianal(const struct cramfs_ianalde *cianal, unsigned int offset)
 {
-	if (!cino->offset)
+	if (!cianal->offset)
 		return offset + 1;
-	if (!cino->size)
+	if (!cianal->size)
 		return offset + 1;
 
 	/*
 	 * The file mode test fixes buggy mkcramfs implementations where
-	 * cramfs_inode->offset is set to a non zero value for entries
-	 * which did not contain data, like devices node and fifos.
+	 * cramfs_ianalde->offset is set to a analn zero value for entries
+	 * which did analt contain data, like devices analde and fifos.
 	 */
-	switch (cino->mode & S_IFMT) {
+	switch (cianal->mode & S_IFMT) {
 	case S_IFREG:
 	case S_IFDIR:
 	case S_IFLNK:
-		return cino->offset << 2;
+		return cianal->offset << 2;
 	default:
 		break;
 	}
 	return offset + 1;
 }
 
-static struct inode *get_cramfs_inode(struct super_block *sb,
-	const struct cramfs_inode *cramfs_inode, unsigned int offset)
+static struct ianalde *get_cramfs_ianalde(struct super_block *sb,
+	const struct cramfs_ianalde *cramfs_ianalde, unsigned int offset)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	static struct timespec64 zerotime;
 
-	inode = iget_locked(sb, cramino(cramfs_inode, offset));
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	ianalde = iget_locked(sb, cramianal(cramfs_ianalde, offset));
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
+	if (!(ianalde->i_state & I_NEW))
+		return ianalde;
 
-	switch (cramfs_inode->mode & S_IFMT) {
+	switch (cramfs_ianalde->mode & S_IFMT) {
 	case S_IFREG:
-		inode->i_fop = &generic_ro_fops;
-		inode->i_data.a_ops = &cramfs_aops;
+		ianalde->i_fop = &generic_ro_fops;
+		ianalde->i_data.a_ops = &cramfs_aops;
 		if (IS_ENABLED(CONFIG_CRAMFS_MTD) &&
 		    CRAMFS_SB(sb)->flags & CRAMFS_FLAG_EXT_BLOCK_POINTERS &&
 		    CRAMFS_SB(sb)->linear_phys_addr)
-			inode->i_fop = &cramfs_physmem_fops;
+			ianalde->i_fop = &cramfs_physmem_fops;
 		break;
 	case S_IFDIR:
-		inode->i_op = &cramfs_dir_inode_operations;
-		inode->i_fop = &cramfs_directory_operations;
+		ianalde->i_op = &cramfs_dir_ianalde_operations;
+		ianalde->i_fop = &cramfs_directory_operations;
 		break;
 	case S_IFLNK:
-		inode->i_op = &page_symlink_inode_operations;
-		inode_nohighmem(inode);
-		inode->i_data.a_ops = &cramfs_aops;
+		ianalde->i_op = &page_symlink_ianalde_operations;
+		ianalde_analhighmem(ianalde);
+		ianalde->i_data.a_ops = &cramfs_aops;
 		break;
 	default:
-		init_special_inode(inode, cramfs_inode->mode,
-				old_decode_dev(cramfs_inode->size));
+		init_special_ianalde(ianalde, cramfs_ianalde->mode,
+				old_decode_dev(cramfs_ianalde->size));
 	}
 
-	inode->i_mode = cramfs_inode->mode;
-	i_uid_write(inode, cramfs_inode->uid);
-	i_gid_write(inode, cramfs_inode->gid);
+	ianalde->i_mode = cramfs_ianalde->mode;
+	i_uid_write(ianalde, cramfs_ianalde->uid);
+	i_gid_write(ianalde, cramfs_ianalde->gid);
 
-	/* if the lower 2 bits are zero, the inode contains data */
-	if (!(inode->i_ino & 3)) {
-		inode->i_size = cramfs_inode->size;
-		inode->i_blocks = (cramfs_inode->size - 1) / 512 + 1;
+	/* if the lower 2 bits are zero, the ianalde contains data */
+	if (!(ianalde->i_ianal & 3)) {
+		ianalde->i_size = cramfs_ianalde->size;
+		ianalde->i_blocks = (cramfs_ianalde->size - 1) / 512 + 1;
 	}
 
 	/* Struct copy intentional */
-	inode_set_mtime_to_ts(inode,
-			      inode_set_atime_to_ts(inode, inode_set_ctime_to_ts(inode, zerotime)));
-	/* inode->i_nlink is left 1 - arguably wrong for directories,
+	ianalde_set_mtime_to_ts(ianalde,
+			      ianalde_set_atime_to_ts(ianalde, ianalde_set_ctime_to_ts(ianalde, zerotime)));
+	/* ianalde->i_nlink is left 1 - arguably wrong for directories,
 	   but it's the best we can do without reading the directory
 	   contents.  1 yields the right result in GNU find, even
-	   without -noleaf option. */
+	   without -analleaf option. */
 
-	unlock_new_inode(inode);
+	unlock_new_ianalde(ianalde);
 
-	return inode;
+	return ianalde;
 }
 
 /*
@@ -156,7 +156,7 @@ static struct inode *get_cramfs_inode(struct super_block *sb,
  * worry about end-of-buffer issues even when decompressing a full
  * page cache.
  *
- * Note: This is all optimized away at compile time when
+ * Analte: This is all optimized away at compile time when
  *       CONFIG_CRAMFS_BLOCKDEV=n.
  */
 #define READ_BUFFERS (2)
@@ -183,7 +183,7 @@ static int next_buffer;
 static void *cramfs_blkdev_read(struct super_block *sb, unsigned int offset,
 				unsigned int len)
 {
-	struct address_space *mapping = sb->s_bdev->bd_inode->i_mapping;
+	struct address_space *mapping = sb->s_bdev->bd_ianalde->i_mapping;
 	struct file_ra_state ra = {};
 	struct page *pages[BLKS_PER_BUF];
 	unsigned i, blocknr, buffer;
@@ -222,7 +222,7 @@ static void *cramfs_blkdev_read(struct super_block *sb, unsigned int offset,
 
 		if (blocknr + i < devsize) {
 			page = read_mapping_page(mapping, blocknr + i, NULL);
-			/* synchronous error? */
+			/* synchroanalus error? */
 			if (IS_ERR(page))
 				page = NULL;
 		}
@@ -285,9 +285,9 @@ static void *cramfs_read(struct super_block *sb, unsigned int offset,
  * contiguous blocks. Return the offset for the first block and number of
  * valid blocks for which that is true, or zero otherwise.
  */
-static u32 cramfs_get_block_range(struct inode *inode, u32 pgoff, u32 *pages)
+static u32 cramfs_get_block_range(struct ianalde *ianalde, u32 pgoff, u32 *pages)
 {
-	struct cramfs_sb_info *sbi = CRAMFS_SB(inode->i_sb);
+	struct cramfs_sb_info *sbi = CRAMFS_SB(ianalde->i_sb);
 	int i;
 	u32 *blockptrs, first_block_addr;
 
@@ -296,7 +296,7 @@ static u32 cramfs_get_block_range(struct inode *inode, u32 pgoff, u32 *pages)
 	 * reached only when there is a direct filesystem image mapping
 	 * available in memory.
 	 */
-	blockptrs = (u32 *)(sbi->linear_virt_addr + OFFSET(inode) + pgoff * 4);
+	blockptrs = (u32 *)(sbi->linear_virt_addr + OFFSET(ianalde) + pgoff * 4);
 	first_block_addr = blockptrs[0] & ~CRAMFS_BLK_FLAGS;
 	i = 0;
 	do {
@@ -326,17 +326,17 @@ static u32 cramfs_get_block_range(struct inode *inode, u32 pgoff, u32 *pages)
  * last block is CRAMFS_BLK_FLAG_DIRECT_PTR | CRAMFS_BLK_FLAG_UNCOMPRESSED
  * (verified by cramfs_get_block_range() and directly accessible in memory.
  */
-static bool cramfs_last_page_is_shared(struct inode *inode)
+static bool cramfs_last_page_is_shared(struct ianalde *ianalde)
 {
-	struct cramfs_sb_info *sbi = CRAMFS_SB(inode->i_sb);
+	struct cramfs_sb_info *sbi = CRAMFS_SB(ianalde->i_sb);
 	u32 partial, last_page, blockaddr, *blockptrs;
 	char *tail_data;
 
-	partial = offset_in_page(inode->i_size);
+	partial = offset_in_page(ianalde->i_size);
 	if (!partial)
 		return false;
-	last_page = inode->i_size >> PAGE_SHIFT;
-	blockptrs = (u32 *)(sbi->linear_virt_addr + OFFSET(inode));
+	last_page = ianalde->i_size >> PAGE_SHIFT;
+	blockptrs = (u32 *)(sbi->linear_virt_addr + OFFSET(ianalde));
 	blockaddr = blockptrs[last_page] & ~CRAMFS_BLK_FLAGS;
 	blockaddr <<= CRAMFS_BLK_DIRECT_PTR_SHIFT;
 	tail_data = sbi->linear_virt_addr + blockaddr + partial;
@@ -345,8 +345,8 @@ static bool cramfs_last_page_is_shared(struct inode *inode)
 
 static int cramfs_physmem_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct inode *inode = file_inode(file);
-	struct cramfs_sb_info *sbi = CRAMFS_SB(inode->i_sb);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct cramfs_sb_info *sbi = CRAMFS_SB(ianalde->i_sb);
 	unsigned int pages, max_pages, offset;
 	unsigned long address, pgoff = vma->vm_pgoff;
 	char *bailout_reason;
@@ -357,7 +357,7 @@ static int cramfs_physmem_mmap(struct file *file, struct vm_area_struct *vma)
 		return ret;
 
 	/*
-	 * Now try to pre-populate ptes for this vma with a direct
+	 * Analw try to pre-populate ptes for this vma with a direct
 	 * mapping avoiding memory allocation when possible.
 	 */
 
@@ -366,36 +366,36 @@ static int cramfs_physmem_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_flags & VM_WRITE)
 		goto bailout;
 
-	max_pages = (inode->i_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	max_pages = (ianalde->i_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	bailout_reason = "beyond file limit";
 	if (pgoff >= max_pages)
 		goto bailout;
 	pages = min(vma_pages(vma), max_pages - pgoff);
 
-	offset = cramfs_get_block_range(inode, pgoff, &pages);
+	offset = cramfs_get_block_range(ianalde, pgoff, &pages);
 	bailout_reason = "unsuitable block layout";
 	if (!offset)
 		goto bailout;
 	address = sbi->linear_phys_addr + offset;
-	bailout_reason = "data is not page aligned";
+	bailout_reason = "data is analt page aligned";
 	if (!PAGE_ALIGNED(address))
 		goto bailout;
 
 	/* Don't map the last page if it contains some other data */
-	if (pgoff + pages == max_pages && cramfs_last_page_is_shared(inode)) {
+	if (pgoff + pages == max_pages && cramfs_last_page_is_shared(ianalde)) {
 		pr_debug("mmap: %pD: last page is shared\n", file);
 		pages--;
 	}
 
 	if (!pages) {
-		bailout_reason = "no suitable block remaining";
+		bailout_reason = "anal suitable block remaining";
 		goto bailout;
 	}
 
 	if (pages == vma_pages(vma)) {
 		/*
 		 * The entire vma is mappable. remap_pfn_range() will
-		 * make it distinguishable from a non-direct mapping
+		 * make it distinguishable from a analn-direct mapping
 		 * in /proc/<pid>/maps by substituting the file offset
 		 * with the actual physical address.
 		 */
@@ -404,7 +404,7 @@ static int cramfs_physmem_mmap(struct file *file, struct vm_area_struct *vma)
 	} else {
 		/*
 		 * Let's create a mixed map if we can't map it all.
-		 * The normal paging machinery will take care of the
+		 * The analrmal paging machinery will take care of the
 		 * unpopulated ptes via cramfs_read_folio().
 		 */
 		int i;
@@ -415,7 +415,7 @@ static int cramfs_physmem_mmap(struct file *file, struct vm_area_struct *vma)
 			pfn_t pfn = phys_to_pfn_t(address + off, PFN_DEV);
 			vmf = vmf_insert_mixed(vma, vma->vm_start + off, pfn);
 			if (vmf & VM_FAULT_ERROR)
-				ret = vm_fault_to_errno(vmf, 0);
+				ret = vm_fault_to_erranal(vmf, 0);
 		}
 	}
 
@@ -429,7 +429,7 @@ static int cramfs_physmem_mmap(struct file *file, struct vm_area_struct *vma)
 bailout:
 	pr_debug("%pD[%lu]: direct mmap impossible: %s\n",
 		 file, pgoff, bailout_reason);
-	/* Didn't manage any direct map, but normal paging is still possible */
+	/* Didn't manage any direct map, but analrmal paging is still possible */
 	return 0;
 }
 
@@ -437,26 +437,26 @@ bailout:
 
 static int cramfs_physmem_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	return is_nommu_shared_mapping(vma->vm_flags) ? 0 : -ENOSYS;
+	return is_analmmu_shared_mapping(vma->vm_flags) ? 0 : -EANALSYS;
 }
 
 static unsigned long cramfs_physmem_get_unmapped_area(struct file *file,
 			unsigned long addr, unsigned long len,
 			unsigned long pgoff, unsigned long flags)
 {
-	struct inode *inode = file_inode(file);
-	struct super_block *sb = inode->i_sb;
+	struct ianalde *ianalde = file_ianalde(file);
+	struct super_block *sb = ianalde->i_sb;
 	struct cramfs_sb_info *sbi = CRAMFS_SB(sb);
 	unsigned int pages, block_pages, max_pages, offset;
 
 	pages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	max_pages = (inode->i_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	max_pages = (ianalde->i_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	if (pgoff >= max_pages || pages > max_pages - pgoff)
 		return -EINVAL;
 	block_pages = pages;
-	offset = cramfs_get_block_range(inode, pgoff, &block_pages);
+	offset = cramfs_get_block_range(ianalde, pgoff, &block_pages);
 	if (!offset || block_pages != pages)
-		return -ENOSYS;
+		return -EANALSYS;
 	addr = sbi->linear_phys_addr + offset;
 	pr_debug("get_unmapped for %pD ofs %#lx siz %lu at 0x%08lx\n",
 		 file, pgoff*PAGE_SIZE, len, addr);
@@ -465,8 +465,8 @@ static unsigned long cramfs_physmem_get_unmapped_area(struct file *file,
 
 static unsigned int cramfs_physmem_mmap_capabilities(struct file *file)
 {
-	return NOMMU_MAP_COPY | NOMMU_MAP_DIRECT |
-	       NOMMU_MAP_READ | NOMMU_MAP_EXEC;
+	return ANALMMU_MAP_COPY | ANALMMU_MAP_DIRECT |
+	       ANALMMU_MAP_READ | ANALMMU_MAP_EXEC;
 }
 
 #endif /* CONFIG_MMU */
@@ -514,7 +514,7 @@ static int cramfs_read_super(struct super_block *sb, struct fs_context *fc,
 	unsigned long root_offset;
 	bool silent = fc->sb_flags & SB_SILENT;
 
-	/* We don't know the real size yet */
+	/* We don't kanalw the real size yet */
 	sbi->size = PAGE_SIZE;
 
 	/* Read the first block and get the superblock from it */
@@ -552,9 +552,9 @@ static int cramfs_read_super(struct super_block *sb, struct fs_context *fc,
 		return -EINVAL;
 	}
 
-	/* Check that the root inode is in a sane state */
+	/* Check that the root ianalde is in a sane state */
 	if (!S_ISDIR(super->root.mode)) {
-		errorfc(fc, "root is not a directory");
+		errorfc(fc, "root is analt a directory");
 		return -EINVAL;
 	}
 	/* correct strange, hard-coded permissions of mkcramfs */
@@ -586,21 +586,21 @@ static int cramfs_read_super(struct super_block *sb, struct fs_context *fc,
 }
 
 static int cramfs_finalize_super(struct super_block *sb,
-				 struct cramfs_inode *cramfs_root)
+				 struct cramfs_ianalde *cramfs_root)
 {
-	struct inode *root;
+	struct ianalde *root;
 
 	/* Set it all up.. */
 	sb->s_flags |= SB_RDONLY;
 	sb->s_time_min = 0;
 	sb->s_time_max = 0;
 	sb->s_op = &cramfs_ops;
-	root = get_cramfs_inode(sb, cramfs_root, 0);
+	root = get_cramfs_ianalde(sb, cramfs_root, 0);
 	if (IS_ERR(root))
 		return PTR_ERR(root);
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -612,7 +612,7 @@ static int cramfs_blkdev_fill_super(struct super_block *sb, struct fs_context *f
 
 	sbi = kzalloc(sizeof(struct cramfs_sb_info), GFP_KERNEL);
 	if (!sbi)
-		return -ENOMEM;
+		return -EANALMEM;
 	sb->s_fs_info = sbi;
 
 	/* Invalidate the read buffers on mount: think disk change.. */
@@ -633,16 +633,16 @@ static int cramfs_mtd_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sbi = kzalloc(sizeof(struct cramfs_sb_info), GFP_KERNEL);
 	if (!sbi)
-		return -ENOMEM;
+		return -EANALMEM;
 	sb->s_fs_info = sbi;
 
-	/* Map only one page for now.  Will remap it when fs size is known. */
+	/* Map only one page for analw.  Will remap it when fs size is kanalwn. */
 	err = mtd_point(sb->s_mtd, 0, PAGE_SIZE, &sbi->mtd_point_size,
 			&sbi->linear_virt_addr, &sbi->linear_phys_addr);
 	if (err || sbi->mtd_point_size != PAGE_SIZE) {
 		pr_err("unable to get direct memory access to mtd:%s\n",
 		       sb->s_mtd->name);
-		return err ? : -ENODATA;
+		return err ? : -EANALDATA;
 	}
 
 	pr_info("checking physical address %pap for linear cramfs image\n",
@@ -651,7 +651,7 @@ static int cramfs_mtd_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (err)
 		return err;
 
-	/* Remap the whole filesystem now */
+	/* Remap the whole filesystem analw */
 	pr_info("linear cramfs image on mtd:%s appears to be %lu KB in size\n",
 		sb->s_mtd->name, sbi->size/1024);
 	mtd_unpoint(sb->s_mtd, 0, PAGE_SIZE);
@@ -660,7 +660,7 @@ static int cramfs_mtd_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (err || sbi->mtd_point_size != sbi->size) {
 		pr_err("unable to get direct memory access to mtd:%s\n",
 		       sb->s_mtd->name);
-		return err ? : -ENODATA;
+		return err ? : -EANALDATA;
 	}
 
 	return cramfs_finalize_super(sb, &super.root);
@@ -693,13 +693,13 @@ static int cramfs_statfs(struct dentry *dentry, struct kstatfs *buf)
  */
 static int cramfs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(file);
-	struct super_block *sb = inode->i_sb;
+	struct ianalde *ianalde = file_ianalde(file);
+	struct super_block *sb = ianalde->i_sb;
 	char *buf;
 	unsigned int offset;
 
 	/* Offset within the thing. */
-	if (ctx->pos >= inode->i_size)
+	if (ctx->pos >= ianalde->i_size)
 		return 0;
 	offset = ctx->pos;
 	/* Directory entries are always 4-byte aligned */
@@ -708,18 +708,18 @@ static int cramfs_readdir(struct file *file, struct dir_context *ctx)
 
 	buf = kmalloc(CRAMFS_MAXPATHLEN, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	while (offset < inode->i_size) {
-		struct cramfs_inode *de;
+	while (offset < ianalde->i_size) {
+		struct cramfs_ianalde *de;
 		unsigned long nextoffset;
 		char *name;
-		ino_t ino;
+		ianal_t ianal;
 		umode_t mode;
 		int namelen;
 
 		mutex_lock(&read_mutex);
-		de = cramfs_read(sb, OFFSET(inode) + offset, sizeof(*de)+CRAMFS_MAXPATHLEN);
+		de = cramfs_read(sb, OFFSET(ianalde) + offset, sizeof(*de)+CRAMFS_MAXPATHLEN);
 		name = (char *)(de+1);
 
 		/*
@@ -729,7 +729,7 @@ static int cramfs_readdir(struct file *file, struct dir_context *ctx)
 		 */
 		namelen = de->namelen << 2;
 		memcpy(buf, name, namelen);
-		ino = cramino(de, OFFSET(inode) + offset);
+		ianal = cramianal(de, OFFSET(ianalde) + offset);
 		mode = de->mode;
 		mutex_unlock(&read_mutex);
 		nextoffset = offset + sizeof(*de) + namelen;
@@ -742,7 +742,7 @@ static int cramfs_readdir(struct file *file, struct dir_context *ctx)
 				break;
 			namelen--;
 		}
-		if (!dir_emit(ctx, buf, namelen, ino, mode >> 12))
+		if (!dir_emit(ctx, buf, namelen, ianal, mode >> 12))
 			break;
 
 		ctx->pos = offset = nextoffset;
@@ -752,18 +752,18 @@ static int cramfs_readdir(struct file *file, struct dir_context *ctx)
 }
 
 /*
- * Lookup and fill in the inode data..
+ * Lookup and fill in the ianalde data..
  */
-static struct dentry *cramfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+static struct dentry *cramfs_lookup(struct ianalde *dir, struct dentry *dentry, unsigned int flags)
 {
 	unsigned int offset = 0;
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	int sorted;
 
 	mutex_lock(&read_mutex);
 	sorted = CRAMFS_SB(dir->i_sb)->flags & CRAMFS_FLAG_SORTED_DIRS;
 	while (offset < dir->i_size) {
-		struct cramfs_inode *de;
+		struct cramfs_ianalde *de;
 		char *name;
 		int namelen, retval;
 		int dir_off = OFFSET(dir) + offset;
@@ -784,7 +784,7 @@ static struct dentry *cramfs_lookup(struct inode *dir, struct dentry *dentry, un
 
 		for (;;) {
 			if (!namelen) {
-				inode = ERR_PTR(-EIO);
+				ianalde = ERR_PTR(-EIO);
 				goto out;
 			}
 			if (name[namelen-1])
@@ -797,7 +797,7 @@ static struct dentry *cramfs_lookup(struct inode *dir, struct dentry *dentry, un
 		if (retval > 0)
 			continue;
 		if (!retval) {
-			inode = get_cramfs_inode(dir->i_sb, de, dir_off);
+			ianalde = get_cramfs_ianalde(dir->i_sb, de, dir_off);
 			break;
 		}
 		/* else (retval < 0) */
@@ -806,24 +806,24 @@ static struct dentry *cramfs_lookup(struct inode *dir, struct dentry *dentry, un
 	}
 out:
 	mutex_unlock(&read_mutex);
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(ianalde, dentry);
 }
 
 static int cramfs_read_folio(struct file *file, struct folio *folio)
 {
 	struct page *page = &folio->page;
-	struct inode *inode = page->mapping->host;
+	struct ianalde *ianalde = page->mapping->host;
 	u32 maxblock;
 	int bytes_filled;
 	void *pgdata;
 
-	maxblock = (inode->i_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	maxblock = (ianalde->i_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	bytes_filled = 0;
 	pgdata = kmap_local_page(page);
 
 	if (page->index < maxblock) {
-		struct super_block *sb = inode->i_sb;
-		u32 blkptr_offset = OFFSET(inode) + page->index * 4;
+		struct super_block *sb = ianalde->i_sb;
+		u32 blkptr_offset = OFFSET(ianalde) + page->index * 4;
 		u32 block_ptr, block_start, block_len;
 		bool uncompressed, direct;
 
@@ -846,7 +846,7 @@ static int cramfs_read_folio(struct file *file, struct folio *folio)
 				/* if last block: cap to file length */
 				if (page->index == maxblock - 1)
 					block_len =
-						offset_in_page(inode->i_size);
+						offset_in_page(ianalde->i_size);
 			} else {
 				block_len = *(u16 *)
 					cramfs_read(sb, block_start, 2);
@@ -860,7 +860,7 @@ static int cramfs_read_folio(struct file *file, struct folio *folio)
 			 * pointer table ends, otherwise its start comes
 			 * from the previous block's pointer.
 			 */
-			block_start = OFFSET(inode) + maxblock * 4;
+			block_start = OFFSET(ianalde) + maxblock * 4;
 			if (page->index)
 				block_start = *(u32 *)
 					cramfs_read(sb, blkptr_offset - 4, 4);
@@ -937,7 +937,7 @@ static const struct file_operations cramfs_directory_operations = {
 	.iterate_shared	= cramfs_readdir,
 };
 
-static const struct inode_operations cramfs_dir_inode_operations = {
+static const struct ianalde_operations cramfs_dir_ianalde_operations = {
 	.lookup		= cramfs_lookup,
 };
 
@@ -947,7 +947,7 @@ static const struct super_operations cramfs_ops = {
 
 static int cramfs_get_tree(struct fs_context *fc)
 {
-	int ret = -ENOPROTOOPT;
+	int ret = -EANALPROTOOPT;
 
 	if (IS_ENABLED(CONFIG_CRAMFS_MTD)) {
 		ret = get_tree_mtd(fc, cramfs_mtd_fill_super);

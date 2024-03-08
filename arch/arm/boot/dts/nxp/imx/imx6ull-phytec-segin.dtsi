@@ -12,8 +12,8 @@
 };
 
 &iomuxc {
-	/delete-node/ flexcan1engrp;
-	/delete-node/ rtcintgrp;
+	/delete-analde/ flexcan1engrp;
+	/delete-analde/ rtcintgrp;
 };
 
 &iomuxc_snvs {

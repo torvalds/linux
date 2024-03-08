@@ -3,7 +3,7 @@
  *  (C) 2003 - 2004  Dominik Brodowski <linux@dominikbrodowski.de>
  *
  * Based on code found in
- * linux/arch/i386/kernel/cpu/cpufreq/speedstep-centrino.c
+ * linux/arch/i386/kernel/cpu/cpufreq/speedstep-centrianal.c
  * and originally developed by Jeremy Fitzhardinge.
  *
  * USAGE: simply run it to decode the current settings on CPU 0,
@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 
 #include <sys/types.h>
@@ -82,7 +82,7 @@ static int decode_live(unsigned int cpu)
 	if (err) {
 		printf("can't get MSR_IA32_PERF_STATUS for cpu %d\n", cpu);
 		printf("Possible trouble: you don't run an Enhanced SpeedStep capable cpu\n");
-		printf("or you are not root, or the msr driver is not present\n");
+		printf("or you are analt root, or the msr driver is analt present\n");
 		return 1;
 	}
 

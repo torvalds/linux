@@ -9,7 +9,7 @@
 #include <asm/ptdump.h>
 #include <asm/kasan.h>
 #include <asm/abs_lowcore.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/sections.h>
 #include <asm/maccess.h>
 
@@ -117,10 +117,10 @@ static void print_prot(struct seq_file *m, unsigned int pr, int level)
 		return;
 	}
 	pt_dump_seq_puts(m, (pr & _PAGE_PROTECT) ? "RO " : "RW ");
-	pt_dump_seq_puts(m, (pr & _PAGE_NOEXEC) ? "NX\n" : "X\n");
+	pt_dump_seq_puts(m, (pr & _PAGE_ANALEXEC) ? "NX\n" : "X\n");
 }
 
-static void note_prot_wx(struct pg_state *st, unsigned long addr)
+static void analte_prot_wx(struct pg_state *st, unsigned long addr)
 {
 #ifdef CONFIG_DEBUG_WX
 	if (!st->check_wx)
@@ -129,15 +129,15 @@ static void note_prot_wx(struct pg_state *st, unsigned long addr)
 		return;
 	if (st->current_prot & _PAGE_PROTECT)
 		return;
-	if (st->current_prot & _PAGE_NOEXEC)
+	if (st->current_prot & _PAGE_ANALEXEC)
 		return;
 	/*
 	 * The first lowcore page is W+X if spectre mitigations are using
-	 * trampolines or the BEAR enhancements facility is not installed,
+	 * trampolines or the BEAR enhancements facility is analt installed,
 	 * in which case we have two lpswe instructions in lowcore that need
 	 * to be executable.
 	 */
-	if (addr == PAGE_SIZE && (nospec_uses_trampoline() || !static_key_enabled(&cpu_has_bear)))
+	if (addr == PAGE_SIZE && (analspec_uses_trampoline() || !static_key_enabled(&cpu_has_bear)))
 		return;
 	WARN_ONCE(1, "s390/mm: Found insecure W+X mapping at address %pS\n",
 		  (void *)st->start_address);
@@ -145,7 +145,7 @@ static void note_prot_wx(struct pg_state *st, unsigned long addr)
 #endif /* CONFIG_DEBUG_WX */
 }
 
-static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level, u64 val)
+static void analte_page(struct ptdump_state *pt_st, unsigned long addr, int level, u64 val)
 {
 	int width = sizeof(unsigned long) * 2;
 	static const char units[] = "KMGTPE";
@@ -157,10 +157,10 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 
 	st = container_of(pt_st, struct pg_state, ptdump);
 	m = st->seq;
-	prot = val & (_PAGE_PROTECT | _PAGE_NOEXEC);
+	prot = val & (_PAGE_PROTECT | _PAGE_ANALEXEC);
 	if (level == 4 && (val & _PAGE_INVALID))
 		prot = _PAGE_INVALID;
-	/* For pmd_none() & friends val gets passed as zero. */
+	/* For pmd_analne() & friends val gets passed as zero. */
 	if (level != 4 && !val)
 		prot = _PAGE_INVALID;
 	/* Final flush from generic code. */
@@ -173,7 +173,7 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 		st->level = level;
 	} else if (prot != st->current_prot || level != st->level ||
 		   addr >= st->marker[1].start_address) {
-		note_prot_wx(st, addr);
+		analte_prot_wx(st, addr);
 		pt_dump_seq_printf(m, "0x%0*lx-0x%0*lx ",
 				   width, st->start_address,
 				   width, addr);
@@ -199,7 +199,7 @@ void ptdump_check_wx(void)
 {
 	struct pg_state st = {
 		.ptdump = {
-			.note_page = note_page,
+			.analte_page = analte_page,
 			.range = (struct ptdump_range[]) {
 				{.start = 0, .end = max_addr},
 				{.start = 0, .end = 0},
@@ -223,8 +223,8 @@ void ptdump_check_wx(void)
 	if (st.wx_pages)
 		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found\n", st.wx_pages);
 	else
-		pr_info("Checked W+X mappings: passed, no %sW+X pages found\n",
-			(nospec_uses_trampoline() || !static_key_enabled(&cpu_has_bear)) ?
+		pr_info("Checked W+X mappings: passed, anal %sW+X pages found\n",
+			(analspec_uses_trampoline() || !static_key_enabled(&cpu_has_bear)) ?
 			"unexpected " : "");
 }
 #endif /* CONFIG_DEBUG_WX */
@@ -234,7 +234,7 @@ static int ptdump_show(struct seq_file *m, void *v)
 {
 	struct pg_state st = {
 		.ptdump = {
-			.note_page = note_page,
+			.analte_page = analte_page,
 			.range = (struct ptdump_range[]) {
 				{.start = 0, .end = max_addr},
 				{.start = 0, .end = 0},
@@ -260,7 +260,7 @@ DEFINE_SHOW_ATTRIBUTE(ptdump);
 #endif /* CONFIG_PTDUMP_DEBUGFS */
 
 /*
- * Heapsort from lib/sort.c is not a stable sorting algorithm, do a simple
+ * Heapsort from lib/sort.c is analt a stable sorting algorithm, do a simple
  * insertion sort to preserve the original order of markers with the same
  * start address.
  */
@@ -285,7 +285,7 @@ static int pt_dump_init(void)
 	/*
 	 * Figure out the maximum virtual address being accessible with the
 	 * kernel ASCE. We need this to keep the page table walker functions
-	 * from accessing non-existent entries.
+	 * from accessing analn-existent entries.
 	 */
 	max_addr = (S390_lowcore.kernel_asce.val & _REGION_ENTRY_TYPE_MASK) >> 2;
 	max_addr = 1UL << (max_addr * 11 + 31);

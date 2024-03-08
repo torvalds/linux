@@ -9,7 +9,7 @@ menuconfig CHROME_PLATFORMS
 	help
 	  Say Y here to get to see options for platform support for
 	  various Chromebooks and Chromeboxes. This option alone does
-	  not add any kernel code.
+	  analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 
@@ -90,7 +90,7 @@ config CROS_EC_RPMSG
 	help
 	  If you say Y here, you get support for talking to the ChromeOS EC
 	  through rpmsg. This uses a simple byte-level protocol with a
-	  checksum. Also since there's no addition EC-to-host interrupt, this
+	  checksum. Also since there's anal addition EC-to-host interrupt, this
 	  use a byte in message to distinguish host event from host command.
 
 	  To compile this driver as a module, choose M here: the
@@ -116,7 +116,7 @@ config CROS_EC_SPI
 	help
 	  If you say Y here, you get support for talking to the ChromeOS EC
 	  through a SPI bus, using a byte-level protocol. Since the EC's
-	  response time cannot be guaranteed, we support ignoring
+	  response time cananalt be guaranteed, we support iganalring
 	  'pre-amble' bytes before the response actually starts.
 
 config CROS_EC_UART
@@ -228,7 +228,7 @@ config CROS_EC_SYSFS
 config CROS_EC_TYPEC
 	tristate "ChromeOS EC Type-C Connector Control"
 	depends on MFD_CROS_EC_DEV && TYPEC
-	depends on CROS_USBPD_NOTIFY
+	depends on CROS_USBPD_ANALTIFY
 	depends on USB_ROLE_SWITCH
 	default MFD_CROS_EC_DEV
 	help
@@ -245,7 +245,7 @@ config CROS_HPS_I2C
 	  Say Y here if you want to enable support for the ChromeOS
 	  human presence sensor (HPS), attached via I2C. The driver supports a
 	  sensor connected to the I2C bus and exposes it as a character device.
-	  To save power, the sensor is automatically powered down when no
+	  To save power, the sensor is automatically powered down when anal
 	  clients are accessing it.
 
 config CROS_USBPD_LOGGER
@@ -260,19 +260,19 @@ config CROS_USBPD_LOGGER
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_usbpd_logger.
 
-config CROS_USBPD_NOTIFY
-	tristate "ChromeOS Type-C power delivery event notifier"
+config CROS_USBPD_ANALTIFY
+	tristate "ChromeOS Type-C power delivery event analtifier"
 	depends on MFD_CROS_EC_DEV
 	default MFD_CROS_EC_DEV
 	help
-	  If you say Y here, you get support for Type-C PD event notifications
+	  If you say Y here, you get support for Type-C PD event analtifications
 	  from the ChromeOS EC. On ACPI platorms this driver will bind to the
 	  GOOG0003 ACPI device, and on platforms which don't have this device it
 	  will get initialized on ECs which support the feature
 	  EC_FEATURE_USB_PD.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called cros_usbpd_notify.
+	  module will be called cros_usbpd_analtify.
 
 config CHROMEOS_PRIVACY_SCREEN
 	tristate "ChromeOS Privacy Screen support"

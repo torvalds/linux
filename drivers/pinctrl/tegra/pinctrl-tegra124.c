@@ -205,11 +205,11 @@
 #define TEGRA_PIN_USB_VBUS_EN2_PFF1		_GPIO(249)
 #define TEGRA_PIN_PFF2				_GPIO(250)
 
-/* All non-GPIO pins follow */
+/* All analn-GPIO pins follow */
 #define NUM_GPIOS				(TEGRA_PIN_PFF2 + 1)
 #define _PIN(offset)				(NUM_GPIOS + (offset))
 
-/* Non-GPIO pins */
+/* Analn-GPIO pins */
 #define TEGRA_PIN_CORE_PWR_REQ			_PIN(0)
 #define TEGRA_PIN_CPU_PWR_REQ			_PIN(1)
 #define TEGRA_PIN_PWR_INT_N			_PIN(2)

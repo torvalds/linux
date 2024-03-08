@@ -103,7 +103,7 @@ static inline void log_flush_stripe_to_raid(struct r5conf *conf)
 
 static inline int log_handle_flush_request(struct r5conf *conf, struct bio *bio)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (conf->log)
 		ret = r5l_handle_flush_request(conf->log, bio);

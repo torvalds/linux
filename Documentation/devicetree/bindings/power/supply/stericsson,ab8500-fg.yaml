@@ -19,7 +19,7 @@ properties:
 
   monitored-battery:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: phandle to battery node
+    description: phandle to battery analde
 
   battery:
     $ref: /schemas/types.yaml#/definitions/phandle

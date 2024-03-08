@@ -481,7 +481,7 @@ static irqreturn_t ad7768_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 err_unlock:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	mutex_unlock(&st->lock);
 
 	return IRQ_HANDLED;
@@ -506,7 +506,7 @@ static int ad7768_buffer_postenable(struct iio_dev *indio_dev)
 
 	/*
 	 * Write a 1 to the LSB of the INTERFACE_FORMAT register to enter
-	 * continuous read mode. Subsequent data reads do not require an
+	 * continuous read mode. Subsequent data reads do analt require an
 	 * initial 8-bit write to query the ADC_DATA register.
 	 */
 	return ad7768_spi_reg_write(st, AD7768_REG_INTERFACE_FORMAT, 0x01);
@@ -544,20 +544,20 @@ static int ad7768_set_channel_label(struct iio_dev *indio_dev,
 {
 	struct ad7768_state *st = iio_priv(indio_dev);
 	struct device *device = indio_dev->dev.parent;
-	struct fwnode_handle *fwnode;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *fwanalde;
+	struct fwanalde_handle *child;
 	const char *label;
 	int crt_ch = 0;
 
-	fwnode = dev_fwnode(device);
-	fwnode_for_each_child_node(fwnode, child) {
-		if (fwnode_property_read_u32(child, "reg", &crt_ch))
+	fwanalde = dev_fwanalde(device);
+	fwanalde_for_each_child_analde(fwanalde, child) {
+		if (fwanalde_property_read_u32(child, "reg", &crt_ch))
 			continue;
 
 		if (crt_ch >= num_channels)
 			continue;
 
-		if (fwnode_property_read_string(child, "label", &label))
+		if (fwanalde_property_read_string(child, "label", &label))
 			continue;
 
 		st->labels[crt_ch] = label;
@@ -574,7 +574,7 @@ static int ad7768_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	st->spi = spi;
@@ -617,7 +617,7 @@ static int ad7768_probe(struct spi_device *spi)
 					  indio_dev->name,
 					  iio_device_id(indio_dev));
 	if (!st->trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->trig->ops = &ad7768_trigger_ops;
 	iio_trigger_set_drvdata(st->trig, indio_dev);

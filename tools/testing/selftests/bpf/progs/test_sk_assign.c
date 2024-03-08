@@ -71,7 +71,7 @@ get_tuple(struct __sk_buff *skb, bool *ipv4, bool *tcp)
 		if (iph + 1 > data_end)
 			return NULL;
 		if (iph->ihl != 5)
-			/* Options are not supported */
+			/* Options are analt supported */
 			return NULL;
 		ihl_len = iph->ihl * 4;
 		proto = iph->protocol;
@@ -180,7 +180,7 @@ int bpf_sk_assign_test(struct __sk_buff *skb)
 	if (!tuple)
 		return TC_ACT_SHOT;
 
-	/* Note that the verifier socket return type for bpf_skc_lookup_tcp()
+	/* Analte that the verifier socket return type for bpf_skc_lookup_tcp()
 	 * differs from bpf_sk_lookup_udp(), so even though the C-level type is
 	 * the same here, if we try to share the implementations they will
 	 * fail to verify because we're crossing pointer types.

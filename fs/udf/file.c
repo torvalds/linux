@@ -27,7 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h> /* memset */
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pagemap.h>
 #include <linux/uio.h>
 
@@ -37,26 +37,26 @@
 static vm_fault_t udf_page_mkwrite(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
-	struct inode *inode = file_inode(vma->vm_file);
-	struct address_space *mapping = inode->i_mapping;
+	struct ianalde *ianalde = file_ianalde(vma->vm_file);
+	struct address_space *mapping = ianalde->i_mapping;
 	struct page *page = vmf->page;
 	loff_t size;
 	unsigned int end;
 	vm_fault_t ret = VM_FAULT_LOCKED;
 	int err;
 
-	sb_start_pagefault(inode->i_sb);
+	sb_start_pagefault(ianalde->i_sb);
 	file_update_time(vma->vm_file);
 	filemap_invalidate_lock_shared(mapping);
 	lock_page(page);
-	size = i_size_read(inode);
-	if (page->mapping != inode->i_mapping || page_offset(page) >= size) {
+	size = i_size_read(ianalde);
+	if (page->mapping != ianalde->i_mapping || page_offset(page) >= size) {
 		unlock_page(page);
-		ret = VM_FAULT_NOPAGE;
+		ret = VM_FAULT_ANALPAGE;
 		goto out_unlock;
 	}
 	/* Space is already allocated for in-ICB file */
-	if (UDF_I(inode)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
+	if (UDF_I(ianalde)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
 		goto out_dirty;
 	if (page->index == size >> PAGE_SHIFT)
 		end = size & ~PAGE_MASK;
@@ -75,7 +75,7 @@ out_dirty:
 	wait_for_stable_page(page);
 out_unlock:
 	filemap_invalidate_unlock_shared(mapping);
-	sb_end_pagefault(inode->i_sb);
+	sb_end_pagefault(ianalde->i_sb);
 	return ret;
 }
 
@@ -89,21 +89,21 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	ssize_t retval;
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file_inode(file);
-	struct udf_inode_info *iinfo = UDF_I(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct udf_ianalde_info *iinfo = UDF_I(ianalde);
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 
 	retval = generic_write_checks(iocb, from);
 	if (retval <= 0)
 		goto out;
 
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB &&
-	    inode->i_sb->s_blocksize < (udf_file_entry_alloc_offset(inode) +
+	    ianalde->i_sb->s_blocksize < (udf_file_entry_alloc_offset(ianalde) +
 				 iocb->ki_pos + iov_iter_count(from))) {
-		filemap_invalidate_lock(inode->i_mapping);
-		retval = udf_expand_file_adinicb(inode);
-		filemap_invalidate_unlock(inode->i_mapping);
+		filemap_invalidate_lock(ianalde->i_mapping);
+		retval = udf_expand_file_adinicb(ianalde);
+		filemap_invalidate_unlock(ianalde->i_mapping);
 		if (retval)
 			goto out;
 	}
@@ -112,13 +112,13 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 out:
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB && retval > 0) {
 		down_write(&iinfo->i_data_sem);
-		iinfo->i_lenAlloc = inode->i_size;
+		iinfo->i_lenAlloc = ianalde->i_size;
 		up_write(&iinfo->i_data_sem);
 	}
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 
 	if (retval > 0) {
-		mark_inode_dirty(inode);
+		mark_ianalde_dirty(ianalde);
 		retval = generic_write_sync(iocb, retval);
 	}
 
@@ -127,12 +127,12 @@ out:
 
 long udf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(filp);
+	struct ianalde *ianalde = file_ianalde(filp);
 	long old_block, new_block;
 	int result;
 
 	if (file_permission(filp, MAY_READ) != 0) {
-		udf_debug("no permission to access inode %lu\n", inode->i_ino);
+		udf_debug("anal permission to access ianalde %lu\n", ianalde->i_ianal);
 		return -EPERM;
 	}
 
@@ -145,7 +145,7 @@ long udf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case UDF_GETVOLIDENT:
 		if (copy_to_user((char __user *)arg,
-				 UDF_SB(inode->i_sb)->s_volume_ident, 32))
+				 UDF_SB(ianalde->i_sb)->s_volume_ident, 32))
 			return -EFAULT;
 		return 0;
 	case UDF_RELOCATE_BLOCKS:
@@ -153,38 +153,38 @@ long udf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EPERM;
 		if (get_user(old_block, (long __user *)arg))
 			return -EFAULT;
-		result = udf_relocate_blocks(inode->i_sb,
+		result = udf_relocate_blocks(ianalde->i_sb,
 						old_block, &new_block);
 		if (result == 0)
 			result = put_user(new_block, (long __user *)arg);
 		return result;
 	case UDF_GETEASIZE:
-		return put_user(UDF_I(inode)->i_lenEAttr, (int __user *)arg);
+		return put_user(UDF_I(ianalde)->i_lenEAttr, (int __user *)arg);
 	case UDF_GETEABLOCK:
 		return copy_to_user((char __user *)arg,
-				    UDF_I(inode)->i_data,
-				    UDF_I(inode)->i_lenEAttr) ? -EFAULT : 0;
+				    UDF_I(ianalde)->i_data,
+				    UDF_I(ianalde)->i_lenEAttr) ? -EFAULT : 0;
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 
 	return 0;
 }
 
-static int udf_release_file(struct inode *inode, struct file *filp)
+static int udf_release_file(struct ianalde *ianalde, struct file *filp)
 {
 	if (filp->f_mode & FMODE_WRITE &&
-	    atomic_read(&inode->i_writecount) == 1) {
+	    atomic_read(&ianalde->i_writecount) == 1) {
 		/*
 		 * Grab i_mutex to avoid races with writes changing i_size
 		 * while we are running.
 		 */
-		inode_lock(inode);
-		down_write(&UDF_I(inode)->i_data_sem);
-		udf_discard_prealloc(inode);
-		udf_truncate_tail_extent(inode);
-		up_write(&UDF_I(inode)->i_data_sem);
-		inode_unlock(inode);
+		ianalde_lock(ianalde);
+		down_write(&UDF_I(ianalde)->i_data_sem);
+		udf_discard_prealloc(ianalde);
+		udf_truncate_tail_extent(ianalde);
+		up_write(&UDF_I(ianalde)->i_data_sem);
+		ianalde_unlock(ianalde);
 	}
 	return 0;
 }
@@ -213,11 +213,11 @@ const struct file_operations udf_file_operations = {
 static int udf_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		       struct iattr *attr)
 {
-	struct inode *inode = d_inode(dentry);
-	struct super_block *sb = inode->i_sb;
+	struct ianalde *ianalde = d_ianalde(dentry);
+	struct super_block *sb = ianalde->i_sb;
 	int error;
 
-	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
+	error = setattr_prepare(&analp_mnt_idmap, dentry, attr);
 	if (error)
 		return error;
 
@@ -231,20 +231,20 @@ static int udf_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		return -EPERM;
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode)) {
-		error = udf_setsize(inode, attr->ia_size);
+	    attr->ia_size != i_size_read(ianalde)) {
+		error = udf_setsize(ianalde, attr->ia_size);
 		if (error)
 			return error;
 	}
 
 	if (attr->ia_valid & ATTR_MODE)
-		udf_update_extra_perms(inode, attr->ia_mode);
+		udf_update_extra_perms(ianalde, attr->ia_mode);
 
-	setattr_copy(&nop_mnt_idmap, inode, attr);
-	mark_inode_dirty(inode);
+	setattr_copy(&analp_mnt_idmap, ianalde, attr);
+	mark_ianalde_dirty(ianalde);
 	return 0;
 }
 
-const struct inode_operations udf_file_inode_operations = {
+const struct ianalde_operations udf_file_ianalde_operations = {
 	.setattr		= udf_setattr,
 };

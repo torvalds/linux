@@ -27,7 +27,7 @@ MODULE_LICENSE("GPL v2");
 struct tw9903 {
 	struct v4l2_subdev sd;
 	struct v4l2_ctrl_handler hdl;
-	v4l2_std_id norm;
+	v4l2_std_id analrm;
 };
 
 static inline struct tw9903 *to_state(struct v4l2_subdev *sd)
@@ -60,8 +60,8 @@ static const u8 initial_registers[] = {
 	0x18, 0x00,
 	0x19, 0x58, /* vbi */
 	0x1a, 0x80,
-	0x1c, 0x0f, /* video norm */
-	0x1d, 0x7f, /* video norm */
+	0x1c, 0x0f, /* video analrm */
+	0x1d, 0x7f, /* video analrm */
 	0x20, 0xa0, /* clamping gain (working 0x50) */
 	0x21, 0x22,
 	0x22, 0xf0,
@@ -77,7 +77,7 @@ static const u8 initial_registers[] = {
 	0x2c, 0x37,
 	0x2d, 0x00,
 	0x2e, 0xa5, /* burst PLL control (working: a9) */
-	0x2f, 0xe0, /* 0xea is blue test frame -- 0xe0 for normal */
+	0x2f, 0xe0, /* 0xea is blue test frame -- 0xe0 for analrmal */
 	0x31, 0x00,
 	0x33, 0x22,
 	0x34, 0x11,
@@ -111,10 +111,10 @@ static int tw9903_s_video_routing(struct v4l2_subdev *sd, u32 input,
 	return 0;
 }
 
-static int tw9903_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
+static int tw9903_s_std(struct v4l2_subdev *sd, v4l2_std_id analrm)
 {
 	struct tw9903 *dec = to_state(sd);
-	bool is_60hz = norm & V4L2_STD_525_60;
+	bool is_60hz = analrm & V4L2_STD_525_60;
 	static const u8 config_60hz[] = {
 		0x05, 0x80,
 		0x07, 0x02,
@@ -131,7 +131,7 @@ static int tw9903_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	};
 
 	write_regs(sd, is_60hz ? config_60hz : config_50hz);
-	dec->norm = norm;
+	dec->analrm = analrm;
 	return 0;
 }
 
@@ -160,7 +160,7 @@ static int tw9903_s_ctrl(struct v4l2_ctrl *ctrl)
 static int tw9903_log_status(struct v4l2_subdev *sd)
 {
 	struct tw9903 *dec = to_state(sd);
-	bool is_60hz = dec->norm & V4L2_STD_525_60;
+	bool is_60hz = dec->analrm & V4L2_STD_525_60;
 
 	v4l2_info(sd, "Standard: %d Hz\n", is_60hz ? 60 : 50);
 	v4l2_ctrl_subdev_log_status(sd);
@@ -204,7 +204,7 @@ static int tw9903_probe(struct i2c_client *client)
 
 	dec = devm_kzalloc(&client->dev, sizeof(*dec), GFP_KERNEL);
 	if (dec == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &dec->sd;
 	v4l2_i2c_subdev_init(sd, client, &tw9903_ops);
 	hdl = &dec->hdl;
@@ -224,7 +224,7 @@ static int tw9903_probe(struct i2c_client *client)
 	}
 
 	/* Initialize tw9903 */
-	dec->norm = V4L2_STD_NTSC;
+	dec->analrm = V4L2_STD_NTSC;
 
 	if (write_regs(sd, initial_registers) < 0) {
 		v4l2_err(client, "error initializing TW9903\n");

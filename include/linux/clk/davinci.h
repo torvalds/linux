@@ -2,7 +2,7 @@
 /*
  * Clock drivers for TI DaVinci PLL and PSC controllers
  *
- * Copyright (C) 2018 David Lechner <david@lechnology.com>
+ * Copyright (C) 2018 David Lechner <david@lechanallogy.com>
  */
 
 #ifndef __LINUX_CLK_DAVINCI_PLL_H___

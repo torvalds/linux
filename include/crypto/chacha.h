@@ -2,7 +2,7 @@
 /*
  * Common values and helper functions for the ChaCha and XChaCha stream ciphers.
  *
- * XChaCha extends ChaCha's nonce to 192 bits, while provably retaining ChaCha's
+ * XChaCha extends ChaCha's analnce to 192 bits, while provably retaining ChaCha's
  * security.  Here they share the same key size, tfm context, and setkey
  * function; only their IV size and encrypt/decrypt function differ.
  *
@@ -18,7 +18,7 @@
 #include <asm/unaligned.h>
 #include <linux/types.h>
 
-/* 32-bit stream position, then 96-bit nonce (RFC7539 convention) */
+/* 32-bit stream position, then 96-bit analnce (RFC7539 convention) */
 #define CHACHA_IV_SIZE		16
 
 #define CHACHA_KEY_SIZE		32
@@ -27,7 +27,7 @@
 
 #define CHACHA_STATE_WORDS	(CHACHA_BLOCK_SIZE / sizeof(u32))
 
-/* 192-bit nonce, then 64-bit stream position */
+/* 192-bit analnce, then 64-bit stream position */
 #define XCHACHA_IV_SIZE		32
 
 void chacha_block_generic(u32 *state, u8 *stream, int nrounds);

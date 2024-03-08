@@ -2,16 +2,16 @@
 #ifndef _PVCLOCK_GTOD_H
 #define _PVCLOCK_GTOD_H
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 /*
- * The pvclock gtod notifier is called when the system time is updated
+ * The pvclock gtod analtifier is called when the system time is updated
  * and is used to keep guest time synchronized with host time.
  *
- * The 'action' parameter in the notifier function is false (0), or
- * true (non-zero) if system time was stepped.
+ * The 'action' parameter in the analtifier function is false (0), or
+ * true (analn-zero) if system time was stepped.
  */
-extern int pvclock_gtod_register_notifier(struct notifier_block *nb);
-extern int pvclock_gtod_unregister_notifier(struct notifier_block *nb);
+extern int pvclock_gtod_register_analtifier(struct analtifier_block *nb);
+extern int pvclock_gtod_unregister_analtifier(struct analtifier_block *nb);
 
 #endif /* _PVCLOCK_GTOD_H */

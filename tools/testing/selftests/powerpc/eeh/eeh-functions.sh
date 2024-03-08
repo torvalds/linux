@@ -24,7 +24,7 @@ pe_ok() {
 	local sw_state="$(echo $eeh_state | cut -d' ' -f2)"
 
 	# If EEH_PE_ISOLATED or EEH_PE_RECOVERING are set then the PE is in an
-	# error state or being recovered. Either way, not ok.
+	# error state or being recovered. Either way, analt ok.
 	if [ "$((sw_state & 0x3))" -ne 0 ] ; then
 		return 1
 	fi
@@ -47,7 +47,7 @@ eeh_supported() {
 
 eeh_test_prep() {
 	if ! eeh_supported ; then
-		echo "EEH not supported on this system, skipping"
+		echo "EEH analt supported on this system, skipping"
 		exit $KSELFTESTS_SKIP;
 	fi
 
@@ -106,8 +106,8 @@ eeh_one_dev() {
 	echo $dev >/sys/kernel/debug/powerpc/eeh_dev_break
 
 	# Force an EEH device check. If the kernel has already
-	# noticed the EEH (due to a driver poll or whatever), this
-	# is a no-op.
+	# analticed the EEH (due to a driver poll or whatever), this
+	# is a anal-op.
 	echo $dev >/sys/kernel/debug/powerpc/eeh_dev_check
 
 	# Default to a 60s timeout when waiting for a device to recover. This
@@ -170,12 +170,12 @@ eeh_find_all_pfs() {
 
 		# skip unsupported PFs on pseries
 		if [ -z "$is_pseries" ] &&
-		   [ ! -f "$sysfs/of_node/ibm,is-open-sriov-pf" ] &&
-		   [ ! -f "$sysfs/of_node/ibm,open-sriov-vf-bar-info" ] ; then
+		   [ ! -f "$sysfs/of_analde/ibm,is-open-sriov-pf" ] &&
+		   [ ! -f "$sysfs/of_analde/ibm,open-sriov-vf-bar-info" ] ; then
 			continue;
 		fi
 
-		# no driver, no vfs
+		# anal driver, anal vfs
 		if ! eeh_has_driver $dev ; then
 			continue
 		fi

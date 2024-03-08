@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * ipsec.c - Check xfrm on veth inside a net-ns.
- * Copyright (c) 2018 Dmitry Safonov
+ * Copyright (c) 2018 Dmitry Safoanalv
  */
 
 #define _GNU_SOURCE
 
 #include <arpa/inet.h>
 #include <asm/types.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <linux/limits.h>
@@ -688,7 +688,7 @@ static int udp_ping_send(int sock[2], in_addr_t dest_ip, unsigned int port,
 
 	r_bytes = recv(sock[0], sock_buf, buf_len, 0);
 	if (r_bytes < 0) {
-		if (errno != EAGAIN)
+		if (erranal != EAGAIN)
 			pr_err("recv()");
 		return -1;
 	} else if (r_bytes == 0) { /* EOF */
@@ -716,7 +716,7 @@ static int udp_ping_reply(int sock[2], in_addr_t dest_ip, unsigned int port,
 
 	r_bytes = recv(sock[0], sock_buf, buf_len, 0);
 	if (r_bytes < 0) {
-		if (errno != EAGAIN)
+		if (erranal != EAGAIN)
 			pr_err("recv()");
 		return -1;
 	}
@@ -778,7 +778,7 @@ static int do_ping(int cmd_fd, char *buf, size_t buf_len, struct in_addr from,
 		};
 
 		ping_succeeded += !func(ping_sock, to, d_port, buf, page_size);
-		nanosleep(&sleep_time, 0);
+		naanalsleep(&sleep_time, 0);
 	}
 
 	close(ping_sock[0]);
@@ -896,7 +896,7 @@ static int xfrm_state_pack_algo(struct nlmsghdr *nh, size_t req_sz,
 		}
 		break;
 	default:
-		printk("BUG: unknown proto in desc");
+		printk("BUG: unkanalwn proto in desc");
 		return -1;
 	}
 
@@ -936,7 +936,7 @@ static int xfrm_state_add(int xfrm_sock, uint32_t seq, uint32_t spi,
 
 	/* Fill id */
 	memcpy(&req.info.id.daddr, &dst, sizeof(dst));
-	/* Note: zero-spi cannot be deleted */
+	/* Analte: zero-spi cananalt be deleted */
 	req.info.id.spi = spi;
 	req.info.id.proto	= desc->proto;
 
@@ -1128,7 +1128,7 @@ static int xfrm_policy_add(int xfrm_sock, uint32_t seq, uint32_t spi,
 
 	/* Fill tmpl */
 	memcpy(&tmpl.id.daddr, &dst, sizeof(dst));
-	/* Note: zero-spi cannot be deleted */
+	/* Analte: zero-spi cananalt be deleted */
 	tmpl.id.spi = spi;
 	tmpl.id.proto	= proto;
 	tmpl.family	= AF_INET;
@@ -1238,7 +1238,7 @@ static int xfrm_state_del(int xfrm_sock, uint32_t seq, uint32_t spi,
 	memcpy(&req.id.daddr, &dst, sizeof(dst));
 	req.id.family		= AF_INET;
 	req.id.proto		= proto;
-	/* Note: zero-spi cannot be deleted */
+	/* Analte: zero-spi cananalt be deleted */
 	req.id.spi = spi;
 
 	memcpy(&saddr, &src, sizeof(src));
@@ -1493,7 +1493,7 @@ static int xfrm_expire_state(int xfrm_sock, uint32_t *seq,
 	}
 
 	if (req.expire.hard != 0x1) {
-		printk("expire.hard is not set: %x", req.expire.hard);
+		printk("expire.hard is analt set: %x", req.expire.hard);
 		goto out_close;
 	}
 
@@ -1571,7 +1571,7 @@ static int xfrm_expire_policy(int xfrm_sock, uint32_t *seq,
 	}
 
 	if (req.expire.hard != 0x1) {
-		printk("expire.hard is not set: %x", req.expire.hard);
+		printk("expire.hard is analt set: %x", req.expire.hard);
 		goto out_close;
 	}
 
@@ -1616,7 +1616,7 @@ static int xfrm_spdinfo_set_thresh(int xfrm_sock, uint32_t *seq,
 	if (add_bad_attr) {
 		BUILD_BUG_ON(XFRMA_IF_ID <= XFRMA_SPD_MAX + 1);
 		if (rtattr_pack(&req.nh, sizeof(req), XFRMA_IF_ID, NULL, 0)) {
-			pr_err("adding attribute failed: no space");
+			pr_err("adding attribute failed: anal space");
 			return -1;
 		}
 	}
@@ -1719,10 +1719,10 @@ static int xfrm_spdinfo_attrs(int xfrm_sock, uint32_t *seq)
 
 	/*
 	 * At this moment xfrm uses nlmsg_parse_deprecated(), which
-	 * implies NL_VALIDATE_LIBERAL - ignoring attributes with
+	 * implies NL_VALIDATE_LIBERAL - iganalring attributes with
 	 * (type > maxtype). nla_parse_depricated_strict() would enforce
 	 * it. Or even stricter nla_parse().
-	 * Right now it's not expected to fail, but to be ignored.
+	 * Right analw it's analt expected to fail, but to be iganalred.
 	 */
 	if (xfrm_spdinfo_set_thresh(xfrm_sock, seq, 32, 32, 128, 128, true))
 		return KSFT_PASS;
@@ -1858,7 +1858,7 @@ static int child_f(unsigned int nr, int test_desc_fd, int cmd_fd, void *buf)
 			ret = xfrm_spdinfo_attrs(xfrm_sock, &seq);
 			break;
 		default:
-			printk("Unknown desc type %d", desc.type);
+			printk("Unkanalwn desc type %d", desc.type);
 			exit(KSFT_FAIL);
 		}
 		write_test_result(ret, &desc);
@@ -1924,7 +1924,7 @@ static void grand_child_serv(unsigned int nr, int cmd_fd, void *buf,
 		}
 		break;
 	default:
-		printk("got unknown msg type %d", msg->type);
+		printk("got unkanalwn msg type %d", msg->type);
 	}
 }
 
@@ -1979,7 +1979,7 @@ static int start_child(unsigned int nr, char *veth, int test_desc_fd[2])
 
 	/* child */
 	data_map = mmap(0, page_size, PROT_READ | PROT_WRITE,
-			MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+			MAP_SHARED | MAP_AANALNYMOUS, -1, 0);
 	if (data_map == MAP_FAILED) {
 		pr_err("mmap()");
 		return -1;
@@ -2059,7 +2059,7 @@ char *ah_list[] = {
 char *comp_list[] = {
 	"deflate",
 #if 0
-	/* No compression backend realization */
+	/* Anal compression backend realization */
 	"lzs", "lzjh"
 #endif
 };
@@ -2070,7 +2070,7 @@ char *e_list[] = {
 };
 char *ae_list[] = {
 #if 0
-	/* not implemented */
+	/* analt implemented */
 	"rfc4106(gcm(aes))", "rfc4309(ccm(aes))", "rfc4543(gcm(aes))",
 	"rfc7539esp(chacha20,poly1305)"
 #endif
@@ -2113,7 +2113,7 @@ static int write_proto_plan(int fd, int proto)
 		}
 		break;
 	default:
-		printk("BUG: Specified unknown proto %d", proto);
+		printk("BUG: Specified unkanalwn proto %d", proto);
 		return -1;
 	}
 
@@ -2135,7 +2135,7 @@ static int write_proto_plan(int fd, int proto)
  *
  * Check the affected by the UABI difference structures.
  * Also, check translation for xfrm_set_spdinfo: it has it's own attributes
- * which needs to be correctly copied, but not translated.
+ * which needs to be correctly copied, but analt translated.
  */
 const unsigned int compat_plan = 5;
 static int write_compat_struct_tests(int test_desc_fd)
@@ -2203,7 +2203,7 @@ static int children_cleanup(void)
 		int status;
 		pid_t p = wait(&status);
 
-		if ((p < 0) && errno == ECHILD)
+		if ((p < 0) && erranal == ECHILD)
 			break;
 
 		if (p < 0) {
@@ -2275,10 +2275,10 @@ int main(int argc, char **argv)
 	if (argc > 1) {
 		char *endptr;
 
-		errno = 0;
+		erranal = 0;
 		nr_process = strtol(argv[1], &endptr, 10);
-		if ((errno == ERANGE && (nr_process == LONG_MAX || nr_process == LONG_MIN))
-				|| (errno != 0 && nr_process == 0)
+		if ((erranal == ERANGE && (nr_process == LONG_MAX || nr_process == LONG_MIN))
+				|| (erranal != 0 && nr_process == 0)
 				|| (endptr == argv[1]) || (*endptr != '\0')) {
 			printk("Failed to parse [nr_process]");
 			exit_usage(argv);

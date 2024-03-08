@@ -93,7 +93,7 @@ void DAC1064_global_restore(struct matrox_fb_info *minfo);
 #define      M1064_XGENCTRL_BLACK_0IRE		0x00
 #define      M1064_XGENCTRL_BLACK_75IRE		0x10
 #define      M1064_XGENCTRL_SYNC_ON_GREEN	0x00
-#define      M1064_XGENCTRL_NO_SYNC_ON_GREEN	0x20
+#define      M1064_XGENCTRL_ANAL_SYNC_ON_GREEN	0x20
 #define      M1064_XGENCTRL_SYNC_ON_GREEN_MASK	0x20
 #define M1064_XMISCCTRL		0x1E
 #define      M1064_XMISCCTRL_DAC_DIS		0x00

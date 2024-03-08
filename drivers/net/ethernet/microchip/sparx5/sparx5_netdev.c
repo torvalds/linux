@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2021 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2021 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include "sparx5_main_regs.h"
@@ -55,14 +55,14 @@ static void __ifh_encode_bitfield(void *ifh, u64 value, u32 pos, u32 width)
 		ifh_hdr[byte - 5] |= (u8)((encode & 0xFF0000000000) >> 40);
 }
 
-void sparx5_set_port_ifh(void *ifh_hdr, u16 portno)
+void sparx5_set_port_ifh(void *ifh_hdr, u16 portanal)
 {
 	/* VSTAX.RSV = 1. MSBit must be 1 */
 	ifh_encode_bitfield(ifh_hdr, 1, VSTAX + 79,  1);
 	/* VSTAX.INGR_DROP_MODE = Enable. Don't make head-of-line blocking */
 	ifh_encode_bitfield(ifh_hdr, 1, VSTAX + 55,  1);
 	/* MISC.CPU_MASK/DPORT = Destination port */
-	ifh_encode_bitfield(ifh_hdr, portno,   29, 8);
+	ifh_encode_bitfield(ifh_hdr, portanal,   29, 8);
 	/* MISC.PIPELINE_PT */
 	ifh_encode_bitfield(ifh_hdr, 16,       37, 5);
 	/* MISC.PIPELINE_ACT */
@@ -101,9 +101,9 @@ static int sparx5_port_open(struct net_device *ndev)
 	int err = 0;
 
 	sparx5_port_enable(port, true);
-	err = phylink_of_phy_connect(port->phylink, port->of_node, 0);
+	err = phylink_of_phy_connect(port->phylink, port->of_analde, 0);
 	if (err) {
-		netdev_err(ndev, "Could not attach to PHY\n");
+		netdev_err(ndev, "Could analt attach to PHY\n");
 		goto err_connect;
 	}
 
@@ -160,7 +160,7 @@ static void sparx5_set_rx_mode(struct net_device *dev)
 	struct sparx5_port *port = netdev_priv(dev);
 	struct sparx5 *sparx5 = port->sparx5;
 
-	if (!test_bit(port->portno, sparx5->bridge_mask))
+	if (!test_bit(port->portanal, sparx5->bridge_mask))
 		__dev_mc_sync(dev, sparx5_mc_sync, sparx5_mc_unsync);
 }
 
@@ -170,7 +170,7 @@ static int sparx5_port_get_phys_port_name(struct net_device *dev,
 	struct sparx5_port *port = netdev_priv(dev);
 	int ret;
 
-	ret = snprintf(buf, len, "p%d", port->portno);
+	ret = snprintf(buf, len, "p%d", port->portanal);
 	if (ret >= len)
 		return -EINVAL;
 
@@ -184,7 +184,7 @@ static int sparx5_set_mac_address(struct net_device *dev, void *p)
 	const struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	/* Remove current */
 	sparx5_mact_forget(sparx5, dev->dev_addr,  port->pvid);
@@ -217,7 +217,7 @@ static int sparx5_port_hwtstamp_get(struct net_device *dev,
 	struct sparx5 *sparx5 = sparx5_port->sparx5;
 
 	if (!sparx5->ptp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	sparx5_ptp_hwtstamp_get(sparx5_port, cfg);
 
@@ -232,7 +232,7 @@ static int sparx5_port_hwtstamp_set(struct net_device *dev,
 	struct sparx5 *sparx5 = sparx5_port->sparx5;
 
 	if (!sparx5->ptp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return sparx5_ptp_hwtstamp_set(sparx5_port, cfg, extack);
 }
@@ -258,7 +258,7 @@ bool sparx5_netdevice_check(const struct net_device *dev)
 	return dev && (dev->netdev_ops == &sparx5_port_netdev_ops);
 }
 
-struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno)
+struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portanal)
 {
 	struct sparx5_port *spx5_port;
 	struct net_device *ndev;
@@ -266,7 +266,7 @@ struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno)
 	ndev = devm_alloc_etherdev_mqs(sparx5->dev, sizeof(struct sparx5_port),
 				       SPX5_PRIOS, 1);
 	if (!ndev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ndev->hw_features |= NETIF_F_HW_TC;
 	ndev->features |= NETIF_F_HW_TC;
@@ -275,31 +275,31 @@ struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno)
 	spx5_port = netdev_priv(ndev);
 	spx5_port->ndev = ndev;
 	spx5_port->sparx5 = sparx5;
-	spx5_port->portno = portno;
+	spx5_port->portanal = portanal;
 
 	ndev->netdev_ops = &sparx5_port_netdev_ops;
 	ndev->ethtool_ops = &sparx5_ethtool_ops;
 
-	eth_hw_addr_gen(ndev, sparx5->base_mac, portno + 1);
+	eth_hw_addr_gen(ndev, sparx5->base_mac, portanal + 1);
 
 	return ndev;
 }
 
 int sparx5_register_netdevs(struct sparx5 *sparx5)
 {
-	int portno;
+	int portanal;
 	int err;
 
-	for (portno = 0; portno < SPX5_PORTS; portno++)
-		if (sparx5->ports[portno]) {
-			err = register_netdev(sparx5->ports[portno]->ndev);
+	for (portanal = 0; portanal < SPX5_PORTS; portanal++)
+		if (sparx5->ports[portanal]) {
+			err = register_netdev(sparx5->ports[portanal]->ndev);
 			if (err) {
 				dev_err(sparx5->dev,
 					"port: %02u: netdev registration failed\n",
-					portno);
+					portanal);
 				return err;
 			}
-			sparx5_port_inj_timer_setup(sparx5->ports[portno]);
+			sparx5_port_inj_timer_setup(sparx5->ports[portanal]);
 		}
 	return 0;
 }
@@ -307,10 +307,10 @@ int sparx5_register_netdevs(struct sparx5 *sparx5)
 void sparx5_destroy_netdevs(struct sparx5 *sparx5)
 {
 	struct sparx5_port *port;
-	int portno;
+	int portanal;
 
-	for (portno = 0; portno < SPX5_PORTS; portno++) {
-		port = sparx5->ports[portno];
+	for (portanal = 0; portanal < SPX5_PORTS; portanal++) {
+		port = sparx5->ports[portanal];
 		if (port && port->phylink) {
 			/* Disconnect the phy */
 			rtnl_lock();
@@ -325,10 +325,10 @@ void sparx5_destroy_netdevs(struct sparx5 *sparx5)
 
 void sparx5_unregister_netdevs(struct sparx5 *sparx5)
 {
-	int portno;
+	int portanal;
 
-	for (portno = 0; portno < SPX5_PORTS; portno++)
-		if (sparx5->ports[portno])
-			unregister_netdev(sparx5->ports[portno]->ndev);
+	for (portanal = 0; portanal < SPX5_PORTS; portanal++)
+		if (sparx5->ports[portanal])
+			unregister_netdev(sparx5->ports[portanal]->ndev);
 }
 

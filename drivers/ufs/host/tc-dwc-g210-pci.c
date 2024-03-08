@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Synopsys G210 Test Chip driver
+ * Syanalpsys G210 Test Chip driver
  *
- * Copyright (C) 2015-2016 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2015-2016 Syanalpsys, Inc. (www.syanalpsys.com)
  *
- * Authors: Joao Pinto <jpinto@synopsys.com>
+ * Authors: Joao Pinto <jpinto@syanalpsys.com>
  */
 
 #include <ufs/ufshcd.h>
@@ -29,7 +29,7 @@ MODULE_PARM_DESC(tc_type, "Test Chip Type (20 = 20-bit, 40 = 40-bit)");
  */
 static struct ufs_hba_variant_ops tc_dwc_g210_pci_hba_vops = {
 	.name                   = "tc-dwc-g210-pci",
-	.link_startup_notify	= ufshcd_dwc_link_startup_notify,
+	.link_startup_analtify	= ufshcd_dwc_link_startup_analtify,
 };
 
 /**
@@ -42,7 +42,7 @@ static void tc_dwc_g210_pci_remove(struct pci_dev *pdev)
 	struct ufs_hba *hba = pci_get_drvdata(pdev);
 
 	pm_runtime_forbid(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	ufshcd_remove(hba);
 }
 
@@ -51,7 +51,7 @@ static void tc_dwc_g210_pci_remove(struct pci_dev *pdev)
  * @pdev: pointer to PCI device handle
  * @id: PCI device id
  *
- * Return: 0 on success, non-zero value on failure.
+ * Return: 0 on success, analn-zero value on failure.
  */
 static int
 tc_dwc_g210_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -68,7 +68,7 @@ tc_dwc_g210_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		tc_dwc_g210_pci_hba_vops.phy_initialization =
 						tc_dwc_g210_config_40_bit;
 	} else {
-		dev_err(&pdev->dev, "test chip version not specified\n");
+		dev_err(&pdev->dev, "test chip version analt specified\n");
 		return -EPERM;
 	}
 
@@ -102,7 +102,7 @@ tc_dwc_g210_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return err;
 	}
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 
 	return 0;
@@ -116,8 +116,8 @@ static const struct dev_pm_ops tc_dwc_g210_pci_pm_ops = {
 };
 
 static const struct pci_device_id tc_dwc_g210_pci_tbl[] = {
-	{ PCI_VENDOR_ID_SYNOPSYS, 0xB101, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_SYNOPSYS, 0xB102, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_SYANALPSYS, 0xB101, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_SYANALPSYS, 0xB102, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ }	/* terminate list */
 };
 
@@ -135,6 +135,6 @@ static struct pci_driver tc_dwc_g210_pci_driver = {
 
 module_pci_driver(tc_dwc_g210_pci_driver);
 
-MODULE_AUTHOR("Joao Pinto <Joao.Pinto@synopsys.com>");
-MODULE_DESCRIPTION("Synopsys Test Chip G210 PCI glue driver");
+MODULE_AUTHOR("Joao Pinto <Joao.Pinto@syanalpsys.com>");
+MODULE_DESCRIPTION("Syanalpsys Test Chip G210 PCI glue driver");
 MODULE_LICENSE("Dual BSD/GPL");

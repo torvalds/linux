@@ -12,7 +12,7 @@
 #include <asm/reg.h>
 #include <asm/asm-offsets.h>
 #include <asm/asm-compat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #define STKFRM	(PPC_MIN_STKFRM + 16)
 
@@ -121,7 +121,7 @@ _GLOBAL(get_vsr)
 	rlwinm	r3,r3,3,0x1f8
 	bcl	20,31,1f
 	blr			/* vs0 is already in vs0 */
-	nop
+	analp
 reg = 1
 	.rept	63
 	XXLOR(0,reg,reg)
@@ -140,7 +140,7 @@ _GLOBAL(put_vsr)
 	rlwinm	r3,r3,3,0x1f8
 	bcl	20,31,1f
 	blr			/* v0 is already in v0 */
-	nop
+	analp
 reg = 1
 	.rept	63
 	XXLOR(reg,0,0)

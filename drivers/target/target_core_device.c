@@ -3,7 +3,7 @@
  * Filename:  target_core_device.c (based on iscsi_target_device.c)
  *
  * This file contains the TCM Virtual Device and Disk Transport
- * agnostic related functions.
+ * aganalstic related functions.
  *
  * (c) Copyright 2003-2013 Datera, Inc.
  *
@@ -41,7 +41,7 @@ static LIST_HEAD(device_list);
 static DEFINE_IDR(devices_idr);
 
 static struct se_hba *lun0_hba;
-/* not static, needed by tpg.c */
+/* analt static, needed by tpg.c */
 struct se_device *g_lun0_dev;
 
 sense_reason_t
@@ -49,9 +49,9 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd)
 {
 	struct se_lun *se_lun = NULL;
 	struct se_session *se_sess = se_cmd->se_sess;
-	struct se_node_acl *nacl = se_sess->se_node_acl;
+	struct se_analde_acl *nacl = se_sess->se_analde_acl;
 	struct se_dev_entry *deve;
-	sense_reason_t ret = TCM_NO_SENSE;
+	sense_reason_t ret = TCM_ANAL_SENSE;
 
 	rcu_read_lock();
 	deve = target_nacl_find_deve(nacl, se_cmd->orig_fe_lun);
@@ -93,28 +93,28 @@ out_unlock:
 	if (!se_lun) {
 		/*
 		 * Use the se_portal_group->tpg_virt_lun0 to allow for
-		 * REPORT_LUNS, et al to be returned when no active
+		 * REPORT_LUNS, et al to be returned when anal active
 		 * MappedLUN=0 exists for this Initiator Port.
 		 */
 		if (se_cmd->orig_fe_lun != 0) {
-			pr_err("TARGET_CORE[%s]: Detected NON_EXISTENT_LUN"
+			pr_err("TARGET_CORE[%s]: Detected ANALN_EXISTENT_LUN"
 				" Access for 0x%08llx from %s\n",
 				se_cmd->se_tfo->fabric_name,
 				se_cmd->orig_fe_lun,
 				nacl->initiatorname);
-			return TCM_NON_EXISTENT_LUN;
+			return TCM_ANALN_EXISTENT_LUN;
 		}
 
 		/*
 		 * Force WRITE PROTECT for virtual LUN 0
 		 */
 		if ((se_cmd->data_direction != DMA_FROM_DEVICE) &&
-		    (se_cmd->data_direction != DMA_NONE))
+		    (se_cmd->data_direction != DMA_ANALNE))
 			return TCM_WRITE_PROTECTED;
 
 		se_lun = se_sess->se_tpg->tpg_virt_lun0;
 		if (!percpu_ref_tryget_live(&se_lun->lun_ref))
-			return TCM_NON_EXISTENT_LUN;
+			return TCM_ANALN_EXISTENT_LUN;
 
 		se_cmd->se_lun = se_sess->se_tpg->tpg_virt_lun0;
 		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
@@ -145,7 +145,7 @@ int transport_lookup_tmr_lun(struct se_cmd *se_cmd)
 	struct se_dev_entry *deve;
 	struct se_lun *se_lun = NULL;
 	struct se_session *se_sess = se_cmd->se_sess;
-	struct se_node_acl *nacl = se_sess->se_node_acl;
+	struct se_analde_acl *nacl = se_sess->se_analde_acl;
 	struct se_tmr_req *se_tmr = se_cmd->se_tmr_req;
 
 	rcu_read_lock();
@@ -167,12 +167,12 @@ out_unlock:
 	rcu_read_unlock();
 
 	if (!se_lun) {
-		pr_debug("TARGET_CORE[%s]: Detected NON_EXISTENT_LUN"
+		pr_debug("TARGET_CORE[%s]: Detected ANALN_EXISTENT_LUN"
 			" Access for 0x%08llx for %s\n",
 			se_cmd->se_tfo->fabric_name,
 			se_cmd->orig_fe_lun,
 			nacl->initiatorname);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	se_cmd->se_dev = rcu_dereference_raw(se_lun->lun_se_dev);
 	se_tmr->tmr_dev = rcu_dereference_raw(se_lun->lun_se_dev);
@@ -188,7 +188,7 @@ bool target_lun_is_rdonly(struct se_cmd *cmd)
 	bool ret;
 
 	rcu_read_lock();
-	deve = target_nacl_find_deve(se_sess->se_node_acl, cmd->orig_fe_lun);
+	deve = target_nacl_find_deve(se_sess->se_analde_acl, cmd->orig_fe_lun);
 	ret = deve && deve->lun_access_ro;
 	rcu_read_unlock();
 
@@ -202,7 +202,7 @@ EXPORT_SYMBOL(target_lun_is_rdonly);
  * when a matching rtpi is found.
  */
 struct se_dev_entry *core_get_se_deve_from_rtpi(
-	struct se_node_acl *nacl,
+	struct se_analde_acl *nacl,
 	u16 rtpi)
 {
 	struct se_dev_entry *deve;
@@ -231,22 +231,22 @@ struct se_dev_entry *core_get_se_deve_from_rtpi(
 	return NULL;
 }
 
-void core_free_device_list_for_node(
-	struct se_node_acl *nacl,
+void core_free_device_list_for_analde(
+	struct se_analde_acl *nacl,
 	struct se_portal_group *tpg)
 {
 	struct se_dev_entry *deve;
 
 	mutex_lock(&nacl->lun_entry_mutex);
 	hlist_for_each_entry_rcu(deve, &nacl->lun_entry_hlist, link)
-		core_disable_device_list_for_node(deve->se_lun, deve, nacl, tpg);
+		core_disable_device_list_for_analde(deve->se_lun, deve, nacl, tpg);
 	mutex_unlock(&nacl->lun_entry_mutex);
 }
 
 void core_update_device_list_access(
 	u64 mapped_lun,
 	bool lun_access_ro,
-	struct se_node_acl *nacl)
+	struct se_analde_acl *nacl)
 {
 	struct se_dev_entry *deve;
 
@@ -260,7 +260,7 @@ void core_update_device_list_access(
 /*
  * Called with rcu_read_lock or nacl->device_list_lock held.
  */
-struct se_dev_entry *target_nacl_find_deve(struct se_node_acl *nacl, u64 mapped_lun)
+struct se_dev_entry *target_nacl_find_deve(struct se_analde_acl *nacl, u64 mapped_lun)
 {
 	struct se_dev_entry *deve;
 
@@ -299,7 +299,7 @@ void target_dev_ua_allocate(struct se_device *dev, u8 asc, u8 ascq)
 }
 
 static void
-target_luns_data_has_changed(struct se_node_acl *nacl, struct se_dev_entry *new,
+target_luns_data_has_changed(struct se_analde_acl *nacl, struct se_dev_entry *new,
 			     bool skip_new)
 {
 	struct se_dev_entry *tmp;
@@ -314,12 +314,12 @@ target_luns_data_has_changed(struct se_node_acl *nacl, struct se_dev_entry *new,
 	rcu_read_unlock();
 }
 
-int core_enable_device_list_for_node(
+int core_enable_device_list_for_analde(
 	struct se_lun *lun,
 	struct se_lun_acl *lun_acl,
 	u64 mapped_lun,
 	bool lun_access_ro,
-	struct se_node_acl *nacl,
+	struct se_analde_acl *nacl,
 	struct se_portal_group *tpg)
 {
 	struct se_dev_entry *orig, *new;
@@ -327,7 +327,7 @@ int core_enable_device_list_for_node(
 	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (!new) {
 		pr_err("Unable to allocate se_dev_entry memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock_init(&new->ua_lock);
@@ -349,7 +349,7 @@ int core_enable_device_list_for_node(
 
 		if (orig_lun != lun) {
 			pr_err("Existing orig->se_lun doesn't match new lun"
-			       " for dynamic -> explicit NodeACL conversion:"
+			       " for dynamic -> explicit AnaldeACL conversion:"
 				" %s\n", nacl->initiatorname);
 			mutex_unlock(&nacl->lun_entry_mutex);
 			kfree(new);
@@ -397,10 +397,10 @@ int core_enable_device_list_for_node(
 	return 0;
 }
 
-void core_disable_device_list_for_node(
+void core_disable_device_list_for_analde(
 	struct se_lun *lun,
 	struct se_dev_entry *orig,
-	struct se_node_acl *nacl,
+	struct se_analde_acl *nacl,
 	struct se_portal_group *tpg)
 {
 	/*
@@ -413,15 +413,15 @@ void core_disable_device_list_for_node(
 
 	/*
 	 * If the MappedLUN entry is being disabled, the entry in
-	 * lun->lun_deve_list must be removed now before clearing the
+	 * lun->lun_deve_list must be removed analw before clearing the
 	 * struct se_dev_entry pointers below as logic in
 	 * core_alua_do_transition_tg_pt() depends on these being present.
 	 *
 	 * deve->se_lun_acl will be NULL for demo-mode created LUNs
-	 * that have not been explicitly converted to MappedLUNs ->
+	 * that have analt been explicitly converted to MappedLUNs ->
 	 * struct se_lun_acl, but we remove deve->lun_link from
 	 * lun->lun_deve_list. This also means that active UAs and
-	 * NodeACL context specific PR metadata for demo-mode
+	 * AnaldeACL context specific PR metadata for demo-mode
 	 * MappedLUN *deve will be released below..
 	 */
 	spin_lock(&lun->lun_deve_lock);
@@ -456,22 +456,22 @@ void core_disable_device_list_for_node(
  */
 void core_clear_lun_from_tpg(struct se_lun *lun, struct se_portal_group *tpg)
 {
-	struct se_node_acl *nacl;
+	struct se_analde_acl *nacl;
 	struct se_dev_entry *deve;
 
-	mutex_lock(&tpg->acl_node_mutex);
-	list_for_each_entry(nacl, &tpg->acl_node_list, acl_list) {
+	mutex_lock(&tpg->acl_analde_mutex);
+	list_for_each_entry(nacl, &tpg->acl_analde_list, acl_list) {
 
 		mutex_lock(&nacl->lun_entry_mutex);
 		hlist_for_each_entry_rcu(deve, &nacl->lun_entry_hlist, link) {
 			if (lun != deve->se_lun)
 				continue;
 
-			core_disable_device_list_for_node(lun, deve, nacl, tpg);
+			core_disable_device_list_for_analde(lun, deve, nacl, tpg);
 		}
 		mutex_unlock(&nacl->lun_entry_mutex);
 	}
-	mutex_unlock(&tpg->acl_node_mutex);
+	mutex_unlock(&tpg->acl_analde_mutex);
 }
 
 static void se_release_vpd_for_dev(struct se_device *dev)
@@ -522,20 +522,20 @@ int core_dev_add_lun(
 		tpg->se_tpg_tfo->fabric_name, dev->se_hba->hba_id);
 	/*
 	 * Update LUN maps for dynamically added initiators when
-	 * generate_node_acl is enabled.
+	 * generate_analde_acl is enabled.
 	 */
 	if (tpg->se_tpg_tfo->tpg_check_demo_mode(tpg)) {
-		struct se_node_acl *acl;
+		struct se_analde_acl *acl;
 
-		mutex_lock(&tpg->acl_node_mutex);
-		list_for_each_entry(acl, &tpg->acl_node_list, acl_list) {
-			if (acl->dynamic_node_acl &&
+		mutex_lock(&tpg->acl_analde_mutex);
+		list_for_each_entry(acl, &tpg->acl_analde_list, acl_list) {
+			if (acl->dynamic_analde_acl &&
 			    (!tpg->se_tpg_tfo->tpg_check_demo_mode_login_only ||
 			     !tpg->se_tpg_tfo->tpg_check_demo_mode_login_only(tpg))) {
-				core_tpg_add_node_to_devs(acl, tpg, lun);
+				core_tpg_add_analde_to_devs(acl, tpg, lun);
 			}
 		}
-		mutex_unlock(&tpg->acl_node_mutex);
+		mutex_unlock(&tpg->acl_analde_mutex);
 	}
 
 	return 0;
@@ -557,9 +557,9 @@ void core_dev_del_lun(
 	core_tpg_remove_lun(tpg, lun);
 }
 
-struct se_lun_acl *core_dev_init_initiator_node_lun_acl(
+struct se_lun_acl *core_dev_init_initiator_analde_lun_acl(
 	struct se_portal_group *tpg,
-	struct se_node_acl *nacl,
+	struct se_analde_acl *nacl,
 	u64 mapped_lun,
 	int *ret)
 {
@@ -574,7 +574,7 @@ struct se_lun_acl *core_dev_init_initiator_node_lun_acl(
 	lacl = kzalloc(sizeof(struct se_lun_acl), GFP_KERNEL);
 	if (!lacl) {
 		pr_err("Unable to allocate memory for struct se_lun_acl.\n");
-		*ret = -ENOMEM;
+		*ret = -EANALMEM;
 		return NULL;
 	}
 
@@ -584,13 +584,13 @@ struct se_lun_acl *core_dev_init_initiator_node_lun_acl(
 	return lacl;
 }
 
-int core_dev_add_initiator_node_lun_acl(
+int core_dev_add_initiator_analde_lun_acl(
 	struct se_portal_group *tpg,
 	struct se_lun_acl *lacl,
 	struct se_lun *lun,
 	bool lun_access_ro)
 {
-	struct se_node_acl *nacl = lacl->se_lun_nacl;
+	struct se_analde_acl *nacl = lacl->se_lun_nacl;
 	/*
 	 * rcu_dereference_raw protected by se_lun->lun_group symlink
 	 * reference to se_device->dev_group.
@@ -605,12 +605,12 @@ int core_dev_add_initiator_node_lun_acl(
 
 	lacl->se_lun = lun;
 
-	if (core_enable_device_list_for_node(lun, lacl, lacl->mapped_lun,
+	if (core_enable_device_list_for_analde(lun, lacl, lacl->mapped_lun,
 			lun_access_ro, nacl, tpg) < 0)
 		return -EINVAL;
 
 	pr_debug("%s_TPG[%hu]_LUN[%llu->%llu] - Added %s ACL for "
-		" InitiatorNode: %s\n", tpg->se_tpg_tfo->fabric_name,
+		" InitiatorAnalde: %s\n", tpg->se_tpg_tfo->fabric_name,
 		tpg->se_tpg_tfo->tpg_get_tag(tpg), lun->unpacked_lun, lacl->mapped_lun,
 		lun_access_ro ? "RO" : "RW",
 		nacl->initiatorname);
@@ -623,12 +623,12 @@ int core_dev_add_initiator_node_lun_acl(
 	return 0;
 }
 
-int core_dev_del_initiator_node_lun_acl(
+int core_dev_del_initiator_analde_lun_acl(
 	struct se_lun *lun,
 	struct se_lun_acl *lacl)
 {
 	struct se_portal_group *tpg = lun->lun_tpg;
-	struct se_node_acl *nacl;
+	struct se_analde_acl *nacl;
 	struct se_dev_entry *deve;
 
 	nacl = lacl->se_lun_nacl;
@@ -638,11 +638,11 @@ int core_dev_del_initiator_node_lun_acl(
 	mutex_lock(&nacl->lun_entry_mutex);
 	deve = target_nacl_find_deve(nacl, lacl->mapped_lun);
 	if (deve)
-		core_disable_device_list_for_node(lun, deve, nacl, tpg);
+		core_disable_device_list_for_analde(lun, deve, nacl, tpg);
 	mutex_unlock(&nacl->lun_entry_mutex);
 
 	pr_debug("%s_TPG[%hu]_LUN[%llu] - Removed ACL for"
-		" InitiatorNode: %s Mapped LUN: %llu\n",
+		" InitiatorAnalde: %s Mapped LUN: %llu\n",
 		tpg->se_tpg_tfo->fabric_name,
 		tpg->se_tpg_tfo->tpg_get_tag(tpg), lun->unpacked_lun,
 		nacl->initiatorname, lacl->mapped_lun);
@@ -650,11 +650,11 @@ int core_dev_del_initiator_node_lun_acl(
 	return 0;
 }
 
-void core_dev_free_initiator_node_lun_acl(
+void core_dev_free_initiator_analde_lun_acl(
 	struct se_portal_group *tpg,
 	struct se_lun_acl *lacl)
 {
-	pr_debug("%s_TPG[%hu] - Freeing ACL for %s InitiatorNode: %s"
+	pr_debug("%s_TPG[%hu] - Freeing ACL for %s InitiatorAnalde: %s"
 		" Mapped LUN: %llu\n", tpg->se_tpg_tfo->fabric_name,
 		tpg->se_tpg_tfo->tpg_get_tag(tpg),
 		tpg->se_tpg_tfo->fabric_name,
@@ -763,7 +763,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.pi_prot_type = TARGET_DIF_TYPE0_PROT;
 	dev->dev_attrib.enforce_pr_isids = DA_ENFORCE_PR_ISIDS;
 	dev->dev_attrib.force_pr_aptpl = DA_FORCE_PR_APTPL;
-	dev->dev_attrib.is_nonrot = DA_IS_NONROT;
+	dev->dev_attrib.is_analnrot = DA_IS_ANALNROT;
 	dev->dev_attrib.emulate_rest_reord = DA_EMULATE_REST_REORD;
 	dev->dev_attrib.max_unmap_lba_count = DA_MAX_UNMAP_LBA_COUNT;
 	dev->dev_attrib.max_unmap_block_desc_count =
@@ -795,7 +795,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 }
 
 /*
- * Check if the underlying struct block_device supports discard and if yes
+ * Check if the underlying struct block_device supports discard and if anal
  * configure the UNMAP parameters.
  */
 bool target_configure_unmap_from_queue(struct se_dev_attrib *attrib,
@@ -853,7 +853,7 @@ static int target_devices_idr_iter(int id, void *p, void *data)
 
 	/*
 	 * We add the device early to the idr, so it can be used
-	 * by backend modules during configuration. We do not want
+	 * by backend modules during configuration. We do analt want
 	 * to allow other callers to access partially setup devices,
 	 * so we skip them here.
 	 */
@@ -877,7 +877,7 @@ static int target_devices_idr_iter(int id, void *p, void *data)
  * @fn: iterator function
  * @data: pointer to data that will be passed to fn
  *
- * fn must return 0 to continue looping over devices. non-zero will break
+ * fn must return 0 to continue looping over devices. analn-zero will break
  * from the loop and return that value to the caller.
  */
 int target_for_each_device(int (*fn)(struct se_device *dev, void *data),
@@ -915,7 +915,7 @@ int target_configure_device(struct se_device *dev)
 	id = idr_alloc_cyclic(&devices_idr, dev, 0, INT_MAX, GFP_KERNEL);
 	mutex_unlock(&device_mutex);
 	if (id < 0) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	dev->dev_index = id;
@@ -930,7 +930,7 @@ int target_configure_device(struct se_device *dev)
 	}
 
 	/*
-	 * XXX: there is not much point to have two different values here..
+	 * XXX: there is analt much point to have two different values here..
 	 */
 	dev->dev_attrib.block_size = dev->dev_attrib.hw_block_size;
 	dev->dev_attrib.queue_depth = dev->dev_attrib.hw_queue_depth;
@@ -1018,7 +1018,7 @@ int core_dev_setup_virtual_lun0(void)
 
 	dev = target_alloc_device(hba, "virt_lun0");
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_hba;
 	}
 
@@ -1069,12 +1069,12 @@ passthrough_parse_cdb(struct se_cmd *cmd,
 	 */
 	if (cdb[0] == REPORT_LUNS) {
 		cmd->execute_cmd = spc_emulate_report_luns;
-		return TCM_NO_SENSE;
+		return TCM_ANAL_SENSE;
 	}
 
 	/*
 	 * With emulate_pr disabled, all reservation requests should fail,
-	 * regardless of whether or not TRANSPORT_FLAG_PASSTHROUGH_PGR is set.
+	 * regardless of whether or analt TRANSPORT_FLAG_PASSTHROUGH_PGR is set.
 	 */
 	if (!dev->dev_attrib.emulate_pr &&
 	    ((cdb[0] == PERSISTENT_RESERVE_IN) ||
@@ -1086,7 +1086,7 @@ passthrough_parse_cdb(struct se_cmd *cmd,
 
 	/*
 	 * For PERSISTENT RESERVE IN/OUT, RELEASE, and RESERVE we need to
-	 * emulate the response, since tcmu does not have the information
+	 * emulate the response, since tcmu does analt have the information
 	 * required to process these commands.
 	 */
 	if (!(dev->transport_flags &
@@ -1150,6 +1150,6 @@ passthrough_parse_cdb(struct se_cmd *cmd,
 
 	cmd->execute_cmd = exec_cmd;
 
-	return TCM_NO_SENSE;
+	return TCM_ANAL_SENSE;
 }
 EXPORT_SYMBOL(passthrough_parse_cdb);

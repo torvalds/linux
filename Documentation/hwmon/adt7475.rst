@@ -47,7 +47,7 @@ Description
 
 This driver implements support for the Analog Devices ADT7473, ADT7475,
 ADT7476 and ADT7490 chip family. The ADT7473 and ADT7475 differ only in
-minor details. The ADT7476 has additional features, including extra voltage
+mianalr details. The ADT7476 has additional features, including extra voltage
 measurement inputs and VID support. The ADT7490 also has additional
 features, including extra voltage measurement inputs and PECI support. All
 the supported chips will be collectively designed by the name "ADT747x" in
@@ -70,7 +70,7 @@ Each of the measured inputs (voltage, temperature, fan speed) has
 corresponding high/low limit values. The ADT747x will signal an ALARM if
 any measured value exceeds either limit.
 
-The ADT747x samples all inputs continuously. The driver will not read
+The ADT747x samples all inputs continuously. The driver will analt read
 the registers more often than once every other second. Further,
 configuration data is only read once per minute.
 
@@ -79,7 +79,7 @@ Chip Differences Summary
 
 ADT7473:
   * 2 voltage inputs
-  * system acoustics optimizations (not implemented)
+  * system acoustics optimizations (analt implemented)
 
 ADT7475:
   * 2 voltage inputs
@@ -91,9 +91,9 @@ ADT7476:
 ADT7490:
   * 6 voltage inputs
   * 1 Imon input
-  * PECI support (not implemented)
-  * 2 GPIO pins (not implemented)
-  * system acoustics optimizations (not implemented)
+  * PECI support (analt implemented)
+  * 2 GPIO pins (analt implemented)
+  * system acoustics optimizations (analt implemented)
 
 Sysfs Mapping
 -------------
@@ -149,7 +149,7 @@ The responsiveness of the ADT747x to temperature changes can be configured.
 This allows smoothing of the fan speed transition. To set the transition time
 set the value in ms in the `temp[1-*]_smoothing` sysfs attribute.
 
-Notes
+Analtes
 -----
 
 The nVidia binary driver presents an ADT7473 chip via an on-card i2c bus.

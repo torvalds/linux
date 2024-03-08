@@ -46,8 +46,8 @@
 #define LED_FUNCTION_CAPSLOCK "capslock"
 #define LED_FUNCTION_SCROLLLOCK "scrolllock"
 #define LED_FUNCTION_NUMLOCK "numlock"
-/*   Obsolete equivalents: "tpacpi::thinklight" (IBM/Lenovo Thinkpads),
-     "lp5523:kb{1,2,3,4,5,6}" (Nokia N900) */
+/*   Obsolete equivalents: "tpacpi::thinklight" (IBM/Leanalvo Thinkpads),
+     "lp5523:kb{1,2,3,4,5,6}" (Analkia N900) */
 #define LED_FUNCTION_KBD_BACKLIGHT "kbd_backlight"
 
 /* System LEDs, usually found on system body.
@@ -57,9 +57,9 @@
 
 /*   Obsolete: "platform:*:charging" (allwinner sun50i) */
 #define LED_FUNCTION_CHARGING "charging"
-/*   Used RGB notification LEDs common on phones.
+/*   Used RGB analtification LEDs common on phones.
      Obsolete equivalents: "status-led:{red,green,blue}" (Motorola Droid 4),
-     "lp5523:{r,g,b}" (Nokia N900) */
+     "lp5523:{r,g,b}" (Analkia N900) */
 #define LED_FUNCTION_STATUS "status"
 
 #define LED_FUNCTION_MICMUTE "micmute"

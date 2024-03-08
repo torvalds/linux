@@ -139,7 +139,7 @@ static int aq_ndev_change_mtu(struct net_device *ndev, int new_mtu)
 	    new_frame_size > AQ_CFG_RX_FRAME_MAX) {
 		netdev_err(ndev, "Illegal MTU %d for XDP prog without frags\n",
 			   ndev->mtu);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = aq_nic_set_mtu(aq_nic, new_mtu + ETH_HLEN);
@@ -229,7 +229,7 @@ static netdev_features_t aq_ndev_fix_features(struct net_device *ndev,
 	prog = READ_ONCE(aq_nic->xdp_prog);
 	if (prog && !prog->aux->xdp_has_frags &&
 	    aq_nic->xdp_prog && features & NETIF_F_LRO) {
-		netdev_err(ndev, "LRO is not supported with single buffer XDP, disabling\n");
+		netdev_err(ndev, "LRO is analt supported with single buffer XDP, disabling\n");
 		features &= ~NETIF_F_LRO;
 	}
 
@@ -283,7 +283,7 @@ static int aq_ndev_config_hwtstamp(struct aq_nic_s *aq_nic,
 		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		break;
 	default:
 		return -ERANGE;
@@ -301,7 +301,7 @@ static int aq_ndev_hwtstamp_set(struct aq_nic_s *aq_nic, struct ifreq *ifr)
 #endif
 
 	if (!aq_nic->aq_ptp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
 		return -EFAULT;
@@ -321,7 +321,7 @@ static int aq_ndev_hwtstamp_get(struct aq_nic_s *aq_nic, struct ifreq *ifr)
 	struct hwtstamp_config config;
 
 	if (!aq_nic->aq_ptp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	aq_ptp_hwtstamp_config_get(aq_nic->aq_ptp, &config);
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
@@ -343,7 +343,7 @@ static int aq_ndev_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 #endif
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int aq_ndo_vlan_rx_add_vid(struct net_device *ndev, __be16 proto,
@@ -352,7 +352,7 @@ static int aq_ndo_vlan_rx_add_vid(struct net_device *ndev, __be16 proto,
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 
 	if (!aq_nic->aq_hw_ops->hw_filter_vlan_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	set_bit(vid, aq_nic->active_vlans);
 
@@ -365,11 +365,11 @@ static int aq_ndo_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto,
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 
 	if (!aq_nic->aq_hw_ops->hw_filter_vlan_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	clear_bit(vid, aq_nic->active_vlans);
 
-	if (-ENOENT == aq_del_fvlan_by_vlan(aq_nic, vid))
+	if (-EANALENT == aq_del_fvlan_by_vlan(aq_nic, vid))
 		return aq_filters_vlans_update(aq_nic);
 
 	return 0;
@@ -386,17 +386,17 @@ static int aq_validate_mqprio_opt(struct aq_nic_s *self,
 
 	if (num_tc > tcs_max) {
 		netdev_err(self->ndev, "Too many TCs requested\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (num_tc != 0 && !is_power_of_2(num_tc)) {
 		netdev_err(self->ndev, "TC count should be power of 2\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (has_min_rate && !ATL_HW_IS_CHIP_FEATURE(self->aq_hw, ANTIGUA)) {
-		netdev_err(self->ndev, "Min tx rate is not supported\n");
-		return -EOPNOTSUPP;
+		netdev_err(self->ndev, "Min tx rate is analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -413,7 +413,7 @@ static int aq_ndo_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	int i;
 
 	if (type != TC_SETUP_QDISC_MQPRIO)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	has_min_rate = !!(mqprio->flags & TC_MQPRIO_F_MIN_RATE);
 	has_max_rate = !!(mqprio->flags & TC_MQPRIO_F_MAX_RATE);
@@ -452,13 +452,13 @@ static int aq_xdp_setup(struct net_device *ndev, struct bpf_prog *prog,
 	if (prog && !prog->aux->xdp_has_frags) {
 		if (ndev->mtu > AQ_CFG_RX_FRAME_MAX) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "prog does not support XDP frags");
-			return -EOPNOTSUPP;
+					   "prog does analt support XDP frags");
+			return -EOPANALTSUPP;
 		}
 
 		if (prog && ndev->features & NETIF_F_LRO) {
 			netdev_err(ndev,
-				   "LRO is not supported with single buffer XDP, disabling\n");
+				   "LRO is analt supported with single buffer XDP, disabling\n");
 			ndev->features &= ~NETIF_F_LRO;
 		}
 	}
@@ -516,7 +516,7 @@ static int __init aq_ndev_init_module(void)
 	aq_ndev_wq = create_singlethread_workqueue(aq_ndev_driver_name);
 	if (!aq_ndev_wq) {
 		pr_err("Failed to create workqueue\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = aq_pci_func_register_driver();

@@ -16,15 +16,15 @@
 #include "pm660.dtsi"
 #include "pm660l.dtsi"
 
-/delete-node/ &mpss_region;
-/delete-node/ &venus_mem;
-/delete-node/ &wlan_msa_mem;
-/delete-node/ &cdsp_mem;
-/delete-node/ &mba_region;
-/delete-node/ &adsp_mem;
-/delete-node/ &ipa_fw_mem;
-/delete-node/ &ipa_gsi_mem;
-/delete-node/ &gpu_mem;
+/delete-analde/ &mpss_region;
+/delete-analde/ &venus_mem;
+/delete-analde/ &wlan_msa_mem;
+/delete-analde/ &cdsp_mem;
+/delete-analde/ &mba_region;
+/delete-analde/ &adsp_mem;
+/delete-analde/ &ipa_fw_mem;
+/delete-analde/ &ipa_gsi_mem;
+/delete-analde/ &gpu_mem;
 
 / {
 	model = "Google Pixel 3a";
@@ -83,65 +83,65 @@
 
 		mpss_region: mpss@8b000000 {
 			reg = <0 0x8b000000 0 0x9800000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_mem: venus@94800000 {
 			reg = <0 0x94800000 0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		wlan_msa_mem: wlan-msa@94d00000 {
 			reg = <0 0x94d00000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		cdsp_mem: cdsp@94e00000 {
 			reg = <0 0x94e00000 0 0x800000>;
-			no-map;
+			anal-map;
 		};
 
 		mba_region: mba@95600000 {
 			reg = <0 0x95600000 0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_mem: adsp@95800000 {
 			reg = <0 0x95800000 0 0x2200000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_fw_mem: ipa-fw@97a00000 {
 			reg = <0 0x97a00000 0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_gsi_mem: ipa-gsi@97a10000 {
 			reg = <0 0x97a10000 0 0x5000>;
-			no-map;
+			anal-map;
 		};
 
 		gpu_mem: gpu@97a15000 {
 			reg = <0 0x97a15000 0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		framebuffer-region@9c000000 {
 			reg = <0 0x9c000000 0 0x2400000>;
-			no-map;
+			anal-map;
 		};
 
 		/* Also includes ramoops regions */
 		debug_info_mem: debug-info@a1800000 {
 			reg = <0 0xa1800000 0 0x411000>;
-			no-map;
+			anal-map;
 		};
 	};
 
 	/*
 	 * The touchscreen regulator seems to be controlled somehow by a gpio.
 	 * Model it as a fixed regulator and keep it on. Without schematics we
-	 * don't know how this is actually wired up...
+	 * don't kanalw how this is actually wired up...
 	 */
 	ts_1p8_supply: ts-1p8-regulator {
 		compatible = "regulator-fixed";
@@ -400,7 +400,7 @@
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
 			   <GCC_QSPI_CORE_CLK_SRC>,
-			   <GCC_QSPI_CNOC_PERIPH_AHB_CLK>;
+			   <GCC_QSPI_CANALC_PERIPH_AHB_CLK>;
 };
 
 &gpi_dma1 {
@@ -429,7 +429,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x01>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f12@12 {
@@ -444,8 +444,8 @@
 &pm660l_gpios {
 	vol_up_pin: vol-up-state {
 		pins = "gpio7";
-		function = "normal";
-		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+		function = "analrmal";
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 		input-enable;
 		bias-pull-up;
 	};
@@ -521,10 +521,10 @@
 };
 
 &usb_1_dwc3 {
-	/* Only peripheral works for now */
+	/* Only peripheral works for analw */
 	dr_mode = "peripheral";
 
-	/* Do not assume that sdm670.dtsi will never support USB 3.0 */
+	/* Do analt assume that sdm670.dtsi will never support USB 3.0 */
 	phys = <&usb_1_hsphy>;
 	phy-names = "usb2-phy";
 	maximum-speed = "high-speed";

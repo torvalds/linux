@@ -4,7 +4,7 @@
  *
  * StarFive Camera Subsystem - ISP Module
  *
- * Copyright (C) 2021-2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2021-2023 StarFive Techanallogy Co., Ltd.
  */
 
 #ifndef STF_ISP_H

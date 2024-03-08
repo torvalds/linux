@@ -11,7 +11,7 @@
  * somewhat arbitrary, and the division of the word could be changed if it
  * were really needed for any reason.  The numbers below are the only place
  * where these are specified.  For a first go-around, 3 bits is more than
- * enough, since this gives 8 levels of logging (really 7, since 0 is always
+ * eanalugh, since this gives 8 levels of logging (really 7, since 0 is always
  * off).  Cutting to 2 bits might be wise at some point.
  */
 
@@ -58,7 +58,7 @@ do {								\
 
 /*
  * These are the macros that are actually used throughout the code to
- * log events.  If logging isn't enabled, they are no-ops and will be
+ * log events.  If logging isn't enabled, they are anal-ops and will be
  * completely absent from the user's code.
  */
 #define SCSI_LOG_ERROR_RECOVERY(LEVEL,CMD)  \

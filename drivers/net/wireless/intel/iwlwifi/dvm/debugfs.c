@@ -86,7 +86,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	bufsz =  50 + len * 4;
 	buf = kmalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "sram_len: 0x%x\n",
 			 len);
@@ -174,7 +174,7 @@ static ssize_t iwl_dbgfs_wowlan_sram_read(struct file *file,
 	const struct fw_img *img = &priv->fw->img[IWL_UCODE_WOWLAN];
 
 	if (!priv->wowlan_sram)
-		return -ENODATA;
+		return -EANALDATA;
 
 	return simple_read_from_buffer(user_buf, count, ppos,
 				       priv->wowlan_sram,
@@ -194,7 +194,7 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 
 	buf = kmalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "num of stations: %d\n\n",
 			priv->num_stations);
@@ -208,7 +208,7 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 				 i, station->sta.sta.addr,
 				 station->sta.station_flags_msk);
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"TID seqno  next_rclmd "
+				"TID seqanal  next_rclmd "
 				"rate_n_flags state txq\n");
 
 		for (j = 0; j < IWL_MAX_TID_COUNT; j++) {
@@ -251,16 +251,16 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 	buf_size = 4 * eeprom_len + 256;
 
 	if (eeprom_len % 16)
-		return -ENODATA;
+		return -EANALDATA;
 
 	ptr = priv->eeprom_blob;
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* 4 characters for byte 0xYY */
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvm_ver = priv->nvm_data->nvm_version;
 	pos += scnprintf(buf + pos, buf_size - pos,
@@ -287,7 +287,7 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	supp_band = iwl_get_hw_mode(priv, NL80211_BAND_2GHZ);
 	if (supp_band) {
@@ -304,12 +304,12 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 					channels[i].max_power,
 					channels[i].flags & IEEE80211_CHAN_RADAR ?
 					" (IEEE 802.11h required)" : "",
-					((channels[i].flags & IEEE80211_CHAN_NO_IR)
+					((channels[i].flags & IEEE80211_CHAN_ANAL_IR)
 					|| (channels[i].flags &
 					IEEE80211_CHAN_RADAR)) ? "" :
 					", IBSS",
 					channels[i].flags &
-					IEEE80211_CHAN_NO_IR ?
+					IEEE80211_CHAN_ANAL_IR ?
 					"passive only" : "active/passive");
 	}
 	supp_band = iwl_get_hw_mode(priv, NL80211_BAND_5GHZ);
@@ -327,12 +327,12 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 					channels[i].max_power,
 					channels[i].flags & IEEE80211_CHAN_RADAR ?
 					" (IEEE 802.11h required)" : "",
-					((channels[i].flags & IEEE80211_CHAN_NO_IR)
+					((channels[i].flags & IEEE80211_CHAN_ANAL_IR)
 					|| (channels[i].flags &
 					IEEE80211_CHAN_RADAR)) ? "" :
 					", IBSS",
 					channels[i].flags &
-					IEEE80211_CHAN_NO_IR ?
+					IEEE80211_CHAN_ANAL_IR ?
 					"passive only" : "active/passive");
 	}
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
@@ -388,7 +388,7 @@ static ssize_t iwl_dbgfs_rx_handlers_read(struct file *file,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (cnt = 0; cnt < REPLY_MAX; cnt++) {
 		if (priv->rx_handlers_stats[cnt] > 0)
@@ -556,8 +556,8 @@ static ssize_t iwl_dbgfs_sleep_level_override_write(struct file *file,
 
 	/*
 	 * Our users expect 0 to be "CAM", but 0 isn't actually
-	 * valid here. However, let's not confuse them and present
-	 * IWL_POWER_INDEX_1 as "1", not "0".
+	 * valid here. However, let's analt confuse them and present
+	 * IWL_POWER_INDEX_1 as "1", analt "0".
 	 */
 	if (value == 0)
 		return -EINVAL;
@@ -671,13 +671,13 @@ static ssize_t iwl_dbgfs_ucode_rx_stats_read(struct file *file,
 	int pos = 0;
 	char *buf;
 	int bufsz = sizeof(struct statistics_rx_phy) * 40 +
-		    sizeof(struct statistics_rx_non_phy) * 40 +
+		    sizeof(struct statistics_rx_analn_phy) * 40 +
 		    sizeof(struct statistics_rx_ht_phy) * 40 + 400;
 	ssize_t ret;
 	struct statistics_rx_phy *ofdm, *accum_ofdm, *delta_ofdm, *max_ofdm;
 	struct statistics_rx_phy *cck, *accum_cck, *delta_cck, *max_cck;
-	struct statistics_rx_non_phy *general, *accum_general;
-	struct statistics_rx_non_phy *delta_general, *max_general;
+	struct statistics_rx_analn_phy *general, *accum_general;
+	struct statistics_rx_analn_phy *delta_general, *max_general;
 	struct statistics_rx_ht_phy *ht, *accum_ht, *delta_ht, *max_ht;
 
 	if (!iwl_is_alive(priv))
@@ -685,29 +685,29 @@ static ssize_t iwl_dbgfs_ucode_rx_stats_read(struct file *file,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * the statistic information display here is based on
-	 * the last statistics notification from uCode
-	 * might not reflect the current uCode activity
+	 * the last statistics analtification from uCode
+	 * might analt reflect the current uCode activity
 	 */
 	spin_lock_bh(&priv->statistics.lock);
 	ofdm = &priv->statistics.rx_ofdm;
 	cck = &priv->statistics.rx_cck;
-	general = &priv->statistics.rx_non_phy;
+	general = &priv->statistics.rx_analn_phy;
 	ht = &priv->statistics.rx_ofdm_ht;
 	accum_ofdm = &priv->accum_stats.rx_ofdm;
 	accum_cck = &priv->accum_stats.rx_cck;
-	accum_general = &priv->accum_stats.rx_non_phy;
+	accum_general = &priv->accum_stats.rx_analn_phy;
 	accum_ht = &priv->accum_stats.rx_ofdm_ht;
 	delta_ofdm = &priv->delta_stats.rx_ofdm;
 	delta_cck = &priv->delta_stats.rx_cck;
-	delta_general = &priv->delta_stats.rx_non_phy;
+	delta_general = &priv->delta_stats.rx_analn_phy;
 	delta_ht = &priv->delta_stats.rx_ofdm_ht;
 	max_ofdm = &priv->max_delta_stats.rx_ofdm;
 	max_cck = &priv->max_delta_stats.rx_cck;
-	max_general = &priv->max_delta_stats.rx_non_phy;
+	max_general = &priv->max_delta_stats.rx_analn_phy;
 	max_ht = &priv->max_delta_stats.rx_ofdm_ht;
 
 	pos += iwl_statistics_flag(priv, buf, bufsz);
@@ -926,11 +926,11 @@ static ssize_t iwl_dbgfs_ucode_rx_stats_read(struct file *file,
 			 accum_general->bogus_ack, delta_general->bogus_ack,
 			 max_general->bogus_ack);
 	pos += scnprintf(buf + pos, bufsz - pos,
-			 fmt_table, "non_bssid_frames:",
-			 le32_to_cpu(general->non_bssid_frames),
-			 accum_general->non_bssid_frames,
-			 delta_general->non_bssid_frames,
-			 max_general->non_bssid_frames);
+			 fmt_table, "analn_bssid_frames:",
+			 le32_to_cpu(general->analn_bssid_frames),
+			 accum_general->analn_bssid_frames,
+			 delta_general->analn_bssid_frames,
+			 max_general->analn_bssid_frames);
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 fmt_table, "filtered_frames:",
 			 le32_to_cpu(general->filtered_frames),
@@ -938,11 +938,11 @@ static ssize_t iwl_dbgfs_ucode_rx_stats_read(struct file *file,
 			 delta_general->filtered_frames,
 			 max_general->filtered_frames);
 	pos += scnprintf(buf + pos, bufsz - pos,
-			 fmt_table, "non_channel_beacons:",
-			 le32_to_cpu(general->non_channel_beacons),
-			 accum_general->non_channel_beacons,
-			 delta_general->non_channel_beacons,
-			 max_general->non_channel_beacons);
+			 fmt_table, "analn_channel_beacons:",
+			 le32_to_cpu(general->analn_channel_beacons),
+			 accum_general->analn_channel_beacons,
+			 delta_general->analn_channel_beacons,
+			 max_general->analn_channel_beacons);
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 fmt_table, "channel_beacons:",
 			 le32_to_cpu(general->channel_beacons),
@@ -1112,11 +1112,11 @@ static ssize_t iwl_dbgfs_ucode_tx_stats_read(struct file *file,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* the statistic information display here is based on
-	 * the last statistics notification from uCode
-	 * might not reflect the current uCode activity
+	 * the last statistics analtification from uCode
+	 * might analt reflect the current uCode activity
 	 */
 	spin_lock_bh(&priv->statistics.lock);
 
@@ -1225,11 +1225,11 @@ static ssize_t iwl_dbgfs_ucode_tx_stats_read(struct file *file,
 			 delta_tx->agg.scd_query_agg_frame_cnt,
 			 max_tx->agg.scd_query_agg_frame_cnt);
 	pos += scnprintf(buf + pos, bufsz - pos,
-			 fmt_table, "agg scd_query_no_agg:",
-			 le32_to_cpu(tx->agg.scd_query_no_agg),
-			 accum_tx->agg.scd_query_no_agg,
-			 delta_tx->agg.scd_query_no_agg,
-			 max_tx->agg.scd_query_no_agg);
+			 fmt_table, "agg scd_query_anal_agg:",
+			 le32_to_cpu(tx->agg.scd_query_anal_agg),
+			 accum_tx->agg.scd_query_anal_agg,
+			 delta_tx->agg.scd_query_anal_agg,
+			 max_tx->agg.scd_query_anal_agg);
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 fmt_table, "agg scd_query_agg:",
 			 le32_to_cpu(tx->agg.scd_query_agg),
@@ -1243,11 +1243,11 @@ static ssize_t iwl_dbgfs_ucode_tx_stats_read(struct file *file,
 			 delta_tx->agg.scd_query_mismatch,
 			 max_tx->agg.scd_query_mismatch);
 	pos += scnprintf(buf + pos, bufsz - pos,
-			 fmt_table, "agg frame_not_ready:",
-			 le32_to_cpu(tx->agg.frame_not_ready),
-			 accum_tx->agg.frame_not_ready,
-			 delta_tx->agg.frame_not_ready,
-			 max_tx->agg.frame_not_ready);
+			 fmt_table, "agg frame_analt_ready:",
+			 le32_to_cpu(tx->agg.frame_analt_ready),
+			 accum_tx->agg.frame_analt_ready,
+			 delta_tx->agg.frame_analt_ready,
+			 max_tx->agg.frame_analt_ready);
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 fmt_table, "agg underrun:",
 			 le32_to_cpu(tx->agg.underrun),
@@ -1312,11 +1312,11 @@ static ssize_t iwl_dbgfs_ucode_general_stats_read(struct file *file,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* the statistic information display here is based on
-	 * the last statistics notification from uCode
-	 * might not reflect the current uCode activity
+	 * the last statistics analtification from uCode
+	 * might analt reflect the current uCode activity
 	 */
 
 	spin_lock_bh(&priv->statistics.lock);
@@ -1439,12 +1439,12 @@ static ssize_t iwl_dbgfs_ucode_bt_stats_read(struct file *file,
 		return -EAGAIN;
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * the statistic information display here is based on
-	 * the last statistics notification from uCode
-	 * might not reflect the current uCode activity
+	 * the last statistics analtification from uCode
+	 * might analt reflect the current uCode activity
 	 */
 
 	spin_lock_bh(&priv->statistics.lock);
@@ -1517,7 +1517,7 @@ static ssize_t iwl_dbgfs_reply_tx_error_read(struct file *file,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Statistics_TX_Error:\n");
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t\t%u\n",
@@ -1583,14 +1583,14 @@ static ssize_t iwl_dbgfs_reply_tx_error_read(struct file *file,
 				TX_STATUS_FAIL_INSUFFICIENT_CF_POLL),
 			 priv->reply_tx_stats.insuff_cf_poll);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
-			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_PASSIVE_NO_RX),
+			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_PASSIVE_ANAL_RX),
 			 priv->reply_tx_stats.fail_hw_drop);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t%u\n",
 			 iwl_get_tx_fail_reason(
-				TX_STATUS_FAIL_NO_BEACON_ON_RADAR),
+				TX_STATUS_FAIL_ANAL_BEACON_ON_RADAR),
 			 priv->reply_tx_stats.sta_color_mismatch);
-	pos += scnprintf(buf + pos, bufsz - pos, "UNKNOWN:\t\t\t%u\n",
-			 priv->reply_tx_stats.unknown);
+	pos += scnprintf(buf + pos, bufsz - pos, "UNKANALWN:\t\t\t%u\n",
+			 priv->reply_tx_stats.unkanalwn);
 
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 "\nStatistics_Agg_TX_Error:\n");
@@ -1635,8 +1635,8 @@ static ssize_t iwl_dbgfs_reply_tx_error_read(struct file *file,
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_agg_tx_fail_reason(AGG_TX_STATE_DELAY_TX_MSK),
 			 priv->reply_agg_tx_stats.delay_tx);
-	pos += scnprintf(buf + pos, bufsz - pos, "UNKNOWN:\t\t\t%u\n",
-			 priv->reply_agg_tx_stats.unknown);
+	pos += scnprintf(buf + pos, bufsz - pos, "UNKANALWN:\t\t\t%u\n",
+			 priv->reply_agg_tx_stats.unkanalwn);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
@@ -1658,7 +1658,7 @@ static ssize_t iwl_dbgfs_sensitivity_read(struct file *file,
 	data = &priv->sensitivity_data;
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "auto_corr_ofdm:\t\t\t %u\n",
 			data->auto_corr_ofdm);
@@ -1711,8 +1711,8 @@ static ssize_t iwl_dbgfs_sensitivity_read(struct file *file,
 	pos += scnprintf(buf + pos, bufsz - pos,
 			"nrg_auto_corr_silence_diff:\t %u\n",
 			data->nrg_auto_corr_silence_diff);
-	pos += scnprintf(buf + pos, bufsz - pos, "num_in_cck_no_fa:\t\t %u\n",
-			data->num_in_cck_no_fa);
+	pos += scnprintf(buf + pos, bufsz - pos, "num_in_cck_anal_fa:\t\t %u\n",
+			data->num_in_cck_anal_fa);
 	pos += scnprintf(buf + pos, bufsz - pos, "nrg_th_ofdm:\t\t\t %u\n",
 			data->nrg_th_ofdm);
 
@@ -1722,7 +1722,7 @@ static ssize_t iwl_dbgfs_sensitivity_read(struct file *file,
 }
 
 
-static ssize_t iwl_dbgfs_chain_noise_read(struct file *file,
+static ssize_t iwl_dbgfs_chain_analise_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
@@ -1730,23 +1730,23 @@ static ssize_t iwl_dbgfs_chain_noise_read(struct file *file,
 	int pos = 0;
 	int cnt = 0;
 	char *buf;
-	int bufsz = sizeof(struct iwl_chain_noise_data) * 4 + 100;
+	int bufsz = sizeof(struct iwl_chain_analise_data) * 4 + 100;
 	ssize_t ret;
-	struct iwl_chain_noise_data *data;
+	struct iwl_chain_analise_data *data;
 
-	data = &priv->chain_noise_data;
+	data = &priv->chain_analise_data;
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "active_chains:\t\t\t %u\n",
 			data->active_chains);
-	pos += scnprintf(buf + pos, bufsz - pos, "chain_noise_a:\t\t\t %u\n",
-			data->chain_noise_a);
-	pos += scnprintf(buf + pos, bufsz - pos, "chain_noise_b:\t\t\t %u\n",
-			data->chain_noise_b);
-	pos += scnprintf(buf + pos, bufsz - pos, "chain_noise_c:\t\t\t %u\n",
-			data->chain_noise_c);
+	pos += scnprintf(buf + pos, bufsz - pos, "chain_analise_a:\t\t\t %u\n",
+			data->chain_analise_a);
+	pos += scnprintf(buf + pos, bufsz - pos, "chain_analise_b:\t\t\t %u\n",
+			data->chain_analise_b);
+	pos += scnprintf(buf + pos, bufsz - pos, "chain_analise_c:\t\t\t %u\n",
+			data->chain_analise_c);
 	pos += scnprintf(buf + pos, bufsz - pos, "chain_signal_a:\t\t\t %u\n",
 			data->chain_signal_a);
 	pos += scnprintf(buf + pos, bufsz - pos, "chain_signal_b:\t\t\t %u\n",
@@ -1793,7 +1793,7 @@ static ssize_t iwl_dbgfs_power_save_status_read(struct file *file,
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Power Save Status: ");
 	pos += scnprintf(buf + pos, bufsz - pos, "%s\n",
-		(pwrsave_status == CSR_GP_REG_NO_POWER_SAVE) ? "none" :
+		(pwrsave_status == CSR_GP_REG_ANAL_POWER_SAVE) ? "analne" :
 		(pwrsave_status == CSR_GP_REG_MAC_POWER_SAVE) ? "MAC" :
 		(pwrsave_status == CSR_GP_REG_PHY_POWER_SAVE) ? "PHY" :
 		"error");
@@ -1836,8 +1836,8 @@ static ssize_t iwl_dbgfs_ucode_tracing_read(struct file *file,
 
 	pos += scnprintf(buf + pos, bufsz - pos, "ucode trace timer is %s\n",
 			priv->event_log.ucode_trace ? "On" : "Off");
-	pos += scnprintf(buf + pos, bufsz - pos, "non_wraps_count:\t\t %u\n",
-			priv->event_log.non_wraps_count);
+	pos += scnprintf(buf + pos, bufsz - pos, "analn_wraps_count:\t\t %u\n",
+			priv->event_log.analn_wraps_count);
 	pos += scnprintf(buf + pos, bufsz - pos, "wraps_once_count:\t\t %u\n",
 			priv->event_log.wraps_once_count);
 	pos += scnprintf(buf + pos, bufsz - pos, "wraps_more_count:\t\t %u\n",
@@ -1865,7 +1865,7 @@ static ssize_t iwl_dbgfs_ucode_tracing_write(struct file *file,
 	if (trace) {
 		priv->event_log.ucode_trace = true;
 		if (iwl_is_alive(priv)) {
-			/* start collecting data now */
+			/* start collecting data analw */
 			mod_timer(&priv->ucode_trace, jiffies);
 		}
 	} else {
@@ -2060,11 +2060,11 @@ static ssize_t iwl_dbgfs_bt_traffic_read(struct file *file,
 	pos += scnprintf(buf + pos, bufsz - pos, "BT in %s mode\n",
 		priv->bt_full_concurrent ? "full concurrency" : "3-wire");
 	pos += scnprintf(buf + pos, bufsz - pos, "BT status: %s, "
-			 "last traffic notif: %d\n",
+			 "last traffic analtif: %d\n",
 		priv->bt_status ? "On" : "Off", priv->last_bt_traffic_load);
-	pos += scnprintf(buf + pos, bufsz - pos, "ch_announcement: %d, "
+	pos += scnprintf(buf + pos, bufsz - pos, "ch_ananaluncement: %d, "
 			 "kill_ack_mask: %x, kill_cts_mask: %x\n",
-		priv->bt_ch_announce, priv->kill_ack_mask,
+		priv->bt_ch_ananalunce, priv->kill_ack_mask,
 		priv->kill_cts_mask);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "bluetooth traffic load: ");
@@ -2078,9 +2078,9 @@ static ssize_t iwl_dbgfs_bt_traffic_read(struct file *file,
 	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
 		pos += scnprintf(buf + pos, bufsz - pos, "Low\n");
 		break;
-	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
+	case IWL_BT_COEX_TRAFFIC_LOAD_ANALNE:
 	default:
-		pos += scnprintf(buf + pos, bufsz - pos, "None\n");
+		pos += scnprintf(buf + pos, bufsz - pos, "Analne\n");
 		break;
 	}
 
@@ -2223,9 +2223,9 @@ static ssize_t iwl_dbgfs_calib_disabled_read(struct file *file,
 					IWL_SENSITIVITY_CALIB_DISABLED) ?
 			 "DISABLED" : "ENABLED");
 	pos += scnprintf(buf + pos, bufsz - pos,
-			 "Chain noise calibrations %s\n",
+			 "Chain analise calibrations %s\n",
 			 (priv->calib_disabled &
-					IWL_CHAIN_NOISE_CALIB_DISABLED) ?
+					IWL_CHAIN_ANALISE_CALIB_DISABLED) ?
 			 "DISABLED" : "ENABLED");
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 "Tx power calibrations %s\n",
@@ -2283,7 +2283,7 @@ DEBUGFS_READ_FILE_OPS(ucode_rx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_tx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_general_stats);
 DEBUGFS_READ_FILE_OPS(sensitivity);
-DEBUGFS_READ_FILE_OPS(chain_noise);
+DEBUGFS_READ_FILE_OPS(chain_analise);
 DEBUGFS_READ_FILE_OPS(power_save_status);
 DEBUGFS_WRITE_FILE_OPS(clear_ucode_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(ucode_tracing);
@@ -2343,7 +2343,7 @@ void iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir)
 	DEBUGFS_ADD_FILE(txfifo_flush, dir_debug, 0200);
 	DEBUGFS_ADD_FILE(protection_mode, dir_debug, 0600);
 	DEBUGFS_ADD_FILE(sensitivity, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(chain_noise, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(chain_analise, dir_debug, 0400);
 	DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, 0600);
 	DEBUGFS_ADD_FILE(ucode_bt_stats, dir_debug, 0400);
 	DEBUGFS_ADD_FILE(reply_tx_error, dir_debug, 0400);
@@ -2362,8 +2362,8 @@ void iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir)
 	DEBUGFS_ADD_FILE(calib_disabled, dir_rf, 0600);
 
 	/*
-	 * Create a symlink with mac80211. This is not very robust, as it does
-	 * not remove the symlink created. The implicit assumption is that
+	 * Create a symlink with mac80211. This is analt very robust, as it does
+	 * analt remove the symlink created. The implicit assumption is that
 	 * when the opmode exits, mac80211 will also exit, and will remove
 	 * this symlink as part of its cleanup.
 	 */

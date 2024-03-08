@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _output:
@@ -13,11 +13,11 @@ process and move images from user space to the driver.
 
 Conventionally V4L2 video output devices are accessed through character
 device special files named ``/dev/video`` and ``/dev/video0`` to
-``/dev/video63`` with major number 81 and minor numbers 0 to 63.
+``/dev/video63`` with major number 81 and mianalr numbers 0 to 63.
 ``/dev/video`` is typically a symbolic link to the preferred video
 device.
 
-.. note:: The same device file names are used also for video capture devices.
+.. analte:: The same device file names are used also for video capture devices.
 
 Querying Capabilities
 =====================
@@ -51,7 +51,7 @@ the latter how images are stored in memory, i. e. in RGB or YUV format,
 the number of bits per pixel or width and height. Together they also
 define how images are scaled in the process.
 
-As usual these parameters are *not* reset at :c:func:`open()`
+As usual these parameters are *analt* reset at :c:func:`open()`
 time to permit Unix tool chains, programming a device and then writing
 to it as if it was a plain file. Well written V4L2 applications ensure
 they really get what they want, including cropping and scaling.
@@ -86,7 +86,7 @@ struct :c:type:`v4l2_pix_format_mplane` are
 discussed in :ref:`pixfmt`. See also the specification of the
 :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`, :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` and :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctls for
 details. Video output devices must implement both the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`
-and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, even if :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ignores all
+and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, even if :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` iganalres all
 requests and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does.
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` is optional.
 

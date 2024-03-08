@@ -191,7 +191,7 @@ static int psp_mbox_ready(struct acp_dev_data *adata, bool ack)
 /*
  * psp_send_cmd - function to send psp command over mbox
  * @adata: acp device data
- * @cmd: non zero integer value for command type
+ * @cmd: analn zero integer value for command type
  */
 
 static int psp_send_cmd(struct acp_dev_data *adata, int cmd)
@@ -203,7 +203,7 @@ static int psp_send_cmd(struct acp_dev_data *adata, int cmd)
 	if (!cmd)
 		return -EINVAL;
 
-	/* Get a non-zero Doorbell value from PSP */
+	/* Get a analn-zero Doorbell value from PSP */
 	ret = read_poll_timeout(smn_read, data, data, MBOX_DELAY_US, ACP_PSP_TIMEOUT_US, false,
 				adata->smn_dev, MP0_C2PMSG_73_REG);
 
@@ -271,7 +271,7 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 		return ret;
 	}
 
-	/* psp_send_cmd only required for renoir platform (rev - 3) */
+	/* psp_send_cmd only required for reanalir platform (rev - 3) */
 	if (desc->rev == 3) {
 		ret = psp_send_cmd(adata, MBOX_ACP_SHA_DMA_COMMAND);
 		if (ret)
@@ -362,7 +362,7 @@ static irqreturn_t acp_irq_thread(int irq, void *context)
 
 	if (!count) {
 		dev_err(sdev->dev, "%s: Failed to acquire HW lock\n", __func__);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	sof_ops(sdev)->irq_thread(irq, sdev);
@@ -386,7 +386,7 @@ static irqreturn_t acp_irq_handler(int irq, void *dev_id)
 		return IRQ_WAKE_THREAD;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int acp_power_on(struct snd_sof_dev *sdev)
@@ -502,17 +502,17 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 
 	chip = get_chip_info(sdev->pdata);
 	if (!chip) {
-		dev_err(sdev->dev, "no such device supported, chip id:%x\n", pci->device);
+		dev_err(sdev->dev, "anal such device supported, chip id:%x\n", pci->device);
 		return -EIO;
 	}
 	adata = devm_kzalloc(sdev->dev, sizeof(struct acp_dev_data),
 			     GFP_KERNEL);
 	if (!adata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adata->dev = sdev;
 	adata->dmic_dev = platform_device_register_data(sdev->dev, "dmic-codec",
-							PLATFORM_DEVID_NONE, NULL, 0);
+							PLATFORM_DEVID_ANALNE, NULL, 0);
 	if (IS_ERR(adata->dmic_dev)) {
 		dev_err(sdev->dev, "failed to register platform for dmic codec\n");
 		return PTR_ERR(adata->dmic_dev);
@@ -531,7 +531,7 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 	adata->smn_dev = pci_get_device(PCI_VENDOR_ID_AMD, chip->host_bridge_id, NULL);
 	if (!adata->smn_dev) {
 		dev_err(sdev->dev, "Failed to get host bridge device\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unregister_dev;
 	}
 

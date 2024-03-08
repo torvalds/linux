@@ -441,7 +441,7 @@
     },
     {
         "id": "0eb3",
-        "name": "Delete non-existent action",
+        "name": "Delete analn-existent action",
         "category": [
             "actions",
             "gact"
@@ -660,7 +660,7 @@
     },
     {
         "id": "95ad",
-        "name": "Add gact pass action with no_percpu flag",
+        "name": "Add gact pass action with anal_percpu flag",
         "category": [
             "actions",
             "gact"
@@ -676,10 +676,10 @@
                 255
             ]
         ],
-        "cmdUnderTest": "$TC actions add action pass no_percpu",
+        "cmdUnderTest": "$TC actions add action pass anal_percpu",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action gact",
-        "matchPattern": "action order [0-9]*: gact action pass.*no_percpu",
+        "matchPattern": "action order [0-9]*: gact action pass.*anal_percpu",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action gact"

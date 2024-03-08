@@ -183,7 +183,7 @@ static struct s5h1409_config hauppauge_generic_config = {
 	.qam_if        = 44000,
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
-	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK,
 };
 
 static struct tda10048_config hauppauge_hvr1200_config = {
@@ -215,7 +215,7 @@ static struct s5h1409_config hauppauge_ezqam_config = {
 	.qam_if        = 4000,
 	.inversion     = S5H1409_INVERSION_ON,
 	.status_mode   = S5H1409_DEMODLOCKING,
-	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK,
 };
 
 static struct s5h1409_config hauppauge_hvr1800lp_config = {
@@ -225,7 +225,7 @@ static struct s5h1409_config hauppauge_hvr1800lp_config = {
 	.qam_if        = 44000,
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
-	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK,
 };
 
 static struct s5h1409_config hauppauge_hvr1500_config = {
@@ -234,7 +234,7 @@ static struct s5h1409_config hauppauge_hvr1500_config = {
 	.gpio          = S5H1409_GPIO_OFF,
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
-	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK,
 };
 
 static struct mt2131_config hauppauge_generic_tunerconfig = {
@@ -253,7 +253,7 @@ static struct s5h1409_config hauppauge_hvr1500q_config = {
 	.qam_if        = 44000,
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
-	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK,
 };
 
 static struct s5h1409_config dvico_s5h1409_config = {
@@ -263,7 +263,7 @@ static struct s5h1409_config dvico_s5h1409_config = {
 	.qam_if        = 44000,
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
-	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK,
 };
 
 static struct s5h1411_config dvico_s5h1411_config = {
@@ -273,7 +273,7 @@ static struct s5h1411_config dvico_s5h1411_config = {
 	.vsb_if        = S5H1411_IF_44000,
 	.inversion     = S5H1411_INVERSION_OFF,
 	.status_mode   = S5H1411_DEMODLOCKING,
-	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK,
 };
 
 static struct s5h1411_config hcw_s5h1411_config = {
@@ -283,7 +283,7 @@ static struct s5h1411_config hcw_s5h1411_config = {
 	.qam_if        = S5H1411_IF_4000,
 	.inversion     = S5H1411_INVERSION_ON,
 	.status_mode   = S5H1411_DEMODLOCKING,
-	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK,
 };
 
 static struct xc5000_config hauppauge_hvr1500q_tunerconfig = {
@@ -296,7 +296,7 @@ static struct xc5000_config dvico_xc5000_tunerconfig = {
 	.if_khz           = 5380,
 };
 
-static struct tda829x_config tda829x_no_probe = {
+static struct tda829x_config tda829x_anal_probe = {
 	.probe_tuner = TDA829X_DONT_PROBE,
 };
 
@@ -450,7 +450,7 @@ static struct dib7000p_config hauppauge_hvr1400_dib7000_config = {
 static struct zl10353_config dvico_fusionhdtv_xc3028 = {
 	.demod_address = 0x0f,
 	.if2           = 45600,
-	.no_tuner      = 1,
+	.anal_tuner      = 1,
 	.disable_i2c_gate_ctrl = 1,
 };
 
@@ -860,10 +860,10 @@ static struct xc5000_config netup_xc5000_config[] = {
 static struct drxk_config terratec_drxk_config[] = {
 	{
 		.adr = 0x29,
-		.no_i2c_bridge = 1,
+		.anal_i2c_bridge = 1,
 	}, {
 		.adr = 0x2a,
-		.no_i2c_bridge = 1,
+		.anal_i2c_bridge = 1,
 	},
 };
 
@@ -975,14 +975,14 @@ static int netup_altera_fpga_rw(void *device, int flag, int data, int read)
 	return 0;
 };
 
-static int dib7070_tuner_reset(struct dvb_frontend *fe, int onoff)
+static int dib7070_tuner_reset(struct dvb_frontend *fe, int oanalff)
 {
 	struct dib7000p_ops *dib7000p_ops = fe->sec_priv;
 
-	return dib7000p_ops->set_gpio(fe, 8, 0, !onoff);
+	return dib7000p_ops->set_gpio(fe, 8, 0, !oanalff);
 }
 
-static int dib7070_tuner_sleep(struct dvb_frontend *fe, int onoff)
+static int dib7070_tuner_sleep(struct dvb_frontend *fe, int oanalff)
 {
 	return 0;
 }
@@ -1161,10 +1161,10 @@ static int dvb_register_ci_mac(struct cx23885_tsport *port)
 		request_module(info.type);
 		client_ci = i2c_new_client_device(&i2c_bus->i2c_adap, &info);
 		if (!i2c_client_has_driver(client_ci))
-			return -ENODEV;
+			return -EANALDEV;
 		if (!try_module_get(client_ci->dev.driver->owner)) {
 			i2c_unregister_device(client_ci);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		port->i2c_client_ci = client_ci;
 
@@ -1203,7 +1203,7 @@ static int dvb_register(struct cx23885_tsport *port)
 	struct i2c_client *client_sec = NULL;
 	int (*p_set_voltage)(struct dvb_frontend *fe,
 			     enum fe_sec_voltage voltage) = NULL;
-	int mfe_shared = 0; /* bus not shared by default */
+	int mfe_shared = 0; /* bus analt shared by default */
 	int ret;
 
 	/* Get the first frontend */
@@ -1278,7 +1278,7 @@ static int dvb_register(struct cx23885_tsport *port)
 
 			dvb_attach(tda829x_attach, fe0->dvb.frontend,
 				   &dev->i2c_bus[1].i2c_adap, 0x42,
-				   &tda829x_no_probe);
+				   &tda829x_anal_probe);
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_bus[1].i2c_adap,
 				   &hauppauge_tda18271_config);
@@ -1363,7 +1363,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			break;
 		dvb_attach(tda829x_attach, fe0->dvb.frontend,
 			   &dev->i2c_bus[1].i2c_adap, 0x42,
-			   &tda829x_no_probe);
+			   &tda829x_anal_probe);
 		dvb_attach(tda18271_attach, fe0->dvb.frontend,
 			   0x60, &dev->i2c_bus[1].i2c_adap,
 			   &hauppauge_hvr1200_tuner_config);
@@ -1383,7 +1383,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		i2c_bus = &dev->i2c_bus[0];
 
 		if (!dvb_attach(dib7000p_attach, &dib7000p_ops))
-			return -ENODEV;
+			return -EANALDEV;
 
 		fe0->dvb.frontend = dib7000p_ops.init(&i2c_bus->i2c_adap,
 			0x12, &hauppauge_hvr1400_dib7000_config);
@@ -1454,11 +1454,11 @@ static int dvb_register(struct cx23885_tsport *port)
 		/* cxusb_bluebird_gpio_pulse(adap->dev, 0x02, 1); */
 
 		if (!dvb_attach(dib7000p_attach, &dib7000p_ops))
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (dib7000p_ops.i2c_enumeration(&i2c_bus->i2c_adap, 1, 0x12, &dib7070p_dib7000p_config) < 0) {
 			pr_warn("Unable to enumerate dib7000p\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		fe0->dvb.frontend = dib7000p_ops.init(&i2c_bus->i2c_adap, 0x80, &dib7070p_dib7000p_config);
 		if (fe0->dvb.frontend != NULL) {
@@ -1466,10 +1466,10 @@ static int dvb_register(struct cx23885_tsport *port)
 
 			fe0->dvb.frontend->sec_priv = kmemdup(&dib7000p_ops, sizeof(dib7000p_ops), GFP_KERNEL);
 			if (!fe0->dvb.frontend->sec_priv)
-				return -ENOMEM;
+				return -EANALMEM;
 			tun_i2c = dib7000p_ops.get_i2c_master(fe0->dvb.frontend, DIBX000_I2C_INTERFACE_TUNER, 1);
 			if (!dvb_attach(dib0070_attach, fe0->dvb.frontend, tun_i2c, &dib7070p_dib0070_config))
-				return -ENODEV;
+				return -EANALDEV;
 		}
 		break;
 	}
@@ -1591,7 +1591,7 @@ static int dvb_register(struct cx23885_tsport *port)
 							&i2c_bus->i2c_adap,
 							LNBH24_PCL | LNBH24_TTX,
 							LNBH24_TEN, 0x09))
-						pr_err("No LNBH24 found!\n");
+						pr_err("Anal LNBH24 found!\n");
 
 				}
 			}
@@ -1611,7 +1611,7 @@ static int dvb_register(struct cx23885_tsport *port)
 							&i2c_bus->i2c_adap,
 							LNBH24_PCL | LNBH24_TTX,
 							LNBH24_TEN, 0x0a))
-						pr_err("No LNBH24 found!\n");
+						pr_err("Anal LNBH24 found!\n");
 
 				}
 			}
@@ -1717,7 +1717,7 @@ static int dvb_register(struct cx23885_tsport *port)
 
 		i2c_bus = &dev->i2c_bus[0];
 		mfe_shared = 1;/* MFE */
-		port->frontends.gate = 0;/* not clear for me yet */
+		port->frontends.gate = 0;/* analt clear for me yet */
 		/* ports B, C */
 		/* MFE frontend 1 DVB-T */
 		fe0->dvb.frontend = dvb_attach(stv0367ter_attach,
@@ -2630,7 +2630,7 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 
 	/* Here we need to allocate the correct number of frontends,
 	 * as reflected in the cards struct. The reality is that currently
-	 * no cx23885 boards support this - yet. But, if we don't modify this
+	 * anal cx23885 boards support this - yet. But, if we don't modify this
 	 * code then the second frontend would never be allocated (later)
 	 * and fail with error before the attach in dvb_register().
 	 * Without these changes we risk an OOPS later. The changes here
@@ -2646,7 +2646,7 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 		if (vb2_dvb_alloc_frontend(
 			&port->frontends, i) == NULL) {
 			pr_err("%s() failed to alloc\n", __func__);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		fe0 = vb2_dvb_get_frontend(&port->frontends, i);
@@ -2672,7 +2672,7 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 		q->buf_struct_size = sizeof(struct cx23885_buffer);
 		q->ops = &dvb_qops;
 		q->mem_ops = &vb2_dma_sg_memops;
-		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 		q->lock = &dev->lock;
 		q->dev = &dev->pci->dev;
 

@@ -22,7 +22,7 @@
  * @parent_map: map from parent_names index to src_sel field
  * @clkr:	handle between common and hardware-specific interfaces
  * @pclk:	the input PLL clock
- * @clk_nb:	clock notifier for rate changes of the input PLL
+ * @clk_nb:	clock analtifier for rate changes of the input PLL
  */
 struct clk_regmap_mux_div {
 	u32				reg_offset;
@@ -35,7 +35,7 @@ struct clk_regmap_mux_div {
 	const u32			*parent_map;
 	struct clk_regmap		clkr;
 	struct clk			*pclk;
-	struct notifier_block		clk_nb;
+	struct analtifier_block		clk_nb;
 };
 
 extern const struct clk_ops clk_regmap_mux_div_ops;

@@ -23,7 +23,7 @@
 
 #define TEGRA_VI_SYNCPT_WAIT_TIMEOUT			msecs_to_jiffies(200)
 
-/* This are just good-sense numbers. The actual min/max is not documented. */
+/* This are just good-sense numbers. The actual min/max is analt documented. */
 #define TEGRA20_MIN_WIDTH	32U
 #define TEGRA20_MIN_HEIGHT	32U
 #define TEGRA20_MAX_WIDTH	2048U
@@ -191,7 +191,7 @@ static void tegra20_vi_get_output_formats(struct tegra_vi_channel *chan,
 {
 	u32 output_fourcc = chan->format.pixelformat;
 
-	/* Default to YUV422 non-planar (U8Y8V8Y8) after downscaling */
+	/* Default to YUV422 analn-planar (U8Y8V8Y8) after downscaling */
 	(*main_output_format) = VI_OUTPUT_OUTPUT_FORMAT_YUV422POST;
 	(*yuv_output_format) = VI_OUTPUT_YUV_OUTPUT_FORMAT_UYVY;
 
@@ -218,11 +218,11 @@ static void tegra20_vi_get_output_formats(struct tegra_vi_channel *chan,
 /*
  * Make the VI accessible (needed on Tegra20).
  *
- * This function writes an unknown bit into an unknown register. The code
+ * This function writes an unkanalwn bit into an unkanalwn register. The code
  * comes from a downstream 3.1 kernel that has a working VIP driver for
  * Tegra20, and removing it makes the VI completely unaccessible. It should
  * be rewritten and possibly moved elsewhere, but the appropriate location
- * and implementation is unknown due to a total lack of documentation.
+ * and implementation is unkanalwn due to a total lack of documentation.
  */
 static int tegra20_vi_enable(struct tegra_vi *vi, bool on)
 {
@@ -234,9 +234,9 @@ static int tegra20_vi_enable(struct tegra_vi *vi, bool on)
 
 	apb_misc = ioremap(TEGRA_APB_MISC_BASE, PAGE_SIZE);
 	if (!apb_misc)
-		apb_misc = ERR_PTR(-ENOENT);
+		apb_misc = ERR_PTR(-EANALENT);
 	if (IS_ERR(apb_misc))
-		return dev_err_probe(vi->dev, PTR_ERR(apb_misc), "cannot access APB_MISC");
+		return dev_err_probe(vi->dev, PTR_ERR(apb_misc), "cananalt access APB_MISC");
 
 	val = readl(apb_misc + reg_offset);
 	val &= ~BIT(0);
@@ -254,7 +254,7 @@ static int tegra20_channel_host1x_syncpt_init(struct tegra_vi_channel *chan)
 
 	out_sp = host1x_syncpt_request(&vi->client, HOST1X_SYNCPT_CLIENT_MANAGED);
 	if (!out_sp)
-		return dev_err_probe(vi->dev, -ENOMEM, "failed to request syncpoint\n");
+		return dev_err_probe(vi->dev, -EANALMEM, "failed to request syncpoint\n");
 
 	chan->mw_ack_sp[0] = out_sp;
 
@@ -348,7 +348,7 @@ static void release_buffer(struct tegra_vi_channel *chan,
 	struct vb2_v4l2_buffer *vb = &buf->buf;
 
 	vb->sequence = chan->sequence++;
-	vb->field = V4L2_FIELD_NONE;
+	vb->field = V4L2_FIELD_ANALNE;
 	vb->vb2_buf.timestamp = ktime_get_ns();
 	vb2_buffer_done(&vb->vb2_buf, state);
 }
@@ -415,8 +415,8 @@ static int tegra20_chan_capture_kthread_start(void *data)
 
 	while (1) {
 		/*
-		 * Source is not streaming if error is non-zero.
-		 * So, do not dequeue buffers on error and let the thread sleep
+		 * Source is analt streaming if error is analn-zero.
+		 * So, do analt dequeue buffers on error and let the thread sleep
 		 * till kthread stop signal is received.
 		 */
 		wait_event_interruptible(chan->start_wait,
@@ -467,7 +467,7 @@ static void tegra20_camera_capture_setup(struct tegra_vi_channel *chan)
 
 	/*
 	 * Set up low pass filter.  Use 0x240 for chromaticity and 0x240
-	 * for luminance, which is the default and means not to touch
+	 * for luminance, which is the default and means analt to touch
 	 * anything.
 	 */
 	tegra20_vi_write(chan, TEGRA_VI_H_LPF_CONTROL,
@@ -632,7 +632,7 @@ static int tegra20_vip_start_streaming(struct tegra_vip_channel *vip_chan)
 
 	/*
 	 * For VIP, D9..D2 is mapped to the video decoder's P7..P0.
-	 * Disable/mask out the other Dn wires. When not in BT656
+	 * Disable/mask out the other Dn wires. When analt in BT656
 	 * mode we also need the V/H sync.
 	 */
 	tegra20_vi_write(vi_chan, TEGRA_VI_PIN_INPUT_ENABLE,

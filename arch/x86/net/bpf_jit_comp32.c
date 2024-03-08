@@ -14,7 +14,7 @@
 #include <linux/if_vlan.h>
 #include <asm/cacheflush.h>
 #include <asm/set_memory.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/asm-prototypes.h>
 #include <linux/bpf.h>
 
@@ -347,7 +347,7 @@ static inline void emit_ia32_to_le_r64(const u8 dst[], s32 val,
 			EMIT2(0x33, add_2reg(0xC0, dreg_hi, dreg_hi));
 		break;
 	case 64:
-		/* nop */
+		/* analp */
 		break;
 	}
 
@@ -1195,7 +1195,7 @@ struct jit_context {
 
 /*
  * Emit prologue code for BPF program and check its size.
- * bpf_tail_call helper will skip it while jumping into another program.
+ * bpf_tail_call helper will skip it while jumping into aanalther program.
  */
 static void emit_prologue(u8 **pprog, u32 stack_depth)
 {
@@ -1374,7 +1374,7 @@ static void emit_bpf_tail_call(u8 **pprog, u8 *ip)
 	EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_EAX), STACK_VAR(r1[0]));
 
 	/*
-	 * Now we're ready to jump into next BPF program:
+	 * Analw we're ready to jump into next BPF program:
 	 * eax == ctx (1st arg)
 	 * edx == prog->bpf_func + prologue_size
 	 */
@@ -1535,9 +1535,9 @@ static u8 get_cond_jmp_opcode(const u8 op, bool is_cmp_lo)
  * u64 foo(u32 a, u32 b, u32 c):
  *	return value: EAX (lo32) EDX (hi32)
  *
- * Notes:
+ * Analtes:
  *	The verifier only accepts function having integer and pointers
- *	as its args and return value, so it does not have
+ *	as its args and return value, so it does analt have
  *	struct-by-value.
  *
  * emit_kfunc_call() finds out the btf_func_model by calling
@@ -1547,16 +1547,16 @@ static u8 get_cond_jmp_opcode(const u8 op, bool is_cmp_lo)
  *
  * It first decides how many args can be passed by EAX, EDX, and ECX.
  * That will decide what args should be pushed to the stack:
- * [first_stack_regno, last_stack_regno] are the bpf regnos
+ * [first_stack_reganal, last_stack_reganal] are the bpf reganals
  * that should be pushed to the stack.
  *
  * It will first push all args to the stack because the push
  * will need to use ECX.  Then, it moves
- * [BPF_REG_1, first_stack_regno) to EAX, EDX, and ECX.
+ * [BPF_REG_1, first_stack_reganal) to EAX, EDX, and ECX.
  *
  * When emitting a call (0xE8), it needs to figure out
  * the jmp_offset relative to the jit-insn address immediately
- * following the call (0xE8) instruction.  At this point, it knows
+ * following the call (0xE8) instruction.  At this point, it kanalws
  * the end of the jit-insn address after completely translated the
  * current (BPF_JMP | BPF_CALL) bpf-insn.  It is passed as "end_addr"
  * to the emit_kfunc_call().  Thus, it can learn the "immediate-follow-call"
@@ -1570,7 +1570,7 @@ static int emit_kfunc_call(const struct bpf_prog *bpf_prog, u8 *end_addr,
 			   const struct bpf_insn *insn, u8 **pprog)
 {
 	const u8 arg_regs[] = { IA32_EAX, IA32_EDX, IA32_ECX };
-	int i, cnt = 0, first_stack_regno, last_stack_regno;
+	int i, cnt = 0, first_stack_reganal, last_stack_reganal;
 	int free_arg_regs = ARRAY_SIZE(arg_regs);
 	const struct btf_func_model *fm;
 	int bytes_in_stack = 0;
@@ -1582,7 +1582,7 @@ static int emit_kfunc_call(const struct bpf_prog *bpf_prog, u8 *end_addr,
 	if (!fm)
 		return -EINVAL;
 
-	first_stack_regno = BPF_REG_1;
+	first_stack_reganal = BPF_REG_1;
 	for (i = 0; i < fm->nr_args; i++) {
 		int regs_needed = fm->arg_size[i] > sizeof(u32) ? 2 : 1;
 
@@ -1590,12 +1590,12 @@ static int emit_kfunc_call(const struct bpf_prog *bpf_prog, u8 *end_addr,
 			break;
 
 		free_arg_regs -= regs_needed;
-		first_stack_regno++;
+		first_stack_reganal++;
 	}
 
 	/* Push the args to the stack */
-	last_stack_regno = BPF_REG_0 + fm->nr_args;
-	for (i = last_stack_regno; i >= first_stack_regno; i--) {
+	last_stack_reganal = BPF_REG_0 + fm->nr_args;
+	for (i = last_stack_reganal; i >= first_stack_reganal; i--) {
 		if (fm->arg_size[i - 1] > sizeof(u32)) {
 			emit_push_r64(bpf2ia32[i], &prog);
 			bytes_in_stack += 8;
@@ -1606,7 +1606,7 @@ static int emit_kfunc_call(const struct bpf_prog *bpf_prog, u8 *end_addr,
 	}
 
 	cur_arg_reg = &arg_regs[0];
-	for (i = BPF_REG_1; i < first_stack_regno; i++) {
+	for (i = BPF_REG_1; i < first_stack_reganal; i++) {
 		/* mov e[adc]x,dword ptr [ebp+off] */
 		EMIT3(0x8B, add_2reg(0x40, IA32_EBP, *cur_arg_reg++),
 		      STACK_VAR(bpf2ia32[i][0]));
@@ -1814,7 +1814,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 		case BPF_ALU64 | BPF_DIV | BPF_X:
 		case BPF_ALU64 | BPF_MOD | BPF_K:
 		case BPF_ALU64 | BPF_MOD | BPF_X:
-			goto notyet;
+			goto analtyet;
 		/* dst = dst >> imm */
 		/* dst = dst << imm */
 		case BPF_ALU | BPF_RSH | BPF_K:
@@ -1903,7 +1903,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			break;
 		}
 		/* speculation barrier */
-		case BPF_ST | BPF_NOSPEC:
+		case BPF_ST | BPF_ANALSPEC:
 			if (boot_cpu_has(X86_FEATURE_XMM2))
 				/* Emit 'lfence' */
 				EMIT3(0x0F, 0xAE, 0xE8);
@@ -2089,7 +2089,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			const u8 *r5 = bpf2ia32[BPF_REG_5];
 
 			if (insn->src_reg == BPF_PSEUDO_CALL)
-				goto notyet;
+				goto analtyet;
 
 			if (insn->src_reg == BPF_PSEUDO_KFUNC_CALL) {
 				int err;
@@ -2446,7 +2446,7 @@ emit_cond_jmp_signed:	/* Check the condition for low 32-bit comparison */
 				jmp_offset = addrs[i + insn->off] - addrs[i];
 
 			if (!jmp_offset)
-				/* Optimize out nop jumps */
+				/* Optimize out analp jumps */
 				break;
 emit_jmp:
 			if (is_imm8(jmp_offset)) {
@@ -2460,7 +2460,7 @@ emit_jmp:
 			break;
 		case BPF_STX | BPF_ATOMIC | BPF_W:
 		case BPF_STX | BPF_ATOMIC | BPF_DW:
-			goto notyet;
+			goto analtyet;
 		case BPF_JMP | BPF_EXIT:
 			if (seen_exit) {
 				jmp_offset = ctx->cleanup_addr - addrs[i];
@@ -2471,16 +2471,16 @@ emit_jmp:
 			ctx->cleanup_addr = proglen;
 			emit_epilogue(&prog, bpf_prog->aux->stack_depth);
 			break;
-notyet:
-			pr_info_once("*** NOT YET: opcode %02x ***\n", code);
+analtyet:
+			pr_info_once("*** ANALT YET: opcode %02x ***\n", code);
 			return -EFAULT;
 		default:
 			/*
 			 * This error will be seen if new instruction was added
-			 * to interpreter, but not to JIT or if there is junk in
+			 * to interpreter, but analt to JIT or if there is junk in
 			 * bpf_prog
 			 */
-			pr_err("bpf_jit: unknown opcode %02x\n", code);
+			pr_err("bpf_jit: unkanalwn opcode %02x\n", code);
 			return -EINVAL;
 		}
 
@@ -2494,8 +2494,8 @@ notyet:
 			/*
 			 * When populating the image, assert that:
 			 *
-			 *  i) We do not write beyond the allocated space, and
-			 * ii) addrs[i] did not change from the prior run, in order
+			 *  i) We do analt write beyond the allocated space, and
+			 * ii) addrs[i] did analt change from the prior run, in order
 			 *     to validate assumptions made for computing branch
 			 *     displacements.
 			 */

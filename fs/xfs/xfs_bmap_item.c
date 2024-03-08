@@ -12,7 +12,7 @@
 #include "xfs_shared.h"
 #include "xfs_mount.h"
 #include "xfs_defer.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_bmap_item.h"
@@ -46,7 +46,7 @@ xfs_bui_item_free(
 
 /*
  * Freeing the BUI requires that we remove it from the AIL if it has already
- * been placed there. However, the BUI may not yet have been placed in the AIL
+ * been placed there. However, the BUI may analt yet have been placed in the AIL
  * when called by xfs_bui_release() from BUD processing due to the ordering of
  * committed vs unpin operations in bulk insert operations. Hence the reference
  * count to ensure only the last caller frees the BUI.
@@ -107,7 +107,7 @@ xfs_bui_item_format(
  * either case, the BUI transaction has been successfully committed to make it
  * this far. Therefore, we expect whoever committed the BUI to either construct
  * and commit the BUD or drop the BUD's reference in the event of error. Simply
- * drop the log's BUI reference now that the log is done with it.
+ * drop the log's BUI reference analw that the log is done with it.
  */
 STATIC void
 xfs_bui_item_unpin(
@@ -141,7 +141,7 @@ xfs_bui_init(
 {
 	struct xfs_bui_log_item		*buip;
 
-	buip = kmem_cache_zalloc(xfs_bui_cache, GFP_KERNEL | __GFP_NOFAIL);
+	buip = kmem_cache_zalloc(xfs_bui_cache, GFP_KERNEL | __GFP_ANALFAIL);
 
 	xfs_log_item_init(mp, &buip->bui_item, XFS_LI_BUI, &xfs_bui_item_ops);
 	buip->bui_format.bui_nextents = XFS_BUI_MAX_FAST_EXTENTS;
@@ -221,7 +221,7 @@ static const struct xfs_item_ops xfs_bud_item_ops = {
 	.iop_intent	= xfs_bud_item_intent,
 };
 
-/* Sort bmap intents by inode. */
+/* Sort bmap intents by ianalde. */
 static int
 xfs_bmap_update_diff_items(
 	void				*priv,
@@ -233,7 +233,7 @@ xfs_bmap_update_diff_items(
 
 	ba = container_of(a, struct xfs_bmap_intent, bi_list);
 	bb = container_of(b, struct xfs_bmap_intent, bi_list);
-	return ba->bi_owner->i_ino - bb->bi_owner->i_ino;
+	return ba->bi_owner->i_ianal - bb->bi_owner->i_ianal;
 }
 
 /* Set the map extent flags for this mapping. */
@@ -277,7 +277,7 @@ xfs_bmap_update_log_item(
 	next_extent = atomic_inc_return(&buip->bui_next_extent) - 1;
 	ASSERT(next_extent < buip->bui_format.bui_nextents);
 	map = &buip->bui_format.bui_extents[next_extent];
-	map->me_owner = bi->bi_owner->i_ino;
+	map->me_owner = bi->bi_owner->i_ianal;
 	map->me_startblock = bi->bi_bmap.br_startblock;
 	map->me_startoff = bi->bi_bmap.br_startoff;
 	map->me_len = bi->bi_bmap.br_blockcount;
@@ -315,7 +315,7 @@ xfs_bmap_update_create_done(
 	struct xfs_bui_log_item		*buip = BUI_ITEM(intent);
 	struct xfs_bud_log_item		*budp;
 
-	budp = kmem_cache_zalloc(xfs_bud_cache, GFP_KERNEL | __GFP_NOFAIL);
+	budp = kmem_cache_zalloc(xfs_bud_cache, GFP_KERNEL | __GFP_ANALFAIL);
 	xfs_log_item_init(tp->t_mountp, &budp->bud_item, XFS_LI_BUD,
 			  &xfs_bud_item_ops);
 	budp->bud_buip = buip;
@@ -330,18 +330,18 @@ xfs_bmap_update_get_group(
 	struct xfs_mount	*mp,
 	struct xfs_bmap_intent	*bi)
 {
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		aganal;
 
-	agno = XFS_FSB_TO_AGNO(mp, bi->bi_bmap.br_startblock);
+	aganal = XFS_FSB_TO_AGANAL(mp, bi->bi_bmap.br_startblock);
 
 	/*
 	 * Bump the intent count on behalf of the deferred rmap and refcount
 	 * intent items that that we can queue when we finish this bmap work.
 	 * This new intent item will bump the intent count before the bmap
 	 * intent drops the intent count, ensuring that the intent count
-	 * remains nonzero across the transaction roll.
+	 * remains analnzero across the transaction roll.
 	 */
-	bi->bi_pag = xfs_perag_intent_get(mp, agno);
+	bi->bi_pag = xfs_perag_intent_get(mp, aganal);
 }
 
 /* Release a passive AG ref after finishing mapping work. */
@@ -422,7 +422,7 @@ xfs_bui_validate(
 		return false;
 	}
 
-	if (!xfs_verify_ino(mp, map->me_owner))
+	if (!xfs_verify_ianal(mp, map->me_owner))
 		return false;
 
 	if (!xfs_verify_fileext(mp, map->me_startoff, map->me_len))
@@ -435,7 +435,7 @@ static inline struct xfs_bmap_intent *
 xfs_bui_recover_work(
 	struct xfs_mount		*mp,
 	struct xfs_defer_pending	*dfp,
-	struct xfs_inode		**ipp,
+	struct xfs_ianalde		**ipp,
 	struct xfs_map_extent		*map)
 {
 	struct xfs_bmap_intent		*bi;
@@ -445,7 +445,7 @@ xfs_bui_recover_work(
 	if (error)
 		return ERR_PTR(error);
 
-	bi = kmem_cache_zalloc(xfs_bmap_intent_cache, GFP_NOFS | __GFP_NOFAIL);
+	bi = kmem_cache_zalloc(xfs_bmap_intent_cache, GFP_ANALFS | __GFP_ANALFAIL);
 	bi->bi_whichfork = (map->me_flags & XFS_BMAP_EXTENT_ATTR_FORK) ?
 			XFS_ATTR_FORK : XFS_DATA_FORK;
 	bi->bi_type = map->me_flags & XFS_BMAP_EXTENT_TYPE_MASK;
@@ -453,7 +453,7 @@ xfs_bui_recover_work(
 	bi->bi_bmap.br_startoff = map->me_startoff;
 	bi->bi_bmap.br_blockcount = map->me_len;
 	bi->bi_bmap.br_state = (map->me_flags & XFS_BMAP_EXTENT_UNWRITTEN) ?
-			XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
+			XFS_EXT_UNWRITTEN : XFS_EXT_ANALRM;
 	bi->bi_owner = *ipp;
 	xfs_bmap_update_get_group(mp, bi);
 
@@ -463,7 +463,7 @@ xfs_bui_recover_work(
 
 /*
  * Process a bmap update intent item that was recovered from the log.
- * We need to update some inode's bmbt.
+ * We need to update some ianalde's bmbt.
  */
 STATIC int
 xfs_bmap_recover_work(
@@ -474,7 +474,7 @@ xfs_bmap_recover_work(
 	struct xfs_log_item		*lip = dfp->dfp_intent;
 	struct xfs_bui_log_item		*buip = BUI_ITEM(lip);
 	struct xfs_trans		*tp;
-	struct xfs_inode		*ip = NULL;
+	struct xfs_ianalde		*ip = NULL;
 	struct xfs_mount		*mp = lip->li_log->l_mp;
 	struct xfs_map_extent		*map;
 	struct xfs_bmap_intent		*work;
@@ -503,7 +503,7 @@ xfs_bmap_recover_work(
 	xfs_trans_ijoin(tp, ip, 0);
 
 	if (work->bi_type == XFS_BMAP_MAP)
-		iext_delta = XFS_IEXT_ADD_NOSPLIT_CNT;
+		iext_delta = XFS_IEXT_ADD_ANALSPLIT_CNT;
 	else
 		iext_delta = XFS_IEXT_PUNCH_HOLE_CNT;
 
@@ -521,7 +521,7 @@ xfs_bmap_recover_work(
 		goto err_cancel;
 
 	/*
-	 * Commit transaction, which frees the transaction and saves the inode
+	 * Commit transaction, which frees the transaction and saves the ianalde
 	 * for later replay activities.
 	 */
 	error = xfs_defer_ops_capture_and_commit(tp, capture_list);

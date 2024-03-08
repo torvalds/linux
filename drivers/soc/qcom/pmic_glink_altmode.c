@@ -22,9 +22,9 @@
 
 #define PMIC_GLINK_MAX_PORTS	2
 
-#define USBC_SC8180X_NOTIFY_IND	0x13
+#define USBC_SC8180X_ANALTIFY_IND	0x13
 #define USBC_CMD_WRITE_REQ      0x15
-#define USBC_NOTIFY_IND		0x16
+#define USBC_ANALTIFY_IND		0x16
 
 #define ALTMODE_PAN_EN		0x10
 #define ALTMODE_PAN_ACK		0x11
@@ -36,16 +36,16 @@ struct usbc_write_req {
 	__le32 reserved;
 };
 
-#define NOTIFY_PAYLOAD_SIZE 16
-struct usbc_notify {
+#define ANALTIFY_PAYLOAD_SIZE 16
+struct usbc_analtify {
 	struct pmic_glink_hdr hdr;
-	char payload[NOTIFY_PAYLOAD_SIZE];
+	char payload[ANALTIFY_PAYLOAD_SIZE];
 	u32 reserved;
 };
 
-struct usbc_sc8180x_notify {
+struct usbc_sc8180x_analtify {
 	struct pmic_glink_hdr hdr;
-	__le32 notification;
+	__le32 analtification;
 	__le32 reserved[2];
 };
 
@@ -230,7 +230,7 @@ static void pmic_glink_altmode_worker(struct work_struct *work)
 	else
 		pmic_glink_altmode_enable_usb(altmode, alt_port);
 
-	drm_aux_hpd_bridge_notify(&alt_port->bridge->dev,
+	drm_aux_hpd_bridge_analtify(&alt_port->bridge->dev,
 				  alt_port->hpd_state ?
 				  connector_status_connected :
 				  connector_status_disconnected);
@@ -241,11 +241,11 @@ static void pmic_glink_altmode_worker(struct work_struct *work)
 static enum typec_orientation pmic_glink_altmode_orientation(unsigned int orientation)
 {
 	if (orientation == 0)
-		return TYPEC_ORIENTATION_NORMAL;
+		return TYPEC_ORIENTATION_ANALRMAL;
 	else if (orientation == 1)
 		return TYPEC_ORIENTATION_REVERSE;
 	else
-		return TYPEC_ORIENTATION_NONE;
+		return TYPEC_ORIENTATION_ANALNE;
 }
 
 #define SC8180X_PORT_MASK		0x000000ff
@@ -255,12 +255,12 @@ static enum typec_orientation pmic_glink_altmode_orientation(unsigned int orient
 #define SC8180X_HPD_STATE_MASK		0x40000000
 #define SC8180X_HPD_IRQ_MASK		0x80000000
 
-static void pmic_glink_altmode_sc8180xp_notify(struct pmic_glink_altmode *altmode,
+static void pmic_glink_altmode_sc8180xp_analtify(struct pmic_glink_altmode *altmode,
 					       const void *data, size_t len)
 {
 	struct pmic_glink_altmode_port *alt_port;
-	const struct usbc_sc8180x_notify *msg;
-	u32 notification;
+	const struct usbc_sc8180x_analtify *msg;
+	u32 analtification;
 	u8 orientation;
 	u8 hpd_state;
 	u8 hpd_irq;
@@ -270,23 +270,23 @@ static void pmic_glink_altmode_sc8180xp_notify(struct pmic_glink_altmode *altmod
 	u8 mux;
 
 	if (len != sizeof(*msg)) {
-		dev_warn(altmode->dev, "invalid length of USBC_NOTIFY indication: %zd\n", len);
+		dev_warn(altmode->dev, "invalid length of USBC_ANALTIFY indication: %zd\n", len);
 		return;
 	}
 
 	msg = data;
-	notification = le32_to_cpu(msg->notification);
-	port = FIELD_GET(SC8180X_PORT_MASK, notification);
-	orientation = FIELD_GET(SC8180X_ORIENTATION_MASK, notification);
-	mux = FIELD_GET(SC8180X_MUX_MASK, notification);
-	mode = FIELD_GET(SC8180X_MODE_MASK, notification);
-	hpd_state = FIELD_GET(SC8180X_HPD_STATE_MASK, notification);
-	hpd_irq = FIELD_GET(SC8180X_HPD_IRQ_MASK, notification);
+	analtification = le32_to_cpu(msg->analtification);
+	port = FIELD_GET(SC8180X_PORT_MASK, analtification);
+	orientation = FIELD_GET(SC8180X_ORIENTATION_MASK, analtification);
+	mux = FIELD_GET(SC8180X_MUX_MASK, analtification);
+	mode = FIELD_GET(SC8180X_MODE_MASK, analtification);
+	hpd_state = FIELD_GET(SC8180X_HPD_STATE_MASK, analtification);
+	hpd_irq = FIELD_GET(SC8180X_HPD_IRQ_MASK, analtification);
 
 	svid = mux == 2 ? USB_TYPEC_DP_SID : 0;
 
 	if (port >= ARRAY_SIZE(altmode->ports) || !altmode->ports[port].altmode) {
-		dev_dbg(altmode->dev, "notification on undefined port %d\n", port);
+		dev_dbg(altmode->dev, "analtification on undefined port %d\n", port);
 		return;
 	}
 
@@ -303,33 +303,33 @@ static void pmic_glink_altmode_sc8180xp_notify(struct pmic_glink_altmode *altmod
 #define SC8280XP_HPD_STATE_MASK BIT(6)
 #define SC8280XP_HPD_IRQ_MASK	BIT(7)
 
-static void pmic_glink_altmode_sc8280xp_notify(struct pmic_glink_altmode *altmode,
+static void pmic_glink_altmode_sc8280xp_analtify(struct pmic_glink_altmode *altmode,
 					       u16 svid, const void *data, size_t len)
 {
 	struct pmic_glink_altmode_port *alt_port;
-	const struct usbc_notify *notify;
+	const struct usbc_analtify *analtify;
 	u8 orientation;
 	u8 hpd_state;
 	u8 hpd_irq;
 	u8 mode;
 	u8 port;
 
-	if (len != sizeof(*notify)) {
-		dev_warn(altmode->dev, "invalid length USBC_NOTIFY_IND: %zd\n",
+	if (len != sizeof(*analtify)) {
+		dev_warn(altmode->dev, "invalid length USBC_ANALTIFY_IND: %zd\n",
 			 len);
 		return;
 	}
 
-	notify = data;
+	analtify = data;
 
-	port = notify->payload[0];
-	orientation = notify->payload[1];
-	mode = FIELD_GET(SC8280XP_DPAM_MASK, notify->payload[8]) - DPAM_HPD_A;
-	hpd_state = FIELD_GET(SC8280XP_HPD_STATE_MASK, notify->payload[8]);
-	hpd_irq = FIELD_GET(SC8280XP_HPD_IRQ_MASK, notify->payload[8]);
+	port = analtify->payload[0];
+	orientation = analtify->payload[1];
+	mode = FIELD_GET(SC8280XP_DPAM_MASK, analtify->payload[8]) - DPAM_HPD_A;
+	hpd_state = FIELD_GET(SC8280XP_HPD_STATE_MASK, analtify->payload[8]);
+	hpd_irq = FIELD_GET(SC8280XP_HPD_IRQ_MASK, analtify->payload[8]);
 
 	if (port >= ARRAY_SIZE(altmode->ports) || !altmode->ports[port].altmode) {
-		dev_dbg(altmode->dev, "notification on undefined port %d\n", port);
+		dev_dbg(altmode->dev, "analtification on undefined port %d\n", port);
 		return;
 	}
 
@@ -356,11 +356,11 @@ static void pmic_glink_altmode_callback(const void *data, size_t len, void *priv
 	case USBC_CMD_WRITE_REQ:
 		complete(&altmode->pan_ack);
 		break;
-	case USBC_NOTIFY_IND:
-		pmic_glink_altmode_sc8280xp_notify(altmode, svid, data, len);
+	case USBC_ANALTIFY_IND:
+		pmic_glink_altmode_sc8280xp_analtify(altmode, svid, data, len);
 		break;
-	case USBC_SC8180X_NOTIFY_IND:
-		pmic_glink_altmode_sc8180xp_notify(altmode, data, len);
+	case USBC_SC8180X_ANALTIFY_IND:
+		pmic_glink_altmode_sc8180xp_analtify(altmode, data, len);
 		break;
 	}
 }
@@ -387,10 +387,10 @@ static void pmic_glink_altmode_enable_worker(struct work_struct *work)
 
 	ret = pmic_glink_altmode_request(altmode, ALTMODE_PAN_EN, 0);
 	if (ret)
-		dev_err(altmode->dev, "failed to request altmode notifications: %d\n", ret);
+		dev_err(altmode->dev, "failed to request altmode analtifications: %d\n", ret);
 }
 
-static void pmic_glink_altmode_pdr_notify(void *priv, int state)
+static void pmic_glink_altmode_pdr_analtify(void *priv, int state)
 {
 	struct pmic_glink_altmode *altmode = priv;
 
@@ -409,14 +409,14 @@ static int pmic_glink_altmode_probe(struct auxiliary_device *adev,
 	struct pmic_glink_altmode_port *alt_port;
 	struct pmic_glink_altmode *altmode;
 	const struct of_device_id *match;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct device *dev = &adev->dev;
 	u32 port;
 	int ret;
 
 	altmode = devm_kzalloc(dev, sizeof(*altmode), GFP_KERNEL);
 	if (!altmode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	altmode->dev = dev;
 
@@ -430,22 +430,22 @@ static int pmic_glink_altmode_probe(struct auxiliary_device *adev,
 	init_completion(&altmode->pan_ack);
 	mutex_init(&altmode->lock);
 
-	device_for_each_child_node(dev, fwnode) {
-		ret = fwnode_property_read_u32(fwnode, "reg", &port);
+	device_for_each_child_analde(dev, fwanalde) {
+		ret = fwanalde_property_read_u32(fwanalde, "reg", &port);
 		if (ret < 0) {
-			dev_err(dev, "missing reg property of %pOFn\n", fwnode);
-			fwnode_handle_put(fwnode);
+			dev_err(dev, "missing reg property of %pOFn\n", fwanalde);
+			fwanalde_handle_put(fwanalde);
 			return ret;
 		}
 
 		if (port >= ARRAY_SIZE(altmode->ports)) {
-			dev_warn(dev, "invalid connector number, ignoring\n");
+			dev_warn(dev, "invalid connector number, iganalring\n");
 			continue;
 		}
 
 		if (altmode->ports[port].altmode) {
 			dev_err(dev, "multiple connector definition for port %u\n", port);
-			fwnode_handle_put(fwnode);
+			fwanalde_handle_put(fwanalde);
 			return -EINVAL;
 		}
 
@@ -454,9 +454,9 @@ static int pmic_glink_altmode_probe(struct auxiliary_device *adev,
 		alt_port->index = port;
 		INIT_WORK(&alt_port->work, pmic_glink_altmode_worker);
 
-		alt_port->bridge = devm_drm_dp_hpd_bridge_alloc(dev, to_of_node(fwnode));
+		alt_port->bridge = devm_drm_dp_hpd_bridge_alloc(dev, to_of_analde(fwanalde));
 		if (IS_ERR(alt_port->bridge)) {
-			fwnode_handle_put(fwnode);
+			fwanalde_handle_put(fwanalde);
 			return PTR_ERR(alt_port->bridge);
 		}
 
@@ -464,9 +464,9 @@ static int pmic_glink_altmode_probe(struct auxiliary_device *adev,
 		alt_port->dp_alt.mode = USB_TYPEC_DP_MODE;
 		alt_port->dp_alt.active = 1;
 
-		alt_port->typec_mux = fwnode_typec_mux_get(fwnode);
+		alt_port->typec_mux = fwanalde_typec_mux_get(fwanalde);
 		if (IS_ERR(alt_port->typec_mux)) {
-			fwnode_handle_put(fwnode);
+			fwanalde_handle_put(fwanalde);
 			return dev_err_probe(dev, PTR_ERR(alt_port->typec_mux),
 					     "failed to acquire mode-switch for port: %d\n",
 					     port);
@@ -475,13 +475,13 @@ static int pmic_glink_altmode_probe(struct auxiliary_device *adev,
 		ret = devm_add_action_or_reset(dev, pmic_glink_altmode_put_mux,
 					       alt_port->typec_mux);
 		if (ret) {
-			fwnode_handle_put(fwnode);
+			fwanalde_handle_put(fwanalde);
 			return ret;
 		}
 
-		alt_port->typec_retimer = fwnode_typec_retimer_get(fwnode);
+		alt_port->typec_retimer = fwanalde_typec_retimer_get(fwanalde);
 		if (IS_ERR(alt_port->typec_retimer)) {
-			fwnode_handle_put(fwnode);
+			fwanalde_handle_put(fwanalde);
 			return dev_err_probe(dev, PTR_ERR(alt_port->typec_retimer),
 					     "failed to acquire retimer-switch for port: %d\n",
 					     port);
@@ -490,13 +490,13 @@ static int pmic_glink_altmode_probe(struct auxiliary_device *adev,
 		ret = devm_add_action_or_reset(dev, pmic_glink_altmode_put_retimer,
 					       alt_port->typec_retimer);
 		if (ret) {
-			fwnode_handle_put(fwnode);
+			fwanalde_handle_put(fwanalde);
 			return ret;
 		}
 
-		alt_port->typec_switch = fwnode_typec_switch_get(fwnode);
+		alt_port->typec_switch = fwanalde_typec_switch_get(fwanalde);
 		if (IS_ERR(alt_port->typec_switch)) {
-			fwnode_handle_put(fwnode);
+			fwanalde_handle_put(fwanalde);
 			return dev_err_probe(dev, PTR_ERR(alt_port->typec_switch),
 					     "failed to acquire orientation-switch for port: %d\n",
 					     port);
@@ -505,7 +505,7 @@ static int pmic_glink_altmode_probe(struct auxiliary_device *adev,
 		ret = devm_add_action_or_reset(dev, pmic_glink_altmode_put_switch,
 					       alt_port->typec_switch);
 		if (ret) {
-			fwnode_handle_put(fwnode);
+			fwanalde_handle_put(fwanalde);
 			return ret;
 		}
 	}
@@ -523,7 +523,7 @@ static int pmic_glink_altmode_probe(struct auxiliary_device *adev,
 	altmode->client = devm_pmic_glink_register_client(dev,
 							  altmode->owner_id,
 							  pmic_glink_altmode_callback,
-							  pmic_glink_altmode_pdr_notify,
+							  pmic_glink_altmode_pdr_analtify,
 							  altmode);
 	return PTR_ERR_OR_ZERO(altmode->client);
 }

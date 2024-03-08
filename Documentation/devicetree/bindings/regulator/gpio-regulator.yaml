@@ -25,7 +25,7 @@ properties:
 
   enable-gpios:
     description: GPIO to use to enable/disable the regulator.
-      Warning, the GPIO phandle flags are ignored and the GPIO polarity is
+      Warning, the GPIO phandle flags are iganalred and the GPIO polarity is
       controlled solely by the presence of "enable-active-high" DT property.
       This is due to compatibility with old DTs.
     maxItems: 1
@@ -34,18 +34,18 @@ properties:
     description: Array of one or more GPIO pins used to select the regulator
       voltage/current listed in "states".
     minItems: 1
-    maxItems: 8  # Should be enough...
+    maxItems: 8  # Should be eanalugh...
 
   gpios-states:
     description: |
       On operating systems, that don't support reading back gpio values in
-      output mode (most notably linux), this array provides the state of GPIO
+      output mode (most analtably linux), this array provides the state of GPIO
       pins set when requesting them from the gpio controller. Systems, that are
-      capable of preserving state when requesting the lines, are free to ignore
+      capable of preserving state when requesting the lines, are free to iganalre
       this property.
         0: LOW
         1: HIGH
-      Default is LOW if nothing else is specified.
+      Default is LOW if analthing else is specified.
     $ref: /schemas/types.yaml#/definitions/uint32-array
     maxItems: 8
     items:
@@ -55,7 +55,7 @@ properties:
   states:
     description: Selection of available voltages/currents provided by this
       regulator and matching GPIO configurations to achieve them. If there are
-      no states in the "states" array, use a fixed regulator instead.
+      anal states in the "states" array, use a fixed regulator instead.
     $ref: /schemas/types.yaml#/definitions/uint32-matrix
     maxItems: 8
     items:

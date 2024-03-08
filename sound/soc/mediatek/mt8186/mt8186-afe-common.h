@@ -115,7 +115,7 @@ enum {
 
 enum {
 	MTK_AFE_ADDA_DL_GAIN_MUTE = 0,
-	MTK_AFE_ADDA_DL_GAIN_NORMAL = 0xf74f,
+	MTK_AFE_ADDA_DL_GAIN_ANALRMAL = 0xf74f,
 	/* SA suggest apply -0.3db to audio/speech path */
 };
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_FUTEX_H
 #define _ASM_FUTEX_H
@@ -9,7 +9,7 @@
 #include <linux/uaccess.h>
 #include <asm/asm-extable.h>
 #include <asm/barrier.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)		\
 {									\
@@ -51,7 +51,7 @@ arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 		__futex_atomic_op("xor	$t0, %1, %z5", ret, oldval, uaddr, oparg);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 	}
 
 	pagefault_enable();

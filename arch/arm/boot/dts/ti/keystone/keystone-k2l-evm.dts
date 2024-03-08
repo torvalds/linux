@@ -65,7 +65,7 @@
 		ranges;
 
 		ti,cs-chipselect = <0>;
-		/* all timings in nanoseconds */
+		/* all timings in naanalseconds */
 		ti,cs-min-turnaround-ns = <12>;
 		ti,cs-read-hold-ns = <6>;
 		ti,cs-read-strobe-ns = <23>;
@@ -110,10 +110,10 @@
 };
 
 &spi0 {
-	nor_flash: flash@0 {
+	analr_flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q128a11", "jedec,spi-nor";
+		compatible = "micron,n25q128a11", "jedec,spi-analr";
 		spi-max-frequency = <54000000>;
 		m25p,fast-read;
 		reg = <0>;

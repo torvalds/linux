@@ -16,10 +16,10 @@
  *		piggy,
  *		Karl Knutson	:	Socket protocol table
  *		A.N.Kuznetsov	:	Socket death error in accept().
- *		John Richardson :	Fix non blocking error in connect()
+ *		John Richardson :	Fix analn blocking error in connect()
  *					so sockets that fail to connect
  *					don't return -EINPROGRESS.
- *		Alan Cox	:	Asynchronous I/O support
+ *		Alan Cox	:	Asynchroanalus I/O support
  *		Alan Cox	:	Keep correct socket pointer on sock
  *					structures
  *					when accept() ed
@@ -33,24 +33,24 @@
  *		Alan Cox	:	bind() shouldn't abort existing but dead
  *					sockets. Stops FTP netin:.. I hope.
  *		Alan Cox	:	bind() works correctly for RAW sockets.
- *					Note that FreeBSD at least was broken
+ *					Analte that FreeBSD at least was broken
  *					in this respect so be careful with
  *					compatibility tests...
  *		Alan Cox	:	routing cache support
  *		Alan Cox	:	memzero the socket structure for
  *					compactness.
- *		Matt Day	:	nonblock connect error handler
+ *		Matt Day	:	analnblock connect error handler
  *		Alan Cox	:	Allow large numbers of pending sockets
  *					(eg for big web sites), but only if
  *					specifically application requested.
  *		Alan Cox	:	New buffering throughout IP. Used
  *					dumbly.
- *		Alan Cox	:	New buffering now used smartly.
+ *		Alan Cox	:	New buffering analw used smartly.
  *		Alan Cox	:	BSD rather than common sense
  *					interpretation of listen.
- *		Germano Caronni	:	Assorted small races.
+ *		Germaanal Caronni	:	Assorted small races.
  *		Alan Cox	:	sendmsg/recvmsg basic support.
- *		Alan Cox	:	Only sendmsg/recvmsg now supported.
+ *		Alan Cox	:	Only sendmsg/recvmsg analw supported.
  *		Alan Cox	:	Locked down bind (see security list).
  *		Alan Cox	:	Loosened bind a little.
  *		Mike McLagan	:	ADD/DEL DLCI Ioctls
@@ -64,7 +64,7 @@
 #define pr_fmt(fmt) "IPv4: " fmt
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -201,7 +201,7 @@ int __inet_listen_sk(struct sock *sk, int backlog)
 	 */
 	if (old_state != TCP_LISTEN) {
 		/* Enable TFO w/o requiring TCP_FASTOPEN socket option.
-		 * Note that only TCP sockets (SOCK_STREAM) will reach here.
+		 * Analte that only TCP sockets (SOCK_STREAM) will reach here.
 		 * Also fastopen backlog may already been set via the option
 		 * because the socket was in TCP_LISTEN state previously but
 		 * was shutdown() rather than close().
@@ -266,12 +266,12 @@ static int inet_create(struct net *net, struct socket *sock, int protocol,
 
 	/* Look for the requested type/protocol pair. */
 lookup_protocol:
-	err = -ESOCKTNOSUPPORT;
+	err = -ESOCKTANALSUPPORT;
 	rcu_read_lock();
 	list_for_each_entry_rcu(answer, &inetsw[sock->type], list) {
 
 		err = 0;
-		/* Check the non-wild match. */
+		/* Check the analn-wild match. */
 		if (protocol == answer->protocol) {
 			if (protocol != IPPROTO_IP)
 				break;
@@ -284,7 +284,7 @@ lookup_protocol:
 			if (IPPROTO_IP == answer->protocol)
 				break;
 		}
-		err = -EPROTONOSUPPORT;
+		err = -EPROTOANALSUPPORT;
 	}
 
 	if (unlikely(err)) {
@@ -321,7 +321,7 @@ lookup_protocol:
 
 	WARN_ON(!answer_prot->slab);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	sk = sk_alloc(net, PF_INET, GFP_KERNEL, answer_prot, kern);
 	if (!sk)
 		goto out;
@@ -336,7 +336,7 @@ lookup_protocol:
 	inet = inet_sk(sk);
 	inet_assign_bit(IS_ICSK, sk, INET_PROTOSW_ICSK & answer_flags);
 
-	inet_clear_bit(NODEFRAG, sk);
+	inet_clear_bit(ANALDEFRAG, sk);
 
 	if (SOCK_RAW == sock->type) {
 		inet->inet_num = protocol;
@@ -344,7 +344,7 @@ lookup_protocol:
 			inet_set_bit(HDRINCL, sk);
 	}
 
-	if (READ_ONCE(net->ipv4.sysctl_ip_no_pmtu_disc))
+	if (READ_ONCE(net->ipv4.sysctl_ip_anal_pmtu_disc))
 		inet->pmtudisc = IP_PMTUDISC_DONT;
 	else
 		inet->pmtudisc = IP_PMTUDISC_WANT;
@@ -406,7 +406,7 @@ out_rcu_unlock:
 
 /*
  *	The peer socket should always be NULL (or else). When we call this
- *	function we are destroying the object and from then on nobody
+ *	function we are destroying the object and from then on analbody
  *	should refer to it.
  */
 int inet_release(struct socket *sock)
@@ -484,7 +484,7 @@ int __inet_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		/* Compatibility games : accept AF_UNSPEC (mapped to AF_INET)
 		 * only if s_addr is INADDR_ANY.
 		 */
-		err = -EAFNOSUPPORT;
+		err = -EAFANALSUPPORT;
 		if (addr->sin_family != AF_UNSPEC ||
 		    addr->sin_addr.s_addr != htonl(INADDR_ANY))
 			goto out;
@@ -493,21 +493,21 @@ int __inet_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 	tb_id = l3mdev_fib_table_by_index(net, sk->sk_bound_dev_if) ? : tb_id;
 	chk_addr_ret = inet_addr_type_table(net, addr->sin_addr.s_addr, tb_id);
 
-	/* Not specified by any standard per-se, however it breaks too
+	/* Analt specified by any standard per-se, however it breaks too
 	 * many applications when removed.  It is unfortunate since
-	 * allowing applications to make a non-local bind solves
+	 * allowing applications to make a analn-local bind solves
 	 * several problems with systems using dynamic addressing.
 	 * (ie. your servers still start up even if your ISDN link
 	 *  is temporarily down)
 	 */
-	err = -EADDRNOTAVAIL;
-	if (!inet_addr_valid_or_nonlocal(net, inet, addr->sin_addr.s_addr,
+	err = -EADDRANALTAVAIL;
+	if (!inet_addr_valid_or_analnlocal(net, inet, addr->sin_addr.s_addr,
 	                                 chk_addr_ret))
 		goto out;
 
 	snum = ntohs(addr->sin_port);
 	err = -EACCES;
-	if (!(flags & BIND_NO_CAP_NET_BIND_SERVICE) &&
+	if (!(flags & BIND_ANAL_CAP_NET_BIND_SERVICE) &&
 	    snum && inet_port_requires_bind_service(net, snum) &&
 	    !ns_capable(net->user_ns, CAP_NET_BIND_SERVICE))
 		goto out;
@@ -532,8 +532,8 @@ int __inet_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		inet->inet_saddr = 0;  /* Use device */
 
 	/* Make sure we are allowed to bind here. */
-	if (snum || !(inet_test_bit(BIND_ADDRESS_NO_PORT, sk) ||
-		      (flags & BIND_FORCE_ADDRESS_NO_PORT))) {
+	if (snum || !(inet_test_bit(BIND_ADDRESS_ANAL_PORT, sk) ||
+		      (flags & BIND_FORCE_ADDRESS_ANAL_PORT))) {
 		err = sk->sk_prot->get_port(sk, snum);
 		if (err) {
 			inet->inet_saddr = inet->inet_rcv_saddr = 0;
@@ -603,7 +603,7 @@ static long inet_wait_for_connect(struct sock *sk, long timeo, int writebias)
 
 	/* Basic assumption: if someone sets sk->sk_err, he _must_
 	 * change state of the socket from TCP_SYN_*.
-	 * Connect() does not allow to get error notifications
+	 * Connect() does analt allow to get error analtifications
 	 * without closing the socket.
 	 */
 	while ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV)) {
@@ -685,14 +685,14 @@ int __inet_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 			goto out;
 
 		/* Just entered SS_CONNECTING state; the only
-		 * difference is that return value in non-blocking
+		 * difference is that return value in analn-blocking
 		 * case is EINPROGRESS, rather than EALREADY.
 		 */
 		err = -EINPROGRESS;
 		break;
 	}
 
-	timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
+	timeo = sock_sndtimeo(sk, flags & O_ANALNBLOCK);
 
 	if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV)) {
 		int writebias = (sk->sk_protocol == IPPROTO_TCP) &&
@@ -704,7 +704,7 @@ int __inet_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 		if (!timeo || !inet_wait_for_connect(sk, timeo, writebias))
 			goto out;
 
-		err = sock_intr_errno(timeo);
+		err = sock_intr_erranal(timeo);
 		if (signal_pending(current))
 			goto out;
 
@@ -715,14 +715,14 @@ int __inet_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 	}
 
 	/* Connection was closed by RST, timeout, ICMP error
-	 * or another process disconnected us.
+	 * or aanalther process disconnected us.
 	 */
 	if (sk->sk_state == TCP_CLOSE)
 		goto sock_error;
 
-	/* sk->sk_err may be not zero now, if RECVERR was ordered by user
+	/* sk->sk_err may be analt zero analw, if RECVERR was ordered by user
 	 * and error was received after socket entered established state.
-	 * Hence, it is handled normally after connect() return successfully.
+	 * Hence, it is handled analrmally after connect() return successfully.
 	 */
 
 	sock->state = SS_CONNECTED;
@@ -767,7 +767,7 @@ void __inet_accept(struct socket *sock, struct socket *newsock, struct sock *new
 }
 
 /*
- *	Accept a pending connection. The TCP layer now gives BSD semantics.
+ *	Accept a pending connection. The TCP layer analw gives BSD semantics.
  */
 
 int inet_accept(struct socket *sock, struct socket *newsock, int flags,
@@ -806,7 +806,7 @@ int inet_getname(struct socket *sock, struct sockaddr *uaddr,
 		    (((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_SYN_SENT)) &&
 		     peer == 1)) {
 			release_sock(sk);
-			return -ENOTCONN;
+			return -EANALTCONN;
 		}
 		sin->sin_port = inet->inet_dport;
 		sin->sin_addr.s_addr = inet->inet_daddr;
@@ -832,7 +832,7 @@ int inet_send_prepare(struct sock *sk)
 	sock_rps_record_flow(sk);
 
 	/* We may need to bind the socket. */
-	if (data_race(!inet_sk(sk)->inet_num) && !sk->sk_prot->no_autobind &&
+	if (data_race(!inet_sk(sk)->inet_num) && !sk->sk_prot->anal_autobind &&
 	    inet_autobind(sk))
 		return -EAGAIN;
 
@@ -912,7 +912,7 @@ int inet_shutdown(struct socket *sock, int how)
 
 	switch (sk->sk_state) {
 	case TCP_CLOSE:
-		err = -ENOTCONN;
+		err = -EANALTCONN;
 		/* Hack to wake up other listeners, who can poll for
 		   EPOLLHUP, even on eg. unconnected UDP sockets -- RR */
 		fallthrough;
@@ -923,15 +923,15 @@ int inet_shutdown(struct socket *sock, int how)
 		break;
 
 	/* Remaining two branches are temporary solution for missing
-	 * close() in multithreaded environment. It is _not_ a good idea,
-	 * but we have no choice until close() is repaired at VFS level.
+	 * close() in multithreaded environment. It is _analt_ a good idea,
+	 * but we have anal choice until close() is repaired at VFS level.
 	 */
 	case TCP_LISTEN:
 		if (!(how & RCV_SHUTDOWN))
 			break;
 		fallthrough;
 	case TCP_SYN_SENT:
-		err = sk->sk_prot->disconnect(sk, O_NONBLOCK);
+		err = sk->sk_prot->disconnect(sk, O_ANALNBLOCK);
 		sock->state = err ? SS_DISCONNECTING : SS_UNCONNECTED;
 		break;
 	}
@@ -948,7 +948,7 @@ EXPORT_SYMBOL(inet_shutdown);
  *	device configuration and stuff and very rarely used. Some ioctls
  *	pass on to the socket itself.
  *
- *	NOTE: I like the idea of a module for the config stuff. ie ifconfig
+ *	ANALTE: I like the idea of a module for the config stuff. ie ifconfig
  *	loads the devconfigure module does its configuring and unloads it.
  *	There's a good 20K of config code hanging around the kernel.
  */
@@ -1003,7 +1003,7 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		if (sk->sk_prot->ioctl)
 			err = sk_ioctl(sk, cmd, (void __user *)arg);
 		else
-			err = -ENOIOCTLCMD;
+			err = -EANALIOCTLCMD;
 		break;
 	}
 	return err;
@@ -1042,7 +1042,7 @@ static int inet_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned lon
 		return inet_compat_routing_ioctl(sk, cmd, argp);
 	default:
 		if (!sk->sk_prot->compat_ioctl)
-			return -ENOIOCTLCMD;
+			return -EANALIOCTLCMD;
 		return sk->sk_prot->compat_ioctl(sk, cmd, arg);
 	}
 }
@@ -1054,7 +1054,7 @@ const struct proto_ops inet_stream_ops = {
 	.release	   = inet_release,
 	.bind		   = inet_bind,
 	.connect	   = inet_stream_connect,
-	.socketpair	   = sock_no_socketpair,
+	.socketpair	   = sock_anal_socketpair,
 	.accept		   = inet_accept,
 	.getname	   = inet_getname,
 	.poll		   = tcp_poll,
@@ -1088,20 +1088,20 @@ const struct proto_ops inet_dgram_ops = {
 	.release	   = inet_release,
 	.bind		   = inet_bind,
 	.connect	   = inet_dgram_connect,
-	.socketpair	   = sock_no_socketpair,
-	.accept		   = sock_no_accept,
+	.socketpair	   = sock_anal_socketpair,
+	.accept		   = sock_anal_accept,
 	.getname	   = inet_getname,
 	.poll		   = udp_poll,
 	.ioctl		   = inet_ioctl,
 	.gettstamp	   = sock_gettstamp,
-	.listen		   = sock_no_listen,
+	.listen		   = sock_anal_listen,
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
 	.read_skb	   = udp_read_skb,
 	.recvmsg	   = inet_recvmsg,
-	.mmap		   = sock_no_mmap,
+	.mmap		   = sock_anal_mmap,
 	.splice_eof	   = inet_splice_eof,
 	.set_peek_off	   = sk_set_peek_off,
 #ifdef CONFIG_COMPAT
@@ -1120,19 +1120,19 @@ static const struct proto_ops inet_sockraw_ops = {
 	.release	   = inet_release,
 	.bind		   = inet_bind,
 	.connect	   = inet_dgram_connect,
-	.socketpair	   = sock_no_socketpair,
-	.accept		   = sock_no_accept,
+	.socketpair	   = sock_anal_socketpair,
+	.accept		   = sock_anal_accept,
 	.getname	   = inet_getname,
 	.poll		   = datagram_poll,
 	.ioctl		   = inet_ioctl,
 	.gettstamp	   = sock_gettstamp,
-	.listen		   = sock_no_listen,
+	.listen		   = sock_anal_listen,
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
 	.recvmsg	   = inet_recvmsg,
-	.mmap		   = sock_no_mmap,
+	.mmap		   = sock_anal_mmap,
 	.splice_eof	   = inet_splice_eof,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	   = inet_compat_ioctl,
@@ -1202,7 +1202,7 @@ void inet_register_protosw(struct inet_protosw *p)
 	last_perm = &inetsw[p->type];
 	list_for_each(lh, &inetsw[p->type]) {
 		answer = list_entry(lh, struct inet_protosw, list);
-		/* Check only the non-wild match. */
+		/* Check only the analn-wild match. */
 		if ((INET_PROTOSW_PERMANENT & answer->flags) == 0)
 			break;
 		if (protocol == answer->protocol)
@@ -1211,9 +1211,9 @@ void inet_register_protosw(struct inet_protosw *p)
 	}
 
 	/* Add the new entry after the last permanent entry if any, so that
-	 * the new entry does not override a permanent entry when matched with
+	 * the new entry does analt override a permanent entry when matched with
 	 * a wild-card protocol. But it is allowed to override any existing
-	 * non-permanent entry.  This means that when we remove this entry, the
+	 * analn-permanent entry.  This means that when we remove this entry, the
 	 * system automatically returns to the old behavior.
 	 */
 	list_add_rcu(&p->list, last_perm);
@@ -1227,7 +1227,7 @@ out_permanent:
 	goto out;
 
 out_illegal:
-	pr_err("Ignoring attempt to register invalid socket type %d\n",
+	pr_err("Iganalring attempt to register invalid socket type %d\n",
 	       p->type);
 	goto out;
 }
@@ -1297,7 +1297,7 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 	 * XXX really change the sockets identity after
 	 * XXX it has entered the hashes. -DaveM
 	 *
-	 * Besides that, it does not check for connection
+	 * Besides that, it does analt check for connection
 	 * uniqueness. Wait for troubles.
 	 */
 	return __sk_prot_rehash(sk);
@@ -1312,7 +1312,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 	struct flowi4 *fl4;
 	int err;
 
-	/* Route is OK, nothing to do. */
+	/* Route is OK, analthing to do. */
 	if (rt)
 		return 0;
 
@@ -1390,7 +1390,7 @@ struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 	id = ntohs(iph->id);
 	proto = iph->protocol;
 
-	/* Warning: after this point, iph might be no longer valid */
+	/* Warning: after this point, iph might be anal longer valid */
 	if (unlikely(!pskb_may_pull(skb, ihl)))
 		goto out;
 	__skb_pull(skb, ihl);
@@ -1402,13 +1402,13 @@ struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 
 	skb_reset_transport_header(skb);
 
-	segs = ERR_PTR(-EPROTONOSUPPORT);
+	segs = ERR_PTR(-EPROTOANALSUPPORT);
 
 	if (!skb->encapsulation || encap) {
 		udpfrag = !!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP);
 		fixedid = !!(skb_shinfo(skb)->gso_type & SKB_GSO_TCP_FIXEDID);
 
-		/* fixed ID is invalid if DF bit is not set */
+		/* fixed ID is invalid if DF bit is analt set */
 		if (fixedid && !(ip_hdr(skb)->frag_off & htons(IP_DF)))
 			goto out;
 	}
@@ -1545,9 +1545,9 @@ struct sk_buff *inet_gro_receive(struct list_head *head, struct sk_buff *skb)
 		flush_id = (u16)(id - ntohs(iph2->id));
 
 		/* This bit of code makes it much easier for us to identify
-		 * the cases where we are doing atomic vs non-atomic IP ID
+		 * the cases where we are doing atomic vs analn-atomic IP ID
 		 * checks.  Specifically an atomic check can return IP ID
-		 * values 0 - 0xFFFF, while a non-atomic check can only
+		 * values 0 - 0xFFFF, while a analn-atomic check can only
 		 * return 0 or 0xFFFF.
 		 */
 		if (!NAPI_GRO_CB(p)->is_atomic ||
@@ -1557,7 +1557,7 @@ struct sk_buff *inet_gro_receive(struct list_head *head, struct sk_buff *skb)
 		}
 
 		/* If the previous IP ID value was based on an atomic
-		 * datagram we can overwrite the value and ignore it.
+		 * datagram we can overwrite the value and iganalre it.
 		 */
 		if (NAPI_GRO_CB(skb)->is_atomic)
 			NAPI_GRO_CB(p)->flush_id = flush_id;
@@ -1572,7 +1572,7 @@ struct sk_buff *inet_gro_receive(struct list_head *head, struct sk_buff *skb)
 	 * immediately following this IP hdr.
 	 */
 
-	/* Note : No need to call skb_gro_postpull_rcsum() here,
+	/* Analte : Anal need to call skb_gro_postpull_rcsum() here,
 	 * as we already checked checksum over ipv4 header was 0
 	 */
 	skb_gro_pull(skb, sizeof(*iph));
@@ -1646,7 +1646,7 @@ int inet_gro_complete(struct sk_buff *skb, int nhoff)
 	const struct net_offload *ops;
 	__be16 totlen = iph->tot_len;
 	int proto = iph->protocol;
-	int err = -ENOSYS;
+	int err = -EANALSYS;
 
 	if (skb->encapsulation) {
 		skb_set_inner_protocol(skb, cpu_to_be16(ETH_P_IP));
@@ -1691,8 +1691,8 @@ int inet_ctl_sock_create(struct sock **sk, unsigned short family,
 		(*sk)->sk_allocation = GFP_ATOMIC;
 		(*sk)->sk_use_task_frag = false;
 		/*
-		 * Unhash it so that IP input processing does not even see it,
-		 * we do not wish this socket to see incoming packets.
+		 * Unhash it so that IP input processing does analt even see it,
+		 * we do analt wish this socket to see incoming packets.
 		 */
 		(*sk)->sk_prot->unhash(*sk);
 	}
@@ -1754,20 +1754,20 @@ static const struct net_protocol igmp_protocol = {
 static const struct net_protocol tcp_protocol = {
 	.handler	=	tcp_v4_rcv,
 	.err_handler	=	tcp_v4_err,
-	.no_policy	=	1,
+	.anal_policy	=	1,
 	.icmp_strict_tag_validation = 1,
 };
 
 static const struct net_protocol udp_protocol = {
 	.handler =	udp_rcv,
 	.err_handler =	udp_err,
-	.no_policy =	1,
+	.anal_policy =	1,
 };
 
 static const struct net_protocol icmp_protocol = {
 	.handler =	icmp_rcv,
 	.err_handler =	icmp_err,
-	.no_policy =	1,
+	.anal_policy =	1,
 };
 
 static __net_init int ipv4_mib_init_net(struct net *net)
@@ -1820,7 +1820,7 @@ err_net_mib:
 err_ip_mib:
 	free_percpu(net->mib.tcp_statistics);
 err_tcp_mib:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static __net_exit void ipv4_mib_exit_net(struct net *net)
@@ -1857,14 +1857,14 @@ static __net_init int inet_init_net(struct net *net)
 
 	seqlock_init(&net->ipv4.ping_group_range.lock);
 	/*
-	 * Sane defaults - nobody may create ping sockets.
+	 * Sane defaults - analbody may create ping sockets.
 	 * Boot scripts should set this to distro-specific group.
 	 */
 	net->ipv4.ping_group_range.range[0] = make_kgid(&init_user_ns, 1);
 	net->ipv4.ping_group_range.range[1] = make_kgid(&init_user_ns, 0);
 
 	/* Default values for sysctl-controlled parameters.
-	 * We set them here, in case sysctl is not compiled.
+	 * We set them here, in case sysctl is analt compiled.
 	 */
 	net->ipv4.sysctl_ip_default_ttl = IPDEFTTL;
 	net->ipv4.sysctl_ip_fwd_update_priority = 1;
@@ -1884,7 +1884,7 @@ static __net_init int inet_init_net(struct net *net)
 	net->ipv4.sysctl_igmp_llm_reports = 1;
 	net->ipv4.sysctl_igmp_qrv = 2;
 
-	net->ipv4.sysctl_fib_notify_on_flag_change = 0;
+	net->ipv4.sysctl_fib_analtify_on_flag_change = 0;
 
 	return 0;
 }
@@ -1932,11 +1932,11 @@ static int __init ipv4_offload_init(void)
 	 * Add offloads
 	 */
 	if (udpv4_offload_init() < 0)
-		pr_crit("%s: Cannot add UDP protocol offload\n", __func__);
+		pr_crit("%s: Cananalt add UDP protocol offload\n", __func__);
 	if (tcpv4_offload_init() < 0)
-		pr_crit("%s: Cannot add TCP protocol offload\n", __func__);
+		pr_crit("%s: Cananalt add TCP protocol offload\n", __func__);
 	if (ipip_offload_init() < 0)
-		pr_crit("%s: Cannot add IPIP protocol offload\n", __func__);
+		pr_crit("%s: Cananalt add IPIP protocol offload\n", __func__);
 
 	dev_add_offload(&ip_packet_offload);
 	return 0;
@@ -1991,14 +1991,14 @@ static int __init inet_init(void)
 	 */
 
 	if (inet_add_protocol(&icmp_protocol, IPPROTO_ICMP) < 0)
-		pr_crit("%s: Cannot add ICMP protocol\n", __func__);
+		pr_crit("%s: Cananalt add ICMP protocol\n", __func__);
 	if (inet_add_protocol(&udp_protocol, IPPROTO_UDP) < 0)
-		pr_crit("%s: Cannot add UDP protocol\n", __func__);
+		pr_crit("%s: Cananalt add UDP protocol\n", __func__);
 	if (inet_add_protocol(&tcp_protocol, IPPROTO_TCP) < 0)
-		pr_crit("%s: Cannot add TCP protocol\n", __func__);
+		pr_crit("%s: Cananalt add TCP protocol\n", __func__);
 #ifdef CONFIG_IP_MULTICAST
 	if (inet_add_protocol(&igmp_protocol, IPPROTO_IGMP) < 0)
-		pr_crit("%s: Cannot add IGMP protocol\n", __func__);
+		pr_crit("%s: Cananalt add IGMP protocol\n", __func__);
 #endif
 
 	/* Register the socket-side information for inet_create. */
@@ -2022,7 +2022,7 @@ static int __init inet_init(void)
 
 	/* Initialise per-cpu ipv4 mibs */
 	if (init_ipv4_mibs())
-		panic("%s: Cannot init ipv4 mibs\n", __func__);
+		panic("%s: Cananalt init ipv4 mibs\n", __func__);
 
 	/* Setup TCP slab cache for open requests. */
 	tcp_init();
@@ -2049,11 +2049,11 @@ static int __init inet_init(void)
 	 */
 #if defined(CONFIG_IP_MROUTE)
 	if (ip_mr_init())
-		pr_crit("%s: Cannot init ipv4 mroute\n", __func__);
+		pr_crit("%s: Cananalt init ipv4 mroute\n", __func__);
 #endif
 
 	if (init_inet_pernet_ops())
-		pr_crit("%s: Cannot init ipv4 inet pernet ops\n", __func__);
+		pr_crit("%s: Cananalt init ipv4 inet pernet ops\n", __func__);
 
 	ipv4_proc_init();
 
@@ -2105,7 +2105,7 @@ out_udp:
 out_tcp:
 	raw_proc_exit();
 out_raw:
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	goto out;
 }
 

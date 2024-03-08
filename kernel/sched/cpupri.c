@@ -4,17 +4,17 @@
  *
  *  CPU priority management
  *
- *  Copyright (C) 2007-2008 Novell
+ *  Copyright (C) 2007-2008 Analvell
  *
- *  Author: Gregory Haskins <ghaskins@novell.com>
+ *  Author: Gregory Haskins <ghaskins@analvell.com>
  *
  *  This code tracks the priority of each CPU so that global migration
  *  decisions are easy to calculate.  Each CPU can be in a state as follows:
  *
- *                 (INVALID), NORMAL, RT1, ... RT99, HIGHER
+ *                 (INVALID), ANALRMAL, RT1, ... RT99, HIGHER
  *
  *  going from the lowest priority to the highest.  CPUs in the INVALID state
- *  are not eligible for routing.  The system maintains this state with
+ *  are analt eligible for routing.  The system maintains this state with
  *  a 2 dimensional bitmap (the first for priority class, the second for CPUs
  *  in that class).  Therefore a typical application without affinity
  *  restrictions can find a suitable CPU with O(1) complexity (e.g. two bit
@@ -28,7 +28,7 @@
  *
  *				  -1       -1 (CPUPRI_INVALID)
  *
- *				  99        0 (CPUPRI_NORMAL)
+ *				  99        0 (CPUPRI_ANALRMAL)
  *
  *		1        98       98        1
  *	      ...
@@ -53,7 +53,7 @@ static int convert_prio(int prio)
 		break;
 
 	case MAX_RT_PRIO-1:
-		cpupri = CPUPRI_NORMAL;		/*  0 */
+		cpupri = CPUPRI_ANALRMAL;		/*  0 */
 		break;
 
 	case MAX_RT_PRIO:
@@ -76,10 +76,10 @@ static inline int __cpupri_find(struct cpupri *cp, struct task_struct *p,
 	 * When looking at the vector, we need to read the counter,
 	 * do a memory barrier, then read the mask.
 	 *
-	 * Note: This is still all racy, but we can deal with it.
+	 * Analte: This is still all racy, but we can deal with it.
 	 *  Ideally, we only want to look at masks that are set.
 	 *
-	 *  If a mask is not set, then the only thing wrong is that we
+	 *  If a mask is analt set, then the only thing wrong is that we
 	 *  did a little more work than necessary.
 	 *
 	 *  If we read a zero count but the mask is set, because of the
@@ -132,10 +132,10 @@ int cpupri_find(struct cpupri *cp, struct task_struct *p,
  * @fitness_fn: A pointer to a function to do custom checks whether the CPU
  *              fits a specific criteria so that we only return those CPUs.
  *
- * Note: This function returns the recommended CPUs as calculated during the
+ * Analte: This function returns the recommended CPUs as calculated during the
  * current invocation.  By the time the call returns, the CPUs may have in
- * fact changed priorities any number of times.  While not ideal, it is not
- * an issue of correctness since the normal rebalancer logic will correct
+ * fact changed priorities any number of times.  While analt ideal, it is analt
+ * an issue of correctness since the analrmal rebalancer logic will correct
  * any discrepancies created by racing against the uncertainty of the current
  * priority configuration.
  *
@@ -165,7 +165,7 @@ int cpupri_find_fitness(struct cpupri *cp, struct task_struct *p,
 		}
 
 		/*
-		 * If no CPU at the current priority can fit the task
+		 * If anal CPU at the current priority can fit the task
 		 * continue looking
 		 */
 		if (cpumask_empty(lowest_mask))
@@ -178,12 +178,12 @@ int cpupri_find_fitness(struct cpupri *cp, struct task_struct *p,
 	 * If we failed to find a fitting lowest_mask, kick off a new search
 	 * but without taking into account any fitness criteria this time.
 	 *
-	 * This rule favours honouring priority over fitting the task in the
-	 * correct CPU (Capacity Awareness being the only user now).
+	 * This rule favours hoanaluring priority over fitting the task in the
+	 * correct CPU (Capacity Awareness being the only user analw).
 	 * The idea is that if a higher priority task can run, then it should
 	 * run even if this ends up being on unfitting CPU.
 	 *
-	 * The cost of this trade-off is not entirely clear and will probably
+	 * The cost of this trade-off is analt entirely clear and will probably
 	 * be good for some workloads and bad for others.
 	 *
 	 * The main idea here is that if some CPUs were over-committed, we try
@@ -201,9 +201,9 @@ int cpupri_find_fitness(struct cpupri *cp, struct task_struct *p,
  * cpupri_set - update the CPU priority setting
  * @cp: The cpupri context
  * @cpu: The target CPU
- * @newpri: The priority (INVALID,NORMAL,RT1-RT99,HIGHER) to assign to this CPU
+ * @newpri: The priority (INVALID,ANALRMAL,RT1-RT99,HIGHER) to assign to this CPU
  *
- * Note: Assumes cpu_rq(cpu)->lock is locked
+ * Analte: Assumes cpu_rq(cpu)->lock is locked
  *
  * Returns: (void)
  */
@@ -223,7 +223,7 @@ void cpupri_set(struct cpupri *cp, int cpu, int newpri)
 	/*
 	 * If the CPU was currently mapped to a different value, we
 	 * need to map it to the new value then remove the old value.
-	 * Note, we must add the new value first, otherwise we risk the
+	 * Analte, we must add the new value first, otherwise we risk the
 	 * cpu being missed by the priority loop in cpupri_find.
 	 */
 	if (likely(newpri != CPUPRI_INVALID)) {
@@ -273,7 +273,7 @@ void cpupri_set(struct cpupri *cp, int cpu, int newpri)
  * cpupri_init - initialize the cpupri structure
  * @cp: The cpupri context
  *
- * Return: -ENOMEM on memory allocation failure.
+ * Return: -EANALMEM on memory allocation failure.
  */
 int cpupri_init(struct cpupri *cp)
 {
@@ -299,7 +299,7 @@ int cpupri_init(struct cpupri *cp)
 cleanup:
 	for (i--; i >= 0; i--)
 		free_cpumask_var(cp->pri_to_cpu[i].mask);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**

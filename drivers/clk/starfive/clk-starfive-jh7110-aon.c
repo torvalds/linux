@@ -3,7 +3,7 @@
  * StarFive JH7110 Always-On Clock Driver
  *
  * Copyright (C) 2022 Emil Renner Berthing <kernel@esmil.dk>
- * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 StarFive Techanallogy Co., Ltd.
  */
 
 #include <linux/clk-provider.h>
@@ -35,7 +35,7 @@ static const struct jh71x0_clk_data jh7110_aonclk_data[] = {
 	JH71X0__DIV(JH7110_AONCLK_GMAC0_RMII_RTX, "gmac0_rmii_rtx", 30,
 		    JH7110_AONCLK_GMAC0_RMII_REFIN),
 	JH71X0_GMUX(JH7110_AONCLK_GMAC0_TX, "gmac0_tx",
-		    CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT, 2,
+		    CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT, 2,
 		    JH7110_AONCLK_GMAC0_GTXCLK,
 		    JH7110_AONCLK_GMAC0_RMII_RTX),
 	JH71X0__INV(JH7110_AONCLK_GMAC0_TX_INV, "gmac0_tx_inv", JH7110_AONCLK_GMAC0_TX),
@@ -75,7 +75,7 @@ static int jh7110_aoncrg_probe(struct platform_device *pdev)
 			    struct_size(priv, reg, JH7110_AONCLK_END),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->rmw_lock);
 	priv->dev = &pdev->dev;

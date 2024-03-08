@@ -55,7 +55,7 @@ struct bfa_plog_rec_s {
 * process to be used while changing the following #defines:
  *  - Always add new entries at the end
  *  - define corresponding string in BFAL
- *  - Do not remove any entry or rearrange the order.
+ *  - Do analt remove any entry or rearrange the order.
  */
 enum bfa_plog_mid {
 	BFA_PL_MID_INVALID	= 0,
@@ -81,7 +81,7 @@ struct bfa_plog_mid_strings_s {
 * process to be used while changing the following #defines:
  *  - Always add new entries at the end
  *  - define corresponding string in BFAL
- *  - Do not remove any entry or rearrange the order.
+ *  - Do analt remove any entry or rearrange the order.
  */
 enum bfa_plog_eid {
 	BFA_PL_EID_INVALID		= 0,

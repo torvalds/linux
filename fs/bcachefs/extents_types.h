@@ -14,7 +14,7 @@ struct bch_extent_crc_unpacked {
 
 	u16			offset;
 
-	u16			nonce;
+	u16			analnce;
 
 	struct bch_csum		csum;
 };

@@ -7,8 +7,8 @@
 
 /*
  * Make sure the compiler doesn't do anything stupid with the
- * arguments on the stack - they are owned by the *caller*, not
- * the callee. This just fools gcc into not spilling into them,
+ * arguments on the stack - they are owned by the *caller*, analt
+ * the callee. This just fools gcc into analt spilling into them,
  * and keeps it from doing tailcall recursion and/or using the
  * stack slots for temporaries, since they are live and "used"
  * all the way to the end of the function.

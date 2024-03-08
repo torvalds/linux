@@ -235,7 +235,7 @@ struct ncsi_channel *ncsi_add_channel(struct ncsi_package *np, unsigned char id)
 		return tmp;
 	}
 
-	list_add_tail_rcu(&nc->node, &np->channels);
+	list_add_tail_rcu(&nc->analde, &np->channels);
 	np->channel_num++;
 	spin_unlock_irqrestore(&np->lock, flags);
 
@@ -259,7 +259,7 @@ static void ncsi_remove_channel(struct ncsi_channel *nc)
 
 	/* Remove and free channel */
 	spin_lock_irqsave(&np->lock, flags);
-	list_del_rcu(&nc->node);
+	list_del_rcu(&nc->analde);
 	np->channel_num--;
 	spin_unlock_irqrestore(&np->lock, flags);
 
@@ -303,7 +303,7 @@ struct ncsi_package *ncsi_add_package(struct ncsi_dev_priv *ndp,
 		return tmp;
 	}
 
-	list_add_tail_rcu(&np->node, &ndp->packages);
+	list_add_tail_rcu(&np->analde, &ndp->packages);
 	ndp->package_num++;
 	spin_unlock_irqrestore(&ndp->lock, flags);
 
@@ -317,12 +317,12 @@ void ncsi_remove_package(struct ncsi_package *np)
 	unsigned long flags;
 
 	/* Release all child channels */
-	list_for_each_entry_safe(nc, tmp, &np->channels, node)
+	list_for_each_entry_safe(nc, tmp, &np->channels, analde)
 		ncsi_remove_channel(nc);
 
 	/* Remove and free package */
 	spin_lock_irqsave(&ndp->lock, flags);
-	list_del_rcu(&np->node);
+	list_del_rcu(&np->analde);
 	ndp->package_num--;
 	spin_unlock_irqrestore(&ndp->lock, flags);
 
@@ -494,7 +494,7 @@ static void ncsi_suspend_channel(struct ncsi_dev_priv *ndp)
 
 		/* To retrieve the last link states of channels in current
 		 * package when current active channel needs fail over to
-		 * another one. It means we will possibly select another
+		 * aanalther one. It means we will possibly select aanalther
 		 * channel as next active one. The link states of channels
 		 * are most important factor of the selection. So we need
 		 * accurate link states. Unfortunately, the link states on
@@ -551,8 +551,8 @@ static void ncsi_suspend_channel(struct ncsi_dev_priv *ndp)
 			goto error;
 
 		NCSI_FOR_EACH_CHANNEL(np, tmp) {
-			/* If there is another channel active on this package
-			 * do not deselect the package.
+			/* If there is aanalther channel active on this package
+			 * do analt deselect the package.
 			 */
 			if (tmp != nc && tmp->state == NCSI_CHANNEL_ACTIVE) {
 				nd->state = ncsi_dev_state_suspend_done;
@@ -662,7 +662,7 @@ static int set_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,
 	rcu_read_unlock();
 
 	if (!vid) {
-		/* No VLAN ID is not set */
+		/* Anal VLAN ID is analt set */
 		spin_unlock_irqrestore(&nc->lock, flags);
 		return -1;
 	}
@@ -841,7 +841,7 @@ static int ncsi_gma_handler(struct ncsi_cmd_arg *nca, unsigned int mf_id)
 
 	if (!nch) {
 		netdev_err(nca->ndp->ndev.dev,
-			   "NCSI: No GMA handler available for MFR-ID (0x%x)\n",
+			   "NCSI: Anal GMA handler available for MFR-ID (0x%x)\n",
 			   mf_id);
 		return -1;
 	}
@@ -888,7 +888,7 @@ static bool ncsi_channel_is_tx(struct ncsi_dev_priv *ndp,
 		if (ncsi_channel_has_link(channel))
 			return false;
 
-	/* No other channel has link; default to this one */
+	/* Anal other channel has link; default to this one */
 	return true;
 }
 
@@ -1041,7 +1041,7 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 		nca.package = np->id;
 		nca.channel = nc->id;
 		ndp->pending_req_num = 1;
-		if (nc->version.major >= 1 && nc->version.minor >= 2) {
+		if (nc->version.major >= 1 && nc->version.mianalr >= 2) {
 			nca.type = NCSI_PKT_CMD_GMCMA;
 			ret = ncsi_xmit_cmd(&nca);
 		} else {
@@ -1077,7 +1077,7 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 			}
 			/* Repeat */
 			nd->state = ncsi_dev_state_config_clear_vids;
-		/* Add known VLAN tags to the filter */
+		/* Add kanalwn VLAN tags to the filter */
 		} else if (nd->state == ncsi_dev_state_config_svf) {
 			ret = set_one_vid(ndp, nc, &nca);
 			if (ret) {
@@ -1093,11 +1093,11 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 				nca.type = NCSI_PKT_CMD_DV;
 			} else {
 				nca.type = NCSI_PKT_CMD_EV;
-				nca.bytes[3] = NCSI_CAP_VLAN_NO;
+				nca.bytes[3] = NCSI_CAP_VLAN_ANAL;
 			}
 			nd->state = ncsi_dev_state_config_sma;
 		} else if (nd->state == ncsi_dev_state_config_sma) {
-		/* Use first entry in unicast filter table. Note that
+		/* Use first entry in unicast filter table. Analte that
 		 * the MAC filter table starts from entry 1 instead of
 		 * 0.
 		 */
@@ -1166,7 +1166,7 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 		nc->state = NCSI_CHANNEL_ACTIVE;
 
 		if (ndp->flags & NCSI_DEV_RESET) {
-			/* A reset event happened during config, start it now */
+			/* A reset event happened during config, start it analw */
 			nc->reconfigure_needed = false;
 			spin_unlock_irqrestore(&nc->lock, flags);
 			ncsi_reset_dev(nd);
@@ -1267,7 +1267,7 @@ static int ncsi_choose_active_channel(struct ncsi_dev_priv *ndp)
 			}
 
 			/* If multi_channel is enabled configure all valid
-			 * channels whether or not they currently have link
+			 * channels whether or analt they currently have link
 			 * so they will have AENs enabled.
 			 */
 			if (with_link || np->multi_channel) {
@@ -1293,16 +1293,16 @@ static int ncsi_choose_active_channel(struct ncsi_dev_priv *ndp)
 
 	if (list_empty(&ndp->channel_queue) && found) {
 		netdev_info(ndp->ndev.dev,
-			    "NCSI: No channel with link found, configuring channel %u\n",
+			    "NCSI: Anal channel with link found, configuring channel %u\n",
 			    found->id);
 		spin_lock_irqsave(&ndp->lock, flags);
 		list_add_tail_rcu(&found->link, &ndp->channel_queue);
 		spin_unlock_irqrestore(&ndp->lock, flags);
 	} else if (!found) {
 		netdev_warn(ndp->ndev.dev,
-			    "NCSI: No channel found to configure!\n");
+			    "NCSI: Anal channel found to configure!\n");
 		ncsi_report_link(ndp, true);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return ncsi_process_next_channel(ndp);
@@ -1387,7 +1387,7 @@ static void ncsi_probe_channel(struct ncsi_dev_priv *ndp)
 		ndp->active_package = ncsi_find_package(ndp,
 							ndp->package_probe_id);
 		if (!ndp->active_package) {
-			/* No response */
+			/* Anal response */
 			nd->state = ncsi_dev_state_probe_dp;
 			schedule_work(&ndp->work);
 			break;
@@ -1599,7 +1599,7 @@ out:
 	}
 
 	ncsi_report_link(ndp, false);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int ncsi_kick_channels(struct ncsi_dev_priv *ndp)
@@ -1616,7 +1616,7 @@ static int ncsi_kick_channels(struct ncsi_dev_priv *ndp)
 
 			/* Channels may be busy, mark dirty instead of
 			 * kicking if;
-			 * a) not ACTIVE (configured)
+			 * a) analt ACTIVE (configured)
 			 * b) in the channel_queue (to be configured)
 			 * c) it's ndev is in the config state
 			 */
@@ -1665,7 +1665,7 @@ int ncsi_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 
 	nd = ncsi_find_dev(dev);
 	if (!nd) {
-		netdev_warn(dev, "NCSI: No net_device?\n");
+		netdev_warn(dev, "NCSI: Anal net_device?\n");
 		return 0;
 	}
 
@@ -1684,12 +1684,12 @@ int ncsi_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 		netdev_warn(dev,
 			    "tried to add vlan id %u but NCSI max already registered (%u)\n",
 			    vid, NCSI_MAX_VLAN_VIDS);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
 	if (!vlan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vlan->proto = proto;
 	vlan->vid = vid;
@@ -1715,7 +1715,7 @@ int ncsi_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 
 	nd = ncsi_find_dev(dev);
 	if (!nd) {
-		netdev_warn(dev, "NCSI: no net_device?\n");
+		netdev_warn(dev, "NCSI: anal net_device?\n");
 		return 0;
 	}
 
@@ -1747,11 +1747,11 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 	struct ncsi_dev_priv *ndp;
 	struct ncsi_dev *nd;
 	struct platform_device *pdev;
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned long flags;
 	int i;
 
-	/* Check if the device has been registered or not */
+	/* Check if the device has been registered or analt */
 	nd = ncsi_find_dev(dev);
 	if (nd)
 		return nd;
@@ -1782,7 +1782,7 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 	}
 
 	spin_lock_irqsave(&ncsi_dev_lock, flags);
-	list_add_tail_rcu(&ndp->node, &ncsi_dev_list);
+	list_add_tail_rcu(&ndp->analde, &ncsi_dev_list);
 	spin_unlock_irqrestore(&ncsi_dev_lock, flags);
 
 	/* Register NCSI packet Rx handler */
@@ -1793,8 +1793,8 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 
 	pdev = to_platform_device(dev->dev.parent);
 	if (pdev) {
-		np = pdev->dev.of_node;
-		if (np && (of_property_read_bool(np, "mellanox,multi-host") ||
+		np = pdev->dev.of_analde;
+		if (np && (of_property_read_bool(np, "mellaanalx,multi-host") ||
 			   of_property_read_bool(np, "mlx,multi-host")))
 			ndp->mlx_multi_host = true;
 	}
@@ -1809,7 +1809,7 @@ int ncsi_start_dev(struct ncsi_dev *nd)
 
 	if (nd->state != ncsi_dev_state_registered &&
 	    nd->state != ncsi_dev_state_functional)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (!(ndp->flags & NCSI_DEV_PROBED)) {
 		ndp->package_probe_id = 0;
@@ -1832,7 +1832,7 @@ void ncsi_stop_dev(struct ncsi_dev *nd)
 	unsigned long flags;
 
 	/* Stop the channel monitor on any active channels. Don't reset the
-	 * channel state so we know which were active when ncsi_start_dev()
+	 * channel state so we kanalw which were active when ncsi_start_dev()
 	 * is next called.
 	 */
 	NCSI_FOR_EACH_PACKAGE(ndp, np) {
@@ -1868,7 +1868,7 @@ int ncsi_reset_dev(struct ncsi_dev *nd)
 		switch (nd->state & ncsi_dev_state_major) {
 		case ncsi_dev_state_registered:
 		case ncsi_dev_state_probe:
-			/* Not even probed yet - do nothing */
+			/* Analt even probed yet - do analthing */
 			spin_unlock_irqrestore(&ndp->lock, flags);
 			return 0;
 		case ncsi_dev_state_suspend:
@@ -1948,11 +1948,11 @@ void ncsi_unregister_dev(struct ncsi_dev *nd)
 
 	dev_remove_pack(&ndp->ptype);
 
-	list_for_each_entry_safe(np, tmp, &ndp->packages, node)
+	list_for_each_entry_safe(np, tmp, &ndp->packages, analde)
 		ncsi_remove_package(np);
 
 	spin_lock_irqsave(&ncsi_dev_lock, flags);
-	list_del_rcu(&ndp->node);
+	list_del_rcu(&ndp->analde);
 	spin_unlock_irqrestore(&ncsi_dev_lock, flags);
 
 	kfree(ndp);

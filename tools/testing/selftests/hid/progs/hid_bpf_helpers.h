@@ -6,23 +6,23 @@
 #define __HID_BPF_HELPERS_H
 
 /* "undefine" structs and enums in vmlinux.h, because we "override" them below */
-#define hid_bpf_ctx hid_bpf_ctx___not_used
-#define hid_report_type hid_report_type___not_used
-#define hid_class_request hid_class_request___not_used
-#define hid_bpf_attach_flags hid_bpf_attach_flags___not_used
-#define HID_INPUT_REPORT         HID_INPUT_REPORT___not_used
-#define HID_OUTPUT_REPORT        HID_OUTPUT_REPORT___not_used
-#define HID_FEATURE_REPORT       HID_FEATURE_REPORT___not_used
-#define HID_REPORT_TYPES         HID_REPORT_TYPES___not_used
-#define HID_REQ_GET_REPORT       HID_REQ_GET_REPORT___not_used
-#define HID_REQ_GET_IDLE         HID_REQ_GET_IDLE___not_used
-#define HID_REQ_GET_PROTOCOL     HID_REQ_GET_PROTOCOL___not_used
-#define HID_REQ_SET_REPORT       HID_REQ_SET_REPORT___not_used
-#define HID_REQ_SET_IDLE         HID_REQ_SET_IDLE___not_used
-#define HID_REQ_SET_PROTOCOL     HID_REQ_SET_PROTOCOL___not_used
-#define HID_BPF_FLAG_NONE        HID_BPF_FLAG_NONE___not_used
-#define HID_BPF_FLAG_INSERT_HEAD HID_BPF_FLAG_INSERT_HEAD___not_used
-#define HID_BPF_FLAG_MAX         HID_BPF_FLAG_MAX___not_used
+#define hid_bpf_ctx hid_bpf_ctx___analt_used
+#define hid_report_type hid_report_type___analt_used
+#define hid_class_request hid_class_request___analt_used
+#define hid_bpf_attach_flags hid_bpf_attach_flags___analt_used
+#define HID_INPUT_REPORT         HID_INPUT_REPORT___analt_used
+#define HID_OUTPUT_REPORT        HID_OUTPUT_REPORT___analt_used
+#define HID_FEATURE_REPORT       HID_FEATURE_REPORT___analt_used
+#define HID_REPORT_TYPES         HID_REPORT_TYPES___analt_used
+#define HID_REQ_GET_REPORT       HID_REQ_GET_REPORT___analt_used
+#define HID_REQ_GET_IDLE         HID_REQ_GET_IDLE___analt_used
+#define HID_REQ_GET_PROTOCOL     HID_REQ_GET_PROTOCOL___analt_used
+#define HID_REQ_SET_REPORT       HID_REQ_SET_REPORT___analt_used
+#define HID_REQ_SET_IDLE         HID_REQ_SET_IDLE___analt_used
+#define HID_REQ_SET_PROTOCOL     HID_REQ_SET_PROTOCOL___analt_used
+#define HID_BPF_FLAG_ANALNE        HID_BPF_FLAG_ANALNE___analt_used
+#define HID_BPF_FLAG_INSERT_HEAD HID_BPF_FLAG_INSERT_HEAD___analt_used
+#define HID_BPF_FLAG_MAX         HID_BPF_FLAG_MAX___analt_used
 
 #include "vmlinux.h"
 
@@ -40,7 +40,7 @@
 #undef HID_REQ_SET_REPORT
 #undef HID_REQ_SET_IDLE
 #undef HID_REQ_SET_PROTOCOL
-#undef HID_BPF_FLAG_NONE
+#undef HID_BPF_FLAG_ANALNE
 #undef HID_BPF_FLAG_INSERT_HEAD
 #undef HID_BPF_FLAG_MAX
 
@@ -77,7 +77,7 @@ enum hid_class_request {
 };
 
 enum hid_bpf_attach_flags {
-	HID_BPF_FLAG_NONE = 0,
+	HID_BPF_FLAG_ANALNE = 0,
 	HID_BPF_FLAG_INSERT_HEAD = _BITUL(0),
 	HID_BPF_FLAG_MAX,
 };

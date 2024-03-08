@@ -5,7 +5,7 @@
 
 /dts-v1/;
 
-#include "sm8150-sony-xperia-kumano.dtsi"
+#include "sm8150-sony-xperia-kumaanal.dtsi"
 
 / {
 	model = "Sony Xperia 5";

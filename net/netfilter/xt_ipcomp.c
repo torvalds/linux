@@ -43,14 +43,14 @@ static bool comp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	const struct ip_comp_hdr *chdr;
 	const struct xt_ipcomp *compinfo = par->matchinfo;
 
-	/* Must not be a fragment. */
+	/* Must analt be a fragment. */
 	if (par->fragoff != 0)
 		return false;
 
 	chdr = skb_header_pointer(skb, par->thoff, sizeof(_comphdr), &_comphdr);
 	if (chdr == NULL) {
 		/* We've been asked to examine this packet, and we
-		 * can't.  Hence, no choice but to drop.
+		 * can't.  Hence, anal choice but to drop.
 		 */
 		pr_debug("Dropping evil IPComp tinygram.\n");
 		par->hotdrop = true;
@@ -66,9 +66,9 @@ static int comp_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct xt_ipcomp *compinfo = par->matchinfo;
 
-	/* Must specify no unknown invflags */
+	/* Must specify anal unkanalwn invflags */
 	if (compinfo->invflags & ~XT_IPCOMP_INV_MASK) {
-		pr_info_ratelimited("unknown flags %X\n", compinfo->invflags);
+		pr_info_ratelimited("unkanalwn flags %X\n", compinfo->invflags);
 		return -EINVAL;
 	}
 	return 0;

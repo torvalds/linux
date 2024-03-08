@@ -15,7 +15,7 @@ maintainers:
 description: The MIPI DSI PHY supports up to 4-lane output.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^dsi-phy@[0-9a-f]+$"
 
   compatible:

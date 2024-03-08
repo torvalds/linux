@@ -16,9 +16,9 @@ implementing qcow2 driver in kernel).
 Userspace block devices are attractive because:
 
 - They can be written many programming languages.
-- They can use libraries that are not available in the kernel.
+- They can use libraries that are analt available in the kernel.
 - They can be debugged with tools familiar to application developers.
-- Crashes do not kernel panic the machine.
+- Crashes do analt kernel panic the machine.
 - Bugs are likely to have a lower security impact than bugs in kernel
   code.
 - They can be installed and updated independently of the kernel.
@@ -47,7 +47,7 @@ Both the IO request forward and IO handling result committing are done via
 ``io_uring`` passthrough command; that is why ublk is also one io_uring based
 block driver. It has been observed that using io_uring passthrough command can
 give better IOPS than block IO; which is why ublk is one of high performance
-implementation of userspace block device: not only IO request communication is
+implementation of userspace block device: analt only IO request communication is
 done by io_uring, but also the preferred IO handling in ublk server is io_uring
 based approach too.
 
@@ -94,7 +94,7 @@ Design
 Control plane
 -------------
 
-ublk driver provides global misc device node (``/dev/ublk-control``) for
+ublk driver provides global misc device analde (``/dev/ublk-control``) for
 managing and controlling ublk devices with help of several control commands:
 
 - ``UBLK_CMD_ADD_DEV``
@@ -110,7 +110,7 @@ managing and controlling ublk devices with help of several control commands:
 
   Set or get parameters of the device, which can be either generic feature
   related, or request queue limit related, but can't be IO logic specific,
-  because the driver does not handle any IO logic. This command has to be
+  because the driver does analt handle any IO logic. This command has to be
   sent before sending ``UBLK_CMD_START_DEV``.
 
 - ``UBLK_CMD_START_DEV``
@@ -159,7 +159,7 @@ managing and controlling ublk devices with help of several control commands:
 
     ublk server should send ``UBLK_CMD_GET_DEV_INFO2``, given anytime
     unprivileged application needs to query devices the current user owns,
-    when the application has no idea if ``UBLK_F_UNPRIVILEGED_DEV`` is set
+    when the application has anal idea if ``UBLK_F_UNPRIVILEGED_DEV`` is set
     given the capability info is stateless, and application should always
     retrieve it via ``UBLK_CMD_GET_DEV_INFO2``
 
@@ -203,10 +203,10 @@ managing and controlling ublk devices with help of several control commands:
   ``UBLK_F_USER_RECOVERY_REISSUE``.
 
   With ``UBLK_F_USER_RECOVERY`` set, after one ubq_daemon(ublk server's io
-  handler) is dying, ublk does not delete ``/dev/ublkb*`` during the whole
+  handler) is dying, ublk does analt delete ``/dev/ublkb*`` during the whole
   recovery stage and ublk device ID is kept. It is ublk server's
-  responsibility to recover the device context by its own knowledge.
-  Requests which have not been issued to userspace are requeued. Requests
+  responsibility to recover the device context by its own kanalwledge.
+  Requests which have analt been issued to userspace are requeued. Requests
   which have been issued to userspace are aborted.
 
   With ``UBLK_F_USER_RECOVERY_REISSUE`` set, after one ubq_daemon(ublk
@@ -259,7 +259,7 @@ with specified IO tag in the command data:
   the IO's ``ublksrv_io_desc`` to the specified mapped area; then the
   previous received IO command of this IO tag (either ``UBLK_IO_FETCH_REQ``
   or ``UBLK_IO_COMMIT_AND_FETCH_REQ)`` is completed, so the server gets
-  the IO notification via io_uring.
+  the IO analtification via io_uring.
 
   After the server handles the IO, its result is committed back to the
   driver by sending ``UBLK_IO_COMMIT_AND_FETCH_REQ`` back. Once ublkdrv
@@ -280,17 +280,17 @@ with specified IO tag in the command data:
 
   ``UBLK_IO_NEED_GET_DATA`` adds one additional round-trip and one
   io_uring_enter() syscall. Any user thinks that it may lower performance
-  should not enable UBLK_F_NEED_GET_DATA. ublk server pre-allocates IO
+  should analt enable UBLK_F_NEED_GET_DATA. ublk server pre-allocates IO
   buffer for each IO by default. Any new project should try to use this
   buffer to communicate with ublk driver. However, existing project may
-  break or not able to consume the new buffer interface; that's why this
+  break or analt able to consume the new buffer interface; that's why this
   command is added for backwards compatibility so that existing projects
   can still consume existing buffers.
 
 - data copy between ublk server IO buffer and ublk block IO request
 
   The driver needs to copy the block IO request pages into the server buffer
-  (pages) first for WRITE before notifying the server of the coming IO, so
+  (pages) first for WRITE before analtifying the server of the coming IO, so
   that the server can handle WRITE request.
 
   When the server handles READ request and sends

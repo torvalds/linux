@@ -2,7 +2,7 @@
 
 #define _GNU_SOURCE
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/limits.h>
 #include <poll.h>
@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/inotify.h>
+#include <sys/ianaltify.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -19,7 +19,7 @@
 #include "cgroup_util.h"
 #include "../clone3/clone3_selftests.h"
 
-/* Returns read len on success, or -errno on failure. */
+/* Returns read len on success, or -erranal on failure. */
 static ssize_t read_text(const char *path, char *buf, size_t max_len)
 {
 	ssize_t len;
@@ -27,7 +27,7 @@ static ssize_t read_text(const char *path, char *buf, size_t max_len)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
-		return -errno;
+		return -erranal;
 
 	len = read(fd, buf, max_len - 1);
 
@@ -35,21 +35,21 @@ static ssize_t read_text(const char *path, char *buf, size_t max_len)
 		buf[len] = 0;
 
 	close(fd);
-	return len < 0 ? -errno : len;
+	return len < 0 ? -erranal : len;
 }
 
-/* Returns written len on success, or -errno on failure. */
+/* Returns written len on success, or -erranal on failure. */
 static ssize_t write_text(const char *path, char *buf, ssize_t len)
 {
 	int fd;
 
 	fd = open(path, O_WRONLY | O_APPEND);
 	if (fd < 0)
-		return -errno;
+		return -erranal;
 
 	len = write(fd, buf, len);
 	close(fd);
-	return len < 0 ? -errno : len;
+	return len < 0 ? -erranal : len;
 }
 
 char *cg_name(const char *root, const char *name)
@@ -82,7 +82,7 @@ char *cg_control(const char *cgroup, const char *control)
 	return ret;
 }
 
-/* Returns 0 on success, or -errno on failure. */
+/* Returns 0 on success, or -erranal on failure. */
 int cg_read(const char *cgroup, const char *control, char *buf, size_t len)
 {
 	char path[PATH_MAX];
@@ -172,7 +172,7 @@ long cg_read_lc(const char *cgroup, const char *control)
 	return cnt;
 }
 
-/* Returns 0 on success, or -errno on failure. */
+/* Returns 0 on success, or -erranal on failure. */
 int cg_write(const char *cgroup, const char *control, char *buf)
 {
 	char path[PATH_MAX];
@@ -206,7 +206,7 @@ int cg_find_unified_root(char *root, size_t len)
 
 	/*
 	 * Example:
-	 * cgroup /sys/fs/cgroup cgroup2 rw,seclabel,noexec,relatime 0 0
+	 * cgroup /sys/fs/cgroup cgroup2 rw,seclabel,analexec,relatime 0 0
 	 */
 	for (fs = strtok(buf, delim); fs; fs = strtok(NULL, delim)) {
 		mount = strtok(NULL, delim);
@@ -290,13 +290,13 @@ int cg_destroy(const char *cgroup)
 		return 0;
 retry:
 	ret = rmdir(cgroup);
-	if (ret && errno == EBUSY) {
+	if (ret && erranal == EBUSY) {
 		cg_killall(cgroup);
 		usleep(100);
 		goto retry;
 	}
 
-	if (ret && errno == ENOENT)
+	if (ret && erranal == EANALENT)
 		ret = 0;
 
 	return ret;
@@ -359,31 +359,31 @@ pid_t clone_into_cgroup(int cgroup_fd)
 	pid = sys_clone3(&args, sizeof(struct __clone_args));
 	/*
 	 * Verify that this is a genuine test failure:
-	 * ENOSYS -> clone3() not available
-	 * E2BIG  -> CLONE_INTO_CGROUP not available
+	 * EANALSYS -> clone3() analt available
+	 * E2BIG  -> CLONE_INTO_CGROUP analt available
 	 */
-	if (pid < 0 && (errno == ENOSYS || errno == E2BIG))
-		goto pretend_enosys;
+	if (pid < 0 && (erranal == EANALSYS || erranal == E2BIG))
+		goto pretend_eanalsys;
 
 	return pid;
 
-pretend_enosys:
+pretend_eanalsys:
 #endif
-	errno = ENOSYS;
-	return -ENOSYS;
+	erranal = EANALSYS;
+	return -EANALSYS;
 }
 
 int clone_reap(pid_t pid, int options)
 {
 	int ret;
 	siginfo_t info = {
-		.si_signo = 0,
+		.si_siganal = 0,
 	};
 
 again:
-	ret = waitid(P_PID, pid, &info, options | __WALL | __WNOTHREAD);
+	ret = waitid(P_PID, pid, &info, options | __WALL | __WANALTHREAD);
 	if (ret < 0) {
-		if (errno == EINTR)
+		if (erranal == EINTR)
 			goto again;
 		return -1;
 	}
@@ -408,17 +408,17 @@ again:
 
 int dirfd_open_opath(const char *dir)
 {
-	return open(dir, O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW | O_PATH);
+	return open(dir, O_DIRECTORY | O_CLOEXEC | O_ANALFOLLOW | O_PATH);
 }
 
-#define close_prot_errno(fd)                                                   \
+#define close_prot_erranal(fd)                                                   \
 	if (fd >= 0) {                                                         \
-		int _e_ = errno;                                               \
+		int _e_ = erranal;                                               \
 		close(fd);                                                     \
-		errno = _e_;                                                   \
+		erranal = _e_;                                                   \
 	}
 
-static int clone_into_cgroup_run_nowait(const char *cgroup,
+static int clone_into_cgroup_run_analwait(const char *cgroup,
 					int (*fn)(const char *cgroup, void *arg),
 					void *arg)
 {
@@ -430,25 +430,25 @@ static int clone_into_cgroup_run_nowait(const char *cgroup,
 		return -1;
 
 	pid = clone_into_cgroup(cgroup_fd);
-	close_prot_errno(cgroup_fd);
+	close_prot_erranal(cgroup_fd);
 	if (pid == 0)
 		exit(fn(cgroup, arg));
 
 	return pid;
 }
 
-int cg_run_nowait(const char *cgroup,
+int cg_run_analwait(const char *cgroup,
 		  int (*fn)(const char *cgroup, void *arg),
 		  void *arg)
 {
 	int pid;
 
-	pid = clone_into_cgroup_run_nowait(cgroup, fn, arg);
+	pid = clone_into_cgroup_run_analwait(cgroup, fn, arg);
 	if (pid > 0)
 		return pid;
 
 	/* Genuine test failure. */
-	if (pid < 0 && errno != ENOSYS)
+	if (pid < 0 && erranal != EANALSYS)
 		return -1;
 
 	pid = fork();
@@ -492,7 +492,7 @@ cleanup:
 	return -1;
 }
 
-int alloc_anon(const char *cgroup, void *arg)
+int alloc_aanaln(const char *cgroup, void *arg)
 {
 	size_t size = (unsigned long)arg;
 	char *buf, *ptr;
@@ -589,7 +589,7 @@ int clone_into_cgroup_run_wait(const char *cgroup)
 		return -1;
 
 	pid = clone_into_cgroup(cgroup_fd);
-	close_prot_errno(cgroup_fd);
+	close_prot_erranal(cgroup_fd);
 	if (pid < 0)
 		return -1;
 
@@ -608,11 +608,11 @@ static int __prepare_for_wait(const char *cgroup, const char *filename)
 {
 	int fd, ret = -1;
 
-	fd = inotify_init1(0);
+	fd = ianaltify_init1(0);
 	if (fd == -1)
 		return fd;
 
-	ret = inotify_add_watch(fd, cg_control(cgroup, filename), IN_MODIFY);
+	ret = ianaltify_add_watch(fd, cg_control(cgroup, filename), IN_MODIFY);
 	if (ret == -1) {
 		close(fd);
 		fd = -1;
@@ -643,7 +643,7 @@ int cg_wait_for(int fd)
 		ret = poll(&fds, 1, 10000);
 
 		if (ret == -1) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
 
 			break;

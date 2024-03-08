@@ -19,7 +19,7 @@
 };
 
 &backlight {
-	/* Jaq panel PWM must be >= 3%, so start non-zero brightness at 8 */
+	/* Jaq panel PWM must be >= 3%, so start analn-zero brightness at 8 */
 	brightness-levels = <8 255>;
 	num-interpolated-steps = <247>;
 };
@@ -290,7 +290,7 @@
 &pinctrl {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <
-		/* Common for sleep and wake, but no owners */
+		/* Common for sleep and wake, but anal owners */
 		&ddr0_retention
 		&ddrio_pwroff
 		&global_pwroff
@@ -300,7 +300,7 @@
 		&bt_dev_wake_awake
 	>;
 	pinctrl-1 = <
-		/* Common for sleep and wake, but no owners */
+		/* Common for sleep and wake, but anal owners */
 		&ddr0_retention
 		&ddrio_pwroff
 		&global_pwroff
@@ -312,13 +312,13 @@
 
 	buck-5v {
 		drv_5v: drv-5v {
-			rockchip,pins = <7 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PC5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	hdmi {
 		vcc50_hdmi_en: vcc50-hdmi-en {
-			rockchip,pins = <5 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <5 RK_PC3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 

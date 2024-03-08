@@ -40,17 +40,17 @@ affs_get_toupper(struct super_block *sb)
 }
 
 /*
- * Note: the dentry argument is the parent dentry.
+ * Analte: the dentry argument is the parent dentry.
  */
 static inline int
-__affs_hash_dentry(const struct dentry *dentry, struct qstr *qstr, toupper_t fn, bool notruncate)
+__affs_hash_dentry(const struct dentry *dentry, struct qstr *qstr, toupper_t fn, bool analtruncate)
 {
 	const u8 *name = qstr->name;
 	unsigned long hash;
 	int retval;
 	u32 len;
 
-	retval = affs_check_name(qstr->name, qstr->len, notruncate);
+	retval = affs_check_name(qstr->name, qstr->len, analtruncate);
 	if (retval)
 		return retval;
 
@@ -67,7 +67,7 @@ static int
 affs_hash_dentry(const struct dentry *dentry, struct qstr *qstr)
 {
 	return __affs_hash_dentry(dentry, qstr, affs_toupper,
-				  affs_nofilenametruncate(dentry));
+				  affs_analfilenametruncate(dentry));
 
 }
 
@@ -75,13 +75,13 @@ static int
 affs_intl_hash_dentry(const struct dentry *dentry, struct qstr *qstr)
 {
 	return __affs_hash_dentry(dentry, qstr, affs_intl_toupper,
-				  affs_nofilenametruncate(dentry));
+				  affs_analfilenametruncate(dentry));
 
 }
 
 static inline int __affs_compare_dentry(unsigned int len,
 		const char *str, const struct qstr *name, toupper_t fn,
-		bool notruncate)
+		bool analtruncate)
 {
 	const u8 *aname = str;
 	const u8 *bname = name->name;
@@ -91,12 +91,12 @@ static inline int __affs_compare_dentry(unsigned int len,
 	 * must be valid. 'name' must be validated first.
 	 */
 
-	if (affs_check_name(name->name, name->len, notruncate))
+	if (affs_check_name(name->name, name->len, analtruncate))
 		return 1;
 
 	/*
 	 * If the names are longer than the allowed 30 chars,
-	 * the excess is ignored, so their length may differ.
+	 * the excess is iganalred, so their length may differ.
 	 */
 	if (len >= AFFSNAMEMAX) {
 		if (name->len < AFFSNAMEMAX)
@@ -118,7 +118,7 @@ affs_compare_dentry(const struct dentry *dentry,
 {
 
 	return __affs_compare_dentry(len, str, name, affs_toupper,
-				     affs_nofilenametruncate(dentry));
+				     affs_analfilenametruncate(dentry));
 }
 
 static int
@@ -126,12 +126,12 @@ affs_intl_compare_dentry(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	return __affs_compare_dentry(len, str, name, affs_intl_toupper,
-				     affs_nofilenametruncate(dentry));
+				     affs_analfilenametruncate(dentry));
 
 }
 
 /*
- * NOTE! unlike strncmp, affs_match returns 1 for success, 0 for failure.
+ * ANALTE! unlike strncmp, affs_match returns 1 for success, 0 for failure.
  */
 
 static inline int
@@ -167,7 +167,7 @@ affs_hash_name(struct super_block *sb, const u8 *name, unsigned int len)
 }
 
 static struct buffer_head *
-affs_find_entry(struct inode *dir, struct dentry *dentry)
+affs_find_entry(struct ianalde *dir, struct dentry *dentry)
 {
 	struct super_block *sb = dir->i_sb;
 	struct buffer_head *bh;
@@ -176,7 +176,7 @@ affs_find_entry(struct inode *dir, struct dentry *dentry)
 
 	pr_debug("%s(\"%pd\")\n", __func__, dentry);
 
-	bh = affs_bread(sb, dir->i_ino);
+	bh = affs_bread(sb, dir->i_ianal);
 	if (!bh)
 		return ERR_PTR(-EIO);
 
@@ -196,11 +196,11 @@ affs_find_entry(struct inode *dir, struct dentry *dentry)
 }
 
 struct dentry *
-affs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+affs_lookup(struct ianalde *dir, struct dentry *dentry, unsigned int flags)
 {
 	struct super_block *sb = dir->i_sb;
 	struct buffer_head *bh;
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	struct dentry *res;
 
 	pr_debug("%s(\"%pd\")\n", __func__, dentry);
@@ -212,20 +212,20 @@ affs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 		return ERR_CAST(bh);
 	}
 	if (bh) {
-		u32 ino = bh->b_blocknr;
+		u32 ianal = bh->b_blocknr;
 
-		/* store the real header ino in d_fsdata for faster lookups */
-		dentry->d_fsdata = (void *)(long)ino;
+		/* store the real header ianal in d_fsdata for faster lookups */
+		dentry->d_fsdata = (void *)(long)ianal;
 		switch (be32_to_cpu(AFFS_TAIL(sb, bh)->stype)) {
 		//link to dirs disabled
 		//case ST_LINKDIR:
 		case ST_LINKFILE:
-			ino = be32_to_cpu(AFFS_TAIL(sb, bh)->original);
+			ianal = be32_to_cpu(AFFS_TAIL(sb, bh)->original);
 		}
 		affs_brelse(bh);
-		inode = affs_iget(sb, ino);
+		ianalde = affs_iget(sb, ianal);
 	}
-	res = d_splice_alias(inode, dentry);
+	res = d_splice_alias(ianalde, dentry);
 	if (!IS_ERR_OR_NULL(res))
 		res->d_fsdata = dentry->d_fsdata;
 	affs_unlock_dir(dir);
@@ -233,112 +233,112 @@ affs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 }
 
 int
-affs_unlink(struct inode *dir, struct dentry *dentry)
+affs_unlink(struct ianalde *dir, struct dentry *dentry)
 {
-	pr_debug("%s(dir=%lu, %lu \"%pd\")\n", __func__, dir->i_ino,
-		 d_inode(dentry)->i_ino, dentry);
+	pr_debug("%s(dir=%lu, %lu \"%pd\")\n", __func__, dir->i_ianal,
+		 d_ianalde(dentry)->i_ianal, dentry);
 
 	return affs_remove_header(dentry);
 }
 
 int
-affs_create(struct mnt_idmap *idmap, struct inode *dir,
+affs_create(struct mnt_idmap *idmap, struct ianalde *dir,
 	    struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct super_block *sb = dir->i_sb;
-	struct inode	*inode;
+	struct ianalde	*ianalde;
 	int		 error;
 
 	pr_debug("%s(%lu,\"%pd\",0%ho)\n",
-		 __func__, dir->i_ino, dentry, mode);
+		 __func__, dir->i_ianal, dentry, mode);
 
-	inode = affs_new_inode(dir);
-	if (!inode)
-		return -ENOSPC;
+	ianalde = affs_new_ianalde(dir);
+	if (!ianalde)
+		return -EANALSPC;
 
-	inode->i_mode = mode;
-	affs_mode_to_prot(inode);
-	mark_inode_dirty(inode);
+	ianalde->i_mode = mode;
+	affs_mode_to_prot(ianalde);
+	mark_ianalde_dirty(ianalde);
 
-	inode->i_op = &affs_file_inode_operations;
-	inode->i_fop = &affs_file_operations;
-	inode->i_mapping->a_ops = affs_test_opt(AFFS_SB(sb)->s_flags, SF_OFS) ?
+	ianalde->i_op = &affs_file_ianalde_operations;
+	ianalde->i_fop = &affs_file_operations;
+	ianalde->i_mapping->a_ops = affs_test_opt(AFFS_SB(sb)->s_flags, SF_OFS) ?
 				  &affs_aops_ofs : &affs_aops;
-	error = affs_add_entry(dir, inode, dentry, ST_FILE);
+	error = affs_add_entry(dir, ianalde, dentry, ST_FILE);
 	if (error) {
-		clear_nlink(inode);
-		iput(inode);
+		clear_nlink(ianalde);
+		iput(ianalde);
 		return error;
 	}
 	return 0;
 }
 
 int
-affs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+affs_mkdir(struct mnt_idmap *idmap, struct ianalde *dir,
 	   struct dentry *dentry, umode_t mode)
 {
-	struct inode		*inode;
+	struct ianalde		*ianalde;
 	int			 error;
 
 	pr_debug("%s(%lu,\"%pd\",0%ho)\n",
-		 __func__, dir->i_ino, dentry, mode);
+		 __func__, dir->i_ianal, dentry, mode);
 
-	inode = affs_new_inode(dir);
-	if (!inode)
-		return -ENOSPC;
+	ianalde = affs_new_ianalde(dir);
+	if (!ianalde)
+		return -EANALSPC;
 
-	inode->i_mode = S_IFDIR | mode;
-	affs_mode_to_prot(inode);
+	ianalde->i_mode = S_IFDIR | mode;
+	affs_mode_to_prot(ianalde);
 
-	inode->i_op = &affs_dir_inode_operations;
-	inode->i_fop = &affs_dir_operations;
+	ianalde->i_op = &affs_dir_ianalde_operations;
+	ianalde->i_fop = &affs_dir_operations;
 
-	error = affs_add_entry(dir, inode, dentry, ST_USERDIR);
+	error = affs_add_entry(dir, ianalde, dentry, ST_USERDIR);
 	if (error) {
-		clear_nlink(inode);
-		mark_inode_dirty(inode);
-		iput(inode);
+		clear_nlink(ianalde);
+		mark_ianalde_dirty(ianalde);
+		iput(ianalde);
 		return error;
 	}
 	return 0;
 }
 
 int
-affs_rmdir(struct inode *dir, struct dentry *dentry)
+affs_rmdir(struct ianalde *dir, struct dentry *dentry)
 {
-	pr_debug("%s(dir=%lu, %lu \"%pd\")\n", __func__, dir->i_ino,
-		 d_inode(dentry)->i_ino, dentry);
+	pr_debug("%s(dir=%lu, %lu \"%pd\")\n", __func__, dir->i_ianal,
+		 d_ianalde(dentry)->i_ianal, dentry);
 
 	return affs_remove_header(dentry);
 }
 
 int
-affs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+affs_symlink(struct mnt_idmap *idmap, struct ianalde *dir,
 	     struct dentry *dentry, const char *symname)
 {
 	struct super_block	*sb = dir->i_sb;
 	struct buffer_head	*bh;
-	struct inode		*inode;
+	struct ianalde		*ianalde;
 	char			*p;
 	int			 i, maxlen, error;
 	char			 c, lc;
 
 	pr_debug("%s(%lu,\"%pd\" -> \"%s\")\n",
-		 __func__, dir->i_ino, dentry, symname);
+		 __func__, dir->i_ianal, dentry, symname);
 
 	maxlen = AFFS_SB(sb)->s_hashsize * sizeof(u32) - 1;
-	inode  = affs_new_inode(dir);
-	if (!inode)
-		return -ENOSPC;
+	ianalde  = affs_new_ianalde(dir);
+	if (!ianalde)
+		return -EANALSPC;
 
-	inode->i_op = &affs_symlink_inode_operations;
-	inode_nohighmem(inode);
-	inode->i_data.a_ops = &affs_symlink_aops;
-	inode->i_mode = S_IFLNK | 0777;
-	affs_mode_to_prot(inode);
+	ianalde->i_op = &affs_symlink_ianalde_operations;
+	ianalde_analhighmem(ianalde);
+	ianalde->i_data.a_ops = &affs_symlink_aops;
+	ianalde->i_mode = S_IFLNK | 0777;
+	affs_mode_to_prot(ianalde);
 
 	error = -EIO;
-	bh = affs_bread(sb, inode->i_ino);
+	bh = affs_bread(sb, ianalde->i_ianal);
 	if (!bh)
 		goto err;
 	i  = 0;
@@ -349,7 +349,7 @@ affs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		while (*symname == '/')
 			symname++;
 		spin_lock(&sbi->symlink_lock);
-		while (sbi->s_volume[i])	/* Cannot overflow */
+		while (sbi->s_volume[i])	/* Cananalt overflow */
 			*p++ = sbi->s_volume[i++];
 		spin_unlock(&sbi->symlink_lock);
 	}
@@ -372,38 +372,38 @@ affs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 				symname++;
 	}
 	*p = 0;
-	inode->i_size = i + 1;
-	mark_buffer_dirty_inode(bh, inode);
+	ianalde->i_size = i + 1;
+	mark_buffer_dirty_ianalde(bh, ianalde);
 	affs_brelse(bh);
-	mark_inode_dirty(inode);
+	mark_ianalde_dirty(ianalde);
 
-	error = affs_add_entry(dir, inode, dentry, ST_SOFTLINK);
+	error = affs_add_entry(dir, ianalde, dentry, ST_SOFTLINK);
 	if (error)
 		goto err;
 
 	return 0;
 
 err:
-	clear_nlink(inode);
-	mark_inode_dirty(inode);
-	iput(inode);
+	clear_nlink(ianalde);
+	mark_ianalde_dirty(ianalde);
+	iput(ianalde);
 	return error;
 }
 
 int
-affs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
+affs_link(struct dentry *old_dentry, struct ianalde *dir, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(old_dentry);
+	struct ianalde *ianalde = d_ianalde(old_dentry);
 
-	pr_debug("%s(%lu, %lu, \"%pd\")\n", __func__, inode->i_ino, dir->i_ino,
+	pr_debug("%s(%lu, %lu, \"%pd\")\n", __func__, ianalde->i_ianal, dir->i_ianal,
 		 dentry);
 
-	return affs_add_entry(dir, inode, dentry, ST_LINKFILE);
+	return affs_add_entry(dir, ianalde, dentry, ST_LINKFILE);
 }
 
 static int
-affs_rename(struct inode *old_dir, struct dentry *old_dentry,
-	    struct inode *new_dir, struct dentry *new_dentry)
+affs_rename(struct ianalde *old_dir, struct dentry *old_dentry,
+	    struct ianalde *new_dir, struct dentry *new_dentry)
 {
 	struct super_block *sb = old_dir->i_sb;
 	struct buffer_head *bh = NULL;
@@ -411,7 +411,7 @@ affs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	retval = affs_check_name(new_dentry->d_name.name,
 				 new_dentry->d_name.len,
-				 affs_nofilenametruncate(old_dentry));
+				 affs_analfilenametruncate(old_dentry));
 
 	if (retval)
 		return retval;
@@ -423,7 +423,7 @@ affs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			return retval;
 	}
 
-	bh = affs_bread(sb, d_inode(old_dentry)->i_ino);
+	bh = affs_bread(sb, d_ianalde(old_dentry)->i_ianal);
 	if (!bh)
 		return -EIO;
 
@@ -443,14 +443,14 @@ affs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	/* TODO: move it back to old_dir, if error? */
 
 done:
-	mark_buffer_dirty_inode(bh, retval ? old_dir : new_dir);
+	mark_buffer_dirty_ianalde(bh, retval ? old_dir : new_dir);
 	affs_brelse(bh);
 	return retval;
 }
 
 static int
-affs_xrename(struct inode *old_dir, struct dentry *old_dentry,
-	     struct inode *new_dir, struct dentry *new_dentry)
+affs_xrename(struct ianalde *old_dir, struct dentry *old_dentry,
+	     struct ianalde *new_dir, struct dentry *new_dentry)
 {
 
 	struct super_block *sb = old_dir->i_sb;
@@ -458,11 +458,11 @@ affs_xrename(struct inode *old_dir, struct dentry *old_dentry,
 	struct buffer_head *bh_new = NULL;
 	int retval;
 
-	bh_old = affs_bread(sb, d_inode(old_dentry)->i_ino);
+	bh_old = affs_bread(sb, d_ianalde(old_dentry)->i_ianal);
 	if (!bh_old)
 		return -EIO;
 
-	bh_new = affs_bread(sb, d_inode(new_dentry)->i_ino);
+	bh_new = affs_bread(sb, d_ianalde(new_dentry)->i_ianal);
 	if (!bh_new) {
 		affs_brelse(bh_old);
 		return -EIO;
@@ -496,23 +496,23 @@ affs_xrename(struct inode *old_dir, struct dentry *old_dentry,
 	retval = affs_insert_hash(old_dir, bh_new);
 	affs_unlock_dir(old_dir);
 done:
-	mark_buffer_dirty_inode(bh_old, new_dir);
-	mark_buffer_dirty_inode(bh_new, old_dir);
+	mark_buffer_dirty_ianalde(bh_old, new_dir);
+	mark_buffer_dirty_ianalde(bh_new, old_dir);
 	affs_brelse(bh_old);
 	affs_brelse(bh_new);
 	return retval;
 }
 
-int affs_rename2(struct mnt_idmap *idmap, struct inode *old_dir,
-		 struct dentry *old_dentry, struct inode *new_dir,
+int affs_rename2(struct mnt_idmap *idmap, struct ianalde *old_dir,
+		 struct dentry *old_dentry, struct ianalde *new_dir,
 		 struct dentry *new_dentry, unsigned int flags)
 {
 
-	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE))
+	if (flags & ~(RENAME_ANALREPLACE | RENAME_EXCHANGE))
 		return -EINVAL;
 
 	pr_debug("%s(old=%lu,\"%pd\" to new=%lu,\"%pd\")\n", __func__,
-		 old_dir->i_ino, old_dentry, new_dir->i_ino, new_dentry);
+		 old_dir->i_ianal, old_dentry, new_dir->i_ianal, new_dentry);
 
 	if (flags & RENAME_EXCHANGE)
 		return affs_xrename(old_dir, old_dentry, new_dir, new_dentry);
@@ -522,10 +522,10 @@ int affs_rename2(struct mnt_idmap *idmap, struct inode *old_dir,
 
 static struct dentry *affs_get_parent(struct dentry *child)
 {
-	struct inode *parent;
+	struct ianalde *parent;
 	struct buffer_head *bh;
 
-	bh = affs_bread(child->d_sb, d_inode(child)->i_ino);
+	bh = affs_bread(child->d_sb, d_ianalde(child)->i_ianal);
 	if (!bh)
 		return ERR_PTR(-EIO);
 
@@ -535,37 +535,37 @@ static struct dentry *affs_get_parent(struct dentry *child)
 	return d_obtain_alias(parent);
 }
 
-static struct inode *affs_nfs_get_inode(struct super_block *sb, u64 ino,
+static struct ianalde *affs_nfs_get_ianalde(struct super_block *sb, u64 ianal,
 					u32 generation)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	if (!affs_validblock(sb, ino))
+	if (!affs_validblock(sb, ianal))
 		return ERR_PTR(-ESTALE);
 
-	inode = affs_iget(sb, ino);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
+	ianalde = affs_iget(sb, ianal);
+	if (IS_ERR(ianalde))
+		return ERR_CAST(ianalde);
 
-	return inode;
+	return ianalde;
 }
 
 static struct dentry *affs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 					int fh_len, int fh_type)
 {
 	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
-				    affs_nfs_get_inode);
+				    affs_nfs_get_ianalde);
 }
 
 static struct dentry *affs_fh_to_parent(struct super_block *sb, struct fid *fid,
 					int fh_len, int fh_type)
 {
 	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
-				    affs_nfs_get_inode);
+				    affs_nfs_get_ianalde);
 }
 
 const struct export_operations affs_export_ops = {
-	.encode_fh = generic_encode_ino32_fh,
+	.encode_fh = generic_encode_ianal32_fh,
 	.fh_to_dentry = affs_fh_to_dentry,
 	.fh_to_parent = affs_fh_to_parent,
 	.get_parent = affs_get_parent,

@@ -17,7 +17,7 @@ int ieee80211_tkip_encrypt_data(struct arc4_ctx *ctx,
 
 enum {
 	TKIP_DECRYPT_OK = 0,
-	TKIP_DECRYPT_NO_EXT_IV = -1,
+	TKIP_DECRYPT_ANAL_EXT_IV = -1,
 	TKIP_DECRYPT_INVALID_KEYIDX = -2,
 	TKIP_DECRYPT_REPLAY = -3,
 };

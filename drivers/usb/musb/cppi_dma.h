@@ -6,7 +6,7 @@
 
 #include <linux/slab.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/dmapool.h>
 #include <linux/dmaengine.h>
 
@@ -100,7 +100,7 @@ struct cppi_channel {
 	struct cppi_descriptor	*last_processed;
 
 	/* use tx_complete in host role to track endpoints waiting for
-	 * FIFONOTEMPTY to clear.
+	 * FIFOANALTEMPTY to clear.
 	 */
 	struct list_head	tx_complete;
 };

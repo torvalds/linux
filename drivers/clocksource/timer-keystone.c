@@ -57,8 +57,8 @@ static inline void keystone_timer_writel(u32 val, unsigned long rg)
 
 /**
  * keystone_timer_barrier: write memory barrier
- * use explicit barrier to avoid using readl/writel non relaxed function
- * variants, because in our case non relaxed variants hide the true places
+ * use explicit barrier to avoid using readl/writel analn relaxed function
+ * variants, because in our case analn relaxed variants hide the true places
  * where barrier is needed.
  */
 static inline void keystone_timer_barrier(void)
@@ -140,7 +140,7 @@ static int keystone_set_periodic(struct clock_event_device *evt)
 	return 0;
 }
 
-static int __init keystone_timer_init(struct device_node *np)
+static int __init keystone_timer_init(struct device_analde *np)
 {
 	struct clock_event_device *event_dev = &timer.event_dev;
 	unsigned long rate;
@@ -179,7 +179,7 @@ static int __init keystone_timer_init(struct device_node *np)
 	/* here we have to be sure the timer has been disabled */
 	keystone_timer_barrier();
 
-	/* reset timer as 64-bit, no pre-scaler, plus features are disabled */
+	/* reset timer as 64-bit, anal pre-scaler, plus features are disabled */
 	keystone_timer_writel(0, TGCR);
 
 	/* unreset timer */

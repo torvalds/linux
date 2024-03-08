@@ -17,7 +17,7 @@
 #define   BCMD2AXI_MSTR_ID_CTRL			BIT(16)
 #define DCSS_DPR_IRQ_MASK			0x020
 #define DCSS_DPR_IRQ_MASK_STATUS		0x030
-#define DCSS_DPR_IRQ_NONMASK_STATUS		0x040
+#define DCSS_DPR_IRQ_ANALNMASK_STATUS		0x040
 #define   IRQ_DPR_CTRL_DONE			BIT(0)
 #define   IRQ_DPR_RUN				BIT(1)
 #define   IRQ_DPR_SHADOW_LOADED			BIT(2)
@@ -139,7 +139,7 @@ static int dcss_dpr_ch_init_all(struct dcss_dpr *dpr, unsigned long dpr_base)
 		if (!ch->base_reg) {
 			dev_err(dpr->dev, "dpr: unable to remap ch %d base\n",
 				i);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ch->dpr = dpr;
@@ -157,7 +157,7 @@ int dcss_dpr_init(struct dcss_dev *dcss, unsigned long dpr_base)
 
 	dpr = kzalloc(sizeof(*dpr), GFP_KERNEL);
 	if (!dpr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dcss->dpr = dpr;
 	dpr->dev = dcss->dev;
@@ -174,7 +174,7 @@ int dcss_dpr_init(struct dcss_dev *dcss, unsigned long dpr_base)
 
 		kfree(dpr);
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -182,11 +182,11 @@ int dcss_dpr_init(struct dcss_dev *dcss, unsigned long dpr_base)
 
 void dcss_dpr_exit(struct dcss_dpr *dpr)
 {
-	int ch_no;
+	int ch_anal;
 
 	/* stop DPR on all channels */
-	for (ch_no = 0; ch_no < 3; ch_no++) {
-		struct dcss_dpr_ch *ch = &dpr->ch[ch_no];
+	for (ch_anal = 0; ch_anal < 3; ch_anal++) {
+		struct dcss_dpr_ch *ch = &dpr->ch[ch_anal];
 
 		dcss_writel(0, ch->base_reg + DCSS_DPR_SYSTEM_CTRL0);
 

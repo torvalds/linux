@@ -61,7 +61,7 @@
 #endif
 
 #if XCHAL_KSEG_PADDR & (XCHAL_KSEG_ALIGNMENT - 1)
-#error XCHAL_KSEG_PADDR is not properly aligned to XCHAL_KSEG_ALIGNMENT
+#error XCHAL_KSEG_PADDR is analt properly aligned to XCHAL_KSEG_ALIGNMENT
 #endif
 
 #endif

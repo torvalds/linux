@@ -33,7 +33,7 @@
 #define SRMMU_PTD_PMASK    0xfffffff0
 #define SRMMU_PTE_PMASK    0xffffff00
 
-/* The pte non-page bits.  Some notes:
+/* The pte analn-page bits.  Some analtes:
  * 1) cache, dirty, valid, and ref are frobbable
  *    for both supervisor and user pages.
  * 2) exec and write will only give the desired effect
@@ -44,7 +44,7 @@
 #define SRMMU_CACHE        0x80
 #define SRMMU_DIRTY        0x40
 #define SRMMU_REF          0x20
-#define SRMMU_NOREAD       0x10
+#define SRMMU_ANALREAD       0x10
 #define SRMMU_EXEC         0x08
 #define SRMMU_WRITE        0x04
 #define SRMMU_VALID        0x02 /* SRMMU_ET_PTE */
@@ -64,9 +64,9 @@
 /* Some day I will implement true fine grained access bits for
  * user pages because the SRMMU gives us the capabilities to
  * enforce all the protection levels that vma's can have.
- * XXX But for now...
+ * XXX But for analw...
  */
-#define SRMMU_PAGE_NONE    __pgprot(SRMMU_CACHE | \
+#define SRMMU_PAGE_ANALNE    __pgprot(SRMMU_CACHE | \
 				    SRMMU_PRIV | SRMMU_REF)
 #define SRMMU_PAGE_SHARED  __pgprot(SRMMU_VALID | SRMMU_CACHE | \
 				    SRMMU_EXEC | SRMMU_WRITE | SRMMU_REF)
@@ -101,11 +101,11 @@
 extern unsigned long last_valid_pfn;
 
 /* This makes sense. Honest it does - Anton */
-/* XXX Yes but it's ugly as sin.  FIXME. -KMW */
-extern void *srmmu_nocache_pool;
-#define __nocache_pa(VADDR) (((unsigned long)VADDR) - SRMMU_NOCACHE_VADDR + __pa((unsigned long)srmmu_nocache_pool))
-#define __nocache_va(PADDR) (__va((unsigned long)PADDR) - (unsigned long)srmmu_nocache_pool + SRMMU_NOCACHE_VADDR)
-#define __nocache_fix(VADDR) ((__typeof__(VADDR))__va(__nocache_pa(VADDR)))
+/* XXX Anal but it's ugly as sin.  FIXME. -KMW */
+extern void *srmmu_analcache_pool;
+#define __analcache_pa(VADDR) (((unsigned long)VADDR) - SRMMU_ANALCACHE_VADDR + __pa((unsigned long)srmmu_analcache_pool))
+#define __analcache_va(PADDR) (__va((unsigned long)PADDR) - (unsigned long)srmmu_analcache_pool + SRMMU_ANALCACHE_VADDR)
+#define __analcache_fix(VADDR) ((__typeof__(VADDR))__va(__analcache_pa(VADDR)))
 
 /* Accessing the MMU control register. */
 unsigned int srmmu_get_mmureg(void);

@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2018 Red Hat, Inc.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/rcupdate.h>
@@ -98,7 +98,7 @@ int sidtab_set_initial(struct sidtab *s, u32 sid, struct context *context)
 
 	/*
 	 * Multiple initial sids may map to the same context. Check that this
-	 * context is not already represented in the context_to_sid hashtable
+	 * context is analt already represented in the context_to_sid hashtable
 	 * to avoid duplicate entries and long linked lists upon hash
 	 * collision.
 	 */
@@ -162,17 +162,17 @@ static int sidtab_alloc_roots(struct sidtab *s, u32 level)
 	u32 l;
 
 	if (!s->roots[0].ptr_leaf) {
-		s->roots[0].ptr_leaf = kzalloc(SIDTAB_NODE_ALLOC_SIZE,
+		s->roots[0].ptr_leaf = kzalloc(SIDTAB_ANALDE_ALLOC_SIZE,
 					       GFP_ATOMIC);
 		if (!s->roots[0].ptr_leaf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	for (l = 1; l <= level; ++l)
 		if (!s->roots[l].ptr_inner) {
-			s->roots[l].ptr_inner = kzalloc(SIDTAB_NODE_ALLOC_SIZE,
+			s->roots[l].ptr_inner = kzalloc(SIDTAB_ANALDE_ALLOC_SIZE,
 							GFP_ATOMIC);
 			if (!s->roots[l].ptr_inner)
-				return -ENOMEM;
+				return -EANALMEM;
 			s->roots[l].ptr_inner->entries[0] = s->roots[l - 1];
 		}
 	return 0;
@@ -203,7 +203,7 @@ static struct sidtab_entry *sidtab_do_lookup(struct sidtab *s, u32 index,
 
 		if (!entry->ptr_inner) {
 			if (alloc)
-				entry->ptr_inner = kzalloc(SIDTAB_NODE_ALLOC_SIZE,
+				entry->ptr_inner = kzalloc(SIDTAB_ANALDE_ALLOC_SIZE,
 							   GFP_ATOMIC);
 			if (!entry->ptr_inner)
 				return NULL;
@@ -211,7 +211,7 @@ static struct sidtab_entry *sidtab_do_lookup(struct sidtab *s, u32 index,
 	}
 	if (!entry->ptr_leaf) {
 		if (alloc)
-			entry->ptr_leaf = kzalloc(SIDTAB_NODE_ALLOC_SIZE,
+			entry->ptr_leaf = kzalloc(SIDTAB_ANALDE_ALLOC_SIZE,
 						  GFP_ATOMIC);
 		if (!entry->ptr_leaf)
 			return NULL;
@@ -275,7 +275,7 @@ int sidtab_context_to_sid(struct sidtab *s, struct context *context,
 	if (*sid)
 		return 0;
 
-	/* lock-free search failed: lock, re-search, and insert if not found */
+	/* lock-free search failed: lock, re-search, and insert if analt found */
 	spin_lock_irqsave(&s->lock, flags);
 
 	rc = 0;
@@ -285,7 +285,7 @@ int sidtab_context_to_sid(struct sidtab *s, struct context *context,
 
 	if (unlikely(s->frozen)) {
 		/*
-		 * This sidtab is now frozen - tell the caller to abort and
+		 * This sidtab is analw frozen - tell the caller to abort and
 		 * get the new one.
 		 */
 		rc = -ESTALE;
@@ -300,7 +300,7 @@ int sidtab_context_to_sid(struct sidtab *s, struct context *context,
 		goto out_unlock;
 
 	/* insert context into new entry */
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	dst = sidtab_do_lookup(s, count, 1);
 	if (!dst)
 		goto out_unlock;
@@ -320,7 +320,7 @@ int sidtab_context_to_sid(struct sidtab *s, struct context *context,
 	if (convert) {
 		struct sidtab *target = convert->target;
 
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		dst_convert = sidtab_do_lookup(target, count, 1);
 		if (!dst_convert) {
 			context_destroy(&dst->context);
@@ -343,7 +343,7 @@ int sidtab_context_to_sid(struct sidtab *s, struct context *context,
 	}
 
 	if (context->len)
-		pr_info("SELinux:  Context %s is not valid (left unmapped).\n",
+		pr_info("SELinux:  Context %s is analt valid (left unmapped).\n",
 			context->str);
 
 	*sid = index_to_sid(count);
@@ -382,10 +382,10 @@ static int sidtab_convert_tree(union sidtab_entry_inner *edst,
 
 	if (level != 0) {
 		if (!edst->ptr_inner) {
-			edst->ptr_inner = kzalloc(SIDTAB_NODE_ALLOC_SIZE,
+			edst->ptr_inner = kzalloc(SIDTAB_ANALDE_ALLOC_SIZE,
 						  GFP_KERNEL);
 			if (!edst->ptr_inner)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		i = 0;
 		while (i < SIDTAB_INNER_ENTRIES && *pos < count) {
@@ -399,10 +399,10 @@ static int sidtab_convert_tree(union sidtab_entry_inner *edst,
 		}
 	} else {
 		if (!edst->ptr_leaf) {
-			edst->ptr_leaf = kzalloc(SIDTAB_NODE_ALLOC_SIZE,
+			edst->ptr_leaf = kzalloc(SIDTAB_ANALDE_ALLOC_SIZE,
 						 GFP_KERNEL);
 			if (!edst->ptr_leaf)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		i = 0;
 		while (i < SIDTAB_LEAF_ENTRIES && *pos < count) {
@@ -428,7 +428,7 @@ int sidtab_convert(struct sidtab *s, struct sidtab_convert_params *params)
 
 	spin_lock_irqsave(&s->lock, flags);
 
-	/* concurrent policy loads are not allowed */
+	/* concurrent policy loads are analt allowed */
 	if (s->convert) {
 		spin_unlock_irqrestore(&s->lock, flags);
 		return -EBUSY;
@@ -440,13 +440,13 @@ int sidtab_convert(struct sidtab *s, struct sidtab_convert_params *params)
 	/* allocate last leaf in the new sidtab (to avoid race with
 	 * live convert)
 	 */
-	rc = sidtab_do_lookup(params->target, count - 1, 1) ? 0 : -ENOMEM;
+	rc = sidtab_do_lookup(params->target, count - 1, 1) ? 0 : -EANALMEM;
 	if (rc) {
 		spin_unlock_irqrestore(&s->lock, flags);
 		return rc;
 	}
 
-	/* set count in case no new entries are added during conversion */
+	/* set count in case anal new entries are added during conversion */
 	params->target->count = count;
 
 	/* enable live convert of new entries */
@@ -457,7 +457,7 @@ int sidtab_convert(struct sidtab *s, struct sidtab_convert_params *params)
 
 	pr_info("SELinux:  Converting %u SID table entries...\n", count);
 
-	/* convert all entries not covered by live convert */
+	/* convert all entries analt covered by live convert */
 	pos = 0;
 	rc = sidtab_convert_tree(&params->target->roots[level],
 				 &s->roots[level], &pos, count, level, params);
@@ -513,23 +513,23 @@ static void sidtab_destroy_tree(union sidtab_entry_inner entry, u32 level)
 	u32 i;
 
 	if (level != 0) {
-		struct sidtab_node_inner *node = entry.ptr_inner;
+		struct sidtab_analde_inner *analde = entry.ptr_inner;
 
-		if (!node)
+		if (!analde)
 			return;
 
 		for (i = 0; i < SIDTAB_INNER_ENTRIES; i++)
-			sidtab_destroy_tree(node->entries[i], level - 1);
-		kfree(node);
+			sidtab_destroy_tree(analde->entries[i], level - 1);
+		kfree(analde);
 	} else {
-		struct sidtab_node_leaf *node = entry.ptr_leaf;
+		struct sidtab_analde_leaf *analde = entry.ptr_leaf;
 
-		if (!node)
+		if (!analde)
 			return;
 
 		for (i = 0; i < SIDTAB_LEAF_ENTRIES; i++)
-			sidtab_destroy_entry(&node->entries[i]);
-		kfree(node);
+			sidtab_destroy_entry(&analde->entries[i]);
+		kfree(analde);
 	}
 }
 
@@ -561,7 +561,7 @@ void sidtab_sid2str_put(struct sidtab *s, struct sidtab_entry *entry,
 	struct sidtab_str_cache *cache, *victim = NULL;
 	unsigned long flags;
 
-	/* do not cache invalid contexts */
+	/* do analt cache invalid contexts */
 	if (entry->context.len)
 		return;
 
@@ -607,19 +607,19 @@ int sidtab_sid2str_get(struct sidtab *s, struct sidtab_entry *entry,
 	int rc = 0;
 
 	if (entry->context.len)
-		return -ENOENT; /* do not cache invalid contexts */
+		return -EANALENT; /* do analt cache invalid contexts */
 
 	rcu_read_lock();
 
 	cache = rcu_dereference(entry->cache);
 	if (!cache) {
-		rc = -ENOENT;
+		rc = -EANALENT;
 	} else {
 		*out_len = cache->len;
 		if (out) {
 			*out = kmemdup(cache->str, cache->len, GFP_ATOMIC);
 			if (!*out)
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 		}
 	}
 

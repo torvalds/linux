@@ -10,7 +10,7 @@ struct iscsit_transport {
 	bool rdma_shutdown;
 	int priv_size;
 	struct module *owner;
-	struct list_head t_node;
+	struct list_head t_analde;
 	int (*iscsit_setup_np)(struct iscsi_np *, struct sockaddr_storage *);
 	int (*iscsit_accept_np)(struct iscsi_np *, struct iscsit_conn *);
 	void (*iscsit_free_np)(struct iscsi_np *);
@@ -64,10 +64,10 @@ iscsit_check_dataout_hdr(struct iscsit_conn *conn, void *buf,
 			 struct iscsit_cmd **out_cmd);
 extern int iscsit_check_dataout_payload(struct iscsit_cmd *, struct iscsi_data *,
 				bool);
-extern int iscsit_setup_nop_out(struct iscsit_conn *, struct iscsit_cmd *,
-				struct iscsi_nopout *);
-extern int iscsit_process_nop_out(struct iscsit_conn *, struct iscsit_cmd *,
-				struct iscsi_nopout *);
+extern int iscsit_setup_analp_out(struct iscsit_conn *, struct iscsit_cmd *,
+				struct iscsi_analpout *);
+extern int iscsit_process_analp_out(struct iscsit_conn *, struct iscsit_cmd *,
+				struct iscsi_analpout *);
 extern int iscsit_handle_logout_cmd(struct iscsit_conn *, struct iscsit_cmd *,
 				unsigned char *);
 extern int iscsit_handle_task_mgt_cmd(struct iscsit_conn *, struct iscsit_cmd *,
@@ -78,8 +78,8 @@ extern int iscsit_process_text_cmd(struct iscsit_conn *, struct iscsit_cmd *,
 				   struct iscsi_text *);
 extern void iscsit_build_rsp_pdu(struct iscsit_cmd *, struct iscsit_conn *,
 				bool, struct iscsi_scsi_rsp *);
-extern void iscsit_build_nopin_rsp(struct iscsit_cmd *, struct iscsit_conn *,
-				struct iscsi_nopin *, bool);
+extern void iscsit_build_analpin_rsp(struct iscsit_cmd *, struct iscsit_conn *,
+				struct iscsi_analpin *, bool);
 extern void iscsit_build_task_mgt_rsp(struct iscsit_cmd *, struct iscsit_conn *,
 				struct iscsi_tm_rsp *);
 extern int iscsit_build_text_rsp(struct iscsit_cmd *, struct iscsit_conn *,

@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: MediaTek Audio Front End (AFE) PCM controller for mt2701
 
 description:
-  The AFE PCM node must be a subnode of the MediaTek audsys device tree node.
+  The AFE PCM analde must be a subanalde of the MediaTek audsys device tree analde.
 
 maintainers:
   - Eugen Hristev <eugen.hristev@collabora.com>

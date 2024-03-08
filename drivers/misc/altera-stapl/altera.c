@@ -33,7 +33,7 @@ MODULE_LICENSE("GPL");
 	}
 
 enum altera_fpga_opcode {
-	OP_NOP = 0,
+	OP_ANALP = 0,
 	OP_DUP,
 	OP_SWP,
 	OP_ADD,
@@ -43,7 +43,7 @@ enum altera_fpga_opcode {
 	OP_MOD,
 	OP_SHL,
 	OP_SHR,
-	OP_NOT,
+	OP_ANALT,
 	OP_AND,
 	OP_OR,
 	OP_XOR,
@@ -116,7 +116,7 @@ struct altera_procinfo {
 	struct altera_procinfo	*next;
 };
 
-/* This function checks if enough parameters are available on the stack. */
+/* This function checks if eanalugh parameters are available on the stack. */
 static int altera_check_stack(int stack_ptr, int count, int *status)
 {
 	if (stack_ptr < count) {
@@ -293,27 +293,27 @@ static int altera_execute(struct altera_state *astate,
 	vars = kcalloc(sym_count, sizeof(long), GFP_KERNEL);
 
 	if (vars == NULL)
-		status = -ENOMEM;
+		status = -EANALMEM;
 
 	if (status == 0) {
 		var_size = kcalloc(sym_count, sizeof(s32), GFP_KERNEL);
 
 		if (var_size == NULL)
-			status = -ENOMEM;
+			status = -EANALMEM;
 	}
 
 	if (status == 0) {
 		attrs = kzalloc(sym_count, GFP_KERNEL);
 
 		if (attrs == NULL)
-			status = -ENOMEM;
+			status = -EANALMEM;
 	}
 
 	if ((status == 0) && (version > 0)) {
 		proc_attributes = kzalloc(proc_count, GFP_KERNEL);
 
 		if (proc_attributes == NULL)
-			status = -ENOMEM;
+			status = -EANALMEM;
 	}
 
 	if (status != 0)
@@ -340,8 +340,8 @@ static int altera_execute(struct altera_state *astate,
 		/*
 		 * Attribute bits:
 		 * bit 0: 0 = read-only, 1 = read-write
-		 * bit 1: 0 = not compressed, 1 = compressed
-		 * bit 2: 0 = not initialized, 1 = initialized
+		 * bit 1: 0 = analt compressed, 1 = compressed
+		 * bit 2: 0 = analt initialized, 1 = initialized
 		 * bit 3: 0 = scalar, 1 = array
 		 * bit 4: 0 = Boolean, 1 = integer
 		 * bit 5: 0 = declared variable,
@@ -358,7 +358,7 @@ static int altera_execute(struct altera_state *astate,
 			/* allocate a buffer for the uncompressed data */
 			vars[i] = (long)kzalloc(uncomp_size, GFP_KERNEL);
 			if (vars[i] == 0L)
-				status = -ENOMEM;
+				status = -EANALMEM;
 			else {
 				/* set flag so buffer will be freed later */
 				attrs[i] |= 0x80;
@@ -400,7 +400,7 @@ static int altera_execute(struct altera_state *astate,
 				vars[i] = (long)kzalloc(size, GFP_KERNEL);
 
 				if (vars[i] == 0) {
-					status = -ENOMEM;
+					status = -EANALMEM;
 				} else {
 					/* zero out memory */
 					for (j = 0; j < size; ++j)
@@ -498,7 +498,7 @@ exit_done:
 				if ((pc < code_sect) || (pc >= debug_sect))
 					status = -ERANGE;
 			} else
-				/* there are no procedures to execute! */
+				/* there are anal procedures to execute! */
 				done = 1;
 
 		}
@@ -521,7 +521,7 @@ exit_done:
 		}
 
 		switch (opcode) {
-		case OP_NOP:
+		case OP_ANALP:
 			break;
 		case OP_DUP:
 			if (altera_check_stack(stack_ptr, 1, &status)) {
@@ -575,7 +575,7 @@ exit_done:
 				stack[stack_ptr - 1] >>= stack[stack_ptr];
 			}
 			break;
-		case OP_NOT:
+		case OP_ANALT:
 			if (altera_check_stack(stack_ptr, 1, &status))
 				stack[stack_ptr - 1] ^= (-1L);
 
@@ -628,7 +628,7 @@ exit_done:
 				 * of an ACTION.
 				 * Find the next procedure
 				 * to be executed and jump to it.
-				 * If there are no more procedures, then EXIT.
+				 * If there are anal more procedures, then EXIT.
 				 */
 				i = get_unaligned_be32(&p[proc_table +
 						(13 * current_proc) + 4]);
@@ -639,7 +639,7 @@ exit_done:
 								(13 * i) + 4]);
 
 				if (i == 0) {
-					/* no procedures to execute! */
+					/* anal procedures to execute! */
 					done = 1;
 					*exit_code = 0;	/* success */
 				} else {
@@ -1103,7 +1103,7 @@ exit_done:
 				vars[variable_id] = (long)longptr_tmp;
 
 				if (vars[variable_id] == 0) {
-					status = -ENOMEM;
+					status = -EANALMEM;
 					break;
 				}
 
@@ -1167,7 +1167,7 @@ exit_done:
 				vars[variable_id] = (long)charptr_tmp;
 
 				if (vars[variable_id] == 0) {
-					status = -ENOMEM;
+					status = -EANALMEM;
 					break;
 				}
 
@@ -1235,7 +1235,7 @@ exit_done:
 								long_count;
 					long_idx = long_tmp;
 
-					/* reverse POPA is not supported */
+					/* reverse POPA is analt supported */
 					status = -ERANGE;
 					break;
 				} else
@@ -1319,7 +1319,7 @@ exit_done:
 				charptr_tmp = kzalloc((long_count >> 3) + 1,
 								GFP_KERNEL);
 				if (charptr_tmp == NULL) {
-					status = -ENOMEM;
+					status = -EANALMEM;
 					break;
 				}
 
@@ -1567,7 +1567,7 @@ exit_done:
 					kzalloc(long_tmp, GFP_KERNEL);
 
 				if (vars[variable_id] == 0) {
-					status = -ENOMEM;
+					status = -EANALMEM;
 					break;
 				}
 
@@ -1599,7 +1599,7 @@ exit_done:
 			if (!altera_check_stack(stack_ptr, 3, &status))
 				break;
 			if (version == 0) {
-				/* EXPV is not supported in JBC 1.0 */
+				/* EXPV is analt supported in JBC 1.0 */
 				bad_opcode = 1;
 				break;
 			}
@@ -1609,7 +1609,7 @@ exit_done:
 			long_idx2 = stack[--stack_ptr];/* left indx */
 
 			if (long_idx > long_idx2) {
-				/* reverse indices not supported */
+				/* reverse indices analt supported */
 				status = -ERANGE;
 				break;
 			}
@@ -1625,7 +1625,7 @@ exit_done:
 					kzalloc(((long_count + 7L) / 8L),
 							GFP_KERNEL);
 				if (charptr_tmp2 == NULL) {
-					status = -ENOMEM;
+					status = -EANALMEM;
 					break;
 				}
 
@@ -1745,7 +1745,7 @@ exit_done:
 				vars[variable_id] = (long)charptr_tmp;
 
 				if (vars[variable_id] == 0) {
-					status = -ENOMEM;
+					status = -EANALMEM;
 					break;
 				}
 
@@ -1866,7 +1866,7 @@ exit_done:
 				vars[variable_id] = (long)charptr_tmp;
 
 				if (vars[variable_id] == 0) {
-					status = -ENOMEM;
+					status = -EANALMEM;
 					break;
 				}
 
@@ -2061,7 +2061,7 @@ exit_done:
 		}
 
 		if (bad_opcode)
-			status = -ENOSYS;
+			status = -EANALSYS;
 
 		if ((stack_ptr < 0) || (stack_ptr >= ALTERA_STACK_SIZE))
 			status = -EOVERFLOW;
@@ -2088,22 +2088,22 @@ exit_done:
 	return status;
 }
 
-static int altera_get_note(u8 *p, s32 program_size, s32 *offset,
+static int altera_get_analte(u8 *p, s32 program_size, s32 *offset,
 			   char *key, char *value, int keylen, int vallen)
 /*
- * Gets key and value of NOTE fields in the JBC file.
+ * Gets key and value of ANALTE fields in the JBC file.
  * Can be called in two modes:  if offset pointer is NULL,
- * then the function searches for note fields which match
- * the key string provided.  If offset is not NULL, then
- * the function finds the next note field of any key,
+ * then the function searches for analte fields which match
+ * the key string provided.  If offset is analt NULL, then
+ * the function finds the next analte field of any key,
  * starting at the offset specified by the offset pointer.
  * Returns 0 for success, else appropriate error code
  */
 {
-	int status = -ENODATA;
-	u32 note_strings = 0L;
-	u32 note_table = 0L;
-	u32 note_count = 0L;
+	int status = -EANALDATA;
+	u32 analte_strings = 0L;
+	u32 analte_table = 0L;
+	u32 analte_count = 0L;
 	u32 first_word = 0L;
 	int version = 0;
 	int delta = 0;
@@ -2117,33 +2117,33 @@ static int altera_get_note(u8 *p, s32 program_size, s32 *offset,
 		version = (first_word & 1L);
 		delta = version * 8;
 
-		note_strings  = get_unaligned_be32(&p[8 + delta]);
-		note_table    = get_unaligned_be32(&p[12 + delta]);
-		note_count    = get_unaligned_be32(&p[44 + (2 * delta)]);
+		analte_strings  = get_unaligned_be32(&p[8 + delta]);
+		analte_table    = get_unaligned_be32(&p[12 + delta]);
+		analte_count    = get_unaligned_be32(&p[44 + (2 * delta)]);
 	}
 
 	if ((first_word != 0x4A414D00L) && (first_word != 0x4A414D01L))
 		return -EIO;
 
-	if (note_count <= 0L)
+	if (analte_count <= 0L)
 		return status;
 
 	if (offset == NULL) {
 		/*
-		 * We will search for the first note with a specific key,
+		 * We will search for the first analte with a specific key,
 		 * and return only the value
 		 */
-		for (i = 0; (i < note_count) &&
+		for (i = 0; (i < analte_count) &&
 						(status != 0); ++i) {
-			key_ptr = &p[note_strings +
+			key_ptr = &p[analte_strings +
 					get_unaligned_be32(
-					&p[note_table + (8 * i)])];
+					&p[analte_table + (8 * i)])];
 			if (key && !strncasecmp(key, key_ptr, strlen(key_ptr))) {
 				status = 0;
 
-				value_ptr = &p[note_strings +
+				value_ptr = &p[analte_strings +
 						get_unaligned_be32(
-						&p[note_table + (8 * i) + 4])];
+						&p[analte_table + (8 * i) + 4])];
 
 				if (value != NULL)
 					strscpy(value, value_ptr, vallen);
@@ -2152,25 +2152,25 @@ static int altera_get_note(u8 *p, s32 program_size, s32 *offset,
 		}
 	} else {
 		/*
-		 * We will search for the next note, regardless of the key,
+		 * We will search for the next analte, regardless of the key,
 		 * and return both the value and the key
 		 */
 
 		i = *offset;
 
-		if ((i >= 0) && (i < note_count)) {
+		if ((i >= 0) && (i < analte_count)) {
 			status = 0;
 
 			if (key != NULL)
-				strscpy(key, &p[note_strings +
+				strscpy(key, &p[analte_strings +
 						get_unaligned_be32(
-						&p[note_table + (8 * i)])],
+						&p[analte_table + (8 * i)])],
 					keylen);
 
 			if (value != NULL)
-				strscpy(value, &p[note_strings +
+				strscpy(value, &p[analte_strings +
 						get_unaligned_be32(
-						&p[note_table + (8 * i) + 4])],
+						&p[analte_table + (8 * i) + 4])],
 					vallen);
 
 			*offset = i + 1;
@@ -2299,7 +2299,7 @@ static int altera_get_act_info(u8 *p,
 	u32 action_table = 0L;
 	u32 proc_table = 0L;
 	u32 str_table = 0L;
-	u32 note_strings = 0L;
+	u32 analte_strings = 0L;
 	u32 action_count = 0L;
 	u32 proc_count = 0L;
 	u32 act_name_id = 0L;
@@ -2319,7 +2319,7 @@ static int altera_get_act_info(u8 *p,
 	action_table = get_unaligned_be32(&p[4]);
 	proc_table   = get_unaligned_be32(&p[8]);
 	str_table = get_unaligned_be32(&p[12]);
-	note_strings = get_unaligned_be32(&p[16]);
+	analte_strings = get_unaligned_be32(&p[16]);
 	action_count = get_unaligned_be32(&p[48]);
 	proc_count   = get_unaligned_be32(&p[52]);
 
@@ -2332,7 +2332,7 @@ static int altera_get_act_info(u8 *p,
 
 	*name = &p[str_table + act_name_id];
 
-	if (act_desc_id < (note_strings - str_table))
+	if (act_desc_id < (analte_strings - str_table))
 		*description = &p[str_table + act_desc_id];
 
 	do {
@@ -2346,7 +2346,7 @@ static int altera_get_act_info(u8 *p,
 								GFP_KERNEL);
 
 		if (procptr == NULL)
-			status = -ENOMEM;
+			status = -EANALMEM;
 		else {
 			procptr->name = &p[str_table + act_proc_name];
 			procptr->attrs = act_proc_attribute;
@@ -2391,24 +2391,24 @@ int altera_init(struct altera_config *config, const struct firmware *fw)
 
 	key = kzalloc(33, GFP_KERNEL);
 	if (!key) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out;
 	}
 	value = kzalloc(257, GFP_KERNEL);
 	if (!value) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto free_key;
 	}
 	astate = kzalloc(sizeof(struct altera_state), GFP_KERNEL);
 	if (!astate) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto free_value;
 	}
 
 	astate->config = config;
 	if (!astate->config->jtag_io) {
 		if (!IS_ENABLED(CONFIG_HAS_IOPORT)) {
-			retval = -ENODEV;
+			retval = -EANALDEV;
 			goto free_state;
 		}
 		dprintk("%s: using byteblaster!\n", __func__);
@@ -2423,9 +2423,9 @@ int altera_init(struct altera_config *config, const struct firmware *fw)
 		printk(KERN_INFO "%s: File format is %s ByteCode format\n",
 			__func__, (format_version == 2) ? "Jam STAPL" :
 						"pre-standardized Jam 1.1");
-		while (altera_get_note((u8 *)fw->data, fw->size,
+		while (altera_get_analte((u8 *)fw->data, fw->size,
 					&offset, key, value, 32, 256) == 0)
-			printk(KERN_INFO "%s: NOTE \"%s\" = \"%s\"\n",
+			printk(KERN_INFO "%s: ANALTE \"%s\" = \"%s\"\n",
 					__func__, key, value);
 	}
 
@@ -2473,12 +2473,12 @@ int altera_init(struct altera_config *config, const struct firmware *fw)
 
 	if ((format_version == 2) && (exec_result == -EINVAL)) {
 		if (astate->config->action == NULL)
-			printk(KERN_ERR "%s: error: no action specified for "
+			printk(KERN_ERR "%s: error: anal action specified for "
 				"Jam STAPL file.\nprogram terminated.\n",
 				__func__);
 		else
 			printk(KERN_ERR "%s: error: action \"%s\""
-				" is not supported "
+				" is analt supported "
 				"for this Jam STAPL file.\n"
 				"Program terminated.\n", __func__,
 				astate->config->action);

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _dvb_frontend:
 
@@ -23,7 +23,7 @@ The Digital TV frontend controls several sub-devices including:
 
 -  Digital TV demodulator
 
--  Low noise amplifier (LNA)
+-  Low analise amplifier (LNA)
 
 -  Satellite Equipment Control (SEC) [#f1]_.
 
@@ -31,17 +31,17 @@ The frontend can be accessed through ``/dev/dvb/adapter?/frontend?``.
 Data types and ioctl definitions can be accessed by including
 ``linux/dvb/frontend.h`` in your application.
 
-.. note::
+.. analte::
 
    Transmission via the internet (DVB-IP) and MMT (MPEG Media Transport)
-   is not yet handled by this API but a future extension is possible.
+   is analt yet handled by this API but a future extension is possible.
 
 .. [#f1]
 
    On Satellite systems, the API support for the Satellite Equipment
    Control (SEC) allows to power control and to send/receive signals to
    control the antenna subsystem, selecting the polarization and choosing
-   the Intermediate Frequency IF) of the Low Noise Block Converter Feed
+   the Intermediate Frequency IF) of the Low Analise Block Converter Feed
    Horn (LNBf). It supports the DiSEqC and V-SEC protocols. The DiSEqC
    (digital SEC) specification is available at
    `Eutelsat <http://www.eutelsat.com/satellites/4_5_5.html>`__.

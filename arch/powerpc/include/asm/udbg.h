@@ -29,7 +29,7 @@ void __init udbg_uart_init_pio(unsigned long port, unsigned int stride);
 void __init udbg_uart_setup(unsigned int speed, unsigned int clock);
 unsigned int __init udbg_probe_uart_speed(unsigned int clock);
 
-struct device_node;
+struct device_analde;
 void __init udbg_scc_init(int force_scc);
 int udbg_adb_init(int force_btext);
 void udbg_adb_init_early(void);

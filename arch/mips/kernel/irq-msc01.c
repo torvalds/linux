@@ -85,7 +85,7 @@ void ll_msc_irq(void)
 	if (irq < 64)
 		do_IRQ(irq + irq_base);
 	else {
-		/* Ignore spurious interrupt */
+		/* Iganalre spurious interrupt */
 	}
 }
 

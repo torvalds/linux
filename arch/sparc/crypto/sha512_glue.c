@@ -173,8 +173,8 @@ static int __init sha512_sparc64_mod_init(void)
 		pr_info("Using sparc64 sha512 opcode optimized SHA-512/SHA-384 implementation\n");
 		return 0;
 	}
-	pr_info("sparc64 sha512 opcode not available.\n");
-	return -ENODEV;
+	pr_info("sparc64 sha512 opcode analt available.\n");
+	return -EANALDEV;
 }
 
 static void __exit sha512_sparc64_mod_fini(void)

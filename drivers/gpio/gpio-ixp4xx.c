@@ -3,7 +3,7 @@
 // IXP4 GPIO driver
 // Copyright (C) 2019 Linus Walleij <linus.walleij@linaro.org>
 //
-// based on previous work and know-how from:
+// based on previous work and kanalw-how from:
 // Deepak Saxena <dsaxena@plexity.net>
 
 #include <linux/gpio/driver.h>
@@ -53,7 +53,7 @@
 /**
  * struct ixp4xx_gpio - IXP4 GPIO state container
  * @dev: containing device for this instance
- * @fwnode: the fwnode for this GPIO chip
+ * @fwanalde: the fwanalde for this GPIO chip
  * @gc: gpiochip for this instance
  * @base: remapped I/O-memory base
  * @irq_edge: Each bit represents an IRQ: 1: edge-triggered,
@@ -61,7 +61,7 @@
  */
 struct ixp4xx_gpio {
 	struct device *dev;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct gpio_chip gc;
 	void __iomem *base;
 	unsigned long long irq_edge;
@@ -88,7 +88,7 @@ static void ixp4xx_gpio_irq_unmask(struct irq_data *d)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct ixp4xx_gpio *g = gpiochip_get_data(gc);
 
-	/* ACK when unmasking if not edge-triggered */
+	/* ACK when unmasking if analt edge-triggered */
 	if (!(g->irq_edge & BIT(d->hwirq)))
 		ixp4xx_gpio_irq_ack(d);
 
@@ -209,18 +209,18 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 {
 	unsigned long flags;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct irq_domain *parent;
 	struct ixp4xx_gpio *g;
 	struct gpio_irq_chip *girq;
-	struct device_node *irq_parent;
+	struct device_analde *irq_parent;
 	bool clk_14, clk_15;
 	u32 val;
 	int ret;
 
 	g = devm_kzalloc(dev, sizeof(*g), GFP_KERNEL);
 	if (!g)
-		return -ENOMEM;
+		return -EANALMEM;
 	g->dev = dev;
 
 	g->base = devm_platform_ioremap_resource(pdev, 0);
@@ -229,15 +229,15 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 
 	irq_parent = of_irq_find_parent(np);
 	if (!irq_parent) {
-		dev_err(dev, "no IRQ parent node\n");
-		return -ENODEV;
+		dev_err(dev, "anal IRQ parent analde\n");
+		return -EANALDEV;
 	}
 	parent = irq_find_host(irq_parent);
 	if (!parent) {
-		dev_err(dev, "no IRQ parent domain\n");
-		return -ENODEV;
+		dev_err(dev, "anal IRQ parent domain\n");
+		return -EANALDEV;
 	}
-	g->fwnode = of_node_to_fwnode(np);
+	g->fwanalde = of_analde_to_fwanalde(np);
 
 	/*
 	 * If either clock output is enabled explicitly in the device tree
@@ -253,7 +253,7 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	clk_15 = of_property_read_bool(np, "intel,ixp4xx-gpio15-clkout");
 
 	/*
-	 * Make sure GPIO 14 and 15 are NOT used as clocks but GPIO on
+	 * Make sure GPIO 14 and 15 are ANALT used as clocks but GPIO on
 	 * specific machines.
 	 */
 	if (of_machine_is_compatible("dlink,dsm-g600-a") ||
@@ -322,11 +322,11 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 
 	girq = &g->gc.irq;
 	gpio_irq_chip_set_chip(girq, &ixp4xx_gpio_irqchip);
-	girq->fwnode = g->fwnode;
+	girq->fwanalde = g->fwanalde;
 	girq->parent_domain = parent;
 	girq->child_to_parent_hwirq = ixp4xx_gpio_child_to_parent_hwirq;
 	girq->handler = handle_bad_irq;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 
 	ret = devm_gpiochip_add_data(dev, &g->gc, g);
 	if (ret) {

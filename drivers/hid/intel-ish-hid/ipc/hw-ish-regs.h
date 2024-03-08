@@ -71,7 +71,7 @@
 
 /*
  * A0: bit means that host owns MSGnn registers and is reading them.
- * ISH FW may not write to them
+ * ISH FW may analt write to them
  */
 #define	IPC_HOST_OWNS_MSG_BIT		(1<<IPC_HOST_OWNS_MSG_OFFS)
 
@@ -212,8 +212,8 @@
 #define MNG_RX_CMPL_ENABLE		0
 #define MNG_RX_CMPL_DISABLE		1
 #define MNG_RX_CMPL_INDICATION		2
-#define MNG_RESET_NOTIFY		3
-#define MNG_RESET_NOTIFY_ACK		4
+#define MNG_RESET_ANALTIFY		3
+#define MNG_RESET_ANALTIFY_ACK		4
 #define MNG_SYNC_FW_CLOCK		5
 #define MNG_ILLEGAL_CMD			0xFF
 

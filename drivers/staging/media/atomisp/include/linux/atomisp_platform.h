@@ -90,7 +90,7 @@ enum atomisp_input_format {
 
 	/* CSI2-MIPI specific format: Generic long packet data
 	 */
-	ATOMISP_INPUT_FORMAT_EMBEDDED, /* Embedded 8-bit non Image Data */
+	ATOMISP_INPUT_FORMAT_EMBEDDED, /* Embedded 8-bit analn Image Data */
 
 	/* CSI2-MIPI specific format: User defined byte-based data. For example,
 	 * the data transmitter (e.g. the SoC sensor) can keep the JPEG data as
@@ -150,13 +150,13 @@ struct atomisp_input_stream_info {
 	/* Sensor driver fills ch_id with the id
 	   of the virtual channel. */
 	u8 ch_id;
-	/* Tells how many streams in this virtual channel. If 0 ignore rest
+	/* Tells how many streams in this virtual channel. If 0 iganalre rest
 	 * and the input format will be from mipi_info */
 	u8 isys_configs;
 	/*
 	 * if more isys_configs is more than 0, sensor needs to configure the
 	 * input format differently. width and height can be 0. If width and
-	 * height is not zero, then the corresponsing data needs to be set
+	 * height is analt zero, then the corresponsing data needs to be set
 	 */
 	struct atomisp_isys_config_info isys_info[MAX_STREAMS_PER_CHANNEL];
 };
@@ -186,7 +186,7 @@ struct camera_sensor_platform_data {
 
 	/*
 	 * New G-Min power and GPIO interface to control individual
-	 * lines as implemented on all known camera modules.
+	 * lines as implemented on all kanalwn camera modules.
 	 */
 	int (*gpio0_ctrl)(struct v4l2_subdev *subdev, int on);
 	int (*gpio1_ctrl)(struct v4l2_subdev *subdev, int on);
@@ -209,7 +209,7 @@ struct camera_mipi_info {
 };
 
 const struct atomisp_platform_data *atomisp_get_platform_data(void);
-int atomisp_register_sensor_no_gmin(struct v4l2_subdev *subdev, u32 lanes,
+int atomisp_register_sensor_anal_gmin(struct v4l2_subdev *subdev, u32 lanes,
 				    enum atomisp_input_format format,
 				    enum atomisp_bayer_order bayer_order);
 void atomisp_unregister_subdev(struct v4l2_subdev *subdev);

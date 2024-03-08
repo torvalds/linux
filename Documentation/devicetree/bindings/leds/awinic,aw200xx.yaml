@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: AWINIC AW200XX LED
 
 maintainers:
-  - Martin Kurbanov <mmkurbanov@sberdevices.ru>
+  - Martin Kurbaanalv <mmkurbaanalv@sberdevices.ru>
 
 description: |
   It is a matrix LED driver programmed via an I2C interface. Devices have
@@ -59,7 +59,7 @@ patternProperties:
       led-max-microamp:
         default: 9780
         description: |
-          Note that a driver will take the minimum of all LED limits
+          Analte that a driver will take the minimum of all LED limits
           since the chip has a single global setting.
           The maximum output current of each LED is calculated by the
           following formula:

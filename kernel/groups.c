@@ -139,7 +139,7 @@ int set_current_groups(struct group_info *group_info)
 
 	new = prepare_creds();
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	old = current_cred();
 
@@ -166,7 +166,7 @@ SYSCALL_DEFINE2(getgroups, int, gidsetsize, gid_t __user *, grouplist)
 	if (gidsetsize < 0)
 		return -EINVAL;
 
-	/* no need to grab task_lock here; it cannot change */
+	/* anal need to grab task_lock here; it cananalt change */
 	i = cred->group_info->ngroups;
 	if (gidsetsize) {
 		if (i > gidsetsize) {
@@ -192,7 +192,7 @@ bool may_setgroups(void)
 
 /*
  *	SMP: Our groups are copy-on-write. We can set them safely
- *	without another task interfering.
+ *	without aanalther task interfering.
  */
 
 SYSCALL_DEFINE2(setgroups, int, gidsetsize, gid_t __user *, grouplist)
@@ -207,7 +207,7 @@ SYSCALL_DEFINE2(setgroups, int, gidsetsize, gid_t __user *, grouplist)
 
 	group_info = groups_alloc(gidsetsize);
 	if (!group_info)
-		return -ENOMEM;
+		return -EANALMEM;
 	retval = groups_from_user(group_info, grouplist);
 	if (retval) {
 		put_group_info(group_info);

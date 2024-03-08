@@ -3,7 +3,7 @@ Date:		Aug, 2010
 KernelVersion:	v2.6.37
 Contact:	linux-block@vger.kernel.org
 Description:
-		(RO) Shows if the device is in autoclear mode or not ( "1" or
+		(RO) Shows if the device is in autoclear mode or analt ( "1" or
 		"0"). Autoclear (if set) indicates that the loopback device will
 		self-distruct after last close.
 
@@ -36,9 +36,9 @@ KernelVersion:	v3.10
 Contact:	linux-block@vger.kernel.org
 Description:
 		(RO) Shows if automatic partition scanning is enabled for the
-		device or not ("1" or "0"). This can be requested individually
+		device or analt ("1" or "0"). This can be requested individually
 		per loop device during its setup by setting LO_FLAGS_PARTSCAN in
-		in the ioctl request. By default, no partition tables are
+		in the ioctl request. By default, anal partition tables are
 		scanned.
 
 What:		/sys/block/loopX/loop/dio
@@ -47,4 +47,4 @@ KernelVersion:	v4.10
 Contact:	linux-block@vger.kernel.org
 Description:
 		(RO) Shows if direct IO is being used to access backing file or
-		not ("1 or "0").
+		analt ("1 or "0").

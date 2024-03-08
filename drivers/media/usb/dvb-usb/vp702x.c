@@ -95,7 +95,7 @@ static int vp702x_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
 	return ret;
 }
 
-int vp702x_usb_inout_op(struct dvb_usb_device *d, u8 *o, int olen, u8 *i, int ilen, int msec)
+int vp702x_usb_ianalut_op(struct dvb_usb_device *d, u8 *o, int olen, u8 *i, int ilen, int msec)
 {
 	int ret;
 
@@ -110,7 +110,7 @@ int vp702x_usb_inout_op(struct dvb_usb_device *d, u8 *o, int olen, u8 *i, int il
 	return ret;
 }
 
-static int vp702x_usb_inout_cmd(struct dvb_usb_device *d, u8 cmd, u8 *o,
+static int vp702x_usb_ianalut_cmd(struct dvb_usb_device *d, u8 cmd, u8 *o,
 				int olen, u8 *i, int ilen, int msec)
 {
 	struct vp702x_device_state *st = d->priv;
@@ -126,7 +126,7 @@ static int vp702x_usb_inout_cmd(struct dvb_usb_device *d, u8 cmd, u8 *o,
 		buf = kmalloc(buflen, GFP_KERNEL);
 		if (!buf) {
 			mutex_unlock(&st->buf_mutex);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		info("successfully reallocated a bigger buffer");
 		kfree(st->buf);
@@ -140,7 +140,7 @@ static int vp702x_usb_inout_cmd(struct dvb_usb_device *d, u8 cmd, u8 *o,
 	buf[1] = cmd;
 	memcpy(&buf[2], o, olen);
 
-	ret = vp702x_usb_inout_op(d, buf, olen+2, buf, ilen+1, msec);
+	ret = vp702x_usb_ianalut_op(d, buf, olen+2, buf, ilen+1, msec);
 
 	if (ret == 0)
 		memcpy(i, &buf[1], ilen);
@@ -184,13 +184,13 @@ static int vp702x_set_pld_state(struct dvb_usb_adapter *adap, u8 state)
 	return ret;
 }
 
-static int vp702x_set_pid(struct dvb_usb_adapter *adap, u16 pid, u8 id, int onoff)
+static int vp702x_set_pid(struct dvb_usb_adapter *adap, u16 pid, u8 id, int oanalff)
 {
 	struct vp702x_adapter_state *st = adap->priv;
 	struct vp702x_device_state *dst = adap->dev->priv;
 	u8 *buf;
 
-	if (onoff)
+	if (oanalff)
 		st->pid_filter_state |=  (1 << id);
 	else {
 		st->pid_filter_state &= ~(1 << id);
@@ -242,7 +242,7 @@ static int vp702x_init_pid_filter(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int vp702x_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int vp702x_streaming_ctrl(struct dvb_usb_adapter *adap, int oanalff)
 {
 	return 0;
 }
@@ -253,7 +253,7 @@ static struct rc_map_table rc_map_vp702x_table[] = {
 	{ 0x0002, KEY_2 },
 };
 
-/* remote control stuff (does not work with my box) */
+/* remote control stuff (does analt work with my box) */
 static int vp702x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 /* remove the following return to enabled remote querying */
@@ -263,14 +263,14 @@ static int vp702x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 	key = kmalloc(10, GFP_KERNEL);
 	if (!key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vp702x_usb_in_op(d,READ_REMOTE_REQ,0,0,key,10);
 
 	deb_rc("remote query key: %x %d\n",key[1],key[1]);
 
 	if (key[1] == 0x44) {
-		*state = REMOTE_NO_KEY_PRESSED;
+		*state = REMOTE_ANAL_KEY_PRESSED;
 		kfree(key);
 		return 0;
 	}
@@ -315,7 +315,7 @@ static int vp702x_frontend_attach(struct dvb_usb_adapter *adap)
 
 	vp702x_usb_out_op(adap->dev, SET_TUNER_POWER_REQ, 0, 7, NULL, 0);
 
-	if (vp702x_usb_inout_cmd(adap->dev, GET_SYSTEM_STRING, NULL, 0,
+	if (vp702x_usb_ianalut_cmd(adap->dev, GET_SYSTEM_STRING, NULL, 0,
 				   buf, 10, 10))
 		return -EIO;
 
@@ -348,7 +348,7 @@ static int vp702x_usb_probe(struct usb_interface *intf,
 	st->buf_len = 16;
 	st->buf = kmalloc(st->buf_len, GFP_KERNEL);
 	if (!st->buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		dvb_usb_device_exit(intf);
 		goto out;
 	}
@@ -387,7 +387,7 @@ MODULE_DEVICE_TABLE(usb, vp702x_usb_table);
 static struct dvb_usb_device_properties vp702x_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware            = "dvb-usb-vp702x-02.fw",
-	.no_reconnect        = 1,
+	.anal_reconnect        = 1,
 
 	.size_of_priv     = sizeof(struct vp702x_device_state),
 

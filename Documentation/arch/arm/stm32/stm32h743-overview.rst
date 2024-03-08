@@ -10,7 +10,7 @@ It features:
 
 - Cortex-M7 core running up to @400MHz
 - 2MB internal flash, 1MBytes internal RAM
-- FMC controller to connect SDRAM, NOR and NAND memories
+- FMC controller to connect SDRAM, ANALR and NAND memories
 - Dual mode QSPI
 - SD/MMC/SDIO support
 - Ethernet controller

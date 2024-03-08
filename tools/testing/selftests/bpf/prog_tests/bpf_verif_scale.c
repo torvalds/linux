@@ -30,7 +30,7 @@ static int check_load(const char *file, enum bpf_prog_type type)
 
 	prog = bpf_object__next_program(obj, NULL);
 	if (!prog) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_out;
 	}
 
@@ -133,15 +133,15 @@ void test_verif_scale_pyperf600_bpf_loop(void)
 	scale_test("pyperf600_bpf_loop.bpf.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
 }
 
-void test_verif_scale_pyperf600_nounroll()
+void test_verif_scale_pyperf600_analunroll()
 {
-	/* no unroll at all.
+	/* anal unroll at all.
 	 * C loop count -> 600.
 	 * ASM loop count -> 600.
 	 * ~110 insns in loop body.
 	 * Total of 5 such loops. Total program size ~1500 insns.
 	 */
-	scale_test("pyperf600_nounroll.bpf.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+	scale_test("pyperf600_analunroll.bpf.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
 }
 
 void test_verif_scale_pyperf600_iter()
@@ -195,21 +195,21 @@ void test_verif_scale_strobemeta_bpf_loop(void)
 	scale_test("strobemeta_bpf_loop.bpf.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
 }
 
-void test_verif_scale_strobemeta_nounroll1()
+void test_verif_scale_strobemeta_analunroll1()
 {
-	/* no unroll, tiny loops */
-	scale_test("strobemeta_nounroll1.bpf.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+	/* anal unroll, tiny loops */
+	scale_test("strobemeta_analunroll1.bpf.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
 }
 
-void test_verif_scale_strobemeta_nounroll2()
+void test_verif_scale_strobemeta_analunroll2()
 {
-	/* no unroll, tiny loops */
-	scale_test("strobemeta_nounroll2.bpf.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+	/* anal unroll, tiny loops */
+	scale_test("strobemeta_analunroll2.bpf.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
 }
 
 void test_verif_scale_strobemeta_subprogs()
 {
-	/* non-inlined subprogs */
+	/* analn-inlined subprogs */
 	scale_test("strobemeta_subprogs.bpf.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
 }
 

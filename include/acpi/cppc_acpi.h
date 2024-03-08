@@ -72,8 +72,8 @@ struct cpc_desc {
 /* These are indexes into the per-cpu cpc_regs[]. Order is important. */
 enum cppc_regs {
 	HIGHEST_PERF,
-	NOMINAL_PERF,
-	LOW_NON_LINEAR_PERF,
+	ANALMINAL_PERF,
+	LOW_ANALN_LINEAR_PERF,
 	LOWEST_PERF,
 	GUARANTEED_PERF,
 	DESIRED_PERF,
@@ -91,23 +91,23 @@ enum cppc_regs {
 	ENERGY_PERF,
 	REFERENCE_PERF,
 	LOWEST_FREQ,
-	NOMINAL_FREQ,
+	ANALMINAL_FREQ,
 };
 
 /*
  * Categorization of registers as described
  * in the ACPI v.5.1 spec.
- * XXX: Only filling up ones which are used by governors
+ * XXX: Only filling up ones which are used by goveranalrs
  * today.
  */
 struct cppc_perf_caps {
 	u32 guaranteed_perf;
 	u32 highest_perf;
-	u32 nominal_perf;
+	u32 analminal_perf;
 	u32 lowest_perf;
-	u32 lowest_nonlinear_perf;
+	u32 lowest_analnlinear_perf;
 	u32 lowest_freq;
-	u32 nominal_freq;
+	u32 analminal_freq;
 	u32 energy_perf;
 	bool auto_sel;
 };
@@ -128,7 +128,7 @@ struct cppc_perf_fb_ctrs {
 
 /* Per CPU container for runtime CPPC management. */
 struct cppc_cpudata {
-	struct list_head node;
+	struct list_head analde;
 	struct cppc_perf_caps perf_caps;
 	struct cppc_perf_ctrls perf_ctrls;
 	struct cppc_perf_fb_ctrs perf_fb_ctrs;
@@ -138,7 +138,7 @@ struct cppc_cpudata {
 
 #ifdef CONFIG_ACPI_CPPC_LIB
 extern int cppc_get_desired_perf(int cpunum, u64 *desired_perf);
-extern int cppc_get_nominal_perf(int cpunum, u64 *nominal_perf);
+extern int cppc_get_analminal_perf(int cpunum, u64 *analminal_perf);
 extern int cppc_get_perf_ctrs(int cpu, struct cppc_perf_fb_ctrs *perf_fb_ctrs);
 extern int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls);
 extern int cppc_set_enable(int cpu, bool enable);
@@ -161,27 +161,27 @@ extern int cppc_set_auto_sel(int cpu, bool enable);
 #else /* !CONFIG_ACPI_CPPC_LIB */
 static inline int cppc_get_desired_perf(int cpunum, u64 *desired_perf)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
-static inline int cppc_get_nominal_perf(int cpunum, u64 *nominal_perf)
+static inline int cppc_get_analminal_perf(int cpunum, u64 *analminal_perf)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline int cppc_get_perf_ctrs(int cpu, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline int cppc_set_enable(int cpu, bool enable)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline int cppc_get_perf_caps(int cpu, struct cppc_perf_caps *caps)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline bool cppc_perf_ctrs_in_pcc(void)
 {
@@ -205,27 +205,27 @@ static inline bool cpc_ffh_supported(void)
 }
 static inline int cpc_read_ffh(int cpunum, struct cpc_reg *reg, u64 *val)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline int cpc_write_ffh(int cpunum, struct cpc_reg *reg, u64 val)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline int cppc_set_epp_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls, bool enable)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline int cppc_get_epp_perf(int cpunum, u64 *epp_perf)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline int cppc_set_auto_sel(int cpu, bool enable)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline int cppc_get_auto_sel_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 #endif /* !CONFIG_ACPI_CPPC_LIB */
 

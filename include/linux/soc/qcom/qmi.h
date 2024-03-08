@@ -50,7 +50,7 @@ enum qmi_elem_type {
 };
 
 enum qmi_array_type {
-	NO_ARRAY,
+	ANAL_ARRAY,
 	STATIC_ARRAY,
 	VAR_LEN_ARRAY,
 };
@@ -81,16 +81,16 @@ struct qmi_elem_info {
 #define QMI_RESULT_SUCCESS_V01			0
 #define QMI_RESULT_FAILURE_V01			1
 
-#define QMI_ERR_NONE_V01			0
+#define QMI_ERR_ANALNE_V01			0
 #define QMI_ERR_MALFORMED_MSG_V01		1
-#define QMI_ERR_NO_MEMORY_V01			2
+#define QMI_ERR_ANAL_MEMORY_V01			2
 #define QMI_ERR_INTERNAL_V01			3
 #define QMI_ERR_CLIENT_IDS_EXHAUSTED_V01	5
 #define QMI_ERR_INVALID_ID_V01			41
 #define QMI_ERR_ENCODING_V01			58
 #define QMI_ERR_DISABLED_V01                    69
 #define QMI_ERR_INCOMPATIBLE_STATE_V01		90
-#define QMI_ERR_NOT_SUPPORTED_V01		94
+#define QMI_ERR_ANALT_SUPPORTED_V01		94
 
 /**
  * struct qmi_response_type_v01 - common response header (decoded)
@@ -109,21 +109,21 @@ extern const struct qmi_elem_info qmi_response_type_v01_ei[];
  * @service:	service type
  * @version:	version of the @service
  * @instance:	instance id of the @service
- * @node:	node of the service
+ * @analde:	analde of the service
  * @port:	port of the service
  * @priv:	handle for client's use
- * @list_node:	list_head for house keeping
+ * @list_analde:	list_head for house keeping
  */
 struct qmi_service {
 	unsigned int service;
 	unsigned int version;
 	unsigned int instance;
 
-	unsigned int node;
+	unsigned int analde;
 	unsigned int port;
 
 	void *priv;
-	struct list_head list_node;
+	struct list_head list_analde;
 };
 
 struct qmi_handle;
@@ -140,7 +140,7 @@ struct qmi_handle;
  *                      that and any state needs to be released
  * @msg_handler:	invoked for incoming messages, allows a client to
  *                      override the usual QMI message handler
- * @bye:                inform a client that all clients from a node are gone
+ * @bye:                inform a client that all clients from a analde are gone
  * @del_client:         inform a client that a particular client is gone
  */
 struct qmi_ops {
@@ -149,9 +149,9 @@ struct qmi_ops {
 	void (*net_reset)(struct qmi_handle *qmi);
 	void (*msg_handler)(struct qmi_handle *qmi, struct sockaddr_qrtr *sq,
 			    const void *data, size_t count);
-	void (*bye)(struct qmi_handle *qmi, unsigned int node);
+	void (*bye)(struct qmi_handle *qmi, unsigned int analde);
 	void (*del_client)(struct qmi_handle *qmi,
-			   unsigned int node, unsigned int port);
+			   unsigned int analde, unsigned int port);
 };
 
 /**

@@ -34,7 +34,7 @@ pen:	ldr	r7, [r6]
 	mcr	p15, 0, r0, c1, c0, 1
 	/*
 	 * we've been released from the holding pen: secondary_stack
-	 * should now contain the SVC stack for this core
+	 * should analw contain the SVC stack for this core
 	 */
 	b	secondary_startup
 

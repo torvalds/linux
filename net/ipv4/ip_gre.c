@@ -54,50 +54,50 @@
    would be "resolved" by stack overflow or, if queueing is enabled,
    with infinite looping in net_bh.
 
-   We cannot track such dead loops during route installation,
+   We cananalt track such dead loops during route installation,
    it is infeasible task. The most general solutions would be
    to keep skb->encapsulation counter (sort of local ttl),
    and silently drop packet when it expires. It is a good
    solution, but it supposes maintaining new variable in ALL
-   skb, even if no tunneling is used.
+   skb, even if anal tunneling is used.
 
    Current solution: xmit_recursion breaks dead loops. This is a percpu
    counter, since when we enter the first ndo_xmit(), cpu migration is
    forbidden. We force an exit if this counter reaches RECURSION_LIMIT
 
-   2. Networking dead loops would not kill routers, but would really
+   2. Networking dead loops would analt kill routers, but would really
    kill network. IP hop limit plays role of "t->recursion" in this case,
    if we copy it from packet being encapsulated to upper header.
    It is very good solution, but it introduces two problems:
 
    - Routing protocols, using packets with ttl=1 (OSPF, RIP2),
-     do not work over tunnels.
-   - traceroute does not work. I planned to relay ICMP from tunnel,
+     do analt work over tunnels.
+   - traceroute does analt work. I planned to relay ICMP from tunnel,
      so that this problem would be solved and traceroute output
      would even more informative. This idea appeared to be wrong:
-     only Linux complies to rfc1812 now (yes, guys, Linux is the only
-     true router now :-)), all routers (at least, in neighbourhood of mine)
+     only Linux complies to rfc1812 analw (anal, guys, Linux is the only
+     true router analw :-)), all routers (at least, in neighbourhood of mine)
      return only 8 bytes of payload. It is the end.
 
    Hence, if we want that OSPF worked or traceroute said something reasonable,
-   we should search for another solution.
+   we should search for aanalther solution.
 
    One of them is to parse packet trying to detect inner encapsulation
-   made by our node. It is difficult or even impossible, especially,
-   taking into account fragmentation. TO be short, ttl is not solution at all.
+   made by our analde. It is difficult or even impossible, especially,
+   taking into account fragmentation. TO be short, ttl is analt solution at all.
 
    Current solution: The solution was UNEXPECTEDLY SIMPLE.
    We force DF flag on tunnels with preconfigured hop limit,
-   that is ALL. :-) Well, it does not remove the problem completely,
+   that is ALL. :-) Well, it does analt remove the problem completely,
    but exponential growth of network traffic is changed to linear
    (branches, that exceed pmtu are pruned) and tunnel mtu
    rapidly degrades to value <68, where looping stops.
-   Yes, it is not good if there exists a router in the loop,
-   which does not force DF, even when encapsulating packets have DF set.
-   But it is not our problem! Nobody could accuse us, we made
+   Anal, it is analt good if there exists a router in the loop,
+   which does analt force DF, even when encapsulating packets have DF set.
+   But it is analt our problem! Analbody could accuse us, we made
    all that we could make. Even if it is your gated who injected
    fatal route to network, even if it were you who configured
-   fatal static route: you are innocent. :-)
+   fatal static route: you are inanalcent. :-)
 
    Alexey Kuznetsov.
  */
@@ -156,7 +156,7 @@ static int ipgre_err(struct sk_buff *skb, u32 info,
 			     iph->daddr, iph->saddr, tpi->key);
 
 	if (!t)
-		return -ENOENT;
+		return -EANALENT;
 
 	switch (type) {
 	default:
@@ -277,7 +277,7 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	if (is_erspan_type1(gre_hdr_len)) {
 		ver = 0;
 		tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex,
-					  tpi->flags | TUNNEL_NO_KEY,
+					  tpi->flags | TUNNEL_ANAL_KEY,
 					  iph->saddr, iph->daddr, 0);
 	} else {
 		ershdr = (struct erspan_base_hdr *)(skb->data + gre_hdr_len);
@@ -319,7 +319,7 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 				return PACKET_REJECT;
 
 			/* skb can be uncloned in __iptunnel_pull_header, so
-			 * old pkt_md is no longer valid and we need to reset
+			 * old pkt_md is anal longer valid and we need to reset
 			 * it
 			 */
 			gh = skb_network_header(skb) +
@@ -464,7 +464,7 @@ static void __gre_xmit(struct sk_buff *skb, struct net_device *dev,
 	/* Push GRE header. */
 	gre_build_header(skb, tunnel->tun_hlen,
 			 flags, proto, tunnel->parms.o_key,
-			 (flags & TUNNEL_SEQ) ? htonl(atomic_fetch_inc(&tunnel->o_seqno)) : 0);
+			 (flags & TUNNEL_SEQ) ? htonl(atomic_fetch_inc(&tunnel->o_seqanal)) : 0);
 
 	ip_tunnel_xmit(skb, dev, tnl_params, tnl_params->protocol);
 }
@@ -502,7 +502,7 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 		(TUNNEL_CSUM | TUNNEL_KEY | TUNNEL_SEQ);
 	gre_build_header(skb, tunnel_hlen, flags, proto,
 			 tunnel_id_to_key32(tun_info->key.tun_id),
-			 (flags & TUNNEL_SEQ) ? htonl(atomic_fetch_inc(&tunnel->o_seqno)) : 0);
+			 (flags & TUNNEL_SEQ) ? htonl(atomic_fetch_inc(&tunnel->o_seqanal)) : 0);
 
 	ip_md_tunnel_xmit(skb, dev, IPPROTO_GRE, tunnel_hlen);
 
@@ -585,7 +585,7 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	gre_build_header(skb, 8, TUNNEL_SEQ,
-			 proto, 0, htonl(atomic_fetch_inc(&tunnel->o_seqno)));
+			 proto, 0, htonl(atomic_fetch_inc(&tunnel->o_seqanal)));
 
 	ip_md_tunnel_xmit(skb, dev, IPPROTO_GRE, tunnel_hlen);
 
@@ -776,7 +776,7 @@ static void ipgre_link_update(struct net_device *dev, bool set_mtu)
 	flags = tunnel->parms.o_flags;
 
 	if (flags & TUNNEL_SEQ ||
-	    (flags & TUNNEL_CSUM && tunnel->encap.type != TUNNEL_ENCAP_NONE)) {
+	    (flags & TUNNEL_CSUM && tunnel->encap.type != TUNNEL_ENCAP_ANALNE)) {
 		dev->features &= ~NETIF_F_GSO_SOFTWARE;
 		dev->hw_features &= ~NETIF_F_GSO_SOFTWARE;
 	} else {
@@ -824,7 +824,7 @@ static int ipgre_tunnel_ctl(struct net_device *dev, struct ip_tunnel_parm *p,
    over the Internet, provided multicast routing is tuned.
 
 
-   I have no idea was this bicycle invented before me,
+   I have anal idea was this bicycle invented before me,
    so that I had to set ARPHRD_IPGRE to a random value.
    I have an impression, that Cisco could make something similar,
    but this feature is apparently missing in IOS<=11.2(8).
@@ -834,7 +834,7 @@ static int ipgre_tunnel_ctl(struct net_device *dev, struct ip_tunnel_parm *p,
 
    ping -t 255 224.66.66.66
 
-   If nobody answers, mbone does not work.
+   If analbody answers, mbone does analt work.
 
    ip tunnel add Universe mode gre remote 224.66.66.66 local <Your_real_addr> ttl 255
    ip addr add 10.66.66.<somewhat>/24 dev Universe
@@ -900,11 +900,11 @@ static int ipgre_open(struct net_device *dev)
 					 RT_TOS(t->parms.iph.tos),
 					 t->parms.link);
 		if (IS_ERR(rt))
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 		dev = rt->dst.dev;
 		ip_rt_put(rt);
 		if (!__in_dev_get_rtnl(dev))
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 		t->mlink = dev->ifindex;
 		ip_mc_inc_group(__in_dev_get_rtnl(dev), t->parms.iph.daddr);
 	}
@@ -969,12 +969,12 @@ static void __gre_tunnel_init(struct net_device *dev)
 
 	flags = tunnel->parms.o_flags;
 
-	/* TCP offload with GRE SEQ is not supported, nor can we support 2
+	/* TCP offload with GRE SEQ is analt supported, analr can we support 2
 	 * levels of outer headers requiring an update.
 	 */
 	if (flags & TUNNEL_SEQ)
 		return;
-	if (flags & TUNNEL_CSUM && tunnel->encap.type != TUNNEL_ENCAP_NONE)
+	if (flags & TUNNEL_CSUM && tunnel->encap.type != TUNNEL_ENCAP_ANALNE)
 		return;
 
 	dev->features |= NETIF_F_GSO_SOFTWARE;
@@ -991,7 +991,7 @@ static int ipgre_tunnel_init(struct net_device *dev)
 	__dev_addr_set(dev, &iph->saddr, 4);
 	memcpy(dev->broadcast, &iph->daddr, 4);
 
-	dev->flags		= IFF_NOARP;
+	dev->flags		= IFF_ANALARP;
 	netif_keep_dst(dev);
 	dev->addr_len		= 4;
 
@@ -1055,7 +1055,7 @@ static int ipgre_tunnel_validate(struct nlattr *tb[], struct nlattr *data[],
 
 	if (data[IFLA_GRE_COLLECT_METADATA] &&
 	    data[IFLA_GRE_ENCAP_TYPE] &&
-	    nla_get_u16(data[IFLA_GRE_ENCAP_TYPE]) != TUNNEL_ENCAP_NONE)
+	    nla_get_u16(data[IFLA_GRE_ENCAP_TYPE]) != TUNNEL_ENCAP_ANALNE)
 		return -EINVAL;
 
 	return 0;
@@ -1070,7 +1070,7 @@ static int ipgre_tap_validate(struct nlattr *tb[], struct nlattr *data[],
 		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
 			return -EINVAL;
 		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 	}
 
 	if (!data)
@@ -1169,7 +1169,7 @@ static int ipgre_netlink_parms(struct net_device *dev,
 		parms->iph.tos = nla_get_u8(data[IFLA_GRE_TOS]);
 
 	if (!data[IFLA_GRE_PMTUDISC] || nla_get_u8(data[IFLA_GRE_PMTUDISC])) {
-		if (t->ignore_df)
+		if (t->iganalre_df)
 			return -EINVAL;
 		parms->iph.frag_off = htons(IP_DF);
 	}
@@ -1177,14 +1177,14 @@ static int ipgre_netlink_parms(struct net_device *dev,
 	if (data[IFLA_GRE_COLLECT_METADATA]) {
 		t->collect_md = true;
 		if (dev->type == ARPHRD_IPGRE)
-			dev->type = ARPHRD_NONE;
+			dev->type = ARPHRD_ANALNE;
 	}
 
-	if (data[IFLA_GRE_IGNORE_DF]) {
-		if (nla_get_u8(data[IFLA_GRE_IGNORE_DF])
+	if (data[IFLA_GRE_IGANALRE_DF]) {
+		if (nla_get_u8(data[IFLA_GRE_IGANALRE_DF])
 		  && (parms->iph.frag_off & htons(IP_DF)))
 			return -EINVAL;
-		t->ignore_df = !!nla_get_u8(data[IFLA_GRE_IGNORE_DF]);
+		t->iganalre_df = !!nla_get_u8(data[IFLA_GRE_IGANALRE_DF]);
 	}
 
 	if (data[IFLA_GRE_FWMARK])
@@ -1476,7 +1476,7 @@ static size_t ipgre_get_size(const struct net_device *dev)
 		nla_total_size(2) +
 		/* IFLA_GRE_COLLECT_METADATA */
 		nla_total_size(0) +
-		/* IFLA_GRE_IGNORE_DF */
+		/* IFLA_GRE_IGANALRE_DF */
 		nla_total_size(1) +
 		/* IFLA_GRE_FWMARK */
 		nla_total_size(4) +
@@ -1523,7 +1523,7 @@ static int ipgre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			t->encap.flags))
 		goto nla_put_failure;
 
-	if (nla_put_u8(skb, IFLA_GRE_IGNORE_DF, t->ignore_df))
+	if (nla_put_u8(skb, IFLA_GRE_IGANALRE_DF, t->iganalre_df))
 		goto nla_put_failure;
 
 	if (t->collect_md) {
@@ -1594,7 +1594,7 @@ static const struct nla_policy ipgre_policy[IFLA_GRE_MAX + 1] = {
 	[IFLA_GRE_ENCAP_SPORT]	= { .type = NLA_U16 },
 	[IFLA_GRE_ENCAP_DPORT]	= { .type = NLA_U16 },
 	[IFLA_GRE_COLLECT_METADATA]	= { .type = NLA_FLAG },
-	[IFLA_GRE_IGNORE_DF]	= { .type = NLA_U8 },
+	[IFLA_GRE_IGANALRE_DF]	= { .type = NLA_U8 },
 	[IFLA_GRE_FWMARK]	= { .type = NLA_U32 },
 	[IFLA_GRE_ERSPAN_INDEX]	= { .type = NLA_U32 },
 	[IFLA_GRE_ERSPAN_VER]	= { .type = NLA_U8 },

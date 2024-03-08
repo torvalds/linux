@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_ICMPV6_H
 #define _UAPI_LINUX_ICMPV6_H
 
@@ -118,9 +118,9 @@ struct icmp6hdr {
 /*
  *	Codes for Destination Unreachable
  */
-#define ICMPV6_NOROUTE			0
+#define ICMPV6_ANALROUTE			0
 #define ICMPV6_ADM_PROHIBITED		1
-#define ICMPV6_NOT_NEIGHBOUR		2
+#define ICMPV6_ANALT_NEIGHBOUR		2
 #define ICMPV6_ADDR_UNREACH		3
 #define ICMPV6_PORT_UNREACH		4
 #define ICMPV6_POLICY_FAIL		5

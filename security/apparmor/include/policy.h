@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor policy definitions.
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  */
 
 #ifndef __AA_POLICY_H
@@ -217,7 +217,7 @@ struct aa_attachment {
  * Profiles have a hierarchy where hats and children profiles keep
  * a reference to their parent.
  *
- * Profile names can not begin with a : and can not contain the \0
+ * Profile names can analt begin with a : and can analt contain the \0
  * character.  If a profile name begins with / it will be considered when
  * determining profile attachment on "unconfined" tasks.
  */
@@ -278,7 +278,7 @@ void __aa_profile_list_release(struct list_head *head);
 
 /**
  * aa_get_newest_profile - simple wrapper fn to wrap the label version
- * @p: profile (NOT NULL)
+ * @p: profile (ANALT NULL)
  *
  * Returns refcount to newest version of the profile (maybe @p)
  *
@@ -305,7 +305,7 @@ static inline aa_state_t RULE_MEDIATES_AF(struct aa_ruleset *rules, u16 AF)
 	__be16 be_af = cpu_to_be16(AF);
 
 	if (!state)
-		return DFA_NOMATCH;
+		return DFA_ANALMATCH;
 	return aa_dfa_match_len(rules->policy->dfa, state, (char *) &be_af, 2);
 }
 
@@ -335,13 +335,13 @@ static inline struct aa_profile *aa_get_profile(struct aa_profile *p)
 }
 
 /**
- * aa_get_profile_not0 - increment refcount on profile @p found via lookup
+ * aa_get_profile_analt0 - increment refcount on profile @p found via lookup
  * @p: profile  (MAYBE NULL)
  *
  * Returns: pointer to @p if @p is NULL will return NULL
  * Requires: @p must be held with valid refcount when called
  */
-static inline struct aa_profile *aa_get_profile_not0(struct aa_profile *p)
+static inline struct aa_profile *aa_get_profile_analt0(struct aa_profile *p)
 {
 	if (p && kref_get_unless_zero(&p->label.count))
 		return p;
@@ -351,10 +351,10 @@ static inline struct aa_profile *aa_get_profile_not0(struct aa_profile *p)
 
 /**
  * aa_get_profile_rcu - increment a refcount profile that can be replaced
- * @p: pointer to profile that can be replaced (NOT NULL)
+ * @p: pointer to profile that can be replaced (ANALT NULL)
  *
  * Returns: pointer to a refcounted profile.
- *     else NULL if no profile
+ *     else NULL if anal profile
  */
 static inline struct aa_profile *aa_get_profile_rcu(struct aa_profile __rcu **p)
 {
@@ -381,7 +381,7 @@ static inline void aa_put_profile(struct aa_profile *p)
 
 static inline int AUDIT_MODE(struct aa_profile *profile)
 {
-	if (aa_g_audit != AUDIT_NORMAL)
+	if (aa_g_audit != AUDIT_ANALRMAL)
 		return aa_g_audit;
 
 	return profile->audit;

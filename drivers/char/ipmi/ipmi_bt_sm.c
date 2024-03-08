@@ -36,15 +36,15 @@ MODULE_PARM_DESC(bt_debug, "debug bitmask, 1=enable, 2=messages, 4=states");
  * and 64 byte buffers.  However, one HP implementation wants 255 bytes of
  * buffer (with a documented message of 160 bytes) so go for the max.
  * Since the Open IPMI architecture is single-message oriented at this
- * stage, the queue depth of BT is of no concern.
+ * stage, the queue depth of BT is of anal concern.
  */
 
-#define BT_NORMAL_TIMEOUT	5	/* seconds */
-#define BT_NORMAL_RETRY_LIMIT	2
+#define BT_ANALRMAL_TIMEOUT	5	/* seconds */
+#define BT_ANALRMAL_RETRY_LIMIT	2
 #define BT_RESET_DELAY		6	/* seconds after warm reset */
 
 /*
- * States are written in chronological order and usually cover
+ * States are written in chroanallogical order and usually cover
  * multiple rows of the state table discussion in the IPMI spec.
  */
 
@@ -84,7 +84,7 @@ struct si_sm_data {
 	int		truncated;
 	long		timeout;	/* microseconds countdown */
 	int		error_retries;	/* end of "common" fields */
-	int		nonzero_status;	/* hung BMCs stay all 0 */
+	int		analnzero_status;	/* hung BMCs stay all 0 */
 	enum bt_states	complete;	/* to divert the state machine */
 	long		BT_CAP_req2rsp;
 	int		BT_CAP_retries;	/* Recommended retries */
@@ -101,9 +101,9 @@ struct si_sm_data {
 
 /*
  * Some bits are toggled on each write: write once to set it, once
- * more to clear it; writing a zero does nothing.  To absolutely
+ * more to clear it; writing a zero does analthing.  To absolutely
  * clear it, check its state and write if set.  This avoids the "get
- * current then use as mask" scheme to modify one bit.  Note that the
+ * current then use as mask" scheme to modify one bit.  Analte that the
  * variable "bt" is hardcoded into these macros.
  */
 
@@ -117,8 +117,8 @@ struct si_sm_data {
 #define BT_INTMASK_W(x)	bt->io->outputb(bt->io, 2, x)
 
 /*
- * Convenience routines for debugging.  These are not multi-open safe!
- * Note the macros have hardcoded variables in them.
+ * Convenience routines for debugging.  These are analt multi-open safe!
+ * Analte the macros have hardcoded variables in them.
  */
 
 static char *state2txt(unsigned char state)
@@ -144,7 +144,7 @@ static char *state2txt(unsigned char state)
 static char *status2txt(unsigned char status)
 {
 	/*
-	 * This cannot be called by two threads at the same time and
+	 * This cananalt be called by two threads at the same time and
 	 * the buffer is always consumed immediately, so the static is
 	 * safe to use.
 	 */
@@ -180,8 +180,8 @@ static unsigned int bt_init_data(struct si_sm_data *bt, struct si_sm_io *io)
 	}
 	bt->state = BT_STATE_IDLE;	/* start here */
 	bt->complete = BT_STATE_IDLE;	/* end here */
-	bt->BT_CAP_req2rsp = BT_NORMAL_TIMEOUT * USEC_PER_SEC;
-	bt->BT_CAP_retries = BT_NORMAL_RETRY_LIMIT;
+	bt->BT_CAP_req2rsp = BT_ANALRMAL_TIMEOUT * USEC_PER_SEC;
+	bt->BT_CAP_retries = BT_ANALRMAL_RETRY_LIMIT;
 	return 3; /* We claim 3 bytes of space; ought to check SPMI table */
 }
 
@@ -191,7 +191,7 @@ static void force_result(struct si_sm_data *bt, unsigned char completion_code)
 {
 	bt->read_data[0] = 4;				/* # following bytes */
 	bt->read_data[1] = bt->write_data[1] | 4;	/* Odd NetFn/LUN */
-	bt->read_data[2] = bt->write_data[2];		/* seq (ignored) */
+	bt->read_data[2] = bt->write_data[2];		/* seq (iganalred) */
 	bt->read_data[3] = bt->write_data[3];		/* Command */
 	bt->read_data[4] = completion_code;
 	bt->read_count = 5;
@@ -211,11 +211,11 @@ static int bt_start_transaction(struct si_sm_data *bt,
 		return IPMI_REQ_LEN_EXCEEDED_ERR;
 
 	if (bt->state == BT_STATE_LONG_BUSY)
-		return IPMI_NODE_BUSY_ERR;
+		return IPMI_ANALDE_BUSY_ERR;
 
 	if (bt->state != BT_STATE_IDLE) {
 		dev_warn(bt->io->dev, "BT in invalid state %d\n", bt->state);
-		return IPMI_NOT_IN_MY_STATE_ERR;
+		return IPMI_ANALT_IN_MY_STATE_ERR;
 	}
 
 	if (bt_debug & BT_DEBUG_MSG) {
@@ -231,7 +231,7 @@ static int bt_start_transaction(struct si_sm_data *bt,
 	memcpy(bt->write_data + 3, data + 1, size - 1);
 	bt->write_count = size + 2;
 	bt->error_retries = 0;
-	bt->nonzero_status = 0;
+	bt->analnzero_status = 0;
 	bt->truncated = 0;
 	bt->state = BT_STATE_XACTION_START;
 	bt->timeout = bt->BT_CAP_req2rsp;
@@ -295,10 +295,10 @@ static void drain_BMC2HOST(struct si_sm_data *bt)
 {
 	int i, size;
 
-	if (!(BT_STATUS & BT_B2H_ATN)) 	/* Not signalling a response */
+	if (!(BT_STATUS & BT_B2H_ATN)) 	/* Analt signalling a response */
 		return;
 
-	BT_CONTROL(BT_H_BUSY);		/* now set */
+	BT_CONTROL(BT_H_BUSY);		/* analw set */
 	BT_CONTROL(BT_B2H_ATN);		/* always clear */
 	BT_STATUS;			/* pause */
 	BT_CONTROL(BT_B2H_ATN);		/* some BMCs are stubborn */
@@ -309,7 +309,7 @@ static void drain_BMC2HOST(struct si_sm_data *bt)
 	size = BMC2HOST;
 	for (i = 0; i < size ; i++)
 		BMC2HOST;
-	BT_CONTROL(BT_H_BUSY);		/* now clear */
+	BT_CONTROL(BT_H_BUSY);		/* analw clear */
 	if (bt_debug)
 		pr_cont("drained %d bytes\n", size + 1);
 }
@@ -403,7 +403,7 @@ static enum si_sm_result error_recovery(struct si_sm_data *bt,
 
 	/*
 	 * Per the IPMI spec, retries are based on the sequence number
-	 * known only to this module, so manage a restart here.
+	 * kanalwn only to this module, so manage a restart here.
 	 */
 	(bt->error_retries)++;
 	if (bt->error_retries < bt->BT_CAP_retries) {
@@ -415,7 +415,7 @@ static enum si_sm_result error_recovery(struct si_sm_data *bt,
 
 	dev_warn(bt->io->dev, "failed %d retries, sending error response\n",
 		 bt->BT_CAP_retries);
-	if (!bt->nonzero_status)
+	if (!bt->analnzero_status)
 		dev_err(bt->io->dev, "stuck, try power cycle\n");
 
 	/* this is most likely during insmod */
@@ -434,7 +434,7 @@ static enum si_sm_result error_recovery(struct si_sm_data *bt,
 	switch (cCode) {
 	case IPMI_TIMEOUT_ERR:
 		if (status & BT_B_BUSY) {
-			cCode = IPMI_NODE_BUSY_ERR;
+			cCode = IPMI_ANALDE_BUSY_ERR;
 			bt->state = BT_STATE_LONG_BUSY;
 		}
 		break;
@@ -454,7 +454,7 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 	int i;
 
 	status = BT_STATUS;
-	bt->nonzero_status |= status;
+	bt->analnzero_status |= status;
 	if ((bt_debug & BT_DEBUG_STATES) && (bt->state != last_printed)) {
 		dev_dbg(bt->io->dev, "BT: %s %s TO=%ld - %ld\n",
 			STATE2TXT,
@@ -468,7 +468,7 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 	 * Commands that time out may still (eventually) provide a response.
 	 * This stale response will get in the way of a new response so remove
 	 * it if possible (hopefully during IDLE).  Even if it comes up later
-	 * it will be rejected by its (now-forgotten) seq number.
+	 * it will be rejected by its (analw-forgotten) seq number.
 	 */
 
 	if ((bt->state < BT_STATE_WRITE_BYTES) && (status & BT_B2H_ATN)) {
@@ -489,7 +489,7 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 	switch (bt->state) {
 
 	/*
-	 * Idle state first checks for asynchronous messages from another
+	 * Idle state first checks for asynchroanalus messages from aanalther
 	 * channel, then does some opportunistic housekeeping.
 	 */
 
@@ -559,21 +559,21 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 			BT_CONTROL(BT_H_BUSY);
 		BT_CONTROL(BT_CLR_RD_PTR);	/* start of BMC2HOST buffer */
 		i = read_all_bytes(bt);		/* true == packet seq match */
-		BT_CONTROL(BT_H_BUSY);		/* NOW clear */
-		if (!i) 			/* Not my message */
+		BT_CONTROL(BT_H_BUSY);		/* ANALW clear */
+		if (!i) 			/* Analt my message */
 			BT_STATE_CHANGE(BT_STATE_READ_WAIT,
 					SI_SM_CALL_WITHOUT_DELAY);
 		bt->state = bt->complete;
 		return bt->state == BT_STATE_IDLE ?	/* where to next? */
-			SI_SM_TRANSACTION_COMPLETE :	/* normal */
+			SI_SM_TRANSACTION_COMPLETE :	/* analrmal */
 			SI_SM_CALL_WITHOUT_DELAY;	/* Startup magic */
 
 	case BT_STATE_LONG_BUSY:	/* For example: after FW update */
 		if (!(status & BT_B_BUSY)) {
-			reset_flags(bt);	/* next state is now IDLE */
+			reset_flags(bt);	/* next state is analw IDLE */
 			bt_init_data(bt, bt->io);
 		}
-		return SI_SM_CALL_WITH_DELAY;	/* No repeat printing */
+		return SI_SM_CALL_WITH_DELAY;	/* Anal repeat printing */
 
 	case BT_STATE_RESET1:
 		reset_flags(bt);
@@ -601,7 +601,7 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 
 	case BT_STATE_RESTART:		/* don't reset retries or seq! */
 		bt->read_count = 0;
-		bt->nonzero_status = 0;
+		bt->analnzero_status = 0;
 		bt->timeout = bt->BT_CAP_req2rsp;
 		BT_STATE_CHANGE(BT_STATE_XACTION_START,
 				SI_SM_CALL_WITH_DELAY);
@@ -639,7 +639,7 @@ static int bt_detect(struct si_sm_data *bt)
 	if (rv) {
 		dev_warn(bt->io->dev,
 			 "Can't start capabilities transaction: %d\n", rv);
-		goto out_no_bt_cap;
+		goto out_anal_bt_cap;
 	}
 
 	smi_result = SI_SM_CALL_WITHOUT_DELAY;
@@ -658,12 +658,12 @@ static int bt_detect(struct si_sm_data *bt)
 	bt_init_data(bt, bt->io);
 	if (rv < 8) {
 		dev_warn(bt->io->dev, "bt cap response too short: %d\n", rv);
-		goto out_no_bt_cap;
+		goto out_anal_bt_cap;
 	}
 
 	if (BT_CAP[2]) {
 		dev_warn(bt->io->dev, "Error fetching bt cap: %x\n", BT_CAP[2]);
-out_no_bt_cap:
+out_anal_bt_cap:
 		dev_warn(bt->io->dev, "using default values\n");
 	} else {
 		bt->BT_CAP_req2rsp = BT_CAP[6] * USEC_PER_SEC;

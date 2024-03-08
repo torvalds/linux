@@ -18,7 +18,7 @@
 
 #include "type_support.h"
 
-/* CNR (Chroma Noise Reduction) */
+/* CNR (Chroma Analise Reduction) */
 struct sh_css_isp_cnr_params {
 	s32 coring_u;
 	s32 coring_v;

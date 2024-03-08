@@ -34,9 +34,9 @@
 #define COUNTER_SET_LEN		3
 
 #define DEBUGFS_ATTR(__space, __write)					\
-static int __space ## _open(struct inode *inode, struct file *file)	\
+static int __space ## _open(struct ianalde *ianalde, struct file *file)	\
 {									\
-	return single_open(file, __space ## _show, inode->i_private);	\
+	return single_open(file, __space ## _show, ianalde->i_private);	\
 }									\
 									\
 static const struct file_operations __space ## _fops = {		\
@@ -70,7 +70,7 @@ static void *validate_and_copy_from_user(const void __user *user_buf,
 
 	buf = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	nbytes = min_t(size_t, *count, PAGE_SIZE);
 	if (copy_from_user(buf, user_buf, nbytes)) {
@@ -314,7 +314,7 @@ static void ber_level_show(struct seq_file *s, unsigned int val)
 		seq_printf(s, "1e%d (%u)\n", -12 + val / 2, val);
 }
 
-static int margining_ber_level_show(struct seq_file *s, void *not_used)
+static int margining_ber_level_show(struct seq_file *s, void *analt_used)
 {
 	struct tb_port *port = s->private;
 	struct usb4_port *usb4 = port->usb4;
@@ -326,7 +326,7 @@ static int margining_ber_level_show(struct seq_file *s, void *not_used)
 }
 DEBUGFS_ATTR_RW(margining_ber_level);
 
-static int margining_caps_show(struct seq_file *s, void *not_used)
+static int margining_caps_show(struct seq_file *s, void *analt_used)
 {
 	struct tb_port *port = s->private;
 	struct usb4_port *usb4 = port->usb4;
@@ -343,19 +343,19 @@ static int margining_caps_show(struct seq_file *s, void *not_used)
 	seq_printf(s, "0x%08x\n", cap1);
 
 	seq_printf(s, "# software margining: %s\n",
-		   supports_software(usb4) ? "yes" : "no");
+		   supports_software(usb4) ? "anal" : "anal");
 	if (supports_hardware(usb4)) {
-		seq_puts(s, "# hardware margining: yes\n");
+		seq_puts(s, "# hardware margining: anal\n");
 		seq_puts(s, "# minimum BER level contour: ");
 		ber_level_show(s, usb4->margining->min_ber_level);
 		seq_puts(s, "# maximum BER level contour: ");
 		ber_level_show(s, usb4->margining->max_ber_level);
 	} else {
-		seq_puts(s, "# hardware margining: no\n");
+		seq_puts(s, "# hardware margining: anal\n");
 	}
 
 	seq_printf(s, "# both lanes simultaneously: %s\n",
-		  both_lanes(usb4) ? "yes" : "no");
+		  both_lanes(usb4) ? "anal" : "anal");
 	seq_printf(s, "# voltage margin steps: %u\n",
 		   usb4->margining->voltage_steps);
 	seq_printf(s, "# maximum voltage offset: %u mV\n",
@@ -374,9 +374,9 @@ static int margining_caps_show(struct seq_file *s, void *not_used)
 	}
 
 	if (supports_time(usb4)) {
-		seq_puts(s, "# time margining: yes\n");
+		seq_puts(s, "# time margining: anal\n");
 		seq_printf(s, "# time margining is destructive: %s\n",
-			   cap1 & USB4_MARGIN_CAP_1_TIME_DESTR ? "yes" : "no");
+			   cap1 & USB4_MARGIN_CAP_1_TIME_DESTR ? "anal" : "anal");
 
 		switch (independent_time_margins(usb4)) {
 		case USB4_MARGIN_CAP_1_TIME_MIN:
@@ -395,7 +395,7 @@ static int margining_caps_show(struct seq_file *s, void *not_used)
 		seq_printf(s, "# maximum time offset: %u mUI\n",
 			   usb4->margining->max_time_offset);
 	} else {
-		seq_puts(s, "# time margining: no\n");
+		seq_puts(s, "# time margining: anal\n");
 	}
 
 	mutex_unlock(&tb->lock);
@@ -446,7 +446,7 @@ out_free:
 	return ret < 0 ? ret : count;
 }
 
-static int margining_lanes_show(struct seq_file *s, void *not_used)
+static int margining_lanes_show(struct seq_file *s, void *analt_used)
 {
 	struct tb_port *port = s->private;
 	struct usb4_port *usb4 = port->usb4;
@@ -519,7 +519,7 @@ out_free:
 	return ret ? ret : count;
 }
 
-static int margining_mode_show(struct seq_file *s, void *not_used)
+static int margining_mode_show(struct seq_file *s, void *analt_used)
 {
 	const struct tb_port *port = s->private;
 	const struct usb4_port *usb4 = port->usb4;
@@ -580,7 +580,7 @@ static int margining_run_write(void *data, u64 val)
 	if (down_sw) {
 		/*
 		 * CL states may interfere with lane margining so
-		 * disable them temporarily now.
+		 * disable them temporarily analw.
 		 */
 		ret = tb_switch_clx_disable(down_sw);
 		if (ret < 0) {
@@ -673,7 +673,7 @@ static void time_margin_show(struct seq_file *s,
 	seq_puts(s, "\n");
 }
 
-static int margining_results_show(struct seq_file *s, void *not_used)
+static int margining_results_show(struct seq_file *s, void *analt_used)
 {
 	struct tb_port *port = s->private;
 	struct usb4_port *usb4 = port->usb4;
@@ -776,7 +776,7 @@ out_free:
 	return ret ? ret : count;
 }
 
-static int margining_test_show(struct seq_file *s, void *not_used)
+static int margining_test_show(struct seq_file *s, void *analt_used)
 {
 	struct tb_port *port = s->private;
 	struct usb4_port *usb4 = port->usb4;
@@ -844,7 +844,7 @@ out_free:
 	return ret ? ret : count;
 }
 
-static int margining_margin_show(struct seq_file *s, void *not_used)
+static int margining_margin_show(struct seq_file *s, void *analt_used)
 {
 	struct tb_port *port = s->private;
 	struct usb4_port *usb4 = port->usb4;
@@ -1034,7 +1034,7 @@ static int port_clear_all_counters(struct tb_port *port)
 	buf = kcalloc(COUNTER_SET_LEN * port->config.max_counters, sizeof(u32),
 		      GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = tb_port_write(port, buf, TB_CFG_COUNTERS, 0,
 			    COUNTER_SET_LEN * port->config.max_counters);
@@ -1104,7 +1104,7 @@ static void cap_show_by_dw(struct seq_file *s, struct tb_switch *sw,
 		else
 			ret = tb_sw_read(sw, &data, TB_CFG_SWITCH, cap + offset + i, 1);
 		if (ret) {
-			seq_printf(s, "0x%04x <not accessible>\n", cap + offset + i);
+			seq_printf(s, "0x%04x <analt accessible>\n", cap + offset + i);
 			continue;
 		}
 
@@ -1253,7 +1253,7 @@ static int port_basic_regs_show(struct tb_port *port, struct seq_file *s)
 	return 0;
 }
 
-static int port_regs_show(struct seq_file *s, void *not_used)
+static int port_regs_show(struct seq_file *s, void *analt_used)
 {
 	struct tb_port *port = s->private;
 	struct tb_switch *sw = port->sw;
@@ -1316,7 +1316,7 @@ static void switch_cap_show(struct tb_switch *sw, struct seq_file *s,
 		if (header.basic.cap == TB_SWITCH_CAP_TMU) {
 			length = SWITCH_CAP_TMU_LEN;
 		} else  {
-			seq_printf(s, "0x%04x <unknown capability 0x%02x>\n",
+			seq_printf(s, "0x%04x <unkanalwn capability 0x%02x>\n",
 				   cap, header.basic.cap);
 			return;
 		}
@@ -1358,7 +1358,7 @@ static int switch_basic_regs_show(struct tb_switch *sw, struct seq_file *s)
 	return 0;
 }
 
-static int switch_regs_show(struct seq_file *s, void *not_used)
+static int switch_regs_show(struct seq_file *s, void *analt_used)
 {
 	struct tb_switch *sw = s->private;
 	struct tb *tb = sw->tb;
@@ -1397,7 +1397,7 @@ static int path_show_one(struct tb_port *port, struct seq_file *s, int hopid)
 	ret = tb_port_read(port, data, TB_CFG_HOPS, hopid * PATH_LEN,
 			   ARRAY_SIZE(data));
 	if (ret) {
-		seq_printf(s, "0x%04x <not accessible>\n", hopid * PATH_LEN);
+		seq_printf(s, "0x%04x <analt accessible>\n", hopid * PATH_LEN);
 		return ret;
 	}
 
@@ -1409,7 +1409,7 @@ static int path_show_one(struct tb_port *port, struct seq_file *s, int hopid)
 	return 0;
 }
 
-static int path_show(struct seq_file *s, void *not_used)
+static int path_show(struct seq_file *s, void *analt_used)
 {
 	struct tb_port *port = s->private;
 	struct tb_switch *sw = port->sw;
@@ -1459,7 +1459,7 @@ static int counter_set_regs_show(struct tb_port *port, struct seq_file *s,
 	ret = tb_port_read(port, data, TB_CFG_COUNTERS,
 			   counter * COUNTER_SET_LEN, ARRAY_SIZE(data));
 	if (ret) {
-		seq_printf(s, "0x%04x <not accessible>\n",
+		seq_printf(s, "0x%04x <analt accessible>\n",
 			   counter * COUNTER_SET_LEN);
 		return ret;
 	}
@@ -1472,7 +1472,7 @@ static int counter_set_regs_show(struct tb_port *port, struct seq_file *s,
 	return 0;
 }
 
-static int counters_show(struct seq_file *s, void *not_used)
+static int counters_show(struct seq_file *s, void *analt_used)
 {
 	struct tb_port *port = s->private;
 	struct tb_switch *sw = port->sw;

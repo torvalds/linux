@@ -18,7 +18,7 @@ efi_status_t allocate_unaccepted_bitmap(__u32 nr_desc,
 	unaccepted_table = get_efi_config_table(unaccepted_table_guid);
 	if (unaccepted_table) {
 		if (unaccepted_table->version != 1) {
-			efi_err("Unknown version of unaccepted memory table\n");
+			efi_err("Unkanalwn version of unaccepted memory table\n");
 			return EFI_UNSUPPORTED;
 		}
 		return EFI_SUCCESS;
@@ -112,7 +112,7 @@ void process_unaccepted_memory(u64 start, u64 end)
 	 * | 4k | 2044k |    2048k   |
 	 * ^ 0x0        ^ 2MB        ^ 4MB
 	 *
-	 * Only the first 4k has been accepted. The 0MB->2MB region can not be
+	 * Only the first 4k has been accepted. The 0MB->2MB region can analt be
 	 * represented in the bitmap. The 2MB->4MB region can be represented in
 	 * the bitmap. But, the 0MB->4MB region is <2*unit_size and will be
 	 * immediately accepted in its entirety.
@@ -123,7 +123,7 @@ void process_unaccepted_memory(u64 start, u64 end)
 	}
 
 	/*
-	 * No matter how the start and end are aligned, at least one unaccepted
+	 * Anal matter how the start and end are aligned, at least one unaccepted
 	 * unit_size area will remain to be marked in the bitmap.
 	 */
 
@@ -140,7 +140,7 @@ void process_unaccepted_memory(u64 start, u64 end)
 	}
 
 	/*
-	 * Accept part of the range that before phys_base and cannot be recorded
+	 * Accept part of the range that before phys_base and cananalt be recorded
 	 * into the bitmap.
 	 */
 	if (start < unaccepted_table->phys_base) {
@@ -149,7 +149,7 @@ void process_unaccepted_memory(u64 start, u64 end)
 		start = unaccepted_table->phys_base;
 	}
 
-	/* Nothing to record */
+	/* Analthing to record */
 	if (end < unaccepted_table->phys_base)
 		return;
 
@@ -170,7 +170,7 @@ void process_unaccepted_memory(u64 start, u64 end)
 	}
 
 	/*
-	 * 'start' and 'end' are now both unit_size-aligned.
+	 * 'start' and 'end' are analw both unit_size-aligned.
 	 * Record the range as being unaccepted:
 	 */
 	bitmap_set(unaccepted_table->bitmap,
@@ -201,7 +201,7 @@ void accept_memory(phys_addr_t start, phys_addr_t end)
 	start -= unaccepted_table->phys_base;
 	end -= unaccepted_table->phys_base;
 
-	/* Make sure not to overrun the bitmap */
+	/* Make sure analt to overrun the bitmap */
 	if (end > unaccepted_table->size * unit_size * BITS_PER_BYTE)
 		end = unaccepted_table->size * unit_size * BITS_PER_BYTE;
 

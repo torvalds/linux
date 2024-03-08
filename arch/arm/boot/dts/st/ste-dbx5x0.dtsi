@@ -76,7 +76,7 @@
 			polling-delay-passive = <250>;
 			/*
 			 * This sensor fires interrupts to update the thermal
-			 * zone, so no polling is needed.
+			 * zone, so anal polling is needed.
 			 */
 			polling-delay = <0>;
 
@@ -97,7 +97,7 @@
 
 			cooling-maps {
 				trip = <&cpu_alert>;
-				cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				contribution = <100>;
 			};
 		};
@@ -135,7 +135,7 @@
 				 * This eSRAM is used by the DMA40 DMA controller
 				 * for Logical Channel Paramers (LCP), the address
 				 * where these parameters are stored is called "LCPA".
-				 * This is addressed directly by the driver so no
+				 * This is addressed directly by the driver so anal
 				 * pool is used.
 				 */
 				compatible = "stericsson,u8500-esram";
@@ -169,7 +169,7 @@
 				 * This eSRAM is used by the DMA40 DMA controller
 				 * for Logical Channel Logical Addresses (LCLA), the address
 				 * where these parameters are stored is called "LCLA".
-				 * This is addressed directly by the driver so no
+				 * This is addressed directly by the driver so anal
 				 * pool is used.
 				 */
 				compatible = "stericsson,u8500-esram";
@@ -389,8 +389,8 @@
 		};
 
 		mtu@a03c6000 {
-			/* Nomadik System Timer */
-			compatible = "st,nomadik-mtu";
+			/* Analmadik System Timer */
+			compatible = "st,analmadik-mtu";
 			reg = <0xa03c6000 0x1000>;
 			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -424,7 +424,7 @@
 
 		gpio0: gpio@8012e000 {
 			compatible = "stericsson,db8500-gpio",
-				"st,nomadik-gpio";
+				"st,analmadik-gpio";
 			reg = <0x8012e000 0x80>;
 			interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
@@ -439,7 +439,7 @@
 
 		gpio1: gpio@8012e080 {
 			compatible = "stericsson,db8500-gpio",
-				"st,nomadik-gpio";
+				"st,analmadik-gpio";
 			reg = <0x8012e080 0x80>;
 			interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
@@ -454,7 +454,7 @@
 
 		gpio2: gpio@8000e000 {
 			compatible = "stericsson,db8500-gpio",
-				"st,nomadik-gpio";
+				"st,analmadik-gpio";
 			reg = <0x8000e000 0x80>;
 			interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
@@ -469,7 +469,7 @@
 
 		gpio3: gpio@8000e080 {
 			compatible = "stericsson,db8500-gpio",
-				"st,nomadik-gpio";
+				"st,analmadik-gpio";
 			reg = <0x8000e080 0x80>;
 			interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
@@ -484,7 +484,7 @@
 
 		gpio4: gpio@8000e100 {
 			compatible = "stericsson,db8500-gpio",
-				"st,nomadik-gpio";
+				"st,analmadik-gpio";
 			reg = <0x8000e100 0x80>;
 			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
@@ -499,7 +499,7 @@
 
 		gpio5: gpio@8000e180 {
 			compatible = "stericsson,db8500-gpio",
-				"st,nomadik-gpio";
+				"st,analmadik-gpio";
 			reg = <0x8000e180 0x80>;
 			interrupts = <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
@@ -514,7 +514,7 @@
 
 		gpio6: gpio@8011e000 {
 			compatible = "stericsson,db8500-gpio",
-				"st,nomadik-gpio";
+				"st,analmadik-gpio";
 			reg = <0x8011e000 0x80>;
 			interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
@@ -529,7 +529,7 @@
 
 		gpio7: gpio@8011e080 {
 			compatible = "stericsson,db8500-gpio",
-				"st,nomadik-gpio";
+				"st,analmadik-gpio";
 			reg = <0x8011e080 0x80>;
 			interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
@@ -544,7 +544,7 @@
 
 		gpio8: gpio@a03fe000 {
 			compatible = "stericsson,db8500-gpio",
-				"st,nomadik-gpio";
+				"st,analmadik-gpio";
 			reg = <0xa03fe000 0x80>;
 			interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
@@ -559,7 +559,7 @@
 
 		pinctrl: pinctrl {
 			compatible = "stericsson,db8500-pinctrl";
-			nomadik-gpio-chips = <&gpio0>, <&gpio1>, <&gpio2>, <&gpio3>,
+			analmadik-gpio-chips = <&gpio0>, <&gpio1>, <&gpio2>, <&gpio3>,
 						<&gpio4>, <&gpio5>, <&gpio6>, <&gpio7>,
 						<&gpio8>;
 			prcm = <&prcmu>;
@@ -730,7 +730,7 @@
 		};
 
 		i2c0: i2c@80004000 {
-			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
+			compatible = "stericsson,db8500-i2c", "st,analmadik-i2c", "arm,primecell";
 			reg = <0x80004000 0x1000>;
 			interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -747,7 +747,7 @@
 		};
 
 		i2c1: i2c@80122000 {
-			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
+			compatible = "stericsson,db8500-i2c", "st,analmadik-i2c", "arm,primecell";
 			reg = <0x80122000 0x1000>;
 			interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -765,7 +765,7 @@
 		};
 
 		i2c2: i2c@80128000 {
-			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
+			compatible = "stericsson,db8500-i2c", "st,analmadik-i2c", "arm,primecell";
 			reg = <0x80128000 0x1000>;
 			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -783,7 +783,7 @@
 		};
 
 		i2c3: i2c@80110000 {
-			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
+			compatible = "stericsson,db8500-i2c", "st,analmadik-i2c", "arm,primecell";
 			reg = <0x80110000 0x1000>;
 			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -801,7 +801,7 @@
 		};
 
 		i2c4: i2c@8012a000 {
-			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
+			compatible = "stericsson,db8500-i2c", "st,analmadik-i2c", "arm,primecell";
 			reg = <0x8012a000 0x1000>;
 			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
 

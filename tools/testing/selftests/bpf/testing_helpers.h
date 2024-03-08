@@ -41,7 +41,7 @@ static inline __u64 get_time_ns(void)
 {
 	struct timespec t;
 
-	clock_gettime(CLOCK_MONOTONIC, &t);
+	clock_gettime(CLOCK_MOANALTONIC, &t);
 
 	return (u64)t.tv_sec * 1000000000 + t.tv_nsec;
 }

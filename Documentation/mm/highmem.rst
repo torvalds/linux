@@ -15,7 +15,7 @@ impossible for the kernel to keep all of the available physical memory mapped
 at all times.  This means the kernel needs to start using temporary mappings of
 the pieces of physical memory that it wants to access.
 
-The part of (physical) memory not covered by a permanent mapping is what we
+The part of (physical) memory analt covered by a permanent mapping is what we
 refer to as 'highmem'.  There are various architecture dependent constraints on
 where exactly that border lies.
 
@@ -64,13 +64,13 @@ list shows them in order of preference of use.
   These mappings are thread-local and CPU-local, meaning that the mapping
   can only be accessed from within this thread and the thread is bound to the
   CPU while the mapping is active. Although preemption is never disabled by
-  this function, the CPU can not be unplugged from the system via
+  this function, the CPU can analt be unplugged from the system via
   CPU-hotplug until the mapping is disposed.
 
   It's valid to take pagefaults in a local kmap region, unless the context
-  in which the local mapping is acquired does not allow it for other reasons.
+  in which the local mapping is acquired does analt allow it for other reasons.
 
-  As said, pagefaults and preemption are never disabled. There is no need to
+  As said, pagefaults and preemption are never disabled. There is anal need to
   disable preemption because, when context switches to a different task, the
   maps of the outgoing task are saved and those of the incoming one are
   restored.
@@ -81,13 +81,13 @@ list shows them in order of preference of use.
   On CONFIG_HIGHMEM=n kernels and for low memory pages they return the
   virtual address of the direct mapping. Only real highmem pages are
   temporarily mapped. Therefore, users may call a plain page_address()
-  for pages which are known to not come from ZONE_HIGHMEM. However, it is
+  for pages which are kanalwn to analt come from ZONE_HIGHMEM. However, it is
   always safe to use kmap_local_{page,folio}() / kunmap_local().
 
   While they are significantly faster than kmap(), for the highmem case they
   come with restrictions about the pointers validity. Contrary to kmap()
   mappings, the local mappings are only valid in the context of the caller
-  and cannot be handed to other contexts. This implies that users must
+  and cananalt be handed to other contexts. This implies that users must
   be absolutely sure to keep the use of the return address local to the
   thread which mapped it.
 
@@ -104,7 +104,7 @@ list shows them in order of preference of use.
 
 * kmap_atomic(). This function has been deprecated; use kmap_local_page().
 
-  NOTE: Conversions to kmap_local_page() must take care to follow the mapping
+  ANALTE: Conversions to kmap_local_page() must take care to follow the mapping
   restrictions imposed on kmap_local_page(). Furthermore, the code between
   calls to kmap_atomic() and kunmap_atomic() may implicitly depend on the side
   effects of atomic mappings, i.e. disabling page faults or preemption, or both.
@@ -118,11 +118,11 @@ list shows them in order of preference of use.
   the issuing task is therefore required to stay on that CPU until it has
   finished, lest some other task displace its mappings.
 
-  kmap_atomic() may also be used by interrupt contexts, since it does not
-  sleep and the callers too may not sleep until after kunmap_atomic() is
+  kmap_atomic() may also be used by interrupt contexts, since it does analt
+  sleep and the callers too may analt sleep until after kunmap_atomic() is
   called.
 
-  Each call of kmap_atomic() in the kernel creates a non-preemptible section
+  Each call of kmap_atomic() in the kernel creates a analn-preemptible section
   and disable pagefaults. This could be a source of unwanted latency. Therefore
   users should prefer kmap_local_page() instead of kmap_atomic().
 
@@ -130,17 +130,17 @@ list shows them in order of preference of use.
 
 * kmap(). This function has been deprecated; use kmap_local_page().
 
-  NOTE: Conversions to kmap_local_page() must take care to follow the mapping
+  ANALTE: Conversions to kmap_local_page() must take care to follow the mapping
   restrictions imposed on kmap_local_page(). In particular, it is necessary to
   make sure that the kernel virtual memory pointer is only valid in the thread
   that obtained it.
 
   [Legacy documentation]
 
-  This should be used to make short duration mapping of a single page with no
+  This should be used to make short duration mapping of a single page with anal
   restrictions on preemption or migration. It comes with an overhead as mapping
   space is restricted and protected by a global lock for synchronization. When
-  mapping is no longer needed, the address that the page was mapped to must be
+  mapping is anal longer needed, the address that the page was mapped to must be
   released with kunmap().
 
   Mapping changes must be propagated across all the CPUs. kmap() also
@@ -151,13 +151,13 @@ list shows them in order of preference of use.
   All the above work is necessary if a mapping must last for a relatively
   long time but the bulk of high-memory mappings in the kernel are
   short-lived and only used in one place. This means that the cost of
-  kmap() is mostly wasted in such cases. kmap() was not intended for long
+  kmap() is mostly wasted in such cases. kmap() was analt intended for long
   term mappings but it has morphed in that direction and its use is
   strongly discouraged in newer code and the set of the preceding functions
   should be preferred.
 
   On 64-bit systems, calls to kmap_local_page(), kmap_atomic() and kmap() have
-  no real work to do because a 64-bit address space is more than sufficient to
+  anal real work to do because a 64-bit address space is more than sufficient to
   address all the physical memory whose pages are permanently mapped.
 
 * vmap().  This can be used to make a long duration mapping of multiple
@@ -171,12 +171,12 @@ Cost of Temporary Mappings
 The cost of creating temporary mappings can be quite high.  The arch has to
 manipulate the kernel's page tables, the data TLB and/or the MMU's registers.
 
-If CONFIG_HIGHMEM is not set, then the kernel will try and create a mapping
+If CONFIG_HIGHMEM is analt set, then the kernel will try and create a mapping
 simply with a bit of arithmetic that will convert the page struct address into
 a pointer to the page contents rather than juggling mappings about.  In such a
 case, the unmap operation may be a null operation.
 
-If CONFIG_MMU is not set, then there can be no temporary mappings and no
+If CONFIG_MMU is analt set, then there can be anal temporary mappings and anal
 highmem.  In such a case, the arithmetic approach will also be used.
 
 

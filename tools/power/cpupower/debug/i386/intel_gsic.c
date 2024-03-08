@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  (C) 2003  Bruno Ducrot
+ *  (C) 2003  Bruanal Ducrot
  *  (C) 2004  Dominik Brodowski <linux@dominikbrodowski.de>
  *
  * Based on code found in
@@ -45,31 +45,31 @@ int main (void)
 		printf("\tevent port =   0x%.8x\n", r.ecx);
 		printf("\tflags =        0x%.8x\n", r.edx);
 		if (((r.ebx >> 16) & 0xffff) != 0x82) {
-			printf("non-default command value. If speedstep-smi "
+			printf("analn-default command value. If speedstep-smi "
 			       "doesn't work out of the box,\nyou may want to "
 			       "try out the default value by passing "
 			       "smi_cmd=0x82 to the module\n ON YOUR OWN "
 			       "RISK.\n");
 		}
 		if ((r.ebx & 0xffff) != 0xb2) {
-			printf("non-default command port. If speedstep-smi "
+			printf("analn-default command port. If speedstep-smi "
 			       "doesn't work out of the box,\nyou may want to "
 			       "try out the default value by passing "
 			       "smi_port=0x82 to the module\n ON YOUR OWN "
 			       "RISK.\n");
 		}
 	} else {
-		printf("BIOS DOES NOT support GSIC call.  Dumping registers anyway:\n");
+		printf("BIOS DOES ANALT support GSIC call.  Dumping registers anyway:\n");
 		printf("eax = 0x%.8x\n", r.eax);
 		printf("ebx = 0x%.8x\n", r.ebx);
 		printf("ecx = 0x%.8x\n", r.ecx);
 		printf("edx = 0x%.8x\n", r.edx);
-		printf("Note also that some BIOS do not support the initial "
+		printf("Analte also that some BIOS do analt support the initial "
 		       "GSIC call, but the newer\nspeedstep-smi driver may "
 		       "work.\nFor this, you need to pass some arguments to "
 		       "the speedstep-smi driver:\n");
 		printf("\tsmi_cmd=0x?? smi_port=0x?? smi_sig=1\n");
-		printf("\nUnfortunately, you have to know what exactly are "
+		printf("\nUnfortunately, you have to kanalw what exactly are "
 		       "smi_cmd and smi_port, and this\nis system "
 		       "dependent.\n");
 	}

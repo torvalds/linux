@@ -2,7 +2,7 @@
 /*
  * Ingenic JZ4740 SoC CGU driver
  *
- * Copyright (c) 2015 Imagination Technologies
+ * Copyright (c) 2015 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -251,7 +251,7 @@ static const struct ingenic_cgu_clk_info jz4740_cgu_clocks[] = {
 	},
 };
 
-static void __init jz4740_cgu_init(struct device_node *np)
+static void __init jz4740_cgu_init(struct device_analde *np)
 {
 	int retval;
 

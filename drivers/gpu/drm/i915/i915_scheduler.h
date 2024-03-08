@@ -22,19 +22,19 @@ struct drm_printer;
 #define priolist_for_each_request_consume(it, n, plist) \
 	list_for_each_entry_safe(it, n, &(plist)->requests, sched.link)
 
-void i915_sched_node_init(struct i915_sched_node *node);
-void i915_sched_node_reinit(struct i915_sched_node *node);
+void i915_sched_analde_init(struct i915_sched_analde *analde);
+void i915_sched_analde_reinit(struct i915_sched_analde *analde);
 
-bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
-				      struct i915_sched_node *signal,
+bool __i915_sched_analde_add_dependency(struct i915_sched_analde *analde,
+				      struct i915_sched_analde *signal,
 				      struct i915_dependency *dep,
 				      unsigned long flags);
 
-int i915_sched_node_add_dependency(struct i915_sched_node *node,
-				   struct i915_sched_node *signal,
+int i915_sched_analde_add_dependency(struct i915_sched_analde *analde,
+				   struct i915_sched_analde *signal,
 				   unsigned long flags);
 
-void i915_sched_node_fini(struct i915_sched_node *node);
+void i915_sched_analde_fini(struct i915_sched_analde *analde);
 
 void i915_schedule(struct i915_request *request,
 		   const struct i915_sched_attr *attr);
@@ -45,7 +45,7 @@ i915_sched_lookup_priolist(struct i915_sched_engine *sched_engine, int prio);
 void __i915_priolist_free(struct i915_priolist *p);
 static inline void i915_priolist_free(struct i915_priolist *p)
 {
-	if (p->priority != I915_PRIORITY_NORMAL)
+	if (p->priority != I915_PRIORITY_ANALRMAL)
 		__i915_priolist_free(p);
 }
 
@@ -75,7 +75,7 @@ static inline void
 i915_sched_engine_reset_on_empty(struct i915_sched_engine *sched_engine)
 {
 	if (i915_sched_engine_is_empty(sched_engine))
-		sched_engine->no_priolist = false;
+		sched_engine->anal_priolist = false;
 }
 
 static inline void

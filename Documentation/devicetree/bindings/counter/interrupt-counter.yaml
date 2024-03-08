@@ -12,7 +12,7 @@ maintainers:
 description: |
   A generic interrupt counter to measure interrupt frequency. It was developed
   and used for agricultural devices to measure rotation speed of wheels or
-  other tools. Since the direction of rotation is not important, only one
+  other tools. Since the direction of rotation is analt important, only one
   signal line is needed.
   Interrupts or gpios are required. If both are defined, the interrupt will
   take precedence for counting interrupts.

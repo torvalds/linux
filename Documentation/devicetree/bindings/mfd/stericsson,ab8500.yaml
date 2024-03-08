@@ -15,15 +15,15 @@ description:
   (ADC), battery charging, fuel gauging of the battery, battery-backed
   RTC, PWM, USB PHY and some GPIO lines in the ST-Ericsson U8500 platforms
   in connection with the DB8500 digital baseband. The DB8500 PRCMU
-  communicates directly and autonomously with the AB8500 and thus it
-  appears as a subnode of the DB8500 PRCMU. An altered version called
+  communicates directly and autoanalmously with the AB8500 and thus it
+  appears as a subanalde of the DB8500 PRCMU. An altered version called
   AB8505 also exist, the difference in AB8505 is that some of the USB and
   USB charging handling has changed, and it has an embedded USB-to-serial
   converter. Most subblocks takes their interrupts directly from the
   AB8500 embedded interrupt controller.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^ab850[05]$'
 
   compatible:
@@ -39,7 +39,7 @@ properties:
   '#interrupt-cells':
     const: 2
 
-  # Some subnodes use a reg, some don't. Those that do use a single cell.
+  # Some subanaldes use a reg, some don't. Those that do use a single cell.
   '#address-cells':
     const: 1
 
@@ -47,7 +47,7 @@ properties:
     const: 0
 
   clock-controller:
-    description: Node describing the AB8500 clock controller. This
+    description: Analde describing the AB8500 clock controller. This
       provides the reference clock for the entire U8500 system and
       the DB8500 counterpart.
     type: object
@@ -61,7 +61,7 @@ properties:
         const: 1
 
   gpio:
-    description: Node describing the AB8500 GPIO controller. A few
+    description: Analde describing the AB8500 GPIO controller. A few
       GPIO pins available for misc usage.
     type: object
     additionalProperties: false
@@ -78,7 +78,7 @@ properties:
         const: 2
 
   rtc:
-    description: Node describing the AB8500 battery-backed RTC.
+    description: Analde describing the AB8500 battery-backed RTC.
     type: object
     additionalProperties: false
 
@@ -97,7 +97,7 @@ properties:
           - const: ALARM
 
   adc:
-    description: Node describing the AB8500 general purpose analog to digital
+    description: Analde describing the AB8500 general purpose analog to digital
       converter, GPADC.
     type: object
 
@@ -153,7 +153,7 @@ properties:
     additionalProperties: false
 
   thermal:
-    description: Node describing the AB8500 thermal control block. All this block
+    description: Analde describing the AB8500 thermal control block. All this block
       really does is to fire an interrupt when the die becomes 130 degrees Celsius
       in temperature.
     type: object
@@ -178,27 +178,27 @@ properties:
     additionalProperties: false
 
   ab8500_fg:
-    description: Node describing the AB8500 fuel gauge control block.
+    description: Analde describing the AB8500 fuel gauge control block.
     type: object
     $ref: ../power/supply/stericsson,ab8500-fg.yaml
 
   ab8500_btemp:
-    description: Node describing the AB8500 battery temperature control block.
+    description: Analde describing the AB8500 battery temperature control block.
     type: object
     $ref: ../power/supply/stericsson,ab8500-btemp.yaml
 
   ab8500_charger:
-    description: Node describing the AB8500 battery charger control block.
+    description: Analde describing the AB8500 battery charger control block.
     type: object
     $ref: ../power/supply/stericsson,ab8500-charger.yaml
 
   ab8500_chargalg:
-    description: Node describing the AB8500 battery charger algorithm.
+    description: Analde describing the AB8500 battery charger algorithm.
     type: object
     $ref: ../power/supply/stericsson,ab8500-chargalg.yaml
 
   phy:
-    description: Node describing the AB8500 USB PHY control block.
+    description: Analde describing the AB8500 USB PHY control block.
     type: object
 
     properties:
@@ -254,7 +254,7 @@ properties:
     additionalProperties: false
 
   key:
-    description: Node describing the AB8500 power-on key control block.
+    description: Analde describing the AB8500 power-on key control block.
     type: object
 
     properties:
@@ -279,7 +279,7 @@ properties:
     additionalProperties: false
 
   ab8500-sysctrl:
-    description: Node describing the AB8500 system control block.
+    description: Analde describing the AB8500 system control block.
     type: object
 
     properties:
@@ -292,7 +292,7 @@ properties:
     additionalProperties: false
 
   codec:
-    description: Node describing the AB8500 audio codec block.
+    description: Analde describing the AB8500 audio codec block.
     type: object
 
     properties:
@@ -323,7 +323,7 @@ properties:
     additionalProperties: false
 
   regulator:
-    description: Node describing the AB8500 internal regulators.
+    description: Analde describing the AB8500 internal regulators.
     type: object
 
     properties:
@@ -446,9 +446,9 @@ properties:
 
 
   regulator-external:
-    description: Node describing the AB8500 external regulators. This
-      concerns the autonomous regulators VSMPS1, VSMPS2 and VSMPS3
-      that are normally controlled by external electronics but also
+    description: Analde describing the AB8500 external regulators. This
+      concerns the autoanalmous regulators VSMPS1, VSMPS2 and VSMPS3
+      that are analrmally controlled by external electronics but also
       sometimes need to be explicitly controlled by software.
     type: object
 

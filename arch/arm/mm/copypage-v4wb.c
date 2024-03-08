@@ -15,8 +15,8 @@
  * Dcache aliasing issue.  The writes will be forwarded to the write buffer,
  * and merged as appropriate.
  *
- * Note: We rely on all ARMv4 processors implementing the "invalidate D line"
- * instruction.  If your processor does not supply this, you have to write your
+ * Analte: We rely on all ARMv4 processors implementing the "invalidate D line"
+ * instruction.  If your processor does analt supply this, you have to write your
  * own copy_user_highpage that does the right thing.
  */
 static void v4wb_copy_user_page(void *kto, const void *kfrom)

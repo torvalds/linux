@@ -50,7 +50,7 @@ static struct rc_map_list dm1105_nec_map = {
 	.map = {
 		.scan     = dm1105_nec,
 		.size     = ARRAY_SIZE(dm1105_nec),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_DM1105_NEC,
 	}
 };

@@ -2,7 +2,7 @@
 Linux power supply class
 ========================
 
-Synopsis
+Syanalpsis
 ~~~~~~~~
 Power supply class used to represent battery, UPS, AC or DC power supply
 properties to user-space.
@@ -13,7 +13,7 @@ interfaces.
 
 Each attribute has well defined meaning, up to unit of measure used. While
 the attributes provided are believed to be universally applicable to any
-power supply, specific monitoring hardware may not be able to provide them
+power supply, specific monitoring hardware may analt be able to provide them
 all, so any of them may be skipped.
 
 Power supply class is extensible, and allows to define drivers own attributes.
@@ -23,7 +23,7 @@ types or their drivers, it can be added to the core set).
 
 It also integrates with LED framework, for the purpose of providing
 typically expected feedback of battery charging/fully charged status and
-AC/USB power supply online status. (Note that specific details of the
+AC/USB power supply online status. (Analte that specific details of the
 indication (including whether to use it at all) are fully controllable by
 user and/or specific machine defaults, per design principles of LED
 framework).
@@ -58,7 +58,7 @@ Attributes/properties detailed
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 +--------------------------------------------------------------------------+
-|               **Charge/Energy/Capacity - how to not confuse**            |
+|               **Charge/Energy/Capacity - how to analt confuse**            |
 +--------------------------------------------------------------------------+
 | **Because both "charge" (µAh) and "energy" (µWh) represents "capacity"   |
 | of battery, this class distinguish these terms. Don't mix them!**        |
@@ -76,7 +76,7 @@ Postfixes:
 _AVG
   *hardware* averaged value, use it if your hardware is really able to
   report averaged values.
-_NOW
+_ANALW
   momentary/instantaneous values.
 
 STATUS
@@ -88,11 +88,11 @@ CHARGE_TYPE
   batteries can typically charge at different rates.
   This defines trickle and fast charges.  For batteries that
   are already charged or discharging, 'n/a' can be displayed (or
-  'unknown', if the status is not known).
+  'unkanalwn', if the status is analt kanalwn).
 
 AUTHENTIC
   indicates the power supply (battery or charger) connected
-  to the platform is authentic(1) or non authentic(0).
+  to the platform is authentic(1) or analn authentic(0).
 
 HEALTH
   represents health of the battery, values corresponds to
@@ -104,7 +104,7 @@ VOLTAGE_OCV
 VOLTAGE_MAX_DESIGN, VOLTAGE_MIN_DESIGN
   design values for maximal and minimal power supply voltages.
   Maximal/minimal means values of voltages when battery considered
-  "full"/"empty" at normal conditions. Yes, there is no direct relation
+  "full"/"empty" at analrmal conditions. Anal, there is anal direct relation
   between voltage and battery capacity, but some dumb
   batteries use voltage for very approximated calculation of capacity.
   Battery driver also can use this attribute just to inform userspace
@@ -131,14 +131,14 @@ CHARGE_FULL, CHARGE_EMPTY
   These attributes means "last remembered value of charge when battery
   became full/empty". It also could mean "value of charge when battery
   considered full/empty at given conditions (temperature, age)".
-  I.e. these attributes represents real thresholds, not design values.
+  I.e. these attributes represents real thresholds, analt design values.
 
 ENERGY_FULL, ENERGY_EMPTY
   same as above but for energy.
 
 CHARGE_COUNTER
   the current charge counter (in µAh).  This could easily
-  be negative; there is no empty or full value.  It is only useful for
+  be negative; there is anal empty or full value.  It is only useful for
   relative, time-based measurements.
 
 PRECHARGE_CURRENT
@@ -218,27 +218,27 @@ Battery <-> external power supply interaction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Often power supplies are acting as supplies and supplicants at the same
 time. Batteries are good example. So, batteries usually care if they're
-externally powered or not.
+externally powered or analt.
 
-For that case, power supply class implements notification mechanism for
+For that case, power supply class implements analtification mechanism for
 batteries.
 
 External power supply (AC) lists supplicants (batteries) names in
 "supplied_to" struct member, and each power_supply_changed() call
-issued by external power supply will notify supplicants via
+issued by external power supply will analtify supplicants via
 external_power_changed callback.
 
 
 Devicetree battery characteristics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Drivers should call power_supply_get_battery_info() to obtain battery
-characteristics from a devicetree battery node, defined in
+characteristics from a devicetree battery analde, defined in
 Documentation/devicetree/bindings/power/supply/battery.yaml. This is
 implemented in drivers/power/supply/bq27xxx_battery.c.
 
 Properties in struct power_supply_battery_info and their counterparts in the
-battery node have names corresponding to elements in enum power_supply_property,
-for naming consistency between sysfs attributes and battery node properties.
+battery analde have names corresponding to elements in enum power_supply_property,
+for naming consistency between sysfs attributes and battery analde properties.
 
 
 QA
@@ -247,7 +247,7 @@ QA
 Q:
    Where is POWER_SUPPLY_PROP_XYZ attribute?
 A:
-   If you cannot find attribute suitable for your driver needs, feel free
+   If you cananalt find attribute suitable for your driver needs, feel free
    to add it and send patch along with your driver.
 
    The attributes available currently are the ones currently provided by the
@@ -261,7 +261,7 @@ Q:
    I have some very specific attribute (e.g. battery color), should I add
    this attribute to standard ones?
 A:
-   Most likely, no. Such attribute can be placed in the driver itself, if
+   Most likely, anal. Such attribute can be placed in the driver itself, if
    it is useful. Of course, if the attribute in question applicable to
    large set of batteries, provided by many drivers, and/or comes from
    some general battery specification/standard, it may be a candidate to
@@ -269,20 +269,20 @@ A:
 
 
 Q:
-   Suppose, my battery monitoring chip/firmware does not provides capacity
-   in percents, but provides charge_{now,full,empty}. Should I calculate
+   Suppose, my battery monitoring chip/firmware does analt provides capacity
+   in percents, but provides charge_{analw,full,empty}. Should I calculate
    percentage capacity manually, inside the driver, and register CAPACITY
    attribute? The same question about time_to_empty/time_to_full.
 A:
-   Most likely, no. This class is designed to export properties which are
+   Most likely, anal. This class is designed to export properties which are
    directly measurable by the specific hardware available.
 
-   Inferring not available properties using some heuristics or mathematical
-   model is not subject of work for a battery driver. Such functionality
+   Inferring analt available properties using some heuristics or mathematical
+   model is analt subject of work for a battery driver. Such functionality
    should be factored out, and in fact, apm_power, the driver to serve
    legacy APM API on top of power supply class, uses a simple heuristic of
    approximating remaining battery capacity based on its charge, current,
-   voltage and so on. But full-fledged battery model is likely not subject
+   voltage and so on. But full-fledged battery model is likely analt subject
    for kernel at all, as it would require floating point calculation to deal
    with things like differential equations and Kalman filters. This is
    better be handled by batteryd/libbattery, yet to be written.

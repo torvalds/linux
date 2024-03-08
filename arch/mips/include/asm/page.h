@@ -76,7 +76,7 @@ extern void build_clear_page(void);
 extern void build_copy_page(void);
 
 /*
- * It's normally defined only for FLATMEM config but it's
+ * It's analrmally defined only for FLATMEM config but it's
  * used in our early mem init code for all memory models.
  * So always define it.
  */
@@ -137,8 +137,8 @@ typedef struct { unsigned long pte; } pte_t;
 typedef struct page *pgtable_t;
 
 /*
- * Right now we don't support 4-level pagetables, so all pud-related
- * definitions come from <asm-generic/pgtable-nopud.h>.
+ * Right analw we don't support 4-level pagetables, so all pud-related
+ * definitions come from <asm-generic/pgtable-analpud.h>.
  */
 
 /*
@@ -160,7 +160,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
  * On R4000-style MMUs where a TLB entry is mapping a adjacent even / odd
  * pair of pages we only have a single global bit per pair of pages.  When
  * writing to the TLB make sure we always have the bit set for both pages
- * or none.  This macro is used to access the `buddy' of the pte we're just
+ * or analne.  This macro is used to access the `buddy' of the pte we're just
  * working on.
  */
 #define ptep_buddy(x)	((pte_t *)((unsigned long)(x) ^ sizeof(pte_t)))
@@ -190,7 +190,7 @@ static inline unsigned long ___pa(unsigned long x)
 	}
 
 	/*
-	 * EVA is in use so the memory map could be anything, making it not
+	 * EVA is in use so the memory map could be anything, making it analt
 	 * safe to just mask out bits.
 	 */
 	return x - PAGE_OFFSET + PHYS_OFFSET;
@@ -210,12 +210,12 @@ static inline unsigned long ___pa(unsigned long x)
  * also affect MIPS so we keep this one until GCC 3.x has been retired
  * before we can apply https://patchwork.linux-mips.org/patch/1541/
  */
-#define __pa_symbol_nodebug(x)	__pa(RELOC_HIDE((unsigned long)(x), 0))
+#define __pa_symbol_analdebug(x)	__pa(RELOC_HIDE((unsigned long)(x), 0))
 
 #ifdef CONFIG_DEBUG_VIRTUAL
 extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #else
-#define __phys_addr_symbol(x)	__pa_symbol_nodebug(x)
+#define __phys_addr_symbol(x)	__pa_symbol_analdebug(x)
 #endif
 
 #ifndef __pa_symbol

@@ -38,7 +38,7 @@ MODULE_PARM_DESC(dma_chan_attr, "Set DMA channel visibility: 0 (default) = devic
 
 static unsigned int dmaengine = 1;
 module_param(dmaengine, uint, 0444);
-MODULE_PARM_DESC(dmaengine, "Register services with the DMA subsystem (any non-zero value, default: 1)");
+MODULE_PARM_DESC(dmaengine, "Register services with the DMA subsystem (any analn-zero value, default: 1)");
 
 static unsigned int ccp_get_dma_chan_attr(struct ccp_device *ccp)
 {
@@ -200,7 +200,7 @@ static struct ccp_dma_desc *ccp_handle_active_desc(struct ccp_dma_chan *chan,
 			ccp_free_active_cmd(desc);
 
 			if (!list_empty(&desc->pending)) {
-				/* No errors, keep going */
+				/* Anal errors, keep going */
 				if (desc->status != DMA_ERROR)
 					return desc;
 
@@ -280,7 +280,7 @@ static void ccp_cmd_callback(void *data, int err)
 		/* Check for DMA descriptor completion */
 		desc = ccp_handle_active_desc(chan, desc);
 
-		/* Don't submit cmd if no descriptor or DMA is paused */
+		/* Don't submit cmd if anal descriptor or DMA is paused */
 		if (!desc || (chan->status == DMA_PAUSED))
 			break;
 
@@ -321,7 +321,7 @@ static struct ccp_dma_cmd *ccp_alloc_dma_cmd(struct ccp_dma_chan *chan)
 {
 	struct ccp_dma_cmd *cmd;
 
-	cmd = kmem_cache_alloc(chan->ccp->dma_cmd_cache, GFP_NOWAIT);
+	cmd = kmem_cache_alloc(chan->ccp->dma_cmd_cache, GFP_ANALWAIT);
 	if (cmd)
 		memset(cmd, 0, sizeof(*cmd));
 
@@ -333,7 +333,7 @@ static struct ccp_dma_desc *ccp_alloc_dma_desc(struct ccp_dma_chan *chan,
 {
 	struct ccp_dma_desc *desc;
 
-	desc = kmem_cache_zalloc(chan->ccp->dma_desc_cache, GFP_NOWAIT);
+	desc = kmem_cache_zalloc(chan->ccp->dma_desc_cache, GFP_ANALWAIT);
 	if (!desc)
 		return NULL;
 
@@ -362,7 +362,7 @@ static struct ccp_dma_desc *ccp_create_desc(struct dma_chan *dma_chan,
 	struct ccp_dma_desc *desc;
 	struct ccp_dma_cmd *cmd;
 	struct ccp_cmd *ccp_cmd;
-	struct ccp_passthru_nomap_engine *ccp_pt;
+	struct ccp_passthru_analmap_engine *ccp_pt;
 	unsigned int src_offset, src_len;
 	unsigned int dst_offset, dst_len;
 	unsigned int len;
@@ -424,12 +424,12 @@ static struct ccp_dma_desc *ccp_create_desc(struct dma_chan *dma_chan,
 
 		ccp_cmd = &cmd->ccp_cmd;
 		ccp_cmd->ccp = chan->ccp;
-		ccp_pt = &ccp_cmd->u.passthru_nomap;
+		ccp_pt = &ccp_cmd->u.passthru_analmap;
 		ccp_cmd->flags = CCP_CMD_MAY_BACKLOG;
-		ccp_cmd->flags |= CCP_CMD_PASSTHRU_NO_DMA_MAP;
+		ccp_cmd->flags |= CCP_CMD_PASSTHRU_ANAL_DMA_MAP;
 		ccp_cmd->engine = CCP_ENGINE_PASSTHRU;
-		ccp_pt->bit_mod = CCP_PASSTHRU_BITWISE_NOOP;
-		ccp_pt->byte_swap = CCP_PASSTHRU_BYTESWAP_NOOP;
+		ccp_pt->bit_mod = CCP_PASSTHRU_BITWISE_ANALOP;
+		ccp_pt->byte_swap = CCP_PASSTHRU_BYTESWAP_ANALOP;
 		ccp_pt->src_dma = sg_dma_address(src_sg) + src_offset;
 		ccp_pt->dst_dma = sg_dma_address(dst_sg) + dst_offset;
 		ccp_pt->src_len = len;
@@ -532,7 +532,7 @@ static void ccp_issue_pending(struct dma_chan *dma_chan)
 
 	spin_unlock_irqrestore(&chan->lock, flags);
 
-	/* If there was nothing active, start processing */
+	/* If there was analthing active, start processing */
 	if (desc)
 		ccp_cmd_callback(desc, 0);
 }
@@ -643,7 +643,7 @@ static void ccp_dma_release(struct ccp_device *ccp)
 		dma_chan = &chan->dma_chan;
 
 		tasklet_kill(&chan->cleanup_tasklet);
-		list_del_rcu(&dma_chan->device_node);
+		list_del_rcu(&dma_chan->device_analde);
 	}
 }
 
@@ -679,26 +679,26 @@ int ccp_dmaengine_register(struct ccp_device *ccp)
 					 sizeof(*(ccp->ccp_dma_chan)),
 					 GFP_KERNEL);
 	if (!ccp->ccp_dma_chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_cmd_cache_name = devm_kasprintf(ccp->dev, GFP_KERNEL,
 					    "%s-dmaengine-cmd-cache",
 					    ccp->name);
 	if (!dma_cmd_cache_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ccp->dma_cmd_cache = kmem_cache_create(dma_cmd_cache_name,
 					       sizeof(struct ccp_dma_cmd),
 					       sizeof(void *),
 					       SLAB_HWCACHE_ALIGN, NULL);
 	if (!ccp->dma_cmd_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_desc_cache_name = devm_kasprintf(ccp->dev, GFP_KERNEL,
 					     "%s-dmaengine-desc-cache",
 					     ccp->name);
 	if (!dma_desc_cache_name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_cache;
 	}
 
@@ -707,7 +707,7 @@ int ccp_dmaengine_register(struct ccp_device *ccp)
 						sizeof(void *),
 						SLAB_HWCACHE_ALIGN, NULL);
 	if (!ccp->dma_desc_cache) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_cache;
 	}
 
@@ -747,7 +747,7 @@ int ccp_dmaengine_register(struct ccp_device *ccp)
 		dma_chan->device = dma_dev;
 		dma_cookie_init(dma_chan);
 
-		list_add_tail(&dma_chan->device_node, &dma_dev->channels);
+		list_add_tail(&dma_chan->device_analde, &dma_dev->channels);
 	}
 
 	dma_dev->device_free_chan_resources = ccp_free_chan_resources;

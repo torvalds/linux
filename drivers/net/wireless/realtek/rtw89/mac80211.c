@@ -136,7 +136,7 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	rtwvif->port = rtw89_core_acquire_bit_map(rtwdev->hw_port,
 						  RTW89_PORT_NUM);
 	if (rtwvif->port == RTW89_PORT_NUM) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		list_del_init(&rtwvif->list);
 		goto out;
 	}
@@ -488,7 +488,7 @@ static int rtw89_ops_start_ap(struct ieee80211_hw *hw,
 	chan = rtw89_chan_get(rtwdev, rtwvif->sub_entity_idx);
 	if (chan->band_type == RTW89_BAND_6G) {
 		mutex_unlock(&rtwdev->mutex);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (rtwdev->scanning)
@@ -560,8 +560,8 @@ static int __rtw89_ops_sta_state(struct ieee80211_hw *hw,
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 
-	if (old_state == IEEE80211_STA_NOTEXIST &&
-	    new_state == IEEE80211_STA_NONE)
+	if (old_state == IEEE80211_STA_ANALTEXIST &&
+	    new_state == IEEE80211_STA_ANALNE)
 		return rtw89_core_sta_add(rtwdev, vif, sta);
 
 	if (old_state == IEEE80211_STA_AUTH &&
@@ -576,11 +576,11 @@ static int __rtw89_ops_sta_state(struct ieee80211_hw *hw,
 		return rtw89_core_sta_disassoc(rtwdev, vif, sta);
 
 	if (old_state == IEEE80211_STA_AUTH &&
-	    new_state == IEEE80211_STA_NONE)
+	    new_state == IEEE80211_STA_ANALNE)
 		return rtw89_core_sta_disconnect(rtwdev, vif, sta);
 
-	if (old_state == IEEE80211_STA_NONE &&
-	    new_state == IEEE80211_STA_NOTEXIST)
+	if (old_state == IEEE80211_STA_ANALNE &&
+	    new_state == IEEE80211_STA_ANALTEXIST)
 		return rtw89_core_sta_remove(rtwdev, vif, sta);
 
 	return 0;
@@ -618,7 +618,7 @@ static int rtw89_ops_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case SET_KEY:
 		rtw89_btc_ntfy_specific_packet(rtwdev, PACKET_EAPOL_END);
 		ret = rtw89_cam_sec_key_add(rtwdev, vif, sta, key);
-		if (ret && ret != -EOPNOTSUPP) {
+		if (ret && ret != -EOPANALTSUPP) {
 			rtw89_err(rtwdev, "failed to add key to sec cam\n");
 			goto out;
 		}
@@ -683,7 +683,7 @@ static int rtw89_ops_ampdu_action(struct ieee80211_hw *hw,
 		break;
 	default:
 		WARN_ON(1);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -736,7 +736,7 @@ static void rtw89_ops_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	rtw89_leave_lps(rtwdev);
 	rtw89_hci_flush_queues(rtwdev, queues, drop);
 
-	if (drop && !RTW89_CHK_FW_FEATURE(NO_PACKET_DROP, &rtwdev->fw))
+	if (drop && !RTW89_CHK_FW_FEATURE(ANAL_PACKET_DROP, &rtwdev->fw))
 		__rtw89_drop_packets(rtwdev, vif);
 	else
 		rtw89_mac_flush_txq(rtwdev, queues, drop);
@@ -995,7 +995,7 @@ static int rtw89_ops_remain_on_channel(struct ieee80211_hw *hw,
 	if (type == IEEE80211_ROC_TYPE_MGMT_TX)
 		roc->state = RTW89_ROC_MGMT;
 	else
-		roc->state = RTW89_ROC_NORMAL;
+		roc->state = RTW89_ROC_ANALRMAL;
 
 	roc->duration = duration;
 	roc->chan = *chan;

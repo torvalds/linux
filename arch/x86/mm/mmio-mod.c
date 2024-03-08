@@ -60,15 +60,15 @@ static LIST_HEAD(trace_list);		/* struct remap_trace */
 
 /* module parameters */
 static unsigned long	filter_offset;
-static bool		nommiotrace;
+static bool		analmmiotrace;
 static bool		trace_pc;
 
 module_param(filter_offset, ulong, 0);
-module_param(nommiotrace, bool, 0);
+module_param(analmmiotrace, bool, 0);
 module_param(trace_pc, bool, 0);
 
 MODULE_PARM_DESC(filter_offset, "Start address of traced mappings.");
-MODULE_PARM_DESC(nommiotrace, "Disable actual MMIO tracing.");
+MODULE_PARM_DESC(analmmiotrace, "Disable actual MMIO tracing.");
 MODULE_PARM_DESC(trace_pc, "Record address of faulting instructions.");
 
 static bool is_enabled(void)
@@ -82,13 +82,13 @@ static void print_pte(unsigned long address)
 	pte_t *pte = lookup_address(address, &level);
 
 	if (!pte) {
-		pr_err("Error in %s: no pte for page 0x%08lx\n",
+		pr_err("Error in %s: anal pte for page 0x%08lx\n",
 		       __func__, address);
 		return;
 	}
 
 	if (level == PG_LEVEL_2M) {
-		pr_emerg("4MB pages are not currently supported: 0x%08lx\n",
+		pr_emerg("4MB pages are analt currently supported: 0x%08lx\n",
 			 address);
 		BUG();
 	}
@@ -158,7 +158,7 @@ static void pre(struct kmmio_probe *p, struct pt_regs *regs,
 
 	/*
 	 * XXX: the timestamp recorded will be *after* the tracing has been
-	 * done, not at the time we hit the instruction. SMP implications
+	 * done, analt at the time we hit the instruction. SMP implications
 	 * on event ordering?
 	 */
 
@@ -180,7 +180,7 @@ static void pre(struct kmmio_probe *p, struct pt_regs *regs,
 	default:
 		{
 			unsigned char *ip = (unsigned char *)instptr;
-			my_trace->opcode = MMIO_UNKNOWN_OP;
+			my_trace->opcode = MMIO_UNKANALWN_OP;
 			my_trace->width = 0;
 			my_trace->value = (*ip) << 16 | *(ip + 1) << 8 |
 								*(ip + 2);
@@ -250,15 +250,15 @@ static void ioremap_trace_core(resource_size_t offset, unsigned long size,
 	spin_lock_irq(&trace_lock);
 	if (!is_enabled()) {
 		kfree(trace);
-		goto not_enabled;
+		goto analt_enabled;
 	}
 
 	mmio_trace_mapping(&map);
 	list_add_tail(&trace->list, &trace_list);
-	if (!nommiotrace)
+	if (!analmmiotrace)
 		register_kmmio_probe(&trace->probe);
 
-not_enabled:
+analt_enabled:
 	spin_unlock_irq(&trace_lock);
 }
 
@@ -291,11 +291,11 @@ static void iounmap_trace_core(volatile void __iomem *addr)
 
 	spin_lock_irq(&trace_lock);
 	if (!is_enabled())
-		goto not_enabled;
+		goto analt_enabled;
 
 	list_for_each_entry_safe(trace, tmp, &trace_list, list) {
 		if ((unsigned long)addr == trace->probe.addr) {
-			if (!nommiotrace)
+			if (!analmmiotrace)
 				unregister_kmmio_probe(&trace->probe);
 			list_del(&trace->list);
 			found_trace = trace;
@@ -305,7 +305,7 @@ static void iounmap_trace_core(volatile void __iomem *addr)
 	map.map_id = (found_trace) ? found_trace->id : -1;
 	mmio_trace_mapping(&map);
 
-not_enabled:
+analt_enabled:
 	spin_unlock_irq(&trace_lock);
 	if (found_trace) {
 		synchronize_rcu(); /* unregister_kmmio_probe() requirement */
@@ -343,15 +343,15 @@ static void clear_trace_list(void)
 	struct remap_trace *tmp;
 
 	/*
-	 * No locking required, because the caller ensures we are in a
+	 * Anal locking required, because the caller ensures we are in a
 	 * critical section via mutex, and is_enabled() is false,
-	 * i.e. nothing can traverse or modify this list.
-	 * Caller also ensures is_enabled() cannot change.
+	 * i.e. analthing can traverse or modify this list.
+	 * Caller also ensures is_enabled() cananalt change.
 	 */
 	list_for_each_entry(trace, &trace_list, list) {
-		pr_notice("purging non-iounmapped trace @0x%08lx, size 0x%lx.\n",
+		pr_analtice("purging analn-iounmapped trace @0x%08lx, size 0x%lx.\n",
 			  trace->probe.addr, trace->probe.len);
-		if (!nommiotrace)
+		if (!analmmiotrace)
 			unregister_kmmio_probe(&trace->probe);
 	}
 	synchronize_rcu(); /* unregister_kmmio_probe() requirement */
@@ -372,7 +372,7 @@ static void enter_uniprocessor(void)
 
 	if (!cpumask_available(downed_cpus) &&
 	    !alloc_cpumask_var(&downed_cpus, GFP_KERNEL)) {
-		pr_notice("Failed to allocate mask\n");
+		pr_analtice("Failed to allocate mask\n");
 		goto out;
 	}
 
@@ -380,7 +380,7 @@ static void enter_uniprocessor(void)
 	cpumask_copy(downed_cpus, cpu_online_mask);
 	cpumask_clear_cpu(cpumask_first(cpu_online_mask), downed_cpus);
 	if (num_online_cpus() > 1)
-		pr_notice("Disabling non-boot CPUs...\n");
+		pr_analtice("Disabling analn-boot CPUs...\n");
 	cpus_read_unlock();
 
 	for_each_cpu(cpu, downed_cpus) {
@@ -402,13 +402,13 @@ static void leave_uniprocessor(void)
 
 	if (!cpumask_available(downed_cpus) || cpumask_empty(downed_cpus))
 		return;
-	pr_notice("Re-enabling CPUs...\n");
+	pr_analtice("Re-enabling CPUs...\n");
 	for_each_cpu(cpu, downed_cpus) {
 		err = add_cpu(cpu);
 		if (!err)
 			pr_info("enabled CPU%d.\n", cpu);
 		else
-			pr_err("cannot re-enable CPU%d: %d\n", cpu, err);
+			pr_err("cananalt re-enable CPU%d: %d\n", cpu, err);
 	}
 }
 
@@ -431,7 +431,7 @@ void enable_mmiotrace(void)
 	if (is_enabled())
 		goto out;
 
-	if (nommiotrace)
+	if (analmmiotrace)
 		pr_info("MMIO tracing disabled.\n");
 	kmmio_init();
 	enter_uniprocessor();
@@ -454,7 +454,7 @@ void disable_mmiotrace(void)
 	BUG_ON(is_enabled());
 	spin_unlock_irq(&trace_lock);
 
-	clear_trace_list(); /* guarantees: no more kmmio callbacks */
+	clear_trace_list(); /* guarantees: anal more kmmio callbacks */
 	leave_uniprocessor();
 	kmmio_cleanup();
 	pr_info("disabled.\n");

@@ -53,7 +53,7 @@
 	};
 
 	/*
-	 * This regulator is PWM-controlled, but the PWM controller is not
+	 * This regulator is PWM-controlled, but the PWM controller is analt
 	 * yet supported, so fix the regulator to its default voltage.
 	 */
 	reg_vdd_cpu: vdd-cpu {
@@ -142,7 +142,7 @@
 &mmc1 {
 	bus-width = <4>;
 	mmc-pwrseq = <&wifi_pwrseq>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&reg_vcc_3v3>;
 	vqmmc-supply = <&reg_vcc_3v3>;
 	pinctrl-0 = <&mmc1_pins>;

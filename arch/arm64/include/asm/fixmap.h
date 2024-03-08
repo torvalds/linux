@@ -39,7 +39,7 @@ enum fixed_addresses {
 	/*
 	 * Reserve a virtual window for the FDT that is a page bigger than the
 	 * maximum supported size. The additional space ensures that any FDT
-	 * that does not exceed MAX_FDT_SIZE can be mapped regardless of
+	 * that does analt exceed MAX_FDT_SIZE can be mapped regardless of
 	 * whether it crosses any page boundary.
 	 */
 	FIX_FDT_END,
@@ -53,7 +53,7 @@ enum fixed_addresses {
 	FIX_APEI_GHES_IRQ,
 	FIX_APEI_GHES_SEA,
 #ifdef CONFIG_ARM_SDE_INTERFACE
-	FIX_APEI_GHES_SDEI_NORMAL,
+	FIX_APEI_GHES_SDEI_ANALRMAL,
 	FIX_APEI_GHES_SDEI_CRITICAL,
 #endif
 #endif /* CONFIG_ACPI_APEI_GHES */

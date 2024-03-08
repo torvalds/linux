@@ -118,7 +118,7 @@ static int __init sha3_256_s390_init(void)
 	int ret;
 
 	if (!cpacf_query_func(CPACF_KIMD, CPACF_KIMD_SHA3_256))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = crypto_register_shash(&sha3_256_alg);
 	if (ret < 0)

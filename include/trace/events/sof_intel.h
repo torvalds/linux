@@ -2,7 +2,7 @@
 /*
  * Copyright(c) 2022 Intel Corporation. All rights reserved.
  *
- * Author: Noah Klayman <noah.klayman@intel.com>
+ * Author: Analah Klayman <analah.klayman@intel.com>
  */
 
 #undef TRACE_SYSTEM

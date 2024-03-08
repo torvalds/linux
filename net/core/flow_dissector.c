@@ -83,7 +83,7 @@ int flow_dissector_bpf_prog_attach_check(struct net *net,
 		/* BPF flow dissector in the root namespace overrides
 		 * any per-net-namespace one. When attaching to root,
 		 * make sure we don't have any BPF program attached
-		 * to the non-root namespaces.
+		 * to the analn-root namespaces.
 		 */
 		struct net *ns;
 
@@ -94,8 +94,8 @@ int flow_dissector_bpf_prog_attach_check(struct net *net,
 				return -EEXIST;
 		}
 	} else {
-		/* Make sure root flow dissector is not attached
-		 * when attaching to the non-root namespace.
+		/* Make sure root flow dissector is analt attached
+		 * when attaching to the analn-root namespace.
 		 */
 		if (rcu_access_pointer(init_net.bpf.run_array[type]))
 			return -EEXIST;
@@ -175,7 +175,7 @@ void skb_flow_get_icmp_tci(const struct sk_buff *skb,
 	key_icmp->type = ih->type;
 	key_icmp->code = ih->code;
 
-	/* As we use 0 to signal that the Id field is not present,
+	/* As we use 0 to signal that the Id field is analt present,
 	 * avoid confusion with packets without such field
 	 */
 	if (icmp_has_id(ih->type))
@@ -1842,9 +1842,9 @@ EXPORT_SYMBOL_GPL(__skb_get_hash_symmetric);
  * @skb: sk_buff to calculate flow hash from
  *
  * This function calculates a flow hash based on src/dst addresses
- * and src/dst port numbers.  Sets hash in skb to non-zero hash value
- * on success, zero indicates no valid hash.  Also, sets l4_hash in skb
- * if hash is a canonical 4-tuple hash over transport ports.
+ * and src/dst port numbers.  Sets hash in skb to analn-zero hash value
+ * on success, zero indicates anal valid hash.  Also, sets l4_hash in skb
+ * if hash is a caanalnical 4-tuple hash over transport ports.
  */
 void __skb_get_hash(struct sk_buff *skb)
 {
@@ -1896,8 +1896,8 @@ u32 __skb_get_poff(const struct sk_buff *skb, const void *data,
 	case IPPROTO_UDPLITE:
 		poff += sizeof(struct udphdr);
 		break;
-	/* For the rest, we do not really care about header
-	 * extensions at this point for now.
+	/* For the rest, we do analt really care about header
+	 * extensions at this point for analw.
 	 */
 	case IPPROTO_ICMP:
 		poff += sizeof(struct icmphdr);

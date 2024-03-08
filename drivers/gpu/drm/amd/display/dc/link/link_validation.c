@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -107,18 +107,18 @@ static bool dp_active_dongle_validate_timing(
 		case COLOR_DEPTH_141414:
 		case COLOR_DEPTH_161616:
 		default:
-			/* These color depths are currently not supported */
+			/* These color depths are currently analt supported */
 			return false;
 		}
 
 		/* Check 3D format */
 		switch (timing->timing_3d_format) {
-		case TIMING_3D_FORMAT_NONE:
+		case TIMING_3D_FORMAT_ANALNE:
 		case TIMING_3D_FORMAT_FRAME_ALTERNATE:
 			/*Only frame alternate 3D is supported on active dongle*/
 			break;
 		default:
-			/*other 3D formats are not supported due to bad infoframe translation */
+			/*other 3D formats are analt supported due to bad infoframe translation */
 			return false;
 		}
 
@@ -282,7 +282,7 @@ static bool dp_validate_mode_timing(
 
 	/* TODO: DYNAMIC_VALIDATION needs to be implemented */
 	/*if (flags.DYNAMIC_VALIDATION == 1 &&
-		link->verified_link_cap.lane_count != LANE_COUNT_UNKNOWN)
+		link->verified_link_cap.lane_count != LANE_COUNT_UNKANALWN)
 		link_setting = &link->verified_link_cap;
 	*/
 
@@ -293,10 +293,10 @@ static bool dp_validate_mode_timing(
 		/* remember the biggest mode here, during
 		 * initial link training (to get
 		 * verified_link_cap), LS sends event about
-		 * cannot train at reported cap to upper
+		 * cananalt train at reported cap to upper
 		 * layer and upper layer will re-enumerate modes.
-		 * this is not necessary if the lower
-		 * verified_link_cap is enough to drive
+		 * this is analt necessary if the lower
+		 * verified_link_cap is eanalugh to drive
 		 * all the modes */
 
 		/* TODO: DYNAMIC_VALIDATION needs to be implemented */
@@ -336,7 +336,7 @@ enum dc_status link_validate_mode_timing(
 		if (!dp_validate_mode_timing(
 				link,
 				timing))
-			return DC_NO_DP_LINK_BANDWIDTH;
+			return DC_ANAL_DP_LINK_BANDWIDTH;
 		break;
 
 	default:
@@ -373,7 +373,7 @@ bool link_validate_dpia_bandwidth(const struct dc_stream_state *stream, const un
 			num_dpias++;
 		} else if (stream[i].signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
 			uint8_t j = 0;
-			/* check whether its a known dpia link */
+			/* check whether its a kanalwn dpia link */
 			for (; j < num_dpias; ++j) {
 				if (dpia_link[j] == stream[i].link)
 					break;

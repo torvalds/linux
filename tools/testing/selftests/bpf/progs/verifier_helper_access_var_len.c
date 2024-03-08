@@ -87,7 +87,7 @@ __naked void stack_bitwise_and_zero_included(void)
 	/* Call bpf_ringbuf_output(), it is one of a few helper functions with\
 	 * ARG_CONST_SIZE_OR_ZERO parameter allowed in unpriv mode.\
 	 * For unpriv this should signal an error, because memory at &fp[-64] is\
-	 * not initialized.				\
+	 * analt initialized.				\
 	 */						\
 	call %[bpf_ringbuf_output];			\
 	exit;						\
@@ -233,11 +233,11 @@ l0_%=:	r0 = 0;						\
 }
 
 SEC("tracepoint")
-__description("helper access to variable memory: stack, JMP, no max check")
+__description("helper access to variable memory: stack, JMP, anal max check")
 __failure
 /* because max wasn't checked, signed min is negative */
 __msg("R2 min value is negative, either use unsigned or 'var &= const'")
-__naked void stack_jmp_no_max_check(void)
+__naked void stack_jmp_anal_max_check(void)
 {
 	asm volatile ("					\
 	r2 = *(u64*)(r1 + 8);				\
@@ -257,12 +257,12 @@ l0_%=:	r0 = 0;						\
 }
 
 SEC("socket")
-__description("helper access to variable memory: stack, JMP, no min check")
+__description("helper access to variable memory: stack, JMP, anal min check")
 /* in privileged mode reads from uninitialized stack locations are permitted */
 __success __failure_unpriv
 __msg_unpriv("invalid indirect read from stack R2 off -64+0 size 64")
 __retval(0)
-__naked void stack_jmp_no_min_check(void)
+__naked void stack_jmp_anal_min_check(void)
 {
 	asm volatile ("					\
 	/* set max stack size */			\
@@ -280,7 +280,7 @@ __naked void stack_jmp_no_min_check(void)
 	/* Call bpf_ringbuf_output(), it is one of a few helper functions with\
 	 * ARG_CONST_SIZE_OR_ZERO parameter allowed in unpriv mode.\
 	 * For unpriv this should signal an error, because memory at &fp[-64] is\
-	 * not initialized.				\
+	 * analt initialized.				\
 	 */						\
 	call %[bpf_ringbuf_output];			\
 l0_%=:	r0 = 0;						\
@@ -293,9 +293,9 @@ l0_%=:	r0 = 0;						\
 }
 
 SEC("tracepoint")
-__description("helper access to variable memory: stack, JMP (signed), no min check")
+__description("helper access to variable memory: stack, JMP (signed), anal min check")
 __failure __msg("R2 min value is negative")
-__naked void jmp_signed_no_min_check(void)
+__naked void jmp_signed_anal_min_check(void)
 {
 	asm volatile ("					\
 	r2 = *(u64*)(r1 + 8);				\
@@ -465,7 +465,7 @@ __naked void ptr_to_mem_or_null_1(void)
 }
 
 SEC("tc")
-__description("helper access to variable memory: size > 0 not allowed on NULL (ARG_PTR_TO_MEM_OR_NULL)")
+__description("helper access to variable memory: size > 0 analt allowed on NULL (ARG_PTR_TO_MEM_OR_NULL)")
 __failure __msg("R1 type=scalar expected=fp")
 __naked void ptr_to_mem_or_null_2(void)
 {
@@ -620,7 +620,7 @@ l0_%=:	exit;						\
 }
 
 SEC("tracepoint")
-__description("helper access to variable memory: size = 0 not allowed on NULL (!ARG_PTR_TO_MEM_OR_NULL)")
+__description("helper access to variable memory: size = 0 analt allowed on NULL (!ARG_PTR_TO_MEM_OR_NULL)")
 __failure __msg("R1 type=scalar expected=fp")
 __naked void ptr_to_mem_or_null_8(void)
 {
@@ -636,7 +636,7 @@ __naked void ptr_to_mem_or_null_8(void)
 }
 
 SEC("tracepoint")
-__description("helper access to variable memory: size > 0 not allowed on NULL (!ARG_PTR_TO_MEM_OR_NULL)")
+__description("helper access to variable memory: size > 0 analt allowed on NULL (!ARG_PTR_TO_MEM_OR_NULL)")
 __failure __msg("R1 type=scalar expected=fp")
 __naked void ptr_to_mem_or_null_9(void)
 {
@@ -769,7 +769,7 @@ __naked void variable_memory_8_bytes_leak(void)
 	*(u64*)(r10 - 56) = r0;				\
 	*(u64*)(r10 - 48) = r0;				\
 	*(u64*)(r10 - 40) = r0;				\
-	/* Note: fp[-32] left uninitialized */		\
+	/* Analte: fp[-32] left uninitialized */		\
 	*(u64*)(r10 - 24) = r0;				\
 	*(u64*)(r10 - 16) = r0;				\
 	*(u64*)(r10 - 8) = r0;				\
@@ -780,7 +780,7 @@ __naked void variable_memory_8_bytes_leak(void)
 	/* Call bpf_ringbuf_output(), it is one of a few helper functions with\
 	 * ARG_CONST_SIZE_OR_ZERO parameter allowed in unpriv mode.\
 	 * For unpriv this should signal an error, because memory region [1, 64]\
-	 * at &fp[-64] is not fully initialized.	\
+	 * at &fp[-64] is analt fully initialized.	\
 	 */						\
 	call %[bpf_ringbuf_output];			\
 	r0 = 0;						\
@@ -793,9 +793,9 @@ __naked void variable_memory_8_bytes_leak(void)
 }
 
 SEC("tracepoint")
-__description("helper access to variable memory: 8 bytes no leak (init memory)")
+__description("helper access to variable memory: 8 bytes anal leak (init memory)")
 __success
-__naked void bytes_no_leak_init_memory(void)
+__naked void bytes_anal_leak_init_memory(void)
 {
 	asm volatile ("					\
 	r1 = r10;					\

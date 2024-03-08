@@ -4,7 +4,7 @@
  * the Samsung Mobile Display (SMD) LMS380KF01.
  * Found in the Samsung Galaxy Ace 2 GT-I8160 mobile phone.
  * Linus Walleij <linus.walleij@linaro.org>
- * Inspired by code and know-how in the vendor driver by Gareth Phillips.
+ * Inspired by code and kanalw-how in the vendor driver by Gareth Phillips.
  */
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_modes.h>
@@ -210,7 +210,7 @@ static int ws2401_power_on(struct ws2401 *ws)
 	} else {
 		mipi_dbi_command(dbi, WS2401_WRCTRLD, 0x00);
 		/*
-		 * When not using internal backlight we do not need any further
+		 * When analt using internal backlight we do analt need any further
 		 * L2 accesses to the panel so we close the door on our way out.
 		 * Otherwise we need to leave the L2 door open.
 		 */
@@ -288,7 +288,7 @@ static int ws2401_get_modes(struct drm_panel *panel,
 	mode = drm_mode_duplicate(connector->dev, &lms380kf01_480_800_mode);
 	if (!mode) {
 		dev_err(ws->dev, "failed to add mode\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	connector->display_info.bpc = 8;
@@ -349,7 +349,7 @@ static int ws2401_probe(struct spi_device *spi)
 
 	ws = devm_kzalloc(dev, sizeof(*ws), GFP_KERNEL);
 	if (!ws)
-		return -ENOMEM;
+		return -EANALMEM;
 	ws->dev = dev;
 
 	/*
@@ -367,7 +367,7 @@ static int ws2401_probe(struct spi_device *spi)
 	ws->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ws->reset)) {
 		ret = PTR_ERR(ws->reset);
-		return dev_err_probe(dev, ret, "no RESET GPIO\n");
+		return dev_err_probe(dev, ret, "anal RESET GPIO\n");
 	}
 
 	ret = mipi_dbi_spi_init(spi, &ws->dbi, NULL);
@@ -388,7 +388,7 @@ static int ws2401_probe(struct spi_device *spi)
 				"failed to get external backlight device\n");
 
 	if (!ws->panel.backlight) {
-		dev_dbg(dev, "no external backlight, using internal backlight\n");
+		dev_dbg(dev, "anal external backlight, using internal backlight\n");
 		ws->panel.backlight =
 			devm_backlight_device_register(dev, "ws2401", dev, ws,
 				&ws2401_bl_ops, &ws2401_bl_props);
@@ -416,7 +416,7 @@ static void ws2401_remove(struct spi_device *spi)
 
 /*
  * Samsung LMS380KF01 is the one instance of this display controller that we
- * know about, but if more are found, the controller can be parameterized
+ * kanalw about, but if more are found, the controller can be parameterized
  * here and used for other configurations.
  */
 static const struct of_device_id ws2401_match[] = {

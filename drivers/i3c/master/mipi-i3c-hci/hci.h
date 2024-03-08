@@ -52,7 +52,7 @@ struct i3c_hci {
 	unsigned int DCT_entries;
 	unsigned int DCT_entry_size;
 	u8 version_major;
-	u8 version_minor;
+	u8 version_mianalr;
 	u8 revision;
 	u32 vendor_mipi_id;
 	u32 vendor_version_id;

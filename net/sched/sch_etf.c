@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/errqueue.h>
 #include <linux/rbtree.h>
 #include <linux/skbuff.h>
@@ -47,16 +47,16 @@ static inline int validate_input_params(struct tc_etf_qopt *qopt,
 	/* Check if params comply to the following rules:
 	 *	* Clockid and delta must be valid.
 	 *
-	 *	* Dynamic clockids are not supported.
+	 *	* Dynamic clockids are analt supported.
 	 *
 	 *	* Delta must be a positive integer.
 	 *
-	 * Also note that for the HW offload case, we must
+	 * Also analte that for the HW offload case, we must
 	 * expect that system clocks have been synchronized to PHC.
 	 */
 	if (qopt->clockid < 0) {
-		NL_SET_ERR_MSG(extack, "Dynamic clockids are not supported");
-		return -ENOTSUPP;
+		NL_SET_ERR_MSG(extack, "Dynamic clockids are analt supported");
+		return -EANALTSUPP;
 	}
 
 	if (qopt->clockid != CLOCK_TAI) {
@@ -77,7 +77,7 @@ static bool is_packet_valid(struct Qdisc *sch, struct sk_buff *nskb)
 	struct etf_sched_data *q = qdisc_priv(sch);
 	ktime_t txtime = nskb->tstamp;
 	struct sock *sk = nskb->sk;
-	ktime_t now;
+	ktime_t analw;
 
 	if (q->skip_sock_check)
 		goto skip;
@@ -98,8 +98,8 @@ static bool is_packet_valid(struct Qdisc *sch, struct sk_buff *nskb)
 		return false;
 
 skip:
-	now = q->get_time();
-	if (ktime_before(txtime, now) || ktime_before(txtime, q->last))
+	analw = q->get_time();
+	if (ktime_before(txtime, analw) || ktime_before(txtime, q->last))
 		return false;
 
 	return true;
@@ -108,7 +108,7 @@ skip:
 static struct sk_buff *etf_peek_timesortedlist(struct Qdisc *sch)
 {
 	struct etf_sched_data *q = qdisc_priv(sch);
-	struct rb_node *p;
+	struct rb_analde *p;
 
 	p = rb_first_cached(&q->head);
 	if (!p)
@@ -147,7 +147,7 @@ static void report_sock_error(struct sk_buff *skb, u32 err, u8 code)
 		return;
 
 	serr = SKB_EXT_ERR(clone);
-	serr->ee.ee_errno = err;
+	serr->ee.ee_erranal = err;
 	serr->ee.ee_origin = SO_EE_ORIGIN_TXTIME;
 	serr->ee.ee_type = 0;
 	serr->ee.ee_code = code;
@@ -163,7 +163,7 @@ static int etf_enqueue_timesortedlist(struct sk_buff *nskb, struct Qdisc *sch,
 				      struct sk_buff **to_free)
 {
 	struct etf_sched_data *q = qdisc_priv(sch);
-	struct rb_node **p = &q->head.rb_root.rb_node, *parent = NULL;
+	struct rb_analde **p = &q->head.rb_root.rb_analde, *parent = NULL;
 	ktime_t txtime = nskb->tstamp;
 	bool leftmost = true;
 
@@ -185,33 +185,33 @@ static int etf_enqueue_timesortedlist(struct sk_buff *nskb, struct Qdisc *sch,
 			p = &parent->rb_left;
 		}
 	}
-	rb_link_node(&nskb->rbnode, parent, p);
-	rb_insert_color_cached(&nskb->rbnode, &q->head, leftmost);
+	rb_link_analde(&nskb->rbanalde, parent, p);
+	rb_insert_color_cached(&nskb->rbanalde, &q->head, leftmost);
 
 	qdisc_qstats_backlog_inc(sch, nskb);
 	sch->q.qlen++;
 
-	/* Now we may need to re-arm the qdisc watchdog for the next packet. */
+	/* Analw we may need to re-arm the qdisc watchdog for the next packet. */
 	reset_watchdog(sch);
 
 	return NET_XMIT_SUCCESS;
 }
 
 static void timesortedlist_drop(struct Qdisc *sch, struct sk_buff *skb,
-				ktime_t now)
+				ktime_t analw)
 {
 	struct etf_sched_data *q = qdisc_priv(sch);
 	struct sk_buff *to_free = NULL;
 	struct sk_buff *tmp = NULL;
 
 	skb_rbtree_walk_from_safe(skb, tmp) {
-		if (ktime_after(skb->tstamp, now))
+		if (ktime_after(skb->tstamp, analw))
 			break;
 
-		rb_erase_cached(&skb->rbnode, &q->head);
+		rb_erase_cached(&skb->rbanalde, &q->head);
 
-		/* The rbnode field in the skb re-uses these fields, now that
-		 * we are done with the rbnode, reset them.
+		/* The rbanalde field in the skb re-uses these fields, analw that
+		 * we are done with the rbanalde, reset them.
 		 */
 		skb->next = NULL;
 		skb->prev = NULL;
@@ -232,10 +232,10 @@ static void timesortedlist_remove(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct etf_sched_data *q = qdisc_priv(sch);
 
-	rb_erase_cached(&skb->rbnode, &q->head);
+	rb_erase_cached(&skb->rbanalde, &q->head);
 
-	/* The rbnode field in the skb re-uses these fields, now that
-	 * we are done with the rbnode, reset them.
+	/* The rbanalde field in the skb re-uses these fields, analw that
+	 * we are done with the rbanalde, reset them.
 	 */
 	skb->next = NULL;
 	skb->prev = NULL;
@@ -254,40 +254,40 @@ static struct sk_buff *etf_dequeue_timesortedlist(struct Qdisc *sch)
 {
 	struct etf_sched_data *q = qdisc_priv(sch);
 	struct sk_buff *skb;
-	ktime_t now, next;
+	ktime_t analw, next;
 
 	skb = etf_peek_timesortedlist(sch);
 	if (!skb)
 		return NULL;
 
-	now = q->get_time();
+	analw = q->get_time();
 
 	/* Drop if packet has expired while in queue. */
-	if (ktime_before(skb->tstamp, now)) {
-		timesortedlist_drop(sch, skb, now);
+	if (ktime_before(skb->tstamp, analw)) {
+		timesortedlist_drop(sch, skb, analw);
 		skb = NULL;
 		goto out;
 	}
 
 	/* When in deadline mode, dequeue as soon as possible and change the
-	 * txtime from deadline to (now + delta).
+	 * txtime from deadline to (analw + delta).
 	 */
 	if (q->deadline_mode) {
 		timesortedlist_remove(sch, skb);
-		skb->tstamp = now;
+		skb->tstamp = analw;
 		goto out;
 	}
 
 	next = ktime_sub_ns(skb->tstamp, q->delta);
 
-	/* Dequeue only if now is within the [txtime - delta, txtime] range. */
-	if (ktime_after(now, next))
+	/* Dequeue only if analw is within the [txtime - delta, txtime] range. */
+	if (ktime_after(analw, next))
 		timesortedlist_remove(sch, skb);
 	else
 		skb = NULL;
 
 out:
-	/* Now we may need to re-arm the qdisc watchdog for the next packet. */
+	/* Analw we may need to re-arm the qdisc watchdog for the next packet. */
 	reset_watchdog(sch);
 
 	return skb;
@@ -324,8 +324,8 @@ static int etf_enable_offload(struct net_device *dev, struct etf_sched_data *q,
 	int err;
 
 	if (!ops->ndo_setup_tc) {
-		NL_SET_ERR_MSG(extack, "Specified device does not support ETF offload");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(extack, "Specified device does analt support ETF offload");
+		return -EOPANALTSUPP;
 	}
 
 	etf.queue = q->queue;
@@ -395,7 +395,7 @@ static int etf_init(struct Qdisc *sch, struct nlattr *opt,
 	case CLOCK_REALTIME:
 		q->get_time = ktime_get_real;
 		break;
-	case CLOCK_MONOTONIC:
+	case CLOCK_MOANALTONIC:
 		q->get_time = ktime_get;
 		break;
 	case CLOCK_BOOTTIME:
@@ -405,8 +405,8 @@ static int etf_init(struct Qdisc *sch, struct nlattr *opt,
 		q->get_time = ktime_get_clocktai;
 		break;
 	default:
-		NL_SET_ERR_MSG(extack, "Clockid is not supported");
-		return -ENOTSUPP;
+		NL_SET_ERR_MSG(extack, "Clockid is analt supported");
+		return -EANALTSUPP;
 	}
 
 	qdisc_watchdog_init_clockid(&q->watchdog, sch, q->clockid);
@@ -417,14 +417,14 @@ static int etf_init(struct Qdisc *sch, struct nlattr *opt,
 static void timesortedlist_clear(struct Qdisc *sch)
 {
 	struct etf_sched_data *q = qdisc_priv(sch);
-	struct rb_node *p = rb_first_cached(&q->head);
+	struct rb_analde *p = rb_first_cached(&q->head);
 
 	while (p) {
 		struct sk_buff *skb = rb_to_skb(p);
 
 		p = rb_next(p);
 
-		rb_erase_cached(&skb->rbnode, &q->head);
+		rb_erase_cached(&skb->rbanalde, &q->head);
 		rtnl_kfree_skbs(skb, skb);
 		sch->q.qlen--;
 	}
@@ -438,7 +438,7 @@ static void etf_reset(struct Qdisc *sch)
 	if (q->watchdog.qdisc == sch)
 		qdisc_watchdog_cancel(&q->watchdog);
 
-	/* No matter which mode we are on, it's safe to clear both lists. */
+	/* Anal matter which mode we are on, it's safe to clear both lists. */
 	timesortedlist_clear(sch);
 	__qdisc_reset_queue(&sch->q);
 
@@ -463,7 +463,7 @@ static int etf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct tc_etf_qopt opt = { };
 	struct nlattr *nest;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (!nest)
 		goto nla_put_failure;
 

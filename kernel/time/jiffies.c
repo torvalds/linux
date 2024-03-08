@@ -20,13 +20,13 @@ static u64 jiffies_read(struct clocksource *cs)
 
 /*
  * The Jiffies based clocksource is the lowest common
- * denominator clock source which should function on
+ * deanalminator clock source which should function on
  * all systems. It has the same coarse resolution as
  * the timer interrupt frequency HZ and it suffers
  * inaccuracies caused by missed or lost timer
  * interrupts and the inability for the timer
  * interrupt hardware to accurately tick at the
- * requested HZ value. It is also not recommended
+ * requested HZ value. It is also analt recommended
  * for "tick-less" systems.
  */
 static struct clocksource clocksource_jiffies = {

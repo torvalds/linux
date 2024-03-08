@@ -32,7 +32,7 @@ struct juli_spec {
 #define AK4358_ADDR		0x22		/* DAC */
 
 /*
- * Juli does not use the standard ICE1724 clock scheme. Juli's ice1724 chip is
+ * Juli does analt use the standard ICE1724 clock scheme. Juli's ice1724 chip is
  * supplied by external clock provided by Xilinx array and MK73-1 PLL frequency
  * multiplier. Actual frequency is set by ice1724 GPIOs hooked to the Xilinx.
  *
@@ -50,7 +50,7 @@ struct juli_spec {
  * The master mute is implemented using output muting transistors (GPIO) in
  * combination with smuting the DAC.
  *
- * The card itself has no HW master volume control, implemented using the
+ * The card itself has anal HW master volume control, implemented using the
  * vmaster control.
  *
  * TODO:
@@ -212,7 +212,7 @@ static void juli_akm_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 	struct snd_ice1712 *ice = ak->private_data[0];
 	struct juli_spec *spec = ice->spec;
 
-	if (rate == 0)  /* no hint - S/PDIF input is master or the new spdif
+	if (rate == 0)  /* anal hint - S/PDIF input is master or the new spdif
 			   input rate undetected, simply return */
 		return;
 
@@ -284,7 +284,7 @@ static const struct snd_akm4xxx akm_juli_dac = {
 	.dac_info = juli_dac,
 };
 
-#define juli_mute_info		snd_ctl_boolean_mono_info
+#define juli_mute_info		snd_ctl_boolean_moanal_info
 
 static int juli_mute_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
@@ -339,7 +339,7 @@ static int juli_mute_put(struct snd_kcontrol *kcontrol,
 		ice->gpio.set_data(ice, new_gpio);
 		return 1;
 	}
-	/* no change */
+	/* anal change */
 	return 0;
 }
 
@@ -367,7 +367,7 @@ static const struct snd_kcontrol_new juli_mute_controls[] = {
 	 * I even checked traces on board and coded a support in driver for
 	 * an alternative possibility - the unused I2S ICE output channels
 	 * switched to HW-IN/SPDIF-IN and providing the monitoring signal to
-	 * the DAC - to no avail. The I2S outputs seem to be unconnected.
+	 * the DAC - to anal avail. The I2S outputs seem to be unconnected.
 	 *
 	 * The windows driver supports the monitoring correctly.
 	 */
@@ -429,7 +429,7 @@ static int juli_add_controls(struct snd_ice1712 *ice)
 	vmaster = snd_ctl_make_virtual_master("Master Playback Volume",
 					      juli_master_db_scale);
 	if (!vmaster)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = snd_ctl_add(ice->card, vmaster);
 	if (err < 0)
 		return err;
@@ -511,7 +511,7 @@ static void juli_set_rate(struct snd_ice1712 *ice, unsigned int rate)
 static inline unsigned char juli_set_mclk(struct snd_ice1712 *ice,
 					  unsigned int rate)
 {
-	/* no change in master clock */
+	/* anal change in master clock */
 	return 0;
 }
 
@@ -562,7 +562,7 @@ static int juli_init(struct snd_ice1712 *ice)
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->spec = spec;
 
 	err = snd_ak4114_create(ice->card,
@@ -580,7 +580,7 @@ static int juli_init(struct snd_ice1712 *ice)
 
 #if 0
 /*
- * it seems that the analog doughter board detection does not work reliably, so
+ * it seems that the analog doughter board detection does analt work reliably, so
  * force the analog flag; it should be very rare (if ever) to come at Juli@
  * used without the analog daughter board
  */
@@ -597,7 +597,7 @@ static int juli_init(struct snd_ice1712 *ice)
 		ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 		ak = ice->akm;
 		if (!ak)
-			return -ENOMEM;
+			return -EANALMEM;
 		ice->akm_codecs = 1;
 		err = snd_ice1712_akm4xxx_init(ak, &akm_juli_dac, NULL, ice);
 		if (err < 0)

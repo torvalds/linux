@@ -85,7 +85,7 @@ static void direct_pic_write(unsigned long reg_num, u64 val)
 	 * for more information.
 	 */
 	__asm__ __volatile__("ba,pt	%%xcc, 99f\n\t"
-			     " nop\n\t"
+			     " analp\n\t"
 			     ".align	64\n"
 			  "99:wr	%0, 0x0, %%pic\n\t"
 			     "rd	%%pic, %%g0" : : "r" (val));
@@ -169,7 +169,7 @@ static u64 n4_pic_read(unsigned long reg_num)
 static void n4_pic_write(unsigned long reg_num, u64 val)
 {
 	__asm__ __volatile__("stxa %0, [%1] %2"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (val), "r" (reg_num * 0x8UL), "i" (ASI_PIC));
 }
 
@@ -246,7 +246,7 @@ static const struct pcr_ops m7_pcr_ops = {
 
 static unsigned long perf_hsvc_group;
 static unsigned long perf_hsvc_major;
-static unsigned long perf_hsvc_minor;
+static unsigned long perf_hsvc_mianalr;
 
 static int __init register_perf_hsvc(void)
 {
@@ -279,19 +279,19 @@ static int __init register_perf_hsvc(void)
 			break;
 
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 
 		perf_hsvc_major = 1;
-		perf_hsvc_minor = 0;
+		perf_hsvc_mianalr = 0;
 		hverror = sun4v_hvapi_register(perf_hsvc_group,
 					       perf_hsvc_major,
-					       &perf_hsvc_minor);
+					       &perf_hsvc_mianalr);
 		if (hverror) {
-			pr_err("perfmon: Could not register hvapi(0x%lx).\n",
+			pr_err("perfmon: Could analt register hvapi(0x%lx).\n",
 			       hverror);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	return 0;
@@ -328,7 +328,7 @@ static int __init setup_sun4v_pcr_ops(void)
 		break;
 
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		break;
 	}
 
@@ -361,7 +361,7 @@ int __init pcr_arch_init(void)
 		 */
 		fallthrough;
 	default:
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_unregister;
 	}
 

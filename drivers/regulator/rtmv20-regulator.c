@@ -41,7 +41,7 @@
 #define RTMV20_VSYNPOL_MASK	BIT(1)
 #define RTMV20_FSINEN_MASK	BIT(7)
 #define RTMV20_ESEN_MASK	BIT(6)
-#define RTMV20_FSINOUT_MASK	BIT(2)
+#define RTMV20_FSIANALUT_MASK	BIT(2)
 #define LDENABLE_MASK		(BIT(3) | BIT(0))
 
 #define OTPEVT_MASK		BIT(4)
@@ -172,17 +172,17 @@ static irqreturn_t rtmv20_irq_handler(int irq, void *data)
 	ret = regmap_read(priv->regmap, RTMV20_REG_LDIRQ, &val);
 	if (ret) {
 		dev_err(priv->dev, "Failed to get irq flags\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (val & OTPEVT_MASK)
-		regulator_notifier_call_chain(priv->rdev, REGULATOR_EVENT_OVER_TEMP, NULL);
+		regulator_analtifier_call_chain(priv->rdev, REGULATOR_EVENT_OVER_TEMP, NULL);
 
 	if (val & OCPEVT_MASK)
-		regulator_notifier_call_chain(priv->rdev, REGULATOR_EVENT_OVER_CURRENT, NULL);
+		regulator_analtifier_call_chain(priv->rdev, REGULATOR_EVENT_OVER_CURRENT, NULL);
 
 	if (val & FAILEVT_MASK)
-		regulator_notifier_call_chain(priv->rdev, REGULATOR_EVENT_FAIL, NULL);
+		regulator_analtifier_call_chain(priv->rdev, REGULATOR_EVENT_FAIL, NULL);
 
 	return IRQ_HANDLED;
 }
@@ -229,7 +229,7 @@ static int rtmv20_properties_init(struct rtmv20_priv *priv)
 		{ "richtek,vsync-polarity-high", 1, 0, 1, 1, RTMV20_REG_LDCTRL2,
 			RTMV20_VSYNPOL_MASK },
 		{ "richtek,fsin-enable", 0, 0, 1, 1, RTMV20_REG_ENCTRL, RTMV20_FSINEN_MASK },
-		{ "richtek,fsin-output", 0, 0, 1, 1, RTMV20_REG_ENCTRL, RTMV20_FSINOUT_MASK },
+		{ "richtek,fsin-output", 0, 0, 1, 1, RTMV20_REG_ENCTRL, RTMV20_FSIANALUT_MASK },
 		{ "richtek,es-enable", 0, 0, 1, 1, RTMV20_REG_ENCTRL, RTMV20_ESEN_MASK },
 	};
 	int i, ret;
@@ -285,7 +285,7 @@ static int rtmv20_check_chip_exist(struct rtmv20_priv *priv)
 		return ret;
 
 	if ((val & RTMV20_VID_MASK) != RICHTEK_VID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -329,7 +329,7 @@ static int rtmv20_probe(struct i2c_client *i2c)
 
 	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &i2c->dev;
 
@@ -351,7 +351,7 @@ static int rtmv20_probe(struct i2c_client *i2c)
 
 	ret = rtmv20_check_chip_exist(priv);
 	if (ret) {
-		dev_err(&i2c->dev, "Chip vendor info is not matched\n");
+		dev_err(&i2c->dev, "Chip vendor info is analt matched\n");
 		return ret;
 	}
 
@@ -425,7 +425,7 @@ MODULE_DEVICE_TABLE(of, rtmv20_of_id);
 static struct i2c_driver rtmv20_driver = {
 	.driver = {
 		.name = "rtmv20",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(rtmv20_of_id),
 		.pm = &rtmv20_pm,
 	},

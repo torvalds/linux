@@ -96,7 +96,7 @@
 #define CLK_TOP_A3SYS				85
 #define CLK_TOP_A4SYS				86
 #define CLK_TOP_ECC				87
-#define CLK_TOP_SPINOR				88
+#define CLK_TOP_SPIANALR				88
 #define CLK_TOP_ULPOSC				89
 #define CLK_TOP_SRCK				90
 #define CLK_TOP_MFG_CK_FAST_REF			91

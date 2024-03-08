@@ -26,7 +26,7 @@
 
 /* Flags */
 #define CLARIION_SHORT_TRESPASS		1
-#define CLARIION_HONOR_RESERVATIONS	2
+#define CLARIION_HOANALR_RESERVATIONS	2
 
 /* LUN states */
 #define CLARIION_LUN_UNINITIALIZED	-1
@@ -40,7 +40,7 @@ static unsigned char long_trespass[] = {
 	0x09,			/* Page length - 2 */
 	0x01,			/* Trespass code */
 	0xff, 0xff,		/* Trespass target */
-	0, 0, 0, 0, 0, 0	/* Reserved bytes / unknown */
+	0, 0, 0, 0, 0, 0	/* Reserved bytes / unkanalwn */
 };
 
 static unsigned char short_trespass[] = {
@@ -53,7 +53,7 @@ static unsigned char short_trespass[] = {
 
 static const char * lun_state[] =
 {
-    "not bound",
+    "analt bound",
     "bound",
     "owned",
 };
@@ -65,8 +65,8 @@ struct clariion_dh_data {
 	 * Use short trespass command (FC-series) or the long version
 	 * (default for AX/CX CLARiiON arrays).
 	 *
-	 *  CLARIION_HONOR_RESERVATIONS
-	 * Whether or not (default) to honor SCSI reservations when
+	 *  CLARIION_HOANALR_RESERVATIONS
+	 * Whether or analt (default) to hoanalr SCSI reservations when
 	 * initiating a switch-over.
 	 */
 	unsigned flags;
@@ -110,7 +110,7 @@ static int trespass_endio(struct scsi_device *sdev,
 	if (sshdr->sense_key == 0x05 && sshdr->asc == 0x04 &&
 	    sshdr->ascq == 0x00) {
 		/*
-		 * Array based copy in progress -- do not send
+		 * Array based copy in progress -- do analt send
 		 * mode_select or copy will be aborted mid-stream.
 		 */
 		sdev_printk(KERN_INFO, sdev, "%s: Array Based Copy in "
@@ -120,7 +120,7 @@ static int trespass_endio(struct scsi_device *sdev,
 	} else if (sshdr->sense_key == 0x02 && sshdr->asc == 0x04 &&
 		   sshdr->ascq == 0x03) {
 		/*
-		 * LUN Not Ready - Manual Intervention Required
+		 * LUN Analt Ready - Manual Intervention Required
 		 * indicates in-progress ucode upgrade (NDU).
 		 */
 		sdev_printk(KERN_INFO, sdev, "%s: Detected in-progress "
@@ -139,7 +139,7 @@ static int parse_sp_info_reply(struct scsi_device *sdev,
 
 	/* check for in-progress ucode upgrade (NDU) */
 	if (csdev->buffer[48] != 0) {
-		sdev_printk(KERN_NOTICE, sdev, "%s: Detected in-progress "
+		sdev_printk(KERN_ANALTICE, sdev, "%s: Detected in-progress "
 			    "ucode upgrade NDU operation while finding "
 			    "current active SP.", CLARIION_NAME);
 		err = SCSI_DH_DEV_TEMP_BUSY;
@@ -147,15 +147,15 @@ static int parse_sp_info_reply(struct scsi_device *sdev,
 	}
 	if (csdev->buffer[4] > 2) {
 		/* Invalid buffer format */
-		sdev_printk(KERN_NOTICE, sdev,
+		sdev_printk(KERN_ANALTICE, sdev,
 			    "%s: invalid VPD page 0xC0 format\n",
 			    CLARIION_NAME);
-		err = SCSI_DH_NOSYS;
+		err = SCSI_DH_ANALSYS;
 		goto out;
 	}
 	switch (csdev->buffer[28] & 0x0f) {
 	case 6:
-		sdev_printk(KERN_NOTICE, sdev,
+		sdev_printk(KERN_ANALTICE, sdev,
 			    "%s: ALUA failover mode detected\n",
 			    CLARIION_NAME);
 		break;
@@ -166,7 +166,7 @@ static int parse_sp_info_reply(struct scsi_device *sdev,
 		sdev_printk(KERN_WARNING, sdev,
 			    "%s: Invalid failover mode %d\n",
 			    CLARIION_NAME, csdev->buffer[28] & 0x0f);
-		err = SCSI_DH_NOSYS;
+		err = SCSI_DH_ANALSYS;
 		goto out;
 	}
 
@@ -198,7 +198,7 @@ static char * parse_sp_model(struct scsi_device *sdev, unsigned char *buffer)
 			    CLARIION_NAME, len);
 		/* Check for old FC arrays */
 		if (!strncmp(buffer + 8, "DGC", 3)) {
-			/* Old FC array, not supporting extended information */
+			/* Old FC array, analt supporting extended information */
 			sp_model = emc_default_str;
 		}
 		goto out;
@@ -247,8 +247,8 @@ static int send_trespass_cmd(struct scsi_device *sdev,
 
 	if (csdev->flags & CLARIION_SHORT_TRESPASS) {
 		page22 = short_trespass;
-		if (!(csdev->flags & CLARIION_HONOR_RESERVATIONS))
-			/* Set Honor Reservations bit */
+		if (!(csdev->flags & CLARIION_HOANALR_RESERVATIONS))
+			/* Set Hoanalr Reservations bit */
 			page22[6] |= 0x80;
 		len = sizeof(short_trespass);
 		cdb[0] = MODE_SELECT;
@@ -256,8 +256,8 @@ static int send_trespass_cmd(struct scsi_device *sdev,
 		cdb[4] = len;
 	} else {
 		page22 = long_trespass;
-		if (!(csdev->flags & CLARIION_HONOR_RESERVATIONS))
-			/* Set Honor Reservations bit */
+		if (!(csdev->flags & CLARIION_HOANALR_RESERVATIONS))
+			/* Set Hoanalr Reservations bit */
 			page22[10] |= 0x80;
 		len = sizeof(long_trespass);
 		cdb[0] = MODE_SELECT_10;
@@ -287,10 +287,10 @@ static enum scsi_disposition clariion_check_sense(struct scsi_device *sdev,
 					struct scsi_sense_hdr *sense_hdr)
 {
 	switch (sense_hdr->sense_key) {
-	case NOT_READY:
+	case ANALT_READY:
 		if (sense_hdr->asc == 0x04 && sense_hdr->ascq == 0x03)
 			/*
-			 * LUN Not Ready - Manual Intervention Required
+			 * LUN Analt Ready - Manual Intervention Required
 			 * indicates this is a passive path.
 			 *
 			 * FIXME: However, if this is seen and EVPD C0
@@ -307,9 +307,9 @@ static enum scsi_disposition clariion_check_sense(struct scsi_device *sdev,
 	case ILLEGAL_REQUEST:
 		if (sense_hdr->asc == 0x25 && sense_hdr->ascq == 0x01)
 			/*
-			 * An array based copy is in progress. Do not
-			 * fail the path, do not bypass to another PG,
-			 * do not retry. Fail the IO immediately.
+			 * An array based copy is in progress. Do analt
+			 * fail the path, do analt bypass to aanalther PG,
+			 * do analt retry. Fail the IO immediately.
 			 * (Actually this is the same conclusion as in
 			 * the default handler, but lets make sure.)
 			 *
@@ -328,7 +328,7 @@ static enum scsi_disposition clariion_check_sense(struct scsi_device *sdev,
 		break;
 	}
 
-	return SCSI_RETURN_NOT_HANDLED;
+	return SCSI_RETURN_ANALT_HANDLED;
 }
 
 static blk_status_t clariion_prep_fn(struct scsi_device *sdev,
@@ -357,7 +357,7 @@ static int clariion_std_inquiry(struct scsi_device *sdev,
 	}
 
 	/*
-	 * FC Series arrays do not support long trespass
+	 * FC Series arrays do analt support long trespass
 	 */
 	if (!strlen(sp_model) || !strncmp(sp_model, "FC",2))
 		csdev->flags |= CLARIION_SHORT_TRESPASS;
@@ -419,7 +419,7 @@ done:
 }
 /*
  * params - parameters in the following format
- *      "no_of_params\0param1\0param2\0param3\0...\0"
+ *      "anal_of_params\0param1\0param2\0param3\0...\0"
  *      for example, string for 2 parameters with value 10 and 21
  *      is specified as "2\010\021\0".
  */
@@ -449,13 +449,13 @@ static int clariion_set_params(struct scsi_device *sdev, const char *params)
 		csdev->flags &= ~CLARIION_SHORT_TRESPASS;
 
 	if (hr)
-		csdev->flags |= CLARIION_HONOR_RESERVATIONS;
+		csdev->flags |= CLARIION_HOANALR_RESERVATIONS;
 	else
-		csdev->flags &= ~CLARIION_HONOR_RESERVATIONS;
+		csdev->flags &= ~CLARIION_HOANALR_RESERVATIONS;
 
 	/*
 	 * If this path is owned, we have to send a trespass command
-	 * with the new parameters. If not, simply return. Next trespass
+	 * with the new parameters. If analt, simply return. Next trespass
 	 * command would use the parameters.
 	 */
 	if (csdev->lun_state != CLARIION_LUN_OWNED)
@@ -480,7 +480,7 @@ static int clariion_bus_attach(struct scsi_device *sdev)
 
 	h = kzalloc(sizeof(*h) , GFP_KERNEL);
 	if (!h)
-		return SCSI_DH_NOMEM;
+		return SCSI_DH_ANALMEM;
 	h->lun_state = CLARIION_LUN_UNINITIALIZED;
 	h->default_sp = CLARIION_UNBOUND_LU;
 	h->current_sp = CLARIION_UNBOUND_LU;

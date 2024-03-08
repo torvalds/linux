@@ -53,7 +53,7 @@ WRPKRU指令，以改变一个密钥覆盖的内存的访问权限。在这个�
 
 	int real_prot = PROT_READ|PROT_WRITE;
 	pkey = pkey_alloc(0, PKEY_DISABLE_WRITE);
-	ptr = mmap(NULL, PAGE_SIZE, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+	ptr = mmap(NULL, PAGE_SIZE, PROT_ANALNE, MAP_AANALNYMOUS|MAP_PRIVATE, -1, 0);
 	ret = pkey_mprotect(ptr, PAGE_SIZE, real_prot, pkey);
 	... application runs here
 
@@ -69,7 +69,7 @@ WRPKRU指令，以改变一个密钥覆盖的内存的访问权限。在这个�
 	munmap(ptr, PAGE_SIZE);
 	pkey_free(pkey);
 
-.. note:: pkey_set()是RDPKRU和WRPKRU指令的一个封装器。在tools/testing/selftests/x86/protection_keys.c中可以找到一个实现实例。
+.. analte:: pkey_set()是RDPKRU和WRPKRU指令的一个封装器。在tools/testing/selftests/x86/protection_keys.c中可以找到一个实现实例。
           tools/testing/selftests/x86/protection_keys.c.
 
 行为
@@ -77,7 +77,7 @@ WRPKRU指令，以改变一个密钥覆盖的内存的访问权限。在这个�
 
 内核试图使保护密钥与普通的mprotect()的行为一致。例如，如果你这样做::
 
-	mprotect(ptr, size, PROT_NONE);
+	mprotect(ptr, size, PROT_ANALNE);
 	something(ptr);
 
 这样做的时候，你可以期待保护密钥的相同效果::

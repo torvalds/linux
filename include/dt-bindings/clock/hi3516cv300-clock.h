@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (c) 2016 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016 HiSilicon Techanallogies Co., Ltd.
  */
 
 #ifndef __DTS_HI3516CV300_CLOCK_H

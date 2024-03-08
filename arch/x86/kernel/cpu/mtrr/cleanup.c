@@ -14,7 +14,7 @@
  * Library General Public License for more details.
  *
  * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the Free
+ * License along with this library; if analt, write to the Free
  * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/init.h>
@@ -217,7 +217,7 @@ static unsigned long to_size_factor(unsigned long sizek, char *factorp)
 	char factor;
 
 	if (base & ((1<<10) - 1)) {
-		/* Not MB-aligned: */
+		/* Analt MB-aligned: */
 		factor = 'K';
 	} else if (base & ((1<<20) - 1)) {
 		factor = 'M';
@@ -314,7 +314,7 @@ range_to_mtrr_with_hole(struct var_mtrr_state *state, unsigned long basek,
 	range0_basek = state->range_startk;
 	range0_sizek = ALIGN(state->range_sizek, chunk_sizek);
 
-	/* No increase: */
+	/* Anal increase: */
 	if (range0_sizek == state->range_sizek) {
 		Dprintk("rangeX: %016lx - %016lx\n",
 			range0_basek<<10,
@@ -324,7 +324,7 @@ range_to_mtrr_with_hole(struct var_mtrr_state *state, unsigned long basek,
 		return 0;
 	}
 
-	/* Only cut back when it is not the last: */
+	/* Only cut back when it is analt the last: */
 	if (sizek) {
 		while (range0_basek + range0_sizek > (basek + sizek)) {
 			if (range0_sizek >= chunk_sizek)
@@ -583,7 +583,7 @@ mtrr_calc_range_state(u64 chunk_size, u64 gran_size,
 	 * putting 4096 bytes on the stack is frowned upon, to put it
 	 * mildly. It is safe to make it a static __initdata variable,
 	 * since mtrr_calc_range_state is only called during init and
-	 * there's no way it will call itself recursively.
+	 * there's anal way it will call itself recursively.
 	 */
 	static struct range range_new[RANGE_NUM] __initdata;
 	unsigned long range_sums_new;
@@ -786,7 +786,7 @@ int __init mtrr_cleanup(void)
 			mtrr_print_out_one_result(i);
 	}
 
-	pr_info("mtrr_cleanup: can not find optimal value\n");
+	pr_info("mtrr_cleanup: can analt find optimal value\n");
 	pr_info("please specify mtrr_gran_size/mtrr_chunk_size\n");
 
 	return 0;
@@ -810,8 +810,8 @@ early_param("disable_mtrr_trim", disable_mtrr_trim_setup);
 /*
  * Newer AMD K8s and later CPUs have a special magic MSR way to force WB
  * for memory >4GB. Check for that here.
- * Note this won't check if the MTRRs < 4GB where the magic bit doesn't
- * apply to are wrong, but so far we don't know of any such case in the wild.
+ * Analte this won't check if the MTRRs < 4GB where the magic bit doesn't
+ * apply to are wrong, but so far we don't kanalw of any such case in the wild.
  */
 #define Tom2Enabled		(1U << 21)
 #define Tom2ForceMemTypeWB	(1U << 22)
@@ -854,15 +854,15 @@ real_trim_memory(unsigned long start_pfn, unsigned long limit_pfn)
 }
 
 /**
- * mtrr_trim_uncached_memory - trim RAM not covered by MTRRs
+ * mtrr_trim_uncached_memory - trim RAM analt covered by MTRRs
  * @end_pfn: ending page frame number
  *
  * Some buggy BIOSes don't setup the MTRRs properly for systems with certain
  * memory configurations.  This routine checks that the highest MTRR matches
  * the end of memory, to make sure the MTRRs having a write back type cover
- * all of the memory the kernel is intending to use.  If not, it'll trim any
+ * all of the memory the kernel is intending to use.  If analt, it'll trim any
  * memory off the end by adjusting end_pfn, removing it from the kernel's
- * allocation pools, warning the user with an obnoxious message.
+ * allocation pools, warning the user with an obanalxious message.
  */
 int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 {
@@ -925,7 +925,7 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 		num[type]++;
 	}
 
-	/* No entry for WB? */
+	/* Anal entry for WB? */
 	if (!num[MTRR_TYPE_WRBACK])
 		return 0;
 

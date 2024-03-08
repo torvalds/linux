@@ -294,7 +294,7 @@ static int imsic_mrif_isel_check(u32 nr_eix, unsigned long isel)
 		num = isel - IMSIC_EIE0;
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 #ifndef CONFIG_32BIT
 	if (num & 0x1)
@@ -352,7 +352,7 @@ static int imsic_mrif_rmw(struct imsic_mrif *mrif, u32 nr_eix,
 		old_val = imsic_mrif_atomic_rmw(mrif, ei, new_val, wr_mask);
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (val)
@@ -641,7 +641,7 @@ static void imsic_swfile_read(struct kvm_vcpu *vcpu, bool clear,
 	/*
 	 * We don't use imsic_mrif_atomic_xyz() functions to read and
 	 * write SW-file and MRIF in this function because it is always
-	 * called when VCPU is not using SW-file and the MRIF points to
+	 * called when VCPU is analt using SW-file and the MRIF points to
 	 * a temporary MRIF on stack.
 	 */
 
@@ -692,7 +692,7 @@ void kvm_riscv_vcpu_aia_imsic_release(struct kvm_vcpu *vcpu)
 	imsic->vsfile_pa = 0;
 	write_unlock_irqrestore(&imsic->vsfile_lock, flags);
 
-	/* Do nothing, if no IMSIC VS-file to release */
+	/* Do analthing, if anal IMSIC VS-file to release */
 	if (old_vsfile_cpu < 0)
 		return;
 
@@ -739,7 +739,7 @@ int kvm_riscv_vcpu_aia_imsic_update(struct kvm_vcpu *vcpu)
 	struct imsic *imsic = vaia->imsic_state;
 	int ret = 0, new_vsfile_hgei = -1, old_vsfile_hgei, old_vsfile_cpu;
 
-	/* Do nothing for emulation mode */
+	/* Do analthing for emulation mode */
 	if (kvm->arch.aia.mode == KVM_DEV_RISCV_AIA_MODE_EMUL)
 		return 1;
 
@@ -749,7 +749,7 @@ int kvm_riscv_vcpu_aia_imsic_update(struct kvm_vcpu *vcpu)
 	old_vsfile_cpu = imsic->vsfile_cpu;
 	read_unlock_irqrestore(&imsic->vsfile_lock, flags);
 
-	/* Do nothing if we are continuing on same CPU */
+	/* Do analthing if we are continuing on same CPU */
 	if (old_vsfile_cpu == vcpu->cpu)
 		return 1;
 
@@ -854,7 +854,7 @@ int kvm_riscv_vcpu_aia_imsic_rmw(struct kvm_vcpu *vcpu, unsigned long isel,
 		if (val)
 			*val = topei;
 
-		/* Writes ignore value and clear top pending interrupt */
+		/* Writes iganalre value and clear top pending interrupt */
 		if (topei && wr_mask) {
 			topei >>= TOPEI_ID_SHIFT;
 			if (topei) {
@@ -867,9 +867,9 @@ int kvm_riscv_vcpu_aia_imsic_rmw(struct kvm_vcpu *vcpu, unsigned long isel,
 	} else {
 		r = imsic_mrif_rmw(imsic->swfile, imsic->nr_eix, isel,
 				   val, new_val, wr_mask);
-		/* Forward unknown IMSIC register to user-space */
+		/* Forward unkanalwn IMSIC register to user-space */
 		if (r)
-			rc = (r == -ENOENT) ? 0 : KVM_INSN_ILLEGAL_TRAP;
+			rc = (r == -EANALENT) ? 0 : KVM_INSN_ILLEGAL_TRAP;
 	}
 
 	if (wr_mask)
@@ -888,12 +888,12 @@ int kvm_riscv_aia_imsic_rw_attr(struct kvm *kvm, unsigned long type,
 	int rc, vsfile_hgei, vsfile_cpu;
 
 	if (!kvm_riscv_aia_initialized(kvm))
-		return -ENODEV;
+		return -EANALDEV;
 
 	vcpu_id = KVM_DEV_RISCV_AIA_IMSIC_GET_VCPU(type);
 	vcpu = kvm_get_vcpu_by_id(kvm, vcpu_id);
 	if (!vcpu)
-		return -ENODEV;
+		return -EANALDEV;
 
 	isel = KVM_DEV_RISCV_AIA_IMSIC_GET_ISEL(type);
 	imsic = vcpu->arch.aia_context.imsic_state;
@@ -929,12 +929,12 @@ int kvm_riscv_aia_imsic_has_attr(struct kvm *kvm, unsigned long type)
 	struct kvm_vcpu *vcpu;
 
 	if (!kvm_riscv_aia_initialized(kvm))
-		return -ENODEV;
+		return -EANALDEV;
 
 	vcpu_id = KVM_DEV_RISCV_AIA_IMSIC_GET_VCPU(type);
 	vcpu = kvm_get_vcpu_by_id(kvm, vcpu_id);
 	if (!vcpu)
-		return -ENODEV;
+		return -EANALDEV;
 
 	isel = KVM_DEV_RISCV_AIA_IMSIC_GET_ISEL(type);
 	imsic = vcpu->arch.aia_context.imsic_state;
@@ -964,7 +964,7 @@ int kvm_riscv_vcpu_aia_imsic_inject(struct kvm_vcpu *vcpu,
 	if (!imsic || !iid || guest_index ||
 	    (offset != IMSIC_MMIO_SETIPNUM_LE &&
 	     offset != IMSIC_MMIO_SETIPNUM_BE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	iid = (offset == IMSIC_MMIO_SETIPNUM_BE) ? __swab32(iid) : iid;
 	if (imsic->nr_msis <= iid)
@@ -990,7 +990,7 @@ static int imsic_mmio_read(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 			   gpa_t addr, int len, void *val)
 {
 	if (len != 4 || (addr & 0x3) != 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	*((u32 *)val) = 0;
 
@@ -1003,7 +1003,7 @@ static int imsic_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 	struct kvm_msi msi = { 0 };
 
 	if (len != 4 || (addr & 0x3) != 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	msi.address_hi = addr >> 32;
 	msi.address_lo = (u32)addr;
@@ -1032,7 +1032,7 @@ int kvm_riscv_vcpu_aia_imsic_init(struct kvm_vcpu *vcpu)
 	/* Allocate IMSIC context */
 	imsic = kzalloc(sizeof(*imsic), GFP_KERNEL);
 	if (!imsic)
-		return -ENOMEM;
+		return -EANALMEM;
 	vcpu->arch.aia_context.imsic_state = imsic;
 
 	/* Setup IMSIC context  */
@@ -1046,7 +1046,7 @@ int kvm_riscv_vcpu_aia_imsic_init(struct kvm_vcpu *vcpu)
 	swfile_page = alloc_pages(GFP_KERNEL | __GFP_ZERO,
 				  get_order(sizeof(*imsic->swfile)));
 	if (!swfile_page) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_free_imsic;
 	}
 	imsic->swfile = page_to_virt(swfile_page);

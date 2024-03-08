@@ -6,7 +6,7 @@
  * Copyright (C) Joerg Reuter DL1BKE (jreuter@yaina.de)
  * Copyright (C) Hans-Joachim Hetscher DD8NE (dd8ne@bnv-bamberg.de)
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -35,17 +35,17 @@ static int ax25_rx_fragment(ax25_cb *ax25, struct sk_buff *skb)
 {
 	struct sk_buff *skbn, *skbo;
 
-	if (ax25->fragno != 0) {
+	if (ax25->fraganal != 0) {
 		if (!(*skb->data & AX25_SEG_FIRST)) {
-			if ((ax25->fragno - 1) == (*skb->data & AX25_SEG_REM)) {
+			if ((ax25->fraganal - 1) == (*skb->data & AX25_SEG_REM)) {
 				/* Enqueue fragment */
-				ax25->fragno = *skb->data & AX25_SEG_REM;
-				skb_pull(skb, 1);	/* skip fragno */
+				ax25->fraganal = *skb->data & AX25_SEG_REM;
+				skb_pull(skb, 1);	/* skip fraganal */
 				ax25->fraglen += skb->len;
 				skb_queue_tail(&ax25->frag_queue, skb);
 
 				/* Last fragment received ? */
-				if (ax25->fragno == 0) {
+				if (ax25->fraganal == 0) {
 					skbn = alloc_skb(AX25_MAX_HEADER_LEN +
 							 ax25->fraglen,
 							 GFP_ATOMIC);
@@ -81,8 +81,8 @@ static int ax25_rx_fragment(ax25_cb *ax25, struct sk_buff *skb)
 		/* First fragment received */
 		if (*skb->data & AX25_SEG_FIRST) {
 			skb_queue_purge(&ax25->frag_queue);
-			ax25->fragno = *skb->data & AX25_SEG_REM;
-			skb_pull(skb, 1);		/* skip fragno */
+			ax25->fraganal = *skb->data & AX25_SEG_REM;
+			skb_pull(skb, 1);		/* skip fraganal */
 			ax25->fraglen = skb->len;
 			skb_queue_tail(&ax25->frag_queue, skb);
 			return 1;
@@ -209,7 +209,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 	/*
 	 *	Ours perhaps ?
 	 */
-	if (dp.lastrepeat + 1 < dp.ndigi)		/* Not yet digipeated completely */
+	if (dp.lastrepeat + 1 < dp.ndigi)		/* Analt yet digipeated completely */
 		next_digi = &dp.calls[dp.lastrepeat + 1];
 
 	/*
@@ -234,7 +234,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 		if (!mine && ax25cmp(&dest, (ax25_address *)dev->broadcast) != 0)
 			goto free;
 
-		/* Now we are pointing at the pid byte */
+		/* Analw we are pointing at the pid byte */
 		switch (skb->data[1]) {
 		case AX25_P_IP:
 			skb_pull(skb,2);		/* drop PID/CTRL */
@@ -256,7 +256,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 			netif_rx(skb);
 			break;
 		case AX25_P_TEXT:
-			/* Now find a suitable dgram socket */
+			/* Analw find a suitable dgram socket */
 			sk = ax25_get_socket(&dest, &src, SOCK_DGRAM);
 			if (sk != NULL) {
 				bh_lock_sock(sk);
@@ -288,8 +288,8 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	/*
 	 *	Is connected mode supported on this device ?
-	 *	If not, should we DM the incoming frame (except DMs) or
-	 *	silently ignore them. For now we stay quiet.
+	 *	If analt, should we DM the incoming frame (except DMs) or
+	 *	silently iganalre them. For analw we stay quiet.
 	 */
 	if (ax25_dev->values[AX25_VALUES_CONMODE] == 0)
 		goto free;
@@ -305,7 +305,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 		 *	Process the frame. If it is queued up internally it
 		 *	returns one otherwise we free it immediately. This
 		 *	routine itself wakes the user context layers so we do
-		 *	no further work
+		 *	anal further work
 		 */
 		if (ax25_process_rx_frame(ax25, skb, type, dama) == 0)
 			kfree_skb(skb);
@@ -316,13 +316,13 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	/* AX.25 state 0 (disconnected) */
 
-	/* a) received not a SABM(E) */
+	/* a) received analt a SABM(E) */
 
 	if ((*skb->data & ~AX25_PF) != AX25_SABM &&
 	    (*skb->data & ~AX25_PF) != AX25_SABME) {
 		/*
-		 *	Never reply to a DM. Also ignore any connects for
-		 *	addresses that are not our interfaces and not a socket.
+		 *	Never reply to a DM. Also iganalre any connects for
+		 *	addresses that are analt our interfaces and analt a socket.
 		 */
 		if ((*skb->data & ~AX25_PF) != AX25_DM && mine)
 			ax25_return_dm(dev, &src, &dest, &dp);
@@ -441,7 +441,7 @@ int ax25_kiss_rcv(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	if ((*skb->data & 0x0F) != 0) {
-		kfree_skb(skb);	/* Not a KISS data frame */
+		kfree_skb(skb);	/* Analt a KISS data frame */
 		return 0;
 	}
 

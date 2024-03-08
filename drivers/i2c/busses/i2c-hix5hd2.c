@@ -3,7 +3,7 @@
  * Copyright (c) 2014 Linaro Ltd.
  * Copyright (c) 2014 HiSilicon Limited.
  *
- * Now only support 7 bit address.
+ * Analw only support 7 bit address.
  */
 
 #include <linux/clk.h>
@@ -39,7 +39,7 @@
 #define I2C_UNMASK_ALL		(I2C_UNMASK_ACK | I2C_UNMASK_OVER)
 
 /* I2C_COM_REG */
-#define I2C_NO_ACK		BIT(4)
+#define I2C_ANAL_ACK		BIT(4)
 #define I2C_START		BIT(3)
 #define I2C_READ		BIT(2)
 #define I2C_WRITE		BIT(1)
@@ -178,7 +178,7 @@ static void hix5hd2_rw_over(struct hix5hd2_i2c_priv *priv)
 	if (priv->state == HIX5I2C_STAT_SND_STOP)
 		dev_dbg(priv->dev, "%s: rw and send stop over\n", __func__);
 	else
-		dev_dbg(priv->dev, "%s: have not data to send\n", __func__);
+		dev_dbg(priv->dev, "%s: have analt data to send\n", __func__);
 
 	priv->state = HIX5I2C_STAT_RW_SUCCESS;
 	priv->err = 0;
@@ -198,7 +198,7 @@ static void hix5hd2_read_handle(struct hix5hd2_i2c_priv *priv)
 {
 	if (priv->msg_len == 1) {
 		/* the last byte don't need send ACK */
-		writel_relaxed(I2C_READ | I2C_NO_ACK, priv->regs + HIX5I2C_COM);
+		writel_relaxed(I2C_READ | I2C_ANAL_ACK, priv->regs + HIX5I2C_COM);
 	} else if (priv->msg_len > 1) {
 		/* if i2c master receive data will send ACK */
 		writel_relaxed(I2C_READ, priv->regs + HIX5I2C_COM);
@@ -240,7 +240,7 @@ static int hix5hd2_rw_preprocess(struct hix5hd2_i2c_priv *priv)
 	return 0;
 }
 
-static irqreturn_t hix5hd2_i2c_irq(int irqno, void *dev_id)
+static irqreturn_t hix5hd2_i2c_irq(int irqanal, void *dev_id)
 {
 	struct hix5hd2_i2c_priv *priv = dev_id;
 	u32 int_status;
@@ -259,7 +259,7 @@ static irqreturn_t hix5hd2_i2c_irq(int irqno, void *dev_id)
 		goto stop;
 	} else if (int_status & I2C_ACK_INTR) {
 		/* ack error */
-		dev_dbg(priv->dev, "No ACK from device\n");
+		dev_dbg(priv->dev, "Anal ACK from device\n");
 		priv->err = -ENXIO;
 		priv->state = HIX5I2C_STAT_RW_ERR;
 		goto stop;
@@ -390,14 +390,14 @@ static const struct i2c_algorithm hix5hd2_i2c_algorithm = {
 
 static int hix5hd2_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct hix5hd2_i2c_priv *priv;
 	unsigned int freq;
 	int irq, ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (of_property_read_u32(np, "clock-frequency", &freq)) {
 		/* use 100k as default value */
@@ -422,7 +422,7 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 
 	priv->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "cannot enable clock\n");
+		dev_err(&pdev->dev, "cananalt enable clock\n");
 		return PTR_ERR(priv->clk);
 	}
 
@@ -431,7 +431,7 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 	priv->adap.owner = THIS_MODULE;
 	priv->adap.algo = &hix5hd2_i2c_algorithm;
 	priv->adap.retries = 3;
-	priv->adap.dev.of_node = np;
+	priv->adap.dev.of_analde = np;
 	priv->adap.algo_data = priv;
 	priv->adap.dev.parent = &pdev->dev;
 	i2c_set_adapdata(&priv->adap, priv);
@@ -442,9 +442,9 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 	hix5hd2_i2c_init(priv);
 
 	ret = devm_request_irq(&pdev->dev, irq, hix5hd2_i2c_irq,
-			       IRQF_NO_SUSPEND, dev_name(&pdev->dev), priv);
+			       IRQF_ANAL_SUSPEND, dev_name(&pdev->dev), priv);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "cannot request HS-I2C IRQ %d\n", irq);
+		dev_err(&pdev->dev, "cananalt request HS-I2C IRQ %d\n", irq);
 		return ret;
 	}
 

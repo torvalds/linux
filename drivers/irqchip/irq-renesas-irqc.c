@@ -66,9 +66,9 @@ static void irqc_dbg(struct irqc_irq *i, char *str)
 static unsigned char irqc_sense[IRQ_TYPE_SENSE_MASK + 1] = {
 	[IRQ_TYPE_LEVEL_LOW]	= 0x01,
 	[IRQ_TYPE_LEVEL_HIGH]	= 0x02,
-	[IRQ_TYPE_EDGE_FALLING]	= 0x04,	/* Synchronous */
-	[IRQ_TYPE_EDGE_RISING]	= 0x08,	/* Synchronous */
-	[IRQ_TYPE_EDGE_BOTH]	= 0x0c,	/* Synchronous */
+	[IRQ_TYPE_EDGE_FALLING]	= 0x04,	/* Synchroanalus */
+	[IRQ_TYPE_EDGE_RISING]	= 0x08,	/* Synchroanalus */
+	[IRQ_TYPE_EDGE_BOTH]	= 0x0c,	/* Synchroanalus */
 };
 
 static int irqc_irq_set_type(struct irq_data *d, unsigned int type)
@@ -118,7 +118,7 @@ static irqreturn_t irqc_irq_handler(int irq, void *dev_id)
 		generic_handle_domain_irq(p->irq_domain, i->hw_irq);
 		return IRQ_HANDLED;
 	}
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int irqc_probe(struct platform_device *pdev)
@@ -131,7 +131,7 @@ static int irqc_probe(struct platform_device *pdev)
 
 	p = devm_kzalloc(dev, sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->dev = dev;
 	platform_set_drvdata(pdev, p);
@@ -154,7 +154,7 @@ static int irqc_probe(struct platform_device *pdev)
 
 	p->number_of_irqs = k;
 	if (p->number_of_irqs < 1) {
-		dev_err(dev, "not enough IRQ resources\n");
+		dev_err(dev, "analt eanalugh IRQ resources\n");
 		ret = -EINVAL;
 		goto err_runtime_pm_disable;
 	}
@@ -168,11 +168,11 @@ static int irqc_probe(struct platform_device *pdev)
 
 	p->cpu_int_base = p->iomem + IRQC_INT_CPU_BASE(0); /* SYS-SPI */
 
-	p->irq_domain = irq_domain_add_linear(dev->of_node, p->number_of_irqs,
+	p->irq_domain = irq_domain_add_linear(dev->of_analde, p->number_of_irqs,
 					      &irq_generic_chip_ops, p);
 	if (!p->irq_domain) {
 		ret = -ENXIO;
-		dev_err(dev, "cannot initialize irq domain\n");
+		dev_err(dev, "cananalt initialize irq domain\n");
 		goto err_runtime_pm_disable;
 	}
 
@@ -180,7 +180,7 @@ static int irqc_probe(struct platform_device *pdev)
 					     1, "irqc", handle_level_irq,
 					     0, 0, IRQ_GC_INIT_NESTED_LOCK);
 	if (ret) {
-		dev_err(dev, "cannot allocate generic chip\n");
+		dev_err(dev, "cananalt allocate generic chip\n");
 		goto err_remove_domain;
 	}
 
@@ -201,7 +201,7 @@ static int irqc_probe(struct platform_device *pdev)
 		if (devm_request_irq(dev, p->irq[k].requested_irq,
 				     irqc_irq_handler, 0, name, &p->irq[k])) {
 			dev_err(dev, "failed to request IRQ\n");
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto err_remove_domain;
 		}
 	}

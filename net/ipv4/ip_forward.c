@@ -52,7 +52,7 @@ static bool ip_exceeds_mtu(const struct sk_buff *skb, unsigned int mtu)
 	if (unlikely(IPCB(skb)->frag_max_size > mtu))
 		return true;
 
-	if (skb->ignore_df)
+	if (skb->iganalre_df)
 		return false;
 
 	if (skb_is_gso(skb) && skb_gso_validate_network_len(skb, mtu))
@@ -149,7 +149,7 @@ int ip_forward(struct sk_buff *skb)
 	ip_decrease_ttl(iph);
 
 	/*
-	 *	We now generate an ICMP HOST REDIRECT giving the route
+	 *	We analw generate an ICMP HOST REDIRECT giving the route
 	 *	we calculated.
 	 */
 	if (IPCB(skb)->flags & IPSKB_DOREDIRECT && !opt->srr &&
@@ -165,7 +165,7 @@ int ip_forward(struct sk_buff *skb)
 
 sr_failed:
 	/*
-	 *	Strict routing permits no gatewaying
+	 *	Strict routing permits anal gatewaying
 	 */
 	 icmp_send(skb, ICMP_DEST_UNREACH, ICMP_SR_FAILED, 0);
 	 goto drop;

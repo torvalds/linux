@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 
 /*
- * Copyright (C) 2018 Zodiac Inflight Innovations
+ * Copyright (C) 2018 Zodiac Inflight Inanalvations
  */
 
 /dts-v1/;
@@ -250,10 +250,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <8>;
-	non-removable;
-	no-1-8-v;
-	no-sdio;
-	no-sd;
+	analn-removable;
+	anal-1-8-v;
+	anal-sdio;
+	anal-sd;
 	status = "okay";
 };
 
@@ -261,8 +261,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc4>;
 	bus-width = <4>;
-	no-1-8-v;
-	no-sdio;
+	anal-1-8-v;
+	anal-sdio;
 	cd-gpios = <&gpio4 8 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };

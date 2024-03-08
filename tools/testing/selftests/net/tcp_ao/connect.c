@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Author: Dmitry Safonov <dima@arista.com> */
+/* Author: Dmitry Safoanalv <dima@arista.com> */
 #include <inttypes.h>
 #include "aolib.h"
 

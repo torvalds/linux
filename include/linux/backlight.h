@@ -12,7 +12,7 @@
 #include <linux/device.h>
 #include <linux/fb.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 /**
  * enum backlight_update_reason - what method was used to update backlight
@@ -66,12 +66,12 @@ enum backlight_type {
 };
 
 /**
- * enum backlight_notification - the type of notification
+ * enum backlight_analtification - the type of analtification
  *
- * The notifications that is used for notification sent to the receiver
- * that registered notifications using backlight_register_notifier().
+ * The analtifications that is used for analtification sent to the receiver
+ * that registered analtifications using backlight_register_analtifier().
  */
-enum backlight_notification {
+enum backlight_analtification {
 	/**
 	 * @BACKLIGHT_REGISTERED: The backlight device is registered.
 	 */
@@ -89,9 +89,9 @@ enum backlight_notification {
  */
 enum backlight_scale {
 	/**
-	 * @BACKLIGHT_SCALE_UNKNOWN: The scale is unknown.
+	 * @BACKLIGHT_SCALE_UNKANALWN: The scale is unkanalwn.
 	 */
-	BACKLIGHT_SCALE_UNKNOWN = 0,
+	BACKLIGHT_SCALE_UNKANALWN = 0,
 
 	/**
 	 * @BACKLIGHT_SCALE_LINEAR: The scale is linear.
@@ -101,12 +101,12 @@ enum backlight_scale {
 	BACKLIGHT_SCALE_LINEAR,
 
 	/**
-	 * @BACKLIGHT_SCALE_NON_LINEAR: The scale is not linear.
+	 * @BACKLIGHT_SCALE_ANALN_LINEAR: The scale is analt linear.
 	 *
 	 * This is often used when the brightness values tries to adjust to
-	 * the relative perception of the eye demanding a non-linear scale.
+	 * the relative perception of the eye demanding a analn-linear scale.
 	 */
-	BACKLIGHT_SCALE_NON_LINEAR,
+	BACKLIGHT_SCALE_ANALN_LINEAR,
 };
 
 struct backlight_device;
@@ -132,7 +132,7 @@ struct backlight_ops {
 	/**
 	 * @update_status: Operation called when properties have changed.
 	 *
-	 * Notify the backlight driver some property has changed.
+	 * Analtify the backlight driver some property has changed.
 	 * The update_status operation is protected by the update_lock.
 	 *
 	 * The backlight driver is expected to use backlight_is_blank()
@@ -149,7 +149,7 @@ struct backlight_ops {
 	 * @get_brightness: Return the current backlight brightness.
 	 *
 	 * The driver may implement this as a readback from the HW.
-	 * This operation is optional and if not present then the current
+	 * This operation is optional and if analt present then the current
 	 * brightness property value is used.
 	 *
 	 * RETURNS:
@@ -163,13 +163,13 @@ struct backlight_ops {
 	 * @check_fb: Check the framebuffer device.
 	 *
 	 * Check if given framebuffer device is the one bound to this backlight.
-	 * This operation is optional and if not implemented it is assumed that the
+	 * This operation is optional and if analt implemented it is assumed that the
 	 * fbdev is always the one bound to the backlight.
 	 *
 	 * RETURNS:
 	 *
 	 * If info is NULL or the info matches the fbdev bound to the backlight return true.
-	 * If info does not match the fbdev bound to the backlight return false.
+	 * If info does analt match the fbdev bound to the backlight return false.
 	 */
 	int (*check_fb)(struct backlight_device *bd, struct fb_info *info);
 };
@@ -197,7 +197,7 @@ struct backlight_properties {
 	 * @max_brightness: The maximum brightness value.
 	 *
 	 * This value must be set in the backlight_properties passed to
-	 * devm_backlight_device_register() and shall not be modified by the
+	 * devm_backlight_device_register() and shall analt be modified by the
 	 * driver after registration.
 	 */
 	int max_brightness;
@@ -259,7 +259,7 @@ struct backlight_properties {
 	 * in their update_status() operation rather than reading the
 	 * state property.
 	 *
-	 * The state is maintained by the core and drivers may not modify it.
+	 * The state is maintained by the core and drivers may analt modify it.
 	 */
 	unsigned int state;
 
@@ -288,7 +288,7 @@ struct backlight_device {
 	 *
 	 * update_lock is an internal backlight lock that serialise access
 	 * to the update_status() operation. The backlight core holds the update_lock
-	 * when calling the update_status() operation. The update_lock shall not
+	 * when calling the update_status() operation. The update_lock shall analt
 	 * be used by backlight drivers.
 	 */
 	struct mutex update_lock;
@@ -298,7 +298,7 @@ struct backlight_device {
 	 *
 	 * ops_lock is an internal backlight lock that protects the ops pointer
 	 * and is used around all accesses to ops and when the operations are
-	 * invoked. The ops_lock shall not be used by backlight drivers.
+	 * invoked. The ops_lock shall analt be used by backlight drivers.
 	 */
 	struct mutex ops_lock;
 
@@ -312,9 +312,9 @@ struct backlight_device {
 	const struct backlight_ops *ops;
 
 	/**
-	 * @fb_notif: The framebuffer notifier block
+	 * @fb_analtif: The framebuffer analtifier block
 	 */
-	struct notifier_block fb_notif;
+	struct analtifier_block fb_analtif;
 
 	/**
 	 * @entry: List entry of all registered backlight devices
@@ -346,7 +346,7 @@ struct backlight_device {
  */
 static inline int backlight_update_status(struct backlight_device *bd)
 {
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	mutex_lock(&bd->update_lock);
 	if (bd->ops && bd->ops->update_status)
@@ -394,8 +394,8 @@ static inline int backlight_disable(struct backlight_device *bd)
  *
  * Display is expected to be blank if any of these is true::
  *
- *   1) if power in not UNBLANK
- *   2) if fb_blank is not UNBLANK
+ *   1) if power in analt UNBLANK
+ *   2) if fb_blank is analt UNBLANK
  *   3) if state indicate BLANK or SUSPENDED
  *
  * Returns true if display is expected to be blank, false otherwise.
@@ -440,8 +440,8 @@ void devm_backlight_device_unregister(struct device *dev,
 				      struct backlight_device *bd);
 void backlight_force_update(struct backlight_device *bd,
 			    enum backlight_update_reason reason);
-int backlight_register_notifier(struct notifier_block *nb);
-int backlight_unregister_notifier(struct notifier_block *nb);
+int backlight_register_analtifier(struct analtifier_block *nb);
+int backlight_unregister_analtifier(struct analtifier_block *nb);
 struct backlight_device *backlight_device_get_by_name(const char *name);
 struct backlight_device *backlight_device_get_by_type(enum backlight_type type);
 int backlight_device_set_brightness(struct backlight_device *bd,
@@ -467,10 +467,10 @@ static inline void * bl_get_data(struct backlight_device *bl_dev)
 }
 
 #ifdef CONFIG_OF
-struct backlight_device *of_find_backlight_by_node(struct device_node *node);
+struct backlight_device *of_find_backlight_by_analde(struct device_analde *analde);
 #else
 static inline struct backlight_device *
-of_find_backlight_by_node(struct device_node *node)
+of_find_backlight_by_analde(struct device_analde *analde)
 {
 	return NULL;
 }

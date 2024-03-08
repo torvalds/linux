@@ -98,11 +98,11 @@ static irqreturn_t dp83848_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, DP83848_MISR);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & DP83848_INT_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 

@@ -6,7 +6,7 @@
   Transmission (TX/RX) related functions.
 
   Copyright (C) 2005 Martin Langer <martin-langer@gmx.de>
-  Copyright (C) 2005 Stefano Brivio <stefano.brivio@polimi.it>
+  Copyright (C) 2005 Stefaanal Brivio <stefaanal.brivio@polimi.it>
   Copyright (C) 2005, 2006 Michael Buesch <m@bues.ch>
   Copyright (C) 2005 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (C) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -279,7 +279,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 	if ((rate_fb == rate) ||
 	    (wlhdr->duration_id & cpu_to_le16(0x8000)) ||
 	    (wlhdr->duration_id == cpu_to_le16(0))) {
-		/* If the fallback rate equals the normal rate or the
+		/* If the fallback rate equals the analrmal rate or the
 		 * dur_id field contains an AID, CFP magic or 0,
 		 * use the original dur_id field. */
 		txhdr->dur_fb = wlhdr->duration_id;
@@ -303,9 +303,9 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 			/* This key is invalid. This might only happen
 			 * in a short timeframe after machine resume before
 			 * we were able to reconfigure keys.
-			 * Drop this packet completely. Do not transmit it
+			 * Drop this packet completely. Do analt transmit it
 			 * unencrypted to avoid leaking information. */
-			return -ENOKEY;
+			return -EANALKEY;
 		}
 
 		/* Hardware appends ICV. */
@@ -360,7 +360,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 	else
 		extra_ft |= B43_TXH_EFT_FB_CCK;
 
-	/* Set channel radio code. Note that the micrcode ORs 0x100 to
+	/* Set channel radio code. Analte that the micrcode ORs 0x100 to
 	 * this value before comparing it to the value in SHM, if this
 	 * is a 5Ghz packet.
 	 */
@@ -396,9 +396,9 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 
 	rates = info->control.rates;
 	/* MAC control */
-	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
+	if (!(info->flags & IEEE80211_TX_CTL_ANAL_ACK))
 		mac_ctl |= B43_TXH_MAC_ACK;
-	/* use hardware sequence counter as the non-TID counter */
+	/* use hardware sequence counter as the analn-TID counter */
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
 		mac_ctl |= B43_TXH_MAC_HWSEQ;
 	if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
@@ -684,7 +684,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	}
 	plcp = (struct b43_plcp_hdr6 *)(skb->data + padding);
 	skb_pull(skb, sizeof(struct b43_plcp_hdr6) + padding);
-	/* The skb contains the Wireless Header + payload data now */
+	/* The skb contains the Wireless Header + payload data analw */
 	if (unlikely(skb->len < (2 + 2 + 6 /*minimum hdr */  + FCS_LEN))) {
 		b43dbg(dev->wl, "RX: Packet size underrun (2)\n");
 		goto drop;
@@ -704,7 +704,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		keyidx = b43_kidx_to_raw(dev, keyidx);
 		B43_WARN_ON(keyidx >= ARRAY_SIZE(dev->key));
 
-		if (dev->key[keyidx].algorithm != B43_SEC_ALGO_NONE) {
+		if (dev->key[keyidx].algorithm != B43_SEC_ALGO_ANALNE) {
 			wlhdr_len = ieee80211_hdrlen(fctl);
 			if (unlikely(skb->len < (wlhdr_len + 3))) {
 				b43dbg(dev->wl,
@@ -747,7 +747,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		rate_idx = b43_plcp_get_bitrate_idx_cck(plcp);
 	if (unlikely(rate_idx == -1)) {
 		/* PLCP seems to be corrupted.
-		 * Drop the frame, if we are not interested in corrupted frames. */
+		 * Drop the frame, if we are analt interested in corrupted frames. */
 		if (!(dev->wl->filter_flags & FIF_PLCPFAIL))
 			goto drop;
 	}
@@ -756,20 +756,20 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 
 	/*
 	 * All frames on monitor interfaces and beacons always need a full
-	 * 64-bit timestamp. Monitor interfaces need it for diagnostic
+	 * 64-bit timestamp. Monitor interfaces need it for diaganalstic
 	 * purposes and beacons for IBSS merging.
 	 * This code assumes we get to process the packet within 16 bits
 	 * of timestamp, i.e. about 65 milliseconds after the PHY received
 	 * the first symbol.
 	 */
 	if (ieee80211_is_beacon(fctl) || dev->wl->radiotap_enabled) {
-		u16 low_mactime_now;
+		u16 low_mactime_analw;
 
 		b43_tsf_read(dev, &status.mactime);
-		low_mactime_now = status.mactime;
+		low_mactime_analw = status.mactime;
 		status.mactime = status.mactime & ~0xFFFFULL;
 		status.mactime += mactime;
-		if (low_mactime_now <= mactime)
+		if (low_mactime_analw <= mactime)
 			status.mactime -= 0x10000;
 		status.flag |= RX_FLAG_MACTIME_START;
 	}
@@ -860,19 +860,19 @@ bool b43_fill_txstatus_report(struct b43_wldev *dev,
 		/* The frame was ACKed. */
 		report->flags |= IEEE80211_TX_STAT_ACK;
 	} else {
-		/* The frame was not ACKed... */
-		if (!(report->flags & IEEE80211_TX_CTL_NO_ACK)) {
+		/* The frame was analt ACKed... */
+		if (!(report->flags & IEEE80211_TX_CTL_ANAL_ACK)) {
 			/* ...but we expected an ACK. */
 			frame_success = false;
 		}
 	}
 	if (status->frame_count == 0) {
-		/* The frame was not transmitted at all. */
+		/* The frame was analt transmitted at all. */
 		report->status.rates[0].count = 0;
 	} else if (status->rts_count > dev->wl->hw->conf.short_frame_max_tx_count) {
 		/*
-		 * If the short retries (RTS, not data frame) have exceeded
-		 * the limit, the hw will not have tried the selected rate,
+		 * If the short retries (RTS, analt data frame) have exceeded
+		 * the limit, the hw will analt have tried the selected rate,
 		 * but will have used the fallback rate instead.
 		 * Don't let the rate control count attempts for the selected
 		 * rate in this case, otherwise the statistics will be off.

@@ -94,7 +94,7 @@ static inline void lbtf_deb_hex(unsigned int grp, const char *prompt, u8 *buf, i
 	    (lbtf_debug & LBTF_DEB_HEX) &&
 	    (lbtf_debug & grp))	{
 		snprintf(newprompt, sizeof(newprompt), DRV_NAME " %s: ", prompt);
-		print_hex_dump_bytes(prompt, DUMP_PREFIX_NONE, buf, len);
+		print_hex_dump_bytes(prompt, DUMP_PREFIX_ANALNE, buf, len);
 	}
 }
 #else

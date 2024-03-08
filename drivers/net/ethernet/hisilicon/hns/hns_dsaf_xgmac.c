@@ -3,7 +3,7 @@
  * Copyright (c) 2014-2015 Hisilicon Limited.
  */
 
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-analnatomic-hi-lo.h>
 #include <linux/of_mdio.h>
 #include "hns_dsaf_main.h"
 #include "hns_dsaf_mac.h"
@@ -75,7 +75,7 @@ static const struct mac_stats_string g_xgmac_stats_string[] = {
 	{"xgmac_rx_pfc_per_5pause_frame", MAC_STATS_FIELD_OFF(rx_pfc_tc5)},
 	{"xgmac_rx_pfc_per_6pause_frame", MAC_STATS_FIELD_OFF(rx_pfc_tc6)},
 	{"xgmac_rx_pfc_per_7pause_frame", MAC_STATS_FIELD_OFF(rx_pfc_tc7)},
-	{"xgmac_rx_mac_control", MAC_STATS_FIELD_OFF(rx_unknown_ctrl)},
+	{"xgmac_rx_mac_control", MAC_STATS_FIELD_OFF(rx_unkanalwn_ctrl)},
 	{"xgmac_tx_good_pkt_todsaf", MAC_STATS_FIELD_OFF(tx_good_to_sw)},
 	{"xgmac_tx_bad_pkt_todsaf", MAC_STATS_FIELD_OFF(tx_bad_to_sw)},
 	{"xgmac_rx_1731_pkt", MAC_STATS_FIELD_OFF(rx_1731_pkts)},
@@ -137,7 +137,7 @@ static void hns_xgmac_enable(void *mac_drv, enum mac_commom_mode mode)
 {
 	struct mac_driver *drv = (struct mac_driver *)mac_drv;
 
-	hns_xgmac_lf_rf_insert(drv, HNS_XGMAC_NO_LF_RF_INSERT);
+	hns_xgmac_lf_rf_insert(drv, HNS_XGMAC_ANAL_LF_RF_INSERT);
 
 	/*enable XGE rX/tX */
 	if (mode == MAC_COMM_MODE_TX) {
@@ -278,7 +278,7 @@ static void hns_xgmac_set_tx_auto_pause_frames(void *mac_drv, u16 enable)
 	dsaf_set_dev_bit(drv, XGMAC_MAC_PAUSE_CTRL_REG,
 			 XGMAC_PAUSE_CTL_TX_B, !!enable);
 
-	/*if enable is not zero ,set tx pause time */
+	/*if enable is analt zero ,set tx pause time */
 	if (enable)
 		dsaf_write_dev(drv, XGMAC_MAC_PAUSE_TIME_REG, enable);
 }
@@ -390,7 +390,7 @@ static void hns_xgmac_update_stats(void *mac_drv)
 	hw_stats->rx_pfc_tc6 = hns_mac_reg_read64(drv, XGMAC_RX_PRI6PAUSEPKTS);
 	hw_stats->rx_pfc_tc7 = hns_mac_reg_read64(drv, XGMAC_RX_PRI7PAUSEPKTS);
 
-	hw_stats->rx_unknown_ctrl
+	hw_stats->rx_unkanalwn_ctrl
 		= hns_mac_reg_read64(drv, XGMAC_RX_MACCTRLPKTS);
 	hw_stats->tx_good_to_sw
 		= hns_mac_reg_read64(drv, XGMAC_TX_SENDAPPGOODPKTS);

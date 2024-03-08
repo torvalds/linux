@@ -45,7 +45,7 @@
 #define SC27XX_DELTA_T_MAX	(SC27XX_LEDS_STEP * 255)
 
 struct sc27xx_led {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct led_classdev ldev;
 	struct sc27xx_led_priv *priv;
 	u8 line;
@@ -260,7 +260,7 @@ static int sc27xx_led_register(struct device *dev, struct sc27xx_led_priv *priv)
 		led->ldev.pattern_clear = sc27xx_led_pattern_clear;
 		led->ldev.default_trigger = "pattern";
 
-		init_data.fwnode = led->fwnode;
+		init_data.fwanalde = led->fwanalde;
 		init_data.devicename = "sc27xx";
 		init_data.default_label = ":";
 
@@ -276,7 +276,7 @@ static int sc27xx_led_register(struct device *dev, struct sc27xx_led_priv *priv)
 static int sc27xx_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev_of_node(dev), *child;
+	struct device_analde *np = dev_of_analde(dev), *child;
 	struct sc27xx_led_priv *priv;
 	u32 base, count, reg;
 	int err;
@@ -293,30 +293,30 @@ static int sc27xx_led_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 	priv->base = base;
 	priv->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!priv->regmap) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		dev_err(dev, "failed to get regmap: %d\n", err);
 		return err;
 	}
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		err = of_property_read_u32(child, "reg", &reg);
 		if (err) {
-			of_node_put(child);
+			of_analde_put(child);
 			return err;
 		}
 
 		if (reg >= SC27XX_LEDS_MAX || priv->leds[reg].active) {
-			of_node_put(child);
+			of_analde_put(child);
 			return -EINVAL;
 		}
 
-		priv->leds[reg].fwnode = of_fwnode_handle(child);
+		priv->leds[reg].fwanalde = of_fwanalde_handle(child);
 		priv->leds[reg].active = true;
 	}
 

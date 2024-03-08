@@ -29,7 +29,7 @@ ifeq ($(V),1)
 Q =
 else
 Q = @
-MAKEFLAGS += --no-print-directory
+MAKEFLAGS += --anal-print-directory
 submake_extras := feature_display=0
 endif
 

@@ -18,7 +18,7 @@
  * registers, is directly written into those scratch registers.
  *
  * For Gen9+, there are 16 software scratch registers 0xC180-0xC1B8,
- * but no H2G command takes more than 4 parameters and the GuC firmware
+ * but anal H2G command takes more than 4 parameters and the GuC firmware
  * itself uses an 4-element array to store the H2G message.
  *
  * For Gen11+, there are additional 4 registers 0x190240-0x19024C, which

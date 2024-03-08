@@ -24,7 +24,7 @@ enum {
 
 /*
  * Ok to have it static: it is only used during probing and multiple I2C devices
- * cannot be probed simultaneously. Just make sure to avoid stale data.
+ * cananalt be probed simultaneously. Just make sure to avoid stale data.
  */
 static struct mfd_cell as3711_subdevs[] = {
 	[AS3711_REGULATOR] = {.name = "as3711-regulator",},
@@ -123,26 +123,26 @@ static int as3711_i2c_probe(struct i2c_client *client)
 	unsigned int id1, id2;
 	int ret;
 
-	if (!client->dev.of_node) {
+	if (!client->dev.of_analde) {
 		pdata = dev_get_platdata(&client->dev);
 		if (!pdata)
-			dev_dbg(&client->dev, "Platform data not found\n");
+			dev_dbg(&client->dev, "Platform data analt found\n");
 	} else {
 		pdata = devm_kzalloc(&client->dev,
 				     sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	as3711 = devm_kzalloc(&client->dev, sizeof(struct as3711), GFP_KERNEL);
 	if (!as3711)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	as3711->dev = &client->dev;
 	i2c_set_clientdata(client, as3711);
 
 	if (client->irq)
-		dev_notice(&client->dev, "IRQ not supported yet\n");
+		dev_analtice(&client->dev, "IRQ analt supported yet\n");
 
 	as3711->regmap = devm_regmap_init_i2c(client, &as3711_regmap_config);
 	if (IS_ERR(as3711->regmap)) {
@@ -160,7 +160,7 @@ static int as3711_i2c_probe(struct i2c_client *client)
 		return ret;
 	}
 	if (id1 != 0x8b)
-		return -ENODEV;
+		return -EANALDEV;
 	dev_info(as3711->dev, "AS3711 detected: %x:%x\n", id1, id2);
 
 	/*

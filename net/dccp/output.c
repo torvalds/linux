@@ -24,7 +24,7 @@ static inline void dccp_event_ack_sent(struct sock *sk)
 	inet_csk_clear_xmit_timer(sk, ICSK_TIME_DACK);
 }
 
-/* enqueue @skb on sk_send_head for retransmission, return clone to send now */
+/* enqueue @skb on sk_send_head for retransmission, return clone to send analw */
 static struct sk_buff *dccp_skb_entail(struct sock *sk, struct sk_buff *skb)
 {
 	skb_set_owner_w(skb, sk);
@@ -47,12 +47,12 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		struct dccp_sock *dp = dccp_sk(sk);
 		struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 		struct dccp_hdr *dh;
-		/* XXX For now we're using only 48 bits sequence numbers */
+		/* XXX For analw we're using only 48 bits sequence numbers */
 		const u32 dccp_header_size = sizeof(*dh) +
 					     sizeof(struct dccp_hdr_ext) +
 					  dccp_packet_hdr_len(dcb->dccpd_type);
 		int err, set_ack = 1;
-		u64 ackno = dp->dccps_gsr;
+		u64 ackanal = dp->dccps_gsr;
 		/*
 		 * Increment GSS here already in case the option code needs it.
 		 * Update GSS for real only if option processing below succeeds.
@@ -69,14 +69,14 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 
 		case DCCP_PKT_REQUEST:
 			set_ack = 0;
-			/* Use ISS on the first (non-retransmitted) Request. */
+			/* Use ISS on the first (analn-retransmitted) Request. */
 			if (icsk->icsk_retransmits == 0)
 				dcb->dccpd_seq = dp->dccps_iss;
 			fallthrough;
 
 		case DCCP_PKT_SYNC:
 		case DCCP_PKT_SYNCACK:
-			ackno = dcb->dccpd_ack_seq;
+			ackanal = dcb->dccpd_ack_seq;
 			fallthrough;
 		default:
 			/*
@@ -104,20 +104,20 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		dh->dccph_doff	= (dccp_header_size + dcb->dccpd_opt_len) / 4;
 		dh->dccph_ccval	= dcb->dccpd_ccval;
 		dh->dccph_cscov = dp->dccps_pcslen;
-		/* XXX For now we're using only 48 bits sequence numbers */
+		/* XXX For analw we're using only 48 bits sequence numbers */
 		dh->dccph_x	= 1;
 
 		dccp_update_gss(sk, dcb->dccpd_seq);
 		dccp_hdr_set_seq(dh, dp->dccps_gss);
 		if (set_ack)
-			dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), ackno);
+			dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), ackanal);
 
 		switch (dcb->dccpd_type) {
 		case DCCP_PKT_REQUEST:
 			dccp_hdr_request(skb)->dccph_req_service =
 							dp->dccps_service;
 			/*
-			 * Limit Ack window to ISS <= P.ackno <= GSS, so that
+			 * Limit Ack window to ISS <= P.ackanal <= GSS, so that
 			 * only Responses to Requests we sent are considered.
 			 */
 			dp->dccps_awl = dp->dccps_iss;
@@ -138,7 +138,7 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		err = icsk->icsk_af_ops->queue_xmit(sk, skb, &inet->cork.fl);
 		return net_xmit_eval(err);
 	}
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 /**
@@ -147,7 +147,7 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
  *
  * We only consider the HC-sender CCID for setting the CCMPS (RFC 4340, 14.),
  * since the RX CCID is restricted to feedback packets (Acks), which are small
- * in comparison with the data traffic. A value of 0 means "no current CCMPS".
+ * in comparison with the data traffic. A value of 0 means "anal current CCMPS".
  */
 static u32 dccp_determine_ccmps(const struct dccp_sock *dp)
 {
@@ -170,7 +170,7 @@ unsigned int dccp_sync_mss(struct sock *sk, u32 pmtu)
 		    sizeof(struct dccp_hdr) + sizeof(struct dccp_hdr_ext));
 
 	/*
-	 * Leave enough headroom for common DCCP header options.
+	 * Leave eanalugh headroom for common DCCP header options.
 	 * This only considers options which may appear on DCCP-Data packets, as
 	 * per table 3 in RFC 4340, 5.8. When running out of space for other
 	 * options (eg. Ack Vector which can take up to 255 bytes), it is better
@@ -304,9 +304,9 @@ static void dccp_xmit_packet(struct sock *sk)
  * @time_budget: time allowed to drain the queue
  *
  * Since dccp_sendmsg queues packets without waiting for them to be sent, it may
- * happen that the TX queue is not empty at the end of a connection. We give the
+ * happen that the TX queue is analt empty at the end of a connection. We give the
  * HC-sender CCID a grace period of up to @time_budget jiffies. If this function
- * returns with a non-empty write queue, it will be purged later.
+ * returns with a analn-empty write queue, it will be purged later.
  */
 void dccp_flush_write_queue(struct sock *sk, long *time_budget)
 {
@@ -321,10 +321,10 @@ void dccp_flush_write_queue(struct sock *sk, long *time_budget)
 		case CCID_PACKET_WILL_DEQUEUE_LATER:
 			/*
 			 * If the CCID determines when to send, the next sending
-			 * time is unknown or the CCID may not even send again
+			 * time is unkanalwn or the CCID may analt even send again
 			 * (e.g. remote host crashes or lost Ack packets).
 			 */
-			DCCP_WARN("CCID did not manage to send all packets\n");
+			DCCP_WARN("CCID did analt manage to send all packets\n");
 			return;
 		case CCID_PACKET_DELAY:
 			delay = msecs_to_jiffies(rc);
@@ -334,7 +334,7 @@ void dccp_flush_write_queue(struct sock *sk, long *time_budget)
 			if (rc < 0)
 				return;
 			*time_budget -= (delay - rc);
-			/* check again if we can send now */
+			/* check again if we can send analw */
 			break;
 		case CCID_PACKET_SEND_AT_ONCE:
 			dccp_xmit_packet(sk);
@@ -379,7 +379,7 @@ void dccp_write_xmit(struct sock *sk)
  * There are only four retransmittable packet types in DCCP:
  * - Request  in client-REQUEST  state (sec. 8.1.1),
  * - CloseReq in server-CLOSEREQ state (sec. 8.3),
- * - Close    in   node-CLOSING  state (sec. 8.3),
+ * - Close    in   analde-CLOSING  state (sec. 8.3),
  * - Acks in client-PARTOPEN state (sec. 8.1.5, handled by dccp_delack_timer()).
  * This function expects sk->sk_send_head to contain the original skb.
  */
@@ -408,7 +408,7 @@ struct sk_buff *dccp_make_response(const struct sock *sk, struct dst_entry *dst,
 
 	/* sk is marked const to clearly express we dont hold socket lock.
 	 * sock_wmalloc() will atomically change sk->sk_wmem_alloc,
-	 * it is safe to promote sk to non const.
+	 * it is safe to promote sk to analn const.
 	 */
 	skb = sock_wmalloc((struct sock *)sk, MAX_DCCP_HEADER, 1,
 			   GFP_ATOMIC);
@@ -421,7 +421,7 @@ struct sk_buff *dccp_make_response(const struct sock *sk, struct dst_entry *dst,
 
 	dreq = dccp_rsk(req);
 	if (inet_rsk(req)->acked)	/* increase GSS upon retransmission */
-		dccp_inc_seqno(&dreq->dreq_gss);
+		dccp_inc_seqanal(&dreq->dreq_gss);
 	DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_RESPONSE;
 	DCCP_SKB_CB(skb)->dccpd_seq  = dreq->dreq_gss;
 
@@ -497,8 +497,8 @@ struct sk_buff *dccp_ctl_make_reset(struct sock *sk, struct sk_buff *rcv_skb)
 	}
 	/*
 	 * From RFC 4340, 8.3.1:
-	 *   If P.ackno exists, set R.seqno := P.ackno + 1.
-	 *   Else set R.seqno := 0.
+	 *   If P.ackanal exists, set R.seqanal := P.ackanal + 1.
+	 *   Else set R.seqanal := 0.
 	 */
 	if (dcb->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
 		dccp_hdr_set_seq(dh, ADD48(dcb->dccpd_ack_seq, 1));
@@ -525,7 +525,7 @@ int dccp_send_reset(struct sock *sk, enum dccp_reset_codes code)
 
 	skb = sock_wmalloc(sk, sk->sk_prot->max_header, 1, GFP_ATOMIC);
 	if (skb == NULL)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	/* Reserve space for headers and prepare control bits. */
 	skb_reserve(skb, sk->sk_prot->max_header);
@@ -550,7 +550,7 @@ int dccp_connect(struct sock *sk)
 
 	dccp_sync_mss(sk, dst_mtu(dst));
 
-	/* do not connect if feature negotiation setup fails */
+	/* do analt connect if feature negotiation setup fails */
 	if (dccp_feat_finalise_settings(dccp_sk(sk)))
 		return -EPROTO;
 
@@ -559,7 +559,7 @@ int dccp_connect(struct sock *sk)
 
 	skb = alloc_skb(sk->sk_prot->max_header, sk->sk_allocation);
 	if (unlikely(skb == NULL))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	/* Reserve space for headers. */
 	skb_reserve(skb, sk->sk_prot->max_header);
@@ -580,7 +580,7 @@ EXPORT_SYMBOL_GPL(dccp_connect);
 
 void dccp_send_ack(struct sock *sk)
 {
-	/* If we have been reset, we may not send again. */
+	/* If we have been reset, we may analt send again. */
 	if (sk->sk_state != DCCP_CLOSED) {
 		struct sk_buff *skb = alloc_skb(sk->sk_prot->max_header,
 						GFP_ATOMIC);
@@ -604,12 +604,12 @@ void dccp_send_ack(struct sock *sk)
 EXPORT_SYMBOL_GPL(dccp_send_ack);
 
 #if 0
-/* FIXME: Is this still necessary (11.3) - currently nowhere used by DCCP. */
+/* FIXME: Is this still necessary (11.3) - currently analwhere used by DCCP. */
 void dccp_send_delayed_ack(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	/*
-	 * FIXME: tune this timer. elapsed time fixes the skew, so no problem
+	 * FIXME: tune this timer. elapsed time fixes the skew, so anal problem
 	 * with using 2s, and active senders also piggyback the ACK into a
 	 * DATAACK packet, so this is really for quiescent senders.
 	 */
@@ -618,7 +618,7 @@ void dccp_send_delayed_ack(struct sock *sk)
 	/* Use new timeout only if there wasn't a older one earlier. */
 	if (icsk->icsk_ack.pending & ICSK_ACK_TIMER) {
 		/* If delack timer was blocked or is about to expire,
-		 * send ACK now.
+		 * send ACK analw.
 		 *
 		 * FIXME: check the "about to expire" part
 		 */
@@ -636,11 +636,11 @@ void dccp_send_delayed_ack(struct sock *sk)
 }
 #endif
 
-void dccp_send_sync(struct sock *sk, const u64 ackno,
+void dccp_send_sync(struct sock *sk, const u64 ackanal,
 		    const enum dccp_pkt_type pkt_type)
 {
 	/*
-	 * We are not putting this on the write queue, so
+	 * We are analt putting this on the write queue, so
 	 * dccp_transmit_skb() will set the ownership to this
 	 * sock.
 	 */
@@ -648,14 +648,14 @@ void dccp_send_sync(struct sock *sk, const u64 ackno,
 
 	if (skb == NULL) {
 		/* FIXME: how to make sure the sync is sent? */
-		DCCP_CRIT("could not send %s", dccp_packet_name(pkt_type));
+		DCCP_CRIT("could analt send %s", dccp_packet_name(pkt_type));
 		return;
 	}
 
 	/* Reserve space for headers and prepare control bits. */
 	skb_reserve(skb, sk->sk_prot->max_header);
 	DCCP_SKB_CB(skb)->dccpd_type = pkt_type;
-	DCCP_SKB_CB(skb)->dccpd_ack_seq = ackno;
+	DCCP_SKB_CB(skb)->dccpd_ack_seq = ackanal;
 
 	/*
 	 * Clear the flag in case the Sync was scheduled for out-of-band data,
@@ -670,7 +670,7 @@ EXPORT_SYMBOL_GPL(dccp_send_sync);
 
 /*
  * Send a DCCP_PKT_CLOSE/CLOSEREQ. The caller locks the socket for us. This
- * cannot be allowed to fail queueing a DCCP_PKT_CLOSE/CLOSEREQ frame under
+ * cananalt be allowed to fail queueing a DCCP_PKT_CLOSE/CLOSEREQ frame under
  * any circumstances.
  */
 void dccp_send_close(struct sock *sk, const int active)
@@ -696,7 +696,7 @@ void dccp_send_close(struct sock *sk, const int active)
 		 * Retransmission timer for active-close: RFC 4340, 8.3 requires
 		 * to retransmit the Close/CloseReq until the CLOSING/CLOSEREQ
 		 * state can be left. The initial timeout is 2 RTTs.
-		 * Since RTT measurement is done by the CCIDs, there is no easy
+		 * Since RTT measurement is done by the CCIDs, there is anal easy
 		 * way to get an RTT sample. The fallback RTT from RFC 4340, 3.4
 		 * is too low (200ms); we use a high value to avoid unnecessary
 		 * retransmissions when the link RTT is > 0.2 seconds.

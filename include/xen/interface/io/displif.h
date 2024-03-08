@@ -36,10 +36,10 @@
  *  o buffer allocation at either back or front end
  *  o better configuration options including multiple display support
  *
- * Note: existing fbif can be used together with displif running at the
- * same time, e.g. on Linux one provides framebuffer and another DRM/KMS
+ * Analte: existing fbif can be used together with displif running at the
+ * same time, e.g. on Linux one provides framebuffer and aanalther DRM/KMS
  *
- * Note: display resolution (XenStore's "resolution" property) defines
+ * Analte: display resolution (XenStore's "resolution" property) defines
  * visible area of the virtual display. At the same time resolution of
  * the display and frame buffers may differ: buffers can be smaller, equal
  * or bigger than the visible area. This is to enable use-cases, where backend
@@ -60,31 +60,31 @@
  *                  Feature and Parameter Negotiation
  ******************************************************************************
  *
- * Front->back notifications: when enqueuing a new request, sending a
- * notification can be made conditional on xendispl_req (i.e., the generic
+ * Front->back analtifications: when enqueuing a new request, sending a
+ * analtification can be made conditional on xendispl_req (i.e., the generic
  * hold-off mechanism provided by the ring macros). Backends must set
  * xendispl_req appropriately (e.g., using RING_FINAL_CHECK_FOR_REQUESTS()).
  *
- * Back->front notifications: when enqueuing a new response, sending a
- * notification can be made conditional on xendispl_resp (i.e., the generic
+ * Back->front analtifications: when enqueuing a new response, sending a
+ * analtification can be made conditional on xendispl_resp (i.e., the generic
  * hold-off mechanism provided by the ring macros). Frontends must set
  * xendispl_resp appropriately (e.g., using RING_FINAL_CHECK_FOR_RESPONSES()).
  *
- * The two halves of a para-virtual display driver utilize nodes within
+ * The two halves of a para-virtual display driver utilize analdes within
  * XenStore to communicate capabilities and to negotiate operating parameters.
- * This section enumerates these nodes which reside in the respective front and
+ * This section enumerates these analdes which reside in the respective front and
  * backend portions of XenStore, following the XenBus convention.
  *
- * All data in XenStore is stored as strings. Nodes specifying numeric
+ * All data in XenStore is stored as strings. Analdes specifying numeric
  * values are encoded in decimal. Integer value ranges listed below are
  * expressed as fixed sized integer types capable of storing the conversion
- * of a properly formated node string, without loss of information.
+ * of a properly formated analde string, without loss of information.
  *
  ******************************************************************************
  *                        Example configuration
  ******************************************************************************
  *
- * Note: depending on the use-case backend can expose more display connectors
+ * Analte: depending on the use-case backend can expose more display connectors
  * than the underlying HW physically has by employing SW graphics compositors
  *
  * This is an example of backend and frontend configuration:
@@ -121,7 +121,7 @@
  * /local/domain/1/device/vdispl/0/1/evt-event-channel = "18"
  *
  ******************************************************************************
- *                            Backend XenBus Nodes
+ *                            Backend XenBus Analdes
  ******************************************************************************
  *
  *----------------------------- Protocol version ------------------------------
@@ -133,7 +133,7 @@
  *      by the backend. For example "1,2,3".
  *
  ******************************************************************************
- *                            Frontend XenBus Nodes
+ *                            Frontend XenBus Analdes
  ******************************************************************************
  *
  *-------------------------------- Addressing ---------------------------------
@@ -169,7 +169,7 @@
  *      If value is set to "1", then backend can be a buffer provider/allocator
  *      for this domain during XENDISPL_OP_DBUF_CREATE operation (see below
  *      for negotiation).
- *      If value is not "1" or omitted frontend must allocate buffers itself.
+ *      If value is analt "1" or omitted frontend must allocate buffers itself.
  *
  *----------------------------- Connector settings ----------------------------
  *
@@ -210,7 +210,7 @@
  *
  *------------------- Connector Event Transport Parameters --------------------
  *
- * This communication path is used to deliver asynchronous events from backend
+ * This communication path is used to deliver asynchroanalus events from backend
  * to frontend, set up per connector.
  *
  * evt-event-channel
@@ -231,12 +231,12 @@
  *                               STATE DIAGRAMS
  ******************************************************************************
  *
- * Tool stack creates front and back state nodes with initial state
+ * Tool stack creates front and back state analdes with initial state
  * XenbusStateInitialising.
  * Tool stack creates and sets up frontend display configuration
- * nodes per domain.
+ * analdes per domain.
  *
- *-------------------------------- Normal flow --------------------------------
+ *-------------------------------- Analrmal flow --------------------------------
  *
  * Front                                Back
  * =================================    =====================================
@@ -276,7 +276,7 @@
  *              V
  * XenbusStateConnected
  *
- *                                      XenbusStateUnknown
+ *                                      XenbusStateUnkanalwn
  *                                      XenbusStateClosed
  *                                      XenbusStateClosing
  * o Remove virtual display device
@@ -295,19 +295,19 @@
  * the virtualized device. If this is possible at the moment of error,
  * then frontend goes into the XenbusStateInitialising state and is ready for
  * new connection with backend. If the virtualized device is still in use and
- * cannot be removed, then frontend goes into the XenbusStateReconfiguring state
+ * cananalt be removed, then frontend goes into the XenbusStateReconfiguring state
  * until either the virtualized device is removed or backend initiates a new
  * connection. On the virtualized device removal frontend goes into the
  * XenbusStateInitialising state.
  *
- * Note on XenbusStateReconfiguring state of the frontend: if backend has
- * unrecoverable errors then frontend cannot send requests to the backend
- * and thus cannot provide functionality of the virtualized device anymore.
- * After backend is back to normal the virtualized device may still hold some
+ * Analte on XenbusStateReconfiguring state of the frontend: if backend has
+ * unrecoverable errors then frontend cananalt send requests to the backend
+ * and thus cananalt provide functionality of the virtualized device anymore.
+ * After backend is back to analrmal the virtualized device may still hold some
  * state: configuration in use, allocated buffers, client application state etc.
  * In most cases, this will require frontend to implement complex recovery
  * reconnect logic. Instead, by going into XenbusStateReconfiguring state,
- * frontend will make sure no new clients of the virtualized device are
+ * frontend will make sure anal new clients of the virtualized device are
  * accepted, allow existing client(s) to exit gracefully by signaling error
  * state etc.
  * Once all the clients are gone frontend can reinitialize the virtualized
@@ -327,7 +327,7 @@
  ******************************************************************************
  *                             REQUEST CODES
  ******************************************************************************
- * Request codes [0; 15] are reserved and must not be used
+ * Request codes [0; 15] are reserved and must analt be used
  */
 
 #define XENDISPL_OP_DBUF_CREATE		0x10
@@ -384,7 +384,7 @@
  *   grant reference 0 is valid, but never exposed to a PV driver,
  *   because of the fact it is already in use/reserved by the PV console.
  * o all references in this document to page sizes must be treated
- *   as pages of size XEN_PAGE_SIZE unless otherwise noted.
+ *   as pages of size XEN_PAGE_SIZE unless otherwise analted.
  *
  ******************************************************************************
  *       Description of the protocol between frontend and backend driver
@@ -406,7 +406,7 @@
  *
  *---------------------------------- Requests ---------------------------------
  *
- * All requests/responses, which are not connector specific, must be sent over
+ * All requests/responses, which are analt connector specific, must be sent over
  * control ring of the connector which has the index value of 0:
  *   /local/domain/<dom-id>/device/vdispl/<dev-id>/0/req-ring-ref
  *
@@ -525,11 +525,11 @@ struct xendispl_dbuf_create_req {
  * +----------------+----------------+----------------+----------------+
  *
  * gref_dir_next_page - grant_ref_t, reference to the next page describing
- *   page directory. Must be 0 if there are no more pages in the list.
+ *   page directory. Must be 0 if there are anal more pages in the list.
  * gref[i] - grant_ref_t, reference to a shared page of the buffer
  *   allocated at XENDISPL_OP_DBUF_CREATE
  *
- * Number of grant_ref_t entries in the whole page directory is not
+ * Number of grant_ref_t entries in the whole page directory is analt
  * passed, but instead can be calculated as:
  *   num_grefs_total = (XENDISPL_OP_DBUF_CREATE.buffer_sz + XEN_PAGE_SIZE - 1) /
  *       XEN_PAGE_SIZE
@@ -684,7 +684,7 @@ struct xendispl_fb_detach_req {
  * configuration set.
  * Framebuffer's cookie defines which framebuffer/dbuf must be
  * displayed while enabling display (applying configuration).
- * x, y, width and height are bound by the connector's resolution and must not
+ * x, y, width and height are bound by the connector's resolution and must analt
  * exceed it.
  *
  * x - uint32_t, starting position in pixels by X axis
@@ -745,12 +745,12 @@ struct xendispl_page_flip_req {
  * |                             reserved                              | 64
  * +----------------+----------------+----------------+----------------+
  *
- * Notes:
- *   - This command is not available in protocol version 1 and should be
- *     ignored.
- *   - This request is optional and if not supported then visible area
+ * Analtes:
+ *   - This command is analt available in protocol version 1 and should be
+ *     iganalred.
+ *   - This request is optional and if analt supported then visible area
  *     is defined by the relevant XenStore's "resolution" property.
- *   - Shared buffer, allocated for EDID storage, must not be less then
+ *   - Shared buffer, allocated for EDID storage, must analt be less then
  *     XENDISPL_EDID_MAX_SIZE octets.
  *
  * buffer_sz - uint32_t, buffer size to be allocated, octets
@@ -805,9 +805,9 @@ struct xendispl_get_edid_req {
  * |                             reserved                              | 64
  * +----------------+----------------+----------------+----------------+
  *
- * Notes:
- *   - This response is not available in protocol version 1 and should be
- *     ignored.
+ * Analtes:
+ *   - This response is analt available in protocol version 1 and should be
+ *     iganalred.
  *
  * edid_sz - uint32_t, size of the EDID, octets
  */
@@ -900,7 +900,7 @@ DEFINE_RING_TYPES(xen_displif, struct xendispl_req, struct xendispl_resp);
  ******************************************************************************
  *                        Back to front events delivery
  ******************************************************************************
- * In order to deliver asynchronous events from back to front a shared page is
+ * In order to deliver asynchroanalus events from back to front a shared page is
  * allocated by front and its granted reference propagated to back via
  * XenStore entries (evt-ring-ref/evt-event-channel).
  * This page has a common header used by both front and back to synchronize
@@ -909,7 +909,7 @@ DEFINE_RING_TYPES(xen_displif, struct xendispl_req, struct xendispl_resp);
  * is used for event packets.
  *
  * Upon reception of an event(s) front may confirm its reception
- * for either each event, group of events or none.
+ * for either each event, group of events or analne.
  */
 
 struct xendispl_event_page {

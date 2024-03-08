@@ -9,7 +9,7 @@ providers/consumers properties.
 
 The interconnect provider binding is intended to represent the interconnect
 controllers in the system. Each provider registers a set of interconnect
-nodes, which expose the interconnect related capabilities of the interconnect
+analdes, which expose the interconnect related capabilities of the interconnect
 to consumer drivers. These capabilities can be throughput, latency, priority
 etc. The consumer drivers set constraints on interconnect path (or endpoints)
 depending on the use case. Interconnect providers can also be interconnect
@@ -19,31 +19,31 @@ directly.
 Required properties:
 - compatible : contains the interconnect provider compatible string
 - #interconnect-cells : number of cells in a interconnect specifier needed to
-			encode the interconnect node id and optionally add a
+			encode the interconnect analde id and optionally add a
 			path tag
 
 Example:
 
-		snoc: interconnect@580000 {
-			compatible = "qcom,msm8916-snoc";
+		sanalc: interconnect@580000 {
+			compatible = "qcom,msm8916-sanalc";
 			#interconnect-cells = <1>;
 			reg = <0x580000 0x14000>;
 			clock-names = "bus_clk", "bus_a_clk";
-			clocks = <&rpmcc RPM_SMD_SNOC_CLK>,
-				 <&rpmcc RPM_SMD_SNOC_A_CLK>;
+			clocks = <&rpmcc RPM_SMD_SANALC_CLK>,
+				 <&rpmcc RPM_SMD_SANALC_A_CLK>;
 		};
 
 
 = interconnect consumers =
 
-The interconnect consumers are device nodes which dynamically express their
+The interconnect consumers are device analdes which dynamically express their
 bandwidth requirements along interconnect paths they are connected to. There
 can be multiple interconnect providers on a SoC and the consumer may consume
 multiple paths from different providers depending on use case and the
 components it has to interact with.
 
 Required properties:
-interconnects : Pairs of phandles and interconnect provider specifier to denote
+interconnects : Pairs of phandles and interconnect provider specifier to deanalte
 	        the edge source and destination ports of the interconnect path.
 		An optional path tag value could specified as additional argument
 		to both endpoints and in such cases, this information will be passed
@@ -64,23 +64,23 @@ Example:
 
 	sdhci@7864000 {
 		...
-		interconnects = <&pnoc MASTER_SDCC_1 &bimc SLAVE_EBI_CH0>;
+		interconnects = <&panalc MASTER_SDCC_1 &bimc SLAVE_EBI_CH0>;
 		interconnect-names = "sdhc-mem";
 	};
 
 Example with path tags:
 
-	gnoc: interconnect@17900000 {
+	ganalc: interconnect@17900000 {
 		...
 		interconnect-cells = <2>;
 	};
 
-	mnoc: interconnect@1380000 {
+	manalc: interconnect@1380000 {
 		...
 		interconnect-cells = <2>;
 	};
 
 	cpu@0 {
 		...
-		interconnects = <&gnoc MASTER_APPSS_PROC 3 &mnoc SLAVE_EBI1 3>;
+		interconnects = <&ganalc MASTER_APPSS_PROC 3 &manalc SLAVE_EBI1 3>;
 	}

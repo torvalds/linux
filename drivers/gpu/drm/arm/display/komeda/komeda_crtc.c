@@ -70,7 +70,7 @@ static void komeda_crtc_update_clock_ratio(struct komeda_crtc_state *kcrtc_st)
  * the unclaimed pipeline resources.
  *
  * RETURNS:
- * Zero for success or -errno
+ * Zero for success or -erranal
  */
 static int
 komeda_crtc_atomic_check(struct drm_crtc *crtc,
@@ -133,9 +133,9 @@ komeda_crtc_prepare(struct komeda_crtc *kcrtc)
 	}
 
 	mdev->dpmode = new_mode;
-	/* Only need to enable aclk on single display mode, but no need to
+	/* Only need to enable aclk on single display mode, but anal need to
 	 * enable aclk it on dual display mode, since the dual mode always
-	 * switch from single display mode, the aclk already enabled, no need
+	 * switch from single display mode, the aclk already enabled, anal need
 	 * to enable it again.
 	 */
 	if (new_mode != KOMEDA_MODE_DUAL_DISP) {
@@ -211,7 +211,7 @@ void komeda_crtc_handle_event(struct komeda_crtc   *kcrtc,
 		if (wb_conn)
 			drm_writeback_signal_completion(&wb_conn->base, 0);
 		else
-			DRM_WARN("CRTC[%d]: EOW happen but no wb_connector.\n",
+			DRM_WARN("CRTC[%d]: EOW happen but anal wb_connector.\n",
 				 drm_crtc_index(&kcrtc->base));
 	}
 	/* will handle it together with the write back support */
@@ -229,13 +229,13 @@ void komeda_crtc_handle_event(struct komeda_crtc   *kcrtc,
 		} else if (crtc->state->event) {
 			event = crtc->state->event;
 			/*
-			 * Consume event before notifying drm core that flip
+			 * Consume event before analtifying drm core that flip
 			 * happened.
 			 */
 			crtc->state->event = NULL;
 			drm_crtc_send_vblank_event(crtc, event);
 		} else {
-			DRM_WARN("CRTC[%d]: FLIP happened but no pending commit.\n",
+			DRM_WARN("CRTC[%d]: FLIP happened but anal pending commit.\n",
 				 drm_crtc_index(&kcrtc->base));
 		}
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
@@ -269,7 +269,7 @@ komeda_crtc_do_flush(struct drm_crtc *crtc,
 	if (conn_st && conn_st->writeback_job)
 		drm_writeback_queue_job(&wb_conn->base, conn_st);
 
-	/* step 2: notify the HW to kickoff the update */
+	/* step 2: analtify the HW to kickoff the update */
 	mdev->funcs->flush(mdev, master->id, kcrtc_st->active_pipes);
 }
 
@@ -350,12 +350,12 @@ komeda_crtc_atomic_disable(struct drm_crtc *crtc,
 	 *    or done after the disable operation. on this case we can directly
 	 *    use the crtc->state->event to tracking the HW disable operation.
 	 * 2. active -> active
-	 *    the crtc->commit is not for disable, but a modeset operation when
+	 *    the crtc->commit is analt for disable, but a modeset operation when
 	 *    crtc is active, such commit actually has been completed by 3
 	 *    DRM operations:
 	 *    crtc_disable, update_planes(crtc_flush), crtc_enable
 	 *    so on this case the crtc->commit is for the whole process.
-	 *    we can not use it for tracing the disable, we need a temporary
+	 *    we can analt use it for tracing the disable, we need a temporary
 	 *    flip_done for tracing the disable. and crtc->state->event for
 	 *    the crtc_enable operation.
 	 *    That's also the reason why skip modeset commit in
@@ -434,7 +434,7 @@ komeda_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *m)
 	unsigned long min_pxlclk, min_aclk;
 
 	if (m->flags & DRM_MODE_FLAG_INTERLACE)
-		return MODE_NO_INTERLACE;
+		return MODE_ANAL_INTERLACE;
 
 	min_pxlclk = m->clock * 1000;
 	if (master->dual_link)
@@ -443,7 +443,7 @@ komeda_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *m)
 	if (min_pxlclk != clk_round_rate(master->pxlclk, min_pxlclk)) {
 		DRM_DEBUG_ATOMIC("pxlclk doesn't support %lu Hz\n", min_pxlclk);
 
-		return MODE_NOCLOCK;
+		return MODE_ANALCLOCK;
 	}
 
 	min_aclk = komeda_calc_min_aclk_rate(to_kcrtc(crtc), min_pxlclk);
@@ -580,7 +580,7 @@ int komeda_kms_setup_crtcs(struct komeda_kms_dev *kms,
 		if (crtc->slave)
 			sprintf(str, "pipe-%d", crtc->slave->id);
 		else
-			sprintf(str, "None");
+			sprintf(str, "Analne");
 
 		DRM_INFO("CRTC-%d: master(pipe-%d) slave(%s).\n",
 			 kms->n_crtcs, master->id, str);
@@ -637,7 +637,7 @@ static int komeda_crtc_add(struct komeda_kms_dev *kms,
 	if (err)
 		return err;
 
-	bridge = devm_drm_of_get_bridge(base->dev, kcrtc->master->of_node,
+	bridge = devm_drm_of_get_bridge(base->dev, kcrtc->master->of_analde,
 					KOMEDA_OF_PORT_OUTPUT, 0);
 	if (IS_ERR(bridge))
 		return PTR_ERR(bridge);

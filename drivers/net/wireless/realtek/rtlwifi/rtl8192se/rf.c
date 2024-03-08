@@ -31,9 +31,9 @@ static void _rtl92s_get_powerbase(struct ieee80211_hw *hw, u8 *p_pwrlevel,
 						[RF90_PATH_A][chnl - 1];
 
 		/* For legacy OFDM, tx pwr always > HT OFDM pwr.
-		 * We do not care Path B
-		 * legacy OFDM pwr diff. NO BB register
-		 * to notify HW. */
+		 * We do analt care Path B
+		 * legacy OFDM pwr diff. ANAL BB register
+		 * to analtify HW. */
 		pwrbase0 = pwrlevel[0] + legacy_pwrdiff;
 	}
 
@@ -365,17 +365,17 @@ void rtl92s_phy_rf6052_set_ccktxpower(struct ieee80211_hw *hw, u8 pwrlevel)
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	u32 txagc = 0;
-	bool dont_inc_cck_or_turboscanoff = false;
+	bool dont_inc_cck_or_turboscaanalff = false;
 
 	if (((rtlefuse->eeprom_version >= 2) &&
 	      (rtlefuse->txpwr_safetyflag == 1)) ||
 	      ((rtlefuse->eeprom_version >= 2) &&
 	      (rtlefuse->eeprom_regulatory != 0)))
-		dont_inc_cck_or_turboscanoff = true;
+		dont_inc_cck_or_turboscaanalff = true;
 
 	if (mac->act_scanning) {
 		txagc = 0x3f;
-		if (dont_inc_cck_or_turboscanoff)
+		if (dont_inc_cck_or_turboscaanalff)
 			txagc = pwrlevel;
 	} else {
 		txagc = pwrlevel;
@@ -501,7 +501,7 @@ void rtl92s_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw, u8 bandwidth)
 					rtlphy->rfreg_chnlval[0]);
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n", bandwidth);
+		pr_err("unkanalwn bandwidth: %#X\n", bandwidth);
 		break;
 	}
 }

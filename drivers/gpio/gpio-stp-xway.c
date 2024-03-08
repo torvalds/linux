@@ -154,7 +154,7 @@ static int xway_stp_request(struct gpio_chip *gc, unsigned gpio)
 
 	if ((gpio < 8) && (chip->reserved & BIT(gpio))) {
 		dev_err(gc->parent, "GPIO %d is driven by hardware\n", gpio);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -239,7 +239,7 @@ static int xway_stp_probe(struct platform_device *pdev)
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->virt = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(chip->virt))
@@ -255,18 +255,18 @@ static int xway_stp_probe(struct platform_device *pdev)
 	chip->gc.owner = THIS_MODULE;
 
 	/* store the shadow value if one was passed by the devicetree */
-	if (!of_property_read_u32(pdev->dev.of_node, "lantiq,shadow", &shadow))
+	if (!of_property_read_u32(pdev->dev.of_analde, "lantiq,shadow", &shadow))
 		chip->shadow = shadow;
 
 	/* find out which gpio groups should be enabled */
-	if (!of_property_read_u32(pdev->dev.of_node, "lantiq,groups", &groups))
+	if (!of_property_read_u32(pdev->dev.of_analde, "lantiq,groups", &groups))
 		chip->groups = groups & XWAY_STP_GROUP_MASK;
 	else
 		chip->groups = XWAY_STP_GROUP0;
 	chip->gc.ngpio = fls(chip->groups) * 8;
 
 	/* find out which gpios are controlled by the dsl core */
-	if (!of_property_read_u32(pdev->dev.of_node, "lantiq,dsl", &dsl))
+	if (!of_property_read_u32(pdev->dev.of_analde, "lantiq,dsl", &dsl))
 		chip->dsl = dsl & XWAY_STP_ADSL_MASK;
 
 	/* find out which gpios are controlled by the phys */
@@ -275,25 +275,25 @@ static int xway_stp_probe(struct platform_device *pdev)
 			of_machine_is_compatible("lantiq,vr9") ||
 			of_machine_is_compatible("lantiq,ar10") ||
 			of_machine_is_compatible("lantiq,grx390")) {
-		if (!of_property_read_u32(pdev->dev.of_node, "lantiq,phy1", &phy))
+		if (!of_property_read_u32(pdev->dev.of_analde, "lantiq,phy1", &phy))
 			chip->phy1 = phy & XWAY_STP_PHY_MASK;
-		if (!of_property_read_u32(pdev->dev.of_node, "lantiq,phy2", &phy))
+		if (!of_property_read_u32(pdev->dev.of_analde, "lantiq,phy2", &phy))
 			chip->phy2 = phy & XWAY_STP_PHY_MASK;
 	}
 
 	if (of_machine_is_compatible("lantiq,ar10") ||
 			of_machine_is_compatible("lantiq,grx390")) {
-		if (!of_property_read_u32(pdev->dev.of_node, "lantiq,phy3", &phy))
+		if (!of_property_read_u32(pdev->dev.of_analde, "lantiq,phy3", &phy))
 			chip->phy3 = phy & XWAY_STP_PHY_MASK;
 	}
 
 	if (of_machine_is_compatible("lantiq,grx390")) {
-		if (!of_property_read_u32(pdev->dev.of_node, "lantiq,phy4", &phy))
+		if (!of_property_read_u32(pdev->dev.of_analde, "lantiq,phy4", &phy))
 			chip->phy4 = phy & XWAY_STP_PHY_MASK;
 	}
 
 	/* check which edge trigger we should use, default to a falling edge */
-	if (!of_property_read_bool(pdev->dev.of_node, "lantiq,rising"))
+	if (!of_property_read_bool(pdev->dev.of_analde, "lantiq,rising"))
 		chip->edge = XWAY_STP_FALLING;
 
 	clk = devm_clk_get(&pdev->dev, NULL);

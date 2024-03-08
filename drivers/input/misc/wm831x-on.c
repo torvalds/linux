@@ -13,14 +13,14 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
@@ -79,7 +79,7 @@ static int wm831x_on_probe(struct platform_device *pdev)
 				 GFP_KERNEL);
 	if (!wm831x_on) {
 		dev_err(&pdev->dev, "Can't allocate data\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	wm831x_on->wm831x = wm831x;
@@ -88,7 +88,7 @@ static int wm831x_on_probe(struct platform_device *pdev)
 	wm831x_on->dev = devm_input_allocate_device(&pdev->dev);
 	if (!wm831x_on->dev) {
 		dev_err(&pdev->dev, "Can't allocate input dev\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 

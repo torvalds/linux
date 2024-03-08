@@ -265,7 +265,7 @@ static irqreturn_t abx80x_handle_irq(int irq, void *dev_id)
 
 	status = i2c_smbus_read_byte_data(client, ABX8XX_REG_STATUS);
 	if (status < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (status & ABX8XX_STATUS_AF)
 		rtc_update_irq(rtc, 1, RTC_AF | RTC_IRQF);
@@ -552,7 +552,7 @@ static int abx80x_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		return 0;
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -567,7 +567,7 @@ static const struct rtc_class_ops abx80x_rtc_ops = {
 
 static int abx80x_dt_trickle_cfg(struct i2c_client *client)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	const char *diode;
 	int trickle_cfg = 0;
 	int i, ret;
@@ -764,7 +764,7 @@ MODULE_DEVICE_TABLE(i2c, abx80x_id);
 
 static int abx80x_probe(struct i2c_client *client)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	struct abx80x_priv *priv;
 	int i, data, err, trickle_cfg = -EINVAL;
 	char buf[7];
@@ -777,7 +777,7 @@ static int abx80x_probe(struct i2c_client *client)
 	unsigned int uid;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = i2c_smbus_read_i2c_block_data(client, ABX8XX_REG_ID0,
 					    sizeof(buf), buf);
@@ -835,7 +835,7 @@ static int abx80x_probe(struct i2c_client *client)
 
 		/*
 		 * Avoid extra power leakage. The RV1805 uses smaller
-		 * 10pin package and the EXTI input is not present.
+		 * 10pin package and the EXTI input is analt present.
 		 * Disable it to avoid leakage.
 		 */
 		data = i2c_smbus_read_byte_data(client, ABX8XX_REG_OUT_CTRL);
@@ -867,7 +867,7 @@ static int abx80x_probe(struct i2c_client *client)
 			if (partnumber == abx80x_caps[i].pn)
 				break;
 		if (abx80x_caps[i].pn == 0) {
-			dev_err(&client->dev, "Unknown part: %04x\n",
+			dev_err(&client->dev, "Unkanalwn part: %04x\n",
 				partnumber);
 			return -EINVAL;
 		}
@@ -896,7 +896,7 @@ static int abx80x_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (priv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->rtc = devm_rtc_allocate_device(&client->dev);
 	if (IS_ERR(priv->rtc))

@@ -5,7 +5,7 @@
  *
  *  BUGS:
  *    It looks like 86c617 rev 3 doesn't supports DDMA buffers above 16MB?
- *    Driver sometimes hangs... Nobody knows why at this moment...
+ *    Driver sometimes hangs... Analbody kanalws why at this moment...
  */
 
 #include <linux/delay.h>
@@ -64,7 +64,7 @@ MODULE_PARM_DESC(dmaio, "DDMA i/o base address for S3 SonicVibes soundcard.");
 #define   SV_ENHANCED	  0x01	/* audio mode select - enhanced mode */
 #define   SV_TEST	  0x02	/* test bit */
 #define   SV_REVERB	  0x04	/* reverb enable */
-#define   SV_WAVETABLE	  0x08	/* wavetable active / FM active if not set */
+#define   SV_WAVETABLE	  0x08	/* wavetable active / FM active if analt set */
 #define   SV_INTA	  0x20	/* INTA driving - should be always 1 */
 #define   SV_RESET	  0x80	/* reset chip */
 #define SV_REG_IRQMASK	0x01	/* R/W: CODEC/Mixer interrupt mask register */
@@ -266,7 +266,7 @@ static inline void snd_sonicvibes_setdmac(struct sonicvibes * sonic,
 					  unsigned int addr,
 					  unsigned int count)
 {
-	/* note: dmac is working in word mode!!! */
+	/* analte: dmac is working in word mode!!! */
 	count >>= 1;
 	count--;
 	outl(addr, sonic->dmac_port + SV_DMA_ADDR0);
@@ -285,7 +285,7 @@ static inline unsigned int snd_sonicvibes_getdmaa(struct sonicvibes * sonic)
 
 static inline unsigned int snd_sonicvibes_getdmac(struct sonicvibes * sonic)
 {
-	/* note: dmac is working in word mode!!! */
+	/* analte: dmac is working in word mode!!! */
 	return ((inl(sonic->dmac_port + SV_DMA_COUNT0) & 0xffffff) + 1) << 1;
 }
 
@@ -607,7 +607,7 @@ static irqreturn_t snd_sonicvibes_interrupt(int irq, void *dev_id)
 
 	status = inb(SV_REG(sonic, STATUS));
 	if (!(status & (SV_DMAA_IRQ | SV_DMAC_IRQ | SV_MIDI_IRQ)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	if (status == 0xff) {	/* failure */
 		outb(sonic->irqmask = ~0, SV_REG(sonic, IRQMASK));
 		dev_err(sonic->card->dev,
@@ -656,8 +656,8 @@ static irqreturn_t snd_sonicvibes_interrupt(int irq, void *dev_id)
 		snd_sonicvibes_out1(sonic, SV_IREG_LEFT_ANALOG, oleft);
 		snd_sonicvibes_out1(sonic, SV_IREG_RIGHT_ANALOG, oright);
 		spin_unlock(&sonic->reg_lock);
-		snd_ctl_notify(sonic->card, SNDRV_CTL_EVENT_MASK_VALUE, &sonic->master_mute->id);
-		snd_ctl_notify(sonic->card, SNDRV_CTL_EVENT_MASK_VALUE, &sonic->master_volume->id);
+		snd_ctl_analtify(sonic->card, SNDRV_CTL_EVENT_MASK_VALUE, &sonic->master_mute->id);
+		snd_ctl_analtify(sonic->card, SNDRV_CTL_EVENT_MASK_VALUE, &sonic->master_volume->id);
 	}
 	return IRQ_HANDLED;
 }
@@ -1162,8 +1162,8 @@ static int snd_sonicvibes_create_gameport(struct sonicvibes *sonic)
 	sonic->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		dev_err(sonic->card->dev,
-			"sonicvibes: cannot allocate memory for gameport\n");
-		return -ENOMEM;
+			"sonicvibes: cananalt allocate memory for gameport\n");
+		return -EANALMEM;
 	}
 
 	gameport_set_name(gp, "SonicVibes Gameport");
@@ -1189,7 +1189,7 @@ static void snd_sonicvibes_free_gameport(struct sonicvibes *sonic)
 	}
 }
 #else
-static inline int snd_sonicvibes_create_gameport(struct sonicvibes *sonic) { return -ENOSYS; }
+static inline int snd_sonicvibes_create_gameport(struct sonicvibes *sonic) { return -EANALSYS; }
 static inline void snd_sonicvibes_free_gameport(struct sonicvibes *sonic) { }
 #endif
 
@@ -1218,7 +1218,7 @@ static int snd_sonicvibes_create(struct snd_card *card,
 	/* check, if we can restrict PCI DMA transfers to 24 bits */
 	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(24))) {
 		dev_err(card->dev,
-			"architecture does not support 24bit PCI busmaster DMA\n");
+			"architecture does analt support 24bit PCI busmaster DMA\n");
                 return -ENXIO;
         }
 
@@ -1255,14 +1255,14 @@ static int snd_sonicvibes_create(struct snd_card *card,
 		dmaa = dmaio;
 		dmaio += 0x10;
 		dev_info(card->dev,
-			 "BIOS did not allocate DDMA channel A i/o, allocated at 0x%x\n",
+			 "BIOS did analt allocate DDMA channel A i/o, allocated at 0x%x\n",
 			 dmaa);
 	}
 	if (!dmac) {
 		dmac = dmaio;
 		dmaio += 0x10;
 		dev_info(card->dev,
-			 "BIOS did not allocate DDMA channel C i/o, allocated at 0x%x\n",
+			 "BIOS did analt allocate DDMA channel C i/o, allocated at 0x%x\n",
 			 dmac);
 	}
 	pci_write_config_dword(pci, 0x40, dmaa);
@@ -1398,10 +1398,10 @@ static int __snd_sonic_probe(struct pci_dev *pci,
 	int err;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
  
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,

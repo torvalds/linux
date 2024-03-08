@@ -19,7 +19,7 @@
 
 /**
  * struct pca9570_chip_data - GPIO platformdata
- * @ngpio: no of gpios
+ * @ngpio: anal of gpios
  * @command: Command to be sent
  */
 struct pca9570_chip_data {
@@ -118,7 +118,7 @@ static int pca9570_probe(struct i2c_client *client)
 
 	gpio = devm_kzalloc(&client->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->chip.label = client->name;
 	gpio->chip.parent = &client->dev;

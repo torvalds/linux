@@ -21,13 +21,13 @@ Required properties
 
 Required properties [watchdog mode]
 
-- st,syscfg	: Phandle to syscfg node used to enable watchdog and configure
+- st,syscfg	: Phandle to syscfg analde used to enable watchdog and configure
 		  CPU reset type.
 - timeout-sec	: Watchdog timeout in seconds
 
 Optional properties [watchdog mode]
 
-- st,warm-reset	: If present reset type will be 'warm' - if not it will be cold
+- st,warm-reset	: If present reset type will be 'warm' - if analt it will be cold
 
 Example:
 	lpc@fde05000 {

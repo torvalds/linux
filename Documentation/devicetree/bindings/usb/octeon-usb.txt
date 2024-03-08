@@ -1,6 +1,6 @@
 OCTEON/OCTEON+ USB BLOCK
 
-1) Main node
+1) Main analde
 
    Required properties:
 
@@ -28,9 +28,9 @@ OCTEON/OCTEON+ USB BLOCK
 
    - refclk-type: deprecated, use "cavium,refclk-type".
 
-2) Child node
+2) Child analde
 
-   The main node must have one child node which describes the built-in
+   The main analde must have one child analde which describes the built-in
    USB controller.
 
    Required properties:

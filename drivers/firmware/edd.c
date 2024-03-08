@@ -157,8 +157,8 @@ edd_show_host_bus(struct edd_device *edev, char *buf)
 			     info->params.interface_path.ibnd.reserved);
 
 	} else {
-		p += scnprintf(p, left, "\tunknown: %llx\n",
-			     info->params.interface_path.unknown.reserved);
+		p += scnprintf(p, left, "\tunkanalwn: %llx\n",
+			     info->params.interface_path.unkanalwn.reserved);
 	}
 	return (p - buf);
 }
@@ -214,9 +214,9 @@ edd_show_interface(struct edd_device *edev, char *buf)
 		p += scnprintf(p, left, "\tdevice: %u\n",
 			     info->params.device_path.sata.device);
 	} else {
-		p += scnprintf(p, left, "\tunknown: %llx %llx\n",
-			     info->params.device_path.unknown.reserved1,
-			     info->params.device_path.unknown.reserved2);
+		p += scnprintf(p, left, "\tunkanalwn: %llx %llx\n",
+			     info->params.device_path.unkanalwn.reserved1,
+			     info->params.device_path.unkanalwn.reserved2);
 	}
 
 	return (p - buf);
@@ -319,12 +319,12 @@ edd_show_info_flags(struct edd_device *edev, char *buf)
 		p += scnprintf(p, left, "removable\n");
 	if (info->params.info_flags & EDD_INFO_WRITE_VERIFY)
 		p += scnprintf(p, left, "write verify\n");
-	if (info->params.info_flags & EDD_INFO_MEDIA_CHANGE_NOTIFICATION)
-		p += scnprintf(p, left, "media change notification\n");
+	if (info->params.info_flags & EDD_INFO_MEDIA_CHANGE_ANALTIFICATION)
+		p += scnprintf(p, left, "media change analtification\n");
 	if (info->params.info_flags & EDD_INFO_LOCKABLE)
 		p += scnprintf(p, left, "lockable\n");
-	if (info->params.info_flags & EDD_INFO_NO_MEDIA_PRESENT)
-		p += scnprintf(p, left, "no media present\n");
+	if (info->params.info_flags & EDD_INFO_ANAL_MEDIA_PRESENT)
+		p += scnprintf(p, left, "anal media present\n");
 	if (info->params.info_flags & EDD_INFO_USE_INT13_FN50)
 		p += scnprintf(p, left, "use int13 fn50\n");
 	return (p - buf);
@@ -437,7 +437,7 @@ edd_show_sectors(struct edd_device *edev, char *buf)
 
 
 /*
- * Some device instances may not have all the above attributes,
+ * Some device instances may analt have all the above attributes,
  * or the attribute values may be meaningless (i.e. if
  * the device is < EDD 3.0, it won't have host_bus and interface
  * information), so don't bother making files for them.  Likewise
@@ -730,19 +730,19 @@ edd_init(void)
 	struct edd_device *edev;
 
 	if (!edd_num_devices())
-		return -ENODEV;
+		return -EANALDEV;
 
 	printk(KERN_INFO "BIOS EDD facility v%s %s, %d devices found\n",
 	       EDD_VERSION, EDD_DATE, edd_num_devices());
 
 	edd_kset = kset_create_and_add("edd", NULL, firmware_kobj);
 	if (!edd_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < edd_num_devices(); i++) {
 		edev = kzalloc(sizeof (*edev), GFP_KERNEL);
 		if (!edev) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 

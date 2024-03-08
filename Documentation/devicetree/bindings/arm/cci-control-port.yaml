@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   Masters in the device tree connected to a CCI port (inclusive of CPUs
-  and their cpu nodes).
+  and their cpu analdes).
 
 select: true
 

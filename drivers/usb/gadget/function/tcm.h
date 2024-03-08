@@ -70,7 +70,7 @@ struct usbg_cmd {
 	struct work_struct work;
 	int unpacked_lun;
 	struct se_cmd se_cmd;
-	void *data_buf; /* used if no sg support available */
+	void *data_buf; /* used if anal sg support available */
 	struct f_uas *fu;
 	struct completion write_complete;
 	struct kref ref;

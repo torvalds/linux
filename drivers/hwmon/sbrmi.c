@@ -15,7 +15,7 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 
-/* Do not allow setting negative power limit */
+/* Do analt allow setting negative power limit */
 #define SBRMI_PWR_MIN	0
 /* Mask for Status Register bit[1] */
 #define SW_ALERT_MASK	0x2
@@ -129,7 +129,7 @@ static int rmi_mailbox_xfer(struct sbrmi_data *data,
 	}
 
 	/*
-	 * Write 0x01 to SBRMI::SoftwareInterrupt to notify firmware to
+	 * Write 0x01 to SBRMI::SoftwareInterrupt to analtify firmware to
 	 * perform the requested read or write command
 	 */
 	ret = i2c_smbus_write_byte_data(data->client,
@@ -306,7 +306,7 @@ static int sbrmi_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct sbrmi_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->lock);

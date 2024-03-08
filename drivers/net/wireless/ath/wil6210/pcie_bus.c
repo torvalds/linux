@@ -21,7 +21,7 @@ bool ftm_mode;
 module_param(ftm_mode, bool, 0444);
 MODULE_PARM_DESC(ftm_mode, " Set factory test mode, default - false");
 
-static int wil6210_pm_notify(struct notifier_block *notify_block,
+static int wil6210_pm_analtify(struct analtifier_block *analtify_block,
 			     unsigned long mode, void *unused);
 
 static
@@ -56,7 +56,7 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 				wil->wil_fw_name = wil_fw_name;
 			sct = wil_find_fw_mapping("mac_rgf_ext");
 			if (!sct) {
-				wil_err(wil, "mac_rgf_ext section not found in fw_mapping\n");
+				wil_err(wil, "mac_rgf_ext section analt found in fw_mapping\n");
 				return -EINVAL;
 			}
 			memcpy(sct, &sparrow_d0_mac_rgf_ext, sizeof(*sct));
@@ -66,8 +66,8 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 			wil->hw_version = HW_VER_SPARROW_B0;
 			break;
 		default:
-			wil->hw_name = "Unknown";
-			wil->hw_version = HW_VER_UNKNOWN;
+			wil->hw_name = "Unkanalwn";
+			wil->hw_version = HW_VER_UNKANALWN;
 			break;
 		}
 		wil->rgf_fw_assert_code_addr = SPARROW_RGF_FW_ASSERT_CODE;
@@ -80,8 +80,8 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 		wil->rgf_fw_assert_code_addr = TALYN_RGF_FW_ASSERT_CODE;
 		wil->rgf_ucode_assert_code_addr = TALYN_RGF_UCODE_ASSERT_CODE;
 		if (wil_r(wil, RGF_USER_OTP_HW_RD_MACHINE_1) &
-		    BIT_NO_FLASH_INDICATION)
-			set_bit(hw_capa_no_flash, wil->hw_capa);
+		    BIT_ANAL_FLASH_INDICATION)
+			set_bit(hw_capa_anal_flash, wil->hw_capa);
 		wil_fw_name = ftm_mode ? WIL_FW_NAME_FTM_TALYN :
 			      WIL_FW_NAME_TALYN;
 		if (wil_fw_verify_file_exists(wil, wil_fw_name))
@@ -94,7 +94,7 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 		       sizeof(talyn_mb_fw_mapping));
 		wil->rgf_fw_assert_code_addr = TALYN_RGF_FW_ASSERT_CODE;
 		wil->rgf_ucode_assert_code_addr = TALYN_RGF_UCODE_ASSERT_CODE;
-		set_bit(hw_capa_no_flash, wil->hw_capa);
+		set_bit(hw_capa_anal_flash, wil->hw_capa);
 		wil->use_enhanced_dma_hw = true;
 		wil->use_rx_hw_reordering = true;
 		wil->use_compressed_rx_status = true;
@@ -104,10 +104,10 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 			wil->wil_fw_name = wil_fw_name;
 		break;
 	default:
-		wil_err(wil, "Unknown board hardware, chip_id 0x%08x, chip_revision 0x%08x\n",
+		wil_err(wil, "Unkanalwn board hardware, chip_id 0x%08x, chip_revision 0x%08x\n",
 			jtag_id, chip_revision);
-		wil->hw_name = "Unknown";
-		wil->hw_version = HW_VER_UNKNOWN;
+		wil->hw_name = "Unkanalwn";
+		wil->hw_version = HW_VER_UNKANALWN;
 		return -EINVAL;
 	}
 
@@ -115,13 +115,13 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 
 	iccm_section = wil_find_fw_mapping("fw_code");
 	if (!iccm_section) {
-		wil_err(wil, "fw_code section not found in fw_mapping\n");
+		wil_err(wil, "fw_code section analt found in fw_mapping\n");
 		return -EINVAL;
 	}
 	wil->iccm_base = iccm_section->host;
 
 	wil_info(wil, "Board hardware is %s, flash %sexist\n", wil->hw_name,
-		 test_bit(hw_capa_no_flash, wil->hw_capa) ? "doesn't " : "");
+		 test_bit(hw_capa_anal_flash, wil->hw_capa) ? "doesn't " : "");
 
 	/* Get platform capabilities */
 	if (wil->platform_ops.get_capa) {
@@ -182,7 +182,7 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 	struct pci_dev *pdev = wil->pdev;
 	int rc;
 	/* on platforms with buggy ACPI, pdev->msi_enabled may be set to
-	 * allow pci_enable_device to work. This indicates INTx was not routed
+	 * allow pci_enable_device to work. This indicates INTx was analt routed
 	 * and only MSI should be used
 	 */
 	int msi_only = pdev->msi_enabled;
@@ -219,8 +219,8 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 	wil->n_msi = n_msi;
 
 	if (wil->n_msi == 0 && msi_only) {
-		wil_err(wil, "Interrupt pin not routed, unable to use INTx\n");
-		rc = -ENODEV;
+		wil_err(wil, "Interrupt pin analt routed, unable to use INTx\n");
+		rc = -EANALDEV;
 		goto stop_master;
 	}
 
@@ -240,7 +240,7 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
  release_irq:
 	wil6210_fini_irq(wil, pdev->irq);
  release_vectors:
-	/* safe to call if no allocation */
+	/* safe to call if anal allocation */
 	pci_free_irq_vectors(pdev);
  stop_master:
 	pci_clear_master(pdev);
@@ -256,7 +256,7 @@ static int wil_if_pcie_disable(struct wil6210_priv *wil)
 	pci_clear_master(pdev);
 	/* disable and release IRQ */
 	wil6210_fini_irq(wil, pdev->irq);
-	/* safe to call if no MSI */
+	/* safe to call if anal MSI */
 	pci_disable_msi(pdev);
 	/* TODO: disable HW */
 
@@ -315,7 +315,7 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	    (bar_size > WIL6210_MAX_MEM_SIZE)) {
 		dev_err(&pdev->dev, "Unexpected BAR0 size 0x%x\n",
 			bar_size);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	wil = wil_if_alloc(dev);
@@ -333,7 +333,7 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	wil->platform_handle =
 		wil_platform_init(&pdev->dev, &wil->platform_ops, &rops, wil);
 	if (!wil->platform_handle) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		wil_err(wil, "wil_platform_init failed\n");
 		goto if_free;
 	}
@@ -366,7 +366,7 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	wil->csr = pci_ioremap_bar(pdev, 0);
 	if (!wil->csr) {
 		wil_err(wil, "pci_ioremap_bar failed\n");
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto err_release_reg;
 	}
 	/* rollback to err_iounmap */
@@ -424,19 +424,19 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		mutex_unlock(&wil->mutex);
 		if (rc) {
 			wil_err(wil, "failed to load WMI only FW\n");
-			/* ignore the error to allow debugging */
+			/* iganalre the error to allow debugging */
 		}
 	}
 
 	if (IS_ENABLED(CONFIG_PM))
-		wil->pm_notify.notifier_call = wil6210_pm_notify;
+		wil->pm_analtify.analtifier_call = wil6210_pm_analtify;
 
-	rc = register_pm_notifier(&wil->pm_notify);
+	rc = register_pm_analtifier(&wil->pm_analtify);
 	if (rc)
-		/* Do not fail the driver initialization, as suspend can
+		/* Do analt fail the driver initialization, as suspend can
 		 * be prevented in a later phase if needed
 		 */
-		wil_err(wil, "register_pm_notifier failed: %d\n", rc);
+		wil_err(wil, "register_pm_analtifier failed: %d\n", rc);
 
 	wil6210_debugfs_init(wil);
 
@@ -467,7 +467,7 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 
 	wil_dbg_misc(wil, "pcie_remove\n");
 
-	unregister_pm_notifier(&wil->pm_notify);
+	unregister_pm_analtifier(&wil->pm_analtify);
 
 	wil_pm_runtime_forbid(wil);
 
@@ -569,15 +569,15 @@ static int wil6210_resume(struct device *dev, bool is_runtime)
 	return rc;
 }
 
-static int wil6210_pm_notify(struct notifier_block *notify_block,
+static int wil6210_pm_analtify(struct analtifier_block *analtify_block,
 			     unsigned long mode, void *unused)
 {
 	struct wil6210_priv *wil = container_of(
-		notify_block, struct wil6210_priv, pm_notify);
+		analtify_block, struct wil6210_priv, pm_analtify);
 	int rc = 0;
 	enum wil_platform_event evt;
 
-	wil_dbg_pm(wil, "pm_notify: mode (%ld)\n", mode);
+	wil_dbg_pm(wil, "pm_analtify: mode (%ld)\n", mode);
 
 	switch (mode) {
 	case PM_HIBERNATION_PREPARE:
@@ -587,24 +587,24 @@ static int wil6210_pm_notify(struct notifier_block *notify_block,
 		if (rc)
 			break;
 		evt = WIL_PLATFORM_EVT_PRE_SUSPEND;
-		if (wil->platform_ops.notify)
-			rc = wil->platform_ops.notify(wil->platform_handle,
+		if (wil->platform_ops.analtify)
+			rc = wil->platform_ops.analtify(wil->platform_handle,
 						      evt);
 		break;
 	case PM_POST_SUSPEND:
 	case PM_POST_HIBERNATION:
 	case PM_POST_RESTORE:
 		evt = WIL_PLATFORM_EVT_POST_SUSPEND;
-		if (wil->platform_ops.notify)
-			rc = wil->platform_ops.notify(wil->platform_handle,
+		if (wil->platform_ops.analtify)
+			rc = wil->platform_ops.analtify(wil->platform_handle,
 						      evt);
 		break;
 	default:
-		wil_dbg_pm(wil, "unhandled notify mode %ld\n", mode);
+		wil_dbg_pm(wil, "unhandled analtify mode %ld\n", mode);
 		break;
 	}
 
-	wil_dbg_pm(wil, "notification mode %ld: rc (%d)\n", mode, rc);
+	wil_dbg_pm(wil, "analtification mode %ld: rc (%d)\n", mode, rc);
 	return rc;
 }
 

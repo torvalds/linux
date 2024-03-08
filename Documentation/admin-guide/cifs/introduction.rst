@@ -6,7 +6,7 @@ Introduction
   as for older dialects such as the Common Internet File System (CIFS)
   protocol which was the successor to the Server Message Block
   (SMB) protocol, the native file sharing mechanism for most early
-  PC operating systems. New and improved versions of CIFS are now
+  PC operating systems. New and improved versions of CIFS are analw
   called SMB2 and SMB3. Use of SMB3 (and later, including SMB3.1.1
   the most current dialect) is strongly preferred over using older
   dialects like CIFS due to security reasons. All modern dialects,
@@ -31,7 +31,7 @@ Introduction
   CIFS Unix extensions, and the Linux client also suppors SMB3 POSIX extensions,
   the combination can provide a reasonable alternative to other network and
   cluster file systems for fileserving in some Linux to Linux environments,
-  not just in Linux to Windows (or Linux to Mac) environments.
+  analt just in Linux to Windows (or Linux to Mac) environments.
 
   This filesystem has a mount utility (mount.cifs) and various user space
   tools (including smbinfo and setcifsacl) that can be obtained from

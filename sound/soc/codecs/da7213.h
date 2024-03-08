@@ -113,7 +113,7 @@
 #define DA7213_DIG_CTRL			0x99
 #define DA7213_ALC_CTRL2		0x9A
 #define DA7213_ALC_CTRL3		0x9B
-#define DA7213_ALC_NOISE		0x9C
+#define DA7213_ALC_ANALISE		0x9C
 #define DA7213_ALC_TARGET_MIN		0x9D
 #define DA7213_ALC_TARGET_MAX		0x9E
 #define DA7213_ALC_GAIN_LIMITS		0x9F
@@ -207,8 +207,8 @@
 #define DA7213_DAI_WORD_LENGTH_S24_LE				(0x2 << 2)
 #define DA7213_DAI_WORD_LENGTH_S32_LE				(0x3 << 2)
 #define DA7213_DAI_WORD_LENGTH_MASK				(0x3 << 2)
-#define DA7213_DAI_MONO_MODE_EN					(0x1 << 4)
-#define DA7213_DAI_MONO_MODE_MASK				(0x1 << 4)
+#define DA7213_DAI_MOANAL_MODE_EN					(0x1 << 4)
+#define DA7213_DAI_MOANAL_MODE_MASK				(0x1 << 4)
 #define DA7213_DAI_EN_SHIFT					7
 
 /* DA7213_DIG_ROUTING_DAI = 0x21 */
@@ -218,11 +218,11 @@
 
 /* DA7213_DIG_ROUTING_DAC = 0x2A */
 #define DA7213_DAC_L_SRC_SHIFT					0
-#define DA7213_DAC_L_MONO_SHIFT					3
+#define DA7213_DAC_L_MOANAL_SHIFT					3
 #define DA7213_DAC_R_SRC_SHIFT					4
-#define DA7213_DAC_R_MONO_SHIFT					7
+#define DA7213_DAC_R_MOANAL_SHIFT					7
 #define DA7213_DAC_SRC_MAX					4
-#define DA7213_DAC_MONO_MAX					0x1
+#define DA7213_DAC_MOANAL_MAX					0x1
 
 /* DA7213_ALC_CTRL1 = 0x2B */
 #define DA7213_ALC_OFFSET_EN_SHIFT				0
@@ -451,7 +451,7 @@
 #define DA7213_ALC_INTEG_MAX					4
 
 /*
- * DA7213_ALC_NOISE = 0x9C,
+ * DA7213_ALC_ANALISE = 0x9C,
  * DA7213_ALC_TARGET_MIN/MAX = 0x9D/0x9E
  */
 #define DA7213_ALC_THRESHOLD_SHIFT				0
@@ -551,7 +551,7 @@
  */
 
 /* Register inversion */
-#define DA7213_NO_INVERT		0
+#define DA7213_ANAL_INVERT		0
 #define DA7213_INVERT			1
 
 /* Byte related defines */

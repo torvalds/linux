@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -32,13 +32,13 @@
 #include <drm/drm_mode_object.h>
 #include <drm/drm_modes.h>
 
-struct device_node;
+struct device_analde;
 
 struct drm_bridge;
 struct drm_bridge_timings;
 struct drm_connector;
 struct drm_display_info;
-struct drm_minor;
+struct drm_mianalr;
 struct drm_panel;
 struct edid;
 struct i2c_adapter;
@@ -48,10 +48,10 @@ struct i2c_adapter;
  */
 enum drm_bridge_attach_flags {
 	/**
-	 * @DRM_BRIDGE_ATTACH_NO_CONNECTOR: When this flag is set the bridge
-	 * shall not create a drm_connector.
+	 * @DRM_BRIDGE_ATTACH_ANAL_CONNECTOR: When this flag is set the bridge
+	 * shall analt create a drm_connector.
 	 */
-	DRM_BRIDGE_ATTACH_NO_CONNECTOR = BIT(0),
+	DRM_BRIDGE_ATTACH_ANAL_CONNECTOR = BIT(0),
 };
 
 /**
@@ -90,7 +90,7 @@ struct drm_bridge_funcs {
 	 * This callback is used to check if a specific mode is valid in this
 	 * bridge. This should be implemented if the bridge has some sort of
 	 * restriction in the modes it can display. For example, a given bridge
-	 * may be responsible to set a clock value. If the clock can not
+	 * may be responsible to set a clock value. If the clock can analt
 	 * produce all the values for the available modes then this callback
 	 * can be used to restrict the number of modes to only the ones that
 	 * can be displayed.
@@ -102,10 +102,10 @@ struct drm_bridge_funcs {
 	 *
 	 * The @mode_valid callback is optional.
 	 *
-	 * NOTE:
+	 * ANALTE:
 	 *
 	 * Since this function is both called from the check phase of an atomic
-	 * commit, and the mode validation in the probe paths it is not allowed
+	 * commit, and the mode validation in the probe paths it is analt allowed
 	 * to look at anything else but the passed-in mode, and validate it
 	 * against configuration-invariant hardward constraints. Any further
 	 * limits which depend upon the configuration can only be checked in
@@ -126,7 +126,7 @@ struct drm_bridge_funcs {
 	 * mode is the display mode that should be fed to the next element in
 	 * the display chain, either the final &drm_connector or the next
 	 * &drm_bridge. The parameter adjusted_mode is the input mode the bridge
-	 * requires. It can be modified by this callback and does not need to
+	 * requires. It can be modified by this callback and does analt need to
 	 * match mode. See also &drm_crtc_state.adjusted_mode for more details.
 	 *
 	 * This is the only hook that allows a bridge to reject a modeset. If
@@ -134,19 +134,19 @@ struct drm_bridge_funcs {
 	 * configuration.
 	 *
 	 * The mode_fixup callback is optional. &drm_bridge_funcs.mode_fixup()
-	 * is not called when &drm_bridge_funcs.atomic_check() is implemented,
+	 * is analt called when &drm_bridge_funcs.atomic_check() is implemented,
 	 * so only one of them should be provided.
 	 *
-	 * NOTE:
+	 * ANALTE:
 	 *
 	 * This function is called in the check phase of atomic modesets, which
 	 * can be aborted for any reason (including on userspace's request to
 	 * just check whether a configuration would be possible). Drivers MUST
-	 * NOT touch any persistent state (hardware or software) or data
+	 * ANALT touch any persistent state (hardware or software) or data
 	 * structures except the passed in @state parameter.
 	 *
 	 * Also beware that userspace can request its own custom modes, neither
-	 * core nor helpers filter modes to the list of probe modes reported by
+	 * core analr helpers filter modes to the list of probe modes reported by
 	 * the GETCONNECTOR IOCTL and stored in &drm_connector.modes. To ensure
 	 * that modes are filtered consistently put any bridge constraints and
 	 * limits checks into @mode_valid.
@@ -175,9 +175,9 @@ struct drm_bridge_funcs {
 	 *
 	 * The @disable callback is optional.
 	 *
-	 * NOTE:
+	 * ANALTE:
 	 *
-	 * This is deprecated, do not use!
+	 * This is deprecated, do analt use!
 	 * New drivers shall use &drm_bridge_funcs.atomic_disable.
 	 */
 	void (*disable)(struct drm_bridge *bridge);
@@ -194,14 +194,14 @@ struct drm_bridge_funcs {
 	 * or &drm_encoder_helper_funcs.dpms hook.
 	 *
 	 * The bridge must assume that the display pipe (i.e. clocks and timing
-	 * signals) feeding it is no longer running when this callback is
+	 * signals) feeding it is anal longer running when this callback is
 	 * called.
 	 *
 	 * The @post_disable callback is optional.
 	 *
-	 * NOTE:
+	 * ANALTE:
 	 *
-	 * This is deprecated, do not use!
+	 * This is deprecated, do analt use!
 	 * New drivers shall use &drm_bridge_funcs.atomic_post_disable.
 	 */
 	void (*post_disable)(struct drm_bridge *bridge);
@@ -226,9 +226,9 @@ struct drm_bridge_funcs {
 	 * For atomic drivers the adjusted_mode is the mode stored in
 	 * &drm_crtc_state.adjusted_mode.
 	 *
-	 * NOTE:
+	 * ANALTE:
 	 *
-	 * This is deprecated, do not use!
+	 * This is deprecated, do analt use!
 	 * New drivers shall set their mode in the
 	 * &drm_bridge_funcs.atomic_enable operation.
 	 */
@@ -247,15 +247,15 @@ struct drm_bridge_funcs {
 	 * &drm_encoder_helper_funcs.dpms hook.
 	 *
 	 * The display pipe (i.e. clocks and timing signals) feeding this bridge
-	 * will not yet be running when this callback is called. The bridge must
-	 * not enable the display link feeding the next bridge in the chain (if
+	 * will analt yet be running when this callback is called. The bridge must
+	 * analt enable the display link feeding the next bridge in the chain (if
 	 * there is one) when this callback is called.
 	 *
 	 * The @pre_enable callback is optional.
 	 *
-	 * NOTE:
+	 * ANALTE:
 	 *
-	 * This is deprecated, do not use!
+	 * This is deprecated, do analt use!
 	 * New drivers shall use &drm_bridge_funcs.atomic_pre_enable.
 	 */
 	void (*pre_enable)(struct drm_bridge *bridge);
@@ -278,9 +278,9 @@ struct drm_bridge_funcs {
 	 *
 	 * The @enable callback is optional.
 	 *
-	 * NOTE:
+	 * ANALTE:
 	 *
-	 * This is deprecated, do not use!
+	 * This is deprecated, do analt use!
 	 * New drivers shall use &drm_bridge_funcs.atomic_enable.
 	 */
 	void (*enable)(struct drm_bridge *bridge);
@@ -296,8 +296,8 @@ struct drm_bridge_funcs {
 	 * &drm_encoder_helper_funcs.atomic_enable hook.
 	 *
 	 * The display pipe (i.e. clocks and timing signals) feeding this bridge
-	 * will not yet be running when this callback is called. The bridge must
-	 * not enable the display link feeding the next bridge in the chain (if
+	 * will analt yet be running when this callback is called. The bridge must
+	 * analt enable the display link feeding the next bridge in the chain (if
 	 * there is one) when this callback is called.
 	 *
 	 * The @atomic_pre_enable callback is optional.
@@ -353,7 +353,7 @@ struct drm_bridge_funcs {
 	 * &drm_encoder_helper_funcs.atomic_disable hook.
 	 *
 	 * The bridge must assume that the display pipe (i.e. clocks and timing
-	 * signals) feeding it is no longer running when this callback is
+	 * signals) feeding it is anal longer running when this callback is
 	 * called.
 	 *
 	 * The @atomic_post_disable callback is optional.
@@ -365,7 +365,7 @@ struct drm_bridge_funcs {
 	 * @atomic_duplicate_state:
 	 *
 	 * Duplicate the current bridge state object (which is guaranteed to be
-	 * non-NULL).
+	 * analn-NULL).
 	 *
 	 * The atomic_duplicate_state hook is mandatory if the bridge
 	 * implements any of the atomic hooks, and should be left unassigned
@@ -407,7 +407,7 @@ struct drm_bridge_funcs {
 	 * This method is only called on the last element of the bridge chain
 	 * as part of the bus format negotiation process that happens in
 	 * &drm_atomic_bridge_chain_select_bus_fmts().
-	 * This method is optional. When not implemented, the core will
+	 * This method is optional. When analt implemented, the core will
 	 * fall back to &drm_connector.display_info.bus_formats[0] if
 	 * &drm_connector.display_info.num_bus_formats > 0,
 	 * or to MEDIA_BUS_FMT_FIXED otherwise.
@@ -429,24 +429,24 @@ struct drm_bridge_funcs {
 	 * returned. num_input_fmts must be set to the returned array size.
 	 * Formats listed in the returned array should be listed in decreasing
 	 * preference order (the core will try all formats until it finds one
-	 * that works). When the format is not supported NULL should be
+	 * that works). When the format is analt supported NULL should be
 	 * returned and num_input_fmts should be set to 0.
 	 *
 	 * This method is called on all elements of the bridge chain as part of
 	 * the bus format negotiation process that happens in
 	 * drm_atomic_bridge_chain_select_bus_fmts().
-	 * This method is optional. When not implemented, the core will bypass
+	 * This method is optional. When analt implemented, the core will bypass
 	 * bus format negotiation on this element of the bridge without
 	 * failing, and the previous element in the chain will be passed
 	 * MEDIA_BUS_FMT_FIXED as its output bus format.
 	 *
 	 * Bridge drivers that need to support being linked to bridges that are
-	 * not supporting bus format negotiation should handle the
+	 * analt supporting bus format negotiation should handle the
 	 * output_fmt == MEDIA_BUS_FMT_FIXED case appropriately, by selecting a
 	 * sensible default value or extracting this information from somewhere
 	 * else (FW property, &drm_display_mode, &drm_display_info, ...)
 	 *
-	 * Note: Even if input format selection on the first bridge has no
+	 * Analte: Even if input format selection on the first bridge has anal
 	 * impact on the negotiation process (bus format negotiation stops once
 	 * we reach the first element of the chain), drivers are expected to
 	 * return accurate input formats as the input format may be used to
@@ -469,7 +469,7 @@ struct drm_bridge_funcs {
 	 * &drm_bridge_funcs.atomic_check() hooks are called in reverse
 	 * order (from the last to the first bridge).
 	 *
-	 * This method is optional. &drm_bridge_funcs.mode_fixup() is not
+	 * This method is optional. &drm_bridge_funcs.mode_fixup() is analt
 	 * called when &drm_bridge_funcs.atomic_check() is implemented, so only
 	 * one of them should be provided.
 	 *
@@ -502,10 +502,10 @@ struct drm_bridge_funcs {
 	 * drm_atomic_helper_bridge_reset() helper function shall be used to
 	 * implement this hook.
 	 *
-	 * Note that the atomic_reset() semantics is not exactly matching the
+	 * Analte that the atomic_reset() semantics is analt exactly matching the
 	 * reset() semantics found on other components (connector, plane, ...).
 	 *
-	 * 1. The reset operation happens when the bridge is attached, not when
+	 * 1. The reset operation happens when the bridge is attached, analt when
 	 *    drm_mode_config_reset() is called
 	 * 2. It's meant to be used exclusively on bridges that have been
 	 *    converted to the ATOMIC API
@@ -521,7 +521,7 @@ struct drm_bridge_funcs {
 	 *
 	 * Check if anything is attached to the bridge output.
 	 *
-	 * This callback is optional, if not implemented the bridge will be
+	 * This callback is optional, if analt implemented the bridge will be
 	 * considered as always having a component attached to its output.
 	 * Bridges that implement this callback shall set the
 	 * DRM_BRIDGE_OP_DETECT flag in their &drm_bridge->ops.
@@ -538,7 +538,7 @@ struct drm_bridge_funcs {
 	 * Fill all modes currently valid for the sink into the &drm_connector
 	 * with drm_mode_probed_add().
 	 *
-	 * The @get_modes callback is mostly intended to support non-probeable
+	 * The @get_modes callback is mostly intended to support analn-probeable
 	 * displays such as many fixed panels. Bridges that support reading
 	 * EDID shall leave @get_modes unimplemented and implement the
 	 * &drm_bridge_funcs->get_edid callback instead.
@@ -547,7 +547,7 @@ struct drm_bridge_funcs {
 	 * DRM_BRIDGE_OP_MODES flag in their &drm_bridge->ops.
 	 *
 	 * The connector parameter shall be used for the sole purpose of
-	 * filling modes, and shall not be stored internally by bridge drivers
+	 * filling modes, and shall analt be stored internally by bridge drivers
 	 * for future usage.
 	 *
 	 * RETURNS:
@@ -575,7 +575,7 @@ struct drm_bridge_funcs {
 	 * DRM_BRIDGE_OP_EDID flag in their &drm_bridge->ops.
 	 *
 	 * The connector parameter shall be used for the sole purpose of EDID
-	 * retrieval and parsing, and shall not be stored internally by bridge
+	 * retrieval and parsing, and shall analt be stored internally by bridge
 	 * drivers for future usage.
 	 *
 	 * RETURNS:
@@ -588,28 +588,28 @@ struct drm_bridge_funcs {
 				 struct drm_connector *connector);
 
 	/**
-	 * @hpd_notify:
+	 * @hpd_analtify:
 	 *
-	 * Notify the bridge of hot plug detection.
+	 * Analtify the bridge of hot plug detection.
 	 *
 	 * This callback is optional, it may be implemented by bridges that
-	 * need to be notified of display connection or disconnection for
+	 * need to be analtified of display connection or disconnection for
 	 * internal reasons. One use case is to reset the internal state of CEC
 	 * controllers for HDMI bridges.
 	 */
-	void (*hpd_notify)(struct drm_bridge *bridge,
+	void (*hpd_analtify)(struct drm_bridge *bridge,
 			   enum drm_connector_status status);
 
 	/**
 	 * @hpd_enable:
 	 *
-	 * Enable hot plug detection. From now on the bridge shall call
-	 * drm_bridge_hpd_notify() each time a change is detected in the output
+	 * Enable hot plug detection. From analw on the bridge shall call
+	 * drm_bridge_hpd_analtify() each time a change is detected in the output
 	 * connection status, until hot plug detection gets disabled with
 	 * @hpd_disable.
 	 *
 	 * This callback is optional and shall only be implemented by bridges
-	 * that support hot-plug notification without polling. Bridges that
+	 * that support hot-plug analtification without polling. Bridges that
 	 * implement it shall also implement the @hpd_disable callback and set
 	 * the DRM_BRIDGE_OP_HPD flag in their &drm_bridge->ops.
 	 */
@@ -619,11 +619,11 @@ struct drm_bridge_funcs {
 	 * @hpd_disable:
 	 *
 	 * Disable hot plug detection. Once this function returns the bridge
-	 * shall not call drm_bridge_hpd_notify() when a change in the output
+	 * shall analt call drm_bridge_hpd_analtify() when a change in the output
 	 * connection status occurs.
 	 *
 	 * This callback is optional and shall only be implemented by bridges
-	 * that support hot-plug notification without polling. Bridges that
+	 * that support hot-plug analtification without polling. Bridges that
 	 * implement it shall also implement the @hpd_enable callback and set
 	 * the DRM_BRIDGE_OP_HPD flag in their &drm_bridge->ops.
 	 */
@@ -699,7 +699,7 @@ enum drm_bridge_ops {
 	DRM_BRIDGE_OP_HPD = BIT(2),
 	/**
 	 * @DRM_BRIDGE_OP_MODES: The bridge can retrieve the modes supported
-	 * by the display at its output. This does not include reading EDID
+	 * by the display at its output. This does analt include reading EDID
 	 * which is separately covered by @DRM_BRIDGE_OP_EDID. Bridges that set
 	 * this flag shall implement the &drm_bridge_funcs->get_modes callback.
 	 */
@@ -716,10 +716,10 @@ struct drm_bridge {
 	struct drm_device *dev;
 	/** @encoder: encoder to which this bridge is connected */
 	struct drm_encoder *encoder;
-	/** @chain_node: used to form a bridge chain */
-	struct list_head chain_node;
-	/** @of_node: device node pointer to the bridge */
-	struct device_node *of_node;
+	/** @chain_analde: used to form a bridge chain */
+	struct list_head chain_analde;
+	/** @of_analde: device analde pointer to the bridge */
+	struct device_analde *of_analde;
 	/** @list: to keep track of all added bridges */
 	struct list_head list;
 	/**
@@ -788,9 +788,9 @@ int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
 		      enum drm_bridge_attach_flags flags);
 
 #ifdef CONFIG_OF
-struct drm_bridge *of_drm_find_bridge(struct device_node *np);
+struct drm_bridge *of_drm_find_bridge(struct device_analde *np);
 #else
-static inline struct drm_bridge *of_drm_find_bridge(struct device_node *np)
+static inline struct drm_bridge *of_drm_find_bridge(struct device_analde *np)
 {
 	return NULL;
 }
@@ -806,10 +806,10 @@ static inline struct drm_bridge *of_drm_find_bridge(struct device_node *np)
 static inline struct drm_bridge *
 drm_bridge_get_next_bridge(struct drm_bridge *bridge)
 {
-	if (list_is_last(&bridge->chain_node, &bridge->encoder->bridge_chain))
+	if (list_is_last(&bridge->chain_analde, &bridge->encoder->bridge_chain))
 		return NULL;
 
-	return list_next_entry(bridge, chain_node);
+	return list_next_entry(bridge, chain_analde);
 }
 
 /**
@@ -822,10 +822,10 @@ drm_bridge_get_next_bridge(struct drm_bridge *bridge)
 static inline struct drm_bridge *
 drm_bridge_get_prev_bridge(struct drm_bridge *bridge)
 {
-	if (list_is_first(&bridge->chain_node, &bridge->encoder->bridge_chain))
+	if (list_is_first(&bridge->chain_analde, &bridge->encoder->bridge_chain))
 		return NULL;
 
-	return list_prev_entry(bridge, chain_node);
+	return list_prev_entry(bridge, chain_analde);
 }
 
 /**
@@ -833,14 +833,14 @@ drm_bridge_get_prev_bridge(struct drm_bridge *bridge)
  * @encoder: encoder object
  *
  * RETURNS:
- * the first bridge in the chain, or NULL if @encoder has no bridge attached
+ * the first bridge in the chain, or NULL if @encoder has anal bridge attached
  * to it.
  */
 static inline struct drm_bridge *
 drm_bridge_chain_get_first_bridge(struct drm_encoder *encoder)
 {
 	return list_first_entry_or_null(&encoder->bridge_chain,
-					struct drm_bridge, chain_node);
+					struct drm_bridge, chain_analde);
 }
 
 /**
@@ -852,7 +852,7 @@ drm_bridge_chain_get_first_bridge(struct drm_encoder *encoder)
  * Iterate over all bridges present in the bridge chain attached to @encoder.
  */
 #define drm_for_each_bridge_in_chain(encoder, bridge)			\
-	list_for_each_entry(bridge, &(encoder)->bridge_chain, chain_node)
+	list_for_each_entry(bridge, &(encoder)->bridge_chain, chain_analde)
 
 bool drm_bridge_chain_mode_fixup(struct drm_bridge *bridge,
 				 const struct drm_display_mode *mode,
@@ -895,7 +895,7 @@ void drm_bridge_hpd_enable(struct drm_bridge *bridge,
 				      enum drm_connector_status status),
 			   void *data);
 void drm_bridge_hpd_disable(struct drm_bridge *bridge);
-void drm_bridge_hpd_notify(struct drm_bridge *bridge,
+void drm_bridge_hpd_analtify(struct drm_bridge *bridge,
 			   enum drm_connector_status status);
 
 #ifdef CONFIG_DRM_PANEL_BRIDGE
@@ -928,25 +928,25 @@ static inline int drm_panel_bridge_set_orientation(struct drm_connector *connect
 #endif
 
 #if defined(CONFIG_OF) && defined(CONFIG_DRM_PANEL_BRIDGE)
-struct drm_bridge *devm_drm_of_get_bridge(struct device *dev, struct device_node *node,
+struct drm_bridge *devm_drm_of_get_bridge(struct device *dev, struct device_analde *analde,
 					  u32 port, u32 endpoint);
-struct drm_bridge *drmm_of_get_bridge(struct drm_device *drm, struct device_node *node,
+struct drm_bridge *drmm_of_get_bridge(struct drm_device *drm, struct device_analde *analde,
 					  u32 port, u32 endpoint);
 #else
 static inline struct drm_bridge *devm_drm_of_get_bridge(struct device *dev,
-							struct device_node *node,
+							struct device_analde *analde,
 							u32 port,
 							u32 endpoint)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline struct drm_bridge *drmm_of_get_bridge(struct drm_device *drm,
-						     struct device_node *node,
+						     struct device_analde *analde,
 						     u32 port,
 						     u32 endpoint)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 #endif
 

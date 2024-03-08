@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2013 Politecnico di Torino, Italy
+ * Copyright (C) 2013 Politecnico di Torianal, Italy
  *                    TORSEC group -- https://security.polito.it
  *
  * Author: Roberto Sassu <roberto.sassu@polito.it>
@@ -54,7 +54,7 @@ static int ima_write_template_field_data(const void *data, const u32 datalen,
 
 	buf = kzalloc(buflen, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(buf, data, datalen);
 
@@ -110,21 +110,21 @@ static void ima_show_template_data_ascii(struct seq_file *m,
 			seq_printf(m, "%u", *(u8 *)buf_ptr);
 			break;
 		case sizeof(u16):
-			if (ima_canonical_fmt)
+			if (ima_caanalnical_fmt)
 				seq_printf(m, "%u",
 					   le16_to_cpu(*(__le16 *)buf_ptr));
 			else
 				seq_printf(m, "%u", *(u16 *)buf_ptr);
 			break;
 		case sizeof(u32):
-			if (ima_canonical_fmt)
+			if (ima_caanalnical_fmt)
 				seq_printf(m, "%u",
 					   le32_to_cpu(*(__le32 *)buf_ptr));
 			else
 				seq_printf(m, "%u", *(u32 *)buf_ptr);
 			break;
 		case sizeof(u64):
-			if (ima_canonical_fmt)
+			if (ima_caanalnical_fmt)
 				seq_printf(m, "%llu",
 					   le64_to_cpu(*(__le64 *)buf_ptr));
 			else
@@ -147,8 +147,8 @@ static void ima_show_template_data_binary(struct seq_file *m,
 	u32 len = (show == IMA_SHOW_BINARY_OLD_STRING_FMT) ?
 	    strlen(field_data->data) : field_data->len;
 
-	if (show != IMA_SHOW_BINARY_NO_FIELD_LEN) {
-		u32 field_len = !ima_canonical_fmt ?
+	if (show != IMA_SHOW_BINARY_ANAL_FIELD_LEN) {
+		u32 field_len = !ima_caanalnical_fmt ?
 				len : (__force u32)cpu_to_le32(len);
 
 		ima_putc(m, &field_len, sizeof(field_len));
@@ -170,7 +170,7 @@ static void ima_show_template_field_data(struct seq_file *m,
 		ima_show_template_data_ascii(m, show, datafmt, field_data);
 		break;
 	case IMA_SHOW_BINARY:
-	case IMA_SHOW_BINARY_NO_FIELD_LEN:
+	case IMA_SHOW_BINARY_ANAL_FIELD_LEN:
 	case IMA_SHOW_BINARY_OLD_STRING_FMT:
 		ima_show_template_data_binary(m, show, datafmt, field_data);
 		break;
@@ -228,11 +228,11 @@ void ima_show_template_uint(struct seq_file *m, enum ima_show_type show,
  * ima_parse_buf() - Parses lengths and data from an input buffer
  * @bufstartp:       Buffer start address.
  * @bufendp:         Buffer end address.
- * @bufcurp:         Pointer to remaining (non-parsed) data.
+ * @bufcurp:         Pointer to remaining (analn-parsed) data.
  * @maxfields:       Length of fields array.
  * @fields:          Array containing lengths and pointers of parsed data.
  * @curfields:       Number of array items containing parsed data.
- * @len_mask:        Bitmap (if bit is set, data length should not be parsed).
+ * @len_mask:        Bitmap (if bit is set, data length should analt be parsed).
  * @enforce_mask:    Check if curfields == maxfields and/or bufcurp == bufendp.
  * @bufname:         String identifier of the input buffer.
  *
@@ -250,7 +250,7 @@ int ima_parse_buf(void *bufstartp, void *bufendp, void **bufcurp,
 			if (bufp > (bufendp - sizeof(u32)))
 				break;
 
-			if (ima_canonical_fmt)
+			if (ima_caanalnical_fmt)
 				fields[i].len = le32_to_cpu(*(__le32 *)bufp);
 			else
 				fields[i].len = *(u32 *)bufp;
@@ -341,7 +341,7 @@ int ima_eventdigest_init(struct ima_event_data *event_data,
 	struct ima_max_digest_data hash;
 	u8 *cur_digest = NULL;
 	u32 cur_digestsize = 0;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int result;
 
 	memset(&hash, 0, sizeof(hash));
@@ -376,12 +376,12 @@ int ima_eventdigest_init(struct ima_event_data *event_data,
 	if (!event_data->file)	/* missing info to re-calculate the digest */
 		return -EINVAL;
 
-	inode = file_inode(event_data->file);
+	ianalde = file_ianalde(event_data->file);
 	hash.hdr.algo = ima_template_hash_algo_allowed(ima_hash_algo) ?
 	    ima_hash_algo : HASH_ALGO_SHA1;
 	result = ima_calc_file_hash(event_data->file, &hash.hdr);
 	if (result) {
-		integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode,
+		integrity_audit_msg(AUDIT_INTEGRITY_DATA, ianalde,
 				    event_data->filename, "collect_data",
 				    "failed", result, 0);
 		return result;
@@ -501,7 +501,7 @@ static int ima_eventname_init_common(struct ima_event_data *event_data,
 	} else
 		/*
 		 * Truncate filename if the latter is too long and
-		 * the file descriptor is not available.
+		 * the file descriptor is analt available.
 		 */
 		cur_filename_len = IMA_EVENT_NAME_LEN_MAX;
 out:
@@ -598,9 +598,9 @@ int ima_eventevmsig_init(struct ima_event_data *event_data,
 	if (!event_data->file)
 		return 0;
 
-	rc = vfs_getxattr_alloc(&nop_mnt_idmap, file_dentry(event_data->file),
+	rc = vfs_getxattr_alloc(&analp_mnt_idmap, file_dentry(event_data->file),
 				XATTR_NAME_EVM, (char **)&xattr_data, 0,
-				GFP_NOFS);
+				GFP_ANALFS);
 	if (rc <= 0 || xattr_data->type != EVM_XATTR_PORTABLE_DIGSIG) {
 		rc = 0;
 		goto out;
@@ -614,7 +614,7 @@ out:
 	return rc;
 }
 
-static int ima_eventinodedac_init_common(struct ima_event_data *event_data,
+static int ima_eventianaldedac_init_common(struct ima_event_data *event_data,
 					 struct ima_field_data *field_data,
 					 bool get_uid)
 {
@@ -624,11 +624,11 @@ static int ima_eventinodedac_init_common(struct ima_event_data *event_data,
 		return 0;
 
 	if (get_uid)
-		id = i_uid_read(file_inode(event_data->file));
+		id = i_uid_read(file_ianalde(event_data->file));
 	else
-		id = i_gid_read(file_inode(event_data->file));
+		id = i_gid_read(file_ianalde(event_data->file));
 
-	if (ima_canonical_fmt) {
+	if (ima_caanalnical_fmt) {
 		if (sizeof(id) == sizeof(u16))
 			id = (__force u16)cpu_to_le16(id);
 		else
@@ -640,48 +640,48 @@ static int ima_eventinodedac_init_common(struct ima_event_data *event_data,
 }
 
 /*
- *  ima_eventinodeuid_init - include the inode UID as part of the template
+ *  ima_eventianaldeuid_init - include the ianalde UID as part of the template
  *  data
  */
-int ima_eventinodeuid_init(struct ima_event_data *event_data,
+int ima_eventianaldeuid_init(struct ima_event_data *event_data,
 			   struct ima_field_data *field_data)
 {
-	return ima_eventinodedac_init_common(event_data, field_data, true);
+	return ima_eventianaldedac_init_common(event_data, field_data, true);
 }
 
 /*
- *  ima_eventinodegid_init - include the inode GID as part of the template
+ *  ima_eventianaldegid_init - include the ianalde GID as part of the template
  *  data
  */
-int ima_eventinodegid_init(struct ima_event_data *event_data,
+int ima_eventianaldegid_init(struct ima_event_data *event_data,
 			   struct ima_field_data *field_data)
 {
-	return ima_eventinodedac_init_common(event_data, field_data, false);
+	return ima_eventianaldedac_init_common(event_data, field_data, false);
 }
 
 /*
- *  ima_eventinodemode_init - include the inode mode as part of the template
+ *  ima_eventianaldemode_init - include the ianalde mode as part of the template
  *  data
  */
-int ima_eventinodemode_init(struct ima_event_data *event_data,
+int ima_eventianaldemode_init(struct ima_event_data *event_data,
 			    struct ima_field_data *field_data)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	u16 mode;
 
 	if (!event_data->file)
 		return 0;
 
-	inode = file_inode(event_data->file);
-	mode = inode->i_mode;
-	if (ima_canonical_fmt)
+	ianalde = file_ianalde(event_data->file);
+	mode = ianalde->i_mode;
+	if (ima_caanalnical_fmt)
 		mode = (__force u16)cpu_to_le16(mode);
 
 	return ima_write_template_field_data((char *)&mode, sizeof(mode),
 					     DATA_FMT_UINT, field_data);
 }
 
-static int ima_eventinodexattrs_init_common(struct ima_event_data *event_data,
+static int ima_eventianaldexattrs_init_common(struct ima_event_data *event_data,
 					    struct ima_field_data *field_data,
 					    char type)
 {
@@ -692,7 +692,7 @@ static int ima_eventinodexattrs_init_common(struct ima_event_data *event_data,
 		return 0;
 
 	rc = evm_read_protected_xattrs(file_dentry(event_data->file), NULL, 0,
-				       type, ima_canonical_fmt);
+				       type, ima_caanalnical_fmt);
 	if (rc < 0)
 		return 0;
 
@@ -701,7 +701,7 @@ static int ima_eventinodexattrs_init_common(struct ima_event_data *event_data,
 		return 0;
 
 	rc = evm_read_protected_xattrs(file_dentry(event_data->file), buffer,
-				       rc, type, ima_canonical_fmt);
+				       rc, type, ima_caanalnical_fmt);
 	if (rc < 0) {
 		rc = 0;
 		goto out;
@@ -715,31 +715,31 @@ out:
 }
 
 /*
- *  ima_eventinodexattrnames_init - include a list of xattr names as part of the
+ *  ima_eventianaldexattrnames_init - include a list of xattr names as part of the
  *  template data
  */
-int ima_eventinodexattrnames_init(struct ima_event_data *event_data,
+int ima_eventianaldexattrnames_init(struct ima_event_data *event_data,
 				  struct ima_field_data *field_data)
 {
-	return ima_eventinodexattrs_init_common(event_data, field_data, 'n');
+	return ima_eventianaldexattrs_init_common(event_data, field_data, 'n');
 }
 
 /*
- *  ima_eventinodexattrlengths_init - include a list of xattr lengths as part of
+ *  ima_eventianaldexattrlengths_init - include a list of xattr lengths as part of
  *  the template data
  */
-int ima_eventinodexattrlengths_init(struct ima_event_data *event_data,
+int ima_eventianaldexattrlengths_init(struct ima_event_data *event_data,
 				    struct ima_field_data *field_data)
 {
-	return ima_eventinodexattrs_init_common(event_data, field_data, 'l');
+	return ima_eventianaldexattrs_init_common(event_data, field_data, 'l');
 }
 
 /*
- *  ima_eventinodexattrvalues_init - include a list of xattr values as part of
+ *  ima_eventianaldexattrvalues_init - include a list of xattr values as part of
  *  the template data
  */
-int ima_eventinodexattrvalues_init(struct ima_event_data *event_data,
+int ima_eventianaldexattrvalues_init(struct ima_event_data *event_data,
 				   struct ima_field_data *field_data)
 {
-	return ima_eventinodexattrs_init_common(event_data, field_data, 'v');
+	return ima_eventianaldexattrs_init_common(event_data, field_data, 'v');
 }

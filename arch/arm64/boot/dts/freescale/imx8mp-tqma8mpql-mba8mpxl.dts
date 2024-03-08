@@ -137,7 +137,7 @@
 
 	display: display {
 		/*
-		 * Display is not fixed, so compatible has to be added from
+		 * Display is analt fixed, so compatible has to be added from
 		 * DT overlay
 		 */
 		pinctrl-names = "default";
@@ -211,7 +211,7 @@
 		ranges;
 
 		ocram: ocram@900000 {
-			no-map;
+			anal-map;
 			reg = <0 0x900000 0 0x70000>;
 		};
 
@@ -327,7 +327,7 @@
 			reset-gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <500000>;
 			reset-deassert-us = <50000>;
-			enet-phy-lane-no-swap;
+			enet-phy-lane-anal-swap;
 			interrupt-parent = <&gpio4>;
 			interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
 		};
@@ -357,7 +357,7 @@
 			reset-gpios = <&gpio4 0 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <500000>;
 			reset-deassert-us = <50000>;
-			enet-phy-lane-no-swap;
+			enet-phy-lane-anal-swap;
 			interrupt-parent = <&gpio4>;
 			interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
 		};
@@ -639,7 +639,7 @@
 };
 
 &usb_dwc3_0 {
-	/* dual role is implemented, but not a full featured OTG */
+	/* dual role is implemented, but analt a full featured OTG */
 	hnp-disable;
 	srp-disable;
 	adp-disable;
@@ -687,8 +687,8 @@
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_gpio>;
 	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
-	no-mmc;
-	no-sdio;
+	anal-mmc;
+	anal-sdio;
 	disable-wp;
 	bus-width = <4>;
 	status = "okay";

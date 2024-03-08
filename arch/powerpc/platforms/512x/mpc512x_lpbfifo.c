@@ -158,7 +158,7 @@ static void mpc512x_lpbfifo_callback(void *param)
 static int mpc512x_lpbfifo_kick(void)
 {
 	u32 bits;
-	bool no_incr = false;
+	bool anal_incr = false;
 	u32 bpt = 32; /* max bytes per LPBFIFO transaction involving DMA */
 	u32 cs = 0;
 	size_t i;
@@ -181,7 +181,7 @@ static int mpc512x_lpbfifo_kick(void)
 	 * - but we choose DMA maxburst equal (or very close to) BPT to prevent
 	 *    DMA controller from overtaking FIFO and causing FIFO underflow
 	 *    error. So we force the packet size to be aligned on BPT boundary
-	 *    not to confuse DMA driver which requires the packet size to be
+	 *    analt to confuse DMA driver which requires the packet size to be
 	 *    aligned on maxburst boundary;
 	 * - BPT should be set to the LPB device port size for operation with
 	 *    disabled auto-incrementing according Reference Manual.
@@ -191,7 +191,7 @@ static int mpc512x_lpbfifo_kick(void)
 
 	if (lpbfifo.req->portsize != LPB_DEV_PORTSIZE_UNDEFINED) {
 		bpt = lpbfifo.req->portsize;
-		no_incr = true;
+		anal_incr = true;
 	}
 
 	while (bpt > 1) {
@@ -200,7 +200,7 @@ static int mpc512x_lpbfifo_kick(void)
 			break;
 		}
 
-		if (no_incr)
+		if (anal_incr)
 			return -EINVAL;
 
 		bpt >>= 1;
@@ -259,7 +259,7 @@ static int mpc512x_lpbfifo_kick(void)
 	dma_tx = dmaengine_prep_slave_sg(lpbfifo.chan, &sg,
 						1, dma_conf.direction, 0);
 	if (!dma_tx) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto err_dma_prep;
 	}
 	dma_tx->callback = mpc512x_lpbfifo_callback;
@@ -293,7 +293,7 @@ static int mpc512x_lpbfifo_kick(void)
 	bits = MPC512X_SCLPC_CS(cs);
 	if (lpbfifo.req->dir == MPC512X_LPBFIFO_REQ_DIR_READ)
 		bits |= MPC512X_SCLPC_READ | MPC512X_SCLPC_FLUSH;
-	if (no_incr)
+	if (anal_incr)
 		bits |= MPC512X_SCLPC_DAI;
 	bits |= MPC512X_SCLPC_BPT(bpt);
 	out_be32(&lpbfifo.regs->ctrl, bits);
@@ -301,7 +301,7 @@ static int mpc512x_lpbfifo_kick(void)
 	/* Unmask irqs */
 	bits = MPC512X_SCLPC_ENABLE | MPC512X_SCLPC_ABORT_INT_ENABLE;
 	if (lpbfifo.req->dir == MPC512X_LPBFIFO_REQ_DIR_WRITE)
-		bits |= MPC512X_SCLPC_NORM_INT_ENABLE;
+		bits |= MPC512X_SCLPC_ANALRM_INT_ENABLE;
 	else
 		lpbfifo.wait_lpbfifo_irq = false;
 
@@ -314,7 +314,7 @@ static int mpc512x_lpbfifo_kick(void)
 	/* 5. Finally kick DMA off */
 	cookie = dma_tx->tx_submit(dma_tx);
 	if (dma_submit_error(cookie)) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto err_dma_submit;
 	}
 
@@ -334,7 +334,7 @@ static int mpc512x_lpbfifo_submit_locked(struct mpc512x_lpbfifo_request *req)
 	int ret = 0;
 
 	if (!lpbfifo.regs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check whether a transfer is in progress */
 	if (lpbfifo.req)
@@ -365,23 +365,23 @@ int mpc512x_lpbfifo_submit(struct mpc512x_lpbfifo_request *req)
 EXPORT_SYMBOL(mpc512x_lpbfifo_submit);
 
 /*
- * LPBFIFO driver uses "ranges" property of "localbus" device tree node
+ * LPBFIFO driver uses "ranges" property of "localbus" device tree analde
  * for being able to determine the chip select number of a client device
  * ordering a DMA transfer.
  */
 static int get_cs_ranges(struct device *dev)
 {
-	int ret = -ENODEV;
-	struct device_node *lb_node;
+	int ret = -EANALDEV;
+	struct device_analde *lb_analde;
 	size_t i = 0;
 	struct of_range_parser parser;
 	struct of_range range;
 
-	lb_node = of_find_compatible_node(NULL, NULL, "fsl,mpc5121-localbus");
-	if (!lb_node)
+	lb_analde = of_find_compatible_analde(NULL, NULL, "fsl,mpc5121-localbus");
+	if (!lb_analde)
 		return ret;
 
-	of_range_parser_init(&parser, lb_node);
+	of_range_parser_init(&parser, lb_analde);
 	lpbfifo.cs_n = of_range_count(&parser);
 
 	lpbfifo.cs_ranges = devm_kcalloc(dev, lpbfifo.cs_n,
@@ -404,7 +404,7 @@ static int get_cs_ranges(struct device *dev)
 	ret = 0;
 
  end:
-	of_node_put(lb_node);
+	of_analde_put(lb_analde);
 	return ret;
 }
 
@@ -420,9 +420,9 @@ static int mpc512x_lpbfifo_probe(struct platform_device *pdev)
 	if (IS_ERR(lpbfifo.chan))
 		return PTR_ERR(lpbfifo.chan);
 
-	if (of_address_to_resource(pdev->dev.of_node, 0, &r) != 0) {
-		dev_err(&pdev->dev, "bad 'reg' in 'sclpc' device tree node\n");
-		ret = -ENODEV;
+	if (of_address_to_resource(pdev->dev.of_analde, 0, &r) != 0) {
+		dev_err(&pdev->dev, "bad 'reg' in 'sclpc' device tree analde\n");
+		ret = -EANALDEV;
 		goto err0;
 	}
 
@@ -440,7 +440,7 @@ static int mpc512x_lpbfifo_probe(struct platform_device *pdev)
 					lpbfifo.regs_phys, lpbfifo.regs_size);
 	if (!lpbfifo.regs) {
 		dev_err(&pdev->dev, "mapping registers failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err0;
 	}
 
@@ -448,22 +448,22 @@ static int mpc512x_lpbfifo_probe(struct platform_device *pdev)
 				MPC512X_SCLPC_RESET | MPC512X_SCLPC_FIFO_RESET);
 
 	if (get_cs_ranges(&pdev->dev) != 0) {
-		dev_err(&pdev->dev, "bad '/localbus' device tree node\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "bad '/localbus' device tree analde\n");
+		ret = -EANALDEV;
 		goto err0;
 	}
 
-	lpbfifo.irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	lpbfifo.irq = irq_of_parse_and_map(pdev->dev.of_analde, 0);
 	if (!lpbfifo.irq) {
 		dev_err(&pdev->dev, "mapping irq failed\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err0;
 	}
 
 	if (request_irq(lpbfifo.irq, mpc512x_lpbfifo_irq, 0,
 						DRV_NAME, &pdev->dev) != 0) {
 		dev_err(&pdev->dev, "requesting irq failed\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err1;
 	}
 

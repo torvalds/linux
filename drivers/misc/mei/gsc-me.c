@@ -55,13 +55,13 @@ static int mei_gsc_probe(struct auxiliary_device *aux_dev,
 
 	cfg = mei_me_get_cfg(aux_dev_id->driver_data);
 	if (!cfg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device = &aux_dev->dev;
 
 	dev = mei_me_dev_init(device, cfg, adev->slow_firmware);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -106,7 +106,7 @@ static int mei_gsc_probe(struct auxiliary_device *aux_dev,
 		}
 	}
 
-	pm_runtime_get_noresume(device);
+	pm_runtime_get_analresume(device);
 	pm_runtime_set_active(device);
 	pm_runtime_enable(device);
 
@@ -124,7 +124,7 @@ static int mei_gsc_probe(struct auxiliary_device *aux_dev,
 	if (ret)
 		goto register_err;
 
-	pm_runtime_put_noidle(device);
+	pm_runtime_put_analidle(device);
 	return 0;
 
 register_err:
@@ -169,7 +169,7 @@ static int __maybe_unused mei_gsc_pm_suspend(struct device *device)
 	struct mei_device *dev = dev_get_drvdata(device);
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mei_stop(dev);
 
@@ -187,7 +187,7 @@ static int __maybe_unused mei_gsc_pm_resume(struct device *device)
 	struct mei_me_hw *hw;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hw = to_me_hw(dev);
 	aux_dev = to_auxiliary_dev(device);
@@ -212,7 +212,7 @@ static int __maybe_unused mei_gsc_pm_runtime_idle(struct device *device)
 	struct mei_device *dev = dev_get_drvdata(device);
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 	if (mei_write_is_idle(dev))
 		pm_runtime_autosuspend(device);
 
@@ -226,7 +226,7 @@ static int  __maybe_unused mei_gsc_pm_runtime_suspend(struct device *device)
 	int ret;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&dev->device_lock);
 
@@ -253,7 +253,7 @@ static int __maybe_unused mei_gsc_pm_runtime_resume(struct device *device)
 	irqreturn_t irq_ret;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&dev->device_lock);
 

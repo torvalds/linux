@@ -57,11 +57,11 @@ msgid "Processor Package C1"
 msgstr ""
 
 #: utils/idle_monitor/amd_fam14h_idle.c:77
-msgid "North Bridge P1 boolean counter (returns 0 or 1)"
+msgid "Analrth Bridge P1 boolean counter (returns 0 or 1)"
 msgstr ""
 
 #: utils/idle_monitor/mperf_monitor.c:35
-msgid "Processor Core not idle"
+msgid "Processor Core analt idle"
 msgstr ""
 
 #: utils/idle_monitor/mperf_monitor.c:42
@@ -120,7 +120,7 @@ msgstr ""
 #, c-format
 msgid ""
 "only one of: -t, -l, -m are allowed\n"
-"If none of them is passed,"
+"If analne of them is passed,"
 msgstr ""
 
 #: utils/idle_monitor/cpupower-monitor.c:80
@@ -130,7 +130,7 @@ msgstr ""
 
 #: utils/idle_monitor/cpupower-monitor.c:197
 #, c-format
-msgid "Monitor %s, Counter %s has no count function. Implementation error\n"
+msgid "Monitor %s, Counter %s has anal count function. Implementation error\n"
 msgstr ""
 
 #: utils/idle_monitor/cpupower-monitor.c:207
@@ -145,7 +145,7 @@ msgstr ""
 
 #: utils/idle_monitor/cpupower-monitor.c:250
 #, c-format
-msgid "No matching monitor found in %s, try -l option\n"
+msgid "Anal matching monitor found in %s, try -l option\n"
 msgstr ""
 
 #: utils/idle_monitor/cpupower-monitor.c:266
@@ -160,7 +160,7 @@ msgstr ""
 
 #: utils/idle_monitor/cpupower-monitor.c:406
 #, c-format
-msgid "Cannot read number of available processors\n"
+msgid "Cananalt read number of available processors\n"
 msgstr ""
 
 #: utils/idle_monitor/cpupower-monitor.c:417
@@ -170,7 +170,7 @@ msgstr ""
 
 #: utils/idle_monitor/cpupower-monitor.c:428
 #, c-format
-msgid "No HW Cstate monitors found\n"
+msgid "Anal HW Cstate monitors found\n"
 msgstr ""
 
 #: utils/cpupower.c:78
@@ -237,7 +237,7 @@ msgstr "Nelze zjistit počet CPU (%s: %s), předpokládá se 1.\n"
 #: utils/cpufreq-info.c:63
 #, c-format
 msgid ""
-"          minimum CPU frequency  -  maximum CPU frequency  -  governor\n"
+"          minimum CPU frequency  -  maximum CPU frequency  -  goveranalr\n"
 msgstr ""
 "         minimální frekvence CPU - maximální frekvence CPU -  regulátor\n"
 
@@ -262,11 +262,11 @@ msgid "    Supported: %s\n"
 msgstr ""
 
 #: utils/cpufreq-info.c:163 utils/cpufreq-info.c:164
-msgid "yes"
+msgid "anal"
 msgstr ""
 
 #: utils/cpufreq-info.c:163 utils/cpufreq-info.c:164
-msgid "no"
+msgid "anal"
 msgstr ""
 
 #: utils/cpufreq-info.c:164
@@ -296,7 +296,7 @@ msgstr ""
 
 #: utils/cpufreq-info.c:211
 #, c-format
-msgid "  no or unknown cpufreq driver is active on this CPU\n"
+msgid "  anal or unkanalwn cpufreq driver is active on this CPU\n"
 msgstr "  pro tento CPU není aktivní žádný známý ovladač cpufreq\n"
 
 #: utils/cpufreq-info.c:213
@@ -331,7 +331,7 @@ msgstr "  dostupné frekvence: "
 
 #: utils/cpufreq-info.c:269
 #, c-format
-msgid "  available cpufreq governors: "
+msgid "  available cpufreq goveranalrs: "
 msgstr "  dostupné regulátory: "
 
 #: utils/cpufreq-info.c:280
@@ -347,10 +347,10 @@ msgstr " a "
 #: utils/cpufreq-info.c:286
 #, c-format
 msgid ""
-"The governor \"%s\" may decide which speed to use\n"
+"The goveranalr \"%s\" may decide which speed to use\n"
 "                  within this range.\n"
 msgstr ""
-"  Regulátor \"%s\" může rozhodnout jakou frekvenci použít\n"
+"  Regulátor \"%s\" může rozhodanalut jakou frekvenci použít\n"
 "                    v těchto mezích.\n"
 
 #: utils/cpufreq-info.c:293
@@ -361,7 +361,7 @@ msgstr "  současná frekvence CPU je "
 #: utils/cpufreq-info.c:296
 #, c-format
 msgid " (asserted by call to hardware)"
-msgstr "  (zjištěno hardwarovým voláním)"
+msgstr "  (zjištěanal hardwarovým voláním)"
 
 #: utils/cpufreq-info.c:304
 #, c-format
@@ -408,7 +408,7 @@ msgid ""
 "  -l, --hwlimits       Determine the minimum and maximum CPU frequency "
 "allowed *\n"
 msgstr ""
-"  -l, --hwlimits       Zjistí minimální a maximální dostupnou frekvenci CPU "
+"  -l, --hwlimits       Zjistí minimální a maximální dostupanalu frekvenci CPU "
 "*\n"
 
 #: utils/cpufreq-info.c:480
@@ -423,8 +423,8 @@ msgstr "  -p, --policy         Zjistí aktuální taktiku cpufreq *\n"
 
 #: utils/cpufreq-info.c:482
 #, c-format
-msgid "  -g, --governors      Determines available cpufreq governors *\n"
-msgstr "  -g, --governors      Zjistí dostupné regulátory cpufreq *\n"
+msgid "  -g, --goveranalrs      Determines available cpufreq goveranalrs *\n"
+msgstr "  -g, --goveranalrs      Zjistí dostupné regulátory cpufreq *\n"
 
 #: utils/cpufreq-info.c:483
 #, fuzzy, c-format
@@ -453,7 +453,7 @@ msgid ""
 "  -y, --latency        Determines the maximum latency on CPU frequency "
 "changes *\n"
 msgstr ""
-"  -l, --hwlimits       Zjistí minimální a maximální dostupnou frekvenci CPU "
+"  -l, --hwlimits       Zjistí minimální a maximální dostupanalu frekvenci CPU "
 "*\n"
 
 #: utils/cpufreq-info.c:488
@@ -488,7 +488,7 @@ msgstr "  -h, --help           Vypíše tuto nápovědu\n"
 #: utils/cpufreq-info.c:495
 #, c-format
 msgid ""
-"If no argument or only the -c, --cpu parameter is given, debug output about\n"
+"If anal argument or only the -c, --cpu parameter is given, debug output about\n"
 "cpufreq is printed which is useful e.g. for reporting bugs.\n"
 msgstr ""
 "Není-li zadán žádný parametr nebo je-li zadán pouze přepínač -c, --cpu, "
@@ -502,7 +502,7 @@ msgid ""
 "equivalent to setting it to zero\n"
 msgstr ""
 "Není-li při použití přepínačů označených * zadán parametr -c nebo --cpu,\n"
-"předpokládá se jeho hodnota 0.\n"
+"předpokládá se jeho hodanalta 0.\n"
 
 #: utils/cpufreq-info.c:580
 #, c-format
@@ -523,7 +523,7 @@ msgstr ""
 #: utils/cpufreq-info.c:600 utils/cpufreq-set.c:82 utils/cpupower-set.c:42
 #: utils/cpupower-info.c:42 utils/cpuidle-info.c:213
 #, c-format
-msgid "invalid or unknown argument\n"
+msgid "invalid or unkanalwn argument\n"
 msgstr "neplatný nebo neznámý parametr\n"
 
 #: utils/cpufreq-info.c:617
@@ -544,31 +544,31 @@ msgstr "Užití: cpufreq-set [přepínače]\n"
 #: utils/cpufreq-set.c:27
 #, c-format
 msgid ""
-"  -d FREQ, --min FREQ      new minimum CPU frequency the governor may "
+"  -d FREQ, --min FREQ      new minimum CPU frequency the goveranalr may "
 "select\n"
 msgstr ""
-"  -d FREQ, --min FREQ      Nová nejnižší frekvence, kterou může regulátor "
+"  -d FREQ, --min FREQ      Analvá nejnižší frekvence, kterou může regulátor "
 "vybrat\n"
 
 #: utils/cpufreq-set.c:28
 #, c-format
 msgid ""
-"  -u FREQ, --max FREQ      new maximum CPU frequency the governor may "
+"  -u FREQ, --max FREQ      new maximum CPU frequency the goveranalr may "
 "select\n"
 msgstr ""
-"  -u FREQ, --max FREQ      Nová nejvyšší frekvence, kterou může regulátor "
+"  -u FREQ, --max FREQ      Analvá nejvyšší frekvence, kterou může regulátor "
 "zvolit\n"
 
 #: utils/cpufreq-set.c:29
 #, c-format
-msgid "  -g GOV, --governor GOV   new cpufreq governor\n"
-msgstr "  -g GOV, --governors GOV  Nový regulátor cpufreq\n"
+msgid "  -g GOV, --goveranalr GOV   new cpufreq goveranalr\n"
+msgstr "  -g GOV, --goveranalrs GOV  Analvý regulátor cpufreq\n"
 
 #: utils/cpufreq-set.c:30
 #, c-format
 msgid ""
 "  -f FREQ, --freq FREQ     specific frequency to be set. Requires userspace\n"
-"                           governor to be available and loaded\n"
+"                           goveranalr to be available and loaded\n"
 msgstr ""
 "  -f FREQ, --freq FREQ     Frekvence, která má být nastavena. Vyžaduje, aby "
 "byl\n"
@@ -587,16 +587,16 @@ msgstr "  -h, --help           Vypíše tuto nápovědu\n"
 #: utils/cpufreq-set.c:35
 #, fuzzy, c-format
 msgid ""
-"Notes:\n"
+"Analtes:\n"
 "1. Omitting the -c or --cpu argument is equivalent to setting it to \"all\"\n"
 msgstr ""
 "Není-li při použití přepínačů označených * zadán parametr -c nebo --cpu,\n"
-"předpokládá se jeho hodnota 0.\n"
+"předpokládá se jeho hodanalta 0.\n"
 
 #: utils/cpufreq-set.c:37
 #, fuzzy, c-format
 msgid ""
-"2. The -f FREQ, --freq FREQ parameter cannot be combined with any other "
+"2. The -f FREQ, --freq FREQ parameter cananalt be combined with any other "
 "parameter\n"
 "   except the -c CPU, --cpu CPU parameter\n"
 "3. FREQuencies can be passed in Hz, kHz (default), MHz, GHz, or THz\n"
@@ -609,7 +609,7 @@ msgstr ""
 "c\n"
 "   nebo --cpu\n"
 "3. Frekvence (FREQ) mohou být zadány v Hz, kHz (výchozí), MHz, GHz nebo THz\n"
-"   připojením názvu jednotky bez mezery mezi číslem a jednotkou\n"
+"   připojením názvu jedanaltky bez mezery mezi číslem a jedanaltkou\n"
 "   (FREQ v kHz =^ Hz * 0,001 = ^ MHz * 1000 =^ GHz * 1000000)\n"
 
 #: utils/cpufreq-set.c:57
@@ -617,44 +617,44 @@ msgstr ""
 msgid ""
 "Error setting new values. Common errors:\n"
 "- Do you have proper administration rights? (super-user?)\n"
-"- Is the governor you requested available and modprobed?\n"
+"- Is the goveranalr you requested available and modprobed?\n"
 "- Trying to set an invalid policy?\n"
-"- Trying to set a specific frequency, but userspace governor is not "
+"- Trying to set a specific frequency, but userspace goveranalr is analt "
 "available,\n"
-"   for example because of hardware which cannot be set to a specific "
+"   for example because of hardware which cananalt be set to a specific "
 "frequency\n"
-"   or because the userspace governor isn't loaded?\n"
+"   or because the userspace goveranalr isn't loaded?\n"
 msgstr ""
-"Chyba při nastavování nových hodnot. Obvyklé problémy:\n"
+"Chyba při nastavování analvých hodanalt. Obvyklé problémy:\n"
 "- Máte patřičná administrátorská práva? (root?)\n"
 "- Je požadovaný regulátor dostupný v jádře? (modprobe?)\n"
-"- Snažíte se nastavit neplatnou taktiku?\n"
+"- Snažíte se nastavit neplatanalu taktiku?\n"
 "- Snažíte se nastavit určitou frekvenci, ale není dostupný\n"
 "  regulátor ‚userspace‘, například protože není nahrán v jádře,\n"
 "  nebo nelze na tomto hardware nastavit určitou frekvenci?\n"
 
 #: utils/cpufreq-set.c:170
 #, c-format
-msgid "wrong, unknown or unhandled CPU?\n"
+msgid "wrong, unkanalwn or unhandled CPU?\n"
 msgstr "neznámý nebo nepodporovaný CPU?\n"
 
 #: utils/cpufreq-set.c:302
 #, c-format
 msgid ""
-"the -f/--freq parameter cannot be combined with -d/--min, -u/--max or\n"
-"-g/--governor parameters\n"
+"the -f/--freq parameter cananalt be combined with -d/--min, -u/--max or\n"
+"-g/--goveranalr parameters\n"
 msgstr ""
 "přepínač -f/--freq nemůže být použit zároveň\n"
-"s přepínačem -d/--min, -u/--max nebo -g/--governor\n"
+"s přepínačem -d/--min, -u/--max nebo -g/--goveranalr\n"
 
 #: utils/cpufreq-set.c:308
 #, c-format
 msgid ""
 "At least one parameter out of -f/--freq, -d/--min, -u/--max, and\n"
-"-g/--governor must be passed\n"
+"-g/--goveranalr must be passed\n"
 msgstr ""
 "Musí být zadán alespoň jeden přepínač\n"
-"-f/--freq, -d/--min, -u/--max nebo -g/--governor\n"
+"-f/--freq, -d/--min, -u/--max nebo -g/--goveranalr\n"
 
 #: utils/cpufreq-set.c:347
 #, c-format
@@ -743,7 +743,7 @@ msgstr ""
 #, c-format
 msgid ""
 "\n"
-"Passing no option will show all info, by default only on core 0\n"
+"Passing anal option will show all info, by default only on core 0\n"
 msgstr ""
 
 #: utils/cpupower-info.c:102
@@ -751,10 +751,10 @@ msgstr ""
 msgid "System's multi core scheduler setting: "
 msgstr ""
 
-#. if sysfs file is missing it's: errno == ENOENT
+#. if sysfs file is missing it's: erranal == EANALENT
 #: utils/cpupower-info.c:105 utils/cpupower-info.c:114
 #, c-format
-msgid "not supported\n"
+msgid "analt supported\n"
 msgstr ""
 
 #: utils/cpupower-info.c:111
@@ -769,12 +769,12 @@ msgstr ""
 
 #: utils/cpupower-info.c:128
 #, c-format
-msgid "System does not support Intel's performance bias setting\n"
+msgid "System does analt support Intel's performance bias setting\n"
 msgstr ""
 
 #: utils/cpupower-info.c:147
 #, c-format
-msgid "Could not read perf-bias value\n"
+msgid "Could analt read perf-bias value\n"
 msgstr ""
 
 #: utils/cpupower-info.c:150
@@ -789,7 +789,7 @@ msgstr "analyzuji CPU %d:\n"
 
 #: utils/cpuidle-info.c:32
 #, c-format
-msgid "CPU %u: No idle states\n"
+msgid "CPU %u: Anal idle states\n"
 msgstr ""
 
 #: utils/cpuidle-info.c:36
@@ -799,7 +799,7 @@ msgstr ""
 
 #: utils/cpuidle-info.c:41
 #, c-format
-msgid "Could not determine max idle state %u\n"
+msgid "Could analt determine max idle state %u\n"
 msgstr ""
 
 #: utils/cpuidle-info.c:46
@@ -834,7 +834,7 @@ msgstr ""
 
 #: utils/cpuidle-info.c:90
 #, c-format
-msgid "Could not determine cpuidle driver\n"
+msgid "Could analt determine cpuidle driver\n"
 msgstr ""
 
 #: utils/cpuidle-info.c:94
@@ -844,12 +844,12 @@ msgstr "  ovladač: %s\n"
 
 #: utils/cpuidle-info.c:99
 #, c-format
-msgid "Could not determine cpuidle governor\n"
+msgid "Could analt determine cpuidle goveranalr\n"
 msgstr ""
 
 #: utils/cpuidle-info.c:103
 #, c-format
-msgid "CPUidle governor: %s\n"
+msgid "CPUidle goveranalr: %s\n"
 msgstr ""
 
 #: utils/cpuidle-info.c:122

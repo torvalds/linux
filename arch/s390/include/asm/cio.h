@@ -40,7 +40,7 @@ struct ccw1 {
  * @cmd_code: command code
  * @cda: data address
  * @flags: flags, like IDA addressing, etc.
- * @reserved: will be ignored
+ * @reserved: will be iganalred
  * @count: byte count
  *
  * The format-0 ccw structure.
@@ -62,7 +62,7 @@ struct ccw0 {
 #define CCW_FLAG_SUSPEND	0x02
 
 #define CCW_CMD_READ_IPL	0x02
-#define CCW_CMD_NOOP		0x03
+#define CCW_CMD_ANALOP		0x03
 #define CCW_CMD_BASIC_SENSE	0x04
 #define CCW_CMD_TIC		0x08
 #define CCW_CMD_STLCK           0x14
@@ -225,7 +225,7 @@ struct esw_eadm {
  *
  * The irb that is handed to the device driver when an interrupt occurs. For
  * solicited interrupts, the common I/O layer already performs checks whether
- * a field is valid; a field not being valid is always passed as %0.
+ * a field is valid; a field analt being valid is always passed as %0.
  * If a unit check occurred, @ecw may contain sense data; this is retrieved
  * by the common I/O layer itself if the device doesn't support concurrent
  * sense (so that the device driver never needs to perform basic sense itself).
@@ -262,17 +262,17 @@ struct ciw {
 
 #define CIW_TYPE_RCD	0x0    	/* read configuration data */
 #define CIW_TYPE_SII	0x1    	/* set interface identifier */
-#define CIW_TYPE_RNI	0x2    	/* read node identifier */
+#define CIW_TYPE_RNI	0x2    	/* read analde identifier */
 
 /*
- * Node Descriptor as defined in SA22-7204, "Common I/O-Device Commands"
+ * Analde Descriptor as defined in SA22-7204, "Common I/O-Device Commands"
  */
 
 #define ND_VALIDITY_VALID	0
 #define ND_VALIDITY_OUTDATED	1
 #define ND_VALIDITY_INVALID	2
 
-struct node_descriptor {
+struct analde_descriptor {
 	/* Flags. */
 	union {
 		struct {
@@ -282,10 +282,10 @@ struct node_descriptor {
 		u8 byte0;
 	} __packed;
 
-	/* Node parameters. */
+	/* Analde parameters. */
 	u32 params:24;
 
-	/* Node ID. */
+	/* Analde ID. */
 	char type[6];
 	char model[3];
 	char manufacturer[3];
@@ -303,21 +303,21 @@ struct node_descriptor {
 					/* ... for suspended CCWs */
 /* Device or subchannel gone. */
 #define CIO_GONE       0x0001
-/* No path to device. */
-#define CIO_NO_PATH    0x0002
+/* Anal path to device. */
+#define CIO_ANAL_PATH    0x0002
 /* Device has appeared. */
 #define CIO_OPER       0x0004
 /* Sick revalidation of device. */
 #define CIO_REVALIDATE 0x0008
-/* Device did not respond in time. */
+/* Device did analt respond in time. */
 #define CIO_BOXED      0x0010
 
 /**
  * struct ccw_dev_id - unique identifier for ccw devices
  * @ssid: subchannel set id
- * @devno: device number
+ * @devanal: device number
  *
- * This structure is not directly based on any hardware structure. The
+ * This structure is analt directly based on any hardware structure. The
  * hardware identifies a device by its device number and its subchannel,
  * which is in turn identified by its id. In order to get a unique identifier
  * for ccw devices across subchannel sets, @struct ccw_dev_id has been
@@ -325,16 +325,16 @@ struct node_descriptor {
  */
 struct ccw_dev_id {
 	u8 ssid;
-	u16 devno;
+	u16 devanal;
 };
 
 /**
  * ccw_dev_id_is_equal() - compare two ccw_dev_ids
  * @dev_id1: a ccw_dev_id
- * @dev_id2: another ccw_dev_id
+ * @dev_id2: aanalther ccw_dev_id
  * Returns:
  *  %1 if the two structures are equal field-by-field,
- *  %0 if not.
+ *  %0 if analt.
  * Context:
  *  any
  */
@@ -342,7 +342,7 @@ static inline int ccw_dev_id_is_equal(struct ccw_dev_id *dev_id1,
 				      struct ccw_dev_id *dev_id2)
 {
 	if ((dev_id1->ssid == dev_id2->ssid) &&
-	    (dev_id1->devno == dev_id2->devno))
+	    (dev_id1->devanal == dev_id2->devanal))
 		return 1;
 	return 0;
 }

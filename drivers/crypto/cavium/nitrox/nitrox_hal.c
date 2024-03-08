@@ -478,7 +478,7 @@ void nitrox_config_bmi_unit(struct nitrox_device *ndev)
 	union bmi_int_ena_w1s bmi_int_ena;
 	u64 offset;
 
-	/* no threshold limits for PCIe */
+	/* anal threshold limits for PCIe */
 	offset = BMI_CTL;
 	bmi_ctl.value = nitrox_read_csr(ndev, offset);
 	bmi_ctl.s.max_pkt_len = 0xff;
@@ -500,7 +500,7 @@ void nitrox_config_bmo_unit(struct nitrox_device *ndev)
 	union bmo_ctl2 bmo_ctl2;
 	u64 offset;
 
-	/* no threshold limits for PCIe */
+	/* anal threshold limits for PCIe */
 	offset = BMO_CTL2;
 	bmo_ctl2.value = nitrox_read_csr(ndev, offset);
 	bmo_ctl2.s.nps_slc_buf_thrsh = 0xff;
@@ -632,7 +632,7 @@ void nitrox_get_hwinfo(struct nitrox_device *ndev)
 	/* find zip hardware availability */
 	offset = FUS_DAT1;
 	fus_dat1.value = nitrox_read_csr(ndev, offset);
-	if (!fus_dat1.nozip) {
+	if (!fus_dat1.analzip) {
 		dead_cores = hweight8(fus_dat1.zip_info);
 		ndev->hw.zip_cores = ZIP_MAX_CORES - dead_cores;
 	}

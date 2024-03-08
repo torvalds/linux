@@ -127,19 +127,19 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 	 || (!IN_DEV_FORWARD(in_dev) && \
 	  IN_DEV_ORCONF((in_dev), ACCEPT_REDIRECTS)))
 
-#define IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) \
-	IN_DEV_ORCONF((in_dev), IGNORE_ROUTES_WITH_LINKDOWN)
+#define IN_DEV_IGANALRE_ROUTES_WITH_LINKDOWN(in_dev) \
+	IN_DEV_ORCONF((in_dev), IGANALRE_ROUTES_WITH_LINKDOWN)
 
 #define IN_DEV_ARPFILTER(in_dev)	IN_DEV_ORCONF((in_dev), ARPFILTER)
 #define IN_DEV_ARP_ACCEPT(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_ACCEPT)
-#define IN_DEV_ARP_ANNOUNCE(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_ANNOUNCE)
-#define IN_DEV_ARP_IGNORE(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_IGNORE)
-#define IN_DEV_ARP_NOTIFY(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_NOTIFY)
-#define IN_DEV_ARP_EVICT_NOCARRIER(in_dev) IN_DEV_ANDCONF((in_dev), \
-							  ARP_EVICT_NOCARRIER)
+#define IN_DEV_ARP_ANANALUNCE(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_ANANALUNCE)
+#define IN_DEV_ARP_IGANALRE(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_IGANALRE)
+#define IN_DEV_ARP_ANALTIFY(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_ANALTIFY)
+#define IN_DEV_ARP_EVICT_ANALCARRIER(in_dev) IN_DEV_ANDCONF((in_dev), \
+							  ARP_EVICT_ANALCARRIER)
 
 struct in_ifaddr {
-	struct hlist_node	hash;
+	struct hlist_analde	hash;
 	struct in_ifaddr	__rcu *ifa_next;
 	struct in_device	*ifa_dev;
 	struct rcu_head		rcu_head;
@@ -167,12 +167,12 @@ struct in_validator_info {
 	struct netlink_ext_ack	*extack;
 };
 
-int register_inetaddr_notifier(struct notifier_block *nb);
-int unregister_inetaddr_notifier(struct notifier_block *nb);
-int register_inetaddr_validator_notifier(struct notifier_block *nb);
-int unregister_inetaddr_validator_notifier(struct notifier_block *nb);
+int register_inetaddr_analtifier(struct analtifier_block *nb);
+int unregister_inetaddr_analtifier(struct analtifier_block *nb);
+int register_inetaddr_validator_analtifier(struct analtifier_block *nb);
+int unregister_inetaddr_validator_analtifier(struct analtifier_block *nb);
 
-void inet_netconf_notify_devconf(struct net *net, int event, int type,
+void inet_netconf_analtify_devconf(struct net *net, int event, int type,
 				 int ifindex, struct ipv4_devconf *devconf);
 
 struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref);
@@ -251,14 +251,14 @@ static inline struct in_device *__in_dev_get_rtnl(const struct net_device *dev)
 }
 
 /* called with rcu_read_lock or rtnl held */
-static inline bool ip_ignore_linkdown(const struct net_device *dev)
+static inline bool ip_iganalre_linkdown(const struct net_device *dev)
 {
 	struct in_device *in_dev;
 	bool rc = false;
 
 	in_dev = rcu_dereference_rtnl(dev->ip_ptr);
 	if (in_dev &&
-	    IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev))
+	    IN_DEV_IGANALRE_ROUTES_WITH_LINKDOWN(in_dev))
 		rc = true;
 
 	return rc;

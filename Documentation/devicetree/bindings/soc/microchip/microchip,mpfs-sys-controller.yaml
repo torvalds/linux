@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Microchip PolarFire SoC (MPFS) MSS (microprocessor subsystem) system controller
 
 maintainers:
-  - Conor Dooley <conor.dooley@microchip.com>
+  - Coanalr Dooley <coanalr.dooley@microchip.com>
 
 description: |
   PolarFire SoC devices include a microcontroller acting as the system controller,

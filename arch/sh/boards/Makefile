@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Specific board support, not covered by a mach group.
+# Specific board support, analt covered by a mach group.
 #
 obj-$(CONFIG_SH_MAGIC_PANEL_R2)	+= board-magicpanelr2.o
 obj-$(CONFIG_SH_SECUREEDGE5410)	+= board-secureedge5410.o

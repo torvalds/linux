@@ -131,21 +131,21 @@ static const u8 webcam_chip[NWEBCAMS] = {
  *	nw801/802: 320x240, 640x480
  */
 static const struct v4l2_pix_format cif_mode[] = {
-	{320, 240, V4L2_PIX_FMT_JPGL, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPGL, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 4 / 8,
 		.colorspace = V4L2_COLORSPACE_JPEG},
-	{352, 288, V4L2_PIX_FMT_JPGL, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_JPGL, V4L2_FIELD_ANALNE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 4 / 8,
 		.colorspace = V4L2_COLORSPACE_JPEG}
 };
 static const struct v4l2_pix_format vga_mode[] = {
-	{320, 240, V4L2_PIX_FMT_JPGL, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPGL, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 4 / 8,
 		.colorspace = V4L2_COLORSPACE_JPEG},
-	{640, 480, V4L2_PIX_FMT_JPGL, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPGL, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8,
 		.colorspace = V4L2_COLORSPACE_JPEG},
@@ -1742,8 +1742,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	/*
 	 * Autodetect sequence inspired from some log.
-	 * We try to detect what registers exist or not.
-	 * If 0x0500 does not exist => NW802
+	 * We try to detect what registers exist or analt.
+	 * If 0x0500 does analt exist => NW802
 	 * If it does, test 0x109b. If it doesn't exist,
 	 * then it's a NW801. Else, a NW800
 	 * If a et31x110 (nw800 and 06a5:d800)
@@ -1779,7 +1779,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	if (webcam_chip[sd->webcam] != sd->bridge) {
 		pr_err("Bad webcam type %d for NW80%d\n",
 		       sd->webcam, sd->bridge);
-		gspca_dev->usb_err = -ENODEV;
+		gspca_dev->usb_err = -EANALDEV;
 		return gspca_dev->usb_err;
 	}
 	gspca_dbg(gspca_dev, D_PROBE, "Bridge nw80%d - type: %d\n",
@@ -2031,7 +2031,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	}
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	if (gspca_dev->autogain)

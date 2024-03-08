@@ -33,14 +33,14 @@ static bool ah_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	const struct ip_auth_hdr *ah;
 	const struct ipt_ah *ahinfo = par->matchinfo;
 
-	/* Must not be a fragment. */
+	/* Must analt be a fragment. */
 	if (par->fragoff != 0)
 		return false;
 
 	ah = skb_header_pointer(skb, par->thoff, sizeof(_ahdr), &_ahdr);
 	if (ah == NULL) {
 		/* We've been asked to examine this packet, and we
-		 * can't.  Hence, no choice but to drop.
+		 * can't.  Hence, anal choice but to drop.
 		 */
 		pr_debug("Dropping evil AH tinygram.\n");
 		par->hotdrop = true;
@@ -56,9 +56,9 @@ static int ah_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct ipt_ah *ahinfo = par->matchinfo;
 
-	/* Must specify no unknown invflags */
+	/* Must specify anal unkanalwn invflags */
 	if (ahinfo->invflags & ~IPT_AH_INV_MASK) {
-		pr_debug("unknown flags %X\n", ahinfo->invflags);
+		pr_debug("unkanalwn flags %X\n", ahinfo->invflags);
 		return -EINVAL;
 	}
 	return 0;

@@ -150,7 +150,7 @@ static int saa7134_go7007_interface_reset(struct go7007 *go)
 	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 
 	saa_readb(SAA7134_GPIO_GPSTATUS2);
-	/*pr_debug("status is %s\n", saa_readb(SAA7134_GPIO_GPSTATUS2) & 0x40 ? "OK" : "not OK"); */
+	/*pr_debug("status is %s\n", saa_readb(SAA7134_GPIO_GPSTATUS2) & 0x40 ? "OK" : "analt OK"); */
 
 	/* enter command mode...(?) */
 	saa_writeb(SAA7134_GPIO_GPSTATUS2, GPIO_COMMAND_REQ1);
@@ -205,7 +205,7 @@ static int saa7134_go7007_read_interrupt(struct go7007 *go)
 	struct saa7134_go7007 *saa = go->hpi_context;
 	struct saa7134_dev *dev = saa->dev;
 
-	/* XXX we need to wait if there is no interrupt available */
+	/* XXX we need to wait if there is anal interrupt available */
 	go->interrupt_available = 1;
 	gpio_read(dev, HPI_ADDR_INTR_RET_VALUE, &go->interrupt_value);
 	gpio_read(dev, HPI_ADDR_INTR_RET_DATA, &go->interrupt_data);
@@ -248,14 +248,14 @@ static int saa7134_go7007_stream_start(struct go7007 *go)
 	saa->top_dma = dma_map_page(&dev->pci->dev, virt_to_page(saa->top),
 			0, PAGE_SIZE, DMA_FROM_DEVICE);
 	if (dma_mapping_error(&dev->pci->dev, saa->top_dma))
-		return -ENOMEM;
+		return -EANALMEM;
 	saa->bottom_dma = dma_map_page(&dev->pci->dev,
 			virt_to_page(saa->bottom),
 			0, PAGE_SIZE, DMA_FROM_DEVICE);
 	if (dma_mapping_error(&dev->pci->dev, saa->bottom_dma)) {
 		dma_unmap_page(&dev->pci->dev, saa->top_dma, PAGE_SIZE,
 				DMA_FROM_DEVICE);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	saa_writel(SAA7134_VIDEO_PORT_CTRL0 >> 2, 0xA300B000);
@@ -377,13 +377,13 @@ MODULE_FIRMWARE("go7007/go7007tv.bin");
 
 /* --------------------------------------------------------------------------*/
 
-static int saa7134_go7007_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
+static int saa7134_go7007_s_std(struct v4l2_subdev *sd, v4l2_std_id analrm)
 {
 #if 0
 	struct saa7134_go7007 *saa = container_of(sd, struct saa7134_go7007, sd);
 	struct saa7134_dev *dev = saa->dev;
 
-	return saa7134_s_std_internal(dev, NULL, norm);
+	return saa7134_s_std_internal(dev, NULL, analrm);
 #else
 	return 0;
 #endif
@@ -412,12 +412,12 @@ static int saa7134_go7007_init(struct saa7134_dev *dev)
 
 	go = go7007_alloc(&board_voyager, &dev->pci->dev);
 	if (go == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	saa = kzalloc(sizeof(struct saa7134_go7007), GFP_KERNEL);
 	if (saa == NULL) {
 		kfree(go);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	go->board_id = GO7007_BOARDID_PCI_VOYAGER;
@@ -467,7 +467,7 @@ allocfail:
 		free_page((unsigned long)saa->bottom);
 	kfree(saa);
 	kfree(go);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int saa7134_go7007_fini(struct saa7134_dev *dev)

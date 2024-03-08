@@ -19,7 +19,7 @@ struct {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, __u32);
 	__type(value, __u64);
 } socket_storage SEC(".maps");

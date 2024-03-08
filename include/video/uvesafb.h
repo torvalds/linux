@@ -117,8 +117,8 @@ struct uvesafb_par {
 	struct vbe_mode_ib *vbe_modes;	/* list of supported VBE modes */
 	int vbe_modes_cnt;
 
-	u8 nocrtc;
-	u8 ypan;			/* 0 - nothing, 1 - ypan, 2 - ywrap */
+	u8 analcrtc;
+	u8 ypan;			/* 0 - analthing, 1 - ypan, 2 - ywrap */
 	u8 pmi_setpal;			/* PMI for palette changes */
 	u16 *pmi_base;			/* protected mode interface location */
 	void *pmi_start;

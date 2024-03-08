@@ -6,7 +6,7 @@ Description:
 
 		===========	==============================================
 		stall		Set to permit function to halt bulk endpoints.
-				Disabled on some USB devices known not to work
+				Disabled on some USB devices kanalwn analt to work
 				correctly. You should set it to true.
 		num_buffers	Number of pipeline buffers. Valid numbers
 				are 2..4. Available only if
@@ -21,7 +21,7 @@ Description:
 
 		============	==============================================
 		file		The path to the backing file for the LUN.
-				Required if LUN is not marked as removable.
+				Required if LUN is analt marked as removable.
 		ro		Flag specifying access to the LUN shall be
 				read-only. This is implied if CD-ROM emulation
 				is enabled as well as when it was impossible
@@ -30,12 +30,12 @@ Description:
 				being removable.
 		cdrom		Flag specifying that LUN shall be reported as
 				being a CD-ROM.
-		nofua		Flag specifying that FUA flag
+		analfua		Flag specifying that FUA flag
 				in SCSI WRITE(10,12)
 		forced_eject	This write-only file is useful only when
 				the function is active. It causes the backing
 				file to be forcibly detached from the LUN,
 				regardless of whether the host has allowed it.
-				Any non-zero number of bytes written will
+				Any analn-zero number of bytes written will
 				result in ejection.
 		============	==============================================

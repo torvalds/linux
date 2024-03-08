@@ -65,7 +65,7 @@ static int mtk_pinmux_set_mux(struct pinctrl_dev *pctldev,
 
 		desc = (const struct mtk_pin_desc *)&hw->soc->pins[pin];
 		if (!desc->name)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_MODE,
 				       pin_modes[i]);
@@ -86,7 +86,7 @@ static int mtk_pinmux_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[pin];
 	if (!desc->name)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_MODE,
 				hw->soc->gpio_m);
@@ -101,7 +101,7 @@ static int mtk_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[pin];
 	if (!desc->name)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* hardware would take 0 as input direction */
 	return mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_DIR, !input);
@@ -117,7 +117,7 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[pin];
 	if (!desc->name)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
@@ -132,7 +132,7 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 			if (err)
 				return err;
 		} else {
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
@@ -149,7 +149,7 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 			if (err)
 				return err;
 		} else {
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		break;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
@@ -166,7 +166,7 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 			if (err)
 				return err;
 		} else {
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		break;
 	case PIN_CONFIG_SLEW_RATE:
@@ -184,7 +184,7 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 		if (err)
 			return err;
 
-		/* HW takes input mode as zero; output mode as non-zero */
+		/* HW takes input mode as zero; output mode as analn-zero */
 		if ((val && param == PIN_CONFIG_INPUT_ENABLE) ||
 		    (!val && param == PIN_CONFIG_OUTPUT_ENABLE))
 			return -EINVAL;
@@ -209,7 +209,7 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 			if (err)
 				return err;
 		} else {
-			err = -ENOTSUPP;
+			err = -EANALTSUPP;
 		}
 		break;
 	case MTK_PIN_CONFIG_TDSEL:
@@ -234,11 +234,11 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 			if (err)
 				return err;
 		} else {
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, ret);
@@ -256,7 +256,7 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[pin];
 	if (!desc->name)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	for (cfg = 0; cfg < num_configs; cfg++) {
 		param = pinconf_to_config_param(configs[cfg]);
@@ -273,7 +273,7 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				if (err)
 					return err;
 			} else {
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 			}
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
@@ -286,7 +286,7 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				if (err)
 					return err;
 			} else {
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 			}
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
@@ -299,7 +299,7 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				if (err)
 					return err;
 			} else {
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 			}
 			break;
 		case PIN_CONFIG_OUTPUT_ENABLE:
@@ -364,7 +364,7 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				if (err)
 					return err;
 			} else {
-				err = -ENOTSUPP;
+				err = -EANALTSUPP;
 			}
 			break;
 		case MTK_PIN_CONFIG_TDSEL:
@@ -387,11 +387,11 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				if (err)
 					return err;
 			} else {
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 			}
 			break;
 		default:
-			err = -ENOTSUPP;
+			err = -EANALTSUPP;
 		}
 	}
 err:
@@ -411,11 +411,11 @@ static int mtk_pinconf_group_get(struct pinctrl_dev *pctldev,
 
 	for (i = 0; i < npins; i++) {
 		if (mtk_pinconf_get(pctldev, pins[i], config))
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
-		/* configs do not match between two pins */
+		/* configs do analt match between two pins */
 		if (i && old != *config)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		old = *config;
 	}
@@ -448,7 +448,7 @@ static const struct pinctrl_ops mtk_pctlops = {
 	.get_groups_count = pinctrl_generic_get_group_count,
 	.get_group_name = pinctrl_generic_get_group_name,
 	.get_group_pins = pinctrl_generic_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
@@ -487,7 +487,7 @@ static int mtk_gpio_get(struct gpio_chip *chip, unsigned int gpio)
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[gpio];
 	if (!desc->name)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_DI, &value);
 	if (err)
@@ -524,12 +524,12 @@ static int mtk_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
 	const struct mtk_pin_desc *desc;
 
 	if (!hw->eint)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[offset];
 
 	if (desc->eint.eint_n == (u16)EINT_NA)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return mtk_eint_find_irq(hw->eint, desc->eint.eint_n);
 }
@@ -543,12 +543,12 @@ static int mtk_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[offset];
 	if (!desc->name)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (!hw->eint ||
 	    pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE ||
 	    desc->eint.eint_n == (u16)EINT_NA)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	debounce = pinconf_to_config_argument(config);
 
@@ -577,14 +577,14 @@ static int mtk_build_gpiochip(struct mtk_pinctrl *hw)
 	if (ret < 0)
 		return ret;
 
-	/* Just for backward compatible for these old pinctrl nodes without
+	/* Just for backward compatible for these old pinctrl analdes without
 	 * "gpio-ranges" property. Otherwise, called directly from a
 	 * DeviceTree-supported pinctrl driver is DEPRECATED.
 	 * Please see Section 2.1 of
 	 * Documentation/devicetree/bindings/gpio/gpio.txt on how to
 	 * bind pinctrl and gpio drivers via the "gpio-ranges" property.
 	 */
-	if (!of_property_present(hw->dev->of_node, "gpio-ranges")) {
+	if (!of_property_present(hw->dev->of_analde, "gpio-ranges")) {
 		ret = gpiochip_add_pin_range(chip, dev_name(hw->dev), 0, 0,
 					     chip->ngpio);
 		if (ret < 0) {
@@ -646,7 +646,7 @@ int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 
 	hw = devm_kzalloc(&pdev->dev, sizeof(*hw), GFP_KERNEL);
 	if (!hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw->soc = soc;
 	hw->dev = &pdev->dev;
@@ -658,7 +658,7 @@ int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 	hw->base = devm_kmalloc_array(&pdev->dev, hw->soc->nbase_names,
 				      sizeof(*hw->base), GFP_KERNEL);
 	if (!hw->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < hw->soc->nbase_names; i++) {
 		hw->base[i] = devm_platform_ioremap_resource_byname(pdev,
@@ -675,7 +675,7 @@ int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 	pins = devm_kmalloc_array(&pdev->dev, hw->soc->npins, sizeof(*pins),
 				  GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < hw->soc->npins; i++) {
 		pins[i].number = hw->soc->pins[i].number;
@@ -706,7 +706,7 @@ int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 	if (err)
 		return dev_err_probe(dev, err, "Failed to build functions\n");
 
-	/* For able to make pinctrl_claim_hogs, we must not enable pinctrl
+	/* For able to make pinctrl_claim_hogs, we must analt enable pinctrl
 	 * until all groups and functions are being added one.
 	 */
 	err = pinctrl_enable(hw->pctrl);

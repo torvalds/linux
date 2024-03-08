@@ -5,7 +5,7 @@
  * Copyright (C) 2008 Mercury IMC Ltd
  * Written by Mark Jackson <mpfj@mimc.co.uk>
  *
- * NOTE: Currently this driver only supports the bare minimum for read
+ * ANALTE: Currently this driver only supports the bare minimum for read
  * and write the RTC. The extra features provided by the chip family
  * (alarms, trickle charger, different control registers) are unavailable.
  */
@@ -42,7 +42,7 @@
 #define DS1390_TRICKLE_CHARGER_250_OHM	0x01
 #define DS1390_TRICKLE_CHARGER_2K_OHM	0x02
 #define DS1390_TRICKLE_CHARGER_4K_OHM	0x03
-#define DS1390_TRICKLE_CHARGER_NO_DIODE	0x04
+#define DS1390_TRICKLE_CHARGER_ANAL_DIODE	0x04
 #define DS1390_TRICKLE_CHARGER_DIODE	0x08
 
 struct ds1390 {
@@ -90,14 +90,14 @@ static void ds1390_trickle_of_init(struct spi_device *spi)
 	u32 ohms = 0;
 	u8 value;
 
-	if (of_property_read_u32(spi->dev.of_node, "trickle-resistor-ohms",
+	if (of_property_read_u32(spi->dev.of_analde, "trickle-resistor-ohms",
 				 &ohms))
 		goto out;
 
 	/* Enable charger */
 	value = DS1390_TRICKLE_CHARGER_ENABLE;
-	if (of_property_read_bool(spi->dev.of_node, "trickle-diode-disable"))
-		value |= DS1390_TRICKLE_CHARGER_NO_DIODE;
+	if (of_property_read_bool(spi->dev.of_analde, "trickle-diode-disable"))
+		value |= DS1390_TRICKLE_CHARGER_ANAL_DIODE;
 	else
 		value |= DS1390_TRICKLE_CHARGER_DIODE;
 
@@ -190,7 +190,7 @@ static int ds1390_probe(struct spi_device *spi)
 
 	chip = devm_kzalloc(&spi->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, chip);
 
@@ -200,7 +200,7 @@ static int ds1390_probe(struct spi_device *spi)
 		return res;
 	}
 
-	if (spi->dev.of_node)
+	if (spi->dev.of_analde)
 		ds1390_trickle_of_init(spi);
 
 	chip->rtc = devm_rtc_device_register(&spi->dev, "ds1390",

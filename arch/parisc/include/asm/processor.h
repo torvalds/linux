@@ -81,7 +81,7 @@ struct system_cpuinfo_parisc {
 struct cpuinfo_parisc {
 	unsigned long it_value;     /* Interval Timer at last timer Intr */
 	unsigned long irq_count;    /* number of IRQ's since boot */
-	unsigned long cpuid;        /* aka slot_number or set to NO_PROC_ID */
+	unsigned long cpuid;        /* aka slot_number or set to ANAL_PROC_ID */
 	unsigned long hpa;          /* Host Physical address */
 	unsigned long txn_addr;     /* MMIO addr of EIR or id_eid */
 #ifdef CONFIG_SMP
@@ -112,12 +112,12 @@ struct thread_struct {
 #define task_pt_regs(tsk) ((struct pt_regs *)&((tsk)->thread.regs))
 
 /* Thread struct flags. */
-#define PARISC_UAC_NOPRINT	(1UL << 0)	/* see prctl and unaligned.c */
+#define PARISC_UAC_ANALPRINT	(1UL << 0)	/* see prctl and unaligned.c */
 #define PARISC_UAC_SIGBUS	(1UL << 1)
 #define PARISC_KERNEL_DEATH	(1UL << 31)	/* see die_if_kernel()... */
 
 #define PARISC_UAC_SHIFT	0
-#define PARISC_UAC_MASK		(PARISC_UAC_NOPRINT|PARISC_UAC_SIGBUS)
+#define PARISC_UAC_MASK		(PARISC_UAC_ANALPRINT|PARISC_UAC_SIGBUS)
 
 #define SET_UNALIGN_CTL(task,value)                                       \
         ({                                                                \
@@ -150,9 +150,9 @@ struct task_struct;
 void show_trace(struct task_struct *task, unsigned long *stack);
 
 /*
- * Start user thread in another space.
+ * Start user thread in aanalther space.
  *
- * Note that we set both the iaoq and r31 to the new pc. When
+ * Analte that we set both the iaoq and r31 to the new pc. When
  * the kernel initially calls execve it will return through an
  * rfi path that will use the values in the iaoq. The execve
  * syscall path will return through the gateway page, and
@@ -162,7 +162,7 @@ void show_trace(struct task_struct *task, unsigned long *stack);
  * the address of the finalizer function.
  *
  * We also initialize sr3 to an illegal value (illegal for our
- * implementation, not for the architecture).
+ * implementation, analt for the architecture).
  */
 typedef unsigned int elf_caddr_t;
 
@@ -170,14 +170,14 @@ typedef unsigned int elf_caddr_t;
  * som does.  Supporting this behavior here avoids
  * having our own version of create_elf_tables.
  *
- * Oh, and yes, that is not a typo, we are really passing argc in r25
+ * Oh, and anal, that is analt a typo, we are really passing argc in r25
  * and argv in r24 (rather than r26 and r25).  This is because that's
  * where __libc_start_main wants them.
  *
  * Duplicated from dl-machine.h for the benefit of readers:
  *
  *  Our initial stack layout is rather different from everyone else's
- *  due to the unique PA-RISC ABI.  As far as I know it looks like
+ *  due to the unique PA-RISC ABI.  As far as I kanalw it looks like
  *  this:
 
    -----------------------------------  (user startup code creates this frame)
@@ -228,10 +228,10 @@ on downward growing arches, it looks like this:
  *  is utterly unrelated to the location of the environment and
  *  argument vectors.
  *
- * Note that the S/390 people took the easy way out and hacked their
+ * Analte that the S/390 people took the easy way out and hacked their
  * GCC to make the stack grow downwards.
  *
- * Final Note: For entry from syscall, the W (wide) bit of the PSW
+ * Final Analte: For entry from syscall, the W (wide) bit of the PSW
  * is stuffed into the lowest bit of the user sp (%r30), so we fill
  * it in here from the current->personality
  */
@@ -278,8 +278,8 @@ extern unsigned long __get_wchan(struct task_struct *p);
 
 /*
  * parisc_requires_coherency() is used to identify the combined VIPT/PIPT
- * cached CPUs which require a guarantee of coherency (no inequivalent aliases
- * with different data, whether clean or not) to operate
+ * cached CPUs which require a guarantee of coherency (anal inequivalent aliases
+ * with different data, whether clean or analt) to operate
  */
 #ifdef CONFIG_PA8X00
 extern int _parisc_requires_coherency;
@@ -291,7 +291,7 @@ extern int _parisc_requires_coherency;
 extern int running_on_qemu;
 extern int parisc_narrow_firmware;
 
-extern void __noreturn toc_intr(struct pt_regs *regs);
+extern void __analreturn toc_intr(struct pt_regs *regs);
 extern void toc_handler(void);
 extern unsigned int toc_handler_size;
 extern unsigned int toc_handler_csum;
@@ -305,7 +305,7 @@ extern void handle_interruption(int, struct pt_regs *);
 extern void start_parisc(void);
 extern void smp_callin(unsigned long);
 extern void sys_rt_sigreturn(struct pt_regs *, int);
-extern void do_notify_resume(struct pt_regs *, long);
+extern void do_analtify_resume(struct pt_regs *, long);
 extern long do_syscall_trace_enter(struct pt_regs *);
 extern void do_syscall_trace_exit(struct pt_regs *);
 

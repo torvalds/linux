@@ -7,7 +7,7 @@
 #ifndef	__HALBTC_OUT_SRC_H__
 #define __HALBTC_OUT_SRC_H__
 
-#define NORMAL_EXEC		false
+#define ANALRMAL_EXEC		false
 #define FORCE_EXEC		true
 
 #define BTC_RF_OFF		0x0
@@ -21,7 +21,7 @@
 #define BTC_SMSP		SINGLEMAC_SINGLEPHY
 #define BTC_DMDP		DUALMAC_DUALPHY
 #define BTC_DMSP		DUALMAC_SINGLEPHY
-#define BTC_MP_UNKNOWN		0xff
+#define BTC_MP_UNKANALWN		0xff
 
 #define BT_COEX_ANT_TYPE_PG	0
 #define BT_COEX_ANT_TYPE_ANTDIV		1
@@ -61,7 +61,7 @@ enum {
 };
 
 enum btc_chip_interface {
-	BTC_INTF_UNKNOWN	= 0,
+	BTC_INTF_UNKANALWN	= 0,
 	BTC_INTF_PCI		= 1,
 	BTC_INTF_USB		= 2,
 	BTC_INTF_SDIO		= 3,
@@ -186,7 +186,7 @@ enum {
 	/*  type trigger some action */
 	BTC_SET_ACT_LEAVE_LPS,
 	BTC_SET_ACT_ENTER_LPS,
-	BTC_SET_ACT_NORMAL_LPS,
+	BTC_SET_ACT_ANALRMAL_LPS,
 	BTC_SET_ACT_DISABLE_LOW_POWER,
 	BTC_SET_ACT_UPDATE_RAMASK,
 	BTC_SET_ACT_SEND_MIMO_PS,
@@ -236,7 +236,7 @@ enum {
 };
 
 enum {
-	BTC_PACKET_UNKNOWN					= 0x0,
+	BTC_PACKET_UNKANALWN					= 0x0,
 	BTC_PACKET_DHCP						= 0x1,
 	BTC_PACKET_ARP						= 0x2,
 	BTC_PACKET_EAPOL					= 0x3,
@@ -311,7 +311,7 @@ struct btc_bt_info {
 };
 
 struct btc_stack_info {
-	bool bProfileNotified;
+	bool bProfileAnaltified;
 	u16 hciVersion;	/*  stack hci version */
 	u8 numOfLink;
 	bool bBtLinkExist;
@@ -321,7 +321,7 @@ struct btc_stack_info {
 	bool bHidExist;
 	u8 numOfHid;
 	bool bPanExist;
-	bool bUnknownAclExist;
+	bool bUnkanalwnAclExist;
 	s8 minBtRssi;
 };
 
@@ -343,17 +343,17 @@ struct btc_statistics {
 	u32 cntPowerOn;
 	u32 cntInitHwConfig;
 	u32 cntInitCoexDm;
-	u32 cntIpsNotify;
-	u32 cntLpsNotify;
-	u32 cntScanNotify;
-	u32 cntConnectNotify;
-	u32 cntMediaStatusNotify;
-	u32 cntSpecialPacketNotify;
-	u32 cntBtInfoNotify;
-	u32 cntRfStatusNotify;
+	u32 cntIpsAnaltify;
+	u32 cntLpsAnaltify;
+	u32 cntScanAnaltify;
+	u32 cntConnectAnaltify;
+	u32 cntMediaStatusAnaltify;
+	u32 cntSpecialPacketAnaltify;
+	u32 cntBtInfoAnaltify;
+	u32 cntRfStatusAnaltify;
 	u32 cntPeriodical;
 	u32 cntCoexDmSwitch;
-	u32 cntStackOperationNotify;
+	u32 cntStackOperationAnaltify;
 	u32 cntDbgCtrl;
 };
 
@@ -361,7 +361,7 @@ struct btc_coexist {
 	bool bBinded;		/*  make sure only one adapter can bind the data context */
 	void *Adapter;		/*  default adapter */
 	struct btc_board_info boardInfo;
-	struct btc_bt_info btInfo;		/*  some bt info referenced by non-bt module */
+	struct btc_bt_info btInfo;		/*  some bt info referenced by analn-bt module */
 	struct btc_stack_info stackInfo;
 	struct btc_bt_link_info btLinkInfo;
 	enum btc_chip_interface chipInterface;
@@ -392,7 +392,7 @@ struct btc_coexist {
 
 	/*  fill h2c related */
 	BFP_BTC_FILL_H2C fBtcFillH2c;
-	/*  normal get/set related */
+	/*  analrmal get/set related */
 	BFP_BTC_GET fBtcGet;
 	BFP_BTC_SET fBtcSet;
 
@@ -405,19 +405,19 @@ extern struct btc_coexist GLBtCoexist;
 void EXhalbtcoutsrc_PowerOnSetting(struct btc_coexist *pBtCoexist);
 void EXhalbtcoutsrc_InitHwConfig(struct btc_coexist *pBtCoexist, u8 bWifiOnly);
 void EXhalbtcoutsrc_InitCoexDm(struct btc_coexist *pBtCoexist);
-void EXhalbtcoutsrc_IpsNotify(struct btc_coexist *pBtCoexist, u8 type);
-void EXhalbtcoutsrc_LpsNotify(struct btc_coexist *pBtCoexist, u8 type);
-void EXhalbtcoutsrc_ScanNotify(struct btc_coexist *pBtCoexist, u8 type);
-void EXhalbtcoutsrc_ConnectNotify(struct btc_coexist *pBtCoexist, u8 action);
-void EXhalbtcoutsrc_MediaStatusNotify(
+void EXhalbtcoutsrc_IpsAnaltify(struct btc_coexist *pBtCoexist, u8 type);
+void EXhalbtcoutsrc_LpsAnaltify(struct btc_coexist *pBtCoexist, u8 type);
+void EXhalbtcoutsrc_ScanAnaltify(struct btc_coexist *pBtCoexist, u8 type);
+void EXhalbtcoutsrc_ConnectAnaltify(struct btc_coexist *pBtCoexist, u8 action);
+void EXhalbtcoutsrc_MediaStatusAnaltify(
 	struct btc_coexist *pBtCoexist, enum rt_media_status mediaStatus
 );
-void EXhalbtcoutsrc_SpecialPacketNotify(struct btc_coexist *pBtCoexist, u8 pktType);
-void EXhalbtcoutsrc_BtInfoNotify(
+void EXhalbtcoutsrc_SpecialPacketAnaltify(struct btc_coexist *pBtCoexist, u8 pktType);
+void EXhalbtcoutsrc_BtInfoAnaltify(
 	struct btc_coexist *pBtCoexist, u8 *tmpBuf, u8 length
 );
-void EXhalbtcoutsrc_HaltNotify(struct btc_coexist *pBtCoexist);
-void EXhalbtcoutsrc_PnpNotify(struct btc_coexist *pBtCoexist, u8 pnpState);
+void EXhalbtcoutsrc_HaltAnaltify(struct btc_coexist *pBtCoexist);
+void EXhalbtcoutsrc_PnpAnaltify(struct btc_coexist *pBtCoexist, u8 pnpState);
 void EXhalbtcoutsrc_Periodical(struct btc_coexist *pBtCoexist);
 void EXhalbtcoutsrc_SetChipType(u8 chipType);
 void EXhalbtcoutsrc_SetAntNum(u8 type, u8 antNum);

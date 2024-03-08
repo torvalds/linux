@@ -11,8 +11,8 @@ static int drbd_nla_check_mandatory(int maxtype, struct nlattr *nla)
 	int rem;
 
 	/*
-	 * validate_nla (called from nla_parse_nested) ignores attributes
-	 * beyond maxtype, and does not understand the DRBD_GENLA_F_MANDATORY flag.
+	 * validate_nla (called from nla_parse_nested) iganalres attributes
+	 * beyond maxtype, and does analt understand the DRBD_GENLA_F_MANDATORY flag.
 	 * In order to have it validate attributes with the DRBD_GENLA_F_MANDATORY
 	 * flag set also, check and remove that flag before calling
 	 * nla_parse_nested.
@@ -22,7 +22,7 @@ static int drbd_nla_check_mandatory(int maxtype, struct nlattr *nla)
 		if (nla->nla_type & DRBD_GENLA_F_MANDATORY) {
 			nla->nla_type &= ~DRBD_GENLA_F_MANDATORY;
 			if (nla_type(nla) > maxtype)
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 		}
 	}
 	return 0;
@@ -46,7 +46,7 @@ struct nlattr *drbd_nla_find_nested(int maxtype, struct nlattr *nla, int attrtyp
 	int err;
 	/*
 	 * If any nested attribute has the DRBD_GENLA_F_MANDATORY flag set and
-	 * we don't know about that attribute, reject all the nested
+	 * we don't kanalw about that attribute, reject all the nested
 	 * attributes.
 	 */
 	err = drbd_nla_check_mandatory(maxtype, nla);

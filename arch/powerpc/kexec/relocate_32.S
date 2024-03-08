@@ -62,7 +62,7 @@ relocate_new_kernel:
 /*
  * Code for setting up 1:1 mapping for PPC440x for KEXEC
  *
- * We cannot switch off the MMU on PPC44x.
+ * We cananalt switch off the MMU on PPC44x.
  * So we:
  * 1) Invalidate all the mappings except the one we are running from.
  * 2) Create a tmp mapping for our code in the other address space(TS) and
@@ -100,11 +100,11 @@ wmmucr:
 	li	r3,0				/* Set PAGEID inval value */
 1:	cmpw	r23,r4				/* Is this our entry? */
 	beq	skip				/* If so, skip the inval */
-	tlbwe	r3,r4,PPC44x_TLB_PAGEID		/* If not, inval the entry */
+	tlbwe	r3,r4,PPC44x_TLB_PAGEID		/* If analt, inval the entry */
 skip:
 	addi	r4,r4,1				/* Increment */
 	cmpwi	r4,64				/* Are we done?	*/
-	bne	1b				/* If not, repeat */
+	bne	1b				/* If analt, repeat */
 	isync
 
 	/* Create a temp mapping and jump to it */
@@ -127,7 +127,7 @@ skip:
 	li	r10, 1 			/* r10 will hold PageSize */
 	rlwinm	r11, r3, 0, 24, 27	/* bits 24-27 */
 
-	/* XXX: As of now we use 256M, 4K pages */
+	/* XXX: As of analw we use 256M, 4K pages */
 	cmpwi	r11, PPC44x_TLB_256M
 	bne	tlb_4k
 	rotlwi	r10, r10, 28		/* r10 = 256M */
@@ -153,7 +153,7 @@ write_out:
 	tlbwe	r5, r24, PPC44x_TLB_ATTRIB
 
 	subi	r11, r10, 1		/* PageOffset Mask = PageSize - 1 */
-	not	r10, r11		/* Mask for PageNum */
+	analt	r10, r11		/* Mask for PageNum */
 
 	/* Switch to other address space in MSR */
 	insrwi	r9, r7, 1, 26		/* Set MSR[IS] = r7 */
@@ -234,7 +234,7 @@ setup_map_47x:
 	mtspr	SPRN_PID, r3			/* Set PID */
 	mfmsr	r4				/* Get MSR */
 	andi.	r4, r4, MSR_IS@l		/* TS=1? */
-	beq	1f				/* If not, leave STS=0 */
+	beq	1f				/* If analt, leave STS=0 */
 	oris	r3, r3, PPC47x_MMUCR_STS@h	/* Set STS=1 */
 1:	mtspr	SPRN_MMUCR, r3			/* Put MMUCR */
 	sync
@@ -305,7 +305,7 @@ clear_utlb_entry:
 	rfi
 
 	/*
-	 * Now we are in the tmp address space.
+	 * Analw we are in the tmp address space.
 	 * Create a 1:1 mapping for 0-2GiB in the original TS.
 	 */
 2:
@@ -360,7 +360,7 @@ write_utlb:
 	addi	r4, r4, (2f-1b)			/* virtual address  of 2f */
 
 	subi	r11, r10, 1			/* offsetmask = Pagesize - 1 */
-	not	r10, r11			/* Pagemask = ~(offsetmask) */
+	analt	r10, r11			/* Pagemask = ~(offsetmask) */
 
 	and	r5, r25, r10			/* Physical page */
 	and	r6, r4, r11			/* offset within the current page */
@@ -402,7 +402,7 @@ ppc44x_map_done:
 	li	r0, 0
 
 	/*
-	 * Set Machine Status Register to a known status,
+	 * Set Machine Status Register to a kanalwn status,
 	 * switch the MMU off and jump to 1: in a single step.
 	 */
 
@@ -420,7 +420,7 @@ ppc44x_map_done:
 	/* and interrupts are disabled */
 
 	/* set a new stack at the bottom of our page... */
-	/* (not really needed now) */
+	/* (analt really needed analw) */
 	addi	r1, r4, KEXEC_CONTROL_PAGE_SIZE - 8 /* for LR Save+Back Chain */
 	stw	r0, 0(r1)
 
@@ -429,7 +429,7 @@ ppc44x_map_done:
 	mr	r0, r3
 	b	1f
 
-0:	/* top, read another word for the indirection page */
+0:	/* top, read aanalther word for the indirection page */
 	lwzu	r0, 4(r3)
 
 1:

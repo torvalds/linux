@@ -17,7 +17,7 @@
 
 struct am65_cpsw_switchdev_event_work {
 	struct work_struct work;
-	struct switchdev_notifier_fdb_info fdb_info;
+	struct switchdev_analtifier_fdb_info fdb_info;
 	struct am65_cpsw_port *port;
 	unsigned long event;
 };
@@ -43,7 +43,7 @@ static int am65_cpsw_port_stp_state_set(struct am65_cpsw_port *port, u8 state)
 		cpsw_state = ALE_PORT_STATE_BLOCK;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ret = cpsw_ale_control_set(cpsw->ale, port->port_id,
@@ -107,7 +107,7 @@ static int am65_cpsw_port_attr_set(struct net_device *ndev, const void *ctx,
 						       attr->u.brport_flags);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -212,7 +212,7 @@ static int am65_cpsw_port_vlan_del(struct am65_cpsw_port *port, u16 vid,
 		return ret;
 
 	/* We don't care for the return value here, error is returned only if
-	 * the unicast entry is not present
+	 * the unicast entry is analt present
 	 */
 	if (cpu_port)
 		cpsw_ale_del_ucast(cpsw->ale, port->slave.mac_addr,
@@ -222,7 +222,7 @@ static int am65_cpsw_port_vlan_del(struct am65_cpsw_port *port, u16 vid,
 		am65_cpsw_set_pvid(port, 0, 0, 0);
 
 	/* We don't care for the return value here, error is returned only if
-	 * the multicast entry is not present
+	 * the multicast entry is analt present
 	 */
 	cpsw_ale_del_mcast(cpsw->ale, port->ndev->broadcast, port_mask,
 			   ALE_VLAN, vid);
@@ -289,7 +289,7 @@ static int am65_cpsw_port_mdb_del(struct am65_cpsw_port *port,
 	else
 		del_mask = BIT(port->port_id);
 
-	/* Ignore error as error code is returned only when entry is already removed */
+	/* Iganalre error as error code is returned only when entry is already removed */
 	cpsw_ale_del_mcast(cpsw->ale, mdb->addr, del_mask,
 			   ALE_VLAN, mdb->vid);
 	netdev_dbg(port->ndev, "MDB del: %s: vid %u:%pM  ports: %X\n",
@@ -318,7 +318,7 @@ static int am65_cpsw_port_obj_add(struct net_device *ndev, const void *ctx,
 		err = am65_cpsw_port_mdb_add(port, mdb);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -344,22 +344,22 @@ static int am65_cpsw_port_obj_del(struct net_device *ndev, const void *ctx,
 		err = am65_cpsw_port_mdb_del(port, mdb);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
 	return err;
 }
 
-static void am65_cpsw_fdb_offload_notify(struct net_device *ndev,
-					 struct switchdev_notifier_fdb_info *rcv)
+static void am65_cpsw_fdb_offload_analtify(struct net_device *ndev,
+					 struct switchdev_analtifier_fdb_info *rcv)
 {
-	struct switchdev_notifier_fdb_info info = {};
+	struct switchdev_analtifier_fdb_info info = {};
 
 	info.addr = rcv->addr;
 	info.vid = rcv->vid;
 	info.offloaded = true;
-	call_switchdev_notifiers(SWITCHDEV_FDB_OFFLOADED,
+	call_switchdev_analtifiers(SWITCHDEV_FDB_OFFLOADED,
 				 ndev, &info.info, NULL);
 }
 
@@ -368,7 +368,7 @@ static void am65_cpsw_switchdev_event_work(struct work_struct *work)
 	struct am65_cpsw_switchdev_event_work *switchdev_work =
 		container_of(work, struct am65_cpsw_switchdev_event_work, work);
 	struct am65_cpsw_port *port = switchdev_work->port;
-	struct switchdev_notifier_fdb_info *fdb;
+	struct switchdev_analtifier_fdb_info *fdb;
 	struct am65_cpsw_common *cpsw = port->common;
 	int port_id = port->port_id;
 
@@ -388,7 +388,7 @@ static void am65_cpsw_switchdev_event_work(struct work_struct *work)
 
 		cpsw_ale_add_ucast(cpsw->ale, (u8 *)fdb->addr, port_id,
 				   fdb->vid ? ALE_VLAN : 0, fdb->vid);
-		am65_cpsw_fdb_offload_notify(port->ndev, fdb);
+		am65_cpsw_fdb_offload_analtify(port->ndev, fdb);
 		break;
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
 		fdb = &switchdev_work->fdb_info;
@@ -416,28 +416,28 @@ static void am65_cpsw_switchdev_event_work(struct work_struct *work)
 }
 
 /* called under rcu_read_lock() */
-static int am65_cpsw_switchdev_event(struct notifier_block *unused,
+static int am65_cpsw_switchdev_event(struct analtifier_block *unused,
 				     unsigned long event, void *ptr)
 {
-	struct net_device *ndev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *ndev = switchdev_analtifier_info_to_dev(ptr);
 	struct am65_cpsw_switchdev_event_work *switchdev_work;
 	struct am65_cpsw_port *port = am65_ndev_to_port(ndev);
-	struct switchdev_notifier_fdb_info *fdb_info = ptr;
+	struct switchdev_analtifier_fdb_info *fdb_info = ptr;
 	int err;
 
 	if (event == SWITCHDEV_PORT_ATTR_SET) {
 		err = switchdev_handle_port_attr_set(ndev, ptr,
 						     am65_cpsw_port_dev_check,
 						     am65_cpsw_port_attr_set);
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 	}
 
 	if (!am65_cpsw_port_dev_check(ndev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
 	if (WARN_ON(!switchdev_work))
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
 	INIT_WORK(&switchdev_work->work, am65_cpsw_switchdev_event_work);
 	switchdev_work->port = port;
@@ -457,26 +457,26 @@ static int am65_cpsw_switchdev_event(struct notifier_block *unused,
 		break;
 	default:
 		kfree(switchdev_work);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	queue_work(system_long_wq, &switchdev_work->work);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 
 err_addr_alloc:
 	kfree(switchdev_work);
-	return NOTIFY_BAD;
+	return ANALTIFY_BAD;
 }
 
-static struct notifier_block cpsw_switchdev_notifier = {
-	.notifier_call = am65_cpsw_switchdev_event,
+static struct analtifier_block cpsw_switchdev_analtifier = {
+	.analtifier_call = am65_cpsw_switchdev_event,
 };
 
-static int am65_cpsw_switchdev_blocking_event(struct notifier_block *unused,
+static int am65_cpsw_switchdev_blocking_event(struct analtifier_block *unused,
 					      unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_analtifier_info_to_dev(ptr);
 	int err;
 
 	switch (event) {
@@ -484,51 +484,51 @@ static int am65_cpsw_switchdev_blocking_event(struct notifier_block *unused,
 		err = switchdev_handle_port_obj_add(dev, ptr,
 						    am65_cpsw_port_dev_check,
 						    am65_cpsw_port_obj_add);
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 	case SWITCHDEV_PORT_OBJ_DEL:
 		err = switchdev_handle_port_obj_del(dev, ptr,
 						    am65_cpsw_port_dev_check,
 						    am65_cpsw_port_obj_del);
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 	case SWITCHDEV_PORT_ATTR_SET:
 		err = switchdev_handle_port_attr_set(dev, ptr,
 						     am65_cpsw_port_dev_check,
 						     am65_cpsw_port_attr_set);
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 	default:
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block cpsw_switchdev_bl_notifier = {
-	.notifier_call = am65_cpsw_switchdev_blocking_event,
+static struct analtifier_block cpsw_switchdev_bl_analtifier = {
+	.analtifier_call = am65_cpsw_switchdev_blocking_event,
 };
 
-int am65_cpsw_switchdev_register_notifiers(struct am65_cpsw_common *cpsw)
+int am65_cpsw_switchdev_register_analtifiers(struct am65_cpsw_common *cpsw)
 {
 	int ret = 0;
 
-	ret = register_switchdev_notifier(&cpsw_switchdev_notifier);
+	ret = register_switchdev_analtifier(&cpsw_switchdev_analtifier);
 	if (ret) {
-		dev_err(cpsw->dev, "register switchdev notifier fail ret:%d\n",
+		dev_err(cpsw->dev, "register switchdev analtifier fail ret:%d\n",
 			ret);
 		return ret;
 	}
 
-	ret = register_switchdev_blocking_notifier(&cpsw_switchdev_bl_notifier);
+	ret = register_switchdev_blocking_analtifier(&cpsw_switchdev_bl_analtifier);
 	if (ret) {
-		dev_err(cpsw->dev, "register switchdev blocking notifier ret:%d\n",
+		dev_err(cpsw->dev, "register switchdev blocking analtifier ret:%d\n",
 			ret);
-		unregister_switchdev_notifier(&cpsw_switchdev_notifier);
+		unregister_switchdev_analtifier(&cpsw_switchdev_analtifier);
 	}
 
 	return ret;
 }
 
-void am65_cpsw_switchdev_unregister_notifiers(struct am65_cpsw_common *cpsw)
+void am65_cpsw_switchdev_unregister_analtifiers(struct am65_cpsw_common *cpsw)
 {
-	unregister_switchdev_blocking_notifier(&cpsw_switchdev_bl_notifier);
-	unregister_switchdev_notifier(&cpsw_switchdev_notifier);
+	unregister_switchdev_blocking_analtifier(&cpsw_switchdev_bl_analtifier);
+	unregister_switchdev_analtifier(&cpsw_switchdev_analtifier);
 }

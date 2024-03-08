@@ -44,7 +44,7 @@
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-		label = "pnor";
+		label = "panalr";
 	};
 };
 &uart1 {

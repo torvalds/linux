@@ -4,7 +4,7 @@
 #
 
 ifdef CONFIG_FUNCTION_TRACER
-# Do not trace early setup code
+# Do analt trace early setup code
 CFLAGS_REMOVE_sclp_early_core.o	= $(CC_FLAGS_FTRACE)
 endif
 
@@ -13,7 +13,7 @@ KCOV_INSTRUMENT_sclp_early_core.o	:= n
 UBSAN_SANITIZE_sclp_early_core.o	:= n
 KASAN_SANITIZE_sclp_early_core.o	:= n
 
-CFLAGS_sclp_early_core.o		+= -D__NO_FORTIFY
+CFLAGS_sclp_early_core.o		+= -D__ANAL_FORTIFY
 
 CFLAGS_REMOVE_sclp_early_core.o	+= $(CC_FLAGS_EXPOLINE)
 

@@ -7,7 +7,7 @@
  *
  * Based on:
  * - the islsm (softmac prism54) driver, which is:
- *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ *   Copyright 2004-2006 Jean-Baptiste Analte <jbanalte@gmail.com>, et al.
  *
  * - LMAC API interface header file for STLC4560 (lmac_longbow.h)
  *   Copyright (C) 2007 Conexant Systems, Inc.
@@ -19,7 +19,7 @@
 #ifndef EEPROM_H
 #define EEPROM_H
 
-/* PDA defines are Copyright (C) 2005 Nokia Corporation (taken from islsm_pda.h) */
+/* PDA defines are Copyright (C) 2005 Analkia Corporation (taken from islsm_pda.h) */
 
 struct pda_entry {
 	__le16 len;	/* includes both code and data */

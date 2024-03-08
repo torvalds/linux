@@ -3,7 +3,7 @@
 
 ALL_TESTS="ping_ipv4 ping_ipv6 flooding"
 NUM_NETIFS=6
-CHECK_TC="yes"
+CHECK_TC="anal"
 source lib.sh
 
 h1_create()
@@ -103,7 +103,7 @@ ping_ipv4()
 {
 	RET=0
 	ping_do $h1 192.0.2.2
-	check_fail $? "Ping worked when it should not have"
+	check_fail $? "Ping worked when it should analt have"
 
 	RET=0
 	ping_do $h3 192.0.2.2
@@ -116,7 +116,7 @@ ping_ipv6()
 {
 	RET=0
 	ping6_do $h1 2001:db8:1::2
-	check_fail $? "Ping6 worked when it should not have"
+	check_fail $? "Ping6 worked when it should analt have"
 
 	RET=0
 	ping6_do $h3 2001:db8:1::2
@@ -132,11 +132,11 @@ flooding()
 
 	RET=0
 	flood_test_do false $mac $ip $h1 $h2
-	check_err $? "Packet was flooded when it should not have been"
+	check_err $? "Packet was flooded when it should analt have been"
 
 	RET=0
 	flood_test_do true $mac $ip $h3 $h2
-	check_err $? "Packet was not flooded when it should have been"
+	check_err $? "Packet was analt flooded when it should have been"
 
 	log_test "Isolated port flooding"
 }

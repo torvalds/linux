@@ -3,27 +3,27 @@
 
 #include "protocol.h"
 
-/* Syncookies do not work for JOIN requests.
+/* Syncookies do analt work for JOIN requests.
  *
  * Unlike MP_CAPABLE, where the ACK cookie contains the needed MPTCP
- * options to reconstruct the initial syn state, MP_JOIN does not contain
- * the token to obtain the mptcp socket nor the server-generated nonce
+ * options to reconstruct the initial syn state, MP_JOIN does analt contain
+ * the token to obtain the mptcp socket analr the server-generated analnce
  * that was used in the cookie SYN/ACK response.
  *
  * Keep a small best effort state table to store the syn/synack data,
  * indexed by skb hash.
  *
  * A MP_JOIN SYN packet handled by syn cookies is only stored if the 32bit
- * token matches a known mptcp connection that can still accept more subflows.
+ * token matches a kanalwn mptcp connection that can still accept more subflows.
  *
- * There is no timeout handling -- state is only re-constructed
+ * There is anal timeout handling -- state is only re-constructed
  * when the TCP ACK passed the cookie validation check.
  */
 
 struct join_entry {
 	u32 token;
-	u32 remote_nonce;
-	u32 local_nonce;
+	u32 remote_analnce;
+	u32 local_analnce;
 	u8 join_id;
 	u8 local_id;
 	u8 backup;
@@ -60,8 +60,8 @@ static void mptcp_join_store_state(struct join_entry *entry,
 				   const struct mptcp_subflow_request_sock *subflow_req)
 {
 	entry->token = subflow_req->token;
-	entry->remote_nonce = subflow_req->remote_nonce;
-	entry->local_nonce = subflow_req->local_nonce;
+	entry->remote_analnce = subflow_req->remote_analnce;
+	entry->local_analnce = subflow_req->local_analnce;
 	entry->backup = subflow_req->backup;
 	entry->join_id = subflow_req->remote_id;
 	entry->local_id = subflow_req->local_id;
@@ -74,7 +74,7 @@ void subflow_init_req_cookie_join_save(const struct mptcp_subflow_request_sock *
 	struct net *net = read_pnet(&subflow_req->sk.req.ireq_net);
 	u32 i = mptcp_join_entry_hash(skb, net);
 
-	/* No use in waiting if other cpu is already using this slot --
+	/* Anal use in waiting if other cpu is already using this slot --
 	 * would overwrite the data that got stored.
 	 */
 	spin_lock_bh(&join_entry_locks[i]);
@@ -86,7 +86,7 @@ void subflow_init_req_cookie_join_save(const struct mptcp_subflow_request_sock *
  * Look up the saved state based on skb hash & check token matches msk
  * in same netns.
  *
- * Caller will check msk can still accept another subflow.  The hmac
+ * Caller will check msk can still accept aanalther subflow.  The hmac
  * present in the cookie ACK mptcp option space will be checked later.
  */
 bool mptcp_token_join_cookie_init_state(struct mptcp_subflow_request_sock *subflow_req,
@@ -114,8 +114,8 @@ bool mptcp_token_join_cookie_init_state(struct mptcp_subflow_request_sock *subfl
 		return false;
 	}
 
-	subflow_req->remote_nonce = e->remote_nonce;
-	subflow_req->local_nonce = e->local_nonce;
+	subflow_req->remote_analnce = e->remote_analnce;
+	subflow_req->local_analnce = e->local_analnce;
 	subflow_req->backup = e->backup;
 	subflow_req->remote_id = e->join_id;
 	subflow_req->token = e->token;

@@ -55,224 +55,224 @@ static const struct dmi_system_id yc_acp_quirk_table[] = {
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21D0"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21D0"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21D1"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21D2"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21D3"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21D4"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21D5"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21CF"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21CG"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21CQ"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21CR"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21CM"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21CN"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21CH"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21CJ"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21CK"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21CL"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21EF"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21EM"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21EN"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21HY"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21J2"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21J0"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21J5"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21J6"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "82QF"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "82TL"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "82UG"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "82UU"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "82V2"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "82YM"),
 		}
 	},
 	{
 		.driver_data = &acp6x_card,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "83AS"),
 		}
 	},
@@ -448,7 +448,7 @@ static int acp6x_probe(struct platform_device *pdev)
 	struct acpi_device *adev;
 	int ret;
 
-	/* check the parent device's firmware node has _DSD or not */
+	/* check the parent device's firmware analde has _DSD or analt */
 	adev = ACPI_COMPANION(pdev->dev.parent);
 	if (adev) {
 		const union acpi_object *obj;
@@ -465,7 +465,7 @@ static int acp6x_probe(struct platform_device *pdev)
 
 	card = platform_get_drvdata(pdev);
 	if (!card)
-		return -ENODEV;
+		return -EANALDEV;
 	dev_info(&pdev->dev, "Enabling ACP DMIC support via %s", dmi_id ? "DMI" : "ACPI");
 	acp6x_card.dev = &pdev->dev;
 

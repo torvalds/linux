@@ -7,11 +7,11 @@
  *		IP/TCP/UDP checksumming routines
  *
  * Authors:	Jorge Cwik, <jorge@laser.satlink.net>
- *		Arnt Gulbrandsen, <agulbra@nvg.unit.no>
+ *		Arnt Gulbrandsen, <agulbra@nvg.unit.anal>
  *		Tom May, <ftom@netcom.com>
  *              Pentium Pro/II routines:
- *              Alexander Kjeldaas <astor@guardian.no>
- *              Finn Arne Gangstad <finnag@guardian.no>
+ *              Alexander Kjeldaas <astor@guardian.anal>
+ *              Finn Arne Gangstad <finnag@guardian.anal>
  *		Lots of code moved from tcp.c and ip.c; see those files
  *		for more names.
  *
@@ -23,9 +23,9 @@
 
 #include <linux/export.h>
 #include <linux/linkage.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/asm.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 
 /*
  * computes a partial checksum, e.g. for TCP/UDP fragments
@@ -153,7 +153,7 @@ SYM_FUNC_START(csum_partial)
 	negl %ebx
 	lea 45f(%ebx,%ebx,2), %ebx
 	testl %esi, %esi
-	JMP_NOSPEC ebx
+	JMP_ANALSPEC ebx
 
 	# Handle 2-byte-aligned regions
 20:	addw (%esi), %ax
@@ -231,7 +231,7 @@ SYM_FUNC_START(csum_partial)
 	jz 80f
 
 	# Handle the last 1-3 bytes without jumping
-	notl %ecx		# 1->2, 2->1, 3->0, higher bits are masked
+	analtl %ecx		# 1->2, 2->1, 3->0, higher bits are masked
 	movl $0xffffff,%ebx	# by the shll and shrl instructions
 	shll $3,%ecx
 	shrl %cl,%ebx
@@ -401,7 +401,7 @@ SYM_FUNC_START(csum_partial_copy_generic)
 	andl $-32,%edx
 	lea 3f(%ebx,%ebx), %ebx
 	testl %esi, %esi 
-	JMP_NOSPEC ebx
+	JMP_ANALSPEC ebx
 1:	addl $64,%esi
 	addl $64,%edi 
 	EXC(movb -32(%edx),%bl)	; EXC(movb (%edx),%bl)

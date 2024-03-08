@@ -25,7 +25,7 @@
 #include <linux/cdev.h>
 #include <linux/uio_driver.h>
 
-#define UIO_MAX_DEVICES		(1U << MINORBITS)
+#define UIO_MAX_DEVICES		(1U << MIANALRBITS)
 
 static int uio_major;
 static struct cdev *uio_cdev;
@@ -33,7 +33,7 @@ static DEFINE_IDR(uio_idr);
 static const struct file_operations uio_fops;
 
 /* Protect idr accesses */
-static DEFINE_MUTEX(minor_lock);
+static DEFINE_MUTEX(mianalr_lock);
 
 /*
  * attributes
@@ -149,7 +149,7 @@ static ssize_t portio_size_show(struct uio_port *port, char *buf)
 
 static ssize_t portio_porttype_show(struct uio_port *port, char *buf)
 {
-	const char *porttypes[] = {"none", "x86", "gpio", "other"};
+	const char *porttypes[] = {"analne", "x86", "gpio", "other"};
 
 	if ((port->porttype < 0) || (port->porttype > UIO_PORT_OTHER))
 		return -EINVAL;
@@ -301,13 +301,13 @@ static int uio_dev_add_attributes(struct uio_device *idev)
 			idev->map_dir = kobject_create_and_add("maps",
 							&idev->dev.kobj);
 			if (!idev->map_dir) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err_map;
 			}
 		}
 		map = kzalloc(sizeof(*map), GFP_KERNEL);
 		if (!map) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_map;
 		}
 		kobject_init(&map->kobj, &map_attr_type);
@@ -330,13 +330,13 @@ static int uio_dev_add_attributes(struct uio_device *idev)
 			idev->portio_dir = kobject_create_and_add("portio",
 							&idev->dev.kobj);
 			if (!idev->portio_dir) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err_portio;
 			}
 		}
 		portio = kzalloc(sizeof(*portio), GFP_KERNEL);
 		if (!portio) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_portio;
 		}
 		kobject_init(&portio->kobj, &portio_attr_type);
@@ -398,35 +398,35 @@ static void uio_dev_del_attributes(struct uio_device *idev)
 	kobject_put(idev->portio_dir);
 }
 
-static int uio_get_minor(struct uio_device *idev)
+static int uio_get_mianalr(struct uio_device *idev)
 {
 	int retval;
 
-	mutex_lock(&minor_lock);
+	mutex_lock(&mianalr_lock);
 	retval = idr_alloc(&uio_idr, idev, 0, UIO_MAX_DEVICES, GFP_KERNEL);
 	if (retval >= 0) {
-		idev->minor = retval;
+		idev->mianalr = retval;
 		retval = 0;
-	} else if (retval == -ENOSPC) {
+	} else if (retval == -EANALSPC) {
 		dev_err(&idev->dev, "too many uio devices\n");
 		retval = -EINVAL;
 	}
-	mutex_unlock(&minor_lock);
+	mutex_unlock(&mianalr_lock);
 	return retval;
 }
 
-static void uio_free_minor(unsigned long minor)
+static void uio_free_mianalr(unsigned long mianalr)
 {
-	mutex_lock(&minor_lock);
-	idr_remove(&uio_idr, minor);
-	mutex_unlock(&minor_lock);
+	mutex_lock(&mianalr_lock);
+	idr_remove(&uio_idr, mianalr);
+	mutex_unlock(&mianalr_lock);
 }
 
 /**
- * uio_event_notify - trigger an interrupt event
+ * uio_event_analtify - trigger an interrupt event
  * @info: UIO device capabilities
  */
-void uio_event_notify(struct uio_info *info)
+void uio_event_analtify(struct uio_info *info)
 {
 	struct uio_device *idev = info->uio_dev;
 
@@ -434,7 +434,7 @@ void uio_event_notify(struct uio_info *info)
 	wake_up_interruptible(&idev->wait);
 	kill_fasync(&idev->async_queue, SIGIO, POLL_IN);
 }
-EXPORT_SYMBOL_GPL(uio_event_notify);
+EXPORT_SYMBOL_GPL(uio_event_analtify);
 
 /**
  * uio_interrupt - hardware interrupt handler
@@ -448,7 +448,7 @@ static irqreturn_t uio_interrupt(int irq, void *dev_id)
 
 	ret = idev->info->handler(irq, idev->info);
 	if (ret == IRQ_HANDLED)
-		uio_event_notify(idev->info);
+		uio_event_analtify(idev->info);
 
 	return ret;
 }
@@ -458,30 +458,30 @@ struct uio_listener {
 	s32 event_count;
 };
 
-static int uio_open(struct inode *inode, struct file *filep)
+static int uio_open(struct ianalde *ianalde, struct file *filep)
 {
 	struct uio_device *idev;
 	struct uio_listener *listener;
 	int ret = 0;
 
-	mutex_lock(&minor_lock);
-	idev = idr_find(&uio_idr, iminor(inode));
+	mutex_lock(&mianalr_lock);
+	idev = idr_find(&uio_idr, imianalr(ianalde));
 	if (!idev) {
-		ret = -ENODEV;
-		mutex_unlock(&minor_lock);
+		ret = -EANALDEV;
+		mutex_unlock(&mianalr_lock);
 		goto out;
 	}
 	get_device(&idev->dev);
-	mutex_unlock(&minor_lock);
+	mutex_unlock(&mianalr_lock);
 
 	if (!try_module_get(idev->owner)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_module_get;
 	}
 
 	listener = kmalloc(sizeof(*listener), GFP_KERNEL);
 	if (!listener) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc_listener;
 	}
 
@@ -497,7 +497,7 @@ static int uio_open(struct inode *inode, struct file *filep)
 	}
 
 	if (idev->info->open)
-		ret = idev->info->open(idev->info, inode);
+		ret = idev->info->open(idev->info, ianalde);
 	mutex_unlock(&idev->info_lock);
 	if (ret)
 		goto err_infoopen;
@@ -525,7 +525,7 @@ static int uio_fasync(int fd, struct file *filep, int on)
 	return fasync_helper(fd, filep, on, &idev->async_queue);
 }
 
-static int uio_release(struct inode *inode, struct file *filep)
+static int uio_release(struct ianalde *ianalde, struct file *filep)
 {
 	int ret = 0;
 	struct uio_listener *listener = filep->private_data;
@@ -533,7 +533,7 @@ static int uio_release(struct inode *inode, struct file *filep)
 
 	mutex_lock(&idev->info_lock);
 	if (idev->info && idev->info->release)
-		ret = idev->info->release(idev->info, inode);
+		ret = idev->info->release(idev->info, ianalde);
 	mutex_unlock(&idev->info_lock);
 
 	module_put(idev->owner);
@@ -558,7 +558,7 @@ static __poll_t uio_poll(struct file *filep, poll_table *wait)
 
 	poll_wait(filep, &idev->wait, wait);
 	if (listener->event_count != atomic_read(&idev->event))
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	return 0;
 }
 
@@ -599,7 +599,7 @@ static ssize_t uio_read(struct file *filep, char __user *buf,
 			break;
 		}
 
-		if (filep->f_flags & O_NONBLOCK) {
+		if (filep->f_flags & O_ANALNBLOCK) {
 			retval = -EAGAIN;
 			break;
 		}
@@ -643,7 +643,7 @@ static ssize_t uio_write(struct file *filep, const char __user *buf,
 	}
 
 	if (!idev->info->irqcontrol) {
-		retval = -ENOSYS;
+		retval = -EANALSYS;
 		goto out;
 	}
 
@@ -735,16 +735,16 @@ static int uio_mmap_physical(struct vm_area_struct *vma)
 	mem = idev->info->mem + mi;
 
 	if (mem->addr & ~PAGE_MASK)
-		return -ENODEV;
+		return -EANALDEV;
 	if (vma->vm_end - vma->vm_start > mem->size)
 		return -EINVAL;
 
 	vma->vm_ops = &uio_physical_vm_ops;
 	if (idev->info->mem[mi].memtype == UIO_MEM_PHYS)
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 
 	/*
-	 * We cannot use the vm_iomap_memory() helper here,
+	 * We cananalt use the vm_iomap_memory() helper here,
 	 * because vma->vm_pgoff is the map index we looked
 	 * up above in uio_find_mem_index(), rather than an
 	 * actual page offset into the mmap.
@@ -824,7 +824,7 @@ static const struct file_operations uio_fops = {
 	.mmap		= uio_mmap,
 	.poll		= uio_poll,
 	.fasync		= uio_fasync,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static int uio_major_init(void)
@@ -838,7 +838,7 @@ static int uio_major_init(void)
 	if (result)
 		goto out;
 
-	result = -ENOMEM;
+	result = -EANALMEM;
 	cdev = cdev_alloc();
 	if (!cdev)
 		goto out_unregister;
@@ -932,7 +932,7 @@ int __uio_register_device(struct module *owner,
 
 	idev = kzalloc(sizeof(*idev), GFP_KERNEL);
 	if (!idev) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	idev->owner = owner;
@@ -941,20 +941,20 @@ int __uio_register_device(struct module *owner,
 	init_waitqueue_head(&idev->wait);
 	atomic_set(&idev->event, 0);
 
-	ret = uio_get_minor(idev);
+	ret = uio_get_mianalr(idev);
 	if (ret) {
 		kfree(idev);
 		return ret;
 	}
 
 	device_initialize(&idev->dev);
-	idev->dev.devt = MKDEV(uio_major, idev->minor);
+	idev->dev.devt = MKDEV(uio_major, idev->mianalr);
 	idev->dev.class = &uio_class;
 	idev->dev.parent = parent;
 	idev->dev.release = uio_device_release;
 	dev_set_drvdata(&idev->dev, idev);
 
-	ret = dev_set_name(&idev->dev, "uio%d", idev->minor);
+	ret = dev_set_name(&idev->dev, "uio%d", idev->mianalr);
 	if (ret)
 		goto err_device_create;
 
@@ -970,11 +970,11 @@ int __uio_register_device(struct module *owner,
 
 	if (info->irq && (info->irq != UIO_IRQ_CUSTOM)) {
 		/*
-		 * Note that we deliberately don't use devm_request_irq
+		 * Analte that we deliberately don't use devm_request_irq
 		 * here. The parent module can unregister the UIO device
 		 * and call pci_disable_msi, which requires that this
 		 * irq has been freed. However, the device may have open
-		 * FDs at the time of unregister and therefore may not be
+		 * FDs at the time of unregister and therefore may analt be
 		 * freed until they are released.
 		 */
 		ret = request_irq(info->irq, uio_interrupt,
@@ -992,7 +992,7 @@ err_request_irq:
 err_uio_dev_add_attributes:
 	device_del(&idev->dev);
 err_device_create:
-	uio_free_minor(idev->minor);
+	uio_free_mianalr(idev->mianalr);
 	put_device(&idev->dev);
 	return ret;
 }
@@ -1021,7 +1021,7 @@ int __devm_uio_register_device(struct module *owner,
 	ptr = devres_alloc(devm_uio_unregister_device, sizeof(*ptr),
 			   GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*ptr = info;
 	ret = __uio_register_device(owner, parent, info);
@@ -1044,13 +1044,13 @@ EXPORT_SYMBOL_GPL(__devm_uio_register_device);
 void uio_unregister_device(struct uio_info *info)
 {
 	struct uio_device *idev;
-	unsigned long minor;
+	unsigned long mianalr;
 
 	if (!info || !info->uio_dev)
 		return;
 
 	idev = info->uio_dev;
-	minor = idev->minor;
+	mianalr = idev->mianalr;
 
 	mutex_lock(&idev->info_lock);
 	uio_dev_del_attributes(idev);
@@ -1064,7 +1064,7 @@ void uio_unregister_device(struct uio_info *info)
 	wake_up_interruptible(&idev->wait);
 	kill_fasync(&idev->async_queue, SIGIO, POLL_HUP);
 
-	uio_free_minor(minor);
+	uio_free_mianalr(mianalr);
 	device_unregister(&idev->dev);
 
 	return;

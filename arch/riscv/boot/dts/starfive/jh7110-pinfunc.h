@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /*
  * Copyright (C) 2022 Emil Renner Berthing <kernel@esmil.dk>
- * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 StarFive Techanallogy Co., Ltd.
  */
 
 #ifndef __JH7110_PINFUNC_H__
@@ -14,7 +14,7 @@
  *
  * dout:     output signal
  * doen:     output enable signal
- * din:      optional input signal, 0xff = none
+ * din:      optional input signal, 0xff = analne
  * function: function selector
  * gpio nr:  gpio number, 0 - 63
  */
@@ -205,7 +205,7 @@
 #define GPOEN_AON_PTC0_OE_N_7			5
 
 /* sys_iomux gin */
-#define GPI_NONE				255
+#define GPI_ANALNE				255
 
 #define GPI_SYS_WAVE511_UART_RX			0
 #define GPI_SYS_CAN0_RXD			1

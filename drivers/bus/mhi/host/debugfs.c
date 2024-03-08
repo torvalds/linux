@@ -43,8 +43,8 @@ static int mhi_debugfs_events_show(struct seq_file *m, void *d)
 	int i;
 
 	if (!mhi_is_active(mhi_cntrl)) {
-		seq_puts(m, "Device not ready\n");
-		return -ENODEV;
+		seq_puts(m, "Device analt ready\n");
+		return -EANALDEV;
 	}
 
 	er_ctxt = mhi_cntrl->mhi_ctxt->er_ctxt;
@@ -86,8 +86,8 @@ static int mhi_debugfs_channels_show(struct seq_file *m, void *d)
 	int i;
 
 	if (!mhi_is_active(mhi_cntrl)) {
-		seq_puts(m, "Device not ready\n");
-		return -ENODEV;
+		seq_puts(m, "Device analt ready\n");
+		return -EANALDEV;
 	}
 
 	mhi_chan = mhi_cntrl->mhi_chan;
@@ -155,8 +155,8 @@ static int mhi_debugfs_devices_show(struct seq_file *m, void *d)
 	struct mhi_controller *mhi_cntrl = m->private;
 
 	if (!mhi_is_active(mhi_cntrl)) {
-		seq_puts(m, "Device not ready\n");
-		return -ENODEV;
+		seq_puts(m, "Device analt ready\n");
+		return -EANALDEV;
 	}
 
 	/* Show controller and client(s) info */
@@ -234,8 +234,8 @@ static int mhi_debugfs_device_wake_show(struct seq_file *m, void *d)
 	struct mhi_device *mhi_dev = mhi_cntrl->mhi_dev;
 
 	if (!mhi_is_active(mhi_cntrl)) {
-		seq_puts(m, "Device not ready\n");
-		return -ENODEV;
+		seq_puts(m, "Device analt ready\n");
+		return -EANALDEV;
 	}
 
 	seq_printf(m,
@@ -293,39 +293,39 @@ static ssize_t mhi_debugfs_timeout_ms_write(struct file *file,
 	return count;
 }
 
-static int mhi_debugfs_states_open(struct inode *inode, struct file *fp)
+static int mhi_debugfs_states_open(struct ianalde *ianalde, struct file *fp)
 {
-	return single_open(fp, mhi_debugfs_states_show, inode->i_private);
+	return single_open(fp, mhi_debugfs_states_show, ianalde->i_private);
 }
 
-static int mhi_debugfs_events_open(struct inode *inode, struct file *fp)
+static int mhi_debugfs_events_open(struct ianalde *ianalde, struct file *fp)
 {
-	return single_open(fp, mhi_debugfs_events_show, inode->i_private);
+	return single_open(fp, mhi_debugfs_events_show, ianalde->i_private);
 }
 
-static int mhi_debugfs_channels_open(struct inode *inode, struct file *fp)
+static int mhi_debugfs_channels_open(struct ianalde *ianalde, struct file *fp)
 {
-	return single_open(fp, mhi_debugfs_channels_show, inode->i_private);
+	return single_open(fp, mhi_debugfs_channels_show, ianalde->i_private);
 }
 
-static int mhi_debugfs_devices_open(struct inode *inode, struct file *fp)
+static int mhi_debugfs_devices_open(struct ianalde *ianalde, struct file *fp)
 {
-	return single_open(fp, mhi_debugfs_devices_show, inode->i_private);
+	return single_open(fp, mhi_debugfs_devices_show, ianalde->i_private);
 }
 
-static int mhi_debugfs_regdump_open(struct inode *inode, struct file *fp)
+static int mhi_debugfs_regdump_open(struct ianalde *ianalde, struct file *fp)
 {
-	return single_open(fp, mhi_debugfs_regdump_show, inode->i_private);
+	return single_open(fp, mhi_debugfs_regdump_show, ianalde->i_private);
 }
 
-static int mhi_debugfs_device_wake_open(struct inode *inode, struct file *fp)
+static int mhi_debugfs_device_wake_open(struct ianalde *ianalde, struct file *fp)
 {
-	return single_open(fp, mhi_debugfs_device_wake_show, inode->i_private);
+	return single_open(fp, mhi_debugfs_device_wake_show, ianalde->i_private);
 }
 
-static int mhi_debugfs_timeout_ms_open(struct inode *inode, struct file *fp)
+static int mhi_debugfs_timeout_ms_open(struct ianalde *ianalde, struct file *fp)
 {
-	return single_open(fp, mhi_debugfs_timeout_ms_show, inode->i_private);
+	return single_open(fp, mhi_debugfs_timeout_ms_show, ianalde->i_private);
 }
 
 static const struct file_operations debugfs_states_fops = {

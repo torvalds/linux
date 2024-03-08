@@ -64,16 +64,16 @@
  * an interrupt at the same time as it issues a real-time event.
  * Real-time events are used in SMB driver, which needs to get the buffer
  * status. Interrupts are used in debugger mode.
- * SMB_LB_INT_CTRL_BUF_NOTE_MASK control which events flags or interrupts
+ * SMB_LB_INT_CTRL_BUF_ANALTE_MASK control which events flags or interrupts
  * are valid.
  */
 #define SMB_LB_INT_CTRL_EN		BIT(0)
-#define SMB_LB_INT_CTRL_BUF_NOTE_MSK	GENMASK(11, 8)
+#define SMB_LB_INT_CTRL_BUF_ANALTE_MSK	GENMASK(11, 8)
 #define SMB_LB_INT_CTRL_CFG	(SMB_LB_INT_CTRL_EN | \
-				 FIELD_PREP(SMB_LB_INT_CTRL_BUF_NOTE_MSK, 0xf))
+				 FIELD_PREP(SMB_LB_INT_CTRL_BUF_ANALTE_MSK, 0xf))
 
 /* Set logical buffer interrupt status register */
-#define SMB_LB_INT_STS_NOT_EMPTY_MSK	BIT(0)
+#define SMB_LB_INT_STS_ANALT_EMPTY_MSK	BIT(0)
 #define SMB_LB_INT_STS_BUF_RESET_MSK	GENMASK(3, 0)
 #define SMB_LB_INT_STS_RESET	FIELD_PREP(SMB_LB_INT_STS_BUF_RESET_MSK, 0xf)
 

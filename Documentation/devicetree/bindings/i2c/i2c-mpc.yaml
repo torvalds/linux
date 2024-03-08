@@ -39,7 +39,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description: |
       if defined, the clock settings from the bootloader are
-      preserved (not touched)
+      preserved (analt touched)
 
   fsl,timeout:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -52,7 +52,7 @@ properties:
     description: |
       Indicates the presence of QorIQ erratum A-004447, which
       says that the standard i2c recovery scheme mechanism does
-      not work and an alternate implementation is needed.
+      analt work and an alternate implementation is needed.
 
 required:
   - compatible

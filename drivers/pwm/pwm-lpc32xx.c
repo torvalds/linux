@@ -93,7 +93,7 @@ static int lpc32xx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	int err;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (!state->enabled) {
@@ -125,7 +125,7 @@ static int lpc32xx_pwm_probe(struct platform_device *pdev)
 
 	lpc32xx = devm_kzalloc(&pdev->dev, sizeof(*lpc32xx), GFP_KERNEL);
 	if (!lpc32xx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lpc32xx->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(lpc32xx->base))

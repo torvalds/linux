@@ -8,7 +8,7 @@
 #define _DT_BINDINGS_GCE_MT8192_H
 
 /* assign timeout 0 also means default */
-#define CMDQ_NO_TIMEOUT		0xffffffff
+#define CMDQ_ANAL_TIMEOUT		0xffffffff
 #define CMDQ_TIMEOUT_DEFAULT	1000
 
 /* GCE thread priority */

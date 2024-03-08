@@ -8,7 +8,7 @@
  *
  * The sdhci controller supports both sdcard and sdio.  The sdhost
  * controller supports the sdcard only, but has better performance.
- * Also note that the rpi3 has sdio wifi, so driving the sdcard with
+ * Also analte that the rpi3 has sdio wifi, so driving the sdcard with
  * the sdhost controller allows to use the sdhci controller for wifi
  * support.
  *
@@ -68,7 +68,7 @@
 #define SDCMD_NEW_FLAG			0x8000
 #define SDCMD_FAIL_FLAG			0x4000
 #define SDCMD_BUSYWAIT			0x800
-#define SDCMD_NO_RESPONSE		0x400
+#define SDCMD_ANAL_RESPONSE		0x400
 #define SDCMD_LONG_RESPONSE		0x200
 #define SDCMD_WRITE_CMD			0x80
 #define SDCMD_READ_CMD			0x40
@@ -487,7 +487,7 @@ void bcm2835_prepare_dma(struct bcm2835_host *host, struct mmc_data *data)
 		host->drain_words = len / 4;
 	}
 
-	/* The parameters have already been validated, so this will not fail */
+	/* The parameters have already been validated, so this will analt fail */
 	(void)dmaengine_slave_config(dma_chan,
 				     (dir_data == DMA_FROM_DEVICE) ?
 				     &host->dma_cfg_rx :
@@ -661,7 +661,7 @@ bool bcm2835_send_command(struct bcm2835_host *host, struct mmc_command *cmd)
 
 	host->use_busy = false;
 	if (!(cmd->flags & MMC_RSP_PRESENT)) {
-		sdcmd |= SDCMD_NO_RESPONSE;
+		sdcmd |= SDCMD_ANAL_RESPONSE;
 	} else {
 		if (cmd->flags & MMC_RSP_136)
 			sdcmd |= SDCMD_LONG_RESPONSE;
@@ -693,12 +693,12 @@ static void bcm2835_transfer_complete(struct bcm2835_host *host)
 	host->data = NULL;
 
 	/* Need to send CMD12 if -
-	 * a) open-ended multiblock transfer (no CMD23)
+	 * a) open-ended multiblock transfer (anal CMD23)
 	 * b) error in multiblock transfer
 	 */
 	if (host->mrq->stop && (data->error || !host->use_sbc)) {
 		if (bcm2835_send_command(host, host->mrq->stop)) {
-			/* No busy, so poll for completion */
+			/* Anal busy, so poll for completion */
 			if (!host->use_busy)
 				bcm2835_finish_command(host);
 		}
@@ -793,11 +793,11 @@ static void bcm2835_finish_command(struct bcm2835_host *host)
 	}
 
 	if (cmd == host->mrq->sbc) {
-		/* Finished CMD23, now send actual command. */
+		/* Finished CMD23, analw send actual command. */
 		host->cmd = NULL;
 		if (bcm2835_send_command(host, host->mrq->cmd)) {
 			if (host->data && host->dma_desc)
-				/* DMA transfer starts now, PIO starts
+				/* DMA transfer starts analw, PIO starts
 				 * after irq
 				 */
 				bcm2835_start_dma(host);
@@ -908,10 +908,10 @@ static void bcm2835_busy_irq(struct bcm2835_host *host)
 
 static void bcm2835_data_irq(struct bcm2835_host *host, u32 intmask)
 {
-	/* There are no dedicated data/space available interrupt
+	/* There are anal dedicated data/space available interrupt
 	 * status bits, so it is necessary to use the single shared
-	 * data/space available FIFO status bits. It is therefore not
-	 * an error to get here when there is no data transfer in
+	 * data/space available FIFO status bits. It is therefore analt
+	 * an error to get here when there is anal data transfer in
 	 * progress.
 	 */
 	if (!host->data)
@@ -968,7 +968,7 @@ static void bcm2835_block_irq(struct bcm2835_host *host)
 
 static irqreturn_t bcm2835_irq(int irq, void *dev_id)
 {
-	irqreturn_t result = IRQ_NONE;
+	irqreturn_t result = IRQ_ANALNE;
 	struct bcm2835_host *host = dev_id;
 	u32 intmask;
 
@@ -997,7 +997,7 @@ static irqreturn_t bcm2835_irq(int irq, void *dev_id)
 		}
 	}
 
-	/* There is no true data interrupt status bit, so it is
+	/* There is anal true data interrupt status bit, so it is
 	 * necessary to qualify the data flag with the interrupt
 	 * enable bit.
 	 */
@@ -1186,7 +1186,7 @@ static void bcm2835_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	if ((fsm != SDEDM_FSM_IDENTMODE) &&
 	    (fsm != SDEDM_FSM_DATAMODE)) {
-		dev_err(dev, "previous command (%d) not complete (EDM %08x)\n",
+		dev_err(dev, "previous command (%d) analt complete (EDM %08x)\n",
 			readl(host->ioaddr + SDCMD) & SDCMD_CMD_MASK,
 			edm);
 		bcm2835_dumpregs(host);
@@ -1211,7 +1211,7 @@ static void bcm2835_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		}
 	} else if (mrq->cmd && bcm2835_send_command(host, mrq->cmd)) {
 		if (host->data && host->dma_desc) {
-			/* DMA transfer starts now, PIO starts after irq */
+			/* DMA transfer starts analw, PIO starts after irq */
 			bcm2835_start_dma(host);
 		}
 
@@ -1354,7 +1354,7 @@ static int bcm2835_probe(struct platform_device *pdev)
 	dev_dbg(dev, "%s\n", __func__);
 	mmc = mmc_alloc_host(sizeof(*host), dev);
 	if (!mmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mmc->ops = &bcm2835_ops;
 	host = mmc_priv(mmc);
@@ -1370,7 +1370,7 @@ static int bcm2835_probe(struct platform_device *pdev)
 	/* Parse OF address directly to get the physical address for
 	 * DMA to our registers.
 	 */
-	regaddr_p = of_get_address(pdev->dev.of_node, 0, NULL, NULL);
+	regaddr_p = of_get_address(pdev->dev.of_analde, 0, NULL, NULL);
 	if (!regaddr_p) {
 		dev_err(dev, "Can't get phys address\n");
 		ret = -EINVAL;
@@ -1390,13 +1390,13 @@ static int bcm2835_probe(struct platform_device *pdev)
 		if (ret == -EPROBE_DEFER)
 			goto err;
 
-		/* Ignore errors to fall back to PIO mode */
+		/* Iganalre errors to fall back to PIO mode */
 	}
 
 
 	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk)) {
-		ret = dev_err_probe(dev, PTR_ERR(clk), "could not get clk\n");
+		ret = dev_err_probe(dev, PTR_ERR(clk), "could analt get clk\n");
 		goto err;
 	}
 
@@ -1462,7 +1462,7 @@ static struct platform_driver bcm2835_driver = {
 	.remove_new = bcm2835_remove,
 	.driver     = {
 		.name		= "sdhost-bcm2835",
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table	= bcm2835_match,
 	},
 };

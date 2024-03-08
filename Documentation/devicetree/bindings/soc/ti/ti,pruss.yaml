@@ -40,23 +40,23 @@ description: |+
   RAM, and specific register spaces for Control and Debug functionalities.
 
   Various sub-modules within a PRU-ICSS subsystem are represented as individual
-  nodes and are defined using a parent-child hierarchy depending on their
-  integration within the IP and the SoC. These nodes are described in the
+  analdes and are defined using a parent-child hierarchy depending on their
+  integration within the IP and the SoC. These analdes are described in the
   following sections.
 
 
-  PRU-ICSS Node
+  PRU-ICSS Analde
   ==============
-  Each PRU-ICSS instance is represented as its own node with the individual PRU
-  processor cores, the memories node, an INTC node and an MDIO node represented
-  as child nodes within this PRUSS node. This node shall be a child of the
-  corresponding interconnect bus nodes or target-module nodes.
+  Each PRU-ICSS instance is represented as its own analde with the individual PRU
+  processor cores, the memories analde, an INTC analde and an MDIO analde represented
+  as child analdes within this PRUSS analde. This analde shall be a child of the
+  corresponding interconnect bus analdes or target-module analdes.
 
   See ../../mfd/syscon.yaml for generic SysCon binding details.
 
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^(pruss|icssg)@[0-9a-f]+$"
 
   compatible:
@@ -97,7 +97,7 @@ patternProperties:
   memories@[a-f0-9]+$:
     description: |
       The various Data RAMs within a single PRU-ICSS unit are represented as a
-      single node with the name 'memories'.
+      single analde with the name 'memories'.
 
     type: object
 
@@ -108,7 +108,7 @@ patternProperties:
           - description: Address and size of the Data RAM0.
           - description: Address and size of the Data RAM1.
           - description: |
-              Address and size of the Shared Data RAM. Note that on AM437x one
+              Address and size of the Shared Data RAM. Analte that on AM437x one
               of two PRUSS units don't contain Shared RAM, while the second one
               has it.
 
@@ -165,7 +165,7 @@ patternProperties:
             description: |
               This is applicable only for ICSSG (K3 SoCs). The ICSSG modules
               core clock can be set to one of the 2 sources: ICSSG_CORE_CLK or
-              ICSSG_ICLK.  This node models this clock mux and should have the
+              ICSSG_ICLK.  This analde models this clock mux and should have the
               name "coreclk-mux".
 
             type: object
@@ -199,7 +199,7 @@ patternProperties:
           iepclk-mux@[a-f0-9]+$:
             description: |
               The IEP module can get its clock from 2 sources: ICSSG_IEP_CLK or
-              CORE_CLK (OCP_CLK in older SoCs). This node models this clock
+              CORE_CLK (OCP_CLK in older SoCs). This analde models this clock
               mux and should have the name "iepclk-mux".
 
             type: object
@@ -280,15 +280,15 @@ patternProperties:
 
   interrupt-controller@[a-f0-9]+$:
     description: |
-      PRUSS INTC Node. Each PRUSS has a single interrupt controller instance
+      PRUSS INTC Analde. Each PRUSS has a single interrupt controller instance
       that is common to all the PRU cores. This should be represented as an
-      interrupt-controller node.
+      interrupt-controller analde.
     $ref: /schemas/interrupt-controller/ti,pruss-intc.yaml#
     type: object
 
   mdio@[a-f0-9]+$:
     description: |
-      MDIO Node. Each PRUSS has an MDIO module that can be used to control
+      MDIO Analde. Each PRUSS has an MDIO module that can be used to control
       external PHYs. The MDIO module used within the PRU-ICSS is an instance of
       the MDIO Controller used in TI Davinci SoCs.
     $ref: /schemas/net/ti,davinci-mdio.yaml#
@@ -296,8 +296,8 @@ patternProperties:
 
   "^(pru|rtu|txpru)@[0-9a-f]+$":
     description: |
-      PRU Node. Each PRUSS has dual PRU cores, each represented as a RemoteProc
-      device through a PRU child node each. Each node can optionally be rendered
+      PRU Analde. Each PRUSS has dual PRU cores, each represented as a RemoteProc
+      device through a PRU child analde each. Each analde can optionally be rendered
       inactive by using the standard DT string property, "status". The ICSSG IP
       present on K3 SoCs have additional auxiliary PRU cores with slightly
       different IP integration.
@@ -311,8 +311,8 @@ required:
 
 additionalProperties: false
 
-# Due to inability of correctly verifying sub-nodes with an @address through
-# the "required" list, the required sub-nodes below are commented out for now.
+# Due to inability of correctly verifying sub-analdes with an @address through
+# the "required" list, the required sub-analdes below are commented out for analw.
 
 # required:
 # - memories
@@ -429,7 +429,7 @@ examples:
 
   - |
 
-    /* Example 2 AM43xx PRU-ICSS with PRUSS1 node */
+    /* Example 2 AM43xx PRU-ICSS with PRUSS1 analde */
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     pruss1: pruss@0 {
         compatible = "ti,am4376-pruss1";

@@ -8,9 +8,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -225,7 +225,7 @@ static int rfcomm_check_security(struct rfcomm_dlc *d)
 		auth_type = HCI_AT_GENERAL_BONDING;
 		break;
 	default:
-		auth_type = HCI_AT_NO_BONDING;
+		auth_type = HCI_AT_ANAL_BONDING;
 		break;
 	}
 
@@ -408,7 +408,7 @@ static int __rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst,
 	d->out = 1;
 
 	d->mtu = s->mtu;
-	d->cfc = (s->cfc == RFCOMM_CFC_UNKNOWN) ? 0 : s->cfc;
+	d->cfc = (s->cfc == RFCOMM_CFC_UNKANALWN) ? 0 : s->cfc;
 
 	if (s->state == BT_CONNECTED) {
 		if (rfcomm_check_security(d))
@@ -512,7 +512,7 @@ int rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 
 	s = d->session;
 	if (!s)
-		goto no_session;
+		goto anal_session;
 
 	/* after waiting on the mutex check the session still exists
 	 * then check the dlc still exists
@@ -529,7 +529,7 @@ int rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 		}
 	}
 
-no_session:
+anal_session:
 	rfcomm_unlock();
 	return r;
 }
@@ -575,7 +575,7 @@ int rfcomm_dlc_send(struct rfcomm_dlc *d, struct sk_buff *skb)
 	int len;
 
 	if (d->state != BT_CONNECTED)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	frag = skb_shinfo(skb)->frag_list;
 	skb_shinfo(skb)->frag_list = NULL;
@@ -609,7 +609,7 @@ unlock:
 	return len;
 }
 
-void rfcomm_dlc_send_noerror(struct rfcomm_dlc *d, struct sk_buff *skb)
+void rfcomm_dlc_send_analerror(struct rfcomm_dlc *d, struct sk_buff *skb)
 {
 	int len = skb->len;
 
@@ -694,9 +694,9 @@ static struct rfcomm_session *rfcomm_session_add(struct socket *sock, int state)
 	s->sock  = sock;
 
 	s->mtu = RFCOMM_DEFAULT_MTU;
-	s->cfc = disable_cfc ? RFCOMM_CFC_DISABLED : RFCOMM_CFC_UNKNOWN;
+	s->cfc = disable_cfc ? RFCOMM_CFC_DISABLED : RFCOMM_CFC_UNKANALWN;
 
-	/* Do not increment module usage count for listening sessions.
+	/* Do analt increment module usage count for listening sessions.
 	 * Otherwise we won't be able to unload the module. */
 	if (state != BT_LISTEN)
 		if (!try_module_get(THIS_MODULE)) {
@@ -797,7 +797,7 @@ static struct rfcomm_session *rfcomm_session_create(bdaddr_t *src,
 
 	s = rfcomm_session_add(sock, BT_BOUND);
 	if (!s) {
-		*err = -ENOMEM;
+		*err = -EANALMEM;
 		goto failed;
 	}
 
@@ -808,7 +808,7 @@ static struct rfcomm_session *rfcomm_session_create(bdaddr_t *src,
 	addr.l2_psm    = cpu_to_le16(L2CAP_PSM_RFCOMM);
 	addr.l2_cid    = 0;
 	addr.l2_bdaddr_type = BDADDR_BREDR;
-	*err = kernel_connect(sock, (struct sockaddr *) &addr, sizeof(addr), O_NONBLOCK);
+	*err = kernel_connect(sock, (struct sockaddr *) &addr, sizeof(addr), O_ANALNBLOCK);
 	if (*err == 0 || *err == -EINPROGRESS)
 		return s;
 
@@ -899,7 +899,7 @@ static int rfcomm_queue_disc(struct rfcomm_dlc *d)
 
 	skb = alloc_skb(sizeof(*cmd), GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = __skb_put(skb, sizeof(*cmd));
 	cmd->addr = d->addr;
@@ -1385,7 +1385,7 @@ static int rfcomm_recv_sabm(struct rfcomm_session *s, u8 dlci)
 		return 0;
 	}
 
-	/* Notify socket layer about incoming connection */
+	/* Analtify socket layer about incoming connection */
 	channel = __srv_channel(dlci);
 	if (rfcomm_connect_ind(s, channel, &d)) {
 		d->dlci = dlci;
@@ -1416,7 +1416,7 @@ static int rfcomm_apply_pn(struct rfcomm_dlc *d, int cr, struct rfcomm_pn *pn)
 		set_bit(RFCOMM_TX_THROTTLED, &d->flags);
 	}
 
-	if (s->cfc == RFCOMM_CFC_UNKNOWN)
+	if (s->cfc == RFCOMM_CFC_UNKANALWN)
 		s->cfc = d->cfc;
 
 	d->priority = pn->priority;
@@ -1463,7 +1463,7 @@ static int rfcomm_recv_pn(struct rfcomm_session *s, int cr, struct sk_buff *skb)
 		if (!cr)
 			return 0;
 
-		/* PN request for non existing DLC.
+		/* PN request for analn existing DLC.
 		 * Assume incoming connection. */
 		if (rfcomm_connect_ind(s, channel, &d)) {
 			d->dlci = dlci;
@@ -1507,15 +1507,15 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 		bit_rate  = RFCOMM_RPN_BR_9600;
 		data_bits = RFCOMM_RPN_DATA_8;
 		stop_bits = RFCOMM_RPN_STOP_1;
-		parity    = RFCOMM_RPN_PARITY_NONE;
-		flow_ctrl = RFCOMM_RPN_FLOW_NONE;
+		parity    = RFCOMM_RPN_PARITY_ANALNE;
+		flow_ctrl = RFCOMM_RPN_FLOW_ANALNE;
 		xon_char  = RFCOMM_RPN_XON_CHAR;
 		xoff_char = RFCOMM_RPN_XOFF_CHAR;
 		goto rpn_out;
 	}
 
-	/* Check for sane values, ignore/accept bit_rate, 8 bits, 1 stop bit,
-	 * no parity, no flow control lines, normal XON/XOFF chars */
+	/* Check for sane values, iganalre/accept bit_rate, 8 bits, 1 stop bit,
+	 * anal parity, anal flow control lines, analrmal XON/XOFF chars */
 
 	if (rpn->param_mask & cpu_to_le16(RFCOMM_RPN_PM_BITRATE)) {
 		bit_rate = rpn->bit_rate;
@@ -1546,18 +1546,18 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 
 	if (rpn->param_mask & cpu_to_le16(RFCOMM_RPN_PM_PARITY)) {
 		parity = __get_rpn_parity(rpn->line_settings);
-		if (parity != RFCOMM_RPN_PARITY_NONE) {
+		if (parity != RFCOMM_RPN_PARITY_ANALNE) {
 			BT_DBG("RPN parity mismatch 0x%x", parity);
-			parity = RFCOMM_RPN_PARITY_NONE;
+			parity = RFCOMM_RPN_PARITY_ANALNE;
 			rpn_mask ^= RFCOMM_RPN_PM_PARITY;
 		}
 	}
 
 	if (rpn->param_mask & cpu_to_le16(RFCOMM_RPN_PM_FLOW)) {
 		flow_ctrl = rpn->flow_ctrl;
-		if (flow_ctrl != RFCOMM_RPN_FLOW_NONE) {
+		if (flow_ctrl != RFCOMM_RPN_FLOW_ANALNE) {
 			BT_DBG("RPN flow ctrl mismatch 0x%x", flow_ctrl);
-			flow_ctrl = RFCOMM_RPN_FLOW_NONE;
+			flow_ctrl = RFCOMM_RPN_FLOW_ANALNE;
 			rpn_mask ^= RFCOMM_RPN_PM_FLOW;
 		}
 	}
@@ -1598,7 +1598,7 @@ static int rfcomm_recv_rls(struct rfcomm_session *s, int cr, struct sk_buff *skb
 		return 0;
 
 	/* We should probably do something with this information here. But
-	 * for now it's sufficient just to reply -- Bluetooth 1.1 says it's
+	 * for analw it's sufficient just to reply -- Bluetooth 1.1 says it's
 	 * mandatory to recognise and respond to RLS */
 
 	rfcomm_send_rls(s, 0, dlci, rls->status);
@@ -1695,7 +1695,7 @@ static int rfcomm_recv_mcc(struct rfcomm_session *s, struct sk_buff *skb)
 		break;
 
 	default:
-		BT_ERR("Unknown control type 0x%02x", type);
+		BT_ERR("Unkanalwn control type 0x%02x", type);
 		rfcomm_send_nsc(s, cr, type);
 		break;
 	}
@@ -1742,7 +1742,7 @@ static struct rfcomm_session *rfcomm_recv_frame(struct rfcomm_session *s,
 	u8 type, dlci, fcs;
 
 	if (!s) {
-		/* no session, so free socket data */
+		/* anal session, so free socket data */
 		kfree_skb(skb);
 		return s;
 	}
@@ -1794,7 +1794,7 @@ static struct rfcomm_session *rfcomm_recv_frame(struct rfcomm_session *s,
 		break;
 
 	default:
-		BT_ERR("Unknown packet type 0x%02x", type);
+		BT_ERR("Unkanalwn packet type 0x%02x", type);
 		break;
 	}
 	kfree_skb(skb);
@@ -1968,7 +1968,7 @@ static void rfcomm_accept_connection(struct rfcomm_session *s)
 
 	BT_DBG("session %p", s);
 
-	err = kernel_accept(sock, &nsock, O_NONBLOCK);
+	err = kernel_accept(sock, &nsock, O_ANALNBLOCK);
 	if (err < 0)
 		return;
 
@@ -2090,7 +2090,7 @@ static int rfcomm_add_listener(bdaddr_t *ba)
 	/* Add listening session */
 	s = rfcomm_session_add(sock, BT_LISTEN);
 	if (!s) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failed;
 	}
 

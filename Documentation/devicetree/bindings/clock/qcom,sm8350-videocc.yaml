@@ -36,7 +36,7 @@ properties:
 
   required-opps:
     description:
-      A phandle to an OPP node describing required MMCX performance point.
+      A phandle to an OPP analde describing required MMCX performance point.
     maxItems: 1
 
 required:

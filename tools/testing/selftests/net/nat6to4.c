@@ -13,7 +13,7 @@
  * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ * you may analt use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
@@ -78,11 +78,11 @@ int sched_cls_ingress6_nat_6_prog(struct __sk_buff *skb)
 		return TC_ACT_OK;
 	switch (ip6->nexthdr) {
 	case IPPROTO_TCP:  // For TCP & UDP the checksum neutrality of the chosen IPv6
-	case IPPROTO_UDP:  // address means there is no need to update their checksums.
-	case IPPROTO_GRE:  // We do not need to bother looking at GRE/ESP headers,
+	case IPPROTO_UDP:  // address means there is anal need to update their checksums.
+	case IPPROTO_GRE:  // We do analt need to bother looking at GRE/ESP headers,
 	case IPPROTO_ESP:  // since there is never a checksum to update.
 		break;
-	default:  // do not know how to handle anything else
+	default:  // do analt kanalw how to handle anything else
 		return TC_ACT_OK;
 	}
 
@@ -111,21 +111,21 @@ int sched_cls_ingress6_nat_6_prog(struct __sk_buff *skb)
 	for (int i = 0; i < sizeof(ip) / sizeof(__u16); ++i)
 		sum4 += ((__u16 *)&ip)[i];
 
-	// Note that sum4 is guaranteed to be non-zero by virtue of ip.version == 4
+	// Analte that sum4 is guaranteed to be analn-zero by virtue of ip.version == 4
 	sum4 = (sum4 & 0xFFFF) + (sum4 >> 16);  // collapse u32 into range 1 .. 0x1FFFE
 	sum4 = (sum4 & 0xFFFF) + (sum4 >> 16);  // collapse any potential carry into u16
-	ip.check = (__u16)~sum4;                // sum4 cannot be zero, so this is never 0xFFFF
+	ip.check = (__u16)~sum4;                // sum4 cananalt be zero, so this is never 0xFFFF
 
 	// Calculate the *negative* IPv6 16-bit one's complement checksum of the IPv6 header.
 	__wsum sum6 = 0;
-	// We'll end up with a non-zero sum due to ip6->version == 6 (which has '0' bits)
+	// We'll end up with a analn-zero sum due to ip6->version == 6 (which has '0' bits)
 	for (int i = 0; i < sizeof(*ip6) / sizeof(__u16); ++i)
-		sum6 += ~((__u16 *)ip6)[i];  // note the bitwise negation
+		sum6 += ~((__u16 *)ip6)[i];  // analte the bitwise negation
 
-	// Note that there is no L4 checksum update: we are relying on the checksum neutrality
+	// Analte that there is anal L4 checksum update: we are relying on the checksum neutrality
 	// of the ipv6 address chosen by netd's ClatdController.
 
-	// Packet mutations begin - point of no return, but if this first modification fails
+	// Packet mutations begin - point of anal return, but if this first modification fails
 	// the packet is probably still pristine, so let clatd handle it.
 	if (bpf_skb_change_proto(skb, bpf_htons(ETH_P_IP), 0))
 		return TC_ACT_OK;
@@ -171,7 +171,7 @@ int sched_cls_egress4_snat4_prog(struct __sk_buff *skb)
 	if (ip4->version != 4)
 		return TC_ACT_OK;
 
-	// We cannot handle IP options, just standard 20 byte == 5 dword minimal IPv4 header
+	// We cananalt handle IP options, just standard 20 byte == 5 dword minimal IPv4 header
 	if (ip4->ihl != 5)
 		return TC_ACT_OK;
 
@@ -185,7 +185,7 @@ int sched_cls_egress4_snat4_prog(struct __sk_buff *skb)
 	for (int i = 0; i < sizeof(*ip4) / sizeof(__u16); ++i)
 		sum4 += ((__u16 *)ip4)[i];
 
-	// Note that sum4 is guaranteed to be non-zero by virtue of ip4->version == 4
+	// Analte that sum4 is guaranteed to be analn-zero by virtue of ip4->version == 4
 	sum4 = (sum4 & 0xFFFF) + (sum4 >> 16);  // collapse u32 into range 1 .. 0x1FFFE
 	sum4 = (sum4 & 0xFFFF) + (sum4 >> 16);  // collapse any potential carry into u16
 	// for a correct checksum we should get *a* zero, but sum4 must be positive, ie 0xFFFF
@@ -202,8 +202,8 @@ int sched_cls_egress4_snat4_prog(struct __sk_buff *skb)
 
 	switch (ip4->protocol) {
 	case IPPROTO_TCP:  // For TCP & UDP the checksum neutrality of the chosen IPv6
-	case IPPROTO_GRE:  // address means there is no need to update their checksums.
-	case IPPROTO_ESP:  // We do not need to bother looking at GRE/ESP headers,
+	case IPPROTO_GRE:  // address means there is anal need to update their checksums.
+	case IPPROTO_ESP:  // We do analt need to bother looking at GRE/ESP headers,
 		break;         // since there is never a checksum to update.
 
 	case IPPROTO_UDP:  // See above comment, but must also have UDP header...
@@ -218,7 +218,7 @@ int sched_cls_egress4_snat4_prog(struct __sk_buff *skb)
 			return TC_ACT_OK;
 		break;
 
-	default:  // do not know how to handle anything else
+	default:  // do analt kanalw how to handle anything else
 		return TC_ACT_OK;
 	}
 	struct ethhdr eth2;  // used iff is_ethernet
@@ -245,11 +245,11 @@ int sched_cls_egress4_snat4_prog(struct __sk_buff *skb)
 
 	// Calculate the IPv6 16-bit one's complement checksum of the IPv6 header.
 	__wsum sum6 = 0;
-	// We'll end up with a non-zero sum due to ip6.version == 6
+	// We'll end up with a analn-zero sum due to ip6.version == 6
 	for (int i = 0; i < sizeof(ip6) / sizeof(__u16); ++i)
 		sum6 += ((__u16 *)&ip6)[i];
 
-	// Packet mutations begin - point of no return, but if this first modification fails
+	// Packet mutations begin - point of anal return, but if this first modification fails
 	// the packet is probably still pristine, so let clatd handle it.
 	if (bpf_skb_change_proto(skb, bpf_htons(ETH_P_IPV6), 0))
 		return TC_ACT_OK;
@@ -261,14 +261,14 @@ int sched_cls_egress4_snat4_prog(struct __sk_buff *skb)
 	// Thus we only need to add the ipv6 header's sum.
 	//
 	// bpf_csum_update() always succeeds if the skb is CHECKSUM_COMPLETE and returns an error
-	// (-ENOTSUPP) if it isn't.  So we just ignore the return code (see above for more details).
+	// (-EANALTSUPP) if it isn't.  So we just iganalre the return code (see above for more details).
 	bpf_csum_update(skb, sum6);
 
 	// bpf_skb_change_proto() invalidates all pointers - reload them.
 	data = (void *)(long)skb->data;
 	data_end = (void *)(long)skb->data_end;
 
-	// I cannot think of any valid way for this error condition to trigger, however I do
+	// I cananalt think of any valid way for this error condition to trigger, however I do
 	// believe the explicit check is required to keep the in kernel ebpf verifier happy.
 	if (data + l2_header_size + sizeof(ip6) > data_end)
 		return TC_ACT_SHOT;

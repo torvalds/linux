@@ -87,7 +87,7 @@
 /* There is a TCAM range reserved for VLAN filtering entries, range size is 33
  * 10 VLAN ID filter entries per port
  * 1 default VLAN filter entry per port
- * It is assumed that there are 3 ports for filter, not including loopback port
+ * It is assumed that there are 3 ports for filter, analt including loopback port
  */
 #define MVPP2_PRS_VLAN_FILT_MAX		11
 #define MVPP2_PRS_VLAN_FILT_RANGE_SIZE	33
@@ -130,11 +130,11 @@
 #define MVPP2_PE_VID_FLTR_DEFAULT	(MVPP2_PRS_TCAM_SRAM_SIZE - 8)
 #define MVPP2_PE_VID_EDSA_FLTR_DEFAULT	(MVPP2_PRS_TCAM_SRAM_SIZE - 7)
 #define MVPP2_PE_VLAN_DBL		(MVPP2_PRS_TCAM_SRAM_SIZE - 6)
-#define MVPP2_PE_VLAN_NONE		(MVPP2_PRS_TCAM_SRAM_SIZE - 5)
+#define MVPP2_PE_VLAN_ANALNE		(MVPP2_PRS_TCAM_SRAM_SIZE - 5)
 #define MVPP2_PE_FC_DROP		(MVPP2_PRS_TCAM_SRAM_SIZE - 4)
 #define MVPP2_PE_MAC_MC_PROMISCUOUS	(MVPP2_PRS_TCAM_SRAM_SIZE - 3)
 #define MVPP2_PE_MAC_UC_PROMISCUOUS	(MVPP2_PRS_TCAM_SRAM_SIZE - 2)
-#define MVPP2_PE_MAC_NON_PROMISCUOUS	(MVPP2_PRS_TCAM_SRAM_SIZE - 1)
+#define MVPP2_PE_MAC_ANALN_PROMISCUOUS	(MVPP2_PRS_TCAM_SRAM_SIZE - 1)
 
 #define MVPP2_PRS_VID_PORT_FIRST(port)	(MVPP2_PE_VID_FILT_RANGE_START + \
 					 ((port) * MVPP2_PRS_VLAN_FILT_MAX))
@@ -188,7 +188,7 @@
 #define MVPP2_PRS_RI_MAC_ME_MASK		0x1
 #define MVPP2_PRS_RI_DSA_MASK			0x2
 #define MVPP2_PRS_RI_VLAN_MASK			(BIT(2) | BIT(3))
-#define MVPP2_PRS_RI_VLAN_NONE			0x0
+#define MVPP2_PRS_RI_VLAN_ANALNE			0x0
 #define MVPP2_PRS_RI_VLAN_SINGLE		BIT(2)
 #define MVPP2_PRS_RI_VLAN_DOUBLE		BIT(3)
 #define MVPP2_PRS_RI_VLAN_TRIPLE		(BIT(2) | BIT(3))
@@ -229,7 +229,7 @@
 
 /* Sram additional info bits assignment */
 #define MVPP2_PRS_IPV4_DIP_AI_BIT		BIT(0)
-#define MVPP2_PRS_IPV6_NO_EXT_AI_BIT		BIT(0)
+#define MVPP2_PRS_IPV6_ANAL_EXT_AI_BIT		BIT(0)
 #define MVPP2_PRS_IPV6_EXT_AI_BIT		BIT(1)
 #define MVPP2_PRS_IPV6_EXT_AH_AI_BIT		BIT(2)
 #define MVPP2_PRS_IPV6_EXT_AH_LEN_AI_BIT	BIT(3)

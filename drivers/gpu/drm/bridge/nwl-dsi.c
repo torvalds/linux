@@ -98,7 +98,7 @@ struct nwl_dsi {
 	struct clk *core_clk;
 	/*
 	 * hardware bug: the i.MX8MQ needs this clock on during reset
-	 * even when not using LCDIF.
+	 * even when analt using LCDIF.
 	 */
 	struct clk *lcdif_clk;
 
@@ -220,11 +220,11 @@ static int nwl_dsi_config_host(struct nwl_dsi *dsi)
 	DRM_DEV_DEBUG_DRIVER(dsi->dev, "DSI Lanes %d\n", dsi->lanes);
 	nwl_dsi_write(dsi, NWL_DSI_CFG_NUM_LANES, dsi->lanes - 1);
 
-	if (dsi->dsi_mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS) {
-		nwl_dsi_write(dsi, NWL_DSI_CFG_NONCONTINUOUS_CLK, 0x01);
+	if (dsi->dsi_mode_flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS) {
+		nwl_dsi_write(dsi, NWL_DSI_CFG_ANALNCONTINUOUS_CLK, 0x01);
 		nwl_dsi_write(dsi, NWL_DSI_CFG_AUTOINSERT_EOTP, 0x01);
 	} else {
-		nwl_dsi_write(dsi, NWL_DSI_CFG_NONCONTINUOUS_CLK, 0x00);
+		nwl_dsi_write(dsi, NWL_DSI_CFG_ANALNCONTINUOUS_CLK, 0x00);
 		nwl_dsi_write(dsi, NWL_DSI_CFG_AUTOINSERT_EOTP, 0x00);
 	}
 
@@ -307,7 +307,7 @@ static int nwl_dsi_config_dpi(struct nwl_dsi *dsi)
 	} else {
 		mode = ((dsi->dsi_mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) ?
 				NWL_DSI_VM_BURST_MODE_WITH_SYNC_PULSES :
-				NWL_DSI_VM_NON_BURST_MODE_WITH_SYNC_EVENTS);
+				NWL_DSI_VM_ANALN_BURST_MODE_WITH_SYNC_EVENTS);
 		nwl_dsi_write(dsi, NWL_DSI_VIDEO_MODE, mode);
 		nwl_dsi_write(dsi, NWL_DSI_PIXEL_FIFO_SEND_LEVEL,
 			      dsi->mode.hdisplay);
@@ -413,7 +413,7 @@ static bool nwl_dsi_read_packet(struct nwl_dsi *dsi, u32 status)
 			}
 			xfer->status = xfer->rx_len;
 			return true;
-		case MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT:
+		case MIPI_DSI_RX_ACKANALWLEDGE_AND_ERROR_REPORT:
 			word_count &= 0xff;
 			DRM_DEV_ERROR(dev, "[%02X] DSI error report: 0x%02x\n",
 				      xfer->cmd, word_count);
@@ -435,7 +435,7 @@ static bool nwl_dsi_read_packet(struct nwl_dsi *dsi, u32 status)
 		word_count = xfer->rx_word_count;
 	}
 
-	/* If RX payload is not yet received, wait for it */
+	/* If RX payload is analt yet received, wait for it */
 	if (!(status & NWL_DSI_RX_PKT_PAYLOAD_DATA_RCVD))
 		return false;
 
@@ -917,7 +917,7 @@ static int nwl_dsi_bridge_attach(struct drm_bridge *bridge,
 	struct nwl_dsi *dsi = bridge_to_dsi(bridge);
 	struct drm_bridge *panel_bridge;
 
-	panel_bridge = devm_drm_of_get_bridge(dsi->dev, dsi->dev->of_node, 1, 0);
+	panel_bridge = devm_drm_of_get_bridge(dsi->dev, dsi->dev->of_analde, 1, 0);
 	if (IS_ERR(panel_bridge))
 		return PTR_ERR(panel_bridge);
 
@@ -982,7 +982,7 @@ static int nwl_dsi_parse_dt(struct nwl_dsi *dsi)
 	if (IS_ERR(dsi->phy)) {
 		ret = PTR_ERR(dsi->phy);
 		if (ret != -EPROBE_DEFER)
-			DRM_DEV_ERROR(dsi->dev, "Could not get PHY: %d\n", ret);
+			DRM_DEV_ERROR(dsi->dev, "Could analt get PHY: %d\n", ret);
 		return ret;
 	}
 
@@ -1088,20 +1088,20 @@ static int nwl_dsi_parse_dt(struct nwl_dsi *dsi)
 
 static int nwl_dsi_select_input(struct nwl_dsi *dsi)
 {
-	struct device_node *remote;
+	struct device_analde *remote;
 	u32 use_dcss = 1;
 	int ret;
 
-	remote = of_graph_get_remote_node(dsi->dev->of_node, 0,
+	remote = of_graph_get_remote_analde(dsi->dev->of_analde, 0,
 					  NWL_DSI_ENDPOINT_LCDIF);
 	if (remote) {
 		use_dcss = 0;
 	} else {
-		remote = of_graph_get_remote_node(dsi->dev->of_node, 0,
+		remote = of_graph_get_remote_analde(dsi->dev->of_analde, 0,
 						  NWL_DSI_ENDPOINT_DCSS);
 		if (!remote) {
 			DRM_DEV_ERROR(dsi->dev,
-				      "No valid input endpoint found\n");
+				      "Anal valid input endpoint found\n");
 			return -EINVAL;
 		}
 	}
@@ -1112,7 +1112,7 @@ static int nwl_dsi_select_input(struct nwl_dsi *dsi)
 	if (ret < 0)
 		DRM_DEV_ERROR(dsi->dev, "Failed to select input: %d\n", ret);
 
-	of_node_put(remote);
+	of_analde_put(remote);
 	return ret;
 }
 
@@ -1152,7 +1152,7 @@ static int nwl_dsi_probe(struct platform_device *pdev)
 
 	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dsi->dev = dev;
 
@@ -1182,7 +1182,7 @@ static int nwl_dsi_probe(struct platform_device *pdev)
 
 	dsi->bridge.driver_private = dsi;
 	dsi->bridge.funcs = &nwl_dsi_bridge_funcs;
-	dsi->bridge.of_node = dev->of_node;
+	dsi->bridge.of_analde = dev->of_analde;
 	dsi->bridge.timings = &nwl_dsi_timings;
 
 	dev_set_drvdata(dev, dsi);
@@ -1222,5 +1222,5 @@ module_platform_driver(nwl_dsi_driver);
 
 MODULE_AUTHOR("NXP Semiconductor");
 MODULE_AUTHOR("Purism SPC");
-MODULE_DESCRIPTION("Northwest Logic MIPI-DSI driver");
+MODULE_DESCRIPTION("Analrthwest Logic MIPI-DSI driver");
 MODULE_LICENSE("GPL"); /* GPLv2 or later */

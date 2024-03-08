@@ -15,7 +15,7 @@ The R-Car FDP1 driver implements driver-specific controls as follows.
     :widths:       1 4
 
     * - ``"Progressive" (0)``
-      - The input image video stream is progressive (not interlaced). No
+      - The input image video stream is progressive (analt interlaced). Anal
         deinterlacing is performed. Apart from (optional) format and encoding
         conversion output frames are identical to the input frames.
     * - ``"Adaptive 2D/3D" (1)``
@@ -24,16 +24,16 @@ The R-Car FDP1 driver implements driver-specific controls as follows.
         interpolation otherwise.
     * - ``"Fixed 2D" (2)``
       - The current field is scaled vertically by averaging adjacent lines to
-        recover missing lines. This method is also known as blending or Line
+        recover missing lines. This method is also kanalwn as blending or Line
         Averaging (LAV).
     * - ``"Fixed 3D" (3)``
       - The previous and next fields are averaged to recover lines missing from
-        the current field. This method is also known as Field Averaging (FAV).
+        the current field. This method is also kanalwn as Field Averaging (FAV).
     * - ``"Previous field" (4)``
       - The current field is weaved with the previous field, i.e. the previous
         field is used to fill missing lines from the current field. This method
-        is also known as weave deinterlacing.
+        is also kanalwn as weave deinterlacing.
     * - ``"Next field" (5)``
       - The current field is weaved with the next field, i.e. the next field is
         used to fill missing lines from the current field. This method is also
-        known as weave deinterlacing.
+        kanalwn as weave deinterlacing.

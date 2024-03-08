@@ -200,7 +200,7 @@ static irqreturn_t ne_reply_handler(int irq, void *args)
 }
 
 /**
- * ne_event_work_handler() - Work queue handler for notifying enclaves on a
+ * ne_event_work_handler() - Work queue handler for analtifying enclaves on a
  *			     state change received by the event interrupt
  *			     handler.
  * @work:	Item containing the NE PCI device for which an out-of-band event
@@ -216,7 +216,7 @@ static void ne_event_work_handler(struct work_struct *work)
 	struct ne_pci_dev_cmd_reply cmd_reply = {};
 	struct ne_enclave *ne_enclave = NULL;
 	struct ne_pci_dev *ne_pci_dev =
-		container_of(work, struct ne_pci_dev, notify_work);
+		container_of(work, struct ne_pci_dev, analtify_work);
 	struct pci_dev *pdev = ne_pci_dev->pdev;
 	int rc = -EINVAL;
 	struct slot_info_req slot_info_req = {};
@@ -232,7 +232,7 @@ static void ne_event_work_handler(struct work_struct *work)
 		mutex_lock(&ne_enclave->enclave_info_mutex);
 
 		/*
-		 * Enclaves that were never started cannot receive out-of-band
+		 * Enclaves that were never started cananalt receive out-of-band
 		 * events.
 		 */
 		if (ne_enclave->state != NE_STATE_RUNNING)
@@ -246,7 +246,7 @@ static void ne_event_work_handler(struct work_struct *work)
 		if (rc < 0)
 			dev_err(&pdev->dev, "Error in slot info [rc=%d]\n", rc);
 
-		/* Notify enclave process that the enclave state changed. */
+		/* Analtify enclave process that the enclave state changed. */
 		if (ne_enclave->state != cmd_reply.state) {
 			ne_enclave->state = cmd_reply.state;
 
@@ -264,8 +264,8 @@ unlock:
 
 /**
  * ne_event_handler() - Interrupt handler for PCI device out-of-band events.
- *			This interrupt does not supply any data in the MMIO
- *			region. It notifies a change in the state of any of
+ *			This interrupt does analt supply any data in the MMIO
+ *			region. It analtifies a change in the state of any of
  *			the launched enclaves.
  * @irq:	Received interrupt for an out-of-band event.
  * @args:	PCI device private data structure.
@@ -278,7 +278,7 @@ static irqreturn_t ne_event_handler(int irq, void *args)
 {
 	struct ne_pci_dev *ne_pci_dev = (struct ne_pci_dev *)args;
 
-	queue_work(ne_pci_dev->event_wq, &ne_pci_dev->notify_work);
+	queue_work(ne_pci_dev->event_wq, &ne_pci_dev->analtify_work);
 
 	return IRQ_HANDLED;
 }
@@ -329,14 +329,14 @@ static int ne_setup_msix(struct pci_dev *pdev)
 
 	ne_pci_dev->event_wq = create_singlethread_workqueue("ne_pci_dev_wq");
 	if (!ne_pci_dev->event_wq) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 
-		dev_err(&pdev->dev, "Cannot get wq for dev events [rc=%d]\n", rc);
+		dev_err(&pdev->dev, "Cananalt get wq for dev events [rc=%d]\n", rc);
 
 		goto free_reply_irq_vec;
 	}
 
-	INIT_WORK(&ne_pci_dev->notify_work, ne_event_work_handler);
+	INIT_WORK(&ne_pci_dev->analtify_work, ne_event_work_handler);
 
 	/*
 	 * This IRQ gets triggered every time any enclave's state changes. Its
@@ -375,7 +375,7 @@ static void ne_teardown_msix(struct pci_dev *pdev)
 
 	free_irq(pci_irq_vector(pdev, NE_VEC_EVENT), ne_pci_dev);
 
-	flush_work(&ne_pci_dev->notify_work);
+	flush_work(&ne_pci_dev->analtify_work);
 	destroy_workqueue(ne_pci_dev->event_wq);
 
 	free_irq(pci_irq_vector(pdev, NE_VEC_REPLY), ne_pci_dev);
@@ -436,7 +436,7 @@ static void ne_pci_dev_disable(struct pci_dev *pdev)
 
 	/*
 	 * Check for NE_ENABLE_OFF in a loop, to handle cases when the device
-	 * state is not immediately set to disabled and going through a
+	 * state is analt immediately set to disabled and going through a
 	 * transitory state of disabling.
 	 */
 	while (sleep_time_count < NE_DEFAULT_TIMEOUT_MSECS) {
@@ -470,7 +470,7 @@ static int ne_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ne_pci_dev = kzalloc(sizeof(*ne_pci_dev), GFP_KERNEL);
 	if (!ne_pci_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = pci_enable_device(pdev);
 	if (rc < 0) {
@@ -490,7 +490,7 @@ static int ne_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ne_pci_dev->iomem_base = pci_iomap(pdev, PCI_BAR_NE, 0);
 	if (!ne_pci_dev->iomem_base) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 
 		dev_err(&pdev->dev, "Error in pci iomap [rc=%d]\n", rc);
 

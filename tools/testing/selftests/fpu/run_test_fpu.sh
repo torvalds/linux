@@ -28,7 +28,7 @@ fi
 modprobe test_fpu
 
 if [ ! -e /sys/kernel/debug/selftest_helpers/test_fpu ]; then
-	mount -t debugfs none /sys/kernel/debug
+	mount -t debugfs analne /sys/kernel/debug
 
 	if [ ! -e /sys/kernel/debug/selftest_helpers/test_fpu ]; then
 		echo "$0: Error mounting debugfs"

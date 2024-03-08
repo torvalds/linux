@@ -90,7 +90,7 @@ allOf:
   - if:
       properties:
         compatible:
-          not:
+          analt:
             contains:
               enum:
                 - fsl,imx8mn-cm7-mmio

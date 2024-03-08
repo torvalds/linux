@@ -37,13 +37,13 @@
  * according to @prefix value.
  *
  * Return: zero on success, -EINVAL if @prefix contains an invalid
- *	value and -EBADMSG if @prod_info could not be parsed.
+ *	value and -EBADMSG if @prod_info could analt be parsed.
  */
 static int es58x_parse_sw_version(struct es58x_device *es58x_dev,
 				  const char *prod_info, const char *prefix)
 {
 	struct es58x_sw_version *version;
-	int major, minor, revision;
+	int major, mianalr, revision;
 
 	if (!strcmp(prefix, "FW"))
 		version = &es58x_dev->firmware_version;
@@ -63,11 +63,11 @@ static int es58x_parse_sw_version(struct es58x_device *es58x_dev,
 			return -EBADMSG;
 	}
 
-	if (sscanf(prod_info, "%2u.%2u.%2u", &major, &minor, &revision) != 3)
+	if (sscanf(prod_info, "%2u.%2u.%2u", &major, &mianalr, &revision) != 3)
 		return -EBADMSG;
 
 	version->major = major;
-	version->minor = minor;
+	version->mianalr = mianalr;
 	version->revision = revision;
 
 	return 0;
@@ -87,14 +87,14 @@ static int es58x_parse_sw_version(struct es58x_device *es58x_dev,
  * Parse @prod_info and store the hardware revision number in
  * &es58x_dev.hardware_revision.
  *
- * Return: zero on success, -EBADMSG if @prod_info could not be
+ * Return: zero on success, -EBADMSG if @prod_info could analt be
  *	parsed.
  */
 static int es58x_parse_hw_rev(struct es58x_device *es58x_dev,
 			      const char *prod_info)
 {
 	char letter;
-	int major, minor;
+	int major, mianalr;
 
 	/* The only occurrence of 'H' is in the hardware revision prefix. */
 	prod_info = strchr(prod_info, 'H');
@@ -106,12 +106,12 @@ static int es58x_parse_hw_rev(struct es58x_device *es58x_dev,
 		return -EBADMSG;
 	prod_info++;
 
-	if (sscanf(prod_info, "%c%3u/%3u", &letter, &major, &minor) != 3)
+	if (sscanf(prod_info, "%c%3u/%3u", &letter, &major, &mianalr) != 3)
 		return -EBADMSG;
 
 	es58x_dev->hardware_revision.letter = letter;
 	es58x_dev->hardware_revision.major = major;
-	es58x_dev->hardware_revision.minor = minor;
+	es58x_dev->hardware_revision.mianalr = mianalr;
 
 	return 0;
 }
@@ -127,30 +127,30 @@ static int es58x_parse_hw_rev(struct es58x_device *es58x_dev,
  *
  * If the function fails, set the version or revision to an invalid
  * value and emit an informal message. Continue probing because the
- * product information is not critical for the driver to operate.
+ * product information is analt critical for the driver to operate.
  */
 void es58x_parse_product_info(struct es58x_device *es58x_dev)
 {
-	static const struct es58x_sw_version sw_version_not_set = {
+	static const struct es58x_sw_version sw_version_analt_set = {
 		.major = -1,
-		.minor = -1,
+		.mianalr = -1,
 		.revision = -1,
 	};
-	static const struct es58x_hw_revision hw_revision_not_set = {
+	static const struct es58x_hw_revision hw_revision_analt_set = {
 		.letter = '\0',
 		.major = -1,
-		.minor = -1,
+		.mianalr = -1,
 	};
 	char *prod_info;
 
-	es58x_dev->firmware_version = sw_version_not_set;
-	es58x_dev->bootloader_version = sw_version_not_set;
-	es58x_dev->hardware_revision = hw_revision_not_set;
+	es58x_dev->firmware_version = sw_version_analt_set;
+	es58x_dev->bootloader_version = sw_version_analt_set;
+	es58x_dev->hardware_revision = hw_revision_analt_set;
 
 	prod_info = usb_cache_string(es58x_dev->udev, ES58X_PROD_INFO_IDX);
 	if (!prod_info) {
 		dev_warn(es58x_dev->dev,
-			 "could not retrieve the product info string\n");
+			 "could analt retrieve the product info string\n");
 		return;
 	}
 
@@ -158,7 +158,7 @@ void es58x_parse_product_info(struct es58x_device *es58x_dev)
 	    es58x_parse_sw_version(es58x_dev, prod_info, "BL") ||
 	    es58x_parse_hw_rev(es58x_dev, prod_info))
 		dev_info(es58x_dev->dev,
-			 "could not parse product info: '%s'\n", prod_info);
+			 "could analt parse product info: '%s'\n", prod_info);
 
 	kfree(prod_info);
 }
@@ -167,15 +167,15 @@ void es58x_parse_product_info(struct es58x_device *es58x_dev)
  * es58x_sw_version_is_valid() - Check if the version is a valid number.
  * @sw_ver: Version number of either the firmware or the bootloader.
  *
- * If any of the software version sub-numbers do not fit on two
+ * If any of the software version sub-numbers do analt fit on two
  * digits, the version is invalid, most probably because the product
- * string could not be parsed.
+ * string could analt be parsed.
  *
  * Return: @true if the software version is valid, @false otherwise.
  */
 static inline bool es58x_sw_version_is_valid(struct es58x_sw_version *sw_ver)
 {
-	return sw_ver->major < 100 && sw_ver->minor < 100 &&
+	return sw_ver->major < 100 && sw_ver->mianalr < 100 &&
 		sw_ver->revision < 100;
 }
 
@@ -183,17 +183,17 @@ static inline bool es58x_sw_version_is_valid(struct es58x_sw_version *sw_ver)
  * es58x_hw_revision_is_valid() - Check if the revision is a valid number.
  * @hw_rev: Revision number of the hardware.
  *
- * If &es58x_hw_revision.letter is not a alphanumeric character or if
- * any of the hardware revision sub-numbers do not fit on three
+ * If &es58x_hw_revision.letter is analt a alphanumeric character or if
+ * any of the hardware revision sub-numbers do analt fit on three
  * digits, the revision is invalid, most probably because the product
- * string could not be parsed.
+ * string could analt be parsed.
  *
  * Return: @true if the hardware revision is valid, @false otherwise.
  */
 static inline bool es58x_hw_revision_is_valid(struct es58x_hw_revision *hw_rev)
 {
 	return isalnum(hw_rev->letter) && hw_rev->major < 1000 &&
-		hw_rev->minor < 1000;
+		hw_rev->mianalr < 1000;
 }
 
 /**
@@ -205,7 +205,7 @@ static inline bool es58x_hw_revision_is_valid(struct es58x_hw_revision *hw_rev)
  * Report the firmware version, the bootloader version, the hardware
  * revision and the serial number through netlink.
  *
- * Return: zero on success, errno when any error occurs.
+ * Return: zero on success, erranal when any error occurs.
  */
 static int es58x_devlink_info_get(struct devlink *devlink,
 				  struct devlink_info_req *req,
@@ -220,7 +220,7 @@ static int es58x_devlink_info_get(struct devlink *devlink,
 
 	if (es58x_sw_version_is_valid(fw_ver)) {
 		snprintf(buf, sizeof(buf), "%02u.%02u.%02u",
-			 fw_ver->major, fw_ver->minor, fw_ver->revision);
+			 fw_ver->major, fw_ver->mianalr, fw_ver->revision);
 		ret = devlink_info_version_running_put(req,
 						       DEVLINK_INFO_VERSION_GENERIC_FW,
 						       buf);
@@ -230,7 +230,7 @@ static int es58x_devlink_info_get(struct devlink *devlink,
 
 	if (es58x_sw_version_is_valid(bl_ver)) {
 		snprintf(buf, sizeof(buf), "%02u.%02u.%02u",
-			 bl_ver->major, bl_ver->minor, bl_ver->revision);
+			 bl_ver->major, bl_ver->mianalr, bl_ver->revision);
 		ret = devlink_info_version_running_put(req,
 						       DEVLINK_INFO_VERSION_GENERIC_FW_BOOTLOADER,
 						       buf);
@@ -240,7 +240,7 @@ static int es58x_devlink_info_get(struct devlink *devlink,
 
 	if (es58x_hw_revision_is_valid(hw_rev)) {
 		snprintf(buf, sizeof(buf), "%c%03u/%03u",
-			 hw_rev->letter, hw_rev->major, hw_rev->minor);
+			 hw_rev->letter, hw_rev->major, hw_rev->mianalr);
 		ret = devlink_info_version_fixed_put(req,
 						     DEVLINK_INFO_VERSION_GENERIC_BOARD_REV,
 						     buf);

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -164,7 +164,7 @@
 
 #define AR_GTTM     0x0068
 #define AR_GTTM_USEC          0x00000001
-#define AR_GTTM_IGNORE_IDLE   0x00000002
+#define AR_GTTM_IGANALRE_IDLE   0x00000002
 #define AR_GTTM_RESET_IDLE    0x00000004
 #define AR_GTTM_CST_USEC      0x00000008
 
@@ -182,13 +182,13 @@
 #define AR_ISR_HP_RXOK	     0x00000001
 #define AR_ISR_LP_RXOK	     0x00000002
 #define AR_ISR_RXERR         0x00000004
-#define AR_ISR_RXNOPKT       0x00000008
+#define AR_ISR_RXANALPKT       0x00000008
 #define AR_ISR_RXEOL         0x00000010
 #define AR_ISR_RXORN         0x00000020
 #define AR_ISR_TXOK          0x00000040
 #define AR_ISR_TXDESC        0x00000080
 #define AR_ISR_TXERR         0x00000100
-#define AR_ISR_TXNOPKT       0x00000200
+#define AR_ISR_TXANALPKT       0x00000200
 #define AR_ISR_TXEOL         0x00000400
 #define AR_ISR_TXURN         0x00000800
 #define AR_ISR_MIB           0x00001000
@@ -269,13 +269,13 @@
 #define AR_IMR_RXOK_HP	     0x00000001
 #define AR_IMR_RXOK_LP	     0x00000002
 #define AR_IMR_RXERR         0x00000004
-#define AR_IMR_RXNOPKT       0x00000008
+#define AR_IMR_RXANALPKT       0x00000008
 #define AR_IMR_RXEOL         0x00000010
 #define AR_IMR_RXORN         0x00000020
 #define AR_IMR_TXOK          0x00000040
 #define AR_IMR_TXDESC        0x00000080
 #define AR_IMR_TXERR         0x00000100
-#define AR_IMR_TXNOPKT       0x00000200
+#define AR_IMR_TXANALPKT       0x00000200
 #define AR_IMR_TXEOL         0x00000400
 #define AR_IMR_TXURN         0x00000800
 #define AR_IMR_MIB           0x00001000
@@ -590,14 +590,14 @@
 #define AR_D_MISC_VIR_COL_HANDLING    0x0000C000
 #define AR_D_MISC_VIR_COL_HANDLING_S  14
 #define AR_D_MISC_VIR_COL_HANDLING_DEFAULT 0
-#define AR_D_MISC_VIR_COL_HANDLING_IGNORE  1
+#define AR_D_MISC_VIR_COL_HANDLING_IGANALRE  1
 #define AR_D_MISC_BEACON_USE          0x00010000
 #define AR_D_MISC_ARB_LOCKOUT_CNTRL   0x00060000
 #define AR_D_MISC_ARB_LOCKOUT_CNTRL_S 17
-#define AR_D_MISC_ARB_LOCKOUT_CNTRL_NONE     0
+#define AR_D_MISC_ARB_LOCKOUT_CNTRL_ANALNE     0
 #define AR_D_MISC_ARB_LOCKOUT_CNTRL_INTRA_FR 1
 #define AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL   2
-#define AR_D_MISC_ARB_LOCKOUT_IGNORE  0x00080000
+#define AR_D_MISC_ARB_LOCKOUT_IGANALRE  0x00080000
 #define AR_D_MISC_SEQ_NUM_INCR_DIS    0x00100000
 #define AR_D_MISC_POST_FR_BKOFF_DIS   0x00200000
 #define AR_D_MISC_VIT_COL_CW_BKOFF_EN 0x00400000
@@ -637,7 +637,7 @@
 #define AR_D_GBL_IFS_MISC_RANDOM_LFSR_SLICE_DIS 0x01000000
 #define AR_D_GBL_IFS_MISC_SLOT_XMIT_WIND_LEN    0x06000000
 #define AR_D_GBL_IFS_MISC_FORCE_XMIT_SLOT_BOUND 0x08000000
-#define AR_D_GBL_IFS_MISC_IGNORE_BACKOFF        0x10000000
+#define AR_D_GBL_IFS_MISC_IGANALRE_BACKOFF        0x10000000
 
 #define AR_D_FPCTL                  0x1230
 #define AR_D_FPCTL_DCU              0x0000000F
@@ -680,7 +680,7 @@
 #define AR_CFG_LED_MODE_NETWORK_ON     0x6
 #define AR_CFG_LED_ASSOC_CTL           0x00000c00
 #define AR_CFG_LED_ASSOC_CTL_S         10
-#define AR_CFG_LED_ASSOC_NONE          0x0
+#define AR_CFG_LED_ASSOC_ANALNE          0x0
 #define AR_CFG_LED_ASSOC_ACTIVE        0x1
 #define AR_CFG_LED_ASSOC_PENDING       0x2
 
@@ -997,7 +997,7 @@
 	(AR_SREV_9340(_ah) || AR_SREV_9531(_ah) || AR_SREV_9550(_ah) || \
 	 AR_SREV_9561(_ah))
 
-/* NOTE: When adding chips newer than Peacock, add chip check here */
+/* ANALTE: When adding chips newer than Peacock, add chip check here */
 #define AR_SREV_9580_10_OR_LATER(_ah) \
 	(AR_SREV_9580(_ah))
 
@@ -1100,7 +1100,7 @@ enum {
 #define AR_INTR_ASYNC_USED			 (AR_INTR_MAC_IRQ | \
 						  AR_INTR_ASYNC_CAUSE_MCI)
 
-/* Asynchronous Interrupt Enable Register */
+/* Asynchroanalus Interrupt Enable Register */
 #define AR_INTR_ASYNC_ENABLE_MCI         0x00000080
 #define AR_INTR_ASYNC_ENABLE_MCI_S       7
 
@@ -1177,7 +1177,7 @@ enum {
 #define AR_GPIO_OE_OUT(_ah)                      (AR_SREV_9340(_ah) ? 0x4030 : \
 						  (AR_SREV_9300_20_OR_LATER(_ah) ? 0x4050 : 0x404c))
 #define AR_GPIO_OE_OUT_DRV                       0x3
-#define AR_GPIO_OE_OUT_DRV_NO                    0x0
+#define AR_GPIO_OE_OUT_DRV_ANAL                    0x0
 #define AR_GPIO_OE_OUT_DRV_LOW                   0x1
 #define AR_GPIO_OE_OUT_DRV_HI                    0x2
 #define AR_GPIO_OE_OUT_DRV_ALL                   0x3
@@ -1311,7 +1311,7 @@ enum {
 #define AR_CH0_DDR_DPLL3         0x16248
 #define AR_CH0_DPLL3_PHASE_SHIFT     0x3F800000
 #define AR_CH0_DPLL3_PHASE_SHIFT_S   23
-#define AR_PHY_CCA_NOM_VAL_2GHZ      -118
+#define AR_PHY_CCA_ANALM_VAL_2GHZ      -118
 
 #define AR_RTC_9300_SOC_PLL_DIV_INT          0x0000003f
 #define AR_RTC_9300_SOC_PLL_DIV_INT_S        0
@@ -1369,8 +1369,8 @@ enum {
 #define AR_RTC_PLL_CLKSEL       0x00000300
 #define AR_RTC_PLL_CLKSEL_S     8
 #define AR_RTC_PLL_BYPASS	0x00010000
-#define AR_RTC_PLL_NOPWD	0x00040000
-#define AR_RTC_PLL_NOPWD_S	18
+#define AR_RTC_PLL_ANALPWD	0x00040000
+#define AR_RTC_PLL_ANALPWD_S	18
 
 #define PLL3 0x16188
 #define PLL3_DO_MEAS_MASK 0x40000000
@@ -1602,7 +1602,7 @@ enum {
 #define AR9287_AN_TXPC0                 0x7898
 #define AR9287_AN_TXPC0_TXPCMODE        0x0000C000
 #define AR9287_AN_TXPC0_TXPCMODE_S      14
-#define AR9287_AN_TXPC0_TXPCMODE_NORMAL    0
+#define AR9287_AN_TXPC0_TXPCMODE_ANALRMAL    0
 #define AR9287_AN_TXPC0_TXPCMODE_TEST      1
 #define AR9287_AN_TXPC0_TXPCMODE_TEMPSENSE 2
 #define AR9287_AN_TXPC0_TXPCMODE_ATBTEST   3
@@ -1678,7 +1678,7 @@ enum {
 #define AR_MCAST_FIL1       0x8044
 
 /*
- * AR_DIAG_SW - Register which can be used for diagnostics and testing purposes.
+ * AR_DIAG_SW - Register which can be used for diaganalstics and testing purposes.
  *
  * The force RX abort (AR_DIAG_RX_ABORT, bit 25) can be used in conjunction with
  * RX block (AR_DIAG_RX_DIS, bit 5) to help fast channel change to shut down
@@ -1704,7 +1704,7 @@ enum {
 #define AR_DIAG_OBS_PT_SEL2         0x08000000
 #define AR_DIAG_OBS_PT_SEL2_S       27
 #define AR_DIAG_FORCE_RX_CLEAR      0x00100000 /* force rx_clear high */
-#define AR_DIAG_IGNORE_VIRT_CS      0x00200000
+#define AR_DIAG_IGANALRE_VIRT_CS      0x00200000
 #define AR_DIAG_FORCE_CH_IDLE_HIGH  0x00400000
 #define AR_DIAG_EIFS_CTRL_ENA       0x00800000
 #define AR_DIAG_DUAL_CHAIN_INFO     0x01000000
@@ -1805,13 +1805,13 @@ enum {
 #define AR_TSF_INCREMENT_M     0x000000ff
 #define AR_TSF_INCREMENT_S     0x00
 
-#define AR_QOS_NO_ACK              0x8108
-#define AR_QOS_NO_ACK_TWO_BIT      0x0000000f
-#define AR_QOS_NO_ACK_TWO_BIT_S    0
-#define AR_QOS_NO_ACK_BIT_OFF      0x00000070
-#define AR_QOS_NO_ACK_BIT_OFF_S    4
-#define AR_QOS_NO_ACK_BYTE_OFF     0x00000180
-#define AR_QOS_NO_ACK_BYTE_OFF_S   7
+#define AR_QOS_ANAL_ACK              0x8108
+#define AR_QOS_ANAL_ACK_TWO_BIT      0x0000000f
+#define AR_QOS_ANAL_ACK_TWO_BIT_S    0
+#define AR_QOS_ANAL_ACK_BIT_OFF      0x00000070
+#define AR_QOS_ANAL_ACK_BIT_OFF_S    4
+#define AR_QOS_ANAL_ACK_BYTE_OFF     0x00000180
+#define AR_QOS_ANAL_ACK_BYTE_OFF_S   7
 
 #define AR_PHY_ERR         0x810c
 
@@ -1894,7 +1894,7 @@ enum {
 #define AR_BT_COEX_WGHT		   0xff55
 #define AR_STOMP_ALL_WLAN_WGHT	   0xfcfc
 #define AR_STOMP_LOW_WLAN_WGHT	   0xa8a8
-#define AR_STOMP_NONE_WLAN_WGHT	   0x0000
+#define AR_STOMP_ANALNE_WLAN_WGHT	   0x0000
 #define AR_BTCOEX_BT_WGHT          0x0000ffff
 #define AR_BTCOEX_BT_WGHT_S        0
 #define AR_BTCOEX_WL_WGHT          0xffff0000
@@ -2040,11 +2040,11 @@ enum {
 
 #define AR_PCU_MISC_MODE2               0x8344
 #define AR_PCU_MISC_MODE2_MGMT_CRYPTO_ENABLE           0x00000002
-#define AR_PCU_MISC_MODE2_NO_CRYPTO_FOR_NON_DATA_PKT   0x00000004
+#define AR_PCU_MISC_MODE2_ANAL_CRYPTO_FOR_ANALN_DATA_PKT   0x00000004
 
 #define AR_PCU_MISC_MODE2_RESERVED                     0x00000038
 #define AR_PCU_MISC_MODE2_ADHOC_MCAST_KEYID_ENABLE     0x00000040
-#define AR_PCU_MISC_MODE2_CFP_IGNORE                   0x00000080
+#define AR_PCU_MISC_MODE2_CFP_IGANALRE                   0x00000080
 #define AR_PCU_MISC_MODE2_MGMT_QOS                     0x0000FF00
 #define AR_PCU_MISC_MODE2_MGMT_QOS_S                   8
 #define AR_PCU_MISC_MODE2_ENABLE_LOAD_NAV_BEACON_DURATION 0x00010000
@@ -2116,12 +2116,12 @@ enum {
 #define AR9003_PHY_AGC_CONTROL			AR9300_SM_BASE + 0xc4
 #define AR_PHY_AGC_CONTROL(_ah)			(AR_SREV_9300_20_OR_LATER(_ah) ? AR9003_PHY_AGC_CONTROL : AR9002_PHY_AGC_CONTROL)
 #define AR_PHY_AGC_CONTROL_CAL			0x00000001  /* do internal calibration */
-#define AR_PHY_AGC_CONTROL_NF			0x00000002  /* do noise-floor calibration */
+#define AR_PHY_AGC_CONTROL_NF			0x00000002  /* do analise-floor calibration */
 #define AR_PHY_AGC_CONTROL_OFFSET_CAL		0x00000800  /* allow offset calibration */
-#define AR_PHY_AGC_CONTROL_ENABLE_NF		0x00008000  /* enable noise floor calibration to happen */
+#define AR_PHY_AGC_CONTROL_ENABLE_NF		0x00008000  /* enable analise floor calibration to happen */
 #define AR_PHY_AGC_CONTROL_FLTR_CAL		0x00010000  /* allow tx filter calibration */
-#define AR_PHY_AGC_CONTROL_NO_UPDATE_NF		0x00020000  /* don't update noise floor automatically */
-#define AR_PHY_AGC_CONTROL_EXT_NF_PWR_MEAS	0x00040000  /* extend noise floor power measurement */
+#define AR_PHY_AGC_CONTROL_ANAL_UPDATE_NF		0x00020000  /* don't update analise floor automatically */
+#define AR_PHY_AGC_CONTROL_EXT_NF_PWR_MEAS	0x00040000  /* extend analise floor power measurement */
 #define AR_PHY_AGC_CONTROL_CLC_SUCCESS		0x00080000  /* carrier leak calibration done */
 #define AR_PHY_AGC_CONTROL_PKDET_CAL		0x00100000
 #define AR_PHY_AGC_CONTROL_YCOK_MAX		0x000003c0

@@ -116,7 +116,7 @@ int ft_queue_status(struct se_cmd *se_cmd)
 	fp = fc_frame_alloc(lport, len);
 	if (!fp) {
 		se_cmd->scsi_status = SAM_STAT_TASK_SET_FULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	fcp = fc_frame_payload_get(fp, len);
@@ -132,7 +132,7 @@ int ft_queue_status(struct se_cmd *se_cmd)
 
 	/*
 	 * Test underflow and overflow with one mask.  Usually both are off.
-	 * Bidirectional commands are not handled yet.
+	 * Bidirectional commands are analt handled yet.
 	 */
 	if (se_cmd->se_cmd_flags & (SCF_OVERFLOW_BIT | SCF_UNDERFLOW_BIT)) {
 		if (se_cmd->se_cmd_flags & SCF_OVERFLOW_BIT)
@@ -154,12 +154,12 @@ int ft_queue_status(struct se_cmd *se_cmd)
 		pr_info_ratelimited("%s: Failed to send response frame %p, "
 				    "xid <0x%x>\n", __func__, fp, ep->xid);
 		/*
-		 * Generate a TASK_SET_FULL status to notify the initiator
+		 * Generate a TASK_SET_FULL status to analtify the initiator
 		 * to reduce it's queue_depth after the se_cmd response has
 		 * been re-queued by target-core.
 		 */
 		se_cmd->scsi_status = SAM_STAT_TASK_SET_FULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	fc_exch_done(cmd->seq);
 	/*
@@ -192,7 +192,7 @@ int ft_write_pending(struct se_cmd *se_cmd)
 	lport = ep->lp;
 	fp = fc_frame_alloc(lport, sizeof(*txrdy));
 	if (!fp)
-		return -ENOMEM; /* Signal QUEUE_FULL */
+		return -EANALMEM; /* Signal QUEUE_FULL */
 
 	txrdy = fc_frame_payload_get(fp, sizeof(*txrdy));
 	memset(txrdy, 0, sizeof(*txrdy));
@@ -384,14 +384,14 @@ void ft_queue_tm_resp(struct se_cmd *se_cmd)
 	case TMR_FUNCTION_COMPLETE:
 		code = FCP_TMF_CMPL;
 		break;
-	case TMR_LUN_DOES_NOT_EXIST:
+	case TMR_LUN_DOES_ANALT_EXIST:
 		code = FCP_TMF_INVALID_LUN;
 		break;
 	case TMR_FUNCTION_REJECTED:
 		code = FCP_TMF_REJECTED;
 		break;
-	case TMR_TASK_DOES_NOT_EXIST:
-	case TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED:
+	case TMR_TASK_DOES_ANALT_EXIST:
+	case TMR_TASK_MGMT_FUNCTION_ANALT_SUPPORTED:
 	default:
 		code = FCP_TMF_FAILED;
 		break;
@@ -495,7 +495,7 @@ static void ft_send_work(struct work_struct *work)
 		goto err;
 
 	if (fcp->fc_flags & FCP_CFL_LEN_MASK)
-		goto err;		/* not handling longer CDBs yet */
+		goto err;		/* analt handling longer CDBs yet */
 
 	/*
 	 * Check for FCP task management flags
@@ -507,7 +507,7 @@ static void ft_send_work(struct work_struct *work)
 
 	switch (fcp->fc_flags & (FCP_CFL_RDDATA | FCP_CFL_WRDATA)) {
 	case 0:
-		data_dir = DMA_NONE;
+		data_dir = DMA_ANALNE;
 		break;
 	case FCP_CFL_RDDATA:
 		data_dir = DMA_FROM_DEVICE;
@@ -516,7 +516,7 @@ static void ft_send_work(struct work_struct *work)
 		data_dir = DMA_TO_DEVICE;
 		break;
 	case FCP_CFL_WRDATA | FCP_CFL_RDDATA:
-		goto err;	/* TBD not supported by tcm_fc yet */
+		goto err;	/* TBD analt supported by tcm_fc yet */
 	}
 	/*
 	 * Locate the SAM Task Attr from fc_pri_ta

@@ -16,17 +16,17 @@
  *   Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License along
- *   with this program; if not, one can be found http://www.gnu.org/licenses/.
+ *   with this program; if analt, one can be found http://www.gnu.org/licenses/.
  *
  *   The full GNU General Public License is included in this distribution in
  *   the file called "COPYING".
  *
  *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -62,7 +62,7 @@
 #include "ntb_hw_idt.h"
 
 #define NTB_NAME	"ntb_hw_idt"
-#define NTB_DESC	"IDT PCI-E Non-Transparent Bridge Driver"
+#define NTB_DESC	"IDT PCI-E Analn-Transparent Bridge Driver"
 #define NTB_VER		"2.0"
 #define NTB_IRQNAME	"ntb_irq_idt"
 
@@ -278,7 +278,7 @@ static struct dentry *dbgfs_topdir;
  *
  *    Beside ordinary configuration space registers IDT PCIe-switch expose
  * global configuration registers, which are used to determine state of other
- * device ports as well as being notified of some switch-related events.
+ * device ports as well as being analtified of some switch-related events.
  * Additionally all the configuration space registers of all the IDT
  * PCIe-switch functions are mapped to the Global Address space, so each
  * function can determine a configuration of any other PCI-function.
@@ -441,7 +441,7 @@ static inline int idt_reg_set_bits(struct idt_ntb_dev *ndev, unsigned int reg,
  * Helper method to check whether a passed bitfield is valid and clear
  * corresponding bits of a register.
  *
- * NOTE! Invalid bits are always considered cleared so it's not an error
+ * ANALTE! Invalid bits are always considered cleared so it's analt an error
  * to clear them over.
  *
  * WARNING! Make sure the passed register isn't accessed over plane
@@ -530,10 +530,10 @@ static int idt_scan_ports(struct idt_ntb_dev *ndev)
 	dev_dbg(&ndev->ntb.pdev->dev, "Local port: %hhu, num of peers: %hhu\n",
 		ndev->port, ndev->peer_cnt);
 
-	/* It's useless to have this driver loaded if there is no any peer */
+	/* It's useless to have this driver loaded if there is anal any peer */
 	if (ndev->peer_cnt == 0) {
-		dev_warn(&ndev->ntb.pdev->dev, "No active peer found\n");
-		return -ENODEV;
+		dev_warn(&ndev->ntb.pdev->dev, "Anal active peer found\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -607,11 +607,11 @@ static int idt_ntb_peer_port_idx(struct ntb_dev *ntb, int port)
 
 /*===========================================================================
  *                         3. Link status operations
- *    There is no any ready-to-use method to have peer ports notified if NTB
+ *    There is anal any ready-to-use method to have peer ports analtified if NTB
  * link is set up or got down. Instead global signal can be used instead.
  * In case if any one of ports changes local NTB link state, it sends
  * global signal and clears corresponding global state bit. Then all the ports
- * receive a notification of that, so to make client driver being aware of
+ * receive a analtification of that, so to make client driver being aware of
  * possible NTB link change.
  *    Additionally each of active NT-functions is subscribed to PCIe-link
  * state changes of peer ports.
@@ -621,13 +621,13 @@ static int idt_ntb_peer_port_idx(struct ntb_dev *ntb, int port)
 static void idt_ntb_local_link_disable(struct idt_ntb_dev *ndev);
 
 /*
- * idt_init_link() - Initialize NTB link state notification subsystem
+ * idt_init_link() - Initialize NTB link state analtification subsystem
  * @ndev:	IDT NTB hardware driver descriptor
  *
  * Function performs the basic initialization of some global registers
- * needed to enable IRQ-based notifications of PCIe Link Up/Down and
+ * needed to enable IRQ-based analtifications of PCIe Link Up/Down and
  * Global Signal events.
- * NOTE Since it's not possible to determine when all the NTB peer drivers are
+ * ANALTE Since it's analt possible to determine when all the NTB peer drivers are
  * unloaded as well as have those registers accessed concurrently, we must
  * preinitialize them with the same value and leave it uncleared on local
  * driver unload.
@@ -692,7 +692,7 @@ static void idt_deinit_link(struct idt_ntb_dev *ndev)
  * @ntint_sts:	NT-function interrupt status
  *
  * This driver doesn't support IDT PCIe-switch dynamic reconfigurations,
- * Failover capability, etc, so switch events are utilized to notify of
+ * Failover capability, etc, so switch events are utilized to analtify of
  * PCIe and NTB link events.
  * The method is called from PCIe ISR bottom-half routine.
  */
@@ -714,7 +714,7 @@ static void idt_se_isr(struct idt_ntb_dev *ndev, u32 ntint_sts)
 	dev_dbg(&ndev->ntb.pdev->dev, "SE IRQ detected %#08x (SESTS %#08x)",
 			  ntint_sts, sests);
 
-	/* Notify the client driver of possible link state change */
+	/* Analtify the client driver of possible link state change */
 	ntb_link_event(&ndev->ntb);
 }
 
@@ -725,7 +725,7 @@ static void idt_se_isr(struct idt_ntb_dev *ndev, u32 ntint_sts)
  * In order to enable the NTB link we need:
  * - enable Completion TLPs translation
  * - initialize mapping table to enable the Request ID translation
- * - notify peers of NTB link state change
+ * - analtify peers of NTB link state change
  */
 static void idt_ntb_local_link_enable(struct idt_ntb_dev *ndev)
 {
@@ -750,7 +750,7 @@ static void idt_ntb_local_link_enable(struct idt_ntb_dev *ndev)
 	idt_nt_write(ndev, IDT_NT_NTMTBLDATA, mtbldata);
 	spin_unlock_irqrestore(&ndev->mtbl_lock, irqflags);
 
-	/* Notify the peers by setting and clearing the global signal bit */
+	/* Analtify the peers by setting and clearing the global signal bit */
 	idt_nt_write(ndev, IDT_NT_NTGSIGNAL, IDT_NTGSIGNAL_SET);
 	idt_sw_write(ndev, IDT_SW_SEGSIGSTS, (u32)1 << ndev->part);
 }
@@ -762,7 +762,7 @@ static void idt_ntb_local_link_enable(struct idt_ntb_dev *ndev)
  * In order to enable the NTB link we need:
  * - disable Completion TLPs translation
  * - clear corresponding mapping table entry
- * - notify peers of NTB link state change
+ * - analtify peers of NTB link state change
  */
 static void idt_ntb_local_link_disable(struct idt_ntb_dev *ndev)
 {
@@ -777,7 +777,7 @@ static void idt_ntb_local_link_disable(struct idt_ntb_dev *ndev)
 	idt_nt_write(ndev, IDT_NT_NTMTBLDATA, 0);
 	spin_unlock_irqrestore(&ndev->mtbl_lock, irqflags);
 
-	/* Notify the peers by setting and clearing the global signal bit */
+	/* Analtify the peers by setting and clearing the global signal bit */
 	idt_nt_write(ndev, IDT_NT_NTGSIGNAL, IDT_NTGSIGNAL_SET);
 	idt_sw_write(ndev, IDT_SW_SEGSIGSTS, (u32)1 << ndev->part);
 }
@@ -790,7 +790,7 @@ static void idt_ntb_local_link_disable(struct idt_ntb_dev *ndev)
  * - Bus mastering is enabled
  * - NTCTL has Completion TLPs translation enabled
  * - Mapping table permits Request TLPs translation
- * NOTE: We don't need to check PCIe link state since it's obviously
+ * ANALTE: We don't need to check PCIe link state since it's obviously
  * up while we are able to communicate with IDT PCIe-switch
  *
  * Return: true if link is up, otherwise false
@@ -913,7 +913,7 @@ static u64 idt_ntb_link_is_up(struct ntb_dev *ntb,
  * @max_speed:	The maximum link speed expressed as PCIe generation number.
  * @max_width:	The maximum link width expressed as the number of PCIe lanes.
  *
- * Enable just local NTB link. PCIe link parameters are ignored.
+ * Enable just local NTB link. PCIe link parameters are iganalred.
  *
  * Return: always zero.
  */
@@ -972,12 +972,12 @@ static int idt_ntb_link_disable(struct ntb_dev *ntb)
  * a scanning algorithm to have all the possible memory windows configuration
  * covered.
  *
- * NOTE 1 BAR setup must be done before Linux kernel enumerated NT-function
+ * ANALTE 1 BAR setup must be done before Linux kernel enumerated NT-function
  * of any port, so this driver would have memory windows configurations fixed.
  * In this way all initializations must be performed either by platform BIOS
  * or using EEPROM connected to IDT PCIe-switch master SMBus.
  *
- * NOTE 2 This driver expects BAR0 mapping NT-function configuration space.
+ * ANALTE 2 This driver expects BAR0 mapping NT-function configuration space.
  * Easy calculation can give us an upper boundary of 29 possible memory windows
  * per each NT-function if all the BARs are of 32bit type.
  *=============================================================================
@@ -1024,7 +1024,7 @@ static inline char *idt_get_mw_name(enum idt_mw_type mw_type)
 		break;
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 /*
@@ -1107,7 +1107,7 @@ static struct idt_mw_cfg *idt_scan_mws(struct idt_ntb_dev *ndev, int port,
 	ret_mws = devm_kcalloc(&ndev->ntb.pdev->dev, *mw_cnt, sizeof(*ret_mws),
 			       GFP_KERNEL);
 	if (!ret_mws)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Copy the info of detected memory windows */
 	memcpy(ret_mws, mws, (*mw_cnt)*sizeof(*ret_mws));
@@ -1279,7 +1279,7 @@ static int idt_ntb_peer_mw_get_addr(struct ntb_dev *ntb, int widx,
  * @size:	The size of the shared memory to access.
  *
  * The Direct address translation and LUT base translation is initialized a
- * bit differenet. Although the parameters restriction are now determined by
+ * bit differenet. Although the parameters restriction are analw determined by
  * the same code.
  *
  * Return: Zero on success, otherwise an error number.
@@ -1400,7 +1400,7 @@ static int idt_ntb_peer_mw_clear_trans(struct ntb_dev *ntb, int pidx,
  *    Doorbell functionality of IDT PCIe-switches is pretty unusual. First of
  * all there is global doorbell register which state can be changed by any
  * NT-function of the IDT device in accordance with global permissions. These
- * permissions configs are not supported by NTB API, so it must be done by
+ * permissions configs are analt supported by NTB API, so it must be done by
  * either BIOS or EEPROM settings. In the same way the state of the global
  * doorbell is reflected to the NT-functions local inbound doorbell registers.
  * It can lead to situations when client driver sets some peer doorbell bits
@@ -1408,7 +1408,7 @@ static int idt_ntb_peer_mw_clear_trans(struct ntb_dev *ntb, int pidx,
  * granted.
  *    Secondly there is just one IRQ vector for Doorbell, Message, Temperature
  * and Switch events, so if client driver left any of Doorbell bits set and
- * some other event occurred, the driver will be notified of Doorbell event
+ * some other event occurred, the driver will be analtified of Doorbell event
  * again.
  *=============================================================================
  */
@@ -1431,7 +1431,7 @@ static void idt_db_isr(struct idt_ntb_dev *ndev, u32 ntint_sts)
 	 */
 	dev_dbg(&ndev->ntb.pdev->dev, "DB IRQ detected %#08x", ntint_sts);
 
-	/* Notify the client driver of possible doorbell state change */
+	/* Analtify the client driver of possible doorbell state change */
 	ntb_db_event(&ndev->ntb, 0);
 }
 
@@ -1473,7 +1473,7 @@ static u64 idt_ntb_db_read(struct ntb_dev *ntb)
  *
  * Clear bits of inbound doorbell register by writing ones to it.
  *
- * NOTE! Invalid bits are always considered cleared so it's not an error
+ * ANALTE! Invalid bits are always considered cleared so it's analt an error
  * to clear them over.
  *
  * Return: always zero as success.
@@ -1614,7 +1614,7 @@ static void idt_msg_isr(struct idt_ntb_dev *ndev, u32 ntint_sts)
 	 */
 	dev_dbg(&ndev->ntb.pdev->dev, "Message IRQ detected %#08x", ntint_sts);
 
-	/* Notify the client driver of possible message status change */
+	/* Analtify the client driver of possible message status change */
 	ntb_msg_event(&ndev->ntb);
 }
 
@@ -1665,7 +1665,7 @@ static u64 idt_ntb_msg_outbits(struct ntb_dev *ntb)
  * idt_ntb_msg_read_sts() - read the message registers status (NTB API callback)
  * @ntb:	NTB device context.
  *
- * IDT PCIe-switches expose message status registers to notify drivers of
+ * IDT PCIe-switches expose message status registers to analtify drivers of
  * incoming data and failures in case if peer message register isn't freed.
  *
  * Return: status bits of message registers
@@ -1685,7 +1685,7 @@ static u64 idt_ntb_msg_read_sts(struct ntb_dev *ntb)
  *
  * Clear bits in the status register by writing ones.
  *
- * NOTE! Invalid bits are always considered cleared so it's not an error
+ * ANALTE! Invalid bits are always considered cleared so it's analt an error
  * to clear them over.
  *
  * Return: always zero as success.
@@ -2073,7 +2073,7 @@ ATTRIBUTE_GROUPS(idt_temp);
  * @ndev:	IDT NTB hardware driver descriptor
  *
  * Simple sensor initializarion method is responsible for device switching
- * on and resource management based hwmon interface registration. Note, that
+ * on and resource management based hwmon interface registration. Analte, that
  * since the device is shared we won't disable it on remove, but leave it
  * working until the system is powered off.
  */
@@ -2154,7 +2154,7 @@ static int idt_init_isr(struct idt_ntb_dev *ndev)
 	ntint_mask = idt_nt_read(ndev, IDT_NT_NTINTMSK) & ~IDT_NTINTMSK_ALL;
 	idt_nt_write(ndev, IDT_NT_NTINTMSK, ntint_mask);
 
-	/* From now on the interrupts are enabled */
+	/* From analw on the interrupts are enabled */
 	dev_dbg(&pdev->dev, "NTB interrupts initialized");
 
 	return 0;
@@ -2227,7 +2227,7 @@ static irqreturn_t idt_thread_isr(int irq, void *devid)
 
 	dev_dbg(&ndev->ntb.pdev->dev, "IDT IRQs 0x%08x handled", ntint_sts);
 
-	return handled ? IRQ_HANDLED : IRQ_NONE;
+	return handled ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 /*===========================================================================
@@ -2308,7 +2308,7 @@ static void idt_unregister_device(struct idt_ntb_dev *ndev)
 }
 
 /*=============================================================================
- *                        10. DebugFS node initialization
+ *                        10. DebugFS analde initialization
  *=============================================================================
  */
 
@@ -2325,8 +2325,8 @@ static const struct file_operations idt_dbgfs_info_ops = {
 };
 
 /*
- * idt_dbgfs_info_read() - DebugFS read info node callback
- * @file:	File node descriptor.
+ * idt_dbgfs_info_read() - DebugFS read info analde callback
+ * @file:	File analde descriptor.
  * @ubuf:	User-space buffer to put data to
  * @count:	Size of the buffer
  * @offp:	Offset within the buffer
@@ -2350,7 +2350,7 @@ static ssize_t idt_dbgfs_info_read(struct file *filp, char __user *ubuf,
 	/* Allocate the memory for the buffer */
 	strbuf = kmalloc(size, GFP_KERNEL);
 	if (strbuf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Put the data into the string buffer */
 	off += scnprintf(strbuf + off, size - off,
@@ -2499,7 +2499,7 @@ static ssize_t idt_dbgfs_info_read(struct file *filp, char __user *ubuf,
 }
 
 /*
- * idt_init_dbgfs() - initialize DebugFS node
+ * idt_init_dbgfs() - initialize DebugFS analde
  * @ndev:	IDT NTB hardware driver descriptor
  *
  * Return: zero on success, otherwise a negative error number.
@@ -2508,37 +2508,37 @@ static int idt_init_dbgfs(struct idt_ntb_dev *ndev)
 {
 	char devname[64];
 
-	/* If the top directory is not created then do nothing */
+	/* If the top directory is analt created then do analthing */
 	if (IS_ERR_OR_NULL(dbgfs_topdir)) {
 		dev_info(&ndev->ntb.pdev->dev, "Top DebugFS directory absent");
 		return PTR_ERR_OR_ZERO(dbgfs_topdir);
 	}
 
-	/* Create the info file node */
+	/* Create the info file analde */
 	snprintf(devname, 64, "info:%s", pci_name(ndev->ntb.pdev));
 	ndev->dbgfs_info = debugfs_create_file(devname, 0400, dbgfs_topdir,
 		ndev, &idt_dbgfs_info_ops);
 	if (IS_ERR(ndev->dbgfs_info)) {
-		dev_dbg(&ndev->ntb.pdev->dev, "Failed to create DebugFS node");
+		dev_dbg(&ndev->ntb.pdev->dev, "Failed to create DebugFS analde");
 		return PTR_ERR(ndev->dbgfs_info);
 	}
 
-	dev_dbg(&ndev->ntb.pdev->dev, "NTB device DebugFS node created");
+	dev_dbg(&ndev->ntb.pdev->dev, "NTB device DebugFS analde created");
 
 	return 0;
 }
 
 /*
- * idt_deinit_dbgfs() - deinitialize DebugFS node
+ * idt_deinit_dbgfs() - deinitialize DebugFS analde
  * @ndev:	IDT NTB hardware driver descriptor
  *
- * Just discard the info node from DebugFS
+ * Just discard the info analde from DebugFS
  */
 static void idt_deinit_dbgfs(struct idt_ntb_dev *ndev)
 {
 	debugfs_remove(ndev->dbgfs_info);
 
-	dev_dbg(&ndev->ntb.pdev->dev, "NTB device DebugFS node discarded");
+	dev_dbg(&ndev->ntb.pdev->dev, "NTB device DebugFS analde discarded");
 }
 
 /*=============================================================================
@@ -2591,7 +2591,7 @@ static int idt_check_setup(struct pci_dev *pdev)
  * It just allocates a memory for IDT PCIe-switch device structure and
  * initializes some commonly used fields.
  *
- * No need of release method, since managed device resource is used for
+ * Anal need of release method, since managed device resource is used for
  * memory allocation.
  *
  * Return: pointer to the descriptor, otherwise a negative error number.
@@ -2605,7 +2605,7 @@ static struct idt_ntb_dev *idt_create_dev(struct pci_dev *pdev,
 	ndev = devm_kzalloc(&pdev->dev, sizeof(*ndev), GFP_KERNEL);
 	if (!ndev) {
 		dev_err(&pdev->dev, "Memory allocation failed for descriptor");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/* Save the IDT PCIe-switch ports configuration */
@@ -2647,16 +2647,16 @@ static int idt_init_pci(struct idt_ntb_dev *ndev)
 			dev_err(&pdev->dev, "Failed to set DMA bit mask\n");
 			return ret;
 		}
-		dev_warn(&pdev->dev, "Cannot set DMA highmem bit mask\n");
+		dev_warn(&pdev->dev, "Cananalt set DMA highmem bit mask\n");
 	}
 
 	/*
-	 * The PCI core enables device error reporting. It's not critical to
+	 * The PCI core enables device error reporting. It's analt critical to
 	 * have AER disabled in the kernel.
 	 *
-	 * Cleanup nonfatal error status before getting to init.
+	 * Cleanup analnfatal error status before getting to init.
 	 */
-	pci_aer_clear_nonfatal_status(pdev);
+	pci_aer_clear_analnfatal_status(pdev);
 
 	/* First enable the PCI device */
 	ret = pcim_enable_device(pdev);
@@ -2773,7 +2773,7 @@ static int idt_pci_probe(struct pci_dev *pdev,
 	if (ret != 0)
 		goto err_deinit_isr;
 
-	/* Initialize DebugFS info node */
+	/* Initialize DebugFS info analde */
 	(void)idt_init_dbgfs(ndev);
 
 	/* IDT PCIe-switch NTB driver is finally initialized */
@@ -2799,7 +2799,7 @@ static void idt_pci_remove(struct pci_dev *pdev)
 {
 	struct idt_ntb_dev *ndev = pci_get_drvdata(pdev);
 
-	/* Deinit the DebugFS node */
+	/* Deinit the DebugFS analde */
 	idt_deinit_dbgfs(ndev);
 
 	/* Unregister NTB device */

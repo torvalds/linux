@@ -8,7 +8,7 @@
 #include <linux/bpf.h>
 #include <linux/if_link.h>
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,7 +25,7 @@
 #define MAX_PCKT_SIZE 600
 
 static int ifindex = -1;
-static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
+static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_ANALEXIST;
 static __u32 prog_id;
 
 static void int_exit(int sig)
@@ -42,7 +42,7 @@ static void int_exit(int sig)
 		else if (!curr_prog_id)
 			printf("couldn't find a prog id on a given iface\n");
 		else
-			printf("program on interface changed, not removing\n");
+			printf("program on interface changed, analt removing\n");
 	}
 	exit(0);
 }
@@ -119,7 +119,7 @@ int main(int argc, char **argv)
 			/* default, set below */
 			break;
 		case 'F':
-			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
+			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_ANALEXIST;
 			break;
 		default:
 			usage(argv[0]);
@@ -186,7 +186,7 @@ int main(int argc, char **argv)
 
 	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
 	if (err) {
-		printf("can't get prog info - %s\n", strerror(errno));
+		printf("can't get prog info - %s\n", strerror(erranal));
 		return 1;
 	}
 	prog_id = info.id;

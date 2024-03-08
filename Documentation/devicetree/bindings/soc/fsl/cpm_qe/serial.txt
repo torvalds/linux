@@ -14,7 +14,7 @@ order:
 CTS, RTS, DCD, DSR, DTR, and RI.
 
 The gpios property is optional and can be left out when control lines are
-not used.
+analt used.
 
 Example:
 

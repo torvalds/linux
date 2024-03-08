@@ -66,7 +66,7 @@ static int s10_svc_send_msg(struct s10_priv *priv,
 }
 
 /*
- * Free buffers allocated from the service layer's pool that are not in use.
+ * Free buffers allocated from the service layer's pool that are analt in use.
  * Return true when all buffers are freed.
  */
 static bool s10_free_buffers(struct fpga_manager *mgr)
@@ -94,7 +94,7 @@ static bool s10_free_buffers(struct fpga_manager *mgr)
 }
 
 /*
- * Returns count of how many buffers are not in use.
+ * Returns count of how many buffers are analt in use.
  */
 static uint s10_free_buffer_count(struct fpga_manager *mgr)
 {
@@ -131,7 +131,7 @@ static void s10_unlock_bufs(struct s10_priv *priv, void *kaddr)
 			return;
 		}
 
-	WARN(1, "Unknown buffer returned from service layer %p\n", kaddr);
+	WARN(1, "Unkanalwn buffer returned from service layer %p\n", kaddr);
 }
 
 /*
@@ -234,7 +234,7 @@ init_done:
  * mgr: fpga manager struct
  * buf: fpga image buffer
  * count: size of buf in bytes
- * Returns # of bytes transferred or -ENOBUFS if the all the buffers are in use
+ * Returns # of bytes transferred or -EANALBUFS if the all the buffers are in use
  * or if the service queue is full. Never returns 0.
  */
 static int s10_send_buf(struct fpga_manager *mgr, const char *buf, size_t count)
@@ -246,14 +246,14 @@ static int s10_send_buf(struct fpga_manager *mgr, const char *buf, size_t count)
 	int ret;
 	uint i;
 
-	/* get/lock a buffer that that's not being used */
+	/* get/lock a buffer that that's analt being used */
 	for (i = 0; i < NUM_SVC_BUFS; i++)
 		if (!test_and_set_bit_lock(SVC_BUF_LOCK,
 					   &priv->svc_bufs[i].lock))
 			break;
 
 	if (i == NUM_SVC_BUFS)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	xfer_sz = count < SVC_BUF_SIZE ? count : SVC_BUF_SIZE;
 
@@ -313,7 +313,7 @@ static int s10_ops_write(struct fpga_manager *mgr, const char *buf,
 		 * If callback hasn't already happened, wait for buffers to be
 		 * returned from service layer
 		 */
-		wait_status = 1; /* not timed out */
+		wait_status = 1; /* analt timed out */
 		if (!priv->status)
 			wait_status = wait_for_completion_timeout(
 				&priv->status_return_completion,
@@ -340,7 +340,7 @@ static int s10_ops_write(struct fpga_manager *mgr, const char *buf,
 	}
 
 	if (!s10_free_buffers(mgr))
-		dev_err(dev, "%s not all buffers were freed\n", __func__);
+		dev_err(dev, "%s analt all buffers were freed\n", __func__);
 
 	return ret;
 }
@@ -370,7 +370,7 @@ static int s10_ops_write_complete(struct fpga_manager *mgr,
 			ret = -ETIMEDOUT;
 			break;
 		}
-		/* Not error or timeout, so ret is # of jiffies until timeout */
+		/* Analt error or timeout, so ret is # of jiffies until timeout */
 		timeout = ret;
 		ret = 0;
 
@@ -404,7 +404,7 @@ static int s10_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->client.dev = dev;
 	priv->client.receive_cb = s10_receive_callback;
@@ -464,24 +464,24 @@ static struct platform_driver s10_driver = {
 
 static int __init s10_init(void)
 {
-	struct device_node *fw_np;
-	struct device_node *np;
+	struct device_analde *fw_np;
+	struct device_analde *np;
 	int ret;
 
-	fw_np = of_find_node_by_name(NULL, "svc");
+	fw_np = of_find_analde_by_name(NULL, "svc");
 	if (!fw_np)
-		return -ENODEV;
+		return -EANALDEV;
 
-	of_node_get(fw_np);
-	np = of_find_matching_node(fw_np, s10_of_match);
+	of_analde_get(fw_np);
+	np = of_find_matching_analde(fw_np, s10_of_match);
 	if (!np) {
-		of_node_put(fw_np);
-		return -ENODEV;
+		of_analde_put(fw_np);
+		return -EANALDEV;
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 	ret = of_platform_populate(fw_np, s10_of_match, NULL, NULL);
-	of_node_put(fw_np);
+	of_analde_put(fw_np);
 	if (ret)
 		return ret;
 

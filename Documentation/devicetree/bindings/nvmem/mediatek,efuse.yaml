@@ -19,7 +19,7 @@ allOf:
   - $ref: nvmem-deprecated-cells.yaml#
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^efuse@[0-9a-f]+$"
 
   compatible:

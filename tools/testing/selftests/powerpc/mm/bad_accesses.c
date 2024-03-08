@@ -49,7 +49,7 @@ int bad_access(char *p, bool write)
 		else
 			x = *p;
 
-		printf("Bad - no SEGV! (%c)\n", x);
+		printf("Bad - anal SEGV! (%c)\n", x);
 		return 1;
 	}
 

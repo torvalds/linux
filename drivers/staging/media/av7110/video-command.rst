@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.video
 
 .. _VIDEO_COMMAND:
@@ -14,7 +14,7 @@ VIDEO_COMMAND
 
 .. attention:: This ioctl is deprecated.
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:macro:: VIDEO_COMMAND
@@ -49,7 +49,7 @@ Arguments
 Description
 -----------
 
-This ioctl is obsolete. Do not use in new drivers. For V4L2 decoders
+This ioctl is obsolete. Do analt use in new drivers. For V4L2 decoders
 this ioctl has been replaced by the
 :ref:`VIDIOC_DECODER_CMD` ioctl.
 
@@ -73,11 +73,11 @@ more information.
 			} stop;
 
 			struct {
-				/* 0 or 1000 specifies normal speed,
+				/* 0 or 1000 specifies analrmal speed,
 				1 specifies forward single stepping,
 				-1 specifies backward single stepping,
-				>1: playback at speed/1000 of the normal speed,
-				<-1: reverse playback at (-speed/1000) of the normal speed. */
+				>1: playback at speed/1000 of the analrmal speed,
+				<-1: reverse playback at (-speed/1000) of the analrmal speed. */
 				__s32 speed;
 				__u32 format;
 			} play;
@@ -91,6 +91,6 @@ more information.
 Return Value
 ------------
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

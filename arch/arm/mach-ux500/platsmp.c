@@ -8,7 +8,7 @@
  * This file is based on arm realview platform
  */
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/smp.h>
@@ -28,32 +28,32 @@ static void __iomem *backupram;
 
 static void __init ux500_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	static void __iomem *scu_base;
 	unsigned int ncores;
 	int i;
 
-	np = of_find_compatible_node(NULL, NULL, "ste,dbx500-backupram");
+	np = of_find_compatible_analde(NULL, NULL, "ste,dbx500-backupram");
 	if (!np) {
-		pr_err("No backupram base address\n");
+		pr_err("Anal backupram base address\n");
 		return;
 	}
 	backupram = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!backupram) {
-		pr_err("No backupram remap\n");
+		pr_err("Anal backupram remap\n");
 		return;
 	}
 
-	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+	np = of_find_compatible_analde(NULL, NULL, "arm,cortex-a9-scu");
 	if (!np) {
-		pr_err("No SCU base address\n");
+		pr_err("Anal SCU base address\n");
 		return;
 	}
 	scu_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!scu_base) {
-		pr_err("No SCU remap\n");
+		pr_err("Anal SCU remap\n");
 		return;
 	}
 

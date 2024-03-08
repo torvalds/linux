@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.dmx
 
 .. _DMX_STOP:
@@ -12,7 +12,7 @@ Name
 
 DMX_STOP
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:macro:: DMX_STOP
@@ -37,7 +37,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 The generic error codes are described at the

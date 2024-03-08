@@ -12,7 +12,7 @@
 
 /*
  * Conditions to trigger post enabling GPE polling:
- * It is not sufficient to trigger edge-triggered GPE with specific GPE
+ * It is analt sufficient to trigger edge-triggered GPE with specific GPE
  * chips, software need to poll once after enabling.
  */
 #ifdef ACPI_USE_GPE_POLLING
@@ -36,13 +36,13 @@ u32 acpi_ev_fixed_event_detect(void);
 /*
  * evmisc
  */
-u8 acpi_ev_is_notify_object(struct acpi_namespace_node *node);
+u8 acpi_ev_is_analtify_object(struct acpi_namespace_analde *analde);
 
 u32 acpi_ev_get_gpe_number_index(u32 gpe_number);
 
 acpi_status
-acpi_ev_queue_notify_request(struct acpi_namespace_node *node,
-			     u32 notify_value);
+acpi_ev_queue_analtify_request(struct acpi_namespace_analde *analde,
+			     u32 analtify_value);
 
 /*
  * evglock - Global Lock support
@@ -85,14 +85,14 @@ struct acpi_gpe_event_info *acpi_ev_low_get_gpe_info(u32 gpe_number,
 acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info *gpe_event_info);
 
 u32
-acpi_ev_detect_gpe(struct acpi_namespace_node *gpe_device,
+acpi_ev_detect_gpe(struct acpi_namespace_analde *gpe_device,
 		   struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number);
 
 /*
  * evgpeblk - Upper-level GPE block support
  */
 acpi_status
-acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
+acpi_ev_create_gpe_block(struct acpi_namespace_analde *gpe_device,
 			 u64 address,
 			 u8 space_id,
 			 u32 register_count,
@@ -110,7 +110,7 @@ ACPI_HW_DEPENDENT_RETURN_OK(acpi_status
 						     *gpe_block))
 
 u32
-acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
+acpi_ev_gpe_dispatch(struct acpi_namespace_analde *gpe_device,
 		     struct acpi_gpe_event_info *gpe_event_info,
 		     u32 gpe_number);
 
@@ -156,13 +156,13 @@ union acpi_operand_object *acpi_ev_find_region_handler(acpi_adr_space_type
 						       *handler_obj);
 
 u8
-acpi_ev_has_default_handler(struct acpi_namespace_node *node,
+acpi_ev_has_default_handler(struct acpi_namespace_analde *analde,
 			    acpi_adr_space_type space_id);
 
 acpi_status acpi_ev_install_region_handlers(void);
 
 acpi_status
-acpi_ev_install_space_handler(struct acpi_namespace_node *node,
+acpi_ev_install_space_handler(struct acpi_namespace_analde *analde,
 			      acpi_adr_space_type space_id,
 			      acpi_adr_space_handler handler,
 			      acpi_adr_space_setup setup, void *context);
@@ -188,7 +188,7 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 		      u8 acpi_ns_is_locked);
 
 void
-acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
+acpi_ev_execute_reg_methods(struct acpi_namespace_analde *analde,
 			    acpi_adr_space_type space_id, u32 function);
 
 acpi_status
@@ -235,7 +235,7 @@ acpi_ev_default_region_setup(acpi_handle handle,
 
 acpi_status acpi_ev_initialize_region(union acpi_operand_object *region_obj);
 
-u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node);
+u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_analde *analde);
 
 /*
  * evsci - SCI (System Control Interrupt) handling/dispatch

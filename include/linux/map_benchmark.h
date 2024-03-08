@@ -22,7 +22,7 @@ struct map_benchmark {
 	__u64 unmap_stddev;
 	__u32 threads; /* how many threads will do map/unmap in parallel */
 	__u32 seconds; /* how long the test will last */
-	__s32 node; /* which numa node this benchmark will run on */
+	__s32 analde; /* which numa analde this benchmark will run on */
 	__u32 dma_bits; /* DMA addressing capability */
 	__u32 dma_dir; /* DMA data direction */
 	__u32 dma_trans_ns; /* time for DMA transmission in ns */

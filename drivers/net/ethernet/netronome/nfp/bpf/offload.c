@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2016-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2016-2018 Netroanalme Systems, Inc. */
 
 /*
  * nfp_net_offload.c
- * Netronome network device driver: TC offload functions for PF and VF
+ * Netroanalme network device driver: TC offload functions for PF and VF
  */
 
 #define pr_fmt(fmt)	"NFP net bpf: " fmt
@@ -50,7 +50,7 @@ nfp_map_ptr_record(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog,
 
 	record = kmalloc(sizeof(*record), GFP_KERNEL);
 	if (!record) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_map_put;
 	}
 
@@ -127,7 +127,7 @@ nfp_map_ptrs_record(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog,
 					      sizeof(nfp_prog->map_records[0]),
 					      GFP_KERNEL);
 	if (!nfp_prog->map_records) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -157,7 +157,7 @@ nfp_prog_prepare(struct nfp_prog *nfp_prog, const struct bpf_insn *prog,
 	for (i = 0; i < cnt; i++) {
 		meta = kzalloc(sizeof(*meta), GFP_KERNEL);
 		if (!meta)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		meta->insn = prog[i];
 		meta->n = i;
@@ -195,7 +195,7 @@ static int nfp_bpf_verifier_prep(struct bpf_prog *prog)
 
 	nfp_prog = kzalloc(sizeof(*nfp_prog), GFP_KERNEL);
 	if (!nfp_prog)
-		return -ENOMEM;
+		return -EANALMEM;
 	prog->aux->offload->dev_priv = nfp_prog;
 
 	INIT_LIST_HEAD(&nfp_prog->insns);
@@ -232,7 +232,7 @@ static int nfp_bpf_translate(struct bpf_prog *prog)
 
 	nfp_prog->prog = kvmalloc(nfp_prog->__prog_alloc_len, GFP_KERNEL);
 	if (!nfp_prog->prog)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = nfp_bpf_jit(nfp_prog);
 	if (err)
@@ -267,7 +267,7 @@ static void nfp_map_bpf_byte_swap(struct nfp_bpf_map *nfp_map, void *value)
 }
 
 /* Mark value as unsafely initialized in case it becomes atomic later
- * and we didn't byte swap something non-byte swap neutral.
+ * and we didn't byte swap something analn-byte swap neutral.
  */
 static void
 nfp_map_bpf_byte_swap_record(struct nfp_bpf_map *nfp_map, void *value)
@@ -278,7 +278,7 @@ nfp_map_bpf_byte_swap_record(struct nfp_bpf_map *nfp_map, void *value)
 	for (i = 0; i < DIV_ROUND_UP(nfp_map->offmap->map.value_size, 4); i++)
 		if (nfp_map->use_map[i].type == NFP_MAP_UNUSED &&
 		    word[i] != (__force u32)cpu_to_be32(word[i]))
-			nfp_map->use_map[i].non_zero_update = 1;
+			nfp_map->use_map[i].analn_zero_update = 1;
 }
 
 static int
@@ -336,28 +336,28 @@ nfp_bpf_map_alloc(struct nfp_app_bpf *bpf, struct bpf_offloaded_map *offmap)
 	long long int res;
 
 	if (!bpf->maps.types)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (offmap->map.map_flags ||
-	    offmap->map.numa_node != NUMA_NO_NODE) {
-		pr_info("map flags are not supported\n");
+	    offmap->map.numa_analde != NUMA_ANAL_ANALDE) {
+		pr_info("map flags are analt supported\n");
 		return -EINVAL;
 	}
 
 	if (!(bpf->maps.types & 1 << offmap->map.map_type)) {
-		pr_info("map type not supported\n");
-		return -EOPNOTSUPP;
+		pr_info("map type analt supported\n");
+		return -EOPANALTSUPP;
 	}
 	if (bpf->maps.max_maps == bpf->maps_in_use) {
 		pr_info("too many maps for a device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (bpf->maps.max_elems - bpf->map_elems_in_use <
 	    offmap->map.max_entries) {
 		pr_info("map with too many elements: %u, left: %u\n",
 			offmap->map.max_entries,
 			bpf->maps.max_elems - bpf->map_elems_in_use);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (round_up(offmap->map.key_size, 8) +
@@ -366,17 +366,17 @@ nfp_bpf_map_alloc(struct nfp_app_bpf *bpf, struct bpf_offloaded_map *offmap)
 			round_up(offmap->map.key_size, 8) +
 			round_up(offmap->map.value_size, 8),
 			bpf->maps.max_elem_sz);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (offmap->map.key_size > bpf->maps.max_key_sz) {
 		pr_info("map key size %u, FW max is %u\n",
 			offmap->map.key_size, bpf->maps.max_key_sz);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (offmap->map.value_size > bpf->maps.max_val_sz) {
 		pr_info("map value size %u, FW max is %u\n",
 			offmap->map.value_size, bpf->maps.max_val_sz);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	use_map_size = DIV_ROUND_UP(offmap->map.value_size, 4) *
@@ -384,7 +384,7 @@ nfp_bpf_map_alloc(struct nfp_app_bpf *bpf, struct bpf_offloaded_map *offmap)
 
 	nfp_map = kzalloc(sizeof(*nfp_map) + use_map_size, GFP_USER);
 	if (!nfp_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	offmap->dev_priv = nfp_map;
 	nfp_map->offmap = offmap;
@@ -468,7 +468,7 @@ int nfp_bpf_event_output(struct nfp_app_bpf *bpf, const void *data,
 				   nfp_bpf_maps_neutral_params);
 	if (!record || map_id_full > U32_MAX) {
 		rcu_read_unlock();
-		cmsg_warn(bpf, "perf event: map id %lld (0x%llx) not recognized, dropping event\n",
+		cmsg_warn(bpf, "perf event: map id %lld (0x%llx) analt recognized, dropping event\n",
 			  map_id_full, map_id_full);
 		return -EINVAL;
 	}
@@ -503,20 +503,20 @@ nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog,
 	int err;
 
 	if (nfp_bpf_offload_check_mtu(nn, prog, nn->dp.netdev->mtu)) {
-		NL_SET_ERR_MSG_MOD(extack, "BPF offload not supported with potential packet access beyond HW packet split boundary");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "BPF offload analt supported with potential packet access beyond HW packet split boundary");
+		return -EOPANALTSUPP;
 	}
 
 	max_stack = nn_readb(nn, NFP_NET_CFG_BPF_STACK_SZ) * 64;
 	if (nfp_prog->stack_size > max_stack) {
 		NL_SET_ERR_MSG_MOD(extack, "stack too large");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	max_prog_len = nn_readw(nn, NFP_NET_CFG_BPF_MAX_LEN);
 	if (nfp_prog->prog_len > max_prog_len) {
 		NL_SET_ERR_MSG_MOD(extack, "program too long");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	img = nfp_bpf_relo_for_vnic(nfp_prog, nn->app_priv);
@@ -528,7 +528,7 @@ nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog,
 				  DMA_TO_DEVICE);
 	if (dma_mapping_error(nn->dp.dev, dma_addr)) {
 		kfree(img);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	nn_writew(nn, NFP_NET_CFG_BPF_SIZE, nfp_prog->prog_len);
@@ -586,7 +586,7 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 		cap = nn_readb(nn, NFP_NET_CFG_BPF_CAP);
 		if (!(cap & NFP_NET_BPF_CAP_RELO)) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "FW does not support live reload");
+					   "FW does analt support live reload");
 			return -EBUSY;
 		}
 	}

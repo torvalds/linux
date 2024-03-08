@@ -24,7 +24,7 @@ extern s32 patch__flush_count_cache_return;
 extern s32 patch__flush_link_stack_return;
 extern s32 patch__call_kvm_flush_link_stack;
 extern s32 patch__call_kvm_flush_link_stack_p9;
-extern s32 patch__memset_nocache, patch__memcpy_nocache;
+extern s32 patch__memset_analcache, patch__memcpy_analcache;
 
 extern long flush_branch_caches;
 extern long kvm_flush_link_stack;

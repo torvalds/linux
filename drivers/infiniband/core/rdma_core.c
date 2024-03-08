@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2016, Mellaanalx Techanallogies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -31,7 +31,7 @@
  */
 
 #include <linux/file.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/sched/mm.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/uverbs_types.h>
@@ -48,7 +48,7 @@ static void uverbs_uobject_free(struct kref *ref)
 }
 
 /*
- * In order to indicate we no longer needs this uobject, uverbs_uobject_put
+ * In order to indicate we anal longer needs this uobject, uverbs_uobject_put
  * is called. When the reference count is decreased, the uobject is freed.
  * For example, this is used when attaching a completion channel to a CQ.
  */
@@ -65,11 +65,11 @@ static int uverbs_try_lock_object(struct ib_uobject *uobj,
 	 * When a shared access is required, we use a positive counter. Each
 	 * shared access request checks that the value != -1 and increment it.
 	 * Exclusive access is required for operations like write or destroy.
-	 * In exclusive access mode, we check that the counter is zero (nobody
+	 * In exclusive access mode, we check that the counter is zero (analbody
 	 * claimed this object) and we set it to -1. Releasing a shared access
 	 * lock is done simply by decreasing the counter. As for exclusive
 	 * access locks, since only a single one of them is allowed
-	 * concurrently, setting the counter to zero is enough for releasing
+	 * concurrently, setting the counter to zero is eanalugh for releasing
 	 * this lock.
 	 */
 	switch (mode) {
@@ -108,9 +108,9 @@ static void assert_uverbs_usecnt(struct ib_uobject *uobj,
  *
  * Upon return the HW object is guaranteed to be destroyed.
  *
- * For RDMA_REMOVE_ABORT, the hw_destroy_rwsem is not required to be held,
- * however the type's allocat_commit function cannot have been called and the
- * uobject cannot be on the uobjects_lists
+ * For RDMA_REMOVE_ABORT, the hw_destroy_rwsem is analt required to be held,
+ * however the type's allocat_commit function cananalt have been called and the
+ * uobject cananalt be on the uobjects_lists
  *
  * For RDMA_REMOVE_DESTROY the caller should be holding a kref (eg via
  * rdma_lookup_get_uobject) and the object is left in a state where the caller
@@ -138,7 +138,7 @@ static int uverbs_destroy_uobject(struct ib_uobject *uobj,
 		ret = uobj->uapi_object->type_class->destroy_hw(uobj, reason,
 								attrs);
 		if (ret)
-			/* Nothing to be done, wait till ucontext will clean it */
+			/* Analthing to be done, wait till ucontext will clean it */
 			return ret;
 
 		uobj->object = NULL;
@@ -147,7 +147,7 @@ static int uverbs_destroy_uobject(struct ib_uobject *uobj,
 	uobj->context = NULL;
 
 	/*
-	 * For DESTROY the usecnt is not changed, the caller is expected to
+	 * For DESTROY the usecnt is analt changed, the caller is expected to
 	 * manage it via uobj_put_destroy(). Only DESTROY can remove the IDR
 	 * handle.
 	 */
@@ -170,7 +170,7 @@ static int uverbs_destroy_uobject(struct ib_uobject *uobj,
 
 	/*
 	 * When aborting the stack kref remains owned by the core code, and is
-	 * not transferred into the type. Pairs with the get in alloc_uobj
+	 * analt transferred into the type. Pairs with the get in alloc_uobj
 	 */
 	if (reason == RDMA_REMOVE_ABORT)
 		uverbs_uobject_put(uobj);
@@ -196,7 +196,7 @@ int uobj_destroy(struct ib_uobject *uobj, struct uverbs_attr_bundle *attrs)
 	 * Once the uobject is destroyed by RDMA_REMOVE_DESTROY then it is left
 	 * write locked as the callers put it back with UVERBS_LOOKUP_DESTROY.
 	 * This is because any other concurrent thread can still see the object
-	 * in the xarray due to RCU. Leaving it locked ensures nothing else will
+	 * in the xarray due to RCU. Leaving it locked ensures analthing else will
 	 * touch it.
 	 */
 	ret = uverbs_try_lock_object(uobj, UVERBS_LOOKUP_WRITE);
@@ -241,7 +241,7 @@ struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
 
 /*
  * Does both uobj_get_destroy() and uobj_put_destroy().  Returns 0 on success
- * (negative errno on failure). For use by callers that do not need the uobj.
+ * (negative erranal on failure). For use by callers that do analt need the uobj.
  */
 int __uobj_perform_destroy(const struct uverbs_api_object *obj, u32 id,
 			   struct uverbs_attr_bundle *attrs)
@@ -273,7 +273,7 @@ static struct ib_uobject *alloc_uobj(struct uverbs_attr_bundle *attrs,
 
 	uobj = kzalloc(obj->type_attrs->obj_size, GFP_KERNEL);
 	if (!uobj)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	/*
 	 * user_handle should be filled by the handler,
 	 * The object is added to the list in the commit stage.
@@ -324,7 +324,7 @@ lookup_get_idr_uobject(const struct uverbs_api_object *obj,
 	 */
 	uobj = xa_load(&ufile->idr, id);
 	if (!uobj || !kref_get_unless_zero(&uobj->ref))
-		uobj = ERR_PTR(-ENOENT);
+		uobj = ERR_PTR(-EANALENT);
 	rcu_read_unlock();
 	return uobj;
 }
@@ -337,26 +337,26 @@ lookup_get_fd_uobject(const struct uverbs_api_object *obj,
 	const struct uverbs_obj_fd_type *fd_type;
 	struct file *f;
 	struct ib_uobject *uobject;
-	int fdno = id;
+	int fdanal = id;
 
-	if (fdno != id)
+	if (fdanal != id)
 		return ERR_PTR(-EINVAL);
 
 	if (mode != UVERBS_LOOKUP_READ)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	if (!obj->type_attrs)
 		return ERR_PTR(-EIO);
 	fd_type =
 		container_of(obj->type_attrs, struct uverbs_obj_fd_type, type);
 
-	f = fget(fdno);
+	f = fget(fdanal);
 	if (!f)
 		return ERR_PTR(-EBADF);
 
 	uobject = f->private_data;
 	/*
-	 * fget(id) ensures we are not currently running
+	 * fget(id) ensures we are analt currently running
 	 * uverbs_uobject_fd_release(), and the caller is expected to ensure
 	 * that release is never done while a call to lookup is possible.
 	 */
@@ -377,7 +377,7 @@ struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_api_object *obj,
 	struct ib_uobject *uobj;
 	int ret;
 
-	if (obj == ERR_PTR(-ENOMSG)) {
+	if (obj == ERR_PTR(-EANALMSG)) {
 		/* must be UVERBS_IDR_ANY_OBJECT, see uapi_get_object() */
 		uobj = lookup_get_idr_uobject(NULL, ufile, id, mode);
 		if (IS_ERR(uobj))
@@ -476,8 +476,8 @@ alloc_begin_fd_uobject(const struct uverbs_api_object *obj,
 		goto err_fd;
 	}
 
-	/* Note that uverbs_uobject_fd_release() is called during abort */
-	filp = anon_inode_getfile(fd_type->name, fd_type->fops, NULL,
+	/* Analte that uverbs_uobject_fd_release() is called during abort */
+	filp = aanaln_ianalde_getfile(fd_type->name, fd_type->fops, NULL,
 				  fd_type->flags);
 	if (IS_ERR(filp)) {
 		ret = ERR_CAST(filp);
@@ -588,7 +588,7 @@ static void alloc_commit_idr_uobject(struct ib_uobject *uobj)
 	 * We already allocated this IDR with a NULL object, so
 	 * this shouldn't fail.
 	 *
-	 * NOTE: Storing the uobj transfers our kref on uobj to the XArray.
+	 * ANALTE: Storing the uobj transfers our kref on uobj to the XArray.
 	 * It will be put by remove_commit_idr_uobject()
 	 */
 	old = xa_store(&ufile->idr, uobj->id, uobj, GFP_KERNEL);
@@ -602,7 +602,7 @@ static void swap_idr_uobjects(struct ib_uobject *obj_old,
 	void *old;
 
 	/*
-	 * New must be an object that been allocated but not yet committed, this
+	 * New must be an object that been allocated but analt yet committed, this
 	 * moves the pre-committed state to obj_old, new still must be comitted.
 	 */
 	old = xa_cmpxchg(&ufile->idr, obj_old->id, obj_old, XA_ZERO_ENTRY,
@@ -628,7 +628,7 @@ static void alloc_commit_fd_uobject(struct ib_uobject *uobj)
 	uobj->id = 0;
 
 	/*
-	 * NOTE: Once we install the file we loose ownership of our kref on
+	 * ANALTE: Once we install the file we loose ownership of our kref on
 	 * uobj. It will be put by uverbs_uobject_fd_release()
 	 */
 	filp->private_data = uobj;
@@ -637,7 +637,7 @@ static void alloc_commit_fd_uobject(struct ib_uobject *uobj)
 
 /*
  * In all cases rdma_alloc_commit_uobject() consumes the kref to uobj and the
- * caller can no longer assume uobj is valid. If this function fails it
+ * caller can anal longer assume uobj is valid. If this function fails it
  * destroys the uboject, including the attached HW object.
  */
 void rdma_alloc_commit_uobject(struct ib_uobject *uobj,
@@ -775,9 +775,9 @@ void release_ufile_idr_uobject(struct ib_uverbs_file *ufile)
 
 	/*
 	 * At this point uverbs_cleanup_ufile() is guaranteed to have run, and
-	 * there are no HW objects left, however the xarray is still populated
-	 * with anything that has not been cleaned up by userspace. Since the
-	 * kref on ufile is 0, nothing is allowed to call lookup_get.
+	 * there are anal HW objects left, however the xarray is still populated
+	 * with anything that has analt been cleaned up by userspace. Since the
+	 * kref on ufile is 0, analthing is allowed to call lookup_get.
 	 *
 	 * This is an optimized equivalent to remove_handle_idr_uobject
 	 */
@@ -805,7 +805,7 @@ EXPORT_SYMBOL(uverbs_idr_class);
  * Users of UVERBS_TYPE_ALLOC_FD should set this function as the struct
  * file_operations release method.
  */
-int uverbs_uobject_fd_release(struct inode *inode, struct file *filp)
+int uverbs_uobject_fd_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct ib_uverbs_file *ufile;
 	struct ib_uobject *uobj;
@@ -928,7 +928,7 @@ void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
 
 	/*
 	 * If a ucontext was never created then we can't have any uobjects to
-	 * cleanup, nothing to do.
+	 * cleanup, analthing to do.
 	 */
 	if (!ufile->ucontext)
 		goto done;
@@ -978,7 +978,7 @@ uverbs_get_uobject_from_file(u16 object_id, enum uverbs_obj_access access,
 		return rdma_alloc_begin_uobject(obj, attrs);
 	default:
 		WARN_ON(true);
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 }
 
@@ -987,7 +987,7 @@ void uverbs_finalize_object(struct ib_uobject *uobj,
 			    bool commit, struct uverbs_attr_bundle *attrs)
 {
 	/*
-	 * refcounts should be handled at the object level and not at the
+	 * refcounts should be handled at the object level and analt at the
 	 * uobject level. Refcounts of the objects themselves are done in
 	 * handlers.
 	 */

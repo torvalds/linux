@@ -160,7 +160,7 @@ ENDP
 #undef v
 
 #define v %esi
-BEGIN_IRQ_SAVE(inc_not_zero)
+BEGIN_IRQ_SAVE(inc_analt_zero)
 	movl  (v), %eax
 	movl 4(v), %edx
 	testl %eax, %eax

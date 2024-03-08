@@ -47,7 +47,7 @@ static struct regmap_bus gsc_hwmon_regmap_bus = {
 static const struct regmap_config gsc_hwmon_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static ssize_t pwm_auto_point_temp_show(struct device *dev,
@@ -163,7 +163,7 @@ gsc_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		ch = hwmon->fan_ch[channel];
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	sz = (ch->mode == mode_voltage_24bit) ? 3 : 2;
@@ -199,7 +199,7 @@ gsc_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		break;
 	case mode_voltage_24bit:
 	case mode_voltage_16bit:
-		/* no adjustment needed */
+		/* anal adjustment needed */
 		break;
 	}
 
@@ -225,7 +225,7 @@ gsc_hwmon_read_string(struct device *dev, enum hwmon_sensor_types type,
 		*buf = hwmon->fan_ch[channel]->name;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -249,60 +249,60 @@ gsc_hwmon_get_devtree_pdata(struct device *dev)
 {
 	struct gsc_hwmon_platform_data *pdata;
 	struct gsc_hwmon_channel *ch;
-	struct fwnode_handle *child;
-	struct device_node *fan;
+	struct fwanalde_handle *child;
+	struct device_analde *fan;
 	int nchannels;
 
-	nchannels = device_get_child_node_count(dev);
+	nchannels = device_get_child_analde_count(dev);
 	if (nchannels == 0)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	pdata = devm_kzalloc(dev, struct_size(pdata, channels, nchannels),
 			     GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	pdata->nchannels = nchannels;
 
 	/* fan controller base address */
-	of_node_get(dev->parent->of_node);
-	fan = of_find_compatible_node(dev->parent->of_node, NULL, "gw,gsc-fan");
+	of_analde_get(dev->parent->of_analde);
+	fan = of_find_compatible_analde(dev->parent->of_analde, NULL, "gw,gsc-fan");
 	if (fan && of_property_read_u32(fan, "reg", &pdata->fan_base)) {
-		of_node_put(fan);
-		dev_err(dev, "fan node without base\n");
+		of_analde_put(fan);
+		dev_err(dev, "fan analde without base\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	of_node_put(fan);
+	of_analde_put(fan);
 
 	ch = pdata->channels;
 	/* allocate structures for channels and count instances of each type */
-	device_for_each_child_node(dev, child) {
-		if (fwnode_property_read_string(child, "label", &ch->name)) {
+	device_for_each_child_analde(dev, child) {
+		if (fwanalde_property_read_string(child, "label", &ch->name)) {
 			dev_err(dev, "channel without label\n");
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ERR_PTR(-EINVAL);
 		}
-		if (fwnode_property_read_u32(child, "reg", &ch->reg)) {
+		if (fwanalde_property_read_u32(child, "reg", &ch->reg)) {
 			dev_err(dev, "channel without reg\n");
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ERR_PTR(-EINVAL);
 		}
-		if (fwnode_property_read_u32(child, "gw,mode", &ch->mode)) {
+		if (fwanalde_property_read_u32(child, "gw,mode", &ch->mode)) {
 			dev_err(dev, "channel without mode\n");
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ERR_PTR(-EINVAL);
 		}
 		if (ch->mode > mode_max) {
 			dev_err(dev, "invalid channel mode\n");
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ERR_PTR(-EINVAL);
 		}
 
-		if (!fwnode_property_read_u32(child,
+		if (!fwanalde_property_read_u32(child,
 					      "gw,voltage-offset-microvolt",
 					      &ch->mvoffset))
 			ch->mvoffset /= 1000;
-		fwnode_property_read_u32_array(child,
+		fwanalde_property_read_u32_array(child,
 					       "gw,voltage-divider-ohms",
 					       ch->vdiv, ARRAY_SIZE(ch->vdiv));
 		ch++;
@@ -329,7 +329,7 @@ static int gsc_hwmon_probe(struct platform_device *pdev)
 
 	hwmon = devm_kzalloc(dev, sizeof(*hwmon), GFP_KERNEL);
 	if (!hwmon)
-		return -ENOMEM;
+		return -EANALMEM;
 	hwmon->gsc = gsc;
 	hwmon->pdata = pdata;
 

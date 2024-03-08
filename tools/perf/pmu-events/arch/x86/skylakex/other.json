@@ -1,9 +1,9 @@
 [
     {
-        "BriefDescription": "Core cycles where the core was running in a manner where Turbo may be clipped to the Non-AVX turbo schedule.",
+        "BriefDescription": "Core cycles where the core was running in a manner where Turbo may be clipped to the Analn-AVX turbo schedule.",
         "EventCode": "0x28",
         "EventName": "CORE_POWER.LVL0_TURBO_LICENSE",
-        "PublicDescription": "Core cycles where the core was running with power-delivery for baseline license level 0.  This includes non-AVX codes, SSE, AVX 128-bit, and low-current AVX 256-bit codes.",
+        "PublicDescription": "Core cycles where the core was running with power-delivery for baseline license level 0.  This includes analn-AVX codes, SSE, AVX 128-bit, and low-current AVX 256-bit codes.",
         "SampleAfterValue": "200003",
         "UMask": "0x7"
     },
@@ -32,51 +32,51 @@
         "UMask": "0x40"
     },
     {
-        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_IFWDFE",
+        "BriefDescription": "CORE_SANALOP_RESPONSE.RSP_IFWDFE",
         "EventCode": "0xEF",
-        "EventName": "CORE_SNOOP_RESPONSE.RSP_IFWDFE",
+        "EventName": "CORE_SANALOP_RESPONSE.RSP_IFWDFE",
         "SampleAfterValue": "2000003",
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_IFWDM",
+        "BriefDescription": "CORE_SANALOP_RESPONSE.RSP_IFWDM",
         "EventCode": "0xEF",
-        "EventName": "CORE_SNOOP_RESPONSE.RSP_IFWDM",
+        "EventName": "CORE_SANALOP_RESPONSE.RSP_IFWDM",
         "SampleAfterValue": "2000003",
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_IHITFSE",
+        "BriefDescription": "CORE_SANALOP_RESPONSE.RSP_IHITFSE",
         "EventCode": "0xEF",
-        "EventName": "CORE_SNOOP_RESPONSE.RSP_IHITFSE",
+        "EventName": "CORE_SANALOP_RESPONSE.RSP_IHITFSE",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_IHITI",
+        "BriefDescription": "CORE_SANALOP_RESPONSE.RSP_IHITI",
         "EventCode": "0xEF",
-        "EventName": "CORE_SNOOP_RESPONSE.RSP_IHITI",
+        "EventName": "CORE_SANALOP_RESPONSE.RSP_IHITI",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_SFWDFE",
+        "BriefDescription": "CORE_SANALOP_RESPONSE.RSP_SFWDFE",
         "EventCode": "0xEF",
-        "EventName": "CORE_SNOOP_RESPONSE.RSP_SFWDFE",
+        "EventName": "CORE_SANALOP_RESPONSE.RSP_SFWDFE",
         "SampleAfterValue": "2000003",
         "UMask": "0x40"
     },
     {
-        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_SFWDM",
+        "BriefDescription": "CORE_SANALOP_RESPONSE.RSP_SFWDM",
         "EventCode": "0xEF",
-        "EventName": "CORE_SNOOP_RESPONSE.RSP_SFWDM",
+        "EventName": "CORE_SANALOP_RESPONSE.RSP_SFWDM",
         "SampleAfterValue": "2000003",
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_SHITFSE",
+        "BriefDescription": "CORE_SANALOP_RESPONSE.RSP_SHITFSE",
         "EventCode": "0xEF",
-        "EventName": "CORE_SNOOP_RESPONSE.RSP_SHITFSE",
+        "EventName": "CORE_SANALOP_RESPONSE.RSP_SHITFSE",
         "SampleAfterValue": "2000003",
         "UMask": "0x4"
     },
@@ -89,10 +89,10 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts number of cache lines that are dropped and not written back to L3 as they are deemed to be less likely to be reused shortly",
+        "BriefDescription": "Counts number of cache lines that are dropped and analt written back to L3 as they are deemed to be less likely to be reused shortly",
         "EventCode": "0xFE",
         "EventName": "IDI_MISC.WB_DOWNGRADE",
-        "PublicDescription": "Counts number of cache lines that are dropped and not written back to L3 as they are deemed to be less likely to be reused shortly.",
+        "PublicDescription": "Counts number of cache lines that are dropped and analt written back to L3 as they are deemed to be less likely to be reused shortly.",
         "SampleAfterValue": "100003",
         "UMask": "0x4"
     },

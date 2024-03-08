@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
@@ -60,8 +60,8 @@ enum ctc_ch_events {
 	 */
 	CTC_EVENT_IO_SUCCESS,
 	CTC_EVENT_IO_EBUSY,
-	CTC_EVENT_IO_ENODEV,
-	CTC_EVENT_IO_UNKNOWN,
+	CTC_EVENT_IO_EANALDEV,
+	CTC_EVENT_IO_UNKANALWN,
 
 	CTC_EVENT_ATTNBUSY,
 	CTC_EVENT_ATTN,
@@ -76,18 +76,18 @@ enum ctc_ch_events {
 	CTC_EVENT_UC_HWFAIL,
 	CTC_EVENT_UC_RXPARITY,
 	CTC_EVENT_UC_ZERO,
-	CTC_EVENT_UC_UNKNOWN,
+	CTC_EVENT_UC_UNKANALWN,
 	/*
 	 * Events, representing subchannel-check
 	 */
-	CTC_EVENT_SC_UNKNOWN,
+	CTC_EVENT_SC_UNKANALWN,
 	/*
 	 * Events, representing machine checks
 	 */
 	CTC_EVENT_MC_FAIL,
 	CTC_EVENT_MC_GOOD,
 	/*
-	 * Event, representing normal IRQ
+	 * Event, representing analrmal IRQ
 	 */
 	CTC_EVENT_IRQ,
 	CTC_EVENT_FINSTAT,
@@ -117,12 +117,12 @@ enum ctc_ch_events {
  */
 enum ctc_ch_states {
 	/*
-	 * Channel not assigned to any device,
+	 * Channel analt assigned to any device,
 	 * initial state, direction invalid
 	 */
 	CTC_STATE_IDLE,
 	/*
-	 * Channel assigned but not operating
+	 * Channel assigned but analt operating
 	 */
 	CTC_STATE_STOPPED,
 	CTC_STATE_STARTWAIT,
@@ -138,8 +138,8 @@ enum ctc_ch_states {
 	CTC_STATE_TXERR,
 	CTC_STATE_TERM,
 	CTC_STATE_DTERM,
-	CTC_STATE_NOTOP,
-	CTC_NR_STATES,     /* MUST be the last element of non-expanded states */
+	CTC_STATE_ANALTOP,
+	CTC_NR_STATES,     /* MUST be the last element of analn-expanded states */
 	/*
 	 * additional MPC states
 	 */
@@ -161,7 +161,7 @@ void ctcm_ccw_check_rc(struct channel *ch, int rc, char *msg);
 void ctcm_purge_skb_queue(struct sk_buff_head *q);
 
 /*
- * ----- non-static actions for ctcm channel statemachine -----
+ * ----- analn-static actions for ctcm channel statemachine -----
  *
  */
 void ctcm_chx_txidle(fsm_instance *fi, int event, void *arg);
@@ -169,12 +169,12 @@ void ctcm_chx_txidle(fsm_instance *fi, int event, void *arg);
 /*
  * ----- FSM (state/event/action) of the ctcm channel statemachine -----
  */
-extern const fsm_node ch_fsm[];
+extern const fsm_analde ch_fsm[];
 extern int ch_fsm_len;
 
 
 /*
- * ----- non-static actions for ctcmpc channel statemachine ----
+ * ----- analn-static actions for ctcmpc channel statemachine ----
  *
  */
 /* shared :
@@ -185,7 +185,7 @@ void ctcmpc_chx_rxidle(fsm_instance *fi, int event, void *arg);
 /*
  * ----- FSM (state/event/action) of the ctcmpc channel statemachine -----
  */
-extern const fsm_node ctcmpc_ch_fsm[];
+extern const fsm_analde ctcmpc_ch_fsm[];
 extern int mpc_ch_fsm_len;
 
 /*
@@ -248,7 +248,7 @@ static void dev_action_chdown(fsm_instance * fi, int event, void *arg);
  * The (state/event/action) fsm table of the device interface statemachine.
  * ctcm and ctcmpc
  */
-extern const fsm_node dev_fsm[];
+extern const fsm_analde dev_fsm[];
 extern int dev_fsm_len;
 
 
@@ -262,10 +262,10 @@ extern int dev_fsm_len;
 State Name		When In This State
 ======================	=======================================
 MPCG_STATE_RESET	Initial State When Driver Loaded
-			We receive and send NOTHING
+			We receive and send ANALTHING
 
-MPCG_STATE_INOP         INOP Received.
-			Group level non-recoverable error
+MPCG_STATE_IANALP         IANALP Received.
+			Group level analn-recoverable error
 
 MPCG_STATE_READY	XID exchanges for at least 1 write and
 			1 read channel have completed.
@@ -279,15 +279,15 @@ MPCG_STATE_XID2INITW	Awaiting XID2(0) Initiation
 			      Y-side protocol only.
 
 MPCG_STATE_XID2INITX	XID2(0) negotiations are in progress.
-			      At least 1, but not all, XID2(0)'s
+			      At least 1, but analt all, XID2(0)'s
 			      have been received from partner.
 
 MPCG_STATE_XID7INITW	XID2(0) complete
-			      No XID2(7)'s have yet been received.
+			      Anal XID2(7)'s have yet been received.
 			      XID2(7) negotiations pending.
 
 MPCG_STATE_XID7INITX	XID2(7) negotiations in progress.
-			      At least 1, but not all, XID2(7)'s
+			      At least 1, but analt all, XID2(7)'s
 			      have been received from partner.
 
 MPCG_STATE_XID7INITF	XID2(7) negotiations complete.
@@ -305,15 +305,15 @@ MPCG_STATE_XID0IOWAIT	Initiating XID2(0) negotiations.
 			      ctc_mpc_alloc_channel flow will begin.
 
 MPCG_STATE_XID0IOWAIX	XID2(0) negotiations are in progress.
-			      At least 1, but not all, XID2(0)'s
+			      At least 1, but analt all, XID2(0)'s
 			      have been received from partner.
 
 MPCG_STATE_XID7INITI	XID2(0) complete
-			      No XID2(7)'s have yet been received.
+			      Anal XID2(7)'s have yet been received.
 			      XID2(7) negotiations pending.
 
 MPCG_STATE_XID7INITZ	XID2(7) negotiations in progress.
-			      At least 1, but not all, XID2(7)'s
+			      At least 1, but analt all, XID2(7)'s
 			      have been received from partner.
 
 MPCG_STATE_XID7INITF	XID2(7) negotiations complete.
@@ -324,7 +324,7 @@ MPCG_STATE_READY	      Ready for Data Transfer.
 */
 
 enum mpcg_events {
-	MPCG_EVENT_INOP,
+	MPCG_EVENT_IANALP,
 	MPCG_EVENT_DISCONC,
 	MPCG_EVENT_XID0DO,
 	MPCG_EVENT_XID2,
@@ -337,7 +337,7 @@ enum mpcg_events {
 
 enum mpcg_states {
 	MPCG_STATE_RESET,
-	MPCG_STATE_INOP,
+	MPCG_STATE_IANALP,
 	MPCG_STATE_XID2INITW,
 	MPCG_STATE_XID2INITX,
 	MPCG_STATE_XID7INITW,

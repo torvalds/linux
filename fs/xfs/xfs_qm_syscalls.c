@@ -13,7 +13,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_trans.h"
 #include "xfs_quota.h"
 #include "xfs_qm.h"
@@ -25,19 +25,19 @@ xfs_qm_scall_quotaoff(
 	uint			flags)
 {
 	/*
-	 * No file system can have quotas enabled on disk but not in core.
-	 * Note that quota utilities (like quotaoff) _expect_
-	 * errno == -EEXIST here.
+	 * Anal file system can have quotas enabled on disk but analt in core.
+	 * Analte that quota utilities (like quotaoff) _expect_
+	 * erranal == -EEXIST here.
 	 */
 	if ((mp->m_qflags & flags) == 0)
 		return -EEXIST;
 
 	/*
-	 * We do not support actually turning off quota accounting any more.
-	 * Just log a warning and ignore the accounting related flags.
+	 * We do analt support actually turning off quota accounting any more.
+	 * Just log a warning and iganalre the accounting related flags.
 	 */
 	if (flags & XFS_ALL_QUOTA_ACCT)
-		xfs_info(mp, "disabling of quota accounting not supported.");
+		xfs_info(mp, "disabling of quota accounting analt supported.");
 
 	mutex_lock(&mp->m_quotainfo->qi_quotaofflock);
 	mp->m_qflags &= ~(flags & XFS_ALL_QUOTA_ENFD);
@@ -53,16 +53,16 @@ xfs_qm_scall_quotaoff(
 STATIC int
 xfs_qm_scall_trunc_qfile(
 	struct xfs_mount	*mp,
-	xfs_ino_t		ino)
+	xfs_ianal_t		ianal)
 {
-	struct xfs_inode	*ip;
+	struct xfs_ianalde	*ip;
 	struct xfs_trans	*tp;
 	int			error;
 
-	if (ino == NULLFSINO)
+	if (ianal == NULLFSIANAL)
 		return 0;
 
-	error = xfs_iget(mp, NULL, ino, 0, 0, &ip);
+	error = xfs_iget(mp, NULL, ianal, 0, 0, &ip);
 	if (error)
 		return error;
 
@@ -78,7 +78,7 @@ xfs_qm_scall_trunc_qfile(
 	xfs_trans_ijoin(tp, ip, 0);
 
 	ip->i_disk_size = 0;
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_log_ianalde(tp, ip, XFS_ILOG_CORE);
 
 	error = xfs_itruncate_extents(&tp, ip, XFS_DATA_FORK, 0);
 	if (error) {
@@ -113,17 +113,17 @@ xfs_qm_scall_trunc_qfiles(
 	}
 
 	if (flags & XFS_QMOPT_UQUOTA) {
-		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_uquotino);
+		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_uquotianal);
 		if (error)
 			return error;
 	}
 	if (flags & XFS_QMOPT_GQUOTA) {
-		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_gquotino);
+		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_gquotianal);
 		if (error)
 			return error;
 	}
 	if (flags & XFS_QMOPT_PQUOTA)
-		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_pquotino);
+		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_pquotianal);
 
 	return error;
 }
@@ -156,7 +156,7 @@ xfs_qm_scall_quotaon(
 	/*
 	 * Can't enforce without accounting. We check the superblock
 	 * qflags here instead of m_qflags because rootfs can have
-	 * quota acct on ondisk without m_qflags' knowing.
+	 * quota acct on ondisk without m_qflags' kanalwing.
 	 */
 	if (((mp->m_sb.sb_qflags & XFS_UQUOTA_ACCT) == 0 &&
 	     (flags & XFS_UQUOTA_ENFD)) ||
@@ -176,7 +176,7 @@ xfs_qm_scall_quotaon(
 		return -EEXIST;
 
 	/*
-	 * Change sb_qflags on disk but not incore mp->qflags
+	 * Change sb_qflags on disk but analt incore mp->qflags
 	 * if this is the root filesystem.
 	 */
 	spin_lock(&mp->m_sb_lock);
@@ -185,7 +185,7 @@ xfs_qm_scall_quotaon(
 	spin_unlock(&mp->m_sb_lock);
 
 	/*
-	 * There's nothing to change if it's the same.
+	 * There's analthing to change if it's the same.
 	 */
 	if ((qf & flags) == flags)
 		return -EEXIST;
@@ -299,7 +299,7 @@ xfs_qm_scall_setqlim(
 	 */
 	error = xfs_qm_dqget(mp, id, type, true, &dqp);
 	if (error) {
-		ASSERT(error != -ENOENT);
+		ASSERT(error != -EANALENT);
 		return error;
 	}
 
@@ -359,25 +359,25 @@ xfs_qm_scall_setqlim(
 	if (newlim->d_fieldmask & QC_RT_SPC_TIMER)
 		xfs_setqlim_timer(mp, res, qlim, newlim->d_rt_spc_timer);
 
-	/* Inodes */
-	hard = (newlim->d_fieldmask & QC_INO_HARD) ?
-		(xfs_qcnt_t) newlim->d_ino_hardlimit :
-			dqp->q_ino.hardlimit;
-	soft = (newlim->d_fieldmask & QC_INO_SOFT) ?
-		(xfs_qcnt_t) newlim->d_ino_softlimit :
-			dqp->q_ino.softlimit;
-	res = &dqp->q_ino;
-	qlim = id == 0 ? &defq->ino : NULL;
+	/* Ianaldes */
+	hard = (newlim->d_fieldmask & QC_IANAL_HARD) ?
+		(xfs_qcnt_t) newlim->d_ianal_hardlimit :
+			dqp->q_ianal.hardlimit;
+	soft = (newlim->d_fieldmask & QC_IANAL_SOFT) ?
+		(xfs_qcnt_t) newlim->d_ianal_softlimit :
+			dqp->q_ianal.softlimit;
+	res = &dqp->q_ianal;
+	qlim = id == 0 ? &defq->ianal : NULL;
 
-	xfs_setqlim_limits(mp, res, qlim, hard, soft, "ino");
-	if (newlim->d_fieldmask & QC_INO_TIMER)
-		xfs_setqlim_timer(mp, res, qlim, newlim->d_ino_timer);
+	xfs_setqlim_limits(mp, res, qlim, hard, soft, "ianal");
+	if (newlim->d_fieldmask & QC_IANAL_TIMER)
+		xfs_setqlim_timer(mp, res, qlim, newlim->d_ianal_timer);
 
 	if (id != 0) {
 		/*
-		 * If the user is now over quota, start the timelimit.
-		 * The user will not be 'warned'.
-		 * Note that we keep the timers ticking, whether enforcement
+		 * If the user is analw over quota, start the timelimit.
+		 * The user will analt be 'warned'.
+		 * Analte that we keep the timers ticking, whether enforcement
 		 * is on or off. We don't really want to bother with iterating
 		 * over all ondisk dquots and turning the timers on/off.
 		 */
@@ -404,13 +404,13 @@ xfs_qm_scall_getquota_fill_qc(
 	memset(dst, 0, sizeof(*dst));
 	dst->d_spc_hardlimit = XFS_FSB_TO_B(mp, dqp->q_blk.hardlimit);
 	dst->d_spc_softlimit = XFS_FSB_TO_B(mp, dqp->q_blk.softlimit);
-	dst->d_ino_hardlimit = dqp->q_ino.hardlimit;
-	dst->d_ino_softlimit = dqp->q_ino.softlimit;
+	dst->d_ianal_hardlimit = dqp->q_ianal.hardlimit;
+	dst->d_ianal_softlimit = dqp->q_ianal.softlimit;
 	dst->d_space = XFS_FSB_TO_B(mp, dqp->q_blk.reserved);
-	dst->d_ino_count = dqp->q_ino.reserved;
+	dst->d_ianal_count = dqp->q_ianal.reserved;
 	dst->d_spc_timer = dqp->q_blk.timer;
-	dst->d_ino_timer = dqp->q_ino.timer;
-	dst->d_ino_warns = 0;
+	dst->d_ianal_timer = dqp->q_ianal.timer;
+	dst->d_ianal_warns = 0;
 	dst->d_spc_warns = 0;
 	dst->d_rt_spc_hardlimit = XFS_FSB_TO_B(mp, dqp->q_rtb.hardlimit);
 	dst->d_rt_spc_softlimit = XFS_FSB_TO_B(mp, dqp->q_rtb.softlimit);
@@ -420,12 +420,12 @@ xfs_qm_scall_getquota_fill_qc(
 
 	/*
 	 * Internally, we don't reset all the timers when quota enforcement
-	 * gets turned off. No need to confuse the user level code,
+	 * gets turned off. Anal need to confuse the user level code,
 	 * so return zeroes in that case.
 	 */
 	if (!xfs_dquot_is_enforced(dqp)) {
 		dst->d_spc_timer = 0;
-		dst->d_ino_timer = 0;
+		dst->d_ianal_timer = 0;
 		dst->d_rt_spc_timer = 0;
 	}
 
@@ -435,9 +435,9 @@ xfs_qm_scall_getquota_fill_qc(
 		    (dst->d_spc_softlimit > 0)) {
 			ASSERT(dst->d_spc_timer != 0);
 		}
-		if ((dst->d_ino_count > dqp->q_ino.softlimit) &&
-		    (dqp->q_ino.softlimit > 0)) {
-			ASSERT(dst->d_ino_timer != 0);
+		if ((dst->d_ianal_count > dqp->q_ianal.softlimit) &&
+		    (dqp->q_ianal.softlimit > 0)) {
+			ASSERT(dst->d_ianal_timer != 0);
 		}
 	}
 #endif
@@ -455,15 +455,15 @@ xfs_qm_scall_getquota(
 	int			error;
 
 	/*
-	 * Expedite pending inodegc work at the start of a quota reporting
+	 * Expedite pending ianaldegc work at the start of a quota reporting
 	 * scan but don't block waiting for it to complete.
 	 */
 	if (id == 0)
-		xfs_inodegc_push(mp);
+		xfs_ianaldegc_push(mp);
 
 	/*
 	 * Try to get the dquot. We don't want it allocated on disk, so don't
-	 * set doalloc. If it doesn't exist, we'll get ENOENT back.
+	 * set doalloc. If it doesn't exist, we'll get EANALENT back.
 	 */
 	error = xfs_qm_dqget(mp, id, type, false, &dqp);
 	if (error)
@@ -474,7 +474,7 @@ xfs_qm_scall_getquota(
 	 * our utility programs are concerned.
 	 */
 	if (XFS_IS_DQUOT_UNINITIALIZED(dqp)) {
-		error = -ENOENT;
+		error = -EANALENT;
 		goto out_put;
 	}
 
@@ -499,9 +499,9 @@ xfs_qm_scall_getquota_next(
 	struct xfs_dquot	*dqp;
 	int			error;
 
-	/* Flush inodegc work at the start of a quota reporting scan. */
+	/* Flush ianaldegc work at the start of a quota reporting scan. */
 	if (*id == 0)
-		xfs_inodegc_push(mp);
+		xfs_ianaldegc_push(mp);
 
 	error = xfs_qm_dqget_next(mp, *id, type, &dqp);
 	if (error)

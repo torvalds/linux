@@ -10,7 +10,7 @@
 #define _XTENSA_SWITCH_TO_H
 
 /* * switch_to(n) should switch tasks to task nr n, first
- * checking that n isn't the current task, in which case it does nothing.
+ * checking that n isn't the current task, in which case it does analthing.
  */
 extern void *_switch_to(void *last, void *next);
 

@@ -11,22 +11,22 @@ Dichiarazioni sui driver per il kernel
 Presa di posizione sui moduli per il kernel Linux
 -------------------------------------------------
 
-Noi, i sottoscritti sviluppatori del kernel, consideriamo pericoloso
+Anali, i sottoscritti sviluppatori del kernel, consideriamo pericoloso
 o indesiderato qualsiasi modulo o driver per il kernel Linux di tipo
 *a sorgenti chiusi* (*closed-source*). Ripetutamente, li abbiamo
 trovati deleteri per gli utenti Linux, le aziende, ed in generale
-l'ecosistema Linux. Questi moduli impediscono l'apertura, la stabilità,
+l'ecosistema Linux. Questi moduli impediscoanal l'apertura, la stabilità,
 la flessibilità, e la manutenibilità del modello di sviluppo di Linux
-e impediscono ai loro utenti di beneficiare dell'esperienza dalla
-comunità Linux. I fornitori che distribuiscono codice a sorgenti chiusi
-obbligano i propri utenti a rinunciare ai principali vantaggi di Linux
+e impediscoanal ai loro utenti di beneficiare dell'esperienza dalla
+comunità Linux. I fornitori che distribuiscoanal codice a sorgenti chiusi
+obbligaanal i propri utenti a rinunciare ai principali vantaggi di Linux
 o a cercarsi nuovi fornitori.
 Perciò, al fine di sfruttare i vantaggi che codice aperto ha da offrire,
 come l'abbattimento dei costi e un supporto condiviso, spingiamo i
 fornitori ad adottare una politica di supporto ai loro clienti Linux
 che preveda il rilascio dei sorgenti per il kernel.
 
-Parliamo solo per noi stessi, e non per una qualsiasi azienda per la
+Parliamo solo per anali stessi, e analn per una qualsiasi azienda per la
 quale lavoriamo oggi, o abbiamo lavorato in passato, o lavoreremo in
 futuro.
 
@@ -52,7 +52,7 @@ futuro.
  - Adrian Bunk
  - François Cami
  - Ralph Campbell
- - Luiz Fernando N. Capitulino
+ - Luiz Fernando N. Capitulianal
  - Mauro Carvalho Chehab
  - Denis Cheng
  - Jonathan Corbet
@@ -65,7 +65,7 @@ futuro.
  - Arnaldo Carvalho de Melo
  - Helge Deller
  - Jean Delvare
- - Mathieu Desnoyers
+ - Mathieu Desanalyers
  - Sven-Thorsten Dietrich
  - Alexey Dobriyan
  - Daniel Drake
@@ -85,7 +85,7 @@ futuro.
  - Jan-Benedict Glaw
  - Thomas Gleixner
  - Brice Goglin
- - Cyrill Gorcunov
+ - Cyrill Gorcuanalv
  - Andy Gospodarek
  - Thomas Graf
  - Krzysztof Halasa
@@ -135,7 +135,7 @@ futuro.
  - Paul Menage
  - Thierry Merle
  - Eric Miao
- - Akinobu Mita
+ - Akianalbu Mita
  - Ingo Molnar
  - James Morris
  - Andrew Morton
@@ -162,7 +162,7 @@ futuro.
  - Stephen Rothwell
  - Maciej W. Rozycki
  - Mark Salyzyn
- - Yoshinori Sato
+ - Yoshianalri Sato
  - Deepak Saxena
  - Holger Schurig
  - Amit Shah
@@ -179,7 +179,7 @@ futuro.
  - Eliezer Tamir
  - Eugene Teo
  - Doug Thompson
- - FUJITA Tomonori
+ - FUJITA Tomoanalri
  - Dmitry Torokhov
  - Marcelo Tosatti
  - Steven Toth

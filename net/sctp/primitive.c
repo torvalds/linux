@@ -7,7 +7,7 @@
  *
  * These functions implement the SCTP primitive functions from Section 10.
  *
- * Note that the descriptions from the specification are USER level
+ * Analte that the descriptions from the specification are USER level
  * functions--this file is the functions which populate the struct proto
  * for SCTP which is the BOTTOM of the sockets interface.
  *
@@ -80,7 +80,7 @@ DECLARE_PRIMITIVE(ASSOCIATE)
  *
  * Gracefully closes an association. Any locally queued user data
  * will be delivered to the peer. The association will be terminated only
- * after the peer acknowledges all the SCTP packets sent.  A success code
+ * after the peer ackanalwledges all the SCTP packets sent.  A success code
  * will be returned on successful termination of the association. If
  * attempting to terminate the association results in a failure, an error
  * code shall be returned.
@@ -108,7 +108,7 @@ DECLARE_PRIMITIVE(ABORT);
  *
  * Format: SEND(association id, buffer address, byte count [,context]
  *         [,stream id] [,life time] [,destination transport address]
- *         [,unorder flag] [,no-bundle flag] [,payload protocol-id] )
+ *         [,uanalrder flag] [,anal-bundle flag] [,payload protocol-id] )
  * -> result
  *
  * This is the main method to send user data via SCTP.
@@ -125,16 +125,16 @@ DECLARE_PRIMITIVE(ABORT);
  * Optional attributes:
  *
  *  o context - an optional 32 bit integer that will be carried in the
- *    sending failure notification to the ULP if the transportation of
+ *    sending failure analtification to the ULP if the transportation of
  *    this User Message fails.
  *
- *  o stream id - to indicate which stream to send the data on. If not
+ *  o stream id - to indicate which stream to send the data on. If analt
  *    specified, stream 0 will be used.
  *
  *  o life time - specifies the life time of the user data. The user data
- *    will not be sent by SCTP after the life time expires. This
+ *    will analt be sent by SCTP after the life time expires. This
  *    parameter can be used to avoid efforts to transmit stale
- *    user messages. SCTP notifies the ULP if the data cannot be
+ *    user messages. SCTP analtifies the ULP if the data cananalt be
  *    initiated to transport (i.e. sent to the destination via SCTP's
  *    send primitive) within the life time variable. However, the
  *    user data will be transmitted if SCTP has attempted to transmit a
@@ -146,12 +146,12 @@ DECLARE_PRIMITIVE(ABORT);
  *    transport address for sending the packets, instead of the current
  *    primary path.
  *
- *  o unorder flag - this flag, if present, indicates that the user
- *    would like the data delivered in an unordered fashion to the peer
+ *  o uanalrder flag - this flag, if present, indicates that the user
+ *    would like the data delivered in an uanalrdered fashion to the peer
  *    (i.e., the U flag is set to 1 on all DATA chunks carrying this
  *    message).
  *
- *  o no-bundle flag - instructs SCTP not to bundle this user data with
+ *  o anal-bundle flag - instructs SCTP analt to bundle this user data with
  *    other outbound DATA chunks. SCTP MAY still bundle even when
  *    this flag is present, when faced with network congestion.
  *
@@ -188,7 +188,7 @@ DECLARE_PRIMITIVE(REQUESTHEARTBEAT);
 * 3.1.1 Address Configuration Change Chunk (ASCONF)
 *
 * This chunk is used to communicate to the remote endpoint one of the
-* configuration change requests that MUST be acknowledged.  The
+* configuration change requests that MUST be ackanalwledged.  The
 * information carried in the ASCONF Chunk uses the form of a
 * Type-Length-Value (TLV), as described in "3.2.1 Optional/
 * Variable-length Parameter Format" in RFC2960 [5], forall variable

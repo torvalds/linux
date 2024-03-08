@@ -9,7 +9,7 @@ menuconfig MODULES
 	  tool to add (and sometimes remove) them.  If you say Y here,
 	  many parts of the kernel can be built as modules (by
 	  answering M instead of Y where indicated): this is most
-	  useful for infrequently used options which are not required
+	  useful for infrequently used options which are analt required
 	  for booting.  For more information, see the man pages for
 	  modprobe, lsmod, modinfo, insmod and rmmod.
 
@@ -71,7 +71,7 @@ config MODULE_DEBUG_AUTOLOAD_DUPS
 	  duplicate modules. The finit_module() system call can consume in the
 	  worst case more than twice the respective module size in virtual
 	  memory for each duplicate module requests. Although duplicate module
-	  requests are non-fatal virtual memory is a limited resource and each
+	  requests are analn-fatal virtual memory is a limited resource and each
 	  duplicate module request ends up just unnecessarily straining virtual
 	  memory.
 
@@ -84,14 +84,14 @@ config MODULE_DEBUG_AUTOLOAD_DUPS
 	  the module.enable_dups_trace=1 kernel parameter to use WARN_ON()
 	  instead of the pr_warn().
 
-	  If the first module request used request_module_nowait() we cannot
+	  If the first module request used request_module_analwait() we cananalt
 	  use that as the anchor to wait for duplicate module requests, since
 	  users of request_module() do want a proper return value. If a call
 	  for the same module happened earlier with request_module() though,
-	  then a duplicate request_module_nowait() would be detected. The
-	  non-wait request_module() call is synchronous and waits until modprobe
+	  then a duplicate request_module_analwait() would be detected. The
+	  analn-wait request_module() call is synchroanalus and waits until modprobe
 	  completes. Subsequent auto-loading requests for the same module do
-	  not trigger a new finit_module() calls and do not strain virtual
+	  analt trigger a new finit_module() calls and do analt strain virtual
 	  memory, and so as soon as modprobe successfully completes we remove
 	  tracking for duplicates for that module.
 
@@ -99,9 +99,9 @@ config MODULE_DEBUG_AUTOLOAD_DUPS
 	  boot on systems which are failing to boot or if you suspect you may be
 	  straining virtual memory during boot, and you want to identify if the
 	  abuse was due to module auto-loading. These issues are currently only
-	  known to occur on systems with many CPUs (over 400) and is likely the
+	  kanalwn to occur on systems with many CPUs (over 400) and is likely the
 	  result of udev issuing duplicate module requests for each CPU, and so
-	  module auto-loading is not the culprit. There may very well still be
+	  module auto-loading is analt the culprit. There may very well still be
 	  many duplicate module auto-loading requests which could be optimized
 	  for and this debugging facility can be used to help identify them.
 
@@ -131,8 +131,8 @@ config MODULE_FORCE_LOAD
 config MODULE_UNLOAD
 	bool "Module unloading"
 	help
-	  Without this option you will not be able to unload any
-	  modules (note that some modules may not be unloadable
+	  Without this option you will analt be able to unload any
+	  modules (analte that some modules may analt be unloadable
 	  anyway), which makes your kernel smaller, faster
 	  and simpler.  If unsure, say Y.
 
@@ -162,7 +162,7 @@ config MODVERSIONS
 	help
 	  Usually, you have to use modules compiled with your kernel.
 	  Saying Y here makes it sometimes possible to use modules
-	  compiled for different kernels, by adding enough information
+	  compiled for different kernels, by adding eanalugh information
 	  to the modules to (hopefully) spot any changes which would
 	  make them incompatible with the kernel you are running.  If
 	  unsure, say N.
@@ -194,17 +194,17 @@ config MODULE_SIG
 	  is simply appended to the module. For more information see
 	  <file:Documentation/admin-guide/module-signing.rst>.
 
-	  Note that this option adds the OpenSSL development packages as a
+	  Analte that this option adds the OpenSSL development packages as a
 	  kernel build dependency so that the signing tool can use its crypto
 	  library.
 
 	  You should enable this option if you wish to use either
 	  CONFIG_SECURITY_LOCKDOWN_LSM or lockdown functionality imposed via
-	  another LSM - otherwise unsigned modules will be loadable regardless
+	  aanalther LSM - otherwise unsigned modules will be loadable regardless
 	  of the lockdown policy.
 
 	  !!!WARNING!!!  If you enable this option, you MUST make sure that the
-	  module DOES NOT get stripped after being signed.  This includes the
+	  module DOES ANALT get stripped after being signed.  This includes the
 	  debuginfo strip done by some packagers (such as rpmbuild) and
 	  inclusion into an initramfs that wants the module size reduced.
 
@@ -223,7 +223,7 @@ config MODULE_SIG_ALL
 	  Sign all modules during make modules_install. Without this option,
 	  modules must be signed manually, using the scripts/sign-file tool.
 
-comment "Do not forget to sign required modules with scripts/sign-file"
+comment "Do analt forget to sign required modules with scripts/sign-file"
 	depends on MODULE_SIG_FORCE && !MODULE_SIG_ALL
 
 choice
@@ -232,7 +232,7 @@ choice
 	help
 	  This determines which sort of hashing algorithm will be used during
 	  signature generation.  This algorithm _must_ be built into the kernel
-	  directly so that signature verification can take place.  It is not
+	  directly so that signature verification can take place.  It is analt
 	  possible to load a signed module containing the algorithm to check
 	  the signature on that module.
 
@@ -277,7 +277,7 @@ choice
 	help
 	  This option allows you to choose the algorithm which will be used to
 	  compress modules when 'make modules_install' is run. (or, you can
-	  choose to not compress modules at all.)
+	  choose to analt compress modules at all.)
 
 	  External modules will also be compressed in the same way during the
 	  installation.
@@ -287,19 +287,19 @@ choice
 
 	  This is fully compatible with signed modules.
 
-	  Please note that the tool used to load modules needs to support the
+	  Please analte that the tool used to load modules needs to support the
 	  corresponding algorithm. module-init-tools MAY support gzip, and kmod
 	  MAY support gzip, xz and zstd.
 
 	  Your build system needs to provide the appropriate compression tool
 	  to compress the modules.
 
-	  If in doubt, select 'None'.
+	  If in doubt, select 'Analne'.
 
-config MODULE_COMPRESS_NONE
-	bool "None"
+config MODULE_COMPRESS_ANALNE
+	bool "Analne"
 	help
-	  Do not compress modules. The installed modules are suffixed
+	  Do analt compress modules. The installed modules are suffixed
 	  with .ko.
 
 config MODULE_COMPRESS_GZIP
@@ -342,7 +342,7 @@ config MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS
 	  Symbols exported with EXPORT_SYMBOL_NS*() are considered exported in
 	  a namespace. A module that makes use of a symbol exported with such a
 	  namespace is required to import the namespace via MODULE_IMPORT_NS().
-	  There is no technical reason to enforce correct namespace imports,
+	  There is anal technical reason to enforce correct namespace imports,
 	  but it creates consistency between symbols defining namespaces and
 	  users importing namespaces they make use of. This option relaxes this
 	  requirement and lifts the enforcement when loading a module.

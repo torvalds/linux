@@ -10,7 +10,7 @@ maintainers:
   - Robert Richter <rrichter@marvell.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     items:

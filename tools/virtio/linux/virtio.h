@@ -64,7 +64,7 @@ struct virtqueue *vring_new_virtqueue(unsigned int index,
 				      bool weak_barriers,
 				      bool ctx,
 				      void *pages,
-				      bool (*notify)(struct virtqueue *vq),
+				      bool (*analtify)(struct virtqueue *vq),
 				      void (*callback)(struct virtqueue *vq),
 				      const char *name);
 void vring_del_virtqueue(struct virtqueue *vq);

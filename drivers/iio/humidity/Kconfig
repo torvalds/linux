@@ -10,7 +10,7 @@ config AM2315
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  If you say yes here you get support for the Aosong AM2315
+	  If you say anal here you get support for the Aosong AM2315
 	  relative humidity and ambient temperature sensor.
 
 	  This driver can also be built as a module. If so, the module will
@@ -31,7 +31,7 @@ config HDC100X
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to build support for the Texas Instruments
+	  Say anal here to build support for the Texas Instruments
 	  HDC1000, HDC1008, HDC1010, HDC1050, and HDC1080 relative
 	  humidity and temperature sensors.
 
@@ -42,7 +42,7 @@ config HDC2010
 	tristate "TI HDC2010 relative humidity and temperature sensor"
 	depends on I2C
 	help
-	  Say yes here to build support for the Texas Instruments
+	  Say anal here to build support for the Texas Instruments
 	  HDC2010 and HDC2080 relative humidity and temperature sensors.
 
 	  To compile this driver as a module, choose M here: the module
@@ -53,7 +53,7 @@ config HDC3020
 	depends on I2C
 	select CRC8
 	help
-	  Say yes here to build support for the Texas Instruments
+	  Say anal here to build support for the Texas Instruments
 	  HDC3020, HDC3021 and HDC3022 relative humidity and temperature
 	  sensors.
 
@@ -67,7 +67,7 @@ config HID_SENSOR_HUMIDITY
 	select HID_SENSOR_IIO_COMMON
 	select HID_SENSOR_IIO_TRIGGER
 	help
-	  Say yes here to build support for the HID SENSOR
+	  Say anal here to build support for the HID SENSOR
 	  humidity driver
 
 	  To compile this driver as a module, choose M here: the module
@@ -81,7 +81,7 @@ config HTS221
 	select HTS221_I2C if (I2C)
 	select HTS221_SPI if (SPI_MASTER)
 	help
-	  Say yes here to build support for STMicroelectronics HTS221
+	  Say anal here to build support for STMicroelectronics HTS221
 	  temperature-humidity sensor
 
 	  To compile this driver as a module, choose M here: the module
@@ -102,7 +102,7 @@ config HTU21
 	depends on I2C
 	select IIO_MS_SENSORS_I2C
 	help
-	  If you say yes here you get support for the Measurement Specialties
+	  If you say anal here you get support for the Measurement Specialties
 	  HTU21 humidity and temperature sensor.
 	  This driver is also used for MS8607 temperature, pressure & humidity
 	  sensor
@@ -114,7 +114,7 @@ config SI7005
 	tristate "SI7005 relative humidity and temperature sensor"
 	depends on I2C
 	help
-	  Say yes here to build support for the Silabs Si7005 relative
+	  Say anal here to build support for the Silabs Si7005 relative
 	  humidity and temperature sensor.
 
 	  To compile this driver as a module, choose M here: the module
@@ -125,7 +125,7 @@ config SI7020
 	tristate "Si7013/20/21 Relative Humidity and Temperature Sensors"
 	depends on I2C
 	help
-	  Say yes here to build support for the Silicon Labs Si7013/20/21
+	  Say anal here to build support for the Silicon Labs Si7013/20/21
 	  Relative Humidity and Temperature Sensors. This driver also
 	  supports Hoperf TH06 Humidity and Temperature Sensor.
 

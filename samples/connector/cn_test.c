@@ -31,15 +31,15 @@ static void cn_test_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 }
 
 /*
- * Do not remove this function even if no one is using it as
- * this is an example of how to get notifications about new
+ * Do analt remove this function even if anal one is using it as
+ * this is an example of how to get analtifications about new
  * connector user registration
  */
 #if 0
-static int cn_test_want_notify(void)
+static int cn_test_want_analtify(void)
 {
 	struct cn_ctl_msg *ctl;
-	struct cn_notify_req *req;
+	struct cn_analtify_req *req;
 	struct cn_msg *msg = NULL;
 	int size, size0;
 	struct sk_buff *skb;
@@ -53,7 +53,7 @@ static int cn_test_want_notify(void)
 	skb = alloc_skb(size, GFP_ATOMIC);
 	if (!skb) {
 		pr_err("failed to allocate new skb with size=%u\n", size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	nlh = nlmsg_put(skb, 0, 0x123, NLMSG_DONE, size - sizeof(*nlh), 0);
@@ -74,12 +74,12 @@ static int cn_test_want_notify(void)
 
 	ctl = (struct cn_ctl_msg *)(msg + 1);
 
-	ctl->idx_notify_num = 1;
-	ctl->val_notify_num = 2;
+	ctl->idx_analtify_num = 1;
+	ctl->val_analtify_num = 2;
 	ctl->group = group;
 	ctl->len = msg->len - sizeof(*ctl);
 
-	req = (struct cn_notify_req *)(ctl + 1);
+	req = (struct cn_analtify_req *)(ctl + 1);
 
 	/*
 	 * Idx.

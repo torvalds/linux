@@ -17,7 +17,7 @@ Date:		September 2018
 KernelVersion:	4.20
 Description:
 		Specify a hardware pattern for the LED, for LED hardware that
-		supports autonomously controlling brightness over time, according
+		supports autoanalmously controlling brightness over time, according
 		to some preprogrammed hardware patterns. It deactivates any active
 		software pattern.
 
@@ -36,5 +36,5 @@ Description:
 		This file will always return the originally written repeat
 		number.
 
-		It should be noticed that some leds, like EL15203000 may
+		It should be analticed that some leds, like EL15203000 may
 		only support indefinitely patterns, so they always store -1.

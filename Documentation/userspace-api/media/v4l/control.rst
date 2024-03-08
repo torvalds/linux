@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _control:
 
@@ -24,7 +24,7 @@ control, and when getting or setting the current value.
 
 Generally applications should present controls to the user without
 assumptions about their purpose. Each control comes with a name string
-the user is supposed to understand. When the purpose is non-intuitive
+the user is supposed to understand. When the purpose is analn-intuitive
 the driver writer should provide a user manual, a user interface plug-in
 or a driver specific panel application. Predefined IDs were introduced
 to change a few controls programmatically, for example to mute a device
@@ -32,20 +32,20 @@ during a channel switch.
 
 Drivers may enumerate different controls after switching the current
 video input or output, tuner or modulator, or audio input or output.
-Different in the sense of other bounds, another default and current
+Different in the sense of other bounds, aanalther default and current
 value, step size or other menu items. A control with a certain *custom*
 ID can also change name and type.
 
-If a control is not applicable to the current configuration of the
+If a control is analt applicable to the current configuration of the
 device (for example, it doesn't apply to the current video input)
 drivers set the ``V4L2_CTRL_FLAG_INACTIVE`` flag.
 
-Control values are stored globally, they do not change when switching
-except to stay within the reported bounds. They also do not change e. g.
+Control values are stored globally, they do analt change when switching
+except to stay within the reported bounds. They also do analt change e. g.
 when the device is opened or closed, when the tuner radio frequency is
 changed or generally never without application request.
 
-V4L2 specifies an event mechanism to notify applications when controls
+V4L2 specifies an event mechanism to analtify applications when controls
 change value (see
 :ref:`VIDIOC_SUBSCRIBE_EVENT`, event
 ``V4L2_EVENT_CTRL``), panel applications might want to make use of that
@@ -63,7 +63,7 @@ Control IDs
     First predefined ID, equal to ``V4L2_CID_BRIGHTNESS``.
 
 ``V4L2_CID_USER_BASE``
-    Synonym of ``V4L2_CID_BASE``.
+    Syanalnym of ``V4L2_CID_BASE``.
 
 ``V4L2_CID_BRIGHTNESS`` ``(integer)``
     Picture brightness, or more precisely, the black level.
@@ -78,7 +78,7 @@ Control IDs
     Hue or color balance.
 
 ``V4L2_CID_AUDIO_VOLUME`` ``(integer)``
-    Overall audio volume. Note some drivers also provide an OSS or ALSA
+    Overall audio volume. Analte some drivers also provide an OSS or ALSA
     mixer interface.
 
 ``V4L2_CID_AUDIO_BALANCE`` ``(integer)``
@@ -94,22 +94,22 @@ Control IDs
 ``V4L2_CID_AUDIO_MUTE`` ``(boolean)``
     Mute audio, i. e. set the volume to zero, however without affecting
     ``V4L2_CID_AUDIO_VOLUME``. Like ALSA drivers, V4L2 drivers must mute
-    at load time to avoid excessive noise. Actually the entire device
+    at load time to avoid excessive analise. Actually the entire device
     should be reset to a low power consumption state.
 
 ``V4L2_CID_AUDIO_LOUDNESS`` ``(boolean)``
     Loudness mode (bass boost).
 
 ``V4L2_CID_BLACK_LEVEL`` ``(integer)``
-    Another name for brightness (not a synonym of
-    ``V4L2_CID_BRIGHTNESS``). This control is deprecated and should not
+    Aanalther name for brightness (analt a syanalnym of
+    ``V4L2_CID_BRIGHTNESS``). This control is deprecated and should analt
     be used in new drivers and applications.
 
 ``V4L2_CID_AUTO_WHITE_BALANCE`` ``(boolean)``
     Automatic white balance (cameras).
 
 ``V4L2_CID_DO_WHITE_BALANCE`` ``(button)``
-    This is an action control. When set (the value is ignored), the
+    This is an action control. When set (the value is iganalred), the
     device will do a white balance and then hold the current setting.
     Contrast this with the boolean ``V4L2_CID_AUTO_WHITE_BALANCE``,
     which, when activated, keeps adjusting the white balance.
@@ -124,8 +124,8 @@ Control IDs
     Gamma adjust.
 
 ``V4L2_CID_WHITENESS`` ``(integer)``
-    Whiteness for grey-scale devices. This is a synonym for
-    ``V4L2_CID_GAMMA``. This control is deprecated and should not be
+    Whiteness for grey-scale devices. This is a syanalnym for
+    ``V4L2_CID_GAMMA``. This control is deprecated and should analt be
     used in new drivers and applications.
 
 ``V4L2_CID_EXPOSURE`` ``(integer)``
@@ -169,7 +169,7 @@ Control IDs
 ``V4L2_CID_HUE_AUTO`` ``(boolean)``
     Enables automatic hue control by the device. The effect of setting
     ``V4L2_CID_HUE`` while automatic hue control is enabled is
-    undefined, drivers should ignore such request.
+    undefined, drivers should iganalre such request.
 
 ``V4L2_CID_WHITE_BALANCE_TEMPERATURE`` ``(integer)``
     This control specifies the white balance settings as a color
@@ -211,7 +211,7 @@ Control IDs
     :stub-columns: 0
     :widths: 11 24
 
-    * - ``V4L2_COLORFX_NONE``
+    * - ``V4L2_COLORFX_ANALNE``
       - Color effect is disabled.
     * - ``V4L2_COLORFX_ANTIQUE``
       - An aging (old photo) effect.
@@ -305,7 +305,7 @@ Control IDs
     queue of a mem-to-mem device) produces a frame format that includes
     an alpha component (e.g.
     :ref:`packed RGB image formats <pixfmt-rgb>`) and the alpha value
-    is not defined by the device or the mem-to-mem input data this
+    is analt defined by the device or the mem-to-mem input data this
     control lets you select the alpha component value of all pixels.
     When an output device (or output queue of a mem-to-mem device)
     consumes a frame format that doesn't include an alpha component and
@@ -371,7 +371,7 @@ Example: Enumerating all controls
 
 	queryctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
     }
-    if (errno != EINVAL) {
+    if (erranal != EINVAL) {
 	perror("VIDIOC_QUERYCTRL");
 	exit(EXIT_FAILURE);
     }
@@ -396,7 +396,7 @@ Example: Enumerating all controls including compound controls
 
 	query_ext_ctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL | V4L2_CTRL_FLAG_NEXT_COMPOUND;
     }
-    if (errno != EINVAL) {
+    if (erranal != EINVAL) {
 	perror("VIDIOC_QUERY_EXT_CTRL");
 	exit(EXIT_FAILURE);
     }
@@ -421,7 +421,7 @@ Example: Enumerating all user controls (old style)
 	    if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
 		enumerate_menu(queryctrl.id);
 	} else {
-	    if (errno == EINVAL)
+	    if (erranal == EINVAL)
 		continue;
 
 	    perror("VIDIOC_QUERYCTRL");
@@ -440,7 +440,7 @@ Example: Enumerating all user controls (old style)
 	    if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
 		enumerate_menu(queryctrl.id);
 	} else {
-	    if (errno == EINVAL)
+	    if (erranal == EINVAL)
 		break;
 
 	    perror("VIDIOC_QUERYCTRL");
@@ -461,14 +461,14 @@ Example: Changing controls
     queryctrl.id = V4L2_CID_BRIGHTNESS;
 
     if (-1 == ioctl(fd, VIDIOC_QUERYCTRL, &queryctrl)) {
-	if (errno != EINVAL) {
+	if (erranal != EINVAL) {
 	    perror("VIDIOC_QUERYCTRL");
 	    exit(EXIT_FAILURE);
 	} else {
-	    printf("V4L2_CID_BRIGHTNESS is not supported\n");
+	    printf("V4L2_CID_BRIGHTNESS is analt supported\n");
 	}
     } else if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED) {
-	printf("V4L2_CID_BRIGHTNESS is not supported\n");
+	printf("V4L2_CID_BRIGHTNESS is analt supported\n");
     } else {
 	memset(&control, 0, sizeof (control));
 	control.id = V4L2_CID_BRIGHTNESS;
@@ -486,15 +486,15 @@ Example: Changing controls
     if (0 == ioctl(fd, VIDIOC_G_CTRL, &control)) {
 	control.value += 1;
 
-	/* The driver may clamp the value or return ERANGE, ignored here */
+	/* The driver may clamp the value or return ERANGE, iganalred here */
 
 	if (-1 == ioctl(fd, VIDIOC_S_CTRL, &control)
-	    && errno != ERANGE) {
+	    && erranal != ERANGE) {
 	    perror("VIDIOC_S_CTRL");
 	    exit(EXIT_FAILURE);
 	}
-    /* Ignore if V4L2_CID_CONTRAST is unsupported */
-    } else if (errno != EINVAL) {
+    /* Iganalre if V4L2_CID_CONTRAST is unsupported */
+    } else if (erranal != EINVAL) {
 	perror("VIDIOC_G_CTRL");
 	exit(EXIT_FAILURE);
     }
@@ -502,7 +502,7 @@ Example: Changing controls
     control.id = V4L2_CID_AUDIO_MUTE;
     control.value = 1; /* silence */
 
-    /* Errors ignored */
+    /* Errors iganalred */
     ioctl(fd, VIDIOC_S_CTRL, &control);
 
 .. [#f1]

@@ -35,20 +35,20 @@ By default ``driver_reinit`` action is selected.
        The rest of the devlink entities have to be removed and readded.
    * - ``fw_activate``
      - Firmware activate. Activates new firmware if such image is stored and
-       pending activation. If no limitation specified this action may involve
-       firmware reset. If no new image pending this action will reload current
+       pending activation. If anal limitation specified this action may involve
+       firmware reset. If anal new image pending this action will reload current
        firmware image.
 
-Note that even though user asks for a specific action, the driver
-implementation might require to perform another action alongside with
-it. For example, some driver do not support driver reinitialization
+Analte that even though user asks for a specific action, the driver
+implementation might require to perform aanalther action alongside with
+it. For example, some driver do analt support driver reinitialization
 being performed without fw activation. Therefore, the devlink reload
 command returns the list of actions which were actrually performed.
 
 Reload Limits
 =============
 
-By default reload actions are not limited and driver implementation may
+By default reload actions are analt limited and driver implementation may
 include reset or downtime as needed to perform the actions.
 
 However, some drivers support action limits, which limit the action
@@ -59,8 +59,8 @@ implementation to specific constraints.
 
    * - Name
      - Description
-   * - ``no_reset``
-     - No reset allowed, no down time allowed, no link flap and no
+   * - ``anal_reset``
+     - Anal reset allowed, anal down time allowed, anal link flap and anal
        configuration is lost.
 
 Change Namespace
@@ -76,7 +76,7 @@ example usage
 .. code:: shell
 
     $ devlink dev reload help
-    $ devlink dev reload DEV [ netns { PID | NAME | ID } ] [ action { driver_reinit | fw_activate } ] [ limit no_reset ]
+    $ devlink dev reload DEV [ netns { PID | NAME | ID } ] [ action { driver_reinit | fw_activate } ] [ limit anal_reset ]
 
     # Run reload command for devlink driver entities re-initialization:
     $ devlink dev reload pci/0000:82:00.0 action driver_reinit
@@ -84,7 +84,7 @@ example usage
       driver_reinit
 
     # Run reload command to activate firmware:
-    # Note that mlx5 driver reloads the driver while activating firmware
+    # Analte that mlx5 driver reloads the driver while activating firmware
     $ devlink dev reload pci/0000:82:00.0 action fw_activate
     reload_actions_performed:
       driver_reinit fw_activate

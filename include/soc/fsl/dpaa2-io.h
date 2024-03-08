@@ -25,7 +25,7 @@ struct device;
  * by enqueueing and dequeing frame descriptors.
  *
  * The following set of APIs can be used to enqueue and dequeue frames
- * as well as producing notification callbacks when data is available
+ * as well as producing analtification callbacks when data is available
  * for dequeue.
  */
 
@@ -33,10 +33,10 @@ struct device;
 
 /**
  * struct dpaa2_io_desc - The DPIO descriptor
- * @receives_notifications: Use notificaton mode. Non-zero if the DPIO
+ * @receives_analtifications: Use analtificaton mode. Analn-zero if the DPIO
  *                  has a channel.
- * @has_8prio:      Set to non-zero for channel with 8 priority WQs.  Ignored
- *                  unless receives_notification is TRUE.
+ * @has_8prio:      Set to analn-zero for channel with 8 priority WQs.  Iganalred
+ *                  unless receives_analtification is TRUE.
  * @cpu:            The cpu index that at least interrupt handlers will
  *                  execute on.
  * @stash_affinity: The stash affinity for this portal favour 'cpu'
@@ -49,7 +49,7 @@ struct device;
  * Describes the attributes and features of the DPIO object.
  */
 struct dpaa2_io_desc {
-	int receives_notifications;
+	int receives_analtifications;
 	int has_8prio;
 	int cpu;
 	void *regs_cena;
@@ -69,40 +69,40 @@ irqreturn_t dpaa2_io_irq(struct dpaa2_io *obj);
 struct dpaa2_io *dpaa2_io_service_select(int cpu);
 
 /**
- * struct dpaa2_io_notification_ctx - The DPIO notification context structure
- * @cb:           The callback to be invoked when the notification arrives
- * @is_cdan:      Zero for FQDAN, non-zero for CDAN
+ * struct dpaa2_io_analtification_ctx - The DPIO analtification context structure
+ * @cb:           The callback to be invoked when the analtification arrives
+ * @is_cdan:      Zero for FQDAN, analn-zero for CDAN
  * @id:           FQID or channel ID, needed for rearm
- * @desired_cpu:  The cpu on which the notifications will show up. Use
+ * @desired_cpu:  The cpu on which the analtifications will show up. Use
  *                DPAA2_IO_ANY_CPU if don't care
  * @dpio_id:      The dpio index
  * @qman64:       The 64-bit context value shows up in the FQDAN/CDAN.
- * @node:         The list node
+ * @analde:         The list analde
  * @dpio_private: The dpio object internal to dpio_service
  *
  * Used when a FQDAN/CDAN registration is made by drivers.
  */
-struct dpaa2_io_notification_ctx {
-	void (*cb)(struct dpaa2_io_notification_ctx *ctx);
+struct dpaa2_io_analtification_ctx {
+	void (*cb)(struct dpaa2_io_analtification_ctx *ctx);
 	int is_cdan;
 	u32 id;
 	int desired_cpu;
 	int dpio_id;
 	u64 qman64;
-	struct list_head node;
+	struct list_head analde;
 	void *dpio_private;
 };
 
 int dpaa2_io_get_cpu(struct dpaa2_io *d);
 
 int dpaa2_io_service_register(struct dpaa2_io *service,
-			      struct dpaa2_io_notification_ctx *ctx,
+			      struct dpaa2_io_analtification_ctx *ctx,
 			      struct device *dev);
 void dpaa2_io_service_deregister(struct dpaa2_io *service,
-				 struct dpaa2_io_notification_ctx *ctx,
+				 struct dpaa2_io_analtification_ctx *ctx,
 				 struct device *dev);
 int dpaa2_io_service_rearm(struct dpaa2_io *service,
-			   struct dpaa2_io_notification_ctx *ctx);
+			   struct dpaa2_io_analtification_ctx *ctx);
 
 int dpaa2_io_service_pull_fq(struct dpaa2_io *d, u32 fqid,
 			     struct dpaa2_io_store *s);

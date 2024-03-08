@@ -32,8 +32,8 @@ properties:
   clock-names:
     const: per
 
-  nxp,no-divider:
-    description: if present, means there is no internal base clk divider.
+  nxp,anal-divider:
+    description: if present, means there is anal internal base clk divider.
     type: boolean
 
 required:

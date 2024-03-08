@@ -5,7 +5,7 @@
 #include "test_uprobe_autoattach.skel.h"
 
 /* uprobe attach point */
-static noinline int autoattach_trigger_func(int arg1, int arg2, int arg3,
+static analinline int autoattach_trigger_func(int arg1, int arg2, int arg3,
 					    int arg4, int arg5, int arg6,
 					    int arg7, int arg8)
 {

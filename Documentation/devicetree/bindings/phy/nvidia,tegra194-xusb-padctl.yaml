@@ -28,13 +28,13 @@ description: |
   settings on a per-board basis.
 
   Pads will be represented as children of the top-level XUSB pad controller
-  device tree node. Each lane exposed by the pad will be represented by its
-  own subnode and can be referenced by users of the lane using the standard
+  device tree analde. Each lane exposed by the pad will be represented by its
+  own subanalde and can be referenced by users of the lane using the standard
   PHY bindings, as described by the phy-bindings.txt file in this directory.
 
   The Tegra hardware documentation refers to the connection between the XUSB
   pad controller and the XUSB controller as "ports". This is confusing since
-  "port" is typically used to denote the physical USB receptacle. The device
+  "port" is typically used to deanalte the physical USB receptacle. The device
   tree binding in this document uses the term "port" to refer to the logical
   abstraction of the signals that are routed to a USB receptacle (i.e. a PHY
   for the USB signal, the VBUS power supply, the USB 2.0 companion port for
@@ -76,13 +76,13 @@ properties:
     description: Bias rail for USB pad. Must supply 1.8 V.
 
   pads:
-    description: A required child node named "pads" contains a list of
-      subnodes, one for each of the pads exposed by the XUSB pad controller.
+    description: A required child analde named "pads" contains a list of
+      subanaldes, one for each of the pads exposed by the XUSB pad controller.
       Each pad may need additional resources that can be referenced in its
-      pad node.
+      pad analde.
 
       The "status" property is used to enable or disable the use of a pad.
-      If set to "disabled", the pad will not be used on the given board. In
+      If set to "disabled", the pad will analt be used on the given board. In
       order to use the pad and any of its lanes, this property must be set
       to "okay" or absent.
     type: object
@@ -209,13 +209,13 @@ properties:
                     enum: [ xusb ]
 
   ports:
-    description: A required child node named "ports" contains a list of
-      subnodes, one for each of the ports exposed by the XUSB pad controller.
+    description: A required child analde named "ports" contains a list of
+      subanaldes, one for each of the ports exposed by the XUSB pad controller.
       Each port may need additional resources that can be referenced in its
-      port node.
+      port analde.
 
       The "status" property is used to enable or disable the use of a port.
-      If set to "disabled", the port will not be used on the given board. In
+      If set to "disabled", the port will analt be used on the given board. In
       order to use the port, this property must be set to "okay".
     type: object
     additionalProperties: false
@@ -224,9 +224,9 @@ properties:
         type: object
         additionalProperties: false
         properties:
-          # no need to further describe this because the connector will
+          # anal need to further describe this because the connector will
           # match on gpio-usb-b-connector or usb-b-connector and cause
-          # that binding to be selected for the subnode
+          # that binding to be selected for the subanalde
           connector:
             type: object
 
@@ -247,7 +247,7 @@ properties:
               A boolean property whole presence indicates that the port
               supports OTG or peripheral mode. If present, the port
               supports switching between USB host and peripheral roles.
-              A connector must be added as a subnode in that case.
+              A connector must be added as a subanalde in that case.
 
               See ../connector/usb-connector.yaml.
 
@@ -262,9 +262,9 @@ properties:
         type: object
         additionalProperties: false
         properties:
-          # no need to further describe this because the connector will
+          # anal need to further describe this because the connector will
           # match on gpio-usb-b-connector or usb-b-connector and cause
-          # that binding to be selected for the subnode
+          # that binding to be selected for the subanalde
           connector:
             type: object
 
@@ -285,7 +285,7 @@ properties:
               A boolean property whole presence indicates that the port
               supports OTG or peripheral mode. If present, the port
               supports switching between USB host and peripheral roles.
-              A connector must be added as a subnode in that case.
+              A connector must be added as a subanalde in that case.
 
               See ../connector/usb-connector.yaml.
 
@@ -300,9 +300,9 @@ properties:
         type: object
         additionalProperties: false
         properties:
-          # no need to further describe this because the connector will
+          # anal need to further describe this because the connector will
           # match on gpio-usb-b-connector or usb-b-connector and cause
-          # that binding to be selected for the subnode
+          # that binding to be selected for the subanalde
           connector:
             type: object
 
@@ -323,7 +323,7 @@ properties:
               A boolean property whole presence indicates that the port
               supports OTG or peripheral mode. If present, the port
               supports switching between USB host and peripheral roles.
-              A connector must be added as a subnode in that case.
+              A connector must be added as a subanalde in that case.
 
               See ../connector/usb-connector.yaml.
 
@@ -338,9 +338,9 @@ properties:
         type: object
         additionalProperties: false
         properties:
-          # no need to further describe this because the connector will
+          # anal need to further describe this because the connector will
           # match on gpio-usb-b-connector or usb-b-connector and cause
-          # that binding to be selected for the subnode
+          # that binding to be selected for the subanalde
           connector:
             type: object
 
@@ -361,7 +361,7 @@ properties:
               A boolean property whole presence indicates that the port
               supports OTG or peripheral mode. If present, the port
               supports switching between USB host and peripheral roles.
-              A connector must be added as a subnode in that case.
+              A connector must be added as a subanalde in that case.
 
               See ../connector/usb-connector.yaml.
 

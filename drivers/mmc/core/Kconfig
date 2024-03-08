@@ -45,16 +45,16 @@ config MMC_BLOCK
 	  mount the filesystem. Almost everyone wishing MMC support
 	  should say Y or M here.
 
-config MMC_BLOCK_MINORS
-	int "Number of minors per block device"
+config MMC_BLOCK_MIANALRS
+	int "Number of mianalrs per block device"
 	depends on MMC_BLOCK
 	range 4 256
 	default 8
 	help
-	  Number of minors per block device. One is needed for every
+	  Number of mianalrs per block device. One is needed for every
 	  partition on the disk (plus one for the whole disk).
 
-	  Number of total MMC minors available is 256, so your number
+	  Number of total MMC mianalrs available is 256, so your number
 	  of supported block devices will be limited to 256 divided
 	  by this number.
 
@@ -74,9 +74,9 @@ config MMC_TEST
 	tristate "MMC host test driver"
 	help
 	  Development driver that performs a series of reads and writes
-	  to a memory card in order to expose certain well known bugs
+	  to a memory card in order to expose certain well kanalwn bugs
 	  in host controllers. The tests are executed by writing to the
-	  "test" file in debugfs under each card. Note that whatever is
+	  "test" file in debugfs under each card. Analte that whatever is
 	  on your card will be overwritten by these tests.
 
 	  This driver is only of interest to those developing or

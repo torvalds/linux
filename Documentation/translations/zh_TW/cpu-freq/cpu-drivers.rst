@@ -122,7 +122,7 @@ CPUfreq核心層註冊一個cpufreq_driver結構體。
 |policy->min,                       | 必須包含該CPU的"默認策略"。稍後      |
 |policy->max,                       | 會用這些值調用                       |
 |policy->policy and, if necessary,  | cpufreq_driver.verify和下面函數      |
-|policy->governor                   | 之一：cpufreq_driver.setpolicy或     |
+|policy->goveranalr                   | 之一：cpufreq_driver.setpolicy或     |
 |                                   | cpufreq_driver.target/target_index   |
 |                                   |                                      |
 +-----------------------------------+--------------------------------------+
@@ -140,7 +140,7 @@ CPUfreq核心層註冊一個cpufreq_driver結構體。
 1.3 驗證
 --------
 
-當用戶決定設置一個新的策略(由"policy,governor,min,max組成")時，必須對這個策略進行驗證，
+當用戶決定設置一個新的策略(由"policy,goveranalr,min,max組成")時，必須對這個策略進行驗證，
 以便糾正不兼容的值。爲了驗證這些值，cpufreq_verify_within_limits(``struct cpufreq_policy
 *policy``, ``unsigned int min_freq``, ``unsigned int max_freq``)函數可能會有幫助。
 關於頻率表輔助函數的詳細內容請參見第2節。
@@ -205,7 +205,7 @@ CPUFREQ_POLICY_PERFORMANCE時選擇面向性能的設置，爲CPUFREQ_POLICY_POW
 1.8 get_intermediate 和 target_intermediate
 --------------------------------------------
 
-僅適用於未設置 target_index() 和 CPUFREQ_ASYNC_NOTIFICATION 的驅動。
+僅適用於未設置 target_index() 和 CPUFREQ_ASYNC_ANALTIFICATION 的驅動。
 
 get_intermediate應該返回一個平臺想要切換到的穩定的中間頻率，target_intermediate()應該將CPU設置爲
 該頻率，然後再跳轉到'index'對應的頻率。cpufreq核心會負責發送通知，驅動不必在

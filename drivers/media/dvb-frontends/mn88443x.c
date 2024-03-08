@@ -50,7 +50,7 @@
 #define   OUTCSET_CHDRV_8MA                           0xff
 #define   OUTCSET_CHDRV_4MA                           0x00
 #define PLDWSET                                     0x09
-#define   PLDWSET_NORMAL                             0x00
+#define   PLDWSET_ANALRMAL                             0x00
 #define   PLDWSET_PULLDOWN                           0xff
 #define HIZSET1                                     0x0a
 #define HIZSET2                                     0x0b
@@ -68,21 +68,21 @@
 #define   TSSET1_TSASEL_MASK                          GENMASK(4, 3)
 #define   TSSET1_TSASEL_ISDBT                         (0x0 << 3)
 #define   TSSET1_TSASEL_ISDBS                         (0x1 << 3)
-#define   TSSET1_TSASEL_NONE                          (0x2 << 3)
+#define   TSSET1_TSASEL_ANALNE                          (0x2 << 3)
 #define   TSSET1_TSBSEL_MASK                          GENMASK(2, 1)
 #define   TSSET1_TSBSEL_ISDBS                         (0x0 << 1)
 #define   TSSET1_TSBSEL_ISDBT                         (0x1 << 1)
-#define   TSSET1_TSBSEL_NONE                          (0x2 << 1)
+#define   TSSET1_TSBSEL_ANALNE                          (0x2 << 1)
 #define TSSET2                                      0x06
 #define TSSET3                                      0x07
 #define   TSSET3_INTASEL_MASK                         GENMASK(7, 6)
 #define   TSSET3_INTASEL_T                            (0x0 << 6)
 #define   TSSET3_INTASEL_S                            (0x1 << 6)
-#define   TSSET3_INTASEL_NONE                         (0x2 << 6)
+#define   TSSET3_INTASEL_ANALNE                         (0x2 << 6)
 #define   TSSET3_INTBSEL_MASK                         GENMASK(5, 4)
 #define   TSSET3_INTBSEL_S                            (0x0 << 4)
 #define   TSSET3_INTBSEL_T                            (0x1 << 4)
-#define   TSSET3_INTBSEL_NONE                         (0x2 << 4)
+#define   TSSET3_INTBSEL_ANALNE                         (0x2 << 4)
 #define OUTSET2                                     0x0d
 #define PWDSET                                      0x0f
 #define   PWDSET_OFDMPD_MASK                          GENMASK(3, 2)
@@ -223,7 +223,7 @@ static int mn88443x_cmn_power_on(struct mn88443x_priv *chip)
 
 	if (chip->spec->primary) {
 		regmap_write(r_t, OUTCSET, OUTCSET_CHDRV_8MA);
-		regmap_write(r_t, PLDWSET, PLDWSET_NORMAL);
+		regmap_write(r_t, PLDWSET, PLDWSET_ANALRMAL);
 		regmap_write(r_t, HIZSET1, 0x80);
 		regmap_write(r_t, HIZSET2, 0xe0);
 	} else {
@@ -283,7 +283,7 @@ static int mn88443x_s_read_status(struct mn88443x_priv *chip,
 		*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER;
 
 	/* Signal strength */
-	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	if (*status & FE_HAS_SIGNAL) {
 		u32 agc;
@@ -297,7 +297,7 @@ static int mn88443x_s_read_status(struct mn88443x_priv *chip,
 	}
 
 	/* C/N rate */
-	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	if (*status & FE_HAS_VITERBI) {
 		u32 cnr = 0, x, y, d;
@@ -337,8 +337,8 @@ static int mn88443x_s_read_status(struct mn88443x_priv *chip,
 	}
 
 	/* BER */
-	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+	c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	regmap_read(r_s, BERCNFLG_S, &flg);
 
@@ -403,7 +403,7 @@ static int mn88443x_t_set_freq(struct mn88443x_priv *chip)
 	s64 adckt, nco, ad_t;
 	u32 m, v;
 
-	/* Clock buffer (but not supported) or XTAL */
+	/* Clock buffer (but analt supported) or XTAL */
 	if (chip->clk_freq >= CLK_LOW && chip->clk_freq < CLK_DIRECT) {
 		chip->use_clkbuf = true;
 		regmap_write(r_t, CLKSET1_T, 0x07);
@@ -486,7 +486,7 @@ static int mn88443x_t_read_status(struct mn88443x_priv *chip,
 		*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER;
 
 	/* Signal strength */
-	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	if (*status & FE_HAS_SIGNAL) {
 		u32 agc;
@@ -501,7 +501,7 @@ static int mn88443x_t_read_status(struct mn88443x_priv *chip,
 	}
 
 	/* C/N rate */
-	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	if (*status & FE_HAS_VITERBI) {
 		u32 cnr;
@@ -525,8 +525,8 @@ static int mn88443x_t_read_status(struct mn88443x_priv *chip,
 	}
 
 	/* BER */
-	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+	c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	regmap_read(r_t, BERFLG_T, &flg);
 
@@ -591,11 +591,11 @@ static int mn88443x_set_frontend(struct dvb_frontend *fe)
 
 	regmap_update_bits(r_t, TSSET1,
 			   TSSET1_TSASEL_MASK | TSSET1_TSBSEL_MASK,
-			   tssel | TSSET1_TSBSEL_NONE);
+			   tssel | TSSET1_TSBSEL_ANALNE);
 	regmap_write(r_t, TSSET2, 0);
 	regmap_update_bits(r_t, TSSET3,
 			   TSSET3_INTASEL_MASK | TSSET3_INTBSEL_MASK,
-			   intsel | TSSET3_INTBSEL_NONE);
+			   intsel | TSSET3_INTBSEL_ANALNE);
 
 	regmap_write(r_t, DOSET1_T, 0x95);
 	regmap_write(r_s, DOSET1_S, 0x80);
@@ -670,7 +670,7 @@ static const struct dvb_frontend_ops mn88443x_ops = {
 static const struct regmap_config regmap_config = {
 	.reg_bits   = 8,
 	.val_bits   = 8,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static int mn88443x_probe(struct i2c_client *client)
@@ -683,9 +683,9 @@ static int mn88443x_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (dev->of_node)
+	if (dev->of_analde)
 		chip->spec = of_device_get_match_data(dev);
 	else
 		chip->spec = (struct mn88443x_spec *)id->driver_data;
@@ -699,7 +699,7 @@ static int mn88443x_probe(struct i2c_client *client)
 		return PTR_ERR(chip->mclk);
 	}
 
-	ret = of_property_read_u32(dev->of_node, "if-frequency",
+	ret = of_property_read_u32(dev->of_analde, "if-frequency",
 				   &chip->if_freq);
 	if (ret && !conf) {
 		dev_err(dev, "Failed to load IF frequency: %d.\n", ret);

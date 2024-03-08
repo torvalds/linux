@@ -11,7 +11,7 @@
 /*
  * Default IO priority.
  */
-#define IOPRIO_DEFAULT	IOPRIO_PRIO_VALUE(IOPRIO_CLASS_NONE, 0)
+#define IOPRIO_DEFAULT	IOPRIO_PRIO_VALUE(IOPRIO_CLASS_ANALNE, 0)
 
 /*
  * Check that a priority value has a valid class.
@@ -20,11 +20,11 @@ static inline bool ioprio_valid(unsigned short ioprio)
 {
 	unsigned short class = IOPRIO_PRIO_CLASS(ioprio);
 
-	return class > IOPRIO_CLASS_NONE && class <= IOPRIO_CLASS_IDLE;
+	return class > IOPRIO_CLASS_ANALNE && class <= IOPRIO_CLASS_IDLE;
 }
 
 /*
- * if process has set io priority explicitly, use that. if not, convert
+ * if process has set io priority explicitly, use that. if analt, convert
  * the cpu scheduler nice value to an io priority
  */
 static inline int task_nice_ioprio(struct task_struct *task)
@@ -66,7 +66,7 @@ static inline int __get_task_ioprio(struct task_struct *p)
 		lockdep_assert_held(&p->alloc_lock);
 
 	prio = ioc->ioprio;
-	if (IOPRIO_PRIO_CLASS(prio) == IOPRIO_CLASS_NONE)
+	if (IOPRIO_PRIO_CLASS(prio) == IOPRIO_CLASS_ANALNE)
 		prio = IOPRIO_PRIO_VALUE(task_nice_ioclass(p),
 					 task_nice_ioprio(p));
 	return prio;
@@ -90,7 +90,7 @@ extern int ioprio_check_cap(int ioprio);
 #else
 static inline int ioprio_check_cap(int ioprio)
 {
-	return -ENOTBLK;
+	return -EANALTBLK;
 }
 #endif /* CONFIG_BLOCK */
 

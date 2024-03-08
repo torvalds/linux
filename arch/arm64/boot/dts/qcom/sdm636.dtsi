@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2020, AngeloGioacchino Del Regno <kholk11@gmail.com>
+ * Copyright (c) 2020, AngeloGioacchianal Del Reganal <kholk11@gmail.com>
  * Copyright (c) 2020, Konrad Dybcio <konradybcio@gmail.com>
  * Copyright (c) 2020, Martin Botka <martin.botka1@gmail.com>
  */
@@ -10,14 +10,14 @@
 /*
  * According to the downstream DTS,
  * 636 is basically a 660 except for
- * different CPU frequencies, Adreno
+ * different CPU frequencies, Adreanal
  * 509 instead of 512 and lack of
  * turing IP. These differences will
  * be addressed when the aforementioned
  * peripherals will be enabled upstream.
  */
 
-&adreno_gpu {
-	compatible = "qcom,adreno-509.0", "qcom,adreno";
-	/* Adreno 509 shares the frequency table with 512 */
+&adreanal_gpu {
+	compatible = "qcom,adreanal-509.0", "qcom,adreanal";
+	/* Adreanal 509 shares the frequency table with 512 */
 };

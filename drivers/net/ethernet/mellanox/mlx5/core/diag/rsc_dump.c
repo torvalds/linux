@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #include "rsc_dump.h"
 #include "lib/mlx5.h"
@@ -104,7 +104,7 @@ static int mlx5_rsc_dump_trigger(struct mlx5_core_dev *dev, struct mlx5_rsc_dump
 
 	dma = dma_map_page(ddev, page, 0, cmd->mem_size, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(ddev, dma)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	in_seq_num = MLX5_GET(resource_dump, cmd->cmd, seq_num);
 	MLX5_SET(resource_dump, cmd->cmd, mkey, rsc_dump->mkey);
@@ -131,16 +131,16 @@ struct mlx5_rsc_dump_cmd *mlx5_rsc_dump_cmd_create(struct mlx5_core_dev *dev,
 	int sgmt_type;
 
 	if (IS_ERR_OR_NULL(dev->rsc_dump))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	sgmt_type = dev->rsc_dump->fw_segment_type[key->rsc];
 	if (!sgmt_type && key->rsc != MLX5_SGMT_TYPE_MENU)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
 		mlx5_core_err(dev, "Resource dump: Failed to allocate command\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	MLX5_SET(resource_dump, cmd->cmd, segment_type, sgmt_type);
 	MLX5_SET(resource_dump, cmd->cmd, index1, key->index1);
@@ -166,7 +166,7 @@ int mlx5_rsc_dump_next(struct mlx5_core_dev *dev, struct mlx5_rsc_dump_cmd *cmd,
 	int err;
 
 	if (IS_ERR_OR_NULL(dev->rsc_dump))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = mlx5_rsc_dump_trigger(dev, cmd, page);
 	if (err) {
@@ -192,7 +192,7 @@ static int mlx5_rsc_dump_menu(struct mlx5_core_dev *dev)
 
 	page = alloc_page(GFP_KERNEL);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	key.rsc = MLX5_SGMT_TYPE_MENU;
 	key.size = PAGE_SIZE;
@@ -230,7 +230,7 @@ static int mlx5_rsc_dump_create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
 
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
 	MLX5_SET(mkc, mkc, access_mode_1_0, MLX5_MKC_ACCESS_MODE_PA);
@@ -252,12 +252,12 @@ struct mlx5_rsc_dump *mlx5_rsc_dump_create(struct mlx5_core_dev *dev)
 	struct mlx5_rsc_dump *rsc_dump;
 
 	if (!MLX5_CAP_DEBUG(dev, resource_dump)) {
-		mlx5_core_dbg(dev, "Resource dump: capability not present\n");
+		mlx5_core_dbg(dev, "Resource dump: capability analt present\n");
 		return NULL;
 	}
 	rsc_dump = kzalloc(sizeof(*rsc_dump), GFP_KERNEL);
 	if (!rsc_dump)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return rsc_dump;
 }

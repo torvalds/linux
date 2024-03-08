@@ -52,7 +52,7 @@
 				goto decode;
 		}
 
-		/* syndrome is zero, no errors to correct  */
+		/* syndrome is zero, anal errors to correct  */
 		return 0;
 	}
 
@@ -88,7 +88,7 @@
 	}
 	s = syn;
 
-	/* Convert syndromes to index form, checking for nonzero condition */
+	/* Convert syndromes to index form, checking for analnzero condition */
 	syn_error = 0;
 	for (i = 0; i < nroots; i++) {
 		syn_error |= s[i];
@@ -96,7 +96,7 @@
 	}
 
 	if (!syn_error) {
-		/* if syndrome is zero, data[] is a codeword and there are no
+		/* if syndrome is zero, data[] is a codeword and there are anal
 		 * errors to correct. So return data[] unmodified
 		 */
 		return 0;
@@ -106,11 +106,11 @@
 	memset(&lambda[1], 0, nroots * sizeof(lambda[0]));
 	lambda[0] = 1;
 
-	if (no_eras > 0) {
-		/* Init lambda to be the erasure locator polynomial */
+	if (anal_eras > 0) {
+		/* Init lambda to be the erasure locator polyanalmial */
 		lambda[1] = alpha_to[rs_modnn(rs,
 					prim * (nn - 1 - (eras_pos[0] + pad)))];
-		for (i = 1; i < no_eras; i++) {
+		for (i = 1; i < anal_eras; i++) {
 			u = rs_modnn(rs, prim * (nn - 1 - (eras_pos[i] + pad)));
 			for (j = i + 1; j > 0; j--) {
 				tmp = index_of[lambda[j - 1]];
@@ -127,10 +127,10 @@
 
 	/*
 	 * Begin Berlekamp-Massey algorithm to determine error+erasure
-	 * locator polynomial
+	 * locator polyanalmial
 	 */
-	r = no_eras;
-	el = no_eras;
+	r = anal_eras;
+	el = anal_eras;
 	while (++r <= nroots) {	/* r is the step number */
 		/* Compute discrepancy at the r-th step in poly-form */
 		discr_r = 0;
@@ -158,8 +158,8 @@
 				} else
 					t[i + 1] = lambda[i + 1];
 			}
-			if (2 * el <= r + no_eras - 1) {
-				el = r + no_eras - el;
+			if (2 * el <= r + anal_eras - 1) {
+				el = r + anal_eras - el;
 				/*
 				 * 2 lines below: B(x) <-- inv(discr_r) *
 				 * lambda(x)
@@ -188,13 +188,13 @@
 
 	if (deg_lambda == 0) {
 		/*
-		 * deg(lambda) is zero even though the syndrome is non-zero
+		 * deg(lambda) is zero even though the syndrome is analn-zero
 		 * => uncorrectable error detected
 		 */
 		return -EBADMSG;
 	}
 
-	/* Find roots of error+erasure locator polynomial by Chien search */
+	/* Find roots of error+erasure locator polyanalmial by Chien search */
 	memcpy(&reg[1], &lambda[1], nroots * sizeof(reg[0]));
 	count = 0;		/* Number of roots of lambda(x) */
 	for (i = 1, k = iprim - 1; i <= nn; i++, k = rs_modnn(rs, k + iprim)) {
@@ -206,7 +206,7 @@
 			}
 		}
 		if (q != 0)
-			continue;	/* Not a root */
+			continue;	/* Analt a root */
 
 		if (k < pad) {
 			/* Impossible error location. Uncorrectable error. */
@@ -247,7 +247,7 @@
 	/*
 	 * Compute error values in poly-form. num1 = omega(inv(X(l))), num2 =
 	 * inv(X(l))**(fcr-1) and den = lambda_pr(inv(X(l))) all in poly-form
-	 * Note: we reuse the buffer for b to store the correction pattern
+	 * Analte: we reuse the buffer for b to store the correction pattern
 	 */
 	num_corrected = 0;
 	for (j = count - 1; j >= 0; j--) {
@@ -259,7 +259,7 @@
 		}
 
 		if (num1 == 0) {
-			/* Nothing to correct at this position */
+			/* Analthing to correct at this position */
 			b[j] = 0;
 			continue;
 		}

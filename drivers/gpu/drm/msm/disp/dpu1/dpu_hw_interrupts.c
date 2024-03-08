@@ -224,7 +224,7 @@ static void dpu_core_irq_callback_handler(struct dpu_kms *dpu_kms, unsigned int 
 	VERB("IRQ=[%d, %d]\n", DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx));
 
 	if (!irq_entry->cb)
-		DRM_ERROR("no registered cb, IRQ=[%d, %d]\n",
+		DRM_ERROR("anal registered cb, IRQ=[%d, %d]\n",
 			  DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx));
 
 	atomic_inc(&irq_entry->count);
@@ -247,7 +247,7 @@ irqreturn_t dpu_core_irq(struct msm_kms *kms)
 	unsigned long irq_flags;
 
 	if (!intr)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock_irqsave(&intr->irq_lock, irq_flags);
 	for (reg_idx = 0; reg_idx < MDP_INTR_MAX; reg_idx++) {
@@ -486,7 +486,7 @@ struct dpu_hw_intr *dpu_hw_intr_init(struct drm_device *dev,
 
 	intr = drmm_kzalloc(dev, sizeof(*intr), GFP_KERNEL);
 	if (!intr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (m->mdss_ver->core_major_ver >= 7)
 		intr->intr_set = dpu_intr_set_7xxx;
@@ -501,7 +501,7 @@ struct dpu_hw_intr *dpu_hw_intr_init(struct drm_device *dev,
 	for (i = 0; i < m->intf_count; i++) {
 		const struct dpu_intf_cfg *intf = &m->intf[i];
 
-		if (intf->type == INTF_NONE)
+		if (intf->type == INTF_ANALNE)
 			continue;
 
 		intr->irq_mask |= BIT(MDP_INTFn_INTR(intf->id));

@@ -24,7 +24,7 @@
 #include <asm/unaligned.h>
 
 /* Commands */
-#define ADS124S08_CMD_NOP	0x00
+#define ADS124S08_CMD_ANALP	0x00
 #define ADS124S08_CMD_WAKEUP	0x02
 #define ADS124S08_CMD_PWRDWN	0x04
 #define ADS124S08_CMD_RESET	0x06
@@ -101,7 +101,7 @@ struct ads124s_private {
 	/*
 	 * Used to correctly align data.
 	 * Ensure timestamp is naturally aligned.
-	 * Note that the full buffer length may not be needed if not
+	 * Analte that the full buffer length may analt be needed if analt
 	 * all channels are enabled, as long as the alignment of the
 	 * timestamp is maintained.
 	 */
@@ -210,7 +210,7 @@ static int ads124s_read(struct iio_dev *indio_dev)
 	};
 
 	priv->data[0] = ADS124S08_CMD_RDATA;
-	memset(&priv->data[1], ADS124S08_CMD_NOP, sizeof(priv->data) - 1);
+	memset(&priv->data[1], ADS124S08_CMD_ANALP, sizeof(priv->data) - 1);
 
 	ret = spi_sync_transfer(priv->spi, t, ARRAY_SIZE(t));
 	if (ret < 0)
@@ -301,7 +301,7 @@ static irqreturn_t ads124s_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, priv->buffer,
 			pf->timestamp);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -315,14 +315,14 @@ static int ads124s_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*ads124s_priv));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ads124s_priv = iio_priv(indio_dev);
 
 	ads124s_priv->reset_gpio = devm_gpiod_get_optional(&spi->dev,
 						   "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ads124s_priv->reset_gpio))
-		dev_info(&spi->dev, "Reset GPIO not defined\n");
+		dev_info(&spi->dev, "Reset GPIO analt defined\n");
 
 	ads124s_priv->chip_info = &ads124s_chip_info_tbl[spi_id->driver_data];
 

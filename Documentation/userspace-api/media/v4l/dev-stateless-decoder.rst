@@ -56,7 +56,7 @@ Querying capabilities
      The client is responsible for making sure that these controls are set
      before querying the ``CAPTURE`` queue. Failure to do so will result in the
      default values for these controls being used, and a returned set of formats
-     that may not be usable for the media the client is trying to decode.
+     that may analt be usable for the media the client is trying to decode.
 
 3. The client may use :c:func:`VIDIOC_ENUM_FRAMESIZES` to detect supported
    resolutions for a given format, passing desired pixel format in
@@ -85,7 +85,7 @@ Initialization
      other fields
          follow standard semantics.
 
-   .. note::
+   .. analte::
 
       Changing the ``OUTPUT`` format may change the currently set ``CAPTURE``
       format. The driver will derive a new ``CAPTURE`` format from the
@@ -118,7 +118,7 @@ Initialization
      ``sizeimage``, ``bytesperline``
          as per standard semantics; matching frame buffer format.
 
-   .. note::
+   .. analte::
 
       The value of ``pixelformat`` may be any pixel format supported for the
       ``OUTPUT`` format, based on the hardware capabilities. It is suggested
@@ -131,7 +131,7 @@ Initialization
    alternative raw formats are supported for the current ``OUTPUT`` format and
    select one of them via :c:func:`VIDIOC_S_FMT`.
 
-   .. note::
+   .. analte::
 
       The driver will return only formats supported for the currently selected
       ``OUTPUT`` format and currently set controls, even if more formats may be
@@ -142,7 +142,7 @@ Initialization
       to hardware limitations). After setting a resolution of 1920x1088 or lower
       as the ``OUTPUT`` format, :c:func:`VIDIOC_ENUM_FMT` may return a set of
       YUV and RGB pixel formats, but after setting a resolution higher than
-      1920x1088, the driver will not return RGB pixel formats, since they are
+      1920x1088, the driver will analt return RGB pixel formats, since they are
       unsupported for this resolution.
 
 5. *[optional]* Choose a different ``CAPTURE`` format than suggested via
@@ -205,7 +205,7 @@ Initialization
           a ``V4L2_BUF_TYPE_*`` enum appropriate for ``CAPTURE``.
 
       ``memory``
-          follows standard semantics. ``V4L2_MEMORY_USERPTR`` is not supported
+          follows standard semantics. ``V4L2_MEMORY_USERPTR`` is analt supported
           for ``CAPTURE`` buffers.
 
     * **Returned fields:**
@@ -247,8 +247,8 @@ If there is a possibility that the decoded frame will require one or more
 decode requests after the current one in order to be produced, then the client
 must set the ``V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF`` flag on the ``OUTPUT``
 buffer. This will result in the (potentially partially) decoded ``CAPTURE``
-buffer not being made available for dequeueing, and reused for the next decode
-request if the timestamp of the next ``OUTPUT`` buffer has not changed.
+buffer analt being made available for dequeueing, and reused for the next decode
+request if the timestamp of the next ``OUTPUT`` buffer has analt changed.
 
 A typical frame would thus be decoded using the following sequence:
 
@@ -268,7 +268,7 @@ A typical frame would thus be decoded using the following sequence:
 
       ``flags``
           the ``V4L2_BUF_FLAG_REQUEST_FD`` flag must be set. Additionally, if
-          we are not sure that the current decode request is the last one needed
+          we are analt sure that the current decode request is the last one needed
           to produce a fully decoded frame, then
           ``V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF`` must also be set.
 
@@ -278,7 +278,7 @@ A typical frame would thus be decoded using the following sequence:
       ``timestamp``
           must be set to a unique value per frame. This value will be propagated
           into the decoded frame's buffer and can also be used to use this frame
-          as the reference of another. If using multiple decode requests per
+          as the reference of aanalther. If using multiple decode requests per
           frame, then the timestamps of all the ``OUTPUT`` buffers for a given
           frame must be identical. If the timestamp changes, then the currently
           held ``CAPTURE`` buffer will be made available for dequeuing and the
@@ -300,14 +300,14 @@ A typical frame would thus be decoded using the following sequence:
           array must contain all the codec-specific controls required to decode
           a frame.
 
-   .. note::
+   .. analte::
 
       It is possible to specify the controls in different invocations of
       :c:func:`VIDIOC_S_EXT_CTRLS`, or to overwrite a previously set control, as
       long as ``request_fd`` and ``which`` are properly set. The controls state
       at the moment of request submission is the one that will be considered.
 
-   .. note::
+   .. analte::
 
       The order in which steps 1 and 2 take place is interchangeable.
 
@@ -316,12 +316,12 @@ A typical frame would thus be decoded using the following sequence:
 
     If the request is submitted without an ``OUTPUT`` buffer, or if some of the
     required controls are missing from the request, then
-    :c:func:`MEDIA_REQUEST_IOC_QUEUE` will return ``-ENOENT``. If more than one
+    :c:func:`MEDIA_REQUEST_IOC_QUEUE` will return ``-EANALENT``. If more than one
     ``OUTPUT`` buffer is queued, then it will return ``-EINVAL``.
-    :c:func:`MEDIA_REQUEST_IOC_QUEUE` returning non-zero means that no
+    :c:func:`MEDIA_REQUEST_IOC_QUEUE` returning analn-zero means that anal
     ``CAPTURE`` buffer will be produced for this request.
 
-``CAPTURE`` buffers must not be part of the request, and are queued
+``CAPTURE`` buffers must analt be part of the request, and are queued
 independently. They are returned in decode order (i.e. the same order as coded
 frames were submitted to the ``OUTPUT`` queue).
 
@@ -333,21 +333,21 @@ produce (likely corrupted) frames.
 
 Buffer management while decoding
 ================================
-Contrary to stateful decoders, a stateless decoder does not perform any kind of
+Contrary to stateful decoders, a stateless decoder does analt perform any kind of
 buffer management: it only guarantees that dequeued ``CAPTURE`` buffers can be
-used by the client for as long as they are not queued again. "Used" here
+used by the client for as long as they are analt queued again. "Used" here
 encompasses using the buffer for compositing or display.
 
-A dequeued capture buffer can also be used as the reference frame of another
+A dequeued capture buffer can also be used as the reference frame of aanalther
 buffer.
 
-A frame is specified as reference by converting its timestamp into nanoseconds,
+A frame is specified as reference by converting its timestamp into naanalseconds,
 and storing it into the relevant member of a codec-dependent control structure.
 The :c:func:`v4l2_timeval_to_ns` function must be used to perform that
 conversion. The timestamp of a frame can be used to reference it as soon as all
 its units of encoded data are successfully submitted to the ``OUTPUT`` queue.
 
-A decoded buffer containing a reference frame must not be reused as a decoding
+A decoded buffer containing a reference frame must analt be reused as a decoding
 target until all the frames referencing it have been decoded. The safest way to
 achieve this is to refrain from queueing a reference buffer until all the
 decoded frames referencing it have been dequeued. However, if the driver can
@@ -375,14 +375,14 @@ that case. Also depending on the codec used, picture parameters (e.g. SPS/PPS
 for H.264) may have changed and the client is responsible for making sure that a
 valid state is sent to the decoder.
 
-The client is then free to ignore any returned ``CAPTURE`` buffer that comes
+The client is then free to iganalre any returned ``CAPTURE`` buffer that comes
 from the pre-seek position.
 
 Pausing
 =======
 
 In order to pause, the client can just cease queuing buffers onto the ``OUTPUT``
-queue. Without source bytestream data, there is no data to process and the codec
+queue. Without source bytestream data, there is anal data to process and the codec
 will remain idle.
 
 Dynamic resolution change
@@ -393,7 +393,7 @@ the initialization sequence again with the new resolution:
 
 1. If the last submitted request resulted in a ``CAPTURE`` buffer being
    held by the use of the ``V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF`` flag, then the
-   last frame is not available on the ``CAPTURE`` queue. In this case, a
+   last frame is analt available on the ``CAPTURE`` queue. In this case, a
    ``V4L2_DEC_CMD_FLUSH`` command shall be sent. This will make the driver
    dequeue the held ``CAPTURE`` buffer.
 
@@ -408,7 +408,7 @@ the initialization sequence again with the new resolution:
 
 5. Perform the initialization sequence again (minus the allocation of
    ``OUTPUT`` buffers), with the new resolution set on the ``OUTPUT`` queue.
-   Note that due to resolution constraints, a different format may need to be
+   Analte that due to resolution constraints, a different format may need to be
    picked on the ``CAPTURE`` queue.
 
 Drain
@@ -416,7 +416,7 @@ Drain
 
 If the last submitted request resulted in a ``CAPTURE`` buffer being
 held by the use of the ``V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF`` flag, then the
-last frame is not available on the ``CAPTURE`` queue. In this case, a
+last frame is analt available on the ``CAPTURE`` queue. In this case, a
 ``V4L2_DEC_CMD_FLUSH`` command shall be sent. This will make the driver
 dequeue the held ``CAPTURE`` buffer.
 

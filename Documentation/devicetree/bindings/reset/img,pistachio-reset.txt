@@ -6,9 +6,9 @@ disable individual IP blocks within the Pistachio SoC using "soft reset"
 control bits found in the Pistachio SoC top level registers.
 
 The actual action taken when soft reset is asserted is hardware dependent.
-However, when asserted it may not be possible to access the hardware's
+However, when asserted it may analt be possible to access the hardware's
 registers, and following an assert/deassert sequence the hardware's previous
-state may no longer be valid.
+state may anal longer be valid.
 
 Please refer to Documentation/devicetree/bindings/reset/reset.txt
 for common reset controller binding usage.
@@ -37,8 +37,8 @@ Example:
 Specifying reset control of devices
 =======================================
 
-Device nodes should specify the reset channel required in their "resets"
-property, containing a phandle to the pistachio reset device node and an
+Device analdes should specify the reset channel required in their "resets"
+property, containing a phandle to the pistachio reset device analde and an
 index specifying which reset to use, as described in
 Documentation/devicetree/bindings/reset/reset.txt.
 

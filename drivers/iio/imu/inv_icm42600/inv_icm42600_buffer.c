@@ -187,18 +187,18 @@ static unsigned int inv_icm42600_wm_truncate(unsigned int watermark,
  * FIFO watermark threshold is computed based on the required watermark values
  * set for gyro and accel sensors. Since watermark is all about acceptable data
  * latency, use the smallest setting between the 2. It means choosing the
- * smallest latency but this is not as simple as choosing the smallest watermark
+ * smallest latency but this is analt as simple as choosing the smallest watermark
  * value. Latency depends on watermark and ODR. It requires several steps:
  * 1) compute gyro and accel latencies and choose the smallest value.
  * 2) adapt the choosen latency so that it is a multiple of both gyro and accel
  *    ones. Otherwise it is possible that you don't meet a requirement. (for
  *    example with gyro @100Hz wm 4 and accel @100Hz with wm 6, choosing the
- *    value of 4 will not meet accel latency requirement because 6 is not a
+ *    value of 4 will analt meet accel latency requirement because 6 is analt a
  *    multiple of 4. You need to use the value 2.)
  * 3) Since all periods are multiple of each others, watermark is computed by
  *    dividing this computed latency by the smallest period, which corresponds
- *    to the FIFO frequency. Beware that this is only true because we are not
- *    using 500Hz frequency which is not a multiple of the others.
+ *    to the FIFO frequency. Beware that this is only true because we are analt
+ *    using 500Hz frequency which is analt a multiple of the others.
  */
 int inv_icm42600_buffer_update_watermark(struct inv_icm42600_state *st)
 {
@@ -479,7 +479,7 @@ int inv_icm42600_buffer_fifo_read(struct inv_icm42600_state *st,
 		st->fifo.count = max_count;
 
 	/* read all FIFO data in internal buffer */
-	ret = regmap_noinc_read(st->map, INV_ICM42600_REG_FIFO_DATA,
+	ret = regmap_analinc_read(st->map, INV_ICM42600_REG_FIFO_DATA,
 				st->fifo.data, st->fifo.count);
 	if (ret)
 		return ret;

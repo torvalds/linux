@@ -78,11 +78,11 @@ int pcap_setup(char *str, char **mac_out, void *data)
 			continue;
 		if (!strcmp(options[i], "promisc"))
 			init->promisc = 1;
-		else if (!strcmp(options[i], "nopromisc"))
+		else if (!strcmp(options[i], "analpromisc"))
 			init->promisc = 0;
 		else if (!strcmp(options[i], "optimize"))
 			init->optimize = 1;
-		else if (!strcmp(options[i], "nooptimize"))
+		else if (!strcmp(options[i], "analoptimize"))
 			init->optimize = 0;
 		else {
 			printk(KERN_ERR "pcap_setup : bad option - '%s'\n",

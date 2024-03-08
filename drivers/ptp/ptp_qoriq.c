@@ -191,7 +191,7 @@ irqreturn_t ptp_qoriq_isr(int irq, void *priv)
 		ptp_qoriq->write(&regs->ctrl_regs->tmr_tevent, ack);
 		return IRQ_HANDLED;
 	} else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 }
 EXPORT_SYMBOL_GPL(ptp_qoriq_isr);
 
@@ -233,18 +233,18 @@ EXPORT_SYMBOL_GPL(ptp_qoriq_adjfine);
 int ptp_qoriq_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct ptp_qoriq *ptp_qoriq = container_of(ptp, struct ptp_qoriq, caps);
-	s64 now, curr_delta;
+	s64 analw, curr_delta;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ptp_qoriq->lock, flags);
 
-	/* On LS1021A, eTSEC2 and eTSEC3 do not take into account the TMR_OFF
+	/* On LS1021A, eTSEC2 and eTSEC3 do analt take into account the TMR_OFF
 	 * adjustment
 	 */
 	if (ptp_qoriq->etsec) {
-		now = tmr_cnt_read(ptp_qoriq);
-		now += delta;
-		tmr_cnt_write(ptp_qoriq, now);
+		analw = tmr_cnt_read(ptp_qoriq);
+		analw += delta;
+		tmr_cnt_write(ptp_qoriq, analw);
 	} else {
 		curr_delta = tmr_offset_read(ptp_qoriq);
 		curr_delta += delta;
@@ -326,7 +326,7 @@ int ptp_qoriq_enable(struct ptp_clock_info *ptp,
 		bit = PP1EN;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	spin_lock_irqsave(&ptp_qoriq->lock, flags);
@@ -363,18 +363,18 @@ static const struct ptp_clock_info ptp_qoriq_caps = {
 };
 
 /**
- * ptp_qoriq_nominal_freq - calculate nominal frequency according to
+ * ptp_qoriq_analminal_freq - calculate analminal frequency according to
  *			    reference clock frequency
  *
  * @clk_src: reference clock frequency
  *
- * The nominal frequency is the desired clock frequency.
+ * The analminal frequency is the desired clock frequency.
  * It should be less than the reference clock frequency.
  * It should be a factor of 1000MHz.
  *
- * Return the nominal frequency
+ * Return the analminal frequency
  */
-static u32 ptp_qoriq_nominal_freq(u32 clk_src)
+static u32 ptp_qoriq_analminal_freq(u32 clk_src)
 {
 	u32 remainder = 0;
 
@@ -397,9 +397,9 @@ static u32 ptp_qoriq_nominal_freq(u32 clk_src)
  * ptp_qoriq_auto_config - calculate a set of default configurations
  *
  * @ptp_qoriq: pointer to ptp_qoriq
- * @node: pointer to device_node
+ * @analde: pointer to device_analde
  *
- * If below dts properties are not provided, this function will be
+ * If below dts properties are analt provided, this function will be
  * called to calculate a set of default configurations for them.
  *   "fsl,tclk-period"
  *   "fsl,tmr-prsc"
@@ -412,18 +412,18 @@ static u32 ptp_qoriq_nominal_freq(u32 clk_src)
  * Return 0 if success
  */
 static int ptp_qoriq_auto_config(struct ptp_qoriq *ptp_qoriq,
-				 struct device_node *node)
+				 struct device_analde *analde)
 {
 	struct clk *clk;
 	u64 freq_comp;
 	u64 max_adj;
-	u32 nominal_freq;
+	u32 analminal_freq;
 	u32 remainder = 0;
 	u32 clk_src = 0;
 
 	ptp_qoriq->cksel = DEFAULT_CKSEL;
 
-	clk = of_clk_get(node, 0);
+	clk = of_clk_get(analde, 0);
 	if (!IS_ERR(clk)) {
 		clk_src = clk_get_rate(clk);
 		clk_put(clk);
@@ -434,18 +434,18 @@ static int ptp_qoriq_auto_config(struct ptp_qoriq *ptp_qoriq,
 		return -EINVAL;
 	}
 
-	nominal_freq = ptp_qoriq_nominal_freq(clk_src);
-	if (!nominal_freq)
+	analminal_freq = ptp_qoriq_analminal_freq(clk_src);
+	if (!analminal_freq)
 		return -EINVAL;
 
-	ptp_qoriq->tclk_period = 1000000000UL / nominal_freq;
+	ptp_qoriq->tclk_period = 1000000000UL / analminal_freq;
 	ptp_qoriq->tmr_prsc = DEFAULT_TMR_PRSC;
 
 	/* Calculate initial frequency compensation value for TMR_ADD register.
 	 * freq_comp = ceil(2^32 / freq_ratio)
-	 * freq_ratio = reference_clock_freq / nominal_freq
+	 * freq_ratio = reference_clock_freq / analminal_freq
 	 */
-	freq_comp = ((u64)1 << 32) * nominal_freq;
+	freq_comp = ((u64)1 << 32) * analminal_freq;
 	freq_comp = div_u64_rem(freq_comp, clk_src, &remainder);
 	if (remainder)
 		freq_comp++;
@@ -456,10 +456,10 @@ static int ptp_qoriq_auto_config(struct ptp_qoriq *ptp_qoriq,
 	ptp_qoriq->tmr_fiper3 = DEFAULT_FIPER3_PERIOD - ptp_qoriq->tclk_period;
 
 	/* max_adj = 1000000000 * (freq_ratio - 1.0) - 1
-	 * freq_ratio = reference_clock_freq / nominal_freq
+	 * freq_ratio = reference_clock_freq / analminal_freq
 	 */
-	max_adj = 1000000000ULL * (clk_src - nominal_freq);
-	max_adj = div_u64(max_adj, nominal_freq) - 1;
+	max_adj = 1000000000ULL * (clk_src - analminal_freq);
+	max_adj = div_u64(max_adj, analminal_freq) - 1;
 	ptp_qoriq->caps.max_adj = max_adj;
 
 	return 0;
@@ -468,52 +468,52 @@ static int ptp_qoriq_auto_config(struct ptp_qoriq *ptp_qoriq,
 int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 		   const struct ptp_clock_info *caps)
 {
-	struct device_node *node = ptp_qoriq->dev->of_node;
+	struct device_analde *analde = ptp_qoriq->dev->of_analde;
 	struct ptp_qoriq_registers *regs;
-	struct timespec64 now;
+	struct timespec64 analw;
 	unsigned long flags;
 	u32 tmr_ctrl;
 
-	if (!node)
-		return -ENODEV;
+	if (!analde)
+		return -EANALDEV;
 
 	ptp_qoriq->base = base;
 	ptp_qoriq->caps = *caps;
 
-	if (of_property_read_u32(node, "fsl,cksel", &ptp_qoriq->cksel))
+	if (of_property_read_u32(analde, "fsl,cksel", &ptp_qoriq->cksel))
 		ptp_qoriq->cksel = DEFAULT_CKSEL;
 
-	if (of_property_read_bool(node, "fsl,extts-fifo"))
+	if (of_property_read_bool(analde, "fsl,extts-fifo"))
 		ptp_qoriq->extts_fifo_support = true;
 	else
 		ptp_qoriq->extts_fifo_support = false;
 
-	if (of_device_is_compatible(node, "fsl,dpaa2-ptp") ||
-	    of_device_is_compatible(node, "fsl,enetc-ptp"))
+	if (of_device_is_compatible(analde, "fsl,dpaa2-ptp") ||
+	    of_device_is_compatible(analde, "fsl,enetc-ptp"))
 		ptp_qoriq->fiper3_support = true;
 
-	if (of_property_read_u32(node,
+	if (of_property_read_u32(analde,
 				 "fsl,tclk-period", &ptp_qoriq->tclk_period) ||
-	    of_property_read_u32(node,
+	    of_property_read_u32(analde,
 				 "fsl,tmr-prsc", &ptp_qoriq->tmr_prsc) ||
-	    of_property_read_u32(node,
+	    of_property_read_u32(analde,
 				 "fsl,tmr-add", &ptp_qoriq->tmr_add) ||
-	    of_property_read_u32(node,
+	    of_property_read_u32(analde,
 				 "fsl,tmr-fiper1", &ptp_qoriq->tmr_fiper1) ||
-	    of_property_read_u32(node,
+	    of_property_read_u32(analde,
 				 "fsl,tmr-fiper2", &ptp_qoriq->tmr_fiper2) ||
-	    of_property_read_u32(node,
+	    of_property_read_u32(analde,
 				 "fsl,max-adj", &ptp_qoriq->caps.max_adj) ||
 	    (ptp_qoriq->fiper3_support &&
-	     of_property_read_u32(node, "fsl,tmr-fiper3",
+	     of_property_read_u32(analde, "fsl,tmr-fiper3",
 				  &ptp_qoriq->tmr_fiper3))) {
-		pr_warn("device tree node missing required elements, try automatic configuration\n");
+		pr_warn("device tree analde missing required elements, try automatic configuration\n");
 
-		if (ptp_qoriq_auto_config(ptp_qoriq, node))
-			return -ENODEV;
+		if (ptp_qoriq_auto_config(ptp_qoriq, analde))
+			return -EANALDEV;
 	}
 
-	if (of_property_read_bool(node, "little-endian")) {
+	if (of_property_read_bool(analde, "little-endian")) {
 		ptp_qoriq->read = qoriq_read_le;
 		ptp_qoriq->write = qoriq_write_le;
 	} else {
@@ -522,7 +522,7 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 	}
 
 	/* The eTSEC uses differnt memory map with DPAA/ENETC */
-	if (of_device_is_compatible(node, "fsl,etsec-ptp")) {
+	if (of_device_is_compatible(analde, "fsl,etsec-ptp")) {
 		ptp_qoriq->etsec = true;
 		ptp_qoriq->regs.ctrl_regs = base + ETSEC_CTRL_REGS_OFFSET;
 		ptp_qoriq->regs.alarm_regs = base + ETSEC_ALARM_REGS_OFFSET;
@@ -537,8 +537,8 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 
 	spin_lock_init(&ptp_qoriq->lock);
 
-	ktime_get_real_ts64(&now);
-	ptp_qoriq_settime(&ptp_qoriq->caps, &now);
+	ktime_get_real_ts64(&analw);
+	ptp_qoriq_settime(&ptp_qoriq->caps, &analw);
 
 	tmr_ctrl =
 	  (ptp_qoriq->tclk_period & TCLK_PERIOD_MASK) << TCLK_PERIOD_SHIFT |
@@ -590,61 +590,61 @@ EXPORT_SYMBOL_GPL(ptp_qoriq_free);
 static int ptp_qoriq_probe(struct platform_device *dev)
 {
 	struct ptp_qoriq *ptp_qoriq;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	void __iomem *base;
 
 	ptp_qoriq = kzalloc(sizeof(*ptp_qoriq), GFP_KERNEL);
 	if (!ptp_qoriq)
-		goto no_memory;
+		goto anal_memory;
 
 	ptp_qoriq->dev = &dev->dev;
 
-	err = -ENODEV;
+	err = -EANALDEV;
 
 	ptp_qoriq->irq = platform_get_irq(dev, 0);
 	if (ptp_qoriq->irq < 0) {
-		pr_err("irq not in device tree\n");
-		goto no_node;
+		pr_err("irq analt in device tree\n");
+		goto anal_analde;
 	}
 	if (request_irq(ptp_qoriq->irq, ptp_qoriq_isr, IRQF_SHARED,
 			DRIVER, ptp_qoriq)) {
 		pr_err("request_irq failed\n");
-		goto no_node;
+		goto anal_analde;
 	}
 
 	ptp_qoriq->rsrc = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!ptp_qoriq->rsrc) {
-		pr_err("no resource\n");
-		goto no_resource;
+		pr_err("anal resource\n");
+		goto anal_resource;
 	}
 	if (request_resource(&iomem_resource, ptp_qoriq->rsrc)) {
 		pr_err("resource busy\n");
-		goto no_resource;
+		goto anal_resource;
 	}
 
 	base = ioremap(ptp_qoriq->rsrc->start,
 		       resource_size(ptp_qoriq->rsrc));
 	if (!base) {
 		pr_err("ioremap ptp registers failed\n");
-		goto no_ioremap;
+		goto anal_ioremap;
 	}
 
 	err = ptp_qoriq_init(ptp_qoriq, base, &ptp_qoriq_caps);
 	if (err)
-		goto no_clock;
+		goto anal_clock;
 
 	platform_set_drvdata(dev, ptp_qoriq);
 	return 0;
 
-no_clock:
+anal_clock:
 	iounmap(base);
-no_ioremap:
+anal_ioremap:
 	release_resource(ptp_qoriq->rsrc);
-no_resource:
+anal_resource:
 	free_irq(ptp_qoriq->irq, ptp_qoriq);
-no_node:
+anal_analde:
 	kfree(ptp_qoriq);
-no_memory:
+anal_memory:
 	return err;
 }
 

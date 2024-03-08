@@ -15,7 +15,7 @@
 #include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/device.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-analnatomic-hi-lo.h>
 #include <linux/io-pgtable.h>
 #include <linux/iommu.h>
 #include <linux/irqreturn.h>
@@ -48,8 +48,8 @@
 #define ARM_SMMU_ID0_NTS		BIT(28)
 #define ARM_SMMU_ID0_SMS		BIT(27)
 #define ARM_SMMU_ID0_ATOSNS		BIT(26)
-#define ARM_SMMU_ID0_PTFS_NO_AARCH32	BIT(25)
-#define ARM_SMMU_ID0_PTFS_NO_AARCH32S	BIT(24)
+#define ARM_SMMU_ID0_PTFS_ANAL_AARCH32	BIT(25)
+#define ARM_SMMU_ID0_PTFS_ANAL_AARCH32S	BIT(24)
 #define ARM_SMMU_ID0_NUMIRPT		GENMASK(23, 16)
 #define ARM_SMMU_ID0_CTTW		BIT(14)
 #define ARM_SMMU_ID0_NUMSIDB		GENMASK(12, 9)
@@ -78,7 +78,7 @@
 
 #define ARM_SMMU_GR0_ID7		0x3c
 #define ARM_SMMU_ID7_MAJOR		GENMASK(7, 4)
-#define ARM_SMMU_ID7_MINOR		GENMASK(3, 0)
+#define ARM_SMMU_ID7_MIANALR		GENMASK(3, 0)
 
 #define ARM_SMMU_GR0_sGFSR		0x48
 #define ARM_SMMU_sGFSR_USF		BIT(1)
@@ -331,7 +331,7 @@ struct arm_smmu_device {
 };
 
 enum arm_smmu_context_fmt {
-	ARM_SMMU_CTX_FMT_NONE,
+	ARM_SMMU_CTX_FMT_ANALNE,
 	ARM_SMMU_CTX_FMT_AARCH64,
 	ARM_SMMU_CTX_FMT_AARCH32_L,
 	ARM_SMMU_CTX_FMT_AARCH32_S,
@@ -457,7 +457,7 @@ static inline int __arm_smmu_alloc_bitmap(unsigned long *map, int start, int end
 	do {
 		idx = find_next_zero_bit(map, end, start);
 		if (idx == end)
-			return -ENOSPC;
+			return -EANALSPC;
 	} while (test_and_set_bit(idx, map));
 
 	return idx;

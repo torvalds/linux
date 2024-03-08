@@ -32,8 +32,8 @@ static const struct {
 
 static int pl111_debugfs_regs(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_analde *analde = (struct drm_info_analde *)m->private;
+	struct drm_device *dev = analde->mianalr->dev;
 	struct pl111_drm_dev_private *priv = dev->dev_private;
 	int i;
 
@@ -51,9 +51,9 @@ static const struct drm_info_list pl111_debugfs_list[] = {
 };
 
 void
-pl111_debugfs_init(struct drm_minor *minor)
+pl111_debugfs_init(struct drm_mianalr *mianalr)
 {
 	drm_debugfs_create_files(pl111_debugfs_list,
 				 ARRAY_SIZE(pl111_debugfs_list),
-				 minor->debugfs_root, minor);
+				 mianalr->debugfs_root, mianalr);
 }

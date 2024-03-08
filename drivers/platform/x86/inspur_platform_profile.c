@@ -2,7 +2,7 @@
 /*
  *  Inspur WMI Platform Profile
  *
- *  Copyright (C) 2018	      Ai Chao <aichao@kylinos.cn>
+ *  Copyright (C) 2018	      Ai Chao <aichao@kylianals.cn>
  */
 
 #include <linux/acpi.h>
@@ -81,7 +81,7 @@ out_free:
  *         0x2: Power Saver Mode
  * Return Value: 4 Bytes
  * Byte [0]: Return Code
- *         0x0: No Error
+ *         0x0: Anal Error
  *         0x1: Error
  */
 static int inspur_platform_profile_set(struct platform_profile_handler *pprof,
@@ -103,7 +103,7 @@ static int inspur_platform_profile_set(struct platform_profile_handler *pprof,
 		ret_code[0] = INSPUR_TMP_PROFILE_POWERSAVE;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ret = inspur_wmi_perform_query(priv->wdev, INSPUR_WMI_SET_POWERMODE,
@@ -125,7 +125,7 @@ static int inspur_platform_profile_set(struct platform_profile_handler *pprof,
  * Method ID: 0x2
  * Return Value: 4 Bytes
  * Byte [0]: Return Code
- *         0x0: No Error
+ *         0x0: Anal Error
  *         0x1: Error
  * Byte [1]: Power Mode
  *         0x0: Balance Mode
@@ -172,7 +172,7 @@ static int inspur_wmi_probe(struct wmi_device *wdev, const void *context)
 
 	priv = devm_kzalloc(&wdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->wdev = wdev;
 	dev_set_drvdata(&wdev->dev, priv);
@@ -202,7 +202,7 @@ MODULE_DEVICE_TABLE(wmi, inspur_wmi_id_table);
 static struct wmi_driver inspur_wmi_driver = {
 	.driver = {
 		.name = "inspur-wmi-platform-profile",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.id_table = inspur_wmi_id_table,
 	.probe = inspur_wmi_probe,
@@ -211,6 +211,6 @@ static struct wmi_driver inspur_wmi_driver = {
 
 module_wmi_driver(inspur_wmi_driver);
 
-MODULE_AUTHOR("Ai Chao <aichao@kylinos.cn>");
+MODULE_AUTHOR("Ai Chao <aichao@kylianals.cn>");
 MODULE_DESCRIPTION("Platform Profile Support for Inspur");
 MODULE_LICENSE("GPL");

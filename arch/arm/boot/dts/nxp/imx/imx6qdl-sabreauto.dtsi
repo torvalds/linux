@@ -270,12 +270,12 @@
 	cs-gpios = <&gpio3 19 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1 &pinctrl_ecspi1_cs>;
-	status = "disabled"; /* pin conflict with WEIM NOR */
+	status = "disabled"; /* pin conflict with WEIM ANALR */
 
 	flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "st,m25p32", "jedec,spi-nor";
+		compatible = "st,m25p32", "jedec,spi-analr";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};
@@ -726,7 +726,7 @@
 			>;
 		};
 
-		pinctrl_weim_nor: weimnorgrp {
+		pinctrl_weim_analr: weimanalrgrp {
 			fsl,pins = <
 				MX6QDL_PAD_EIM_OE__EIM_OE_B		0xb0b1
 				MX6QDL_PAD_EIM_RW__EIM_RW		0xb0b1
@@ -848,11 +848,11 @@
 
 &weim {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_weim_nor &pinctrl_weim_cs0>;
+	pinctrl-0 = <&pinctrl_weim_analr &pinctrl_weim_cs0>;
 	ranges = <0 0 0x08000000 0x08000000>;
-	status = "disabled"; /* pin conflict with SPI NOR */
+	status = "disabled"; /* pin conflict with SPI ANALR */
 
-	nor@0,0 {
+	analr@0,0 {
 		compatible = "cfi-flash";
 		reg = <0 0 0x02000000>;
 		#address-cells = <1>;

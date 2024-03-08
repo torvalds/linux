@@ -46,7 +46,7 @@ int mdp5_ctl_pair(struct mdp5_ctl *ctlx, struct mdp5_ctl *ctly, bool enable);
  * @stage_cnt: valid stage number in stage array
  * @ctl_blend_op_flags: blender operation mode flags
  *
- * Note:
+ * Analte:
  * CTL registers need to be flushed after calling this function
  * (call mdp5_ctl_commit() with mdp_ctl_flush_mask_ctl() mask)
  */

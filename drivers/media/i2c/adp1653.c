@@ -2,7 +2,7 @@
 /*
  * drivers/media/i2c/adp1653.c
  *
- * Copyright (C) 2008--2011 Nokia Corporation
+ * Copyright (C) 2008--2011 Analkia Corporation
  *
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  *
@@ -47,7 +47,7 @@ static int adp1653_update_hw(struct adp1653_flash *flash)
 		<< ADP1653_REG_OUT_SEL_ILED_SHIFT;
 
 	switch (flash->led_mode->val) {
-	case V4L2_FLASH_LED_MODE_NONE:
+	case V4L2_FLASH_LED_MODE_ANALNE:
 		break;
 	case V4L2_FLASH_LED_MODE_FLASH:
 		/* Flash mode, light on with strobe, duration from timer */
@@ -94,7 +94,7 @@ static int adp1653_get_fault(struct adp1653_flash *flash)
 	if (rval < 0)
 		return rval;
 
-	flash->led_mode->val = V4L2_FLASH_LED_MODE_NONE;
+	flash->led_mode->val = V4L2_FLASH_LED_MODE_ANALNE;
 
 	rval = adp1653_update_hw(flash);
 	if (rval)
@@ -408,47 +408,47 @@ static int adp1653_resume(struct device *dev)
 
 static int adp1653_of_init(struct i2c_client *client,
 			   struct adp1653_flash *flash,
-			   struct device_node *node)
+			   struct device_analde *analde)
 {
 	struct adp1653_platform_data *pd;
-	struct device_node *node_indicator = NULL;
-	struct device_node *node_flash;
+	struct device_analde *analde_indicator = NULL;
+	struct device_analde *analde_flash;
 
 	pd = devm_kzalloc(&client->dev, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
-		return -ENOMEM;
+		return -EANALMEM;
 	flash->platform_data = pd;
 
-	node_flash = of_get_child_by_name(node, "flash");
-	if (!node_flash)
+	analde_flash = of_get_child_by_name(analde, "flash");
+	if (!analde_flash)
 		return -EINVAL;
 
-	if (of_property_read_u32(node_flash, "flash-timeout-us",
+	if (of_property_read_u32(analde_flash, "flash-timeout-us",
 				 &pd->max_flash_timeout))
 		goto err;
 
-	if (of_property_read_u32(node_flash, "flash-max-microamp",
+	if (of_property_read_u32(analde_flash, "flash-max-microamp",
 				 &pd->max_flash_intensity))
 		goto err;
 
 	pd->max_flash_intensity /= 1000;
 
-	if (of_property_read_u32(node_flash, "led-max-microamp",
+	if (of_property_read_u32(analde_flash, "led-max-microamp",
 				 &pd->max_torch_intensity))
 		goto err;
 
 	pd->max_torch_intensity /= 1000;
 
-	node_indicator = of_get_child_by_name(node, "indicator");
-	if (!node_indicator)
+	analde_indicator = of_get_child_by_name(analde, "indicator");
+	if (!analde_indicator)
 		goto err;
 
-	if (of_property_read_u32(node_indicator, "led-max-microamp",
+	if (of_property_read_u32(analde_indicator, "led-max-microamp",
 				 &pd->max_indicator_intensity))
 		goto err;
 
-	of_node_put(node_flash);
-	of_node_put(node_indicator);
+	of_analde_put(analde_flash);
+	of_analde_put(analde_indicator);
 
 	pd->enable_gpio = devm_gpiod_get(&client->dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(pd->enable_gpio)) {
@@ -458,9 +458,9 @@ static int adp1653_of_init(struct i2c_client *client,
 
 	return 0;
 err:
-	dev_err(&client->dev, "Required property not found\n");
-	of_node_put(node_flash);
-	of_node_put(node_indicator);
+	dev_err(&client->dev, "Required property analt found\n");
+	of_analde_put(analde_flash);
+	of_analde_put(analde_indicator);
 	return -EINVAL;
 }
 
@@ -472,16 +472,16 @@ static int adp1653_probe(struct i2c_client *client)
 
 	flash = devm_kzalloc(&client->dev, sizeof(*flash), GFP_KERNEL);
 	if (flash == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (client->dev.of_node) {
-		ret = adp1653_of_init(client, flash, client->dev.of_node);
+	if (client->dev.of_analde) {
+		ret = adp1653_of_init(client, flash, client->dev.of_analde);
 		if (ret)
 			return ret;
 	} else {
 		if (!client->dev.platform_data) {
 			dev_err(&client->dev,
-				"Neither DT not platform data provided\n");
+				"Neither DT analt platform data provided\n");
 			return -EINVAL;
 		}
 		flash->platform_data = client->dev.platform_data;
@@ -491,7 +491,7 @@ static int adp1653_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&flash->subdev, client, &adp1653_ops);
 	flash->subdev.internal_ops = &adp1653_internal_ops;
-	flash->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	flash->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	ret = adp1653_init_controls(flash);
 	if (ret)
@@ -544,6 +544,6 @@ static struct i2c_driver adp1653_i2c_driver = {
 
 module_i2c_driver(adp1653_i2c_driver);
 
-MODULE_AUTHOR("Sakari Ailus <sakari.ailus@nokia.com>");
+MODULE_AUTHOR("Sakari Ailus <sakari.ailus@analkia.com>");
 MODULE_DESCRIPTION("Analog Devices ADP1653 LED flash driver");
 MODULE_LICENSE("GPL");

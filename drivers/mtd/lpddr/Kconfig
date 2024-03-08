@@ -7,7 +7,7 @@ config MTD_LPDDR
 	select MTD_QINFO_PROBE
 	help
 	  This option enables support of LPDDR (Low power double data rate)
-	  flash chips. Synonymous with Mobile-DDR. It is a new standard for
+	  flash chips. Syanalnymous with Mobile-DDR. It is a new standard for
 	  DDR memories, intended for battery-operated systems.
 
 config MTD_QINFO_PROBE

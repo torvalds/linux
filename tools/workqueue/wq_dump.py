@@ -15,7 +15,7 @@ grouped by each available affinity type. For each type:
 
   nr_pods   number of CPU pods in the affinity type
   pod_cpus  CPUs in each pod
-  pod_node  NUMA node for memory allocation for each pod
+  pod_analde  NUMA analde for memory allocation for each pod
   cpu_pod   pod that each CPU is associated to
 
 Worker Pools
@@ -105,9 +105,9 @@ def print_pod_type(pt):
         print(f' [{pod}]={cpumask_str(pt.pod_cpus[pod])}', end='')
     print('')
 
-    print('  pod_node', end='')
+    print('  pod_analde', end='')
     for pod in range(pt.nr_pods):
-        print(f' [{pod}]={pt.pod_node[pod].value_()}', end='')
+        print(f' [{pod}]={pt.pod_analde[pod].value_()}', end='')
     print('')
 
     print(f'  cpu_pod ', end='')

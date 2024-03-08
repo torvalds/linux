@@ -4,7 +4,7 @@
  *
  * TI OMAP3 ISP - Histogram module
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Copyright (C) 2009 Texas Instruments, Inc.
  *
  * Contacts: David Cohen <dacohen@gmail.com>
@@ -43,7 +43,7 @@ static void hist_reset_mem(struct ispstat *hist)
 
 	/*
 	 * We'll clear 4 words at each iteration for optimization. It avoids
-	 * 3/4 of the jumps. We also know HIST_MEM_SIZE is divisible by 4.
+	 * 3/4 of the jumps. We also kanalw HIST_MEM_SIZE is divisible by 4.
 	 */
 	for (i = OMAP3ISP_HIST_MEM_SIZE / 4; i > 0; i--) {
 		isp_reg_readl(isp, OMAP3_ISP_IOMEM_HIST, ISPHIST_DATA);
@@ -223,7 +223,7 @@ static int hist_buf_dma(struct ispstat *hist)
 
 error:
 	hist_reset_mem(hist);
-	return STAT_NO_BUF;
+	return STAT_ANAL_BUF;
 }
 
 static int hist_buf_pio(struct ispstat *hist)
@@ -235,7 +235,7 @@ static int hist_buf_pio(struct ispstat *hist)
 	if (!buf) {
 		dev_dbg(isp->dev, "hist: invalid PIO buffer address\n");
 		hist_reset_mem(hist);
-		return STAT_NO_BUF;
+		return STAT_ANAL_BUF;
 	}
 
 	isp_reg_writel(isp, 0, OMAP3_ISP_IOMEM_HIST, ISPHIST_ADDR);
@@ -249,7 +249,7 @@ static int hist_buf_pio(struct ispstat *hist)
 
 	/*
 	 * We'll read 4 times a 4-bytes-word at each iteration for
-	 * optimization. It avoids 3/4 of the jumps. We also know buf_size is
+	 * optimization. It avoids 3/4 of the jumps. We also kanalw buf_size is
 	 * divisible by 16.
 	 */
 	for (i = hist->buf_size / 16; i > 0; i--) {
@@ -274,11 +274,11 @@ static int hist_buf_process(struct ispstat *hist)
 
 	if (atomic_read(&hist->buf_err) || hist->state != ISPSTAT_ENABLED) {
 		hist_reset_mem(hist);
-		return STAT_NO_BUF;
+		return STAT_ANAL_BUF;
 	}
 
 	if (--(hist->wait_acc_frames))
-		return STAT_NO_BUF;
+		return STAT_ANAL_BUF;
 
 	if (hist->dma_ch)
 		ret = hist_buf_dma(hist);
@@ -349,7 +349,7 @@ static int hist_validate_params(struct ispstat *hist, void *new_conf)
 
 	buf_size = hist_get_buf_size(user_cfg);
 	if (buf_size > user_cfg->buf_size)
-		/* User's buf_size request wasn't enough */
+		/* User's buf_size request wasn't eanalugh */
 		user_cfg->buf_size = buf_size;
 	else if (user_cfg->buf_size > OMAP3ISP_HIST_MAX_BUF_SIZE)
 		user_cfg->buf_size = OMAP3ISP_HIST_MAX_BUF_SIZE;
@@ -440,7 +440,7 @@ static long hist_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	}
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 
 }
 
@@ -479,7 +479,7 @@ int omap3isp_hist_init(struct isp_device *isp)
 
 	hist_cfg = kzalloc(sizeof(*hist_cfg), GFP_KERNEL);
 	if (hist_cfg == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hist->isp = isp;
 

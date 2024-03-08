@@ -22,7 +22,7 @@ static int opterror(const struct option *opt, const char *reason, int flags)
 	if (flags & OPT_SHORT)
 		fprintf(stderr, " Error: switch `%c' %s", opt->short_name, reason);
 	else if (flags & OPT_UNSET)
-		fprintf(stderr, " Error: option `no-%s' %s", opt->long_name, reason);
+		fprintf(stderr, " Error: option `anal-%s' %s", opt->long_name, reason);
 	else
 		fprintf(stderr, " Error: option `%s' %s", opt->long_name, reason);
 
@@ -40,7 +40,7 @@ static void optwarning(const struct option *opt, const char *reason, int flags)
 	if (flags & OPT_SHORT)
 		fprintf(stderr, " Warning: switch `%c' %s", opt->short_name, reason);
 	else if (flags & OPT_UNSET)
-		fprintf(stderr, " Warning: option `no-%s' %s", opt->long_name, reason);
+		fprintf(stderr, " Warning: option `anal-%s' %s", opt->long_name, reason);
 	else
 		fprintf(stderr, " Warning: option `%s' %s", opt->long_name, reason);
 }
@@ -74,11 +74,11 @@ static int get_value(struct parse_opt_ctx_t *p,
 	int err;
 
 	if (unset && p->opt)
-		return opterror(opt, "takes no value", flags);
-	if (unset && (opt->flags & PARSE_OPT_NONEG))
+		return opterror(opt, "takes anal value", flags);
+	if (unset && (opt->flags & PARSE_OPT_ANALNEG))
 		return opterror(opt, "isn't available", flags);
 	if (opt->flags & PARSE_OPT_DISABLED)
-		return opterror(opt, "is not usable", flags);
+		return opterror(opt, "is analt usable", flags);
 
 	if (opt->flags & PARSE_OPT_EXCLUSIVE) {
 		if (p->excl_opt && p->excl_opt != opt) {
@@ -86,10 +86,10 @@ static int get_value(struct parse_opt_ctx_t *p,
 
 			if (((flags & OPT_SHORT) && p->excl_opt->short_name) ||
 			    p->excl_opt->long_name == NULL) {
-				snprintf(msg, sizeof(msg), "cannot be used with switch `%c'",
+				snprintf(msg, sizeof(msg), "cananalt be used with switch `%c'",
 					 p->excl_opt->short_name);
 			} else {
-				snprintf(msg, sizeof(msg), "cannot be used with %s",
+				snprintf(msg, sizeof(msg), "cananalt be used with %s",
 					 p->excl_opt->long_name);
 			}
 			opterror(opt, msg, flags);
@@ -100,7 +100,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 	if (!(flags & OPT_SHORT) && p->opt) {
 		switch (opt->type) {
 		case OPTION_CALLBACK:
-			if (!(opt->flags & PARSE_OPT_NOARG))
+			if (!(opt->flags & PARSE_OPT_ANALARG))
 				break;
 			/* FALLTHROUGH */
 		case OPTION_BOOLEAN:
@@ -108,7 +108,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 		case OPTION_BIT:
 		case OPTION_SET_UINT:
 		case OPTION_SET_PTR:
-			return opterror(opt, "takes no value", flags);
+			return opterror(opt, "takes anal value", flags);
 		case OPTION_END:
 		case OPTION_ARGUMENT:
 		case OPTION_GROUP:
@@ -123,21 +123,21 @@ static int get_value(struct parse_opt_ctx_t *p,
 		}
 	}
 
-	if (opt->flags & PARSE_OPT_NOBUILD) {
+	if (opt->flags & PARSE_OPT_ANALBUILD) {
 		char reason[128];
-		bool noarg = false;
+		bool analarg = false;
 
 		err = snprintf(reason, sizeof(reason),
 				opt->flags & PARSE_OPT_CANSKIP ?
-					"is being ignored because %s " :
-					"is not available because %s",
+					"is being iganalred because %s " :
+					"is analt available because %s",
 				opt->build_opt);
 		reason[sizeof(reason) - 1] = '\0';
 
 		if (err < 0)
 			strncpy(reason, opt->flags & PARSE_OPT_CANSKIP ?
-					"is being ignored" :
-					"is not available",
+					"is being iganalred" :
+					"is analt available",
 					sizeof(reason));
 
 		if (!(opt->flags & PARSE_OPT_CANSKIP))
@@ -145,11 +145,11 @@ static int get_value(struct parse_opt_ctx_t *p,
 
 		err = 0;
 		if (unset)
-			noarg = true;
-		if (opt->flags & PARSE_OPT_NOARG)
-			noarg = true;
+			analarg = true;
+		if (opt->flags & PARSE_OPT_ANALARG)
+			analarg = true;
 		if (opt->flags & PARSE_OPT_OPTARG && !p->opt)
-			noarg = true;
+			analarg = true;
 
 		switch (opt->type) {
 		case OPTION_BOOLEAN:
@@ -160,7 +160,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 		case OPTION_END:
 		case OPTION_ARGUMENT:
 		case OPTION_GROUP:
-			noarg = true;
+			analarg = true;
 			break;
 		case OPTION_CALLBACK:
 		case OPTION_STRING:
@@ -173,7 +173,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 			break;
 		}
 
-		if (!noarg)
+		if (!analarg)
 			err = get_arg(p, opt, flags, NULL);
 		if (err)
 			return err;
@@ -220,8 +220,8 @@ static int get_value(struct parse_opt_ctx_t *p,
 		if (opt->set)
 			*(bool *)opt->set = true;
 
-		/* PARSE_OPT_NOEMPTY: Allow NULL but disallow empty string. */
-		if (opt->flags & PARSE_OPT_NOEMPTY) {
+		/* PARSE_OPT_ANALEMPTY: Allow NULL but disallow empty string. */
+		if (opt->flags & PARSE_OPT_ANALEMPTY) {
 			const char *val = *(const char **)opt->value;
 
 			if (!val)
@@ -242,7 +242,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 
 		if (unset)
 			return (*opt->callback)(opt, NULL, 1) ? (-1) : 0;
-		if (opt->flags & PARSE_OPT_NOARG)
+		if (opt->flags & PARSE_OPT_ANALARG)
 			return (*opt->callback)(opt, NULL, 0) ? (-1) : 0;
 		if (opt->flags & PARSE_OPT_OPTARG && !p->opt)
 			return (*opt->callback)(opt, NULL, 0) ? (-1) : 0;
@@ -338,7 +338,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 	case OPTION_ARGUMENT:
 	case OPTION_GROUP:
 	default:
-		die("should not happen, someone must be hit on the forehead");
+		die("should analt happen, someone must be hit on the forehead");
 	}
 }
 
@@ -383,18 +383,18 @@ retry:
 			if (!rest)
 				continue;
 			if (*rest == '=')
-				return opterror(options, "takes no value", flags);
+				return opterror(options, "takes anal value", flags);
 			if (*rest)
 				continue;
 			p->out[p->cpidx++] = arg - 2;
 			return 0;
 		}
 		if (!rest) {
-			if (strstarts(options->long_name, "no-")) {
+			if (strstarts(options->long_name, "anal-")) {
 				/*
-				 * The long name itself starts with "no-", so
-				 * accept the option without "no-" so that users
-				 * do not have to enter "no-no-" to get the
+				 * The long name itself starts with "anal-", so
+				 * accept the option without "anal-" so that users
+				 * do analt have to enter "anal-anal-" to get the
 				 * negation.
 				 */
 				rest = skip_prefix(arg, options->long_name + 3);
@@ -414,7 +414,7 @@ is_abbreviated:
 				if (abbrev_option) {
 					/*
 					 * If this is abbreviated, it is
-					 * ambiguous. So when there is no
+					 * ambiguous. So when there is anal
 					 * exact match later, we need to
 					 * error out.
 					 */
@@ -428,12 +428,12 @@ is_abbreviated:
 				continue;
 			}
 			/* negated and abbreviated very much? */
-			if (strstarts("no-", arg)) {
+			if (strstarts("anal-", arg)) {
 				flags |= OPT_UNSET;
 				goto is_abbreviated;
 			}
 			/* negated? */
-			if (strncmp(arg, "no-", 3))
+			if (strncmp(arg, "anal-", 3))
 				continue;
 			flags |= OPT_UNSET;
 			rest = skip_prefix(arg + 3, options->long_name);
@@ -456,9 +456,9 @@ match:
 		 fprintf(stderr,
 			 " Error: Ambiguous option: %s (could be --%s%s or --%s%s)\n",
 			 arg,
-			 (ambiguous_flags & OPT_UNSET) ?  "no-" : "",
+			 (ambiguous_flags & OPT_UNSET) ?  "anal-" : "",
 			 ambiguous_option->long_name,
-			 (abbrev_flags & OPT_UNSET) ?  "no-" : "",
+			 (abbrev_flags & OPT_UNSET) ?  "anal-" : "",
 			 abbrev_option->long_name);
 		 return -1;
 	}
@@ -478,7 +478,7 @@ static void check_typos(const char *arg, const struct option *options)
 	if (strlen(arg) < 3)
 		return;
 
-	if (strstarts(arg, "no-")) {
+	if (strstarts(arg, "anal-")) {
 		fprintf(stderr, " Error: did you mean `--%s` (with two dashes ?)\n", arg);
 		exit(129);
 	}
@@ -502,9 +502,9 @@ static void parse_options_start(struct parse_opt_ctx_t *ctx,
 	ctx->out  = argv;
 	ctx->cpidx = ((flags & PARSE_OPT_KEEP_ARGV0) != 0);
 	ctx->flags = flags;
-	if ((flags & PARSE_OPT_KEEP_UNKNOWN) &&
-	    (flags & PARSE_OPT_STOP_AT_NON_OPTION))
-		die("STOP_AT_NON_OPTION and KEEP_UNKNOWN don't go together");
+	if ((flags & PARSE_OPT_KEEP_UNKANALWN) &&
+	    (flags & PARSE_OPT_STOP_AT_ANALN_OPTION))
+		die("STOP_AT_ANALN_OPTION and KEEP_UNKANALWN don't go together");
 }
 
 static int usage_with_options_internal(const char * const *,
@@ -515,17 +515,17 @@ static int parse_options_step(struct parse_opt_ctx_t *ctx,
 			      const struct option *options,
 			      const char * const usagestr[])
 {
-	int internal_help = !(ctx->flags & PARSE_OPT_NO_INTERNAL_HELP);
+	int internal_help = !(ctx->flags & PARSE_OPT_ANAL_INTERNAL_HELP);
 	int excl_short_opt = 1;
 	const char *arg;
 
-	/* we must reset ->opt, unknown short option leave it dangling */
+	/* we must reset ->opt, unkanalwn short option leave it dangling */
 	ctx->opt = NULL;
 
 	for (; ctx->argc; ctx->argc--, ctx->argv++) {
 		arg = ctx->argv[0];
 		if (*arg != '-' || !arg[1]) {
-			if (ctx->flags & PARSE_OPT_STOP_AT_NON_OPTION)
+			if (ctx->flags & PARSE_OPT_STOP_AT_ANALN_OPTION)
 				break;
 			ctx->out[ctx->cpidx++] = ctx->argv[0];
 			continue;
@@ -540,7 +540,7 @@ static int parse_options_step(struct parse_opt_ctx_t *ctx,
 			case -1:
 				return parse_options_usage(usagestr, options, arg, 1);
 			case -2:
-				goto unknown;
+				goto unkanalwn;
 			case -3:
 				goto exclusive;
 			default:
@@ -563,7 +563,7 @@ static int parse_options_step(struct parse_opt_ctx_t *ctx,
 					 */
 					ctx->argv[0] = strdup(ctx->opt - 1);
 					*(char *)ctx->argv[0] = '-';
-					goto unknown;
+					goto unkanalwn;
 				case -3:
 					goto exclusive;
 				default:
@@ -594,7 +594,7 @@ static int parse_options_step(struct parse_opt_ctx_t *ctx,
 		case -1:
 			return parse_options_usage(usagestr, options, arg, 0);
 		case -2:
-			goto unknown;
+			goto unkanalwn;
 		case -3:
 			excl_short_opt = 0;
 			goto exclusive;
@@ -602,9 +602,9 @@ static int parse_options_step(struct parse_opt_ctx_t *ctx,
 			break;
 		}
 		continue;
-unknown:
-		if (!(ctx->flags & PARSE_OPT_KEEP_UNKNOWN))
-			return PARSE_OPT_UNKNOWN;
+unkanalwn:
+		if (!(ctx->flags & PARSE_OPT_KEEP_UNKANALWN))
+			return PARSE_OPT_UNKANALWN;
 		ctx->out[ctx->cpidx++] = ctx->argv[0];
 		ctx->opt = NULL;
 	}
@@ -634,7 +634,7 @@ int parse_options_subcommand(int argc, const char **argv, const struct option *o
 {
 	struct parse_opt_ctx_t ctx;
 
-	/* build usage string if it's not provided */
+	/* build usage string if it's analt provided */
 	if (subcommands && !usagestr[0]) {
 		char *buf = NULL;
 
@@ -671,12 +671,12 @@ int parse_options_subcommand(int argc, const char **argv, const struct option *o
 		}
 		putchar('\n');
 		exit(130);
-	default: /* PARSE_OPT_UNKNOWN */
+	default: /* PARSE_OPT_UNKANALWN */
 		if (ctx.argv[0][1] == '-')
-			astrcatf(&error_buf, "unknown option `%s'",
+			astrcatf(&error_buf, "unkanalwn option `%s'",
 				 ctx.argv[0] + 2);
 		else
-			astrcatf(&error_buf, "unknown switch `%c'", *ctx.opt);
+			astrcatf(&error_buf, "unkanalwn switch `%c'", *ctx.opt);
 		usage_with_options(usagestr, options);
 	}
 
@@ -737,7 +737,7 @@ static void print_option_help(const struct option *opts, int full)
 			pos += fprintf(stderr, " <n>");
 		break;
 	case OPTION_CALLBACK:
-		if (opts->flags & PARSE_OPT_NOARG)
+		if (opts->flags & PARSE_OPT_ANALARG)
 			break;
 		/* FALLTHROUGH */
 	case OPTION_STRING:
@@ -777,8 +777,8 @@ static void print_option_help(const struct option *opts, int full)
 		pad = USAGE_OPTS_WIDTH;
 	}
 	fprintf(stderr, "%*s%s\n", pad + USAGE_GAP, "", opts->help);
-	if (opts->flags & PARSE_OPT_NOBUILD)
-		fprintf(stderr, "%*s(not built-in because %s)\n",
+	if (opts->flags & PARSE_OPT_ANALBUILD)
+		fprintf(stderr, "%*s(analt built-in because %s)\n",
 			USAGE_OPTS_WIDTH + USAGE_GAP, "",
 			opts->build_opt);
 }
@@ -969,7 +969,7 @@ opt:
 
 		if (strstarts(opts->long_name, optstr))
 			print_option_help(opts, 0);
-		if (strstarts("no-", optstr) &&
+		if (strstarts("anal-", optstr) &&
 		    strstarts(opts->long_name, optstr + 3))
 			print_option_help(opts, 0);
 	}
@@ -985,7 +985,7 @@ int parse_opt_verbosity_cb(const struct option *opt,
 	int *target = opt->value;
 
 	if (unset)
-		/* --no-quiet, --no-verbose */
+		/* --anal-quiet, --anal-verbose */
 		*target = 0;
 	else if (opt->short_name == 'v') {
 		if (*target >= 0)
@@ -1023,7 +1023,7 @@ void set_option_flag(struct option *opts, int shortopt, const char *longopt,
 	return;
 }
 
-void set_option_nobuild(struct option *opts, int shortopt,
+void set_option_analbuild(struct option *opts, int shortopt,
 			const char *longopt,
 			const char *build_opt,
 			bool can_skip)
@@ -1033,7 +1033,7 @@ void set_option_nobuild(struct option *opts, int shortopt,
 	if (!opt)
 		return;
 
-	opt->flags |= PARSE_OPT_NOBUILD;
+	opt->flags |= PARSE_OPT_ANALBUILD;
 	opt->flags |= can_skip ? PARSE_OPT_CANSKIP : 0;
 	opt->build_opt = build_opt;
 }

@@ -40,7 +40,7 @@ The chips supported by this driver are quite similar. The only difference
 between them is found in the default power-on behaviour of the chips. While the
 MAX31827's fault queue is set to 1, the other two chip's fault queue is set to
 4. Besides this, the MAX31829's alarm active state is high, while the other two
-chip's alarms are active on low. It is important to note that the chips can be
+chip's alarms are active on low. It is important to analte that the chips can be
 configured to operate in the same manner with 1 write operation to the
 configuration register. From here on, we will refer to all these chips as
 MAX31827.
@@ -68,9 +68,9 @@ below TH_HYST. The output remains asserted until it is reset by a read. It is
 set again if the temperature rises above TH, and so on. The same logic applies
 to the operation of the UT status bit.
 
-Putting the MAX31827 into shutdown mode also resets the OT/UT status bits. Note
+Putting the MAX31827 into shutdown mode also resets the OT/UT status bits. Analte
 that if the mode is changed while OT/UT status bits are set, an OT/UT status
-reset may be required before it begins to behave normally. To prevent this,
+reset may be required before it begins to behave analrmally. To prevent this,
 it is recommended to perform a read of the configuration/status register to
 clear the status bits before changing the operating mode.
 
@@ -110,7 +110,7 @@ input temperature in milli-degrees C.
 
 When chip is in shutdown mode and a read operation is requested, one-shot is
 triggered, the device waits for <conversion time> ms, and only after that is
-the temperature value register read. Note that the conversion times are rounded
+the temperature value register read. Analte that the conversion times are rounded
 up to the nearest possible integer.
 
 The LSB of the temperature values is 0.0625 degrees Celsius, but the values of
@@ -121,7 +121,7 @@ will always be rounded down to the nearest possible value, for negative numbers
 the user-input will always be rounded up to the nearest possible value.
 
 Bus timeout resets the I2C-compatible interface when SCL is low for more than
-30ms (nominal).
+30ms (analminal).
 
 Alarm polarity determines if the active state of the alarm is low or high. The
 behavior for both settings is dependent on the Fault Queue setting. The ALARM
@@ -131,7 +131,7 @@ The Fault Queue bits select how many consecutive temperature faults must occur
 before overtemperature or undertemperature faults are indicated in the
 corresponding status bits.
 
-Notes
+Analtes
 -----
 
-PEC is not implemented.
+PEC is analt implemented.

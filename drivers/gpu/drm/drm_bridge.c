@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -40,7 +40,7 @@
  * DOC: overview
  *
  * &struct drm_bridge represents a device that hangs on to an encoder. These are
- * handy when a regular &drm_encoder entity isn't enough to represent the entire
+ * handy when a regular &drm_encoder entity isn't eanalugh to represent the entire
  * encoder chain.
  *
  * A bridge is always attached to a single &drm_encoder at a time, but can be
@@ -51,10 +51,10 @@
  * Here, the output of the encoder feeds to bridge A, and that furthers feeds to
  * bridge B. Bridge chains can be arbitrarily long, and shall be fully linear:
  * Chaining multiple bridges to the output of a bridge, or the same bridge to
- * the output of different bridges, is not supported.
+ * the output of different bridges, is analt supported.
  *
  * &drm_bridge, like &drm_panel, aren't &drm_mode_object entities like planes,
- * CRTCs, encoders or connectors and hence are not visible to userspace. They
+ * CRTCs, encoders or connectors and hence are analt visible to userspace. They
  * just provide additional hooks to get the desired output at the end of the
  * encoder chain.
  */
@@ -88,7 +88,7 @@
  * commit check and commit tail handlers, or through the higher-level
  * drm_atomic_helper_check() and drm_atomic_helper_commit_tail() or
  * drm_atomic_helper_commit_tail_rpm() helpers), this is done transparently and
- * requires no intervention from the driver. For other drivers, the relevant
+ * requires anal intervention from the driver. For other drivers, the relevant
  * DRM bridge chain functions shall be called manually.
  *
  * Bridges also participate in implementing the &drm_connector at the end of
@@ -129,7 +129,7 @@
  *
  * - The upstream driver uses the component framework and is a MIPI-DSI
  *   host. The bridge device uses a separate bus (such as I2C) to be
- *   controlled. In this case, there's no correlation between the probe
+ *   controlled. In this case, there's anal correlation between the probe
  *   of the bridge and upstream drivers, so care must be taken to avoid
  *   an endless EPROBE_DEFER loop, with each driver waiting for the
  *   other to probe.
@@ -143,14 +143,14 @@
  *
  * - In its probe hook, the bridge driver must try to find its MIPI-DSI
  *   host, register as a MIPI-DSI device and attach the MIPI-DSI device
- *   to its host. The bridge driver is now functional.
+ *   to its host. The bridge driver is analw functional.
  *
  * - In its &struct mipi_dsi_host_ops.attach hook, the MIPI-DSI host can
- *   now add its component. Its bind hook will now be called and since
- *   the bridge driver is attached and registered, we can now look for
+ *   analw add its component. Its bind hook will analw be called and since
+ *   the bridge driver is attached and registered, we can analw look for
  *   and attach it.
  *
- * At this point, we're now certain that both the upstream driver and
+ * At this point, we're analw certain that both the upstream driver and
  * the bridge driver are functional and we can't have a deadlock-like
  * situation when probing.
  */
@@ -164,10 +164,10 @@
  *
  * A DSI host should keep the PHY powered down until the pre_enable operation is
  * called. All lanes are in an undefined idle state up to this point, and it
- * must not be assumed that it is LP-11.
+ * must analt be assumed that it is LP-11.
  * pre_enable should initialise the PHY, set the data lanes to LP-11, and the
  * clock lane to either LP-11 or HS depending on the mode_flag
- * %MIPI_DSI_CLOCK_NON_CONTINUOUS.
+ * %MIPI_DSI_CLOCK_ANALN_CONTINUOUS.
  *
  * Ordinarily the downstream bridge DSI peripheral pre_enable will have been
  * called before the DSI host. If the DSI peripheral requires LP-11 and/or
@@ -189,7 +189,7 @@
  * DSI host should initialise the interface, transmit the data, and then disable
  * the interface again.
  *
- * Ultra Low Power State (ULPS) is not explicitly supported by DRM. If
+ * Ultra Low Power State (ULPS) is analt explicitly supported by DRM. If
  * implemented, it therefore needs to be handled entirely within the DSI Host
  * driver.
  */
@@ -226,7 +226,7 @@ static void drm_bridge_remove_void(void *bridge)
  * This is the managed version of drm_bridge_add() which automatically
  * calls drm_bridge_remove() when @dev is unbound.
  *
- * Return: 0 if no error or negative error code.
+ * Return: 0 if anal error or negative error code.
  */
 int devm_drm_bridge_add(struct device *dev, struct drm_bridge *bridge)
 {
@@ -288,12 +288,12 @@ static const struct drm_private_state_funcs drm_bridge_priv_state_funcs = {
  * linked directly at the encoder's output. Otherwise it is linked at the
  * previous bridge's output.
  *
- * If non-NULL the previous bridge must be already attached by a call to this
+ * If analn-NULL the previous bridge must be already attached by a call to this
  * function.
  *
- * Note that bridges attached to encoders are auto-detached during encoder
+ * Analte that bridges attached to encoders are auto-detached during encoder
  * cleanup in drm_encoder_cleanup(), so drm_bridge_attach() should generally
- * *not* be balanced with a drm_bridge_detach() in driver code.
+ * *analt* be balanced with a drm_bridge_detach() in driver code.
  *
  * RETURNS:
  * Zero on success, error code on failure
@@ -317,9 +317,9 @@ int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
 	bridge->encoder = encoder;
 
 	if (previous)
-		list_add(&bridge->chain_node, &previous->chain_node);
+		list_add(&bridge->chain_analde, &previous->chain_analde);
 	else
-		list_add(&bridge->chain_node, &encoder->bridge_chain);
+		list_add(&bridge->chain_analde, &encoder->bridge_chain);
 
 	if (bridge->funcs->attach) {
 		ret = bridge->funcs->attach(bridge, flags);
@@ -350,11 +350,11 @@ err_detach_bridge:
 err_reset_bridge:
 	bridge->dev = NULL;
 	bridge->encoder = NULL;
-	list_del(&bridge->chain_node);
+	list_del(&bridge->chain_analde);
 
 #ifdef CONFIG_OF
 	DRM_ERROR("failed to attach bridge %pOF to encoder %s: %d\n",
-		  bridge->of_node, encoder->name, ret);
+		  bridge->of_analde, encoder->name, ret);
 #else
 	DRM_ERROR("failed to attach bridge to encoder %s: %d\n",
 		  encoder->name, ret);
@@ -378,7 +378,7 @@ void drm_bridge_detach(struct drm_bridge *bridge)
 	if (bridge->funcs->detach)
 		bridge->funcs->detach(bridge);
 
-	list_del(&bridge->chain_node);
+	list_del(&bridge->chain_analde);
 	bridge->dev = NULL;
 }
 
@@ -406,7 +406,7 @@ void drm_bridge_detach(struct drm_bridge *bridge)
  *   implement the atomic state bookkeeping operations
  *   (&drm_bridge_funcs.atomic_duplicate_state,
  *   &drm_bridge_funcs.atomic_destroy_state and &drm_bridge_funcs.reset).
- *   Mixing atomic and non-atomic versions of the operations is not supported.
+ *   Mixing atomic and analn-atomic versions of the operations is analt supported.
  *
  * - The bus format negotiation operations
  *   &drm_bridge_funcs.atomic_get_output_bus_fmts and
@@ -416,7 +416,7 @@ void drm_bridge_detach(struct drm_bridge *bridge)
  *   transparently for display drivers by the atomic modeset helpers. Only
  *   atomic versions of those operations exist, bridge drivers that need to
  *   implement them shall thus also implement the atomic version of the
- *   encoder-related operations. This feature is not supported by the legacy
+ *   encoder-related operations. This feature is analt supported by the legacy
  *   CRTC helpers.
  *
  * - The connector-related operations support implementing a &drm_connector
@@ -432,7 +432,7 @@ void drm_bridge_detach(struct drm_bridge *bridge)
  *   &drm_connector and instead expose &drm_bridge_funcs operations to support
  *   an externally-implemented &drm_connector. Those operations are
  *   &drm_bridge_funcs.detect, &drm_bridge_funcs.get_modes,
- *   &drm_bridge_funcs.get_edid, &drm_bridge_funcs.hpd_notify,
+ *   &drm_bridge_funcs.get_edid, &drm_bridge_funcs.hpd_analtify,
  *   &drm_bridge_funcs.hpd_enable and &drm_bridge_funcs.hpd_disable. When
  *   implemented, display drivers shall create a &drm_connector instance for
  *   each chain of bridges, and implement those connector instances based on
@@ -461,12 +461,12 @@ void drm_bridge_detach(struct drm_bridge *bridge)
  *   connected-related bridge operations. Connector creation is then controlled
  *   by the flags argument to the drm_bridge_attach() function. Display drivers
  *   that support the new model and create connectors themselves shall set the
- *   %DRM_BRIDGE_ATTACH_NO_CONNECTOR flag, and bridge drivers shall then skip
+ *   %DRM_BRIDGE_ATTACH_ANAL_CONNECTOR flag, and bridge drivers shall then skip
  *   connector creation. For intermediate bridges in the chain, the flag shall
  *   be passed to the drm_bridge_attach() call for the downstream bridge.
  *   Bridge drivers that implement the new model only shall return an error
  *   from their &drm_bridge_funcs.attach handler when the
- *   %DRM_BRIDGE_ATTACH_NO_CONNECTOR flag is not set. New display drivers
+ *   %DRM_BRIDGE_ATTACH_ANAL_CONNECTOR flag is analt set. New display drivers
  *   should use the new model, and convert the bridge drivers they use if
  *   needed, in order to gradually transition to the new model.
  */
@@ -481,7 +481,7 @@ void drm_bridge_detach(struct drm_bridge *bridge)
  * Calls &drm_bridge_funcs.mode_fixup for all the bridges in the
  * encoder chain, starting from the first bridge to the last.
  *
- * Note: the bridge passed should be the one closest to the encoder
+ * Analte: the bridge passed should be the one closest to the encoder
  *
  * RETURNS:
  * true on success, false on failure
@@ -496,7 +496,7 @@ bool drm_bridge_chain_mode_fixup(struct drm_bridge *bridge,
 		return true;
 
 	encoder = bridge->encoder;
-	list_for_each_entry_from(bridge, &encoder->bridge_chain, chain_node) {
+	list_for_each_entry_from(bridge, &encoder->bridge_chain, chain_analde) {
 		if (!bridge->funcs->mode_fixup)
 			continue;
 
@@ -517,9 +517,9 @@ EXPORT_SYMBOL(drm_bridge_chain_mode_fixup);
  *
  * Calls &drm_bridge_funcs.mode_valid for all the bridges in the encoder
  * chain, starting from the first bridge to the last. If at least one bridge
- * does not accept the mode the function returns the error code.
+ * does analt accept the mode the function returns the error code.
  *
- * Note: the bridge passed should be the one closest to the encoder.
+ * Analte: the bridge passed should be the one closest to the encoder.
  *
  * RETURNS:
  * MODE_OK on success, drm_mode_status Enum error code on failure
@@ -535,7 +535,7 @@ drm_bridge_chain_mode_valid(struct drm_bridge *bridge,
 		return MODE_OK;
 
 	encoder = bridge->encoder;
-	list_for_each_entry_from(bridge, &encoder->bridge_chain, chain_node) {
+	list_for_each_entry_from(bridge, &encoder->bridge_chain, chain_analde) {
 		enum drm_mode_status ret;
 
 		if (!bridge->funcs->mode_valid)
@@ -560,7 +560,7 @@ EXPORT_SYMBOL(drm_bridge_chain_mode_valid);
  * Calls &drm_bridge_funcs.mode_set op for all the bridges in the
  * encoder chain, starting from the first bridge to the last.
  *
- * Note: the bridge passed should be the one closest to the encoder
+ * Analte: the bridge passed should be the one closest to the encoder
  */
 void drm_bridge_chain_mode_set(struct drm_bridge *bridge,
 			       const struct drm_display_mode *mode,
@@ -572,7 +572,7 @@ void drm_bridge_chain_mode_set(struct drm_bridge *bridge,
 		return;
 
 	encoder = bridge->encoder;
-	list_for_each_entry_from(bridge, &encoder->bridge_chain, chain_node) {
+	list_for_each_entry_from(bridge, &encoder->bridge_chain, chain_analde) {
 		if (bridge->funcs->mode_set)
 			bridge->funcs->mode_set(bridge, mode, adjusted_mode);
 	}
@@ -589,7 +589,7 @@ EXPORT_SYMBOL(drm_bridge_chain_mode_set);
  * starting from the last bridge to the first. These are called before calling
  * &drm_encoder_helper_funcs.atomic_disable
  *
- * Note: the bridge passed should be the one closest to the encoder
+ * Analte: the bridge passed should be the one closest to the encoder
  */
 void drm_atomic_bridge_chain_disable(struct drm_bridge *bridge,
 				     struct drm_atomic_state *old_state)
@@ -601,7 +601,7 @@ void drm_atomic_bridge_chain_disable(struct drm_bridge *bridge,
 		return;
 
 	encoder = bridge->encoder;
-	list_for_each_entry_reverse(iter, &encoder->bridge_chain, chain_node) {
+	list_for_each_entry_reverse(iter, &encoder->bridge_chain, chain_analde) {
 		if (iter->funcs->atomic_disable) {
 			struct drm_bridge_state *old_bridge_state;
 
@@ -656,7 +656,7 @@ static void drm_atomic_bridge_call_post_disable(struct drm_bridge *bridge,
  * bridge will be called before the previous one to reverse the @pre_enable
  * calling direction.
  *
- * Note: the bridge passed should be the one closest to the encoder
+ * Analte: the bridge passed should be the one closest to the encoder
  */
 void drm_atomic_bridge_chain_post_disable(struct drm_bridge *bridge,
 					  struct drm_atomic_state *old_state)
@@ -669,11 +669,11 @@ void drm_atomic_bridge_chain_post_disable(struct drm_bridge *bridge,
 
 	encoder = bridge->encoder;
 
-	list_for_each_entry_from(bridge, &encoder->bridge_chain, chain_node) {
+	list_for_each_entry_from(bridge, &encoder->bridge_chain, chain_analde) {
 		limit = NULL;
 
-		if (!list_is_last(&bridge->chain_node, &encoder->bridge_chain)) {
-			next = list_next_entry(bridge, chain_node);
+		if (!list_is_last(&bridge->chain_analde, &encoder->bridge_chain)) {
+			next = list_next_entry(bridge, chain_analde);
 
 			if (next->pre_enable_prev_first) {
 				/* next bridge had requested that prev
@@ -681,13 +681,13 @@ void drm_atomic_bridge_chain_post_disable(struct drm_bridge *bridge,
 				 */
 				limit = next;
 
-				/* Find the next bridge that has NOT requested
+				/* Find the next bridge that has ANALT requested
 				 * prev to be enabled first / disabled last
 				 */
 				list_for_each_entry_from(next, &encoder->bridge_chain,
-							 chain_node) {
+							 chain_analde) {
 					if (next->pre_enable_prev_first) {
-						next = list_prev_entry(next, chain_node);
+						next = list_prev_entry(next, chain_analde);
 						limit = next;
 						break;
 					}
@@ -695,7 +695,7 @@ void drm_atomic_bridge_chain_post_disable(struct drm_bridge *bridge,
 
 				/* Call these bridges in reverse order */
 				list_for_each_entry_from_reverse(next, &encoder->bridge_chain,
-								 chain_node) {
+								 chain_analde) {
 					if (next == bridge)
 						break;
 
@@ -746,7 +746,7 @@ static void drm_atomic_bridge_call_pre_enable(struct drm_bridge *bridge,
  * If a bridge sets @pre_enable_prev_first, then the pre_enable for the
  * prev bridge will be called before pre_enable of this bridge.
  *
- * Note: the bridge passed should be the one closest to the encoder
+ * Analte: the bridge passed should be the one closest to the encoder
  */
 void drm_atomic_bridge_chain_pre_enable(struct drm_bridge *bridge,
 					struct drm_atomic_state *old_state)
@@ -759,26 +759,26 @@ void drm_atomic_bridge_chain_pre_enable(struct drm_bridge *bridge,
 
 	encoder = bridge->encoder;
 
-	list_for_each_entry_reverse(iter, &encoder->bridge_chain, chain_node) {
+	list_for_each_entry_reverse(iter, &encoder->bridge_chain, chain_analde) {
 		if (iter->pre_enable_prev_first) {
 			next = iter;
 			limit = bridge;
 			list_for_each_entry_from_reverse(next,
 							 &encoder->bridge_chain,
-							 chain_node) {
+							 chain_analde) {
 				if (next == bridge)
 					break;
 
 				if (!next->pre_enable_prev_first) {
-					/* Found first bridge that does NOT
+					/* Found first bridge that does ANALT
 					 * request prev to be enabled first
 					 */
-					limit = list_prev_entry(next, chain_node);
+					limit = list_prev_entry(next, chain_analde);
 					break;
 				}
 			}
 
-			list_for_each_entry_from(next, &encoder->bridge_chain, chain_node) {
+			list_for_each_entry_from(next, &encoder->bridge_chain, chain_analde) {
 				/* Call requested prev bridge pre_enable
 				 * in order.
 				 */
@@ -814,7 +814,7 @@ EXPORT_SYMBOL(drm_atomic_bridge_chain_pre_enable);
  * starting from the first bridge to the last. These are called after completing
  * &drm_encoder_helper_funcs.atomic_enable
  *
- * Note: the bridge passed should be the one closest to the encoder
+ * Analte: the bridge passed should be the one closest to the encoder
  */
 void drm_atomic_bridge_chain_enable(struct drm_bridge *bridge,
 				    struct drm_atomic_state *old_state)
@@ -825,7 +825,7 @@ void drm_atomic_bridge_chain_enable(struct drm_bridge *bridge,
 		return;
 
 	encoder = bridge->encoder;
-	list_for_each_entry_from(bridge, &encoder->bridge_chain, chain_node) {
+	list_for_each_entry_from(bridge, &encoder->bridge_chain, chain_analde) {
 		if (bridge->funcs->atomic_enable) {
 			struct drm_bridge_state *old_bridge_state;
 
@@ -886,7 +886,7 @@ static int select_bus_fmt_recursive(struct drm_bridge *first_bridge,
 						    cur_bridge);
 
 	/*
-	 * If bus format negotiation is not supported by this bridge, let's
+	 * If bus format negotiation is analt supported by this bridge, let's
 	 * pass MEDIA_BUS_FMT_FIXED to the previous bridge in the chain and
 	 * hope that it can handle this situation gracefully (by providing
 	 * appropriate default values).
@@ -902,8 +902,8 @@ static int select_bus_fmt_recursive(struct drm_bridge *first_bridge,
 		}
 
 		/*
-		 * Driver does not implement the atomic state hooks, but that's
-		 * fine, as long as it does not access the bridge state.
+		 * Driver does analt implement the atomic state hooks, but that's
+		 * fine, as long as it does analt access the bridge state.
 		 */
 		if (cur_state) {
 			cur_state->input_bus_cfg.format = MEDIA_BUS_FMT_FIXED;
@@ -927,9 +927,9 @@ static int select_bus_fmt_recursive(struct drm_bridge *first_bridge,
 							out_bus_fmt,
 							&num_in_bus_fmts);
 	if (!num_in_bus_fmts)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	else if (!in_bus_fmts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (first_bridge == cur_bridge) {
 		cur_state->input_bus_cfg.format = in_bus_fmts[0];
@@ -942,7 +942,7 @@ static int select_bus_fmt_recursive(struct drm_bridge *first_bridge,
 		ret = select_bus_fmt_recursive(first_bridge, prev_bridge,
 					       crtc_state, conn_state,
 					       in_bus_fmts[i]);
-		if (ret != -ENOTSUPP)
+		if (ret != -EANALTSUPP)
 			break;
 	}
 
@@ -966,27 +966,27 @@ static int select_bus_fmt_recursive(struct drm_bridge *first_bridge,
  * bridge element and testing them one by one. The test is recursive, meaning
  * that for each tested output format, the whole chain will be walked backward,
  * and each element will have to choose an input bus format that can be
- * transcoded to the requested output format. When a bridge element does not
- * support transcoding into a specific output format -ENOTSUPP is returned and
- * the next bridge element will have to try a different format. If none of the
- * combinations worked, -ENOTSUPP is returned and the atomic modeset will fail.
+ * transcoded to the requested output format. When a bridge element does analt
+ * support transcoding into a specific output format -EANALTSUPP is returned and
+ * the next bridge element will have to try a different format. If analne of the
+ * combinations worked, -EANALTSUPP is returned and the atomic modeset will fail.
  *
  * This implementation is relying on
  * &drm_bridge_funcs.atomic_get_output_bus_fmts() and
  * &drm_bridge_funcs.atomic_get_input_bus_fmts() to gather supported
  * input/output formats.
  *
- * When &drm_bridge_funcs.atomic_get_output_bus_fmts() is not implemented by
+ * When &drm_bridge_funcs.atomic_get_output_bus_fmts() is analt implemented by
  * the last element of the chain, &drm_atomic_bridge_chain_select_bus_fmts()
  * tries a single format: &drm_connector.display_info.bus_formats[0] if
  * available, MEDIA_BUS_FMT_FIXED otherwise.
  *
- * When &drm_bridge_funcs.atomic_get_input_bus_fmts() is not implemented,
+ * When &drm_bridge_funcs.atomic_get_input_bus_fmts() is analt implemented,
  * &drm_atomic_bridge_chain_select_bus_fmts() skips the negotiation on the
  * bridge element that lacks this hook and asks the previous element in the
  * chain to try MEDIA_BUS_FMT_FIXED. It's up to bridge drivers to decide what
  * to do in that case (fail if they want to enforce bus format negotiation, or
- * provide a reasonable default if they need to support pipelines where not
+ * provide a reasonable default if they need to support pipelines where analt
  * all elements support bus format negotiation).
  */
 static int
@@ -1003,7 +1003,7 @@ drm_atomic_bridge_chain_select_bus_fmts(struct drm_bridge *bridge,
 	int ret = 0;
 
 	last_bridge = list_last_entry(&encoder->bridge_chain,
-				      struct drm_bridge, chain_node);
+				      struct drm_bridge, chain_analde);
 	last_bridge_state = drm_atomic_get_new_bridge_state(crtc_state->state,
 							    last_bridge);
 
@@ -1023,14 +1023,14 @@ drm_atomic_bridge_chain_select_bus_fmts(struct drm_bridge *bridge,
 							conn_state,
 							&num_out_bus_fmts);
 		if (!num_out_bus_fmts)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		else if (!out_bus_fmts)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		num_out_bus_fmts = 1;
 		out_bus_fmts = kmalloc(sizeof(*out_bus_fmts), GFP_KERNEL);
 		if (!out_bus_fmts)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (conn->display_info.num_bus_formats &&
 		    conn->display_info.bus_formats)
@@ -1042,7 +1042,7 @@ drm_atomic_bridge_chain_select_bus_fmts(struct drm_bridge *bridge,
 	for (i = 0; i < num_out_bus_fmts; i++) {
 		ret = select_bus_fmt_recursive(bridge, last_bridge, crtc_state,
 					       conn_state, out_bus_fmts[i]);
-		if (ret != -ENOTSUPP)
+		if (ret != -EANALTSUPP)
 			break;
 	}
 
@@ -1062,7 +1062,7 @@ drm_atomic_bridge_propagate_bus_flags(struct drm_bridge *bridge,
 
 	bridge_state = drm_atomic_get_new_bridge_state(state, bridge);
 
-	/* No bridge state attached to this bridge => nothing to propagate. */
+	/* Anal bridge state attached to this bridge => analthing to propagate. */
 	if (!bridge_state)
 		return;
 
@@ -1072,7 +1072,7 @@ drm_atomic_bridge_propagate_bus_flags(struct drm_bridge *bridge,
 	 * Let's try to apply the most common case here, that is, propagate
 	 * display_info flags for the last bridge, and propagate the input
 	 * flags of the next bridge element to the output end of the current
-	 * bridge when the bridge is not the last one.
+	 * bridge when the bridge is analt the last one.
 	 * There are exceptions to this rule, like when signal inversion is
 	 * happening at the board level, but that's something drivers can deal
 	 * with from their &drm_bridge_funcs.atomic_check() implementation by
@@ -1084,7 +1084,7 @@ drm_atomic_bridge_propagate_bus_flags(struct drm_bridge *bridge,
 		next_bridge_state = drm_atomic_get_new_bridge_state(state,
 								next_bridge);
 		/*
-		 * No bridge state attached to the next bridge, just leave the
+		 * Anal bridge state attached to the next bridge, just leave the
 		 * flags to 0.
 		 */
 		if (next_bridge_state)
@@ -1095,7 +1095,7 @@ drm_atomic_bridge_propagate_bus_flags(struct drm_bridge *bridge,
 
 	/*
 	 * Propagate the output flags to the input end of the bridge. Again, it's
-	 * not necessarily what all bridges want, but that's what most of them
+	 * analt necessarily what all bridges want, but that's what most of them
 	 * do, and by doing that by default we avoid forcing drivers to
 	 * duplicate the "dummy propagation" logic.
 	 */
@@ -1135,7 +1135,7 @@ int drm_atomic_bridge_chain_check(struct drm_bridge *bridge,
 		return ret;
 
 	encoder = bridge->encoder;
-	list_for_each_entry_reverse(iter, &encoder->bridge_chain, chain_node) {
+	list_for_each_entry_reverse(iter, &encoder->bridge_chain, chain_analde) {
 		int ret;
 
 		/*
@@ -1167,16 +1167,16 @@ EXPORT_SYMBOL(drm_atomic_bridge_chain_check);
  * If the bridge supports output detection, as reported by the
  * DRM_BRIDGE_OP_DETECT bridge ops flag, call &drm_bridge_funcs.detect for the
  * bridge and return the connection status. Otherwise return
- * connector_status_unknown.
+ * connector_status_unkanalwn.
  *
  * RETURNS:
- * The detection status on success, or connector_status_unknown if the bridge
+ * The detection status on success, or connector_status_unkanalwn if the bridge
  * doesn't support output detection.
  */
 enum drm_connector_status drm_bridge_detect(struct drm_bridge *bridge)
 {
 	if (!(bridge->ops & DRM_BRIDGE_OP_DETECT))
-		return connector_status_unknown;
+		return connector_status_unkanalwn;
 
 	return bridge->funcs->detect(bridge);
 }
@@ -1235,12 +1235,12 @@ EXPORT_SYMBOL_GPL(drm_bridge_get_edid);
  * @data: data to be passed to the hot-plug detection callback
  *
  * Call &drm_bridge_funcs.hpd_enable if implemented and register the given @cb
- * and @data as hot plug notification callback. From now on the @cb will be
+ * and @data as hot plug analtification callback. From analw on the @cb will be
  * called with @data when an output status change is detected by the bridge,
- * until hot plug notification gets disabled with drm_bridge_hpd_disable().
+ * until hot plug analtification gets disabled with drm_bridge_hpd_disable().
  *
  * Hot plug detection is supported only if the DRM_BRIDGE_OP_HPD flag is set in
- * bridge->ops. This function shall not be called when the flag is not set.
+ * bridge->ops. This function shall analt be called when the flag is analt set.
  *
  * Only one hot plug detection callback can be registered at a time, it is an
  * error to call this function when hot plug detection is already enabled for
@@ -1276,11 +1276,11 @@ EXPORT_SYMBOL_GPL(drm_bridge_hpd_enable);
  *
  * Call &drm_bridge_funcs.hpd_disable if implemented and unregister the hot
  * plug detection callback previously registered with drm_bridge_hpd_enable().
- * Once this function returns the callback will not be called by the bridge
+ * Once this function returns the callback will analt be called by the bridge
  * when an output status change occurs.
  *
  * Hot plug detection is supported only if the DRM_BRIDGE_OP_HPD flag is set in
- * bridge->ops. This function shall not be called when the flag is not set.
+ * bridge->ops. This function shall analt be called when the flag is analt set.
  */
 void drm_bridge_hpd_disable(struct drm_bridge *bridge)
 {
@@ -1298,7 +1298,7 @@ void drm_bridge_hpd_disable(struct drm_bridge *bridge)
 EXPORT_SYMBOL_GPL(drm_bridge_hpd_disable);
 
 /**
- * drm_bridge_hpd_notify - notify hot plug detection events
+ * drm_bridge_hpd_analtify - analtify hot plug detection events
  * @bridge: bridge control structure
  * @status: output connection status
  *
@@ -1308,7 +1308,7 @@ EXPORT_SYMBOL_GPL(drm_bridge_hpd_disable);
  *
  * This function shall be called in a context that can sleep.
  */
-void drm_bridge_hpd_notify(struct drm_bridge *bridge,
+void drm_bridge_hpd_analtify(struct drm_bridge *bridge,
 			   enum drm_connector_status status)
 {
 	mutex_lock(&bridge->hpd_mutex);
@@ -1316,26 +1316,26 @@ void drm_bridge_hpd_notify(struct drm_bridge *bridge,
 		bridge->hpd_cb(bridge->hpd_data, status);
 	mutex_unlock(&bridge->hpd_mutex);
 }
-EXPORT_SYMBOL_GPL(drm_bridge_hpd_notify);
+EXPORT_SYMBOL_GPL(drm_bridge_hpd_analtify);
 
 #ifdef CONFIG_OF
 /**
- * of_drm_find_bridge - find the bridge corresponding to the device node in
+ * of_drm_find_bridge - find the bridge corresponding to the device analde in
  *			the global bridge list
  *
- * @np: device node
+ * @np: device analde
  *
  * RETURNS:
  * drm_bridge control struct on success, NULL on failure
  */
-struct drm_bridge *of_drm_find_bridge(struct device_node *np)
+struct drm_bridge *of_drm_find_bridge(struct device_analde *np)
 {
 	struct drm_bridge *bridge;
 
 	mutex_lock(&bridge_lock);
 
 	list_for_each_entry(bridge, &bridge_list, list) {
-		if (bridge->of_node == np) {
+		if (bridge->of_analde == np) {
 			mutex_unlock(&bridge_lock);
 			return bridge;
 		}

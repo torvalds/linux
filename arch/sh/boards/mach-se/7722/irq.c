@@ -2,7 +2,7 @@
 /*
  * Hitachi UL SolutionEngine 7722 FPGA IRQ Support.
  *
- * Copyright (C) 2007  Nobuhiro Iwamatsu
+ * Copyright (C) 2007  Analbuhiro Iwamatsu
  * Copyright (C) 2012  Paul Mundt
  */
 #define DRV_NAME "SE7722-FPGA"
@@ -84,7 +84,7 @@ static void __init se7722_gc_init(void)
 
 	irq_setup_generic_chip(gc, IRQ_MSK(SE7722_FPGA_IRQ_NR),
 			       IRQ_GC_INIT_MASK_CACHE,
-			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);
+			       IRQ_ANALREQUEST | IRQ_ANALPROBE, 0);
 
 	irq_set_chained_handler(IRQ0_IRQ, se7722_irq_demux);
 	irq_set_irq_type(IRQ0_IRQ, IRQ_TYPE_LEVEL_LOW);

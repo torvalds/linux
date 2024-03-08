@@ -3,8 +3,8 @@
  * RDMA Transport Layer
  *
  * Copyright (c) 2014 - 2018 ProfitBricks GmbH. All rights reserved.
- * Copyright (c) 2018 - 2019 1&1 IONOS Cloud GmbH. All rights reserved.
- * Copyright (c) 2019 - 2020 1&1 IONOS SE. All rights reserved.
+ * Copyright (c) 2018 - 2019 1&1 IOANALS Cloud GmbH. All rights reserved.
+ * Copyright (c) 2019 - 2020 1&1 IOANALS SE. All rights reserved.
  */
 #undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME " L" __stringify(__LINE__) ": " fmt
@@ -107,7 +107,7 @@ static ssize_t mpath_policy_show(struct device *dev,
 		return sysfs_emit(page, "min-latency (ML: %d)\n",
 				  clt->mp_policy);
 	default:
-		return sysfs_emit(page, "Unknown (%d)\n", clt->mp_policy);
+		return sysfs_emit(page, "Unkanalwn (%d)\n", clt->mp_policy);
 	}
 }
 
@@ -225,7 +225,7 @@ static ssize_t rtrs_clt_reconnect_store(struct kobject *kobj,
 
 	clt_path = container_of(kobj, struct rtrs_clt_path, kobj);
 	if (!sysfs_streq(buf, "1")) {
-		rtrs_err(clt_path->clt, "%s: unknown value: '%s'\n",
+		rtrs_err(clt_path->clt, "%s: unkanalwn value: '%s'\n",
 			  attr->attr.name, buf);
 		return -EINVAL;
 	}
@@ -254,7 +254,7 @@ static ssize_t rtrs_clt_disconnect_store(struct kobject *kobj,
 
 	clt_path = container_of(kobj, struct rtrs_clt_path, kobj);
 	if (!sysfs_streq(buf, "1")) {
-		rtrs_err(clt_path->clt, "%s: unknown value: '%s'\n",
+		rtrs_err(clt_path->clt, "%s: unkanalwn value: '%s'\n",
 			  attr->attr.name, buf);
 		return -EINVAL;
 	}
@@ -282,7 +282,7 @@ static ssize_t rtrs_clt_remove_path_store(struct kobject *kobj,
 
 	clt_path = container_of(kobj, struct rtrs_clt_path, kobj);
 	if (!sysfs_streq(buf, "1")) {
-		rtrs_err(clt_path->clt, "%s: unknown value: '%s'\n",
+		rtrs_err(clt_path->clt, "%s: unkanalwn value: '%s'\n",
 			  attr->attr.name, buf);
 		return -EINVAL;
 	}

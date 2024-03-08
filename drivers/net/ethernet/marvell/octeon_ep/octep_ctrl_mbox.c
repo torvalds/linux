@@ -5,7 +5,7 @@
  *
  */
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mutex.h>
 #include <linux/jiffies.h>
@@ -91,7 +91,7 @@ int octep_ctrl_mbox_init(struct octep_ctrl_mbox *mbox)
 
 	status = readq(OCTEP_CTRL_MBOX_INFO_FW_STATUS(mbox->barmem));
 	if (status != OCTEP_CTRL_MBOX_STATUS_READY) {
-		pr_info("octep_ctrl_mbox : Firmware is not ready.\n");
+		pr_info("octep_ctrl_mbox : Firmware is analt ready.\n");
 		return -EINVAL;
 	}
 
@@ -135,7 +135,7 @@ octep_write_mbox_data(struct octep_ctrl_mbox_q *q, u32 *pi, u32 ci, void *buf, u
 	u8 __iomem *qbuf;
 	u32 cp_sz;
 
-	/* Assumption: Caller has ensured enough write space */
+	/* Assumption: Caller has ensured eanalugh write space */
 	qbuf = (q->hw_q + *pi);
 	if (*pi < ci) {
 		/* copy entire w_sz */
@@ -200,7 +200,7 @@ octep_read_mbox_data(struct octep_ctrl_mbox_q *q, u32 pi, u32 *ci, void *buf, u3
 	u8 __iomem *qbuf;
 	u32 cp_sz;
 
-	/* Assumption: Caller has ensured enough read space */
+	/* Assumption: Caller has ensured eanalugh read space */
 	qbuf = (q->hw_q + *ci);
 	if (*ci < pi) {
 		/* copy entire r_sz */

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Device Tree file for Lenovo Iomega ix4-300d
+ * Device Tree file for Leanalvo Iomega ix4-300d
  *
- * Copyright (C) 2014, Benoit Masson <yahoo@perenite.com>
+ * Copyright (C) 2014, Beanalit Masson <yahoo@perenite.com>
  */
 
 /dts-v1/;
@@ -12,8 +12,8 @@
 #include "armada-xp-mv78230.dtsi"
 
 / {
-	model = "Lenovo Iomega ix4-300d";
-	compatible = "lenovo,ix4-300d", "marvell,armadaxp-mv78230",
+	model = "Leanalvo Iomega ix4-300d";
+	compatible = "leanalvo,ix4-300d", "marvell,armadaxp-mv78230",
 		     "marvell,armadaxp", "marvell,armada-370-xp";
 
 	chosen {

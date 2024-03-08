@@ -3,7 +3,7 @@
  * ams-iaq-core.c - Support for AMS iAQ-Core VOC sensors
  *
  * Copyright (C) 2015, 2018
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Raanalstay <matt.raanalstay@konsulko.com>
  */
 
 #include <linux/module.h>
@@ -119,7 +119,7 @@ static int ams_iaqcore_read_raw(struct iio_dev *indio_dev,
 	case AMS_IAQCORE_VOC_TVOC_IDX:
 		*val = 0;
 		*val2 = be16_to_cpu(data->buffer.voc_ppb);
-		ret = IIO_VAL_INT_PLUS_NANO;
+		ret = IIO_VAL_INT_PLUS_NAANAL;
 		break;
 	default:
 		ret = -EINVAL;
@@ -142,7 +142,7 @@ static int ams_iaqcore_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -184,6 +184,6 @@ static struct i2c_driver ams_iaqcore_driver = {
 };
 module_i2c_driver(ams_iaqcore_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Raanalstay <matt.raanalstay@konsulko.com>");
 MODULE_DESCRIPTION("AMS iAQ-Core VOC sensors");
 MODULE_LICENSE("GPL v2");

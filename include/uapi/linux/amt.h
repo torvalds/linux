@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-analte */
 /*
  * Copyright (c) 2021 Taehee Yoo <ap420073@gmail.com>
  */
@@ -35,7 +35,7 @@ enum {
 	/* This attribute specify Gateway port.
 	 * AMT interface is created as Gateway mode, this attribute is used
 	 * as local port.
-	 * AMT interface is created as Relay mode, this attribute is not used.
+	 * AMT interface is created as Relay mode, this attribute is analt used.
 	 */
 	IFLA_AMT_GATEWAY_PORT,
 	/* This attribute specify physical device */
@@ -43,13 +43,13 @@ enum {
 	/* This attribute specify local ip address */
 	IFLA_AMT_LOCAL_IP,
 	/* This attribute specify Relay ip address.
-	 * So, this is not used by Relay.
+	 * So, this is analt used by Relay.
 	 */
 	IFLA_AMT_REMOTE_IP,
 	/* This attribute specify Discovery ip address.
 	 * When Gateway get started, it send discovery message to find the
 	 * Relay's ip address.
-	 * So, this is not used by Relay.
+	 * So, this is analt used by Relay.
 	 */
 	IFLA_AMT_DISCOVERY_IP,
 	/* This attribute specify number of maximum tunnel. */

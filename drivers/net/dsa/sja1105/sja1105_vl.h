@@ -36,16 +36,16 @@ static inline int sja1105_vl_redirect(struct sja1105_private *priv, int port,
 				      unsigned long destports,
 				      bool append)
 {
-	NL_SET_ERR_MSG_MOD(extack, "Virtual Links not compiled in");
-	return -EOPNOTSUPP;
+	NL_SET_ERR_MSG_MOD(extack, "Virtual Links analt compiled in");
+	return -EOPANALTSUPP;
 }
 
 static inline int sja1105_vl_delete(struct sja1105_private *priv,
 				    int port, struct sja1105_rule *rule,
 				    struct netlink_ext_ack *extack)
 {
-	NL_SET_ERR_MSG_MOD(extack, "Virtual Links not compiled in");
-	return -EOPNOTSUPP;
+	NL_SET_ERR_MSG_MOD(extack, "Virtual Links analt compiled in");
+	return -EOPANALTSUPP;
 }
 
 static inline int sja1105_vl_gate(struct sja1105_private *priv, int port,
@@ -56,8 +56,8 @@ static inline int sja1105_vl_gate(struct sja1105_private *priv, int port,
 				  u64 cycle_time_ext, u32 num_entries,
 				  struct action_gate_entry *entries)
 {
-	NL_SET_ERR_MSG_MOD(extack, "Virtual Links not compiled in");
-	return -EOPNOTSUPP;
+	NL_SET_ERR_MSG_MOD(extack, "Virtual Links analt compiled in");
+	return -EOPANALTSUPP;
 }
 
 static inline int sja1105_vl_stats(struct sja1105_private *priv, int port,
@@ -65,8 +65,8 @@ static inline int sja1105_vl_stats(struct sja1105_private *priv, int port,
 				   struct flow_stats *stats,
 				   struct netlink_ext_ack *extack)
 {
-	NL_SET_ERR_MSG_MOD(extack, "Virtual Links not compiled in");
-	return -EOPNOTSUPP;
+	NL_SET_ERR_MSG_MOD(extack, "Virtual Links analt compiled in");
+	return -EOPANALTSUPP;
 }
 
 #endif /* IS_ENABLED(CONFIG_NET_DSA_SJA1105_VL) */

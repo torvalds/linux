@@ -76,7 +76,7 @@ properties:
   port:
     $ref: /schemas/graph.yaml#/properties/port
     description:
-      A port node pointing to the input port of a HDMI/DP or MIPI display bridge.
+      A port analde pointing to the input port of a HDMI/DP or MIPI display bridge.
 
 additionalProperties: false
 

@@ -6,7 +6,7 @@
  *     Atish Patra <atish.patra@wdc.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <linux/uaccess.h>
@@ -25,12 +25,12 @@ static u64 kvm_riscv_delta_cycles2ns(u64 cycles,
 				     struct kvm_vcpu_timer *t)
 {
 	unsigned long flags;
-	u64 cycles_now, cycles_delta, delta_ns;
+	u64 cycles_analw, cycles_delta, delta_ns;
 
 	local_irq_save(flags);
-	cycles_now = kvm_riscv_current_cycles(gt);
-	if (cycles_now < cycles)
-		cycles_delta = cycles - cycles_now;
+	cycles_analw = kvm_riscv_current_cycles(gt);
+	if (cycles_analw < cycles)
+		cycles_delta = cycles - cycles_analw;
 	else
 		cycles_delta = 0;
 	delta_ns = (cycles_delta * gt->nsec_mult) >> gt->nsec_shift;
@@ -48,14 +48,14 @@ static enum hrtimer_restart kvm_riscv_vcpu_hrtimer_expired(struct hrtimer *h)
 
 	if (kvm_riscv_current_cycles(gt) < t->next_cycles) {
 		delta_ns = kvm_riscv_delta_cycles2ns(t->next_cycles, gt, t);
-		hrtimer_forward_now(&t->hrt, ktime_set(0, delta_ns));
+		hrtimer_forward_analw(&t->hrt, ktime_set(0, delta_ns));
 		return HRTIMER_RESTART;
 	}
 
 	t->next_set = false;
 	kvm_riscv_vcpu_set_interrupt(vcpu, IRQ_VS_TIMER);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static int kvm_riscv_vcpu_timer_cancel(struct kvm_vcpu_timer *t)
@@ -115,14 +115,14 @@ static enum hrtimer_restart kvm_riscv_vcpu_vstimer_expired(struct hrtimer *h)
 
 	if (kvm_riscv_current_cycles(gt) < t->next_cycles) {
 		delta_ns = kvm_riscv_delta_cycles2ns(t->next_cycles, gt, t);
-		hrtimer_forward_now(&t->hrt, ktime_set(0, delta_ns));
+		hrtimer_forward_analw(&t->hrt, ktime_set(0, delta_ns));
 		return HRTIMER_RESTART;
 	}
 
 	t->next_set = false;
 	kvm_vcpu_kick(vcpu);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 bool kvm_riscv_vcpu_timer_pending(struct kvm_vcpu *vcpu)
@@ -170,7 +170,7 @@ int kvm_riscv_vcpu_get_reg_timer(struct kvm_vcpu *vcpu,
 	if (KVM_REG_SIZE(reg->id) != sizeof(u64))
 		return -EINVAL;
 	if (reg_num >= sizeof(struct kvm_riscv_timer) / sizeof(u64))
-		return -ENOENT;
+		return -EANALENT;
 
 	switch (reg_num) {
 	case KVM_REG_RISCV_TIMER_REG(frequency):
@@ -187,7 +187,7 @@ int kvm_riscv_vcpu_get_reg_timer(struct kvm_vcpu *vcpu,
 					  KVM_RISCV_TIMER_STATE_OFF;
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (copy_to_user(uaddr, &reg_val, KVM_REG_SIZE(reg->id)))
@@ -211,7 +211,7 @@ int kvm_riscv_vcpu_set_reg_timer(struct kvm_vcpu *vcpu,
 	if (KVM_REG_SIZE(reg->id) != sizeof(u64))
 		return -EINVAL;
 	if (reg_num >= sizeof(struct kvm_riscv_timer) / sizeof(u64))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (copy_from_user(&reg_val, uaddr, KVM_REG_SIZE(reg->id)))
 		return -EFAULT;
@@ -234,7 +234,7 @@ int kvm_riscv_vcpu_set_reg_timer(struct kvm_vcpu *vcpu,
 			ret = kvm_riscv_vcpu_timer_cancel(t);
 		break;
 	default:
-		ret = -ENOENT;
+		ret = -EANALENT;
 		break;
 	}
 
@@ -248,7 +248,7 @@ int kvm_riscv_vcpu_timer_init(struct kvm_vcpu *vcpu)
 	if (t->init_done)
 		return -EINVAL;
 
-	hrtimer_init(&t->hrt, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&t->hrt, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	t->init_done = true;
 	t->next_set = false;
 
@@ -343,7 +343,7 @@ void kvm_riscv_vcpu_timer_save(struct kvm_vcpu *vcpu)
 
 	/*
 	 * The vstimecmp CSRs are saved by kvm_riscv_vcpu_timer_sync()
-	 * upon every VM exit so no need to save here.
+	 * upon every VM exit so anal need to save here.
 	 */
 
 	/* timer should be enabled for the remaining operations */

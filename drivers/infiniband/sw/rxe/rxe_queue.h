@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -14,18 +14,18 @@
  * the producer and consumer indices match the maximum capacity of the
  * queue is one less than the number of element slots.
  *
- * Notes:
+ * Analtes:
  *   - The driver indices are always masked off to q->index_mask
- *     before storing so do not need to be checked on reads.
+ *     before storing so do analt need to be checked on reads.
  *   - The user whether user space or kernel is generally
- *     not trusted so its parameters are masked to make sure
- *     they do not access the queue out of bounds on reads.
- *   - The driver indices for queues must not be written
+ *     analt trusted so its parameters are masked to make sure
+ *     they do analt access the queue out of bounds on reads.
+ *   - The driver indices for queues must analt be written
  *     by user so a local copy is used and a shared copy is
  *     stored when the local copy is changed.
  *   - By passing the type in the parameter list separate from q
  *     the compiler can eliminate the switch statement when the
- *     actual queue type is known when the function is called at
+ *     actual queue type is kanalwn when the function is called at
  *     compile time.
  *   - These queues are lock free. The user and driver must protect
  *     changes to their end of the queues with locks if more than one

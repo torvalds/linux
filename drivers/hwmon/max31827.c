@@ -222,7 +222,7 @@ static int max31827_read(struct device *dev, enum hwmon_sensor_types type,
 			if (!st->enable) {
 				/*
 				 * This operation requires mutex protection,
-				 * because the chip configuration should not
+				 * because the chip configuration should analt
 				 * be changed during the conversion process.
 				 */
 
@@ -305,7 +305,7 @@ static int max31827_read(struct device *dev, enum hwmon_sensor_types type,
 					 uval);
 			break;
 		default:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			break;
 		}
 
@@ -325,7 +325,7 @@ static int max31827_read(struct device *dev, enum hwmon_sensor_types type,
 		break;
 
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -348,7 +348,7 @@ static int max31827_write(struct device *dev, enum hwmon_sensor_types type,
 
 			mutex_lock(&st->lock);
 			/**
-			 * The chip should not be enabled while a conversion is
+			 * The chip should analt be enabled while a conversion is
 			 * performed. Neither should the chip be enabled when
 			 * the alarm values are changed.
 			 */
@@ -378,7 +378,7 @@ static int max31827_write(struct device *dev, enum hwmon_sensor_types type,
 			return write_alarm_val(st, MAX31827_TL_HYST_REG, val);
 
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 	case hwmon_chip:
@@ -414,7 +414,7 @@ static int max31827_write(struct device *dev, enum hwmon_sensor_types type,
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -492,30 +492,30 @@ MODULE_DEVICE_TABLE(i2c, max31827_i2c_ids);
 static int max31827_init_client(struct max31827_state *st,
 				struct device *dev)
 {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	unsigned int res = 0;
 	u32 data, lsb_idx;
 	enum chips type;
 	bool prop;
 	int ret;
 
-	fwnode = dev_fwnode(dev);
+	fwanalde = dev_fwanalde(dev);
 
 	st->enable = true;
 	res |= MAX31827_DEVICE_ENABLE(1);
 
 	res |= MAX31827_CONFIGURATION_RESOLUTION_MASK;
 
-	prop = fwnode_property_read_bool(fwnode, "adi,comp-int");
+	prop = fwanalde_property_read_bool(fwanalde, "adi,comp-int");
 	res |= FIELD_PREP(MAX31827_CONFIGURATION_COMP_INT_MASK, prop);
 
-	prop = fwnode_property_read_bool(fwnode, "adi,timeout-enable");
+	prop = fwanalde_property_read_bool(fwanalde, "adi,timeout-enable");
 	res |= FIELD_PREP(MAX31827_CONFIGURATION_TIMEOUT_MASK, !prop);
 
 	type = (enum chips)(uintptr_t)device_get_match_data(dev);
 
-	if (fwnode_property_present(fwnode, "adi,alarm-pol")) {
-		ret = fwnode_property_read_u32(fwnode, "adi,alarm-pol", &data);
+	if (fwanalde_property_present(fwanalde, "adi,alarm-pol")) {
+		ret = fwanalde_property_read_u32(fwanalde, "adi,alarm-pol", &data);
 		if (ret)
 			return ret;
 
@@ -535,12 +535,12 @@ static int max31827_init_client(struct max31827_state *st,
 					  MAX31827_ALRM_POL_HIGH);
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
-	if (fwnode_property_present(fwnode, "adi,fault-q")) {
-		ret = fwnode_property_read_u32(fwnode, "adi,fault-q", &data);
+	if (fwanalde_property_present(fwanalde, "adi,fault-q")) {
+		ret = fwanalde_property_read_u32(fwanalde, "adi,fault-q", &data);
 		if (ret)
 			return ret;
 
@@ -571,7 +571,7 @@ static int max31827_init_client(struct max31827_state *st,
 					  MAX31827_FLT_Q_4);
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -606,11 +606,11 @@ static int max31827_probe(struct i2c_client *client)
 	int err;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&st->lock);
 

@@ -3,7 +3,7 @@
 #define _LINUX_I8042_H
 
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 
 /*
@@ -76,19 +76,19 @@ static inline void i8042_unlock_chip(void)
 
 static inline int i8042_command(unsigned char *param, int command)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int i8042_install_filter(bool (*filter)(unsigned char data, unsigned char str,
 					struct serio *serio))
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int i8042_remove_filter(bool (*filter)(unsigned char data, unsigned char str,
 				       struct serio *serio))
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #endif

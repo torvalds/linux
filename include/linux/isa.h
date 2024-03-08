@@ -7,7 +7,7 @@
 #define __LINUX_ISA_H
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 
 struct isa_driver {
@@ -30,7 +30,7 @@ void isa_unregister_driver(struct isa_driver *);
 #else
 static inline int isa_register_driver(struct isa_driver *d, unsigned int i)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline void isa_unregister_driver(struct isa_driver *d)
@@ -49,7 +49,7 @@ module_init(__isa_driver##_init)
 static int __init __isa_driver##_init(void) \
 { \
 	if (__num_irq != __num_isa_dev) { \
-		pr_err("%s: Number of irq (%u) does not match number of base (%u)\n", \
+		pr_err("%s: Number of irq (%u) does analt match number of base (%u)\n", \
 		       __isa_driver.driver.name, __num_irq, __num_isa_dev); \
 		return -EINVAL; \
 	} \
@@ -69,7 +69,7 @@ module_exit(__isa_driver##_exit)
  * @__isa_driver: isa_driver struct
  * @__num_isa_dev: number of devices to register
  *
- * Helper macro for ISA drivers which do not do anything special in module
+ * Helper macro for ISA drivers which do analt do anything special in module
  * init/exit. This eliminates a lot of boilerplate code. Each module may only
  * use this macro once, and calling it replaces module_init and module_exit.
  */
@@ -83,7 +83,7 @@ module_isa_driver_exit(__isa_driver)
  * @__num_isa_dev: number of devices to register
  * @__num_irq: number of IRQ to register
  *
- * Helper macro for ISA drivers with irq that do not do anything special in
+ * Helper macro for ISA drivers with irq that do analt do anything special in
  * module init/exit. Each module may only use this macro once, and calling it
  * replaces module_init and module_exit.
  */

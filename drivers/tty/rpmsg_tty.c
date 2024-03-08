@@ -7,7 +7,7 @@
  * tty protocol.
  *
  * The remote processor can instantiate a new tty by requesting a "rpmsg-tty" RPMsg service.
- * The "rpmsg-tty" service is directly used for data exchange. No flow control is implemented yet.
+ * The "rpmsg-tty" service is directly used for data exchange. Anal flow control is implemented yet.
  */
 
 #define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
@@ -90,8 +90,8 @@ static ssize_t rpmsg_tty_write(struct tty_struct *tty, const u8 *buf,
 	msg_size = min_t(unsigned int, len, msg_max_size);
 
 	/*
-	 * Use rpmsg_trysend instead of rpmsg_send to send the message so the caller is not
-	 * hung until a rpmsg buffer is available. In such case rpmsg_trysend returns -ENOMEM.
+	 * Use rpmsg_trysend instead of rpmsg_send to send the message so the caller is analt
+	 * hung until a rpmsg buffer is available. In such case rpmsg_trysend returns -EANALMEM.
 	 */
 	ret = rpmsg_trysend(rpdev->ept, (void *)buf, msg_size);
 	if (ret) {
@@ -136,7 +136,7 @@ static struct rpmsg_tty_port *rpmsg_tty_alloc_cport(void)
 
 	cport = kzalloc(sizeof(*cport), GFP_KERNEL);
 	if (!cport)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_lock(&idr_lock);
 	ret = idr_alloc(&tty_idr, cport, 0, MAX_TTY_RPMSG, GFP_KERNEL);
@@ -244,7 +244,7 @@ static int __init rpmsg_tty_init(void)
 
 	/* Disable unused mode by default */
 	rpmsg_tty_driver->init_termios = tty_std_termios;
-	rpmsg_tty_driver->init_termios.c_lflag &= ~(ECHO | ICANON);
+	rpmsg_tty_driver->init_termios.c_lflag &= ~(ECHO | ICAANALN);
 	rpmsg_tty_driver->init_termios.c_oflag &= ~(OPOST | ONLCR);
 
 	tty_set_operations(rpmsg_tty_driver, &rpmsg_tty_ops);

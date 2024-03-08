@@ -13,7 +13,7 @@
  * Description: SSV Embedded Systems DIL/Net-PC
  * Author: Robert Schwebel <robert@schwebel.de>
  * Devices: [SSV Embedded Systems] DIL/Net-PC 1486 (dnp-1486)
- * Status: unknown
+ * Status: unkanalwn
  */
 
 /* include files ----------------------------------------------------------- */
@@ -24,7 +24,7 @@
 /* Some global definitions: the registers of the DNP ----------------------- */
 /*                                                                           */
 /* For port A and B the mode register has bits corresponding to the output   */
-/* pins, where Bit-N = 0 -> input, Bit-N = 1 -> output. Note that bits       */
+/* pins, where Bit-N = 0 -> input, Bit-N = 1 -> output. Analte that bits       */
 /* 4 to 7 correspond to pin 0..3 for port C data register. Ensure that bits  */
 /* 0..3 remain unchanged! For details about Port C Mode Register see         */
 /* the remarks in dnp_insn_config() below.                                   */

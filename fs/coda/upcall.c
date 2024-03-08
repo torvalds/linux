@@ -24,7 +24,7 @@
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/stat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
@@ -48,7 +48,7 @@ static void *alloc_upcall(int opcode, int size)
 
 	inp = kvzalloc(size, GFP_KERNEL);
         if (!inp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
         inp->ih.opcode = opcode;
 	inp->ih.pid = task_pid_nr_ns(current, &init_pid_ns);
@@ -253,7 +253,7 @@ int venus_rename(struct super_block *sb, struct CodaFid *old_fid,
         memcpy((char *)(inp) + offset, old_name, old_length);
         *((char *)inp + offset + old_length) = '\0';
 
-        /* another null terminated string for Venus */
+        /* aanalther null terminated string for Venus */
         offset += s;
         inp->coda_rename.destname = offset;
         s = ( new_length & ~0x3) +4; /* round up to word boundary */
@@ -595,15 +595,15 @@ int venus_access_intent(struct super_block *sb, struct CodaFid *fid,
 			    finalizer ? NULL : &outsize, inp);
 
 	/*
-	 * we have to free the request buffer for synchronous upcalls
-	 * or when asynchronous upcalls fail, but not when asynchronous
+	 * we have to free the request buffer for synchroanalus upcalls
+	 * or when asynchroanalus upcalls fail, but analt when asynchroanalus
 	 * upcalls succeed
 	 */
 	if (!finalizer || error)
 		kvfree(inp);
 
-	/* Chunked access is not supported or an old Coda client */
-	if (error == -EOPNOTSUPP) {
+	/* Chunked access is analt supported or an old Coda client */
+	if (error == -EOPANALTSUPP) {
 		*access_intent_supported = false;
 		error = 0;
 	}
@@ -702,8 +702,8 @@ static inline void coda_waitfor_upcall(struct venus_comm *vcp,
  * failed communication with Venus _or_ will peek at Venus
  * reply and return Venus' error.
  *
- * As venus has 2 types of errors, normal errors (positive) and internal
- * errors (negative), normal errors are negated, while internal errors
+ * As venus has 2 types of errors, analrmal errors (positive) and internal
+ * errors (negative), analrmal errors are negated, while internal errors
  * are all mapped to -EINTR, while showing a nice warning message. (jh)
  */
 static int coda_upcall(struct venus_comm *vcp,
@@ -718,7 +718,7 @@ static int coda_upcall(struct venus_comm *vcp,
 	mutex_lock(&vcp->vc_mutex);
 
 	if (!vcp->vc_inuse) {
-		pr_notice("Venus dead, not sending upcall\n");
+		pr_analtice("Venus dead, analt sending upcall\n");
 		error = -ENXIO;
 		goto exit;
 	}
@@ -726,7 +726,7 @@ static int coda_upcall(struct venus_comm *vcp,
 	/* Format the request message. */
 	req = kmalloc(sizeof(struct upc_req), GFP_KERNEL);
 	if (!req) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto exit;
 	}
 
@@ -744,7 +744,7 @@ static int coda_upcall(struct venus_comm *vcp,
 	list_add_tail(&req->uc_chain, &vcp->vc_pending);
 	wake_up_interruptible(&vcp->vc_waitq);
 
-	/* We can return early on asynchronous requests */
+	/* We can return early on asynchroanalus requests */
 	if (outSize == NULL) {
 		mutex_unlock(&vcp->vc_mutex);
 		return 0;
@@ -754,15 +754,15 @@ static int coda_upcall(struct venus_comm *vcp,
 	 * our request.  If the interrupt occurs before Venus has read
 	 * the request, we dequeue and return. If it occurs after the
 	 * read but before the reply, we dequeue, send a signal
-	 * message, and return. If it occurs after the reply we ignore
-	 * it. In no case do we want to restart the syscall.  If it
+	 * message, and return. If it occurs after the reply we iganalre
+	 * it. In anal case do we want to restart the syscall.  If it
 	 * was interrupted by a venus shutdown (psdev_close), return
-	 * ENODEV.  */
+	 * EANALDEV.  */
 
 	/* Go to sleep.  Wake up on signals only after the timeout. */
 	coda_waitfor_upcall(vcp, req);
 
-	/* Op went through, interrupt or not... */
+	/* Op went through, interrupt or analt... */
 	if (req->uc_flags & CODA_REQ_WRITE) {
 		out = (union outputArgs *)req->uc_data;
 		/* here we map positive Venus errors to kernel errors */
@@ -783,11 +783,11 @@ static int coda_upcall(struct venus_comm *vcp,
 
 	/* Venus saw the upcall, make sure we can send interrupt signal */
 	if (!vcp->vc_inuse) {
-		pr_info("Venus dead, not sending signal.\n");
+		pr_info("Venus dead, analt sending signal.\n");
 		goto exit;
 	}
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	sig_req = kmalloc(sizeof(struct upc_req), GFP_KERNEL);
 	if (!sig_req) goto exit;
 
@@ -831,7 +831,7 @@ exit:
  * There are 7 cases where cache invalidations occur.  The semantics
  *  of each is listed here:
  *
- * CODA_FLUSH     -- flush all entries from the name cache and the cnode cache.
+ * CODA_FLUSH     -- flush all entries from the name cache and the canalde cache.
  * CODA_PURGEUSER -- flush all entries from the name cache for a specific user
  *                  This call is a result of token expiration.
  *
@@ -850,17 +850,17 @@ exit:
  * The last  allows Venus to replace local fids with global ones
  * during reintegration.
  *
- * CODA_REPLACE -- replace one CodaFid with another throughout the name cache */
+ * CODA_REPLACE -- replace one CodaFid with aanalther throughout the name cache */
 
 int coda_downcall(struct venus_comm *vcp, int opcode, union outputArgs *out,
 		  size_t nbytes)
 {
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	struct CodaFid *fid = NULL, *newfid;
 	struct super_block *sb;
 
 	/*
-	 * Make sure we have received enough data from the cache
+	 * Make sure we have received eanalugh data from the cache
 	 * manager to populate the necessary fields in the buffer
 	 */
 	switch (opcode) {
@@ -901,7 +901,7 @@ int coda_downcall(struct venus_comm *vcp, int opcode, union outputArgs *out,
 		coda_cache_clear_all(sb);
 		shrink_dcache_sb(sb);
 		if (d_really_is_positive(sb->s_root))
-			coda_flag_inode(d_inode(sb->s_root), C_FLUSH);
+			coda_flag_ianalde(d_ianalde(sb->s_root), C_FLUSH);
 		break;
 
 	case CODA_PURGEUSER:
@@ -925,37 +925,37 @@ int coda_downcall(struct venus_comm *vcp, int opcode, union outputArgs *out,
 		break;
 	}
 	if (fid)
-		inode = coda_fid_to_inode(fid, sb);
+		ianalde = coda_fid_to_ianalde(fid, sb);
 
 unlock_out:
 	mutex_unlock(&vcp->vc_mutex);
 
-	if (!inode)
+	if (!ianalde)
 		return 0;
 
 	switch (opcode) {
 	case CODA_ZAPDIR:
-		coda_flag_inode_children(inode, C_PURGE);
-		coda_flag_inode(inode, C_VATTR);
+		coda_flag_ianalde_children(ianalde, C_PURGE);
+		coda_flag_ianalde(ianalde, C_VATTR);
 		break;
 
 	case CODA_ZAPFILE:
-		coda_flag_inode(inode, C_VATTR);
+		coda_flag_ianalde(ianalde, C_VATTR);
 		break;
 
 	case CODA_PURGEFID:
-		coda_flag_inode_children(inode, C_PURGE);
+		coda_flag_ianalde_children(ianalde, C_PURGE);
 
 		/* catch the dentries later if some are still busy */
-		coda_flag_inode(inode, C_PURGE);
-		d_prune_aliases(inode);
+		coda_flag_ianalde(ianalde, C_PURGE);
+		d_prune_aliases(ianalde);
 		break;
 
 	case CODA_REPLACE:
 		newfid = &out->coda_replace.NewFid;
-		coda_replace_fid(inode, fid, newfid);
+		coda_replace_fid(ianalde, fid, newfid);
 		break;
 	}
-	iput(inode);
+	iput(ianalde);
 	return 0;
 }

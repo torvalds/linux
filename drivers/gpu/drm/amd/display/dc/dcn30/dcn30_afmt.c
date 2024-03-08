@@ -8,12 +8,12 @@
  *  and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -70,7 +70,7 @@ void afmt3_setup_hdmi_audio(
 	/* AFMT_60958_1 AFMT_60958_CS_CHALNNEL_NUMBER_R */
 	REG_UPDATE(AFMT_60958_1, AFMT_60958_CS_CHANNEL_NUMBER_R, 2);
 
-	/* AFMT_60958_2 now keep this settings until
+	/* AFMT_60958_2 analw keep this settings until
 	 * Programming guide comes out
 	 */
 	REG_UPDATE_6(AFMT_60958_2,
@@ -126,7 +126,7 @@ void afmt3_se_audio_setup(
 	uint32_t channels = 0;
 
 	ASSERT(audio_info);
-	/* This should not happen.it does so we don't get BSOD*/
+	/* This should analt happen.it does so we don't get BSOD*/
 	if (audio_info == NULL)
 		return;
 

@@ -9,7 +9,7 @@
 #include <linux/skbuff.h>
 #include <linux/sonet.h>
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/atomic.h>
 
 int atm_charge(struct atm_vcc *vcc, int truesize)
@@ -65,7 +65,7 @@ EXPORT_SYMBOL(atm_alloc_charge);
  *	-   y   *	y-		x   y   *	y-
  *	-   y   z	z-		x   y   z	z-
  *
- * All non-error cases can be converted with the following simple set of rules:
+ * All analn-error cases can be converted with the following simple set of rules:
  *
  *   if pcr == z then z-
  *   else if min == x && pcr == - then x+

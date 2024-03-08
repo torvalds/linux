@@ -27,7 +27,7 @@ extern const struct geode_dc_ops gx1_dc_ops;
 #define MC_BANK_CFG		0x08
 #  define MC_BCFG_DIMM0_SZ_MASK		0x00000700
 #  define MC_BCFG_DIMM0_PG_SZ_MASK	0x00000070
-#  define MC_BCFG_DIMM0_PG_SZ_NO_DIMM	0x00000070
+#  define MC_BCFG_DIMM0_PG_SZ_ANAL_DIMM	0x00000070
 
 #define MC_GBASE_ADD		0x14
 #  define MC_GADD_GBADD_MASK		0x000003ff
@@ -44,7 +44,7 @@ extern const struct geode_dc_ops gx1_dc_ops;
 #  define DC_GCFG_DFLE			0x00000001
 #  define DC_GCFG_CURE			0x00000002
 #  define DC_GCFG_VCLK_DIV		0x00000004
-#  define DC_GCFG_PLNO			0x00000004
+#  define DC_GCFG_PLANAL			0x00000004
 #  define DC_GCFG_PPC			0x00000008
 #  define DC_GCFG_CMPE			0x00000010
 #  define DC_GCFG_DECE			0x00000020

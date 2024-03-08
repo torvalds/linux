@@ -67,10 +67,10 @@
 
 /* REG_INTERRUPT */
 #define RCV_INT				BIT(10)
-#define RCV_NOBUF			BIT(8)
+#define RCV_ANALBUF			BIT(8)
 #define RCV_DROP			BIT(7)
 #define TX_DROP				BIT(6)
-#define DEF_INT_ERR			(RCV_NOBUF | RCV_DROP | TX_DROP)
+#define DEF_INT_ERR			(RCV_ANALBUF | RCV_DROP | TX_DROP)
 #define DEF_INT_MASK			(RCV_INT | DEF_INT_ERR)
 
 /* TX descriptor config */
@@ -239,7 +239,7 @@ struct hip04_priv {
 	unsigned int rx_buf_size;
 	unsigned int rx_cnt_remaining;
 
-	struct device_node *phy_node;
+	struct device_analde *phy_analde;
 	struct phy_device *phy;
 	struct regmap *map;
 	struct work_struct tx_timeout_task;
@@ -277,7 +277,7 @@ static void hip04_config_port(struct net_device *ndev, u32 speed, u32 duplex)
 			val = MII_SPEED_10;
 		break;
 	default:
-		netdev_warn(ndev, "not supported mode\n");
+		netdev_warn(ndev, "analt supported mode\n");
 		val = MII_SPEED_10;
 		break;
 	}
@@ -553,7 +553,7 @@ hip04_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* Ensure tx_head update visible to tx reclaim */
 	smp_wmb();
 
-	/* queue is getting full, better start cleaning up now */
+	/* queue is getting full, better start cleaning up analw */
 	if (count >= priv->tx_coalesce_frames) {
 		if (napi_schedule_prep(&priv->napi)) {
 			/* disable rx interrupt and timer */
@@ -564,7 +564,7 @@ hip04_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			__napi_schedule(&priv->napi);
 		}
 	} else if (!hrtimer_is_queued(&priv->tx_coalesce_timer)) {
-		/* cleanup not pending yet, start a new timer */
+		/* cleanup analt pending yet, start a new timer */
 		hip04_start_tx_timer(priv);
 	}
 
@@ -666,12 +666,12 @@ static irqreturn_t hip04_mac_interrupt(int irq, void *dev_id)
 	u32 ists = readl_relaxed(priv->base + PPE_INTSTS);
 
 	if (!ists)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	writel_relaxed(DEF_INT_MASK, priv->base + PPE_RINT);
 
 	if (unlikely(ists & DEF_INT_ERR)) {
-		if (ists & (RCV_NOBUF | RCV_DROP)) {
+		if (ists & (RCV_ANALBUF | RCV_DROP)) {
 			stats->rx_errors++;
 			stats->rx_dropped++;
 			netdev_err(ndev, "rx drop\n");
@@ -706,7 +706,7 @@ static enum hrtimer_restart tx_done(struct hrtimer *hrtimer)
 		__napi_schedule(&priv->napi);
 	}
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static void hip04_adjust_link(struct net_device *ndev)
@@ -860,14 +860,14 @@ static int hip04_alloc_ring(struct net_device *ndev, struct device *d)
 					   TX_DESC_NUM * sizeof(struct tx_desc),
 					   &priv->tx_desc_dma, GFP_KERNEL);
 	if (!priv->tx_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->rx_buf_size = RX_BUF_SIZE +
 			    SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	for (i = 0; i < RX_DESC_NUM; i++) {
 		priv->rx_buf[i] = netdev_alloc_frag(priv->rx_buf_size);
 		if (!priv->rx_buf[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -893,7 +893,7 @@ static void hip04_free_ring(struct net_device *ndev, struct device *d)
 static int hip04_mac_probe(struct platform_device *pdev)
 {
 	struct device *d = &pdev->dev;
-	struct device_node *node = d->of_node;
+	struct device_analde *analde = d->of_analde;
 	struct of_phandle_args arg;
 	struct net_device *ndev;
 	struct hip04_priv *priv;
@@ -902,7 +902,7 @@ static int hip04_mac_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof(struct hip04_priv));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = netdev_priv(ndev);
 	priv->dev = d;
@@ -924,9 +924,9 @@ static int hip04_mac_probe(struct platform_device *pdev)
 	}
 #endif
 
-	ret = of_parse_phandle_with_fixed_args(node, "port-handle", 3, 0, &arg);
+	ret = of_parse_phandle_with_fixed_args(analde, "port-handle", 3, 0, &arg);
 	if (ret < 0) {
-		dev_warn(d, "no port-handle\n");
+		dev_warn(d, "anal port-handle\n");
 		goto init_fail;
 	}
 
@@ -934,28 +934,28 @@ static int hip04_mac_probe(struct platform_device *pdev)
 	priv->chan = arg.args[1] * RX_DESC_NUM;
 	priv->group = arg.args[2];
 
-	hrtimer_init(&priv->tx_coalesce_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&priv->tx_coalesce_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 
 	/* BQL will try to keep the TX queue as short as possible, but it can't
 	 * be faster than tx_coalesce_usecs, so we need a fast timeout here,
-	 * but also long enough to gather up enough frames to ensure we don't
+	 * but also long eanalugh to gather up eanalugh frames to ensure we don't
 	 * get more interrupts than necessary.
-	 * 200us is enough for 16 frames of 1500 bytes at gigabit ethernet rate
+	 * 200us is eanalugh for 16 frames of 1500 bytes at gigabit ethernet rate
 	 */
 	priv->tx_coalesce_frames = TX_DESC_NUM * 3 / 4;
 	priv->tx_coalesce_usecs = 200;
 	priv->tx_coalesce_timer.function = tx_done;
 
-	priv->map = syscon_node_to_regmap(arg.np);
+	priv->map = syscon_analde_to_regmap(arg.np);
 	if (IS_ERR(priv->map)) {
-		dev_warn(d, "no syscon hisilicon,hip04-ppe\n");
+		dev_warn(d, "anal syscon hisilicon,hip04-ppe\n");
 		ret = PTR_ERR(priv->map);
 		goto init_fail;
 	}
 
-	ret = of_get_phy_mode(node, &priv->phy_mode);
+	ret = of_get_phy_mode(analde, &priv->phy_mode);
 	if (ret) {
-		dev_warn(d, "not find phy-mode\n");
+		dev_warn(d, "analt find phy-mode\n");
 		goto init_fail;
 	}
 
@@ -972,9 +972,9 @@ static int hip04_mac_probe(struct platform_device *pdev)
 		goto init_fail;
 	}
 
-	priv->phy_node = of_parse_phandle(node, "phy-handle", 0);
-	if (priv->phy_node) {
-		priv->phy = of_phy_connect(ndev, priv->phy_node,
+	priv->phy_analde = of_parse_phandle(analde, "phy-handle", 0);
+	if (priv->phy_analde) {
+		priv->phy = of_phy_connect(ndev, priv->phy_analde,
 					   &hip04_adjust_link,
 					   0, priv->phy_mode);
 		if (!priv->phy) {
@@ -1016,7 +1016,7 @@ static int hip04_mac_probe(struct platform_device *pdev)
 alloc_fail:
 	hip04_free_ring(ndev, d);
 init_fail:
-	of_node_put(priv->phy_node);
+	of_analde_put(priv->phy_analde);
 	free_netdev(ndev);
 	return ret;
 }
@@ -1032,7 +1032,7 @@ static void hip04_remove(struct platform_device *pdev)
 
 	hip04_free_ring(ndev, d);
 	unregister_netdev(ndev);
-	of_node_put(priv->phy_node);
+	of_analde_put(priv->phy_analde);
 	cancel_work_sync(&priv->tx_timeout_task);
 	free_netdev(ndev);
 }

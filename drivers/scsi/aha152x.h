@@ -66,7 +66,7 @@
 #define ENSELO       0x40
 #define ENSELI       0x20
 #define ENRESELI     0x10
-#define ENAUTOATNO   0x08
+#define ENAUTOATANAL   0x08
 #define ENAUTOATNI   0x04
 #define ENAUTOATNP   0x02
 #define SCSIRSTO     0x01
@@ -111,7 +111,7 @@
 #define SIG_CDO          0x80
 #define SIG_IOO          0x40
 #define SIG_MSGO         0x20
-#define SIG_ATNO         0x10
+#define SIG_ATANAL         0x10
 #define SIG_SELO         0x08
 #define SIG_BSYO         0x04
 #define SIG_REQO         0x02
@@ -166,7 +166,7 @@
 #define REQINIT      0x01
 
 #define CLRSELTIMO   0x80
-#define CLRATNO      0x40
+#define CLRATANAL      0x40
 #define CLRSCSIRSTI  0x20
 #define CLRBUSFREE   0x08
 #define CLRSCSIPERR  0x04
@@ -321,7 +321,7 @@ struct aha152x_setup {
 	int scsiid;
 	int reconnect;
 	int parity;
-	int synchronous;
+	int synchroanalus;
 	int delay;
 	int ext_trans;
 	int tc1550;

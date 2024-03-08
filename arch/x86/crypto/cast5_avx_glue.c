@@ -101,8 +101,8 @@ static int __init cast5_init(void)
 
 	if (!cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM,
 				&feature_name)) {
-		pr_info("CPU feature '%s' is not supported.\n", feature_name);
-		return -ENODEV;
+		pr_info("CPU feature '%s' is analt supported.\n", feature_name);
+		return -EANALDEV;
 	}
 
 	return simd_register_skciphers_compat(cast5_algs,

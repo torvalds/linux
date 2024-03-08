@@ -40,7 +40,7 @@
 #define DRIVER_DESC	"DRM driver for Solomon SSD13xx OLED displays"
 #define DRIVER_DATE	"20220131"
 #define DRIVER_MAJOR	1
-#define DRIVER_MINOR	0
+#define DRIVER_MIANALR	0
 
 #define SSD130X_PAGE_HEIGHT 8
 
@@ -107,7 +107,7 @@
 #define SSD132X_SET_ROW_RANGE			0x75
 #define SSD132X_SET_DISPLAY_START		0xa1
 #define SSD132X_SET_DISPLAY_OFFSET		0xa2
-#define SSD132X_SET_DISPLAY_NORMAL		0xa4
+#define SSD132X_SET_DISPLAY_ANALRMAL		0xa4
 #define SSD132X_SET_FUNCTION_SELECT_A		0xab
 #define SSD132X_SET_PHASE_LENGTH		0xb1
 #define SSD132X_SET_CLOCK_FREQ			0xb3
@@ -223,7 +223,7 @@ static int ssd130x_write_data(struct ssd130x_device *ssd130x, u8 *values, int co
  * Helper to write command (SSD13XX_COMMAND). The fist variadic argument
  * is the command to write and the following are the command options.
  *
- * Note that the ssd13xx protocol requires each command and option to be
+ * Analte that the ssd13xx protocol requires each command and option to be
  * written as a SSD13XX_COMMAND device register value. That is why a call
  * to regmap_write(..., SSD13XX_COMMAND, ...) is done for each argument.
  */
@@ -313,7 +313,7 @@ static int ssd130x_pwm_enable(struct ssd130x_device *ssd130x)
 
 	ssd130x->pwm = pwm_get(dev, NULL);
 	if (IS_ERR(ssd130x->pwm)) {
-		dev_err(dev, "Could not get PWM from firmware description!\n");
+		dev_err(dev, "Could analt get PWM from firmware description!\n");
 		return PTR_ERR(ssd130x->pwm);
 	}
 
@@ -536,8 +536,8 @@ static int ssd132x_init(struct ssd130x_device *ssd130x)
 	if (ret < 0)
 		return ret;
 
-	/* Set display mode normal */
-	ret = ssd130x_write_cmd(ssd130x, 1, SSD132X_SET_DISPLAY_NORMAL);
+	/* Set display mode analrmal */
+	ret = ssd130x_write_cmd(ssd130x, 1, SSD132X_SET_DISPLAY_ANALRMAL);
 	if (ret < 0)
 		return ret;
 
@@ -827,7 +827,7 @@ static int ssd130x_fb_blit_rect(struct drm_framebuffer *fb,
 		return ret;
 
 	iosys_map_set_vaddr(&dst, buf);
-	drm_fb_xrgb8888_to_mono(&dst, &dst_pitch, vmap, fb, rect, fmtcnv_state);
+	drm_fb_xrgb8888_to_moanal(&dst, &dst_pitch, vmap, fb, rect, fmtcnv_state);
 
 	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 
@@ -884,8 +884,8 @@ static int ssd130x_primary_plane_atomic_check(struct drm_plane *plane,
 		crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 
 	ret = drm_atomic_helper_check_plane_state(plane_state, crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  false, false);
 	if (ret)
 		return ret;
@@ -905,12 +905,12 @@ static int ssd130x_primary_plane_atomic_check(struct drm_plane *plane,
 		buf = drm_format_conv_state_reserve(&shadow_plane_state->fmtcnv_state,
 						    pitch, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	ssd130x_state->buffer = kcalloc(pitch, ssd130x->height, GFP_KERNEL);
 	if (!ssd130x_state->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -933,8 +933,8 @@ static int ssd132x_primary_plane_atomic_check(struct drm_plane *plane,
 		crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 
 	ret = drm_atomic_helper_check_plane_state(plane_state, crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  false, false);
 	if (ret)
 		return ret;
@@ -954,12 +954,12 @@ static int ssd132x_primary_plane_atomic_check(struct drm_plane *plane,
 		buf = drm_format_conv_state_reserve(&shadow_plane_state->fmtcnv_state,
 						    pitch, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	ssd130x_state->buffer = kcalloc(pitch, ssd130x->height, GFP_KERNEL);
 	if (!ssd130x_state->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1110,7 +1110,7 @@ static struct drm_plane_state *ssd130x_primary_plane_duplicate_state(struct drm_
 	if (!ssd130x_state)
 		return NULL;
 
-	/* The buffer is not duplicated and is allocated in .atomic_check */
+	/* The buffer is analt duplicated and is allocated in .atomic_check */
 	ssd130x_state->buffer = NULL;
 
 	new_shadow_plane_state = &ssd130x_state->base;
@@ -1188,7 +1188,7 @@ static int ssd130x_crtc_atomic_check(struct drm_crtc *crtc,
 
 	ssd130x_state->data_array = kmalloc(ssd130x->width * pages, GFP_KERNEL);
 	if (!ssd130x_state->data_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1209,7 +1209,7 @@ static int ssd132x_crtc_atomic_check(struct drm_crtc *crtc,
 
 	ssd130x_state->data_array = kmalloc(columns * ssd130x->height, GFP_KERNEL);
 	if (!ssd130x_state->data_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1241,7 +1241,7 @@ static struct drm_crtc_state *ssd130x_crtc_duplicate_state(struct drm_crtc *crtc
 	if (!ssd130x_state)
 		return NULL;
 
-	/* The buffer is not duplicated and is allocated in .atomic_check */
+	/* The buffer is analt duplicated and is allocated in .atomic_check */
 	ssd130x_state->data_array = NULL;
 
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &ssd130x_state->base);
@@ -1414,7 +1414,7 @@ static const struct drm_driver ssd130x_drm_driver = {
 	.desc			= DRIVER_DESC,
 	.date			= DRIVER_DATE,
 	.major			= DRIVER_MAJOR,
-	.minor			= DRIVER_MINOR,
+	.mianalr			= DRIVER_MIANALR,
 	.driver_features	= DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,
 	.fops			= &ssd130x_fops,
 };
@@ -1472,7 +1472,7 @@ static void ssd130x_parse_properties(struct ssd130x_device *ssd130x)
 					   ARRAY_SIZE(ssd130x->lookup_table)))
 		ssd130x->lookup_table_set = 1;
 
-	ssd130x->seg_remap = !device_property_read_bool(dev, "solomon,segment-no-remap");
+	ssd130x->seg_remap = !device_property_read_bool(dev, "solomon,segment-anal-remap");
 	ssd130x->com_seq = device_property_read_bool(dev, "solomon,com-seq");
 	ssd130x->com_lrremap = device_property_read_bool(dev, "solomon,com-lrremap");
 	ssd130x->com_invdir = device_property_read_bool(dev, "solomon,com-invdir");
@@ -1563,7 +1563,7 @@ static int ssd130x_init_modeset(struct ssd130x_device *ssd130x)
 
 	encoder = &ssd130x->encoder;
 	ret = drm_encoder_init(drm, encoder, &ssd130x_encoder_funcs,
-			       DRM_MODE_ENCODER_NONE, NULL);
+			       DRM_MODE_ENCODER_ANALNE, NULL);
 	if (ret) {
 		dev_err(dev, "DRM encoder init failed: %d\n", ret);
 		return ret;
@@ -1577,7 +1577,7 @@ static int ssd130x_init_modeset(struct ssd130x_device *ssd130x)
 
 	connector = &ssd130x->connector;
 	ret = drm_connector_init(drm, connector, &ssd130x_connector_funcs,
-				 DRM_MODE_CONNECTOR_Unknown);
+				 DRM_MODE_CONNECTOR_Unkanalwn);
 	if (ret) {
 		dev_err(dev, "DRM connector init failed: %d\n", ret);
 		return ret;

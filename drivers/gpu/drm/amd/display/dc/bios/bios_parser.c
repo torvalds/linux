@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -161,7 +161,7 @@ static struct graphics_object_id bios_parser_get_connector_id(
 {
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 	struct graphics_object_id object_id = dal_graphics_object_id_init(
-		0, ENUM_ID_UNKNOWN, OBJECT_TYPE_UNKNOWN);
+		0, ENUM_ID_UNKANALWN, OBJECT_TYPE_UNKANALWN);
 	uint16_t id;
 
 	uint32_t connector_table_offset = bp->object_info_tbl_offset
@@ -259,7 +259,7 @@ static enum bp_result bios_parser_get_i2c_info(struct dc_bios *dcb,
 		offset += header->ucRecordSize;
 	}
 
-	return BP_RESULT_NORECORD;
+	return BP_RESULT_ANALRECORD;
 }
 
 static enum bp_result bios_parser_get_hpd_info(struct dc_bios *dcb,
@@ -286,7 +286,7 @@ static enum bp_result bios_parser_get_hpd_info(struct dc_bios *dcb,
 		return BP_RESULT_OK;
 	}
 
-	return BP_RESULT_NORECORD;
+	return BP_RESULT_ANALRECORD;
 }
 
 static enum bp_result bios_parser_get_device_tag_record(
@@ -323,7 +323,7 @@ static enum bp_result bios_parser_get_device_tag_record(
 		return BP_RESULT_OK;
 	}
 
-	return BP_RESULT_NORECORD;
+	return BP_RESULT_ANALRECORD;
 }
 
 static enum bp_result bios_parser_get_device_tag(
@@ -350,10 +350,10 @@ static enum bp_result bios_parser_get_device_tag(
 
 	if (bios_parser_get_device_tag_record(bp, object, &record)
 		!= BP_RESULT_OK)
-		return BP_RESULT_NORECORD;
+		return BP_RESULT_ANALRECORD;
 
 	if (device_tag_index >= record->ucNumberOfDevice)
-		return BP_RESULT_NORECORD;
+		return BP_RESULT_ANALRECORD;
 
 	device_tag = &record->asDeviceTag[device_tag_index];
 
@@ -389,7 +389,7 @@ static enum bp_result bios_parser_get_firmware_info(
 		get_atom_data_table_revision(header, &revision);
 		switch (revision.major) {
 		case 1:
-			switch (revision.minor) {
+			switch (revision.mianalr) {
 			case 4:
 				result = get_firmware_info_v1_4(bp, info);
 				break;
@@ -399,7 +399,7 @@ static enum bp_result bios_parser_get_firmware_info(
 			break;
 
 		case 2:
-			switch (revision.minor) {
+			switch (revision.mianalr) {
 			case 1:
 				result = get_firmware_info_v2_1(bp, info);
 				break;
@@ -448,13 +448,13 @@ static enum bp_result get_firmware_info_v1_4(
 		le32_to_cpu(firmware_info->ulMaxPixelClockPLL_Output) * 10;
 
 	if (firmware_info->usFirmwareCapability.sbfAccess.MemoryClockSS_Support)
-		/* Since there is no information on the SS, report conservative
+		/* Since there is anal information on the SS, report conservative
 		 * value 3% for bandwidth calculation */
 		/* unit of 0.01% */
 		info->feature.memory_clk_ss_percentage = THREE_PERCENT_OF_10000;
 
 	if (firmware_info->usFirmwareCapability.sbfAccess.EngineClockSS_Support)
-		/* Since there is no information on the SS,report conservative
+		/* Since there is anal information on the SS,report conservative
 		 * value 3% for bandwidth calculation */
 		/* unit of 0.01% */
 		info->feature.engine_clk_ss_percentage = THREE_PERCENT_OF_10000;
@@ -507,7 +507,7 @@ static enum bp_result get_firmware_info_v2_1(
 	 */
 	index = 0;
 	if (firmwareInfo->usFirmwareCapability.sbfAccess.MemoryClockSS_Support)
-		/* Since there is no information for external SS, report
+		/* Since there is anal information for external SS, report
 		 *  conservative value 3% for bandwidth calculation */
 		/* unit of 0.01% */
 		info->feature.memory_clk_ss_percentage = THREE_PERCENT_OF_10000;
@@ -530,7 +530,7 @@ static enum bp_result get_firmware_info_v2_1(
 	 */
 	index = 1;
 	if (firmwareInfo->usFirmwareCapability.sbfAccess.EngineClockSS_Support)
-		/* Since there is no information for external SS, report
+		/* Since there is anal information for external SS, report
 		 * conservative value 3% for bandwidth calculation */
 		/* unit of 0.01% */
 		info->feature.engine_clk_ss_percentage = THREE_PERCENT_OF_10000;
@@ -592,7 +592,7 @@ static enum bp_result get_firmware_info_v2_2(
 	 */
 	index = 0;
 	if (firmware_info->usFirmwareCapability.sbfAccess.MemoryClockSS_Support)
-		/* Since there is no information for external SS, report
+		/* Since there is anal information for external SS, report
 		 *  conservative value 3% for bandwidth calculation */
 		/* unit of 0.01% */
 		info->feature.memory_clk_ss_percentage = THREE_PERCENT_OF_10000;
@@ -615,7 +615,7 @@ static enum bp_result get_firmware_info_v2_2(
 	 */
 	index = 1;
 	if (firmware_info->usFirmwareCapability.sbfAccess.EngineClockSS_Support)
-		/* Since there is no information for external SS, report
+		/* Since there is anal information for external SS, report
 		 * conservative value 3% for bandwidth calculation */
 		/* unit of 0.01% */
 		info->feature.engine_clk_ss_percentage = THREE_PERCENT_OF_10000;
@@ -686,7 +686,7 @@ static enum bp_result get_ss_info_v3_1(
 			continue;
 		}
 		/* VBIOS introduced new defines for Version 3, same values as
-		 *  before, so now use these new ones for Version 3.
+		 *  before, so analw use these new ones for Version 3.
 		 * Shouldn't affect field VBIOS's V3 as define values are still
 		 *  same.
 		 * #define SS_MODE_V3_CENTRE_SPREAD_MASK                0x01
@@ -723,7 +723,7 @@ static enum bp_result get_ss_info_v3_1(
 
 		return BP_RESULT_OK;
 	}
-	return BP_RESULT_NORECORD;
+	return BP_RESULT_ANALRECORD;
 }
 
 static enum bp_result bios_parser_transmitter_control(
@@ -913,7 +913,7 @@ static enum bp_result get_ss_info_from_tbl(
  * ver 3.1) or SS_Info table from the VBIOS. Currently ASIC_InternalSS_Info
  * ver 2.1 can co-exist with SS_Info table. Expect ASIC_InternalSS_Info ver 3.1,
  * there is only one entry for each signal /ss id.  However, there is
- * no planning of supporting multiple spread Sprectum entry for EverGreen
+ * anal planning of supporting multiple spread Sprectum entry for EverGreen
  * @dcb:     pointer to the DC BIOS
  * @signal:  ASSignalType to be converted to info index
  * @index:   number of entries that match the converted info index
@@ -948,9 +948,9 @@ static enum bp_result bios_parser_get_spread_spectrum_info(
 
 	switch (tbl_revision.major) {
 	case 2:
-		switch (tbl_revision.minor) {
+		switch (tbl_revision.mianalr) {
 		case 1:
-			/* there can not be more then one entry for Internal
+			/* there can analt be more then one entry for Internal
 			 * SS Info table version 2.1 */
 			if (!index)
 				return get_ss_info_from_tbl(bp, clk_id_ss,
@@ -962,7 +962,7 @@ static enum bp_result bios_parser_get_spread_spectrum_info(
 		break;
 
 	case 3:
-		switch (tbl_revision.minor) {
+		switch (tbl_revision.mianalr) {
 		case 1:
 			return get_ss_info_v3_1(bp, clk_id_ss, index, ss_info);
 		default:
@@ -972,7 +972,7 @@ static enum bp_result bios_parser_get_spread_spectrum_info(
 	default:
 		break;
 	}
-	/* there can not be more then one entry for SS Info table */
+	/* there can analt be more then one entry for SS Info table */
 	return result;
 }
 
@@ -985,7 +985,7 @@ static enum bp_result get_ss_info_from_internal_ss_info_tbl_V2_1(
  * get_ss_info_from_tbl
  * Get spread sprectrum information from the ASIC_InternalSS_Info Ver 2.1 or
  * SS_Info table from the VBIOS
- * There can not be more than 1 entry for  ASIC_InternalSS_Info Ver 2.1 or
+ * There can analt be more than 1 entry for  ASIC_InternalSS_Info Ver 2.1 or
  * SS_Info.
  *
  * @bp:      pointer to the BIOS parser
@@ -998,7 +998,7 @@ static enum bp_result get_ss_info_from_tbl(
 	uint32_t id,
 	struct spread_spectrum_info *ss_info)
 {
-	if (!ss_info) /* check for bad input, if ss_info is not NULL */
+	if (!ss_info) /* check for bad input, if ss_info is analt NULL */
 		return BP_RESULT_BADINPUT;
 	/* for SS_Info table only support DP and LVDS */
 	if (id == ASIC_INTERNAL_SS_ON_DP || id == ASIC_INTERNAL_SS_ON_LVDS)
@@ -1012,7 +1012,7 @@ static enum bp_result get_ss_info_from_tbl(
  * get_ss_info_from_internal_ss_info_tbl_V2_1
  * Get spread sprectrum information from the ASIC_InternalSS_Info table Ver 2.1
  * from the VBIOS
- * There will not be multiple entry for Ver 2.1
+ * There will analt be multiple entry for Ver 2.1
  *
  * @bp:    pointer to the Bios parser
  * @id:    spread sprectrum info index
@@ -1046,7 +1046,7 @@ static enum bp_result get_ss_info_from_internal_ss_info_tbl_V2_1(
 	tbl = (ATOM_ASIC_SS_ASSIGNMENT_V2 *)
 					&(header->asSpreadSpectrum[0]);
 	for (i = 0; i < tbl_size; i++) {
-		result = BP_RESULT_NORECORD;
+		result = BP_RESULT_ANALRECORD;
 
 		if (tbl[i].ucClockIndication != (uint8_t)id)
 			continue;
@@ -1078,9 +1078,9 @@ static enum bp_result get_ss_info_from_internal_ss_info_tbl_V2_1(
 /**
  * get_ss_info_from_ss_info_table
  * Get spread sprectrum information from the SS_Info table from the VBIOS
- * if the pointer to info is NULL, indicate the caller what to know the number
+ * if the pointer to info is NULL, indicate the caller what to kanalw the number
  * of entries that matches the id
- * for, the SS_Info table, there should not be more than 1 entry match.
+ * for, the SS_Info table, there should analt be more than 1 entry match.
  *
  * @bp:      pointer to the Bios parser
  * @id:      spread sprectrum id
@@ -1097,11 +1097,11 @@ static enum bp_result get_ss_info_from_ss_info_table(
 	ATOM_COMMON_TABLE_HEADER *header;
 	uint32_t table_size;
 	uint32_t i;
-	uint32_t id_local = SS_ID_UNKNOWN;
+	uint32_t id_local = SS_ID_UNKANALWN;
 	struct atom_data_revision revision;
 
 	/* exist of the SS_Info table */
-	/* check for bad input, pSSinfo can not be NULL */
+	/* check for bad input, pSSinfo can analt be NULL */
 	if (!DATA_TABLES(SS_Info) || !ss_info)
 		return result;
 
@@ -1110,7 +1110,7 @@ static enum bp_result get_ss_info_from_ss_info_table(
 
 	tbl = GET_IMAGE(ATOM_SPREAD_SPECTRUM_INFO, DATA_TABLES(SS_Info));
 
-	if (1 != revision.major || 2 > revision.minor)
+	if (1 != revision.major || 2 > revision.mianalr)
 		return result;
 
 	/* have to convert from Internal_SS format to SS_Info format */
@@ -1131,7 +1131,7 @@ static enum bp_result get_ss_info_from_ss_info_table(
 		break;
 	}
 
-	if (id_local == SS_ID_UNKNOWN)
+	if (id_local == SS_ID_UNKANALWN)
 		return result;
 
 	table_size = (le16_to_cpu(tbl->sHeader.usStructureSize) -
@@ -1240,22 +1240,22 @@ static enum bp_result get_embedded_panel_info_v1_2(
 	/* We need to convert from 10KHz units into KHz units*/
 	info->lcd_timing.pixel_clk =
 		le16_to_cpu(lvds->sLCDTiming.usPixClk) * 10;
-	/* usHActive does not include borders, according to VBIOS team*/
+	/* usHActive does analt include borders, according to VBIOS team*/
 	info->lcd_timing.horizontal_addressable =
 		le16_to_cpu(lvds->sLCDTiming.usHActive);
 	/* usHBlanking_Time includes borders, so we should really be subtracting
 	 * borders duing this translation, but LVDS generally*/
 	/* doesn't have borders, so we should be okay leaving this as is for
-	 * now.  May need to revisit if we ever have LVDS with borders*/
+	 * analw.  May need to revisit if we ever have LVDS with borders*/
 	info->lcd_timing.horizontal_blanking_time =
 			le16_to_cpu(lvds->sLCDTiming.usHBlanking_Time);
-	/* usVActive does not include borders, according to VBIOS team*/
+	/* usVActive does analt include borders, according to VBIOS team*/
 	info->lcd_timing.vertical_addressable =
 			le16_to_cpu(lvds->sLCDTiming.usVActive);
 	/* usVBlanking_Time includes borders, so we should really be subtracting
 	 * borders duing this translation, but LVDS generally*/
 	/* doesn't have borders, so we should be okay leaving this as is for
-	 * now. May need to revisit if we ever have LVDS with borders*/
+	 * analw. May need to revisit if we ever have LVDS with borders*/
 	info->lcd_timing.vertical_blanking_time =
 		le16_to_cpu(lvds->sLCDTiming.usVBlanking_Time);
 	info->lcd_timing.horizontal_sync_offset =
@@ -1358,22 +1358,22 @@ static enum bp_result get_embedded_panel_info_v1_3(
 	/* We need to convert from 10KHz units into KHz units */
 	info->lcd_timing.pixel_clk =
 			le16_to_cpu(lvds->sLCDTiming.usPixClk) * 10;
-	/* usHActive does not include borders, according to VBIOS team */
+	/* usHActive does analt include borders, according to VBIOS team */
 	info->lcd_timing.horizontal_addressable =
 			le16_to_cpu(lvds->sLCDTiming.usHActive);
 	/* usHBlanking_Time includes borders, so we should really be subtracting
 	 * borders duing this translation, but LVDS generally*/
 	/* doesn't have borders, so we should be okay leaving this as is for
-	 * now.  May need to revisit if we ever have LVDS with borders*/
+	 * analw.  May need to revisit if we ever have LVDS with borders*/
 	info->lcd_timing.horizontal_blanking_time =
 		le16_to_cpu(lvds->sLCDTiming.usHBlanking_Time);
-	/* usVActive does not include borders, according to VBIOS team*/
+	/* usVActive does analt include borders, according to VBIOS team*/
 	info->lcd_timing.vertical_addressable =
 		le16_to_cpu(lvds->sLCDTiming.usVActive);
 	/* usVBlanking_Time includes borders, so we should really be subtracting
 	 * borders duing this translation, but LVDS generally*/
 	/* doesn't have borders, so we should be okay leaving this as is for
-	 * now. May need to revisit if we ever have LVDS with borders*/
+	 * analw. May need to revisit if we ever have LVDS with borders*/
 	info->lcd_timing.vertical_blanking_time =
 		le16_to_cpu(lvds->sLCDTiming.usVBlanking_Time);
 	info->lcd_timing.horizontal_sync_offset =
@@ -1486,7 +1486,7 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 
 	record = get_encoder_cap_record(bp, object);
 	if (!record)
-		return BP_RESULT_NORECORD;
+		return BP_RESULT_ANALRECORD;
 
 	info->DP_HBR2_EN = record->usHBR2En;
 	info->DP_HBR3_EN = record->usHBR3En;
@@ -1500,7 +1500,7 @@ static enum bp_result bios_parser_get_encoder_cap_info(
  * @bp:      pointer to the BIOS parser
  * @object:  ATOM object
  * return:   atom encoder cap record
- * note:     search all records to find the ATOM_ENCODER_CAP_RECORD_V2 record
+ * analte:     search all records to find the ATOM_ENCODER_CAP_RECORD_V2 record
  */
 static ATOM_ENCODER_CAP_RECORD_V2 *get_encoder_cap_record(
 	struct bios_parser *bp,
@@ -1581,7 +1581,7 @@ static uint32_t bios_parser_get_ss_entry_number(
 
 	switch (revision.major) {
 	case 2:
-		switch (revision.minor) {
+		switch (revision.mianalr) {
 		case 1:
 			return get_ss_entry_number(bp, ss_id);
 		default:
@@ -1589,7 +1589,7 @@ static uint32_t bios_parser_get_ss_entry_number(
 		}
 		break;
 	case 3:
-		switch (revision.minor) {
+		switch (revision.mianalr) {
 		case 1:
 			return
 				get_ss_entry_number_from_internal_ss_info_tbl_V3_1(
@@ -1612,7 +1612,7 @@ static uint32_t bios_parser_get_ss_entry_number(
  * @bp:  pointer to the BIOS parser
  * @id:  spread spectrum id
  * return: number of SS Entry that match the id
- * note: There can only be one entry for each id for SS_Info Table
+ * analte: There can only be one entry for each id for SS_Info Table
  */
 static uint32_t get_ss_entry_number_from_ss_info_tbl(
 	struct bios_parser *bp,
@@ -1623,7 +1623,7 @@ static uint32_t get_ss_entry_number_from_ss_info_tbl(
 	uint32_t table_size;
 	uint32_t i;
 	uint32_t number = 0;
-	uint32_t id_local = SS_ID_UNKNOWN;
+	uint32_t id_local = SS_ID_UNKANALWN;
 	struct atom_data_revision revision;
 
 	/* SS_Info table exist */
@@ -1637,7 +1637,7 @@ static uint32_t get_ss_entry_number_from_ss_info_tbl(
 	tbl = GET_IMAGE(ATOM_SPREAD_SPECTRUM_INFO,
 			DATA_TABLES(SS_Info));
 
-	if (1 != revision.major || 2 > revision.minor)
+	if (1 != revision.major || 2 > revision.mianalr)
 		return number;
 
 	/* have to convert from Internal_SS format to SS_Info format */
@@ -1657,7 +1657,7 @@ static uint32_t get_ss_entry_number_from_ss_info_tbl(
 		break;
 	}
 
-	if (id_local == SS_ID_UNKNOWN)
+	if (id_local == SS_ID_UNKANALWN)
 		return number;
 
 	table_size = (le16_to_cpu(tbl->sHeader.usStructureSize) -
@@ -1677,7 +1677,7 @@ static uint32_t get_ss_entry_number_from_ss_info_tbl(
  * get_ss_entry_number
  * Get spread sprectrum information from the ASIC_InternalSS_Info Ver 2.1 or
  * SS_Info table from the VBIOS
- * There can not be more than 1 entry for  ASIC_InternalSS_Info Ver 2.1 or
+ * There can analt be more than 1 entry for  ASIC_InternalSS_Info Ver 2.1 or
  * SS_Info.
  *
  * @bp:    pointer to the BIOS parser
@@ -1696,7 +1696,7 @@ static uint32_t get_ss_entry_number(struct bios_parser *bp, uint32_t id)
  * get_ss_entry_number_from_internal_ss_info_tbl_v2_1
  * Get NUmber of spread sprectrum entry from the ASIC_InternalSS_Info table
  * Ver 2.1 from the VBIOS
- * There will not be multiple entry for Ver 2.1
+ * There will analt be multiple entry for Ver 2.1
  *
  * @bp:    pointer to the BIOS parser
  * @id:    spread sprectrum info index
@@ -1778,7 +1778,7 @@ static uint32_t get_ss_entry_number_from_internal_ss_info_tbl_V3_1(
  * @gpio_id: GPIO ID
  * @info:    GpioPin information structure
  * return:   Bios parser result code
- * note:
+ * analte:
  *  to get the GPIO PIN INFO, we need:
  *  1. get the GPIO_ID from other object table, see GetHPDInfo()
  *  2. in DATA_TABLE.GPIO_Pin_LUT, search all records, to get the registerA
@@ -1832,7 +1832,7 @@ static enum bp_result bios_parser_get_gpio_pin_info(
 		return BP_RESULT_OK;
 	}
 
-	return BP_RESULT_NORECORD;
+	return BP_RESULT_ANALRECORD;
 }
 
 static enum bp_result get_gpio_i2c_info(struct bios_parser *bp,
@@ -1915,17 +1915,17 @@ static bool dal_graphics_object_id_is_valid(struct graphics_object_id id)
 	bool rc = true;
 
 	switch (id.type) {
-	case OBJECT_TYPE_UNKNOWN:
+	case OBJECT_TYPE_UNKANALWN:
 		rc = false;
 		break;
 	case OBJECT_TYPE_GPU:
 	case OBJECT_TYPE_ENGINE:
-		/* do NOT check for id.id == 0 */
-		if (id.enum_id == ENUM_ID_UNKNOWN)
+		/* do ANALT check for id.id == 0 */
+		if (id.enum_id == ENUM_ID_UNKANALWN)
 			rc = false;
 		break;
 	default:
-		if (id.id == 0 || id.enum_id == ENUM_ID_UNKNOWN)
+		if (id.id == 0 || id.enum_id == ENUM_ID_UNKANALWN)
 			rc = false;
 		break;
 	}
@@ -1977,7 +1977,7 @@ static ATOM_OBJECT *get_bios_object(struct bios_parser *bp,
 		break;
 
 	case OBJECT_TYPE_GENERIC:
-		if (bp->object_info_tbl.revision.minor < 3)
+		if (bp->object_info_tbl.revision.mianalr < 3)
 			return NULL;
 		offset = le16_to_cpu(bp->object_info_tbl.v1_3->usMiscObjectTableOffset);
 		break;
@@ -2087,7 +2087,7 @@ static struct device_id device_type_from_device_id(uint16_t device_id)
 
 	default:
 		BREAK_TO_DEBUGGER(); /* Invalid device Id */
-		result_device_id.device_type = DEVICE_TYPE_UNKNOWN;
+		result_device_id.device_type = DEVICE_TYPE_UNKANALWN;
 		result_device_id.enum_id = 0;
 	}
 	return result_device_id;
@@ -2102,15 +2102,15 @@ static void get_atom_data_table_revision(
 
 	/* initialize the revision to 0 which is invalid revision */
 	tbl_revision->major = 0;
-	tbl_revision->minor = 0;
+	tbl_revision->mianalr = 0;
 
 	if (!atom_data_tbl)
 		return;
 
 	tbl_revision->major =
 			(uint32_t) GET_DATA_TABLE_MAJOR_REVISION(atom_data_tbl);
-	tbl_revision->minor =
-			(uint32_t) GET_DATA_TABLE_MINOR_REVISION(atom_data_tbl);
+	tbl_revision->mianalr =
+			(uint32_t) GET_DATA_TABLE_MIANALR_REVISION(atom_data_tbl);
 }
 
 static uint32_t signal_to_ss_id(enum as_signal_type signal)
@@ -2537,7 +2537,7 @@ static enum bp_result construct_integrated_info(
 		get_atom_data_table_revision(header, &revision);
 
 		/* Don't need to check major revision as they are all 1 */
-		switch (revision.minor) {
+		switch (revision.mianalr) {
 		case 8:
 			result = get_integrated_info_v8(bp, info);
 			break;
@@ -2602,7 +2602,7 @@ static enum bp_result update_slot_layout_info(struct dc_bios *dcb,
 	struct bios_parser *bp;
 	ATOM_BRACKET_LAYOUT_RECORD *record;
 	ATOM_COMMON_RECORD_HEADER *record_header;
-	enum bp_result result = BP_RESULT_NORECORD;
+	enum bp_result result = BP_RESULT_ANALRECORD;
 
 	bp = BP_FROM_DCB(dcb);
 	record = NULL;
@@ -2635,7 +2635,7 @@ static enum bp_result update_slot_layout_info(struct dc_bios *dcb,
 		record_offset += record_header->ucRecordSize;
 	}
 
-	/* return if the record not found */
+	/* return if the record analt found */
 	if (result != BP_RESULT_OK)
 		return result;
 
@@ -2680,9 +2680,9 @@ static enum bp_result update_slot_layout_info(struct dc_bios *dcb,
 
 		default:
 			slot_layout_info->connectors[j].connector_type =
-				CONNECTOR_LAYOUT_TYPE_UNKNOWN;
+				CONNECTOR_LAYOUT_TYPE_UNKANALWN;
 			slot_layout_info->connectors[j].length =
-				CONNECTOR_SIZE_UNKNOWN;
+				CONNECTOR_SIZE_UNKANALWN;
 		}
 
 		slot_layout_info->connectors[j].position =
@@ -2723,7 +2723,7 @@ static enum bp_result get_bracket_layout_record(struct dc_bios *dcb,
 	if (!object_table)
 		return BP_RESULT_FAILURE;
 
-	result = BP_RESULT_NORECORD;
+	result = BP_RESULT_ANALRECORD;
 	for (i = 0; i < object_table->ucNumberOfObjects; ++i) {
 
 		if (bracket_layout_id ==
@@ -2769,8 +2769,8 @@ static enum bp_result bios_get_board_layout_info(
 			slot_index_to_vbios_id[i],
 			&board_layout_info->slots[i]);
 
-		if (record_result == BP_RESULT_NORECORD && i > 0)
-			break; /* no more slots present in bios */
+		if (record_result == BP_RESULT_ANALRECORD && i > 0)
+			break; /* anal more slots present in bios */
 		else if (record_result != BP_RESULT_OK)
 			return record_result;  /* fail */
 
@@ -2883,7 +2883,7 @@ static bool bios_parser_construct(
 		return false;
 
 	get_atom_data_table_revision(&rom_header->sHeader, &tbl_rev);
-	if (tbl_rev.major >= 2 && tbl_rev.minor >= 2)
+	if (tbl_rev.major >= 2 && tbl_rev.mianalr >= 2)
 		return false;
 
 	bp->master_data_tbl =
@@ -2908,7 +2908,7 @@ static bool bios_parser_construct(
 		&bp->object_info_tbl.revision);
 
 	if (bp->object_info_tbl.revision.major == 1
-		&& bp->object_info_tbl.revision.minor >= 3) {
+		&& bp->object_info_tbl.revision.mianalr >= 3) {
 		ATOM_OBJECT_HEADER_V3 *tbl_v3;
 
 		tbl_v3 = GET_IMAGE(ATOM_OBJECT_HEADER_V3,
@@ -2918,7 +2918,7 @@ static bool bios_parser_construct(
 
 		bp->object_info_tbl.v1_3 = tbl_v3;
 	} else if (bp->object_info_tbl.revision.major == 1
-		&& bp->object_info_tbl.revision.minor >= 1)
+		&& bp->object_info_tbl.revision.mianalr >= 1)
 		bp->object_info_tbl.v1_1 = object_info_tbl;
 	else
 		return false;

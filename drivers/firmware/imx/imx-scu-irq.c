@@ -59,25 +59,25 @@ static struct scu_wakeup scu_irq_wakeup[IMX_SC_IRQ_NUM_GROUP];
 
 static struct imx_sc_ipc *imx_sc_irq_ipc_handle;
 static struct work_struct imx_sc_irq_work;
-static BLOCKING_NOTIFIER_HEAD(imx_scu_irq_notifier_chain);
+static BLOCKING_ANALTIFIER_HEAD(imx_scu_irq_analtifier_chain);
 
-int imx_scu_irq_register_notifier(struct notifier_block *nb)
+int imx_scu_irq_register_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(
-		&imx_scu_irq_notifier_chain, nb);
+	return blocking_analtifier_chain_register(
+		&imx_scu_irq_analtifier_chain, nb);
 }
-EXPORT_SYMBOL(imx_scu_irq_register_notifier);
+EXPORT_SYMBOL(imx_scu_irq_register_analtifier);
 
-int imx_scu_irq_unregister_notifier(struct notifier_block *nb)
+int imx_scu_irq_unregister_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(
-		&imx_scu_irq_notifier_chain, nb);
+	return blocking_analtifier_chain_unregister(
+		&imx_scu_irq_analtifier_chain, nb);
 }
-EXPORT_SYMBOL(imx_scu_irq_unregister_notifier);
+EXPORT_SYMBOL(imx_scu_irq_unregister_analtifier);
 
-static int imx_scu_irq_notifier_call_chain(unsigned long status, u8 *group)
+static int imx_scu_irq_analtifier_call_chain(unsigned long status, u8 *group)
 {
-	return blocking_notifier_call_chain(&imx_scu_irq_notifier_chain,
+	return blocking_analtifier_call_chain(&imx_scu_irq_analtifier_chain,
 		status, (void *)group);
 }
 
@@ -110,7 +110,7 @@ static void imx_scu_irq_work_handler(struct work_struct *work)
 		}
 
 		pm_system_wakeup();
-		imx_scu_irq_notifier_call_chain(irq_status, &i);
+		imx_scu_irq_analtifier_call_chain(irq_status, &i);
 	}
 }
 
@@ -209,7 +209,7 @@ int imx_scu_enable_general_irq_channel(struct device *dev)
 
 	cl = devm_kzalloc(dev, sizeof(*cl), GFP_KERNEL);
 	if (!cl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cl->dev = dev;
 	cl->rx_callback = imx_scu_irq_callback;
@@ -225,7 +225,7 @@ int imx_scu_enable_general_irq_channel(struct device *dev)
 
 	INIT_WORK(&imx_sc_irq_work, imx_scu_irq_work_handler);
 
-	if (!of_parse_phandle_with_args(dev->of_node, "mboxes",
+	if (!of_parse_phandle_with_args(dev->of_analde, "mboxes",
 				       "#mbox-cells", 0, &spec))
 		i = of_alias_get_id(spec.np, "mu");
 
@@ -238,13 +238,13 @@ int imx_scu_enable_general_irq_channel(struct device *dev)
 	/* Create directory under /sysfs/firmware */
 	wakeup_obj = kobject_create_and_add("scu_wakeup_source", firmware_kobj);
 	if (!wakeup_obj) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_ch;
 	}
 
 	ret = sysfs_create_file(wakeup_obj, &wakeup_source_attr.attr);
 	if (ret) {
-		dev_err(dev, "Cannot create wakeup source src file......\n");
+		dev_err(dev, "Cananalt create wakeup source src file......\n");
 		kobject_put(wakeup_obj);
 		goto free_ch;
 	}

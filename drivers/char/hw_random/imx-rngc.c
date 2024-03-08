@@ -65,7 +65,7 @@ struct imx_rngc {
 	struct completion	rng_op_done;
 	/*
 	 * err_reg is written only by the irq handler and read only
-	 * when interrupts are masked, we need no spinlock
+	 * when interrupts are masked, we need anal spinlock
 	 */
 	u32			err_reg;
 };
@@ -81,7 +81,7 @@ static inline void imx_rngc_irq_mask_clear(struct imx_rngc *rngc)
 	writel(ctrl, rngc->base + RNGC_CONTROL);
 
 	/*
-	 * CLR_INT clears the interrupt only if there's no error
+	 * CLR_INT clears the interrupt only if there's anal error
 	 * CLR_ERR clear the interrupt and the error register if there
 	 * is an error
 	 */
@@ -234,7 +234,7 @@ static int __init imx_rngc_probe(struct platform_device *pdev)
 
 	rngc = devm_kzalloc(&pdev->dev, sizeof(*rngc), GFP_KERNEL);
 	if (!rngc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rngc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rngc->base))
@@ -242,7 +242,7 @@ static int __init imx_rngc_probe(struct platform_device *pdev)
 
 	rngc->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(rngc->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(rngc->clk), "Cannot get rng_clk\n");
+		return dev_err_probe(&pdev->dev, PTR_ERR(rngc->clk), "Cananalt get rng_clk\n");
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -255,7 +255,7 @@ static int __init imx_rngc_probe(struct platform_device *pdev)
 	 * driver for RNGA.)
 	 */
 	if (rng_type != RNGC_TYPE_RNGC && rng_type != RNGC_TYPE_RNGB)
-		return -ENODEV;
+		return -EANALDEV;
 
 	init_completion(&rngc->rng_op_done);
 

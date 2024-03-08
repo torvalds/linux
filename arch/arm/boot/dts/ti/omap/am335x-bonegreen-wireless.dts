@@ -73,7 +73,7 @@
 	status = "okay";
 	vmmc-supply = <&wlan_en_reg>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	cap-power-off-card;
 	keep-power-in-suspend;
 	pinctrl-names = "default";

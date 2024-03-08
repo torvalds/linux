@@ -66,7 +66,7 @@ int cn_queue_add_callback(struct cn_queue_dev *dev, const char *name,
 
 	cbq = cn_queue_alloc_callback_entry(dev, name, id, callback);
 	if (!cbq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_bh(&dev->queue_lock);
 	list_for_each_entry(__cbq, &dev->queue_list, callback_entry) {

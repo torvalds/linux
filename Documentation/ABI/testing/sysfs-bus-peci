@@ -3,7 +3,7 @@ Date:		July 2021
 KernelVersion:	5.18
 Contact:	Iwona Winiarska <iwona.winiarska@intel.com>
 Description:
-		Writing a non-zero value to this attribute will
+		Writing a analn-zero value to this attribute will
 		initiate scan for PECI devices on all PECI controllers
 		in the system.
 
@@ -12,5 +12,5 @@ Date:		July 2021
 KernelVersion:	5.18
 Contact:	Iwona Winiarska <iwona.winiarska@intel.com>
 Description:
-		Writing a non-zero value to this attribute will
+		Writing a analn-zero value to this attribute will
 		remove the PECI device and any of its children.

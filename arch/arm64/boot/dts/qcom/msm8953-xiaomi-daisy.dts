@@ -8,9 +8,9 @@
 #include "pm8953.dtsi"
 #include "pmi8950.dtsi"
 
-/delete-node/ &adsp_fw_mem;
-/delete-node/ &qseecom_mem;
-/delete-node/ &wcnss_fw_mem;
+/delete-analde/ &adsp_fw_mem;
+/delete-analde/ &qseecom_mem;
+/delete-analde/ &wcnss_fw_mem;
 
 / {
 	model = "Xiaomi Mi A2 Lite";
@@ -61,23 +61,23 @@
 	reserved-memory {
 		qseecom_mem: qseecom@84a00000 {
 			reg = <0x0 0x84a00000 0x0 0x1900000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_fw_mem: adsp@8d600000 {
 			reg = <0x0 0x8d600000 0x0 0x1200000>;
-			no-map;
+			anal-map;
 		};
 
 		wcnss_fw_mem: wcnss@8e800000 {
 			reg = <0x0 0x8e800000 0x0 0x700000>;
-			no-map;
+			anal-map;
 		};
 	};
 
 	/*
 	 * We bitbang on &i2c_4 because BLSP is protected by TZ as sensors are
-	 * normally proxied via ADSP firmware. GPIOs aren't protected.
+	 * analrmally proxied via ADSP firmware. GPIOs aren't protected.
 	 */
 	i2c-sensors {
 		compatible = "i2c-gpio";
@@ -123,8 +123,8 @@
 
 		reset-gpios = <&tlmm 89 GPIO_ACTIVE_LOW>;
 
-		vmon-slot-no = <1>;
-		imon-slot-no = <1>;
+		vmon-slot-anal = <1>;
+		imon-slot-anal = <1>;
 		maxim,interleave-mode;
 
 		#sound-dai-cells = <0>;

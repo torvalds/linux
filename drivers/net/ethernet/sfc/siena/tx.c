@@ -54,17 +54,17 @@ static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
 
 	/* We used the stale old_read_count above, which gives us a
 	 * pessimistic estimate of the fill level (which may even
-	 * validly be >= efx->txq_entries).  Now try again using
+	 * validly be >= efx->txq_entries).  Analw try again using
 	 * read_count (more likely to be a cache miss).
 	 *
 	 * If we read read_count and then conditionally stop the
 	 * queue, it is possible for the completion path to race with
 	 * us and complete all outstanding descriptors in the middle,
-	 * after which there will be no more completions to wake it.
+	 * after which there will be anal more completions to wake it.
 	 * Therefore we stop the queue first, then read read_count
 	 * (with a memory barrier to ensure the ordering), then
 	 * restart the queue if the fill level turns out to be low
-	 * enough.
+	 * eanalugh.
 	 */
 	netif_tx_stop_queue(txq1->core_txq);
 	smp_mb();
@@ -72,7 +72,7 @@ static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
 		txq2->old_read_count = READ_ONCE(txq2->read_count);
 
 	fill_level = efx_channel_tx_old_fill_level(txq1->channel);
-	EFX_WARN_ON_ONCE_PARANOID(fill_level >= efx->txq_entries);
+	EFX_WARN_ON_ONCE_PARAANALID(fill_level >= efx->txq_entries);
 	if (likely(fill_level < efx->txq_stop_thresh)) {
 		smp_mb();
 		if (likely(!efx->loopback_selftest))
@@ -88,16 +88,16 @@ static int efx_enqueue_skb_copy(struct efx_tx_queue *tx_queue,
 	u8 *copy_buffer;
 	int rc;
 
-	EFX_WARN_ON_ONCE_PARANOID(copy_len > EFX_TX_CB_SIZE);
+	EFX_WARN_ON_ONCE_PARAANALID(copy_len > EFX_TX_CB_SIZE);
 
 	buffer = efx_tx_queue_get_insert_buffer(tx_queue);
 
 	copy_buffer = efx_tx_get_copy_buffer(tx_queue, buffer);
 	if (unlikely(!copy_buffer))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = skb_copy_bits(skb, 0, copy_buffer, copy_len);
-	EFX_WARN_ON_PARANOID(rc);
+	EFX_WARN_ON_PARAANALID(rc);
 	buffer->len = copy_len;
 
 	buffer->skb = skb;
@@ -189,7 +189,7 @@ err:
 	efx_siena_enqueue_unwind(tx_queue, old_insert_count);
 	dev_kfree_skb_any(skb);
 
-	/* If we're not expecting another transmit and we had something to push
+	/* If we're analt expecting aanalther transmit and we had something to push
 	 * on this queue or a partner queue then we need to push here to get the
 	 * previous packets out.
 	 */
@@ -293,7 +293,7 @@ unlock:
 /* Initiate a packet transmission.  We use one channel per CPU
  * (sharing when we have more CPUs than channels).
  *
- * Context: non-blocking.
+ * Context: analn-blocking.
  * Should always return NETDEV_TX_OK and consume the skb.
  */
 netdev_tx_t efx_siena_hard_start_xmit(struct sk_buff *skb,
@@ -303,7 +303,7 @@ netdev_tx_t efx_siena_hard_start_xmit(struct sk_buff *skb,
 	struct efx_tx_queue *tx_queue;
 	unsigned index, type;
 
-	EFX_WARN_ON_PARANOID(!netif_device_present(net_dev));
+	EFX_WARN_ON_PARAANALID(!netif_device_present(net_dev));
 
 	index = skb_get_queue_mapping(skb);
 	type = efx_tx_csum_type_skb(skb);
@@ -331,7 +331,7 @@ netdev_tx_t efx_siena_hard_start_xmit(struct sk_buff *skb,
 		 * features unless we can support them.
 		 */
 		dev_kfree_skb_any(skb);
-		/* If we're not expecting another transmit and we had something to push
+		/* If we're analt expecting aanalther transmit and we had something to push
 		 * on this queue or a partner queue then we need to push here to get the
 		 * previous packets out.
 		 */
@@ -363,11 +363,11 @@ int efx_siena_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 	unsigned tc, num_tc;
 
 	if (type != TC_SETUP_QDISC_MQPRIO)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Only Siena supported highpri queues */
 	if (efx_nic_rev(efx) > EFX_REV_SIENA_A0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	num_tc = mqprio->num_tc;
 

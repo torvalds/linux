@@ -340,7 +340,7 @@ static int cxd2880_start_feed(struct dvb_demux_feed *feed)
 
 	if (dvb_spi->feed_count == CXD2880_MAX_FILTER_SIZE) {
 		pr_err("Exceeded maximum PID count (32).");
-		pr_err("Selected PID cannot be enabled.\n");
+		pr_err("Selected PID cananalt be enabled.\n");
 		return -EINVAL;
 	}
 
@@ -395,7 +395,7 @@ static int cxd2880_start_feed(struct dvb_demux_feed *feed)
 			memset(&dvb_spi->filter_config, 0,
 			       sizeof(dvb_spi->filter_config));
 			dvb_spi->all_pid_feed_count = 0;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		dvb_spi->cxd2880_ts_read_thread = kthread_run(cxd2880_ts_read,
 							      dvb_spi,
@@ -437,7 +437,7 @@ static int cxd2880_stop_feed(struct dvb_demux_feed *feed)
 	dvb_spi = demux->priv;
 
 	if (!dvb_spi->feed_count) {
-		pr_err("no feed is started\n");
+		pr_err("anal feed is started\n");
 		return -EINVAL;
 	}
 
@@ -448,7 +448,7 @@ static int cxd2880_stop_feed(struct dvb_demux_feed *feed)
 		 * in dvb_spi->all_pid_feed_count.
 		 */
 		if (dvb_spi->all_pid_feed_count <= 0) {
-			pr_err("PID %d not found\n", feed->pid);
+			pr_err("PID %d analt found\n", feed->pid);
 			return -EINVAL;
 		}
 		dvb_spi->all_pid_feed_count--;
@@ -470,7 +470,7 @@ static int cxd2880_stop_feed(struct dvb_demux_feed *feed)
 		dvb_spi->filter_config = cfgtmp;
 
 		if (i == CXD2880_MAX_FILTER_SIZE) {
-			pr_err("PID %d not found\n", feed->pid);
+			pr_err("PID %d analt found\n", feed->pid);
 			return -EINVAL;
 		}
 	}
@@ -518,7 +518,7 @@ cxd2880_spi_probe(struct spi_device *spi)
 
 	dvb_spi = kzalloc(sizeof(struct cxd2880_dvb_spi), GFP_KERNEL);
 	if (!dvb_spi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dvb_spi->vcc_supply = devm_regulator_get_optional(&spi->dev, "vcc");
 	if (IS_ERR(dvb_spi->vcc_supply)) {
@@ -551,7 +551,7 @@ cxd2880_spi_probe(struct spi_device *spi)
 
 	if (!dvb_attach(cxd2880_attach, &dvb_spi->dvb_fe, &config)) {
 		pr_err("cxd2880_attach failed\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail_attach;
 	}
 

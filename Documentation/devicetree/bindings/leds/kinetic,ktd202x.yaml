@@ -29,7 +29,7 @@ properties:
 
   vio-supply:
     description: Regulator providing power for pull-up of the I/O lines.
-      Note that this regulator does not directly connect to KTD2026, but is
+      Analte that this regulator does analt directly connect to KTD2026, but is
       needed for the correct operation of the status ("ST") and I2C lines.
 
   "#address-cells":

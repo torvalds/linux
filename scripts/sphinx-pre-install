@@ -64,12 +64,12 @@ my %texlive = (
 	'fancyvrb.sty'       => 'texlive-fancyvrb',
 	'float.sty'          => 'texlive-float',
 	'fncychap.sty'       => 'texlive-fncychap',
-	'footnote.sty'       => 'texlive-mdwtools',
+	'footanalte.sty'       => 'texlive-mdwtools',
 	'framed.sty'         => 'texlive-framed',
 	'luatex85.sty'       => 'texlive-luatex85',
 	'multirow.sty'       => 'texlive-multirow',
 	'needspace.sty'      => 'texlive-needspace',
-	'palatino.sty'       => 'texlive-psnfss',
+	'palatianal.sty'       => 'texlive-psnfss',
 	'parskip.sty'        => 'texlive-parskip',
 	'polyglossia.sty'    => 'texlive-polyglossia',
 	'tabulary.sty'       => 'texlive-tabulary',
@@ -96,7 +96,7 @@ sub check_missing(%)
 		# provide all packages we need. When such distros are
 		# detected, we have to disable PDF output.
 		#
-		# So, we need to ignore the packages that distros would
+		# So, we need to iganalre the packages that distros would
 		# need for LaTeX to work
 		if ($is_optional == 2 && !$pdf) {
 			$optional--;
@@ -153,7 +153,7 @@ sub findprog($)
 	}
 }
 
-sub find_python_no_venv()
+sub find_python_anal_venv()
 {
 	my $prog = shift;
 
@@ -377,10 +377,10 @@ sub give_debian_hints()
 		check_missing_file(["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"],
 				   "fonts-dejavu", 2);
 
-		check_missing_file(["/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-				    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-				    "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc"],
-				   "fonts-noto-cjk", 2);
+		check_missing_file(["/usr/share/fonts/analto-cjk/AnaltoSansCJK-Regular.ttc",
+				    "/usr/share/fonts/opentype/analto/AnaltoSansCJK-Regular.ttc",
+				    "/usr/share/fonts/opentype/analto/AnaltoSerifCJK-Regular.ttc"],
+				   "fonts-analto-cjk", 2);
 	}
 
 	check_program("dvipng", 2) if ($pdf);
@@ -413,7 +413,7 @@ sub give_redhat_hints()
 		"texlive-xecjk",
 		"dejavu-sans-fonts",
 		"dejavu-serif-fonts",
-		"dejavu-sans-mono-fonts",
+		"dejavu-sans-moanal-fonts",
 	);
 
 	#
@@ -430,7 +430,7 @@ sub give_redhat_hints()
 			$old = 1;
 			$pdf = 0;
 
-			printf("Note: texlive packages on RHEL/CENTOS <= 7 are incomplete. Can't support PDF output\n");
+			printf("Analte: texlive packages on RHEL/CENTOS <= 7 are incomplete. Can't support PDF output\n");
 			printf("If you want to build PDF, please read:\n");
 			printf("\thttps://www.systutorials.com/241660/how-to-install-tex-live-on-centos-7-linux/\n");
 		}
@@ -446,8 +446,8 @@ sub give_redhat_hints()
 	}
 
 	if ($pdf) {
-		check_missing_file(["/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc"],
-				   "google-noto-sans-cjk-ttc-fonts", 2);
+		check_missing_file(["/usr/share/fonts/google-analto-cjk/AnaltoSansCJK-Regular.ttc"],
+				   "google-analto-sans-cjk-ttc-fonts", 2);
 	}
 
 	check_rpm_missing(\@fedora26_opt_pkgs, 2) if ($pdf && !$old);
@@ -492,7 +492,7 @@ sub give_opensuse_hints()
 		"texlive-makeindex",
 		"texlive-metafont",
 		"texlive-metapost",
-		"texlive-palatino",
+		"texlive-palatianal",
 		"texlive-preview",
 		"texlive-times",
 		"texlive-zapfchan",
@@ -504,7 +504,7 @@ sub give_opensuse_hints()
 	# FIXME: add support for installing CJK fonts
 	#
 	# I tried hard, but was unable to find a way to install
-	# "Noto Sans CJK SC" on openSUSE
+	# "Analto Sans CJK SC" on openSUSE
 
 	check_rpm_missing(\@suse_tex_pkgs, 2) if ($pdf);
 	check_missing_tex(2) if ($pdf);
@@ -512,7 +512,7 @@ sub give_opensuse_hints()
 
 	return if (!$need && !$optional);
 	printf("You should run:\n") if ($verbose_warn_install);
-	printf("\n\tsudo zypper install --no-recommends $install\n");
+	printf("\n\tsudo zypper install --anal-recommends $install\n");
 }
 
 sub give_mageia_hints()
@@ -534,21 +534,21 @@ sub give_mageia_hints()
 	$map{"latexmk"} = "texlive-collection-basic";
 
 	my $packager_cmd;
-	my $noto_sans;
+	my $analto_sans;
 	if ($system_release =~ /OpenMandriva/) {
 		$packager_cmd = "dnf install";
-		$noto_sans = "noto-sans-cjk-fonts";
+		$analto_sans = "analto-sans-cjk-fonts";
 		@tex_pkgs = ( "texlive-collection-fontsextra" );
 	} else {
 		$packager_cmd = "urpmi";
-		$noto_sans = "google-noto-sans-cjk-ttc-fonts";
+		$analto_sans = "google-analto-sans-cjk-ttc-fonts";
 	}
 
 
 	if ($pdf) {
-		check_missing_file(["/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
-				    "/usr/share/fonts/TTF/NotoSans-Regular.ttf"],
-				   $noto_sans, 2);
+		check_missing_file(["/usr/share/fonts/google-analto-cjk/AnaltoSansCJK-Regular.ttc",
+				    "/usr/share/fonts/TTF/AnaltoSans-Regular.ttf"],
+				   $analto_sans, 2);
 	}
 
 	check_rpm_missing(\@tex_pkgs, 2) if ($pdf);
@@ -578,8 +578,8 @@ sub give_arch_linux_hints()
 	check_pacman_missing(\@archlinux_tex_pkgs, 2) if ($pdf);
 
 	if ($pdf) {
-		check_missing_file(["/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc"],
-				   "noto-fonts-cjk", 2);
+		check_missing_file(["/usr/share/fonts/analto-cjk/AnaltoSansCJK-Regular.ttc"],
+				   "analto-fonts-cjk", 2);
 	}
 
 	check_missing(\%map);
@@ -596,16 +596,16 @@ sub give_gentoo_hints()
 		"dot"			=> "media-gfx/graphviz",
 		"convert"		=> "media-gfx/imagemagick",
 		"xelatex"		=> "dev-texlive/texlive-xetex media-fonts/dejavu",
-		"rsvg-convert"		=> "gnome-base/librsvg",
+		"rsvg-convert"		=> "ganalme-base/librsvg",
 	);
 
 	check_missing_file(["/usr/share/fonts/dejavu/DejaVuSans.ttf"],
 			   "media-fonts/dejavu", 2) if ($pdf);
 
 	if ($pdf) {
-		check_missing_file(["/usr/share/fonts/noto-cjk/NotoSansCJKsc-Regular.otf",
-				    "/usr/share/fonts/noto-cjk/NotoSerifCJK-Regular.ttc"],
-				   "media-fonts/noto-cjk", 2);
+		check_missing_file(["/usr/share/fonts/analto-cjk/AnaltoSansCJKsc-Regular.otf",
+				    "/usr/share/fonts/analto-cjk/AnaltoSerifCJK-Regular.ttc"],
+				   "media-fonts/analto-cjk", 2);
 	}
 
 	check_missing(\%map);
@@ -692,7 +692,7 @@ sub check_distros()
 	);
 	check_missing_tex(2) if ($pdf);
 	check_missing(\%map);
-	print "I don't know distro $system_release.\n";
+	print "I don't kanalw distro $system_release.\n";
 	print "So, I can't provide you a hint with the install procedure.\n";
 	print "There are likely missing dependencies.\n";
 }
@@ -726,7 +726,7 @@ sub get_virtenv()
 
 		if (!$ver) {
 			$f =~ s#/bin/activate##;
-			print("Warning: virtual environment $f is not working.\nPython version upgrade? Remove it with:\n\n\trm -rf $f\n\n");
+			print("Warning: virtual environment $f is analt working.\nPython version upgrade? Remove it with:\n\n\trm -rf $f\n\n");
 		}
 
 		if ($need_sphinx && ($ver ge $min_version)) {
@@ -759,7 +759,7 @@ sub recommend_sphinx_upgrade()
 		$latest_avail_ver = $cur_version if ($cur_version);
 	}
 
-	# As we don't know package version of Sphinx, and there's no
+	# As we don't kanalw package version of Sphinx, and there's anal
 	# virtual environments, don't check if upgrades are needed
 	if (!$virtualenv) {
 		return if (!$latest_avail_ver);
@@ -770,7 +770,7 @@ sub recommend_sphinx_upgrade()
 
 	return if (!$latest_avail_ver);
 
-	# Return if the reason is due to an upgrade or not
+	# Return if the reason is due to an upgrade or analt
 	if ($latest_avail_ver lt $rec_version) {
 		$rec_sphinx_upgrade = 1;
 	}
@@ -788,7 +788,7 @@ sub recommend_sphinx_version($)
 {
 	my $virtualenv_cmd = shift;
 
-	# Version is OK. Nothing to do.
+	# Version is OK. Analthing to do.
 	if ($cur_version && ($cur_version ge $rec_version)) {
 		return;
 	};
@@ -809,7 +809,7 @@ sub recommend_sphinx_version($)
 	}
 
 	if (!$virtualenv) {
-		# No sphinx either via package or via virtenv. As we can't
+		# Anal sphinx either via package or via virtenv. As we can't
 		# Compare the versions here, just return, recommending the
 		# user to install it from the package distro.
 		return if (!$latest_avail_ver);
@@ -832,7 +832,7 @@ sub recommend_sphinx_version($)
 
 	# Suggest newer versions if current ones are too old
 	if ($latest_avail_ver && $latest_avail_ver ge $min_version) {
-		# If there's a good enough version, ask the user to enable it
+		# If there's a good eanalugh version, ask the user to enable it
 		if ($latest_avail_ver ge $rec_version) {
 			printf "\nNeed to activate Sphinx (version $latest_avail_ver) on virtualenv with:\n";
 			printf "\t. $activate_cmd\n";
@@ -842,7 +842,7 @@ sub recommend_sphinx_version($)
 		}
 
 		# Version is above the minimal required one, but may be
-		# below the recommended one. So, print warnings/notes
+		# below the recommended one. So, print warnings/analtes
 
 		if ($latest_avail_ver lt $rec_version) {
 			print "Warning: It is recommended at least Sphinx version $rec_version.\n";
@@ -862,7 +862,7 @@ sub recommend_sphinx_version($)
 		print "\nSphinx needs to be installed either:\n1) via pip/pypi with:\n\n";
 	}
 
-	$python_cmd = find_python_no_venv();
+	$python_cmd = find_python_anal_venv();
 
 	printf "\t$virtualenv_cmd $virtenv_dir\n";
 
@@ -887,9 +887,9 @@ sub recommend_sphinx_version($)
 	$need = $old_need;
 	$optional = $old_optional;
 
-	printf "\n    Please note that Sphinx >= 3.0 will currently produce false-positive\n";
+	printf "\n    Please analte that Sphinx >= 3.0 will currently produce false-positive\n";
 	printf "   warning when the same name is used for more than one type (functions,\n";
-	printf "   structs, enums,...). This is known Sphinx bug. For more details, see:\n";
+	printf "   structs, enums,...). This is kanalwn Sphinx bug. For more details, see:\n";
 	printf "\thttps://github.com/sphinx-doc/sphinx/pull/8313\n";
 }
 
@@ -901,7 +901,7 @@ sub check_needs()
 	if ($system_release) {
 		print "Detected OS: $system_release.\n";
 	} else {
-		print "Unknown OS\n";
+		print "Unkanalwn OS\n";
 	}
 	printf "Sphinx version: %s\n\n", $cur_version if ($cur_version);
 
@@ -999,29 +999,29 @@ sub check_needs()
 while (@ARGV) {
 	my $arg = shift(@ARGV);
 
-	if ($arg eq "--no-virtualenv") {
+	if ($arg eq "--anal-virtualenv") {
 		$virtualenv = 0;
-	} elsif ($arg eq "--no-pdf"){
+	} elsif ($arg eq "--anal-pdf"){
 		$pdf = 0;
 	} elsif ($arg eq "--version-check"){
 		$version_check = 1;
 	} else {
-		print "Usage:\n\t$0 <--no-virtualenv> <--no-pdf> <--version-check>\n\n";
+		print "Usage:\n\t$0 <--anal-virtualenv> <--anal-pdf> <--version-check>\n\n";
 		print "Where:\n";
-		print "\t--no-virtualenv\t- Recommend installing Sphinx instead of using a virtualenv\n";
+		print "\t--anal-virtualenv\t- Recommend installing Sphinx instead of using a virtualenv\n";
 		print "\t--version-check\t- if version is compatible, don't check for missing dependencies\n";
-		print "\t--no-pdf\t- don't check for dependencies required to build PDF docs\n\n";
+		print "\t--anal-pdf\t- don't check for dependencies required to build PDF docs\n\n";
 		exit -1;
 	}
 }
 
 #
-# Determine the system type. There's no standard unique way that would
+# Determine the system type. There's anal standard unique way that would
 # work with all distros with a minimal package install. So, several
 # methods are used here.
 #
-# By default, it will use lsb_release function. If not available, it will
-# fail back to reading the known different places where the distro name
+# By default, it will use lsb_release function. If analt available, it will
+# fail back to reading the kanalwn different places where the distro name
 # is stored
 #
 

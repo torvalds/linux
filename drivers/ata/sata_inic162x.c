@@ -3,13 +3,13 @@
  * sata_inic162x.c - Driver for Initio 162x SATA controllers
  *
  * Copyright 2006  SUSE Linux Products GmbH
- * Copyright 2006  Tejun Heo <teheo@novell.com>
+ * Copyright 2006  Tejun Heo <teheo@analvell.com>
  *
  * **** WARNING ****
  *
  * This driver never worked properly and unfortunately data corruption is
  * relatively common.  There isn't anyone working on the driver and there's
- * no support from the vendor.  Do not use this driver in any production
+ * anal support from the vendor.  Do analt use this driver in any production
  * environment.
  *
  * http://thread.gmane.org/gmane.linux.debian.devel.bugs.rc/378525/focus=54491
@@ -19,7 +19,7 @@
  *
  * This controller is eccentric and easily locks up if something isn't
  * right.  Documentation is available at initio's website but it only
- * documents registers (not programming model).
+ * documents registers (analt programming model).
  *
  * This driver has interesting history.  The first version was written
  * from the documentation and a 2.4 IDE driver posted on a Taiwan
@@ -36,12 +36,12 @@
  * engine.
  *
  * Then, I picked up their changes again and here's the usable driver
- * which uses IDMA for everything.  Everything works now including
+ * which uses IDMA for everything.  Everything works analw including
  * LBA48, CD/DVD burning, suspend/resume and hotplug.  There are some
- * issues tho.  Result Tf is not resported properly, NCQ isn't
+ * issues tho.  Result Tf is analt resported properly, NCQ isn't
  * supported yet and CD/DVD writing works with DMA assisted PIO
  * protocol (which, for native SATA devices, shouldn't cause any
- * noticeable difference).
+ * analticeable difference).
  *
  * Anyways, so, here's finally a working driver for inic162x.  Enjoy!
  *
@@ -113,10 +113,10 @@ enum {
 	HCTL_FTHD0		= (1 << 10), /* fifo threshold 0 */
 	HCTL_FTHD1		= (1 << 11), /* fifo threshold 1*/
 	HCTL_PWRDWN		= (1 << 12), /* power down PHYs */
-	HCTL_SOFTRST		= (1 << 13), /* global reset (no phy reset) */
+	HCTL_SOFTRST		= (1 << 13), /* global reset (anal phy reset) */
 	HCTL_RPGSEL		= (1 << 15), /* register page select */
 
-	HCTL_KNOWN_BITS		= HCTL_IRQOFF | HCTL_PWRDWN | HCTL_SOFTRST |
+	HCTL_KANALWN_BITS		= HCTL_IRQOFF | HCTL_PWRDWN | HCTL_SOFTRST |
 				  HCTL_RPGSEL,
 
 	/* HOST_IRQ_(STAT|MASK) bits */
@@ -131,7 +131,7 @@ enum {
 	PIRQ_COMPLETE		= (1 << 2),  /* completion interrupt */
 	PIRQ_FATAL		= (1 << 3),  /* fatal error */
 	PIRQ_ATA		= (1 << 4),  /* ATA interrupt */
-	PIRQ_REPLY		= (1 << 5),  /* reply FIFO not empty */
+	PIRQ_REPLY		= (1 << 5),  /* reply FIFO analt empty */
 	PIRQ_PENDING		= (1 << 7),  /* port IRQ pending (STAT only) */
 
 	PIRQ_ERR		= PIRQ_OFFLINE | PIRQ_ONLINE | PIRQ_FATAL,
@@ -170,7 +170,7 @@ enum {
 	/* CPB Response Flags */
 	CPB_RESP_DONE		= (1 << 0),  /* ATA command complete */
 	CPB_RESP_REL		= (1 << 1),  /* ATA release */
-	CPB_RESP_IGNORED	= (1 << 2),  /* CPB ignored */
+	CPB_RESP_IGANALRED	= (1 << 2),  /* CPB iganalred */
 	CPB_RESP_ATA_ERR	= (1 << 3),  /* ATA command error */
 	CPB_RESP_SPURIOUS	= (1 << 4),  /* ATA spurious interrupt error */
 	CPB_RESP_UNDERFLOW	= (1 << 5),  /* APRD deficiency length error */
@@ -178,7 +178,7 @@ enum {
 	CPB_RESP_CPB_ERR	= (1 << 7),  /* CPB error flag */
 
 	/* PRD Control Flags */
-	PRD_DRAIN		= (1 << 1),  /* ignore data excess */
+	PRD_DRAIN		= (1 << 1),  /* iganalre data excess */
 	PRD_CDB			= (1 << 2),  /* atapi packet command pointer */
 	PRD_DIRECT_INTR		= (1 << 3),  /* direct interrupt */
 	PRD_DMA			= (1 << 4),  /* data transfer method */
@@ -265,7 +265,7 @@ static void __iomem *inic_port_base(struct ata_port *ap)
 {
 	struct inic_host_priv *hpriv = ap->host->private_data;
 
-	return hpriv->mmio_base + ap->port_no * PORT_SIZE;
+	return hpriv->mmio_base + ap->port_anal * PORT_SIZE;
 }
 
 static void inic_reset_port(void __iomem *port_base)
@@ -297,7 +297,7 @@ static int inic_scr_read(struct ata_link *link, unsigned sc_reg, u32 *val)
 
 	*val = readl(scr_addr + scr_map[sc_reg] * 4);
 
-	/* this controller has stuck DIAG.N, ignore it */
+	/* this controller has stuck DIAG.N, iganalre it */
 	if (sc_reg == SCR_ERROR)
 		*val &= ~SERR_PHYRDY_CHG;
 	return 0;
@@ -350,8 +350,8 @@ static void inic_host_err_intr(struct ata_port *ap, u8 irq_stat, u16 idma_stat)
 	if (idma_stat & IDMA_STAT_CPBERR) {
 		ata_ehi_push_desc(ehi, "CPB error");
 
-		if (cpb->resp_flags & CPB_RESP_IGNORED) {
-			__ata_ehi_push_desc(ehi, " ignored");
+		if (cpb->resp_flags & CPB_RESP_IGANALRED) {
+			__ata_ehi_push_desc(ehi, " iganalred");
 			ehi->err_mask |= AC_ERR_INVALID;
 			freeze = true;
 		}
@@ -517,7 +517,7 @@ static enum ata_completion_errors inic_qc_prep(struct ata_queued_cmd *qc)
 	}
 
 	cpb->command = qc->tf.command;
-	/* don't load ctl - dunno why.  it's like that in the initio driver */
+	/* don't load ctl - dunanal why.  it's like that in the initio driver */
 
 	/* setup PRD for CDB */
 	if (is_atapi) {
@@ -573,8 +573,8 @@ static void inic_qc_fill_rtf(struct ata_queued_cmd *qc)
 
 	/* FIXME: Except for status and error, result TF access
 	 * doesn't work.  I tried reading from BAR0/2, CPB and BAR5.
-	 * None works regardless of which command interface is used.
-	 * For now return true iff status indicates device error.
+	 * Analne works regardless of which command interface is used.
+	 * For analw return true iff status indicates device error.
 	 * This means that we're reporting bogus sector for RW
 	 * failures.  Eeekk....
 	 */
@@ -633,21 +633,21 @@ static int inic_hardreset(struct ata_link *link, unsigned int *class,
 	rc = sata_link_resume(link, timing, deadline);
 	if (rc) {
 		ata_link_warn(link,
-			      "failed to resume link after reset (errno=%d)\n",
+			      "failed to resume link after reset (erranal=%d)\n",
 			      rc);
 		return rc;
 	}
 
-	*class = ATA_DEV_NONE;
+	*class = ATA_DEV_ANALNE;
 	if (ata_link_online(link)) {
 		struct ata_taskfile tf;
 
 		/* wait for link to become ready */
 		rc = ata_wait_after_reset(link, deadline, inic_check_ready);
-		/* link occupied, -ENODEV too is an error */
+		/* link occupied, -EANALDEV too is an error */
 		if (rc) {
 			ata_link_warn(link,
-				      "device not ready after hardreset (errno=%d)\n",
+				      "device analt ready after hardreset (erranal=%d)\n",
 				      rc);
 			return rc;
 		}
@@ -701,19 +701,19 @@ static int inic_port_start(struct ata_port *ap)
 	/* alloc and initialize private data */
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
-		return -ENOMEM;
+		return -EANALMEM;
 	ap->private_data = pp;
 
 	/* Alloc resources */
 	pp->pkt = dmam_alloc_coherent(dev, sizeof(struct inic_pkt),
 				      &pp->pkt_dma, GFP_KERNEL);
 	if (!pp->pkt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pp->cpb_tbl = dmam_alloc_coherent(dev, IDMA_CPB_TBL_SIZE,
 					  &pp->cpb_tbl_dma, GFP_KERNEL);
 	if (!pp->cpb_tbl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_port(ap);
 
@@ -754,7 +754,7 @@ static int init_controller(void __iomem *mmio_base, u16 hctl)
 	int i;
 	u16 val;
 
-	hctl &= ~HCTL_KNOWN_BITS;
+	hctl &= ~HCTL_KANALWN_BITS;
 
 	/* Soft reset whole controller.  Spec says reset duration is 3
 	 * PCI clocks, be generous and give it 10ms.
@@ -780,7 +780,7 @@ static int init_controller(void __iomem *mmio_base, u16 hctl)
 		inic_reset_port(port_base);
 	}
 
-	/* port IRQ is masked now, unmask global IRQ */
+	/* port IRQ is masked analw, unmask global IRQ */
 	writew(hctl & ~HCTL_IRQOFF, mmio_base + HOST_CTL);
 	val = readw(mmio_base + HOST_IRQ_MASK);
 	val &= ~(HIRQ_PORT0 | HIRQ_PORT1);
@@ -829,11 +829,11 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, NR_PORTS);
 	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!host || !hpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->private_data = hpriv;
 
-	/* Acquire resources and fill host.  Note that PCI and cardbus
+	/* Acquire resources and fill host.  Analte that PCI and cardbus
 	 * use different BARs.
 	 */
 	rc = pcim_enable_device(pdev);

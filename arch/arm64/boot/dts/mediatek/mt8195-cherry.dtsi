@@ -215,25 +215,25 @@
 		scp_mem: memory@50000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x50000000 0 0x2900000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_mem: memory@60000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x60000000 0 0xd80000>;
-			no-map;
+			anal-map;
 		};
 
 		afe_mem: memory@60d80000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x60d80000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_device_mem: memory@60e80000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x60e80000 0 0x280000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -494,9 +494,9 @@
 	max-frequency = <200000000>;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
-	no-sdio;
-	no-sd;
-	non-removable;
+	anal-sdio;
+	anal-sd;
+	analn-removable;
 	pinctrl-names = "default", "state_uhs";
 	pinctrl-0 = <&mmc0_pins_default>;
 	pinctrl-1 = <&mmc0_pins_uhs>;
@@ -511,8 +511,8 @@
 	cap-sd-highspeed;
 	cd-gpios = <&pio 54 GPIO_ACTIVE_LOW>;
 	max-frequency = <200000000>;
-	no-mmc;
-	no-sdio;
+	anal-mmc;
+	anal-sdio;
 	pinctrl-names = "default", "state_uhs";
 	pinctrl-0 = <&mmc1_pins_default>, <&mmc1_pins_detect>;
 	pinctrl-1 = <&mmc1_pins_default>;
@@ -562,14 +562,14 @@
 	regulator-always-on;
 };
 
-&nor_flash {
+&analr_flash {
 	status = "okay";
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&nor_pins_default>;
+	pinctrl-0 = <&analr_pins_default>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <52000000>;
 		spi-rx-bus-width = <2>;
@@ -956,17 +956,17 @@
 		};
 	};
 
-	nor_pins_default: nor-default-pins {
+	analr_pins_default: analr-default-pins {
 		pins-ck-io {
-			pinmux = <PINMUX_GPIO142__FUNC_SPINOR_IO0>,
-				 <PINMUX_GPIO141__FUNC_SPINOR_CK>,
-				 <PINMUX_GPIO143__FUNC_SPINOR_IO1>;
+			pinmux = <PINMUX_GPIO142__FUNC_SPIANALR_IO0>,
+				 <PINMUX_GPIO141__FUNC_SPIANALR_CK>,
+				 <PINMUX_GPIO143__FUNC_SPIANALR_IO1>;
 			drive-strength = <6>;
 			bias-pull-down;
 		};
 
 		pins-cs {
-			pinmux = <PINMUX_GPIO140__FUNC_SPINOR_CS>;
+			pinmux = <PINMUX_GPIO140__FUNC_SPIANALR_CS>;
 			drive-strength = <6>;
 			bias-pull-up;
 		};

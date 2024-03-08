@@ -95,7 +95,7 @@ void mt7603_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	case PKT_TYPE_RX_EVENT:
 		mt76_mcu_rx_event(&dev->mt76, skb);
 		return;
-	case PKT_TYPE_NORMAL:
+	case PKT_TYPE_ANALRMAL:
 		if (mt7603_mac_fill_rx(dev, skb) == 0) {
 			mt76_rx(&dev->mt76, q, skb);
 			return;

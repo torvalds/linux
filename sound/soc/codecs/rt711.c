@@ -230,7 +230,7 @@ io_error:
 	return ret;
 remove_error:
 	pr_err_ratelimited("Jack removal in %s\n", __func__);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void rt711_jack_detect_handler(struct work_struct *work)
@@ -473,8 +473,8 @@ static int rt711_set_jack_detect(struct snd_soc_component *component,
 			return ret;
 		}
 
-		/* pm_runtime not enabled yet */
-		dev_dbg(component->dev,	"%s: skipping jack init for now\n", __func__);
+		/* pm_runtime analt enabled yet */
+		dev_dbg(component->dev,	"%s: skipping jack init for analw\n", __func__);
 		return 0;
 	}
 
@@ -768,10 +768,10 @@ static const char * const adc_mux_text[] = {
 };
 
 static SOC_ENUM_SINGLE_DECL(
-	rt711_adc22_enum, SND_SOC_NOPM, 0, adc_mux_text);
+	rt711_adc22_enum, SND_SOC_ANALPM, 0, adc_mux_text);
 
 static SOC_ENUM_SINGLE_DECL(
-	rt711_adc23_enum, SND_SOC_NOPM, 0, adc_mux_text);
+	rt711_adc23_enum, SND_SOC_ANALPM, 0, adc_mux_text);
 
 static const struct snd_kcontrol_new rt711_adc22_mux =
 	SOC_DAPM_ENUM_EXT("ADC 22 Mux", rt711_adc22_enum,
@@ -860,23 +860,23 @@ static const struct snd_soc_dapm_widget rt711_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("LINE1"),
 	SND_SOC_DAPM_INPUT("LINE2"),
 
-	SND_SOC_DAPM_DAC_E("DAC Surround", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_DAC_E("DAC Surround", NULL, SND_SOC_ANALPM, 0, 0,
 		rt711_dac_surround_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_ADC_E("ADC 09", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("ADC 09", NULL, SND_SOC_ANALPM, 0, 0,
 		rt711_adc_09_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_ADC_E("ADC 08", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("ADC 08", NULL, SND_SOC_ANALPM, 0, 0,
 		rt711_adc_08_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_MUX("ADC 22 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 22 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt711_adc22_mux),
-	SND_SOC_DAPM_MUX("ADC 23 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 23 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt711_adc23_mux),
 
-	SND_SOC_DAPM_AIF_IN("DP3RX", "DP3 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DP2TX", "DP2 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DP4TX", "DP4 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DP3RX", "DP3 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP2TX", "DP2 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP4TX", "DP4 Capture", 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route rt711_audio_map[] = {
@@ -1183,7 +1183,7 @@ int rt711_init(struct device *dev, struct regmap *sdw_regmap,
 
 	rt711 = devm_kzalloc(dev, sizeof(*rt711), GFP_KERNEL);
 	if (!rt711)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, rt711);
 	rt711->slave = slave;
@@ -1220,14 +1220,14 @@ int rt711_init(struct device *dev, struct regmap *sdw_regmap,
 	pm_runtime_set_autosuspend_delay(dev, 3000);
 	pm_runtime_use_autosuspend(dev);
 
-	/* make sure the device does not suspend immediately */
+	/* make sure the device does analt suspend immediately */
 	pm_runtime_mark_last_busy(dev);
 
 	pm_runtime_enable(dev);
 
-	/* important note: the device is NOT tagged as 'active' and will remain
+	/* important analte: the device is ANALT tagged as 'active' and will remain
 	 * 'suspended' until the hardware is enumerated/initialized. This is required
-	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does analt silently
 	 * fail with -EACCESS because of race conditions between card creation and enumeration
 	 */
 
@@ -1256,7 +1256,7 @@ int rt711_io_init(struct device *dev, struct sdw_slave *slave)
 		/* update count of parent 'active' children */
 		pm_runtime_set_active(&slave->dev);
 
-	pm_runtime_get_noresume(&slave->dev);
+	pm_runtime_get_analresume(&slave->dev);
 
 	rt711_reset(rt711->regmap);
 
@@ -1317,7 +1317,7 @@ int rt711_io_init(struct device *dev, struct sdw_slave *slave)
 
 	/*
 	 * if set_jack callback occurred early than io_init,
-	 * we set up the jack detection function now
+	 * we set up the jack detection function analw
 	 */
 	if (rt711->hs_jack)
 		rt711_jack_init(rt711);

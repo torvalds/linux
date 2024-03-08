@@ -146,7 +146,7 @@ extern const struct clk_ops ccu_mp_ops;
  * Since the MMC clock registers all follow the same layout, we can
  * simplify the macro for this particular case. In addition, as
  * switching modes also affects the output clock rate, we need to
- * have CLK_GET_RATE_NOCACHE for all these types of clocks.
+ * have CLK_GET_RATE_ANALCACHE for all these types of clocks.
  */
 
 #define SUNXI_CCU_MP_MMC_WITH_MUX_GATE(_struct, _name, _parents, _reg,	\
@@ -162,7 +162,7 @@ extern const struct clk_ops ccu_mp_ops;
 			.hw.init	= CLK_HW_INIT_PARENTS(_name,	\
 							      _parents, \
 							      &ccu_mp_mmc_ops, \
-							      CLK_GET_RATE_NOCACHE | \
+							      CLK_GET_RATE_ANALCACHE | \
 							      _flags),	\
 		}							\
 	}

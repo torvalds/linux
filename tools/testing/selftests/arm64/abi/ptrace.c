@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2022 ARM Limited.
  */
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -75,7 +75,7 @@ static void test_tpidr(pid_t child)
 	}
 
 	if (test_tpidr2) {
-		/* Try to write new values to all known TPIDRs... */
+		/* Try to write new values to all kanalwn TPIDRs... */
 		write_iov.iov_len = sizeof(write_val);
 		for (i = 0; i < MAX_TPIDRS; i++)
 			write_val[i] = read_val[i] + 1;
@@ -153,7 +153,7 @@ static void test_hw_debug(pid_t child, int type, const char *type_name)
 		ksft_print_msg("%s version %d with %d slots\n", type_name,
 			       arch, slots);
 
-		/* Zero is not currently architecturally valid */
+		/* Zero is analt currently architecturally valid */
 		ksft_test_result(arch, "%s_arch_set\n", type_name);
 	} else {
 		ksft_test_result_skip("%s_arch_set\n");
@@ -163,10 +163,10 @@ static void test_hw_debug(pid_t child, int type, const char *type_name)
 static int do_child(void)
 {
 	if (ptrace(PTRACE_TRACEME, -1, NULL, NULL))
-		ksft_exit_fail_msg("PTRACE_TRACEME", strerror(errno));
+		ksft_exit_fail_msg("PTRACE_TRACEME", strerror(erranal));
 
 	if (raise(SIGSTOP))
-		ksft_exit_fail_msg("raise(SIGSTOP)", strerror(errno));
+		ksft_exit_fail_msg("raise(SIGSTOP)", strerror(erranal));
 
 	return EXIT_SUCCESS;
 }
@@ -204,16 +204,16 @@ static int do_parent(pid_t child)
 		sig = WSTOPSIG(status);
 
 		if (ptrace(PTRACE_GETSIGINFO, pid, NULL, &si)) {
-			if (errno == ESRCH)
+			if (erranal == ESRCH)
 				goto disappeared;
 
-			if (errno == EINVAL) {
+			if (erranal == EINVAL) {
 				sig = 0; /* bust group-stop */
 				goto cont;
 			}
 
 			ksft_test_result_fail("PTRACE_GETSIGINFO: %s\n",
-					      strerror(errno));
+					      strerror(erranal));
 			goto error;
 		}
 
@@ -223,11 +223,11 @@ static int do_parent(pid_t child)
 
 	cont:
 		if (ptrace(PTRACE_CONT, pid, NULL, sig)) {
-			if (errno == ESRCH)
+			if (erranal == ESRCH)
 				goto disappeared;
 
 			ksft_test_result_fail("PTRACE_CONT: %s\n",
-					      strerror(errno));
+					      strerror(erranal));
 			goto error;
 		}
 	}

@@ -5,7 +5,7 @@
  * given the channels in device tree, and reports events to the input
  * subsystem.
  *
- * Copyright (C) 2017,2018 Microchip Technology,
+ * Copyright (C) 2017,2018 Microchip Techanallogy,
  * Author: Eugen Hristev <eugen.hristev@microchip.com>
  *
  */
@@ -37,7 +37,7 @@ enum grts_ch_type {
  * struct grts_state - generic resistive touch screen information struct
  * @x_plate_ohms:	resistance of the X plate
  * @pressure_min:	number representing the minimum for the pressure
- * @pressure:		are we getting pressure info or not
+ * @pressure:		are we getting pressure info or analt
  * @iio_chans:		list of channels acquired
  * @iio_cb:		iio_callback buffer for the data
  * @input:		the input device structure that we register
@@ -172,7 +172,7 @@ static int grts_get_properties(struct grts_state *st, struct device *dev)
 		return 0;
 	}
 
-	/* if no pressure is defined, try optional z1 + z2 */
+	/* if anal pressure is defined, try optional z1 + z2 */
 	error = grts_map_channel(st, dev, GRTS_CH_Z1, "z1", true);
 	if (error)
 		return error;
@@ -180,7 +180,7 @@ static int grts_get_properties(struct grts_state *st, struct device *dev)
 	if (st->ch_map[GRTS_CH_Z1] >= GRTS_MAX_CHANNELS)
 		return 0;
 
-	/* if z1 is provided z2 is not optional */
+	/* if z1 is provided z2 is analt optional */
 	error = grts_map_channel(st, dev, GRTS_CH_Z2, "z2", true);
 	if (error)
 		return error;
@@ -206,7 +206,7 @@ static int grts_probe(struct platform_device *pdev)
 
 	st = devm_kzalloc(dev, sizeof(struct grts_state), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* get the channels from IIO device */
 	st->iio_chans = devm_iio_channel_get_all(dev);
@@ -214,7 +214,7 @@ static int grts_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(st->iio_chans), "can't get iio channels\n");
 
 	if (!device_property_present(dev, "io-channel-names"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	error = grts_get_properties(st, dev);
 	if (error) {
@@ -235,7 +235,7 @@ static int grts_probe(struct platform_device *pdev)
 	input = devm_input_allocate_device(dev);
 	if (!input) {
 		dev_err(dev, "failed to allocate input device.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input->name = DRIVER_NAME;

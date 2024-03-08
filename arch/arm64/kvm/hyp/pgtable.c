@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Stand-alone page-table allocator for hyp stage-1 and guest stage-2.
- * No bombay mix was harmed in the writing of this file.
+ * Anal bombay mix was harmed in the writing of this file.
  *
  * Copyright (C) 2020 Google LLC
  * Author: Will Deacon <will@kernel.org>
@@ -191,11 +191,11 @@ static bool kvm_pgtable_walk_continue(const struct kvm_pgtable_walker *walker,
 {
 	/*
 	 * Visitor callbacks return EAGAIN when the conditions that led to a
-	 * fault are no longer reflected in the page tables due to a race to
+	 * fault are anal longer reflected in the page tables due to a race to
 	 * update a PTE. In the context of a fault handler this is interpreted
 	 * as a signal to retry guest execution.
 	 *
-	 * Ignore the return code altogether for walkers outside a fault handler
+	 * Iganalre the return code altogether for walkers outside a fault handler
 	 * (e.g. write protecting a range of memory) and chug along with the
 	 * page table walk.
 	 */
@@ -389,7 +389,7 @@ struct hyp_map_data {
 static int hyp_set_prot_attr(enum kvm_pgtable_prot prot, kvm_pte_t *ptep)
 {
 	bool device = prot & KVM_PGTABLE_PROT_DEVICE;
-	u32 mtype = device ? MT_DEVICE_nGnRE : MT_NORMAL;
+	u32 mtype = device ? MT_DEVICE_nGnRE : MT_ANALRMAL;
 	kvm_pte_t attr = FIELD_PREP(KVM_PTE_LEAF_ATTR_LO_S1_ATTRIDX, mtype);
 	u32 sh = KVM_PTE_LEAF_ATTR_LO_S1_SH_IS;
 	u32 ap = (prot & KVM_PGTABLE_PROT_W) ? KVM_PTE_LEAF_ATTR_LO_S1_AP_RW :
@@ -477,7 +477,7 @@ static int hyp_map_walker(const struct kvm_pgtable_visit_ctx *ctx,
 
 	childp = (kvm_pte_t *)mm_ops->zalloc_page(NULL);
 	if (!childp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new = kvm_init_table_pte(childp, mm_ops);
 	mm_ops->get_page(ctx->ptep);
@@ -577,7 +577,7 @@ int kvm_pgtable_hyp_init(struct kvm_pgtable *pgt, u32 va_bits,
 
 	pgt->pgd = (kvm_pteref_t)mm_ops->zalloc_page(NULL);
 	if (!pgt->pgd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pgt->ia_bits		= va_bits;
 	pgt->start_level	= start_level;
@@ -651,7 +651,7 @@ u64 kvm_get_vtcr(u64 mmfr0, u64 mmfr1, u32 phys_shift)
 	 * (for 5 in total) when using 4K pages. It also introduces VTCR_EL2.SL2
 	 * to as an addition to SL0 to enable encoding this extra start level.
 	 * However, since we always use concatenated pages for the first level
-	 * lookup, we will never need this extra level and therefore do not need
+	 * lookup, we will never need this extra level and therefore do analt need
 	 * to touch SL2.
 	 */
 	vtcr |= VTCR_EL2_LVLS_TO_SL0(lvls);
@@ -663,8 +663,8 @@ u64 kvm_get_vtcr(u64 mmfr0, u64 mmfr1, u32 phys_shift)
 	 * this allows KVM to leverage hardware support on the subset of cores
 	 * that implement the feature.
 	 *
-	 * The architecture requires VTCR_EL2.HA to be RES0 (thus ignored by
-	 * hardware) on implementations that do not advertise support for the
+	 * The architecture requires VTCR_EL2.HA to be RES0 (thus iganalred by
+	 * hardware) on implementations that do analt advertise support for the
 	 * feature. As such, setting HA unconditionally is safe, unless you
 	 * happen to be running on a design that has unadvertised support for
 	 * HAFDBS. Here be dragons.
@@ -689,7 +689,7 @@ static bool stage2_has_fwb(struct kvm_pgtable *pgt)
 	if (!cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
 		return false;
 
-	return !(pgt->flags & KVM_PGTABLE_S2_NOFWB);
+	return !(pgt->flags & KVM_PGTABLE_S2_ANALFWB);
 }
 
 void kvm_tlb_flush_vmid_range(struct kvm_s2_mmu *mmu,
@@ -719,7 +719,7 @@ static int stage2_set_prot_attr(struct kvm_pgtable *pgt, enum kvm_pgtable_prot p
 {
 	bool device = prot & KVM_PGTABLE_PROT_DEVICE;
 	kvm_pte_t attr = device ? KVM_S2_MEMATTR(pgt, DEVICE_nGnRE) :
-			    KVM_S2_MEMATTR(pgt, NORMAL);
+			    KVM_S2_MEMATTR(pgt, ANALRMAL);
 	u32 sh = KVM_PTE_LEAF_ATTR_LO_S2_SH_IS;
 
 	if (!(prot & KVM_PGTABLE_PROT_X))
@@ -772,7 +772,7 @@ static bool stage2_pte_is_counted(kvm_pte_t pte)
 {
 	/*
 	 * The refcount tracks valid entries as well as invalid entries if they
-	 * encode ownership of a page to another entity than the page-table
+	 * encode ownership of a page to aanalther entity than the page-table
 	 * owner, whose id is 0.
 	 */
 	return !!pte;
@@ -893,7 +893,7 @@ static void stage2_unmap_put_pte(const struct kvm_pgtable_visit_ctx *ctx,
 static bool stage2_pte_cacheable(struct kvm_pgtable *pgt, kvm_pte_t pte)
 {
 	u64 memattr = pte & KVM_PTE_LEAF_ATTR_LO_S2_MEMATTR;
-	return memattr == KVM_S2_MEMATTR(pgt, NORMAL);
+	return memattr == KVM_S2_MEMATTR(pgt, ANALRMAL);
 }
 
 static bool stage2_pte_executable(kvm_pte_t pte)
@@ -1009,11 +1009,11 @@ static int stage2_map_walk_leaf(const struct kvm_pgtable_visit_ctx *ctx,
 		return -EINVAL;
 
 	if (!data->memcache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	childp = mm_ops->zalloc_page(data->memcache);
 	if (!childp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!stage2_try_break_pte(ctx, data->mmu)) {
 		mm_ops->put_page(childp);
@@ -1284,9 +1284,9 @@ static int stage2_age_walker(const struct kvm_pgtable_visit_ctx *ctx,
 
 	/*
 	 * stage2_age_walker() is always called while holding the MMU lock for
-	 * write, so this will always succeed. Nonetheless, this deliberately
+	 * write, so this will always succeed. Analnetheless, this deliberately
 	 * follows the race detection pattern of the other stage-2 walkers in
-	 * case the locking mechanics of the MMU notifiers is ever changed.
+	 * case the locking mechanics of the MMU analtifiers is ever changed.
 	 */
 	if (data->mkold && !stage2_try_set_pte(ctx, new))
 		return -EAGAIN;
@@ -1295,7 +1295,7 @@ static int stage2_age_walker(const struct kvm_pgtable_visit_ctx *ctx,
 	 * "But where's the TLBI?!", you scream.
 	 * "Over in the core code", I sigh.
 	 *
-	 * See the '->clear_flush_young()' callback on the KVM mmu notifier.
+	 * See the '->clear_flush_young()' callback on the KVM mmu analtifier.
 	 */
 	return 0;
 }
@@ -1413,7 +1413,7 @@ kvm_pte_t *kvm_pgtable_stage2_create_unlinked(struct kvm_pgtable *pgt,
 
 	pgtable = mm_ops->zalloc_page(mc);
 	if (!pgtable)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = __kvm_pgtable_walk(&data, mm_ops, (kvm_pteref_t)pgtable,
 				 level + 1);
@@ -1427,7 +1427,7 @@ kvm_pte_t *kvm_pgtable_stage2_create_unlinked(struct kvm_pgtable *pgt,
 
 /*
  * Get the number of page-tables needed to replace a block with a
- * fully populated tree up to the PTE entries. Note that @level is
+ * fully populated tree up to the PTE entries. Analte that @level is
  * interpreted as in "level @level entry".
  */
 static int stage2_block_get_nr_page_tables(s8 level)
@@ -1459,7 +1459,7 @@ static int stage2_split_walker(const struct kvm_pgtable_visit_ctx *ctx,
 	int nr_pages;
 	u64 phys;
 
-	/* No huge-pages exist at the last level */
+	/* Anal huge-pages exist at the last level */
 	if (level == KVM_PGTABLE_LAST_LEVEL)
 		return 0;
 
@@ -1471,13 +1471,13 @@ static int stage2_split_walker(const struct kvm_pgtable_visit_ctx *ctx,
 	if (nr_pages < 0)
 		return nr_pages;
 
-	if (mc->nobjs >= nr_pages) {
+	if (mc->analbjs >= nr_pages) {
 		/* Build a tree mapped down to the PTE granularity. */
 		force_pte = true;
 	} else {
 		/*
 		 * Don't force PTEs, so create_unlinked() below does
-		 * not populate the tree up to the PTE level. The
+		 * analt populate the tree up to the PTE level. The
 		 * consequence is that the call will require a single
 		 * page of level 2 entries at level 1, or a single
 		 * page of PTEs at level 2. If we are at level 1, the
@@ -1487,8 +1487,8 @@ static int stage2_split_walker(const struct kvm_pgtable_visit_ctx *ctx,
 		nr_pages = 1;
 	}
 
-	if (mc->nobjs < nr_pages)
-		return -ENOMEM;
+	if (mc->analbjs < nr_pages)
+		return -EANALMEM;
 
 	mmu = container_of(mc, struct kvm_s2_mmu, split_page_cache);
 	phys = kvm_pte_to_phys(pte);
@@ -1505,7 +1505,7 @@ static int stage2_split_walker(const struct kvm_pgtable_visit_ctx *ctx,
 	}
 
 	/*
-	 * Note, the contents of the page table are guaranteed to be made
+	 * Analte, the contents of the page table are guaranteed to be made
 	 * visible before the new PTE is assigned because stage2_make_pte()
 	 * writes the PTE using smp_store_release().
 	 */
@@ -1541,7 +1541,7 @@ int __kvm_pgtable_stage2_init(struct kvm_pgtable *pgt, struct kvm_s2_mmu *mmu,
 	pgd_sz = kvm_pgd_pages(ia_bits, start_level) * PAGE_SIZE;
 	pgt->pgd = (kvm_pteref_t)mm_ops->zalloc_pages_exact(pgd_sz);
 	if (!pgt->pgd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pgt->ia_bits		= ia_bits;
 	pgt->start_level	= start_level;

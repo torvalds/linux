@@ -16,7 +16,7 @@
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
 #include <linux/uaccess.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <net/ndisc.h>
 
 #include "gdm_lte.h"
@@ -112,7 +112,7 @@ static int gdm_lte_emulate_arp(struct sk_buff *skb_in, u32 nic_type)
 
 	/* Check for skb->len, discard if empty */
 	if (skb_in->len == 0)
-		return -ENODATA;
+		return -EANALDATA;
 
 	/* Format the mac header so that it can be put to skb */
 	if (ntohs(((struct ethhdr *)skb_in->data)->h_proto) == ETH_P_8021Q) {
@@ -154,7 +154,7 @@ static int gdm_lte_emulate_arp(struct sk_buff *skb_in, u32 nic_type)
 	/* Alloc skb and reserve align */
 	skb_out = dev_alloc_skb(skb_in->len);
 	if (!skb_out)
-		return -ENOMEM;
+		return -EANALMEM;
 	skb_reserve(skb_out, NET_IP_ALIGN);
 
 	skb_put_data(skb_out, mac_header_data, mac_header_len);
@@ -238,13 +238,13 @@ static int gdm_lte_emulate_ndp(struct sk_buff *skb_in, u32 nic_type)
 	if (ntohs(((struct ethhdr *)skb_in->data)->h_proto) == ETH_P_8021Q) {
 		memcpy(&vlan_eth, skb_in->data, sizeof(struct vlan_ethhdr));
 		if (ntohs(vlan_eth.h_vlan_encapsulated_proto) != ETH_P_IPV6)
-			return -EPROTONOSUPPORT;
+			return -EPROTOANALSUPPORT;
 		mac_header_data = &vlan_eth;
 		mac_header_len = VLAN_ETH_HLEN;
 	} else {
 		memcpy(&eth, skb_in->data, sizeof(struct ethhdr));
 		if (ntohs(eth.h_proto) != ETH_P_IPV6)
-			return -EPROTONOSUPPORT;
+			return -EPROTOANALSUPPORT;
 		mac_header_data = &eth;
 		mac_header_len = ETH_HLEN;
 	}
@@ -252,13 +252,13 @@ static int gdm_lte_emulate_ndp(struct sk_buff *skb_in, u32 nic_type)
 	/* Check if this is IPv6 ICMP packet */
 	ipv6_in = (struct ipv6hdr *)(skb_in->data + mac_header_len);
 	if (ipv6_in->version != 6 || ipv6_in->nexthdr != IPPROTO_ICMPV6)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	/* Check if this is NDP packet */
 	icmp6_in = (struct icmp6hdr *)(skb_in->data + mac_header_len +
 					sizeof(struct ipv6hdr));
 	if (icmp6_in->icmp6_type == NDISC_ROUTER_SOLICITATION) { /* Check RS */
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	} else if (icmp6_in->icmp6_type == NDISC_NEIGHBOUR_SOLICITATION) {
 		/* Check NS */
 		u8 icmp_na[sizeof(struct icmp6hdr) +
@@ -314,7 +314,7 @@ static int gdm_lte_emulate_ndp(struct sk_buff *skb_in, u32 nic_type)
 	/* Alloc skb and reserve align */
 	skb_out = dev_alloc_skb(skb_in->len);
 	if (!skb_out)
-		return -ENOMEM;
+		return -EANALMEM;
 	skb_reserve(skb_out, NET_IP_ALIGN);
 
 	skb_put_data(skb_out, mac_header_data, mac_header_len);
@@ -452,7 +452,7 @@ static netdev_tx_t gdm_lte_tx(struct sk_buff *skb, struct net_device *dev)
 	if (nic_type & NIC_TYPE_ICMPV6)
 		nic_type = NIC_TYPE_ICMPV6;
 
-	/* If it is not a dhcp packet, clear all the flag bits :
+	/* If it is analt a dhcp packet, clear all the flag bits :
 	 * original NIC, otherwise the special flag (IPVX | DHCP)
 	 */
 	if (!(nic_type & NIC_TYPE_F_DHCP))
@@ -470,14 +470,14 @@ static netdev_tx_t gdm_lte_tx(struct sk_buff *skb, struct net_device *dev)
 					  tx_complete, nic, idx,
 					  nic_type);
 
-	if (ret == TX_NO_BUFFER || ret == TX_NO_SPC) {
+	if (ret == TX_ANAL_BUFFER || ret == TX_ANAL_SPC) {
 		netif_stop_queue(dev);
-		if (ret == TX_NO_BUFFER)
+		if (ret == TX_ANAL_BUFFER)
 			ret = 0;
 		else
-			ret = -ENOSPC;
-	} else if (ret == TX_NO_DEV) {
-		ret = -ENODEV;
+			ret = -EANALSPC;
+	} else if (ret == TX_ANAL_DEV) {
+		ret = -EANALDEV;
 	}
 
 	/* Updates tx stats */
@@ -536,7 +536,7 @@ int gdm_lte_event_init(void)
 	}
 
 	pr_err("event init failed\n");
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 void gdm_lte_event_exit(void)
@@ -650,7 +650,7 @@ static void gdm_lte_netif_rx(struct net_device *dev, char *buf,
 			eth.h_proto = htons(ETH_P_IPV6);
 			vlan_eth.h_vlan_encapsulated_proto = htons(ETH_P_IPV6);
 		} else {
-			netdev_err(dev, "Unknown IP version %d\n", ip_version);
+			netdev_err(dev, "Unkanalwn IP version %d\n", ip_version);
 			return;
 		}
 	}
@@ -879,9 +879,9 @@ int register_lte_device(struct phy_dev *phy_dev,
 
 		/* Allocate netdev */
 		net = alloc_netdev(sizeof(struct nic), pdn_dev_name,
-				   NET_NAME_UNKNOWN, ether_setup);
+				   NET_NAME_UNKANALWN, ether_setup);
 		if (!net) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 		net->netdev_ops = &gdm_netdev_ops;

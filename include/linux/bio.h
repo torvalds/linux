@@ -49,7 +49,7 @@ static inline unsigned int bio_max_segs(unsigned int nr_segs)
 	(op_is_write(bio_op(bio)) ? WRITE : READ)
 
 /*
- * Check whether this bio carries any data or not. A NULL bio is allowed.
+ * Check whether this bio carries any data or analt. A NULL bio is allowed.
  */
 static inline bool bio_has_data(struct bio *bio)
 {
@@ -63,7 +63,7 @@ static inline bool bio_has_data(struct bio *bio)
 	return false;
 }
 
-static inline bool bio_no_advance_iter(const struct bio *bio)
+static inline bool bio_anal_advance_iter(const struct bio *bio)
 {
 	return bio_op(bio) == REQ_OP_DISCARD ||
 	       bio_op(bio) == REQ_OP_SECURE_ERASE ||
@@ -100,7 +100,7 @@ static inline void bio_advance_iter(const struct bio *bio,
 {
 	iter->bi_sector += bytes >> 9;
 
-	if (bio_no_advance_iter(bio))
+	if (bio_anal_advance_iter(bio))
 		iter->bi_size -= bytes;
 	else
 		bvec_iter_advance(bio->bi_io_vec, iter, bytes);
@@ -114,7 +114,7 @@ static inline void bio_advance_iter_single(const struct bio *bio,
 {
 	iter->bi_sector += bytes >> 9;
 
-	if (bio_no_advance_iter(bio))
+	if (bio_anal_advance_iter(bio))
 		iter->bi_size -= bytes;
 	else
 		bvec_iter_advance_single(bio->bi_io_vec, iter, bytes);
@@ -268,7 +268,7 @@ static inline struct bio_vec *bio_last_bvec_all(struct bio *bio)
  * struct folio_iter - State for iterating all folios in a bio.
  * @folio: The current folio we're iterating.  NULL after the last folio.
  * @offset: The byte offset within the current folio.
- * @length: The number of bytes in this iteration (will not cross folio
+ * @length: The number of bytes in this iteration (will analt cross folio
  *	boundary).
  */
 struct folio_iter {
@@ -324,8 +324,8 @@ static inline void bio_next_folio(struct folio_iter *fi, struct bio *bio)
 enum bip_flags {
 	BIP_BLOCK_INTEGRITY	= 1 << 0, /* block layer owns integrity data */
 	BIP_MAPPED_INTEGRITY	= 1 << 1, /* ref tag has been remapped */
-	BIP_CTRL_NOCHECK	= 1 << 2, /* disable HBA integrity checking */
-	BIP_DISK_NOCHECK	= 1 << 3, /* disable disk integrity checking */
+	BIP_CTRL_ANALCHECK	= 1 << 2, /* disable HBA integrity checking */
+	BIP_DISK_ANALCHECK	= 1 << 3, /* disable disk integrity checking */
 	BIP_IP_CHECKSUM		= 1 << 4, /* IP checksum */
 	BIP_INTEGRITY_USER	= 1 << 5, /* Integrity payload is user address */
 	BIP_COPY_USER		= 1 << 6, /* Kernel bounce buffer in use */
@@ -485,7 +485,7 @@ int bio_add_zone_append_page(struct bio *bio, struct page *page,
 			     unsigned int len, unsigned int offset);
 void __bio_add_page(struct bio *bio, struct page *page,
 		unsigned int len, unsigned int off);
-void bio_add_folio_nofail(struct bio *bio, struct folio *folio, size_t len,
+void bio_add_folio_analfail(struct bio *bio, struct folio *folio, size_t len,
 			  size_t off);
 int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter);
 void bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter);
@@ -704,9 +704,9 @@ struct bio_set {
 	struct workqueue_struct	*rescue_workqueue;
 
 	/*
-	 * Hot un-plug notifier for the per-cpu cache, if used
+	 * Hot un-plug analtifier for the per-cpu cache, if used
 	 */
-	struct hlist_node cpuhp_dead;
+	struct hlist_analde cpuhp_dead;
 };
 
 static inline bool bioset_initialized(struct bio_set *bs)
@@ -804,17 +804,17 @@ static inline int bio_integrity_map_user(struct bio *bio, void __user *ubuf,
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
 
 /*
- * Mark a bio as polled. Note that for async polled IO, the caller must
- * expect -EWOULDBLOCK if we cannot allocate a request (or other resources).
- * We cannot block waiting for requests on polled IO, as those completions
+ * Mark a bio as polled. Analte that for async polled IO, the caller must
+ * expect -EWOULDBLOCK if we cananalt allocate a request (or other resources).
+ * We cananalt block waiting for requests on polled IO, as those completions
  * must be found by the caller. This is different than IRQ driven IO, where
  * it's safe to wait for IO to complete.
  */
 static inline void bio_set_polled(struct bio *bio, struct kiocb *kiocb)
 {
 	bio->bi_opf |= REQ_POLLED;
-	if (kiocb->ki_flags & IOCB_NOWAIT)
-		bio->bi_opf |= REQ_NOWAIT;
+	if (kiocb->ki_flags & IOCB_ANALWAIT)
+		bio->bi_opf |= REQ_ANALWAIT;
 }
 
 static inline void bio_clear_polled(struct bio *bio)

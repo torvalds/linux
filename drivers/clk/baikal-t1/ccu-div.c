@@ -35,7 +35,7 @@
 	GENMASK((_width) + CCU_DIV_CTL_CLKDIV_FLD - 1, CCU_DIV_CTL_CLKDIV_FLD)
 #define CCU_DIV_CTL_LOCK_SHIFTED	BIT(27)
 #define CCU_DIV_CTL_GATE_REF_BUF	BIT(28)
-#define CCU_DIV_CTL_LOCK_NORMAL		BIT(31)
+#define CCU_DIV_CTL_LOCK_ANALRMAL		BIT(31)
 
 #define CCU_DIV_LOCK_CHECK_RETRIES	50
 
@@ -45,7 +45,7 @@
 
 /*
  * Use the next two methods until there are generic field setter and
- * getter available with non-constant mask support.
+ * getter available with analn-constant mask support.
  */
 static inline u32 ccu_div_get(u32 mask, u32 val)
 {
@@ -87,7 +87,7 @@ static int ccu_div_var_update_clkdiv(struct ccu_div *div,
 	if (div->features & CCU_DIV_LOCK_SHIFTED)
 		lock = CCU_DIV_CTL_LOCK_SHIFTED;
 	else
-		lock = CCU_DIV_CTL_LOCK_NORMAL;
+		lock = CCU_DIV_CTL_LOCK_ANALRMAL;
 
 	regmap_update_bits(div->sys_regs, div->reg_ctl,
 			   CCU_DIV_CTL_SET_CLKDIV, CCU_DIV_CTL_SET_CLKDIV);
@@ -116,7 +116,7 @@ static int ccu_div_var_enable(struct clk_hw *hw)
 	int ret;
 
 	if (!parent_hw) {
-		pr_err("Can't enable '%s' with no parent", clk_hw_get_name(hw));
+		pr_err("Can't enable '%s' with anal parent", clk_hw_get_name(hw));
 		return -EINVAL;
 	}
 
@@ -340,7 +340,7 @@ static const struct ccu_div_dbgfs_bit ccu_div_bits[] = {
 	CCU_DIV_DBGFS_BIT_ATTR("div_rst", CCU_DIV_CTL_RST),
 	CCU_DIV_DBGFS_BIT_ATTR("div_bypass", CCU_DIV_CTL_SET_CLKDIV),
 	CCU_DIV_DBGFS_BIT_ATTR("div_buf", CCU_DIV_CTL_GATE_REF_BUF),
-	CCU_DIV_DBGFS_BIT_ATTR("div_lock", CCU_DIV_CTL_LOCK_NORMAL)
+	CCU_DIV_DBGFS_BIT_ATTR("div_lock", CCU_DIV_CTL_LOCK_ANALRMAL)
 };
 
 #define CCU_DIV_DBGFS_BIT_NUM	ARRAY_SIZE(ccu_div_bits)
@@ -539,7 +539,7 @@ static const struct clk_ops ccu_div_var_gate_to_set_ops = {
 	.debug_init = ccu_div_var_debug_init
 };
 
-static const struct clk_ops ccu_div_var_nogate_ops = {
+static const struct clk_ops ccu_div_var_analgate_ops = {
 	.recalc_rate = ccu_div_var_recalc_rate,
 	.round_rate = ccu_div_var_round_rate,
 	.set_rate = ccu_div_var_set_rate_slow,
@@ -582,10 +582,10 @@ struct ccu_div *ccu_div_hw_register(const struct ccu_div_init_data *div_init)
 
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
 	if (!div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
-	 * Note since Baikal-T1 System Controller registers are MMIO-backed
+	 * Analte since Baikal-T1 System Controller registers are MMIO-backed
 	 * we won't check the regmap IO operations return status, because it
 	 * must be zero anyway.
 	 */
@@ -604,7 +604,7 @@ struct ccu_div *ccu_div_hw_register(const struct ccu_div_init_data *div_init)
 		if (hw_init.flags & CLK_SET_RATE_GATE)
 			hw_init.ops = &ccu_div_var_gate_to_set_ops;
 		else
-			hw_init.ops = &ccu_div_var_nogate_ops;
+			hw_init.ops = &ccu_div_var_analgate_ops;
 		div->mask = CCU_DIV_CTL_CLKDIV_MASK(div_init->width);
 	} else if (div_init->type == CCU_DIV_GATE) {
 		hw_init.ops = &ccu_div_gate_ops;

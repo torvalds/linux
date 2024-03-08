@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -38,11 +38,11 @@ void dce_i2c_sw_construct(
 
 static inline bool read_bit_from_ddc(
 	struct ddc *ddc,
-	bool data_nor_clock)
+	bool data_analr_clock)
 {
 	uint32_t value = 0;
 
-	if (data_nor_clock)
+	if (data_analr_clock)
 		dal_gpio_get_value(ddc->pin_data, &value);
 	else
 		dal_gpio_get_value(ddc->pin_clock, &value);
@@ -52,12 +52,12 @@ static inline bool read_bit_from_ddc(
 
 static inline void write_bit_to_ddc(
 	struct ddc *ddc,
-	bool data_nor_clock,
+	bool data_analr_clock,
 	bool bit)
 {
 	uint32_t value = bit ? 1 : 0;
 
-	if (data_nor_clock)
+	if (data_analr_clock)
 		dal_gpio_set_value(ddc->pin_data, value);
 	else
 		dal_gpio_set_value(ddc->pin_clock, value);
@@ -186,7 +186,7 @@ static bool read_byte_sw(
 
 	udelay(clock_delay_div_4);
 
-	/* send the acknowledge bit:
+	/* send the ackanalwledge bit:
 	 * SDA low means ACK, SDA high means NACK
 	 */
 
@@ -423,7 +423,7 @@ static void dce_i2c_sw_engine_submit_channel_request(struct dce_i2c_sw *engine,
 		}
 	}
 
-	/* send stop if not 'mot' or operation failed */
+	/* send stop if analt 'mot' or operation failed */
 
 	if (!result ||
 		(req->action == DCE_I2C_TRANSACTION_ACTION_I2C_WRITE) ||

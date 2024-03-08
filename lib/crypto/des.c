@@ -4,13 +4,13 @@
  *
  * DES & Triple DES EDE Cipher Algorithms.
  *
- * Copyright (c) 2005 Dag Arne Osvik <da@osvik.no>
+ * Copyright (c) 2005 Dag Arne Osvik <da@osvik.anal>
  */
 
 #include <linux/bitops.h>
 #include <linux/compiler.h>
 #include <linux/crypto.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fips.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -701,14 +701,14 @@ int des_expand_key(struct des_ctx *ctx, const u8 *key, unsigned int keylen)
 	if (keylen != DES_KEY_SIZE)
 		return -EINVAL;
 
-	return des_ekey(ctx->expkey, key) ? 0 : -ENOKEY;
+	return des_ekey(ctx->expkey, key) ? 0 : -EANALKEY;
 }
 EXPORT_SYMBOL_GPL(des_expand_key);
 
 /*
  * Decryption key expansion
  *
- * No weak key checking is performed, as this is only used by triple DES
+ * Anal weak key checking is performed, as this is only used by triple DES
  *
  */
 static void dkey(u32 *pe, const u8 *k)
@@ -830,7 +830,7 @@ int des3_ede_expand_key(struct des3_ede_ctx *ctx, const u8 *key,
 		return -EINVAL;
 
 	err = des3_ede_verify_key(key, keylen, true);
-	if (err && err != -ENOKEY)
+	if (err && err != -EANALKEY)
 		return err;
 
 	des_ekey(pe, key); pe += DES_EXPKEY_WORDS; key += DES_KEY_SIZE;

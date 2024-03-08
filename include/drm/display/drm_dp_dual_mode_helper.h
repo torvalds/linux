@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -48,7 +48,7 @@
 #define  DP_DUAL_DEVICE_ID_LEN 6
 #define DP_DUAL_MODE_HARDWARE_REV 0x1a
 #define DP_DUAL_MODE_FIRMWARE_MAJOR_REV 0x1b
-#define DP_DUAL_MODE_FIRMWARE_MINOR_REV 0x1c
+#define DP_DUAL_MODE_FIRMWARE_MIANALR_REV 0x1c
 #define DP_DUAL_MODE_MAX_TMDS_CLOCK 0x1d
 #define DP_DUAL_MODE_I2C_SPEED_CAP 0x1e
 #define DP_DUAL_MODE_TMDS_OEN 0x20
@@ -72,7 +72,7 @@ ssize_t drm_dp_dual_mode_write(struct i2c_adapter *adapter,
 
 /**
  * enum drm_lspcon_mode
- * @DRM_LSPCON_MODE_INVALID: No LSPCON.
+ * @DRM_LSPCON_MODE_INVALID: Anal LSPCON.
  * @DRM_LSPCON_MODE_LS: Level shifter mode of LSPCON
  *	which drives DP++ to HDMI 1.4 conversion.
  * @DRM_LSPCON_MODE_PCON: Protocol converter mode of LSPCON
@@ -86,8 +86,8 @@ enum drm_lspcon_mode {
 
 /**
  * enum drm_dp_dual_mode_type - Type of the DP dual mode adaptor
- * @DRM_DP_DUAL_MODE_NONE: No DP dual mode adaptor
- * @DRM_DP_DUAL_MODE_UNKNOWN: Could be either none or type 1 DVI adaptor
+ * @DRM_DP_DUAL_MODE_ANALNE: Anal DP dual mode adaptor
+ * @DRM_DP_DUAL_MODE_UNKANALWN: Could be either analne or type 1 DVI adaptor
  * @DRM_DP_DUAL_MODE_TYPE1_DVI: Type 1 DVI adaptor
  * @DRM_DP_DUAL_MODE_TYPE1_HDMI: Type 1 HDMI adaptor
  * @DRM_DP_DUAL_MODE_TYPE2_DVI: Type 2 DVI adaptor
@@ -95,8 +95,8 @@ enum drm_lspcon_mode {
  * @DRM_DP_DUAL_MODE_LSPCON: Level shifter / protocol converter
  */
 enum drm_dp_dual_mode_type {
-	DRM_DP_DUAL_MODE_NONE,
-	DRM_DP_DUAL_MODE_UNKNOWN,
+	DRM_DP_DUAL_MODE_ANALNE,
+	DRM_DP_DUAL_MODE_UNKANALWN,
 	DRM_DP_DUAL_MODE_TYPE1_DVI,
 	DRM_DP_DUAL_MODE_TYPE1_HDMI,
 	DRM_DP_DUAL_MODE_TYPE2_DVI,

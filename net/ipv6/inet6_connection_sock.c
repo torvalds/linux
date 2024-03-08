@@ -63,7 +63,7 @@ void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr)
 	sin6->sin6_family = AF_INET6;
 	sin6->sin6_addr = sk->sk_v6_daddr;
 	sin6->sin6_port	= inet_sk(sk)->inet_dport;
-	/* We do not store received flowlabel for TCP */
+	/* We do analt store received flowlabel for TCP */
 	sin6->sin6_flowinfo = 0;
 	sin6->sin6_scope_id = ipv6_iface_scope_id(&sin6->sin6_addr,
 						  sk->sk_bound_dev_if);
@@ -127,7 +127,7 @@ int inet6_csk_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl_unused
 	}
 
 	rcu_read_lock();
-	skb_dst_set_noref(skb, dst);
+	skb_dst_set_analref(skb, dst);
 
 	/* Restore final destination back after routing done */
 	fl6.daddr = sk->sk_v6_daddr;

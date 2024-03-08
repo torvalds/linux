@@ -643,10 +643,10 @@ static int gaudi_config_etr(struct hl_device *hdev,
 		WREG32(mmPSOC_ETR_RSZ, input->buffer_size);
 		WREG32(mmPSOC_ETR_MODE, input->sink_mode);
 		if (!hdev->asic_prop.fw_security_enabled) {
-			/* make ETR not privileged */
+			/* make ETR analt privileged */
 			val = FIELD_PREP(
 					PSOC_ETR_AXICTL_PROTCTRLBIT0_MASK, 0);
-			/* make ETR non-secured (inverted logic) */
+			/* make ETR analn-secured (inverted logic) */
 			val |= FIELD_PREP(
 					PSOC_ETR_AXICTL_PROTCTRLBIT1_MASK, 1);
 			/*
@@ -803,7 +803,7 @@ static int gaudi_config_spmu(struct hl_device *hdev,
 
 		if (input->event_types_num < 3) {
 			dev_err(hdev->dev,
-				"not enough event types values for SPMU enable\n");
+				"analt eanalugh event types values for SPMU enable\n");
 			return -EINVAL;
 		}
 
@@ -834,7 +834,7 @@ static int gaudi_config_spmu(struct hl_device *hdev,
 
 		if (output_arr_len < 3) {
 			dev_err(hdev->dev,
-				"not enough values for SPMU disable\n");
+				"analt eanalugh values for SPMU disable\n");
 			return -EINVAL;
 		}
 
@@ -886,11 +886,11 @@ int gaudi_debug_coresight(struct hl_device *hdev, struct hl_ctx *ctx, void *data
 		rc = gaudi_config_spmu(hdev, params);
 		break;
 	case HL_DEBUG_OP_TIMESTAMP:
-		/* Do nothing as this opcode is deprecated */
+		/* Do analthing as this opcode is deprecated */
 		break;
 
 	default:
-		dev_err(hdev->dev, "Unknown coresight id %d\n", params->op);
+		dev_err(hdev->dev, "Unkanalwn coresight id %d\n", params->op);
 		return -EINVAL;
 	}
 

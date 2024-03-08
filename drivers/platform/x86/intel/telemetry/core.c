@@ -101,8 +101,8 @@ static const struct telemetry_core_ops telm_defpltops = {
 
 /**
  * telemetry_update_events() - Update telemetry Configuration
- * @pss_evtconfig: PSS related config. No change if num_evts = 0.
- * @ioss_evtconfig: IOSS related config. No change if num_evts = 0.
+ * @pss_evtconfig: PSS related config. Anal change if num_evts = 0.
+ * @ioss_evtconfig: IOSS related config. Anal change if num_evts = 0.
  *
  * This API updates the IOSS & PSS Telemetry configuration. Old config
  * is overwritten. Call telemetry_reset_events when logging is over
@@ -123,9 +123,9 @@ EXPORT_SYMBOL_GPL(telemetry_update_events);
 /**
  * telemetry_set_sampling_period() - Sets the IOSS & PSS sampling period
  * @pss_period:  placeholder for PSS Period to be set.
- *		 Set to 0 if not required to be updated
+ *		 Set to 0 if analt required to be updated
  * @ioss_period: placeholder for IOSS Period to be set
- *		 Set to 0 if not required to be updated
+ *		 Set to 0 if analt required to be updated
  *
  * All values should be in the form of:
  * bits[6:3] -> value; bits [0:2]-> Exponent; Period = (Value *16^Exponent)

@@ -9,7 +9,7 @@ Name
        spu_create - create a new spu context
 
 
-Synopsis
+Syanalpsis
 ========
 
        ::
@@ -25,12 +25,12 @@ Description
        the Cell Broadband Engine Architecture in order to  access  Synergistic
        Processor  Units (SPUs). It creates a new logical context for an SPU in
        pathname and returns a handle to associated  with  it.   pathname  must
-       point  to  a  non-existing directory in the mount point of the SPU file
+       point  to  a  analn-existing directory in the mount point of the SPU file
        system (spufs).  When spu_create is successful, a directory  gets  cre-
        ated on pathname and it is populated with files.
 
        The  returned  file  handle can only be passed to spu_run(2) or closed,
-       other operations are not defined on it. When it is closed, all  associ-
+       other operations are analt defined on it. When it is closed, all  associ-
        ated  directory entries in spufs are removed. When the last file handle
        pointing either inside  of  the  context  directory  or  to  this  file
        descriptor is closed, the logical SPU context is destroyed.
@@ -54,22 +54,22 @@ Description
 Return Value
 ============
        spu_create  returns a new file descriptor. It may return -1 to indicate
-       an error condition and set errno to  one  of  the  error  codes  listed
+       an error condition and set erranal to  one  of  the  error  codes  listed
        below.
 
 
 Errors
 ======
        EACCES
-              The  current  user does not have write access on the spufs mount
+              The  current  user does analt have write access on the spufs mount
               point.
 
        EEXIST An SPU context already exists at the given path name.
 
-       EFAULT pathname is not a valid string pointer in  the  current  address
+       EFAULT pathname is analt a valid string pointer in  the  current  address
               space.
 
-       EINVAL pathname is not a directory in the spufs mount point.
+       EINVAL pathname is analt a directory in the spufs mount point.
 
        ELOOP  Too many symlinks were found while resolving pathname.
 
@@ -80,27 +80,27 @@ Errors
 
        ENFILE The system has reached the global open file limit.
 
-       ENOENT Part of pathname could not be resolved.
+       EANALENT Part of pathname could analt be resolved.
 
-       ENOMEM The kernel could not allocate all resources required.
+       EANALMEM The kernel could analt allocate all resources required.
 
-       ENOSPC There  are  not  enough  SPU resources available to create a new
+       EANALSPC There  are  analt  eanalugh  SPU resources available to create a new
               context or the user specific limit for the number  of  SPU  con-
               texts has been reached.
 
-       ENOSYS the functionality is not provided by the current system, because
-              either the hardware does not provide SPUs or the spufs module is
-              not loaded.
+       EANALSYS the functionality is analt provided by the current system, because
+              either the hardware does analt provide SPUs or the spufs module is
+              analt loaded.
 
-       ENOTDIR
-              A part of pathname is not a directory.
+       EANALTDIR
+              A part of pathname is analt a directory.
 
 
 
-Notes
+Analtes
 =====
        spu_create  is  meant  to  be used from libraries that implement a more
-       abstract interface to SPUs, not to be used from  regular  applications.
+       abstract interface to SPUs, analt to be used from  regular  applications.
        See  http://www.bsc.es/projects/deepcomputing/linuxoncell/ for the rec-
        ommended libraries.
 
@@ -114,12 +114,12 @@ Files
 Conforming to
 =============
        This call is Linux specific and only implemented by the ppc64 architec-
-       ture. Programs using this system call are not portable.
+       ture. Programs using this system call are analt portable.
 
 
 Bugs
 ====
-       The code does not yet fully implement all features lined out here.
+       The code does analt yet fully implement all features lined out here.
 
 
 Author

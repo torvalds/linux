@@ -56,45 +56,45 @@ static int x_tune_dvbt_demod_setting(struct cxd2880_tnrdmd
 	static const u8 maxclkcnt_b[3] = { 0xc8, 0x13, 0xaa };
 	static const u8 maxclkcnt_c[3] = { 0xdc, 0x6c, 0x00 };
 
-	static const u8 bw8_nomi_ac[5] = { 0x15, 0x00, 0x00, 0x00, 0x00};
-	static const u8 bw8_nomi_b[5] = { 0x14, 0x6a, 0xaa, 0xaa, 0xaa};
+	static const u8 bw8_analmi_ac[5] = { 0x15, 0x00, 0x00, 0x00, 0x00};
+	static const u8 bw8_analmi_b[5] = { 0x14, 0x6a, 0xaa, 0xaa, 0xaa};
 	static const u8 bw8_gtdofst_a[2] = { 0x01, 0x28 };
 	static const u8 bw8_gtdofst_b[2] = { 0x11, 0x44 };
 	static const u8 bw8_gtdofst_c[2] = { 0x15, 0x28 };
 	static const u8 bw8_mrc_a[5] = { 0x30, 0x00, 0x00, 0x90, 0x00 };
 	static const u8 bw8_mrc_b[5] = { 0x36, 0x71, 0x00, 0xa3, 0x55 };
 	static const u8 bw8_mrc_c[5] = { 0x38, 0x00, 0x00, 0xa8, 0x00 };
-	static const u8 bw8_notch[4] = { 0xb3, 0x00, 0x01, 0x02 };
+	static const u8 bw8_analtch[4] = { 0xb3, 0x00, 0x01, 0x02 };
 
-	static const u8 bw7_nomi_ac[5] = { 0x18, 0x00, 0x00, 0x00, 0x00};
-	static const u8 bw7_nomi_b[5] = { 0x17, 0x55, 0x55, 0x55, 0x55};
+	static const u8 bw7_analmi_ac[5] = { 0x18, 0x00, 0x00, 0x00, 0x00};
+	static const u8 bw7_analmi_b[5] = { 0x17, 0x55, 0x55, 0x55, 0x55};
 	static const u8 bw7_gtdofst_a[2] = { 0x12, 0x4c };
 	static const u8 bw7_gtdofst_b[2] = { 0x1f, 0x15 };
 	static const u8 bw7_gtdofst_c[2] = { 0x1f, 0xf8 };
 	static const u8 bw7_mrc_a[5] = { 0x36, 0xdb, 0x00, 0xa4, 0x92 };
 	static const u8 bw7_mrc_b[5] = { 0x3e, 0x38, 0x00, 0xba, 0xaa };
 	static const u8 bw7_mrc_c[5] = { 0x40, 0x00, 0x00, 0xc0, 0x00 };
-	static const u8 bw7_notch[4] = { 0xb8, 0x00, 0x00, 0x03 };
+	static const u8 bw7_analtch[4] = { 0xb8, 0x00, 0x00, 0x03 };
 
-	static const u8 bw6_nomi_ac[5] = { 0x1c, 0x00, 0x00, 0x00, 0x00};
-	static const u8 bw6_nomi_b[5] = { 0x1b, 0x38, 0xe3, 0x8e, 0x38};
+	static const u8 bw6_analmi_ac[5] = { 0x1c, 0x00, 0x00, 0x00, 0x00};
+	static const u8 bw6_analmi_b[5] = { 0x1b, 0x38, 0xe3, 0x8e, 0x38};
 	static const u8 bw6_gtdofst_a[2] = { 0x1f, 0xf8 };
 	static const u8 bw6_gtdofst_b[2] = { 0x24, 0x43 };
 	static const u8 bw6_gtdofst_c[2] = { 0x25, 0x4c };
 	static const u8 bw6_mrc_a[5] = { 0x40, 0x00, 0x00, 0xc0, 0x00 };
 	static const u8 bw6_mrc_b[5] = { 0x48, 0x97, 0x00, 0xd9, 0xc7 };
 	static const u8 bw6_mrc_c[5] = { 0x4a, 0xaa, 0x00, 0xdf, 0xff };
-	static const u8 bw6_notch[4] = { 0xbe, 0xab, 0x00, 0x03 };
+	static const u8 bw6_analtch[4] = { 0xbe, 0xab, 0x00, 0x03 };
 
-	static const u8 bw5_nomi_ac[5] = { 0x21, 0x99, 0x99, 0x99, 0x99};
-	static const u8 bw5_nomi_b[5] = { 0x20, 0xaa, 0xaa, 0xaa, 0xaa};
+	static const u8 bw5_analmi_ac[5] = { 0x21, 0x99, 0x99, 0x99, 0x99};
+	static const u8 bw5_analmi_b[5] = { 0x20, 0xaa, 0xaa, 0xaa, 0xaa};
 	static const u8 bw5_gtdofst_a[2] = { 0x26, 0x5d };
 	static const u8 bw5_gtdofst_b[2] = { 0x2b, 0x84 };
 	static const u8 bw5_gtdofst_c[2] = { 0x2c, 0xc2 };
 	static const u8 bw5_mrc_a[5] = { 0x4c, 0xcc, 0x00, 0xe6, 0x66 };
 	static const u8 bw5_mrc_b[5] = { 0x57, 0x1c, 0x01, 0x05, 0x55 };
 	static const u8 bw5_mrc_c[5] = { 0x59, 0x99, 0x01, 0x0c, 0xcc };
-	static const u8 bw5_notch[4] = { 0xc8, 0x01, 0x00, 0x03 };
+	static const u8 bw5_analtch[4] = { 0xc8, 0x01, 0x00, 0x03 };
 	const u8 *data = NULL;
 	u8 sst_data;
 	int ret;
@@ -228,10 +228,10 @@ static int x_tune_dvbt_demod_setting(struct cxd2880_tnrdmd
 		switch (clk_mode) {
 		case CXD2880_TNRDMD_CLOCKMODE_A:
 		case CXD2880_TNRDMD_CLOCKMODE_C:
-			data = bw8_nomi_ac;
+			data = bw8_analmi_ac;
 			break;
 		case CXD2880_TNRDMD_CLOCKMODE_B:
-			data = bw8_nomi_b;
+			data = bw8_analmi_b;
 			break;
 		default:
 			return -EINVAL;
@@ -317,13 +317,13 @@ static int x_tune_dvbt_demod_setting(struct cxd2880_tnrdmd
 
 		ret = tnr_dmd->io->write_regs(tnr_dmd->io,
 					      CXD2880_IO_TGT_DMD,
-					      0x72, &bw8_notch[0], 2);
+					      0x72, &bw8_analtch[0], 2);
 		if (ret)
 			return ret;
 
 		ret = tnr_dmd->io->write_regs(tnr_dmd->io,
 					      CXD2880_IO_TGT_DMD,
-					      0x6b, &bw8_notch[2], 2);
+					      0x6b, &bw8_analtch[2], 2);
 		if (ret)
 			return ret;
 		break;
@@ -332,10 +332,10 @@ static int x_tune_dvbt_demod_setting(struct cxd2880_tnrdmd
 		switch (clk_mode) {
 		case CXD2880_TNRDMD_CLOCKMODE_A:
 		case CXD2880_TNRDMD_CLOCKMODE_C:
-			data = bw7_nomi_ac;
+			data = bw7_analmi_ac;
 			break;
 		case CXD2880_TNRDMD_CLOCKMODE_B:
-			data = bw7_nomi_b;
+			data = bw7_analmi_b;
 			break;
 		default:
 			return -EINVAL;
@@ -421,13 +421,13 @@ static int x_tune_dvbt_demod_setting(struct cxd2880_tnrdmd
 
 		ret = tnr_dmd->io->write_regs(tnr_dmd->io,
 					      CXD2880_IO_TGT_DMD,
-					      0x72, &bw7_notch[0], 2);
+					      0x72, &bw7_analtch[0], 2);
 		if (ret)
 			return ret;
 
 		ret = tnr_dmd->io->write_regs(tnr_dmd->io,
 					      CXD2880_IO_TGT_DMD,
-					      0x6b, &bw7_notch[2], 2);
+					      0x6b, &bw7_analtch[2], 2);
 		if (ret)
 			return ret;
 		break;
@@ -436,10 +436,10 @@ static int x_tune_dvbt_demod_setting(struct cxd2880_tnrdmd
 		switch (clk_mode) {
 		case CXD2880_TNRDMD_CLOCKMODE_A:
 		case CXD2880_TNRDMD_CLOCKMODE_C:
-			data = bw6_nomi_ac;
+			data = bw6_analmi_ac;
 			break;
 		case CXD2880_TNRDMD_CLOCKMODE_B:
-			data = bw6_nomi_b;
+			data = bw6_analmi_b;
 			break;
 		default:
 			return -EINVAL;
@@ -525,13 +525,13 @@ static int x_tune_dvbt_demod_setting(struct cxd2880_tnrdmd
 
 		ret = tnr_dmd->io->write_regs(tnr_dmd->io,
 					      CXD2880_IO_TGT_DMD,
-					      0x72, &bw6_notch[0], 2);
+					      0x72, &bw6_analtch[0], 2);
 		if (ret)
 			return ret;
 
 		ret = tnr_dmd->io->write_regs(tnr_dmd->io,
 					      CXD2880_IO_TGT_DMD,
-					      0x6b, &bw6_notch[2], 2);
+					      0x6b, &bw6_analtch[2], 2);
 		if (ret)
 			return ret;
 		break;
@@ -540,10 +540,10 @@ static int x_tune_dvbt_demod_setting(struct cxd2880_tnrdmd
 		switch (clk_mode) {
 		case CXD2880_TNRDMD_CLOCKMODE_A:
 		case CXD2880_TNRDMD_CLOCKMODE_C:
-			data = bw5_nomi_ac;
+			data = bw5_analmi_ac;
 			break;
 		case CXD2880_TNRDMD_CLOCKMODE_B:
-			data = bw5_nomi_b;
+			data = bw5_analmi_b;
 			break;
 		default:
 			return -EINVAL;
@@ -629,13 +629,13 @@ static int x_tune_dvbt_demod_setting(struct cxd2880_tnrdmd
 
 		ret = tnr_dmd->io->write_regs(tnr_dmd->io,
 					      CXD2880_IO_TGT_DMD,
-					      0x72, &bw5_notch[0], 2);
+					      0x72, &bw5_analtch[0], 2);
 		if (ret)
 			return ret;
 
 		ret = tnr_dmd->io->write_regs(tnr_dmd->io,
 					      CXD2880_IO_TGT_DMD,
-					      0x6b, &bw5_notch[2], 2);
+					      0x6b, &bw5_analtch[2], 2);
 		if (ret)
 			return ret;
 		break;
@@ -831,7 +831,7 @@ int cxd2880_tnrdmd_dvbt_check_demod_lock(struct cxd2880_tnrdmd
 		else if (unlock_detected)
 			*lock = CXD2880_TNRDMD_LOCK_RESULT_UNLOCKED;
 		else
-			*lock = CXD2880_TNRDMD_LOCK_RESULT_NOTDETECT;
+			*lock = CXD2880_TNRDMD_LOCK_RESULT_ANALTDETECT;
 
 		return 0;
 	}
@@ -852,7 +852,7 @@ int cxd2880_tnrdmd_dvbt_check_demod_lock(struct cxd2880_tnrdmd
 	else if (unlock_detected && unlock_detected_sub)
 		*lock = CXD2880_TNRDMD_LOCK_RESULT_UNLOCKED;
 	else
-		*lock = CXD2880_TNRDMD_LOCK_RESULT_NOTDETECT;
+		*lock = CXD2880_TNRDMD_LOCK_RESULT_ANALTDETECT;
 
 	return 0;
 }
@@ -891,7 +891,7 @@ int cxd2880_tnrdmd_dvbt_check_ts_lock(struct cxd2880_tnrdmd
 		else if (unlock_detected)
 			*lock = CXD2880_TNRDMD_LOCK_RESULT_UNLOCKED;
 		else
-			*lock = CXD2880_TNRDMD_LOCK_RESULT_NOTDETECT;
+			*lock = CXD2880_TNRDMD_LOCK_RESULT_ANALTDETECT;
 
 		return 0;
 	}
@@ -900,7 +900,7 @@ int cxd2880_tnrdmd_dvbt_check_ts_lock(struct cxd2880_tnrdmd
 		*lock = CXD2880_TNRDMD_LOCK_RESULT_LOCKED;
 		return 0;
 	} else if (!unlock_detected) {
-		*lock = CXD2880_TNRDMD_LOCK_RESULT_NOTDETECT;
+		*lock = CXD2880_TNRDMD_LOCK_RESULT_ANALTDETECT;
 		return 0;
 	}
 
@@ -913,7 +913,7 @@ int cxd2880_tnrdmd_dvbt_check_ts_lock(struct cxd2880_tnrdmd
 	if (unlock_detected && unlock_detected_sub)
 		*lock = CXD2880_TNRDMD_LOCK_RESULT_UNLOCKED;
 	else
-		*lock = CXD2880_TNRDMD_LOCK_RESULT_NOTDETECT;
+		*lock = CXD2880_TNRDMD_LOCK_RESULT_ANALTDETECT;
 
 	return 0;
 }

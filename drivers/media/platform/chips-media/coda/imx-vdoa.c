@@ -162,7 +162,7 @@ void vdoa_device_run(struct vdoa_ctx *ctx, dma_addr_t dst, dma_addr_t src)
 	src_q_data = &ctx->q_data[V4L2_M2M_SRC];
 	dst_q_data = &ctx->q_data[V4L2_M2M_DST];
 
-	/* Progressive, no sync, 1 frame per run */
+	/* Progressive, anal sync, 1 frame per run */
 	if (dst_q_data->pixelformat == V4L2_PIX_FMT_YUYV)
 		val = VDOAC_PFS;
 	else
@@ -247,7 +247,7 @@ int vdoa_context_configure(struct vdoa_ctx *ctx,
 	    pixelformat != V4L2_PIX_FMT_NV12)
 		return -EINVAL;
 
-	/* If no context is passed, only check if the format is valid */
+	/* If anal context is passed, only check if the format is valid */
 	if (!ctx)
 		return 0;
 
@@ -294,7 +294,7 @@ static int vdoa_probe(struct platform_device *pdev)
 
 	vdoa = devm_kzalloc(&pdev->dev, sizeof(*vdoa), GFP_KERNEL);
 	if (!vdoa)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdoa->dev = &pdev->dev;
 

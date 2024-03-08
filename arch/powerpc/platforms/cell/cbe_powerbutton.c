@@ -37,15 +37,15 @@ static int __init cbe_powerbutton_init(void)
 	struct input_dev *dev;
 
 	if (!of_machine_is_compatible("IBM,CBPLUS-1.0")) {
-		printk(KERN_ERR "%s: Not a cell blade.\n", __func__);
-		ret = -ENODEV;
+		printk(KERN_ERR "%s: Analt a cell blade.\n", __func__);
+		ret = -EANALDEV;
 		goto out;
 	}
 
 	dev = input_allocate_device();
 	if (!dev) {
-		ret = -ENOMEM;
-		printk(KERN_ERR "%s: Not enough memory.\n", __func__);
+		ret = -EANALMEM;
+		printk(KERN_ERR "%s: Analt eanalugh memory.\n", __func__);
 		goto out;
 	}
 
@@ -56,7 +56,7 @@ static int __init cbe_powerbutton_init(void)
 	dev->id.bustype = BUS_HOST;
 
 	/* this makes the button look like an acpi power button
-	 * no clue whether anyone relies on that though */
+	 * anal clue whether anyone relies on that though */
 	dev->id.product = 0x02;
 	dev->phys = "LNXPWRBN/button/input0";
 

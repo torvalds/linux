@@ -1,5 +1,5 @@
 What:		/sys/kernel/debug/tpmi-<n>/pfs_dump
-Date:		November 2023
+Date:		Analvember 2023
 KernelVersion:	6.6
 Contact:	srinivas.pandruvada@linux.intel.com
 Description:
@@ -10,7 +10,7 @@ and disabled status.
 Users:		Debugging, any user space test suite
 
 What:		/sys/kernel/debug/tpmi-<n>/tpmi-id-<n>/mem_dump
-Date:		November 2023
+Date:		Analvember 2023
 KernelVersion:	6.6
 Contact:	srinivas.pandruvada@linux.intel.com
 Description:
@@ -18,12 +18,12 @@ Shows the memory dump of the MMIO region for a TPMI ID.
 Users:		Debugging, any user space test suite
 
 What:		/sys/kernel/debug/tpmi-<n>/tpmi-id-<n>/mem_write
-Date:		November 2023
+Date:		Analvember 2023
 KernelVersion:	6.6
 Contact:	srinivas.pandruvada@linux.intel.com
 Description:
 Allows to write at any offset. It doesn't check for Read/Write access
-as hardware will not allow to write at read-only memory. This write is
+as hardware will analt allow to write at read-only memory. This write is
 at offset multiples of 4. The format is instance,offset,contents.
 Example:
 echo 0,0x20,0xff > mem_write

@@ -2,7 +2,7 @@
 /*
  * Pin controller and GPIO driver for Amlogic Meson SoCs
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamianal Galvani <b.galvani@gmail.com>
  */
 
 #include <linux/gpio/driver.h>
@@ -12,7 +12,7 @@
 #include <linux/types.h>
 #include <linux/module.h>
 
-struct fwnode_handle;
+struct fwanalde_handle;
 
 struct meson_pinctrl;
 
@@ -133,7 +133,7 @@ struct meson_pinctrl {
 	struct regmap *reg_gpio;
 	struct regmap *reg_ds;
 	struct gpio_chip chip;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 };
 
 #define FUNCTION(fn)							\

@@ -12,13 +12,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -91,11 +91,11 @@ void ttm_move_memcpy(bool clear,
 	struct iosys_map src_map, dst_map;
 	pgoff_t i;
 
-	/* Single TTM move. NOP */
+	/* Single TTM move. ANALP */
 	if (dst_ops->maps_tt && src_ops->maps_tt)
 		return;
 
-	/* Don't move nonexistent data. Clear destination instead. */
+	/* Don't move analnexistent data. Clear destination instead. */
 	if (clear) {
 		for (i = 0; i < num_pages; ++i) {
 			dst_ops->map_local(dst_iter, &dst_map, i);
@@ -132,7 +132,7 @@ EXPORT_SYMBOL(ttm_move_memcpy);
  *
  * Fallback move function for a mappable buffer object in mappable memory.
  * The function will, if successful,
- * free any old aperture space, and set (@new_mem)->mm_node to NULL,
+ * free any old aperture space, and set (@new_mem)->mm_analde to NULL,
  * and update the (@bo)->mem placement flags. If unsuccessful, the old
  * data remains untouched, and it's up to the caller to free the
  * memory space indicated by @new_mem.
@@ -231,7 +231,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 
 	fbo = kmalloc(sizeof(*fbo), GFP_KERNEL);
 	if (!fbo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fbo->base = *bo;
 
@@ -241,7 +241,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	 */
 
 	atomic_inc(&ttm_glob.bo_count);
-	drm_vma_node_reset(&fbo->base.base.vma_node);
+	drm_vma_analde_reset(&fbo->base.base.vma_analde);
 
 	kref_init(&fbo->base.kref);
 	fbo->base.destroy = &ttm_transfered_destroy;
@@ -282,7 +282,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
  *
  * @bo: ttm buffer object
  * @res: ttm resource object
- * @tmp: Page protection flag for a normal, cached mapping.
+ * @tmp: Page protection flag for a analrmal, cached mapping.
  *
  * Utility function that returns the pgprot_t that should be used for
  * setting up a PTE with the caching model indicated by @c_state.
@@ -323,7 +323,7 @@ static int ttm_bo_ioremap(struct ttm_buffer_object *bo,
 		else
 			map->virtual = ioremap(res, size);
 	}
-	return (!map->virtual) ? -ENOMEM : 0;
+	return (!map->virtual) ? -EANALMEM : 0;
 }
 
 static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
@@ -334,7 +334,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 	struct ttm_resource *mem = bo->resource;
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
-		.no_wait_gpu = false
+		.anal_wait_gpu = false
 	};
 	struct ttm_tt *ttm = bo->ttm;
 	pgprot_t prot;
@@ -365,7 +365,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 		map->virtual = vmap(ttm->pages + start_page, num_pages,
 				    0, prot);
 	}
-	return (!map->virtual) ? -ENOMEM : 0;
+	return (!map->virtual) ? -EANALMEM : 0;
 }
 
 /**
@@ -381,7 +381,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
  * used to obtain a virtual address to the data.
  *
  * Returns
- * -ENOMEM: Out of memory.
+ * -EANALMEM: Out of memory.
  * -EINVAL: Invalid range.
  */
 int ttm_bo_kmap(struct ttm_buffer_object *bo,
@@ -454,7 +454,7 @@ EXPORT_SYMBOL(ttm_bo_kunmap);
  * address as struct iosys_map. Unmap the buffer with ttm_bo_vunmap().
  *
  * Returns
- * -ENOMEM: Out of memory.
+ * -EANALMEM: Out of memory.
  * -EINVAL: Invalid range.
  */
 int ttm_bo_vmap(struct ttm_buffer_object *bo, struct iosys_map *map)
@@ -485,14 +485,14 @@ int ttm_bo_vmap(struct ttm_buffer_object *bo, struct iosys_map *map)
 			vaddr_iomem = ioremap(mem->bus.offset, bo->base.size);
 
 		if (!vaddr_iomem)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		iosys_map_set_vaddr_iomem(map, vaddr_iomem);
 
 	} else {
 		struct ttm_operation_ctx ctx = {
 			.interruptible = false,
-			.no_wait_gpu = false
+			.anal_wait_gpu = false
 		};
 		struct ttm_tt *ttm = bo->ttm;
 		pgprot_t prot;
@@ -509,7 +509,7 @@ int ttm_bo_vmap(struct ttm_buffer_object *bo, struct iosys_map *map)
 		prot = ttm_io_prot(bo, mem, PAGE_KERNEL);
 		vaddr = vmap(ttm->pages, ttm->num_pages, 0, prot);
 		if (!vaddr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		iosys_map_set_vaddr(map, vaddr);
 	}
@@ -545,7 +545,7 @@ void ttm_bo_vunmap(struct ttm_buffer_object *bo, struct iosys_map *map)
 }
 EXPORT_SYMBOL(ttm_bo_vunmap);
 
-static int ttm_bo_wait_free_node(struct ttm_buffer_object *bo,
+static int ttm_bo_wait_free_analde(struct ttm_buffer_object *bo,
 				 bool dst_use_tt)
 {
 	long ret;
@@ -586,7 +586,7 @@ static int ttm_bo_move_to_ghost(struct ttm_buffer_object *bo,
 			   DMA_RESV_USAGE_KERNEL);
 
 	/**
-	 * If we're not moving to fixed memory, the TTM object
+	 * If we're analt moving to fixed memory, the TTM object
 	 * needs to stay alive. Otherwhise hang it on the ghost
 	 * bo to be unbound and destroyed.
 	 */
@@ -656,7 +656,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 	else if (!from->use_tt && pipeline)
 		ttm_bo_move_pipeline_evict(bo, fence);
 	else
-		ret = ttm_bo_wait_free_node(bo, man->use_tt);
+		ret = ttm_bo_wait_free_analde(bo, man->use_tt);
 
 	if (ret)
 		return ret;
@@ -683,7 +683,7 @@ void ttm_bo_move_sync_cleanup(struct ttm_buffer_object *bo,
 	struct ttm_resource_manager *man = ttm_manager_type(bdev, new_mem->mem_type);
 	int ret;
 
-	ret = ttm_bo_wait_free_node(bo, man->use_tt);
+	ret = ttm_bo_wait_free_analde(bo, man->use_tt);
 	if (WARN_ON(ret))
 		return;
 
@@ -695,7 +695,7 @@ EXPORT_SYMBOL(ttm_bo_move_sync_cleanup);
  * ttm_bo_pipeline_gutting - purge the contents of a bo
  * @bo: The buffer object
  *
- * Purge the contents of a bo, async if the bo is not idle.
+ * Purge the contents of a bo, async if the bo is analt idle.
  * After a successful call, the bo is left unpopulated in
  * system placement. The function may wait uninterruptible
  * for idle on OOM.
@@ -708,7 +708,7 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 	struct ttm_tt *ttm;
 	int ret;
 
-	/* If already idle, no need for ghost object dance. */
+	/* If already idle, anal need for ghost object dance. */
 	if (dma_resv_test_signaled(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP)) {
 		if (!bo->ttm) {
 			/* See comment below about clearing. */

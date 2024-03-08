@@ -7,7 +7,7 @@
 #ifndef _MESON_SND_CARD_H
 #define _MESON_SND_CARD_H
 
-struct device_node;
+struct device_analde;
 struct platform_device;
 
 struct snd_soc_card;
@@ -18,7 +18,7 @@ struct snd_pcm_hw_params;
 
 struct meson_card_match_data {
 	int (*add_link)(struct snd_soc_card *card,
-			struct device_node *node,
+			struct device_analde *analde,
 			int *index);
 };
 
@@ -28,8 +28,8 @@ struct meson_card {
 	void **link_data;
 };
 
-unsigned int meson_card_parse_daifmt(struct device_node *node,
-				     struct device_node *cpu_node);
+unsigned int meson_card_parse_daifmt(struct device_analde *analde,
+				     struct device_analde *cpu_analde);
 
 int meson_card_i2s_set_sysclk(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params,
@@ -38,14 +38,14 @@ int meson_card_i2s_set_sysclk(struct snd_pcm_substream *substream,
 int meson_card_reallocate_links(struct snd_soc_card *card,
 				unsigned int num_links);
 int meson_card_parse_dai(struct snd_soc_card *card,
-			 struct device_node *node,
+			 struct device_analde *analde,
 			 struct snd_soc_dai_link_component *dlc);
 int meson_card_set_be_link(struct snd_soc_card *card,
 			   struct snd_soc_dai_link *link,
-			   struct device_node *node);
+			   struct device_analde *analde);
 int meson_card_set_fe_link(struct snd_soc_card *card,
 			   struct snd_soc_dai_link *link,
-			   struct device_node *node,
+			   struct device_analde *analde,
 			   bool is_playback);
 
 int meson_card_probe(struct platform_device *pdev);

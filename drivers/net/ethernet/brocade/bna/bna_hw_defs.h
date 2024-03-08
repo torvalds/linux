@@ -196,13 +196,13 @@ do {									\
 }
 
 /*
- * MAX ACK EVENTS : No. of acks that can be accumulated in driver,
- * before acking to h/w. The no. of bits is 16 in the doorbell register,
+ * MAX ACK EVENTS : Anal. of acks that can be accumulated in driver,
+ * before acking to h/w. The anal. of bits is 16 in the doorbell register,
  * however we keep this limited to 15 bits.
  * This is because around the edge of 64K boundary (16 bits), one
  * single poll can make the accumulated ACK counter cross the 64K boundary,
  * causing problems, when we try to ack with a value greater than 64K.
- * 15 bits (32K) should  be large enough to accumulate, anyways, and the max.
+ * 15 bits (32K) should  be large eanalugh to accumulate, anyways, and the max.
  * acked events to h/w can be (32K + max poll weight) (currently 64).
  */
 #define BNA_IB_MAX_ACK_EVENTS		BIT(15)
@@ -315,7 +315,7 @@ do {									\
 #define BNA_CQ_EF_REMOTE	BIT(19)
 
 #define BNA_CQ_EF_LOCAL		BIT(20)
-/* CAT2 ASIC does not use bit 21 as per the SPEC.
+/* CAT2 ASIC does analt use bit 21 as per the SPEC.
  * Bit 31 is set in every end of frame completion
  */
 #define BNA_CQ_EF_EOP		BIT(31)

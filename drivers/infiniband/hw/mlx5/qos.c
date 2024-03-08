@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2020, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2020, Mellaanalx Techanallogies inc.  All rights reserved.
  */
 
 #include <rdma/uverbs_ioctl.h>
@@ -47,7 +47,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_PP_OBJ_ALLOC)(
 	dev = to_mdev(c->ibucontext.device);
 	pp_entry = kzalloc(sizeof(*pp_entry), GFP_KERNEL);
 	if (!pp_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	in_ctx = uverbs_attr_get_alloced_ptr(attrs,
 					     MLX5_IB_ATTR_PP_OBJ_ALLOC_CTX);

@@ -42,7 +42,7 @@ int msix_initialize(struct hfi1_devdata *dd)
 			  GFP_KERNEL);
 	if (!entries) {
 		pci_free_irq_vectors(dd->pcidev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dd->msix_info.msix_entries = entries;
@@ -89,7 +89,7 @@ static int msix_request_irq(struct hfi1_devdata *dd, void *arg,
 	spin_unlock(&dd->msix_info.msix_lock);
 
 	if (nr == dd->msix_info.max_requested)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (type < IRQ_SDMA || type >= IRQ_OTHER)
 		return -EINVAL;
@@ -115,7 +115,7 @@ static int msix_request_irq(struct hfi1_devdata *dd, void *arg,
 	me->arg = arg;
 	me->type = type;
 
-	/* This is a request, so a failure is not fatal */
+	/* This is a request, so a failure is analt fatal */
 	ret = hfi1_get_irq_affinity(dd, me);
 	if (ret)
 		dd_dev_err(dd, "%s: unable to pin IRQ %d\n", name, ret);
@@ -292,7 +292,7 @@ void msix_free_irq(struct hfi1_devdata *dd, u8 msix_intr)
 
 	me = &dd->msix_info.msix_entries[msix_intr];
 
-	if (!me->arg) /* => no irq, no affinity */
+	if (!me->arg) /* => anal irq, anal affinity */
 		return;
 
 	hfi1_put_irq_affinity(dd, me);

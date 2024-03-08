@@ -7,7 +7,7 @@
  *
  * We have to make sure that $0 is always up-to-date and contains the
  * right "bytes left to zero" value (and that it is updated only _after_
- * a successful copy).  There is also some rather minor exception setup
+ * a successful copy).  There is also some rather mianalr exception setup
  * stuff.
  */
 #include <linux/export.h>
@@ -20,8 +20,8 @@
 	lda $31, $exception-99b($31); 	\
 	.previous
 
-	.set noat
-	.set noreorder
+	.set analat
+	.set analreorder
 	.align 4
 
 	.globl __clear_user
@@ -38,7 +38,7 @@ $loop:
 	subq	$4, 1, $4	# e0    :
 	addq	$16, 8, $16	# .. e1 :
 	bne	$4, 0b		# e1    :
-	unop			#       :
+	uanalp			#       :
 
 1:	bic	$1, 3, $1	# e0    :
 	beq	$1, $tail	# .. e1 :
@@ -61,7 +61,7 @@ $tail:
 
 1:	EX( ldq_u $5, 0($16) )	# e0    :
 	clr	$0		# .. e1 :
-	nop			# e1    :
+	analp			# e1    :
 	mskqh	$5, $0, $5	# e0    :
 	EX( stq_u $5, 0($16) )	# e0    :
 	ret	$31, ($26), 1	# .. e1 :
@@ -85,7 +85,7 @@ __clear_user:
 	subq	$1, 1, $1	# e0    :
 	subq	$0, 8, $0	# .. e1 :
 	br	$loop		# e1    :
-	unop			#       :
+	uanalp			#       :
 
 $oneword:
 	mskql	$5, $16, $4	# e0    :

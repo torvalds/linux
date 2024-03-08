@@ -12,8 +12,8 @@ config X86_INTEL_PSTATE
 	select CPU_FREQ_GOV_SCHEDUTIL if SMP
 	help
 	  This driver provides a P state for Intel core processors.
-	  The driver implements an internal governor and will become
-	  the scaling driver and governor for Sandy bridge processors.
+	  The driver implements an internal goveranalr and will become
+	  the scaling driver and goveranalr for Sandy bridge processors.
 
 	  When this driver is enabled it will become the preferred
 	  scaling driver for Sandy bridge processors.
@@ -101,12 +101,12 @@ config X86_ACPI_CPUFREQ
 
 config X86_ACPI_CPUFREQ_CPB
 	default y
-	bool "Legacy cpb sysfs knob support for AMD CPUs"
+	bool "Legacy cpb sysfs kanalb support for AMD CPUs"
 	depends on X86_ACPI_CPUFREQ && CPU_SUP_AMD
 	help
-	  The powernow-k8 driver used to provide a sysfs knob called "cpb"
+	  The poweranalw-k8 driver used to provide a sysfs kanalb called "cpb"
 	  to disable the Core Performance Boosting feature of AMD CPUs. This
-	  file has now been superseded by the more generic "boost" entry.
+	  file has analw been superseded by the more generic "boost" entry.
 
 	  By enabling this option the acpi_cpufreq driver provides the old
 	  entry in addition to the new boost ones, for compatibility reasons.
@@ -137,8 +137,8 @@ config SC520_CPUFREQ
 	  If in doubt, say N.
 
 
-config X86_POWERNOW_K6
-	tristate "AMD Mobile K6-2/K6-3 PowerNow!"
+config X86_POWERANALW_K6
+	tristate "AMD Mobile K6-2/K6-3 PowerAnalw!"
 	depends on X86_32
 	help
 	  This adds the CPUFreq driver for mobile AMD K6-2+ and mobile
@@ -148,8 +148,8 @@ config X86_POWERNOW_K6
 
 	  If in doubt, say N.
 
-config X86_POWERNOW_K7
-	tristate "AMD Mobile Athlon/Duron PowerNow!"
+config X86_POWERANALW_K7
+	tristate "AMD Mobile Athlon/Duron PowerAnalw!"
 	depends on X86_32
 	help
 	  This adds the CPUFreq driver for mobile AMD K7 mobile processors.
@@ -158,22 +158,22 @@ config X86_POWERNOW_K7
 
 	  If in doubt, say N.
 
-config X86_POWERNOW_K7_ACPI
+config X86_POWERANALW_K7_ACPI
 	bool
-	depends on X86_POWERNOW_K7 && ACPI_PROCESSOR
-	depends on !(X86_POWERNOW_K7 = y && ACPI_PROCESSOR = m)
+	depends on X86_POWERANALW_K7 && ACPI_PROCESSOR
+	depends on !(X86_POWERANALW_K7 = y && ACPI_PROCESSOR = m)
 	depends on X86_32
 	default y
 
-config X86_POWERNOW_K8
-	tristate "AMD Opteron/Athlon64 PowerNow!"
+config X86_POWERANALW_K8
+	tristate "AMD Opteron/Athlon64 PowerAnalw!"
 	depends on ACPI && ACPI_PROCESSOR && X86_ACPI_CPUFREQ
 	help
 	  This adds the CPUFreq driver for K8/early Opteron/Athlon64 processors.
-	  Support for K10 and newer processors is now in acpi-cpufreq.
+	  Support for K10 and newer processors is analw in acpi-cpufreq.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called powernow-k8.
+	  module will be called poweranalw-k8.
 
 	  For details, take a look at <file:Documentation/cpu-freq/>.
 
@@ -182,14 +182,14 @@ config X86_AMD_FREQ_SENSITIVITY
 	depends on CPU_FREQ_GOV_ONDEMAND && X86_ACPI_CPUFREQ && CPU_SUP_AMD
 	help
 	  This adds AMD-specific powersave bias function to the ondemand
-	  governor, which allows it to make more power-conscious frequency
+	  goveranalr, which allows it to make more power-conscious frequency
 	  change decisions based on feedback from hardware (available on AMD
 	  Family 16h and above).
 
 	  Hardware feedback tells software how "sensitive" to frequency changes
 	  the CPUs' workloads are. CPU-bound workloads will be more sensitive
 	  -- they will perform better as frequency increases. Memory/IO-bound
-	  workloads will be less sensitive -- they will not necessarily perform
+	  workloads will be less sensitive -- they will analt necessarily perform
 	  better as frequency increases.
 
 	  If in doubt, say N.
@@ -205,32 +205,32 @@ config X86_GX_SUSPMOD
 
 	 If in doubt, say N.
 
-config X86_SPEEDSTEP_CENTRINO
+config X86_SPEEDSTEP_CENTRIANAL
 	tristate "Intel Enhanced SpeedStep (deprecated)"
-	select X86_SPEEDSTEP_CENTRINO_TABLE if X86_32
+	select X86_SPEEDSTEP_CENTRIANAL_TABLE if X86_32
 	depends on X86_32 || (X86_64 && ACPI_PROCESSOR)
 	help
-	  This is deprecated and this functionality is now merged into
+	  This is deprecated and this functionality is analw merged into
 	  acpi_cpufreq (X86_ACPI_CPUFREQ). Use that driver instead of
-	  speedstep_centrino.
+	  speedstep_centrianal.
 	  This adds the CPUFreq driver for Enhanced SpeedStep enabled
-	  mobile CPUs.  This means Intel Pentium M (Centrino) CPUs
+	  mobile CPUs.  This means Intel Pentium M (Centrianal) CPUs
 	  or 64bit enabled Intel Xeons.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called speedstep-centrino.
+	  module will be called speedstep-centrianal.
 
 	  For details, take a look at <file:Documentation/cpu-freq/>.
 
 	  If in doubt, say N.
 
-config X86_SPEEDSTEP_CENTRINO_TABLE
+config X86_SPEEDSTEP_CENTRIANAL_TABLE
 	bool "Built-in tables for Banias CPUs"
-	depends on X86_32 && X86_SPEEDSTEP_CENTRINO
+	depends on X86_32 && X86_SPEEDSTEP_CENTRIANAL
 	default y
 	help
 	  Use built-in tables for Banias CPUs if ACPI encoding
-	  is not available.
+	  is analt available.
 
 	  If in doubt, say N.
 
@@ -268,7 +268,7 @@ config X86_P4_CLOCKMOD
 
 	  This driver should be only used in exceptional
 	  circumstances when very low power is needed because it causes severe
-	  slowdowns and noticeable latencies.  Normally Speedstep should be used
+	  slowdowns and analticeable latencies.  Analrmally Speedstep should be used
 	  instead.
 
 	  To compile this driver as a module, choose M here: the
@@ -317,7 +317,7 @@ config X86_E_POWERSAVER
 	depends on X86_32 && ACPI_PROCESSOR
 	help
 	  This adds the CPUFreq driver for VIA C7 processors.  However, this driver
-	  does not have any safeguards to prevent operating the CPU out of spec
+	  does analt have any safeguards to prevent operating the CPU out of spec
 	  and is thus considered dangerous.  Please use the regular ACPI cpufreq
 	  driver, enabled by CONFIG_X86_ACPI_CPUFREQ.
 
@@ -334,7 +334,7 @@ config X86_SPEEDSTEP_RELAXED_CAP_CHECK
 	depends on X86_32 && (X86_SPEEDSTEP_SMI || X86_SPEEDSTEP_ICH)
 	help
 	  Don't perform all checks for a speedstep capable system which would
-	  normally be done. Some ancient or strange systems, though speedstep
+	  analrmally be done. Some ancient or strange systems, though speedstep
 	  capable, don't always indicate that they are speedstep capable. This
 	  option lets the probing code bypass some of those checks if the
 	  parameter "relaxed_check=1" is passed to the module.

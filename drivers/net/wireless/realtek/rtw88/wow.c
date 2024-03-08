@@ -53,7 +53,7 @@ static void rtw_wow_show_wakeup_reason(struct rtw_dev *rtwdev)
 		rtw_dbg(rtwdev, RTW_DBG_WOW, "Rx NLO\n");
 		break;
 	default:
-		rtw_warn(rtwdev, "Unknown wakeup reason %x\n", reason);
+		rtw_warn(rtwdev, "Unkanalwn wakeup reason %x\n", reason);
 		ieee80211_report_wowlan_wakeup(rtwdev->wow.wow_vif, NULL,
 					       GFP_KERNEL);
 		return;
@@ -224,7 +224,7 @@ static void rtw_wow_pattern_generate(struct rtw_dev *rtwdev,
 	memcpy(rtw_pattern->mask, mask_hw, RTW_MAX_PATTERN_MASK_SIZE);
 
 	/* To get the wake up pattern from the mask.
-	 * We do not count first 12 bits which means
+	 * We do analt count first 12 bits which means
 	 * DA[6] and SA[6] in the pattern to match HW design.
 	 */
 	count = 0;
@@ -403,7 +403,7 @@ static int rtw_wow_fw_start(struct rtw_dev *rtwdev)
 		rtw_wow_fw_security_type(rtwdev);
 		rtw_fw_set_disconnect_decision_cmd(rtwdev, true);
 		rtw_fw_set_keep_alive_cmd(rtwdev, true);
-	} else if (rtw_wow_no_link(rtwdev)) {
+	} else if (rtw_wow_anal_link(rtwdev)) {
 		rtw_fw_set_nlo_info(rtwdev, true);
 		rtw_fw_update_pkt_probe_req(rtwdev, NULL);
 		rtw_fw_channel_switch(rtwdev, true);
@@ -421,7 +421,7 @@ static int rtw_wow_fw_stop(struct rtw_dev *rtwdev)
 		rtw_fw_set_disconnect_decision_cmd(rtwdev, false);
 		rtw_fw_set_keep_alive_cmd(rtwdev, false);
 		rtw_wow_pattern_clear(rtwdev);
-	} else if (rtw_wow_no_link(rtwdev)) {
+	} else if (rtw_wow_anal_link(rtwdev)) {
 		rtw_fw_channel_switch(rtwdev, false);
 		rtw_fw_set_nlo_info(rtwdev, false);
 	}
@@ -478,15 +478,15 @@ static int rtw_wow_config_wow_fw_rsvd_page(struct rtw_dev *rtwdev)
 
 	rtw_remove_rsvd_page(rtwdev, rtwvif);
 
-	if (rtw_wow_no_link(rtwdev))
-		rtw_add_rsvd_page_pno(rtwdev, rtwvif);
+	if (rtw_wow_anal_link(rtwdev))
+		rtw_add_rsvd_page_panal(rtwdev, rtwvif);
 	else
 		rtw_add_rsvd_page_sta(rtwdev, rtwvif);
 
 	return rtw_fw_download_rsvd_page(rtwdev);
 }
 
-static int rtw_wow_config_normal_fw_rsvd_page(struct rtw_dev *rtwdev)
+static int rtw_wow_config_analrmal_fw_rsvd_page(struct rtw_dev *rtwdev)
 {
 	struct ieee80211_vif *wow_vif = rtwdev->wow.wow_vif;
 	struct rtw_vif *rtwvif = (struct rtw_vif *)wow_vif->drv_priv;
@@ -494,7 +494,7 @@ static int rtw_wow_config_normal_fw_rsvd_page(struct rtw_dev *rtwdev)
 	rtw_remove_rsvd_page(rtwdev, rtwvif);
 	rtw_add_rsvd_page_sta(rtwdev, rtwvif);
 
-	if (rtw_wow_no_link(rtwdev))
+	if (rtw_wow_anal_link(rtwdev))
 		return 0;
 
 	return rtw_fw_download_rsvd_page(rtwdev);
@@ -510,13 +510,13 @@ static int rtw_wow_swap_fw(struct rtw_dev *rtwdev, enum rtw_fw_type type)
 		fw = &rtwdev->wow_fw;
 		break;
 
-	case RTW_NORMAL_FW:
+	case RTW_ANALRMAL_FW:
 		fw = &rtwdev->fw;
 		break;
 
 	default:
 		rtw_warn(rtwdev, "unsupported firmware type to swap\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	ret = rtw_download_firmware(rtwdev, fw);
@@ -531,43 +531,43 @@ out:
 	return ret;
 }
 
-static void rtw_wow_check_pno(struct rtw_dev *rtwdev,
+static void rtw_wow_check_panal(struct rtw_dev *rtwdev,
 			      struct cfg80211_sched_scan_request *nd_config)
 {
 	struct rtw_wow_param *rtw_wow = &rtwdev->wow;
-	struct rtw_pno_request *pno_req = &rtw_wow->pno_req;
+	struct rtw_panal_request *panal_req = &rtw_wow->panal_req;
 	struct ieee80211_channel *channel;
 	int i, size;
 
 	if (!nd_config->n_match_sets || !nd_config->n_channels)
 		goto err;
 
-	pno_req->match_set_cnt = nd_config->n_match_sets;
-	size = sizeof(*pno_req->match_sets) * pno_req->match_set_cnt;
-	pno_req->match_sets = kmemdup(nd_config->match_sets, size, GFP_KERNEL);
-	if (!pno_req->match_sets)
+	panal_req->match_set_cnt = nd_config->n_match_sets;
+	size = sizeof(*panal_req->match_sets) * panal_req->match_set_cnt;
+	panal_req->match_sets = kmemdup(nd_config->match_sets, size, GFP_KERNEL);
+	if (!panal_req->match_sets)
 		goto err;
 
-	pno_req->channel_cnt = nd_config->n_channels;
+	panal_req->channel_cnt = nd_config->n_channels;
 	size = sizeof(*nd_config->channels[0]) * nd_config->n_channels;
-	pno_req->channels = kmalloc(size, GFP_KERNEL);
-	if (!pno_req->channels)
+	panal_req->channels = kmalloc(size, GFP_KERNEL);
+	if (!panal_req->channels)
 		goto channel_err;
 
-	for (i = 0 ; i < pno_req->channel_cnt; i++) {
-		channel = pno_req->channels + i;
+	for (i = 0 ; i < panal_req->channel_cnt; i++) {
+		channel = panal_req->channels + i;
 		memcpy(channel, nd_config->channels[i], sizeof(*channel));
 	}
 
-	pno_req->scan_plan = *nd_config->scan_plans;
-	pno_req->inited = true;
+	panal_req->scan_plan = *nd_config->scan_plans;
+	panal_req->inited = true;
 
 	rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: net-detect is enabled\n");
 
 	return;
 
 channel_err:
-	kfree(pno_req->match_sets);
+	kfree(panal_req->match_sets);
 
 err:
 	rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: net-detect is disabled\n");
@@ -583,13 +583,13 @@ static int rtw_wow_leave_linked_ps(struct rtw_dev *rtwdev)
 	return 0;
 }
 
-static int rtw_wow_leave_no_link_ps(struct rtw_dev *rtwdev)
+static int rtw_wow_leave_anal_link_ps(struct rtw_dev *rtwdev)
 {
 	struct rtw_wow_param *rtw_wow = &rtwdev->wow;
 	int ret = 0;
 
 	if (test_bit(RTW_FLAG_WOWLAN, rtwdev->flags)) {
-		if (rtw_get_lps_deep_mode(rtwdev) != LPS_DEEP_MODE_NONE)
+		if (rtw_get_lps_deep_mode(rtwdev) != LPS_DEEP_MODE_ANALNE)
 			rtw_leave_lps_deep(rtwdev);
 	} else {
 		if (!test_bit(RTW_FLAG_POWERON, rtwdev->flags)) {
@@ -609,8 +609,8 @@ static int rtw_wow_leave_ps(struct rtw_dev *rtwdev)
 
 	if (rtw_wow_mgd_linked(rtwdev))
 		ret = rtw_wow_leave_linked_ps(rtwdev);
-	else if (rtw_wow_no_link(rtwdev))
-		ret = rtw_wow_leave_no_link_ps(rtwdev);
+	else if (rtw_wow_anal_link(rtwdev))
+		ret = rtw_wow_leave_anal_link_ps(rtwdev);
 
 	return ret;
 }
@@ -619,7 +619,7 @@ static int rtw_wow_restore_ps(struct rtw_dev *rtwdev)
 {
 	int ret = 0;
 
-	if (rtw_wow_no_link(rtwdev) && rtwdev->wow.ips_enabled)
+	if (rtw_wow_anal_link(rtwdev) && rtwdev->wow.ips_enabled)
 		ret = rtw_enter_ips(rtwdev);
 
 	return ret;
@@ -636,7 +636,7 @@ static int rtw_wow_enter_linked_ps(struct rtw_dev *rtwdev)
 	return 0;
 }
 
-static int rtw_wow_enter_no_link_ps(struct rtw_dev *rtwdev)
+static int rtw_wow_enter_anal_link_ps(struct rtw_dev *rtwdev)
 {
 	/* firmware enters deep ps by itself if supported */
 	set_bit(RTW_FLAG_LEISURE_PS_DEEP, rtwdev->flags);
@@ -650,9 +650,9 @@ static int rtw_wow_enter_ps(struct rtw_dev *rtwdev)
 
 	if (rtw_wow_mgd_linked(rtwdev))
 		ret = rtw_wow_enter_linked_ps(rtwdev);
-	else if (rtw_wow_no_link(rtwdev) &&
-		 rtw_get_lps_deep_mode(rtwdev) != LPS_DEEP_MODE_NONE)
-		ret = rtw_wow_enter_no_link_ps(rtwdev);
+	else if (rtw_wow_anal_link(rtwdev) &&
+		 rtw_get_lps_deep_mode(rtwdev) != LPS_DEEP_MODE_ANALNE)
+		ret = rtw_wow_enter_anal_link_ps(rtwdev);
 
 	return ret;
 }
@@ -760,15 +760,15 @@ static int rtw_wow_disable(struct rtw_dev *rtwdev)
 		goto out;
 	}
 
-	ret = rtw_wow_swap_fw(rtwdev, RTW_NORMAL_FW);
+	ret = rtw_wow_swap_fw(rtwdev, RTW_ANALRMAL_FW);
 	if (ret) {
-		rtw_err(rtwdev, "failed to swap normal fw\n");
+		rtw_err(rtwdev, "failed to swap analrmal fw\n");
 		goto out;
 	}
 
-	ret = rtw_wow_config_normal_fw_rsvd_page(rtwdev);
+	ret = rtw_wow_config_analrmal_fw_rsvd_page(rtwdev);
 	if (ret)
-		rtw_err(rtwdev, "failed to download normal rsvd page\n");
+		rtw_err(rtwdev, "failed to download analrmal rsvd page\n");
 
 out:
 	rtw_wow_resume_trx(rtwdev);
@@ -791,8 +791,8 @@ static void rtw_wow_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	case RTW_NET_MGD_LINKED:
 		rtw_wow->wow_vif = vif;
 		break;
-	case RTW_NET_NO_LINK:
-		if (rtw_wow->pno_req.inited)
+	case RTW_NET_ANAL_LINK:
+		if (rtw_wow->panal_req.inited)
 			rtwdev->wow.wow_vif = vif;
 		break;
 	default:
@@ -816,7 +816,7 @@ static int rtw_wow_set_wakeups(struct rtw_dev *rtwdev,
 		set_bit(RTW_WOW_FLAG_EN_REKEY_PKT, rtw_wow->flags);
 
 	if (wowlan->nd_config)
-		rtw_wow_check_pno(rtwdev, wowlan->nd_config);
+		rtw_wow_check_panal(rtwdev, wowlan->nd_config);
 
 	rtw_iterate_vifs_atomic(rtwdev, rtw_wow_vif_iter, rtwdev);
 	if (!rtw_wow->wow_vif)
@@ -837,11 +837,11 @@ static int rtw_wow_set_wakeups(struct rtw_dev *rtwdev,
 static void rtw_wow_clear_wakeups(struct rtw_dev *rtwdev)
 {
 	struct rtw_wow_param *rtw_wow = &rtwdev->wow;
-	struct rtw_pno_request *pno_req = &rtw_wow->pno_req;
+	struct rtw_panal_request *panal_req = &rtw_wow->panal_req;
 
-	if (pno_req->inited) {
-		kfree(pno_req->channels);
-		kfree(pno_req->match_sets);
+	if (panal_req->inited) {
+		kfree(panal_req->channels);
+		kfree(panal_req->match_sets);
 	}
 
 	memset(rtw_wow, 0, sizeof(rtwdev->wow));
@@ -859,7 +859,7 @@ int rtw_wow_suspend(struct rtw_dev *rtwdev, struct cfg80211_wowlan *wowlan)
 
 	ret = rtw_wow_leave_ps(rtwdev);
 	if (ret) {
-		rtw_err(rtwdev, "failed to leave ps from normal mode\n");
+		rtw_err(rtwdev, "failed to leave ps from analrmal mode\n");
 		goto out;
 	}
 
@@ -882,9 +882,9 @@ int rtw_wow_resume(struct rtw_dev *rtwdev)
 {
 	int ret;
 
-	/* If wowlan mode is not enabled, do nothing */
+	/* If wowlan mode is analt enabled, do analthing */
 	if (!test_bit(RTW_FLAG_WOWLAN, rtwdev->flags)) {
-		rtw_err(rtwdev, "wow is not enabled\n");
+		rtw_err(rtwdev, "wow is analt enabled\n");
 		ret = -EPERM;
 		goto out;
 	}
@@ -905,7 +905,7 @@ int rtw_wow_resume(struct rtw_dev *rtwdev)
 
 	ret = rtw_wow_restore_ps(rtwdev);
 	if (ret)
-		rtw_err(rtwdev, "failed to restore ps to normal mode\n");
+		rtw_err(rtwdev, "failed to restore ps to analrmal mode\n");
 
 out:
 	rtw_wow_clear_wakeups(rtwdev);

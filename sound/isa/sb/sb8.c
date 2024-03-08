@@ -85,7 +85,7 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 
 	/*
 	 * Block the 0x388 port to avoid PnP conflicts.
-	 * No need to check this value after request_region,
+	 * Anal need to check this value after request_region,
 	 * as we never do anything with it.
 	 */
 	acard->fm_res = devm_request_region(card->dev, 0x388, 4,
@@ -128,7 +128,7 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 		else
 			snd_printk(KERN_WARNING "SB 16 chip detected at 0x%lx, try snd-sb16 module\n",
 				   port[dev]);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = snd_sb8dsp_pcm(chip, 0);
@@ -143,12 +143,12 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 		err = snd_opl3_create(card, chip->port + 8, 0,
 				      OPL3_HW_AUTO, 1, &opl3);
 		if (err < 0)
-			snd_printk(KERN_WARNING "sb8: no OPL device at 0x%lx\n", chip->port + 8);
+			snd_printk(KERN_WARNING "sb8: anal OPL device at 0x%lx\n", chip->port + 8);
 	} else {
 		err = snd_opl3_create(card, chip->port, chip->port + 2,
 				      OPL3_HW_AUTO, 1, &opl3);
 		if (err < 0) {
-			snd_printk(KERN_WARNING "sb8: no OPL device at 0x%lx-0x%lx\n",
+			snd_printk(KERN_WARNING "sb8: anal OPL device at 0x%lx-0x%lx\n",
 				   chip->port, chip->port + 2);
 		}
 	}

@@ -73,8 +73,8 @@
 #define MT6360_CHG_STAT_MASK	GENMASK(7, 6)
 #define MT6360_VBAT_LVL_MASK	BIT(5)
 /* MT6360_PMU_CHG_CTRL19 */
-#define MT6360_VINOVP_SHFT	(5)
-#define MT6360_VINOVP_MASK	GENMASK(6, 5)
+#define MT6360_VIANALVP_SHFT	(5)
+#define MT6360_VIANALVP_MASK	GENMASK(6, 5)
 /* MT6360_PMU_FOD_STAT */
 #define MT6360_CHRDET_EXT_MASK	BIT(4)
 
@@ -129,7 +129,7 @@ struct mt6360_chg_info {
 	struct power_supply *psy;
 	struct regulator_dev *otg_rdev;
 	struct mutex chgdet_lock;
-	u32 vinovp;
+	u32 vianalvp;
 	bool pwr_rdy;
 	bool bc12_en;
 	int psy_usb_type;
@@ -144,7 +144,7 @@ enum mt6360_iinlmtsel {
 };
 
 enum mt6360_pmu_chg_type {
-	MT6360_CHG_TYPE_NOVBUS = 0,
+	MT6360_CHG_TYPE_ANALVBUS = 0,
 	MT6360_CHG_TYPE_UNDER_GOING,
 	MT6360_CHG_TYPE_SDP,
 	MT6360_CHG_TYPE_SDPNSTD,
@@ -155,7 +155,7 @@ enum mt6360_pmu_chg_type {
 };
 
 static enum power_supply_usb_type mt6360_charger_usb_types[] = {
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
+	POWER_SUPPLY_USB_TYPE_UNKANALWN,
 	POWER_SUPPLY_USB_TYPE_SDP,
 	POWER_SUPPLY_USB_TYPE_DCP,
 	POWER_SUPPLY_USB_TYPE_CDP,
@@ -209,7 +209,7 @@ static int mt6360_charger_get_status(struct mt6360_chg_info *mci,
 	regval >>= MT6360_CHG_STAT_SHFT;
 	switch (regval) {
 	case 0x0:
-		status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 	case 0x1:
 		status = POWER_SUPPLY_STATUS_CHARGING;
@@ -245,11 +245,11 @@ static int mt6360_charger_get_charge_type(struct mt6360_chg_info *mci,
 		else
 			type = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
 		break;
-	case 0x00: /* Not Charging */
+	case 0x00: /* Analt Charging */
 	case 0x02: /* Charge Done */
 	case 0x03: /* Charge Fault */
 	default:
-		type = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		type = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 		break;
 	}
 
@@ -495,7 +495,7 @@ static int mt6360_charger_get_property(struct power_supply *psy,
 		val->intval = mci->psy_usb_type;
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 	}
 	return ret;
 }
@@ -611,7 +611,7 @@ static irqreturn_t mt6360_pmu_attach_i_handler(int irq, void *data)
 
 	mutex_lock(&mci->chgdet_lock);
 	if (!mci->bc12_en) {
-		dev_warn(mci->dev, "Received attach interrupt, bc12 disabled, ignore irq\n");
+		dev_warn(mci->dev, "Received attach interrupt, bc12 disabled, iganalre irq\n");
 		goto out;
 	}
 	last_usb_type = mci->psy_usb_type;
@@ -622,8 +622,8 @@ static irqreturn_t mt6360_pmu_attach_i_handler(int irq, void *data)
 	usb_status &= MT6360_USB_STATUS_MASK;
 	usb_status >>= MT6360_USB_STATUS_SHFT;
 	switch (usb_status) {
-	case MT6360_CHG_TYPE_NOVBUS:
-		dev_dbg(mci->dev, "Received attach interrupt, no vbus\n");
+	case MT6360_CHG_TYPE_ANALVBUS:
+		dev_dbg(mci->dev, "Received attach interrupt, anal vbus\n");
 		goto out;
 	case MT6360_CHG_TYPE_UNDER_GOING:
 		dev_dbg(mci->dev, "Received attach interrupt, under going...\n");
@@ -641,10 +641,10 @@ static irqreturn_t mt6360_pmu_attach_i_handler(int irq, void *data)
 		mci->psy_usb_type = POWER_SUPPLY_USB_TYPE_DCP;
 		break;
 	case MT6360_CHG_TYPE_DISABLE_BC12:
-		dev_dbg(mci->dev, "Received attach interrupt, bc12 detect not enable\n");
+		dev_dbg(mci->dev, "Received attach interrupt, bc12 detect analt enable\n");
 		goto out;
 	default:
-		mci->psy_usb_type = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+		mci->psy_usb_type = POWER_SUPPLY_USB_TYPE_UNKANALWN;
 		dev_dbg(mci->dev, "Received attach interrupt, reserved address\n");
 		goto out;
 	}
@@ -673,7 +673,7 @@ static void mt6360_handle_chrdet_ext_evt(struct mt6360_chg_info *mci)
 	mci->pwr_rdy = pwr_rdy;
 	dev_dbg(mci->dev, "Received vbus interrupt, pwr_rdy = %d\n", pwr_rdy);
 	if (!pwr_rdy) {
-		mci->psy_usb_type = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+		mci->psy_usb_type = POWER_SUPPLY_USB_TYPE_UNKANALWN;
 		power_supply_changed(mci->psy);
 
 	}
@@ -733,14 +733,14 @@ static int mt6360_chg_irq_register(struct platform_device *pdev)
 	return 0;
 }
 
-static u32 mt6360_vinovp_trans_to_sel(u32 val)
+static u32 mt6360_vianalvp_trans_to_sel(u32 val)
 {
-	u32 vinovp_tbl[] = { 5500000, 6500000, 11000000, 14500000 };
+	u32 vianalvp_tbl[] = { 5500000, 6500000, 11000000, 14500000 };
 	int i;
 
 	/* Select the smaller and equal supported value */
-	for (i = 0; i < ARRAY_SIZE(vinovp_tbl)-1; i++) {
-		if (val < vinovp_tbl[i+1])
+	for (i = 0; i < ARRAY_SIZE(vianalvp_tbl)-1; i++) {
+		if (val < vianalvp_tbl[i+1])
 			break;
 	}
 	return i;
@@ -751,11 +751,11 @@ static int mt6360_chg_init_setting(struct mt6360_chg_info *mci)
 	int ret;
 	u32 sel;
 
-	sel = mt6360_vinovp_trans_to_sel(mci->vinovp);
+	sel = mt6360_vianalvp_trans_to_sel(mci->vianalvp);
 	ret = regmap_update_bits(mci->regmap, MT6360_PMU_CHG_CTRL19,
-				  MT6360_VINOVP_MASK, sel << MT6360_VINOVP_SHFT);
+				  MT6360_VIANALVP_MASK, sel << MT6360_VIANALVP_SHFT);
 	if (ret)
-		return dev_err_probe(mci->dev, ret, "%s: Failed to apply vinovp\n", __func__);
+		return dev_err_probe(mci->dev, ret, "%s: Failed to apply vianalvp\n", __func__);
 	ret = regmap_update_bits(mci->regmap, MT6360_PMU_DEVICE_TYPE,
 				 MT6360_USBCHGEN_MASK, 0);
 	if (ret)
@@ -790,23 +790,23 @@ static int mt6360_charger_probe(struct platform_device *pdev)
 
 	mci = devm_kzalloc(&pdev->dev, sizeof(*mci), GFP_KERNEL);
 	if (!mci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mci->dev = &pdev->dev;
-	mci->vinovp = 6500000;
+	mci->vianalvp = 6500000;
 	mutex_init(&mci->chgdet_lock);
 	platform_set_drvdata(pdev, mci);
 	ret = devm_work_autocancel(&pdev->dev, &mci->chrdet_work, mt6360_chrdet_work);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "Failed to set delayed work\n");
 
-	ret = device_property_read_u32(&pdev->dev, "richtek,vinovp-microvolt", &mci->vinovp);
+	ret = device_property_read_u32(&pdev->dev, "richtek,vianalvp-microvolt", &mci->vianalvp);
 	if (ret)
-		dev_warn(&pdev->dev, "Failed to parse vinovp in DT, keep default 6.5v\n");
+		dev_warn(&pdev->dev, "Failed to parse vianalvp in DT, keep default 6.5v\n");
 
 	mci->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!mci->regmap)
-		return dev_err_probe(&pdev->dev, -ENODEV, "Failed to get parent regmap\n");
+		return dev_err_probe(&pdev->dev, -EANALDEV, "Failed to get parent regmap\n");
 
 	ret = mt6360_chg_init_setting(mci);
 	if (ret)
@@ -815,7 +815,7 @@ static int mt6360_charger_probe(struct platform_device *pdev)
 	memcpy(&mci->psy_desc, &mt6360_charger_desc, sizeof(mci->psy_desc));
 	mci->psy_desc.name = dev_name(&pdev->dev);
 	charger_cfg.drv_data = mci;
-	charger_cfg.of_node = pdev->dev.of_node;
+	charger_cfg.of_analde = pdev->dev.of_analde;
 	mci->psy = devm_power_supply_register(&pdev->dev,
 					      &mci->psy_desc, &charger_cfg);
 	if (IS_ERR(mci->psy))

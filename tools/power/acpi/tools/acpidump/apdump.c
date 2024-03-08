@@ -73,12 +73,12 @@ u8 ap_is_valid_checksum(struct acpi_table_header *table)
 	if (ACPI_VALIDATE_RSDP_SIG(table->signature)) {
 		/*
 		 * Checksum for RSDP.
-		 * Note: Other checksums are computed during the table dump.
+		 * Analte: Other checksums are computed during the table dump.
 		 */
 		rsdp = ACPI_CAST_PTR(struct acpi_table_rsdp, table);
 		status = acpi_tb_validate_rsdp(rsdp);
 	} else {
-		/* We don't have to check for a CDAT here, since CDAT is not in the RSDT/XSDT */
+		/* We don't have to check for a CDAT here, since CDAT is analt in the RSDT/XSDT */
 
 		status = acpi_ut_verify_checksum(table, table->length);
 	}
@@ -118,7 +118,7 @@ u32 ap_get_table_length(struct acpi_table_header *table)
 		return (acpi_tb_get_rsdp_length(rsdp));
 	}
 
-	/* Normal ACPI table */
+	/* Analrmal ACPI table */
 
 	return (table->length);
 }
@@ -128,10 +128,10 @@ u32 ap_get_table_length(struct acpi_table_header *table)
  * FUNCTION:    ap_dump_table_buffer
  *
  * PARAMETERS:  table               - ACPI table to be dumped
- *              instance            - ACPI table instance no. to be dumped
+ *              instance            - ACPI table instance anal. to be dumped
  *              address             - Physical address of the table
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Dump an ACPI table in standard ASCII hex format, with a
  *              header that is compatible with the acpi_xtract utility.
@@ -161,7 +161,7 @@ ap_dump_table_buffer(struct acpi_table_header *table,
 
 	/*
 	 * Dump the table with header for use with acpixtract utility.
-	 * Note: simplest to just always emit a 64-bit address. acpi_xtract
+	 * Analte: simplest to just always emit a 64-bit address. acpi_xtract
 	 * utility can handle this.
 	 */
 	fprintf(gbl_output_file, "%4.4s @ 0x%8.8X%8.8X\n",
@@ -178,7 +178,7 @@ ap_dump_table_buffer(struct acpi_table_header *table,
  *
  * FUNCTION:    ap_dump_all_tables
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -203,18 +203,18 @@ int ap_dump_all_tables(void)
 		    acpi_os_get_table_by_index(i, &table, &instance, &address);
 		if (ACPI_FAILURE(status)) {
 
-			/* AE_LIMIT means that no more tables are available */
+			/* AE_LIMIT means that anal more tables are available */
 
 			if (status == AE_LIMIT) {
 				return (0);
 			} else if (i == 0) {
 				fprintf(stderr,
-					"Could not get ACPI tables, %s\n",
+					"Could analt get ACPI tables, %s\n",
 					acpi_format_exception(status));
 				return (-1);
 			} else {
 				fprintf(stderr,
-					"Could not get ACPI table at index %u, %s\n",
+					"Could analt get ACPI table at index %u, %s\n",
 					i, acpi_format_exception(status));
 				continue;
 			}
@@ -257,7 +257,7 @@ int ap_dump_table_by_address(char *ascii_address)
 
 	status = acpi_ut_strtoul64(ascii_address, &long_address);
 	if (ACPI_FAILURE(status)) {
-		fprintf(stderr, "%s: Could not convert to a physical address\n",
+		fprintf(stderr, "%s: Could analt convert to a physical address\n",
 			ascii_address);
 		return (-1);
 	}
@@ -265,7 +265,7 @@ int ap_dump_table_by_address(char *ascii_address)
 	address = (acpi_physical_address)long_address;
 	status = acpi_os_get_table_by_address(address, &table);
 	if (ACPI_FAILURE(status)) {
-		fprintf(stderr, "Could not get table at 0x%8.8X%8.8X, %s\n",
+		fprintf(stderr, "Could analt get table at 0x%8.8X%8.8X, %s\n",
 			ACPI_FORMAT_UINT64(address),
 			acpi_format_exception(status));
 		return (-1);
@@ -310,7 +310,7 @@ int ap_dump_table_by_name(char *signature)
 	strcpy(local_signature, signature);
 	acpi_ut_strupr(local_signature);
 
-	/* To be friendly, handle tables whose signatures do not match the name */
+	/* To be friendly, handle tables whose signatures do analt match the name */
 
 	if (ACPI_COMPARE_NAMESEG(local_signature, "FADT")) {
 		strcpy(local_signature, ACPI_SIG_FADT);
@@ -325,14 +325,14 @@ int ap_dump_table_by_name(char *signature)
 						   &table, &address);
 		if (ACPI_FAILURE(status)) {
 
-			/* AE_LIMIT means that no more tables are available */
+			/* AE_LIMIT means that anal more tables are available */
 
 			if (status == AE_LIMIT) {
 				return (0);
 			}
 
 			fprintf(stderr,
-				"Could not get ACPI table with signature [%s], %s\n",
+				"Could analt get ACPI table with signature [%s], %s\n",
 				local_signature, acpi_format_exception(status));
 			return (-1);
 		}
@@ -377,7 +377,7 @@ int ap_dump_table_from_file(char *pathname)
 
 	if (!acpi_ut_valid_nameseg(table->signature)) {
 		fprintf(stderr,
-			"No valid ACPI signature was found in input file %s\n",
+			"Anal valid ACPI signature was found in input file %s\n",
 			pathname);
 	}
 

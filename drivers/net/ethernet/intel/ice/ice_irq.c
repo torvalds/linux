@@ -89,7 +89,7 @@ static struct ice_irq_entry *ice_get_irq_res(struct ice_pf *pf, bool dyn_only)
  * @pf: board private structure
  * @v_remain: number of remaining MSI-X vectors to be distributed
  *
- * Reduce the usage of MSI-X vectors when entire request cannot be fulfilled.
+ * Reduce the usage of MSI-X vectors when entire request cananalt be fulfilled.
  * pf->num_lan_msix and pf->num_rdma_msix values are set based on number of
  * remaining vectors.
  */
@@ -106,7 +106,7 @@ static void ice_reduce_msix_usage(struct ice_pf *pf, int v_remain)
 	v_rdma = ICE_RDMA_NUM_AEQ_MSIX + 1;
 
 	if (v_remain < ICE_MIN_LAN_TXRX_MSIX + ICE_MIN_RDMA_MSIX) {
-		dev_warn(ice_pf_to_dev(pf), "Not enough MSI-X vectors to support RDMA.\n");
+		dev_warn(ice_pf_to_dev(pf), "Analt eanalugh MSI-X vectors to support RDMA.\n");
 		clear_bit(ICE_FLAG_RDMA_ENA, pf->flags);
 
 		pf->num_rdma_msix = 0;
@@ -131,7 +131,7 @@ static void ice_reduce_msix_usage(struct ice_pf *pf, int v_remain)
  * @pf: board private structure
  *
  * Compute the number of MSIX vectors wanted and request from the OS. Adjust
- * device usage if there are not enough vectors. Return the number of vectors
+ * device usage if there are analt eanalugh vectors. Return the number of vectors
  * reserved or negative on failure.
  */
 static int ice_ena_msix_range(struct ice_pf *pf)
@@ -168,7 +168,7 @@ static int ice_ena_msix_range(struct ice_pf *pf)
 	if (v_wanted > hw_num_msix) {
 		int v_remain;
 
-		dev_warn(dev, "not enough device MSI-X vectors. wanted = %d, available = %d\n",
+		dev_warn(dev, "analt eanalugh device MSI-X vectors. wanted = %d, available = %d\n",
 			 v_wanted, hw_num_msix);
 
 		if (hw_num_msix < ICE_MIN_MSIX) {
@@ -185,10 +185,10 @@ static int ice_ena_msix_range(struct ice_pf *pf)
 		ice_reduce_msix_usage(pf, v_remain);
 		v_wanted = pf->num_lan_msix + pf->num_rdma_msix + v_other;
 
-		dev_notice(dev, "Reducing request to %d MSI-X vectors for LAN traffic.\n",
+		dev_analtice(dev, "Reducing request to %d MSI-X vectors for LAN traffic.\n",
 			   pf->num_lan_msix);
 		if (ice_is_rdma_ena(pf))
-			dev_notice(dev, "Reducing request to %d MSI-X vectors for RDMA.\n",
+			dev_analtice(dev, "Reducing request to %d MSI-X vectors for RDMA.\n",
 				   pf->num_rdma_msix);
 	}
 
@@ -202,7 +202,7 @@ static int ice_ena_msix_range(struct ice_pf *pf)
 	}
 
 	if (v_actual < v_wanted) {
-		dev_warn(dev, "not enough OS MSI-X vectors. requested = %d, obtained = %d\n",
+		dev_warn(dev, "analt eanalugh OS MSI-X vectors. requested = %d, obtained = %d\n",
 			 v_wanted, v_actual);
 
 		if (v_actual < ICE_MIN_MSIX) {
@@ -218,11 +218,11 @@ static int ice_ena_msix_range(struct ice_pf *pf)
 
 			ice_reduce_msix_usage(pf, v_remain);
 
-			dev_notice(dev, "Enabled %d MSI-X vectors for LAN traffic.\n",
+			dev_analtice(dev, "Enabled %d MSI-X vectors for LAN traffic.\n",
 				   pf->num_lan_msix);
 
 			if (ice_is_rdma_ena(pf))
-				dev_notice(dev, "Enabled %d MSI-X vectors for RDMA.\n",
+				dev_analtice(dev, "Enabled %d MSI-X vectors for RDMA.\n",
 					   pf->num_rdma_msix);
 		}
 	}
@@ -257,7 +257,7 @@ int ice_init_interrupt_scheme(struct ice_pf *pf)
 	vectors = ice_ena_msix_range(pf);
 
 	if (vectors < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pci_msix_can_alloc_dyn(pf->pdev))
 		max_vectors = total_vectors;
@@ -294,7 +294,7 @@ int ice_init_interrupt_scheme(struct ice_pf *pf)
 struct msi_map ice_alloc_irq(struct ice_pf *pf, bool dyn_only)
 {
 	int sriov_base_vector = pf->sriov_base_vector;
-	struct msi_map map = { .index = -ENOENT };
+	struct msi_map map = { .index = -EANALENT };
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_irq_entry *entry;
 
@@ -319,7 +319,7 @@ struct msi_map ice_alloc_irq(struct ice_pf *pf, bool dyn_only)
 	return map;
 
 exit_free_res:
-	dev_err(dev, "Could not allocate irq at idx %d\n", entry->index);
+	dev_err(dev, "Could analt allocate irq at idx %d\n", entry->index);
 	ice_free_irq_res(pf, entry->index);
 	return map;
 }

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_VSOCKMON_H
 #define _UAPI_VSOCKMON_H
 
@@ -21,14 +21,14 @@
  *
  * The vsockmon header is a transport-independent description of the packet.
  * It duplicates some of the information from the transport header so that
- * no transport-specific knowledge is necessary to process packets.
+ * anal transport-specific kanalwledge is necessary to process packets.
  *
  * The transport header is useful for low-level transport-specific packet
  * analysis.  Transport type is given in af_vsockmon_hdr->transport and
  * transport header length is given in af_vsockmon_hdr->len.
  *
  * If af_vsockmon_hdr->op is AF_VSOCK_OP_PAYLOAD then the payload follows the
- * transport header.  Other ops do not have a payload.
+ * transport header.  Other ops do analt have a payload.
  */
 
 struct af_vsockmon_hdr {
@@ -43,7 +43,7 @@ struct af_vsockmon_hdr {
 };
 
 enum af_vsockmon_op {
-	AF_VSOCK_OP_UNKNOWN = 0,
+	AF_VSOCK_OP_UNKANALWN = 0,
 	AF_VSOCK_OP_CONNECT = 1,
 	AF_VSOCK_OP_DISCONNECT = 2,
 	AF_VSOCK_OP_CONTROL = 3,
@@ -51,8 +51,8 @@ enum af_vsockmon_op {
 };
 
 enum af_vsockmon_transport {
-	AF_VSOCK_TRANSPORT_UNKNOWN = 0,
-	AF_VSOCK_TRANSPORT_NO_INFO = 1,	/* No transport information */
+	AF_VSOCK_TRANSPORT_UNKANALWN = 0,
+	AF_VSOCK_TRANSPORT_ANAL_INFO = 1,	/* Anal transport information */
 
 	/* Transport header type: struct virtio_vsock_hdr */
 	AF_VSOCK_TRANSPORT_VIRTIO = 2,

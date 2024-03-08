@@ -63,10 +63,10 @@ struct sh_dmae_channel {
  * @chcr_ie_bit:	CHCR Interrupt Enable bit
  * @dmaor_is_32bit:	DMAOR is a 32-bit register
  * @needs_tend_set:	the TEND register has to be set
- * @no_dmars:		DMAC has no DMARS registers
+ * @anal_dmars:		DMAC has anal DMARS registers
  * @chclr_present:	DMAC has one or several CHCLR registers
  * @chclr_bitwise:	channel CHCLR registers are bitwise
- * @slave_only:		DMAC cannot be used for MEMCPY
+ * @slave_only:		DMAC cananalt be used for MEMCPY
  */
 struct sh_dmae_pdata {
 	const struct sh_dmae_slave_config *slave;
@@ -85,7 +85,7 @@ struct sh_dmae_pdata {
 
 	unsigned int dmaor_is_32bit:1;
 	unsigned int needs_tend_set:1;
-	unsigned int no_dmars:1;
+	unsigned int anal_dmars:1;
 	unsigned int chclr_present:1;
 	unsigned int chclr_bitwise:1;
 	unsigned int slave_only:1;

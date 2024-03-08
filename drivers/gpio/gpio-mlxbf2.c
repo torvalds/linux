@@ -115,7 +115,7 @@ static int mlxbf2_gpio_get_lock_res(struct platform_device *pdev)
 
 	yu_arm_gpio_lock_param.io = devm_ioremap(dev, res->start, size);
 	if (!yu_arm_gpio_lock_param.io)
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 exit:
 	mutex_unlock(yu_arm_gpio_lock_param.lock);
@@ -359,7 +359,7 @@ mlxbf2_gpio_probe(struct platform_device *pdev)
 
 	gs = devm_kzalloc(dev, sizeof(*gs), GFP_KERNEL);
 	if (!gs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gs->dev = dev;
 
@@ -402,7 +402,7 @@ mlxbf2_gpio_probe(struct platform_device *pdev)
 		girq = &gs->gc.irq;
 		gpio_irq_chip_set_chip(girq, &mlxbf2_gpio_irq_chip);
 		girq->handler = handle_simple_irq;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		/* This will let us handle the parent IRQ in the driver */
 		girq->num_parents = 0;
 		girq->parents = NULL;
@@ -473,6 +473,6 @@ static struct platform_driver mlxbf2_gpio_driver = {
 
 module_platform_driver(mlxbf2_gpio_driver);
 
-MODULE_DESCRIPTION("Mellanox BlueField-2 GPIO Driver");
+MODULE_DESCRIPTION("Mellaanalx BlueField-2 GPIO Driver");
 MODULE_AUTHOR("Asmaa Mnebhi <asmaa@nvidia.com>");
 MODULE_LICENSE("GPL v2");

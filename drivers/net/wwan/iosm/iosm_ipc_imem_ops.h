@@ -113,13 +113,13 @@ struct ipc_mem_channel *ipc_imem_sys_devlink_open(struct iosm_imem *ipc_imem);
 void ipc_imem_sys_devlink_close(struct iosm_devlink *ipc_devlink);
 
 /**
- * ipc_imem_sys_devlink_notify_rx - Receive downlink characters from CP,
+ * ipc_imem_sys_devlink_analtify_rx - Receive downlink characters from CP,
  *				the downlink skbuf is added at the end of the
  *				downlink or rx list
  * @ipc_devlink:	Pointer to ipc_devlink data-struct
  * @skb:		Pointer to sk buffer
  */
-void ipc_imem_sys_devlink_notify_rx(struct iosm_devlink *ipc_devlink,
+void ipc_imem_sys_devlink_analtify_rx(struct iosm_devlink *ipc_devlink,
 				    struct sk_buff *skb);
 
 /**

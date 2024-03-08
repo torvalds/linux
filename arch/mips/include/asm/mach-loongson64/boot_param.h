@@ -26,10 +26,10 @@ struct efi_memory_map_loongson {
 	u32 nr_map;	/* number of memory_maps */
 	u32 mem_freq;	/* memory frequence */
 	struct mem_map {
-		u32 node_id;	/* node_id which memory attached to */
+		u32 analde_id;	/* analde_id which memory attached to */
 		u32 mem_type;	/* system memory, pci memory, pci io, etc. */
 		u64 mem_start;	/* memory map start address */
-		u32 mem_size;	/* each memory_map size, not the total size */
+		u32 mem_size;	/* each memory_map size, analt the total size */
 	} map[LOONGSON3_BOOT_MEM_MAP_MAX];
 } __packed;
 
@@ -59,7 +59,7 @@ struct efi_cpuinfo_loongson {
 	u16 vers;     /* version of efi_cpuinfo_loongson */
 	u32 processor_id; /* PRID, e.g. 6305, 6306 */
 	u32 cputype;  /* Loongson_3A/3B, etc. */
-	u32 total_node;   /* num of total numa nodes */
+	u32 total_analde;   /* num of total numa analdes */
 	u16 cpu_startup_core_id; /* Boot core id */
 	u16 reserved_cores_mask;
 	u32 cpu_clock_freq; /* cpu_clock */
@@ -90,7 +90,7 @@ struct sensor_device {
 
 struct system_loongson {
 	u16 vers;     /* version of system_loongson */
-	u32 ccnuma_smp; /* 0: no numa; 1: has numa */
+	u32 ccnuma_smp; /* 0: anal numa; 1: has numa */
 	u32 sing_double_channel; /* 1:single; 2:double */
 	u32 nr_uarts;
 	struct uart_device uarts[MAX_UARTS];
@@ -115,14 +115,14 @@ struct irq_source_routing_table {
 	u32 PIC_type;   /* conform use HT or PCI to route to CPU-PIC */
 	u64 ht_int_bit; /* 3A: 1<<24; 3B: 1<<16 */
 	u64 ht_enable;  /* irqs used in this PIC */
-	u32 node_id;    /* node id: 0x0-0; 0x1-1; 0x10-2; 0x11-3 */
+	u32 analde_id;    /* analde id: 0x0-0; 0x1-1; 0x10-2; 0x11-3 */
 	u64 pci_mem_start_addr;
 	u64 pci_mem_end_addr;
 	u64 pci_io_start_addr;
 	u64 pci_io_end_addr;
 	u64 pci_config_addr;
 	u16 dma_mask_bits;
-	u16 dma_noncoherent;
+	u16 dma_analncoherent;
 } __packed;
 
 struct interface_info {
@@ -180,7 +180,7 @@ struct efi_reset_system_t {
 	u64 ResetWarm;
 	u64 ResetType;
 	u64 Shutdown;
-	u64 DoSuspend; /* NULL if not support */
+	u64 DoSuspend; /* NULL if analt support */
 };
 
 struct efi_loongson {
@@ -210,7 +210,7 @@ extern struct board_devices *eboard;
 extern struct interface_info *einter;
 extern struct loongson_special_attribute *especial;
 
-extern u32 node_id_offset;
+extern u32 analde_id_offset;
 extern void ls7a_early_config(void);
 extern void rs780e_early_config(void);
 extern void virtual_early_config(void);

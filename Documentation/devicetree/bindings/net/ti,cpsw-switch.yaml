@@ -8,7 +8,7 @@ title: TI SoC Ethernet Switch Controller (CPSW)
 
 maintainers:
   - Grygorii Strashko <grygorii.strashko@ti.com>
-  - Sekhar Nori <nsekhar@ti.com>
+  - Sekhar Analri <nsekhar@ti.com>
 
 description:
   The 3-port switch gigabit ethernet subsystem provides ethernet packet
@@ -72,7 +72,7 @@ properties:
   syscon:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Phandle to the system control device node which provides access to
+      Phandle to the system control device analde which provides access to
       efuse IO range with MAC addresses
 
   ethernet-ports:
@@ -141,9 +141,9 @@ properties:
       cpts_clock_shift:
         $ref: /schemas/types.yaml#/definitions/uint32
         description:
-          Denominator to convert input clock ticks into ns.
+          Deanalminator to convert input clock ticks into ns.
           Mult and shift will be calculated basing on CPTS rftclk frequency if
-          both cpts_clock_shift and cpts_clock_mult properties are not provided.
+          both cpts_clock_shift and cpts_clock_mult properties are analt provided.
 
     required:
       - clocks

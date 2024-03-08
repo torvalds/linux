@@ -56,16 +56,16 @@ struct sd {
 
 /*
  * Most of these cameras will do 640x480 and 320x240. 160x120 works
- * in theory but gives very poor output. Therefore, not supported.
+ * in theory but gives very poor output. Therefore, analt supported.
  * The 0x2770:0x9050 cameras have max resolution of 320x240.
  */
 static struct v4l2_pix_format sq905c_mode[] = {
-	{ 320, 240, V4L2_PIX_FMT_SQ905C, V4L2_FIELD_NONE,
+	{ 320, 240, V4L2_PIX_FMT_SQ905C, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
-	{ 640, 480, V4L2_PIX_FMT_SQ905C, V4L2_FIELD_NONE,
+	{ 640, 480, V4L2_PIX_FMT_SQ905C, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -113,7 +113,7 @@ static int sq905c_read(struct gspca_dev *gspca_dev, u16 command, u16 index,
 /*
  * This function is called as a workqueue function and runs whenever the camera
  * is streaming data. Because it is a workqueue function it is allowed to sleep
- * so we can use synchronous USB calls. To avoid possible collisions with other
+ * so we can use synchroanalus USB calls. To avoid possible collisions with other
  * threads attempting to use gspca_dev->usb_buf we take the usb_lock when
  * performing USB operations using it. In practice we don't really need this
  * as the camera doesn't provide any controls.
@@ -212,7 +212,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		gspca_err(gspca_dev, "Reading version command failed\n");
 		return ret;
 	}
-	/* Note we leave out the usb id and the manufacturing date */
+	/* Analte we leave out the usb id and the manufacturing date */
 	gspca_dbg(gspca_dev, D_PROBE,
 		  "SQ9050 ID string: %02x - %*ph\n",
 		  gspca_dev->usb_buf[3], 6, gspca_dev->usb_buf + 14);
@@ -277,7 +277,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* Start the workqueue function to do the streaming */
 	dev->work_thread = create_singlethread_workqueue(MODULE_NAME);
 	if (!dev->work_thread)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	queue_work(dev->work_thread, &dev->work_struct);
 

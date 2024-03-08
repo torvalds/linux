@@ -7,9 +7,9 @@
 
 #include <linux/romfs_fs.h>
 
-struct romfs_inode_info {
-	struct inode	vfs_inode;
-	unsigned long	i_metasize;	/* size of non-data area */
+struct romfs_ianalde_info {
+	struct ianalde	vfs_ianalde;
+	unsigned long	i_metasize;	/* size of analn-data area */
 	unsigned long	i_dataoffset;	/* from the start of fs */
 };
 
@@ -18,13 +18,13 @@ static inline size_t romfs_maxsize(struct super_block *sb)
 	return (size_t) (unsigned long) sb->s_fs_info;
 }
 
-static inline struct romfs_inode_info *ROMFS_I(struct inode *inode)
+static inline struct romfs_ianalde_info *ROMFS_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct romfs_inode_info, vfs_inode);
+	return container_of(ianalde, struct romfs_ianalde_info, vfs_ianalde);
 }
 
 /*
- * mmap-nommu.c
+ * mmap-analmmu.c
  */
 #if !defined(CONFIG_MMU) && defined(CONFIG_ROMFS_ON_MTD)
 extern const struct file_operations romfs_ro_fops;

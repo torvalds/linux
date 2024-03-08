@@ -16,7 +16,7 @@
 /*
  * Sparc ELF relocation types
  */
-#define	R_SPARC_NONE		0
+#define	R_SPARC_ANALNE		0
 #define	R_SPARC_8		1
 #define	R_SPARC_16		2
 #define	R_SPARC_32		3
@@ -116,7 +116,7 @@ typedef struct {
 #define ELF_ET_DYN_BASE         (TASK_UNMAPPED_BASE)
 
 /* This yields a mask that user programs can use to figure out what
-   instruction set this cpu supports.  This can NOT be done in userspace
+   instruction set this cpu supports.  This can ANALT be done in userspace
    on Sparc.  */
 
 /* Most sun4m's have them all.  */

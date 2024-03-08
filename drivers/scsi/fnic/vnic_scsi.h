@@ -59,7 +59,7 @@
 
 /* Device-specific region: scsi configuration */
 struct vnic_fc_config {
-	u64 node_wwn;
+	u64 analde_wwn;
 	u64 port_wwn;
 	u32 flags;
 	u32 wq_enet_desc_count;

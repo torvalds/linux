@@ -19,7 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/zlib.h>
 #include <linux/zutil.h>
-#include "nodelist.h"
+#include "analdelist.h"
 #include "compr.h"
 
 	/* Plan: call deflate() with avail_in == *sourcelen,
@@ -45,14 +45,14 @@ static int __init alloc_workspaces(void)
 	def_strm.workspace = vmalloc(zlib_deflate_workspacesize(MAX_WBITS,
 							MAX_MEM_LEVEL));
 	if (!def_strm.workspace)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	jffs2_dbg(1, "Allocated %d bytes for deflate workspace\n",
 		  zlib_deflate_workspacesize(MAX_WBITS, MAX_MEM_LEVEL));
 	inf_strm.workspace = vmalloc(zlib_inflate_workspacesize());
 	if (!inf_strm.workspace) {
 		vfree(def_strm.workspace);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	jffs2_dbg(1, "Allocated %d bytes for inflate workspace\n",
 		  zlib_inflate_workspacesize());
@@ -155,7 +155,7 @@ static int jffs2_zlib_decompress(unsigned char *data_in,
 	inf_strm.avail_out = destlen;
 	inf_strm.total_out = 0;
 
-	/* If it's deflate, and it's got no preset dictionary, then
+	/* If it's deflate, and it's got anal preset dictionary, then
 	   we can tell zlib to skip the adler32 check. */
 	if (srclen > 2 && !(data_in[1] & PRESET_DICT) &&
 	    ((data_in[0] & 0x0f) == Z_DEFLATED) &&
@@ -166,8 +166,8 @@ static int jffs2_zlib_decompress(unsigned char *data_in,
 		inf_strm.next_in += 2;
 		inf_strm.avail_in -= 2;
 	} else {
-		/* Let this remain D1 for now -- it should never happen */
-		jffs2_dbg(1, "inflate not skipping adler32\n");
+		/* Let this remain D1 for analw -- it should never happen */
+		jffs2_dbg(1, "inflate analt skipping adler32\n");
 	}
 
 
@@ -180,7 +180,7 @@ static int jffs2_zlib_decompress(unsigned char *data_in,
 	while((ret = zlib_inflate(&inf_strm, Z_FINISH)) == Z_OK)
 		;
 	if (ret != Z_STREAM_END) {
-		pr_notice("inflate returned %d\n", ret);
+		pr_analtice("inflate returned %d\n", ret);
 	}
 	zlib_inflateEnd(&inf_strm);
 	mutex_unlock(&inflate_mutex);

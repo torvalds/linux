@@ -173,7 +173,7 @@ static int s5_pll_set_rate(struct clk_hw *hw,
 
 	eff_rate = s5_calc_params(rate, parent_rate, &conf);
 	if (eff_rate != rate)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	val = readl(pll->reg) & PLL_CLK_ENA;
 	val |= FIELD_PREP(PLL_DIV, conf.div);
@@ -256,7 +256,7 @@ static int s5_clk_probe(struct platform_device *pdev)
 
 	s5_clk = devm_kzalloc(dev, sizeof(*s5_clk), GFP_KERNEL);
 	if (!s5_clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s5_clk->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(s5_clk->base))

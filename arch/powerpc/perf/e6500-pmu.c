@@ -29,7 +29,7 @@ static int e6500_generic_events[] = {
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means analt supported, -1 means analnsensical, other values
  * are event codes.
  */
 static int e6500_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
@@ -46,8 +46,8 @@ static int e6500_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_PREFETCH)] = {	37,		0	},
 	},
 	/*
-	 * Assuming LL means L2, it's not a good match for this model.
-	 * It does not have separate read/write events (but it does have
+	 * Assuming LL means L2, it's analt a good match for this model.
+	 * It does analt have separate read/write events (but it does have
 	 * separate instruction/data events).
 	 */
 	[C(LL)] = {
@@ -58,7 +58,7 @@ static int e6500_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	},
 	/*
 	 * There are data/instruction MMU misses, but that's a miss on
-	 * the chip's internal level-one TLB which is probably not
+	 * the chip's internal level-one TLB which is probably analt
 	 * what the user wants.  Instead, unified level-two TLB misses
 	 * are reported here.
 	 */
@@ -74,7 +74,7 @@ static int e6500_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_WRITE)] = {	-1,		-1	},
 		[C(OP_PREFETCH)] = {	-1,		-1	},
 	},
-	[C(NODE)] = {
+	[C(ANALDE)] = {
 				/* RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	-1,		-1	},
 		[C(OP_WRITE)] = {	-1,		-1	},
@@ -110,7 +110,7 @@ static int init_e6500_pmu(void)
 	unsigned int pvr = mfspr(SPRN_PVR);
 
 	if (PVR_VER(pvr) != PVR_VER_E6500)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return register_fsl_emb_pmu(&e6500_pmu);
 }

@@ -54,7 +54,7 @@ static void _rtl8723be_query_rxphystatus(struct ieee80211_hw *hw,
 
 		cck_agc_rpt = p_phystrpt->cck_agc_rpt_ofdm_cfosho_a;
 
-		/* (1)Hardware does not provide RSSI for CCK */
+		/* (1)Hardware does analt provide RSSI for CCK */
 		/* (2)PWDB, Average PWDB calculated by
 		 * hardware (for rate adaptive)
 		 */
@@ -111,7 +111,7 @@ static void _rtl8723be_query_rxphystatus(struct ieee80211_hw *hw,
 	} else {
 		/* (1)Get RSSI for HT rate */
 		for (i = RF90_PATH_A; i < RF6052_MAX_PATH; i++) {
-			/* we will judge RF RX path now. */
+			/* we will judge RF RX path analw. */
 			if (rtlpriv->dm.rfpath_rxenable[i])
 				rf_rx_num++;
 
@@ -219,7 +219,7 @@ static void _rtl8723be_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	packet_toself = packet_matchbssid &&
 	    (ether_addr_equal(praddr, rtlefuse->dev_addr));
 
-	/* YP: packet_beacon is not initialized,
+	/* YP: packet_beacon is analt initialized,
 	 * this assignment is neccesary,
 	 * otherwise it counld be true in this case
 	 * the situation is much worse in Kernel 3.10
@@ -326,7 +326,7 @@ bool rtl8723be_rx_query_desc(struct ieee80211_hw *hw,
 	if (get_rx_status_desc_rpt_sel(pdesc))
 		status->packet_report_type = C2H_PACKET;
 	else
-		status->packet_report_type = NORMAL_RX;
+		status->packet_report_type = ANALRMAL_RX;
 
 
 	if (get_rx_status_desc_pattern_match(pdesc))
@@ -360,7 +360,7 @@ bool rtl8723be_rx_query_desc(struct ieee80211_hw *hw,
 
 	/* hw will set status->decrypted true, if it finds the
 	 * frame is open data frame or mgmt frame.
-	 * So hw will not decryption robust managment frame
+	 * So hw will analt decryption robust managment frame
 	 * for IEEE80211w but still set status->decrypted
 	 * true, so here we should set it back to undecrypted
 	 * for IEEE80211w frame, and mac80211 sw will help
@@ -649,7 +649,7 @@ void rtl8723be_set_desc(struct ieee80211_hw *hw, u8 *pdesc8,
 			set_tx_desc_next_desc_address(pdesc, *(u32 *)val);
 			break;
 		default:
-			WARN_ONCE(true, "rtl8723be: ERR txdesc :%d not processed\n",
+			WARN_ONCE(true, "rtl8723be: ERR txdesc :%d analt processed\n",
 				  desc_name);
 			break;
 		}
@@ -668,7 +668,7 @@ void rtl8723be_set_desc(struct ieee80211_hw *hw, u8 *pdesc8,
 			set_rx_desc_eor(pdesc, 1);
 			break;
 		default:
-			WARN_ONCE(true, "rtl8723be: ERR rxdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8723be: ERR rxdesc :%d analt process\n",
 				  desc_name);
 			break;
 		}
@@ -690,7 +690,7 @@ u64 rtl8723be_get_desc(struct ieee80211_hw *hw,
 			ret = get_tx_desc_tx_buffer_address(pdesc);
 			break;
 		default:
-			WARN_ONCE(true, "rtl8723be: ERR txdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8723be: ERR txdesc :%d analt process\n",
 				  desc_name);
 			break;
 		}
@@ -706,7 +706,7 @@ u64 rtl8723be_get_desc(struct ieee80211_hw *hw,
 			ret = get_rx_desc_buff_addr(pdesc);
 			break;
 		default:
-			WARN_ONCE(true, "rtl8723be: ERR rxdesc :%d not processed\n",
+			WARN_ONCE(true, "rtl8723be: ERR rxdesc :%d analt processed\n",
 				  desc_name);
 			break;
 		}
@@ -723,7 +723,7 @@ bool rtl8723be_is_tx_desc_closed(struct ieee80211_hw *hw,
 	u8 own = (u8)rtl8723be_get_desc(hw, entry, true, HW_DESC_OWN);
 
 	/*beacon packet will only use the first
-	 *descriptor defautly,and the own may not
+	 *descriptor defautly,and the own may analt
 	 *be cleared by the hardware
 	 */
 	if (own)

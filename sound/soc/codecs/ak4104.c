@@ -102,8 +102,8 @@ static int ak4104_hw_params(struct snd_pcm_substream *substream,
 	struct ak4104_private *ak4104 = snd_soc_component_get_drvdata(component);
 	int ret, val = 0;
 
-	/* set the IEC958 bits: consumer mode, no copyright bit */
-	val |= IEC958_AES0_CON_NOT_COPYRIGHT;
+	/* set the IEC958 bits: consumer mode, anal copyright bit */
+	val |= IEC958_AES0_CON_ANALT_COPYRIGHT;
 	regmap_write(ak4104->regmap, AK4104_REG_CHN_STATUS(0), val);
 
 	val = 0;
@@ -181,7 +181,7 @@ static int ak4104_probe(struct snd_soc_component *component)
 		return ret;
 	}
 
-	/* set power-up and non-reset bits */
+	/* set power-up and analn-reset bits */
 	ret = regmap_update_bits(ak4104->regmap, AK4104_REG_CONTROL1,
 				 AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN,
 				 AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN);
@@ -277,7 +277,7 @@ static int ak4104_spi_probe(struct spi_device *spi)
 	ak4104 = devm_kzalloc(&spi->dev, sizeof(struct ak4104_private),
 			      GFP_KERNEL);
 	if (ak4104 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ak4104->regulator = devm_regulator_get(&spi->dev, "vdd");
 	if (IS_ERR(ak4104->regulator)) {
@@ -298,13 +298,13 @@ static int ak4104_spi_probe(struct spi_device *spi)
 		return -EPROBE_DEFER;
 
 	/* read the 'reserved' register - according to the datasheet, it
-	 * should contain 0x5b. Not a good way to verify the presence of
-	 * the device, but there is no hardware ID register. */
+	 * should contain 0x5b. Analt a good way to verify the presence of
+	 * the device, but there is anal hardware ID register. */
 	ret = regmap_read(ak4104->regmap, AK4104_REG_RESERVED, &val);
 	if (ret != 0)
 		return ret;
 	if (val != AK4104_RESERVED_VAL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spi_set_drvdata(spi, ak4104);
 

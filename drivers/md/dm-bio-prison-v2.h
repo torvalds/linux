@@ -49,7 +49,7 @@ struct dm_bio_prison_cell_v2 {
 	unsigned int shared_count;
 	struct work_struct *quiesce_continuation;
 
-	struct rb_node node;
+	struct rb_analde analde;
 	struct dm_cell_key_v2 key;
 	struct bio_list bios;
 };
@@ -62,7 +62,7 @@ void dm_bio_prison_destroy_v2(struct dm_bio_prison_v2 *prison);
  * Eventually all bio prison clients should manage their own cell memory.
  *
  * Like mempool_alloc(), dm_bio_prison_alloc_cell_v2() can only fail if called
- * in interrupt context or passed GFP_NOWAIT.
+ * in interrupt context or passed GFP_ANALWAIT.
  */
 struct dm_bio_prison_cell_v2 *dm_bio_prison_alloc_cell_v2(struct dm_bio_prison_v2 *prison,
 						    gfp_t gfp);
@@ -75,7 +75,7 @@ void dm_bio_prison_free_cell_v2(struct dm_bio_prison_v2 *prison,
  * If the lock is granted the caller can continue to use the bio, and must
  * call dm_cell_put_v2() to drop the reference count when finished using it.
  *
- * If the lock cannot be granted then the bio will be tracked within the
+ * If the lock cananalt be granted then the bio will be tracked within the
  * cell, and later given to the holder of the exclusive lock.
  *
  * See dm_cell_lock_v2() for discussion of the lock_level parameter.
@@ -100,17 +100,17 @@ bool dm_cell_put_v2(struct dm_bio_prison_v2 *prison,
 		    struct dm_bio_prison_cell_v2 *cell);
 
 /*
- * Locks a cell.  No associated bio.  Exclusive locks get priority.  These
+ * Locks a cell.  Anal associated bio.  Exclusive locks get priority.  These
  * locks constrain whether the io locks are granted according to level.
  *
- * Shared locks will still be granted if the lock_level is > (not = to) the
+ * Shared locks will still be granted if the lock_level is > (analt = to) the
  * exclusive lock level.
  *
  * If an _exclusive_ lock is already held then -EBUSY is returned.
  *
  * Return values:
  *  < 0 - error
- *  0   - locked; no quiescing needed
+ *  0   - locked; anal quiescing needed
  *  1   - locked; quiescing needed
  */
 int dm_cell_lock_v2(struct dm_bio_prison_v2 *prison,
@@ -128,7 +128,7 @@ void dm_cell_quiesce_v2(struct dm_bio_prison_v2 *prison,
  *
  * Return values:
  *  < 0 - error
- *  0   - promoted; no quiescing needed
+ *  0   - promoted; anal quiescing needed
  *  1   - promoted; quiescing needed
  */
 int dm_cell_lock_promote_v2(struct dm_bio_prison_v2 *prison,

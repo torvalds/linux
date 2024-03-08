@@ -35,7 +35,7 @@
 #define SYNC_FIRST
 #endif
 
-#define NORM_REC_LVL			0
+#define ANALRM_REC_LVL			0
 
 /************************************************************************/
 /*									*/
@@ -204,7 +204,7 @@ struct ScsiInqData
 #define SCSI_REMOVABLE_MEDIA		0x80	/* Removable Media bit (1=removable)	*/
 						/* Peripheral Device Type definitions	*/
 						/* See include/scsi/scsi.h		*/
-#define TYPE_NODEV		SCSI_DEVTYPE	/* Unknown or no device type		*/
+#define TYPE_ANALDEV		SCSI_DEVTYPE	/* Unkanalwn or anal device type		*/
 #ifndef TYPE_PRINTER				/*					*/
 # define TYPE_PRINTER			0x02	/* Printer device			*/
 #endif						/*					*/
@@ -220,7 +220,7 @@ struct ScsiInqData
 #define SCSI_INQ_RELADR			0x80	/* device supports relative addressing	*/
 #define SCSI_INQ_WBUS32			0x40	/* device supports 32 bit data xfers	*/
 #define SCSI_INQ_WBUS16			0x20	/* device supports 16 bit data xfers	*/
-#define SCSI_INQ_SYNC			0x10	/* device supports synchronous xfer	*/
+#define SCSI_INQ_SYNC			0x10	/* device supports synchroanalus xfer	*/
 #define SCSI_INQ_LINKED			0x08	/* device supports linked commands	*/
 #define SCSI_INQ_CMDQUEUE		0x02	/* device supports command queueing	*/
 #define SCSI_INQ_SFTRE			0x01	/* device supports soft resets		*/
@@ -300,10 +300,10 @@ struct ScsiInqData
 /*									*/
 /************************************************************************/
 
-#define TRM_S1040_SCSI_SYNC		0x85	/* SCSI Synchronous Control (R/W)	*/
-#define LVDS_SYNC			0x20	/* Enable LVDS synchronous		*/
-#define WIDE_SYNC			0x10	/* Enable WIDE synchronous		*/
-#define ALT_SYNC			0x08	/* Enable Fast-20 alternate synchronous	*/
+#define TRM_S1040_SCSI_SYNC		0x85	/* SCSI Synchroanalus Control (R/W)	*/
+#define LVDS_SYNC			0x20	/* Enable LVDS synchroanalus		*/
+#define WIDE_SYNC			0x10	/* Enable WIDE synchroanalus		*/
+#define ALT_SYNC			0x08	/* Enable Fast-20 alternate synchroanalus	*/
 
 /************************************************************************/
 /*									*/
@@ -320,19 +320,19 @@ struct ScsiInqData
 /*	03	0	ALTPERD/ALTPD	Alternate (Sync./Period) mode.	*/
 /*									*/
 /*			@@ When this bit is set,			*/
-/*			   the synchronous period bits 2:0		*/
-/*			   in the Synchronous Mode register		*/
+/*			   the synchroanalus period bits 2:0		*/
+/*			   in the Synchroanalus Mode register		*/
 /*			   are used to transfer data			*/
 /*			   at the Fast-20 rate.				*/
 /*			@@ When this bit is unset,			*/
-/*			   the synchronous period bits 2:0		*/
-/*			   in the Synchronous Mode Register		*/
+/*			   the synchroanalus period bits 2:0		*/
+/*			   in the Synchroanalus Mode Register		*/
 /*			   are used to transfer data			*/
 /*			   at the Fast-10 rate (or Fast-40 w/ LVDS).	*/
 /*									*/
-/*	02-00	0	PERIOD[2:0]/	Synchronous SCSI Transfer Rate.	*/
+/*	02-00	0	PERIOD[2:0]/	Synchroanalus SCSI Transfer Rate.	*/
 /*			SXPD[02:00]	These 3 bits specify		*/
-/*					the Synchronous SCSI Transfer	*/
+/*					the Synchroanalus SCSI Transfer	*/
 /*					Rate for Fast-20 and Fast-10.	*/
 /*					These bits are also reset	*/
 /*					by a SCSI Bus reset.		*/
@@ -456,7 +456,7 @@ struct ScsiInqData
 /*	98	Select without ATN with FIFO				*/
 /*	B8	Select with ATN with FIFO				*/
 /*	D8	Message Accepted					*/
-/*	58	NOP							*/
+/*	58	ANALP							*/
 /*									*/
 /************************************************************************/
 
@@ -465,10 +465,10 @@ struct ScsiInqData
 
 #define TRM_S1040_SCSI_TCR0		0x9C	/* SCSI Target Control 0 (R/W)		*/
 #define TCR0_WIDE_NEGO_DONE		0x8000	/* Wide nego done			*/
-#define TCR0_SYNC_NEGO_DONE		0x4000	/* Synchronous nego done		*/
-#define TCR0_ENABLE_LVDS		0x2000	/* Enable LVDS synchronous		*/
-#define TCR0_ENABLE_WIDE		0x1000	/* Enable WIDE synchronous		*/
-#define TCR0_ENABLE_ALT			0x0800	/* Enable alternate synchronous		*/
+#define TCR0_SYNC_NEGO_DONE		0x4000	/* Synchroanalus nego done		*/
+#define TCR0_ENABLE_LVDS		0x2000	/* Enable LVDS synchroanalus		*/
+#define TCR0_ENABLE_WIDE		0x1000	/* Enable WIDE synchroanalus		*/
+#define TCR0_ENABLE_ALT			0x0800	/* Enable alternate synchroanalus		*/
 #define TCR0_PERIOD_MASK		0x0700	/* Transfer rate			*/
 
 #define TCR0_DO_WIDE_NEGO		0x0080	/* Do wide NEGO				*/
@@ -478,7 +478,7 @@ struct ScsiInqData
 
 #define TRM_S1040_SCSI_TCR1		0x9E	/* SCSI Target Control 1 (R/W)		*/
 #define MAXTAG_MASK			0x7F00	/* Maximum tags (127)			*/
-#define NON_TAG_BUSY			0x0080	/* Non tag command active		*/
+#define ANALN_TAG_BUSY			0x0080	/* Analn tag command active		*/
 #define ACTTAG_MASK			0x007F	/* Active tags				*/
 
 /************************************************************************/
@@ -560,7 +560,7 @@ struct ScsiInqData
 #define WIDESCSI			0x02	/* Wide SCSI card			*/
 #define STATUS_LOAD_DEFAULT		0x01	/*					*/
 
-#define TRM_S1040_GEN_NVRAM		0xD6	/* Serial NON-VOLATILE RAM port		*/
+#define TRM_S1040_GEN_NVRAM		0xD6	/* Serial ANALN-VOLATILE RAM port		*/
 #define NVR_BITOUT			0x08	/* Serial data out			*/
 #define NVR_BITIN			0x04	/* Serial data in			*/
 #define NVR_CLOCK			0x02	/* Serial clock				*/
@@ -593,7 +593,7 @@ struct ScsiInqData
 #define GREATER_1G			BIT1
 #define RST_SCSI_BUS			BIT2
 #define ACTIVE_NEGATION			BIT3
-#define NO_SEEK				BIT4
+#define ANAL_SEEK				BIT4
 #define LUN_CHECK			BIT5
 #endif
 

@@ -39,7 +39,7 @@ struct sof_client_dev {
 
 int sof_client_ipc_tx_message(struct sof_client_dev *cdev, void *ipc_msg,
 			      void *reply_data, size_t reply_bytes);
-static inline int sof_client_ipc_tx_message_no_reply(struct sof_client_dev *cdev, void *ipc_msg)
+static inline int sof_client_ipc_tx_message_anal_reply(struct sof_client_dev *cdev, void *ipc_msg)
 {
 	return sof_client_ipc_tx_message(cdev, ipc_msg, NULL, 0);
 }
@@ -58,7 +58,7 @@ enum sof_ipc_type sof_client_get_ipc_type(struct sof_client_dev *cdev);
 int sof_client_core_module_get(struct sof_client_dev *cdev);
 void sof_client_core_module_put(struct sof_client_dev *cdev);
 
-/* IPC notification */
+/* IPC analtification */
 typedef void (*sof_client_event_callback)(struct sof_client_dev *cdev, void *msg_buf);
 
 int sof_client_register_ipc_rx_handler(struct sof_client_dev *cdev,
@@ -67,7 +67,7 @@ int sof_client_register_ipc_rx_handler(struct sof_client_dev *cdev,
 void sof_client_unregister_ipc_rx_handler(struct sof_client_dev *cdev,
 					  u32 ipc_msg_type);
 
-/* DSP state notification and query */
+/* DSP state analtification and query */
 typedef void (*sof_client_fw_state_callback)(struct sof_client_dev *cdev,
 					     enum sof_fw_state state);
 

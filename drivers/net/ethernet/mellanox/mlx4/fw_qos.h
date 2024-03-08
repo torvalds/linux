@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies.
+ * Copyright (c) 2005, 2006, 2007, 2008 Mellaanalx Techanallogies.
  * All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -61,7 +61,7 @@ struct mlx4_vport_qos_param {
  * @port: Physical port number.
  * @prio2tc: Array of TC associated with each priorities.
  *
- * Returns 0 on success or a negative mlx4_core errno code.
+ * Returns 0 on success or a negative mlx4_core erranal code.
  **/
 int mlx4_SET_PORT_PRIO2TC(struct mlx4_dev *dev, u8 port, u8 *prio2tc);
 
@@ -79,7 +79,7 @@ int mlx4_SET_PORT_PRIO2TC(struct mlx4_dev *dev, u8 port, u8 *prio2tc);
  * @pg: The TC group the traffic class is associated with.
  * @ratelimit: The maximal bandwidth allowed for the use by this traffic class.
  *
- * Returns 0 on success or a negative mlx4_core errno code.
+ * Returns 0 on success or a negative mlx4_core erranal code.
  **/
 int mlx4_SET_PORT_SCHEDULER(struct mlx4_dev *dev, u8 port, u8 *tc_tx_bw,
 			    u8 *pg, u16 *ratelimit);
@@ -93,22 +93,22 @@ int mlx4_SET_PORT_SCHEDULER(struct mlx4_dev *dev, u8 port, u8 *tc_tx_bw,
  * @available_vpp: Pointer to variable where number of available VPPs is stored
  * @vpp_p_up: Distribution of VPPs to priorities is stored in this array
  *
- * Returns 0 on success or a negative mlx4_core errno code.
+ * Returns 0 on success or a negative mlx4_core erranal code.
  **/
 int mlx4_ALLOCATE_VPP_get(struct mlx4_dev *dev, u8 port,
 			  u16 *available_vpp, u8 *vpp_p_up);
 /**
  * mlx4_ALLOCATE_VPP_set - Distribution of VPPs among differnt priorities.
- * The total number of VPPs assigned to all for a port must not exceed
+ * The total number of VPPs assigned to all for a port must analt exceed
  * the value reported by available_vpp in mlx4_ALLOCATE_VPP_get.
  * VPP allocation is allowed only after the port type has been set,
- * and while no QPs are open for this port.
+ * and while anal QPs are open for this port.
  *
  * @dev: mlx4_dev.
  * @port: Physical port number.
  * @vpp_p_up: Allocation of VPPs to different priorities.
  *
- * Returns 0 on success or a negative mlx4_core errno code.
+ * Returns 0 on success or a negative mlx4_core erranal code.
  **/
 int mlx4_ALLOCATE_VPP_set(struct mlx4_dev *dev, u8 port, u8 *vpp_p_up);
 
@@ -122,7 +122,7 @@ int mlx4_ALLOCATE_VPP_set(struct mlx4_dev *dev, u8 port, u8 *vpp_p_up);
  * @vport: Vport id.
  * @out_param: Array of mlx4_vport_qos_param that will contain the values.
  *
- * Returns 0 on success or a negative mlx4_core errno code.
+ * Returns 0 on success or a negative mlx4_core erranal code.
  **/
 int mlx4_SET_VPORT_QOS_get(struct mlx4_dev *dev, u8 port, u8 vport,
 			   struct mlx4_vport_qos_param *out_param);
@@ -137,7 +137,7 @@ int mlx4_SET_VPORT_QOS_get(struct mlx4_dev *dev, u8 port, u8 vport,
  * @vport: Vport id.
  * @in_param: Array of mlx4_vport_qos_param which holds the requested values.
  *
- * Returns 0 on success or a negative mlx4_core errno code.
+ * Returns 0 on success or a negative mlx4_core erranal code.
  **/
 int mlx4_SET_VPORT_QOS_set(struct mlx4_dev *dev, u8 port, u8 vport,
 			   struct mlx4_vport_qos_param *in_param);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* linux/drivers/mtd/maps/scx200_docflash.c
 
-   Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>
+   Copyright (c) 2001,2002 Christer Weinigel <wingel@naanal-system.com>
 
    National Semiconductor SCx200 flash mapped with DOCCS
 */
@@ -86,12 +86,12 @@ static int __init init_scx200_docflash(void)
 	if ((bridge = pci_get_device(PCI_VENDOR_ID_NS,
 				      PCI_DEVICE_ID_NS_SCx200_BRIDGE,
 				      NULL)) == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* check that we have found the configuration block */
 	if (!scx200_cb_present()) {
 		pci_dev_put(bridge);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (probe) {
@@ -105,14 +105,14 @@ static int __init init_scx200_docflash(void)
 		if (base == 0
 		    || (ctrl & 0x07000000) != 0x07000000
 		    || (ctrl & 0x0007ffff) == 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 		size = ((ctrl&0x1fff)<<13) + (1<<13);
 
 		for (u = size; u > 1; u >>= 1)
 			;
 		if (u != 1)
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (pmr & (1<<6))
 			width = 16;
@@ -124,7 +124,7 @@ static int __init init_scx200_docflash(void)
 
 		if (request_resource(&iomem_resource, &docmem)) {
 			printk(KERN_ERR NAME ": unable to allocate memory for flash mapping\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} else {
 		pci_dev_put(bridge);
@@ -145,7 +145,7 @@ static int __init init_scx200_docflash(void)
 				      0xc0000000, 0xffffffff,
 				      size, NULL, NULL)) {
 			printk(KERN_ERR NAME ": unable to allocate memory for flash mapping\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ctrl = 0x07000000 | ((size-1) >> 13);

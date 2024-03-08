@@ -65,7 +65,7 @@ static int s5_read(struct device *dev, enum hwmon_sensor_types type,
 		*temp = value;
 		break;
 	default:
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		break;
 	}
 
@@ -109,7 +109,7 @@ static int s5_temp_probe(struct platform_device *pdev)
 
 	hwmon = devm_kzalloc(&pdev->dev, sizeof(*hwmon), GFP_KERNEL);
 	if (!hwmon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmon->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hwmon->base))

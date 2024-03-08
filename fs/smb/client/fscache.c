@@ -2,7 +2,7 @@
 /*
  *   CIFS filesystem cache interface
  *
- *   Copyright (c) 2010 Novell, Inc.
+ *   Copyright (c) 2010 Analvell, Inc.
  *   Author(s): Suresh Jayaraman <sjayaraman@suse.de>
  *
  */
@@ -31,7 +31,7 @@ int cifs_fscache_get_super_cookie(struct cifs_tcon *tcon)
 	size_t slen, i;
 	char *sharename;
 	char *key;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	tcon->fscache = NULL;
 	switch (sa->sa_family) {
@@ -39,7 +39,7 @@ int cifs_fscache_get_super_cookie(struct cifs_tcon *tcon)
 	case AF_INET6:
 		break;
 	default:
-		cifs_dbg(VFS, "Unknown network family '%d'\n", sa->sa_family);
+		cifs_dbg(VFS, "Unkanalwn network family '%d'\n", sa->sa_family);
 		return -EINVAL;
 	}
 
@@ -94,41 +94,41 @@ void cifs_fscache_release_super_cookie(struct cifs_tcon *tcon)
 	tcon->fscache = NULL;
 }
 
-void cifs_fscache_get_inode_cookie(struct inode *inode)
+void cifs_fscache_get_ianalde_cookie(struct ianalde *ianalde)
 {
-	struct cifs_fscache_inode_coherency_data cd;
-	struct cifsInodeInfo *cifsi = CIFS_I(inode);
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_fscache_ianalde_coherency_data cd;
+	struct cifsIanaldeInfo *cifsi = CIFS_I(ianalde);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(ianalde->i_sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 
-	cifs_fscache_fill_coherency(&cifsi->netfs.inode, &cd);
+	cifs_fscache_fill_coherency(&cifsi->netfs.ianalde, &cd);
 
 	cifsi->netfs.cache =
 		fscache_acquire_cookie(tcon->fscache, 0,
 				       &cifsi->uniqueid, sizeof(cifsi->uniqueid),
 				       &cd, sizeof(cd),
-				       i_size_read(&cifsi->netfs.inode));
+				       i_size_read(&cifsi->netfs.ianalde));
 	if (cifsi->netfs.cache)
-		mapping_set_release_always(inode->i_mapping);
+		mapping_set_release_always(ianalde->i_mapping);
 }
 
-void cifs_fscache_unuse_inode_cookie(struct inode *inode, bool update)
+void cifs_fscache_unuse_ianalde_cookie(struct ianalde *ianalde, bool update)
 {
 	if (update) {
-		struct cifs_fscache_inode_coherency_data cd;
-		loff_t i_size = i_size_read(inode);
+		struct cifs_fscache_ianalde_coherency_data cd;
+		loff_t i_size = i_size_read(ianalde);
 
-		cifs_fscache_fill_coherency(inode, &cd);
-		fscache_unuse_cookie(cifs_inode_cookie(inode), &cd, &i_size);
+		cifs_fscache_fill_coherency(ianalde, &cd);
+		fscache_unuse_cookie(cifs_ianalde_cookie(ianalde), &cd, &i_size);
 	} else {
-		fscache_unuse_cookie(cifs_inode_cookie(inode), NULL, NULL);
+		fscache_unuse_cookie(cifs_ianalde_cookie(ianalde), NULL, NULL);
 	}
 }
 
-void cifs_fscache_release_inode_cookie(struct inode *inode)
+void cifs_fscache_release_ianalde_cookie(struct ianalde *ianalde)
 {
-	struct cifsInodeInfo *cifsi = CIFS_I(inode);
-	struct fscache_cookie *cookie = cifs_inode_cookie(inode);
+	struct cifsIanaldeInfo *cifsi = CIFS_I(ianalde);
+	struct fscache_cookie *cookie = cifs_ianalde_cookie(ianalde);
 
 	if (cookie) {
 		cifs_dbg(FYI, "%s: (0x%p)\n", __func__, cookie);
@@ -140,10 +140,10 @@ void cifs_fscache_release_inode_cookie(struct inode *inode)
 /*
  * Fallback page reading interface.
  */
-static int fscache_fallback_read_page(struct inode *inode, struct page *page)
+static int fscache_fallback_read_page(struct ianalde *ianalde, struct page *page)
 {
 	struct netfs_cache_resources cres;
-	struct fscache_cookie *cookie = cifs_inode_cookie(inode);
+	struct fscache_cookie *cookie = cifs_ianalde_cookie(ianalde);
 	struct iov_iter iter;
 	struct bio_vec bvec;
 	int ret;
@@ -165,23 +165,23 @@ static int fscache_fallback_read_page(struct inode *inode, struct page *page)
 /*
  * Fallback page writing interface.
  */
-static int fscache_fallback_write_pages(struct inode *inode, loff_t start, size_t len,
-					bool no_space_allocated_yet)
+static int fscache_fallback_write_pages(struct ianalde *ianalde, loff_t start, size_t len,
+					bool anal_space_allocated_yet)
 {
 	struct netfs_cache_resources cres;
-	struct fscache_cookie *cookie = cifs_inode_cookie(inode);
+	struct fscache_cookie *cookie = cifs_ianalde_cookie(ianalde);
 	struct iov_iter iter;
 	int ret;
 
 	memset(&cres, 0, sizeof(cres));
-	iov_iter_xarray(&iter, ITER_SOURCE, &inode->i_mapping->i_pages, start, len);
+	iov_iter_xarray(&iter, ITER_SOURCE, &ianalde->i_mapping->i_pages, start, len);
 
 	ret = fscache_begin_write_operation(&cres, cookie);
 	if (ret < 0)
 		return ret;
 
-	ret = cres.ops->prepare_write(&cres, &start, &len, len, i_size_read(inode),
-				      no_space_allocated_yet);
+	ret = cres.ops->prepare_write(&cres, &start, &len, len, i_size_read(ianalde),
+				      anal_space_allocated_yet);
 	if (ret == 0)
 		ret = fscache_write(&cres, start, &iter, NULL, NULL);
 	fscache_end_operation(&cres);
@@ -191,40 +191,40 @@ static int fscache_fallback_write_pages(struct inode *inode, loff_t start, size_
 /*
  * Retrieve a page from FS-Cache
  */
-int __cifs_readpage_from_fscache(struct inode *inode, struct page *page)
+int __cifs_readpage_from_fscache(struct ianalde *ianalde, struct page *page)
 {
 	int ret;
 
 	cifs_dbg(FYI, "%s: (fsc:%p, p:%p, i:0x%p\n",
-		 __func__, cifs_inode_cookie(inode), page, inode);
+		 __func__, cifs_ianalde_cookie(ianalde), page, ianalde);
 
-	ret = fscache_fallback_read_page(inode, page);
+	ret = fscache_fallback_read_page(ianalde, page);
 	if (ret < 0)
 		return ret;
 
-	/* Read completed synchronously */
+	/* Read completed synchroanalusly */
 	SetPageUptodate(page);
 	return 0;
 }
 
-void __cifs_readahead_to_fscache(struct inode *inode, loff_t pos, size_t len)
+void __cifs_readahead_to_fscache(struct ianalde *ianalde, loff_t pos, size_t len)
 {
 	cifs_dbg(FYI, "%s: (fsc: %p, p: %llx, l: %zx, i: %p)\n",
-		 __func__, cifs_inode_cookie(inode), pos, len, inode);
+		 __func__, cifs_ianalde_cookie(ianalde), pos, len, ianalde);
 
-	fscache_fallback_write_pages(inode, pos, len, true);
+	fscache_fallback_write_pages(ianalde, pos, len, true);
 }
 
 /*
  * Query the cache occupancy.
  */
-int __cifs_fscache_query_occupancy(struct inode *inode,
+int __cifs_fscache_query_occupancy(struct ianalde *ianalde,
 				   pgoff_t first, unsigned int nr_pages,
 				   pgoff_t *_data_first,
 				   unsigned int *_data_nr_pages)
 {
 	struct netfs_cache_resources cres;
-	struct fscache_cookie *cookie = cifs_inode_cookie(inode);
+	struct fscache_cookie *cookie = cifs_ianalde_cookie(ianalde);
 	loff_t start, data_start;
 	size_t len, data_len;
 	int ret;

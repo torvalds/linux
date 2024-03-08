@@ -161,7 +161,7 @@ int igb_sysfs_init(struct igb_adapter *adapter)
 	if (adapter->hw.mac.ops.init_thermal_sensor_thresh == NULL)
 		goto exit;
 
-	/* Don't create thermal hwmon interface if no sensors present */
+	/* Don't create thermal hwmon interface if anal sensors present */
 	rc = (adapter->hw.mac.ops.init_thermal_sensor_thresh(&adapter->hw));
 	if (rc)
 		goto exit;
@@ -169,7 +169,7 @@ int igb_sysfs_init(struct igb_adapter *adapter)
 	igb_hwmon = devm_kzalloc(&adapter->pdev->dev, sizeof(*igb_hwmon),
 				 GFP_KERNEL);
 	if (!igb_hwmon) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto exit;
 	}
 	adapter->igb_hwmon_buff = igb_hwmon;

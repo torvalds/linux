@@ -144,8 +144,8 @@ static int iblock_configure_device(struct se_device *dev)
 	else
 		dev->dev_attrib.max_write_same_len = 0xFFFF;
 
-	if (bdev_nonrot(bd))
-		dev->dev_attrib.is_nonrot = 1;
+	if (bdev_analnrot(bd))
+		dev->dev_attrib.is_analnrot = 1;
 
 	bi = bdev_get_integrity(bd);
 	if (bi) {
@@ -153,9 +153,9 @@ static int iblock_configure_device(struct se_device *dev)
 
 		if (!strcmp(bi->profile->name, "T10-DIF-TYPE3-IP") ||
 		    !strcmp(bi->profile->name, "T10-DIF-TYPE1-IP")) {
-			pr_err("IBLOCK export of blk_integrity: %s not"
+			pr_err("IBLOCK export of blk_integrity: %s analt"
 			       " supported\n", bi->profile->name);
-			ret = -ENOSYS;
+			ret = -EANALSYS;
 			goto out_blkdev_put;
 		}
 
@@ -168,7 +168,7 @@ static int iblock_configure_device(struct se_device *dev)
 		if (dev->dev_attrib.pi_prot_type) {
 			if (bioset_integrity_create(bs, IBLOCK_BIO_POOL_SIZE) < 0) {
 				pr_err("Unable to allocate bioset for PI\n");
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out_blkdev_put;
 			}
 			pr_debug("IBLOCK setup BIP bs->bio_integrity_pool: %p\n",
@@ -365,7 +365,7 @@ static struct bio *iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num,
 	 * we'll loop later on until we have handled the whole request.
 	 */
 	bio = bio_alloc_bioset(ib_dev->ibd_bd, bio_max_segs(sg_num), opf,
-			       GFP_NOIO, &ib_dev->ibd_bio_set);
+			       GFP_ANALIO, &ib_dev->ibd_bio_set);
 	if (!bio) {
 		pr_err("Unable to allocate memory for bio\n");
 		return NULL;
@@ -410,7 +410,7 @@ static void iblock_end_io_flush(struct bio *bio)
 }
 
 /*
- * Implement SYCHRONIZE CACHE.  Note that we can't handle lba ranges and must
+ * Implement SYCHRONIZE CACHE.  Analte that we can't handle lba ranges and must
  * always flush the whole cache.
  */
 static sense_reason_t
@@ -437,7 +437,7 @@ iblock_execute_sync_cache(struct se_cmd *cmd)
 }
 
 static sense_reason_t
-iblock_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
+iblock_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t anallb)
 {
 	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
 	struct se_device *dev = cmd->se_dev;
@@ -445,7 +445,7 @@ iblock_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 
 	ret = blkdev_issue_discard(bdev,
 				   target_to_linux_sector(dev, lba),
-				   target_to_linux_sector(dev,  nolb),
+				   target_to_linux_sector(dev,  anallb),
 				   GFP_KERNEL);
 	if (ret < 0) {
 		pr_err("blkdev_issue_discard() failed: %d\n", ret);
@@ -460,7 +460,7 @@ iblock_execute_zero_out(struct block_device *bdev, struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct scatterlist *sg = &cmd->t_data_sg[0];
-	unsigned char *buf, *not_zero;
+	unsigned char *buf, *analt_zero;
 	int ret;
 
 	buf = kmap(sg_page(sg)) + sg->offset;
@@ -468,19 +468,19 @@ iblock_execute_zero_out(struct block_device *bdev, struct se_cmd *cmd)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	/*
 	 * Fall back to block_execute_write_same() slow-path if
-	 * incoming WRITE_SAME payload does not contain zeros.
+	 * incoming WRITE_SAME payload does analt contain zeros.
 	 */
-	not_zero = memchr_inv(buf, 0x00, cmd->data_length);
+	analt_zero = memchr_inv(buf, 0x00, cmd->data_length);
 	kunmap(sg_page(sg));
 
-	if (not_zero)
+	if (analt_zero)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	ret = blkdev_issue_zeroout(bdev,
 				target_to_linux_sector(dev, cmd->t_task_lba),
 				target_to_linux_sector(dev,
 					sbc_get_write_same_sectors(cmd)),
-				GFP_KERNEL, BLKDEV_ZERO_NOUNMAP);
+				GFP_KERNEL, BLKDEV_ZERO_ANALUNMAP);
 	if (ret)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
@@ -503,7 +503,7 @@ iblock_execute_write_same(struct se_cmd *cmd)
 
 	if (cmd->prot_op) {
 		pr_err("WRITE_SAME: Protection information with IBLOCK"
-		       " backends not supported\n");
+		       " backends analt supported\n");
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 
@@ -590,7 +590,7 @@ static ssize_t iblock_set_configfs_dev_params(struct se_device *dev,
 
 	opts = kstrdup(page, GFP_KERNEL);
 	if (!opts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	orig = opts;
 
@@ -619,7 +619,7 @@ static ssize_t iblock_set_configfs_dev_params(struct se_device *dev,
 		case Opt_readonly:
 			arg_p = match_strdup(&args[0]);
 			if (!arg_p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				break;
 			}
 			ret = kstrtoul(arg_p, 0, &tmp_readonly);
@@ -659,11 +659,11 @@ static ssize_t iblock_show_configfs_dev_params(struct se_device *dev, char *b)
 
 	bl += sprintf(b + bl, "        ");
 	if (bd) {
-		bl += sprintf(b + bl, "Major: %d Minor: %d  %s\n",
-			MAJOR(bd->bd_dev), MINOR(bd->bd_dev),
+		bl += sprintf(b + bl, "Major: %d Mianalr: %d  %s\n",
+			MAJOR(bd->bd_dev), MIANALR(bd->bd_dev),
 			"CLAIMED: IBLOCK");
 	} else {
-		bl += sprintf(b + bl, "Major: 0 Minor: 0\n");
+		bl += sprintf(b + bl, "Major: 0 Mianalr: 0\n");
 	}
 
 	return bl;
@@ -683,10 +683,10 @@ iblock_alloc_bip(struct se_cmd *cmd, struct bio *bio,
 	bi = bdev_get_integrity(ib_dev->ibd_bd);
 	if (!bi) {
 		pr_err("Unable to locate bio_integrity\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	bip = bio_integrity_alloc(bio, GFP_NOIO, bio_max_segs(cmd->t_prot_nents));
+	bip = bio_integrity_alloc(bio, GFP_ANALIO, bio_max_segs(cmd->t_prot_nents));
 	if (IS_ERR(bip)) {
 		pr_err("Unable to allocate bio_integrity_payload\n");
 		return PTR_ERR(bip);
@@ -708,7 +708,7 @@ iblock_alloc_bip(struct se_cmd *cmd, struct bio *bio,
 		if (rc != len) {
 			pr_err("bio_integrity_add_page() failed; %d\n", rc);
 			sg_miter_stop(miter);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		pr_debug("Added bio integrity page: %p length: %zu offset: %lu\n",
@@ -744,13 +744,13 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 
 		/*
-		 * Set bits to indicate WRITE_ODIRECT so we are not throttled
+		 * Set bits to indicate WRITE_ODIRECT so we are analt throttled
 		 * by WBT.
 		 */
 		opf = REQ_OP_WRITE | REQ_SYNC | REQ_IDLE;
 		/*
 		 * Force writethrough using REQ_FUA if a volatile write cache
-		 * is not enabled, or if initiator set the Force Unit Access bit.
+		 * is analt enabled, or if initiator set the Force Unit Access bit.
 		 */
 		miter_dir = SG_MITER_TO_SG;
 		if (bdev_fua(ib_dev->ibd_bd)) {
@@ -793,7 +793,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		/*
 		 * XXX: if the length the device accepts is shorter than the
 		 *	length of the S/G list entry this will cause and
-		 *	endless loop.  Better hope no driver uses huge pages.
+		 *	endless loop.  Better hope anal driver uses huge pages.
 		 */
 		while (bio_add_page(bio, sg_page(sg), sg->length, sg->offset)
 				!= sg->length) {
@@ -851,28 +851,28 @@ static sense_reason_t iblock_execute_pr_out(struct se_cmd *cmd, u8 sa, u64 key,
 	int ret;
 
 	if (!ops) {
-		pr_err("Block device does not support pr_ops but iblock device has been configured for PR passthrough.\n");
+		pr_err("Block device does analt support pr_ops but iblock device has been configured for PR passthrough.\n");
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 
 	switch (sa) {
 	case PRO_REGISTER:
-	case PRO_REGISTER_AND_IGNORE_EXISTING_KEY:
+	case PRO_REGISTER_AND_IGANALRE_EXISTING_KEY:
 		if (!ops->pr_register) {
-			pr_err("block device does not support pr_register.\n");
+			pr_err("block device does analt support pr_register.\n");
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 		}
 
 		/* The block layer pr ops always enables aptpl */
 		if (!aptpl)
-			pr_info("APTPL not set by initiator, but will be used.\n");
+			pr_info("APTPL analt set by initiator, but will be used.\n");
 
 		ret = ops->pr_register(bdev, key, sa_key,
-				sa == PRO_REGISTER ? 0 : PR_FL_IGNORE_KEY);
+				sa == PRO_REGISTER ? 0 : PR_FL_IGANALRE_KEY);
 		break;
 	case PRO_RESERVE:
 		if (!ops->pr_reserve) {
-			pr_err("block_device does not support pr_reserve.\n");
+			pr_err("block_device does analt support pr_reserve.\n");
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 		}
 
@@ -880,7 +880,7 @@ static sense_reason_t iblock_execute_pr_out(struct se_cmd *cmd, u8 sa, u64 key,
 		break;
 	case PRO_CLEAR:
 		if (!ops->pr_clear) {
-			pr_err("block_device does not support pr_clear.\n");
+			pr_err("block_device does analt support pr_clear.\n");
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 		}
 
@@ -889,7 +889,7 @@ static sense_reason_t iblock_execute_pr_out(struct se_cmd *cmd, u8 sa, u64 key,
 	case PRO_PREEMPT:
 	case PRO_PREEMPT_AND_ABORT:
 		if (!ops->pr_clear) {
-			pr_err("block_device does not support pr_preempt.\n");
+			pr_err("block_device does analt support pr_preempt.\n");
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 		}
 
@@ -899,19 +899,19 @@ static sense_reason_t iblock_execute_pr_out(struct se_cmd *cmd, u8 sa, u64 key,
 		break;
 	case PRO_RELEASE:
 		if (!ops->pr_clear) {
-			pr_err("block_device does not support pr_pclear.\n");
+			pr_err("block_device does analt support pr_pclear.\n");
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 		}
 
 		ret = ops->pr_release(bdev, key, scsi_pr_type_to_block(type));
 		break;
 	default:
-		pr_err("Unknown PERSISTENT_RESERVE_OUT SA: 0x%02x\n", sa);
+		pr_err("Unkanalwn PERSISTENT_RESERVE_OUT SA: 0x%02x\n", sa);
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 
 	if (!ret)
-		return TCM_NO_SENSE;
+		return TCM_ANAL_SENSE;
 	else if (ret == PR_STS_RESERVATION_CONFLICT)
 		return TCM_RESERVATION_CONFLICT;
 	else
@@ -928,9 +928,9 @@ static void iblock_pr_report_caps(unsigned char *param_data)
 	 * the device through one target port because from the backend module
 	 * level we can't see the target port config. As a result we only
 	 * support registration directly from the I_T nexus the cmd is sent
-	 * through and do not set ATP_C here.
+	 * through and do analt set ATP_C here.
 	 *
-	 * The block layer pr_ops do not support passing in initiators so
+	 * The block layer pr_ops do analt support passing in initiators so
 	 * we don't set SIP_C here.
 	 */
 	/* PTPL_C: Persistence across Target Power Loss bit */
@@ -972,19 +972,19 @@ static sense_reason_t iblock_pr_read_keys(struct se_cmd *cmd,
 	sense_reason_t ret;
 
 	if (!ops) {
-		pr_err("Block device does not support pr_ops but iblock device has been configured for PR passthrough.\n");
+		pr_err("Block device does analt support pr_ops but iblock device has been configured for PR passthrough.\n");
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 
 	if (!ops->pr_read_keys) {
-		pr_err("Block device does not support read_keys.\n");
+		pr_err("Block device does analt support read_keys.\n");
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 
 	/*
-	 * We don't know what's under us, but dm-multipath will register every
-	 * path with the same key, so start off with enough space for 16 paths.
-	 * which is not a lot of memory and should normally be enough.
+	 * We don't kanalw what's under us, but dm-multipath will register every
+	 * path with the same key, so start off with eanalugh space for 16 paths.
+	 * which is analt a lot of memory and should analrmally be eanalugh.
 	 */
 	paths = 16;
 retry:
@@ -1005,7 +1005,7 @@ retry:
 		goto free_keys;
 	}
 
-	ret = TCM_NO_SENSE;
+	ret = TCM_ANAL_SENSE;
 
 	put_unaligned_be32(keys->generation, &param_data[0]);
 	if (!keys->num_keys) {
@@ -1039,12 +1039,12 @@ static sense_reason_t iblock_pr_read_reservation(struct se_cmd *cmd,
 	struct pr_held_reservation rsv = { };
 
 	if (!ops) {
-		pr_err("Block device does not support pr_ops but iblock device has been configured for PR passthrough.\n");
+		pr_err("Block device does analt support pr_ops but iblock device has been configured for PR passthrough.\n");
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 
 	if (!ops->pr_read_reservation) {
-		pr_err("Block device does not support read_keys.\n");
+		pr_err("Block device does analt support read_keys.\n");
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 
@@ -1054,26 +1054,26 @@ static sense_reason_t iblock_pr_read_reservation(struct se_cmd *cmd,
 	put_unaligned_be32(rsv.generation, &param_data[0]);
 	if (!block_pr_type_to_scsi(rsv.type)) {
 		put_unaligned_be32(0, &param_data[4]);
-		return TCM_NO_SENSE;
+		return TCM_ANAL_SENSE;
 	}
 
 	put_unaligned_be32(16, &param_data[4]);
 
 	if (cmd->data_length < 16)
-		return TCM_NO_SENSE;
+		return TCM_ANAL_SENSE;
 	put_unaligned_be64(rsv.key, &param_data[8]);
 
 	if (cmd->data_length < 22)
-		return TCM_NO_SENSE;
+		return TCM_ANAL_SENSE;
 	param_data[21] = block_pr_type_to_scsi(rsv.type);
 
-	return TCM_NO_SENSE;
+	return TCM_ANAL_SENSE;
 }
 
 static sense_reason_t iblock_execute_pr_in(struct se_cmd *cmd, u8 sa,
 					   unsigned char *param_data)
 {
-	sense_reason_t ret = TCM_NO_SENSE;
+	sense_reason_t ret = TCM_ANAL_SENSE;
 
 	switch (sa) {
 	case PRI_REPORT_CAPABILITIES:
@@ -1086,7 +1086,7 @@ static sense_reason_t iblock_execute_pr_in(struct se_cmd *cmd, u8 sa,
 		ret = iblock_pr_read_reservation(cmd, param_data);
 		break;
 	default:
-		pr_err("Unknown PERSISTENT_RESERVE_IN SA: 0x%02x\n", sa);
+		pr_err("Unkanalwn PERSISTENT_RESERVE_IN SA: 0x%02x\n", sa);
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 

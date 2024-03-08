@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* 32-bit compatibility syscall for 64-bit systems for DH operations
  *
- * Copyright (C) 2016 Stephan Mueller <smueller@chronox.de>
+ * Copyright (C) 2016 Stephan Mueller <smueller@chroanalx.de>
  */
 
 #include <linux/uaccess.h>

@@ -2,7 +2,7 @@
 /*
  * IDT RXS Gen.3 Serial RapidIO switch family support
  *
- * Copyright 2016 Integrated Device Technology, Inc.
+ * Copyright 2016 Integrated Device Techanallogy, Inc.
  */
 
 #include <linux/stat.h>
@@ -91,7 +91,7 @@ idtg3_route_get_entry(struct rio_mport *mport, u16 destid, u8 hopcount,
 		return err;
 
 	/*
-	 * This switch device does not have the dedicated global routing table.
+	 * This switch device does analt have the dedicated global routing table.
 	 * It is substituted by reading routing table of the ingress port of
 	 * maintenance read requests.
 	 */
@@ -168,11 +168,11 @@ idtg3_em_init(struct rio_dev *rdev)
 	/* Disable assertion of interrupt signal */
 	rio_write_config_32(rdev, RIO_EM_DEV_INT_EN, 0);
 
-	/* Disable port-write event notifications during initialization */
+	/* Disable port-write event analtifications during initialization */
 	rio_write_config_32(rdev, rdev->em_efptr + RIO_EM_PW_TX_CTRL,
 			    RIO_EM_PW_TX_CTRL_PW_DIS);
 
-	/* Configure Port-Write notifications for hot-swap events */
+	/* Configure Port-Write analtifications for hot-swap events */
 	tmp = RIO_GET_TOTAL_PORTS(rdev->swpinfo);
 	for (i = 0; i < tmp; i++) {
 
@@ -182,11 +182,11 @@ idtg3_em_init(struct rio_dev *rdev)
 		if (rval & RIO_PORT_N_ERR_STS_PORT_UA)
 			continue;
 
-		/* Clear events signaled before enabling notification */
+		/* Clear events signaled before enabling analtification */
 		rio_write_config_32(rdev,
 			rdev->em_efptr + RIO_EM_PN_ERR_DETECT(i), 0);
 
-		/* Enable event notifications */
+		/* Enable event analtifications */
 		rio_write_config_32(rdev,
 			rdev->em_efptr + RIO_EM_PN_ERRRATE_EN(i),
 			RIO_EM_PN_ERRRATE_EN_OK2U | RIO_EM_PN_ERRRATE_EN_U2OK);
@@ -201,7 +201,7 @@ idtg3_em_init(struct rio_dev *rdev)
 	rio_write_config_32(rdev, RIO_PW_ROUTE, 1 << tmp);
 
 
-	/* Enable sending port-write event notifications */
+	/* Enable sending port-write event analtifications */
 	rio_write_config_32(rdev, rdev->em_efptr + RIO_EM_PW_TX_CTRL, 0);
 
 	/* set TVAL = ~50us */
@@ -214,7 +214,7 @@ idtg3_em_init(struct rio_dev *rdev)
 /*
  * idtg3_em_handler - device-specific error handler
  *
- * If the link is down (PORT_UNINIT) does nothing - this is considered
+ * If the link is down (PORT_UNINIT) does analthing - this is considered
  * as link partner removal from the port.
  *
  * If the link is up (PORT_OK) - situation is handled as *new* device insertion.
@@ -223,7 +223,7 @@ idtg3_em_init(struct rio_dev *rdev)
  * This way the port is synchronized with freshly inserted device (assuming it
  * was reset/powered-up on insertion).
  *
- * TODO: This is not sufficient in a situation when a link between two devices
+ * TODO: This is analt sufficient in a situation when a link between two devices
  * was down and up again (e.g. cable disconnect). For that situation full ackID
  * realignment process has to be implemented.
  */
@@ -237,7 +237,7 @@ idtg3_em_handler(struct rio_dev *rdev, u8 pnum)
 			RIO_DEV_PORT_N_ERR_STS_CSR(rdev, pnum),
 			&err_status);
 
-	/* Do nothing for device/link removal */
+	/* Do analthing for device/link removal */
 	if (err_status & RIO_PORT_N_ERR_STS_PORT_UNINIT)
 		return 0;
 
@@ -304,8 +304,8 @@ static void idtg3_remove(struct rio_dev *rdev)
 
 /*
  * Gen3 switches repeat sending PW messages until a corresponding event flag
- * is cleared. Use shutdown notification to disable generation of port-write
- * messages if their destination node is shut down.
+ * is cleared. Use shutdown analtification to disable generation of port-write
+ * messages if their destination analde is shut down.
  */
 static void idtg3_shutdown(struct rio_dev *rdev)
 {
@@ -313,7 +313,7 @@ static void idtg3_shutdown(struct rio_dev *rdev)
 	u32 rval;
 	u16 destid;
 
-	/* Currently the enumerator node acts also as PW handler */
+	/* Currently the enumerator analde acts also as PW handler */
 	if (!rdev->do_enum)
 		return;
 
@@ -326,8 +326,8 @@ static void idtg3_shutdown(struct rio_dev *rdev)
 	if (!((1 << i) & rval))
 		return;
 
-	/* Disable sending port-write event notifications if PW destID
-	 * matches to one of the enumerator node
+	/* Disable sending port-write event analtifications if PW destID
+	 * matches to one of the enumerator analde
 	 */
 	rio_read_config_32(rdev, rdev->em_efptr + RIO_EM_PW_TGT_DEVID, &rval);
 
@@ -374,5 +374,5 @@ device_initcall(idtg3_init);
 module_exit(idtg3_exit);
 
 MODULE_DESCRIPTION("IDT RXS Gen.3 Serial RapidIO switch family driver");
-MODULE_AUTHOR("Integrated Device Technology, Inc.");
+MODULE_AUTHOR("Integrated Device Techanallogy, Inc.");
 MODULE_LICENSE("GPL");

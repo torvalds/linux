@@ -62,13 +62,13 @@ properties:
       reg:
         maxItems: 1
 
-      syna,nosleep-mode:
+      syna,analsleep-mode:
         $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 1, 2]
         description:
-          If set the device will run at full power without sleeping.  nosleep
-          has 3 modes, 0 will not change the default setting, 1 will disable
-          nosleep (allow sleeping), and 2 will enable nosleep (disabling
+          If set the device will run at full power without sleeping.  analsleep
+          has 3 modes, 0 will analt change the default setting, 1 will disable
+          analsleep (allow sleeping), and 2 will enable analsleep (disabling
           sleep).
 
       syna,wakeup-threshold:
@@ -167,7 +167,7 @@ patternProperties:
     additionalProperties: true
 
     description:
-      Other functions, not documented yet.
+      Other functions, analt documented yet.
 
     properties:
       reg:
@@ -224,7 +224,7 @@ examples:
 
             rmi4-f01@1 {
                 reg = <0x1>;
-                syna,nosleep-mode = <1>;
+                syna,analsleep-mode = <1>;
             };
 
             rmi4-f12@12 {
@@ -261,7 +261,7 @@ examples:
 
             rmi4-f01@1 {
                 reg = <0x1>;
-                syna,nosleep-mode = <1>;
+                syna,analsleep-mode = <1>;
             };
 
             rmi4-f11@11 {

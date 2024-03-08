@@ -31,7 +31,7 @@ static inline int compare_attr(const struct ATTRIB *left, enum ATTR_TYPE type,
  *
  * Return: Unused attribute id that is less than mrec->next_attr_id.
  */
-static __le16 mi_new_attt_id(struct mft_inode *mi)
+static __le16 mi_new_attt_id(struct mft_ianalde *mi)
 {
 	u16 free_id, max_id, t16;
 	struct MFT_REC *rec = mi->mrec;
@@ -68,15 +68,15 @@ static __le16 mi_new_attt_id(struct mft_inode *mi)
 	}
 }
 
-int mi_get(struct ntfs_sb_info *sbi, CLST rno, struct mft_inode **mi)
+int mi_get(struct ntfs_sb_info *sbi, CLST ranal, struct mft_ianalde **mi)
 {
 	int err;
-	struct mft_inode *m = kzalloc(sizeof(struct mft_inode), GFP_NOFS);
+	struct mft_ianalde *m = kzalloc(sizeof(struct mft_ianalde), GFP_ANALFS);
 
 	if (!m)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	err = mi_init(m, sbi, rno);
+	err = mi_init(m, sbi, ranal);
 	if (err) {
 		kfree(m);
 		return err;
@@ -92,19 +92,19 @@ int mi_get(struct ntfs_sb_info *sbi, CLST rno, struct mft_inode **mi)
 	return 0;
 }
 
-void mi_put(struct mft_inode *mi)
+void mi_put(struct mft_ianalde *mi)
 {
 	mi_clear(mi);
 	kfree(mi);
 }
 
-int mi_init(struct mft_inode *mi, struct ntfs_sb_info *sbi, CLST rno)
+int mi_init(struct mft_ianalde *mi, struct ntfs_sb_info *sbi, CLST ranal)
 {
 	mi->sbi = sbi;
-	mi->rno = rno;
-	mi->mrec = kmalloc(sbi->record_size, GFP_NOFS);
+	mi->ranal = ranal;
+	mi->mrec = kmalloc(sbi->record_size, GFP_ANALFS);
 	if (!mi->mrec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -112,14 +112,14 @@ int mi_init(struct mft_inode *mi, struct ntfs_sb_info *sbi, CLST rno)
 /*
  * mi_read - Read MFT data.
  */
-int mi_read(struct mft_inode *mi, bool is_mft)
+int mi_read(struct mft_ianalde *mi, bool is_mft)
 {
 	int err;
 	struct MFT_REC *rec = mi->mrec;
 	struct ntfs_sb_info *sbi = mi->sbi;
 	u32 bpr = sbi->record_size;
-	u64 vbo = (u64)mi->rno << sbi->record_bits;
-	struct ntfs_inode *mft_ni = sbi->mft.ni;
+	u64 vbo = (u64)mi->ranal << sbi->record_bits;
+	struct ntfs_ianalde *mft_ni = sbi->mft.ni;
 	struct runs_tree *run = mft_ni ? &mft_ni->file.run : NULL;
 	struct rw_semaphore *rw_lock = NULL;
 
@@ -141,7 +141,7 @@ int mi_read(struct mft_inode *mi, bool is_mft)
 		goto ok;
 	}
 
-	if (err != -ENOENT)
+	if (err != -EANALENT)
 		goto out;
 
 	if (rw_lock) {
@@ -192,10 +192,10 @@ out:
 /*
  * mi_enum_attr - start/continue attributes enumeration in record.
  *
- * NOTE: mi->mrec - memory of size sbi->record_size
+ * ANALTE: mi->mrec - memory of size sbi->record_size
  * here we sure that mi->mrec->total == sbi->record_size (see mi_read)
  */
-struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
+struct ATTRIB *mi_enum_attr(struct mft_ianalde *mi, struct ATTRIB *attr)
 {
 	const struct MFT_REC *rec = mi->mrec;
 	u32 used = le32_to_cpu(rec->used);
@@ -216,7 +216,7 @@ struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
 			return NULL;
 		}
 
-		/* Skip non-resident records. */
+		/* Skip analn-resident records. */
 		if (!is_rec_inuse(rec))
 			return NULL;
 
@@ -230,7 +230,7 @@ struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
 
 		asize = le32_to_cpu(attr->size);
 		if (asize < SIZEOF_RESIDENT) {
-			/* Impossible 'cause we should not return such attribute. */
+			/* Impossible 'cause we should analt return such attribute. */
 			return NULL;
 		}
 
@@ -256,7 +256,7 @@ struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
 		return NULL;
 	}
 
-	/* 0x100 is last known attribute for now. */
+	/* 0x100 is last kanalwn attribute for analw. */
 	t32 = le32_to_cpu(attr->type);
 	if (!t32 || (t32 & 0xf) || (t32 > 0x100))
 		return NULL;
@@ -270,7 +270,7 @@ struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
 		return NULL;
 
 	/* Check size of attribute. */
-	if (!attr->non_res) {
+	if (!attr->analn_res) {
 		/* Check resident fields. */
 		if (asize < SIZEOF_RESIDENT)
 			return NULL;
@@ -289,8 +289,8 @@ struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
 		return attr;
 	}
 
-	/* Check nonresident fields. */
-	if (attr->non_res != 1)
+	/* Check analnresident fields. */
+	if (attr->analn_res != 1)
 		return NULL;
 
 	t16 = le16_to_cpu(attr->nres.run_off);
@@ -319,7 +319,7 @@ struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
 
 	if (!attr->nres.svcn && is_attr_ext(attr)) {
 		/* First segment of sparse/compressed attribute */
-		if (asize + 8 < SIZEOF_NONRESIDENT_EX)
+		if (asize + 8 < SIZEOF_ANALNRESIDENT_EX)
 			return NULL;
 
 		tot_size = le64_to_cpu(attr->nres.total_size);
@@ -329,7 +329,7 @@ struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
 		if (tot_size > alloc_size)
 			return NULL;
 	} else {
-		if (asize + 8 < SIZEOF_NONRESIDENT)
+		if (asize + 8 < SIZEOF_ANALNRESIDENT)
 			return NULL;
 
 		if (attr->nres.c_unit)
@@ -342,7 +342,7 @@ struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
 /*
  * mi_find_attr - Find the attribute by type and name and id.
  */
-struct ATTRIB *mi_find_attr(struct mft_inode *mi, struct ATTRIB *attr,
+struct ATTRIB *mi_find_attr(struct mft_ianalde *mi, struct ATTRIB *attr,
 			    enum ATTR_TYPE type, const __le16 *name,
 			    u8 name_len, const __le16 *id)
 {
@@ -373,7 +373,7 @@ next_attr:
 	return attr;
 }
 
-int mi_write(struct mft_inode *mi, int wait)
+int mi_write(struct mft_ianalde *mi, int wait)
 {
 	struct MFT_REC *rec;
 	int err;
@@ -389,7 +389,7 @@ int mi_write(struct mft_inode *mi, int wait)
 	if (err)
 		return err;
 
-	if (mi->rno < sbi->mft.recs_mirr)
+	if (mi->ranal < sbi->mft.recs_mirr)
 		sbi->flags |= NTFS_FLAGS_MFTMIRR;
 
 	mi->dirty = false;
@@ -397,25 +397,25 @@ int mi_write(struct mft_inode *mi, int wait)
 	return 0;
 }
 
-int mi_format_new(struct mft_inode *mi, struct ntfs_sb_info *sbi, CLST rno,
+int mi_format_new(struct mft_ianalde *mi, struct ntfs_sb_info *sbi, CLST ranal,
 		  __le16 flags, bool is_mft)
 {
 	int err;
 	u16 seq = 1;
 	struct MFT_REC *rec;
-	u64 vbo = (u64)rno << sbi->record_bits;
+	u64 vbo = (u64)ranal << sbi->record_bits;
 
-	err = mi_init(mi, sbi, rno);
+	err = mi_init(mi, sbi, ranal);
 	if (err)
 		return err;
 
 	rec = mi->mrec;
 
-	if (rno == MFT_REC_MFT) {
+	if (ranal == MFT_REC_MFT) {
 		;
-	} else if (rno < MFT_REC_FREE) {
-		seq = rno;
-	} else if (rno >= sbi->mft.used) {
+	} else if (ranal < MFT_REC_FREE) {
+		seq = ranal;
+	} else if (ranal >= sbi->mft.used) {
 		;
 	} else if (mi_read(mi, is_mft)) {
 		;
@@ -431,12 +431,12 @@ int mi_format_new(struct mft_inode *mi, struct ntfs_sb_info *sbi, CLST rno,
 	rec->seq = cpu_to_le16(seq);
 	rec->flags = RECORD_FLAG_IN_USE | flags;
 	if (MFTRECORD_FIXUP_OFFSET == MFTRECORD_FIXUP_OFFSET_3)
-		rec->mft_record = cpu_to_le32(rno);
+		rec->mft_record = cpu_to_le32(ranal);
 
 	mi->dirty = true;
 
 	if (!mi->nb.nbufs) {
-		struct ntfs_inode *ni = sbi->mft.ni;
+		struct ntfs_ianalde *ni = sbi->mft.ni;
 		bool lock = false;
 
 		if (is_mounted(sbi) && !is_mft) {
@@ -456,9 +456,9 @@ int mi_format_new(struct mft_inode *mi, struct ntfs_sb_info *sbi, CLST rno,
 /*
  * mi_insert_attr - Reserve space for new attribute.
  *
- * Return: Not full constructed attribute or NULL if not possible to create.
+ * Return: Analt full constructed attribute or NULL if analt possible to create.
  */
-struct ATTRIB *mi_insert_attr(struct mft_inode *mi, enum ATTR_TYPE type,
+struct ATTRIB *mi_insert_attr(struct mft_ianalde *mi, enum ATTR_TYPE type,
 			      const __le16 *name, u8 name_len, u32 asize,
 			      u16 name_off)
 {
@@ -521,9 +521,9 @@ struct ATTRIB *mi_insert_attr(struct mft_inode *mi, enum ATTR_TYPE type,
 /*
  * mi_remove_attr - Remove the attribute from record.
  *
- * NOTE: The source attr will point to next attribute.
+ * ANALTE: The source attr will point to next attribute.
  */
-bool mi_remove_attr(struct ntfs_inode *ni, struct mft_inode *mi,
+bool mi_remove_attr(struct ntfs_ianalde *ni, struct mft_ianalde *mi,
 		    struct ATTRIB *attr)
 {
 	struct MFT_REC *rec = mi->mrec;
@@ -542,9 +542,9 @@ bool mi_remove_attr(struct ntfs_inode *ni, struct mft_inode *mi,
 				resident_data_ex(attr,
 						 SIZEOF_ATTRIBUTE_FILENAME);
 		if (fname && fname->type == FILE_NAME_DOS) {
-			/* Do not decrease links count deleting DOS name. */
+			/* Do analt decrease links count deleting DOS name. */
 		} else if (!links) {
-			/* minor error. Not critical. */
+			/* mianalr error. Analt critical. */
 		} else {
 			ni->mi.mrec->hard_links = cpu_to_le16(links - 1);
 			ni->mi.dirty = true;
@@ -560,7 +560,7 @@ bool mi_remove_attr(struct ntfs_inode *ni, struct mft_inode *mi,
 }
 
 /* bytes = "new attribute size" - "old attribute size" */
-bool mi_resize_attr(struct mft_inode *mi, struct ATTRIB *attr, int bytes)
+bool mi_resize_attr(struct mft_ianalde *mi, struct ATTRIB *attr, int bytes)
 {
 	struct MFT_REC *rec = mi->mrec;
 	u32 aoff = PtrOffset(rec, attr);
@@ -602,7 +602,7 @@ bool mi_resize_attr(struct mft_inode *mi, struct ATTRIB *attr, int bytes)
 
 	rec->used = cpu_to_le32(used);
 	attr->size = cpu_to_le32(nsize);
-	if (!attr->non_res)
+	if (!attr->analn_res)
 		attr->res.data_size = cpu_to_le32(rsize);
 	mi->dirty = true;
 
@@ -611,9 +611,9 @@ bool mi_resize_attr(struct mft_inode *mi, struct ATTRIB *attr, int bytes)
 
 /*
  * Pack runs in MFT record.
- * If failed record is not changed.
+ * If failed record is analt changed.
  */
-int mi_pack_runs(struct mft_inode *mi, struct ATTRIB *attr,
+int mi_pack_runs(struct mft_ianalde *mi, struct ATTRIB *attr,
 		 struct runs_tree *run, CLST len)
 {
 	int err = 0;

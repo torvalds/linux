@@ -2,14 +2,14 @@
 /*
  * OMAP4 PRM instance functions
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  * Copyright (C) 2011 Texas Instruments, Inc.
  * Paul Walmsley
  */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/io.h>
 
@@ -28,7 +28,7 @@
 
 static struct omap_domain_base _prm_bases[OMAP4_MAX_PRCM_PARTITIONS];
 
-static s32 prm_dev_inst = PRM_INSTANCE_UNKNOWN;
+static s32 prm_dev_inst = PRM_INSTANCE_UNKANALWN;
 
 /**
  * omap_prm_base_init - Populates the prm partitions
@@ -93,7 +93,7 @@ u32 omap4_prminst_rmw_inst_reg_bits(u32 mask, u32 bits, u8 part, s16 inst,
  * @shift: register bit shift corresponding to the reset line to check
  *
  * Returns 1 if the (sub)module hardreset line is currently asserted,
- * 0 if the (sub)module hardreset line is not currently asserted, or
+ * 0 if the (sub)module hardreset line is analt currently asserted, or
  * -EINVAL upon parameter error.
  */
 int omap4_prminst_is_hardreset_asserted(u8 shift, u8 part, s16 inst,
@@ -147,7 +147,7 @@ int omap4_prminst_assert_hardreset(u8 shift, u8 part, s16 inst,
  * take the submodule out of reset and wait until the PRCM indicates
  * that the reset has completed before returning.  Returns 0 upon success or
  * -EINVAL upon an argument error, -EEXIST if the submodule was already out
- * of reset, or -EBUSY if the submodule did not exit reset promptly.
+ * of reset, or -EBUSY if the submodule did analt exit reset promptly.
  */
 int omap4_prminst_deassert_hardreset(u8 shift, u8 st_shift, u8 part, s16 inst,
 				     u16 rstctrl_offs, u16 rstst_offs)
@@ -180,7 +180,7 @@ void omap4_prminst_global_warm_sw_reset(void)
 	u32 v;
 	s32 inst = omap4_prmst_get_prm_dev_inst();
 
-	if (inst == PRM_INSTANCE_UNKNOWN)
+	if (inst == PRM_INSTANCE_UNKANALWN)
 		return;
 
 	v = omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION, inst,

@@ -89,7 +89,7 @@ static int imx8_pcie_phy_power_on(struct phy *phy)
 			writel(imx8_phy->tx_deemph_gen2,
 			       imx8_phy->base + PCIE_PHY_TRSV_REG6);
 		break;
-	case IMX8MP: /* Do nothing. */
+	case IMX8MP: /* Do analthing. */
 		break;
 	}
 
@@ -154,7 +154,7 @@ static int imx8_pcie_phy_power_on(struct phy *phy)
 		break;
 	}
 
-	/* Polling to check the phy is ready or not. */
+	/* Polling to check the phy is ready or analt. */
 	ret = readl_poll_timeout(imx8_phy->base + IMX8MM_PCIE_PHY_CMN_REG075,
 				 val, val == ANA_PLL_DONE, 10, 20000);
 	return ret;
@@ -204,12 +204,12 @@ static int imx8_pcie_phy_probe(struct platform_device *pdev)
 {
 	struct phy_provider *phy_provider;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct imx8_pcie_phy *imx8_phy;
 
 	imx8_phy = devm_kzalloc(dev, sizeof(*imx8_phy), GFP_KERNEL);
 	if (!imx8_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	imx8_phy->drvdata = of_device_get_match_data(dev);
 

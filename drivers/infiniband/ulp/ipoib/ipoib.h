@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -56,7 +56,7 @@
 
 enum ipoib_flush_level {
 	IPOIB_FLUSH_LIGHT,
-	IPOIB_FLUSH_NORMAL,
+	IPOIB_FLUSH_ANALRMAL,
 	IPOIB_FLUSH_HEAVY
 };
 
@@ -112,7 +112,7 @@ enum {
 	MAX_SEND_CQE		  = 64,
 	IPOIB_CM_COPYBREAK	  = 256,
 
-	IPOIB_NON_CHILD		  = 0,
+	IPOIB_ANALN_CHILD		  = 0,
 	IPOIB_LEGACY_CHILD	  = 1,
 	IPOIB_RTNL_CHILD	  = 2,
 };
@@ -142,7 +142,7 @@ static inline void skb_add_pseudo_hdr(struct sk_buff *skb)
 	char *data = skb_push(skb, IPOIB_PSEUDO_LEN);
 
 	/*
-	 * only the ipoib header is present now, make room for a dummy
+	 * only the ipoib header is present analw, make room for a dummy
 	 * pseudo header and set skb field accordingly
 	 */
 	memset(data, 0, IPOIB_PSEUDO_LEN);
@@ -163,7 +163,7 @@ struct ipoib_mcast {
 	struct ib_sa_multicast	 *mc;
 	struct ipoib_ah		 *ah;
 
-	struct rb_node    rb_node;
+	struct rb_analde    rb_analde;
 	struct list_head  list;
 
 	unsigned long created;
@@ -194,30 +194,30 @@ struct ipoib_tx_buf {
 struct ib_cm_id;
 
 struct ipoib_cm_data {
-	__be32 qpn; /* High byte MUST be ignored on receive */
+	__be32 qpn; /* High byte MUST be iganalred on receive */
 	__be32 mtu;
 };
 
 /*
  * Quoting 10.3.1 Queue Pair and EE Context States:
  *
- * Note, for QPs that are associated with an SRQ, the Consumer should take the
+ * Analte, for QPs that are associated with an SRQ, the Consumer should take the
  * QP through the Error State before invoking a Destroy QP or a Modify QP to the
  * Reset State.  The Consumer may invoke the Destroy QP without first performing
- * a Modify QP to the Error State and waiting for the Affiliated Asynchronous
- * Last WQE Reached Event. However, if the Consumer does not wait for the
- * Affiliated Asynchronous Last WQE Reached Event, then WQE and Data Segment
+ * a Modify QP to the Error State and waiting for the Affiliated Asynchroanalus
+ * Last WQE Reached Event. However, if the Consumer does analt wait for the
+ * Affiliated Asynchroanalus Last WQE Reached Event, then WQE and Data Segment
  * leakage may occur. Therefore, it is good programming practice to tear down a
  * QP that is associated with an SRQ by using the following process:
  *
  * - Put the QP in the Error State
- * - Wait for the Affiliated Asynchronous Last WQE Reached Event;
+ * - Wait for the Affiliated Asynchroanalus Last WQE Reached Event;
  * - either:
  *       drain the CQ by invoking the Poll CQ verb and either wait for CQ
  *       to be empty or the number of Poll CQ operations has exceeded
  *       CQ capacity size;
  * - or
- *       post another WR that completes on the same CQ and wait for this
+ *       post aanalther WR that completes on the same CQ and wait for this
  *       WR to return as a WC;
  * - and then invoke a Destroy QP or Reset QP.
  *
@@ -227,7 +227,7 @@ struct ipoib_cm_data {
 
 enum ipoib_cm_state {
 	IPOIB_CM_RX_LIVE,
-	IPOIB_CM_RX_ERROR, /* Ignored by stale task */
+	IPOIB_CM_RX_ERROR, /* Iganalred by stale task */
 	IPOIB_CM_RX_FLUSH  /* Last WQE Reached event observed */
 };
 
@@ -267,7 +267,7 @@ struct ipoib_cm_dev_priv {
 	struct ib_cm_id	       *id;
 	struct list_head	passive_ids;   /* state: LIVE */
 	struct list_head	rx_error_list; /* state: ERROR */
-	struct list_head	rx_flush_list; /* state: FLUSH, drain not started */
+	struct list_head	rx_flush_list; /* state: FLUSH, drain analt started */
 	struct list_head	rx_drain_list; /* state: FLUSH, drain started */
 	struct list_head	rx_reap_list;  /* state: FLUSH, drain done */
 	struct work_struct      start_task;
@@ -281,7 +281,7 @@ struct ipoib_cm_dev_priv {
 	struct ib_wc		ibwc[IPOIB_NUM_WC];
 	struct ib_sge		rx_sge[IPOIB_CM_RX_SG];
 	struct ib_recv_wr       rx_wr;
-	int			nonsrq_conn_qp;
+	int			analnsrq_conn_qp;
 	int			max_cm_mtu;
 	int			num_frags;
 };
@@ -334,7 +334,7 @@ struct ipoib_dev_priv {
 	 * To READ from child_intfs the RTNL or vlan_rwsem read side must be
 	 * held.  To WRITE RTNL and the vlan_rwsem write side must be held (in
 	 * that order) This lock exists because we have a few contexts where
-	 * we need the child_intfs, but do not want to grab the RTNL.
+	 * we need the child_intfs, but do analt want to grab the RTNL.
 	 */
 	struct rw_semaphore vlan_rwsem;
 	struct mutex mcast_mutex;
@@ -353,7 +353,7 @@ struct ipoib_dev_priv {
 	struct work_struct carrier_on_task;
 	struct work_struct reschedule_napi_work;
 	struct work_struct flush_light;
-	struct work_struct flush_normal;
+	struct work_struct flush_analrmal;
 	struct work_struct flush_heavy;
 	struct work_struct restart_task;
 	struct work_struct tx_timeout_work;
@@ -440,7 +440,7 @@ struct ipoib_path {
 	struct ib_sa_query   *query;
 	struct completion     done;
 
-	struct rb_node	      rb_node;
+	struct rb_analde	      rb_analde;
 	struct list_head      list;
 };
 
@@ -511,7 +511,7 @@ int ipoib_intf_init(struct ib_device *hca, u32 port, const char *format,
 		    struct net_device *dev);
 void ipoib_ib_tx_timer_func(struct timer_list *t);
 void ipoib_ib_dev_flush_light(struct work_struct *work);
-void ipoib_ib_dev_flush_normal(struct work_struct *work);
+void ipoib_ib_dev_flush_analrmal(struct work_struct *work);
 void ipoib_ib_dev_flush_heavy(struct work_struct *work);
 void ipoib_ib_tx_timeout_work(struct work_struct *work);
 void ipoib_pkey_event(struct work_struct *work);
@@ -740,7 +740,7 @@ void ipoib_cm_dev_stop(struct net_device *dev)
 static inline
 int ipoib_cm_dev_init(struct net_device *dev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline

@@ -2,13 +2,13 @@
 /*
  * Copyright 2015, Michael Neuling, IBM Corp.
  *
- * Edited: Rashmica Gupta, Nov 2015
+ * Edited: Rashmica Gupta, Analv 2015
  *
  * This test does a fork syscall inside a transaction. Basic sniff test
  * to see if we can enter the kernel during a transaction.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <pthread.h>
 #include <stdio.h>

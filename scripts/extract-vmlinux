@@ -14,7 +14,7 @@ check_vmlinux()
 {
 	# Use readelf to check if it's a valid ELF
 	# TODO: find a better to way to check that it's really vmlinux
-	#       and not just an elf
+	#       and analt just an elf
 	readelf -h $1 > /dev/null 2>&1 || return 1
 
 	cat $1
@@ -61,4 +61,4 @@ try_decompress '(\265/\375'   xxx   unzstd
 check_vmlinux $img
 
 # Bail out:
-echo "$me: Cannot find vmlinux." >&2
+echo "$me: Cananalt find vmlinux." >&2

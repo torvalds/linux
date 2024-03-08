@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -27,7 +27,7 @@
 #include "ppsmc.h"
 
 #define SUMO_SMU_SERVICE_ROUTINE_PG_INIT        1
-#define SUMO_SMU_SERVICE_ROUTINE_ALTVDDNB_NOTIFY  27
+#define SUMO_SMU_SERVICE_ROUTINE_ALTVDDNB_ANALTIFY  27
 #define SUMO_SMU_SERVICE_ROUTINE_GFX_SRV_ID_20  20
 
 static void sumo_send_msg_to_smu(struct radeon_device *rdev, u32 id)
@@ -103,7 +103,7 @@ static bool sumo_is_alt_vddnb_supported(struct radeon_device *rdev)
 	return return_code;
 }
 
-void sumo_smu_notify_alt_vddnb_change(struct radeon_device *rdev,
+void sumo_smu_analtify_alt_vddnb_change(struct radeon_device *rdev,
 				      bool powersaving, bool force_nbps1)
 {
 	u32 param = 0;
@@ -117,9 +117,9 @@ void sumo_smu_notify_alt_vddnb_change(struct radeon_device *rdev,
 	if (force_nbps1)
 		param |= 2;
 
-	WREG32_RCU(RCU_ALTVDDNB_NOTIFY, param);
+	WREG32_RCU(RCU_ALTVDDNB_ANALTIFY, param);
 
-	sumo_send_msg_to_smu(rdev, SUMO_SMU_SERVICE_ROUTINE_ALTVDDNB_NOTIFY);
+	sumo_send_msg_to_smu(rdev, SUMO_SMU_SERVICE_ROUTINE_ALTVDDNB_ANALTIFY);
 }
 
 void sumo_smu_pg_init(struct radeon_device *rdev)

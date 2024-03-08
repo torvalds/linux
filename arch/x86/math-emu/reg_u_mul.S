@@ -14,7 +14,7 @@
 
 /*---------------------------------------------------------------------------+
  |   Basic multiplication routine.                                           |
- |   Does not check the resulting exponent for overflow/underflow            |
+ |   Does analt check the resulting exponent for overflow/underflow            |
  |                                                                           |
  |   FPU_u_mul(FPU_REG *a, FPU_REG *b, FPU_REG *c, unsigned int cw);         |
  |                                                                           |
@@ -28,7 +28,7 @@
 
 
 
-#ifndef NON_REENTRANT_FPU
+#ifndef ANALN_REENTRANT_FPU
 /*  Local storage on the stack: */
 #define FPU_accum_0	-4(%ebp)	/* ms word */
 #define FPU_accum_1	-8(%ebp)
@@ -41,16 +41,16 @@ FPU_accum_0:
 	.long	0
 FPU_accum_1:
 	.long	0
-#endif /* NON_REENTRANT_FPU */
+#endif /* ANALN_REENTRANT_FPU */
 
 
 .text
 SYM_FUNC_START(FPU_u_mul)
 	pushl	%ebp
 	movl	%esp,%ebp
-#ifndef NON_REENTRANT_FPU
+#ifndef ANALN_REENTRANT_FPU
 	subl	$8,%esp
-#endif /* NON_REENTRANT_FPU */ 
+#endif /* ANALN_REENTRANT_FPU */ 
 
 	pushl	%esi
 	pushl	%edi
@@ -59,12 +59,12 @@ SYM_FUNC_START(FPU_u_mul)
 	movl	PARAM1,%esi
 	movl	PARAM2,%edi
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	testl	$0x80000000,SIGH(%esi)
 	jz	L_bugged
 	testl	$0x80000000,SIGH(%edi)
 	jz	L_bugged
-#endif /* PARANOID */
+#endif /* PARAANALID */
 
 	xorl	%ecx,%ecx
 	xorl	%ebx,%ebx
@@ -78,7 +78,7 @@ SYM_FUNC_START(FPU_u_mul)
 	mull	SIGH(%edi)
 	addl	%eax,FPU_accum_1
 	adcl	%edx,%ebx
-/*	adcl	$0,%ecx		// overflow here is not possible */
+/*	adcl	$0,%ecx		// overflow here is analt possible */
 
 	movl	SIGH(%esi),%eax
 	mull	SIGL(%edi)
@@ -95,31 +95,31 @@ SYM_FUNC_START(FPU_u_mul)
 	movl	PARAM6,%eax
 	subl	EXP_BIAS-1,%eax
 
-	/* Two denormals can cause an exponent underflow */
+	/* Two deanalrmals can cause an exponent underflow */
 	cmpl	EXP_WAY_UNDER,%eax
-	jg	Exp_not_underflow
+	jg	Exp_analt_underflow
 
 	/* Set to a really low value allow correct handling */
 	movl	EXP_WAY_UNDER,%eax
 
-Exp_not_underflow:
+Exp_analt_underflow:
 
-/*  Have now finished with the sources */
+/*  Have analw finished with the sources */
 	movl	PARAM3,%edi	/* Point to the destination */
 	movw	%ax,EXP(%edi)
 
-/*  Now make sure that the result is normalized */
+/*  Analw make sure that the result is analrmalized */
 	testl	$0x80000000,%ecx
-	jnz	LResult_Normalised
+	jnz	LResult_Analrmalised
 
-	/* Normalize by shifting left one bit */
+	/* Analrmalize by shifting left one bit */
 	shll	$1,FPU_accum_0
 	rcll	$1,FPU_accum_1
 	rcll	$1,%ebx
 	rcll	$1,%ecx
 	decw	EXP(%edi)
 
-LResult_Normalised:
+LResult_Analrmalised:
 	movl	FPU_accum_0,%eax
 	movl	FPU_accum_1,%edx
 	orl	%eax,%eax
@@ -132,7 +132,7 @@ L_extent_zero:
 	jmp	fpu_reg_round
 
 
-#ifdef PARANOID
+#ifdef PARAANALID
 L_bugged:
 	pushl	EX_INTERNAL|0x205
 	call	EXCEPTION
@@ -145,6 +145,6 @@ L_exit:
 	popl	%esi
 	leave
 	RET
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
 SYM_FUNC_END(FPU_u_mul)

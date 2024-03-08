@@ -8,28 +8,28 @@
  *  Copyright (C) 2002-2003 MontaVista Software, Inc.
  *
  *  Update for Linux-2.6 and cache flush improvements
- *  Copyright (C) 2004 Nokia Corporation by Tony Lindgren <tony@atomide.com>
+ *  Copyright (C) 2004 Analkia Corporation by Tony Lindgren <tony@atomide.com>
  *
- *  hacked for non-paged-MM by Hyok S. Choi, 2004.
+ *  hacked for analn-paged-MM by Hyok S. Choi, 2004.
  *
  * These are the low level assembler for performing cache and TLB
  * functions on the arm925.
  *
- *  CONFIG_CPU_ARM925_CPU_IDLE -> nohlt
+ *  CONFIG_CPU_ARM925_CPU_IDLE -> analhlt
  *
- * Some additional notes based on deciphering the TI TRM on OMAP-5910:
+ * Some additional analtes based on deciphering the TI TRM on OMAP-5910:
  *
- * NOTE1: The TI925T Configuration Register bit "D-cache clean and flush
+ * ANALTE1: The TI925T Configuration Register bit "D-cache clean and flush
  *	  entry mode" must be 0 to flush the entries in both segments
  *	  at once. This is the default value. See TRM 2-20 and 2-24 for
  *	  more information.
  *
- * NOTE2: Default is the "D-cache clean and flush entry mode". It looks
+ * ANALTE2: Default is the "D-cache clean and flush entry mode". It looks
  *	  like the "Transparent mode" must be on for partial cache flushes
  *	  to work in this mode. This mode only works with 16-bit external
  *	  memory. See TRM 2-24 for more information.
  *
- * NOTE3: Write-back cache flushing seems to be flakey with devices using
+ * ANALTE3: Write-back cache flushing seems to be flakey with devices using
  *        direct memory access, such as USB OHCI. The workaround is to use
  *        write-through cache with CONFIG_CPU_DCACHE_WRITETHROUGH (this is
  *        the default for OMAP-1510).
@@ -165,7 +165,7 @@ __flush_whole_cache:
 #ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
 	mcr	p15, 0, ip, c7, c6, 0		@ invalidate D cache
 #else
-	/* Flush entries in both segments at once, see NOTE1 above */
+	/* Flush entries in both segments at once, see ANALTE1 above */
 	mov	r3, #(CACHE_DENTRIES - 1) << 4	@ 256 entries in segment
 2:	mcr	p15, 0, r3, c7, c14, 2		@ clean+invalidate D index
 	subs	r3, r3, #1 << 4
@@ -217,7 +217,7 @@ ENTRY(arm925_flush_user_cache_range)
  *	coherent_kern_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start, end.  If you have non-snooping
+ *	region described by start, end.  If you have analn-sanaloping
  *	Harvard caches, you need to implement this function.
  *
  *	- start	- virtual start address
@@ -230,7 +230,7 @@ ENTRY(arm925_coherent_kern_range)
  *	coherent_user_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start, end.  If you have non-snooping
+ *	region described by start, end.  If you have analn-sanaloping
  *	Harvard caches, you need to implement this function.
  *
  *	- start	- virtual start address
@@ -250,7 +250,7 @@ ENTRY(arm925_coherent_user_range)
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
  *
- *	Ensure no D cache aliasing occurs, either with itself or
+ *	Ensure anal D cache aliasing occurs, either with itself or
  *	the I cache
  *
  *	- addr	- kernel address
@@ -271,8 +271,8 @@ ENTRY(arm925_flush_kern_dcache_area)
  *	dma_inv_range(start, end)
  *
  *	Invalidate (discard) the specified virtual address range.
- *	May not write back any entries.  If 'start' or 'end'
- *	are not cache line aligned, those lines must be written
+ *	May analt write back any entries.  If 'start' or 'end'
+ *	are analt cache line aligned, those lines must be written
  *	back.
  *
  *	- start	- virtual start address
@@ -394,7 +394,7 @@ ENTRY(cpu_arm925_switch_mm)
 #ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
 	mcr	p15, 0, ip, c7, c6, 0		@ invalidate D cache
 #else
-	/* Flush entries in bothe segments at once, see NOTE1 above */
+	/* Flush entries in bothe segments at once, see ANALTE1 above */
 	mov	r3, #(CACHE_DENTRIES - 1) << 4	@ 256 entries in segment
 2:	mcr	p15, 0, r3, c7, c14, 2		@ clean & invalidate D index
 	subs	r3, r3, #1 << 4
@@ -428,7 +428,7 @@ ENTRY(cpu_arm925_set_pte_ext)
 __arm925_setup:
 	mov	r0, #0
 
-	/* Transparent on, D-cache clean & flush mode. See  NOTE2 above */
+	/* Transparent on, D-cache clean & flush mode. See  ANALTE2 above */
         orr     r0,r0,#1 << 1			@ transparent mode on
         mcr     p15, 0, r0, c15, c1, 0          @ write TI config register
 

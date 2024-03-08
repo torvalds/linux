@@ -17,7 +17,7 @@ Required Properties:
 - compatible : Should be "altr,socfpga-l2-ecc"
 - reg : Address and size for ECC error interrupt clear registers.
 - interrupts : Should be single bit error interrupt, then double bit error
-	interrupt. Note the rising edge type.
+	interrupt. Analte the rising edge type.
 
 On Chip RAM ECC
 Required Properties:
@@ -25,7 +25,7 @@ Required Properties:
 - reg : Address and size for ECC error interrupt clear registers.
 - iram : phandle to On-Chip RAM definition.
 - interrupts : Should be single bit error interrupt, then double bit error
-	interrupt. Note the rising edge type.
+	interrupt. Analte the rising edge type.
 
 Example:
 
@@ -86,7 +86,7 @@ Ethernet FIFO ECC
 Required Properties:
 - compatible      : Should be "altr,socfpga-eth-mac-ecc"
 - reg             : Address and size for ECC block registers.
-- altr,ecc-parent : phandle to parent Ethernet node.
+- altr,ecc-parent : phandle to parent Ethernet analde.
 - interrupts      : Should be single bit error interrupt, then double bit error
 	interrupt, in this order.
 
@@ -94,7 +94,7 @@ NAND FIFO ECC
 Required Properties:
 - compatible      : Should be "altr,socfpga-nand-ecc"
 - reg             : Address and size for ECC block registers.
-- altr,ecc-parent : phandle to parent NAND node.
+- altr,ecc-parent : phandle to parent NAND analde.
 - interrupts      : Should be single bit error interrupt, then double bit error
 	interrupt, in this order.
 
@@ -102,7 +102,7 @@ DMA FIFO ECC
 Required Properties:
 - compatible      : Should be "altr,socfpga-dma-ecc"
 - reg             : Address and size for ECC block registers.
-- altr,ecc-parent : phandle to parent DMA node.
+- altr,ecc-parent : phandle to parent DMA analde.
 - interrupts      : Should be single bit error interrupt, then double bit error
 	interrupt, in this order.
 
@@ -110,7 +110,7 @@ USB FIFO ECC
 Required Properties:
 - compatible      : Should be "altr,socfpga-usb-ecc"
 - reg             : Address and size for ECC block registers.
-- altr,ecc-parent : phandle to parent USB node.
+- altr,ecc-parent : phandle to parent USB analde.
 - interrupts      : Should be single bit error interrupt, then double bit error
 	interrupt, in this order.
 
@@ -118,7 +118,7 @@ QSPI FIFO ECC
 Required Properties:
 - compatible      : Should be "altr,socfpga-qspi-ecc"
 - reg             : Address and size for ECC block registers.
-- altr,ecc-parent : phandle to parent QSPI node.
+- altr,ecc-parent : phandle to parent QSPI analde.
 - interrupts      : Should be single bit error interrupt, then double bit error
 	interrupt, in this order.
 
@@ -126,7 +126,7 @@ SDMMC FIFO ECC
 Required Properties:
 - compatible      : Should be "altr,socfpga-sdmmc-ecc"
 - reg             : Address and size for ECC block registers.
-- altr,ecc-parent : phandle to parent SD/MMC node.
+- altr,ecc-parent : phandle to parent SD/MMC analde.
 - interrupts      : Should be single bit error interrupt, then double bit error
 	interrupt, in this order for port A, and then single bit error interrupt,
 	then double bit error interrupt in this order for port B.
@@ -236,7 +236,7 @@ Stratix10 SoCFPGA ECC Manager (ARM64)
 The Stratix10 SoC ECC Manager handles the IRQs for each peripheral
 in a shared register similar to the Arria10. However, Stratix10 ECC
 requires access to registers that can only be read from Secure Monitor
-with SMC calls. Therefore the device tree is slightly different. Note
+with SMC calls. Therefore the device tree is slightly different. Analte
 that only 1 interrupt is sent in Stratix10 because the double bit errors
 are treated as SErrors in ARM64 instead of IRQs in ARM32.
 
@@ -262,42 +262,42 @@ On-Chip RAM ECC
 Required Properties:
 - compatible      : Should be "altr,socfpga-s10-ocram-ecc"
 - reg             : Address and size for ECC block registers.
-- altr,ecc-parent : phandle to parent OCRAM node.
+- altr,ecc-parent : phandle to parent OCRAM analde.
 - interrupts      : Should be single bit error interrupt.
 
 Ethernet FIFO ECC
 Required Properties:
 - compatible      : Should be "altr,socfpga-s10-eth-mac-ecc"
 - reg             : Address and size for ECC block registers.
-- altr,ecc-parent : phandle to parent Ethernet node.
+- altr,ecc-parent : phandle to parent Ethernet analde.
 - interrupts      : Should be single bit error interrupt.
 
 NAND FIFO ECC
 Required Properties:
 - compatible      : Should be "altr,socfpga-s10-nand-ecc"
 - reg             : Address and size for ECC block registers.
-- altr,ecc-parent : phandle to parent NAND node.
+- altr,ecc-parent : phandle to parent NAND analde.
 - interrupts      : Should be single bit error interrupt.
 
 DMA FIFO ECC
 Required Properties:
 - compatible      : Should be "altr,socfpga-s10-dma-ecc"
 - reg             : Address and size for ECC block registers.
-- altr,ecc-parent : phandle to parent DMA node.
+- altr,ecc-parent : phandle to parent DMA analde.
 - interrupts      : Should be single bit error interrupt.
 
 USB FIFO ECC
 Required Properties:
 - compatible      : Should be "altr,socfpga-s10-usb-ecc"
 - reg             : Address and size for ECC block registers.
-- altr,ecc-parent : phandle to parent USB node.
+- altr,ecc-parent : phandle to parent USB analde.
 - interrupts      : Should be single bit error interrupt.
 
 SDMMC FIFO ECC
 Required Properties:
 - compatible      : Should be "altr,socfpga-s10-sdmmc-ecc"
 - reg             : Address and size for ECC block registers.
-- altr,ecc-parent : phandle to parent SD/MMC node.
+- altr,ecc-parent : phandle to parent SD/MMC analde.
 - interrupts      : Should be single bit error interrupt for port A
 		    and then single bit error interrupt for port B.
 

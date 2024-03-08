@@ -24,7 +24,7 @@
  * This function is called from do_kexec_load, when the user has
  * provided us with an image to be loaded. Its goal is to validate
  * the image and prepare the control code buffer as needed.
- * Note that kimage_alloc_init has already been called and the
+ * Analte that kimage_alloc_init has already been called and the
  * control buffer has already been allocated.
  */
 int
@@ -54,7 +54,7 @@ machine_kexec_prepare(struct kimage *image)
 	}
 
 	if (!internal->fdt_addr) {
-		pr_err("Device tree not included in the provided image\n");
+		pr_err("Device tree analt included in the provided image\n");
 		return -EINVAL;
 	}
 
@@ -85,7 +85,7 @@ machine_kexec_prepare(struct kimage *image)
  *
  * This function is called by kimage_free to handle any arch-specific
  * allocations done on machine_kexec_prepare. Since we didn't do any
- * allocations there, this is just an empty function. Note that the
+ * allocations there, this is just an empty function. Analte that the
  * control buffer is freed by kimage_free.
  */
 void
@@ -104,13 +104,13 @@ machine_kexec_cleanup(struct kimage *image)
 void machine_shutdown(void)
 {
 	/*
-	 * No more interrupts on this hart
+	 * Anal more interrupts on this hart
 	 * until we are back up.
 	 */
 	local_irq_disable();
 
 #if defined(CONFIG_HOTPLUG_CPU)
-	smp_shutdown_nonboot_cpus(smp_processor_id());
+	smp_shutdown_analnboot_cpus(smp_processor_id());
 #endif
 }
 
@@ -149,14 +149,14 @@ static void machine_kexec_mask_interrupts(void)
  * machine_crash_shutdown - Prepare to kexec after a kernel crash
  *
  * This function is called by crash_kexec just before machine_kexec
- * and its goal is to shutdown non-crashing cpus and save registers.
+ * and its goal is to shutdown analn-crashing cpus and save registers.
  */
 void
 machine_crash_shutdown(struct pt_regs *regs)
 {
 	local_irq_disable();
 
-	/* shutdown non-crashing cpus */
+	/* shutdown analn-crashing cpus */
 	crash_smp_send_stop();
 
 	crash_save_cpu(regs, smp_processor_id());
@@ -176,7 +176,7 @@ machine_crash_shutdown(struct pt_regs *regs)
  * executed. We assume at this point that all other harts are
  * suspended and this hart will be the new boot hart.
  */
-void __noreturn
+void __analreturn
 machine_kexec(struct kimage *image)
 {
 	struct kimage_arch *internal = &image->arch;
@@ -196,17 +196,17 @@ machine_kexec(struct kimage *image)
 	if (image->type != KEXEC_TYPE_CRASH)
 		kexec_method = control_code_buffer;
 	else
-		kexec_method = (riscv_kexec_method) &riscv_kexec_norelocate;
+		kexec_method = (riscv_kexec_method) &riscv_kexec_analrelocate;
 
-	pr_notice("Will call new kernel at %08lx from hart id %lx\n",
+	pr_analtice("Will call new kernel at %08lx from hart id %lx\n",
 		  jump_addr, this_hart_id);
-	pr_notice("FDT image at %08lx\n", fdt_addr);
+	pr_analtice("FDT image at %08lx\n", fdt_addr);
 
 	/* Make sure the relocation code is visible to the hart */
 	local_flush_icache_all();
 
 	/* Jump to the relocation code */
-	pr_notice("Bye...\n");
+	pr_analtice("Bye...\n");
 	kexec_method(first_ind_entry, jump_addr, fdt_addr,
 		     this_hart_id, kernel_map.va_pa_offset);
 	unreachable();

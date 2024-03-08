@@ -48,7 +48,7 @@ void __iomem *sbc610_regs;
 
 static void __init gef_sbc610_init_irq(void)
 {
-	struct device_node *cascade_node = NULL;
+	struct device_analde *cascade_analde = NULL;
 
 	mpc86xx_init_irq();
 
@@ -56,19 +56,19 @@ static void __init gef_sbc610_init_irq(void)
 	 * There is a simple interrupt handler in the main FPGA, this needs
 	 * to be cascaded into the MPIC
 	 */
-	cascade_node = of_find_compatible_node(NULL, NULL, "gef,fpga-pic");
-	if (!cascade_node) {
-		printk(KERN_WARNING "SBC610: No FPGA PIC\n");
+	cascade_analde = of_find_compatible_analde(NULL, NULL, "gef,fpga-pic");
+	if (!cascade_analde) {
+		printk(KERN_WARNING "SBC610: Anal FPGA PIC\n");
 		return;
 	}
 
-	gef_pic_init(cascade_node);
-	of_node_put(cascade_node);
+	gef_pic_init(cascade_analde);
+	of_analde_put(cascade_analde);
 }
 
 static void __init gef_sbc610_setup_arch(void)
 {
-	struct device_node *regs;
+	struct device_analde *regs;
 
 	printk(KERN_INFO "GE Intelligent Platforms SBC610 6U VPX SBC\n");
 
@@ -79,12 +79,12 @@ static void __init gef_sbc610_setup_arch(void)
 	fsl_pci_assign_primary();
 
 	/* Remap basic board registers */
-	regs = of_find_compatible_node(NULL, NULL, "gef,fpga-regs");
+	regs = of_find_compatible_analde(NULL, NULL, "gef,fpga-regs");
 	if (regs) {
 		sbc610_regs = of_iomap(regs, 0);
 		if (sbc610_regs == NULL)
 			printk(KERN_WARNING "Unable to map board registers\n");
-		of_node_put(regs);
+		of_analde_put(regs);
 	}
 
 #if defined(CONFIG_MMIO_NVRAM)
@@ -136,7 +136,7 @@ static void gef_sbc610_nec_fixup(struct pci_dev *pdev)
 {
 	unsigned int val;
 
-	/* Do not do the fixup on other platforms! */
+	/* Do analt do the fixup on other platforms! */
 	if (!machine_is(gef_sbc610))
 		return;
 

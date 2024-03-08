@@ -21,7 +21,7 @@
  *	   Frank Mori Hess <fmhess@users.sourceforge.net>
  * Status: works
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: analt applicable, uses PCI auto config
  *
  * Only simple analog output writing is supported.
  */
@@ -68,7 +68,7 @@
 #define DESELECT_REF_DAC_BIT    0x2
 /* don't send serial data to caldac n */
 #define DESELECT_CALDAC_BIT(n)  (0x4 << (n))
-/* manual says to set this bit with no explanation */
+/* manual says to set this bit with anal explanation */
 #define DUMMY_BIT       0x40
 
 #define CB_DDA_DA_DATA_REG(x)		(0x08 + ((x) * 2))
@@ -335,13 +335,13 @@ static int cb_pcidda_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(cb_pcidda_boards))
 		board = &cb_pcidda_boards[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)

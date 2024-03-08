@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2014, 2016-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/gpio/driver.h>
@@ -123,7 +123,7 @@
 
 /* The index of each function in pmic_gpio_functions[] array */
 enum pmic_gpio_func_index {
-	PMIC_GPIO_FUNC_INDEX_NORMAL,
+	PMIC_GPIO_FUNC_INDEX_ANALRMAL,
 	PMIC_GPIO_FUNC_INDEX_PAIRED,
 	PMIC_GPIO_FUNC_INDEX_FUNC1,
 	PMIC_GPIO_FUNC_INDEX_FUNC2,
@@ -150,7 +150,7 @@ enum pmic_gpio_func_index {
  * @power_source: Current power-source used.
  * @buffer_type: Push-pull, open-drain or open-source.
  * @pullup: Constant current which flow trough GPIO output buffer.
- * @strength: No, Low, Medium, High
+ * @strength: Anal, Low, Medium, High
  * @function: See pmic_gpio_functions[]
  * @atest: the ATEST selection for GPIO analog-pass-through mode
  * @dtest_buffer: the DTEST buffer selection for digital input mode.
@@ -210,7 +210,7 @@ static const char *const pmic_gpio_groups[] = {
 };
 
 static const char *const pmic_gpio_functions[] = {
-	[PMIC_GPIO_FUNC_INDEX_NORMAL]	= PMIC_GPIO_FUNC_NORMAL,
+	[PMIC_GPIO_FUNC_INDEX_ANALRMAL]	= PMIC_GPIO_FUNC_ANALRMAL,
 	[PMIC_GPIO_FUNC_INDEX_PAIRED]	= PMIC_GPIO_FUNC_PAIRED,
 	[PMIC_GPIO_FUNC_INDEX_FUNC1]	= PMIC_GPIO_FUNC_FUNC1,
 	[PMIC_GPIO_FUNC_INDEX_FUNC2]	= PMIC_GPIO_FUNC_FUNC2,
@@ -274,7 +274,7 @@ static const struct pinctrl_ops pmic_gpio_pinctrl_ops = {
 	.get_groups_count	= pmic_gpio_get_groups_count,
 	.get_group_name		= pmic_gpio_get_group_name,
 	.get_group_pins		= pmic_gpio_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_group,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -308,13 +308,13 @@ static int pmic_gpio_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 	int ret;
 
 	if (function > PMIC_GPIO_FUNC_INDEX_DTEST4) {
-		pr_err("function: %d is not defined\n", function);
+		pr_err("function: %d is analt defined\n", function);
 		return -EINVAL;
 	}
 
 	pad = pctldev->desc->pins[pin].drv_data;
 	/*
-	 * Non-LV/MV subtypes only support 2 special functions,
+	 * Analn-LV/MV subtypes only support 2 special functions,
 	 * offsetting the dtestx function values by 2
 	 */
 	if (!pad->lv_mv_type) {
@@ -661,13 +661,13 @@ static void pmic_gpio_config_dbg_show(struct pinctrl_dev *pctldev,
 
 	static const char *const biases[] = {
 		"pull-up 30uA", "pull-up 1.5uA", "pull-up 31.5uA",
-		"pull-up 1.5uA + 30uA boost", "pull-down 10uA", "no pull"
+		"pull-up 1.5uA + 30uA boost", "pull-down 10uA", "anal pull"
 	};
 	static const char *const buffer_types[] = {
 		"push-pull", "open-drain", "open-source"
 	};
 	static const char *const strengths[] = {
-		"no", "high", "medium", "low"
+		"anal", "high", "medium", "low"
 	};
 
 	pad = pctldev->desc->pins[pin].drv_data;
@@ -688,7 +688,7 @@ static void pmic_gpio_config_dbg_show(struct pinctrl_dev *pctldev,
 			pad->out_value = ret;
 		}
 		/*
-		 * For the non-LV/MV subtypes only 2 special functions are
+		 * For the analn-LV/MV subtypes only 2 special functions are
 		 * available, offsetting the dtest function values by 2.
 		 */
 		function = pad->function;
@@ -820,7 +820,7 @@ static int pmic_gpio_populate(struct pmic_gpio_state *state,
 	if (type != PMIC_GPIO_TYPE) {
 		dev_err(state->dev, "incorrect block type 0x%x at 0x%x\n",
 			type, pad->base);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	subtype = pmic_gpio_read(state, pad, PMIC_GPIO_REG_SUBTYPE);
@@ -861,8 +861,8 @@ static int pmic_gpio_populate(struct pmic_gpio_state *state,
 		pad->lv_mv_type = true;
 		break;
 	default:
-		dev_err(state->dev, "unknown GPIO type 0x%x\n", subtype);
-		return -ENODEV;
+		dev_err(state->dev, "unkanalwn GPIO type 0x%x\n", subtype);
+		return -EANALDEV;
 	}
 
 	if (pad->lv_mv_type) {
@@ -907,12 +907,12 @@ static int pmic_gpio_populate(struct pmic_gpio_state *state,
 		break;
 	case PMIC_GPIO_MODE_ANALOG_PASS_THRU:
 		if (!pad->lv_mv_type)
-			return -ENODEV;
+			return -EANALDEV;
 		pad->analog_pass = true;
 		break;
 	default:
-		dev_err(state->dev, "unknown GPIO direction\n");
-		return -ENODEV;
+		dev_err(state->dev, "unkanalwn GPIO direction\n");
+		return -EANALDEV;
 	}
 
 	val = pmic_gpio_read(state, pad, PMIC_GPIO_REG_DIG_VIN_CTL);
@@ -1011,7 +1011,7 @@ static int pmic_gpio_populate_parent_fwspec(struct gpio_chip *chip,
 	struct pmic_gpio_state *state = gpiochip_get_data(chip);
 	struct irq_fwspec *fwspec = &gfwspec->fwspec;
 
-	fwspec->fwnode = chip->irq.parent_domain->fwnode;
+	fwspec->fwanalde = chip->irq.parent_domain->fwanalde;
 
 	fwspec->param_count = 4;
 	fwspec->param[0] = state->usid;
@@ -1052,7 +1052,7 @@ static const struct irq_chip spmi_gpio_irq_chip = {
 static int pmic_gpio_probe(struct platform_device *pdev)
 {
 	struct irq_domain *parent_domain;
-	struct device_node *parent_node;
+	struct device_analde *parent_analde;
 	struct device *dev = &pdev->dev;
 	struct pinctrl_pin_desc *pindesc;
 	struct pinctrl_desc *pctrldesc;
@@ -1063,7 +1063,7 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 	int ret, npins, i;
 	u32 reg;
 
-	ret = of_property_read_u32(dev->of_node, "reg", &reg);
+	ret = of_property_read_u32(dev->of_analde, "reg", &reg);
 	if (ret < 0) {
 		dev_err(dev, "missing base address");
 		return ret;
@@ -1073,7 +1073,7 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 
 	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, state);
 
@@ -1085,15 +1085,15 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 
 	pindesc = devm_kcalloc(dev, npins, sizeof(*pindesc), GFP_KERNEL);
 	if (!pindesc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pads = devm_kcalloc(dev, npins, sizeof(*pads), GFP_KERNEL);
 	if (!pads)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctrldesc = devm_kzalloc(dev, sizeof(*pctrldesc), GFP_KERNEL);
 	if (!pctrldesc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctrldesc->pctlops = &pmic_gpio_pinctrl_ops;
 	pctrldesc->pmxops = &pmic_gpio_pinmux_ops;
@@ -1133,20 +1133,20 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(state->ctrl))
 		return PTR_ERR(state->ctrl);
 
-	parent_node = of_irq_find_parent(state->dev->of_node);
-	if (!parent_node)
+	parent_analde = of_irq_find_parent(state->dev->of_analde);
+	if (!parent_analde)
 		return -ENXIO;
 
-	parent_domain = irq_find_host(parent_node);
-	of_node_put(parent_node);
+	parent_domain = irq_find_host(parent_analde);
+	of_analde_put(parent_analde);
 	if (!parent_domain)
 		return -ENXIO;
 
 	girq = &state->chip.irq;
 	gpio_irq_chip_set_chip(girq, &spmi_gpio_irq_chip);
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_level_irq;
-	girq->fwnode = dev_fwnode(state->dev);
+	girq->fwanalde = dev_fwanalde(state->dev);
 	girq->parent_domain = parent_domain;
 	girq->child_to_parent_hwirq = pmic_gpio_child_to_parent_hwirq;
 	girq->populate_parent_alloc_arg = pmic_gpio_populate_parent_fwspec;
@@ -1161,7 +1161,7 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 
 	/*
 	 * For DeviceTree-supported systems, the gpio core checks the
-	 * pinctrl's device node for the "gpio-ranges" property.
+	 * pinctrl's device analde for the "gpio-ranges" property.
 	 * If it is present, it takes care of adding the pin ranges
 	 * for the driver. In this case the driver can skip ahead.
 	 *
@@ -1169,7 +1169,7 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 	 * files which don't set the "gpio-ranges" property or systems that
 	 * utilize ACPI the driver has to call gpiochip_add_pin_range().
 	 */
-	if (!of_property_read_bool(dev->of_node, "gpio-ranges")) {
+	if (!of_property_read_bool(dev->of_analde, "gpio-ranges")) {
 		ret = gpiochip_add_pin_range(&state->chip, dev_name(dev), 0, 0,
 					     npins);
 		if (ret) {
@@ -1269,7 +1269,7 @@ static struct platform_driver pmic_gpio_driver = {
 
 module_platform_driver(pmic_gpio_driver);
 
-MODULE_AUTHOR("Ivan T. Ivanov <iivanov@mm-sol.com>");
+MODULE_AUTHOR("Ivan T. Ivaanalv <iivaanalv@mm-sol.com>");
 MODULE_DESCRIPTION("Qualcomm SPMI PMIC GPIO pin control driver");
 MODULE_ALIAS("platform:qcom-spmi-gpio");
 MODULE_LICENSE("GPL v2");

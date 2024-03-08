@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -55,17 +55,17 @@ static inline unsigned radeon_mem_type_to_domain(u32 mem_type)
 /**
  * radeon_bo_reserve - reserve bo
  * @bo:		bo structure
- * @no_intr:	don't return -ERESTARTSYS on pending signal
+ * @anal_intr:	don't return -ERESTARTSYS on pending signal
  *
  * Returns:
  * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
  * a signal. Release all buffer reservations and return to user-space.
  */
-static inline int radeon_bo_reserve(struct radeon_bo *bo, bool no_intr)
+static inline int radeon_bo_reserve(struct radeon_bo *bo, bool anal_intr)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, !no_intr, false, NULL);
+	r = ttm_bo_reserve(&bo->tbo, !anal_intr, false, NULL);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			dev_err(bo->rdev->dev, "%p reserve failed\n", bo);
@@ -85,7 +85,7 @@ static inline void radeon_bo_unreserve(struct radeon_bo *bo)
  *
  * Returns current GPU offset of the object.
  *
- * Note: object should either be pinned or reserved when calling this
+ * Analte: object should either be pinned or reserved when calling this
  * function, it might be useful to add check for this for debugging.
  */
 static inline u64 radeon_bo_gpu_offset(struct radeon_bo *bo)
@@ -130,7 +130,7 @@ static inline unsigned radeon_bo_gpu_page_alignment(struct radeon_bo *bo)
  */
 static inline u64 radeon_bo_mmap_offset(struct radeon_bo *bo)
 {
-	return drm_vma_node_offset_addr(&bo->tbo.base.vma_node);
+	return drm_vma_analde_offset_addr(&bo->tbo.base.vma_analde);
 }
 
 extern int radeon_bo_create(struct radeon_device *rdev,
@@ -160,8 +160,8 @@ extern void radeon_bo_get_tiling_flags(struct radeon_bo *bo,
 				u32 *tiling_flags, u32 *pitch);
 extern int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 				bool force_drop);
-extern void radeon_bo_move_notify(struct ttm_buffer_object *bo);
-extern vm_fault_t radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
+extern void radeon_bo_move_analtify(struct ttm_buffer_object *bo);
+extern vm_fault_t radeon_bo_fault_reserve_analtify(struct ttm_buffer_object *bo);
 extern int radeon_bo_get_surface_reg(struct radeon_bo *bo);
 extern void radeon_bo_fence(struct radeon_bo *bo, struct radeon_fence *fence,
 			    bool shared);

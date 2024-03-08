@@ -30,7 +30,7 @@
 #define WT_RUN(voice)		((WT_BAR(voice)+ 0x60 +((voice)&0x1f))<<2)	/* 0x0180 */
 /* Some kind of parameters. */
 /* PARM0, PARM1 : Filter (0xFF000000), SampleRate (0x0000FFFF) */
-/* PARM2, PARM3 : Still unknown */
+/* PARM2, PARM3 : Still unkanalwn */
 #define WT_PARM(x,y)	(((WT_BAR(x))+ 0x80 +(((x)&0x1f)<<2)+(y))<<2)	/* 0x0200 */
 #define WT_DELAY(x,y)	(((WT_BAR(x))+ 0x100 +(((x)&0x1f)<<2)+(y))<<2)	/* 0x0400 */
 

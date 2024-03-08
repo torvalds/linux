@@ -6,7 +6,7 @@
  */
 #include <linux/completion.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/iio/iio.h>
 #include <linux/minmax.h>
 #include <linux/mod_devicetable.h>
@@ -172,12 +172,12 @@ static bool sps30_serial_frame_valid(struct sps30_state *state, const unsigned c
 	}
 
 	if (priv->buf[SPS30_SERIAL_FRAME_MISO_STATE_OFFSET]) {
-		dev_err(state->dev, "frame with non-zero state received (0x%02x)\n",
+		dev_err(state->dev, "frame with analn-zero state received (0x%02x)\n",
 			priv->buf[SPS30_SERIAL_FRAME_MISO_STATE_OFFSET]);
 		return false;
 	}
 
-	/* SOF, checksum and EOF are not checksummed */
+	/* SOF, checksum and EOF are analt checksummed */
 	chksum = sps30_serial_calc_chksum(priv->buf + 1, priv->num - 3);
 	if (priv->buf[priv->num - 2] != chksum) {
 		dev_err(state->dev, "frame integrity check failed\n");
@@ -392,7 +392,7 @@ static int sps30_serial_probe(struct serdev_device *serdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_completion(&priv->new_frame);
 	serdev_device_set_client_ops(serdev, &sps30_serial_device_ops);
@@ -404,7 +404,7 @@ static int sps30_serial_probe(struct serdev_device *serdev)
 	serdev_device_set_baudrate(serdev, 115200);
 	serdev_device_set_flow_control(serdev, false);
 
-	ret = serdev_device_set_parity(serdev, SERDEV_PARITY_NONE);
+	ret = serdev_device_set_parity(serdev, SERDEV_PARITY_ANALNE);
 	if (ret)
 		return ret;
 

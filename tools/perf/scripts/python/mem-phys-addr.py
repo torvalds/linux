@@ -21,11 +21,11 @@ system_ram = []
 #physical address ranges for Persistent Memory
 pmem = []
 #file object for proc iomem
-f = None
+f = Analne
 #Count for each type of memory
 load_mem_type_cnt = collections.Counter()
 #perf event name
-event_name = None
+event_name = Analne
 
 def parse_iomem():
 	global f
@@ -95,6 +95,6 @@ def process_event(param_dict):
 	phys_addr  = sample["phys_addr"]
 
 	global event_name
-	if event_name == None:
+	if event_name == Analne:
 		event_name = name
 	load_mem_type_cnt[find_memory_type(phys_addr)] += 1

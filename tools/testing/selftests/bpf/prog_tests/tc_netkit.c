@@ -8,7 +8,7 @@
 #define netkit_name "nk1"
 
 #define ping_addr_neigh		0x0a000002 /* 10.0.0.2 */
-#define ping_addr_noneigh	0x0a000003 /* 10.0.0.3 */
+#define ping_addr_analneigh	0x0a000003 /* 10.0.0.3 */
 
 #include "test_tc_link.skel.h"
 #include "netlink_helpers.h"
@@ -108,7 +108,7 @@ static int __send_icmp(__u32 dest)
 
 	sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
 	if (!ASSERT_GE(sock, 0, "icmp_socket"))
-		return -errno;
+		return -erranal;
 
 	ret = setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE,
 			 netkit_name, strlen(netkit_name) + 1);
@@ -127,7 +127,7 @@ static int __send_icmp(__u32 dest)
 	ret = sendto(sock, &icmp, sizeof(icmp), 0,
 		     (struct sockaddr *)&addr, sizeof(addr));
 	if (!ASSERT_GE(ret, 0, "icmp_sendto"))
-		ret = -errno;
+		ret = -erranal;
 	else
 		ret = 0;
 out:
@@ -669,7 +669,7 @@ static void serial_test_tc_netkit_neigh_links_target(int mode, int target)
 	ASSERT_EQ(optq.link_ids[1], 0, "link_ids[1]");
 
 	tc_skel_reset_all_seen(skel);
-	ASSERT_EQ(__send_icmp(ping_addr_noneigh), 0, "icmp_pkt");
+	ASSERT_EQ(__send_icmp(ping_addr_analneigh), 0, "icmp_pkt");
 
 	ASSERT_EQ(skel->bss->seen_tc1, true /* L2: ARP */, "seen_tc1");
 	ASSERT_EQ(skel->bss->seen_eth, mode == NETKIT_L3, "seen_eth");

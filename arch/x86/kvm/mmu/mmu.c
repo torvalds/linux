@@ -138,7 +138,7 @@ static int max_tdp_level __read_mostly;
  * becomes the head of the list.  This means that by definitions, all tail
  * descriptors are full.
  *
- * Note, the meta data fields are deliberately placed at the start of the
+ * Analte, the meta data fields are deliberately placed at the start of the
  * structure to optimize the cacheline layout; accessing the descriptor will
  * touch only a single cacheline so long as @spte_count<=6 (or if only the
  * descriptors metadata is accessed).
@@ -193,7 +193,7 @@ struct kvm_mmu_role_regs {
 #include "mmutrace.h"
 
 /*
- * Yes, lot's of underscores.  They're a hint that you probably shouldn't be
+ * Anal, lot's of underscores.  They're a hint that you probably shouldn't be
  * reading from the role_regs.  Once the root_role is constructed, it becomes
  * the single source of truth for the MMU's state.
  */
@@ -216,7 +216,7 @@ BUILD_MMU_ROLE_REGS_ACCESSOR(efer, lma, EFER_LMA);
 
 /*
  * The MMU itself (with a valid role) is the single source of truth for the
- * MMU.  Do not use the regs used to build the MMU/role, nor the vCPU.  The
+ * MMU.  Do analt use the regs used to build the MMU/role, analr the vCPU.  The
  * regs don't account for dependencies, e.g. clearing CR4 bits if CR0.PG=1,
  * and the vCPU may be incorrect/irrelevant.
  */
@@ -300,10 +300,10 @@ static void mark_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, u64 gfn,
 
 static gfn_t get_mmio_spte_gfn(u64 spte)
 {
-	u64 gpa = spte & shadow_nonpresent_or_rsvd_lower_gfn_mask;
+	u64 gpa = spte & shadow_analnpresent_or_rsvd_lower_gfn_mask;
 
-	gpa |= (spte >> SHADOW_NONPRESENT_OR_RSVD_MASK_LEN)
-	       & shadow_nonpresent_or_rsvd_mask;
+	gpa |= (spte >> SHADOW_ANALNPRESENT_OR_RSVD_MASK_LEN)
+	       & shadow_analnpresent_or_rsvd_mask;
 
 	return gpa >> PAGE_SHIFT;
 }
@@ -384,8 +384,8 @@ static void __set_spte(u64 *sptep, u64 spte)
 	ssptep->spte_high = sspte.spte_high;
 
 	/*
-	 * If we map the spte from nonpresent to present, We should store
-	 * the high bits firstly, then set present bit, so cpu can not
+	 * If we map the spte from analnpresent to present, We should store
+	 * the high bits firstly, then set present bit, so cpu can analt
 	 * fetch this spte while we are setting the spte.
 	 */
 	smp_wmb();
@@ -403,7 +403,7 @@ static void __update_clear_spte_fast(u64 *sptep, u64 spte)
 	WRITE_ONCE(ssptep->spte_low, sspte.spte_low);
 
 	/*
-	 * If we map the spte from present to nonpresent, we should clear
+	 * If we map the spte from present to analnpresent, we should clear
 	 * present bit firstly to avoid vcpu fetch the old high bits.
 	 */
 	smp_wmb();
@@ -437,13 +437,13 @@ static u64 __update_clear_spte_slow(u64 *sptep, u64 spte)
  * we need to protect against in-progress updates of the spte.
  *
  * Reading the spte while an update is in progress may get the old value
- * for the high part of the spte.  The race is fine for a present->non-present
- * change (because the high part of the spte is ignored for non-present spte),
+ * for the high part of the spte.  The race is fine for a present->analn-present
+ * change (because the high part of the spte is iganalred for analn-present spte),
  * but for a present->present change we must reread the spte.
  *
- * All such changes are done in two steps (present->non-present and
- * non-present->present), hence it is enough to count the number of
- * present->non-present updates: if it changed while reading the spte,
+ * All such changes are done in two steps (present->analn-present and
+ * analn-present->present), hence it is eanalugh to count the number of
+ * present->analn-present updates: if it changed while reading the spte,
  * we might have hit the race.  This is done using clear_spte_count.
  */
 static u64 __get_spte_lockless(u64 *sptep)
@@ -471,9 +471,9 @@ retry:
 #endif
 
 /* Rules for using mmu_spte_set:
- * Set the sptep from nonpresent to present.
- * Note: the sptep being assigned *must* be either not present
- * or in a state where the hardware will not attempt to update
+ * Set the sptep from analnpresent to present.
+ * Analte: the sptep being assigned *must* be either analt present
+ * or in a state where the hardware will analt attempt to update
  * the spte.
  */
 static void mmu_spte_set(u64 *sptep, u64 new_spte)
@@ -483,10 +483,10 @@ static void mmu_spte_set(u64 *sptep, u64 new_spte)
 }
 
 /*
- * Update the SPTE (excluding the PFN), but do not track changes in its
+ * Update the SPTE (excluding the PFN), but do analt track changes in its
  * accessed/dirty status.
  */
-static u64 mmu_spte_update_no_track(u64 *sptep, u64 new_spte)
+static u64 mmu_spte_update_anal_track(u64 *sptep, u64 new_spte)
 {
 	u64 old_spte = *sptep;
 
@@ -509,7 +509,7 @@ static u64 mmu_spte_update_no_track(u64 *sptep, u64 new_spte)
 }
 
 /* Rules for using mmu_spte_update:
- * Update the state bits, it means the mapped pfn is not changed.
+ * Update the state bits, it means the mapped pfn is analt changed.
  *
  * Whenever an MMU-writable SPTE is overwritten with a read-only SPTE, remote
  * TLBs must be flushed. Otherwise rmap_write_protect will find a read-only
@@ -520,7 +520,7 @@ static u64 mmu_spte_update_no_track(u64 *sptep, u64 new_spte)
 static bool mmu_spte_update(u64 *sptep, u64 new_spte)
 {
 	bool flush = false;
-	u64 old_spte = mmu_spte_update_no_track(sptep, new_spte);
+	u64 old_spte = mmu_spte_update_anal_track(sptep, new_spte);
 
 	if (!is_shadow_present_pte(old_spte))
 		return false;
@@ -554,7 +554,7 @@ static bool mmu_spte_update(u64 *sptep, u64 new_spte)
 
 /*
  * Rules for using mmu_spte_clear_track_bits:
- * It sets the sptep from present to nonpresent, and track the
+ * It sets the sptep from present to analnpresent, and track the
  * state bits, it is used to clear the last level sptep.
  * Returns the old PTE.
  */
@@ -580,7 +580,7 @@ static u64 mmu_spte_clear_track_bits(struct kvm *kvm, u64 *sptep)
 
 	/*
 	 * KVM doesn't hold a reference to any pages mapped into the guest, and
-	 * instead uses the mmu_notifier to ensure that KVM unmaps any pages
+	 * instead uses the mmu_analtifier to ensure that KVM unmaps any pages
 	 * before they are reclaimed.  Sanity check that, if the pfn is backed
 	 * by a refcounted page, the refcount is elevated.
 	 */
@@ -597,11 +597,11 @@ static u64 mmu_spte_clear_track_bits(struct kvm *kvm, u64 *sptep)
 }
 
 /*
- * Rules for using mmu_spte_clear_no_track:
+ * Rules for using mmu_spte_clear_anal_track:
  * Directly clear spte without caring the state bits of sptep,
  * it is used to set the upper level spte.
  */
-static void mmu_spte_clear_no_track(u64 *sptep)
+static void mmu_spte_clear_anal_track(u64 *sptep)
 {
 	__update_clear_spte_fast(sptep, 0ull);
 }
@@ -631,7 +631,7 @@ static bool mmu_spte_age(u64 *sptep)
 			kvm_set_pfn_dirty(spte_to_pfn(spte));
 
 		spte = mark_spte_for_access_track(spte);
-		mmu_spte_update_no_track(sptep, spte);
+		mmu_spte_update_anal_track(sptep, spte);
 	}
 
 	return true;
@@ -654,7 +654,7 @@ static void walk_shadow_page_lockless_begin(struct kvm_vcpu *vcpu)
 		local_irq_disable();
 
 		/*
-		 * Make sure a following spte read is not reordered ahead of the write
+		 * Make sure a following spte read is analt reordered ahead of the write
 		 * to vcpu->mode.
 		 */
 		smp_store_mb(vcpu->mode, READING_SHADOW_PAGE_TABLES);
@@ -667,7 +667,7 @@ static void walk_shadow_page_lockless_end(struct kvm_vcpu *vcpu)
 		kvm_tdp_mmu_walk_lockless_end();
 	} else {
 		/*
-		 * Make sure the write to vcpu->mode is not reordered in front of
+		 * Make sure the write to vcpu->mode is analt reordered in front of
 		 * reads to sptes.  If it does, kvm_mmu_commit_zap_page() can see us
 		 * OUTSIDE_GUEST_MODE and proceed to free the shadow page table.
 		 */
@@ -726,7 +726,7 @@ static gfn_t kvm_mmu_page_get_gfn(struct kvm_mmu_page *sp, int index)
 }
 
 /*
- * For leaf SPTEs, fetch the *guest* access permissions being shadowed. Note
+ * For leaf SPTEs, fetch the *guest* access permissions being shadowed. Analte
  * that the SPTE itself may have a more constrained access permissions that
  * what the guest enforces. For example, a guest may create an executable
  * huge PTE but KVM may disallow execution to mitigate iTLB multihit.
@@ -737,8 +737,8 @@ static u32 kvm_mmu_page_get_access(struct kvm_mmu_page *sp, int index)
 		return sp->shadowed_translation[index] & ACC_ALL;
 
 	/*
-	 * For direct MMUs (e.g. TDP or non-paging guests) or passthrough SPs,
-	 * KVM is not shadowing any guest page tables, so the "guest access
+	 * For direct MMUs (e.g. TDP or analn-paging guests) or passthrough SPs,
+	 * KVM is analt shadowing any guest page tables, so the "guest access
 	 * permissions" are just ACC_ALL.
 	 *
 	 * For direct SPs in indirect MMUs (shadow paging), i.e. when KVM
@@ -780,7 +780,7 @@ static void kvm_mmu_page_set_access(struct kvm_mmu_page *sp, int index,
 
 /*
  * Return the pointer to the large page information for a given gfn,
- * handling slots that are not large page aligned.
+ * handling slots that are analt large page aligned.
  */
 static struct kvm_lpage_info *lpage_info_slot(gfn_t gfn,
 		const struct kvm_memory_slot *slot, int level)
@@ -792,8 +792,8 @@ static struct kvm_lpage_info *lpage_info_slot(gfn_t gfn,
 }
 
 /*
- * The most significant bit in disallow_lpage tracks whether or not memory
- * attributes are mixed, i.e. not identical for all gfns at the current level.
+ * The most significant bit in disallow_lpage tracks whether or analt memory
+ * attributes are mixed, i.e. analt identical for all gfns at the current level.
  * The lower order bits are used to refcount other cases where a hugepage is
  * disallowed, e.g. if KVM has shadow a page table at the gfn.
  */
@@ -835,7 +835,7 @@ static void account_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
 	slots = kvm_memslots_for_spte_role(kvm, sp->role);
 	slot = __gfn_to_memslot(slots, gfn);
 
-	/* the non-leaf shadow pages are keeping readonly. */
+	/* the analn-leaf shadow pages are keeping readonly. */
 	if (sp->role.level > PG_LEVEL_4K)
 		return __kvm_write_track_add_gfn(kvm, slot, gfn);
 
@@ -851,7 +851,7 @@ void track_possible_nx_huge_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 	 * If it's possible to replace the shadow page with an NX huge page,
 	 * i.e. if the shadow page is the only thing currently preventing KVM
 	 * from using a huge page, add the shadow page to the list of "to be
-	 * zapped for NX recovery" pages.  Note, the shadow page can already be
+	 * zapped for NX recovery" pages.  Analte, the shadow page can already be
 	 * on the list if KVM is reusing an existing shadow page, i.e. if KVM
 	 * links a shadow page at multiple points.
 	 */
@@ -906,14 +906,14 @@ static void unaccount_nx_huge_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 
 static struct kvm_memory_slot *gfn_to_memslot_dirty_bitmap(struct kvm_vcpu *vcpu,
 							   gfn_t gfn,
-							   bool no_dirty_log)
+							   bool anal_dirty_log)
 {
 	struct kvm_memory_slot *slot;
 
 	slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
 	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
 		return NULL;
-	if (no_dirty_log && kvm_slot_dirty_track_enabled(slot))
+	if (anal_dirty_log && kvm_slot_dirty_track_enabled(slot))
 		return NULL;
 
 	return slot;
@@ -928,7 +928,7 @@ static struct kvm_memory_slot *gfn_to_memslot_dirty_bitmap(struct kvm_vcpu *vcpu
  */
 
 /*
- * Returns the number of pointers in the rmap chain, not counting the new one.
+ * Returns the number of pointers in the rmap chain, analt counting the new one.
  */
 static int pte_list_add(struct kvm_mmu_memory_cache *cache, u64 *spte,
 			struct kvm_rmap_head *rmap_head)
@@ -983,7 +983,7 @@ static void pte_list_desc_remove_entry(struct kvm *kvm,
 	/*
 	 * Replace the to-be-freed SPTE with the last valid entry from the head
 	 * descriptor to ensure that tail descriptors are full at all times.
-	 * Note, this also means that tail_count is stable for each descriptor.
+	 * Analte, this also means that tail_count is stable for each descriptor.
 	 */
 	desc->sptes[i] = head_desc->sptes[j];
 	head_desc->sptes[j] = NULL;
@@ -992,7 +992,7 @@ static void pte_list_desc_remove_entry(struct kvm *kvm,
 		return;
 
 	/*
-	 * The head descriptor is empty.  If there are no tail descriptors,
+	 * The head descriptor is empty.  If there are anal tail descriptors,
 	 * nullify the rmap head to mark the list as empty, else point the rmap
 	 * head at the next descriptor, i.e. the new head.
 	 */
@@ -1065,7 +1065,7 @@ static bool kvm_zap_all_rmap_sptes(struct kvm *kvm,
 		mmu_free_pte_list_desc(desc);
 	}
 out:
-	/* rmap_head is meaningless now, remember to reset it */
+	/* rmap_head is meaningless analw, remember to reset it */
 	rmap_head->val = 0;
 	return true;
 }
@@ -1104,7 +1104,7 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 	gfn = kvm_mmu_page_get_gfn(sp, spte_index(spte));
 
 	/*
-	 * Unlike rmap_add, rmap_remove does not run in the context of a vCPU
+	 * Unlike rmap_add, rmap_remove does analt run in the context of a vCPU
 	 * so we have to determine which memslots to use based on context
 	 * information in sp->role.
 	 */
@@ -1118,18 +1118,18 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 
 /*
  * Used by the following functions to iterate through the sptes linked by a
- * rmap.  All fields are private and not assumed to be used outside.
+ * rmap.  All fields are private and analt assumed to be used outside.
  */
 struct rmap_iterator {
 	/* private fields */
-	struct pte_list_desc *desc;	/* holds the sptep if not NULL */
+	struct pte_list_desc *desc;	/* holds the sptep if analt NULL */
 	int pos;			/* index of the sptep */
 };
 
 /*
  * Iteration must be started by this function.  This should also be used after
  * removing/dropping sptes from the rmap link because in such cases the
- * information in the iterator may not be valid.
+ * information in the iterator may analt be valid.
  *
  * Returns sptep if found, NULL otherwise.
  */
@@ -1176,7 +1176,7 @@ static u64 *rmap_get_next(struct rmap_iterator *iter)
 
 		if (iter->desc) {
 			iter->pos = 0;
-			/* desc->sptes[0] cannot be NULL */
+			/* desc->sptes[0] cananalt be NULL */
 			sptep = iter->desc->sptes[iter->pos];
 			goto out;
 		}
@@ -1217,7 +1217,7 @@ static void drop_large_spte(struct kvm *kvm, u64 *sptep, bool flush)
  * Write-protect on the specified @sptep, @pt_protect indicates whether
  * spte write-protection is caused by protecting shadow page table.
  *
- * Note: write protection is difference between dirty logging and spte
+ * Analte: write protection is difference between dirty logging and spte
  * protection:
  * - for dirty logging, the spte can be set to writable at anytime if
  *   its dirty bitmap is properly set.
@@ -1274,7 +1274,7 @@ static bool spte_wrprot_for_clear_dirty(u64 *sptep)
 }
 
 /*
- * Gets the GFN ready for another round of dirty logging by clearing the
+ * Gets the GFN ready for aanalther round of dirty logging by clearing the
  *	- D bit on ad-enabled SPTEs, and
  *	- W bit on ad-disabled SPTEs.
  * Returns true iff any D or W bits were cleared.
@@ -1302,7 +1302,7 @@ static bool __rmap_clear_dirty(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
  * @gfn_offset: start of the BITS_PER_LONG pages we care about
  * @mask: indicates which pages we should protect
  *
- * Used when we do not need to care about huge page mappings.
+ * Used when we do analt need to care about huge page mappings.
  */
 static void kvm_mmu_write_protect_pt_masked(struct kvm *kvm,
 				     struct kvm_memory_slot *slot,
@@ -1375,12 +1375,12 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 				gfn_t gfn_offset, unsigned long mask)
 {
 	/*
-	 * Huge pages are NOT write protected when we start dirty logging in
+	 * Huge pages are ANALT write protected when we start dirty logging in
 	 * initially-all-set mode; must write protect them here so that they
 	 * are split to 4K on the first write.
 	 *
 	 * The gfn_offset is guaranteed to be aligned to 64, but the base_gfn
-	 * of memslot has no such restriction, so the range can cross two large
+	 * of memslot has anal such restriction, so the range can cross two large
 	 * pages.
 	 */
 	if (kvm_dirty_log_manual_protect_and_init_set(kvm)) {
@@ -1399,7 +1399,7 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 						       PG_LEVEL_2M);
 	}
 
-	/* Now handle 4K PTEs.  */
+	/* Analw handle 4K PTEs.  */
 	if (kvm_x86_ops.cpu_dirty_log_size)
 		kvm_mmu_clear_dirty_pt_masked(kvm, slot, gfn_offset, mask);
 	else
@@ -1475,7 +1475,7 @@ restart:
 			kvm_zap_one_rmap_spte(kvm, rmap_head, sptep);
 			goto restart;
 		} else {
-			new_spte = kvm_mmu_changed_pte_notifier_make_spte(
+			new_spte = kvm_mmu_changed_pte_analtifier_make_spte(
 					*sptep, new_pfn);
 
 			mmu_spte_clear_track_bits(kvm, sptep);
@@ -1770,7 +1770,7 @@ static void drop_parent_pte(struct kvm *kvm, struct kvm_mmu_page *sp,
 			    u64 *parent_pte)
 {
 	mmu_page_remove_parent_pte(kvm, sp, parent_pte);
-	mmu_spte_clear_no_track(parent_pte);
+	mmu_spte_clear_anal_track(parent_pte);
 }
 
 static void mark_unsync(u64 *spte);
@@ -1847,7 +1847,7 @@ static int __mmu_unsync_walk(struct kvm_mmu_page *sp,
 
 		if (child->unsync_children) {
 			if (mmu_pages_add(pvec, child, i))
-				return -ENOSPC;
+				return -EANALSPC;
 
 			ret = __mmu_unsync_walk(child, pvec);
 			if (!ret) {
@@ -1860,7 +1860,7 @@ static int __mmu_unsync_walk(struct kvm_mmu_page *sp,
 		} else if (child->unsync) {
 			nr_unsync_leaf++;
 			if (mmu_pages_add(pvec, child, i))
-				return -ENOSPC;
+				return -EANALSPC;
 		} else
 			clear_unsync_child_bit(sp, i);
 	}
@@ -1920,13 +1920,13 @@ static bool kvm_sync_page_check(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 	union kvm_mmu_page_role root_role = vcpu->arch.mmu->root_role;
 
 	/*
-	 * Ignore various flags when verifying that it's safe to sync a shadow
+	 * Iganalre various flags when verifying that it's safe to sync a shadow
 	 * page using the current MMU context.
 	 *
-	 *  - level: not part of the overall MMU role and will never match as the MMU's
+	 *  - level: analt part of the overall MMU role and will never match as the MMU's
 	 *           level tracks the root level
 	 *  - access: updated based on the new guest PTE
-	 *  - quadrant: not part of the overall MMU role (similar to level)
+	 *  - quadrant: analt part of the overall MMU role (similar to level)
 	 */
 	const union kvm_mmu_page_role sync_role_ign = {
 		.level = 0xf,
@@ -1938,7 +1938,7 @@ static bool kvm_sync_page_check(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 	/*
 	 * Direct pages can never be unsync, and KVM should never attempt to
 	 * sync a shadow page for a different MMU context, e.g. if the role
-	 * differs then the memslot lookup (SMM vs. non-SMM) will be bogus, the
+	 * differs then the memslot lookup (SMM vs. analn-SMM) will be bogus, the
 	 * reserved bits checks will be wrong, etc...
 	 */
 	if (WARN_ON_ONCE(sp->role.direct || !vcpu->arch.mmu->sync_spte ||
@@ -1973,8 +1973,8 @@ static int __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 	}
 
 	/*
-	 * Note, any flush is purely for KVM's correctness, e.g. when dropping
-	 * an existing SPTE or clearing W/A/D bits to ensure an mmu_notifier
+	 * Analte, any flush is purely for KVM's correctness, e.g. when dropping
+	 * an existing SPTE or clearing W/A/D bits to ensure an mmu_analtifier
 	 * unmap or dirty logging event doesn't fail to flush.  The guest is
 	 * responsible for flushing the TLB to ensure any changes in protection
 	 * bits are recognized, i.e. until the guest flushes or page faults on
@@ -2013,7 +2013,7 @@ static bool is_obsolete_sp(struct kvm *kvm, struct kvm_mmu_page *sp)
 	if (sp->role.invalid)
 		return true;
 
-	/* TDP MMU pages do not use the MMU generation. */
+	/* TDP MMU pages do analt use the MMU generation. */
 	return !is_tdp_mmu_page(sp) &&
 	       unlikely(sp->mmu_valid_gen != kvm->arch.mmu_valid_gen);
 }
@@ -2172,7 +2172,7 @@ static struct kvm_mmu_page *kvm_mmu_find_shadow_page(struct kvm *kvm,
 			 * the guest is using recursive page tables, in all
 			 * likelihood the guest has stopped using the unsync
 			 * page and is installing a completely unrelated page.
-			 * Unsync pages must not be left as is, because the new
+			 * Unsync pages must analt be left as is, because the new
 			 * upper-level page will be write-protected.
 			 */
 			if (role.level > PG_LEVEL_4K && sp->unsync)
@@ -2194,7 +2194,7 @@ static struct kvm_mmu_page *kvm_mmu_find_shadow_page(struct kvm *kvm,
 			 * get the latest guest state, but (unlike mmu_unsync_children)
 			 * it doesn't write-protect the page or mark it synchronized!
 			 * This way the validity of the mapping is ensured, but the
-			 * overhead of write protection is not incurred until the
+			 * overhead of write protection is analt incurred until the
 			 * guest invalidates the TLB mapping.  This allows multiple
 			 * SPs for a single gfn to be unsync.
 			 *
@@ -2268,7 +2268,7 @@ static struct kvm_mmu_page *kvm_mmu_alloc_shadow_page(struct kvm *kvm,
 	return sp;
 }
 
-/* Note, @vcpu may be NULL if @role.direct is true; see kvm_mmu_find_shadow_page. */
+/* Analte, @vcpu may be NULL if @role.direct is true; see kvm_mmu_find_shadow_page. */
 static struct kvm_mmu_page *__kvm_mmu_get_shadow_page(struct kvm *kvm,
 						      struct kvm_vcpu *vcpu,
 						      struct shadow_page_caches *caches,
@@ -2318,7 +2318,7 @@ static union kvm_mmu_page_role kvm_mmu_child_role(u64 *sptep, bool direct,
 
 	/*
 	 * If the guest has 4-byte PTEs then that means it's using 32-bit,
-	 * 2-level, non-PAE paging. KVM shadows such guests with PAE paging
+	 * 2-level, analn-PAE paging. KVM shadows such guests with PAE paging
 	 * (i.e. 8-byte PTEs). The difference in PTE size means that KVM must
 	 * shadow each guest page table with multiple shadow page tables, which
 	 * requires extra bookkeeping in the role.
@@ -2442,17 +2442,17 @@ static void __link_shadow_page(struct kvm *kvm,
 	if (is_shadow_present_pte(*sptep))
 		drop_large_spte(kvm, sptep, flush);
 
-	spte = make_nonleaf_spte(sp->spt, sp_ad_disabled(sp));
+	spte = make_analnleaf_spte(sp->spt, sp_ad_disabled(sp));
 
 	mmu_spte_set(sptep, spte);
 
 	mmu_page_add_parent_pte(cache, sp, sptep);
 
 	/*
-	 * The non-direct sub-pagetable must be updated before linking.  For
+	 * The analn-direct sub-pagetable must be updated before linking.  For
 	 * L1 sp, the pagetable is updated via kvm_sync_page() in
 	 * kvm_mmu_find_shadow_page() without write-protecting the gfn,
-	 * so sp->unsync can be true or false.  For higher level non-direct
+	 * so sp->unsync can be true or false.  For higher level analn-direct
 	 * sp, the pagetable is updated/synced via mmu_sync_children() in
 	 * FNAME(fetch)(), so sp->unsync_children can only be false.
 	 * WARN_ON_ONCE() if anything happens unexpectedly.
@@ -2489,7 +2489,7 @@ static void validate_direct_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	}
 }
 
-/* Returns the number of zapped non-leaf child shadow pages. */
+/* Returns the number of zapped analn-leaf child shadow pages. */
 static int mmu_page_zap_pte(struct kvm *kvm, struct kvm_mmu_page *sp,
 			    u64 *spte, struct list_head *invalid_list)
 {
@@ -2515,7 +2515,7 @@ static int mmu_page_zap_pte(struct kvm *kvm, struct kvm_mmu_page *sp,
 								invalid_list);
 		}
 	} else if (is_mmio_spte(pte)) {
-		mmu_spte_clear_no_track(spte);
+		mmu_spte_clear_anal_track(spte);
 	}
 	return 0;
 }
@@ -2593,7 +2593,7 @@ static bool __kvm_mmu_prepare_zap_page(struct kvm *kvm,
 		(*nr_zapped)++;
 
 		/*
-		 * Already invalid pages (previously active roots) are not on
+		 * Already invalid pages (previously active roots) are analt on
 		 * the active page list.  See list_del() in the "else" case of
 		 * !sp->root_count.
 		 */
@@ -2610,8 +2610,8 @@ static bool __kvm_mmu_prepare_zap_page(struct kvm *kvm,
 		list_del(&sp->link);
 
 		/*
-		 * Obsolete pages cannot be used on any vCPUs, see the comment
-		 * in kvm_mmu_zap_all_fast().  Note, is_obsolete_sp() also
+		 * Obsolete pages cananalt be used on any vCPUs, see the comment
+		 * in kvm_mmu_zap_all_fast().  Analte, is_obsolete_sp() also
 		 * treats invalid shadow pages as being obsolete.
 		 */
 		zapped_root = !is_obsolete_sp(kvm, sp);
@@ -2624,7 +2624,7 @@ static bool __kvm_mmu_prepare_zap_page(struct kvm *kvm,
 
 	/*
 	 * Make the request to free obsolete roots after marking the root
-	 * invalid, otherwise other vCPUs may not see it as invalid.
+	 * invalid, otherwise other vCPUs may analt see it as invalid.
 	 */
 	if (zapped_root)
 		kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_FREE_OBSOLETE_ROOTS);
@@ -2721,22 +2721,22 @@ static int make_mmu_pages_available(struct kvm_vcpu *vcpu)
 	kvm_mmu_zap_oldest_mmu_pages(vcpu->kvm, KVM_REFILL_PAGES - avail);
 
 	/*
-	 * Note, this check is intentionally soft, it only guarantees that one
+	 * Analte, this check is intentionally soft, it only guarantees that one
 	 * page is available, while the caller may end up allocating as many as
 	 * four pages, e.g. for PAE roots or for 5-level paging.  Temporarily
-	 * exceeding the (arbitrary by default) limit will not harm the host,
+	 * exceeding the (arbitrary by default) limit will analt harm the host,
 	 * being too aggressive may unnecessarily kill the guest, and getting an
 	 * exact count is far more trouble than it's worth, especially in the
 	 * page fault paths.
 	 */
 	if (!kvm_mmu_available_pages(vcpu->kvm))
-		return -ENOSPC;
+		return -EANALSPC;
 	return 0;
 }
 
 /*
  * Changing the number of mmu pages allocated to the vm
- * Note: if goal_nr_mmu_pages is too small, you will get dead lock
+ * Analte: if goal_nr_mmu_pages is too small, you will get dead lock
  */
 void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned long goal_nr_mmu_pages)
 {
@@ -2799,7 +2799,7 @@ static void kvm_unsync_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 /*
  * Attempt to unsync any shadow pages that can be reached by the specified gfn,
  * KVM is creating a writable mapping for said gfn.  Returns 0 if all pages
- * were marked unsync (or if there is no shadow page), -EPERM if the SPTE must
+ * were marked unsync (or if there is anal shadow page), -EPERM if the SPTE must
  * be write-protected.
  */
 int mmu_try_to_unsync_pages(struct kvm *kvm, const struct kvm_memory_slot *slot,
@@ -2809,7 +2809,7 @@ int mmu_try_to_unsync_pages(struct kvm *kvm, const struct kvm_memory_slot *slot,
 	bool locked = false;
 
 	/*
-	 * Force write-protection if the page is being tracked.  Note, the page
+	 * Force write-protection if the page is being tracked.  Analte, the page
 	 * track machinery is used to write-protect upper-level shadow pages,
 	 * i.e. this guards the role.level == 4K assertion below!
 	 */
@@ -2817,7 +2817,7 @@ int mmu_try_to_unsync_pages(struct kvm *kvm, const struct kvm_memory_slot *slot,
 		return -EPERM;
 
 	/*
-	 * The page is not write-tracked, mark existing shadow pages unsync
+	 * The page is analt write-tracked, mark existing shadow pages unsync
 	 * unless KVM is synchronizing an unsync SP (can_unsync = false).  In
 	 * that case, KVM must complete emulation of the guest TLB flush before
 	 * allowing shadow pages to become unsync (writable by the guest).
@@ -2834,10 +2834,10 @@ int mmu_try_to_unsync_pages(struct kvm *kvm, const struct kvm_memory_slot *slot,
 
 		/*
 		 * TDP MMU page faults require an additional spinlock as they
-		 * run with mmu_lock held for read, not write, and the unsync
-		 * logic is not thread safe.  Take the spinklock regardless of
+		 * run with mmu_lock held for read, analt write, and the unsync
+		 * logic is analt thread safe.  Take the spinklock regardless of
 		 * the MMU type to avoid extra conditionals/parameters, there's
-		 * no meaningful penalty if mmu_lock is held for write.
+		 * anal meaningful penalty if mmu_lock is held for write.
 		 */
 		if (!locked) {
 			locked = true;
@@ -2846,9 +2846,9 @@ int mmu_try_to_unsync_pages(struct kvm *kvm, const struct kvm_memory_slot *slot,
 			/*
 			 * Recheck after taking the spinlock, a different vCPU
 			 * may have since marked the page unsync.  A false
-			 * negative on the unprotected check above is not
+			 * negative on the unprotected check above is analt
 			 * possible as clearing sp->unsync _must_ hold mmu_lock
-			 * for write, i.e. unsync cannot transition from 1->0
+			 * for write, i.e. unsync cananalt transition from 1->0
 			 * while this CPU holds mmu_lock for read (or write).
 			 */
 			if (READ_ONCE(sp->unsync))
@@ -2877,7 +2877,7 @@ int mmu_try_to_unsync_pages(struct kvm *kvm, const struct kvm_memory_slot *slot,
 	 *                          (GPTE being in the guest page table shadowed
 	 *                           by the SP from CPU 1.)
 	 *                          This reads SPTE during the page table walk.
-	 *                          Since SPTE.W is read as 1, there is no
+	 *                          Since SPTE.W is read as 1, there is anal
 	 *                          fault.
 	 *
 	 *                      2.2 Guest issues TLB flush.
@@ -2887,7 +2887,7 @@ int mmu_try_to_unsync_pages(struct kvm *kvm, const struct kvm_memory_slot *slot,
 	 *                          false and skips the page.
 	 *
 	 *                      2.4 Guest accesses GVA X.
-	 *                          Since the mapping in the SP was not updated,
+	 *                          Since the mapping in the SP was analt updated,
 	 *                          so the old mapping for GVA X incorrectly
 	 *                          gets used.
 	 * 1.1 Host marks SP
@@ -2895,7 +2895,7 @@ int mmu_try_to_unsync_pages(struct kvm *kvm, const struct kvm_memory_slot *slot,
 	 *     (sp->unsync = true)
 	 *
 	 * The write barrier below ensures that 1.1 happens before 1.2 and thus
-	 * the situation in 2.4 does not arise.  It pairs with the read barrier
+	 * the situation in 2.4 does analt arise.  It pairs with the read barrier
 	 * in is_unsync_root(), placed between 2.1's load of SPTE.W and 2.3.
 	 */
 	smp_wmb();
@@ -2920,7 +2920,7 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, struct kvm_memory_slot *slot,
 	bool prefetch = !fault || fault->prefetch;
 	bool write_fault = fault && fault->write;
 
-	if (unlikely(is_noslot_pfn(pfn))) {
+	if (unlikely(is_analslot_pfn(pfn))) {
 		vcpu->stat.pf_mmio_spte_created++;
 		mark_mmio_spte(vcpu, sptep, gfn, pte_access);
 		return RET_PF_EMULATE;
@@ -2929,7 +2929,7 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, struct kvm_memory_slot *slot,
 	if (is_shadow_present_pte(*sptep)) {
 		/*
 		 * If we overwrite a PTE page pointer with a 2MB PMD, unlink
-		 * the parent of the now unreachable PTE.
+		 * the parent of the analw unreachable PTE.
 		 */
 		if (level > PG_LEVEL_4K && !is_large_pte(*sptep)) {
 			struct kvm_mmu_page *child;
@@ -3034,7 +3034,7 @@ static void direct_pte_prefetch(struct kvm_vcpu *vcpu, u64 *sptep)
 	sp = sptep_to_sp(sptep);
 
 	/*
-	 * Without accessed bits, there's no way to distinguish between
+	 * Without accessed bits, there's anal way to distinguish between
 	 * actually accessed translations and prefetched, so disable pte
 	 * prefetch if accessed bits aren't available.
 	 */
@@ -3058,25 +3058,25 @@ static void direct_pte_prefetch(struct kvm_vcpu *vcpu, u64 *sptep)
  * Lookup the mapping level for @gfn in the current mm.
  *
  * WARNING!  Use of host_pfn_mapping_level() requires the caller and the end
- * consumer to be tied into KVM's handlers for MMU notifier events!
+ * consumer to be tied into KVM's handlers for MMU analtifier events!
  *
  * There are several ways to safely use this helper:
  *
  * - Check mmu_invalidate_retry_gfn() after grabbing the mapping level, before
  *   consuming it.  In this case, mmu_lock doesn't need to be held during the
- *   lookup, but it does need to be held while checking the MMU notifier.
+ *   lookup, but it does need to be held while checking the MMU analtifier.
  *
- * - Hold mmu_lock AND ensure there is no in-progress MMU notifier invalidation
- *   event for the hva.  This can be done by explicit checking the MMU notifier
+ * - Hold mmu_lock AND ensure there is anal in-progress MMU analtifier invalidation
+ *   event for the hva.  This can be done by explicit checking the MMU analtifier
  *   or by ensuring that KVM already has a valid mapping that covers the hva.
  *
- * - Do not use the result to install new mappings, e.g. use the host mapping
- *   level only to decide whether or not to zap an entry.  In this case, it's
- *   not required to hold mmu_lock (though it's highly likely the caller will
+ * - Do analt use the result to install new mappings, e.g. use the host mapping
+ *   level only to decide whether or analt to zap an entry.  In this case, it's
+ *   analt required to hold mmu_lock (though it's highly likely the caller will
  *   want to hold mmu_lock anyways, e.g. to modify SPTEs).
  *
- * Note!  The lookup can still race with modifications to host page tables, but
- * the above "rules" ensure KVM will not _consume_ the result of the walk if a
+ * Analte!  The lookup can still race with modifications to host page tables, but
+ * the above "rules" ensure KVM will analt _consume_ the result of the walk if a
  * race with the primary MMU occurs.
  */
 static int host_pfn_mapping_level(struct kvm *kvm, gfn_t gfn,
@@ -3091,8 +3091,8 @@ static int host_pfn_mapping_level(struct kvm *kvm, gfn_t gfn,
 	pmd_t pmd;
 
 	/*
-	 * Note, using the already-retrieved memslot and __gfn_to_hva_memslot()
-	 * is not solely for performance, it's also necessary to avoid the
+	 * Analte, using the already-retrieved memslot and __gfn_to_hva_memslot()
+	 * is analt solely for performance, it's also necessary to avoid the
 	 * "writable" check in __gfn_to_hva_many(), which will always fail on
 	 * read-only memslots due to gfn_to_hva() assuming writes.  Earlier
 	 * page fault steps have already verified the guest isn't writing a
@@ -3108,22 +3108,22 @@ static int host_pfn_mapping_level(struct kvm *kvm, gfn_t gfn,
 	local_irq_save(flags);
 
 	/*
-	 * Read each entry once.  As above, a non-leaf entry can be promoted to
+	 * Read each entry once.  As above, a analn-leaf entry can be promoted to
 	 * a huge page _during_ this walk.  Re-reading the entry could send the
 	 * walk into the weeks, e.g. p*d_large() returns false (sees the old
 	 * value) and then p*d_offset() walks into the target huge page instead
 	 * of the old page table (sees the new value).
 	 */
 	pgd = READ_ONCE(*pgd_offset(kvm->mm, hva));
-	if (pgd_none(pgd))
+	if (pgd_analne(pgd))
 		goto out;
 
 	p4d = READ_ONCE(*p4d_offset(&pgd, hva));
-	if (p4d_none(p4d) || !p4d_present(p4d))
+	if (p4d_analne(p4d) || !p4d_present(p4d))
 		goto out;
 
 	pud = READ_ONCE(*pud_offset(&p4d, hva));
-	if (pud_none(pud) || !pud_present(pud))
+	if (pud_analne(pud) || !pud_present(pud))
 		goto out;
 
 	if (pud_large(pud)) {
@@ -3132,7 +3132,7 @@ static int host_pfn_mapping_level(struct kvm *kvm, gfn_t gfn,
 	}
 
 	pmd = READ_ONCE(*pmd_offset(&pud, hva));
-	if (pmd_none(pmd) || !pmd_present(pmd))
+	if (pmd_analne(pmd) || !pmd_present(pmd))
 		goto out;
 
 	if (pmd_large(pmd))
@@ -3187,7 +3187,7 @@ void kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
 	if (unlikely(fault->max_level == PG_LEVEL_4K))
 		return;
 
-	if (is_error_noslot_pfn(fault->pfn))
+	if (is_error_analslot_pfn(fault->pfn))
 		return;
 
 	if (kvm_slot_dirty_track_enabled(slot))
@@ -3223,7 +3223,7 @@ void disallowed_hugepage_adjust(struct kvm_page_fault *fault, u64 spte, int cur_
 		/*
 		 * A small SPTE exists for this pfn, but FNAME(fetch),
 		 * direct_map(), or kvm_tdp_mmu_map() would like to create a
-		 * large PTE instead: just force them to go down another level,
+		 * large PTE instead: just force them to go down aanalther level,
 		 * patching back for them into pfn the next 9 bits of the
 		 * address.
 		 */
@@ -3246,7 +3246,7 @@ static int direct_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 	trace_kvm_mmu_spte_requested(fault);
 	for_each_shadow_entry(vcpu, fault->addr, it) {
 		/*
-		 * We cannot overwrite existing page tables with an NX
+		 * We cananalt overwrite existing page tables with an NX
 		 * large page, as the leaf could be executable.
 		 */
 		if (fault->nx_huge_page_workaround_enabled)
@@ -3293,7 +3293,7 @@ static int kvm_handle_error_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fa
 	}
 
 	/*
-	 * Do not cache the mmio info caused by writing the readonly gfn
+	 * Do analt cache the mmio info caused by writing the readonly gfn
 	 * into the spte otherwise read access on readonly gfn also can
 	 * caused mmio page fault and treat it as mmio access.
 	 */
@@ -3308,7 +3308,7 @@ static int kvm_handle_error_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fa
 	return -EFAULT;
 }
 
-static int kvm_handle_noslot_fault(struct kvm_vcpu *vcpu,
+static int kvm_handle_analslot_fault(struct kvm_vcpu *vcpu,
 				   struct kvm_page_fault *fault,
 				   unsigned int access)
 {
@@ -3320,13 +3320,13 @@ static int kvm_handle_noslot_fault(struct kvm_vcpu *vcpu,
 	/*
 	 * If MMIO caching is disabled, emulate immediately without
 	 * touching the shadow page tables as attempting to install an
-	 * MMIO SPTE will just be an expensive nop.
+	 * MMIO SPTE will just be an expensive analp.
 	 */
 	if (unlikely(!enable_mmio_caching))
 		return RET_PF_EMULATE;
 
 	/*
-	 * Do not create an MMIO SPTE for a gfn greater than host.MAXPHYADDR,
+	 * Do analt create an MMIO SPTE for a gfn greater than host.MAXPHYADDR,
 	 * any guest that generates such gfns is running nested and is being
 	 * tricked by L0 userspace (you can observe gfn > L1.MAXPHYADDR if and
 	 * only if L1's MAXPHYADDR is inaccurate with respect to the
@@ -3344,7 +3344,7 @@ static bool page_fault_can_be_fast(struct kvm_page_fault *fault)
 	 * Page faults with reserved bits set, i.e. faults on MMIO SPTEs, only
 	 * reach the common page fault handler if the SPTE has an invalid MMIO
 	 * generation number.  Refreshing the MMIO generation needs to go down
-	 * the slow path.  Note, EPT Misconfigs do NOT set the PRESENT flag!
+	 * the slow path.  Analte, EPT Misconfigs do ANALT set the PRESENT flag!
 	 */
 	if (fault->rsvd)
 		return false;
@@ -3352,14 +3352,14 @@ static bool page_fault_can_be_fast(struct kvm_page_fault *fault)
 	/*
 	 * #PF can be fast if:
 	 *
-	 * 1. The shadow page table entry is not present and A/D bits are
+	 * 1. The shadow page table entry is analt present and A/D bits are
 	 *    disabled _by KVM_, which could mean that the fault is potentially
 	 *    caused by access tracking (if enabled).  If A/D bits are enabled
 	 *    by KVM, but disabled by L1 for L2, KVM is forced to disable A/D
 	 *    bits for L2 and employ access tracking, but the fast page fault
 	 *    mechanism only supports direct MMUs.
 	 * 2. The shadow page table entry is present, the access is a write,
-	 *    and no reserved bits are set (MMIO SPTEs cannot be "fixed"), i.e.
+	 *    and anal reserved bits are set (MMIO SPTEs cananalt be "fixed"), i.e.
 	 *    the fault was caused by a write-protection violation.  If the
 	 *    SPTE is MMU-writable (determined later), the fault can be fixed
 	 *    by setting the Writable bit, which can be done out of mmu_lock.
@@ -3368,7 +3368,7 @@ static bool page_fault_can_be_fast(struct kvm_page_fault *fault)
 		return !kvm_ad_enabled();
 
 	/*
-	 * Note, instruction fetches and writes are mutually exclusive, ignore
+	 * Analte, instruction fetches and writes are mutually exclusive, iganalre
 	 * the "exec" flag.
 	 */
 	return fault->write;
@@ -3386,11 +3386,11 @@ static bool fast_pf_fix_direct_spte(struct kvm_vcpu *vcpu,
 	 * Theoretically we could also set dirty bit (and flush TLB) here in
 	 * order to eliminate unnecessary PML logging. See comments in
 	 * set_spte. But fast_page_fault is very unlikely to happen with PML
-	 * enabled, so we do not do this. This might result in the same GPA
+	 * enabled, so we do analt do this. This might result in the same GPA
 	 * to be logged in PML buffer again when the write really happens, and
-	 * eventually to be called by mark_page_dirty twice. But it's also no
+	 * eventually to be called by mark_page_dirty twice. But it's also anal
 	 * harm. This also avoids the TLB flush needed after setting dirty bit
-	 * so non-PML cases won't be impacted.
+	 * so analn-PML cases won't be impacted.
 	 *
 	 * Compare with set_spte where instead shadow_dirty_mask is set.
 	 */
@@ -3417,12 +3417,12 @@ static bool is_access_allowed(struct kvm_page_fault *fault, u64 spte)
 
 /*
  * Returns the last level spte pointer of the shadow page walk for the given
- * gpa, and sets *spte to the spte value. This spte may be non-preset. If no
- * walk could be performed, returns NULL and *spte does not contain valid data.
+ * gpa, and sets *spte to the spte value. This spte may be analn-preset. If anal
+ * walk could be performed, returns NULL and *spte does analt contain valid data.
  *
  * Contract:
  *  - Must be called between walk_shadow_page_lockless_{begin,end}.
- *  - The returned sptep must not be used after walk_shadow_page_lockless_end.
+ *  - The returned sptep must analt be used after walk_shadow_page_lockless_end.
  */
 static u64 *fast_pf_get_last_sptep(struct kvm_vcpu *vcpu, gpa_t gpa, u64 *spte)
 {
@@ -3479,12 +3479,12 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 
 		/*
 		 * Check whether the memory access that caused the fault would
-		 * still cause it if it were to be performed right now. If not,
+		 * still cause it if it were to be performed right analw. If analt,
 		 * then this is a spurious fault caused by TLB lazily flushed,
 		 * or some other CPU has already fixed the PTE after the
 		 * current CPU took the fault.
 		 *
-		 * Need not check the access of upper level table entries since
+		 * Need analt check the access of upper level table entries since
 		 * they are always ACC_ALL.
 		 */
 		if (is_access_allowed(fault, spte)) {
@@ -3497,7 +3497,7 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		/*
 		 * KVM only supports fixing page faults outside of MMU lock for
 		 * direct MMUs, nested MMUs are always indirect, and KVM always
-		 * uses A/D bits for non-nested MMUs.  Thus, if A/D bits are
+		 * uses A/D bits for analn-nested MMUs.  Thus, if A/D bits are
 		 * enabled, the SPTE can't be an access-tracked SPTE.
 		 */
 		if (unlikely(!kvm_ad_enabled()) && is_access_track_spte(spte))
@@ -3510,7 +3510,7 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		 * tracking are handled here.  Don't bother checking if the
 		 * SPTE is writable to prioritize running with A/D bits enabled.
 		 * The is_access_allowed() check above handles the common case
-		 * of the fault being spurious, and the SPTE is known to be
+		 * of the fault being spurious, and the SPTE is kanalwn to be
 		 * shadow-present, i.e. except for access tracking restoration
 		 * making the new SPTE writable, the check is wasteful.
 		 */
@@ -3518,14 +3518,14 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 			new_spte |= PT_WRITABLE_MASK;
 
 			/*
-			 * Do not fix write-permission on the large spte when
+			 * Do analt fix write-permission on the large spte when
 			 * dirty logging is enabled. Since we only dirty the
 			 * first page into the dirty-bitmap in
 			 * fast_pf_fix_direct_spte(), other pages are missed
 			 * if its slot has dirty logging enabled.
 			 *
 			 * Instead, we let the slow page fault path create a
-			 * normal spte to fix the access.
+			 * analrmal spte to fix the access.
 			 */
 			if (sp->role.level > PG_LEVEL_4K &&
 			    kvm_slot_dirty_track_enabled(fault->slot))
@@ -3539,7 +3539,7 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 
 		/*
 		 * Currently, fast page fault only works for direct mapping
-		 * since the gfn is not stable for indirect shadow page. See
+		 * since the gfn is analt stable for indirect shadow page. See
 		 * Documentation/virt/kvm/locking.rst to get more detail.
 		 */
 		if (fast_pf_fix_direct_spte(vcpu, fault, sptep, spte, new_spte)) {
@@ -3618,7 +3618,7 @@ void kvm_mmu_free_roots(struct kvm *kvm, struct kvm_mmu *mmu,
 
 	if (free_active_root) {
 		if (kvm_mmu_is_dummy_root(mmu->root.hpa)) {
-			/* Nothing to cleanup for dummy roots. */
+			/* Analthing to cleanup for dummy roots. */
 		} else if (root_to_sp(mmu->root.hpa)) {
 			mmu_free_root_page(kvm, &mmu->root.hpa, &invalid_list);
 		} else if (mmu->pae_root) {
@@ -3648,7 +3648,7 @@ void kvm_mmu_free_guest_mode_roots(struct kvm *kvm, struct kvm_mmu *mmu)
 	int i;
 
 	/*
-	 * This should not be called while L2 is active, L2 can't invalidate
+	 * This should analt be called while L2 is active, L2 can't invalidate
 	 * _only_ its own roots, e.g. INVVPID unconditionally exits.
 	 */
 	WARN_ON_ONCE(mmu->root_role.guest_mode);
@@ -3725,7 +3725,7 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 		goto out_unlock;
 	}
 
-	/* root.pgd is ignored for direct MMUs. */
+	/* root.pgd is iganalred for direct MMUs. */
 	mmu->root.pgd = 0;
 out_unlock:
 	write_unlock(&vcpu->kvm->mmu_lock);
@@ -3763,11 +3763,11 @@ static int mmu_first_shadow_root_alloc(struct kvm *kvm)
 		slots = __kvm_memslots(kvm, i);
 		kvm_for_each_memslot(slot, bkt, slots) {
 			/*
-			 * Both of these functions are no-ops if the target is
+			 * Both of these functions are anal-ops if the target is
 			 * already allocated, so unconditionally calling both
-			 * is safe.  Intentionally do NOT free allocations on
+			 * is safe.  Intentionally do ANALT free allocations on
 			 * failure to avoid having to track which allocations
-			 * were made now versus when the memslot was created.
+			 * were made analw versus when the memslot was created.
 			 * The metadata is guaranteed to be freed when the slot
 			 * is freed, and will be kept/used if userspace retries
 			 * KVM_RUN instead of killing the VM.
@@ -3885,8 +3885,8 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 		}
 
 		/*
-		 * If shadowing 32-bit non-PAE page tables, each PAE page
-		 * directory maps one quarter of the guest's non-PAE page
+		 * If shadowing 32-bit analn-PAE page tables, each PAE page
+		 * directory maps one quarter of the guest's analn-PAE page
 		 * directory. Othwerise each PAE page direct shadows one guest
 		 * PAE page directory so that quadrant should be 0.
 		 */
@@ -3921,7 +3921,7 @@ static int mmu_alloc_special_roots(struct kvm_vcpu *vcpu)
 
 	/*
 	 * When shadowing 32-bit or PAE NPT with 64-bit NPT, the PML4 and PDP
-	 * tables are allocated and initialized at root creation as there is no
+	 * tables are allocated and initialized at root creation as there is anal
 	 * equivalent level in the guest's NPT to shadow.  Allocate the tables
 	 * on demand, as running a 32-bit L1 VMM on 64-bit KVM is very rare.
 	 */
@@ -3954,7 +3954,7 @@ static int mmu_alloc_special_roots(struct kvm_vcpu *vcpu)
 	 */
 	pae_root = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
 	if (!pae_root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #ifdef CONFIG_X86_64
 	pml4_root = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
@@ -3979,7 +3979,7 @@ err_pml5:
 	free_page((unsigned long)pml4_root);
 err_pml4:
 	free_page((unsigned long)pae_root);
-	return -ENOMEM;
+	return -EANALMEM;
 #endif
 }
 
@@ -3994,8 +3994,8 @@ static bool is_unsync_root(hpa_t root)
 	 * The read barrier orders the CPU's read of SPTE.W during the page table
 	 * walk before the reads of sp->unsync/sp->unsync_children here.
 	 *
-	 * Even if another CPU was marking the SP as unsync-ed simultaneously,
-	 * any guest page table changes are not guaranteed to be visible anyway
+	 * Even if aanalther CPU was marking the SP as unsync-ed simultaneously,
+	 * any guest page table changes are analt guaranteed to be visible anyway
 	 * until this VCPU issues a TLB flush strictly after those changes are
 	 * made.  We only need to ensure that the other CPU sets these flags
 	 * before any actual changes to the page tables are made.  The comments
@@ -4072,7 +4072,7 @@ void kvm_mmu_sync_prev_roots(struct kvm_vcpu *vcpu)
 	kvm_mmu_free_roots(vcpu->kvm, vcpu->arch.mmu, roots_to_free);
 }
 
-static gpa_t nonpaging_gva_to_gpa(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+static gpa_t analnpaging_gva_to_gpa(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 				  gpa_t vaddr, u64 access,
 				  struct x86_exception *exception)
 {
@@ -4084,7 +4084,7 @@ static gpa_t nonpaging_gva_to_gpa(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 static bool mmio_info_in_cache(struct kvm_vcpu *vcpu, u64 addr, bool direct)
 {
 	/*
-	 * A nested guest cannot use the MMIO cache if it is using nested
+	 * A nested guest cananalt use the MMIO cache if it is using nested
 	 * page tables, because cr2 is a nGPA while the cache stores GPAs.
 	 */
 	if (mmu_is_nested(vcpu))
@@ -4098,7 +4098,7 @@ static bool mmio_info_in_cache(struct kvm_vcpu *vcpu, u64 addr, bool direct)
 
 /*
  * Return the level of the lowest level SPTE added to sptes.
- * That SPTE may be non-present.
+ * That SPTE may be analn-present.
  *
  * Must be called between walk_shadow_page_lockless_{begin,end}.
  */
@@ -4121,7 +4121,7 @@ static int get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes, int *root_level
 	return leaf;
 }
 
-/* return true if reserved bit(s) are detected on a valid, non-MMIO SPTE. */
+/* return true if reserved bit(s) are detected on a valid, analn-MMIO SPTE. */
 static bool get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 {
 	u64 sptes[PT64_ROOT_MAX_LEVEL + 1];
@@ -4146,10 +4146,10 @@ static bool get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 	*sptep = sptes[leaf];
 
 	/*
-	 * Skip reserved bits checks on the terminal leaf if it's not a valid
-	 * SPTE.  Note, this also (intentionally) skips MMIO SPTEs, which, by
+	 * Skip reserved bits checks on the terminal leaf if it's analt a valid
+	 * SPTE.  Analte, this also (intentionally) skips MMIO SPTEs, which, by
 	 * design, always have reserved bits set.  The purpose of the checks is
-	 * to detect reserved bits on non-MMIO SPTEs. i.e. buggy SPTEs.
+	 * to detect reserved bits on analn-MMIO SPTEs. i.e. buggy SPTEs.
 	 */
 	if (!is_shadow_present_pte(sptes[leaf]))
 		leaf++;
@@ -4216,7 +4216,7 @@ static bool page_fault_handle_page_track(struct kvm_vcpu *vcpu,
 
 	/*
 	 * guest is writing the page which is write tracked which can
-	 * not be fixed by page fault handler.
+	 * analt be fixed by page fault handler.
 	 */
 	if (kvm_gfn_is_write_tracked(vcpu->kvm, fault->slot, fault->gfn))
 		return true;
@@ -4237,7 +4237,7 @@ static void shadow_page_table_clear_flood(struct kvm_vcpu *vcpu, gva_t addr)
 
 static u32 alloc_apf_token(struct kvm_vcpu *vcpu)
 {
-	/* make sure the token value is not 0 */
+	/* make sure the token value is analt 0 */
 	u32 id = vcpu->arch.apf.id;
 
 	if (id << 12 == 0)
@@ -4345,7 +4345,7 @@ static int __kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
 		/* Don't expose private memslots to L2. */
 		if (is_guest_mode(vcpu)) {
 			fault->slot = NULL;
-			fault->pfn = KVM_PFN_NOSLOT;
+			fault->pfn = KVM_PFN_ANALSLOT;
 			fault->map_writable = false;
 			return RET_PF_CONTINUE;
 		}
@@ -4387,8 +4387,8 @@ static int __kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
 	}
 
 	/*
-	 * Allow gup to bail on pending non-fatal signals when it's also allowed
-	 * to wait for IO.  Note, gup always bails if it is unable to quickly
+	 * Allow gup to bail on pending analn-fatal signals when it's also allowed
+	 * to wait for IO.  Analte, gup always bails if it is unable to quickly
 	 * get a page and a fatal signal, i.e. SIGKILL, is pending.
 	 */
 	fault->pfn = __gfn_to_pfn_memslot(slot, fault->gfn, false, true, NULL,
@@ -4413,21 +4413,21 @@ static int kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 		return kvm_handle_error_pfn(vcpu, fault);
 
 	if (unlikely(!fault->slot))
-		return kvm_handle_noslot_fault(vcpu, fault, access);
+		return kvm_handle_analslot_fault(vcpu, fault, access);
 
 	return RET_PF_CONTINUE;
 }
 
 /*
  * Returns true if the page fault is stale and needs to be retried, i.e. if the
- * root was invalidated by a memslot update or a relevant mmu_notifier fired.
+ * root was invalidated by a memslot update or a relevant mmu_analtifier fired.
  */
 static bool is_page_fault_stale(struct kvm_vcpu *vcpu,
 				struct kvm_page_fault *fault)
 {
 	struct kvm_mmu_page *sp = root_to_sp(vcpu->arch.mmu->root.hpa);
 
-	/* Special roots, e.g. pae_root, are not backed by shadow pages. */
+	/* Special roots, e.g. pae_root, are analt backed by shadow pages. */
 	if (sp && is_obsolete_sp(vcpu->kvm, sp))
 		return true;
 
@@ -4437,7 +4437,7 @@ static bool is_page_fault_stale(struct kvm_vcpu *vcpu,
 	 * only a hint that the current root _may_ be obsolete and needs to be
 	 * reloaded, e.g. if the guest frees a PGD that KVM is tracking as a
 	 * previous root, then __kvm_mmu_prepare_zap_page() signals all vCPUs
-	 * to reload even if no vCPU is actively using the root.
+	 * to reload even if anal vCPU is actively using the root.
 	 */
 	if (!sp && kvm_test_request(KVM_REQ_MMU_FREE_OBSOLETE_ROOTS, vcpu))
 		return true;
@@ -4487,7 +4487,7 @@ out_unlock:
 	return r;
 }
 
-static int nonpaging_page_fault(struct kvm_vcpu *vcpu,
+static int analnpaging_page_fault(struct kvm_vcpu *vcpu,
 				struct kvm_page_fault *fault)
 {
 	/* This path builds a PAE pagetable, we can map 2mb pages at maximum. */
@@ -4515,7 +4515,7 @@ int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
 			kvm_mmu_unprotect_page_virt(vcpu, fault_address);
 		r = kvm_mmu_page_fault(vcpu, fault_address, error_code, insn,
 				insn_len);
-	} else if (flags & KVM_PV_REASON_PAGE_NOT_PRESENT) {
+	} else if (flags & KVM_PV_REASON_PAGE_ANALT_PRESENT) {
 		vcpu->arch.apf.host_apf_flags = 0;
 		local_irq_disable();
 		kvm_async_pf_task_wait_schedule(fault_address);
@@ -4564,18 +4564,18 @@ out_unlock:
 }
 #endif
 
-bool __kvm_mmu_honors_guest_mtrrs(bool vm_has_noncoherent_dma)
+bool __kvm_mmu_hoanalrs_guest_mtrrs(bool vm_has_analncoherent_dma)
 {
 	/*
-	 * If host MTRRs are ignored (shadow_memtype_mask is non-zero), and the
-	 * VM has non-coherent DMA (DMA doesn't snoop CPU caches), KVM's ABI is
-	 * to honor the memtype from the guest's MTRRs so that guest accesses
+	 * If host MTRRs are iganalred (shadow_memtype_mask is analn-zero), and the
+	 * VM has analn-coherent DMA (DMA doesn't sanalop CPU caches), KVM's ABI is
+	 * to hoanalr the memtype from the guest's MTRRs so that guest accesses
 	 * to memory that is DMA'd aren't cached against the guest's wishes.
 	 *
-	 * Note, KVM may still ultimately ignore guest MTRRs for certain PFNs,
+	 * Analte, KVM may still ultimately iganalre guest MTRRs for certain PFNs,
 	 * e.g. KVM will force UC memtype for host MMIO.
 	 */
-	return vm_has_noncoherent_dma && shadow_memtype_mask;
+	return vm_has_analncoherent_dma && shadow_memtype_mask;
 }
 
 int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
@@ -4585,7 +4585,7 @@ int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 	 * restrict the mapping level to ensure KVM uses a consistent memtype
 	 * across the entire mapping.
 	 */
-	if (kvm_mmu_honors_guest_mtrrs(vcpu->kvm)) {
+	if (kvm_mmu_hoanalrs_guest_mtrrs(vcpu->kvm)) {
 		for ( ; fault->max_level > PG_LEVEL_4K; --fault->max_level) {
 			int page_num = KVM_PAGES_PER_HPAGE(fault->max_level);
 			gfn_t base = gfn_round_for_level(fault->gfn,
@@ -4604,10 +4604,10 @@ int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 	return direct_page_fault(vcpu, fault);
 }
 
-static void nonpaging_init_context(struct kvm_mmu *context)
+static void analnpaging_init_context(struct kvm_mmu *context)
 {
-	context->page_fault = nonpaging_page_fault;
-	context->gva_to_gpa = nonpaging_gva_to_gpa;
+	context->page_fault = analnpaging_page_fault;
+	context->gva_to_gpa = analnpaging_gva_to_gpa;
 	context->sync_spte = NULL;
 }
 
@@ -4634,7 +4634,7 @@ static inline bool is_root_usable(struct kvm_mmu_root_info *root, gpa_t pgd,
  * and insert the current root as the MRU in the cache.
  * If a matching root is found, it is assigned to kvm_mmu->root and
  * true is returned.
- * If no match is found, kvm_mmu->root is left invalid, the LRU root is
+ * If anal match is found, kvm_mmu->root is left invalid, the LRU root is
  * evicted to make room for the current root, and false is returned.
  */
 static bool cached_root_find_and_keep_current(struct kvm *kvm, struct kvm_mmu *mmu,
@@ -4669,7 +4669,7 @@ static bool cached_root_find_and_keep_current(struct kvm *kvm, struct kvm_mmu *m
  * On entry, mmu->root is invalid.
  * If a matching root is found, it is assigned to kvm_mmu->root, the LRU entry
  * of the cache becomes invalid, and true is returned.
- * If no match is found, kvm_mmu->root is left invalid and false is returned.
+ * If anal match is found, kvm_mmu->root is left invalid and false is returned.
  */
 static bool cached_root_find_without_current(struct kvm *kvm, struct kvm_mmu *mmu,
 					     gpa_t new_pgd,
@@ -4714,7 +4714,7 @@ void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd)
 	union kvm_mmu_page_role new_role = mmu->root_role;
 
 	/*
-	 * Return immediately if no usable root was found, kvm_mmu_reload()
+	 * Return immediately if anal usable root was found, kvm_mmu_reload()
 	 * will establish a valid root prior to the next VM-Enter.
 	 */
 	if (!fast_pgd_switch(vcpu->kvm, mmu, new_pgd, new_role))
@@ -4735,7 +4735,7 @@ void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd)
 
 	/*
 	 * The last MMIO access's GVA and GPA are cached in the VCPU. When
-	 * switching to a new CR3, that GVA->GPA mapping may no longer be
+	 * switching to a new CR3, that GVA->GPA mapping may anal longer be
 	 * valid. So clear any cached MMIO info even when we don't need to sync
 	 * the shadow page tables.
 	 */
@@ -4759,7 +4759,7 @@ static bool sync_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, gfn_t gfn,
 {
 	if (unlikely(is_mmio_spte(*sptep))) {
 		if (gfn != get_mmio_spte_gfn(*sptep)) {
-			mmu_spte_clear_no_track(sptep);
+			mmu_spte_clear_anal_track(sptep);
 			return true;
 		}
 
@@ -4788,7 +4788,7 @@ static void __reset_rsvds_bits_mask(struct rsvd_bits_validate *rsvd_check,
 				    bool gbpages, bool pse, bool amd)
 {
 	u64 gbpages_bit_rsvd = 0;
-	u64 nonleaf_bit8_rsvd = 0;
+	u64 analnleaf_bit8_rsvd = 0;
 	u64 high_bits_rsvd;
 
 	rsvd_check->bad_mt_xwr = 0;
@@ -4801,20 +4801,20 @@ static void __reset_rsvds_bits_mask(struct rsvd_bits_validate *rsvd_check,
 	else
 		high_bits_rsvd = pa_bits_rsvd & rsvd_bits(0, 51);
 
-	/* Note, NX doesn't exist in PDPTEs, this is handled below. */
+	/* Analte, NX doesn't exist in PDPTEs, this is handled below. */
 	if (!nx)
 		high_bits_rsvd |= rsvd_bits(63, 63);
 
 	/*
-	 * Non-leaf PML4Es and PDPEs reserve bit 8 (which would be the G bit for
+	 * Analn-leaf PML4Es and PDPEs reserve bit 8 (which would be the G bit for
 	 * leaf entries) on AMD CPUs only.
 	 */
 	if (amd)
-		nonleaf_bit8_rsvd = rsvd_bits(8, 8);
+		analnleaf_bit8_rsvd = rsvd_bits(8, 8);
 
 	switch (level) {
 	case PT32_ROOT_LEVEL:
-		/* no rsvd bits for 2 level 4K page table entries */
+		/* anal rsvd bits for 2 level 4K page table entries */
 		rsvd_check->rsvd_bits_mask[0][1] = 0;
 		rsvd_check->rsvd_bits_mask[0][0] = 0;
 		rsvd_check->rsvd_bits_mask[1][0] =
@@ -4846,14 +4846,14 @@ static void __reset_rsvds_bits_mask(struct rsvd_bits_validate *rsvd_check,
 		break;
 	case PT64_ROOT_5LEVEL:
 		rsvd_check->rsvd_bits_mask[0][4] = high_bits_rsvd |
-						   nonleaf_bit8_rsvd |
+						   analnleaf_bit8_rsvd |
 						   rsvd_bits(7, 7);
 		rsvd_check->rsvd_bits_mask[1][4] =
 			rsvd_check->rsvd_bits_mask[0][4];
 		fallthrough;
 	case PT64_ROOT_4LEVEL:
 		rsvd_check->rsvd_bits_mask[0][3] = high_bits_rsvd |
-						   nonleaf_bit8_rsvd |
+						   analnleaf_bit8_rsvd |
 						   rsvd_bits(7, 7);
 		rsvd_check->rsvd_bits_mask[0][2] = high_bits_rsvd |
 						   gbpages_bit_rsvd;
@@ -4909,13 +4909,13 @@ static void __reset_rsvds_bits_mask_ept(struct rsvd_bits_validate *rsvd_check,
 	rsvd_check->rsvd_bits_mask[1][1] = high_bits_rsvd | rsvd_bits(12, 20) | large_2m_rsvd;
 	rsvd_check->rsvd_bits_mask[1][0] = rsvd_check->rsvd_bits_mask[0][0];
 
-	bad_mt_xwr = 0xFFull << (2 * 8);	/* bits 3..5 must not be 2 */
-	bad_mt_xwr |= 0xFFull << (3 * 8);	/* bits 3..5 must not be 3 */
-	bad_mt_xwr |= 0xFFull << (7 * 8);	/* bits 3..5 must not be 7 */
-	bad_mt_xwr |= REPEAT_BYTE(1ull << 2);	/* bits 0..2 must not be 010 */
-	bad_mt_xwr |= REPEAT_BYTE(1ull << 6);	/* bits 0..2 must not be 110 */
+	bad_mt_xwr = 0xFFull << (2 * 8);	/* bits 3..5 must analt be 2 */
+	bad_mt_xwr |= 0xFFull << (3 * 8);	/* bits 3..5 must analt be 3 */
+	bad_mt_xwr |= 0xFFull << (7 * 8);	/* bits 3..5 must analt be 7 */
+	bad_mt_xwr |= REPEAT_BYTE(1ull << 2);	/* bits 0..2 must analt be 010 */
+	bad_mt_xwr |= REPEAT_BYTE(1ull << 6);	/* bits 0..2 must analt be 110 */
 	if (!execonly) {
-		/* bits 0..2 must not be 100 unless VMX capabilities allow it */
+		/* bits 0..2 must analt be 100 unless VMX capabilities allow it */
 		bad_mt_xwr |= REPEAT_BYTE(1ull << 4);
 	}
 	rsvd_check->bad_mt_xwr = bad_mt_xwr;
@@ -4965,8 +4965,8 @@ static void reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
 		/*
 		 * So far shadow_me_value is a constant during KVM's life
 		 * time.  Bits in shadow_me_value are allowed to be set.
-		 * Bits in shadow_me_mask but not in shadow_me_value are
-		 * not allowed to be set.
+		 * Bits in shadow_me_mask but analt in shadow_me_value are
+		 * analt allowed to be set.
 		 */
 		shadow_zero_check->rsvd_bits_mask[0][i] |= shadow_me_mask;
 		shadow_zero_check->rsvd_bits_mask[1][i] |= shadow_me_mask;
@@ -4984,7 +4984,7 @@ static inline bool boot_cpu_is_amd(void)
 
 /*
  * the direct page table on host, use as much mmu features as
- * possible, however, kvm currently does not do execution-protection.
+ * possible, however, kvm currently does analt do execution-protection.
  */
 static void reset_tdp_shadow_zero_bits_mask(struct kvm_mmu *context)
 {
@@ -5055,11 +5055,11 @@ static void update_permission_bitmask(struct kvm_mmu *mmu, bool ept)
 		 * that causes a fault with the given PFEC.
 		 */
 
-		/* Faults from writes to non-writable pages */
+		/* Faults from writes to analn-writable pages */
 		u8 wf = (pfec & PFERR_WRITE_MASK) ? (u8)~w : 0;
 		/* Faults from user mode accesses to supervisor pages */
 		u8 uf = (pfec & PFERR_USER_MASK) ? (u8)~u : 0;
-		/* Faults from fetches of non-executable pages*/
+		/* Faults from fetches of analn-executable pages*/
 		u8 ff = (pfec & PFERR_FETCH_MASK) ? (u8)~x : 0;
 		/* Faults from kernel mode fetches of user pages */
 		u8 smepf = 0;
@@ -5070,7 +5070,7 @@ static void update_permission_bitmask(struct kvm_mmu *mmu, bool ept)
 			/* Faults from kernel mode accesses to user pages */
 			u8 kf = (pfec & PFERR_USER_MASK) ? 0 : u;
 
-			/* Not really needed: !nx will cause pte.nx to fault */
+			/* Analt really needed: !nx will cause pte.nx to fault */
 			if (!efer_nx)
 				ff = 0;
 
@@ -5089,14 +5089,14 @@ static void update_permission_bitmask(struct kvm_mmu *mmu, bool ept)
 			 * conditions are true:
 			 *   - X86_CR4_SMAP is set in CR4
 			 *   - A user page is accessed
-			 *   - The access is not a fetch
+			 *   - The access is analt a fetch
 			 *   - The access is supervisor mode
 			 *   - If implicit supervisor access or X86_EFLAGS_AC is clear
 			 *
 			 * Here, we cover the first four conditions.
 			 * The fifth is computed dynamically in permission_fault();
 			 * PFERR_RSVD_MASK bit will be set in PFEC if the access is
-			 * *not* subject to SMAP restrictions.
+			 * *analt* subject to SMAP restrictions.
 			 */
 			if (cr4_smap)
 				smapf = (pfec & (PFERR_RSVD_MASK|PFERR_FETCH_MASK)) ? 0 : kf;
@@ -5110,7 +5110,7 @@ static void update_permission_bitmask(struct kvm_mmu *mmu, bool ept)
 * PKU is an additional mechanism by which the paging controls access to
 * user-mode addresses based on the value in the PKRU register.  Protection
 * key violations are reported through a bit in the page fault error code.
-* Unlike other bits of the error code, the PK bit is not known at the
+* Unlike other bits of the error code, the PK bit is analt kanalwn at the
 * call site of e.g. gva_to_gpa; it must be computed directly in
 * permission_fault based on two bits of PKRU, on some machine state (CR4,
 * CR0, EFER, CPL), and on other bits of the error code and the page tables.
@@ -5120,7 +5120,7 @@ static void update_permission_bitmask(struct kvm_mmu *mmu, bool ept)
 * - PK is always zero unless CR4.PKE=1 and EFER.LMA=1
 * - PK is always zero if RSVD=1 (reserved bit set) or F=1 (instruction fetch)
 * - PK is always zero if U=0 in the page tables
-* - PKRU.WD is ignored if CR0.WP=0 and the access is a supervisor access.
+* - PKRU.WD is iganalred if CR0.WP=0 and the access is a supervisor access.
 *
 * The PKRU bitmask caches the result of these four conditions.  The error
 * code (minus the P bit) and the page table's U bit form an index into the
@@ -5155,7 +5155,7 @@ static void update_pkru_bitmask(struct kvm_mmu *mmu)
 		pte_user = pfec & PFERR_RSVD_MASK;
 
 		/*
-		 * Only need to check the access which is not an
+		 * Only need to check the access which is analt an
 		 * instruction fetch and is to a user page.
 		 */
 		check_pkey = (!ff && pte_user);
@@ -5216,8 +5216,8 @@ static union kvm_cpu_role kvm_calc_cpu_role(struct kvm_vcpu *vcpu,
 
 	role.base.efer_nx = ____is_efer_nx(regs);
 	role.base.cr0_wp = ____is_cr0_wp(regs);
-	role.base.smep_andnot_wp = ____is_cr4_smep(regs) && !____is_cr0_wp(regs);
-	role.base.smap_andnot_wp = ____is_cr4_smap(regs) && !____is_cr0_wp(regs);
+	role.base.smep_andanalt_wp = ____is_cr4_smep(regs) && !____is_cr0_wp(regs);
+	role.base.smap_andanalt_wp = ____is_cr4_smap(regs) && !____is_cr0_wp(regs);
 	role.base.has_4_byte_gpte = !____is_cr4_pae(regs);
 
 	if (____is_efer_lma(regs))
@@ -5256,7 +5256,7 @@ void __kvm_mmu_refresh_passthrough_bits(struct kvm_vcpu *vcpu,
 
 static inline int kvm_mmu_get_tdp_level(struct kvm_vcpu *vcpu)
 {
-	/* tdp_root_level is architecture forced level, use it if nonzero */
+	/* tdp_root_level is architecture forced level, use it if analnzero */
 	if (tdp_root_level)
 		return tdp_root_level;
 
@@ -5305,7 +5305,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu,
 	context->inject_page_fault = kvm_inject_page_fault;
 
 	if (!is_cr0_pg(context))
-		context->gva_to_gpa = nonpaging_gva_to_gpa;
+		context->gva_to_gpa = analnpaging_gva_to_gpa;
 	else if (is_cr4_pae(context))
 		context->gva_to_gpa = paging64_gva_to_gpa;
 	else
@@ -5327,7 +5327,7 @@ static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *conte
 	context->root_role.word = root_role.word;
 
 	if (!is_cr0_pg(context))
-		nonpaging_init_context(context);
+		analnpaging_init_context(context);
 	else if (is_cr4_pae(context))
 		paging64_init_context(context);
 	else
@@ -5351,10 +5351,10 @@ static void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu,
 	/*
 	 * KVM forces EFER.NX=1 when TDP is disabled, reflect it in the MMU role.
 	 * KVM uses NX when TDP is disabled to handle a variety of scenarios,
-	 * notably for huge SPTEs if iTLB multi-hit mitigation is enabled and
+	 * analtably for huge SPTEs if iTLB multi-hit mitigation is enabled and
 	 * to generate correct permissions for CR0.WP=0/CR4.SMEP=1/EFER.NX=0.
 	 * The iTLB multi-hit workaround can be toggled at any time, so assume
-	 * NX can be used by any non-nested shadow MMU to avoid having to reset
+	 * NX can be used by any analn-nested shadow MMU to avoid having to reset
 	 * MMU contexts.
 	 */
 	root_role.efer_nx = true;
@@ -5395,7 +5395,7 @@ kvm_calc_shadow_ept_root_page_role(struct kvm_vcpu *vcpu, bool accessed_dirty,
 	union kvm_cpu_role role = {0};
 
 	/*
-	 * KVM does not support SMM transfer monitors, and consequently does not
+	 * KVM does analt support SMM transfer monitors, and consequently does analt
 	 * support the "entry to SMM" control either.  role.base.smm is always 0.
 	 */
 	WARN_ON_ONCE(is_smm(vcpu));
@@ -5424,7 +5424,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 						   execonly, level);
 
 	if (new_mode.as_u64 != context->cpu_role.as_u64) {
-		/* EPT, and thus nested EPT, does not consume CR0, CR4, nor EFER. */
+		/* EPT, and thus nested EPT, does analt consume CR0, CR4, analr EFER. */
 		context->cpu_role.as_u64 = new_mode.as_u64;
 		context->root_role.word = new_mode.base.word;
 
@@ -5468,13 +5468,13 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu,
 	g_context->inject_page_fault = kvm_inject_page_fault;
 
 	/*
-	 * L2 page tables are never shadowed, so there is no need to sync
+	 * L2 page tables are never shadowed, so there is anal need to sync
 	 * SPTEs.
 	 */
 	g_context->sync_spte         = NULL;
 
 	/*
-	 * Note that arch.mmu->gva_to_gpa translates l2_gpa to l1_gpa using
+	 * Analte that arch.mmu->gva_to_gpa translates l2_gpa to l1_gpa using
 	 * L1's nested page tables (e.g. EPT12). The nested translation
 	 * of l2_gva to l1_gpa is done by arch.nested_mmu.gva_to_gpa using
 	 * L2's page tables as the first level of translation and L1's
@@ -5482,7 +5482,7 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu,
 	 * the gva_to_gpa functions between mmu and nested_mmu are swapped.
 	 */
 	if (!is_paging(vcpu))
-		g_context->gva_to_gpa = nonpaging_gva_to_gpa;
+		g_context->gva_to_gpa = analnpaging_gva_to_gpa;
 	else if (is_long_mode(vcpu))
 		g_context->gva_to_gpa = paging64_gva_to_gpa;
 	else if (is_pae(vcpu))
@@ -5517,7 +5517,7 @@ void kvm_mmu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	 * physical address properties) in a single VM would require tracking
 	 * all relevant CPUID information in kvm_mmu_page_role. That is very
 	 * undesirable as it would increase the memory requirements for
-	 * gfn_write_track (see struct kvm_mmu_page_role comments).  For now
+	 * gfn_write_track (see struct kvm_mmu_page_role comments).  For analw
 	 * that problem is swept under the rug; KVM's CPUID API is horrific and
 	 * it's all but impossible to solve it without introducing a new API.
 	 */
@@ -5566,8 +5566,8 @@ int kvm_mmu_load(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Flush any TLB entries for the new root, the provenance of the root
-	 * is unknown.  Even if KVM ensures there are no stale TLB entries
-	 * for a freed root, in theory another hypervisor could have left
+	 * is unkanalwn.  Even if KVM ensures there are anal stale TLB entries
+	 * for a freed root, in theory aanalther hypervisor could have left
 	 * stale entries.  Flushing on alloc also allows KVM to skip the TLB
 	 * flush when freeing a root (see kvm_tdp_mmu_put_root()).
 	 */
@@ -5602,12 +5602,12 @@ static bool is_obsolete_root(struct kvm *kvm, hpa_t root_hpa)
 	 * such false positives are relatively rare:
 	 *
 	 *  (a) only PAE paging and nested NPT have roots without shadow pages
-	 *      (or any shadow paging flavor with a dummy root, see note below)
+	 *      (or any shadow paging flavor with a dummy root, see analte below)
 	 *  (b) remote reloads due to a memslot update obsoletes _all_ roots
 	 *  (c) KVM doesn't track previous roots for PAE paging, and the guest
 	 *      is unlikely to zap an in-use PGD.
 	 *
-	 * Note!  Dummy roots are unique in that they are obsoleted by memslot
+	 * Analte!  Dummy roots are unique in that they are obsoleted by memslot
 	 * _creation_!  See also FNAME(fetch).
 	 */
 	sp = root_to_sp(root_hpa);
@@ -5664,14 +5664,14 @@ static u64 mmu_pte_write_fetch_gpte(struct kvm_vcpu *vcpu, gpa_t *gpa,
 }
 
 /*
- * If we're seeing too many writes to a page, it may no longer be a page table,
+ * If we're seeing too many writes to a page, it may anal longer be a page table,
  * or we may be forking, in which case it is better to unmap the page.
  */
 static bool detect_write_flooding(struct kvm_mmu_page *sp)
 {
 	/*
 	 * Skip write-flooding detected for the sp whose level is 1, because
-	 * it can become unsync, then the guest page is not write-protected.
+	 * it can become unsync, then the guest page is analt write-protected.
 	 */
 	if (sp->role.level == PG_LEVEL_4K)
 		return false;
@@ -5682,7 +5682,7 @@ static bool detect_write_flooding(struct kvm_mmu_page *sp)
 
 /*
  * Misaligned accesses are too much trouble to fix up; also, they usually
- * indicate a page is not used as a page table.
+ * indicate a page is analt used as a page table.
  */
 static bool detect_write_misaligned(struct kvm_mmu_page *sp, gpa_t gpa,
 				    int bytes)
@@ -5747,7 +5747,7 @@ void kvm_mmu_track_write(struct kvm_vcpu *vcpu, gpa_t gpa, const u8 *new,
 	bool flush = false;
 
 	/*
-	 * If we don't have indirect shadow pages, it means no page is
+	 * If we don't have indirect shadow pages, it means anal page is
 	 * write-protected, so we can exit simply.
 	 */
 	if (!READ_ONCE(vcpu->kvm->arch.indirect_shadow_pages))
@@ -5785,7 +5785,7 @@ void kvm_mmu_track_write(struct kvm_vcpu *vcpu, gpa_t gpa, const u8 *new,
 	write_unlock(&vcpu->kvm->mmu_lock);
 }
 
-int noinline kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 error_code,
+int analinline kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 error_code,
 		       void *insn, int insn_len)
 {
 	int r, emulation_type = EMULTYPE_PF;
@@ -5797,7 +5797,7 @@ int noinline kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 err
 	 * WARN if hardware generates a fault with an error code that collides
 	 * with the KVM-defined value.  Clear the flag and continue on, i.e.
 	 * don't terminate the VM, as KVM can't possibly be relying on a flag
-	 * that KVM doesn't know about.
+	 * that KVM doesn't kanalw about.
 	 */
 	if (WARN_ON_ONCE(error_code & PFERR_IMPLICIT_ACCESS))
 		error_code &= ~PFERR_IMPLICIT_ACCESS;
@@ -5841,10 +5841,10 @@ int noinline kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 err
 	/*
 	 * vcpu->arch.mmu.page_fault returned RET_PF_EMULATE, but we can still
 	 * optimistically try to just unprotect the page and let the processor
-	 * re-execute the instruction that caused the page fault.  Do not allow
-	 * retrying MMIO emulation, as it's not only pointless but could also
+	 * re-execute the instruction that caused the page fault.  Do analt allow
+	 * retrying MMIO emulation, as it's analt only pointless but could also
 	 * cause us to enter an infinite loop because the processor will keep
-	 * faulting on the non-existent MMIO address.  Retrying an instruction
+	 * faulting on the analn-existent MMIO address.  Retrying an instruction
 	 * from a nested guest is also pointless and dangerous as we are only
 	 * explicitly shadowing L1's page tables, i.e. unprotecting something
 	 * for L1 isn't going to magically fix whatever issue cause L2 to fail.
@@ -5903,8 +5903,8 @@ void kvm_mmu_invalidate_addr(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 
 	/* It's actually a GPA for vcpu->arch.guest_mmu.  */
 	if (mmu != &vcpu->arch.guest_mmu) {
-		/* INVLPG on a non-canonical address is a NOP according to the SDM.  */
-		if (is_noncanonical_address(addr, vcpu))
+		/* INVLPG on a analn-caanalnical address is a ANALP according to the SDM.  */
+		if (is_analncaanalnical_address(addr, vcpu))
 			return;
 
 		static_call(kvm_x86_flush_tlb_gva)(vcpu, addr);
@@ -5931,8 +5931,8 @@ void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
 	 * roughly the same amount of work/time to determine whether any of the
 	 * previous roots have a global mapping.
 	 *
-	 * Mappings not reachable via the current or previous cached roots will
-	 * be synced when switching to that new cr3, so nothing needs to be
+	 * Mappings analt reachable via the current or previous cached roots will
+	 * be synced when switching to that new cr3, so analthing needs to be
 	 * done here for them.
 	 */
 	kvm_mmu_invalidate_addr(vcpu, vcpu->arch.walk_mmu, gva, KVM_MMU_ROOTS_ALL);
@@ -5961,8 +5961,8 @@ void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 	++vcpu->stat.invlpg;
 
 	/*
-	 * Mappings not reachable via the current cr3 or the prev_roots will be
-	 * synced when switching to that cr3, so nothing needs to be done here
+	 * Mappings analt reachable via the current cr3 or the prev_roots will be
+	 * synced when switching to that cr3, so analthing needs to be done here
 	 * for them.
 	 */
 }
@@ -5980,7 +5980,7 @@ void kvm_configure_mmu(bool enable_tdp, int tdp_forced_root_level,
 	/*
 	 * max_huge_page_level reflects KVM's MMU capabilities irrespective
 	 * of kernel support, e.g. KVM may be capable of using 1GB pages when
-	 * the kernel is not.  But, KVM never creates a page size greater than
+	 * the kernel is analt.  But, KVM never creates a page size greater than
 	 * what is used by the kernel for any given HVA, i.e. the kernel's
 	 * capabilities are ultimately consulted by kvm_mmu_hugepage_adjust().
 	 */
@@ -6085,14 +6085,14 @@ static int __kvm_mmu_create(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
 
 	page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_DMA32);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mmu->pae_root = page_address(page);
 
 	/*
 	 * CR3 is only 32 bits when PAE paging is used, thus it's impossible to
 	 * get the CPU to treat the PDPTEs as encrypted.  Decrypt the page so
-	 * that KVM's writes and the CPU's reads get along.  Note, this is
+	 * that KVM's writes and the CPU's reads get along.  Analte, this is
 	 * only necessary when using shadow paging, as 64-bit NPT can get at
 	 * the C-bit even when shadowing 32-bit NPT, and SME isn't supported
 	 * by 32-bit kernels (when KVM itself uses 32-bit NPT).
@@ -6140,15 +6140,15 @@ int kvm_mmu_create(struct kvm_vcpu *vcpu)
 #define BATCH_ZAP_PAGES	10
 static void kvm_zap_obsolete_pages(struct kvm *kvm)
 {
-	struct kvm_mmu_page *sp, *node;
+	struct kvm_mmu_page *sp, *analde;
 	int nr_zapped, batch = 0;
 	bool unstable;
 
 restart:
-	list_for_each_entry_safe_reverse(sp, node,
+	list_for_each_entry_safe_reverse(sp, analde,
 	      &kvm->arch.active_mmu_pages, link) {
 		/*
-		 * No obsolete valid page exists before a newly created page
+		 * Anal obsolete valid page exists before a newly created page
 		 * since active_mmu_pages is a FIFO list.
 		 */
 		if (!is_obsolete_sp(kvm, sp))
@@ -6163,9 +6163,9 @@ restart:
 			continue;
 
 		/*
-		 * No need to flush the TLB since we're only zapping shadow
+		 * Anal need to flush the TLB since we're only zapping shadow
 		 * pages with an obsolete generation number and all vCPUS have
-		 * loaded a new root, i.e. the shadow pages being zapped cannot
+		 * loaded a new root, i.e. the shadow pages being zapped cananalt
 		 * be in active use by the guest.
 		 */
 		if (batch >= BATCH_ZAP_PAGES &&
@@ -6184,11 +6184,11 @@ restart:
 
 	/*
 	 * Kick all vCPUs (via remote TLB flush) before freeing the page tables
-	 * to ensure KVM is not in the middle of a lockless shadow page table
+	 * to ensure KVM is analt in the middle of a lockless shadow page table
 	 * walk, which may reference the pages.  The remote TLB flush itself is
-	 * not required and is simply a convenient way to kick vCPUs as needed.
+	 * analt required and is simply a convenient way to kick vCPUs as needed.
 	 * KVM performs a local TLB flush when allocating a new root (see
-	 * kvm_mmu_load()), and the reload in the caller ensure no vCPUs are
+	 * kvm_mmu_load()), and the reload in the caller ensure anal vCPUs are
 	 * running with an obsolete MMU.
 	 */
 	kvm_mmu_commit_zap_page(kvm, &kvm->arch.zapped_obsolete_pages);
@@ -6200,7 +6200,7 @@ restart:
  *
  * It's required when memslot is being deleted or VM is being
  * destroyed, in these cases, we should ensure that KVM MMU does
- * not use any resource of the being-deleted slot or all slots
+ * analt use any resource of the being-deleted slot or all slots
  * after calling the function.
  */
 static void kvm_mmu_zap_all_fast(struct kvm *kvm)
@@ -6229,11 +6229,11 @@ static void kvm_mmu_zap_all_fast(struct kvm *kvm)
 		kvm_tdp_mmu_invalidate_all_roots(kvm);
 
 	/*
-	 * Notify all vcpus to reload its shadow page table and flush TLB.
+	 * Analtify all vcpus to reload its shadow page table and flush TLB.
 	 * Then all vcpus will switch to new shadow page table with the new
 	 * mmu_valid_gen.
 	 *
-	 * Note: we need to do this under the protection of mmu_lock,
+	 * Analte: we need to do this under the protection of mmu_lock,
 	 * otherwise, vcpu would purge shadow page but miss tlb flush.
 	 */
 	kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_FREE_OBSOLETE_ROOTS);
@@ -6245,7 +6245,7 @@ static void kvm_mmu_zap_all_fast(struct kvm *kvm)
 	/*
 	 * Zap the invalidated TDP MMU roots, all SPTEs must be dropped before
 	 * returning to the caller, e.g. if the zap is in response to a memslot
-	 * deletion, mmu_notifier callbacks will be unable to reach the SPTEs
+	 * deletion, mmu_analtifier callbacks will be unable to reach the SPTEs
 	 * associated with the deleted memslot once the update completes, and
 	 * Deferring the zap until the final reference to the root is put would
 	 * lead to use-after-free.
@@ -6326,7 +6326,7 @@ static bool kvm_rmap_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_e
 
 /*
  * Invalidate (zap) SPTEs that cover GFNs from gfn_start and up to gfn_end
- * (not including it)
+ * (analt including it)
  */
 void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end)
 {
@@ -6392,7 +6392,7 @@ static bool need_topup_split_caches_or_resched(struct kvm *kvm)
 	/*
 	 * In the worst case, SPLIT_DESC_CACHE_MIN_NR_OBJECTS descriptors are needed
 	 * to split a single huge page. Calculating how many are actually needed
-	 * is possible but not worth the complexity.
+	 * is possible but analt worth the complexity.
 	 */
 	return need_topup(&kvm->arch.split_desc_cache, SPLIT_DESC_CACHE_MIN_NR_OBJECTS) ||
 	       need_topup(&kvm->arch.split_page_header_cache, 1) ||
@@ -6444,14 +6444,14 @@ static struct kvm_mmu_page *shadow_mmu_get_sp_for_split(struct kvm *kvm, u64 *hu
 	access = kvm_mmu_page_get_access(huge_sp, spte_index(huge_sptep));
 
 	/*
-	 * Note, huge page splitting always uses direct shadow pages, regardless
+	 * Analte, huge page splitting always uses direct shadow pages, regardless
 	 * of whether the huge page itself is mapped by a direct or indirect
 	 * shadow page, since the huge page region itself is being directly
 	 * mapped with smaller pages.
 	 */
 	role = kvm_mmu_child_role(huge_sptep, /*direct=*/true, access);
 
-	/* Direct SPs do not require a shadowed_info_cache. */
+	/* Direct SPs do analt require a shadowed_info_cache. */
 	caches.page_header_cache = &kvm->arch.split_page_header_cache;
 	caches.shadow_page_cache = &kvm->arch.split_shadow_page_cache;
 
@@ -6482,7 +6482,7 @@ static void shadow_mmu_split_huge_page(struct kvm *kvm,
 		 * The SP may already have populated SPTEs, e.g. if this huge
 		 * page is aliased by multiple sptes with the same access
 		 * permissions. These entries are guaranteed to map the same
-		 * gfn-to-pfn translation since the SP is direct, so no need to
+		 * gfn-to-pfn translation since the SP is direct, so anal need to
 		 * modify them.
 		 *
 		 * However, if a given SPTE points to a lower level page table,
@@ -6520,7 +6520,7 @@ static int shadow_mmu_try_split_huge_page(struct kvm *kvm,
 	spte = *huge_sptep;
 
 	if (kvm_mmu_available_pages(kvm) <= KVM_MIN_FREE_MMU_PAGES) {
-		r = -ENOSPC;
+		r = -EANALSPC;
 		goto out;
 	}
 
@@ -6561,7 +6561,7 @@ restart:
 		if (WARN_ON_ONCE(!sp->role.guest_mode))
 			continue;
 
-		/* The rmaps should never contain non-leaf SPTEs. */
+		/* The rmaps should never contain analn-leaf SPTEs. */
 		if (WARN_ON_ONCE(!is_large_pte(*huge_sptep)))
 			continue;
 
@@ -6583,7 +6583,7 @@ restart:
 		if (!r || r == -EAGAIN)
 			goto restart;
 
-		/* The split failed and shouldn't be retried (e.g. -ENOMEM). */
+		/* The split failed and shouldn't be retried (e.g. -EANALMEM). */
 		break;
 	}
 
@@ -6600,7 +6600,7 @@ static void kvm_shadow_mmu_try_split_huge_pages(struct kvm *kvm,
 	/*
 	 * Split huge pages starting with KVM_MAX_HUGEPAGE_LEVEL and working
 	 * down to the target level. This ensures pages are recursively split
-	 * all the way to the target level. There's no need to split pages
+	 * all the way to the target level. There's anal need to split pages
 	 * already at the target level.
 	 */
 	for (level = KVM_MAX_HUGEPAGE_LEVEL; level > target_level; level--)
@@ -6649,7 +6649,7 @@ void kvm_mmu_slot_try_split_huge_pages(struct kvm *kvm,
 	read_unlock(&kvm->mmu_lock);
 
 	/*
-	 * No TLB flush is necessary here. KVM will flush TLBs after
+	 * Anal TLB flush is necessary here. KVM will flush TLBs after
 	 * write-protecting and/or clearing dirty on the newly split SPTEs to
 	 * ensure that guest writes are reflected in the dirty log before the
 	 * ioctl to enable dirty logging on this memslot completes. Since the
@@ -6673,8 +6673,8 @@ restart:
 		sp = sptep_to_sp(sptep);
 
 		/*
-		 * We cannot do huge page mapping for indirect shadow pages,
-		 * which are found on the last rmap (level = 1) when not using
+		 * We cananalt do huge page mapping for indirect shadow pages,
+		 * which are found on the last rmap (level = 1) when analt using
 		 * tdp; such shadow pages are synced with the page table in
 		 * the guest, and the guest page table is using 4K page size
 		 * mapping if the indirect sp has level = 1.
@@ -6700,7 +6700,7 @@ static void kvm_rmap_zap_collapsible_sptes(struct kvm *kvm,
 					   const struct kvm_memory_slot *slot)
 {
 	/*
-	 * Note, use KVM_MAX_HUGEPAGE_LEVEL - 1 since there's no need to zap
+	 * Analte, use KVM_MAX_HUGEPAGE_LEVEL - 1 since there's anal need to zap
 	 * pages that are already mapped at the maximum hugepage level.
 	 */
 	if (walk_slot_rmaps(kvm, slot, kvm_mmu_zap_collapsible_spte,
@@ -6748,20 +6748,20 @@ void kvm_mmu_slot_leaf_clear_dirty(struct kvm *kvm,
 	 *
 	 * It's also safe to flush TLBs out of mmu lock here as currently this
 	 * function is only used for dirty logging, in which case flushing TLB
-	 * out of mmu lock also guarantees no dirty pages will be lost in
+	 * out of mmu lock also guarantees anal dirty pages will be lost in
 	 * dirty_bitmap.
 	 */
 }
 
 static void kvm_mmu_zap_all(struct kvm *kvm)
 {
-	struct kvm_mmu_page *sp, *node;
+	struct kvm_mmu_page *sp, *analde;
 	LIST_HEAD(invalid_list);
 	int ign;
 
 	write_lock(&kvm->mmu_lock);
 restart:
-	list_for_each_entry_safe(sp, node, &kvm->arch.active_mmu_pages, link) {
+	list_for_each_entry_safe(sp, analde, &kvm->arch.active_mmu_pages, link) {
 		if (WARN_ON_ONCE(sp->role.invalid))
 			continue;
 		if (__kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list, &ign))
@@ -6829,7 +6829,7 @@ static unsigned long mmu_shrink_scan(struct shrinker *shrink,
 
 		/*
 		 * Never scan more than sc->nr_to_scan VM instances.
-		 * Will not hit this condition practically since we do not try
+		 * Will analt hit this condition practically since we do analt try
 		 * to shrink more than one VM and it is very unlikely to see
 		 * !n_used_mmu_pages so many times.
 		 */
@@ -6837,7 +6837,7 @@ static unsigned long mmu_shrink_scan(struct shrinker *shrink,
 			break;
 		/*
 		 * n_used_mmu_pages is accessed without holding kvm->mmu_lock
-		 * here. We may skip a VM instance errorneosly, but we do not
+		 * here. We may skip a VM instance errorneosly, but we do analt
 		 * want to shrink a VM that only started to populate its MMU
 		 * anyway.
 		 */
@@ -6967,7 +6967,7 @@ void __init kvm_mmu_x86_module_init(void)
 		__set_nx_huge_pages(get_nx_auto_mode());
 
 	/*
-	 * Snapshot userspace's desire to enable the TDP MMU. Whether or not the
+	 * Snapshot userspace's desire to enable the TDP MMU. Whether or analt the
 	 * TDP MMU is actually enabled is determined in kvm_configure_mmu()
 	 * when the vendor module is loaded.
 	 */
@@ -6983,13 +6983,13 @@ void __init kvm_mmu_x86_module_init(void)
  */
 int kvm_mmu_vendor_module_init(void)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	/*
 	 * MMU roles use union aliasing which is, generally speaking, an
-	 * undefined behavior. However, we supposedly know how compilers behave
+	 * undefined behavior. However, we supposedly kanalw how compilers behave
 	 * and the current status quo is unlikely to change. Guardians below are
-	 * supposed to let us know if the assumption becomes false.
+	 * supposed to let us kanalw if the assumption becomes false.
 	 */
 	BUILD_BUG_ON(sizeof(union kvm_mmu_page_role) != sizeof(u32));
 	BUILD_BUG_ON(sizeof(union kvm_mmu_extended_role) != sizeof(u32));
@@ -7064,7 +7064,7 @@ static bool calc_nx_huge_pages_recovery_period(uint *period)
 
 	*period = READ_ONCE(nx_huge_pages_recovery_period_ms);
 	if (!*period) {
-		/* Make sure the period is not less than one second.  */
+		/* Make sure the period is analt less than one second.  */
 		ratio = min(ratio, 3600u);
 		*period = 60 * 60 * 1000 / ratio;
 	}
@@ -7144,24 +7144,24 @@ static void kvm_recover_nx_huge_pages(struct kvm *kvm)
 		WARN_ON_ONCE(!sp->role.direct);
 
 		/*
-		 * Unaccount and do not attempt to recover any NX Huge Pages
+		 * Unaccount and do analt attempt to recover any NX Huge Pages
 		 * that are being dirty tracked, as they would just be faulted
 		 * back in as 4KiB pages. The NX Huge Pages in this slot will be
 		 * recovered, along with all the other huge pages in the slot,
 		 * when dirty logging is disabled.
 		 *
 		 * Since gfn_to_memslot() is relatively expensive, it helps to
-		 * skip it if it the test cannot possibly return true.  On the
+		 * skip it if it the test cananalt possibly return true.  On the
 		 * other hand, if any memslot has logging enabled, chances are
 		 * good that all of them do, in which case unaccount_nx_huge_page()
 		 * is much cheaper than zapping the page.
 		 *
 		 * If a memslot update is in progress, reading an incorrect value
-		 * of kvm->nr_memslots_dirty_logging is not a problem: if it is
+		 * of kvm->nr_memslots_dirty_logging is analt a problem: if it is
 		 * becoming zero, gfn_to_memslot() will be done unnecessarily; if
-		 * it is becoming nonzero, the page will be zapped unnecessarily.
+		 * it is becoming analnzero, the page will be zapped unnecessarily.
 		 * Either way, this only affects efficiency in racy situations,
-		 * and not correctness.
+		 * and analt correctness.
 		 */
 		slot = NULL;
 		if (atomic_read(&kvm->nr_memslots_dirty_logging)) {
@@ -7263,12 +7263,12 @@ bool kvm_arch_pre_set_memory_attributes(struct kvm *kvm,
 	/*
 	 * Zap SPTEs even if the slot can't be mapped PRIVATE.  KVM x86 only
 	 * supports KVM_MEMORY_ATTRIBUTE_PRIVATE, and so it *seems* like KVM
-	 * can simply ignore such slots.  But if userspace is making memory
+	 * can simply iganalre such slots.  But if userspace is making memory
 	 * PRIVATE, then KVM must prevent the guest from accessing the memory
 	 * as shared.  And if userspace is making memory SHARED and this point
 	 * is reached, then at least one page within the range was previously
 	 * PRIVATE, i.e. the slot's possible hugepage ranges are changing.
-	 * Zapping SPTEs in this case ensures KVM will reassess whether or not
+	 * Zapping SPTEs in this case ensures KVM will reassess whether or analt
 	 * a hugepage can be used for affected ranges.
 	 */
 	if (WARN_ON_ONCE(!kvm_arch_has_private_mem(kvm)))
@@ -7326,7 +7326,7 @@ bool kvm_arch_post_set_memory_attributes(struct kvm *kvm,
 	 * Calculate which ranges can be mapped with hugepages even if the slot
 	 * can't map memory PRIVATE.  KVM mustn't create a SHARED hugepage over
 	 * a range that has PRIVATE GFNs, and conversely converting a range to
-	 * SHARED may now allow hugepages.
+	 * SHARED may analw allow hugepages.
 	 */
 	if (WARN_ON_ONCE(!kvm_arch_has_private_mem(kvm)))
 		return false;

@@ -59,7 +59,7 @@ void vmx_l2_guest_code(void)
 	/* Exit to L1 */
 	vmcall();
 
-	/* L1 has now set up a shadow VMCS for us.  */
+	/* L1 has analw set up a shadow VMCS for us.  */
 	GUEST_ASSERT(vmreadz(GUEST_RIP) == 0xc0ffee);
 	GUEST_SYNC(10);
 	GUEST_ASSERT(vmreadz(GUEST_RIP) == 0xc0ffee);
@@ -155,7 +155,7 @@ static void __attribute__((__flatten__)) guest_code(void *arg)
 		 * Modify state for all supported xfeatures to take them out of
 		 * their "init" state, i.e. to make them show up in XSTATE_BV.
 		 *
-		 * Note off-by-default features, e.g. AMX, are out of scope for
+		 * Analte off-by-default features, e.g. AMX, are out of scope for
 		 * this particular testcase as they have a different ABI.
 		 */
 		GUEST_ASSERT(supported_xcr0 & XFEATURE_MASK_FP);
@@ -189,7 +189,7 @@ static void __attribute__((__flatten__)) guest_code(void *arg)
 			 *
 			 * However, temporarily enable MPX in BNDCFGS so that
 			 * BNDMOV actually loads BND1.  If MPX isn't *fully*
-			 * enabled, all MPX instructions are treated as NOPs.
+			 * enabled, all MPX instructions are treated as ANALPs.
 			 *
 			 * Hand encode "bndmov (%rax),%bnd1" as support for MPX
 			 * mnemonics/registers has been removed from gcc and
@@ -264,13 +264,13 @@ int main(int argc, char *argv[])
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
 			REPORT_GUEST_ASSERT(uc);
-			/* NOT REACHED */
+			/* ANALT REACHED */
 		case UCALL_SYNC:
 			break;
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 
 		/* UCALL_SYNC is handled here.  */

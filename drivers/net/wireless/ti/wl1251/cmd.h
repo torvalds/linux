@@ -3,7 +3,7 @@
  * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  */
 
 #ifndef __WL1251_CMD_H__
@@ -60,7 +60,7 @@ enum wl1251_commands {
 	CMD_TEST            = 23,
 	CMD_RADIO_CALIBRATE     = 25,   /* OBSOLETE */
 	CMD_ENABLE_RX_PATH      = 27,   /* OBSOLETE */
-	CMD_NOISE_HIST      = 28,
+	CMD_ANALISE_HIST      = 28,
 	CMD_RX_RESET        = 29,
 	CMD_PS_POLL         = 30,
 	CMD_QOS_NULL_DATA   = 31,
@@ -101,8 +101,8 @@ struct  wl1251_command {
 enum {
 	CMD_MAILBOX_IDLE              		=  0,
 	CMD_STATUS_SUCCESS            		=  1,
-	CMD_STATUS_UNKNOWN_CMD        		=  2,
-	CMD_STATUS_UNKNOWN_IE         		=  3,
+	CMD_STATUS_UNKANALWN_CMD        		=  2,
+	CMD_STATUS_UNKANALWN_IE         		=  3,
 	CMD_STATUS_REJECT_MEAS_SG_ACTIVE 	= 11,
 	CMD_STATUS_RX_BUSY            		= 13,
 	CMD_STATUS_INVALID_PARAM      		= 14,
@@ -122,7 +122,7 @@ enum {
  *
  * The host issues this command to read the WiLink device memory/registers.
  *
- * Note: The Base Band address has special handling (16 bits registers and
+ * Analte: The Base Band address has special handling (16 bits registers and
  * addresses). For more information, see the hardware specification.
  */
 /*
@@ -173,7 +173,7 @@ struct wl1251_scan_parameters {
 	 * bit 0: When this bit is set, passive scan.
 	 * bit 1: Band, when this bit is set we scan
 	 * in the 5Ghz band.
-	 * bit 2: voice mode, 0 for normal scan.
+	 * bit 2: voice mode, 0 for analrmal scan.
 	 * bit 3: scan priority, 1 for high priority.
 	 */
 	__le16 scan_options;
@@ -377,7 +377,7 @@ enum wl1251_cmd_key_type {
 struct wl1251_cmd_set_keys {
 	struct wl1251_cmd_header header;
 
-	/* Ignored for default WEP key */
+	/* Iganalred for default WEP key */
 	u8 addr[ETH_ALEN];
 
 	/* key_action_e */

@@ -138,7 +138,7 @@ struct ucan_ctl_cmd_start {
 } __packed;
 
 struct ucan_ctl_cmd_set_bittiming {
-	__le32 tq;           /* Time quanta (TQ) in nanoseconds */
+	__le32 tq;           /* Time quanta (TQ) in naanalseconds */
 	__le16 brp;          /* TQ Prescaler */
 	__le16 sample_point; /* Samplepoint on tenth percent */
 	u8 prop_seg;         /* Propagation segment in TQs */
@@ -201,7 +201,7 @@ struct ucan_tx_complete_entry_t {
 
 /* CAN Data message format within ucan_message_in/out */
 struct ucan_can_msg {
-	/* note DLC is computed by
+	/* analte DLC is computed by
 	 *    msg.len - sizeof (msg.len)
 	 *            - sizeof (msg.type)
 	 *            - sizeof (msg.can_msg.id)
@@ -316,7 +316,7 @@ static void ucan_release_context_array(struct ucan_priv *up)
 	if (!up->context_array)
 		return;
 
-	/* lock is not needed because, driver is currently opening or closing */
+	/* lock is analt needed because, driver is currently opening or closing */
 	up->available_tx_urbs = 0;
 
 	kfree(up->context_array);
@@ -335,8 +335,8 @@ static int ucan_alloc_context_array(struct ucan_priv *up)
 				    GFP_KERNEL);
 	if (!up->context_array) {
 		netdev_err(up->netdev,
-			   "Not enough memory to allocate tx contexts\n");
-		return -ENOMEM;
+			   "Analt eanalugh memory to allocate tx contexts\n");
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < up->device_info.tx_fifo; i++) {
@@ -344,7 +344,7 @@ static int ucan_alloc_context_array(struct ucan_priv *up)
 		up->context_array[i].up = up;
 	}
 
-	/* lock is not needed because, driver is currently opening */
+	/* lock is analt needed because, driver is currently opening */
 	up->available_tx_urbs = up->device_info.tx_fifo;
 
 	return 0;
@@ -393,7 +393,7 @@ static bool ucan_release_context(struct ucan_priv *up,
 	/* execute context operation atomically */
 	spin_lock_irqsave(&up->context_lock, flags);
 
-	/* context was not allocated, maybe the device sent garbage */
+	/* context was analt allocated, maybe the device sent garbage */
 	if (ctx->allocated) {
 		ctx->allocated = false;
 
@@ -468,7 +468,7 @@ static void ucan_parse_device_info(struct ucan_priv *up,
 	if (ctrlmodes & UCAN_MODE_LOOPBACK)
 		up->can.ctrlmode_supported |= CAN_CTRLMODE_LOOPBACK;
 	if (ctrlmodes & UCAN_MODE_SILENT)
-		up->can.ctrlmode_supported |= CAN_CTRLMODE_LISTENONLY;
+		up->can.ctrlmode_supported |= CAN_CTRLMODE_LISTEANALNLY;
 	if (ctrlmodes & UCAN_MODE_3_SAMPLES)
 		up->can.ctrlmode_supported |= CAN_CTRLMODE_3_SAMPLES;
 	if (ctrlmodes & UCAN_MODE_ONE_SHOT)
@@ -528,7 +528,7 @@ static bool ucan_handle_error_frame(struct ucan_priv *up,
 			net_stats->rx_errors++;
 	}
 
-	/* no state change - we are done */
+	/* anal state change - we are done */
 	if (up->can.state == new_state)
 		return false;
 
@@ -616,7 +616,7 @@ static void ucan_rx_can_msg(struct ucan_priv *up, struct ucan_message_in *m)
 	/* compute DLC taking RTR_FLAG into account */
 	cf->len = ucan_can_cc_dlc2len(&m->msg.can_msg, len);
 
-	/* copy the payload of non RTR frames */
+	/* copy the payload of analn RTR frames */
 	if (!(cf->can_id & CAN_RTR_FLAG) || (cf->can_id & CAN_ERR_FLAG))
 		memcpy(cf->data, m->msg.can_msg.data, cf->len);
 
@@ -649,7 +649,7 @@ static void ucan_tx_complete_msg(struct ucan_priv *up,
 
 	count = (len - UCAN_IN_HDR_SIZE) / 2;
 	for (i = 0; i < count; i++) {
-		/* we did not submit such echo ids */
+		/* we did analt submit such echo ids */
 		echo_index = m->msg.can_tx_complete_msg[i].echo_index;
 		if (echo_index >= up->device_info.tx_fifo) {
 			up->netdev->stats.tx_errors++;
@@ -692,7 +692,7 @@ static void ucan_read_bulk_callback(struct urb *urb)
 	struct net_device *netdev = up->netdev;
 	struct ucan_message_in *m;
 
-	/* the device is not up and the driver should not receive any
+	/* the device is analt up and the driver should analt receive any
 	 * data on the bulk in pipe
 	 */
 	if (WARN_ON(!up->context_array)) {
@@ -707,17 +707,17 @@ static void ucan_read_bulk_callback(struct urb *urb)
 	switch (urb->status) {
 	case 0:
 		break;
-	case -ENOENT:
+	case -EANALENT:
 	case -EPIPE:
 	case -EPROTO:
 	case -ESHUTDOWN:
 	case -ETIME:
-		/* urb is not resubmitted -> free dma data */
+		/* urb is analt resubmitted -> free dma data */
 		usb_free_coherent(up->udev,
 				  up->in_ep_size,
 				  urb->transfer_buffer,
 				  urb->transfer_dma);
-		netdev_dbg(up->netdev, "not resubmitting urb; status: %d\n",
+		netdev_dbg(up->netdev, "analt resubmitting urb; status: %d\n",
 			   urb->status);
 		return;
 	default:
@@ -736,7 +736,7 @@ static void ucan_read_bulk_callback(struct urb *urb)
 		/* check sanity (length of header) */
 		if ((urb->actual_length - pos) < UCAN_IN_HDR_SIZE) {
 			netdev_warn(up->netdev,
-				    "invalid message (short; no hdr; l:%d)\n",
+				    "invalid message (short; anal hdr; l:%d)\n",
 				    urb->actual_length);
 			goto resubmit;
 		}
@@ -749,7 +749,7 @@ static void ucan_read_bulk_callback(struct urb *urb)
 		/* check sanity (length of content) */
 		if (urb->actual_length - pos < len) {
 			netdev_warn(up->netdev,
-				    "invalid message (short; no data; l:%d)\n",
+				    "invalid message (short; anal data; l:%d)\n",
 				    urb->actual_length);
 			print_hex_dump(KERN_WARNING,
 				       "raw data: ",
@@ -807,7 +807,7 @@ resubmit:
 				  urb->transfer_buffer,
 				  urb->transfer_dma);
 
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			netif_device_detach(netdev);
 	}
 }
@@ -837,7 +837,7 @@ static void ucan_write_bulk_callback(struct urb *urb)
 	if (!netif_device_present(up->netdev))
 		return;
 
-	/* transmission failed (USB - the device will not send a TX complete) */
+	/* transmission failed (USB - the device will analt send a TX complete) */
 	if (urb->status) {
 		netdev_warn(up->netdev,
 			    "failed to transmit USB message to device: %d\n",
@@ -907,7 +907,7 @@ static int ucan_prepare_and_anchor_rx_urbs(struct ucan_priv *up,
 				  ucan_read_bulk_callback,
 				  up);
 
-		urbs[i]->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+		urbs[i]->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 		usb_anchor_urb(urbs[i], &up->rx_urbs);
 	}
@@ -916,12 +916,12 @@ static int ucan_prepare_and_anchor_rx_urbs(struct ucan_priv *up,
 err:
 	/* cleanup other unsubmitted urbs */
 	ucan_cleanup_rx_urbs(up, urbs);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Submits rx urbs with the semantic: Either submit all, or cleanup
  * everything. I case of errors submitted urbs are killed and all urbs in
- * the array are freed. I case of no errors every entry in the urb
+ * the array are freed. I case of anal errors every entry in the urb
  * array is set to NULL.
  */
 static int ucan_submit_rx_urbs(struct ucan_priv *up, struct urb **urbs)
@@ -935,7 +935,7 @@ static int ucan_submit_rx_urbs(struct ucan_priv *up, struct urb **urbs)
 		ret = usb_submit_urb(urbs[i], GFP_KERNEL);
 		if (ret) {
 			netdev_err(up->netdev,
-				   "could not submit urb; code: %d\n",
+				   "could analt submit urb; code: %d\n",
 				   ret);
 			goto err;
 		}
@@ -981,7 +981,7 @@ static int ucan_open(struct net_device *netdev)
 	ctrlmode = 0;
 	if (up->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		ctrlmode |= UCAN_MODE_LOOPBACK;
-	if (up->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+	if (up->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
 		ctrlmode |= UCAN_MODE_SILENT;
 	if (up->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES)
 		ctrlmode |= UCAN_MODE_3_SAMPLES;
@@ -998,7 +998,7 @@ static int ucan_open(struct net_device *netdev)
 	ret = ucan_ctrl_command_out(up, UCAN_COMMAND_START, 0, 2);
 	if (ret < 0) {
 		netdev_err(up->netdev,
-			   "could not start device, code: %d\n",
+			   "could analt start device, code: %d\n",
 			   ret);
 		goto err_reset;
 	}
@@ -1025,7 +1025,7 @@ err_stop:
 	ret_cleanup = ucan_ctrl_command_out(up, UCAN_COMMAND_STOP, 0, 0);
 	if (ret_cleanup < 0)
 		netdev_err(up->netdev,
-			   "could not stop device, code: %d\n",
+			   "could analt stop device, code: %d\n",
 			   ret_cleanup);
 
 err_reset:
@@ -1035,7 +1035,7 @@ err_reset:
 	ret_cleanup = ucan_ctrl_command_out(up, UCAN_COMMAND_RESET, 0, 0);
 	if (ret_cleanup < 0)
 		netdev_err(up->netdev,
-			   "could not reset device, code: %d\n",
+			   "could analt reset device, code: %d\n",
 			   ret_cleanup);
 
 	/* clean up unsubmitted urbs */
@@ -1058,7 +1058,7 @@ static struct urb *ucan_prepare_tx_urb(struct ucan_priv *up,
 	/* create a URB, and a buffer for it, and copy the data to the URB */
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
-		netdev_err(up->netdev, "no memory left for URBs\n");
+		netdev_err(up->netdev, "anal memory left for URBs\n");
 		return NULL;
 	}
 
@@ -1067,7 +1067,7 @@ static struct urb *ucan_prepare_tx_urb(struct ucan_priv *up,
 			       GFP_ATOMIC,
 			       &urb->transfer_dma);
 	if (!m) {
-		netdev_err(up->netdev, "no memory left for USB buffer\n");
+		netdev_err(up->netdev, "anal memory left for USB buffer\n");
 		usb_free_urb(urb);
 		return NULL;
 	}
@@ -1095,7 +1095,7 @@ static struct urb *ucan_prepare_tx_urb(struct ucan_priv *up,
 			  usb_sndbulkpipe(up->udev,
 					  up->out_ep_addr),
 			  m, mlen, ucan_write_bulk_callback, context);
-	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	return urb;
 }
@@ -1160,7 +1160,7 @@ static netdev_tx_t ucan_start_xmit(struct sk_buff *skb,
 		can_free_echo_skb(up->netdev, echo_index, NULL);
 		spin_unlock_irqrestore(&up->echo_skb_lock, flags);
 
-		if (ret == -ENODEV) {
+		if (ret == -EANALDEV) {
 			netif_device_detach(up->netdev);
 		} else {
 			netdev_warn(up->netdev,
@@ -1173,7 +1173,7 @@ static netdev_tx_t ucan_start_xmit(struct sk_buff *skb,
 
 	netif_trans_update(netdev);
 
-	/* release ref, as we do not need the urb anymore */
+	/* release ref, as we do analt need the urb anymore */
 	usb_free_urb(urb);
 
 	return NETDEV_TX_OK;
@@ -1209,13 +1209,13 @@ static int ucan_close(struct net_device *netdev)
 	ret = ucan_ctrl_command_out(up, UCAN_COMMAND_STOP, 0, 0);
 	if (ret < 0)
 		netdev_err(up->netdev,
-			   "could not stop device, code: %d\n",
+			   "could analt stop device, code: %d\n",
 			   ret);
 
 	ret = ucan_ctrl_command_out(up, UCAN_COMMAND_RESET, 0, 0);
 	if (ret < 0)
 		netdev_err(up->netdev,
-			   "could not reset device, code: %d\n",
+			   "could analt reset device, code: %d\n",
 			   ret);
 
 	netif_stop_queue(netdev);
@@ -1293,7 +1293,7 @@ static int ucan_set_mode(struct net_device *netdev, enum can_mode mode)
 
 		return ret;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1328,7 +1328,7 @@ static int ucan_probe(struct usb_interface *intf,
 	/* check if the interface is sane */
 	iface_desc = intf->cur_altsetting;
 	if (!iface_desc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_info(&udev->dev,
 		 "%s: probing device on interface #%d\n",
@@ -1405,12 +1405,12 @@ static int ucan_probe(struct usb_interface *intf,
 		dev_err(&udev->dev,
 			"%s: failed to allocate control pipe memory\n",
 			UCAN_DRIVER_NAME);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* get protocol version
 	 *
-	 * note: ucan_ctrl_command_* wrappers cannot be used yet
+	 * analte: ucan_ctrl_command_* wrappers cananalt be used yet
 	 * because `up` is initialised in Stage 3
 	 */
 	ret = usb_control_msg(udev,
@@ -1424,12 +1424,12 @@ static int ucan_probe(struct usb_interface *intf,
 			      sizeof(union ucan_ctl_payload),
 			      UCAN_USB_CTL_PIPE_TIMEOUT);
 
-	/* older firmware version do not support this command - those
-	 * are not supported by this drive
+	/* older firmware version do analt support this command - those
+	 * are analt supported by this drive
 	 */
 	if (ret != 4) {
 		dev_err(&udev->dev,
-			"%s: could not read protocol version, ret=%d\n",
+			"%s: could analt read protocol version, ret=%d\n",
 			UCAN_DRIVER_NAME, ret);
 		if (ret >= 0)
 			ret = -EINVAL;
@@ -1442,14 +1442,14 @@ static int ucan_probe(struct usb_interface *intf,
 	if (protocol_version < UCAN_PROTOCOL_VERSION_MIN ||
 	    protocol_version > UCAN_PROTOCOL_VERSION_MAX) {
 		dev_err(&udev->dev,
-			"%s: device protocol version %d is not supported\n",
+			"%s: device protocol version %d is analt supported\n",
 			UCAN_DRIVER_NAME, protocol_version);
 		goto err_firmware_needs_update;
 	}
 
 	/* request the device information and store it in ctl_msg_buffer
 	 *
-	 * note: ucan_ctrl_command_* wrappers cannot be used yet
+	 * analte: ucan_ctrl_command_* wrappers cananalt be used yet
 	 * because `up` is initialised in Stage 3
 	 */
 	ret = usb_control_msg(udev,
@@ -1492,8 +1492,8 @@ static int ucan_probe(struct usb_interface *intf,
 			      ctl_msg_buffer->cmd_get_device_info.tx_fifo);
 	if (!netdev) {
 		dev_err(&udev->dev,
-			"%s: cannot allocate candev\n", UCAN_DRIVER_NAME);
-		return -ENOMEM;
+			"%s: cananalt allocate candev\n", UCAN_DRIVER_NAME);
+		return -EANALMEM;
 	}
 
 	up = netdev_priv(netdev);
@@ -1535,7 +1535,7 @@ static int ucan_probe(struct usb_interface *intf,
 		strscpy(firmware_str, up->ctl_msg_buffer->raw,
 			sizeof(union ucan_ctl_payload) + 1);
 	} else {
-		strcpy(firmware_str, "unknown");
+		strcpy(firmware_str, "unkanalwn");
 	}
 
 	/* device is compatible, reset it */
@@ -1568,7 +1568,7 @@ err_firmware_needs_update:
 	dev_err(&udev->dev,
 		"%s: probe failed; try to update the device firmware\n",
 		UCAN_DRIVER_NAME);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* disconnect the device */

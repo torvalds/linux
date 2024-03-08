@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _V4L2-PIX-FMT-SBGGR10ALAW8:
 .. _v4l2-pix-fmt-sgbrg10alaw8:

@@ -9,20 +9,20 @@
 struct xfs_scrub;
 
 /*
- * Standard flags for allocating memory within scrub.  NOFS context is
+ * Standard flags for allocating memory within scrub.  ANALFS context is
  * configured by the process allocation scope.  Scrub and repair must be able
- * to back out gracefully if there isn't enough memory.  Force-cast to avoid
+ * to back out gracefully if there isn't eanalugh memory.  Force-cast to avoid
  * complaints from static checkers.
  */
-#define XCHK_GFP_FLAGS	((__force gfp_t)(GFP_KERNEL | __GFP_NOWARN | \
+#define XCHK_GFP_FLAGS	((__force gfp_t)(GFP_KERNEL | __GFP_ANALWARN | \
 					 __GFP_RETRY_MAYFAIL))
 
 /* Type info and names for the scrub types. */
 enum xchk_type {
-	ST_NONE = 1,	/* disabled */
+	ST_ANALNE = 1,	/* disabled */
 	ST_PERAG,	/* per-AG metadata */
 	ST_FS,		/* per-FS metadata */
-	ST_INODE,	/* per-inode metadata */
+	ST_IANALDE,	/* per-ianalde metadata */
 };
 
 struct xchk_meta_ops {
@@ -59,10 +59,10 @@ struct xchk_ag {
 	struct xfs_buf		*agi_bp;
 
 	/* AG btrees */
-	struct xfs_btree_cur	*bno_cur;
+	struct xfs_btree_cur	*banal_cur;
 	struct xfs_btree_cur	*cnt_cur;
-	struct xfs_btree_cur	*ino_cur;
-	struct xfs_btree_cur	*fino_cur;
+	struct xfs_btree_cur	*ianal_cur;
+	struct xfs_btree_cur	*fianal_cur;
 	struct xfs_btree_cur	*rmap_cur;
 	struct xfs_btree_cur	*refc_cur;
 };
@@ -83,7 +83,7 @@ struct xfs_scrub {
 	 * metadata (e.g. rt bitmaps) or if we're doing a scrub-by-handle for
 	 * something that can't be opened directly (e.g. symlinks).
 	 */
-	struct xfs_inode		*ip;
+	struct xfs_ianalde		*ip;
 
 	/* Kernel memory buffer used by scrubbers; freed at teardown. */
 	void				*buf;
@@ -91,7 +91,7 @@ struct xfs_scrub {
 	/*
 	 * Clean up resources owned by whatever is in the buffer.  Cleanup can
 	 * be deferred with this hook as a means for scrub functions to pass
-	 * data to repair functions.  This function must not free the buffer
+	 * data to repair functions.  This function must analt free the buffer
 	 * itself.
 	 */
 	void				(*buf_cleanup)(void *buf);
@@ -126,7 +126,7 @@ struct xfs_scrub {
 
 /*
  * The XCHK_FSGATES* flags reflect functionality in the main filesystem that
- * are only enabled for this particular online fsck.  When not in use, the
+ * are only enabled for this particular online fsck.  When analt in use, the
  * features are gated off via dynamic code patching, which is why the state
  * must be enabled during scrub setup and can only be torn down afterwards.
  */
@@ -142,7 +142,7 @@ int xchk_allocbt(struct xfs_scrub *sc);
 int xchk_iallocbt(struct xfs_scrub *sc);
 int xchk_rmapbt(struct xfs_scrub *sc);
 int xchk_refcountbt(struct xfs_scrub *sc);
-int xchk_inode(struct xfs_scrub *sc);
+int xchk_ianalde(struct xfs_scrub *sc);
 int xchk_bmap_data(struct xfs_scrub *sc);
 int xchk_bmap_attr(struct xfs_scrub *sc);
 int xchk_bmap_cow(struct xfs_scrub *sc);
@@ -157,12 +157,12 @@ int xchk_rtsummary(struct xfs_scrub *sc);
 static inline int
 xchk_rtbitmap(struct xfs_scrub *sc)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 static inline int
 xchk_rtsummary(struct xfs_scrub *sc)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 #endif
 #ifdef CONFIG_XFS_QUOTA
@@ -171,35 +171,35 @@ int xchk_quota(struct xfs_scrub *sc);
 static inline int
 xchk_quota(struct xfs_scrub *sc)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 #endif
 int xchk_fscounters(struct xfs_scrub *sc);
 
 /* cross-referencing helpers */
-void xchk_xref_is_used_space(struct xfs_scrub *sc, xfs_agblock_t agbno,
+void xchk_xref_is_used_space(struct xfs_scrub *sc, xfs_agblock_t agbanal,
 		xfs_extlen_t len);
-void xchk_xref_is_not_inode_chunk(struct xfs_scrub *sc, xfs_agblock_t agbno,
+void xchk_xref_is_analt_ianalde_chunk(struct xfs_scrub *sc, xfs_agblock_t agbanal,
 		xfs_extlen_t len);
-void xchk_xref_is_inode_chunk(struct xfs_scrub *sc, xfs_agblock_t agbno,
+void xchk_xref_is_ianalde_chunk(struct xfs_scrub *sc, xfs_agblock_t agbanal,
 		xfs_extlen_t len);
-void xchk_xref_is_only_owned_by(struct xfs_scrub *sc, xfs_agblock_t agbno,
+void xchk_xref_is_only_owned_by(struct xfs_scrub *sc, xfs_agblock_t agbanal,
 		xfs_extlen_t len, const struct xfs_owner_info *oinfo);
-void xchk_xref_is_not_owned_by(struct xfs_scrub *sc, xfs_agblock_t agbno,
+void xchk_xref_is_analt_owned_by(struct xfs_scrub *sc, xfs_agblock_t agbanal,
 		xfs_extlen_t len, const struct xfs_owner_info *oinfo);
-void xchk_xref_has_no_owner(struct xfs_scrub *sc, xfs_agblock_t agbno,
+void xchk_xref_has_anal_owner(struct xfs_scrub *sc, xfs_agblock_t agbanal,
 		xfs_extlen_t len);
-void xchk_xref_is_cow_staging(struct xfs_scrub *sc, xfs_agblock_t bno,
+void xchk_xref_is_cow_staging(struct xfs_scrub *sc, xfs_agblock_t banal,
 		xfs_extlen_t len);
-void xchk_xref_is_not_shared(struct xfs_scrub *sc, xfs_agblock_t bno,
+void xchk_xref_is_analt_shared(struct xfs_scrub *sc, xfs_agblock_t banal,
 		xfs_extlen_t len);
-void xchk_xref_is_not_cow_staging(struct xfs_scrub *sc, xfs_agblock_t bno,
+void xchk_xref_is_analt_cow_staging(struct xfs_scrub *sc, xfs_agblock_t banal,
 		xfs_extlen_t len);
 #ifdef CONFIG_XFS_RT
-void xchk_xref_is_used_rt_space(struct xfs_scrub *sc, xfs_rtblock_t rtbno,
+void xchk_xref_is_used_rt_space(struct xfs_scrub *sc, xfs_rtblock_t rtbanal,
 		xfs_extlen_t len);
 #else
-# define xchk_xref_is_used_rt_space(sc, rtbno, len) do { } while (0)
+# define xchk_xref_is_used_rt_space(sc, rtbanal, len) do { } while (0)
 #endif
 
 #endif	/* __XFS_SCRUB_SCRUB_H__ */

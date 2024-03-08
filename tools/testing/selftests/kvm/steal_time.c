@@ -186,13 +186,13 @@ static void steal_time_init(struct kvm_vcpu *vcpu, uint32_t i)
 
 	st_ipa = (ulong)st_gva[i] | 1;
 	ret = __vcpu_ioctl(vcpu, KVM_SET_DEVICE_ATTR, &dev);
-	TEST_ASSERT(ret == -1 && errno == EINVAL, "Bad IPA didn't report EINVAL");
+	TEST_ASSERT(ret == -1 && erranal == EINVAL, "Bad IPA didn't report EINVAL");
 
 	st_ipa = (ulong)st_gva[i];
 	vcpu_ioctl(vcpu, KVM_SET_DEVICE_ATTR, &dev);
 
 	ret = __vcpu_ioctl(vcpu, KVM_SET_DEVICE_ATTR, &dev);
-	TEST_ASSERT(ret == -1 && errno == EEXIST, "Set IPA twice without EEXIST");
+	TEST_ASSERT(ret == -1 && erranal == EEXIST, "Set IPA twice without EEXIST");
 }
 
 static void steal_time_dump(struct kvm_vm *vm, uint32_t vcpu_idx)
@@ -308,11 +308,11 @@ static void *do_steal_time(void *arg)
 {
 	struct timespec ts, stop;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts);
+	clock_gettime(CLOCK_MOANALTONIC, &ts);
 	stop = timespec_add_ns(ts, MIN_RUN_DELAY_NS);
 
 	while (1) {
-		clock_gettime(CLOCK_MONOTONIC, &ts);
+		clock_gettime(CLOCK_MOANALTONIC, &ts);
 		if (timespec_to_ns(timespec_sub(ts, stop)) >= 0)
 			break;
 	}
@@ -363,7 +363,7 @@ int main(int ac, char **av)
 	/* Create a VM and an identity mapped memslot for the steal time structure */
 	vm = vm_create_with_vcpus(NR_VCPUS, guest_code, vcpus);
 	gpages = vm_calc_num_guest_pages(VM_MODE_DEFAULT, STEAL_TIME_SIZE * NR_VCPUS);
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, ST_GPA_BASE, 1, gpages, 0);
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS, ST_GPA_BASE, 1, gpages, 0);
 	virt_map(vm, ST_GPA_BASE, ST_GPA_BASE, gpages);
 
 	TEST_REQUIRE(is_steal_time_supported(vcpus[0]));

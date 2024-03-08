@@ -3,7 +3,7 @@
  * LPDDR2-NVM MTD driver. This module provides read, write, erase, lock/unlock
  * support for LPDDR2-NVM PCM memories
  *
- * Copyright © 2012 Micron Technology, Inc.
+ * Copyright © 2012 Micron Techanallogy, Inc.
  *
  * Vincenzo Aliberti <vincenzo.aliberti@gmail.com>
  * Domenico Manna <domenico.manna@gmail.com>
@@ -417,23 +417,23 @@ static int lpddr2_nvm_probe(struct platform_device *pdev)
 	/* Allocate memory control_regs data structures */
 	pcm_data = devm_kzalloc(&pdev->dev, sizeof(*pcm_data), GFP_KERNEL);
 	if (!pcm_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcm_data->bus_width = BUS_WIDTH;
 
 	/* Allocate memory for map_info & mtd_info data structures */
 	map = devm_kzalloc(&pdev->dev, sizeof(*map), GFP_KERNEL);
 	if (!map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mtd = devm_kzalloc(&pdev->dev, sizeof(*mtd), GFP_KERNEL);
 	if (!mtd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* lpddr2_nvm address range */
 	add_range = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!add_range)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Populate map_info data structure */
 	*map = (struct map_info) {
@@ -466,7 +466,7 @@ static int lpddr2_nvm_probe(struct platform_device *pdev)
 
 	/* Verify the presence of the device looking for PFOW string */
 	if (!lpddr2_nvm_pfow_present(map)) {
-		pr_err("device not recognized\n");
+		pr_err("device analt recognized\n");
 		return -EINVAL;
 	}
 	/* Parse partitions and register the MTD device */

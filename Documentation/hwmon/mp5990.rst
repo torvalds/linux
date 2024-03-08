@@ -11,7 +11,7 @@ Supported chips:
 
   * Datasheet
 
-    Publicly available at the MPS website : https://www.monolithicpower.com/en/mp5990.html
+    Publicly available at the MPS website : https://www.moanallithicpower.com/en/mp5990.html
 
 Author:
 
@@ -20,7 +20,7 @@ Author:
 Description
 -----------
 
-This driver implements support for Monolithic Power Systems, Inc. (MPS)
+This driver implements support for Moanallithic Power Systems, Inc. (MPS)
 MP5990 Hot-Swap Controller.
 
 Device compliant with:

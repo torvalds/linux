@@ -81,7 +81,7 @@ static enum dsa_tag_protocol dsa_loop_get_protocol(struct dsa_switch *ds,
 {
 	dev_dbg(ds->dev, "%s: port: %d\n", __func__, port);
 
-	return DSA_TAG_PROTO_NONE;
+	return DSA_TAG_PROTO_ANALNE;
 }
 
 static int dsa_loop_setup(struct dsa_switch *ds)
@@ -314,18 +314,18 @@ static int dsa_loop_drv_probe(struct mdio_device *mdiodev)
 	int ret;
 
 	if (!pdata)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ds = devm_kzalloc(&mdiodev->dev, sizeof(*ds), GFP_KERNEL);
 	if (!ds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ds->dev = &mdiodev->dev;
 	ds->num_ports = DSA_LOOP_NUM_PORTS;
 
 	ps = devm_kzalloc(&mdiodev->dev, sizeof(*ps), GFP_KERNEL);
 	if (!ps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ps->netdev = dev_get_by_name(&init_net, pdata->netdev);
 	if (!ps->netdev)

@@ -123,7 +123,7 @@ static int afs_parse_v1_partition(struct mtd_info *mtd,
 	struct image_info_v1 iis;
 	u_int mask;
 	/*
-	 * Static checks cannot see that we bail out if we have an error
+	 * Static checks cananalt see that we bail out if we have an error
 	 * reading the footer.
 	 */
 	u_int iis_ptr;
@@ -164,7 +164,7 @@ static int afs_parse_v1_partition(struct mtd_info *mtd,
 	img_ptr = fs.image_start & mask;
 
 	/*
-	 * Check the image info base.  This can not
+	 * Check the image info base.  This can analt
 	 * be located after the footer structure.
 	 */
 	if (iis_ptr >= ptr)
@@ -172,7 +172,7 @@ static int afs_parse_v1_partition(struct mtd_info *mtd,
 
 	/*
 	 * Check the start of this image.  The image
-	 * data can not be located after this block.
+	 * data can analt be located after this block.
 	 */
 	if (img_ptr > off)
 		return 0;
@@ -200,7 +200,7 @@ static int afs_parse_v1_partition(struct mtd_info *mtd,
 
 	part->name = kstrdup(iis.name, GFP_KERNEL);
 	if (!part->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	part->size = (iis.length + mtd->erasesize - 1) & ~(mtd->erasesize - 1);
 	part->offset = img_ptr;
@@ -311,7 +311,7 @@ static int afs_parse_v2_partition(struct mtd_info *mtd,
 		/* Create one partition per region */
 		part->name = kstrdup(name, GFP_KERNEL);
 		if (!part->name)
-			return -ENOMEM;
+			return -EANALMEM;
 		part->offset = region_start;
 		part->size = region_end - region_start;
 		part->mask_flags = 0;
@@ -346,7 +346,7 @@ static int parse_afs_partitions(struct mtd_info *mtd,
 
 	parts = kzalloc(sz, GFP_KERNEL);
 	if (!parts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Identify the partitions

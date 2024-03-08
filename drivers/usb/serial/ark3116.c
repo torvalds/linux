@@ -9,8 +9,8 @@
  * - implements a driver for the arkmicro ark3116 chipset (vendor=0x6547,
  *   productid=0x0232) (used in a datacable called KQ-U8A)
  *
- * Supports full modem status lines, break, hardware flow control. Does not
- * support software flow control, since I do not know how to enable it in hw.
+ * Supports full modem status lines, break, hardware flow control. Does analt
+ * support software flow control, since I do analt kanalw how to enable it in hw.
  *
  * This driver is a essentially new implementation. I initially dug
  * into the old ark3116.c driver and suddenly realized the ark3116 is
@@ -114,7 +114,7 @@ static int ark3116_read_reg(struct usb_serial *serial,
 static inline int calc_divisor(int bps)
 {
 	/* Original ark3116 made some exceptions in rounding here
-	 * because windows did the same. Assume that is not really
+	 * because windows did the same. Assume that is analt really
 	 * necessary.
 	 * Crystal is 12MHz, probably because of USB, but we divide by 4?
 	 */
@@ -128,7 +128,7 @@ static int ark3116_port_probe(struct usb_serial_port *port)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->hw_lock);
 	spin_lock_init(&priv->status_lock);
@@ -268,7 +268,7 @@ static void ark3116_set_termios(struct tty_struct *tty,
 
 		/* restore lcr */
 		ark3116_write_reg(serial, UART_LCR, lcr);
-		/* magic baudrate thingy: not sure what it does,
+		/* magic baudrate thingy: analt sure what it does,
 		 * but windows does this as well.
 		 */
 		ark3116_write_reg(serial, 0xe, eval);
@@ -285,7 +285,7 @@ static void ark3116_set_termios(struct tty_struct *tty,
 	/* check for software flow control */
 	if (I_IXOFF(tty) || I_IXON(tty)) {
 		dev_warn(&port->dev,
-				"software flow control not implemented\n");
+				"software flow control analt implemented\n");
 	}
 
 	/* Don't rewrite B0 */
@@ -317,7 +317,7 @@ static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	buf = kmalloc(1, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = usb_serial_generic_open(tty, port);
 	if (result) {
@@ -508,14 +508,14 @@ static void ark3116_read_int_callback(struct urb *urb)
 
 	switch (status) {
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(&port->dev, "%s - urb shutting down with status: %d\n",
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&port->dev, "%s - analnzero urb status received: %d\n",
 			__func__, status);
 		break;
 	case 0: /* success */
@@ -536,7 +536,7 @@ static void ark3116_read_int_callback(struct urb *urb)
 			}
 		}
 		/*
-		 * Not sure what this data meant...
+		 * Analt sure what this data meant...
 		 */
 		usb_serial_debug_data(&port->dev, __func__,
 				      urb->actual_length,
@@ -552,7 +552,7 @@ static void ark3116_read_int_callback(struct urb *urb)
 
 
 /* Data comes in via the bulk (data) URB, errors/interrupts via the int URB.
- * This means that we cannot be sure which data byte has an associated error
+ * This means that we cananalt be sure which data byte has an associated error
  * condition, so we report an error for all data in the next bulk read.
  *
  * Actually, there might even be a window between the bulk data leaving the
@@ -560,14 +560,14 @@ static void ark3116_read_int_callback(struct urb *urb)
  * interrupt for the next data block could come in.
  * Without somekind of ordering on the ark, we would have to report the
  * error for the next block of data as well...
- * For now, let's pretend this can't happen.
+ * For analw, let's pretend this can't happen.
  */
 static void ark3116_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct ark3116_private *priv = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
-	char tty_flag = TTY_NORMAL;
+	char tty_flag = TTY_ANALRMAL;
 	unsigned long flags;
 	__u32 lsr;
 
@@ -588,7 +588,7 @@ static void ark3116_process_read_urb(struct urb *urb)
 		else if (lsr & UART_LSR_FE)
 			tty_flag = TTY_FRAME;
 
-		/* overrun is special, not associated with a char */
+		/* overrun is special, analt associated with a char */
 		if (lsr & UART_LSR_OE)
 			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 	}
@@ -635,7 +635,7 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 /*
  * The following describes what I learned from studying the old
  * ark3116.c driver, disassembling the windows driver, and some lucky
- * guesses. Since I do not have any datasheet or other
+ * guesses. Since I do analt have any datasheet or other
  * documentation, inaccuracies are almost guaranteed.
  *
  * Some specs for the ARK3116 can be found here:
@@ -643,13 +643,13 @@ MODULE_DESCRIPTION(DRIVER_DESC);
  *   www.arkmicro.com/en/products/view.php?id=10
  * On that page, 2 GPIO pins are mentioned: I assume these are the
  * OUT1 and OUT2 pins of the UART, so I added support for those
- * through the MCR. Since the pins are not available on my hardware,
- * I could not verify this.
+ * through the MCR. Since the pins are analt available on my hardware,
+ * I could analt verify this.
  * Also, it states there is "on-chip hardware flow control". I have
- * discovered how to enable that. Unfortunately, I do not know how to
+ * discovered how to enable that. Unfortunately, I do analt kanalw how to
  * enable XON/XOFF (software) flow control, which would need support
  * from the chip as well to work. Because of the wording on the web
- * page there is a real possibility the chip simply does not support
+ * page there is a real possibility the chip simply does analt support
  * software flow control.
  *
  * I got my ark3116 as part of a mobile phone adapter cable. On the
@@ -687,15 +687,15 @@ MODULE_DESCRIPTION(DRIVER_DESC);
  * Register 8:
  * By trial and error, I found out that bit 0 enables hardware CTS,
  * stopping TX when CTS is +5V. Bit 1 does the same for RTS, making
- * RTS +5V when the 3116 cannot transfer the data to the USB bus
- * (verified by disabling the reading URB). Note that as far as I can
- * tell, the windows driver does NOT use this, so there might be some
+ * RTS +5V when the 3116 cananalt transfer the data to the USB bus
+ * (verified by disabling the reading URB). Analte that as far as I can
+ * tell, the windows driver does ANALT use this, so there might be some
  * hardware bug or something.
  *
  * According to a patch provided here
  * https://lore.kernel.org/lkml/200907261419.50702.linux@rainbow-software.org
- * the ARK3116 can also be used as an IrDA dongle. Since I do not have
- * such a thing, I could not investigate that aspect. However, I can
+ * the ARK3116 can also be used as an IrDA dongle. Since I do analt have
+ * such a thing, I could analt investigate that aspect. However, I can
  * speculate ;-).
  *
  * - IrDA encodes data differently than RS232. Most likely, one of
@@ -724,12 +724,12 @@ MODULE_DESCRIPTION(DRIVER_DESC);
  *
  * Register E:
  * Somekind of baudrate override. The windows driver seems to set
- * this to 0x00 for normal baudrates, 0x01 for 460800, 0x02 for 921600.
- * Since 460800 and 921600 cannot be obtained by dividing 3MHz by an integer,
+ * this to 0x00 for analrmal baudrates, 0x01 for 460800, 0x02 for 921600.
+ * Since 460800 and 921600 cananalt be obtained by dividing 3MHz by an integer,
  * it could be somekind of subdivisor thingy.
- * However,it does not seem to do anything: selecting 921600 (divisor 3,
+ * However,it does analt seem to do anything: selecting 921600 (divisor 3,
  * reg E=2), still gets 1 MHz. I also checked if registers 9, C or F would
  * work, but they don't.
  *
- * Register F: unknown
+ * Register F: unkanalwn
  */

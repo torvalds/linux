@@ -84,7 +84,7 @@ static void rtd_pinctrl_dbg_show(struct pinctrl_dev *pcdev,
 	int is_map;
 
 	if (!mux->name) {
-		seq_puts(s, "[not defined]");
+		seq_puts(s, "[analt defined]");
 		return;
 	}
 	val = readl_relaxed(data->base + mux->mux_offset);
@@ -104,11 +104,11 @@ static void rtd_pinctrl_dbg_show(struct pinctrl_dev *pcdev,
 		func++;
 	}
 	if (!is_map)
-		seq_puts(s, "[not defined]");
+		seq_puts(s, "[analt defined]");
 }
 
 static const struct pinctrl_ops rtd_pinctrl_ops = {
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 	.get_groups_count = rtd_pinctrl_get_groups_count,
 	.get_group_name = rtd_pinctrl_get_group_name,
@@ -166,10 +166,10 @@ static int rtd_pinctrl_set_one_mux(struct pinctrl_dev *pcdev,
 
 	if (!mux->functions) {
 		if (!mux->name)
-			dev_err(pcdev->dev, "NULL pin has no functions\n");
+			dev_err(pcdev->dev, "NULL pin has anal functions\n");
 		else
-			dev_err(pcdev->dev, "No functions available for pin %s\n", mux->name);
-		return -ENOTSUPP;
+			dev_err(pcdev->dev, "Anal functions available for pin %s\n", mux->name);
+		return -EANALTSUPP;
 	}
 
 	for (i = 0; mux->functions[i].name; i++) {
@@ -185,7 +185,7 @@ static int rtd_pinctrl_set_one_mux(struct pinctrl_dev *pcdev,
 		return -EINVAL;
 	}
 
-	dev_err(pcdev->dev, "No function %s available for pin %s\n", func_name, mux->name);
+	dev_err(pcdev->dev, "Anal function %s available for pin %s\n", func_name, mux->name);
 
 	return -EINVAL;
 }
@@ -293,15 +293,15 @@ static int rtd_pconf_parse_conf(struct rtd_pinctrl *data,
 
 	config_desc = rtd_pinctrl_find_config(data, pinnr);
 	if (!config_desc) {
-		dev_err(data->dev, "Not support pin config for pin: %s\n", name);
-		return -ENOTSUPP;
+		dev_err(data->dev, "Analt support pin config for pin: %s\n", name);
+		return -EANALTSUPP;
 	}
 	switch ((u32)param) {
 	case PIN_CONFIG_INPUT_SCHMITT:
 	case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
 		if (config_desc->smt_offset == NA) {
-			dev_err(data->dev, "Not support input schmitt for pin: %s\n", name);
-			return -ENOTSUPP;
+			dev_err(data->dev, "Analt support input schmitt for pin: %s\n", name);
+			return -EANALTSUPP;
 		}
 		smt_off = config_desc->base_bit + config_desc->smt_offset;
 		reg_off = config_desc->reg_offset;
@@ -313,8 +313,8 @@ static int rtd_pconf_parse_conf(struct rtd_pinctrl *data,
 
 	case PIN_CONFIG_DRIVE_PUSH_PULL:
 		if (config_desc->pud_en_offset == NA) {
-			dev_err(data->dev, "Not support push pull for pin: %s\n", name);
-			return -ENOTSUPP;
+			dev_err(data->dev, "Analt support push pull for pin: %s\n", name);
+			return -EANALTSUPP;
 		}
 		pulen_off = config_desc->base_bit + config_desc->pud_en_offset;
 		reg_off = config_desc->reg_offset;
@@ -325,8 +325,8 @@ static int rtd_pconf_parse_conf(struct rtd_pinctrl *data,
 
 	case PIN_CONFIG_BIAS_DISABLE:
 		if (config_desc->pud_en_offset == NA) {
-			dev_err(data->dev, "Not support bias disable for pin: %s\n", name);
-			return -ENOTSUPP;
+			dev_err(data->dev, "Analt support bias disable for pin: %s\n", name);
+			return -EANALTSUPP;
 		}
 		pulen_off = config_desc->base_bit + config_desc->pud_en_offset;
 		reg_off = config_desc->reg_offset;
@@ -337,8 +337,8 @@ static int rtd_pconf_parse_conf(struct rtd_pinctrl *data,
 
 	case PIN_CONFIG_BIAS_PULL_UP:
 		if (config_desc->pud_en_offset == NA) {
-			dev_err(data->dev, "Not support bias pull up for pin:%s\n", name);
-			return -ENOTSUPP;
+			dev_err(data->dev, "Analt support bias pull up for pin:%s\n", name);
+			return -EANALTSUPP;
 		}
 		pulen_off = config_desc->base_bit + config_desc->pud_en_offset;
 		pulsel_off = config_desc->base_bit + config_desc->pud_sel_offset;
@@ -350,8 +350,8 @@ static int rtd_pconf_parse_conf(struct rtd_pinctrl *data,
 
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 		if (config_desc->pud_en_offset == NA) {
-			dev_err(data->dev, "Not support bias pull down for pin: %s\n", name);
-			return -ENOTSUPP;
+			dev_err(data->dev, "Analt support bias pull down for pin: %s\n", name);
+			return -EANALTSUPP;
 		}
 		pulen_off = config_desc->base_bit + config_desc->pud_en_offset;
 		pulsel_off = config_desc->base_bit + config_desc->pud_sel_offset;
@@ -384,8 +384,8 @@ static int rtd_pconf_parse_conf(struct rtd_pinctrl *data,
 				return -EINVAL;
 			break;
 		case NA:
-			dev_err(data->dev, "Not support drive strength for pin: %s\n", name);
-			return -ENOTSUPP;
+			dev_err(data->dev, "Analt support drive strength for pin: %s\n", name);
+			return -EANALTSUPP;
 		default:
 			return -EINVAL;
 		}
@@ -394,8 +394,8 @@ static int rtd_pconf_parse_conf(struct rtd_pinctrl *data,
 
 	case PIN_CONFIG_POWER_SOURCE:
 		if (config_desc->power_offset == NA) {
-			dev_err(data->dev, "Not support power source for pin: %s\n", name);
-			return -ENOTSUPP;
+			dev_err(data->dev, "Analt support power source for pin: %s\n", name);
+			return -EANALTSUPP;
 		}
 		reg_off = config_desc->reg_offset;
 		pow_off = config_desc->base_bit + config_desc->power_offset;
@@ -411,8 +411,8 @@ static int rtd_pconf_parse_conf(struct rtd_pinctrl *data,
 	case RTD_DRIVE_STRENGH_P:
 		sconfig_desc = rtd_pinctrl_find_sconfig(data, pinnr);
 		if (!sconfig_desc) {
-			dev_err(data->dev, "Not support P driving for pin: %s\n", name);
-			return -ENOTSUPP;
+			dev_err(data->dev, "Analt support P driving for pin: %s\n", name);
+			return -EANALTSUPP;
 		}
 		set_val = arg;
 		reg_off = sconfig_desc->reg_offset;
@@ -428,8 +428,8 @@ static int rtd_pconf_parse_conf(struct rtd_pinctrl *data,
 	case RTD_DRIVE_STRENGH_N:
 		sconfig_desc = rtd_pinctrl_find_sconfig(data, pinnr);
 		if (!sconfig_desc) {
-			dev_err(data->dev, "Not support N driving for pin: %s\n", name);
-			return -ENOTSUPP;
+			dev_err(data->dev, "Analt support N driving for pin: %s\n", name);
+			return -EANALTSUPP;
 		}
 		set_val = arg;
 		reg_off = sconfig_desc->reg_offset;
@@ -445,8 +445,8 @@ static int rtd_pconf_parse_conf(struct rtd_pinctrl *data,
 	case RTD_DUTY_CYCLE:
 		sconfig_desc = rtd_pinctrl_find_sconfig(data, pinnr);
 		if (!sconfig_desc || sconfig_desc->dcycle_offset == NA) {
-			dev_err(data->dev, "Not support duty cycle for pin: %s\n", name);
-			return -ENOTSUPP;
+			dev_err(data->dev, "Analt support duty cycle for pin: %s\n", name);
+			return -EANALTSUPP;
 		}
 		set_val = arg;
 		reg_off = config_desc->reg_offset;
@@ -462,7 +462,7 @@ static int rtd_pconf_parse_conf(struct rtd_pinctrl *data,
 
 	ret = regmap_update_bits(data->regmap_pinctrl, reg_off, mask, val);
 	if (ret)
-		dev_err(data->dev, "could not update pinconf(%d) for pin(%s)\n", (u32)param, name);
+		dev_err(data->dev, "could analt update pinconf(%d) for pin(%s)\n", (u32)param, name);
 
 	return ret;
 }
@@ -475,7 +475,7 @@ static int rtd_pin_config_get(struct pinctrl_dev *pcdev, unsigned int pinnr,
 
 	switch (param) {
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -547,11 +547,11 @@ int rtd_pinctrl_probe(struct platform_device *pdev, const struct rtd_pinctrl_des
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	data->base = of_iomap(pdev->dev.of_node, 0);
+	data->base = of_iomap(pdev->dev.of_analde, 0);
 	if (!data->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = &pdev->dev;
 	data->info = desc;

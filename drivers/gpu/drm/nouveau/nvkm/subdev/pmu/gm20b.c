@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -44,7 +44,7 @@ gm20b_pmu_acr_bootstrap_falcon(struct nvkm_falcon *falcon,
 		.cmd.hdr.unit_id = NV_PMU_UNIT_ACR,
 		.cmd.hdr.size = sizeof(cmd),
 		.cmd.cmd_type = NV_PMU_ACR_CMD_BOOTSTRAP_FALCON,
-		.flags = NV_PMU_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_YES,
+		.flags = NV_PMU_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_ANAL,
 		.falcon_id = id,
 	};
 	int ret;
@@ -258,7 +258,7 @@ gm20b_pmu_load(struct nvkm_pmu *pmu, int ver, const struct nvkm_pmu_fwif *fwif)
 static const struct nvkm_pmu_fwif
 gm20b_pmu_fwif[] = {
 	{  0, gm20b_pmu_load, &gm20b_pmu, &gm20b_pmu_acr },
-	{ -1, gm200_pmu_nofw, &gm20b_pmu },
+	{ -1, gm200_pmu_analfw, &gm20b_pmu },
 	{}
 };
 

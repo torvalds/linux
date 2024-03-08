@@ -20,7 +20,7 @@
 static struct dentry *drbd_debugfs_root;
 static struct dentry *drbd_debugfs_version;
 static struct dentry *drbd_debugfs_resources;
-static struct dentry *drbd_debugfs_minors;
+static struct dentry *drbd_debugfs_mianalrs;
 
 static void seq_print_age_or_dash(struct seq_file *m, bool valid, unsigned long dt)
 {
@@ -58,7 +58,7 @@ static void seq_print_request_state(struct seq_file *m, struct drbd_request *req
 	seq_printf(m, "\t0x%08x", s);
 	seq_printf(m, "\tmaster: %s", req->master_bio ? "pending" : "completed");
 
-	/* RQ_WRITE ignored, already reported */
+	/* RQ_WRITE iganalred, already reported */
 	seq_puts(m, "\tlocal:");
 	seq_print_rq_state_bit(m, s & RQ_IN_ACT_LOG, &sep, "in-AL");
 	seq_print_rq_state_bit(m, s & RQ_POSTPONED, &sep, "postponed");
@@ -93,7 +93,7 @@ static void seq_print_request_state(struct seq_file *m, struct drbd_request *req
 	seq_printf(m, "\n");
 }
 
-static void seq_print_one_request(struct seq_file *m, struct drbd_request *req, unsigned long now)
+static void seq_print_one_request(struct seq_file *m, struct drbd_request *req, unsigned long analw)
 {
 	/* change anything here, fixup header below! */
 	unsigned int s = req->rq_state;
@@ -105,32 +105,32 @@ static void seq_print_one_request(struct seq_file *m, struct drbd_request *req, 
 		(s & RQ_WRITE) ? "W" : "R");
 
 #define RQ_HDR_2 "\tstart\tin AL\tsubmit"
-	seq_printf(m, "\t%d", jiffies_to_msecs(now - req->start_jif));
-	seq_print_age_or_dash(m, s & RQ_IN_ACT_LOG, now - req->in_actlog_jif);
-	seq_print_age_or_dash(m, s & RQ_LOCAL_PENDING, now - req->pre_submit_jif);
+	seq_printf(m, "\t%d", jiffies_to_msecs(analw - req->start_jif));
+	seq_print_age_or_dash(m, s & RQ_IN_ACT_LOG, analw - req->in_actlog_jif);
+	seq_print_age_or_dash(m, s & RQ_LOCAL_PENDING, analw - req->pre_submit_jif);
 
 #define RQ_HDR_3 "\tsent\tacked\tdone"
-	seq_print_age_or_dash(m, s & RQ_NET_SENT, now - req->pre_send_jif);
-	seq_print_age_or_dash(m, (s & RQ_NET_SENT) && !(s & RQ_NET_PENDING), now - req->acked_jif);
-	seq_print_age_or_dash(m, s & RQ_NET_DONE, now - req->net_done_jif);
+	seq_print_age_or_dash(m, s & RQ_NET_SENT, analw - req->pre_send_jif);
+	seq_print_age_or_dash(m, (s & RQ_NET_SENT) && !(s & RQ_NET_PENDING), analw - req->acked_jif);
+	seq_print_age_or_dash(m, s & RQ_NET_DONE, analw - req->net_done_jif);
 
 #define RQ_HDR_4 "\tstate\n"
 	seq_print_request_state(m, req);
 }
 #define RQ_HDR RQ_HDR_1 RQ_HDR_2 RQ_HDR_3 RQ_HDR_4
 
-static void seq_print_minor_vnr_req(struct seq_file *m, struct drbd_request *req, unsigned long now)
+static void seq_print_mianalr_vnr_req(struct seq_file *m, struct drbd_request *req, unsigned long analw)
 {
-	seq_printf(m, "%u\t%u\t", req->device->minor, req->device->vnr);
-	seq_print_one_request(m, req, now);
+	seq_printf(m, "%u\t%u\t", req->device->mianalr, req->device->vnr);
+	seq_print_one_request(m, req, analw);
 }
 
-static void seq_print_resource_pending_meta_io(struct seq_file *m, struct drbd_resource *resource, unsigned long now)
+static void seq_print_resource_pending_meta_io(struct seq_file *m, struct drbd_resource *resource, unsigned long analw)
 {
 	struct drbd_device *device;
 	unsigned int i;
 
-	seq_puts(m, "minor\tvnr\tstart\tsubmit\tintent\n");
+	seq_puts(m, "mianalr\tvnr\tstart\tsubmit\tintent\n");
 	rcu_read_lock();
 	idr_for_each_entry(&resource->devices, device, i) {
 		struct drbd_md_io tmp;
@@ -141,24 +141,24 @@ static void seq_print_resource_pending_meta_io(struct seq_file *m, struct drbd_r
 		tmp = device->md_io;
 		if (atomic_read(&tmp.in_use)) {
 			seq_printf(m, "%u\t%u\t%d\t",
-				device->minor, device->vnr,
-				jiffies_to_msecs(now - tmp.start_jif));
+				device->mianalr, device->vnr,
+				jiffies_to_msecs(analw - tmp.start_jif));
 			if (time_before(tmp.submit_jif, tmp.start_jif))
 				seq_puts(m, "-\t");
 			else
-				seq_printf(m, "%d\t", jiffies_to_msecs(now - tmp.submit_jif));
+				seq_printf(m, "%d\t", jiffies_to_msecs(analw - tmp.submit_jif));
 			seq_printf(m, "%s\n", tmp.current_use);
 		}
 	}
 	rcu_read_unlock();
 }
 
-static void seq_print_waiting_for_AL(struct seq_file *m, struct drbd_resource *resource, unsigned long now)
+static void seq_print_waiting_for_AL(struct seq_file *m, struct drbd_resource *resource, unsigned long analw)
 {
 	struct drbd_device *device;
 	unsigned int i;
 
-	seq_puts(m, "minor\tvnr\tage\t#waiting\n");
+	seq_puts(m, "mianalr\tvnr\tage\t#waiting\n");
 	rcu_read_lock();
 	idr_for_each_entry(&resource->devices, device, i) {
 		unsigned long jif;
@@ -168,8 +168,8 @@ static void seq_print_waiting_for_AL(struct seq_file *m, struct drbd_resource *r
 			spin_lock_irq(&device->resource->req_lock);
 			req = list_first_entry_or_null(&device->pending_master_completion[1],
 				struct drbd_request, req_pending_master_completion);
-			/* if the oldest request does not wait for the activity log
-			 * it is not interesting for us here */
+			/* if the oldest request does analt wait for the activity log
+			 * it is analt interesting for us here */
 			if (req && !(req->rq_state & RQ_IN_ACT_LOG))
 				jif = req->start_jif;
 			else
@@ -177,9 +177,9 @@ static void seq_print_waiting_for_AL(struct seq_file *m, struct drbd_resource *r
 			spin_unlock_irq(&device->resource->req_lock);
 		}
 		if (n) {
-			seq_printf(m, "%u\t%u\t", device->minor, device->vnr);
+			seq_printf(m, "%u\t%u\t", device->mianalr, device->vnr);
 			if (req)
-				seq_printf(m, "%u\t", jiffies_to_msecs(now - jif));
+				seq_printf(m, "%u\t", jiffies_to_msecs(analw - jif));
 			else
 				seq_puts(m, "-\t");
 			seq_printf(m, "%u\n", n);
@@ -188,7 +188,7 @@ static void seq_print_waiting_for_AL(struct seq_file *m, struct drbd_resource *r
 	rcu_read_unlock();
 }
 
-static void seq_print_device_bitmap_io(struct seq_file *m, struct drbd_device *device, unsigned long now)
+static void seq_print_device_bitmap_io(struct seq_file *m, struct drbd_device *device, unsigned long analw)
 {
 	struct drbd_bm_aio_ctx *ctx;
 	unsigned long start_jif;
@@ -206,22 +206,22 @@ static void seq_print_device_bitmap_io(struct seq_file *m, struct drbd_device *d
 	spin_unlock_irq(&device->resource->req_lock);
 	if (ctx) {
 		seq_printf(m, "%u\t%u\t%c\t%u\t%u\n",
-			device->minor, device->vnr,
+			device->mianalr, device->vnr,
 			(flags & BM_AIO_READ) ? 'R' : 'W',
-			jiffies_to_msecs(now - start_jif),
+			jiffies_to_msecs(analw - start_jif),
 			in_flight);
 	}
 }
 
-static void seq_print_resource_pending_bitmap_io(struct seq_file *m, struct drbd_resource *resource, unsigned long now)
+static void seq_print_resource_pending_bitmap_io(struct seq_file *m, struct drbd_resource *resource, unsigned long analw)
 {
 	struct drbd_device *device;
 	unsigned int i;
 
-	seq_puts(m, "minor\tvnr\trw\tage\t#in-flight\n");
+	seq_puts(m, "mianalr\tvnr\trw\tage\t#in-flight\n");
 	rcu_read_lock();
 	idr_for_each_entry(&resource->devices, device, i) {
-		seq_print_device_bitmap_io(m, device, now);
+		seq_print_device_bitmap_io(m, device, analw);
 	}
 	rcu_read_unlock();
 }
@@ -245,7 +245,7 @@ static void seq_print_peer_request_flags(struct seq_file *m, struct drbd_peer_re
 
 static void seq_print_peer_request(struct seq_file *m,
 	struct drbd_device *device, struct list_head *lh,
-	unsigned long now)
+	unsigned long analw)
 {
 	bool reported_preparing = false;
 	struct drbd_peer_request *peer_req;
@@ -254,12 +254,12 @@ static void seq_print_peer_request(struct seq_file *m,
 			continue;
 
 		if (device)
-			seq_printf(m, "%u\t%u\t", device->minor, device->vnr);
+			seq_printf(m, "%u\t%u\t", device->mianalr, device->vnr);
 
 		seq_printf(m, "%llu\t%u\t%c\t%u\t",
 			(unsigned long long)peer_req->i.sector, peer_req->i.size >> 9,
 			(peer_req->flags & EE_WRITE) ? 'W' : 'R',
-			jiffies_to_msecs(now - peer_req->submit_jif));
+			jiffies_to_msecs(analw - peer_req->submit_jif));
 		seq_print_peer_request_flags(m, peer_req);
 		if (peer_req->flags & EE_SUBMITTED)
 			break;
@@ -269,30 +269,30 @@ static void seq_print_peer_request(struct seq_file *m,
 }
 
 static void seq_print_device_peer_requests(struct seq_file *m,
-	struct drbd_device *device, unsigned long now)
+	struct drbd_device *device, unsigned long analw)
 {
-	seq_puts(m, "minor\tvnr\tsector\tsize\trw\tage\tflags\n");
+	seq_puts(m, "mianalr\tvnr\tsector\tsize\trw\tage\tflags\n");
 	spin_lock_irq(&device->resource->req_lock);
-	seq_print_peer_request(m, device, &device->active_ee, now);
-	seq_print_peer_request(m, device, &device->read_ee, now);
-	seq_print_peer_request(m, device, &device->sync_ee, now);
+	seq_print_peer_request(m, device, &device->active_ee, analw);
+	seq_print_peer_request(m, device, &device->read_ee, analw);
+	seq_print_peer_request(m, device, &device->sync_ee, analw);
 	spin_unlock_irq(&device->resource->req_lock);
 	if (test_bit(FLUSH_PENDING, &device->flags)) {
 		seq_printf(m, "%u\t%u\t-\t-\tF\t%u\tflush\n",
-			device->minor, device->vnr,
-			jiffies_to_msecs(now - device->flush_jif));
+			device->mianalr, device->vnr,
+			jiffies_to_msecs(analw - device->flush_jif));
 	}
 }
 
 static void seq_print_resource_pending_peer_requests(struct seq_file *m,
-	struct drbd_resource *resource, unsigned long now)
+	struct drbd_resource *resource, unsigned long analw)
 {
 	struct drbd_device *device;
 	unsigned int i;
 
 	rcu_read_lock();
 	idr_for_each_entry(&resource->devices, device, i) {
-		seq_print_device_peer_requests(m, device, now);
+		seq_print_device_peer_requests(m, device, analw);
 	}
 	rcu_read_unlock();
 }
@@ -300,7 +300,7 @@ static void seq_print_resource_pending_peer_requests(struct seq_file *m,
 static void seq_print_resource_transfer_log_summary(struct seq_file *m,
 	struct drbd_resource *resource,
 	struct drbd_connection *connection,
-	unsigned long now)
+	unsigned long analw)
 {
 	struct drbd_request *req;
 	unsigned int count = 0;
@@ -349,7 +349,7 @@ static void seq_print_resource_transfer_log_summary(struct seq_file *m,
 			continue;
 		show_state |= tmp;
 		seq_printf(m, "%u\t", count);
-		seq_print_minor_vnr_req(m, req, now);
+		seq_print_mianalr_vnr_req(m, req, analw);
 		if (show_state == 0x1f)
 			break;
 	}
@@ -364,7 +364,7 @@ static int in_flight_summary_show(struct seq_file *m, void *pos)
 	unsigned long jif = jiffies;
 
 	connection = first_connection(resource);
-	/* This does not happen, actually.
+	/* This does analt happen, actually.
 	 * But be robust and prepare for future code changes. */
 	if (!connection || !kref_get_unless_zero(&connection->kref))
 		return -ESTALE;
@@ -426,12 +426,12 @@ static int drbd_single_open(struct file *file, int (*show)(struct seq_file *, vo
 	 * or has debugfs_remove() already been called? */
 	parent = file->f_path.dentry->d_parent;
 	/* serialize with d_delete() */
-	inode_lock(d_inode(parent));
+	ianalde_lock(d_ianalde(parent));
 	/* Make sure the object is still alive */
 	if (simple_positive(file->f_path.dentry)
 	&& kref_get_unless_zero(kref))
 		ret = 0;
-	inode_unlock(d_inode(parent));
+	ianalde_unlock(d_ianalde(parent));
 	if (!ret) {
 		ret = single_open(file, show, data);
 		if (ret)
@@ -440,18 +440,18 @@ static int drbd_single_open(struct file *file, int (*show)(struct seq_file *, vo
 	return ret;
 }
 
-static int in_flight_summary_open(struct inode *inode, struct file *file)
+static int in_flight_summary_open(struct ianalde *ianalde, struct file *file)
 {
-	struct drbd_resource *resource = inode->i_private;
+	struct drbd_resource *resource = ianalde->i_private;
 	return drbd_single_open(file, in_flight_summary_show, resource,
 				&resource->kref, drbd_destroy_resource);
 }
 
-static int in_flight_summary_release(struct inode *inode, struct file *file)
+static int in_flight_summary_release(struct ianalde *ianalde, struct file *file)
 {
-	struct drbd_resource *resource = inode->i_private;
+	struct drbd_resource *resource = ianalde->i_private;
 	kref_put(&resource->kref, drbd_destroy_resource);
-	return single_release(inode, file);
+	return single_release(ianalde, file);
 }
 
 static const struct file_operations in_flight_summary_fops = {
@@ -498,10 +498,10 @@ void drbd_debugfs_resource_cleanup(struct drbd_resource *resource)
 
 static void seq_print_one_timing_detail(struct seq_file *m,
 	const struct drbd_thread_timing_details *tdp,
-	unsigned long now)
+	unsigned long analw)
 {
 	struct drbd_thread_timing_details td;
-	/* No locking...
+	/* Anal locking...
 	 * use temporary assignment to get at consistent data. */
 	do {
 		td = *tdp;
@@ -510,31 +510,31 @@ static void seq_print_one_timing_detail(struct seq_file *m,
 		return;
 	seq_printf(m, "%u\t%d\t%s:%u\t%ps\n",
 			td.cb_nr,
-			jiffies_to_msecs(now - td.start_jif),
+			jiffies_to_msecs(analw - td.start_jif),
 			td.caller_fn, td.line,
 			td.cb_addr);
 }
 
 static void seq_print_timing_details(struct seq_file *m,
 		const char *title,
-		unsigned int cb_nr, struct drbd_thread_timing_details *tdp, unsigned long now)
+		unsigned int cb_nr, struct drbd_thread_timing_details *tdp, unsigned long analw)
 {
 	unsigned int start_idx;
 	unsigned int i;
 
 	seq_printf(m, "%s\n", title);
-	/* If not much is going on, this will result in natural ordering.
+	/* If analt much is going on, this will result in natural ordering.
 	 * If it is very busy, we will possibly skip events, or even see wrap
 	 * arounds, which could only be avoided with locking.
 	 */
 	start_idx = cb_nr % DRBD_THREAD_DETAILS_HIST;
 	for (i = start_idx; i < DRBD_THREAD_DETAILS_HIST; i++)
-		seq_print_one_timing_detail(m, tdp+i, now);
+		seq_print_one_timing_detail(m, tdp+i, analw);
 	for (i = 0; i < start_idx; i++)
-		seq_print_one_timing_detail(m, tdp+i, now);
+		seq_print_one_timing_detail(m, tdp+i, analw);
 }
 
-static int callback_history_show(struct seq_file *m, void *ignored)
+static int callback_history_show(struct seq_file *m, void *iganalred)
 {
 	struct drbd_connection *connection = m->private;
 	unsigned long jif = jiffies;
@@ -548,18 +548,18 @@ static int callback_history_show(struct seq_file *m, void *ignored)
 	return 0;
 }
 
-static int callback_history_open(struct inode *inode, struct file *file)
+static int callback_history_open(struct ianalde *ianalde, struct file *file)
 {
-	struct drbd_connection *connection = inode->i_private;
+	struct drbd_connection *connection = ianalde->i_private;
 	return drbd_single_open(file, callback_history_show, connection,
 				&connection->kref, drbd_destroy_connection);
 }
 
-static int callback_history_release(struct inode *inode, struct file *file)
+static int callback_history_release(struct ianalde *ianalde, struct file *file)
 {
-	struct drbd_connection *connection = inode->i_private;
+	struct drbd_connection *connection = ianalde->i_private;
 	kref_put(&connection->kref, drbd_destroy_connection);
-	return single_release(inode, file);
+	return single_release(ianalde, file);
 }
 
 static const struct file_operations connection_callback_history_fops = {
@@ -570,10 +570,10 @@ static const struct file_operations connection_callback_history_fops = {
 	.release	= callback_history_release,
 };
 
-static int connection_oldest_requests_show(struct seq_file *m, void *ignored)
+static int connection_oldest_requests_show(struct seq_file *m, void *iganalred)
 {
 	struct drbd_connection *connection = m->private;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	struct drbd_request *r1, *r2;
 
 	/* BUMP me if you change the file format/content/presentation */
@@ -582,31 +582,31 @@ static int connection_oldest_requests_show(struct seq_file *m, void *ignored)
 	spin_lock_irq(&connection->resource->req_lock);
 	r1 = connection->req_next;
 	if (r1)
-		seq_print_minor_vnr_req(m, r1, now);
+		seq_print_mianalr_vnr_req(m, r1, analw);
 	r2 = connection->req_ack_pending;
 	if (r2 && r2 != r1) {
 		r1 = r2;
-		seq_print_minor_vnr_req(m, r1, now);
+		seq_print_mianalr_vnr_req(m, r1, analw);
 	}
-	r2 = connection->req_not_net_done;
+	r2 = connection->req_analt_net_done;
 	if (r2 && r2 != r1)
-		seq_print_minor_vnr_req(m, r2, now);
+		seq_print_mianalr_vnr_req(m, r2, analw);
 	spin_unlock_irq(&connection->resource->req_lock);
 	return 0;
 }
 
-static int connection_oldest_requests_open(struct inode *inode, struct file *file)
+static int connection_oldest_requests_open(struct ianalde *ianalde, struct file *file)
 {
-	struct drbd_connection *connection = inode->i_private;
+	struct drbd_connection *connection = ianalde->i_private;
 	return drbd_single_open(file, connection_oldest_requests_show, connection,
 				&connection->kref, drbd_destroy_connection);
 }
 
-static int connection_oldest_requests_release(struct inode *inode, struct file *file)
+static int connection_oldest_requests_release(struct ianalde *ianalde, struct file *file)
 {
-	struct drbd_connection *connection = inode->i_private;
+	struct drbd_connection *connection = ianalde->i_private;
 	kref_put(&connection->kref, drbd_destroy_connection);
-	return single_release(inode, file);
+	return single_release(ianalde, file);
 }
 
 static const struct file_operations connection_oldest_requests_fops = {
@@ -624,7 +624,7 @@ void drbd_debugfs_connection_add(struct drbd_connection *connection)
 
 	/* Once we enable mutliple peers,
 	 * these connections will have descriptive names.
-	 * For now, it is just the one connection to the (only) "peer". */
+	 * For analw, it is just the one connection to the (only) "peer". */
 	dentry = debugfs_create_dir("peer", conns_dir);
 	connection->debugfs_conn = dentry;
 
@@ -651,13 +651,13 @@ static void resync_dump_detail(struct seq_file *m, struct lc_element *e)
        struct bm_extent *bme = lc_entry(e, struct bm_extent, lce);
 
        seq_printf(m, "%5d %s %s %s", bme->rs_left,
-		  test_bit(BME_NO_WRITES, &bme->flags) ? "NO_WRITES" : "---------",
+		  test_bit(BME_ANAL_WRITES, &bme->flags) ? "ANAL_WRITES" : "---------",
 		  test_bit(BME_LOCKED, &bme->flags) ? "LOCKED" : "------",
 		  test_bit(BME_PRIORITY, &bme->flags) ? "PRIORITY" : "--------"
 		  );
 }
 
-static int device_resync_extents_show(struct seq_file *m, void *ignored)
+static int device_resync_extents_show(struct seq_file *m, void *iganalred)
 {
 	struct drbd_device *device = m->private;
 
@@ -672,7 +672,7 @@ static int device_resync_extents_show(struct seq_file *m, void *ignored)
 	return 0;
 }
 
-static int device_act_log_extents_show(struct seq_file *m, void *ignored)
+static int device_act_log_extents_show(struct seq_file *m, void *iganalred)
 {
 	struct drbd_device *device = m->private;
 
@@ -687,11 +687,11 @@ static int device_act_log_extents_show(struct seq_file *m, void *ignored)
 	return 0;
 }
 
-static int device_oldest_requests_show(struct seq_file *m, void *ignored)
+static int device_oldest_requests_show(struct seq_file *m, void *iganalred)
 {
 	struct drbd_device *device = m->private;
 	struct drbd_resource *resource = device->resource;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	struct drbd_request *r1, *r2;
 	int i;
 
@@ -707,22 +707,22 @@ static int device_oldest_requests_show(struct seq_file *m, void *ignored)
 		r2 = list_first_entry_or_null(&device->pending_completion[i],
 			struct drbd_request, req_pending_local);
 		if (r1)
-			seq_print_one_request(m, r1, now);
+			seq_print_one_request(m, r1, analw);
 		if (r2 && r2 != r1)
-			seq_print_one_request(m, r2, now);
+			seq_print_one_request(m, r2, analw);
 	}
 	spin_unlock_irq(&resource->req_lock);
 	return 0;
 }
 
-static int device_data_gen_id_show(struct seq_file *m, void *ignored)
+static int device_data_gen_id_show(struct seq_file *m, void *iganalred)
 {
 	struct drbd_device *device = m->private;
 	struct drbd_md *md;
 	enum drbd_uuid_index idx;
 
 	if (!get_ldev_if_state(device, D_FAILED))
-		return -ENODEV;
+		return -EANALDEV;
 
 	md = &device->ldev->md;
 	spin_lock_irq(&md->uuid_lock);
@@ -734,7 +734,7 @@ static int device_data_gen_id_show(struct seq_file *m, void *ignored)
 	return 0;
 }
 
-static int device_ed_gen_id_show(struct seq_file *m, void *ignored)
+static int device_ed_gen_id_show(struct seq_file *m, void *iganalred)
 {
 	struct drbd_device *device = m->private;
 	seq_printf(m, "0x%016llX\n", (unsigned long long)device->ed_uuid);
@@ -742,17 +742,17 @@ static int device_ed_gen_id_show(struct seq_file *m, void *ignored)
 }
 
 #define drbd_debugfs_device_attr(name)						\
-static int device_ ## name ## _open(struct inode *inode, struct file *file)	\
+static int device_ ## name ## _open(struct ianalde *ianalde, struct file *file)	\
 {										\
-	struct drbd_device *device = inode->i_private;				\
+	struct drbd_device *device = ianalde->i_private;				\
 	return drbd_single_open(file, device_ ## name ## _show, device,		\
 				&device->kref, drbd_destroy_device);		\
 }										\
-static int device_ ## name ## _release(struct inode *inode, struct file *file)	\
+static int device_ ## name ## _release(struct ianalde *ianalde, struct file *file)	\
 {										\
-	struct drbd_device *device = inode->i_private;				\
+	struct drbd_device *device = ianalde->i_private;				\
 	kref_put(&device->kref, drbd_destroy_device);				\
-	return single_release(inode, file);					\
+	return single_release(ianalde, file);					\
 }										\
 static const struct file_operations device_ ## name ## _fops = {		\
 	.owner		= THIS_MODULE,						\
@@ -771,25 +771,25 @@ drbd_debugfs_device_attr(ed_gen_id)
 void drbd_debugfs_device_add(struct drbd_device *device)
 {
 	struct dentry *vols_dir = device->resource->debugfs_res_volumes;
-	char minor_buf[8]; /* MINORMASK, MINORBITS == 20; */
+	char mianalr_buf[8]; /* MIANALRMASK, MIANALRBITS == 20; */
 	char vnr_buf[8];   /* volume number vnr is even 16 bit only; */
 	char *slink_name = NULL;
 
 	struct dentry *dentry;
-	if (!vols_dir || !drbd_debugfs_minors)
+	if (!vols_dir || !drbd_debugfs_mianalrs)
 		return;
 
 	snprintf(vnr_buf, sizeof(vnr_buf), "%u", device->vnr);
 	dentry = debugfs_create_dir(vnr_buf, vols_dir);
 	device->debugfs_vol = dentry;
 
-	snprintf(minor_buf, sizeof(minor_buf), "%u", device->minor);
+	snprintf(mianalr_buf, sizeof(mianalr_buf), "%u", device->mianalr);
 	slink_name = kasprintf(GFP_KERNEL, "../resources/%s/volumes/%u",
 			device->resource->name, device->vnr);
 	if (!slink_name)
 		goto fail;
-	dentry = debugfs_create_symlink(minor_buf, drbd_debugfs_minors, slink_name);
-	device->debugfs_minor = dentry;
+	dentry = debugfs_create_symlink(mianalr_buf, drbd_debugfs_mianalrs, slink_name);
+	device->debugfs_mianalr = dentry;
 	kfree(slink_name);
 	slink_name = NULL;
 
@@ -815,7 +815,7 @@ fail:
 
 void drbd_debugfs_device_cleanup(struct drbd_device *device)
 {
-	drbd_debugfs_remove(&device->debugfs_minor);
+	drbd_debugfs_remove(&device->debugfs_mianalr);
 	drbd_debugfs_remove(&device->debugfs_vol_oldest_requests);
 	drbd_debugfs_remove(&device->debugfs_vol_act_log_extents);
 	drbd_debugfs_remove(&device->debugfs_vol_resync_extents);
@@ -840,7 +840,7 @@ void drbd_debugfs_peer_device_cleanup(struct drbd_peer_device *peer_device)
 	drbd_debugfs_remove(&peer_device->debugfs_peer_dev);
 }
 
-static int drbd_version_show(struct seq_file *m, void *ignored)
+static int drbd_version_show(struct seq_file *m, void *iganalred)
 {
 	seq_printf(m, "# %s\n", drbd_buildtag());
 	seq_printf(m, "VERSION=%s\n", REL_VERSION);
@@ -850,7 +850,7 @@ static int drbd_version_show(struct seq_file *m, void *ignored)
 	return 0;
 }
 
-static int drbd_version_open(struct inode *inode, struct file *file)
+static int drbd_version_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, drbd_version_show, NULL);
 }
@@ -863,12 +863,12 @@ static const struct file_operations drbd_version_fops = {
 	.release = single_release,
 };
 
-/* not __exit, may be indirectly called
+/* analt __exit, may be indirectly called
  * from the module-load-failure path as well. */
 void drbd_debugfs_cleanup(void)
 {
 	drbd_debugfs_remove(&drbd_debugfs_resources);
-	drbd_debugfs_remove(&drbd_debugfs_minors);
+	drbd_debugfs_remove(&drbd_debugfs_mianalrs);
 	drbd_debugfs_remove(&drbd_debugfs_version);
 	drbd_debugfs_remove(&drbd_debugfs_root);
 }
@@ -886,6 +886,6 @@ void __init drbd_debugfs_init(void)
 	dentry = debugfs_create_dir("resources", drbd_debugfs_root);
 	drbd_debugfs_resources = dentry;
 
-	dentry = debugfs_create_dir("minors", drbd_debugfs_root);
-	drbd_debugfs_minors = dentry;
+	dentry = debugfs_create_dir("mianalrs", drbd_debugfs_root);
+	drbd_debugfs_mianalrs = dentry;
 }

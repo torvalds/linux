@@ -88,7 +88,7 @@ void crash_smp_send_stop(void)
 #else
 void crash_smp_send_stop(void)
 {
-	/* There are no cpus to shootdown */
+	/* There are anal cpus to shootdown */
 }
 #endif
 
@@ -148,7 +148,7 @@ static struct crash_mem *fill_up_crash_elf_data(void)
 
 	/*
 	 * Exclusion of crash region and/or crashk_low_res may cause
-	 * another range split. So add extra two slots here.
+	 * aanalther range split. So add extra two slots here.
 	 */
 	nr_ranges += 2;
 	cmem = vzalloc(struct_size(cmem, ranges, nr_ranges));
@@ -206,7 +206,7 @@ static int prepare_elf_headers(void **addr, unsigned long *sz,
 
 	cmem = fill_up_crash_elf_data();
 	if (!cmem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = walk_system_ram_res(0, -1, cmem, prepare_elf64_ram_headers_callback);
 	if (ret)
@@ -284,7 +284,7 @@ int crash_setup_memmap_entries(struct kimage *image, struct boot_params *params)
 
 	cmem = vzalloc(struct_size(cmem, ranges, 1));
 	if (!cmem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&cmd, 0, sizeof(struct crash_memmap_data));
 	cmd.params = params;
@@ -292,7 +292,7 @@ int crash_setup_memmap_entries(struct kimage *image, struct boot_params *params)
 	/* Add the low 1M */
 	cmd.type = E820_TYPE_RAM;
 	flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
-	walk_iomem_res_desc(IORES_DESC_NONE, flags, 0, (1<<20)-1, &cmd,
+	walk_iomem_res_desc(IORES_DESC_ANALNE, flags, 0, (1<<20)-1, &cmd,
 			    memmap_entry_callback);
 
 	/* Add ACPI tables */
@@ -301,7 +301,7 @@ int crash_setup_memmap_entries(struct kimage *image, struct boot_params *params)
 	walk_iomem_res_desc(IORES_DESC_ACPI_TABLES, flags, 0, -1, &cmd,
 			    memmap_entry_callback);
 
-	/* Add ACPI Non-volatile Storage */
+	/* Add ACPI Analn-volatile Storage */
 	cmd.type = E820_TYPE_NVS;
 	walk_iomem_res_desc(IORES_DESC_ACPI_NV_STORAGE, flags, 0, -1, &cmd,
 			    memmap_entry_callback);
@@ -381,7 +381,7 @@ int crash_load_segments(struct kimage *image)
 #endif
 
 	kbuf.buf_align = ELF_CORE_HEADER_ALIGN;
-	kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+	kbuf.mem = KEXEC_BUF_MEM_UNKANALWN;
 	ret = kexec_add_buffer(&kbuf);
 	if (ret)
 		return ret;
@@ -398,7 +398,7 @@ int crash_load_segments(struct kimage *image)
 #undef pr_fmt
 #define pr_fmt(fmt) "crash hp: " fmt
 
-/* These functions provide the value for the sysfs crash_hotplug nodes */
+/* These functions provide the value for the sysfs crash_hotplug analdes */
 #ifdef CONFIG_HOTPLUG_CPU
 int arch_crash_hotplug_cpu_support(void)
 {
@@ -440,7 +440,7 @@ void arch_crash_handle_hotplug_event(struct kimage *image)
 
 	/*
 	 * As crash_prepare_elf64_headers() has already described all
-	 * possible CPUs, there is no need to update the elfcorehdr
+	 * possible CPUs, there is anal need to update the elfcorehdr
 	 * for additional CPU changes.
 	 */
 	if ((image->file_mode || image->elfcorehdr_updated) &&

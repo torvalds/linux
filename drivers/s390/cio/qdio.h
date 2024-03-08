@@ -31,7 +31,7 @@ enum qdio_irq_states {
 #define QDIO_DOING_ACTIVATE	2
 #define QDIO_DOING_CLEANUP	3
 
-#define SLSB_STATE_NOT_INIT	0x0
+#define SLSB_STATE_ANALT_INIT	0x0
 #define SLSB_STATE_EMPTY	0x1
 #define SLSB_STATE_PRIMED	0x2
 #define SLSB_STATE_PENDING	0x3
@@ -42,8 +42,8 @@ enum qdio_irq_states {
 #define SLSB_OWNER_PROG		0x80
 #define SLSB_OWNER_CU		0x40
 
-#define SLSB_P_INPUT_NOT_INIT	\
-	(SLSB_OWNER_PROG | SLSB_TYPE_INPUT | SLSB_STATE_NOT_INIT)  /* 0x80 */
+#define SLSB_P_INPUT_ANALT_INIT	\
+	(SLSB_OWNER_PROG | SLSB_TYPE_INPUT | SLSB_STATE_ANALT_INIT)  /* 0x80 */
 #define SLSB_P_INPUT_ACK	\
 	(SLSB_OWNER_PROG | SLSB_TYPE_INPUT | SLSB_STATE_EMPTY)	   /* 0x81 */
 #define SLSB_CU_INPUT_EMPTY	\
@@ -54,8 +54,8 @@ enum qdio_irq_states {
 	(SLSB_OWNER_PROG | SLSB_TYPE_INPUT | SLSB_STATE_HALTED)	   /* 0x8e */
 #define SLSB_P_INPUT_ERROR	\
 	(SLSB_OWNER_PROG | SLSB_TYPE_INPUT | SLSB_STATE_ERROR)	   /* 0x8f */
-#define SLSB_P_OUTPUT_NOT_INIT	\
-	(SLSB_OWNER_PROG | SLSB_TYPE_OUTPUT | SLSB_STATE_NOT_INIT) /* 0xa0 */
+#define SLSB_P_OUTPUT_ANALT_INIT	\
+	(SLSB_OWNER_PROG | SLSB_TYPE_OUTPUT | SLSB_STATE_ANALT_INIT) /* 0xa0 */
 #define SLSB_P_OUTPUT_EMPTY	\
 	(SLSB_OWNER_PROG | SLSB_TYPE_OUTPUT | SLSB_STATE_EMPTY)	   /* 0xa1 */
 #define SLSB_P_OUTPUT_PENDING \
@@ -152,7 +152,7 @@ struct qdio_queue_perf_stat {
 	/* Sorted into order-2 buckets: 1, 2-3, 4-7, ... 64-127, 128. */
 	unsigned int nr_sbals[8];
 	unsigned int nr_sbal_error;
-	unsigned int nr_sbal_nop;
+	unsigned int nr_sbal_analp;
 	unsigned int nr_sbal_total;
 };
 
@@ -170,7 +170,7 @@ struct qdio_output_q {
 };
 
 /*
- * Note on cache alignment: grouped slsb and write mostly data at the beginning
+ * Analte on cache alignment: grouped slsb and write mostly data at the beginning
  * sbal[] is read-only and starts on a new cacheline followed by read mostly.
  */
 struct qdio_q {
@@ -262,7 +262,7 @@ struct qdio_irq {
 
 /* helper functions */
 #define queue_type(q)	q->irq_ptr->qib.qfmt
-#define SCH_NO(q)	(q->irq_ptr->schid.sch_no)
+#define SCH_ANAL(q)	(q->irq_ptr->schid.sch_anal)
 
 #define is_thinint_irq(irq) \
 	(irq->qib.qfmt == QDIO_IQDIO_QFMT || \
@@ -326,7 +326,7 @@ int qdio_establish_thinint(struct qdio_irq *irq_ptr);
 void qdio_shutdown_thinint(struct qdio_irq *irq_ptr);
 int qdio_thinint_init(void);
 void qdio_thinint_exit(void);
-int test_nonshared_ind(struct qdio_irq *);
+int test_analnshared_ind(struct qdio_irq *);
 
 /* prototypes for setup */
 void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,

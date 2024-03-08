@@ -16,7 +16,7 @@
 #include <asm/processor.h>
 #include <asm/cache.h>
 #include <asm/dwarf.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
@@ -27,20 +27,20 @@
 #include <asm/vx-insn.h>
 #include <asm/setup.h>
 #include <asm/nmi.h>
-#include <asm/nospec-insn.h>
+#include <asm/analspec-insn.h>
 
 _LPP_OFFSET	= __LC_LPP
 
 	.macro STBEAR address
-	ALTERNATIVE "nop", ".insn s,0xb2010000,\address", 193
+	ALTERNATIVE "analp", ".insn s,0xb2010000,\address", 193
 	.endm
 
 	.macro LBEAR address
-	ALTERNATIVE "nop", ".insn s,0xb2000000,\address", 193
+	ALTERNATIVE "analp", ".insn s,0xb2000000,\address", 193
 	.endm
 
 	.macro LPSWEY address,lpswe
-	ALTERNATIVE "b \lpswe; nopr", ".insn siy,0xeb0000000071,\address,0", 193
+	ALTERNATIVE "b \lpswe; analpr", ".insn siy,0xeb0000000071,\address,0", 193
 	.endm
 
 	.macro MBEAR reg
@@ -66,7 +66,7 @@ _LPP_OFFSET	= __LC_LPP
 	je	\oklabel
 	clg	%r14,__LC_MCCK_STACK
 	je	\oklabel
-	clg	%r14,__LC_NODAT_STACK
+	clg	%r14,__LC_ANALDAT_STACK
 	je	\oklabel
 	clg	%r14,__LC_RESTART_STACK
 	je	\oklabel
@@ -93,23 +93,23 @@ _LPP_OFFSET	= __LC_LPP
 			.exitm
 		.endif
 		.ifeq \mask
-			.error "Mask must not be zero"
+			.error "Mask must analt be zero"
 		.endif
 		off = \size - \bytepos - 1
 		tm	off+\addr, \mask
 	.endm
 
 	.macro BPOFF
-	ALTERNATIVE "nop", ".insn rrf,0xb2e80000,0,0,12,0", 82
+	ALTERNATIVE "analp", ".insn rrf,0xb2e80000,0,0,12,0", 82
 	.endm
 
 	.macro BPON
-	ALTERNATIVE "nop", ".insn rrf,0xb2e80000,0,0,13,0", 82
+	ALTERNATIVE "analp", ".insn rrf,0xb2e80000,0,0,13,0", 82
 	.endm
 
 	.macro BPENTER tif_ptr,tif_mask
 	ALTERNATIVE "TSTMSK \tif_ptr,\tif_mask; jz .+8; .insn rrf,0xb2e80000,0,0,13,0", \
-		    "j .+12; nop; nop", 82
+		    "j .+12; analp; analp", 82
 	.endm
 
 	.macro BPEXIT tif_ptr,tif_mask
@@ -144,7 +144,7 @@ _LPP_OFFSET	= __LC_LPP
 
 	.macro SIEEXIT
 	lg	%r9,__SF_SIE_CONTROL(%r15)	# get control block pointer
-	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
+	ni	__SIE_PROG0C+3(%r9),0xfe	# anal longer in SIE
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE	# load primary asce
 	larl	%r9,sie_exit			# skip forward to sie_exit
 	.endm
@@ -161,14 +161,14 @@ _LPP_OFFSET	= __LC_LPP
 	.section .kprobes.text, "ax"
 .Ldummy:
 	/*
-	 * The following nop exists only in order to avoid that the next
+	 * The following analp exists only in order to avoid that the next
 	 * symbol starts at the beginning of the kprobes text section.
 	 * In that case there would be several symbols at the same address.
 	 * E.g. objdump would take an arbitrary symbol when disassembling
 	 * the code.
-	 * With the added nop in between this cannot happen.
+	 * With the added analp in between this cananalt happen.
 	 */
-	nop	0
+	analp	0
 
 /*
  * Scheduler resume function, called by switch_to
@@ -191,7 +191,7 @@ SYM_FUNC_START(__switch_to)
 	aghi	%r3,__TASK_pid
 	mvc	__LC_CURRENT_PID(4,%r0),0(%r3)	# store pid of next
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
-	ALTERNATIVE "nop", "lpp _LPP_OFFSET", 40
+	ALTERNATIVE "analp", "lpp _LPP_OFFSET", 40
 	BR_EX	%r14
 SYM_FUNC_END(__switch_to)
 
@@ -217,7 +217,7 @@ SYM_FUNC_START(__sie64a)
 	lctlg	%c1,%c1,__GMAP_ASCE(%r14)	# load primary asce
 .Lsie_gmap:
 	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
-	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE now
+	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE analw
 	tm	__SIE_PROG20+3(%r14),3		# last exit...
 	jnz	.Lsie_skip
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
@@ -226,28 +226,28 @@ SYM_FUNC_START(__sie64a)
 	BPEXIT	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
 .Lsie_entry:
 	sie	0(%r14)
-# Let the next instruction be NOP to avoid triggering a machine check
+# Let the next instruction be ANALP to avoid triggering a machine check
 # and handling it in a guest as result of the instruction execution.
-	nopr	7
+	analpr	7
 .Lsie_leave:
 	BPOFF
 	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
 .Lsie_skip:
 	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
-	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
+	ni	__SIE_PROG0C+3(%r14),0xfe	# anal longer in SIE
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE	# load primary asce
 .Lsie_done:
 # some program checks are suppressing. C code (e.g. do_protection_exception)
 # will rewind the PSW by the ILC, which is often 4 bytes in case of SIE. There
 # are some corner cases (e.g. runtime instrumentation) where ILC is unpredictable.
-# Other instructions between __sie64a and .Lsie_done should not cause program
-# interrupts. So lets use 3 nops as a landing pad for all possible rewinds.
+# Other instructions between __sie64a and .Lsie_done should analt cause program
+# interrupts. So lets use 3 analps as a landing pad for all possible rewinds.
 .Lrewind_pad6:
-	nopr	7
+	analpr	7
 .Lrewind_pad4:
-	nopr	7
+	analpr	7
 .Lrewind_pad2:
-	nopr	7
+	analpr	7
 SYM_INNER_LABEL(sie_exit, SYM_L_GLOBAL)
 	lg	%r14,__SF_SIE_SAVEAREA(%r15)	# load guest register save area
 	stmg	%r0,%r13,0(%r14)		# save guest gprs 0-13
@@ -274,7 +274,7 @@ EXPORT_SYMBOL(sie_exit)
 #endif
 
 /*
- * SVC interrupt handler routine. System calls are synchronous events and
+ * SVC interrupt handler routine. System calls are synchroanalus events and
  * are entered with interrupts disabled.
  */
 
@@ -342,7 +342,7 @@ SYM_CODE_START(pgm_check_handler)
 	lghi	%r10,0
 	lmg	%r8,%r9,__LC_PGM_OLD_PSW
 	tmhh	%r8,0x0001		# coming from user space?
-	jno	.Lpgm_skip_asce
+	janal	.Lpgm_skip_asce
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE
 	j	3f			# -> fault in user space
 .Lpgm_skip_asce:
@@ -381,7 +381,7 @@ SYM_CODE_START(pgm_check_handler)
 	lgr	%r2,%r11
 	brasl	%r14,__do_pgm_check
 	tmhh	%r8,0x0001		# returning to user space?
-	jno	.Lpgm_exit_kernel
+	janal	.Lpgm_exit_kernel
 	STACKLEAK_ERASE
 	lctlg	%c1,%c1,__LC_USER_ASCE
 	BPON
@@ -447,7 +447,7 @@ SYM_CODE_START(\name)
 	brasl	%r14,\handler
 	mvc	__LC_RETURN_PSW(16),__PT_PSW(%r11)
 	tmhh	%r8,0x0001		# returning to user ?
-	jno	2f
+	janal	2f
 	STACKLEAK_ERASE
 	lctlg	%c1,%c1,__LC_USER_ASCE
 	BPON
@@ -495,9 +495,9 @@ SYM_CODE_START(mcck_int_handler)
 	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA		# validate gprs
 	lmg	%r8,%r9,__LC_MCK_OLD_PSW
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_SYSTEM_DAMAGE
-	jo	.Lmcck_panic		# yes -> rest of mcck code invalid
+	jo	.Lmcck_panic		# anal -> rest of mcck code invalid
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_CR_VALID
-	jno	.Lmcck_panic		# control registers invalid -> panic
+	janal	.Lmcck_panic		# control registers invalid -> panic
 	lctlg	%c0,%c15,__LC_CREGS_SAVE_AREA		# validate ctl regs
 	ptlb
 	lghi	%r14,__LC_CPU_TIMER_SAVE_AREA
@@ -514,11 +514,11 @@ SYM_CODE_START(mcck_int_handler)
 2:	spt	0(%r14)
 	mvc	__LC_MCCK_ENTER_TIMER(8),0(%r14)
 3:	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_MWP_VALID
-	jno	.Lmcck_panic
+	janal	.Lmcck_panic
 	tmhh	%r8,0x0001		# interrupting from user ?
 	jnz	.Lmcck_user
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_IA_VALID
-	jno	.Lmcck_panic
+	janal	.Lmcck_panic
 #if IS_ENABLED(CONFIG_KVM)
 	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,.Lmcck_user
 	OUTSIDE	%r9,.Lsie_entry,.Lsie_leave,4f
@@ -553,10 +553,10 @@ SYM_CODE_START(mcck_int_handler)
 	lmg	%r0,%r10,__PT_R0(%r11)
 	mvc	__LC_RETURN_MCCK_PSW(16),__PT_PSW(%r11) # move return PSW
 	tm	__LC_RETURN_MCCK_PSW+1,0x01 # returning to user ?
-	jno	0f
+	janal	0f
 	BPON
 	stpt	__LC_EXIT_TIMER
-0:	ALTERNATIVE "nop", __stringify(lghi %r12,__LC_LAST_BREAK_SAVE_AREA),193
+0:	ALTERNATIVE "analp", __stringify(lghi %r12,__LC_LAST_BREAK_SAVE_AREA),193
 	LBEAR	0(%r12)
 	lmg	%r11,%r15,__PT_R11(%r11)
 	LPSWEY	__LC_RETURN_MCCK_PSW,__LC_RETURN_MCCK_LPSWE
@@ -592,7 +592,7 @@ SYM_CODE_START(mcck_int_handler)
 SYM_CODE_END(mcck_int_handler)
 
 SYM_CODE_START(restart_int_handler)
-	ALTERNATIVE "nop", "lpp _LPP_OFFSET", 40
+	ALTERNATIVE "analp", "lpp _LPP_OFFSET", 40
 	stg	%r15,__LC_SAVE_AREA_RESTART
 	TSTMSK	__LC_RESTART_FLAGS,RESTART_FLAG_CTLREGS,4
 	jz	0f
@@ -625,12 +625,12 @@ SYM_CODE_END(restart_int_handler)
 
 #if defined(CONFIG_CHECK_STACK) || defined(CONFIG_VMAP_STACK)
 /*
- * The synchronous or the asynchronous stack overflowed. We are dead.
- * No need to properly save the registers, we are going to panic anyway.
+ * The synchroanalus or the asynchroanalus stack overflowed. We are dead.
+ * Anal need to properly save the registers, we are going to panic anyway.
  * Setup a pt_regs so that show_trace can provide a good call trace.
  */
 SYM_CODE_START(stack_overflow)
-	lg	%r15,__LC_NODAT_STACK	# change to panic stack
+	lg	%r15,__LC_ANALDAT_STACK	# change to panic stack
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	stmg	%r8,%r9,__PT_PSW(%r11)

@@ -17,7 +17,7 @@ SYM_FUNC_START(__pi_icache_inval_pou)
 alternative_if ARM64_HAS_CACHE_DIC
 	isb
 	ret
-alternative_else_nop_endif
+alternative_else_analp_endif
 
 	invalidate_icache_by_line x0, x1, x2, x3
 	ret

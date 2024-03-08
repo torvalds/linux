@@ -87,7 +87,7 @@ static inline u16 p80211rate_to_p2bit(u32 rate)
  *
  * This function corresponds to MLME-scan.request and part of
  * MLME-scan.confirm.  As far as I can tell in the standard, there
- * are no restrictions on when a scan.request may be issued.  We have
+ * are anal restrictions on when a scan.request may be issued.  We have
  * to handle in whatever state the driver/MAC happen to be.
  *
  * Arguments:
@@ -118,13 +118,13 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 
 	/* gatekeeper check */
 	if (HFA384x_FIRMWARE_VERSION(hw->ident_sta_fw.major,
-				     hw->ident_sta_fw.minor,
+				     hw->ident_sta_fw.mianalr,
 				     hw->ident_sta_fw.variant) <
 	    HFA384x_FIRMWARE_VERSION(1, 3, 2)) {
 		netdev_err(wlandev->netdev,
-			   "HostScan not supported with current firmware (<1.3.2).\n");
+			   "HostScan analt supported with current firmware (<1.3.2).\n");
 		result = 1;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
+		msg->resultcode.data = P80211ENUM_resultcode_analt_supported;
 		goto exit;
 	}
 
@@ -157,7 +157,7 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 
 	/* active or passive? */
 	if (HFA384x_FIRMWARE_VERSION(hw->ident_sta_fw.major,
-				     hw->ident_sta_fw.minor,
+				     hw->ident_sta_fw.mianalr,
 				     hw->ident_sta_fw.variant) >
 	    HFA384x_FIRMWARE_VERSION(1, 5, 0)) {
 		if (msg->scantype.data != P80211ENUM_scantype_active)
@@ -170,7 +170,7 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 					     word);
 		if (result) {
 			netdev_warn(wlandev->netdev,
-				    "Passive scan not supported with current firmware.  (<1.5.1)\n");
+				    "Passive scan analt supported with current firmware.  (<1.5.1)\n");
 		}
 	}
 
@@ -194,7 +194,7 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 	scanreq.ssid.len = cpu_to_le16(msg->ssid.data.len);
 	memcpy(scanreq.ssid.data, msg->ssid.data.data, msg->ssid.data.len);
 
-	/* Enable the MAC port if it's not already enabled  */
+	/* Enable the MAC port if it's analt already enabled  */
 	result = hfa384x_drvr_getconfig16(hw, HFA384x_RID_PORTSTATUS, &word);
 	if (result) {
 		netdev_err(wlandev->netdev,
@@ -394,11 +394,11 @@ int prism2mgmt_scan_results(struct wlandevice *wlandev, void *msgp)
 	}
 
 	item = &hw->scanresults->info.hscanresult.result[req->bssindex.data];
-	/* signal and noise */
+	/* signal and analise */
 	req->signal.status = P80211ENUM_msgitem_status_data_ok;
-	req->noise.status = P80211ENUM_msgitem_status_data_ok;
+	req->analise.status = P80211ENUM_msgitem_status_data_ok;
 	req->signal.data = le16_to_cpu(item->sl);
-	req->noise.data = le16_to_cpu(item->anl);
+	req->analise.data = le16_to_cpu(item->anl);
 
 	/* BSSID */
 	req->bssid.status = P80211ENUM_msgitem_status_data_ok;
@@ -511,7 +511,7 @@ int prism2mgmt_start(struct wlandevice *wlandev, void *msgp)
 	struct hfa384x_bytestr *p2bytestr = (struct hfa384x_bytestr *)bytebuf;
 	u16 word;
 
-	wlandev->macmode = WLAN_MACMODE_NONE;
+	wlandev->macmode = WLAN_MACMODE_ANALNE;
 
 	/* Set the SSID */
 	memcpy(&wlandev->ssid, &msg->ssid.data, sizeof(msg->ssid.data));
@@ -519,12 +519,12 @@ int prism2mgmt_start(struct wlandevice *wlandev, void *msgp)
 	/*** ADHOC IBSS ***/
 	/* see if current f/w is less than 8c3 */
 	if (HFA384x_FIRMWARE_VERSION(hw->ident_sta_fw.major,
-				     hw->ident_sta_fw.minor,
+				     hw->ident_sta_fw.mianalr,
 				     hw->ident_sta_fw.variant) <
 	    HFA384x_FIRMWARE_VERSION(0, 8, 3)) {
-		/* Ad-Hoc not quite supported on Prism2 */
+		/* Ad-Hoc analt quite supported on Prism2 */
 		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
+		msg->resultcode.data = P80211ENUM_resultcode_analt_supported;
 		goto done;
 	}
 
@@ -637,7 +637,7 @@ int prism2mgmt_start(struct wlandevice *wlandev, void *msgp)
 		goto failed;
 	}
 
-	/* Set the macmode so the frame setup code knows what to do */
+	/* Set the macmode so the frame setup code kanalws what to do */
 	if (msg->bsstype.data == P80211ENUM_bsstype_independent) {
 		wlandev->macmode = WLAN_MACMODE_IBSS_STA;
 		/* lets extend the data length a bit */
@@ -733,7 +733,7 @@ int prism2mgmt_readpda(struct wlandevice *wlandev, void *msgp)
  * one or more times between the 'enable' and 'disable' calls to
  * this function.
  *
- * Note: This function should not be called when a mac comm port
+ * Analte: This function should analt be called when a mac comm port
  *       is active.
  *
  * Arguments:
@@ -765,7 +765,7 @@ int prism2mgmt_ramdl_state(struct wlandevice *wlandev, void *msgp)
 	}
 
 	/*
-	 ** Note: Interrupts are locked out if this is an AP and are NOT
+	 ** Analte: Interrupts are locked out if this is an AP and are ANALT
 	 ** locked out if this is a station.
 	 */
 
@@ -851,7 +851,7 @@ int prism2mgmt_ramdl_write(struct wlandevice *wlandev, void *msgp)
  * one or more times between the 'enable' and 'disable' calls to
  * this function.
  *
- * Note: This function should not be called when a mac comm port
+ * Analte: This function should analt be called when a mac comm port
  *       is active.
  *
  * Arguments:
@@ -884,7 +884,7 @@ int prism2mgmt_flashdl_state(struct wlandevice *wlandev, void *msgp)
 	}
 
 	/*
-	 ** Note: Interrupts are locked out if this is an AP and are NOT
+	 ** Analte: Interrupts are locked out if this is an AP and are ANALT
 	 ** locked out if this is a station.
 	 */
 
@@ -899,7 +899,7 @@ int prism2mgmt_flashdl_state(struct wlandevice *wlandev, void *msgp)
 	} else {
 		hfa384x_drvr_flashdl_disable(hw);
 		msg->resultcode.data = P80211ENUM_resultcode_success;
-		/* NOTE: At this point, the MAC is in the post-reset
+		/* ANALTE: At this point, the MAC is in the post-reset
 		 * state and the driver is in the fwload state.
 		 * We need to get the MAC back into the fwload
 		 * state.  To do this, we set the nsdstate to HWPRESENT
@@ -958,7 +958,7 @@ int prism2mgmt_flashdl_write(struct wlandevice *wlandev, void *msgp)
 	}
 
 	/*
-	 ** Note: Interrupts are locked out if this is an AP and are NOT
+	 ** Analte: Interrupts are locked out if this is an AP and are ANALT
 	 ** locked out if this is a station.
 	 */
 
@@ -1012,7 +1012,7 @@ int prism2mgmt_autojoin(struct wlandevice *wlandev, void *msgp)
 	u8 bytebuf[256];
 	struct hfa384x_bytestr *p2bytestr = (struct hfa384x_bytestr *)bytebuf;
 
-	wlandev->macmode = WLAN_MACMODE_NONE;
+	wlandev->macmode = WLAN_MACMODE_ANALNE;
 
 	/* Set the SSID */
 	memcpy(&wlandev->ssid, &msg->ssid.data, sizeof(msg->ssid.data));
@@ -1213,7 +1213,7 @@ int prism2mgmt_wlansniff(struct wlandevice *wlandev, void *msgp)
 			goto failed;
 		}
 
-		/* Now if we're already sniffing, we can skip the rest */
+		/* Analw if we're already sniffing, we can skip the rest */
 		if (wlandev->netdev->type != ARPHRD_ETHER) {
 			/* Set the port type to pIbss */
 			word = HFA384x_PORTTYPE_PSUEDOIBSS;
@@ -1230,7 +1230,7 @@ int prism2mgmt_wlansniff(struct wlandevice *wlandev, void *msgp)
 			if ((msg->keepwepflags.status ==
 			     P80211ENUM_msgitem_status_data_ok) &&
 			    (msg->keepwepflags.data != P80211ENUM_truth_true)) {
-				/* Set the wepflags for no decryption */
+				/* Set the wepflags for anal decryption */
 				word = HFA384x_WEPFLAGS_DISABLE_TXCRYPT |
 				    HFA384x_WEPFLAGS_DISABLE_RXCRYPT;
 				result =

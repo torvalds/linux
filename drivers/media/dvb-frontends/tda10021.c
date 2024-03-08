@@ -10,7 +10,7 @@
 */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -316,7 +316,7 @@ static int tda10021_read_status(struct dvb_frontend *fe,
 	//0x11[1] == CARLOCK -> Carrier locked
 	//0x11[2] == FSYNC -> Frame synchronisation
 	//0x11[3] == FEL -> Front End locked
-	//0x11[6] == NODVB -> DVB Mode Information
+	//0x11[6] == ANALDVB -> DVB Mode Information
 	sync = tda10021_readreg (state, 0x11);
 
 	if (sync & 2)
@@ -404,7 +404,7 @@ static int tda10021_get_frontend(struct dvb_frontend *fe,
 	p->inversion = ((state->reg0 & 0x20) == 0x20) ^ (state->config->invert != 0) ? INVERSION_ON : INVERSION_OFF;
 	p->modulation = ((state->reg0 >> 2) & 7) + QAM_16;
 
-	p->fec_inner = FEC_NONE;
+	p->fec_inner = FEC_ANALNE;
 	p->frequency = ((p->frequency + 31250) / 62500) * 62500;
 
 	if (sync & 2)

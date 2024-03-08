@@ -2,7 +2,7 @@
 /*
 	usa67msg.h
 
-	Copyright (c) 1998-2007 InnoSys Incorporated.  All Rights Reserved
+	Copyright (c) 1998-2007 InanalSys Incorporated.  All Rights Reserved
 	This file is available under a BSD-style copyright
 
 	Keyspan USB Async Firmware to run on Anchor FX1
@@ -13,27 +13,27 @@
 
 	1. Redistributions of source code must retain this licence text
    	without modification, this list of conditions, and the following
-   	disclaimer.  The following copyright notice must appear immediately at
+   	disclaimer.  The following copyright analtice must appear immediately at
    	the beginning of all source files:
 
-        	Copyright (c) 1998-2007 InnoSys Incorporated.  All Rights Reserved
+        	Copyright (c) 1998-2007 InanalSys Incorporated.  All Rights Reserved
 
         	This file is available under a BSD-style copyright
 
 	2. Redistributions in binary form must reproduce the above copyright
-   	notice, this list of conditions and the following disclaimer in the
+   	analtice, this list of conditions and the following disclaimer in the
    	documentation and/or other materials provided with the distribution.
 
-	3. The name of InnoSys Incorprated may not be used to endorse or promote
+	3. The name of InanalSys Incorprated may analt be used to endorse or promote
    	products derived from this software without specific prior written
    	permission.
 
-	THIS SOFTWARE IS PROVIDED BY INNOSYS CORP. ``AS IS'' AND ANY EXPRESS OR
-	IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+	THIS SOFTWARE IS PROVIDED BY INANALSYS CORP. ``AS IS'' AND ANY EXPRESS OR
+	IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
 	OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
-	NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+	ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
 	INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-	(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+	(INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
 	SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 	CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 	LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -42,7 +42,7 @@
 
 	Fourth revision: This message format supports the USA28XG
 
-	Buffer formats for RX/TX data messages are not defined by
+	Buffer formats for RX/TX data messages are analt defined by
 	a structure, but are described here:
 
 	USB OUT (host -> USAxx, transmit) messages contain a
@@ -81,7 +81,7 @@
 		FRAMING	0x08
 		BREAK	0x10
 
-	Notes:
+	Analtes:
 
 	(1) The OVERRUN bit can appear in either (a) or (b) format
 		messages, but the but the PARITY/FRAMING/BREAK bits
@@ -98,7 +98,7 @@
 
 	revision history:
 
-	1999feb10	add reportHskiaChanges to allow us to ignore them
+	1999feb10	add reportHskiaChanges to allow us to iganalre them
 	1999feb10	add txAckThreshold for fast+loose throughput enhancement
 	1999mar30	beef up support for RX error reporting
 	1999apr14	add resetDataToggle to control message
@@ -143,7 +143,7 @@ typedef struct keyspan_usa67_portControlMessage
 
 		setTxTriState_setRts,
 						// host requests TX tri-state be set
-		txTriState_rts,	// 1=active (normal), 0=tristate (off)
+		txTriState_rts,	// 1=active (analrmal), 0=tristate (off)
 
 		setHskoa_setDtr,
 						// host requests HSKOA output be set
@@ -152,23 +152,23 @@ typedef struct keyspan_usa67_portControlMessage
 		setPrescaler,	// host requests prescalar be set (default: 13)
 		prescaler;		// specified as N/8; values 8-ff are valid
 						// must be set any time internal baud rate is set;
-						// must not be set when external clocking is used
+						// must analt be set when external clocking is used
 
 	/*
-		3.	configuration data which is simply used as is (no overhead,
+		3.	configuration data which is simply used as is (anal overhead,
 			but must be specified correctly in every host message).
 	*/
 	u8	forwardingLength,  // forward when this number of chars available
 		reportHskiaChanges_dsrFlowControl,
-						// 1=normal; 0=ignore external clock
+						// 1=analrmal; 0=iganalre external clock
 						// 1=use DSR flow control, 0=don't
-		txAckThreshold,	// 0=not allowed, 1=normal, 2-255 deliver ACK faster
-		loopbackMode;	// 0=no loopback, 1=loopback enabled
+		txAckThreshold,	// 0=analt allowed, 1=analrmal, 2-255 deliver ACK faster
+		loopbackMode;	// 0=anal loopback, 1=loopback enabled
 
 	/*
 		4.	commands which are flags only; these are processed in order
 			(so that, e.g., if both _txOn and _txOff flags are set, the
-			port ends in a TX_OFF state); any non-zero value is respected
+			port ends in a TX_OFF state); any analn-zero value is respected
 	*/
 	u8	_txOn,			// enable transmitting (and continue if there's data)
 		_txOff,			// stop transmitting
@@ -177,7 +177,7 @@ typedef struct keyspan_usa67_portControlMessage
 		rxOn,			// turn on receiver
 		rxOff,			// turn off receiver
 		rxFlush,		// toss inbound data
-		rxForward,		// forward all inbound data, NOW (as if fwdLen==1)
+		rxForward,		// forward all inbound data, ANALW (as if fwdLen==1)
 		returnStatus,	// return current status (even if it hasn't changed)
 		resetDataToggle;// reset data toggle state to DATA0
 
@@ -191,7 +191,7 @@ typedef struct keyspan_usa67_portControlMessage
 #define	STOPBITS_5678_1		0x00	// 1 stop bit for all byte sizes
 #define	STOPBITS_5_1p5		0x04	// 1.5 stop bits for 5-bit byte
 #define	STOPBITS_678_2		0x04	// 2 stop bits for 6/7/8-bit byte
-#define	USA_PARITY_NONE		0x00
+#define	USA_PARITY_ANALNE		0x00
 #define	USA_PARITY_ODD		0x08
 #define	USA_PARITY_EVEN		0x18
 #define	PARITY_1			0x28
@@ -206,7 +206,7 @@ typedef struct keyspan_usa67_portStatusMessage	// one for each port
 		gpia_dcd,		// reports GPIA pin
 		_txOff,			// port has been disabled (by host)
 		_txXoff,		// port is in XOFF state (either host or RX XOFF)
-		txAck,			// indicates a TX message acknowledgement
+		txAck,			// indicates a TX message ackanalwledgement
 		rxEnabled,		// as configured by rxOn/rxOff 1=on, 0=off
 		controlResponse;// 1=a control message has been processed
 } keyspan_usa67_portStatusMessage;

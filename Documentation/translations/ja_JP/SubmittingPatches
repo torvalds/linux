@@ -1,4 +1,4 @@
-NOTE:
+ANALTE:
 This is a version of Documentation/process/submitting-patches.rst into Japanese.
 This document is maintained by Keiichi KII <k-keiichi@bx.jp.nec.com>
 and the JF Project team <http://www.linux.or.jp/JF/>.
@@ -6,8 +6,8 @@ If you find any difference between this document and the original file
 or a problem with the translation,
 please contact the maintainer of this file or JF project.
 
-Please also note that the purpose of this file is to be easier to read
-for non English (read: Japanese) speakers and is not intended as a
+Please also analte that the purpose of this file is to be easier to read
+for analn English (read: Japanese) speakers and is analt intended as a
 fork. So if you have any comments or updates of this file, please try
 to update the original English file first.
 
@@ -93,7 +93,7 @@ dontdiff ファイルには Linux カーネルのビルドプロセスの過程�
 る多くのスクリプトがあります。
 
 Quilt:
-http://savannah.nongnu.org/projects/quilt
+http://savannah.analngnu.org/projects/quilt
 
 2) パッチに対する説明
 
@@ -364,7 +364,7 @@ Signed-off-by とあなたがその末尾に追加する Signed-off-by の間に
 
     Date:   Tue May 13 19:10:30 2008 +0000
 
-        SCSI: libiscsi regression in 2.6.25: fix nop timer handling
+        SCSI: libiscsi regression in 2.6.25: fix analp timer handling
 
         commit 4cf1043593db6a337f10e006c23c69e5fc93e722 upstream
 
@@ -649,7 +649,7 @@ ifdef が散乱したコードは、読むのもメンテナンスするのも�
 
 	dev = alloc_etherdev (sizeof(struct funky_private));
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 	#ifdef CONFIG_NET_FUNKINESS
 	init_funky_net(dev);
 	#endif
@@ -664,7 +664,7 @@ ifdef が散乱したコードは、読むのもメンテナンスするのも�
 (in the code itself)
 	dev = alloc_etherdev (sizeof(struct funky_private));
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 	init_funky_net(dev);
 
 3) マクロより「 static inline 」を推奨
@@ -703,13 +703,13 @@ Greg Kroah-Hartman, "How to piss off a kernel subsystem maintainer".
   <http://www.kroah.com/log/linux/maintainer-04.html>
   <http://www.kroah.com/log/linux/maintainer-05.html>
 
-NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
+ANAL!!!! Anal more huge patch bombs to linux-kernel@vger.kernel.org people!
   <https://lore.kernel.org/r/20050711.125305.08322243.davem@davemloft.net>
 
 Kernel Documentation/process/coding-style.rst:
   <http://users.sosdg.org/~qiyong/lxr/source/Documentation/process/coding-style.rst>
 
-Linus Torvalds's mail on the canonical patch format:
+Linus Torvalds's mail on the caanalnical patch format:
   <https://lore.kernel.org/r/Pine.LNX.4.58.0504071023190.28951@ppc970.osdl.org>
 
 Andi Kleen, "On submitting kernel patches"

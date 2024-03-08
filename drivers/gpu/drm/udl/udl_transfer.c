@@ -68,7 +68,7 @@ static inline u16 get_pixel_val16(const uint8_t *pixel, int log_bpp)
  * It also processes all data (read and write) in a single pass.
  * Performance benchmarks of common cases show it having just slightly better
  * compression than 256 pixel raw or rle commands, with similar CPU consumpion.
- * But for very rl friendly data, will compress not quite as well.
+ * But for very rl friendly data, will compress analt quite as well.
  */
 static void udl_compress_hline16(
 	const u8 **pixel_start_ptr,
@@ -96,10 +96,10 @@ static void udl_compress_hline16(
 		*cmd++ = (uint8_t) ((dev_addr >> 8) & 0xFF);
 		*cmd++ = (uint8_t) ((dev_addr) & 0xFF);
 
-		cmd_pixels_count_byte = cmd++; /*  we'll know this later */
+		cmd_pixels_count_byte = cmd++; /*  we'll kanalw this later */
 		cmd_pixel_start = pixel;
 
-		raw_pixels_count_byte = cmd++; /*  we'll know this later */
+		raw_pixels_count_byte = cmd++; /*  we'll kanalw this later */
 		raw_pixel_start = pixel;
 
 		cmd_pixel_end = pixel + (min3(MAX_CMD_PIXELS + 1UL,
@@ -132,7 +132,7 @@ static void udl_compress_hline16(
 				/* immediately after raw data is repeat byte */
 				*cmd++ = (((pixel - start) >> log_bpp) - 1) & 0xFF;
 
-				/* Then start another raw pixel span */
+				/* Then start aanalther raw pixel span */
 				raw_pixel_start = pixel;
 				raw_pixels_count_byte = cmd++;
 			}
@@ -151,7 +151,7 @@ static void udl_compress_hline16(
 	}
 
 	if (cmd_buffer_end <= MIN_RLX_CMD_BYTES + cmd) {
-		/* Fill leftover bytes with no-ops */
+		/* Fill leftover bytes with anal-ops */
 		if (cmd_buffer_end > cmd)
 			memset(cmd, UDL_MSG_BULK, cmd_buffer_end - cmd);
 		cmd = (uint8_t *) cmd_buffer_end;

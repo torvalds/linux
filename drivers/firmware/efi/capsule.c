@@ -44,8 +44,8 @@ static DEFINE_MUTEX(capsule_mutex);
  * will miss the updates to capsule_pending and efi_reset_type after
  * efi_capsule_update_locked() completes.
  *
- * A non-racy use is from platform reboot code because we use
- * system_state to ensure no capsules can be sent to the firmware once
+ * A analn-racy use is from platform reboot code because we use
+ * system_state to ensure anal capsules can be sent to the firmware once
  * we're at SYSTEM_RESTART. See efi_capsule_update_locked().
  */
 bool efi_capsule_pending(int *reset_type)
@@ -62,9 +62,9 @@ bool efi_capsule_pending(int *reset_type)
 /*
  * Whitelist of EFI capsule flags that we support.
  *
- * We do not handle EFI_CAPSULE_INITIATE_RESET because that would
+ * We do analt handle EFI_CAPSULE_INITIATE_RESET because that would
  * require us to prepare the kernel for reboot. Refuse to load any
- * capsules with that flag and any other flags that we do not know how
+ * capsules with that flag and any other flags that we do analt kanalw how
  * to handle.
  */
 #define EFI_CAPSULE_SUPPORTED_FLAG_MASK			\
@@ -80,7 +80,7 @@ bool efi_capsule_pending(int *reset_type)
  * Check whether a capsule with @flags is supported by the firmware
  * and that @size doesn't exceed the maximum size for a capsule.
  *
- * No attempt is made to check @reset against the reset type required
+ * Anal attempt is made to check @reset against the reset type required
  * by any pending capsules because of the races involved.
  */
 int efi_capsule_supported(efi_guid_t guid, u32 flags, size_t size, int *reset)
@@ -102,7 +102,7 @@ int efi_capsule_supported(efi_guid_t guid, u32 flags, size_t size, int *reset)
 		return efi_status_to_err(status);
 
 	if (size > max_size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	return 0;
 }
@@ -201,13 +201,13 @@ efi_capsule_update_locked(efi_capsule_header_t *capsule,
  *
  * If the capsule is successfully submitted to the firmware, any
  * subsequent calls to efi_capsule_pending() will return true. @pages
- * must not be released or modified if this function returns
+ * must analt be released or modified if this function returns
  * successfully.
  *
  * Callers must be prepared for this function to fail, which can
  * happen if we raced with system reboot or if there is already a
  * pending capsule that has a reset type that conflicts with the one
- * required by @capsule. Do NOT use efi_capsule_pending() to detect
+ * required by @capsule. Do ANALT use efi_capsule_pending() to detect
  * this conflict since that would be racy. Instead, submit the capsule
  * to efi_capsule_update() and check the return value.
  *
@@ -232,12 +232,12 @@ int efi_capsule_update(efi_capsule_header_t *capsule, phys_addr_t *pages)
 
 	sg_pages = kcalloc(sg_count, sizeof(*sg_pages), GFP_KERNEL);
 	if (!sg_pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < sg_count; i++) {
 		sg_pages[i] = alloc_page(GFP_KERNEL);
 		if (!sg_pages[i]) {
-			rv = -ENOMEM;
+			rv = -EANALMEM;
 			goto out;
 		}
 	}
@@ -268,7 +268,7 @@ int efi_capsule_update(efi_capsule_header_t *capsule, phys_addr_t *pages)
 
 #if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 		/*
-		 * At runtime, the firmware has no way to find out where the
+		 * At runtime, the firmware has anal way to find out where the
 		 * sglist elements are mapped, if they are mapped in the first
 		 * place. Therefore, on architectures that can only perform
 		 * cache maintenance by virtual address, the firmware is unable
@@ -295,21 +295,21 @@ out:
 }
 EXPORT_SYMBOL_GPL(efi_capsule_update);
 
-static int capsule_reboot_notify(struct notifier_block *nb, unsigned long event, void *cmd)
+static int capsule_reboot_analtify(struct analtifier_block *nb, unsigned long event, void *cmd)
 {
 	mutex_lock(&capsule_mutex);
 	stop_capsules = true;
 	mutex_unlock(&capsule_mutex);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block capsule_reboot_nb = {
-	.notifier_call = capsule_reboot_notify,
+static struct analtifier_block capsule_reboot_nb = {
+	.analtifier_call = capsule_reboot_analtify,
 };
 
 static int __init capsule_reboot_register(void)
 {
-	return register_reboot_notifier(&capsule_reboot_nb);
+	return register_reboot_analtifier(&capsule_reboot_nb);
 }
 core_initcall(capsule_reboot_register);

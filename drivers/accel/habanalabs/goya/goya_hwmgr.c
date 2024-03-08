@@ -31,7 +31,7 @@ void goya_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq)
 		hl_fw_set_frequency(hdev, HL_GOYA_IC_PLL, goya->ic_clk);
 		break;
 	default:
-		dev_err(hdev->dev, "unknown frequency setting\n");
+		dev_err(hdev->dev, "unkanalwn frequency setting\n");
 	}
 }
 
@@ -42,7 +42,7 @@ static ssize_t mme_clk_show(struct device *dev, struct device_attribute *attr,
 	long value;
 
 	if (!hl_device_operational(hdev, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	value = hl_fw_get_frequency(hdev, HL_GOYA_MME_PLL, false);
 
@@ -61,7 +61,7 @@ static ssize_t mme_clk_store(struct device *dev, struct device_attribute *attr,
 	long value;
 
 	if (!hl_device_operational(hdev, NULL)) {
-		count = -ENODEV;
+		count = -EANALDEV;
 		goto fail;
 	}
 
@@ -91,7 +91,7 @@ static ssize_t tpc_clk_show(struct device *dev, struct device_attribute *attr,
 	long value;
 
 	if (!hl_device_operational(hdev, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	value = hl_fw_get_frequency(hdev, HL_GOYA_TPC_PLL, false);
 
@@ -110,7 +110,7 @@ static ssize_t tpc_clk_store(struct device *dev, struct device_attribute *attr,
 	long value;
 
 	if (!hl_device_operational(hdev, NULL)) {
-		count = -ENODEV;
+		count = -EANALDEV;
 		goto fail;
 	}
 
@@ -140,7 +140,7 @@ static ssize_t ic_clk_show(struct device *dev, struct device_attribute *attr,
 	long value;
 
 	if (!hl_device_operational(hdev, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	value = hl_fw_get_frequency(hdev, HL_GOYA_IC_PLL, false);
 
@@ -159,7 +159,7 @@ static ssize_t ic_clk_store(struct device *dev, struct device_attribute *attr,
 	long value;
 
 	if (!hl_device_operational(hdev, NULL)) {
-		count = -ENODEV;
+		count = -EANALDEV;
 		goto fail;
 	}
 
@@ -189,7 +189,7 @@ static ssize_t mme_clk_curr_show(struct device *dev,
 	long value;
 
 	if (!hl_device_operational(hdev, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	value = hl_fw_get_frequency(hdev, HL_GOYA_MME_PLL, true);
 
@@ -206,7 +206,7 @@ static ssize_t tpc_clk_curr_show(struct device *dev,
 	long value;
 
 	if (!hl_device_operational(hdev, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	value = hl_fw_get_frequency(hdev, HL_GOYA_TPC_PLL, true);
 
@@ -223,7 +223,7 @@ static ssize_t ic_clk_curr_show(struct device *dev,
 	long value;
 
 	if (!hl_device_operational(hdev, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	value = hl_fw_get_frequency(hdev, HL_GOYA_IC_PLL, true);
 
@@ -240,12 +240,12 @@ static ssize_t pm_mng_profile_show(struct device *dev,
 	struct goya_device *goya = hdev->asic_specific;
 
 	if (!hl_device_operational(hdev, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "%s\n",
 			(goya->pm_mng_profile == PM_AUTO) ? "auto" :
 			(goya->pm_mng_profile == PM_MANUAL) ? "manual" :
-			"unknown");
+			"unkanalwn");
 }
 
 static ssize_t pm_mng_profile_store(struct device *dev,
@@ -255,7 +255,7 @@ static ssize_t pm_mng_profile_store(struct device *dev,
 	struct goya_device *goya = hdev->asic_specific;
 
 	if (!hl_device_operational(hdev, NULL)) {
-		count = -ENODEV;
+		count = -EANALDEV;
 		goto out;
 	}
 
@@ -279,7 +279,7 @@ static ssize_t pm_mng_profile_store(struct device *dev,
 		if (goya->pm_mng_profile == PM_AUTO) {
 			/* Must release the lock because the work thread also
 			 * takes this lock. But before we release it, set
-			 * the mode to manual so nothing will change if a user
+			 * the mode to manual so analthing will change if a user
 			 * suddenly opens the device
 			 */
 			goya->pm_mng_profile = PM_MANUAL;
@@ -287,7 +287,7 @@ static ssize_t pm_mng_profile_store(struct device *dev,
 			mutex_unlock(&hdev->fpriv_list_lock);
 
 			/* Flush the current work so we can return to the user
-			 * knowing that he is the only one changing frequencies
+			 * kanalwing that he is the only one changing frequencies
 			 */
 			if (goya->goya_work)
 				flush_delayed_work(&goya->goya_work->work_freq);
@@ -311,7 +311,7 @@ static ssize_t high_pll_show(struct device *dev, struct device_attribute *attr,
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
 	if (!hl_device_operational(hdev, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "%u\n", hdev->high_pll);
 }
@@ -324,7 +324,7 @@ static ssize_t high_pll_store(struct device *dev, struct device_attribute *attr,
 	int rc;
 
 	if (!hl_device_operational(hdev, NULL)) {
-		count = -ENODEV;
+		count = -EANALDEV;
 		goto out;
 	}
 

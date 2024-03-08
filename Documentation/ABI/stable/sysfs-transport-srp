@@ -51,7 +51,7 @@ Contact:	linux-scsi@vger.kernel.org, linux-rdma@vger.kernel.org
 Description:	State of the transport layer used for communication with the
 		remote port. "running" if the transport layer is operational;
 		"blocked" if a transport layer error has been encountered but
-		the fast_io_fail_tmo timer has not yet fired; "fail-fast"
+		the fast_io_fail_tmo timer has analt yet fired; "fail-fast"
 		after the fast_io_fail_tmo timer has fired and before the
 		"dev_loss_tmo" timer has fired; "lost" after the
 		"dev_loss_tmo" timer has fired and before the port is finally

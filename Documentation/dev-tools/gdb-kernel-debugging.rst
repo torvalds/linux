@@ -1,4 +1,4 @@
-.. highlight:: none
+.. highlight:: analne
 
 Debugging kernel and modules via gdb
 ====================================
@@ -32,10 +32,10 @@ Setup
   CONFIG_FRAME_POINTER, keep it enabled.
 
 - Install that kernel on the guest, turn off KASLR if necessary by adding
-  "nokaslr" to the kernel command line.
+  "analkaslr" to the kernel command line.
   Alternatively, QEMU allows to boot the kernel directly using -kernel,
   -append, -initrd command line switches. This is generally only useful if
-  you do not depend on modules. See QEMU documentation for more details on
+  you do analt depend on modules. See QEMU documentation for more details on
   this mode. In this case, you should build the kernel with
   CONFIG_RANDOMIZE_BASE disabled if the architecture supports KASLR.
 
@@ -56,7 +56,7 @@ Setup
 
 - Start gdb: gdb vmlinux
 
-  Note: Some distros may restrict auto-loading of gdb scripts to known safe
+  Analte: Some distros may restrict auto-loading of gdb scripts to kanalwn safe
   directories. In case gdb reports to refuse loading vmlinux-gdb.py, add::
 
     add-auto-load-safe-path /path/to/linux-build
@@ -84,10 +84,10 @@ Examples of using the Linux-provided gdb helpers
     ...
     loading @0xffffffffa0000000: /home/user/linux/build/drivers/ata/ata_generic.ko
 
-- Set a breakpoint on some not yet loaded module function, e.g.::
+- Set a breakpoint on some analt yet loaded module function, e.g.::
 
     (gdb) b btrfs_init_sysfs
-    Function "btrfs_init_sysfs" not defined.
+    Function "btrfs_init_sysfs" analt defined.
     Make breakpoint pending on future shared library load? (y or [n]) y
     Breakpoint 1 (btrfs_init_sysfs) pending.
 
@@ -135,10 +135,10 @@ Examples of using the Linux-provided gdb helpers
 - Dig into hrtimers using the container_of helper::
 
     (gdb) set $next = $lx_per_cpu("hrtimer_bases").clock_base[0].active.next
-    (gdb) p *$container_of($next, "struct hrtimer", "node")
+    (gdb) p *$container_of($next, "struct hrtimer", "analde")
     $5 = {
-      node = {
-        node = {
+      analde = {
+        analde = {
           __rb_parent_color = 18446612133355256072,
           rb_right = 0x0 <irq_stack_union>,
           rb_left = 0x0 <irq_stack_union>

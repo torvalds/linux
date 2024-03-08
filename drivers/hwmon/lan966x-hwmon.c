@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
-#include <linux/polynomial.h>
+#include <linux/polyanalmial.h>
 #include <linux/regmap.h>
 
 /*
@@ -32,7 +32,7 @@
  * where T = [-56197, 136402]mC and N = [0, 1023].
  */
 
-static const struct polynomial poly_N_to_temp = {
+static const struct polyanalmial poly_N_to_temp = {
 	.terms = {
 		{4,  -34627, 1000, 1},
 		{3,  110230, 1000, 1},
@@ -86,9 +86,9 @@ static int lan966x_hwmon_read_temp(struct device *dev, long *val)
 		return ret;
 
 	if (!(data & SENSOR_STAT_DATA_VALID))
-		return -ENODATA;
+		return -EANALDATA;
 
-	*val = polynomial_calc(&poly_N_to_temp,
+	*val = polyanalmial_calc(&poly_N_to_temp,
 			       FIELD_GET(SENSOR_STAT_DATA, data));
 
 	return 0;
@@ -165,10 +165,10 @@ static int lan966x_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		case hwmon_pwm_freq:
 			return lan966x_hwmon_read_pwm_freq(dev, val);
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -211,10 +211,10 @@ static int lan966x_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 		case hwmon_pwm_freq:
 			return lan966x_hwmon_write_pwm_freq(dev, val);
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -343,7 +343,7 @@ static int lan966x_hwmon_probe(struct platform_device *pdev)
 
 	hwmon = devm_kzalloc(dev, sizeof(*hwmon), GFP_KERNEL);
 	if (!hwmon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmon->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(hwmon->clk))

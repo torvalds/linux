@@ -7,7 +7,7 @@
 
 extern const struct seq_operations cpuinfo_op;
 
-static int cpuinfo_open(struct inode *inode, struct file *file)
+static int cpuinfo_open(struct ianalde *ianalde, struct file *file)
 {
 	return seq_open(file, &cpuinfo_op);
 }

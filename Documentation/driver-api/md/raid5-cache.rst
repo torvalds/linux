@@ -2,7 +2,7 @@
 RAID 4/5/6 cache
 ================
 
-Raid 4/5/6 could include an extra disk for data cache besides normal RAID
+Raid 4/5/6 could include an extra disk for data cache besides analrmal RAID
 disks. The role of RAID disks isn't changed with the cache disk. The cache disk
 caches data to the RAID disks. The cache can be in write-through (supported
 since 4.4) or write-back mode (supported since 4.10). mdadm (supported since
@@ -23,11 +23,11 @@ write-through mode
 ==================
 
 This mode mainly fixes the 'write hole' issue. For RAID 4/5/6 array, an unclean
-shutdown can cause data in some stripes to not be in consistent state, eg, data
+shutdown can cause data in some stripes to analt be in consistent state, eg, data
 and parity don't match. The reason is that a stripe write involves several RAID
 disks and it's possible the writes don't hit all RAID disks yet before the
 unclean shutdown. We call an array degraded if it has inconsistent data. MD
-tries to resync the array to bring it back to normal state. But before the
+tries to resync the array to bring it back to analrmal state. But before the
 resync completes, any system crash will expose the chance of real data
 corruption in the RAID array. This problem is called 'write hole'.
 
@@ -42,7 +42,7 @@ doesn't cause data loss. Of course cache disk failure means the array is
 exposed to 'write hole' again.
 
 In write-through mode, the cache disk isn't required to be big. Several
-hundreds megabytes are enough.
+hundreds megabytes are eanalugh.
 
 write-back mode
 ===============
@@ -50,9 +50,9 @@ write-back mode
 write-back mode fixes the 'write hole' issue too, since all write data is
 cached on cache disk. But the main goal of 'write-back' cache is to speed up
 write. If a write crosses all RAID disks of a stripe, we call it full-stripe
-write. For non-full-stripe writes, MD must read old data before the new parity
-can be calculated. These synchronous reads hurt write throughput. Some writes
-which are sequential but not dispatched in the same time will suffer from this
+write. For analn-full-stripe writes, MD must read old data before the new parity
+can be calculated. These synchroanalus reads hurt write throughput. Some writes
+which are sequential but analt dispatched in the same time will suffer from this
 overhead too. Write-back cache will aggregate the data and flush the data to
 RAID disks only after the data becomes a full stripe write. This will
 completely avoid the overhead, so it's very helpful for some workloads. A
@@ -108,4 +108,4 @@ data and data. If MD finds a stripe with data and valid parities (1 parity for
 raid4/5 and 2 for raid6), MD will write the data and parities to RAID disks. If
 parities are incompleted, they are discarded. If part of data is corrupted,
 they are discarded too. MD then loads valid data and writes them to RAID disks
-in normal way.
+in analrmal way.

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -74,7 +74,7 @@ static int igt_add_request(void *arg)
 
 	request = mock_request(rcs0(i915)->kernel_context, HZ / 10);
 	if (!request)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i915_request_add(request);
 
@@ -92,7 +92,7 @@ static int igt_wait_request(void *arg)
 
 	request = mock_request(rcs0(i915)->kernel_context, T);
 	if (!request)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i915_request_get(request);
 
@@ -134,7 +134,7 @@ static int igt_wait_request(void *arg)
 	}
 
 	if (!i915_request_completed(request)) {
-		pr_err("request not complete after waiting!\n");
+		pr_err("request analt complete after waiting!\n");
 		goto out_request;
 	}
 
@@ -161,7 +161,7 @@ static int igt_fence_wait(void *arg)
 
 	request = mock_request(rcs0(i915)->kernel_context, T);
 	if (!request)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (dma_fence_wait_timeout(&request->fence, false, T) != -ETIME) {
 		pr_err("fence wait success before submit (expected timeout)!\n");
@@ -211,7 +211,7 @@ static int igt_request_rewind(void *arg)
 
 	ctx[0] = mock_context(i915, "A");
 	if (!ctx[0]) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_ctx_0;
 	}
 
@@ -220,7 +220,7 @@ static int igt_request_rewind(void *arg)
 	request = mock_request(ce, 2 * HZ);
 	intel_context_put(ce);
 	if (!request) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_context_0;
 	}
 
@@ -229,7 +229,7 @@ static int igt_request_rewind(void *arg)
 
 	ctx[1] = mock_context(i915, "B");
 	if (!ctx[1]) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_ctx_1;
 	}
 
@@ -238,7 +238,7 @@ static int igt_request_rewind(void *arg)
 	vip = mock_request(ce, 0);
 	intel_context_put(ce);
 	if (!vip) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_context_1;
 	}
 
@@ -330,13 +330,13 @@ static void __igt_breadcrumbs_smoketest(struct kthread_work *work)
 
 	requests = kcalloc(total, sizeof(*requests), GFP_KERNEL);
 	if (!requests) {
-		thread->result = -ENOMEM;
+		thread->result = -EANALMEM;
 		return;
 	}
 
 	order = i915_random_order(total, &prng);
 	if (!order) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_requests;
 	}
 
@@ -346,7 +346,7 @@ static void __igt_breadcrumbs_smoketest(struct kthread_work *work)
 
 		submit = heap_fence_create(GFP_KERNEL);
 		if (!submit) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -354,7 +354,7 @@ static void __igt_breadcrumbs_smoketest(struct kthread_work *work)
 		if (!wait) {
 			i915_sw_fence_commit(submit);
 			heap_fence_put(submit);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -407,7 +407,7 @@ static void __igt_breadcrumbs_smoketest(struct kthread_work *work)
 
 			pr_err("waiting for %d/%d fences (last %llx:%lld) on %s timed out!\n",
 			       atomic_read(&wait->pending), count,
-			       rq->fence.context, rq->fence.seqno,
+			       rq->fence.context, rq->fence.seqanal,
 			       t->engine->name);
 			GEM_TRACE_DUMP();
 
@@ -422,8 +422,8 @@ static void __igt_breadcrumbs_smoketest(struct kthread_work *work)
 
 			if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
 				      &rq->fence.flags)) {
-				pr_err("%llu:%llu was not signaled!\n",
-				       rq->fence.context, rq->fence.seqno);
+				pr_err("%llu:%llu was analt signaled!\n",
+				       rq->fence.context, rq->fence.seqanal);
 				err = -EINVAL;
 			}
 
@@ -473,18 +473,18 @@ static int mock_breadcrumbs_smoketest(void *arg)
 
 	threads = kcalloc(ncpus, sizeof(*threads), GFP_KERNEL);
 	if (!threads)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t.contexts = kcalloc(t.ncontexts, sizeof(*t.contexts), GFP_KERNEL);
 	if (!t.contexts) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_threads;
 	}
 
 	for (n = 0; n < t.ncontexts; n++) {
 		t.contexts[n] = mock_context(t.engine->i915, "mock");
 		if (!t.contexts[n]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_contexts;
 		}
 	}
@@ -554,7 +554,7 @@ int i915_request_mock_selftests(void)
 
 	i915 = mock_gem_device();
 	if (!i915)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		err = i915_subtests(tests, i915);
@@ -564,12 +564,12 @@ int i915_request_mock_selftests(void)
 	return err;
 }
 
-static int live_nop_request(void *arg)
+static int live_analp_request(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine;
 	struct igt_live_test t;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	/*
 	 * Submit various sized batches of empty requests, to each engine
@@ -601,7 +601,7 @@ static int live_nop_request(void *arg)
 				/*
 				 * This space is left intentionally blank.
 				 *
-				 * We do not actually want to perform any
+				 * We do analt actually want to perform any
 				 * action with this request, we just want
 				 * to measure the latency in allocation
 				 * and submission of our breadcrumbs -
@@ -648,7 +648,7 @@ static int __cancel_inactive(struct intel_engine_cs *engine)
 	int err = 0;
 
 	if (igt_spinner_init(&spin, engine->gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ce = intel_context_create(engine);
 	if (IS_ERR(ce)) {
@@ -677,7 +677,7 @@ static int __cancel_inactive(struct intel_engine_cs *engine)
 	}
 
 	if (rq->fence.error != -EINTR) {
-		pr_err("%s: fence not cancelled (%u)\n",
+		pr_err("%s: fence analt cancelled (%u)\n",
 		       engine->name, rq->fence.error);
 		err = -EINVAL;
 	}
@@ -701,7 +701,7 @@ static int __cancel_active(struct intel_engine_cs *engine)
 	int err = 0;
 
 	if (igt_spinner_init(&spin, engine->gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ce = intel_context_create(engine);
 	if (IS_ERR(ce)) {
@@ -738,7 +738,7 @@ static int __cancel_active(struct intel_engine_cs *engine)
 	}
 
 	if (rq->fence.error != -EINTR) {
-		pr_err("%s: fence not cancelled (%u)\n",
+		pr_err("%s: fence analt cancelled (%u)\n",
 		       engine->name, rq->fence.error);
 		err = -EINVAL;
 	}
@@ -762,7 +762,7 @@ static int __cancel_completed(struct intel_engine_cs *engine)
 	int err = 0;
 
 	if (igt_spinner_init(&spin, engine->gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ce = intel_context_create(engine);
 	if (IS_ERR(ce)) {
@@ -787,7 +787,7 @@ static int __cancel_completed(struct intel_engine_cs *engine)
 	pr_debug("%s: Cancelling completed request\n", engine->name);
 	i915_request_cancel(rq, -EINTR);
 	if (rq->fence.error) {
-		pr_err("%s: fence not cancelled (%u)\n",
+		pr_err("%s: fence analt cancelled (%u)\n",
 		       engine->name, rq->fence.error);
 		err = -EINVAL;
 	}
@@ -804,13 +804,13 @@ out_spin:
 }
 
 /*
- * Test to prove a non-preemptable request can be cancelled and a subsequent
+ * Test to prove a analn-preemptable request can be cancelled and a subsequent
  * request on the same context can successfully complete after cancellation.
  *
- * Testing methodology is to create a non-preemptible request and submit it,
- * wait for spinner to start, create a NOP request and submit it, cancel the
+ * Testing methodology is to create a analn-preemptible request and submit it,
+ * wait for spinner to start, create a ANALP request and submit it, cancel the
  * spinner, wait for spinner to complete and verify it failed with an error,
- * finally wait for NOP request to complete verify it succeeded without an
+ * finally wait for ANALP request to complete verify it succeeded without an
  * error. Preemption timeout also reduced / restored so test runs in a timely
  * maner.
  */
@@ -819,7 +819,7 @@ static int __cancel_reset(struct drm_i915_private *i915,
 {
 	struct intel_context *ce;
 	struct igt_spinner spin;
-	struct i915_request *rq, *nop;
+	struct i915_request *rq, *analp;
 	unsigned long preempt_timeout_ms;
 	int err = 0;
 
@@ -839,13 +839,13 @@ static int __cancel_reset(struct drm_i915_private *i915,
 		goto out_spin;
 	}
 
-	rq = igt_spinner_create_request(&spin, ce, MI_NOOP);
+	rq = igt_spinner_create_request(&spin, ce, MI_ANALOP);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto out_ce;
 	}
 
-	pr_debug("%s: Cancelling active non-preemptable request\n",
+	pr_debug("%s: Cancelling active analn-preemptable request\n",
 		 engine->name);
 	i915_request_get(rq);
 	i915_request_add(rq);
@@ -858,11 +858,11 @@ static int __cancel_reset(struct drm_i915_private *i915,
 		goto out_rq;
 	}
 
-	nop = intel_context_create_request(ce);
-	if (IS_ERR(nop))
+	analp = intel_context_create_request(ce);
+	if (IS_ERR(analp))
 		goto out_rq;
-	i915_request_get(nop);
-	i915_request_add(nop);
+	i915_request_get(analp);
+	i915_request_add(analp);
 
 	i915_request_cancel(rq, -EINTR);
 
@@ -872,33 +872,33 @@ static int __cancel_reset(struct drm_i915_private *i915,
 		pr_err("%s: Failed to cancel hung request\n", engine->name);
 		intel_engine_dump(engine, &p, "%s\n", engine->name);
 		err = -ETIME;
-		goto out_nop;
+		goto out_analp;
 	}
 
 	if (rq->fence.error != -EINTR) {
-		pr_err("%s: fence not cancelled (%u)\n",
+		pr_err("%s: fence analt cancelled (%u)\n",
 		       engine->name, rq->fence.error);
 		err = -EINVAL;
-		goto out_nop;
+		goto out_analp;
 	}
 
-	if (i915_request_wait(nop, 0, HZ) < 0) {
+	if (i915_request_wait(analp, 0, HZ) < 0) {
 		struct drm_printer p = drm_info_printer(engine->i915->drm.dev);
 
-		pr_err("%s: Failed to complete nop request\n", engine->name);
+		pr_err("%s: Failed to complete analp request\n", engine->name);
 		intel_engine_dump(engine, &p, "%s\n", engine->name);
 		err = -ETIME;
-		goto out_nop;
+		goto out_analp;
 	}
 
-	if (nop->fence.error != 0) {
-		pr_err("%s: Nop request errored (%u)\n",
-		       engine->name, nop->fence.error);
+	if (analp->fence.error != 0) {
+		pr_err("%s: Analp request errored (%u)\n",
+		       engine->name, analp->fence.error);
 		err = -EINVAL;
 	}
 
-out_nop:
-	i915_request_put(nop);
+out_analp:
+	i915_request_put(analp);
 out_rq:
 	i915_request_put(rq);
 out_ce:
@@ -991,7 +991,7 @@ static struct i915_vma *empty_batch(struct intel_gt *gt)
 	if (err)
 		goto err;
 
-	/* Force the wait now to avoid including it in the benchmark */
+	/* Force the wait analw to avoid including it in the benchmark */
 	err = i915_vma_sync(vma);
 	if (err)
 		goto err_pin;
@@ -1204,7 +1204,7 @@ static int live_all_engines(void *arg)
 
 	request = kcalloc(nengines, sizeof(*request), GFP_KERNEL);
 	if (!request)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = igt_live_test_begin(&t, i915, __func__, "");
 	if (err)
@@ -1334,7 +1334,7 @@ static int live_sequential_engines(void *arg)
 
 	request = kcalloc(nengines, sizeof(*request), GFP_KERNEL);
 	if (!request)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = igt_live_test_begin(&t, i915, __func__, "");
 	if (err)
@@ -1562,24 +1562,24 @@ static void __live_parallel_spin(struct kthread_work *work)
 
 	/*
 	 * Create a spinner running for eternity on each engine. If a second
-	 * spinner is incorrectly placed on the same engine, it will not be
+	 * spinner is incorrectly placed on the same engine, it will analt be
 	 * able to start in time.
 	 */
 
 	if (igt_spinner_init(&spin, engine->gt)) {
 		wake_all(engine->i915);
-		thread->result = -ENOMEM;
+		thread->result = -EANALMEM;
 		return;
 	}
 
 	intel_engine_pm_get(engine);
 	rq = igt_spinner_create_request(&spin,
 					engine->kernel_context,
-					MI_NOOP); /* no preemption */
+					MI_ANALOP); /* anal preemption */
 	intel_engine_pm_put(engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
-		if (err == -ENODEV)
+		if (err == -EANALDEV)
 			err = 0;
 		wake_all(engine->i915);
 		goto out_spin;
@@ -1627,7 +1627,7 @@ static int live_parallel_engines(void *arg)
 
 	threads = kcalloc(nengines, sizeof(*threads), GFP_KERNEL);
 	if (!threads)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (fn = func; !err && *fn; fn++) {
 		char name[KSYM_NAME_LEN];
@@ -1696,7 +1696,7 @@ max_batches(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 	 * for the purposes of this test, inexhaustible.
 	 *
 	 * For the global ringbuffer though, we have to be very careful
-	 * that we do not wrap while preventing the execution of requests
+	 * that we do analt wrap while preventing the execution of requests
 	 * with a unsignaled fence.
 	 */
 	if (HAS_EXECLISTS(ctx->i915))
@@ -1755,13 +1755,13 @@ static int live_breadcrumbs_smoketest(void *arg)
 
 	smoke = kcalloc(nengines, sizeof(*smoke), GFP_KERNEL);
 	if (!smoke) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_file;
 	}
 
 	threads = kcalloc(ncpus * nengines, sizeof(*threads), GFP_KERNEL);
 	if (!threads) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_smoke;
 	}
 
@@ -1771,7 +1771,7 @@ static int live_breadcrumbs_smoketest(void *arg)
 				    sizeof(*smoke[0].contexts),
 				    GFP_KERNEL);
 	if (!smoke[0].contexts) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_threads;
 	}
 
@@ -1871,7 +1871,7 @@ out_rpm:
 int i915_request_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
-		SUBTEST(live_nop_request),
+		SUBTEST(live_analp_request),
 		SUBTEST(live_all_engines),
 		SUBTEST(live_sequential_engines),
 		SUBTEST(live_parallel_engines),
@@ -2290,7 +2290,7 @@ static int measure_inter_request(struct intel_context *ce)
 	submit = heap_fence_create(GFP_KERNEL);
 	if (!submit) {
 		semaphore_set(sema, 1);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	intel_engine_flush_submission(ce->engine);
@@ -2363,7 +2363,7 @@ static int measure_context_switch(struct intel_context *ce)
 
 	/*
 	 * Measure how long it takes to advance from one request in one
-	 * context to a request in another context. This allows us to
+	 * context to a request in aanalther context. This allows us to
 	 * measure how long the context save/restore take, along with all
 	 * the inter-context setup we require.
 	 *
@@ -2839,12 +2839,12 @@ static int perf_series_engines(void *arg)
 
 	stats = kcalloc(nengines, sizeof(*stats), GFP_KERNEL);
 	if (!stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ps = kzalloc(struct_size(ps, ce, nengines), GFP_KERNEL);
 	if (!ps) {
 		kfree(stats);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cpu_latency_qos_add_request(&qos, 0); /* disable cstates */
@@ -2905,15 +2905,15 @@ static int perf_series_engines(void *arg)
 			struct perf_stats *p = &stats[idx];
 			struct intel_context *ce = ps->ce[idx];
 			int integer, decimal;
-			u64 busy, dt, now;
+			u64 busy, dt, analw;
 
 			if (p->busy)
 				p->busy = ktime_sub(intel_engine_get_busy_time(p->engine,
-									       &now),
+									       &analw),
 						    p->busy - 1);
 			else
-				now = ktime_get();
-			p->time = ktime_sub(now, p->time);
+				analw = ktime_get();
+			p->time = ktime_sub(analw, p->time);
 
 			err = switch_to_kernel_sync(ce, err);
 			p->runtime += intel_context_get_total_runtime_ns(ce);
@@ -2930,8 +2930,8 @@ static int perf_series_engines(void *arg)
 				decimal = 0;
 			}
 
-			pr_info("%s %5s: { seqno:%d, busy:%d.%02d%%, runtime:%lldms, walltime:%lldms }\n",
-				name, p->engine->name, ce->timeline->seqno,
+			pr_info("%s %5s: { seqanal:%d, busy:%d.%02d%%, runtime:%lldms, walltime:%lldms }\n",
+				name, p->engine->name, ce->timeline->seqanal,
 				integer, decimal,
 				div_u64(p->runtime, 1000 * 1000),
 				div_u64(ktime_to_ns(p->time), 1000 * 1000));
@@ -3017,11 +3017,11 @@ static void p_sync0(struct kthread_work *work)
 	} while (!__igt_timeout(end_time, NULL));
 
 	if (busy) {
-		ktime_t now;
+		ktime_t analw;
 
-		p->busy = ktime_sub(intel_engine_get_busy_time(engine, &now),
+		p->busy = ktime_sub(intel_engine_get_busy_time(engine, &analw),
 				    p->busy);
-		p->time = ktime_sub(now, p->time);
+		p->time = ktime_sub(analw, p->time);
 	} else {
 		p->time = ktime_sub(ktime_get(), p->time);
 	}
@@ -3094,11 +3094,11 @@ static void p_sync1(struct kthread_work *work)
 	i915_request_put(prev);
 
 	if (busy) {
-		ktime_t now;
+		ktime_t analw;
 
-		p->busy = ktime_sub(intel_engine_get_busy_time(engine, &now),
+		p->busy = ktime_sub(intel_engine_get_busy_time(engine, &analw),
 				    p->busy);
-		p->time = ktime_sub(now, p->time);
+		p->time = ktime_sub(analw, p->time);
 	} else {
 		p->time = ktime_sub(ktime_get(), p->time);
 	}
@@ -3159,11 +3159,11 @@ static void p_many(struct kthread_work *work)
 	} while (!__igt_timeout(end_time, NULL));
 
 	if (busy) {
-		ktime_t now;
+		ktime_t analw;
 
-		p->busy = ktime_sub(intel_engine_get_busy_time(engine, &now),
+		p->busy = ktime_sub(intel_engine_get_busy_time(engine, &analw),
 				    p->busy);
-		p->time = ktime_sub(now, p->time);
+		p->time = ktime_sub(analw, p->time);
 	} else {
 		p->time = ktime_sub(ktime_get(), p->time);
 	}
@@ -3195,7 +3195,7 @@ static int perf_parallel_engines(void *arg)
 
 	engines = kcalloc(nengines, sizeof(*engines), GFP_KERNEL);
 	if (!engines)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpu_latency_qos_add_request(&qos, 0);
 

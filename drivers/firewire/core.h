@@ -21,7 +21,7 @@ struct fw_device;
 struct fw_iso_buffer;
 struct fw_iso_context;
 struct fw_iso_packet;
-struct fw_node;
+struct fw_analde;
 struct fw_packet;
 
 
@@ -30,7 +30,7 @@ struct fw_packet;
 extern __printf(2, 3)
 void fw_err(const struct fw_card *card, const char *fmt, ...);
 extern __printf(2, 3)
-void fw_notice(const struct fw_card *card, const char *fmt, ...);
+void fw_analtice(const struct fw_card *card, const char *fmt, ...);
 
 /* bitfields within the PHY registers */
 #define PHY_LINK_ACTIVE		0x80
@@ -78,15 +78,15 @@ struct fw_card_driver {
 	int (*cancel_packet)(struct fw_card *card, struct fw_packet *packet);
 
 	/*
-	 * Allow the specified node ID to do direct DMA out and in of
-	 * host memory.  The card will disable this for all node when
+	 * Allow the specified analde ID to do direct DMA out and in of
+	 * host memory.  The card will disable this for all analde when
 	 * a bus reset happens, so driver need to reenable this after
-	 * bus reset.  Returns 0 on success, -ENODEV if the card
+	 * bus reset.  Returns 0 on success, -EANALDEV if the card
 	 * doesn't support this, -ESTALE if the generation doesn't
 	 * match.
 	 */
 	int (*enable_phys_dma)(struct fw_card *card,
-			       int node_id, int generation);
+			       int analde_id, int generation);
 
 	u32 (*read_csr)(struct fw_card *card, int csr_offset);
 	void (*write_csr)(struct fw_card *card, int csr_offset, u32 value);
@@ -150,7 +150,7 @@ static inline void fw_device_put(struct fw_device *device)
 
 struct fw_device *fw_device_get_by_devt(dev_t devt);
 int fw_device_set_broadcast_channel(struct device *dev, void *gen);
-void fw_node_event(struct fw_card *card, struct fw_node *node, int event);
+void fw_analde_event(struct fw_card *card, struct fw_analde *analde, int event);
 
 
 /* -iso */
@@ -163,16 +163,16 @@ int fw_iso_buffer_map_dma(struct fw_iso_buffer *buffer, struct fw_card *card,
 /* -topology */
 
 enum {
-	FW_NODE_CREATED,
-	FW_NODE_UPDATED,
-	FW_NODE_DESTROYED,
-	FW_NODE_LINK_ON,
-	FW_NODE_LINK_OFF,
-	FW_NODE_INITIATED_RESET,
+	FW_ANALDE_CREATED,
+	FW_ANALDE_UPDATED,
+	FW_ANALDE_DESTROYED,
+	FW_ANALDE_LINK_ON,
+	FW_ANALDE_LINK_OFF,
+	FW_ANALDE_INITIATED_RESET,
 };
 
-struct fw_node {
-	u16 node_id;
+struct fw_analde {
+	u16 analde_id;
 	u8 color;
 	u8 port_count;
 	u8 link_on:1;
@@ -180,36 +180,36 @@ struct fw_node {
 	u8 b_path:1;
 	u8 phy_speed:2;	/* As in the self ID packet. */
 	u8 max_speed:2;	/* Minimum of all phy-speeds on the path from the
-			 * local node to this node. */
-	u8 max_depth:4;	/* Maximum depth to any leaf node */
+			 * local analde to this analde. */
+	u8 max_depth:4;	/* Maximum depth to any leaf analde */
 	u8 max_hops:4;	/* Max hops in this sub tree */
 	refcount_t ref_count;
 
-	/* For serializing node topology into a list. */
+	/* For serializing analde topology into a list. */
 	struct list_head link;
 
 	/* Upper layer specific data. */
 	void *data;
 
-	struct fw_node *ports[] __counted_by(port_count);
+	struct fw_analde *ports[] __counted_by(port_count);
 };
 
-static inline struct fw_node *fw_node_get(struct fw_node *node)
+static inline struct fw_analde *fw_analde_get(struct fw_analde *analde)
 {
-	refcount_inc(&node->ref_count);
+	refcount_inc(&analde->ref_count);
 
-	return node;
+	return analde;
 }
 
-static inline void fw_node_put(struct fw_node *node)
+static inline void fw_analde_put(struct fw_analde *analde)
 {
-	if (refcount_dec_and_test(&node->ref_count))
-		kfree(node);
+	if (refcount_dec_and_test(&analde->ref_count))
+		kfree(analde);
 }
 
-void fw_core_handle_bus_reset(struct fw_card *card, int node_id,
+void fw_core_handle_bus_reset(struct fw_card *card, int analde_id,
 	int generation, int self_id_count, u32 *self_ids, bool bm_abdicate);
-void fw_destroy_nodes(struct fw_card *card);
+void fw_destroy_analdes(struct fw_card *card);
 
 /*
  * Check whether new_generation is the immediate successor of old_generation.
@@ -254,10 +254,10 @@ static inline u32 cycle_time_to_ohci_tstamp(u32 tstamp)
 	return (tstamp & 0x0ffff000) >> 12;
 }
 
-#define FW_PHY_CONFIG_NO_NODE_ID	-1
+#define FW_PHY_CONFIG_ANAL_ANALDE_ID	-1
 #define FW_PHY_CONFIG_CURRENT_GAP_COUNT	-1
 void fw_send_phy_config(struct fw_card *card,
-			int node_id, int generation, int gap_count);
+			int analde_id, int generation, int gap_count);
 
 static inline bool is_ping_packet(u32 *data)
 {

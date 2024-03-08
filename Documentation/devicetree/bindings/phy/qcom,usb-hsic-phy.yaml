@@ -8,7 +8,7 @@ title: Qualcomm USB HSIC PHY Controller
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
-  - Vinod Koul <vkoul@kernel.org>
+  - Vianald Koul <vkoul@kernel.org>
 
 properties:
   compatible:

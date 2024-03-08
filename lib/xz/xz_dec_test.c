@@ -61,7 +61,7 @@ static struct xz_buf buffers = {
  */
 static uint32_t crc;
 
-static int xz_dec_test_open(struct inode *i, struct file *f)
+static int xz_dec_test_open(struct ianalde *i, struct file *f)
 {
 	if (device_is_open)
 		return -EBUSY;
@@ -80,7 +80,7 @@ static int xz_dec_test_open(struct inode *i, struct file *f)
 	return 0;
 }
 
-static int xz_dec_test_release(struct inode *i, struct file *f)
+static int xz_dec_test_release(struct ianalde *i, struct file *f)
 {
 	device_is_open = false;
 
@@ -96,7 +96,7 @@ static int xz_dec_test_release(struct inode *i, struct file *f)
  * data is calculated and is printed at the end of successful decoding. The
  * uncompressed data isn't stored anywhere for further use.
  *
- * The .xz file must have exactly one Stream and no Stream Padding. The data
+ * The .xz file must have exactly one Stream and anal Stream Padding. The data
  * after the first Stream is considered to be garbage.
  */
 static ssize_t xz_dec_test_write(struct file *file, const char __user *buf,
@@ -110,7 +110,7 @@ static ssize_t xz_dec_test_write(struct file *file, const char __user *buf,
 					"garbage at the end of the file\n",
 					size);
 
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	printk(KERN_INFO DEVICE_NAME ": decoding %zu bytes of input\n",
@@ -184,7 +184,7 @@ static int __init xz_dec_test_init(void)
 
 	state = xz_dec_init(XZ_PREALLOC, DICT_MAX);
 	if (state == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	device_major = register_chrdev(0, DEVICE_NAME, &fileops);
 	if (device_major < 0) {
@@ -193,8 +193,8 @@ static int __init xz_dec_test_init(void)
 	}
 
 	printk(KERN_INFO DEVICE_NAME ": module loaded\n");
-	printk(KERN_INFO DEVICE_NAME ": Create a device node with "
-			"'mknod " DEVICE_NAME " c %d 0' and write .xz files "
+	printk(KERN_INFO DEVICE_NAME ": Create a device analde with "
+			"'mkanald " DEVICE_NAME " c %d 0' and write .xz files "
 			"to it.\n", device_major);
 	return 0;
 }

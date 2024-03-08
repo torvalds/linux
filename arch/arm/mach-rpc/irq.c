@@ -156,7 +156,7 @@ static struct irq_chip iomd_chip_clr = {
 	.irq_unmask	= iomd_irq_unmask,
 };
 
-static struct irq_chip iomd_chip_noclr = {
+static struct irq_chip iomd_chip_analclr = {
 	.irq_mask	= iomd_irq_mask,
 	.irq_unmask	= iomd_irq_unmask,
 };
@@ -178,15 +178,15 @@ void __init rpc_init_irq(void)
 	set_handle_irq(iomd_handle_irq);
 
 	for (irq = 0; irq < NR_IRQS; irq++) {
-		clr = IRQ_NOREQUEST;
+		clr = IRQ_ANALREQUEST;
 		set = 0;
 
 		if (irq <= 6 || (irq >= 9 && irq <= 15))
-			clr |= IRQ_NOPROBE;
+			clr |= IRQ_ANALPROBE;
 
 		if (irq == 21 || (irq >= 16 && irq <= 19) ||
 		    irq == IRQ_KEYBOARDTX)
-			set |= IRQ_NOAUTOEN;
+			set |= IRQ_ANALAUTOEN;
 
 		switch (irq) {
 		case 0 ... 7:
@@ -198,7 +198,7 @@ void __init rpc_init_irq(void)
 			break;
 
 		case 8 ... 15:
-			irq_set_chip_and_handler(irq, &iomd_chip_noclr,
+			irq_set_chip_and_handler(irq, &iomd_chip_analclr,
 						 handle_level_irq);
 			irq_modify_status(irq, clr, set);
 			iomd_set_base_mask(irq, IOMD_BASE + IOMD_IRQSTATB,
@@ -206,7 +206,7 @@ void __init rpc_init_irq(void)
 			break;
 
 		case 16 ... 21:
-			irq_set_chip_and_handler(irq, &iomd_chip_noclr,
+			irq_set_chip_and_handler(irq, &iomd_chip_analclr,
 						 handle_level_irq);
 			irq_modify_status(irq, clr, set);
 			iomd_set_base_mask(irq, IOMD_BASE + IOMD_DMASTAT,
@@ -214,7 +214,7 @@ void __init rpc_init_irq(void)
 			break;
 
 		case 64 ... 71:
-			irq_set_chip(irq, &iomd_chip_noclr);
+			irq_set_chip(irq, &iomd_chip_analclr);
 			irq_modify_status(irq, clr, set);
 			iomd_set_base_mask(irq, IOMD_BASE + IOMD_FIQSTAT,
 					   BIT(irq - 64));

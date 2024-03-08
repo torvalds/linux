@@ -34,7 +34,7 @@ static bool nf_dup_ipv4_route(struct net *net, struct sk_buff *skb,
 	fl4.daddr = gw->s_addr;
 	fl4.flowi4_tos = RT_TOS(iph->tos);
 	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
-	fl4.flowi4_flags = FLOWI_FLAG_KNOWN_NH;
+	fl4.flowi4_flags = FLOWI_FLAG_KANALWN_NH;
 	rt = ip_route_output_key(net, &fl4);
 	if (IS_ERR(rt))
 		return false;
@@ -56,7 +56,7 @@ void nf_dup_ipv4(struct net *net, struct sk_buff *skb, unsigned int hooknum,
 		return;
 	/*
 	 * Copy the skb, and route the copy. Will later return %XT_CONTINUE for
-	 * the original skb, which should continue on its way as if nothing has
+	 * the original skb, which should continue on its way as if analthing has
 	 * happened. The copy should be independently delivered to the gateway.
 	 */
 	skb = pskb_copy(skb, GFP_ATOMIC);
@@ -72,7 +72,7 @@ void nf_dup_ipv4(struct net *net, struct sk_buff *skb, unsigned int hooknum,
 	 * If we are in PREROUTING/INPUT, decrease the TTL to mitigate potential
 	 * loops between two hosts.
 	 *
-	 * Set %IP_DF so that the original source is notified of a potentially
+	 * Set %IP_DF so that the original source is analtified of a potentially
 	 * decreased MTU on the clone route. IPv6 does this too.
 	 *
 	 * IP header checksum will be recalculated at ip_local_out.

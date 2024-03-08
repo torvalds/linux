@@ -100,7 +100,7 @@ struct camss_resources {
 
 struct camss {
 	struct v4l2_device v4l2_dev;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct media_device media_dev;
 	struct device *dev;
 	struct csiphy_device *csiphy;

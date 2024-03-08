@@ -34,7 +34,7 @@
  *
  * According to the above datasheet (p.16):
  * "
- * 6. Software must not access B0/D0/F0 32-bit memory-mapped registers with
+ * 6. Software must analt access B0/D0/F0 32-bit memory-mapped registers with
  * requests that cross a DW boundary.
  * "
  *
@@ -49,7 +49,7 @@
 #include <linux/pci_ids.h>
 #include <linux/edac.h>
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include "edac_module.h"
 
 #define EDAC_MOD_STR "ie31200_edac"
@@ -107,15 +107,15 @@
  * Error Status Register (16b)
  *
  * 15    reserved
- * 14    Isochronous TBWRR Run Behind FIFO Full
+ * 14    Isochroanalus TBWRR Run Behind FIFO Full
  *       (ITCV)
- * 13    Isochronous TBWRR Run Behind FIFO Put
+ * 13    Isochroanalus TBWRR Run Behind FIFO Put
  *       (ITSTV)
  * 12    reserved
  * 11    MCH Thermal Sensor Event
  *       for SMI/SCI/SERR (GTSE)
  * 10    reserved
- *  9    LOCK to non-DRAM Memory Flag (LCKF)
+ *  9    LOCK to analn-DRAM Memory Flag (LCKF)
  *  8    reserved
  *  7    DRAM Throttle Flag (DTF)
  *  6:2  reserved
@@ -258,7 +258,7 @@ static void ie31200_clear_error_info(struct mem_ctl_info *mci)
 {
 	/*
 	 * Clear any error bits.
-	 * (Yes, we really clear bits by writing 1 to them.)
+	 * (Anal, we really clear bits by writing 1 to them.)
 	 */
 	pci_write_bits16(to_pci_dev(mci->pdev), IE31200_ERRSTS,
 			 IE31200_ERRSTS_BITS, IE31200_ERRSTS_BITS);
@@ -273,7 +273,7 @@ static void ie31200_get_and_clear_error_info(struct mem_ctl_info *mci,
 	pdev = to_pci_dev(mci->pdev);
 
 	/*
-	 * This is a mess because there is no atomic way to read all the
+	 * This is a mess because there is anal atomic way to read all the
 	 * registers at once and the registers can transition from CE being
 	 * overwritten by UE.
 	 */
@@ -290,7 +290,7 @@ static void ie31200_get_and_clear_error_info(struct mem_ctl_info *mci,
 	/*
 	 * If the error is the same for both reads then the first set
 	 * of reads is valid.  If there is a change then there is a CE
-	 * with no info and the second set of reads is valid and
+	 * with anal info and the second set of reads is valid and
 	 * should be UE info.
 	 */
 	if ((info->errsts ^ info->errsts2) & IE31200_ERRSTS_BITS) {
@@ -368,7 +368,7 @@ static void __iomem *ie31200_map_mchbar(struct pci_dev *pdev)
 
 	window = ioremap(u.mchbar, IE31200_MMR_WINDOW_SIZE);
 	if (!window)
-		ie31200_printk(KERN_ERR, "Cannot map mmio space at 0x%llx\n",
+		ie31200_printk(KERN_ERR, "Cananalt map mmio space at 0x%llx\n",
 			       (unsigned long long)u.mchbar);
 
 	return window;
@@ -420,8 +420,8 @@ static int ie31200_probe1(struct pci_dev *pdev, int dev_idx)
 	edac_dbg(0, "MC:\n");
 
 	if (!ecc_capable(pdev)) {
-		ie31200_printk(KERN_INFO, "No ECC support\n");
-		return -ENODEV;
+		ie31200_printk(KERN_INFO, "Anal ECC support\n");
+		return -EANALDEV;
 	}
 
 	nr_channels = how_many_channels(pdev);
@@ -434,11 +434,11 @@ static int ie31200_probe1(struct pci_dev *pdev, int dev_idx)
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers,
 			    sizeof(struct ie31200_priv));
 	if (!mci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	window = ie31200_map_mchbar(pdev);
 	if (!window) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail_free;
 	}
 
@@ -507,8 +507,8 @@ static int ie31200_probe1(struct pci_dev *pdev, int dev_idx)
 					dimm->mtype = MEM_DDR4;
 				else
 					dimm->mtype = MEM_DDR3;
-				dimm->dtype = DEV_UNKNOWN;
-				dimm->edac_mode = EDAC_UNKNOWN;
+				dimm->dtype = DEV_UNKANALWN;
+				dimm->edac_mode = EDAC_UNKANALWN;
 			}
 			dimm = edac_get_dimm(mci, i * 2, j, 0);
 			dimm->nr_pages = nr_pages;
@@ -518,8 +518,8 @@ static int ie31200_probe1(struct pci_dev *pdev, int dev_idx)
 				dimm->mtype = MEM_DDR4;
 			else
 				dimm->mtype = MEM_DDR3;
-			dimm->dtype = DEV_UNKNOWN;
-			dimm->edac_mode = EDAC_UNKNOWN;
+			dimm->dtype = DEV_UNKANALWN;
+			dimm->edac_mode = EDAC_UNKANALWN;
 		}
 	}
 
@@ -527,7 +527,7 @@ static int ie31200_probe1(struct pci_dev *pdev, int dev_idx)
 
 	if (edac_mc_add_mc(mci)) {
 		edac_dbg(3, "MC: failed edac_mc_add_mc()\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail_unmap;
 	}
 
@@ -631,13 +631,13 @@ static int __init ie31200_init(void)
 		}
 		if (!mci_pdev) {
 			edac_dbg(0, "ie31200 pci_get_device fail\n");
-			pci_rc = -ENODEV;
+			pci_rc = -EANALDEV;
 			goto fail1;
 		}
 		pci_rc = ie31200_init_one(mci_pdev, &ie31200_pci_tbl[i]);
 		if (pci_rc < 0) {
 			edac_dbg(0, "ie31200 init fail\n");
-			pci_rc = -ENODEV;
+			pci_rc = -EANALDEV;
 			goto fail1;
 		}
 	}

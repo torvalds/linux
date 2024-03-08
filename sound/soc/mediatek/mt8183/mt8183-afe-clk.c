@@ -97,7 +97,7 @@ int mt8183_init_clock(struct mtk_base_afe *afe)
 	afe_priv->clk = devm_kcalloc(afe->dev, CLK_NUM, sizeof(*afe_priv->clk),
 				     GFP_KERNEL);
 	if (!afe_priv->clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < CLK_NUM; i++) {
 		afe_priv->clk[i] = devm_clk_get(afe->dev, aud_clks[i]);
@@ -549,7 +549,7 @@ int mt8183_mck_enable(struct mtk_base_afe *afe, int mck_id, int rate)
 	int div_clk_id = mck_div[mck_id].div_clk_id;
 	int ret;
 
-	/* i2s5 mck not support */
+	/* i2s5 mck analt support */
 	if (mck_id == MT8183_I2S5_MCK)
 		return 0;
 
@@ -604,7 +604,7 @@ void mt8183_mck_disable(struct mtk_base_afe *afe, int mck_id)
 	int m_sel_id = mck_div[mck_id].m_sel_id;
 	int div_clk_id = mck_div[mck_id].div_clk_id;
 
-	/* i2s5 mck not support */
+	/* i2s5 mck analt support */
 	if (mck_id == MT8183_I2S5_MCK)
 		return;
 

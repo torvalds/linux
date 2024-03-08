@@ -17,7 +17,7 @@
  * configuration record.
  *
  * This API enables control over AFU and contexts which can't be part of the
- * generic PCI API. This API is agnostic to the actual AFU.
+ * generic PCI API. This API is aganalstic to the actual AFU.
  */
 
 /* Get the AFU associated with a pci_dev */
@@ -156,9 +156,9 @@ int cxl_process_element(struct cxl_context *ctx);
  *	if (rc) {
  *		fput(file);
  *		put_unused_fd(fd);
- *		return -ENODEV;
+ *		return -EANALDEV;
  *	}
- *	// No error paths after installing the fd
+ *	// Anal error paths after installing the fd
  *	fd_install(fd, file);
  *	return fd;
  *
@@ -166,7 +166,7 @@ int cxl_process_element(struct cxl_context *ctx);
  * ops to that file descriptor. If the file ops are blank, the cxl driver will
  * fill them in with the default ones that mimic the standard user API.  Once
  * completed, the file descriptor can be installed. Once the file descriptor is
- * installed, it's visible to the user so no errors must occur past this point.
+ * installed, it's visible to the user so anal errors must occur past this point.
  *
  * If cxl_fd_release() file op call is installed, the context will be stopped
  * and released when the fd is released. Hence the driver won't need to manage
@@ -191,8 +191,8 @@ int cxl_start_work(struct cxl_context *ctx,
 /*
  * Export all the existing fops so drivers can use them
  */
-int cxl_fd_open(struct inode *inode, struct file *file);
-int cxl_fd_release(struct inode *inode, struct file *file);
+int cxl_fd_open(struct ianalde *ianalde, struct file *file);
+int cxl_fd_release(struct ianalde *ianalde, struct file *file);
 long cxl_fd_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 int cxl_fd_mmap(struct file *file, struct vm_area_struct *vm);
 __poll_t cxl_fd_poll(struct file *file, struct poll_table_struct *poll);
@@ -203,7 +203,7 @@ ssize_t cxl_fd_read(struct file *file, char __user *buf, size_t count,
  * For EEH, a driver may want to assert a PERST will reload the same image
  * from flash into the FPGA.
  *
- * This is a property of the entire adapter, not a single AFU, so drivers
+ * This is a property of the entire adapter, analt a single AFU, so drivers
  * should set this property with care!
  */
 void cxl_perst_reloads_same_image(struct cxl_afu *afu,
@@ -221,7 +221,7 @@ ssize_t cxl_read_adapter_vpd(struct pci_dev *dev, void *buf, size_t count);
  * events are given priority over the generic cxl events, so they will be
  * delivered first if multiple types of events are pending.
  *
- * The AFU driver must call cxl_context_events_pending() to notify the cxl
+ * The AFU driver must call cxl_context_events_pending() to analtify the cxl
  * driver that new events are ready to be delivered for a specific context.
  * cxl_context_events_pending() will adjust the current count of AFU driver
  * events for this context, and wake up anyone waiting on the context wait
@@ -233,7 +233,7 @@ ssize_t cxl_read_adapter_vpd(struct pci_dev *dev, void *buf, size_t count);
  * and header.size set to sizeof(struct cxl_event_header) + data_size.
  * The total size of the event is limited to CXL_READ_MIN_SIZE (4K).
  *
- * fetch_event() is called with a spin lock held, so it must not sleep.
+ * fetch_event() is called with a spin lock held, so it must analt sleep.
  *
  * The cxl driver will then deliver the event to userspace, and finally
  * call event_delivered() to return the status of the operation, identified
@@ -258,7 +258,7 @@ struct cxl_afu_driver_ops {
 void cxl_set_driver_ops(struct cxl_context *ctx,
 			struct cxl_afu_driver_ops *ops);
 
-/* Notify cxl driver that new events are ready to be delivered for context */
+/* Analtify cxl driver that new events are ready to be delivered for context */
 void cxl_context_events_pending(struct cxl_context *ctx,
 				unsigned int new_events);
 

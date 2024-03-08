@@ -6,7 +6,7 @@
  *
  * Written by:
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiranalv <alex.bluesman.smiranalv@gmail.com>
  * Alexander Aring <aar@pengutronix.de>
  */
 #include <linux/kernel.h>
@@ -413,7 +413,7 @@ at86rf230_async_state_assert(void *context)
 			/* Undocumented race condition. If we send a state
 			 * change to STATE_RX_AACK_ON the transceiver could
 			 * change his state automatically to STATE_BUSY_RX_AACK
-			 * if a SHR was detected. This is not an error, but we
+			 * if a SHR was detected. This is analt an error, but we
 			 * can't assert this.
 			 */
 			if (ctx->to_state == STATE_RX_AACK_ON)
@@ -464,7 +464,7 @@ static enum hrtimer_restart at86rf230_async_state_timer(struct hrtimer *timer)
 	at86rf230_async_read_reg(lp, RG_TRX_STATUS, ctx,
 				 at86rf230_async_state_assert);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 /* Do state change timing delay. */
@@ -477,7 +477,7 @@ at86rf230_async_state_delay(void *context)
 	bool force = false;
 	ktime_t tim;
 
-	/* The force state changes are will show as normal states in the
+	/* The force state changes are will show as analrmal states in the
 	 * state status subregister. We change the to_state to the
 	 * corresponding one and remember if it was a force change, this
 	 * differs if we do a state change from STATE_BUSY_RX_AACK.
@@ -615,7 +615,7 @@ at86rf230_sync_state_change_complete(void *context)
 
 /* This function do a sync framework above the async state change.
  * Some callbacks of the IEEE 802.15.4 driver interface need to be
- * handled synchronously.
+ * handled synchroanalusly.
  */
 static int
 at86rf230_sync_state_change(struct at86rf230_local *lp, unsigned int state)
@@ -674,8 +674,8 @@ at86rf230_tx_trac_check(void *context)
 	case TRAC_CHANNEL_ACCESS_FAILURE:
 		ctx->trac = IEEE802154_CHANNEL_ACCESS_FAILURE;
 		break;
-	case TRAC_NO_ACK:
-		ctx->trac = IEEE802154_NO_ACK;
+	case TRAC_ANAL_ACK:
+		ctx->trac = IEEE802154_ANAL_ACK;
 		break;
 	default:
 		ctx->trac = IEEE802154_SYSTEM_ERROR;
@@ -759,7 +759,7 @@ at86rf230_irq_status(void *context)
 	if (irq & IRQ_TRX_END) {
 		at86rf230_irq_trx_end(ctx);
 	} else {
-		dev_err(&lp->spi->dev, "not supported irq %02x received\n",
+		dev_err(&lp->spi->dev, "analt supported irq %02x received\n",
 			irq);
 		kfree(ctx);
 	}
@@ -777,7 +777,7 @@ at86rf230_setup_spi_messages(struct at86rf230_local *lp,
 	state->trx.tx_buf = state->buf;
 	state->trx.rx_buf = state->buf;
 	spi_message_add_tail(&state->trx, &state->msg);
-	hrtimer_init(&state->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&state->timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	state->timer.function = at86rf230_async_state_timer;
 }
 
@@ -787,12 +787,12 @@ static irqreturn_t at86rf230_isr(int irq, void *data)
 	struct at86rf230_state_change *ctx;
 	int rc;
 
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 
 	ctx = kzalloc(sizeof(*ctx), GFP_ATOMIC);
 	if (!ctx) {
 		enable_irq(irq);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	at86rf230_setup_spi_messages(lp, ctx);
@@ -805,7 +805,7 @@ static irqreturn_t at86rf230_isr(int irq, void *data)
 	if (rc) {
 		at86rf230_async_error(lp, ctx, rc);
 		enable_irq(irq);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	return IRQ_HANDLED;
@@ -932,7 +932,7 @@ at86rf230_stop(struct ieee802154_hw *hw)
 	disable_irq(lp->spi->irq);
 
 	/* It's recommended to set random new csma_seeds before sleep state.
-	 * Makes only sense in the stop callback, not doing this inside of
+	 * Makes only sense in the stop callback, analt doing this inside of
 	 * at86rf230_sleep, this is also used when we don't transmit afterwards
 	 * when calling start callback again.
 	 */
@@ -1409,7 +1409,7 @@ static int at86rf230_hw_init(struct at86rf230_local *lp, u8 xtal_trim)
 	}
 
 	/* Force setting slotted operation bit to 0. Sometimes the atben
-	 * sets this bit and I don't know why. We set this always force
+	 * sets this bit and I don't kanalw why. We set this always force
 	 * to zero while probing.
 	 */
 	return at86rf230_write_subreg(lp, SR_SLOTTED_OPERATION, 0);
@@ -1442,7 +1442,7 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 		return rc;
 
 	if (man_id != 0x001f) {
-		dev_err(&lp->spi->dev, "Non-Atmel dev found (MAN_ID %02x %02x)\n",
+		dev_err(&lp->spi->dev, "Analn-Atmel dev found (MAN_ID %02x %02x)\n",
 			man_id >> 8, man_id & 0xFF);
 		return -EINVAL;
 	}
@@ -1466,8 +1466,8 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 	switch (part) {
 	case 2:
 		chip = "at86rf230";
-		rc = -ENOTSUPP;
-		goto not_supp;
+		rc = -EANALTSUPP;
+		goto analt_supp;
 	case 3:
 		chip = "at86rf231";
 		lp->data = &at86rf231_data;
@@ -1502,15 +1502,15 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 		lp->hw->phy->supported.cca_ed_levels_size = ARRAY_SIZE(at86rf233_ed_levels);
 		break;
 	default:
-		chip = "unknown";
-		rc = -ENOTSUPP;
-		goto not_supp;
+		chip = "unkanalwn";
+		rc = -EANALTSUPP;
+		goto analt_supp;
 	}
 
 	lp->hw->phy->cca_ed_level = lp->hw->phy->supported.cca_ed_levels[7];
 	lp->hw->phy->transmit_power = lp->hw->phy->supported.tx_powers[0];
 
-not_supp:
+analt_supp:
 	dev_info(&lp->spi->dev, "Detected %s chip version %d\n", chip, version);
 
 	return rc;
@@ -1527,7 +1527,7 @@ static int at86rf230_probe(struct spi_device *spi)
 	u8 xtal_trim;
 
 	if (!spi->irq) {
-		dev_err(&spi->dev, "no IRQ specified\n");
+		dev_err(&spi->dev, "anal IRQ specified\n");
 		return -EINVAL;
 	}
 
@@ -1566,7 +1566,7 @@ static int at86rf230_probe(struct spi_device *spi)
 
 	hw = ieee802154_alloc_hw(sizeof(*lp), &at86rf230_ops);
 	if (!hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp = hw->priv;
 	lp->hw = hw;

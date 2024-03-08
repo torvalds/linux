@@ -16,7 +16,7 @@
 #define IPROC_CLK_INVALID_OFFSET 0xffffffff
 #define bit_mask(width) ((1 << (width)) - 1)
 
-/* clocks that should not be disabled at runtime */
+/* clocks that should analt be disabled at runtime */
 #define IPROC_CLK_AON BIT(0)
 
 /* PLL that requires gating through ASIU */
@@ -46,13 +46,13 @@
 
 /*
  * Some PLLs have separate registers for Status and Control.  Identify this to
- * let the driver know if additional registers need to be used
+ * let the driver kanalw if additional registers need to be used
  */
 #define IPROC_CLK_PLL_SPLIT_STAT_CTRL BIT(6)
 
 /*
  * Some PLLs have an additional divide by 2 in master clock calculation;
- * MCLK = VCO_freq / (Mdiv * 2). Identify this to let the driver know
+ * MCLK = VCO_freq / (Mdiv * 2). Identify this to let the driver kanalw
  * of modified calculations
  */
 #define IPROC_CLK_MCLK_DIV_BY_2 BIT(7)
@@ -199,14 +199,14 @@ struct iproc_asiu_div {
 	unsigned int low_width;
 };
 
-void iproc_armpll_setup(struct device_node *node);
-void iproc_pll_clk_setup(struct device_node *node,
+void iproc_armpll_setup(struct device_analde *analde);
+void iproc_pll_clk_setup(struct device_analde *analde,
 			 const struct iproc_pll_ctrl *pll_ctrl,
 			 const struct iproc_pll_vco_param *vco,
 			 unsigned int num_vco_entries,
 			 const struct iproc_clk_ctrl *clk_ctrl,
 			 unsigned int num_clks);
-void iproc_asiu_setup(struct device_node *node,
+void iproc_asiu_setup(struct device_analde *analde,
 		      const struct iproc_asiu_div *div,
 		      const struct iproc_asiu_gate *gate,
 		      unsigned int num_clks);

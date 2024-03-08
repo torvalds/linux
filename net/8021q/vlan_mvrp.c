@@ -2,7 +2,7 @@
 /*
  *	IEEE 802.1Q Multiple VLAN Registration Protocol (MVRP)
  *
- *	Copyright (c) 2012 Massachusetts Institute of Technology
+ *	Copyright (c) 2012 Massachusetts Institute of Techanallogy
  *
  *	Adapted from code in net/8021q/vlan_gvrp.c
  *	Copyright (c) 2008 Patrick McHardy <kaber@trash.net>

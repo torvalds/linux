@@ -43,30 +43,30 @@ retry:
 	 */
 	err = compare_map_keys(stackid_hmap_fd, stackmap_fd);
 	if (CHECK(err, "compare_map_keys stackid_hmap vs. stackmap",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erranal %d\n", err, erranal))
 		goto cleanup;
 
 	err = compare_map_keys(stackmap_fd, stackid_hmap_fd);
 	if (CHECK(err, "compare_map_keys stackmap vs. stackid_hmap",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erranal %d\n", err, erranal))
 		goto cleanup;
 
 	build_id_size = read_build_id("urandom_read", buf, sizeof(buf));
 	err = build_id_size < 0 ? build_id_size : 0;
 
 	if (CHECK(err, "read_build_id",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erranal %d\n", err, erranal))
 		goto cleanup;
 
 	err = bpf_map__get_next_key(skel->maps.stackmap, NULL, &key, sizeof(key));
 	if (CHECK(err, "get_next_key from stackmap",
-		  "err %d, errno %d\n", err, errno))
+		  "err %d, erranal %d\n", err, erranal))
 		goto cleanup;
 
 	do {
 		err = bpf_map_lookup_elem(stackmap_fd, &key, id_offs);
 		if (CHECK(err, "lookup_elem from stackmap",
-			  "err %d, errno %d\n", err, errno))
+			  "err %d, erranal %d\n", err, erranal))
 			goto cleanup;
 		for (i = 0; i < PERF_MAX_STACK_DEPTH; ++i)
 			if (id_offs[i].status == BPF_STACK_BUILD_ID_VALID &&
@@ -96,7 +96,7 @@ retry:
 			  sizeof(struct bpf_stack_build_id);
 	err = compare_stack_ips(stackmap_fd, stack_amap_fd, stack_trace_len);
 	CHECK(err, "compare_stack_ips stackmap vs. stack_amap",
-	      "err %d errno %d\n", err, errno);
+	      "err %d erranal %d\n", err, erranal);
 
 cleanup:
 	test_stacktrace_build_id__destroy(skel);

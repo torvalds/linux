@@ -84,7 +84,7 @@ struct device_reg_83xx {
 	__le32 reserve7[3];
 	__le32 rsp_q_out;	/* 0x3020 */
 	__le32 reserve8[3];
-	__le32 anonymousbuff;	/* 0x3030 */
+	__le32 aanalnymousbuff;	/* 0x3030 */
 	__le32 mb_int_mask;	/* 0x3034 */
 
 	__le32 host_intr;	/* 0x3038 - Host Interrupt Register */
@@ -389,7 +389,7 @@ struct qla_flt_region {
 #define MBOX_CMD_CLEAR_DATABASE_ENTRY		0x0031
 #define MBOX_CMD_CONN_OPEN			0x0074
 #define MBOX_CMD_CONN_CLOSE_SESS_LOGOUT		0x0056
-#define DDB_NOT_LOGGED_IN			0x09
+#define DDB_ANALT_LOGGED_IN			0x09
 #define LOGOUT_OPTION_CLOSE_SESSION		0x0002
 #define LOGOUT_OPTION_RELOGIN			0x0004
 #define LOGOUT_OPTION_FREE_DDB			0x0008
@@ -403,7 +403,7 @@ struct qla_flt_region {
 #define MBOX_CMD_SET_DATABASE_ENTRY		0x0063
 #define MBOX_CMD_GET_DATABASE_ENTRY		0x0064
 #define DDB_DS_UNASSIGNED			0x00
-#define DDB_DS_NO_CONNECTION_ACTIVE		0x01
+#define DDB_DS_ANAL_CONNECTION_ACTIVE		0x01
 #define DDB_DS_DISCOVERY			0x02
 #define DDB_DS_SESSION_ACTIVE			0x04
 #define DDB_DS_SESSION_FAILED			0x06
@@ -506,14 +506,14 @@ struct qla_flt_region {
 #define MBOX_ASTS_IP_ADDR_STATE_CHANGED		0x8029
 #define MBOX_ASTS_IPV6_DEFAULT_ROUTER_CHANGED	0x802A
 #define MBOX_ASTS_IPV6_LINK_MTU_CHANGE		0x802B
-#define MBOX_ASTS_IPV6_AUTO_PREFIX_IGNORED	0x802C
-#define MBOX_ASTS_IPV6_ND_LOCAL_PREFIX_IGNORED	0x802D
+#define MBOX_ASTS_IPV6_AUTO_PREFIX_IGANALRED	0x802C
+#define MBOX_ASTS_IPV6_ND_LOCAL_PREFIX_IGANALRED	0x802D
 #define MBOX_ASTS_ICMPV6_ERROR_MSG_RCVD		0x802E
 #define MBOX_ASTS_INITIALIZATION_FAILED		0x8031
 #define MBOX_ASTS_SYSTEM_WARNING_EVENT		0x8036
 #define MBOX_ASTS_IDC_COMPLETE			0x8100
-#define MBOX_ASTS_IDC_REQUEST_NOTIFICATION	0x8101
-#define MBOX_ASTS_IDC_TIME_EXTEND_NOTIFICATION	0x8102
+#define MBOX_ASTS_IDC_REQUEST_ANALTIFICATION	0x8101
+#define MBOX_ASTS_IDC_TIME_EXTEND_ANALTIFICATION	0x8102
 #define MBOX_ASTS_DCBX_CONF_CHANGE		0x8110
 #define MBOX_ASTS_TXSCVR_INSERTED		0x8130
 #define MBOX_ASTS_TXSCVR_REMOVED		0x8131
@@ -593,8 +593,8 @@ struct addr_ctrl_blk {
 #define ISCSIOPTS_DATA_DIGEST_EN		0x1000
 #define ISCSIOPTS_IMMEDIATE_DATA_EN		0x0800
 #define ISCSIOPTS_INITIAL_R2T_EN		0x0400
-#define ISCSIOPTS_DATA_SEQ_INORDER_EN		0x0200
-#define ISCSIOPTS_DATA_PDU_INORDER_EN		0x0100
+#define ISCSIOPTS_DATA_SEQ_IANALRDER_EN		0x0200
+#define ISCSIOPTS_DATA_PDU_IANALRDER_EN		0x0100
 #define ISCSIOPTS_CHAP_AUTH_EN			0x0080
 #define ISCSIOPTS_SNACK_EN			0x0040
 #define ISCSIOPTS_DISCOVERY_LOGOUT_EN		0x0020
@@ -628,7 +628,7 @@ struct addr_ctrl_blk {
 	uint8_t ipv4_tos;	/* 38 */
 	uint8_t ipv4_ttl;	/* 39 */
 	uint8_t acb_version;	/* 3A */
-#define ACB_NOT_SUPPORTED		0x00
+#define ACB_ANALT_SUPPORTED		0x00
 #define ACB_SUPPORTED			0x02 /* Capable of ACB Version 2
 						Features */
 
@@ -679,7 +679,7 @@ struct addr_ctrl_blk {
 #define IPV6_OPT_REDIRECT_EN			0x0004
 
 	uint16_t ipv6_addtl_opts;	/* 208-209 */
-#define IPV6_ADDOPT_IGNORE_ICMP_ECHO_REQ		0x0040
+#define IPV6_ADDOPT_IGANALRE_ICMP_ECHO_REQ		0x0040
 #define IPV6_ADDOPT_MLD_EN				0x0004
 #define IPV6_ADDOPT_NEIGHBOR_DISCOVERY_ADDR_ENABLE	0x0002 /* Pri ACB
 								  Only */
@@ -699,7 +699,7 @@ struct addr_ctrl_blk {
 	uint8_t ipv6_addr0_state;	/* 223 */
 	uint8_t ipv6_addr1_state;	/* 224 */
 	uint8_t ipv6_dflt_rtr_state;    /* 225 */
-#define IPV6_RTRSTATE_UNKNOWN                   0
+#define IPV6_RTRSTATE_UNKANALWN                   0
 #define IPV6_RTRSTATE_MANUAL                    1
 #define IPV6_RTRSTATE_ADVERTISED                3
 #define IPV6_RTRSTATE_STALE                     4
@@ -899,7 +899,7 @@ struct dev_db_entry {
 					 * much RAM */
 	uint8_t link_local_ipv6_addr[0x10]; /* 1A0-1AF */
 	uint8_t res5[0x10];	/* 1B0-1BF */
-#define DDB_NO_LINK	0xFFFF
+#define DDB_ANAL_LINK	0xFFFF
 #define DDB_ISNS	0xFFFD
 	uint16_t ddb_link;	/* 1C0-1C1 */
 	uint16_t chap_tbl_idx;	/* 1C2-1C3 */
@@ -984,7 +984,7 @@ struct mbx_sys_info {
 
 struct about_fw_info {
 	uint16_t fw_major;		/* 00 - 01 */
-	uint16_t fw_minor;		/* 02 - 03 */
+	uint16_t fw_mianalr;		/* 02 - 03 */
 	uint16_t fw_patch;		/* 04 - 05 */
 	uint16_t fw_build;		/* 06 - 07 */
 	uint8_t fw_build_date[16];	/* 08 - 17 ASCII String */
@@ -997,9 +997,9 @@ struct about_fw_info {
 					*/
 	uint8_t reserved1[6];		/* 3A - 3F */
 	uint16_t iscsi_major;		/* 40 - 41 */
-	uint16_t iscsi_minor;		/* 42 - 43 */
+	uint16_t iscsi_mianalr;		/* 42 - 43 */
 	uint16_t bootload_major;	/* 44 - 45 */
-	uint16_t bootload_minor;	/* 46 - 47 */
+	uint16_t bootload_mianalr;	/* 46 - 47 */
 	uint16_t bootload_patch;	/* 48 - 49 */
 	uint16_t bootload_build;	/* 4A - 4B */
 	uint8_t extended_timestamp[180];/* 4C - FF */
@@ -1007,7 +1007,7 @@ struct about_fw_info {
 
 struct crash_record {
 	uint16_t fw_major_version;	/* 00 - 01 */
-	uint16_t fw_minor_version;	/* 02 - 03 */
+	uint16_t fw_mianalr_version;	/* 02 - 03 */
 	uint16_t fw_patch_version;	/* 04 - 05 */
 	uint16_t fw_build_version;	/* 06 - 07 */
 
@@ -1113,7 +1113,7 @@ struct command_t3_entry {
 	/* data direction  (bits 5-6) */
 #define CF_WRITE		0x20
 #define CF_READ			0x40
-#define CF_NO_DATA		0x00
+#define CF_ANAL_DATA		0x00
 
 	/* task attributes (bits 2-0) */
 #define CF_HEAD_TAG		0x03
@@ -1305,7 +1305,7 @@ struct ql_iscsi_stats {
 	uint64_t mac_tx_jumbo_frames; /* 0070–0077 */
 	uint64_t mac_rx_frames; /* 0078–007F */
 	uint64_t mac_rx_bytes; /* 0080–0087 */
-	uint64_t mac_rx_unknown_control_frames; /* 0088–008F */
+	uint64_t mac_rx_unkanalwn_control_frames; /* 0088–008F */
 	uint64_t mac_rx_pause_frames; /* 0090–0097 */
 	uint64_t mac_rx_control_frames; /* 0098–009F */
 	uint64_t mac_rx_dribble; /* 00A0–00A7 */
@@ -1383,7 +1383,7 @@ struct ql_iscsi_stats {
 	uint32_t conn_timeout_err; /* 02B8–02BB */
 	uint32_t framing_err; /* 02BC–02BF */
 
-	uint32_t tx_nopout_pdus; /* 02C0–02C3 */
+	uint32_t tx_analpout_pdus; /* 02C0–02C3 */
 	uint32_t tx_scsi_cmd_pdus;  /* 02C4–02C7 */
 	uint32_t tx_tmf_cmd_pdus; /* 02C8–02CB */
 	uint32_t tx_login_cmd_pdus; /* 02CC–02CF */
@@ -1392,7 +1392,7 @@ struct ql_iscsi_stats {
 	uint32_t tx_logout_cmd_pdus; /* 02D8–02DB */
 	uint32_t tx_snack_req_pdus; /* 02DC–02DF */
 
-	uint32_t rx_nopin_pdus; /* 02E0–02E3 */
+	uint32_t rx_analpin_pdus; /* 02E0–02E3 */
 	uint32_t rx_scsi_resp_pdus; /* 02E4–02E7 */
 	uint32_t rx_tmf_resp_pdus; /* 02E8–02EB */
 	uint32_t rx_login_resp_pdus; /* 02EC–02EF */

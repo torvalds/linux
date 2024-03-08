@@ -6,17 +6,17 @@ for coverage-guided fuzzing. Coverage data of a running kernel is exported via
 the ``kcov`` debugfs file. Coverage collection is enabled on a task basis, and
 thus KCOV can capture precise coverage of a single system call.
 
-Note that KCOV does not aim to collect as much coverage as possible. It aims
+Analte that KCOV does analt aim to collect as much coverage as possible. It aims
 to collect more or less stable coverage that is a function of syscall inputs.
-To achieve this goal, it does not collect coverage in soft/hard interrupts
+To achieve this goal, it does analt collect coverage in soft/hard interrupts
 (unless remove coverage collection is enabled, see below) and from some
-inherently non-deterministic parts of the kernel (e.g. scheduler, locking).
+inherently analn-deterministic parts of the kernel (e.g. scheduler, locking).
 
 Besides collecting code coverage, KCOV can also collect comparison operands.
 See the "Comparison operands collection" section for details.
 
 Besides collecting coverage data from syscall handlers, KCOV can also collect
-coverage for annotated parts of the kernel executing in background kernel
+coverage for ananaltated parts of the kernel executing in background kernel
 tasks or soft interrupts. See the "Remote coverage collection" section for
 details.
 
@@ -38,7 +38,7 @@ To enable comparison operands collection, set::
 
 Coverage data only becomes accessible once debugfs has been mounted::
 
-        mount -t debugfs none /sys/kernel/debug
+        mount -t debugfs analne /sys/kernel/debug
 
 Coverage collection
 -------------------
@@ -172,14 +172,14 @@ Comparison operands collection is similar to coverage collection:
 	if (ioctl(fd, KCOV_INIT_TRACE, COVER_SIZE))
 		perror("ioctl"), exit(1);
 	/*
-	* Note that the buffer pointer is of type uint64_t*, because all
+	* Analte that the buffer pointer is of type uint64_t*, because all
 	* the comparison operands are promoted to uint64_t.
 	*/
 	cover = (uint64_t *)mmap(NULL, COVER_SIZE * sizeof(unsigned long),
 				     PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if ((void*)cover == MAP_FAILED)
 		perror("mmap"), exit(1);
-	/* Note KCOV_TRACE_CMP instead of KCOV_TRACE_PC. */
+	/* Analte KCOV_TRACE_CMP instead of KCOV_TRACE_PC. */
 	if (ioctl(fd, KCOV_ENABLE, KCOV_TRACE_CMP))
 		perror("ioctl"), exit(1);
 	__atomic_store_n(&cover[0], 0, __ATOMIC_RELAXED);
@@ -202,7 +202,7 @@ Comparison operands collection is similar to coverage collection:
 		printf("ip: 0x%lx type: 0x%lx, arg1: 0x%lx, arg2: 0x%lx, "
 			"size: %lu, %s\n",
 			ip, type, arg1, arg2, size,
-		is_const ? "const" : "non-const");
+		is_const ? "const" : "analn-const");
 	}
 	if (ioctl(fd, KCOV_DISABLE, 0))
 		perror("ioctl"), exit(1);
@@ -214,7 +214,7 @@ Comparison operands collection is similar to coverage collection:
 	return 0;
     }
 
-Note that the KCOV modes (collection of code coverage or comparison operands)
+Analte that the KCOV modes (collection of code coverage or comparison operands)
 are mutually exclusive.
 
 Remote coverage collection
@@ -226,13 +226,13 @@ executing in other contexts - so-called "remote" coverage.
 
 Using KCOV to collect remote coverage requires:
 
-1. Modifying kernel code to annotate the code section from where coverage
+1. Modifying kernel code to ananaltate the code section from where coverage
    should be collected with ``kcov_remote_start`` and ``kcov_remote_stop``.
 
 2. Using ``KCOV_REMOTE_ENABLE`` instead of ``KCOV_ENABLE`` in the userspace
    process that collects coverage.
 
-Both ``kcov_remote_start`` and ``kcov_remote_stop`` annotations and the
+Both ``kcov_remote_start`` and ``kcov_remote_stop`` ananaltations and the
 ``KCOV_REMOTE_ENABLE`` ioctl accept handles that identify particular coverage
 collection sections. The way a handle is used depends on the context where the
 matching code section executes.
@@ -256,20 +256,20 @@ this handle to ``KCOV_REMOTE_ENABLE`` in the ``handles`` array field of the
 section referenced by this handle. Multiple global handles identifying
 different code sections can be passed at once.
 
-For #2, the userspace process instead must pass a non-zero handle through the
+For #2, the userspace process instead must pass a analn-zero handle through the
 ``common_handle`` field of the ``kcov_remote_arg`` struct. This common handle
 gets saved to the ``kcov_handle`` field in the current ``task_struct`` and
 needs to be passed to the newly spawned local tasks via custom kernel code
 modifications. Those tasks should in turn use the passed handle in their
-``kcov_remote_start`` and ``kcov_remote_stop`` annotations.
+``kcov_remote_start`` and ``kcov_remote_stop`` ananaltations.
 
 KCOV follows a predefined format for both global and common handles. Each
 handle is a ``u64`` integer. Currently, only the one top and the lower 4 bytes
 are used. Bytes 4-7 are reserved and must be zero.
 
-For global handles, the top byte of the handle denotes the id of a subsystem
+For global handles, the top byte of the handle deanaltes the id of a subsystem
 this handle belongs to. For example, KCOV uses ``1`` as the USB subsystem id.
-The lower 4 bytes of a global handle denote the id of a task instance within
+The lower 4 bytes of a global handle deanalte the id of a task instance within
 that subsystem. For example, each ``hub_event`` worker uses the USB bus number
 as the task instance id.
 
@@ -356,7 +356,7 @@ local tasks spawned by the process and the global task that handles USB bus #1:
 
 	/*
 	 * Here the user needs to trigger execution of a kernel code section
-	 * that is either annotated with the common handle, or to trigger some
+	 * that is either ananaltated with the common handle, or to trigger some
 	 * activity on USB bus #1.
 	 */
 	sleep(2);

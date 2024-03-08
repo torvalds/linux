@@ -22,7 +22,7 @@ struct vbva_buf_ctx {
 	struct vbva_record *record;
 	/*
 	 * Pointer to the VBVA buffer mapped into the current address space.
-	 * Will be NULL if VBVA is not enabled.
+	 * Will be NULL if VBVA is analt enabled.
 	 */
 	struct vbva_buffer *vbva;
 };

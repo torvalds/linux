@@ -122,7 +122,7 @@
 #define	SD_TRANSFER_END			0x40
 #define SD_STAT_IDLE			0x20
 #define	SD_TRANSFER_ERR			0x10
-#define	SD_TM_NORMAL_WRITE		0x00
+#define	SD_TM_ANALRMAL_WRITE		0x00
 #define	SD_TM_AUTO_WRITE_3		0x01
 #define	SD_TM_AUTO_WRITE_4		0x02
 #define	SD_TM_AUTO_READ_3		0x05
@@ -130,13 +130,13 @@
 #define	SD_TM_CMD_RSP			0x08
 #define	SD_TM_AUTO_WRITE_1		0x09
 #define	SD_TM_AUTO_WRITE_2		0x0A
-#define	SD_TM_NORMAL_READ		0x0C
+#define	SD_TM_ANALRMAL_READ		0x0C
 #define	SD_TM_AUTO_READ_1		0x0D
 #define	SD_TM_AUTO_READ_2		0x0E
 #define	SD_TM_AUTO_TUNING		0x0F
 
 #define PHASE_CHANGE			0x80
-#define PHASE_NOT_RESET			0x40
+#define PHASE_ANALT_RESET			0x40
 
 #define DCMPS_CHANGE			0x80
 #define DCMPS_CHANGE_DONE		0x40
@@ -149,7 +149,7 @@
 #define	SD_BUS_WIDTH_1			0x00
 #define	SD_BUS_WIDTH_4			0x01
 #define	SD_BUS_WIDTH_8			0x02
-#define	SD_ASYNC_FIFO_NOT_RST		0x10
+#define	SD_ASYNC_FIFO_ANALT_RST		0x10
 #define	SD_20_MODE			0x00
 #define	SD_DDR_MODE			0x04
 #define	SD_30_MODE			0x08
@@ -177,14 +177,14 @@
 #define DCM_READ_ADDRESS_51		0x51
 
 #define	SD_CALCULATE_CRC7		0x00
-#define	SD_NO_CALCULATE_CRC7		0x80
+#define	SD_ANAL_CALCULATE_CRC7		0x80
 #define	SD_CHECK_CRC16			0x00
-#define	SD_NO_CHECK_CRC16		0x40
-#define SD_NO_CHECK_WAIT_CRC_TO		0x20
+#define	SD_ANAL_CHECK_CRC16		0x40
+#define SD_ANAL_CHECK_WAIT_CRC_TO		0x20
 #define	SD_WAIT_BUSY_END		0x08
-#define	SD_NO_WAIT_BUSY_END		0x00
+#define	SD_ANAL_WAIT_BUSY_END		0x00
 #define	SD_CHECK_CRC7			0x00
-#define	SD_NO_CHECK_CRC7		0x04
+#define	SD_ANAL_CHECK_CRC7		0x04
 #define	SD_RSP_LEN_0			0x00
 #define	SD_RSP_LEN_6			0x01
 #define	SD_RSP_LEN_17			0x02
@@ -204,7 +204,7 @@
 #define	SAMPLE_TIME_FALLING		0x80
 #define	PUSH_TIME_DEFAULT		0x00
 #define	PUSH_TIME_ODD			0x40
-#define	NO_EXTEND_TOGGLE		0x00
+#define	ANAL_EXTEND_TOGGLE		0x00
 #define	EXTEND_TOGGLE_CHK		0x20
 #define	MS_BUS_WIDTH_1			0x00
 #define	MS_BUS_WIDTH_4			0x10
@@ -213,11 +213,11 @@
 #define	MS_512_SECTOR_MODE		0x00
 #define	MS_TOGGLE_TIMEOUT_EN		0x00
 #define	MS_TOGGLE_TIMEOUT_DISEN		0x01
-#define MS_NO_CHECK_INT			0x02
+#define MS_ANAL_CHECK_INT			0x02
 
 #define	WAIT_INT			0x80
-#define	NO_WAIT_INT			0x00
-#define	NO_AUTO_READ_INT_REG		0x00
+#define	ANAL_WAIT_INT			0x00
+#define	ANAL_AUTO_READ_INT_REG		0x00
 #define	AUTO_READ_INT_REG		0x40
 #define	MS_CRC16_ERR			0x20
 #define	MS_RDY_TIMEOUT			0x10
@@ -231,15 +231,15 @@
 #define	MS_TRANSFER_ERR			0x20
 #define	MS_BS_STATE			0x10
 #define	MS_TM_READ_BYTES		0x00
-#define	MS_TM_NORMAL_READ		0x01
+#define	MS_TM_ANALRMAL_READ		0x01
 #define	MS_TM_WRITE_BYTES		0x04
-#define	MS_TM_NORMAL_WRITE		0x05
+#define	MS_TM_ANALRMAL_WRITE		0x05
 #define	MS_TM_AUTO_READ			0x08
 #define	MS_TM_AUTO_WRITE		0x0C
 
 #define CARD_SHARE_MASK			0x0F
 #define CARD_SHARE_MULTI_LUN		0x00
-#define	CARD_SHARE_NORMAL		0x00
+#define	CARD_SHARE_ANALRMAL		0x00
 #define	CARD_SHARE_48_XD		0x02
 #define	CARD_SHARE_48_SD		0x04
 #define	CARD_SHARE_48_MS		0x08
@@ -348,7 +348,7 @@
 #define	XD_PWR_OFF_DELAY2		0x04
 #define	XD_PWR_OFF_DELAY3		0x06
 #define	XD_AUTO_PWR_OFF_EN		0xF7
-#define	XD_NO_AUTO_PWR_OFF		0x08
+#define	XD_ANAL_AUTO_PWR_OFF		0x08
 
 #define	XD_TIME_RWN_1			0x00
 #define	XD_TIME_RWN_STEP		0x20
@@ -377,19 +377,19 @@
 #define	XD_READ_REDUNDANT		0x04
 #define	XD_READ_PAGES			0x05
 #define	XD_SET_CMD			0x06
-#define	XD_NORMAL_READ			0x07
+#define	XD_ANALRMAL_READ			0x07
 #define	XD_WRITE_PAGES			0x08
-#define	XD_NORMAL_WRITE			0x09
+#define	XD_ANALRMAL_WRITE			0x09
 #define	XD_WRITE_REDUNDANT		0x0A
 #define	XD_SET_ADDR			0x0B
 
 #define	XD_PPB_TO_SIE			0x80
 #define	XD_TO_PPB_ONLY			0x00
 #define	XD_BA_TRANSFORM			0x40
-#define	XD_BA_NO_TRANSFORM		0x00
-#define	XD_NO_CALC_ECC			0x20
+#define	XD_BA_ANAL_TRANSFORM		0x00
+#define	XD_ANAL_CALC_ECC			0x20
 #define	XD_CALC_ECC			0x00
-#define	XD_IGNORE_ECC			0x10
+#define	XD_IGANALRE_ECC			0x10
 #define	XD_CHECK_ECC			0x00
 #define	XD_DIRECT_TO_RB			0x08
 #define	XD_ADDR_LENGTH_0		0x00
@@ -413,24 +413,24 @@
 #define	XD_BA1_VALID			0x01
 
 #define	XD_PGSTS_ZEROBIT_OVER4		0x00
-#define	XD_PGSTS_NOT_FF			0x02
+#define	XD_PGSTS_ANALT_FF			0x02
 #define	XD_AUTO_CHK_DATA_STATUS		0x01
 
 #define	RSTB_MODE_DETECT		0x80
 #define	MODE_OUT_VLD			0x40
-#define	MODE_OUT_0_NONE			0x00
-#define	MODE_OUT_10_NONE		0x04
+#define	MODE_OUT_0_ANALNE			0x00
+#define	MODE_OUT_10_ANALNE		0x04
 #define	MODE_OUT_10_47			0x05
 #define	MODE_OUT_10_180			0x06
 #define	MODE_OUT_10_680			0x07
-#define	MODE_OUT_16_NONE		0x08
+#define	MODE_OUT_16_ANALNE		0x08
 #define	MODE_OUT_16_47			0x09
 #define	MODE_OUT_16_180			0x0A
 #define	MODE_OUT_16_680			0x0B
-#define	MODE_OUT_NONE_NONE		0x0C
-#define	MODE_OUT_NONE_47		0x0D
-#define	MODE_OUT_NONE_180		0x0E
-#define	MODE_OUT_NONE_680		0x0F
+#define	MODE_OUT_ANALNE_ANALNE		0x0C
+#define	MODE_OUT_ANALNE_47		0x0D
+#define	MODE_OUT_ANALNE_180		0x0E
+#define	MODE_OUT_ANALNE_680		0x0F
 
 #define	CARD_OC_INT_EN			0x20
 #define	CARD_DETECT_EN			0x08
@@ -445,14 +445,14 @@
 #define SD_OC_CLR			0x01
 
 #define	CARD_OCP_DETECT			0x80
-#define	CARD_OC_NOW			0x08
+#define	CARD_OC_ANALW			0x08
 #define	CARD_OC_EVER			0x04
 
 #define MS_OCP_DETECT			0x80
-#define MS_OC_NOW			0x40
+#define MS_OC_ANALW			0x40
 #define MS_OC_EVER			0x20
 #define SD_OCP_DETECT			0x08
-#define SD_OC_NOW			0x04
+#define SD_OC_ANALW			0x04
 #define SD_OC_EVER			0x02
 
 #define	CARD_OC_INT_CLR			0x08
@@ -744,7 +744,7 @@
 #define SAPMLE_DELAY_ONE_HALF	0x03
 #define TCS_MASK		0x0C
 
-#define NOT_BYPASS_SD		0x02
+#define ANALT_BYPASS_SD		0x02
 #define DISABLE_SDIO_FUNC	0x04
 #define SELECT_1LUN		0x08
 
@@ -995,7 +995,7 @@ void rtsx_reset_cards(struct rtsx_chip *chip);
 void rtsx_reinit_cards(struct rtsx_chip *chip, int reset_chip);
 void rtsx_init_cards(struct rtsx_chip *chip);
 int switch_ssc_clock(struct rtsx_chip *chip, int clk);
-int switch_normal_clock(struct rtsx_chip *chip, int clk);
+int switch_analrmal_clock(struct rtsx_chip *chip, int clk);
 int enable_card_clock(struct rtsx_chip *chip, u8 card);
 int disable_card_clock(struct rtsx_chip *chip, u8 card);
 int card_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
@@ -1037,7 +1037,7 @@ static inline int switch_clock(struct rtsx_chip *chip, int clk)
 	if (chip->asic_code)
 		retval = switch_ssc_clock(chip, clk);
 	else
-		retval = switch_normal_clock(chip, clk);
+		retval = switch_analrmal_clock(chip, clk);
 
 	return retval;
 }

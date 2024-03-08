@@ -79,7 +79,7 @@ static bool trace_fprobe_is_tracepoint(struct trace_fprobe *tf)
 
 static const char *trace_fprobe_symbol(struct trace_fprobe *tf)
 {
-	return tf->symbol ? tf->symbol : "unknown";
+	return tf->symbol ? tf->symbol : "unkanalwn";
 }
 
 static bool trace_fprobe_is_busy(struct dyn_event *ev)
@@ -125,7 +125,7 @@ static bool trace_fprobe_is_registered(struct trace_fprobe *tf)
 }
 
 /*
- * Note that we don't verify the fetch_insn code, since it does not come
+ * Analte that we don't verify the fetch_insn code, since it does analt come
  * from user space.
  */
 static int
@@ -153,7 +153,7 @@ retry:
 		val = regs_get_kernel_argument(regs, code->param);
 		break;
 #endif
-	case FETCH_NOP_SYMBOL:	/* Ignore a place holder */
+	case FETCH_ANALP_SYMBOL:	/* Iganalre a place holder */
 		code++;
 		goto retry;
 	default:
@@ -165,10 +165,10 @@ retry:
 
 	return process_fetch_insn_bottom(code, val, dest, base);
 }
-NOKPROBE_SYMBOL(process_fetch_insn)
+ANALKPROBE_SYMBOL(process_fetch_insn)
 
 /* function entry handler */
-static nokprobe_inline void
+static analkprobe_inline void
 __fentry_trace_func(struct trace_fprobe *tf, unsigned long entry_ip,
 		    struct pt_regs *regs,
 		    struct trace_event_file *trace_file)
@@ -208,10 +208,10 @@ fentry_trace_func(struct trace_fprobe *tf, unsigned long entry_ip,
 	trace_probe_for_each_link_rcu(link, &tf->tp)
 		__fentry_trace_func(tf, entry_ip, regs, link->file);
 }
-NOKPROBE_SYMBOL(fentry_trace_func);
+ANALKPROBE_SYMBOL(fentry_trace_func);
 
 /* Kretprobe handler */
-static nokprobe_inline void
+static analkprobe_inline void
 __fexit_trace_func(struct trace_fprobe *tf, unsigned long entry_ip,
 		   unsigned long ret_ip, struct pt_regs *regs,
 		   struct trace_event_file *trace_file)
@@ -252,7 +252,7 @@ fexit_trace_func(struct trace_fprobe *tf, unsigned long entry_ip,
 	trace_probe_for_each_link_rcu(link, &tf->tp)
 		__fexit_trace_func(tf, entry_ip, ret_ip, regs, link->file);
 }
-NOKPROBE_SYMBOL(fexit_trace_func);
+ANALKPROBE_SYMBOL(fexit_trace_func);
 
 #ifdef CONFIG_PERF_EVENTS
 
@@ -285,7 +285,7 @@ static int fentry_perf_func(struct trace_fprobe *tf, unsigned long entry_ip,
 			      head, NULL);
 	return 0;
 }
-NOKPROBE_SYMBOL(fentry_perf_func);
+ANALKPROBE_SYMBOL(fentry_perf_func);
 
 static void
 fexit_perf_func(struct trace_fprobe *tf, unsigned long entry_ip,
@@ -316,7 +316,7 @@ fexit_perf_func(struct trace_fprobe *tf, unsigned long entry_ip,
 	perf_trace_buf_submit(entry, size, rctx, call->event.type, 1, regs,
 			      head, NULL);
 }
-NOKPROBE_SYMBOL(fexit_perf_func);
+ANALKPROBE_SYMBOL(fexit_perf_func);
 #endif	/* CONFIG_PERF_EVENTS */
 
 static int fentry_dispatcher(struct fprobe *fp, unsigned long entry_ip,
@@ -334,7 +334,7 @@ static int fentry_dispatcher(struct fprobe *fp, unsigned long entry_ip,
 #endif
 	return ret;
 }
-NOKPROBE_SYMBOL(fentry_dispatcher);
+ANALKPROBE_SYMBOL(fentry_dispatcher);
 
 static void fexit_dispatcher(struct fprobe *fp, unsigned long entry_ip,
 			     unsigned long ret_ip, struct pt_regs *regs,
@@ -349,7 +349,7 @@ static void fexit_dispatcher(struct fprobe *fp, unsigned long entry_ip,
 		fexit_perf_func(tf, entry_ip, ret_ip, regs);
 #endif
 }
-NOKPROBE_SYMBOL(fexit_dispatcher);
+ANALKPROBE_SYMBOL(fexit_dispatcher);
 
 static void free_trace_fprobe(struct trace_fprobe *tf)
 {
@@ -371,7 +371,7 @@ static struct trace_fprobe *alloc_trace_fprobe(const char *group,
 					       int nargs, bool is_return)
 {
 	struct trace_fprobe *tf;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	tf = kzalloc(struct_size(tf, tp.args, nargs), GFP_KERNEL);
 	if (!tf)
@@ -446,7 +446,7 @@ static int enable_trace_fprobe(struct trace_event_call *call,
 
 	tp = trace_probe_primary_from_call(call);
 	if (WARN_ON_ONCE(!tp))
-		return -ENODEV;
+		return -EANALDEV;
 	enabled = trace_probe_is_enabled(tp);
 
 	/* This also changes "enabled" state */
@@ -478,11 +478,11 @@ static int disable_trace_fprobe(struct trace_event_call *call,
 
 	tp = trace_probe_primary_from_call(call);
 	if (WARN_ON_ONCE(!tp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (file) {
 		if (!trace_probe_get_file_link(tp, file))
-			return -ENOENT;
+			return -EANALENT;
 		if (!trace_probe_has_single_file(tp))
 			goto out;
 		trace_probe_clear_flag(tp, TP_FLAG_TRACE);
@@ -580,7 +580,7 @@ static int fentry_event_define_fields(struct trace_event_call *event_call)
 
 	tp = trace_probe_primary_from_call(event_call);
 	if (WARN_ON_ONCE(!tp))
-		return -ENOENT;
+		return -EANALENT;
 
 	DEFINE_FIELD(unsigned long, ip, FIELD_STRING_IP, 0);
 
@@ -595,7 +595,7 @@ static int fexit_event_define_fields(struct trace_event_call *event_call)
 
 	tp = trace_probe_primary_from_call(event_call);
 	if (WARN_ON_ONCE(!tp))
-		return -ENOENT;
+		return -EANALENT;
 
 	DEFINE_FIELD(unsigned long, func, FIELD_STRING_FUNC, 0);
 	DEFINE_FIELD(unsigned long, ret_ip, FIELD_STRING_RETIP, 0);
@@ -694,7 +694,7 @@ static int __register_trace_fprobe(struct trace_fprobe *tf)
 		return register_fprobe_ips(&tf->fp, &ip, 1);
 	}
 
-	/* TODO: handle filter, nofilter or symbol list */
+	/* TODO: handle filter, analfilter or symbol list */
 	return register_fprobe(&tf->fp, tf->symbol, NULL);
 }
 
@@ -721,7 +721,7 @@ static int unregister_trace_fprobe(struct trace_fprobe *tf)
 	if (trace_probe_has_sibling(&tf->tp))
 		goto unreg;
 
-	/* Enabled event can not be unregistered */
+	/* Enabled event can analt be unregistered */
 	if (trace_probe_is_enabled(&tf->tp))
 		return -EBUSY;
 
@@ -781,7 +781,7 @@ static int append_trace_fprobe(struct trace_fprobe *tf, struct trace_fprobe *to)
 	}
 	ret = trace_probe_compare_arg_type(&tf->tp, &to->tp);
 	if (ret) {
-		/* Note that argument starts index = 2 */
+		/* Analte that argument starts index = 2 */
 		trace_probe_log_set_index(ret + 1);
 		trace_probe_log_err(0, DIFF_ARG_TYPE);
 		return -EEXIST;
@@ -845,7 +845,7 @@ end:
 }
 
 #ifdef CONFIG_MODULES
-static int __tracepoint_probe_module_cb(struct notifier_block *self,
+static int __tracepoint_probe_module_cb(struct analtifier_block *self,
 					unsigned long val, void *data)
 {
 	struct tp_module *tp_mod = data;
@@ -853,7 +853,7 @@ static int __tracepoint_probe_module_cb(struct notifier_block *self,
 	struct dyn_event *pos;
 
 	if (val != MODULE_STATE_GOING)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	mutex_lock(&event_mutex);
 	for_each_trace_fprobe(tf, pos) {
@@ -866,11 +866,11 @@ static int __tracepoint_probe_module_cb(struct notifier_block *self,
 	}
 	mutex_unlock(&event_mutex);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block tracepoint_module_nb = {
-	.notifier_call = __tracepoint_probe_module_cb,
+static struct analtifier_block tracepoint_module_nb = {
+	.analtifier_call = __tracepoint_probe_module_cb,
 };
 #endif /* CONFIG_MODULES */
 
@@ -918,7 +918,7 @@ static int parse_symbol_and_return(int argc, const char *argv[],
 	} else
 		*symbol = kstrdup(argv[1], GFP_KERNEL);
 	if (!*symbol)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (*is_return)
 		return 0;
@@ -1064,7 +1064,7 @@ static int __trace_fprobe_create(int argc, const char *argv[])
 		tpoint = find_tracepoint(symbol);
 		if (!tpoint) {
 			trace_probe_log_set_index(1);
-			trace_probe_log_err(0, NO_TRACEPOINT);
+			trace_probe_log_err(0, ANAL_TRACEPOINT);
 			goto parse_error;
 		}
 		ctx.funcname = kallsyms_lookup(
@@ -1091,9 +1091,9 @@ static int __trace_fprobe_create(int argc, const char *argv[])
 				argc, is_return);
 	if (IS_ERR(tf)) {
 		ret = PTR_ERR(tf);
-		/* This must return -ENOMEM, else there is a bug */
-		WARN_ON_ONCE(ret != -ENOMEM);
-		goto out;	/* We know tf is not allocated */
+		/* This must return -EANALMEM, else there is a bug */
+		WARN_ON_ONCE(ret != -EANALMEM);
+		goto out;	/* We kanalw tf is analt allocated */
 	}
 
 	if (is_tracepoint)
@@ -1106,11 +1106,11 @@ static int __trace_fprobe_create(int argc, const char *argv[])
 		ctx.offset = 0;
 		ret = traceprobe_parse_probe_arg(&tf->tp, i, argv[i], &ctx);
 		if (ret)
-			goto error;	/* This can be -ENOMEM */
+			goto error;	/* This can be -EANALMEM */
 	}
 
 	ret = traceprobe_set_print_fmt(&tf->tp,
-			is_return ? PROBE_PRINT_RETURN : PROBE_PRINT_NORMAL);
+			is_return ? PROBE_PRINT_RETURN : PROBE_PRINT_ANALRMAL);
 	if (ret < 0)
 		goto error;
 
@@ -1119,9 +1119,9 @@ static int __trace_fprobe_create(int argc, const char *argv[])
 		trace_probe_log_set_index(1);
 		if (ret == -EILSEQ)
 			trace_probe_log_err(0, BAD_INSN_BNDRY);
-		else if (ret == -ENOENT)
+		else if (ret == -EANALENT)
 			trace_probe_log_err(0, BAD_PROBE_ADDR);
-		else if (ret != -ENOMEM && ret != -EEXIST)
+		else if (ret != -EANALMEM && ret != -EEXIST)
 			trace_probe_log_err(0, FAIL_REG_PROBE);
 		goto error;
 	}
@@ -1221,7 +1221,7 @@ static __init int init_fprobe_trace_early(void)
 		return ret;
 
 #ifdef CONFIG_MODULES
-	ret = register_tracepoint_module_notifier(&tracepoint_module_nb);
+	ret = register_tracepoint_module_analtifier(&tracepoint_module_nb);
 	if (ret)
 		return ret;
 #endif

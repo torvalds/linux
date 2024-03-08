@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2011 Richard Weinberger <richrd@nod.at>
+ * Copyright (C) 2011 Richard Weinberger <richrd@anald.at>
  */
 
 #include <linux/mm.h>
@@ -28,7 +28,7 @@ struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
 	return FIXADDR_USER_START ? &gate_vma : NULL;
 }
 
-int in_gate_area_no_mm(unsigned long addr)
+int in_gate_area_anal_mm(unsigned long addr)
 {
 	if (!FIXADDR_USER_START)
 		return 0;

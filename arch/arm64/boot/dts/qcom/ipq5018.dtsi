@@ -106,25 +106,25 @@
 
 		bootloader@4a800000 {
 			reg = <0x0 0x4a800000 0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		sbl@4aa00000 {
 			reg = <0x0 0x4aa00000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		smem@4ab00000 {
 			compatible = "qcom,smem";
 			reg = <0x0 0x4ab00000 0x0 0x100000>;
-			no-map;
+			anal-map;
 
 			hwlocks = <&tcsr_mutex 3>;
 		};
 
 		tz_region: tz@4ac00000 {
 			reg = <0x0 0x4ac00000 0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -201,7 +201,7 @@
 				 <&gcc GCC_SDCC1_APPS_CLK>,
 				 <&xo_board_clk>;
 			clock-names = "iface", "core", "xo";
-			non-removable;
+			analn-removable;
 			status = "disabled";
 		};
 
@@ -247,7 +247,7 @@
 			interrupt-names = "hs_phy_irq";
 
 			clocks = <&gcc GCC_USB0_MASTER_CLK>,
-				 <&gcc GCC_SYS_NOC_USB0_AXI_CLK>,
+				 <&gcc GCC_SYS_ANALC_USB0_AXI_CLK>,
 				 <&gcc GCC_USB0_SLEEP_CLK>,
 				 <&gcc GCC_USB0_MOCK_UTMI_CLK>;
 			clock-names = "core",

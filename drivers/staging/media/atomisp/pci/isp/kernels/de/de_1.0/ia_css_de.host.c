@@ -32,8 +32,8 @@ ia_css_de_encode(
     unsigned int size)
 {
 	(void)size;
-	to->pixelnoise =
-	    uDIGIT_FITTING(from->pixelnoise, 16, SH_CSS_BAYER_BITS);
+	to->pixelanalise =
+	    uDIGIT_FITTING(from->pixelanalise, 16, SH_CSS_BAYER_BITS);
 	to->c1_coring_threshold =
 	    uDIGIT_FITTING(from->c1_coring_threshold, 16,
 			   SH_CSS_BAYER_BITS);
@@ -50,7 +50,7 @@ ia_css_de_dump(
 	if (!de) return;
 	ia_css_debug_dtrace(level, "Demosaic:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
-			    "de_pixelnoise", de->pixelnoise);
+			    "de_pixelanalise", de->pixelanalise);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
 			    "de_c1_coring_threshold",
 			    de->c1_coring_threshold);
@@ -65,8 +65,8 @@ ia_css_de_debug_dtrace(
     unsigned int level)
 {
 	ia_css_debug_dtrace(level,
-			    "config.pixelnoise=%d, config.c1_coring_threshold=%d, config.c2_coring_threshold=%d\n",
-			    config->pixelnoise,
+			    "config.pixelanalise=%d, config.c1_coring_threshold=%d, config.c2_coring_threshold=%d\n",
+			    config->pixelanalise,
 			    config->c1_coring_threshold, config->c2_coring_threshold);
 }
 

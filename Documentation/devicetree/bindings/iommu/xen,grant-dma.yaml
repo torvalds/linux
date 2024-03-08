@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Xen specific IOMMU for virtualized devices (e.g. virtio)
 
 maintainers:
-  - Stefano Stabellini <sstabellini@kernel.org>
+  - Stefaanal Stabellini <sstabellini@kernel.org>
 
 description:
   The Xen IOMMU represents the Xen grant table interface. Grant mappings

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "subcmd-config.h"
 
-#define UNDEFINED "SUBCMD_HAS_NOT_BEEN_INITIALIZED"
+#define UNDEFINED "SUBCMD_HAS_ANALT_BEEN_INITIALIZED"
 
 struct subcmd_config subcmd_config = {
 	.exec_name	= UNDEFINED,

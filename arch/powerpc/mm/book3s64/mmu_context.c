@@ -7,7 +7,7 @@
 
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/mm.h>
@@ -64,9 +64,9 @@ static int realloc_context_ids(mm_context_t *ctx)
 	 * case where ctx is newly allocated).
 	 *
 	 * We have to be a bit careful here. We must keep the existing ids in
-	 * the array, so that we can test if they're non-zero to decide if we
+	 * the array, so that we can test if they're analn-zero to decide if we
 	 * need to allocate a new one. However in case of error we must free the
-	 * ids we've allocated but *not* any of the existing ones (or risk a
+	 * ids we've allocated but *analt* any of the existing ones (or risk a
 	 * UAF). That's why we decrement i at the start of the error handling
 	 * loop, to skip the id that we just tested but couldn't reallocate.
 	 */
@@ -99,20 +99,20 @@ static int hash__init_new_context(struct mm_struct *mm)
 	mm->context.hash_context = kmalloc(sizeof(struct hash_mm_context),
 					   GFP_KERNEL);
 	if (!mm->context.hash_context)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * The old code would re-promote on fork, we don't do that when using
 	 * slices as it could cause problem promoting slices that have been
 	 * forced down to 4K.
 	 *
-	 * For book3s we have MMU_NO_CONTEXT set to be ~0. Hence check
+	 * For book3s we have MMU_ANAL_CONTEXT set to be ~0. Hence check
 	 * explicitly against context.id == 0. This ensures that we properly
 	 * initialize context slice details for newly allocated mm's (which will
 	 * have id == 0) and don't alter context slice inherited via fork (which
 	 * will have id != 0).
 	 *
-	 * We should not be calling init_new_context() on init_mm. Hence a
+	 * We should analt be calling init_new_context() on init_mm. Hence a
 	 * check against 0 is OK.
 	 */
 	if (mm->context.id == 0) {
@@ -128,7 +128,7 @@ static int hash__init_new_context(struct mm_struct *mm)
 								GFP_KERNEL);
 			if (!mm->context.hash_context->spt) {
 				kfree(mm->context.hash_context);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 #endif
@@ -287,7 +287,7 @@ void destroy_context(struct mm_struct *mm)
 	 * The condition below handles the error case during task init. We have
 	 * set the process table entry early and if we fail a task
 	 * initialization, we need to ensure the process table entry is zeroed.
-	 * We need not worry about process table entry caches because the task
+	 * We need analt worry about process table entry caches because the task
 	 * never ran with the PID value.
 	 */
 	if (radix_enabled())
@@ -295,7 +295,7 @@ void destroy_context(struct mm_struct *mm)
 	else
 		subpage_prot_free(mm);
 	destroy_contexts(&mm->context);
-	mm->context.id = MMU_NO_CONTEXT;
+	mm->context.id = MMU_ANAL_CONTEXT;
 }
 
 void arch_exit_mmap(struct mm_struct *mm)
@@ -305,7 +305,7 @@ void arch_exit_mmap(struct mm_struct *mm)
 	if (radix_enabled()) {
 		/*
 		 * Radix doesn't have a valid bit in the process table
-		 * entries. However we know that at least P9 implementation
+		 * entries. However we kanalw that at least P9 implementation
 		 * will avoid caching an entry with an invalid RTS field,
 		 * and 0 is invalid. So this will do.
 		 *
@@ -313,7 +313,7 @@ void arch_exit_mmap(struct mm_struct *mm)
 		 * which does a RIC=2 tlbie to clear the process table
 		 * entry. See the "fullmm" comments in tlb-radix.c.
 		 *
-		 * No barrier required here after the store because
+		 * Anal barrier required here after the store because
 		 * this process will do the invalidate, which starts with
 		 * ptesync.
 		 */
@@ -335,7 +335,7 @@ void radix__switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
  * This clears the CPU from mm_cpumask for all processes, and then flushes the
  * local TLB to ensure TLB coherency in case the CPU is onlined again.
  *
- * KVM guest translations are not necessarily flushed here. If KVM started
+ * KVM guest translations are analt necessarily flushed here. If KVM started
  * using mm_cpumask or the Linux APIs which do, this would have to be resolved.
  */
 #ifdef CONFIG_HOTPLUG_CPU

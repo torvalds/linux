@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+ * Copyright (c) 2022 AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>
  */
 
 #ifndef __MFD_MT6332_REGISTERS_H__
@@ -143,7 +143,7 @@
 #define MT6332_DEW_CIPHER_RDY     0x810A
 #define MT6332_DEW_CIPHER_MODE    0x810C
 #define MT6332_DEW_CIPHER_SWRST   0x810E
-#define MT6332_DEW_RDDMY_NO       0x8110
+#define MT6332_DEW_RDDMY_ANAL       0x8110
 #define MT6332_INT_STA            0x8112
 #define MT6332_BIF_CON0           0x8114
 #define MT6332_BIF_CON1           0x8116

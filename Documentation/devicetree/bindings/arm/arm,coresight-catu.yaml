@@ -21,12 +21,12 @@ description: |
   sink.
 
   The CoreSight Address Translation Unit (CATU) translates addresses between an
-  AXI master and system memory. The CATU is normally used along with the TMC to
+  AXI master and system memory. The CATU is analrmally used along with the TMC to
   implement scattering of virtual trace buffers in physical memory. The CATU
   translates contiguous Virtual Addresses (VAs) from an AXI master into
-  non-contiguous Physical Addresses (PAs) that are intended for system memory.
+  analn-contiguous Physical Addresses (PAs) that are intended for system memory.
 
-# Need a custom select here or 'arm,primecell' will match on lots of nodes
+# Need a custom select here or 'arm,primecell' will match on lots of analdes
 select:
   properties:
     compatible:
@@ -70,7 +70,7 @@ properties:
 
     properties:
       port:
-        description: AXI Slave connected to another Coresight component
+        description: AXI Slave connected to aanalther Coresight component
         $ref: /schemas/graph.yaml#/properties/port
 
 required:

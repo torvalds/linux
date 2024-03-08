@@ -79,7 +79,7 @@ static int idpf_intr_reg_init(struct idpf_vport *vport)
 	reg_vals = kcalloc(total_vecs, sizeof(struct idpf_vec_regs),
 			   GFP_KERNEL);
 	if (!reg_vals)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num_regs = idpf_get_reg_intr_vecs(vport, reg_vals);
 	if (num_regs < num_vecs) {

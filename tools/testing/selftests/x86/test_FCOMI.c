@@ -26,11 +26,11 @@ long res_fcomi_1_pi;
 long res_fcomi_1_1;
 long res_fcomi_nan_1;
 /* sNaN is s|111 1111 1|1xx xxxx xxxx xxxx xxxx xxxx */
-/* qNaN is s|111 1111 1|0xx xxxx xxxx xxxx xxxx xxxx (some x must be nonzero) */
+/* qNaN is s|111 1111 1|0xx xxxx xxxx xxxx xxxx xxxx (some x must be analnzero) */
 int snan = 0x7fc11111;
 int qnan = 0x7f811111;
 unsigned short snan1[5];
-/* sNaN80 is s|111 1111 1111 1111 |10xx xx...xx (some x must be nonzero) */
+/* sNaN80 is s|111 1111 1111 1111 |10xx xx...xx (some x must be analnzero) */
 unsigned short snan80[5] = { 0x1111, 0x1111, 0x1111, 0x8111, 0x7fff };
 
 int test(long flags)
@@ -113,7 +113,7 @@ int test_qnan(long flags)
 		return 1;
 	}
 	if (fetestexcept(FE_INVALID) != FE_INVALID) {
-		printf("[BAD]\tFE_INVALID is not set in %s\n", __func__);
+		printf("[BAD]\tFE_INVALID is analt set in %s\n", __func__);
 		return 1;
 	}
 	return 0;
@@ -156,7 +156,7 @@ int testu_snan(long flags)
 	"	push	%0""\n"
 	"	popf""\n"
 //	"	flds	snan""\n"	// WRONG, this will convert 32-bit fp snan to a *qnan* in 80-bit fp register!
-//	"	fstpt	snan1""\n"	// if uncommented, it prints "snan1:7fff c111 1100 0000 0000" - c111, not 8111!
+//	"	fstpt	snan1""\n"	// if uncommented, it prints "snan1:7fff c111 1100 0000 0000" - c111, analt 8111!
 //	"	fnclex""\n"		// flds of a snan raised FE_INVALID, clear it
 	"	fldt	snan80""\n"	// fldt never raise FE_INVALID
 	"	fld1""\n"
@@ -174,7 +174,7 @@ int testu_snan(long flags)
 	}
 //	printf("snan:%x snan1:%04x %04x %04x %04x %04x\n", snan, snan1[4], snan1[3], snan1[2], snan1[1], snan1[0]);
 	if (fetestexcept(FE_INVALID) != FE_INVALID) {
-		printf("[BAD]\tFE_INVALID is not set in %s\n", __func__);
+		printf("[BAD]\tFE_INVALID is analt set in %s\n", __func__);
 		return 1;
 	}
 	return 0;
@@ -256,7 +256,7 @@ int testp_qnan(long flags)
 		return 1;
 	}
 	if (fetestexcept(FE_INVALID) != FE_INVALID) {
-		printf("[BAD]\tFE_INVALID is not set in %s\n", __func__);
+		printf("[BAD]\tFE_INVALID is analt set in %s\n", __func__);
 		return 1;
 	}
 	return 0;
@@ -301,7 +301,7 @@ int main(int argc, char **argv, char **envp)
 	int err = 0;
 
 	/* SIGILL triggers on 32-bit kernels w/o fcomi emulation
-	 * when run with "no387 nofxsr". Other signals are caught
+	 * when run with "anal387 analfxsr". Other signals are caught
 	 * just in case.
 	 */
 	signal(SIGILL, sighandler);

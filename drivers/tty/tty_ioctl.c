@@ -10,7 +10,7 @@
 #include <linux/bits.h>
 #include <linux/types.h>
 #include <linux/termios.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched/signal.h>
 #include <linux/kernel.h>
 #include <linux/major.h>
@@ -43,7 +43,7 @@
  * @tty: terminal
  *
  * Returns: the number of bytes of data in the device private output queue. If
- * no private method is supplied there is assumed to be no queue on the device.
+ * anal private method is supplied there is assumed to be anal queue on the device.
  */
 unsigned int tty_chars_in_buffer(struct tty_struct *tty)
 {
@@ -58,10 +58,10 @@ EXPORT_SYMBOL(tty_chars_in_buffer);
  * @tty: terminal
  *
  * Returns: the number of bytes that can be queued to this device at the present
- * time. The result should be treated as a guarantee and the driver cannot
+ * time. The result should be treated as a guarantee and the driver cananalt
  * offer a value it later shrinks by more than the number of bytes written. If
- * no method is provided, 2K is always returned and data may be lost as there
- * will be no flow control.
+ * anal method is provided, 2K is always returned and data may be lost as there
+ * will be anal flow control.
  */
 unsigned int tty_write_room(struct tty_struct *tty)
 {
@@ -75,8 +75,8 @@ EXPORT_SYMBOL(tty_write_room);
  * tty_driver_flush_buffer - discard internal buffer
  * @tty: terminal
  *
- * Discard the internal output buffer for this device. If no method is provided,
- * then either the buffer cannot be hardware flushed or there is no buffer
+ * Discard the internal output buffer for this device. If anal method is provided,
+ * then either the buffer cananalt be hardware flushed or there is anal buffer
  * driver side.
  */
 void tty_driver_flush_buffer(struct tty_struct *tty)
@@ -104,7 +104,7 @@ void tty_unthrottle(struct tty_struct *tty)
 	if (test_and_clear_bit(TTY_THROTTLED, &tty->flags) &&
 	    tty->ops->unthrottle)
 		tty->ops->unthrottle(tty);
-	tty->flow_change = TTY_FLOW_NO_CHANGE;
+	tty->flow_change = TTY_FLOW_ANAL_CHANGE;
 	up_write(&tty->termios_rwsem);
 }
 EXPORT_SYMBOL(tty_unthrottle);
@@ -177,7 +177,7 @@ bool tty_unthrottle_safe(struct tty_struct *tty)
  * Wait for characters pending in a tty driver to hit the wire, or for a
  * timeout to occur (eg due to flow control).
  *
- * Locking: none
+ * Locking: analne
  */
 
 void tty_wait_until_sent(struct tty_struct *tty, long timeout)
@@ -209,12 +209,12 @@ static void unset_locked_termios(struct tty_struct *tty, const struct ktermios *
 	struct ktermios *locked  = &tty->termios_locked;
 	int	i;
 
-#define NOSET_MASK(x, y, z) (x = ((x) & ~(z)) | ((y) & (z)))
+#define ANALSET_MASK(x, y, z) (x = ((x) & ~(z)) | ((y) & (z)))
 
-	NOSET_MASK(termios->c_iflag, old->c_iflag, locked->c_iflag);
-	NOSET_MASK(termios->c_oflag, old->c_oflag, locked->c_oflag);
-	NOSET_MASK(termios->c_cflag, old->c_cflag, locked->c_cflag);
-	NOSET_MASK(termios->c_lflag, old->c_lflag, locked->c_lflag);
+	ANALSET_MASK(termios->c_iflag, old->c_iflag, locked->c_iflag);
+	ANALSET_MASK(termios->c_oflag, old->c_oflag, locked->c_oflag);
+	ANALSET_MASK(termios->c_cflag, old->c_cflag, locked->c_cflag);
+	ANALSET_MASK(termios->c_lflag, old->c_lflag, locked->c_lflag);
 	termios->c_line = locked->c_line ? old->c_line : termios->c_line;
 	for (i = 0; i < NCCS; i++)
 		termios->c_cc[i] = locked->c_cc[i] ?
@@ -228,7 +228,7 @@ static void unset_locked_termios(struct tty_struct *tty, const struct ktermios *
  * @old: old termios
  *
  * Propagate the hardware specific terminal setting bits from the @old termios
- * structure to the @new one. This is used in cases where the hardware does not
+ * structure to the @new one. This is used in cases where the hardware does analt
  * support reconfiguration or as a helper in some cases where only minimal
  * reconfiguration is supported.
  */
@@ -333,7 +333,7 @@ int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
 
 
 	/* FIXME: we need to decide on some locking/ordering semantics
-	   for the set_termios notification eventually */
+	   for the set_termios analtification eventually */
 	down_write(&tty->termios_rwsem);
 	old_termios = tty->termios;
 	tty->termios = *new_termios;
@@ -521,8 +521,8 @@ retry_write_wait:
 	}
 
 	/* FIXME: Arguably if tmp_termios == tty->termios AND the
-	   actual requested termios was not tmp_termios then we may
-	   want to return an error as no user requested change has
+	   actual requested termios was analt tmp_termios then we may
+	   want to return an error as anal user requested change has
 	   succeeded */
 	return 0;
 }
@@ -560,7 +560,7 @@ static int get_sgflags(struct tty_struct *tty)
 {
 	int flags = 0;
 
-	if (!L_ICANON(tty)) {
+	if (!L_ICAANALN(tty)) {
 		if (L_ISIG(tty))
 			flags |= 0x02;		/* cbreak */
 		else
@@ -593,10 +593,10 @@ static void set_sgflags(struct ktermios *termios, int flags)
 {
 	termios->c_iflag = ICRNL | IXON;
 	termios->c_oflag = 0;
-	termios->c_lflag = ISIG | ICANON;
+	termios->c_lflag = ISIG | ICAANALN;
 	if (flags & 0x02) {	/* cbreak */
 		termios->c_iflag = 0;
-		termios->c_lflag &= ~ICANON;
+		termios->c_lflag &= ~ICAANALN;
 	}
 	if (flags & 0x08) {		/* echo */
 		termios->c_lflag |= ECHO | ECHOE | ECHOK |
@@ -607,9 +607,9 @@ static void set_sgflags(struct ktermios *termios, int flags)
 	}
 	if (flags & 0x20) {	/* raw */
 		termios->c_iflag = 0;
-		termios->c_lflag &= ~(ISIG | ICANON);
+		termios->c_lflag &= ~(ISIG | ICAANALN);
 	}
-	if (!(termios->c_lflag & ICANON)) {
+	if (!(termios->c_lflag & ICAANALN)) {
 		termios->c_cc[VMIN] = 1;
 		termios->c_cc[VTIME] = 0;
 	}
@@ -762,7 +762,7 @@ static int tty_change_softcar(struct tty_struct *tty, bool enable)
  * @cmd: command
  * @arg: ioctl argument
  *
- * Perform non-line discipline specific mode control ioctls. This is designed
+ * Perform analn-line discipline specific mode control ioctls. This is designed
  * to be called by line disciplines to ensure they provide consistent mode
  * setting.
  */
@@ -877,7 +877,7 @@ int tty_mode_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 	case TCSETX:
 	case TCSETXW:
 	case TCSETXF:
-		return -ENOTTY;
+		return -EANALTTY;
 #endif
 	case TIOCGSOFTCAR:
 		copy_termios(real_tty, &kterm);
@@ -889,7 +889,7 @@ int tty_mode_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		return tty_change_softcar(real_tty, arg);
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 EXPORT_SYMBOL_GPL(tty_mode_ioctl);

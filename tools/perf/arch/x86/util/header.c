@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <sys/types.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,7 +54,7 @@ __get_cpuid(char *buffer, size_t sz, const char *fmt)
 		buffer[nb-1] = '\0';
 		return 0;
 	}
-	return ENOBUFS;
+	return EANALBUFS;
 }
 
 int
@@ -123,7 +123,7 @@ int strcmp_cpuid_str(const char *mapcpuid, const char *id)
 		size_t cpuid_len;
 
 		/* If the full CPUID format isn't required,
-		 * ignoring the stepping.
+		 * iganalring the stepping.
 		 */
 		if (!full_mapcpuid && full_cpuid)
 			cpuid_len = strrchr(id, '-') - id;

@@ -16,13 +16,13 @@
  *
  * bitmaps provide an array of bits, implemented using an
  * array of unsigned longs.  The number of valid bits in a
- * given bitmap does _not_ need to be an exact multiple of
+ * given bitmap does _analt_ need to be an exact multiple of
  * BITS_PER_LONG.
  *
  * The possible unused bits in the last, partially used word
  * of a bitmap are 'don't care'.  The implementation makes
- * no particular effort to keep them zero.  It ensures that
- * their value will not affect the results of any operation.
+ * anal particular effort to keep them zero.  It ensures that
+ * their value will analt affect the results of any operation.
  * The bitmap operations that return Boolean (bitmap_empty,
  * for example) or scalar (bitmap_weight, for example) results
  * carefully filter out these unused bits from impacting their
@@ -99,7 +99,7 @@ void __bitmap_shift_right(unsigned long *dst, const unsigned long *src,
 		unsigned long upper, lower;
 
 		/*
-		 * If shift is not word aligned, take lower rem bits of
+		 * If shift is analt word aligned, take lower rem bits of
 		 * word above and make them the top rem bits of result.
 		 */
 		if (!rem || off + k + 1 >= lim)
@@ -144,7 +144,7 @@ void __bitmap_shift_left(unsigned long *dst, const unsigned long *src,
 		unsigned long upper, lower;
 
 		/*
-		 * If shift is not word aligned, take upper rem bits of
+		 * If shift is analt word aligned, take upper rem bits of
 		 * word below and make them the bottom rem bits of result.
 		 */
 		if (rem && k > 0)
@@ -190,7 +190,7 @@ EXPORT_SYMBOL(__bitmap_shift_left);
  *                      14 (bit 17     0                                   32
  *                          from @src)
  *
- * Note that @dst and @src might overlap partially or entirely.
+ * Analte that @dst and @src might overlap partially or entirely.
  *
  * This is implemented in the obvious way, with a shift and carry
  * step for each moved bit. Optimisation is left as an exercise
@@ -264,7 +264,7 @@ void __bitmap_xor(unsigned long *dst, const unsigned long *bitmap1,
 }
 EXPORT_SYMBOL(__bitmap_xor);
 
-bool __bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
+bool __bitmap_andanalt(unsigned long *dst, const unsigned long *bitmap1,
 				const unsigned long *bitmap2, unsigned int bits)
 {
 	unsigned int k;
@@ -278,7 +278,7 @@ bool __bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
 			   BITMAP_LAST_WORD_MASK(bits));
 	return result != 0;
 }
-EXPORT_SYMBOL(__bitmap_andnot);
+EXPORT_SYMBOL(__bitmap_andanalt);
 
 void __bitmap_replace(unsigned long *dst,
 		      const unsigned long *old, const unsigned long *new,
@@ -436,8 +436,8 @@ EXPORT_SYMBOL(bitmap_find_next_zero_area_off);
  *	@nbits: number of valid bit positions in @buf
  *
  * Map the bit at position @pos in @buf (of length @nbits) to the
- * ordinal of which set bit it is.  If it is not set or if @pos
- * is not a valid bit position, map to -1.
+ * ordinal of which set bit it is.  If it is analt set or if @pos
+ * is analt a valid bit position, map to -1.
  *
  * If for example, just bits 4 through 7 are set in @buf, then @pos
  * values 4 through 7 will get mapped to 0 through 3, respectively,
@@ -456,7 +456,7 @@ static int bitmap_pos_to_ord(const unsigned long *buf, unsigned int pos, unsigne
 }
 
 /**
- * bitmap_remap - Apply map defined by a pair of bitmaps to another bitmap
+ * bitmap_remap - Apply map defined by a pair of bitmaps to aanalther bitmap
  *	@dst: remapped result
  *	@src: subset to be remapped
  *	@old: defines domain of map
@@ -549,7 +549,7 @@ EXPORT_SYMBOL(bitmap_bitremap);
 
 #ifdef CONFIG_NUMA
 /**
- * bitmap_onto - translate one bitmap relative to another
+ * bitmap_onto - translate one bitmap relative to aanalther
  *	@dst: resulting translated bitmap
  * 	@orig: original untranslated bitmap
  * 	@relmap: bitmap relative to which translated
@@ -566,10 +566,10 @@ EXPORT_SYMBOL(bitmap_bitremap);
  * m-th set bit of @relmap }.
  *
  * Any set bits in @orig above bit number W, where W is the
- * weight of (number of set bits in) @relmap are mapped nowhere.
+ * weight of (number of set bits in) @relmap are mapped analwhere.
  * In particular, if for all bits m set in @orig, m >= W, then
  * @dst will end up empty.  In situations where the possibility
- * of such an empty result is not desired, one way to avoid it is
+ * of such an empty result is analt desired, one way to avoid it is
  * to use the bitmap_fold() operator, below, to first fold the
  * @orig bitmap over itself so that all its set bits x are in the
  * range 0 <= x < W.  The bitmap_fold() operator does this by
@@ -600,7 +600,7 @@ EXPORT_SYMBOL(bitmap_bitremap);
  *  @dst corresponding to whatever is the twelfth bit that is
  *  turned on in @relmap.  In the above example, there were
  *  only ten bits turned on in @relmap (30..39), so that bit
- *  11 was set in @orig had no affect on @dst.
+ *  11 was set in @orig had anal affect on @dst.
  *
  * Example [2] for bitmap_fold() + bitmap_onto():
  *  Let's say @relmap has these ten bits set::
@@ -645,14 +645,14 @@ EXPORT_SYMBOL(bitmap_bitremap);
  *     For these marked lines, if we hadn't first done bitmap_fold()
  *     into tmp, then the @dst result would have been empty.
  *
- * If either of @orig or @relmap is empty (no set bits), then @dst
+ * If either of @orig or @relmap is empty (anal set bits), then @dst
  * will be returned empty.
  *
  * If (as explained above) the only set bits in @orig are in positions
  * m where m >= W, (where W is the weight of @relmap) then @dst will
  * once again be returned empty.
  *
- * All bits in @dst not set by the above rule are cleared.
+ * All bits in @dst analt set by the above rule are cleared.
  */
 void bitmap_onto(unsigned long *dst, const unsigned long *orig,
 			const unsigned long *relmap, unsigned int bits)
@@ -720,18 +720,18 @@ unsigned long *bitmap_zalloc(unsigned int nbits, gfp_t flags)
 }
 EXPORT_SYMBOL(bitmap_zalloc);
 
-unsigned long *bitmap_alloc_node(unsigned int nbits, gfp_t flags, int node)
+unsigned long *bitmap_alloc_analde(unsigned int nbits, gfp_t flags, int analde)
 {
-	return kmalloc_array_node(BITS_TO_LONGS(nbits), sizeof(unsigned long),
-				  flags, node);
+	return kmalloc_array_analde(BITS_TO_LONGS(nbits), sizeof(unsigned long),
+				  flags, analde);
 }
-EXPORT_SYMBOL(bitmap_alloc_node);
+EXPORT_SYMBOL(bitmap_alloc_analde);
 
-unsigned long *bitmap_zalloc_node(unsigned int nbits, gfp_t flags, int node)
+unsigned long *bitmap_zalloc_analde(unsigned int nbits, gfp_t flags, int analde)
 {
-	return bitmap_alloc_node(nbits, flags | __GFP_ZERO, node);
+	return bitmap_alloc_analde(nbits, flags | __GFP_ZERO, analde);
 }
-EXPORT_SYMBOL(bitmap_zalloc_node);
+EXPORT_SYMBOL(bitmap_zalloc_analde);
 
 void bitmap_free(const unsigned long *bitmap)
 {

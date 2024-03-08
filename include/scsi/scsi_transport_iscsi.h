@@ -40,33 +40,33 @@ struct iscsi_bus_flash_conn;
  * @bind_conn:		associate this connection with existing iSCSI session
  *			and specified transport descriptor
  * @destroy_conn:	destroy inactive iSCSI connection
- * @set_param:		set iSCSI parameter. Return 0 on success, -ENODATA
- *			when param is not supported, and a -Exx value on other
+ * @set_param:		set iSCSI parameter. Return 0 on success, -EANALDATA
+ *			when param is analt supported, and a -Exx value on other
  *			error.
  * @get_param		get iSCSI parameter. Must return number of bytes
- *			copied to buffer on success, -ENODATA when param
- *			is not supported, and a -Exx value on other error
+ *			copied to buffer on success, -EANALDATA when param
+ *			is analt supported, and a -Exx value on other error
  * @start_conn:		set connection to be operational
  * @stop_conn:		suspend/recover/terminate connection
- * @send_pdu:		send iSCSI PDU, Login, Logout, NOP-Out, Reject, Text.
- * @session_recovery_timedout: notify LLD a block during recovery timed out
+ * @send_pdu:		send iSCSI PDU, Login, Logout, ANALP-Out, Reject, Text.
+ * @session_recovery_timedout: analtify LLD a block during recovery timed out
  * @init_task:		Initialize a iscsi_task and any internal structs.
  *			When offloading the data path, this is called from
  *			queuecommand with the session lock, or from the
  *			iscsi_conn_send_pdu context with the session lock.
- *			When not offloading the data path, this is called
+ *			When analt offloading the data path, this is called
  *			from the scsi work queue without the session lock.
  * @xmit_task		Requests LLD to transfer cmd task. Returns 0 or the
  *			number of bytes transferred on success, and -Exyz
  *			value on error. When offloading the data path, this
  *			is called from queuecommand with the session lock, or
  *			from the iscsi_conn_send_pdu context with the session
- *			lock. When not offloading the data path, this is called
+ *			lock. When analt offloading the data path, this is called
  *			from the scsi work queue without the session lock.
  * @cleanup_task:	requests LLD to fail task. Called with session lock
  *			and after the connection has been suspended and
  *			terminated during recovery. If called
- *			from abort task then connection is not suspended
+ *			from abort task then connection is analt suspended
  *			or terminated but sk_callback_lock is held
  *
  * Template API provided by iSCSI Transport
@@ -121,7 +121,7 @@ struct iscsi_transport {
 	void (*session_recovery_timedout) (struct iscsi_cls_session *session);
 	struct iscsi_endpoint *(*ep_connect) (struct Scsi_Host *shost,
 					      struct sockaddr *dst_addr,
-					      int non_blocking);
+					      int analn_blocking);
 	int (*ep_poll) (struct iscsi_endpoint *ep, int timeout_ms);
 	void (*ep_disconnect) (struct iscsi_endpoint *ep);
 	int (*tgt_dscvr) (struct Scsi_Host *shost, enum iscsi_tgt_dscvr type,
@@ -141,19 +141,19 @@ struct iscsi_transport {
 			 uint32_t *num_entries, char *buf);
 	int (*delete_chap) (struct Scsi_Host *shost, uint16_t chap_tbl_idx);
 	int (*set_chap) (struct Scsi_Host *shost, void *data, int len);
-	int (*get_flashnode_param) (struct iscsi_bus_flash_session *fnode_sess,
+	int (*get_flashanalde_param) (struct iscsi_bus_flash_session *fanalde_sess,
 				    int param, char *buf);
-	int (*set_flashnode_param) (struct iscsi_bus_flash_session *fnode_sess,
-				    struct iscsi_bus_flash_conn *fnode_conn,
+	int (*set_flashanalde_param) (struct iscsi_bus_flash_session *fanalde_sess,
+				    struct iscsi_bus_flash_conn *fanalde_conn,
 				    void *data, int len);
-	int (*new_flashnode) (struct Scsi_Host *shost, const char *buf,
+	int (*new_flashanalde) (struct Scsi_Host *shost, const char *buf,
 			      int len);
-	int (*del_flashnode) (struct iscsi_bus_flash_session *fnode_sess);
-	int (*login_flashnode) (struct iscsi_bus_flash_session *fnode_sess,
-				struct iscsi_bus_flash_conn *fnode_conn);
-	int (*logout_flashnode) (struct iscsi_bus_flash_session *fnode_sess,
-				 struct iscsi_bus_flash_conn *fnode_conn);
-	int (*logout_flashnode_sid) (struct iscsi_cls_session *cls_sess);
+	int (*del_flashanalde) (struct iscsi_bus_flash_session *fanalde_sess);
+	int (*login_flashanalde) (struct iscsi_bus_flash_session *fanalde_sess,
+				struct iscsi_bus_flash_conn *fanalde_conn);
+	int (*logout_flashanalde) (struct iscsi_bus_flash_session *fanalde_sess,
+				 struct iscsi_bus_flash_conn *fanalde_conn);
+	int (*logout_flashanalde_sid) (struct iscsi_cls_session *cls_sess);
 	int (*get_host_stats) (struct Scsi_Host *shost, char *buf, int len);
 	u8 (*check_protection)(struct iscsi_task *task, sector_t *sector);
 };
@@ -178,13 +178,13 @@ extern int iscsi_offload_mesg(struct Scsi_Host *shost,
 			      struct iscsi_transport *transport, uint32_t type,
 			      char *data, uint16_t data_size);
 
-extern void iscsi_post_host_event(uint32_t host_no,
+extern void iscsi_post_host_event(uint32_t host_anal,
 				  struct iscsi_transport *transport,
 				  enum iscsi_host_event_code code,
 				  uint32_t data_size,
 				  uint8_t *data);
 
-extern void iscsi_ping_comp_event(uint32_t host_no,
+extern void iscsi_ping_comp_event(uint32_t host_anal,
 				  struct iscsi_transport *transport,
 				  uint32_t status, uint32_t pid,
 				  uint32_t data_size, uint8_t *data);
@@ -374,7 +374,7 @@ struct iscsi_bus_flash_session {
 	struct list_head sess_list;		/* item in session_list */
 	struct iscsi_transport *transport;
 	unsigned int target_id;
-	int flash_state;	/* persistent or non-persistent */
+	int flash_state;	/* persistent or analn-persistent */
 	void *dd_data;				/* LLD private data */
 	struct device dev;	/* sysfs transport/container device */
 	/* iscsi session parameters */
@@ -386,8 +386,8 @@ struct iscsi_bus_flash_session {
 	int			imm_data_en;
 	int			time2wait;
 	int			time2retain;
-	int			pdu_inorder_en;
-	int			dataseq_inorder_en;
+	int			pdu_ianalrder_en;
+	int			dataseq_ianalrder_en;
 	int			erl;
 	int			tpgt;
 	char			*username;
@@ -410,7 +410,7 @@ struct iscsi_bus_flash_session {
 	/* Firmware auto sendtarget discovery disable */
 	uint8_t			auto_snd_tgt_disable;
 	uint8_t			discovery_sess;
-	/* indicates if this flashnode entry is enabled or disabled */
+	/* indicates if this flashanalde entry is enabled or disabled */
 	uint8_t			entry_state;
 	uint8_t			chap_auth_en;
 	/* enables firmware to auto logout the discovery session on discovery
@@ -478,29 +478,29 @@ extern int iscsi_is_session_dev(const struct device *dev);
 
 extern char *iscsi_get_discovery_parent_name(int parent_type);
 extern struct device *
-iscsi_find_flashnode(struct Scsi_Host *shost, void *data,
+iscsi_find_flashanalde(struct Scsi_Host *shost, void *data,
 		     int (*fn)(struct device *dev, void *data));
 
 extern struct iscsi_bus_flash_session *
-iscsi_create_flashnode_sess(struct Scsi_Host *shost, int index,
+iscsi_create_flashanalde_sess(struct Scsi_Host *shost, int index,
 			    struct iscsi_transport *transport, int dd_size);
 
 extern struct iscsi_bus_flash_conn *
-iscsi_create_flashnode_conn(struct Scsi_Host *shost,
-			    struct iscsi_bus_flash_session *fnode_sess,
+iscsi_create_flashanalde_conn(struct Scsi_Host *shost,
+			    struct iscsi_bus_flash_session *fanalde_sess,
 			    struct iscsi_transport *transport, int dd_size);
 
 extern void
-iscsi_destroy_flashnode_sess(struct iscsi_bus_flash_session *fnode_sess);
+iscsi_destroy_flashanalde_sess(struct iscsi_bus_flash_session *fanalde_sess);
 
-extern void iscsi_destroy_all_flashnode(struct Scsi_Host *shost);
-extern int iscsi_flashnode_bus_match(struct device *dev,
+extern void iscsi_destroy_all_flashanalde(struct Scsi_Host *shost);
+extern int iscsi_flashanalde_bus_match(struct device *dev,
 				     struct device_driver *drv);
 extern struct device *
-iscsi_find_flashnode_sess(struct Scsi_Host *shost, void *data,
+iscsi_find_flashanalde_sess(struct Scsi_Host *shost, void *data,
 			  int (*fn)(struct device *dev, void *data));
 extern struct device *
-iscsi_find_flashnode_conn(struct iscsi_bus_flash_session *fnode_sess);
+iscsi_find_flashanalde_conn(struct iscsi_bus_flash_session *fanalde_sess);
 
 extern char *
 iscsi_get_ipaddress_state_name(enum iscsi_ipaddress_state port_state);

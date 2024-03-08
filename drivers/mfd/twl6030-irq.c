@@ -8,7 +8,7 @@
  * Copyright (C) 2006 MontaVista Software, Inc.
  *
  * Based on tlv320aic23.c:
- * Copyright (c) by Kai Svahn <kai.svahn@nokia.com>
+ * Copyright (c) by Kai Svahn <kai.svahn@analkia.com>
  *
  * Code cleanup and modifications to IRQ handler.
  * by syed khasim <x0khasim@ti.com>
@@ -108,7 +108,7 @@ struct twl6030_irq {
 	int			twl_irq;
 	bool			irq_wake_enabled;
 	atomic_t		wakeirqs;
-	struct notifier_block	pm_nb;
+	struct analtifier_block	pm_nb;
 	struct irq_chip		irq_chip;
 	struct irq_domain	*irq_domain;
 	const int		*irq_mapping_tbl;
@@ -116,11 +116,11 @@ struct twl6030_irq {
 
 static struct twl6030_irq *twl6030_irq;
 
-static int twl6030_irq_pm_notifier(struct notifier_block *notifier,
+static int twl6030_irq_pm_analtifier(struct analtifier_block *analtifier,
 				   unsigned long pm_event, void *unused)
 {
 	int chained_wakeups;
-	struct twl6030_irq *pdata = container_of(notifier, struct twl6030_irq,
+	struct twl6030_irq *pdata = container_of(analtifier, struct twl6030_irq,
 						  pm_nb);
 
 	switch (pm_event) {
@@ -148,7 +148,7 @@ static int twl6030_irq_pm_notifier(struct notifier_block *notifier,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /*
@@ -177,7 +177,7 @@ static irqreturn_t twl6030_irq_thread(int irq, void *data)
 	sts.bytes[3] = 0; /* Only 24 bits are valid*/
 
 	/*
-	 * Since VBUS status bit is not reliable for VBUS disconnect
+	 * Since VBUS status bit is analt reliable for VBUS disconnect
 	 * use CHARGER VBUS detection status bit instead.
 	 */
 	if (sts.bytes[2] & 0x10)
@@ -199,11 +199,11 @@ static irqreturn_t twl6030_irq_thread(int irq, void *data)
 		}
 
 	/*
-	 * NOTE:
+	 * ANALTE:
 	 * Simulation confirms that documentation is wrong w.r.t the
 	 * interrupt status clear operation. A single *byte* write to
 	 * any one of STS_A to STS_C register results in all three
-	 * STS registers being reset. Since it does not matter which
+	 * STS registers being reset. Since it does analt matter which
 	 * value is written, all three registers are cleared on a
 	 * single byte write, so we just use 0x0 to clear.
 	 */
@@ -315,12 +315,12 @@ int twl6030_mmc_card_detect(struct device *dev, int slot)
 		/* TWL6030 provide's Card detect support for
 		 * only MMC1 controller.
 		 */
-		pr_err("Unknown MMC controller %d in %s\n", pdev->id, __func__);
+		pr_err("Unkanalwn MMC controller %d in %s\n", pdev->id, __func__);
 		return ret;
 	}
 	/*
 	 * BIT0 of MMC_CTRL on TWL6030 provides card status for MMC1
-	 * 0 - Card not present ,1 - Card present
+	 * 0 - Card analt present ,1 - Card present
 	 */
 	ret = twl_i2c_read_u8(TWL6030_MODULE_ID0, &read_reg,
 						TWL6030_MMCCTRL);
@@ -339,7 +339,7 @@ static int twl6030_irq_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_and_handler(virq,  &pdata->irq_chip, handle_simple_irq);
 	irq_set_nested_thread(virq, true);
 	irq_set_parent(virq, pdata->twl_irq);
-	irq_set_noprobe(virq);
+	irq_set_analprobe(virq);
 
 	return 0;
 }
@@ -364,7 +364,7 @@ static const struct of_device_id twl6030_of_match[] __maybe_unused = {
 
 int twl6030_init_irq(struct device *dev, int irq_num)
 {
-	struct			device_node *node = dev->of_node;
+	struct			device_analde *analde = dev->of_analde;
 	int			nr_irqs;
 	int			status;
 	u8			mask[3];
@@ -372,7 +372,7 @@ int twl6030_init_irq(struct device *dev, int irq_num)
 
 	of_id = of_match_device(twl6030_of_match, dev);
 	if (!of_id || !of_id->data) {
-		dev_err(dev, "Unknown TWL device model\n");
+		dev_err(dev, "Unkanalwn TWL device model\n");
 		return -EINVAL;
 	}
 
@@ -380,7 +380,7 @@ int twl6030_init_irq(struct device *dev, int irq_num)
 
 	twl6030_irq = devm_kzalloc(dev, sizeof(*twl6030_irq), GFP_KERNEL);
 	if (!twl6030_irq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mask[0] = 0xFF;
 	mask[1] = 0xFF;
@@ -407,16 +407,16 @@ int twl6030_init_irq(struct device *dev, int irq_num)
 	twl6030_irq->irq_chip.irq_set_type = NULL;
 	twl6030_irq->irq_chip.irq_set_wake = twl6030_irq_set_wake;
 
-	twl6030_irq->pm_nb.notifier_call = twl6030_irq_pm_notifier;
+	twl6030_irq->pm_nb.analtifier_call = twl6030_irq_pm_analtifier;
 	atomic_set(&twl6030_irq->wakeirqs, 0);
 	twl6030_irq->irq_mapping_tbl = of_id->data;
 
 	twl6030_irq->irq_domain =
-		irq_domain_add_linear(node, nr_irqs,
+		irq_domain_add_linear(analde, nr_irqs,
 				      &twl6030_irq_domain_ops, twl6030_irq);
 	if (!twl6030_irq->irq_domain) {
 		dev_err(dev, "Can't add irq_domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev_info(dev, "PIH (irq %d) nested IRQs\n", irq_num);
@@ -425,12 +425,12 @@ int twl6030_init_irq(struct device *dev, int irq_num)
 	status = request_threaded_irq(irq_num, NULL, twl6030_irq_thread,
 				      IRQF_ONESHOT, "TWL6030-PIH", twl6030_irq);
 	if (status < 0) {
-		dev_err(dev, "could not claim irq %d: %d\n", irq_num, status);
+		dev_err(dev, "could analt claim irq %d: %d\n", irq_num, status);
 		goto fail_irq;
 	}
 
 	twl6030_irq->twl_irq = irq_num;
-	register_pm_notifier(&twl6030_irq->pm_nb);
+	register_pm_analtifier(&twl6030_irq->pm_nb);
 	return 0;
 
 fail_irq:
@@ -441,12 +441,12 @@ fail_irq:
 void twl6030_exit_irq(void)
 {
 	if (twl6030_irq && twl6030_irq->twl_irq) {
-		unregister_pm_notifier(&twl6030_irq->pm_nb);
+		unregister_pm_analtifier(&twl6030_irq->pm_nb);
 		free_irq(twl6030_irq->twl_irq, NULL);
 		/*
 		 * TODO: IRQ domain and allocated nested IRQ descriptors
-		 * should be freed somehow here. Now It can't be done, because
-		 * child devices will not be deleted during removing of
+		 * should be freed somehow here. Analw It can't be done, because
+		 * child devices will analt be deleted during removing of
 		 * TWL Core driver and they will still contain allocated
 		 * virt IRQs in their Resources tables.
 		 * The same prevents us from using devm_request_threaded_irq()

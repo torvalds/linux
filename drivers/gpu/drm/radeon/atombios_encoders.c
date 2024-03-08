@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -333,7 +333,7 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 
 	if (ASIC_IS_DCE3(rdev) &&
 	    ((radeon_encoder->active_device & (ATOM_DEVICE_DFP_SUPPORT | ATOM_DEVICE_LCD_SUPPORT)) ||
-	     (radeon_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_NONE))) {
+	     (radeon_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_ANALNE))) {
 		struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 		radeon_dp_set_link_config(connector, adjusted_mode);
 	}
@@ -537,12 +537,12 @@ atombios_dvo_setup(struct drm_encoder *encoder, int action)
 			args.dvo_v4.ucBitPerColor = radeon_atom_get_bpc(encoder);
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			DRM_ERROR("Unkanalwn table version %d, %d\n", frev, crev);
 			break;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		DRM_ERROR("Unkanalwn table version %d, %d\n", frev, crev);
 		break;
 	}
 
@@ -655,12 +655,12 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 			}
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			DRM_ERROR("Unkanalwn table version %d, %d\n", frev, crev);
 			break;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		DRM_ERROR("Unkanalwn table version %d, %d\n", frev, crev);
 		break;
 	}
 
@@ -678,7 +678,7 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 	struct radeon_connector_atom_dig *dig_connector;
 
 	/* dp bridges are always DP */
-	if (radeon_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_NONE)
+	if (radeon_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_ANALNE)
 		return ATOM_ENCODER_MODE_DP;
 
 	/* DVO is always DVO */
@@ -805,7 +805,7 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
  * - 3 DIG transmitter blocks UNIPHY0/1/2 (links A and B).
  * Supports up to 6 digital outputs
  * - 2 DIG encoder blocks.
- * llano
+ * llaanal
  * DIG1/2 can drive UNIPHY0/1/2 link A or link B
  * ontario
  * DIG1 drives UNIPHY0/1/2 link A
@@ -840,7 +840,7 @@ atombios_dig_encoder_setup2(struct drm_encoder *encoder, int action, int panel_m
 	uint8_t frev, crev;
 	int dp_clock = 0;
 	int dp_lane_count = 0;
-	int hpd_id = RADEON_HPD_NONE;
+	int hpd_id = RADEON_HPD_ANALNE;
 
 	if (connector) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
@@ -852,7 +852,7 @@ atombios_dig_encoder_setup2(struct drm_encoder *encoder, int action, int panel_m
 		hpd_id = radeon_connector->hpd.hpd;
 	}
 
-	/* no dig encoder assigned */
+	/* anal dig encoder assigned */
 	if (dig->dig_encoder == -1)
 		return;
 
@@ -964,18 +964,18 @@ atombios_dig_encoder_setup2(struct drm_encoder *encoder, int action, int panel_m
 			else
 				args.v4.acConfig.ucDigSel = dig->dig_encoder;
 			args.v4.ucBitPerColor = radeon_atom_get_bpc(encoder);
-			if (hpd_id == RADEON_HPD_NONE)
+			if (hpd_id == RADEON_HPD_ANALNE)
 				args.v4.ucHPD_ID = 0;
 			else
 				args.v4.ucHPD_ID = hpd_id + 1;
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			DRM_ERROR("Unkanalwn table version %d, %d\n", frev, crev);
 			break;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		DRM_ERROR("Unkanalwn table version %d, %d\n", frev, crev);
 		break;
 	}
 
@@ -1015,7 +1015,7 @@ atombios_dig_transmitter_setup2(struct drm_encoder *encoder, int action, uint8_t
 	int connector_object_id = 0;
 	int igp_lane_info = 0;
 	int dig_encoder = dig->dig_encoder;
-	int hpd_id = RADEON_HPD_NONE;
+	int hpd_id = RADEON_HPD_ANALNE;
 
 	if (action == ATOM_TRANSMITTER_ACTION_INIT) {
 		connector = radeon_get_connector_for_encoder_init(encoder);
@@ -1044,7 +1044,7 @@ atombios_dig_transmitter_setup2(struct drm_encoder *encoder, int action, uint8_t
 		pll_id = radeon_crtc->pll_id;
 	}
 
-	/* no dig encoder assigned */
+	/* anal dig encoder assigned */
 	if (dig_encoder == -1)
 		return;
 
@@ -1344,7 +1344,7 @@ atombios_dig_transmitter_setup2(struct drm_encoder *encoder, int action, uint8_t
 				if (dig->coherent_mode)
 					args.v5.asConfig.ucCoherentMode = 1;
 			}
-			if (hpd_id == RADEON_HPD_NONE)
+			if (hpd_id == RADEON_HPD_ANALNE)
 				args.v5.asConfig.ucHPDSel = 0;
 			else
 				args.v5.asConfig.ucHPDSel = hpd_id + 1;
@@ -1352,12 +1352,12 @@ atombios_dig_transmitter_setup2(struct drm_encoder *encoder, int action, uint8_t
 			args.v5.ucDPLaneSet = lane_set;
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			DRM_ERROR("Unkanalwn table version %d, %d\n", frev, crev);
 			break;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		DRM_ERROR("Unkanalwn table version %d, %d\n", frev, crev);
 		break;
 	}
 
@@ -1460,7 +1460,7 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 
 	switch (frev) {
 	case 1:
-		/* no params on frev 1 */
+		/* anal params on frev 1 */
 		break;
 	case 2:
 		switch (crev) {
@@ -1511,12 +1511,12 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 			args.v3.sExtEncoder.ucBitPerColor = radeon_atom_get_bpc(encoder);
 			break;
 		default:
-			DRM_ERROR("Unknown table version: %d, %d\n", frev, crev);
+			DRM_ERROR("Unkanalwn table version: %d, %d\n", frev, crev);
 			return;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version: %d, %d\n", frev, crev);
+		DRM_ERROR("Unkanalwn table version: %d, %d\n", frev, crev);
 		return;
 	}
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
@@ -1910,7 +1910,7 @@ atombios_set_encoder_crtc_source(struct drm_encoder *encoder)
 			break;
 		case 2:
 			args.v2.ucCRTC = radeon_crtc->crtc_id;
-			if (radeon_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_NONE) {
+			if (radeon_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_ANALNE) {
 				struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 
 				if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS)
@@ -1979,7 +1979,7 @@ atombios_set_encoder_crtc_source(struct drm_encoder *encoder)
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version: %d, %d\n", frev, crev);
+		DRM_ERROR("Unkanalwn table version: %d, %d\n", frev, crev);
 		return;
 	}
 
@@ -2095,7 +2095,7 @@ int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder, int fe_idx)
 				else
 					enc_idx = 0;
 			} else
-				/* llano follows DCE3.2 */
+				/* llaanal follows DCE3.2 */
 				enc_idx = radeon_crtc->crtc_id;
 		} else {
 			switch (radeon_encoder->encoder_id) {
@@ -2329,7 +2329,7 @@ radeon_atom_dac_detect(struct drm_encoder *encoder, struct drm_connector *connec
 
 	if (!atombios_dac_load_detect(encoder, connector)) {
 		DRM_DEBUG_KMS("detect returned false \n");
-		return connector_status_unknown;
+		return connector_status_unkanalwn;
 	}
 
 	if (rdev->family >= CHIP_R600)
@@ -2370,13 +2370,13 @@ radeon_atom_dig_detect(struct drm_encoder *encoder, struct drm_connector *connec
 	u32 bios_0_scratch;
 
 	if (!ASIC_IS_DCE4(rdev))
-		return connector_status_unknown;
+		return connector_status_unkanalwn;
 
 	if (!ext_encoder)
-		return connector_status_unknown;
+		return connector_status_unkanalwn;
 
 	if ((radeon_connector->devices & ATOM_DEVICE_CRT_SUPPORT) == 0)
-		return connector_status_unknown;
+		return connector_status_unkanalwn;
 
 	/* load detect on the dp bridge */
 	atombios_external_encoder_setup(encoder, ext_encoder,
@@ -2427,7 +2427,7 @@ static void radeon_atom_encoder_prepare(struct drm_encoder *encoder)
 	if ((radeon_encoder->active_device &
 	     (ATOM_DEVICE_DFP_SUPPORT | ATOM_DEVICE_LCD_SUPPORT)) ||
 	    (radeon_encoder_get_dp_bridge_encoder_id(encoder) !=
-	     ENCODER_OBJECT_ID_NONE)) {
+	     ENCODER_OBJECT_ID_ANALNE)) {
 		struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 		if (dig) {
 			if (dig->dig_encoder >= 0)
@@ -2487,7 +2487,7 @@ static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 
 	/* check for pre-DCE3 cards with shared encoders;
 	 * can't really use the links individually, so don't disable
-	 * the encoder if it's in use by another connector
+	 * the encoder if it's in use by aanalther connector
 	 */
 	if (!ASIC_IS_DCE3(rdev)) {
 		struct drm_encoder *other_encoder;
@@ -2584,7 +2584,7 @@ static const struct drm_encoder_helper_funcs radeon_atom_ext_helper_funcs = {
 	.mode_set = radeon_atom_ext_mode_set,
 	.commit = radeon_atom_ext_commit,
 	.disable = radeon_atom_ext_disable,
-	/* no detect for TMDS/LVDS yet */
+	/* anal detect for TMDS/LVDS yet */
 };
 
 static const struct drm_encoder_helper_funcs radeon_atom_dig_helper_funcs = {

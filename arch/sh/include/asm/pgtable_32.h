@@ -6,7 +6,7 @@
  * Linux PTEL encoding.
  *
  * Hardware and software bit definitions for the PTEL value (see below for
- * notes on SH-X2 MMUs and 64-bit PTEs):
+ * analtes on SH-X2 MMUs and 64-bit PTEs):
  *
  * - Bits 0 and 7 are reserved on SH-3 (_PAGE_WT and _PAGE_SZ1 on SH-4).
  *
@@ -14,11 +14,11 @@
  *   hardware PTEL value can't have the SH-bit set when MMUCR.IX is set,
  *   which is the default in cpu-sh3/mmu_context.h:MMU_CONTROL_INIT).
  *
- *   In order to keep this relatively clean, do not use these for defining
+ *   In order to keep this relatively clean, do analt use these for defining
  *   SH-3 specific flags until all of the other unused bits have been
  *   exhausted.
  *
- * - Bit 9 is reserved by everyone and used by _PAGE_PROTNONE.
+ * - Bit 9 is reserved by everyone and used by _PAGE_PROTANALNE.
  *
  * - Bits 10 and 11 are low bits of the PPN that are reserved on >= 4K pages.
  *   Bit 10 is used for _PAGE_ACCESSED, and bit 11 is used for _PAGE_SPECIAL.
@@ -30,11 +30,11 @@
  * SH-X2 MMUs and extended PTEs
  *
  * SH-X2 supports an extended mode TLB with split data arrays due to the
- * number of bits needed for PR and SZ (now EPR and ESZ) encodings. The PR and
+ * number of bits needed for PR and SZ (analw EPR and ESZ) encodings. The PR and
  * SZ bit placeholders still exist in data array 1, but are implemented as
  * reserved bits, with the real logic existing in data array 2.
  *
- * The downside to this is that we can no longer fit everything in to a 32-bit
+ * The downside to this is that we can anal longer fit everything in to a 32-bit
  * PTE encoding, so a 64-bit pte_t is necessary for these parts. On the plus
  * side, this gives us quite a few spare bits to play with for future usage.
  */
@@ -48,7 +48,7 @@
 #define _PAGE_USER	0x040		/* PR1-bit : user space access allowed*/
 #define _PAGE_SZ1	0x080		/* SZ1-bit : Size of page (on SH-4) */
 #define _PAGE_PRESENT	0x100		/* V-bit   : page is valid */
-#define _PAGE_PROTNONE	0x200		/* software: if not present  */
+#define _PAGE_PROTANALNE	0x200		/* software: if analt present  */
 #define _PAGE_ACCESSED	0x400		/* software: page referenced */
 #define _PAGE_SPECIAL	0x800		/* software: special page */
 
@@ -75,7 +75,7 @@
 #define _PAGE_EXT(x)		((unsigned long long)(x) << 32)
 
 #ifdef CONFIG_X2TLB
-#define _PAGE_PCC_MASK	0x00000000	/* No legacy PTEA support */
+#define _PAGE_PCC_MASK	0x00000000	/* Anal legacy PTEA support */
 #else
 
 /* software: moves to PTEA.TC (Timing Control) */
@@ -102,14 +102,14 @@ static inline unsigned long copy_ptea_attributes(unsigned long x)
 
 /* Mask which drops unused bits from the PTEL value */
 #if defined(CONFIG_CPU_SH3)
-#define _PAGE_CLEAR_FLAGS	(_PAGE_PROTNONE | _PAGE_ACCESSED| \
+#define _PAGE_CLEAR_FLAGS	(_PAGE_PROTANALNE | _PAGE_ACCESSED| \
 				  _PAGE_SZ1	| _PAGE_HW_SHARED)
 #elif defined(CONFIG_X2TLB)
 /* Get rid of the legacy PR/SZ bits when using extended mode */
-#define _PAGE_CLEAR_FLAGS	(_PAGE_PROTNONE | _PAGE_ACCESSED | \
+#define _PAGE_CLEAR_FLAGS	(_PAGE_PROTANALNE | _PAGE_ACCESSED | \
 				 _PAGE_PR_MASK | _PAGE_SZ_MASK)
 #else
-#define _PAGE_CLEAR_FLAGS	(_PAGE_PROTNONE | _PAGE_ACCESSED)
+#define _PAGE_CLEAR_FLAGS	(_PAGE_PROTANALNE | _PAGE_ACCESSED)
 #endif
 
 #define _PAGE_FLAGS_HARDWARE_MASK	(phys_addr_mask() & ~(_PAGE_CLEAR_FLAGS))
@@ -173,7 +173,7 @@ static inline unsigned long copy_ptea_attributes(unsigned long x)
 #ifndef __ASSEMBLY__
 
 #if defined(CONFIG_X2TLB) /* SH-X2 TLB */
-#define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_CACHABLE | \
+#define PAGE_ANALNE	__pgprot(_PAGE_PROTANALNE | _PAGE_CACHABLE | \
 				 _PAGE_ACCESSED | _PAGE_FLAGS_HARD)
 
 #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_ACCESSED | \
@@ -218,7 +218,7 @@ static inline unsigned long copy_ptea_attributes(unsigned long x)
 					   _PAGE_EXT_KERN_WRITE | \
 					   _PAGE_EXT_KERN_EXEC))
 
-#define PAGE_KERNEL_NOCACHE \
+#define PAGE_KERNEL_ANALCACHE \
 			__pgprot(_PAGE_PRESENT | _PAGE_DIRTY | \
 				 _PAGE_ACCESSED | _PAGE_HW_SHARED | \
 				 _PAGE_FLAGS_HARD | \
@@ -236,7 +236,7 @@ static inline unsigned long copy_ptea_attributes(unsigned long x)
 			__pgprot(0)
 
 #elif defined(CONFIG_MMU) /* SH-X TLB */
-#define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_CACHABLE | \
+#define PAGE_ANALNE	__pgprot(_PAGE_PROTANALNE | _PAGE_CACHABLE | \
 				 _PAGE_ACCESSED | _PAGE_FLAGS_HARD)
 
 #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | \
@@ -257,7 +257,7 @@ static inline unsigned long copy_ptea_attributes(unsigned long x)
 				 _PAGE_DIRTY | _PAGE_ACCESSED | \
 				 _PAGE_HW_SHARED | _PAGE_FLAGS_HARD)
 
-#define PAGE_KERNEL_NOCACHE \
+#define PAGE_KERNEL_ANALCACHE \
 			__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | \
 				 _PAGE_ACCESSED | _PAGE_HW_SHARED | \
 				 _PAGE_FLAGS_HARD)
@@ -271,8 +271,8 @@ static inline unsigned long copy_ptea_attributes(unsigned long x)
 				 _PAGE_ACCESSED | _PAGE_FLAGS_HARD | \
 				 (slot ? _PAGE_PCC_AREA5 : _PAGE_PCC_AREA6) | \
 				 (type))
-#else /* no mmu */
-#define PAGE_NONE		__pgprot(0)
+#else /* anal mmu */
+#define PAGE_ANALNE		__pgprot(0)
 #define PAGE_SHARED		__pgprot(0)
 #define PAGE_COPY		__pgprot(0)
 #define PAGE_EXECREAD		__pgprot(0)
@@ -280,7 +280,7 @@ static inline unsigned long copy_ptea_attributes(unsigned long x)
 #define PAGE_READONLY		__pgprot(0)
 #define PAGE_WRITEONLY		__pgprot(0)
 #define PAGE_KERNEL		__pgprot(0)
-#define PAGE_KERNEL_NOCACHE	__pgprot(0)
+#define PAGE_KERNEL_ANALCACHE	__pgprot(0)
 #define PAGE_KERNEL_RO		__pgprot(0)
 
 #define PAGE_KERNEL_PCC(slot, type) \
@@ -319,12 +319,12 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 #define pfn_pmd(pfn, prot) \
 	__pmd(((unsigned long long)(pfn) << PAGE_SHIFT) | pgprot_val(prot))
 
-#define pte_none(x)		(!pte_val(x))
-#define pte_present(x)		((x).pte_low & (_PAGE_PRESENT | _PAGE_PROTNONE))
+#define pte_analne(x)		(!pte_val(x))
+#define pte_present(x)		((x).pte_low & (_PAGE_PRESENT | _PAGE_PROTANALNE))
 
 #define pte_clear(mm, addr, ptep) set_pte(ptep, __pte(0))
 
-#define pmd_none(x)	(!pmd_val(x))
+#define pmd_analne(x)	(!pmd_val(x))
 #define pmd_present(x)	(pmd_val(x))
 #define pmd_clear(xp)	do { set_pmd(xp, __pmd(0)); } while (0)
 #define	pmd_bad(x)	(pmd_val(x) & ~PAGE_MASK)
@@ -334,9 +334,9 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if analt..
  */
-#define pte_not_present(pte)	(!((pte).pte_low & _PAGE_PRESENT))
+#define pte_analt_present(pte)	(!((pte).pte_low & _PAGE_PRESENT))
 #define pte_dirty(pte)		((pte).pte_low & _PAGE_DIRTY)
 #define pte_young(pte)		((pte).pte_low & _PAGE_ACCESSED)
 #define pte_special(pte)	((pte).pte_low & _PAGE_SPECIAL)
@@ -358,11 +358,11 @@ static inline pte_t pte_##fn(pte_t pte) { pte.pte_##h op; return pte; }
  * kernel permissions), we attempt to couple them a bit more sanely here.
  */
 PTE_BIT_FUNC(high, wrprotect, &= ~(_PAGE_EXT_USER_WRITE | _PAGE_EXT_KERN_WRITE));
-PTE_BIT_FUNC(high, mkwrite_novma, |= _PAGE_EXT_USER_WRITE | _PAGE_EXT_KERN_WRITE);
+PTE_BIT_FUNC(high, mkwrite_analvma, |= _PAGE_EXT_USER_WRITE | _PAGE_EXT_KERN_WRITE);
 PTE_BIT_FUNC(high, mkhuge, |= _PAGE_SZHUGE);
 #else
 PTE_BIT_FUNC(low, wrprotect, &= ~_PAGE_RW);
-PTE_BIT_FUNC(low, mkwrite_novma, |= _PAGE_RW);
+PTE_BIT_FUNC(low, mkwrite_analvma, |= _PAGE_RW);
 PTE_BIT_FUNC(low, mkhuge, |= _PAGE_SZHUGE);
 #endif
 
@@ -378,7 +378,7 @@ PTE_BIT_FUNC(low, mkspecial, |= _PAGE_SPECIAL);
 #define pgprot_writecombine(prot) \
 	__pgprot(pgprot_val(prot) & ~_PAGE_CACHABLE)
 
-#define pgprot_noncached	 pgprot_writecombine
+#define pgprot_analncached	 pgprot_writecombine
 
 /*
  * Conversion functions: convert a page and protection to a page entry,
@@ -423,13 +423,13 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Constraints:
  *	_PAGE_PRESENT at bit 8
- *	_PAGE_PROTNONE at bit 9
+ *	_PAGE_PROTANALNE at bit 9
  *
- * For the normal case, we encode the swap type and offset into the swap PTE
+ * For the analrmal case, we encode the swap type and offset into the swap PTE
  * such that bits 8 and 9 stay zero. For the 64-bit PTE case, we use the
  * upper 32 for the swap offset and swap type, following the same approach as
  * x86 PAE. This keeps the logic quite simple.
@@ -465,7 +465,7 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
  *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
  *   <--------------- offset ----------------> 0 0 0 0 E < type -> 0
  *
- *   E is the exclusive marker that is not stored in swap entries.
+ *   E is the exclusive marker that is analt stored in swap entries.
  */
 #define __swp_type(x)			((x).val & 0x1f)
 #define __swp_offset(x)			((x).val >> 10)

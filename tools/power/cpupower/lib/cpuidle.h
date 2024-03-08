@@ -18,7 +18,7 @@ char *cpuidle_state_desc(unsigned int cpu,
 				unsigned int idlestate);
 unsigned int cpuidle_state_count(unsigned int cpu);
 
-char *cpuidle_get_governor(void);
+char *cpuidle_get_goveranalr(void);
 char *cpuidle_get_driver(void);
 
 #endif /* __CPUPOWER_HELPERS_SYSFS_H__ */

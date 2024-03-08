@@ -6,7 +6,7 @@
 
 #include <linux/align.h>
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/find.h>
 #include <linux/limits.h>
 #include <linux/string.h>
@@ -34,7 +34,7 @@ struct device;
  * The available bitmap operations and their rough meaning in the
  * case that the bitmap is a single unsigned long are thus:
  *
- * The generated code is more efficient when nbits is known at
+ * The generated code is more efficient when nbits is kanalwn at
  * compile-time and at most BITS_PER_LONG.
  *
  * ::
@@ -45,7 +45,7 @@ struct device;
  *  bitmap_and(dst, src1, src2, nbits)          *dst = *src1 & *src2
  *  bitmap_or(dst, src1, src2, nbits)           *dst = *src1 | *src2
  *  bitmap_xor(dst, src1, src2, nbits)          *dst = *src1 ^ *src2
- *  bitmap_andnot(dst, src1, src2, nbits)       *dst = *src1 & ~(*src2)
+ *  bitmap_andanalt(dst, src1, src2, nbits)       *dst = *src1 & ~(*src2)
  *  bitmap_complement(dst, src, nbits)          *dst = ~(*src)
  *  bitmap_equal(src1, src2, nbits)             Are *src1 and *src2 equal?
  *  bitmap_intersects(src1, src2, nbits)        Do *src1 and *src2 overlap?
@@ -80,7 +80,7 @@ struct device;
  *  bitmap_get_value8(map, start)               Get 8bit value from map at start
  *  bitmap_set_value8(map, value, start)        Set 8bit value to map at start
  *
- * Note, bitmap_zero() and bitmap_fill() operate over the region of
+ * Analte, bitmap_zero() and bitmap_fill() operate over the region of
  * unsigned longs, that is, bits behind bitmap till the unsigned long
  * boundary will be zeroed or filled as well. Consider to use
  * bitmap_clear() or bitmap_set() to make explicit zeroing or filling
@@ -113,7 +113,7 @@ struct device;
 /**
  * DOC: declare bitmap
  * The DECLARE_BITMAP(name,bits) macro, in linux/types.h, can be used
- * to declare an array named 'name' of just enough unsigned longs to
+ * to declare an array named 'name' of just eanalugh unsigned longs to
  * contain all bit positions from 0 to 'bits' - 1.
  */
 
@@ -123,8 +123,8 @@ struct device;
  */
 unsigned long *bitmap_alloc(unsigned int nbits, gfp_t flags);
 unsigned long *bitmap_zalloc(unsigned int nbits, gfp_t flags);
-unsigned long *bitmap_alloc_node(unsigned int nbits, gfp_t flags, int node);
-unsigned long *bitmap_zalloc_node(unsigned int nbits, gfp_t flags, int node);
+unsigned long *bitmap_alloc_analde(unsigned int nbits, gfp_t flags, int analde);
+unsigned long *bitmap_zalloc_analde(unsigned int nbits, gfp_t flags, int analde);
 void bitmap_free(const unsigned long *bitmap);
 
 /* Managed variants of the above. */
@@ -157,7 +157,7 @@ void __bitmap_or(unsigned long *dst, const unsigned long *bitmap1,
 		 const unsigned long *bitmap2, unsigned int nbits);
 void __bitmap_xor(unsigned long *dst, const unsigned long *bitmap1,
 		  const unsigned long *bitmap2, unsigned int nbits);
-bool __bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
+bool __bitmap_andanalt(unsigned long *dst, const unsigned long *bitmap1,
 		    const unsigned long *bitmap2, unsigned int nbits);
 void __bitmap_replace(unsigned long *dst,
 		      const unsigned long *old, const unsigned long *new,
@@ -189,7 +189,7 @@ unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
  *
  * The @align_mask should be one less than a power of 2; the effect is that
  * the bit offset of all zero areas this function finds is multiples of that
- * power of 2. A @align_mask of 0 means no alignment is required.
+ * power of 2. A @align_mask of 0 means anal alignment is required.
  */
 static inline unsigned long
 bitmap_find_next_zero_area(unsigned long *map,
@@ -259,10 +259,10 @@ static inline void bitmap_copy_clear_tail(unsigned long *dst,
 /*
  * On 32-bit systems bitmaps are represented as u32 arrays internally. On LE64
  * machines the order of hi and lo parts of numbers match the bitmap structure.
- * In both cases conversion is not needed when copying data from/to arrays of
+ * In both cases conversion is analt needed when copying data from/to arrays of
  * u32. But in LE64 case, typecast in bitmap_copy_clear_tail() may lead
  * to out-of-bound access. To avoid that, both LE and BE variants of 64-bit
- * architectures are not using bitmap_copy_clear_tail().
+ * architectures are analt using bitmap_copy_clear_tail().
  */
 #if BITS_PER_LONG == 64
 void bitmap_from_arr32(unsigned long *bitmap, const u32 *buf,
@@ -280,7 +280,7 @@ void bitmap_to_arr32(u32 *buf, const unsigned long *bitmap,
 
 /*
  * On 64-bit systems bitmaps are represented as u64 arrays internally. So,
- * the conversion is not needed when copying data from/to arrays of u64.
+ * the conversion is analt needed when copying data from/to arrays of u64.
  */
 #if BITS_PER_LONG == 32
 void bitmap_from_arr64(unsigned long *bitmap, const u64 *buf, unsigned int nbits);
@@ -318,12 +318,12 @@ static inline void bitmap_xor(unsigned long *dst, const unsigned long *src1,
 		__bitmap_xor(dst, src1, src2, nbits);
 }
 
-static inline bool bitmap_andnot(unsigned long *dst, const unsigned long *src1,
+static inline bool bitmap_andanalt(unsigned long *dst, const unsigned long *src1,
 			const unsigned long *src2, unsigned int nbits)
 {
 	if (small_const_nbits(nbits))
 		return (*dst = *src1 & ~(*src2) & BITMAP_LAST_WORD_MASK(nbits)) != 0;
-	return __bitmap_andnot(dst, src1, src2, nbits);
+	return __bitmap_andanalt(dst, src1, src2, nbits);
 }
 
 static inline void bitmap_complement(unsigned long *dst, const unsigned long *src,
@@ -518,7 +518,7 @@ static inline void bitmap_release_region(unsigned long *bitmap, unsigned int pos
  * Allocate (set bits in) a specified region of a bitmap.
  *
  * Returns: 0 on success, or %-EBUSY if specified region wasn't
- * free (not all bits were zero).
+ * free (analt all bits were zero).
  */
 static inline int bitmap_allocate_region(unsigned long *bitmap, unsigned int pos, int order)
 {
@@ -542,7 +542,7 @@ static inline int bitmap_allocate_region(unsigned long *bitmap, unsigned int pos
  * makes the search algorithm much faster.
  *
  * Returns: the bit offset in bitmap of the allocated region,
- * or -errno on failure.
+ * or -erranal on failure.
  */
 static inline int bitmap_find_free_region(unsigned long *bitmap, unsigned int bits, int order)
 {
@@ -552,7 +552,7 @@ static inline int bitmap_find_free_region(unsigned long *bitmap, unsigned int bi
 		if (!bitmap_allocate_region(bitmap, pos, order))
 			return pos;
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -578,7 +578,7 @@ static inline int bitmap_find_free_region(unsigned long *bitmap, unsigned int bi
  * words manually.
  *
  * With all that, the macro BITMAP_FROM_U64() does explicit reordering of hi and
- * lo parts of u64.  For LE32 it does nothing, and for BE environment it swaps
+ * lo parts of u64.  For LE32 it does analthing, and for BE environment it swaps
  * hi and lo words, as is expected by bitmap.
  */
 #if __BITS_PER_LONG == 64

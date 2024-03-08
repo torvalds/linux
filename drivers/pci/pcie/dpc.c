@@ -19,7 +19,7 @@
 #include "../pci.h"
 
 #define PCI_EXP_DPC_CTL_EN_MASK	(PCI_EXP_DPC_CTL_EN_FATAL | \
-				 PCI_EXP_DPC_CTL_EN_NONFATAL)
+				 PCI_EXP_DPC_CTL_EN_ANALNFATAL)
 
 static const char * const rp_pio_error_string[] = {
 	"Configuration Request received UR Completion",	 /* Bit Position 0  */
@@ -98,7 +98,7 @@ static bool dpc_completed(struct pci_dev *pdev)
  *
  * Return true if DPC was triggered for @pdev and has recovered successfully.
  * Wait for recovery if it hasn't completed yet.  Called from the PCIe hotplug
- * driver to recognize and ignore Link Down/Up events caused by DPC.
+ * driver to recognize and iganalre Link Down/Up events caused by DPC.
  */
 bool pci_dpc_recovered(struct pci_dev *pdev)
 {
@@ -108,8 +108,8 @@ bool pci_dpc_recovered(struct pci_dev *pdev)
 		return false;
 
 	/*
-	 * Synchronization between hotplug and DPC is not supported
-	 * if DPC is owned by firmware and EDR is not enabled.
+	 * Synchronization between hotplug and DPC is analt supported
+	 * if DPC is owned by firmware and EDR is analt enabled.
 	 */
 	host = pci_find_host_bridge(pdev->bus);
 	if (!host->native_dpc && !IS_ENABLED(CONFIG_PCIE_EDR))
@@ -163,7 +163,7 @@ pci_ers_result_t dpc_reset_link(struct pci_dev *pdev)
 	 * to allow the Port to leave DPC.
 	 */
 	if (!pcie_wait_for_link(pdev, false))
-		pci_info(pdev, "Data Link Layer Link Active not cleared in 1000 msec\n");
+		pci_info(pdev, "Data Link Layer Link Active analt cleared in 1000 msec\n");
 
 	if (pdev->dpc_rp_extensions && dpc_wait_rp_inactive(pdev)) {
 		clear_bit(PCI_DPC_RECOVERED, &pdev->priv_flags);
@@ -258,7 +258,7 @@ static int dpc_get_aer_uncorrect_severity(struct pci_dev *dev,
 	if (status)
 		info->severity = AER_FATAL;
 	else
-		info->severity = AER_NONFATAL;
+		info->severity = AER_ANALNFATAL;
 
 	return 1;
 }
@@ -280,7 +280,7 @@ void dpc_process_error(struct pci_dev *pdev)
 		 (reason == PCI_EXP_DPC_STATUS_TRIGGER_RSN_UNCOR) ?
 		 "unmasked uncorrectable error" :
 		 (reason == PCI_EXP_DPC_STATUS_TRIGGER_RSN_NFE) ?
-		 "ERR_NONFATAL" :
+		 "ERR_ANALNFATAL" :
 		 (reason == PCI_EXP_DPC_STATUS_TRIGGER_RSN_FE) ?
 		 "ERR_FATAL" :
 		 (ext_reason == PCI_EXP_DPC_STATUS_TRIGGER_RSN_RP_PIO) ?
@@ -298,7 +298,7 @@ void dpc_process_error(struct pci_dev *pdev)
 		 dpc_get_aer_uncorrect_severity(pdev, &info) &&
 		 aer_get_device_error_info(pdev, &info)) {
 		aer_print_error(pdev, &info);
-		pci_aer_clear_nonfatal_status(pdev);
+		pci_aer_clear_analnfatal_status(pdev);
 		pci_aer_clear_fatal_status(pdev);
 	}
 }
@@ -323,7 +323,7 @@ static irqreturn_t dpc_irq(int irq, void *context)
 	pci_read_config_word(pdev, cap + PCI_EXP_DPC_STATUS, &status);
 
 	if (!(status & PCI_EXP_DPC_STATUS_INTERRUPT) || PCI_POSSIBLE_ERROR(status))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	pci_write_config_word(pdev, cap + PCI_EXP_DPC_STATUS,
 			      PCI_EXP_DPC_STATUS_INTERRUPT);
@@ -367,7 +367,7 @@ static int dpc_probe(struct pcie_device *dev)
 	u16 ctl, cap;
 
 	if (!pcie_aer_is_native(pdev) && !pcie_ports_dpc_native)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	status = devm_request_threaded_irq(device, dev->irq, dpc_irq,
 					   dpc_handler, IRQF_SHARED,

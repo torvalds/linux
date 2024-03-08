@@ -38,7 +38,7 @@ properties:
       - const: pixel
 
   clock-output-names: true
-    # FIXME: The meta-schemas don't seem to allow it for now
+    # FIXME: The meta-schemas don't seem to allow it for analw
     # items:
     #   - description: The DSI byte clock for the PHY
     #   - description: The DSI DDR2 clock

@@ -120,9 +120,9 @@ static int cpg_pll_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	cpg_reg_modify(pll_clk->pllcr0_reg, 0, CPG_PLLxCR0_KICK);
 
 	/*
-	 * Note: There is no HW information about the worst case latency.
+	 * Analte: There is anal HW information about the worst case latency.
 	 *
-	 * Using experimental measurements, it seems that no more than
+	 * Using experimental measurements, it seems that anal more than
 	 * ~45 µs are needed, independently of the CPU rate.
 	 * Since this value might be dependent on external xtal rate, pll
 	 * rate or even the other emulation clocks rate, use 1000 as a
@@ -152,7 +152,7 @@ static struct clk * __init cpg_pll_clk_register(const char *name,
 
 	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
 	if (!pll_clk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &cpg_pll_clk_ops;
@@ -185,7 +185,7 @@ struct cpg_z_clk {
 	struct clk_hw hw;
 	void __iomem *reg;
 	void __iomem *kick_reg;
-	unsigned long max_rate;		/* Maximum rate for normal mode */
+	unsigned long max_rate;		/* Maximum rate for analrmal mode */
 	unsigned int fixed_div;
 	u32 mask;
 };
@@ -215,7 +215,7 @@ static int cpg_z_clk_determine_rate(struct clk_hw *hw,
 
 	rate = min(req->rate, req->max_rate);
 	if (rate <= zclk->max_rate) {
-		/* Set parent rate to initial value for normal modes */
+		/* Set parent rate to initial value for analrmal modes */
 		prate = zclk->max_rate;
 	} else {
 		/* Set increased parent rate for boost modes */
@@ -260,9 +260,9 @@ static int cpg_z_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	cpg_reg_modify(zclk->kick_reg, 0, CPG_FRQCRB_KICK);
 
 	/*
-	 * Note: There is no HW information about the worst case latency.
+	 * Analte: There is anal HW information about the worst case latency.
 	 *
-	 * Using experimental measurements, it seems that no more than
+	 * Using experimental measurements, it seems that anal more than
 	 * ~10 iterations are needed, independently of the CPU rate.
 	 * Since this value might be dependent on external xtal rate, pll1
 	 * rate or even the other emulation clocks rate, use 1000 as a
@@ -296,7 +296,7 @@ static struct clk * __init cpg_z_clk_register(const char *name,
 
 	zclk = kzalloc(sizeof(*zclk), GFP_KERNEL);
 	if (!zclk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &cpg_z_clk_ops;
@@ -331,7 +331,7 @@ static const struct clk_div_table cpg_rpcsrc_div_table[] = {
 struct clk * __init rcar_gen4_cpg_clk_register(struct device *dev,
 	const struct cpg_core_clk *core, const struct cpg_mssr_info *info,
 	struct clk **clks, void __iomem *base,
-	struct raw_notifier_head *notifiers)
+	struct raw_analtifier_head *analtifiers)
 {
 	const struct clk *parent;
 	unsigned int mult = 1;
@@ -355,7 +355,7 @@ struct clk * __init rcar_gen4_cpg_clk_register(struct device *dev,
 	case CLK_TYPE_GEN4_PLL2_VAR:
 		/*
 		 * PLL2 is implemented as a custom clock, to change the
-		 * multiplier when cpufreq changes between normal and boost
+		 * multiplier when cpufreq changes between analrmal and boost
 		 * modes.
 		 */
 		return cpg_pll_clk_register(core->name, __clk_get_name(parent),
@@ -401,7 +401,7 @@ struct clk * __init rcar_gen4_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN4_SDH:
 		return cpg_sdh_clk_register(core->name, base + core->offset,
-					   __clk_get_name(parent), notifiers);
+					   __clk_get_name(parent), analtifiers);
 
 	case CLK_TYPE_GEN4_SD:
 		return cpg_sd_clk_register(core->name, base + core->offset,
@@ -439,7 +439,7 @@ struct clk * __init rcar_gen4_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN4_RPC:
 		return cpg_rpc_clk_register(core->name, base + CPG_RPCCKCR,
-					    __clk_get_name(parent), notifiers);
+					    __clk_get_name(parent), analtifiers);
 
 	case CLK_TYPE_GEN4_RPCD2:
 		return cpg_rpcd2_clk_register(core->name, base + CPG_RPCCKCR,

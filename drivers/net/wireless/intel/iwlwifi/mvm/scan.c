@@ -77,7 +77,7 @@ static struct iwl_mvm_scan_timing_params scan_timing[] = {
 };
 
 struct iwl_mvm_scan_params {
-	/* For CDB this is low band scan type, for non-CDB - type. */
+	/* For CDB this is low band scan type, for analn-CDB - type. */
 	enum iwl_mvm_scan_type type;
 	enum iwl_mvm_scan_type hb_type;
 	u32 n_channels;
@@ -88,14 +88,14 @@ struct iwl_mvm_scan_params {
 	u32 flags;
 	u8 *mac_addr;
 	u8 *mac_addr_mask;
-	bool no_cck;
+	bool anal_cck;
 	bool pass_all;
 	int n_match_sets;
 	struct iwl_scan_probe_req preq;
 	struct cfg80211_match_set *match_sets;
 	int n_scan_plans;
 	struct cfg80211_sched_scan_plan *scan_plans;
-	bool iter_notif;
+	bool iter_analtif;
 	struct cfg80211_scan_6ghz_params *scan_6ghz_params;
 	u32 n_6ghz_params;
 	bool scan_6ghz;
@@ -140,7 +140,7 @@ iwl_mvm_get_scan_req_umac_channel(struct iwl_mvm *mvm)
 
 static u8 iwl_mvm_scan_rx_ant(struct iwl_mvm *mvm)
 {
-	if (mvm->scan_rx_ant != ANT_NONE)
+	if (mvm->scan_rx_ant != ANT_ANALNE)
 		return mvm->scan_rx_ant;
 	return iwl_mvm_get_valid_rx_ant(mvm);
 }
@@ -160,14 +160,14 @@ static inline __le16 iwl_mvm_scan_rx_chain(struct iwl_mvm *mvm)
 
 static inline __le32
 iwl_mvm_scan_rate_n_flags(struct iwl_mvm *mvm, enum nl80211_band band,
-			  bool no_cck)
+			  bool anal_cck)
 {
 	u32 tx_ant;
 
 	iwl_mvm_toggle_tx_ant(mvm, &mvm->scan_last_antenna_idx);
 	tx_ant = BIT(mvm->scan_last_antenna_idx) << RATE_MCS_ANT_POS;
 
-	if (band == NL80211_BAND_2GHZ && !no_cck)
+	if (band == NL80211_BAND_2GHZ && !anal_cck)
 		return cpu_to_le32(IWL_RATE_1M_PLCP | RATE_MCS_CCK_MSK_V1 |
 				   tx_ant);
 	else
@@ -227,7 +227,7 @@ iwl_mvm_scan_type _iwl_mvm_get_scan_type(struct iwl_mvm *mvm,
 	};
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-						   IEEE80211_IFACE_ITER_NORMAL,
+						   IEEE80211_IFACE_ITER_ANALRMAL,
 						   iwl_mvm_scan_iterator,
 						   &data);
 
@@ -316,23 +316,23 @@ int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm)
 	 * in the same command. So the correct implementation of this function
 	 * is just iwl_mvm_max_scan_ie_fw_cmd_room() / 2. Currently the scan
 	 * command has only 512 bytes and it would leave us with about 240
-	 * bytes for scan IEs, which is clearly not enough. So meanwhile
+	 * bytes for scan IEs, which is clearly analt eanalugh. So meanwhile
 	 * we will report an incorrect value. This may result in a failure to
 	 * issue a scan in unified_scan_lmac and unified_sched_scan_lmac
-	 * functions with -ENOBUFS, if a large enough probe will be provided.
+	 * functions with -EANALBUFS, if a large eanalugh probe will be provided.
 	 */
 	return max_ie_len;
 }
 
-void iwl_mvm_rx_lmac_scan_iter_complete_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_lmac_scan_iter_complete_analtif(struct iwl_mvm *mvm,
 					      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_lmac_scan_complete_notif *notif = (void *)pkt->data;
+	struct iwl_lmac_scan_complete_analtif *analtif = (void *)pkt->data;
 
 	IWL_DEBUG_SCAN(mvm,
 		       "Scan offload iteration complete: status=0x%x scanned channels=%d\n",
-		       notif->status, notif->scanned_channels);
+		       analtif->status, analtif->scanned_channels);
 
 	if (mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_FOUND) {
 		IWL_DEBUG_SCAN(mvm, "Pass all scheduled scan results found\n");
@@ -356,21 +356,21 @@ static const char *iwl_mvm_ebs_status_str(enum iwl_scan_ebs_status status)
 	case IWL_SCAN_EBS_INACTIVE:
 		return "inactive";
 	case IWL_SCAN_EBS_FAILED:
-	case IWL_SCAN_EBS_CHAN_NOT_FOUND:
+	case IWL_SCAN_EBS_CHAN_ANALT_FOUND:
 	default:
 		return "failed";
 	}
 }
 
-void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_lmac_scan_complete_analtif(struct iwl_mvm *mvm,
 					 struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_periodic_scan_complete *scan_notif = (void *)pkt->data;
-	bool aborted = (scan_notif->status == IWL_SCAN_OFFLOAD_ABORTED);
+	struct iwl_periodic_scan_complete *scan_analtif = (void *)pkt->data;
+	bool aborted = (scan_analtif->status == IWL_SCAN_OFFLOAD_ABORTED);
 
 	/* If this happens, the firmware has mistakenly sent an LMAC
-	 * notification during UMAC scans -- warn and ignore it.
+	 * analtification during UMAC scans -- warn and iganalre it.
 	 */
 	if (WARN_ON_ONCE(fw_has_capa(&mvm->fw->ucode_capa,
 				     IWL_UCODE_TLV_CAPA_UMAC_SCAN)))
@@ -383,7 +383,7 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 	 * just clear the stopping flag.  Then we check if it was a
 	 * firmware initiated stop, in which case we need to inform
 	 * mac80211.
-	 * Note that we can have a stopping and a running scan
+	 * Analte that we can have a stopping and a running scan
 	 * simultaneously, but we can't have two different types of
 	 * scans stopping or running at the same time (since LMAC
 	 * doesn't support it).
@@ -394,18 +394,18 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 
 		IWL_DEBUG_SCAN(mvm, "Scheduled scan %s, EBS status %s\n",
 			       aborted ? "aborted" : "completed",
-			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
+			       iwl_mvm_ebs_status_str(scan_analtif->ebs_status));
 		IWL_DEBUG_SCAN(mvm,
 			       "Last line %d, Last iteration %d, Time after last iteration %d\n",
-			       scan_notif->last_schedule_line,
-			       scan_notif->last_schedule_iteration,
-			       __le32_to_cpu(scan_notif->time_after_last_iter));
+			       scan_analtif->last_schedule_line,
+			       scan_analtif->last_schedule_iteration,
+			       __le32_to_cpu(scan_analtif->time_after_last_iter));
 
 		mvm->scan_status &= ~IWL_MVM_SCAN_STOPPING_SCHED;
 	} else if (mvm->scan_status & IWL_MVM_SCAN_STOPPING_REGULAR) {
 		IWL_DEBUG_SCAN(mvm, "Regular scan %s, EBS status %s\n",
 			       aborted ? "aborted" : "completed",
-			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
+			       iwl_mvm_ebs_status_str(scan_analtif->ebs_status));
 
 		mvm->scan_status &= ~IWL_MVM_SCAN_STOPPING_REGULAR;
 	} else if (mvm->scan_status & IWL_MVM_SCAN_SCHED) {
@@ -413,12 +413,12 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 
 		IWL_DEBUG_SCAN(mvm, "Scheduled scan %s, EBS status %s\n",
 			       aborted ? "aborted" : "completed",
-			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
+			       iwl_mvm_ebs_status_str(scan_analtif->ebs_status));
 		IWL_DEBUG_SCAN(mvm,
 			       "Last line %d, Last iteration %d, Time after last iteration %d (FW)\n",
-			       scan_notif->last_schedule_line,
-			       scan_notif->last_schedule_iteration,
-			       __le32_to_cpu(scan_notif->time_after_last_iter));
+			       scan_analtif->last_schedule_line,
+			       scan_analtif->last_schedule_iteration,
+			       __le32_to_cpu(scan_analtif->time_after_last_iter));
 
 		mvm->scan_status &= ~IWL_MVM_SCAN_SCHED;
 		ieee80211_sched_scan_stopped(mvm->hw);
@@ -430,7 +430,7 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 
 		IWL_DEBUG_SCAN(mvm, "Regular scan %s, EBS status %s (FW)\n",
 			       aborted ? "aborted" : "completed",
-			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
+			       iwl_mvm_ebs_status_str(scan_analtif->ebs_status));
 
 		mvm->scan_status &= ~IWL_MVM_SCAN_REGULAR;
 		ieee80211_scan_completed(mvm->hw, &info);
@@ -438,12 +438,12 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 		iwl_mvm_resume_tcm(mvm);
 	} else {
 		IWL_ERR(mvm,
-			"got scan complete notification but no scan is running\n");
+			"got scan complete analtification but anal scan is running\n");
 	}
 
 	mvm->last_ebs_successful =
-			scan_notif->ebs_status == IWL_SCAN_EBS_SUCCESS ||
-			scan_notif->ebs_status == IWL_SCAN_EBS_INACTIVE;
+			scan_analtif->ebs_status == IWL_SCAN_EBS_SUCCESS ||
+			scan_analtif->ebs_status == IWL_SCAN_EBS_INACTIVE;
 }
 
 static int iwl_ssid_exist(u8 *ssid, u8 ssid_len, struct iwl_ssid_ie *ssid_list)
@@ -523,8 +523,8 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 	struct iwl_host_cmd cmd = {
 		.id = SCAN_OFFLOAD_UPDATE_PROFILES_CMD,
 		.len[1] = profile_cfg_size,
-		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
-		.dataflags[1] = IWL_HCMD_DFL_NOCOPY,
+		.dataflags[0] = IWL_HCMD_DFL_ANALCOPY,
+		.dataflags[1] = IWL_HCMD_DFL_ANALCOPY,
 	};
 	int blocklist_len;
 	int i;
@@ -540,11 +540,11 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 
 	blocklist = kcalloc(blocklist_len, sizeof(*blocklist), GFP_KERNEL);
 	if (!blocklist)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	profile_cfg_v1 = kzalloc(profile_cfg_size, GFP_KERNEL);
 	if (!profile_cfg_v1) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_blocklist;
 	}
 
@@ -562,14 +562,14 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 		data = &profile_cfg_v1->data;
 	}
 
-	/* No blocklist configuration */
+	/* Anal blocklist configuration */
 	data->num_profiles = req->n_match_sets;
 	data->active_clients = SCAN_CLIENT_SCHED_SCAN;
 	data->pass_match = SCAN_CLIENT_SCHED_SCAN;
-	data->match_notify = SCAN_CLIENT_SCHED_SCAN;
+	data->match_analtify = SCAN_CLIENT_SCHED_SCAN;
 
 	if (!req->n_match_sets || !req->match_sets[0].ssid.ssid_len)
-		data->any_beacon_notify = SCAN_CLIENT_SCHED_SCAN;
+		data->any_beacon_analtify = SCAN_CLIENT_SCHED_SCAN;
 
 	for (i = 0; i < req->n_match_sets; i++) {
 		profile = &profile_cfg_v1->profiles[i];
@@ -577,7 +577,7 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 		/* Support any cipher and auth algorithm */
 		profile->unicast_cipher = 0xff;
 		profile->auth_alg = IWL_AUTH_ALGO_UNSUPPORTED |
-			IWL_AUTH_ALGO_NONE | IWL_AUTH_ALGO_PSK | IWL_AUTH_ALGO_8021X |
+			IWL_AUTH_ALGO_ANALNE | IWL_AUTH_ALGO_PSK | IWL_AUTH_ALGO_8021X |
 			IWL_AUTH_ALGO_SAE | IWL_AUTH_ALGO_8021X_SHA384 | IWL_AUTH_ALGO_OWE;
 		profile->network_type = IWL_NETWORK_TYPE_ANY;
 		profile->band_selection = IWL_SCAN_OFFLOAD_SELECT_ANY;
@@ -627,12 +627,12 @@ static int iwl_mvm_lmac_scan_abort(struct iwl_mvm *mvm)
 		/*
 		 * The scan abort will return 1 for success or
 		 * 2 for "failure".  A failure condition can be
-		 * due to simply not being in an active scan which
+		 * due to simply analt being in an active scan which
 		 * can occur if we send the scan abort before the
-		 * microcode has notified us that a scan is completed.
+		 * microcode has analtified us that a scan is completed.
 		 */
 		IWL_DEBUG_SCAN(mvm, "SCAN OFFLOAD ABORT ret %d.\n", status);
-		ret = -ENOENT;
+		ret = -EANALENT;
 	}
 
 	return ret;
@@ -640,13 +640,13 @@ static int iwl_mvm_lmac_scan_abort(struct iwl_mvm *mvm)
 
 static void iwl_mvm_scan_fill_tx_cmd(struct iwl_mvm *mvm,
 				     struct iwl_scan_req_tx_cmd *tx_cmd,
-				     bool no_cck)
+				     bool anal_cck)
 {
 	tx_cmd[0].tx_flags = cpu_to_le32(TX_CMD_FLG_SEQ_CTL |
 					 TX_CMD_FLG_BT_DIS);
 	tx_cmd[0].rate_n_flags = iwl_mvm_scan_rate_n_flags(mvm,
 							   NL80211_BAND_2GHZ,
-							   no_cck);
+							   anal_cck);
 
 	if (!iwl_mvm_has_new_station_api(mvm->fw)) {
 		tx_cmd[0].sta_id = mvm->aux_sta.sta_id;
@@ -666,7 +666,7 @@ static void iwl_mvm_scan_fill_tx_cmd(struct iwl_mvm *mvm,
 
 	tx_cmd[1].rate_n_flags = iwl_mvm_scan_rate_n_flags(mvm,
 							   NL80211_BAND_5GHZ,
-							   no_cck);
+							   anal_cck);
 }
 
 static void
@@ -752,7 +752,7 @@ iwl_mvm_build_scan_probe(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		params->mac_addr : NULL;
 
 	/*
-	 * Unfortunately, right now the offload scan doesn't support randomising
+	 * Unfortunately, right analw the offload scan doesn't support randomising
 	 * within the firmware, so until the firmware API is ready we implement
 	 * it in the driver. This means that the scan iterations won't really be
 	 * random, only when it's restarted, but at least that helps a bit.
@@ -851,8 +851,8 @@ static inline bool iwl_mvm_scan_use_ebs(struct iwl_mvm *mvm,
 	 *	1. the feature is supported;
 	 *	2. the last EBS was successful;
 	 *	3. if only single scan, the single scan EBS API is supported;
-	 *	4. it's not a p2p find operation.
-	 *	5. we are not in low latency mode,
+	 *	4. it's analt a p2p find operation.
+	 *	5. we are analt in low latency mode,
 	 *	   or if fragmented ebs is supported by the FW
 	 */
 	return ((capa->flags & IWL_UCODE_TLV_FLAGS_EBS_SUPPORT) &&
@@ -899,7 +899,7 @@ static int iwl_mvm_scan_lmac_flags(struct iwl_mvm *mvm,
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_MATCH;
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	if (mvm->scan_iter_notif_enabled)
+	if (mvm->scan_iter_analtif_enabled)
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_ITER_COMPLETE;
 #endif
 
@@ -956,7 +956,7 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	cmd->flags = cpu_to_le32(band);
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
 					MAC_FILTER_IN_BEACON);
-	iwl_mvm_scan_fill_tx_cmd(mvm, cmd->tx_cmd, params->no_cck);
+	iwl_mvm_scan_fill_tx_cmd(mvm, cmd->tx_cmd, params->anal_cck);
 	iwl_scan_build_ssids(params, cmd->direct_scan, &ssid_bitmap);
 
 	/* this API uses bits 1-20 instead of 0-19 */
@@ -974,7 +974,7 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	/*
 	 * If the number of iterations of the last scan plan is set to
-	 * zero, it should run infinitely. However, this is not always the case.
+	 * zero, it should run infinitely. However, this is analt always the case.
 	 * For example, when regular scan is requested the driver sets one scan
 	 * plan with one iteration.
 	 */
@@ -986,13 +986,13 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
 				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
 				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
-		cmd->channel_opt[0].non_ebs_ratio =
+		cmd->channel_opt[0].analn_ebs_ratio =
 			cpu_to_le16(IWL_DENSE_EBS_SCAN_RATIO);
 		cmd->channel_opt[1].flags =
 			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
 				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
 				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
-		cmd->channel_opt[1].non_ebs_ratio =
+		cmd->channel_opt[1].analn_ebs_ratio =
 			cpu_to_le16(IWL_SPARSE_EBS_SCAN_RATIO);
 	}
 
@@ -1084,7 +1084,7 @@ static void iwl_mvm_fill_scan_config_v1(struct iwl_mvm *mvm, void *config,
 
 	memcpy(&cfg->mac_addr, &mvm->addresses[0].addr, ETH_ALEN);
 
-	/* This function should not be called when using ADD_STA ver >=12 */
+	/* This function should analt be called when using ADD_STA ver >=12 */
 	WARN_ON_ONCE(iwl_mvm_has_new_station_api(mvm->fw));
 
 	cfg->bcast_sta_id = mvm->aux_sta.sta_id;
@@ -1135,7 +1135,7 @@ static void iwl_mvm_fill_scan_config_v2(struct iwl_mvm *mvm, void *config,
 
 	memcpy(&cfg->mac_addr, &mvm->addresses[0].addr, ETH_ALEN);
 
-	/* This function should not be called when using ADD_STA ver >=12 */
+	/* This function should analt be called when using ADD_STA ver >=12 */
 	WARN_ON_ONCE(iwl_mvm_has_new_station_api(mvm->fw));
 
 	cfg->bcast_sta_id = mvm->aux_sta.sta_id;
@@ -1152,7 +1152,7 @@ static int iwl_mvm_legacy_config_scan(struct iwl_mvm *mvm)
 		.id = WIDE_ID(IWL_ALWAYS_LONG_GROUP, SCAN_CFG_CMD),
 	};
 	enum iwl_mvm_scan_type type;
-	enum iwl_mvm_scan_type hb_type = IWL_SCAN_TYPE_NOT_SET;
+	enum iwl_mvm_scan_type hb_type = IWL_SCAN_TYPE_ANALT_SET;
 	int num_channels =
 		mvm->nvm_data->bands[NL80211_BAND_2GHZ].n_channels +
 		mvm->nvm_data->bands[NL80211_BAND_5GHZ].n_channels;
@@ -1183,7 +1183,7 @@ static int iwl_mvm_legacy_config_scan(struct iwl_mvm *mvm)
 
 	cfg = kzalloc(cmd_size, GFP_KERNEL);
 	if (!cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flags = SCAN_CONFIG_FLAG_ACTIVATE |
 		 SCAN_CONFIG_FLAG_ALLOW_CHUB_REQS |
@@ -1222,7 +1222,7 @@ static int iwl_mvm_legacy_config_scan(struct iwl_mvm *mvm)
 
 	cmd.data[0] = cfg;
 	cmd.len[0] = cmd_size;
-	cmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
+	cmd.dataflags[0] = IWL_HCMD_DFL_ANALCOPY;
 
 	IWL_DEBUG_SCAN(mvm, "Sending UMAC scan config\n");
 
@@ -1243,7 +1243,7 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 		.id = WIDE_ID(IWL_ALWAYS_LONG_GROUP, SCAN_CFG_CMD),
 		.len[0] = sizeof(cfg),
 		.data[0] = &cfg,
-		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
+		.dataflags[0] = IWL_HCMD_DFL_ANALCOPY,
 	};
 
 	if (!iwl_mvm_is_reduced_config_scan_supported(mvm))
@@ -1277,7 +1277,7 @@ static int iwl_mvm_scan_uid_by_status(struct iwl_mvm *mvm, int status)
 		if (mvm->scan_uid_status[i] == status)
 			return i;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static void iwl_mvm_scan_umac_dwell(struct iwl_mvm *mvm,
@@ -1689,8 +1689,8 @@ iwl_mvm_umac_scan_fill_6g_chan_list(struct iwl_mvm *mvm,
 
 	/*
 	 * Populate the arrays of the short SSIDs and the BSSIDs using the 6GHz
-	 * collocated parameters. This might not be optimal, as this processing
-	 * does not (yet) correspond to the actual channels, so it is possible
+	 * collocated parameters. This might analt be optimal, as this processing
+	 * does analt (yet) correspond to the actual channels, so it is possible
 	 * that some entries would be left out.
 	 *
 	 * TODO: improve this logic.
@@ -1751,12 +1751,12 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 		u32 s_ssid_bitmap = 0, bssid_bitmap = 0, flags = 0;
 		u8 j, k, s_max = 0, b_max = 0, n_used_bssid_entries;
 		bool force_passive, found = false, allow_passive = true,
-		     unsolicited_probe_on_chan = false, psc_no_listen = false;
+		     unsolicited_probe_on_chan = false, psc_anal_listen = false;
 		s8 psd_20 = IEEE80211_RNR_TBTT_PARAMS_PSD_RESERVED;
 
 		/*
-		 * Avoid performing passive scan on non PSC channels unless the
-		 * scan is specifically a passive scan, i.e., no SSIDs
+		 * Avoid performing passive scan on analn PSC channels unless the
+		 * scan is specifically a passive scan, i.e., anal SSIDs
 		 * configured in the scan command.
 		 */
 		if (!cfg80211_channel_is_psc(params->channels[i]) &&
@@ -1801,7 +1801,7 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 			found = false;
 			unsolicited_probe_on_chan |=
 				scan_6ghz_params[j].unsolicited_probe;
-			psc_no_listen |= scan_6ghz_params[j].psc_no_listen;
+			psc_anal_listen |= scan_6ghz_params[j].psc_anal_listen;
 
 			for (k = 0; k < pp->short_ssid_num; k++) {
 				if (!scan_6ghz_params[j].unsolicited_probe &&
@@ -1854,32 +1854,32 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 		}
 
 		if (cfg80211_channel_is_psc(params->channels[i]) &&
-		    psc_no_listen)
-			flags |= IWL_UHB_CHAN_CFG_FLAG_PSC_CHAN_NO_LISTEN;
+		    psc_anal_listen)
+			flags |= IWL_UHB_CHAN_CFG_FLAG_PSC_CHAN_ANAL_LISTEN;
 
 		if (unsolicited_probe_on_chan)
 			flags |= IWL_UHB_CHAN_CFG_FLAG_UNSOLICITED_PROBE_RES;
 
 		/*
 		 * In the following cases apply passive scan:
-		 * 1. Non fragmented scan:
-		 *	- PSC channel with NO_LISTEN_FLAG on should be treated
-		 *	  like non PSC channel
-		 *	- Non PSC channel with more than 3 short SSIDs or more
+		 * 1. Analn fragmented scan:
+		 *	- PSC channel with ANAL_LISTEN_FLAG on should be treated
+		 *	  like analn PSC channel
+		 *	- Analn PSC channel with more than 3 short SSIDs or more
 		 *	  than 9 BSSIDs.
-		 *	- Non PSC Channel with unsolicited probe response and
+		 *	- Analn PSC Channel with unsolicited probe response and
 		 *	  more than 2 short SSIDs or more than 6 BSSIDs.
 		 *	- PSC channel with more than 2 short SSIDs or more than
 		 *	  6 BSSIDs.
 		 * 3. Fragmented scan:
 		 *	- PSC channel with more than 1 SSID or 3 BSSIDs.
-		 *	- Non PSC channel with more than 2 SSIDs or 6 BSSIDs.
-		 *	- Non PSC channel with unsolicited probe response and
+		 *	- Analn PSC channel with more than 2 SSIDs or 6 BSSIDs.
+		 *	- Analn PSC channel with unsolicited probe response and
 		 *	  more than 1 SSID or more than 3 BSSIDs.
 		 */
 		if (!iwl_mvm_is_scan_fragmented(params->type)) {
 			if (!cfg80211_channel_is_psc(params->channels[i]) ||
-			    flags & IWL_UHB_CHAN_CFG_FLAG_PSC_CHAN_NO_LISTEN) {
+			    flags & IWL_UHB_CHAN_CFG_FLAG_PSC_CHAN_ANAL_LISTEN) {
 				force_passive = (s_max > 3 || b_max > 9);
 				force_passive |= (unsolicited_probe_on_chan &&
 						  (s_max > 2 || b_max > 6));
@@ -1967,20 +1967,20 @@ static void iwl_mvm_scan_6ghz_passive_scan(struct iwl_mvm *mvm,
 	if (!fw_has_capa(&mvm->fw->ucode_capa,
 			 IWL_UCODE_TLV_CAPA_PASSIVE_6GHZ_SCAN)) {
 		IWL_DEBUG_SCAN(mvm,
-			       "6GHz passive scan: Not supported by FW\n");
+			       "6GHz passive scan: Analt supported by FW\n");
 		return;
 	}
 
 	/* 6GHz passive scan allowed only on station interface  */
 	if (vif->type != NL80211_IFTYPE_STATION) {
 		IWL_DEBUG_SCAN(mvm,
-			       "6GHz passive scan: not station interface\n");
+			       "6GHz passive scan: analt station interface\n");
 		return;
 	}
 
 	/*
 	 * 6GHz passive scan is allowed in a defined time interval following HW
-	 * reset or resume flow, or while not associated and a large interval
+	 * reset or resume flow, or while analt associated and a large interval
 	 * has passed since the last 6GHz passive scan.
 	 */
 	if ((vif->cfg.assoc ||
@@ -1991,14 +1991,14 @@ static void iwl_mvm_scan_6ghz_passive_scan(struct iwl_mvm *mvm,
 			 jiffies))) {
 		IWL_DEBUG_SCAN(mvm, "6GHz passive scan: %s\n",
 			       vif->cfg.assoc ? "associated" :
-			       "timeout did not expire");
+			       "timeout did analt expire");
 		return;
 	}
 
-	/* not enough channels in the regular scan request */
+	/* analt eanalugh channels in the regular scan request */
 	if (params->n_channels < IWL_MVM_6GHZ_PASSIVE_SCAN_MIN_CHANS) {
 		IWL_DEBUG_SCAN(mvm,
-			       "6GHz passive scan: not enough channels\n");
+			       "6GHz passive scan: analt eanalugh channels\n");
 		return;
 	}
 
@@ -2007,16 +2007,16 @@ static void iwl_mvm_scan_6ghz_passive_scan(struct iwl_mvm *mvm,
 			break;
 	}
 
-	/* not a wildcard scan, so cannot enable passive 6GHz scan */
+	/* analt a wildcard scan, so cananalt enable passive 6GHz scan */
 	if (i == params->n_ssids) {
 		IWL_DEBUG_SCAN(mvm,
-			       "6GHz passive scan: no wildcard SSID\n");
+			       "6GHz passive scan: anal wildcard SSID\n");
 		return;
 	}
 
 	if (!sband || !sband->n_channels) {
 		IWL_DEBUG_SCAN(mvm,
-			       "6GHz passive scan: no 6GHz channels\n");
+			       "6GHz passive scan: anal 6GHz channels\n");
 		return;
 	}
 
@@ -2026,7 +2026,7 @@ static void iwl_mvm_scan_6ghz_passive_scan(struct iwl_mvm *mvm,
 	}
 
 	/*
-	 * Not all the 6GHz channels are disabled, so no need for 6GHz passive
+	 * Analt all the 6GHz channels are disabled, so anal need for 6GHz passive
 	 * scan
 	 */
 	if (n_disabled != sband->n_channels) {
@@ -2048,8 +2048,8 @@ static u16 iwl_mvm_scan_umac_flags_v2(struct iwl_mvm *mvm,
 	u16 flags = 0;
 
 	/*
-	 * If no direct SSIDs are provided perform a passive scan. Otherwise,
-	 * if there is a single SSID which is not the broadcast SSID, assume
+	 * If anal direct SSIDs are provided perform a passive scan. Otherwise,
+	 * if there is a single SSID which is analt the broadcast SSID, assume
 	 * that the scan is intended for roaming purposes and thus enable Rx on
 	 * all chains to improve chances of hearing the beacons/probe responses.
 	 */
@@ -2072,7 +2072,7 @@ static u16 iwl_mvm_scan_umac_flags_v2(struct iwl_mvm *mvm,
 	if (!iwl_mvm_is_regular_scan(params))
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_V2_PERIODIC;
 
-	if (params->iter_notif ||
+	if (params->iter_analtif ||
 	    mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_ENABLED)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_V2_NTFY_ITER_COMPLETE;
 
@@ -2155,11 +2155,11 @@ static u16 iwl_mvm_scan_umac_flags(struct iwl_mvm *mvm,
 	if (!iwl_mvm_is_regular_scan(params))
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_PERIODIC;
 
-	if (params->iter_notif)
+	if (params->iter_analtif)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_ITER_COMPLETE;
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	if (mvm->scan_iter_notif_enabled)
+	if (mvm->scan_iter_analtif_enabled)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_ITER_COMPLETE;
 #endif
 
@@ -2188,7 +2188,7 @@ static u16 iwl_mvm_scan_umac_flags(struct iwl_mvm *mvm,
 		/* Since IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL and
 		 * NL80211_SCAN_FLAG_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION shares
 		 * the same bit, we need to make sure that we use this bit here
-		 * only when IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL cannot be
+		 * only when IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL cananalt be
 		 * used. */
 		if ((params->flags &
 		     NL80211_SCAN_FLAG_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION) &&
@@ -2222,7 +2222,7 @@ iwl_mvm_fill_scan_sched_params(struct iwl_mvm_scan_params *params,
 
 	/*
 	 * If the number of iterations of the last scan plan is set to
-	 * zero, it should run infinitely. However, this is not always the case.
+	 * zero, it should run infinitely. However, this is analt always the case.
 	 * For example, when regular scan is requested the driver sets one scan
 	 * plan with one iteration.
 	 */
@@ -2541,7 +2541,7 @@ static int iwl_mvm_scan_umac_v14_and_above(struct iwl_mvm *mvm,
 
 	if (!params->n_ssids ||
 	    (params->n_ssids == 1 && !params->ssids[0].ssid_len))
-		cp->flags |= IWL_SCAN_CHANNEL_FLAG_6G_PSC_NO_FILTER;
+		cp->flags |= IWL_SCAN_CHANNEL_FLAG_6G_PSC_ANAL_FILTER;
 
 	return 0;
 }
@@ -2591,7 +2591,7 @@ static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
 	 * different type of scan, we stop the opposite type to make
 	 * space for the new request.  The reason is backwards
 	 * compatibility with old wpa_supplicant that wouldn't stop a
-	 * scheduled scan before starting a normal scan.
+	 * scheduled scan before starting a analrmal scan.
 	 */
 
 	/* FW supports only a single periodic scan */
@@ -2615,7 +2615,7 @@ static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
 			return -EBUSY;
 		return iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_REGULAR, true);
 	case IWL_MVM_SCAN_NETDETECT:
-		/* For non-unified images, there's no need to stop
+		/* For analn-unified images, there's anal need to stop
 		 * anything for net-detect since the firmware is
 		 * restarted anyway.  This way, any sched scans that
 		 * were running will be restarted when we resume.
@@ -2627,7 +2627,7 @@ static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
 		 * we need to stop something.  Prefer stopping regular
 		 * scans, because the results are useless at this
 		 * point, and we should be able to keep running
-		 * another scheduled scan while suspended.
+		 * aanalther scheduled scan while suspended.
 		 */
 		if (mvm->scan_status & IWL_MVM_SCAN_REGULAR_MASK)
 			return iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_REGULAR,
@@ -2635,7 +2635,7 @@ static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
 		if (mvm->scan_status & IWL_MVM_SCAN_SCHED_MASK)
 			return iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_SCHED,
 						 true);
-		/* Something is wrong if no scan was running but we
+		/* Something is wrong if anal scan was running but we
 		 * ran out of scans.
 		 */
 		fallthrough;
@@ -2740,7 +2740,7 @@ static void iwl_mvm_mei_limited_scan(struct iwl_mvm *mvm,
 	int scan_iters, i;
 
 	if (!info) {
-		IWL_DEBUG_SCAN(mvm, "mei_limited_scan: no connection info\n");
+		IWL_DEBUG_SCAN(mvm, "mei_limited_scan: anal connection info\n");
 		return;
 	}
 
@@ -2806,7 +2806,7 @@ static int iwl_mvm_build_scan_cmd(struct iwl_mvm *mvm,
 	hcmd->id = WIDE_ID(IWL_ALWAYS_LONG_GROUP, SCAN_REQ_UMAC);
 
 	scan_ver = iwl_fw_lookup_cmd_ver(mvm->fw, SCAN_REQ_UMAC,
-					 IWL_FW_CMD_VER_UNKNOWN);
+					 IWL_FW_CMD_VER_UNKANALWN);
 
 	for (i = 0; i < ARRAY_SIZE(iwl_scan_umac_handlers); i++) {
 		const struct iwl_scan_umac_handler *ver_handler =
@@ -2875,7 +2875,7 @@ static bool _iwl_mvm_get_respect_p2p_go(struct iwl_mvm *mvm,
 		return false;
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-						   IEEE80211_IFACE_ITER_NORMAL,
+						   IEEE80211_IFACE_ITER_ANALRMAL,
 						   iwl_mvm_scan_respect_p2p_go_iter,
 						   &data);
 
@@ -2923,7 +2923,7 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_host_cmd hcmd = {
 		.len = { iwl_mvm_scan_size(mvm), },
 		.data = { mvm->scan_cmd, },
-		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
+		.dataflags = { IWL_HCMD_DFL_ANALCOPY, },
 	};
 	struct iwl_mvm_scan_params params = {};
 	int ret, uid;
@@ -2932,7 +2932,7 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	lockdep_assert_held(&mvm->mutex);
 
 	if (iwl_mvm_is_lar_supported(mvm) && !mvm->lar_regdom_set) {
-		IWL_ERR(mvm, "scan while LAR regdomain is not set\n");
+		IWL_ERR(mvm, "scan while LAR regdomain is analt set\n");
 		return -EBUSY;
 	}
 
@@ -2942,10 +2942,10 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	/* we should have failed registration if scan_cmd was NULL */
 	if (WARN_ON(!mvm->scan_cmd))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!iwl_mvm_scan_fits(mvm, req->n_ssids, ies, req->n_channels))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	params.n_ssids = req->n_ssids;
 	params.flags = req->flags;
@@ -2955,7 +2955,7 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	params.channels = req->channels;
 	params.mac_addr = req->mac_addr;
 	params.mac_addr_mask = req->mac_addr_mask;
-	params.no_cck = req->no_cck;
+	params.anal_cck = req->anal_cck;
 	params.pass_all = true;
 	params.n_match_sets = 0;
 	params.match_sets = NULL;
@@ -2971,7 +2971,7 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	iwl_mvm_fill_respect_p2p_go(mvm, &params, vif);
 
 	if (req->duration)
-		params.iter_notif = true;
+		params.iter_analtif = true;
 
 	params.tsf_report_link_id = req->tsf_report_link_id;
 	if (params.tsf_report_link_id < 0) {
@@ -3027,17 +3027,17 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 	struct iwl_host_cmd hcmd = {
 		.len = { iwl_mvm_scan_size(mvm), },
 		.data = { mvm->scan_cmd, },
-		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
+		.dataflags = { IWL_HCMD_DFL_ANALCOPY, },
 	};
 	struct iwl_mvm_scan_params params = {};
 	int ret, uid;
 	int i, j;
-	bool non_psc_included = false;
+	bool analn_psc_included = false;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	if (iwl_mvm_is_lar_supported(mvm) && !mvm->lar_regdom_set) {
-		IWL_ERR(mvm, "sched-scan while LAR regdomain is not set\n");
+		IWL_ERR(mvm, "sched-scan while LAR regdomain is analt set\n");
 		return -EBUSY;
 	}
 
@@ -3047,7 +3047,7 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 
 	/* we should have failed registration if scan_cmd was NULL */
 	if (WARN_ON(!mvm->scan_cmd))
-		return -ENOMEM;
+		return -EANALMEM;
 
 
 	params.n_ssids = req->n_ssids;
@@ -3057,7 +3057,7 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 	params.channels = req->channels;
 	params.mac_addr = req->mac_addr;
 	params.mac_addr_mask = req->mac_addr_mask;
-	params.no_cck = false;
+	params.anal_cck = false;
 	params.pass_all =  iwl_mvm_scan_pass_all(mvm, req);
 	params.n_match_sets = req->n_match_sets;
 	params.match_sets = req->match_sets;
@@ -3096,18 +3096,18 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 
 		if (channel->band == NL80211_BAND_6GHZ &&
 		    !cfg80211_channel_is_psc(channel)) {
-			non_psc_included = true;
+			analn_psc_included = true;
 			break;
 		}
 	}
 
-	if (non_psc_included) {
+	if (analn_psc_included) {
 		params.channels = kmemdup(params.channels,
 					  sizeof(params.channels[0]) *
 					  params.n_channels,
 					  GFP_KERNEL);
 		if (!params.channels)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = j = 0; i < params.n_channels; i++) {
 			if (params.channels[i]->band == NL80211_BAND_6GHZ &&
@@ -3118,15 +3118,15 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 		params.n_channels = j;
 	}
 
-	if (non_psc_included &&
+	if (analn_psc_included &&
 	    !iwl_mvm_scan_fits(mvm, req->n_ssids, ies, params.n_channels)) {
 		kfree(params.channels);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	uid = iwl_mvm_build_scan_cmd(mvm, vif, &hcmd, &params, type);
 
-	if (non_psc_included)
+	if (analn_psc_included)
 		kfree(params.channels);
 	if (uid < 0)
 		return uid;
@@ -3149,20 +3149,20 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 	return ret;
 }
 
-void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_umac_scan_complete_analtif(struct iwl_mvm *mvm,
 					 struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_umac_scan_complete *notif = (void *)pkt->data;
-	u32 uid = __le32_to_cpu(notif->uid);
-	bool aborted = (notif->status == IWL_SCAN_OFFLOAD_ABORTED);
+	struct iwl_umac_scan_complete *analtif = (void *)pkt->data;
+	u32 uid = __le32_to_cpu(analtif->uid);
+	bool aborted = (analtif->status == IWL_SCAN_OFFLOAD_ABORTED);
 
 	mvm->mei_scan_filter.is_mei_limited_scan = false;
 
 	if (WARN_ON(!(mvm->scan_uid_status[uid] & mvm->scan_status)))
 		return;
 
-	/* if the scan is already stopping, we don't need to notify mac80211 */
+	/* if the scan is already stopping, we don't need to analtify mac80211 */
 	if (mvm->scan_uid_status[uid] == IWL_MVM_SCAN_REGULAR) {
 		struct cfg80211_scan_info info = {
 			.aborted = aborted,
@@ -3188,32 +3188,32 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 	IWL_DEBUG_SCAN(mvm,
 		       "Scan completed, uid %u type %u, status %s, EBS status %s\n",
 		       uid, mvm->scan_uid_status[uid],
-		       notif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
+		       analtif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
 				"completed" : "aborted",
-		       iwl_mvm_ebs_status_str(notif->ebs_status));
+		       iwl_mvm_ebs_status_str(analtif->ebs_status));
 	IWL_DEBUG_SCAN(mvm,
 		       "Last line %d, Last iteration %d, Time from last iteration %d\n",
-		       notif->last_schedule, notif->last_iter,
-		       __le32_to_cpu(notif->time_from_last_iter));
+		       analtif->last_schedule, analtif->last_iter,
+		       __le32_to_cpu(analtif->time_from_last_iter));
 
-	if (notif->ebs_status != IWL_SCAN_EBS_SUCCESS &&
-	    notif->ebs_status != IWL_SCAN_EBS_INACTIVE)
+	if (analtif->ebs_status != IWL_SCAN_EBS_SUCCESS &&
+	    analtif->ebs_status != IWL_SCAN_EBS_INACTIVE)
 		mvm->last_ebs_successful = false;
 
 	mvm->scan_uid_status[uid] = 0;
 }
 
-void iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_umac_scan_iter_complete_analtif(struct iwl_mvm *mvm,
 					      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_umac_scan_iter_complete_notif *notif = (void *)pkt->data;
+	struct iwl_umac_scan_iter_complete_analtif *analtif = (void *)pkt->data;
 
-	mvm->scan_start = le64_to_cpu(notif->start_tsf);
+	mvm->scan_start = le64_to_cpu(analtif->start_tsf);
 
 	IWL_DEBUG_SCAN(mvm,
 		       "UMAC Scan iteration complete: status=0x%x scanned_channels=%d\n",
-		       notif->status, notif->scanned_channels);
+		       analtif->status, analtif->scanned_channels);
 
 	if (mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_FOUND) {
 		IWL_DEBUG_SCAN(mvm, "Pass all scheduled scan results found\n");
@@ -3256,16 +3256,16 @@ static int iwl_mvm_umac_scan_abort(struct iwl_mvm *mvm, int type)
 
 static int iwl_mvm_scan_stop_wait(struct iwl_mvm *mvm, int type)
 {
-	struct iwl_notification_wait wait_scan_done;
-	static const u16 scan_done_notif[] = { SCAN_COMPLETE_UMAC,
+	struct iwl_analtification_wait wait_scan_done;
+	static const u16 scan_done_analtif[] = { SCAN_COMPLETE_UMAC,
 					      SCAN_OFFLOAD_COMPLETE, };
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	iwl_init_notification_wait(&mvm->notif_wait, &wait_scan_done,
-				   scan_done_notif,
-				   ARRAY_SIZE(scan_done_notif),
+	iwl_init_analtification_wait(&mvm->analtif_wait, &wait_scan_done,
+				   scan_done_analtif,
+				   ARRAY_SIZE(scan_done_analtif),
 				   NULL, NULL);
 
 	IWL_DEBUG_SCAN(mvm, "Preparing to stop scan, type %x\n", type);
@@ -3277,11 +3277,11 @@ static int iwl_mvm_scan_stop_wait(struct iwl_mvm *mvm, int type)
 
 	if (ret) {
 		IWL_DEBUG_SCAN(mvm, "couldn't stop scan type %d\n", type);
-		iwl_remove_notification(&mvm->notif_wait, &wait_scan_done);
+		iwl_remove_analtification(&mvm->analtif_wait, &wait_scan_done);
 		return ret;
 	}
 
-	return iwl_wait_notification(&mvm->notif_wait, &wait_scan_done,
+	return iwl_wait_analtification(&mvm->analtif_wait, &wait_scan_done,
 				     1 * HZ);
 }
 
@@ -3304,7 +3304,7 @@ size_t iwl_mvm_scan_size(struct iwl_mvm *mvm)
 {
 	int base_size, tail_size;
 	u8 scan_ver = iwl_fw_lookup_cmd_ver(mvm->fw, SCAN_REQ_UMAC,
-					    IWL_FW_CMD_VER_UNKNOWN);
+					    IWL_FW_CMD_VER_UNKANALWN);
 
 	base_size = iwl_scan_req_umac_get_size(scan_ver);
 	if (base_size)
@@ -3360,7 +3360,7 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 		uid = iwl_mvm_scan_uid_by_status(mvm, IWL_MVM_SCAN_SCHED);
 		if (uid >= 0) {
 			/* Sched scan will be restarted by mac80211 in
-			 * restart_hw, so do not report if FW is about to be
+			 * restart_hw, so do analt report if FW is about to be
 			 * restarted.
 			 */
 			if (!mvm->fw_restart)
@@ -3379,12 +3379,12 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 			mvm->scan_uid_status[uid] = 0;
 
 		/* We shouldn't have any UIDs still set.  Loop over all the
-		 * UIDs to make sure there's nothing left there and warn if
+		 * UIDs to make sure there's analthing left there and warn if
 		 * any is found.
 		 */
 		for (i = 0; i < mvm->max_scans; i++) {
 			if (WARN_ONCE(mvm->scan_uid_status[i],
-				      "UMAC scan UID %d status was not cleaned\n",
+				      "UMAC scan UID %d status was analt cleaned\n",
 				      i))
 				mvm->scan_uid_status[i] = 0;
 		}
@@ -3399,7 +3399,7 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 		}
 
 		/* Sched scan will be restarted by mac80211 in
-		 * restart_hw, so do not report if FW is about to be
+		 * restart_hw, so do analt report if FW is about to be
 		 * restarted.
 		 */
 		if ((mvm->scan_status & IWL_MVM_SCAN_SCHED) &&
@@ -3410,7 +3410,7 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 	}
 }
 
-int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool notify)
+int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool analtify)
 {
 	int ret;
 
@@ -3435,14 +3435,14 @@ out:
 
 	if (type == IWL_MVM_SCAN_REGULAR) {
 		cancel_delayed_work(&mvm->scan_timeout_dwork);
-		if (notify) {
+		if (analtify) {
 			struct cfg80211_scan_info info = {
 				.aborted = true,
 			};
 
 			ieee80211_scan_completed(mvm->hw, &info);
 		}
-	} else if (notify) {
+	} else if (analtify) {
 		ieee80211_sched_scan_stopped(mvm->hw);
 		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 	}

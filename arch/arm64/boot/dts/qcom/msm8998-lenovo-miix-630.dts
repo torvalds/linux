@@ -6,8 +6,8 @@
 #include "msm8998-clamshell.dtsi"
 
 / {
-	model = "Lenovo Miix 630";
-	compatible = "lenovo,miix-630", "qcom,msm8998";
+	model = "Leanalvo Miix 630";
+	compatible = "leanalvo,miix-630", "qcom,msm8998";
 	chassis-type = "convertible";
 };
 
@@ -28,8 +28,8 @@
 };
 
 &remoteproc_mss {
-	firmware-name = "qcom/msm8998/LENOVO/81F1/qcdsp1v28998.mbn",
-			"qcom/msm8998/LENOVO/81F1/qcdsp28998.mbn";
+	firmware-name = "qcom/msm8998/LEANALVO/81F1/qcdsp1v28998.mbn",
+			"qcom/msm8998/LEANALVO/81F1/qcdsp28998.mbn";
 };
 
 &sdhc2 {

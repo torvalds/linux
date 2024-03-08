@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include "debug.h"
@@ -53,7 +53,7 @@ static int ath11k_hal_reo_cmd_flush_cache(struct ath11k_hal *hal, struct hal_tlv
 
 	if (cmd->flag & HAL_REO_CMD_FLG_FLUSH_BLOCK_LATER) {
 		if (avail_slot >= HAL_MAX_AVAIL_BLK_RES)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		hal->current_blk_index = avail_slot;
 	}
@@ -82,7 +82,7 @@ static int ath11k_hal_reo_cmd_flush_cache(struct ath11k_hal *hal, struct hal_tlv
 				   avail_slot);
 	}
 
-	if (cmd->flag & HAL_REO_CMD_FLG_FLUSH_NO_INVAL)
+	if (cmd->flag & HAL_REO_CMD_FLG_FLUSH_ANAL_INVAL)
 		desc->info0 |= HAL_REO_FLUSH_CACHE_INFO0_FLUSH_WO_INVALIDATE;
 
 	if (cmd->flag & HAL_REO_CMD_FLG_FLUSH_ALL)
@@ -142,8 +142,8 @@ static int ath11k_hal_reo_cmd_update_rx_queue(struct hal_tlv_hdr *tlv,
 			   !!(cmd->upd0 & HAL_REO_CMD_UPD0_PN_HANDLE_ENABLE)) |
 		FIELD_PREP(HAL_REO_UPD_RX_QUEUE_INFO0_UPD_PN_SIZE,
 			   !!(cmd->upd0 & HAL_REO_CMD_UPD0_PN_SIZE)) |
-		FIELD_PREP(HAL_REO_UPD_RX_QUEUE_INFO0_UPD_IGNORE_AMPDU_FLG,
-			   !!(cmd->upd0 & HAL_REO_CMD_UPD0_IGNORE_AMPDU_FLG)) |
+		FIELD_PREP(HAL_REO_UPD_RX_QUEUE_INFO0_UPD_IGANALRE_AMPDU_FLG,
+			   !!(cmd->upd0 & HAL_REO_CMD_UPD0_IGANALRE_AMPDU_FLG)) |
 		FIELD_PREP(HAL_REO_UPD_RX_QUEUE_INFO0_UPD_SVLD,
 			   !!(cmd->upd0 & HAL_REO_CMD_UPD0_SVLD)) |
 		FIELD_PREP(HAL_REO_UPD_RX_QUEUE_INFO0_UPD_SSN,
@@ -184,8 +184,8 @@ static int ath11k_hal_reo_cmd_update_rx_queue(struct hal_tlv_hdr *tlv,
 			   !!(cmd->upd1 & HAL_REO_CMD_UPD1_UNEVEN_PN)) |
 		FIELD_PREP(HAL_REO_UPD_RX_QUEUE_INFO1_PN_HANDLE_ENABLE,
 			   !!(cmd->upd1 & HAL_REO_CMD_UPD1_PN_HANDLE_ENABLE)) |
-		FIELD_PREP(HAL_REO_UPD_RX_QUEUE_INFO1_IGNORE_AMPDU_FLG,
-			   !!(cmd->upd1 & HAL_REO_CMD_UPD1_IGNORE_AMPDU_FLG));
+		FIELD_PREP(HAL_REO_UPD_RX_QUEUE_INFO1_IGANALRE_AMPDU_FLG,
+			   !!(cmd->upd1 & HAL_REO_CMD_UPD1_IGANALRE_AMPDU_FLG));
 
 	if (cmd->pn_size == 24)
 		cmd->pn_size = HAL_RX_REO_QUEUE_PN_SIZE_24;
@@ -228,7 +228,7 @@ int ath11k_hal_reo_cmd_send(struct ath11k_base *ab, struct hal_srng *srng,
 	ath11k_hal_srng_access_begin(ab, srng);
 	reo_desc = (struct hal_tlv_hdr *)ath11k_hal_srng_src_get_next_entry(ab, srng);
 	if (!reo_desc) {
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		goto out;
 	}
 
@@ -246,10 +246,10 @@ int ath11k_hal_reo_cmd_send(struct ath11k_base *ab, struct hal_srng *srng,
 	case HAL_REO_CMD_UNBLOCK_CACHE:
 	case HAL_REO_CMD_FLUSH_TIMEOUT_LIST:
 		ath11k_warn(ab, "Unsupported reo command %d\n", type);
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		break;
 	default:
-		ath11k_warn(ab, "Unknown reo command %d\n", type);
+		ath11k_warn(ab, "Unkanalwn reo command %d\n", type);
 		ret = -EINVAL;
 		break;
 	}
@@ -681,7 +681,7 @@ u32 ath11k_hal_reo_qdesc_size(u32 ba_window_size, u8 tid)
 	u32 num_ext_desc;
 
 	if (ba_window_size <= 1) {
-		if (tid != HAL_DESC_REO_NON_QOS_TID)
+		if (tid != HAL_DESC_REO_ANALN_QOS_TID)
 			num_ext_desc = 1;
 		else
 			num_ext_desc = 0;
@@ -719,7 +719,7 @@ void ath11k_hal_reo_qdesc_setup(void *vaddr, int tid, u32 ba_window_size,
 	if (ba_window_size < 1)
 		ba_window_size = 1;
 
-	if (ba_window_size == 1 && tid != HAL_DESC_REO_NON_QOS_TID)
+	if (ba_window_size == 1 && tid != HAL_DESC_REO_ANALN_QOS_TID)
 		ba_window_size++;
 
 	if (ba_window_size == 1)
@@ -728,7 +728,7 @@ void ath11k_hal_reo_qdesc_setup(void *vaddr, int tid, u32 ba_window_size,
 	qdesc->info0 |= FIELD_PREP(HAL_RX_REO_QUEUE_INFO0_BA_WINDOW_SIZE,
 				   ba_window_size - 1);
 	switch (type) {
-	case HAL_PN_TYPE_NONE:
+	case HAL_PN_TYPE_ANALNE:
 	case HAL_PN_TYPE_WAPI_EVEN:
 	case HAL_PN_TYPE_WAPI_UNEVEN:
 		break;
@@ -740,10 +740,10 @@ void ath11k_hal_reo_qdesc_setup(void *vaddr, int tid, u32 ba_window_size,
 		break;
 	}
 
-	/* TODO: Set Ignore ampdu flags based on BA window size and/or
+	/* TODO: Set Iganalre ampdu flags based on BA window size and/or
 	 * AMPDU capabilities
 	 */
-	qdesc->info0 |= FIELD_PREP(HAL_RX_REO_QUEUE_INFO0_IGNORE_AMPDU_FLG, 1);
+	qdesc->info0 |= FIELD_PREP(HAL_RX_REO_QUEUE_INFO0_IGANALRE_AMPDU_FLG, 1);
 
 	qdesc->info1 |= FIELD_PREP(HAL_RX_REO_QUEUE_INFO1_SVLD, 0);
 
@@ -751,7 +751,7 @@ void ath11k_hal_reo_qdesc_setup(void *vaddr, int tid, u32 ba_window_size,
 		qdesc->info1 = FIELD_PREP(HAL_RX_REO_QUEUE_INFO1_SSN,
 					  start_seq);
 
-	if (tid == HAL_DESC_REO_NON_QOS_TID)
+	if (tid == HAL_DESC_REO_ANALN_QOS_TID)
 		return;
 
 	ext_desc = qdesc->ext_desc;
@@ -760,7 +760,7 @@ void ath11k_hal_reo_qdesc_setup(void *vaddr, int tid, u32 ba_window_size,
 	 * window size for all QOS TIDs so that same descriptor can be used
 	 * later when ADDBA request is received. This should be changed to
 	 * allocate HW queue descriptors based on BA window size being
-	 * negotiated (0 for non BA cases), and reallocate when BA window
+	 * negotiated (0 for analn BA cases), and reallocate when BA window
 	 * size changes and also send WMI message to FW to change the REO
 	 * queue descriptor in Rx peer entry as part of dp_rx_tid_update.
 	 */
@@ -1034,7 +1034,7 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 		gi_setting = FIELD_GET(HAL_RX_VHT_SIG_A_INFO_INFO1_GI_SETTING,
 				       info1);
 		switch (gi_setting) {
-		case HAL_RX_VHT_SIG_A_NORMAL_GI:
+		case HAL_RX_VHT_SIG_A_ANALRMAL_GI:
 			ppdu_info->gi = HAL_RX_GI_0_8_US;
 			break;
 		case HAL_RX_VHT_SIG_A_SHORT_GI:
@@ -1084,25 +1084,25 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 			ppdu_info->he_data1 = IEEE80211_RADIOTAP_HE_DATA1_FORMAT_SU;
 
 		ppdu_info->he_data1 |=
-			IEEE80211_RADIOTAP_HE_DATA1_BSS_COLOR_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA1_BEAM_CHANGE_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA1_UL_DL_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA1_DATA_DCM_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA1_CODING_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA1_LDPC_XSYMSEG_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA1_STBC_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA1_DOPPLER_KNOWN;
+			IEEE80211_RADIOTAP_HE_DATA1_BSS_COLOR_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA1_BEAM_CHANGE_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA1_UL_DL_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA1_DATA_DCM_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA1_CODING_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA1_LDPC_XSYMSEG_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA1_STBC_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA1_DOPPLER_KANALWN;
 
 		ppdu_info->he_data2 |=
-			IEEE80211_RADIOTAP_HE_DATA2_GI_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA2_TXBF_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA2_PE_DISAMBIG_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA2_TXOP_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA2_NUM_LTF_SYMS_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA2_PRE_FEC_PAD_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA2_MIDAMBLE_KNOWN;
+			IEEE80211_RADIOTAP_HE_DATA2_GI_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA2_TXBF_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA2_PE_DISAMBIG_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA2_TXOP_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA2_NUM_LTF_SYMS_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA2_PRE_FEC_PAD_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA2_MIDAMBLE_KANALWN;
 
 		value = FIELD_GET(HAL_RX_HE_SIG_A_SU_INFO_INFO0_BSS_COLOR, info0);
 		ppdu_info->he_data3 =
@@ -1219,20 +1219,20 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 
 		ppdu_info->he_data1 = IEEE80211_RADIOTAP_HE_DATA1_FORMAT_MU;
 		ppdu_info->he_data1 |=
-			IEEE80211_RADIOTAP_HE_DATA1_BSS_COLOR_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA1_UL_DL_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA1_LDPC_XSYMSEG_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA1_STBC_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA1_DOPPLER_KNOWN;
+			IEEE80211_RADIOTAP_HE_DATA1_BSS_COLOR_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA1_UL_DL_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA1_LDPC_XSYMSEG_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA1_STBC_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA1_DOPPLER_KANALWN;
 
 		ppdu_info->he_data2 =
-			IEEE80211_RADIOTAP_HE_DATA2_GI_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA2_NUM_LTF_SYMS_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA2_PRE_FEC_PAD_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA2_PE_DISAMBIG_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA2_TXOP_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA2_MIDAMBLE_KNOWN;
+			IEEE80211_RADIOTAP_HE_DATA2_GI_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA2_NUM_LTF_SYMS_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA2_PRE_FEC_PAD_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA2_PE_DISAMBIG_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA2_TXOP_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA2_MIDAMBLE_KANALWN;
 
 		/*data3*/
 		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_BSS_COLOR, info0);
@@ -1317,24 +1317,24 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 		/* HE-MU Flags */
 		/* HE-MU-flags1 */
 		ppdu_info->he_flags1 =
-			IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_MCS_KNOWN |
-			IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_DCM_KNOWN |
-			IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_COMP_KNOWN |
-			IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_SYMS_USERS_KNOWN |
-			IEEE80211_RADIOTAP_HE_MU_FLAGS1_CH1_RU_KNOWN;
+			IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_MCS_KANALWN |
+			IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_DCM_KANALWN |
+			IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_COMP_KANALWN |
+			IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_SYMS_USERS_KANALWN |
+			IEEE80211_RADIOTAP_HE_MU_FLAGS1_CH1_RU_KANALWN;
 
 		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_MCS_OF_SIGB, info0);
 		ppdu_info->he_flags1 |=
-			FIELD_PREP(IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_MCS_KNOWN,
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_MCS_KANALWN,
 				   value);
 		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_DCM_OF_SIGB, info0);
 		ppdu_info->he_flags1 |=
-			FIELD_PREP(IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_DCM_KNOWN,
+			FIELD_PREP(IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_DCM_KANALWN,
 				   value);
 
 		/* HE-MU-flags2 */
 		ppdu_info->he_flags2 =
-			IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW_KNOWN;
+			IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW_KANALWN;
 
 		value = FIELD_GET(HAL_RX_HE_SIG_A_MU_DL_INFO_INFO0_TRANSMIT_BW, info0);
 		ppdu_info->he_flags2 |=
@@ -1375,8 +1375,8 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 
 		info0 = __le32_to_cpu(he_sig_b2_mu->info0);
 
-		ppdu_info->he_data1 |= IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
-				       IEEE80211_RADIOTAP_HE_DATA1_CODING_KNOWN;
+		ppdu_info->he_data1 |= IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KANALWN |
+				       IEEE80211_RADIOTAP_HE_DATA1_CODING_KANALWN;
 
 		ppdu_info->mcs =
 			FIELD_GET(HAL_RX_HE_SIG_B2_MU_INFO_INFO0_STA_MCS, info0);
@@ -1403,12 +1403,12 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 		info0 = __le32_to_cpu(he_sig_b2_ofdma->info0);
 
 		ppdu_info->he_data1 |=
-			IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA1_DATA_DCM_KNOWN |
-			IEEE80211_RADIOTAP_HE_DATA1_CODING_KNOWN;
+			IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA1_DATA_DCM_KANALWN |
+			IEEE80211_RADIOTAP_HE_DATA1_CODING_KANALWN;
 
 		/* HE-data2 */
-		ppdu_info->he_data2 |= IEEE80211_RADIOTAP_HE_DATA2_TXBF_KNOWN;
+		ppdu_info->he_data2 |= IEEE80211_RADIOTAP_HE_DATA2_TXBF_KANALWN;
 
 		ppdu_info->mcs =
 			FIELD_GET(HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_MCS,
@@ -1446,7 +1446,7 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 		struct hal_rx_phyrx_rssi_legacy_info *rssi =
 			(struct hal_rx_phyrx_rssi_legacy_info *)tlv_data;
 
-		/* TODO: Please note that the combined rssi will not be accurate
+		/* TODO: Please analte that the combined rssi will analt be accurate
 		 * in MU case. Rssi in MU needs to be retrieved from
 		 * PHYRX_OTHER_RECEIVE_INFO TLV.
 		 */
@@ -1493,7 +1493,7 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 		break;
 	}
 
-	return HAL_RX_MON_STATUS_PPDU_NOT_DONE;
+	return HAL_RX_MON_STATUS_PPDU_ANALT_DONE;
 }
 
 enum hal_rx_mon_status
@@ -1530,7 +1530,7 @@ ath11k_hal_rx_parse_mon_status(struct ath11k_base *ab,
 
 		if ((ptr - skb->data) >= DP_RX_BUFFER_SIZE)
 			break;
-	} while (hal_status == HAL_RX_MON_STATUS_PPDU_NOT_DONE);
+	} while (hal_status == HAL_RX_MON_STATUS_PPDU_ANALT_DONE);
 
 	return hal_status;
 }

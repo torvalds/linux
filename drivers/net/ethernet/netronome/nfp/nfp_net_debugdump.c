@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #include <linux/ethtool.h>
 #include <linux/vmalloc.h>
@@ -331,10 +331,10 @@ static int nfp_add_tlv(u32 type, u32 total_tlv_sz, struct nfp_dump_state *dump)
 	struct nfp_dump_tl *tl = dump->p;
 
 	if (total_tlv_sz > dump->buf_size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (dump->buf_size - total_tlv_sz < dump->dumped_size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	tl->type = cpu_to_be32(type);
 	tl->length = cpu_to_be32(total_tlv_sz - sizeof(*tl));
@@ -425,7 +425,7 @@ static int nfp_dump_hwinfo_field(struct nfp_pf *pf, struct nfp_dump_tl *spec,
 	key = spec->data;
 	value = nfp_hwinfo_lookup(pf->hwinfo, key);
 	if (!value)
-		return nfp_dump_error_tlv(spec, -ENOENT, dump);
+		return nfp_dump_error_tlv(spec, -EANALENT, dump);
 
 	val_len = strlen(value);
 	total_size = sizeof(*dump_header) + ALIGN8(key_len + val_len + 2);
@@ -614,7 +614,7 @@ nfp_dump_single_rtsym(struct nfp_pf *pf, struct nfp_dumpspec_rtsym *spec,
 
 	sym = nfp_rtsym_lookup(rtbl, spec->rtsym);
 	if (!sym)
-		return nfp_dump_error_tlv(&spec->tl, -ENOENT, dump);
+		return nfp_dump_error_tlv(&spec->tl, -EANALENT, dump);
 
 	sym_size = nfp_rtsym_size(sym);
 	header_size =
@@ -695,7 +695,7 @@ nfp_dump_for_tlv(struct nfp_pf *pf, struct nfp_dump_tl *tl, void *param)
 			return err;
 		break;
 	default:
-		err = nfp_dump_error_tlv(tl, -EOPNOTSUPP, dump);
+		err = nfp_dump_error_tlv(tl, -EOPANALTSUPP, dump);
 		if (err)
 			return err;
 	}

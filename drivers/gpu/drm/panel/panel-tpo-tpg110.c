@@ -3,7 +3,7 @@
  * Panel driver for the TPO TPG110 400CH LTPS TFT LCD Single Chip
  * Digital Driver.
  *
- * This chip drives a TFT LCD, so it does not know what kind of
+ * This chip drives a TFT LCD, so it does analt kanalw what kind of
  * display is actually connected to it, so the width and height of that
  * display needs to be supplied from the machine configuration.
  *
@@ -95,7 +95,7 @@ struct tpg110 {
 
 /*
  * TPG110 modes, these are the simple modes, the dualscan modes that
- * take 400x240 or 480x272 in and display as 800x480 are not listed.
+ * take 400x240 or 480x272 in and display as 800x480 are analt listed.
  */
 static const struct tpg110_panel_mode tpg110_modes[] = {
 	{
@@ -271,7 +271,7 @@ static int tpg110_startup(struct tpg110 *tpg)
 	val = tpg110_read_reg(tpg, TPG110_TEST);
 	if (val != 0x55) {
 		dev_err(tpg->dev, "failed communication test\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	val = tpg110_read_reg(tpg, TPG110_CHIPID);
@@ -320,7 +320,7 @@ static int tpg110_startup(struct tpg110 *tpg)
 	}
 	if (i == ARRAY_SIZE(tpg110_modes)) {
 		dev_err(tpg->dev, "unsupported mode (%02x) detected\n", val);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	val = tpg110_read_reg(tpg, TPG110_CTRL2);
@@ -364,7 +364,7 @@ static int tpg110_enable(struct drm_panel *panel)
  * @panel: the panel to get the mode for
  * @connector: reference to the central DRM connector control structure
  *
- * This currently does not present a forest of modes, instead it
+ * This currently does analt present a forest of modes, instead it
  * presents the mode that is configured for the system under use,
  * and which is detected by reading the registers of the display.
  */
@@ -380,7 +380,7 @@ static int tpg110_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &tpg->panel_mode->mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 	drm_mode_set_name(mode);
 	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 
@@ -401,28 +401,28 @@ static const struct drm_panel_funcs tpg110_drm_funcs = {
 static int tpg110_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct tpg110 *tpg;
 	int ret;
 
 	tpg = devm_kzalloc(dev, sizeof(*tpg), GFP_KERNEL);
 	if (!tpg)
-		return -ENOMEM;
+		return -EANALMEM;
 	tpg->dev = dev;
 
 	/* We get the physical display dimensions from the DT */
 	ret = of_property_read_u32(np, "width-mm", &tpg->width);
 	if (ret)
-		dev_err(dev, "no panel width specified\n");
+		dev_err(dev, "anal panel width specified\n");
 	ret = of_property_read_u32(np, "height-mm", &tpg->height);
 	if (ret)
-		dev_err(dev, "no panel height specified\n");
+		dev_err(dev, "anal panel height specified\n");
 
 	/* This asserts the GRESTB signal, putting the display into reset */
 	tpg->grestb = devm_gpiod_get(dev, "grestb", GPIOD_OUT_HIGH);
 	if (IS_ERR(tpg->grestb)) {
-		dev_err(dev, "no GRESTB GPIO\n");
-		return -ENODEV;
+		dev_err(dev, "anal GRESTB GPIO\n");
+		return -EANALDEV;
 	}
 
 	spi->bits_per_word = 8;

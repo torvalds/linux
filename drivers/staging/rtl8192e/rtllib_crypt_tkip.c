@@ -68,14 +68,14 @@ static void *rtllib_tkip_init(int key_idx)
 
 	priv->tx_tfm_michael = crypto_alloc_shash("michael_mic", 0, 0);
 	if (IS_ERR(priv->tx_tfm_michael)) {
-		pr_debug("Could not allocate crypto API michael_mic\n");
+		pr_debug("Could analt allocate crypto API michael_mic\n");
 		priv->tx_tfm_michael = NULL;
 		goto fail;
 	}
 
 	priv->rx_tfm_michael = crypto_alloc_shash("michael_mic", 0, 0);
 	if (IS_ERR(priv->rx_tfm_michael)) {
-		pr_debug("Could not allocate crypto API michael_mic\n");
+		pr_debug("Could analt allocate crypto API michael_mic\n");
 		priv->rx_tfm_michael = NULL;
 		goto fail;
 	}
@@ -362,7 +362,7 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (!tkey->key_set) {
 		if (net_ratelimit()) {
 			netdev_dbg(skb->dev,
-				   "Received packet from %pM with keyid=%d that does not have a configured key\n",
+				   "Received packet from %pM with keyid=%d that does analt have a configured key\n",
 				   hdr->addr2, keyidx);
 		}
 		return -3;
@@ -582,7 +582,7 @@ static int rtllib_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		return -1;
 	}
 
-	/* Update TSC counters for RX now that the packet verification has
+	/* Update TSC counters for RX analw that the packet verification has
 	 * completed.
 	 */
 	tkey->rx_iv32 = tkey->rx_iv32_new;

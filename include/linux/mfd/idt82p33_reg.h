@@ -2,7 +2,7 @@
 /*
  * Register Map - Based on AN888_SMUforIEEE_SynchEther_82P33xxx_RevH.pdf
  *
- * Copyright (C) 2021 Integrated Device Technology, Inc., a Renesas Company.
+ * Copyright (C) 2021 Integrated Device Techanallogy, Inc., a Renesas Company.
  */
 #ifndef HAVE_IDT82P33_REG
 #define HAVE_IDT82P33_REG
@@ -86,8 +86,8 @@ enum pll_mode {
 
 enum hw_tod_trig_sel {
 	HW_TOD_TRIG_SEL_MIN = 0,
-	HW_TOD_TRIG_SEL_NO_WRITE = HW_TOD_TRIG_SEL_MIN,
-	HW_TOD_TRIG_SEL_NO_READ = HW_TOD_TRIG_SEL_MIN,
+	HW_TOD_TRIG_SEL_ANAL_WRITE = HW_TOD_TRIG_SEL_MIN,
+	HW_TOD_TRIG_SEL_ANAL_READ = HW_TOD_TRIG_SEL_MIN,
 	HW_TOD_TRIG_SEL_SYNC_SEL = 1,
 	HW_TOD_TRIG_SEL_IN12 = 2,
 	HW_TOD_TRIG_SEL_IN13 = 3,

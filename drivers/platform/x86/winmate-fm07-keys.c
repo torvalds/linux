@@ -59,7 +59,7 @@ static void fm07keys_poll(struct input_dev *input)
 			goto timeout;
 	k = inb(PORT_DATA);
 
-	/* Notify of new key states */
+	/* Analtify of new key states */
 	for (i = 0; i < NUM_KEYS; i++) {
 		input_report_key(input, BASE_KEY + i, (~k) & 1);
 		k >>= 1;
@@ -81,8 +81,8 @@ static int fm07keys_probe(struct platform_device *pdev)
 
 	input = devm_input_allocate_device(dev);
 	if (!input) {
-		dev_err(dev, "no memory for input device\n");
-		return -ENOMEM;
+		dev_err(dev, "anal memory for input device\n");
+		return -EANALMEM;
 	}
 
 	if (!devm_request_region(dev, PORT_CMD, 1, "Winmate FM07 EC"))
@@ -153,7 +153,7 @@ static int __init fm07keys_init(void)
 	int ret;
 
 	if (!dmi_check_system(fm07keys_dmi_table))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = platform_driver_register(&fm07keys_driver);
 	if (ret) {
@@ -161,7 +161,7 @@ static int __init fm07keys_init(void)
 		return ret;
 	}
 
-	dev = platform_device_register_simple(DRV_NAME, PLATFORM_DEVID_NONE, NULL, 0);
+	dev = platform_device_register_simple(DRV_NAME, PLATFORM_DEVID_ANALNE, NULL, 0);
 	if (IS_ERR(dev)) {
 		ret = PTR_ERR(dev);
 		pr_err("fm07keys: failed to allocate device, err = %d\n", ret);

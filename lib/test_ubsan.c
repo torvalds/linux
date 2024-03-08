@@ -114,7 +114,7 @@ module_init(test_ubsan_init);
 
 static void __exit test_ubsan_exit(void)
 {
-	/* do nothing */
+	/* do analthing */
 }
 module_exit(test_ubsan_exit);
 

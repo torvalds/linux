@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -33,9 +33,9 @@ static void amdgpu_ucode_print_common_hdr(const struct common_firmware_header *h
 	DRM_DEBUG("size_bytes: %u\n", le32_to_cpu(hdr->size_bytes));
 	DRM_DEBUG("header_size_bytes: %u\n", le32_to_cpu(hdr->header_size_bytes));
 	DRM_DEBUG("header_version_major: %u\n", le16_to_cpu(hdr->header_version_major));
-	DRM_DEBUG("header_version_minor: %u\n", le16_to_cpu(hdr->header_version_minor));
+	DRM_DEBUG("header_version_mianalr: %u\n", le16_to_cpu(hdr->header_version_mianalr));
 	DRM_DEBUG("ip_version_major: %u\n", le16_to_cpu(hdr->ip_version_major));
-	DRM_DEBUG("ip_version_minor: %u\n", le16_to_cpu(hdr->ip_version_minor));
+	DRM_DEBUG("ip_version_mianalr: %u\n", le16_to_cpu(hdr->ip_version_mianalr));
 	DRM_DEBUG("ucode_version: 0x%08x\n", le32_to_cpu(hdr->ucode_version));
 	DRM_DEBUG("ucode_size_bytes: %u\n", le32_to_cpu(hdr->ucode_size_bytes));
 	DRM_DEBUG("ucode_array_offset_bytes: %u\n",
@@ -46,7 +46,7 @@ static void amdgpu_ucode_print_common_hdr(const struct common_firmware_header *h
 void amdgpu_ucode_print_mc_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
-	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+	uint16_t version_mianalr = le16_to_cpu(hdr->header_version_mianalr);
 
 	DRM_DEBUG("MC\n");
 	amdgpu_ucode_print_common_hdr(hdr);
@@ -60,14 +60,14 @@ void amdgpu_ucode_print_mc_hdr(const struct common_firmware_header *hdr)
 		DRM_DEBUG("io_debug_array_offset_bytes: %u\n",
 			  le32_to_cpu(mc_hdr->io_debug_array_offset_bytes));
 	} else {
-		DRM_ERROR("Unknown MC ucode version: %u.%u\n", version_major, version_minor);
+		DRM_ERROR("Unkanalwn MC ucode version: %u.%u\n", version_major, version_mianalr);
 	}
 }
 
 void amdgpu_ucode_print_smc_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
-	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+	uint16_t version_mianalr = le16_to_cpu(hdr->header_version_mianalr);
 	const struct smc_firmware_header_v1_0 *v1_0_hdr;
 	const struct smc_firmware_header_v2_0 *v2_0_hdr;
 	const struct smc_firmware_header_v2_1 *v2_1_hdr;
@@ -79,7 +79,7 @@ void amdgpu_ucode_print_smc_hdr(const struct common_firmware_header *hdr)
 		v1_0_hdr = container_of(hdr, struct smc_firmware_header_v1_0, header);
 		DRM_DEBUG("ucode_start_addr: %u\n", le32_to_cpu(v1_0_hdr->ucode_start_addr));
 	} else if (version_major == 2) {
-		switch (version_minor) {
+		switch (version_mianalr) {
 		case 0:
 			v2_0_hdr = container_of(hdr, struct smc_firmware_header_v2_0, v1_0.header);
 			DRM_DEBUG("ppt_offset_bytes: %u\n", le32_to_cpu(v2_0_hdr->ppt_offset_bytes));
@@ -95,14 +95,14 @@ void amdgpu_ucode_print_smc_hdr(const struct common_firmware_header *hdr)
 		}
 
 	} else {
-		DRM_ERROR("Unknown SMC ucode version: %u.%u\n", version_major, version_minor);
+		DRM_ERROR("Unkanalwn SMC ucode version: %u.%u\n", version_major, version_mianalr);
 	}
 }
 
 void amdgpu_ucode_print_gfx_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
-	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+	uint16_t version_mianalr = le16_to_cpu(hdr->header_version_mianalr);
 
 	DRM_DEBUG("GFX\n");
 	amdgpu_ucode_print_common_hdr(hdr);
@@ -122,14 +122,14 @@ void amdgpu_ucode_print_gfx_hdr(const struct common_firmware_header *hdr)
 		DRM_DEBUG("ucode_feature_version: %u\n",
 			  le32_to_cpu(gfx_hdr->ucode_feature_version));
 	} else {
-		DRM_ERROR("Unknown GFX ucode version: %u.%u\n", version_major, version_minor);
+		DRM_ERROR("Unkanalwn GFX ucode version: %u.%u\n", version_major, version_mianalr);
 	}
 }
 
 void amdgpu_ucode_print_rlc_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
-	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+	uint16_t version_mianalr = le16_to_cpu(hdr->header_version_mianalr);
 
 	DRM_DEBUG("RLC\n");
 	amdgpu_ucode_print_common_hdr(hdr);
@@ -160,7 +160,7 @@ void amdgpu_ucode_print_rlc_hdr(const struct common_firmware_header *hdr)
 		const struct rlc_firmware_header_v2_4 *rlc_hdr_v2_4 =
 			container_of(rlc_hdr_v2_3, struct rlc_firmware_header_v2_4, v2_3);
 
-		switch (version_minor) {
+		switch (version_mianalr) {
 		case 0:
 			/* rlc_hdr v2_0 */
 			DRM_DEBUG("ucode_feature_version: %u\n",
@@ -281,18 +281,18 @@ void amdgpu_ucode_print_rlc_hdr(const struct common_firmware_header *hdr)
 				  le32_to_cpu(rlc_hdr_v2_4->se3_tap_delays_ucode_offset_bytes));
 			break;
 		default:
-			DRM_ERROR("Unknown RLC v2 ucode: v2.%u\n", version_minor);
+			DRM_ERROR("Unkanalwn RLC v2 ucode: v2.%u\n", version_mianalr);
 			break;
 		}
 	} else {
-		DRM_ERROR("Unknown RLC ucode version: %u.%u\n", version_major, version_minor);
+		DRM_ERROR("Unkanalwn RLC ucode version: %u.%u\n", version_major, version_mianalr);
 	}
 }
 
 void amdgpu_ucode_print_sdma_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
-	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+	uint16_t version_mianalr = le16_to_cpu(hdr->header_version_mianalr);
 
 	DRM_DEBUG("SDMA\n");
 	amdgpu_ucode_print_common_hdr(hdr);
@@ -307,7 +307,7 @@ void amdgpu_ucode_print_sdma_hdr(const struct common_firmware_header *hdr)
 			  le32_to_cpu(sdma_hdr->ucode_change_version));
 		DRM_DEBUG("jt_offset: %u\n", le32_to_cpu(sdma_hdr->jt_offset));
 		DRM_DEBUG("jt_size: %u\n", le32_to_cpu(sdma_hdr->jt_size));
-		if (version_minor >= 1) {
+		if (version_mianalr >= 1) {
 			const struct sdma_firmware_header_v1_1 *sdma_v1_1_hdr =
 				container_of(sdma_hdr, struct sdma_firmware_header_v1_1, v1_0);
 			DRM_DEBUG("digest_size: %u\n", le32_to_cpu(sdma_v1_1_hdr->digest_size));
@@ -324,15 +324,15 @@ void amdgpu_ucode_print_sdma_hdr(const struct common_firmware_header *hdr)
 		DRM_DEBUG("ctl_jt_offset: %u\n", le32_to_cpu(sdma_hdr->ctl_jt_offset));
 		DRM_DEBUG("ctl_jt_size: %u\n", le32_to_cpu(sdma_hdr->ctl_jt_size));
 	} else {
-		DRM_ERROR("Unknown SDMA ucode version: %u.%u\n",
-			  version_major, version_minor);
+		DRM_ERROR("Unkanalwn SDMA ucode version: %u.%u\n",
+			  version_major, version_mianalr);
 	}
 }
 
 void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
-	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+	uint16_t version_mianalr = le16_to_cpu(hdr->header_version_mianalr);
 	uint32_t fw_index;
 	const struct psp_fw_bin_desc *desc;
 
@@ -349,7 +349,7 @@ void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr)
 			  le32_to_cpu(psp_hdr->sos.offset_bytes));
 		DRM_DEBUG("sos_size_bytes: %u\n",
 			  le32_to_cpu(psp_hdr->sos.size_bytes));
-		if (version_minor == 1) {
+		if (version_mianalr == 1) {
 			const struct psp_firmware_header_v1_1 *psp_hdr_v1_1 =
 				container_of(psp_hdr, struct psp_firmware_header_v1_1, v1_0);
 			DRM_DEBUG("toc_header_version: %u\n",
@@ -365,7 +365,7 @@ void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr)
 			DRM_DEBUG("kdb_size_bytes: %u\n",
 				  le32_to_cpu(psp_hdr_v1_1->kdb.size_bytes));
 		}
-		if (version_minor == 2) {
+		if (version_mianalr == 2) {
 			const struct psp_firmware_header_v1_2 *psp_hdr_v1_2 =
 				container_of(psp_hdr, struct psp_firmware_header_v1_2, v1_0);
 			DRM_DEBUG("kdb_header_version: %u\n",
@@ -375,7 +375,7 @@ void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr)
 			DRM_DEBUG("kdb_size_bytes: %u\n",
 				  le32_to_cpu(psp_hdr_v1_2->kdb.size_bytes));
 		}
-		if (version_minor == 3) {
+		if (version_mianalr == 3) {
 			const struct psp_firmware_header_v1_1 *psp_hdr_v1_1 =
 				container_of(psp_hdr, struct psp_firmware_header_v1_1, v1_0);
 			const struct psp_firmware_header_v1_3 *psp_hdr_v1_3 =
@@ -471,15 +471,15 @@ void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr)
 			}
 		}
 	} else {
-		DRM_ERROR("Unknown PSP ucode version: %u.%u\n",
-			  version_major, version_minor);
+		DRM_ERROR("Unkanalwn PSP ucode version: %u.%u\n",
+			  version_major, version_mianalr);
 	}
 }
 
 void amdgpu_ucode_print_gpu_info_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
-	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+	uint16_t version_mianalr = le16_to_cpu(hdr->header_version_mianalr);
 
 	DRM_DEBUG("GPU_INFO\n");
 	amdgpu_ucode_print_common_hdr(hdr);
@@ -490,10 +490,10 @@ void amdgpu_ucode_print_gpu_info_hdr(const struct common_firmware_header *hdr)
 
 		DRM_DEBUG("version_major: %u\n",
 			  le16_to_cpu(gpu_info_hdr->version_major));
-		DRM_DEBUG("version_minor: %u\n",
-			  le16_to_cpu(gpu_info_hdr->version_minor));
+		DRM_DEBUG("version_mianalr: %u\n",
+			  le16_to_cpu(gpu_info_hdr->version_mianalr));
 	} else {
-		DRM_ERROR("Unknown gpu_info ucode version: %u.%u\n", version_major, version_minor);
+		DRM_ERROR("Unkanalwn gpu_info ucode version: %u.%u\n", version_major, version_mianalr);
 	}
 }
 
@@ -509,10 +509,10 @@ static int amdgpu_ucode_validate(const struct firmware *fw)
 }
 
 bool amdgpu_ucode_hdr_version(union amdgpu_firmware_header *hdr,
-				uint16_t hdr_major, uint16_t hdr_minor)
+				uint16_t hdr_major, uint16_t hdr_mianalr)
 {
 	if ((hdr->common.header_version_major == hdr_major) &&
-		(hdr->common.header_version_minor == hdr_minor))
+		(hdr->common.header_version_mianalr == hdr_mianalr))
 		return true;
 	return false;
 }
@@ -679,7 +679,7 @@ const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
 	case AMDGPU_UCODE_ID_UMSCH_MM_CMD_BUFFER:
 		return "UMSCH_MM_CMD_BUFFER";
 	default:
-		return "UNKNOWN UCODE";
+		return "UNKANALWN UCODE";
 	}
 }
 
@@ -1069,7 +1069,7 @@ int amdgpu_ucode_create_bo(struct amdgpu_device *adev)
 			&adev->firmware.fw_buf_ptr);
 		if (!adev->firmware.fw_buf) {
 			dev_err(adev->dev, "failed to create kernel buffer for firmware.fw_buf\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		} else if (amdgpu_sriov_vf(adev)) {
 			memset(adev->firmware.fw_buf_ptr, 0, adev->firmware.fw_size);
 		}
@@ -1154,7 +1154,7 @@ static const char *amdgpu_ucode_legacy_naming(struct amdgpu_device *adev, int bl
 		case IP_VERSION(11, 0, 2):
 			return "vega20";
 		case IP_VERSION(11, 0, 3):
-			return "renoir";
+			return "reanalir";
 		case IP_VERSION(11, 0, 4):
 			return "arcturus";
 		case IP_VERSION(11, 0, 5):
@@ -1219,8 +1219,8 @@ static const char *amdgpu_ucode_legacy_naming(struct amdgpu_device *adev, int bl
 				return "picasso_sdma";
 			return "raven_sdma";
 		case IP_VERSION(4, 1, 2):
-			if (adev->apu_flags & AMD_APU_IS_RENOIR)
-				return "renoir_sdma";
+			if (adev->apu_flags & AMD_APU_IS_REANALIR)
+				return "reanalir_sdma";
 			return "green_sardine_sdma";
 		case IP_VERSION(4, 2, 0):
 			return "vega20_sdma";
@@ -1261,8 +1261,8 @@ static const char *amdgpu_ucode_legacy_naming(struct amdgpu_device *adev, int bl
 		case IP_VERSION(2, 5, 0):
 			return "arcturus_vcn";
 		case IP_VERSION(2, 2, 0):
-			if (adev->apu_flags & AMD_APU_IS_RENOIR)
-				return "renoir_vcn";
+			if (adev->apu_flags & AMD_APU_IS_REANALIR)
+				return "reanalir_vcn";
 			return "green_sardine_vcn";
 		case IP_VERSION(2, 6, 0):
 			return "aldebaran_vcn";
@@ -1306,8 +1306,8 @@ static const char *amdgpu_ucode_legacy_naming(struct amdgpu_device *adev, int bl
 		case IP_VERSION(9, 4, 1):
 			return "arcturus";
 		case IP_VERSION(9, 3, 0):
-			if (adev->apu_flags & AMD_APU_IS_RENOIR)
-				return "renoir";
+			if (adev->apu_flags & AMD_APU_IS_REANALIR)
+				return "reanalir";
 			return "green_sardine";
 		case IP_VERSION(9, 4, 2):
 			return "aldebaran";
@@ -1389,7 +1389,7 @@ void amdgpu_ucode_ip_version_decode(struct amdgpu_device *adev, int block_type, 
  *
  * This is a helper that will use request_firmware and amdgpu_ucode_validate
  * to load and run basic validation on firmware. If the load fails, remap
- * the error code to -ENODEV, so that early_init functions will fail to load.
+ * the error code to -EANALDEV, so that early_init functions will fail to load.
  */
 int amdgpu_ucode_request(struct amdgpu_device *adev, const struct firmware **fw,
 			 const char *fw_name)
@@ -1397,7 +1397,7 @@ int amdgpu_ucode_request(struct amdgpu_device *adev, const struct firmware **fw,
 	int err = request_firmware(fw, fw_name, adev->dev);
 
 	if (err)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = amdgpu_ucode_validate(*fw);
 	if (err) {

@@ -3,7 +3,7 @@
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 #ifndef _WMI_TLV_H
 #define _WMI_TLV_H
@@ -242,7 +242,7 @@ enum wmi_tlv_cmd_id {
 	WMI_TLV_TXBF_CMDID,
 	WMI_TLV_FWTEST_VDEV_MCC_SET_TBTT_MODE_CMDID =
 			WMI_TLV_CMD(WMI_TLV_GRP_FWTEST),
-	WMI_TLV_FWTEST_P2P_SET_NOA_PARAM_CMDID,
+	WMI_TLV_FWTEST_P2P_SET_ANALA_PARAM_CMDID,
 	WMI_TLV_UNIT_TEST_CMDID,
 	WMI_TLV_TDLS_SET_STATE_CMDID = WMI_TLV_CMD(WMI_TLV_GRP_TDLS),
 	WMI_TLV_TDLS_PEER_UPDATE_CMDID,
@@ -272,7 +272,7 @@ enum wmi_tlv_cmd_id {
 	WMI_TLV_CHAN_AVOID_UPDATE_CMDID,
 	WMI_TLV_OBSS_SCAN_ENABLE_CMDID = WMI_TLV_CMD(WMI_TLV_GRP_OBSS_OFL),
 	WMI_TLV_OBSS_SCAN_DISABLE_CMDID,
-	WMI_TLV_LPI_MGMT_SNOOPING_CONFIG_CMDID = WMI_TLV_CMD(WMI_TLV_GRP_LPI),
+	WMI_TLV_LPI_MGMT_SANALOPING_CONFIG_CMDID = WMI_TLV_CMD(WMI_TLV_GRP_LPI),
 	WMI_TLV_LPI_START_SCAN_CMDID,
 	WMI_TLV_LPI_STOP_SCAN_CMDID,
 	WMI_TLV_EXTSCAN_START_CMDID = WMI_TLV_CMD(WMI_TLV_GRP_EXTSCAN),
@@ -334,7 +334,7 @@ enum wmi_tlv_event_id {
 	WMI_TLV_PROFILE_MATCH,
 	WMI_TLV_ROAM_SYNCH_EVENTID,
 	WMI_TLV_P2P_DISC_EVENTID = WMI_TLV_EV(WMI_TLV_GRP_P2P),
-	WMI_TLV_P2P_NOA_EVENTID,
+	WMI_TLV_P2P_ANALA_EVENTID,
 	WMI_TLV_PDEV_RESUME_EVENTID = WMI_TLV_EV(WMI_TLV_GRP_SUSPEND),
 	WMI_TLV_WOW_WAKEUP_HOST_EVENTID = WMI_TLV_EV(WMI_TLV_GRP_WOW),
 	WMI_TLV_D0_WOW_DISABLE_ACK_EVENTID,
@@ -414,7 +414,7 @@ enum wmi_tlv_pdev_param {
 	WMI_TLV_PDEV_PARAM_RESMGR_OFFCHAN_MODE,
 	WMI_TLV_PDEV_PARAM_PROTECTION_MODE,
 	WMI_TLV_PDEV_PARAM_DYNAMIC_BW,
-	WMI_TLV_PDEV_PARAM_NON_AGG_SW_RETRY_TH,
+	WMI_TLV_PDEV_PARAM_ANALN_AGG_SW_RETRY_TH,
 	WMI_TLV_PDEV_PARAM_AGG_SW_RETRY_TH,
 	WMI_TLV_PDEV_PARAM_STA_KICKOUT_TH,
 	WMI_TLV_PDEV_PARAM_AC_AGGRSIZE_SCALING,
@@ -463,7 +463,7 @@ enum wmi_tlv_pdev_param {
 	WMI_TLV_PDEV_PARAM_AUDIO_OVER_WLAN_ENABLE,
 	WMI_TLV_PDEV_PARAM_WHAL_MIB_STATS_UPDATE_ENABLE,
 	WMI_TLV_PDEV_PARAM_VDEV_RATE_STATS_UPDATE_PERIOD,
-	WMI_TLV_PDEV_PARAM_TXPOWER_REASON_NONE,
+	WMI_TLV_PDEV_PARAM_TXPOWER_REASON_ANALNE,
 	WMI_TLV_PDEV_PARAM_TXPOWER_REASON_SAR,
 	WMI_TLV_PDEV_PARAM_PEER_STATS_INFO_ENABLE = 0x8b,
 	WMI_TLV_PDEV_PARAM_TXPOWER_REASON_MAX,
@@ -508,7 +508,7 @@ enum wmi_tlv_vdev_param {
 	WMI_TLV_VDEV_PARAM_MCAST_DATA_RATE,
 	WMI_TLV_VDEV_PARAM_MCAST_INDICATE,
 	WMI_TLV_VDEV_PARAM_DHCP_INDICATE,
-	WMI_TLV_VDEV_PARAM_UNKNOWN_DEST_INDICATE,
+	WMI_TLV_VDEV_PARAM_UNKANALWN_DEST_INDICATE,
 	WMI_TLV_VDEV_PARAM_AP_KEEPALIVE_MIN_IDLE_INACTIVE_TIME_SECS,
 	WMI_TLV_VDEV_PARAM_AP_KEEPALIVE_MAX_IDLE_INACTIVE_TIME_SECS,
 	WMI_TLV_VDEV_PARAM_AP_KEEPALIVE_MAX_UNRESPONSIVE_TIME_SECS,
@@ -629,7 +629,7 @@ enum wmi_tlv_tag {
 	WMI_TLV_TAG_STRUCT_PDEV_QVIT_EVENT,
 	WMI_TLV_TAG_STRUCT_HOST_SWBA_EVENT,
 	WMI_TLV_TAG_STRUCT_TIM_INFO,
-	WMI_TLV_TAG_STRUCT_P2P_NOA_INFO,
+	WMI_TLV_TAG_STRUCT_P2P_ANALA_INFO,
 	WMI_TLV_TAG_STRUCT_STATS_EVENT,
 	WMI_TLV_TAG_STRUCT_AVOID_FREQ_RANGES_EVENT,
 	WMI_TLV_TAG_STRUCT_AVOID_FREQ_RANGE_DESC,
@@ -649,7 +649,7 @@ enum wmi_tlv_tag {
 	WMI_TLV_TAG_STRUCT_VDEV_CREATE_CMD,
 	WMI_TLV_TAG_STRUCT_VDEV_DELETE_CMD,
 	WMI_TLV_TAG_STRUCT_VDEV_START_REQUEST_CMD,
-	WMI_TLV_TAG_STRUCT_P2P_NOA_DESCRIPTOR,
+	WMI_TLV_TAG_STRUCT_P2P_ANALA_DESCRIPTOR,
 	WMI_TLV_TAG_STRUCT_P2P_GO_SET_BEACON_IE,
 	WMI_TLV_TAG_STRUCT_GTK_OFFLOAD_CMD,
 	WMI_TLV_TAG_STRUCT_VDEV_UP_CMD,
@@ -775,7 +775,7 @@ enum wmi_tlv_tag {
 	WMI_TLV_TAG_STRUCT_STA_SMPS_FORCE_MODE_CMD,
 	WMI_TLV_TAG_STRUCT_SET_MCASTBCAST_FILTER_CMD,
 	WMI_TLV_TAG_STRUCT_P2P_SET_OPPPS_CMD,
-	WMI_TLV_TAG_STRUCT_P2P_SET_NOA_CMD,
+	WMI_TLV_TAG_STRUCT_P2P_SET_ANALA_CMD,
 	WMI_TLV_TAG_STRUCT_BA_REQ_SSN_CMD_SUB_STRUCT_PARAM,
 	WMI_TLV_TAG_STRUCT_BA_REQ_SSN_EVENT_SUB_STRUCT_PARAM,
 	WMI_TLV_TAG_STRUCT_STA_SMPS_PARAM_CMD,
@@ -783,7 +783,7 @@ enum wmi_tlv_tag {
 	WMI_TLV_TAG_STRUCT_MCC_SCHED_TRAFFIC_STATS_CMD,
 	WMI_TLV_TAG_STRUCT_MCC_SCHED_STA_TRAFFIC_STATS,
 	WMI_TLV_TAG_STRUCT_OFFLOAD_BCN_TX_STATUS_EVENT,
-	WMI_TLV_TAG_STRUCT_P2P_NOA_EVENT,
+	WMI_TLV_TAG_STRUCT_P2P_ANALA_EVENT,
 	WMI_TLV_TAG_STRUCT_HB_SET_ENABLE_CMD,
 	WMI_TLV_TAG_STRUCT_HB_SET_TCP_PARAMS_CMD,
 	WMI_TLV_TAG_STRUCT_HB_SET_TCP_PKT_FILTER_CMD,
@@ -856,7 +856,7 @@ enum wmi_tlv_tag {
 	WMI_TLV_TAG_STRUCT_PEER_LINK_STATS,
 	WMI_TLV_TAG_STRUCT_WMM_AC_STATS,
 	WMI_TLV_TAG_STRUCT_IFACE_LINK_STATS,
-	WMI_TLV_TAG_STRUCT_LPI_MGMT_SNOOPING_CONFIG_CMD,
+	WMI_TLV_TAG_STRUCT_LPI_MGMT_SANALOPING_CONFIG_CMD,
 	WMI_TLV_TAG_STRUCT_LPI_START_SCAN_CMD,
 	WMI_TLV_TAG_STRUCT_LPI_STOP_SCAN_CMD,
 	WMI_TLV_TAG_STRUCT_LPI_RESULT_EVENT,
@@ -1021,7 +1021,7 @@ enum wmi_tlv_tag {
 	WMI_TLV_TAG_STRUCT_PDEV_SMART_ANT_SET_RX_ANTENNA_CMD,
 	WMI_TLV_TAG_STRUCT_PEER_SMART_ANT_SET_TX_ANTENNA_CMD,
 	WMI_TLV_TAG_STRUCT_PEER_SMART_ANT_SET_TRAIN_ANTENNA_CMD,
-	WMI_TLV_TAG_STRUCT_PEER_SMART_ANT_SET_NODE_CONFIG_OPS_CMD,
+	WMI_TLV_TAG_STRUCT_PEER_SMART_ANT_SET_ANALDE_CONFIG_OPS_CMD,
 	WMI_TLV_TAG_STRUCT_PDEV_SET_ANT_SWITCH_TBL_CMD,
 	WMI_TLV_TAG_STRUCT_PDEV_SET_CTL_TABLE_CMD,
 	WMI_TLV_TAG_STRUCT_PDEV_SET_MIMOGAIN_TABLE_CMD,
@@ -1387,7 +1387,7 @@ enum wmi_tlv_service {
 	WMI_TLV_SERVICE_PDEV_BSS_CHANNEL_INFO_64,
 	WMI_TLV_MAX_SERVICE = 128,
 
-/* NOTE:
+/* ANALTE:
  * The above service flags are delivered in the wmi_service_bitmap field
  * of the WMI_TLV_SERVICE_READY_EVENT message.
  * The below service flags are delivered in a WMI_TLV_SERVICE_AVAILABLE_EVENT
@@ -1445,7 +1445,7 @@ enum wmi_tlv_service {
 	WMI_TLV_SERVICE_PER_VDEV_CHAINMASK_CONFIG_SUPPORT = 173,
 	WMI_TLV_SERVICE_TX_DATA_MGMT_ACK_RSSI = 174,
 	WMI_TLV_SERVICE_NAN_DISABLE_SUPPORT = 175,
-	WMI_TLV_SERVICE_HTT_H2T_NO_HTC_HDR_LEN_IN_MSG_LEN = 176,
+	WMI_TLV_SERVICE_HTT_H2T_ANAL_HTC_HDR_LEN_IN_MSG_LEN = 176,
 	WMI_TLV_SERVICE_COEX_SUPPORT_UNEQUAL_ISOLATION = 177,
 	WMI_TLV_SERVICE_HW_DB2DBM_CONVERSION_SUPPORT = 178,
 	WMI_TLV_SERVICE_SUPPORT_EXTEND_ADDRESS = 179,
@@ -1652,7 +1652,7 @@ struct chan_info_params {
 	u32 err_code;
 	u32 freq;
 	u32 cmd_flags;
-	u32 noise_floor;
+	u32 analise_floor;
 	u32 rx_clear_count;
 	u32 cycle_count;
 	u32 mac_clk_mhz;
@@ -1664,7 +1664,7 @@ struct wmi_tlv_chan_info_event {
 	__le32 err_code;
 	__le32 freq;
 	__le32 cmd_flags;
-	__le32 noise_floor;
+	__le32 analise_floor;
 	__le32 rx_clear_count;
 	__le32 cycle_count;
 	__le32 chan_tx_pwr_range;
@@ -1809,7 +1809,7 @@ struct wmi_tlv_init_cmd {
 } __packed;
 
 struct wmi_tlv_pdev_get_temp_cmd {
-	__le32 pdev_id; /* not used */
+	__le32 pdev_id; /* analt used */
 } __packed;
 
 struct wmi_tlv_pdev_temperature_event {
@@ -1820,13 +1820,13 @@ struct wmi_tlv_pdev_temperature_event {
 } __packed;
 
 struct wmi_tlv_pdev_set_param_cmd {
-	__le32 pdev_id; /* not used yet */
+	__le32 pdev_id; /* analt used yet */
 	__le32 param_id;
 	__le32 param_value;
 } __packed;
 
 struct wmi_tlv_pdev_set_rd_cmd {
-	__le32 pdev_id; /* not used yet */
+	__le32 pdev_id; /* analt used yet */
 	__le32 regd;
 	__le32 regd_2ghz;
 	__le32 regd_5ghz;
@@ -1860,7 +1860,7 @@ struct wmi_tlv_start_scan_cmd {
 } __packed;
 
 enum wmi_tlv_vdev_subtype {
-	WMI_TLV_VDEV_SUBTYPE_NONE	= 0,
+	WMI_TLV_VDEV_SUBTYPE_ANALNE	= 0,
 	WMI_TLV_VDEV_SUBTYPE_P2P_DEV	= 1,
 	WMI_TLV_VDEV_SUBTYPE_P2P_CLI	= 2,
 	WMI_TLV_VDEV_SUBTYPE_P2P_GO	= 3,
@@ -1878,12 +1878,12 @@ struct wmi_tlv_vdev_start_cmd {
 	struct wmi_ssid ssid;
 	__le32 bcn_tx_rate;
 	__le32 bcn_tx_power;
-	__le32 num_noa_descr;
+	__le32 num_anala_descr;
 	__le32 disable_hw_ack;
 } __packed;
 
 enum {
-	WMI_TLV_PEER_TYPE_DEFAULT = 0, /* generic / non-BSS / self-peer */
+	WMI_TLV_PEER_TYPE_DEFAULT = 0, /* generic / analn-BSS / self-peer */
 	WMI_TLV_PEER_TYPE_BSS = 1,
 	WMI_TLV_PEER_TYPE_TDLS = 2,
 	WMI_TLV_PEER_TYPE_HOST_MAX = 127,
@@ -1917,13 +1917,13 @@ struct wmi_tlv_peer_assoc_cmd {
 } __packed;
 
 struct wmi_tlv_pdev_suspend {
-	__le32 pdev_id; /* not used yet */
+	__le32 pdev_id; /* analt used yet */
 	__le32 opt;
 } __packed;
 
 struct wmi_tlv_pdev_set_wmm_cmd {
-	__le32 pdev_id; /* not used yet */
-	__le32 dg_type; /* no idea.. */
+	__le32 pdev_id; /* analt used yet */
+	__le32 dg_type; /* anal idea.. */
 } __packed;
 
 struct wmi_tlv_vdev_wmm_params {
@@ -2011,7 +2011,7 @@ struct wmi_tlv_vdev_stats {
 	__le32 num_rts_success;
 	__le32 num_rx_err;
 	__le32 num_rx_discard;
-	__le32 num_tx_not_acked;
+	__le32 num_tx_analt_acked;
 	__le32 tx_rate_history[10];
 	__le32 beacon_rssi_history[10];
 } __packed;
@@ -2186,7 +2186,7 @@ struct wmi_tlv_peer_stats_info {
 #define HW_RATECODE_RATE_V1_MASK GENMASK(4, 0)
 #define WMI_TLV_GET_HW_RC_RATE_V1(rc) FIELD_GET(HW_RATECODE_RATE_V1_MASK, rc)
 
-struct wmi_tlv_p2p_noa_ev {
+struct wmi_tlv_p2p_anala_ev {
 	__le32 vdev_id;
 } __packed;
 
@@ -2295,7 +2295,7 @@ enum wmi_tlv_tdls_options {
 struct wmi_tdls_set_state_cmd {
 	__le32 vdev_id;
 	__le32 state;
-	__le32 notification_interval_ms;
+	__le32 analtification_interval_ms;
 	__le32 tx_discovery_threshold;
 	__le32 tx_teardown_threshold;
 	__le32 rssi_teardown_threshold;
@@ -2350,7 +2350,7 @@ struct wmi_tlv_adaptive_qcs {
  * @WMI_TLV_TX_PAUSE_ID_AP_PEER_PS: peer in AP mode is asleep.
  *		Only peer_id is valid.
  * @WMI_TLV_TX_PAUSE_ID_AP_PEER_UAPSD: Only peer_id and tid_map are valid.
- * @WMI_TLV_TX_PAUSE_ID_P2P_CLI_NOA: Only vdev_map is valid.
+ * @WMI_TLV_TX_PAUSE_ID_P2P_CLI_ANALA: Only vdev_map is valid.
  * @WMI_TLV_TX_PAUSE_ID_P2P_GO_PS: Only vdev_map is valid.
  * @WMI_TLV_TX_PAUSE_ID_STA_ADD_BA: Only peer_id and tid_map are valid.
  * @WMI_TLV_TX_PAUSE_ID_AP_PS: When all peers are asleep in AP mode. Only
@@ -2363,7 +2363,7 @@ enum wmi_tlv_tx_pause_id {
 	WMI_TLV_TX_PAUSE_ID_MCC = 1,
 	WMI_TLV_TX_PAUSE_ID_AP_PEER_PS = 2,
 	WMI_TLV_TX_PAUSE_ID_AP_PEER_UAPSD = 3,
-	WMI_TLV_TX_PAUSE_ID_P2P_CLI_NOA = 4,
+	WMI_TLV_TX_PAUSE_ID_P2P_CLI_ANALA = 4,
 	WMI_TLV_TX_PAUSE_ID_P2P_GO_PS = 5,
 	WMI_TLV_TX_PAUSE_ID_STA_ADD_BA = 6,
 	WMI_TLV_TX_PAUSE_ID_AP_PS = 7,
@@ -2423,13 +2423,13 @@ enum wmi_nlo_auth_algorithm {
 	WMI_NLO_AUTH_ALGO_80211_SHARED_KEY  = 2,
 	WMI_NLO_AUTH_ALGO_WPA               = 3,
 	WMI_NLO_AUTH_ALGO_WPA_PSK           = 4,
-	WMI_NLO_AUTH_ALGO_WPA_NONE          = 5,
+	WMI_NLO_AUTH_ALGO_WPA_ANALNE          = 5,
 	WMI_NLO_AUTH_ALGO_RSNA              = 6,
 	WMI_NLO_AUTH_ALGO_RSNA_PSK          = 7,
 };
 
 enum wmi_nlo_cipher_algorithm {
-	WMI_NLO_CIPHER_ALGO_NONE           = 0x00,
+	WMI_NLO_CIPHER_ALGO_ANALNE           = 0x00,
 	WMI_NLO_CIPHER_ALGO_WEP40          = 0x01,
 	WMI_NLO_CIPHER_ALGO_TKIP           = 0x02,
 	WMI_NLO_CIPHER_ALGO_CCMP           = 0x04,
@@ -2441,8 +2441,8 @@ enum wmi_nlo_cipher_algorithm {
 
 /* SSID broadcast  type passed in NLO params */
 enum wmi_nlo_ssid_bcastnwtype {
-	WMI_NLO_BCAST_UNKNOWN      = 0,
-	WMI_NLO_BCAST_NORMAL       = 1,
+	WMI_NLO_BCAST_UNKANALWN      = 0,
+	WMI_NLO_BCAST_ANALRMAL       = 1,
 	WMI_NLO_BCAST_HIDDEN       = 2,
 };
 
@@ -2456,27 +2456,27 @@ enum wmi_nlo_ssid_bcastnwtype {
 #define WMI_NLO_CONFIG_FAST_SCAN                        (0x1 << 5)
 #define WMI_NLO_CONFIG_SSID_HIDE_EN                     (0x1 << 6)
 
-/* This bit is used to indicate if EPNO or supplicant PNO is enabled.
+/* This bit is used to indicate if EPANAL or supplicant PANAL is enabled.
  * Only one of them can be enabled at a given time
  */
 #define WMI_NLO_CONFIG_ENLO                             (0x1 << 7)
 #define WMI_NLO_CONFIG_SCAN_PASSIVE                     (0x1 << 8)
 #define WMI_NLO_CONFIG_ENLO_RESET                       (0x1 << 9)
 #define WMI_NLO_CONFIG_SPOOFED_MAC_IN_PROBE_REQ         (0x1 << 10)
-#define WMI_NLO_CONFIG_RANDOM_SEQ_NO_IN_PROBE_REQ       (0x1 << 11)
+#define WMI_NLO_CONFIG_RANDOM_SEQ_ANAL_IN_PROBE_REQ       (0x1 << 11)
 #define WMI_NLO_CONFIG_ENABLE_IE_WHITELIST_IN_PROBE_REQ (0x1 << 12)
 #define WMI_NLO_CONFIG_ENABLE_CNLO_RSSI_CONFIG          (0x1 << 13)
 
 /* Whether directed scan needs to be performed (for hidden SSIDs) */
 #define WMI_ENLO_FLAG_DIRECTED_SCAN      1
 
-/* Whether PNO event shall be triggered if the network is found on A band */
+/* Whether PANAL event shall be triggered if the network is found on A band */
 #define WMI_ENLO_FLAG_A_BAND             2
 
-/* Whether PNO event shall be triggered if the network is found on G band */
+/* Whether PANAL event shall be triggered if the network is found on G band */
 #define WMI_ENLO_FLAG_G_BAND             4
 
-/* Whether strict matching is required (i.e. firmware shall not
+/* Whether strict matching is required (i.e. firmware shall analt
  * match on the entire SSID)
  */
 #define WMI_ENLO_FLAG_STRICT_MATCH       8
@@ -2509,8 +2509,8 @@ struct wmi_nlo_auth_param {
 struct wmi_nlo_bcast_nw_param {
 	__le32 valid;
 
-	/* If WMI_NLO_CONFIG_EPNO is not set. Supplicant PNO is enabled.
-	 * The value should be true/false. Otherwise EPNO is enabled.
+	/* If WMI_NLO_CONFIG_EPANAL is analt set. Supplicant PANAL is enabled.
+	 * The value should be true/false. Otherwise EPANAL is enabled.
 	 * bcast_nw_type would be used as a bit flag contains WMI_ENLO_FLAG_XXX
 	 */
 	__le32 bcast_nw_type;
@@ -2529,11 +2529,11 @@ struct nlo_configured_parameters {
 	struct wmi_nlo_auth_param auth_type;
 	struct wmi_nlo_rssi_param rssi_cond;
 
-	/* indicates if the SSID is hidden or not */
+	/* indicates if the SSID is hidden or analt */
 	struct wmi_nlo_bcast_nw_param bcast_nw_type;
 } __packed;
 
-/* Support channel prediction for PNO scan after scanning top_k_num channels
+/* Support channel prediction for PANAL scan after scanning top_k_num channels
  * if stationary_threshold is met.
  */
 struct nlo_channel_prediction_cfg {
@@ -2556,8 +2556,8 @@ struct nlo_channel_prediction_cfg {
 	/* Periodic full channel scan in milliseconds unit.
 	 * After full_scan_period_ms since last full scan, channel prediction
 	 * scan is suppressed and will do full scan.
-	 * This is to help detecting sudden AP power-on or -off. Value 0 means no
-	 * full scan at all (not recommended).
+	 * This is to help detecting sudden AP power-on or -off. Value 0 means anal
+	 * full scan at all (analt recommended).
 	 */
 	__le32 full_scan_period_ms;
 } __packed;
@@ -2583,7 +2583,7 @@ struct enlo_candidate_score_params_t {
 	/* score bonus for all networks with the same network flag */
 	__le32 same_network_bonus;
 
-	/* score bonus for networks that are not open */
+	/* score bonus for networks that are analt open */
 	__le32 secure_bonus;
 
 	/* 5GHz RSSI score bonus (applied to all 5GHz networks) */
@@ -2639,7 +2639,7 @@ struct wmi_tlv_wow_nlo_config_cmd {
 	/* specific to windows */
 	__le32 slow_scan_period;
 
-	__le32 no_of_ssids;
+	__le32 anal_of_ssids;
 
 	__le32 num_of_channels;
 

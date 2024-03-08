@@ -47,7 +47,7 @@
   {
     "EventCode": "0x30012",
     "EventName": "PM_FLUSH_COMPLETION",
-    "BriefDescription": "The instruction that was next to complete (oldest in the pipeline) did not complete because it suffered a flush."
+    "BriefDescription": "The instruction that was next to complete (oldest in the pipeline) did analt complete because it suffered a flush."
   },
   {
     "EventCode": "0x3F046",
@@ -62,7 +62,7 @@
   {
     "EventCode": "0x3E054",
     "EventName": "PM_LD_MISS_L1",
-    "BriefDescription": "Load missed L1, counted at finish time. LMQ merges are not included in this count. i.e. if a load instruction misses on an address that is already allocated on the LMQ, this event will not increment for that load). Note that this count is per slice, so if a load spans multiple slices this event will increment multiple times for a single load."
+    "BriefDescription": "Load missed L1, counted at finish time. LMQ merges are analt included in this count. i.e. if a load instruction misses on an address that is already allocated on the LMQ, this event will analt increment for that load). Analte that this count is per slice, so if a load spans multiple slices this event will increment multiple times for a single load."
   },
   {
     "EventCode": "0x300FA",

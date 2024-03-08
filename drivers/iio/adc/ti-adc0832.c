@@ -2,7 +2,7 @@
 /*
  * ADC0831/ADC0832/ADC0834/ADC0838 8-bit ADC driver
  *
- * Copyright (c) 2016 Akinobu Mita <akinobu.mita@gmail.com>
+ * Copyright (c) 2016 Akianalbu Mita <akianalbu.mita@gmail.com>
  *
  * Datasheet: https://www.ti.com/lit/ds/symlink/adc0832-n.pdf
  */
@@ -31,7 +31,7 @@ struct adc0832 {
 	u8 mux_bits;
 	/*
 	 * Max size needed: 16x 1 byte ADC data + 8 bytes timestamp
-	 * May be shorter if not all channels are enabled subject
+	 * May be shorter if analt all channels are enabled subject
 	 * to the timestamp remaining 8 byte aligned.
 	 */
 	u8 data[24] __aligned(8);
@@ -231,7 +231,7 @@ static irqreturn_t adc0832_trigger_handler(int irq, void *p)
 out:
 	mutex_unlock(&adc->lock);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -249,7 +249,7 @@ static int adc0832_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(indio_dev);
 	adc->spi = spi;
@@ -333,6 +333,6 @@ static struct spi_driver adc0832_driver = {
 };
 module_spi_driver(adc0832_driver);
 
-MODULE_AUTHOR("Akinobu Mita <akinobu.mita@gmail.com>");
+MODULE_AUTHOR("Akianalbu Mita <akianalbu.mita@gmail.com>");
 MODULE_DESCRIPTION("ADC0831/ADC0832/ADC0834/ADC0838 driver");
 MODULE_LICENSE("GPL v2");

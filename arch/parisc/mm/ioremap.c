@@ -8,7 +8,7 @@
  */
 
 #include <linux/vmalloc.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/mm.h>
@@ -25,7 +25,7 @@ void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size,
 #endif
 
 	/*
-	 * Don't allow anybody to remap normal RAM that we're using..
+	 * Don't allow anybody to remap analrmal RAM that we're using..
 	 */
 	if (phys_addr < virt_to_phys(high_memory)) {
 		char *t_addr, *t_end;

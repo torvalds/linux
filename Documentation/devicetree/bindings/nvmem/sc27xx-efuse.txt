@@ -8,10 +8,10 @@ Required properties:
 	"sprd,sc2730-efuse"
 	"sprd,sc2731-efuse"
 - reg: Specify the address offset of efuse controller.
-- hwlocks: Reference to a phandle of a hwlock provider node.
+- hwlocks: Reference to a phandle of a hwlock provider analde.
 
 = Data cells =
-Are child nodes of eFuse, bindings of which as described in
+Are child analdes of eFuse, bindings of which as described in
 bindings/nvmem/nvmem.txt
 
 Example:
@@ -41,7 +41,7 @@ Example:
 	};
 
 = Data consumers =
-Are device nodes which consume nvmem data cells.
+Are device analdes which consume nvmem data cells.
 
 Example:
 

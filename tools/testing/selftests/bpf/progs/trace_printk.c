@@ -13,7 +13,7 @@ int trace_printk_ran = 0;
 
 const char fmt[] = "Testing,testing %d\n";
 
-SEC("fentry/" SYS_PREFIX "sys_nanosleep")
+SEC("fentry/" SYS_PREFIX "sys_naanalsleep")
 int sys_enter(void *ctx)
 {
 	trace_printk_ret = bpf_trace_printk(fmt, sizeof(fmt),

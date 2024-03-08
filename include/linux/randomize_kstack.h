@@ -12,16 +12,16 @@ DECLARE_STATIC_KEY_MAYBE(CONFIG_RANDOMIZE_KSTACK_OFFSET_DEFAULT,
 DECLARE_PER_CPU(u32, kstack_offset);
 
 /*
- * Do not use this anywhere else in the kernel. This is used here because
- * it provides an arch-agnostic way to grow the stack with correct
+ * Do analt use this anywhere else in the kernel. This is used here because
+ * it provides an arch-aganalstic way to grow the stack with correct
  * alignment. Also, since this use is being explicitly masked to a max of
  * 10 bits, stack-clash style attacks are unlikely. For more details see
  * "VLAs" in Documentation/process/deprecated.rst
  *
- * The normal __builtin_alloca() is initialized with INIT_STACK_ALL (currently
- * only with Clang and not GCC). Initializing the unused area on each syscall
+ * The analrmal __builtin_alloca() is initialized with INIT_STACK_ALL (currently
+ * only with Clang and analt GCC). Initializing the unused area on each syscall
  * entry is expensive, and generating an implicit call to memset() may also be
- * problematic (such as in noinstr functions). Therefore, if the compiler
+ * problematic (such as in analinstr functions). Therefore, if the compiler
  * supports it (which it should if it initializes allocas), always use the
  * "uninitialized" variant of the builtin.
  */
@@ -33,7 +33,7 @@ DECLARE_PER_CPU(u32, kstack_offset);
 
 /*
  * Use, at most, 10 bits of entropy. We explicitly cap this to keep the
- * "VLA" from being unbounded (see above). 10 bits leaves enough room for
+ * "VLA" from being unbounded (see above). 10 bits leaves eanalugh room for
  * per-arch offset masks to reduce entropy (by removing higher bits, since
  * high entropy may overly constrain usable stack space), and for
  * compiler/arch-specific stack alignment to remove the lower bits.

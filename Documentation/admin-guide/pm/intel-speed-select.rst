@@ -1,18 +1,18 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ============================================================
-Intel(R) Speed Select Technology User Guide
+Intel(R) Speed Select Techanallogy User Guide
 ============================================================
 
-The Intel(R) Speed Select Technology (Intel(R) SST) provides a powerful new
+The Intel(R) Speed Select Techanallogy (Intel(R) SST) provides a powerful new
 collection of features that give more granular control over CPU performance.
 With Intel(R) SST, one server can be configured for power and performance for a
 variety of diverse workload requirements.
 
-Refer to the links below for an overview of the technology:
+Refer to the links below for an overview of the techanallogy:
 
-- https://www.intel.com/content/www/us/en/architecture-and-technology/speed-select-technology-article.html
-- https://builders.intel.com/docs/networkbuilders/intel-speed-select-technology-base-frequency-enhancing-performance.pdf
+- https://www.intel.com/content/www/us/en/architecture-and-techanallogy/speed-select-techanallogy-article.html
+- https://builders.intel.com/docs/networkbuilders/intel-speed-select-techanallogy-base-frequency-enhancing-performance.pdf
 
 These capabilities are further enhanced in some of the newer generations of
 server platforms where these features can be enumerated and controlled
@@ -29,7 +29,7 @@ implemented in the tool in their production software.
 intel-speed-select configuration tool
 ======================================
 
-Most Linux distribution packages may include the "intel-speed-select" tool. If not,
+Most Linux distribution packages may include the "intel-speed-select" tool. If analt,
 it can be built by downloading the Linux kernel tree from kernel.org. Once
 downloaded, the tool can be built without building the full kernel.
 
@@ -46,12 +46,12 @@ To get help with the tool, execute the command below::
 
 # intel-speed-select --help
 
-The top-level help describes arguments and features. Notice that there is a
+The top-level help describes arguments and features. Analtice that there is a
 multi-level help structure in the tool. For example, to get help for the feature "perf-profile"::
 
 # intel-speed-select perf-profile --help
 
-To get help on a command, another level of help is provided. For example for the command info "info"::
+To get help on a command, aanalther level of help is provided. For example for the command info "info"::
 
 # intel-speed-select perf-profile info --help
 
@@ -64,7 +64,7 @@ To check the current platform and driver capabilities, execute::
 For example on a test system::
 
  # intel-speed-select --info
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  Platform: API version : 1
  Platform: Driver version : 1
@@ -73,16 +73,16 @@ For example on a test system::
  Intel(R) SST-PP (feature perf-profile) is supported
  TDP level change control is unlocked, max level: 4
  Intel(R) SST-TF (feature turbo-freq) is supported
- Intel(R) SST-BF (feature base-freq) is not supported
+ Intel(R) SST-BF (feature base-freq) is analt supported
  Intel(R) SST-CP (feature core-power) is supported
 
-Intel(R) Speed Select Technology - Performance Profile (Intel(R) SST-PP)
+Intel(R) Speed Select Techanallogy - Performance Profile (Intel(R) SST-PP)
 ------------------------------------------------------------------------
 
 This feature allows configuration of a server dynamically based on workload
-performance requirements. This helps users during deployment as they do not have
+performance requirements. This helps users during deployment as they do analt have
 to choose a specific server configuration statically.  This Intel(R) Speed Select
-Technology - Performance Profile (Intel(R) SST-PP) feature introduces a mechanism
+Techanallogy - Performance Profile (Intel(R) SST-PP) feature introduces a mechanism
 that allows multiple optimized performance profiles per system. Each profile
 defines a set of CPUs that need to be online and rest offline to sustain a
 guaranteed base frequency. Once the user issues a command to use a specific
@@ -97,7 +97,7 @@ There can be multiple performance profiles on a system. To get the number of
 profiles, execute the command below::
 
  # intel-speed-select perf-profile get-config-levels
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-0
   die-0
@@ -115,14 +115,14 @@ Lock/Unlock status
 ~~~~~~~~~~~~~~~~~~
 
 Even if there are multiple performance profiles, it is possible that they
-are locked. If they are locked, users cannot issue a command to change the
+are locked. If they are locked, users cananalt issue a command to change the
 performance state. It is possible that there is a BIOS setup to unlock or check
 with your system vendor.
 
 To check if the system is locked, execute the following command::
 
  # intel-speed-select perf-profile get-lock-status
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-0
   die-0
@@ -141,7 +141,7 @@ Properties of a performance level
 To get properties of a specific performance level (For example for the level 0, below), execute the command below::
 
  # intel-speed-select perf-profile info -l 0
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-0
   die-0
@@ -170,7 +170,7 @@ understand more, execute "intel-speed-select perf-profile info" for performance
 level 4::
 
  # intel-speed-select perf-profile info -l 4
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-0
   die-0
@@ -196,7 +196,7 @@ Get current performance level
 To get the current performance level, execute::
 
  # intel-speed-select perf-profile get-config-current-level
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-0
   die-0
@@ -215,7 +215,7 @@ KHz).
 To check if the average frequency is equal to the base frequency for a 100% busy
 workload, disable turbo::
 
-# echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo
+# echo 1 > /sys/devices/system/cpu/intel_pstate/anal_turbo
 
 Then runs a busy workload on all CPUs, for example::
 
@@ -241,7 +241,7 @@ Changing performance level
 To the change the performance level to 4, execute::
 
  # intel-speed-select -d perf-profile set-config-level -l 4 -o
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-0
   die-0
@@ -250,15 +250,15 @@ To the change the performance level to 4, execute::
         set_tdp_level:success
 
 In the command above, "-o" is optional. If it is specified, then it will also
-offline CPUs which are not present in the enable_cpu_mask for this performance
+offline CPUs which are analt present in the enable_cpu_mask for this performance
 level.
 
-Now if the base_frequency is checked::
+Analw if the base_frequency is checked::
 
  #cat /sys/devices/system/cpu/cpu0/cpufreq/base_frequency
  2800000
 
-Which shows that the base frequency now increased from 2600 MHz at performance
+Which shows that the base frequency analw increased from 2600 MHz at performance
 level 0 to 2800 MHz at performance level 4. As a result, any workload, which can
 use fewer CPUs, can see a boost of 200 MHz compared to performance level 0.
 
@@ -277,7 +277,7 @@ To support such configuration, this tool can be used as a daemon. Add
 a command line option --oob::
 
  # intel-speed-select --oob
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model:143[0x8f]
  OOB mode is enabled and will run as daemon
 
@@ -288,8 +288,8 @@ Check presence of other Intel(R) SST features
 ---------------------------------------------
 
 Each of the performance profiles also specifies weather there is support of
-other two Intel(R) SST features (Intel(R) Speed Select Technology - Base Frequency
-(Intel(R) SST-BF) and Intel(R) Speed Select Technology - Turbo Frequency (Intel
+other two Intel(R) SST features (Intel(R) Speed Select Techanallogy - Base Frequency
+(Intel(R) SST-BF) and Intel(R) Speed Select Techanallogy - Turbo Frequency (Intel
 SST-TF)).
 
 For example, from the output of "perf-profile info" above, for level 0 and level
@@ -307,20 +307,20 @@ Given these results, the "speed-select-base-freq" (Intel(R) SST-BF) in level 4
 changed from "disabled" to "unsupported" compared to performance level 0.
 
 This means that at performance level 4, the "speed-select-base-freq" feature is
-not supported. However, at performance level 0, this feature is "supported", but
-currently "disabled", meaning the user has not activated this feature. Whereas
+analt supported. However, at performance level 0, this feature is "supported", but
+currently "disabled", meaning the user has analt activated this feature. Whereas
 "speed-select-turbo-freq" (Intel(R) SST-TF) is supported at both performance
-levels, but currently not activated by the user.
+levels, but currently analt activated by the user.
 
 The Intel(R) SST-BF and the Intel(R) SST-TF features are built on a foundation
-technology called Intel(R) Speed Select Technology - Core Power (Intel(R) SST-CP).
+techanallogy called Intel(R) Speed Select Techanallogy - Core Power (Intel(R) SST-CP).
 The platform firmware enables this feature when Intel(R) SST-BF or Intel(R) SST-TF
 is supported on a platform.
 
-Intel(R) Speed Select Technology Core Power (Intel(R) SST-CP)
+Intel(R) Speed Select Techanallogy Core Power (Intel(R) SST-CP)
 ---------------------------------------------------------------
 
-Intel(R) Speed Select Technology Core Power (Intel(R) SST-CP) is an interface that
+Intel(R) Speed Select Techanallogy Core Power (Intel(R) SST-CP) is an interface that
 allows users to define per core priority. This defines a mechanism to distribute
 power among cores when there is a power constrained scenario. This defines a
 class of service (CLOS) configuration.
@@ -328,7 +328,7 @@ class of service (CLOS) configuration.
 The user can configure up to 4 class of service configurations. Each CLOS group
 configuration allows definitions of parameters, which affects how the frequency
 can be limited and power is distributed. Each CPU core can be tied to a class of
-service and hence an associated priority. The granularity is at core level not
+service and hence an associated priority. The granularity is at core level analt
 at per CPU level.
 
 Enable CLOS based prioritization
@@ -341,7 +341,7 @@ can be changed with optional command line parameter.
 To enable and check the options, execute::
 
  # intel-speed-select core-power enable --help
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  Enable core-power for a package/die
 	Clos Enable: Specify priority type with [--priority|-p]
@@ -369,7 +369,7 @@ command.
 To enable with the platform default priority type, execute::
 
  # intel-speed-select core-power enable
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-0
   die-0
@@ -388,7 +388,7 @@ info" command can be used. For example to check the status of core-power feature
 on CPU 0, execute::
 
  # intel-speed-select -c 0 core-power info
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-0
   die-0
@@ -416,7 +416,7 @@ Defaults will be used if user skips setting a parameter except clos id, which is
 mandatory. To check core-power config options, execute::
 
  # intel-speed-select core-power config --help
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  Set core-power configuration for one of the four clos ids
 	Specify targeted clos id with [--clos|-c]
@@ -427,13 +427,13 @@ mandatory. To check core-power config options, execute::
 For example::
 
  # intel-speed-select core-power config -c 0
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
- clos epp is not specified, default: 0
- clos frequency weight is not specified, default: 0
- clos min is not specified, default: 0 MHz
- clos max is not specified, default: 25500 MHz
- clos desired is not specified, default: 0
+ clos epp is analt specified, default: 0
+ clos frequency weight is analt specified, default: 0
+ clos min is analt specified, default: 0 MHz
+ clos max is analt specified, default: 25500 MHz
+ clos desired is analt specified, default: 0
  package-0
   die-0
     cpu-0
@@ -455,7 +455,7 @@ To check the current configuration, "core-power get-config" can be used. For
 example, to get the configuration of CLOS 0::
 
  # intel-speed-select core-power get-config -c 0
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-0
   die-0
@@ -484,7 +484,7 @@ Associating a CPU with a CLOS group
 To associate a CPU to a CLOS group "core-power assoc" command can be used::
 
  # intel-speed-select core-power assoc --help
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  Associate a clos id to a CPU
 	Specify targeted clos id with [--clos|-c]
@@ -493,7 +493,7 @@ To associate a CPU to a CLOS group "core-power assoc" command can be used::
 For example to associate CPU 10 to CLOS group 3, execute::
 
  # intel-speed-select -c 10 core-power assoc -c 3
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-0
   die-0
@@ -509,7 +509,7 @@ To check the existing association for a CPU, "core-power get-assoc" command can
 be used. For example, to get association of CPU 10, execute::
 
  # intel-speed-select -c 10 core-power get-assoc
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-1
   die-0
@@ -533,17 +533,17 @@ Intel(R) SST-TF to fail. This will cause the "disable" command to display an err
 if Intel(R) SST-TF is already enabled. In turn, to disable, the Intel(R) SST-TF
 feature must be disabled first.
 
-Intel(R) Speed Select Technology - Base Frequency (Intel(R) SST-BF)
+Intel(R) Speed Select Techanallogy - Base Frequency (Intel(R) SST-BF)
 -------------------------------------------------------------------
 
-The Intel(R) Speed Select Technology - Base Frequency (Intel(R) SST-BF) feature lets
+The Intel(R) Speed Select Techanallogy - Base Frequency (Intel(R) SST-BF) feature lets
 the user control base frequency. If some critical workload threads demand
 constant high guaranteed performance, then this feature can be used to execute
 the thread at higher base frequency on specific sets of CPUs (high priority
 CPUs) at the cost of lower base frequency (low priority CPUs) on other CPUs.
-This feature does not require offline of the low priority CPUs.
+This feature does analt require offline of the low priority CPUs.
 
-The support of Intel(R) SST-BF depends on the Intel(R) Speed Select Technology -
+The support of Intel(R) SST-BF depends on the Intel(R) Speed Select Techanallogy -
 Performance Profile (Intel(R) SST-PP) performance level configuration. It is
 possible that only certain performance levels support Intel(R) SST-BF. It is also
 possible that only base performance level (level = 0) has support of Intel
@@ -554,7 +554,7 @@ In the system under test here, Intel(R) SST-BF is supported at the base
 performance level 0, but currently disabled. For example for the level 0::
 
  # intel-speed-select -c 0 perf-profile info -l 0
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-0
   die-0
@@ -572,7 +572,7 @@ performance to compare against.
 Here the user wants more guaranteed performance. For this reason, it is likely
 that turbo is disabled. To disable turbo, execute::
 
-#echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo
+#echo 1 > /sys/devices/system/cpu/intel_pstate/anal_turbo
 
 Based on the output of the "intel-speed-select perf-profile info -l 0" base
 frequency of guaranteed frequency 2600 MHz.
@@ -626,7 +626,7 @@ To get capabilities of Intel(R) SST-BF for the current performance level 0,
 execute::
 
  # intel-speed-select base-freq info -l 0
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-0
   die-0
@@ -643,7 +643,7 @@ The above capabilities show that there are some CPUs on this system that can
 offer base frequency of 3000 MHz compared to the standard base frequency at this
 performance levels. Nevertheless, these CPUs are fixed, and they are presented
 via high-priority-cpu-list/high-priority-cpu-mask. But if this Intel(R) SST-BF
-feature is selected, the low priorities CPUs (which are not in
+feature is selected, the low priorities CPUs (which are analt in
 high-priority-cpu-list) can only offer up to 2400 MHz. As a result, if this
 clipping of low priority CPUs is acceptable, then the user can enable Intel
 SST-BF feature particularly for the above "sched pipe" workload since only two
@@ -656,7 +656,7 @@ Enable Intel(R) SST-BF
 To enable Intel(R) SST-BF feature, execute::
 
  # intel-speed-select base-freq enable -a
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-0
   die-0
@@ -669,18 +669,18 @@ To enable Intel(R) SST-BF feature, execute::
       base-freq
         enable:success
 
-In this case, -a option is optional. This not only enables Intel(R) SST-BF, but it
-also adjusts the priority of cores using Intel(R) Speed Select Technology Core
+In this case, -a option is optional. This analt only enables Intel(R) SST-BF, but it
+also adjusts the priority of cores using Intel(R) Speed Select Techanallogy Core
 Power (Intel(R) SST-CP) features. This option sets the minimum performance of each
-Intel(R) Speed Select Technology - Performance Profile (Intel(R) SST-PP) class to
+Intel(R) Speed Select Techanallogy - Performance Profile (Intel(R) SST-PP) class to
 maximum performance so that the hardware will give maximum performance possible
 for each CPU.
 
-If -a option is not used, then the following steps are required before enabling
+If -a option is analt used, then the following steps are required before enabling
 Intel(R) SST-BF:
 
-- Discover Intel(R) SST-BF and note low and high priority base frequency
-- Note the high priority CPU list
+- Discover Intel(R) SST-BF and analte low and high priority base frequency
+- Analte the high priority CPU list
 - Enable CLOS using core-power feature set
 - Configure CLOS parameters. Use CLOS.min to set to minimum performance
 - Subscribe desired CPUs to CLOS groups
@@ -725,20 +725,20 @@ To disable the Intel(R) SST-BF feature, execute::
 # intel-speed-select base-freq disable -a
 
 
-Intel(R) Speed Select Technology - Turbo Frequency (Intel(R) SST-TF)
+Intel(R) Speed Select Techanallogy - Turbo Frequency (Intel(R) SST-TF)
 --------------------------------------------------------------------
 
 This feature enables the ability to set different "All core turbo ratio limits"
 to cores based on the priority. By using this feature, some cores can be
 configured to get higher turbo frequency by designating them as high priority at
-the cost of lower or no turbo frequency on the low priority cores.
+the cost of lower or anal turbo frequency on the low priority cores.
 
 For this reason, this feature is only useful when system is busy utilizing all
 CPUs, but the user wants some configurable option to get high performance on
 some CPUs.
 
-The support of Intel(R) Speed Select Technology - Turbo Frequency (Intel(R) SST-TF)
-depends on the Intel(R) Speed Select Technology - Performance Profile (Intel
+The support of Intel(R) Speed Select Techanallogy - Turbo Frequency (Intel(R) SST-TF)
+depends on the Intel(R) Speed Select Techanallogy - Performance Profile (Intel
 SST-PP) performance level configuration. It is possible that only a certain
 performance level supports Intel(R) SST-TF. It is also possible that only the base
 performance level (level = 0) has the support of Intel(R) SST-TF. Hence, first
@@ -748,7 +748,7 @@ In the system under test here, Intel(R) SST-TF is supported at the base
 performance level 0, but currently disabled::
 
  # intel-speed-select -c 0 perf-profile info -l 0
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  package-0
   die-0
     cpu-0
@@ -770,7 +770,7 @@ Get Base turbo capability
 To get the base turbo capability of performance level 0, execute::
 
  # intel-speed-select perf-profile info -l 0
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-0
   die-0
@@ -845,7 +845,7 @@ Get Intel(R) SST-TF Capability
 To get the capability, the "turbo-freq info" command can be used::
 
  # intel-speed-select turbo-freq info -l 0
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-0
   die-0
@@ -886,7 +886,7 @@ Enable Intel(R) SST-TF
 To enable Intel(R) SST-TF, execute::
 
  # intel-speed-select -c 12,13 turbo-freq enable -a
- Intel(R) Speed Select Technology
+ Intel(R) Speed Select Techanallogy
  Executing on CPU model: X
  package-0
   die-0
@@ -906,13 +906,13 @@ To enable Intel(R) SST-TF, execute::
 
 In this case, the option "-a" is optional. If set, it enables Intel(R) SST-TF
 feature and also sets the CPUs to high and low priority using Intel Speed
-Select Technology Core Power (Intel(R) SST-CP) features. The CPU numbers passed
+Select Techanallogy Core Power (Intel(R) SST-CP) features. The CPU numbers passed
 with "-c" arguments are marked as high priority, including its siblings.
 
-If -a option is not used, then the following steps are required before enabling
+If -a option is analt used, then the following steps are required before enabling
 Intel(R) SST-TF:
 
-- Discover Intel(R) SST-TF and note buckets of high priority cores and maximum frequency
+- Discover Intel(R) SST-TF and analte buckets of high priority cores and maximum frequency
 
 - Enable CLOS using core-power feature set - Configure CLOS parameters
 

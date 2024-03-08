@@ -69,7 +69,7 @@ struct smsc95xx_priv {
 	bool is_internal_phy;
 	struct irq_chip irqchip;
 	struct irq_domain *irqdomain;
-	struct fwnode_handle *irqfwnode;
+	struct fwanalde_handle *irqfwanalde;
 	struct mii_bus *mdiobus;
 	struct phy_device *phydev;
 	struct task_struct *pm_task;
@@ -90,15 +90,15 @@ static int __must_check smsc95xx_read_reg(struct usbnet *dev, u32 index,
 	if (current != pdata->pm_task)
 		fn = usbnet_read_cmd;
 	else
-		fn = usbnet_read_cmd_nopm;
+		fn = usbnet_read_cmd_analpm;
 
 	ret = fn(dev, USB_VENDOR_REQUEST_READ_REGISTER, USB_DIR_IN
 		 | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		 0, index, &buf, 4);
 	if (ret < 4) {
-		ret = ret < 0 ? ret : -ENODATA;
+		ret = ret < 0 ? ret : -EANALDATA;
 
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			netdev_warn(dev->net, "Failed to read reg index 0x%08x: %d\n",
 				    index, ret);
 		return ret;
@@ -121,7 +121,7 @@ static int __must_check smsc95xx_write_reg(struct usbnet *dev, u32 index,
 	if (current != pdata->pm_task)
 		fn = usbnet_write_cmd;
 	else
-		fn = usbnet_write_cmd_nopm;
+		fn = usbnet_write_cmd_analpm;
 
 	buf = data;
 	cpu_to_le32s(&buf);
@@ -129,7 +129,7 @@ static int __must_check smsc95xx_write_reg(struct usbnet *dev, u32 index,
 	ret = fn(dev, USB_VENDOR_REQUEST_WRITE_REGISTER, USB_DIR_OUT
 		 | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		 0, index, &buf, 4);
-	if (ret < 0 && ret != -ENODEV)
+	if (ret < 0 && ret != -EANALDEV)
 		netdev_warn(dev->net, "Failed to write reg index 0x%08x: %d\n",
 			    index, ret);
 
@@ -138,7 +138,7 @@ static int __must_check smsc95xx_write_reg(struct usbnet *dev, u32 index,
 
 /* Loop until the read is completed with timeout
  * called with phy_mutex held */
-static int __must_check smsc95xx_phy_wait_not_busy(struct usbnet *dev)
+static int __must_check smsc95xx_phy_wait_analt_busy(struct usbnet *dev)
 {
 	unsigned long start_time = jiffies;
 	u32 val;
@@ -147,8 +147,8 @@ static int __must_check smsc95xx_phy_wait_not_busy(struct usbnet *dev)
 	do {
 		ret = smsc95xx_read_reg(dev, MII_ADDR, &val);
 		if (ret < 0) {
-			/* Ignore -ENODEV error during disconnect() */
-			if (ret == -ENODEV)
+			/* Iganalre -EANALDEV error during disconnect() */
+			if (ret == -EANALDEV)
 				return 0;
 			netdev_warn(dev->net, "Error reading MII_ACCESS\n");
 			return ret;
@@ -173,8 +173,8 @@ static int smsc95xx_mdio_read(struct usbnet *dev, int phy_id, int idx)
 
 	mutex_lock(&dev->phy_mutex);
 
-	/* confirm MII not busy */
-	ret = smsc95xx_phy_wait_not_busy(dev);
+	/* confirm MII analt busy */
+	ret = smsc95xx_phy_wait_analt_busy(dev);
 	if (ret < 0) {
 		netdev_warn(dev->net, "%s: MII is busy\n", __func__);
 		goto done;
@@ -184,12 +184,12 @@ static int smsc95xx_mdio_read(struct usbnet *dev, int phy_id, int idx)
 	addr = mii_address_cmd(phy_id, idx, MII_READ_ | MII_BUSY_);
 	ret = smsc95xx_write_reg(dev, MII_ADDR, addr);
 	if (ret < 0) {
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			netdev_warn(dev->net, "Error writing MII_ADDR\n");
 		goto done;
 	}
 
-	ret = smsc95xx_phy_wait_not_busy(dev);
+	ret = smsc95xx_phy_wait_analt_busy(dev);
 	if (ret < 0) {
 		netdev_warn(dev->net, "Timed out reading MII reg %02X\n", idx);
 		goto done;
@@ -197,7 +197,7 @@ static int smsc95xx_mdio_read(struct usbnet *dev, int phy_id, int idx)
 
 	ret = smsc95xx_read_reg(dev, MII_DATA, &val);
 	if (ret < 0) {
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			netdev_warn(dev->net, "Error reading MII_DATA\n");
 		goto done;
 	}
@@ -207,8 +207,8 @@ static int smsc95xx_mdio_read(struct usbnet *dev, int phy_id, int idx)
 done:
 	mutex_unlock(&dev->phy_mutex);
 
-	/* Ignore -ENODEV error during disconnect() */
-	if (ret == -ENODEV)
+	/* Iganalre -EANALDEV error during disconnect() */
+	if (ret == -EANALDEV)
 		return 0;
 	return ret;
 }
@@ -221,8 +221,8 @@ static void smsc95xx_mdio_write(struct usbnet *dev, int phy_id, int idx,
 
 	mutex_lock(&dev->phy_mutex);
 
-	/* confirm MII not busy */
-	ret = smsc95xx_phy_wait_not_busy(dev);
+	/* confirm MII analt busy */
+	ret = smsc95xx_phy_wait_analt_busy(dev);
 	if (ret < 0) {
 		netdev_warn(dev->net, "%s: MII is busy\n", __func__);
 		goto done;
@@ -231,7 +231,7 @@ static void smsc95xx_mdio_write(struct usbnet *dev, int phy_id, int idx,
 	val = regval;
 	ret = smsc95xx_write_reg(dev, MII_DATA, val);
 	if (ret < 0) {
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			netdev_warn(dev->net, "Error writing MII_DATA\n");
 		goto done;
 	}
@@ -240,12 +240,12 @@ static void smsc95xx_mdio_write(struct usbnet *dev, int phy_id, int idx,
 	addr = mii_address_cmd(phy_id, idx, MII_WRITE_ | MII_BUSY_);
 	ret = smsc95xx_write_reg(dev, MII_ADDR, addr);
 	if (ret < 0) {
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			netdev_warn(dev->net, "Error writing MII_ADDR\n");
 		goto done;
 	}
 
-	ret = smsc95xx_phy_wait_not_busy(dev);
+	ret = smsc95xx_phy_wait_analt_busy(dev);
 	if (ret < 0) {
 		netdev_warn(dev->net, "Timed out writing MII reg %02X\n", idx);
 		goto done;
@@ -280,7 +280,7 @@ static int smsc95xx_mdiobus_reset(struct mii_bus *bus)
 	if (ret < 0)
 		goto reset_out;
 
-	/* Driver has no knowledge at this point about the external PHY.
+	/* Driver has anal kanalwledge at this point about the external PHY.
 	 * The 802.3 specifies that the reset process shall
 	 * be completed within 0.5 s.
 	 */
@@ -334,7 +334,7 @@ static int __must_check smsc95xx_wait_eeprom(struct usbnet *dev)
 	return 0;
 }
 
-static int __must_check smsc95xx_eeprom_confirm_not_busy(struct usbnet *dev)
+static int __must_check smsc95xx_eeprom_confirm_analt_busy(struct usbnet *dev)
 {
 	unsigned long start_time = jiffies;
 	u32 val;
@@ -366,7 +366,7 @@ static int smsc95xx_read_eeprom(struct usbnet *dev, u32 offset, u32 length,
 	BUG_ON(!dev);
 	BUG_ON(!data);
 
-	ret = smsc95xx_eeprom_confirm_not_busy(dev);
+	ret = smsc95xx_eeprom_confirm_analt_busy(dev);
 	if (ret)
 		return ret;
 
@@ -404,7 +404,7 @@ static int smsc95xx_write_eeprom(struct usbnet *dev, u32 offset, u32 length,
 	BUG_ON(!dev);
 	BUG_ON(!data);
 
-	ret = smsc95xx_eeprom_confirm_not_busy(dev);
+	ret = smsc95xx_eeprom_confirm_analt_busy(dev);
 	if (ret)
 		return ret;
 
@@ -591,7 +591,7 @@ static void smsc95xx_mac_update_fullduplex(struct usbnet *dev)
 
 	ret = smsc95xx_write_reg(dev, MAC_CR, pdata->mac_cr);
 	if (ret < 0) {
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			netdev_warn(dev->net,
 				    "Error updating MAC full duplex mode\n");
 		return;
@@ -704,14 +704,14 @@ smsc95xx_ethtool_getregs(struct net_device *netdev, struct ethtool_regs *regs,
 
 	retval = smsc95xx_read_reg(dev, ID_REV, &regs->version);
 	if (retval < 0) {
-		netdev_warn(netdev, "REGS: cannot read ID_REV\n");
+		netdev_warn(netdev, "REGS: cananalt read ID_REV\n");
 		return;
 	}
 
 	for (i = ID_REV, j = 0; i <= COE_CR; i += (sizeof(u32)), j++) {
 		retval = smsc95xx_read_reg(dev, i, &data[j]);
 		if (retval < 0) {
-			netdev_warn(netdev, "REGS: cannot read reg[%x]\n", i);
+			netdev_warn(netdev, "REGS: cananalt read reg[%x]\n", i);
 			return;
 		}
 	}
@@ -768,7 +768,7 @@ static int smsc95xx_ethtool_get_sset_count(struct net_device *ndev, int sset)
 	case ETH_SS_TEST:
 		return net_selftest_get_count();
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -824,7 +824,7 @@ static void smsc95xx_init_mac_address(struct usbnet *dev)
 		}
 	}
 
-	/* no useful static MAC address found. generate a random one */
+	/* anal useful static MAC address found. generate a random one */
 	eth_hw_addr_random(dev->net);
 	netif_dbg(dev, ifup, dev->net, "MAC address set to eth_random_addr\n");
 }
@@ -1106,17 +1106,17 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->driver_priv = pdata;
 
 	spin_lock_init(&pdata->mac_cr_lock);
 
-	/* LAN95xx devices do not alter the computed checksum of 0 to 0xffff.
+	/* LAN95xx devices do analt alter the computed checksum of 0 to 0xffff.
 	 * RFC 2460, ipv6 UDP calculated checksum yields a result of zero must
 	 * be changed to 0xffff. RFC 768, ipv4 UDP computed checksum is zero,
 	 * it is transmitted as all ones. The zero transmitted checksum means
-	 * transmitter generated no checksum. Hence, enable csum offload only
+	 * transmitter generated anal checksum. Hence, enable csum offload only
 	 * for ipv4 packets.
 	 */
 	if (DEFAULT_TX_CSUM_ENABLE)
@@ -1125,7 +1125,7 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 		dev->net->features |= NETIF_F_RXCSUM;
 
 	dev->net->hw_features = NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
-	set_bit(EVENT_NO_IP_ALIGN, &dev->flags);
+	set_bit(EVENT_ANAL_IP_ALIGN, &dev->flags);
 
 	smsc95xx_init_mac_address(dev);
 
@@ -1136,24 +1136,24 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	/* create irq domain for use by PHY driver and GPIO consumers */
 	usb_make_path(dev->udev, usb_path, sizeof(usb_path));
-	pdata->irqfwnode = irq_domain_alloc_named_fwnode(usb_path);
-	if (!pdata->irqfwnode) {
-		ret = -ENOMEM;
+	pdata->irqfwanalde = irq_domain_alloc_named_fwanalde(usb_path);
+	if (!pdata->irqfwanalde) {
+		ret = -EANALMEM;
 		goto free_pdata;
 	}
 
-	pdata->irqdomain = irq_domain_create_linear(pdata->irqfwnode,
+	pdata->irqdomain = irq_domain_create_linear(pdata->irqfwanalde,
 						    SMSC95XX_NR_IRQS,
 						    &irq_domain_simple_ops,
 						    pdata);
 	if (!pdata->irqdomain) {
-		ret = -ENOMEM;
-		goto free_irqfwnode;
+		ret = -EANALMEM;
+		goto free_irqfwanalde;
 	}
 
 	phy_irq = irq_create_mapping(pdata->irqdomain, PHY_HWIRQ);
 	if (!phy_irq) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto remove_irqdomain;
 	}
 
@@ -1164,7 +1164,7 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	pdata->mdiobus = mdiobus_alloc();
 	if (!pdata->mdiobus) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto dispose_irq;
 	}
 
@@ -1188,14 +1188,14 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	ret = mdiobus_register(pdata->mdiobus);
 	if (ret) {
-		netdev_err(dev->net, "Could not register MDIO bus\n");
+		netdev_err(dev->net, "Could analt register MDIO bus\n");
 		goto free_mdio;
 	}
 
 	pdata->phydev = phy_find_first(pdata->mdiobus);
 	if (!pdata->phydev) {
-		netdev_err(dev->net, "no PHY found\n");
-		ret = -ENODEV;
+		netdev_err(dev->net, "anal PHY found\n");
+		ret = -EANALDEV;
 		goto unregister_mdio;
 	}
 
@@ -1248,8 +1248,8 @@ dispose_irq:
 remove_irqdomain:
 	irq_domain_remove(pdata->irqdomain);
 
-free_irqfwnode:
-	irq_domain_free_fwnode(pdata->irqfwnode);
+free_irqfwanalde:
+	irq_domain_free_fwanalde(pdata->irqfwanalde);
 
 free_pdata:
 	kfree(pdata);
@@ -1265,7 +1265,7 @@ static void smsc95xx_unbind(struct usbnet *dev, struct usb_interface *intf)
 	mdiobus_free(pdata->mdiobus);
 	irq_dispose_mapping(irq_find_mapping(pdata->irqdomain, PHY_HWIRQ));
 	irq_domain_remove(pdata->irqdomain);
-	irq_domain_free_fwnode(pdata->irqfwnode);
+	irq_domain_free_fwanalde(pdata->irqfwanalde);
 	netif_dbg(dev, ifdown, dev->net, "free pdata\n");
 	kfree(pdata);
 }
@@ -1353,7 +1353,7 @@ static int smsc95xx_enter_suspend1(struct usbnet *dev)
 	u32 val;
 
 	/* reconfigure link pulse detection timing for
-	 * compatibility with non-standard link partners
+	 * compatibility with analn-standard link partners
 	 */
 	if (pdata->features & FEATURE_PHY_NLP_CROSSOVER)
 		smsc95xx_mdio_write(dev, phy_id, PHY_EDPD_CONFIG,
@@ -1426,7 +1426,7 @@ static int smsc95xx_enter_suspend3(struct usbnet *dev)
 		return ret;
 
 	if (val & RX_FIFO_INF_USED_) {
-		netdev_info(dev->net, "rx fifo not empty in autosuspend\n");
+		netdev_info(dev->net, "rx fifo analt empty in autosuspend\n");
 		return -EBUSY;
 	}
 
@@ -1470,7 +1470,7 @@ static int smsc95xx_autosuspend(struct usbnet *dev, u32 link_up)
 		 * as current FEATURE_REMOTE_WAKEUP parts also support
 		 * FEATURE_PHY_NLP_CROSSOVER but it's included for clarity */
 		if (!(pdata->features & FEATURE_PHY_NLP_CROSSOVER)) {
-			netdev_warn(dev->net, "EDPD not supported\n");
+			netdev_warn(dev->net, "EDPD analt supported\n");
 			return -EBUSY;
 		}
 
@@ -1512,8 +1512,8 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 		goto done;
 	}
 
-	/* if we get this far we're not autosuspending */
-	/* if no wol options set, or if link is down and we're not waking on
+	/* if we get this far we're analt autosuspending */
+	/* if anal wol options set, or if link is down and we're analt waking on
 	 * PHY activity, enter lowest power SUSPEND2 mode
 	 */
 	if (!(pdata->wolopts & SUPPORTED_WAKE) ||
@@ -1568,7 +1568,7 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 
 		if (!filter_mask) {
 			netdev_warn(dev->net, "Unable to allocate filter_mask\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto done;
 		}
 
@@ -1817,7 +1817,7 @@ static void smsc95xx_rx_csum_offload(struct sk_buff *skb)
 
 static int smsc95xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
-	/* This check is no longer done by usbnet */
+	/* This check is anal longer done by usbnet */
 	if (skb->len < dev->net->hard_header_len)
 		return 0;
 
@@ -1914,9 +1914,9 @@ static u32 smsc95xx_calc_csum_preamble(struct sk_buff *skb)
  * transmission. This is fairly unlikely, only seems to trigger with some
  * short TCP ACK packets sent.
  *
- * Note, this calculation should probably check for the alignment of the
+ * Analte, this calculation should probably check for the alignment of the
  * data as well, but a straight check for csum being in the last four bytes
- * of the packet should be ok for now.
+ * of the packet should be ok for analw.
  */
 static bool smsc95xx_can_tx_checksum(struct sk_buff *skb)
 {
@@ -1935,7 +1935,7 @@ static struct sk_buff *smsc95xx_tx_fixup(struct usbnet *dev,
 	u32 tx_cmd_a, tx_cmd_b;
 	void *ptr;
 
-	/* We do not advertise SG, so skbs should be already linearized */
+	/* We do analt advertise SG, so skbs should be already linearized */
 	BUG_ON(skb_shinfo(skb)->nr_frags);
 
 	/* Make writable and expand header space by overhead if required */
@@ -1952,7 +1952,7 @@ static struct sk_buff *smsc95xx_tx_fixup(struct usbnet *dev,
 
 	if (csum) {
 		if (!smsc95xx_can_tx_checksum(skb)) {
-			/* workaround - hardware tx checksum does not work
+			/* workaround - hardware tx checksum does analt work
 			 * properly with extremely small packets */
 			long csstart = skb_checksum_start_offset(skb);
 			__wsum calc = csum_partial(skb->data + csstart,
@@ -1992,7 +1992,7 @@ static int smsc95xx_manage_power(struct usbnet *dev, int on)
 	netdev_info(dev->net, "hardware isn't capable of remote wakeup\n");
 
 	if (on)
-		usb_autopm_get_interface_no_resume(dev->intf);
+		usb_autopm_get_interface_anal_resume(dev->intf);
 	else
 		usb_autopm_put_interface(dev->intf);
 

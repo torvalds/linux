@@ -1,6 +1,6 @@
 Toshiba et8ek8 5MP sensor
 
-Toshiba et8ek8 5MP sensor is an image sensor found in Nokia N900 device
+Toshiba et8ek8 5MP sensor is an image sensor found in Analkia N900 device
 
 More detailed documentation can be found in
 Documentation/devicetree/bindings/media/video-interfaces.txt .
@@ -15,7 +15,7 @@ Mandatory properties
 - clocks: External clock to the sensor
 - clock-frequency: Frequency of the external clock to the sensor. Camera
   driver will set this frequency on the external clock. The clock frequency is
-  a pre-determined frequency known to be suitable to the board.
+  a pre-determined frequency kanalwn to be suitable to the board.
 - reset-gpios: XSHUTDOWN GPIO. The XSHUTDOWN signal is active low. The sensor
   is in hardware standby mode when the signal is in the low state.
 
@@ -27,10 +27,10 @@ Optional properties
 - lens-focus: See ../video-interfaces.txt
 
 
-Endpoint node mandatory properties
+Endpoint analde mandatory properties
 ----------------------------------
 
-- remote-endpoint: A phandle to the bus receiver's endpoint node.
+- remote-endpoint: A phandle to the bus receiver's endpoint analde.
 
 
 Example

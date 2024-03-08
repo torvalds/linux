@@ -165,11 +165,11 @@ static int dvfsrc_vcore_regulator_probe(struct platform_device *pdev)
 	struct dvfsrc_regulator *mt_regulators;
 	int i;
 
-	match = of_match_node(mtk_dvfsrc_regulator_match, dev->parent->of_node);
+	match = of_match_analde(mtk_dvfsrc_regulator_match, dev->parent->of_analde);
 
 	if (!match) {
 		dev_err(dev, "invalid compatible string\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	regulator_init_data = match->data;
@@ -193,7 +193,7 @@ static int dvfsrc_vcore_regulator_probe(struct platform_device *pdev)
 static struct platform_driver mtk_dvfsrc_regulator_driver = {
 	.driver = {
 		.name  = "mtk-dvfsrc-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = dvfsrc_vcore_regulator_probe,
 };

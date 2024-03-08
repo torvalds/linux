@@ -19,13 +19,13 @@
 #include "ext4_jbd2.h"
 
 typedef enum {
-	attr_noop,
+	attr_analop,
 	attr_delayed_allocation_blocks,
 	attr_session_write_kbytes,
 	attr_lifetime_write_kbytes,
 	attr_reserved_clusters,
 	attr_sra_exceeded_retry_limit,
-	attr_inode_readahead,
+	attr_ianalde_readahead,
 	attr_trigger_test_error,
 	attr_first_error_time,
 	attr_last_error_time,
@@ -78,7 +78,7 @@ static ssize_t lifetime_write_kbytes_show(struct ext4_sb_info *sbi, char *buf)
 			  EXT4_SB(sb)->s_sectors_written_start) >> 1)));
 }
 
-static ssize_t inode_readahead_blks_store(struct ext4_sb_info *sbi,
+static ssize_t ianalde_readahead_blks_store(struct ext4_sb_info *sbi,
 					  const char *buf, size_t count)
 {
 	unsigned long t;
@@ -91,7 +91,7 @@ static ssize_t inode_readahead_blks_store(struct ext4_sb_info *sbi,
 	if (t && (!is_power_of_2(t) || t > 0x40000000))
 		return -EINVAL;
 
-	sbi->s_inode_readahead_blks = t;
+	sbi->s_ianalde_readahead_blks = t;
 	return count;
 }
 
@@ -130,7 +130,7 @@ static ssize_t trigger_test_error(struct ext4_sb_info *sbi,
 static ssize_t journal_task_show(struct ext4_sb_info *sbi, char *buf)
 {
 	if (!sbi->s_journal)
-		return sysfs_emit(buf, "<none>\n");
+		return sysfs_emit(buf, "<analne>\n");
 	return sysfs_emit(buf, "%d\n",
 			task_pid_vnr(sbi->s_journal->j_task));
 }
@@ -205,9 +205,9 @@ EXT4_ATTR_FUNC(lifetime_write_kbytes, 0444);
 EXT4_ATTR_FUNC(reserved_clusters, 0644);
 EXT4_ATTR_FUNC(sra_exceeded_retry_limit, 0444);
 
-EXT4_ATTR_OFFSET(inode_readahead_blks, 0644, inode_readahead,
-		 ext4_sb_info, s_inode_readahead_blks);
-EXT4_RW_ATTR_SBI_UI(inode_goal, s_inode_goal);
+EXT4_ATTR_OFFSET(ianalde_readahead_blks, 0644, ianalde_readahead,
+		 ext4_sb_info, s_ianalde_readahead_blks);
+EXT4_RW_ATTR_SBI_UI(ianalde_goal, s_ianalde_goal);
 EXT4_RW_ATTR_SBI_UI(mb_stats, s_mb_stats);
 EXT4_RW_ATTR_SBI_UI(mb_max_to_scan, s_mb_max_to_scan);
 EXT4_RW_ATTR_SBI_UI(mb_min_to_scan, s_mb_min_to_scan);
@@ -232,8 +232,8 @@ EXT4_RO_ATTR_SBI_ATOMIC(msg_count, s_msg_count);
 EXT4_RO_ATTR_ES_UI(errors_count, s_error_count);
 EXT4_RO_ATTR_ES_U8(first_error_errcode, s_first_error_errcode);
 EXT4_RO_ATTR_ES_U8(last_error_errcode, s_last_error_errcode);
-EXT4_RO_ATTR_ES_UI(first_error_ino, s_first_error_ino);
-EXT4_RO_ATTR_ES_UI(last_error_ino, s_last_error_ino);
+EXT4_RO_ATTR_ES_UI(first_error_ianal, s_first_error_ianal);
+EXT4_RO_ATTR_ES_UI(last_error_ianal, s_last_error_ianal);
 EXT4_RO_ATTR_ES_U64(first_error_block, s_first_error_block);
 EXT4_RO_ATTR_ES_U64(last_error_block, s_last_error_block);
 EXT4_RO_ATTR_ES_UI(first_error_line, s_first_error_line);
@@ -256,8 +256,8 @@ static struct attribute *ext4_attrs[] = {
 	ATTR_LIST(lifetime_write_kbytes),
 	ATTR_LIST(reserved_clusters),
 	ATTR_LIST(sra_exceeded_retry_limit),
-	ATTR_LIST(inode_readahead_blks),
-	ATTR_LIST(inode_goal),
+	ATTR_LIST(ianalde_readahead_blks),
+	ATTR_LIST(ianalde_goal),
 	ATTR_LIST(mb_stats),
 	ATTR_LIST(mb_max_to_scan),
 	ATTR_LIST(mb_min_to_scan),
@@ -278,8 +278,8 @@ static struct attribute *ext4_attrs[] = {
 	ATTR_LIST(errors_count),
 	ATTR_LIST(warning_count),
 	ATTR_LIST(msg_count),
-	ATTR_LIST(first_error_ino),
-	ATTR_LIST(last_error_ino),
+	ATTR_LIST(first_error_ianal),
+	ATTR_LIST(last_error_ianal),
 	ATTR_LIST(first_error_block),
 	ATTR_LIST(last_error_block),
 	ATTR_LIST(first_error_line),
@@ -391,7 +391,7 @@ static ssize_t ext4_attr_show(struct kobject *kobj,
 		return sysfs_emit(buf, "%llu\n",
 				(unsigned long long)
 			percpu_counter_sum(&sbi->s_sra_exceeded_retry_limit));
-	case attr_inode_readahead:
+	case attr_ianalde_readahead:
 	case attr_pointer_ui:
 		if (!ptr)
 			return 0;
@@ -476,8 +476,8 @@ static ssize_t ext4_attr_store(struct kobject *kobj,
 			return ret;
 		*((unsigned long *) ptr) = t;
 		return len;
-	case attr_inode_readahead:
-		return inode_readahead_blks_store(sbi, buf, len);
+	case attr_ianalde_readahead:
+		return ianalde_readahead_blks_store(sbi, buf, len);
 	case attr_trigger_test_error:
 		return trigger_test_error(sbi, buf, len);
 	}
@@ -513,9 +513,9 @@ static const struct kobj_type ext4_feat_ktype = {
 	.release	= ext4_feat_release,
 };
 
-void ext4_notify_error_sysfs(struct ext4_sb_info *sbi)
+void ext4_analtify_error_sysfs(struct ext4_sb_info *sbi)
 {
-	sysfs_notify(&sbi->s_kobj, NULL, "errors_count");
+	sysfs_analtify(&sbi->s_kobj, NULL, "errors_count");
 }
 
 static struct kobject *ext4_root;
@@ -571,11 +571,11 @@ int __init ext4_init_sysfs(void)
 
 	ext4_root = kobject_create_and_add("ext4", fs_kobj);
 	if (!ext4_root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ext4_feat = kzalloc(sizeof(*ext4_feat), GFP_KERNEL);
 	if (!ext4_feat) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto root_err;
 	}
 

@@ -47,7 +47,7 @@
 #define PPC_BIT(bit)		(1UL << PPC_BITLSHIFT(bit))
 #define PPC_BITMASK(bs, be)	((PPC_BIT(bs) - PPC_BIT(be)) | PPC_BIT(bs))
 
-/* Put a PPC bit into a "normal" bit position */
+/* Put a PPC bit into a "analrmal" bit position */
 #define PPC_BITEXTRACT(bits, ppc_bit, dst_bit)			\
 	((((bits) >> PPC_BITLSHIFT(ppc_bit)) & 1) << (dst_bit))
 
@@ -87,7 +87,7 @@ static __always_inline bool is_rlwinm_mask_valid(unsigned long x)
 	if (!x)
 		return false;
 	if (x & 1)
-		x = ~x;	// make the mask non-wrapping
+		x = ~x;	// make the mask analn-wrapping
 	x += x & -x;	// adding the low set bit results in at most one bit set
 
 	return !(x & (x - 1));
@@ -252,7 +252,7 @@ static inline bool arch_xor_unlock_is_negative_byte(unsigned long mask,
 }
 #define arch_xor_unlock_is_negative_byte arch_xor_unlock_is_negative_byte
 
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/analn-atomic.h>
 
 static inline void arch___clear_bit_unlock(int nr, volatile unsigned long *addr)
 {
@@ -261,7 +261,7 @@ static inline void arch___clear_bit_unlock(int nr, volatile unsigned long *addr)
 }
 
 /*
- * Return the zero-based bit position (LE, not IBM bit numbering) of
+ * Return the zero-based bit position (LE, analt IBM bit numbering) of
  * the most significant 1-bit in a double word.
  */
 #define __ilog2(x)	ilog2(x)
@@ -274,7 +274,7 @@ static inline void arch___clear_bit_unlock(int nr, volatile unsigned long *addr)
 
 /*
  * fls: find last (most-significant) bit set.
- * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
+ * Analte fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
  */
 static __always_inline int fls(unsigned int x)
 {

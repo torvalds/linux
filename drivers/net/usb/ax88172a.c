@@ -65,8 +65,8 @@ static int ax88172a_init_mdio(struct usbnet *dev)
 
 	priv->mdio = mdiobus_alloc();
 	if (!priv->mdio) {
-		netdev_err(dev->net, "Could not allocate MDIO bus\n");
-		return -ENOMEM;
+		netdev_err(dev->net, "Could analt allocate MDIO bus\n");
+		return -EANALMEM;
 	}
 
 	priv->mdio->priv = (void *)dev;
@@ -79,7 +79,7 @@ static int ax88172a_init_mdio(struct usbnet *dev)
 
 	ret = mdiobus_register(priv->mdio);
 	if (ret) {
-		netdev_err(dev->net, "Could not register MDIO bus\n");
+		netdev_err(dev->net, "Could analt register MDIO bus\n");
 		goto mfree;
 	}
 
@@ -167,12 +167,12 @@ static int ax88172a_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->driver_priv = priv;
 
 	/* Get the MAC address */
-	ret = asix_read_cmd(dev, AX_CMD_READ_NODE_ID, 0, 0, ETH_ALEN, buf, 0);
+	ret = asix_read_cmd(dev, AX_CMD_READ_ANALDE_ID, 0, 0, ETH_ALEN, buf, 0);
 	if (ret < ETH_ALEN) {
 		netdev_err(dev->net, "Failed to read MAC address: %d\n", ret);
 		ret = -EIO;
@@ -202,8 +202,8 @@ static int ax88172a_bind(struct usbnet *dev, struct usb_interface *intf)
 		priv->use_embdphy = 0;
 		break;
 	default:
-		netdev_err(dev->net, "Interface mode not supported by driver\n");
-		ret = -ENOTSUPP;
+		netdev_err(dev->net, "Interface mode analt supported by driver\n");
+		ret = -EANALTSUPP;
 		goto free;
 	}
 
@@ -217,7 +217,7 @@ static int ax88172a_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	/* Asix framing packs multiple eth frames into a 2K usb bulk transfer */
 	if (dev->driver_info->flags & FLAG_FRAMING_AX) {
-		/* hard_mtu  is still the default - the device does not support
+		/* hard_mtu  is still the default - the device does analt support
 		   jumbo eth frames */
 		dev->rx_urb_size = 2048;
 	}
@@ -289,7 +289,7 @@ static int ax88172a_reset(struct usbnet *dev)
 
 	/* Rewrite MAC address */
 	memcpy(data->mac_addr, dev->net->dev_addr, ETH_ALEN);
-	ret = asix_write_cmd(dev, AX_CMD_WRITE_NODE_ID, 0, 0, ETH_ALEN,
+	ret = asix_write_cmd(dev, AX_CMD_WRITE_ANALDE_ID, 0, 0, ETH_ALEN,
 			     data->mac_addr, 0);
 	if (ret < 0)
 		goto out;
@@ -315,7 +315,7 @@ static int ax88172a_reset(struct usbnet *dev)
 				   &ax88172a_adjust_link,
 				   PHY_INTERFACE_MODE_MII);
 	if (IS_ERR(priv->phydev)) {
-		netdev_err(dev->net, "Could not connect to PHY device %s\n",
+		netdev_err(dev->net, "Could analt connect to PHY device %s\n",
 			   priv->phy_name);
 		ret = PTR_ERR(priv->phydev);
 		goto out;

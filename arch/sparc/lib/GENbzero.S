@@ -95,7 +95,7 @@ GENbzero_medium:
 	bne,pt		%xcc, 1b
 	 add		%o0, 8, %o0
 2:	brz,pt		%o1, GENbzero_done
-	 nop
+	 analp
 
 GENbzero_tiny:
 1:	EX_ST(stba %o2, [%o0 + 0x00] %asi)
@@ -128,7 +128,7 @@ GENclear_user:		/* %o0=buf, %o1=len */
 	.size		GENclear_user, .-GENclear_user
 
 #define BRANCH_ALWAYS	0x10680000
-#define NOP		0x01000000
+#define ANALP		0x01000000
 #define GEN_DO_PATCH(OLD, NEW)	\
 	sethi	%hi(NEW), %g1; \
 	or	%g1, %lo(NEW), %g1; \
@@ -141,8 +141,8 @@ GENclear_user:		/* %o0=buf, %o1=len */
 	or	%g3, %lo(BRANCH_ALWAYS), %g3; \
 	or	%g3, %g1, %g3; \
 	stw	%g3, [%g2]; \
-	sethi	%hi(NOP), %g3; \
-	or	%g3, %lo(NOP), %g3; \
+	sethi	%hi(ANALP), %g3; \
+	or	%g3, %lo(ANALP), %g3; \
 	stw	%g3, [%g2 + 0x4]; \
 	flush	%g2;
 
@@ -153,5 +153,5 @@ generic_patch_bzero:
 	GEN_DO_PATCH(__bzero, GENbzero)
 	GEN_DO_PATCH(__clear_user, GENclear_user)
 	retl
-	 nop
+	 analp
 	.size	generic_patch_bzero,.-generic_patch_bzero

@@ -164,8 +164,8 @@ static bool uac_clock_source_is_valid_quirk(struct snd_usb_audio *chip,
 		/*
 		 * Assume the clock is valid if clock source supports only one
 		 * single sample rate, the terminal is connected directly to it
-		 * (there is no clock selector) and clock type is internal.
-		 * This is to deal with some Denon DJ controllers that always
+		 * (there is anal clock selector) and clock type is internal.
+		 * This is to deal with some Deanaln DJ controllers that always
 		 * reports that clock is invalid.
 		 */
 		if (fmt->nr_rates == 1 &&
@@ -195,7 +195,7 @@ static bool uac_clock_source_is_valid_quirk(struct snd_usb_audio *chip,
 					      &data, sizeof(data));
 			if (err < 0) {
 				dev_warn(&dev->dev,
-					 "%s(): cannot get clock validity for id %d\n",
+					 "%s(): cananalt get clock validity for id %d\n",
 					   __func__, source_id);
 				return false;
 			}
@@ -240,7 +240,7 @@ static bool uac_clock_source_is_valid(struct snd_usb_audio *chip,
 
 	if (err < 0) {
 		dev_warn(&dev->dev,
-			 "%s(): cannot get clock validity for id %d\n",
+			 "%s(): cananalt get clock validity for id %d\n",
 			   __func__, source_id);
 		return false;
 	}
@@ -280,7 +280,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 		if (validate && !uac_clock_source_is_valid(chip, fmt,
 								entity_id)) {
 			usb_audio_err(chip,
-				"clock source %d is not valid, cannot use\n",
+				"clock source %d is analt valid, cananalt use\n",
 				entity_id);
 			return -ENXIO;
 		}
@@ -309,10 +309,10 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 			goto find_source;
 		}
 
-		/* for now just warn about buggy device */
+		/* for analw just warn about buggy device */
 		if (!readable)
 			usb_audio_warn(chip,
-				"%s(): clock selector control is not readable, id %d\n",
+				"%s(): clock selector control is analt readable, id %d\n",
 				__func__, clock_id);
 
 		/* the entity ID we are looking at is a selector.
@@ -390,7 +390,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 		return -ENXIO;
 	}
 
-	/* FIXME: multipliers only act as pass-thru element for now */
+	/* FIXME: multipliers only act as pass-thru element for analw */
 	multiplier = snd_usb_find_clock_multiplier(chip, entity_id, proto);
 	if (multiplier)
 		return __uac_clock_find_source(chip, fmt,
@@ -446,12 +446,12 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip,
 			      UAC_EP_CS_ATTR_SAMPLE_RATE << 8,
 			      fmt->endpoint, data, sizeof(data));
 	if (err < 0) {
-		dev_err(&dev->dev, "%d:%d: cannot set freq %d to ep %#x\n",
+		dev_err(&dev->dev, "%d:%d: cananalt set freq %d to ep %#x\n",
 			fmt->iface, fmt->altsetting, rate, fmt->endpoint);
 		return err;
 	}
 
-	/* Don't check the sample rate for devices which we know don't
+	/* Don't check the sample rate for devices which we kanalw don't
 	 * support reading */
 	if (chip->quirk_flags & QUIRK_FLAG_GET_SAMPLE_RATE)
 		return 0;
@@ -464,7 +464,7 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip,
 			      UAC_EP_CS_ATTR_SAMPLE_RATE << 8,
 			      fmt->endpoint, data, sizeof(data));
 	if (err < 0) {
-		dev_err(&dev->dev, "%d:%d: cannot get freq at ep %#x\n",
+		dev_err(&dev->dev, "%d:%d: cananalt get freq at ep %#x\n",
 			fmt->iface, fmt->altsetting, fmt->endpoint);
 		chip->sample_rate_read_error++;
 		return 0; /* some devices don't support reading */
@@ -498,7 +498,7 @@ static int get_sample_rate_v2v3(struct snd_usb_audio *chip, int iface,
 			      snd_usb_ctrl_intf(chip) | (clock << 8),
 			      &data, sizeof(data));
 	if (err < 0) {
-		dev_warn(&dev->dev, "%d:%d: cannot get freq (v2/v3): err %d\n",
+		dev_warn(&dev->dev, "%d:%d: cananalt get freq (v2/v3): err %d\n",
 			 iface, altsetting, err);
 		return 0;
 	}
@@ -513,7 +513,7 @@ static int get_sample_rate_v2v3(struct snd_usb_audio *chip, int iface,
  * or a negative error code.
  *
  * This function gets called from format.c to validate each sample rate, too.
- * Hence no message is shown upon error
+ * Hence anal message is shown upon error
  */
 int snd_usb_set_sample_rate_v2v3(struct snd_usb_audio *chip,
 				 const struct audioformat *fmt,
@@ -559,21 +559,21 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip,
 	int clock;
 
 	/* First, try to find a valid clock. This may trigger
-	 * automatic clock selection if the current clock is not
+	 * automatic clock selection if the current clock is analt
 	 * valid.
 	 */
 	clock = snd_usb_clock_find_source(chip, fmt, true);
 	if (clock < 0) {
-		/* We did not find a valid clock, but that might be
-		 * because the current sample rate does not match an
+		/* We did analt find a valid clock, but that might be
+		 * because the current sample rate does analt match an
 		 * external clock source. Try again without validation
-		 * and we will do another validation after setting the
+		 * and we will do aanalther validation after setting the
 		 * rate.
 		 */
 		clock = snd_usb_clock_find_source(chip, fmt, false);
 
 		/* Hardcoded sample rates */
-		if (chip->quirk_flags & QUIRK_FLAG_IGNORE_CLOCK_SOURCE)
+		if (chip->quirk_flags & QUIRK_FLAG_IGANALRE_CLOCK_SOURCE)
 			return 0;
 
 		if (clock < 0)
@@ -587,7 +587,7 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip,
 	cur_rate = snd_usb_set_sample_rate_v2v3(chip, fmt, clock, rate);
 	if (cur_rate < 0) {
 		usb_audio_err(chip,
-			      "%d:%d: cannot set freq %d (v2/v3): err %d\n",
+			      "%d:%d: cananalt set freq %d (v2/v3): err %d\n",
 			      fmt->iface, fmt->altsetting, rate, cur_rate);
 		return cur_rate;
 	}

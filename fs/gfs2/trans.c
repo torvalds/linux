@@ -17,7 +17,7 @@
 #include "gfs2.h"
 #include "incore.h"
 #include "glock.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "log.h"
 #include "lops.h"
 #include "meta_io.h"
@@ -112,9 +112,9 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 	struct gfs2_trans *tr;
 	int error;
 
-	tr = kmem_cache_zalloc(gfs2_trans_cachep, GFP_NOFS);
+	tr = kmem_cache_zalloc(gfs2_trans_cachep, GFP_ANALFS);
 	if (!tr)
-		return -ENOMEM;
+		return -EANALMEM;
 	error = __gfs2_trans_begin(tr, sdp, blocks, revokes, _RET_IP_);
 	if (error)
 		kmem_cache_free(gfs2_trans_cachep, tr);
@@ -154,8 +154,8 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 		gfs2_trans_free(sdp, tr);
 	up_read(&sdp->sd_log_flush_lock);
 
-	if (sdp->sd_vfs->s_flags & SB_SYNCHRONOUS)
-		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
+	if (sdp->sd_vfs->s_flags & SB_SYNCHROANALUS)
+		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_ANALRMAL |
 			       GFS2_LFC_TRANS_END);
 	sb_end_intwrite(sdp->sd_vfs);
 }
@@ -165,7 +165,7 @@ static struct gfs2_bufdata *gfs2_alloc_bufdata(struct gfs2_glock *gl,
 {
 	struct gfs2_bufdata *bd;
 
-	bd = kmem_cache_zalloc(gfs2_bufdata_cachep, GFP_NOFS | __GFP_NOFAIL);
+	bd = kmem_cache_zalloc(gfs2_bufdata_cachep, GFP_ANALFS | __GFP_ANALFAIL);
 	bd->bd_bh = bh;
 	bd->bd_gl = gl;
 	INIT_LIST_HEAD(&bd->bd_list);
@@ -177,7 +177,7 @@ static struct gfs2_bufdata *gfs2_alloc_bufdata(struct gfs2_glock *gl,
 
 /**
  * gfs2_trans_add_data - Add a databuf to the transaction.
- * @gl: The inode glock associated with the buffer
+ * @gl: The ianalde glock associated with the buffer
  * @bh: The buffer to add
  *
  * This is used in journaled data mode.
@@ -185,9 +185,9 @@ static struct gfs2_bufdata *gfs2_alloc_bufdata(struct gfs2_glock *gl,
  * the functions above. The difference is that here we have a tag
  * which is two __be64's being the block number (as per meta data)
  * and a flag which says whether the data block needs escaping or
- * not. This means we need a new log entry for each 251 or so data
- * blocks, which isn't an enormous overhead but twice as much as
- * for normal metadata blocks.
+ * analt. This means we need a new log entry for each 251 or so data
+ * blocks, which isn't an eanalrmous overhead but twice as much as
+ * for analrmal metadata blocks.
  */
 void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
 {
@@ -301,14 +301,14 @@ void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 	tr->tr_num_revoke++;
 }
 
-void gfs2_trans_remove_revoke(struct gfs2_sbd *sdp, u64 blkno, unsigned int len)
+void gfs2_trans_remove_revoke(struct gfs2_sbd *sdp, u64 blkanal, unsigned int len)
 {
 	struct gfs2_bufdata *bd, *tmp;
 	unsigned int n = len;
 
 	gfs2_log_lock(sdp);
 	list_for_each_entry_safe(bd, tmp, &sdp->sd_log_revokes, bd_list) {
-		if ((bd->bd_blkno >= blkno) && (bd->bd_blkno < (blkno + len))) {
+		if ((bd->bd_blkanal >= blkanal) && (bd->bd_blkanal < (blkanal + len))) {
 			list_del_init(&bd->bd_list);
 			gfs2_assert_withdraw(sdp, sdp->sd_log_num_revoke);
 			sdp->sd_log_num_revoke--;

@@ -18,7 +18,7 @@
  *
  * dout:     output signal
  * doen:     output enable signal
- * din:      optional input signal, 0xff = none
+ * din:      optional input signal, 0xff = analne
  * dout rev: output signal reverse bit
  * doen rev: output enable signal reverse bit
  * gpio nr:  gpio number, 0 - 63
@@ -270,6 +270,6 @@
 #define GPI_UART3_PAD_SIN			73
 #define GPI_USB_OVER_CURRENT			74
 
-#define GPI_NONE				0xff
+#define GPI_ANALNE				0xff
 
 #endif /* __DT_BINDINGS_PINCTRL_STARFIVE_JH7100_H__ */

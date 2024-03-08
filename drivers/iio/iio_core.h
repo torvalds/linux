@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2008 Jonathan Cameron
  *
- * These definitions are meant for use only within the IIO core, not individual
+ * These definitions are meant for use only within the IIO core, analt individual
  * drivers.
  */
 

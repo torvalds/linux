@@ -29,7 +29,7 @@
 #define STK8BA50_REG_INTEN2			0x17
 #define STK8BA50_REG_INTMAP2			0x1A
 
-#define STK8BA50_MODE_NORMAL			0
+#define STK8BA50_MODE_ANALRMAL			0
 #define STK8BA50_MODE_SUSPEND			1
 #define STK8BA50_MODE_POWERBIT			BIT(7)
 #define STK8BA50_DATA_SHIFT			6
@@ -216,7 +216,7 @@ static int stk8ba50_read_raw(struct iio_dev *indio_dev,
 		if (iio_buffer_enabled(indio_dev))
 			return -EBUSY;
 		mutex_lock(&data->lock);
-		ret = stk8ba50_set_power(data, STK8BA50_MODE_NORMAL);
+		ret = stk8ba50_set_power(data, STK8BA50_MODE_ANALRMAL);
 		if (ret < 0) {
 			mutex_unlock(&data->lock);
 			return -EINVAL;
@@ -344,7 +344,7 @@ static irqreturn_t stk8ba50_trigger_handler(int irq, void *p)
 					   pf->timestamp);
 err:
 	mutex_unlock(&data->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -364,7 +364,7 @@ static int stk8ba50_buffer_preenable(struct iio_dev *indio_dev)
 {
 	struct stk8ba50_data *data = iio_priv(indio_dev);
 
-	return stk8ba50_set_power(data, STK8BA50_MODE_NORMAL);
+	return stk8ba50_set_power(data, STK8BA50_MODE_ANALRMAL);
 }
 
 static int stk8ba50_buffer_postdisable(struct iio_dev *indio_dev)
@@ -388,7 +388,7 @@ static int stk8ba50_probe(struct i2c_client *client)
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev) {
 		dev_err(&client->dev, "iio allocation failed!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data = iio_priv(indio_dev);
@@ -449,7 +449,7 @@ static int stk8ba50_probe(struct i2c_client *client)
 							   indio_dev->name,
 							   iio_device_id(indio_dev));
 		if (!data->dready_trig) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_power_off;
 		}
 
@@ -518,7 +518,7 @@ static int stk8ba50_resume(struct device *dev)
 
 	data = iio_priv(i2c_get_clientdata(to_i2c_client(dev)));
 
-	return stk8ba50_set_power(data, STK8BA50_MODE_NORMAL);
+	return stk8ba50_set_power(data, STK8BA50_MODE_ANALRMAL);
 }
 
 static DEFINE_SIMPLE_DEV_PM_OPS(stk8ba50_pm_ops, stk8ba50_suspend,

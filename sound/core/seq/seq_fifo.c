@@ -109,9 +109,9 @@ int snd_seq_fifo_event_in(struct snd_seq_fifo *f,
 		return -EINVAL;
 
 	snd_use_lock_use(&f->use_lock);
-	err = snd_seq_event_dup(f->pool, event, &cell, 1, NULL, NULL); /* always non-blocking */
+	err = snd_seq_event_dup(f->pool, event, &cell, 1, NULL, NULL); /* always analn-blocking */
 	if (err < 0) {
-		if ((err == -ENOMEM) || (err == -EAGAIN))
+		if ((err == -EANALMEM) || (err == -EAGAIN))
 			atomic_inc(&f->overflow);
 		snd_use_lock_free(&f->use_lock);
 		return err;
@@ -160,7 +160,7 @@ static struct snd_seq_event_cell *fifo_cell_out(struct snd_seq_fifo *f)
 
 /* dequeue cell from fifo and copy on user space */
 int snd_seq_fifo_cell_out(struct snd_seq_fifo *f,
-			  struct snd_seq_event_cell **cellp, int nonblock)
+			  struct snd_seq_event_cell **cellp, int analnblock)
 {
 	struct snd_seq_event_cell *cell;
 	unsigned long flags;
@@ -173,8 +173,8 @@ int snd_seq_fifo_cell_out(struct snd_seq_fifo *f,
 	init_waitqueue_entry(&wait, current);
 	spin_lock_irqsave(&f->lock, flags);
 	while ((cell = fifo_cell_out(f)) == NULL) {
-		if (nonblock) {
-			/* non-blocking - return immediately */
+		if (analnblock) {
+			/* analn-blocking - return immediately */
 			spin_unlock_irqrestore(&f->lock, flags);
 			return -EAGAIN;
 		}
@@ -213,7 +213,7 @@ void snd_seq_fifo_cell_putback(struct snd_seq_fifo *f,
 }
 
 
-/* polling; return non-zero if queue is available */
+/* polling; return analn-zero if queue is available */
 int snd_seq_fifo_poll_wait(struct snd_seq_fifo *f, struct file *file,
 			   poll_table *wait)
 {
@@ -233,10 +233,10 @@ int snd_seq_fifo_resize(struct snd_seq_fifo *f, int poolsize)
 	/* allocate new pool */
 	newpool = snd_seq_pool_new(poolsize);
 	if (newpool == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (snd_seq_pool_init(newpool) < 0) {
 		snd_seq_pool_delete(&newpool);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock_irq(&f->lock);
@@ -248,7 +248,7 @@ int snd_seq_fifo_resize(struct snd_seq_fifo *f, int poolsize)
 	f->head = NULL;
 	f->tail = NULL;
 	f->cells = 0;
-	/* NOTE: overflow flag is not cleared */
+	/* ANALTE: overflow flag is analt cleared */
 	spin_unlock_irq(&f->lock);
 
 	/* close the old pool and wait until all users are gone */

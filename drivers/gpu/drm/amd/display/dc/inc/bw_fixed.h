@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -65,7 +65,7 @@ static inline struct bw_fixed bw_max3(struct bw_fixed v1,
 	return bw_max2(bw_max2(v1, v2), v3);
 }
 
-struct bw_fixed bw_int_to_fixed_nonconst(int64_t value);
+struct bw_fixed bw_int_to_fixed_analnconst(int64_t value);
 static inline struct bw_fixed bw_int_to_fixed(int64_t value)
 {
 	if (__builtin_constant_p(value)) {
@@ -74,7 +74,7 @@ static inline struct bw_fixed bw_int_to_fixed(int64_t value)
 		res.value = value << BW_FIXED_BITS_PER_FRACTIONAL_PART;
 		return res;
 	} else
-		return bw_int_to_fixed_nonconst(value);
+		return bw_int_to_fixed_analnconst(value);
 }
 
 static inline int32_t bw_fixed_to_int(struct bw_fixed value)

@@ -22,14 +22,14 @@ efc_cmd_domain_attach(struct efc *efc, struct efc_domain *domain, u32 fc_id);
 int
 efc_cmd_domain_free(struct efc *efc, struct efc_domain *domain);
 int
-efc_cmd_node_detach(struct efc *efc, struct efc_remote_node *rnode);
+efc_cmd_analde_detach(struct efc *efc, struct efc_remote_analde *ranalde);
 int
-efc_node_free_resources(struct efc *efc, struct efc_remote_node *rnode);
+efc_analde_free_resources(struct efc *efc, struct efc_remote_analde *ranalde);
 int
-efc_cmd_node_attach(struct efc *efc, struct efc_remote_node *rnode,
+efc_cmd_analde_attach(struct efc *efc, struct efc_remote_analde *ranalde,
 		    struct efc_dma *sparms);
 int
-efc_cmd_node_alloc(struct efc *efc, struct efc_remote_node *rnode, u32 fc_addr,
+efc_cmd_analde_alloc(struct efc *efc, struct efc_remote_analde *ranalde, u32 fc_addr,
 		   struct efc_nport *nport);
 
 #endif /* __EFC_CMDS_H */

@@ -41,17 +41,17 @@ MODULE_LICENSE("GPL");
  *
  * The four members of the family are described below.
  *
- * Note that all unsigned char arrays are right-justified and left-padded
+ * Analte that all unsigned char arrays are right-justified and left-padded
  * with zeroes.
  *
- * Note that all reserved fields must be zeroes.
+ * Analte that all reserved fields must be zeroes.
  */
 struct type50_hdr {
 	unsigned char	reserved1;
 	unsigned char	msg_type_code;	/* 0x50 */
 	unsigned short	msg_len;
 	unsigned char	reserved2;
-	unsigned char	ignored;
+	unsigned char	iganalred;
 	unsigned short	reserved3;
 } __packed;
 
@@ -136,10 +136,10 @@ struct type50_crb3_msg {
 /*
  * The type 80 response family is associated with a CEXxA cards.
  *
- * Note that all unsigned char arrays are right-justified and left-padded
+ * Analte that all unsigned char arrays are right-justified and left-padded
  * with zeroes.
  *
- * Note that all reserved fields must be zeroes.
+ * Analte that all reserved fields must be zeroes.
  */
 
 #define TYPE80_RSP_CODE 0x80
@@ -352,7 +352,7 @@ static int convert_type80(struct zcrypt_queue *zq,
 	unsigned char *data;
 
 	if (t80h->len < sizeof(*t80h) + outputdatalength) {
-		/* The result is too short, the CEXxA card may not do that.. */
+		/* The result is too short, the CEXxA card may analt do that.. */
 		zq->online = 0;
 		pr_err("Crypto dev=%02x.%04x code=0x%02x => online=0 rc=EAGAIN\n",
 		       AP_QID_CARD(zq->queue->qid),
@@ -385,14 +385,14 @@ static int convert_response(struct zcrypt_queue *zq,
 	case TYPE80_RSP_CODE:
 		return convert_type80(zq, reply,
 				      outputdata, outputdatalength);
-	default: /* Unknown response type, this should NEVER EVER happen */
+	default: /* Unkanalwn response type, this should NEVER EVER happen */
 		zq->online = 0;
-		pr_err("Crypto dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+		pr_err("Crypto dev=%02x.%04x unkanalwn response type 0x%02x => online=0 rc=EAGAIN\n",
 		       AP_QID_CARD(zq->queue->qid),
 		       AP_QID_QUEUE(zq->queue->qid),
 		       (int)rtype);
 		ZCRYPT_DBF_ERR(
-			"%s dev=%02x.%04x unknown response type 0x%02x => online=0 rc=EAGAIN\n",
+			"%s dev=%02x.%04x unkanalwn response type 0x%02x => online=0 rc=EAGAIN\n",
 			__func__, AP_QID_CARD(zq->queue->qid),
 			AP_QID_QUEUE(zq->queue->qid), (int)rtype);
 		ap_send_online_uevent(&zq->queue->ap_dev, zq->online);
@@ -460,7 +460,7 @@ static long zcrypt_msgtype50_modexpo(struct zcrypt_queue *zq,
 	ap_msg->bufsize = MSGTYPE50_CRB3_MAX_MSG_SIZE;
 	ap_msg->msg = kmalloc(ap_msg->bufsize, GFP_KERNEL);
 	if (!ap_msg->msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	ap_msg->receive = zcrypt_msgtype50_receive;
 	ap_msg->psmid = (((unsigned long)current->pid) << 32) +
 		atomic_inc_return(&zcrypt_step);
@@ -510,7 +510,7 @@ static long zcrypt_msgtype50_modexpo_crt(struct zcrypt_queue *zq,
 	ap_msg->bufsize = MSGTYPE50_CRB3_MAX_MSG_SIZE;
 	ap_msg->msg = kmalloc(ap_msg->bufsize, GFP_KERNEL);
 	if (!ap_msg->msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	ap_msg->receive = zcrypt_msgtype50_receive;
 	ap_msg->psmid = (((unsigned long)current->pid) << 32) +
 		atomic_inc_return(&zcrypt_step);

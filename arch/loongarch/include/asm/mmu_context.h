@@ -2,12 +2,12 @@
 /*
  * Switch a MMU context.
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_MMU_CONTEXT_H
 #define _ASM_MMU_CONTEXT_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/mm_types.h>
 #include <linux/smp.h>
@@ -47,7 +47,7 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
 }
 
-/* Normal, classic get_new_mmu_context */
+/* Analrmal, classic get_new_mmu_context */
 static inline void
 get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 {
@@ -91,7 +91,7 @@ static inline void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *
 		csr_write64((unsigned long)invalid_pg_dir, LOONGARCH_CSR_PGDL);
 
 	/*
-	 * Mark current->active_mm as not "active" anymore.
+	 * Mark current->active_mm as analt "active" anymore.
 	 * We don't want to mislead possible IPI tlb flush routines.
 	 */
 	cpumask_set_cpu(cpu, mm_cpumask(next));

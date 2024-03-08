@@ -73,7 +73,7 @@ enum jpeg_rcn_ref_disp_enable_t {
 
 /* identifies the horizontal decimation factor */
 enum jpeg_horizontal_deci_factor_t {
-	/* no resize */
+	/* anal resize */
 	JPEG_HDEC_1 = 0x00000000,
 	/* Advanced H/2 resize using improved 8-tap filters */
 	JPEG_HDEC_ADVANCED_2 = 0x00000101,
@@ -83,7 +83,7 @@ enum jpeg_horizontal_deci_factor_t {
 
 /* identifies the vertical decimation factor */
 enum jpeg_vertical_deci_factor_t {
-	/* no resize */
+	/* anal resize */
 	JPEG_VDEC_1 = 0x00000000,
 	/* V/2 , progressive resize */
 	JPEG_VDEC_ADVANCED_2_PROG = 0x00000204,
@@ -93,11 +93,11 @@ enum jpeg_vertical_deci_factor_t {
 
 /* status of the decoding process */
 enum jpeg_decoding_error_t {
-	JPEG_DECODER_NO_ERROR = 0,
+	JPEG_DECODER_ANAL_ERROR = 0,
 	JPEG_DECODER_UNDEFINED_HUFF_TABLE = 1,
 	JPEG_DECODER_UNSUPPORTED_MARKER = 2,
 	JPEG_DECODER_UNABLE_ALLOCATE_MEMORY = 3,
-	JPEG_DECODER_NON_SUPPORTED_SAMP_FACTORS = 4,
+	JPEG_DECODER_ANALN_SUPPORTED_SAMP_FACTORS = 4,
 	JPEG_DECODER_BAD_PARAMETER = 5,
 	JPEG_DECODER_DECODE_ERROR = 6,
 	JPEG_DECODER_BAD_RESTART_MARKER = 7,
@@ -113,25 +113,25 @@ enum jpeg_decoding_error_t {
 	JPEG_DECODER_BAD_NUMBER_QUANT_TABLES = 17,
 	JPEG_DECODER_BAD_COMPONENT_COUNT = 18,
 	JPEG_DECODER_DIVIDE_BY_ZERO_ERROR = 19,
-	JPEG_DECODER_NOT_JPG_IMAGE = 20,
+	JPEG_DECODER_ANALT_JPG_IMAGE = 20,
 	JPEG_DECODER_UNSUPPORTED_ROTATION_ANGLE = 21,
 	JPEG_DECODER_UNSUPPORTED_SCALING = 22,
 	JPEG_DECODER_INSUFFICIENT_OUTPUTBUFFER_SIZE = 23,
 	JPEG_DECODER_BAD_HWCFG_GP_VERSION_VALUE = 24,
 	JPEG_DECODER_BAD_VALUE_FROM_RED = 25,
 	JPEG_DECODER_BAD_SUBREGION_PARAMETERS = 26,
-	JPEG_DECODER_PROGRESSIVE_DECODE_NOT_SUPPORTED = 27,
+	JPEG_DECODER_PROGRESSIVE_DECODE_ANALT_SUPPORTED = 27,
 	JPEG_DECODER_ERROR_TASK_TIMEOUT = 28,
-	JPEG_DECODER_ERROR_FEATURE_NOT_SUPPORTED = 29
+	JPEG_DECODER_ERROR_FEATURE_ANALT_SUPPORTED = 29
 };
 
 /* identifies the decoding mode */
 enum jpeg_decoding_mode_t {
-	JPEG_NORMAL_DECODE = 0,
+	JPEG_ANALRMAL_DECODE = 0,
 };
 
 enum jpeg_additional_flags_t {
-	JPEG_ADDITIONAL_FLAG_NONE = 0,
+	JPEG_ADDITIONAL_FLAG_ANALNE = 0,
 	/* request firmware to return values of the CEH registers */
 	JPEG_ADDITIONAL_FLAG_CEH = 1,
 	/* output storage of auxiliary reconstruction in Raster format. */
@@ -207,7 +207,7 @@ struct jpeg_decode_params_t {
  *			ceh_registers[0] correspond to register MBE_CEH_0_7,
  *			ceh_registers[1] correspond to register MBE_CEH_8_15
  *			ceh_registers[2] correspond to register MBE_CEH_16_23
- *			Note that elements of this array will be updated only
+ *			Analte that elements of this array will be updated only
  *			if additional_flags has JPEG_ADDITIONAL_FLAG_CEH set.
  */
 struct jpeg_decode_return_params_t {

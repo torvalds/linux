@@ -50,7 +50,7 @@ static int zpci_group_cap(struct zpci_dev *zdev, struct vfio_info_cap *caps)
 		.msi_addr = zdev->msi_addr,
 		.flags = VFIO_DEVICE_INFO_ZPCI_FLAG_REFRESH,
 		.mui = zdev->fmb_update,
-		.noi = zdev->max_msi,
+		.anali = zdev->max_msi,
 		.maxstbl = ZPCI_MAX_WRITE_SIZE,
 		.version = zdev->version,
 		.reserved = 0,
@@ -71,7 +71,7 @@ static int zpci_util_cap(struct zpci_dev *zdev, struct vfio_info_cap *caps)
 
 	cap = kmalloc(cap_size, GFP_KERNEL);
 	if (!cap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cap->header.id = VFIO_DEVICE_INFO_CAP_ZPCI_UTIL;
 	cap->header.version = 1;
@@ -96,7 +96,7 @@ static int zpci_pfip_cap(struct zpci_dev *zdev, struct vfio_info_cap *caps)
 
 	cap = kmalloc(cap_size, GFP_KERNEL);
 	if (!cap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cap->header.id = VFIO_DEVICE_INFO_CAP_ZPCI_PFIP;
 	cap->header.version = 1;
@@ -120,7 +120,7 @@ int vfio_pci_info_zdev_add_caps(struct vfio_pci_core_device *vdev,
 	int ret;
 
 	if (!zdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = zpci_base_cap(zdev, caps);
 	if (ret)
@@ -146,7 +146,7 @@ int vfio_pci_zdev_open_device(struct vfio_pci_core_device *vdev)
 	struct zpci_dev *zdev = to_zpci(vdev->pdev);
 
 	if (!zdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!vdev->vdev.kvm)
 		return 0;
@@ -154,7 +154,7 @@ int vfio_pci_zdev_open_device(struct vfio_pci_core_device *vdev)
 	if (zpci_kvm_hook.kvm_register)
 		return zpci_kvm_hook.kvm_register(zdev, vdev->vdev.kvm);
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 void vfio_pci_zdev_close_device(struct vfio_pci_core_device *vdev)

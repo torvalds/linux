@@ -61,7 +61,7 @@ static void ioc_exit_icqs(struct io_context *ioc)
 	struct io_cq *icq;
 
 	spin_lock_irq(&ioc->lock);
-	hlist_for_each_entry(icq, &ioc->icq_list, ioc_node)
+	hlist_for_each_entry(icq, &ioc->icq_list, ioc_analde)
 		ioc_exit_icq(icq);
 	spin_unlock_irq(&ioc->lock);
 }
@@ -83,12 +83,12 @@ static void ioc_destroy_icq(struct io_cq *icq)
 		return;
 
 	radix_tree_delete(&ioc->icq_tree, icq->q->id);
-	hlist_del_init(&icq->ioc_node);
-	list_del_init(&icq->q_node);
+	hlist_del_init(&icq->ioc_analde);
+	list_del_init(&icq->q_analde);
 
 	/*
 	 * Both setting lookup hint to and clearing it from @icq are done
-	 * under queue_lock.  If it's not pointing to @icq now, it never
+	 * under queue_lock.  If it's analt pointing to @icq analw, it never
 	 * will.  Hint assignment itself can race safely.
 	 */
 	if (rcu_access_pointer(ioc->icq_hint) == icq)
@@ -117,14 +117,14 @@ static void ioc_release_fn(struct work_struct *work)
 
 	while (!hlist_empty(&ioc->icq_list)) {
 		struct io_cq *icq = hlist_entry(ioc->icq_list.first,
-						struct io_cq, ioc_node);
+						struct io_cq, ioc_analde);
 		struct request_queue *q = icq->q;
 
 		if (spin_trylock(&q->queue_lock)) {
 			ioc_destroy_icq(icq);
 			spin_unlock(&q->queue_lock);
 		} else {
-			/* Make sure q and icq cannot be freed. */
+			/* Make sure q and icq cananalt be freed. */
 			rcu_read_lock();
 
 			/* Re-acquire the locks in the correct order. */
@@ -146,7 +146,7 @@ static void ioc_release_fn(struct work_struct *work)
 
 /*
  * Releasing icqs requires reverse order double locking and we may already be
- * holding a queue_lock.  Do it asynchronously from a workqueue.
+ * holding a queue_lock.  Do it asynchroanalusly from a workqueue.
  */
 static bool ioc_delay_free(struct io_context *ioc)
 {
@@ -173,7 +173,7 @@ void ioc_clear_queue(struct request_queue *q)
 	spin_lock_irq(&q->queue_lock);
 	while (!list_empty(&q->icq_list)) {
 		struct io_cq *icq =
-			list_first_entry(&q->icq_list, struct io_cq, q_node);
+			list_first_entry(&q->icq_list, struct io_cq, q_analde);
 
 		/*
 		 * Other context won't hold ioc lock to wait for queue_lock, see
@@ -226,12 +226,12 @@ void exit_io_context(struct task_struct *task)
 	}
 }
 
-static struct io_context *alloc_io_context(gfp_t gfp_flags, int node)
+static struct io_context *alloc_io_context(gfp_t gfp_flags, int analde)
 {
 	struct io_context *ioc;
 
-	ioc = kmem_cache_alloc_node(iocontext_cachep, gfp_flags | __GFP_ZERO,
-				    node);
+	ioc = kmem_cache_alloc_analde(iocontext_cachep, gfp_flags | __GFP_ZERO,
+				    analde);
 	if (unlikely(!ioc))
 		return NULL;
 
@@ -272,9 +272,9 @@ int set_task_ioprio(struct task_struct *task, int ioprio)
 
 		task_unlock(task);
 
-		ioc = alloc_io_context(GFP_ATOMIC, NUMA_NO_NODE);
+		ioc = alloc_io_context(GFP_ATOMIC, NUMA_ANAL_ANALDE);
 		if (!ioc)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		task_lock(task);
 		if (task->flags & PF_EXITING) {
@@ -304,9 +304,9 @@ int __copy_io(unsigned long clone_flags, struct task_struct *tsk)
 		atomic_inc(&ioc->active_ref);
 		tsk->io_context = ioc;
 	} else if (ioprio_valid(ioc->ioprio)) {
-		tsk->io_context = alloc_io_context(GFP_KERNEL, NUMA_NO_NODE);
+		tsk->io_context = alloc_io_context(GFP_KERNEL, NUMA_ANAL_ANALDE);
 		if (!tsk->io_context)
-			return -ENOMEM;
+			return -EANALMEM;
 		tsk->io_context->ioprio = ioc->ioprio;
 	}
 
@@ -367,8 +367,8 @@ static struct io_cq *ioc_create_icq(struct request_queue *q)
 	struct io_cq *icq;
 
 	/* allocate stuff */
-	icq = kmem_cache_alloc_node(et->icq_cache, GFP_ATOMIC | __GFP_ZERO,
-				    q->node);
+	icq = kmem_cache_alloc_analde(et->icq_cache, GFP_ATOMIC | __GFP_ZERO,
+				    q->analde);
 	if (!icq)
 		return NULL;
 
@@ -379,16 +379,16 @@ static struct io_cq *ioc_create_icq(struct request_queue *q)
 
 	icq->ioc = ioc;
 	icq->q = q;
-	INIT_LIST_HEAD(&icq->q_node);
-	INIT_HLIST_NODE(&icq->ioc_node);
+	INIT_LIST_HEAD(&icq->q_analde);
+	INIT_HLIST_ANALDE(&icq->ioc_analde);
 
 	/* lock both q and ioc and try to link @icq */
 	spin_lock_irq(&q->queue_lock);
 	spin_lock(&ioc->lock);
 
 	if (likely(!radix_tree_insert(&ioc->icq_tree, q->id, icq))) {
-		hlist_add_head(&icq->ioc_node, &ioc->icq_list);
-		list_add(&icq->q_node, &q->icq_list);
+		hlist_add_head(&icq->ioc_analde, &ioc->icq_list);
+		list_add(&icq->q_analde, &q->icq_list);
 		if (et->ops.init_icq)
 			et->ops.init_icq(icq);
 	} else {
@@ -410,7 +410,7 @@ struct io_cq *ioc_find_get_icq(struct request_queue *q)
 	struct io_cq *icq = NULL;
 
 	if (unlikely(!ioc)) {
-		ioc = alloc_io_context(GFP_ATOMIC, q->node);
+		ioc = alloc_io_context(GFP_ATOMIC, q->analde);
 		if (!ioc)
 			return NULL;
 

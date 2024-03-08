@@ -36,7 +36,7 @@ do
 		abis=$(echo "($2)" | tr ',' '|')
 		shift 2;;
 	-*)
-		echo "$1: unknown option" >&2
+		echo "$1: unkanalwn option" >&2
 		usage;;
 	*)
 		break;;
@@ -57,7 +57,7 @@ grep -E "^[0-9]+[[:space:]]+$abis" "$infile" | {
 	while read nr abi name native compat ; do
 
 		if [ $nxt -gt $nr ]; then
-			echo "error: $infile: syscall table is not sorted or duplicates the same syscall number" >&2
+			echo "error: $infile: syscall table is analt sorted or duplicates the same syscall number" >&2
 			exit 1
 		fi
 

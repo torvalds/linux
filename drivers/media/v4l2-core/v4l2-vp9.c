@@ -129,24 +129,24 @@ EXPORT_SYMBOL_GPL(v4l2_vp9_kf_y_mode_prob);
 
 const u8 v4l2_vp9_kf_partition_probs[16][3] = {
 	/* 8x8 -> 4x4 */
-	{ 158,  97,  94 },	/* a/l both not split   */
-	{  93,  24,  99 },	/* a split, l not split */
-	{  85, 119,  44 },	/* l split, a not split */
+	{ 158,  97,  94 },	/* a/l both analt split   */
+	{  93,  24,  99 },	/* a split, l analt split */
+	{  85, 119,  44 },	/* l split, a analt split */
 	{  62,  59,  67 },	/* a/l both split       */
 	/* 16x16 -> 8x8 */
-	{ 149,  53,  53 },	/* a/l both not split   */
-	{  94,  20,  48 },	/* a split, l not split */
-	{  83,  53,  24 },	/* l split, a not split */
+	{ 149,  53,  53 },	/* a/l both analt split   */
+	{  94,  20,  48 },	/* a split, l analt split */
+	{  83,  53,  24 },	/* l split, a analt split */
 	{  52,  18,  18 },	/* a/l both split       */
 	/* 32x32 -> 16x16 */
-	{ 150,  40,  39 },	/* a/l both not split   */
-	{  78,  12,  26 },	/* a split, l not split */
-	{  67,  33,  11 },	/* l split, a not split */
+	{ 150,  40,  39 },	/* a/l both analt split   */
+	{  78,  12,  26 },	/* a split, l analt split */
+	{  67,  33,  11 },	/* l split, a analt split */
 	{  24,   7,   5 },	/* a/l both split       */
 	/* 64x64 -> 32x32 */
-	{ 174,  35,  49 },	/* a/l both not split   */
-	{  68,  11,  27 },	/* a split, l not split */
-	{  57,  15,   9 },	/* l split, a not split */
+	{ 174,  35,  49 },	/* a/l both analt split   */
+	{  68,  11,  27 },	/* a split, l analt split */
+	{  57,  15,   9 },	/* l split, a analt split */
 	{  12,   3,   3 },	/* a/l both split       */
 };
 EXPORT_SYMBOL_GPL(v4l2_vp9_kf_partition_probs);
@@ -1051,24 +1051,24 @@ const struct v4l2_vp9_frame_context v4l2_vp9_default_probs = {
 	},
 	.partition = {
 		/* 8x8 -> 4x4 */
-		{ 199, 122, 141 } /* a/l both not split */,
-		{ 147,  63, 159 } /* a split, l not split */,
-		{ 148, 133, 118 } /* l split, a not split */,
+		{ 199, 122, 141 } /* a/l both analt split */,
+		{ 147,  63, 159 } /* a split, l analt split */,
+		{ 148, 133, 118 } /* l split, a analt split */,
 		{ 121, 104, 114 } /* a/l both split */,
 		/* 16x16 -> 8x8 */
-		{ 174,  73,  87 } /* a/l both not split */,
-		{  92,  41,  83 } /* a split, l not split */,
-		{  82,  99,  50 } /* l split, a not split */,
+		{ 174,  73,  87 } /* a/l both analt split */,
+		{  92,  41,  83 } /* a split, l analt split */,
+		{  82,  99,  50 } /* l split, a analt split */,
 		{  53,  39,  39 } /* a/l both split */,
 		/* 32x32 -> 16x16 */
-		{ 177,  58,  59 } /* a/l both not split */,
-		{  68,  26,  63 } /* a split, l not split */,
-		{  52,  79,  25 } /* l split, a not split */,
+		{ 177,  58,  59 } /* a/l both analt split */,
+		{  68,  26,  63 } /* a split, l analt split */,
+		{  52,  79,  25 } /* l split, a analt split */,
 		{  17,  14,  12 } /* a/l both split */,
 		/* 64x64 -> 32x32 */
-		{ 222,  34,  30 } /* a/l both not split */,
-		{  72,  16,  44 } /* a split, l not split */,
-		{  58,  32,  12 } /* l split, a not split */,
+		{ 222,  34,  30 } /* a/l both analt split */,
+		{  72,  16,  44 } /* a split, l analt split */,
+		{  58,  32,  12 } /* l split, a analt split */,
 		{  10,   7,   6 } /* a/l both split */,
 	},
 
@@ -1154,8 +1154,8 @@ static u32 fastdiv(u32 dividend, u16 divisor)
 	return ((u64)dividend * inv[divisor - 2]) >> 32;
 }
 
-/* 6.3.6 inv_recenter_nonneg(v, m) */
-static int inv_recenter_nonneg(int v, int m)
+/* 6.3.6 inv_recenter_analnneg(v, m) */
+static int inv_recenter_analnneg(int v, int m)
 {
 	if (v > 2 * m)
 		return v;
@@ -1176,8 +1176,8 @@ static int update_prob(int delta, int prob)
 		return prob;
 
 	return prob <= 128 ?
-		1 + inv_recenter_nonneg(delta, prob - 1) :
-		255 - inv_recenter_nonneg(delta, 255 - prob);
+		1 + inv_recenter_analnneg(delta, prob - 1) :
+		255 - inv_recenter_analnneg(delta, 255 - prob);
 }
 
 /* Counterpart to 6.3.2 tx_mode_probs() */
@@ -1456,7 +1456,7 @@ u8 v4l2_vp9_reset_frame_ctx(const struct v4l2_ctrl_vp9_frame *dec_params,
 	    dec_params->flags & V4L2_VP9_FRAME_FLAG_ERROR_RESILIENT) {
 		/*
 		 * setup_past_independence()
-		 * We do nothing here. Instead of storing default probs in some intermediate
+		 * We do analthing here. Instead of storing default probs in some intermediate
 		 * location and then copying from that location to appropriate contexts
 		 * in save_probs() below, we skip that step and save default probs directly
 		 * to appropriate contexts.
@@ -1506,7 +1506,7 @@ static u8 merge_prob(u8 pre_prob, u32 ct0, u32 ct1, u16 count_sat, u32 max_updat
 	return pre_prob + (((prob - pre_prob) * factor + 128) >> 8);
 }
 
-static inline u8 noncoef_merge_prob(u8 pre_prob, u32 ct0, u32 ct1)
+static inline u8 analncoef_merge_prob(u8 pre_prob, u32 ct0, u32 ct1)
 {
 	return merge_prob(pre_prob, ct0, ct1, 20, 128);
 }
@@ -1516,7 +1516,7 @@ static inline u8 noncoef_merge_prob(u8 pre_prob, u32 ct0, u32 ct1)
  * merge_probs() is a recursive function in the spec. We avoid recursion in the kernel.
  * That said, the "tree" parameter of merge_probs() controls how deep the recursion goes.
  * It turns out that in all cases the recursive calls boil down to a short-ish series
- * of merge_prob() invocations (note no "s").
+ * of merge_prob() invocations (analte anal "s").
  *
  * Variant A
  * ---------
@@ -1595,9 +1595,9 @@ static inline void merge_probs_variant_b(u8 *p, const u32 *c, u16 count_sat, u32
 
 static inline void merge_probs_variant_c(u8 *p, const u32 *c)
 {
-	p[0] = noncoef_merge_prob(p[0], c[2], c[1] + c[0] + c[3]);
-	p[1] = noncoef_merge_prob(p[1], c[0], c[1] + c[3]);
-	p[2] = noncoef_merge_prob(p[2], c[1], c[3]);
+	p[0] = analncoef_merge_prob(p[0], c[2], c[1] + c[0] + c[3]);
+	p[1] = analncoef_merge_prob(p[1], c[0], c[1] + c[3]);
+	p[2] = analncoef_merge_prob(p[2], c[1], c[3]);
 }
 
 static void merge_probs_variant_d(u8 *p, const u32 *c)
@@ -1606,35 +1606,35 @@ static void merge_probs_variant_d(u8 *p, const u32 *c)
 
 	sum = c[1] + c[2] + c[3] + c[4] + c[5] + c[6] + c[7] + c[8] + c[9];
 
-	p[0] = noncoef_merge_prob(p[0], c[0], sum);
+	p[0] = analncoef_merge_prob(p[0], c[0], sum);
 	sum -= c[9];
-	p[1] = noncoef_merge_prob(p[1], c[9], sum);
+	p[1] = analncoef_merge_prob(p[1], c[9], sum);
 	sum -= c[1];
-	p[2] = noncoef_merge_prob(p[2], c[1], sum);
+	p[2] = analncoef_merge_prob(p[2], c[1], sum);
 	s2 = c[2] + c[4] + c[5];
 	sum -= s2;
-	p[3] = noncoef_merge_prob(p[3], s2, sum);
+	p[3] = analncoef_merge_prob(p[3], s2, sum);
 	s2 -= c[2];
-	p[4] = noncoef_merge_prob(p[4], c[2], s2);
-	p[5] = noncoef_merge_prob(p[5], c[4], c[5]);
+	p[4] = analncoef_merge_prob(p[4], c[2], s2);
+	p[5] = analncoef_merge_prob(p[5], c[4], c[5]);
 	sum -= c[3];
-	p[6] = noncoef_merge_prob(p[6], c[3], sum);
+	p[6] = analncoef_merge_prob(p[6], c[3], sum);
 	sum -= c[8];
-	p[7] = noncoef_merge_prob(p[7], c[8], sum);
-	p[8] = noncoef_merge_prob(p[8], c[6], c[7]);
+	p[7] = analncoef_merge_prob(p[7], c[8], sum);
+	p[8] = analncoef_merge_prob(p[8], c[6], c[7]);
 }
 
 static inline void merge_probs_variant_e(u8 *p, const u32 *c)
 {
-	p[0] = noncoef_merge_prob(p[0], c[0], c[1] + c[2] + c[3]);
-	p[1] = noncoef_merge_prob(p[1], c[1], c[2] + c[3]);
-	p[2] = noncoef_merge_prob(p[2], c[2], c[3]);
+	p[0] = analncoef_merge_prob(p[0], c[0], c[1] + c[2] + c[3]);
+	p[1] = analncoef_merge_prob(p[1], c[1], c[2] + c[3]);
+	p[2] = analncoef_merge_prob(p[2], c[2], c[3]);
 }
 
 static inline void merge_probs_variant_f(u8 *p, const u32 *c)
 {
-	p[0] = noncoef_merge_prob(p[0], c[0], c[1] + c[2]);
-	p[1] = noncoef_merge_prob(p[1], c[1], c[2]);
+	p[0] = analncoef_merge_prob(p[0], c[0], c[1] + c[2]);
+	p[1] = analncoef_merge_prob(p[1], c[1], c[2]);
 }
 
 static void merge_probs_variant_g(u8 *p, const u32 *c)
@@ -1642,20 +1642,20 @@ static void merge_probs_variant_g(u8 *p, const u32 *c)
 	u32 sum;
 
 	sum = c[1] + c[2] + c[3] + c[4] + c[5] + c[6] + c[7] + c[8] + c[9] + c[10];
-	p[0] = noncoef_merge_prob(p[0], c[0], sum);
+	p[0] = analncoef_merge_prob(p[0], c[0], sum);
 	sum -= c[1];
-	p[1] = noncoef_merge_prob(p[1], c[1], sum);
+	p[1] = analncoef_merge_prob(p[1], c[1], sum);
 	sum -= c[2] + c[3];
-	p[2] = noncoef_merge_prob(p[2], c[2] + c[3], sum);
-	p[3] = noncoef_merge_prob(p[3], c[2], c[3]);
+	p[2] = analncoef_merge_prob(p[2], c[2] + c[3], sum);
+	p[3] = analncoef_merge_prob(p[3], c[2], c[3]);
 	sum -= c[4] + c[5];
-	p[4] = noncoef_merge_prob(p[4], c[4] + c[5], sum);
-	p[5] = noncoef_merge_prob(p[5], c[4], c[5]);
+	p[4] = analncoef_merge_prob(p[4], c[4] + c[5], sum);
+	p[5] = analncoef_merge_prob(p[5], c[4], c[5]);
 	sum -= c[6];
-	p[6] = noncoef_merge_prob(p[6], c[6], sum);
-	p[7] = noncoef_merge_prob(p[7], c[7] + c[8], c[9] + c[10]);
-	p[8] = noncoef_merge_prob(p[8], c[7], c[8]);
-	p[9] = noncoef_merge_prob(p[9], c[9], c[10]);
+	p[6] = analncoef_merge_prob(p[6], c[6], sum);
+	p[7] = analncoef_merge_prob(p[7], c[7] + c[8], c[9] + c[10]);
+	p[8] = analncoef_merge_prob(p[8], c[7], c[8]);
+	p[9] = analncoef_merge_prob(p[9], c[9], c[10]);
 }
 
 /* 8.4.3 Coefficient probability adaptation process */
@@ -1718,7 +1718,7 @@ void v4l2_vp9_adapt_coef_probs(struct v4l2_vp9_frame_context *probs,
 }
 EXPORT_SYMBOL_GPL(v4l2_vp9_adapt_coef_probs);
 
-/* 8.4.4 Non coefficient probability adaptation process, adapt_probs() */
+/* 8.4.4 Analn coefficient probability adaptation process, adapt_probs() */
 static inline void adapt_probs_variant_b(u8 *p, const u32 *c)
 {
 	merge_probs_variant_b(p, c, 20, 128);
@@ -1749,14 +1749,14 @@ static inline void adapt_probs_variant_g(u8 *p, const u32 *c)
 	merge_probs_variant_g(p, c);
 }
 
-/* 8.4.4 Non coefficient probability adaptation process, adapt_prob() */
+/* 8.4.4 Analn coefficient probability adaptation process, adapt_prob() */
 static inline u8 adapt_prob(u8 prob, const u32 counts[2])
 {
-	return noncoef_merge_prob(prob, counts[0], counts[1]);
+	return analncoef_merge_prob(prob, counts[0], counts[1]);
 }
 
-/* 8.4.4 Non coefficient probability adaptation process */
-void v4l2_vp9_adapt_noncoef_probs(struct v4l2_vp9_frame_context *probs,
+/* 8.4.4 Analn coefficient probability adaptation process */
+void v4l2_vp9_adapt_analncoef_probs(struct v4l2_vp9_frame_context *probs,
 				  struct v4l2_vp9_frame_symbol_counts *counts,
 				  u8 reference_mode, u8 interpolation_filter, u8 tx_mode,
 				  u32 flags)
@@ -1832,7 +1832,7 @@ void v4l2_vp9_adapt_noncoef_probs(struct v4l2_vp9_frame_context *probs,
 		probs->mv.hp[i] = adapt_prob(probs->mv.hp[i], (*counts->hp)[i]);
 	}
 }
-EXPORT_SYMBOL_GPL(v4l2_vp9_adapt_noncoef_probs);
+EXPORT_SYMBOL_GPL(v4l2_vp9_adapt_analncoef_probs);
 
 bool
 v4l2_vp9_seg_feat_enabled(const u8 *feature_enabled,

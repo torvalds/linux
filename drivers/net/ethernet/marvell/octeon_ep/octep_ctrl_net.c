@@ -66,7 +66,7 @@ static int octep_send_mbox_req(struct octep_device *oct,
 	cmd = d->data.req.hdr.s.cmd;
 	if (octep_ctrl_net_h2f_cmd_versions[cmd] > oct->ctrl_mbox.max_fw_version ||
 	    octep_ctrl_net_h2f_cmd_versions[cmd] < oct->ctrl_mbox.min_fw_version)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = octep_ctrl_mbox_send(&oct->ctrl_mbox, &d->msg);
 	if (err < 0)
@@ -315,7 +315,7 @@ static void process_mbox_resp(struct octep_device *oct,
 	}
 }
 
-static int process_mbox_notify(struct octep_device *oct,
+static int process_mbox_analtify(struct octep_device *oct,
 			       struct octep_ctrl_mbox_msg *msg)
 {
 	struct net_device *netdev = oct->netdev;
@@ -328,10 +328,10 @@ static int process_mbox_notify(struct octep_device *oct,
 	/* check if we support this command */
 	if (octep_ctrl_net_f2h_cmd_versions[cmd] > OCTEP_CP_VERSION_CURRENT ||
 	    octep_ctrl_net_f2h_cmd_versions[cmd] < OCTEP_CP_VERSION_CURRENT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (msg->hdr.s.is_vf) {
-		octep_pfvf_notify(oct, msg);
+		octep_pfvf_analtify(oct, msg);
 		return 0;
 	}
 
@@ -348,7 +348,7 @@ static int process_mbox_notify(struct octep_device *oct,
 		}
 		break;
 	default:
-		pr_info("Unknown mbox req : %u\n", req->hdr.s.cmd);
+		pr_info("Unkanalwn mbox req : %u\n", req->hdr.s.cmd);
 		break;
 	}
 
@@ -375,8 +375,8 @@ void octep_ctrl_net_recv_fw_messages(struct octep_device *oct)
 
 		if (msg.hdr.s.flags & OCTEP_CTRL_MBOX_MSG_HDR_FLAG_RESP)
 			process_mbox_resp(oct, &msg);
-		else if (msg.hdr.s.flags & OCTEP_CTRL_MBOX_MSG_HDR_FLAG_NOTIFY)
-			process_mbox_notify(oct, &msg);
+		else if (msg.hdr.s.flags & OCTEP_CTRL_MBOX_MSG_HDR_FLAG_ANALTIFY)
+			process_mbox_analtify(oct, &msg);
 	}
 }
 

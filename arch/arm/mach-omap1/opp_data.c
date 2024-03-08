@@ -2,7 +2,7 @@
 /*
  *  linux/arch/arm/mach-omap1/opp_data.c
  *
- *  Copyright (C) 2004 - 2005 Nokia corporation
+ *  Copyright (C) 2004 - 2005 Analkia corporation
  *  Written by Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
  *  Based on clocks.h by Tony Lindgren, Gordon McNutt and RidgeRun, Inc
  */
@@ -15,7 +15,7 @@
  *-------------------------------------------------------------------------*/
 struct mpu_rate omap1_rate_table[] = {
 	/* MPU MHz, xtal MHz, dpll1 MHz, CKCTL, DPLL_CTL
-	 * NOTE: Comment order here is different from bits in CKCTL value:
+	 * ANALTE: Comment order here is different from bits in CKCTL value:
 	 * armdiv, dspdiv, dspmmu, tcdiv, perdiv, lcddiv
 	 */
 	{ 216000000, 12000000, 216000000, 0x050d, 0x2910, /* 1/1/2/2/2/8 */

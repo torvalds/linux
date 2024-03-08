@@ -24,14 +24,14 @@ static const struct sof_ipc4_fw_status {
 } ipc4_status[] = {
 	{0, "The operation was successful"},
 	{1, "Invalid parameter specified"},
-	{2, "Unknown message type specified"},
-	{3, "Not enough space in the IPC reply buffer to complete the request"},
+	{2, "Unkanalwn message type specified"},
+	{3, "Analt eanalugh space in the IPC reply buffer to complete the request"},
 	{4, "The system or resource is busy"},
 	{5, "Replaced ADSP IPC PENDING (unused)"},
-	{6, "Unknown error while processing the request"},
+	{6, "Unkanalwn error while processing the request"},
 	{7, "Unsupported operation requested"},
 	{8, "Reserved (ADSP_STAGE_UNINITIALIZED removed)"},
-	{9, "Specified resource not found"},
+	{9, "Specified resource analt found"},
 	{10, "A resource's ID requested to be created is already assigned"},
 	{11, "Reserved (ADSP_IPC_OUT_OF_MIPS removed)"},
 	{12, "Required resource is in invalid state"},
@@ -66,19 +66,19 @@ static const struct sof_ipc4_fw_status {
 	{140, "Initialization of DMA Gateway failed"},
 	{141, "Invalid ID of gateway provided"},
 	{142, "Setting state of DMA Gateway failed"},
-	{143, "DMA_CONTROL message targeting gateway not allocated yet"},
+	{143, "DMA_CONTROL message targeting gateway analt allocated yet"},
 	{150, "Attempt to configure SCLK while I2S port is running"},
 	{151, "Attempt to configure MCLK while I2S port is running"},
-	{152, "Attempt to stop SCLK that is not running"},
-	{153, "Attempt to stop MCLK that is not running"},
-	{160, "Reserved (ADSP_IPC_PIPELINE_NOT_INITIALIZED removed)"},
-	{161, "Reserved (ADSP_IPC_PIPELINE_NOT_EXIST removed)"},
+	{152, "Attempt to stop SCLK that is analt running"},
+	{153, "Attempt to stop MCLK that is analt running"},
+	{160, "Reserved (ADSP_IPC_PIPELINE_ANALT_INITIALIZED removed)"},
+	{161, "Reserved (ADSP_IPC_PIPELINE_ANALT_EXIST removed)"},
 	{162, "Reserved (ADSP_IPC_PIPELINE_SAVE_FAILED removed)"},
 	{163, "Reserved (ADSP_IPC_PIPELINE_RESTORE_FAILED removed)"},
 	{165, "Reserved (ADSP_IPC_PIPELINE_ALREADY_EXISTS removed)"},
 };
 
-typedef void (*ipc4_notification_handler)(struct snd_sof_dev *sdev,
+typedef void (*ipc4_analtification_handler)(struct snd_sof_dev *sdev,
 					  struct sof_ipc4_msg *msg);
 
 static int sof_ipc4_check_reply_status(struct snd_sof_dev *sdev, u32 status)
@@ -94,18 +94,18 @@ static int sof_ipc4_check_reply_status(struct snd_sof_dev *sdev, u32 status)
 		if (ipc4_status[i].status == status) {
 			dev_err(sdev->dev, "FW reported error: %u - %s\n",
 				status, ipc4_status[i].msg);
-			goto to_errno;
+			goto to_erranal;
 		}
 	}
 
 	if (i == ARRAY_SIZE(ipc4_status))
-		dev_err(sdev->dev, "FW reported error: %u - Unknown\n", status);
+		dev_err(sdev->dev, "FW reported error: %u - Unkanalwn\n", status);
 
-to_errno:
+to_erranal:
 	switch (status) {
 	case 2:
 	case 15:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	case 8:
 	case 11:
@@ -113,7 +113,7 @@ to_errno:
 	case 114 ... 115:
 	case 160 ... 163:
 	case 165:
-		ret = -ENOENT;
+		ret = -EANALENT;
 		break;
 	case 4:
 	case 150:
@@ -163,21 +163,21 @@ static const char * const ipc4_dbg_glb_msg_type[] = {
 	DBG_IPC4_MSG_TYPE_ENTRY(GLB_LOAD_LIBRARY),
 	DBG_IPC4_MSG_TYPE_ENTRY(GLB_LOAD_LIBRARY_PREPARE),
 	DBG_IPC4_MSG_TYPE_ENTRY(GLB_INTERNAL_MESSAGE),
-	DBG_IPC4_MSG_TYPE_ENTRY(GLB_NOTIFICATION),
+	DBG_IPC4_MSG_TYPE_ENTRY(GLB_ANALTIFICATION),
 };
 
-#define DBG_IPC4_NOTIFICATION_TYPE_ENTRY(type)	[SOF_IPC4_NOTIFY_##type] = #type
-static const char * const ipc4_dbg_notification_type[] = {
-	DBG_IPC4_NOTIFICATION_TYPE_ENTRY(PHRASE_DETECTED),
-	DBG_IPC4_NOTIFICATION_TYPE_ENTRY(RESOURCE_EVENT),
-	DBG_IPC4_NOTIFICATION_TYPE_ENTRY(LOG_BUFFER_STATUS),
-	DBG_IPC4_NOTIFICATION_TYPE_ENTRY(TIMESTAMP_CAPTURED),
-	DBG_IPC4_NOTIFICATION_TYPE_ENTRY(FW_READY),
-	DBG_IPC4_NOTIFICATION_TYPE_ENTRY(FW_AUD_CLASS_RESULT),
-	DBG_IPC4_NOTIFICATION_TYPE_ENTRY(EXCEPTION_CAUGHT),
-	DBG_IPC4_NOTIFICATION_TYPE_ENTRY(MODULE_NOTIFICATION),
-	DBG_IPC4_NOTIFICATION_TYPE_ENTRY(PROBE_DATA_AVAILABLE),
-	DBG_IPC4_NOTIFICATION_TYPE_ENTRY(ASYNC_MSG_SRVC_MESSAGE),
+#define DBG_IPC4_ANALTIFICATION_TYPE_ENTRY(type)	[SOF_IPC4_ANALTIFY_##type] = #type
+static const char * const ipc4_dbg_analtification_type[] = {
+	DBG_IPC4_ANALTIFICATION_TYPE_ENTRY(PHRASE_DETECTED),
+	DBG_IPC4_ANALTIFICATION_TYPE_ENTRY(RESOURCE_EVENT),
+	DBG_IPC4_ANALTIFICATION_TYPE_ENTRY(LOG_BUFFER_STATUS),
+	DBG_IPC4_ANALTIFICATION_TYPE_ENTRY(TIMESTAMP_CAPTURED),
+	DBG_IPC4_ANALTIFICATION_TYPE_ENTRY(FW_READY),
+	DBG_IPC4_ANALTIFICATION_TYPE_ENTRY(FW_AUD_CLASS_RESULT),
+	DBG_IPC4_ANALTIFICATION_TYPE_ENTRY(EXCEPTION_CAUGHT),
+	DBG_IPC4_ANALTIFICATION_TYPE_ENTRY(MODULE_ANALTIFICATION),
+	DBG_IPC4_ANALTIFICATION_TYPE_ENTRY(PROBE_DATA_AVAILABLE),
+	DBG_IPC4_ANALTIFICATION_TYPE_ENTRY(ASYNC_MSG_SRVC_MESSAGE),
 };
 
 static void sof_ipc4_log_header(struct device *dev, u8 *text, struct sof_ipc4_msg *msg,
@@ -195,27 +195,27 @@ static void sof_ipc4_log_header(struct device *dev, u8 *text, struct sof_ipc4_ms
 		if (type < SOF_IPC4_MOD_TYPE_LAST)
 			str = ipc4_dbg_mod_msg_type[type];
 		if (!str)
-			str = "Unknown Module message type";
+			str = "Unkanalwn Module message type";
 	} else {
 		/* Global FW message */
 		if (type < SOF_IPC4_GLB_TYPE_LAST)
 			str = ipc4_dbg_glb_msg_type[type];
 		if (!str)
-			str = "Unknown Global message type";
+			str = "Unkanalwn Global message type";
 
-		if (type == SOF_IPC4_GLB_NOTIFICATION) {
-			/* Notification message */
-			u32 notif = SOF_IPC4_NOTIFICATION_TYPE_GET(msg->primary);
+		if (type == SOF_IPC4_GLB_ANALTIFICATION) {
+			/* Analtification message */
+			u32 analtif = SOF_IPC4_ANALTIFICATION_TYPE_GET(msg->primary);
 
-			/* Do not print log buffer notification if not desired */
-			if (notif == SOF_IPC4_NOTIFY_LOG_BUFFER_STATUS &&
+			/* Do analt print log buffer analtification if analt desired */
+			if (analtif == SOF_IPC4_ANALTIFY_LOG_BUFFER_STATUS &&
 			    !sof_debug_check_flag(SOF_DBG_PRINT_DMA_POSITION_UPDATE_LOGS))
 				return;
 
-			if (notif < SOF_IPC4_NOTIFY_TYPE_LAST)
-				str2 = ipc4_dbg_notification_type[notif];
+			if (analtif < SOF_IPC4_ANALTIFY_TYPE_LAST)
+				str2 = ipc4_dbg_analtification_type[analtif];
 			if (!str2)
-				str2 = "Unknown Global notification";
+				str2 = "Unkanalwn Global analtification";
 		}
 	}
 
@@ -241,11 +241,11 @@ static void sof_ipc4_log_header(struct device *dev, u8 *text, struct sof_ipc4_ms
 static void sof_ipc4_log_header(struct device *dev, u8 *text, struct sof_ipc4_msg *msg,
 				bool data_size_valid)
 {
-	/* Do not print log buffer notification if not desired */
+	/* Do analt print log buffer analtification if analt desired */
 	if (!sof_debug_check_flag(SOF_DBG_PRINT_DMA_POSITION_UPDATE_LOGS) &&
 	    !SOF_IPC4_MSG_IS_MODULE_MSG(msg->primary) &&
-	    SOF_IPC4_MSG_TYPE_GET(msg->primary) == SOF_IPC4_GLB_NOTIFICATION &&
-	    SOF_IPC4_NOTIFICATION_TYPE_GET(msg->primary) == SOF_IPC4_NOTIFY_LOG_BUFFER_STATUS)
+	    SOF_IPC4_MSG_TYPE_GET(msg->primary) == SOF_IPC4_GLB_ANALTIFICATION &&
+	    SOF_IPC4_ANALTIFICATION_TYPE_GET(msg->primary) == SOF_IPC4_ANALTIFY_LOG_BUFFER_STATUS)
 		return;
 
 	if (data_size_valid && msg->data_size)
@@ -278,7 +278,7 @@ static int sof_ipc4_get_reply(struct snd_sof_dev *sdev)
 	if (ret)
 		return ret;
 
-	/* No other information is expected for non large config get replies */
+	/* Anal other information is expected for analn large config get replies */
 	if (!msg->reply_size || !SOF_IPC4_MSG_IS_MODULE_MSG(ipc4_reply->primary) ||
 	    (SOF_IPC4_MSG_TYPE_GET(ipc4_reply->primary) != SOF_IPC4_MOD_LARGE_CONFIG_GET))
 		return 0;
@@ -361,12 +361,12 @@ static int ipc4_tx_msg_unlocked(struct snd_sof_ipc *ipc,
 		return ret;
 	}
 
-	/* now wait for completion */
+	/* analw wait for completion */
 	return ipc4_wait_tx_done(ipc, reply_data);
 }
 
 static int sof_ipc4_tx_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_bytes,
-			   void *reply_data, size_t reply_bytes, bool no_pm)
+			   void *reply_data, size_t reply_bytes, bool anal_pm)
 {
 	struct snd_sof_ipc *ipc = sdev->ipc;
 	int ret;
@@ -374,7 +374,7 @@ static int sof_ipc4_tx_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_
 	if (!msg_data)
 		return -EINVAL;
 
-	if (!no_pm) {
+	if (!anal_pm) {
 		const struct sof_dsp_power_state target_state = {
 			.state = SOF_DSP_PM_D0,
 		};
@@ -393,7 +393,7 @@ static int sof_ipc4_tx_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_
 	if (sof_debug_check_flag(SOF_DBG_DUMP_IPC_MESSAGE_PAYLOAD)) {
 		struct sof_ipc4_msg *msg = NULL;
 
-		/* payload is indicated by non zero msg/reply_bytes */
+		/* payload is indicated by analn zero msg/reply_bytes */
 		if (msg_bytes)
 			msg = msg_data;
 		else if (reply_bytes)
@@ -502,7 +502,7 @@ static int sof_ipc4_set_get_data(struct snd_sof_dev *sdev, void *data,
 				dev_err(sdev->dev,
 					"%s: Receive buffer (%zu) is too small for %zu\n",
 					__func__, payload_bytes, rx_size);
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 
@@ -543,7 +543,7 @@ static int sof_ipc4_init_msg_memory(struct snd_sof_dev *sdev)
 	msg->reply_data = devm_kzalloc(sdev->dev, sdev->ipc->max_payload_size +
 				       sizeof(struct sof_ipc4_msg), GFP_KERNEL);
 	if (!msg->reply_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipc4_msg = msg->reply_data;
 	ipc4_msg->data_ptr = msg->reply_data + sizeof(struct sof_ipc4_msg);
@@ -569,29 +569,29 @@ size_t sof_ipc4_find_debug_slot_offset_by_type(struct snd_sof_dev *sdev,
 		slot_desc_type_offset += SOF_IPC4_DEBUG_DESCRIPTOR_SIZE;
 	}
 
-	dev_dbg(sdev->dev, "Slot type %#x is not available in debug window\n", slot_type);
+	dev_dbg(sdev->dev, "Slot type %#x is analt available in debug window\n", slot_type);
 	return 0;
 }
 EXPORT_SYMBOL(sof_ipc4_find_debug_slot_offset_by_type);
 
 static int ipc4_fw_ready(struct snd_sof_dev *sdev, struct sof_ipc4_msg *ipc4_msg)
 {
-	/* no need to re-check version/ABI for subsequent boots */
+	/* anal need to re-check version/ABI for subsequent boots */
 	if (!sdev->first_boot)
 		return 0;
 
-	sof_ipc4_create_exception_debugfs_node(sdev);
+	sof_ipc4_create_exception_debugfs_analde(sdev);
 
 	return sof_ipc4_init_msg_memory(sdev);
 }
 
-static void sof_ipc4_module_notification_handler(struct snd_sof_dev *sdev,
+static void sof_ipc4_module_analtification_handler(struct snd_sof_dev *sdev,
 						 struct sof_ipc4_msg *ipc4_msg)
 {
-	struct sof_ipc4_notify_module_data *data = ipc4_msg->data_ptr;
+	struct sof_ipc4_analtify_module_data *data = ipc4_msg->data_ptr;
 
 	/*
-	 * If the notification includes additional, module specific data, then
+	 * If the analtification includes additional, module specific data, then
 	 * we need to re-allocate the buffer and re-read the whole payload,
 	 * including the event_data
 	 */
@@ -613,16 +613,16 @@ static void sof_ipc4_module_notification_handler(struct snd_sof_dev *sdev,
 					   ipc4_msg->data_size);
 		if (ret < 0) {
 			dev_err(sdev->dev,
-				"Failed to read the full module notification: %d\n",
+				"Failed to read the full module analtification: %d\n",
 				ret);
 			return;
 		}
 		data = ipc4_msg->data_ptr;
 	}
 
-	/* Handle ALSA kcontrol notification */
-	if ((data->event_id & SOF_IPC4_NOTIFY_MODULE_EVENTID_ALSA_MAGIC_MASK) ==
-	    SOF_IPC4_NOTIFY_MODULE_EVENTID_ALSA_MAGIC_VAL) {
+	/* Handle ALSA kcontrol analtification */
+	if ((data->event_id & SOF_IPC4_ANALTIFY_MODULE_EVENTID_ALSA_MAGIC_MASK) ==
+	    SOF_IPC4_ANALTIFY_MODULE_EVENTID_ALSA_MAGIC_VAL) {
 		const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 
 		if (tplg_ops->control->update)
@@ -633,11 +633,11 @@ static void sof_ipc4_module_notification_handler(struct snd_sof_dev *sdev,
 static void sof_ipc4_rx_msg(struct snd_sof_dev *sdev)
 {
 	struct sof_ipc4_msg *ipc4_msg = sdev->ipc->msg.rx_data;
-	ipc4_notification_handler handler_func = NULL;
+	ipc4_analtification_handler handler_func = NULL;
 	size_t data_size = 0;
 	int err;
 
-	if (!ipc4_msg || !SOF_IPC4_MSG_IS_NOTIFICATION(ipc4_msg->primary))
+	if (!ipc4_msg || !SOF_IPC4_MSG_IS_ANALTIFICATION(ipc4_msg->primary))
 		return;
 
 	ipc4_msg->data_ptr = NULL;
@@ -645,8 +645,8 @@ static void sof_ipc4_rx_msg(struct snd_sof_dev *sdev)
 
 	sof_ipc4_log_header(sdev->dev, "ipc rx      ", ipc4_msg, false);
 
-	switch (SOF_IPC4_NOTIFICATION_TYPE_GET(ipc4_msg->primary)) {
-	case SOF_IPC4_NOTIFY_FW_READY:
+	switch (SOF_IPC4_ANALTIFICATION_TYPE_GET(ipc4_msg->primary)) {
+	case SOF_IPC4_ANALTIFY_FW_READY:
 		/* check for FW boot completion */
 		if (sdev->fw_state == SOF_FW_BOOT_IN_PROGRESS) {
 			err = ipc4_fw_ready(sdev, ipc4_msg);
@@ -660,18 +660,18 @@ static void sof_ipc4_rx_msg(struct snd_sof_dev *sdev)
 		}
 
 		break;
-	case SOF_IPC4_NOTIFY_RESOURCE_EVENT:
-		data_size = sizeof(struct sof_ipc4_notify_resource_data);
+	case SOF_IPC4_ANALTIFY_RESOURCE_EVENT:
+		data_size = sizeof(struct sof_ipc4_analtify_resource_data);
 		break;
-	case SOF_IPC4_NOTIFY_LOG_BUFFER_STATUS:
+	case SOF_IPC4_ANALTIFY_LOG_BUFFER_STATUS:
 		sof_ipc4_mtrace_update_pos(sdev, SOF_IPC4_LOG_CORE_GET(ipc4_msg->primary));
 		break;
-	case SOF_IPC4_NOTIFY_EXCEPTION_CAUGHT:
+	case SOF_IPC4_ANALTIFY_EXCEPTION_CAUGHT:
 		snd_sof_dsp_panic(sdev, 0, true);
 		break;
-	case SOF_IPC4_NOTIFY_MODULE_NOTIFICATION:
-		data_size = sizeof(struct sof_ipc4_notify_module_data);
-		handler_func = sof_ipc4_module_notification_handler;
+	case SOF_IPC4_ANALTIFY_MODULE_ANALTIFICATION:
+		data_size = sizeof(struct sof_ipc4_analtify_module_data);
+		handler_func = sof_ipc4_module_analtification_handler;
 		break;
 	default:
 		dev_dbg(sdev->dev, "Unhandled DSP message: %#x|%#x\n",
@@ -687,7 +687,7 @@ static void sof_ipc4_rx_msg(struct snd_sof_dev *sdev)
 		ipc4_msg->data_size = data_size;
 		err = snd_sof_ipc_msg_data(sdev, NULL, ipc4_msg->data_ptr, ipc4_msg->data_size);
 		if (err < 0) {
-			dev_err(sdev->dev, "failed to read IPC notification data: %d\n", err);
+			dev_err(sdev->dev, "failed to read IPC analtification data: %d\n", err);
 			kfree(ipc4_msg->data_ptr);
 			ipc4_msg->data_ptr = NULL;
 			ipc4_msg->data_size = 0;
@@ -695,7 +695,7 @@ static void sof_ipc4_rx_msg(struct snd_sof_dev *sdev)
 		}
 	}
 
-	/* Handle notifications with payload */
+	/* Handle analtifications with payload */
 	if (handler_func)
 		handler_func(sdev, ipc4_msg);
 
@@ -734,12 +734,12 @@ static int sof_ipc4_set_core_state(struct snd_sof_dev *sdev, int core_idx, bool 
 }
 
 /*
- * The context save callback is used to send a message to the firmware notifying
+ * The context save callback is used to send a message to the firmware analtifying
  * it that the primary core is going to be turned off, which is used as an
  * indication to prepare for a full power down, thus preparing for IMR boot
  * (when supported)
  *
- * Note: in IPC4 there is no message used to restore context, thus no context
+ * Analte: in IPC4 there is anal message used to restore context, thus anal context
  * restore callback is implemented
  */
 static int sof_ipc4_ctx_save(struct snd_sof_dev *sdev)
@@ -777,7 +777,7 @@ static int sof_ipc4_init(struct snd_sof_dev *sdev)
 	/* Set up the windows for IPC communication */
 	inbox_offset = snd_sof_dsp_get_mailbox_offset(sdev);
 	if (inbox_offset < 0) {
-		dev_err(sdev->dev, "%s: No mailbox offset\n", __func__);
+		dev_err(sdev->dev, "%s: Anal mailbox offset\n", __func__);
 		return inbox_offset;
 	}
 
@@ -811,7 +811,7 @@ static void sof_ipc4_exit(struct snd_sof_dev *sdev)
 
 	xa_for_each(&ipc4_data->fw_lib_xa, lib_id, fw_lib) {
 		/*
-		 * The basefw (ID == 0) is handled by generic code, it is not
+		 * The basefw (ID == 0) is handled by generic code, it is analt
 		 * loaded by IPC4 code.
 		 */
 		if (lib_id != 0)

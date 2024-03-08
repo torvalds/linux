@@ -33,7 +33,7 @@ static int sysconfig_spi_bitstream_burst_init(struct sysconfig_priv *priv)
 
 	buf = kmemdup(lsc_bitstream_burst, buf_len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xfer.len = buf_len;
 	xfer.tx_buf = buf;
@@ -92,13 +92,13 @@ static int sysconfig_spi_probe(struct spi_device *spi)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_max_speed = device_get_match_data(dev);
 	if (!spi_max_speed) {
 		dev_id = spi_get_device_id(spi);
 		if (!dev_id)
-			return -ENODEV;
+			return -EANALDEV;
 
 		spi_max_speed = (const u32 *)dev_id->driver_data;
 	}

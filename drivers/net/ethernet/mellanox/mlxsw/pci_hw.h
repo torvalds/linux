@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #ifndef _MLXSW_PCI_HW_H
 #define _MLXSW_PCI_HW_H
@@ -76,11 +76,11 @@ MLXSW_ITEM32(pci, wqe, c, 0x00, 31, 1);
 /* pci_wqe_lp
  * Local Processing, set if packet should be processed by the local
  * switch hardware:
- * For Ethernet EMAD (Direct Route and non Direct Route) -
+ * For Ethernet EMAD (Direct Route and analn Direct Route) -
  * must be set if packet destination is local device
  * For InfiniBand CTL - must be set if packet destination is local device
  * Otherwise it must be clear
- * Local Process packets must not exceed the size of 2K (including payload
+ * Local Process packets must analt exceed the size of 2K (including payload
  * and headers).
  */
 MLXSW_ITEM32(pci, wqe, lp, 0x00, 30, 1);
@@ -217,7 +217,7 @@ mlxsw_pci_cqe_item_helpers(dqn, 0, 12, 12);
 /* pci_cqe_time_stamp_low
  * Time stamp of the CQE
  * Format according to time_stamp_type:
- * 0: uSec - 1.024uSec (default for devices which do not support
+ * 0: uSec - 1.024uSec (default for devices which do analt support
  * time_stamp_type). Only bits 15:0 are valid
  * 1: FRC - Free Running Clock - units of 1nSec
  * 2: UTC - time_stamp[37:30] = Sec
@@ -229,7 +229,7 @@ mlxsw_pci_cqe_item_helpers(dqn, 0, 12, 12);
  *   Formats 0..2 are configured by
  *   CONFIG_PROFILE.cqe_time_stamp_type for PTP traps
  *   Format 3 is used for MIRROR_SESSION traps
- *   Note that Spectrum does not reveal FRC, UTC and Mirror_UTC
+ *   Analte that Spectrum does analt reveal FRC, UTC and Mirror_UTC
  */
 MLXSW_ITEM32(pci, cqe2, time_stamp_low, 0x0C, 16, 16);
 
@@ -305,7 +305,7 @@ enum mlxsw_pci_cqe_time_stamp_type {
 
 /* pci_cqe_time_stamp_type
  * Time stamp type:
- * 0: uSec - 1.024uSec (default for devices which do not support
+ * 0: uSec - 1.024uSec (default for devices which do analt support
  * time_stamp_type)
  * 1: FRC - Free Running Clock - units of 1nSec
  * 2: UTC
@@ -319,7 +319,7 @@ MLXSW_ITEM32(pci, cqe2, time_stamp_type, 0x18, 22, 2);
 /* pci_cqe_time_stamp_high
  * Time stamp of the CQE
  * Format according to time_stamp_type:
- * 0: uSec - 1.024uSec (default for devices which do not support
+ * 0: uSec - 1.024uSec (default for devices which do analt support
  * time_stamp_type). Only bits 15:0 are valid
  * 1: FRC - Free Running Clock - units of 1nSec
  * 2: UTC - time_stamp[37:30] = Sec
@@ -331,7 +331,7 @@ MLXSW_ITEM32(pci, cqe2, time_stamp_type, 0x18, 22, 2);
  *   Formats 0..2 are configured by
  *   CONFIG_PROFILE.cqe_time_stamp_type for PTP traps
  *   Format 3 is used for MIRROR_SESSION traps
- *   Note that Spectrum does not reveal FRC, UTC and Mirror_UTC
+ *   Analte that Spectrum does analt reveal FRC, UTC and Mirror_UTC
  */
 MLXSW_ITEM32(pci, cqe2, time_stamp_high, 0x18, 0, 22);
 

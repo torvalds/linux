@@ -74,7 +74,7 @@ fail_ct_zone_ht:
 }
 
 /* Only call this in init failure teardown.
- * Normal exit should fini instead as there may be entries in the table.
+ * Analrmal exit should fini instead as there may be entries in the table.
  */
 void efx_tc_destroy_conntrack(struct efx_nic *efx)
 {
@@ -117,7 +117,7 @@ static int efx_tc_ct_parse_match(struct efx_nic *efx, struct flow_rule *fr,
 	if (!ipv) {
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Conntrack missing ipv specification\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (dissector->used_keys &
@@ -131,7 +131,7 @@ static int efx_tc_ct_parse_match(struct efx_nic *efx, struct flow_rule *fr,
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Unsupported conntrack keys %#llx\n",
 			  dissector->used_keys);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (flow_rule_match_key(fr, FLOW_DISSECTOR_KEY_BASIC)) {
@@ -140,23 +140,23 @@ static int efx_tc_ct_parse_match(struct efx_nic *efx, struct flow_rule *fr,
 		flow_rule_match_basic(fr, &fm);
 		if (!IS_ALL_ONES(fm.mask->n_proto)) {
 			netif_dbg(efx, drv, efx->net_dev,
-				  "Conntrack eth_proto is not exact-match; mask %04x\n",
+				  "Conntrack eth_proto is analt exact-match; mask %04x\n",
 				   ntohs(fm.mask->n_proto));
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		conn->eth_proto = fm.key->n_proto;
 		if (conn->eth_proto != (ipv == 4 ? htons(ETH_P_IP)
 						 : htons(ETH_P_IPV6))) {
 			netif_dbg(efx, drv, efx->net_dev,
-				  "Conntrack eth_proto is not IPv%u, is %04x\n",
+				  "Conntrack eth_proto is analt IPv%u, is %04x\n",
 				   ipv, ntohs(conn->eth_proto));
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		if (!IS_ALL_ONES(fm.mask->ip_proto)) {
 			netif_dbg(efx, drv, efx->net_dev,
-				  "Conntrack ip_proto is not exact-match; mask %02x\n",
+				  "Conntrack ip_proto is analt exact-match; mask %02x\n",
 				   fm.mask->ip_proto);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		conn->ip_proto = fm.key->ip_proto;
 		switch (conn->ip_proto) {
@@ -167,14 +167,14 @@ static int efx_tc_ct_parse_match(struct efx_nic *efx, struct flow_rule *fr,
 			break;
 		default:
 			netif_dbg(efx, drv, efx->net_dev,
-				  "Conntrack ip_proto not TCP or UDP, is %02x\n",
+				  "Conntrack ip_proto analt TCP or UDP, is %02x\n",
 				   conn->ip_proto);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	} else {
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Conntrack missing eth_proto, ip_proto\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (ipv == 4 && flow_rule_match_key(fr, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
@@ -183,16 +183,16 @@ static int efx_tc_ct_parse_match(struct efx_nic *efx, struct flow_rule *fr,
 		flow_rule_match_ipv4_addrs(fr, &fm);
 		if (!IS_ALL_ONES(fm.mask->src)) {
 			netif_dbg(efx, drv, efx->net_dev,
-				  "Conntrack ipv4.src is not exact-match; mask %08x\n",
+				  "Conntrack ipv4.src is analt exact-match; mask %08x\n",
 				   ntohl(fm.mask->src));
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		conn->src_ip = fm.key->src;
 		if (!IS_ALL_ONES(fm.mask->dst)) {
 			netif_dbg(efx, drv, efx->net_dev,
-				  "Conntrack ipv4.dst is not exact-match; mask %08x\n",
+				  "Conntrack ipv4.dst is analt exact-match; mask %08x\n",
 				   ntohl(fm.mask->dst));
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		conn->dst_ip = fm.key->dst;
 	} else if (ipv == 6 && flow_rule_match_key(fr, FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
@@ -201,22 +201,22 @@ static int efx_tc_ct_parse_match(struct efx_nic *efx, struct flow_rule *fr,
 		flow_rule_match_ipv6_addrs(fr, &fm);
 		if (!efx_ipv6_addr_all_ones(&fm.mask->src)) {
 			netif_dbg(efx, drv, efx->net_dev,
-				  "Conntrack ipv6.src is not exact-match; mask %pI6\n",
+				  "Conntrack ipv6.src is analt exact-match; mask %pI6\n",
 				   &fm.mask->src);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		conn->src_ip6 = fm.key->src;
 		if (!efx_ipv6_addr_all_ones(&fm.mask->dst)) {
 			netif_dbg(efx, drv, efx->net_dev,
-				  "Conntrack ipv6.dst is not exact-match; mask %pI6\n",
+				  "Conntrack ipv6.dst is analt exact-match; mask %pI6\n",
 				   &fm.mask->dst);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		conn->dst_ip6 = fm.key->dst;
 	} else {
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Conntrack missing IPv%u addrs\n", ipv);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (flow_rule_match_key(fr, FLOW_DISSECTOR_KEY_PORTS)) {
@@ -225,21 +225,21 @@ static int efx_tc_ct_parse_match(struct efx_nic *efx, struct flow_rule *fr,
 		flow_rule_match_ports(fr, &fm);
 		if (!IS_ALL_ONES(fm.mask->src)) {
 			netif_dbg(efx, drv, efx->net_dev,
-				  "Conntrack ports.src is not exact-match; mask %04x\n",
+				  "Conntrack ports.src is analt exact-match; mask %04x\n",
 				   ntohs(fm.mask->src));
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		conn->l4_sport = fm.key->src;
 		if (!IS_ALL_ONES(fm.mask->dst)) {
 			netif_dbg(efx, drv, efx->net_dev,
-				  "Conntrack ports.dst is not exact-match; mask %04x\n",
+				  "Conntrack ports.dst is analt exact-match; mask %04x\n",
 				   ntohs(fm.mask->dst));
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		conn->l4_dport = fm.key->dst;
 	} else {
 		netif_dbg(efx, drv, efx->net_dev, "Conntrack missing L4 ports\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (flow_rule_match_key(fr, FLOW_DISSECTOR_KEY_TCP)) {
@@ -248,8 +248,8 @@ static int efx_tc_ct_parse_match(struct efx_nic *efx, struct flow_rule *fr,
 
 		if (!tcp) {
 			netif_dbg(efx, drv, efx->net_dev,
-				  "Conntrack matching on TCP keys but ipproto is not tcp\n");
-			return -EOPNOTSUPP;
+				  "Conntrack matching on TCP keys but ipproto is analt tcp\n");
+			return -EOPANALTSUPP;
 		}
 		flow_rule_match_tcp(fr, &fm);
 		tcp_interesting_flags = EFX_NF_TCP_FLAG(SYN) |
@@ -262,14 +262,14 @@ static int efx_tc_ct_parse_match(struct efx_nic *efx, struct flow_rule *fr,
 			netif_dbg(efx, drv, efx->net_dev,
 				  "Unsupported conntrack tcp.flags %04x/%04x\n",
 				   ntohs(fm.key->flags), ntohs(fm.mask->flags));
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
-		/* Other TCP flags cannot be filtered at CT */
+		/* Other TCP flags cananalt be filtered at CT */
 		if (fm.mask->flags & ~tcp_interesting_flags) {
 			netif_dbg(efx, drv, efx->net_dev,
 				  "Unsupported conntrack tcp.flags %04x/%04x\n",
 				   ntohs(fm.key->flags), ntohs(fm.mask->flags));
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -303,12 +303,12 @@ static int efx_tc_ct_mangle(struct efx_nic *efx, struct efx_tc_ct_entry *conn,
 			fallthrough;
 		case offsetof(struct iphdr, saddr):
 			if (fa->mangle.mask)
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			conn->nat_ip = htonl(fa->mangle.val);
 			mung->ipv4 = 1;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case FLOW_ACT_MANGLE_HDR_TYPE_TCP:
@@ -328,16 +328,16 @@ static int efx_tc_ct_mangle(struct efx_nic *efx, struct efx_tc_ct_entry *conn,
 			BUILD_BUG_ON(offsetof(struct tcphdr, source) !=
 				     offsetof(struct udphdr, source));
 			if (~fa->mangle.mask != 0xffff)
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			conn->l4_natport = htons(fa->mangle.val);
 			mung->tcpudp = 1;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	/* first mangle tells us whether this is SNAT or DNAT;
 	 * subsequent mangles must match that
@@ -345,7 +345,7 @@ static int efx_tc_ct_mangle(struct efx_nic *efx, struct efx_tc_ct_entry *conn,
 	if (first)
 		conn->dnat = dnat;
 	else if (conn->dnat != dnat)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return 0;
 }
 
@@ -367,7 +367,7 @@ static int efx_tc_ct_replace(struct efx_tc_ct_zone *ct_zone,
 
 	conn = kzalloc(sizeof(*conn), GFP_USER);
 	if (!conn)
-		return -ENOMEM;
+		return -EANALMEM;
 	conn->cookie = tc->cookie;
 	old = rhashtable_lookup_get_insert_fast(&efx->tc->ct_ht,
 						&conn->linkage,
@@ -395,8 +395,8 @@ static int efx_tc_ct_replace(struct efx_tc_ct_zone *ct_zone,
 			conn->mark = fa->ct_metadata.mark;
 			if (memchr_inv(fa->ct_metadata.labels, 0, sizeof(fa->ct_metadata.labels))) {
 				netif_dbg(efx, drv, efx->net_dev,
-					  "Setting CT label not supported\n");
-				rc = -EOPNOTSUPP;
+					  "Setting CT label analt supported\n");
+				rc = -EOPANALTSUPP;
 				goto release;
 			}
 			break;
@@ -404,7 +404,7 @@ static int efx_tc_ct_replace(struct efx_tc_ct_zone *ct_zone,
 			if (conn->eth_proto != htons(ETH_P_IP)) {
 				netif_dbg(efx, drv, efx->net_dev,
 					  "NAT only supported for IPv4\n");
-				rc = -EOPNOTSUPP;
+				rc = -EOPANALTSUPP;
 				goto release;
 			}
 			rc = efx_tc_ct_mangle(efx, conn, fa, &mung);
@@ -414,7 +414,7 @@ static int efx_tc_ct_replace(struct efx_tc_ct_zone *ct_zone,
 		default:
 			netif_dbg(efx, drv, efx->net_dev,
 				  "Unhandled action %u for conntrack\n", fa->id);
-			rc = -EOPNOTSUPP;
+			rc = -EOPANALTSUPP;
 			goto release;
 		}
 	}
@@ -492,8 +492,8 @@ static int efx_tc_ct_destroy(struct efx_tc_ct_zone *ct_zone,
 				      efx_tc_ct_ht_params);
 	if (!conn) {
 		netif_warn(efx, drv, efx->net_dev,
-			   "Conntrack %lx not found to remove\n", tc->cookie);
-		return -ENOENT;
+			   "Conntrack %lx analt found to remove\n", tc->cookie);
+		return -EANALENT;
 	}
 
 	mutex_lock(&ct_zone->mutex);
@@ -517,9 +517,9 @@ static int efx_tc_ct_stats(struct efx_tc_ct_zone *ct_zone,
 				      efx_tc_ct_ht_params);
 	if (!conn) {
 		netif_warn(efx, drv, efx->net_dev,
-			   "Conntrack %lx not found for stats\n", tc->cookie);
+			   "Conntrack %lx analt found for stats\n", tc->cookie);
 		rcu_read_unlock();
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	cnt = conn->cnt;
@@ -540,7 +540,7 @@ static int efx_tc_flow_block(enum tc_setup_type type, void *type_data,
 	struct efx_tc_ct_zone *ct_zone = cb_priv;
 
 	if (type != TC_SETUP_CLSFLOWER)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (tcb->command) {
 	case FLOW_CLS_REPLACE:
@@ -553,7 +553,7 @@ static int efx_tc_flow_block(enum tc_setup_type type, void *type_data,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 struct efx_tc_ct_zone *efx_tc_ct_register_zone(struct efx_nic *efx, u16 zone,
@@ -564,7 +564,7 @@ struct efx_tc_ct_zone *efx_tc_ct_register_zone(struct efx_nic *efx, u16 zone,
 
 	ct_zone = kzalloc(sizeof(*ct_zone), GFP_USER);
 	if (!ct_zone)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ct_zone->zone = zone;
 	old = rhashtable_lookup_get_insert_fast(&efx->tc->ct_zone_ht,
 						&ct_zone->linkage,
@@ -574,7 +574,7 @@ struct efx_tc_ct_zone *efx_tc_ct_register_zone(struct efx_nic *efx, u16 zone,
 		kfree(ct_zone);
 		if (IS_ERR(old)) /* oh dear, it's actually an error */
 			return ERR_CAST(old);
-		if (!refcount_inc_not_zero(&old->ref))
+		if (!refcount_inc_analt_zero(&old->ref))
 			return ERR_PTR(-EAGAIN);
 		/* existing entry found */
 		WARN_ON_ONCE(old->nf_ft != ct_ft);

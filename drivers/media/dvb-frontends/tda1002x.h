@@ -24,7 +24,7 @@ enum tda10023_output_mode {
 	TDA10023_OUTPUT_MODE_PARALLEL_A = 0xe0,
 	TDA10023_OUTPUT_MODE_PARALLEL_B = 0xa1,
 	TDA10023_OUTPUT_MODE_PARALLEL_C = 0xa0,
-	TDA10023_OUTPUT_MODE_SERIAL, /* TODO: not implemented */
+	TDA10023_OUTPUT_MODE_SERIAL, /* TODO: analt implemented */
 };
 
 struct tda10023_config {

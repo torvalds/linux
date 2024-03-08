@@ -83,10 +83,10 @@ static const char *imx8mm_gpu_axi_sels[] = {"osc_24m", "sys_pll1_800m", "gpu_pll
 static const char *imx8mm_gpu_ahb_sels[] = {"osc_24m", "sys_pll1_800m", "gpu_pll_out", "sys_pll3_out", "sys_pll2_1000m",
 					    "audio_pll1_out", "video_pll1_out", "audio_pll2_out", };
 
-static const char *imx8mm_noc_sels[] = {"osc_24m", "sys_pll1_800m", "sys_pll3_out", "sys_pll2_1000m", "sys_pll2_500m",
+static const char *imx8mm_analc_sels[] = {"osc_24m", "sys_pll1_800m", "sys_pll3_out", "sys_pll2_1000m", "sys_pll2_500m",
 					"audio_pll1_out", "video_pll1_out", "audio_pll2_out", };
 
-static const char *imx8mm_noc_apb_sels[] = {"osc_24m", "sys_pll1_400m", "sys_pll3_out", "sys_pll2_333m", "sys_pll2_200m",
+static const char *imx8mm_analc_apb_sels[] = {"osc_24m", "sys_pll1_400m", "sys_pll3_out", "sys_pll2_333m", "sys_pll2_200m",
 					    "sys_pll1_800m", "audio_pll1_out", "video_pll1_out", };
 
 static const char *imx8mm_ahb_sels[] = {"osc_24m", "sys_pll1_133m", "sys_pll1_800m", "sys_pll1_400m",
@@ -299,14 +299,14 @@ static struct clk_hw **hws;
 static int imx8mm_clocks_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	void __iomem *base;
 	int ret;
 
 	clk_hw_data = kzalloc(struct_size(clk_hw_data, hws,
 					  IMX8MM_CLK_END), GFP_KERNEL);
 	if (WARN_ON(!clk_hw_data))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_hw_data->num = IMX8MM_CLK_END;
 	hws = clk_hw_data->hws;
@@ -319,11 +319,11 @@ static int imx8mm_clocks_probe(struct platform_device *pdev)
 	hws[IMX8MM_CLK_EXT3] = imx_get_clk_hw_by_name(np, "clk_ext3");
 	hws[IMX8MM_CLK_EXT4] = imx_get_clk_hw_by_name(np, "clk_ext4");
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx8mm-anatop");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx8mm-anatop");
 	base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (WARN_ON(!base))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hws[IMX8MM_AUDIO_PLL1_REF_SEL] = imx_clk_hw_mux("audio_pll1_ref_sel", base + 0x0, 0, 2, pll_ref_sels, ARRAY_SIZE(pll_ref_sels));
 	hws[IMX8MM_AUDIO_PLL2_REF_SEL] = imx_clk_hw_mux("audio_pll2_ref_sel", base + 0x14, 0, 2, pll_ref_sels, ARRAY_SIZE(pll_ref_sels));
@@ -397,7 +397,7 @@ static int imx8mm_clocks_probe(struct platform_device *pdev)
 	hws[IMX8MM_CLK_CLKOUT2_DIV] = imx_clk_hw_divider("clkout2_div", "clkout2_sel", base + 0x128, 16, 4);
 	hws[IMX8MM_CLK_CLKOUT2] = imx_clk_hw_gate("clkout2", "clkout2_div", base + 0x128, 24);
 
-	np = dev->of_node;
+	np = dev->of_analde;
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (WARN_ON(IS_ERR(base)))
 		return PTR_ERR(base);
@@ -440,8 +440,8 @@ static int imx8mm_clocks_probe(struct platform_device *pdev)
 	hws[IMX8MM_CLK_USB_BUS] = imx8m_clk_hw_composite_bus("usb_bus", imx8mm_usb_bus_sels, base + 0x8b80);
 	hws[IMX8MM_CLK_GPU_AXI] = imx8m_clk_hw_composite_bus("gpu_axi", imx8mm_gpu_axi_sels, base + 0x8c00);
 	hws[IMX8MM_CLK_GPU_AHB] = imx8m_clk_hw_composite_bus("gpu_ahb", imx8mm_gpu_ahb_sels, base + 0x8c80);
-	hws[IMX8MM_CLK_NOC] = imx8m_clk_hw_composite_bus_critical("noc", imx8mm_noc_sels, base + 0x8d00);
-	hws[IMX8MM_CLK_NOC_APB] = imx8m_clk_hw_composite_bus_critical("noc_apb", imx8mm_noc_apb_sels, base + 0x8d80);
+	hws[IMX8MM_CLK_ANALC] = imx8m_clk_hw_composite_bus_critical("analc", imx8mm_analc_sels, base + 0x8d00);
+	hws[IMX8MM_CLK_ANALC_APB] = imx8m_clk_hw_composite_bus_critical("analc_apb", imx8mm_analc_apb_sels, base + 0x8d80);
 
 	/* AHB */
 	hws[IMX8MM_CLK_AHB] = imx8m_clk_hw_composite_bus_critical("ahb", imx8mm_ahb_sels, base + 0x9000);
@@ -453,7 +453,7 @@ static int imx8mm_clocks_probe(struct platform_device *pdev)
 
 	/*
 	 * DRAM clocks are manipulated from TF-A outside clock framework.
-	 * The fw_managed helper sets GET_RATE_NOCACHE and clears SET_PARENT_GATE
+	 * The fw_managed helper sets GET_RATE_ANALCACHE and clears SET_PARENT_GATE
 	 * as div value should always be read from hardware
 	 */
 	hws[IMX8MM_CLK_DRAM_ALT] = imx8m_clk_hw_fw_managed_composite("dram_alt", imx8mm_dram_alt_sels, base + 0xa000);
@@ -630,7 +630,7 @@ static struct platform_driver imx8mm_clk_driver = {
 	.driver = {
 		.name = "imx8mm-ccm",
 		/*
-		 * Disable bind attributes: clocks are not removed and
+		 * Disable bind attributes: clocks are analt removed and
 		 * reloading the driver will crash or break devices.
 		 */
 		.suppress_bind_attrs = true,
@@ -639,7 +639,7 @@ static struct platform_driver imx8mm_clk_driver = {
 };
 module_platform_driver(imx8mm_clk_driver);
 module_param(mcore_booted, bool, S_IRUGO);
-MODULE_PARM_DESC(mcore_booted, "See Cortex-M core is booted or not");
+MODULE_PARM_DESC(mcore_booted, "See Cortex-M core is booted or analt");
 
 MODULE_AUTHOR("Bai Ping <ping.bai@nxp.com>");
 MODULE_DESCRIPTION("NXP i.MX8MM clock driver");

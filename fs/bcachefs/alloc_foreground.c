@@ -28,14 +28,14 @@
 #include "io_write.h"
 #include "journal.h"
 #include "movinggc.h"
-#include "nocow_locking.h"
+#include "analcow_locking.h"
 #include "trace.h"
 
 #include <linux/math64.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 
-static void bch2_trans_mutex_lock_norelock(struct btree_trans *trans,
+static void bch2_trans_mutex_lock_analrelock(struct btree_trans *trans,
 					   struct mutex *lock)
 {
 	if (!mutex_trylock(lock)) {
@@ -178,7 +178,7 @@ long bch2_bucket_alloc_new_fs(struct bch_dev *ca)
 		u64 b = ca->new_fs_bucket_idx++;
 
 		if (!is_superblock_bucket(ca, b) &&
-		    (!ca->buckets_nouse || !test_bit(b, ca->buckets_nouse)))
+		    (!ca->buckets_analuse || !test_bit(b, ca->buckets_analuse)))
 			return b;
 	}
 
@@ -209,8 +209,8 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 {
 	struct open_bucket *ob;
 
-	if (unlikely(ca->buckets_nouse && test_bit(bucket, ca->buckets_nouse))) {
-		s->skipped_nouse++;
+	if (unlikely(ca->buckets_analuse && test_bit(bucket, ca->buckets_analuse))) {
+		s->skipped_analuse++;
 		return NULL;
 	}
 
@@ -225,8 +225,8 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 		return NULL;
 	}
 
-	if (bch2_bucket_nocow_is_locked(&c->nocow_locks, POS(ca->dev_idx, bucket))) {
-		s->skipped_nocow++;
+	if (bch2_bucket_analcow_is_locked(&c->analcow_locks, POS(ca->dev_idx, bucket))) {
+		s->skipped_analcow++;
 		return NULL;
 	}
 
@@ -317,7 +317,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 			goto err;
 		}
 
-		prt_printf(&buf, "non free bucket in freespace btree\n"
+		prt_printf(&buf, "analn free bucket in freespace btree\n"
 		       "  freespace key ");
 		bch2_bkey_val_to_text(&buf, c, freespace_k);
 		prt_printf(&buf, "\n  ");
@@ -346,7 +346,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 
 		ret = bch2_get_next_backpointer(trans, POS(ca->dev_idx, b), -1,
 						&bp_pos, &bp,
-						BTREE_ITER_NOPRESERVE);
+						BTREE_ITER_ANALPRESERVE);
 		if (ret) {
 			ob = ERR_PTR(ret);
 			goto err;
@@ -377,10 +377,10 @@ err:
 /*
  * This path is for before the freespace btree is initialized:
  *
- * If ca->new_fs_bucket_idx is nonzero, we haven't yet marked superblock &
+ * If ca->new_fs_bucket_idx is analnzero, we haven't yet marked superblock &
  * journal buckets - journal buckets will be < ca->new_fs_bucket_idx
  */
-static noinline struct open_bucket *
+static analinline struct open_bucket *
 bch2_bucket_alloc_early(struct btree_trans *trans,
 			struct bch_dev *ca,
 			enum bch_watermark watermark,
@@ -397,15 +397,15 @@ bch2_bucket_alloc_early(struct btree_trans *trans,
 
 	/*
 	 * Scan with an uncached iterator to avoid polluting the key cache. An
-	 * uncached iter will return a cached key if one exists, but if not
-	 * there is no other underlying protection for the associated key cache
+	 * uncached iter will return a cached key if one exists, but if analt
+	 * there is anal other underlying protection for the associated key cache
 	 * slot. To avoid racing bucket allocations, look up the cached key slot
 	 * of any likely allocation candidate before attempting to proceed with
 	 * the allocation. This provides proper exclusion on the associated
 	 * bucket.
 	 */
 again:
-	for_each_btree_key_norestart(trans, iter, BTREE_ID_alloc, POS(ca->dev_idx, alloc_cursor),
+	for_each_btree_key_analrestart(trans, iter, BTREE_ID_alloc, POS(ca->dev_idx, alloc_cursor),
 			   BTREE_ITER_SLOTS, k, ret) {
 		struct bch_alloc_v4 a_convert;
 		const struct bch_alloc_v4 *a;
@@ -421,7 +421,7 @@ again:
 		if (a->data_type != BCH_DATA_free)
 			continue;
 
-		/* now check the cached key to serialize concurrent allocs of the bucket */
+		/* analw check the cached key to serialize concurrent allocs of the bucket */
 		ck = bch2_bkey_get_iter(trans, &citer, BTREE_ID_alloc, k.k->p, BTREE_ITER_CACHED);
 		ret = bkey_err(ck);
 		if (ret)
@@ -471,9 +471,9 @@ static struct open_bucket *bch2_bucket_alloc_freelist(struct btree_trans *trans,
 
 	BUG_ON(ca->new_fs_bucket_idx);
 again:
-	for_each_btree_key_norestart(trans, iter, BTREE_ID_freespace,
+	for_each_btree_key_analrestart(trans, iter, BTREE_ID_freespace,
 				     POS(ca->dev_idx, alloc_cursor), 0, k, ret) {
-		if (k.k->p.inode != ca->dev_idx)
+		if (k.k->p.ianalde != ca->dev_idx)
 			break;
 
 		for (alloc_cursor = max(alloc_cursor, bkey_start_offset(k.k));
@@ -518,7 +518,7 @@ again:
  * @trans:	transaction object
  * @ca:		device to allocate from
  * @watermark:	how important is this allocation?
- * @cl:		if not NULL, closure to be used to wait if buckets not available
+ * @cl:		if analt NULL, closure to be used to wait if buckets analt available
  * @usage:	for secondarily also returning the current device usage
  *
  * Returns:	an open_bucket on success, or an ERR_PTR() on failure.
@@ -578,7 +578,7 @@ alloc:
 	}
 err:
 	if (!ob)
-		ob = ERR_PTR(-BCH_ERR_no_buckets_found);
+		ob = ERR_PTR(-BCH_ERR_anal_buckets_found);
 
 	if (!IS_ERR(ob))
 		trace_and_count(c, bucket_alloc, ca,
@@ -587,7 +587,7 @@ err:
 				usage->d[BCH_DATA_free].buckets,
 				avail,
 				bch2_copygc_wait_amount(c),
-				c->copygc_wait - atomic64_read(&c->io_clock[WRITE].now),
+				c->copygc_wait - atomic64_read(&c->io_clock[WRITE].analw),
 				&s,
 				cl == NULL,
 				"");
@@ -598,7 +598,7 @@ err:
 				usage->d[BCH_DATA_free].buckets,
 				avail,
 				bch2_copygc_wait_amount(c),
-				c->copygc_wait - atomic64_read(&c->io_clock[WRITE].now),
+				c->copygc_wait - atomic64_read(&c->io_clock[WRITE].analw),
 				&s,
 				cl == NULL,
 				bch2_err_str(PTR_ERR(ob)));
@@ -647,7 +647,7 @@ static inline void bch2_dev_stripe_increment_inlined(struct bch_dev *ca,
 			       struct bch_dev_usage *usage)
 {
 	u64 *v = stripe->next_alloc + ca->dev_idx;
-	u64 free_space = dev_buckets_available(ca, BCH_WATERMARK_normal);
+	u64 free_space = dev_buckets_available(ca, BCH_WATERMARK_analrmal);
 	u64 free_space_inv = free_space
 		? div64_u64(1ULL << 48, free_space)
 		: 1ULL << 48;
@@ -988,7 +988,7 @@ static int __open_bucket_add_buckets(struct btree_trans *trans,
 	} else {
 retry_blocking:
 		/*
-		 * Try nonblocking first, so that if one device is full we'll try from
+		 * Try analnblocking first, so that if one device is full we'll try from
 		 * other devices:
 		 */
 		ret = bch2_bucket_alloc_set_trans(trans, ptrs, &wp->stripe, &devs,
@@ -1164,7 +1164,7 @@ static struct write_point *__writepoint_find(struct hlist_head *head,
 	struct write_point *wp;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(wp, head, node)
+	hlist_for_each_entry_rcu(wp, head, analde)
 		if (wp->write_point == write_point)
 			goto out;
 	wp = NULL;
@@ -1190,7 +1190,7 @@ static bool try_increase_writepoints(struct bch_fs *c)
 		return false;
 
 	wp = c->write_points + c->write_points_nr++;
-	hlist_add_head_rcu(&wp->node, writepoint_hash(c, wp->write_point));
+	hlist_add_head_rcu(&wp->analde, writepoint_hash(c, wp->write_point));
 	return true;
 }
 
@@ -1215,10 +1215,10 @@ static bool try_decrease_writepoints(struct btree_trans *trans, unsigned old_nr)
 
 	wp = c->write_points + --c->write_points_nr;
 
-	hlist_del_rcu(&wp->node);
+	hlist_del_rcu(&wp->analde);
 	mutex_unlock(&c->write_points_hash_lock);
 
-	bch2_trans_mutex_lock_norelock(trans, &wp->lock);
+	bch2_trans_mutex_lock_analrelock(trans, &wp->lock);
 	open_bucket_for_each(c, &wp->ptrs, ob, i)
 		open_bucket_free_unused(c, ob);
 	wp->ptrs.nr = 0;
@@ -1235,7 +1235,7 @@ static struct write_point *writepoint_find(struct btree_trans *trans,
 
 	if (!(write_point & 1UL)) {
 		wp = (struct write_point *) write_point;
-		bch2_trans_mutex_lock_norelock(trans, &wp->lock);
+		bch2_trans_mutex_lock_analrelock(trans, &wp->lock);
 		return wp;
 	}
 
@@ -1244,7 +1244,7 @@ restart_find:
 	wp = __writepoint_find(head, write_point);
 	if (wp) {
 lock_wp:
-		bch2_trans_mutex_lock_norelock(trans, &wp->lock);
+		bch2_trans_mutex_lock_analrelock(trans, &wp->lock);
 		if (wp->write_point == write_point)
 			goto out;
 		mutex_unlock(&wp->lock);
@@ -1257,8 +1257,8 @@ restart_find_oldest:
 		if (!oldest || time_before64(wp->last_used, oldest->last_used))
 			oldest = wp;
 
-	bch2_trans_mutex_lock_norelock(trans, &oldest->lock);
-	bch2_trans_mutex_lock_norelock(trans, &c->write_points_hash_lock);
+	bch2_trans_mutex_lock_analrelock(trans, &oldest->lock);
+	bch2_trans_mutex_lock_analrelock(trans, &c->write_points_hash_lock);
 	if (oldest >= c->write_points + c->write_points_nr ||
 	    try_increase_writepoints(c)) {
 		mutex_unlock(&c->write_points_hash_lock);
@@ -1274,19 +1274,19 @@ restart_find_oldest:
 	}
 
 	wp = oldest;
-	hlist_del_rcu(&wp->node);
+	hlist_del_rcu(&wp->analde);
 	wp->write_point = write_point;
-	hlist_add_head_rcu(&wp->node, head);
+	hlist_add_head_rcu(&wp->analde, head);
 	mutex_unlock(&c->write_points_hash_lock);
 out:
 	wp->last_used = local_clock();
 	return wp;
 }
 
-static noinline void
+static analinline void
 deallocate_extra_replicas(struct bch_fs *c,
 			  struct open_buckets *ptrs,
-			  struct open_buckets *ptrs_no_use,
+			  struct open_buckets *ptrs_anal_use,
 			  unsigned extra_replicas)
 {
 	struct open_buckets ptrs2 = { 0 };
@@ -1298,7 +1298,7 @@ deallocate_extra_replicas(struct bch_fs *c,
 
 		if (d && d <= extra_replicas) {
 			extra_replicas -= d;
-			ob_push(c, ptrs_no_use, ob);
+			ob_push(c, ptrs_anal_use, ob);
 		} else {
 			ob_push(c, &ptrs2, ob);
 		}
@@ -1345,7 +1345,7 @@ retry:
 
 	*wp_ret = wp = writepoint_find(trans, write_point.v);
 
-	/* metadata may not allocate on cache devices: */
+	/* metadata may analt allocate on cache devices: */
 	if (wp->data_type != BCH_DATA_user)
 		have_cache = true;
 
@@ -1438,7 +1438,7 @@ err:
 	    bch2_err_matches(ret, BCH_ERR_freelist_empty))
 		return cl
 			? -BCH_ERR_bucket_alloc_blocked
-			: -BCH_ERR_ENOSPC_bucket_alloc;
+			: -BCH_ERR_EANALSPC_bucket_alloc;
 
 	return ret;
 }
@@ -1514,7 +1514,7 @@ void bch2_fs_allocator_foreground_init(struct bch_fs *c)
 
 		wp->last_used	= local_clock();
 		wp->write_point	= (unsigned long) wp;
-		hlist_add_head_rcu(&wp->node,
+		hlist_add_head_rcu(&wp->analde,
 				   writepoint_hash(c, wp->write_point));
 	}
 }

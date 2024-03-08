@@ -3,7 +3,7 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
-__noinline int foo(int *p)
+__analinline int foo(int *p)
 {
 	barrier_var(p);
 	return p ? (*p = 42) : 0;

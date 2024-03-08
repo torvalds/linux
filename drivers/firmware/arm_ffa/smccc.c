@@ -22,12 +22,12 @@ int __init ffa_transport_init(ffa_fn **invoke_ffa_fn)
 	enum arm_smccc_conduit conduit;
 
 	if (arm_smccc_get_version() < ARM_SMCCC_VERSION_1_2)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	conduit = arm_smccc_1_1_get_conduit();
-	if (conduit == SMCCC_CONDUIT_NONE) {
+	if (conduit == SMCCC_CONDUIT_ANALNE) {
 		pr_err("%s: invalid SMCCC conduit\n", __func__);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (conduit == SMCCC_CONDUIT_SMC)

@@ -86,7 +86,7 @@ examples:
     };
 
     flash {
-        compatible = "jedec,spi-nor";
+        compatible = "jedec,spi-analr";
         #address-cells = <1>;
         #size-cells = <1>;
 

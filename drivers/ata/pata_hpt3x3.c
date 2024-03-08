@@ -38,7 +38,7 @@ static void hpt3x3_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u32 r1, r2;
-	int dn = 2 * ap->port_no + adev->devno;
+	int dn = 2 * ap->port_anal + adev->devanal;
 
 	pci_read_config_dword(pdev, 0x44, &r1);
 	pci_read_config_dword(pdev, 0x48, &r2);
@@ -68,7 +68,7 @@ static void hpt3x3_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u32 r1, r2;
-	int dn = 2 * ap->port_no + adev->devno;
+	int dn = 2 * ap->port_anal + adev->devanal;
 	int mode_num = adev->dma_mode & 0x0F;
 
 	pci_read_config_dword(pdev, 0x44, &r1);
@@ -126,7 +126,7 @@ static void hpt3x3_bmdma_setup(struct ata_queued_cmd *qc)
  *	hpt3x3_atapi_dma	-	ATAPI DMA check
  *	@qc: Queued command
  *
- *	Just say no - we don't do ATAPI DMA
+ *	Just say anal - we don't do ATAPI DMA
  */
 
 static int hpt3x3_atapi_dma(struct ata_queued_cmd *qc)
@@ -208,7 +208,7 @@ static int hpt3x3_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 2);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 	/* acquire resources and fill host */
 	rc = pcim_enable_device(pdev);
 	if (rc)

@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LWTUNNEL_H_
 #define _UAPI_LWTUNNEL_H_
 
 #include <linux/types.h>
 
 enum lwtunnel_encap_types {
-	LWTUNNEL_ENCAP_NONE,
+	LWTUNNEL_ENCAP_ANALNE,
 	LWTUNNEL_ENCAP_MPLS,
 	LWTUNNEL_ENCAP_IP,
 	LWTUNNEL_ENCAP_ILA,

@@ -10,7 +10,7 @@
 #include <linux/aperture.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
@@ -148,7 +148,7 @@ static int psb_do_init(struct drm_device *dev)
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK1);
 	PSB_RSGX32(PSB_CR_BIF_BANK1);
 
-	/* Do not bypass any MMU access, let them pagefault instead */
+	/* Do analt bypass any MMU access, let them pagefault instead */
 	PSB_WSGX32((PSB_RSGX32(PSB_CR_BIF_CTRL) & ~_PSB_MMU_ER_MASK),
 		   PSB_CR_BIF_CTRL);
 	PSB_RSGX32(PSB_CR_BIF_CTRL);
@@ -238,7 +238,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	struct drm_connector *connector;
 	struct gma_encoder *gma_encoder;
 	struct psb_gtt *pg;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	/* initializing driver private data */
 
@@ -319,7 +319,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	/* Init OSPM support */
 	gma_power_init(dev);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	dev_priv->scratch_page = alloc_page(GFP_DMA32 | __GFP_ZERO);
 	if (!dev_priv->scratch_page)
@@ -334,7 +334,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto out_err;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	dev_priv->mmu = psb_mmu_driver_init(dev, 1, 0, NULL);
 	if (!dev_priv->mmu)
@@ -418,13 +418,13 @@ out_err:
  * Hardware for gma500 is a hybrid device, which both acts as a PCI
  * device (for legacy vga functionality) but also more like an
  * integrated display on a SoC where the framebuffer simply
- * resides in main memory and not in a special PCI bar (that
+ * resides in main memory and analt in a special PCI bar (that
  * internally redirects to a stolen range of main memory) like all
  * other integrated PCI display devices implement it.
  *
  * To catch all cases we need to remove conflicting firmware devices
  * for the stolen system memory and for the VGA functionality. As we
- * currently cannot easily find the framebuffer's location in stolen
+ * currently cananalt easily find the framebuffer's location in stolen
  * memory, we remove all framebuffers here.
  *
  * TODO: Refactor psb_driver_load() to map vdc_reg earlier. Then
@@ -512,7 +512,7 @@ static const struct drm_driver driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.mianalr = DRIVER_MIANALR,
 	.patchlevel = DRIVER_PATCHLEVEL
 };
 
@@ -527,7 +527,7 @@ static struct pci_driver psb_pci_driver = {
 static int __init psb_init(void)
 {
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	return pci_register_driver(&psb_pci_driver);
 }

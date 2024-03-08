@@ -43,7 +43,7 @@ int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
 
 	/* Check that card supported application commands */
 	if (!mmc_host_is_spi(host) && !(cmd.resp[0] & R1_APP_CMD))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -57,12 +57,12 @@ static int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
 
 	/*
 	 * We have to resend MMC_APP_CMD for each attempt so
-	 * we cannot use the retries field in mmc_command.
+	 * we cananalt use the retries field in mmc_command.
 	 */
 	for (i = 0; i <= MMC_CMD_RETRIES; i++) {
 		err = mmc_app_cmd(host, card);
 		if (err) {
-			/* no point in retrying; no APP commands allowed */
+			/* anal point in retrying; anal APP commands allowed */
 			if (mmc_host_is_spi(host)) {
 				if (cmd->resp[0] & R1_SPI_ILLEGAL_COMMAND)
 					break;
@@ -84,7 +84,7 @@ static int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
 		if (!cmd->error)
 			break;
 
-		/* no point in retrying illegal APP commands */
+		/* anal point in retrying illegal APP commands */
 		if (mmc_host_is_spi(host)) {
 			if (cmd->resp[0] & R1_SPI_ILLEGAL_COMMAND)
 				break;
@@ -262,18 +262,18 @@ int mmc_app_send_scr(struct mmc_card *card)
 	struct scatterlist sg;
 	__be32 *scr;
 
-	/* NOTE: caller guarantees scr is heap-allocated */
+	/* ANALTE: caller guarantees scr is heap-allocated */
 
 	err = mmc_app_cmd(card->host, card);
 	if (err)
 		return err;
 
-	/* dma onto stack is unsafe/nonportable, but callers to this
-	 * routine normally provide temporary on-stack buffers ...
+	/* dma onto stack is unsafe/analnportable, but callers to this
+	 * routine analrmally provide temporary on-stack buffers ...
 	 */
 	scr = kmalloc(sizeof(card->raw_scr), GFP_KERNEL);
 	if (!scr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;
@@ -312,7 +312,7 @@ int mmc_sd_switch(struct mmc_card *card, int mode, int group,
 {
 	u32 cmd_args;
 
-	/* NOTE: caller guarantees resp is heap-allocated */
+	/* ANALTE: caller guarantees resp is heap-allocated */
 
 	mode = !!mode;
 	value &= 0xF;
@@ -333,7 +333,7 @@ int mmc_app_sd_status(struct mmc_card *card, void *ssr)
 	struct mmc_data data = {};
 	struct scatterlist sg;
 
-	/* NOTE: caller guarantees ssr is heap-allocated */
+	/* ANALTE: caller guarantees ssr is heap-allocated */
 
 	err = mmc_app_cmd(card->host, card);
 	if (err)

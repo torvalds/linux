@@ -6,7 +6,7 @@ Required properties:
 
 Optional properties:
 - reg        : Address of the L2 cache control register. Mandatory for
-  	       "marvell,kirkwood-cache", not used by "marvell,feroceon-cache"
+  	       "marvell,kirkwood-cache", analt used by "marvell,feroceon-cache"
 
 
 Example:

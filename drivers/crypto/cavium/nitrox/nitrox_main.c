@@ -304,7 +304,7 @@ static int nitrox_device_flr(struct pci_dev *pdev)
 	pos = pci_save_state(pdev);
 	if (pos) {
 		dev_err(&pdev->dev, "Failed to save pci state\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pcie_reset_flr(pdev, PCI_RESET_DO_RESET);
@@ -443,7 +443,7 @@ static int nitrox_probe(struct pci_dev *pdev,
 
 	ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
 	if (!ndev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto ndev_fail;
 	}
 
@@ -458,9 +458,9 @@ static int nitrox_probe(struct pci_dev *pdev,
 	ndev->hw.revision_id = pdev->revision;
 	/* command timeout in jiffies */
 	ndev->timeout = msecs_to_jiffies(CMD_TIMEOUT);
-	ndev->node = dev_to_node(&pdev->dev);
-	if (ndev->node == NUMA_NO_NODE)
-		ndev->node = 0;
+	ndev->analde = dev_to_analde(&pdev->dev);
+	if (ndev->analde == NUMA_ANAL_ANALDE)
+		ndev->analde = 0;
 
 	ndev->bar_addr = ioremap(pci_resource_start(pdev, 0),
 				 pci_resource_len(pdev, 0));
@@ -499,7 +499,7 @@ static int nitrox_probe(struct pci_dev *pdev,
 
 crypto_fail:
 	nitrox_debugfs_exit(ndev);
-	atomic_set(&ndev->state, __NDEV_NOT_READY);
+	atomic_set(&ndev->state, __NDEV_ANALT_READY);
 	/* barrier to sync with other cpus */
 	smp_mb__after_atomic();
 pf_hw_fail:
@@ -529,7 +529,7 @@ static void nitrox_remove(struct pci_dev *pdev)
 		return;
 
 	if (!refcount_dec_and_test(&ndev->refcnt)) {
-		dev_err(DEV(ndev), "Device refcnt not zero (%d)\n",
+		dev_err(DEV(ndev), "Device refcnt analt zero (%d)\n",
 			refcount_read(&ndev->refcnt));
 		return;
 	}
@@ -537,7 +537,7 @@ static void nitrox_remove(struct pci_dev *pdev)
 	dev_info(DEV(ndev), "Removing Device %x:%x\n",
 		 ndev->hw.vendor_id, ndev->hw.device_id);
 
-	atomic_set(&ndev->state, __NDEV_NOT_READY);
+	atomic_set(&ndev->state, __NDEV_ANALT_READY);
 	/* barrier to sync with other cpus */
 	smp_mb__after_atomic();
 

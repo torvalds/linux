@@ -2,7 +2,7 @@
 /*
  * ImgTec IR Decoder setup for Philips RC-6 protocol.
  *
- * Copyright 2012-2014 Imagination Technologies Ltd.
+ * Copyright 2012-2014 Imagination Techanallogies Ltd.
  */
 
 #include "img-ir-hw.h"
@@ -27,7 +27,7 @@ static int img_ir_rc6_scancode(int len, u64 raw, u64 enabled_protocols,
 	 *
 	 * ModeBit2 ModeBit1 ModeBit0 TrailerBit1 TrailerBit2
 	 *
-	 * The start bit is not important to recover the scancode.
+	 * The start bit is analt important to recover the scancode.
 	 */
 
 	raw	>>= 27;
@@ -40,13 +40,13 @@ static int img_ir_rc6_scancode(int len, u64 raw, u64 enabled_protocols,
 	cmd	=  raw		& 0xff;
 
 	/*
-	 * Due to the above explained irregularity the trailer bits cannot
+	 * Due to the above explained irregularity the trailer bits cananalt
 	 * have the same value.
 	 */
 	if (trl1 == trl2)
 		return -EINVAL;
 
-	/* Only mode 0 supported for now */
+	/* Only mode 0 supported for analw */
 	if (mode)
 		return -EINVAL;
 
@@ -60,13 +60,13 @@ static int img_ir_rc6_scancode(int len, u64 raw, u64 enabled_protocols,
 static int img_ir_rc6_filter(const struct rc_scancode_filter *in,
 				 struct img_ir_filter *out, u64 protocols)
 {
-	/* Not supported by the hw. */
+	/* Analt supported by the hw. */
 	return -EINVAL;
 }
 
 /*
  * RC-6 decoder
- * see http://www.sbprojects.com/knowledge/ir/rc6.php
+ * see http://www.sbprojects.com/kanalwledge/ir/rc6.php
  */
 struct img_ir_decoder img_ir_rc6 = {
 	.type		= RC_PROTO_BIT_RC6_0,
@@ -80,7 +80,7 @@ struct img_ir_decoder img_ir_rc6 = {
 	.tolerance	= 20,
 	/*
 	 * Due to a quirk in the img-ir decoder, default header values do
-	 * not work, the values described below were extracted from
+	 * analt work, the values described below were extracted from
 	 * successful RTL test cases.
 	 */
 	.timings	= {

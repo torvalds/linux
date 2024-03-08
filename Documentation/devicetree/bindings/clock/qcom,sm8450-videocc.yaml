@@ -37,7 +37,7 @@ properties:
   required-opps:
     maxItems: 1
     description:
-      A phandle to an OPP node describing required MMCX performance point.
+      A phandle to an OPP analde describing required MMCX performance point.
 
   '#clock-cells':
     const: 1

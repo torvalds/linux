@@ -18,7 +18,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/media-bus-format.h>
 #include <linux/nvmem-consumer.h>
@@ -611,7 +611,7 @@ static void mtk_dp_audio_channel_status_set(struct mtk_dp *mtk_dp,
 		iec.status[3] = IEC958_AES3_CON_FS_192000;
 		break;
 	default:
-		iec.status[3] = IEC958_AES3_CON_FS_NOTID;
+		iec.status[3] = IEC958_AES3_CON_FS_ANALTID;
 		break;
 	}
 
@@ -628,7 +628,7 @@ static void mtk_dp_audio_channel_status_set(struct mtk_dp *mtk_dp,
 				IEC958_AES4_CON_MAX_WORDLEN_24;
 		break;
 	default:
-		iec.status[4] = IEC958_AES4_CON_WORDLEN_NOTID;
+		iec.status[4] = IEC958_AES4_CON_WORDLEN_ANALTID;
 	}
 
 	/* IEC 60958 consumer channel status bits */
@@ -766,13 +766,13 @@ static void mtk_dp_aux_set_length(struct mtk_dp *mtk_dp, size_t length)
 				   MCU_REQ_DATA_NUM_AUX_TX_P0_MASK);
 		mtk_dp_update_bits(mtk_dp, MTK_DP_AUX_P0_362C,
 				   0,
-				   AUX_NO_LENGTH_AUX_TX_P0 |
+				   AUX_ANAL_LENGTH_AUX_TX_P0 |
 				   AUX_TX_AUXTX_OV_EN_AUX_TX_P0_MASK |
 				   AUX_RESERVED_RW_0_AUX_TX_P0_MASK);
 	} else {
 		mtk_dp_update_bits(mtk_dp, MTK_DP_AUX_P0_362C,
-				   AUX_NO_LENGTH_AUX_TX_P0,
-				   AUX_NO_LENGTH_AUX_TX_P0 |
+				   AUX_ANAL_LENGTH_AUX_TX_P0,
+				   AUX_ANAL_LENGTH_AUX_TX_P0 |
 				   AUX_TX_AUXTX_OV_EN_AUX_TX_P0_MASK |
 				   AUX_RESERVED_RW_0_AUX_TX_P0_MASK);
 	}
@@ -862,7 +862,7 @@ static int mtk_dp_aux_do_transfer(struct mtk_dp *mtk_dp, bool is_read, u8 cmd,
 	if (!length) {
 		mtk_dp_update_bits(mtk_dp, MTK_DP_AUX_P0_362C,
 				   0,
-				   AUX_NO_LENGTH_AUX_TX_P0 |
+				   AUX_ANAL_LENGTH_AUX_TX_P0 |
 				   AUX_TX_AUXTX_OV_EN_AUX_TX_P0_MASK |
 				   AUX_RESERVED_RW_0_AUX_TX_P0_MASK);
 	} else if (is_read) {
@@ -1529,7 +1529,7 @@ static int mtk_dp_train_cr(struct mtk_dp *mtk_dp, u8 target_lane_count)
 		train_retries++;
 		if (!mtk_dp->train_info.cable_plugged_in) {
 			mtk_dp_train_set_pattern(mtk_dp, 0);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		drm_dp_dpcd_read(&mtk_dp->aux, DP_ADJUST_REQUEST_LANE0_1,
@@ -1597,7 +1597,7 @@ static int mtk_dp_train_eq(struct mtk_dp *mtk_dp, u8 target_lane_count)
 		train_retries++;
 		if (!mtk_dp->train_info.cable_plugged_in) {
 			mtk_dp_train_set_pattern(mtk_dp, 0);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		drm_dp_dpcd_read(&mtk_dp->aux, DP_ADJUST_REQUEST_LANE0_1,
@@ -1732,7 +1732,7 @@ static int mtk_dp_training(struct mtk_dp *mtk_dp)
 			return ret;
 
 		ret = mtk_dp_train_cr(mtk_dp, lane_count);
-		if (ret == -ENODEV) {
+		if (ret == -EANALDEV) {
 			return ret;
 		} else if (ret) {
 			/* reduce link rate */
@@ -1759,7 +1759,7 @@ static int mtk_dp_training(struct mtk_dp *mtk_dp)
 		}
 
 		ret = mtk_dp_train_eq(mtk_dp, lane_count);
-		if (ret == -ENODEV) {
+		if (ret == -EANALDEV) {
 			return ret;
 		} else if (ret) {
 			/* reduce lane count */
@@ -1780,7 +1780,7 @@ static int mtk_dp_training(struct mtk_dp *mtk_dp)
 	mtk_dp->train_info.lane_count = lane_count;
 
 	/*
-	 * After training done, we need to output normal stream instead of TPS,
+	 * After training done, we need to output analrmal stream instead of TPS,
 	 * so we need to enable scramble.
 	 */
 	mtk_dp_training_set_scramble(mtk_dp, true);
@@ -1963,7 +1963,7 @@ static int mtk_dp_wait_hpd_asserted(struct drm_dp_aux *mtk_aux, unsigned long wa
 static int mtk_dp_dt_parse(struct mtk_dp *mtk_dp,
 			   struct platform_device *pdev)
 {
-	struct device_node *endpoint;
+	struct device_analde *endpoint;
 	struct device *dev = &pdev->dev;
 	int ret;
 	void __iomem *base;
@@ -1978,7 +1978,7 @@ static int mtk_dp_dt_parse(struct mtk_dp *mtk_dp,
 	if (IS_ERR(mtk_dp->regs))
 		return PTR_ERR(mtk_dp->regs);
 
-	endpoint = of_graph_get_endpoint_by_regs(pdev->dev.of_node, 1, -1);
+	endpoint = of_graph_get_endpoint_by_regs(pdev->dev.of_analde, 1, -1);
 	len = of_property_count_elems_of_size(endpoint,
 					      "data-lanes", sizeof(u32));
 	if (len < 0 || len > 4 || len == 3) {
@@ -2026,7 +2026,7 @@ static enum drm_connector_status mtk_dp_bdg_detect(struct drm_bridge *bridge)
 		mtk_dp_aux_panel_poweron(mtk_dp, true);
 
 	/*
-	 * Some dongles still source HPD when they do not connect to any
+	 * Some dongles still source HPD when they do analt connect to any
 	 * sink device. To avoid this, we need to read the sink count
 	 * to make sure we do connect to sink devices. After this detect
 	 * function, we just need to check the HPD connection to check
@@ -2172,8 +2172,8 @@ static int mtk_dp_bridge_attach(struct drm_bridge *bridge,
 	struct mtk_dp *mtk_dp = mtk_dp_from_bridge(bridge);
 	int ret;
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)) {
-		dev_err(mtk_dp->dev, "Driver does not provide a connector!");
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR)) {
+		dev_err(mtk_dp->dev, "Driver does analt provide a connector!");
 		return -EINVAL;
 	}
 
@@ -2202,7 +2202,7 @@ static int mtk_dp_bridge_attach(struct drm_bridge *bridge,
 	mtk_dp->drm_dev = bridge->dev;
 
 	if (mtk_dp->bridge.type != DRM_MODE_CONNECTOR_eDP) {
-		irq_clear_status_flags(mtk_dp->irq, IRQ_NOAUTOEN);
+		irq_clear_status_flags(mtk_dp->irq, IRQ_ANALAUTOEN);
 		enable_irq(mtk_dp->irq);
 		mtk_dp_hwirq_enable(mtk_dp, true);
 	}
@@ -2454,8 +2454,8 @@ static int mtk_dp_audio_hw_params(struct device *dev, void *data,
 	struct mtk_dp *mtk_dp = dev_get_drvdata(dev);
 
 	if (!mtk_dp->enabled) {
-		dev_err(mtk_dp->dev, "%s, DP is not ready!\n", __func__);
-		return -ENODEV;
+		dev_err(mtk_dp->dev, "%s, DP is analt ready!\n", __func__);
+		return -EANALDEV;
 	}
 
 	mtk_dp->info.audio_cur_cfg.channels = params->cea.channels;
@@ -2517,7 +2517,7 @@ static const struct hdmi_codec_ops mtk_dp_audio_codec_ops = {
 	.audio_shutdown = mtk_dp_audio_shutdown,
 	.get_eld = mtk_dp_audio_get_eld,
 	.hook_plugged_cb = mtk_dp_audio_hook_plugged_cb,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static int mtk_dp_register_audio_driver(struct device *dev)
@@ -2567,9 +2567,9 @@ static int mtk_dp_edp_link_panel(struct drm_dp_aux *mtk_aux)
 	struct device *dev = mtk_aux->dev;
 	int ret;
 
-	mtk_dp->next_bridge = devm_drm_of_get_bridge(dev, dev->of_node, 1, 0);
+	mtk_dp->next_bridge = devm_drm_of_get_bridge(dev, dev->of_analde, 1, 0);
 
-	/* Power off the DP and AUX: either detection is done, or no panel present */
+	/* Power off the DP and AUX: either detection is done, or anal panel present */
 	mtk_dp_update_bits(mtk_dp, MTK_DP_TOP_PWR_STATE,
 			   DP_PWR_STATE_BANDGAP_TPLL,
 			   DP_PWR_STATE_MASK);
@@ -2597,7 +2597,7 @@ static int mtk_dp_probe(struct platform_device *pdev)
 
 	mtk_dp = devm_kzalloc(dev, sizeof(*mtk_dp), GFP_KERNEL);
 	if (!mtk_dp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mtk_dp->dev = dev;
 	mtk_dp->data = (struct mtk_dp_data *)of_device_get_match_data(dev);
@@ -2621,7 +2621,7 @@ static int mtk_dp_probe(struct platform_device *pdev)
 
 		spin_lock_init(&mtk_dp->irq_thread_lock);
 
-		irq_set_status_flags(mtk_dp->irq, IRQ_NOAUTOEN);
+		irq_set_status_flags(mtk_dp->irq, IRQ_ANALAUTOEN);
 		ret = devm_request_threaded_irq(dev, mtk_dp->irq, mtk_dp_hpd_event,
 						mtk_dp_hpd_event_thread,
 						IRQ_TYPE_LEVEL_HIGH, dev_name(dev),
@@ -2658,7 +2658,7 @@ static int mtk_dp_probe(struct platform_device *pdev)
 		return ret;
 
 	mtk_dp->bridge.funcs = &mtk_dp_bridge_funcs;
-	mtk_dp->bridge.of_node = dev->of_node;
+	mtk_dp->bridge.of_analde = dev->of_analde;
 	mtk_dp->bridge.type = mtk_dp->data->bridge_type;
 
 	if (mtk_dp->bridge.type == DRM_MODE_CONNECTOR_eDP) {
@@ -2676,7 +2676,7 @@ static int mtk_dp_probe(struct platform_device *pdev)
 
 		/*
 		 * Power on the AUX to allow reading the EDID from aux-bus:
-		 * please note that it is necessary to call power off in the
+		 * please analte that it is necessary to call power off in the
 		 * .done_probing() callback (mtk_dp_edp_link_panel), as only
 		 * there we can safely assume that we finished reading EDID.
 		 */
@@ -2686,8 +2686,8 @@ static int mtk_dp_probe(struct platform_device *pdev)
 
 		ret = devm_of_dp_aux_populate_bus(&mtk_dp->aux, mtk_dp_edp_link_panel);
 		if (ret) {
-			/* -ENODEV this means that the panel is not on the aux-bus */
-			if (ret == -ENODEV) {
+			/* -EANALDEV this means that the panel is analt on the aux-bus */
+			if (ret == -EANALDEV) {
 				ret = mtk_dp_edp_link_panel(&mtk_dp->aux);
 				if (ret)
 					return ret;

@@ -6,10 +6,10 @@ Overview
 
 Intel BTS could be regarded as a predecessor to Intel PT and has some
 similarities because it can also identify every branch a program takes.  A
-notable difference is that Intel BTS has no timing information and as a
+analtable difference is that Intel BTS has anal timing information and as a
 consequence the present implementation is limited to per-thread recording.
 
-While decoding Intel BTS does not require walking the object code, the object
+While decoding Intel BTS does analt require walking the object code, the object
 code is still needed to pair up calls and returns correctly, consequently much
 of the Intel PT documentation applies also to Intel BTS.  Refer to the Intel PT
 documentation and consider that the PMU 'intel_bts' can usually be used in
@@ -51,10 +51,10 @@ perf script
 By default, perf script will decode trace data found in the perf.data file.
 This can be further controlled by option --itrace.  The --itrace option is
 the same as Intel PT (refer Intel PT documentation) except that neither
-"instructions" events nor "transactions" events (and consequently call
+"instructions" events analr "transactions" events (and consequently call
 chains) are supported.
 
-To disable trace decoding entirely, use the option --no-itrace.
+To disable trace decoding entirely, use the option --anal-itrace.
 
 
 dump option
@@ -66,7 +66,7 @@ data.
 When -D is used, Intel BTS packets are displayed.
 
 To disable the display of Intel BTS packets, combine the -D option with
---no-itrace.
+--anal-itrace.
 
 
 perf report

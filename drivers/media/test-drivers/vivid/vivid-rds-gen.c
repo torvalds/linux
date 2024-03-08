@@ -22,7 +22,7 @@ static u8 vivid_get_di(const struct vivid_rds_gen *rds, unsigned grp)
 	case 2:
 		return (rds->art_head << 2) | (grp & 3);
 	case 3:
-		return (rds->mono_stereo << 2) | (grp & 3);
+		return (rds->moanal_stereo << 2) | (grp & 3);
 	}
 	return 0;
 }
@@ -137,7 +137,7 @@ void vivid_rds_gen_fill(struct vivid_rds_gen *rds, unsigned freq,
 		rds->picode = 0x8088;
 		rds->pty = alt ? 16 : 3;
 	}
-	rds->mono_stereo = true;
+	rds->moanal_stereo = true;
 	rds->art_head = false;
 	rds->compressed = false;
 	rds->dyn_pty = false;

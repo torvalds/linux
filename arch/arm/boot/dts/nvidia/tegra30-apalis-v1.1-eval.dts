@@ -138,7 +138,7 @@
 		bus-width = <4>;
 		/* SD1_CD# */
 		cd-gpios = <&gpio TEGRA_GPIO(CC, 5) GPIO_ACTIVE_LOW>;
-		no-1-8-v;
+		anal-1-8-v;
 	};
 
 	/* Apalis MMC1 */

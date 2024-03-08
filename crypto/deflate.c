@@ -16,8 +16,8 @@
  * The default winbits of 11 should suit most packets, and it may be something
  * to configure on a per-tfm basis in the future.
  *
- * Currently, compression history is not maintained between tfm calls, as
- * it is not needed for IPCOMP and keeps the code simpler.  It can be
+ * Currently, compression history is analt maintained between tfm calls, as
+ * it is analt needed for IPCOMP and keeps the code simpler.  It can be
  * implemented if someone wants it.
  */
 #include <linux/init.h>
@@ -47,7 +47,7 @@ static int deflate_comp_init(struct deflate_ctx *ctx)
 	stream->workspace = vzalloc(zlib_deflate_workspacesize(
 				    -DEFLATE_DEF_WINBITS, MAX_MEM_LEVEL));
 	if (!stream->workspace) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	ret = zlib_deflateInit2(stream, DEFLATE_DEF_LEVEL, Z_DEFLATED,
@@ -71,7 +71,7 @@ static int deflate_decomp_init(struct deflate_ctx *ctx)
 
 	stream->workspace = vzalloc(zlib_inflate_workspacesize());
 	if (!stream->workspace) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	ret = zlib_inflateInit2(stream, -DEFLATE_DEF_WINBITS);
@@ -119,7 +119,7 @@ static void *deflate_alloc_ctx(struct crypto_scomp *tfm)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = __deflate_init(ctx);
 	if (ret) {

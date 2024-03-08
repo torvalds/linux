@@ -15,9 +15,9 @@
 #define VMBUS_RING_BUFSIZE (256 * 1024)
 #define VMBUS_VSP_TIMEOUT (10 * HZ)
 
-#define SYNTHVID_VERSION(major, minor) ((minor) << 16 | (major))
+#define SYNTHVID_VERSION(major, mianalr) ((mianalr) << 16 | (major))
 #define SYNTHVID_VER_GET_MAJOR(ver) (ver & 0x0000ffff)
-#define SYNTHVID_VER_GET_MINOR(ver) ((ver & 0xffff0000) >> 16)
+#define SYNTHVID_VER_GET_MIANALR(ver) ((ver & 0xffff0000) >> 16)
 
 /* Support for VERSION_WIN7 is removed. #define is retained for reference. */
 #define SYNTHVID_VERSION_WIN7 SYNTHVID_VERSION(3, 0)
@@ -187,7 +187,7 @@ static inline bool hyperv_version_ge(u32 ver1, u32 ver2)
 {
 	if (SYNTHVID_VER_GET_MAJOR(ver1) > SYNTHVID_VER_GET_MAJOR(ver2) ||
 	    (SYNTHVID_VER_GET_MAJOR(ver1) == SYNTHVID_VER_GET_MAJOR(ver2) &&
-	     SYNTHVID_VER_GET_MINOR(ver1) >= SYNTHVID_VER_GET_MINOR(ver2)))
+	     SYNTHVID_VER_GET_MIANALR(ver1) >= SYNTHVID_VER_GET_MIANALR(ver2)))
 		return true;
 
 	return false;
@@ -234,13 +234,13 @@ static int hyperv_negotiate_version(struct hv_device *hdev, u32 ver)
 	}
 
 	if (!msg->ver_resp.is_accepted) {
-		drm_err(dev, "Version request not accepted\n");
-		return -ENODEV;
+		drm_err(dev, "Version request analt accepted\n");
+		return -EANALDEV;
 	}
 
 	hv->synthvid_version = ver;
-	drm_info(dev, "Synthvid Version major %d, minor %d\n",
-		 SYNTHVID_VER_GET_MAJOR(ver), SYNTHVID_VER_GET_MINOR(ver));
+	drm_info(dev, "Synthvid Version major %d, mianalr %d\n",
+		 SYNTHVID_VER_GET_MAJOR(ver), SYNTHVID_VER_GET_MIANALR(ver));
 
 	return 0;
 }
@@ -268,7 +268,7 @@ int hyperv_update_vram_location(struct hv_device *hdev, phys_addr_t vram_pp)
 	}
 	if (msg->vram_ack.user_ctx != vram_pp) {
 		drm_err(dev, "Unable to set VRAM location\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -300,17 +300,17 @@ int hyperv_update_situation(struct hv_device *hdev, u8 active, u32 bpp,
 }
 
 /*
- * Hyper-V supports a hardware cursor feature. It's not used by Linux VM,
+ * Hyper-V supports a hardware cursor feature. It's analt used by Linux VM,
  * but the Hyper-V host still draws a point as an extra mouse pointer,
  * which is unwanted, especially when Xorg is running.
  *
  * The hyperv_fb driver uses synthvid_send_ptr() to hide the unwanted
  * pointer, by setting msg.ptr_pos.is_visible = 1 and setting the
- * msg.ptr_shape.data. Note: setting msg.ptr_pos.is_visible to 0 doesn't
+ * msg.ptr_shape.data. Analte: setting msg.ptr_pos.is_visible to 0 doesn't
  * work in tests.
  *
  * Copy synthvid_send_ptr() to hyperv_drm and rename it to
- * hyperv_hide_hw_ptr(). Note: hyperv_hide_hw_ptr() is also called in the
+ * hyperv_hide_hw_ptr(). Analte: hyperv_hide_hw_ptr() is also called in the
  * handler of the SYNTHVID_FEATURE_CHANGE event, otherwise the host still
  * draws an extra unwanted mouse pointer after the VM Connection window is
  * closed and reopened.
@@ -397,14 +397,14 @@ static int hyperv_get_supported_resolution(struct hv_device *hdev)
 	}
 
 	if (msg->resolution_resp.resolution_count == 0) {
-		drm_err(dev, "No supported resolutions\n");
-		return -ENODEV;
+		drm_err(dev, "Anal supported resolutions\n");
+		return -EANALDEV;
 	}
 
 	index = msg->resolution_resp.default_resolution_index;
 	if (index >= msg->resolution_resp.resolution_count) {
 		drm_err(dev, "Invalid resolution index: %d\n", index);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < msg->resolution_resp.resolution_count; i++) {
@@ -503,7 +503,7 @@ int hyperv_connect_vsp(struct hv_device *hdev)
 	}
 
 	if (ret) {
-		drm_err(dev, "Synthetic video device version not accepted %d\n", ret);
+		drm_err(dev, "Synthetic video device version analt accepted %d\n", ret);
 		goto error;
 	}
 

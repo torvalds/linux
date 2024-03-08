@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2001-2003 Patrick Mochel <mochel@osdl.org>
  * Copyright (c) 2004-2009 Greg Kroah-Hartman <gregkh@suse.de>
- * Copyright (c) 2008-2009 Novell Inc.
+ * Copyright (c) 2008-2009 Analvell Inc.
  * Copyright (c) 2012-2019 Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  * Copyright (c) 2012-2019 Linux Foundation
  *
@@ -19,7 +19,7 @@
 #include <linux/pm.h>
 
 struct device_driver;
-struct fwnode_handle;
+struct fwanalde_handle;
 
 /**
  * struct bus_type - The bus type of the device
@@ -33,7 +33,7 @@ struct fwnode_handle;
  *		is added for this bus. It should return a positive value if the
  *		given device can be handled by the given driver and zero
  *		otherwise. It may also return error code if determining that
- *		the driver supports the device is not possible. In case of
+ *		the driver supports the device is analt possible. In case of
  *		-EPROBE_DEFER it will queue the device for deferred probing.
  * @uevent:	Called when a device is added, removed, or a few other things
  *		that generate uevents to add the environment variables.
@@ -42,7 +42,7 @@ struct fwnode_handle;
  * @sync_state:	Called to sync device state to software state after all the
  *		state tracking consumers linked to this device (present at
  *		the time of late_initcall) have successfully bound to a
- *		driver. If the device has no consumers, this function will
+ *		driver. If the device has anal consumers, this function will
  *		be called at late_initcall_sync level. If the device has
  *		consumers that are never bound to a driver, this function
  *		will never get called until they do.
@@ -128,8 +128,8 @@ void bus_remove_file(const struct bus_type *bus, struct bus_attribute *attr);
 
 /* Generic device matching functions that all busses can use to match with */
 int device_match_name(struct device *dev, const void *name);
-int device_match_of_node(struct device *dev, const void *np);
-int device_match_fwnode(struct device *dev, const void *fwnode);
+int device_match_of_analde(struct device *dev, const void *np);
+int device_match_fwanalde(struct device *dev, const void *fwanalde);
 int device_match_devt(struct device *dev, const void *pdevt);
 int device_match_acpi_dev(struct device *dev, const void *adev);
 int device_match_acpi_handle(struct device *dev, const void *handle);
@@ -156,27 +156,27 @@ static inline struct device *bus_find_device_by_name(const struct bus_type *bus,
 }
 
 /**
- * bus_find_device_by_of_node : device iterator for locating a particular device
- * matching the of_node.
+ * bus_find_device_by_of_analde : device iterator for locating a particular device
+ * matching the of_analde.
  * @bus: bus type
- * @np: of_node of the device to match.
+ * @np: of_analde of the device to match.
  */
 static inline struct device *
-bus_find_device_by_of_node(const struct bus_type *bus, const struct device_node *np)
+bus_find_device_by_of_analde(const struct bus_type *bus, const struct device_analde *np)
 {
-	return bus_find_device(bus, NULL, np, device_match_of_node);
+	return bus_find_device(bus, NULL, np, device_match_of_analde);
 }
 
 /**
- * bus_find_device_by_fwnode : device iterator for locating a particular device
- * matching the fwnode.
+ * bus_find_device_by_fwanalde : device iterator for locating a particular device
+ * matching the fwanalde.
  * @bus: bus type
- * @fwnode: fwnode of the device to match.
+ * @fwanalde: fwanalde of the device to match.
  */
 static inline struct device *
-bus_find_device_by_fwnode(const struct bus_type *bus, const struct fwnode_handle *fwnode)
+bus_find_device_by_fwanalde(const struct bus_type *bus, const struct fwanalde_handle *fwanalde)
 {
-	return bus_find_device(bus, NULL, fwnode, device_match_fwnode);
+	return bus_find_device(bus, NULL, fwanalde, device_match_fwanalde);
 }
 
 /**
@@ -231,44 +231,44 @@ void bus_sort_breadthfirst(const struct bus_type *bus,
 			   int (*compare)(const struct device *a,
 					  const struct device *b));
 /*
- * Bus notifiers: Get notified of addition/removal of devices
+ * Bus analtifiers: Get analtified of addition/removal of devices
  * and binding/unbinding of drivers to devices.
  * In the long run, it should be a replacement for the platform
- * notify hooks.
+ * analtify hooks.
  */
-struct notifier_block;
+struct analtifier_block;
 
-int bus_register_notifier(const struct bus_type *bus, struct notifier_block *nb);
-int bus_unregister_notifier(const struct bus_type *bus, struct notifier_block *nb);
+int bus_register_analtifier(const struct bus_type *bus, struct analtifier_block *nb);
+int bus_unregister_analtifier(const struct bus_type *bus, struct analtifier_block *nb);
 
 /**
- * enum bus_notifier_event - Bus Notifier events that have happened
- * @BUS_NOTIFY_ADD_DEVICE: device is added to this bus
- * @BUS_NOTIFY_DEL_DEVICE: device is about to be removed from this bus
- * @BUS_NOTIFY_REMOVED_DEVICE: device is successfully removed from this bus
- * @BUS_NOTIFY_BIND_DRIVER: a driver is about to be bound to this device on this bus
- * @BUS_NOTIFY_BOUND_DRIVER: a driver is successfully bound to this device on this bus
- * @BUS_NOTIFY_UNBIND_DRIVER: a driver is about to be unbound from this device on this bus
- * @BUS_NOTIFY_UNBOUND_DRIVER: a driver is successfully unbound from this device on this bus
- * @BUS_NOTIFY_DRIVER_NOT_BOUND: a driver failed to be bound to this device on this bus
+ * enum bus_analtifier_event - Bus Analtifier events that have happened
+ * @BUS_ANALTIFY_ADD_DEVICE: device is added to this bus
+ * @BUS_ANALTIFY_DEL_DEVICE: device is about to be removed from this bus
+ * @BUS_ANALTIFY_REMOVED_DEVICE: device is successfully removed from this bus
+ * @BUS_ANALTIFY_BIND_DRIVER: a driver is about to be bound to this device on this bus
+ * @BUS_ANALTIFY_BOUND_DRIVER: a driver is successfully bound to this device on this bus
+ * @BUS_ANALTIFY_UNBIND_DRIVER: a driver is about to be unbound from this device on this bus
+ * @BUS_ANALTIFY_UNBOUND_DRIVER: a driver is successfully unbound from this device on this bus
+ * @BUS_ANALTIFY_DRIVER_ANALT_BOUND: a driver failed to be bound to this device on this bus
  *
- * These are the value passed to a bus notifier when a specific event happens.
+ * These are the value passed to a bus analtifier when a specific event happens.
  *
- * Note that bus notifiers are likely to be called with the device lock already
- * held by the driver core, so be careful in any notifier callback as to what
+ * Analte that bus analtifiers are likely to be called with the device lock already
+ * held by the driver core, so be careful in any analtifier callback as to what
  * you do with the device structure.
  *
- * All bus notifiers are called with the target struct device * as an argument.
+ * All bus analtifiers are called with the target struct device * as an argument.
  */
-enum bus_notifier_event {
-	BUS_NOTIFY_ADD_DEVICE,
-	BUS_NOTIFY_DEL_DEVICE,
-	BUS_NOTIFY_REMOVED_DEVICE,
-	BUS_NOTIFY_BIND_DRIVER,
-	BUS_NOTIFY_BOUND_DRIVER,
-	BUS_NOTIFY_UNBIND_DRIVER,
-	BUS_NOTIFY_UNBOUND_DRIVER,
-	BUS_NOTIFY_DRIVER_NOT_BOUND,
+enum bus_analtifier_event {
+	BUS_ANALTIFY_ADD_DEVICE,
+	BUS_ANALTIFY_DEL_DEVICE,
+	BUS_ANALTIFY_REMOVED_DEVICE,
+	BUS_ANALTIFY_BIND_DRIVER,
+	BUS_ANALTIFY_BOUND_DRIVER,
+	BUS_ANALTIFY_UNBIND_DRIVER,
+	BUS_ANALTIFY_UNBOUND_DRIVER,
+	BUS_ANALTIFY_DRIVER_ANALT_BOUND,
 };
 
 struct kset *bus_get_kset(const struct bus_type *bus);

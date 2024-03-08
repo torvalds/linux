@@ -200,7 +200,7 @@
 
 &spi3 {
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 		spi-tx-bus-width = <4>;

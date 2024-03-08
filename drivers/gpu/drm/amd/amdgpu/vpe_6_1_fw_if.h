@@ -7,12 +7,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,7 +29,7 @@
  * VPE OP Codes
  ****************/
 enum VPE_CMD_OPCODE {
-    VPE_CMD_OPCODE_NOP          = 0x0,
+    VPE_CMD_OPCODE_ANALP          = 0x0,
     VPE_CMD_OPCODE_VPE_DESC     = 0x1,
     VPE_CMD_OPCODE_PLANE_CFG    = 0x2,
     VPE_CMD_OPCODE_VPEP_CFG     = 0x3,
@@ -46,7 +46,7 @@ enum VPE_CMD_OPCODE {
 
 /** Generic Command Header
  * Generic Commands include:
- *  Noop, Fence, Trap,
+ *  Analop, Fence, Trap,
  *  RegisterWrite, PollRegisterWriteMemory,
  *  SetLocalTimestamp, GetLocalTimestamp
  *  GetGlobalGPUTimestamp */
@@ -61,13 +61,13 @@ enum VPE_CMD_OPCODE {
 
 
  /***************************
-  * VPE NOP
+  * VPE ANALP
   ***************************/
-#define VPE_CMD_NOP_HEADER_COUNT__SHIFT    16
-#define VPE_CMD_NOP_HEADER_COUNT_MASK      0x00003FFF
+#define VPE_CMD_ANALP_HEADER_COUNT__SHIFT    16
+#define VPE_CMD_ANALP_HEADER_COUNT_MASK      0x00003FFF
 
-#define VPE_CMD_NOP_HEADER_COUNT(count) \
-     (((count) & VPE_CMD_NOP_HEADER_COUNT_MASK) << VPE_CMD_NOP_HEADER_COUNT__SHIFT)
+#define VPE_CMD_ANALP_HEADER_COUNT(count) \
+     (((count) & VPE_CMD_ANALP_HEADER_COUNT_MASK) << VPE_CMD_ANALP_HEADER_COUNT__SHIFT)
 
  /***************************
   * VPE Descriptor

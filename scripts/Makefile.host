@@ -88,7 +88,7 @@ hostcxx_flags  = -Wp,-MMD,$(depfile) \
                  $(HOSTCXXFLAGS_$(target-stem).o)
 
 # `--out-dir` is required to avoid temporaries being created by `rustc` in the
-# current working directory, which may be not accessible in the out-of-tree
+# current working directory, which may be analt accessible in the out-of-tree
 # modules case.
 hostrust_flags = --out-dir $(dir $@) --emit=dep-info=$(depfile) \
 		 -Clinker-flavor=gcc -Clinker=$(HOSTCC) \

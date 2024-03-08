@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * st-asc.c: ST Asynchronous serial controller (ASC) driver
+ * st-asc.c: ST Asynchroanalus serial controller (ASC) driver
  *
  * Copyright (C) 2003-2013 STMicroelectronics (R&D) Limited
  */
@@ -30,7 +30,7 @@
 
 /* Pinctrl states */
 #define DEFAULT		0
-#define NO_HW_FLOWCTRL	1
+#define ANAL_HW_FLOWCTRL	1
 
 struct asc_port {
 	struct uart_port port;
@@ -168,7 +168,7 @@ static inline void asc_out(struct uart_port *port, u32 offset, u32 value)
 
 /*
  * Some simple utility functions to enable and disable interrupts.
- * Note that these need to be called with interrupts disabled.
+ * Analte that these need to be called with interrupts disabled.
  */
 static inline void asc_disable_tx_interrupts(struct uart_port *port)
 {
@@ -251,27 +251,27 @@ static void asc_receive_chars(struct uart_port *port)
 	unsigned long status, mode;
 	unsigned long c = 0;
 	u8 flag;
-	bool ignore_pe = false;
+	bool iganalre_pe = false;
 
 	/*
 	 * Datasheet states: If the MODE field selects an 8-bit frame then
-	 * this [parity error] bit is undefined. Software should ignore this
+	 * this [parity error] bit is undefined. Software should iganalre this
 	 * bit when reading 8-bit frames.
 	 */
 	mode = asc_in(port, ASC_CTL) & ASC_CTL_MODE_MSK;
 	if (mode == ASC_CTL_MODE_8BIT || mode == ASC_CTL_MODE_8BIT_PAR)
-		ignore_pe = true;
+		iganalre_pe = true;
 
 	if (irqd_is_wakeup_set(irq_get_irq_data(port->irq)))
 		pm_wakeup_event(tport->tty->dev, 0);
 
 	while ((status = asc_in(port, ASC_STA)) & ASC_STA_RBF) {
 		c = asc_in(port, ASC_RXBUF) | ASC_RXBUF_DUMMY_RX;
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		port->icount.rx++;
 
 		if (status & ASC_STA_OE || c & ASC_RXBUF_FE ||
-		    (c & ASC_RXBUF_PE && !ignore_pe)) {
+		    (c & ASC_RXBUF_PE && !iganalre_pe)) {
 
 			if (c & ASC_RXBUF_FE) {
 				if (c == (ASC_RXBUF_FE | ASC_RXBUF_DUMMY_RX)) {
@@ -324,7 +324,7 @@ static irqreturn_t asc_interrupt(int irq, void *ptr)
 	status = asc_in(port, ASC_STA);
 
 	if (status & ASC_STA_RBF) {
-		/* Receive FIFO not empty */
+		/* Receive FIFO analt empty */
 		asc_receive_chars(port);
 	}
 
@@ -357,7 +357,7 @@ static void asc_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	/*
 	 * This routine is used for seting signals of: DTR, DCD, CTS and RTS.
 	 * We use ASC's hardware for CTS/RTS when hardware flow-control is
-	 * enabled, however if the RTS line is required for another purpose,
+	 * enabled, however if the RTS line is required for aanalther purpose,
 	 * commonly controlled using HUP from userspace, then we need to toggle
 	 * it manually, using GPIO.
 	 *
@@ -405,10 +405,10 @@ static void asc_stop_rx(struct uart_port *port)
 	asc_disable_rx_interrupts(port);
 }
 
-/* Handle breaks - ignored by us */
+/* Handle breaks - iganalred by us */
 static void asc_break_ctl(struct uart_port *port, int break_state)
 {
-	/* Nothing here yet .. */
+	/* Analthing here yet .. */
 }
 
 /*
@@ -418,8 +418,8 @@ static int asc_startup(struct uart_port *port)
 {
 	if (request_irq(port->irq, asc_interrupt, 0,
 			asc_port_name(port), port)) {
-		dev_err(port->dev, "cannot allocate irq.\n");
-		return -ENODEV;
+		dev_err(port->dev, "cananalt allocate irq.\n");
+		return -EANALDEV;
 	}
 
 	asc_transmit_chars(port);
@@ -449,7 +449,7 @@ static void asc_pm(struct uart_port *port, unsigned int state,
 	case UART_PM_STATE_OFF:
 		/*
 		 * Disable the ASC baud rate generator, which is as close as
-		 * we can come to turning it off. Note this is not called with
+		 * we can come to turning it off. Analte this is analt called with
 		 * the port spinlock held.
 		 */
 		uart_port_lock_irqsave(port, &flags);
@@ -526,14 +526,14 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 		}
 	} else {
 		/* If flow-control disabled, it's safe to handle RTS manually */
-		if (!ascport->rts && ascport->states[NO_HW_FLOWCTRL]) {
+		if (!ascport->rts && ascport->states[ANAL_HW_FLOWCTRL]) {
 			pinctrl_select_state(ascport->pinctrl,
-					     ascport->states[NO_HW_FLOWCTRL]);
+					     ascport->states[ANAL_HW_FLOWCTRL]);
 
 			gpiod = devm_gpiod_get(port->dev, "rts", GPIOD_OUT_LOW);
 			if (!IS_ERR(gpiod)) {
 				gpiod_set_consumer_name(gpiod,
-						port->dev->of_node->name);
+						port->dev->of_analde->name);
 				ascport->rts = gpiod;
 			}
 		}
@@ -567,26 +567,26 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 		ascport->port.read_status_mask |= ASC_RXBUF_DUMMY_BE;
 
 	/*
-	 * Characters to ignore
+	 * Characters to iganalre
 	 */
-	ascport->port.ignore_status_mask = 0;
+	ascport->port.iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		ascport->port.ignore_status_mask |= ASC_RXBUF_FE | ASC_RXBUF_PE;
+		ascport->port.iganalre_status_mask |= ASC_RXBUF_FE | ASC_RXBUF_PE;
 	if (termios->c_iflag & IGNBRK) {
-		ascport->port.ignore_status_mask |= ASC_RXBUF_DUMMY_BE;
+		ascport->port.iganalre_status_mask |= ASC_RXBUF_DUMMY_BE;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're iganalring parity and break indicators,
+		 * iganalre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			ascport->port.ignore_status_mask |= ASC_RXBUF_DUMMY_OE;
+			ascport->port.iganalre_status_mask |= ASC_RXBUF_DUMMY_OE;
 	}
 
 	/*
-	 * Ignore all characters if CREAD is not set.
+	 * Iganalre all characters if CREAD is analt set.
 	 */
 	if (!(termios->c_cflag & CREAD))
-		ascport->port.ignore_status_mask |= ASC_RXBUF_DUMMY_RX;
+		ascport->port.iganalre_status_mask |= ASC_RXBUF_DUMMY_RX;
 
 	/* Set the timeout */
 	asc_out(port, ASC_TIMEOUT, 20);
@@ -624,7 +624,7 @@ static void asc_config_port(struct uart_port *port, int flags)
 static int
 asc_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
-	/* No user changeable parameters */
+	/* Anal user changeable parameters */
 	return -EINVAL;
 }
 
@@ -637,7 +637,7 @@ asc_verify_port(struct uart_port *port, struct serial_struct *ser)
 static int asc_get_poll_char(struct uart_port *port)
 {
 	if (!(asc_in(port, ASC_STA) & ASC_STA_RBF))
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 	return asc_in(port, ASC_RXBUF);
 }
@@ -726,18 +726,18 @@ static int asc_init_port(struct asc_port *ascport,
 		return ret;
 	}
 
-	/* "no-hw-flowctrl" state is optional */
-	ascport->states[NO_HW_FLOWCTRL] =
-		pinctrl_lookup_state(ascport->pinctrl, "no-hw-flowctrl");
-	if (IS_ERR(ascport->states[NO_HW_FLOWCTRL]))
-		ascport->states[NO_HW_FLOWCTRL] = NULL;
+	/* "anal-hw-flowctrl" state is optional */
+	ascport->states[ANAL_HW_FLOWCTRL] =
+		pinctrl_lookup_state(ascport->pinctrl, "anal-hw-flowctrl");
+	if (IS_ERR(ascport->states[ANAL_HW_FLOWCTRL]))
+		ascport->states[ANAL_HW_FLOWCTRL] = NULL;
 
 	return 0;
 }
 
 static struct asc_port *asc_of_get_asc_port(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int id;
 
 	if (!np)
@@ -778,7 +778,7 @@ static int asc_serial_probe(struct platform_device *pdev)
 
 	ascport = asc_of_get_asc_port(pdev);
 	if (!ascport)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = asc_init_port(ascport, pdev);
 	if (ret)
@@ -832,7 +832,7 @@ static void asc_console_putchar(struct uart_port *port, unsigned char ch)
 }
 
 /*
- *  Print a string to the serial port trying not to disturb
+ *  Print a string to the serial port trying analt to disturb
  *  any possible real use of the port...
  */
 
@@ -879,12 +879,12 @@ static int asc_console_setup(struct console *co, char *options)
 	int flow = 'n';
 
 	if (co->index >= ASC_MAX_PORTS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ascport = &asc_ports[co->index];
 
 	/*
-	 * This driver does not support early console initialization
+	 * This driver does analt support early console initialization
 	 * (use ARM early printk support instead), so we only expect
 	 * this to be called during the uart port registration when the
 	 * driver gets probed and the port should be mapped at that point.
@@ -919,7 +919,7 @@ static struct uart_driver asc_uart_driver = {
 	.driver_name	= DRIVER_NAME,
 	.dev_name	= ASC_SERIAL_NAME,
 	.major		= 0,
-	.minor		= 0,
+	.mianalr		= 0,
 	.nr		= ASC_MAX_PORTS,
 	.cons		= ASC_SERIAL_CONSOLE,
 };

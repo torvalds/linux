@@ -56,7 +56,7 @@ static int dmapool_test_alloc(struct dma_pool_pair *p, int blocks)
 pool_fail:
 	for (--i; i >= 0; i--)
 		dma_pool_free(pool, p[i].v, p[i].dma);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int dmapool_test_block(const struct dmapool_parms *parms)
@@ -68,12 +68,12 @@ static int dmapool_test_block(const struct dmapool_parms *parms)
 
 	p = kcalloc(blocks, sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pool = dma_pool_create("test pool", &test_dev, parms->size,
 			       parms->align, parms->boundary);
 	if (!pool) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_pairs;
 	}
 

@@ -9,7 +9,7 @@
 #include <linux/bug.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kstrtox.h>
 #include <linux/list.h>
 #include <linux/nls.h>
@@ -21,7 +21,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 #include <asm/byteorder.h>
 
@@ -181,7 +181,7 @@ static void xhci_dbc_flush_single_request(struct dbc_request *req)
 	trb->generic.field[1]	= 0;
 	trb->generic.field[2]	= 0;
 	trb->generic.field[3]	&= cpu_to_le32(TRB_CYCLE);
-	trb->generic.field[3]	|= cpu_to_le32(TRB_TYPE(TRB_TR_NOOP));
+	trb->generic.field[3]	|= cpu_to_le32(TRB_TYPE(TRB_TR_ANALOP));
 
 	xhci_dbc_giveback(req, -ESHUTDOWN);
 }
@@ -276,7 +276,7 @@ static int xhci_dbc_queue_bulk_tx(struct dbc_ep *dep,
 	trb	= ring->enqueue;
 	cycle	= ring->cycle_state;
 	length	= TRB_LEN(req->length);
-	control	= TRB_TYPE(TRB_NORMAL) | TRB_IOC;
+	control	= TRB_TYPE(TRB_ANALRMAL) | TRB_IOC;
 
 	if (cycle)
 		control &= cpu_to_le32(~TRB_CYCLE);
@@ -351,7 +351,7 @@ int dbc_ep_queue(struct dbc_request *req)
 	int			ret = -ESHUTDOWN;
 
 	if (!dbc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (req->direction != BULK_IN &&
 	    req->direction != BULK_OUT)
@@ -398,7 +398,7 @@ static int dbc_erst_alloc(struct device *dev, struct xhci_ring *evt_ring,
 	erst->entries = dma_alloc_coherent(dev, sizeof(*erst->entries),
 					   &erst->erst_dma_addr, flags);
 	if (!erst->entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	erst->num_entries = 1;
 	erst->entries[0].seg_addr = cpu_to_le64(evt_ring->first_seg->dma);
@@ -461,7 +461,7 @@ xhci_dbc_ring_alloc(struct device *dev, enum xhci_ring_type type, gfp_t flags)
 
 	seg->dma = dma;
 
-	/* Only event ring does not use link TRB */
+	/* Only event ring does analt use link TRB */
 	if (type != TYPE_EVENT) {
 		union xhci_trb *trb = &seg->trbs[TRBS_PER_SEGMENT - 1];
 
@@ -547,7 +547,7 @@ in_fail:
 	dbc_ring_free(dev, dbc->ring_evt);
 	dbc->ring_evt = NULL;
 evt_fail:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void xhci_dbc_mem_cleanup(struct xhci_dbc *dbc)
@@ -623,14 +623,14 @@ static int xhci_dbc_start(struct xhci_dbc *dbc)
 
 	WARN_ON(!dbc);
 
-	pm_runtime_get_sync(dbc->dev); /* note this was self.controller */
+	pm_runtime_get_sync(dbc->dev); /* analte this was self.controller */
 
 	spin_lock_irqsave(&dbc->lock, flags);
 	ret = xhci_do_dbc_start(dbc);
 	spin_unlock_irqrestore(&dbc->lock, flags);
 
 	if (ret) {
-		pm_runtime_put(dbc->dev); /* note this was self.controller */
+		pm_runtime_put(dbc->dev); /* analte this was self.controller */
 		return ret;
 	}
 
@@ -665,7 +665,7 @@ static void xhci_dbc_stop(struct xhci_dbc *dbc)
 		return;
 
 	xhci_dbc_mem_cleanup(dbc);
-	pm_runtime_put_sync(dbc->dev); /* note, was self.controller */
+	pm_runtime_put_sync(dbc->dev); /* analte, was self.controller */
 }
 
 static void
@@ -722,7 +722,7 @@ static void dbc_handle_xfer_event(struct xhci_dbc *dbc, union xhci_trb *event)
 		status = -comp_code;
 		break;
 	default:
-		dev_err(dbc->dev, "unknown tx error %d\n", comp_code);
+		dev_err(dbc->dev, "unkanalwn tx error %d\n", comp_code);
 		status = -comp_code;
 		break;
 	}
@@ -736,7 +736,7 @@ static void dbc_handle_xfer_event(struct xhci_dbc *dbc, union xhci_trb *event)
 	}
 
 	if (!req) {
-		dev_warn(dbc->dev, "no matched request\n");
+		dev_warn(dbc->dev, "anal matched request\n");
 		return;
 	}
 
@@ -851,7 +851,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 
 		return EVT_DONE;
 	default:
-		dev_err(dbc->dev, "Unknown DbC state %d\n", dbc->state);
+		dev_err(dbc->dev, "Unkanalwn DbC state %d\n", dbc->state);
 		break;
 	}
 
@@ -945,7 +945,7 @@ static ssize_t dbc_show(struct device *dev,
 	dbc = xhci->dbc;
 
 	if (dbc->state >= ARRAY_SIZE(dbc_state_strings))
-		return sysfs_emit(buf, "unknown\n");
+		return sysfs_emit(buf, "unkanalwn\n");
 
 	return sysfs_emit(buf, "%s\n", dbc_state_strings[dbc->state]);
 }
@@ -1220,7 +1220,7 @@ int xhci_create_dbc_dev(struct xhci_hcd *xhci)
 
 	dbc_cap_offs = xhci_find_next_ext_cap(base, 0, XHCI_EXT_CAPS_DEBUG);
 	if (!dbc_cap_offs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* already allocated and in use */
 	if (xhci->dbc)

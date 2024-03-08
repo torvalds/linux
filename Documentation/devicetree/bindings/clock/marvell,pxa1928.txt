@@ -15,7 +15,7 @@ Required Properties:
 - #clock-cells: should be 1.
 - #reset-cells: should be 1.
 
-Each clock is assigned an identifier and client nodes use the clock controller
+Each clock is assigned an identifier and client analdes use the clock controller
 phandle and this identifier to specify the clock which they consume.
 
 All these identifiers can be found in <dt-bindings/clock/marvell,pxa1928.h>.

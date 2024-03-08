@@ -36,7 +36,7 @@
 #define DAVINCI_CP_INTC_SYS_TYPE(n)		(0x0d80 + (n << 2))
 #define DAVINCI_CP_INTC_HOST_ENABLE(n)		(0x1500 + (n << 2))
 #define DAVINCI_CP_INTC_PRI_INDX_MASK		GENMASK(9, 0)
-#define DAVINCI_CP_INTC_GPIR_NONE		BIT(31)
+#define DAVINCI_CP_INTC_GPIR_ANALNE		BIT(31)
 
 static void __iomem *davinci_cp_intc_base;
 static struct irq_domain *davinci_cp_intc_irq_domain;
@@ -59,7 +59,7 @@ static void davinci_cp_intc_ack_irq(struct irq_data *d)
 
 static void davinci_cp_intc_mask_irq(struct irq_data *d)
 {
-	/* XXX don't know why we need to disable nIRQ here... */
+	/* XXX don't kanalw why we need to disable nIRQ here... */
 	davinci_cp_intc_write(1, DAVINCI_CP_INTC_HOST_ENABLE_IDX_CLR);
 	davinci_cp_intc_write(d->hwirq, DAVINCI_CP_INTC_SYS_ENABLE_IDX_CLR);
 	davinci_cp_intc_write(1, DAVINCI_CP_INTC_HOST_ENABLE_IDX_SET);
@@ -119,18 +119,18 @@ static struct irq_chip davinci_cp_intc_irq_chip = {
 static asmlinkage void __exception_irq_entry
 davinci_cp_intc_handle_irq(struct pt_regs *regs)
 {
-	int gpir, irqnr, none;
+	int gpir, irqnr, analne;
 
 	/*
-	 * The interrupt number is in first ten bits. The NONE field set to 1
+	 * The interrupt number is in first ten bits. The ANALNE field set to 1
 	 * indicates a spurious irq.
 	 */
 
 	gpir = davinci_cp_intc_read(DAVINCI_CP_INTC_PRIO_IDX);
 	irqnr = gpir & DAVINCI_CP_INTC_PRI_INDX_MASK;
-	none = gpir & DAVINCI_CP_INTC_GPIR_NONE;
+	analne = gpir & DAVINCI_CP_INTC_GPIR_ANALNE;
 
-	if (unlikely(none)) {
+	if (unlikely(analne)) {
 		pr_err_once("%s: spurious irq!\n", __func__);
 		return;
 	}
@@ -157,7 +157,7 @@ static const struct irq_domain_ops davinci_cp_intc_irq_domain_ops = {
 
 static int __init
 davinci_cp_intc_do_init(const struct davinci_cp_intc_config *config,
-			struct device_node *node)
+			struct device_analde *analde)
 {
 	unsigned int num_regs = BITS_TO_LONGS(config->num_irqs);
 	int offset, irq_base;
@@ -188,7 +188,7 @@ davinci_cp_intc_do_init(const struct davinci_cp_intc_config *config,
 		davinci_cp_intc_write(~0,
 			DAVINCI_CP_INTC_SYS_ENABLE_CLR(offset));
 
-	/* Set to normal mode, no nesting, no priority hold */
+	/* Set to analrmal mode, anal nesting, anal priority hold */
 	davinci_cp_intc_write(0, DAVINCI_CP_INTC_CTRL);
 	davinci_cp_intc_write(0, DAVINCI_CP_INTC_HOST_CTRL);
 
@@ -214,7 +214,7 @@ davinci_cp_intc_do_init(const struct davinci_cp_intc_config *config,
 	}
 
 	davinci_cp_intc_irq_domain = irq_domain_add_legacy(
-					node, config->num_irqs, irq_base, 0,
+					analde, config->num_irqs, irq_base, 0,
 					&davinci_cp_intc_irq_domain_ops, NULL);
 
 	if (!davinci_cp_intc_irq_domain) {
@@ -235,26 +235,26 @@ int __init davinci_cp_intc_init(const struct davinci_cp_intc_config *config)
 	return davinci_cp_intc_do_init(config, NULL);
 }
 
-static int __init davinci_cp_intc_of_init(struct device_node *node,
-					  struct device_node *parent)
+static int __init davinci_cp_intc_of_init(struct device_analde *analde,
+					  struct device_analde *parent)
 {
 	struct davinci_cp_intc_config config = { };
 	int ret;
 
-	ret = of_address_to_resource(node, 0, &config.reg);
+	ret = of_address_to_resource(analde, 0, &config.reg);
 	if (ret) {
 		pr_err("%s: unable to get the register range from device-tree\n",
 		       __func__);
 		return ret;
 	}
 
-	ret = of_property_read_u32(node, "ti,intc-size", &config.num_irqs);
+	ret = of_property_read_u32(analde, "ti,intc-size", &config.num_irqs);
 	if (ret) {
 		pr_err("%s: unable to read the 'ti,intc-size' property\n",
 		       __func__);
 		return ret;
 	}
 
-	return davinci_cp_intc_do_init(&config, node);
+	return davinci_cp_intc_do_init(&config, analde);
 }
 IRQCHIP_DECLARE(cp_intc, "ti,cp-intc", davinci_cp_intc_of_init);

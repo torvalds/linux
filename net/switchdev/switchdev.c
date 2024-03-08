@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
@@ -116,7 +116,7 @@ static int switchdev_deferred_enqueue(struct net_device *dev,
 
 	dfitem = kmalloc(struct_size(dfitem, data, data_len), GFP_ATOMIC);
 	if (!dfitem)
-		return -ENOMEM;
+		return -EANALMEM;
 	dfitem->dev = dev;
 	dfitem->func = func;
 	memcpy(dfitem->data, data, data_len);
@@ -128,7 +128,7 @@ static int switchdev_deferred_enqueue(struct net_device *dev,
 	return 0;
 }
 
-static int switchdev_port_attr_notify(enum switchdev_notifier_type nt,
+static int switchdev_port_attr_analtify(enum switchdev_analtifier_type nt,
 				      struct net_device *dev,
 				      const struct switchdev_attr *attr,
 				      struct netlink_ext_ack *extack)
@@ -136,30 +136,30 @@ static int switchdev_port_attr_notify(enum switchdev_notifier_type nt,
 	int err;
 	int rc;
 
-	struct switchdev_notifier_port_attr_info attr_info = {
+	struct switchdev_analtifier_port_attr_info attr_info = {
 		.attr = attr,
 		.handled = false,
 	};
 
-	rc = call_switchdev_blocking_notifiers(nt, dev,
+	rc = call_switchdev_blocking_analtifiers(nt, dev,
 					       &attr_info.info, extack);
-	err = notifier_to_errno(rc);
+	err = analtifier_to_erranal(rc);
 	if (err) {
 		WARN_ON(!attr_info.handled);
 		return err;
 	}
 
 	if (!attr_info.handled)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
 
-static int switchdev_port_attr_set_now(struct net_device *dev,
+static int switchdev_port_attr_set_analw(struct net_device *dev,
 				       const struct switchdev_attr *attr,
 				       struct netlink_ext_ack *extack)
 {
-	return switchdev_port_attr_notify(SWITCHDEV_PORT_ATTR_SET, dev, attr,
+	return switchdev_port_attr_analtify(SWITCHDEV_PORT_ATTR_SET, dev, attr,
 					  extack);
 }
 
@@ -169,8 +169,8 @@ static void switchdev_port_attr_set_deferred(struct net_device *dev,
 	const struct switchdev_attr *attr = data;
 	int err;
 
-	err = switchdev_port_attr_set_now(dev, attr, NULL);
-	if (err && err != -EOPNOTSUPP)
+	err = switchdev_port_attr_set_analw(dev, attr, NULL);
+	if (err && err != -EOPANALTSUPP)
 		netdev_err(dev, "failed (err=%d) to set attribute (id=%d)\n",
 			   err, attr->id);
 	if (attr->complete)
@@ -191,8 +191,8 @@ static int switchdev_port_attr_set_defer(struct net_device *dev,
  *	@attr: attribute to set
  *	@extack: netlink extended ack, for error message propagation
  *
- *	rtnl_lock must be held and must not be in atomic section,
- *	in case SWITCHDEV_F_DEFER flag is not set.
+ *	rtnl_lock must be held and must analt be in atomic section,
+ *	in case SWITCHDEV_F_DEFER flag is analt set.
  */
 int switchdev_port_attr_set(struct net_device *dev,
 			    const struct switchdev_attr *attr,
@@ -201,7 +201,7 @@ int switchdev_port_attr_set(struct net_device *dev,
 	if (attr->flags & SWITCHDEV_F_DEFER)
 		return switchdev_port_attr_set_defer(dev, attr);
 	ASSERT_RTNL();
-	return switchdev_port_attr_set_now(dev, attr, extack);
+	return switchdev_port_attr_set_analw(dev, attr, extack);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_attr_set);
 
@@ -220,7 +220,7 @@ static size_t switchdev_obj_size(const struct switchdev_obj *obj)
 	return 0;
 }
 
-static int switchdev_port_obj_notify(enum switchdev_notifier_type nt,
+static int switchdev_port_obj_analtify(enum switchdev_analtifier_type nt,
 				     struct net_device *dev,
 				     const struct switchdev_obj *obj,
 				     struct netlink_ext_ack *extack)
@@ -228,19 +228,19 @@ static int switchdev_port_obj_notify(enum switchdev_notifier_type nt,
 	int rc;
 	int err;
 
-	struct switchdev_notifier_port_obj_info obj_info = {
+	struct switchdev_analtifier_port_obj_info obj_info = {
 		.obj = obj,
 		.handled = false,
 	};
 
-	rc = call_switchdev_blocking_notifiers(nt, dev, &obj_info.info, extack);
-	err = notifier_to_errno(rc);
+	rc = call_switchdev_blocking_analtifiers(nt, dev, &obj_info.info, extack);
+	err = analtifier_to_erranal(rc);
 	if (err) {
 		WARN_ON(!obj_info.handled);
 		return err;
 	}
 	if (!obj_info.handled)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return 0;
 }
 
@@ -251,9 +251,9 @@ static void switchdev_port_obj_add_deferred(struct net_device *dev,
 	int err;
 
 	ASSERT_RTNL();
-	err = switchdev_port_obj_notify(SWITCHDEV_PORT_OBJ_ADD,
+	err = switchdev_port_obj_analtify(SWITCHDEV_PORT_OBJ_ADD,
 					dev, obj, NULL);
-	if (err && err != -EOPNOTSUPP)
+	if (err && err != -EOPANALTSUPP)
 		netdev_err(dev, "failed (err=%d) to add object (id=%d)\n",
 			   err, obj->id);
 	if (obj->complete)
@@ -274,8 +274,8 @@ static int switchdev_port_obj_add_defer(struct net_device *dev,
  *	@obj: object to add
  *	@extack: netlink extended ack
  *
- *	rtnl_lock must be held and must not be in atomic section,
- *	in case SWITCHDEV_F_DEFER flag is not set.
+ *	rtnl_lock must be held and must analt be in atomic section,
+ *	in case SWITCHDEV_F_DEFER flag is analt set.
  */
 int switchdev_port_obj_add(struct net_device *dev,
 			   const struct switchdev_obj *obj,
@@ -284,15 +284,15 @@ int switchdev_port_obj_add(struct net_device *dev,
 	if (obj->flags & SWITCHDEV_F_DEFER)
 		return switchdev_port_obj_add_defer(dev, obj);
 	ASSERT_RTNL();
-	return switchdev_port_obj_notify(SWITCHDEV_PORT_OBJ_ADD,
+	return switchdev_port_obj_analtify(SWITCHDEV_PORT_OBJ_ADD,
 					 dev, obj, extack);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_obj_add);
 
-static int switchdev_port_obj_del_now(struct net_device *dev,
+static int switchdev_port_obj_del_analw(struct net_device *dev,
 				      const struct switchdev_obj *obj)
 {
-	return switchdev_port_obj_notify(SWITCHDEV_PORT_OBJ_DEL,
+	return switchdev_port_obj_analtify(SWITCHDEV_PORT_OBJ_DEL,
 					 dev, obj, NULL);
 }
 
@@ -302,8 +302,8 @@ static void switchdev_port_obj_del_deferred(struct net_device *dev,
 	const struct switchdev_obj *obj = data;
 	int err;
 
-	err = switchdev_port_obj_del_now(dev, obj);
-	if (err && err != -EOPNOTSUPP)
+	err = switchdev_port_obj_del_analw(dev, obj);
+	if (err && err != -EOPANALTSUPP)
 		netdev_err(dev, "failed (err=%d) to del object (id=%d)\n",
 			   err, obj->id);
 	if (obj->complete)
@@ -323,8 +323,8 @@ static int switchdev_port_obj_del_defer(struct net_device *dev,
  *	@dev: port device
  *	@obj: object to delete
  *
- *	rtnl_lock must be held and must not be in atomic section,
- *	in case SWITCHDEV_F_DEFER flag is not set.
+ *	rtnl_lock must be held and must analt be in atomic section,
+ *	in case SWITCHDEV_F_DEFER flag is analt set.
  */
 int switchdev_port_obj_del(struct net_device *dev,
 			   const struct switchdev_obj *obj)
@@ -332,7 +332,7 @@ int switchdev_port_obj_del(struct net_device *dev,
 	if (obj->flags & SWITCHDEV_F_DEFER)
 		return switchdev_port_obj_del_defer(dev, obj);
 	ASSERT_RTNL();
-	return switchdev_port_obj_del_now(dev, obj);
+	return switchdev_port_obj_del_analw(dev, obj);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_obj_del);
 
@@ -349,7 +349,7 @@ EXPORT_SYMBOL_GPL(switchdev_port_obj_del);
  *	rtnl_lock must be held.
  */
 bool switchdev_port_obj_act_is_deferred(struct net_device *dev,
-					enum switchdev_notifier_type nt,
+					enum switchdev_analtifier_type nt,
 					const struct switchdev_obj *obj)
 {
 	struct switchdev_deferred_item *dfitem;
@@ -380,77 +380,77 @@ bool switchdev_port_obj_act_is_deferred(struct net_device *dev,
 }
 EXPORT_SYMBOL_GPL(switchdev_port_obj_act_is_deferred);
 
-static ATOMIC_NOTIFIER_HEAD(switchdev_notif_chain);
-static BLOCKING_NOTIFIER_HEAD(switchdev_blocking_notif_chain);
+static ATOMIC_ANALTIFIER_HEAD(switchdev_analtif_chain);
+static BLOCKING_ANALTIFIER_HEAD(switchdev_blocking_analtif_chain);
 
 /**
- *	register_switchdev_notifier - Register notifier
- *	@nb: notifier_block
+ *	register_switchdev_analtifier - Register analtifier
+ *	@nb: analtifier_block
  *
- *	Register switch device notifier.
+ *	Register switch device analtifier.
  */
-int register_switchdev_notifier(struct notifier_block *nb)
+int register_switchdev_analtifier(struct analtifier_block *nb)
 {
-	return atomic_notifier_chain_register(&switchdev_notif_chain, nb);
+	return atomic_analtifier_chain_register(&switchdev_analtif_chain, nb);
 }
-EXPORT_SYMBOL_GPL(register_switchdev_notifier);
+EXPORT_SYMBOL_GPL(register_switchdev_analtifier);
 
 /**
- *	unregister_switchdev_notifier - Unregister notifier
- *	@nb: notifier_block
+ *	unregister_switchdev_analtifier - Unregister analtifier
+ *	@nb: analtifier_block
  *
- *	Unregister switch device notifier.
+ *	Unregister switch device analtifier.
  */
-int unregister_switchdev_notifier(struct notifier_block *nb)
+int unregister_switchdev_analtifier(struct analtifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&switchdev_notif_chain, nb);
+	return atomic_analtifier_chain_unregister(&switchdev_analtif_chain, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_switchdev_notifier);
+EXPORT_SYMBOL_GPL(unregister_switchdev_analtifier);
 
 /**
- *	call_switchdev_notifiers - Call notifiers
- *	@val: value passed unmodified to notifier function
+ *	call_switchdev_analtifiers - Call analtifiers
+ *	@val: value passed unmodified to analtifier function
  *	@dev: port device
- *	@info: notifier information data
+ *	@info: analtifier information data
  *	@extack: netlink extended ack
- *	Call all network notifier blocks.
+ *	Call all network analtifier blocks.
  */
-int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
-			     struct switchdev_notifier_info *info,
+int call_switchdev_analtifiers(unsigned long val, struct net_device *dev,
+			     struct switchdev_analtifier_info *info,
 			     struct netlink_ext_ack *extack)
 {
 	info->dev = dev;
 	info->extack = extack;
-	return atomic_notifier_call_chain(&switchdev_notif_chain, val, info);
+	return atomic_analtifier_call_chain(&switchdev_analtif_chain, val, info);
 }
-EXPORT_SYMBOL_GPL(call_switchdev_notifiers);
+EXPORT_SYMBOL_GPL(call_switchdev_analtifiers);
 
-int register_switchdev_blocking_notifier(struct notifier_block *nb)
+int register_switchdev_blocking_analtifier(struct analtifier_block *nb)
 {
-	struct blocking_notifier_head *chain = &switchdev_blocking_notif_chain;
+	struct blocking_analtifier_head *chain = &switchdev_blocking_analtif_chain;
 
-	return blocking_notifier_chain_register(chain, nb);
+	return blocking_analtifier_chain_register(chain, nb);
 }
-EXPORT_SYMBOL_GPL(register_switchdev_blocking_notifier);
+EXPORT_SYMBOL_GPL(register_switchdev_blocking_analtifier);
 
-int unregister_switchdev_blocking_notifier(struct notifier_block *nb)
+int unregister_switchdev_blocking_analtifier(struct analtifier_block *nb)
 {
-	struct blocking_notifier_head *chain = &switchdev_blocking_notif_chain;
+	struct blocking_analtifier_head *chain = &switchdev_blocking_analtif_chain;
 
-	return blocking_notifier_chain_unregister(chain, nb);
+	return blocking_analtifier_chain_unregister(chain, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_switchdev_blocking_notifier);
+EXPORT_SYMBOL_GPL(unregister_switchdev_blocking_analtifier);
 
-int call_switchdev_blocking_notifiers(unsigned long val, struct net_device *dev,
-				      struct switchdev_notifier_info *info,
+int call_switchdev_blocking_analtifiers(unsigned long val, struct net_device *dev,
+				      struct switchdev_analtifier_info *info,
 				      struct netlink_ext_ack *extack)
 {
 	info->dev = dev;
 	info->extack = extack;
-	return blocking_notifier_call_chain(&switchdev_blocking_notif_chain,
+	return blocking_analtifier_call_chain(&switchdev_blocking_analtif_chain,
 					    val, info);
 }
-EXPORT_SYMBOL_GPL(call_switchdev_blocking_notifiers);
+EXPORT_SYMBOL_GPL(call_switchdev_blocking_analtifiers);
 
 struct switchdev_nested_priv {
 	bool (*check_cb)(const struct net_device *dev);
@@ -525,18 +525,18 @@ switchdev_lower_dev_find(struct net_device *dev,
 
 static int __switchdev_handle_fdb_event_to_device(struct net_device *dev,
 		struct net_device *orig_dev, unsigned long event,
-		const struct switchdev_notifier_fdb_info *fdb_info,
+		const struct switchdev_analtifier_fdb_info *fdb_info,
 		bool (*check_cb)(const struct net_device *dev),
 		bool (*foreign_dev_check_cb)(const struct net_device *dev,
 					     const struct net_device *foreign_dev),
 		int (*mod_cb)(struct net_device *dev, struct net_device *orig_dev,
 			      unsigned long event, const void *ctx,
-			      const struct switchdev_notifier_fdb_info *fdb_info))
+			      const struct switchdev_analtifier_fdb_info *fdb_info))
 {
-	const struct switchdev_notifier_info *info = &fdb_info->info;
+	const struct switchdev_analtifier_info *info = &fdb_info->info;
 	struct net_device *br, *lower_dev, *switchdev;
 	struct list_head *iter;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	if (check_cb(dev))
 		return mod_cb(dev, orig_dev, event, info->ctx, fdb_info);
@@ -545,7 +545,7 @@ static int __switchdev_handle_fdb_event_to_device(struct net_device *dev,
 	 * towards a bridge or a LAG device.
 	 */
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
-		/* Do not propagate FDB entries across bridges */
+		/* Do analt propagate FDB entries across bridges */
 		if (netif_is_bridge_master(lower_dev))
 			continue;
 
@@ -561,11 +561,11 @@ static int __switchdev_handle_fdb_event_to_device(struct net_device *dev,
 							     event, fdb_info, check_cb,
 							     foreign_dev_check_cb,
 							     mod_cb);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			return err;
 	}
 
-	/* Event is neither on a bridge nor a LAG. Check whether it is on an
+	/* Event is neither on a bridge analr a LAG. Check whether it is on an
 	 * interface that is in a bridge with us.
 	 */
 	br = netdev_master_upper_dev_get_rcu(dev);
@@ -585,20 +585,20 @@ static int __switchdev_handle_fdb_event_to_device(struct net_device *dev,
 }
 
 int switchdev_handle_fdb_event_to_device(struct net_device *dev, unsigned long event,
-		const struct switchdev_notifier_fdb_info *fdb_info,
+		const struct switchdev_analtifier_fdb_info *fdb_info,
 		bool (*check_cb)(const struct net_device *dev),
 		bool (*foreign_dev_check_cb)(const struct net_device *dev,
 					     const struct net_device *foreign_dev),
 		int (*mod_cb)(struct net_device *dev, struct net_device *orig_dev,
 			      unsigned long event, const void *ctx,
-			      const struct switchdev_notifier_fdb_info *fdb_info))
+			      const struct switchdev_analtifier_fdb_info *fdb_info))
 {
 	int err;
 
 	err = __switchdev_handle_fdb_event_to_device(dev, dev, event, fdb_info,
 						     check_cb, foreign_dev_check_cb,
 						     mod_cb);
-	if (err == -EOPNOTSUPP)
+	if (err == -EOPANALTSUPP)
 		err = 0;
 
 	return err;
@@ -606,7 +606,7 @@ int switchdev_handle_fdb_event_to_device(struct net_device *dev, unsigned long e
 EXPORT_SYMBOL_GPL(switchdev_handle_fdb_event_to_device);
 
 static int __switchdev_handle_port_obj_add(struct net_device *dev,
-			struct switchdev_notifier_port_obj_info *port_obj_info,
+			struct switchdev_analtifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
 			bool (*foreign_dev_check_cb)(const struct net_device *dev,
 						     const struct net_device *foreign_dev),
@@ -614,26 +614,26 @@ static int __switchdev_handle_port_obj_add(struct net_device *dev,
 				      const struct switchdev_obj *obj,
 				      struct netlink_ext_ack *extack))
 {
-	struct switchdev_notifier_info *info = &port_obj_info->info;
+	struct switchdev_analtifier_info *info = &port_obj_info->info;
 	struct net_device *br, *lower_dev, *switchdev;
 	struct netlink_ext_ack *extack;
 	struct list_head *iter;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
-	extack = switchdev_notifier_info_to_extack(info);
+	extack = switchdev_analtifier_info_to_extack(info);
 
 	if (check_cb(dev)) {
 		err = add_cb(dev, info->ctx, port_obj_info->obj, extack);
-		if (err != -EOPNOTSUPP)
+		if (err != -EOPANALTSUPP)
 			port_obj_info->handled = true;
 		return err;
 	}
 
-	/* Switch ports might be stacked under e.g. a LAG. Ignore the
-	 * unsupported devices, another driver might be able to handle them. But
+	/* Switch ports might be stacked under e.g. a LAG. Iganalre the
+	 * unsupported devices, aanalther driver might be able to handle them. But
 	 * propagate to the callers any hard errors.
 	 *
-	 * If the driver does its own bookkeeping of stacked ports, it's not
+	 * If the driver does its own bookkeeping of stacked ports, it's analt
 	 * necessary to go through this helper.
 	 */
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
@@ -641,7 +641,7 @@ static int __switchdev_handle_port_obj_add(struct net_device *dev,
 			continue;
 
 		/* When searching for switchdev interfaces that are neighbors
-		 * of foreign ones, and @dev is a bridge, do not recurse on the
+		 * of foreign ones, and @dev is a bridge, do analt recurse on the
 		 * foreign interface again, it was already visited.
 		 */
 		if (foreign_dev_check_cb && !check_cb(lower_dev) &&
@@ -651,11 +651,11 @@ static int __switchdev_handle_port_obj_add(struct net_device *dev,
 		err = __switchdev_handle_port_obj_add(lower_dev, port_obj_info,
 						      check_cb, foreign_dev_check_cb,
 						      add_cb);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			return err;
 	}
 
-	/* Event is neither on a bridge nor a LAG. Check whether it is on an
+	/* Event is neither on a bridge analr a LAG. Check whether it is on an
 	 * interface that is in a bridge with us.
 	 */
 	if (!foreign_dev_check_cb)
@@ -681,7 +681,7 @@ static int __switchdev_handle_port_obj_add(struct net_device *dev,
  * bridge or a LAG.
  */
 int switchdev_handle_port_obj_add(struct net_device *dev,
-			struct switchdev_notifier_port_obj_info *port_obj_info,
+			struct switchdev_analtifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*add_cb)(struct net_device *dev, const void *ctx,
 				      const struct switchdev_obj *obj,
@@ -691,18 +691,18 @@ int switchdev_handle_port_obj_add(struct net_device *dev,
 
 	err = __switchdev_handle_port_obj_add(dev, port_obj_info, check_cb,
 					      NULL, add_cb);
-	if (err == -EOPNOTSUPP)
+	if (err == -EOPANALTSUPP)
 		err = 0;
 	return err;
 }
 EXPORT_SYMBOL_GPL(switchdev_handle_port_obj_add);
 
-/* Same as switchdev_handle_port_obj_add(), except if object is notified on a
+/* Same as switchdev_handle_port_obj_add(), except if object is analtified on a
  * @dev that passes @foreign_dev_check_cb, it is replicated towards all devices
  * that pass @check_cb and are in the same bridge as @dev.
  */
 int switchdev_handle_port_obj_add_foreign(struct net_device *dev,
-			struct switchdev_notifier_port_obj_info *port_obj_info,
+			struct switchdev_analtifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
 			bool (*foreign_dev_check_cb)(const struct net_device *dev,
 						     const struct net_device *foreign_dev),
@@ -714,37 +714,37 @@ int switchdev_handle_port_obj_add_foreign(struct net_device *dev,
 
 	err = __switchdev_handle_port_obj_add(dev, port_obj_info, check_cb,
 					      foreign_dev_check_cb, add_cb);
-	if (err == -EOPNOTSUPP)
+	if (err == -EOPANALTSUPP)
 		err = 0;
 	return err;
 }
 EXPORT_SYMBOL_GPL(switchdev_handle_port_obj_add_foreign);
 
 static int __switchdev_handle_port_obj_del(struct net_device *dev,
-			struct switchdev_notifier_port_obj_info *port_obj_info,
+			struct switchdev_analtifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
 			bool (*foreign_dev_check_cb)(const struct net_device *dev,
 						     const struct net_device *foreign_dev),
 			int (*del_cb)(struct net_device *dev, const void *ctx,
 				      const struct switchdev_obj *obj))
 {
-	struct switchdev_notifier_info *info = &port_obj_info->info;
+	struct switchdev_analtifier_info *info = &port_obj_info->info;
 	struct net_device *br, *lower_dev, *switchdev;
 	struct list_head *iter;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	if (check_cb(dev)) {
 		err = del_cb(dev, info->ctx, port_obj_info->obj);
-		if (err != -EOPNOTSUPP)
+		if (err != -EOPANALTSUPP)
 			port_obj_info->handled = true;
 		return err;
 	}
 
-	/* Switch ports might be stacked under e.g. a LAG. Ignore the
-	 * unsupported devices, another driver might be able to handle them. But
+	/* Switch ports might be stacked under e.g. a LAG. Iganalre the
+	 * unsupported devices, aanalther driver might be able to handle them. But
 	 * propagate to the callers any hard errors.
 	 *
-	 * If the driver does its own bookkeeping of stacked ports, it's not
+	 * If the driver does its own bookkeeping of stacked ports, it's analt
 	 * necessary to go through this helper.
 	 */
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
@@ -752,7 +752,7 @@ static int __switchdev_handle_port_obj_del(struct net_device *dev,
 			continue;
 
 		/* When searching for switchdev interfaces that are neighbors
-		 * of foreign ones, and @dev is a bridge, do not recurse on the
+		 * of foreign ones, and @dev is a bridge, do analt recurse on the
 		 * foreign interface again, it was already visited.
 		 */
 		if (foreign_dev_check_cb && !check_cb(lower_dev) &&
@@ -762,11 +762,11 @@ static int __switchdev_handle_port_obj_del(struct net_device *dev,
 		err = __switchdev_handle_port_obj_del(lower_dev, port_obj_info,
 						      check_cb, foreign_dev_check_cb,
 						      del_cb);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			return err;
 	}
 
-	/* Event is neither on a bridge nor a LAG. Check whether it is on an
+	/* Event is neither on a bridge analr a LAG. Check whether it is on an
 	 * interface that is in a bridge with us.
 	 */
 	if (!foreign_dev_check_cb)
@@ -792,7 +792,7 @@ static int __switchdev_handle_port_obj_del(struct net_device *dev,
  * bridge or a LAG.
  */
 int switchdev_handle_port_obj_del(struct net_device *dev,
-			struct switchdev_notifier_port_obj_info *port_obj_info,
+			struct switchdev_analtifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*del_cb)(struct net_device *dev, const void *ctx,
 				      const struct switchdev_obj *obj))
@@ -801,18 +801,18 @@ int switchdev_handle_port_obj_del(struct net_device *dev,
 
 	err = __switchdev_handle_port_obj_del(dev, port_obj_info, check_cb,
 					      NULL, del_cb);
-	if (err == -EOPNOTSUPP)
+	if (err == -EOPANALTSUPP)
 		err = 0;
 	return err;
 }
 EXPORT_SYMBOL_GPL(switchdev_handle_port_obj_del);
 
-/* Same as switchdev_handle_port_obj_del(), except if object is notified on a
+/* Same as switchdev_handle_port_obj_del(), except if object is analtified on a
  * @dev that passes @foreign_dev_check_cb, it is replicated towards all devices
  * that pass @check_cb and are in the same bridge as @dev.
  */
 int switchdev_handle_port_obj_del_foreign(struct net_device *dev,
-			struct switchdev_notifier_port_obj_info *port_obj_info,
+			struct switchdev_analtifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
 			bool (*foreign_dev_check_cb)(const struct net_device *dev,
 						     const struct net_device *foreign_dev),
@@ -823,39 +823,39 @@ int switchdev_handle_port_obj_del_foreign(struct net_device *dev,
 
 	err = __switchdev_handle_port_obj_del(dev, port_obj_info, check_cb,
 					      foreign_dev_check_cb, del_cb);
-	if (err == -EOPNOTSUPP)
+	if (err == -EOPANALTSUPP)
 		err = 0;
 	return err;
 }
 EXPORT_SYMBOL_GPL(switchdev_handle_port_obj_del_foreign);
 
 static int __switchdev_handle_port_attr_set(struct net_device *dev,
-			struct switchdev_notifier_port_attr_info *port_attr_info,
+			struct switchdev_analtifier_port_attr_info *port_attr_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*set_cb)(struct net_device *dev, const void *ctx,
 				      const struct switchdev_attr *attr,
 				      struct netlink_ext_ack *extack))
 {
-	struct switchdev_notifier_info *info = &port_attr_info->info;
+	struct switchdev_analtifier_info *info = &port_attr_info->info;
 	struct netlink_ext_ack *extack;
 	struct net_device *lower_dev;
 	struct list_head *iter;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
-	extack = switchdev_notifier_info_to_extack(info);
+	extack = switchdev_analtifier_info_to_extack(info);
 
 	if (check_cb(dev)) {
 		err = set_cb(dev, info->ctx, port_attr_info->attr, extack);
-		if (err != -EOPNOTSUPP)
+		if (err != -EOPANALTSUPP)
 			port_attr_info->handled = true;
 		return err;
 	}
 
-	/* Switch ports might be stacked under e.g. a LAG. Ignore the
-	 * unsupported devices, another driver might be able to handle them. But
+	/* Switch ports might be stacked under e.g. a LAG. Iganalre the
+	 * unsupported devices, aanalther driver might be able to handle them. But
 	 * propagate to the callers any hard errors.
 	 *
-	 * If the driver does its own bookkeeping of stacked ports, it's not
+	 * If the driver does its own bookkeeping of stacked ports, it's analt
 	 * necessary to go through this helper.
 	 */
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
@@ -864,7 +864,7 @@ static int __switchdev_handle_port_attr_set(struct net_device *dev,
 
 		err = __switchdev_handle_port_attr_set(lower_dev, port_attr_info,
 						       check_cb, set_cb);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			return err;
 	}
 
@@ -872,7 +872,7 @@ static int __switchdev_handle_port_attr_set(struct net_device *dev,
 }
 
 int switchdev_handle_port_attr_set(struct net_device *dev,
-			struct switchdev_notifier_port_attr_info *port_attr_info,
+			struct switchdev_analtifier_port_attr_info *port_attr_info,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*set_cb)(struct net_device *dev, const void *ctx,
 				      const struct switchdev_attr *attr,
@@ -882,7 +882,7 @@ int switchdev_handle_port_attr_set(struct net_device *dev,
 
 	err = __switchdev_handle_port_attr_set(dev, port_attr_info, check_cb,
 					       set_cb);
-	if (err == -EOPNOTSUPP)
+	if (err == -EOPANALTSUPP)
 		err = 0;
 	return err;
 }
@@ -890,12 +890,12 @@ EXPORT_SYMBOL_GPL(switchdev_handle_port_attr_set);
 
 int switchdev_bridge_port_offload(struct net_device *brport_dev,
 				  struct net_device *dev, const void *ctx,
-				  struct notifier_block *atomic_nb,
-				  struct notifier_block *blocking_nb,
+				  struct analtifier_block *atomic_nb,
+				  struct analtifier_block *blocking_nb,
 				  bool tx_fwd_offload,
 				  struct netlink_ext_ack *extack)
 {
-	struct switchdev_notifier_brport_info brport_info = {
+	struct switchdev_analtifier_brport_info brport_info = {
 		.brport = {
 			.dev = dev,
 			.ctx = ctx,
@@ -908,19 +908,19 @@ int switchdev_bridge_port_offload(struct net_device *brport_dev,
 
 	ASSERT_RTNL();
 
-	err = call_switchdev_blocking_notifiers(SWITCHDEV_BRPORT_OFFLOADED,
+	err = call_switchdev_blocking_analtifiers(SWITCHDEV_BRPORT_OFFLOADED,
 						brport_dev, &brport_info.info,
 						extack);
-	return notifier_to_errno(err);
+	return analtifier_to_erranal(err);
 }
 EXPORT_SYMBOL_GPL(switchdev_bridge_port_offload);
 
-void switchdev_bridge_port_unoffload(struct net_device *brport_dev,
+void switchdev_bridge_port_uanalffload(struct net_device *brport_dev,
 				     const void *ctx,
-				     struct notifier_block *atomic_nb,
-				     struct notifier_block *blocking_nb)
+				     struct analtifier_block *atomic_nb,
+				     struct analtifier_block *blocking_nb)
 {
-	struct switchdev_notifier_brport_info brport_info = {
+	struct switchdev_analtifier_brport_info brport_info = {
 		.brport = {
 			.ctx = ctx,
 			.atomic_nb = atomic_nb,
@@ -930,19 +930,19 @@ void switchdev_bridge_port_unoffload(struct net_device *brport_dev,
 
 	ASSERT_RTNL();
 
-	call_switchdev_blocking_notifiers(SWITCHDEV_BRPORT_UNOFFLOADED,
+	call_switchdev_blocking_analtifiers(SWITCHDEV_BRPORT_UANALFFLOADED,
 					  brport_dev, &brport_info.info,
 					  NULL);
 }
-EXPORT_SYMBOL_GPL(switchdev_bridge_port_unoffload);
+EXPORT_SYMBOL_GPL(switchdev_bridge_port_uanalffload);
 
 int switchdev_bridge_port_replay(struct net_device *brport_dev,
 				 struct net_device *dev, const void *ctx,
-				 struct notifier_block *atomic_nb,
-				 struct notifier_block *blocking_nb,
+				 struct analtifier_block *atomic_nb,
+				 struct analtifier_block *blocking_nb,
 				 struct netlink_ext_ack *extack)
 {
-	struct switchdev_notifier_brport_info brport_info = {
+	struct switchdev_analtifier_brport_info brport_info = {
 		.brport = {
 			.dev = dev,
 			.ctx = ctx,
@@ -954,9 +954,9 @@ int switchdev_bridge_port_replay(struct net_device *brport_dev,
 
 	ASSERT_RTNL();
 
-	err = call_switchdev_blocking_notifiers(SWITCHDEV_BRPORT_REPLAY,
+	err = call_switchdev_blocking_analtifiers(SWITCHDEV_BRPORT_REPLAY,
 						brport_dev, &brport_info.info,
 						extack);
-	return notifier_to_errno(err);
+	return analtifier_to_erranal(err);
 }
 EXPORT_SYMBOL_GPL(switchdev_bridge_port_replay);

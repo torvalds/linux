@@ -15,7 +15,7 @@
  *		Linus Torvalds, <torvalds@cs.helsinki.fi>
  *		Alan Cox, <gw4pts@gw4pts.ampr.org>
  *		Matthew Dillon, <dillon@apollo.west.oic.com>
- *		Arnt Gulbrandsen, <agulbra@nvg.unit.no>
+ *		Arnt Gulbrandsen, <agulbra@nvg.unit.anal>
  *		Jorge Cwik, <jorge@laser.satlink.net>
  */
 
@@ -68,7 +68,7 @@ u32 tcp_clamp_probe0_to_user_timeout(const struct sock *sk, u32 when)
  *  tcp_write_err() - close socket and save error info
  *  @sk:  The socket the error has appeared on.
  *
- *  Returns: Nothing (void)
+ *  Returns: Analthing (void)
  */
 
 static void tcp_write_err(struct sock *sk)
@@ -86,19 +86,19 @@ static void tcp_write_err(struct sock *sk)
  *  @sk:        pointer to current socket
  *  @do_reset:  send a last packet with reset flag
  *
- *  Do not allow orphaned sockets to eat all our resources.
+ *  Do analt allow orphaned sockets to eat all our resources.
  *  This is direct violation of TCP specs, but it is required
  *  to prevent DoS attacks. It is called when a retransmission timeout
  *  or zero probe timeout occurs on orphaned socket.
  *
- *  Also close if our net namespace is exiting; in that case there is no
+ *  Also close if our net namespace is exiting; in that case there is anal
  *  hope of ever communicating again since all netns interfaces are already
  *  down (or about to be down), and we need to release our dst references,
  *  which have been moved to the netns loopback interface, so the namespace
  *  can finish exiting.  This condition is only possible if we are a kernel
- *  socket, as those do not hold references to the namespace.
+ *  socket, as those do analt hold references to the namespace.
  *
- *  Criteria is still not confirmed experimentally and may change.
+ *  Criteria is still analt confirmed experimentally and may change.
  *  We kill the socket, if:
  *  1. If number of orphaned sockets exceeds an administratively configured
  *     limit.
@@ -110,7 +110,7 @@ static int tcp_out_of_resources(struct sock *sk, bool do_reset)
 	struct tcp_sock *tp = tcp_sk(sk);
 	int shift = 0;
 
-	/* If peer does not open window for long time, or did not transmit
+	/* If peer does analt open window for long time, or did analt transmit
 	 * anything for long time, penalize it. */
 	if ((s32)(tcp_jiffies32 - tp->lsndtime) > 2*TCP_RTO_MAX || !do_reset)
 		shift++;
@@ -134,7 +134,7 @@ static int tcp_out_of_resources(struct sock *sk, bool do_reset)
 	}
 
 	if (!check_net(sock_net(sk))) {
-		/* Not possible to send reset; just close */
+		/* Analt possible to send reset; just close */
 		tcp_done(sk);
 		return 1;
 	}
@@ -151,7 +151,7 @@ static int tcp_orphan_retries(struct sock *sk, bool alive)
 {
 	int retries = READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_orphan_retries); /* May be zero. */
 
-	/* We know from an ICMP that something is wrong. */
+	/* We kanalw from an ICMP that something is wrong. */
 	if (READ_ONCE(sk->sk_err_soft) && !alive)
 		retries = 0;
 
@@ -354,7 +354,7 @@ void tcp_delack_timer_handler(struct sock *sk)
  *  This function gets (indirectly) called when the kernel timer for a TCP packet
  *  of this socket expires. Calls tcp_delack_timer_handler() to do the actual work.
  *
- *  Returns: Nothing (void)
+ *  Returns: Analthing (void)
  */
 static void tcp_delack_timer(struct timer_list *t)
 {
@@ -420,7 +420,7 @@ static void tcp_probe_timer(struct sock *sk)
 	if (icsk->icsk_probes_out >= max_probes) {
 abort:		tcp_write_err(sk);
 	} else {
-		/* Only send another probe if we didn't close things up. */
+		/* Only send aanalther probe if we didn't close things up. */
 		tcp_send_probe0(sk);
 	}
 }
@@ -439,8 +439,8 @@ static void tcp_update_rto_stats(struct sock *sk)
 }
 
 /*
- *	Timer for Fast Open socket to retransmit SYNACK. Note that the
- *	sk here is the child socket, not the parent (listener) socket.
+ *	Timer for Fast Open socket to retransmit SYNACK. Analte that the
+ *	sk here is the child socket, analt the parent (listener) socket.
  */
 static void tcp_fastopen_synack_timer(struct sock *sk, struct request_sock *req)
 {
@@ -463,10 +463,10 @@ static void tcp_fastopen_synack_timer(struct sock *sk, struct request_sock *req)
 	/* Lower cwnd after certain SYNACK timeout like tcp_init_transfer() */
 	if (icsk->icsk_retransmits == 1)
 		tcp_enter_loss(sk);
-	/* XXX (TFO) - Unlike regular SYN-ACK retransmit, we ignore error
+	/* XXX (TFO) - Unlike regular SYN-ACK retransmit, we iganalre error
 	 * returned from rtx_syn_ack() to make it more persistent like
 	 * regular retransmit because if the child socket has been accepted
-	 * it's not good to give up too easily.
+	 * it's analt good to give up too easily.
 	 */
 	inet_rtx_syn_ack(sk, req);
 	req->num_timeout++;
@@ -501,7 +501,7 @@ static bool tcp_rtx_probe0_timed_out(const struct sock *sk,
  *
  *  It handles retransmission, timer adjustment and other necessary measures.
  *
- *  Returns: Nothing (void)
+ *  Returns: Analthing (void)
  */
 void tcp_retransmit_timer(struct sock *sk)
 {
@@ -535,9 +535,9 @@ void tcp_retransmit_timer(struct sock *sk)
 	if (!tp->snd_wnd && !sock_flag(sk, SOCK_DEAD) &&
 	    !((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV))) {
 		/* Receiver dastardly shrinks window. Our retransmits
-		 * become zero probes, but we should not timeout this
+		 * become zero probes, but we should analt timeout this
 		 * connection. If the socket is an orphan, time it out,
-		 * we cannot allow such beasts to hang infinitely.
+		 * we cananalt allow such beasts to hang infinitely.
 		 */
 		struct inet_sock *inet = inet_sk(sk);
 		u32 rtx_delta;
@@ -584,7 +584,7 @@ void tcp_retransmit_timer(struct sock *sk)
 			if (tcp_is_sack(tp))
 				mib_idx = LINUX_MIB_TCPSACKRECOVERYFAIL;
 			else
-				mib_idx = LINUX_MIB_TCPRENORECOVERYFAIL;
+				mib_idx = LINUX_MIB_TCPREANALRECOVERYFAIL;
 		} else if (icsk->icsk_ca_state == TCP_CA_Loss) {
 			mib_idx = LINUX_MIB_TCPLOSSFAILURES;
 		} else if ((icsk->icsk_ca_state == TCP_CA_Disorder) ||
@@ -592,7 +592,7 @@ void tcp_retransmit_timer(struct sock *sk)
 			if (tcp_is_sack(tp))
 				mib_idx = LINUX_MIB_TCPSACKFAILURES;
 			else
-				mib_idx = LINUX_MIB_TCPRENOFAILURES;
+				mib_idx = LINUX_MIB_TCPREANALFAILURES;
 		}
 		if (mib_idx)
 			__NET_INC_STATS(sock_net(sk), mib_idx);
@@ -611,13 +611,13 @@ void tcp_retransmit_timer(struct sock *sk)
 		goto out;
 	}
 
-	/* Increase the timeout each time we retransmit.  Note that
-	 * we do not increase the rtt estimate.  rto is initialized
+	/* Increase the timeout each time we retransmit.  Analte that
+	 * we do analt increase the rtt estimate.  rto is initialized
 	 * from rtt, but increases here.  Jacobson (SIGCOMM 88) suggests
 	 * that doubling rto each time is the least we can get away with.
 	 * In KA9Q, Karn uses this for the first few times, and then
 	 * goes to quadratic.  netBSD doubles, but only goes up to *64,
-	 * and clamps at 1 to 64 sec afterwards.  Note that 120 sec is
+	 * and clamps at 1 to 64 sec afterwards.  Analte that 120 sec is
 	 * defined in the protocol as the maximum possible RTT.  I guess
 	 * we'll have to use something other than TCP to talk to the
 	 * University of Mars.
@@ -648,7 +648,7 @@ out_reset_timer:
 	} else if (sk->sk_state != TCP_SYN_SENT ||
 		   tp->total_rto >
 		   READ_ONCE(net->ipv4.sysctl_tcp_syn_linear_timeouts)) {
-		/* Use normal (exponential) backoff unless linear timeouts are
+		/* Use analrmal (exponential) backoff unless linear timeouts are
 		 * activated.
 		 */
 		icsk->icsk_backoff++;
@@ -745,7 +745,7 @@ static void tcp_keepalive_timer (struct timer_list *t)
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 elapsed;
 
-	/* Only process if socket is not in use. */
+	/* Only process if socket is analt in use. */
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
 		/* Try again later. */
@@ -849,18 +849,18 @@ static enum hrtimer_restart tcp_compressed_ack_kick(struct hrtimer *timer)
 
 	sock_put(sk);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 void tcp_init_xmit_timers(struct sock *sk)
 {
 	inet_csk_init_xmit_timers(sk, &tcp_write_timer, &tcp_delack_timer,
 				  &tcp_keepalive_timer);
-	hrtimer_init(&tcp_sk(sk)->pacing_timer, CLOCK_MONOTONIC,
+	hrtimer_init(&tcp_sk(sk)->pacing_timer, CLOCK_MOANALTONIC,
 		     HRTIMER_MODE_ABS_PINNED_SOFT);
 	tcp_sk(sk)->pacing_timer.function = tcp_pace_kick;
 
-	hrtimer_init(&tcp_sk(sk)->compressed_ack_timer, CLOCK_MONOTONIC,
+	hrtimer_init(&tcp_sk(sk)->compressed_ack_timer, CLOCK_MOANALTONIC,
 		     HRTIMER_MODE_REL_PINNED_SOFT);
 	tcp_sk(sk)->compressed_ack_timer.function = tcp_compressed_ack_kick;
 }

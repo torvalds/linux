@@ -28,7 +28,7 @@
 #define kdebug(FMT, ...)						\
 do {									\
 	if (0)								\
-		no_printk("[%-5.5s%5u] " FMT "\n",			\
+		anal_printk("[%-5.5s%5u] " FMT "\n",			\
 			  current->comm, current->pid, ##__VA_ARGS__);	\
 } while (0)
 #endif
@@ -93,7 +93,7 @@ static void put_cred_rcu(struct rcu_head *rcu)
  * __put_cred - Destroy a set of credentials
  * @cred: The record to release
  *
- * Destroy a set of credentials on which no references remain.
+ * Destroy a set of credentials on which anal references remain.
  */
 void __put_cred(struct cred *cred)
 {
@@ -104,7 +104,7 @@ void __put_cred(struct cred *cred)
 	BUG_ON(cred == current->cred);
 	BUG_ON(cred == current->real_cred);
 
-	if (cred->non_rcu)
+	if (cred->analn_rcu)
 		put_cred_rcu(&cred->rcu);
 	else
 		call_rcu(&cred->rcu, put_cred_rcu);
@@ -141,11 +141,11 @@ void exit_creds(struct task_struct *tsk)
 }
 
 /**
- * get_task_cred - Get another task's objective credentials
+ * get_task_cred - Get aanalther task's objective credentials
  * @task: The task to query
  *
  * Get the objective credentials of a task, pinning them so that they can't go
- * away.  Accessing a task's credentials directly is not permitted.
+ * away.  Accessing a task's credentials directly is analt permitted.
  *
  * The caller must also make sure task doesn't get deleted, either by holding a
  * ref on task or by holding tasklist_lock to prevent it from being unlinked.
@@ -168,7 +168,7 @@ EXPORT_SYMBOL(get_task_cred);
 
 /*
  * Allocate blank credentials, such that the credentials can be filled in at a
- * later date without risk of ENOMEM.
+ * later date without risk of EANALMEM.
  */
 struct cred *cred_alloc_blank(void)
 {
@@ -218,7 +218,7 @@ struct cred *prepare_creds(void)
 	old = task->cred;
 	memcpy(new, old, sizeof(struct cred));
 
-	new->non_rcu = 0;
+	new->analn_rcu = 0;
 	atomic_long_set(&new->usage, 1);
 	get_group_info(new->group_info);
 	get_uid(new->user);
@@ -311,7 +311,7 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
 
 	new = prepare_creds();
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (clone_flags & CLONE_NEWUSER) {
 		ret = create_user_ns(new);
@@ -381,7 +381,7 @@ static bool cred_cap_issubset(const struct cred *set, const struct cred *subset)
  *
  * Install a new set of credentials to the current task, using RCU to replace
  * the old set.  Both the objective and the subjective credentials pointers are
- * updated.  This function may not be called if the subjective credentials are
+ * updated.  This function may analt be called if the subjective credentials are
  * in an overridden state.
  *
  * This function eats the caller's reference to the new credentials.
@@ -412,12 +412,12 @@ int commit_creds(struct cred *new)
 			set_dumpable(task->mm, suid_dumpable);
 		task->pdeath_signal = 0;
 		/*
-		 * If a task drops privileges and becomes nondumpable,
+		 * If a task drops privileges and becomes analndumpable,
 		 * the dumpability change must become visible before
 		 * the credential change; otherwise, a __ptrace_may_access()
 		 * racing with this change may be able to attach to a task it
 		 * shouldn't be able to attach to (as if the task had dropped
-		 * privileges without becoming nondumpable).
+		 * privileges without becoming analndumpable).
 		 * Pairs with a read barrier in __ptrace_may_access().
 		 */
 		smp_wmb();
@@ -440,7 +440,7 @@ int commit_creds(struct cred *new)
 	if (new->user != old->user || new->user_ns != old->user_ns)
 		dec_rlimit_ucounts(old->ucounts, UCOUNT_RLIMIT_NPROC, 1);
 
-	/* send notifications */
+	/* send analtifications */
 	if (!uid_eq(new->uid,   old->uid)  ||
 	    !uid_eq(new->euid,  old->euid) ||
 	    !uid_eq(new->suid,  old->suid) ||
@@ -491,11 +491,11 @@ const struct cred *override_creds(const struct cred *new)
 	       atomic_long_read(&new->usage));
 
 	/*
-	 * NOTE! This uses 'get_new_cred()' rather than 'get_cred()'.
+	 * ANALTE! This uses 'get_new_cred()' rather than 'get_cred()'.
 	 *
-	 * That means that we do not clear the 'non_rcu' flag, since
-	 * we are only installing the cred into the thread-synchronous
-	 * '->cred' pointer, not the '->real_cred' pointer that is
+	 * That means that we do analt clear the 'analn_rcu' flag, since
+	 * we are only installing the cred into the thread-synchroanalus
+	 * '->cred' pointer, analt the '->real_cred' pointer that is
 	 * visible to other threads under RCU.
 	 */
 	get_new_cred((struct cred *)new);
@@ -619,8 +619,8 @@ void __init cred_init(void)
  * task that requires a different subjective context.
  *
  * @daemon is used to provide a base cred, with the security data derived from
- * that; if this is "&init_task", they'll be set to 0, no groups, full
- * capabilities, and no keys.
+ * that; if this is "&init_task", they'll be set to 0, anal groups, full
+ * capabilities, and anal keys.
  *
  * The caller may change these controls afterwards if desired.
  *
@@ -643,7 +643,7 @@ struct cred *prepare_kernel_cred(struct task_struct *daemon)
 	old = get_task_cred(daemon);
 
 	*new = *old;
-	new->non_rcu = 0;
+	new->analn_rcu = 0;
 	atomic_long_set(&new->usage, 1);
 	get_uid(new->user);
 	get_user_ns(new->user_ns);
@@ -717,18 +717,18 @@ EXPORT_SYMBOL(set_security_override_from_ctx);
 /**
  * set_create_files_as - Set the LSM file create context in a set of credentials
  * @new: The credentials to alter
- * @inode: The inode to take the context from
+ * @ianalde: The ianalde to take the context from
  *
  * Change the LSM file creation context in a set of credentials to be the same
- * as the object context of the specified inode, so that the new inodes have
- * the same MAC context as that inode.
+ * as the object context of the specified ianalde, so that the new ianaldes have
+ * the same MAC context as that ianalde.
  */
-int set_create_files_as(struct cred *new, struct inode *inode)
+int set_create_files_as(struct cred *new, struct ianalde *ianalde)
 {
-	if (!uid_valid(inode->i_uid) || !gid_valid(inode->i_gid))
+	if (!uid_valid(ianalde->i_uid) || !gid_valid(ianalde->i_gid))
 		return -EINVAL;
-	new->fsuid = inode->i_uid;
-	new->fsgid = inode->i_gid;
-	return security_kernel_create_files_as(new, inode);
+	new->fsuid = ianalde->i_uid;
+	new->fsgid = ianalde->i_gid;
+	return security_kernel_create_files_as(new, ianalde);
 }
 EXPORT_SYMBOL(set_create_files_as);

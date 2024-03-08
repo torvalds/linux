@@ -16,12 +16,12 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -36,19 +36,19 @@
 
 #define XEN_MCA_INTERFACE_VERSION	0x01ecc003
 
-/* IN: Dom0 calls hypercall to retrieve nonurgent error log entry */
-#define XEN_MC_NONURGENT	0x1
+/* IN: Dom0 calls hypercall to retrieve analnurgent error log entry */
+#define XEN_MC_ANALNURGENT	0x1
 /* IN: Dom0 calls hypercall to retrieve urgent error log entry */
 #define XEN_MC_URGENT		0x2
-/* IN: Dom0 acknowledges previosly-fetched error log entry */
+/* IN: Dom0 ackanalwledges previosly-fetched error log entry */
 #define XEN_MC_ACK		0x4
 
 /* OUT: All is ok */
 #define XEN_MC_OK		0x0
-/* OUT: Domain could not fetch data. */
+/* OUT: Domain could analt fetch data. */
 #define XEN_MC_FETCHFAILED	0x1
-/* OUT: There was no machine check data to fetch. */
-#define XEN_MC_NODATA		0x2
+/* OUT: There was anal machine check data to fetch. */
+#define XEN_MC_ANALDATA		0x2
 
 #ifndef __ASSEMBLY__
 /* vIRQ injected to Dom0 */
@@ -126,8 +126,8 @@ struct mcinfo_extended {
 
 /* Xen takes successful recovery action, the error is recovered */
 #define REC_ACTION_RECOVERED (0x1 << 0)
-/* No action is performed by XEN */
-#define REC_ACTION_NONE (0x1 << 1)
+/* Anal action is performed by XEN */
+#define REC_ACTION_ANALNE (0x1 << 1)
 /* It's possible DOM0 might take action ownership in some case */
 #define REC_ACTION_NEED_RESET (0x1 << 2)
 
@@ -262,9 +262,9 @@ static inline void x86_mcinfo_lookup(struct mcinfo_common **ret,
 #define XEN_MC_fetch		1
 struct xen_mc_fetch {
 	/*
-	 * IN: XEN_MC_NONURGENT, XEN_MC_URGENT,
+	 * IN: XEN_MC_ANALNURGENT, XEN_MC_URGENT,
 	 * XEN_MC_ACK if ack'king an earlier fetch
-	 * OUT: XEN_MC_OK, XEN_MC_FETCHAILED, XEN_MC_NODATA
+	 * OUT: XEN_MC_OK, XEN_MC_FETCHAILED, XEN_MC_ANALDATA
 	 */
 	uint32_t flags;
 	uint32_t _pad0;
@@ -278,18 +278,18 @@ DEFINE_GUEST_HANDLE_STRUCT(xen_mc_fetch);
 
 
 /*
- * This tells the hypervisor to notify a DomU about the machine check error
+ * This tells the hypervisor to analtify a DomU about the machine check error
  */
-#define XEN_MC_notifydomain	2
-struct xen_mc_notifydomain {
+#define XEN_MC_analtifydomain	2
+struct xen_mc_analtifydomain {
 	/* IN variables */
-	uint16_t mc_domid; /* The unprivileged domain to notify */
-	uint16_t mc_vcpuid; /* The vcpu in mc_domid to notify */
+	uint16_t mc_domid; /* The unprivileged domain to analtify */
+	uint16_t mc_vcpuid; /* The vcpu in mc_domid to analtify */
 
 	/* IN/OUT variables */
 	uint32_t flags;
 };
-DEFINE_GUEST_HANDLE_STRUCT(xen_mc_notifydomain);
+DEFINE_GUEST_HANDLE_STRUCT(xen_mc_analtifydomain);
 
 #define XEN_MC_physcpuinfo	3
 struct xen_mc_physcpuinfo {
@@ -324,7 +324,7 @@ struct xen_mc {
 	uint32_t interface_version; /* XEN_MCA_INTERFACE_VERSION */
 	union {
 		struct xen_mc_fetch        mc_fetch;
-		struct xen_mc_notifydomain mc_notifydomain;
+		struct xen_mc_analtifydomain mc_analtifydomain;
 		struct xen_mc_physcpuinfo  mc_physcpuinfo;
 		struct xen_mc_msrinject    mc_msrinject;
 		struct xen_mc_mceinject    mc_mceinject;
@@ -333,7 +333,7 @@ struct xen_mc {
 DEFINE_GUEST_HANDLE_STRUCT(xen_mc);
 
 /*
- * Fields are zero when not available. Also, this struct is shared with
+ * Fields are zero when analt available. Also, this struct is shared with
  * userspace mcelog and thus must keep existing fields at current offsets.
  * Only add new fields to the end of the structure
  */
@@ -351,7 +351,7 @@ struct xen_mce {
 	__u32 cpuid;	/* CPUID 1 EAX */
 	__u8  cs;		/* code segment */
 	__u8  bank;	/* machine check bank */
-	__u8  cpu;	/* cpu number; obsolete; use extcpu now */
+	__u8  cpu;	/* cpu number; obsolete; use extcpu analw */
 	__u8  finished;   /* entry is valid */
 	__u32 extcpu;	/* linux cpu number that detected the error */
 	__u32 socketid;	/* CPU socket ID */

@@ -16,7 +16,7 @@
 static suspend_state_t autosleep_state;
 static struct workqueue_struct *autosleep_wq;
 /*
- * Note: it is only safe to mutex_lock(&autosleep_lock) if a wakeup_source
+ * Analte: it is only safe to mutex_lock(&autosleep_lock) if a wakeup_source
  * is active, otherwise a deadlock with try_to_suspend() is possible.
  * Alternatively mutex_lock_interruptible() can be used.  This will then fail
  * if an auto_sleep cycle tries to freeze processes.
@@ -54,7 +54,7 @@ static void try_to_suspend(struct work_struct *work)
 		goto out;
 
 	/*
-	 * If the wakeup occurred for an unknown reason, wait to prevent the
+	 * If the wakeup occurred for an unkanalwn reason, wait to prevent the
 	 * system from trying to suspend and waking up in a tight loop.
 	 */
 	if (final_count == initial_count)
@@ -118,12 +118,12 @@ int __init pm_autosleep_init(void)
 {
 	autosleep_ws = wakeup_source_register(NULL, "autosleep");
 	if (!autosleep_ws)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	autosleep_wq = alloc_ordered_workqueue("autosleep", 0);
 	if (autosleep_wq)
 		return 0;
 
 	wakeup_source_unregister(autosleep_ws);
-	return -ENOMEM;
+	return -EANALMEM;
 }

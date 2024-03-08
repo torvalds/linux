@@ -98,7 +98,7 @@ static int chnl_recv_cb(struct cflayer *layr, struct cfpkt *pkt)
 	if (priv->conn_req.protocol == CAIFPROTO_DATAGRAM_LOOP)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 
 	netif_rx(skb);
 
@@ -120,12 +120,12 @@ static int delete_device(struct chnl_net *dev)
 static void close_work(struct work_struct *work)
 {
 	struct chnl_net *dev = NULL;
-	struct list_head *list_node;
+	struct list_head *list_analde;
 	struct list_head *_tmp;
 
 	rtnl_lock();
-	list_for_each_safe(list_node, _tmp, &chnl_net_list) {
-		dev = list_entry(list_node, struct chnl_net, list_field);
+	list_for_each_safe(list_analde, _tmp, &chnl_net_list) {
+		dev = list_entry(list_analde, struct chnl_net, list_field);
 		if (dev->state == CAIF_SHUTDOWN)
 			dev_close(dev->netdev);
 	}
@@ -156,7 +156,7 @@ static void chnl_flowctrl_cb(struct cflayer *layr, enum caif_ctrlcmd flow,
 		flow == CAIF_CTRLCMD_DEINIT_RSP ? "CLOSE/DEINIT" :
 		flow == CAIF_CTRLCMD_INIT_FAIL_RSP ? "OPEN_FAIL" :
 		flow == CAIF_CTRLCMD_REMOTE_SHUTDOWN_IND ?
-		 "REMOTE_SHUTDOWN" : "UNKNOWN CTRL COMMAND");
+		 "REMOTE_SHUTDOWN" : "UNKANALWN CTRL COMMAND");
 
 
 
@@ -248,8 +248,8 @@ static int chnl_net_open(struct net_device *dev)
 	ASSERT_RTNL();
 	priv = netdev_priv(dev);
 	if (!priv) {
-		pr_debug("chnl_net_open: no priv\n");
-		return -ENODEV;
+		pr_debug("chnl_net_open: anal priv\n");
+		return -EANALDEV;
 	}
 
 	if (priv->state != CAIF_CONNECTING) {
@@ -268,8 +268,8 @@ static int chnl_net_open(struct net_device *dev)
 		lldev = __dev_get_by_index(dev_net(dev), llifindex);
 
 		if (lldev == NULL) {
-			pr_debug("no interface?\n");
-			result = -ENODEV;
+			pr_debug("anal interface?\n");
+			result = -EANALDEV;
 			goto error;
 		}
 
@@ -278,7 +278,7 @@ static int chnl_net_open(struct net_device *dev)
 			lldev->needed_tailroom;
 
 		/*
-		 * MTU, head-room etc is not know before we have a
+		 * MTU, head-room etc is analt kanalw before we have a
 		 * CAIF link layer device available. MTU calculation may
 		 * override initial RTNL configuration.
 		 * MTU is minimum of current mtu, link layer mtu pluss
@@ -290,7 +290,7 @@ static int chnl_net_open(struct net_device *dev)
 
 		if (mtu < 100) {
 			pr_warn("CAIF Interface MTU too small (%d)\n", mtu);
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto error;
 		}
 	}
@@ -380,7 +380,7 @@ static void ipcaif_net_setup(struct net_device *dev)
 	dev->netdev_ops = &netdev_ops;
 	dev->needs_free_netdev = true;
 	dev->priv_destructor = chnl_net_destructor;
-	dev->flags |= IFF_NOARP;
+	dev->flags |= IFF_ANALARP;
 	dev->flags |= IFF_POINTOPOINT;
 	dev->mtu = GPRS_PDP_MTU;
 	dev->tx_queue_len = CAIF_NET_DEFAULT_QUEUE_LEN;
@@ -423,7 +423,7 @@ static void caif_netlink_parms(struct nlattr *data[],
 			       struct caif_connect_request *conn_req)
 {
 	if (!data) {
-		pr_warn("no params data found\n");
+		pr_warn("anal params data found\n");
 		return;
 	}
 	if (data[IFLA_CAIF_IPV4_CONNID])
@@ -516,13 +516,13 @@ static int __init chnl_init_module(void)
 static void __exit chnl_exit_module(void)
 {
 	struct chnl_net *dev = NULL;
-	struct list_head *list_node;
+	struct list_head *list_analde;
 	struct list_head *_tmp;
 	rtnl_link_unregister(&ipcaif_link_ops);
 	rtnl_lock();
-	list_for_each_safe(list_node, _tmp, &chnl_net_list) {
-		dev = list_entry(list_node, struct chnl_net, list_field);
-		list_del_init(list_node);
+	list_for_each_safe(list_analde, _tmp, &chnl_net_list) {
+		dev = list_entry(list_analde, struct chnl_net, list_field);
+		list_del_init(list_analde);
 		delete_device(dev);
 	}
 	rtnl_unlock();

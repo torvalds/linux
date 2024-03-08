@@ -44,30 +44,30 @@ static inline __u64 msft_get_features(struct hci_dev *hdev) { return 0; }
 static inline int msft_add_monitor_pattern(struct hci_dev *hdev,
 					   struct adv_monitor *monitor)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int msft_remove_monitor(struct hci_dev *hdev,
 				      struct adv_monitor *monitor)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void msft_req_add_set_filter_enable(struct hci_request *req,
 						  bool enable) {}
 static inline int msft_set_filter_enable(struct hci_dev *hdev, bool enable)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int msft_suspend_sync(struct hci_dev *hdev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int msft_resume_sync(struct hci_dev *hdev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline bool msft_curve_validity(struct hci_dev *hdev)

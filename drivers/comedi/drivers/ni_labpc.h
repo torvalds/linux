@@ -8,7 +8,7 @@
 #ifndef _NI_LABPC_H
 #define _NI_LABPC_H
 
-enum transfer_type { fifo_not_empty_transfer, fifo_half_full_transfer,
+enum transfer_type { fifo_analt_empty_transfer, fifo_half_full_transfer,
 	isa_dma_transfer
 };
 

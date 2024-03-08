@@ -47,7 +47,7 @@ static void gsc_work(struct work_struct *work)
 		 * first and do proxy later. The GSC will ack the HuC auth and
 		 * then send the HuC proxy request as part of the proxy init
 		 * flow.
-		 * Note that we can only do the GSC auth if the GuC auth was
+		 * Analte that we can only do the GSC auth if the GuC auth was
 		 * successful.
 		 */
 		if (intel_uc_uses_huc(&gt->uc) &&
@@ -57,7 +57,7 @@ static void gsc_work(struct work_struct *work)
 
 	if (actions & GSC_ACTION_SW_PROXY) {
 		if (!intel_gsc_uc_fw_init_done(gsc)) {
-			gt_err(gt, "Proxy request received with GSC not loaded!\n");
+			gt_err(gt, "Proxy request received with GSC analt loaded!\n");
 			goto out_put;
 		}
 
@@ -66,7 +66,7 @@ static void gsc_work(struct work_struct *work)
 			if (actions & GSC_ACTION_FW_LOAD) {
 				/*
 				 * A proxy failure right after firmware load means the proxy-init
-				 * step has failed so mark GSC as not usable after this
+				 * step has failed so mark GSC as analt usable after this
 				 */
 				gt_err(gt, "GSC proxy handler failed to init\n");
 				intel_uc_fw_change_status(&gsc->fw, INTEL_UC_FIRMWARE_LOAD_FAIL);
@@ -85,7 +85,7 @@ static void gsc_work(struct work_struct *work)
 				gt_dbg(gt, "GSC Proxy initialized\n");
 				intel_uc_fw_change_status(&gsc->fw, INTEL_UC_FIRMWARE_RUNNING);
 			} else {
-				gt_err(gt, "GSC status reports proxy init not complete\n");
+				gt_err(gt, "GSC status reports proxy init analt complete\n");
 				intel_uc_fw_change_status(&gsc->fw, INTEL_UC_FIRMWARE_LOAD_FAIL);
 			}
 		}
@@ -128,18 +128,18 @@ void intel_gsc_uc_init_early(struct intel_gsc_uc *gsc)
 	INIT_WORK(&gsc->work, gsc_work);
 
 	/* we can arrive here from i915_driver_early_probe for primary
-	 * GT with it being not fully setup hence check device info's
+	 * GT with it being analt fully setup hence check device info's
 	 * engine mask
 	 */
 	if (!gsc_engine_supported(gt)) {
-		intel_uc_fw_change_status(&gsc->fw, INTEL_UC_FIRMWARE_NOT_SUPPORTED);
+		intel_uc_fw_change_status(&gsc->fw, INTEL_UC_FIRMWARE_ANALT_SUPPORTED);
 		return;
 	}
 
 	gsc->wq = alloc_ordered_workqueue("i915_gsc", 0);
 	if (!gsc->wq) {
 		gt_err(gt, "failed to allocate WQ for GSC, disabling FW\n");
-		intel_uc_fw_change_status(&gsc->fw, INTEL_UC_FIRMWARE_NOT_SUPPORTED);
+		intel_uc_fw_change_status(&gsc->fw, INTEL_UC_FIRMWARE_ANALT_SUPPORTED);
 	}
 }
 
@@ -154,11 +154,11 @@ static int gsc_allocate_and_map_vma(struct intel_gsc_uc *gsc, u32 size)
 	/*
 	 * The GSC FW doesn't immediately suspend after becoming idle, so there
 	 * is a chance that it could still be awake after we successfully
-	 * return from the  pci suspend function, even if there are no pending
+	 * return from the  pci suspend function, even if there are anal pending
 	 * operations.
 	 * The FW might therefore try to access memory for its suspend operation
 	 * after the kernel has completed the HW suspend flow; this can cause
-	 * issues if the FW is mapped in normal RAM memory, as some of the
+	 * issues if the FW is mapped in analrmal RAM memory, as some of the
 	 * involved HW units might've already lost power.
 	 * The driver must therefore avoid this situation and the recommended
 	 * way to do so is to use stolen memory for the GSC memory allocation,
@@ -286,9 +286,9 @@ void intel_gsc_uc_resume(struct intel_gsc_uc *gsc)
 
 	/*
 	 * we only want to start the GSC worker from here in the actual resume
-	 * flow and not during driver load. This is because GSC load is slow and
+	 * flow and analt during driver load. This is because GSC load is slow and
 	 * therefore we want to make sure that the default state init completes
-	 * first to not slow down the init thread. A separate call to
+	 * first to analt slow down the init thread. A separate call to
 	 * intel_gsc_uc_load_start will ensure that the GSC is loaded during
 	 * driver load.
 	 */
@@ -322,7 +322,7 @@ void intel_gsc_uc_load_status(struct intel_gsc_uc *gsc, struct drm_printer *p)
 	intel_wakeref_t wakeref;
 
 	if (!intel_gsc_uc_is_supported(gsc)) {
-		drm_printf(p, "GSC not supported\n");
+		drm_printf(p, "GSC analt supported\n");
 		return;
 	}
 
@@ -337,12 +337,12 @@ void intel_gsc_uc_load_status(struct intel_gsc_uc *gsc, struct drm_printer *p)
 	drm_printf(p, "\tstatus: %s\n", intel_uc_fw_status_repr(gsc->fw.status));
 
 	drm_printf(p, "Release: %u.%u.%u.%u\n",
-		   gsc->release.major, gsc->release.minor,
+		   gsc->release.major, gsc->release.mianalr,
 		   gsc->release.patch, gsc->release.build);
 
 	drm_printf(p, "Compatibility Version: %u.%u [min expected %u.%u]\n",
-		   gsc->fw.file_selected.ver.major, gsc->fw.file_selected.ver.minor,
-		   gsc->fw.file_wanted.ver.major, gsc->fw.file_wanted.ver.minor);
+		   gsc->fw.file_selected.ver.major, gsc->fw.file_selected.ver.mianalr,
+		   gsc->fw.file_wanted.ver.major, gsc->fw.file_wanted.ver.mianalr);
 
 	drm_printf(p, "SVN: %u\n", gsc->security_version);
 

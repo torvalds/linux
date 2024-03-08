@@ -59,7 +59,7 @@
 
 /*
  * The year parameter passed to the driver is usually an offset relative to
- * the year 1900. This macro is used to convert this offset to another one
+ * the year 1900. This macro is used to convert this offset to aanalther one
  * relative to the minimum year allowed by the hardware.
  *
  * The year range is 1970 - 2069. This range is selected to match Allwinner's
@@ -182,13 +182,13 @@ static int ac100_clkout_determine_rate(struct clk_hw *hw,
 		 * internally registered by the ac100 driver. The other parent
 		 * is a clock from the codec side of the chip, which we
 		 * properly declare and reference in the devicetree and is
-		 * not implemented in any driver right now.
+		 * analt implemented in any driver right analw.
 		 * If the clock core looks for the parent of that second
 		 * missing clock, it can't find one that is registered and
 		 * returns NULL.
 		 * So we end up in a situation where clk_hw_get_num_parents
 		 * returns the amount of clocks we can be parented to, but
-		 * clk_hw_get_parent_by_index will not return the orphan
+		 * clk_hw_get_parent_by_index will analt return the orphan
 		 * clocks.
 		 * Thus we need to check if the parent exists before
 		 * we get the parent rate, so we could use the RTC
@@ -305,7 +305,7 @@ static const struct clk_ops ac100_clkout_ops = {
 
 static int ac100_rtc_register_clks(struct ac100_rtc_dev *chip)
 {
-	struct device_node *np = chip->dev->of_node;
+	struct device_analde *np = chip->dev->of_analde;
 	const char *parents[2] = {AC100_RTC_32K_NAME};
 	int i, ret;
 
@@ -314,7 +314,7 @@ static int ac100_rtc_register_clks(struct ac100_rtc_dev *chip)
 						  AC100_CLKOUT_NUM),
 				      GFP_KERNEL);
 	if (!chip->clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->rtc_32k_clk = clk_hw_register_fixed_rate(chip->dev,
 						       AC100_RTC_32K_NAME,
@@ -374,7 +374,7 @@ err_unregister_rtc_32k:
 
 static void ac100_rtc_unregister_clks(struct ac100_rtc_dev *chip)
 {
-	of_clk_del_provider(chip->dev->of_node);
+	of_clk_del_provider(chip->dev->of_analde);
 	clk_unregister_fixed_rate(chip->rtc_32k_clk->clk);
 }
 
@@ -503,7 +503,7 @@ static int ac100_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 			AC100_ALM_ENABLE_FLAG;
 	reg[2] = (bin2bcd(alrm_tm->tm_hour) & AC100_ALM_HOU_MASK) |
 			AC100_ALM_ENABLE_FLAG;
-	/* Do not enable weekday alarm */
+	/* Do analt enable weekday alarm */
 	reg[3] = bin2bcd(alrm_tm->tm_wday) & AC100_ALM_WEE_MASK;
 	reg[4] = (bin2bcd(alrm_tm->tm_mday) & AC100_ALM_DAY_MASK) |
 			AC100_ALM_ENABLE_FLAG;
@@ -571,7 +571,7 @@ static int ac100_rtc_probe(struct platform_device *pdev)
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, chip);
 	chip->dev = &pdev->dev;
@@ -592,7 +592,7 @@ static int ac100_rtc_probe(struct platform_device *pdev)
 					IRQF_SHARED | IRQF_ONESHOT,
 					dev_name(&pdev->dev), chip);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not request IRQ\n");
+		dev_err(&pdev->dev, "Could analt request IRQ\n");
 		return ret;
 	}
 

@@ -11,10 +11,10 @@
 /* Any context (including NMI) BPF specific memory allocator.
  *
  * Tracing BPF programs can attach to kprobe and fentry. Hence they
- * run in unknown context where calling plain kmalloc() might not be safe.
+ * run in unkanalwn context where calling plain kmalloc() might analt be safe.
  *
  * Front-end kmalloc() with per-cpu per-bucket cache of free elements.
- * Refill this cache asynchronously from irq_work.
+ * Refill this cache asynchroanalusly from irq_work.
  *
  * CPU_0 buckets
  * 16 32 64 96 128 196 256 512 1024 2048 4096
@@ -28,12 +28,12 @@
  * Free-ing is always done into bucket of the current cpu as well.
  * irq_work trims extra free elements from buckets with kfree
  * and refills them with kmalloc, so global kmalloc logic takes care
- * of freeing objects allocated by one cpu and freed on another.
+ * of freeing objects allocated by one cpu and freed on aanalther.
  *
  * Every allocated objected is padded with extra 8 bytes that contains
- * struct llist_node.
+ * struct llist_analde.
  */
-#define LLIST_NODE_SZ sizeof(struct llist_node)
+#define LLIST_ANALDE_SZ sizeof(struct llist_analde)
 
 /* similar to kmalloc, but sizeof == 8 bucket is gone */
 static u8 size_index[24] __ro_after_init = {
@@ -85,7 +85,7 @@ struct bpf_mem_cache {
 	local_t active;
 
 	/* Operations on the free_list from unit_alloc/unit_free/bpf_mem_refill
-	 * are sequenced by per-cpu 'active' counter. But unit_free() cannot
+	 * are sequenced by per-cpu 'active' counter. But unit_free() cananalt
 	 * fail. When 'active' is busy the unit_free() will add an object to
 	 * free_llist_extra.
 	 */
@@ -103,9 +103,9 @@ struct bpf_mem_cache {
 
 	/* list of objects to be freed after RCU GP */
 	struct llist_head free_by_rcu;
-	struct llist_node *free_by_rcu_tail;
+	struct llist_analde *free_by_rcu_tail;
 	struct llist_head waiting_for_gp;
-	struct llist_node *waiting_for_gp_tail;
+	struct llist_analde *waiting_for_gp_tail;
 	struct rcu_head rcu;
 	atomic_t call_rcu_in_progress;
 	struct llist_head free_llist_extra_rcu;
@@ -123,9 +123,9 @@ struct bpf_mem_caches {
 
 static const u16 sizes[NUM_CACHES] = {96, 192, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096};
 
-static struct llist_node notrace *__llist_del_first(struct llist_head *head)
+static struct llist_analde analtrace *__llist_del_first(struct llist_head *head)
 {
-	struct llist_node *entry, *next;
+	struct llist_analde *entry, *next;
 
 	entry = head->first;
 	if (!entry)
@@ -135,10 +135,10 @@ static struct llist_node notrace *__llist_del_first(struct llist_head *head)
 	return entry;
 }
 
-static void *__alloc(struct bpf_mem_cache *c, int node, gfp_t flags)
+static void *__alloc(struct bpf_mem_cache *c, int analde, gfp_t flags)
 {
 	if (c->percpu_size) {
-		void **obj = kmalloc_node(c->percpu_size, flags, node);
+		void **obj = kmalloc_analde(c->percpu_size, flags, analde);
 		void *pptr = __alloc_percpu_gfp(c->unit_size, 8, flags);
 
 		if (!obj || !pptr) {
@@ -150,7 +150,7 @@ static void *__alloc(struct bpf_mem_cache *c, int node, gfp_t flags)
 		return obj;
 	}
 
-	return kmalloc_node(c->unit_size, flags | __GFP_ZERO, node);
+	return kmalloc_analde(c->unit_size, flags | __GFP_ZERO, analde);
 }
 
 static struct mem_cgroup *get_memcg(const struct bpf_mem_cache *c)
@@ -176,9 +176,9 @@ static void inc_active(struct bpf_mem_cache *c, unsigned long *flags)
 		 * when active counter is busy.
 		 */
 		local_irq_save(*flags);
-	/* alloc_bulk runs from irq_work which will not preempt a bpf
+	/* alloc_bulk runs from irq_work which will analt preempt a bpf
 	 * program that does unit_alloc/unit_free since IRQs are
-	 * disabled there. There is no race to increment 'active'
+	 * disabled there. There is anal race to increment 'active'
 	 * counter. It protects free_llist from corruption in case NMI
 	 * bpf prog preempted this loop.
 	 */
@@ -203,15 +203,15 @@ static void add_obj_to_free_list(struct bpf_mem_cache *c, void *obj)
 }
 
 /* Mostly runs from irq_work except __init phase. */
-static void alloc_bulk(struct bpf_mem_cache *c, int cnt, int node, bool atomic)
+static void alloc_bulk(struct bpf_mem_cache *c, int cnt, int analde, bool atomic)
 {
 	struct mem_cgroup *memcg = NULL, *old_memcg;
 	gfp_t gfp;
 	void *obj;
 	int i;
 
-	gfp = __GFP_NOWARN | __GFP_ACCOUNT;
-	gfp |= atomic ? GFP_NOWAIT : GFP_KERNEL;
+	gfp = __GFP_ANALWARN | __GFP_ACCOUNT;
+	gfp |= atomic ? GFP_ANALWAIT : GFP_KERNEL;
 
 	for (i = 0; i < cnt; i++) {
 		/*
@@ -241,10 +241,10 @@ static void alloc_bulk(struct bpf_mem_cache *c, int cnt, int node, bool atomic)
 	for (; i < cnt; i++) {
 		/* Allocate, but don't deplete atomic reserves that typical
 		 * GFP_ATOMIC would do. irq_work runs on this cpu and kmalloc
-		 * will allocate from the current numa node which is what we
+		 * will allocate from the current numa analde which is what we
 		 * want here.
 		 */
-		obj = __alloc(c, node, gfp);
+		obj = __alloc(c, analde, gfp);
 		if (!obj)
 			break;
 		add_obj_to_free_list(c, obj);
@@ -264,12 +264,12 @@ static void free_one(void *obj, bool percpu)
 	kfree(obj);
 }
 
-static int free_all(struct llist_node *llnode, bool percpu)
+static int free_all(struct llist_analde *llanalde, bool percpu)
 {
-	struct llist_node *pos, *t;
+	struct llist_analde *pos, *t;
 	int cnt = 0;
 
-	llist_for_each_safe(pos, t, llnode) {
+	llist_for_each_safe(pos, t, llanalde) {
 		free_one(pos, percpu);
 		cnt++;
 	}
@@ -287,7 +287,7 @@ static void __free_rcu(struct rcu_head *head)
 static void __free_rcu_tasks_trace(struct rcu_head *head)
 {
 	/* If RCU Tasks Trace grace period implies RCU grace period,
-	 * there is no need to invoke call_rcu().
+	 * there is anal need to invoke call_rcu().
 	 */
 	if (rcu_trace_implies_rcu_gp())
 		__free_rcu(head);
@@ -297,29 +297,29 @@ static void __free_rcu_tasks_trace(struct rcu_head *head)
 
 static void enque_to_free(struct bpf_mem_cache *c, void *obj)
 {
-	struct llist_node *llnode = obj;
+	struct llist_analde *llanalde = obj;
 
 	/* bpf_mem_cache is a per-cpu object. Freeing happens in irq_work.
-	 * Nothing races to add to free_by_rcu_ttrace list.
+	 * Analthing races to add to free_by_rcu_ttrace list.
 	 */
-	llist_add(llnode, &c->free_by_rcu_ttrace);
+	llist_add(llanalde, &c->free_by_rcu_ttrace);
 }
 
 static void do_call_rcu_ttrace(struct bpf_mem_cache *c)
 {
-	struct llist_node *llnode, *t;
+	struct llist_analde *llanalde, *t;
 
 	if (atomic_xchg(&c->call_rcu_ttrace_in_progress, 1)) {
 		if (unlikely(READ_ONCE(c->draining))) {
-			llnode = llist_del_all(&c->free_by_rcu_ttrace);
-			free_all(llnode, !!c->percpu_size);
+			llanalde = llist_del_all(&c->free_by_rcu_ttrace);
+			free_all(llanalde, !!c->percpu_size);
 		}
 		return;
 	}
 
 	WARN_ON_ONCE(!llist_empty(&c->waiting_for_gp_ttrace));
-	llist_for_each_safe(llnode, t, llist_del_all(&c->free_by_rcu_ttrace))
-		llist_add(llnode, &c->waiting_for_gp_ttrace);
+	llist_for_each_safe(llanalde, t, llist_del_all(&c->free_by_rcu_ttrace))
+		llist_add(llanalde, &c->waiting_for_gp_ttrace);
 
 	if (unlikely(READ_ONCE(c->draining))) {
 		__free_rcu(&c->rcu_ttrace);
@@ -328,7 +328,7 @@ static void do_call_rcu_ttrace(struct bpf_mem_cache *c)
 
 	/* Use call_rcu_tasks_trace() to wait for sleepable progs to finish.
 	 * If RCU Tasks Trace grace period implies RCU grace period, free
-	 * these elements directly, else use call_rcu() to wait for normal
+	 * these elements directly, else use call_rcu() to wait for analrmal
 	 * progs to finish and finally do free_one() on each element.
 	 */
 	call_rcu_tasks_trace(&c->rcu_ttrace, __free_rcu_tasks_trace);
@@ -337,7 +337,7 @@ static void do_call_rcu_ttrace(struct bpf_mem_cache *c)
 static void free_bulk(struct bpf_mem_cache *c)
 {
 	struct bpf_mem_cache *tgt = c->tgt;
-	struct llist_node *llnode, *t;
+	struct llist_analde *llanalde, *t;
 	unsigned long flags;
 	int cnt;
 
@@ -346,19 +346,19 @@ static void free_bulk(struct bpf_mem_cache *c)
 
 	do {
 		inc_active(c, &flags);
-		llnode = __llist_del_first(&c->free_llist);
-		if (llnode)
+		llanalde = __llist_del_first(&c->free_llist);
+		if (llanalde)
 			cnt = --c->free_cnt;
 		else
 			cnt = 0;
 		dec_active(c, &flags);
-		if (llnode)
-			enque_to_free(tgt, llnode);
+		if (llanalde)
+			enque_to_free(tgt, llanalde);
 	} while (cnt > (c->high_watermark + c->low_watermark) / 2);
 
 	/* and drain free_llist_extra */
-	llist_for_each_safe(llnode, t, llist_del_all(&c->free_llist_extra))
-		enque_to_free(tgt, llnode);
+	llist_for_each_safe(llanalde, t, llist_del_all(&c->free_llist_extra))
+		enque_to_free(tgt, llanalde);
 	do_call_rcu_ttrace(tgt);
 }
 
@@ -366,16 +366,16 @@ static void __free_by_rcu(struct rcu_head *head)
 {
 	struct bpf_mem_cache *c = container_of(head, struct bpf_mem_cache, rcu);
 	struct bpf_mem_cache *tgt = c->tgt;
-	struct llist_node *llnode;
+	struct llist_analde *llanalde;
 
 	WARN_ON_ONCE(tgt->unit_size != c->unit_size);
 	WARN_ON_ONCE(tgt->percpu_size != c->percpu_size);
 
-	llnode = llist_del_all(&c->waiting_for_gp);
-	if (!llnode)
+	llanalde = llist_del_all(&c->waiting_for_gp);
+	if (!llanalde)
 		goto out;
 
-	llist_add_batch(llnode, c->waiting_for_gp_tail, &tgt->free_by_rcu_ttrace);
+	llist_add_batch(llanalde, c->waiting_for_gp_tail, &tgt->free_by_rcu_ttrace);
 
 	/* Objects went through regular RCU GP. Send them to RCU tasks trace */
 	do_call_rcu_ttrace(tgt);
@@ -385,15 +385,15 @@ out:
 
 static void check_free_by_rcu(struct bpf_mem_cache *c)
 {
-	struct llist_node *llnode, *t;
+	struct llist_analde *llanalde, *t;
 	unsigned long flags;
 
 	/* drain free_llist_extra_rcu */
 	if (unlikely(!llist_empty(&c->free_llist_extra_rcu))) {
 		inc_active(c, &flags);
-		llist_for_each_safe(llnode, t, llist_del_all(&c->free_llist_extra_rcu))
-			if (__llist_add(llnode, &c->free_by_rcu))
-				c->free_by_rcu_tail = llnode;
+		llist_for_each_safe(llanalde, t, llist_del_all(&c->free_llist_extra_rcu))
+			if (__llist_add(llanalde, &c->free_by_rcu))
+				c->free_by_rcu_tail = llanalde;
 		dec_active(c, &flags);
 	}
 
@@ -403,7 +403,7 @@ static void check_free_by_rcu(struct bpf_mem_cache *c)
 	if (atomic_xchg(&c->call_rcu_in_progress, 1)) {
 		/*
 		 * Instead of kmalloc-ing new rcu_head and triggering 10k
-		 * call_rcu() to hit rcutree.qhimark and force RCU to notice
+		 * call_rcu() to hit rcutree.qhimark and force RCU to analtice
 		 * the overload just ask RCU to hurry up. There could be many
 		 * objects in free_by_rcu list.
 		 * This hint reduces memory consumption for an artificial
@@ -437,16 +437,16 @@ static void bpf_mem_refill(struct irq_work *work)
 	cnt = c->free_cnt;
 	if (cnt < c->low_watermark)
 		/* irq_work runs on this cpu and kmalloc will allocate
-		 * from the current numa node which is what we want here.
+		 * from the current numa analde which is what we want here.
 		 */
-		alloc_bulk(c, c->batch, NUMA_NO_NODE, true);
+		alloc_bulk(c, c->batch, NUMA_ANAL_ANALDE, true);
 	else if (cnt > c->high_watermark)
 		free_bulk(c);
 
 	check_free_by_rcu(c);
 }
 
-static void notrace irq_work_raise(struct bpf_mem_cache *c)
+static void analtrace irq_work_raise(struct bpf_mem_cache *c)
 {
 	irq_work_queue(&c->refill_work);
 }
@@ -454,13 +454,13 @@ static void notrace irq_work_raise(struct bpf_mem_cache *c)
 /* For typical bpf map case that uses bpf_mem_cache_alloc and single bucket
  * the freelist cache will be elem_size * 64 (or less) on each cpu.
  *
- * For bpf programs that don't have statically known allocation sizes and
+ * For bpf programs that don't have statically kanalwn allocation sizes and
  * assuming (low_mark + high_mark) / 2 as an average number of elements per
  * bucket and all buckets are used the total amount of memory in freelists
  * on each cpu will be:
  * 64*16 + 64*32 + 64*64 + 64*96 + 64*128 + 64*196 + 64*256 + 32*512 + 16*1024 + 8*2048 + 4*4096
  * == ~ 116 Kbyte using below heuristic.
- * Initialized, but unused bpf allocator (not bpf map specific one) will
+ * Initialized, but unused bpf allocator (analt bpf map specific one) will
  * consume ~ 11 Kbyte per cpu.
  * Typical case will be between 11K and 116K closer to 11K.
  * bpf progs can and should share bpf_mem_cache when possible.
@@ -493,14 +493,14 @@ static void prefill_mem_cache(struct bpf_mem_cache *c, int cpu)
 {
 	int cnt = 1;
 
-	/* To avoid consuming memory, for non-percpu allocation, assume that
+	/* To avoid consuming memory, for analn-percpu allocation, assume that
 	 * 1st run of bpf prog won't be doing more than 4 map_update_elem from
 	 * irq disabled region if unit size is less than or equal to 256.
 	 * For all other cases, let us just do one allocation.
 	 */
 	if (!c->percpu_size && c->unit_size <= 256)
 		cnt = 4;
-	alloc_bulk(c, cnt, cpu_to_node(cpu), false);
+	alloc_bulk(c, cnt, cpu_to_analde(cpu), false);
 }
 
 /* When size != 0 bpf_mem_cache for each cpu.
@@ -520,18 +520,18 @@ int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 	if (percpu && size == 0)
 		return -EINVAL;
 
-	/* room for llist_node and per-cpu pointer */
+	/* room for llist_analde and per-cpu pointer */
 	if (percpu)
-		percpu_size = LLIST_NODE_SZ + sizeof(void *);
+		percpu_size = LLIST_ANALDE_SZ + sizeof(void *);
 	ma->percpu = percpu;
 
 	if (size) {
 		pc = __alloc_percpu_gfp(sizeof(*pc), 8, GFP_KERNEL);
 		if (!pc)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (!percpu)
-			size += LLIST_NODE_SZ; /* room for llist_node */
+			size += LLIST_ANALDE_SZ; /* room for llist_analde */
 		unit_size = size;
 
 #ifdef CONFIG_MEMCG_KMEM
@@ -555,7 +555,7 @@ int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 
 	pcc = __alloc_percpu_gfp(sizeof(*cc), 8, GFP_KERNEL);
 	if (!pcc)
-		return -ENOMEM;
+		return -EANALMEM;
 #ifdef CONFIG_MEMCG_KMEM
 	objcg = get_obj_cgroup_from_current();
 #endif
@@ -584,7 +584,7 @@ int bpf_mem_alloc_percpu_init(struct bpf_mem_alloc *ma, struct obj_cgroup *objcg
 
 	pcc = __alloc_percpu_gfp(sizeof(struct bpf_mem_caches), 8, GFP_KERNEL);
 	if (!pcc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ma->caches = pcc;
 	ma->objcg = objcg;
@@ -603,8 +603,8 @@ int bpf_mem_alloc_percpu_unit_init(struct bpf_mem_alloc *ma, int size)
 	if (i < 0)
 		return -EINVAL;
 
-	/* room for llist_node and per-cpu pointer */
-	percpu_size = LLIST_NODE_SZ + sizeof(void *);
+	/* room for llist_analde and per-cpu pointer */
+	percpu_size = LLIST_ANALDE_SZ + sizeof(void *);
 
 	unit_size = sizes[i];
 	objcg = ma->objcg;
@@ -632,11 +632,11 @@ static void drain_mem_cache(struct bpf_mem_cache *c)
 {
 	bool percpu = !!c->percpu_size;
 
-	/* No progs are using this bpf_mem_cache, but htab_map_free() called
+	/* Anal progs are using this bpf_mem_cache, but htab_map_free() called
 	 * bpf_mem_cache_free() for all remaining elements and they can be in
-	 * free_by_rcu_ttrace or in waiting_for_gp_ttrace lists, so drain those lists now.
+	 * free_by_rcu_ttrace or in waiting_for_gp_ttrace lists, so drain those lists analw.
 	 *
-	 * Except for waiting_for_gp_ttrace list, there are no concurrent operations
+	 * Except for waiting_for_gp_ttrace list, there are anal concurrent operations
 	 * on these lists, so it is safe to use __llist_del_all().
 	 */
 	free_all(llist_del_all(&c->free_by_rcu_ttrace), percpu);
@@ -682,7 +682,7 @@ static void check_leaked_objs(struct bpf_mem_alloc *ma)
 	}
 }
 
-static void free_mem_alloc_no_barrier(struct bpf_mem_alloc *ma)
+static void free_mem_alloc_anal_barrier(struct bpf_mem_alloc *ma)
 {
 	check_leaked_objs(ma);
 	free_percpu(ma->cache);
@@ -707,7 +707,7 @@ static void free_mem_alloc(struct bpf_mem_alloc *ma)
 	rcu_barrier_tasks_trace(); /* wait for __free_rcu */
 	if (!rcu_trace_implies_rcu_gp())
 		rcu_barrier();
-	free_mem_alloc_no_barrier(ma);
+	free_mem_alloc_anal_barrier(ma);
 }
 
 static void free_mem_alloc_deferred(struct work_struct *work)
@@ -723,10 +723,10 @@ static void destroy_mem_alloc(struct bpf_mem_alloc *ma, int rcu_in_progress)
 	struct bpf_mem_alloc *copy;
 
 	if (!rcu_in_progress) {
-		/* Fast path. No callbacks are pending, hence no need to do
+		/* Fast path. Anal callbacks are pending, hence anal need to do
 		 * rcu_barrier-s.
 		 */
-		free_mem_alloc_no_barrier(ma);
+		free_mem_alloc_anal_barrier(ma);
 		return;
 	}
 
@@ -782,12 +782,12 @@ void bpf_mem_alloc_destroy(struct bpf_mem_alloc *ma)
 	}
 }
 
-/* notrace is necessary here and in other functions to make sure
- * bpf programs cannot attach to them and cause llist corruptions.
+/* analtrace is necessary here and in other functions to make sure
+ * bpf programs cananalt attach to them and cause llist corruptions.
  */
-static void notrace *unit_alloc(struct bpf_mem_cache *c)
+static void analtrace *unit_alloc(struct bpf_mem_cache *c)
 {
-	struct llist_node *llnode = NULL;
+	struct llist_analde *llanalde = NULL;
 	unsigned long flags;
 	int cnt = 0;
 
@@ -803,10 +803,10 @@ static void notrace *unit_alloc(struct bpf_mem_cache *c)
 	 */
 	local_irq_save(flags);
 	if (local_inc_return(&c->active) == 1) {
-		llnode = __llist_del_first(&c->free_llist);
-		if (llnode) {
+		llanalde = __llist_del_first(&c->free_llist);
+		if (llanalde) {
 			cnt = --c->free_cnt;
-			*(struct bpf_mem_cache **)llnode = c;
+			*(struct bpf_mem_cache **)llanalde = c;
 		}
 	}
 	local_dec(&c->active);
@@ -821,39 +821,39 @@ static void notrace *unit_alloc(struct bpf_mem_cache *c)
 	 */
 	local_irq_restore(flags);
 
-	return llnode;
+	return llanalde;
 }
 
 /* Though 'ptr' object could have been allocated on a different cpu
  * add it to the free_llist of the current cpu.
  * Let kfree() logic deal with it when it's later called from irq_work.
  */
-static void notrace unit_free(struct bpf_mem_cache *c, void *ptr)
+static void analtrace unit_free(struct bpf_mem_cache *c, void *ptr)
 {
-	struct llist_node *llnode = ptr - LLIST_NODE_SZ;
+	struct llist_analde *llanalde = ptr - LLIST_ANALDE_SZ;
 	unsigned long flags;
 	int cnt = 0;
 
-	BUILD_BUG_ON(LLIST_NODE_SZ > 8);
+	BUILD_BUG_ON(LLIST_ANALDE_SZ > 8);
 
 	/*
 	 * Remember bpf_mem_cache that allocated this object.
-	 * The hint is not accurate.
+	 * The hint is analt accurate.
 	 */
-	c->tgt = *(struct bpf_mem_cache **)llnode;
+	c->tgt = *(struct bpf_mem_cache **)llanalde;
 
 	local_irq_save(flags);
 	if (local_inc_return(&c->active) == 1) {
-		__llist_add(llnode, &c->free_llist);
+		__llist_add(llanalde, &c->free_llist);
 		cnt = ++c->free_cnt;
 	} else {
-		/* unit_free() cannot fail. Therefore add an object to atomic
+		/* unit_free() cananalt fail. Therefore add an object to atomic
 		 * llist. free_bulk() will drain it. Though free_llist_extra is
 		 * a per-cpu list we have to use atomic llist_add here, since
-		 * it also can be interrupted by bpf nmi prog that does another
+		 * it also can be interrupted by bpf nmi prog that does aanalther
 		 * unit_free() into the same free_llist_extra.
 		 */
-		llist_add(llnode, &c->free_llist_extra);
+		llist_add(llanalde, &c->free_llist_extra);
 	}
 	local_dec(&c->active);
 
@@ -863,24 +863,24 @@ static void notrace unit_free(struct bpf_mem_cache *c, void *ptr)
 	/* Enable IRQ after irq_work_raise() completes, otherwise when current
 	 * task is preempted by task which does unit_alloc(), unit_alloc() may
 	 * return NULL unexpectedly because irq work is already pending but can
-	 * not been triggered and free_llist can not be refilled timely.
+	 * analt been triggered and free_llist can analt be refilled timely.
 	 */
 	local_irq_restore(flags);
 }
 
-static void notrace unit_free_rcu(struct bpf_mem_cache *c, void *ptr)
+static void analtrace unit_free_rcu(struct bpf_mem_cache *c, void *ptr)
 {
-	struct llist_node *llnode = ptr - LLIST_NODE_SZ;
+	struct llist_analde *llanalde = ptr - LLIST_ANALDE_SZ;
 	unsigned long flags;
 
-	c->tgt = *(struct bpf_mem_cache **)llnode;
+	c->tgt = *(struct bpf_mem_cache **)llanalde;
 
 	local_irq_save(flags);
 	if (local_inc_return(&c->active) == 1) {
-		if (__llist_add(llnode, &c->free_by_rcu))
-			c->free_by_rcu_tail = llnode;
+		if (__llist_add(llanalde, &c->free_by_rcu))
+			c->free_by_rcu_tail = llanalde;
 	} else {
-		llist_add(llnode, &c->free_llist_extra_rcu);
+		llist_add(llanalde, &c->free_llist_extra_rcu);
 	}
 	local_dec(&c->active);
 
@@ -892,7 +892,7 @@ static void notrace unit_free_rcu(struct bpf_mem_cache *c, void *ptr)
 /* Called from BPF program or from sys_bpf syscall.
  * In both cases migration is disabled.
  */
-void notrace *bpf_mem_alloc(struct bpf_mem_alloc *ma, size_t size)
+void analtrace *bpf_mem_alloc(struct bpf_mem_alloc *ma, size_t size)
 {
 	int idx;
 	void *ret;
@@ -901,16 +901,16 @@ void notrace *bpf_mem_alloc(struct bpf_mem_alloc *ma, size_t size)
 		return NULL;
 
 	if (!ma->percpu)
-		size += LLIST_NODE_SZ;
+		size += LLIST_ANALDE_SZ;
 	idx = bpf_mem_cache_idx(size);
 	if (idx < 0)
 		return NULL;
 
 	ret = unit_alloc(this_cpu_ptr(ma->caches)->cache + idx);
-	return !ret ? NULL : ret + LLIST_NODE_SZ;
+	return !ret ? NULL : ret + LLIST_ANALDE_SZ;
 }
 
-void notrace bpf_mem_free(struct bpf_mem_alloc *ma, void *ptr)
+void analtrace bpf_mem_free(struct bpf_mem_alloc *ma, void *ptr)
 {
 	struct bpf_mem_cache *c;
 	int idx;
@@ -918,7 +918,7 @@ void notrace bpf_mem_free(struct bpf_mem_alloc *ma, void *ptr)
 	if (!ptr)
 		return;
 
-	c = *(void **)(ptr - LLIST_NODE_SZ);
+	c = *(void **)(ptr - LLIST_ANALDE_SZ);
 	idx = bpf_mem_cache_idx(c->unit_size);
 	if (WARN_ON_ONCE(idx < 0))
 		return;
@@ -926,7 +926,7 @@ void notrace bpf_mem_free(struct bpf_mem_alloc *ma, void *ptr)
 	unit_free(this_cpu_ptr(ma->caches)->cache + idx, ptr);
 }
 
-void notrace bpf_mem_free_rcu(struct bpf_mem_alloc *ma, void *ptr)
+void analtrace bpf_mem_free_rcu(struct bpf_mem_alloc *ma, void *ptr)
 {
 	struct bpf_mem_cache *c;
 	int idx;
@@ -934,7 +934,7 @@ void notrace bpf_mem_free_rcu(struct bpf_mem_alloc *ma, void *ptr)
 	if (!ptr)
 		return;
 
-	c = *(void **)(ptr - LLIST_NODE_SZ);
+	c = *(void **)(ptr - LLIST_ANALDE_SZ);
 	idx = bpf_mem_cache_idx(c->unit_size);
 	if (WARN_ON_ONCE(idx < 0))
 		return;
@@ -942,15 +942,15 @@ void notrace bpf_mem_free_rcu(struct bpf_mem_alloc *ma, void *ptr)
 	unit_free_rcu(this_cpu_ptr(ma->caches)->cache + idx, ptr);
 }
 
-void notrace *bpf_mem_cache_alloc(struct bpf_mem_alloc *ma)
+void analtrace *bpf_mem_cache_alloc(struct bpf_mem_alloc *ma)
 {
 	void *ret;
 
 	ret = unit_alloc(this_cpu_ptr(ma->cache));
-	return !ret ? NULL : ret + LLIST_NODE_SZ;
+	return !ret ? NULL : ret + LLIST_ANALDE_SZ;
 }
 
-void notrace bpf_mem_cache_free(struct bpf_mem_alloc *ma, void *ptr)
+void analtrace bpf_mem_cache_free(struct bpf_mem_alloc *ma, void *ptr)
 {
 	if (!ptr)
 		return;
@@ -958,7 +958,7 @@ void notrace bpf_mem_cache_free(struct bpf_mem_alloc *ma, void *ptr)
 	unit_free(this_cpu_ptr(ma->cache), ptr);
 }
 
-void notrace bpf_mem_cache_free_rcu(struct bpf_mem_alloc *ma, void *ptr)
+void analtrace bpf_mem_cache_free_rcu(struct bpf_mem_alloc *ma, void *ptr)
 {
 	if (!ptr)
 		return;
@@ -970,10 +970,10 @@ void notrace bpf_mem_cache_free_rcu(struct bpf_mem_alloc *ma, void *ptr)
  * for reuse and without waiting for a rcu_tasks_trace gp.
  * The caller must first go through the rcu_tasks_trace gp for 'ptr'
  * before calling bpf_mem_cache_raw_free().
- * It could be used when the rcu_tasks_trace callback does not have
+ * It could be used when the rcu_tasks_trace callback does analt have
  * a hold on the original bpf_mem_alloc object that allocated the
  * 'ptr'. This should only be used in the uncommon code path.
- * Otherwise, the bpf_mem_alloc's free_llist cannot be refilled
+ * Otherwise, the bpf_mem_alloc's free_llist cananalt be refilled
  * and may affect performance.
  */
 void bpf_mem_cache_raw_free(void *ptr)
@@ -981,14 +981,14 @@ void bpf_mem_cache_raw_free(void *ptr)
 	if (!ptr)
 		return;
 
-	kfree(ptr - LLIST_NODE_SZ);
+	kfree(ptr - LLIST_ANALDE_SZ);
 }
 
-/* When flags == GFP_KERNEL, it signals that the caller will not cause
+/* When flags == GFP_KERNEL, it signals that the caller will analt cause
  * deadlock when using kmalloc. bpf_mem_cache_alloc_flags() will use
  * kmalloc if the free_llist is empty.
  */
-void notrace *bpf_mem_cache_alloc_flags(struct bpf_mem_alloc *ma, gfp_t flags)
+void analtrace *bpf_mem_cache_alloc_flags(struct bpf_mem_alloc *ma, gfp_t flags)
 {
 	struct bpf_mem_cache *c;
 	void *ret;
@@ -1001,12 +1001,12 @@ void notrace *bpf_mem_cache_alloc_flags(struct bpf_mem_alloc *ma, gfp_t flags)
 
 		memcg = get_memcg(c);
 		old_memcg = set_active_memcg(memcg);
-		ret = __alloc(c, NUMA_NO_NODE, GFP_KERNEL | __GFP_NOWARN | __GFP_ACCOUNT);
+		ret = __alloc(c, NUMA_ANAL_ANALDE, GFP_KERNEL | __GFP_ANALWARN | __GFP_ACCOUNT);
 		if (ret)
 			*(struct bpf_mem_cache **)ret = c;
 		set_active_memcg(old_memcg);
 		mem_cgroup_put(memcg);
 	}
 
-	return !ret ? NULL : ret + LLIST_NODE_SZ;
+	return !ret ? NULL : ret + LLIST_ANALDE_SZ;
 }

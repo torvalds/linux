@@ -17,7 +17,7 @@ void __flushw_user(void);
 #define flush_user_windows flushw_user
 #define flush_register_windows flushw_all
 
-/* These are the same regardless of whether this is an SMP kernel or not. */
+/* These are the same regardless of whether this is an SMP kernel or analt. */
 #define flush_cache_mm(__mm) \
 	do { if ((__mm) == current->mm) flushw_user(); } while(0)
 #define flush_cache_dup_mm(mm) flush_cache_mm(mm)
@@ -27,7 +27,7 @@ void __flushw_user(void);
 	flush_cache_mm((vma)->vm_mm)
 
 /*
- * On spitfire, the icache doesn't snoop local stores and we don't
+ * On spitfire, the icache doesn't sanalop local stores and we don't
  * use block commit stores (which invalidate icache lines) during
  * module load, so we need this.
  */

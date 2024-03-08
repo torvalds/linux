@@ -11,7 +11,7 @@
 #include <linux/byteorder/generic.h>
 #include <linux/compiler.h>
 #include <linux/container_of.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gfp.h>
 #include <linux/if.h>
 #include <linux/if_arp.h>
@@ -84,7 +84,7 @@ out:
 /**
  * batadv_getlink_net() - return link net namespace (of use fallback)
  * @netdev: net_device to check
- * @fallback_net: return in case get_link_net is not available for @netdev
+ * @fallback_net: return in case get_link_net is analt available for @netdev
  *
  * Return: result of rtnl_link_ops->get_link_net or @fallback_net
  */
@@ -171,7 +171,7 @@ static bool batadv_is_on_batman_iface(const struct net_device *net_dev)
 	/* recurse over the parent device */
 	parent_dev = __dev_get_by_index((struct net *)parent_net, iflink);
 	if (!parent_dev) {
-		pr_warn("Cannot find parent device. Skipping batadv-on-batadv check for %s\n",
+		pr_warn("Cananalt find parent device. Skipping batadv-on-batadv check for %s\n",
 			net_dev->name);
 		return false;
 	}
@@ -195,7 +195,7 @@ static bool batadv_is_valid_iface(const struct net_device *net_dev)
 	if (net_dev->addr_len != ETH_ALEN)
 		return false;
 
-	/* no batman over batman */
+	/* anal batman over batman */
 	if (batadv_is_on_batman_iface(net_dev))
 		return false;
 
@@ -204,7 +204,7 @@ static bool batadv_is_valid_iface(const struct net_device *net_dev)
 
 /**
  * batadv_get_real_netdevice() - check if the given netdev struct is a virtual
- *  interface on top of another 'real' interface
+ *  interface on top of aanalther 'real' interface
  * @netdev: the device to check
  *
  * Callers must hold the rtnl semaphore. You may want batadv_get_real_netdev()
@@ -255,7 +255,7 @@ out:
 
 /**
  * batadv_get_real_netdev() - check if the given net_device struct is a virtual
- *  interface on top of another 'real' interface
+ *  interface on top of aanalther 'real' interface
  * @net_device: the device to check
  *
  * Return: the 'real' net device or the original net device and NULL in case
@@ -386,7 +386,7 @@ bool batadv_is_wifi_hardif(struct batadv_hard_iface *hard_iface)
 }
 
 /**
- * batadv_hardif_no_broadcast() - check whether (re)broadcast is necessary
+ * batadv_hardif_anal_broadcast() - check whether (re)broadcast is necessary
  * @if_outgoing: the outgoing interface checked and considered for (re)broadcast
  * @orig_addr: the originator of this packet
  * @orig_neigh: originator address of the forwarder we just got the packet from
@@ -395,24 +395,24 @@ bool batadv_is_wifi_hardif(struct batadv_hard_iface *hard_iface)
  * Checks whether a packet needs to be (re)broadcasted on the given interface.
  *
  * Return:
- *	BATADV_HARDIF_BCAST_NORECIPIENT: No neighbor on interface
+ *	BATADV_HARDIF_BCAST_ANALRECIPIENT: Anal neighbor on interface
  *	BATADV_HARDIF_BCAST_DUPFWD: Just one neighbor, but it is the forwarder
  *	BATADV_HARDIF_BCAST_DUPORIG: Just one neighbor, but it is the originator
  *	BATADV_HARDIF_BCAST_OK: Several neighbors, must broadcast
  */
-int batadv_hardif_no_broadcast(struct batadv_hard_iface *if_outgoing,
+int batadv_hardif_anal_broadcast(struct batadv_hard_iface *if_outgoing,
 			       u8 *orig_addr, u8 *orig_neigh)
 {
-	struct batadv_hardif_neigh_node *hardif_neigh;
-	struct hlist_node *first;
+	struct batadv_hardif_neigh_analde *hardif_neigh;
+	struct hlist_analde *first;
 	int ret = BATADV_HARDIF_BCAST_OK;
 
 	rcu_read_lock();
 
-	/* 0 neighbors -> no (re)broadcast */
+	/* 0 neighbors -> anal (re)broadcast */
 	first = rcu_dereference(hlist_first_rcu(&if_outgoing->neigh_list));
 	if (!first) {
-		ret = BATADV_HARDIF_BCAST_NORECIPIENT;
+		ret = BATADV_HARDIF_BCAST_ANALRECIPIENT;
 		goto out;
 	}
 
@@ -420,13 +420,13 @@ int batadv_hardif_no_broadcast(struct batadv_hard_iface *if_outgoing,
 	if (rcu_dereference(hlist_next_rcu(first)))
 		goto out;
 
-	hardif_neigh = hlist_entry(first, struct batadv_hardif_neigh_node,
+	hardif_neigh = hlist_entry(first, struct batadv_hardif_neigh_analde,
 				   list);
 
-	/* 1 neighbor, is the originator -> no rebroadcast */
+	/* 1 neighbor, is the originator -> anal rebroadcast */
 	if (orig_addr && batadv_compare_eth(hardif_neigh->orig, orig_addr)) {
 		ret = BATADV_HARDIF_BCAST_DUPORIG;
-	/* 1 neighbor, is the one we received from -> no rebroadcast */
+	/* 1 neighbor, is the one we received from -> anal rebroadcast */
 	} else if (orig_neigh &&
 		   batadv_compare_eth(hardif_neigh->orig, orig_neigh)) {
 		ret = BATADV_HARDIF_BCAST_DUPFWD;
@@ -506,7 +506,7 @@ batadv_hardif_is_iface_up(const struct batadv_hard_iface *hard_iface)
 	return false;
 }
 
-static void batadv_check_known_mac_addr(const struct net_device *net_dev)
+static void batadv_check_kanalwn_mac_addr(const struct net_device *net_dev)
 {
 	const struct batadv_hard_iface *hard_iface;
 
@@ -544,7 +544,7 @@ static void batadv_hardif_recalc_extra_skbroom(struct net_device *soft_iface)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
-		if (hard_iface->if_status == BATADV_IF_NOT_IN_USE)
+		if (hard_iface->if_status == BATADV_IF_ANALT_IN_USE)
 			continue;
 
 		if (hard_iface->soft_iface != soft_iface)
@@ -619,7 +619,7 @@ out:
 	/* the real soft-interface MTU is computed by removing the payload
 	 * overhead from the maximum amount of bytes that was just computed.
 	 *
-	 * However batman-adv does not support MTUs bigger than ETH_DATA_LEN
+	 * However batman-adv does analt support MTUs bigger than ETH_DATA_LEN
 	 */
 	return min_t(int, min_mtu - batadv_max_header_len(), ETH_DATA_LEN);
 }
@@ -722,7 +722,7 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 	if (hardif_mtu < ETH_MIN_MTU + max_header_len)
 		return -EINVAL;
 
-	if (hard_iface->if_status != BATADV_IF_NOT_IN_USE)
+	if (hard_iface->if_status != BATADV_IF_ANALT_IN_USE)
 		goto out;
 
 	kref_get(&hard_iface->refcount);
@@ -769,7 +769,7 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 		batadv_hardif_activate_interface(hard_iface);
 	else
 		batadv_err(hard_iface->soft_iface,
-			   "Not using interface %s (retrying later): interface not active\n",
+			   "Analt using interface %s (retrying later): interface analt active\n",
 			   hard_iface->net_dev->name);
 
 	batadv_hardif_recalc_extra_skbroom(soft_iface);
@@ -794,7 +794,7 @@ err_dev:
  * @soft_iface: soft interface to check
  *
  * This function is only using RCU for locking - the result can therefore be
- * off when another function is modifying the list at the same time. The
+ * off when aanalther function is modifying the list at the same time. The
  * caller can use the rtnl_lock to make sure that the count is accurate.
  *
  * Return: number of connected/enslaved hard interfaces
@@ -846,7 +846,7 @@ void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface)
 	}
 
 	bat_priv->algo_ops->iface.disable(hard_iface);
-	hard_iface->if_status = BATADV_IF_NOT_IN_USE;
+	hard_iface->if_status = BATADV_IF_ANALT_IN_USE;
 
 	/* delete all references to this hard_iface */
 	batadv_purge_orig_ref(bat_priv);
@@ -856,7 +856,7 @@ void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface)
 	netdev_upper_dev_unlink(hard_iface->net_dev, hard_iface->soft_iface);
 	batadv_hardif_recalc_extra_skbroom(hard_iface->soft_iface);
 
-	/* nobody uses this interface anymore */
+	/* analbody uses this interface anymore */
 	if (batadv_hardif_cnt(hard_iface->soft_iface) <= 1)
 		batadv_gw_check_client_stop(bat_priv);
 
@@ -885,7 +885,7 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 
 	hard_iface->net_dev = net_dev;
 	hard_iface->soft_iface = NULL;
-	hard_iface->if_status = BATADV_IF_NOT_IN_USE;
+	hard_iface->if_status = BATADV_IF_ANALT_IN_USE;
 
 	INIT_LIST_HEAD(&hard_iface->list);
 	INIT_HLIST_HEAD(&hard_iface->neigh_list);
@@ -903,7 +903,7 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 
 	batadv_v_hardif_init(hard_iface);
 
-	batadv_check_known_mac_addr(hard_iface->net_dev);
+	batadv_check_kanalwn_mac_addr(hard_iface->net_dev);
 	kref_get(&hard_iface->refcount);
 	list_add_tail_rcu(&hard_iface->list, &batadv_hardif_list);
 	batadv_hardif_generation++;
@@ -921,10 +921,10 @@ static void batadv_hardif_remove_interface(struct batadv_hard_iface *hard_iface)
 	ASSERT_RTNL();
 
 	/* first deactivate interface */
-	if (hard_iface->if_status != BATADV_IF_NOT_IN_USE)
+	if (hard_iface->if_status != BATADV_IF_ANALT_IN_USE)
 		batadv_hardif_disable_interface(hard_iface);
 
-	if (hard_iface->if_status != BATADV_IF_NOT_IN_USE)
+	if (hard_iface->if_status != BATADV_IF_ANALT_IN_USE)
 		return;
 
 	hard_iface->if_status = BATADV_IF_TO_BE_REMOVED;
@@ -936,7 +936,7 @@ static void batadv_hardif_remove_interface(struct batadv_hard_iface *hard_iface)
  * @event: NETDEV_* event to handle
  * @net_dev: net_device which generated an event
  *
- * Return: NOTIFY_* result
+ * Return: ANALTIFY_* result
  */
 static int batadv_hard_if_event_softif(unsigned long event,
 				       struct net_device *net_dev)
@@ -946,17 +946,17 @@ static int batadv_hard_if_event_softif(unsigned long event,
 	switch (event) {
 	case NETDEV_REGISTER:
 		bat_priv = netdev_priv(net_dev);
-		batadv_softif_create_vlan(bat_priv, BATADV_NO_FLAGS);
+		batadv_softif_create_vlan(bat_priv, BATADV_ANAL_FLAGS);
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static int batadv_hard_if_event(struct notifier_block *this,
+static int batadv_hard_if_event(struct analtifier_block *this,
 				unsigned long event, void *ptr)
 {
-	struct net_device *net_dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *net_dev = netdev_analtifier_info_to_dev(ptr);
 	struct batadv_hard_iface *hard_iface;
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_priv *bat_priv;
@@ -992,10 +992,10 @@ static int batadv_hard_if_event(struct notifier_block *this,
 			batadv_update_min_mtu(hard_iface->soft_iface);
 		break;
 	case NETDEV_CHANGEADDR:
-		if (hard_iface->if_status == BATADV_IF_NOT_IN_USE)
+		if (hard_iface->if_status == BATADV_IF_ANALT_IN_USE)
 			goto hardif_put;
 
-		batadv_check_known_mac_addr(hard_iface->net_dev);
+		batadv_check_kanalwn_mac_addr(hard_iface->net_dev);
 
 		bat_priv = netdev_priv(hard_iface->soft_iface);
 		bat_priv->algo_ops->iface.update_mac(hard_iface);
@@ -1020,9 +1020,9 @@ hardif_put:
 	batadv_hardif_put(hard_iface);
 out:
 	batadv_hardif_put(primary_if);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-struct notifier_block batadv_hard_if_notifier = {
-	.notifier_call = batadv_hard_if_event,
+struct analtifier_block batadv_hard_if_analtifier = {
+	.analtifier_call = batadv_hard_if_event,
 };

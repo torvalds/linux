@@ -15,42 +15,42 @@ description: |+
   already been set up to scan out from the memory pointed to by the
   reg property.
 
-  Since simplefb nodes represent runtime information they must be
-  sub-nodes of the chosen node (*). Simplefb nodes must be named
+  Since simplefb analdes represent runtime information they must be
+  sub-analdes of the chosen analde (*). Simplefb analdes must be named
   framebuffer@<address>.
 
-  If the devicetree contains nodes for the display hardware used by a
-  simplefb, then the simplefb node must contain a property called
+  If the devicetree contains analdes for the display hardware used by a
+  simplefb, then the simplefb analde must contain a property called
   display, which contains a phandle pointing to the primary display
-  hw node, so that the OS knows which simplefb to disable when handing
+  hw analde, so that the OS kanalws which simplefb to disable when handing
   over control to a driver for the real hardware. The bindings for the
-  hw nodes must specify which node is considered the primary node.
+  hw analdes must specify which analde is considered the primary analde.
 
-  If a panel node is given, then the driver uses this to configure the
-  physical width and height of the display. If no panel node is given,
+  If a panel analde is given, then the driver uses this to configure the
+  physical width and height of the display. If anal panel analde is given,
   then the driver uses the width and height properties of the simplefb
-  node to estimate it.
+  analde to estimate it.
 
   It is advised to add display# aliases to help the OS determine how
   to number things. If display# aliases are used, then if the simplefb
-  node contains a display property then the /aliases/display# path
-  must point to the display hw node the display property points to,
-  otherwise it must point directly to the simplefb node.
+  analde contains a display property then the /aliases/display# path
+  must point to the display hw analde the display property points to,
+  otherwise it must point directly to the simplefb analde.
 
-  If a simplefb node represents the preferred console for user
-  interaction, then the chosen node stdout-path property should point
-  to it, or to the primary display hw node, as with display#
+  If a simplefb analde represents the preferred console for user
+  interaction, then the chosen analde stdout-path property should point
+  to it, or to the primary display hw analde, as with display#
   aliases. If display aliases are used then it should be set to the
   alias instead.
 
   It is advised that devicetree files contain pre-filled, disabled
-  framebuffer nodes, so that the firmware only needs to update the
+  framebuffer analdes, so that the firmware only needs to update the
   mode information and enable them. This way if e.g. later on support
-  for more display clocks get added, the simplefb nodes will already
-  contain this info and the firmware does not need to be updated.
+  for more display clocks get added, the simplefb analdes will already
+  contain this info and the firmware does analt need to be updated.
 
-  If pre-filled framebuffer nodes are used, the firmware may need
-  extra information to find the right node. In that case an extra
+  If pre-filled framebuffer analdes are used, the firmware may need
+  extra information to find the right analde. In that case an extra
   platform specific compatible and platform specific properties should
   be used and documented.
 
@@ -70,7 +70,7 @@ properties:
 
   memory-region:
     maxItems: 1
-    description: Phandle to a node describing the memory to be used for the
+    description: Phandle to a analde describing the memory to be used for the
       framebuffer. If present, overrides the "reg" property (if one exists).
 
   clocks:
@@ -120,11 +120,11 @@ properties:
 
   display:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: Primary display hardware node
+    description: Primary display hardware analde
 
   panel:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: Display panel node
+    description: Display panel analde
 
   allwinner,pipeline:
     description: Pipeline used by the framebuffer on Allwinner SoCs

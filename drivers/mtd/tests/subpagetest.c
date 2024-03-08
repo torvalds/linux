@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2006-2007 Nokia Corporation
+ * Copyright (C) 2006-2007 Analkia Corporation
  *
  * Test sub-page read and write on MTD device.
- * Author: Adrian Hunter <ext-adrian.hunter@nokia.com>
+ * Author: Adrian Hunter <ext-adrian.hunter@analkia.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -285,7 +285,7 @@ static int __init mtd_subpagetest_init(void)
 	mtd = get_mtd_device(NULL, dev);
 	if (IS_ERR(mtd)) {
 		err = PTR_ERR(mtd);
-		pr_err("error: cannot get MTD device\n");
+		pr_err("error: cananalt get MTD device\n");
 		return err;
 	}
 
@@ -306,7 +306,7 @@ static int __init mtd_subpagetest_init(void)
 	       (unsigned long long)mtd->size, mtd->erasesize,
 	       mtd->writesize, subpgsize, ebcnt, pgcnt, mtd->oobsize);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	bufsize = subpgsize * 32;
 	writebuf = kmalloc(bufsize, GFP_KERNEL);
 	if (!writebuf)

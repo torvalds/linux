@@ -161,17 +161,17 @@ static int v3d_v3d_debugfs_ident(struct seq_file *m, void *unused)
 		   V3D_GET_FIELD(ident3, V3D_HUB_IDENT3_IPREV),
 		   V3D_GET_FIELD(ident3, V3D_HUB_IDENT3_IPIDX));
 	seq_printf(m, "MMU:        %s\n",
-		   str_yes_no(ident2 & V3D_HUB_IDENT2_WITH_MMU));
+		   str_anal_anal(ident2 & V3D_HUB_IDENT2_WITH_MMU));
 	seq_printf(m, "TFU:        %s\n",
-		   str_yes_no(ident1 & V3D_HUB_IDENT1_WITH_TFU));
+		   str_anal_anal(ident1 & V3D_HUB_IDENT1_WITH_TFU));
 	if (v3d->ver <= 42) {
 		seq_printf(m, "TSY:        %s\n",
-			   str_yes_no(ident1 & V3D_HUB_IDENT1_WITH_TSY));
+			   str_anal_anal(ident1 & V3D_HUB_IDENT1_WITH_TSY));
 	}
 	seq_printf(m, "MSO:        %s\n",
-		   str_yes_no(ident1 & V3D_HUB_IDENT1_WITH_MSO));
+		   str_anal_anal(ident1 & V3D_HUB_IDENT1_WITH_MSO));
 	seq_printf(m, "L3C:        %s (%dkb)\n",
-		   str_yes_no(ident1 & V3D_HUB_IDENT1_WITH_L3C),
+		   str_anal_anal(ident1 & V3D_HUB_IDENT1_WITH_L3C),
 		   V3D_GET_FIELD(ident2, V3D_HUB_IDENT2_L3C_NKB));
 
 	for (core = 0; core < cores; core++) {
@@ -268,7 +268,7 @@ static const struct drm_debugfs_info v3d_debugfs_list[] = {
 };
 
 void
-v3d_debugfs_init(struct drm_minor *minor)
+v3d_debugfs_init(struct drm_mianalr *mianalr)
 {
-	drm_debugfs_add_files(minor->dev, v3d_debugfs_list, ARRAY_SIZE(v3d_debugfs_list));
+	drm_debugfs_add_files(mianalr->dev, v3d_debugfs_list, ARRAY_SIZE(v3d_debugfs_list));
 }

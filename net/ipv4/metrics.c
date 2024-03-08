@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/netlink.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/rtnetlink.h>
 #include <linux/types.h>
 #include <net/ip.h>
@@ -26,14 +26,14 @@ static int ip_metrics_convert(struct net *net, struct nlattr *fc_mx,
 			return -EINVAL;
 		}
 
-		type = array_index_nospec(type, RTAX_MAX + 1);
+		type = array_index_analspec(type, RTAX_MAX + 1);
 		if (type == RTAX_CC_ALGO) {
 			char tmp[TCP_CA_NAME_MAX];
 
 			nla_strscpy(tmp, nla, sizeof(tmp));
 			val = tcp_ca_get_key_by_name(net, tmp, &ecn_ca);
 			if (val == TCP_CA_UNSPEC) {
-				NL_SET_ERR_MSG(extack, "Unknown tcp congestion algorithm");
+				NL_SET_ERR_MSG(extack, "Unkanalwn tcp congestion algorithm");
 				return -EINVAL;
 			}
 		} else {
@@ -51,7 +51,7 @@ static int ip_metrics_convert(struct net *net, struct nlattr *fc_mx,
 		if (type == RTAX_HOPLIMIT && val > 255)
 			val = 255;
 		if (type == RTAX_FEATURES && (val & ~RTAX_FEATURE_MASK)) {
-			NL_SET_ERR_MSG(extack, "Unknown flag set in feature mask in metrics attribute");
+			NL_SET_ERR_MSG(extack, "Unkanalwn flag set in feature mask in metrics attribute");
 			return -EINVAL;
 		}
 		metrics[type - 1] = val;
@@ -75,7 +75,7 @@ struct dst_metrics *ip_fib_metrics_init(struct net *net, struct nlattr *fc_mx,
 
 	fib_metrics = kzalloc(sizeof(*fib_metrics), GFP_KERNEL);
 	if (unlikely(!fib_metrics))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = ip_metrics_convert(net, fc_mx, fc_mx_len, fib_metrics->metrics,
 				 extack);

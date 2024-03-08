@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -1280,7 +1280,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 		for (reg_offset = 0; reg_offset < num_tile_mode_states; reg_offset++)
 			WREG32(mmGB_TILE_MODE0 + reg_offset, tilemode[reg_offset]);
 	} else {
-		DRM_ERROR("unknown asic: 0x%x\n", adev->asic_type);
+		DRM_ERROR("unkanalwn asic: 0x%x\n", adev->asic_type);
 	}
 }
 
@@ -1351,7 +1351,7 @@ static void gfx_v6_0_raster_config(struct amdgpu_device *adev, u32 *rconf)
 		*rconf |= 0x0;
 		break;
 	default:
-		DRM_ERROR("unknown asic: 0x%x\n", adev->asic_type);
+		DRM_ERROR("unkanalwn asic: 0x%x\n", adev->asic_type);
 		break;
 	}
 }
@@ -1669,7 +1669,7 @@ static void gfx_v6_0_constants_init(struct amdgpu_device *adev)
 
 	adev->gfx.config.num_tile_pipes = adev->gfx.config.max_tile_pipes;
 	adev->gfx.config.mem_max_burst_length_bytes = 256;
-	tmp = (mc_arb_ramcfg & MC_ARB_RAMCFG__NOOFCOLS_MASK) >> MC_ARB_RAMCFG__NOOFCOLS__SHIFT;
+	tmp = (mc_arb_ramcfg & MC_ARB_RAMCFG__ANALOFCOLS_MASK) >> MC_ARB_RAMCFG__ANALOFCOLS__SHIFT;
 	adev->gfx.config.mem_row_size_in_kb = (4 * (1 << (8 + tmp))) / 1024;
 	if (adev->gfx.config.mem_row_size_in_kb > 4)
 		adev->gfx.config.mem_row_size_in_kb = 4;
@@ -2078,7 +2078,7 @@ static int gfx_v6_0_cp_gfx_resume(struct amdgpu_device *adev)
 	ring->wptr = 0;
 	WREG32(mmCP_RB0_WPTR, ring->wptr);
 
-	/* set the wb address whether it's enabled or not */
+	/* set the wb address whether it's enabled or analt */
 	rptr_addr = ring->rptr_gpu_addr;
 	WREG32(mmCP_RB0_RPTR_ADDR, lower_32_bits(rptr_addr));
 	WREG32(mmCP_RB0_RPTR_ADDR_HI, upper_32_bits(rptr_addr) & 0xFF);
@@ -2955,12 +2955,12 @@ static uint32_t wave_read_ind(struct amdgpu_device *adev, uint32_t simd, uint32_
 
 static void wave_read_regs(struct amdgpu_device *adev, uint32_t simd,
 			   uint32_t wave, uint32_t thread,
-			   uint32_t regno, uint32_t num, uint32_t *out)
+			   uint32_t reganal, uint32_t num, uint32_t *out)
 {
 	WREG32(mmSQ_IND_INDEX,
 		(wave << SQ_IND_INDEX__WAVE_ID__SHIFT) |
 		(simd << SQ_IND_INDEX__SIMD_ID__SHIFT) |
-		(regno << SQ_IND_INDEX__INDEX__SHIFT) |
+		(reganal << SQ_IND_INDEX__INDEX__SHIFT) |
 		(thread << SQ_IND_INDEX__THREAD_ID__SHIFT) |
 		(SQ_IND_INDEX__FORCE_READ_MASK) |
 		(SQ_IND_INDEX__AUTO_INCR_MASK));
@@ -2968,29 +2968,29 @@ static void wave_read_regs(struct amdgpu_device *adev, uint32_t simd,
 		*(out++) = RREG32(mmSQ_IND_DATA);
 }
 
-static void gfx_v6_0_read_wave_data(struct amdgpu_device *adev, uint32_t xcc_id, uint32_t simd, uint32_t wave, uint32_t *dst, int *no_fields)
+static void gfx_v6_0_read_wave_data(struct amdgpu_device *adev, uint32_t xcc_id, uint32_t simd, uint32_t wave, uint32_t *dst, int *anal_fields)
 {
 	/* type 0 wave data */
-	dst[(*no_fields)++] = 0;
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_STATUS);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_PC_LO);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_PC_HI);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_EXEC_LO);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_EXEC_HI);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_HW_ID);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_INST_DW0);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_INST_DW1);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_GPR_ALLOC);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_LDS_ALLOC);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TRAPSTS);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_IB_STS);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TBA_LO);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TBA_HI);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TMA_LO);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TMA_HI);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_IB_DBG0);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_M0);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_MODE);
+	dst[(*anal_fields)++] = 0;
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_STATUS);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_PC_LO);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_PC_HI);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_EXEC_LO);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_EXEC_HI);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_HW_ID);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_INST_DW0);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_INST_DW1);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_GPR_ALLOC);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_LDS_ALLOC);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TRAPSTS);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_IB_STS);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TBA_LO);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TBA_HI);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TMA_LO);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TMA_HI);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_IB_DBG0);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_M0);
+	dst[(*anal_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_MODE);
 }
 
 static void gfx_v6_0_read_wave_sgprs(struct amdgpu_device *adev, uint32_t xcc_id, uint32_t simd,
@@ -3005,7 +3005,7 @@ static void gfx_v6_0_read_wave_sgprs(struct amdgpu_device *adev, uint32_t xcc_id
 static void gfx_v6_0_select_me_pipe_q(struct amdgpu_device *adev,
 				  u32 me, u32 pipe, u32 q, u32 vm, u32 xcc_id)
 {
-	DRM_INFO("Not implemented\n");
+	DRM_INFO("Analt implemented\n");
 }
 
 static const struct amdgpu_gfx_funcs gfx_v6_0_gfx_funcs = {
@@ -3462,7 +3462,7 @@ static const struct amd_ip_funcs gfx_v6_0_ip_funcs = {
 static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
 	.type = AMDGPU_RING_TYPE_GFX,
 	.align_mask = 0xff,
-	.nop = 0x80000000,
+	.analp = 0x80000000,
 	.support_64bit_ptrs = false,
 	.get_rptr = gfx_v6_0_ring_get_rptr,
 	.get_wptr = gfx_v6_0_ring_get_wptr,
@@ -3481,7 +3481,7 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
 	.emit_vm_flush = gfx_v6_0_ring_emit_vm_flush,
 	.test_ring = gfx_v6_0_ring_test_ring,
 	.test_ib = gfx_v6_0_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_analp = amdgpu_ring_insert_analp,
 	.emit_cntxcntl = gfx_v6_ring_emit_cntxcntl,
 	.emit_wreg = gfx_v6_0_ring_emit_wreg,
 	.emit_mem_sync = gfx_v6_0_emit_mem_sync,
@@ -3490,7 +3490,7 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
 static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_compute = {
 	.type = AMDGPU_RING_TYPE_COMPUTE,
 	.align_mask = 0xff,
-	.nop = 0x80000000,
+	.analp = 0x80000000,
 	.get_rptr = gfx_v6_0_ring_get_rptr,
 	.get_wptr = gfx_v6_0_ring_get_wptr,
 	.set_wptr = gfx_v6_0_ring_set_wptr_compute,
@@ -3507,7 +3507,7 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_compute = {
 	.emit_vm_flush = gfx_v6_0_ring_emit_vm_flush,
 	.test_ring = gfx_v6_0_ring_test_ring,
 	.test_ib = gfx_v6_0_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_analp = amdgpu_ring_insert_analp,
 	.emit_wreg = gfx_v6_0_ring_emit_wreg,
 	.emit_mem_sync = gfx_v6_0_emit_mem_sync,
 };
@@ -3605,7 +3605,7 @@ const struct amdgpu_ip_block_version gfx_v6_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_GFX,
 	.major = 6,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &gfx_v6_0_ip_funcs,
 };

@@ -44,7 +44,7 @@ void clear_reset_status(unsigned int mask)
 }
 
 /*
- * For non device-tree builds, keep legacy timer init
+ * For analn device-tree builds, keep legacy timer init
  */
 void __init pxa_timer_init(void)
 {
@@ -54,7 +54,7 @@ void __init pxa_timer_init(void)
 		pxa27x_clocks_init(io_p2v(0x41300000));
 	if (cpu_is_pxa3xx())
 		pxa3xx_clocks_init(io_p2v(0x41340000), io_p2v(0x41350000));
-	pxa_timer_nodt_init(IRQ_OST0, io_p2v(0x40a00000));
+	pxa_timer_analdt_init(IRQ_OST0, io_p2v(0x40a00000));
 }
 
 void pxa_smemc_set_pcmcia_timing(int sock, u32 mcmem, u32 mcatt, u32 mcio)
@@ -79,8 +79,8 @@ void pxa_smemc_set_pcmcia_socket(int nr)
 		__raw_writel(MECR_CIT, MECR);
 		break;
 	case 2:
-		/* Set CIT and MECR:NOS (Number Of Sockets) */
-		__raw_writel(MECR_CIT | MECR_NOS, MECR);
+		/* Set CIT and MECR:ANALS (Number Of Sockets) */
+		__raw_writel(MECR_CIT | MECR_ANALS, MECR);
 		break;
 	}
 }
@@ -94,7 +94,7 @@ void __iomem *pxa_smemc_get_mdrefr(void)
 /*
  * Intel PXA2xx internal register mapping.
  *
- * Note: virtual 0xfffe0000-0xffffffff is reserved for the vector table
+ * Analte: virtual 0xfffe0000-0xffffffff is reserved for the vector table
  *       and cache flush area.
  */
 static struct map_desc common_io_desc[] __initdata = {

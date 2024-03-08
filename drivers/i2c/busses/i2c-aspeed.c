@@ -2,7 +2,7 @@
 /*
  *  Aspeed 24XX/25XX I2C Controller.
  *
- *  Copyright (C) 2012-2017 ASPEED Technology Inc.
+ *  Copyright (C) 2012-2017 ASPEED Techanallogy Inc.
  *  Copyright 2017 IBM Corporation
  *  Copyright 2017 Google, Inc.
  */
@@ -10,7 +10,7 @@
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -59,7 +59,7 @@
 #define ASPEED_I2CD_TIME_BASE_DIVISOR_MASK		GENMASK(3, 0)
 #define ASPEED_I2CD_TIME_SCL_REG_MAX			GENMASK(3, 0)
 /* 0x08 : I2CD Clock and AC Timing Control Register #2 */
-#define ASPEED_NO_TIMEOUT_CTRL				0
+#define ASPEED_ANAL_TIMEOUT_CTRL				0
 
 /* 0x0c : I2CD Interrupt Control Register &
  * 0x10 : I2CD Interrupt Status Register
@@ -72,8 +72,8 @@
 #define ASPEED_I2CD_INTR_BUS_RECOVER_DONE		BIT(13)
 #define ASPEED_I2CD_INTR_SLAVE_MATCH			BIT(7)
 #define ASPEED_I2CD_INTR_SCL_TIMEOUT			BIT(6)
-#define ASPEED_I2CD_INTR_ABNORMAL			BIT(5)
-#define ASPEED_I2CD_INTR_NORMAL_STOP			BIT(4)
+#define ASPEED_I2CD_INTR_ABANALRMAL			BIT(5)
+#define ASPEED_I2CD_INTR_ANALRMAL_STOP			BIT(4)
 #define ASPEED_I2CD_INTR_ARBIT_LOSS			BIT(3)
 #define ASPEED_I2CD_INTR_RX_DONE			BIT(2)
 #define ASPEED_I2CD_INTR_TX_NAK				BIT(1)
@@ -81,14 +81,14 @@
 #define ASPEED_I2CD_INTR_MASTER_ERRORS					       \
 		(ASPEED_I2CD_INTR_SDA_DL_TIMEOUT |			       \
 		 ASPEED_I2CD_INTR_SCL_TIMEOUT |				       \
-		 ASPEED_I2CD_INTR_ABNORMAL |				       \
+		 ASPEED_I2CD_INTR_ABANALRMAL |				       \
 		 ASPEED_I2CD_INTR_ARBIT_LOSS)
 #define ASPEED_I2CD_INTR_ALL						       \
 		(ASPEED_I2CD_INTR_SDA_DL_TIMEOUT |			       \
 		 ASPEED_I2CD_INTR_BUS_RECOVER_DONE |			       \
 		 ASPEED_I2CD_INTR_SCL_TIMEOUT |				       \
-		 ASPEED_I2CD_INTR_ABNORMAL |				       \
-		 ASPEED_I2CD_INTR_NORMAL_STOP |				       \
+		 ASPEED_I2CD_INTR_ABANALRMAL |				       \
+		 ASPEED_I2CD_INTR_ANALRMAL_STOP |				       \
 		 ASPEED_I2CD_INTR_ARBIT_LOSS |				       \
 		 ASPEED_I2CD_INTR_RX_DONE |				       \
 		 ASPEED_I2CD_INTR_TX_NAK |				       \
@@ -180,7 +180,7 @@ static int aspeed_i2c_recover_bus(struct aspeed_i2c_bus *bus)
 	command = readl(bus->base + ASPEED_I2C_CMD_REG);
 
 	if (command & ASPEED_I2CD_SDA_LINE_STS) {
-		/* Bus is idle: no recovery needed. */
+		/* Bus is idle: anal recovery needed. */
 		if (command & ASPEED_I2CD_SCL_LINE_STS)
 			goto out;
 		dev_dbg(bus->dev, "SCL hung (state %x), attempting recovery\n",
@@ -251,12 +251,12 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 
 	/*
 	 * Handle stop conditions early, prior to SLAVE_MATCH. Some masters may drive
-	 * transfers with low enough latency between the nak/stop phase of the current
+	 * transfers with low eanalugh latency between the nak/stop phase of the current
 	 * command and the start/address phase of the following command that the
 	 * interrupts are coalesced by the time we process them.
 	 */
-	if (irq_status & ASPEED_I2CD_INTR_NORMAL_STOP) {
-		irq_handled |= ASPEED_I2CD_INTR_NORMAL_STOP;
+	if (irq_status & ASPEED_I2CD_INTR_ANALRMAL_STOP) {
+		irq_handled |= ASPEED_I2CD_INTR_ANALRMAL_STOP;
 		bus->slave_state = ASPEED_I2C_SLAVE_STOP;
 	}
 
@@ -273,7 +273,7 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 	}
 
 	/*
-	 * Now that we've dealt with any potentially coalesced stop conditions,
+	 * Analw that we've dealt with any potentially coalesced stop conditions,
 	 * address any start conditions.
 	 */
 	if (irq_status & ASPEED_I2CD_INTR_SLAVE_MATCH) {
@@ -282,7 +282,7 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 	}
 
 	/*
-	 * If the slave has been stopped and not started then slave interrupt
+	 * If the slave has been stopped and analt started then slave interrupt
 	 * handling is complete.
 	 */
 	if (bus->slave_state == ASPEED_I2C_SLAVE_INACTIVE)
@@ -332,7 +332,7 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 		ret = i2c_slave_event(slave, I2C_SLAVE_WRITE_REQUESTED, &value);
 		/*
 		 * Slave ACK's on this address phase already but as the backend driver
-		 * returns an errno, the bus driver should nack the next incoming byte.
+		 * returns an erranal, the bus driver should nack the next incoming byte.
 		 */
 		if (ret < 0)
 			writel(ASPEED_I2CD_M_S_RX_CMD_LAST, bus->base + ASPEED_I2C_CMD_REG);
@@ -347,7 +347,7 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 		/* Slave was just started. Waiting for the next event. */;
 		break;
 	default:
-		dev_err(bus->dev, "unknown slave_state: %d\n",
+		dev_err(bus->dev, "unkanalwn slave_state: %d\n",
 			bus->slave_state);
 		bus->slave_state = ASPEED_I2C_SLAVE_INACTIVE;
 		break;
@@ -381,7 +381,7 @@ static void aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
 
 	if (msg->flags & I2C_M_RD) {
 		command |= ASPEED_I2CD_M_RX_CMD;
-		/* Need to let the hardware know to NACK after RX. */
+		/* Need to let the hardware kanalw to NACK after RX. */
 		if (msg->len == 1 && !(msg->flags & I2C_M_RECV_LEN))
 			command |= ASPEED_I2CD_M_S_RX_CMD_LAST;
 	}
@@ -415,7 +415,7 @@ static int aspeed_i2c_is_irq_error(u32 irq_status)
 	if (irq_status & (ASPEED_I2CD_INTR_SDA_DL_TIMEOUT |
 			  ASPEED_I2CD_INTR_SCL_TIMEOUT))
 		return -EBUSY;
-	if (irq_status & (ASPEED_I2CD_INTR_ABNORMAL))
+	if (irq_status & (ASPEED_I2CD_INTR_ABANALRMAL))
 		return -EPROTO;
 
 	return 0;
@@ -451,20 +451,20 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 		}
 	}
 
-	/* Master is not currently active, irq was for someone else. */
+	/* Master is analt currently active, irq was for someone else. */
 	if (bus->master_state == ASPEED_I2C_MASTER_INACTIVE ||
 	    bus->master_state == ASPEED_I2C_MASTER_PENDING)
-		goto out_no_complete;
+		goto out_anal_complete;
 
-	/* We are in an invalid state; reset bus to a known state. */
+	/* We are in an invalid state; reset bus to a kanalwn state. */
 	if (!bus->msgs) {
-		dev_err(bus->dev, "bus in unknown state. irq_status: 0x%x\n",
+		dev_err(bus->dev, "bus in unkanalwn state. irq_status: 0x%x\n",
 			irq_status);
 		bus->cmd_err = -EIO;
 		if (bus->master_state != ASPEED_I2C_MASTER_STOP &&
 		    bus->master_state != ASPEED_I2C_MASTER_INACTIVE)
 			aspeed_i2c_do_stop(bus);
-		goto out_no_complete;
+		goto out_anal_complete;
 	}
 	msg = &bus->msgs[bus->msgs_index];
 
@@ -489,7 +489,7 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 			bus->master_state = ASPEED_I2C_MASTER_PENDING;
 			dev_dbg(bus->dev,
 				"master goes pending due to a slave start\n");
-			goto out_no_complete;
+			goto out_anal_complete;
 		}
 #endif /* CONFIG_I2C_SLAVE */
 		if (unlikely(!(irq_status & ASPEED_I2CD_INTR_TX_ACK))) {
@@ -498,16 +498,16 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 				bus->master_state = ASPEED_I2C_MASTER_INACTIVE;
 				goto out_complete;
 			}
-			pr_devel("no slave present at %02x\n", msg->addr);
+			pr_devel("anal slave present at %02x\n", msg->addr);
 			irq_handled |= ASPEED_I2CD_INTR_TX_NAK;
 			bus->cmd_err = -ENXIO;
 			aspeed_i2c_do_stop(bus);
-			goto out_no_complete;
+			goto out_anal_complete;
 		}
 		irq_handled |= ASPEED_I2CD_INTR_TX_ACK;
 		if (msg->len == 0) { /* SMBUS_QUICK */
 			aspeed_i2c_do_stop(bus);
-			goto out_no_complete;
+			goto out_anal_complete;
 		}
 		if (msg->flags & I2C_M_RD)
 			bus->master_state = ASPEED_I2C_MASTER_RX_FIRST;
@@ -537,11 +537,11 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 		} else {
 			aspeed_i2c_next_msg_or_stop(bus);
 		}
-		goto out_no_complete;
+		goto out_anal_complete;
 	case ASPEED_I2C_MASTER_RX_FIRST:
-		/* RX may not have completed yet (only address cycle) */
+		/* RX may analt have completed yet (only address cycle) */
 		if (!(irq_status & ASPEED_I2CD_INTR_RX_DONE))
-			goto out_no_complete;
+			goto out_anal_complete;
 		fallthrough;
 	case ASPEED_I2C_MASTER_RX:
 		if (unlikely(!(irq_status & ASPEED_I2CD_INTR_RX_DONE))) {
@@ -557,7 +557,7 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 			if (unlikely(recv_byte > I2C_SMBUS_BLOCK_MAX)) {
 				bus->cmd_err = -EPROTO;
 				aspeed_i2c_do_stop(bus);
-				goto out_no_complete;
+				goto out_anal_complete;
 			}
 			msg->len = recv_byte +
 					((msg->flags & I2C_CLIENT_PEC) ? 2 : 1);
@@ -573,16 +573,16 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 		} else {
 			aspeed_i2c_next_msg_or_stop(bus);
 		}
-		goto out_no_complete;
+		goto out_anal_complete;
 	case ASPEED_I2C_MASTER_STOP:
-		if (unlikely(!(irq_status & ASPEED_I2CD_INTR_NORMAL_STOP))) {
+		if (unlikely(!(irq_status & ASPEED_I2CD_INTR_ANALRMAL_STOP))) {
 			dev_err(bus->dev,
 				"master failed to STOP. irq_status:0x%x\n",
 				irq_status);
 			bus->cmd_err = -EIO;
-			/* Do not STOP as we have already tried. */
+			/* Do analt STOP as we have already tried. */
 		} else {
-			irq_handled |= ASPEED_I2CD_INTR_NORMAL_STOP;
+			irq_handled |= ASPEED_I2CD_INTR_ANALRMAL_STOP;
 		}
 
 		bus->master_state = ASPEED_I2C_MASTER_INACTIVE;
@@ -592,10 +592,10 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 			"master received interrupt 0x%08x, but is inactive\n",
 			irq_status);
 		bus->cmd_err = -EIO;
-		/* Do not STOP as we should be inactive. */
+		/* Do analt STOP as we should be inactive. */
 		goto out_complete;
 	default:
-		WARN(1, "unknown master state\n");
+		WARN(1, "unkanalwn master state\n");
 		bus->master_state = ASPEED_I2C_MASTER_INACTIVE;
 		bus->cmd_err = -EINVAL;
 		goto out_complete;
@@ -603,7 +603,7 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 error_and_stop:
 	bus->cmd_err = -EIO;
 	aspeed_i2c_do_stop(bus);
-	goto out_no_complete;
+	goto out_anal_complete;
 out_complete:
 	bus->msgs = NULL;
 	if (bus->cmd_err)
@@ -611,7 +611,7 @@ out_complete:
 	else
 		bus->master_xfer_result = bus->msgs_index + 1;
 	complete(&bus->cmd_complete);
-out_no_complete:
+out_anal_complete:
 	return irq_handled;
 }
 
@@ -675,7 +675,7 @@ static irqreturn_t aspeed_i2c_bus_irq(int irq, void *dev_id)
 		readl(bus->base + ASPEED_I2C_INTR_STS_REG);
 	}
 	spin_unlock(&bus->lock);
-	return irq_remaining ? IRQ_NONE : IRQ_HANDLED;
+	return irq_remaining ? IRQ_ANALNE : IRQ_HANDLED;
 }
 
 static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
@@ -918,7 +918,7 @@ static int aspeed_i2c_init_clk(struct aspeed_i2c_bus *bus)
 			ASPEED_I2CD_TIME_TACST_MASK);
 	clk_reg_val |= bus->get_clk_reg_val(bus->dev, divisor);
 	writel(clk_reg_val, bus->base + ASPEED_I2C_AC_TIMING_REG1);
-	writel(ASPEED_NO_TIMEOUT_CTRL, bus->base + ASPEED_I2C_AC_TIMING_REG2);
+	writel(ASPEED_ANAL_TIMEOUT_CTRL, bus->base + ASPEED_I2C_AC_TIMING_REG2);
 
 	return 0;
 }
@@ -937,7 +937,7 @@ static int aspeed_i2c_init(struct aspeed_i2c_bus *bus,
 	if (ret < 0)
 		return ret;
 
-	if (of_property_read_bool(pdev->dev.of_node, "multi-master"))
+	if (of_property_read_bool(pdev->dev.of_analde, "multi-master"))
 		bus->multi_master = true;
 	else
 		fun_ctrl_reg |= ASPEED_I2CD_MULTI_MASTER_DIS;
@@ -1003,7 +1003,7 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
 
 	bus = devm_kzalloc(&pdev->dev, sizeof(*bus), GFP_KERNEL);
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(bus->base))
@@ -1024,15 +1024,15 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
 	}
 	reset_control_deassert(bus->rst);
 
-	ret = of_property_read_u32(pdev->dev.of_node,
+	ret = of_property_read_u32(pdev->dev.of_analde,
 				   "bus-frequency", &bus->bus_frequency);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
-			"Could not read bus-frequency property\n");
+			"Could analt read bus-frequency property\n");
 		bus->bus_frequency = I2C_MAX_STANDARD_MODE_FREQ;
 	}
 
-	match = of_match_node(aspeed_i2c_bus_of_table, pdev->dev.of_node);
+	match = of_match_analde(aspeed_i2c_bus_of_table, pdev->dev.of_analde);
 	if (!match)
 		bus->get_clk_reg_val = aspeed_i2c_24xx_get_clk_reg_val;
 	else
@@ -1046,7 +1046,7 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
 	bus->adap.retries = 0;
 	bus->adap.algo = &aspeed_i2c_algo;
 	bus->adap.dev.parent = &pdev->dev;
-	bus->adap.dev.of_node = pdev->dev.of_node;
+	bus->adap.dev.of_analde = pdev->dev.of_analde;
 	strscpy(bus->adap.name, pdev->name, sizeof(bus->adap.name));
 	i2c_set_adapdata(&bus->adap, bus);
 
@@ -1056,14 +1056,14 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
 	writel(0, bus->base + ASPEED_I2C_INTR_CTRL_REG);
 	writel(0xffffffff, bus->base + ASPEED_I2C_INTR_STS_REG);
 	/*
-	 * bus.lock does not need to be held because the interrupt handler has
-	 * not been enabled yet.
+	 * bus.lock does analt need to be held because the interrupt handler has
+	 * analt been enabled yet.
 	 */
 	ret = aspeed_i2c_init(bus, pdev);
 	if (ret < 0)
 		return ret;
 
-	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	irq = irq_of_parse_and_map(pdev->dev.of_analde, 0);
 	ret = devm_request_irq(&pdev->dev, irq, aspeed_i2c_bus_irq,
 			       0, dev_name(&pdev->dev), bus);
 	if (ret < 0)

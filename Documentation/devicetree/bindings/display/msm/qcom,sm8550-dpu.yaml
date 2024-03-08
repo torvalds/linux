@@ -126,7 +126,7 @@ examples:
 
             opp-514000000 {
                 opp-hz = /bits/ 64 <514000000>;
-                required-opps = <&rpmhpd_opp_nom>;
+                required-opps = <&rpmhpd_opp_analm>;
             };
         };
     };

@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_ARC_FARM_ARC0_AUX_REGS_H_
@@ -284,7 +284,7 @@
 
 #define mmARC_FARM_ARC0_AUX_CBU_FORCE_RSP_OK 0x4E88384
 
-#define mmARC_FARM_ARC0_AUX_CBU_NO_WR_INFLIGHT 0x4E8838C
+#define mmARC_FARM_ARC0_AUX_CBU_ANAL_WR_INFLIGHT 0x4E8838C
 
 #define mmARC_FARM_ARC0_AUX_CBU_SEI_INTR_ID 0x4E88390
 
@@ -308,7 +308,7 @@
 
 #define mmARC_FARM_ARC0_AUX_LBU_FORCE_RSP_OK 0x4E88434
 
-#define mmARC_FARM_ARC0_AUX_LBU_NO_WR_INFLIGHT 0x4E8843C
+#define mmARC_FARM_ARC0_AUX_LBU_ANAL_WR_INFLIGHT 0x4E8843C
 
 #define mmARC_FARM_ARC0_AUX_LBU_SEI_INTR_ID 0x4E88440
 

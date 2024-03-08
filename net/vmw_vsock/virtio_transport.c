@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2013-2015 Red Hat, Inc.
  * Author: Asias He <asias@redhat.com>
- *         Stefan Hajnoczi <stefanha@redhat.com>
+ *         Stefan Hajanalczi <stefanha@redhat.com>
  *
  * Some of the code is take from Gerd Hoffmann <kraxel@redhat.com>'s
  * early virtio-vsock proof-of-concept bits.
@@ -127,7 +127,7 @@ virtio_transport_send_pkt_work(struct work_struct *work)
 			    sizeof(*virtio_vsock_hdr(skb)));
 		out_sg++;
 
-		if (!skb_is_nonlinear(skb)) {
+		if (!skb_is_analnlinear(skb)) {
 			if (skb->len > 0) {
 				sg_init_one(sgs[out_sg], skb->data, skb->len);
 				out_sg++;
@@ -136,8 +136,8 @@ virtio_transport_send_pkt_work(struct work_struct *work)
 			struct skb_shared_info *si;
 			int i;
 
-			/* If skb is nonlinear, then its buffer must contain
-			 * only header and nothing more. Data is stored in
+			/* If skb is analnlinear, then its buffer must contain
+			 * only header and analthing more. Data is stored in
 			 * the fragged part.
 			 */
 			WARN_ON_ONCE(skb_headroom(skb) != sizeof(*virtio_vsock_hdr(skb)));
@@ -162,7 +162,7 @@ virtio_transport_send_pkt_work(struct work_struct *work)
 		}
 
 		ret = virtqueue_add_sgs(vq, sgs, out_sg, in_sg, skb, GFP_KERNEL);
-		/* Usually this means that there is no more space available in
+		/* Usually this means that there is anal more space available in
 		 * the vq
 		 */
 		if (ret < 0) {
@@ -176,7 +176,7 @@ virtio_transport_send_pkt_work(struct work_struct *work)
 
 			val = atomic_dec_return(&vsock->queued_replies);
 
-			/* Do we now have resources to resume rx processing? */
+			/* Do we analw have resources to resume rx processing? */
 			if (val + 1 == virtqueue_get_vring_size(rx_vq))
 				restart_rx = true;
 		}
@@ -207,13 +207,13 @@ virtio_transport_send_pkt(struct sk_buff *skb)
 	vsock = rcu_dereference(the_virtio_vsock);
 	if (!vsock) {
 		kfree_skb(skb);
-		len = -ENODEV;
+		len = -EANALDEV;
 		goto out_rcu;
 	}
 
 	if (le64_to_cpu(hdr->dst_cid) == vsock->guest_cid) {
 		kfree_skb(skb);
-		len = -ENODEV;
+		len = -EANALDEV;
 		goto out_rcu;
 	}
 
@@ -237,7 +237,7 @@ virtio_transport_cancel_pkt(struct vsock_sock *vsk)
 	rcu_read_lock();
 	vsock = rcu_dereference(the_virtio_vsock);
 	if (!vsock) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_rcu;
 	}
 
@@ -365,7 +365,7 @@ static void virtio_vsock_event_fill(struct virtio_vsock *vsock)
 static void virtio_vsock_reset_sock(struct sock *sk)
 {
 	/* vmci_transport.c doesn't take sk_lock here either.  At least we're
-	 * under vsock_table_lock so the sock cannot disappear while we're
+	 * under vsock_table_lock so the sock cananalt disappear while we're
 	 * executing.
 	 */
 
@@ -466,9 +466,9 @@ static bool virtio_transport_can_msgzerocopy(int bufs_num)
 	if (vsock) {
 		struct virtqueue *vq = vsock->vqs[VSOCK_VQ_TX];
 
-		/* Check that tx queue is large enough to keep whole
+		/* Check that tx queue is large eanalugh to keep whole
 		 * data to send. This is needed, because when there is
-		 * not enough free space in the queue, current skb to
+		 * analt eanalugh free space in the queue, current skb to
 		 * send will be reinserted to the head of tx list of
 		 * the socket to retry transmission later, so if skb
 		 * is bigger than whole queue, it will be reinserted
@@ -526,18 +526,18 @@ static struct virtio_transport virtio_transport = {
 
 		.msgzerocopy_allow        = virtio_transport_msgzerocopy_allow,
 
-		.notify_poll_in           = virtio_transport_notify_poll_in,
-		.notify_poll_out          = virtio_transport_notify_poll_out,
-		.notify_recv_init         = virtio_transport_notify_recv_init,
-		.notify_recv_pre_block    = virtio_transport_notify_recv_pre_block,
-		.notify_recv_pre_dequeue  = virtio_transport_notify_recv_pre_dequeue,
-		.notify_recv_post_dequeue = virtio_transport_notify_recv_post_dequeue,
-		.notify_send_init         = virtio_transport_notify_send_init,
-		.notify_send_pre_block    = virtio_transport_notify_send_pre_block,
-		.notify_send_pre_enqueue  = virtio_transport_notify_send_pre_enqueue,
-		.notify_send_post_enqueue = virtio_transport_notify_send_post_enqueue,
-		.notify_buffer_size       = virtio_transport_notify_buffer_size,
-		.notify_set_rcvlowat      = virtio_transport_notify_set_rcvlowat,
+		.analtify_poll_in           = virtio_transport_analtify_poll_in,
+		.analtify_poll_out          = virtio_transport_analtify_poll_out,
+		.analtify_recv_init         = virtio_transport_analtify_recv_init,
+		.analtify_recv_pre_block    = virtio_transport_analtify_recv_pre_block,
+		.analtify_recv_pre_dequeue  = virtio_transport_analtify_recv_pre_dequeue,
+		.analtify_recv_post_dequeue = virtio_transport_analtify_recv_post_dequeue,
+		.analtify_send_init         = virtio_transport_analtify_send_init,
+		.analtify_send_pre_block    = virtio_transport_analtify_send_pre_block,
+		.analtify_send_pre_enqueue  = virtio_transport_analtify_send_pre_enqueue,
+		.analtify_send_post_enqueue = virtio_transport_analtify_send_post_enqueue,
+		.analtify_buffer_size       = virtio_transport_analtify_buffer_size,
+		.analtify_set_rcvlowat      = virtio_transport_analtify_set_rcvlowat,
 
 		.read_skb = virtio_transport_read_skb,
 	},
@@ -663,7 +663,7 @@ static void virtio_vsock_vqs_start(struct virtio_vsock *vsock)
 	 * earlier.
 	 * We don't need to queue the other workers (rx, event) because
 	 * as long as we don't fill the queues with empty buffers, the
-	 * host can't send us any notification.
+	 * host can't send us any analtification.
 	 */
 	queue_work(virtio_vsock_workqueue, &vsock->send_pkt_work);
 }
@@ -677,7 +677,7 @@ static void virtio_vsock_vqs_del(struct virtio_vsock *vsock)
 	vsock_for_each_connected_socket(&virtio_transport.transport,
 					virtio_vsock_reset_sock);
 
-	/* Stop all work handlers to make sure no one is accessing the device,
+	/* Stop all work handlers to make sure anal one is accessing the device,
 	 * so we can safely call virtio_reset_device().
 	 */
 	mutex_lock(&vsock->rx_lock);
@@ -692,7 +692,7 @@ static void virtio_vsock_vqs_del(struct virtio_vsock *vsock)
 	vsock->event_run = false;
 	mutex_unlock(&vsock->event_lock);
 
-	/* Flush all device writes and interrupts, device will not use any
+	/* Flush all device writes and interrupts, device will analt use any
 	 * more buffers.
 	 */
 	virtio_reset_device(vdev);
@@ -732,7 +732,7 @@ static int virtio_vsock_probe(struct virtio_device *vdev)
 
 	vsock = kzalloc(sizeof(*vsock), GFP_KERNEL);
 	if (!vsock) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -874,7 +874,7 @@ static int __init virtio_vsock_init(void)
 
 	virtio_vsock_workqueue = alloc_workqueue("virtio_vsock", 0, 0);
 	if (!virtio_vsock_workqueue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = vsock_core_register(&virtio_transport.transport,
 				  VSOCK_TRANSPORT_F_G2H);

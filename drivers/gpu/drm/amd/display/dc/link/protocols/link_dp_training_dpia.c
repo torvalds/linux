@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -177,7 +177,7 @@ static uint8_t dpia_build_set_config_data(
 
 	switch (type) {
 	case DPIA_SET_CFG_SET_LINK:
-		data.set_link.mode = lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT ? 1 : 0;
+		data.set_link.mode = lt_settings->lttpr_mode == LTTPR_MODE_ANALN_TRANSPARENT ? 1 : 0;
 		break;
 	case DPIA_SET_CFG_SET_PHY_TEST_MODE:
 		break;
@@ -191,7 +191,7 @@ static uint8_t dpia_build_set_config_data(
 				lt_settings->hw_lane_settings[0].PRE_EMPHASIS == PRE_EMPHASIS_MAX_LEVEL ? 1 : 0;
 		break;
 	default:
-		ASSERT(false); /* Message type not supported by helper function. */
+		ASSERT(false); /* Message type analt supported by helper function. */
 		break;
 	}
 
@@ -219,7 +219,7 @@ static enum dc_status convert_trng_ptn_to_trng_stg(enum dc_dp_training_pattern t
 	case DP_TRAINING_PATTERN_VIDEOIDLE:
 		*ts = DPIA_TS_DPRX_DONE;
 		break;
-	default: /* TPS not supported by helper function. */
+	default: /* TPS analt supported by helper function. */
 		ASSERT(false);
 		*ts = DPIA_TS_DPRX_DONE;
 		status = DC_UNSUPPORTED_VALUE;
@@ -273,7 +273,7 @@ static enum dc_status dpcd_set_lt_pattern(
 }
 
 /* Execute clock recovery phase of link training for specified hop in display
- * path.in non-transparent mode:
+ * path.in analn-transparent mode:
  * - Driver issues both DPCD and SET_CONFIG transactions.
  * - TPS1 is transmitted for any hops downstream of DPOA.
  * - Drive (VS/PE) only transmitted for the hop immediately downstream of DPOA.
@@ -283,7 +283,7 @@ static enum dc_status dpcd_set_lt_pattern(
  * @param lt_settings link_setting and drive settings (voltage swing and pre-emphasis).
  * @param hop Hop in display path. DPRX = 0.
  */
-static enum link_training_result dpia_training_cr_non_transparent(
+static enum link_training_result dpia_training_cr_analn_transparent(
 		struct dc_link *link,
 		const struct link_resource *link_res,
 		struct link_training_settings *lt_settings,
@@ -316,8 +316,8 @@ static enum link_training_result dpia_training_cr_non_transparent(
 
 		/* DPTX-to-DPIA */
 		if (hop == repeater_cnt) {
-			/* Send SET_CONFIG(SET_LINK:LC,LR,LTTPR) to notify DPOA that
-			 * non-transparent link training has started.
+			/* Send SET_CONFIG(SET_LINK:LC,LR,LTTPR) to analtify DPOA that
+			 * analn-transparent link training has started.
 			 * This also enables the transmission of clk_sync packets.
 			 */
 			set_cfg_data = dpia_build_set_config_data(
@@ -329,7 +329,7 @@ static enum link_training_result dpia_training_cr_non_transparent(
 					DPIA_SET_CFG_SET_LINK,
 					set_cfg_data);
 			/* CR for this hop is considered successful as long as
-			 * SET_CONFIG message is acknowledged by DPOA.
+			 * SET_CONFIG message is ackanalwledged by DPOA.
 			 */
 			if (status == DC_OK)
 				result = LINK_TRAINING_SUCCESS;
@@ -412,7 +412,7 @@ static enum link_training_result dpia_training_cr_non_transparent(
 			break;
 
 		/* Count number of attempts with same drive settings.
-		 * Note: settings are the same for all lanes,
+		 * Analte: settings are the same for all lanes,
 		 * so comparing first lane is sufficient.
 		 */
 		if ((lt_settings->dpcd_lane_settings[0].bits.VOLTAGE_SWING_SET ==
@@ -480,8 +480,8 @@ static enum link_training_result dpia_training_cr_transparent(
 	while ((retries_cr < LINK_TRAINING_MAX_RETRY_COUNT) &&
 			(retry_count < LINK_TRAINING_MAX_CR_RETRY)) {
 
-		/* Write TPS1 (not VS or PE) to DPCD to start CR phase.
-		 * DPIA sends SET_CONFIG(SET_LINK) to notify DPOA to
+		/* Write TPS1 (analt VS or PE) to DPCD to start CR phase.
+		 * DPIA sends SET_CONFIG(SET_LINK) to analtify DPOA to
 		 * start link training.
 		 */
 		if (retry_count == 0) {
@@ -520,7 +520,7 @@ static enum link_training_result dpia_training_cr_transparent(
 			break;
 
 		/* Count number of attempts with same drive settings.
-		 * Note: settings are the same for all lanes,
+		 * Analte: settings are the same for all lanes,
 		 * so comparing first lane is sufficient.
 		 */
 		if ((lt_settings->dpcd_lane_settings[0].bits.VOLTAGE_SWING_SET ==
@@ -566,8 +566,8 @@ static enum link_training_result dpia_training_cr_phase(
 {
 	enum link_training_result result = LINK_TRAINING_CR_FAIL_LANE0;
 
-	if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
-		result = dpia_training_cr_non_transparent(link, link_res, lt_settings, hop);
+	if (lt_settings->lttpr_mode == LTTPR_MODE_ANALN_TRANSPARENT)
+		result = dpia_training_cr_analn_transparent(link, link_res, lt_settings, hop);
 	else
 		result = dpia_training_cr_transparent(link, link_res, lt_settings);
 
@@ -597,7 +597,7 @@ static uint32_t dpia_get_eq_aux_rd_interval(
 }
 
 /* Execute equalization phase of link training for specified hop in display
- * path in non-transparent mode:
+ * path in analn-transparent mode:
  * - driver issues both DPCD and SET_CONFIG transactions.
  * - TPSx is transmitted for any hops downstream of DPOA.
  * - Drive (VS/PE) only transmitted for the hop immediately downstream of DPOA.
@@ -608,7 +608,7 @@ static uint32_t dpia_get_eq_aux_rd_interval(
  * @param lt_settings link_setting and drive settings (voltage swing and pre-emphasis).
  * @param hop Hop in display path. DPRX = 0.
  */
-static enum link_training_result dpia_training_eq_non_transparent(
+static enum link_training_result dpia_training_eq_analn_transparent(
 		struct dc_link *link,
 		const struct link_resource *link_res,
 		struct link_training_settings *lt_settings,
@@ -750,7 +750,7 @@ static enum link_training_result dpia_training_eq_non_transparent(
 /* Execute equalization phase of link training for specified hop in display
  * path in transparent LTTPR mode:
  * - driver only issues DPCD transactions leaves USB4 tunneling (SET_CONFIG) messages to DPIA.
- * - driver writes TPSx to DPCD to notify DPIA that is in equalization phase.
+ * - driver writes TPSx to DPCD to analtify DPIA that is in equalization phase.
  * - equalization (EQ) for link is handled by DPOA, which reports result to DPIA on completion.
  * - DPIA communicates result to driver by updating EQ status when driver reads DPCD.
  *
@@ -851,8 +851,8 @@ static enum link_training_result dpia_training_eq_phase(
 {
 	enum link_training_result result;
 
-	if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
-		result = dpia_training_eq_non_transparent(link, link_res, lt_settings, hop);
+	if (lt_settings->lttpr_mode == LTTPR_MODE_ANALN_TRANSPARENT)
+		result = dpia_training_eq_analn_transparent(link, link_res, lt_settings, hop);
 	else
 		result = dpia_training_eq_transparent(link, link_res, lt_settings);
 
@@ -885,9 +885,9 @@ static enum dc_status dpcd_clear_lt_pattern(
  *
  * In transparent LTTPR mode:
  * - driver clears training pattern for the specified hop in DPCD.
- * In non-transparent LTTPR mode:
+ * In analn-transparent LTTPR mode:
  * - in addition to clearing training pattern, driver issues USB4 tunneling
- * (SET_CONFIG) messages to notify DPOA when training is done for first hop
+ * (SET_CONFIG) messages to analtify DPOA when training is done for first hop
  * (DPTX-to-DPIA) and last hop (DPRX).
  *
  * @param link DPIA link being trained.
@@ -902,13 +902,13 @@ static enum link_training_result dpia_training_end(
 	uint8_t repeater_cnt = 0; /* Number of hops/repeaters in display path. */
 	enum dc_status status;
 
-	if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
+	if (lt_settings->lttpr_mode == LTTPR_MODE_ANALN_TRANSPARENT) {
 
 		repeater_cnt = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 
 		if (hop == repeater_cnt) { /* DPTX-to-DPIA */
-			/* Send SET_CONFIG(SET_TRAINING:0xff) to notify DPOA that
-			 * DPTX-to-DPIA hop trained. No DPCD write needed for first hop.
+			/* Send SET_CONFIG(SET_TRAINING:0xff) to analtify DPOA that
+			 * DPTX-to-DPIA hop trained. Anal DPCD write needed for first hop.
 			 */
 			status = core_link_send_set_config(
 					link,
@@ -923,7 +923,7 @@ static enum link_training_result dpia_training_end(
 				result = LINK_TRAINING_ABORT;
 		}
 
-		/* Notify DPOA that non-transparent link training of DPRX done. */
+		/* Analtify DPOA that analn-transparent link training of DPRX done. */
 		if (hop == DPRX && result != LINK_TRAINING_ABORT) {
 			status = core_link_send_set_config(
 					link,
@@ -933,7 +933,7 @@ static enum link_training_result dpia_training_end(
 				result = LINK_TRAINING_ABORT;
 		}
 
-	} else { /* non-LTTPR or transparent LTTPR. */
+	} else { /* analn-LTTPR or transparent LTTPR. */
 
 		/* Write 0x0 to TRAINING_PATTERN_SET */
 		status = dpcd_clear_lt_pattern(link, hop);
@@ -998,7 +998,7 @@ enum link_training_result dpia_perform_link_training(
 	uint8_t repeater_cnt = 0; /* Number of hops/repeaters in display path. */
 	int8_t repeater_id; /* Current hop. */
 
-	struct dc_link_settings link_settings = *link_setting; // non-const copy to pass in
+	struct dc_link_settings link_settings = *link_setting; // analn-const copy to pass in
 
 	lt_settings.lttpr_mode = dp_decide_lttpr_mode(link, &link_settings);
 
@@ -1007,11 +1007,11 @@ enum link_training_result dpia_perform_link_training(
 	if (result != LINK_TRAINING_SUCCESS)
 		return result;
 
-	if (lt_settings.lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
+	if (lt_settings.lttpr_mode == LTTPR_MODE_ANALN_TRANSPARENT)
 		repeater_cnt = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 
 	/* Train each hop in turn starting with the one closest to DPTX.
-	 * In transparent or non-LTTPR mode, train only the final hop (DPRX).
+	 * In transparent or analn-LTTPR mode, train only the final hop (DPRX).
 	 */
 	for (repeater_id = repeater_cnt; repeater_id >= 0; repeater_id--) {
 		/* Clock recovery. */

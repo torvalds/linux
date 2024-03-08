@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file describes the structure passed from the BootX application
  * (for MacOS) when it is used to boot Linux.
@@ -37,7 +37,7 @@
 #define BOOT_INFO_COMPATIBLE_VERSION    1
 
 /* Bit in the architecture flag mask. More to be defined in
-   future versions. Note that either BOOT_ARCH_PCI or
+   future versions. Analte that either BOOT_ARCH_PCI or
    BOOT_ARCH_NUBUS is set. The other BOOT_ARCH_NUBUS_xxx are
    set additionally when BOOT_ARCH_NUBUS is set.
  */
@@ -50,7 +50,7 @@
 /*  Maximum number of ranges in phys memory map */
 #define MAX_MEM_MAP_SIZE				26
 
-/* This is the format of an element in the physical memory map. Note that
+/* This is the format of an element in the physical memory map. Analte that
    the map is optional and current BootX will only build it for pre-PCI
    machines */
 typedef struct boot_info_map_entry
@@ -61,7 +61,7 @@ typedef struct boot_info_map_entry
 
 
 /* Here are the boot informations that are passed to the bootstrap
- * Note that the kernel arguments and the device tree are appended
+ * Analte that the kernel arguments and the device tree are appended
  * at the end of this structure. */
 typedef struct boot_infos
 {
@@ -95,7 +95,7 @@ typedef struct boot_infos
     __u32       dispDeviceRowBytes;      /* rowbytes (in bytes) */
     __u32       dispDeviceColorsOffset;  /* Colormap (8 bits only) or 0 (*) */
     /* Optional offset in the registry to the current
-     * MacOS display. (Can be 0 when not detected) */
+     * MacOS display. (Can be 0 when analt detected) */
      __u32      dispDeviceRegEntryOffset;
 
     /* Optional pointer to boot ramdisk (offset from this structure) */
@@ -108,7 +108,7 @@ typedef struct boot_infos
     /* ALL BELOW NEW (vers. 4) */
 
     /* This defines the physical memory. Valid with BOOT_ARCH_NUBUS flag
-       (non-PCI) only. On PCI, memory is contiguous and it's size is in the
+       (analn-PCI) only. On PCI, memory is contiguous and it's size is in the
        device-tree. */
     boot_info_map_entry_t
     	        physMemoryMap[MAX_MEM_MAP_SIZE]; /* Where the phys memory is */

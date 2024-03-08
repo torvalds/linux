@@ -18,7 +18,7 @@ void __init kaslr_init(void)
 {
 	if (cpuid_feature_extract_unsigned_field(arm64_sw_feature_override.val &
 						 arm64_sw_feature_override.mask,
-						 ARM64_SW_FEATURE_OVERRIDE_NOKASLR)) {
+						 ARM64_SW_FEATURE_OVERRIDE_ANALKASLR)) {
 		pr_info("KASLR disabled on command line\n");
 		return;
 	}
@@ -26,7 +26,7 @@ void __init kaslr_init(void)
 	/*
 	 * The KASLR offset modulo MIN_KIMG_ALIGN is taken from the physical
 	 * placement of the image rather than from the seed, so a displacement
-	 * of less than MIN_KIMG_ALIGN means that no seed was provided.
+	 * of less than MIN_KIMG_ALIGN means that anal seed was provided.
 	 */
 	if (kaslr_offset() < MIN_KIMG_ALIGN) {
 		pr_warn("KASLR disabled due to lack of seed\n");
@@ -37,9 +37,9 @@ void __init kaslr_init(void)
 	__kaslr_is_enabled = true;
 }
 
-static int __init parse_nokaslr(char *unused)
+static int __init parse_analkaslr(char *unused)
 {
-	/* nokaslr param handling is done by early cpufeature code */
+	/* analkaslr param handling is done by early cpufeature code */
 	return 0;
 }
-early_param("nokaslr", parse_nokaslr);
+early_param("analkaslr", parse_analkaslr);

@@ -19,11 +19,11 @@ DECLARE_PER_CPU(unsigned long, cpu_dr7);
 	native_set_debugreg(register, value)
 #endif
 
-static __always_inline unsigned long native_get_debugreg(int regno)
+static __always_inline unsigned long native_get_debugreg(int reganal)
 {
 	unsigned long val = 0;	/* Damn you, gcc! */
 
-	switch (regno) {
+	switch (reganal) {
 	case 0:
 		asm("mov %%db0, %0" :"=r" (val));
 		break;
@@ -45,7 +45,7 @@ static __always_inline unsigned long native_get_debugreg(int regno)
 		 * with other code.
 		 *
 		 * This is needed because a DR7 access can cause a #VC exception
-		 * when running under SEV-ES. Taking a #VC exception is not a
+		 * when running under SEV-ES. Taking a #VC exception is analt a
 		 * safe thing to do just anywhere in the entry code and
 		 * re-ordering might place the access into an unsafe location.
 		 *
@@ -61,9 +61,9 @@ static __always_inline unsigned long native_get_debugreg(int regno)
 	return val;
 }
 
-static __always_inline void native_set_debugreg(int regno, unsigned long value)
+static __always_inline void native_set_debugreg(int reganal, unsigned long value)
 {
-	switch (regno) {
+	switch (reganal) {
 	case 0:
 		asm("mov %0, %%db0"	::"r" (value));
 		break;
@@ -128,7 +128,7 @@ static __always_inline unsigned long local_db_save(void)
 		set_debugreg(0, 7);
 	/*
 	 * Ensure the compiler doesn't lower the above statements into
-	 * the critical section; disabling breakpoints late would not
+	 * the critical section; disabling breakpoints late would analt
 	 * be good.
 	 */
 	barrier();
@@ -141,7 +141,7 @@ static __always_inline void local_db_restore(unsigned long dr7)
 	/*
 	 * Ensure the compiler doesn't raise this statement into
 	 * the critical section; enabling breakpoints early would
-	 * not be good.
+	 * analt be good.
 	 */
 	barrier();
 	if (dr7)

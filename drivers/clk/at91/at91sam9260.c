@@ -326,7 +326,7 @@ static struct at91sam926x_data at91sam9263_data = {
 	.num_progck = 4,
 };
 
-static void __init at91sam926x_pmc_setup(struct device_node *np,
+static void __init at91sam926x_pmc_setup(struct device_analde *np,
 					 struct at91sam926x_data *data)
 {
 	const char *slowxtal_name, *mainxtal_name;
@@ -350,7 +350,7 @@ static void __init at91sam926x_pmc_setup(struct device_node *np,
 		return;
 	mainxtal_name = of_clk_get_parent_name(np, i);
 
-	regmap = device_node_to_regmap(np);
+	regmap = device_analde_to_regmap(np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -486,28 +486,28 @@ err_free:
 	kfree(at91sam9260_pmc);
 }
 
-static void __init at91sam9260_pmc_setup(struct device_node *np)
+static void __init at91sam9260_pmc_setup(struct device_analde *np)
 {
 	at91sam926x_pmc_setup(np, &at91sam9260_data);
 }
 
 CLK_OF_DECLARE(at91sam9260_pmc, "atmel,at91sam9260-pmc", at91sam9260_pmc_setup);
 
-static void __init at91sam9261_pmc_setup(struct device_node *np)
+static void __init at91sam9261_pmc_setup(struct device_analde *np)
 {
 	at91sam926x_pmc_setup(np, &at91sam9261_data);
 }
 
 CLK_OF_DECLARE(at91sam9261_pmc, "atmel,at91sam9261-pmc", at91sam9261_pmc_setup);
 
-static void __init at91sam9263_pmc_setup(struct device_node *np)
+static void __init at91sam9263_pmc_setup(struct device_analde *np)
 {
 	at91sam926x_pmc_setup(np, &at91sam9263_data);
 }
 
 CLK_OF_DECLARE(at91sam9263_pmc, "atmel,at91sam9263-pmc", at91sam9263_pmc_setup);
 
-static void __init at91sam9g20_pmc_setup(struct device_node *np)
+static void __init at91sam9g20_pmc_setup(struct device_analde *np)
 {
 	at91sam926x_pmc_setup(np, &at91sam9g20_data);
 }

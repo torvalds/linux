@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_HAL_RX_H
@@ -69,7 +69,7 @@ enum hal_rx_reception_type {
 #define HAL_RX_FCS_LEN                          4
 
 enum hal_rx_mon_status {
-	HAL_RX_MON_STATUS_PPDU_NOT_DONE,
+	HAL_RX_MON_STATUS_PPDU_ANALT_DONE,
 	HAL_RX_MON_STATUS_PPDU_DONE,
 	HAL_RX_MON_STATUS_BUF_DONE,
 };
@@ -104,7 +104,7 @@ struct hal_rx_user_status {
 	u32 mpdu_err_byte_count;
 };
 
-#define HAL_TLV_STATUS_PPDU_NOT_DONE    HAL_RX_MON_STATUS_PPDU_NOT_DONE
+#define HAL_TLV_STATUS_PPDU_ANALT_DONE    HAL_RX_MON_STATUS_PPDU_ANALT_DONE
 #define HAL_TLV_STATUS_PPDU_DONE        HAL_RX_MON_STATUS_PPDU_DONE
 #define HAL_TLV_STATUS_BUF_DONE         HAL_RX_MON_STATUS_BUF_DONE
 
@@ -171,7 +171,7 @@ struct hal_rx_mon_ppdu_info {
 	u16 he_per_user_1;
 	u16 he_per_user_2;
 	u8 he_per_user_position;
-	u8 he_per_user_known;
+	u8 he_per_user_kanalwn;
 	u16 he_flags1;
 	u16 he_flags2;
 	u8 he_RU[4];
@@ -299,7 +299,7 @@ struct hal_rx_vht_sig_a_info {
 } __packed;
 
 enum hal_rx_vht_sig_a_gi_setting {
-	HAL_RX_VHT_SIG_A_NORMAL_GI = 0,
+	HAL_RX_VHT_SIG_A_ANALRMAL_GI = 0,
 	HAL_RX_VHT_SIG_A_SHORT_GI = 1,
 	HAL_RX_VHT_SIG_A_SHORT_GI_AMBIGUITY = 3,
 };
@@ -314,7 +314,7 @@ enum hal_rx_vht_sig_a_gi_setting {
 #define HE_LTF_1_X 0
 #define HE_LTF_2_X 1
 #define HE_LTF_4_X 2
-#define HE_LTF_UNKNOWN 3
+#define HE_LTF_UNKANALWN 3
 
 #define HAL_RX_HE_SIG_A_SU_INFO_INFO0_TRANSMIT_MCS	GENMASK(6, 3)
 #define HAL_RX_HE_SIG_A_SU_INFO_INFO0_DCM		BIT(7)

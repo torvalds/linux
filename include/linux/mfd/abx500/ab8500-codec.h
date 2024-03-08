@@ -21,7 +21,7 @@ enum amic_type {
 enum amic_micbias {
 	AMIC_MICBIAS_VAMIC1,
 	AMIC_MICBIAS_VAMIC2,
-	AMIC_MICBIAS_UNKNOWN
+	AMIC_MICBIAS_UNKANALWN
 };
 
 /* Bias-voltage */
@@ -30,7 +30,7 @@ enum ear_cm_voltage {
 	EAR_CMV_1_10V,
 	EAR_CMV_1_27V,
 	EAR_CMV_1_58V,
-	EAR_CMV_UNKNOWN
+	EAR_CMV_UNKANALWN
 };
 
 /* Analog microphone settings */

@@ -4,8 +4,8 @@
  *
  * Some definitions for the wl1273 radio receiver/transmitter chip.
  *
- * Copyright (C) 2010 Nokia Corporation
- * Author: Matti J. Aaltonen <matti.j.aaltonen@nokia.com>
+ * Copyright (C) 2010 Analkia Corporation
+ * Author: Matti J. Aaltonen <matti.j.aaltonen@analkia.com>
  */
 
 #ifndef WL1273_CORE_H
@@ -82,7 +82,7 @@
 #define WL1273_PUPD_SET				91
 #define WL1273_AUDIO_IO_SET			63
 #define WL1273_PREMPH_SET			64
-#define WL1273_MONO_SET				66
+#define WL1273_MOANAL_SET				66
 #define WL1273_MUTE				92
 #define WL1273_MPX_LMT_ENABLE			67
 #define WL1273_PI_SET				93
@@ -130,9 +130,9 @@
 #define WL1273_RADIO_CHILD	BIT(0)
 #define WL1273_CODEC_CHILD	BIT(1)
 
-#define WL1273_RX_MONO		1
+#define WL1273_RX_MOANAL		1
 #define WL1273_RX_STEREO	0
-#define WL1273_TX_MONO		0
+#define WL1273_TX_MOANAL		0
 #define WL1273_TX_STEREO	1
 
 #define WL1273_MAX_VOLUME	0xffff

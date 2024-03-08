@@ -24,21 +24,21 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation analr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -123,10 +123,10 @@ struct __opa_per_veswport_info {
 	u8   pcp_to_sc_mc[OPA_VNIC_MAX_NUM_PCP];
 	u8   pcp_to_vl_mc[OPA_VNIC_MAX_NUM_PCP];
 
-	u8   non_vlan_sc_uc;
-	u8   non_vlan_vl_uc;
-	u8   non_vlan_sc_mc;
-	u8   non_vlan_vl_mc;
+	u8   analn_vlan_sc_uc;
+	u8   analn_vlan_vl_uc;
+	u8   analn_vlan_sc_mc;
+	u8   analn_vlan_vl_mc;
 
 	u8   rsvd2[48];
 
@@ -191,7 +191,7 @@ struct opa_vnic_ctrl_port {
  * @stats_lock: statistics lock
  * @flow_tbl: flow to default port redirection table
  * @trap_timeout: trap timeout
- * @trap_count: no. of traps allowed within timeout period
+ * @trap_count: anal. of traps allowed within timeout period
  */
 struct opa_vnic_adapter {
 	struct net_device             *netdev;
@@ -231,13 +231,13 @@ struct __opa_vnic_mactable_entry {
 } __packed;
 
 /**
- * struct opa_vnic_mac_tbl_node - OPA VNIC mac table node
+ * struct opa_vnic_mac_tbl_analde - OPA VNIC mac table analde
  * @hlist: hash list handle
  * @index: index of entry in the mac table
  * @entry: entry in the table
  */
-struct opa_vnic_mac_tbl_node {
-	struct hlist_node                    hlist;
+struct opa_vnic_mac_tbl_analde {
+	struct hlist_analde                    hlist;
 	u16                                  index;
 	struct __opa_vnic_mactable_entry     entry;
 };
@@ -273,8 +273,8 @@ struct opa_vnic_mac_tbl_node {
 /* VNIC HASH MACROS */
 #define vnic_hash_init(hashtable) __hash_init(hashtable, OPA_VNIC_MAC_TBL_SIZE)
 
-#define vnic_hash_add(hashtable, node, key)                                   \
-	hlist_add_head(node,                                                  \
+#define vnic_hash_add(hashtable, analde, key)                                   \
+	hlist_add_head(analde,                                                  \
 		&hashtable[hash_min(key, ilog2(OPA_VNIC_MAC_TBL_SIZE))])
 
 #define vnic_hash_for_each_safe(name, bkt, tmp, obj, member)                  \

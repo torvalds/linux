@@ -11,7 +11,7 @@
         "BriefDescription": "Speculative and retired  branches",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.ALL_BRANCHES",
-        "PublicDescription": "This event counts both taken and not taken speculative and retired branch instructions.",
+        "PublicDescription": "This event counts both taken and analt taken speculative and retired branch instructions.",
         "SampleAfterValue": "200003",
         "UMask": "0xff"
     },
@@ -19,7 +19,7 @@
         "BriefDescription": "Speculative and retired macro-conditional branches",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.ALL_CONDITIONAL",
-        "PublicDescription": "This event counts both taken and not taken speculative and retired macro-conditional branch instructions.",
+        "PublicDescription": "This event counts both taken and analt taken speculative and retired macro-conditional branch instructions.",
         "SampleAfterValue": "200003",
         "UMask": "0xc1"
     },
@@ -27,7 +27,7 @@
         "BriefDescription": "Speculative and retired macro-unconditional branches excluding calls and indirects",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.ALL_DIRECT_JMP",
-        "PublicDescription": "This event counts both taken and not taken speculative and retired macro-unconditional branch instructions, excluding calls and indirects.",
+        "PublicDescription": "This event counts both taken and analt taken speculative and retired macro-unconditional branch instructions, excluding calls and indirects.",
         "SampleAfterValue": "200003",
         "UMask": "0xc2"
     },
@@ -35,15 +35,15 @@
         "BriefDescription": "Speculative and retired direct near calls",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.ALL_DIRECT_NEAR_CALL",
-        "PublicDescription": "This event counts both taken and not taken speculative and retired direct near calls.",
+        "PublicDescription": "This event counts both taken and analt taken speculative and retired direct near calls.",
         "SampleAfterValue": "200003",
         "UMask": "0xd0"
     },
     {
         "BriefDescription": "Speculative and retired indirect branches excluding calls and returns",
         "EventCode": "0x88",
-        "EventName": "BR_INST_EXEC.ALL_INDIRECT_JUMP_NON_CALL_RET",
-        "PublicDescription": "This event counts both taken and not taken speculative and retired indirect branches excluding calls and return branches.",
+        "EventName": "BR_INST_EXEC.ALL_INDIRECT_JUMP_ANALN_CALL_RET",
+        "PublicDescription": "This event counts both taken and analt taken speculative and retired indirect branches excluding calls and return branches.",
         "SampleAfterValue": "200003",
         "UMask": "0xc4"
     },
@@ -51,15 +51,15 @@
         "BriefDescription": "Speculative and retired indirect return branches.",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.ALL_INDIRECT_NEAR_RETURN",
-        "PublicDescription": "This event counts both taken and not taken speculative and retired indirect branches that have a return mnemonic.",
+        "PublicDescription": "This event counts both taken and analt taken speculative and retired indirect branches that have a return mnemonic.",
         "SampleAfterValue": "200003",
         "UMask": "0xc8"
     },
     {
-        "BriefDescription": "Not taken macro-conditional branches",
+        "BriefDescription": "Analt taken macro-conditional branches",
         "EventCode": "0x88",
-        "EventName": "BR_INST_EXEC.NONTAKEN_CONDITIONAL",
-        "PublicDescription": "This event counts not taken macro-conditional branch instructions.",
+        "EventName": "BR_INST_EXEC.ANALNTAKEN_CONDITIONAL",
+        "PublicDescription": "This event counts analt taken macro-conditional branch instructions.",
         "SampleAfterValue": "200003",
         "UMask": "0x41"
     },
@@ -90,7 +90,7 @@
     {
         "BriefDescription": "Taken speculative and retired indirect branches excluding calls and returns",
         "EventCode": "0x88",
-        "EventName": "BR_INST_EXEC.TAKEN_INDIRECT_JUMP_NON_CALL_RET",
+        "EventName": "BR_INST_EXEC.TAKEN_INDIRECT_JUMP_ANALN_CALL_RET",
         "PublicDescription": "This event counts taken speculative and retired indirect branches excluding calls and return branches.",
         "SampleAfterValue": "200003",
         "UMask": "0x84"
@@ -183,10 +183,10 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Not taken branch instructions retired.",
+        "BriefDescription": "Analt taken branch instructions retired.",
         "EventCode": "0xC4",
-        "EventName": "BR_INST_RETIRED.NOT_TAKEN",
-        "PublicDescription": "This event counts not taken branch instructions retired.",
+        "EventName": "BR_INST_RETIRED.ANALT_TAKEN",
+        "PublicDescription": "This event counts analt taken branch instructions retired.",
         "SampleAfterValue": "400009",
         "UMask": "0x10"
     },
@@ -194,7 +194,7 @@
         "BriefDescription": "Speculative and retired mispredicted macro conditional branches",
         "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.ALL_BRANCHES",
-        "PublicDescription": "This event counts both taken and not taken speculative and retired mispredicted branch instructions.",
+        "PublicDescription": "This event counts both taken and analt taken speculative and retired mispredicted branch instructions.",
         "SampleAfterValue": "200003",
         "UMask": "0xff"
     },
@@ -202,15 +202,15 @@
         "BriefDescription": "Speculative and retired mispredicted macro conditional branches",
         "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.ALL_CONDITIONAL",
-        "PublicDescription": "This event counts both taken and not taken speculative and retired mispredicted macro conditional branch instructions.",
+        "PublicDescription": "This event counts both taken and analt taken speculative and retired mispredicted macro conditional branch instructions.",
         "SampleAfterValue": "200003",
         "UMask": "0xc1"
     },
     {
         "BriefDescription": "Mispredicted indirect branches excluding calls and returns",
         "EventCode": "0x89",
-        "EventName": "BR_MISP_EXEC.ALL_INDIRECT_JUMP_NON_CALL_RET",
-        "PublicDescription": "This event counts both taken and not taken mispredicted indirect branches excluding calls and returns.",
+        "EventName": "BR_MISP_EXEC.ALL_INDIRECT_JUMP_ANALN_CALL_RET",
+        "PublicDescription": "This event counts both taken and analt taken mispredicted indirect branches excluding calls and returns.",
         "SampleAfterValue": "200003",
         "UMask": "0xc4"
     },
@@ -223,10 +223,10 @@
         "UMask": "0xe4"
     },
     {
-        "BriefDescription": "Not taken speculative and retired mispredicted macro conditional branches",
+        "BriefDescription": "Analt taken speculative and retired mispredicted macro conditional branches",
         "EventCode": "0x89",
-        "EventName": "BR_MISP_EXEC.NONTAKEN_CONDITIONAL",
-        "PublicDescription": "This event counts not taken speculative and retired mispredicted macro conditional branch instructions.",
+        "EventName": "BR_MISP_EXEC.ANALNTAKEN_CONDITIONAL",
+        "PublicDescription": "This event counts analt taken speculative and retired mispredicted macro conditional branch instructions.",
         "SampleAfterValue": "200003",
         "UMask": "0x41"
     },
@@ -241,7 +241,7 @@
     {
         "BriefDescription": "Taken speculative and retired mispredicted indirect branches excluding calls and returns",
         "EventCode": "0x89",
-        "EventName": "BR_MISP_EXEC.TAKEN_INDIRECT_JUMP_NON_CALL_RET",
+        "EventName": "BR_MISP_EXEC.TAKEN_INDIRECT_JUMP_ANALN_CALL_RET",
         "PublicDescription": "This event counts taken speculative and retired mispredicted indirect branches excluding calls and returns.",
         "SampleAfterValue": "200003",
         "UMask": "0x84"
@@ -296,7 +296,7 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "This event counts the number of mispredicted ret instructions retired. Non PEBS",
+        "BriefDescription": "This event counts the number of mispredicted ret instructions retired. Analn PEBS",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.RET",
         "PEBS": "1",
@@ -335,9 +335,9 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Reference cycles when the core is not in halt state.",
+        "BriefDescription": "Reference cycles when the core is analt in halt state.",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
-        "PublicDescription": "This event counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state. This event has a constant ratio with the CPU_CLK_UNHALTED.REF_XCLK event. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. \nNote: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  This event is clocked by base clock (100 Mhz) on Sandy Bridge. The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is not clocked immediately so the overflow status bit will flip 'high (1)' and generate another PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should ignore this case.",
+        "PublicDescription": "This event counts the number of reference cycles when the core is analt in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is analt affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was analt in a halt state. This event has a constant ratio with the CPU_CLK_UNHALTED.REF_XCLK event. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. \nAnalte: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  This event is clocked by base clock (100 Mhz) on Sandy Bridge. The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is analt clocked immediately so the overflow status bit will flip 'high (1)' and generate aanalther PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should iganalre this case.",
         "SampleAfterValue": "2000003",
         "UMask": "0x3"
     },
@@ -358,29 +358,29 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Core cycles when the thread is not in halt state",
+        "BriefDescription": "Core cycles when the thread is analt in halt state",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
-        "PublicDescription": "This event counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.",
+        "PublicDescription": "This event counts the number of core cycles while the thread is analt in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Techanallogy or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was analt in the halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
     {
         "AnyThread": "1",
-        "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
+        "BriefDescription": "Core cycles when at least one thread on the physical core is analt in halt state.",
         "EventName": "CPU_CLK_UNHALTED.THREAD_ANY",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Thread cycles when thread is not in halt state",
+        "BriefDescription": "Thread cycles when thread is analt in halt state",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
-        "PublicDescription": "This is an architectural event that counts the number of thread cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling. For this reason, this event may have a changing ratio with regards to wall clock time.",
+        "PublicDescription": "This is an architectural event that counts the number of thread cycles while the thread is analt in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling. For this reason, this event may have a changing ratio with regards to wall clock time.",
         "SampleAfterValue": "2000003"
     },
     {
         "AnyThread": "1",
-        "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
+        "BriefDescription": "Core cycles when at least one thread on the physical core is analt in halt state.",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P_ANY",
         "SampleAfterValue": "2000003"
@@ -424,7 +424,7 @@
         "CounterMask": "2",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.CYCLES_LDM_PENDING",
-        "PublicDescription": "Counts number of cycles the CPU has at least one pending  demand load request (that is cycles with non-completed load waiting for its data from memory subsystem).",
+        "PublicDescription": "Counts number of cycles the CPU has at least one pending  demand load request (that is cycles with analn-completed load waiting for its data from memory subsystem).",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -437,11 +437,11 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "This event increments by 1 for every cycle where there was no execute for this thread.",
+        "BriefDescription": "This event increments by 1 for every cycle where there was anal execute for this thread.",
         "CounterMask": "4",
         "EventCode": "0xA3",
-        "EventName": "CYCLE_ACTIVITY.CYCLES_NO_EXECUTE",
-        "PublicDescription": "Counts number of cycles nothing is executed on any execution port.",
+        "EventName": "CYCLE_ACTIVITY.CYCLES_ANAL_EXECUTE",
+        "PublicDescription": "Counts number of cycles analthing is executed on any execution port.",
         "SampleAfterValue": "2000003",
         "UMask": "0x4"
     },
@@ -458,7 +458,7 @@
         "CounterMask": "12",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.STALLS_L1D_PENDING",
-        "PublicDescription": "Counts number of cycles nothing is executed on any execution port, while there was at least one pending demand load request missing the L1 data cache.",
+        "PublicDescription": "Counts number of cycles analthing is executed on any execution port, while there was at least one pending demand load request missing the L1 data cache.",
         "SampleAfterValue": "2000003",
         "UMask": "0xc"
     },
@@ -475,7 +475,7 @@
         "CounterMask": "5",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.STALLS_L2_PENDING",
-        "PublicDescription": "Counts number of cycles nothing is executed on any execution port, while there was at least one pending demand* load request missing the L2 cache.(as a footprint) * includes also L1 HW prefetch requests that may or may not be required by demands.",
+        "PublicDescription": "Counts number of cycles analthing is executed on any execution port, while there was at least one pending demand* load request missing the L2 cache.(as a footprint) * includes also L1 HW prefetch requests that may or may analt be required by demands.",
         "SampleAfterValue": "2000003",
         "UMask": "0x5"
     },
@@ -484,7 +484,7 @@
         "CounterMask": "6",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.STALLS_LDM_PENDING",
-        "PublicDescription": "Counts number of cycles nothing is executed on any execution port, while there was at least one pending demand load request.",
+        "PublicDescription": "Counts number of cycles analthing is executed on any execution port, while there was at least one pending demand load request.",
         "SampleAfterValue": "2000003",
         "UMask": "0x6"
     },
@@ -515,7 +515,7 @@
     {
         "BriefDescription": "Instructions retired from execution.",
         "EventName": "INST_RETIRED.ANY",
-        "PublicDescription": "This event counts the number of instructions retired from execution. For instructions that consist of multiple micro-ops, this event counts the retirement of the last micro-op of the instruction. Counting continues during hardware interrupts, traps, and inside interrupt handlers. \nNotes: INST_RETIRED.ANY is counted by a designated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. INST_RETIRED.ANY_P is counted by a programmable counter and it is an architectural performance event. \nCounting: Faulting executions of GETSEC/VM entry/VM Exit/MWait will not count as retired instructions.",
+        "PublicDescription": "This event counts the number of instructions retired from execution. For instructions that consist of multiple micro-ops, this event counts the retirement of the last micro-op of the instruction. Counting continues during hardware interrupts, traps, and inside interrupt handlers. \nAnaltes: INST_RETIRED.ANY is counted by a designated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. INST_RETIRED.ANY_P is counted by a programmable counter and it is an architectural performance event. \nCounting: Faulting executions of GETSEC/VM entry/VM Exit/MWait will analt count as retired instructions.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -538,10 +538,10 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "FP operations  retired. X87 FP operations that have no exceptions:",
+        "BriefDescription": "FP operations  retired. X87 FP operations that have anal exceptions:",
         "EventCode": "0xC0",
         "EventName": "INST_RETIRED.X87",
-        "PublicDescription": "This event counts FP operations retired. For X87 FP operations that have no exceptions counting also includes flows that have several X87, or flows that use X87 uops in the exception handling.",
+        "PublicDescription": "This event counts FP operations retired. For X87 FP operations that have anal exceptions counting also includes flows that have several X87, or flows that use X87 uops in the exception handling.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -549,7 +549,7 @@
         "BriefDescription": "Cycles when Resource Allocation Table (RAT) external stall is sent to Instruction Decode Queue (IDQ) for the thread",
         "EventCode": "0x0D",
         "EventName": "INT_MISC.RAT_STALL_CYCLES",
-        "PublicDescription": "This event counts the number of cycles during which Resource Allocation Table (RAT) external stall is sent to Instruction Decode Queue (IDQ) for the current thread. This also includes the cycles during which the Allocator is serving another thread.",
+        "PublicDescription": "This event counts the number of cycles during which Resource Allocation Table (RAT) external stall is sent to Instruction Decode Queue (IDQ) for the current thread. This also includes the cycles during which the Allocator is serving aanalther thread.",
         "SampleAfterValue": "2000003",
         "UMask": "0x8"
     },
@@ -574,7 +574,7 @@
     {
         "BriefDescription": "This event counts the number of times that split load operations are temporarily blocked because all resources for handling the split accesses are in use.",
         "EventCode": "0x03",
-        "EventName": "LD_BLOCKS.NO_SR",
+        "EventName": "LD_BLOCKS.ANAL_SR",
         "SampleAfterValue": "100003",
         "UMask": "0x8"
     },
@@ -582,7 +582,7 @@
         "BriefDescription": "Cases when loads get true Block-on-Store blocking code preventing store forwarding",
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.STORE_FORWARD",
-        "PublicDescription": "This event counts how many times the load operation got the true Block-on-Store blocking code preventing store forwarding. This includes cases when:\n - preceding store conflicts with the load (incomplete overlap);\n - store forwarding is impossible due to u-arch limitations;\n - preceding lock RMW operations are not forwarded;\n - store has the no-forward bit set (uncacheable/page-split/masked stores);\n - all-blocking stores are used (mostly, fences and port I/O);\nand others.\nThe most common case is a load blocked due to its address range overlapping with a preceding smaller uncompleted store. Note: This event does not take into account cases of out-of-SW-control (for example, SbTailHit), unknown physical STA, and cases of blocking loads on store due to being non-WB memory type or a lock. These cases are covered by other events.\nSee the table of not supported store forwards in the Optimization Guide.",
+        "PublicDescription": "This event counts how many times the load operation got the true Block-on-Store blocking code preventing store forwarding. This includes cases when:\n - preceding store conflicts with the load (incomplete overlap);\n - store forwarding is impossible due to u-arch limitations;\n - preceding lock RMW operations are analt forwarded;\n - store has the anal-forward bit set (uncacheable/page-split/masked stores);\n - all-blocking stores are used (mostly, fences and port I/O);\nand others.\nThe most common case is a load blocked due to its address range overlapping with a preceding smaller uncompleted store. Analte: This event does analt take into account cases of out-of-SW-control (for example, SbTailHit), unkanalwn physical STA, and cases of blocking loads on store due to being analn-WB memory type or a lock. These cases are covered by other events.\nSee the table of analt supported store forwards in the Optimization Guide.",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -590,23 +590,23 @@
         "BriefDescription": "False dependencies in MOB due to partial compare",
         "EventCode": "0x07",
         "EventName": "LD_BLOCKS_PARTIAL.ADDRESS_ALIAS",
-        "PublicDescription": "This event counts false dependencies in MOB when the partial comparison upon loose net check and dependency was resolved by the Enhanced Loose net mechanism. This may not result in high performance penalties. Loose net checks can fail when loads and stores are 4k aliased.",
+        "PublicDescription": "This event counts false dependencies in MOB when the partial comparison upon loose net check and dependency was resolved by the Enhanced Loose net mechanism. This may analt result in high performance penalties. Loose net checks can fail when loads and stores are 4k aliased.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Not software-prefetch load dispatches that hit FB allocated for hardware prefetch",
+        "BriefDescription": "Analt software-prefetch load dispatches that hit FB allocated for hardware prefetch",
         "EventCode": "0x4C",
         "EventName": "LOAD_HIT_PRE.HW_PF",
-        "PublicDescription": "This event counts all not software-prefetch load dispatches that hit the fill buffer (FB) allocated for the hardware prefetch.",
+        "PublicDescription": "This event counts all analt software-prefetch load dispatches that hit the fill buffer (FB) allocated for the hardware prefetch.",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Not software-prefetch load dispatches that hit FB allocated for software prefetch",
+        "BriefDescription": "Analt software-prefetch load dispatches that hit FB allocated for software prefetch",
         "EventCode": "0x4c",
         "EventName": "LOAD_HIT_PRE.SW_PF",
-        "PublicDescription": "This event counts all not software-prefetch load dispatches that hit the fill buffer (FB) allocated for the software prefetch. It can also be incremented by some lock instructions. So it should only be used with profiling so that the locks can be excluded by asm inspection of the nearby instructions.",
+        "PublicDescription": "This event counts all analt software-prefetch load dispatches that hit the fill buffer (FB) allocated for the software prefetch. It can also be incremented by some lock instructions. So it should only be used with profiling so that the locks can be excluded by asm inspection of the nearby instructions.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -674,9 +674,9 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Number of integer Move Elimination candidate uops that were not eliminated.",
+        "BriefDescription": "Number of integer Move Elimination candidate uops that were analt eliminated.",
         "EventCode": "0x58",
-        "EventName": "MOVE_ELIMINATION.INT_NOT_ELIMINATED",
+        "EventName": "MOVE_ELIMINATION.INT_ANALT_ELIMINATED",
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
     },
@@ -704,15 +704,15 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Cycles stalled due to no eligible RS entry available.",
+        "BriefDescription": "Cycles stalled due to anal eligible RS entry available.",
         "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.RS",
-        "PublicDescription": "This event counts stall cycles caused by absence of eligible entries in the reservation station (RS). This may result from RS overflow, or from RS deallocation because of the RS array Write Port allocation scheme (each RS entry has two write ports instead of four. As a result, empty entries could not be used, although RS is not really full). This counts cycles that the pipeline backend blocked uop delivery from the front end.",
+        "PublicDescription": "This event counts stall cycles caused by absence of eligible entries in the reservation station (RS). This may result from RS overflow, or from RS deallocation because of the RS array Write Port allocation scheme (each RS entry has two write ports instead of four. As a result, empty entries could analt be used, although RS is analt really full). This counts cycles that the pipeline backend blocked uop delivery from the front end.",
         "SampleAfterValue": "2000003",
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Cycles stalled due to no store buffers available. (not including draining form sync).",
+        "BriefDescription": "Cycles stalled due to anal store buffers available. (analt including draining form sync).",
         "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.SB",
         "PublicDescription": "This event counts stall cycles caused by the store buffer (SB) overflow (excluding draining from synch). This counts cycles that the pipeline backend blocked uop delivery from the front end.",
@@ -731,7 +731,7 @@
         "BriefDescription": "Cycles when Reservation Station (RS) is empty for the thread",
         "EventCode": "0x5E",
         "EventName": "RS_EVENTS.EMPTY_CYCLES",
-        "PublicDescription": "This event counts cycles during which the reservation station (RS) is empty for the thread.\nNote: In ST-mode, not active thread should drive 0. This is usually caused by severely costly branch mispredictions, or allocator/FE issues.",
+        "PublicDescription": "This event counts cycles during which the reservation station (RS) is empty for the thread.\nAnalte: In ST-mode, analt active thread should drive 0. This is usually caused by severely costly branch mispredictions, or allocator/FE issues.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -850,9 +850,9 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Cycles with no micro-ops executed from any thread on physical core.",
+        "BriefDescription": "Cycles with anal micro-ops executed from any thread on physical core.",
         "EventCode": "0xb1",
-        "EventName": "UOPS_EXECUTED.CORE_CYCLES_NONE",
+        "EventName": "UOPS_EXECUTED.CORE_CYCLES_ANALNE",
         "Invert": "1",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
@@ -890,12 +890,12 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts number of cycles no uops were dispatched to be executed on this thread.",
+        "BriefDescription": "Counts number of cycles anal uops were dispatched to be executed on this thread.",
         "CounterMask": "1",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.STALL_CYCLES",
         "Invert": "1",
-        "PublicDescription": "This event counts cycles during which no uops were dispatched from the Reservation Station (RS) per thread.",
+        "PublicDescription": "This event counts cycles during which anal uops were dispatched from the Reservation Station (RS) per thread.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -1059,19 +1059,19 @@
         "UMask": "0x40"
     },
     {
-        "BriefDescription": "Number of slow LEA uops being allocated. A uop is generally considered SlowLea if it has 3 sources (e.g. 2 sources + immediate) regardless if as a result of LEA instruction or not.",
+        "BriefDescription": "Number of slow LEA uops being allocated. A uop is generally considered SlowLea if it has 3 sources (e.g. 2 sources + immediate) regardless if as a result of LEA instruction or analt.",
         "EventCode": "0x0E",
         "EventName": "UOPS_ISSUED.SLOW_LEA",
         "SampleAfterValue": "2000003",
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does not issue Uops to Reservation Station (RS) for the thread",
+        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does analt issue Uops to Reservation Station (RS) for the thread",
         "CounterMask": "1",
         "EventCode": "0x0E",
         "EventName": "UOPS_ISSUED.STALL_CYCLES",
         "Invert": "1",
-        "PublicDescription": "This event counts cycles during which the Resource Allocation Table (RAT) does not issue any Uops to the reservation station (RS) for the current thread.",
+        "PublicDescription": "This event counts cycles during which the Resource Allocation Table (RAT) does analt issue any Uops to the reservation station (RS) for the current thread.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -1109,7 +1109,7 @@
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.TOTAL_CYCLES",
         "Invert": "1",
-        "PublicDescription": "Number of cycles using always true condition (uops_ret < 16) applied to non PEBS uops retired event.",
+        "PublicDescription": "Number of cycles using always true condition (uops_ret < 16) applied to analn PEBS uops retired event.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     }

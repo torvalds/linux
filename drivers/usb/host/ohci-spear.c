@@ -47,8 +47,8 @@ static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Right now device-tree probed devices don't get dma_mask set.
-	 * Since shared usb code relies on it, set it here for now.
+	 * Right analw device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for analw.
 	 * Once we have dma capability bindings this can go away.
 	 */
 	retval = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -64,7 +64,7 @@ static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 
 	hcd = usb_create_hcd(driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto fail;
 	}
 
@@ -174,7 +174,7 @@ static const struct ohci_driver_overrides spear_overrides __initconst = {
 static int __init ohci_spear_init(void)
 {
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ohci_init_driver(&ohci_spear_hc_driver, &spear_overrides);
 	return platform_driver_register(&spear_ohci_hcd_driver);

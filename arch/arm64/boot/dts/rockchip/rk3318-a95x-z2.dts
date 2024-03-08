@@ -176,7 +176,7 @@
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	non-removable;
+	analn-removable;
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 	pinctrl-names = "default";
 	status = "okay";
@@ -227,13 +227,13 @@
 &pinctrl {
 	ir {
 		ir_int: ir-int {
-			rockchip,pins = <2 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	leds {
 		cyx_led_pin: cyx-led-pin {
-			rockchip,pins = <2 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PC7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -251,23 +251,23 @@
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	sdmmc1 {
 		clk_32k_out: clk-32k-out {
-			rockchip,pins = <1 RK_PD4 1 &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PD4 1 &pcfg_pull_analne>;
 		};
 	};
 
 	usb {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		otg_vbus_drv: otg-vbus-drv {
-			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -296,7 +296,7 @@
 	keep-power-in-suspend;
 	max-frequency = <125000000>;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-0 = <&sdmmc1_bus4 &sdmmc1_cmd &sdmmc1_clk &clk_32k_out>;
 	pinctrl-names = "default";
 	sd-uhs-sdr104;

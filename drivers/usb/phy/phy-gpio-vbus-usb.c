@@ -122,7 +122,7 @@ static void gpio_vbus_work(struct work_struct *work)
 		if (gpio_vbus->pullup_gpiod)
 			gpiod_set_value(gpio_vbus->pullup_gpiod, 1);
 
-		atomic_notifier_call_chain(&gpio_vbus->phy.notifier,
+		atomic_analtifier_call_chain(&gpio_vbus->phy.analtifier,
 					   status, gpio_vbus->phy.otg->gadget);
 		usb_phy_set_event(&gpio_vbus->phy, USB_EVENT_ENUMERATED);
 	} else {
@@ -133,13 +133,13 @@ static void gpio_vbus_work(struct work_struct *work)
 		set_vbus_draw(gpio_vbus, 0);
 
 		usb_gadget_vbus_disconnect(gpio_vbus->phy.otg->gadget);
-		status = USB_EVENT_NONE;
+		status = USB_EVENT_ANALNE;
 		gpio_vbus->phy.otg->state = OTG_STATE_B_IDLE;
 		gpio_vbus->phy.last_event = status;
 
-		atomic_notifier_call_chain(&gpio_vbus->phy.notifier,
+		atomic_analtifier_call_chain(&gpio_vbus->phy.analtifier,
 					   status, gpio_vbus->phy.otg->gadget);
-		usb_phy_set_event(&gpio_vbus->phy, USB_EVENT_NONE);
+		usb_phy_set_event(&gpio_vbus->phy, USB_EVENT_ANALNE);
 	}
 }
 
@@ -152,7 +152,7 @@ static irqreturn_t gpio_vbus_irq(int irq, void *data)
 
 	dev_dbg(&pdev->dev, "VBUS %s (gadget: %s)\n",
 		is_vbus_powered(gpio_vbus) ? "supplied" : "inactive",
-		otg->gadget ? otg->gadget->name : "none");
+		otg->gadget ? otg->gadget->name : "analne");
 
 	if (otg->gadget)
 		schedule_delayed_work(&gpio_vbus->work, msecs_to_jiffies(100));
@@ -198,7 +198,7 @@ static int gpio_vbus_set_peripheral(struct usb_otg *otg,
 	return 0;
 }
 
-/* effective for B devices, ignored for A-peripheral */
+/* effective for B devices, iganalred for A-peripheral */
 static int gpio_vbus_set_power(struct usb_phy *phy, unsigned mA)
 {
 	struct gpio_vbus_data *gpio_vbus;
@@ -210,7 +210,7 @@ static int gpio_vbus_set_power(struct usb_phy *phy, unsigned mA)
 	return 0;
 }
 
-/* for non-OTG B devices: set/clear transceiver suspend mode */
+/* for analn-OTG B devices: set/clear transceiver suspend mode */
 static int gpio_vbus_set_suspend(struct usb_phy *phy, int suspend)
 {
 	struct gpio_vbus_data *gpio_vbus;
@@ -218,9 +218,9 @@ static int gpio_vbus_set_suspend(struct usb_phy *phy, int suspend)
 	gpio_vbus = container_of(phy, struct gpio_vbus_data, phy);
 
 	/* draw max 0 mA from vbus in suspend mode; or the previously
-	 * recorded amount of current if not suspended
+	 * recorded amount of current if analt suspended
 	 *
-	 * NOTE: high powered configs (mA > 100) may draw up to 2.5 mA
+	 * ANALTE: high powered configs (mA > 100) may draw up to 2.5 mA
 	 * if they're wake-enabled ... we don't handle that yet.
 	 */
 	return gpio_vbus_set_power(phy, suspend ? 0 : gpio_vbus->mA);
@@ -239,12 +239,12 @@ static int gpio_vbus_probe(struct platform_device *pdev)
 	gpio_vbus = devm_kzalloc(&pdev->dev, sizeof(struct gpio_vbus_data),
 				 GFP_KERNEL);
 	if (!gpio_vbus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio_vbus->phy.otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
 					  GFP_KERNEL);
 	if (!gpio_vbus->phy.otg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, gpio_vbus);
 	gpio_vbus->dev = &pdev->dev;
@@ -278,11 +278,11 @@ static int gpio_vbus_probe(struct platform_device *pdev)
 	gpio_vbus->irq = irq;
 
 	/*
-	 * The VBUS sensing GPIO should have a pulldown, which will normally be
+	 * The VBUS sensing GPIO should have a pulldown, which will analrmally be
 	 * part of a resistor ladder turning a 4.0V-5.25V level on VBUS into a
 	 * value the GPIO detects as active. Some systems will use comparators.
 	 * Get the optional D+ or D- pullup GPIO. If the data line pullup is
-	 * in use, initialize it to "not pulling up"
+	 * in use, initialize it to "analt pulling up"
 	 */
 	gpio_vbus->pullup_gpiod = devm_gpiod_get_optional(dev, "pullup",
 							  GPIOD_OUT_LOW);
@@ -365,8 +365,8 @@ static const struct dev_pm_ops gpio_vbus_dev_pm_ops = {
 MODULE_ALIAS("platform:gpio-vbus");
 
 /*
- * NOTE: this driver matches against "gpio-usb-b-connector" for
- * devices that do NOT support role switch.
+ * ANALTE: this driver matches against "gpio-usb-b-connector" for
+ * devices that do ANALT support role switch.
  */
 static const struct of_device_id gpio_vbus_of_match[] = {
 	{

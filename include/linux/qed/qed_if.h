@@ -21,7 +21,7 @@
 #include <linux/slab.h>
 #include <linux/qed/common_hsi.h>
 #include <linux/qed/qed_chain.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <net/devlink.h>
 
 #define QED_TX_SWS_TIMER_DFLT  500
@@ -184,7 +184,7 @@ struct qed_mfw_tlv_eth {
 	u16 rx_descr_qdepth;
 	bool rx_descr_qdepth_set;
 	u8 iov_offload;
-#define QED_MFW_TLV_IOV_OFFLOAD_NONE            (0)
+#define QED_MFW_TLV_IOV_OFFLOAD_ANALNE            (0)
 #define QED_MFW_TLV_IOV_OFFLOAD_MULTIQUEUE      (1)
 #define QED_MFW_TLV_IOV_OFFLOAD_VEB             (2)
 #define QED_MFW_TLV_IOV_OFFLOAD_VEPA            (3)
@@ -351,10 +351,10 @@ struct qed_mfw_tlv_fcoe {
 	bool abort_task_sets_set;
 	u8 tx_tprlos;
 	bool tx_tprlos_set;
-	u8 tx_nos;
-	bool tx_nos_set;
-	u8 rx_nos;
-	bool rx_nos_set;
+	u8 tx_anals;
+	bool tx_anals_set;
+	u8 rx_anals;
+	bool rx_anals_set;
 	u8 ols;
 	bool ols_set;
 	u8 lr;
@@ -400,7 +400,7 @@ struct qed_mfw_tlv_iscsi {
 	u8 data_digest;
 	bool data_digest_set;
 	u8 auth_method;
-#define QED_MFW_TLV_AUTH_METHOD_NONE            (1)
+#define QED_MFW_TLV_AUTH_METHOD_ANALNE            (1)
 #define QED_MFW_TLV_AUTH_METHOD_CHAP            (2)
 #define QED_MFW_TLV_AUTH_METHOD_MUTUAL_CHAP     (3)
 	bool auth_method_set;
@@ -628,7 +628,7 @@ struct qed_dev_info {
 
 	/* FW version */
 	u16		fw_major;
-	u16		fw_minor;
+	u16		fw_mianalr;
 	u16		fw_rev;
 	u16		fw_eng;
 
@@ -687,7 +687,7 @@ enum qed_protocol {
 };
 
 enum qed_fec_mode {
-	QED_FEC_MODE_NONE			= BIT(0),
+	QED_FEC_MODE_ANALNE			= BIT(0),
 	QED_FEC_MODE_FIRECODE			= BIT(1),
 	QED_FEC_MODE_RS				= BIT(2),
 	QED_FEC_MODE_AUTO			= BIT(3),
@@ -716,7 +716,7 @@ struct qed_link_params {
 #define QED_LINK_PAUSE_TX_ENABLE		BIT(2)
 
 	u32					loopback_mode;
-#define QED_LINK_LOOPBACK_NONE			BIT(0)
+#define QED_LINK_LOOPBACK_ANALNE			BIT(0)
 #define QED_LINK_LOOPBACK_INT_PHY		BIT(1)
 #define QED_LINK_LOOPBACK_EXT_PHY		BIT(2)
 #define QED_LINK_LOOPBACK_EXT			BIT(3)
@@ -766,7 +766,7 @@ struct qed_probe_params {
 struct qed_slowpath_params {
 	u32	int_mode;
 	u8	drv_major;
-	u8	drv_minor;
+	u8	drv_mianalr;
 	u8	drv_rev;
 	u8	drv_eng;
 	u8	name[QED_DRV_VER_STR_SIZE];
@@ -936,7 +936,7 @@ struct qed_common_ops {
 				  enum qed_hw_err_type err_type);
 
 /**
- * can_link_change(): can the instance change the link or not.
+ * can_link_change(): can the instance change the link or analt.
  *
  * @cdev: Qed dev pointer.
  *
@@ -1072,7 +1072,7 @@ struct qed_common_ops {
 
 /**
  * db_recovery_del(): remove doorbell information from the doorbell
- * recovery mechanism. db_data serves as key (db_addr is not unique).
+ * recovery mechanism. db_data serves as key (db_addr is analt unique).
  *
  * @cdev: Qed dev pointer.
  * @db_addr: Doorbell address.
@@ -1245,10 +1245,10 @@ struct qed_common_ops {
 		       ## __VA_ARGS__);				\
 	} while (0)
 
-#define DP_NOTICE(cdev, fmt, ...)				      \
+#define DP_ANALTICE(cdev, fmt, ...)				      \
 	do {							      \
-		if (unlikely((cdev)->dp_level <= QED_LEVEL_NOTICE)) { \
-			pr_notice("[%s:%d(%s)]" fmt,		      \
+		if (unlikely((cdev)->dp_level <= QED_LEVEL_ANALTICE)) { \
+			pr_analtice("[%s:%d(%s)]" fmt,		      \
 				  __func__, __LINE__,		      \
 				  DP_NAME(cdev) ? DP_NAME(cdev) : "", \
 				  ## __VA_ARGS__);		      \
@@ -1259,7 +1259,7 @@ struct qed_common_ops {
 #define DP_INFO(cdev, fmt, ...)					      \
 	do {							      \
 		if (unlikely((cdev)->dp_level <= QED_LEVEL_INFO)) {   \
-			pr_notice("[%s:%d(%s)]" fmt,		      \
+			pr_analtice("[%s:%d(%s)]" fmt,		      \
 				  __func__, __LINE__,		      \
 				  DP_NAME(cdev) ? DP_NAME(cdev) : "", \
 				  ## __VA_ARGS__);		      \
@@ -1270,7 +1270,7 @@ struct qed_common_ops {
 	do {								\
 		if (unlikely(((cdev)->dp_level <= QED_LEVEL_VERBOSE) &&	\
 			     ((cdev)->dp_module & module))) {		\
-			pr_notice("[%s:%d(%s)]" fmt,			\
+			pr_analtice("[%s:%d(%s)]" fmt,			\
 				  __func__, __LINE__,			\
 				  DP_NAME(cdev) ? DP_NAME(cdev) : "",	\
 				  ## __VA_ARGS__);			\
@@ -1280,14 +1280,14 @@ struct qed_common_ops {
 enum DP_LEVEL {
 	QED_LEVEL_VERBOSE	= 0x0,
 	QED_LEVEL_INFO		= 0x1,
-	QED_LEVEL_NOTICE	= 0x2,
+	QED_LEVEL_ANALTICE	= 0x2,
 	QED_LEVEL_ERR		= 0x3,
 };
 
 #define QED_LOG_LEVEL_SHIFT     (30)
 #define QED_LOG_VERBOSE_MASK    (0x3fffffff)
 #define QED_LOG_INFO_MASK       (0x40000000)
-#define QED_LOG_NOTICE_MASK     (0x80000000)
+#define QED_LOG_ANALTICE_MASK     (0x80000000)
 
 enum DP_MODULE {
 	QED_MSG_SPQ	= 0x10000,
@@ -1311,7 +1311,7 @@ enum qed_mf_mode {
 };
 
 struct qed_eth_stats_common {
-	u64	no_buff_discards;
+	u64	anal_buff_discards;
 	u64	packet_too_big_discard;
 	u64	ttl0_discard;
 	u64	rx_ucast_bytes;
@@ -1333,7 +1333,7 @@ struct qed_eth_stats_common {
 	u64	tpa_coalesced_pkts;
 	u64	tpa_coalesced_events;
 	u64	tpa_aborts_num;
-	u64	tpa_not_coalesced_pkts;
+	u64	tpa_analt_coalesced_pkts;
 	u64	tpa_coalesced_bytes;
 
 	/* port */
@@ -1444,7 +1444,7 @@ static inline u16 qed_sb_update_sb_idx(struct qed_sb_info *sb_info)
  * @sb_info: This is the structure allocated and
  *           initialized per status block. Assumption is
  *           that it was initialized using qed_sb_init
- * @int_cmd: Enable/Disable/Nop
+ * @int_cmd: Enable/Disable/Analp
  * @upd_flg: Whether igu consumer should be updated.
  *
  * Return: inline void.

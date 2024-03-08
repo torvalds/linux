@@ -24,9 +24,9 @@
 /*
  * WFE arg_b
  * bit 0-11: wait value
- * bit 15: 1 - wait, 0 - no wait
+ * bit 15: 1 - wait, 0 - anal wait
  * bit 16-27: update value
- * bit 31: 1 - update, 0 - no update
+ * bit 31: 1 - update, 0 - anal update
  */
 #define CMDQ_WFE_OPTION			(CMDQ_WFE_WAIT | CMDQ_WFE_WAIT_VALUE)
 
@@ -45,7 +45,7 @@
  *   format: op offset
  * CMDQ_CODE_WFE:
  *   wait for event and clear
- *   it is just clear if no wait
+ *   it is just clear if anal wait
  *   format: [wait]  op event update:1 to_wait:1 wait:1
  *           [clear] op event update:1 to_wait:0 wait:0
  * CMDQ_CODE_EOC:

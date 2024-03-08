@@ -42,7 +42,7 @@ struct dib9000_pid_ctrl {
 	u8 cmd;
 	u8 id;
 	u16 pid;
-	u8 onoff;
+	u8 oanalff;
 };
 
 struct dib9000_state {
@@ -109,7 +109,7 @@ struct dib9000_state {
 	struct mutex demod_lock;
 	u8 get_frontend_internal;
 	struct dib9000_pid_ctrl pid_ctrl[10];
-	s8 pid_ctrl_index; /* -1: empty list; -2: do not use the list */
+	s8 pid_ctrl_index; /* -1: empty list; -2: do analt use the list */
 };
 
 static const u32 fe_info[44] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -120,7 +120,7 @@ static const u32 fe_info[44] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 enum dib9000_power_mode {
 	DIB9000_POWER_ALL = 0,
 
-	DIB9000_POWER_NO,
+	DIB9000_POWER_ANAL,
 	DIB9000_POWER_INTERF_ANALOG_AGC,
 	DIB9000_POWER_COR4_DINTLV_ICIRM_EQUAL_CFROD,
 	DIB9000_POWER_COR4_CRY_ESRAM_MOUT_NUD,
@@ -254,7 +254,7 @@ static int dib9000_read16_attr(struct dib9000_state *state, u16 reg, u8 *b, u32 
 
 	if (attribute & DATA_BUS_ACCESS_MODE_8BIT)
 		state->i2c_write_buffer[0] |= (1 << 5);
-	if (attribute & DATA_BUS_ACCESS_MODE_NO_ADDRESS_INCREMENT)
+	if (attribute & DATA_BUS_ACCESS_MODE_ANAL_ADDRESS_INCREMENT)
 		state->i2c_write_buffer[0] |= (1 << 4);
 
 	do {
@@ -270,7 +270,7 @@ static int dib9000_read16_attr(struct dib9000_state *state, u16 reg, u8 *b, u32 
 		b += l;
 		len -= l;
 
-		if (!(attribute & DATA_BUS_ACCESS_MODE_NO_ADDRESS_INCREMENT))
+		if (!(attribute & DATA_BUS_ACCESS_MODE_ANAL_ADDRESS_INCREMENT))
 			reg += l / 2;
 	} while ((ret == 0) && len);
 
@@ -312,7 +312,7 @@ static inline u16 dib9000_read_word_attr(struct dib9000_state *state, u16 reg, u
 	return (state->i2c_read_buffer[0] << 8) | state->i2c_read_buffer[1];
 }
 
-#define dib9000_read16_noinc_attr(state, reg, b, len, attribute) dib9000_read16_attr(state, reg, b, len, (attribute) | DATA_BUS_ACCESS_MODE_NO_ADDRESS_INCREMENT)
+#define dib9000_read16_analinc_attr(state, reg, b, len, attribute) dib9000_read16_attr(state, reg, b, len, (attribute) | DATA_BUS_ACCESS_MODE_ANAL_ADDRESS_INCREMENT)
 
 static int dib9000_write16_attr(struct dib9000_state *state, u16 reg, const u8 *buf, u32 len, u16 attribute)
 {
@@ -322,7 +322,7 @@ static int dib9000_write16_attr(struct dib9000_state *state, u16 reg, const u8 *
 
 	if (state->platform.risc.fw_is_running && (reg < 1024)) {
 		if (dib9000_risc_apb_access_write
-		    (state, reg, DATA_BUS_ACCESS_MODE_16BIT | DATA_BUS_ACCESS_MODE_NO_ADDRESS_INCREMENT | attribute, buf, len) != 0)
+		    (state, reg, DATA_BUS_ACCESS_MODE_16BIT | DATA_BUS_ACCESS_MODE_ANAL_ADDRESS_INCREMENT | attribute, buf, len) != 0)
 			return -EINVAL;
 		return 0;
 	}
@@ -338,7 +338,7 @@ static int dib9000_write16_attr(struct dib9000_state *state, u16 reg, const u8 *
 
 	if (attribute & DATA_BUS_ACCESS_MODE_8BIT)
 		state->i2c_write_buffer[0] |= (1 << 5);
-	if (attribute & DATA_BUS_ACCESS_MODE_NO_ADDRESS_INCREMENT)
+	if (attribute & DATA_BUS_ACCESS_MODE_ANAL_ADDRESS_INCREMENT)
 		state->i2c_write_buffer[0] |= (1 << 4);
 
 	do {
@@ -351,7 +351,7 @@ static int dib9000_write16_attr(struct dib9000_state *state, u16 reg, const u8 *
 		buf += l;
 		len -= l;
 
-		if (!(attribute & DATA_BUS_ACCESS_MODE_NO_ADDRESS_INCREMENT))
+		if (!(attribute & DATA_BUS_ACCESS_MODE_ANAL_ADDRESS_INCREMENT))
 			reg += l / 2;
 	} while ((ret == 0) && len);
 
@@ -386,8 +386,8 @@ static inline int dib9000_write_word_attr(struct dib9000_state *state, u16 reg, 
 }
 
 #define dib9000_write(state, reg, buf, len) dib9000_write16_attr(state, reg, buf, len, 0)
-#define dib9000_write16_noinc(state, reg, buf, len) dib9000_write16_attr(state, reg, buf, len, DATA_BUS_ACCESS_MODE_NO_ADDRESS_INCREMENT)
-#define dib9000_write16_noinc_attr(state, reg, buf, len, attribute) dib9000_write16_attr(state, reg, buf, len, DATA_BUS_ACCESS_MODE_NO_ADDRESS_INCREMENT | (attribute))
+#define dib9000_write16_analinc(state, reg, buf, len) dib9000_write16_attr(state, reg, buf, len, DATA_BUS_ACCESS_MODE_ANAL_ADDRESS_INCREMENT)
+#define dib9000_write16_analinc_attr(state, reg, buf, len, attribute) dib9000_write16_attr(state, reg, buf, len, DATA_BUS_ACCESS_MODE_ANAL_ADDRESS_INCREMENT | (attribute))
 
 #define dib9000_mbx_send(state, id, data, len) dib9000_mbx_send_attr(state, id, data, len, 0)
 #define dib9000_mbx_get_message(state, id, msg, len) dib9000_mbx_get_message_attr(state, id, msg, len, 0)
@@ -395,8 +395,8 @@ static inline int dib9000_write_word_attr(struct dib9000_state *state, u16 reg, 
 #define MAC_IRQ      (1 << 1)
 #define IRQ_POL_MSK  (1 << 4)
 
-#define dib9000_risc_mem_read_chunks(state, b, len) dib9000_read16_attr(state, 1063, b, len, DATA_BUS_ACCESS_MODE_8BIT | DATA_BUS_ACCESS_MODE_NO_ADDRESS_INCREMENT)
-#define dib9000_risc_mem_write_chunks(state, buf, len) dib9000_write16_attr(state, 1063, buf, len, DATA_BUS_ACCESS_MODE_8BIT | DATA_BUS_ACCESS_MODE_NO_ADDRESS_INCREMENT)
+#define dib9000_risc_mem_read_chunks(state, b, len) dib9000_read16_attr(state, 1063, b, len, DATA_BUS_ACCESS_MODE_8BIT | DATA_BUS_ACCESS_MODE_ANAL_ADDRESS_INCREMENT)
+#define dib9000_risc_mem_write_chunks(state, buf, len) dib9000_write16_attr(state, 1063, buf, len, DATA_BUS_ACCESS_MODE_8BIT | DATA_BUS_ACCESS_MODE_ANAL_ADDRESS_INCREMENT)
 
 static void dib9000_risc_mem_setup_cmd(struct dib9000_state *state, u32 addr, u32 len, u8 reading)
 {
@@ -433,7 +433,7 @@ static void dib9000_risc_mem_setup(struct dib9000_state *state, u8 cmd)
 	struct dib9000_fe_memory_map *m = &state->platform.risc.fe_mm[cmd & 0x7f];
 	/* decide whether we need to "refresh" the memory controller */
 	if (state->platform.risc.memcmd == cmd &&	/* same command */
-	    !(cmd & 0x80 && m->size < 67))	/* and we do not want to read something with less than 67 bytes looping - working around a bug in the memory controller */
+	    !(cmd & 0x80 && m->size < 67))	/* and we do analt want to read something with less than 67 bytes looping - working around a bug in the memory controller */
 		return;
 	dib9000_risc_mem_setup_cmd(state, m->addr, m->size, cmd & 0x80);
 	state->platform.risc.memcmd = cmd;
@@ -445,7 +445,7 @@ static int dib9000_risc_mem_read(struct dib9000_state *state, u8 cmd, u8 * b, u1
 		return -EIO;
 
 	if (mutex_lock_interruptible(&state->platform.risc.mem_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return -EINTR;
 	}
 	dib9000_risc_mem_setup(state, cmd | 0x80);
@@ -461,7 +461,7 @@ static int dib9000_risc_mem_write(struct dib9000_state *state, u8 cmd, const u8 
 		return -EIO;
 
 	if (mutex_lock_interruptible(&state->platform.risc.mem_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return -EINTR;
 	}
 	dib9000_risc_mem_setup(state, cmd);
@@ -485,7 +485,7 @@ static int dib9000_firmware_download(struct dib9000_state *state, u8 risc_id, u1
 	dib9000_write_word(state, 1031 + offs, key);
 
 	dprintk("going to download %dB of microcode\n", len);
-	if (dib9000_write16_noinc(state, 1026 + offs, (u8 *) code, (u16) len) != 0) {
+	if (dib9000_write16_analinc(state, 1026 + offs, (u8 *) code, (u16) len) != 0) {
 		dprintk("error while downloading microcode for RISC %c\n", 'A' + risc_id);
 		return -EIO;
 	}
@@ -516,7 +516,7 @@ static int dib9000_mbx_host_init(struct dib9000_state *state, u8 risc_id)
 	} while ((reset_reg & 0x8000) && --tries);
 
 	if (reset_reg & 0x8000) {
-		dprintk("MBX: init ERROR, no response from RISC %c\n", 'A' + risc_id);
+		dprintk("MBX: init ERROR, anal response from RISC %c\n", 'A' + risc_id);
 		return -EIO;
 	}
 	dprintk("MBX: initialized\n");
@@ -536,7 +536,7 @@ static int dib9000_mbx_send_attr(struct dib9000_state *state, u8 id, u16 * data,
 		return -EINVAL;
 
 	if (mutex_lock_interruptible(&state->platform.risc.mbx_if_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return -EINTR;
 	}
 	tmp = MAX_MAILBOX_TRY;
@@ -559,7 +559,7 @@ static int dib9000_mbx_send_attr(struct dib9000_state *state, u8 id, u16 * data,
 	dprintk("--> %02x %d %*ph\n", id, len + 1, len, data);
 #endif
 
-	/* byte-order conversion - works on big (where it is not necessary) or little endian */
+	/* byte-order conversion - works on big (where it is analt necessary) or little endian */
 	d = (u8 *) data;
 	for (i = 0; i < len; i++) {
 		tmp = data[i];
@@ -570,7 +570,7 @@ static int dib9000_mbx_send_attr(struct dib9000_state *state, u8 id, u16 * data,
 	/* write msg */
 	b[0] = id;
 	b[1] = len + 1;
-	if (dib9000_write16_noinc_attr(state, 1045, b, 2, attr) != 0 || dib9000_write16_noinc_attr(state, 1045, (u8 *) data, len * 2, attr) != 0) {
+	if (dib9000_write16_analinc_attr(state, 1045, b, 2, attr) != 0 || dib9000_write16_analinc_attr(state, 1045, (u8 *) data, len * 2, attr) != 0) {
 		ret = -EIO;
 		goto out;
 	}
@@ -598,7 +598,7 @@ static u8 dib9000_mbx_read(struct dib9000_state *state, u16 * data, u8 risc_id, 
 		return 0;
 
 	if (mutex_lock_interruptible(&state->platform.risc.mbx_if_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return 0;
 	}
 	if (risc_id == 1)
@@ -614,7 +614,7 @@ static u8 dib9000_mbx_read(struct dib9000_state *state, u16 * data, u8 risc_id, 
 		data++;
 		size--;		/* Initial word already read */
 
-		dib9000_read16_noinc_attr(state, 1029 + mc_base, (u8 *) data, size * 2, attr);
+		dib9000_read16_analinc_attr(state, 1029 + mc_base, (u8 *) data, size * 2, attr);
 
 		/* to word conversion */
 		for (i = 0; i < size; i++) {
@@ -633,7 +633,7 @@ static u8 dib9000_mbx_read(struct dib9000_state *state, u16 * data, u8 risc_id, 
 		dprintk("MBX: message is too big for message cache (%d), flushing message\n", size);
 		size--;		/* Initial word already read */
 		while (size--)
-			dib9000_read16_noinc_attr(state, 1029 + mc_base, (u8 *) data, 2, attr);
+			dib9000_read16_analinc_attr(state, 1029 + mc_base, (u8 *) data, 2, attr);
 	}
 	/* Update register nb_mes_in_TX */
 	dib9000_write_word_attr(state, 1028 + mc_base, 1 << 14, attr);
@@ -690,7 +690,7 @@ static int dib9000_mbx_fetch_to_cache(struct dib9000_state *state, u16 attr)
 			return 1;
 		}
 	}
-	dprintk("MBX: no free cache-slot found for new message...\n");
+	dprintk("MBX: anal free cache-slot found for new message...\n");
 	return -1;
 }
 
@@ -710,7 +710,7 @@ static int dib9000_mbx_process(struct dib9000_state *state, u16 attr)
 		return -1;
 
 	if (mutex_lock_interruptible(&state->platform.risc.mbx_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return -1;
 	}
 
@@ -805,7 +805,7 @@ static int dib9000_fw_boot(struct dib9000_state *state, const u8 * codeA, u32 le
 	/* Toggles IP crypto to Host APB interface. */
 	dib9000_write_word(state, 1542, 1);
 
-	/* Set jump and no jump in the dma box */
+	/* Set jump and anal jump in the dma box */
 	dib9000_write_word(state, 1074, 0);
 	dib9000_write_word(state, 1075, 0);
 
@@ -866,7 +866,7 @@ static u16 dib9000_identify(struct i2c_device *client)
 
 	/* protect this driver to be used with 7000PC */
 	if (value == 0x4000 && dib9000_i2c_read16(client, 769) == 0x4000) {
-		dprintk("this driver does not work with DiB7000PC\n");
+		dprintk("this driver does analt work with DiB7000PC\n");
 		return 0;
 	}
 
@@ -907,7 +907,7 @@ static void dib9000_set_power_mode(struct dib9000_state *state, enum dib9000_pow
 
 	reg_906 = dib9000_read_word(state, 906 + offset) | 0x3;	/* keep settings for RISC */
 
-	/* now, depending on the requested mode, we power on */
+	/* analw, depending on the requested mode, we power on */
 	switch (mode) {
 		/* power up everything in the demod */
 	case DIB9000_POWER_ALL:
@@ -942,7 +942,7 @@ static void dib9000_set_power_mode(struct dib9000_state *state, enum dib9000_pow
 		reg_906 &= ~((1 << 0));
 		break;
 	default:
-	case DIB9000_POWER_NO:
+	case DIB9000_POWER_ANAL:
 		break;
 	}
 
@@ -984,7 +984,7 @@ static int dib9000_fw_reset(struct dvb_frontend *fe)
 
 	dib9000_set_power_mode(state, DIB9000_POWER_ALL);
 
-	/* unforce divstr regardless whether i2c enumeration was done or not */
+	/* unforce divstr regardless whether i2c enumeration was done or analt */
 	dib9000_write_word(state, 1794, dib9000_read_word(state, 1794) & ~(1 << 1));
 	dib9000_write_word(state, 1796, 0);
 	dib9000_write_word(state, 1805, 0x805);
@@ -1107,7 +1107,7 @@ static int dib9000_fw_init(struct dib9000_state *state)
 		return -EIO;
 
 	/* subband */
-	b[0] = state->chip.d9.cfg.subband.size;	/* type == 0 -> GPIO - PWM not yet supported */
+	b[0] = state->chip.d9.cfg.subband.size;	/* type == 0 -> GPIO - PWM analt yet supported */
 	for (i = 0; i < state->chip.d9.cfg.subband.size; i++) {
 		b[1 + i * 4] = state->chip.d9.cfg.subband.subband[i].f_mhz;
 		b[2 + i * 4] = (u16) state->chip.d9.cfg.subband.subband[i].gpio.mask;
@@ -1118,7 +1118,7 @@ static int dib9000_fw_init(struct dib9000_state *state)
 	if (dib9000_mbx_send(state, OUT_MSG_SUBBAND_SEL, b, 2 + 4 * i) != 0)
 		return -EIO;
 
-	/* 0 - id, 1 - no_of_frontends */
+	/* 0 - id, 1 - anal_of_frontends */
 	b[0] = (0 << 8) | 1;
 	/* 0 = i2c-address demod, 0 = tuner */
 	b[1] = (0 << 8) | (0);
@@ -1167,7 +1167,7 @@ static void dib9000_fw_set_channel_head(struct dib9000_state *state)
 	b[5] = (u8) ((state->fe[0]->dtv_property_cache.bandwidth_hz / 1000 >> 8) & 0xff);
 	b[6] = (u8) ((state->fe[0]->dtv_property_cache.bandwidth_hz / 1000 >> 16) & 0xff);
 	b[7] = (u8) ((state->fe[0]->dtv_property_cache.bandwidth_hz / 1000 >> 24) & 0xff);
-	b[8] = 0x80;		/* do not wait for CELL ID when doing autosearch */
+	b[8] = 0x80;		/* do analt wait for CELL ID when doing autosearch */
 	if (state->fe[0]->dtv_property_cache.delivery_system == SYS_DVBT)
 		b[8] |= 1;
 	dib9000_risc_mem_write(state, FE_MM_W_CHANNEL_HEAD, b);
@@ -1195,7 +1195,7 @@ static int dib9000_fw_get_channel(struct dvb_frontend *fe)
 	int ret = 0;
 
 	if (mutex_lock_interruptible(&state->platform.risc.mem_mbx_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return -EINTR;
 	}
 	if (dib9000_fw_memmbx_sync(state, FE_SYNC_CHANNEL) < 0) {
@@ -1270,7 +1270,7 @@ static int dib9000_fw_get_channel(struct dvb_frontend *fe)
 	}
 	switch (ch->hrch) {
 	case 0:
-		state->fe[0]->dtv_property_cache.hierarchy = HIERARCHY_NONE;
+		state->fe[0]->dtv_property_cache.hierarchy = HIERARCHY_ANALNE;
 		break;
 	case 1:
 		state->fe[0]->dtv_property_cache.hierarchy = HIERARCHY_1;
@@ -1409,7 +1409,7 @@ static int dib9000_fw_set_channel_union(struct dvb_frontend *fe)
 		break;
 	}
 	switch (state->fe[0]->dtv_property_cache.hierarchy) {
-	case HIERARCHY_NONE:
+	case HIERARCHY_ANALNE:
 		ch.hrch = 0;
 		break;
 	case HIERARCHY_1:
@@ -1476,7 +1476,7 @@ static int dib9000_fw_set_channel_union(struct dvb_frontend *fe)
 static int dib9000_fw_tune(struct dvb_frontend *fe)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
-	int ret = 10, search = state->channel_status.status == CHANNEL_STATUS_PARAMETERS_UNKNOWN;
+	int ret = 10, search = state->channel_status.status == CHANNEL_STATUS_PARAMETERS_UNKANALWN;
 	s8 i;
 
 	switch (state->tune_state) {
@@ -1526,10 +1526,10 @@ static int dib9000_fw_tune(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int dib9000_fw_set_diversity_in(struct dvb_frontend *fe, int onoff)
+static int dib9000_fw_set_diversity_in(struct dvb_frontend *fe, int oanalff)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
-	u16 mode = (u16) onoff;
+	u16 mode = (u16) oanalff;
 	return dib9000_mbx_send(state, OUT_MSG_ENABLE_DIVERSITY, &mode, 1);
 }
 
@@ -1680,7 +1680,7 @@ static int dib9000_fw_component_bus_xfer(struct i2c_adapter *i2c_adap, struct i2
 	}
 
 	if (mutex_lock_interruptible(&state->platform.risc.mem_mbx_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return 0;
 	}
 
@@ -1775,7 +1775,7 @@ int dib9000_set_gpio(struct dvb_frontend *fe, u8 num, u8 dir, u8 val)
 }
 EXPORT_SYMBOL(dib9000_set_gpio);
 
-int dib9000_fw_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
+int dib9000_fw_pid_filter_ctrl(struct dvb_frontend *fe, u8 oanalff)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 	u16 val;
@@ -1786,19 +1786,19 @@ int dib9000_fw_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
 		dprintk("pid filter cmd postpone\n");
 		state->pid_ctrl_index++;
 		state->pid_ctrl[state->pid_ctrl_index].cmd = DIB9000_PID_FILTER_CTRL;
-		state->pid_ctrl[state->pid_ctrl_index].onoff = onoff;
+		state->pid_ctrl[state->pid_ctrl_index].oanalff = oanalff;
 		return 0;
 	}
 
 	if (mutex_lock_interruptible(&state->demod_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return -EINTR;
 	}
 
 	val = dib9000_read_word(state, 294 + 1) & 0xffef;
-	val |= (onoff & 0x1) << 4;
+	val |= (oanalff & 0x1) << 4;
 
-	dprintk("PID filter enabled %d\n", onoff);
+	dprintk("PID filter enabled %d\n", oanalff);
 	ret = dib9000_write_word(state, 294 + 1, val);
 	mutex_unlock(&state->demod_lock);
 	return ret;
@@ -1806,7 +1806,7 @@ int dib9000_fw_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
 }
 EXPORT_SYMBOL(dib9000_fw_pid_filter_ctrl);
 
-int dib9000_fw_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
+int dib9000_fw_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 oanalff)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 	int ret;
@@ -1819,19 +1819,19 @@ int dib9000_fw_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
 			state->pid_ctrl[state->pid_ctrl_index].cmd = DIB9000_PID_FILTER;
 			state->pid_ctrl[state->pid_ctrl_index].id = id;
 			state->pid_ctrl[state->pid_ctrl_index].pid = pid;
-			state->pid_ctrl[state->pid_ctrl_index].onoff = onoff;
+			state->pid_ctrl[state->pid_ctrl_index].oanalff = oanalff;
 		} else
-			dprintk("can not add any more pid ctrl cmd\n");
+			dprintk("can analt add any more pid ctrl cmd\n");
 		return 0;
 	}
 
 	if (mutex_lock_interruptible(&state->demod_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return -EINTR;
 	}
-	dprintk("Index %x, PID %d, OnOff %d\n", id, pid, onoff);
+	dprintk("Index %x, PID %d, OnOff %d\n", id, pid, oanalff);
 	ret = dib9000_write_word(state, 300 + 1 + id,
-			onoff ? (1 << 13) | pid : 0);
+			oanalff ? (1 << 13) | pid : 0);
 	mutex_unlock(&state->demod_lock);
 	return ret;
 }
@@ -1872,7 +1872,7 @@ static int dib9000_sleep(struct dvb_frontend *fe)
 	int ret = 0;
 
 	if (mutex_lock_interruptible(&state->demod_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return -EINTR;
 	}
 	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
@@ -1903,7 +1903,7 @@ static int dib9000_get_frontend(struct dvb_frontend *fe,
 
 	if (state->get_frontend_internal == 0) {
 		if (mutex_lock_interruptible(&state->demod_lock) < 0) {
-			dprintk("could not get the lock\n");
+			dprintk("could analt get the lock\n");
 			return -EINTR;
 		}
 	}
@@ -2010,7 +2010,7 @@ static int dib9000_set_frontend(struct dvb_frontend *fe)
 
 	state->pid_ctrl_index = -1; /* postpone the pid filtering cmd */
 	if (mutex_lock_interruptible(&state->demod_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return 0;
 	}
 
@@ -2021,8 +2021,8 @@ static int dib9000_set_frontend(struct dvb_frontend *fe)
 	    state->fe[0]->dtv_property_cache.guard_interval == GUARD_INTERVAL_AUTO ||
 	    state->fe[0]->dtv_property_cache.modulation == QAM_AUTO ||
 	    state->fe[0]->dtv_property_cache.code_rate_HP == FEC_AUTO) {
-		/* no channel specified, autosearch the channel */
-		state->channel_status.status = CHANNEL_STATUS_PARAMETERS_UNKNOWN;
+		/* anal channel specified, autosearch the channel */
+		state->channel_status.status = CHANNEL_STATUS_PARAMETERS_UNKANALWN;
 	} else
 		state->channel_status.status = CHANNEL_STATUS_PARAMETERS_SET;
 
@@ -2071,7 +2071,7 @@ static int dib9000_set_frontend(struct dvb_frontend *fe)
 				nbr_pending++;	/* some frontends are still tuning */
 		}
 		if ((exit_condition != 2) && (nbr_pending == 0))
-			exit_condition = 1;	/* if all tune are done and no success, exit: tune failed */
+			exit_condition = 1;	/* if all tune are done and anal success, exit: tune failed */
 
 	} while (exit_condition == 0);
 
@@ -2094,7 +2094,7 @@ static int dib9000_set_frontend(struct dvb_frontend *fe)
 	/* retune the other frontends with the found channel */
 	channel_status.status = CHANNEL_STATUS_PARAMETERS_SET;
 	for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
-		/* only retune the frontends which was not tuned success */
+		/* only retune the frontends which was analt tuned success */
 		if (index_frontend != index_frontend_success) {
 			dib9000_set_channel_status(state->fe[index_frontend], &channel_status);
 			dib9000_set_tune_state(state->fe[index_frontend], CT_DEMOD_START);
@@ -2145,15 +2145,15 @@ static int dib9000_set_frontend(struct dvb_frontend *fe)
 				index_pid_filter_cmd++) {
 			if (state->pid_ctrl[index_pid_filter_cmd].cmd == DIB9000_PID_FILTER_CTRL)
 				dib9000_fw_pid_filter_ctrl(state->fe[0],
-						state->pid_ctrl[index_pid_filter_cmd].onoff);
+						state->pid_ctrl[index_pid_filter_cmd].oanalff);
 			else if (state->pid_ctrl[index_pid_filter_cmd].cmd == DIB9000_PID_FILTER)
 				dib9000_fw_pid_filter(state->fe[0],
 						state->pid_ctrl[index_pid_filter_cmd].id,
 						state->pid_ctrl[index_pid_filter_cmd].pid,
-						state->pid_ctrl[index_pid_filter_cmd].onoff);
+						state->pid_ctrl[index_pid_filter_cmd].oanalff);
 		}
 	}
-	/* do not postpone any more the pid filtering */
+	/* do analt postpone any more the pid filtering */
 	state->pid_ctrl_index = -2;
 
 	return 0;
@@ -2173,7 +2173,7 @@ static int dib9000_read_status(struct dvb_frontend *fe, enum fe_status *stat)
 	u16 lock = 0, lock_slave = 0;
 
 	if (mutex_lock_interruptible(&state->demod_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return -EINTR;
 	}
 	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
@@ -2206,11 +2206,11 @@ static int dib9000_read_ber(struct dvb_frontend *fe, u32 * ber)
 	int ret = 0;
 
 	if (mutex_lock_interruptible(&state->demod_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return -EINTR;
 	}
 	if (mutex_lock_interruptible(&state->platform.risc.mem_mbx_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		ret = -EINTR;
 		goto error;
 	}
@@ -2241,7 +2241,7 @@ static int dib9000_read_signal_strength(struct dvb_frontend *fe, u16 * strength)
 	int ret = 0;
 
 	if (mutex_lock_interruptible(&state->demod_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return -EINTR;
 	}
 	*strength = 0;
@@ -2254,7 +2254,7 @@ static int dib9000_read_signal_strength(struct dvb_frontend *fe, u16 * strength)
 	}
 
 	if (mutex_lock_interruptible(&state->platform.risc.mem_mbx_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		ret = -EINTR;
 		goto error;
 	}
@@ -2285,7 +2285,7 @@ static u32 dib9000_get_snr(struct dvb_frontend *fe)
 	u16 val;
 
 	if (mutex_lock_interruptible(&state->platform.risc.mem_mbx_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return 0;
 	}
 	if (dib9000_fw_memmbx_sync(state, FE_SYNC_CHANNEL) < 0) {
@@ -2324,7 +2324,7 @@ static int dib9000_read_snr(struct dvb_frontend *fe, u16 * snr)
 	u32 snr_master;
 
 	if (mutex_lock_interruptible(&state->demod_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return -EINTR;
 	}
 	snr_master = dib9000_get_snr(fe);
@@ -2349,11 +2349,11 @@ static int dib9000_read_unc_blocks(struct dvb_frontend *fe, u32 * unc)
 	int ret = 0;
 
 	if (mutex_lock_interruptible(&state->demod_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		return -EINTR;
 	}
 	if (mutex_lock_interruptible(&state->platform.risc.mem_mbx_lock) < 0) {
-		dprintk("could not get the lock\n");
+		dprintk("could analt get the lock\n");
 		ret = -EINTR;
 		goto error;
 	}
@@ -2372,7 +2372,7 @@ error:
 	return ret;
 }
 
-int dib9000_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 default_addr, u8 first_addr)
+int dib9000_i2c_enumeration(struct i2c_adapter *i2c, int anal_of_demods, u8 default_addr, u8 first_addr)
 {
 	int k = 0, ret = 0;
 	u8 new_addr = 0;
@@ -2380,20 +2380,20 @@ int dib9000_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defaul
 
 	client.i2c_write_buffer = kzalloc(4, GFP_KERNEL);
 	if (!client.i2c_write_buffer) {
-		dprintk("%s: not enough memory\n", __func__);
-		return -ENOMEM;
+		dprintk("%s: analt eanalugh memory\n", __func__);
+		return -EANALMEM;
 	}
 	client.i2c_read_buffer = kzalloc(4, GFP_KERNEL);
 	if (!client.i2c_read_buffer) {
-		dprintk("%s: not enough memory\n", __func__);
-		ret = -ENOMEM;
+		dprintk("%s: analt eanalugh memory\n", __func__);
+		ret = -EANALMEM;
 		goto error_memory;
 	}
 
 	client.i2c_addr = default_addr + 16;
 	dib9000_i2c_write16(&client, 1796, 0x0);
 
-	for (k = no_of_demods - 1; k >= 0; k--) {
+	for (k = anal_of_demods - 1; k >= 0; k--) {
 		/* designated i2c address */
 		new_addr = first_addr + (k << 1);
 		client.i2c_addr = default_addr;
@@ -2412,7 +2412,7 @@ int dib9000_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defaul
 		if (dib9000_identify(&client) == 0) {
 			client.i2c_addr = default_addr;
 			if (dib9000_identify(&client) == 0) {
-				dprintk("DiB9000 #%d: not identified\n", k);
+				dprintk("DiB9000 #%d: analt identified\n", k);
 				ret = -EIO;
 				goto error;
 			}
@@ -2424,7 +2424,7 @@ int dib9000_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defaul
 		dprintk("IC %d initialized (to i2c_address 0x%x)\n", k, new_addr);
 	}
 
-	for (k = 0; k < no_of_demods; k++) {
+	for (k = 0; k < anal_of_demods; k++) {
 		new_addr = first_addr | (k << 1);
 		client.i2c_addr = new_addr;
 
@@ -2455,7 +2455,7 @@ int dib9000_set_slave_frontend(struct dvb_frontend *fe, struct dvb_frontend *fe_
 	}
 
 	dprintk("too many slave frontend\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL(dib9000_set_slave_frontend);
 
@@ -2507,7 +2507,7 @@ struct dvb_frontend *dib9000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, c
 	memcpy(&st->fe[0]->ops, &dib9000_ops, sizeof(struct dvb_frontend_ops));
 
 	/* Ensure the output mode remains at the previous default if it's
-	 * not specifically set by the caller.
+	 * analt specifically set by the caller.
 	 */
 	if ((st->chip.d9.cfg.output_mode != OUTMODE_MPEG2_SERIAL) && (st->chip.d9.cfg.output_mode != OUTMODE_MPEG2_PAR_GATED_CLK))
 		st->chip.d9.cfg.output_mode = OUTMODE_MPEG2_FIFO;

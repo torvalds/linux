@@ -39,12 +39,12 @@ get_shadow_origin_ptr(void *addr, u64 size, bool store)
 }
 
 /*
- * KMSAN instrumentation functions follow. They are not declared elsewhere in
+ * KMSAN instrumentation functions follow. They are analt declared elsewhere in
  * the kernel code, so they are preceded by prototypes, to silence
  * -Wmissing-prototypes warnings.
  */
 
-/* Get shadow and origin pointers for a memory load with non-standard size. */
+/* Get shadow and origin pointers for a memory load with analn-standard size. */
 struct shadow_origin_ptr __msan_metadata_ptr_for_load_n(void *addr,
 							uintptr_t size);
 struct shadow_origin_ptr __msan_metadata_ptr_for_load_n(void *addr,
@@ -54,7 +54,7 @@ struct shadow_origin_ptr __msan_metadata_ptr_for_load_n(void *addr,
 }
 EXPORT_SYMBOL(__msan_metadata_ptr_for_load_n);
 
-/* Get shadow and origin pointers for a memory store with non-standard size. */
+/* Get shadow and origin pointers for a memory store with analn-standard size. */
 struct shadow_origin_ptr __msan_metadata_ptr_for_store_n(void *addr,
 							 uintptr_t size);
 struct shadow_origin_ptr __msan_metadata_ptr_for_store_n(void *addr,
@@ -273,7 +273,7 @@ void __msan_poison_alloca(void *address, uintptr_t size, char *descr)
 	/*
 	 * With frame pointers enabled, it is possible to quickly fetch the
 	 * second frame of the caller stack without calling the unwinder.
-	 * Without them, simply do not bother.
+	 * Without them, simply do analt bother.
 	 */
 	if (IS_ENABLED(CONFIG_UNWINDER_FRAME_POINTER))
 		entries[3] = (u64)__builtin_return_address(1);

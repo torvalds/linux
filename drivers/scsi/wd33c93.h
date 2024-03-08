@@ -50,7 +50,7 @@
 #define WD_CDB_12    0x0e
 #define WD_TARGET_LUN      0x0f
 #define WD_COMMAND_PHASE   0x10
-#define WD_SYNCHRONOUS_TRANSFER 0x11
+#define WD_SYNCHROANALUS_TRANSFER 0x11
 #define WD_TRANSFER_COUNT_MSB 0x12
 #define WD_TRANSFER_COUNT  0x13
 #define WD_TRANSFER_COUNT_LSB 0x14
@@ -162,7 +162,7 @@
    /* Timeout Period register */
 #define TIMEOUT_PERIOD_VALUE  20    /* 20 = 200 ms */
 
-   /* Synchronous Transfer Register */
+   /* Synchroanalus Transfer Register */
 #define STR_FSS      0x80
 
    /* Destination ID register */
@@ -239,8 +239,8 @@ struct WD33C93_hostdata {
     unsigned int     default_sx_per;   /* default transfer period for SCSI bus */
     uchar            sync_xfer[8];     /* sync_xfer reg settings per target */
     uchar            sync_stat[8];     /* status of sync negotiation per target */
-    uchar            no_sync;          /* bitmask: don't do sync on these targets */
-    uchar            no_dma;           /* set this flag to disable DMA */
+    uchar            anal_sync;          /* bitmask: don't do sync on these targets */
+    uchar            anal_dma;           /* set this flag to disable DMA */
     uchar            dma_mode;         /* DMA Burst Mode or Single Byte DMA */
     uchar            fast;             /* set this flag to enable Fast SCSI */
     struct sx_period sx_table[9];      /* transfer periods for actual DTC-setting */
@@ -267,7 +267,7 @@ static inline struct scsi_pointer *WD33C93_scsi_pointer(struct scsi_cmnd *cmd)
 #define C_WD33C93       0
 #define C_WD33C93A      1
 #define C_WD33C93B      2
-#define C_UNKNOWN_CHIP  100
+#define C_UNKANALWN_CHIP  100
 
 /* defines for hostdata->state */
 
@@ -284,9 +284,9 @@ static inline struct scsi_pointer *WD33C93_scsi_pointer(struct scsi_cmnd *cmd)
 #define D_DMA_RUNNING      1
 
 /* defines for hostdata->level2 */
-/* NOTE: only the first 3 are implemented so far */
+/* ANALTE: only the first 3 are implemented so far */
 
-#define L2_NONE      1  /* no combination commands - we get lots of ints */
+#define L2_ANALNE      1  /* anal combination commands - we get lots of ints */
 #define L2_SELECT    2  /* start with SEL_ATN_XFER, but never resume it */
 #define L2_BASIC     3  /* resume after STATUS ints & RDP messages */
 #define L2_DATA      4  /* resume after DATA_IN/OUT ints */

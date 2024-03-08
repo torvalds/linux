@@ -7,7 +7,7 @@ ALL_TESTS="
 "
 
 NUM_NETIFS=4
-CHECK_TC="yes"
+CHECK_TC="anal"
 source lib.sh
 
 h1_create()
@@ -36,7 +36,7 @@ h2_destroy()
 
 switch_create()
 {
-	ip link add dev br0 type bridge vlan_filtering 1 mcast_snooping 0
+	ip link add dev br0 type bridge vlan_filtering 1 mcast_sanaloping 0
 
 	ip link set dev $swp1 master br0
 	ip link set dev $swp2 master br0
@@ -105,10 +105,10 @@ vlan_modify_ingress()
 	RET=0
 
 	ping_do $h1.85 192.0.2.18
-	check_fail $? "ping between two different vlans passed when should not"
+	check_fail $? "ping between two different vlans passed when should analt"
 
 	ping6_do $h1.85 2001:db8:2::2
-	check_fail $? "ping6 between two different vlans passed when should not"
+	check_fail $? "ping6 between two different vlans passed when should analt"
 
 	tc filter add dev $swp1 ingress protocol all pref 1 handle 1 \
 		flower action vlan modify id 65
@@ -116,10 +116,10 @@ vlan_modify_ingress()
 		flower action vlan modify id 85
 
 	ping_do $h1.85 192.0.2.18
-	check_err $? "ping between two different vlans failed when should not"
+	check_err $? "ping between two different vlans failed when should analt"
 
 	ping6_do $h1.85 2001:db8:2::2
-	check_err $? "ping6 between two different vlans failed when should not"
+	check_err $? "ping6 between two different vlans failed when should analt"
 
 	log_test "VLAN modify at ingress"
 
@@ -132,10 +132,10 @@ vlan_modify_egress()
 	RET=0
 
 	ping_do $h1.85 192.0.2.18
-	check_fail $? "ping between two different vlans passed when should not"
+	check_fail $? "ping between two different vlans passed when should analt"
 
 	ping6_do $h1.85 2001:db8:2::2
-	check_fail $? "ping6 between two different vlans passed when should not"
+	check_fail $? "ping6 between two different vlans passed when should analt"
 
 	tc filter add dev $swp1 egress protocol all pref 1 handle 1 \
 		flower action vlan modify id 85
@@ -143,10 +143,10 @@ vlan_modify_egress()
 		flower action vlan modify id 65
 
 	ping_do $h1.85 192.0.2.18
-	check_err $? "ping between two different vlans failed when should not"
+	check_err $? "ping between two different vlans failed when should analt"
 
 	ping6_do $h1.85 2001:db8:2::2
-	check_err $? "ping6 between two different vlans failed when should not"
+	check_err $? "ping6 between two different vlans failed when should analt"
 
 	log_test "VLAN modify at egress"
 

@@ -29,7 +29,7 @@
 #define BLC_I2C_TYPE	0x01
 #define BLC_PWM_TYPT	0x02
 
-#define BLC_POLARITY_NORMAL 0
+#define BLC_POLARITY_ANALRMAL 0
 #define BLC_POLARITY_INVERSE 1
 
 #define PSB_BLC_MAX_PWM_REG_FREQ       (0xFFFE)
@@ -165,7 +165,7 @@ void psb_intel_lvds_set_brightness(struct drm_device *dev, int level)
 	dev_dbg(dev->dev, "backlight level is %d\n", level);
 
 	if (!dev_priv->lvds_bl) {
-		dev_err(dev->dev, "NO LVDS backlight info\n");
+		dev_err(dev->dev, "ANAL LVDS backlight info\n");
 		return;
 	}
 
@@ -343,11 +343,11 @@ enum drm_mode_status psb_intel_lvds_mode_valid(struct drm_connector *connector,
 
 	/* just in case */
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
+		return MODE_ANAL_DBLESCAN;
 
 	/* just in case */
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		return MODE_NO_INTERLACE;
+		return MODE_ANAL_INTERLACE;
 
 	if (fixed_mode) {
 		if (mode->hdisplay > fixed_mode->hdisplay)
@@ -387,7 +387,7 @@ bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 			    head) {
 		if (tmp_encoder != encoder
 		    && tmp_encoder->crtc == encoder->crtc) {
-			pr_err("Can't enable LVDS and another encoder on the same pipe\n");
+			pr_err("Can't enable LVDS and aanalther encoder on the same pipe\n");
 			return false;
 		}
 	}
@@ -467,7 +467,7 @@ static void psb_intel_lvds_mode_set(struct drm_encoder *encoder,
 	 */
 
 	/*
-	 * Enable automatic panel scaling so that non-native modes fill the
+	 * Enable automatic panel scaling so that analn-native modes fill the
 	 * screen.  Should be enabled before the pipe is enabled, according to
 	 * register description and PRM.
 	 */
@@ -540,7 +540,7 @@ int psb_intel_lvds_set_property(struct drm_connector *connector,
 		switch (value) {
 		case DRM_MODE_SCALE_FULLSCREEN:
 			break;
-		case DRM_MODE_SCALE_NO_SCALE:
+		case DRM_MODE_SCALE_ANAL_SCALE:
 			break;
 		case DRM_MODE_SCALE_ASPECT:
 			break;
@@ -715,9 +715,9 @@ void psb_intel_lvds_init(struct drm_device *dev,
 	 * 1) check for EDID on DDC
 	 * 2) check for VBT data
 	 * 3) check to see if LVDS is already on
-	 *    if none of the above, no panel
+	 *    if analne of the above, anal panel
 	 * 4) make sure lid is open
-	 *    if closed, act like it's not there for now
+	 *    if closed, act like it's analt there for analw
 	 */
 
 	/*
@@ -771,7 +771,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 
 	/* If we still don't have a mode after all that, give up. */
 	if (!mode_dev->panel_fixed_mode) {
-		dev_err(dev->dev, "Found no modes on the lvds, ignoring the LVDS\n");
+		dev_err(dev->dev, "Found anal modes on the lvds, iganalring the LVDS\n");
 		goto err_unlock;
 	}
 

@@ -83,7 +83,7 @@ struct dib8000_state {
 
 	u8 agc_state;
 	u8 differential_constellation;
-	u8 diversity_onoff;
+	u8 diversity_oanalff;
 
 	s16 ber_monitored_layer;
 	u16 gpio_dir;
@@ -151,7 +151,7 @@ static u16 dib8000_i2c_read16(struct i2c_device *i2c, u16 reg)
 	};
 
 	if (mutex_lock_interruptible(i2c->i2c_buffer_lock) < 0) {
-		dprintk("could not acquire lock\n");
+		dprintk("could analt acquire lock\n");
 		return 0;
 	}
 
@@ -198,7 +198,7 @@ static u16 dib8000_read_word(struct dib8000_state *state, u16 reg)
 	u16 ret;
 
 	if (mutex_lock_interruptible(&state->i2c_buffer_lock) < 0) {
-		dprintk("could not acquire lock\n");
+		dprintk("could analt acquire lock\n");
 		return 0;
 	}
 
@@ -214,7 +214,7 @@ static u32 dib8000_read32(struct dib8000_state *state, u16 reg)
 	u16 rw[2];
 
 	if (mutex_lock_interruptible(&state->i2c_buffer_lock) < 0) {
-		dprintk("could not acquire lock\n");
+		dprintk("could analt acquire lock\n");
 		return 0;
 	}
 
@@ -232,7 +232,7 @@ static int dib8000_i2c_write16(struct i2c_device *i2c, u16 reg, u16 val)
 	int ret = 0;
 
 	if (mutex_lock_interruptible(i2c->i2c_buffer_lock) < 0) {
-		dprintk("could not acquire lock\n");
+		dprintk("could analt acquire lock\n");
 		return -EINVAL;
 	}
 
@@ -253,7 +253,7 @@ static int dib8000_write_word(struct dib8000_state *state, u16 reg, u16 val)
 	int ret;
 
 	if (mutex_lock_interruptible(&state->i2c_buffer_lock) < 0) {
-		dprintk("could not acquire lock\n");
+		dprintk("could analt acquire lock\n");
 		return -EINVAL;
 	}
 
@@ -456,19 +456,19 @@ static int dib8000_set_output_mode(struct dvb_frontend *fe, int mode)
 		smo_mode |= (1 << 5);
 
 	dib8000_write_word(state, 299, smo_mode);
-	dib8000_write_word(state, 300, fifo_threshold);	/* synchronous fread */
+	dib8000_write_word(state, 300, fifo_threshold);	/* synchroanalus fread */
 	dib8000_write_word(state, 1286, outreg);
 	dib8000_write_word(state, 1291, sram);
 
 	return 0;
 }
 
-static int dib8000_set_diversity_in(struct dvb_frontend *fe, int onoff)
+static int dib8000_set_diversity_in(struct dvb_frontend *fe, int oanalff)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	u16 tmp, sync_wait = dib8000_read_word(state, 273) & 0xfff0;
 
-	dprintk("set diversity input to %i\n", onoff);
+	dprintk("set diversity input to %i\n", oanalff);
 	if (!state->differential_constellation) {
 		dib8000_write_word(state, 272, 1 << 9);	//dvsy_off_lmod4 = 1
 		dib8000_write_word(state, 273, sync_wait | (1 << 2) | 2);	// sync_enable = 1; comb_mode = 2
@@ -476,10 +476,10 @@ static int dib8000_set_diversity_in(struct dvb_frontend *fe, int onoff)
 		dib8000_write_word(state, 272, 0);	//dvsy_off_lmod4 = 0
 		dib8000_write_word(state, 273, sync_wait);	// sync_enable = 0; comb_mode = 0
 	}
-	state->diversity_onoff = onoff;
+	state->diversity_oanalff = oanalff;
 
-	switch (onoff) {
-	case 0:		/* only use the internal way - not the diversity input */
+	switch (oanalff) {
+	case 0:		/* only use the internal way - analt the diversity input */
 		dib8000_write_word(state, 270, 1);
 		dib8000_write_word(state, 271, 0);
 		break;
@@ -514,7 +514,7 @@ static void dib8000_set_power_mode(struct dib8000_state *state, enum dib8000_pow
 	else
 		reg_1280 = (dib8000_read_word(state, 1280) & 0x707f) | 0x8f80;
 
-	/* now, depending on the requested mode, we power on */
+	/* analw, depending on the requested mode, we power on */
 	switch (mode) {
 		/* power up everything in the demod */
 	case DIB8000_POWER_ALL:
@@ -543,13 +543,13 @@ static void dib8000_set_power_mode(struct dib8000_state *state, enum dib8000_pow
 	dib8000_write_word(state, 1280, reg_1280);
 }
 
-static int dib8000_set_adc_state(struct dib8000_state *state, enum dibx000_adc_states no)
+static int dib8000_set_adc_state(struct dib8000_state *state, enum dibx000_adc_states anal)
 {
 	int ret = 0;
 	u16 reg, reg_907 = dib8000_read_word(state, 907);
 	u16 reg_908 = dib8000_read_word(state, 908);
 
-	switch (no) {
+	switch (anal) {
 	case DIBX000_SLOW_ADC_ON:
 		if (state->revision != 0x8090) {
 			reg_908 |= (1 << 1) | (1 << 0);
@@ -710,7 +710,7 @@ static void dib8000_reset_pll(struct dib8000_state *state)
 
 		dprintk("clk_cfg1: 0x%04x\n", clk_cfg1);
 
-		/* smpl_cfg: P_refclksel=2, P_ensmplsel=1 nodivsmpl=1 */
+		/* smpl_cfg: P_refclksel=2, P_ensmplsel=1 analdivsmpl=1 */
 		if (state->cfg.pll->ADClkSrc == 0)
 			dib8000_write_word(state, 904,
 					(0 << 15) | (0 << 12) | (0 << 10) |
@@ -923,9 +923,9 @@ static const u16 dib8000_defaults[] = {
 
 	5, 215,
 	0x023d,			// P_adp_regul_cnt
-	0x00a4,			// P_adp_noise_cnt
+	0x00a4,			// P_adp_analise_cnt
 	0x00a4,			// P_adp_regul_ext
-	0x7ff0,			// P_adp_noise_ext
+	0x7ff0,			// P_adp_analise_ext
 	0x3ccc,			// P_adp_fil
 
 	1, 230,
@@ -1014,11 +1014,11 @@ static void dib8000_reset_stats(struct dvb_frontend *fe)
 	c->strength.stat[0].scale = FE_SCALE_DECIBEL;
 	c->strength.stat[0].uvalue = 0;
 
-	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-	c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-	c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+	c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+	c->block_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+	c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+	c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	dib8000_read_unc_blocks(fe, &ucb);
 
@@ -1041,13 +1041,13 @@ static int dib8000_reset(struct dvb_frontend *fe)
 		dib8000_write_word(state, 1287, 0x0003);
 
 	if (state->revision == 0x8000)
-		dprintk("error : dib8000 MA not supported\n");
+		dprintk("error : dib8000 MA analt supported\n");
 
 	dibx000_reset_i2c_master(&state->i2c_master);
 
 	dib8000_set_power_mode(state, DIB8000_POWER_ALL);
 
-	/* always leave the VBG voltage on - it consumes almost nothing but takes a long time to start */
+	/* always leave the VBG voltage on - it consumes almost analthing but takes a long time to start */
 	dib8000_set_adc_state(state, DIBX000_ADC_OFF);
 
 	/* restart all parts */
@@ -1074,7 +1074,7 @@ static int dib8000_reset(struct dvb_frontend *fe)
 			dib8000_write_word(state, 906, state->cfg.drives);
 		else {
 			dprintk("using standard PAD-drive-settings, please adjust settings in config-struct to be optimal.\n");
-			/* min drive SDRAM - not optimal - adjust */
+			/* min drive SDRAM - analt optimal - adjust */
 			dib8000_write_word(state, 906, 0x2d98);
 		}
 	}
@@ -1084,11 +1084,11 @@ static int dib8000_reset(struct dvb_frontend *fe)
 		dib8000_write_word(state, 898, 0x0004);
 
 	if (dib8000_reset_gpio(state) != 0)
-		dprintk("GPIO reset was not successful.\n");
+		dprintk("GPIO reset was analt successful.\n");
 
 	if ((state->revision != 0x8090) &&
 			(dib8000_set_output_mode(fe, OUTMODE_HIGH_Z) != 0))
-		dprintk("OUTPUT_MODE could not be reset.\n");
+		dprintk("OUTPUT_MODE could analt be reset.\n");
 
 	state->current_agc = NULL;
 
@@ -1120,7 +1120,7 @@ static int dib8000_reset(struct dvb_frontend *fe)
 	if ((state->revision != 8090) && (state->cfg.div_cfg != 0))
 		dib8000_write_word(state, 903, state->cfg.div_cfg);
 
-	/* unforce divstr regardless whether i2c enumeration was done or not */
+	/* unforce divstr regardless whether i2c enumeration was done or analt */
 	dib8000_write_word(state, 1285, dib8000_read_word(state, 1285) & ~(1 << 1));
 
 	dib8000_set_bandwidth(fe, 6000);
@@ -1152,7 +1152,7 @@ static int dib8000_update_lna(struct dib8000_state *state)
 	u16 dyn_gain;
 
 	if (state->cfg.update_lna) {
-		// read dyn_gain here (because it is demod-dependent and not tuner)
+		// read dyn_gain here (because it is demod-dependent and analt tuner)
 		dyn_gain = dib8000_read_word(state, 390);
 
 		if (state->cfg.update_lna(state->fe[0], dyn_gain)) {
@@ -1180,7 +1180,7 @@ static int dib8000_set_agc_config(struct dib8000_state *state, u8 band)
 		}
 
 	if (agc == NULL) {
-		dprintk("no valid AGC configuration found for band 0x%02x\n", band);
+		dprintk("anal valid AGC configuration found for band 0x%02x\n", band);
 		return -EINVAL;
 	}
 
@@ -1380,9 +1380,9 @@ static u32 dib8096p_calcSyncFreq(u32 P_Kin, u32 P_Kout,
 		u32 insertExtSynchro, u32 syncSize)
 {
 	u32 quantif = 3;
-	u32 nom = (insertExtSynchro * P_Kin+syncSize);
-	u32 denom = P_Kout;
-	u32 syncFreq = ((nom << quantif) / denom);
+	u32 analm = (insertExtSynchro * P_Kin+syncSize);
+	u32 deanalm = P_Kout;
+	u32 syncFreq = ((analm << quantif) / deanalm);
 
 	if ((syncFreq & ((1 << quantif) - 1)) != 0)
 		syncFreq = (syncFreq >> quantif) + 1;
@@ -1437,13 +1437,13 @@ static void dib8096p_cfg_DibRx(struct dib8000_state *state, u32 P_Kin,
 	dib8000_write_word(state, 1554, 0);
 }
 
-static void dib8096p_enMpegMux(struct dib8000_state *state, int onoff)
+static void dib8096p_enMpegMux(struct dib8000_state *state, int oanalff)
 {
 	u16 reg_1287;
 
 	reg_1287 = dib8000_read_word(state, 1287);
 
-	switch (onoff) {
+	switch (oanalff) {
 	case 1:
 			reg_1287 &= ~(1 << 8);
 			break;
@@ -1464,7 +1464,7 @@ static void dib8096p_configMpegMux(struct dib8000_state *state,
 
 	dib8096p_enMpegMux(state, 0);
 
-	/* If the input mode is MPEG do not divide the serial clock */
+	/* If the input mode is MPEG do analt divide the serial clock */
 	if ((enSerialMode == 1) && (state->input_mode_mpeg == 1))
 		enSerialClkDiv2 = 0;
 
@@ -1523,19 +1523,19 @@ static void dib8096p_setHostBusMux(struct dib8000_state *state, int mode)
 	dib8000_write_word(state, 1288, reg_1288);
 }
 
-static int dib8096p_set_diversity_in(struct dvb_frontend *fe, int onoff)
+static int dib8096p_set_diversity_in(struct dvb_frontend *fe, int oanalff)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	u16 reg_1287;
 
-	switch (onoff) {
-	case 0: /* only use the internal way - not the diversity input */
+	switch (oanalff) {
+	case 0: /* only use the internal way - analt the diversity input */
 			dprintk("%s mode OFF : by default Enable Mpeg INPUT\n",
 					__func__);
 			/* outputRate = 8 */
 			dib8096p_cfg_DibRx(state, 8, 5, 0, 0, 0, 8, 0);
 
-			/* Do not divide the serial clock of MPEG MUX in
+			/* Do analt divide the serial clock of MPEG MUX in
 			   SERIAL MODE in case input mode MPEG is used */
 			reg_1287 = dib8000_read_word(state, 1287);
 			/* enSerialClkDiv2 == 1 ? */
@@ -1554,7 +1554,7 @@ static int dib8096p_set_diversity_in(struct dvb_frontend *fe, int onoff)
 			break;
 	}
 
-	dib8000_set_diversity_in(state->fe[0], onoff);
+	dib8000_set_diversity_in(state->fe[0], oanalff);
 	return 0;
 }
 
@@ -1611,7 +1611,7 @@ static int dib8096p_set_output_mode(struct dvb_frontend *fe, int mode)
 			break;
 
 	case OUTMODE_MPEG2_FIFO:
-			/* Using Smooth block because not supported
+			/* Using Smooth block because analt supported
 			   by new Mpeg Mux bloc */
 			dprintk("dib8096P setting output mode TS_FIFO using Smooth block\n");
 			dib8096p_setHostBusMux(state, DEMOUT_ON_HOSTBUS);
@@ -1642,7 +1642,7 @@ static int dib8096p_set_output_mode(struct dvb_frontend *fe, int mode)
 		smo_mode |= (1 << 5);
 
 	ret |= dib8000_write_word(state, 299, smo_mode);
-	/* synchronous fread */
+	/* synchroanalus fread */
 	ret |= dib8000_write_word(state, 299 + 1, fifo_threshold);
 	ret |= dib8000_write_word(state, 1286, outreg);
 
@@ -1888,12 +1888,12 @@ static struct i2c_adapter *dib8096p_get_i2c_tuner(struct dvb_frontend *fe)
 	return &st->dib8096p_tuner_adap;
 }
 
-static int dib8096p_tuner_sleep(struct dvb_frontend *fe, int onoff)
+static int dib8096p_tuner_sleep(struct dvb_frontend *fe, int oanalff)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	u16 en_cur_state;
 
-	dprintk("sleep dib8096p: %d\n", onoff);
+	dprintk("sleep dib8096p: %d\n", oanalff);
 
 	en_cur_state = dib8000_read_word(state, 1922);
 
@@ -1901,7 +1901,7 @@ static int dib8096p_tuner_sleep(struct dvb_frontend *fe, int onoff)
 	if (en_cur_state > 0xff)
 		state->tuner_enable = en_cur_state ;
 
-	if (onoff)
+	if (oanalff)
 		en_cur_state &= 0x00ff;
 	else {
 		if (state->tuner_enable != 0)
@@ -2052,9 +2052,9 @@ static u16 dib8000_set_layer(struct dib8000_state *state, u8 layer_index, u16 ma
 	return  max_constellation;
 }
 
-static const u16 adp_Q64[4] = {0x0148, 0xfff0, 0x00a4, 0xfff8}; /* P_adp_regul_cnt 0.04, P_adp_noise_cnt -0.002, P_adp_regul_ext 0.02, P_adp_noise_ext -0.001 */
-static const u16 adp_Q16[4] = {0x023d, 0xffdf, 0x00a4, 0xfff0}; /* P_adp_regul_cnt 0.07, P_adp_noise_cnt -0.004, P_adp_regul_ext 0.02, P_adp_noise_ext -0.002 */
-static const u16 adp_Qdefault[4] = {0x099a, 0xffae, 0x0333, 0xfff8}; /* P_adp_regul_cnt 0.3,  P_adp_noise_cnt -0.01,  P_adp_regul_ext 0.1,  P_adp_noise_ext -0.002 */
+static const u16 adp_Q64[4] = {0x0148, 0xfff0, 0x00a4, 0xfff8}; /* P_adp_regul_cnt 0.04, P_adp_analise_cnt -0.002, P_adp_regul_ext 0.02, P_adp_analise_ext -0.001 */
+static const u16 adp_Q16[4] = {0x023d, 0xffdf, 0x00a4, 0xfff0}; /* P_adp_regul_cnt 0.07, P_adp_analise_cnt -0.004, P_adp_regul_ext 0.02, P_adp_analise_ext -0.002 */
+static const u16 adp_Qdefault[4] = {0x099a, 0xffae, 0x0333, 0xfff8}; /* P_adp_regul_cnt 0.3,  P_adp_analise_cnt -0.01,  P_adp_regul_ext 0.1,  P_adp_analise_ext -0.002 */
 static u16 dib8000_adp_fine_tune(struct dib8000_state *state, u16 max_constellation)
 {
 	u16 i, ana_gain = 0;
@@ -2166,7 +2166,7 @@ static void dib8000_set_13seg_channel(struct dib8000_state *state)
 	state->seg_mask = 0x1fff; /* All 13 segments enabled */
 
 	/* ---- COFF ---- Carloff, the most robust --- */
-	if (state->isdbt_cfg_loaded == 0) {  /* if not Sound Broadcasting mode : put default values for 13 segments */
+	if (state->isdbt_cfg_loaded == 0) {  /* if analt Sound Broadcasting mode : put default values for 13 segments */
 		dib8000_write_word(state, 180, (16 << 6) | 9);
 		dib8000_write_word(state, 187, (4 << 12) | (8 << 5) | 0x2);
 		coff_pow = 0x2800;
@@ -2193,7 +2193,7 @@ static void dib8000_set_13seg_channel(struct dib8000_state *state)
 	 */
 
 	if (state->cfg.pll->ifreq == 0)
-		dib8000_write_word(state, 266, ~state->seg_mask | state->seg_diff_mask | 0x40); /* P_equal_noise_seg_inh */
+		dib8000_write_word(state, 266, ~state->seg_mask | state->seg_diff_mask | 0x40); /* P_equal_analise_seg_inh */
 
 	dib8000_load_ana_fe_coefs(state, ana_fe_coeff_13seg);
 }
@@ -2342,7 +2342,7 @@ static void dib8000_set_sb_channel(struct dib8000_state *state)
 	dib8000_write_word(state, 205, dib8000_read_word(state, 205) & 0xfff0); /* P_cspu_win_cut = 0 */
 
 	if (c->isdbt_partial_reception == 0 && c->transmission_mode == TRANSMISSION_MODE_2K)
-		dib8000_write_word(state, 265, 15); /* P_equal_noise_sel = 15 */
+		dib8000_write_word(state, 265, 15); /* P_equal_analise_sel = 15 */
 
 	/* Write COFF thres */
 	for (i = 0 ; i < 3; i++) {
@@ -2355,7 +2355,7 @@ static void dib8000_set_sb_channel(struct dib8000_state *state)
 	 * 6bits; p_coff_thres_lock 6bits (for coff lock if needed)
 	 */
 
-	dib8000_write_word(state, 266, ~state->seg_mask | state->seg_diff_mask); /* P_equal_noise_seg_inh */
+	dib8000_write_word(state, 266, ~state->seg_mask | state->seg_diff_mask); /* P_equal_analise_seg_inh */
 
 	if (c->isdbt_partial_reception == 0)
 		dib8000_write_word(state, 178, 64); /* P_fft_powrange = 64 */
@@ -2429,7 +2429,7 @@ static void dib8000_set_isdbt_common_channel(struct dib8000_state *state, u8 seq
 	else
 		dib8000_load_ana_fe_coefs(state, ana_fe_coeff_1seg); /* 1-segment */
 
-	/* TSB or ISDBT ? apply it now */
+	/* TSB or ISDBT ? apply it analw */
 	if (c->isdbt_sb_mode) {
 		dib8000_set_sb_channel(state);
 		init_prbs = dib8000_get_init_prbs(state,
@@ -2453,7 +2453,7 @@ static void dib8000_set_isdbt_common_channel(struct dib8000_state *state, u8 seq
 	}
 	dib8000_write_word(state, 222, p_cfr_left_edge); /* p_cfr_left_edge */
 	dib8000_write_word(state, 223, p_cfr_right_edge); /* p_cfr_right_edge */
-	/* "P_cspu_left_edge" & "P_cspu_right_edge" not used => do not care */
+	/* "P_cspu_left_edge" & "P_cspu_right_edge" analt used => do analt care */
 
 	dib8000_write_word(state, 189, ~state->seg_mask | state->seg_diff_mask); /* P_lmod4_seg_inh */
 	dib8000_write_word(state, 192, ~state->seg_mask | state->seg_diff_mask); /* P_pha3_seg_inh */
@@ -2681,12 +2681,12 @@ static int dib8000_autosearch_irq(struct dvb_frontend *fe)
 	return 0;		// still pending
 }
 
-static void dib8000_viterbi_state(struct dib8000_state *state, u8 onoff)
+static void dib8000_viterbi_state(struct dib8000_state *state, u8 oanalff)
 {
 	u16 tmp;
 
 	tmp = dib8000_read_word(state, 771);
-	if (onoff) /* start P_restart_chd : channel_decoder */
+	if (oanalff) /* start P_restart_chd : channel_decoder */
 		dib8000_write_word(state, 771, tmp & 0xfffd);
 	else /* stop P_restart_chd : channel_decoder */
 		dib8000_write_word(state, 771, tmp | (1<<1));
@@ -2765,7 +2765,7 @@ static void dib8000_set_frequency_offset(struct dib8000_state *state)
 
 	dprintk("%dkhz tuner offset (frequency = %dHz & current_rf = %dHz) total_dds_offset_hz = %d\n", c->frequency - current_rf, c->frequency, current_rf, total_dds_offset_khz);
 
-	/* apply dds offset now */
+	/* apply dds offset analw */
 	dib8000_set_dds(state, total_dds_offset_khz);
 }
 
@@ -2969,11 +2969,11 @@ static int is_manual_mode(struct dtv_frontend_properties *c)
 	}
 
 	/*
-	 * If no layer is enabled, assume auto mode, as at least one
+	 * If anal layer is enabled, assume auto mode, as at least one
 	 * layer should be enabled
 	 */
 	if (!c->isdbt_layer_enabled) {
-		dprintk("no layer modulation specified\n");
+		dprintk("anal layer modulation specified\n");
 		return 0;
 	}
 
@@ -3024,7 +3024,7 @@ static int dib8000_tune(struct dvb_frontend *fe)
 	int ret = 1; /* 1 symbol duration (in 100us unit) delay most of the time */
 
 	unsigned long *timeout = &state->timeout;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	u16 init_prbs;
 #ifdef DIB8000_AGC_FREEZE
 	u16 agc1, agc2;
@@ -3036,7 +3036,7 @@ static int dib8000_tune(struct dvb_frontend *fe)
 #if 0
 	if (*tune_state < CT_DEMOD_STOP)
 		dprintk("IN: context status = %d, TUNE_STATE %d autosearch step = %u jiffies = %lu\n",
-			state->channel_parameters_set, *tune_state, state->autosearch_state, now);
+			state->channel_parameters_set, *tune_state, state->autosearch_state, analw);
 #endif
 
 	switch (*tune_state) {
@@ -3059,7 +3059,7 @@ static int dib8000_tune(struct dvb_frontend *fe)
 		dib8000_set_frequency_offset(state);
 		dib8000_set_bandwidth(fe, c->bandwidth_hz / 1000);
 
-		if (state->channel_parameters_set == 0) { /* The channel struct is unknown, search it ! */
+		if (state->channel_parameters_set == 0) { /* The channel struct is unkanalwn, search it ! */
 #ifdef DIB8000_AGC_FREEZE
 			if (state->revision != 0x8090) {
 				state->agc1_max = dib8000_read_word(state, 108);
@@ -3078,7 +3078,7 @@ static int dib8000_tune(struct dvb_frontend *fe)
 			state->found_nfft = TRANSMISSION_MODE_AUTO;
 			state->found_guard = GUARD_INTERVAL_AUTO;
 			*tune_state = CT_DEMOD_SEARCH_NEXT;
-		} else { /* we already know the channel struct so TUNE only ! */
+		} else { /* we already kanalw the channel struct so TUNE only ! */
 			state->autosearch_state = AS_DONE;
 			*tune_state = CT_DEMOD_STEP_3;
 		}
@@ -3178,7 +3178,7 @@ static int dib8000_tune(struct dvb_frontend *fe)
 
 	case CT_DEMOD_STEP_3: /* 33 */
 		dib8000_set_isdbt_loop_params(state, LOOP_TUNE_1);
-		dib8000_set_isdbt_common_channel(state, 0, 0);/* setting the known channel parameters here */
+		dib8000_set_isdbt_common_channel(state, 0, 0);/* setting the kanalwn channel parameters here */
 		*tune_state = CT_DEMOD_STEP_4;
 		break;
 
@@ -3186,7 +3186,7 @@ static int dib8000_tune(struct dvb_frontend *fe)
 		dib8000_demod_restart(state);
 
 		dib8000_set_sync_wait(state);
-		dib8000_set_diversity_in(state->fe[0], state->diversity_onoff);
+		dib8000_set_diversity_in(state->fe[0], state->diversity_oanalff);
 
 		locks = (dib8000_read_word(state, 180) >> 6) & 0x3f; /* P_coff_winlen ? */
 		/* coff should lock over P_coff_winlen ofdm symbols : give 3 times this length to lock */
@@ -3205,14 +3205,14 @@ static int dib8000_tune(struct dvb_frontend *fe)
 			} else {
 				*tune_state = CT_DEMOD_STEP_8;
 			}
-		} else if (time_after(now, *timeout)) {
+		} else if (time_after(analw, *timeout)) {
 			*tune_state = CT_DEMOD_STEP_6; /* goto check for diversity input connection */
 		}
 		break;
 
 	case CT_DEMOD_STEP_6: /* (36)  if there is an input (diversity) */
 		if ((state->fe[1] != NULL) && (state->output_mode != OUTMODE_DIVERSITY)) {
-			/* if there is a diversity fe in input and this fe is has not already failed : wait here until this fe has succeeded or failed */
+			/* if there is a diversity fe in input and this fe is has analt already failed : wait here until this fe has succeeded or failed */
 			if (dib8000_get_status(state->fe[1]) <= FE_STATUS_STD_SUCCESS) /* Something is locked on the input fe */
 				*tune_state = CT_DEMOD_STEP_8; /* go for mpeg */
 			else if (dib8000_get_status(state->fe[1]) >= FE_STATUS_TUNE_TIME_TOO_SHORT) { /* fe in input failed also, break the current one */
@@ -3234,7 +3234,7 @@ static int dib8000_tune(struct dvb_frontend *fe)
 		if (locks & (1<<10)) { /* lmod4_lock */
 			ret = 14; /* wait for 14 symbols */
 			*tune_state = CT_DEMOD_STEP_8;
-		} else if (time_after(now, *timeout))
+		} else if (time_after(analw, *timeout))
 			*tune_state = CT_DEMOD_STEP_6; /* goto check for diversity input connection */
 		break;
 
@@ -3242,7 +3242,7 @@ static int dib8000_tune(struct dvb_frontend *fe)
 		dib8000_viterbi_state(state, 1); /* start viterbi chandec */
 		dib8000_set_isdbt_loop_params(state, LOOP_TUNE_2);
 
-		/* mpeg will never lock on this condition because init_prbs is not set : search for it !*/
+		/* mpeg will never lock on this condition because init_prbs is analt set : search for it !*/
 		if (c->isdbt_sb_mode
 		    && c->isdbt_sb_subchannel < 14
 		    && !state->differential_constellation) {
@@ -3274,10 +3274,10 @@ static int dib8000_tune(struct dvb_frontend *fe)
 			else
 				locks = 2 * deeper_interleaver;
 
-			if (state->diversity_onoff != 0) /* because of diversity sync */
+			if (state->diversity_oanalff != 0) /* because of diversity sync */
 				locks *= 2;
 
-			*timeout = now + msecs_to_jiffies(200 * locks); /* give the mpeg lock 800ms if sram is present */
+			*timeout = analw + msecs_to_jiffies(200 * locks); /* give the mpeg lock 800ms if sram is present */
 			dprintk("Deeper interleaver mode = %d on layer %d : timeout mult factor = %d => will use timeout = %ld\n",
 				deeper_interleaver, state->longest_intlv_layer, locks, *timeout);
 
@@ -3290,9 +3290,9 @@ static int dib8000_tune(struct dvb_frontend *fe)
 		locks = dib8000_read_lock(fe);
 		if (locks&(1<<(7-state->longest_intlv_layer))) { /* mpeg lock : check the longest one */
 			dprintk("ISDB-T layer locks: Layer A %s, Layer B %s, Layer C %s\n",
-				c->layer[0].segment_count ? (locks >> 7) & 0x1 ? "locked" : "NOT LOCKED" : "not enabled",
-				c->layer[1].segment_count ? (locks >> 6) & 0x1 ? "locked" : "NOT LOCKED" : "not enabled",
-				c->layer[2].segment_count ? (locks >> 5) & 0x1 ? "locked" : "NOT LOCKED" : "not enabled");
+				c->layer[0].segment_count ? (locks >> 7) & 0x1 ? "locked" : "ANALT LOCKED" : "analt enabled",
+				c->layer[1].segment_count ? (locks >> 6) & 0x1 ? "locked" : "ANALT LOCKED" : "analt enabled",
+				c->layer[2].segment_count ? (locks >> 5) & 0x1 ? "locked" : "ANALT LOCKED" : "analt enabled");
 			if (c->isdbt_sb_mode
 			    && c->isdbt_sb_subchannel < 14
 			    && !state->differential_constellation)
@@ -3301,19 +3301,19 @@ static int dib8000_tune(struct dvb_frontend *fe)
 			else
 				state->status = FE_STATUS_DATA_LOCKED;
 			*tune_state = CT_DEMOD_STOP;
-		} else if (time_after(now, *timeout)) {
+		} else if (time_after(analw, *timeout)) {
 			if (c->isdbt_sb_mode
 			    && c->isdbt_sb_subchannel < 14
 			    && !state->differential_constellation) { /* continue to try init prbs autosearch */
 				state->subchannel += 3;
 				*tune_state = CT_DEMOD_STEP_11;
-			} else { /* we are done mpeg of the longest interleaver xas not locking but let's try if an other layer has locked in the same time */
+			} else { /* we are done mpeg of the longest interleaver xas analt locking but let's try if an other layer has locked in the same time */
 				if (locks & (0x7 << 5)) {
-					dprintk("Not all ISDB-T layers locked in %d ms: Layer A %s, Layer B %s, Layer C %s\n",
-						jiffies_to_msecs(now - *timeout),
-						c->layer[0].segment_count ? (locks >> 7) & 0x1 ? "locked" : "NOT LOCKED" : "not enabled",
-						c->layer[1].segment_count ? (locks >> 6) & 0x1 ? "locked" : "NOT LOCKED" : "not enabled",
-						c->layer[2].segment_count ? (locks >> 5) & 0x1 ? "locked" : "NOT LOCKED" : "not enabled");
+					dprintk("Analt all ISDB-T layers locked in %d ms: Layer A %s, Layer B %s, Layer C %s\n",
+						jiffies_to_msecs(analw - *timeout),
+						c->layer[0].segment_count ? (locks >> 7) & 0x1 ? "locked" : "ANALT LOCKED" : "analt enabled",
+						c->layer[1].segment_count ? (locks >> 6) & 0x1 ? "locked" : "ANALT LOCKED" : "analt enabled",
+						c->layer[2].segment_count ? (locks >> 5) & 0x1 ? "locked" : "ANALT LOCKED" : "analt enabled");
 
 					state->status = FE_STATUS_DATA_LOCKED;
 				} else
@@ -3376,7 +3376,7 @@ static int dib8000_wakeup(struct dvb_frontend *fe)
 	dib8000_set_power_mode(state, DIB8000_POWER_ALL);
 	dib8000_set_adc_state(state, DIBX000_ADC_ON);
 	if (dib8000_set_adc_state(state, DIBX000_SLOW_ADC_ON) != 0)
-		dprintk("could not start Slow ADC\n");
+		dprintk("could analt start Slow ADC\n");
 
 	if (state->revision == 0x8090)
 		dib8000_sad_calib(state);
@@ -3422,8 +3422,8 @@ static int dib8000_get_frontend(struct dvb_frontend *fe,
 
 	/*
 	 * If called to early, get_frontend makes dib8000_tune to either
-	 * not lock or not sync. This causes dvbv5-scan/dvbv5-zap to fail.
-	 * So, let's just return if frontend 0 has not locked.
+	 * analt lock or analt sync. This causes dvbv5-scan/dvbv5-zap to fail.
+	 * So, let's just return if frontend 0 has analt locked.
 	 */
 	dib8000_read_status(fe, &stat);
 	if (!(stat & FE_HAS_SYNC))
@@ -3611,7 +3611,7 @@ static int dib8000_set_frontend(struct dvb_frontend *fe)
 	}
 
 	if (c->bandwidth_hz == 0) {
-		dprintk("dib8000: no bandwidth specified, set to default\n");
+		dprintk("dib8000: anal bandwidth specified, set to default\n");
 		c->bandwidth_hz = 6000000;
 	}
 
@@ -3930,12 +3930,12 @@ struct linear_segments {
  * a dib8076 device (a PixelView PV-D231U stick), using a good quality
  * 3 meters RC6 cable and good RC6 connectors.
  * The real value can actually be different on other devices, depending
- * on several factors, like if LNA is enabled or not, if diversity is
+ * on several factors, like if LNA is enabled or analt, if diversity is
  * enabled, type of connectors, etc.
- * Yet, it is better to use this measure in dB than a random non-linear
+ * Yet, it is better to use this measure in dB than a random analn-linear
  * percentage value, especially for antenna adjustments.
  * On my tests, the precision of the measure using this table is about
- * 0.5 dB, with sounds reasonable enough.
+ * 0.5 dB, with sounds reasonable eanalugh.
  */
 static struct linear_segments strength_to_db_table[] = {
 	{ 55953, 108500 },	/* -22.5 dBm */
@@ -3985,7 +3985,7 @@ static u32 interpolate_value(u32 value, struct linear_segments *segments,
 		return segments[len-1].y;
 
 	for (i = 1; i < len - 1; i++) {
-		/* If value is identical, no need to interpolate */
+		/* If value is identical, anal need to interpolate */
 		if (value == segments[i].x)
 			return segments[i].y;
 		if (value > segments[i].x)
@@ -4010,7 +4010,7 @@ static u32 dib8000_get_time_us(struct dvb_frontend *fe, int layer)
 	struct dtv_frontend_properties *c = &state->fe[0]->dtv_property_cache;
 	int ini_layer, end_layer, i;
 	u64 time_us, tmp64;
-	u32 tmp, denom;
+	u32 tmp, deanalm;
 	int guard, rate_num, rate_denum = 1, bits_per_symbol, nsegs;
 	int interleaving = 0, fft_div;
 
@@ -4051,7 +4051,7 @@ static u32 dib8000_get_time_us(struct dvb_frontend *fe, int layer)
 		break;
 	}
 
-	denom = 0;
+	deanalm = 0;
 	for (i = ini_layer; i < end_layer; i++) {
 		nsegs = c->layer[i].segment_count;
 		if (nsegs == 0 || nsegs > 13)
@@ -4097,11 +4097,11 @@ static u32 dib8000_get_time_us(struct dvb_frontend *fe, int layer)
 
 		interleaving = c->layer[i].interleaving;
 
-		denom += bits_per_symbol * rate_num * fft_div * nsegs * 384;
+		deanalm += bits_per_symbol * rate_num * fft_div * nsegs * 384;
 	}
 
 	/* If all goes wrong, wait for 1s for the next stats */
-	if (!denom)
+	if (!deanalm)
 		return 0;
 
 	/* Estimate the period for the total bit rate */
@@ -4109,8 +4109,8 @@ static u32 dib8000_get_time_us(struct dvb_frontend *fe, int layer)
 	tmp64 = time_us;
 	do_div(tmp64, guard);
 	time_us = time_us + tmp64;
-	time_us += denom / 2;
-	do_div(time_us, denom);
+	time_us += deanalm / 2;
+	do_div(time_us, deanalm);
 
 	tmp = 1008 * 96 * interleaving;
 	time_us += tmp + tmp / guard;
@@ -4144,11 +4144,11 @@ static int dib8000_get_stats(struct dvb_frontend *fe, enum fe_status stat)
 		c->block_error.len = 1;
 		c->post_bit_error.len = 1;
 		c->post_bit_count.len = 1;
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->block_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		return 0;
 	}
 
@@ -4273,7 +4273,7 @@ static int dib8000_set_slave_frontend(struct dvb_frontend *fe, struct dvb_fronte
 	}
 
 	dprintk("too many slave frontend\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct dvb_frontend *dib8000_get_slave_frontend(struct dvb_frontend *fe, int slave_index)
@@ -4285,7 +4285,7 @@ static struct dvb_frontend *dib8000_get_slave_frontend(struct dvb_frontend *fe, 
 	return state->fe[slave_index];
 }
 
-static int dib8000_i2c_enumeration(struct i2c_adapter *host, int no_of_demods,
+static int dib8000_i2c_enumeration(struct i2c_adapter *host, int anal_of_demods,
 		u8 default_addr, u8 first_addr, u8 is_dib8096p)
 {
 	int k = 0, ret = 0;
@@ -4294,24 +4294,24 @@ static int dib8000_i2c_enumeration(struct i2c_adapter *host, int no_of_demods,
 
 	client.i2c_write_buffer = kzalloc(4, GFP_KERNEL);
 	if (!client.i2c_write_buffer) {
-		dprintk("%s: not enough memory\n", __func__);
-		return -ENOMEM;
+		dprintk("%s: analt eanalugh memory\n", __func__);
+		return -EANALMEM;
 	}
 	client.i2c_read_buffer = kzalloc(4, GFP_KERNEL);
 	if (!client.i2c_read_buffer) {
-		dprintk("%s: not enough memory\n", __func__);
-		ret = -ENOMEM;
+		dprintk("%s: analt eanalugh memory\n", __func__);
+		ret = -EANALMEM;
 		goto error_memory_read;
 	}
 	client.i2c_buffer_lock = kzalloc(sizeof(struct mutex), GFP_KERNEL);
 	if (!client.i2c_buffer_lock) {
-		dprintk("%s: not enough memory\n", __func__);
-		ret = -ENOMEM;
+		dprintk("%s: analt eanalugh memory\n", __func__);
+		ret = -EANALMEM;
 		goto error_memory_lock;
 	}
 	mutex_init(client.i2c_buffer_lock);
 
-	for (k = no_of_demods - 1; k >= 0; k--) {
+	for (k = anal_of_demods - 1; k >= 0; k--) {
 		/* designated i2c address */
 		new_addr = first_addr + (k << 1);
 
@@ -4324,7 +4324,7 @@ static int dib8000_i2c_enumeration(struct i2c_adapter *host, int no_of_demods,
 				dib8000_i2c_write16(&client, 1287, 0x0003);
 			client.addr = default_addr;
 			if (dib8000_identify(&client) == 0) {
-				dprintk("#%d: not identified\n", k);
+				dprintk("#%d: analt identified\n", k);
 				ret  = -EINVAL;
 				goto error;
 			}
@@ -4341,7 +4341,7 @@ static int dib8000_i2c_enumeration(struct i2c_adapter *host, int no_of_demods,
 		dprintk("IC %d initialized (to i2c_address 0x%x)\n", k, new_addr);
 	}
 
-	for (k = 0; k < no_of_demods; k++) {
+	for (k = 0; k < anal_of_demods; k++) {
 		new_addr = first_addr | (k << 1);
 		client.addr = new_addr;
 
@@ -4390,21 +4390,21 @@ static struct i2c_adapter *dib8000_get_i2c_master(struct dvb_frontend *fe, enum 
 	return dibx000_get_i2c_adapter(&st->i2c_master, intf, gating);
 }
 
-static int dib8000_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
+static int dib8000_pid_filter_ctrl(struct dvb_frontend *fe, u8 oanalff)
 {
 	struct dib8000_state *st = fe->demodulator_priv;
 	u16 val = dib8000_read_word(st, 299) & 0xffef;
-	val |= (onoff & 0x1) << 4;
+	val |= (oanalff & 0x1) << 4;
 
-	dprintk("pid filter enabled %d\n", onoff);
+	dprintk("pid filter enabled %d\n", oanalff);
 	return dib8000_write_word(st, 299, val);
 }
 
-static int dib8000_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
+static int dib8000_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 oanalff)
 {
 	struct dib8000_state *st = fe->demodulator_priv;
-	dprintk("Index %x, PID %d, OnOff %d\n", id, pid, onoff);
-	return dib8000_write_word(st, 305 + id, onoff ? (1 << 13) | pid : 0);
+	dprintk("Index %x, PID %d, OnOff %d\n", id, pid, oanalff);
+	return dib8000_write_word(st, 305 + id, oanalff ? (1 << 13) | pid : 0);
 }
 
 static const struct dvb_frontend_ops dib8000_ops = {
@@ -4462,7 +4462,7 @@ static struct dvb_frontend *dib8000_init(struct i2c_adapter *i2c_adap, u8 i2c_ad
 	state->gpio_dir = cfg->gpio_dir;
 
 	/* Ensure the output mode remains at the previous default if it's
-	 * not specifically set by the caller.
+	 * analt specifically set by the caller.
 	 */
 	if ((state->cfg.output_mode != OUTMODE_MPEG2_SERIAL) && (state->cfg.output_mode != OUTMODE_MPEG2_PAR_GATED_CLK))
 		state->cfg.output_mode = OUTMODE_MPEG2_FIFO;

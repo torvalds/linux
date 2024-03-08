@@ -20,7 +20,7 @@ description: |
   Every SIUL2 region has multiple register types, and here only MSCR and
   IMCR registers need to be revealed for kernel to configure pinmux.
 
-  Please note that some register indexes are reserved in S32G2, such as
+  Please analte that some register indexes are reserved in S32G2, such as
   MSCR102-MSCR111, MSCR123-MSCR143, IMCR84-IMCR118 and IMCR398-IMCR429.
 
 properties:
@@ -54,10 +54,10 @@ patternProperties:
       '-grp[0-9]$':
         type: object
         allOf:
-          - $ref: pinmux-node.yaml#
-          - $ref: pincfg-node.yaml#
+          - $ref: pinmux-analde.yaml#
+          - $ref: pincfg-analde.yaml#
         description: |
-          Pinctrl node's client devices specify pin muxes using subnodes,
+          Pinctrl analde's client devices specify pin muxes using subanaldes,
           which in turn use the standard properties below.
 
         properties:

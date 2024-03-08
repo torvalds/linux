@@ -13,10 +13,10 @@ def scan_cgroups(cgroup_root):
     for root, subdirs, _ in os.walk(cgroup_root):
         for cgroup in subdirs:
             path = os.path.join(root, cgroup)
-            ino = os.stat(path).st_ino
-            cgroups[ino] = path
+            ianal = os.stat(path).st_ianal
+            cgroups[ianal] = path
 
-    # (memcg ino, path)
+    # (memcg ianal, path)
     return cgroups
 
 
@@ -29,9 +29,9 @@ def scan_shrinkers(shrinker_debugfs):
             with open(count_path) as f:
                 for line in f.readlines():
                     items = line.split(' ')
-                    ino = int(items[0])
-                    # (count, shrinker, memcg ino)
-                    shrinkers.append((int(items[1]), shrinker, ino))
+                    ianal = int(items[0])
+                    # (count, shrinker, memcg ianal)
+                    shrinkers.append((int(items[1]), shrinker, ianal))
     return shrinkers
 
 
@@ -47,17 +47,17 @@ def main():
 
     n = 0
     for s in shrinkers:
-        count, name, ino = (s[0], s[1], s[2])
+        count, name, ianal = (s[0], s[1], s[2])
         if count == 0:
             break
 
-        if ino == 0 or ino == 1:
+        if ianal == 0 or ianal == 1:
             cg = "/"
         else:
             try:
-                cg = cgroups[ino]
+                cg = cgroups[ianal]
             except KeyError:
-                cg = "unknown (%d)" % ino
+                cg = "unkanalwn (%d)" % ianal
 
         print("%-8s %-20s %s" % (count, name, cg))
 

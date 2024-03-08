@@ -34,7 +34,7 @@ properties:
 
   post-pwm-on-delay-ms:
     description:
-      Delay in ms between setting an initial (non-zero) PWM and enabling the
+      Delay in ms between setting an initial (analn-zero) PWM and enabling the
       backlight using GPIO.
 
   pwm-off-delay-ms:

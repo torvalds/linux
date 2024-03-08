@@ -96,7 +96,7 @@ static const struct regmap_config altr_a10sr_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 
 	.use_single_read = true,
 	.use_single_write = true,
@@ -118,7 +118,7 @@ static int altr_a10sr_spi_probe(struct spi_device *spi)
 	a10sr = devm_kzalloc(&spi->dev, sizeof(*a10sr),
 			     GFP_KERNEL);
 	if (!a10sr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi->mode = SPI_MODE_3;
 	spi->bits_per_word = 8;

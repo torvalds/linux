@@ -5,8 +5,8 @@ Required properties :
   "stericsson,ab8500-clk"
 - #clock-cells should be <1>
 
-The ABx500 clocks need to be placed as a subnode of an AB8500
-device node, see mfd/ab8500.txt
+The ABx500 clocks need to be placed as a subanalde of an AB8500
+device analde, see mfd/ab8500.txt
 
 All available clocks are defined as preprocessor macros in
 dt-bindings/clock/ste-ab8500.h header and can be used in device

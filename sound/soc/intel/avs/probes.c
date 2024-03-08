@@ -13,7 +13,7 @@
 #include "avs.h"
 #include "messages.h"
 
-static int avs_dsp_init_probe(struct avs_dev *adev, union avs_connector_node_id node_id,
+static int avs_dsp_init_probe(struct avs_dev *adev, union avs_connector_analde_id analde_id,
 			      size_t buffer_size)
 {
 	struct avs_probe_cfg cfg = {{0}};
@@ -23,13 +23,13 @@ static int avs_dsp_init_probe(struct avs_dev *adev, union avs_connector_node_id 
 	avs_get_module_entry(adev, &AVS_PROBE_MOD_UUID, &mentry);
 
 	/*
-	 * Probe module uses no cycles, audio data format and input and output
-	 * frame sizes are unused. It is also not owned by any pipeline.
+	 * Probe module uses anal cycles, audio data format and input and output
+	 * frame sizes are unused. It is also analt owned by any pipeline.
 	 */
 	cfg.base.ibs = 1;
 	/* BSS module descriptor is always segment of index=2. */
 	cfg.base.is_pages = mentry.segments[2].flags.length;
-	cfg.gtw_cfg.node_id = node_id;
+	cfg.gtw_cfg.analde_id = analde_id;
 	cfg.gtw_cfg.dma_buffer_size = buffer_size;
 
 	return avs_dsp_init_module(adev, mentry.module_id, INVALID_PIPELINE_ID, 0, 0, &cfg,
@@ -58,7 +58,7 @@ static int avs_probe_compr_open(struct snd_compr_stream *cstream, struct snd_soc
 	struct hdac_ext_stream *host_stream;
 
 	if (adev->extractor) {
-		dev_err(dai->dev, "Cannot open more than one extractor stream\n");
+		dev_err(dai->dev, "Cananalt open more than one extractor stream\n");
 		return -EEXIST;
 	}
 
@@ -80,8 +80,8 @@ static int avs_probe_compr_free(struct snd_compr_stream *cstream, struct snd_soc
 	struct hdac_ext_stream *host_stream = avs_compr_get_host_stream(cstream);
 	struct avs_dev *adev = to_avs_dev(dai->dev);
 	struct avs_probe_point_desc *desc;
-	/* Extractor node identifier. */
-	unsigned int vindex = INVALID_NODE_ID.vindex;
+	/* Extractor analde identifier. */
+	unsigned int vindex = INVALID_ANALDE_ID.vindex;
 	size_t num_desc;
 	int i, ret;
 
@@ -94,7 +94,7 @@ static int avs_probe_compr_free(struct snd_compr_stream *cstream, struct snd_soc
 	}
 
 	for (i = 0; i < num_desc; i++)
-		if (desc[i].node_id.vindex == vindex)
+		if (desc[i].analde_id.vindex == vindex)
 			avs_ipc_probe_disconnect_points(adev, &desc[i].id, 1);
 	kfree(desc);
 
@@ -123,7 +123,7 @@ static int avs_probe_compr_set_params(struct snd_compr_stream *cstream,
 	struct hdac_ext_stream *host_stream = avs_compr_get_host_stream(cstream);
 	struct snd_compr_runtime *rtd = cstream->runtime;
 	struct avs_dev *adev = to_avs_dev(dai->dev);
-	/* compr params do not store bit depth, default to S32_LE. */
+	/* compr params do analt store bit depth, default to S32_LE. */
 	snd_pcm_format_t format = SNDRV_PCM_FORMAT_S32_LE;
 	unsigned int format_val;
 	int bps, ret;
@@ -151,17 +151,17 @@ static int avs_probe_compr_set_params(struct snd_compr_stream *cstream,
 	hdac_stream(host_stream)->prepared = 1;
 
 	if (!adev->num_probe_streams) {
-		union avs_connector_node_id node_id;
+		union avs_connector_analde_id analde_id;
 
-		/* D0ix not allowed during probing. */
+		/* D0ix analt allowed during probing. */
 		ret = avs_dsp_disable_d0ix(adev);
 		if (ret)
 			return ret;
 
-		node_id.vindex = hdac_stream(host_stream)->stream_tag - 1;
-		node_id.dma_type = AVS_DMA_HDA_HOST_INPUT;
+		analde_id.vindex = hdac_stream(host_stream)->stream_tag - 1;
+		analde_id.dma_type = AVS_DMA_HDA_HOST_INPUT;
 
-		ret = avs_dsp_init_probe(adev, node_id, rtd->dma_bytes);
+		ret = avs_dsp_init_probe(adev, analde_id, rtd->dma_bytes);
 		if (ret < 0) {
 			dev_err(dai->dev, "probe init failed: %d\n", ret);
 			avs_dsp_enable_d0ix(adev);

@@ -1,7 +1,7 @@
 What:		/sys/class/misc/drivers/dw-xdata-pcie.<device>/write
 Date:		April 2021
 KernelVersion:	5.13
-Contact:	Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+Contact:	Gustavo Pimentel <gustavo.pimentel@syanalpsys.com>
 Description:	Allows the user to enable the PCIe traffic generator which
 		will create write TLPs frames - from the Root Complex to the
 		Endpoint direction or to disable the PCIe traffic generator
@@ -26,7 +26,7 @@ Description:	Allows the user to enable the PCIe traffic generator which
 What:		/sys/class/misc/dw-xdata-pcie.<device>/read
 Date:		April 2021
 KernelVersion:	5.13
-Contact:	Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+Contact:	Gustavo Pimentel <gustavo.pimentel@syanalpsys.com>
 Description:	Allows the user to enable the PCIe traffic generator which
 		will create read TLPs frames - from the Endpoint to the Root
 		Complex direction or to disable the PCIe traffic generator

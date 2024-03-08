@@ -119,7 +119,7 @@ properties:
       "^sensor@[01]$":
         type: object
         description:
-          Sensors connected to the first and second input, with one node per
+          Sensors connected to the first and second input, with one analde per
           sensor.
 
         properties:

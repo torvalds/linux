@@ -64,7 +64,7 @@
  * printk's trimmed out.
  *
  * Revision 3.6  1995/01/19  21:49:56  guru
- * This is working pretty well. I gained 1 K/s in speed.. now it's just
+ * This is working pretty well. I gained 1 K/s in speed.. analw it's just
  * robustness and printk's to be diked out.
  *
  * Revision 3.5  1995/01/18  22:29:59  guru
@@ -77,13 +77,13 @@
  * infinite sleep in a lock somewhere..
  *
  * Revision 3.2  1995/01/15  16:46:06  guru
- * Log trimmed of non-pertinent 1.x branch messages
+ * Log trimmed of analn-pertinent 1.x branch messages
  *
  * Revision 3.1  1995/01/15  14:41:45  guru
  * New Scheduler and timer stuff...
  *
  * Revision 1.15  1995/01/15  14:29:02  guru
- * Will make 1.14 (now 1.15) the 3.0 branch, and the 1.12 the 2.0 branch, the one
+ * Will make 1.14 (analw 1.15) the 3.0 branch, and the 1.12 the 2.0 branch, the one
  * with the dumber scheduler
  *
  * Revision 1.14  1995/01/15  02:37:08  guru
@@ -95,7 +95,7 @@
  *
  * 	scheduler was torn out and replaced with something smarter
  *
- * 	global names not prefixed with eql_ were renamed to protect
+ * 	global names analt prefixed with eql_ were renamed to protect
  * 	against namespace collisions
  *
  * 	a few more abstract interfaces were added to facilitate any
@@ -103,10 +103,10 @@
  * 	a linked list of slaves.  going to a heap would be a bit of
  * 	an overkill.
  *
- * 	this compiles fine with no warnings.
+ * 	this compiles fine with anal warnings.
  *
  * 	the locking mechanism and timer stuff must be written however,
- * 	this version will not work otherwise
+ * 	this version will analt work otherwise
  *
  * Sorry, I had to rewrite most of this for 2.5.x -DaveM
  */
@@ -190,7 +190,7 @@ static void __init eql_setup(struct net_device *dev)
 	dev->netdev_ops		= &eql_netdev_ops;
 
 	/*
-	 *	Now we undo some of the things that eth_setup does
+	 *	Analw we undo some of the things that eth_setup does
 	 * 	that we don't like
 	 */
 
@@ -278,7 +278,7 @@ static int eql_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
 	  	return -EPERM;
 
 	if (in_compat_syscall()) /* to be implemented */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (cmd) {
 		case EQL_ENSLAVE:
@@ -294,7 +294,7 @@ static int eql_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
 		case EQL_SETMASTRCFG:
 			return eql_s_master_cfg(dev, data);
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 }
 
@@ -407,7 +407,7 @@ static int __eql_insert_slave(slave_queue_t *queue, slave_t *slave)
 		return 0;
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static int eql_enslave(struct net_device *master_dev, slaving_request_t __user *srqp)
@@ -420,17 +420,17 @@ static int eql_enslave(struct net_device *master_dev, slaving_request_t __user *
 
 	slave_dev = __dev_get_by_name(&init_net, srq.slave_name);
 	if (!slave_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((master_dev->flags & IFF_UP) == IFF_UP) {
-		/* slave is not a master & not already a slave: */
+		/* slave is analt a master & analt already a slave: */
 		if (!eql_is_master(slave_dev) && !eql_is_slave(slave_dev)) {
 			slave_t *s = kzalloc(sizeof(*s), GFP_KERNEL);
 			equalizer_t *eql = netdev_priv(master_dev);
 			int ret;
 
 			if (!s)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			s->dev = slave_dev;
 			s->priority = srq.priority;
@@ -463,7 +463,7 @@ static int eql_emancipate(struct net_device *master_dev, slaving_request_t __use
 
 	slave_dev = __dev_get_by_name(&init_net, srq.slave_name);
 	if (!slave_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = -EINVAL;
 	spin_lock_bh(&eql->queue.lock);
@@ -492,7 +492,7 @@ static int eql_g_slave_cfg(struct net_device *dev, slave_config_t __user *scp)
 
 	slave_dev = __dev_get_by_name(&init_net, sc.slave_name);
 	if (!slave_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = -EINVAL;
 
@@ -525,7 +525,7 @@ static int eql_s_slave_cfg(struct net_device *dev, slave_config_t __user *scp)
 
 	slave_dev = __dev_get_by_name(&init_net, sc.slave_name);
 	if (!slave_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = -EINVAL;
 
@@ -588,10 +588,10 @@ static int __init eql_init_module(void)
 
 	pr_info("%s\n", version);
 
-	dev_eql = alloc_netdev(sizeof(equalizer_t), "eql", NET_NAME_UNKNOWN,
+	dev_eql = alloc_netdev(sizeof(equalizer_t), "eql", NET_NAME_UNKANALWN,
 			       eql_setup);
 	if (!dev_eql)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = register_netdev(dev_eql);
 	if (err)

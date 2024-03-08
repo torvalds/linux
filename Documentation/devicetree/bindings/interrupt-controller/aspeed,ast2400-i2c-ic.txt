@@ -9,7 +9,7 @@ Required Properties:
 			  or "aspeed,ast2500-i2c-ic"
 - reg			: address start and range of controller
 - interrupts		: interrupt number
-- interrupt-controller	: denotes that the controller receives and fires
+- interrupt-controller	: deanaltes that the controller receives and fires
 			  new interrupts for child busses
 
 Example:

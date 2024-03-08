@@ -51,7 +51,7 @@ mt7603_efuse_init(struct mt7603_dev *dev)
 	dev->mt76.otp.data = devm_kzalloc(dev->mt76.dev, len, GFP_KERNEL);
 	dev->mt76.otp.size = len;
 	if (!dev->mt76.otp.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf = dev->mt76.otp.data;
 	for (i = 0; i + 16 <= len; i += 16) {
@@ -101,7 +101,7 @@ mt7603_apply_cal_free_data(struct mt7603_dev *dev, u8 *efuse)
 		MT_EE_TX_POWER_1_START_2G,
 		MT_EE_TX_POWER_1_START_2G + 1,
 	};
-	struct device_node *np = dev->mt76.dev->of_node;
+	struct device_analde *np = dev->mt76.dev->of_analde;
 	u8 *eeprom = dev->mt76.eeprom.data;
 	int n = ARRAY_SIZE(cal_free_bytes);
 	int i;

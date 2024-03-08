@@ -111,7 +111,7 @@ struct wm8510_priv {
 };
 
 static const char *wm8510_companding[] = { "Off", "NC", "u-law", "A-law" };
-static const char *wm8510_deemp[] = { "None", "32kHz", "44.1kHz", "48kHz" };
+static const char *wm8510_deemp[] = { "Analne", "32kHz", "44.1kHz", "48kHz" };
 static const char *wm8510_alc[] = { "ALC", "Limiter" };
 
 static const struct soc_enum wm8510_enum[] = {
@@ -158,8 +158,8 @@ SOC_ENUM("ALC Capture Mode", wm8510_enum[3]),
 SOC_SINGLE("ALC Capture Decay", WM8510_ALC3,  4, 15, 0),
 SOC_SINGLE("ALC Capture Attack", WM8510_ALC3,  0, 15, 0),
 
-SOC_SINGLE("ALC Capture Noise Gate Switch", WM8510_NGATE,  3, 1, 0),
-SOC_SINGLE("ALC Capture Noise Gate Threshold", WM8510_NGATE,  0, 7, 0),
+SOC_SINGLE("ALC Capture Analise Gate Switch", WM8510_NGATE,  3, 1, 0),
+SOC_SINGLE("ALC Capture Analise Gate Threshold", WM8510_NGATE,  0, 7, 0),
 
 SOC_SINGLE("Capture PGA ZC Switch", WM8510_INPPGA,  7, 1, 0),
 SOC_SINGLE("Capture PGA Volume", WM8510_INPPGA,  0, 63, 0),
@@ -170,7 +170,7 @@ SOC_SINGLE("Speaker Playback Volume", WM8510_SPKVOL,  0, 63, 0),
 SOC_SINGLE("Speaker Boost", WM8510_OUTPUT, 2, 1, 0),
 
 SOC_SINGLE("Capture Boost(+20dB)", WM8510_ADCBOOST,  8, 1, 0),
-SOC_SINGLE("Mono Playback Switch", WM8510_MONOMIX, 6, 1, 1),
+SOC_SINGLE("Moanal Playback Switch", WM8510_MOANALMIX, 6, 1, 1),
 };
 
 /* Speaker Output Mixer */
@@ -180,11 +180,11 @@ SOC_DAPM_SINGLE("Aux Playback Switch", WM8510_SPKMIX, 5, 1, 0),
 SOC_DAPM_SINGLE("PCM Playback Switch", WM8510_SPKMIX, 0, 1, 0),
 };
 
-/* Mono Output Mixer */
-static const struct snd_kcontrol_new wm8510_mono_mixer_controls[] = {
-SOC_DAPM_SINGLE("Line Bypass Switch", WM8510_MONOMIX, 1, 1, 0),
-SOC_DAPM_SINGLE("Aux Playback Switch", WM8510_MONOMIX, 2, 1, 0),
-SOC_DAPM_SINGLE("PCM Playback Switch", WM8510_MONOMIX, 0, 1, 0),
+/* Moanal Output Mixer */
+static const struct snd_kcontrol_new wm8510_moanal_mixer_controls[] = {
+SOC_DAPM_SINGLE("Line Bypass Switch", WM8510_MOANALMIX, 1, 1, 0),
+SOC_DAPM_SINGLE("Aux Playback Switch", WM8510_MOANALMIX, 2, 1, 0),
+SOC_DAPM_SINGLE("PCM Playback Switch", WM8510_MOANALMIX, 0, 1, 0),
 };
 
 static const struct snd_kcontrol_new wm8510_boost_controls[] = {
@@ -203,15 +203,15 @@ static const struct snd_soc_dapm_widget wm8510_dapm_widgets[] = {
 SND_SOC_DAPM_MIXER("Speaker Mixer", WM8510_POWER3, 2, 0,
 	&wm8510_speaker_mixer_controls[0],
 	ARRAY_SIZE(wm8510_speaker_mixer_controls)),
-SND_SOC_DAPM_MIXER("Mono Mixer", WM8510_POWER3, 3, 0,
-	&wm8510_mono_mixer_controls[0],
-	ARRAY_SIZE(wm8510_mono_mixer_controls)),
+SND_SOC_DAPM_MIXER("Moanal Mixer", WM8510_POWER3, 3, 0,
+	&wm8510_moanal_mixer_controls[0],
+	ARRAY_SIZE(wm8510_moanal_mixer_controls)),
 SND_SOC_DAPM_DAC("DAC", "HiFi Playback", WM8510_POWER3, 0, 0),
 SND_SOC_DAPM_ADC("ADC", "HiFi Capture", WM8510_POWER2, 0, 0),
 SND_SOC_DAPM_PGA("Aux Input", WM8510_POWER1, 6, 0, NULL, 0),
 SND_SOC_DAPM_PGA("SpkN Out", WM8510_POWER3, 5, 0, NULL, 0),
 SND_SOC_DAPM_PGA("SpkP Out", WM8510_POWER3, 6, 0, NULL, 0),
-SND_SOC_DAPM_PGA("Mono Out", WM8510_POWER3, 7, 0, NULL, 0),
+SND_SOC_DAPM_PGA("Moanal Out", WM8510_POWER3, 7, 0, NULL, 0),
 
 SND_SOC_DAPM_MIXER("Mic PGA", WM8510_POWER2, 2, 0,
 		   &wm8510_micpga_controls[0],
@@ -225,16 +225,16 @@ SND_SOC_DAPM_MICBIAS("Mic Bias", WM8510_POWER1, 4, 0),
 SND_SOC_DAPM_INPUT("MICN"),
 SND_SOC_DAPM_INPUT("MICP"),
 SND_SOC_DAPM_INPUT("AUX"),
-SND_SOC_DAPM_OUTPUT("MONOOUT"),
+SND_SOC_DAPM_OUTPUT("MOANALOUT"),
 SND_SOC_DAPM_OUTPUT("SPKOUTP"),
 SND_SOC_DAPM_OUTPUT("SPKOUTN"),
 };
 
 static const struct snd_soc_dapm_route wm8510_dapm_routes[] = {
-	/* Mono output mixer */
-	{"Mono Mixer", "PCM Playback Switch", "DAC"},
-	{"Mono Mixer", "Aux Playback Switch", "Aux Input"},
-	{"Mono Mixer", "Line Bypass Switch", "Boost Mixer"},
+	/* Moanal output mixer */
+	{"Moanal Mixer", "PCM Playback Switch", "DAC"},
+	{"Moanal Mixer", "Aux Playback Switch", "Aux Input"},
+	{"Moanal Mixer", "Line Bypass Switch", "Boost Mixer"},
 
 	/* Speaker output mixer */
 	{"Speaker Mixer", "PCM Playback Switch", "DAC"},
@@ -242,8 +242,8 @@ static const struct snd_soc_dapm_route wm8510_dapm_routes[] = {
 	{"Speaker Mixer", "Line Bypass Switch", "Boost Mixer"},
 
 	/* Outputs */
-	{"Mono Out", NULL, "Mono Mixer"},
-	{"MONOOUT", NULL, "Mono Out"},
+	{"Moanal Out", NULL, "Moanal Mixer"},
+	{"MOANALOUT", NULL, "Moanal Out"},
 	{"SpkN Out", NULL, "Speaker Mixer"},
 	{"SpkP Out", NULL, "Speaker Mixer"},
 	{"SPKOUTN", NULL, "SpkN Out"},
@@ -304,7 +304,7 @@ static void pll_factors(unsigned int target, unsigned int source)
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range analw rounding is done */
 	K /= 10;
 
 	pll_div.k = K;
@@ -551,7 +551,7 @@ static const struct snd_soc_dai_ops wm8510_dai_ops = {
 	.set_fmt	= wm8510_set_dai_fmt,
 	.set_clkdiv	= wm8510_set_dai_clkdiv,
 	.set_pll	= wm8510_set_dai_pll,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8510_dai = {
@@ -603,7 +603,7 @@ MODULE_DEVICE_TABLE(of, wm8510_of_match);
 static const struct regmap_config wm8510_regmap = {
 	.reg_bits = 7,
 	.val_bits = 9,
-	.max_register = WM8510_MONOMIX,
+	.max_register = WM8510_MOANALMIX,
 
 	.reg_defaults = wm8510_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8510_reg_defaults),
@@ -621,7 +621,7 @@ static int wm8510_spi_probe(struct spi_device *spi)
 	wm8510 = devm_kzalloc(&spi->dev, sizeof(struct wm8510_priv),
 			      GFP_KERNEL);
 	if (wm8510 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8510->regmap = devm_regmap_init_spi(spi, &wm8510_regmap);
 	if (IS_ERR(wm8510->regmap))
@@ -653,7 +653,7 @@ static int wm8510_i2c_probe(struct i2c_client *i2c)
 	wm8510 = devm_kzalloc(&i2c->dev, sizeof(struct wm8510_priv),
 			      GFP_KERNEL);
 	if (wm8510 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8510->regmap = devm_regmap_init_i2c(i2c, &wm8510_regmap);
 	if (IS_ERR(wm8510->regmap))

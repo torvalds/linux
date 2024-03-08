@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/display/panel/novatek,nt35510.yaml#
+$id: http://devicetree.org/schemas/display/panel/analvatek,nt35510.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Novatek NT35510-based display panels
+title: Analvatek NT35510-based display panels
 
 maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
@@ -16,11 +16,11 @@ properties:
   compatible:
     items:
       - const: hydis,hva40wv1
-      - const: novatek,nt35510
+      - const: analvatek,nt35510
     description: This indicates the panel manufacturer of the panel
       that is in turn using the NT35510 panel driver. The compatible
       string determines how the NT35510 panel driver shall be configured
-      to work with the indicated panel. The novatek,nt35510 compatible shall
+      to work with the indicated panel. The analvatek,nt35510 compatible shall
       always be provided as a fallback.
   reg: true
   reset-gpios: true
@@ -44,7 +44,7 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
         panel@0 {
-            compatible = "hydis,hva40wv1", "novatek,nt35510";
+            compatible = "hydis,hva40wv1", "analvatek,nt35510";
             reg = <0>;
             vdd-supply = <&ab8500_ldo_aux4_reg>;
             vddi-supply = <&ab8500_ldo_aux6_reg>;

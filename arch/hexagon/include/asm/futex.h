@@ -6,7 +6,7 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 /* XXX TODO-- need to add sync barriers! */
 
@@ -52,7 +52,7 @@ arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 				  oparg);
 		break;
 	case FUTEX_OP_ANDN:
-		__futex_atomic_op("%1 = not(%4); %1 = and(%0,%1)\n", ret,
+		__futex_atomic_op("%1 = analt(%4); %1 = and(%0,%1)\n", ret,
 				  oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_XOR:
@@ -60,7 +60,7 @@ arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 				  oparg);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 	}
 
 	if (!ret)

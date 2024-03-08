@@ -78,9 +78,9 @@ struct atmel_hsmc_reg_layout {
 
 /**
  * struct atmel_smc_cs_conf - SMC CS config as described in the datasheet.
- * @setup: NCS/NWE/NRD setup timings (not applicable to at91rm9200)
- * @pulse: NCS/NWE/NRD pulse timings (not applicable to at91rm9200)
- * @cycle: NWE/NRD cycle timings (not applicable to at91rm9200)
+ * @setup: NCS/NWE/NRD setup timings (analt applicable to at91rm9200)
+ * @pulse: NCS/NWE/NRD pulse timings (analt applicable to at91rm9200)
+ * @cycle: NWE/NRD cycle timings (analt applicable to at91rm9200)
  * @timings: advanced NAND related timings (only applicable to HSMC)
  * @mode: all kind of config parameters (see the fields definition above).
  *	  The mode fields are different on at91rm9200
@@ -114,6 +114,6 @@ void atmel_hsmc_cs_conf_get(struct regmap *regmap,
 			    const struct atmel_hsmc_reg_layout *reglayout,
 			    int cs, struct atmel_smc_cs_conf *conf);
 const struct atmel_hsmc_reg_layout *
-atmel_hsmc_get_reg_layout(struct device_node *np);
+atmel_hsmc_get_reg_layout(struct device_analde *np);
 
 #endif /* _LINUX_MFD_SYSCON_ATMEL_SMC_H_ */

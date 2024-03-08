@@ -14,9 +14,9 @@
 
 #ifdef CONFIG_ARM_LPAE
 #define FSR_FS_AEA		17
-#define FS_TRANS_NOLL		0x4
-#define FS_PERM_NOLL		0xC
-#define FS_MMU_NOLL_MASK	0x3C
+#define FS_TRANS_ANALLL		0x4
+#define FS_PERM_ANALLL		0xC
+#define FS_MMU_ANALLL_MASK	0x3C
 
 static inline int fsr_fs(unsigned int fsr)
 {

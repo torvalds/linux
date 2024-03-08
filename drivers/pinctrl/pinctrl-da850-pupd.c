@@ -57,7 +57,7 @@ static const struct pinctrl_ops da850_pupd_pctlops = {
 	.get_groups_count	= da850_pupd_get_groups_count,
 	.get_group_name		= da850_pupd_get_group_name,
 	.get_group_pins		= da850_pupd_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_group,
 	.dt_free_map		= pinconf_generic_dt_free_map,
 };
 
@@ -149,11 +149,11 @@ static int da850_pupd_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->base)) {
-		dev_err(dev, "Could not map resource\n");
+		dev_err(dev, "Could analt map resource\n");
 		return PTR_ERR(data->base);
 	}
 
@@ -188,6 +188,6 @@ static struct platform_driver da850_pupd_driver = {
 };
 module_platform_driver(da850_pupd_driver);
 
-MODULE_AUTHOR("David Lechner <david@lechnology.com>");
+MODULE_AUTHOR("David Lechner <david@lechanallogy.com>");
 MODULE_DESCRIPTION("TI DA850/OMAP-L138/AM18XX pullup/pulldown configuration");
 MODULE_LICENSE("GPL");

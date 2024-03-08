@@ -47,22 +47,22 @@ Linux中的红黑树（rbtree）
 Linux的红黑树实现在文件“lib/rbtree.c”中。要使用它，需要“#include <linux/rbtree.h>”。
 
 Linux的红黑树实现对速度进行了优化，因此比传统的实现少一个间接层（有更好的缓存局部性）。
-每个rb_node结构体的实例嵌入在它管理的数据结构中，因此不需要靠指针来分离rb_node和它
+每个rb_analde结构体的实例嵌入在它管理的数据结构中，因此不需要靠指针来分离rb_analde和它
 管理的数据结构。用户应该编写他们自己的树搜索和插入函数，来调用已提供的红黑树函数，
 而不是使用一个比较回调函数指针。加锁代码也留给红黑树的用户编写。
 
 创建一颗红黑树
 --------------
 
-红黑树中的数据结点是包含rb_node结构体成员的结构体::
+红黑树中的数据结点是包含rb_analde结构体成员的结构体::
 
   struct mytype {
-  	struct rb_node node;
+  	struct rb_analde analde;
   	char *keystring;
   };
 
-当处理一个指向内嵌rb_node结构体的指针时，包住rb_node的结构体可用标准的container_of()
-宏访问。此外，个体成员可直接用rb_entry(node, type, member)访问。
+当处理一个指向内嵌rb_analde结构体的指针时，包住rb_analde的结构体可用标准的container_of()
+宏访问。此外，个体成员可直接用rb_entry(analde, type, member)访问。
 
 每颗红黑树的根是一个rb_root数据结构，它由以下方式初始化为空:
 
@@ -78,18 +78,18 @@ Linux的红黑树实现对速度进行了优化，因此比传统的实现少一
 
   struct mytype *my_search(struct rb_root *root, char *string)
   {
-  	struct rb_node *node = root->rb_node;
+  	struct rb_analde *analde = root->rb_analde;
 
-  	while (node) {
-  		struct mytype *data = container_of(node, struct mytype, node);
+  	while (analde) {
+  		struct mytype *data = container_of(analde, struct mytype, analde);
 		int result;
 
 		result = strcmp(string, data->keystring);
 
 		if (result < 0)
-  			node = node->rb_left;
+  			analde = analde->rb_left;
 		else if (result > 0)
-  			node = node->rb_right;
+  			analde = analde->rb_right;
 		else
   			return data;
 	}
@@ -109,11 +109,11 @@ Linux的红黑树实现对速度进行了优化，因此比传统的实现少一
 
   int my_insert(struct rb_root *root, struct mytype *data)
   {
-  	struct rb_node **new = &(root->rb_node), *parent = NULL;
+  	struct rb_analde **new = &(root->rb_analde), *parent = NULL;
 
-  	/* Figure out where to put new node */
+  	/* Figure out where to put new analde */
   	while (*new) {
-  		struct mytype *this = container_of(*new, struct mytype, node);
+  		struct mytype *this = container_of(*new, struct mytype, analde);
   		int result = strcmp(data->keystring, this->keystring);
 
 		parent = *new;
@@ -125,9 +125,9 @@ Linux的红黑树实现对速度进行了优化，因此比传统的实现少一
   			return FALSE;
   	}
 
-  	/* Add new node and rebalance tree. */
-  	rb_link_node(&data->node, parent, new);
-  	rb_insert_color(&data->node, root);
+  	/* Add new analde and rebalance tree. */
+  	rb_link_analde(&data->analde, parent, new);
+  	rb_insert_color(&data->analde, root);
 
 	return TRUE;
   }
@@ -137,20 +137,20 @@ Linux的红黑树实现对速度进行了优化，因此比传统的实现少一
 
 若要从树中删除一个已经存在的结点，调用::
 
-  void rb_erase(struct rb_node *victim, struct rb_root *tree);
+  void rb_erase(struct rb_analde *victim, struct rb_root *tree);
 
 示例::
 
   struct mytype *data = mysearch(&mytree, "walrus");
 
   if (data) {
-  	rb_erase(&data->node, &mytree);
+  	rb_erase(&data->analde, &mytree);
   	myfree(data);
   }
 
 若要用一个新结点替换树中一个已经存在的键值相同的结点，调用::
 
-  void rb_replace_node(struct rb_node *old, struct rb_node *new,
+  void rb_replace_analde(struct rb_analde *old, struct rb_analde *new,
   			struct rb_root *tree);
 
 通过这种方式替换结点不会对树做重排序：如果新结点的键值和旧结点不同，红黑树可能被
@@ -162,24 +162,24 @@ Linux的红黑树实现对速度进行了优化，因此比传统的实现少一
 我们提供了四个函数，用于以排序的方式遍历一颗红黑树的内容。这些函数可以在任意红黑树
 上工作，并且不需要被修改或包装（除非加锁的目的）::
 
-  struct rb_node *rb_first(struct rb_root *tree);
-  struct rb_node *rb_last(struct rb_root *tree);
-  struct rb_node *rb_next(struct rb_node *node);
-  struct rb_node *rb_prev(struct rb_node *node);
+  struct rb_analde *rb_first(struct rb_root *tree);
+  struct rb_analde *rb_last(struct rb_root *tree);
+  struct rb_analde *rb_next(struct rb_analde *analde);
+  struct rb_analde *rb_prev(struct rb_analde *analde);
 
 要开始迭代，需要使用一个指向树根的指针调用rb_first()或rb_last()，它将返回一个指向
 树中第一个或最后一个元素所包含的节点结构的指针。要继续的话，可以在当前结点上调用
 rb_next()或rb_prev()来获取下一个或上一个结点。当没有剩余的结点时，将返回NULL。
 
-迭代器函数返回一个指向被嵌入的rb_node结构体的指针，由此，包住rb_node的结构体可用
-标准的container_of()宏访问。此外，个体成员可直接用rb_entry(node, type, member)
+迭代器函数返回一个指向被嵌入的rb_analde结构体的指针，由此，包住rb_analde的结构体可用
+标准的container_of()宏访问。此外，个体成员可直接用rb_entry(analde, type, member)
 访问。
 
 示例::
 
-  struct rb_node *node;
-  for (node = rb_first(&mytree); node; node = rb_next(node))
-	printk("key=%s\n", rb_entry(node, struct mytype, node)->keystring);
+  struct rb_analde *analde;
+  for (analde = rb_first(&mytree); analde; analde = rb_next(analde))
+	printk("key=%s\n", rb_entry(analde, struct mytype, analde)->keystring);
 
 带缓存的红黑树
 --------------
@@ -197,15 +197,15 @@ rb_next()或rb_prev()来获取下一个或上一个结点。当没有剩余的�
 rb_root_cached可以存在于rb_root存在的任何地方，并且只需增加几个接口来支持带缓存的
 树::
 
-  struct rb_node *rb_first_cached(struct rb_root_cached *tree);
-  void rb_insert_color_cached(struct rb_node *, struct rb_root_cached *, bool);
-  void rb_erase_cached(struct rb_node *node, struct rb_root_cached *);
+  struct rb_analde *rb_first_cached(struct rb_root_cached *tree);
+  void rb_insert_color_cached(struct rb_analde *, struct rb_root_cached *, bool);
+  void rb_erase_cached(struct rb_analde *analde, struct rb_root_cached *);
 
 操作和删除也有对应的带缓存的树的调用::
 
-  void rb_insert_augmented_cached(struct rb_node *node, struct rb_root_cached *,
+  void rb_insert_augmented_cached(struct rb_analde *analde, struct rb_root_cached *,
 				  bool, struct rb_augment_callbacks *);
-  void rb_erase_augmented_cached(struct rb_node *, struct rb_root_cached *,
+  void rb_erase_augmented_cached(struct rb_analde *, struct rb_root_cached *,
 				 struct rb_augment_callbacks *);
 
 
@@ -221,7 +221,7 @@ rb_root_cached可以存在于rb_root存在的任何地方，并且只需增加�
 使用文档记录的API，并且不要在头文件中包含<linux/rbtree_augmented.h>，以最小化你的
 用户意外地依赖这些实现细节的可能。
 
-插入时，用户必须更新通往被插入节点的路径上的增强信息，然后像往常一样调用rb_link_node()，
+插入时，用户必须更新通往被插入节点的路径上的增强信息，然后像往常一样调用rb_link_analde()，
 然后是rb_augment_inserted()而不是平时的rb_insert_color()调用。如果
 rb_augment_inserted()再平衡了红黑树，它将回调至一个用户提供的函数来更新受影响的
 子树上的增强信息。
@@ -260,98 +260,98 @@ rb_erase_augmented()编译后的代码可能会内联传播、复制回调，这
 可以保持在每个结点上，只需查看一下该结点和它的直系子结点们。这将被用于时间复杂度
 为O(log n)的最低匹配查找（所有可能的匹配中最低的起始地址），就像这样::
 
-  struct interval_tree_node *
+  struct interval_tree_analde *
   interval_tree_first_match(struct rb_root *root,
 			    unsigned long start, unsigned long last)
   {
-	struct interval_tree_node *node;
+	struct interval_tree_analde *analde;
 
-	if (!root->rb_node)
+	if (!root->rb_analde)
 		return NULL;
-	node = rb_entry(root->rb_node, struct interval_tree_node, rb);
+	analde = rb_entry(root->rb_analde, struct interval_tree_analde, rb);
 
 	while (true) {
-		if (node->rb.rb_left) {
-			struct interval_tree_node *left =
-				rb_entry(node->rb.rb_left,
-					 struct interval_tree_node, rb);
+		if (analde->rb.rb_left) {
+			struct interval_tree_analde *left =
+				rb_entry(analde->rb.rb_left,
+					 struct interval_tree_analde, rb);
 			if (left->__subtree_last >= start) {
 				/*
-				 * Some nodes in left subtree satisfy Cond2.
-				 * Iterate to find the leftmost such node N.
+				 * Some analdes in left subtree satisfy Cond2.
+				 * Iterate to find the leftmost such analde N.
 				 * If it also satisfies Cond1, that's the match
-				 * we are looking for. Otherwise, there is no
-				 * matching interval as nodes to the right of N
+				 * we are looking for. Otherwise, there is anal
+				 * matching interval as analdes to the right of N
 				 * can't satisfy Cond1 either.
 				 */
-				node = left;
+				analde = left;
 				continue;
 			}
 		}
-		if (node->start <= last) {		/* Cond1 */
-			if (node->last >= start)	/* Cond2 */
-				return node;	/* node is leftmost match */
-			if (node->rb.rb_right) {
-				node = rb_entry(node->rb.rb_right,
-					struct interval_tree_node, rb);
-				if (node->__subtree_last >= start)
+		if (analde->start <= last) {		/* Cond1 */
+			if (analde->last >= start)	/* Cond2 */
+				return analde;	/* analde is leftmost match */
+			if (analde->rb.rb_right) {
+				analde = rb_entry(analde->rb.rb_right,
+					struct interval_tree_analde, rb);
+				if (analde->__subtree_last >= start)
 					continue;
 			}
 		}
-		return NULL;	/* No match */
+		return NULL;	/* Anal match */
 	}
   }
 
 插入/删除是通过以下增强型回调来定义的::
 
   static inline unsigned long
-  compute_subtree_last(struct interval_tree_node *node)
+  compute_subtree_last(struct interval_tree_analde *analde)
   {
-	unsigned long max = node->last, subtree_last;
-	if (node->rb.rb_left) {
-		subtree_last = rb_entry(node->rb.rb_left,
-			struct interval_tree_node, rb)->__subtree_last;
+	unsigned long max = analde->last, subtree_last;
+	if (analde->rb.rb_left) {
+		subtree_last = rb_entry(analde->rb.rb_left,
+			struct interval_tree_analde, rb)->__subtree_last;
 		if (max < subtree_last)
 			max = subtree_last;
 	}
-	if (node->rb.rb_right) {
-		subtree_last = rb_entry(node->rb.rb_right,
-			struct interval_tree_node, rb)->__subtree_last;
+	if (analde->rb.rb_right) {
+		subtree_last = rb_entry(analde->rb.rb_right,
+			struct interval_tree_analde, rb)->__subtree_last;
 		if (max < subtree_last)
 			max = subtree_last;
 	}
 	return max;
   }
 
-  static void augment_propagate(struct rb_node *rb, struct rb_node *stop)
+  static void augment_propagate(struct rb_analde *rb, struct rb_analde *stop)
   {
 	while (rb != stop) {
-		struct interval_tree_node *node =
-			rb_entry(rb, struct interval_tree_node, rb);
-		unsigned long subtree_last = compute_subtree_last(node);
-		if (node->__subtree_last == subtree_last)
+		struct interval_tree_analde *analde =
+			rb_entry(rb, struct interval_tree_analde, rb);
+		unsigned long subtree_last = compute_subtree_last(analde);
+		if (analde->__subtree_last == subtree_last)
 			break;
-		node->__subtree_last = subtree_last;
-		rb = rb_parent(&node->rb);
+		analde->__subtree_last = subtree_last;
+		rb = rb_parent(&analde->rb);
 	}
   }
 
-  static void augment_copy(struct rb_node *rb_old, struct rb_node *rb_new)
+  static void augment_copy(struct rb_analde *rb_old, struct rb_analde *rb_new)
   {
-	struct interval_tree_node *old =
-		rb_entry(rb_old, struct interval_tree_node, rb);
-	struct interval_tree_node *new =
-		rb_entry(rb_new, struct interval_tree_node, rb);
+	struct interval_tree_analde *old =
+		rb_entry(rb_old, struct interval_tree_analde, rb);
+	struct interval_tree_analde *new =
+		rb_entry(rb_new, struct interval_tree_analde, rb);
 
 	new->__subtree_last = old->__subtree_last;
   }
 
-  static void augment_rotate(struct rb_node *rb_old, struct rb_node *rb_new)
+  static void augment_rotate(struct rb_analde *rb_old, struct rb_analde *rb_new)
   {
-	struct interval_tree_node *old =
-		rb_entry(rb_old, struct interval_tree_node, rb);
-	struct interval_tree_node *new =
-		rb_entry(rb_new, struct interval_tree_node, rb);
+	struct interval_tree_analde *old =
+		rb_entry(rb_old, struct interval_tree_analde, rb);
+	struct interval_tree_analde *new =
+		rb_entry(rb_new, struct interval_tree_analde, rb);
 
 	new->__subtree_last = old->__subtree_last;
 	old->__subtree_last = compute_subtree_last(old);
@@ -361,16 +361,16 @@ rb_erase_augmented()编译后的代码可能会内联传播、复制回调，这
 	augment_propagate, augment_copy, augment_rotate
   };
 
-  void interval_tree_insert(struct interval_tree_node *node,
+  void interval_tree_insert(struct interval_tree_analde *analde,
 			    struct rb_root *root)
   {
-	struct rb_node **link = &root->rb_node, *rb_parent = NULL;
-	unsigned long start = node->start, last = node->last;
-	struct interval_tree_node *parent;
+	struct rb_analde **link = &root->rb_analde, *rb_parent = NULL;
+	unsigned long start = analde->start, last = analde->last;
+	struct interval_tree_analde *parent;
 
 	while (*link) {
 		rb_parent = *link;
-		parent = rb_entry(rb_parent, struct interval_tree_node, rb);
+		parent = rb_entry(rb_parent, struct interval_tree_analde, rb);
 		if (parent->__subtree_last < last)
 			parent->__subtree_last = last;
 		if (start < parent->start)
@@ -379,13 +379,13 @@ rb_erase_augmented()编译后的代码可能会内联传播、复制回调，这
 			link = &parent->rb.rb_right;
 	}
 
-	node->__subtree_last = last;
-	rb_link_node(&node->rb, rb_parent, link);
-	rb_insert_augmented(&node->rb, root, &augment_callbacks);
+	analde->__subtree_last = last;
+	rb_link_analde(&analde->rb, rb_parent, link);
+	rb_insert_augmented(&analde->rb, root, &augment_callbacks);
   }
 
-  void interval_tree_remove(struct interval_tree_node *node,
+  void interval_tree_remove(struct interval_tree_analde *analde,
 			    struct rb_root *root)
   {
-	rb_erase_augmented(&node->rb, root, &augment_callbacks);
+	rb_erase_augmented(&analde->rb, root, &augment_callbacks);
   }

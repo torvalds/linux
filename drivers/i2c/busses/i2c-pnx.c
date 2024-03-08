@@ -158,7 +158,7 @@ static int i2c_pnx_start(unsigned char slave_addr,
 
 	/* First, make sure bus is idle */
 	if (wait_timeout(alg_data)) {
-		/* Somebody else is monopolizing the bus */
+		/* Somebody else is moanalpolizing the bus */
 		dev_err(&alg_data->adapter.dev,
 			"%s: Bus busy. Slave addr = %02x, cntrl = %x, stat = %x\n",
 			alg_data->adapter.name, slave_addr,
@@ -309,7 +309,7 @@ static int i2c_pnx_master_rcv(struct i2c_pnx_algo_data *alg_data)
 	 * or we didn't 'ask' for it yet.
 	 */
 	if (ioread32(I2C_REG_STS(alg_data)) & mstatus_rfe) {
-		/* 'Asking' is done asynchronously, e.g. dummy TX of several
+		/* 'Asking' is done asynchroanalusly, e.g. dummy TX of several
 		 * bytes is done before the first actual RX arrives in FIFO.
 		 * Therefore, ordered bytes (via TX) are counted separately.
 		 */
@@ -319,7 +319,7 @@ static int i2c_pnx_master_rcv(struct i2c_pnx_algo_data *alg_data)
 				__func__);
 
 			if (alg_data->mif.order == 1) {
-				/* Last byte, do not acknowledge next rcv. */
+				/* Last byte, do analt ackanalwledge next rcv. */
 				val |= stop_bit;
 
 				/*
@@ -333,7 +333,7 @@ static int i2c_pnx_master_rcv(struct i2c_pnx_algo_data *alg_data)
 			}
 
 			/*
-			 * Now we'll 'ask' for data:
+			 * Analw we'll 'ask' for data:
 			 * For each byte we want to receive, we must
 			 * write a (dummy) byte to the Tx-FIFO.
 			 */
@@ -404,9 +404,9 @@ static irqreturn_t i2c_pnx_interrupt(int irq, void *dev_id)
 		del_timer_sync(&alg_data->mif.timer);
 		complete(&alg_data->mif.complete);
 	} else if (stat & mstatus_nai) {
-		/* Slave did not acknowledge, generate a STOP */
+		/* Slave did analt ackanalwledge, generate a STOP */
 		dev_dbg(&alg_data->adapter.dev,
-			"%s(): Slave did not acknowledge, generating a STOP.\n",
+			"%s(): Slave did analt ackanalwledge, generating a STOP.\n",
 			__func__);
 		i2c_pnx_stop(alg_data);
 
@@ -531,7 +531,7 @@ i2c_pnx_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 
 		if (pmsg->flags & I2C_M_TEN) {
 			dev_err(&alg_data->adapter.dev,
-				"%s: 10 bits addr not supported!\n",
+				"%s: 10 bits addr analt supported!\n",
 				alg_data->adapter.name);
 			rc = -EINVAL;
 			break;
@@ -575,13 +575,13 @@ i2c_pnx_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		/* Clear TDI and AFI bits in case they are set. */
 		if ((stat = ioread32(I2C_REG_STS(alg_data))) & mstatus_tdi) {
 			dev_dbg(&alg_data->adapter.dev,
-				"%s: TDI still set... clearing now.\n",
+				"%s: TDI still set... clearing analw.\n",
 				alg_data->adapter.name);
 			iowrite32(stat, I2C_REG_STS(alg_data));
 		}
 		if ((stat = ioread32(I2C_REG_STS(alg_data))) & mstatus_afi) {
 			dev_dbg(&alg_data->adapter.dev,
-				"%s: AFI still set... clearing now.\n",
+				"%s: AFI still set... clearing analw.\n",
 				alg_data->adapter.name);
 			iowrite32(stat, I2C_REG_STS(alg_data));
 		}
@@ -644,7 +644,7 @@ static int i2c_pnx_probe(struct platform_device *pdev)
 
 	alg_data = devm_kzalloc(&pdev->dev, sizeof(*alg_data), GFP_KERNEL);
 	if (!alg_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, alg_data);
 
@@ -655,16 +655,16 @@ static int i2c_pnx_probe(struct platform_device *pdev)
 
 	alg_data->timeout = I2C_PNX_TIMEOUT_DEFAULT;
 #ifdef CONFIG_OF
-	alg_data->adapter.dev.of_node = of_node_get(pdev->dev.of_node);
-	if (pdev->dev.of_node) {
-		of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+	alg_data->adapter.dev.of_analde = of_analde_get(pdev->dev.of_analde);
+	if (pdev->dev.of_analde) {
+		of_property_read_u32(pdev->dev.of_analde, "clock-frequency",
 				     &speed);
 		/*
 		 * At this point, it is planned to add an OF timeout property.
 		 * As soon as there is a consensus about how to call and handle
 		 * this, sth. like the following can be put here:
 		 *
-		 * of_property_read_u32(pdev->dev.of_node, "timeout",
+		 * of_property_read_u32(pdev->dev.of_analde, "timeout",
 		 *                      &alg_data->timeout);
 		 */
 	}
@@ -708,7 +708,7 @@ static int i2c_pnx_probe(struct platform_device *pdev)
 
 	iowrite32(mcntrl_reset, I2C_REG_CTL(alg_data));
 	if (wait_reset(alg_data)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_clock;
 	}
 	init_completion(&alg_data->mif.complete);

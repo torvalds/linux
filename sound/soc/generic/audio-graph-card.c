@@ -3,7 +3,7 @@
 // ASoC audio graph sound card support
 //
 // Copyright (C) 2016 Renesas Solutions Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 //
 // based on ${LINUX}/sound/soc/generic/simple-card.c
 
@@ -41,7 +41,7 @@ static int graph_outdrv_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget graph_dapm_widgets[] = {
-	SND_SOC_DAPM_OUT_DRV_E("Amplifier", SND_SOC_NOPM,
+	SND_SOC_DAPM_OUT_DRV_E("Amplifier", SND_SOC_ANALPM,
 			       0, 0, NULL, 0, graph_outdrv_event,
 			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 };
@@ -64,49 +64,49 @@ static bool soc_component_is_pcm(struct snd_soc_dai_link_component *dlc)
 }
 
 static void graph_parse_convert(struct device *dev,
-				struct device_node *ep,
+				struct device_analde *ep,
 				struct simple_util_data *adata)
 {
-	struct device_node *top = dev->of_node;
-	struct device_node *port = of_get_parent(ep);
-	struct device_node *ports = of_get_parent(port);
-	struct device_node *node = of_graph_get_port_parent(ep);
+	struct device_analde *top = dev->of_analde;
+	struct device_analde *port = of_get_parent(ep);
+	struct device_analde *ports = of_get_parent(port);
+	struct device_analde *analde = of_graph_get_port_parent(ep);
 
 	simple_util_parse_convert(top,   NULL,   adata);
-	if (of_node_name_eq(ports, "ports"))
+	if (of_analde_name_eq(ports, "ports"))
 		simple_util_parse_convert(ports, NULL, adata);
 	simple_util_parse_convert(port,  NULL,   adata);
 	simple_util_parse_convert(ep,    NULL,   adata);
 
-	of_node_put(port);
-	of_node_put(ports);
-	of_node_put(node);
+	of_analde_put(port);
+	of_analde_put(ports);
+	of_analde_put(analde);
 }
 
-static void graph_parse_mclk_fs(struct device_node *top,
-				struct device_node *ep,
+static void graph_parse_mclk_fs(struct device_analde *top,
+				struct device_analde *ep,
 				struct simple_dai_props *props)
 {
-	struct device_node *port	= of_get_parent(ep);
-	struct device_node *ports	= of_get_parent(port);
+	struct device_analde *port	= of_get_parent(ep);
+	struct device_analde *ports	= of_get_parent(port);
 
 	of_property_read_u32(top,	"mclk-fs", &props->mclk_fs);
-	if (of_node_name_eq(ports, "ports"))
+	if (of_analde_name_eq(ports, "ports"))
 		of_property_read_u32(ports, "mclk-fs", &props->mclk_fs);
 	of_property_read_u32(port,	"mclk-fs", &props->mclk_fs);
 	of_property_read_u32(ep,	"mclk-fs", &props->mclk_fs);
 
-	of_node_put(port);
-	of_node_put(ports);
+	of_analde_put(port);
+	of_analde_put(ports);
 }
 
-static int graph_parse_node(struct simple_util_priv *priv,
-			    struct device_node *ep,
+static int graph_parse_analde(struct simple_util_priv *priv,
+			    struct device_analde *ep,
 			    struct link_info *li,
 			    int *cpu)
 {
 	struct device *dev = simple_priv_to_dev(priv);
-	struct device_node *top = dev->of_node;
+	struct device_analde *top = dev->of_analde;
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
 	struct snd_soc_dai_link_component *dlc;
@@ -139,8 +139,8 @@ static int graph_parse_node(struct simple_util_priv *priv,
 }
 
 static int graph_link_init(struct simple_util_priv *priv,
-			   struct device_node *cpu_ep,
-			   struct device_node *codec_ep,
+			   struct device_analde *cpu_ep,
+			   struct device_analde *codec_ep,
 			   struct link_info *li,
 			   char *name)
 {
@@ -162,15 +162,15 @@ static int graph_link_init(struct simple_util_priv *priv,
 }
 
 static int graph_dai_link_of_dpcm(struct simple_util_priv *priv,
-				  struct device_node *cpu_ep,
-				  struct device_node *codec_ep,
+				  struct device_analde *cpu_ep,
+				  struct device_analde *codec_ep,
 				  struct link_info *li)
 {
 	struct device *dev = simple_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
-	struct device_node *top = dev->of_node;
-	struct device_node *ep = li->cpu ? cpu_ep : codec_ep;
+	struct device_analde *top = dev->of_analde;
+	struct device_analde *ep = li->cpu ? cpu_ep : codec_ep;
 	char dai_name[64];
 	int ret;
 
@@ -188,15 +188,15 @@ static int graph_dai_link_of_dpcm(struct simple_util_priv *priv,
 		dai_link->dynamic		= 1;
 		dai_link->dpcm_merged_format	= 1;
 
-		ret = graph_parse_node(priv, cpu_ep, li, &is_single_links);
+		ret = graph_parse_analde(priv, cpu_ep, li, &is_single_links);
 		if (ret)
 			return ret;
 
 		snprintf(dai_name, sizeof(dai_name),
-			 "fe.%pOFP.%s", cpus->of_node, cpus->dai_name);
+			 "fe.%pOFP.%s", cpus->of_analde, cpus->dai_name);
 		/*
-		 * In BE<->BE connections it is not required to create
-		 * PCM devices at CPU end of the dai link and thus 'no_pcm'
+		 * In BE<->BE connections it is analt required to create
+		 * PCM devices at CPU end of the dai link and thus 'anal_pcm'
 		 * flag needs to be set. It is useful when there are many
 		 * BE components and some of these have to be connected to
 		 * form a valid audio path.
@@ -205,43 +205,43 @@ static int graph_dai_link_of_dpcm(struct simple_util_priv *priv,
 		 * there are 'n' BE components in the path.
 		 */
 		if (card->component_chaining && !soc_component_is_pcm(cpus)) {
-			dai_link->no_pcm = 1;
+			dai_link->anal_pcm = 1;
 			dai_link->be_hw_params_fixup = simple_util_be_hw_params_fixup;
 		}
 
-		simple_util_canonicalize_cpu(cpus, is_single_links);
-		simple_util_canonicalize_platform(platforms, cpus);
+		simple_util_caanalnicalize_cpu(cpus, is_single_links);
+		simple_util_caanalnicalize_platform(platforms, cpus);
 	} else {
 		struct snd_soc_codec_conf *cconf = simple_props_to_codec_conf(dai_props, 0);
 		struct snd_soc_dai_link_component *codecs = snd_soc_link_to_codec(dai_link, 0);
-		struct device_node *port;
-		struct device_node *ports;
+		struct device_analde *port;
+		struct device_analde *ports;
 
 		/* CPU is dummy */
 
 		/* BE settings */
-		dai_link->no_pcm		= 1;
+		dai_link->anal_pcm		= 1;
 		dai_link->be_hw_params_fixup	= simple_util_be_hw_params_fixup;
 
-		ret = graph_parse_node(priv, codec_ep, li, NULL);
+		ret = graph_parse_analde(priv, codec_ep, li, NULL);
 		if (ret < 0)
 			return ret;
 
 		snprintf(dai_name, sizeof(dai_name),
-			 "be.%pOFP.%s", codecs->of_node, codecs->dai_name);
+			 "be.%pOFP.%s", codecs->of_analde, codecs->dai_name);
 
-		/* check "prefix" from top node */
+		/* check "prefix" from top analde */
 		port = of_get_parent(ep);
 		ports = of_get_parent(port);
-		snd_soc_of_parse_node_prefix(top, cconf, codecs->of_node,
+		snd_soc_of_parse_analde_prefix(top, cconf, codecs->of_analde,
 					      "prefix");
-		if (of_node_name_eq(ports, "ports"))
-			snd_soc_of_parse_node_prefix(ports, cconf, codecs->of_node, "prefix");
-		snd_soc_of_parse_node_prefix(port, cconf, codecs->of_node,
+		if (of_analde_name_eq(ports, "ports"))
+			snd_soc_of_parse_analde_prefix(ports, cconf, codecs->of_analde, "prefix");
+		snd_soc_of_parse_analde_prefix(port, cconf, codecs->of_analde,
 					     "prefix");
 
-		of_node_put(ports);
-		of_node_put(port);
+		of_analde_put(ports);
+		of_analde_put(port);
 	}
 
 	graph_parse_convert(dev, ep, &dai_props->adata);
@@ -256,8 +256,8 @@ static int graph_dai_link_of_dpcm(struct simple_util_priv *priv,
 }
 
 static int graph_dai_link_of(struct simple_util_priv *priv,
-			     struct device_node *cpu_ep,
-			     struct device_node *codec_ep,
+			     struct device_analde *cpu_ep,
+			     struct device_analde *codec_ep,
 			     struct link_info *li)
 {
 	struct device *dev = simple_priv_to_dev(priv);
@@ -270,19 +270,19 @@ static int graph_dai_link_of(struct simple_util_priv *priv,
 
 	dev_dbg(dev, "link_of (%pOF)\n", cpu_ep);
 
-	ret = graph_parse_node(priv, cpu_ep, li, &is_single_links);
+	ret = graph_parse_analde(priv, cpu_ep, li, &is_single_links);
 	if (ret < 0)
 		return ret;
 
-	ret = graph_parse_node(priv, codec_ep, li, NULL);
+	ret = graph_parse_analde(priv, codec_ep, li, NULL);
 	if (ret < 0)
 		return ret;
 
 	snprintf(dai_name, sizeof(dai_name),
 		 "%s-%s", cpus->dai_name, codecs->dai_name);
 
-	simple_util_canonicalize_cpu(cpus, is_single_links);
-	simple_util_canonicalize_platform(platforms, cpus);
+	simple_util_caanalnicalize_cpu(cpus, is_single_links);
+	simple_util_caanalnicalize_platform(platforms, cpus);
 
 	ret = graph_link_init(priv, cpu_ep, codec_ep, li, dai_name);
 	if (ret < 0)
@@ -294,7 +294,7 @@ static int graph_dai_link_of(struct simple_util_priv *priv,
 }
 
 static inline bool parse_as_dpcm_link(struct simple_util_priv *priv,
-				      struct device_node *codec_port,
+				      struct device_analde *codec_port,
 				      struct simple_util_data *adata)
 {
 	if (priv->force_dpcm)
@@ -317,29 +317,29 @@ static inline bool parse_as_dpcm_link(struct simple_util_priv *priv,
 
 static int __graph_for_each_link(struct simple_util_priv *priv,
 			struct link_info *li,
-			int (*func_noml)(struct simple_util_priv *priv,
-					 struct device_node *cpu_ep,
-					 struct device_node *codec_ep,
+			int (*func_analml)(struct simple_util_priv *priv,
+					 struct device_analde *cpu_ep,
+					 struct device_analde *codec_ep,
 					 struct link_info *li),
 			int (*func_dpcm)(struct simple_util_priv *priv,
-					 struct device_node *cpu_ep,
-					 struct device_node *codec_ep,
+					 struct device_analde *cpu_ep,
+					 struct device_analde *codec_ep,
 					 struct link_info *li))
 {
 	struct of_phandle_iterator it;
 	struct device *dev = simple_priv_to_dev(priv);
-	struct device_node *node = dev->of_node;
-	struct device_node *cpu_port;
-	struct device_node *cpu_ep;
-	struct device_node *codec_ep;
-	struct device_node *codec_port;
-	struct device_node *codec_port_old = NULL;
+	struct device_analde *analde = dev->of_analde;
+	struct device_analde *cpu_port;
+	struct device_analde *cpu_ep;
+	struct device_analde *codec_ep;
+	struct device_analde *codec_port;
+	struct device_analde *codec_port_old = NULL;
 	struct simple_util_data adata;
 	int rc, ret = 0;
 
 	/* loop for all listed CPU port */
-	of_for_each_phandle(&it, rc, node, "dais", NULL, 0) {
-		cpu_port = it.node;
+	of_for_each_phandle(&it, rc, analde, "dais", NULL, 0) {
+		cpu_port = it.analde;
 		cpu_ep	 = NULL;
 
 		/* loop for all CPU endpoint */
@@ -368,17 +368,17 @@ static int __graph_for_each_link(struct simple_util_priv *priv,
 				if (li->cpu ||
 				    ((codec_port_old != codec_port) && codec_ep))
 					ret = func_dpcm(priv, cpu_ep, codec_ep, li);
-			/* else normal sound */
+			/* else analrmal sound */
 			} else {
 				if (li->cpu)
-					ret = func_noml(priv, cpu_ep, codec_ep, li);
+					ret = func_analml(priv, cpu_ep, codec_ep, li);
 			}
 
-			of_node_put(codec_ep);
-			of_node_put(codec_port);
+			of_analde_put(codec_ep);
+			of_analde_put(codec_port);
 
 			if (ret < 0) {
-				of_node_put(cpu_ep);
+				of_analde_put(cpu_ep);
 				return ret;
 			}
 
@@ -391,20 +391,20 @@ static int __graph_for_each_link(struct simple_util_priv *priv,
 
 static int graph_for_each_link(struct simple_util_priv *priv,
 			       struct link_info *li,
-			       int (*func_noml)(struct simple_util_priv *priv,
-						struct device_node *cpu_ep,
-						struct device_node *codec_ep,
+			       int (*func_analml)(struct simple_util_priv *priv,
+						struct device_analde *cpu_ep,
+						struct device_analde *codec_ep,
 						struct link_info *li),
 			       int (*func_dpcm)(struct simple_util_priv *priv,
-						struct device_node *cpu_ep,
-						struct device_node *codec_ep,
+						struct device_analde *cpu_ep,
+						struct device_analde *codec_ep,
 						struct link_info *li))
 {
 	int ret;
 	/*
 	 * Detect all CPU first, and Detect all Codec 2nd.
 	 *
-	 * In Normal sound case, all DAIs are detected
+	 * In Analrmal sound case, all DAIs are detected
 	 * as "CPU-Codec".
 	 *
 	 * In DPCM sound case,
@@ -414,7 +414,7 @@ static int graph_for_each_link(struct simple_util_priv *priv,
 	 * detect "dummy-Codec" in last;
 	 */
 	for (li->cpu = 1; li->cpu >= 0; li->cpu--) {
-		ret = __graph_for_each_link(priv, li, func_noml, func_dpcm);
+		ret = __graph_for_each_link(priv, li, func_analml, func_dpcm);
 		if (ret < 0)
 			break;
 	}
@@ -422,9 +422,9 @@ static int graph_for_each_link(struct simple_util_priv *priv,
 	return ret;
 }
 
-static int graph_count_noml(struct simple_util_priv *priv,
-			    struct device_node *cpu_ep,
-			    struct device_node *codec_ep,
+static int graph_count_analml(struct simple_util_priv *priv,
+			    struct device_analde *cpu_ep,
+			    struct device_analde *codec_ep,
 			    struct link_info *li)
 {
 	struct device *dev = simple_priv_to_dev(priv);
@@ -437,7 +437,7 @@ static int graph_count_noml(struct simple_util_priv *priv,
 	/*
 	 * DON'T REMOVE platforms
 	 * see
-	 *	simple-card.c :: simple_count_noml()
+	 *	simple-card.c :: simple_count_analml()
 	 */
 	li->num[li->link].cpus		= 1;
 	li->num[li->link].platforms     = 1;
@@ -446,14 +446,14 @@ static int graph_count_noml(struct simple_util_priv *priv,
 
 	li->link += 1; /* 1xCPU-Codec */
 
-	dev_dbg(dev, "Count As Normal\n");
+	dev_dbg(dev, "Count As Analrmal\n");
 
 	return 0;
 }
 
 static int graph_count_dpcm(struct simple_util_priv *priv,
-			    struct device_node *cpu_ep,
-			    struct device_node *codec_ep,
+			    struct device_analde *cpu_ep,
+			    struct device_analde *codec_ep,
 			    struct link_info *li)
 {
 	struct device *dev = simple_priv_to_dev(priv);
@@ -467,7 +467,7 @@ static int graph_count_dpcm(struct simple_util_priv *priv,
 		/*
 		 * DON'T REMOVE platforms
 		 * see
-		 *	simple-card.c :: simple_count_noml()
+		 *	simple-card.c :: simple_count_analml()
 		 */
 		li->num[li->link].cpus		= 1;
 		li->num[li->link].platforms     = 1;
@@ -534,7 +534,7 @@ static int graph_get_dais_count(struct simple_util_priv *priv,
 	 *	=> 1 ccnf  = 1xdummy-Codec
 	 */
 	return graph_for_each_link(priv, li,
-				   graph_count_noml,
+				   graph_count_analml,
 				   graph_count_dpcm);
 }
 
@@ -546,7 +546,7 @@ int audio_graph_parse_of(struct simple_util_priv *priv, struct device *dev)
 
 	li = devm_kzalloc(dev, sizeof(*li), GFP_KERNEL);
 	if (!li)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->owner = THIS_MODULE;
 	card->dev = dev;
@@ -615,7 +615,7 @@ static int graph_probe(struct platform_device *pdev)
 	/* Allocate the private data and the DAI link array */
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card = simple_priv_to_card(priv);
 	card->dapm_widgets	= graph_dapm_widgets;
@@ -650,4 +650,4 @@ module_platform_driver(graph_card);
 MODULE_ALIAS("platform:asoc-audio-graph-card");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("ASoC Audio Graph Sound Card");
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>");

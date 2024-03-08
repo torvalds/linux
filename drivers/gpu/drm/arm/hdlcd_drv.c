@@ -62,7 +62,7 @@ static irqreturn_t hdlcd_irq(int irq, void *arg)
 	if (irq_status & HDLCD_INTERRUPT_VSYNC)
 		drm_crtc_handle_vblank(&hdlcd->crtc);
 
-	/* acknowledge interrupt(s) */
+	/* ackanalwledge interrupt(s) */
 	hdlcd_write(hdlcd, HDLCD_REG_INT_CLEAR, irq_status);
 
 	return IRQ_HANDLED;
@@ -124,16 +124,16 @@ static int hdlcd_load(struct drm_device *drm, unsigned long flags)
 
 	version = hdlcd_read(hdlcd, HDLCD_REG_VERSION);
 	if ((version & HDLCD_PRODUCT_MASK) != HDLCD_PRODUCT_ID) {
-		DRM_ERROR("unknown product id: 0x%x\n", version);
+		DRM_ERROR("unkanalwn product id: 0x%x\n", version);
 		return -EINVAL;
 	}
 	DRM_INFO("found ARM HDLCD version r%dp%d\n",
 		(version & HDLCD_VERSION_MAJOR_MASK) >> 8,
-		version & HDLCD_VERSION_MINOR_MASK);
+		version & HDLCD_VERSION_MIANALR_MASK);
 
 	/* Get the optional framebuffer memory resource */
 	ret = of_reserved_mem_device_init(drm->dev);
-	if (ret && ret != -ENODEV)
+	if (ret && ret != -EANALDEV)
 		return ret;
 
 	ret = dma_set_mask_and_coherent(drm->dev, DMA_BIT_MASK(32));
@@ -233,7 +233,7 @@ static const struct drm_driver hdlcd_driver = {
 	.desc = "ARM HDLCD Controller DRM",
 	.date = "20151021",
 	.major = 1,
-	.minor = 0,
+	.mianalr = 0,
 };
 
 static int hdlcd_drm_bind(struct device *dev)
@@ -259,7 +259,7 @@ static int hdlcd_drm_bind(struct device *dev)
 		goto err_free;
 
 	/* Set the CRTC's port so that the encoder component can find it */
-	hdlcd->crtc.port = of_graph_get_port_by_id(dev->of_node, 0);
+	hdlcd->crtc.port = of_graph_get_port_by_id(dev->of_analde, 0);
 
 	ret = component_bind_all(dev, drm);
 	if (ret) {
@@ -311,7 +311,7 @@ err_pm_active:
 	drm_atomic_helper_shutdown(drm);
 	component_unbind_all(dev, drm);
 err_unload:
-	of_node_put(hdlcd->crtc.port);
+	of_analde_put(hdlcd->crtc.port);
 	hdlcd->crtc.port = NULL;
 	hdlcd_irq_uninstall(hdlcd);
 	of_reserved_mem_device_release(drm->dev);
@@ -328,7 +328,7 @@ static void hdlcd_drm_unbind(struct device *dev)
 	drm_dev_unregister(drm);
 	drm_kms_helper_poll_fini(drm);
 	component_unbind_all(dev, drm);
-	of_node_put(hdlcd->crtc.port);
+	of_analde_put(hdlcd->crtc.port);
 	hdlcd->crtc.port = NULL;
 	pm_runtime_get_sync(dev);
 	drm_atomic_helper_shutdown(drm);
@@ -347,21 +347,21 @@ static const struct component_master_ops hdlcd_master_ops = {
 
 static int compare_dev(struct device *dev, void *data)
 {
-	return dev->of_node == data;
+	return dev->of_analde == data;
 }
 
 static int hdlcd_probe(struct platform_device *pdev)
 {
-	struct device_node *port;
+	struct device_analde *port;
 	struct component_match *match = NULL;
 
 	/* there is only one output port inside each device, find it */
-	port = of_graph_get_remote_node(pdev->dev.of_node, 0, 0);
+	port = of_graph_get_remote_analde(pdev->dev.of_analde, 0, 0);
 	if (!port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	drm_of_component_match_add(&pdev->dev, &match, compare_dev, port);
-	of_node_put(port);
+	of_analde_put(port);
 
 	return component_master_add_with_match(&pdev->dev, &hdlcd_master_ops,
 					       match);

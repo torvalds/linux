@@ -130,7 +130,7 @@ static int snd_soc_ac97_init_gpio(struct snd_ac97 *ac97,
 
 	gpio_priv = devm_kzalloc(component->dev, sizeof(*gpio_priv), GFP_KERNEL);
 	if (!gpio_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	ac97->gpio_priv = gpio_priv;
 	gpio_priv->component = component;
 	gpio_priv->gpio_chip = snd_soc_ac97_gpio_chip;
@@ -164,7 +164,7 @@ static void snd_soc_ac97_free_gpio(struct snd_ac97 *ac97)
  * snd_soc_alloc_ac97_component() - Allocate new a AC'97 device
  * @component: The COMPONENT for which to create the AC'97 device
  *
- * Allocated a new snd_ac97 device and intializes it, but does not yet register
+ * Allocated a new snd_ac97 device and intializes it, but does analt yet register
  * it. The caller is responsible to either call device_add(&ac97->dev) to
  * register the device, or to call put_device(&ac97->dev) to free the device.
  *
@@ -176,7 +176,7 @@ struct snd_ac97 *snd_soc_alloc_ac97_component(struct snd_soc_component *componen
 
 	ac97 = kzalloc(sizeof(struct snd_ac97), GFP_KERNEL);
 	if (ac97 == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ac97->bus = &soc_ac97_bus;
 	ac97->num = 0;
@@ -203,9 +203,9 @@ EXPORT_SYMBOL(snd_soc_alloc_ac97_component);
  *
  * Initialises AC97 component resources for use by ad-hoc devices only.
  *
- * If @id is not 0 this function will reset the device, then read the ID from
+ * If @id is analt 0 this function will reset the device, then read the ID from
  * the device and check if it matches the expected ID. If it doesn't match an
- * error will be returned and device will not be registered.
+ * error will be returned and device will analt be registered.
  *
  * Returns: A PTR_ERR() on failure or a valid snd_ac97 struct on success.
  */
@@ -371,7 +371,7 @@ EXPORT_SYMBOL_GPL(snd_soc_set_ac97_ops);
  * @pdev: platform device
  *
  * This function sets the reset and warm_reset properties of ops and parses
- * the device node of pdev to get pinctrl states and gpio numbers to use.
+ * the device analde of pdev to get pinctrl states and gpio numbers to use.
  */
 int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
 		struct platform_device *pdev)

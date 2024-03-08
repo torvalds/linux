@@ -29,7 +29,7 @@ static inline int sas_protocol_ata(enum sas_protocol proto)
 
 enum sas_linkrate {
 	/* These Values are defined in the SAS standard */
-	SAS_LINK_RATE_UNKNOWN = 0,
+	SAS_LINK_RATE_UNKANALWN = 0,
 	SAS_PHY_DISABLED = 1,
 	SAS_PHY_RESET_PROBLEM = 2,
 	SAS_SATA_SPINUP_HOLD = 3,
@@ -43,7 +43,7 @@ enum sas_linkrate {
 	SAS_LINK_RATE_12_0_GBPS = 11,
 	SAS_LINK_RATE_22_5_GBPS = 12,
 	/* These are virtual to the transport class and may never
-	 * be signalled normally since the standard defined field
+	 * be signalled analrmally since the standard defined field
 	 * is only 4 bits */
 	SAS_LINK_RATE_FAILED = 0x10,
 	SAS_PHY_VIRTUAL = 0x11,
@@ -236,7 +236,7 @@ scsi_is_sas_expander_device(struct device *dev)
 	if (!scsi_is_sas_rphy(dev))
 		return 0;
 	rphy = dev_to_rphy(dev);
-	return rphy->identify.device_type == SAS_FANOUT_EXPANDER_DEVICE ||
+	return rphy->identify.device_type == SAS_FAANALUT_EXPANDER_DEVICE ||
 		rphy->identify.device_type == SAS_EDGE_EXPANDER_DEVICE;
 }
 

@@ -9,7 +9,7 @@ config SND_SEQUENCER
 	  can be processed at a given time.
 
 	  Many programs require this feature, so you should enable it
-	  unless you know what you're doing.
+	  unless you kanalw what you're doing.
 
 if SND_SEQUENCER
 
@@ -17,7 +17,7 @@ config SND_SEQ_DUMMY
 	tristate "Sequencer dummy client"
 	help
 	  Say Y here to enable the dummy sequencer client.  This client
-	  is a simple MIDI-through client: all normal input events are
+	  is a simple MIDI-through client: all analrmal input events are
 	  redirected to the output port immediately.
 
 	  You don't need this unless you want to connect many MIDI

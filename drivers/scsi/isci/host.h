@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -59,7 +59,7 @@
 #include "remote_device.h"
 #include "phy.h"
 #include "isci.h"
-#include "remote_node_table.h"
+#include "remote_analde_table.h"
 #include "registers.h"
 #include "unsolicited_frame_control.h"
 #include "probe_roms.h"
@@ -77,7 +77,7 @@ struct scu_task_context;
 struct sci_power_control {
 	/**
 	 * This field is set when the power control timer is running and cleared when
-	 * it is not.
+	 * it is analt.
 	 */
 	bool timer_started;
 
@@ -128,20 +128,20 @@ struct sci_port_configuration_agent {
 /**
  * isci_host - primary host/controller object
  * @timer: timeout start/stop operations
- * @device_table: rni (hw remote node index) to remote device lookup table
- * @available_remote_nodes: rni allocator
+ * @device_table: rni (hw remote analde index) to remote device lookup table
+ * @available_remote_analdes: rni allocator
  * @power_control: manage device spin up
  * @io_request_sequence: generation number for tci's (task contexts)
  * @task_context_table: hw task context table
- * @remote_node_context_table: hw remote node context table
+ * @remote_analde_context_table: hw remote analde context table
  * @completion_queue: hw-producer driver-consumer communication ring
- * @completion_queue_get: tracks the driver 'head' of the ring to notify hw
+ * @completion_queue_get: tracks the driver 'head' of the ring to analtify hw
  * @logical_port_entries: min({driver|silicon}-supported-port-count)
- * @remote_node_entries: min({driver|silicon}-supported-node-count)
+ * @remote_analde_entries: min({driver|silicon}-supported-analde-count)
  * @task_context_entries: min({driver|silicon}-supported-task-count)
  * @phy_timer: phy startup timer
- * @invalid_phy_mask: if an invalid_link_up notification is reported a bit for
- * 		      the phy index is set so further notifications are not
+ * @invalid_phy_mask: if an invalid_link_up analtification is reported a bit for
+ * 		      the phy index is set so further analtifications are analt
  * 		      made.  Once the phy reports link up and is made part of a
  * 		      port then this bit is cleared.
 
@@ -152,22 +152,22 @@ struct isci_host {
 	struct sci_timer timer;
 	/* XXX drop reference module params directly */
 	struct sci_user_parameters user_parameters;
-	/* XXX no need to be a union */
+	/* XXX anal need to be a union */
 	struct sci_oem_params oem_parameters;
 	struct sci_port_configuration_agent port_agent;
 	struct isci_remote_device *device_table[SCI_MAX_REMOTE_DEVICES];
-	struct sci_remote_node_table available_remote_nodes;
+	struct sci_remote_analde_table available_remote_analdes;
 	struct sci_power_control power_control;
 	u8 io_request_sequence[SCI_MAX_IO_REQUESTS];
 	struct scu_task_context *task_context_table;
 	dma_addr_t tc_dma;
-	union scu_remote_node_context *remote_node_context_table;
+	union scu_remote_analde_context *remote_analde_context_table;
 	dma_addr_t rnc_dma;
 	u32 *completion_queue;
 	dma_addr_t cq_dma;
 	u32 completion_queue_get;
 	u32 logical_port_entries;
-	u32 remote_node_entries;
+	u32 remote_analde_entries;
 	u32 task_context_entries;
 	void *ufi_buf;
 	dma_addr_t ufi_dma;
@@ -230,7 +230,7 @@ enum sci_controller_states {
 
 	/**
 	 * This state is typically an action state that indicates the controller
-	 * is in the process of initialization.  In this state no new IO operations
+	 * is in the process of initialization.  In this state anal new IO operations
 	 * are permitted.
 	 * This state is entered from the RESET state.
 	 */
@@ -238,20 +238,20 @@ enum sci_controller_states {
 
 	/**
 	 * This state indicates that the controller has been successfully
-	 * initialized.  In this state no new IO operations are permitted.
+	 * initialized.  In this state anal new IO operations are permitted.
 	 * This state is entered from the INITIALIZING state.
 	 */
 	SCIC_INITIALIZED,
 
 	/**
 	 * This state indicates the the controller is in the process of becoming
-	 * ready (i.e. starting).  In this state no new IO operations are permitted.
+	 * ready (i.e. starting).  In this state anal new IO operations are permitted.
 	 * This state is entered from the INITIALIZED state.
 	 */
 	SCIC_STARTING,
 
 	/**
-	 * This state indicates the controller is now ready.  Thus, the user
+	 * This state indicates the controller is analw ready.  Thus, the user
 	 * is able to perform IO operations on the controller.
 	 * This state is entered from the STARTING state.
 	 */
@@ -270,15 +270,15 @@ enum sci_controller_states {
 
 	/**
 	 * This state indicates that the controller is in the process of stopping.
-	 * In this state no new IO operations are permitted, but existing IO
+	 * In this state anal new IO operations are permitted, but existing IO
 	 * operations are allowed to complete.
 	 * This state is entered from the READY state.
 	 */
 	SCIC_STOPPING,
 
 	/**
-	 * This state indicates that the controller could not successfully be
-	 * initialized.  In this state no new IO operations are permitted.
+	 * This state indicates that the controller could analt successfully be
+	 * initialized.  In this state anal new IO operations are permitted.
 	 * This state is entered from the INITIALIZING state.
 	 * This state is entered from the STARTING state.
 	 * This state is entered from the STOPPING state.
@@ -357,13 +357,13 @@ static inline struct isci_host *idev_to_ihost(struct isci_remote_device *idev)
 #define ISCI_COALESCE_BASE 9
 
 /* expander attached sata devices require 3 rnc slots */
-static inline int sci_remote_device_node_count(struct isci_remote_device *idev)
+static inline int sci_remote_device_analde_count(struct isci_remote_device *idev)
 {
 	struct domain_device *dev = idev->domain_dev;
 
 	if (dev_is_sata(dev) && dev->parent)
-		return SCU_STP_REMOTE_NODE_COUNT;
-	return SCU_SSP_REMOTE_NODE_COUNT;
+		return SCU_STP_REMOTE_ANALDE_COUNT;
+	return SCU_SSP_REMOTE_ANALDE_COUNT;
 }
 
 /**
@@ -371,7 +371,7 @@ static inline int sci_remote_device_node_count(struct isci_remote_device *idev)
  *
  * This macro will clear the bit in the invalid phy mask for this controller
  * object.  This is used to control messages reported for invalid link up
- * notifications.
+ * analtifications.
  */
 #define sci_controller_clear_invalid_phy(controller, phy) \
 	((controller)->invalid_phy_mask &= ~(1 << (phy)->phy_index))
@@ -432,7 +432,7 @@ char *lookup_cable_names(enum cable_selections);
 
 /* set hw control for 'activity', even though active enclosures seem to drive
  * the activity led on their own.  Skip setting FSENG control on 'status' due
- * to unexpected operation and 'error' due to not being a supported automatic
+ * to unexpected operation and 'error' due to analt being a supported automatic
  * FSENG output
  */
 #define SGPIO_HW_CONTROL 0x00000443
@@ -449,13 +449,13 @@ void sci_controller_release_frame(struct isci_host *ihost,
 void sci_controller_copy_sata_response(void *response_buffer,
 					    void *frame_header,
 					    void *frame_buffer);
-enum sci_status sci_controller_allocate_remote_node_context(struct isci_host *ihost,
+enum sci_status sci_controller_allocate_remote_analde_context(struct isci_host *ihost,
 								 struct isci_remote_device *idev,
-								 u16 *node_id);
-void sci_controller_free_remote_node_context(
+								 u16 *analde_id);
+void sci_controller_free_remote_analde_context(
 	struct isci_host *ihost,
 	struct isci_remote_device *idev,
-	u16 node_id);
+	u16 analde_id);
 
 struct isci_request *sci_request_by_tag(struct isci_host *ihost, u16 io_tag);
 void sci_controller_power_control_queue_insert(struct isci_host *ihost,

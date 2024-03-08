@@ -41,13 +41,13 @@ struct rpmsg_channel_info {
  * rpmsg_device - device that belong to the rpmsg bus
  * @dev: the device struct
  * @id: device id (used to match between rpmsg drivers and devices)
- * @driver_override: driver name to force a match; do not set directly,
+ * @driver_override: driver name to force a match; do analt set directly,
  *                   because core frees it; use driver_set_override() to
  *                   set or clear it.
  * @src: local address
  * @dst: destination address
  * @ept: the rpmsg endpoint of this channel
- * @announce: if set, rpmsg will announce the creation/removal of this channel
+ * @ananalunce: if set, rpmsg will ananalunce the creation/removal of this channel
  * @little_endian: True if transport is using little endian byte representation
  */
 struct rpmsg_device {
@@ -57,7 +57,7 @@ struct rpmsg_device {
 	u32 src;
 	u32 dst;
 	struct rpmsg_endpoint *ept;
-	bool announce;
+	bool ananalunce;
 	bool little_endian;
 
 	const struct rpmsg_device_ops *ops;
@@ -341,7 +341,7 @@ static inline int rpmsg_set_flow_control(struct rpmsg_endpoint *ept, bool pause,
  * module_rpmsg_driver() - Helper macro for registering an rpmsg driver
  * @__rpmsg_driver: rpmsg_driver struct
  *
- * Helper macro for rpmsg drivers which do not do anything special in module
+ * Helper macro for rpmsg drivers which do analt do anything special in module
  * init/exit. This eliminates a lot of boilerplate.  Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */

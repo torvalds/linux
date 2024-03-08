@@ -55,7 +55,7 @@ static inline void ppc_elf_core_copy_regs(elf_gregset_t elf_regs,
 
 /* ELF_HWCAP yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  This could be done in userspace,
-   but it's not easy, and we've already done it here.  */
+   but it's analt easy, and we've already done it here.  */
 # define ELF_HWCAP	(cur_cpu_spec->cpu_user_features)
 # define ELF_HWCAP2	(cur_cpu_spec->cpu_user_features2)
 
@@ -66,7 +66,7 @@ static inline void ppc_elf_core_copy_regs(elf_gregset_t elf_regs,
 #define ELF_PLATFORM	(cur_cpu_spec->platform)
 
 /* While ELF_PLATFORM indicates the ISA supported by the platform, it
- * may not accurately reflect the underlying behavior of the hardware
+ * may analt accurately reflect the underlying behavior of the hardware
  * (as in the case of running in Power5+ compatibility mode on a
  * Power6 machine).  ELF_BASE_PLATFORM allows ld.so to load libraries
  * that are tuned for the real hardware.
@@ -124,10 +124,10 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 	(0x3ffff >> (PAGE_SHIFT - 12)))
 
 #ifdef CONFIG_SPU_BASE
-/* Notes used in ET_CORE. Note name is "SPU/<fd>/<filename>". */
+/* Analtes used in ET_CORE. Analte name is "SPU/<fd>/<filename>". */
 #define NT_SPU		1
 
-#define ARCH_HAVE_EXTRA_ELF_NOTES
+#define ARCH_HAVE_EXTRA_ELF_ANALTES
 
 #endif /* CONFIG_SPU_BASE */
 
@@ -155,7 +155,7 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
  * - keep the final alignment of sp (sp & 0xf)
  * - make sure the 32-bit value at the first 16 byte aligned position of
  *   AUXV is greater than 16 for glibc compatibility.
- *   AT_IGNOREPPC is used for that.
+ *   AT_IGANALREPPC is used for that.
  * - for compatibility with glibc ARCH_DLINFO must always be defined on PPC,
  *   even if DLINFO_ARCH_ITEMS goes to zero or is undefined.
  * update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes
@@ -163,8 +163,8 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 #define COMMON_ARCH_DLINFO						\
 do {									\
 	/* Handle glibc compatibility. */				\
-	NEW_AUX_ENT(AT_IGNOREPPC, AT_IGNOREPPC);			\
-	NEW_AUX_ENT(AT_IGNOREPPC, AT_IGNOREPPC);			\
+	NEW_AUX_ENT(AT_IGANALREPPC, AT_IGANALREPPC);			\
+	NEW_AUX_ENT(AT_IGANALREPPC, AT_IGANALREPPC);			\
 	/* Cache size items */						\
 	NEW_AUX_ENT(AT_DCACHEBSIZE, dcache_bsize);			\
 	NEW_AUX_ENT(AT_ICACHEBSIZE, icache_bsize);			\

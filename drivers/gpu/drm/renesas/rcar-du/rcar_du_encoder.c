@@ -22,22 +22,22 @@
  * Encoder
  */
 
-static unsigned int rcar_du_encoder_count_ports(struct device_node *node)
+static unsigned int rcar_du_encoder_count_ports(struct device_analde *analde)
 {
-	struct device_node *ports;
-	struct device_node *port;
+	struct device_analde *ports;
+	struct device_analde *port;
 	unsigned int num_ports = 0;
 
-	ports = of_get_child_by_name(node, "ports");
+	ports = of_get_child_by_name(analde, "ports");
 	if (!ports)
-		ports = of_node_get(node);
+		ports = of_analde_get(analde);
 
-	for_each_child_of_node(ports, port) {
-		if (of_node_name_eq(port, "port"))
+	for_each_child_of_analde(ports, port) {
+		if (of_analde_name_eq(port, "port"))
 			num_ports++;
 	}
 
-	of_node_put(ports);
+	of_analde_put(ports);
 
 	return num_ports;
 }
@@ -47,7 +47,7 @@ static const struct drm_encoder_funcs rcar_du_encoder_funcs = {
 
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			 enum rcar_du_output output,
-			 struct device_node *enc_node)
+			 struct device_analde *enc_analde)
 {
 	struct rcar_du_encoder *renc;
 	struct drm_connector *connector;
@@ -55,14 +55,14 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	int ret;
 
 	/*
-	 * Locate the DRM bridge from the DT node. For the DPAD outputs, if the
-	 * DT node has a single port, assume that it describes a panel and
+	 * Locate the DRM bridge from the DT analde. For the DPAD outputs, if the
+	 * DT analde has a single port, assume that it describes a panel and
 	 * create a panel bridge.
 	 */
 	if ((output == RCAR_DU_OUTPUT_DPAD0 ||
 	     output == RCAR_DU_OUTPUT_DPAD1) &&
-	    rcar_du_encoder_count_ports(enc_node) == 1) {
-		struct drm_panel *panel = of_drm_find_panel(enc_node);
+	    rcar_du_encoder_count_ports(enc_analde) == 1) {
+		struct drm_panel *panel = of_drm_find_panel(enc_analde);
 
 		if (IS_ERR(panel))
 			return PTR_ERR(panel);
@@ -72,7 +72,7 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 		if (IS_ERR(bridge))
 			return PTR_ERR(bridge);
 	} else {
-		bridge = of_drm_find_bridge(enc_node);
+		bridge = of_drm_find_bridge(enc_analde);
 		if (!bridge)
 			return -EPROBE_DEFER;
 
@@ -90,24 +90,24 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	 * the LVDS1 encoder is used as a companion for LVDS0 in dual-link
 	 * mode, or any LVDS output if it isn't connected. The latter may happen
 	 * on D3 or E3 as the LVDS encoders are needed to provide the pixel
-	 * clock to the DU, even when the LVDS outputs are not used.
+	 * clock to the DU, even when the LVDS outputs are analt used.
 	 */
 	if (rcdu->info->gen >= 3) {
 		if (output == RCAR_DU_OUTPUT_LVDS1 &&
 		    rcar_lvds_dual_link(bridge))
-			return -ENOLINK;
+			return -EANALLINK;
 
 		if ((output == RCAR_DU_OUTPUT_LVDS0 ||
 		     output == RCAR_DU_OUTPUT_LVDS1) &&
 		    !rcar_lvds_is_connected(bridge))
-			return -ENOLINK;
+			return -EANALLINK;
 	}
 
 	dev_dbg(rcdu->dev, "initializing encoder %pOF for output %s\n",
-		enc_node, rcar_du_output_name(output));
+		enc_analde, rcar_du_output_name(output));
 
 	renc = drmm_encoder_alloc(&rcdu->ddev, struct rcar_du_encoder, base,
-				  &rcar_du_encoder_funcs, DRM_MODE_ENCODER_NONE,
+				  &rcar_du_encoder_funcs, DRM_MODE_ENCODER_ANALNE,
 				  NULL);
 	if (IS_ERR(renc))
 		return PTR_ERR(renc);
@@ -116,11 +116,11 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 
 	/* Attach the bridge to the encoder. */
 	ret = drm_bridge_attach(&renc->base, bridge, NULL,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret) {
 		dev_err(rcdu->dev,
 			"failed to attach bridge %pOF for output %s (%d)\n",
-			bridge->of_node, rcar_du_output_name(output), ret);
+			bridge->of_analde, rcar_du_output_name(output), ret);
 		return ret;
 	}
 

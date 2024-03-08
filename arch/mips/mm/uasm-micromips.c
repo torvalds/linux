@@ -4,13 +4,13 @@
  * for more details.
  *
  * A small micro-assembler. It is intentionally kept simple, does only
- * support a subset of instructions, and does not try to hide pipeline
+ * support a subset of instructions, and does analt try to hide pipeline
  * effects like branch delay slots.
  *
  * Copyright (C) 2004, 2005, 2006, 2008	 Thiemo Seufer
  * Copyright (C) 2005, 2007  Maciej W. Rozycki
  * Copyright (C) 2006  Ralf Baechle (ralf@linux-mips.org)
- * Copyright (C) 2012, 2013   MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012, 2013   MIPS Techanallogies, Inc.  All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -28,7 +28,7 @@
 #define SCIMM_MASK	0x3ff
 #define SCIMM_SH	16
 
-/* This macro sets the non-variable bits of an instruction. */
+/* This macro sets the analn-variable bits of an instruction. */
 #define M(a, b, c, d, e, f)					\
 	((a) << OP_SH						\
 	 | (b) << RT_SH						\

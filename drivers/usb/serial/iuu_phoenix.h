@@ -16,7 +16,7 @@
 
 /* Programmer commands */
 
-#define IUU_NO_OPERATION   0x00
+#define IUU_ANAL_OPERATION   0x00
 #define IUU_GET_FIRMWARE_VERSION   0x01
 #define IUU_GET_PRODUCT_NAME   0x02
 #define IUU_GET_STATE_REGISTER   0x03
@@ -73,24 +73,24 @@
 #define IUU_PIC_PREADN   0x13
 #define IUU_PIC_DWRITE   0x14
 #define IUU_PIC_DREAD   0x15
-#define IUU_UART_NOP   0x00
+#define IUU_UART_ANALP   0x00
 #define IUU_UART_CHANGE   0x02
 #define IUU_UART_TX   0x04
 #define IUU_DELAY_MS   0x06
 
 #define IUU_OPERATION_OK   0x00
-#define IUU_DEVICE_NOT_FOUND   0x01
+#define IUU_DEVICE_ANALT_FOUND   0x01
 #define IUU_INVALID_HANDLE   0x02
 #define IUU_INVALID_PARAMETER   0x03
 #define IUU_INVALID_voidERFACE   0x04
 #define IUU_INVALID_REQUEST_LENGTH   0x05
-#define IUU_UART_NOT_ENABLED   0x06
+#define IUU_UART_ANALT_ENABLED   0x06
 #define IUU_WRITE_ERROR   0x07
 #define IUU_READ_ERROR   0x08
 #define IUU_TX_ERROR   0x09
 #define IUU_RX_ERROR   0x0A
 
-#define IUU_PARITY_NONE   0x00
+#define IUU_PARITY_ANALNE   0x00
 #define IUU_PARITY_EVEN   0x01
 #define IUU_PARITY_ODD   0x02
 #define IUU_PARITY_MARK   0x03

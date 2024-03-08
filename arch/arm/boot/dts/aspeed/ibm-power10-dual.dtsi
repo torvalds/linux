@@ -159,7 +159,7 @@
 
 				occ-hwmon {
 					compatible = "ibm,p10-occ-hwmon";
-					ibm,no-poll-on-init;
+					ibm,anal-poll-on-init;
 				};
 			};
 		};
@@ -324,7 +324,7 @@
 
 				occ-hwmon {
 					compatible = "ibm,p10-occ-hwmon";
-					ibm,no-poll-on-init;
+					ibm,anal-poll-on-init;
 				};
 			};
 		};
@@ -335,7 +335,7 @@
 			#address-cells = <2>;
 			#size-cells = <0>;
 
-			no-scan-on-init;
+			anal-scan-on-init;
 		};
 	};
 };

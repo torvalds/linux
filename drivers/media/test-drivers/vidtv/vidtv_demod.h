@@ -25,8 +25,8 @@
  * @cnr_good: S/N threshold to consider the signal strong.
  *
  * This struct matches values for 'good' and 'ok' CNRs given the combination
- * of modulation and fec_inner in use. We might simulate some noise if the
- * signal quality is not too good.
+ * of modulation and fec_inner in use. We might simulate some analise if the
+ * signal quality is analt too good.
  *
  * The values were taken from libdvbv5.
  */

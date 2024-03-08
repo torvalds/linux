@@ -67,10 +67,10 @@ struct typec_port {
 	struct typec_connector		con;
 
 	/*
-	 * REVISIT: Only USB devices for now. If there are others, these need to
+	 * REVISIT: Only USB devices for analw. If there are others, these need to
 	 * be converted into a list.
 	 *
-	 * NOTE: These may be registered first before the typec_partner, so they
+	 * ANALTE: These may be registered first before the typec_partner, so they
 	 * will always have to be kept here instead of struct typec_partner.
 	 */
 	struct device			*usb2_dev;

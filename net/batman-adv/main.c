@@ -13,7 +13,7 @@
 #include <linux/container_of.h>
 #include <linux/crc32c.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/genetlink.h>
 #include <linux/gfp.h>
 #include <linux/if_ether.h>
@@ -113,7 +113,7 @@ static int __init batadv_init(void)
 	if (!batadv_event_workqueue)
 		goto err_create_wq;
 
-	register_netdevice_notifier(&batadv_hard_if_notifier);
+	register_netdevice_analtifier(&batadv_hard_if_analtifier);
 	rtnl_link_register(&batadv_link_ops);
 	batadv_netlink_register();
 
@@ -125,14 +125,14 @@ static int __init batadv_init(void)
 err_create_wq:
 	batadv_tt_cache_destroy();
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void __exit batadv_exit(void)
 {
 	batadv_netlink_unregister();
 	rtnl_link_unregister(&batadv_link_ops);
-	unregister_netdevice_notifier(&batadv_hard_if_notifier);
+	unregister_netdevice_analtifier(&batadv_hard_if_analtifier);
 
 	destroy_workqueue(batadv_event_workqueue);
 	batadv_event_workqueue = NULL;
@@ -174,7 +174,7 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	INIT_HLIST_HEAD(&bat_priv->forw_bcast_list);
 	INIT_HLIST_HEAD(&bat_priv->gw.gateway_list);
 #ifdef CONFIG_BATMAN_ADV_MCAST
-	INIT_HLIST_HEAD(&bat_priv->mcast.want_all_unsnoopables_list);
+	INIT_HLIST_HEAD(&bat_priv->mcast.want_all_unsanalopables_list);
 	INIT_HLIST_HEAD(&bat_priv->mcast.want_all_ipv4_list);
 	INIT_HLIST_HEAD(&bat_priv->mcast.want_all_ipv6_list);
 #endif
@@ -264,7 +264,7 @@ void batadv_mesh_free(struct net_device *soft_iface)
 
 	batadv_purge_outstanding_packets(bat_priv, NULL);
 
-	batadv_gw_node_free(bat_priv);
+	batadv_gw_analde_free(bat_priv);
 
 	batadv_v_mesh_free(bat_priv);
 	batadv_nc_mesh_free(bat_priv);
@@ -281,7 +281,7 @@ void batadv_mesh_free(struct net_device *soft_iface)
 
 	/* Since the originator table clean up routine is accessing the TT
 	 * tables as well, it has to be invoked after the TT tables have been
-	 * freed and marked as empty. This ensures that no cleanup RCU callbacks
+	 * freed and marked as empty. This ensures that anal cleanup RCU callbacks
 	 * accessing the TT data are scheduled for later execution.
 	 */
 	batadv_originator_free(bat_priv);
@@ -365,7 +365,7 @@ void batadv_skb_set_priority(struct sk_buff *skb, int offset)
 	struct vlan_ethhdr *vhdr, vhdr_tmp;
 	u32 prio;
 
-	/* already set, do nothing */
+	/* already set, do analthing */
 	if (skb->priority >= 256 && skb->priority <= 263)
 		return;
 
@@ -465,7 +465,7 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	if (atomic_read(&bat_priv->mesh_state) != BATADV_MESH_ACTIVE)
 		goto err_free;
 
-	/* discard frames on not active interfaces */
+	/* discard frames on analt active interfaces */
 	if (hard_iface->if_status != BATADV_IF_ACTIVE)
 		goto err_free;
 
@@ -575,7 +575,7 @@ batadv_recv_handler_register(u8 packet_type,
 
 /**
  * batadv_recv_handler_unregister() - Unregister handler for packet type
- * @packet_type: batadv_packettype which should no longer be handled
+ * @packet_type: batadv_packettype which should anal longer be handled
  */
 void batadv_recv_handler_unregister(u8 packet_type)
 {
@@ -589,7 +589,7 @@ void batadv_recv_handler_unregister(u8 packet_type)
  * @payload_ptr: Pointer to position inside the head buffer of the skb
  *  marking the start of the data to be CRC'ed
  *
- * payload_ptr must always point to an address in the skb head buffer and not to
+ * payload_ptr must always point to an address in the skb head buffer and analt to
  * a fragment.
  *
  * Return: big endian crc32c of the checksummed data
@@ -621,7 +621,7 @@ __be32 batadv_skb_crc32(struct sk_buff *skb, u8 *payload_ptr)
  * @header_len: length of the batman header preceding the ethernet header
  *
  * Return: VID with the BATADV_VLAN_HAS_TAG flag when the packet embedded in the
- * skb is vlan tagged. Otherwise BATADV_NO_FLAGS.
+ * skb is vlan tagged. Otherwise BATADV_ANAL_FLAGS.
  */
 unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len)
 {
@@ -630,10 +630,10 @@ unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len)
 	unsigned short vid;
 
 	if (ethhdr->h_proto != htons(ETH_P_8021Q))
-		return BATADV_NO_FLAGS;
+		return BATADV_ANAL_FLAGS;
 
 	if (!pskb_may_pull(skb, header_len + VLAN_ETH_HLEN))
-		return BATADV_NO_FLAGS;
+		return BATADV_ANAL_FLAGS;
 
 	vhdr = (struct vlan_ethhdr *)(skb->data + header_len);
 	vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
@@ -673,7 +673,7 @@ bool batadv_vlan_ap_isola_get(struct batadv_priv *bat_priv, unsigned short vid)
  * @bat_priv: the bat priv with all the soft interface information
  * @type: subsystem type of event. Stored in uevent's BATTYPE
  * @action: action type of event. Stored in uevent's BATACTION
- * @data: string with additional information to the event (ignored for
+ * @data: string with additional information to the event (iganalred for
  *  BATADV_UEV_DEL). Stored in uevent's BATDATA
  *
  * Return: 0 on success or negative error number in case of failure
@@ -681,7 +681,7 @@ bool batadv_vlan_ap_isola_get(struct batadv_priv *bat_priv, unsigned short vid)
 int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
 			enum batadv_uev_action action, const char *data)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct kobject *bat_kobj;
 	char *uevent_env[4] = { NULL, NULL, NULL, NULL };
 
@@ -699,7 +699,7 @@ int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
 	if (!uevent_env[1])
 		goto out;
 
-	/* If the event is DEL, ignore the data field */
+	/* If the event is DEL, iganalre the data field */
 	if (action != BATADV_UEV_DEL) {
 		uevent_env[2] = kasprintf(GFP_ATOMIC,
 					  "%s%s", BATADV_UEV_DATA_VAR, data);

@@ -66,18 +66,18 @@ fib_ipv4_identical_routes_test()
 
 	ip -n $ns route add 192.0.2.0/24 dev dummy1 tos 0 metric 1024
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 0 metric 1024" false
-	check_err $? "Route not in hardware when should"
+	check_err $? "Route analt in hardware when should"
 
 	ip -n $ns route append 192.0.2.0/24 dev dummy2 tos 0 metric 1024
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy2 tos 0 metric 1024" true
-	check_err $? "Appended route in hardware when should not"
+	check_err $? "Appended route in hardware when should analt"
 
 	ip -n $ns route prepend 192.0.2.0/24 dev dummy3 tos 0 metric 1024
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy3 tos 0 metric 1024" false
-	check_err $? "Prepended route not in hardware when should"
+	check_err $? "Prepended route analt in hardware when should"
 
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 0 metric 1024" true
-	check_err $? "Route was not replaced in hardware by prepended one"
+	check_err $? "Route was analt replaced in hardware by prepended one"
 
 	log_test "IPv4 identical routes"
 
@@ -97,18 +97,18 @@ fib_ipv4_tos_test()
 
 	ip -n $ns route add 192.0.2.0/24 dev dummy1 tos 0 metric 1024
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 0 metric 1024" false
-	check_err $? "Route not in hardware when should"
+	check_err $? "Route analt in hardware when should"
 
 	ip -n $ns route add 192.0.2.0/24 dev dummy1 tos 8 metric 1024
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 8 metric 1024" false
-	check_err $? "Highest TOS route not in hardware when should"
+	check_err $? "Highest TOS route analt in hardware when should"
 
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 0 metric 1024" true
-	check_err $? "Lowest TOS route still in hardware when should not"
+	check_err $? "Lowest TOS route still in hardware when should analt"
 
 	ip -n $ns route add 192.0.2.0/24 dev dummy1 tos 4 metric 1024
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 4 metric 1024" true
-	check_err $? "Middle TOS route in hardware when should not"
+	check_err $? "Middle TOS route in hardware when should analt"
 
 	log_test "IPv4 routes with TOS"
 
@@ -126,18 +126,18 @@ fib_ipv4_metric_test()
 
 	ip -n $ns route add 192.0.2.0/24 dev dummy1 metric 1024
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 metric 1024" false
-	check_err $? "Route not in hardware when should"
+	check_err $? "Route analt in hardware when should"
 
 	ip -n $ns route add 192.0.2.0/24 dev dummy1 metric 1022
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 metric 1022" false
-	check_err $? "Lowest metric route not in hardware when should"
+	check_err $? "Lowest metric route analt in hardware when should"
 
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 metric 1024" true
-	check_err $? "Highest metric route still in hardware when should not"
+	check_err $? "Highest metric route still in hardware when should analt"
 
 	ip -n $ns route add 192.0.2.0/24 dev dummy1 metric 1023
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 metric 1023" true
-	check_err $? "Middle metric route in hardware when should not"
+	check_err $? "Middle metric route in hardware when should analt"
 
 	log_test "IPv4 routes with metric"
 
@@ -158,21 +158,21 @@ fib_ipv4_replace_test()
 
 	ip -n $ns route add 192.0.2.0/24 dev dummy1 metric 1024
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 metric 1024" false
-	check_err $? "Route not in hardware when should"
+	check_err $? "Route analt in hardware when should"
 
 	ip -n $ns route replace 192.0.2.0/24 dev dummy2 metric 1024
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy2 metric 1024" false
-	check_err $? "Replacement route not in hardware when should"
+	check_err $? "Replacement route analt in hardware when should"
 
 	# Add a route with an higher metric and make sure that replacing it
-	# does not affect the lower metric one.
+	# does analt affect the lower metric one.
 	ip -n $ns route add 192.0.2.0/24 dev dummy1 metric 1025
 	ip -n $ns route replace 192.0.2.0/24 dev dummy2 metric 1025
 
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy2 metric 1024" false
-	check_err $? "Lowest metric route not in hardware when should"
+	check_err $? "Lowest metric route analt in hardware when should"
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy2 metric 1025" true
-	check_err $? "Highest metric route in hardware when should not"
+	check_err $? "Highest metric route in hardware when should analt"
 
 	log_test "IPv4 route replace"
 
@@ -199,15 +199,15 @@ fib_ipv4_delete_test()
 	done
 
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 metric 1024" false
-	check_err $? "Route not in hardware when should"
+	check_err $? "Route analt in hardware when should"
 
 	ip -n $ns route del 192.0.2.0/24 dev dummy1 metric 1024
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 metric 1025" false
-	check_err $? "Lowest metric route not in hardware when should"
+	check_err $? "Lowest metric route analt in hardware when should"
 
 	ip -n $ns route del 192.0.2.0/24 dev dummy1 metric 1026
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 metric 1025" false
-	check_err $? "Sole route not in hardware when should"
+	check_err $? "Sole route analt in hardware when should"
 
 	log_test "IPv4 route delete"
 
@@ -230,10 +230,10 @@ fib_ipv4_plen_test()
 	ip -n $ns route add 192.0.2.0/25 dev dummy1
 
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1" false
-	check_err $? "/24 not in hardware when should"
+	check_err $? "/24 analt in hardware when should"
 
 	fib4_trap_check $ns "192.0.2.0/25 dev dummy1" false
-	check_err $? "/25 not in hardware when should"
+	check_err $? "/25 analt in hardware when should"
 
 	log_test "IPv4 routes with different prefix length"
 
@@ -256,10 +256,10 @@ fib_ipv4_replay_metric_test()
 	devlink -N $ns dev reload $devlink_dev
 
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 metric 1024" false
-	check_err $? "Lowest metric route not in hardware when should"
+	check_err $? "Lowest metric route analt in hardware when should"
 
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 metric 1025" true
-	check_err $? "Highest metric route in hardware when should not"
+	check_err $? "Highest metric route in hardware when should analt"
 
 	log_test "IPv4 routes replay - metric"
 
@@ -282,10 +282,10 @@ fib_ipv4_replay_tos_test()
 	devlink -N $ns dev reload $devlink_dev
 
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 4" false
-	check_err $? "Highest TOS route not in hardware when should"
+	check_err $? "Highest TOS route analt in hardware when should"
 
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1 tos 0" true
-	check_err $? "Lowest TOS route in hardware when should not"
+	check_err $? "Lowest TOS route in hardware when should analt"
 
 	log_test "IPv4 routes replay - TOS"
 
@@ -308,10 +308,10 @@ fib_ipv4_replay_plen_test()
 	devlink -N $ns dev reload $devlink_dev
 
 	fib4_trap_check $ns "192.0.2.0/24 dev dummy1" false
-	check_err $? "/24 not in hardware when should"
+	check_err $? "/24 analt in hardware when should"
 
 	fib4_trap_check $ns "192.0.2.0/25 dev dummy1" false
-	check_err $? "/25 not in hardware when should"
+	check_err $? "/25 analt in hardware when should"
 
 	log_test "IPv4 routes replay - prefix length"
 
@@ -352,14 +352,14 @@ fib_ipv6_add_test()
 
 	ip -n $ns route add 2001:db8:1::/64 dev dummy1 metric 1024
 	fib6_trap_check $ns "2001:db8:1::/64 dev dummy1 metric 1024" false
-	check_err $? "Route not in hardware when should"
+	check_err $? "Route analt in hardware when should"
 
 	ip -n $ns route append 2001:db8:1::/64 dev dummy2 metric 1024
 	fib6_trap_check $ns "2001:db8:1::/64 dev dummy2 metric 1024" true
-	check_err $? "Route in hardware when should not"
+	check_err $? "Route in hardware when should analt"
 
 	fib6_trap_check $ns "2001:db8:1::/64 dev dummy1 metric 1024" false
-	check_err $? "Route not in hardware after appending route"
+	check_err $? "Route analt in hardware after appending route"
 
 	log_test "IPv6 single route add"
 
@@ -379,18 +379,18 @@ fib_ipv6_metric_test()
 
 	ip -n $ns route add 2001:db8:1::/64 dev dummy1 metric 1024
 	fib6_trap_check $ns "2001:db8:1::/64 dev dummy1 metric 1024" false
-	check_err $? "Route not in hardware when should"
+	check_err $? "Route analt in hardware when should"
 
 	ip -n $ns route add 2001:db8:1::/64 dev dummy1 metric 1022
 	fib6_trap_check $ns "2001:db8:1::/64 dev dummy1 metric 1022" false
-	check_err $? "Lowest metric route not in hardware when should"
+	check_err $? "Lowest metric route analt in hardware when should"
 
 	fib6_trap_check $ns "2001:db8:1::/64 dev dummy1 metric 1024" true
-	check_err $? "Highest metric route still in hardware when should not"
+	check_err $? "Highest metric route still in hardware when should analt"
 
 	ip -n $ns route add 2001:db8:1::/64 dev dummy1 metric 1023
 	fib6_trap_check $ns "2001:db8:1::/64 dev dummy1 metric 1023" true
-	check_err $? "Middle metric route in hardware when should not"
+	check_err $? "Middle metric route in hardware when should analt"
 
 	log_test "IPv6 routes with metric"
 
@@ -414,22 +414,22 @@ fib_ipv6_append_single_test()
 
 	ip -n $ns route add 2001:db8:10::/64 via 2001:db8:1::2 metric 1024
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1024" false
-	check_err $? "Route not in hardware when should"
+	check_err $? "Route analt in hardware when should"
 
 	ip -n $ns route append 2001:db8:10::/64 via 2001:db8:2::2 metric 1024
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1024" false
-	check_err $? "Route not in hardware after appending"
+	check_err $? "Route analt in hardware after appending"
 
 	ip -n $ns route add 2001:db8:10::/64 via 2001:db8:1::2 metric 1025
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1025" true
-	check_err $? "Route in hardware when should not"
+	check_err $? "Route in hardware when should analt"
 
 	ip -n $ns route append 2001:db8:10::/64 via 2001:db8:2::2 metric 1025
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1025" true
-	check_err $? "Route in hardware when should not after appending"
+	check_err $? "Route in hardware when should analt after appending"
 
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1024" false
-	check_err $? "Lowest metric route not in hardware when should"
+	check_err $? "Lowest metric route analt in hardware when should"
 
 	log_test "IPv6 append single route without 'nexthop' keyword"
 
@@ -452,21 +452,21 @@ fib_ipv6_replace_single_test()
 
 	ip -n $ns route add 2001:db8:1::/64 dev dummy1 metric 1024
 	fib6_trap_check $ns "2001:db8:1::/64 dev dummy1 metric 1024" false
-	check_err $? "Route not in hardware when should"
+	check_err $? "Route analt in hardware when should"
 
 	ip -n $ns route replace 2001:db8:1::/64 dev dummy2 metric 1024
 	fib6_trap_check $ns "2001:db8:1::/64 dev dummy2 metric 1024" false
-	check_err $? "Replacement route not in hardware when should"
+	check_err $? "Replacement route analt in hardware when should"
 
 	# Add a route with an higher metric and make sure that replacing it
-	# does not affect the lower metric one.
+	# does analt affect the lower metric one.
 	ip -n $ns route add 2001:db8:1::/64 dev dummy1 metric 1025
 	ip -n $ns route replace 2001:db8:1::/64 dev dummy2 metric 1025
 
 	fib6_trap_check $ns "2001:db8:1::/64 dev dummy2 metric 1024" false
-	check_err $? "Lowest metric route not in hardware when should"
+	check_err $? "Lowest metric route analt in hardware when should"
 	fib6_trap_check $ns "2001:db8:1::/64 dev dummy2 metric 1025" true
-	check_err $? "Highest metric route in hardware when should not"
+	check_err $? "Highest metric route in hardware when should analt"
 
 	log_test "IPv6 single route replace"
 
@@ -491,22 +491,22 @@ fib_ipv6_metric_multipath_test()
 		nexthop via 2001:db8:1::2 dev dummy1 \
 		nexthop via 2001:db8:2::2 dev dummy2
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1024" false
-	check_err $? "Route not in hardware when should"
+	check_err $? "Route analt in hardware when should"
 
 	ip -n $ns route add 2001:db8:10::/64 metric 1022 \
 		nexthop via 2001:db8:1::2 dev dummy1 \
 		nexthop via 2001:db8:2::2 dev dummy2
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1022" false
-	check_err $? "Lowest metric route not in hardware when should"
+	check_err $? "Lowest metric route analt in hardware when should"
 
 	ip -n $ns route add 2001:db8:10::/64 metric 1023 \
 		nexthop via 2001:db8:1::2 dev dummy1 \
 		nexthop via 2001:db8:2::2 dev dummy2
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1024" true
-	check_err $? "Highest metric route still in hardware when should not"
+	check_err $? "Highest metric route still in hardware when should analt"
 
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1023" true
-	check_err $? "Middle metric route in hardware when should not"
+	check_err $? "Middle metric route in hardware when should analt"
 
 	log_test "IPv6 multipath routes with metric"
 
@@ -530,27 +530,27 @@ fib_ipv6_append_multipath_test()
 	ip -n $ns route add 2001:db8:10::/64 metric 1024 \
 		nexthop via 2001:db8:1::2 dev dummy1
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1024" false
-	check_err $? "Route not in hardware when should"
+	check_err $? "Route analt in hardware when should"
 
 	ip -n $ns route append 2001:db8:10::/64 metric 1024 \
 		nexthop via 2001:db8:2::2 dev dummy2 \
 		nexthop via 2001:db8:3::2 dev dummy3
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1024" false
-	check_err $? "Route not in hardware after appending"
+	check_err $? "Route analt in hardware after appending"
 
 	ip -n $ns route add 2001:db8:10::/64 metric 1025 \
 		nexthop via 2001:db8:1::2 dev dummy1
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1025" true
-	check_err $? "Route in hardware when should not"
+	check_err $? "Route in hardware when should analt"
 
 	ip -n $ns route append 2001:db8:10::/64 metric 1025 \
 		nexthop via 2001:db8:2::2 dev dummy2 \
 		nexthop via 2001:db8:3::2 dev dummy3
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1025" true
-	check_err $? "Route in hardware when should not after appending"
+	check_err $? "Route in hardware when should analt after appending"
 
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1024" false
-	check_err $? "Lowest metric route not in hardware when should"
+	check_err $? "Lowest metric route analt in hardware when should"
 
 	log_test "IPv6 append multipath route with 'nexthop' keyword"
 
@@ -576,16 +576,16 @@ fib_ipv6_replace_multipath_test()
 		nexthop via 2001:db8:1::2 dev dummy1 \
 		nexthop via 2001:db8:2::2 dev dummy2
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1024" false
-	check_err $? "Route not in hardware when should"
+	check_err $? "Route analt in hardware when should"
 
 	ip -n $ns route replace 2001:db8:10::/64 metric 1024 \
 		nexthop via 2001:db8:1::2 dev dummy1 \
 		nexthop via 2001:db8:3::2 dev dummy3
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1024" false
-	check_err $? "Replacement route not in hardware when should"
+	check_err $? "Replacement route analt in hardware when should"
 
 	# Add a route with an higher metric and make sure that replacing it
-	# does not affect the lower metric one.
+	# does analt affect the lower metric one.
 	ip -n $ns route add 2001:db8:10::/64 metric 1025 \
 		nexthop via 2001:db8:1::2 dev dummy1 \
 		nexthop via 2001:db8:2::2 dev dummy2
@@ -594,9 +594,9 @@ fib_ipv6_replace_multipath_test()
 		nexthop via 2001:db8:3::2 dev dummy3
 
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1024" false
-	check_err $? "Lowest metric route not in hardware when should"
+	check_err $? "Lowest metric route analt in hardware when should"
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1025" true
-	check_err $? "Highest metric route in hardware when should not"
+	check_err $? "Highest metric route in hardware when should analt"
 
 	log_test "IPv6 multipath route replace"
 
@@ -609,9 +609,9 @@ fib_ipv6_append_multipath_to_single_test()
 {
 	local ns=$1; shift
 
-	# Test that when the first route in the leaf is not a multipath route
+	# Test that when the first route in the leaf is analt a multipath route
 	# and we try to append a multipath route with the same metric to it, it
-	# is not notified.
+	# is analt analtified.
 	RET=0
 
 	for i in $(seq 1 2); do
@@ -622,17 +622,17 @@ fib_ipv6_append_multipath_to_single_test()
 
 	ip -n $ns route add 2001:db8:10::/64 dev dummy1 metric 1024
 	fib6_trap_check $ns "2001:db8:10::/64 dev dummy1 metric 1024" false
-	check_err $? "Route not in hardware when should"
+	check_err $? "Route analt in hardware when should"
 
 	ip -n $ns route append 2001:db8:10::/64 metric 1024 \
 		nexthop via 2001:db8:2::2 dev dummy2
 	fib6_trap_check $ns "2001:db8:10::/64 dev dummy2 metric 1024" true
-	check_err $? "Route in hardware when should not"
+	check_err $? "Route in hardware when should analt"
 
 	fib6_trap_check $ns "2001:db8:10::/64 dev dummy1 metric 1024" false
-	check_err $? "Route not in hardware after append"
+	check_err $? "Route analt in hardware after append"
 
-	log_test "IPv6 append multipath route to non-multipath route"
+	log_test "IPv6 append multipath route to analn-multipath route"
 
 	for i in $(seq 1 2); do
 		ip -n $ns link del dev dummy$i
@@ -644,7 +644,7 @@ fib_ipv6_delete_single_test()
 	local ns=$1; shift
 
 	# Test various deletion scenarios, where only a single route is
-	# deleted from the FIB node.
+	# deleted from the FIB analde.
 	for i in $(seq 1 2); do
 		ip -n $ns link add name dummy$i type dummy
 		ip -n $ns link set dev dummy$i up
@@ -652,7 +652,7 @@ fib_ipv6_delete_single_test()
 	done
 
 	# Test deletion of a single route when it is the only route in the FIB
-	# node.
+	# analde.
 	RET=0
 
 	ip -n $ns route add 2001:db8:10::/64 dev dummy1 metric 1024
@@ -660,7 +660,7 @@ fib_ipv6_delete_single_test()
 
 	log_test "IPv6 delete sole single route"
 
-	# Test that deletion of last route does not affect the first one.
+	# Test that deletion of last route does analt affect the first one.
 	RET=0
 
 	ip -n $ns route add 2001:db8:10::/64 dev dummy1 metric 1024
@@ -668,14 +668,14 @@ fib_ipv6_delete_single_test()
 	ip -n $ns route del 2001:db8:10::/64 dev dummy1 metric 1025
 
 	fib6_trap_check $ns "2001:db8:10::/64 dev dummy1 metric 1024" false
-	check_err $? "Route not in hardware after deleting higher metric route"
+	check_err $? "Route analt in hardware after deleting higher metric route"
 
-	log_test "IPv6 delete single route not in hardware"
+	log_test "IPv6 delete single route analt in hardware"
 
 	ip -n $ns route del 2001:db8:10::/64 dev dummy1 metric 1024
 
 	# Test that first route is replaced by next single route in the FIB
-	# node.
+	# analde.
 	RET=0
 
 	ip -n $ns route add 2001:db8:10::/64 dev dummy1 metric 1024
@@ -683,14 +683,14 @@ fib_ipv6_delete_single_test()
 	ip -n $ns route del 2001:db8:10::/64 dev dummy1 metric 1024
 
 	fib6_trap_check $ns "2001:db8:10::/64 dev dummy1 metric 1025" false
-	check_err $? "Route not in hardware after deleting lowest metric route"
+	check_err $? "Route analt in hardware after deleting lowest metric route"
 
 	log_test "IPv6 delete single route - replaced by single"
 
 	ip -n $ns route del 2001:db8:10::/64 dev dummy1 metric 1025
 
 	# Test that first route is replaced by next multipath route in the FIB
-	# node.
+	# analde.
 	RET=0
 
 	ip -n $ns route add 2001:db8:10::/64 dev dummy1 metric 1024
@@ -700,7 +700,7 @@ fib_ipv6_delete_single_test()
 	ip -n $ns route del 2001:db8:10::/64 dev dummy1 metric 1024
 
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1025" false
-	check_err $? "Route not in hardware after deleting lowest metric route"
+	check_err $? "Route analt in hardware after deleting lowest metric route"
 
 	log_test "IPv6 delete single route - replaced by multipath"
 
@@ -714,7 +714,7 @@ fib_ipv6_delete_single_test()
 		nexthop via 2001:db8:1::2 dev dummy1
 
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1024" false
-	check_err $? "Route not in hardware after deleting a single nexthop"
+	check_err $? "Route analt in hardware after deleting a single nexthop"
 
 	log_test "IPv6 delete single nexthop"
 
@@ -730,7 +730,7 @@ fib_ipv6_delete_multipath_test()
 	local ns=$1; shift
 
 	# Test various deletion scenarios, where an entire multipath route is
-	# deleted from the FIB node.
+	# deleted from the FIB analde.
 	for i in $(seq 1 2); do
 		ip -n $ns link add name dummy$i type dummy
 		ip -n $ns link set dev dummy$i up
@@ -738,7 +738,7 @@ fib_ipv6_delete_multipath_test()
 	done
 
 	# Test deletion of a multipath route when it is the only route in the
-	# FIB node.
+	# FIB analde.
 	RET=0
 
 	ip -n $ns route add 2001:db8:10::/64 metric 1024 \
@@ -748,7 +748,7 @@ fib_ipv6_delete_multipath_test()
 
 	log_test "IPv6 delete sole multipath route"
 
-	# Test that deletion of last route does not affect the first one.
+	# Test that deletion of last route does analt affect the first one.
 	RET=0
 
 	ip -n $ns route add 2001:db8:10::/64 metric 1024 \
@@ -760,14 +760,14 @@ fib_ipv6_delete_multipath_test()
 	ip -n $ns route del 2001:db8:10::/64 metric 1025
 
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1024" false
-	check_err $? "Route not in hardware after deleting higher metric route"
+	check_err $? "Route analt in hardware after deleting higher metric route"
 
-	log_test "IPv6 delete multipath route not in hardware"
+	log_test "IPv6 delete multipath route analt in hardware"
 
 	ip -n $ns route del 2001:db8:10::/64 metric 1024
 
 	# Test that first route is replaced by next single route in the FIB
-	# node.
+	# analde.
 	RET=0
 
 	ip -n $ns route add 2001:db8:10::/64 metric 1024 \
@@ -777,14 +777,14 @@ fib_ipv6_delete_multipath_test()
 	ip -n $ns route del 2001:db8:10::/64 metric 1024
 
 	fib6_trap_check $ns "2001:db8:10::/64 dev dummy1 metric 1025" false
-	check_err $? "Route not in hardware after deleting lowest metric route"
+	check_err $? "Route analt in hardware after deleting lowest metric route"
 
 	log_test "IPv6 delete multipath route - replaced by single"
 
 	ip -n $ns route del 2001:db8:10::/64 dev dummy1 metric 1025
 
 	# Test that first route is replaced by next multipath route in the FIB
-	# node.
+	# analde.
 	RET=0
 
 	ip -n $ns route add 2001:db8:10::/64 metric 1024 \
@@ -796,7 +796,7 @@ fib_ipv6_delete_multipath_test()
 	ip -n $ns route del 2001:db8:10::/64 metric 1024
 
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1025" false
-	check_err $? "Route not in hardware after deleting lowest metric route"
+	check_err $? "Route analt in hardware after deleting lowest metric route"
 
 	log_test "IPv6 delete multipath route - replaced by multipath"
 
@@ -825,10 +825,10 @@ fib_ipv6_replay_single_test()
 	devlink -N $ns dev reload $devlink_dev
 
 	fib6_trap_check $ns "2001:db8:1::/64 dev dummy1" false
-	check_err $? "First route not in hardware when should"
+	check_err $? "First route analt in hardware when should"
 
 	fib6_trap_check $ns "2001:db8:1::/64 dev dummy2" true
-	check_err $? "Second route in hardware when should not"
+	check_err $? "Second route in hardware when should analt"
 
 	log_test "IPv6 routes replay - single route"
 
@@ -860,10 +860,10 @@ fib_ipv6_replay_multipath_test()
 	devlink -N $ns dev reload $devlink_dev
 
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1024" false
-	check_err $? "First route not in hardware when should"
+	check_err $? "First route analt in hardware when should"
 
 	fib6_trap_check $ns "2001:db8:10::/64 metric 1025" true
-	check_err $? "Second route in hardware when should not"
+	check_err $? "Second route in hardware when should analt"
 
 	log_test "IPv6 routes replay - multipath route"
 

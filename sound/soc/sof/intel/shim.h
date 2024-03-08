@@ -17,7 +17,7 @@ enum sof_intel_hw_ip_version {
 	SOF_INTEL_BROADWELL,
 	SOF_INTEL_CAVS_1_5,	/* SkyLake, KabyLake, AmberLake */
 	SOF_INTEL_CAVS_1_5_PLUS,/* ApolloLake, GeminiLake */
-	SOF_INTEL_CAVS_1_8,	/* CannonLake, CometLake, CoffeeLake */
+	SOF_INTEL_CAVS_1_8,	/* CananalnLake, CometLake, CoffeeLake */
 	SOF_INTEL_CAVS_2_0,	/* IceLake, JasperLake */
 	SOF_INTEL_CAVS_2_5,	/* TigerLake, AlderLake */
 	SOF_INTEL_ACE_1_0,	/* MeteorLake */
@@ -67,7 +67,7 @@ enum sof_intel_hw_ip_version {
 #define SHIM_CSR_LPCS		BIT(31)
 #define SHIM_CSR_24MHZ_LPCS \
 	(SHIM_CSR_SBCS0 | SHIM_CSR_SBCS1 | SHIM_CSR_LPCS)
-#define SHIM_CSR_24MHZ_NO_LPCS	(SHIM_CSR_SBCS0 | SHIM_CSR_SBCS1)
+#define SHIM_CSR_24MHZ_ANAL_LPCS	(SHIM_CSR_SBCS0 | SHIM_CSR_SBCS1)
 #define SHIM_BYT_CSR_RST	BIT(0)
 #define SHIM_BYT_CSR_VECTOR_SEL	BIT(1)
 #define SHIM_BYT_CSR_STALL	BIT(2)

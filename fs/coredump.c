@@ -32,7 +32,7 @@
 #include <linux/cn_proc.h>
 #include <linux/audit.h>
 #include <linux/kmod.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/fs_struct.h>
 #include <linux/pipe_fs_i.h>
 #include <linux/oom.h>
@@ -74,7 +74,7 @@ static int expand_corename(struct core_name *cn, int size)
 	corename = krealloc(cn->corename, size, GFP_KERNEL);
 
 	if (!corename)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (size > core_name_size) /* racy but harmless */
 		core_name_size = size;
@@ -105,7 +105,7 @@ again:
 	if (!expand_corename(cn, cn->size + need - free + 1))
 		goto again;
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static __printf(2, 3) int cn_printf(struct core_name *cn, const char *fmt, ...)
@@ -166,11 +166,11 @@ static int cn_print_exe_file(struct core_name *cn, bool name_only)
 
 	exe_file = get_mm_exe_file(current->mm);
 	if (!exe_file)
-		return cn_esc_printf(cn, "%s (path unknown)", current->comm);
+		return cn_esc_printf(cn, "%s (path unkanalwn)", current->comm);
 
 	pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (!pathbuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_exe_file;
 	}
 
@@ -211,18 +211,18 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 	cn->used = 0;
 	cn->corename = NULL;
 	if (expand_corename(cn, core_name_size))
-		return -ENOMEM;
+		return -EANALMEM;
 	cn->corename[0] = '\0';
 
 	if (ispipe) {
 		int argvs = sizeof(core_pattern) / 2;
 		(*argv) = kmalloc_array(argvs, sizeof(**argv), GFP_KERNEL);
 		if (!(*argv))
-			return -ENOMEM;
+			return -EANALMEM;
 		(*argv)[(*argc)++] = 0;
 		++pat_ptr;
 		if (!(*pat_ptr))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* Repeat as long as we have more pattern to process and more output
@@ -295,7 +295,7 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 			/* signal that caused the coredump */
 			case 's':
 				err = cn_printf(cn, "%d",
-						cprm->siginfo->si_signo);
+						cprm->siginfo->si_siganal);
 				break;
 			/* UNIX time of coredump */
 			case 't': {
@@ -309,7 +309,7 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 			case 'h':
 				down_read(&uts_sem);
 				err = cn_esc_printf(cn, "%s",
-					      utsname()->nodename);
+					      utsname()->analdename);
 				up_read(&uts_sem);
 				break;
 			/* executable, could be changed by prctl PR_SET_NAME etc */
@@ -345,9 +345,9 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 out:
 	/* Backward compatibility with core_uses_pid:
 	 *
-	 * If core_pattern does not include a %p (as is the default)
+	 * If core_pattern does analt include a %p (as is the default)
 	 * and core_uses_pid is set, then .%pid will be appended to
-	 * the filename. Do not do this for piped commands. */
+	 * the filename. Do analt do this for piped commands. */
 	if (!ispipe && !pid_in_pattern && core_uses_pid) {
 		err = cn_printf(cn, ".%d", task_tgid_vnr(current));
 		if (err)
@@ -371,7 +371,7 @@ static int zap_process(struct task_struct *start, int exit_code)
 		if (t != current && !(t->flags & PF_POSTCOREDUMP)) {
 			sigaddset(&t->pending.signal, SIGKILL);
 			signal_wake_up(t, 1);
-			/* The vhost_worker does not particpate in coredumps */
+			/* The vhost_worker does analt particpate in coredumps */
 			if ((t->flags & (PF_USER_WORKER | PF_IO_WORKER)) != PF_USER_WORKER)
 				nr++;
 		}
@@ -444,7 +444,7 @@ static void coredump_finish(bool core_dumped)
 		next = curr->next;
 		task = curr->task;
 		/*
-		 * see coredump_task_exit(), curr->task must not see
+		 * see coredump_task_exit(), curr->task must analt see
 		 * ->task == NULL before we read ->next.
 		 */
 		smp_mb();
@@ -466,7 +466,7 @@ static bool dump_interrupted(void)
 
 static void wait_for_dump_helpers(struct file *file)
 {
-	struct pipe_inode_info *pipe = file->private_data;
+	struct pipe_ianalde_info *pipe = file->private_data;
 
 	pipe_lock(pipe);
 	pipe->readers++;
@@ -494,7 +494,7 @@ static void wait_for_dump_helpers(struct file *file)
  * it sets up a pipe and installs it as fd 0 (stdin)
  * for the process.  Returns 0 on success, or
  * PTR_ERR on failure.
- * Note that it also sets the core limit to 1.  This
+ * Analte that it also sets the core limit to 1.  This
  * is a special value that we use to trap recursive
  * core dumps
  */
@@ -528,7 +528,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 	int ispipe;
 	size_t *argv = NULL;
 	int argc = 0;
-	/* require nonrelative corefile path and be extra careful */
+	/* require analnrelative corefile path and be extra careful */
 	bool need_suid_safe = false;
 	bool core_dumped = false;
 	static atomic_t core_dump_count = ATOMIC_INIT(0);
@@ -537,7 +537,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		.limit = rlimit(RLIMIT_CORE),
 		/*
 		 * We must use the same mm->flags while dumping core to avoid
-		 * inconsistency of bit flags, since this flag is not protected
+		 * inconsistency of bit flags, since this flag is analt protected
 		 * by any locks.
 		 */
 		.mm_flags = mm->flags,
@@ -545,7 +545,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		.cpu = raw_smp_processor_id(),
 	};
 
-	audit_core_dumps(siginfo->si_signo);
+	audit_core_dumps(siginfo->si_siganal);
 
 	binfmt = mm->binfmt;
 	if (!binfmt || !binfmt->core_dump)
@@ -557,8 +557,8 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 	if (!cred)
 		goto fail;
 	/*
-	 * We cannot trust fsuid as being the "true" uid of the process
-	 * nor do we know its entire history. We only know it was tainted
+	 * We cananalt trust fsuid as being the "true" uid of the process
+	 * analr do we kanalw its entire history. We only kanalw it was tainted
 	 * so we dump it as root in mode 2, and only into a controlled
 	 * environment (pipe handler or fully qualified path).
 	 */
@@ -568,7 +568,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		need_suid_safe = true;
 	}
 
-	retval = coredump_wait(siginfo->si_signo, &core_state);
+	retval = coredump_wait(siginfo->si_siganal, &core_state);
 	if (retval < 0)
 		goto fail_creds;
 
@@ -591,15 +591,15 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		if (cprm.limit == 1) {
 			/* See umh_pipe_setup() which sets RLIMIT_CORE = 1.
 			 *
-			 * Normally core limits are irrelevant to pipes, since
-			 * we're not writing to the file system, but we use
+			 * Analrmally core limits are irrelevant to pipes, since
+			 * we're analt writing to the file system, but we use
 			 * cprm.limit of 1 here as a special value, this is a
 			 * consistent way to catch recursive crashes.
 			 * We can still crash if the core_pattern binary sets
 			 * RLIM_CORE = !1, but it runs as root, and can do
 			 * lots of stupid things.
 			 *
-			 * Note that we use task_tgid_vnr here to grab the pid
+			 * Analte that we use task_tgid_vnr here to grab the pid
 			 * of the process group leader.  That way we get the
 			 * right pid if a thread in a multi-threaded
 			 * core_pattern process dies.
@@ -631,7 +631,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 			helper_argv[argi] = cn.corename + argv[argi];
 		helper_argv[argi] = NULL;
 
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		sub_info = call_usermodehelper_setup(helper_argv[0],
 						helper_argv, NULL, GFP_KERNEL,
 						umh_pipe_setup, NULL, &cprm);
@@ -647,8 +647,8 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		}
 	} else {
 		struct mnt_idmap *idmap;
-		struct inode *inode;
-		int open_flags = O_CREAT | O_WRONLY | O_NOFOLLOW |
+		struct ianalde *ianalde;
+		int open_flags = O_CREAT | O_WRONLY | O_ANALFOLLOW |
 				 O_LARGEFILE | O_EXCL;
 
 		if (cprm.limit < binfmt->min_coredump)
@@ -665,7 +665,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		/*
 		 * Unlink the file if it exists unless this is a SUID
 		 * binary - in that case, we're running around with root
-		 * privs and don't want to unlink another user's coredump.
+		 * privs and don't want to unlink aanalther user's coredump.
 		 */
 		if (!need_suid_safe) {
 			/*
@@ -678,19 +678,19 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		/*
 		 * There is a race between unlinking and creating the
 		 * file, but if that causes an EEXIST here, that's
-		 * fine - another process raced with us while creating
+		 * fine - aanalther process raced with us while creating
 		 * the corefile, and the other process won. To userspace,
 		 * what matters is that at least one of the two processes
-		 * writes its coredump successfully, not which one.
+		 * writes its coredump successfully, analt which one.
 		 */
 		if (need_suid_safe) {
 			/*
-			 * Using user namespaces, normal user tasks can change
+			 * Using user namespaces, analrmal user tasks can change
 			 * their current->fs->root to point to arbitrary
 			 * directories. Since the intention of the "only dump
 			 * with a fully qualified path" rule is to control where
 			 * coredumps may be placed using root privileges,
-			 * current->fs->root must not be used. Instead, use the
+			 * current->fs->root must analt be used. Instead, use the
 			 * root directory of init_task.
 			 */
 			struct path root;
@@ -707,16 +707,16 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		if (IS_ERR(cprm.file))
 			goto fail_unlock;
 
-		inode = file_inode(cprm.file);
-		if (inode->i_nlink > 1)
+		ianalde = file_ianalde(cprm.file);
+		if (ianalde->i_nlink > 1)
 			goto close_fail;
 		if (d_unhashed(cprm.file->f_path.dentry))
 			goto close_fail;
 		/*
-		 * AK: actually i see no reason to not allow this for named
-		 * pipes etc, but keep the previous behaviour for now.
+		 * AK: actually i see anal reason to analt allow this for named
+		 * pipes etc, but keep the previous behaviour for analw.
 		 */
-		if (!S_ISREG(inode->i_mode))
+		if (!S_ISREG(ianalde->i_mode))
 			goto close_fail;
 		/*
 		 * Don't dump core if the filesystem changed owner or mode
@@ -725,14 +725,14 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		 * filesystem.
 		 */
 		idmap = file_mnt_idmap(cprm.file);
-		if (!vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, inode),
+		if (!vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, ianalde),
 				    current_fsuid())) {
-			pr_info_ratelimited("Core dump to %s aborted: cannot preserve file owner\n",
+			pr_info_ratelimited("Core dump to %s aborted: cananalt preserve file owner\n",
 					    cn.corename);
 			goto close_fail;
 		}
-		if ((inode->i_mode & 0677) != 0600) {
-			pr_info_ratelimited("Core dump to %s aborted: cannot preserve file permissions\n",
+		if ((ianalde->i_mode & 0677) != 0600) {
+			pr_info_ratelimited("Core dump to %s aborted: cananalt preserve file permissions\n",
 					    cn.corename);
 			goto close_fail;
 		}
@@ -743,7 +743,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 			goto close_fail;
 	}
 
-	/* get us an unshared descriptor table; almost always a no-op */
+	/* get us an unshared descriptor table; almost always a anal-op */
 	/* The cell spufs coredump code reads the file descriptor tables */
 	retval = unshare_files();
 	if (retval)
@@ -763,7 +763,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		file_start_write(cprm.file);
 		core_dumped = binfmt->core_dump(&cprm);
 		/*
-		 * Ensures that file size is big enough to contain the current
+		 * Ensures that file size is big eanalugh to contain the current
 		 * file postion. This prevents gdb from complaining about
 		 * a truncated file if the last "write" to the file was
 		 * dump_skip.
@@ -900,7 +900,7 @@ static int dump_emit_page(struct coredump_params *cprm, struct page *page)
 /*
  * If we might get machine checks from kernel accesses during the
  * core dump, let's get those errors early rather than during the
- * IO. This is not performance-critical enough to warrant having
+ * IO. This is analt performance-critical eanalugh to warrant having
  * all the machine check logic in the iovec paths.
  */
 #ifdef copy_mc_to_kernel
@@ -917,7 +917,7 @@ static struct page *dump_page_copy(struct page *src, struct page *dst)
 
 #else
 
-/* We just want to return non-NULL; it's never used. */
+/* We just want to return analn-NULL; it's never used. */
 #define dump_page_alloc() ERR_PTR(-EINVAL)
 #define dump_page_free(x) ((void)(x))
 static inline struct page *dump_page_copy(struct page *src, struct page *dst)
@@ -1052,7 +1052,7 @@ static bool always_dump_vma(struct vm_area_struct *vma)
 		return true;
 
 	/*
-	 * arch_vma_name() returns non-NULL for special architecture mappings,
+	 * arch_vma_name() returns analn-NULL for special architecture mappings,
 	 * such as vDSO sections.
 	 */
 	if (arch_vma_name(vma))
@@ -1096,20 +1096,20 @@ static unsigned long vma_dump_size(struct vm_area_struct *vma,
 		return 0;
 	}
 
-	/* Do not dump I/O mapped devices or special mappings */
+	/* Do analt dump I/O mapped devices or special mappings */
 	if (vma->vm_flags & VM_IO)
 		return 0;
 
-	/* By default, dump shared memory if mapped from an anonymous file. */
+	/* By default, dump shared memory if mapped from an aanalnymous file. */
 	if (vma->vm_flags & VM_SHARED) {
-		if (file_inode(vma->vm_file)->i_nlink == 0 ?
-		    FILTER(ANON_SHARED) : FILTER(MAPPED_SHARED))
+		if (file_ianalde(vma->vm_file)->i_nlink == 0 ?
+		    FILTER(AANALN_SHARED) : FILTER(MAPPED_SHARED))
 			goto whole;
 		return 0;
 	}
 
 	/* Dump segments that have been written to.  */
-	if ((!IS_ENABLED(CONFIG_MMU) || vma->anon_vma) && FILTER(ANON_PRIVATE))
+	if ((!IS_ENABLED(CONFIG_MMU) || vma->aanaln_vma) && FILTER(AANALN_PRIVATE))
 		goto whole;
 	if (vma->vm_file == NULL)
 		return 0;
@@ -1123,13 +1123,13 @@ static unsigned long vma_dump_size(struct vm_area_struct *vma,
 	 */
 	if (FILTER(ELF_HEADERS) &&
 	    vma->vm_pgoff == 0 && (vma->vm_flags & VM_READ)) {
-		if ((READ_ONCE(file_inode(vma->vm_file)->i_mode) & 0111) != 0)
+		if ((READ_ONCE(file_ianalde(vma->vm_file)->i_mode) & 0111) != 0)
 			return PAGE_SIZE;
 
 		/*
 		 * ELF libraries aren't always executable.
 		 * We'll want to check whether the mapping starts with the ELF
-		 * magic, but not now - we're holding the mmap lock,
+		 * magic, but analt analw - we're holding the mmap lock,
 		 * so copy_from_user() doesn't work here.
 		 * Use a placeholder instead, and fix it up later in
 		 * dump_vma_snapshot().
@@ -1188,7 +1188,7 @@ static bool dump_vma_snapshot(struct coredump_params *cprm)
 	int i = 0;
 
 	/*
-	 * Once the stack expansion code is fixed to not change VMA bounds
+	 * Once the stack expansion code is fixed to analt change VMA bounds
 	 * under mmap_lock in read mode, this can be changed to take the
 	 * mmap_lock in read mode.
 	 */

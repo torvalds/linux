@@ -31,7 +31,7 @@
  * @nexthop - Saved nexthop address in LSRR and SSRR
  * @is_strictroute - Strict source route
  * @srr_is_hit - Packet destination addr was our one
- * @is_changed - IP checksum more not valid
+ * @is_changed - IP checksum more analt valid
  * @rr_needaddr - Need to record addr of outgoing dev
  * @ts_needtime - Need to record timestamp
  * @ts_needaddr - Need to record addr of outgoing dev
@@ -86,7 +86,7 @@ struct inet_request_sock {
 				wscale_ok  : 1,
 				ecn_ok	   : 1,
 				acked	   : 1,
-				no_srccheck: 1,
+				anal_srccheck: 1,
 				smc_ok	   : 1;
 	u32                     ir_mark;
 	union {
@@ -261,8 +261,8 @@ enum {
 	INET_FLAGS_MC_ALL	= 14,
 	INET_FLAGS_TRANSPARENT	= 15,
 	INET_FLAGS_IS_ICSK	= 16,
-	INET_FLAGS_NODEFRAG	= 17,
-	INET_FLAGS_BIND_ADDRESS_NO_PORT = 18,
+	INET_FLAGS_ANALDEFRAG	= 17,
+	INET_FLAGS_BIND_ADDRESS_ANAL_PORT = 18,
 	INET_FLAGS_DEFER_CONNECT = 19,
 	INET_FLAGS_MC6_LOOP	= 20,
 	INET_FLAGS_RECVERR6_RFC4884 = 21,
@@ -417,20 +417,20 @@ static inline bool inet_get_convert_csum(struct sock *sk)
 }
 
 
-static inline bool inet_can_nonlocal_bind(struct net *net,
+static inline bool inet_can_analnlocal_bind(struct net *net,
 					  struct inet_sock *inet)
 {
-	return READ_ONCE(net->ipv4.sysctl_ip_nonlocal_bind) ||
+	return READ_ONCE(net->ipv4.sysctl_ip_analnlocal_bind) ||
 		test_bit(INET_FLAGS_FREEBIND, &inet->inet_flags) ||
 		test_bit(INET_FLAGS_TRANSPARENT, &inet->inet_flags);
 }
 
-static inline bool inet_addr_valid_or_nonlocal(struct net *net,
+static inline bool inet_addr_valid_or_analnlocal(struct net *net,
 					       struct inet_sock *inet,
 					       __be32 addr,
 					       int addr_type)
 {
-	return inet_can_nonlocal_bind(net, inet) ||
+	return inet_can_analnlocal_bind(net, inet) ||
 		addr == htonl(INADDR_ANY) ||
 		addr_type == RTN_LOCAL ||
 		addr_type == RTN_MULTICAST ||

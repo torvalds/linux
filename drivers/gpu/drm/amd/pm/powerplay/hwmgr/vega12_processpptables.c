@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -199,7 +199,7 @@ static int init_powerplay_table_information(
 	pptable_information->uc_thermal_controller_type = powerplay_table->ucThermalControllerType;
 
 	set_hw_cap(hwmgr,
-		ATOM_VEGA12_PP_THERMALCONTROLLER_NONE != hwmgr->thermal_controller.ucType,
+		ATOM_VEGA12_PP_THERMALCONTROLLER_ANALNE != hwmgr->thermal_controller.ucType,
 		PHM_PlatformCaps_ThermalController);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_MicrocodeFanControl);
@@ -253,7 +253,7 @@ static int init_powerplay_table_information(
 	pptable_information->smc_pptable = kmemdup(&(powerplay_table->smcPPTable),
 						   sizeof(PPTable_t), GFP_KERNEL);
 	if (pptable_information->smc_pptable == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return append_vbios_pptable(hwmgr, (pptable_information->smc_pptable));
 }
@@ -265,7 +265,7 @@ static int vega12_pp_tables_initialize(struct pp_hwmgr *hwmgr)
 
 	hwmgr->pptable = kzalloc(sizeof(struct phm_ppt_v3_information), GFP_KERNEL);
 	PP_ASSERT_WITH_CODE((hwmgr->pptable != NULL),
-		"Failed to allocate hwmgr->pptable!", return -ENOMEM);
+		"Failed to allocate hwmgr->pptable!", return -EANALMEM);
 
 	powerplay_table = get_powerplay_table(hwmgr);
 	PP_ASSERT_WITH_CODE((powerplay_table != NULL),

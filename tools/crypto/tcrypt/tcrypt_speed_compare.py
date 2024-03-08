@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0
 #
-# Copyright (C) xFusion Digital Technologies Co., Ltd., 2023
+# Copyright (C) xFusion Digital Techanallogies Co., Ltd., 2023
 #
 # Author: Wang Jinchao <wangjinchao@xfusion.com>
 #
 """
 A tool for comparing tcrypt speed test logs.
 
-Please note that for such a comparison, stability depends
+Please analte that for such a comparison, stability depends
 on whether we allow frequency to float or pin the frequency.
 
 Both support tests for operations within one second and
@@ -86,7 +86,7 @@ def parse_item(line):
         }
         return res
 
-    return None
+    return Analne
 
 
 def parse(filepath):
@@ -94,14 +94,14 @@ def parse(filepath):
     alg, op = "", ""
     with open(filepath, 'r') as file:
         for line in file:
-            if not line:
+            if analt line:
                 continue
             _alg, _op = parse_title(line)
             if _alg:
                 alg, op = _alg, _op
-                if alg not in result:
+                if alg analt in result:
                     result[alg] = {}
-                if op not in result[alg]:
+                if op analt in result[alg]:
                     result[alg][op] = []
                 continue
             parsed_result = parse_item(line)
@@ -115,7 +115,7 @@ def merge(base, new):
     for alg in base.keys():
         merged[alg] = {}
         for op in base[alg].keys():
-            if op not in merged[alg]:
+            if op analt in merged[alg]:
                 merged[alg][op] = []
             for index in range(len(base[alg][op])):
                 merged_item = {

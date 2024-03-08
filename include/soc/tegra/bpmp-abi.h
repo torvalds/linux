@@ -19,7 +19,7 @@
 #endif
 #endif
 
-#ifdef NO_GCC_EXTENSIONS
+#ifdef ANAL_GCC_EXTENSIONS
 #define BPMP_ABI_EMPTY char empty;
 #define BPMP_ABI_EMPTY_ARRAY 1
 #else
@@ -27,11 +27,11 @@
 #define BPMP_ABI_EMPTY_ARRAY 0
 #endif
 
-#ifndef BPMP_UNION_ANON
-#ifdef __UNION_ANON
-#define BPMP_UNION_ANON __UNION_ANON
+#ifndef BPMP_UNION_AANALN
+#ifdef __UNION_AANALN
+#define BPMP_UNION_AANALN __UNION_AANALN
 #else
-#define BPMP_UNION_ANON
+#define BPMP_UNION_AANALN
 #endif
 #endif
 
@@ -78,7 +78,7 @@
  * This should be set in mrq_request::flags for all requests targetted
  * at BPMP. For requests originating in BPMP, this flag is optional except
  * for messages targeting MCE, for which the field must be set.
- * When this flag is not set, the remote peer must not send a response
+ * When this flag is analt set, the remote peer must analt send a response
  * back.
  */
 #define BPMP_MAIL_DO_ACK	(1U << 0U)
@@ -127,7 +127,7 @@ struct mrq_request {
 	 * crc16, xid and length fields are present when set.
 	 * Some platform configurations, especially when targeted to applications requiring
 	 * functional safety, mandate this option being set or otherwise will respond with
-	 * -BPMP_EBADMSG and ignore the request.
+	 * -BPMP_EBADMSG and iganalre the request.
 	 *
 	 * **xid** is a transaction ID.
 	 *
@@ -135,7 +135,7 @@ struct mrq_request {
 	 *
 	 * **payload_length** of the message expressed in bytes without the size of this header.
 	 * See table below for minimum accepted payload lengths for each MRQ.
-	 * Note: For DMCE communication, this field expresses the length as a multiple of 4 bytes
+	 * Analte: For DMCE communication, this field expresses the length as a multiple of 4 bytes
 	 * rather than bytes.
 	 *
 	 * Only used when #BPMP_MAIL_CRC_PRESENT is set.
@@ -215,13 +215,13 @@ struct mrq_request {
 	 *
 	 * **crc16**
 	 *
-	 * CRC16 using polynomial x^16 + x^14 + x^12 + x^11 + x^8 + x^5 + x^4 + x^2 + 1
+	 * CRC16 using polyanalmial x^16 + x^14 + x^12 + x^11 + x^8 + x^5 + x^4 + x^2 + 1
 	 * and initialization value 0x4657. The CRC is calculated over all bytes of the message
 	 * including this header. However the crc16 field is considered to be set to 0 when
 	 * calculating the CRC. Only used when #BPMP_MAIL_CRC_PRESENT is set. If
-	 * #BPMP_MAIL_CRC_PRESENT is set and this field does not match the CRC as
+	 * #BPMP_MAIL_CRC_PRESENT is set and this field does analt match the CRC as
 	 * calculated by BPMP, -BPMP_EBADMSG will be returned and the request will
-	 * be ignored. See code snippet below on how to calculate the CRC.
+	 * be iganalred. See code snippet below on how to calculate the CRC.
 	 *
 	 * @code
 	 *	uint16_t calc_crc_digest(uint16_t crc, uint8_t *data, size_t size)
@@ -279,12 +279,12 @@ struct mrq_response {
 	 * **xid** is the transaction ID as sent by the requestor.
 	 *
 	 * **length** of the message expressed in bytes without the size of this header.
-	 * Note: For DMCE communication, this field expresses the length as a multiple of 4 bytes
+	 * Analte: For DMCE communication, this field expresses the length as a multiple of 4 bytes
 	 * rather than bytes.
 	 *
 	 * **crc16**
 	 *
-	 * CRC16 using polynomial x^16 + x^14 + x^12 + x^11 + x^8 + x^5 + x^4 + x^2 + 1
+	 * CRC16 using polyanalmial x^16 + x^14 + x^12 + x^11 + x^8 + x^5 + x^4 + x^2 + 1
 	 * and initialization value 0x4657. The CRC is calculated over all bytes of the message
 	 * including this header. However the crc16 field is considered to be set to 0 when
 	 * calculating the CRC. Only used when #BPMP_MAIL_CRC_PRESENT is set.
@@ -530,7 +530,7 @@ struct mrq_threaded_ping_response {
 /**
  * @ingroup MRQ_Codes
  * @def MRQ_DEBUGFS
- * @brief Interact with BPMP's debugfs file nodes
+ * @brief Interact with BPMP's debugfs file analdes
  *
  * @deprecated use MRQ_DEBUG instead.
  *
@@ -555,10 +555,10 @@ struct mrq_threaded_ping_response {
  * is to provide information useful for debugging the system at
  * runtime.
  *
- * @note The files exposed via debugfs are not part of the
+ * @analte The files exposed via debugfs are analt part of the
  * BPMP firmware's ABI. debugfs files may be added or removed in any
  * given version of the firmware. Typically the semantics of a debugfs
- * file are consistent from version to version but even that is not
+ * file are consistent from version to version but even that is analt
  * guaranteed.
  *
  * @}
@@ -572,7 +572,7 @@ enum mrq_debugfs_commands {
 	CMD_DEBUGFS_WRITE = 2,
 	/** @brief Perform dumping directory */
 	CMD_DEBUGFS_DUMPDIR = 3,
-	/** @brief Not a command */
+	/** @brief Analt a command */
 	CMD_DEBUGFS_MAX
 };
 
@@ -645,7 +645,7 @@ struct mrq_debugfs_request {
 	union {
 		struct cmd_debugfs_fileop_request fop;
 		struct cmd_debugfs_dumpdir_request dumpdir;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /**
@@ -661,7 +661,7 @@ struct mrq_debugfs_response {
 		struct cmd_debugfs_fileop_response fop;
 		/** @brief Response data for CMD_DEBUGFS_DUMPDIR command */
 		struct cmd_debugfs_dumpdir_response dumpdir;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /**
@@ -676,7 +676,7 @@ struct mrq_debugfs_response {
 /**
  * @ingroup MRQ_Codes
  * @def MRQ_DEBUG
- * @brief Interact with BPMP's debugfs file nodes. Use message payload
+ * @brief Interact with BPMP's debugfs file analdes. Use message payload
  * for exchanging data. This is functionally equivalent to
  * @ref MRQ_DEBUGFS. But the way in which data is exchanged is different.
  * When software running on CPU tries to read a debugfs file,
@@ -704,7 +704,7 @@ enum mrq_debug_commands {
 	CMD_DEBUG_WRITE = 3,
 	/** @brief Close file */
 	CMD_DEBUG_CLOSE = 4,
-	/** @brief Not a command */
+	/** @brief Analt a command */
 	CMD_DEBUG_MAX
 };
 
@@ -842,7 +842,7 @@ struct mrq_debug_request {
 		struct cmd_debug_fwrite_request fwr;
 		/** @brief Request payload for CMD_DEBUG_CLOSE command */
 		struct cmd_debug_fclose_request fcl;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /**
@@ -854,7 +854,7 @@ struct mrq_debug_response {
 		struct cmd_debug_fopen_response fop;
 		/** @brief Response data for CMD_DEBUG_READ command */
 		struct cmd_debug_fread_response frd;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /**
@@ -878,8 +878,8 @@ enum mrq_reset_commands {
 	 *
 	 * mrq_response::err is 0 if the operation was successful, or @n
 	 * -#BPMP_EINVAL if mrq_reset_request::reset_id is invalid @n
-	 * -#BPMP_EACCES if mrq master is not an owner of target domain reset @n
-	 * -#BPMP_ENOTSUP if target domain h/w state does not allow reset
+	 * -#BPMP_EACCES if mrq master is analt an owner of target domain reset @n
+	 * -#BPMP_EANALTSUP if target domain h/w state does analt allow reset
 	 */
 	CMD_RESET_ASSERT = 1,
 	/**
@@ -887,8 +887,8 @@ enum mrq_reset_commands {
 	 *
 	 * mrq_response::err is 0 if the operation was successful, or @n
 	 * -#BPMP_EINVAL if mrq_reset_request::reset_id is invalid @n
-	 * -#BPMP_EACCES if mrq master is not an owner of target domain reset @n
-	 * -#BPMP_ENOTSUP if target domain h/w state does not allow reset
+	 * -#BPMP_EACCES if mrq master is analt an owner of target domain reset @n
+	 * -#BPMP_EANALTSUP if target domain h/w state does analt allow reset
 	 */
 	CMD_RESET_DEASSERT = 2,
 	/**
@@ -896,19 +896,19 @@ enum mrq_reset_commands {
 	 *
 	 * mrq_response::err is 0 if the operation was successful, or @n
 	 * -#BPMP_EINVAL if mrq_reset_request::reset_id is invalid @n
-	 * -#BPMP_EACCES if mrq master is not an owner of target domain reset @n
-	 * -#BPMP_ENOTSUP if target domain h/w state does not allow reset
+	 * -#BPMP_EACCES if mrq master is analt an owner of target domain reset @n
+	 * -#BPMP_EANALTSUP if target domain h/w state does analt allow reset
 	 */
 	CMD_RESET_MODULE = 3,
 	/**
 	 * @brief Get the highest reset ID
 	 *
 	 * mrq_response::err is 0 if the operation was successful, or @n
-	 * -#BPMP_ENODEV if no reset domains are supported (number of IDs is 0)
+	 * -#BPMP_EANALDEV if anal reset domains are supported (number of IDs is 0)
 	 */
 	CMD_RESET_GET_MAX_ID = 4,
 
-	/** @brief Not part of ABI and subject to change */
+	/** @brief Analt part of ABI and subject to change */
 	CMD_RESET_MAX,
 };
 
@@ -927,7 +927,7 @@ struct mrq_reset_request {
 
 /**
  * @brief Response for MRQ_RESET sub-command CMD_RESET_GET_MAX_ID. When
- * this sub-command is not supported, firmware will return -BPMP_EBADCMD
+ * this sub-command is analt supported, firmware will return -BPMP_EBADCMD
  * in mrq_response::err.
  */
 struct cmd_reset_get_max_id_response {
@@ -939,7 +939,7 @@ struct cmd_reset_get_max_id_response {
  * @brief Response with MRQ_RESET
  *
  * Each sub-command supported by @ref mrq_reset_request may return
- * sub-command-specific data. Some do and some do not as indicated
+ * sub-command-specific data. Some do and some do analt as indicated
  * in the following table
  *
  * | sub-command          | payload          |
@@ -952,7 +952,7 @@ struct cmd_reset_get_max_id_response {
 struct mrq_reset_response {
 	union {
 		struct cmd_reset_get_max_id_response reset_get_max_id;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /** @} Reset */
@@ -977,10 +977,10 @@ struct mrq_reset_response {
 #define SERIALI2C_TEN           0x0010U
 #define SERIALI2C_RD            0x0001U
 #define SERIALI2C_STOP          0x8000U
-#define SERIALI2C_NOSTART       0x4000U
+#define SERIALI2C_ANALSTART       0x4000U
 #define SERIALI2C_REV_DIR_ADDR  0x2000U
-#define SERIALI2C_IGNORE_NAK    0x1000U
-#define SERIALI2C_NO_RD_ACK     0x0800U
+#define SERIALI2C_IGANALRE_NAK    0x1000U
+#define SERIALI2C_ANAL_RD_ACK     0x0800U
 #define SERIALI2C_RECV_LEN      0x0400U
 
 enum {
@@ -997,7 +997,7 @@ enum {
  *
  * Because these structures are packed, some instances are likely to
  * be misaligned. Additionally because #data is variable length, it is
- * not possible to iterate through a serialized list of these
+ * analt possible to iterate through a serialized list of these
  * structures without inspecting #len in each instance.  It may be
  * easier to serialize or deserialize cmd_i2c_xfer_request::data_buf
  * manually rather than using this structure definition.
@@ -1067,13 +1067,13 @@ struct mrq_i2c_request {
  * mrq_response:err is
  *  0: Success
  *  -#BPMP_EBADCMD: if mrq_i2c_request::cmd is other than 1
- *  -#BPMP_EINVAL: if cmd_i2c_xfer_request does not contain correctly formatted request
- *  -#BPMP_ENODEV: if cmd_i2c_xfer_request::bus_id is not supported by BPMP
- *  -#BPMP_EACCES: if i2c transaction is not allowed due to firewall rules
+ *  -#BPMP_EINVAL: if cmd_i2c_xfer_request does analt contain correctly formatted request
+ *  -#BPMP_EANALDEV: if cmd_i2c_xfer_request::bus_id is analt supported by BPMP
+ *  -#BPMP_EACCES: if i2c transaction is analt allowed due to firewall rules
  *  -#BPMP_ETIMEDOUT: if i2c transaction times out
- *  -#BPMP_ENXIO: if i2c slave device does not reply with ACK to the transaction
+ *  -#BPMP_ENXIO: if i2c slave device does analt reply with ACK to the transaction
  *  -#BPMP_EAGAIN: if ARB_LOST condition is detected by the i2c controller
- *  -#BPMP_EIO: any other i2c controller error code than NO_ACK or ARB_LOST
+ *  -#BPMP_EIO: any other i2c controller error code than ANAL_ACK or ARB_LOST
  */
 struct mrq_i2c_response {
 	struct cmd_i2c_xfer_response xfer;
@@ -1198,7 +1198,7 @@ struct cmd_clk_is_enabled_response {
 	 * requested with CMD_CLK_ENABLE or CMD_CLK_DISABLE by the
 	 * master invoking the command earlier.
 	 *
-	 * The state may not reflect the physical state of the clock
+	 * The state may analt reflect the physical state of the clock
 	 * if there are some other masters requesting it to be
 	 * enabled.
 	 *
@@ -1305,7 +1305,7 @@ struct cmd_clk_get_fmax_at_vmin_response {
  *
  * Used by the sender of an #MRQ_CLK message to control clocks. The
  * clk_request is split into several sub-commands. Some sub-commands
- * require no additional data. Others have a sub-command specific
+ * require anal additional data. Others have a sub-command specific
  * payload
  *
  * |sub-command                 |payload                |
@@ -1372,7 +1372,7 @@ struct mrq_clk_request {
 		struct cmd_clk_get_max_clk_id_request clk_get_max_clk_id;
 		/** @private */
 		struct cmd_clk_get_fmax_at_vmin_request clk_get_fmax_at_vmin;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /**
@@ -1380,7 +1380,7 @@ struct mrq_clk_request {
  * @brief Response to MRQ_CLK
  *
  * Each sub-command supported by @ref mrq_clk_request may return
- * sub-command-specific data. Some do and some do not as indicated in
+ * sub-command-specific data. Some do and some do analt as indicated in
  * the following table
  *
  * |sub-command                 |payload                 |
@@ -1431,7 +1431,7 @@ struct mrq_clk_response {
 		struct cmd_clk_get_all_info_response clk_get_all_info;
 		struct cmd_clk_get_max_clk_id_response clk_get_max_clk_id;
 		struct cmd_clk_get_fmax_at_vmin_response clk_get_fmax_at_vmin;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /** @} Clocks */
@@ -1464,11 +1464,11 @@ struct mrq_query_abi_request {
  * @ingroup ABI_info
  * @brief Response to MRQ_QUERY_ABI
  *
- * @note mrq_response::err of 0 indicates that the query was
- * successful, not that the MRQ itself is supported!
+ * @analte mrq_response::err of 0 indicates that the query was
+ * successful, analt that the MRQ itself is supported!
  */
 struct mrq_query_abi_response {
-	/** @brief 0 if queried MRQ is supported. Else, -#BPMP_ENODEV */
+	/** @brief 0 if queried MRQ is supported. Else, -#BPMP_EANALDEV */
 	int32_t status;
 } BPMP_ABI_PACKED;
 
@@ -1478,11 +1478,11 @@ struct mrq_query_abi_response {
  * @def MRQ_PG
  * @brief Control power-gating state of a partition. In contrast to
  * MRQ_PG_UPDATE_STATE, operations that change the power partition
- * state are NOT reference counted
+ * state are ANALT reference counted
  *
  * @cond (bpmp_t194 || bpmp_t186)
- * @note On T194 and earlier BPMP-FW forcefully turns off some partitions as
- * part of SC7 entry because their state cannot be adequately restored on exit.
+ * @analte On T194 and earlier BPMP-FW forcefully turns off some partitions as
+ * part of SC7 entry because their state cananalt be adequately restored on exit.
  * Therefore, it is recommended to power off all domains via MRQ_PG prior to SC7
  * entry.
  * See @ref bpmp_pdomain_ids for further detail.
@@ -1503,7 +1503,7 @@ enum mrq_pg_cmd {
 	 * request type
 	 *
 	 * mrq_response::err is 0 if the specified request is
-	 * supported and -#BPMP_ENODEV otherwise.
+	 * supported and -#BPMP_EANALDEV otherwise.
 	 */
 	CMD_PG_QUERY_ABI = 0,
 
@@ -1540,7 +1540,7 @@ enum mrq_pg_cmd {
 
 
 	/**
-	 * @brief Get the highest power domain id in the system. Not
+	 * @brief Get the highest power domain id in the system. Analt
 	 * all IDs between 0 and max_id are valid IDs.
 	 *
 	 * mrq_response:err is
@@ -1585,7 +1585,7 @@ struct cmd_pg_get_state_response {
 	 * succesfuly requested by the master earlier using #MRQ_PG
 	 * command #CMD_PG_SET_STATE.
 	 *
-	 * The state may not reflect the physical state of the power
+	 * The state may analt reflect the physical state of the power
 	 * partition if there are some other masters requesting it to
 	 * be enabled.
 	 *
@@ -1607,7 +1607,7 @@ struct cmd_pg_get_max_id_response {
  *
  * Used by the sender of an #MRQ_PG message to control power
  * partitions. The pg_request is split into several sub-commands. Some
- * sub-commands require no additional data. Others have a sub-command
+ * sub-commands require anal additional data. Others have a sub-command
  * specific payload
  *
  * |sub-command                 |payload                |
@@ -1625,14 +1625,14 @@ struct mrq_pg_request {
 	union {
 		struct cmd_pg_query_abi_request query_abi;
 		struct cmd_pg_set_state_request set_state;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /**
  * @brief Response to MRQ_PG
  *
  * Each sub-command supported by @ref mrq_pg_request may return
- * sub-command-specific data. Some do and some do not as indicated in
+ * sub-command-specific data. Some do and some do analt as indicated in
  * the following table
  *
  * |sub-command                 |payload                |
@@ -1648,7 +1648,7 @@ struct mrq_pg_response {
 		struct cmd_pg_get_state_response get_state;
 		struct cmd_pg_get_name_response get_name;
 		struct cmd_pg_get_max_id_response get_max_id;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /** @} Powergating */
@@ -1669,7 +1669,7 @@ struct mrq_pg_response {
  * The BPMP firmware includes a thermal framework. Drivers within the
  * bpmp firmware register with the framework to provide thermal
  * zones. Each thermal zone corresponds to an entity whose temperature
- * can be measured. The framework also has a notion of trip points. A
+ * can be measured. The framework also has a analtion of trip points. A
  * trip point consists of a thermal zone id, a temperature, and a
  * callback routine. The framework invokes the callback when the zone
  * hits the indicated temperature. The BPMP firmware uses this thermal
@@ -1694,7 +1694,7 @@ enum mrq_thermal_host_to_bpmp_cmd {
 	 * Host needs to supply request parameters.
 	 *
 	 * mrq_response::err is 0 if the specified request is
-	 * supported and -#BPMP_ENODEV otherwise.
+	 * supported and -#BPMP_EANALDEV otherwise.
 	 */
 	CMD_THERMAL_QUERY_ABI = 0,
 
@@ -1706,7 +1706,7 @@ enum mrq_thermal_host_to_bpmp_cmd {
 	 * mrq_response::err is
 	 * *  0: Temperature query succeeded.
 	 * *  -#BPMP_EINVAL: Invalid request parameters.
-	 * *  -#BPMP_ENOENT: No driver registered for thermal zone..
+	 * *  -#BPMP_EANALENT: Anal driver registered for thermal zone..
 	 * *  -#BPMP_EFAULT: Problem reading temperature measurement.
 	 */
 	CMD_THERMAL_GET_TEMP = 1,
@@ -1724,7 +1724,7 @@ enum mrq_thermal_host_to_bpmp_cmd {
 	 * mrq_response::err is
 	 * *  0: Trip successfully set.
 	 * *  -#BPMP_EINVAL: Invalid request parameters.
-	 * *  -#BPMP_ENOENT: No driver registered for thermal zone.
+	 * *  -#BPMP_EANALENT: Anal driver registered for thermal zone.
 	 * *  -#BPMP_EFAULT: Problem setting trip point.
 	 */
 	CMD_THERMAL_SET_TRIP = 2,
@@ -1732,7 +1732,7 @@ enum mrq_thermal_host_to_bpmp_cmd {
 	/**
 	 * @brief Get the number of supported thermal zones.
 	 *
-	 * No request parameters required.
+	 * Anal request parameters required.
 	 *
 	 * mrq_response::err is always 0, indicating success.
 	 */
@@ -1746,7 +1746,7 @@ enum mrq_thermal_host_to_bpmp_cmd {
 	 * mrq_response::err is
 	 * *  0: Valid zone information returned.
 	 * *  -#BPMP_EINVAL: Invalid request parameters.
-	 * *  -#BPMP_ENOENT: No driver registered for thermal zone.
+	 * *  -#BPMP_EANALENT: Anal driver registered for thermal zone.
 	 * *  -#BPMP_ERANGE if thermtrip is invalid or disabled.
 	 * *  -#BPMP_EFAULT: Problem reading zone information.
 	 */
@@ -1765,7 +1765,7 @@ enum mrq_thermal_bpmp_to_host_cmd {
 	 *   for the zone.
 	 *
 	 * BPMP needs to supply request parameters. Host only needs to
-	 * acknowledge.
+	 * ackanalwledge.
 	 */
 	CMD_THERMAL_HOST_TRIP_REACHED = 100,
 
@@ -1798,7 +1798,7 @@ struct cmd_thermal_get_temp_request {
  *
  * error: 0 if request succeeded.
  *	-BPMP_EINVAL if request parameters were invalid.
- *      -BPMP_ENOENT if no driver was registered for the specified thermal zone.
+ *      -BPMP_EANALENT if anal driver was registered for the specified thermal zone.
  *      -BPMP_EFAULT for other thermal zone driver errors.
  * temp: Current temperature in millicelsius.
  */
@@ -1873,7 +1873,7 @@ struct mrq_thermal_host_to_bpmp_request {
 		struct cmd_thermal_get_temp_request get_temp;
 		struct cmd_thermal_set_trip_request set_trip;
 		struct cmd_thermal_get_thermtrip_request get_thermtrip;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /*
@@ -1886,7 +1886,7 @@ struct mrq_thermal_bpmp_to_host_request {
 	uint32_t type;
 	union {
 		struct cmd_thermal_host_trip_reached_request host_trip_reached;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /*
@@ -1922,11 +1922,11 @@ union mrq_thermal_bpmp_to_host_response {
  * @brief Response to #MRQ_OC_STATUS
  *
  * throt_en: Value for each OC alarm where zero signifies throttle is
- *           disabled, and non-zero throttle is enabled.
+ *           disabled, and analn-zero throttle is enabled.
  * event_cnt: Total number of OC events for each OC alarm.
  *
  * mrq_response::err is 0 if the operation was successful and
- * -#BPMP_ENODEV otherwise.
+ * -#BPMP_EANALDEV otherwise.
  */
 struct mrq_oc_status_response {
 	uint8_t throt_en[OC_STATUS_MAX_SIZE];
@@ -2033,7 +2033,7 @@ struct cpu_vhint_data {
  *
  * If ratchet is less than BPMP's #BPMP_ABI_RATCHET_VALUE, BPMP may
  * reply with mrq_response::err = -#BPMP_ERANGE to indicate that
- * BPMP-FW cannot interoperate correctly with the requester. Requester
+ * BPMP-FW cananalt interoperate correctly with the requester. Requester
  * should cease further communication with BPMP.
  *
  * Otherwise, err shall be 0.
@@ -2056,7 +2056,7 @@ struct mrq_abi_ratchet_request {
  *
  * If mrq_response::err is 0 and ratchet is greater than or equal to the
  * requester's BPMP_ABI_RATCHET_VALUE, the requester should continue
- * normal operation.
+ * analrmal operation.
  */
 struct mrq_abi_ratchet_response {
 	/** @brief BPMP's ratchet value */
@@ -2083,9 +2083,9 @@ struct mrq_abi_ratchet_response {
  * @brief Used by @ref mrq_emc_dvfs_latency_response
  */
 struct emc_dvfs_latency {
-	/** @brief EMC DVFS node frequency in kHz */
+	/** @brief EMC DVFS analde frequency in kHz */
 	uint32_t freq;
-	/** @brief EMC DVFS latency in nanoseconds */
+	/** @brief EMC DVFS latency in naanalseconds */
 	uint32_t latency;
 } BPMP_ABI_PACKED;
 
@@ -2096,7 +2096,7 @@ struct emc_dvfs_latency {
 struct mrq_emc_dvfs_latency_response {
 	/** @brief The number valid entries in #pairs */
 	uint32_t num_pairs;
-	/** @brief EMC DVFS node <frequency, latency> information */
+	/** @brief EMC DVFS analde <frequency, latency> information */
 	struct emc_dvfs_latency pairs[EMC_DVFS_LATENCY_MAX_SIZE];
 } BPMP_ABI_PACKED;
 
@@ -2121,7 +2121,7 @@ struct mrq_emc_dvfs_latency_response {
  * @brief Used by @ref mrq_emc_dvfs_emchub_response
  */
 struct emc_dvfs_emchub {
-	/** @brief EMC DVFS node frequency in kHz */
+	/** @brief EMC DVFS analde frequency in kHz */
 	uint32_t freq;
 	/** @brief EMC HUB frequency in kHz */
 	uint32_t hub_freq;
@@ -2134,7 +2134,7 @@ struct emc_dvfs_emchub {
 struct mrq_emc_dvfs_emchub_response {
 	/** @brief The number valid entries in #pairs */
 	uint32_t num_pairs;
-	/** @brief EMC DVFS node <frequency, hub frequency> information */
+	/** @brief EMC DVFS analde <frequency, hub frequency> information */
 	struct emc_dvfs_emchub pairs[EMC_DVFS_EMCHUB_MAX_SIZE];
 } BPMP_ABI_PACKED;
 
@@ -2174,9 +2174,9 @@ enum mrq_emc_disp_rfl_mode {
  * mrq_response::err is
  * * 0: RFL mode is set successfully
  * * -#BPMP_EINVAL: invalid mode requested
- * * -#BPMP_ENOSYS: RFL handshake is not supported
+ * * -#BPMP_EANALSYS: RFL handshake is analt supported
  * * -#BPMP_EACCES: Permission denied
- * * -#BPMP_ENODEV: if disp rfl mrq is not supported by BPMP-FW
+ * * -#BPMP_EANALDEV: if disp rfl mrq is analt supported by BPMP-FW
  */
 struct mrq_emc_disp_rfl_request {
 	/** @brief EMC display RFL mode (@ref mrq_emc_disp_rfl_mode) */
@@ -2209,7 +2209,7 @@ enum mrq_bwmgr_cmd {
 	 * request type
 	 *
 	 * mrq_response::err is 0 if the specified request is
-	 * supported and -#BPMP_ENODEV otherwise.
+	 * supported and -#BPMP_EANALDEV otherwise.
 	 */
 	CMD_BWMGR_QUERY_ABI = 0,
 
@@ -2219,7 +2219,7 @@ enum mrq_bwmgr_cmd {
 	 * mrq_response::err is
 	 * *  0: calc_rate succeeded.
 	 * *  -#BPMP_EINVAL: Invalid request parameters.
-	 * *  -#BPMP_ENOTSUP: Requested bw is not available.
+	 * *  -#BPMP_EANALTSUP: Requested bw is analt available.
 	 */
 	CMD_BWMGR_CALC_RATE = 1
 };
@@ -2282,7 +2282,7 @@ struct mrq_bwmgr_request {
 	union {
 		struct cmd_bwmgr_query_abi_request query_abi;
 		struct cmd_bwmgr_calc_rate_request bwmgr_rate_req;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /*
@@ -2295,7 +2295,7 @@ struct mrq_bwmgr_request {
 struct mrq_bwmgr_response {
 	union {
 		struct cmd_bwmgr_calc_rate_response bwmgr_rate_resp;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /** @} BWMGR */
@@ -2323,7 +2323,7 @@ enum mrq_bwmgr_int_cmd {
 	 * request type
 	 *
 	 * mrq_response::err is 0 if the specified request is
-	 * supported and -#BPMP_ENODEV otherwise.
+	 * supported and -#BPMP_EANALDEV otherwise.
 	 */
 	CMD_BWMGR_INT_QUERY_ABI = 1,
 
@@ -2334,8 +2334,8 @@ enum mrq_bwmgr_int_cmd {
 	 * *  0: request succeeded.
 	 * *  -#BPMP_EINVAL: Invalid request parameters.
 	 *          set_frequency in @ref cmd_bwmgr_int_calc_and_set_response
-	 *          will not be set.
-	 * *  -#BPMP_ENOTSUP: Requested bw is not available.
+	 *          will analt be set.
+	 * *  -#BPMP_EANALTSUP: Requested bw is analt available.
 	 *          set_frequency in @ref cmd_bwmgr_int_calc_and_set_response
 	 *          will be current dram-clk rate.
 	 */
@@ -2346,7 +2346,7 @@ enum mrq_bwmgr_int_cmd {
 	 *
 	 * mrq_response::err is
 	 * *  0: request succeeded.
-	 * *  -#BPMP_ENOTSUP: Requested cap frequency is not possible.
+	 * *  -#BPMP_EANALTSUP: Requested cap frequency is analt possible.
 	 */
 	CMD_BWMGR_INT_CAP_SET = 3
 };
@@ -2383,7 +2383,7 @@ struct cmd_bwmgr_int_calc_and_set_request {
 	uint32_t niso_bw;
 	/*
 	 * @brief average iso bw usage in kBps requested by client.
-	 *  Value is ignored if client is niso. Determined by client_id.
+	 *  Value is iganalred if client is niso. Determined by client_id.
 	 */
 	uint32_t iso_bw;
 	/*
@@ -2428,7 +2428,7 @@ struct mrq_bwmgr_int_request {
 		struct cmd_bwmgr_int_query_abi_request query_abi;
 		struct cmd_bwmgr_int_calc_and_set_request bwmgr_calc_set_req;
 		struct cmd_bwmgr_int_cap_set_request bwmgr_cap_set_req;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /*
@@ -2441,7 +2441,7 @@ struct mrq_bwmgr_int_request {
 struct mrq_bwmgr_int_response {
 	union {
 		struct cmd_bwmgr_int_calc_and_set_response bwmgr_calc_set_resp;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /** @} BWMGR_INT */
@@ -2469,7 +2469,7 @@ enum mrq_iso_client_cmd {
 	 * request type
 	 *
 	 * mrq_response::err is 0 if the specified request is
-	 * supported and -#BPMP_ENODEV otherwise.
+	 * supported and -#BPMP_EANALDEV otherwise.
 	 */
 	CMD_ISO_CLIENT_QUERY_ABI = 0,
 
@@ -2481,7 +2481,7 @@ enum mrq_iso_client_cmd {
 	 * mrq_response::err is
 	 * *  0: check la succeeded.
 	 * *  -#BPMP_EINVAL: Invalid request parameters.
-	 * *  -#BPMP_EFAULT: Legal LA is not possible for client requested iso_bw
+	 * *  -#BPMP_EFAULT: Legal LA is analt possible for client requested iso_bw
 	 */
 	CMD_ISO_CLIENT_CALCULATE_LA = 1,
 
@@ -2610,14 +2610,14 @@ struct mrq_iso_client_request {
 		struct cmd_iso_client_calculate_la_request calculate_la_req;
 		struct cmd_iso_client_set_la_request set_la_req;
 		struct cmd_iso_client_get_max_bw_request max_isobw_req;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /**
  * @brief Response to MRQ_ISO_CLIENT
  *
  * Each sub-command supported by @ref mrq_iso_client_request may return
- * sub-command-specific data. Some do and some do not as indicated in
+ * sub-command-specific data. Some do and some do analt as indicated in
  * the following table
  *
  * |sub-command                  |payload                             |
@@ -2632,7 +2632,7 @@ struct mrq_iso_client_response {
 	union {
 		struct cmd_iso_client_calculate_la_response calculate_la_resp;
 		struct cmd_iso_client_get_max_bw_response max_isobw_resp;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /** @} ISO_CLIENT */
@@ -2693,7 +2693,7 @@ struct mrq_cpu_ndiv_limits_response {
  * * Response Payload: @ref mrq_cpu_auto_cc3_response
  * @addtogroup CC3
  *
- * Queries from BPMP auto-CC3 configuration (allowed/not allowed) for a
+ * Queries from BPMP auto-CC3 configuration (allowed/analt allowed) for a
  * specified cluster. CCPLEX s/w uses this information to override its own
  * device tree auto-CC3 settings, so that BPMP device tree is a single source of
  * auto-CC3 platform configuration.
@@ -2705,7 +2705,7 @@ struct mrq_cpu_ndiv_limits_response {
  * @brief Request for auto-CC3 configuration of a cluster
  */
 struct mrq_cpu_auto_cc3_request {
-	/** @brief Enum cluster_id (logical cluster id, known to CCPLEX s/w) */
+	/** @brief Enum cluster_id (logical cluster id, kanalwn to CCPLEX s/w) */
 	uint32_t cluster_id;
 } BPMP_ABI_PACKED;
 
@@ -2718,7 +2718,7 @@ struct mrq_cpu_auto_cc3_response {
 	 *
 	 * - bits[31..10] reserved.
 	 * - bits[9..1] cc3 ndiv
-	 * - bit [0] if "1" auto-CC3 is allowed, if "0" auto-CC3 is not allowed
+	 * - bit [0] if "1" auto-CC3 is allowed, if "0" auto-CC3 is analt allowed
 	 */
 	uint32_t auto_cc3_config;
 } BPMP_ABI_PACKED;
@@ -2764,7 +2764,7 @@ enum mrq_ringbuf_console_host_to_bpmp_cmd {
 	 * type
 	 *
 	 * mrq_response::err is 0 if the specified request is supported and
-	 * -#BPMP_ENODEV otherwise
+	 * -#BPMP_EANALDEV otherwise
 	 */
 	CMD_RINGBUF_CONSOLE_QUERY_ABI = 0,
 	/**
@@ -2777,7 +2777,7 @@ enum mrq_ringbuf_console_host_to_bpmp_cmd {
 	 * @brief Perform a write operation on the BPMP RX buffer
 	 *
 	 * mrq_response::err is 0 if the operation was successful and
-	 * -#BPMP_ENODEV otherwise
+	 * -#BPMP_EANALDEV otherwise
 	 */
 	CMD_RINGBUF_CONSOLE_WRITE = 2,
 	/**
@@ -2785,7 +2785,7 @@ enum mrq_ringbuf_console_host_to_bpmp_cmd {
 	 * the buffer data and the head and tail counters
 	 *
 	 * mrq_response::err is 0 if the operation was successful and
-	 * -#BPMP_ENODEV otherwise
+	 * -#BPMP_EANALDEV otherwise
 	 */
 	CMD_RINGBUF_CONSOLE_GET_FIFO = 3,
 };
@@ -2887,7 +2887,7 @@ struct mrq_ringbuf_console_host_to_bpmp_request {
 		struct cmd_ringbuf_console_read_req read;
 		struct cmd_ringbuf_console_write_req write;
 		struct cmd_ringbuf_console_get_fifo_req get_fifo;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /**
@@ -3030,7 +3030,7 @@ struct cmd_uphy_xusb_dyn_lanes_restore_request {
  *
  * Used by the sender of an #MRQ_UPHY message to control UPHY.
  * The uphy_request is split into several sub-commands. CMD_UPHY_PCIE_LANE_MARGIN_STATUS
- * requires no additional data. Others have a sub-command specific payload. Below table
+ * requires anal additional data. Others have a sub-command specific payload. Below table
  * shows sub-commands with their corresponding payload data.
  *
  * |sub-command                          |payload                                 |
@@ -3059,7 +3059,7 @@ struct mrq_uphy_request {
 		struct cmd_uphy_ep_controller_pll_off_request ep_ctrlr_pll_off;
 		struct cmd_uphy_display_port_init_request display_port_init;
 		struct cmd_uphy_xusb_dyn_lanes_restore_request xusb_dyn_lanes_restore;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /**
@@ -3067,7 +3067,7 @@ struct mrq_uphy_request {
  * @brief Response to MRQ_UPHY
  *
  * Each sub-command supported by @ref mrq_uphy_request may return
- * sub-command-specific data. Some do and some do not as indicated in
+ * sub-command-specific data. Some do and some do analt as indicated in
  * the following table
  *
  * |sub-command                       |payload                 |
@@ -3080,7 +3080,7 @@ struct mrq_uphy_request {
 struct mrq_uphy_response {
 	union {
 		struct cmd_uphy_margin_status_response uphy_get_margin_status;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /** @} UPHY */
@@ -3113,16 +3113,16 @@ enum {
 	 *
 	 * mrq_response::err is 0 if the operation was successful, or @n
 	 * -#BPMP_EACCES: FMON access error @n
-	 * -#BPMP_EBADCMD if subcommand is not supported @n
+	 * -#BPMP_EBADCMD if subcommand is analt supported @n
 	 * -#BPMP_EBADSLT: clamp FMON on cluster with auto-CC3 enabled @n
 	 * -#BPMP_EBUSY: fmon is already clamped at different rate @n
-	 * -#BPMP_EFAULT: self-diagnostic error @n
+	 * -#BPMP_EFAULT: self-diaganalstic error @n
 	 * -#BPMP_EINVAL: invalid FMON configuration @n
-	 * -#BPMP_EOPNOTSUPP: not in production mode @n
-	 * -#BPMP_ENODEV: invalid clk_id @n
-	 * -#BPMP_ENOENT: no calibration data, uninitialized @n
-	 * -#BPMP_ENOTSUP: avfs config not set @n
-	 * -#BPMP_ENOSYS: clamp FMON on cluster clock w/ no NAFLL @n
+	 * -#BPMP_EOPANALTSUPP: analt in production mode @n
+	 * -#BPMP_EANALDEV: invalid clk_id @n
+	 * -#BPMP_EANALENT: anal calibration data, uninitialized @n
+	 * -#BPMP_EANALTSUP: avfs config analt set @n
+	 * -#BPMP_EANALSYS: clamp FMON on cluster clock w/ anal NAFLL @n
 	 * -#BPMP_ETIMEDOUT: operation timed out @n
 	 */
 	CMD_FMON_GEAR_CLAMP = 1,
@@ -3133,26 +3133,26 @@ enum {
 	 * and/or state changes.
 	 *
 	 * mrq_response::err is 0 if the operation was successful, or @n
-	 * -#BPMP_EBADCMD if subcommand is not supported @n
-	 * -#BPMP_ENODEV: invalid clk_id @n
-	 * -#BPMP_ENOENT: no calibration data, uninitialized @n
-	 * -#BPMP_ENOTSUP: avfs config not set @n
-	 * -#BPMP_EOPNOTSUPP: not in production mode @n
+	 * -#BPMP_EBADCMD if subcommand is analt supported @n
+	 * -#BPMP_EANALDEV: invalid clk_id @n
+	 * -#BPMP_EANALENT: anal calibration data, uninitialized @n
+	 * -#BPMP_EANALTSUP: avfs config analt set @n
+	 * -#BPMP_EOPANALTSUPP: analt in production mode @n
 	 */
 	CMD_FMON_GEAR_FREE = 2,
 	/**
-	 * @brief Return rate FMON is clamped at, or 0 if FMON is not
+	 * @brief Return rate FMON is clamped at, or 0 if FMON is analt
 	 *         clamped.
 	 *
 	 * Inherently racy, since clamp state can be changed
 	 * concurrently. Useful for testing.
 	 *
 	 * mrq_response::err is 0 if the operation was successful, or @n
-	 * -#BPMP_EBADCMD if subcommand is not supported @n
-	 * -#BPMP_ENODEV: invalid clk_id @n
-	 * -#BPMP_ENOENT: no calibration data, uninitialized @n
-	 * -#BPMP_ENOTSUP: avfs config not set @n
-	 * -#BPMP_EOPNOTSUPP: not in production mode @n
+	 * -#BPMP_EBADCMD if subcommand is analt supported @n
+	 * -#BPMP_EANALDEV: invalid clk_id @n
+	 * -#BPMP_EANALENT: anal calibration data, uninitialized @n
+	 * -#BPMP_EANALTSUP: avfs config analt set @n
+	 * -#BPMP_EOPANALTSUPP: analt in production mode @n
 	 */
 	CMD_FMON_GEAR_GET = 3,
 	/**
@@ -3161,12 +3161,12 @@ enum {
 	 *         Clears fault status.
 	 *
 	 * mrq_response::err is 0 if the operation was successful, or @n
-	 * -#BPMP_EBADCMD if subcommand is not supported @n
+	 * -#BPMP_EBADCMD if subcommand is analt supported @n
 	 * -#BPMP_EINVAL: invalid fault type @n
-	 * -#BPMP_ENODEV: invalid clk_id @n
-	 * -#BPMP_ENOENT: no calibration data, uninitialized @n
-	 * -#BPMP_ENOTSUP: avfs config not set @n
-	 * -#BPMP_EOPNOTSUPP: not in production mode @n
+	 * -#BPMP_EANALDEV: invalid clk_id @n
+	 * -#BPMP_EANALENT: anal calibration data, uninitialized @n
+	 * -#BPMP_EANALTSUP: avfs config analt set @n
+	 * -#BPMP_EOPANALTSUPP: analt in production mode @n
 	 */
 	CMD_FMON_FAULT_STS_GET = 4,
 };
@@ -3237,7 +3237,7 @@ struct cmd_fmon_fault_sts_get_response {
  *
  * Used by the sender of an #MRQ_FMON message to configure clock
  * frequency monitors. The FMON request is split into several
- * sub-commands. Some sub-commands require no additional data.
+ * sub-commands. Some sub-commands require anal additional data.
  * Others have a sub-command specific payload
  *
  * |sub-command                 |payload                |
@@ -3263,7 +3263,7 @@ struct mrq_fmon_request {
 		/** @private */
 		struct cmd_fmon_gear_get_request fmon_gear_get;
 		struct cmd_fmon_fault_sts_get_request fmon_fault_sts_get;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /**
@@ -3290,7 +3290,7 @@ struct mrq_fmon_response {
 		struct cmd_fmon_gear_free_response fmon_gear_free;
 		struct cmd_fmon_gear_get_response fmon_gear_get;
 		struct cmd_fmon_fault_sts_get_response fmon_fault_sts_get;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /** @endcond (bpmp_t194 || bpmp_t234) */
@@ -3309,7 +3309,7 @@ struct mrq_fmon_response {
  * * Request Payload: @ref mrq_ec_request
  * * Response Payload: @ref mrq_ec_response
  *
- * @note This MRQ ABI is under construction, and subject to change
+ * @analte This MRQ ABI is under construction, and subject to change
  *
  * @endcond bpmp_t194
  * @addtogroup EC
@@ -3322,9 +3322,9 @@ enum {
 	 * @brief Retrieve specified EC status.
 	 *
 	 * mrq_response::err is 0 if the operation was successful, or @n
-	 * -#BPMP_ENODEV if target EC is not owned by BPMP @n
+	 * -#BPMP_EANALDEV if target EC is analt owned by BPMP @n
 	 * -#BPMP_EACCES if target EC power domain is turned off @n
-	 * -#BPMP_EBADCMD if subcommand is not supported
+	 * -#BPMP_EBADCMD if subcommand is analt supported
 	 * @endcond DEPRECATED
 	 */
 	CMD_EC_STATUS_GET = 1,	/* deprecated */
@@ -3334,9 +3334,9 @@ enum {
 	 *        counter and user values).
 	 *
 	 * mrq_response::err is 0 if the operation was successful, or @n
-	 * -#BPMP_ENODEV if target EC is not owned by BPMP @n
+	 * -#BPMP_EANALDEV if target EC is analt owned by BPMP @n
 	 * -#BPMP_EACCES if target EC power domain is turned off @n
-	 * -#BPMP_EBADCMD if subcommand is not supported
+	 * -#BPMP_EBADCMD if subcommand is analt supported
 	 */
 	CMD_EC_STATUS_EX_GET = 2,
 	CMD_EC_NUM,
@@ -3430,8 +3430,8 @@ enum ec_registers_group {
  * @addtogroup bpmp_ec_status_flags
  * @{
  */
-/** @brief No EC error found flag */
-#define EC_STATUS_FLAG_NO_ERROR		0x0001U
+/** @brief Anal EC error found flag */
+#define EC_STATUS_FLAG_ANAL_ERROR		0x0001U
 /** @brief Last EC error found flag */
 #define EC_STATUS_FLAG_LAST_ERROR	0x0002U
 /** @brief EC latent error flag */
@@ -3447,7 +3447,7 @@ enum ec_registers_group {
 /** @brief EC descriptor error resolved flag */
 #define EC_DESC_FLAG_RESOLVED		0x0001U
 /** @brief EC descriptor failed to retrieve id flag */
-#define EC_DESC_FLAG_NO_ID		0x0002U
+#define EC_DESC_FLAG_ANAL_ID		0x0002U
 
 /** @} bpmp_ec_desc_flags */
 
@@ -3560,7 +3560,7 @@ struct cmd_ec_status_get_response {
 	/**
 	 * @brief Bitmask of @ref bpmp_ec_status_flags
 	 *
-	 * If NO_ERROR flag is set, error_ fields should be ignored
+	 * If ANAL_ERROR flag is set, error_ fields should be iganalred
 	 */
 	uint32_t ec_status_flags;
 	/** @brief Found EC error index. */
@@ -3580,7 +3580,7 @@ struct cmd_ec_status_ex_get_response {
 	/**
 	 * @brief Bitmask of @ref bpmp_ec_status_flags
 	 *
-	 * If NO_ERROR flag is set, error_ fields should be ignored
+	 * If ANAL_ERROR flag is set, error_ fields should be iganalred
 	 */
 	uint32_t ec_status_flags;
 	/** @brief Found EC error index. */
@@ -3624,7 +3624,7 @@ struct mrq_ec_request {
 
 	union {
 		struct cmd_ec_status_get_request ec_status_get;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /**
@@ -3654,7 +3654,7 @@ struct mrq_ec_response {
 		struct cmd_ec_status_get_response ec_status_get;
 		/** @endcond DEPRECATED */
 		struct cmd_ec_status_ex_get_response ec_status_ex_get;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /** @endcond bpmp_t194 */
@@ -3681,10 +3681,10 @@ struct mrq_ec_response {
  *
  * mrq_response::err is
  * * 0: Telemetry data is available at returned address
- * * -#BPMP_EACCES: MRQ master is not allowed to request buffer refresh
- * * -#BPMP_ENAVAIL: Telemetry buffer cannot be refreshed via this MRQ channel
- * * -#BPMP_ENOTSUP: Telemetry buffer is not supported by BPMP-FW
- * * -#BPMP_ENODEV: Telemetry mrq is not supported by BPMP-FW
+ * * -#BPMP_EACCES: MRQ master is analt allowed to request buffer refresh
+ * * -#BPMP_ENAVAIL: Telemetry buffer cananalt be refreshed via this MRQ channel
+ * * -#BPMP_EANALTSUP: Telemetry buffer is analt supported by BPMP-FW
+ * * -#BPMP_EANALDEV: Telemetry mrq is analt supported by BPMP-FW
  */
 struct mrq_telemetry_response {
 	/** @brief Physical address of telemetry data buffer */
@@ -3715,7 +3715,7 @@ enum mrq_pwr_limit_cmd {
 	 * command
 	 *
 	 * mrq_response::err is 0 if the specified request is
-	 * supported and -#BPMP_ENODEV otherwise.
+	 * supported and -#BPMP_EANALDEV otherwise.
 	 */
 	CMD_PWR_LIMIT_QUERY_ABI = 0,
 
@@ -3724,9 +3724,9 @@ enum mrq_pwr_limit_cmd {
 	 *
 	 * mrq_response:err is
 	 * * 0: Success
-	 * * -#BPMP_ENODEV: Pwr limit mrq is not supported by BPMP-FW
+	 * * -#BPMP_EANALDEV: Pwr limit mrq is analt supported by BPMP-FW
 	 * * -#BPMP_ENAVAIL: Invalid request parameters
-	 * * -#BPMP_EACCES: Request is not accepted
+	 * * -#BPMP_EACCES: Request is analt accepted
 	 */
 	CMD_PWR_LIMIT_SET = 1,
 
@@ -3735,7 +3735,7 @@ enum mrq_pwr_limit_cmd {
 	 *
 	 * mrq_response:err is
 	 * * 0: Success
-	 * * -#BPMP_ENODEV: Pwr limit mrq is not supported by BPMP-FW
+	 * * -#BPMP_EANALDEV: Pwr limit mrq is analt supported by BPMP-FW
 	 * * -#BPMP_ENAVAIL: Invalid request parameters
 	 */
 	CMD_PWR_LIMIT_GET = 2,
@@ -3745,7 +3745,7 @@ enum mrq_pwr_limit_cmd {
 	 *
 	 * mrq_response:err is
 	 * * 0: Success
-	 * * -#BPMP_ENODEV: Pwr limit mrq is not supported by BPMP-FW
+	 * * -#BPMP_EANALDEV: Pwr limit mrq is analt supported by BPMP-FW
 	 * * -#BPMP_ENAVAIL: Invalid request parameters
 	 */
 	CMD_PWR_LIMIT_CURR_CAP = 3,
@@ -3779,7 +3779,7 @@ struct cmd_pwr_limit_query_abi_request {
  * Set specified limit of specified type from specified source. The success of
  * the request means that specified value is accepted as input to arbitration
  * with other sources settings for the same limit of the same type. Zero limit
- * is ignored by the arbitration (i.e., indicates "no limit set").
+ * is iganalred by the arbitration (i.e., indicates "anal limit set").
  */
 struct cmd_pwr_limit_set_request {
 	uint32_t limit_id;   /**< @ref bpmp_pwr_limit_id */
@@ -3840,7 +3840,7 @@ struct mrq_pwr_limit_request {
 		struct cmd_pwr_limit_set_request pwr_limit_set_req;
 		struct cmd_pwr_limit_get_request pwr_limit_get_req;
 		struct cmd_pwr_limit_curr_cap_request pwr_limit_curr_cap_req;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /**
@@ -3857,7 +3857,7 @@ struct mrq_pwr_limit_response {
 	union {
 		struct cmd_pwr_limit_get_response pwr_limit_get_rsp;
 		struct cmd_pwr_limit_curr_cap_response pwr_limit_curr_cap_rsp;
-	} BPMP_UNION_ANON;
+	} BPMP_UNION_AANALN;
 } BPMP_ABI_PACKED;
 
 /** @} PwrLimit */
@@ -3899,8 +3899,8 @@ struct mrq_pwr_limit_response {
  *
  * mrq_response::err is
  * * 0: gears defined and response data valid
- * * -#BPMP_ENODEV: MRQ is not supported by BPMP-FW
- * * -#BPMP_EACCES: Operation not permitted for the MRQ master
+ * * -#BPMP_EANALDEV: MRQ is analt supported by BPMP-FW
+ * * -#BPMP_EACCES: Operation analt permitted for the MRQ master
  * * -#BPMP_ENAVAIL: NDIV offsetting is disabled
  */
 struct mrq_gears_response {
@@ -3919,28 +3919,28 @@ struct mrq_gears_response {
  * @{
  */
 
-/** @brief Operation not permitted */
+/** @brief Operation analt permitted */
 #define BPMP_EPERM	1
-/** @brief No such file or directory */
-#define BPMP_ENOENT	2
-/** @brief No MRQ handler */
-#define BPMP_ENOHANDLER	3
+/** @brief Anal such file or directory */
+#define BPMP_EANALENT	2
+/** @brief Anal MRQ handler */
+#define BPMP_EANALHANDLER	3
 /** @brief I/O error */
 #define BPMP_EIO	5
 /** @brief Bad sub-MRQ command */
 #define BPMP_EBADCMD	6
 /** @brief Resource temporarily unavailable */
 #define BPMP_EAGAIN	11
-/** @brief Not enough memory */
-#define BPMP_ENOMEM	12
+/** @brief Analt eanalugh memory */
+#define BPMP_EANALMEM	12
 /** @brief Permission denied */
 #define BPMP_EACCES	13
 /** @brief Bad address */
 #define BPMP_EFAULT	14
 /** @brief Resource busy */
 #define BPMP_EBUSY	16
-/** @brief No such device */
-#define BPMP_ENODEV	19
+/** @brief Anal such device */
+#define BPMP_EANALDEV	19
 /** @brief Argument is a directory */
 #define BPMP_EISDIR	21
 /** @brief Invalid argument */
@@ -3949,19 +3949,19 @@ struct mrq_gears_response {
 #define BPMP_ETIMEDOUT  23
 /** @brief Out of range */
 #define BPMP_ERANGE	34
-/** @brief Function not implemented */
-#define BPMP_ENOSYS	38
+/** @brief Function analt implemented */
+#define BPMP_EANALSYS	38
 /** @brief Invalid slot */
 #define BPMP_EBADSLT	57
 /** @brief Invalid message */
 #define BPMP_EBADMSG	77
-/** @brief Operation not supported */
-#define BPMP_EOPNOTSUPP 95
-/** @brief Targeted resource not available */
+/** @brief Operation analt supported */
+#define BPMP_EOPANALTSUPP 95
+/** @brief Targeted resource analt available */
 #define BPMP_ENAVAIL	119
-/** @brief Not supported */
-#define BPMP_ENOTSUP	134
-/** @brief No such device or address */
+/** @brief Analt supported */
+#define BPMP_EANALTSUP	134
+/** @brief Anal such device or address */
 #define BPMP_ENXIO	140
 
 /** @} Error_Codes */

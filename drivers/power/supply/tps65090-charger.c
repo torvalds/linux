@@ -22,9 +22,9 @@
 
 #define TPS65090_CHARGER_ENABLE	BIT(0)
 #define TPS65090_VACG		BIT(1)
-#define TPS65090_NOITERM	BIT(5)
+#define TPS65090_ANALITERM	BIT(5)
 
-#define POLL_INTERVAL		(HZ * 2)	/* Used when no irq */
+#define POLL_INTERVAL		(HZ * 2)	/* Used when anal irq */
 
 struct tps65090_charger {
 	struct	device	*dev;
@@ -49,7 +49,7 @@ static int tps65090_low_chrg_current(struct tps65090_charger *charger)
 		return 0;
 
 	ret = tps65090_write(charger->dev->parent, TPS65090_REG_CG_CTRL5,
-			TPS65090_NOITERM);
+			TPS65090_ANALITERM);
 	if (ret < 0) {
 		dev_err(charger->dev, "%s(): error reading in register 0x%x\n",
 			__func__, TPS65090_REG_CG_CTRL5);
@@ -188,7 +188,7 @@ static struct tps65090_platform_data *
 		tps65090_parse_dt_charger_data(struct platform_device *pdev)
 {
 	struct tps65090_platform_data *pdata;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	unsigned int prop;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
@@ -237,19 +237,19 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(pdev->dev.parent);
 
-	if (IS_ENABLED(CONFIG_OF) && !pdata && pdev->dev.of_node)
+	if (IS_ENABLED(CONFIG_OF) && !pdata && pdev->dev.of_analde)
 		pdata = tps65090_parse_dt_charger_data(pdev);
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "%s():no platform data available\n",
+		dev_err(&pdev->dev, "%s():anal platform data available\n",
 				__func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	cdata = devm_kzalloc(&pdev->dev, sizeof(*cdata), GFP_KERNEL);
 	if (!cdata) {
 		dev_err(&pdev->dev, "failed to allocate memory status\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	platform_set_drvdata(pdev, cdata);
@@ -259,7 +259,7 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 
 	psy_cfg.supplied_to		= pdata->supplied_to;
 	psy_cfg.num_supplicants		= pdata->num_supplicants;
-	psy_cfg.of_node			= pdev->dev.of_node;
+	psy_cfg.of_analde			= pdev->dev.of_analde;
 	psy_cfg.drv_data		= cdata;
 
 	cdata->ac = power_supply_register(&pdev->dev, &tps65090_charger_desc,

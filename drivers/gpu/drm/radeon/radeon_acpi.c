@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -49,7 +49,7 @@ static inline bool radeon_atpx_dgpu_req_power_for_displays(void) { return false;
 struct atif_verify_interface {
 	u16 size;		/* structure size in bytes (includes size field) */
 	u16 version;		/* version */
-	u32 notification_mask;	/* supported notifications mask */
+	u32 analtification_mask;	/* supported analtifications mask */
 	u32 function_bits;	/* supported functions bit vector */
 } __packed;
 
@@ -57,7 +57,7 @@ struct atif_system_params {
 	u16 size;		/* structure size in bytes (includes size field) */
 	u32 valid_mask;		/* valid flags mask */
 	u32 flags;		/* flags */
-	u8 command_code;	/* notify command code */
+	u8 command_code;	/* analtify command code */
 } __packed;
 
 struct atif_sbios_requests {
@@ -65,17 +65,17 @@ struct atif_sbios_requests {
 	u32 pending;		/* pending sbios requests */
 	u8 panel_exp_mode;	/* panel expansion mode */
 	u8 thermal_gfx;		/* thermal state: target gfx controller */
-	u8 thermal_state;	/* thermal state: state id (0: exit state, non-0: state) */
+	u8 thermal_state;	/* thermal state: state id (0: exit state, analn-0: state) */
 	u8 forced_power_gfx;	/* forced power state: target gfx controller */
 	u8 forced_power_state;	/* forced power state: state id */
 	u8 system_power_src;	/* system power source */
 	u8 backlight_level;	/* panel backlight level (0-255) */
 } __packed;
 
-#define ATIF_NOTIFY_MASK	0x3
-#define ATIF_NOTIFY_NONE	0
-#define ATIF_NOTIFY_81		1
-#define ATIF_NOTIFY_N		2
+#define ATIF_ANALTIFY_MASK	0x3
+#define ATIF_ANALTIFY_ANALNE	0
+#define ATIF_ANALTIFY_81		1
+#define ATIF_ANALTIFY_N		2
 
 struct atcs_verify_interface {
 	u16 size;		/* structure size in bytes (includes size field) */
@@ -138,7 +138,7 @@ static union acpi_object *radeon_atif_call(acpi_handle handle, int function,
 	status = acpi_evaluate_object(handle, "ATIF", &atif_arg, &buffer);
 
 	/* Fail only if calling the method fails and ATIF is supported */
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+	if (ACPI_FAILURE(status) && status != AE_ANALT_FOUND) {
 		DRM_DEBUG_DRIVER("failed to evaluate ATIF got %s\n",
 				 acpi_format_exception(status));
 		kfree(buffer.pointer);
@@ -149,16 +149,16 @@ static union acpi_object *radeon_atif_call(acpi_handle handle, int function,
 }
 
 /**
- * radeon_atif_parse_notification - parse supported notifications
+ * radeon_atif_parse_analtification - parse supported analtifications
  *
- * @n: supported notifications struct
- * @mask: supported notifications mask from ATIF
+ * @n: supported analtifications struct
+ * @mask: supported analtifications mask from ATIF
  *
- * Use the supported notifications mask from ATIF function
- * ATIF_FUNCTION_VERIFY_INTERFACE to determine what notifications
+ * Use the supported analtifications mask from ATIF function
+ * ATIF_FUNCTION_VERIFY_INTERFACE to determine what analtifications
  * are supported (all asics).
  */
-static void radeon_atif_parse_notification(struct radeon_atif_notifications *n, u32 mask)
+static void radeon_atif_parse_analtification(struct radeon_atif_analtifications *n, u32 mask)
 {
 	n->display_switch = mask & ATIF_DISPLAY_SWITCH_REQUEST_SUPPORTED;
 	n->expansion_mode_change = mask & ATIF_EXPANSION_MODE_CHANGE_REQUEST_SUPPORTED;
@@ -191,7 +191,7 @@ static void radeon_atif_parse_functions(struct radeon_atif_functions *f, u32 mas
 	f->set_tv_standard = mask & ATIF_SET_TV_STANDARD_IN_CMOS_SUPPORTED;
 	f->get_panel_expansion_mode = mask & ATIF_GET_PANEL_EXPANSION_MODE_FROM_CMOS_SUPPORTED;
 	f->set_panel_expansion_mode = mask & ATIF_SET_PANEL_EXPANSION_MODE_IN_CMOS_SUPPORTED;
-	f->temperature_change = mask & ATIF_TEMPERATURE_CHANGE_NOTIFICATION_SUPPORTED;
+	f->temperature_change = mask & ATIF_TEMPERATURE_CHANGE_ANALTIFICATION_SUPPORTED;
 	f->graphics_device_types = mask & ATIF_GET_GRAPHICS_DEVICE_TYPES_SUPPORTED;
 }
 
@@ -233,7 +233,7 @@ static int radeon_atif_verify_interface(acpi_handle handle,
 	/* TODO: check version? */
 	DRM_DEBUG_DRIVER("ATIF version %u\n", output.version);
 
-	radeon_atif_parse_notification(&atif->notifications, output.notification_mask);
+	radeon_atif_parse_analtification(&atif->analtifications, output.analtification_mask);
 	radeon_atif_parse_functions(&atif->functions, output.function_bits);
 
 out:
@@ -242,19 +242,19 @@ out:
 }
 
 /**
- * radeon_atif_get_notification_params - determine notify configuration
+ * radeon_atif_get_analtification_params - determine analtify configuration
  *
  * @handle: acpi handle
- * @n: atif notification configuration struct
+ * @n: atif analtification configuration struct
  *
  * Execute the ATIF_FUNCTION_GET_SYSTEM_PARAMETERS ATIF function
- * to determine if a notifier is used and if so which one
- * (all asics).  This is either Notify(VGA, 0x81) or Notify(VGA, n)
- * where n is specified in the result if a notifier is used.
+ * to determine if a analtifier is used and if so which one
+ * (all asics).  This is either Analtify(VGA, 0x81) or Analtify(VGA, n)
+ * where n is specified in the result if a analtifier is used.
  * Returns 0 on success, error on failure.
  */
-static int radeon_atif_get_notification_params(acpi_handle handle,
-		struct radeon_atif_notification_cfg *n)
+static int radeon_atif_get_analtification_params(acpi_handle handle,
+		struct radeon_atif_analtification_cfg *n)
 {
 	union acpi_object *info;
 	struct atif_system_params params;
@@ -281,10 +281,10 @@ static int radeon_atif_get_notification_params(acpi_handle handle,
 			params.flags, params.valid_mask);
 	params.flags = params.flags & params.valid_mask;
 
-	if ((params.flags & ATIF_NOTIFY_MASK) == ATIF_NOTIFY_NONE) {
+	if ((params.flags & ATIF_ANALTIFY_MASK) == ATIF_ANALTIFY_ANALNE) {
 		n->enabled = false;
 		n->command_code = 0;
-	} else if ((params.flags & ATIF_NOTIFY_MASK) == ATIF_NOTIFY_81) {
+	} else if ((params.flags & ATIF_ANALTIFY_MASK) == ATIF_ANALTIFY_81) {
 		n->enabled = true;
 		n->command_code = 0x81;
 	} else {
@@ -297,7 +297,7 @@ static int radeon_atif_get_notification_params(acpi_handle handle,
 	}
 
 out:
-	DRM_DEBUG_DRIVER("Notification %s, command code = %#x\n",
+	DRM_DEBUG_DRIVER("Analtification %s, command code = %#x\n",
 			(n->enabled ? "enabled" : "disabled"),
 			n->command_code);
 	kfree(info);
@@ -345,14 +345,14 @@ out:
 }
 
 /**
- * radeon_atif_handler - handle ATIF notify requests
+ * radeon_atif_handler - handle ATIF analtify requests
  *
  * @rdev: radeon_device pointer
  * @event: atif sbios request struct
  *
  * Checks the acpi event and if it matches an atif event,
  * handles it.
- * Returns NOTIFY code
+ * Returns ANALTIFY code
  */
 static int radeon_atif_handler(struct radeon_device *rdev,
 		struct acpi_bus_event *event)
@@ -366,19 +366,19 @@ static int radeon_atif_handler(struct radeon_device *rdev,
 			event->device_class, event->type);
 
 	if (strcmp(event->device_class, ACPI_VIDEO_CLASS) != 0)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
-	if (!atif->notification_cfg.enabled ||
-			event->type != atif->notification_cfg.command_code)
-		/* Not our event */
-		return NOTIFY_DONE;
+	if (!atif->analtification_cfg.enabled ||
+			event->type != atif->analtification_cfg.command_code)
+		/* Analt our event */
+		return ANALTIFY_DONE;
 
 	/* Check pending SBIOS requests */
 	handle = ACPI_HANDLE(&rdev->pdev->dev);
 	count = radeon_atif_get_sbios_requests(handle, &req);
 
 	if (count <= 0)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	DRM_DEBUG_DRIVER("ATIF: %d pending SBIOS requests\n", count);
 
@@ -414,12 +414,12 @@ static int radeon_atif_handler(struct radeon_device *rdev,
 	}
 	/* TODO: check other events */
 
-	/* We've handled the event, stop the notifier chain. The ACPI interface
-	 * overloads ACPI_VIDEO_NOTIFY_PROBE, we don't want to send that to
+	/* We've handled the event, stop the analtifier chain. The ACPI interface
+	 * overloads ACPI_VIDEO_ANALTIFY_PROBE, we don't want to send that to
 	 * userspace if the event was generated only to signal a SBIOS
 	 * request.
 	 */
-	return NOTIFY_BAD;
+	return ANALTIFY_BAD;
 }
 
 /* Call the ATCS method
@@ -461,7 +461,7 @@ static union acpi_object *radeon_atcs_call(acpi_handle handle, int function,
 	status = acpi_evaluate_object(handle, "ATCS", &atcs_arg, &buffer);
 
 	/* Fail only if calling the method fails and ATIF is supported */
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+	if (ACPI_FAILURE(status) && status != AE_ANALT_FOUND) {
 		DRM_DEBUG_DRIVER("failed to evaluate ATCS got %s\n",
 				 acpi_format_exception(status));
 		kfree(buffer.pointer);
@@ -485,7 +485,7 @@ static void radeon_atcs_parse_functions(struct radeon_atcs_functions *f, u32 mas
 {
 	f->get_ext_state = mask & ATCS_GET_EXTERNAL_STATE_SUPPORTED;
 	f->pcie_perf_req = mask & ATCS_PCIE_PERFORMANCE_REQUEST_SUPPORTED;
-	f->pcie_dev_rdy = mask & ATCS_PCIE_DEVICE_READY_NOTIFICATION_SUPPORTED;
+	f->pcie_dev_rdy = mask & ATCS_PCIE_DEVICE_READY_ANALTIFICATION_SUPPORTED;
 	f->pcie_bus_width = mask & ATCS_SET_PCIE_BUS_WIDTH_SUPPORTED;
 }
 
@@ -541,7 +541,7 @@ out:
  *
  * Check if the ATCS pcie_perf_req and pcie_dev_rdy methods
  * are supported (all asics).
- * returns true if supported, false if not.
+ * returns true if supported, false if analt.
  */
 bool radeon_acpi_is_pcie_performance_request_supported(struct radeon_device *rdev)
 {
@@ -554,15 +554,15 @@ bool radeon_acpi_is_pcie_performance_request_supported(struct radeon_device *rde
 }
 
 /**
- * radeon_acpi_pcie_notify_device_ready
+ * radeon_acpi_pcie_analtify_device_ready
  *
  * @rdev: radeon_device pointer
  *
- * Executes the PCIE_DEVICE_READY_NOTIFICATION method
+ * Executes the PCIE_DEVICE_READY_ANALTIFICATION method
  * (all asics).
  * returns 0 on success, error on failure.
  */
-int radeon_acpi_pcie_notify_device_ready(struct radeon_device *rdev)
+int radeon_acpi_pcie_analtify_device_ready(struct radeon_device *rdev)
 {
 	acpi_handle handle;
 	union acpi_object *info;
@@ -576,7 +576,7 @@ int radeon_acpi_pcie_notify_device_ready(struct radeon_device *rdev)
 	if (!atcs->functions.pcie_dev_rdy)
 		return -EINVAL;
 
-	info = radeon_atcs_call(handle, ATCS_FUNCTION_PCIE_DEVICE_READY_NOTIFICATION, NULL);
+	info = radeon_atcs_call(handle, ATCS_FUNCTION_PCIE_DEVICE_READY_ANALTIFICATION, NULL);
 	if (!info)
 		return -EIO;
 
@@ -664,17 +664,17 @@ int radeon_acpi_pcie_performance_request(struct radeon_device *rdev,
 }
 
 /**
- * radeon_acpi_event - handle notify events
+ * radeon_acpi_event - handle analtify events
  *
- * @nb: notifier block
+ * @nb: analtifier block
  * @val: val
  * @data: acpi event
  *
  * Calls relevant radeon functions in response to various
  * acpi events.
- * Returns NOTIFY code
+ * Returns ANALTIFY code
  */
-static int radeon_acpi_event(struct notifier_block *nb,
+static int radeon_acpi_event(struct analtifier_block *nb,
 			     unsigned long val,
 			     void *data)
 {
@@ -701,7 +701,7 @@ static int radeon_acpi_event(struct notifier_block *nb,
  * @rdev: radeon_device pointer
  *
  * Verifies the AMD ACPI interfaces and registers with the acpi
- * notifier chain (all asics).
+ * analtifier chain (all asics).
  * Returns 0 on success, error on failure.
  */
 int radeon_acpi_init(struct radeon_device *rdev)
@@ -714,7 +714,7 @@ int radeon_acpi_init(struct radeon_device *rdev)
 	/* Get the device handle */
 	handle = ACPI_HANDLE(&rdev->pdev->dev);
 
-	/* No need to proceed if we're sure that ATIF is not supported */
+	/* Anal need to proceed if we're sure that ATIF is analt supported */
 	if (!ASIC_IS_AVIVO(rdev) || !rdev->bios || !handle)
 		return 0;
 
@@ -731,7 +731,7 @@ int radeon_acpi_init(struct radeon_device *rdev)
 		goto out;
 	}
 
-	if (atif->notifications.brightness_change) {
+	if (atif->analtifications.brightness_change) {
 		struct drm_encoder *tmp;
 		struct radeon_encoder *target = NULL;
 
@@ -770,19 +770,19 @@ int radeon_acpi_init(struct radeon_device *rdev)
 	}
 
 	if (atif->functions.system_params) {
-		ret = radeon_atif_get_notification_params(handle,
-				&atif->notification_cfg);
+		ret = radeon_atif_get_analtification_params(handle,
+				&atif->analtification_cfg);
 		if (ret) {
 			DRM_DEBUG_DRIVER("Call to GET_SYSTEM_PARAMS failed: %d\n",
 					ret);
-			/* Disable notification */
-			atif->notification_cfg.enabled = false;
+			/* Disable analtification */
+			atif->analtification_cfg.enabled = false;
 		}
 	}
 
 out:
-	rdev->acpi_nb.notifier_call = radeon_acpi_event;
-	register_acpi_notifier(&rdev->acpi_nb);
+	rdev->acpi_nb.analtifier_call = radeon_acpi_event;
+	register_acpi_analtifier(&rdev->acpi_nb);
 
 	return ret;
 }
@@ -792,9 +792,9 @@ out:
  *
  * @rdev: radeon_device pointer
  *
- * Unregisters with the acpi notifier chain (all asics).
+ * Unregisters with the acpi analtifier chain (all asics).
  */
 void radeon_acpi_fini(struct radeon_device *rdev)
 {
-	unregister_acpi_notifier(&rdev->acpi_nb);
+	unregister_acpi_analtifier(&rdev->acpi_nb);
 }

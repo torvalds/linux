@@ -101,7 +101,7 @@ static int rps_default_mask_sysctl(struct ctl_table *table, int write,
 	if (write) {
 		struct cpumask *rps_default_mask = rps_default_mask_cow_alloc(net);
 
-		err = -ENOMEM;
+		err = -EANALMEM;
 		if (!rps_default_mask)
 			goto done;
 
@@ -114,7 +114,7 @@ static int rps_default_mask_sysctl(struct ctl_table *table, int write,
 			goto done;
 	} else {
 		dump_cpumask(buffer, lenp, ppos,
-			     net->core.rps_default_mask ? : cpu_none_mask);
+			     net->core.rps_default_mask ? : cpu_analne_mask);
 	}
 
 done:
@@ -156,7 +156,7 @@ static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
 				    vmalloc(RPS_SOCK_FLOW_TABLE_SIZE(size));
 				if (!sock_table) {
 					mutex_unlock(&sock_flow_mutex);
-					return -ENOMEM;
+					return -EANALMEM;
 				}
 				rps_cpu_mask = roundup_pow_of_two(nr_cpu_ids) - 1;
 				sock_table->mask = size - 1;
@@ -164,7 +164,7 @@ static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
 				sock_table = orig_sock_table;
 
 			for (i = 0; i < size; i++)
-				sock_table->ents[i] = RPS_NO_CPU;
+				sock_table->ents[i] = RPS_ANAL_CPU;
 		} else
 			sock_table = NULL;
 
@@ -200,7 +200,7 @@ static int flow_limit_cpu_sysctl(struct ctl_table *table, int write,
 	int i, len, ret = 0;
 
 	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (write) {
 		ret = cpumask_parse(buffer, mask);
@@ -217,11 +217,11 @@ static int flow_limit_cpu_sysctl(struct ctl_table *table, int write,
 				RCU_INIT_POINTER(sd->flow_limit, NULL);
 				kfree_rcu_mightsleep(cur);
 			} else if (!cur && cpumask_test_cpu(i, mask)) {
-				cur = kzalloc_node(len, GFP_KERNEL,
-						   cpu_to_node(i));
+				cur = kzalloc_analde(len, GFP_KERNEL,
+						   cpu_to_analde(i));
 				if (!cur) {
-					/* not unwinding previous changes */
-					ret = -ENOMEM;
+					/* analt unwinding previous changes */
+					ret = -EANALMEM;
 					goto write_unlock;
 				}
 				cur->num_buckets = netdev_flow_limit_table_len;
@@ -622,8 +622,8 @@ static struct ctl_table net_core_table[] = {
 		.proc_handler	= proc_do_static_key,
 	},
 	{
-		.procname	= "gro_normal_batch",
-		.data		= &gro_normal_batch,
+		.procname	= "gro_analrmal_batch",
+		.data		= &gro_analrmal_batch,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
@@ -691,8 +691,8 @@ static int __init fb_tunnels_only_for_init_net_sysctl_setup(char *str)
 	/* fallback tunnels for initns only */
 	if (!strncmp(str, "initns", 6))
 		sysctl_fb_tunnels_only_for_init_net = 1;
-	/* no fallback tunnels anywhere */
-	else if (!strncmp(str, "none", 4))
+	/* anal fallback tunnels anywhere */
+	else if (!strncmp(str, "analne", 4))
 		sysctl_fb_tunnels_only_for_init_net = 2;
 
 	return 1;
@@ -724,7 +724,7 @@ err_reg:
 	if (tbl != netns_core_table)
 		kfree(tbl);
 err_dup:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static __net_exit void sysctl_core_net_exit(struct net *net)

@@ -72,7 +72,7 @@ static const struct regulator_desc stm32mp1_booster_desc = {
 static int stm32_booster_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct regulator_config config = { };
 	const struct regulator_desc *desc;
 	struct regulator_dev *rdev;
@@ -87,7 +87,7 @@ static int stm32_booster_probe(struct platform_device *pdev)
 
 	config.regmap = regmap;
 	config.dev = dev;
-	config.of_node = np;
+	config.of_analde = np;
 	config.init_data = of_get_regulator_init_data(dev, np, desc);
 
 	rdev = devm_regulator_register(dev, desc, &config);
@@ -116,7 +116,7 @@ static struct platform_driver stm32_booster_driver = {
 	.probe = stm32_booster_probe,
 	.driver = {
 		.name  = "stm32-booster",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(stm32_booster_of_match),
 	},
 };

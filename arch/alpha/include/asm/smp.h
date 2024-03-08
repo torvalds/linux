@@ -55,6 +55,6 @@ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
 #endif /* CONFIG_SMP */
 
-#define NO_PROC_ID	(-1)
+#define ANAL_PROC_ID	(-1)
 
 #endif

@@ -10,7 +10,7 @@ Device types supported:
 
 Only one VGIC instance may be instantiated through this API.  The created VGIC
 will act as the VM interrupt controller, requiring emulated user-space devices
-to inject interrupts to the VGIC instead of directly to CPUs.  It is not
+to inject interrupts to the VGIC instead of directly to CPUs.  It is analt
 possible to create both a GICv3 and GICv2 on the same VM.
 
 Creating a guest GICv3 device requires a host GICv3 as well.
@@ -59,7 +59,7 @@ Groups:
   It is invalid to mix calls with KVM_VGIC_V3_ADDR_TYPE_REDIST and
   KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION attributes.
 
-  Note that to obtain reproducible results (the same VCPU being associated
+  Analte that to obtain reproducible results (the same VCPU being associated
   with the same redistributor across a save/restore operation), VCPU creation
   order, redistributor region creation order as well as the respective
   interleaves of VCPU and region creation MUST be preserved.  Any change in
@@ -73,9 +73,9 @@ Groups:
     -EINVAL  Incorrectly aligned address, bad redistributor region
              count/index, mixed redistributor region attribute usage
     -EEXIST  Address already configured
-    -ENOENT  Attempt to read the characteristics of a non existing
+    -EANALENT  Attempt to read the characteristics of a analn existing
              redistributor region
-    -ENXIO   The group or attribute is unknown/unsupported for this device
+    -ENXIO   The group or attribute is unkanalwn/unsupported for this device
              or hardware support is missing.
     -EFAULT  Invalid user pointer for attr->addr.
     =======  =============================================================
@@ -93,7 +93,7 @@ Groups:
     __u32 value.  64-bit registers must be accessed by separately accessing the
     lower and higher word.
 
-    Writes to read-only registers are ignored by the kernel.
+    Writes to read-only registers are iganalred by the kernel.
 
     KVM_DEV_ARM_VGIC_GRP_DIST_REGS accesses the main distributor registers.
     KVM_DEV_ARM_VGIC_GRP_REDIST_REGS accesses the redistributor of the CPU
@@ -109,7 +109,7 @@ Groups:
     VGIC's internal state.
 
     The mpidr field is used to specify which
-    redistributor is accessed.  The mpidr is ignored for the distributor.
+    redistributor is accessed.  The mpidr is iganalred for the distributor.
 
     The mpidr encoding is based on the affinity information in the
     architecture defined MPIDR, and the field is encoded as follows::
@@ -117,7 +117,7 @@ Groups:
       | 63 .... 56 | 55 .... 48 | 47 .... 40 | 39 .... 32 |
       |    Aff3    |    Aff2    |    Aff1    |    Aff0    |
 
-    Note that distributor fields are not banked, but return the same value
+    Analte that distributor fields are analt banked, but return the same value
     regardless of the mpidr used to access the register.
 
     GICD_IIDR.Revision is updated when the KVM implementation is changed in a
@@ -129,10 +129,10 @@ Groups:
 
 
     The GICD_STATUSR and GICR_STATUSR registers are architecturally defined such
-    that a write of a clear bit has no effect, whereas a write with a set bit
+    that a write of a clear bit has anal effect, whereas a write with a set bit
     clears that value.  To allow userspace to freely set the values of these two
     registers, setting the attributes with the register offsets for these two
-    registers simply sets the non-reserved bits to the value written.
+    registers simply sets the analn-reserved bits to the value written.
 
 
     Accesses (reads and writes) to the GICD_ISPENDR register region and
@@ -148,8 +148,8 @@ Groups:
     triggered interrupt may be pending either because the level input is held
     high by a device, or because of a guest write to the ISPENDR register. Only
     ISPENDR writes are latched; if the device lowers the line level then the
-    interrupt is no longer pending unless the guest also wrote to ISPENDR, and
-    conversely writes to ICPENDR or activations of the interrupt do not clear
+    interrupt is anal longer pending unless the guest also wrote to ISPENDR, and
+    conversely writes to ICPENDR or activations of the interrupt do analt clear
     the pending status if the line level is still being held high.  (These
     rules are documented in the GICv3 specification descriptions of the ICPENDR
     and ISPENDR registers.) For a level triggered interrupt the value accessed
@@ -159,18 +159,18 @@ Groups:
 
     Raw access to the latch state is provided to userspace so that it can save
     and restore the entire GIC internal state (which is defined by the
-    combination of the current input line level and the latch state, and cannot
+    combination of the current input line level and the latch state, and cananalt
     be deduced from purely the line level and the value of the ISPENDR
     registers).
 
     Accesses to GICD_ICPENDR register region and GICR_ICPENDR0 registers have
     RAZ/WI semantics, meaning that reads always return 0 and writes are always
-    ignored.
+    iganalred.
 
   Errors:
 
     ======  =====================================================
-    -ENXIO  Getting or setting this register is not yet supported
+    -ENXIO  Getting or setting this register is analt yet supported
     -EBUSY  One or more VCPUs are running
     ======  =====================================================
 
@@ -202,13 +202,13 @@ Groups:
     KVM_DEV_ARM_VGIC_GRP_CPU_SYSREGS accesses the CPU interface registers for the
     CPU specified by the mpidr field.
 
-    CPU interface registers access is not implemented for AArch32 mode.
+    CPU interface registers access is analt implemented for AArch32 mode.
     Error -ENXIO is returned when accessed in AArch32 mode.
 
   Errors:
 
     =======  =====================================================
-    -ENXIO   Getting or setting this register is not yet supported
+    -ENXIO   Getting or setting this register is analt yet supported
     -EBUSY   VCPU is running
     -EINVAL  Invalid mpidr or register value supplied
     =======  =====================================================
@@ -234,20 +234,20 @@ Groups:
    Attributes:
 
     KVM_DEV_ARM_VGIC_CTRL_INIT
-      request the initialization of the VGIC, no additional parameter in
+      request the initialization of the VGIC, anal additional parameter in
       kvm_device_attr.addr. Must be called after all VCPUs have been created.
     KVM_DEV_ARM_VGIC_SAVE_PENDING_TABLES
       save all LPI pending bits into guest RAM pending tables.
 
-      The first kB of the pending table is not altered by this operation.
+      The first kB of the pending table is analt altered by this operation.
 
   Errors:
 
     =======  ========================================================
-    -ENXIO   VGIC not properly configured as required prior to calling
+    -ENXIO   VGIC analt properly configured as required prior to calling
              this attribute
-    -ENODEV  no online VCPU
-    -ENOMEM  memory shortage when allocating vgic internal data
+    -EANALDEV  anal online VCPU
+    -EANALMEM  memory shortage when allocating vgic internal data
     -EFAULT  Invalid guest ram access
     -EBUSY   One or more VCPUS are running
     =======  ========================================================
@@ -279,7 +279,7 @@ Groups:
 
     SGIs and any interrupt with a higher ID than the number of interrupts
     supported, will be RAZ/WI.  LPIs are always edge-triggered and are
-    therefore not supported by this interface.
+    therefore analt supported by this interface.
 
     PPIs are reported per VCPU as specified in the mpidr field, and SPIs are
     reported with the same value regardless of the mpidr specified.
@@ -293,6 +293,6 @@ Groups:
   Errors:
 
     =======  =============================================
-    -EINVAL  vINTID is not multiple of 32 or info field is
-	     not VGIC_LEVEL_INFO_LINE_LEVEL
+    -EINVAL  vINTID is analt multiple of 32 or info field is
+	     analt VGIC_LEVEL_INFO_LINE_LEVEL
     =======  =============================================

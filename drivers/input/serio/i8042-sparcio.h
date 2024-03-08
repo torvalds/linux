@@ -56,12 +56,12 @@ static struct resource *kbd_res;
 
 static int sparc_i8042_probe(struct platform_device *op)
 {
-	struct device_node *dp;
+	struct device_analde *dp;
 
-	for_each_child_of_node(op->dev.of_node, dp) {
-		if (of_node_name_eq(dp, OBP_PS2KBD_NAME1) ||
-		    of_node_name_eq(dp, OBP_PS2KBD_NAME2)) {
-			struct platform_device *kbd = of_find_device_by_node(dp);
+	for_each_child_of_analde(op->dev.of_analde, dp) {
+		if (of_analde_name_eq(dp, OBP_PS2KBD_NAME1) ||
+		    of_analde_name_eq(dp, OBP_PS2KBD_NAME2)) {
+			struct platform_device *kbd = of_find_device_by_analde(dp);
 			unsigned int irq = kbd->archdata.irqs[0];
 			if (irq == 0xffffffff)
 				irq = op->archdata.irqs[0];
@@ -69,9 +69,9 @@ static int sparc_i8042_probe(struct platform_device *op)
 			kbd_iobase = of_ioremap(&kbd->resource[0],
 						0, 8, "kbd");
 			kbd_res = &kbd->resource[0];
-		} else if (of_node_name_eq(dp, OBP_PS2MS_NAME1) ||
-			   of_node_name_eq(dp, OBP_PS2MS_NAME2)) {
-			struct platform_device *ms = of_find_device_by_node(dp);
+		} else if (of_analde_name_eq(dp, OBP_PS2MS_NAME1) ||
+			   of_analde_name_eq(dp, OBP_PS2MS_NAME2)) {
+			struct platform_device *ms = of_find_device_by_analde(dp);
 			unsigned int irq = ms->archdata.irqs[0];
 			if (irq == 0xffffffff)
 				irq = op->archdata.irqs[0];
@@ -106,16 +106,16 @@ static struct platform_driver sparc_i8042_driver = {
 
 static bool i8042_is_mr_coffee(void)
 {
-	struct device_node *root;
+	struct device_analde *root;
 	const char *name;
 	bool is_mr_coffee;
 
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 
 	name = of_get_property(root, "name", NULL);
 	is_mr_coffee = name && !strcmp(name, "SUNW,JavaStation-1");
 
-	of_node_put(root);
+	of_analde_put(root);
 
 	return is_mr_coffee;
 }
@@ -127,7 +127,7 @@ static int __init i8042_platform_init(void)
 		i8042_kbd_irq = i8042_aux_irq = 13 | 0x20;
 		kbd_iobase = ioremap(0x71300060, 8);
 		if (!kbd_iobase)
-			return -ENODEV;
+			return -EANALDEV;
 	} else {
 		int err = platform_driver_register(&sparc_i8042_driver);
 		if (err)
@@ -139,7 +139,7 @@ static int __init i8042_platform_init(void)
 				of_iounmap(kbd_res, kbd_iobase, 8);
 				kbd_iobase = (void __iomem *) NULL;
 			}
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -157,7 +157,7 @@ static inline void i8042_platform_exit(void)
 #else /* !CONFIG_PCI */
 static int __init i8042_platform_init(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline void i8042_platform_exit(void)

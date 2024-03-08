@@ -18,7 +18,7 @@ static int fdomain_pci_probe(struct pci_dev *pdev,
 	if (err)
 		goto disable_device;
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (pci_resource_len(pdev, 0) == 0)
 		goto release_region;
 

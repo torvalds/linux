@@ -30,7 +30,7 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 	" ldub	[%0], %%g2\n\t"
 	"b,a	1b\n\t"
 	".previous\n"
-	: /* no outputs */
+	: /* anal outputs */
 	: "r" (lock)
 	: "g2", "memory", "cc");
 }
@@ -53,10 +53,10 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 /* Read-write spinlocks, allowing multiple readers
  * but only one writer.
  *
- * NOTE! it is quite common to have readers in interrupts
- * but no interrupt writers. For those circumstances we
+ * ANALTE! it is quite common to have readers in interrupts
+ * but anal interrupt writers. For those circumstances we
  * can "mix" irq-safe locks - any writer needs to get a
- * irq-safe write-lock, but readers can get non-irqsafe
+ * irq-safe write-lock, but readers can get analn-irqsafe
  * read-locks.
  *
  * XXX This might create some problems with my dual spinlock
@@ -71,7 +71,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
  *
  * wlock signifies the one writer is in or somebody is updating
  * counter. For a writer, if he successfully acquires the wlock,
- * but counter is non-zero, he has to release the lock and wait,
+ * but counter is analn-zero, he has to release the lock and wait,
  * till both counter and wlock are zero.
  *
  * Unfortunately this scheme limits us to ~16,000,000 cpus.
@@ -84,7 +84,7 @@ static inline void __arch_read_lock(arch_rwlock_t *rw)
 	"mov	%%o7, %%g4\n\t"
 	"call	___rw_read_enter\n\t"
 	" ldstub	[%%g1 + 3], %%g2\n"
-	: /* no outputs */
+	: /* anal outputs */
 	: "r" (lp)
 	: "g2", "g4", "memory", "cc");
 }
@@ -104,7 +104,7 @@ static inline void __arch_read_unlock(arch_rwlock_t *rw)
 	"mov	%%o7, %%g4\n\t"
 	"call	___rw_read_exit\n\t"
 	" ldstub	[%%g1 + 3], %%g2\n"
-	: /* no outputs */
+	: /* anal outputs */
 	: "r" (lp)
 	: "g2", "g4", "memory", "cc");
 }
@@ -124,7 +124,7 @@ static inline void arch_write_lock(arch_rwlock_t *rw)
 	"mov	%%o7, %%g4\n\t"
 	"call	___rw_write_enter\n\t"
 	" ldstub	[%%g1 + 3], %%g2\n"
-	: /* no outputs */
+	: /* anal outputs */
 	: "r" (lp)
 	: "g2", "g4", "memory", "cc");
 	*(volatile __u32 *)&lp->lock = ~0U;
@@ -134,7 +134,7 @@ static inline void arch_write_unlock(arch_rwlock_t *lock)
 {
 	__asm__ __volatile__(
 "	st		%%g0, [%0]"
-	: /* no outputs */
+	: /* anal outputs */
 	: "r" (lock)
 	: "memory");
 }

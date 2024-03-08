@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017 Netroanalme Systems, Inc.
  *
  * This software is licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -7,7 +7,7 @@
  *
  * THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS"
  * WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
- * BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE
  * OF THE PROGRAM IS WITH YOU. SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME
  * THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
@@ -114,8 +114,8 @@ static int nsim_set_vf_rate(struct net_device *dev, int vf, int min, int max)
 	struct nsim_dev *nsim_dev = ns->nsim_dev;
 
 	if (nsim_esw_mode_is_switchdev(ns->nsim_dev)) {
-		pr_err("Not supported in switchdev mode. Please use devlink API.\n");
-		return -EOPNOTSUPP;
+		pr_err("Analt supported in switchdev mode. Please use devlink API.\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (vf >= nsim_dev_get_vfs(nsim_dev))
@@ -228,7 +228,7 @@ static int nsim_setup_tc_taprio(struct net_device *dev,
 		nsim_taprio_stats(&offload->stats);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	return err;
@@ -250,7 +250,7 @@ nsim_setup_tc(struct net_device *dev, enum tc_setup_type type, void *type_data)
 						  nsim_setup_tc_block_cb,
 						  ns, ns, true);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -302,10 +302,10 @@ static void nsim_setup(struct net_device *dev)
 	eth_hw_addr_random(dev);
 
 	dev->tx_queue_len = 0;
-	dev->flags |= IFF_NOARP;
+	dev->flags |= IFF_ANALARP;
 	dev->flags &= ~IFF_MULTICAST;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE |
-			   IFF_NO_QUEUE;
+			   IFF_ANAL_QUEUE;
 	dev->features |= NETIF_F_HIGHDMA |
 			 NETIF_F_SG |
 			 NETIF_F_FRAGLIST |
@@ -382,10 +382,10 @@ nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port)
 	struct netdevsim *ns;
 	int err;
 
-	dev = alloc_netdev_mq(sizeof(*ns), "eth%d", NET_NAME_UNKNOWN, nsim_setup,
+	dev = alloc_netdev_mq(sizeof(*ns), "eth%d", NET_NAME_UNKANALWN, nsim_setup,
 			      nsim_dev->nsim_bus_dev->num_queues);
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dev_net_set(dev, nsim_dev_net(nsim_dev));
 	ns = netdev_priv(dev);
@@ -432,7 +432,7 @@ static int nsim_validate(struct nlattr *tb[], struct nlattr *data[],
 {
 	NL_SET_ERR_MSG_MOD(extack,
 			   "Please use: echo \"[ID] [PORT_COUNT] [NUM_QUEUES]\" > /sys/bus/netdevsim/new_device");
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static struct rtnl_link_ops nsim_link_ops __read_mostly = {

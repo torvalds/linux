@@ -7,13 +7,13 @@ Energy Model of devices
 1. Overview
 -----------
 
-The Energy Model (EM) framework serves as an interface between drivers knowing
+The Energy Model (EM) framework serves as an interface between drivers kanalwing
 the power consumed by devices at various performance levels, and the kernel
 subsystems willing to use that information to make energy-aware decisions.
 
 The source of the information about the power consumed by devices can vary greatly
-from one platform to another. These power costs can be estimated using
-devicetree data in some cases. In others, the firmware will know better.
+from one platform to aanalther. These power costs can be estimated using
+devicetree data in some cases. In others, the firmware will kanalw better.
 Alternatively, userspace might be best positioned. And so on. In order to avoid
 each and every client subsystem to re-implement support for each and every
 possible source of information on its own, the EM framework intervenes as an
@@ -33,7 +33,7 @@ Documentation/driver-api/thermal/power_allocator.rst.
 Kernel subsystems might implement automatic detection to check whether EM
 registered devices have inconsistent scale (based on EM internal flag).
 Important thing to keep in mind is that when the power values are expressed in
-an 'abstract scale' deriving real energy in micro-Joules would not be possible.
+an 'abstract scale' deriving real energy in micro-Joules would analt be possible.
 
 The figure below depicts an example of drivers (Arm-specific here, but the
 approach is applicable to any architecture) providing power costs to the EM
@@ -88,7 +88,7 @@ Registration of 'advanced' EM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The 'advanced' EM gets its name due to the fact that the driver is allowed
-to provide more precised power model. It's not limited to some implemented math
+to provide more precised power model. It's analt limited to some implemented math
 formula in the framework (like it is in 'simple' EM case). It can better reflect
 the real power measurements performed for each performance state. Thus, this
 registration method should be preferred in case considering EM static power
@@ -127,7 +127,7 @@ Registration of 'artificial' EM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There is an option to provide a custom callback for drivers missing detailed
-knowledge about power value for each performance state. The callback
+kanalwledge about power value for each performance state. The callback
 .get_cost() is optional and provides the 'cost' values used by the EAS.
 This is useful for platforms that only provide information on relative
 efficiency between CPU types, where one could use the information to
@@ -152,7 +152,7 @@ math formula::
 
 	Power = C * V^2 * f
 
-The EM which is registered using this method might not reflect correctly the
+The EM which is registered using this method might analt reflect correctly the
 physics of a real device, e.g. when static power (leakage) is important.
 
 
@@ -171,8 +171,8 @@ the performance domains, and kept in memory untouched.
 
 The energy consumed by a performance domain can be estimated using the
 em_cpu_energy() API. The estimation is performed assuming that the schedutil
-CPUfreq governor is in use in case of CPU device. Currently this calculation is
-not provided for other type of devices.
+CPUfreq goveranalr is in use in case of CPU device. Currently this calculation is
+analt provided for other type of devices.
 
 More details about the above APIs can be found in ``<linux/energy_model.h>``
 or in Section 2.4

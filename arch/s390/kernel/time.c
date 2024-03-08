@@ -16,7 +16,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/kernel_stat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
@@ -35,7 +35,7 @@
 #include <linux/types.h>
 #include <linux/profile.h>
 #include <linux/timex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/timekeeper_internal.h>
 #include <linux/clockchips.h>
 #include <linux/gfp.h>
@@ -63,8 +63,8 @@ EXPORT_SYMBOL_GPL(clock_comparator_max);
 
 static DEFINE_PER_CPU(struct clock_event_device, comparators);
 
-ATOMIC_NOTIFIER_HEAD(s390_epoch_delta_notifier);
-EXPORT_SYMBOL(s390_epoch_delta_notifier);
+ATOMIC_ANALTIFIER_HEAD(s390_epoch_delta_analtifier);
+EXPORT_SYMBOL(s390_epoch_delta_analtifier);
 
 unsigned char ptff_function_mask[16];
 
@@ -102,19 +102,19 @@ void __init time_early_init(void)
 			((long) qui.old_leap * 4096000000L);
 }
 
-unsigned long long noinstr sched_clock_noinstr(void)
+unsigned long long analinstr sched_clock_analinstr(void)
 {
-	return tod_to_ns(__get_tod_clock_monotonic());
+	return tod_to_ns(__get_tod_clock_moanaltonic());
 }
 
 /*
- * Scheduler clock - returns current time in nanosec units.
+ * Scheduler clock - returns current time in naanalsec units.
  */
-unsigned long long notrace sched_clock(void)
+unsigned long long analtrace sched_clock(void)
 {
-	return tod_to_ns(get_tod_clock_monotonic());
+	return tod_to_ns(get_tod_clock_moanaltonic());
 }
-NOKPROBE_SYMBOL(sched_clock);
+ANALKPROBE_SYMBOL(sched_clock);
 
 static void ext_to_timespec64(union tod_clock *clk, struct timespec64 *xt)
 {
@@ -229,11 +229,11 @@ void __init read_persistent_wall_and_boot_offset(struct timespec64 *wall_time,
 
 static u64 read_tod_clock(struct clocksource *cs)
 {
-	unsigned long now, adj;
+	unsigned long analw, adj;
 
 	preempt_disable(); /* protect from changes to steering parameters */
-	now = get_tod_clock();
-	adj = tod_steering_end - now;
+	analw = get_tod_clock();
+	adj = tod_steering_end - analw;
 	if (unlikely((s64) adj > 0))
 		/*
 		 * manually steer by 1 cycle every 2^16 cycles. This
@@ -241,9 +241,9 @@ static u64 read_tod_clock(struct clocksource *cs)
 		 * therefore steered in ~9h. The adjust will decrease
 		 * over time, until it finally reaches 0.
 		 */
-		now += (tod_steering_delta < 0) ? (adj >> 15) : -(adj >> 15);
+		analw += (tod_steering_delta < 0) ? (adj >> 15) : -(adj >> 15);
 	preempt_enable();
-	return now;
+	return analw;
 }
 
 static struct clocksource clocksource_tod = {
@@ -280,7 +280,7 @@ void __init time_init(void)
 		panic("Couldn't request external interrupt 0x1406");
 
 	if (__clocksource_register(&clocksource_tod) != 0)
-		panic("Could not register TOD clock source");
+		panic("Could analt register TOD clock source");
 
 	/* Enable TOD clock interrupts on the boot cpu. */
 	init_cpu_timer();
@@ -301,8 +301,8 @@ static unsigned long clock_sync_flags;
  * The get_clock function for the physical clock. It will get the current
  * TOD clock, subtract the LPAR offset and write the result to *clock.
  * The function returns 0 if the clock is in sync with the external time
- * source. If the clock mode is local it will return -EOPNOTSUPP and
- * -EAGAIN if the clock is not in sync with the external reference.
+ * source. If the clock mode is local it will return -EOPANALTSUPP and
+ * -EAGAIN if the clock is analt in sync with the external reference.
  */
 int get_phys_clock(unsigned long *clock)
 {
@@ -318,7 +318,7 @@ int get_phys_clock(unsigned long *clock)
 		/* Success: time is in sync. */
 		return 0;
 	if (!test_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!test_bit(CLOCK_SYNC_STP, &clock_sync_flags))
 		return -EACCES;
 	return -EAGAIN;
@@ -337,7 +337,7 @@ static void disable_sync_clock(void *dummy)
 	 * increase the "sequence" counter to avoid the race of an
 	 * stp event and the complete recovery against get_phys_clock.
 	 */
-	atomic_andnot(0x80000000, sw_ptr);
+	atomic_andanalt(0x80000000, sw_ptr);
 	atomic_inc(sw_ptr);
 }
 
@@ -371,15 +371,15 @@ static inline int check_sync_clock(void)
  */
 static void clock_sync_global(long delta)
 {
-	unsigned long now, adj;
+	unsigned long analw, adj;
 	struct ptff_qto qto;
 	int cs;
 
-	/* Fixup the monotonic sched clock. */
+	/* Fixup the moanaltonic sched clock. */
 	tod_clock_base.eitod += delta;
 	/* Adjust TOD steering parameters. */
-	now = get_tod_clock();
-	adj = tod_steering_end - now;
+	analw = get_tod_clock();
+	adj = tod_steering_end - analw;
 	if (unlikely((s64) adj >= 0))
 		/* Calculate how much of the old adjustment is left. */
 		tod_steering_delta = (tod_steering_delta < 0) ?
@@ -388,7 +388,7 @@ static void clock_sync_global(long delta)
 	if ((abs(tod_steering_delta) >> 48) != 0)
 		panic("TOD clock sync offset %li is too large to drift\n",
 		      tod_steering_delta);
-	tod_steering_end = now + (abs(tod_steering_delta) << 15);
+	tod_steering_end = analw + (abs(tod_steering_delta) << 15);
 	for (cs = 0; cs < CS_BASES; cs++) {
 		vdso_data[cs].arch_data.tod_steering_end = tod_steering_end;
 		vdso_data[cs].arch_data.tod_steering_delta = tod_steering_delta;
@@ -397,8 +397,8 @@ static void clock_sync_global(long delta)
 	/* Update LPAR offset. */
 	if (ptff_query(PTFF_QTO) && ptff(&qto, sizeof(qto), PTFF_QTO) == 0)
 		lpar_offset = qto.tod_epoch_difference;
-	/* Call the TOD clock change notifier. */
-	atomic_notifier_call_chain(&s390_epoch_delta_notifier, 0, &delta);
+	/* Call the TOD clock change analtifier. */
+	atomic_analtifier_call_chain(&s390_epoch_delta_analtifier, 0, &delta);
 }
 
 /*
@@ -461,7 +461,7 @@ static void __init stp_reset(void)
 	if (rc == 0)
 		set_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags);
 	else if (stp_online) {
-		pr_warn("The real or virtual hardware system does not provide an STP interface\n");
+		pr_warn("The real or virtual hardware system does analt provide an STP interface\n");
 		free_page((unsigned long) stp_page);
 		stp_page = NULL;
 		stp_online = false;
@@ -493,7 +493,7 @@ arch_initcall(stp_init);
  * 2) link availability change
  * 3) time control parameter change
  * In all three cases we are only interested in the clock source state.
- * If a STP clock source is now available use it.
+ * If a STP clock source is analw available use it.
  */
 static void stp_timing_alert(struct stp_irq_parm *intparm)
 {
@@ -504,7 +504,7 @@ static void stp_timing_alert(struct stp_irq_parm *intparm)
 /*
  * STP sync check machine check. This is called when the timing state
  * changes from the synchronized state to the unsynchronized state.
- * After a STP sync check the clock is not in sync. The machine check
+ * After a STP sync check the clock is analt in sync. The machine check
  * is broadcasted to all cpus at the same time.
  */
 int stp_sync_check(void)
@@ -517,7 +517,7 @@ int stp_sync_check(void)
  * STP island condition machine check. This is called when an attached
  * server  attempts to communicate over an STP link and the servers
  * have matching CTN ids and have a valid stratum-1 configuration
- * but the configurations do not match.
+ * but the configurations do analt match.
  */
 int stp_island_check(void)
 {
@@ -634,7 +634,7 @@ static void stp_check_leap(void)
 	leapdiff = lsoib->nlso - lsoib->also;
 
 	if (leapdiff != 1 && leapdiff != -1) {
-		pr_err("Cannot schedule %d leap seconds\n", leapdiff);
+		pr_err("Cananalt schedule %d leap seconds\n", leapdiff);
 		return;
 	}
 
@@ -725,7 +725,7 @@ static ssize_t ctn_id_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	ssize_t ret = -ENODATA;
+	ssize_t ret = -EANALDATA;
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid())
@@ -741,7 +741,7 @@ static ssize_t ctn_type_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	ssize_t ret = -ENODATA;
+	ssize_t ret = -EANALDATA;
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid())
@@ -756,7 +756,7 @@ static ssize_t dst_offset_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
 {
-	ssize_t ret = -ENODATA;
+	ssize_t ret = -EANALDATA;
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid() && (stp_info.vbits & 0x2000))
@@ -771,7 +771,7 @@ static ssize_t leap_seconds_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	ssize_t ret = -ENODATA;
+	ssize_t ret = -EANALDATA;
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid() && (stp_info.vbits & 0x8000))
@@ -792,7 +792,7 @@ static ssize_t leap_seconds_scheduled_show(struct device *dev,
 	mutex_lock(&stp_mutex);
 	if (!stpinfo_valid() || !(stp_info.vbits & 0x8000) || !stp_info.lu) {
 		mutex_unlock(&stp_mutex);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	ret = chsc_stzi(stp_page, &stzi, sizeof(stzi));
@@ -814,7 +814,7 @@ static ssize_t stratum_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	ssize_t ret = -ENODATA;
+	ssize_t ret = -EANALDATA;
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid())
@@ -829,7 +829,7 @@ static ssize_t time_offset_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	ssize_t ret = -ENODATA;
+	ssize_t ret = -EANALDATA;
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid() && (stp_info.vbits & 0x0800))
@@ -844,7 +844,7 @@ static ssize_t time_zone_offset_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	ssize_t ret = -ENODATA;
+	ssize_t ret = -EANALDATA;
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid() && (stp_info.vbits & 0x4000))
@@ -859,7 +859,7 @@ static ssize_t timing_mode_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	ssize_t ret = -ENODATA;
+	ssize_t ret = -EANALDATA;
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid())
@@ -874,7 +874,7 @@ static ssize_t timing_state_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	ssize_t ret = -ENODATA;
+	ssize_t ret = -EANALDATA;
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid())
@@ -902,7 +902,7 @@ static ssize_t online_store(struct device *dev,
 	if (value != 0 && value != 1)
 		return -EINVAL;
 	if (!test_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	mutex_lock(&stp_mutex);
 	stp_online = value;
 	if (stp_online)

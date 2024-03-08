@@ -88,7 +88,7 @@ static struct clk_regmap g12a_fixed_pll = {
 		.num_parents = 1,
 		/*
 		 * This clock won't ever change at runtime so
-		 * CLK_SET_RATE_PARENT is not required
+		 * CLK_SET_RATE_PARENT is analt required
 		 */
 	},
 };
@@ -228,7 +228,7 @@ static struct clk_regmap g12a_sys_pll_div16_en = {
 		.num_parents = 1,
 		/*
 		 * This clock is used to debug the sys_pll range
-		 * Linux should not change it at runtime
+		 * Linux should analt change it at runtime
 		 */
 	},
 };
@@ -247,7 +247,7 @@ static struct clk_regmap g12b_sys1_pll_div16_en = {
 		.num_parents = 1,
 		/*
 		 * This clock is used to debug the sys_pll range
-		 * Linux should not change it at runtime
+		 * Linux should analt change it at runtime
 		 */
 	},
 };
@@ -389,7 +389,7 @@ static struct clk_regmap g12a_cpu_clk_premux1 = {
 		},
 		.num_parents = 3,
 		/* This sub-tree is used a parking clock */
-		.flags = CLK_SET_RATE_NO_REPARENT
+		.flags = CLK_SET_RATE_ANAL_REPARENT
 	},
 };
 
@@ -471,7 +471,7 @@ static struct clk_regmap g12a_cpu_clk_postmux1 = {
 		},
 		.num_parents = 2,
 		/* This sub-tree is used a parking clock */
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -618,7 +618,7 @@ static struct clk_regmap g12b_cpub_clk_premux1 = {
 		},
 		.num_parents = 3,
 		/* This sub-tree is used a parking clock */
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -655,7 +655,7 @@ static struct clk_regmap g12b_cpub_clk_postmux1 = {
 		},
 		.num_parents = 2,
 		/* This sub-tree is used a parking clock */
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -919,24 +919,24 @@ static struct clk_regmap sm1_dsu_clk = {
 	},
 };
 
-static int g12a_cpu_clk_mux_notifier_cb(struct notifier_block *nb,
+static int g12a_cpu_clk_mux_analtifier_cb(struct analtifier_block *nb,
 					unsigned long event, void *data)
 {
 	if (event == POST_RATE_CHANGE || event == PRE_RATE_CHANGE) {
 		/* Wait for clock propagation before/after changing the mux */
 		udelay(100);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block g12a_cpu_clk_mux_nb = {
-	.notifier_call = g12a_cpu_clk_mux_notifier_cb,
+static struct analtifier_block g12a_cpu_clk_mux_nb = {
+	.analtifier_call = g12a_cpu_clk_mux_analtifier_cb,
 };
 
 struct g12a_cpu_clk_postmux_nb_data {
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	struct clk_hw *xtal;
 	struct clk_hw *cpu_clk_dyn;
 	struct clk_hw *cpu_clk_postmux0;
@@ -944,7 +944,7 @@ struct g12a_cpu_clk_postmux_nb_data {
 	struct clk_hw *cpu_clk_premux1;
 };
 
-static int g12a_cpu_clk_postmux_notifier_cb(struct notifier_block *nb,
+static int g12a_cpu_clk_postmux_analtifier_cb(struct analtifier_block *nb,
 					    unsigned long event, void *data)
 {
 	struct g12a_cpu_clk_postmux_nb_data *nb_data =
@@ -953,7 +953,7 @@ static int g12a_cpu_clk_postmux_notifier_cb(struct notifier_block *nb,
 	switch (event) {
 	case PRE_RATE_CHANGE:
 		/*
-		 * This notifier means cpu_clk_postmux0 clock will be changed
+		 * This analtifier means cpu_clk_postmux0 clock will be changed
 		 * to feed cpu_clk, this is the current path :
 		 * cpu_clk
 		 *    \- cpu_clk_dyn
@@ -979,7 +979,7 @@ static int g12a_cpu_clk_postmux_notifier_cb(struct notifier_block *nb,
 				  nb_data->cpu_clk_postmux1);
 
 		/*
-		 * Now, cpu_clk is 24MHz in the current path :
+		 * Analw, cpu_clk is 24MHz in the current path :
 		 * cpu_clk
 		 *    \- cpu_clk_dyn
 		 *          \- cpu_clk_postmux1
@@ -989,11 +989,11 @@ static int g12a_cpu_clk_postmux_notifier_cb(struct notifier_block *nb,
 
 		udelay(100);
 
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	case POST_RATE_CHANGE:
 		/*
-		 * The cpu_clk_postmux0 has ben updated, now switch back
+		 * The cpu_clk_postmux0 has ben updated, analw switch back
 		 * cpu_clk_dyn to cpu_clk_postmux0 and take the changes
 		 * in account.
 		 */
@@ -1017,10 +1017,10 @@ static int g12a_cpu_clk_postmux_notifier_cb(struct notifier_block *nb,
 
 		udelay(100);
 
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 }
 
@@ -1029,7 +1029,7 @@ static struct g12a_cpu_clk_postmux_nb_data g12a_cpu_clk_postmux0_nb_data = {
 	.cpu_clk_postmux0 = &g12a_cpu_clk_postmux0.hw,
 	.cpu_clk_postmux1 = &g12a_cpu_clk_postmux1.hw,
 	.cpu_clk_premux1 = &g12a_cpu_clk_premux1.hw,
-	.nb.notifier_call = g12a_cpu_clk_postmux_notifier_cb,
+	.nb.analtifier_call = g12a_cpu_clk_postmux_analtifier_cb,
 };
 
 static struct g12a_cpu_clk_postmux_nb_data g12b_cpub_clk_postmux0_nb_data = {
@@ -1037,17 +1037,17 @@ static struct g12a_cpu_clk_postmux_nb_data g12b_cpub_clk_postmux0_nb_data = {
 	.cpu_clk_postmux0 = &g12b_cpub_clk_postmux0.hw,
 	.cpu_clk_postmux1 = &g12b_cpub_clk_postmux1.hw,
 	.cpu_clk_premux1 = &g12b_cpub_clk_premux1.hw,
-	.nb.notifier_call = g12a_cpu_clk_postmux_notifier_cb,
+	.nb.analtifier_call = g12a_cpu_clk_postmux_analtifier_cb,
 };
 
 struct g12a_sys_pll_nb_data {
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	struct clk_hw *sys_pll;
 	struct clk_hw *cpu_clk;
 	struct clk_hw *cpu_clk_dyn;
 };
 
-static int g12a_sys_pll_notifier_cb(struct notifier_block *nb,
+static int g12a_sys_pll_analtifier_cb(struct analtifier_block *nb,
 				    unsigned long event, void *data)
 {
 	struct g12a_sys_pll_nb_data *nb_data =
@@ -1056,7 +1056,7 @@ static int g12a_sys_pll_notifier_cb(struct notifier_block *nb,
 	switch (event) {
 	case PRE_RATE_CHANGE:
 		/*
-		 * This notifier means sys_pll clock will be changed
+		 * This analtifier means sys_pll clock will be changed
 		 * to feed cpu_clk, this the current path :
 		 * cpu_clk
 		 *    \- sys_pll
@@ -1068,7 +1068,7 @@ static int g12a_sys_pll_notifier_cb(struct notifier_block *nb,
 				  nb_data->cpu_clk_dyn);
 
 		/*
-		 * Now, cpu_clk uses the dyn path
+		 * Analw, cpu_clk uses the dyn path
 		 * cpu_clk
 		 *    \- cpu_clk_dyn
 		 *          \- cpu_clk_dynX
@@ -1080,11 +1080,11 @@ static int g12a_sys_pll_notifier_cb(struct notifier_block *nb,
 
 		udelay(100);
 
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	case POST_RATE_CHANGE:
 		/*
-		 * The sys_pll has ben updated, now switch back cpu_clk to
+		 * The sys_pll has ben updated, analw switch back cpu_clk to
 		 * sys_pll
 		 */
 
@@ -1100,10 +1100,10 @@ static int g12a_sys_pll_notifier_cb(struct notifier_block *nb,
 		 *          \- sys_pll_dco
 		 */
 
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 }
 
@@ -1111,7 +1111,7 @@ static struct g12a_sys_pll_nb_data g12a_sys_pll_nb_data = {
 	.sys_pll = &g12a_sys_pll.hw,
 	.cpu_clk = &g12a_cpu_clk.hw,
 	.cpu_clk_dyn = &g12a_cpu_clk_dyn.hw,
-	.nb.notifier_call = g12a_sys_pll_notifier_cb,
+	.nb.analtifier_call = g12a_sys_pll_analtifier_cb,
 };
 
 /* G12B first CPU cluster uses sys1_pll */
@@ -1119,7 +1119,7 @@ static struct g12a_sys_pll_nb_data g12b_cpu_clk_sys1_pll_nb_data = {
 	.sys_pll = &g12b_sys1_pll.hw,
 	.cpu_clk = &g12b_cpu_clk.hw,
 	.cpu_clk_dyn = &g12a_cpu_clk_dyn.hw,
-	.nb.notifier_call = g12a_sys_pll_notifier_cb,
+	.nb.analtifier_call = g12a_sys_pll_analtifier_cb,
 };
 
 /* G12B second CPU cluster uses sys_pll */
@@ -1127,7 +1127,7 @@ static struct g12a_sys_pll_nb_data g12b_cpub_clk_sys_pll_nb_data = {
 	.sys_pll = &g12a_sys_pll.hw,
 	.cpu_clk = &g12b_cpub_clk.hw,
 	.cpu_clk_dyn = &g12b_cpub_clk_dyn.hw,
-	.nb.notifier_call = g12a_sys_pll_notifier_cb,
+	.nb.analtifier_call = g12a_sys_pll_analtifier_cb,
 };
 
 static struct clk_regmap g12a_cpu_clk_div16_en = {
@@ -1144,7 +1144,7 @@ static struct clk_regmap g12a_cpu_clk_div16_en = {
 		.num_parents = 1,
 		/*
 		 * This clock is used to debug the cpu_clk range
-		 * Linux should not change it at runtime
+		 * Linux should analt change it at runtime
 		 */
 	},
 };
@@ -1163,7 +1163,7 @@ static struct clk_regmap g12b_cpub_clk_div16_en = {
 		.num_parents = 1,
 		/*
 		 * This clock is used to debug the cpu_clk range
-		 * Linux should not change it at runtime
+		 * Linux should analt change it at runtime
 		 */
 	},
 };
@@ -1223,7 +1223,7 @@ static struct clk_regmap g12a_cpu_clk_apb = {
 		.num_parents = 1,
 		/*
 		 * This clock is set by the ROM monitor code,
-		 * Linux should not change it at runtime
+		 * Linux should analt change it at runtime
 		 */
 	},
 };
@@ -1257,7 +1257,7 @@ static struct clk_regmap g12a_cpu_clk_atb = {
 		.num_parents = 1,
 		/*
 		 * This clock is set by the ROM monitor code,
-		 * Linux should not change it at runtime
+		 * Linux should analt change it at runtime
 		 */
 	},
 };
@@ -1291,7 +1291,7 @@ static struct clk_regmap g12a_cpu_clk_axi = {
 		.num_parents = 1,
 		/*
 		 * This clock is set by the ROM monitor code,
-		 * Linux should not change it at runtime
+		 * Linux should analt change it at runtime
 		 */
 	},
 };
@@ -1308,7 +1308,7 @@ static struct clk_regmap g12a_cpu_clk_trace_div = {
 		.ops = &clk_regmap_divider_ro_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			/*
-			 * Note:
+			 * Analte:
 			 * G12A and G12B have different cpu_clks (with
 			 * different struct clk_hw). We fallback to the global
 			 * naming string mechanism so cpu_clk_trace_div picks
@@ -1335,7 +1335,7 @@ static struct clk_regmap g12a_cpu_clk_trace = {
 		.num_parents = 1,
 		/*
 		 * This clock is set by the ROM monitor code,
-		 * Linux should not change it at runtime
+		 * Linux should analt change it at runtime
 		 */
 	},
 };
@@ -1470,7 +1470,7 @@ static struct clk_regmap g12b_cpub_clk_apb = {
 		.num_parents = 1,
 		/*
 		 * This clock is set by the ROM monitor code,
-		 * Linux should not change it at runtime
+		 * Linux should analt change it at runtime
 		 */
 	},
 };
@@ -1513,7 +1513,7 @@ static struct clk_regmap g12b_cpub_clk_atb = {
 		.num_parents = 1,
 		/*
 		 * This clock is set by the ROM monitor code,
-		 * Linux should not change it at runtime
+		 * Linux should analt change it at runtime
 		 */
 	},
 };
@@ -1556,7 +1556,7 @@ static struct clk_regmap g12b_cpub_clk_axi = {
 		.num_parents = 1,
 		/*
 		 * This clock is set by the ROM monitor code,
-		 * Linux should not change it at runtime
+		 * Linux should analt change it at runtime
 		 */
 	},
 };
@@ -1599,7 +1599,7 @@ static struct clk_regmap g12b_cpub_clk_trace = {
 		.num_parents = 1,
 		/*
 		 * This clock is set by the ROM monitor code,
-		 * Linux should not change it at runtime
+		 * Linux should analt change it at runtime
 		 */
 	},
 };
@@ -1989,9 +1989,9 @@ static struct clk_regmap g12a_hdmi_pll_dco = {
 		.num_parents = 1,
 		/*
 		 * Display directly handle hdmi pll registers ATM, we need
-		 * NOCACHE to keep our view of the clock as accurate as possible
+		 * ANALCACHE to keep our view of the clock as accurate as possible
 		 */
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -2009,7 +2009,7 @@ static struct clk_regmap g12a_hdmi_pll_od = {
 			&g12a_hdmi_pll_dco.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2027,7 +2027,7 @@ static struct clk_regmap g12a_hdmi_pll_od2 = {
 			&g12a_hdmi_pll_od.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2045,7 +2045,7 @@ static struct clk_regmap g12a_hdmi_pll = {
 			&g12a_hdmi_pll_od2.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2654,7 +2654,7 @@ static struct clk_regmap g12a_vid_pll_div = {
 		.ops = &meson_vid_pll_div_ro_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_hdmi_pll.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -2678,7 +2678,7 @@ static struct clk_regmap g12a_vid_pll_sel = {
 		 */
 		.parent_hws = g12a_vid_pll_parent_hws,
 		.num_parents = ARRAY_SIZE(g12a_vid_pll_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -2694,7 +2694,7 @@ static struct clk_regmap g12a_vid_pll = {
 			&g12a_vid_pll_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2722,7 +2722,7 @@ static struct clk_regmap g12a_vpu_0_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = g12a_vpu_parent_hws,
 		.num_parents = ARRAY_SIZE(g12a_vpu_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -2751,7 +2751,7 @@ static struct clk_regmap g12a_vpu_0 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vpu_0_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2766,7 +2766,7 @@ static struct clk_regmap g12a_vpu_1_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = g12a_vpu_parent_hws,
 		.num_parents = ARRAY_SIZE(g12a_vpu_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -2795,7 +2795,7 @@ static struct clk_regmap g12a_vpu_1 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vpu_1_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -2817,7 +2817,7 @@ static struct clk_regmap g12a_vpu = {
 			&g12a_vpu_1.hw,
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -3007,7 +3007,7 @@ static struct clk_regmap g12a_vapb_0_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = g12a_vapb_parent_hws,
 		.num_parents = ARRAY_SIZE(g12a_vapb_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -3040,7 +3040,7 @@ static struct clk_regmap g12a_vapb_0 = {
 			&g12a_vapb_0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3055,7 +3055,7 @@ static struct clk_regmap g12a_vapb_1_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = g12a_vapb_parent_hws,
 		.num_parents = ARRAY_SIZE(g12a_vapb_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -3088,7 +3088,7 @@ static struct clk_regmap g12a_vapb_1 = {
 			&g12a_vapb_1_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3110,7 +3110,7 @@ static struct clk_regmap g12a_vapb_sel = {
 			&g12a_vapb_1.hw,
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -3124,7 +3124,7 @@ static struct clk_regmap g12a_vapb = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vapb_sel.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3150,7 +3150,7 @@ static struct clk_regmap g12a_vclk_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = g12a_vclk_parent_hws,
 		.num_parents = ARRAY_SIZE(g12a_vclk_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -3165,7 +3165,7 @@ static struct clk_regmap g12a_vclk2_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = g12a_vclk_parent_hws,
 		.num_parents = ARRAY_SIZE(g12a_vclk_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -3179,7 +3179,7 @@ static struct clk_regmap g12a_vclk_input = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vclk_sel.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3193,7 +3193,7 @@ static struct clk_regmap g12a_vclk2_input = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vclk2_sel.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3210,7 +3210,7 @@ static struct clk_regmap g12a_vclk_div = {
 			&g12a_vclk_input.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -3227,7 +3227,7 @@ static struct clk_regmap g12a_vclk2_div = {
 			&g12a_vclk2_input.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -3241,7 +3241,7 @@ static struct clk_regmap g12a_vclk = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vclk_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3255,7 +3255,7 @@ static struct clk_regmap g12a_vclk2 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vclk2_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3269,7 +3269,7 @@ static struct clk_regmap g12a_vclk_div1 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vclk.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3283,7 +3283,7 @@ static struct clk_regmap g12a_vclk_div2_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vclk.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3297,7 +3297,7 @@ static struct clk_regmap g12a_vclk_div4_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vclk.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3311,7 +3311,7 @@ static struct clk_regmap g12a_vclk_div6_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vclk.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3325,7 +3325,7 @@ static struct clk_regmap g12a_vclk_div12_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vclk.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3339,7 +3339,7 @@ static struct clk_regmap g12a_vclk2_div1 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vclk2.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3353,7 +3353,7 @@ static struct clk_regmap g12a_vclk2_div2_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vclk2.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3367,7 +3367,7 @@ static struct clk_regmap g12a_vclk2_div4_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vclk2.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3381,7 +3381,7 @@ static struct clk_regmap g12a_vclk2_div6_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vclk2.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3395,7 +3395,7 @@ static struct clk_regmap g12a_vclk2_div12_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vclk2.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3529,7 +3529,7 @@ static struct clk_regmap g12a_cts_enci_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = g12a_cts_parent_hws,
 		.num_parents = ARRAY_SIZE(g12a_cts_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -3545,7 +3545,7 @@ static struct clk_regmap g12a_cts_encp_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = g12a_cts_parent_hws,
 		.num_parents = ARRAY_SIZE(g12a_cts_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -3561,7 +3561,7 @@ static struct clk_regmap g12a_cts_encl_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = g12a_cts_parent_hws,
 		.num_parents = ARRAY_SIZE(g12a_cts_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -3577,7 +3577,7 @@ static struct clk_regmap g12a_cts_vdac_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = g12a_cts_parent_hws,
 		.num_parents = ARRAY_SIZE(g12a_cts_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -3608,7 +3608,7 @@ static struct clk_regmap g12a_hdmi_tx_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = g12a_cts_hdmi_tx_parent_hws,
 		.num_parents = ARRAY_SIZE(g12a_cts_hdmi_tx_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -3624,7 +3624,7 @@ static struct clk_regmap g12a_cts_enci = {
 			&g12a_cts_enci_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3640,7 +3640,7 @@ static struct clk_regmap g12a_cts_encp = {
 			&g12a_cts_encp_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3656,7 +3656,7 @@ static struct clk_regmap g12a_cts_encl = {
 			&g12a_cts_encl_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3672,7 +3672,7 @@ static struct clk_regmap g12a_cts_vdac = {
 			&g12a_cts_vdac_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3688,7 +3688,7 @@ static struct clk_regmap g12a_hdmi_tx = {
 			&g12a_hdmi_tx_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -3717,7 +3717,7 @@ static struct clk_regmap g12a_mipi_dsi_pxclk_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = g12a_mipi_dsi_pxclk_parent_hws,
 		.num_parents = ARRAY_SIZE(g12a_mipi_dsi_pxclk_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -3835,7 +3835,7 @@ static struct clk_regmap g12a_hdmi_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = g12a_hdmi_parent_data,
 		.num_parents = ARRAY_SIZE(g12a_hdmi_parent_data),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -3850,7 +3850,7 @@ static struct clk_regmap g12a_hdmi_div = {
 		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_hdmi_sel.hw },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -3864,7 +3864,7 @@ static struct clk_regmap g12a_hdmi = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_hdmi_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -5347,30 +5347,30 @@ static const struct reg_sequence g12a_init_regs[] = {
 static int meson_g12a_dvfs_setup_common(struct device *dev,
 					struct clk_hw **hws)
 {
-	struct clk *notifier_clk;
+	struct clk *analtifier_clk;
 	struct clk_hw *xtal;
 	int ret;
 
 	xtal = clk_hw_get_parent_by_index(hws[CLKID_CPU_CLK_DYN1_SEL], 0);
 
-	/* Setup clock notifier for cpu_clk_postmux0 */
+	/* Setup clock analtifier for cpu_clk_postmux0 */
 	g12a_cpu_clk_postmux0_nb_data.xtal = xtal;
-	notifier_clk = devm_clk_hw_get_clk(dev, &g12a_cpu_clk_postmux0.hw,
+	analtifier_clk = devm_clk_hw_get_clk(dev, &g12a_cpu_clk_postmux0.hw,
 					   DVFS_CON_ID);
-	ret = devm_clk_notifier_register(dev, notifier_clk,
+	ret = devm_clk_analtifier_register(dev, analtifier_clk,
 					 &g12a_cpu_clk_postmux0_nb_data.nb);
 	if (ret) {
-		dev_err(dev, "failed to register the cpu_clk_postmux0 notifier\n");
+		dev_err(dev, "failed to register the cpu_clk_postmux0 analtifier\n");
 		return ret;
 	}
 
-	/* Setup clock notifier for cpu_clk_dyn mux */
-	notifier_clk = devm_clk_hw_get_clk(dev, &g12a_cpu_clk_dyn.hw,
+	/* Setup clock analtifier for cpu_clk_dyn mux */
+	analtifier_clk = devm_clk_hw_get_clk(dev, &g12a_cpu_clk_dyn.hw,
 					   DVFS_CON_ID);
-	ret = devm_clk_notifier_register(dev, notifier_clk,
+	ret = devm_clk_analtifier_register(dev, analtifier_clk,
 					 &g12a_cpu_clk_mux_nb);
 	if (ret) {
-		dev_err(dev, "failed to register the cpu_clk_dyn notifier\n");
+		dev_err(dev, "failed to register the cpu_clk_dyn analtifier\n");
 		return ret;
 	}
 
@@ -5381,7 +5381,7 @@ static int meson_g12b_dvfs_setup(struct platform_device *pdev)
 {
 	struct clk_hw **hws = g12b_hw_clks;
 	struct device *dev = &pdev->dev;
-	struct clk *notifier_clk;
+	struct clk *analtifier_clk;
 	struct clk_hw *xtal;
 	int ret;
 
@@ -5391,63 +5391,63 @@ static int meson_g12b_dvfs_setup(struct platform_device *pdev)
 
 	xtal = clk_hw_get_parent_by_index(hws[CLKID_CPU_CLK_DYN1_SEL], 0);
 
-	/* Setup clock notifier for cpu_clk mux */
-	notifier_clk = devm_clk_hw_get_clk(dev, &g12b_cpu_clk.hw,
+	/* Setup clock analtifier for cpu_clk mux */
+	analtifier_clk = devm_clk_hw_get_clk(dev, &g12b_cpu_clk.hw,
 					   DVFS_CON_ID);
-	ret = devm_clk_notifier_register(dev, notifier_clk,
+	ret = devm_clk_analtifier_register(dev, analtifier_clk,
 					 &g12a_cpu_clk_mux_nb);
 	if (ret) {
-		dev_err(dev, "failed to register the cpu_clk notifier\n");
+		dev_err(dev, "failed to register the cpu_clk analtifier\n");
 		return ret;
 	}
 
-	/* Setup clock notifier for sys1_pll */
-	notifier_clk = devm_clk_hw_get_clk(dev, &g12b_sys1_pll.hw,
+	/* Setup clock analtifier for sys1_pll */
+	analtifier_clk = devm_clk_hw_get_clk(dev, &g12b_sys1_pll.hw,
 					   DVFS_CON_ID);
-	ret = devm_clk_notifier_register(dev, notifier_clk,
+	ret = devm_clk_analtifier_register(dev, analtifier_clk,
 					 &g12b_cpu_clk_sys1_pll_nb_data.nb);
 	if (ret) {
-		dev_err(dev, "failed to register the sys1_pll notifier\n");
+		dev_err(dev, "failed to register the sys1_pll analtifier\n");
 		return ret;
 	}
 
-	/* Add notifiers for the second CPU cluster */
+	/* Add analtifiers for the second CPU cluster */
 
-	/* Setup clock notifier for cpub_clk_postmux0 */
+	/* Setup clock analtifier for cpub_clk_postmux0 */
 	g12b_cpub_clk_postmux0_nb_data.xtal = xtal;
-	notifier_clk = devm_clk_hw_get_clk(dev, &g12b_cpub_clk_postmux0.hw,
+	analtifier_clk = devm_clk_hw_get_clk(dev, &g12b_cpub_clk_postmux0.hw,
 					   DVFS_CON_ID);
-	ret = devm_clk_notifier_register(dev, notifier_clk,
+	ret = devm_clk_analtifier_register(dev, analtifier_clk,
 					 &g12b_cpub_clk_postmux0_nb_data.nb);
 	if (ret) {
-		dev_err(dev, "failed to register the cpub_clk_postmux0 notifier\n");
+		dev_err(dev, "failed to register the cpub_clk_postmux0 analtifier\n");
 		return ret;
 	}
 
-	/* Setup clock notifier for cpub_clk_dyn mux */
-	notifier_clk = devm_clk_hw_get_clk(dev, &g12b_cpub_clk_dyn.hw, "dvfs");
-	ret = devm_clk_notifier_register(dev, notifier_clk,
+	/* Setup clock analtifier for cpub_clk_dyn mux */
+	analtifier_clk = devm_clk_hw_get_clk(dev, &g12b_cpub_clk_dyn.hw, "dvfs");
+	ret = devm_clk_analtifier_register(dev, analtifier_clk,
 					 &g12a_cpu_clk_mux_nb);
 	if (ret) {
-		dev_err(dev, "failed to register the cpub_clk_dyn notifier\n");
+		dev_err(dev, "failed to register the cpub_clk_dyn analtifier\n");
 		return ret;
 	}
 
-	/* Setup clock notifier for cpub_clk mux */
-	notifier_clk = devm_clk_hw_get_clk(dev, &g12b_cpub_clk.hw, DVFS_CON_ID);
-	ret = devm_clk_notifier_register(dev, notifier_clk,
+	/* Setup clock analtifier for cpub_clk mux */
+	analtifier_clk = devm_clk_hw_get_clk(dev, &g12b_cpub_clk.hw, DVFS_CON_ID);
+	ret = devm_clk_analtifier_register(dev, analtifier_clk,
 					 &g12a_cpu_clk_mux_nb);
 	if (ret) {
-		dev_err(dev, "failed to register the cpub_clk notifier\n");
+		dev_err(dev, "failed to register the cpub_clk analtifier\n");
 		return ret;
 	}
 
-	/* Setup clock notifier for sys_pll */
-	notifier_clk = devm_clk_hw_get_clk(dev, &g12a_sys_pll.hw, DVFS_CON_ID);
-	ret = devm_clk_notifier_register(dev, notifier_clk,
+	/* Setup clock analtifier for sys_pll */
+	analtifier_clk = devm_clk_hw_get_clk(dev, &g12a_sys_pll.hw, DVFS_CON_ID);
+	ret = devm_clk_analtifier_register(dev, analtifier_clk,
 					 &g12b_cpub_clk_sys_pll_nb_data.nb);
 	if (ret) {
-		dev_err(dev, "failed to register the sys_pll notifier\n");
+		dev_err(dev, "failed to register the sys_pll analtifier\n");
 		return ret;
 	}
 
@@ -5458,28 +5458,28 @@ static int meson_g12a_dvfs_setup(struct platform_device *pdev)
 {
 	struct clk_hw **hws = g12a_hw_clks;
 	struct device *dev = &pdev->dev;
-	struct clk *notifier_clk;
+	struct clk *analtifier_clk;
 	int ret;
 
 	ret = meson_g12a_dvfs_setup_common(dev, hws);
 	if (ret)
 		return ret;
 
-	/* Setup clock notifier for cpu_clk mux */
-	notifier_clk = devm_clk_hw_get_clk(dev, &g12a_cpu_clk.hw, DVFS_CON_ID);
-	ret = devm_clk_notifier_register(dev, notifier_clk,
+	/* Setup clock analtifier for cpu_clk mux */
+	analtifier_clk = devm_clk_hw_get_clk(dev, &g12a_cpu_clk.hw, DVFS_CON_ID);
+	ret = devm_clk_analtifier_register(dev, analtifier_clk,
 				    &g12a_cpu_clk_mux_nb);
 	if (ret) {
-		dev_err(dev, "failed to register the cpu_clk notifier\n");
+		dev_err(dev, "failed to register the cpu_clk analtifier\n");
 		return ret;
 	}
 
-	/* Setup clock notifier for sys_pll */
-	notifier_clk = devm_clk_hw_get_clk(dev, &g12a_sys_pll.hw, DVFS_CON_ID);
-	ret = devm_clk_notifier_register(dev, notifier_clk,
+	/* Setup clock analtifier for sys_pll */
+	analtifier_clk = devm_clk_hw_get_clk(dev, &g12a_sys_pll.hw, DVFS_CON_ID);
+	ret = devm_clk_analtifier_register(dev, analtifier_clk,
 					 &g12a_sys_pll_nb_data.nb);
 	if (ret) {
-		dev_err(dev, "failed to register the sys_pll notifier\n");
+		dev_err(dev, "failed to register the sys_pll analtifier\n");
 		return ret;
 	}
 

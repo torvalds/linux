@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -123,7 +123,7 @@ int qxl_bo_create(struct qxl_device *qdev, unsigned long size,
 	*bo_ptr = NULL;
 	bo = kzalloc(sizeof(struct qxl_bo), GFP_KERNEL);
 	if (bo == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	size = roundup(size, PAGE_SIZE);
 	r = drm_gem_object_init(&qdev->ddev, &bo->tbo.base, size);
 	if (unlikely(r)) {
@@ -386,7 +386,7 @@ int qxl_bo_check_id(struct qxl_device *qdev, struct qxl_bo *bo)
 	int ret;
 
 	if (bo->type == QXL_GEM_DOMAIN_SURFACE && bo->surface_id == 0) {
-		/* allocate a surface id for this surface now */
+		/* allocate a surface id for this surface analw */
 		ret = qxl_surface_id_alloc(qdev, bo);
 		if (ret)
 			return ret;

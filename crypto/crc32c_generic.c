@@ -4,8 +4,8 @@
  *
  * CRC32C chksum
  *
- *@Article{castagnoli-crc,
- * author =       { Guy Castagnoli and Stefan Braeuer and Martin Herrman},
+ *@Article{castaganalli-crc,
+ * author =       { Guy Castaganalli and Stefan Braeuer and Martin Herrman},
  * title =        {{Optimization of Cyclic Redundancy-Check Codes with 24
  *                 and 32 Parity Bits}},
  * journal =      IEEE Transactions on Communication,
@@ -162,7 +162,7 @@ subsys_initcall(crc32c_mod_init);
 module_exit(crc32c_mod_fini);
 
 MODULE_AUTHOR("Clay Haapala <chaapala@cisco.com>");
-MODULE_DESCRIPTION("CRC32c (Castagnoli) calculations wrapper for lib/crc32c");
+MODULE_DESCRIPTION("CRC32c (Castaganalli) calculations wrapper for lib/crc32c");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CRYPTO("crc32c");
 MODULE_ALIAS_CRYPTO("crc32c-generic");

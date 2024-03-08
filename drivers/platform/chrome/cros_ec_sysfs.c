@@ -60,7 +60,7 @@ static ssize_t reboot_store(struct device *dev,
 
 	msg = kmalloc(sizeof(*msg) + sizeof(*param), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	param = (struct ec_params_reboot_ec *)msg->data;
 
@@ -110,7 +110,7 @@ exit:
 static ssize_t version_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
-	static const char * const image_names[] = {"unknown", "RO", "RW"};
+	static const char * const image_names[] = {"unkanalwn", "RO", "RW"};
 	struct ec_response_get_version *r_ver;
 	struct ec_response_get_chip_info *r_chip;
 	struct ec_response_board_version *r_board;
@@ -121,7 +121,7 @@ static ssize_t version_show(struct device *dev,
 
 	msg = kmalloc(sizeof(*msg) + EC_HOST_PARAM_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get versions. RW may change. */
 	msg->version = 0;
@@ -206,7 +206,7 @@ static ssize_t flashinfo_show(struct device *dev,
 
 	msg = kmalloc(sizeof(*msg) + sizeof(*resp), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* The flash info shouldn't ever change, but ask each time anyway. */
 	msg->version = 0;
@@ -241,13 +241,13 @@ static ssize_t kb_wake_angle_show(struct device *dev,
 
 	msg = kmalloc(sizeof(*msg) + EC_HOST_PARAM_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	param = (struct ec_params_motion_sense *)msg->data;
 	msg->command = EC_CMD_MOTION_SENSE_CMD + ec->cmd_offset;
 	msg->version = 2;
 	param->cmd = MOTIONSENSE_CMD_KB_WAKE_ANGLE;
-	param->kb_wake_angle.data = EC_MOTION_SENSE_NO_VALUE;
+	param->kb_wake_angle.data = EC_MOTION_SENSE_ANAL_VALUE;
 	msg->outsize = sizeof(*param);
 	msg->insize = sizeof(*resp);
 
@@ -278,7 +278,7 @@ static ssize_t kb_wake_angle_store(struct device *dev,
 
 	msg = kmalloc(sizeof(*msg) + EC_HOST_PARAM_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	param = (struct ec_params_motion_sense *)msg->data;
 	msg->command = EC_CMD_MOTION_SENSE_CMD + ec->cmd_offset;

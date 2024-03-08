@@ -33,8 +33,8 @@
 #define DHT11_EDGES_PREAMBLE 2
 #define DHT11_BITS_PER_READ 40
 /*
- * Note that when reading the sensor actually 84 edges are detected, but
- * since the last edge is not significant, we only store 83:
+ * Analte that when reading the sensor actually 84 edges are detected, but
+ * since the last edge is analt significant, we only store 83:
  */
 #define DHT11_EDGES_PER_READ (2 * DHT11_BITS_PER_READ + \
 			      DHT11_EDGES_PREAMBLE + 1)
@@ -48,10 +48,10 @@
  * longer cables typically making pulses shorter.
  *
  * Our decoding depends on the time resolution of the system:
- * timeres > 34uS ... don't know what a 1-tick pulse is
- * 34uS > timeres > 30uS ... no problem (30kHz and 32kHz clocks)
- * 30uS > timeres > 23uS ... don't know what a 2-tick pulse is
- * timeres < 23uS ... no problem
+ * timeres > 34uS ... don't kanalw what a 1-tick pulse is
+ * 34uS > timeres > 30uS ... anal problem (30kHz and 32kHz clocks)
+ * 30uS > timeres > 23uS ... don't kanalw what a 2-tick pulse is
+ * timeres < 23uS ... anal problem
  *
  * Luckily clocks in the 33-44kHz range are quite uncommon, so we can
  * support most systems if the threshold for decoding a pulse as 1-bit
@@ -81,7 +81,7 @@ struct dht11 {
 	int				temperature;
 	int				humidity;
 
-	/* num_edges: -1 means "no transmission in progress" */
+	/* num_edges: -1 means "anal transmission in progress" */
 	int				num_edges;
 	struct {s64 ts; int value; }	edges[DHT11_EDGES_PER_READ];
 };
@@ -157,7 +157,7 @@ static int dht11_decode(struct dht11 *dht11, int offset)
 		dht11->humidity = hum_int * 1000;
 	} else {
 		dev_err(dht11->dev,
-			"Don't know how to decode data: %d %d %d %d\n",
+			"Don't kanalw how to decode data: %d %d %d %d\n",
 			hum_int, hum_dec, temp_int, temp_dec);
 		return -EIO;
 	}
@@ -200,7 +200,7 @@ static int dht11_read_raw(struct iio_dev *iio_dev,
 			dev_err(dht11->dev, "timeresolution %dns too low\n",
 				timeres);
 			/* In theory a better clock could become available
-			 * at some point ... and there is no error code
+			 * at some point ... and there is anal error code
 			 * that really fits better.
 			 */
 			ret = -EAGAIN;
@@ -297,7 +297,7 @@ static int dht11_probe(struct platform_device *pdev)
 	iio = devm_iio_device_alloc(dev, sizeof(*dht11));
 	if (!iio) {
 		dev_err(dev, "Failed to allocate IIO device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dht11 = iio_priv(iio);
@@ -308,7 +308,7 @@ static int dht11_probe(struct platform_device *pdev)
 
 	dht11->irq = gpiod_to_irq(dht11->gpiod);
 	if (dht11->irq < 0) {
-		dev_err(dev, "GPIO %d has no interrupt\n", desc_to_gpio(dht11->gpiod));
+		dev_err(dev, "GPIO %d has anal interrupt\n", desc_to_gpio(dht11->gpiod));
 		return -EINVAL;
 	}
 

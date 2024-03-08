@@ -221,7 +221,7 @@ static int bl_down_read(struct block_lock *lock)
 	return 0;
 }
 
-static int bl_down_read_nonblock(struct block_lock *lock)
+static int bl_down_read_analnblock(struct block_lock *lock)
 {
 	int r;
 
@@ -277,8 +277,8 @@ static int bl_down_write(struct block_lock *lock)
 	w.wants_write = 1;
 
 	/*
-	 * Writers given priority. We know there's only one mutator in the
-	 * system, so ignoring the ordering reversal.
+	 * Writers given priority. We kanalw there's only one mutator in the
+	 * system, so iganalring the ordering reversal.
 	 */
 	list_add(&w.list, &lock->waiters);
 	spin_unlock(&lock->lock);
@@ -310,7 +310,7 @@ static void report_recursive_bug(dm_block_t b, int r)
 
 #define bl_init(x) do { } while (0)
 #define bl_down_read(x) 0
-#define bl_down_read_nonblock(x) 0
+#define bl_down_read_analnblock(x) 0
 #define bl_up_read(x) do { } while (0)
 #define bl_down_write(x) 0
 #define bl_up_write(x) do { } while (0)
@@ -390,7 +390,7 @@ struct dm_block_manager *dm_block_manager_create(struct block_device *bdev,
 
 	bm = kmalloc(sizeof(*bm), GFP_KERNEL);
 	if (!bm) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto bad;
 	}
 
@@ -550,7 +550,7 @@ int dm_bm_read_try_lock(struct dm_block_manager *bm,
 		return -EWOULDBLOCK;
 
 	aux = dm_bufio_get_aux_data(to_buffer(*result));
-	r = bl_down_read_nonblock(&aux->lock);
+	r = bl_down_read_analnblock(&aux->lock);
 	if (r < 0) {
 		dm_bufio_release(to_buffer(*result));
 		report_recursive_bug(b, r);

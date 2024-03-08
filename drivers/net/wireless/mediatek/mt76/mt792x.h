@@ -27,7 +27,7 @@
 
 #define MT792x_CHIP_CAP_CLC_EVT_EN BIT(0)
 
-/* NOTE: used to map mt76_rates. idx may change if firmware expands table */
+/* ANALTE: used to map mt76_rates. idx may change if firmware expands table */
 #define MT792x_BASIC_RATES_TBL	11
 
 #define MT792x_WATCHDOG_TIME	(HZ / 4)
@@ -116,7 +116,7 @@ struct mt792x_phy {
 
 	u64 omac_mask;
 
-	u16 noise;
+	u16 analise;
 
 	s16 coverage_class;
 	u8 slottime;

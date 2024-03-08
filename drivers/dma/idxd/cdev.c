@@ -6,7 +6,7 @@
 #include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/sched/task.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
@@ -20,7 +20,7 @@
 struct idxd_cdev_context {
 	const char *name;
 	dev_t devt;
-	struct ida minor_ida;
+	struct ida mianalr_ida;
 };
 
 /*
@@ -165,7 +165,7 @@ static void idxd_cdev_dev_release(struct device *dev)
 	struct idxd_wq *wq = idxd_cdev->wq;
 
 	cdev_ctx = &ictx[wq->idxd->data->type];
-	ida_free(&cdev_ctx->minor_ida, idxd_cdev->minor);
+	ida_free(&cdev_ctx->mianalr_ida, idxd_cdev->mianalr);
 	kfree(idxd_cdev);
 }
 
@@ -174,16 +174,16 @@ static struct device_type idxd_cdev_device_type = {
 	.release = idxd_cdev_dev_release,
 };
 
-static inline struct idxd_cdev *inode_idxd_cdev(struct inode *inode)
+static inline struct idxd_cdev *ianalde_idxd_cdev(struct ianalde *ianalde)
 {
-	struct cdev *cdev = inode->i_cdev;
+	struct cdev *cdev = ianalde->i_cdev;
 
 	return container_of(cdev, struct idxd_cdev, cdev);
 }
 
-static inline struct idxd_wq *inode_wq(struct inode *inode)
+static inline struct idxd_wq *ianalde_wq(struct ianalde *ianalde)
 {
-	struct idxd_cdev *idxd_cdev = inode_idxd_cdev(inode);
+	struct idxd_cdev *idxd_cdev = ianalde_idxd_cdev(ianalde);
 
 	return idxd_cdev->wq;
 }
@@ -218,7 +218,7 @@ void idxd_user_counter_increment(struct idxd_wq *wq, u32 pasid, int index)
 	mutex_unlock(&wq->uc_lock);
 }
 
-static int idxd_cdev_open(struct inode *inode, struct file *filp)
+static int idxd_cdev_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct idxd_user_context *ctx;
 	struct idxd_device *idxd;
@@ -229,7 +229,7 @@ static int idxd_cdev_open(struct inode *inode, struct file *filp)
 	unsigned int pasid;
 	struct idxd_cdev *idxd_cdev;
 
-	wq = inode_wq(inode);
+	wq = ianalde_wq(ianalde);
 	idxd = wq->idxd;
 	dev = &idxd->pdev->dev;
 
@@ -237,7 +237,7 @@ static int idxd_cdev_open(struct inode *inode, struct file *filp)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&wq->wq_lock);
 
@@ -359,7 +359,7 @@ static void idxd_cdev_evl_drain_pasid(struct idxd_wq *wq, u32 pasid)
 	drain_workqueue(wq->wq);
 }
 
-static int idxd_cdev_release(struct inode *node, struct file *filep)
+static int idxd_cdev_release(struct ianalde *analde, struct file *filep)
 {
 	struct idxd_user_context *ctx = filep->private_data;
 	struct idxd_wq *wq = ctx->wq;
@@ -408,7 +408,7 @@ static int idxd_cdev_mmap(struct file *filp, struct vm_area_struct *vma)
 	vm_flags_set(vma, VM_DONTCOPY);
 	pfn = (base + idxd_get_wq_portal_full_offset(wq->id,
 				IDXD_PORTAL_LIMITED)) >> PAGE_SHIFT;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 	vma->vm_private_data = ctx;
 
 	return io_remap_pfn_range(vma, vma->vm_start, pfn, PAGE_SIZE,
@@ -426,7 +426,7 @@ static __poll_t idxd_cdev_poll(struct file *filp,
 	poll_wait(filp, &wq->err_queue, wait);
 	spin_lock(&idxd->dev_lock);
 	if (idxd->sw_err.valid)
-		out = EPOLLIN | EPOLLRDNORM;
+		out = EPOLLIN | EPOLLRDANALRM;
 	spin_unlock(&idxd->dev_lock);
 
 	return out;
@@ -452,29 +452,29 @@ int idxd_wq_add_cdev(struct idxd_wq *wq)
 	struct cdev *cdev;
 	struct device *dev;
 	struct idxd_cdev_context *cdev_ctx;
-	int rc, minor;
+	int rc, mianalr;
 
 	idxd_cdev = kzalloc(sizeof(*idxd_cdev), GFP_KERNEL);
 	if (!idxd_cdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idxd_cdev->idxd_dev.type = IDXD_DEV_CDEV;
 	idxd_cdev->wq = wq;
 	cdev = &idxd_cdev->cdev;
 	dev = cdev_dev(idxd_cdev);
 	cdev_ctx = &ictx[wq->idxd->data->type];
-	minor = ida_alloc_max(&cdev_ctx->minor_ida, MINORMASK, GFP_KERNEL);
-	if (minor < 0) {
+	mianalr = ida_alloc_max(&cdev_ctx->mianalr_ida, MIANALRMASK, GFP_KERNEL);
+	if (mianalr < 0) {
 		kfree(idxd_cdev);
-		return minor;
+		return mianalr;
 	}
-	idxd_cdev->minor = minor;
+	idxd_cdev->mianalr = mianalr;
 
 	device_initialize(dev);
 	dev->parent = wq_confdev(wq);
 	dev->bus = &dsa_bus_type;
 	dev->type = &idxd_cdev_device_type;
-	dev->devt = MKDEV(MAJOR(cdev_ctx->devt), minor);
+	dev->devt = MKDEV(MAJOR(cdev_ctx->devt), mianalr);
 
 	rc = dev_set_name(dev, "%s/wq%u.%u", idxd->data->name_prefix, idxd->id, wq->id);
 	if (rc < 0)
@@ -519,33 +519,33 @@ static int idxd_user_drv_probe(struct idxd_dev *idxd_dev)
 
 	/*
 	 * User type WQ is enabled only when SVA is enabled for two reasons:
-	 *   - If no IOMMU or IOMMU Passthrough without SVA, userspace
+	 *   - If anal IOMMU or IOMMU Passthrough without SVA, userspace
 	 *     can directly access physical address through the WQ.
-	 *   - The IDXD cdev driver does not provide any ways to pin
+	 *   - The IDXD cdev driver does analt provide any ways to pin
 	 *     user pages and translate the address from user VA to IOVA or
-	 *     PA without IOMMU SVA. Therefore the application has no way
+	 *     PA without IOMMU SVA. Therefore the application has anal way
 	 *     to instruct the device to perform DMA function. This makes
-	 *     the cdev not usable for normal application usage.
+	 *     the cdev analt usable for analrmal application usage.
 	 */
 	if (!device_user_pasid_enabled(idxd)) {
-		idxd->cmd_status = IDXD_SCMD_WQ_USER_NO_IOMMU;
+		idxd->cmd_status = IDXD_SCMD_WQ_USER_ANAL_IOMMU;
 		dev_dbg(&idxd->pdev->dev,
-			"User type WQ cannot be enabled without SVA.\n");
+			"User type WQ cananalt be enabled without SVA.\n");
 
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&wq->wq_lock);
 
 	if (!idxd_wq_driver_name_match(wq, dev)) {
-		idxd->cmd_status = IDXD_SCMD_WQ_NO_DRV_NAME;
-		rc = -ENODEV;
+		idxd->cmd_status = IDXD_SCMD_WQ_ANAL_DRV_NAME;
+		rc = -EANALDEV;
 		goto wq_err;
 	}
 
 	wq->wq = create_workqueue(dev_name(wq_confdev(wq)));
 	if (!wq->wq) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto wq_err;
 	}
 
@@ -568,7 +568,7 @@ err_cdev:
 	idxd_drv_disable_wq(wq);
 err:
 	destroy_workqueue(wq->wq);
-	wq->type = IDXD_WQT_NONE;
+	wq->type = IDXD_WQT_ANALNE;
 wq_err:
 	mutex_unlock(&wq->wq_lock);
 	return rc;
@@ -581,7 +581,7 @@ static void idxd_user_drv_remove(struct idxd_dev *idxd_dev)
 	mutex_lock(&wq->wq_lock);
 	idxd_wq_del_cdev(wq);
 	idxd_drv_disable_wq(wq);
-	wq->type = IDXD_WQT_NONE;
+	wq->type = IDXD_WQT_ANALNE;
 	destroy_workqueue(wq->wq);
 	wq->wq = NULL;
 	mutex_unlock(&wq->wq_lock);
@@ -589,7 +589,7 @@ static void idxd_user_drv_remove(struct idxd_dev *idxd_dev)
 
 static enum idxd_dev_type dev_types[] = {
 	IDXD_DEV_WQ,
-	IDXD_DEV_NONE,
+	IDXD_DEV_ANALNE,
 };
 
 struct idxd_device_driver idxd_user_drv = {
@@ -605,8 +605,8 @@ int idxd_cdev_register(void)
 	int rc, i;
 
 	for (i = 0; i < IDXD_TYPE_MAX; i++) {
-		ida_init(&ictx[i].minor_ida);
-		rc = alloc_chrdev_region(&ictx[i].devt, 0, MINORMASK,
+		ida_init(&ictx[i].mianalr_ida);
+		rc = alloc_chrdev_region(&ictx[i].devt, 0, MIANALRMASK,
 					 ictx[i].name);
 		if (rc)
 			goto err_free_chrdev_region;
@@ -616,7 +616,7 @@ int idxd_cdev_register(void)
 
 err_free_chrdev_region:
 	for (i--; i >= 0; i--)
-		unregister_chrdev_region(ictx[i].devt, MINORMASK);
+		unregister_chrdev_region(ictx[i].devt, MIANALRMASK);
 
 	return rc;
 }
@@ -626,8 +626,8 @@ void idxd_cdev_remove(void)
 	int i;
 
 	for (i = 0; i < IDXD_TYPE_MAX; i++) {
-		unregister_chrdev_region(ictx[i].devt, MINORMASK);
-		ida_destroy(&ictx[i].minor_ida);
+		unregister_chrdev_region(ictx[i].devt, MIANALRMASK);
+		ida_destroy(&ictx[i].mianalr_ida);
 	}
 }
 
@@ -656,7 +656,7 @@ int idxd_copy_cr(struct idxd_wq *wq, ioasid_t pasid, unsigned long addr,
 
 	ctx = xa_load(&wq->upasid_xa, pasid);
 	if (!ctx) {
-		dev_warn(dev, "No user context\n");
+		dev_warn(dev, "Anal user context\n");
 		goto out;
 	}
 
@@ -672,7 +672,7 @@ int idxd_copy_cr(struct idxd_wq *wq, ioasid_t pasid, unsigned long addr,
 	/*
 	 * Copy status only after the rest of completion record is copied
 	 * successfully so that the user gets the complete completion record
-	 * when a non-zero status is polled.
+	 * when a analn-zero status is polled.
 	 */
 	if (!left) {
 		u8 status;
@@ -681,7 +681,7 @@ int idxd_copy_cr(struct idxd_wq *wq, ioasid_t pasid, unsigned long addr,
 		 * Ensure that the completion record's status field is written
 		 * after the rest of the completion record has been written.
 		 * This ensures that the user receives the correct completion
-		 * record information once polling for a non-zero status.
+		 * record information once polling for a analn-zero status.
 		 */
 		wmb();
 		status = *(u8 *)cr;

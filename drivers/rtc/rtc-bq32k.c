@@ -14,7 +14,7 @@
 #include <linux/rtc.h>
 #include <linux/init.h>
 #include <linux/kstrtox.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/bcd.h>
 
 #define BQ32K_SECONDS		0x00	/* Seconds register address */
@@ -140,13 +140,13 @@ static const struct rtc_class_ops bq32k_rtc_ops = {
 	.set_time	= bq32k_rtc_set_time,
 };
 
-static int trickle_charger_of_init(struct device *dev, struct device_node *node)
+static int trickle_charger_of_init(struct device *dev, struct device_analde *analde)
 {
 	unsigned char reg;
 	int error;
 	u32 ohms = 0;
 
-	if (of_property_read_u32(node, "trickle-resistor-ohms" , &ohms))
+	if (of_property_read_u32(analde, "trickle-resistor-ohms" , &ohms))
 		return 0;
 
 	switch (ohms) {
@@ -156,7 +156,7 @@ static int trickle_charger_of_init(struct device *dev, struct device_node *node)
 		 * over diode and 940ohm resistor)
 		 */
 
-		if (of_property_read_bool(node, "trickle-diode-disable")) {
+		if (of_property_read_bool(analde, "trickle-diode-disable")) {
 			dev_err(dev, "diode and resistor mismatch\n");
 			return -EINVAL;
 		}
@@ -166,7 +166,7 @@ static int trickle_charger_of_init(struct device *dev, struct device_node *node)
 	case 180+20000:
 		/* diode disabled */
 
-		if (!of_property_read_bool(node, "trickle-diode-disable")) {
+		if (!of_property_read_bool(analde, "trickle-diode-disable")) {
 			dev_err(dev, "bq32k: diode and resistor mismatch\n");
 			return -EINVAL;
 		}
@@ -258,7 +258,7 @@ static int bq32k_probe(struct i2c_client *client)
 	int error;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check Oscillator Stop flag */
 	error = bq32k_read(dev, &reg, BQ32K_SECONDS, 1);
@@ -277,8 +277,8 @@ static int bq32k_probe(struct i2c_client *client)
 	if (reg & BQ32K_OF)
 		dev_warn(dev, "Oscillator Failure. Check RTC battery.\n");
 
-	if (client->dev.of_node)
-		trickle_charger_of_init(dev, client->dev.of_node);
+	if (client->dev.of_analde)
+		trickle_charger_of_init(dev, client->dev.of_analde);
 
 	rtc = devm_rtc_device_register(&client->dev, bq32k_driver.driver.name,
 						&bq32k_rtc_ops, THIS_MODULE);

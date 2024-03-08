@@ -1,6 +1,6 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-TechnoTrend/Hauppauge DEC USB Driver
+TechanalTrend/Hauppauge DEC USB Driver
 ====================================
 
 Driver Status
@@ -28,7 +28,7 @@ Getting the Firmware
 --------------------
 To download the firmware, use the following commands:
 
-.. code-block:: none
+.. code-block:: analne
 
 	scripts/get_dvb_firmware dec2000t
 	scripts/get_dvb_firmware dec2540t

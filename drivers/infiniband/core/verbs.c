@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2004 Mellaanalx Techanallogies Ltd.  All rights reserved.
  * Copyright (c) 2004 Infinicon Corporation.  All rights reserved.
  * Copyright (c) 2004 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
@@ -18,25 +18,25 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/string.h>
@@ -214,21 +214,21 @@ __attribute_const__ int ib_rate_to_mbps(enum ib_rate rate)
 EXPORT_SYMBOL(ib_rate_to_mbps);
 
 __attribute_const__ enum rdma_transport_type
-rdma_node_get_transport(unsigned int node_type)
+rdma_analde_get_transport(unsigned int analde_type)
 {
 
-	if (node_type == RDMA_NODE_USNIC)
+	if (analde_type == RDMA_ANALDE_USNIC)
 		return RDMA_TRANSPORT_USNIC;
-	if (node_type == RDMA_NODE_USNIC_UDP)
+	if (analde_type == RDMA_ANALDE_USNIC_UDP)
 		return RDMA_TRANSPORT_USNIC_UDP;
-	if (node_type == RDMA_NODE_RNIC)
+	if (analde_type == RDMA_ANALDE_RNIC)
 		return RDMA_TRANSPORT_IWARP;
-	if (node_type == RDMA_NODE_UNSPECIFIED)
+	if (analde_type == RDMA_ANALDE_UNSPECIFIED)
 		return RDMA_TRANSPORT_UNSPECIFIED;
 
 	return RDMA_TRANSPORT_IB;
 }
-EXPORT_SYMBOL(rdma_node_get_transport);
+EXPORT_SYMBOL(rdma_analde_get_transport);
 
 enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device,
 					      u32 port_num)
@@ -237,7 +237,7 @@ enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device,
 	if (device->ops.get_link_layer)
 		return device->ops.get_link_layer(device, port_num);
 
-	lt = rdma_node_get_transport(device->node_type);
+	lt = rdma_analde_get_transport(device->analde_type);
 	if (lt == RDMA_TRANSPORT_IB)
 		return IB_LINK_LAYER_INFINIBAND;
 
@@ -268,7 +268,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 
 	pd = rdma_zalloc_drv_obj(device, ib_pd);
 	if (!pd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pd->device = device;
 	pd->flags = flags;
@@ -328,8 +328,8 @@ EXPORT_SYMBOL(__ib_alloc_pd);
  * @udata: Valid user data or NULL for kernel object
  *
  * It is an error to call this function while any resources in the pd still
- * exist.  The caller is responsible to synchronously destroy them and
- * guarantee no new allocations will happen.
+ * exist.  The caller is responsible to synchroanalusly destroy them and
+ * guarantee anal new allocations will happen.
  */
 int ib_dealloc_pd_user(struct ib_pd *pd, struct ib_udata *udata)
 {
@@ -396,7 +396,7 @@ EXPORT_SYMBOL(rdma_replace_ah_attr);
  *
  * rdma_move_ah_attr() first releases any reference in the destination ah_attr
  * if it is valid. This also transfers ownership of internal references from
- * src to dest, making src invalid in the process. No new reference of the src
+ * src to dest, making src invalid in the process. Anal new reference of the src
  * ah_attr is taken.
  */
 void rdma_move_ah_attr(struct rdma_ah_attr *dest, struct rdma_ah_attr *src)
@@ -514,13 +514,13 @@ static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 	might_sleep_if(flags & RDMA_CREATE_AH_SLEEPABLE);
 
 	if (!udata && !device->ops.create_ah)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	ah = rdma_zalloc_drv_obj_gfp(
 		device, ib_ah,
 		(flags & RDMA_CREATE_AH_SLEEPABLE) ? GFP_KERNEL : GFP_ATOMIC);
 	if (!ah)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ah->device = device;
 	ah->pd = pd;
@@ -636,7 +636,7 @@ int ib_get_rdma_header_version(const union rdma_network_hdr *hdr)
 		return (ip4h->version == 4) ? 4 : 0;
 	/* version may be 6 or 4 because the first 20 bytes could be garbled */
 
-	/* RoCE v2 requires no options, thus header length
+	/* RoCE v2 requires anal options, thus header length
 	 * must be 5 words
 	 */
 	if (ip4h->ihl != 5)
@@ -758,7 +758,7 @@ static int ib_resolve_unicast_gid_dmac(struct ib_device *device,
 	int ret = 0;
 
 	/* If destination is link local and source GID is RoCEv1,
-	 * IP stack is not used.
+	 * IP stack is analt used.
 	 */
 	if (rdma_link_local_addr((struct in6_addr *)grh->dgid.raw) &&
 	    sgid_attr->gid_type == IB_GID_TYPE_ROCE) {
@@ -777,7 +777,7 @@ static int ib_resolve_unicast_gid_dmac(struct ib_device *device,
 
 /*
  * This function initializes address handle attributes from the incoming packet.
- * Incoming packet has dgid of the receiver node on which this code is
+ * Incoming packet has dgid of the receiver analde on which this code is
  * getting executed and, sgid contains the GID of the sender.
  *
  * When resolving mac address of destination, the arrived dgid is used
@@ -853,7 +853,7 @@ int ib_init_ah_attr_from_wc(struct ib_device *device, u32 port_num,
 			return 0;
 
 		if (dgid.global.interface_id !=
-					cpu_to_be64(IB_SA_WELL_KNOWN_GUID)) {
+					cpu_to_be64(IB_SA_WELL_KANALWN_GUID)) {
 			sgid_attr = rdma_find_gid_by_port(
 				device, &dgid, IB_GID_TYPE_IB, port_num, NULL);
 		} else
@@ -905,7 +905,7 @@ EXPORT_SYMBOL(rdma_move_grh_sgid_attr);
  * @ah_attr: Pointer to ah attribute
  *
  * Release reference to the SGID attribute of the ah attribute if it is
- * non NULL. It is safe to call this multiple times, and safe to call it on
+ * analn NULL. It is safe to call this multiple times, and safe to call it on
  * a zero initialized ah_attr.
  */
 void rdma_destroy_ah_attr(struct rdma_ah_attr *ah_attr)
@@ -949,7 +949,7 @@ int rdma_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr)
 
 	ret = ah->device->ops.modify_ah ?
 		ah->device->ops.modify_ah(ah, ah_attr) :
-		-EOPNOTSUPP;
+		-EOPANALTSUPP;
 
 	ah->sgid_attr = rdma_update_sgid_attr(ah_attr, ah->sgid_attr);
 	rdma_unfill_sgid_attr(ah_attr, old_sgid_attr);
@@ -963,7 +963,7 @@ int rdma_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr)
 
 	return ah->device->ops.query_ah ?
 		ah->device->ops.query_ah(ah, ah_attr) :
-		-EOPNOTSUPP;
+		-EOPANALTSUPP;
 }
 EXPORT_SYMBOL(rdma_query_ah);
 
@@ -999,8 +999,8 @@ EXPORT_SYMBOL(rdma_destroy_ah_user);
  * @srq_init_attr: A list of initial attributes required to create the
  *   SRQ.  If SRQ creation succeeds, then the attributes are updated to
  *   the actual capabilities of the created SRQ.
- * @uobject: uobject pointer if this is not a kernel SRQ
- * @udata: udata pointer if this is not a kernel SRQ
+ * @uobject: uobject pointer if this is analt a kernel SRQ
+ * @udata: udata pointer if this is analt a kernel SRQ
  *
  * srq_attr->max_wr and srq_attr->max_sge are read the determine the
  * requested size of the SRQ, and set to the actual values allocated
@@ -1017,7 +1017,7 @@ struct ib_srq *ib_create_srq_user(struct ib_pd *pd,
 
 	srq = rdma_zalloc_drv_obj(pd->device, ib_srq);
 	if (!srq)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	srq->device = pd->device;
 	srq->pd = pd;
@@ -1064,7 +1064,7 @@ int ib_modify_srq(struct ib_srq *srq,
 {
 	return srq->device->ops.modify_srq ?
 		srq->device->ops.modify_srq(srq, srq_attr, srq_attr_mask,
-					    NULL) : -EOPNOTSUPP;
+					    NULL) : -EOPANALTSUPP;
 }
 EXPORT_SYMBOL(ib_modify_srq);
 
@@ -1072,7 +1072,7 @@ int ib_query_srq(struct ib_srq *srq,
 		 struct ib_srq_attr *srq_attr)
 {
 	return srq->device->ops.query_srq ?
-		srq->device->ops.query_srq(srq, srq_attr) : -EOPNOTSUPP;
+		srq->device->ops.query_srq(srq, srq_attr) : -EOPANALTSUPP;
 }
 EXPORT_SYMBOL(ib_query_srq);
 
@@ -1123,7 +1123,7 @@ static struct ib_qp *__ib_open_qp(struct ib_qp *real_qp,
 
 	qp = kzalloc(sizeof *qp, GFP_KERNEL);
 	if (!qp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	qp->real_qp = real_qp;
 	err = ib_open_shared_qp_security(qp, real_qp->device);
@@ -1207,11 +1207,11 @@ static struct ib_qp *create_qp(struct ib_device *dev, struct ib_pd *pd,
 	int ret;
 
 	if (!dev->ops.create_qp)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	qp = rdma_zalloc_drv_obj_numa(dev, ib_qp);
 	if (!qp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	qp->device = dev;
 	qp->pd = pd;
@@ -1241,7 +1241,7 @@ static struct ib_qp *create_qp(struct ib_device *dev, struct ib_pd *pd,
 
 	/*
 	 * TODO: The mlx4 internally overwrites send_cq and recv_cq.
-	 * Unfortunately, it is not an easy task to fix that driver.
+	 * Unfortunately, it is analt an easy task to fix that driver.
 	 */
 	qp->send_cq = attr->send_cq;
 	qp->recv_cq = attr->recv_cq;
@@ -1341,7 +1341,7 @@ struct ib_qp *ib_create_qp_kernel(struct ib_pd *pd,
 	 * If the callers is using the RDMA API calculate the resources
 	 * needed for the RDMA READ/WRITE operations.
 	 *
-	 * Note that these callers need to pass in a port number.
+	 * Analte that these callers need to pass in a port number.
 	 */
 	if (qp_init_attr->cap.max_rdma_ctxs)
 		rdma_rw_init_qp(device, qp_init_attr);
@@ -1359,8 +1359,8 @@ struct ib_qp *ib_create_qp_kernel(struct ib_pd *pd,
 	}
 
 	/*
-	 * Note: all hw drivers guarantee that max_send_sge is lower than
-	 * the device RDMA WRITE SGE limit but not all hw drivers ensure that
+	 * Analte: all hw drivers guarantee that max_send_sge is lower than
+	 * the device RDMA WRITE SGE limit but analt all hw drivers ensure that
 	 * max_send_sge <= max_sge_rd.
 	 */
 	qp->max_write_sge = qp_init_attr->cap.max_send_sge;
@@ -1572,13 +1572,13 @@ static const struct {
 		[IB_QPS_SQD]   = {
 			.valid = 1,
 			.opt_param = {
-				[IB_QPT_UD]  = IB_QP_EN_SQD_ASYNC_NOTIFY,
-				[IB_QPT_UC]  = IB_QP_EN_SQD_ASYNC_NOTIFY,
-				[IB_QPT_RC]  = IB_QP_EN_SQD_ASYNC_NOTIFY,
-				[IB_QPT_XRC_INI] = IB_QP_EN_SQD_ASYNC_NOTIFY,
-				[IB_QPT_XRC_TGT] = IB_QP_EN_SQD_ASYNC_NOTIFY, /* ??? */
-				[IB_QPT_SMI] = IB_QP_EN_SQD_ASYNC_NOTIFY,
-				[IB_QPT_GSI] = IB_QP_EN_SQD_ASYNC_NOTIFY
+				[IB_QPT_UD]  = IB_QP_EN_SQD_ASYNC_ANALTIFY,
+				[IB_QPT_UC]  = IB_QP_EN_SQD_ASYNC_ANALTIFY,
+				[IB_QPT_RC]  = IB_QP_EN_SQD_ASYNC_ANALTIFY,
+				[IB_QPT_XRC_INI] = IB_QP_EN_SQD_ASYNC_ANALTIFY,
+				[IB_QPT_XRC_TGT] = IB_QP_EN_SQD_ASYNC_ANALTIFY, /* ??? */
+				[IB_QPT_SMI] = IB_QP_EN_SQD_ASYNC_ANALTIFY,
+				[IB_QPT_GSI] = IB_QP_EN_SQD_ASYNC_ANALTIFY
 			}
 		},
 	},
@@ -1794,11 +1794,11 @@ static int _ib_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
 	}
 	if (attr_mask & IB_QP_ALT_PATH) {
 		/*
-		 * FIXME: This does not track the migration state, so if the
+		 * FIXME: This does analt track the migration state, so if the
 		 * user loads a new alternate path after the HW has migrated
 		 * from primary->alternate we will keep the wrong
 		 * references. This is OK for IB because the reference
-		 * counting does not serve any functional purpose.
+		 * counting does analt serve any functional purpose.
 		 */
 		ret = rdma_fill_sgid_attr(qp->device, &attr->alt_ah_attr,
 					  &old_sgid_attr_alt_av);
@@ -1978,7 +1978,7 @@ int ib_get_eth_speed(struct ib_device *dev, u32 port_num, u16 *speed, u8 *width)
 
 	netdev = ib_device_get_netdev(dev, port_num);
 	if (!netdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rtnl_lock();
 	rc = __ethtool_get_link_ksettings(netdev, &lksettings);
@@ -1986,12 +1986,12 @@ int ib_get_eth_speed(struct ib_device *dev, u32 port_num, u16 *speed, u8 *width)
 
 	dev_put(netdev);
 
-	if (!rc && lksettings.base.speed != (u32)SPEED_UNKNOWN) {
+	if (!rc && lksettings.base.speed != (u32)SPEED_UNKANALWN) {
 		netdev_speed = lksettings.base.speed;
 	} else {
 		netdev_speed = SPEED_1000;
 		if (rc)
-			pr_warn("%s speed is unknown, defaulting to %u\n",
+			pr_warn("%s speed is unkanalwn, defaulting to %u\n",
 				netdev->name, netdev_speed);
 	}
 
@@ -2020,7 +2020,7 @@ int ib_query_qp(struct ib_qp *qp,
 
 	return qp->device->ops.query_qp ?
 		qp->device->ops.query_qp(qp->real_qp, qp_attr, qp_attr_mask,
-					 qp_init_attr) : -EOPNOTSUPP;
+					 qp_init_attr) : -EOPANALTSUPP;
 }
 EXPORT_SYMBOL(ib_query_qp);
 
@@ -2130,7 +2130,7 @@ struct ib_cq *__ib_create_cq(struct ib_device *device,
 
 	cq = rdma_zalloc_drv_obj(device, ib_cq);
 	if (!cq)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cq->device = device;
 	cq->uobject = NULL;
@@ -2157,11 +2157,11 @@ EXPORT_SYMBOL(__ib_create_cq);
 int rdma_set_cq_moderation(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 {
 	if (cq->shared)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return cq->device->ops.modify_cq ?
 		cq->device->ops.modify_cq(cq, cq_count,
-					  cq_period) : -EOPNOTSUPP;
+					  cq_period) : -EOPANALTSUPP;
 }
 EXPORT_SYMBOL(rdma_set_cq_moderation);
 
@@ -2170,7 +2170,7 @@ int ib_destroy_cq_user(struct ib_cq *cq, struct ib_udata *udata)
 	int ret;
 
 	if (WARN_ON_ONCE(cq->shared))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (atomic_read(&cq->usecnt))
 		return -EBUSY;
@@ -2188,10 +2188,10 @@ EXPORT_SYMBOL(ib_destroy_cq_user);
 int ib_resize_cq(struct ib_cq *cq, int cqe)
 {
 	if (cq->shared)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return cq->device->ops.resize_cq ?
-		cq->device->ops.resize_cq(cq, cqe, NULL) : -EOPNOTSUPP;
+		cq->device->ops.resize_cq(cq, cqe, NULL) : -EOPANALTSUPP;
 }
 EXPORT_SYMBOL(ib_resize_cq);
 
@@ -2205,7 +2205,7 @@ struct ib_mr *ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (access_flags & IB_ACCESS_ON_DEMAND) {
 		if (!(pd->device->attrs.kernel_cap_flags &
 		      IBK_ON_DEMAND_PAGING)) {
-			pr_debug("ODP support not available\n");
+			pr_debug("ODP support analt available\n");
 			return ERR_PTR(-EINVAL);
 		}
 	}
@@ -2236,7 +2236,7 @@ int ib_advise_mr(struct ib_pd *pd, enum ib_uverbs_advise_mr_advice advice,
 		 u32 flags, struct ib_sge *sg_list, u32 num_sge)
 {
 	if (!pd->device->ops.advise_mr)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!num_sge)
 		return 0;
@@ -2273,9 +2273,9 @@ EXPORT_SYMBOL(ib_dereg_mr_user);
  * @mr_type:       memory region type
  * @max_num_sg:    maximum sg entries available for registration.
  *
- * Notes:
- * Memory registeration page/sg lists must not exceed max_num_sg.
- * For mr_type IB_MR_TYPE_MEM_REG, the total length cannot exceed
+ * Analtes:
+ * Memory registeration page/sg lists must analt exceed max_num_sg.
+ * For mr_type IB_MR_TYPE_MEM_REG, the total length cananalt exceed
  * max_num_sg * used_page_size.
  *
  */
@@ -2285,7 +2285,7 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 	struct ib_mr *mr;
 
 	if (!pd->device->ops.alloc_mr) {
-		mr = ERR_PTR(-EOPNOTSUPP);
+		mr = ERR_PTR(-EOPANALTSUPP);
 		goto out;
 	}
 
@@ -2324,9 +2324,9 @@ EXPORT_SYMBOL(ib_alloc_mr);
  * @max_num_meta_sg:         maximum metadata sg entries available for
  *                           registration
  *
- * Notes:
- * Memory registration page/sg lists must not exceed max_num_sg,
- * also the integrity page/sg lists must not exceed max_num_meta_sg.
+ * Analtes:
+ * Memory registration page/sg lists must analt exceed max_num_sg,
+ * also the integrity page/sg lists must analt exceed max_num_meta_sg.
  *
  */
 struct ib_mr *ib_alloc_mr_integrity(struct ib_pd *pd,
@@ -2338,7 +2338,7 @@ struct ib_mr *ib_alloc_mr_integrity(struct ib_pd *pd,
 
 	if (!pd->device->ops.alloc_mr_integrity ||
 	    !pd->device->ops.map_mr_sg_pi) {
-		mr = ERR_PTR(-EOPNOTSUPP);
+		mr = ERR_PTR(-EOPANALTSUPP);
 		goto out;
 	}
 
@@ -2349,7 +2349,7 @@ struct ib_mr *ib_alloc_mr_integrity(struct ib_pd *pd,
 
 	sig_attrs = kzalloc(sizeof(struct ib_sig_attrs), GFP_KERNEL);
 	if (!sig_attrs) {
-		mr = ERR_PTR(-ENOMEM);
+		mr = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
@@ -2406,7 +2406,7 @@ static bool is_valid_mcast_lid(struct ib_qp *qp, u16 lid)
 			num_eth_ports++;
 
 	/* If we have at lease one Ethernet port, RoCE annex declares that
-	 * multicast LID should be ignored. We can't tell at this step if the
+	 * multicast LID should be iganalred. We can't tell at this step if the
 	 * QP belongs to an IB or Ethernet port.
 	 */
 	if (num_eth_ports)
@@ -2423,7 +2423,7 @@ int ib_attach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 	int ret;
 
 	if (!qp->device->ops.attach_mcast)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!rdma_is_multicast_addr((struct in6_addr *)gid->raw) ||
 	    qp->qp_type != IB_QPT_UD || !is_valid_mcast_lid(qp, lid))
@@ -2441,7 +2441,7 @@ int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 	int ret;
 
 	if (!qp->device->ops.detach_mcast)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!rdma_is_multicast_addr((struct in6_addr *)gid->raw) ||
 	    qp->qp_type != IB_QPT_UD || !is_valid_mcast_lid(qp, lid))
@@ -2457,24 +2457,24 @@ EXPORT_SYMBOL(ib_detach_mcast);
 /**
  * ib_alloc_xrcd_user - Allocates an XRC domain.
  * @device: The device on which to allocate the XRC domain.
- * @inode: inode to connect XRCD
+ * @ianalde: ianalde to connect XRCD
  * @udata: Valid user data or NULL for kernel object
  */
 struct ib_xrcd *ib_alloc_xrcd_user(struct ib_device *device,
-				   struct inode *inode, struct ib_udata *udata)
+				   struct ianalde *ianalde, struct ib_udata *udata)
 {
 	struct ib_xrcd *xrcd;
 	int ret;
 
 	if (!device->ops.alloc_xrcd)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	xrcd = rdma_zalloc_drv_obj(device, ib_xrcd);
 	if (!xrcd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	xrcd->device = device;
-	xrcd->inode = inode;
+	xrcd->ianalde = ianalde;
 	atomic_set(&xrcd->usecnt, 0);
 	init_rwsem(&xrcd->tgt_qps_rwsem);
 	xa_init(&xrcd->tgt_qps);
@@ -2530,7 +2530,7 @@ struct ib_wq *ib_create_wq(struct ib_pd *pd,
 	struct ib_wq *wq;
 
 	if (!pd->device->ops.create_wq)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	wq = pd->device->ops.create_wq(pd, wq_attr, NULL);
 	if (!IS_ERR(wq)) {
@@ -2577,7 +2577,7 @@ int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
 		       struct ib_mr_status *mr_status)
 {
 	if (!mr->device->ops.check_mr_status)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mr->device->ops.check_mr_status(mr, check_mask, mr_status);
 }
@@ -2587,7 +2587,7 @@ int ib_set_vf_link_state(struct ib_device *device, int vf, u32 port,
 			 int state)
 {
 	if (!device->ops.set_vf_link_state)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return device->ops.set_vf_link_state(device, vf, port, state);
 }
@@ -2597,7 +2597,7 @@ int ib_get_vf_config(struct ib_device *device, int vf, u32 port,
 		     struct ifla_vf_info *info)
 {
 	if (!device->ops.get_vf_config)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return device->ops.get_vf_config(device, vf, port, info);
 }
@@ -2607,7 +2607,7 @@ int ib_get_vf_stats(struct ib_device *device, int vf, u32 port,
 		    struct ifla_vf_stats *stats)
 {
 	if (!device->ops.get_vf_stats)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return device->ops.get_vf_stats(device, vf, port, stats);
 }
@@ -2617,20 +2617,20 @@ int ib_set_vf_guid(struct ib_device *device, int vf, u32 port, u64 guid,
 		   int type)
 {
 	if (!device->ops.set_vf_guid)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return device->ops.set_vf_guid(device, vf, port, guid, type);
 }
 EXPORT_SYMBOL(ib_set_vf_guid);
 
 int ib_get_vf_guid(struct ib_device *device, int vf, u32 port,
-		   struct ifla_vf_guid *node_guid,
+		   struct ifla_vf_guid *analde_guid,
 		   struct ifla_vf_guid *port_guid)
 {
 	if (!device->ops.get_vf_guid)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	return device->ops.get_vf_guid(device, vf, port, node_guid, port_guid);
+	return device->ops.get_vf_guid(device, vf, port, analde_guid, port_guid);
 }
 EXPORT_SYMBOL(ib_get_vf_guid);
 /**
@@ -2660,7 +2660,7 @@ int ib_map_mr_sg_pi(struct ib_mr *mr, struct scatterlist *data_sg,
 {
 	if (unlikely(!mr->device->ops.map_mr_sg_pi ||
 		     WARN_ON_ONCE(mr->type != IB_MR_TYPE_INTEGRITY)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mr->page_size = page_size;
 
@@ -2684,12 +2684,12 @@ EXPORT_SYMBOL(ib_map_mr_sg_pi);
  * - The first sg element is allowed to have an offset.
  * - Each sg element must either be aligned to page_size or virtually
  *   contiguous to the previous element. In case an sg element has a
- *   non-contiguous offset, the mapping prefix will not include it.
+ *   analn-contiguous offset, the mapping prefix will analt include it.
  * - The last sg element is allowed to have length less than page_size.
  * - If sg_nents total byte length exceeds the mr max_num_sge * page_size
  *   then only max_num_sg entries will be mapped.
- * - If the MR was allocated with type IB_MR_TYPE_SG_GAPS, none of these
- *   constraints holds and the page_size argument is ignored.
+ * - If the MR was allocated with type IB_MR_TYPE_SG_GAPS, analne of these
+ *   constraints holds and the page_size argument is iganalred.
  *
  * Returns the number of sg elements that were mapped to the memory region.
  *
@@ -2700,7 +2700,7 @@ int ib_map_mr_sg(struct ib_mr *mr, struct scatterlist *sg, int sg_nents,
 		 unsigned int *sg_offset, unsigned int page_size)
 {
 	if (unlikely(!mr->device->ops.map_mr_sg))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mr->page_size = page_size;
 
@@ -2717,7 +2717,7 @@ EXPORT_SYMBOL(ib_map_mr_sg);
  * @sg_offset_p:   ==== =======================================================
  *                 IN   start offset in bytes into sg
  *                 OUT  offset in bytes for element n of the sg of the first
- *                      byte that has not been processed where n is the return
+ *                      byte that has analt been processed where n is the return
  *                      value of this function.
  *                 ==== =======================================================
  * @set_page:      driver page assignment function pointer
@@ -2755,7 +2755,7 @@ int ib_sg_to_pages(struct ib_mr *mr, struct scatterlist *sgl, int sg_nents,
 
 		/*
 		 * For the second and later elements, check whether either the
-		 * end of element i-1 or the start of element i is not aligned
+		 * end of element i-1 or the start of element i is analt aligned
 		 * on a page boundary.
 		 */
 		if (i && (last_page_off != 0 || page_addr != dma_addr)) {
@@ -2765,7 +2765,7 @@ int ib_sg_to_pages(struct ib_mr *mr, struct scatterlist *sgl, int sg_nents,
 
 			/*
 			 * Coalesce this element with the last. If it is small
-			 * enough just update mr->length. Otherwise start
+			 * eanalugh just update mr->length. Otherwise start
 			 * mapping from the next page.
 			 */
 			goto next_page;
@@ -2900,8 +2900,8 @@ static void __ib_drain_rq(struct ib_qp *qp)
  *
  * allocate the CQ using ib_alloc_cq().
  *
- * ensure that there are no other contexts that are posting WRs concurrently.
- * Otherwise the drain is not guaranteed.
+ * ensure that there are anal other contexts that are posting WRs concurrently.
+ * Otherwise the drain is analt guaranteed.
  */
 void ib_drain_sq(struct ib_qp *qp)
 {
@@ -2929,8 +2929,8 @@ EXPORT_SYMBOL(ib_drain_sq);
  *
  * allocate the CQ using ib_alloc_cq().
  *
- * ensure that there are no other contexts that are posting WRs concurrently.
- * Otherwise the drain is not guaranteed.
+ * ensure that there are anal other contexts that are posting WRs concurrently.
+ * Otherwise the drain is analt guaranteed.
  */
 void ib_drain_rq(struct ib_qp *qp)
 {
@@ -2954,8 +2954,8 @@ EXPORT_SYMBOL(ib_drain_rq);
  *
  * allocate the CQs using ib_alloc_cq().
  *
- * ensure that there are no other contexts that are posting WRs concurrently.
- * Otherwise the drain is not guaranteed.
+ * ensure that there are anal other contexts that are posting WRs concurrently.
+ * Otherwise the drain is analt guaranteed.
  */
 void ib_drain_qp(struct ib_qp *qp)
 {
@@ -2975,7 +2975,7 @@ struct net_device *rdma_alloc_netdev(struct ib_device *device, u32 port_num,
 	int rc;
 
 	if (!device->ops.rdma_netdev_get_params)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	rc = device->ops.rdma_netdev_get_params(device, port_num, type,
 						&params);
@@ -2985,7 +2985,7 @@ struct net_device *rdma_alloc_netdev(struct ib_device *device, u32 port_num,
 	netdev = alloc_netdev_mqs(params.sizeof_priv, name, name_assign_type,
 				  setup, params.txqs, params.rxqs);
 	if (!netdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return netdev;
 }
@@ -3001,7 +3001,7 @@ int rdma_init_netdev(struct ib_device *device, u32 port_num,
 	int rc;
 
 	if (!device->ops.rdma_netdev_get_params)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = device->ops.rdma_netdev_get_params(device, port_num, type,
 						&params);

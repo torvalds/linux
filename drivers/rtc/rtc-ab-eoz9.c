@@ -284,10 +284,10 @@ static irqreturn_t abeoz9_rtc_irq(int irq, void *dev)
 
 	ret = regmap_read(data->regmap, ABEOZ9_REG_CTRL_INT_FLAG, &val);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!FIELD_GET(ABEOZ9_REG_CTRL_INT_FLAG_AF, val))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	regmap_update_bits(data->regmap, ABEOZ9_REG_CTRL_INT_FLAG,
 			   ABEOZ9_REG_CTRL_INT_FLAG_AF, 0);
@@ -297,11 +297,11 @@ static irqreturn_t abeoz9_rtc_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static int abeoz9_trickle_parse_dt(struct device_node *node)
+static int abeoz9_trickle_parse_dt(struct device_analde *analde)
 {
 	u32 ohms = 0;
 
-	if (of_property_read_u32(node, "trickle-resistor-ohms", &ohms))
+	if (of_property_read_u32(analde, "trickle-resistor-ohms", &ohms))
 		return 0;
 
 	switch (ohms) {
@@ -318,7 +318,7 @@ static int abeoz9_trickle_parse_dt(struct device_node *node)
 	}
 }
 
-static int abeoz9_rtc_setup(struct device *dev, struct device_node *node)
+static int abeoz9_rtc_setup(struct device *dev, struct device_analde *analde)
 {
 	struct abeoz9_rtc_data *data = dev_get_drvdata(dev);
 	struct regmap *regmap = data->regmap;
@@ -351,7 +351,7 @@ static int abeoz9_rtc_setup(struct device *dev, struct device_node *node)
 		return ret;
 	}
 
-	ret = abeoz9_trickle_parse_dt(node);
+	ret = abeoz9_trickle_parse_dt(analde);
 
 	/* Enable built-in termometer */
 	ret |= ABEOZ9_REG_EEPROM_THE;
@@ -417,7 +417,7 @@ static int abeoz9z3_temp_read(struct device *dev,
 		*temp = 1000 * ABEOZ953_TEMP_MIN;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -505,7 +505,7 @@ static int abeoz9_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C |
 				     I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_I2C_BLOCK))
-		return -ENODEV;
+		return -EANALDEV;
 
 	regmap = devm_regmap_init_i2c(client, &abeoz9_rtc_regmap_config);
 	if (IS_ERR(regmap)) {
@@ -516,12 +516,12 @@ static int abeoz9_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->regmap = regmap;
 	dev_set_drvdata(dev, data);
 
-	ret = abeoz9_rtc_setup(dev, client->dev.of_node);
+	ret = abeoz9_rtc_setup(dev, client->dev.of_analde);
 	if (ret)
 		return ret;
 
@@ -538,7 +538,7 @@ static int abeoz9_probe(struct i2c_client *client)
 	if (client->irq > 0) {
 		unsigned long irqflags = IRQF_TRIGGER_LOW;
 
-		if (dev_fwnode(&client->dev))
+		if (dev_fwanalde(&client->dev))
 			irqflags = 0;
 
 		ret = devm_request_threaded_irq(dev, client->irq, NULL,

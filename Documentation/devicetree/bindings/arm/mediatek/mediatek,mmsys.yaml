@@ -14,7 +14,7 @@ description:
   and miscellaneous control in mmsys partition.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^syscon@[0-9a-f]+$"
 
   compatible:

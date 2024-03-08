@@ -88,26 +88,26 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 		.driver_data = (void *)&czc_p10t,
 	},
 	{
-		/* Lenovo Yoga Book X90F / X90L */
+		/* Leanalvo Yoga Book X90F / X90L */
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "YETI-11"),
 		},
-		.driver_data = (void *)&lenovo_yogabook_x90_info,
+		.driver_data = (void *)&leanalvo_yogabook_x90_info,
 	},
 	{
-		/* Lenovo Yoga Book X91F / X91L */
+		/* Leanalvo Yoga Book X91F / X91L */
 		.matches = {
-			/* Non exact match to match F + L versions */
-			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X91"),
+			/* Analn exact match to match F + L versions */
+			DMI_MATCH(DMI_PRODUCT_NAME, "Leanalvo YB1-X91"),
 		},
-		.driver_data = (void *)&lenovo_yogabook_x91_info,
+		.driver_data = (void *)&leanalvo_yogabook_x91_info,
 	},
 	{
 		/*
-		 * Lenovo Yoga Tablet 2 830F/L or 1050F/L (The 8" and 10"
-		 * Lenovo Yoga Tablet 2 use the same mainboard)
+		 * Leanalvo Yoga Tablet 2 830F/L or 1050F/L (The 8" and 10"
+		 * Leanalvo Yoga Tablet 2 use the same mainboard)
 		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp."),
@@ -116,16 +116,16 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 			/* Partial match on beginning of BIOS version */
 			DMI_MATCH(DMI_BIOS_VERSION, "BLADE_21"),
 		},
-		.driver_data = (void *)&lenovo_yoga_tab2_830_1050_info,
+		.driver_data = (void *)&leanalvo_yoga_tab2_830_1050_info,
 	},
 	{
-		/* Lenovo Yoga Tab 3 Pro YT3-X90F */
+		/* Leanalvo Yoga Tab 3 Pro YT3-X90F */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "Blade3-10A-001"),
 		},
-		.driver_data = (void *)&lenovo_yt3_info,
+		.driver_data = (void *)&leanalvo_yt3_info,
 	},
 	{
 		/* Medion Lifetab S10346 */

@@ -10,7 +10,7 @@
 
 #include <linux/linkage.h>
 #include <linux/compat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/time.h>
 #include <linux/signal.h>
 #include <linux/sched.h>	/* for MAX_SCHEDULE_TIMEOUT */
@@ -129,7 +129,7 @@ COMPAT_SYSCALL_DEFINE3(sched_setaffinity, compat_pid_t, pid,
 	int retval;
 
 	if (!alloc_cpumask_var(&new_mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = compat_get_user_cpu_mask(user_mask_ptr, len, new_mask);
 	if (retval)
@@ -153,7 +153,7 @@ COMPAT_SYSCALL_DEFINE3(sched_getaffinity, compat_pid_t,  pid, unsigned int, len,
 		return -EINVAL;
 
 	if (!zalloc_cpumask_var(&mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sched_getaffinity(pid, mask);
 	if (ret == 0) {
@@ -171,8 +171,8 @@ COMPAT_SYSCALL_DEFINE3(sched_getaffinity, compat_pid_t,  pid, unsigned int, len,
 
 /*
  * We currently only need the following fields from the sigevent
- * structure: sigev_value, sigev_signo, sig_notify and (sometimes
- * sigev_notify_thread_id).  The others are handled in user mode.
+ * structure: sigev_value, sigev_siganal, sig_analtify and (sometimes
+ * sigev_analtify_thread_id).  The others are handled in user mode.
  * We also assume that copying sigev_value.sival_int is sufficient
  * to keep all the bits of sigev_value.sival_ptr intact.
  */
@@ -183,10 +183,10 @@ int get_compat_sigevent(struct sigevent *event,
 	return (!access_ok(u_event, sizeof(*u_event)) ||
 		__get_user(event->sigev_value.sival_int,
 			&u_event->sigev_value.sival_int) ||
-		__get_user(event->sigev_signo, &u_event->sigev_signo) ||
-		__get_user(event->sigev_notify, &u_event->sigev_notify) ||
-		__get_user(event->sigev_notify_thread_id,
-			&u_event->sigev_notify_thread_id))
+		__get_user(event->sigev_siganal, &u_event->sigev_siganal) ||
+		__get_user(event->sigev_analtify, &u_event->sigev_analtify) ||
+		__get_user(event->sigev_analtify_thread_id,
+			&u_event->sigev_analtify_thread_id))
 		? -EFAULT : 0;
 }
 

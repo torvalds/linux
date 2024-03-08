@@ -41,7 +41,7 @@ EXPORT_SYMBOL_GPL(fpga_region_class_find);
  * Return:
  * * fpga_region struct if successful.
  * * -EBUSY if someone already has a reference to the region.
- * * -ENODEV if can't take parent driver module refcount.
+ * * -EANALDEV if can't take parent driver module refcount.
  */
 static struct fpga_region *fpga_region_get(struct fpga_region *region)
 {
@@ -56,7 +56,7 @@ static struct fpga_region *fpga_region_get(struct fpga_region *region)
 	if (!try_module_get(dev->parent->driver->owner)) {
 		put_device(dev);
 		mutex_unlock(&region->mutex);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	dev_dbg(dev, "get\n");
@@ -165,7 +165,7 @@ static ssize_t compat_id_show(struct device *dev,
 	struct fpga_region *region = to_fpga_region(dev);
 
 	if (!region->compat_id)
-		return -ENOENT;
+		return -EANALENT;
 
 	return sprintf(buf, "%016llx%016llx\n",
 		       (unsigned long long)region->compat_id->id_h,
@@ -201,7 +201,7 @@ fpga_region_register_full(struct device *parent, const struct fpga_region_info *
 
 	region = kzalloc(sizeof(*region), GFP_KERNEL);
 	if (!region)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	id = ida_alloc(&fpga_region_ida, GFP_KERNEL);
 	if (id < 0) {
@@ -219,7 +219,7 @@ fpga_region_register_full(struct device *parent, const struct fpga_region_info *
 
 	region->dev.class = &fpga_region_class;
 	region->dev.parent = parent;
-	region->dev.of_node = parent->of_node;
+	region->dev.of_analde = parent->of_analde;
 	region->dev.id = id;
 
 	ret = dev_set_name(&region->dev, "region%d", id);

@@ -38,7 +38,7 @@
 /* code adapted from if_drv_mb.h */
 
 #define MASK_SYS_STATUS_ERROR	(1L << 31) /* events that lead to a PCI irq if
-					    * not yet pending */
+					    * analt yet pending */
 #define MASK_SYS_STATUS_URUN	(1L << 30)
 #define MASK_SYS_STATUS_ORUN	(1L << 29)
 #define MASK_SYS_STATUS_EOBO	(1L << 28)
@@ -68,7 +68,7 @@
 						    * internal: pending XES
 						    * IRQ */
 #define MASK_SYS_STATUS_CMD_DONE	(1L << 20) /* alternate command
-						    * management: notify driver
+						    * management: analtify driver
 						    * instead of polling */
 
 
@@ -85,7 +85,7 @@
 
 /*
  the capture bit position in the object_id field in driver commands
- depends upon the number of managed channels. For now, 64 IN + 64 OUT are
+ depends upon the number of managed channels. For analw, 64 IN + 64 OUT are
  supported. HOwever, the communication protocol forsees 1024 channels, hence
  bit 10 indicates a capture (input) object).
 */
@@ -124,15 +124,15 @@ enum cmd_mb_opcodes {
 
 /* pipe states */
 enum pipe_state_t {
-	PSTATE_IDLE	= 0,	/* the pipe is not processed in the XES_IRQ
+	PSTATE_IDLE	= 0,	/* the pipe is analt processed in the XES_IRQ
 				 * (free or stopped, or paused). */
 	PSTATE_RUN	= 1,	/* sustained play/record state. */
-	PSTATE_PURGE	= 2,	/* the ES channels are now off, render pipes do
-				 * not DMA, record pipe do a last DMA. */
-	PSTATE_ACQUIRE	= 3,	/* the ES channels are now on, render pipes do
-				 * not yet increase their sample count, record
-				 * pipes do not DMA. */
-	PSTATE_CLOSING	= 4,	/* the pipe is releasing, and may not yet
+	PSTATE_PURGE	= 2,	/* the ES channels are analw off, render pipes do
+				 * analt DMA, record pipe do a last DMA. */
+	PSTATE_ACQUIRE	= 3,	/* the ES channels are analw on, render pipes do
+				 * analt yet increase their sample count, record
+				 * pipes do analt DMA. */
+	PSTATE_CLOSING	= 4,	/* the pipe is releasing, and may analt yet
 				 * receive an "alloc" command. */
 };
 
@@ -149,22 +149,22 @@ enum buffer_flags {
 	BF_VALID	= 0x80,	/* set if the buffer is valid, clear if free.*/
 	BF_CURRENT	= 0x40,	/* set if this is the current buffer (there is
 				 * always a current buffer).*/
-	BF_NOTIFY_EOB	= 0x20,	/* set if this buffer must cause a PCI event
+	BF_ANALTIFY_EOB	= 0x20,	/* set if this buffer must cause a PCI event
 				 * when finished.*/
 	BF_CIRCULAR	= 0x10,	/* set if buffer[1] must be copied to buffer[0]
 				 * by the end of this buffer.*/
 	BF_64BITS_ADR	= 0x08,	/* set if the hi part of the address is valid.*/
 	BF_xx		= 0x04,	/* future extension.*/
-	BF_EOB		= 0x02,	/* set if finished, but not yet free.*/
+	BF_EOB		= 0x02,	/* set if finished, but analt yet free.*/
 	BF_PAUSE	= 0x01,	/* pause stream at buffer end.*/
-	BF_ZERO		= 0x00,	/* no flags (init).*/
+	BF_ZERO		= 0x00,	/* anal flags (init).*/
 };
 
 /*
 *	Stream Flags definitions
 */
 enum stream_flags {
-	SF_ZERO		= 0x00000000, /* no flags (stream invalid). */
+	SF_ZERO		= 0x00000000, /* anal flags (stream invalid). */
 	SF_VALID	= 0x10000000, /* the stream has a valid DMA_conf
 				       * info (setstreamformat). */
 	SF_XRUN		= 0x20000000, /* the stream is un x-run state. */
@@ -247,14 +247,14 @@ enum stream_flags {
 #define ED_GN           (ERROR_VALUE | E_SOURCE_DRV | E_CLASS_GENERAL)
 #define ED_CONCURRENCY                  (ED_GN | 0x01)
 #define ED_DSP_CRASHED                  (ED_GN | 0x02)
-#define ED_UNKNOWN_BOARD                (ED_GN | 0x03)
-#define ED_NOT_INSTALLED                (ED_GN | 0x04)
-#define ED_CANNOT_OPEN_SVC_MANAGER      (ED_GN | 0x05)
-#define ED_CANNOT_READ_REGISTRY         (ED_GN | 0x06)
+#define ED_UNKANALWN_BOARD                (ED_GN | 0x03)
+#define ED_ANALT_INSTALLED                (ED_GN | 0x04)
+#define ED_CANANALT_OPEN_SVC_MANAGER      (ED_GN | 0x05)
+#define ED_CANANALT_READ_REGISTRY         (ED_GN | 0x06)
 #define ED_DSP_VERSION_MISMATCH         (ED_GN | 0x07)
 #define ED_UNAVAILABLE_FEATURE          (ED_GN | 0x08)
 #define ED_CANCELLED                    (ED_GN | 0x09)
-#define ED_NO_RESPONSE_AT_IRQA          (ED_GN | 0x10)
+#define ED_ANAL_RESPONSE_AT_IRQA          (ED_GN | 0x10)
 #define ED_INVALID_ADDRESS              (ED_GN | 0x11)
 #define ED_DSP_CORRUPTED                (ED_GN | 0x12)
 #define ED_PENDING_OPERATION            (ED_GN | 0x13)
@@ -263,8 +263,8 @@ enum stream_flags {
 #define ED_NET_THREAD_ERROR                 (ED_GN | 0x16)
 #define ED_NET_OPEN_ERROR                   (ED_GN | 0x17)
 #define ED_NET_CLOSE_ERROR                  (ED_GN | 0x18)
-#define ED_NET_NO_MORE_PACKET               (ED_GN | 0x19)
-#define ED_NET_NO_MORE_BUFFER               (ED_GN | 0x1A)
+#define ED_NET_ANAL_MORE_PACKET               (ED_GN | 0x19)
+#define ED_NET_ANAL_MORE_BUFFER               (ED_GN | 0x1A)
 #define ED_NET_SEND_ERROR                   (ED_GN | 0x1B)
 #define ED_NET_RECEIVE_ERROR                (ED_GN | 0x1C)
 #define ED_NET_WRONG_MSG_SIZE               (ED_GN | 0x1D)
@@ -275,9 +275,9 @@ enum stream_flags {
 #define ED_FILE_ERROR                       (ED_GN | 0x22)
 #define ED_INVALID_GPIO_CMD                 (ED_GN | 0x23)
 #define ED_RS232_ALREADY_OPENED             (ED_GN | 0x24)
-#define ED_RS232_NOT_OPENED                 (ED_GN | 0x25)
+#define ED_RS232_ANALT_OPENED                 (ED_GN | 0x25)
 #define ED_GPIO_ALREADY_OPENED              (ED_GN | 0x26)
-#define ED_GPIO_NOT_OPENED                  (ED_GN | 0x27)
+#define ED_GPIO_ANALT_OPENED                  (ED_GN | 0x27)
 #define ED_REGISTRY_ERROR                   (ED_GN | 0x28) /* <- NCX */
 #define ED_INVALID_SERVICE                  (ED_GN | 0x29) /* <- NCX */
 
@@ -288,7 +288,7 @@ enum stream_flags {
 #define ED_READ_FILE_INVALID_COMMAND	    (ED_GN | 0x2b) /* ~ */
 #define ED_READ_FILE_INVALID_PARAMETER	    (ED_GN | 0x2c) /* ~ */
 #define ED_READ_FILE_ALREADY_CLOSED	    (ED_GN | 0x2d) /* ~ */
-#define ED_READ_FILE_NO_INFORMATION	    (ED_GN | 0x2e) /* ~ */
+#define ED_READ_FILE_ANAL_INFORMATION	    (ED_GN | 0x2e) /* ~ */
 #define ED_READ_FILE_INVALID_HANDLE	    (ED_GN | 0x2f) /* ~ */
 #define ED_READ_FILE_END_OF_FILE	    (ED_GN | 0x30) /* ~ */
 #define ED_READ_FILE_ERROR	            (ED_GN | 0x31) /* ~ */
@@ -300,9 +300,9 @@ enum stream_flags {
 #define ED_DSP_CRASHED_EXC_TIMER_REENTRY     (ED_GN | 0x35) /* ~ */
 #define ED_DSP_CRASHED_EXC_FATAL_ERROR       (ED_GN | 0x36) /* ~ */
 
-#define ED_FLASH_PCCARD_NOT_PRESENT          (ED_GN | 0x37)
+#define ED_FLASH_PCCARD_ANALT_PRESENT          (ED_GN | 0x37)
 
-#define ED_NO_CURRENT_CLOCK                  (ED_GN | 0x38)
+#define ED_ANAL_CURRENT_CLOCK                  (ED_GN | 0x38)
 
 /* Complete DRV error code for real time class */
 #define ED_RT           (ERROR_VALUE | E_SOURCE_DRV | E_CLASS_REAL_TIME_ERROR)
@@ -313,7 +313,7 @@ enum stream_flags {
 #define ED_DSP_SEMAPHORE_TIME_OUT       (ED_RT | 0x05)
 #define ED_BOARD_TIME_OUT               (ED_RT | 0x06)
 #define ED_XILINX_ERROR                 (ED_RT | 0x07)
-#define ED_COBRANET_ITF_NOT_RESPONDING  (ED_RT | 0x08)
+#define ED_COBRANET_ITF_ANALT_RESPONDING  (ED_RT | 0x08)
 
 /* Complete BOARD error code for the invaid standard object class */
 #define EB_ISO          (ERROR_VALUE | E_SOURCE_BOARD | \
@@ -338,7 +338,7 @@ enum stream_flags {
 #define EB_RBUFFERS_TABLE_OVERFLOW              (EB_RI | 0x05)
 #define EB_ALLOCATE_EFFECTS_IMPOSSIBLE          (EB_RI | 0x08)
 #define EB_ALLOCATE_EFFECT_POS_IMPOSSIBLE       (EB_RI | 0x09)
-#define EB_RBUFFER_NOT_AVAILABLE                (EB_RI | 0x0A)
+#define EB_RBUFFER_ANALT_AVAILABLE                (EB_RI | 0x0A)
 #define EB_ALLOCATE_CONTEXT_LIII_IMPOSSIBLE     (EB_RI | 0x0B)
 #define EB_STATUS_DIALOG_IMPOSSIBLE             (EB_RI | 0x1D)
 #define EB_CONTROL_CMD_IMPOSSIBLE               (EB_RI | 0x1E)

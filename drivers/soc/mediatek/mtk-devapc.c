@@ -253,26 +253,26 @@ MODULE_DEVICE_TABLE(of, mtk_devapc_dt_match);
 
 static int mtk_devapc_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct mtk_devapc_context *ctx;
 	u32 devapc_irq;
 	int ret;
 
-	if (IS_ERR(node))
-		return -ENODEV;
+	if (IS_ERR(analde))
+		return -EANALDEV;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->data = of_device_get_match_data(&pdev->dev);
 	ctx->dev = &pdev->dev;
 
-	ctx->infra_base = of_iomap(node, 0);
+	ctx->infra_base = of_iomap(analde, 0);
 	if (!ctx->infra_base)
 		return -EINVAL;
 
-	devapc_irq = irq_of_parse_and_map(node, 0);
+	devapc_irq = irq_of_parse_and_map(analde, 0);
 	if (!devapc_irq)
 		return -EINVAL;
 
@@ -281,7 +281,7 @@ static int mtk_devapc_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	ret = devm_request_irq(&pdev->dev, devapc_irq, devapc_violation_irq,
-			       IRQF_TRIGGER_NONE, "devapc", ctx);
+			       IRQF_TRIGGER_ANALNE, "devapc", ctx);
 	if (ret)
 		return ret;
 

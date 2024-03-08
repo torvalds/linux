@@ -2,7 +2,7 @@
 ** asm-m68k/amigayle.h -- This header defines the registers of the gayle chip
 **                        found on the Amiga 1200
 **                        This information was found by disassembling card.resource,
-**                        so the definitions may not be 100% correct
+**                        so the definitions may analt be 100% correct
 **                        anyone has an official doc ?
 **
 ** Copyright 1997 by Alain Malek

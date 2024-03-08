@@ -29,7 +29,7 @@ TRACE_EVENT(e1000e_trace_mac_register,
 
 #endif
 /* This must be outside ifdef _E1000E_TRACE_H */
-/* This trace include file is not located in the .../include/trace
+/* This trace include file is analt located in the .../include/trace
  * with the kernel tracepoint definitions, because we're a loadable
  * module.
  */

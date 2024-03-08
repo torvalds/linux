@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -38,7 +38,7 @@ typedef unsigned int (*npages_fn_t)(unsigned long n,
 				    unsigned long count,
 				    struct rnd_state *rnd);
 
-static noinline int expect_pfn_sg(struct pfn_table *pt,
+static analinline int expect_pfn_sg(struct pfn_table *pt,
 				  npages_fn_t npages_fn,
 				  struct rnd_state *rnd,
 				  const char *who,
@@ -78,7 +78,7 @@ static noinline int expect_pfn_sg(struct pfn_table *pt,
 	return 0;
 }
 
-static noinline int expect_pfn_sg_page_iter(struct pfn_table *pt,
+static analinline int expect_pfn_sg_page_iter(struct pfn_table *pt,
 					    const char *who,
 					    unsigned long timeout)
 {
@@ -109,7 +109,7 @@ static noinline int expect_pfn_sg_page_iter(struct pfn_table *pt,
 	return 0;
 }
 
-static noinline int expect_pfn_sgtiter(struct pfn_table *pt,
+static analinline int expect_pfn_sgtiter(struct pfn_table *pt,
 				       const char *who,
 				       unsigned long timeout)
 {
@@ -225,7 +225,7 @@ static int alloc_table(struct pfn_table *pt,
 		return -E2BIG;
 
 	if (sg_alloc_table(&pt->st, max,
-			   GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN))
+			   GFP_KERNEL | __GFP_ANALRETRY | __GFP_ANALWARN))
 		return alloc_error;
 
 	/* count should be less than 20 to prevent overflowing sg->length */
@@ -241,12 +241,12 @@ static int alloc_table(struct pfn_table *pt,
 	for (n = 0; n < count; n++) {
 		unsigned long npages = npages_fn(n, count, rnd);
 
-		/* Nobody expects the Sparse Memmap! */
+		/* Analbody expects the Sparse Memmap! */
 		if (!page_contiguous(pfn_to_page(pfn),
 				     pfn_to_page(pfn + npages),
 				     npages)) {
 			sg_free_table(&pt->st);
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 
 		if (n)
@@ -275,13 +275,13 @@ static const npages_fn_t npages_funcs[] = {
 	NULL,
 };
 
-static int igt_sg_alloc(void *ignored)
+static int igt_sg_alloc(void *iganalred)
 {
 	IGT_TIMEOUT(end_time);
 	const unsigned long max_order = 20; /* approximating a 4GiB object */
 	struct rnd_state prng;
 	unsigned long prime;
-	int alloc_error = -ENOMEM;
+	int alloc_error = -EANALMEM;
 
 	for_each_prime_number(prime, max_order) {
 		unsigned long size = BIT(prime);
@@ -298,7 +298,7 @@ static int igt_sg_alloc(void *ignored)
 						   i915_selftest.random_seed);
 				err = alloc_table(&pt, sz, sz, *npages, &prng,
 						  alloc_error);
-				if (err == -ENOSPC)
+				if (err == -EANALSPC)
 					break;
 				if (err)
 					return err;
@@ -316,19 +316,19 @@ static int igt_sg_alloc(void *ignored)
 
 		/* Test at least one continuation before accepting oom */
 		if (size > SG_MAX_SINGLE_ALLOC)
-			alloc_error = -ENOSPC;
+			alloc_error = -EANALSPC;
 	}
 
 	return 0;
 }
 
-static int igt_sg_trim(void *ignored)
+static int igt_sg_trim(void *iganalred)
 {
 	IGT_TIMEOUT(end_time);
-	const unsigned long max = PAGE_SIZE; /* not prime! */
+	const unsigned long max = PAGE_SIZE; /* analt prime! */
 	struct pfn_table pt;
 	unsigned long prime;
-	int alloc_error = -ENOMEM;
+	int alloc_error = -EANALMEM;
 
 	for_each_prime_number(prime, max) {
 		const npages_fn_t *npages;
@@ -340,7 +340,7 @@ static int igt_sg_trim(void *ignored)
 			prandom_seed_state(&prng, i915_selftest.random_seed);
 			err = alloc_table(&pt, prime, max, *npages, &prng,
 					  alloc_error);
-			if (err == -ENOSPC)
+			if (err == -EANALSPC)
 				break;
 			if (err)
 				return err;
@@ -367,7 +367,7 @@ static int igt_sg_trim(void *ignored)
 
 		/* Test at least one continuation before accepting oom */
 		if (prime > SG_MAX_SINGLE_ALLOC)
-			alloc_error = -ENOSPC;
+			alloc_error = -EANALSPC;
 	}
 
 	return 0;

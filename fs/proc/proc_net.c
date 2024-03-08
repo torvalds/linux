@@ -8,7 +8,7 @@
  *
  *  proc net directory handling functions
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
@@ -31,30 +31,30 @@ static inline struct net *PDE_NET(struct proc_dir_entry *pde)
 	return pde->parent->data;
 }
 
-static struct net *get_proc_net(const struct inode *inode)
+static struct net *get_proc_net(const struct ianalde *ianalde)
 {
-	return maybe_get_net(PDE_NET(PDE(inode)));
+	return maybe_get_net(PDE_NET(PDE(ianalde)));
 }
 
-static int seq_open_net(struct inode *inode, struct file *file)
+static int seq_open_net(struct ianalde *ianalde, struct file *file)
 {
-	unsigned int state_size = PDE(inode)->state_size;
+	unsigned int state_size = PDE(ianalde)->state_size;
 	struct seq_net_private *p;
 	struct net *net;
 
 	WARN_ON_ONCE(state_size < sizeof(*p));
 
-	if (file->f_mode & FMODE_WRITE && !PDE(inode)->write)
+	if (file->f_mode & FMODE_WRITE && !PDE(ianalde)->write)
 		return -EACCES;
 
-	net = get_proc_net(inode);
+	net = get_proc_net(ianalde);
 	if (!net)
 		return -ENXIO;
 
-	p = __seq_open_private(file, PDE(inode)->seq_ops, state_size);
+	p = __seq_open_private(file, PDE(ianalde)->seq_ops, state_size);
 	if (!p) {
 		put_net(net);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 #ifdef CONFIG_NET_NS
 	p->net = net;
@@ -74,12 +74,12 @@ static void seq_file_net_put_net(struct seq_file *seq)
 #endif
 }
 
-static int seq_release_net(struct inode *ino, struct file *f)
+static int seq_release_net(struct ianalde *ianal, struct file *f)
 {
 	struct seq_file *seq = f->private_data;
 
 	seq_file_net_put_net(seq);
-	seq_release_private(ino, f);
+	seq_release_private(ianal, f);
 	return 0;
 }
 
@@ -150,7 +150,7 @@ EXPORT_SYMBOL_GPL(proc_create_net_data);
  * modified by the @write function.  @write should return 0 on success.
  *
  * The @data value is accessible from the @show and @write functions by calling
- * pde_data() on the file inode.  The network namespace must be accessed by
+ * pde_data() on the file ianalde.  The network namespace must be accessed by
  * calling seq_file_net() on the seq_file struct.
  */
 struct proc_dir_entry *proc_create_net_data_write(const char *name, umode_t mode,
@@ -173,13 +173,13 @@ struct proc_dir_entry *proc_create_net_data_write(const char *name, umode_t mode
 }
 EXPORT_SYMBOL_GPL(proc_create_net_data_write);
 
-static int single_open_net(struct inode *inode, struct file *file)
+static int single_open_net(struct ianalde *ianalde, struct file *file)
 {
-	struct proc_dir_entry *de = PDE(inode);
+	struct proc_dir_entry *de = PDE(ianalde);
 	struct net *net;
 	int err;
 
-	net = get_proc_net(inode);
+	net = get_proc_net(ianalde);
 	if (!net)
 		return -ENXIO;
 
@@ -189,11 +189,11 @@ static int single_open_net(struct inode *inode, struct file *file)
 	return err;
 }
 
-static int single_release_net(struct inode *ino, struct file *f)
+static int single_release_net(struct ianalde *ianal, struct file *f)
 {
 	struct seq_file *seq = f->private_data;
 	put_net(seq->private);
-	return single_release(ino, f);
+	return single_release(ianal, f);
 }
 
 static const struct proc_ops proc_net_single_ops = {
@@ -242,7 +242,7 @@ EXPORT_SYMBOL_GPL(proc_create_net_single);
  * modified by the @write function.  @write should return 0 on success.
  *
  * The @data value is accessible from the @show and @write functions by calling
- * pde_data() on the file inode.  The network namespace must be accessed by
+ * pde_data() on the file ianalde.  The network namespace must be accessed by
  * calling seq_file_single_net() on the seq_file struct.
  */
 struct proc_dir_entry *proc_create_net_single_write(const char *name, umode_t mode,
@@ -264,7 +264,7 @@ struct proc_dir_entry *proc_create_net_single_write(const char *name, umode_t mo
 }
 EXPORT_SYMBOL_GPL(proc_create_net_single_write);
 
-static struct net *get_proc_task_net(struct inode *dir)
+static struct net *get_proc_task_net(struct ianalde *dir)
 {
 	struct task_struct *task;
 	struct nsproxy *ns;
@@ -284,13 +284,13 @@ static struct net *get_proc_task_net(struct inode *dir)
 	return net;
 }
 
-static struct dentry *proc_tgid_net_lookup(struct inode *dir,
+static struct dentry *proc_tgid_net_lookup(struct ianalde *dir,
 		struct dentry *dentry, unsigned int flags)
 {
 	struct dentry *de;
 	struct net *net;
 
-	de = ERR_PTR(-ENOENT);
+	de = ERR_PTR(-EANALENT);
 	net = get_proc_task_net(dir);
 	if (net != NULL) {
 		de = proc_lookup_de(dir, dentry, net->proc_net);
@@ -303,12 +303,12 @@ static int proc_tgid_net_getattr(struct mnt_idmap *idmap,
 				 const struct path *path, struct kstat *stat,
 				 u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(path->dentry);
+	struct ianalde *ianalde = d_ianalde(path->dentry);
 	struct net *net;
 
-	net = get_proc_task_net(inode);
+	net = get_proc_task_net(ianalde);
 
-	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
+	generic_fillattr(&analp_mnt_idmap, request_mask, ianalde, stat);
 
 	if (net != NULL) {
 		stat->nlink = net->proc_net->nlink;
@@ -318,7 +318,7 @@ static int proc_tgid_net_getattr(struct mnt_idmap *idmap,
 	return 0;
 }
 
-const struct inode_operations proc_net_inode_operations = {
+const struct ianalde_operations proc_net_ianalde_operations = {
 	.lookup		= proc_tgid_net_lookup,
 	.getattr	= proc_tgid_net_getattr,
 	.setattr        = proc_setattr,
@@ -330,7 +330,7 @@ static int proc_tgid_net_readdir(struct file *file, struct dir_context *ctx)
 	struct net *net;
 
 	ret = -EINVAL;
-	net = get_proc_task_net(file_inode(file));
+	net = get_proc_task_net(file_ianalde(file));
 	if (net != NULL) {
 		ret = proc_readdir_de(file, ctx, net->proc_net);
 		put_net(net);
@@ -353,11 +353,11 @@ static __net_init int proc_net_ns_init(struct net *net)
 
 	/*
 	 * This PDE acts only as an anchor for /proc/${pid}/net hierarchy.
-	 * Corresponding inode (PDE(inode) == net->proc_net) is never
+	 * Corresponding ianalde (PDE(ianalde) == net->proc_net) is never
 	 * instantiated therefore blanket zeroing is fine.
-	 * net->proc_net_stat inode is instantiated normally.
+	 * net->proc_net_stat ianalde is instantiated analrmally.
 	 */
-	err = -ENOMEM;
+	err = -EANALMEM;
 	netd = kmem_cache_zalloc(proc_dir_entry_cache, GFP_KERNEL);
 	if (!netd)
 		goto out;

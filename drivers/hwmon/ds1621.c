@@ -4,7 +4,7 @@
  *	      monitoring
  * Christian W. Zuckschwerdt  <zany@triq.net>  2000-11-23
  * based on lm75.c by Frodo Looijaard <frodol@dds.nl>
- * Ported to Linux 2.6 by Aurelien Jarno <aurelien@aurel32.net> with
+ * Ported to Linux 2.6 by Aurelien Jaranal <aurelien@aurel32.net> with
  * the help of Jean Delvare <jdelvare@suse.de>
  *
  * The DS1621 device is a digital temperature/thermometer with 9-bit
@@ -12,7 +12,7 @@
  * and maximum temperature thresholds (TH and TL).
  *
  * The DS1625, DS1631, DS1721, and DS1731 are pin compatible with the DS1621
- * and similar in operation, with slight variations as noted in the device
+ * and similar in operation, with slight variations as analted in the device
  * datasheets (please refer to www.maximintegrated.com for specific
  * device information).
  *
@@ -93,9 +93,9 @@ static const u8 DS1621_REG_TEMP[3] = {
 	0xA1,		/* max, word, RW */
 };
 #define DS1621_REG_CONF			0xAC /* byte, RW */
-#define DS1621_COM_START		0xEE /* no data */
-#define DS1721_COM_START		0x51 /* no data */
-#define DS1621_COM_STOP			0x22 /* no data */
+#define DS1621_COM_START		0xEE /* anal data */
+#define DS1721_COM_START		0x51 /* anal data */
+#define DS1621_COM_STOP			0x22 /* anal data */
 
 /* The DS1621 configuration register */
 #define DS1621_ALARM_TEMP_HIGH		0x40
@@ -352,7 +352,7 @@ static int ds1621_probe(struct i2c_client *client)
 	data = devm_kzalloc(&client->dev, sizeof(struct ds1621_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&data->update_lock);
 

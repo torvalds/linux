@@ -2,7 +2,7 @@
 /*
  * Loongson LPC Interrupt Controller support
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #define pr_fmt(fmt) "lpc: " fmt
@@ -36,7 +36,7 @@ struct pch_lpc {
 };
 
 static struct pch_lpc *pch_lpc_priv;
-struct fwnode_handle *pch_lpc_handle;
+struct fwanalde_handle *pch_lpc_handle;
 
 static void lpc_irq_ack(struct irq_data *d)
 {
@@ -175,11 +175,11 @@ int __init pch_lpc_acpi_init(struct irq_domain *parent,
 	int parent_irq;
 	struct pch_lpc *priv;
 	struct irq_fwspec fwspec;
-	struct fwnode_handle *irq_handle;
+	struct fwanalde_handle *irq_handle;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	raw_spin_lock_init(&priv->lpc_lock);
 
@@ -192,7 +192,7 @@ int __init pch_lpc_acpi_init(struct irq_domain *parent,
 		goto iounmap_base;
 	}
 
-	irq_handle = irq_domain_alloc_named_fwnode("lpcintc");
+	irq_handle = irq_domain_alloc_named_fwanalde("lpcintc");
 	if (!irq_handle) {
 		pr_err("Unable to allocate domain handle\n");
 		goto iounmap_base;
@@ -206,7 +206,7 @@ int __init pch_lpc_acpi_init(struct irq_domain *parent,
 	}
 	pch_lpc_reset(priv);
 
-	fwspec.fwnode = parent->fwnode;
+	fwspec.fwanalde = parent->fwanalde;
 	fwspec.param[0] = acpi_pchlpc->cascade + GSI_MIN_PCH_IRQ;
 	fwspec.param[1] = IRQ_TYPE_LEVEL_HIGH;
 	fwspec.param_count = 2;
@@ -220,11 +220,11 @@ int __init pch_lpc_acpi_init(struct irq_domain *parent,
 	return 0;
 
 free_irq_handle:
-	irq_domain_free_fwnode(irq_handle);
+	irq_domain_free_fwanalde(irq_handle);
 iounmap_base:
 	iounmap(priv->base);
 free_priv:
 	kfree(priv);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }

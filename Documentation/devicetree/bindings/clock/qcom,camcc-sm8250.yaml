@@ -46,7 +46,7 @@ properties:
   required-opps:
     maxItems: 1
     description:
-      OPP node describing required MMCX performance point.
+      OPP analde describing required MMCX performance point.
 
 required:
   - compatible

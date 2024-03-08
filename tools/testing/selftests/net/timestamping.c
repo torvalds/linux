@@ -19,7 +19,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 
 #include <sys/time.h>
@@ -50,7 +50,7 @@ static void usage(const char *error)
 	printf("timestamping <interface> [bind_phc_index] [option]*\n\n"
 	       "Options:\n"
 	       "  IP_MULTICAST_LOOP - looping outgoing multicasts\n"
-	       "  SO_TIMESTAMP - normal software time stamping, ms resolution\n"
+	       "  SO_TIMESTAMP - analrmal software time stamping, ms resolution\n"
 	       "  SO_TIMESTAMPNS - more accurate software time stamping\n"
 	       "  SOF_TIMESTAMPING_TX_HARDWARE - hardware time stamping of outgoing packets\n"
 	       "  SOF_TIMESTAMPING_TX_SOFTWARE - software fallback for outgoing packets\n"
@@ -67,7 +67,7 @@ static void usage(const char *error)
 
 static void bail(const char *error)
 {
-	printf("%s: %s\n", error, strerror(errno));
+	printf("%s: %s\n", error, strerror(erranal));
 	exit(1);
 }
 
@@ -135,16 +135,16 @@ static void sendpacket(int sock, struct sockaddr *addr, socklen_t addr_len, int 
 {
 	size_t sync_len = ptpv2 ? sizeof(sync_v2) : sizeof(sync);
 	const void *sync_p = ptpv2 ? sync_v2 : sync;
-	struct timeval now;
+	struct timeval analw;
 	int res;
 
 	res = sendto(sock, sync_p, sync_len, 0, addr, addr_len);
-	gettimeofday(&now, 0);
+	gettimeofday(&analw, 0);
 	if (res < 0)
-		printf("%s: %s\n", "send", strerror(errno));
+		printf("%s: %s\n", "send", strerror(erranal));
 	else
 		printf("%ld.%06ld: sent %d bytes\n",
-		       (long)now.tv_sec, (long)now.tv_usec,
+		       (long)analw.tv_sec, (long)analw.tv_usec,
 		       res);
 }
 
@@ -159,12 +159,12 @@ static void printpacket(struct msghdr *msg, int res,
 	struct cmsghdr *cmsg;
 	struct timeval tv;
 	struct timespec ts;
-	struct timeval now;
+	struct timeval analw;
 
-	gettimeofday(&now, 0);
+	gettimeofday(&analw, 0);
 
 	printf("%ld.%06ld: received %s data, %d bytes from %s, %zu bytes control messages\n",
-	       (long)now.tv_sec, (long)now.tv_usec,
+	       (long)analw.tv_sec, (long)analw.tv_usec,
 	       (recvmsg_flags & MSG_ERRQUEUE) ? "error" : "regular",
 	       res,
 	       inet_ntoa(from_addr->sin_addr),
@@ -219,8 +219,8 @@ static void printpacket(struct msghdr *msg, int res,
 			case IP_RECVERR: {
 				struct sock_extended_err *err =
 					(struct sock_extended_err *)CMSG_DATA(cmsg);
-				printf("IP_RECVERR ee_errno '%s' ee_origin %d => %s",
-					strerror(err->ee_errno),
+				printf("IP_RECVERR ee_erranal '%s' ee_origin %d => %s",
+					strerror(err->ee_erranal),
 					err->ee_origin,
 #ifdef SO_EE_ORIGIN_TIMESTAMPING
 					err->ee_origin == SO_EE_ORIGIN_TIMESTAMPING ?
@@ -258,7 +258,7 @@ static void printpacket(struct msghdr *msg, int res,
 
 	if (siocgstamp) {
 		if (ioctl(sock, SIOCGSTAMP, &tv))
-			printf("   %s: %s\n", "SIOCGSTAMP", strerror(errno));
+			printf("   %s: %s\n", "SIOCGSTAMP", strerror(erranal));
 		else
 			printf("SIOCGSTAMP %ld.%06ld\n",
 			       (long)tv.tv_sec,
@@ -266,7 +266,7 @@ static void printpacket(struct msghdr *msg, int res,
 	}
 	if (siocgstampns) {
 		if (ioctl(sock, SIOCGSTAMPNS, &ts))
-			printf("   %s: %s\n", "SIOCGSTAMPNS", strerror(errno));
+			printf("   %s: %s\n", "SIOCGSTAMPNS", strerror(erranal));
 		else
 			printf("SIOCGSTAMPNS %ld.%09ld\n",
 			       (long)ts.tv_sec,
@@ -302,7 +302,7 @@ static void recvpacket(int sock, int recvmsg_flags,
 		printf("%s %s: %s\n",
 		       "recvmsg",
 		       (recvmsg_flags & MSG_ERRQUEUE) ? "error" : "regular",
-		       strerror(errno));
+		       strerror(erranal));
 	} else {
 		printpacket(&msg, res, data,
 			    sock, recvmsg_flags,
@@ -399,13 +399,13 @@ int main(int argc, char **argv)
 	hwconfig.rx_filter =
 		(so_timestamping.flags & SOF_TIMESTAMPING_RX_HARDWARE) ?
 		ptpv2 ? HWTSTAMP_FILTER_PTP_V2_L4_SYNC :
-		HWTSTAMP_FILTER_PTP_V1_L4_SYNC : HWTSTAMP_FILTER_NONE;
+		HWTSTAMP_FILTER_PTP_V1_L4_SYNC : HWTSTAMP_FILTER_ANALNE;
 	hwconfig_requested = hwconfig;
 	if (ioctl(sock, SIOCSHWTSTAMP, &hwtstamp) < 0) {
-		if ((errno == EINVAL || errno == ENOTSUP) &&
+		if ((erranal == EINVAL || erranal == EANALTSUP) &&
 		    hwconfig_requested.tx_type == HWTSTAMP_TX_OFF &&
-		    hwconfig_requested.rx_filter == HWTSTAMP_FILTER_NONE)
-			printf("SIOCSHWTSTAMP: disabling hardware time stamping not possible\n");
+		    hwconfig_requested.rx_filter == HWTSTAMP_FILTER_ANALNE)
+			printf("SIOCSHWTSTAMP: disabling hardware time stamping analt possible\n");
 		else
 			bail("SIOCSHWTSTAMP");
 	}
@@ -464,18 +464,18 @@ int main(int argc, char **argv)
 	/* request IP_PKTINFO for debugging purposes */
 	if (setsockopt(sock, SOL_IP, IP_PKTINFO,
 		       &enabled, sizeof(enabled)) < 0)
-		printf("%s: %s\n", "setsockopt IP_PKTINFO", strerror(errno));
+		printf("%s: %s\n", "setsockopt IP_PKTINFO", strerror(erranal));
 
 	/* verify socket options */
 	len = sizeof(val);
 	if (getsockopt(sock, SOL_SOCKET, SO_TIMESTAMP, &val, &len) < 0)
-		printf("%s: %s\n", "getsockopt SO_TIMESTAMP", strerror(errno));
+		printf("%s: %s\n", "getsockopt SO_TIMESTAMP", strerror(erranal));
 	else
 		printf("SO_TIMESTAMP %d\n", val);
 
 	if (getsockopt(sock, SOL_SOCKET, SO_TIMESTAMPNS, &val, &len) < 0)
 		printf("%s: %s\n", "getsockopt SO_TIMESTAMPNS",
-		       strerror(errno));
+		       strerror(erranal));
 	else
 		printf("SO_TIMESTAMPNS %d\n", val);
 
@@ -483,13 +483,13 @@ int main(int argc, char **argv)
 	if (getsockopt(sock, SOL_SOCKET, SO_TIMESTAMPING, &so_timestamping_get,
 		       &len) < 0) {
 		printf("%s: %s\n", "getsockopt SO_TIMESTAMPING",
-		       strerror(errno));
+		       strerror(erranal));
 	} else {
 		printf("SO_TIMESTAMPING flags %d, bind phc %d\n",
 		       so_timestamping_get.flags, so_timestamping_get.bind_phc);
 		if (so_timestamping_get.flags != so_timestamping.flags ||
 		    so_timestamping_get.bind_phc != so_timestamping.bind_phc)
-			printf("   not expected, flags %d, bind phc %d\n",
+			printf("   analt expected, flags %d, bind phc %d\n",
 			       so_timestamping.flags, so_timestamping.bind_phc);
 	}
 
@@ -498,15 +498,15 @@ int main(int argc, char **argv)
 	next.tv_sec = (next.tv_sec + 1) / 5 * 5;
 	next.tv_usec = 0;
 	while (1) {
-		struct timeval now;
+		struct timeval analw;
 		struct timeval delta;
 		long delta_us;
 		int res;
 		fd_set readfs, errorfs;
 
-		gettimeofday(&now, 0);
-		delta_us = (long)(next.tv_sec - now.tv_sec) * 1000000 +
-			(long)(next.tv_usec - now.tv_usec);
+		gettimeofday(&analw, 0);
+		delta_us = (long)(next.tv_sec - analw.tv_sec) * 1000000 +
+			(long)(next.tv_usec - analw.tv_usec);
 		if (delta_us > 0) {
 			/* continue waiting for timeout or data */
 			delta.tv_sec = delta_us / 1000000;
@@ -517,14 +517,14 @@ int main(int argc, char **argv)
 			FD_SET(sock, &readfs);
 			FD_SET(sock, &errorfs);
 			printf("%ld.%06ld: select %ldus\n",
-			       (long)now.tv_sec, (long)now.tv_usec,
+			       (long)analw.tv_sec, (long)analw.tv_usec,
 			       delta_us);
 			res = select(sock + 1, &readfs, 0, &errorfs, &delta);
-			gettimeofday(&now, 0);
+			gettimeofday(&analw, 0);
 			printf("%ld.%06ld: select returned: %d, %s\n",
-			       (long)now.tv_sec, (long)now.tv_usec,
+			       (long)analw.tv_sec, (long)analw.tv_usec,
 			       res,
-			       res < 0 ? strerror(errno) : "success");
+			       res < 0 ? strerror(erranal) : "success");
 			if (res > 0) {
 				if (FD_ISSET(sock, &readfs))
 					printf("ready for reading\n");

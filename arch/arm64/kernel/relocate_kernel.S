@@ -3,7 +3,7 @@
  * kexec for arm64
  *
  * Copyright (C) Linaro.
- * Copyright (C) Huawei Futurewei Technologies.
+ * Copyright (C) Huawei Futurewei Techanallogies.
  * Copyright (C) 2021, Microsoft Corporation.
  * Pasha Tatashin <pasha.tatashin@soleen.com>
  */
@@ -30,7 +30,7 @@
  *
  * The memory that the old kernel occupies may be overwritten when copying the
  * new image to its final location.  To assure that the
- * arm64_relocate_new_kernel routine which does that copy is not overwritten,
+ * arm64_relocate_new_kernel routine which does that copy is analt overwritten,
  * all code and data needed by arm64_relocate_new_kernel must be between the
  * symbols arm64_relocate_new_kernel and arm64_relocate_new_kernel_end.  The
  * machine_kexec() routine will copy arm64_relocate_new_kernel to the kexec

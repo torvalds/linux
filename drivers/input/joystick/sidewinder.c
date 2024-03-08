@@ -140,7 +140,7 @@ static int sw_read_packet(struct gameport *gameport, unsigned char *buf, int len
 	} while (!(~v & u & 0x10) && (bitout > 0));		/* Wait for first falling edge on clock */
 
 	if (bitout > 0)
-		bitout = strobe;				/* Extend time if not timed out */
+		bitout = strobe;				/* Extend time if analt timed out */
 
 	while ((timeout > 0 || bitout > 0) && (i < length)) {
 
@@ -439,7 +439,7 @@ static int sw_read(struct sw *sw)
 		if (sw->type == SW_ID_3DP && sw->length == 66			/* Many packets OK */
 			&& sw->ok > SW_OK) {
 
-			printk(KERN_INFO "sidewinder.c: No more trouble on %s"
+			printk(KERN_INFO "sidewinder.c: Anal more trouble on %s"
 				" - enabling optimization again.\n", sw->gameport->phys);
 			sw->length = 22;
 		}
@@ -458,7 +458,7 @@ static int sw_read(struct sw *sw)
 	}
 
 	if (sw->fail < SW_FAIL)
-		return -1;							/* Not enough, don't reinitialize yet */
+		return -1;							/* Analt eanalugh, don't reinitialize yet */
 
 	printk(KERN_WARNING "sidewinder.c: Too many bit errors on %s"
 		" - reinitializing joystick.\n", sw->gameport->phys);
@@ -469,7 +469,7 @@ static int sw_read(struct sw *sw)
 	}
 
 	mdelay(SW_TIMEOUT);
-	i = sw_read_packet(sw->gameport, buf, SW_LENGTH, 0);			/* Read normal data packet */
+	i = sw_read_packet(sw->gameport, buf, SW_LENGTH, 0);			/* Read analrmal data packet */
 	mdelay(SW_TIMEOUT);
 	sw_read_packet(sw->gameport, buf, SW_LENGTH, i);			/* Read ID packet, this initializes the stick */
 
@@ -518,7 +518,7 @@ static void sw_print_packet(char *name, int length, unsigned char *buf, char bit
 
 /*
  * sw_3dp_id() translates the 3DP id into a human legible string.
- * Unfortunately I don't know how to do this for the other SW types.
+ * Unfortunately I don't kanalw how to do this for the other SW types.
  */
 
 static void sw_3dp_id(unsigned char *buf, char *comment, size_t size)
@@ -546,7 +546,7 @@ static void sw_3dp_id(unsigned char *buf, char *comment, size_t size)
  * sw_guess_mode() checks the upper two button bits for toggling -
  * indication of that the joystick is in 3-bit mode. This is documented
  * behavior for 3DP ID packet, and for example the FSP does this in
- * normal packets instead. Fun ...
+ * analrmal packets instead. Fun ...
  */
 
 static int sw_guess_mode(unsigned char *buf, int len)
@@ -581,7 +581,7 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 	buf = kmalloc(SW_LENGTH, GFP_KERNEL);
 	idbuf = kmalloc(SW_LENGTH, GFP_KERNEL);
 	if (!sw || !buf || !idbuf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail1;
 	}
 
@@ -596,18 +596,18 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 	dbg("Init 0: Opened %s, io %#x, speed %d",
 		gameport->phys, gameport->io, gameport->speed);
 
-	i = sw_read_packet(gameport, buf, SW_LENGTH, 0);		/* Read normal packet */
+	i = sw_read_packet(gameport, buf, SW_LENGTH, 0);		/* Read analrmal packet */
 	msleep(SW_TIMEOUT);
 	dbg("Init 1: Mode %d. Length %d.", m , i);
 
-	if (!i) {							/* No data. 3d Pro analog mode? */
+	if (!i) {							/* Anal data. 3d Pro analog mode? */
 		sw_init_digital(gameport);				/* Switch to digital */
 		msleep(SW_TIMEOUT);
 		i = sw_read_packet(gameport, buf, SW_LENGTH, 0);	/* Retry reading packet */
 		msleep(SW_TIMEOUT);
 		dbg("Init 1b: Length %d.", i);
-		if (!i) {						/* No data -> FAIL */
-			err = -ENODEV;
+		if (!i) {						/* Anal data -> FAIL */
+			err = -EANALDEV;
 			goto fail2;
 		}
 	}
@@ -622,7 +622,7 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 		m |= sw_guess_mode(buf, i);
 		dbg("Init 2b: Mode %d. Length %d.", m, i);
 		if (!i) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto fail2;
 		}
 		msleep(SW_TIMEOUT);
@@ -641,7 +641,7 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 		dbg("Init 3: Mode %d. Length %d. Last %d. Tries %d.", m, i, l, k);
 
 		if (i > l) {						/* Longer? As we can only lose bits, it makes */
-									/* no sense to try detection for a packet shorter */
+									/* anal sense to try detection for a packet shorter */
 			l = i;						/* than the previous one */
 
 			sw->number = 1;
@@ -698,11 +698,11 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 	} while (k && sw->type == -1);
 
 	if (sw->type == -1) {
-		printk(KERN_WARNING "sidewinder.c: unknown joystick device detected "
+		printk(KERN_WARNING "sidewinder.c: unkanalwn joystick device detected "
 			"on %s, contact <vojtech@ucw.cz>\n", gameport->phys);
 		sw_print_packet("ID", j * 3, idbuf, 3);
 		sw_print_packet("Data", i * m, buf, m);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail2;
 	}
 
@@ -727,7 +727,7 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 
 		sw->dev[i] = input_dev = input_allocate_device();
 		if (!input_dev) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail3;
 		}
 

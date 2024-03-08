@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * PPS API header
  *
@@ -15,7 +15,7 @@
  *   GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
+ *   along with this program; if analt, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -26,9 +26,9 @@
 #include <linux/types.h>
 
 #define PPS_VERSION		"5.3.6"
-#define PPS_MAX_SOURCES		16		/* should be enough... */
+#define PPS_MAX_SOURCES		16		/* should be eanalugh... */
 
-/* Implementation note: the logical states ``assert'' and ``clear''
+/* Implementation analte: the logical states ``assert'' and ``clear''
  * are implemented in terms of the chip register, i.e. ``assert''
  * means the bit is set.  */
 
@@ -43,7 +43,7 @@
 /* 32-bit vs. 64-bit compatibility.
  *
  * 0n i386, the alignment of a uint64_t is only 4 bytes, while on most other
- * architectures it's 8 bytes. On i386, there will be no padding between the
+ * architectures it's 8 bytes. On i386, there will be anal padding between the
  * two consecutive 'struct pps_ktime' members of struct pps_kinfo and struct
  * pps_kparams. But on most platforms there will be padding to ensure correct
  * alignment.

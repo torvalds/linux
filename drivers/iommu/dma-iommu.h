@@ -31,7 +31,7 @@ static inline int iommu_dma_init_fq(struct iommu_domain *domain)
 
 static inline int iommu_get_dma_cookie(struct iommu_domain *domain)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline void iommu_put_dma_cookie(struct iommu_domain *domain)

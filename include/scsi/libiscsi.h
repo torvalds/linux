@@ -33,7 +33,7 @@ struct iscsi_transport;
 struct iscsi_cls_session;
 struct iscsi_cls_conn;
 struct iscsi_session;
-struct iscsi_nopin;
+struct iscsi_analpin;
 struct device;
 
 #define ISCSI_DEF_XMIT_CMDS_MAX	128	/* must be power of 2 */
@@ -48,7 +48,7 @@ enum {
 	TMF_SUCCESS,
 	TMF_FAILED,
 	TMF_TIMEDOUT,
-	TMF_NOT_FOUND,
+	TMF_ANALT_FOUND,
 };
 
 #define ISID_SIZE			6
@@ -194,7 +194,7 @@ struct iscsi_conn {
 	int			id;		/* CID */
 	int			c_stage;	/* connection state */
 	/*
-	 * Preallocated buffer for pdus that have data but do not
+	 * Preallocated buffer for pdus that have data but do analt
 	 * originate from scsi-ml. We never have two pdus using the
 	 * buffer at the same time. It is only allocated to
 	 * the default max recv size because the pdus we support
@@ -208,7 +208,7 @@ struct iscsi_conn {
 	/* items must be added/deleted under frwd lock */
 	struct list_head	mgmtqueue;	/* mgmt (control) xmit queue */
 	struct list_head	cmdqueue;	/* data-path cmd queue */
-	struct list_head	requeue;	/* tasks needing another run */
+	struct list_head	requeue;	/* tasks needing aanalther run */
 	struct work_struct	xmitwork;	/* per-conn. xmit workqueue */
 	/* recv */
 	struct work_struct	recvwork;
@@ -309,8 +309,8 @@ struct iscsi_session {
 	unsigned		max_burst;
 	int			time2wait;
 	int			time2retain;
-	int			pdu_inorder_en;
-	int			dataseq_inorder_en;
+	int			pdu_ianalrder_en;
+	int			dataseq_ianalrder_en;
 	int			erl;
 	int			fast_abort;
 	int			tpgt;
@@ -345,7 +345,7 @@ struct iscsi_session {
 	/* Between the forward and the backward locks exists a strict locking
 	 * hierarchy. The mutual exclusion zone protected by the forward lock
 	 * can enclose the mutual exclusion zone protected by the backward lock
-	 * but not vice versa.
+	 * but analt vice versa.
 	 */
 	spinlock_t		frwd_lock;	/* protects session state, *
 						 * cmdsn, queued_cmdsn     *
@@ -465,7 +465,7 @@ extern void iscsi_conn_queue_recv(struct iscsi_conn *conn);
 /*
  * pdu and task processing
  */
-extern void iscsi_update_cmdsn(struct iscsi_session *, struct iscsi_nopin *);
+extern void iscsi_update_cmdsn(struct iscsi_session *, struct iscsi_analpin *);
 extern void iscsi_prep_data_out_pdu(struct iscsi_task *task,
 				    struct iscsi_r2t_info *r2t,
 				    struct iscsi_data *hdr);

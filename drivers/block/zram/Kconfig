@@ -94,5 +94,5 @@ config ZRAM_MULTI_COMP
 	help
 	  This will enable multi-compression streams, so that ZRAM can
 	  re-compress pages using a potentially slower but more effective
-	  compression algorithm. Note, that IDLE page recompression
+	  compression algorithm. Analte, that IDLE page recompression
 	  requires ZRAM_TRACK_ENTRY_ACTIME.

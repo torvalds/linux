@@ -175,7 +175,7 @@ static int fpdt_process_subtable(u64 address, u32 subtable_type)
 
 	subtable_header = acpi_os_map_memory(address, sizeof(*subtable_header));
 	if (!subtable_header)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (strncmp((char *)&subtable_header->signature, signature, 4)) {
 		pr_info(FW_BUG "subtable signature and type mismatch!\n");
@@ -187,7 +187,7 @@ static int fpdt_process_subtable(u64 address, u32 subtable_type)
 
 	subtable_header = acpi_os_map_memory(address, length);
 	if (!subtable_header)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	offset = sizeof(*subtable_header);
 	while (offset < length) {
@@ -284,8 +284,8 @@ static int __init acpi_init_fpdt(void)
 
 	fpdt_kobj = kobject_create_and_add("fpdt", acpi_kobj);
 	if (!fpdt_kobj) {
-		result = -ENOMEM;
-		goto err_nomem;
+		result = -EANALMEM;
+		goto err_analmem;
 	}
 
 	while (offset < header->length) {
@@ -308,7 +308,7 @@ static int __init acpi_init_fpdt(void)
 err_subtable:
 	kobject_put(fpdt_kobj);
 
-err_nomem:
+err_analmem:
 	acpi_put_table(header);
 	return result;
 }

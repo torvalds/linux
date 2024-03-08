@@ -13,7 +13,7 @@
 struct hdac_widget_tree {
 	struct kobject *root;
 	struct kobject *afg;
-	struct kobject **nodes;
+	struct kobject **analdes;
 };
 
 #define CODEC_ATTR(type)					\
@@ -277,7 +277,7 @@ static WIDGET_ATTR_RO(power_caps);
 static WIDGET_ATTR_RO(gpio_caps);
 static WIDGET_ATTR_RO(connections);
 
-static struct attribute *widget_node_attrs[] = {
+static struct attribute *widget_analde_attrs[] = {
 	&wid_attr_caps.attr,
 	&wid_attr_pin_caps.attr,
 	&wid_attr_pin_cfg.attr,
@@ -300,15 +300,15 @@ static struct attribute *widget_afg_attrs[] = {
 	NULL,
 };
 
-static const struct attribute_group widget_node_group = {
-	.attrs = widget_node_attrs,
+static const struct attribute_group widget_analde_group = {
+	.attrs = widget_analde_attrs,
 };
 
 static const struct attribute_group widget_afg_group = {
 	.attrs = widget_afg_attrs,
 };
 
-static void free_widget_node(struct kobject *kobj,
+static void free_widget_analde(struct kobject *kobj,
 			     const struct attribute_group *group)
 {
 	if (kobj) {
@@ -324,18 +324,18 @@ static void widget_tree_free(struct hdac_device *codec)
 
 	if (!tree)
 		return;
-	free_widget_node(tree->afg, &widget_afg_group);
-	if (tree->nodes) {
-		for (p = tree->nodes; *p; p++)
-			free_widget_node(*p, &widget_node_group);
-		kfree(tree->nodes);
+	free_widget_analde(tree->afg, &widget_afg_group);
+	if (tree->analdes) {
+		for (p = tree->analdes; *p; p++)
+			free_widget_analde(*p, &widget_analde_group);
+		kfree(tree->analdes);
 	}
 	kobject_put(tree->root);
 	kfree(tree);
 	codec->widgets = NULL;
 }
 
-static int add_widget_node(struct kobject *parent, hda_nid_t nid,
+static int add_widget_analde(struct kobject *parent, hda_nid_t nid,
 			   const struct attribute_group *group,
 			   struct kobject **res)
 {
@@ -343,7 +343,7 @@ static int add_widget_node(struct kobject *parent, hda_nid_t nid,
 	int err;
 
 	if (!kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 	kobject_init(kobj, &widget_ktype);
 	err = kobject_add(kobj, parent, "%02x", nid);
 	if (err < 0) {
@@ -368,26 +368,26 @@ static int widget_tree_create(struct hdac_device *codec)
 
 	tree = codec->widgets = kzalloc(sizeof(*tree), GFP_KERNEL);
 	if (!tree)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tree->root = kobject_create_and_add("widgets", &codec->dev.kobj);
 	if (!tree->root)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	tree->nodes = kcalloc(codec->num_nodes + 1, sizeof(*tree->nodes),
+	tree->analdes = kcalloc(codec->num_analdes + 1, sizeof(*tree->analdes),
 			      GFP_KERNEL);
-	if (!tree->nodes)
-		return -ENOMEM;
+	if (!tree->analdes)
+		return -EANALMEM;
 
-	for (i = 0, nid = codec->start_nid; i < codec->num_nodes; i++, nid++) {
-		err = add_widget_node(tree->root, nid, &widget_node_group,
-				      &tree->nodes[i]);
+	for (i = 0, nid = codec->start_nid; i < codec->num_analdes; i++, nid++) {
+		err = add_widget_analde(tree->root, nid, &widget_analde_group,
+				      &tree->analdes[i]);
 		if (err < 0)
 			return err;
 	}
 
 	if (codec->afg) {
-		err = add_widget_node(tree->root, codec->afg,
+		err = add_widget_analde(tree->root, codec->afg,
 				      &widget_afg_group, &tree->afg);
 		if (err < 0)
 			return err;
@@ -422,10 +422,10 @@ void hda_widget_sysfs_exit(struct hdac_device *codec)
 
 /* call with codec->widget_lock held */
 int hda_widget_sysfs_reinit(struct hdac_device *codec,
-			    hda_nid_t start_nid, int num_nodes)
+			    hda_nid_t start_nid, int num_analdes)
 {
 	struct hdac_widget_tree *tree;
-	hda_nid_t end_nid = start_nid + num_nodes;
+	hda_nid_t end_nid = start_nid + num_analdes;
 	hda_nid_t nid;
 	int i;
 
@@ -434,33 +434,33 @@ int hda_widget_sysfs_reinit(struct hdac_device *codec,
 
 	tree = kmemdup(codec->widgets, sizeof(*tree), GFP_KERNEL);
 	if (!tree)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	tree->nodes = kcalloc(num_nodes + 1, sizeof(*tree->nodes), GFP_KERNEL);
-	if (!tree->nodes) {
+	tree->analdes = kcalloc(num_analdes + 1, sizeof(*tree->analdes), GFP_KERNEL);
+	if (!tree->analdes) {
 		kfree(tree);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	/* prune non-existing nodes */
-	for (i = 0, nid = codec->start_nid; i < codec->num_nodes; i++, nid++) {
+	/* prune analn-existing analdes */
+	for (i = 0, nid = codec->start_nid; i < codec->num_analdes; i++, nid++) {
 		if (nid < start_nid || nid >= end_nid)
-			free_widget_node(codec->widgets->nodes[i],
-					 &widget_node_group);
+			free_widget_analde(codec->widgets->analdes[i],
+					 &widget_analde_group);
 	}
 
-	/* add new nodes */
-	for (i = 0, nid = start_nid; i < num_nodes; i++, nid++) {
+	/* add new analdes */
+	for (i = 0, nid = start_nid; i < num_analdes; i++, nid++) {
 		if (nid < codec->start_nid || nid >= codec->end_nid)
-			add_widget_node(tree->root, nid, &widget_node_group,
-					&tree->nodes[i]);
+			add_widget_analde(tree->root, nid, &widget_analde_group,
+					&tree->analdes[i]);
 		else
-			tree->nodes[i] =
-				codec->widgets->nodes[nid - codec->start_nid];
+			tree->analdes[i] =
+				codec->widgets->analdes[nid - codec->start_nid];
 	}
 
 	/* replace with the new tree */
-	kfree(codec->widgets->nodes);
+	kfree(codec->widgets->analdes);
 	kfree(codec->widgets);
 	codec->widgets = tree;
 

@@ -7,7 +7,7 @@
  */
 #include <linux/module.h>
 #include <linux/serio.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/device.h>
@@ -36,7 +36,7 @@ static irqreturn_t amba_kmi_int(int irq, void *dev_id)
 {
 	struct amba_kmi_port *kmi = dev_id;
 	unsigned int status = readb(KMIIR);
-	int handled = IRQ_NONE;
+	int handled = IRQ_ANALNE;
 
 	while (status & KMIIR_RXINTR) {
 		serio_interrupt(kmi->io, readb(KMIDATA), 0);
@@ -117,7 +117,7 @@ static int amba_kmi_probe(struct amba_device *dev,
 	kmi = kzalloc(sizeof(struct amba_kmi_port), GFP_KERNEL);
 	io = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!kmi || !io) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -134,7 +134,7 @@ static int amba_kmi_probe(struct amba_device *dev,
 	kmi->io		= io;
 	kmi->base	= ioremap(dev->res.start, resource_size(&dev->res));
 	if (!kmi->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

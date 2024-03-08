@@ -40,7 +40,7 @@ int tsnep_ptp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 		}
 
 		switch (config.rx_filter) {
-		case HWTSTAMP_FILTER_NONE:
+		case HWTSTAMP_FILTER_ANALNE:
 			break;
 		case HWTSTAMP_FILTER_ALL:
 		case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
@@ -114,7 +114,7 @@ static int tsnep_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 
 	system_time += delta;
 
-	/* high dword is buffered in hardware and synchronously written to
+	/* high dword is buffered in hardware and synchroanalusly written to
 	 * system time when low dword is written
 	 */
 	iowrite32(system_time >> 32, adapter->addr + ECM_SYSTEM_TIME_HIGH);
@@ -163,7 +163,7 @@ static int tsnep_ptp_settime64(struct ptp_clock_info *ptp,
 
 	spin_lock_irqsave(&adapter->ptp_lock, flags);
 
-	/* high dword is buffered in hardware and synchronously written to
+	/* high dword is buffered in hardware and synchroanalusly written to
 	 * system time when low dword is written
 	 */
 	iowrite32(system_time >> 32, adapter->addr + ECM_SYSTEM_TIME_HIGH);
@@ -206,7 +206,7 @@ int tsnep_ptp_init(struct tsnep_adapter *adapter)
 {
 	int retval = 0;
 
-	adapter->hwtstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
+	adapter->hwtstamp_config.rx_filter = HWTSTAMP_FILTER_ANALNE;
 	adapter->hwtstamp_config.tx_type = HWTSTAMP_TX_OFF;
 
 	snprintf(adapter->ptp_clock_info.name, 16, "%s", TSNEP);

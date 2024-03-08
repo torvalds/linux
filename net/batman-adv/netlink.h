@@ -17,7 +17,7 @@ void batadv_netlink_register(void);
 void batadv_netlink_unregister(void);
 int batadv_netlink_get_ifindex(const struct nlmsghdr *nlh, int attrtype);
 
-int batadv_netlink_tpmeter_notify(struct batadv_priv *bat_priv, const u8 *dst,
+int batadv_netlink_tpmeter_analtify(struct batadv_priv *bat_priv, const u8 *dst,
 				  u8 result, u32 test_time, u64 total_bytes,
 				  u32 cookie);
 

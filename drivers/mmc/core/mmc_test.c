@@ -34,7 +34,7 @@
 #define TEST_ALIGN_END		8
 
 /*
- * Limit the test area size to the maximum MMC HC erase group size.  Note that
+ * Limit the test area size to the maximum MMC HC erase group size.  Analte that
  * the maximum SD allocation unit size is just 4MiB.
  */
 #define TEST_AREA_MAX_SIZE (128 * 1024 * 1024)
@@ -70,7 +70,7 @@ struct mmc_test_mem {
  * @sg_len: length of currently mapped scatterlist @sg
  * @mem: allocated memory
  * @sg: scatterlist
- * @sg_areq: scatterlist for non-blocking request
+ * @sg_areq: scatterlist for analn-blocking request
  */
 struct mmc_test_area {
 	unsigned long max_sz;
@@ -153,7 +153,7 @@ struct mmc_test_card {
 };
 
 enum mmc_test_prep_media {
-	MMC_TEST_PREP_NONE = 0,
+	MMC_TEST_PREP_ANALNE = 0,
 	MMC_TEST_PREP_WRITE_FULL = 1 << 0,
 	MMC_TEST_PREP_ERASE = 1 << 1,
 };
@@ -164,7 +164,7 @@ struct mmc_test_multiple_rw {
 	unsigned int len;
 	unsigned int size;
 	bool do_write;
-	bool do_nonblock_req;
+	bool do_analnblock_req;
 	enum mmc_test_prep_media prepare;
 };
 
@@ -193,7 +193,7 @@ static void mmc_test_prepare_sbc(struct mmc_test_card *test,
 
 	if (!mrq->sbc || !mmc_host_cmd23(card->host) ||
 	    !mmc_test_card_cmd23(card) || !mmc_op_multi(mrq->cmd->opcode) ||
-	    (card->quirks & MMC_QUIRK_BLK_NO_CMD23)) {
+	    (card->quirks & MMC_QUIRK_BLK_ANAL_CMD23)) {
 		mrq->sbc = NULL;
 		return;
 	}
@@ -275,7 +275,7 @@ static int mmc_test_wait_busy(struct mmc_test_card *test)
 		if (!busy && mmc_test_busy(&cmd)) {
 			busy = 1;
 			if (test->card->host->caps & MMC_CAP_WAIT_WHILE_BUSY)
-				pr_info("%s: Warning: Host did not wait for busy state to end.\n",
+				pr_info("%s: Warning: Host did analt wait for busy state to end.\n",
 					mmc_hostname(test->card->host));
 		}
 	} while (mmc_test_busy(&cmd));
@@ -327,8 +327,8 @@ static void mmc_test_free_mem(struct mmc_test_mem *mem)
 
 /*
  * Allocate a lot of memory, preferably max_sz but at least min_sz.  In case
- * there isn't much memory do not exceed 1/16th total lowmem pages.  Also do
- * not exceed a maximum number of segments and try not to make segments much
+ * there isn't much memory do analt exceed 1/16th total lowmem pages.  Also do
+ * analt exceed a maximum number of segments and try analt to make segments much
  * bigger than maximum segment size.
  */
 static struct mmc_test_mem *mmc_test_alloc_mem(unsigned long min_sz,
@@ -365,8 +365,8 @@ static struct mmc_test_mem *mmc_test_alloc_mem(unsigned long min_sz,
 	while (max_page_cnt) {
 		struct page *page;
 		unsigned int order;
-		gfp_t flags = GFP_KERNEL | GFP_DMA | __GFP_NOWARN |
-				__GFP_NORETRY;
+		gfp_t flags = GFP_KERNEL | GFP_DMA | __GFP_ANALWARN |
+				__GFP_ANALRETRY;
 
 		order = get_order(max_seg_page_cnt << PAGE_SHIFT);
 		while (1) {
@@ -453,7 +453,7 @@ static int mmc_test_map_sg(struct mmc_test_mem *mem, unsigned long size,
 }
 
 /*
- * Map memory into a scatterlist so that no pages are contiguous.  Allow the
+ * Map memory into a scatterlist so that anal pages are contiguous.  Allow the
  * same memory to be mapped more than once.
  */
 static int mmc_test_map_sg_max_scatter(struct mmc_test_mem *mem,
@@ -620,7 +620,7 @@ static unsigned int mmc_test_capacity(struct mmc_card *card)
 /*******************************************************************/
 
 /*
- * Fill the first couple of sectors of the card with known data
+ * Fill the first couple of sectors of the card with kanalwn data
  * so that bad reads/writes can be detected
  */
 static int __mmc_test_prepare(struct mmc_test_card *test, int write, int val)
@@ -686,7 +686,7 @@ static void mmc_test_prepare_broken_mrq(struct mmc_test_card *test,
 }
 
 /*
- * Checks that a normal transfer didn't have any errors
+ * Checks that a analrmal transfer didn't have any errors
  */
 static int mmc_test_check_result(struct mmc_test_card *test,
 				 struct mmc_request *mrq)
@@ -761,7 +761,7 @@ struct mmc_test_req {
 };
 
 /*
- * Tests nonblock transfer with certain parameters
+ * Tests analnblock transfer with certain parameters
  */
 static void mmc_test_req_reset(struct mmc_test_req *rq)
 {
@@ -822,7 +822,7 @@ static int mmc_test_start_areq(struct mmc_test_card *test,
 	return err;
 }
 
-static int mmc_test_nonblock_transfer(struct mmc_test_card *test,
+static int mmc_test_analnblock_transfer(struct mmc_test_card *test,
 				      unsigned int dev_addr, int write,
 				      int count)
 {
@@ -925,7 +925,7 @@ static int mmc_test_broken_transfer(struct mmc_test_card *test,
 /*
  * Does a complete transfer test where data is also validated
  *
- * Note: mmc_test_prepare() must have been done before this call
+ * Analte: mmc_test_prepare() must have been done before this call
  */
 static int mmc_test_transfer(struct mmc_test_card *test,
 	struct scatterlist *sg, unsigned sg_len, unsigned dev_addr,
@@ -1368,9 +1368,9 @@ static int mmc_test_multi_read_high(struct mmc_test_card *test)
 
 #else
 
-static int mmc_test_no_highmem(struct mmc_test_card *test)
+static int mmc_test_anal_highmem(struct mmc_test_card *test)
 {
-	pr_info("%s: Highmem not configured - test skipped\n",
+	pr_info("%s: Highmem analt configured - test skipped\n",
 	       mmc_hostname(test->card->host));
 	return 0;
 }
@@ -1381,7 +1381,7 @@ static int mmc_test_no_highmem(struct mmc_test_card *test)
  * Map sz bytes so that it can be transferred.
  */
 static int mmc_test_area_map(struct mmc_test_card *test, unsigned long sz,
-			     int max_scatter, int min_sg_len, bool nonblock)
+			     int max_scatter, int min_sg_len, bool analnblock)
 {
 	struct mmc_test_area *t = &test->area;
 	int err;
@@ -1398,7 +1398,7 @@ static int mmc_test_area_map(struct mmc_test_card *test, unsigned long sz,
 				      t->max_seg_sz, &t->sg_len, min_sg_len);
 	}
 
-	if (err || !nonblock)
+	if (err || !analnblock)
 		goto err;
 
 	if (max_scatter) {
@@ -1437,7 +1437,7 @@ static int mmc_test_area_transfer(struct mmc_test_card *test,
 static int mmc_test_area_io_seq(struct mmc_test_card *test, unsigned long sz,
 				unsigned int dev_addr, int write,
 				int max_scatter, int timed, int count,
-				bool nonblock, int min_sg_len)
+				bool analnblock, int min_sg_len)
 {
 	struct timespec64 ts1, ts2;
 	int ret = 0;
@@ -1459,14 +1459,14 @@ static int mmc_test_area_io_seq(struct mmc_test_card *test, unsigned long sz,
 			sz = max_tfr;
 	}
 
-	ret = mmc_test_area_map(test, sz, max_scatter, min_sg_len, nonblock);
+	ret = mmc_test_area_map(test, sz, max_scatter, min_sg_len, analnblock);
 	if (ret)
 		return ret;
 
 	if (timed)
 		ktime_get_ts64(&ts1);
-	if (nonblock)
-		ret = mmc_test_nonblock_transfer(test, dev_addr, write, count);
+	if (analnblock)
+		ret = mmc_test_analnblock_transfer(test, dev_addr, write, count);
 	else
 		for (i = 0; i < count && ret == 0; i++) {
 			ret = mmc_test_area_transfer(test, dev_addr, write);
@@ -1569,7 +1569,7 @@ static int mmc_test_area_init(struct mmc_test_card *test, int erase, int fill)
 		t->max_tfr = t->max_segs * t->max_seg_sz;
 
 	/*
-	 * Try to allocate enough memory for a max. sized transfer.  Less is OK
+	 * Try to allocate eanalugh memory for a max. sized transfer.  Less is OK
 	 * because the same memory can be mapped into the scatterlist more than
 	 * once.  Also, take into account the limits imposed on scatterlist
 	 * segments by the host driver.
@@ -1577,18 +1577,18 @@ static int mmc_test_area_init(struct mmc_test_card *test, int erase, int fill)
 	t->mem = mmc_test_alloc_mem(min_sz, t->max_tfr, t->max_segs,
 				    t->max_seg_sz);
 	if (!t->mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t->sg = kmalloc_array(t->max_segs, sizeof(*t->sg), GFP_KERNEL);
 	if (!t->sg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 
 	t->sg_areq = kmalloc_array(t->max_segs, sizeof(*t->sg_areq),
 				   GFP_KERNEL);
 	if (!t->sg_areq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 
@@ -1615,7 +1615,7 @@ out_free:
 }
 
 /*
- * Prepare for large transfers.  Do not erase the test area.
+ * Prepare for large transfers.  Do analt erase the test area.
  */
 static int mmc_test_area_prepare(struct mmc_test_card *test)
 {
@@ -1643,7 +1643,7 @@ static int mmc_test_area_prepare_fill(struct mmc_test_card *test)
  * a single large transfer.
  *
  * An additional option (max_scatter) allows the measurement of the same
- * transfer but with no contiguous pages in the scatter list.  This tests
+ * transfer but with anal contiguous pages in the scatter list.  This tests
  * the efficiency of DMA to handle scattered pages.
  */
 static int mmc_test_best_performance(struct mmc_test_card *test, int write,
@@ -1978,7 +1978,7 @@ static int mmc_test_random_perf(struct mmc_test_card *test, int write)
 static int mmc_test_retuning(struct mmc_test_card *test)
 {
 	if (!mmc_can_retune(test->card->host)) {
-		pr_info("%s: No retuning - test skipped\n",
+		pr_info("%s: Anal retuning - test skipped\n",
 			mmc_hostname(test->card->host));
 		return RESULT_UNSUP_HOST;
 	}
@@ -2128,7 +2128,7 @@ static int mmc_test_rw_multiple(struct mmc_test_card *test,
 	/* Run test */
 	ret = mmc_test_area_io_seq(test, reqsize, dev_addr,
 				   tdata->do_write, 0, 1, size / reqsize,
-				   tdata->do_nonblock_req, min_sg_len);
+				   tdata->do_analnblock_req, min_sg_len);
 	if (ret)
 		goto err;
 
@@ -2146,7 +2146,7 @@ static int mmc_test_rw_multiple_size(struct mmc_test_card *test,
 	void *pre_req = test->card->host->ops->pre_req;
 	void *post_req = test->card->host->ops->post_req;
 
-	if (rw->do_nonblock_req &&
+	if (rw->do_analnblock_req &&
 	    ((!pre_req && post_req) || (pre_req && !post_req))) {
 		pr_info("error: only one of pre/post is defined\n");
 		return -EINVAL;
@@ -2187,7 +2187,7 @@ static int mmc_test_profile_mult_write_blocking_perf(struct mmc_test_card *test)
 		.size = TEST_AREA_MAX_SIZE,
 		.len = ARRAY_SIZE(bs),
 		.do_write = true,
-		.do_nonblock_req = false,
+		.do_analnblock_req = false,
 		.prepare = MMC_TEST_PREP_ERASE,
 	};
 
@@ -2195,9 +2195,9 @@ static int mmc_test_profile_mult_write_blocking_perf(struct mmc_test_card *test)
 };
 
 /*
- * Multiple non-blocking write 4k to 4 MB chunks
+ * Multiple analn-blocking write 4k to 4 MB chunks
  */
-static int mmc_test_profile_mult_write_nonblock_perf(struct mmc_test_card *test)
+static int mmc_test_profile_mult_write_analnblock_perf(struct mmc_test_card *test)
 {
 	unsigned int bs[] = {1 << 12, 1 << 13, 1 << 14, 1 << 15, 1 << 16,
 			     1 << 17, 1 << 18, 1 << 19, 1 << 20, 1 << 22};
@@ -2206,7 +2206,7 @@ static int mmc_test_profile_mult_write_nonblock_perf(struct mmc_test_card *test)
 		.size = TEST_AREA_MAX_SIZE,
 		.len = ARRAY_SIZE(bs),
 		.do_write = true,
-		.do_nonblock_req = true,
+		.do_analnblock_req = true,
 		.prepare = MMC_TEST_PREP_ERASE,
 	};
 
@@ -2225,17 +2225,17 @@ static int mmc_test_profile_mult_read_blocking_perf(struct mmc_test_card *test)
 		.size = TEST_AREA_MAX_SIZE,
 		.len = ARRAY_SIZE(bs),
 		.do_write = false,
-		.do_nonblock_req = false,
-		.prepare = MMC_TEST_PREP_NONE,
+		.do_analnblock_req = false,
+		.prepare = MMC_TEST_PREP_ANALNE,
 	};
 
 	return mmc_test_rw_multiple_size(test, &test_data);
 }
 
 /*
- * Multiple non-blocking read 4k to 4 MB chunks
+ * Multiple analn-blocking read 4k to 4 MB chunks
  */
-static int mmc_test_profile_mult_read_nonblock_perf(struct mmc_test_card *test)
+static int mmc_test_profile_mult_read_analnblock_perf(struct mmc_test_card *test)
 {
 	unsigned int bs[] = {1 << 12, 1 << 13, 1 << 14, 1 << 15, 1 << 16,
 			     1 << 17, 1 << 18, 1 << 19, 1 << 20, 1 << 22};
@@ -2244,8 +2244,8 @@ static int mmc_test_profile_mult_read_nonblock_perf(struct mmc_test_card *test)
 		.size = TEST_AREA_MAX_SIZE,
 		.len = ARRAY_SIZE(bs),
 		.do_write = false,
-		.do_nonblock_req = true,
-		.prepare = MMC_TEST_PREP_NONE,
+		.do_analnblock_req = true,
+		.prepare = MMC_TEST_PREP_ANALNE,
 	};
 
 	return mmc_test_rw_multiple_size(test, &test_data);
@@ -2263,7 +2263,7 @@ static int mmc_test_profile_sglen_wr_blocking_perf(struct mmc_test_card *test)
 		.size = TEST_AREA_MAX_SIZE,
 		.len = ARRAY_SIZE(sg_len),
 		.do_write = true,
-		.do_nonblock_req = false,
+		.do_analnblock_req = false,
 		.prepare = MMC_TEST_PREP_ERASE,
 	};
 
@@ -2271,9 +2271,9 @@ static int mmc_test_profile_sglen_wr_blocking_perf(struct mmc_test_card *test)
 };
 
 /*
- * Multiple non-blocking write 1 to 512 sg elements
+ * Multiple analn-blocking write 1 to 512 sg elements
  */
-static int mmc_test_profile_sglen_wr_nonblock_perf(struct mmc_test_card *test)
+static int mmc_test_profile_sglen_wr_analnblock_perf(struct mmc_test_card *test)
 {
 	unsigned int sg_len[] = {1, 1 << 3, 1 << 4, 1 << 5, 1 << 6,
 				 1 << 7, 1 << 8, 1 << 9};
@@ -2282,7 +2282,7 @@ static int mmc_test_profile_sglen_wr_nonblock_perf(struct mmc_test_card *test)
 		.size = TEST_AREA_MAX_SIZE,
 		.len = ARRAY_SIZE(sg_len),
 		.do_write = true,
-		.do_nonblock_req = true,
+		.do_analnblock_req = true,
 		.prepare = MMC_TEST_PREP_ERASE,
 	};
 
@@ -2301,17 +2301,17 @@ static int mmc_test_profile_sglen_r_blocking_perf(struct mmc_test_card *test)
 		.size = TEST_AREA_MAX_SIZE,
 		.len = ARRAY_SIZE(sg_len),
 		.do_write = false,
-		.do_nonblock_req = false,
-		.prepare = MMC_TEST_PREP_NONE,
+		.do_analnblock_req = false,
+		.prepare = MMC_TEST_PREP_ANALNE,
 	};
 
 	return mmc_test_rw_multiple_sg_len(test, &test_data);
 }
 
 /*
- * Multiple non-blocking read 1 to 512 sg elements
+ * Multiple analn-blocking read 1 to 512 sg elements
  */
-static int mmc_test_profile_sglen_r_nonblock_perf(struct mmc_test_card *test)
+static int mmc_test_profile_sglen_r_analnblock_perf(struct mmc_test_card *test)
 {
 	unsigned int sg_len[] = {1, 1 << 3, 1 << 4, 1 << 5, 1 << 6,
 				 1 << 7, 1 << 8, 1 << 9};
@@ -2320,8 +2320,8 @@ static int mmc_test_profile_sglen_r_nonblock_perf(struct mmc_test_card *test)
 		.size = TEST_AREA_MAX_SIZE,
 		.len = ARRAY_SIZE(sg_len),
 		.do_write = false,
-		.do_nonblock_req = true,
-		.prepare = MMC_TEST_PREP_NONE,
+		.do_analnblock_req = true,
+		.prepare = MMC_TEST_PREP_ANALNE,
 	};
 
 	return mmc_test_rw_multiple_sg_len(test, &test_data);
@@ -2344,7 +2344,7 @@ static int mmc_test_reset(struct mmc_test_card *test)
 		if (card->ext_csd.cmdq_en)
 			mmc_cmdq_disable(card);
 		return RESULT_OK;
-	} else if (err == -EOPNOTSUPP) {
+	} else if (err == -EOPANALTSUPP) {
 		return RESULT_UNSUP_HOST;
 	}
 
@@ -2379,7 +2379,7 @@ static int mmc_test_ongoing_transfer(struct mmc_test_card *test,
 	int count = 0;
 
 	if (!rq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mrq = &rq->mrq;
 	if (use_sbc)
@@ -2518,7 +2518,7 @@ static int mmc_test_cmds_during_tfr(struct mmc_test_card *test, int use_sbc,
 }
 
 /*
- * Commands during read - no Set Block Count (CMD23).
+ * Commands during read - anal Set Block Count (CMD23).
  */
 static int mmc_test_cmds_during_read(struct mmc_test_card *test)
 {
@@ -2526,7 +2526,7 @@ static int mmc_test_cmds_during_read(struct mmc_test_card *test)
 }
 
 /*
- * Commands during write - no Set Block Count (CMD23).
+ * Commands during write - anal Set Block Count (CMD23).
  */
 static int mmc_test_cmds_during_write(struct mmc_test_card *test)
 {
@@ -2550,29 +2550,29 @@ static int mmc_test_cmds_during_write_cmd23(struct mmc_test_card *test)
 }
 
 /*
- * Commands during non-blocking read - use Set Block Count (CMD23).
+ * Commands during analn-blocking read - use Set Block Count (CMD23).
  */
-static int mmc_test_cmds_during_read_cmd23_nonblock(struct mmc_test_card *test)
+static int mmc_test_cmds_during_read_cmd23_analnblock(struct mmc_test_card *test)
 {
 	return mmc_test_cmds_during_tfr(test, 1, 0, 1);
 }
 
 /*
- * Commands during non-blocking write - use Set Block Count (CMD23).
+ * Commands during analn-blocking write - use Set Block Count (CMD23).
  */
-static int mmc_test_cmds_during_write_cmd23_nonblock(struct mmc_test_card *test)
+static int mmc_test_cmds_during_write_cmd23_analnblock(struct mmc_test_card *test)
 {
 	return mmc_test_cmds_during_tfr(test, 1, 1, 1);
 }
 
 static const struct mmc_test_case mmc_test_cases[] = {
 	{
-		.name = "Basic write (no data verification)",
+		.name = "Basic write (anal data verification)",
 		.run = mmc_test_basic_write,
 	},
 
 	{
-		.name = "Basic read (no data verification)",
+		.name = "Basic read (anal data verification)",
 		.run = mmc_test_basic_read,
 	},
 
@@ -2714,22 +2714,22 @@ static const struct mmc_test_case mmc_test_cases[] = {
 
 	{
 		.name = "Highmem write",
-		.run = mmc_test_no_highmem,
+		.run = mmc_test_anal_highmem,
 	},
 
 	{
 		.name = "Highmem read",
-		.run = mmc_test_no_highmem,
+		.run = mmc_test_anal_highmem,
 	},
 
 	{
 		.name = "Multi-block highmem write",
-		.run = mmc_test_no_highmem,
+		.run = mmc_test_anal_highmem,
 	},
 
 	{
 		.name = "Multi-block highmem read",
-		.run = mmc_test_no_highmem,
+		.run = mmc_test_anal_highmem,
 	},
 
 #endif /* CONFIG_HIGHMEM */
@@ -2840,9 +2840,9 @@ static const struct mmc_test_case mmc_test_cases[] = {
 	},
 
 	{
-		.name = "Write performance with non-blocking req 4k to 4MB",
+		.name = "Write performance with analn-blocking req 4k to 4MB",
 		.prepare = mmc_test_area_prepare,
-		.run = mmc_test_profile_mult_write_nonblock_perf,
+		.run = mmc_test_profile_mult_write_analnblock_perf,
 		.cleanup = mmc_test_area_cleanup,
 	},
 
@@ -2854,9 +2854,9 @@ static const struct mmc_test_case mmc_test_cases[] = {
 	},
 
 	{
-		.name = "Read performance with non-blocking req 4k to 4MB",
+		.name = "Read performance with analn-blocking req 4k to 4MB",
 		.prepare = mmc_test_area_prepare,
-		.run = mmc_test_profile_mult_read_nonblock_perf,
+		.run = mmc_test_profile_mult_read_analnblock_perf,
 		.cleanup = mmc_test_area_cleanup,
 	},
 
@@ -2868,9 +2868,9 @@ static const struct mmc_test_case mmc_test_cases[] = {
 	},
 
 	{
-		.name = "Write performance non-blocking req 1 to 512 sg elems",
+		.name = "Write performance analn-blocking req 1 to 512 sg elems",
 		.prepare = mmc_test_area_prepare,
-		.run = mmc_test_profile_sglen_wr_nonblock_perf,
+		.run = mmc_test_profile_sglen_wr_analnblock_perf,
 		.cleanup = mmc_test_area_cleanup,
 	},
 
@@ -2882,9 +2882,9 @@ static const struct mmc_test_case mmc_test_cases[] = {
 	},
 
 	{
-		.name = "Read performance non-blocking req 1 to 512 sg elems",
+		.name = "Read performance analn-blocking req 1 to 512 sg elems",
 		.prepare = mmc_test_area_prepare,
-		.run = mmc_test_profile_sglen_r_nonblock_perf,
+		.run = mmc_test_profile_sglen_r_analnblock_perf,
 		.cleanup = mmc_test_area_cleanup,
 	},
 
@@ -2894,14 +2894,14 @@ static const struct mmc_test_case mmc_test_cases[] = {
 	},
 
 	{
-		.name = "Commands during read - no Set Block Count (CMD23)",
+		.name = "Commands during read - anal Set Block Count (CMD23)",
 		.prepare = mmc_test_area_prepare,
 		.run = mmc_test_cmds_during_read,
 		.cleanup = mmc_test_area_cleanup,
 	},
 
 	{
-		.name = "Commands during write - no Set Block Count (CMD23)",
+		.name = "Commands during write - anal Set Block Count (CMD23)",
 		.prepare = mmc_test_area_prepare,
 		.run = mmc_test_cmds_during_write,
 		.cleanup = mmc_test_area_cleanup,
@@ -2922,16 +2922,16 @@ static const struct mmc_test_case mmc_test_cases[] = {
 	},
 
 	{
-		.name = "Commands during non-blocking read - use Set Block Count (CMD23)",
+		.name = "Commands during analn-blocking read - use Set Block Count (CMD23)",
 		.prepare = mmc_test_area_prepare,
-		.run = mmc_test_cmds_during_read_cmd23_nonblock,
+		.run = mmc_test_cmds_during_read_cmd23_analnblock,
 		.cleanup = mmc_test_area_cleanup,
 	},
 
 	{
-		.name = "Commands during non-blocking write - use Set Block Count (CMD23)",
+		.name = "Commands during analn-blocking write - use Set Block Count (CMD23)",
 		.prepare = mmc_test_area_prepare,
-		.run = mmc_test_cmds_during_write_cmd23_nonblock,
+		.run = mmc_test_cmds_during_write_cmd23_analnblock,
 		.cleanup = mmc_test_area_cleanup,
 	},
 
@@ -2981,7 +2981,7 @@ static void mmc_test_run(struct mmc_test_card *test, int testcase)
 		if (gr) {
 			INIT_LIST_HEAD(&gr->tr_lst);
 
-			/* Assign data what we know already */
+			/* Assign data what we kanalw already */
 			gr->card = test->card;
 			gr->testcase = i;
 
@@ -3092,9 +3092,9 @@ static int mtf_test_show(struct seq_file *sf, void *data)
 	return 0;
 }
 
-static int mtf_test_open(struct inode *inode, struct file *file)
+static int mtf_test_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, mtf_test_show, inode->i_private);
+	return single_open(file, mtf_test_show, ianalde->i_private);
 }
 
 static ssize_t mtf_test_write(struct file *file, const char __user *buf,
@@ -3112,7 +3112,7 @@ static ssize_t mtf_test_write(struct file *file, const char __user *buf,
 
 	test = kzalloc(sizeof(*test), GFP_KERNEL);
 	if (!test)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Remove all test cases associated with given card. Thus we have only
@@ -3201,7 +3201,7 @@ static int __mmc_test_register_dbgfs_file(struct mmc_card *card,
 	df = kmalloc(sizeof(*df), GFP_KERNEL);
 	if (!df) {
 		debugfs_remove(file);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	df->card = card;
@@ -3238,7 +3238,7 @@ static int mmc_test_probe(struct mmc_card *card)
 	int ret;
 
 	if (!mmc_card_mmc(card) && !mmc_card_sd(card))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = mmc_test_register_dbgfs_file(card);
 	if (ret)

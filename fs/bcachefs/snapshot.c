@@ -15,7 +15,7 @@
 /*
  * Snapshot trees:
  *
- * Keys in BTREE_ID_snapshot_trees identify a whole tree of snapshot nodes; they
+ * Keys in BTREE_ID_snapshot_trees identify a whole tree of snapshot analdes; they
  * exist to provide a stable identifier for the whole lifetime of a snapshot
  * tree.
  */
@@ -50,8 +50,8 @@ int bch2_snapshot_tree_lookup(struct btree_trans *trans, u32 id,
 	int ret = bch2_bkey_get_val_typed(trans, BTREE_ID_snapshot_trees, POS(0, id),
 					  BTREE_ITER_WITH_UPDATES, snapshot_tree, s);
 
-	if (bch2_err_matches(ret, ENOENT))
-		ret = -BCH_ERR_ENOENT_snapshot_tree;
+	if (bch2_err_matches(ret, EANALENT))
+		ret = -BCH_ERR_EANALENT_snapshot_tree;
 	return ret;
 }
 
@@ -63,8 +63,8 @@ __bch2_snapshot_tree_create(struct btree_trans *trans)
 			BTREE_ID_snapshot_trees, POS(0, U32_MAX));
 	struct bkey_i_snapshot_tree *s_t;
 
-	if (ret == -BCH_ERR_ENOSPC_btree_slot)
-		ret = -BCH_ERR_ENOSPC_snapshot_tree;
+	if (ret == -BCH_ERR_EANALSPC_btree_slot)
+		ret = -BCH_ERR_EANALSPC_snapshot_tree;
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -89,7 +89,7 @@ static int bch2_snapshot_tree_create(struct btree_trans *trans,
 	return 0;
 }
 
-/* Snapshot nodes: */
+/* Snapshot analdes: */
 
 static bool bch2_snapshot_is_ancestor_early(struct bch_fs *c, u32 id, u32 ancestor)
 {
@@ -144,7 +144,7 @@ bool __bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 	return ret;
 }
 
-static noinline struct snapshot_t *__snapshot_t_mut(struct bch_fs *c, u32 id)
+static analinline struct snapshot_t *__snapshot_t_mut(struct bch_fs *c, u32 id)
 {
 	size_t idx = U32_MAX - id;
 	size_t new_size;
@@ -221,38 +221,38 @@ int bch2_snapshot_invalid(struct bch_fs *c, struct bkey_s_c k,
 	id = le32_to_cpu(s.v->parent);
 	bkey_fsck_err_on(id && id <= k.k->p.offset, c, err,
 			 snapshot_parent_bad,
-			 "bad parent node (%u <= %llu)",
+			 "bad parent analde (%u <= %llu)",
 			 id, k.k->p.offset);
 
 	bkey_fsck_err_on(le32_to_cpu(s.v->children[0]) < le32_to_cpu(s.v->children[1]), c, err,
-			 snapshot_children_not_normalized,
-			 "children not normalized");
+			 snapshot_children_analt_analrmalized,
+			 "children analt analrmalized");
 
 	bkey_fsck_err_on(s.v->children[0] && s.v->children[0] == s.v->children[1], c, err,
 			 snapshot_child_duplicate,
-			 "duplicate child nodes");
+			 "duplicate child analdes");
 
 	for (i = 0; i < 2; i++) {
 		id = le32_to_cpu(s.v->children[i]);
 
 		bkey_fsck_err_on(id >= k.k->p.offset, c, err,
 				 snapshot_child_bad,
-				 "bad child node (%u >= %llu)",
+				 "bad child analde (%u >= %llu)",
 				 id, k.k->p.offset);
 	}
 
 	if (bkey_val_bytes(k.k) > offsetof(struct bch_snapshot, skip)) {
 		bkey_fsck_err_on(le32_to_cpu(s.v->skip[0]) > le32_to_cpu(s.v->skip[1]) ||
 				 le32_to_cpu(s.v->skip[1]) > le32_to_cpu(s.v->skip[2]), c, err,
-				 snapshot_skiplist_not_normalized,
-				 "skiplist not normalized");
+				 snapshot_skiplist_analt_analrmalized,
+				 "skiplist analt analrmalized");
 
 		for (i = 0; i < ARRAY_SIZE(s.v->skip); i++) {
 			id = le32_to_cpu(s.v->skip[i]);
 
 			bkey_fsck_err_on(id && id < le32_to_cpu(s.v->parent), c, err,
 					 snapshot_skiplist_bad,
-					 "bad skiplist node %u", id);
+					 "bad skiplist analde %u", id);
 		}
 	}
 fsck_err:
@@ -290,7 +290,7 @@ static int __bch2_mark_snapshot(struct btree_trans *trans,
 
 	t = snapshot_t_mut(c, id);
 	if (!t) {
-		ret = -BCH_ERR_ENOMEM_mark_snapshot;
+		ret = -BCH_ERR_EANALMEM_mark_snapshot;
 		goto err;
 	}
 
@@ -354,8 +354,8 @@ static int bch2_snapshot_live(struct btree_trans *trans, u32 id)
 		return 0;
 
 	ret = bch2_snapshot_lookup(trans, id, &v);
-	if (bch2_err_matches(ret, ENOENT))
-		bch_err(trans->c, "snapshot node %u not found", id);
+	if (bch2_err_matches(ret, EANALENT))
+		bch_err(trans->c, "snapshot analde %u analt found", id);
 	if (ret)
 		return ret;
 
@@ -470,7 +470,7 @@ static int bch2_snapshot_tree_master_subvol(struct btree_trans *trans,
 	bool found = false;
 	int ret;
 
-	for_each_btree_key_norestart(trans, iter, BTREE_ID_subvolumes, POS_MIN,
+	for_each_btree_key_analrestart(trans, iter, BTREE_ID_subvolumes, POS_MIN,
 				     0, k, ret) {
 		if (k.k->type != KEY_TYPE_subvolume)
 			continue;
@@ -524,7 +524,7 @@ static int check_snapshot_tree(struct btree_trans *trans,
 	root_id = le32_to_cpu(st.v->root_snapshot);
 
 	ret = bch2_snapshot_lookup(trans, root_id, &s);
-	if (ret && !bch2_err_matches(ret, ENOENT))
+	if (ret && !bch2_err_matches(ret, EANALENT))
 		goto err;
 
 	if (fsck_err_on(ret ||
@@ -539,7 +539,7 @@ static int check_snapshot_tree(struct btree_trans *trans,
 
 	ret = bch2_subvolume_get(trans, le32_to_cpu(st.v->master_subvol),
 				 false, 0, &subvol);
-	if (ret && !bch2_err_matches(ret, ENOENT))
+	if (ret && !bch2_err_matches(ret, EANALENT))
 		goto err;
 
 	if (fsck_err_on(ret,
@@ -551,7 +551,7 @@ static int check_snapshot_tree(struct btree_trans *trans,
 						le32_to_cpu(subvol.snapshot),
 						root_id),
 			c, snapshot_tree_to_wrong_subvol,
-			"snapshot tree points to subvolume that does not point to snapshot in this tree:\n  %s",
+			"snapshot tree points to subvolume that does analt point to snapshot in this tree:\n  %s",
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, st.s_c), buf.buf)) ||
 	    fsck_err_on(BCH_SUBVOLUME_SNAP(&subvol),
@@ -593,7 +593,7 @@ int bch2_check_snapshot_trees(struct bch_fs *c)
 		for_each_btree_key_commit(trans, iter,
 			BTREE_ID_snapshot_trees, POS_MIN,
 			BTREE_ITER_PREFETCH, k,
-			NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+			NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc,
 		check_snapshot_tree(trans, &iter, k)));
 	bch_err_fn(c, ret);
 	return ret;
@@ -609,7 +609,7 @@ static int snapshot_tree_ptr_good(struct btree_trans *trans,
 	struct bch_snapshot_tree s_t;
 	int ret = bch2_snapshot_tree_lookup(trans, tree_id, &s_t);
 
-	if (bch2_err_matches(ret, ENOENT))
+	if (bch2_err_matches(ret, EANALENT))
 		return 0;
 	if (ret)
 		return ret;
@@ -650,9 +650,9 @@ static int snapshot_skiplist_good(struct btree_trans *trans, u32 id, struct bch_
 }
 
 /*
- * snapshot_tree pointer was incorrect: look up root snapshot node, make sure
+ * snapshot_tree pointer was incorrect: look up root snapshot analde, make sure
  * its snapshot_tree pointer is correct (allocate new one if necessary), then
- * update this node's pointer to root node's pointer:
+ * update this analde's pointer to root analde's pointer:
  */
 static int snapshot_tree_ptr_repair(struct btree_trans *trans,
 				    struct btree_iter *iter,
@@ -677,7 +677,7 @@ static int snapshot_tree_ptr_repair(struct btree_trans *trans,
 	tree_id = le32_to_cpu(root.v->tree);
 
 	ret = bch2_snapshot_tree_lookup(trans, tree_id, &s_t);
-	if (ret && !bch2_err_matches(ret, ENOENT))
+	if (ret && !bch2_err_matches(ret, EANALENT))
 		return ret;
 
 	if (ret || le32_to_cpu(s_t.root_snapshot) != root_id) {
@@ -733,8 +733,8 @@ static int check_snapshot(struct btree_trans *trans,
 	id = le32_to_cpu(s.parent);
 	if (id) {
 		ret = bch2_snapshot_lookup(trans, id, &v);
-		if (bch2_err_matches(ret, ENOENT))
-			bch_err(c, "snapshot with nonexistent parent:\n  %s",
+		if (bch2_err_matches(ret, EANALENT))
+			bch_err(c, "snapshot with analnexistent parent:\n  %s",
 				(bch2_bkey_val_to_text(&buf, c, k), buf.buf));
 		if (ret)
 			goto err;
@@ -752,8 +752,8 @@ static int check_snapshot(struct btree_trans *trans,
 		id = le32_to_cpu(s.children[i]);
 
 		ret = bch2_snapshot_lookup(trans, id, &v);
-		if (bch2_err_matches(ret, ENOENT))
-			bch_err(c, "snapshot node %llu has nonexistent child %u",
+		if (bch2_err_matches(ret, EANALENT))
+			bch_err(c, "snapshot analde %llu has analnexistent child %u",
 				k.k->p.offset, id);
 		if (ret)
 			goto err;
@@ -772,22 +772,22 @@ static int check_snapshot(struct btree_trans *trans,
 	if (should_have_subvol) {
 		id = le32_to_cpu(s.subvol);
 		ret = bch2_subvolume_get(trans, id, 0, false, &subvol);
-		if (bch2_err_matches(ret, ENOENT))
-			bch_err(c, "snapshot points to nonexistent subvolume:\n  %s",
+		if (bch2_err_matches(ret, EANALENT))
+			bch_err(c, "snapshot points to analnexistent subvolume:\n  %s",
 				(bch2_bkey_val_to_text(&buf, c, k), buf.buf));
 		if (ret)
 			goto err;
 
 		if (BCH_SNAPSHOT_SUBVOL(&s) != (le32_to_cpu(subvol.snapshot) == k.k->p.offset)) {
-			bch_err(c, "snapshot node %llu has wrong BCH_SNAPSHOT_SUBVOL",
+			bch_err(c, "snapshot analde %llu has wrong BCH_SNAPSHOT_SUBVOL",
 				k.k->p.offset);
 			ret = -EINVAL;
 			goto err;
 		}
 	} else {
 		if (fsck_err_on(s.subvol,
-				c, snapshot_should_not_have_subvol,
-				"snapshot should not point to subvol:\n  %s",
+				c, snapshot_should_analt_have_subvol,
+				"snapshot should analt point to subvol:\n  %s",
 				(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 			u = bch2_bkey_make_mut_typed(trans, iter, &k, 0, snapshot);
 			ret = PTR_ERR_OR_ZERO(u);
@@ -862,7 +862,7 @@ int bch2_check_snapshots(struct bch_fs *c)
 		for_each_btree_key_reverse_commit(trans, iter,
 				BTREE_ID_snapshots, POS_MAX,
 				BTREE_ITER_PREFETCH, k,
-				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+				NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc,
 			check_snapshot(trans, &iter, k)));
 	bch_err_fn(c, ret);
 	return ret;
@@ -871,7 +871,7 @@ int bch2_check_snapshots(struct bch_fs *c)
 /*
  * Mark a snapshot as deleted, for future cleanup:
  */
-int bch2_snapshot_node_set_deleted(struct btree_trans *trans, u32 id)
+int bch2_snapshot_analde_set_deleted(struct btree_trans *trans, u32 id)
 {
 	struct btree_iter iter;
 	struct bkey_i_snapshot *s;
@@ -882,7 +882,7 @@ int bch2_snapshot_node_set_deleted(struct btree_trans *trans, u32 id)
 				    0, snapshot);
 	ret = PTR_ERR_OR_ZERO(s);
 	if (unlikely(ret)) {
-		bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT),
+		bch2_fs_inconsistent_on(bch2_err_matches(ret, EANALENT),
 					trans->c, "missing snapshot %u", id);
 		return ret;
 	}
@@ -899,13 +899,13 @@ err:
 	return ret;
 }
 
-static inline void normalize_snapshot_child_pointers(struct bch_snapshot *s)
+static inline void analrmalize_snapshot_child_pointers(struct bch_snapshot *s)
 {
 	if (le32_to_cpu(s->children[0]) < le32_to_cpu(s->children[1]))
 		swap(s->children[0], s->children[1]);
 }
 
-static int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
+static int bch2_snapshot_analde_delete(struct btree_trans *trans, u32 id)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter, p_iter = (struct btree_iter) { NULL };
@@ -919,7 +919,7 @@ static int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
 	s = bch2_bkey_get_iter_typed(trans, &iter, BTREE_ID_snapshots, POS(0, id),
 				     BTREE_ITER_INTENT, snapshot);
 	ret = bkey_err(s);
-	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), c,
+	bch2_fs_inconsistent_on(bch2_err_matches(ret, EANALENT), c,
 				"missing snapshot %u", id);
 
 	if (ret)
@@ -937,12 +937,12 @@ static int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
 				     BTREE_ID_snapshots, POS(0, parent_id),
 				     0, snapshot);
 		ret = PTR_ERR_OR_ZERO(parent);
-		bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), c,
+		bch2_fs_inconsistent_on(bch2_err_matches(ret, EANALENT), c,
 					"missing snapshot %u", parent_id);
 		if (unlikely(ret))
 			goto err;
 
-		/* find entry in parent->children for node being deleted */
+		/* find entry in parent->children for analde being deleted */
 		for (i = 0; i < 2; i++)
 			if (le32_to_cpu(parent->v.children[i]) == id)
 				break;
@@ -954,7 +954,7 @@ static int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
 
 		parent->v.children[i] = cpu_to_le32(child_id);
 
-		normalize_snapshot_child_pointers(&parent->v);
+		analrmalize_snapshot_child_pointers(&parent->v);
 	}
 
 	if (child_id) {
@@ -964,7 +964,7 @@ static int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
 				     BTREE_ID_snapshots, POS(0, child_id),
 				     0, snapshot);
 		ret = PTR_ERR_OR_ZERO(child);
-		bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), c,
+		bch2_fs_inconsistent_on(bch2_err_matches(ret, EANALENT), c,
 					"missing snapshot %u", child_id);
 		if (unlikely(ret))
 			goto err;
@@ -1039,7 +1039,7 @@ static int create_snapids(struct btree_trans *trans, u32 parent, u32 tree,
 			goto err;
 
 		if (!k.k || !k.k->p.offset) {
-			ret = -BCH_ERR_ENOSPC_snapshot_create;
+			ret = -BCH_ERR_EANALSPC_snapshot_create;
 			goto err;
 		}
 
@@ -1081,7 +1081,7 @@ err:
 /*
  * Create new snapshot IDs as children of an existing snapshot ID:
  */
-static int bch2_snapshot_node_create_children(struct btree_trans *trans, u32 parent,
+static int bch2_snapshot_analde_create_children(struct btree_trans *trans, u32 parent,
 			      u32 *new_snapids,
 			      u32 *snapshot_subvols,
 			      unsigned nr_snapids)
@@ -1095,13 +1095,13 @@ static int bch2_snapshot_node_create_children(struct btree_trans *trans, u32 par
 			0, snapshot);
 	ret = PTR_ERR_OR_ZERO(n_parent);
 	if (unlikely(ret)) {
-		if (bch2_err_matches(ret, ENOENT))
-			bch_err(trans->c, "snapshot %u not found", parent);
+		if (bch2_err_matches(ret, EANALENT))
+			bch_err(trans->c, "snapshot %u analt found", parent);
 		return ret;
 	}
 
 	if (n_parent->v.children[0] || n_parent->v.children[1]) {
-		bch_err(trans->c, "Trying to add child snapshot nodes to parent that already has children");
+		bch_err(trans->c, "Trying to add child snapshot analdes to parent that already has children");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -1121,9 +1121,9 @@ err:
 }
 
 /*
- * Create a snapshot node that is the root of a new tree:
+ * Create a snapshot analde that is the root of a new tree:
  */
-static int bch2_snapshot_node_create_tree(struct btree_trans *trans,
+static int bch2_snapshot_analde_create_tree(struct btree_trans *trans,
 			      u32 *new_snapids,
 			      u32 *snapshot_subvols,
 			      unsigned nr_snapids)
@@ -1143,7 +1143,7 @@ static int bch2_snapshot_node_create_tree(struct btree_trans *trans,
 	return 0;
 }
 
-int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
+int bch2_snapshot_analde_create(struct btree_trans *trans, u32 parent,
 			      u32 *new_snapids,
 			      u32 *snapshot_subvols,
 			      unsigned nr_snapids)
@@ -1152,29 +1152,29 @@ int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
 	BUG_ON((parent != 0) != (nr_snapids == 2));
 
 	return parent
-		? bch2_snapshot_node_create_children(trans, parent,
+		? bch2_snapshot_analde_create_children(trans, parent,
 				new_snapids, snapshot_subvols, nr_snapids)
-		: bch2_snapshot_node_create_tree(trans,
+		: bch2_snapshot_analde_create_tree(trans,
 				new_snapids, snapshot_subvols, nr_snapids);
 
 }
 
 /*
- * If we have an unlinked inode in an internal snapshot node, and the inode
+ * If we have an unlinked ianalde in an internal snapshot analde, and the ianalde
  * really has been deleted in all child snapshots, how does this get cleaned up?
  *
  * first there is the problem of how keys that have been overwritten in all
- * child snapshots get deleted (unimplemented?), but inodes may perhaps be
+ * child snapshots get deleted (unimplemented?), but ianaldes may perhaps be
  * special?
  *
- * also: unlinked inode in internal snapshot appears to not be getting deleted
- * correctly if inode doesn't exist in leaf snapshots
+ * also: unlinked ianalde in internal snapshot appears to analt be getting deleted
+ * correctly if ianalde doesn't exist in leaf snapshots
  *
  * solution:
  *
- * for a key in an interior snapshot node that needs work to be done that
- * requires it to be mutated: iterate over all descendent leaf nodes and copy
- * that key to snapshot leaf nodes, where we can mutate it
+ * for a key in an interior snapshot analde that needs work to be done that
+ * requires it to be mutated: iterate over all descendent leaf analdes and copy
+ * that key to snapshot leaf analdes, where we can mutate it
  */
 
 static int snapshot_delete_key(struct btree_trans *trans,
@@ -1194,7 +1194,7 @@ static int snapshot_delete_key(struct btree_trans *trans,
 	if (snapshot_list_has_id(deleted, k.k->p.snapshot) ||
 	    snapshot_list_has_id(equiv_seen, equiv)) {
 		return bch2_btree_delete_at(trans, iter,
-					    BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+					    BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE);
 	} else {
 		return snapshot_list_add(c, equiv_seen, equiv);
 	}
@@ -1208,19 +1208,19 @@ static int move_key_to_correct_snapshot(struct btree_trans *trans,
 	u32 equiv = bch2_snapshot_equiv(c, k.k->p.snapshot);
 
 	/*
-	 * When we have a linear chain of snapshot nodes, we consider
+	 * When we have a linear chain of snapshot analdes, we consider
 	 * those to form an equivalence class: we're going to collapse
-	 * them all down to a single node, and keep the leaf-most node -
+	 * them all down to a single analde, and keep the leaf-most analde -
 	 * which has the same id as the equivalence class id.
 	 *
 	 * If there are multiple keys in different snapshots at the same
 	 * position, we're only going to keep the one in the newest
 	 * snapshot - the rest have been overwritten and are redundant,
 	 * and for the key we're going to keep we need to move it to the
-	 * equivalance class ID if it's not there already.
+	 * equivalance class ID if it's analt there already.
 	 */
 	if (equiv != k.k->p.snapshot) {
-		struct bkey_i *new = bch2_bkey_make_mut_noupdate(trans, k);
+		struct bkey_i *new = bch2_bkey_make_mut_analupdate(trans, k);
 		struct btree_iter new_iter;
 		int ret;
 
@@ -1237,9 +1237,9 @@ static int move_key_to_correct_snapshot(struct btree_trans *trans,
 
 		ret =   bch2_btree_iter_traverse(&new_iter) ?:
 			bch2_trans_update(trans, &new_iter, new,
-					BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
+					BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE) ?:
 			bch2_btree_delete_at(trans, iter,
-					BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+					BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE);
 		bch2_trans_iter_exit(trans, &new_iter);
 		if (ret)
 			return ret;
@@ -1274,7 +1274,7 @@ static int bch2_snapshot_needs_delete(struct btree_trans *trans, struct bkey_s_c
 
 /*
  * For a given snapshot, if it doesn't have a subvolume that points to it, and
- * it doesn't have child snapshot nodes - it's now redundant and we can mark it
+ * it doesn't have child snapshot analdes - it's analw redundant and we can mark it
  * as deleted.
  */
 static int bch2_delete_redundant_snapshot(struct btree_trans *trans, struct bkey_s_c k)
@@ -1283,7 +1283,7 @@ static int bch2_delete_redundant_snapshot(struct btree_trans *trans, struct bkey
 
 	return ret <= 0
 		? ret
-		: bch2_snapshot_node_set_deleted(trans, k.k->p.offset);
+		: bch2_snapshot_analde_set_deleted(trans, k.k->p.offset);
 }
 
 static inline u32 bch2_snapshot_nth_parent_skip(struct bch_fs *c, u32 id, u32 n,
@@ -1318,7 +1318,7 @@ static int bch2_fix_child_of_deleted_snapshot(struct btree_trans *trans,
 	if (snapshot_list_has_id(deleted, k.k->p.offset))
 		return 0;
 
-	s = bch2_bkey_make_mut_noupdate_typed(trans, k, snapshot);
+	s = bch2_bkey_make_mut_analupdate_typed(trans, k, snapshot);
 	ret = PTR_ERR_OR_ZERO(s);
 	if (ret)
 		return ret;
@@ -1380,7 +1380,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	trans = bch2_trans_get(c);
 
 	/*
-	 * For every snapshot node: If we have no live children and it's not
+	 * For every snapshot analde: If we have anal live children and it's analt
 	 * pointed to by a subvolume, delete it:
 	 */
 	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_snapshots,
@@ -1420,23 +1420,23 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 			continue;
 
 		/*
-		 * deleted inodes btree is maintained by a trigger on the inodes
-		 * btree - no work for us to do here, and it's not safe to scan
+		 * deleted ianaldes btree is maintained by a trigger on the ianaldes
+		 * btree - anal work for us to do here, and it's analt safe to scan
 		 * it because we'll see out of date keys due to the btree write
 		 * buffer:
 		 */
-		if (id == BTREE_ID_deleted_inodes)
+		if (id == BTREE_ID_deleted_ianaldes)
 			continue;
 
 		ret = for_each_btree_key_commit(trans, iter,
 				id, POS_MIN,
 				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
-				&res, NULL, BCH_TRANS_COMMIT_no_enospc,
+				&res, NULL, BCH_TRANS_COMMIT_anal_eanalspc,
 			snapshot_delete_key(trans, &iter, k, &deleted, &equiv_seen, &last_pos)) ?:
 		      for_each_btree_key_commit(trans, iter,
 				id, POS_MIN,
 				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
-				&res, NULL, BCH_TRANS_COMMIT_no_enospc,
+				&res, NULL, BCH_TRANS_COMMIT_anal_eanalspc,
 			move_key_to_correct_snapshot(trans, &iter, k));
 
 		bch2_disk_reservation_put(c, &res);
@@ -1467,18 +1467,18 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	/*
 	 * Fixing children of deleted snapshots can't be done completely
 	 * atomically, if we crash between here and when we delete the interior
-	 * nodes some depth fields will be off:
+	 * analdes some depth fields will be off:
 	 */
 	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_snapshots, POS_MIN,
 				  BTREE_ITER_INTENT, k,
-				  NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+				  NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc,
 		bch2_fix_child_of_deleted_snapshot(trans, &iter, k, &deleted_interior));
 	if (ret)
 		goto err_create_lock;
 
 	darray_for_each(deleted, i) {
 		ret = commit_do(trans, NULL, NULL, 0,
-			bch2_snapshot_node_delete(trans, *i));
+			bch2_snapshot_analde_delete(trans, *i));
 		bch_err_msg(c, ret, "deleting snapshot %u", *i);
 		if (ret)
 			goto err_create_lock;
@@ -1486,7 +1486,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 
 	darray_for_each(deleted_interior, i) {
 		ret = commit_do(trans, NULL, NULL, 0,
-			bch2_snapshot_node_delete(trans, *i));
+			bch2_snapshot_analde_delete(trans, *i));
 		bch_err_msg(c, ret, "deleting snapshot %u", *i);
 		if (ret)
 			goto err_create_lock;
@@ -1526,7 +1526,7 @@ int __bch2_key_has_snapshot_overwrites(struct btree_trans *trans,
 	int ret;
 
 	bch2_trans_iter_init(trans, &iter, id, pos,
-			     BTREE_ITER_NOT_EXTENTS|
+			     BTREE_ITER_ANALT_EXTENTS|
 			     BTREE_ITER_ALL_SNAPSHOTS);
 	while (1) {
 		k = bch2_btree_iter_prev(&iter);
@@ -1594,7 +1594,7 @@ static int bch2_propagate_key_to_snapshot_leaf(struct btree_trans *trans,
 		new_min_pos->snapshot = leaf_id;
 	}
 
-	new = bch2_bkey_make_mut_noupdate(trans, interior_k);
+	new = bch2_bkey_make_mut_analupdate(trans, interior_k);
 	ret = PTR_ERR_OR_ZERO(new);
 	if (ret)
 		goto out;

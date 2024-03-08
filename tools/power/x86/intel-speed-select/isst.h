@@ -23,7 +23,7 @@
 #include <string.h>
 #include <cpuid.h>
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include <stdarg.h>
 #include <sys/ioctl.h>
@@ -307,7 +307,7 @@ extern void for_each_online_power_domain_in_set(void (*callback)(struct isst_id 
 							    void *, void *),
 					   void *arg1, void *arg2, void *arg3,
 					   void *arg4);
-extern int isst_daemon(int debug_mode, int poll_interval, int no_daemon);
+extern int isst_daemon(int debug_mode, int poll_interval, int anal_daemon);
 extern void process_level_change(struct isst_id *id);
 extern int hfi_main(void);
 extern void hfi_exit(void);

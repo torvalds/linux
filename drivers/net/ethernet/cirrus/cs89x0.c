@@ -1,4 +1,4 @@
-/* cs89x0.c: A Crystal Semiconductor (Now Cirrus Logic) CS89[02]0
+/* cs89x0.c: A Crystal Semiconductor (Analw Cirrus Logic) CS89[02]0
  *           driver for linux.
  * Written 1996 by Russell Nelson, with reference to skeleton.c
  * written 1993-1994 by Donald Becker.
@@ -26,7 +26,7 @@
 /*
  * Set this to zero to disable DMA code
  *
- * Note that even if DMA is turned off we still support the 'dma' and  'use_dma'
+ * Analte that even if DMA is turned off we still support the 'dma' and  'use_dma'
  * module options so we don't break any startup scripts.
  */
 #ifndef CONFIG_ISA_DMA_API
@@ -50,7 +50,7 @@
 
 #include <linux/module.h>
 #include <linux/printk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/of.h>
@@ -124,7 +124,7 @@ static unsigned int net_debug = DEBUGGING;
 /* The number of low I/O ports used by the ethercard. */
 #define NETCARD_IO_EXTENT	16
 
-/* we allow the user to override various values normally set in the EEPROM */
+/* we allow the user to override various values analrmally set in the EEPROM */
 #define FORCE_RJ45	0x0001    /* pick one of these three */
 #define FORCE_AUI	0x0002
 #define FORCE_BNC	0x0004
@@ -137,7 +137,7 @@ static unsigned int net_debug = DEBUGGING;
 struct net_local {
 	int chip_type;		/* one of: CS8900, CS8920, CS8920M */
 	char chip_revision;	/* revision letter of the chip ('A'...) */
-	int send_cmd;		/* the proper send command: TX_NOW, TX_AFTER_381, or TX_AFTER_ALL */
+	int send_cmd;		/* the proper send command: TX_ANALW, TX_AFTER_381, or TX_AFTER_ALL */
 	int auto_neg_cnf;	/* auto-negotiation word from EEPROM */
 	int adapter_cnf;	/* adapter configuration from EEPROM */
 	int isa_config;		/* ISA configuration from EEPROM */
@@ -195,20 +195,20 @@ static int __init media_fn(char *str)
 __setup("cs89x0_media=", media_fn);
 #endif
 
-static void readwords(struct net_local *lp, int portno, void *buf, int length)
+static void readwords(struct net_local *lp, int portanal, void *buf, int length)
 {
 	u8 *buf8 = (u8 *)buf;
 
 	do {
 		u16 tmp16;
 
-		tmp16 = ioread16(lp->virt_addr + portno);
+		tmp16 = ioread16(lp->virt_addr + portanal);
 		*buf8++ = (u8)tmp16;
 		*buf8++ = (u8)(tmp16 >> 8);
 	} while (--length);
 }
 
-static void writewords(struct net_local *lp, int portno, void *buf, int length)
+static void writewords(struct net_local *lp, int portanal, void *buf, int length)
 {
 	u8 *buf8 = (u8 *)buf;
 
@@ -217,25 +217,25 @@ static void writewords(struct net_local *lp, int portno, void *buf, int length)
 
 		tmp16 = *buf8++;
 		tmp16 |= (*buf8++) << 8;
-		iowrite16(tmp16, lp->virt_addr + portno);
+		iowrite16(tmp16, lp->virt_addr + portanal);
 	} while (--length);
 }
 
 static u16
-readreg(struct net_device *dev, u16 regno)
+readreg(struct net_device *dev, u16 reganal)
 {
 	struct net_local *lp = netdev_priv(dev);
 
-	iowrite16(regno, lp->virt_addr + ADD_PORT);
+	iowrite16(reganal, lp->virt_addr + ADD_PORT);
 	return ioread16(lp->virt_addr + DATA_PORT);
 }
 
 static void
-writereg(struct net_device *dev, u16 regno, u16 value)
+writereg(struct net_device *dev, u16 reganal, u16 value)
 {
 	struct net_local *lp = netdev_priv(dev);
 
-	iowrite16(regno, lp->virt_addr + ADD_PORT);
+	iowrite16(reganal, lp->virt_addr + ADD_PORT);
 	iowrite16(value, lp->virt_addr + DATA_PORT);
 }
 
@@ -262,7 +262,7 @@ get_eeprom_data(struct net_device *dev, int off, int len, int *buffer)
 	for (i = 0; i < len; i++) {
 		if (wait_eeprom_ready(dev) < 0)
 			return -1;
-		/* Now send the EEPROM read command and EEPROM location to read */
+		/* Analw send the EEPROM read command and EEPROM location to read */
 		writereg(dev, PP_EECMD, (off + i) | EEPROM_READ_CMD);
 		if (wait_eeprom_ready(dev) < 0)
 			return -1;
@@ -298,7 +298,7 @@ write_irq(struct net_device *dev, int chip_type, int irq)
 		for (i = 0; i != ARRAY_SIZE(cs8900_irq_map); i++)
 			if (cs8900_irq_map[i] == irq)
 				break;
-		/* Not found */
+		/* Analt found */
 		if (i == ARRAY_SIZE(cs8900_irq_map))
 			i = 3;
 #else
@@ -345,7 +345,7 @@ get_dma_channel(struct net_device *dev)
 	} else {
 		if ((lp->isa_config & ANY_ISA_DMA) == 0)
 			return;
-		dev->dma = lp->isa_config & DMA_NO_MASK;
+		dev->dma = lp->isa_config & DMA_ANAL_MASK;
 		if (lp->chip_type == CS8900)
 			dev->dma += 5;
 		if (dev->dma < 5 || dev->dma > 7) {
@@ -374,14 +374,14 @@ set_dma_cfg(struct net_device *dev)
 
 	if (lp->use_dma) {
 		if ((lp->isa_config & ANY_ISA_DMA) == 0) {
-			cs89_dbg(3, err, "set_dma_cfg(): no DMA\n");
+			cs89_dbg(3, err, "set_dma_cfg(): anal DMA\n");
 			return;
 		}
 		if (lp->isa_config & ISA_RxDMA) {
 			lp->curr_rx_cfg |= RX_DMA_ONLY;
 			cs89_dbg(3, info, "set_dma_cfg(): RX_DMA_ONLY\n");
 		} else {
-			lp->curr_rx_cfg |= AUTO_RX_DMA;	/* not that we support it... */
+			lp->curr_rx_cfg |= AUTO_RX_DMA;	/* analt that we support it... */
 			cs89_dbg(3, info, "set_dma_cfg(): AUTO_RX_DMA\n");
 		}
 	}
@@ -484,25 +484,25 @@ static void release_dma_buff(struct net_local *lp)
 #endif	/* ALLOW_DMA */
 
 static void
-control_dc_dc(struct net_device *dev, int on_not_off)
+control_dc_dc(struct net_device *dev, int on_analt_off)
 {
 	struct net_local *lp = netdev_priv(dev);
 	unsigned int selfcontrol;
-	unsigned long timenow = jiffies;
+	unsigned long timeanalw = jiffies;
 	/* control the DC to DC convertor in the SelfControl register.
-	 * Note: This is hooked up to a general purpose pin, might not
+	 * Analte: This is hooked up to a general purpose pin, might analt
 	 * always be a DC to DC convertor.
 	 */
 
 	selfcontrol = HCB1_ENBL; /* Enable the HCB1 bit as an output */
-	if (((lp->adapter_cnf & A_CNF_DC_DC_POLARITY) != 0) ^ on_not_off)
+	if (((lp->adapter_cnf & A_CNF_DC_DC_POLARITY) != 0) ^ on_analt_off)
 		selfcontrol |= HCB1;
 	else
 		selfcontrol &= ~HCB1;
 	writereg(dev, PP_SelfCTL, selfcontrol);
 
 	/* Wait for the DC/DC converter to power up - 500ms */
-	while (time_before(jiffies, timenow + HZ))
+	while (time_before(jiffies, timeanalw + HZ))
 		;
 }
 
@@ -517,7 +517,7 @@ send_test_pkt(struct net_device *dev)
 		0, 0,		/* DSAP=0 & SSAP=0 fields */
 		0xf3, 0		/* Control (Test Req + P bit set) */
 	};
-	unsigned long timenow = jiffies;
+	unsigned long timeanalw = jiffies;
 
 	writereg(dev, PP_LineCTL, readreg(dev, PP_LineCTL) | SERIAL_TX_ON);
 
@@ -528,10 +528,10 @@ send_test_pkt(struct net_device *dev)
 	iowrite16(ETH_ZLEN, lp->virt_addr + TX_LEN_PORT);
 
 	/* Test to see if the chip has allocated memory for the packet */
-	while (time_before(jiffies, timenow + 5))
-		if (readreg(dev, PP_BusST) & READY_FOR_TX_NOW)
+	while (time_before(jiffies, timeanalw + 5))
+		if (readreg(dev, PP_BusST) & READY_FOR_TX_ANALW)
 			break;
-	if (time_after_eq(jiffies, timenow + 5))
+	if (time_after_eq(jiffies, timeanalw + 5))
 		return 0;	/* this shouldn't happen */
 
 	/* Write the contents of the packet */
@@ -539,7 +539,7 @@ send_test_pkt(struct net_device *dev)
 
 	cs89_dbg(1, debug, "Sending test packet ");
 	/* wait a couple of jiffies for packet to be received */
-	for (timenow = jiffies; time_before(jiffies, timenow + 3);)
+	for (timeanalw = jiffies; time_before(jiffies, timeanalw + 3);)
 		;
 	if ((readreg(dev, PP_TxEvent) & TX_SEND_OK_BITS) == TX_OK) {
 		cs89_dbg(1, cont, "succeeded\n");
@@ -549,7 +549,7 @@ send_test_pkt(struct net_device *dev)
 	return 0;
 }
 
-#define DETECTED_NONE  0
+#define DETECTED_ANALNE  0
 #define DETECTED_RJ45H 1
 #define DETECTED_RJ45F 2
 #define DETECTED_AUI   3
@@ -559,16 +559,16 @@ static int
 detect_tp(struct net_device *dev)
 {
 	struct net_local *lp = netdev_priv(dev);
-	unsigned long timenow = jiffies;
+	unsigned long timeanalw = jiffies;
 	int fdx;
 
 	cs89_dbg(1, debug, "%s: Attempting TP\n", dev->name);
 
-	/* If connected to another full duplex capable 10-Base-T card
+	/* If connected to aanalther full duplex capable 10-Base-T card
 	 * the link pulses seem to be lost when the auto detect bit in
 	 * the LineCTL is set.  To overcome this the auto detect bit will
 	 * be cleared whilst testing the 10-Base-T interface.  This would
-	 * not be necessary for the sparrow chip but is simpler to do it
+	 * analt be necessary for the sparrow chip but is simpler to do it
 	 * anyway.
 	 */
 	writereg(dev, PP_LineCTL, lp->linectl & ~AUI_ONLY);
@@ -577,10 +577,10 @@ detect_tp(struct net_device *dev)
 	/* Delay for the hardware to work out if the TP cable is present
 	 * - 150ms
 	 */
-	for (timenow = jiffies; time_before(jiffies, timenow + 15);)
+	for (timeanalw = jiffies; time_before(jiffies, timeanalw + 15);)
 		;
 	if ((readreg(dev, PP_LineST) & LINK_OK) == 0)
-		return DETECTED_NONE;
+		return DETECTED_ANALNE;
 
 	if (lp->chip_type == CS8900) {
 		switch (lp->force & 0xf0) {
@@ -588,7 +588,7 @@ detect_tp(struct net_device *dev)
 		case FORCE_AUTO:
 			pr_info("%s: cs8900 doesn't autonegotiate\n",
 				dev->name);
-			return DETECTED_NONE;
+			return DETECTED_ANALNE;
 #endif
 			/* CS8900 doesn't support AUTO, change to HALF*/
 		case FORCE_AUTO:
@@ -612,7 +612,7 @@ detect_tp(struct net_device *dev)
 			lp->auto_neg_cnf = 0;
 			break;
 		case FORCE_FULL:
-			lp->auto_neg_cnf = RE_NEG_NOW | ALLOW_FDX;
+			lp->auto_neg_cnf = RE_NEG_ANALW | ALLOW_FDX;
 			break;
 		}
 
@@ -621,7 +621,7 @@ detect_tp(struct net_device *dev)
 		if ((lp->auto_neg_cnf & AUTO_NEG_BITS) == AUTO_NEG_ENABLE) {
 			pr_info("%s: negotiating duplex...\n", dev->name);
 			while (readreg(dev, PP_AutoNegST) & AUTO_NEG_BUSY) {
-				if (time_after(jiffies, timenow + 4000)) {
+				if (time_after(jiffies, timeanalw + 4000)) {
 					pr_err("**** Full / half duplex auto-negotiation timed out ****\n");
 					break;
 				}
@@ -648,7 +648,7 @@ detect_bnc(struct net_device *dev)
 	if (send_test_pkt(dev))
 		return DETECTED_BNC;
 	else
-		return DETECTED_NONE;
+		return DETECTED_ANALNE;
 }
 
 static int
@@ -664,7 +664,7 @@ detect_aui(struct net_device *dev)
 	if (send_test_pkt(dev))
 		return DETECTED_AUI;
 	else
-		return DETECTED_NONE;
+		return DETECTED_ANALNE;
 }
 
 /* We have a good packet(s), get it/them out of the buffers. */
@@ -819,7 +819,7 @@ static irqreturn_t net_interrupt(int irq, void *dev_id)
 
    This routine should set everything up anew at each open, even
    registers that "should" only need to be set once at boot, so that
-   there is non-reboot way to recover if something goes wrong.
+   there is analn-reboot way to recover if something goes wrong.
 */
 
 /* AKPM: do we need to do any locking here? */
@@ -841,7 +841,7 @@ net_open(struct net_device *dev)
 /* And 2.3.47 had this: */
 		writereg(dev, PP_BusCTL, ENABLE_IRQ | MEMORY_ON);
 
-		for (i = 2; i < CS8920_NO_INTS; i++) {
+		for (i = 2; i < CS8920_ANAL_INTS; i++) {
 			if ((1 << i) & lp->irq_map) {
 				if (request_irq(i, net_interrupt, 0, dev->name,
 						dev) == 0) {
@@ -853,7 +853,7 @@ net_open(struct net_device *dev)
 			}
 		}
 
-		if (i >= CS8920_NO_INTS) {
+		if (i >= CS8920_ANAL_INTS) {
 			writereg(dev, PP_BusCTL, 0);	/* disable interrupts. */
 			pr_err("can't get an interrupt\n");
 			ret = -EAGAIN;
@@ -862,7 +862,7 @@ net_open(struct net_device *dev)
 	} else {
 #if IS_ENABLED(CONFIG_CS89x0_ISA)
 		if (((1 << dev->irq) & lp->irq_map) == 0) {
-			pr_err("%s: IRQ %d is not in our map of allowable IRQs, which is %x\n",
+			pr_err("%s: IRQ %d is analt in our map of allowable IRQs, which is %x\n",
 			       dev->name, dev->irq, lp->irq_map);
 			ret = -EAGAIN;
 			goto bad_out;
@@ -888,7 +888,7 @@ net_open(struct net_device *dev)
 		lp->dma_buff = (unsigned char *)__get_dma_pages(GFP_KERNEL,
 								get_order(lp->dmasize * 1024));
 		if (!lp->dma_buff) {
-			pr_err("%s: cannot get %dK memory for DMA\n",
+			pr_err("%s: cananalt get %dK memory for DMA\n",
 			       dev->name, lp->dmasize);
 			goto release_irq;
 		}
@@ -899,12 +899,12 @@ net_open(struct net_device *dev)
 		if ((unsigned long)lp->dma_buff >= MAX_DMA_ADDRESS ||
 		    !dma_page_eq(lp->dma_buff,
 				 lp->dma_buff + lp->dmasize * 1024 - 1)) {
-			pr_err("%s: not usable as DMA buffer\n", dev->name);
+			pr_err("%s: analt usable as DMA buffer\n", dev->name);
 			goto release_irq;
 		}
 		memset(lp->dma_buff, 0, lp->dmasize * 1024);	/* Why? */
 		if (request_dma(dev->dma, dev->name)) {
-			pr_err("%s: cannot get dma channel %d\n",
+			pr_err("%s: cananalt get dma channel %d\n",
 			       dev->name, dev->dma);
 			goto release_irq;
 		}
@@ -974,52 +974,52 @@ release_irq:
 	switch (lp->adapter_cnf & A_CNF_MEDIA_TYPE) {
 	case A_CNF_MEDIA_10B_T:
 		result = detect_tp(dev);
-		if (result == DETECTED_NONE) {
-			pr_warn("%s: 10Base-T (RJ-45) has no cable\n",
+		if (result == DETECTED_ANALNE) {
+			pr_warn("%s: 10Base-T (RJ-45) has anal cable\n",
 				dev->name);
-			if (lp->auto_neg_cnf & IMM_BIT) /* check "ignore missing media" bit */
-				result = DETECTED_RJ45H; /* Yes! I don't care if I see a link pulse */
+			if (lp->auto_neg_cnf & IMM_BIT) /* check "iganalre missing media" bit */
+				result = DETECTED_RJ45H; /* Anal! I don't care if I see a link pulse */
 		}
 		break;
 	case A_CNF_MEDIA_AUI:
 		result = detect_aui(dev);
-		if (result == DETECTED_NONE) {
-			pr_warn("%s: 10Base-5 (AUI) has no cable\n", dev->name);
-			if (lp->auto_neg_cnf & IMM_BIT) /* check "ignore missing media" bit */
-				result = DETECTED_AUI; /* Yes! I don't care if I see a carrier */
+		if (result == DETECTED_ANALNE) {
+			pr_warn("%s: 10Base-5 (AUI) has anal cable\n", dev->name);
+			if (lp->auto_neg_cnf & IMM_BIT) /* check "iganalre missing media" bit */
+				result = DETECTED_AUI; /* Anal! I don't care if I see a carrier */
 		}
 		break;
 	case A_CNF_MEDIA_10B_2:
 		result = detect_bnc(dev);
-		if (result == DETECTED_NONE) {
-			pr_warn("%s: 10Base-2 (BNC) has no cable\n", dev->name);
-			if (lp->auto_neg_cnf & IMM_BIT) /* check "ignore missing media" bit */
-				result = DETECTED_BNC; /* Yes! I don't care if I can xmit a packet */
+		if (result == DETECTED_ANALNE) {
+			pr_warn("%s: 10Base-2 (BNC) has anal cable\n", dev->name);
+			if (lp->auto_neg_cnf & IMM_BIT) /* check "iganalre missing media" bit */
+				result = DETECTED_BNC; /* Anal! I don't care if I can xmit a packet */
 		}
 		break;
 	case A_CNF_MEDIA_AUTO:
 		writereg(dev, PP_LineCTL, lp->linectl | AUTO_AUI_10BASET);
 		if (lp->adapter_cnf & A_CNF_10B_T) {
 			result = detect_tp(dev);
-			if (result != DETECTED_NONE)
+			if (result != DETECTED_ANALNE)
 				break;
 		}
 		if (lp->adapter_cnf & A_CNF_AUI) {
 			result = detect_aui(dev);
-			if (result != DETECTED_NONE)
+			if (result != DETECTED_ANALNE)
 				break;
 		}
 		if (lp->adapter_cnf & A_CNF_10B_2) {
 			result = detect_bnc(dev);
-			if (result != DETECTED_NONE)
+			if (result != DETECTED_ANALNE)
 				break;
 		}
-		pr_err("%s: no media detected\n", dev->name);
+		pr_err("%s: anal media detected\n", dev->name);
 		goto release_dma;
 	}
 	switch (result) {
-	case DETECTED_NONE:
-		pr_err("%s: no network cable attached to configured media\n",
+	case DETECTED_ANALNE:
+		pr_err("%s: anal network cable attached to configured media\n",
 		       dev->name);
 		goto release_dma;
 	case DETECTED_RJ45H:
@@ -1069,7 +1069,7 @@ release_irq:
 				  TX_COL_COUNT_OVRFLOW_ENBL |
 				  TX_UNDERRUN_ENBL));
 
-	/* now that we've got our act together, enable everything */
+	/* analw that we've got our act together, enable everything */
 	writereg(dev, PP_BusCTL, (ENABLE_IRQ
 				  | (dev->mem_start ? MEMORY_ON : 0) /* turn memory on */
 #if ALLOW_DMA
@@ -1163,13 +1163,13 @@ static netdev_tx_t net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	iowrite16(skb->len, lp->virt_addr + TX_LEN_PORT);
 
 	/* Test to see if the chip has allocated memory for the packet */
-	if ((readreg(dev, PP_BusST) & READY_FOR_TX_NOW) == 0) {
+	if ((readreg(dev, PP_BusST) & READY_FOR_TX_ANALW) == 0) {
 		/* Gasp!  It hasn't.  But that shouldn't happen since
 		 * we're waiting for TxOk, so return 1 and requeue this packet.
 		 */
 
 		spin_unlock_irqrestore(&lp->lock, flags);
-		cs89_dbg(0, err, "Tx buffer not free!\n");
+		cs89_dbg(0, err, "Tx buffer analt free!\n");
 		return NETDEV_TX_BUSY;
 	}
 	/* Write the contents of the packet */
@@ -1178,10 +1178,10 @@ static netdev_tx_t net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_bytes += skb->len;
 	dev_consume_skb_any(skb);
 
-	/* We DO NOT call netif_wake_queue() here.
-	 * We also DO NOT call netif_start_queue().
+	/* We DO ANALT call netif_wake_queue() here.
+	 * We also DO ANALT call netif_start_queue().
 	 *
-	 * Either of these would cause another bottom half run through
+	 * Either of these would cause aanalther bottom half run through
 	 * net_send_packet() before this packet has fully gone out.
 	 * That causes us to hit the "Gasp!" above and the send is rescheduled.
 	 * it runs like a dog.  We just return and wait for the Tx completion
@@ -1202,7 +1202,7 @@ static void set_multicast_list(struct net_device *dev)
 		lp->rx_mode = RX_ALL_ACCEPT;
 	else if ((dev->flags & IFF_ALLMULTI) || !netdev_mc_empty(dev))
 		/* The multicast-accept list is initialized to accept-all,
-		 * and we rely on higher-level filtering for now.
+		 * and we rely on higher-level filtering for analw.
 		 */
 		lp->rx_mode = RX_MULTCAST_ACCEPT;
 	else
@@ -1244,7 +1244,7 @@ static int set_mac_address(struct net_device *dev, void *p)
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
- * Polling receive - used by netconsole and other diagnostic tools
+ * Polling receive - used by netconsole and other diaganalstic tools
  * to allow network i/o with interrupts disabled.
  */
 static void net_poll_controller(struct net_device *dev)
@@ -1343,7 +1343,7 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 		pr_debug("%s: incorrect signature at %p[%x]: 0x%x!="
 			 CHIP_EISA_ID_SIG_STR "\n",
 			 dev->name, ioaddr, DATA_PORT, tmp);
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto out1;
 	}
 
@@ -1360,9 +1360,9 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 	 */
 	lp->send_cmd = TX_AFTER_381;
 	if (lp->chip_type == CS8900 && lp->chip_revision >= 'F')
-		lp->send_cmd = TX_NOW;
+		lp->send_cmd = TX_ANALW;
 	if (lp->chip_type != CS8900 && lp->chip_revision >= 'C')
-		lp->send_cmd = TX_NOW;
+		lp->send_cmd = TX_ANALW;
 
 	pr_info_once("%s\n", version);
 
@@ -1376,7 +1376,7 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 	reset_chip(dev);
 
 	/* Here we read the current configuration of the chip.
-	 * If there is no Extended EEPROM then the idea is to not disturb
+	 * If there is anal Extended EEPROM then the idea is to analt disturb
 	 * the chip configuration, it should have been correctly setup by
 	 * automatic EEPROM read on reset. So, if the chip says it read
 	 * the EEPROM the driver will always do *something* instead of
@@ -1395,8 +1395,8 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 		eth_hw_addr_set(dev, addr);
 
 		/* Load the Adapter Configuration.
-		 * Note:  Barring any more specific information from some
-		 * other source (ie EEPROM+Schematics), we would not know
+		 * Analte:  Barring any more specific information from some
+		 * other source (ie EEPROM+Schematics), we would analt kanalw
 		 * how to operate a 10Base2 interface on the AUI port.
 		 * However, since we  do read the status of HCB1 and use
 		 * settings that always result in calls to control_dc_dc(dev,0)
@@ -1429,7 +1429,7 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 
 		/* IRQ. Other chips already probe, see below. */
 		if (lp->chip_type == CS8900)
-			lp->isa_config = readreg(dev, PP_CS8900_ISAINT) & INT_NO_MASK;
+			lp->isa_config = readreg(dev, PP_CS8900_ISAINT) & INT_ANAL_MASK;
 
 		pr_cont("[Cirrus EEPROM] ");
 	}
@@ -1439,7 +1439,7 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 	/* First check to see if an EEPROM is attached. */
 
 	if ((readreg(dev, PP_SelfST) & EEPROM_PRESENT) == 0)
-		pr_warn("No EEPROM, relying on command line....\n");
+		pr_warn("Anal EEPROM, relying on command line....\n");
 	else if (get_eeprom_data(dev, START_EEPROM_DATA, CHKSUM_LEN, eeprom_buff) < 0) {
 		pr_warn("EEPROM read failed, relying on command line\n");
 	} else if (get_eeprom_cksum(START_EEPROM_DATA, CHKSUM_LEN, eeprom_buff) < 0) {
@@ -1447,10 +1447,10 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 		   at 0 in the EEPROM*/
 		if ((readreg(dev, PP_SelfST) & (EEPROM_OK | EEPROM_PRESENT)) !=
 		    (EEPROM_OK | EEPROM_PRESENT))
-			pr_warn("Extended EEPROM checksum bad and no Cirrus EEPROM, relying on command line\n");
+			pr_warn("Extended EEPROM checksum bad and anal Cirrus EEPROM, relying on command line\n");
 
 	} else {
-		/* This reads an extended EEPROM that is not documented
+		/* This reads an extended EEPROM that is analt documented
 		 * in the CS8900 datasheet.
 		 */
 
@@ -1518,15 +1518,15 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 
 	lp->irq_map = 0xffff;
 
-	/* If this is a CS8900 then no pnp soft */
+	/* If this is a CS8900 then anal pnp soft */
 	if (lp->chip_type != CS8900 &&
 	    /* Check if the ISA IRQ has been set  */
 	    (i = readreg(dev, PP_CS8920_ISAINT) & 0xff,
-	     (i != 0 && i < CS8920_NO_INTS))) {
+	     (i != 0 && i < CS8920_ANAL_INTS))) {
 		if (!dev->irq)
 			dev->irq = i;
 	} else {
-		i = lp->isa_config & INT_NO_MASK;
+		i = lp->isa_config & INT_ANAL_MASK;
 #if IS_ENABLED(CONFIG_CS89x0_ISA)
 		if (lp->chip_type == CS8900) {
 			/* Translate the IRQ using the IRQ mapping table. */
@@ -1594,7 +1594,7 @@ cs89x0_ioport_probe(struct net_device *dev, unsigned long ioport, int modular)
 	void __iomem *io_mem;
 
 	if (!lp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->base_addr = ioport;
 
@@ -1605,7 +1605,7 @@ cs89x0_ioport_probe(struct net_device *dev, unsigned long ioport, int modular)
 
 	io_mem = ioport_map(ioport & ~3, NETCARD_IO_EXTENT);
 	if (!io_mem) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release;
 	}
 
@@ -1621,7 +1621,7 @@ cs89x0_ioport_probe(struct net_device *dev, unsigned long ioport, int modular)
 			    ADD_SIG) {
 				pr_err("%s: bad signature 0x%x\n",
 				       dev->name, ioread16(io_mem + ADD_PORT));
-				ret = -ENODEV;
+				ret = -EANALDEV;
 				goto unmap;
 			}
 		}
@@ -1656,7 +1656,7 @@ struct net_device * __init cs89x0_probe(int unit)
 	int io;
 
 	if (!dev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	sprintf(dev->name, "eth%d", unit);
 	netdev_boot_setup_check(dev);
@@ -1676,20 +1676,20 @@ struct net_device * __init cs89x0_probe(int unit)
 			dev->irq = irq;
 		}
 		if (!*port)
-			err = -ENODEV;
+			err = -EANALDEV;
 	}
 	if (err)
 		goto out;
 	return dev;
 out:
 	free_netdev(dev);
-	pr_warn("no cs8900 or cs8920 detected.  Be sure to disable PnP with SETUP\n");
+	pr_warn("anal cs8900 or cs8920 detected.  Be sure to disable PnP with SETUP\n");
 	return ERR_PTR(err);
 }
 #else
 static struct net_device *dev_cs89x0;
 
-/* Support the 'debug' module parm even if we're compiled for non-debug to
+/* Support the 'debug' module parm even if we're compiled for analn-debug to
  * avoid breaking someone's startup scripts
  */
 
@@ -1716,19 +1716,19 @@ MODULE_PARM_DESC(irq, "cs89x0 IRQ number");
 #if DEBUGGING
 MODULE_PARM_DESC(debug, "cs89x0 debug level (0-6)");
 #else
-MODULE_PARM_DESC(debug, "(ignored)");
+MODULE_PARM_DESC(debug, "(iganalred)");
 #endif
 MODULE_PARM_DESC(media, "Set cs89x0 adapter(s) media type(s) (rj45,bnc,aui)");
-/* No other value than -1 for duplex seems to be currently interpreted */
-MODULE_PARM_DESC(duplex, "(ignored)");
+/* Anal other value than -1 for duplex seems to be currently interpreted */
+MODULE_PARM_DESC(duplex, "(iganalred)");
 #if ALLOW_DMA
-MODULE_PARM_DESC(dma , "cs89x0 ISA DMA channel; ignored if use_dma=0");
-MODULE_PARM_DESC(dmasize , "cs89x0 DMA size in kB (16,64); ignored if use_dma=0");
+MODULE_PARM_DESC(dma , "cs89x0 ISA DMA channel; iganalred if use_dma=0");
+MODULE_PARM_DESC(dmasize , "cs89x0 DMA size in kB (16,64); iganalred if use_dma=0");
 MODULE_PARM_DESC(use_dma , "cs89x0 using DMA (0-1)");
 #else
-MODULE_PARM_DESC(dma , "(ignored)");
-MODULE_PARM_DESC(dmasize , "(ignored)");
-MODULE_PARM_DESC(use_dma , "(ignored)");
+MODULE_PARM_DESC(dma , "(iganalred)");
+MODULE_PARM_DESC(dmasize , "(iganalred)");
+MODULE_PARM_DESC(use_dma , "(iganalred)");
 #endif
 
 MODULE_AUTHOR("Mike Cruse, Russwll Nelson <nelson@crynwr.com>, Andrew Morton");
@@ -1746,8 +1746,8 @@ MODULE_LICENSE("GPL");
  * DMA Burst = enabled
  * IOCHRDY Enabled = enabled
  * UseSA = enabled
- * CS8900 defaults to half-duplex if not specified on command-line
- * CS8920 defaults to autoneg if not specified on command-line
+ * CS8900 defaults to half-duplex if analt specified on command-line
+ * CS8920 defaults to autoneg if analt specified on command-line
  * Use reset defaults for other config parameters
  *
  * Assumptions:
@@ -1770,7 +1770,7 @@ static int __init cs89x0_isa_init_module(void)
 #endif
 	dev = alloc_etherdev(sizeof(struct net_local));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->irq = irq;
 	dev->base_addr = io;
@@ -1800,7 +1800,7 @@ static int __init cs89x0_isa_init_module(void)
 		lp->auto_neg_cnf = AUTO_NEG_ENABLE;
 
 	if (io == 0) {
-		pr_err("Module autoprobing not allowed\n");
+		pr_err("Module autoprobing analt allowed\n");
 		pr_err("Append io=0xNNN\n");
 		ret = -EPERM;
 		goto out;
@@ -1811,7 +1811,7 @@ static int __init cs89x0_isa_init_module(void)
 
 #if ALLOW_DMA
 	if (use_dma && dmasize != 16 && dmasize != 64) {
-		pr_err("dma size must be either 16K or 64K, not %dK\n",
+		pr_err("dma size must be either 16K or 64K, analt %dK\n",
 		       dmasize);
 		ret = -EPERM;
 		goto out;
@@ -1851,7 +1851,7 @@ static int __init cs89x0_platform_probe(struct platform_device *pdev)
 	int err;
 
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->irq = platform_get_irq(pdev, 0);
 	if (dev->irq < 0) {
@@ -1867,7 +1867,7 @@ static int __init cs89x0_platform_probe(struct platform_device *pdev)
 
 	err = cs89x0_probe1(dev, virt_addr, 0);
 	if (err) {
-		dev_warn(&dev->dev, "no cs8900 or cs8920 detected\n");
+		dev_warn(&dev->dev, "anal cs8900 or cs8920 detected\n");
 		goto free;
 	}
 
@@ -1883,8 +1883,8 @@ static void cs89x0_platform_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 
-	/* This platform_get_resource() call will not return NULL, because
-	 * the same call in cs89x0_platform_probe() has returned a non NULL
+	/* This platform_get_resource() call will analt return NULL, because
+	 * the same call in cs89x0_platform_probe() has returned a analn NULL
 	 * value.
 	 */
 	unregister_netdev(dev);
@@ -1911,5 +1911,5 @@ module_platform_driver_probe(cs89x0_driver, cs89x0_platform_probe);
 #endif /* CONFIG_CS89x0_PLATFORM */
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Crystal Semiconductor (Now Cirrus Logic) CS89[02]0 network driver");
+MODULE_DESCRIPTION("Crystal Semiconductor (Analw Cirrus Logic) CS89[02]0 network driver");
 MODULE_AUTHOR("Russell Nelson <nelson@crynwr.com>");

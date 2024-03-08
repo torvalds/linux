@@ -15,4 +15,4 @@ void override_function_with_return(struct pt_regs *regs)
 	 */
 	instruction_pointer_set(regs, procedure_link_pointer(regs));
 }
-NOKPROBE_SYMBOL(override_function_with_return);
+ANALKPROBE_SYMBOL(override_function_with_return);

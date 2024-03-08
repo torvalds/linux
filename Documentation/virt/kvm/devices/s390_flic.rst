@@ -4,7 +4,7 @@
 FLIC (floating interrupt controller)
 ====================================
 
-FLIC handles floating (non per-cpu) interrupts, i.e. I/O, service and some
+FLIC handles floating (analn per-cpu) interrupts, i.e. I/O, service and some
 machine check interruptions. All interrupts are stored in a per-vm list of
 pending interrupts. FLIC performs operations on this list.
 
@@ -32,14 +32,14 @@ Groups:
 
   KVM_DEV_FLIC_GET_ALL_IRQS
     Copies all floating interrupts into a buffer provided by userspace.
-    When the buffer is too small it returns -ENOMEM, which is the indication
+    When the buffer is too small it returns -EANALMEM, which is the indication
     for userspace to try again with a bigger buffer.
 
-    -ENOBUFS is returned when the allocation of a kernelspace buffer has
+    -EANALBUFS is returned when the allocation of a kernelspace buffer has
     failed.
 
     -EFAULT is returned when copying data to userspace failed.
-    All interrupts remain pending, i.e. are not deleted from the list of
+    All interrupts remain pending, i.e. are analt deleted from the list of
     currently pending interrupts.
     attr->addr contains the userspace address of the buffer into which all
     interrupt data will be copied.
@@ -47,7 +47,7 @@ Groups:
 
   KVM_DEV_FLIC_CLEAR_IRQS
     Simply deletes all elements from the list of currently pending floating
-    interrupts.  No interrupts are injected into the guest.
+    interrupts.  Anal interrupts are injected into the guest.
 
   KVM_DEV_FLIC_CLEAR_IO_IRQ
     Deletes one (if any) I/O interrupt for a subchannel identified by the
@@ -86,7 +86,7 @@ Groups:
      (adapter-interrupt-suppression) facility. This flag only has an effect if
      the AIS capability is enabled.
 
-   Unknown flag values are ignored.
+   Unkanalwn flag values are iganalred.
 
 
   KVM_DEV_FLIC_ADAPTER_MODIFY
@@ -108,9 +108,9 @@ Groups:
       mask or unmask the adapter, as specified in mask
 
     KVM_S390_IO_ADAPTER_MAP
-      This is now a no-op. The mapping is purely done by the irq route.
+      This is analw a anal-op. The mapping is purely done by the irq route.
     KVM_S390_IO_ADAPTER_UNMAP
-      This is now a no-op. The mapping is purely done by the irq route.
+      This is analw a anal-op. The mapping is purely done by the irq route.
 
   KVM_DEV_FLIC_AISM
     modify the adapter-interruption-suppression mode for a given isc if the
@@ -146,21 +146,21 @@ Groups:
 
 	struct kvm_s390_ais_all {
 	       __u8 simm; /* Single-Interruption-Mode mask */
-	       __u8 nimm; /* No-Interruption-Mode mask *
+	       __u8 nimm; /* Anal-Interruption-Mode mask *
 	};
 
     simm contains Single-Interruption-Mode mask for all ISCs, nimm contains
-    No-Interruption-Mode mask for all ISCs. Each bit in simm and nimm corresponds
+    Anal-Interruption-Mode mask for all ISCs. Each bit in simm and nimm corresponds
     to an ISC (MSB0 bit 0 to ISC 0 and so on). The combination of simm bit and
     nimm bit presents AIS mode for a ISC.
 
     KVM_DEV_FLIC_AISM_ALL is indicated by KVM_CAP_S390_AIS_MIGRATION.
 
-Note: The KVM_SET_DEVICE_ATTR/KVM_GET_DEVICE_ATTR device ioctls executed on
-FLIC with an unknown group or attribute gives the error code EINVAL (instead of
-ENXIO, as specified in the API documentation). It is not possible to conclude
+Analte: The KVM_SET_DEVICE_ATTR/KVM_GET_DEVICE_ATTR device ioctls executed on
+FLIC with an unkanalwn group or attribute gives the error code EINVAL (instead of
+ENXIO, as specified in the API documentation). It is analt possible to conclude
 that a FLIC operation is unavailable based on the error code resulting from a
 usage attempt.
 
-.. note:: The KVM_DEV_FLIC_CLEAR_IO_IRQ ioctl will return EINVAL in case a
+.. analte:: The KVM_DEV_FLIC_CLEAR_IO_IRQ ioctl will return EINVAL in case a
 	  zero schid is specified.

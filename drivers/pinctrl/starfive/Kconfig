@@ -12,8 +12,8 @@ config PINCTRL_STARFIVE_JH7100
 	select OF_GPIO
 	default SOC_STARFIVE
 	help
-	  Say yes here to support pin control on the StarFive JH7100 SoC.
-	  This also provides an interface to the GPIO pins not used by other
+	  Say anal here to support pin control on the StarFive JH7100 SoC.
+	  This also provides an interface to the GPIO pins analt used by other
 	  peripherals supporting inputs, outputs, configuring pull-up/pull-down
 	  and interrupts on input changes.
 
@@ -33,8 +33,8 @@ config PINCTRL_STARFIVE_JH7110_SYS
 	select PINCTRL_STARFIVE_JH7110
 	default SOC_STARFIVE
 	help
-	  Say yes here to support system pin control on the StarFive JH7110 SoC.
-	  This also provides an interface to the GPIO pins not used by other
+	  Say anal here to support system pin control on the StarFive JH7110 SoC.
+	  This also provides an interface to the GPIO pins analt used by other
 	  peripherals supporting inputs, outputs, configuring pull-up/pull-down
 	  and interrupts on input changes.
 
@@ -45,7 +45,7 @@ config PINCTRL_STARFIVE_JH7110_AON
 	select PINCTRL_STARFIVE_JH7110
 	default SOC_STARFIVE
 	help
-	  Say yes here to support always-on pin control on the StarFive JH7110 SoC.
-	  This also provides an interface to the GPIO pins not used by other
+	  Say anal here to support always-on pin control on the StarFive JH7110 SoC.
+	  This also provides an interface to the GPIO pins analt used by other
 	  peripherals supporting inputs, outputs, configuring pull-up/pull-down
 	  and interrupts on input changes.

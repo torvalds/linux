@@ -31,7 +31,7 @@ struct __compat_iw_event {
 		compat_caddr_t	pointer;
 
 		/* we need ptr_bytes to make memcpy() run-time destination
-		 * buffer bounds checking happy, nothing special
+		 * buffer bounds checking happy, analthing special
 		 */
 		DECLARE_FLEX_ARRAY(__u8, ptr_bytes);
 	};

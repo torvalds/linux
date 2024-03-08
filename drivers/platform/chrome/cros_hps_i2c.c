@@ -2,7 +2,7 @@
 /*
  * Driver for the ChromeOS human presence sensor (HPS), attached via I2C.
  *
- * The driver exposes HPS as a character device, although currently no read or
+ * The driver exposes HPS as a character device, although currently anal read or
  * write operations are supported. Instead, the driver only controls the power
  * state of the sensor, keeping it on only while userspace holds an open file
  * descriptor to the HPS device.
@@ -31,7 +31,7 @@ static void hps_set_power(struct hps_drvdata *hps, bool state)
 	gpiod_set_value_cansleep(hps->enable_gpio, state);
 }
 
-static int hps_open(struct inode *inode, struct file *file)
+static int hps_open(struct ianalde *ianalde, struct file *file)
 {
 	struct hps_drvdata *hps = container_of(file->private_data,
 					       struct hps_drvdata, misc_device);
@@ -40,7 +40,7 @@ static int hps_open(struct inode *inode, struct file *file)
 	return pm_runtime_resume_and_get(dev);
 }
 
-static int hps_release(struct inode *inode, struct file *file)
+static int hps_release(struct ianalde *ianalde, struct file *file)
 {
 	struct hps_drvdata *hps = container_of(file->private_data,
 					       struct hps_drvdata, misc_device);
@@ -62,10 +62,10 @@ static int hps_i2c_probe(struct i2c_client *client)
 
 	hps = devm_kzalloc(&client->dev, sizeof(*hps), GFP_KERNEL);
 	if (!hps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hps->misc_device.parent = &client->dev;
-	hps->misc_device.minor = MISC_DYNAMIC_MINOR;
+	hps->misc_device.mianalr = MISC_DYNAMIC_MIANALR;
 	hps->misc_device.name = "cros-hps";
 	hps->misc_device.fops = &hps_fops;
 

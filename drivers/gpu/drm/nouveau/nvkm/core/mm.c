@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -23,69 +23,69 @@
  */
 #include <core/mm.h>
 
-#define node(root, dir) ((root)->nl_entry.dir == &mm->nodes) ? NULL :          \
-	list_entry((root)->nl_entry.dir, struct nvkm_mm_node, nl_entry)
+#define analde(root, dir) ((root)->nl_entry.dir == &mm->analdes) ? NULL :          \
+	list_entry((root)->nl_entry.dir, struct nvkm_mm_analde, nl_entry)
 
 void
 nvkm_mm_dump(struct nvkm_mm *mm, const char *header)
 {
-	struct nvkm_mm_node *node;
+	struct nvkm_mm_analde *analde;
 
 	pr_err("nvkm: %s\n", header);
-	pr_err("nvkm: node list:\n");
-	list_for_each_entry(node, &mm->nodes, nl_entry) {
+	pr_err("nvkm: analde list:\n");
+	list_for_each_entry(analde, &mm->analdes, nl_entry) {
 		pr_err("nvkm: \t%08x %08x %d\n",
-		       node->offset, node->length, node->type);
+		       analde->offset, analde->length, analde->type);
 	}
 	pr_err("nvkm: free list:\n");
-	list_for_each_entry(node, &mm->free, fl_entry) {
+	list_for_each_entry(analde, &mm->free, fl_entry) {
 		pr_err("nvkm: \t%08x %08x %d\n",
-		       node->offset, node->length, node->type);
+		       analde->offset, analde->length, analde->type);
 	}
 }
 
 void
-nvkm_mm_free(struct nvkm_mm *mm, struct nvkm_mm_node **pthis)
+nvkm_mm_free(struct nvkm_mm *mm, struct nvkm_mm_analde **pthis)
 {
-	struct nvkm_mm_node *this = *pthis;
+	struct nvkm_mm_analde *this = *pthis;
 
 	if (this) {
-		struct nvkm_mm_node *prev = node(this, prev);
-		struct nvkm_mm_node *next = node(this, next);
+		struct nvkm_mm_analde *prev = analde(this, prev);
+		struct nvkm_mm_analde *next = analde(this, next);
 
-		if (prev && prev->type == NVKM_MM_TYPE_NONE) {
+		if (prev && prev->type == NVKM_MM_TYPE_ANALNE) {
 			prev->length += this->length;
 			list_del(&this->nl_entry);
 			kfree(this); this = prev;
 		}
 
-		if (next && next->type == NVKM_MM_TYPE_NONE) {
+		if (next && next->type == NVKM_MM_TYPE_ANALNE) {
 			next->offset  = this->offset;
 			next->length += this->length;
-			if (this->type == NVKM_MM_TYPE_NONE)
+			if (this->type == NVKM_MM_TYPE_ANALNE)
 				list_del(&this->fl_entry);
 			list_del(&this->nl_entry);
 			kfree(this); this = NULL;
 		}
 
-		if (this && this->type != NVKM_MM_TYPE_NONE) {
+		if (this && this->type != NVKM_MM_TYPE_ANALNE) {
 			list_for_each_entry(prev, &mm->free, fl_entry) {
 				if (this->offset < prev->offset)
 					break;
 			}
 
 			list_add_tail(&this->fl_entry, &prev->fl_entry);
-			this->type = NVKM_MM_TYPE_NONE;
+			this->type = NVKM_MM_TYPE_ANALNE;
 		}
 	}
 
 	*pthis = NULL;
 }
 
-static struct nvkm_mm_node *
-region_head(struct nvkm_mm *mm, struct nvkm_mm_node *a, u32 size)
+static struct nvkm_mm_analde *
+region_head(struct nvkm_mm *mm, struct nvkm_mm_analde *a, u32 size)
 {
-	struct nvkm_mm_node *b;
+	struct nvkm_mm_analde *b;
 
 	if (a->length == size)
 		return a;
@@ -101,7 +101,7 @@ region_head(struct nvkm_mm *mm, struct nvkm_mm_node *a, u32 size)
 	a->offset += size;
 	a->length -= size;
 	list_add_tail(&b->nl_entry, &a->nl_entry);
-	if (b->type == NVKM_MM_TYPE_NONE)
+	if (b->type == NVKM_MM_TYPE_ANALNE)
 		list_add_tail(&b->fl_entry, &a->fl_entry);
 
 	return b;
@@ -109,14 +109,14 @@ region_head(struct nvkm_mm *mm, struct nvkm_mm_node *a, u32 size)
 
 int
 nvkm_mm_head(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
-	     u32 align, struct nvkm_mm_node **pnode)
+	     u32 align, struct nvkm_mm_analde **panalde)
 {
-	struct nvkm_mm_node *prev, *this, *next;
+	struct nvkm_mm_analde *prev, *this, *next;
 	u32 mask = align - 1;
 	u32 splitoff;
 	u32 s, e;
 
-	BUG_ON(type == NVKM_MM_TYPE_NONE || type == NVKM_MM_TYPE_HOLE);
+	BUG_ON(type == NVKM_MM_TYPE_ANALNE || type == NVKM_MM_TYPE_HOLE);
 
 	list_for_each_entry(this, &mm->free, fl_entry) {
 		if (unlikely(heap != NVKM_MM_HEAP_ANY)) {
@@ -126,11 +126,11 @@ nvkm_mm_head(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
 		e = this->offset + this->length;
 		s = this->offset;
 
-		prev = node(this, prev);
+		prev = analde(this, prev);
 		if (prev && prev->type != type)
 			s = roundup(s, mm->block_size);
 
-		next = node(this, next);
+		next = analde(this, next);
 		if (next && next->type != type)
 			e = rounddown(e, mm->block_size);
 
@@ -141,26 +141,26 @@ nvkm_mm_head(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
 
 		splitoff = s - this->offset;
 		if (splitoff && !region_head(mm, this, splitoff))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		this = region_head(mm, this, min(size_max, e - s));
 		if (!this)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		this->next = NULL;
 		this->type = type;
 		list_del(&this->fl_entry);
-		*pnode = this;
+		*panalde = this;
 		return 0;
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
-static struct nvkm_mm_node *
-region_tail(struct nvkm_mm *mm, struct nvkm_mm_node *a, u32 size)
+static struct nvkm_mm_analde *
+region_tail(struct nvkm_mm *mm, struct nvkm_mm_analde *a, u32 size)
 {
-	struct nvkm_mm_node *b;
+	struct nvkm_mm_analde *b;
 
 	if (a->length == size)
 		return a;
@@ -176,7 +176,7 @@ region_tail(struct nvkm_mm *mm, struct nvkm_mm_node *a, u32 size)
 	b->type    = a->type;
 
 	list_add(&b->nl_entry, &a->nl_entry);
-	if (b->type == NVKM_MM_TYPE_NONE)
+	if (b->type == NVKM_MM_TYPE_ANALNE)
 		list_add(&b->fl_entry, &a->fl_entry);
 
 	return b;
@@ -184,12 +184,12 @@ region_tail(struct nvkm_mm *mm, struct nvkm_mm_node *a, u32 size)
 
 int
 nvkm_mm_tail(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
-	     u32 align, struct nvkm_mm_node **pnode)
+	     u32 align, struct nvkm_mm_analde **panalde)
 {
-	struct nvkm_mm_node *prev, *this, *next;
+	struct nvkm_mm_analde *prev, *this, *next;
 	u32 mask = align - 1;
 
-	BUG_ON(type == NVKM_MM_TYPE_NONE || type == NVKM_MM_TYPE_HOLE);
+	BUG_ON(type == NVKM_MM_TYPE_ANALNE || type == NVKM_MM_TYPE_HOLE);
 
 	list_for_each_entry_reverse(this, &mm->free, fl_entry) {
 		u32 e = this->offset + this->length;
@@ -200,11 +200,11 @@ nvkm_mm_tail(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
 				continue;
 		}
 
-		prev = node(this, prev);
+		prev = analde(this, prev);
 		if (prev && prev->type != type)
 			s = roundup(s, mm->block_size);
 
-		next = node(this, next);
+		next = analde(this, next);
 		if (next && next->type != type) {
 			e = rounddown(e, mm->block_size);
 			c = next->offset - e;
@@ -220,88 +220,88 @@ nvkm_mm_tail(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
 		c += (e - s) - a;
 
 		if (c && !region_tail(mm, this, c))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		this = region_tail(mm, this, a);
 		if (!this)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		this->next = NULL;
 		this->type = type;
 		list_del(&this->fl_entry);
-		*pnode = this;
+		*panalde = this;
 		return 0;
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 int
 nvkm_mm_init(struct nvkm_mm *mm, u8 heap, u32 offset, u32 length, u32 block)
 {
-	struct nvkm_mm_node *node, *prev;
+	struct nvkm_mm_analde *analde, *prev;
 	u32 next;
 
 	if (nvkm_mm_initialised(mm)) {
-		prev = list_last_entry(&mm->nodes, typeof(*node), nl_entry);
+		prev = list_last_entry(&mm->analdes, typeof(*analde), nl_entry);
 		next = prev->offset + prev->length;
 		if (next != offset) {
 			BUG_ON(next > offset);
-			if (!(node = kzalloc(sizeof(*node), GFP_KERNEL)))
-				return -ENOMEM;
-			node->type   = NVKM_MM_TYPE_HOLE;
-			node->offset = next;
-			node->length = offset - next;
-			list_add_tail(&node->nl_entry, &mm->nodes);
+			if (!(analde = kzalloc(sizeof(*analde), GFP_KERNEL)))
+				return -EANALMEM;
+			analde->type   = NVKM_MM_TYPE_HOLE;
+			analde->offset = next;
+			analde->length = offset - next;
+			list_add_tail(&analde->nl_entry, &mm->analdes);
 		}
 		BUG_ON(block != mm->block_size);
 	} else {
-		INIT_LIST_HEAD(&mm->nodes);
+		INIT_LIST_HEAD(&mm->analdes);
 		INIT_LIST_HEAD(&mm->free);
 		mm->block_size = block;
-		mm->heap_nodes = 0;
+		mm->heap_analdes = 0;
 	}
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
+	analde = kzalloc(sizeof(*analde), GFP_KERNEL);
+	if (!analde)
+		return -EANALMEM;
 
 	if (length) {
-		node->offset  = roundup(offset, mm->block_size);
-		node->length  = rounddown(offset + length, mm->block_size);
-		node->length -= node->offset;
+		analde->offset  = roundup(offset, mm->block_size);
+		analde->length  = rounddown(offset + length, mm->block_size);
+		analde->length -= analde->offset;
 	}
 
-	list_add_tail(&node->nl_entry, &mm->nodes);
-	list_add_tail(&node->fl_entry, &mm->free);
-	node->heap = heap;
-	mm->heap_nodes++;
+	list_add_tail(&analde->nl_entry, &mm->analdes);
+	list_add_tail(&analde->fl_entry, &mm->free);
+	analde->heap = heap;
+	mm->heap_analdes++;
 	return 0;
 }
 
 int
 nvkm_mm_fini(struct nvkm_mm *mm)
 {
-	struct nvkm_mm_node *node, *temp;
-	int nodes = 0;
+	struct nvkm_mm_analde *analde, *temp;
+	int analdes = 0;
 
 	if (!nvkm_mm_initialised(mm))
 		return 0;
 
-	list_for_each_entry(node, &mm->nodes, nl_entry) {
-		if (node->type != NVKM_MM_TYPE_HOLE) {
-			if (++nodes > mm->heap_nodes) {
-				nvkm_mm_dump(mm, "mm not clean!");
+	list_for_each_entry(analde, &mm->analdes, nl_entry) {
+		if (analde->type != NVKM_MM_TYPE_HOLE) {
+			if (++analdes > mm->heap_analdes) {
+				nvkm_mm_dump(mm, "mm analt clean!");
 				return -EBUSY;
 			}
 		}
 	}
 
-	list_for_each_entry_safe(node, temp, &mm->nodes, nl_entry) {
-		list_del(&node->nl_entry);
-		kfree(node);
+	list_for_each_entry_safe(analde, temp, &mm->analdes, nl_entry) {
+		list_del(&analde->nl_entry);
+		kfree(analde);
 	}
 
-	mm->heap_nodes = 0;
+	mm->heap_analdes = 0;
 	return 0;
 }

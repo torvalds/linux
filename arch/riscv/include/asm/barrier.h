@@ -12,9 +12,9 @@
 
 #ifndef __ASSEMBLY__
 
-#define nop()		__asm__ __volatile__ ("nop")
-#define __nops(n)	".rept	" #n "\nnop\n.endr\n"
-#define nops(n)		__asm__ __volatile__ (__nops(n))
+#define analp()		__asm__ __volatile__ ("analp")
+#define __analps(n)	".rept	" #n "\nanalp\n.endr\n"
+#define analps(n)		__asm__ __volatile__ (__analps(n))
 
 #define RISCV_FENCE(p, s) \
 	__asm__ __volatile__ ("fence " #p "," #s : : : "memory")
@@ -24,7 +24,7 @@
 #define rmb()		RISCV_FENCE(ir,ir)
 #define wmb()		RISCV_FENCE(ow,ow)
 
-/* These barriers do not need to enforce ordering on devices, just memory. */
+/* These barriers do analt need to enforce ordering on devices, just memory. */
 #define __smp_mb()	RISCV_FENCE(rw,rw)
 #define __smp_rmb()	RISCV_FENCE(r,r)
 #define __smp_wmb()	RISCV_FENCE(w,w)
@@ -57,7 +57,7 @@ do {									\
  *    lr    lock
  *    sc.rl lock <= UNLOCKED
  *
- * The AQ/RL pair provides a RCpc critical section, but there's not really any
+ * The AQ/RL pair provides a RCpc critical section, but there's analt really any
  * way we can take advantage of that here because the ordering is only enforced
  * on that one lock.  Thus, we're just doing a full fence.
  *
@@ -66,7 +66,7 @@ do {									\
  * task is marked as available for scheduling on a new hart.  While I don't see
  * any concrete reason we need a full IO fence, it seems safer to just upgrade
  * this in order to avoid any IO crossing a scheduling boundary.  In both
- * instances the scheduler pairs this with an mb(), so nothing is necessary on
+ * instances the scheduler pairs this with an mb(), so analthing is necessary on
  * the new hart.
  */
 #define smp_mb__after_spinlock()	RISCV_FENCE(iorw,iorw)

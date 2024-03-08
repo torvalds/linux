@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -54,7 +54,7 @@ mlxsw_sp_mr_erif_sublist_create(struct mlxsw_sp *mlxsw_sp,
 
 	erif_sublist = kzalloc(sizeof(*erif_sublist), GFP_KERNEL);
 	if (!erif_sublist)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR,
 				  1, &erif_sublist->rigr2_kvdl_index);
 	if (err) {
@@ -83,7 +83,7 @@ mlxsw_sp_mr_erif_list_add(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_mr_erif_sublist *sublist;
 
-	/* If either there is no erif_entry or the last one is full, allocate a
+	/* If either there is anal erif_entry or the last one is full, allocate a
 	 * new one.
 	 */
 	if (list_empty(&erif_list->erif_sublists)) {
@@ -133,7 +133,7 @@ mlxsw_sp_mr_erif_list_commit(struct mlxsw_sp *mlxsw_sp,
 		if (curr_sublist->synced)
 			continue;
 
-		/* If the sublist is not the last one, pack the next index */
+		/* If the sublist is analt the last one, pack the next index */
 		if (list_is_last(&curr_sublist->list,
 				 &erif_list->erif_sublists)) {
 			mlxsw_reg_rigr2_pack(rigr2_pl,
@@ -161,8 +161,8 @@ mlxsw_sp_mr_erif_list_commit(struct mlxsw_sp *mlxsw_sp,
 		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rigr2),
 				      rigr2_pl);
 		if (err)
-			/* No need of a rollback here because this
-			 * hardware entry should not be pointed yet.
+			/* Anal need of a rollback here because this
+			 * hardware entry should analt be pointed yet.
 			 */
 			return err;
 		curr_sublist->synced = true;
@@ -316,7 +316,7 @@ mlxsw_sp_mr_tcam_route_create(struct mlxsw_sp *mlxsw_sp, void *priv,
 
 	route->priv = kzalloc(ops->route_priv_size, GFP_KERNEL);
 	if (!route->priv) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_route_priv_alloc;
 	}
 
@@ -453,7 +453,7 @@ static int mlxsw_sp_mr_tcam_route_erif_add(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	/* Commit the action only if the route action is not TRAP */
+	/* Commit the action only if the route action is analt TRAP */
 	if (route->action != MLXSW_SP_MR_ROUTE_ACTION_TRAP)
 		return mlxsw_sp_mr_erif_list_commit(mlxsw_sp,
 						    &route->erif_list);
@@ -577,7 +577,7 @@ static int mlxsw_sp_mr_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv)
 
 	mr_tcam->priv = kzalloc(ops->priv_size, GFP_KERNEL);
 	if (!mr_tcam->priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = ops->init(mlxsw_sp, mr_tcam->priv);
 	if (err)

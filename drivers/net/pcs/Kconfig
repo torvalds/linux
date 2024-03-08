@@ -9,7 +9,7 @@ config PCS_XPCS
 	tristate
 	select PHYLINK
 	help
-	  This module provides helper functions for Synopsys DesignWare XPCS
+	  This module provides helper functions for Syanalpsys DesignWare XPCS
 	  controllers.
 
 config PCS_LYNX

@@ -164,7 +164,7 @@ static void rkvdec_reset_fmt(struct rkvdec_ctx *ctx, struct v4l2_format *f,
 {
 	memset(f, 0, sizeof(*f));
 	f->fmt.pix_mp.pixelformat = fourcc;
-	f->fmt.pix_mp.field = V4L2_FIELD_NONE;
+	f->fmt.pix_mp.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix_mp.colorspace = V4L2_COLORSPACE_REC709;
 	f->fmt.pix_mp.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	f->fmt.pix_mp.quantization = V4L2_QUANTIZATION_DEFAULT;
@@ -242,7 +242,7 @@ static int rkvdec_try_capture_fmt(struct file *file, void *priv,
 
 	/*
 	 * The codec context should point to a coded format desc, if the format
-	 * on the coded end has not been set yet, it should point to the
+	 * on the coded end has analt been set yet, it should point to the
 	 * default value.
 	 */
 	coded_desc = ctx->coded_fmt_desc;
@@ -270,7 +270,7 @@ static int rkvdec_try_capture_fmt(struct file *file, void *priv,
 		128 *
 		DIV_ROUND_UP(pix_mp->width, 16) *
 		DIV_ROUND_UP(pix_mp->height, 16);
-	pix_mp->field = V4L2_FIELD_NONE;
+	pix_mp->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -292,8 +292,8 @@ static int rkvdec_try_output_fmt(struct file *file, void *priv,
 				       &pix_mp->height,
 				       &desc->frmsize);
 
-	pix_mp->field = V4L2_FIELD_NONE;
-	/* All coded formats are considered single planar for now. */
+	pix_mp->field = V4L2_FIELD_ANALNE;
+	/* All coded formats are considered single planar for analw. */
 	pix_mp->num_planes = 1;
 
 	if (desc->ops->adjust_fmt) {
@@ -314,7 +314,7 @@ static int rkvdec_s_capture_fmt(struct file *file, void *priv,
 	struct vb2_queue *vq;
 	int ret;
 
-	/* Change not allowed if queue is busy */
+	/* Change analt allowed if queue is busy */
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
 			     V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
 	if (vb2_is_busy(vq))
@@ -375,7 +375,7 @@ static int rkvdec_s_output_fmt(struct file *file, void *priv,
 	 * the decoded format again after we return, so we don't need
 	 * anything smarter.
 	 *
-	 * Note that this will propagates any size changes to the decoded format.
+	 * Analte that this will propagates any size changes to the decoded format.
 	 */
 	rkvdec_reset_decoded_fmt(ctx);
 
@@ -538,7 +538,7 @@ static int rkvdec_buf_out_validate(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	return 0;
 }
 
@@ -627,7 +627,7 @@ static int rkvdec_request_validate(struct media_request *req)
 
 	count = vb2_request_buffer_cnt(req);
 	if (!count)
-		return -ENOENT;
+		return -EANALENT;
 	else if (count > 1)
 		return -EINVAL;
 
@@ -639,7 +639,7 @@ static const struct media_device_ops rkvdec_media_ops = {
 	.req_queue = v4l2_m2m_request_queue,
 };
 
-static void rkvdec_job_finish_no_pm(struct rkvdec_ctx *ctx,
+static void rkvdec_job_finish_anal_pm(struct rkvdec_ctx *ctx,
 				    enum vb2_buffer_state result)
 {
 	if (ctx->coded_fmt_desc->ops->done) {
@@ -661,7 +661,7 @@ static void rkvdec_job_finish(struct rkvdec_ctx *ctx,
 
 	pm_runtime_mark_last_busy(rkvdec->dev);
 	pm_runtime_put_autosuspend(rkvdec->dev);
-	rkvdec_job_finish_no_pm(ctx, result);
+	rkvdec_job_finish_anal_pm(ctx, result);
 }
 
 void rkvdec_run_preamble(struct rkvdec_ctx *ctx, struct rkvdec_run *run)
@@ -701,7 +701,7 @@ static void rkvdec_device_run(void *priv)
 
 	ret = pm_runtime_resume_and_get(rkvdec->dev);
 	if (ret < 0) {
-		rkvdec_job_finish_no_pm(ctx, VB2_BUF_STATE_ERROR);
+		rkvdec_job_finish_anal_pm(ctx, VB2_BUF_STATE_ERROR);
 		return;
 	}
 
@@ -730,11 +730,11 @@ static int rkvdec_queue_init(void *priv,
 
 	/*
 	 * Driver does mostly sequential access, so sacrifice TLB efficiency
-	 * for faster allocation. Also, no CPU access on the source queue,
-	 * so no kernel mapping needed.
+	 * for faster allocation. Also, anal CPU access on the source queue,
+	 * so anal kernel mapping needed.
 	 */
 	src_vq->dma_attrs = DMA_ATTR_ALLOC_SINGLE_PAGES |
-			    DMA_ATTR_NO_KERNEL_MAPPING;
+			    DMA_ATTR_ANAL_KERNEL_MAPPING;
 	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->lock = &rkvdec->vdev_lock;
@@ -749,7 +749,7 @@ static int rkvdec_queue_init(void *priv,
 	dst_vq->bidirectional = true;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 	dst_vq->dma_attrs = DMA_ATTR_ALLOC_SINGLE_PAGES |
-			    DMA_ATTR_NO_KERNEL_MAPPING;
+			    DMA_ATTR_ANAL_KERNEL_MAPPING;
 	dst_vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 	dst_vq->io_modes = VB2_MMAP | VB2_DMABUF;
 	dst_vq->drv_priv = ctx;
@@ -814,7 +814,7 @@ static int rkvdec_open(struct file *filp)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->dev = rkvdec;
 	rkvdec_reset_coded_fmt(ctx);
@@ -1005,7 +1005,7 @@ static int rkvdec_probe(struct platform_device *pdev)
 
 	rkvdec = devm_kzalloc(&pdev->dev, sizeof(*rkvdec), GFP_KERNEL);
 	if (!rkvdec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, rkvdec);
 	rkvdec->dev = &pdev->dev;
@@ -1015,7 +1015,7 @@ static int rkvdec_probe(struct platform_device *pdev)
 	rkvdec->clocks = devm_kcalloc(&pdev->dev, ARRAY_SIZE(rkvdec_clk_names),
 				      sizeof(*rkvdec->clocks), GFP_KERNEL);
 	if (!rkvdec->clocks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(rkvdec_clk_names); i++)
 		rkvdec->clocks[i].id = rkvdec_clk_names[i];
@@ -1031,7 +1031,7 @@ static int rkvdec_probe(struct platform_device *pdev)
 
 	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret) {
-		dev_err(&pdev->dev, "Could not set DMA coherent mask.\n");
+		dev_err(&pdev->dev, "Could analt set DMA coherent mask.\n");
 		return ret;
 	}
 
@@ -1045,7 +1045,7 @@ static int rkvdec_probe(struct platform_device *pdev)
 					rkvdec_irq_handler, IRQF_ONESHOT,
 					dev_name(&pdev->dev), rkvdec);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not request vdec IRQ\n");
+		dev_err(&pdev->dev, "Could analt request vdec IRQ\n");
 		return ret;
 	}
 

@@ -14,7 +14,7 @@
  *
  * This is the PCI-specific support split off from the ni_labpc driver.
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: analt applicable, uses PCI auto config
  *
  * NI manuals:
  * 340914a (pci-1200)
@@ -52,7 +52,7 @@ static int labpc_pci_mite_init(struct pci_dev *pcidev)
 	/* ioremap the MITE registers (BAR 0) temporarily */
 	mite_base = pci_ioremap_bar(pcidev, 0);
 	if (!mite_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* set data window to main registers (BAR 1) */
 	main_phys_addr = pci_resource_start(pcidev, 1);
@@ -73,7 +73,7 @@ static int labpc_pci_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(labpc_pci_boards))
 		board = &labpc_pci_boards[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
@@ -87,7 +87,7 @@ static int labpc_pci_auto_attach(struct comedi_device *dev,
 
 	dev->mmio = pci_ioremap_bar(pcidev, 1);
 	if (!dev->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return labpc_common_attach(dev, pcidev->irq, IRQF_SHARED);
 }

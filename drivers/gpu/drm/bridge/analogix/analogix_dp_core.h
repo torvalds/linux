@@ -69,7 +69,7 @@ enum pattern_set {
 	D10_2,
 	TRAINING_PTN1,
 	TRAINING_PTN2,
-	DP_NONE
+	DP_ANALNE
 };
 
 enum color_space {
@@ -124,7 +124,7 @@ enum dp_irq_type {
 	DP_IRQ_TYPE_HP_CABLE_IN  = BIT(0),
 	DP_IRQ_TYPE_HP_CABLE_OUT = BIT(1),
 	DP_IRQ_TYPE_HP_CHANGE    = BIT(2),
-	DP_IRQ_TYPE_UNKNOWN      = BIT(3),
+	DP_IRQ_TYPE_UNKANALWN      = BIT(3),
 };
 
 struct video_info {

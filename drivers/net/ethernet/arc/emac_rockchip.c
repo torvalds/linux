@@ -48,7 +48,7 @@ static void emac_rockchip_set_mac_speed(void *priv, unsigned int speed)
 		data = (1 << (speed_offset + 16)) | (1 << speed_offset);
 		break;
 	default:
-		pr_err("speed %u not supported\n", speed);
+		pr_err("speed %u analt supported\n", speed);
 		return;
 	}
 
@@ -100,12 +100,12 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 	u32 data;
 	int err;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
 	ndev = alloc_etherdev(sizeof(struct rockchip_priv_data));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, ndev);
 	SET_NETDEV_DEV(ndev, dev);
 
@@ -113,18 +113,18 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 	priv->emac.drv_name = DRV_NAME;
 	priv->emac.set_mac_speed = emac_rockchip_set_mac_speed;
 
-	err = of_get_phy_mode(dev->of_node, &interface);
+	err = of_get_phy_mode(dev->of_analde, &interface);
 	if (err)
 		goto out_netdev;
 
 	/* RK3036/RK3066/RK3188 SoCs only support RMII */
 	if (interface != PHY_INTERFACE_MODE_RMII) {
 		dev_err(dev, "unsupported phy interface mode %d\n", interface);
-		err = -ENOTSUPP;
+		err = -EANALTSUPP;
 		goto out_netdev;
 	}
 
-	priv->grf = syscon_regmap_lookup_by_phandle(dev->of_node,
+	priv->grf = syscon_regmap_lookup_by_phandle(dev->of_analde,
 						    "rockchip,grf");
 	if (IS_ERR(priv->grf)) {
 		dev_err(dev, "failed to retrieve global register file (%ld)\n",
@@ -133,7 +133,7 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 		goto out_netdev;
 	}
 
-	match = of_match_node(emac_rockchip_dt_ids, dev->of_node);
+	match = of_match_analde(emac_rockchip_dt_ids, dev->of_analde);
 	priv->soc_data = match->data;
 
 	priv->emac.clk = devm_clk_get(dev, "hclk");
@@ -165,7 +165,7 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 			err = -EPROBE_DEFER;
 			goto out_clk_disable;
 		}
-		dev_err(dev, "no regulator found\n");
+		dev_err(dev, "anal regulator found\n");
 		priv->regulator = NULL;
 	}
 

@@ -102,7 +102,7 @@ static void pci_msi_domain_update_chip_ops(struct msi_domain_info *info)
 
 /**
  * pci_msi_create_irq_domain - Create a MSI interrupt domain
- * @fwnode:	Optional fwnode of the interrupt controller
+ * @fwanalde:	Optional fwanalde of the interrupt controller
  * @info:	MSI domain info
  * @parent:	Parent irq domain
  *
@@ -111,7 +111,7 @@ static void pci_msi_domain_update_chip_ops(struct msi_domain_info *info)
  * Returns:
  * A domain pointer or NULL in case of failure.
  */
-struct irq_domain *pci_msi_create_irq_domain(struct fwnode_handle *fwnode,
+struct irq_domain *pci_msi_create_irq_domain(struct fwanalde_handle *fwanalde,
 					     struct msi_domain_info *info,
 					     struct irq_domain *parent)
 {
@@ -135,7 +135,7 @@ struct irq_domain *pci_msi_create_irq_domain(struct fwnode_handle *fwnode,
 	/* Let the core update the bus token */
 	info->bus_token = DOMAIN_BUS_PCI_MSI;
 
-	return msi_create_irq_domain(fwnode, info, parent);
+	return msi_create_irq_domain(fwanalde, info, parent);
 }
 EXPORT_SYMBOL_GPL(pci_msi_create_irq_domain);
 
@@ -254,7 +254,7 @@ static bool pci_create_device_domain(struct pci_dev *pdev, const struct msi_doma
  *
  * Return:
  *  True when:
- *	- The device does not have a MSI parent irq domain associated,
+ *	- The device does analt have a MSI parent irq domain associated,
  *	  which keeps the legacy architecture specific and the global
  *	  PCI/MSI domain models working
  *	- The MSI domain exists already
@@ -287,7 +287,7 @@ bool pci_setup_msi_device_domain(struct pci_dev *pdev)
  *
  * Return:
  *  True when:
- *	- The device does not have a MSI parent irq domain associated,
+ *	- The device does analt have a MSI parent irq domain associated,
  *	  which keeps the legacy architecture specific and the global
  *	  PCI/MSI domain models working
  *	- The MSI-X domain exists already
@@ -317,7 +317,7 @@ bool pci_setup_msix_device_domain(struct pci_dev *pdev, unsigned int hwsize)
  * pci_msi_domain_supports - Check for support of a particular feature flag
  * @pdev:		The PCI device to operate on
  * @feature_mask:	The feature mask to check for (full match)
- * @mode:		If ALLOW_LEGACY this grants the feature when there is no irq domain
+ * @mode:		If ALLOW_LEGACY this grants the feature when there is anal irq domain
  *			associated to the device. If DENY_LEGACY the lack of an irq domain
  *			makes the feature unsupported
  */
@@ -369,7 +369,7 @@ bool pci_msi_domain_supports(struct pci_dev *pdev, unsigned int feature_mask,
  * An IMS domain is expected to have the following constraints:
  *	- The index space is managed by the core code
  *
- *	- There is no requirement for consecutive index ranges
+ *	- There is anal requirement for consecutive index ranges
  *
  *	- The interrupt chip must provide the following callbacks:
  *		- irq_mask()
@@ -378,7 +378,7 @@ bool pci_msi_domain_supports(struct pci_dev *pdev, unsigned int feature_mask,
  *
  *	- The interrupt chip must provide the following optional callbacks
  *	  when the irq_mask(), irq_unmask() and irq_write_msi_msg() callbacks
- *	  cannot operate directly on hardware, e.g. in the case that the
+ *	  cananalt operate directly on hardware, e.g. in the case that the
  *	  interrupt message store is in queue memory:
  *		- irq_bus_lock()
  *		- irq_bus_unlock()
@@ -418,14 +418,14 @@ EXPORT_SYMBOL_GPL(pci_create_ims_domain);
  * Users of the generic MSI infrastructure expect a device to have a single ID,
  * so with DMA aliases we have to pick the least-worst compromise. Devices with
  * DMA phantom functions tend to still emit MSIs from the real function number,
- * so we ignore those and only consider topological aliases where either the
+ * so we iganalre those and only consider topological aliases where either the
  * alias device or RID appears on a different bus number. We also make the
  * reasonable assumption that bridges are walked in an upstream direction (so
  * the last one seen wins), and the much braver assumption that the most likely
  * case is that of PCI->PCIe so we should always use the alias RID. This echoes
  * the logic from intel_irq_remapping's set_msi_sid(), which presumably works
- * well enough in practice; in the face of the horrible PCIe<->PCI-X conditions
- * for taking ownership all we can really do is close our eyes and hope...
+ * well eanalugh in practice; in the face of the horrible PCIe<->PCI-X conditions
+ * for taking ownership all we can really do is close our eanal and hope...
  */
 static int get_msi_id_cb(struct pci_dev *pdev, u16 alias, void *data)
 {
@@ -450,13 +450,13 @@ static int get_msi_id_cb(struct pci_dev *pdev, u16 alias, void *data)
  */
 u32 pci_msi_domain_get_msi_rid(struct irq_domain *domain, struct pci_dev *pdev)
 {
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	u32 rid = pci_dev_id(pdev);
 
 	pci_for_each_dma_alias(pdev, get_msi_id_cb, &rid);
 
-	of_node = irq_domain_get_of_node(domain);
-	rid = of_node ? of_msi_map_id(&pdev->dev, of_node, rid) :
+	of_analde = irq_domain_get_of_analde(domain);
+	rid = of_analde ? of_msi_map_id(&pdev->dev, of_analde, rid) :
 			iort_msi_map_id(&pdev->dev, rid);
 
 	return rid;
@@ -467,9 +467,9 @@ u32 pci_msi_domain_get_msi_rid(struct irq_domain *domain, struct pci_dev *pdev)
  * @pdev:	The PCI device
  *
  * Use the firmware data to find a device-specific MSI domain
- * (i.e. not one that is set as a default).
+ * (i.e. analt one that is set as a default).
  *
- * Returns: The corresponding MSI domain or NULL if none has been found.
+ * Returns: The corresponding MSI domain or NULL if analne has been found.
  */
 struct irq_domain *pci_msi_get_device_domain(struct pci_dev *pdev)
 {

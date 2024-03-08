@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -264,7 +264,7 @@
 
 #define AR_PHY_SETTLING         (AR_AGC_BASE + 0x0)
 #define AR_PHY_FORCEMAX_GAINS_0 (AR_AGC_BASE + 0x4)
-#define AR_PHY_GAINS_MINOFF0    (AR_AGC_BASE + 0x8)
+#define AR_PHY_GAINS_MIANALFF0    (AR_AGC_BASE + 0x8)
 #define AR_PHY_DESIRED_SZ       (AR_AGC_BASE + 0xc)
 #define AR_PHY_FIND_SIG         (AR_AGC_BASE + 0x10)
 #define AR_PHY_AGC              (AR_AGC_BASE + 0x14)
@@ -334,8 +334,8 @@
 
 #define AR_PHY_RX_OCGAIN        (AR_AGC_BASE + 0x200)
 
-#define AR_PHY_CCA_NOM_VAL_9300_2GHZ          -110
-#define AR_PHY_CCA_NOM_VAL_9300_5GHZ          -115
+#define AR_PHY_CCA_ANALM_VAL_9300_2GHZ          -110
+#define AR_PHY_CCA_ANALM_VAL_9300_5GHZ          -115
 #define AR_PHY_CCA_MIN_GOOD_VAL_9300_2GHZ     -125
 #define AR_PHY_CCA_MIN_GOOD_VAL_9300_5GHZ     -125
 #define AR_PHY_CCA_MAX_GOOD_VAL_9300_2GHZ     -60
@@ -343,14 +343,14 @@
 #define AR_PHY_CCA_MAX_GOOD_VAL_9300_FCC_2GHZ -95
 #define AR_PHY_CCA_MAX_GOOD_VAL_9300_FCC_5GHZ -100
 
-#define AR_PHY_CCA_NOM_VAL_9462_2GHZ          -127
+#define AR_PHY_CCA_ANALM_VAL_9462_2GHZ          -127
 #define AR_PHY_CCA_MIN_GOOD_VAL_9462_2GHZ     -127
 #define AR_PHY_CCA_MAX_GOOD_VAL_9462_2GHZ     -60
-#define AR_PHY_CCA_NOM_VAL_9462_5GHZ          -127
+#define AR_PHY_CCA_ANALM_VAL_9462_5GHZ          -127
 #define AR_PHY_CCA_MIN_GOOD_VAL_9462_5GHZ     -127
 #define AR_PHY_CCA_MAX_GOOD_VAL_9462_5GHZ     -60
 
-#define AR_PHY_CCA_NOM_VAL_9330_2GHZ          -118
+#define AR_PHY_CCA_ANALM_VAL_9330_2GHZ          -118
 
 #define AR9300_EXT_LNA_CTL_GPIO_AR9485 9
 
@@ -532,7 +532,7 @@
 #define AR_PHY_CHAN_INFO_MEMORY_CHANINFOMEM_S2_READ	0x00000008
 #define AR_PHY_CHAN_INFO_MEMORY_CHANINFOMEM_S2_READ_S	3
 
-#define AR_PHY_CHNINFO_NOISEPWR(_ah)  (AR_SM_BASE + (AR_SREV_9561(_ah) ? 0x170 : 0x174))
+#define AR_PHY_CHNINFO_ANALISEPWR(_ah)  (AR_SM_BASE + (AR_SREV_9561(_ah) ? 0x170 : 0x174))
 #define AR_PHY_CHNINFO_GAINDIFF(_ah)  (AR_SM_BASE + (AR_SREV_9561(_ah) ? 0x174 : 0x178))
 #define AR_PHY_CHNINFO_FINETIM(_ah)   (AR_SM_BASE + (AR_SREV_9561(_ah) ? 0x178 : 0x17c))
 #define AR_PHY_CHAN_INFO_GAIN_0(_ah)  (AR_SM_BASE + (AR_SREV_9561(_ah) ? 0x17c : 0x180))
@@ -781,7 +781,7 @@
 #define AR_PHY_GC_SHORT_GI_40      0x00000080  /* allow short GI for HT 40 */
 #define AR_PHY_GC_WALSH            0x00000100  /* walsh spatial spreading for 2 chains,2 streams TX */
 #define AR_PHY_GC_SINGLE_HT_LTF1   0x00000200  /* single length (4us) 1st HT long training symbol */
-#define AR_PHY_GC_GF_DETECT_EN     0x00000400  /* enable Green Field detection. Only affects rx, not tx */
+#define AR_PHY_GC_GF_DETECT_EN     0x00000400  /* enable Green Field detection. Only affects rx, analt tx */
 #define AR_PHY_GC_ENABLE_DAC_FIFO  0x00000800  /* fifo between bb and dac */
 #define AR_PHY_RX_DELAY_DELAY      0x00003FFF  /* delay from wakeup to rx ena */
 
@@ -1079,10 +1079,10 @@
 #define AR_PHY_CAL_MEAS_2_9300_10(_i) (AR_PHY_IQ_ADC_MEAS_2_B0_9300_10 + (AR_PHY_CHAIN_OFFSET * (_i)))
 #define AR_PHY_CAL_MEAS_3_9300_10(_i) (AR_PHY_IQ_ADC_MEAS_3_B0_9300_10 + (AR_PHY_CHAIN_OFFSET * (_i)))
 
-#define AR_PHY_WATCHDOG_NON_IDLE_ENABLE    0x00000001
+#define AR_PHY_WATCHDOG_ANALN_IDLE_ENABLE    0x00000001
 #define AR_PHY_WATCHDOG_IDLE_ENABLE        0x00000002
 #define AR_PHY_WATCHDOG_IDLE_MASK          0xFFFF0000
-#define AR_PHY_WATCHDOG_NON_IDLE_MASK      0x0000FFFC
+#define AR_PHY_WATCHDOG_ANALN_IDLE_MASK      0x0000FFFC
 
 #define AR_PHY_WATCHDOG_RST_ENABLE         0x00000002
 #define AR_PHY_WATCHDOG_IRQ_ENABLE         0x00000004
@@ -1268,8 +1268,8 @@
 #define AR_BTCOEX_WL_LNADIV                                0x1a64
 #define AR_BTCOEX_WL_LNADIV_PREDICTED_PERIOD               0x00003FFF
 #define AR_BTCOEX_WL_LNADIV_PREDICTED_PERIOD_S             0
-#define AR_BTCOEX_WL_LNADIV_DPDT_IGNORE_PRIORITY           0x00004000
-#define AR_BTCOEX_WL_LNADIV_DPDT_IGNORE_PRIORITY_S         14
+#define AR_BTCOEX_WL_LNADIV_DPDT_IGANALRE_PRIORITY           0x00004000
+#define AR_BTCOEX_WL_LNADIV_DPDT_IGANALRE_PRIORITY_S         14
 #define AR_BTCOEX_WL_LNADIV_FORCE_ON                       0x00008000
 #define AR_BTCOEX_WL_LNADIV_FORCE_ON_S                     15
 #define AR_BTCOEX_WL_LNADIV_MODE_OPTION                    0x00030000

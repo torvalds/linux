@@ -114,12 +114,12 @@ static void urb_completion(struct urb *purb)
 	dprintk(2, "%s: %d\n", __func__, purb->actual_length);
 
 	if (!dev) {
-		dprintk(2, "%s: no dev!\n", __func__);
+		dprintk(2, "%s: anal dev!\n", __func__);
 		return;
 	}
 
 	if (!dev->urb_streaming) {
-		dprintk(2, "%s: not streaming!\n", __func__);
+		dprintk(2, "%s: analt streaming!\n", __func__);
 		return;
 	}
 
@@ -201,7 +201,7 @@ static int start_urb_transfer(struct au0828_dev *dev)
 
 		dev->urbs[i] = usb_alloc_urb(0, GFP_KERNEL);
 		if (!dev->urbs[i])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		purb = dev->urbs[i];
 
@@ -214,7 +214,7 @@ static int start_urb_transfer(struct au0828_dev *dev)
 		if (!purb->transfer_buffer) {
 			usb_free_urb(purb);
 			dev->urbs[i] = NULL;
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			pr_err("%s: failed big buffer allocation, err = %d\n",
 			       __func__, ret);
 			return ret;
@@ -405,9 +405,9 @@ static int dvb_register(struct au0828_dev *dev)
 					GFP_KERNEL);
 
 			if (!dev->dig_transfer_buffer[i]) {
-				result = -ENOMEM;
+				result = -EANALMEM;
 
-				pr_err("failed buffer allocation (errno = %d)\n",
+				pr_err("failed buffer allocation (erranal = %d)\n",
 				       result);
 				goto fail_adapter;
 			}
@@ -421,7 +421,7 @@ static int dvb_register(struct au0828_dev *dev)
 				      KBUILD_MODNAME, THIS_MODULE,
 				      &dev->usbdev->dev, adapter_nr);
 	if (result < 0) {
-		pr_err("dvb_register_adapter failed (errno = %d)\n",
+		pr_err("dvb_register_adapter failed (erranal = %d)\n",
 		       result);
 		goto fail_adapter;
 	}
@@ -435,7 +435,7 @@ static int dvb_register(struct au0828_dev *dev)
 	/* register frontend */
 	result = dvb_register_frontend(&dvb->adapter, dvb->frontend);
 	if (result < 0) {
-		pr_err("dvb_register_frontend failed (errno = %d)\n",
+		pr_err("dvb_register_frontend failed (erranal = %d)\n",
 		       result);
 		goto fail_frontend;
 	}
@@ -455,7 +455,7 @@ static int dvb_register(struct au0828_dev *dev)
 	dvb->demux.stop_feed  = au0828_dvb_stop_feed;
 	result = dvb_dmx_init(&dvb->demux);
 	if (result < 0) {
-		pr_err("dvb_dmx_init failed (errno = %d)\n", result);
+		pr_err("dvb_dmx_init failed (erranal = %d)\n", result);
 		goto fail_dmx;
 	}
 
@@ -464,14 +464,14 @@ static int dvb_register(struct au0828_dev *dev)
 	dvb->dmxdev.capabilities = 0;
 	result = dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
 	if (result < 0) {
-		pr_err("dvb_dmxdev_init failed (errno = %d)\n", result);
+		pr_err("dvb_dmxdev_init failed (erranal = %d)\n", result);
 		goto fail_dmxdev;
 	}
 
 	dvb->fe_hw.source = DMX_FRONTEND_0;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		pr_err("add_frontend failed (DMX_FRONTEND_0, errno = %d)\n",
+		pr_err("add_frontend failed (DMX_FRONTEND_0, erranal = %d)\n",
 		       result);
 		goto fail_fe_hw;
 	}
@@ -479,14 +479,14 @@ static int dvb_register(struct au0828_dev *dev)
 	dvb->fe_mem.source = DMX_MEMORY_FE;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 	if (result < 0) {
-		pr_err("add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
+		pr_err("add_frontend failed (DMX_MEMORY_FE, erranal = %d)\n",
 		       result);
 		goto fail_fe_mem;
 	}
 
 	result = dvb->demux.dmx.connect_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		pr_err("connect_frontend failed (errno = %d)\n", result);
+		pr_err("connect_frontend failed (erranal = %d)\n", result);
 		goto fail_fe_conn;
 	}
 
@@ -557,7 +557,7 @@ void au0828_dvb_unregister(struct au0828_dev *dev)
 }
 
 /* All the DVB attach calls go here, this function gets modified
- * for each new card. No other function in this file needs
+ * for each new card. Anal other function in this file needs
  * to change.
  */
 int au0828_dvb_register(struct au0828_dev *dev)

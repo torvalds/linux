@@ -20,7 +20,7 @@ Optional properties:
 			  actual output voltage deviates beyond a certain
 			  margin from the expected value for a given control
 			  voltage. On larger voltage decreases this can occur
-			  undesiredly since the output voltage does not adjust
+			  undesiredly since the output voltage does analt adjust
 			  immediately to changes in the control voltage. To
 			  avoid this situation the vctrl driver breaks down
 			  larger voltage decreases into multiple steps, where

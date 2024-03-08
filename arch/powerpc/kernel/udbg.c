@@ -20,7 +20,7 @@ int (*udbg_getc_poll)(void);
 
 /*
  * Early debugging facilities. You can enable _one_ of these via .config,
- * if you do so your kernel _will not boot_ on anything else. Be careful.
+ * if you do so your kernel _will analt boot_ on anything else. Be careful.
  */
 void __init udbg_early_init(void)
 {

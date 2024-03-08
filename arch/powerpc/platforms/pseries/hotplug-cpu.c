@@ -37,13 +37,13 @@
 #include "pseries.h"
 
 /* This version can't take the spinlock, because it never returns */
-static int rtas_stop_self_token = RTAS_UNKNOWN_SERVICE;
+static int rtas_stop_self_token = RTAS_UNKANALWN_SERVICE;
 
 /*
- * Record the CPU ids used on each nodes.
+ * Record the CPU ids used on each analdes.
  * Protected by cpu_add_remove_lock.
  */
-static cpumask_var_t node_recorded_ids_map[MAX_NUMNODES];
+static cpumask_var_t analde_recorded_ids_map[MAX_NUMANALDES];
 
 static void rtas_stop_self(void)
 {
@@ -51,7 +51,7 @@ static void rtas_stop_self(void)
 
 	local_irq_disable();
 
-	BUG_ON(rtas_stop_self_token == RTAS_UNKNOWN_SERVICE);
+	BUG_ON(rtas_stop_self_token == RTAS_UNKANALWN_SERVICE);
 
 	rtas_call_unlocked(&args, rtas_stop_self_token, 0, 1, NULL);
 
@@ -89,7 +89,7 @@ static int pseries_cpu_disable(void)
 	if (cpu == boot_cpuid)
 		boot_cpuid = cpumask_any(cpu_online_mask);
 
-	/* FIXME: abstract this to not be platform specific later on */
+	/* FIXME: abstract this to analt be platform specific later on */
 	if (xive_enabled())
 		xive_smp_disable_cpu();
 	else
@@ -105,9 +105,9 @@ static int pseries_cpu_disable(void)
  * @cpu: logical processor id of the CPU whose death we're awaiting.
  *
  * This function is called from the context of the thread which is performing
- * the cpu-offline. Here we wait for long enough to allow the cpu in question
+ * the cpu-offline. Here we wait for long eanalugh to allow the cpu in question
  * to self-destroy so that the cpu-offline thread can send the CPU_DEAD
- * notifications.
+ * analtifications.
  *
  * OTOH, pseries_cpu_offline_self() is called by the @cpu when it wants to
  * self-destruct.
@@ -144,21 +144,21 @@ static void pseries_cpu_die(unsigned int cpu)
 /**
  * find_cpu_id_range - found a linear ranger of @nthreads free CPU ids.
  * @nthreads : the number of threads (cpu ids)
- * @assigned_node : the node it belongs to or NUMA_NO_NODE if free ids from any
- *                  node can be peek.
+ * @assigned_analde : the analde it belongs to or NUMA_ANAL_ANALDE if free ids from any
+ *                  analde can be peek.
  * @cpu_mask: the returned CPU mask.
  *
  * Returns 0 on success.
  */
-static int find_cpu_id_range(unsigned int nthreads, int assigned_node,
+static int find_cpu_id_range(unsigned int nthreads, int assigned_analde,
 			     cpumask_var_t *cpu_mask)
 {
 	cpumask_var_t candidate_mask;
-	unsigned int cpu, node;
-	int rc = -ENOSPC;
+	unsigned int cpu, analde;
+	int rc = -EANALSPC;
 
 	if (!zalloc_cpumask_var(&candidate_mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpumask_clear(*cpu_mask);
 	for (cpu = 0; cpu < nthreads; cpu++)
@@ -166,20 +166,20 @@ static int find_cpu_id_range(unsigned int nthreads, int assigned_node,
 
 	BUG_ON(!cpumask_subset(cpu_present_mask, cpu_possible_mask));
 
-	/* Get a bitmap of unoccupied slots. */
+	/* Get a bitmap of uanalccupied slots. */
 	cpumask_xor(candidate_mask, cpu_possible_mask, cpu_present_mask);
 
-	if (assigned_node != NUMA_NO_NODE) {
+	if (assigned_analde != NUMA_ANAL_ANALDE) {
 		/*
-		 * Remove free ids previously assigned on the other nodes. We
-		 * can walk only online nodes because once a node became online
-		 * it is not turned offlined back.
+		 * Remove free ids previously assigned on the other analdes. We
+		 * can walk only online analdes because once a analde became online
+		 * it is analt turned offlined back.
 		 */
-		for_each_online_node(node) {
-			if (node == assigned_node)
+		for_each_online_analde(analde) {
+			if (analde == assigned_analde)
 				continue;
-			cpumask_andnot(candidate_mask, candidate_mask,
-				       node_recorded_ids_map[node]);
+			cpumask_andanalt(candidate_mask, candidate_mask,
+				       analde_recorded_ids_map[analde]);
 		}
 	}
 
@@ -202,15 +202,15 @@ out:
 }
 
 /*
- * Update cpu_present_mask and paca(s) for a new cpu node.  The wrinkle
- * here is that a cpu device node may represent multiple logical cpus
- * in the SMT case.  We must honor the assumption in other code that
+ * Update cpu_present_mask and paca(s) for a new cpu analde.  The wrinkle
+ * here is that a cpu device analde may represent multiple logical cpus
+ * in the SMT case.  We must hoanalr the assumption in other code that
  * the logical ids for sibling SMT threads x and y are adjacent, such
  * that x^1 == y and y^1 == x.
  */
-static int pseries_add_processor(struct device_node *np)
+static int pseries_add_processor(struct device_analde *np)
 {
-	int len, nthreads, node, cpu, assigned_node;
+	int len, nthreads, analde, cpu, assigned_analde;
 	int rc = 0;
 	cpumask_var_t cpu_mask;
 	const __be32 *intserv;
@@ -222,32 +222,32 @@ static int pseries_add_processor(struct device_node *np)
 	nthreads = len / sizeof(u32);
 
 	if (!alloc_cpumask_var(&cpu_mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Fetch from the DT nodes read by dlpar_configure_connector() the NUMA
-	 * node id the added CPU belongs to.
+	 * Fetch from the DT analdes read by dlpar_configure_connector() the NUMA
+	 * analde id the added CPU belongs to.
 	 */
-	node = of_node_to_nid(np);
-	if (node < 0 || !node_possible(node))
-		node = first_online_node;
+	analde = of_analde_to_nid(np);
+	if (analde < 0 || !analde_possible(analde))
+		analde = first_online_analde;
 
-	BUG_ON(node == NUMA_NO_NODE);
-	assigned_node = node;
+	BUG_ON(analde == NUMA_ANAL_ANALDE);
+	assigned_analde = analde;
 
 	cpu_maps_update_begin();
 
-	rc = find_cpu_id_range(nthreads, node, &cpu_mask);
-	if (rc && nr_node_ids > 1) {
+	rc = find_cpu_id_range(nthreads, analde, &cpu_mask);
+	if (rc && nr_analde_ids > 1) {
 		/*
-		 * Try again, considering the free CPU ids from the other node.
+		 * Try again, considering the free CPU ids from the other analde.
 		 */
-		node = NUMA_NO_NODE;
-		rc = find_cpu_id_range(nthreads, NUMA_NO_NODE, &cpu_mask);
+		analde = NUMA_ANAL_ANALDE;
+		rc = find_cpu_id_range(nthreads, NUMA_ANAL_ANALDE, &cpu_mask);
 	}
 
 	if (rc) {
-		pr_err("Cannot add cpu %pOF; this system configuration"
+		pr_err("Cananalt add cpu %pOF; this system configuration"
 		       " supports %d logical cpus.\n", np, num_possible_cpus());
 		goto out;
 	}
@@ -258,23 +258,23 @@ static int pseries_add_processor(struct device_node *np)
 		set_hard_smp_processor_id(cpu, be32_to_cpu(*intserv++));
 	}
 
-	/* Record the newly used CPU ids for the associate node. */
-	cpumask_or(node_recorded_ids_map[assigned_node],
-		   node_recorded_ids_map[assigned_node], cpu_mask);
+	/* Record the newly used CPU ids for the associate analde. */
+	cpumask_or(analde_recorded_ids_map[assigned_analde],
+		   analde_recorded_ids_map[assigned_analde], cpu_mask);
 
 	/*
-	 * If node is set to NUMA_NO_NODE, CPU ids have be reused from
-	 * another node, remove them from its mask.
+	 * If analde is set to NUMA_ANAL_ANALDE, CPU ids have be reused from
+	 * aanalther analde, remove them from its mask.
 	 */
-	if (node == NUMA_NO_NODE) {
+	if (analde == NUMA_ANAL_ANALDE) {
 		cpu = cpumask_first(cpu_mask);
-		pr_warn("Reusing free CPU ids %d-%d from another node\n",
+		pr_warn("Reusing free CPU ids %d-%d from aanalther analde\n",
 			cpu, cpu + nthreads - 1);
-		for_each_online_node(node) {
-			if (node == assigned_node)
+		for_each_online_analde(analde) {
+			if (analde == assigned_analde)
 				continue;
-			cpumask_andnot(node_recorded_ids_map[node],
-				       node_recorded_ids_map[node],
+			cpumask_andanalt(analde_recorded_ids_map[analde],
+				       analde_recorded_ids_map[analde],
 				       cpu_mask);
 		}
 	}
@@ -286,11 +286,11 @@ out:
 }
 
 /*
- * Update the present map for a cpu node which is going away, and set
+ * Update the present map for a cpu analde which is going away, and set
  * the hard id in the paca(s) to -1 to be consistent with boot time
- * convention for non-present cpus.
+ * convention for analn-present cpus.
  */
-static void pseries_remove_processor(struct device_node *np)
+static void pseries_remove_processor(struct device_analde *np)
 {
 	unsigned int cpu;
 	int len, nthreads, i;
@@ -316,13 +316,13 @@ static void pseries_remove_processor(struct device_node *np)
 			break;
 		}
 		if (cpu >= nr_cpu_ids)
-			printk(KERN_WARNING "Could not find cpu to remove "
+			printk(KERN_WARNING "Could analt find cpu to remove "
 			       "with physical id 0x%x\n", thread);
 	}
 	cpu_maps_update_done();
 }
 
-static int dlpar_offline_cpu(struct device_node *dn)
+static int dlpar_offline_cpu(struct device_analde *dn)
 {
 	int rc = 0;
 	unsigned int cpu;
@@ -350,7 +350,7 @@ static int dlpar_offline_cpu(struct device_node *dn)
 			 * device_offline() will return -EBUSY (via cpu_down()) if there
 			 * is only one CPU left. Check it here to fail earlier and with a
 			 * more informative error message, while also retaining the
-			 * cpu_add_remove_lock to be sure that no CPUs are being
+			 * cpu_add_remove_lock to be sure that anal CPUs are being
 			 * online/offlined during this check.
 			 */
 			if (num_online_cpus() == 1) {
@@ -367,7 +367,7 @@ static int dlpar_offline_cpu(struct device_node *dn)
 			break;
 		}
 		if (cpu == num_possible_cpus()) {
-			pr_warn("Could not find cpu to offline with physical id 0x%x\n",
+			pr_warn("Could analt find cpu to offline with physical id 0x%x\n",
 				thread);
 		}
 	}
@@ -378,7 +378,7 @@ out:
 	return rc;
 }
 
-static int dlpar_online_cpu(struct device_node *dn)
+static int dlpar_online_cpu(struct device_analde *dn)
 {
 	int rc = 0;
 	unsigned int cpu;
@@ -418,7 +418,7 @@ static int dlpar_online_cpu(struct device_node *dn)
 			break;
 		}
 		if (cpu == num_possible_cpus())
-			printk(KERN_WARNING "Could not find cpu to online "
+			printk(KERN_WARNING "Could analt find cpu to online "
 			       "with physical id 0x%x\n", thread);
 	}
 	cpu_maps_update_done();
@@ -428,9 +428,9 @@ out:
 
 }
 
-static bool dlpar_cpu_exists(struct device_node *parent, u32 drc_index)
+static bool dlpar_cpu_exists(struct device_analde *parent, u32 drc_index)
 {
-	struct device_node *child = NULL;
+	struct device_analde *child = NULL;
 	u32 my_drc_index;
 	bool found;
 	int rc;
@@ -438,14 +438,14 @@ static bool dlpar_cpu_exists(struct device_node *parent, u32 drc_index)
 	/* Assume cpu doesn't exist */
 	found = false;
 
-	for_each_child_of_node(parent, child) {
+	for_each_child_of_analde(parent, child) {
 		rc = of_property_read_u32(child, "ibm,my-drc-index",
 					  &my_drc_index);
 		if (rc)
 			continue;
 
 		if (my_drc_index == drc_index) {
-			of_node_put(child);
+			of_analde_put(child);
 			found = true;
 			break;
 		}
@@ -454,7 +454,7 @@ static bool dlpar_cpu_exists(struct device_node *parent, u32 drc_index)
 	return found;
 }
 
-static bool drc_info_valid_index(struct device_node *parent, u32 drc_index)
+static bool drc_info_valid_index(struct device_analde *parent, u32 drc_index)
 {
 	struct property *info;
 	struct of_drc_info drc;
@@ -496,7 +496,7 @@ static bool drc_info_valid_index(struct device_node *parent, u32 drc_index)
 	return false;
 }
 
-static bool valid_cpu_drc_index(struct device_node *parent, u32 drc_index)
+static bool valid_cpu_drc_index(struct device_analde *parent, u32 drc_index)
 {
 	bool found = false;
 	int rc, index;
@@ -504,7 +504,7 @@ static bool valid_cpu_drc_index(struct device_node *parent, u32 drc_index)
 	if (of_property_present(parent, "ibm,drc-info"))
 		return drc_info_valid_index(parent, drc_index);
 
-	/* Note that the format of the ibm,drc-indexes array is
+	/* Analte that the format of the ibm,drc-indexes array is
 	 * the number of entries in the array followed by the array
 	 * of drc values so we start looking at index = 1.
 	 */
@@ -525,17 +525,17 @@ static bool valid_cpu_drc_index(struct device_node *parent, u32 drc_index)
 	return found;
 }
 
-static int pseries_cpuhp_attach_nodes(struct device_node *dn)
+static int pseries_cpuhp_attach_analdes(struct device_analde *dn)
 {
 	struct of_changeset cs;
 	int ret;
 
 	/*
-	 * This device node is unattached but may have siblings; open-code the
+	 * This device analde is unattached but may have siblings; open-code the
 	 * traversal.
 	 */
 	for (of_changeset_init(&cs); dn != NULL; dn = dn->sibling) {
-		ret = of_changeset_attach_node(&cs, dn);
+		ret = of_changeset_attach_analde(&cs, dn);
 		if (ret)
 			goto out;
 	}
@@ -548,26 +548,26 @@ out:
 
 static ssize_t dlpar_cpu_add(u32 drc_index)
 {
-	struct device_node *dn, *parent;
+	struct device_analde *dn, *parent;
 	int rc, saved_rc;
 
 	pr_debug("Attempting to add CPU, drc index: %x\n", drc_index);
 
-	parent = of_find_node_by_path("/cpus");
+	parent = of_find_analde_by_path("/cpus");
 	if (!parent) {
-		pr_warn("Failed to find CPU root node \"/cpus\"\n");
-		return -ENODEV;
+		pr_warn("Failed to find CPU root analde \"/cpus\"\n");
+		return -EANALDEV;
 	}
 
 	if (dlpar_cpu_exists(parent, drc_index)) {
-		of_node_put(parent);
+		of_analde_put(parent);
 		pr_warn("CPU with drc index %x already exists\n", drc_index);
 		return -EINVAL;
 	}
 
 	if (!valid_cpu_drc_index(parent, drc_index)) {
-		of_node_put(parent);
-		pr_warn("Cannot find CPU (drc index %x) to add.\n", drc_index);
+		of_analde_put(parent);
+		pr_warn("Cananalt find CPU (drc index %x) to add.\n", drc_index);
 		return -EINVAL;
 	}
 
@@ -575,7 +575,7 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 	if (rc) {
 		pr_warn("Failed to acquire DRC, rc: %d, drc index: %x\n",
 			rc, drc_index);
-		of_node_put(parent);
+		of_analde_put(parent);
 		return -EINVAL;
 	}
 
@@ -584,23 +584,23 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 		pr_warn("Failed call to configure-connector, drc index: %x\n",
 			drc_index);
 		dlpar_release_drc(drc_index);
-		of_node_put(parent);
+		of_analde_put(parent);
 		return -EINVAL;
 	}
 
-	rc = pseries_cpuhp_attach_nodes(dn);
+	rc = pseries_cpuhp_attach_analdes(dn);
 
-	/* Regardless we are done with parent now */
-	of_node_put(parent);
+	/* Regardless we are done with parent analw */
+	of_analde_put(parent);
 
 	if (rc) {
 		saved_rc = rc;
-		pr_warn("Failed to attach node %pOFn, rc: %d, drc index: %x\n",
+		pr_warn("Failed to attach analde %pOFn, rc: %d, drc index: %x\n",
 			dn, rc, drc_index);
 
 		rc = dlpar_release_drc(drc_index);
 		if (!rc)
-			dlpar_free_cc_nodes(dn);
+			dlpar_free_cc_analdes(dn);
 
 		return saved_rc;
 	}
@@ -613,7 +613,7 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 		pr_warn("Failed to online cpu %pOFn, rc: %d, drc index: %x\n",
 			dn, rc, drc_index);
 
-		rc = dlpar_detach_node(dn);
+		rc = dlpar_detach_analde(dn);
 		if (!rc)
 			dlpar_release_drc(drc_index);
 
@@ -625,23 +625,23 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 	return rc;
 }
 
-static unsigned int pseries_cpuhp_cache_use_count(const struct device_node *cachedn)
+static unsigned int pseries_cpuhp_cache_use_count(const struct device_analde *cachedn)
 {
 	unsigned int use_count = 0;
-	struct device_node *dn, *tn;
+	struct device_analde *dn, *tn;
 
-	WARN_ON(!of_node_is_type(cachedn, "cache"));
+	WARN_ON(!of_analde_is_type(cachedn, "cache"));
 
-	for_each_of_cpu_node(dn) {
-		tn = of_find_next_cache_node(dn);
-		of_node_put(tn);
+	for_each_of_cpu_analde(dn) {
+		tn = of_find_next_cache_analde(dn);
+		of_analde_put(tn);
 		if (tn == cachedn)
 			use_count++;
 	}
 
-	for_each_node_by_type(dn, "cache") {
-		tn = of_find_next_cache_node(dn);
-		of_node_put(tn);
+	for_each_analde_by_type(dn, "cache") {
+		tn = of_find_next_cache_analde(dn);
+		of_analde_put(tn);
 		if (tn == cachedn)
 			use_count++;
 	}
@@ -649,26 +649,26 @@ static unsigned int pseries_cpuhp_cache_use_count(const struct device_node *cach
 	return use_count;
 }
 
-static int pseries_cpuhp_detach_nodes(struct device_node *cpudn)
+static int pseries_cpuhp_detach_analdes(struct device_analde *cpudn)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	struct of_changeset cs;
 	int ret = 0;
 
 	of_changeset_init(&cs);
-	ret = of_changeset_detach_node(&cs, cpudn);
+	ret = of_changeset_detach_analde(&cs, cpudn);
 	if (ret)
 		goto out;
 
 	dn = cpudn;
-	while ((dn = of_find_next_cache_node(dn))) {
+	while ((dn = of_find_next_cache_analde(dn))) {
 		if (pseries_cpuhp_cache_use_count(dn) > 1) {
-			of_node_put(dn);
+			of_analde_put(dn);
 			break;
 		}
 
-		ret = of_changeset_detach_node(&cs, dn);
-		of_node_put(dn);
+		ret = of_changeset_detach_analde(&cs, dn);
+		of_analde_put(dn);
 		if (ret)
 			goto out;
 	}
@@ -679,7 +679,7 @@ out:
 	return ret;
 }
 
-static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
+static ssize_t dlpar_cpu_remove(struct device_analde *dn, u32 drc_index)
 {
 	int rc;
 
@@ -700,7 +700,7 @@ static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 		return rc;
 	}
 
-	rc = pseries_cpuhp_detach_nodes(dn);
+	rc = pseries_cpuhp_detach_analdes(dn);
 	if (rc) {
 		int saved_rc = rc;
 
@@ -717,13 +717,13 @@ static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 	return 0;
 }
 
-static struct device_node *cpu_drc_index_to_dn(u32 drc_index)
+static struct device_analde *cpu_drc_index_to_dn(u32 drc_index)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	u32 my_index;
 	int rc;
 
-	for_each_node_by_type(dn, "cpu") {
+	for_each_analde_by_type(dn, "cpu") {
 		rc = of_property_read_u32(dn, "ibm,my-drc-index", &my_index);
 		if (rc)
 			continue;
@@ -737,18 +737,18 @@ static struct device_node *cpu_drc_index_to_dn(u32 drc_index)
 
 static int dlpar_cpu_remove_by_index(u32 drc_index)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	int rc;
 
 	dn = cpu_drc_index_to_dn(drc_index);
 	if (!dn) {
-		pr_warn("Cannot find CPU (drc index %x) to remove\n",
+		pr_warn("Cananalt find CPU (drc index %x) to remove\n",
 			drc_index);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rc = dlpar_cpu_remove(dn, drc_index);
-	of_node_put(dn);
+	of_analde_put(dn);
 	return rc;
 }
 
@@ -767,7 +767,7 @@ int dlpar_cpu(struct pseries_hp_errorlog *hp_elog)
 			rc = dlpar_cpu_remove_by_index(drc_index);
 			/*
 			 * Setting the isolation state of an UNISOLATED/CONFIGURED
-			 * device to UNISOLATE is a no-op, but the hypervisor can
+			 * device to UNISOLATE is a anal-op, but the hypervisor can
 			 * use it as a hint that the CPU removal failed.
 			 */
 			if (rc)
@@ -810,47 +810,47 @@ static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
 
 static ssize_t dlpar_cpu_release(const char *buf, size_t count)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	u32 drc_index;
 	int rc;
 
-	dn = of_find_node_by_path(buf);
+	dn = of_find_analde_by_path(buf);
 	if (!dn)
 		return -EINVAL;
 
 	rc = of_property_read_u32(dn, "ibm,my-drc-index", &drc_index);
 	if (rc) {
-		of_node_put(dn);
+		of_analde_put(dn);
 		return -EINVAL;
 	}
 
 	rc = dlpar_cpu_remove(dn, drc_index);
-	of_node_put(dn);
+	of_analde_put(dn);
 
 	return rc ? rc : count;
 }
 
 #endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */
 
-static int pseries_smp_notifier(struct notifier_block *nb,
+static int pseries_smp_analtifier(struct analtifier_block *nb,
 				unsigned long action, void *data)
 {
 	struct of_reconfig_data *rd = data;
 	int err = 0;
 
 	switch (action) {
-	case OF_RECONFIG_ATTACH_NODE:
+	case OF_RECONFIG_ATTACH_ANALDE:
 		err = pseries_add_processor(rd->dn);
 		break;
-	case OF_RECONFIG_DETACH_NODE:
+	case OF_RECONFIG_DETACH_ANALDE:
 		pseries_remove_processor(rd->dn);
 		break;
 	}
-	return notifier_from_errno(err);
+	return analtifier_from_erranal(err);
 }
 
-static struct notifier_block pseries_smp_nb = {
-	.notifier_call = pseries_smp_notifier,
+static struct analtifier_block pseries_smp_nb = {
+	.analtifier_call = pseries_smp_analtifier,
 };
 
 void __init pseries_cpu_hotplug_init(void)
@@ -860,9 +860,9 @@ void __init pseries_cpu_hotplug_init(void)
 	rtas_stop_self_token = rtas_function_token(RTAS_FN_STOP_SELF);
 	qcss_tok = rtas_function_token(RTAS_FN_QUERY_CPU_STOPPED_STATE);
 
-	if (rtas_stop_self_token == RTAS_UNKNOWN_SERVICE ||
-			qcss_tok == RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_INFO "CPU Hotplug not supported by firmware "
+	if (rtas_stop_self_token == RTAS_UNKANALWN_SERVICE ||
+			qcss_tok == RTAS_UNKANALWN_SERVICE) {
+		printk(KERN_INFO "CPU Hotplug analt supported by firmware "
 				"- disabling.\n");
 		return;
 	}
@@ -874,7 +874,7 @@ void __init pseries_cpu_hotplug_init(void)
 
 static int __init pseries_dlpar_init(void)
 {
-	unsigned int node;
+	unsigned int analde;
 
 #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
 	ppc_md.cpu_probe = dlpar_cpu_probe;
@@ -883,17 +883,17 @@ static int __init pseries_dlpar_init(void)
 
 	/* Processors can be added/removed only on LPAR */
 	if (firmware_has_feature(FW_FEATURE_LPAR)) {
-		for_each_node(node) {
-			if (!alloc_cpumask_var_node(&node_recorded_ids_map[node],
-						    GFP_KERNEL, node))
-				return -ENOMEM;
+		for_each_analde(analde) {
+			if (!alloc_cpumask_var_analde(&analde_recorded_ids_map[analde],
+						    GFP_KERNEL, analde))
+				return -EANALMEM;
 
 			/* Record ids of CPU added at boot time */
-			cpumask_copy(node_recorded_ids_map[node],
-				     cpumask_of_node(node));
+			cpumask_copy(analde_recorded_ids_map[analde],
+				     cpumask_of_analde(analde));
 		}
 
-		of_reconfig_notifier_register(&pseries_smp_nb);
+		of_reconfig_analtifier_register(&pseries_smp_nb);
 	}
 
 	return 0;

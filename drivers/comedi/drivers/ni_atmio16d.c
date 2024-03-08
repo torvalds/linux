@@ -8,15 +8,15 @@
  * Driver: ni_atmio16d
  * Description: National Instruments AT-MIO-16D
  * Author: Chris R. Baugher <baugher@enteract.com>
- * Status: unknown
+ * Status: unkanalwn
  * Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
  *
  * Configuration options:
  *   [0] - I/O port
- *   [1] - MIO irq (0 == no irq; or 3,4,5,6,7,9,10,11,12,14,15)
- *   [2] - DIO irq (0 == no irq; or 3,4,5,6,7,9)
- *   [3] - DMA1 channel (0 == no DMA; or 5,6,7)
- *   [4] - DMA2 channel (0 == no DMA; or 5,6,7)
+ *   [1] - MIO irq (0 == anal irq; or 3,4,5,6,7,9,10,11,12,14,15)
+ *   [2] - DIO irq (0 == anal irq; or 3,4,5,6,7,9)
+ *   [3] - DMA1 channel (0 == anal DMA; or 5,6,7)
+ *   [4] - DMA2 channel (0 == anal DMA; or 5,6,7)
  *   [5] - a/d mux (0=differential; 1=single)
  *   [6] - a/d range (0=bipolar10; 1=bipolar5; 2=unipolar10)
  *   [7] - dac0 range (0=bipolar; 1=unipolar)
@@ -189,7 +189,7 @@ static void reset_atmio16d(struct comedi_device *dev)
 	struct atmio16d_private *devpriv = dev->private;
 	int i;
 
-	/* now we need to initialize the board */
+	/* analw we need to initialize the board */
 	outw(0, dev->iobase + COM_REG_1);
 	outw(0, dev->iobase + COM_REG_2);
 	outw(0, dev->iobase + MUX_GAIN_REG);
@@ -238,12 +238,12 @@ static int atmio16d_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_FOLLOW | TRIG_TIMER);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -273,7 +273,7 @@ static int atmio16d_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -321,7 +321,7 @@ static int atmio16d_ai_cmd(struct comedi_device *dev,
 	}
 
 	/*
-	 * Now program the sample interval timer.
+	 * Analw program the sample interval timer.
 	 * Figure out which clock to use then get an appropriate timer value.
 	 */
 	if (cmd->convert_arg < 65536000) {
@@ -343,7 +343,7 @@ static int atmio16d_ai_cmd(struct comedi_device *dev,
 	outw(timer, dev->iobase + AM9513A_DATA_REG);
 	outw(0xFF24, dev->iobase + AM9513A_COM_REG);
 
-	/* Now figure out how many samples to get */
+	/* Analw figure out how many samples to get */
 	/* and program the sample counter */
 	sample_count = cmd->stop_arg * cmd->scan_end_arg;
 	outw(0xFF04, dev->iobase + AM9513A_COM_REG);
@@ -484,7 +484,7 @@ static int atmio16d_ai_insn_read(struct comedi_device *dev,
 		if (ret)
 			return ret;
 
-		/* read the data now */
+		/* read the data analw */
 		data[i] = inw(dev->iobase + AD_FIFO_REG);
 		/* change to two's complement if need be */
 		if (devpriv->adc_coding == adc_2comp)
@@ -584,7 +584,7 @@ static int atmio16d_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* reset the atmio16d hardware */
 	reset_atmio16d(dev);
@@ -684,7 +684,7 @@ static int atmio16d_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-/* don't yet know how to deal with counter/timers */
+/* don't yet kanalw how to deal with counter/timers */
 #if 0
 	s = &dev->subdevices[4];
 	/* do */

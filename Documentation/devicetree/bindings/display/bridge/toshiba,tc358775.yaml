@@ -49,7 +49,7 @@ properties:
         $ref: /schemas/graph.yaml#/properties/port
         description: |
           DSI Input. The remote endpoint phandle should be a
-          reference to a valid mipi_dsi_host device node.
+          reference to a valid mipi_dsi_host device analde.
 
       port@1:
         $ref: /schemas/graph.yaml#/properties/port

@@ -128,12 +128,12 @@ static int ionic_get_link_ksettings(struct net_device *netdev,
 	ethtool_link_ksettings_zero_link_mode(ks, supported);
 
 	if (!idev->port_info) {
-		netdev_err(netdev, "port_info not initialized\n");
-		return -EOPNOTSUPP;
+		netdev_err(netdev, "port_info analt initialized\n");
+		return -EOPANALTSUPP;
 	}
 
 	/* The port_info data is found in a DMA space that the NIC keeps
-	 * up-to-date, so there's no need to request the data from the
+	 * up-to-date, so there's anal need to request the data from the
 	 * NIC, we already have it in our memory space.
 	 */
 
@@ -218,11 +218,11 @@ static int ionic_get_link_ksettings(struct net_device *netdev,
 		ethtool_link_ksettings_add_link_mode(ks, supported,
 						     1000baseT_Full);
 		break;
-	case IONIC_XCVR_PID_UNKNOWN:
-		/* This means there's no module plugged in */
+	case IONIC_XCVR_PID_UNKANALWN:
+		/* This means there's anal module plugged in */
 		break;
 	default:
-		dev_info(lif->ionic->dev, "unknown xcvr type pid=%d / 0x%x\n",
+		dev_info(lif->ionic->dev, "unkanalwn xcvr type pid=%d / 0x%x\n",
 			 idev->port_info->status.xcvr.pid,
 			 idev->port_info->status.xcvr.pid);
 		break;
@@ -246,15 +246,15 @@ static int ionic_get_link_ksettings(struct net_device *netdev,
 	else if (idev->port_info->status.xcvr.phy == IONIC_PHY_TYPE_FIBER)
 		ks->base.port = PORT_FIBRE;
 	else
-		ks->base.port = PORT_NONE;
+		ks->base.port = PORT_ANALNE;
 
-	if (ks->base.port != PORT_NONE) {
+	if (ks->base.port != PORT_ANALNE) {
 		ks->base.speed = le32_to_cpu(lif->info->status.link_speed);
 
 		if (le16_to_cpu(lif->info->status.link_status))
 			ks->base.duplex = DUPLEX_FULL;
 		else
-			ks->base.duplex = DUPLEX_UNKNOWN;
+			ks->base.duplex = DUPLEX_UNKANALWN;
 
 		ethtool_link_ksettings_add_link_mode(ks, supported, Autoneg);
 
@@ -329,7 +329,7 @@ static int ionic_set_pauseparam(struct net_device *netdev,
 		return -EBUSY;
 
 	if (pause->autoneg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* change both at the same time */
 	requested_pause = IONIC_PORT_PAUSE_TYPE_LINK;
@@ -357,7 +357,7 @@ static int ionic_get_fecparam(struct net_device *netdev,
 	struct ionic_lif *lif = netdev_priv(netdev);
 
 	switch (lif->ionic->idev.port_info->config.fec_type) {
-	case IONIC_PORT_FEC_TYPE_NONE:
+	case IONIC_PORT_FEC_TYPE_ANALNE:
 		fec->active_fec = ETHTOOL_FEC_OFF;
 		break;
 	case IONIC_PORT_FEC_TYPE_RS:
@@ -384,16 +384,16 @@ static int ionic_set_fecparam(struct net_device *netdev,
 		return -EBUSY;
 
 	if (lif->ionic->idev.port_info->config.an_enable) {
-		netdev_err(netdev, "FEC request not allowed while autoneg is enabled\n");
+		netdev_err(netdev, "FEC request analt allowed while autoneg is enabled\n");
 		return -EINVAL;
 	}
 
 	switch (fec->fec) {
-	case ETHTOOL_FEC_NONE:
-		fec_type = IONIC_PORT_FEC_TYPE_NONE;
+	case ETHTOOL_FEC_ANALNE:
+		fec_type = IONIC_PORT_FEC_TYPE_ANALNE;
 		break;
 	case ETHTOOL_FEC_OFF:
-		fec_type = IONIC_PORT_FEC_TYPE_NONE;
+		fec_type = IONIC_PORT_FEC_TYPE_ANALNE;
 		break;
 	case ETHTOOL_FEC_RS:
 		fec_type = IONIC_PORT_FEC_TYPE_RS;
@@ -403,7 +403,7 @@ static int ionic_set_fecparam(struct net_device *netdev,
 		break;
 	case ETHTOOL_FEC_AUTO:
 	default:
-		netdev_err(netdev, "FEC request 0x%04x not supported\n",
+		netdev_err(netdev, "FEC request 0x%04x analt supported\n",
 			   fec->fec);
 		return -EINVAL;
 	}
@@ -456,7 +456,7 @@ static int ionic_set_coalesce(struct net_device *netdev,
 		return -EIO;
 	}
 
-	/* Tx normally shares Rx interrupt, so only change Rx if not split */
+	/* Tx analrmally shares Rx interrupt, so only change Rx if analt split */
 	if (!test_bit(IONIC_LIF_F_SPLIT_INTR, lif->state) &&
 	    (coalesce->tx_coalesce_usecs != lif->rx_coalesce_usecs ||
 	     coalesce->use_adaptive_tx_coalesce)) {
@@ -465,7 +465,7 @@ static int ionic_set_coalesce(struct net_device *netdev,
 	}
 
 	/* Convert the usec request to a HW usable value.  If they asked
-	 * for non-zero and it resolved to zero, bump it up
+	 * for analn-zero and it resolved to zero, bump it up
 	 */
 	rx_coal = ionic_coal_usec_to_hw(lif->ionic, coalesce->rx_coalesce_usecs);
 	if (!rx_coal && coalesce->rx_coalesce_usecs)
@@ -533,15 +533,15 @@ static int ionic_validate_cmb_config(struct ionic_lif *lif,
 
 	if (!lif->ionic->idev.cmb_inuse &&
 	    (qparam->cmb_tx || qparam->cmb_rx)) {
-		netdev_info(lif->netdev, "CMB rings are not supported on this device\n");
-		return -EOPNOTSUPP;
+		netdev_info(lif->netdev, "CMB rings are analt supported on this device\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (qparam->cmb_tx) {
 		if (!(lif->qtype_info[IONIC_QTYPE_TXQ].features & IONIC_QIDENT_F_CMB)) {
 			netdev_info(lif->netdev,
-				    "CMB rings for tx-push are not supported on this device\n");
-			return -EOPNOTSUPP;
+				    "CMB rings for tx-push are analt supported on this device\n");
+			return -EOPANALTSUPP;
 		}
 
 		sz = sizeof(struct ionic_txq_desc) * qparam->ntxq_descs * qparam->nxqs;
@@ -551,8 +551,8 @@ static int ionic_validate_cmb_config(struct ionic_lif *lif,
 	if (qparam->cmb_rx) {
 		if (!(lif->qtype_info[IONIC_QTYPE_RXQ].features & IONIC_QIDENT_F_CMB)) {
 			netdev_info(lif->netdev,
-				    "CMB rings for rx-push are not supported on this device\n");
-			return -EOPNOTSUPP;
+				    "CMB rings for rx-push are analt supported on this device\n");
+			return -EOPANALTSUPP;
 		}
 
 		sz = sizeof(struct ionic_rxq_desc) * qparam->nrxq_descs * qparam->nxqs;
@@ -562,9 +562,9 @@ static int ionic_validate_cmb_config(struct ionic_lif *lif,
 	pages_have = lif->ionic->bars[IONIC_PCI_BAR_CMB].len / PAGE_SIZE;
 	if (pages_required > pages_have) {
 		netdev_info(lif->netdev,
-			    "Not enough CMB pages for number of queues and size of descriptor rings, need %d have %d",
+			    "Analt eanalugh CMB pages for number of queues and size of descriptor rings, need %d have %d",
 			    pages_required, pages_have);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return pages_required;
@@ -636,7 +636,7 @@ static int ionic_set_ringparam(struct net_device *netdev,
 	ionic_init_queue_params(lif, &qparam);
 
 	if (ring->rx_mini_pending || ring->rx_jumbo_pending) {
-		netdev_info(netdev, "Changing jumbo or mini descriptors not supported\n");
+		netdev_info(netdev, "Changing jumbo or mini descriptors analt supported\n");
 		return -EINVAL;
 	}
 
@@ -646,7 +646,7 @@ static int ionic_set_ringparam(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	/* if nothing to do return success */
+	/* if analthing to do return success */
 	if (ring->tx_pending == lif->ntxq_descs &&
 	    ring->rx_pending == lif->nrxq_descs &&
 	    kernel_ring->tx_push == test_bit(IONIC_LIF_F_CMB_TX_RINGS, lif->state) &&
@@ -678,7 +678,7 @@ static int ionic_set_ringparam(struct net_device *netdev,
 		netdev_info(netdev, "Changing Rx ring size from %d to %d\n",
 			    lif->nrxq_descs, ring->rx_pending);
 
-	/* if we're not running, just set the values and return */
+	/* if we're analt running, just set the values and return */
 	if (!netif_running(lif->netdev)) {
 		lif->ntxq_descs = ring->tx_pending;
 		lif->nrxq_descs = ring->rx_pending;
@@ -732,7 +732,7 @@ static int ionic_set_channels(struct net_device *netdev,
 	}
 
 	if (ch->combined_count && ch->rx_count) {
-		netdev_info(netdev, "Use either combined or rx and tx, not both\n");
+		netdev_info(netdev, "Use either combined or rx and tx, analt both\n");
 		return -EINVAL;
 	}
 
@@ -774,7 +774,7 @@ static int ionic_set_channels(struct net_device *netdev,
 	if (err < 0)
 		return err;
 
-	/* if we're not running, just set the values and return */
+	/* if we're analt running, just set the values and return */
 	if (!netif_running(lif->netdev)) {
 		lif->nxqs = qparam.nxqs;
 
@@ -808,9 +808,9 @@ static int ionic_get_rxnfc(struct net_device *netdev,
 		info->data = lif->nxqs;
 		break;
 	default:
-		netdev_dbg(netdev, "Command parameter %d is not supported\n",
+		netdev_dbg(netdev, "Command parameter %d is analt supported\n",
 			   info->cmd);
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	return err;
@@ -854,9 +854,9 @@ static int ionic_set_rxfh(struct net_device *netdev,
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ionic_lif_rss_config(lif, lif->rss_types,
 				    rxfh->key, rxfh->indir);
@@ -873,7 +873,7 @@ static int ionic_set_tunable(struct net_device *dev,
 		lif->rx_copybreak = *(u32 *)data;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -889,7 +889,7 @@ static int ionic_get_tunable(struct net_device *netdev,
 		*(u32 *)data = lif->rx_copybreak;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -919,7 +919,7 @@ static int ionic_get_module_info(struct net_device *netdev,
 		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
 		break;
 	default:
-		netdev_info(netdev, "unknown xcvr type 0x%02x\n",
+		netdev_info(netdev, "unkanalwn xcvr type 0x%02x\n",
 			    xcvr->sprom[0]);
 		modinfo->type = 0;
 		modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
@@ -996,7 +996,7 @@ static int ionic_get_ts_info(struct net_device *netdev,
 
 	/* rx filters */
 
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+	info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE) |
 			   BIT(HWTSTAMP_FILTER_ALL);
 
 	mask = cpu_to_le64(IONIC_PKT_CLS_NTP_ALL);

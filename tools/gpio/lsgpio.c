@@ -13,7 +13,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <poll.h>
 #include <fcntl.h>
@@ -108,11 +108,11 @@ int list_device(const char *device_name)
 
 	ret = asprintf(&chrdev_name, "/dev/%s", device_name);
 	if (ret < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fd = open(chrdev_name, 0);
 	if (fd == -1) {
-		ret = -errno;
+		ret = -erranal;
 		fprintf(stderr, "Failed to open %s\n", chrdev_name);
 		goto exit_free_name;
 	}
@@ -120,7 +120,7 @@ int list_device(const char *device_name)
 	/* Inspect this GPIO chip */
 	ret = ioctl(fd, GPIO_GET_CHIPINFO_IOCTL, &cinfo);
 	if (ret == -1) {
-		ret = -errno;
+		ret = -erranal;
 		perror("Failed to issue CHIPINFO IOCTL\n");
 		goto exit_close_error;
 	}
@@ -136,7 +136,7 @@ int list_device(const char *device_name)
 
 		ret = ioctl(fd, GPIO_V2_GET_LINEINFO_IOCTL, &linfo);
 		if (ret == -1) {
-			ret = -errno;
+			ret = -erranal;
 			perror("Failed to issue LINEINFO IOCTL\n");
 			goto exit_close_error;
 		}
@@ -201,11 +201,11 @@ int main(int argc, char **argv)
 		/* List all GPIO devices one at a time */
 		dp = opendir("/dev");
 		if (!dp) {
-			ret = -errno;
+			ret = -erranal;
 			goto error_out;
 		}
 
-		ret = -ENOENT;
+		ret = -EANALENT;
 		while (ent = readdir(dp), ent) {
 			if (check_prefix(ent->d_name, "gpiochip")) {
 				ret = list_device(ent->d_name);
@@ -217,7 +217,7 @@ int main(int argc, char **argv)
 		ret = 0;
 		if (closedir(dp) == -1) {
 			perror("scanning devices: Failed to close directory");
-			ret = -errno;
+			ret = -erranal;
 		}
 	}
 error_out:

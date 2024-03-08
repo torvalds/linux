@@ -6,7 +6,7 @@ include ../lib.mk
 .PHONY: all clean
 
 BINARIES := uevent_filtering
-CFLAGS += -Wl,-no-as-needed -Wall
+CFLAGS += -Wl,-anal-as-needed -Wall
 
 uevent_filtering: uevent_filtering.c ../kselftest.h ../kselftest_harness.h
 	$(CC) $(CFLAGS) $< -o $@

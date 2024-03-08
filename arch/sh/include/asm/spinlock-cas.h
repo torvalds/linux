@@ -43,9 +43,9 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
 /*
  * Read-write spinlocks, allowing multiple readers but only one writer.
  *
- * NOTE! it is quite common to have readers in interrupts but no interrupt
+ * ANALTE! it is quite common to have readers in interrupts but anal interrupt
  * writers. For those circumstances we can "mix" irq-safe locks - any writer
- * needs to get a irq-safe write-lock, but readers can get non-irqsafe
+ * needs to get a irq-safe write-lock, but readers can get analn-irqsafe
  * read-locks.
  */
 

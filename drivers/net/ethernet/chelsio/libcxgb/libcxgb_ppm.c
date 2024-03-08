@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -39,7 +39,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/debugfs.h>
 #include <linux/export.h>
@@ -75,7 +75,7 @@ int cxgbi_ppm_find_page_index(struct cxgbi_ppm *ppm, unsigned long pgsz)
 			return i;
 		}
 	}
-	pr_info("ippm: ddp page size %lu not supported.\n", pgsz);
+	pr_info("ippm: ddp page size %lu analt supported.\n", pgsz);
 	return DDP_PGIDX_MAX;
 }
 
@@ -95,7 +95,7 @@ static int ppm_find_unused_entries(unsigned long *bmap,
 		i = bitmap_find_next_zero_area(bmap, max_ppods, 0, start - 1,
 					       align_mask);
 	if (unlikely(i >= max_ppods))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	bitmap_set(bmap, i, nr);
 	return (int)i;
@@ -135,7 +135,7 @@ static int ppm_get_cpu_entries(struct cxgbi_ppm *ppm, unsigned int count,
 	if (i < 0) {
 		pool->next = 0;
 		spin_unlock_bh(&pool->lock);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	pool->next = i + count;
@@ -165,9 +165,9 @@ static int ppm_get_entries(struct cxgbi_ppm *ppm, unsigned int count,
 	if (i < 0) {
 		ppm->next = 0;
 		spin_unlock_bh(&ppm->map_lock);
-		pr_debug("ippm: NO suitable entries %u available.\n",
+		pr_debug("ippm: ANAL suitable entries %u available.\n",
 			 count);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	ppm->next = i + count;
@@ -266,7 +266,7 @@ int cxgbi_ppm_ppods_reserve(struct cxgbi_ppm *ppm, unsigned short nr_pages,
 	if (idx < 0)
 		idx = ppm_get_entries(ppm, npods, caller_data);
 	if (idx < 0) {
-		pr_debug("ippm: pages %u, nospc %u, nxt %u, 0x%lx.\n",
+		pr_debug("ippm: pages %u, analspc %u, nxt %u, 0x%lx.\n",
 			 nr_pages, npods, ppm->next, caller_data);
 		return idx;
 	}
@@ -295,7 +295,7 @@ void cxgbi_ppm_make_ppod_hdr(struct cxgbi_ppm *ppm, u32 tag,
 			     struct cxgbi_pagepod_hdr *hdr)
 {
 	/* The ddp tag in pagepod should be with bit 31:30 set to 0.
-	 * The ddp Tag on the wire should be with non-zero 31:30 to the peer
+	 * The ddp Tag on the wire should be with analn-zero 31:30 to the peer
 	 */
 	tag &= 0x3FFFFFFF;
 
@@ -365,7 +365,7 @@ static struct cxgbi_ppm_pool *ppm_alloc_cpu_pool(unsigned int *total,
 	ppmax = (bmap * sizeof(unsigned long)) << 3;
 
 	alloc_sz = sizeof(*pools) + sizeof(unsigned long) * bmap;
-	pools = __alloc_percpu(alloc_sz, __alignof__(struct cxgbi_ppm_pool));
+	pools = __alloc_percpu(alloc_sz, __aliganalf__(struct cxgbi_ppm_pool));
 
 	if (!pools)
 		return NULL;
@@ -404,7 +404,7 @@ int cxgbi_ppm_init(void **ppm_pp, struct net_device *ndev,
 
 	if (iscsi_edram_size &&
 	    ((iscsi_edram_start + iscsi_edram_size) != start)) {
-		pr_err("iscsi ppod region not contiguous: EDRAM start 0x%x "
+		pr_err("iscsi ppod region analt contiguous: EDRAM start 0x%x "
 			"size 0x%x DDR start 0x%x\n",
 			iscsi_edram_start, iscsi_edram_size, start);
 		return -EINVAL;
@@ -509,7 +509,7 @@ int cxgbi_ppm_init(void **ppm_pp, struct net_device *ndev,
 
 release_ppm_pool:
 	free_percpu(pool);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL(cxgbi_ppm_init);
 

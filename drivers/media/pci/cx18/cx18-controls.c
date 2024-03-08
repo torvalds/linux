@@ -29,7 +29,7 @@ static int cx18_s_stream_vbi_fmt(struct cx2341x_handler *cxhdl, u32 fmt)
 	      type == V4L2_MPEG_STREAM_TYPE_MPEG2_DVD ||
 	      type == V4L2_MPEG_STREAM_TYPE_MPEG2_SVCD)) {
 		/* Only IVTV fmt VBI insertion & only MPEG-2 PS type streams */
-		cx->vbi.insert_mpeg = V4L2_MPEG_STREAM_VBI_FMT_NONE;
+		cx->vbi.insert_mpeg = V4L2_MPEG_STREAM_VBI_FMT_ANALNE;
 		CX18_DEBUG_INFO("disabled insertion of sliced VBI data into the MPEG stream\n");
 		return 0;
 	}
@@ -47,9 +47,9 @@ static int cx18_s_stream_vbi_fmt(struct cx2341x_handler *cxhdl, u32 fmt)
 					cx->vbi.sliced_mpeg_data[i] = NULL;
 				}
 				cx->vbi.insert_mpeg =
-						  V4L2_MPEG_STREAM_VBI_FMT_NONE;
+						  V4L2_MPEG_STREAM_VBI_FMT_ANALNE;
 				CX18_WARN("Unable to allocate buffers for sliced VBI data insertion\n");
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 	}
@@ -58,7 +58,7 @@ static int cx18_s_stream_vbi_fmt(struct cx2341x_handler *cxhdl, u32 fmt)
 	CX18_DEBUG_INFO("enabled insertion of sliced VBI data into the MPEG PS,when sliced VBI is enabled\n");
 
 	/*
-	 * If our current settings have no lines set for capture, store a valid,
+	 * If our current settings have anal lines set for capture, store a valid,
 	 * default set of service lines to capture, in our current settings.
 	 */
 	if (cx18_get_service_set(cx->vbi.sliced_in) == 0) {

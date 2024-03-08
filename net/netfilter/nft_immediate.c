@@ -291,7 +291,7 @@ static int nft_immediate_offload_verdict(struct nft_offload_ctx *ctx,
 		entry->id = FLOW_ACTION_DROP;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;

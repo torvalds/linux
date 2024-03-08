@@ -38,7 +38,7 @@
 #define STMPE_KPC_DATA_UP		(0x1 << 7)
 #define STMPE_KPC_DATA_ROW		(0xf << 3)
 #define STMPE_KPC_DATA_COL		(0x7 << 0)
-#define STMPE_KPC_DATA_NOKEY_MASK	0x78
+#define STMPE_KPC_DATA_ANALKEY_MASK	0x78
 
 #define STMPE_KEYPAD_MAX_DEBOUNCE	127
 #define STMPE_KEYPAD_MAX_SCAN_COUNT	15
@@ -63,7 +63,7 @@
  *		    auto-increments on multiple read
  * @set_pullup: whether the pins need to have their pull-ups set
  * @num_data: number of data bytes
- * @num_normal_data: number of normal keys' data bytes
+ * @num_analrmal_data: number of analrmal keys' data bytes
  * @max_cols: maximum number of columns supported
  * @max_rows: maximum number of rows supported
  * @col_gpios: bitmask of gpios which can be used for columns
@@ -73,7 +73,7 @@ struct stmpe_keypad_variant {
 	bool		auto_increment;
 	bool		set_pullup;
 	int		num_data;
-	int		num_normal_data;
+	int		num_analrmal_data;
 	int		max_cols;
 	int		max_rows;
 	unsigned int	col_gpios;
@@ -84,7 +84,7 @@ static const struct stmpe_keypad_variant stmpe_keypad_variants[] = {
 	[STMPE1601] = {
 		.auto_increment		= true,
 		.num_data		= STMPE1601_NUM_DATA,
-		.num_normal_data	= 3,
+		.num_analrmal_data	= 3,
 		.max_cols		= 8,
 		.max_rows		= 8,
 		.col_gpios		= 0x000ff,	/* GPIO 0 - 7 */
@@ -94,7 +94,7 @@ static const struct stmpe_keypad_variant stmpe_keypad_variants[] = {
 		.auto_increment		= false,
 		.set_pullup		= true,
 		.num_data		= STMPE2401_NUM_DATA,
-		.num_normal_data	= 2,
+		.num_analrmal_data	= 2,
 		.max_cols		= 8,
 		.max_rows		= 12,
 		.col_gpios		= 0x0000ff,	/* GPIO 0 - 7*/
@@ -104,7 +104,7 @@ static const struct stmpe_keypad_variant stmpe_keypad_variants[] = {
 		.auto_increment		= true,
 		.set_pullup		= true,
 		.num_data		= STMPE2403_NUM_DATA,
-		.num_normal_data	= 3,
+		.num_analrmal_data	= 3,
 		.max_cols		= 8,
 		.max_rows		= 12,
 		.col_gpios		= 0x0000ff,	/* GPIO 0 - 7*/
@@ -121,7 +121,7 @@ static const struct stmpe_keypad_variant stmpe_keypad_variants[] = {
  *		 %STMPE_KEYPAD_MAX_DEBOUNCE.
  * @scan_count: number of key scanning cycles to confirm key data.
  *		Maximum is %STMPE_KEYPAD_MAX_SCAN_COUNT.
- * @no_autorepeat: disable key autorepeat
+ * @anal_autorepeat: disable key autorepeat
  * @rows: bitmask for the rows
  * @cols: bitmask for the columns
  * @keymap: the keymap
@@ -132,7 +132,7 @@ struct stmpe_keypad {
 	const struct stmpe_keypad_variant *variant;
 	unsigned int debounce_ms;
 	unsigned int scan_count;
-	bool no_autorepeat;
+	bool anal_autorepeat;
 	unsigned int rows;
 	unsigned int cols;
 	unsigned short keymap[STMPE_KEYPAD_KEYMAP_MAX_SIZE];
@@ -171,17 +171,17 @@ static irqreturn_t stmpe_keypad_irq(int irq, void *dev)
 
 	ret = stmpe_keypad_read_data(keypad, fifo);
 	if (ret < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	for (i = 0; i < variant->num_normal_data; i++) {
+	for (i = 0; i < variant->num_analrmal_data; i++) {
 		u8 data = fifo[i];
 		int row = (data & STMPE_KPC_DATA_ROW) >> 3;
 		int col = data & STMPE_KPC_DATA_COL;
 		int code = MATRIX_SCAN_CODE(row, col, STMPE_KEYPAD_ROW_SHIFT);
 		bool up = data & STMPE_KPC_DATA_UP;
 
-		if ((data & STMPE_KPC_DATA_NOKEY_MASK)
-			== STMPE_KPC_DATA_NOKEY_MASK)
+		if ((data & STMPE_KPC_DATA_ANALKEY_MASK)
+			== STMPE_KPC_DATA_ANALKEY_MASK)
 			continue;
 
 		input_event(input, EV_MSC, MSC_SCAN, code);
@@ -252,7 +252,7 @@ static int stmpe_keypad_altfunc_init(struct stmpe_keypad *keypad)
 		if (ret)
 			return ret;
 
-		/* Do not touch unused pins, may be used for GPIO */
+		/* Do analt touch unused pins, may be used for GPIO */
 		val = ret & ~pu_pins;
 		val |= pu_pins;
 
@@ -331,7 +331,7 @@ static void stmpe_keypad_fill_used_pins(struct stmpe_keypad *keypad,
 static int stmpe_keypad_probe(struct platform_device *pdev)
 {
 	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct stmpe_keypad *keypad;
 	struct input_dev *input;
 	u32 rows;
@@ -346,18 +346,18 @@ static int stmpe_keypad_probe(struct platform_device *pdev)
 	keypad = devm_kzalloc(&pdev->dev, sizeof(struct stmpe_keypad),
 			      GFP_KERNEL);
 	if (!keypad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	keypad->stmpe = stmpe;
 	keypad->variant = &stmpe_keypad_variants[stmpe->partnum];
 
 	of_property_read_u32(np, "debounce-interval", &keypad->debounce_ms);
 	of_property_read_u32(np, "st,scan-count", &keypad->scan_count);
-	keypad->no_autorepeat = of_property_read_bool(np, "st,no-autorepeat");
+	keypad->anal_autorepeat = of_property_read_bool(np, "st,anal-autorepeat");
 
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->name = "STMPE keypad";
 	input->id.bustype = BUS_I2C;
@@ -373,7 +373,7 @@ static int stmpe_keypad_probe(struct platform_device *pdev)
 		return error;
 
 	input_set_capability(input, EV_MSC, MSC_SCAN);
-	if (!keypad->no_autorepeat)
+	if (!keypad->anal_autorepeat)
 		__set_bit(EV_REP, input->evbit);
 
 	stmpe_keypad_fill_used_pins(keypad, rows, cols);

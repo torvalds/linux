@@ -7,10 +7,10 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: AHCI SATA Controller
 
 description: |
-  SATA nodes are defined to describe on-chip Serial ATA controllers.
-  Each SATA controller should have its own node.
+  SATA analdes are defined to describe on-chip Serial ATA controllers.
+  Each SATA controller should have its own analde.
 
-  It is possible, but not required, to represent each port as a sub-node.
+  It is possible, but analt required, to represent each port as a sub-analde.
   It allows to enable each port independently when dealing with multiple
   PHYs.
 

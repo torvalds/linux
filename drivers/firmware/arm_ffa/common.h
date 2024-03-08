@@ -24,7 +24,7 @@ int __init ffa_transport_init(ffa_fn **invoke_ffa_fn);
 #else
 static inline int __init ffa_transport_init(ffa_fn **invoke_ffa_fn)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 

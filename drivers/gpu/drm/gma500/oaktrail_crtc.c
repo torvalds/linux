@@ -342,7 +342,7 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 /*
  * Return the pipe currently connected to the panel fitter,
- * or -1 if the panel fitter is not present or not in use
+ * or -1 if the panel fitter is analt present or analt in use
  */
 static int oaktrail_panel_fitter_pipe(struct drm_device *dev)
 {
@@ -431,7 +431,7 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 					     (mode->crtc_vdisplay - 1), i);
 	}
 
-	if (scalingType == DRM_MODE_SCALE_NO_SCALE) {
+	if (scalingType == DRM_MODE_SCALE_ANAL_SCALE) {
 		/* Moorestown doesn't have register support for centering so
 		 * we need to mess with the h/vblank and h/vsync start and
 		 * ends to get centering */
@@ -603,9 +603,9 @@ static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 	u32 dspcntr;
 	int ret = 0;
 
-	/* no fb bound */
+	/* anal fb bound */
 	if (!fb) {
-		dev_dbg(dev->dev, "No FB bound\n");
+		dev_dbg(dev->dev, "Anal FB bound\n");
 		return 0;
 	}
 
@@ -632,10 +632,10 @@ static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 		break;
 	case 24:
 	case 32:
-		dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
+		dspcntr |= DISPPLANE_32BPP_ANAL_ALPHA;
 		break;
 	default:
-		dev_err(dev->dev, "Unknown color depth\n");
+		dev_err(dev->dev, "Unkanalwn color depth\n");
 		ret = -EINVAL;
 		goto pipe_set_base_exit;
 	}
@@ -659,7 +659,7 @@ const struct drm_crtc_helper_funcs oaktrail_helper_funcs = {
 	.commit = gma_crtc_commit,
 };
 
-/* Not used yet */
+/* Analt used yet */
 const struct gma_clock_funcs mrst_clock_funcs = {
 	.clock = mrst_lvds_clock,
 	.limit = mrst_limit,

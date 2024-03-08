@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte
  *
  * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef QAIC_ACCEL_H_
@@ -21,7 +21,7 @@ extern "C" {
 #define QAIC_SEM_OUTSYNCFENCE	1
 
 /* Semaphore commands */
-#define QAIC_SEM_NOP		0
+#define QAIC_SEM_ANALP		0
 #define QAIC_SEM_INIT		1
 #define QAIC_SEM_INC		2
 #define QAIC_SEM_DEC		3
@@ -143,14 +143,14 @@ struct qaic_manage_trans_status_to_dev {
  * struct qaic_manage_trans_status_from_dev - Defines a status response.
  * @hdr: Out. Header to identify this transaction.
  * @major: Out. NNC protocol version major number.
- * @minor: Out. NNC protocol version minor number.
+ * @mianalr: Out. NNC protocol version mianalr number.
  * @status: Out. Return code from device.
  * @status_flags: Out. Flags from device.  Bit 0 indicates if CRCs are required.
  */
 struct qaic_manage_trans_status_from_dev {
 	struct qaic_manage_trans_hdr hdr;
 	__u16 major;
-	__u16 minor;
+	__u16 mianalr;
 	__u32 status;
 	__u64 status_flags;
 };
@@ -212,10 +212,10 @@ struct qaic_sem {
 /**
  * struct qaic_attach_slice_entry - Defines a single BO slice.
  * @size: In. Size of this slice in bytes.
- * @sem0: In. Semaphore command 0. Must be 0 is not valid.
- * @sem1: In. Semaphore command 1. Must be 0 is not valid.
- * @sem2: In. Semaphore command 2. Must be 0 is not valid.
- * @sem3: In. Semaphore command 3. Must be 0 is not valid.
+ * @sem0: In. Semaphore command 0. Must be 0 is analt valid.
+ * @sem1: In. Semaphore command 1. Must be 0 is analt valid.
+ * @sem2: In. Semaphore command 2. Must be 0 is analt valid.
+ * @sem3: In. Semaphore command 3. Must be 0 is analt valid.
  * @dev_addr: In. Device address this slice pushes to or pulls from.
  * @db_addr: In. Address of the doorbell to ring.
  * @db_data: In. Data to write to the doorbell.
@@ -242,11 +242,11 @@ struct qaic_attach_slice_entry {
  * @dbc_id: In. Associate the sliced BO with this DBC.
  * @handle: In. GEM handle of the BO to slice.
  * @dir: In. Direction of data flow. 1 = DMA_TO_DEVICE, 2 = DMA_FROM_DEVICE
- * @size: In. Total length of BO being used. This should not exceed base
+ * @size: In. Total length of BO being used. This should analt exceed base
  *	  size of BO (struct drm_gem_object.base)
  *	  For BOs being allocated using DRM_IOCTL_QAIC_CREATE_BO, size of
  *	  BO requested is PAGE_SIZE aligned then allocated hence allocated
- *	  BO size maybe bigger. This size should not exceed the new
+ *	  BO size maybe bigger. This size should analt exceed the new
  *	  PAGE_SIZE aligned BO size.
  * @dev_addr: In. Device address this slice pushes to or pulls from.
  * @db_addr: In. Address of the doorbell to ring.
@@ -288,7 +288,7 @@ struct qaic_execute_entry {
  * @handle: In. GEM handle of the BO to commit to the device.
  * @dir: In. Direction of data. 1 = to device, 2 = from device.
  * @resize: In. New size of the BO.  Must be <= the original BO size.
- *	    @resize as 0 would be interpreted as no DMA transfer is
+ *	    @resize as 0 would be interpreted as anal DMA transfer is
  *	    involved.
  */
 struct qaic_partial_execute_entry {

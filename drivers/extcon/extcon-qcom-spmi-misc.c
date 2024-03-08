@@ -31,7 +31,7 @@ struct qcom_usb_extcon_info {
 static const unsigned int qcom_usb_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 static void qcom_usb_extcon_detect_cable(struct work_struct *work)
@@ -92,12 +92,12 @@ static int qcom_usb_extcon_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->edev = devm_extcon_dev_allocate(dev, qcom_usb_extcon_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(dev, "failed to allocate extcon device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = devm_extcon_dev_register(dev, info->edev);
@@ -150,7 +150,7 @@ static int qcom_usb_extcon_probe(struct platform_device *pdev)
 	}
 
 	if (info->id_irq < 0 && info->vbus_irq < 0) {
-		dev_err(dev, "ID and VBUS IRQ not found\n");
+		dev_err(dev, "ID and VBUS IRQ analt found\n");
 		return -EINVAL;
 	}
 

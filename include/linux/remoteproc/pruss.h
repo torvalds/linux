@@ -42,12 +42,12 @@ enum pru_ctable_idx {
 	PRU_C31,
 };
 
-struct device_node;
+struct device_analde;
 struct rproc;
 
 #if IS_ENABLED(CONFIG_PRU_REMOTEPROC)
 
-struct rproc *pru_rproc_get(struct device_node *np, int index,
+struct rproc *pru_rproc_get(struct device_analde *np, int index,
 			    enum pruss_pru_id *pru_id);
 void pru_rproc_put(struct rproc *rproc);
 int pru_rproc_set_ctable(struct rproc *rproc, enum pru_ctable_idx c, u32 addr);
@@ -55,9 +55,9 @@ int pru_rproc_set_ctable(struct rproc *rproc, enum pru_ctable_idx c, u32 addr);
 #else
 
 static inline struct rproc *
-pru_rproc_get(struct device_node *np, int index, enum pruss_pru_id *pru_id)
+pru_rproc_get(struct device_analde *np, int index, enum pruss_pru_id *pru_id)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline void pru_rproc_put(struct rproc *rproc) { }
@@ -65,7 +65,7 @@ static inline void pru_rproc_put(struct rproc *rproc) { }
 static inline int pru_rproc_set_ctable(struct rproc *rproc,
 				       enum pru_ctable_idx c, u32 addr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 #endif /* CONFIG_PRU_REMOTEPROC */

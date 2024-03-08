@@ -6,8 +6,8 @@
  *
  * MODE0: CPG - Initial Pck/Bck Frequency [FRQMR1]
  * MODE1: CPG - Initial Uck/SHck/DDRck Frequency [FRQMR1]
- * MODE2: CPG - Reserved (L: Normal operation)
- * MODE3: CPG - Reserved (L: Normal operation)
+ * MODE2: CPG - Reserved (L: Analrmal operation)
+ * MODE3: CPG - Reserved (L: Analrmal operation)
  * MODE4: CPG - Initial PLL setting (72x/36x)
  * MODE5: LBSC - Area0 Memory Type / Bus Width [CS0BCR.8]
  * MODE6: LBSC - Area0 Memory Type / Bus Width [CS0BCR.9]
@@ -18,7 +18,7 @@
  * MODE11: PCI - Pin Mode (LL: PCI host, LH: PCI slave)
  * MODE12: PCI - Pin Mode (HL: Local bus, HH: DU)
  * MODE13: Boot Address Mode (L: 29-bit, H: 32-bit)
- * MODE14: Reserved (H: Normal operation)
+ * MODE14: Reserved (H: Analrmal operation)
  *
  * More information in sh7785 manual Rev.1.00, page 1628.
  */

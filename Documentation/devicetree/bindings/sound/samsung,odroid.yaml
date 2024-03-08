@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/samsung,odroid.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos Odroid XU3/XU4 audio complex with MAX98090 codec
+title: Samsung Exyanals Odroid XU3/XU4 audio complex with MAX98090 codec
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -46,11 +46,11 @@ properties:
       sound-dai:
         minItems: 1
         items:
-          - description: phandle of the HDMI IP block node
+          - description: phandle of the HDMI IP block analde
           - description: phandle of the MAX98090 CODEC
 
   samsung,audio-routing:
-    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    $ref: /schemas/types.yaml#/definitions/analn-unique-string-array
     deprecated: true
     description: |
       List of the connections between audio
@@ -60,11 +60,11 @@ properties:
       documented in its binding), and the jacks on the board.
       For Odroid X2: "Headphone Jack", "Mic Jack", "DMIC"
       For Odroid U3, XU3: "Headphone Jack", "Speakers"
-      For Odroid XU4: no entries
+      For Odroid XU4: anal entries
       Deprecated, use audio-routing.
 
   samsung,audio-widgets:
-    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    $ref: /schemas/types.yaml#/definitions/analn-unique-string-array
     description: |
       This property specifies off-codec audio elements
       like headphones or speakers, for details see widgets.txt

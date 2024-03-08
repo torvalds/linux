@@ -107,7 +107,7 @@ static int men_z188_probe(struct mcb_device *dev,
 
 	indio_dev = devm_iio_device_alloc(&dev->dev, sizeof(struct z188_adc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(indio_dev);
 	indio_dev->name = "z188-adc";

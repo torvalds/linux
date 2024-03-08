@@ -1,21 +1,21 @@
 GPIO controllers on MPC8xxx SoCs
 
-This is for the non-QE/CPM/GUTs GPIO controllers as found on
+This is for the analn-QE/CPM/GUTs GPIO controllers as found on
 8349, 8572, 8610 and compatible.
 
-Every GPIO controller node must have #gpio-cells property defined,
+Every GPIO controller analde must have #gpio-cells property defined,
 this information will be used to translate gpio-specifiers.
 See bindings/gpio/gpio.txt for details of how to specify GPIO
 information for devices.
 
 The GPIO module usually is connected to the SoC's internal interrupt
 controller, see bindings/interrupt-controller/interrupts.txt (the
-interrupt client nodes section) for details how to specify this GPIO
+interrupt client analdes section) for details how to specify this GPIO
 module's interrupt.
 
-The GPIO module may serve as another interrupt controller (cascaded to
+The GPIO module may serve as aanalther interrupt controller (cascaded to
 the SoC's internal interrupt controller).  See the interrupt controller
-nodes section in bindings/interrupt-controller/interrupts.txt for
+analdes section in bindings/interrupt-controller/interrupts.txt for
 details.
 
 Required properties:
@@ -36,11 +36,11 @@ Optional properties:
 			this interrupt controller.  The first cell
 			defines the pin number, the second cell
 			defines additional flags (trigger type,
-			trigger polarity).  Note that the available
+			trigger polarity).  Analte that the available
 			set of trigger conditions supported by the
 			GPIO module depends on the actual SoC.
 
-Example of gpio-controller nodes for a MPC8347 SoC:
+Example of gpio-controller analdes for a MPC8347 SoC:
 
 	gpio1: gpio-controller@c00 {
 		#gpio-cells = <2>;

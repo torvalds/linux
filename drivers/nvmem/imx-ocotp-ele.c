@@ -80,7 +80,7 @@ static int imx_ocotp_reg_read(void *context, unsigned int offset, void *val, siz
 
 	p = kzalloc(num_bytes, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&priv->lock);
 
@@ -113,7 +113,7 @@ static int imx_ele_ocotp_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->data = of_device_get_match_data(dev);
 

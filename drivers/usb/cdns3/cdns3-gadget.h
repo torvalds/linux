@@ -134,7 +134,7 @@ struct cdns3_usb_regs {
 /*
  * Big Endian access. Driver assume that byte order for
  * SFRs access always is as Little Endian so this bit
- * is not used.
+ * is analt used.
  */
 #define USB_CONF_BENDIAN	BIT(6)
 /* Device software reset. */
@@ -191,7 +191,7 @@ struct cdns3_usb_regs {
 /*
  * Configuration status.
  * 1 - device is in the configured state.
- * 0 - device is not configured.
+ * 0 - device is analt configured.
  */
 #define USB_STS_CFGSTS_MASK	BIT(0)
 #define USB_STS_CFGSTS(p)	((p) & USB_STS_CFGSTS_MASK)
@@ -262,7 +262,7 @@ struct cdns3_usb_regs {
 /*
  * Controller in reset state.
  * 0 - Internal reset is active.
- * 1 - Internal reset is not active and controller is fully operational.
+ * 1 - Internal reset is analt active and controller is fully operational.
  */
 #define USB_STS_IN_RST_MASK	BIT(10)
 #define USB_STS_IN_RST(p)	((p) & USB_STS_IN_RST_MASK)
@@ -296,7 +296,7 @@ struct cdns3_usb_regs {
 #define USB_STS_L1ENS(p)	((p) & USB_STS_L1ENS_MASK)
 /*
  * Internal VBUS connection status (used both in HS/FS  and SS mode).
- * 0 - internal VBUS is not detected.
+ * 0 - internal VBUS is analt detected.
  * 1 - internal VBUS is detected.
  */
 #define USB_STS_VBUSS_MASK	BIT(17)
@@ -316,13 +316,13 @@ struct cdns3_usb_regs {
 /*
  * Disable HS status (used in FS/HS mode).
  * 0 - the disconnect bit for HS/FS mode is set .
- * 1 - the disconnect bit for HS/FS mode is not set.
+ * 1 - the disconnect bit for HS/FS mode is analt set.
  */
 #define USB_STS_USB2CONS_MASK	BIT(20)
 #define USB_STS_USB2CONS(p)	((p) & USB_STS_USB2CONS_MASK)
 /*
  * HS/FS mode connection status (used in FS/HS mode).
- * 0 - High Speed operations in USB2.0 (FS/HS) mode not disabled.
+ * 0 - High Speed operations in USB2.0 (FS/HS) mode analt disabled.
  * 1 - High Speed operations in USB2.0 (FS/HS).
  */
 #define USB_STS_DISABLE_HS_MASK	BIT(21)
@@ -385,7 +385,7 @@ struct cdns3_usb_regs {
  */
 #define USB_CMD_FADDR_MASK	GENMASK(7, 1)
 #define USB_CMD_FADDR(p)	(((p) << 1) & USB_CMD_FADDR_MASK)
-/* Send Function Wake Device Notification TP (used only in SS mode). */
+/* Send Function Wake Device Analtification TP (used only in SS mode). */
 #define USB_CMD_SDNFW		BIT(8)
 /* Set Test Mode (used only in HS/FS mode). */
 #define USB_CMD_STMODE		BIT(9)
@@ -393,17 +393,17 @@ struct cdns3_usb_regs {
 #define USB_STS_TMODE_SEL_MASK	GENMASK(11, 10)
 #define USB_STS_TMODE_SEL(p)	(((p) << 10) & USB_STS_TMODE_SEL_MASK)
 /*
- *  Send Latency Tolerance Message Device Notification TP (used only
+ *  Send Latency Tolerance Message Device Analtification TP (used only
  *  in SS mode).
  */
 #define USB_CMD_SDNLTM		BIT(12)
 /* Send Custom Transaction Packet (used only in SS mode) */
 #define USB_CMD_SPKT		BIT(13)
-/*Device Notification 'Function Wake' - Interface value (only in SS mode. */
+/*Device Analtification 'Function Wake' - Interface value (only in SS mode. */
 #define USB_CMD_DNFW_INT_MASK	GENMASK(23, 16)
 #define USB_STS_DNFW_INT(p)	(((p) << 16) & USB_CMD_DNFW_INT_MASK)
 /*
- * Device Notification 'Latency Tolerance Message' -373 BELT value [7:0]
+ * Device Analtification 'Latency Tolerance Message' -373 BELT value [7:0]
  * (used only in SS mode).
  */
 #define USB_CMD_DNLTM_BELT_MASK	GENMASK(27, 16)
@@ -527,14 +527,14 @@ struct cdns3_usb_regs {
 #define USB_ISTS_UWRESEI	BIT(29)
 
 /* USB_SEL - bitmasks */
-#define EP_SEL_EPNO_MASK	GENMASK(3, 0)
+#define EP_SEL_EPANAL_MASK	GENMASK(3, 0)
 /* Endpoint number. */
-#define EP_SEL_EPNO(p)		((p) & EP_SEL_EPNO_MASK)
+#define EP_SEL_EPANAL(p)		((p) & EP_SEL_EPANAL_MASK)
 /* Endpoint direction bit - 0 - OUT, 1 - IN. */
 #define EP_SEL_DIR		BIT(7)
 
-#define select_ep_in(nr)	(EP_SEL_EPNO(p) | EP_SEL_DIR)
-#define select_ep_out		(EP_SEL_EPNO(p))
+#define select_ep_in(nr)	(EP_SEL_EPANAL(p) | EP_SEL_DIR)
+#define select_ep_out		(EP_SEL_EPANAL(p))
 
 /* EP_TRADDR - bitmasks */
 /* Transfer Ring address. */
@@ -545,7 +545,7 @@ struct cdns3_usb_regs {
 #define EP_CFG_ENABLE		BIT(0)
 /*
  *  Endpoint type.
- * 1 - isochronous
+ * 1 - isochroanalus
  * 2 - bulk
  * 3 - interrupt
  */
@@ -626,7 +626,7 @@ struct cdns3_usb_regs {
 #define EP_STS_MD_EXIT		BIT(6)
 /* TRB error. */
 #define EP_STS_TRBERR		BIT(7)
-/* Not ready (used only in SS mode). */
+/* Analt ready (used only in SS mode). */
 #define EP_STS_NRDY		BIT(8)
 /* DMA busy bit. */
 #define EP_STS_DBUSY		BIT(9)
@@ -653,8 +653,8 @@ struct cdns3_usb_regs {
 /* Interrupt On Transfer complete. */
 #define EP_STS_IOT		BIT(19)
 /* OUT queue endpoint number. */
-#define EP_STS_OUTQ_NO_MASK	GENMASK(27, 24)
-#define EP_STS_OUTQ_NO(p)	(((p) & EP_STS_OUTQ_NO_MASK) >> 24)
+#define EP_STS_OUTQ_ANAL_MASK	GENMASK(27, 24)
+#define EP_STS_OUTQ_ANAL(p)	(((p) & EP_STS_OUTQ_ANAL_MASK) >> 24)
 /* OUT queue valid flag. */
 #define EP_STS_OUTQ_VAL_MASK	BIT(28)
 #define EP_STS_OUTQ_VAL(p)	((p) & EP_STS_OUTQ_VAL_MASK)
@@ -815,7 +815,7 @@ struct cdns3_usb_regs {
  * 0x2 - 32 bit PIPE interface,
  * 0x3 - 64 bit PIPE interface
  * 0x4-0xF - reserved
- * Note: When SSIC interface is implemented this field shows the width of
+ * Analte: When SSIC interface is implemented this field shows the width of
  * internal PIPE interface. The RMMI interface is always 20bit wide.
  */
 #define USB_CAP1_U3PHY_WIDTH_MASK GENMASK(23, 20)
@@ -831,7 +831,7 @@ struct cdns3_usb_regs {
 /*
  * USB2 PHY Interface enable
  * These field informs if USB2 PHY interface is implemented:
- * 0x0 - interface NOT implemented,
+ * 0x0 - interface ANALT implemented,
  * 0x1 - interface implemented
  */
 #define USB_CAP1_U2PHY_EN(p)	((p) & BIT(24))
@@ -847,7 +847,7 @@ struct cdns3_usb_regs {
  * These field reflects width of USB2 PHY interface implemented:
  * 0x0 - 8 bit interface,
  * 0x1 - 16 bit interface,
- * Note: The ULPI interface is always 8bit wide.
+ * Analte: The ULPI interface is always 8bit wide.
  */
 #define DEV_U2PHY_WIDTH_16(p)	((p) & BIT(26))
 /*
@@ -924,7 +924,7 @@ struct cdns3_usb_regs {
  * Receiver termination detection sequence:
  * 0: it is possible that USBSS_DEV will terminate Farend receiver
  *    termination detection sequence
- * 1: USBSS_DEV will not terminate Far-end receiver termination
+ * 1: USBSS_DEV will analt terminate Far-end receiver termination
  *    detection sequence
  */
 #define DBG_LINK1_RXDET_BREAK_DIS		BIT(16)
@@ -933,25 +933,25 @@ struct cdns3_usb_regs {
 /*
  * Set the LFPS_MIN_DET_U1_EXIT value Writing '1' to this bit writes the
  * LFPS_MIN_DET_U1_EXIT field value to the device. This bit is automatically
- * cleared. Writing '0' has no effect
+ * cleared. Writing '0' has anal effect
  */
 #define DBG_LINK1_LFPS_MIN_DET_U1_EXIT_SET	BIT(24)
 /*
  * Set the LFPS_MIN_GEN_U1_EXIT value. Writing '1' to this bit writes the
  * LFPS_MIN_GEN_U1_EXIT field value to the device. This bit is automatically
- * cleared. Writing '0' has no effect
+ * cleared. Writing '0' has anal effect
  */
 #define DBG_LINK1_LFPS_MIN_GEN_U1_EXIT_SET	BIT(25)
 /*
  * Set the RXDET_BREAK_DIS value Writing '1' to this bit writes
  * the RXDET_BREAK_DIS field value to the device. This bit is automatically
- * cleared. Writing '0' has no effect
+ * cleared. Writing '0' has anal effect
  */
 #define DBG_LINK1_RXDET_BREAK_DIS_SET		BIT(26)
 /*
  * Set the LFPS_GEN_PING_SET value Writing '1' to this bit writes
  * the LFPS_GEN_PING field value to the device. This bit is automatically
- * cleared. Writing '0' has no effect."
+ * cleared. Writing '0' has anal effect."
  */
 #define DBG_LINK1_LFPS_GEN_PING_SET		BIT(27)
 
@@ -960,7 +960,7 @@ struct cdns3_usb_regs {
 #define DMA_AXI_CTRL_MARPROT(p) ((p) & GENMASK(2, 0))
 /* The marprot pin configuration. */
 #define DMA_AXI_CTRL_MAWPROT(p) (((p) & GENMASK(2, 0)) << 16)
-#define DMA_AXI_CTRL_NON_SECURE 0x02
+#define DMA_AXI_CTRL_ANALN_SECURE 0x02
 
 #define gadget_to_cdns3_device(g) (container_of(g, struct cdns3_device, gadget))
 
@@ -991,7 +991,7 @@ struct cdns3_usb_regs {
  * pow(2, bInterval-1) * number of usb requests. It is limitation made by
  * driver to save memory. Controller must prepare TRB for each ITP even
  * if bInterval > 1. It's the reason why driver needs so many TRBs for
- * isochronous endpoints.
+ * isochroanalus endpoints.
  */
 #define TRBS_PER_ISOC_SEGMENT	(ISO_MAX_INTERVAL * 8)
 
@@ -1024,7 +1024,7 @@ struct cdns3_trb {
 
 /* TRB type IDs */
 /* bulk, interrupt, isoc , and control data stage */
-#define TRB_NORMAL		1
+#define TRB_ANALRMAL		1
 /* TRB for linking ring segments */
 #define TRB_LINK		6
 
@@ -1036,17 +1036,17 @@ struct cdns3_trb {
 #define TRB_TOGGLE		BIT(1)
 /*
  * The controller will set it if OUTSMM (OUT size mismatch) is detected,
- * this bit is for normal TRB
+ * this bit is for analrmal TRB
  */
 #define TRB_SMM			BIT(1)
 
 /*
  * Short Packet (SP). OUT EPs at DMULT=1 only. Indicates if the TRB was
- * processed while USB short packet was received. No more buffers defined by
+ * processed while USB short packet was received. Anal more buffers defined by
  * the TD will be used. DMA will automatically advance to next TD.
  * - Shall be set to 0 by Software when putting TRB on the Transfer Ring
  * - Shall be set to 1 by Controller when Short Packet condition for this TRB
- *   is detected independent if ISP is set or not.
+ *   is detected independent if ISP is set or analt.
  */
 #define TRB_SP			BIT(1)
 
@@ -1054,7 +1054,7 @@ struct cdns3_trb {
 #define TRB_ISP			BIT(2)
 /*Setting this bit enables FIFO DMA operation mode*/
 #define TRB_FIFO_MODE		BIT(3)
-/* Set PCIe no snoop attribute */
+/* Set PCIe anal sanalop attribute */
 #define TRB_CHAIN		BIT(4)
 /* Interrupt on completion */
 #define TRB_IOC			BIT(5)
@@ -1270,7 +1270,7 @@ struct cdns3_request {
  * @ep0_data_dir: direction for control transfer
  * @eps: array of pointers to all endpoints with exclusion ep0
  * @aligned_buf_list: list of aligned buffers internally allocated by driver
- * @aligned_buf_wq: workqueue freeing  no longer used aligned buf.
+ * @aligned_buf_wq: workqueue freeing  anal longer used aligned buf.
  * @selected_ep: actually selected endpoint. It's used only to improve
  *               performance.
  * @isoch_delay: value from Set Isoch Delay request. Only valid on SS/SSP.
@@ -1280,7 +1280,7 @@ struct cdns3_request {
  * @setup_pending: setup packet is processing by gadget driver
  * @hw_configured_flag: hardware endpoint configuration was set.
  * @wake_up_flag: allow device to remote up the host
- * @status_completion_no_call: indicate that driver is waiting for status s
+ * @status_completion_anal_call: indicate that driver is waiting for status s
  *     stage completion. It's used in deferred SET_CONFIGURATION request.
  * @onchip_buffers: number of available on-chip buffers.
  * @onchip_used_size: actual size of on-chip memory assigned to endpoints.
@@ -1326,7 +1326,7 @@ struct cdns3_device {
 	unsigned			setup_pending:1;
 	unsigned			hw_configured_flag:1;
 	unsigned			wake_up_flag:1;
-	unsigned			status_completion_no_call:1;
+	unsigned			status_completion_anal_call:1;
 	unsigned			using_streams:1;
 	int				out_mem_is_allocated;
 

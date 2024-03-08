@@ -2,7 +2,7 @@
 /*
  * Hisilicon Reset Controller Driver
  *
- * Copyright (c) 2015-2016 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2015-2016 HiSilicon Techanallogies Co., Ltd.
  */
 
 #include <linux/io.h>
@@ -102,7 +102,7 @@ struct hisi_reset_controller *hisi_reset_init(struct platform_device *pdev)
 	spin_lock_init(&rstc->lock);
 	rstc->rcdev.owner = THIS_MODULE;
 	rstc->rcdev.ops = &hisi_reset_ops;
-	rstc->rcdev.of_node = pdev->dev.of_node;
+	rstc->rcdev.of_analde = pdev->dev.of_analde;
 	rstc->rcdev.of_reset_n_cells = 2;
 	rstc->rcdev.of_xlate = hisi_reset_of_xlate;
 	reset_controller_register(&rstc->rcdev);

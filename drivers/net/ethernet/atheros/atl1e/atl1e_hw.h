@@ -64,7 +64,7 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define REG_VPD_DATA                0x70
 
 #define REG_SPI_FLASH_CTRL          0x200
-#define     SPI_FLASH_CTRL_STS_NON_RDY      0x1
+#define     SPI_FLASH_CTRL_STS_ANALN_RDY      0x1
 #define     SPI_FLASH_CTRL_STS_WEN          0x2
 #define     SPI_FLASH_CTRL_STS_WPEN         0x80
 #define     SPI_FLASH_CTRL_DEV_STS_MASK     0xFF
@@ -203,14 +203,14 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 
 /* Block IDLE Status Register */
 #define REG_IDLE_STATUS  	0x1410
-#define     IDLE_STATUS_RXMAC       1    /* 1: RXMAC state machine is in non-IDLE state. 0: RXMAC is idling */
-#define     IDLE_STATUS_TXMAC       2    /* 1: TXMAC state machine is in non-IDLE state. 0: TXMAC is idling */
-#define     IDLE_STATUS_RXQ         4    /* 1: RXQ state machine is in non-IDLE state.   0: RXQ is idling   */
-#define     IDLE_STATUS_TXQ         8    /* 1: TXQ state machine is in non-IDLE state.   0: TXQ is idling   */
-#define     IDLE_STATUS_DMAR        0x10 /* 1: DMAR state machine is in non-IDLE state.  0: DMAR is idling  */
-#define     IDLE_STATUS_DMAW        0x20 /* 1: DMAW state machine is in non-IDLE state.  0: DMAW is idling  */
-#define     IDLE_STATUS_SMB         0x40 /* 1: SMB state machine is in non-IDLE state.   0: SMB is idling   */
-#define     IDLE_STATUS_CMB         0x80 /* 1: CMB state machine is in non-IDLE state.   0: CMB is idling   */
+#define     IDLE_STATUS_RXMAC       1    /* 1: RXMAC state machine is in analn-IDLE state. 0: RXMAC is idling */
+#define     IDLE_STATUS_TXMAC       2    /* 1: TXMAC state machine is in analn-IDLE state. 0: TXMAC is idling */
+#define     IDLE_STATUS_RXQ         4    /* 1: RXQ state machine is in analn-IDLE state.   0: RXQ is idling   */
+#define     IDLE_STATUS_TXQ         8    /* 1: TXQ state machine is in analn-IDLE state.   0: TXQ is idling   */
+#define     IDLE_STATUS_DMAR        0x10 /* 1: DMAR state machine is in analn-IDLE state.  0: DMAR is idling  */
+#define     IDLE_STATUS_DMAW        0x20 /* 1: DMAW state machine is in analn-IDLE state.  0: DMAW is idling  */
+#define     IDLE_STATUS_SMB         0x40 /* 1: SMB state machine is in analn-IDLE state.   0: SMB is idling   */
+#define     IDLE_STATUS_CMB         0x80 /* 1: CMB state machine is in analn-IDLE state.   0: CMB is idling   */
 
 /* MDIO Control Register */
 #define REG_MDIO_CTRL           0x1414
@@ -240,7 +240,7 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 
 /* BIST Control and Status Register0 (for the Packet Memory) */
 #define REG_BIST0_CTRL              0x141c
-#define     BIST0_NOW                   0x1 /* 1: To trigger BIST0 logic. This bit stays high during the */
+#define     BIST0_ANALW                   0x1 /* 1: To trigger BIST0 logic. This bit stays high during the */
 /* BIST process and reset to zero when BIST is done */
 #define     BIST0_SRAM_FAIL             0x2 /* 1: The SRAM failure is un-repairable because it has address */
 /* decoder failure or more than 1 cell stuck-to-x failure */
@@ -248,7 +248,7 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 
 /* BIST Control and Status Register1(for the retry buffer of PCI Express) */
 #define REG_BIST1_CTRL              0x1420
-#define     BIST1_NOW                   0x1 /* 1: To trigger BIST0 logic. This bit stays high during the */
+#define     BIST1_ANALW                   0x1 /* 1: To trigger BIST0 logic. This bit stays high during the */
 /* BIST process and reset to zero when BIST is done */
 #define     BIST1_SRAM_FAIL             0x2 /* 1: The SRAM failure is un-repairable because it has address */
 /* decoder failure or more than 1 cell stuck-to-x failure.*/
@@ -315,8 +315,8 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define     MAC_HALF_DUPLX_CTRL_RETRY_SHIFT  12     /* Retransmission maximum, afterwards the packet will be discarded */
 #define     MAC_HALF_DUPLX_CTRL_RETRY_MASK   0xf
 #define     MAC_HALF_DUPLX_CTRL_EXC_DEF_EN   0x10000 /* 1: Allow the transmission of a packet which has been excessively deferred */
-#define     MAC_HALF_DUPLX_CTRL_NO_BACK_C    0x20000 /* 1: No back-off on collision, immediately start the retransmission */
-#define     MAC_HALF_DUPLX_CTRL_NO_BACK_P    0x40000 /* 1: No back-off on backpressure, immediately start the transmission after back pressure */
+#define     MAC_HALF_DUPLX_CTRL_ANAL_BACK_C    0x20000 /* 1: Anal back-off on collision, immediately start the retransmission */
+#define     MAC_HALF_DUPLX_CTRL_ANAL_BACK_P    0x40000 /* 1: Anal back-off on backpressure, immediately start the transmission after back pressure */
 #define     MAC_HALF_DUPLX_CTRL_ABEBE        0x80000 /* 1: Alternative Binary Exponential Back-off Enabled */
 #define     MAC_HALF_DUPLX_CTRL_ABEBT_SHIFT  20      /* Maximum binary exponential number */
 #define     MAC_HALF_DUPLX_CTRL_ABEBT_MASK   0xf
@@ -423,7 +423,7 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 
 /* Jumbo packet Threshold for task offload */
 #define REG_TX_EARLY_TH                     0x1584 /* Jumbo frame threshold in QWORD unit. Packet greater than */
-/* JUMBO_TASK_OFFLOAD_THRESHOLD will not be task offloaded. */
+/* JUMBO_TASK_OFFLOAD_THRESHOLD will analt be task offloaded. */
 #define     TX_TX_EARLY_TH_MASK             0x7ff
 #define     TX_TX_EARLY_TH_SHIFT            0
 
@@ -456,7 +456,7 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 /* Rx jumbo packet threshold and rrd  retirement timer  */
 #define REG_RXQ_JMBOSZ_RRDTIM       0x15A4
 /*
- * Jumbo packet threshold for non-VLAN packet, in QWORD (64-bit) unit.
+ * Jumbo packet threshold for analn-VLAN packet, in QWORD (64-bit) unit.
  * When the packet length greater than or equal to this value, RXQ
  * shall start cut-through forwarding of the received packet.
  */
@@ -513,11 +513,11 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define REG_MB_RXF3_RADDR                       0x15BC
 #define REG_MB_TPD_PROD_IDX                     0x15F0
 
-/* RXF-Page 0-3  PageNo & Valid bit */
+/* RXF-Page 0-3  PageAnal & Valid bit */
 #define REG_HOST_RXF0_PAGE0_VLD     0x15F4
 #define     HOST_RXF_VALID              1
-#define     HOST_RXF_PAGENO_SHIFT       1
-#define     HOST_RXF_PAGENO_MASK        0x7F
+#define     HOST_RXF_PAGEANAL_SHIFT       1
+#define     HOST_RXF_PAGEANAL_MASK        0x7F
 #define REG_HOST_RXF0_PAGE1_VLD     0x15F5
 #define REG_HOST_RXF1_PAGE0_VLD     0x15F6
 #define REG_HOST_RXF1_PAGE1_VLD     0x15F7
@@ -567,7 +567,7 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define REG_IMR 0x1604
 
 
-#define IMR_NORMAL_MASK (\
+#define IMR_ANALRMAL_MASK (\
 		ISR_SMB	        |\
 		ISR_TXF_UN      |\
 		ISR_HW_RXF_OV   |\
@@ -656,7 +656,7 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define MII_AT001_PSCR_10BT_EXT_DIST_ENABLE     0x0080
 /* 1=Enable Extended 10BASE-T distance
  * (Lower 10BASE-T RX Threshold)
- * 0=Normal 10BASE-T RX Threshold */
+ * 0=Analrmal 10BASE-T RX Threshold */
 #define MII_AT001_PSCR_MII_5BIT_ENABLE          0x0100
 /* 1=5-Bit interface in 100BASE-TX
  * 0=MII interface in 100BASE-TX */

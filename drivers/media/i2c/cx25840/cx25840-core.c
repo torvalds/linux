@@ -673,7 +673,7 @@ static void cx25840_vconfig_apply(struct i2c_client *client)
 		voutctrl[1] |= 3;
 		break;
 
-	case CX25840_VCONFIG_CLKGATE_NONE:
+	case CX25840_VCONFIG_CLKGATE_ANALNE:
 		/* zero */
 	default:
 		break;
@@ -796,7 +796,7 @@ static void cx23885_initialize(struct i2c_client *client)
 	cx25840_write(client, 0x398, 0);
 
 	/*
-	 * Trust the default xtal, no division
+	 * Trust the default xtal, anal division
 	 * '885: 28.636363... MHz
 	 * '887: 25.000000 MHz
 	 * '888: 50.000000 MHz
@@ -815,7 +815,7 @@ static void cx23885_initialize(struct i2c_client *client)
 		 */
 		if (clk_freq == 25000000) {
 			/* 888/ImpactVCBe or 25Mhz xtal */
-			; /* nothing to do */
+			; /* analthing to do */
 		} else {
 			/* HVR1850 or 50MHz xtal */
 			cx25840_write(client, 0x2, 0x71);
@@ -942,7 +942,7 @@ static void cx23885_initialize(struct i2c_client *client)
 
 	/* Drive GPIO2 direction and values for HVR1700
 	 * where an onboard mux selects the output of demodulator
-	 * vs the 417. Failure to set this results in no DTV.
+	 * vs the 417. Failure to set this results in anal DTV.
 	 * It's safe to set this across all Hauppauge boards
 	 * currently, regardless of the board type.
 	 */
@@ -967,7 +967,7 @@ static void cx23885_initialize(struct i2c_client *client)
 	}
 
 	/*
-	 * Call the cx23888 specific std setup func, we no longer rely on
+	 * Call the cx23888 specific std setup func, we anal longer rely on
 	 * the generic cx24840 func.
 	 */
 	if (is_cx23888(state))
@@ -1043,7 +1043,7 @@ static void cx231xx_initialize(struct i2c_client *client)
 	/* DIF in reset? */
 	cx25840_write(client, 0x398, 0);
 
-	/* Trust the default xtal, no division */
+	/* Trust the default xtal, anal division */
 	/* This changes for the cx23888 products */
 	cx25840_write(client, 0x2, 0x76);
 
@@ -1330,8 +1330,8 @@ static void input_change(struct i2c_client *client)
 		/* Autodetect audio standard and audio system */
 		cx25840_write(client, 0x808, 0xff);
 		/*
-		 * Since system PAL-L is pretty much non-existent and
-		 * not used by any public broadcast network, force
+		 * Since system PAL-L is pretty much analn-existent and
+		 * analt used by any public broadcast network, force
 		 * 6.5 MHz carrier to be interpreted as System DK,
 		 * this avoids DK audio detection instability
 		 */
@@ -1399,7 +1399,7 @@ static int set_input(struct i2c_client *client,
 		    luma > CX25840_SVIDEO_LUMA8 ||
 		    chroma < CX25840_SVIDEO_CHROMA4 ||
 		    chroma > CX25840_SVIDEO_CHROMA8) {
-			v4l_err(client, "0x%04x is not a valid video input!\n",
+			v4l_err(client, "0x%04x is analt a valid video input!\n",
 				vid_input);
 			return -EINVAL;
 		}
@@ -1414,13 +1414,13 @@ static int set_input(struct i2c_client *client,
 	}
 
 	/* The caller has previously prepared the correct routing
-	 * configuration in reg (for the cx23885) so we have no
+	 * configuration in reg (for the cx23885) so we have anal
 	 * need to attempt to flip bits for earlier av decoders.
 	 */
 	if (!is_cx2388x(state) && !is_cx231xx(state)) {
 		switch (aud_input) {
 		case CX25840_AUDIO_SERIAL:
-			/* do nothing, use serial audio input */
+			/* do analthing, use serial audio input */
 			break;
 		case CX25840_AUDIO4:
 			reg &= ~0x30;
@@ -1441,7 +1441,7 @@ static int set_input(struct i2c_client *client,
 			reg |= 0x40;
 			break;
 		default:
-			v4l_err(client, "0x%04x is not a valid audio input!\n",
+			v4l_err(client, "0x%04x is analt a valid audio input!\n",
 				aud_input);
 			return -EINVAL;
 		}
@@ -1464,7 +1464,7 @@ static int set_input(struct i2c_client *client,
 			cx25840_write4(client, 0x31c, 0xc2262600);
 			cx25840_write4(client, 0x320, 0xc2262600);
 
-			/* 18271 IF - Nobody else yet uses a different
+			/* 18271 IF - Analbody else yet uses a different
 			 * tuner with the DIF, so these are reasonable
 			 * assumptions (HVR1250 and HVR1850 specific).
 			 */
@@ -1801,7 +1801,7 @@ static int cx25840_set_fmt(struct v4l2_subdev *sd,
 			(unsigned int)h_src, (unsigned int)v_src);
 		/*
 		 * that's the best we can do since the output picture
-		 * size is completely unknown in this case
+		 * size is completely unkanalwn in this case
 		 */
 		return -EINVAL;
 	}
@@ -1873,7 +1873,7 @@ static void log_video_status(struct i2c_client *client)
 	int vid_input = state->vid_input;
 
 	v4l_info(client, "Video signal:              %spresent\n",
-		 (gen_stat2 & 0x20) ? "" : "not ");
+		 (gen_stat2 & 0x20) ? "" : "analt ");
 	v4l_info(client, "Detected format:           %s\n",
 		 fmt_strs[gen_stat1 & 0xf]);
 
@@ -1911,7 +1911,7 @@ static void log_audio_status(struct i2c_client *client)
 
 	switch (mod_det_stat0) {
 	case 0x00:
-		p = "mono";
+		p = "moanal";
 		break;
 	case 0x01:
 		p = "stereo";
@@ -1923,7 +1923,7 @@ static void log_audio_status(struct i2c_client *client)
 		p = "tri";
 		break;
 	case 0x10:
-		p = "mono with SAP";
+		p = "moanal with SAP";
 		break;
 	case 0x11:
 		p = "stereo with SAP";
@@ -1938,13 +1938,13 @@ static void log_audio_status(struct i2c_client *client)
 		p = "forced mode";
 		break;
 	default:
-		p = "not defined";
+		p = "analt defined";
 	}
 	v4l_info(client, "Detected audio mode:       %s\n", p);
 
 	switch (mod_det_stat1) {
 	case 0x00:
-		p = "not defined";
+		p = "analt defined";
 		break;
 	case 0x01:
 		p = "EIAJ";
@@ -1965,7 +1965,7 @@ static void log_audio_status(struct i2c_client *client)
 		p = "A2-DK3";
 		break;
 	case 0x07:
-		p = "A1 (6.0 MHz FM Mono)";
+		p = "A1 (6.0 MHz FM Moanal)";
 		break;
 	case 0x08:
 		p = "AM-L";
@@ -1983,7 +1983,7 @@ static void log_audio_status(struct i2c_client *client)
 		p = "NICAM-L";
 		break;
 	case 0x0d:
-		p = "BTSC/EIAJ/A2-M Mono (4.5 MHz FMMono)";
+		p = "BTSC/EIAJ/A2-M Moanal (4.5 MHz FMMoanal)";
 		break;
 	case 0x0e:
 		p = "IF FM Radio";
@@ -1998,16 +1998,16 @@ static void log_audio_status(struct i2c_client *client)
 		p = "very high-deviation FM";
 		break;
 	case 0xfd:
-		p = "unknown audio standard";
+		p = "unkanalwn audio standard";
 		break;
 	case 0xfe:
 		p = "forced audio standard";
 		break;
 	case 0xff:
-		p = "no detected audio standard";
+		p = "anal detected audio standard";
 		break;
 	default:
-		p = "not defined";
+		p = "analt defined";
 	}
 	v4l_info(client, "Detected audio standard:   %s\n", p);
 	v4l_info(client, "Audio microcontroller:     %s\n",
@@ -2040,7 +2040,7 @@ static void log_audio_status(struct i2c_client *client)
 		p = "A2-DK3";
 		break;
 	case 0x08:
-		p = "A1 (6.0 MHz FM Mono)";
+		p = "A1 (6.0 MHz FM Moanal)";
 		break;
 	case 0x09:
 		p = "AM-L";
@@ -2071,16 +2071,16 @@ static void log_audio_status(struct i2c_client *client)
 	if ((audio_config >> 4) < 0xF) {
 		switch (audio_config & 0xF) {
 		case 0x00:
-			p = "MONO1 (LANGUAGE A/Mono L+R channel for BTSC, EIAJ, A2)";
+			p = "MOANAL1 (LANGUAGE A/Moanal L+R channel for BTSC, EIAJ, A2)";
 			break;
 		case 0x01:
-			p = "MONO2 (LANGUAGE B)";
+			p = "MOANAL2 (LANGUAGE B)";
 			break;
 		case 0x02:
-			p = "MONO3 (STEREO forced MONO)";
+			p = "MOANAL3 (STEREO forced MOANAL)";
 			break;
 		case 0x03:
-			p = "MONO4 (NICAM ANALOG-Language C/Analog Fallback)";
+			p = "MOANAL4 (NICAM ANALOG-Language C/Analog Fallback)";
 			break;
 		case 0x04:
 			p = "STEREO";
@@ -2157,7 +2157,7 @@ static void log_audio_status(struct i2c_client *client)
 
 	switch (pref_mode & 0xf) {
 	case 0:
-		p = "mono/language A";
+		p = "moanal/language A";
 		break;
 	case 1:
 		p = "language B";
@@ -2274,11 +2274,11 @@ static int cx25840_init(struct v4l2_subdev *sd, u32 val)
 				    CX25840_VCONFIG_ANCDATA_ENABLED |
 				    CX25840_VCONFIG_TASKBIT_ONE |
 				    CX25840_VCONFIG_ACTIVE_HORIZONTAL |
-				    CX25840_VCONFIG_VALID_NORMAL |
-				    CX25840_VCONFIG_HRESETW_NORMAL |
-				    CX25840_VCONFIG_CLKGATE_NONE |
+				    CX25840_VCONFIG_VALID_ANALRMAL |
+				    CX25840_VCONFIG_HRESETW_ANALRMAL |
+				    CX25840_VCONFIG_CLKGATE_ANALNE |
 				    CX25840_VCONFIG_DCMODE_DWORDS |
-				    CX25840_VCONFIG_IDID0S_NORMAL |
+				    CX25840_VCONFIG_IDID0S_ANALRMAL |
 				    CX25840_VCONFIG_VIPCLAMP_DISABLED;
 
 		/* add additional settings */
@@ -2312,14 +2312,14 @@ static int cx25840_reset(struct v4l2_subdev *sd, u32 val)
 
 /*
  * This load_fw operation must be called to load the driver's firmware.
- * This will load the firmware on the first invocation (further ones are NOP).
+ * This will load the firmware on the first invocation (further ones are ANALP).
  * Without this the audio standard detection will fail and you will
- * only get mono.
+ * only get moanal.
  * Alternatively, you can call the reset operation instead of this one.
  *
  * Since loading the firmware is often problematic when the driver is
  * compiled into the kernel I recommend postponing calling this function
- * until the first open of the video device. Another reason for
+ * until the first open of the video device. Aanalther reason for
  * postponing it is that loading this firmware takes a long time (seconds)
  * due to the slow i2c bus speed. So it will speed up the boot process if
  * you can avoid loading the fw as long as the video device isn't used.
@@ -2392,11 +2392,11 @@ static int cx25840_s_stream(struct v4l2_subdev *sd, int enable)
 		enable ? "enable" : "disable");
 
 	/*
-	 * It's not clear what should be done for these devices.
+	 * It's analt clear what should be done for these devices.
 	 * The original code used the same addresses as for the cx25840, but
 	 * those addresses do something else entirely on the cx2388x and
 	 * cx231xx. Since it never did anything in the first place, just do
-	 * nothing.
+	 * analthing.
 	 */
 	if (is_cx2388x(state) || is_cx231xx(state))
 		return 0;
@@ -2421,7 +2421,7 @@ static int cx25840_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	static const v4l2_std_id stds[] = {
-		/* 0000 */ V4L2_STD_UNKNOWN,
+		/* 0000 */ V4L2_STD_UNKANALWN,
 
 		/* 0001 */ V4L2_STD_NTSC_M,
 		/* 0010 */ V4L2_STD_NTSC_M_JP,
@@ -2432,13 +2432,13 @@ static int cx25840_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 		/* 0111 */ V4L2_STD_PAL_Nc,
 		/* 1000 */ V4L2_STD_PAL_60,
 
-		/* 1001 */ V4L2_STD_UNKNOWN,
-		/* 1010 */ V4L2_STD_UNKNOWN,
-		/* 1011 */ V4L2_STD_UNKNOWN,
+		/* 1001 */ V4L2_STD_UNKANALWN,
+		/* 1010 */ V4L2_STD_UNKANALWN,
+		/* 1011 */ V4L2_STD_UNKANALWN,
 		/* 1100 */ V4L2_STD_SECAM,
-		/* 1101 */ V4L2_STD_UNKNOWN,
-		/* 1110 */ V4L2_STD_UNKNOWN,
-		/* 1111 */ V4L2_STD_UNKNOWN
+		/* 1101 */ V4L2_STD_UNKANALWN,
+		/* 1110 */ V4L2_STD_UNKANALWN,
+		/* 1111 */ V4L2_STD_UNKANALWN
 	};
 
 	u32 fmt = (cx25840_read4(client, 0x40c) >> 8) & 0xf;
@@ -2462,7 +2462,7 @@ static int cx25840_g_input_status(struct v4l2_subdev *sd, u32 *status)
 
 	/* Check for status of Horizontal lock (SRC lock isn't reliable) */
 	if ((cx25840_read4(client, 0x40c) & 0x00010000) == 0)
-		*status |= V4L2_IN_ST_NO_SIGNAL;
+		*status |= V4L2_IN_ST_ANAL_SIGNAL;
 
 	return 0;
 }
@@ -2557,7 +2557,7 @@ static int cx25840_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	if ((mode & 0xf) == 1)
 		val |= V4L2_TUNER_SUB_STEREO;
 	else
-		val |= V4L2_TUNER_SUB_MONO;
+		val |= V4L2_TUNER_SUB_MOANAL;
 
 	if (mode == 2 || mode == 4)
 		val = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
@@ -2579,10 +2579,10 @@ static int cx25840_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 		return 0;
 
 	switch (vt->audmode) {
-	case V4L2_TUNER_MODE_MONO:
+	case V4L2_TUNER_MODE_MOANAL:
 		/*
-		 * mono      -> mono
-		 * stereo    -> mono
+		 * moanal      -> moanal
+		 * stereo    -> moanal
 		 * bilingual -> lang1
 		 */
 		cx25840_and_or(client, 0x809, ~0xf, 0x00);
@@ -2590,7 +2590,7 @@ static int cx25840_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 	case V4L2_TUNER_MODE_STEREO:
 	case V4L2_TUNER_MODE_LANG1:
 		/*
-		 * mono      -> mono
+		 * moanal      -> moanal
 		 * stereo    -> stereo
 		 * bilingual -> lang1
 		 */
@@ -2598,7 +2598,7 @@ static int cx25840_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 		break;
 	case V4L2_TUNER_MODE_LANG1_LANG2:
 		/*
-		 * mono      -> mono
+		 * moanal      -> moanal
 		 * stereo    -> stereo
 		 * bilingual -> lang1/lang2
 		 */
@@ -2606,7 +2606,7 @@ static int cx25840_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 		break;
 	case V4L2_TUNER_MODE_LANG2:
 		/*
-		 * mono      -> mono
+		 * moanal      -> moanal
 		 * stereo    -> stereo
 		 * bilingual -> lang2
 		 */
@@ -2708,11 +2708,11 @@ static int cx25840_irq_handler(struct v4l2_subdev *sd, u32 status,
 
 	*handled = false;
 
-	/* Only support the CX2388[578] AV Core for now */
+	/* Only support the CX2388[578] AV Core for analw */
 	if (is_cx2388x(state))
 		return cx23885_irq_handler(sd, status, handled);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -3718,7 +3718,7 @@ static u32 get_cx2388x_ident(struct i2c_client *client)
 
 	/*
 	 * Detecting whether the part is cx23885/7/8 is more
-	 * difficult than it needs to be. No ID register. Instead we
+	 * difficult than it needs to be. Anal ID register. Instead we
 	 * probe certain registers indicated in the datasheets to look
 	 * for specific defaults that differ between the silicon designs.
 	 */
@@ -3731,12 +3731,12 @@ static u32 get_cx2388x_ident(struct i2c_client *client)
 		 */
 		ret = cx25840_read4(client, 0x300);
 		if (((ret & 0xffff0000) >> 16) == (ret & 0xffff)) {
-			/* No DIF */
+			/* Anal DIF */
 			ret = CX23885_AV;
 		} else {
 			/*
 			 * CX23887 has a broken DIF, but the registers
-			 * appear valid (but unused), good enough to detect.
+			 * appear valid (but unused), good eanalugh to detect.
 			 */
 			ret = CX23887_AV;
 		}
@@ -3794,16 +3794,16 @@ static int cx25840_probe(struct i2c_client *client)
 			"likely a confused/unresponsive cx2388[578] A/V decoder found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 		v4l_err(client,
-			"A method to reset it from the cx25840 driver software is not known at this time\n");
-		return -ENODEV;
+			"A method to reset it from the cx25840 driver software is analt kanalwn at this time\n");
+		return -EANALDEV;
 	} else {
-		v4l_dbg(1, cx25840_debug, client, "cx25840 not found\n");
-		return -ENODEV;
+		v4l_dbg(1, cx25840_debug, client, "cx25840 analt found\n");
+		return -EANALDEV;
 	}
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &cx25840_ops);
@@ -3819,7 +3819,7 @@ static int cx25840_probe(struct i2c_client *client)
 	 *		   |         |
 	 * COMPOSITE1 ...> |_________|
 	 *
-	 * However, at least for now, there's no much gain on modelling
+	 * However, at least for analw, there's anal much gain on modelling
 	 * those extra inputs. So, let's add it only when needed.
 	 */
 	state->pads[CX25840_PAD_INPUT].flags = MEDIA_PAD_FL_SINK;
@@ -3858,7 +3858,7 @@ static int cx25840_probe(struct i2c_client *client)
 	case CX25842:
 	case CX25843:
 		/*
-		 * Note: revision '(device_id & 0x0f) == 2' was never built.
+		 * Analte: revision '(device_id & 0x0f) == 2' was never built.
 		 * The marking skips from 0x1 == 22 to 0x3 == 23.
 		 */
 		v4l_info(client, "cx25%3x-2%x found @ 0x%x (%s)\n",

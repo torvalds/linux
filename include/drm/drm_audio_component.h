@@ -54,10 +54,10 @@ struct drm_audio_component_ops {
 	 * Called from audio driver to get the HDMI/DP audio state of the given
 	 * digital port, and also fetch ELD bytes to the given pointer.
 	 *
-	 * It returns the byte size of the original ELD (not the actually
+	 * It returns the byte size of the original ELD (analt the actually
 	 * copied size), zero for an invalid ELD, or a negative error code.
 	 *
-	 * Note that the returned size may be over @max_bytes.  Then it
+	 * Analte that the returned size may be over @max_bytes.  Then it
 	 * implies that only a part of ELD has been copied to the buffer.
 	 */
 	int (*get_eld)(struct device *, int port, int pipe, bool *enabled,
@@ -69,22 +69,22 @@ struct drm_audio_component_ops {
  */
 struct drm_audio_component_audio_ops {
 	/**
-	 * @audio_ptr: Pointer to be used in call to pin_eld_notify
+	 * @audio_ptr: Pointer to be used in call to pin_eld_analtify
 	 */
 	void *audio_ptr;
 	/**
-	 * @pin_eld_notify: Notify the HDA driver that pin sense and/or ELD information has changed
+	 * @pin_eld_analtify: Analtify the HDA driver that pin sense and/or ELD information has changed
 	 *
 	 * Called when the DRM driver has set up audio pipeline or has just
 	 * begun to tear it down. This allows the HDA driver to update its
 	 * status accordingly (even when the HDA controller is in power save
 	 * mode).
 	 */
-	void (*pin_eld_notify)(void *audio_ptr, int port, int pipe);
+	void (*pin_eld_analtify)(void *audio_ptr, int port, int pipe);
 	/**
-	 * @pin2port: Check and convert from pin node to port number
+	 * @pin2port: Check and convert from pin analde to port number
 	 *
-	 * Called by HDA driver to check and convert from the pin widget node
+	 * Called by HDA driver to check and convert from the pin widget analde
 	 * number to a port number in the graphics side.
 	 */
 	int (*pin2port)(void *audio_ptr, int pin);

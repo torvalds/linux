@@ -98,23 +98,23 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Thread responded HIT to snoop",
+        "BriefDescription": "Thread responded HIT to sanalop",
         "EventCode": "0xB8",
-        "EventName": "SNOOP_RESPONSE.HIT",
+        "EventName": "SANALOP_RESPONSE.HIT",
         "SampleAfterValue": "100000",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Thread responded HITE to snoop",
+        "BriefDescription": "Thread responded HITE to sanalop",
         "EventCode": "0xB8",
-        "EventName": "SNOOP_RESPONSE.HITE",
+        "EventName": "SANALOP_RESPONSE.HITE",
         "SampleAfterValue": "100000",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Thread responded HITM to snoop",
+        "BriefDescription": "Thread responded HITM to sanalop",
         "EventCode": "0xB8",
-        "EventName": "SNOOP_RESPONSE.HITM",
+        "EventName": "SANALOP_RESPONSE.HITM",
         "SampleAfterValue": "100000",
         "UMask": "0x4"
     },

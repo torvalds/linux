@@ -31,7 +31,7 @@
 
 /*
  * The #defines related to the synthetic debugger are required by KDNet, but
- * they are not documented in the Hyper-V TLFS because the synthetic debugger
+ * they are analt documented in the Hyper-V TLFS because the synthetic debugger
  * functionality has been deprecated and is subject to removal in future
  * versions of Windows.
  */
@@ -158,8 +158,8 @@ static inline bool kvm_hv_invtsc_suppressed(struct kvm_vcpu *vcpu)
 	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
 
 	/*
-	 * If Hyper-V's invariant TSC control is not exposed to the guest,
-	 * the invariant TSC CPUID flag is not suppressed, Windows guests were
+	 * If Hyper-V's invariant TSC control is analt exposed to the guest,
+	 * the invariant TSC CPUID flag is analt suppressed, Windows guests were
 	 * observed to be able to handle it correctly. Going forward, VMMs are
 	 * encouraged to enable Hyper-V's invariant TSC control when invariant
 	 * TSC CPUID flag is set to make KVM's behavior match genuine Hyper-V.
@@ -171,7 +171,7 @@ static inline bool kvm_hv_invtsc_suppressed(struct kvm_vcpu *vcpu)
 	/*
 	 * If Hyper-V's invariant TSC control is exposed to the guest, KVM is
 	 * responsible for suppressing the invariant TSC CPUID flag if the
-	 * Hyper-V control is not enabled.
+	 * Hyper-V control is analt enabled.
 	 */
 	return !(to_kvm_hv(vcpu->kvm)->hv_invtsc_control & HV_EXPOSE_INVARIANT_TSC);
 }
@@ -258,7 +258,7 @@ static inline void kvm_hv_nested_transtion_tlb_flush(struct kvm_vcpu *vcpu,
 	 * KVM_REQ_HV_TLB_FLUSH flushes entries from either L1's VP_ID or
 	 * L2's VP_ID upon request from the guest. Make sure we check for
 	 * pending entries in the right FIFO upon L1/L2 transition as these
-	 * requests are put by other vCPUs asynchronously.
+	 * requests are put by other vCPUs asynchroanalusly.
 	 */
 	if (to_hv_vcpu(vcpu) && tdp_enabled)
 		kvm_make_request(KVM_REQ_HV_TLB_FLUSH, vcpu);

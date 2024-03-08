@@ -24,7 +24,7 @@ extern unsigned long kgdb_compiled_break;
 static inline void arch_kgdb_breakpoint(void)
 {
 	asm(".global kgdb_compiled_break\n"
-	    ".option norvc\n"
+	    ".option analrvc\n"
 	    "kgdb_compiled_break: ebreak\n"
 	    ".option rvc\n");
 }

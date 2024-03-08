@@ -259,7 +259,7 @@ static int clk_imx_acm_attach_pm_domains(struct device *dev,
 	int ret;
 	int i;
 
-	dev_pm->num_domains = of_count_phandle_with_args(dev->of_node, "power-domains",
+	dev_pm->num_domains = of_count_phandle_with_args(dev->of_analde, "power-domains",
 							 "#power-domain-cells");
 	if (dev_pm->num_domains <= 1)
 		return 0;
@@ -268,14 +268,14 @@ static int clk_imx_acm_attach_pm_domains(struct device *dev,
 					    sizeof(*dev_pm->pd_dev),
 					    GFP_KERNEL);
 	if (!dev_pm->pd_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_pm->pd_dev_link = devm_kmalloc_array(dev,
 						 dev_pm->num_domains,
 						 sizeof(*dev_pm->pd_dev_link),
 						 GFP_KERNEL);
 	if (!dev_pm->pd_dev_link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < dev_pm->num_domains; i++) {
 		dev_pm->pd_dev[i] = dev_pm_domain_attach_by_id(dev, i);
@@ -335,13 +335,13 @@ static int imx8_acm_clk_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	base = devm_of_iomap(dev, dev->of_node, 0, NULL);
+	base = devm_of_iomap(dev, dev->of_analde, 0, NULL);
 	if (WARN_ON(IS_ERR(base)))
 		return PTR_ERR(base);
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->reg = base;
 	priv->soc_data = of_device_get_match_data(dev);
@@ -350,7 +350,7 @@ static int imx8_acm_clk_probe(struct platform_device *pdev)
 	clk_hw_data = devm_kzalloc(&pdev->dev, struct_size(clk_hw_data, hws, IMX_ADMA_ACM_CLK_END),
 				   GFP_KERNEL);
 	if (!clk_hw_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_hw_data->num = IMX_ADMA_ACM_CLK_END;
 	hws = clk_hw_data->hws;
@@ -459,7 +459,7 @@ static int __maybe_unused imx8_acm_runtime_resume(struct device *dev)
 static const struct dev_pm_ops imx8_acm_pm_ops = {
 	SET_RUNTIME_PM_OPS(imx8_acm_runtime_suspend,
 			   imx8_acm_runtime_resume, NULL)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				      pm_runtime_force_resume)
 };
 

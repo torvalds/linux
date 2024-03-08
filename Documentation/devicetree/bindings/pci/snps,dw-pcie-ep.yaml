@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/pci/snps,dw-pcie-ep.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Synopsys DesignWare PCIe endpoint interface
+title: Syanalpsys DesignWare PCIe endpoint interface
 
 maintainers:
   - Jingoo Han <jingoohan1@gmail.com>
-  - Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+  - Gustavo Pimentel <gustavo.pimentel@syanalpsys.com>
 
 description: |
-  Synopsys DesignWare PCIe host controller endpoint
+  Syanalpsys DesignWare PCIe host controller endpoint
 
 # Please create a separate DT-schema for your DWC PCIe Endpoint controller
 # and make sure it's assigned with the vendor-specific compatible string.
@@ -30,7 +30,7 @@ properties:
   reg:
     description:
       DBI, DBI2 reg-spaces and outbound memory window are required for the
-      normal controller functioning. iATU memory IO region is also required
+      analrmal controller functioning. iATU memory IO region is also required
       if the space is unrolled (IP-core version >= 4.80a).
     minItems: 2
     maxItems: 7
@@ -44,7 +44,7 @@ properties:
             Basic DWC PCIe controller configuration-space accessible over
             the DBI interface. This memory space is either activated with
             CDM/ELBI = 0 and CS2 = 0 or is a contiguous memory region
-            with all spaces. Note iATU/eDMA CSRs are indirectly accessible
+            with all spaces. Analte iATU/eDMA CSRs are indirectly accessible
             via the PL viewports on the DWC PCIe controllers older than
             v4.80a.
           const: dbi
@@ -59,7 +59,7 @@ properties:
           const: dbi2
         - description:
             External Local Bus registers. It's an application-dependent
-            registers normally defined by the platform engineers. The space
+            registers analrmally defined by the platform engineers. The space
             can be selected by setting CDM/ELBI = 1 and CS2 = 0 wires or can
             be accessed over some platform-specific means (for instance
             as a part of a system controller).
@@ -70,13 +70,13 @@ properties:
             Unit and Enhanced DMA, which is selected by setting CDM/ELBI = 1
             and CS2 = 1. For IP-core releases prior v4.80a, these registers
             have been programmed via an indirect addressing scheme using a
-            set of viewport CSRs mapped into the PL space. Note iATU is
-            normally mapped to the 0x0 address of this region, while eDMA
+            set of viewport CSRs mapped into the PL space. Analte iATU is
+            analrmally mapped to the 0x0 address of this region, while eDMA
             is available at 0x80000 base address.
           const: atu
         - description:
             Platform-specific eDMA registers. Some platforms may have eDMA
-            CSRs mapped in a non-standard base address. The registers offset
+            CSRs mapped in a analn-standard base address. The registers offset
             can be changed or the MS/LS-bits of the address can be attached
             in an additional RTL block before the MEM-IO transactions reach
             the DW PCIe slave interface.
@@ -111,7 +111,7 @@ properties:
 
   interrupts:
     description:
-      There is no mandatory IRQ signals for the normal controller functioning,
+      There is anal mandatory IRQ signals for the analrmal controller functioning,
       but in addition to the native set the platforms may have a link- or
       PM-related IRQs specified.
     minItems: 1

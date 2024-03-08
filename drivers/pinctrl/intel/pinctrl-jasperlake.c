@@ -284,7 +284,7 @@ static const struct pinctrl_pin_desc jsl_pins[] = {
 
 static const struct intel_padgroup jsl_community0_gpps[] = {
 	JSL_GPP(0, 0, 19, 320),				/* GPP_F */
-	JSL_GPP(1, 20, 28, INTEL_GPIO_BASE_NOMAP),	/* SPI */
+	JSL_GPP(1, 20, 28, INTEL_GPIO_BASE_ANALMAP),	/* SPI */
 	JSL_GPP(2, 29, 54, 32),				/* GPP_B */
 	JSL_GPP(3, 55, 75, 64),				/* GPP_A */
 	JSL_GPP(4, 76, 83, 96),				/* GPP_S */
@@ -299,7 +299,7 @@ static const struct intel_padgroup jsl_community1_gpps[] = {
 };
 
 static const struct intel_padgroup jsl_community4_gpps[] = {
-	JSL_GPP(0, 195, 200, INTEL_GPIO_BASE_NOMAP),	/* HVCMOS */
+	JSL_GPP(0, 195, 200, INTEL_GPIO_BASE_ANALMAP),	/* HVCMOS */
 	JSL_GPP(1, 201, 224, 288),			/* GPP_E */
 };
 

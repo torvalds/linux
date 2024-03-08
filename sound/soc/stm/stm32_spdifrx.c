@@ -184,7 +184,7 @@
 #define SPDIFRX_IN7		0x7
 #define SPDIFRX_IN8		0x8
 
-#define SPDIFRX_NBTR_NONE	0x0
+#define SPDIFRX_NBTR_ANALNE	0x0
 #define SPDIFRX_NBTR_3		0x1
 #define SPDIFRX_NBTR_15		0x2
 #define SPDIFRX_NBTR_63		0x3
@@ -272,7 +272,7 @@ static void stm32_spdifrx_dma_complete(void *data)
 	}
 
 	if (ptr > p_end) {
-		dev_err(&pdev->dev, "Start of S/PDIF block not found\n");
+		dev_err(&pdev->dev, "Start of S/PDIF block analt found\n");
 		return;
 	}
 
@@ -347,7 +347,7 @@ static int stm32_spdifrx_start_sync(struct stm32_spdifrx_data *spdifrx)
 		 * SPDIFRX configuration:
 		 * Wait for activity before starting sync process. This avoid
 		 * to issue sync errors when spdif signal is missing on input.
-		 * Preamble, CS, user, validity and parity error bits not copied
+		 * Preamble, CS, user, validity and parity error bits analt copied
 		 * to DR register.
 		 */
 		cr = SPDIFRX_CR_WFA | SPDIFRX_CR_PMSK | SPDIFRX_CR_VMSK |
@@ -413,7 +413,7 @@ static int stm32_spdifrx_dma_ctrl_register(struct device *dev,
 	spdifrx->dmab = devm_kzalloc(dev, sizeof(struct snd_dma_buffer),
 				     GFP_KERNEL);
 	if (!spdifrx->dmab)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spdifrx->dmab->dev.type = SNDRV_DMA_TYPE_DEV_IRAM;
 	spdifrx->dmab->dev.dev = dev;
@@ -682,7 +682,7 @@ static irqreturn_t stm32_spdifrx_isr(int irq, void *devid)
 	if (!flags) {
 		dev_err(&pdev->dev, "Unexpected IRQ. rflags=%#x, imr=%#x\n",
 			sr, imr);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Clear IRQs */
@@ -907,11 +907,11 @@ static const struct of_device_id stm32_spdifrx_ids[] = {
 static int stm32_spdifrx_parse_of(struct platform_device *pdev,
 				  struct stm32_spdifrx_data *spdifrx)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct resource *res;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spdifrx->regmap_conf = device_get_match_data(&pdev->dev);
 	if (!spdifrx->regmap_conf)
@@ -926,7 +926,7 @@ static int stm32_spdifrx_parse_of(struct platform_device *pdev,
 	spdifrx->kclk = devm_clk_get(&pdev->dev, "kclk");
 	if (IS_ERR(spdifrx->kclk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(spdifrx->kclk),
-				     "Could not get kclk\n");
+				     "Could analt get kclk\n");
 
 	spdifrx->irq = platform_get_irq(pdev, 0);
 	if (spdifrx->irq < 0)
@@ -960,7 +960,7 @@ static int stm32_spdifrx_probe(struct platform_device *pdev)
 
 	spdifrx = devm_kzalloc(&pdev->dev, sizeof(*spdifrx), GFP_KERNEL);
 	if (!spdifrx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spdifrx->pdev = pdev;
 	init_completion(&spdifrx->cs_completion);

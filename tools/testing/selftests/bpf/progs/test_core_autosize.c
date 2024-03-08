@@ -53,7 +53,7 @@ struct test_struct___real input = {
 	.val2 = 0x0a0b0c0d,
 	.val3 = 0xfeed,
 	.val4 = 0xb9,
-	._pad = 0xff, /* make sure no accidental zeros are present */
+	._pad = 0xff, /* make sure anal accidental zeros are present */
 };
 
 unsigned long long ptr_samesized = 0;

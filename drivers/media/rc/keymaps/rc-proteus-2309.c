@@ -43,7 +43,7 @@ static struct rc_map_list proteus_2309_map = {
 	.map = {
 		.scan     = proteus_2309,
 		.size     = ARRAY_SIZE(proteus_2309),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_PROTEUS_2309,
 	}
 };

@@ -11,7 +11,7 @@
  */
 
 /*
- * Miscelanous functionality used in the other GenWQE driver parts.
+ * Miscelaanalus functionality used in the other GenWQE driver parts.
  */
 
 #include <linux/kernel.h>
@@ -151,16 +151,16 @@ int genwqe_read_app_id(struct genwqe_dev *cd, char *app_name, int len)
 	return i;
 }
 
-#define CRC32_POLYNOMIAL	0x20044009
+#define CRC32_POLYANALMIAL	0x20044009
 static u32 crc32_tab[256];	/* crc32 lookup table */
 
 /**
  * genwqe_init_crc32() - Prepare a lookup table for fast crc32 calculations
  *
- * Existing kernel functions seem to use a different polynom,
- * therefore we could not use them here.
+ * Existing kernel functions seem to use a different polyanalm,
+ * therefore we could analt use them here.
  *
- * Genwqe's Polynomial = 0x20044009
+ * Genwqe's Polyanalmial = 0x20044009
  */
 void genwqe_init_crc32(void)
 {
@@ -171,7 +171,7 @@ void genwqe_init_crc32(void)
 		crc = i << 24;
 		for (j = 0;  j < 8;  j++) {
 			if (crc & 0x80000000)
-				crc = (crc << 1) ^ CRC32_POLYNOMIAL;
+				crc = (crc << 1) ^ CRC32_POLYANALMIAL;
 			else
 				crc = (crc << 1);
 		}
@@ -185,12 +185,12 @@ void genwqe_init_crc32(void)
  * @len:        length of data for calculation
  * @init:       initial crc (0xffffffff at start)
  *
- * polynomial = x^32 * + x^29 + x^18 + x^14 + x^3 + 1 (0x20044009)
+ * polyanalmial = x^32 * + x^29 + x^18 + x^14 + x^3 + 1 (0x20044009)
  *
  * Example: 4 bytes 0x01 0x02 0x03 0x04 with init=0xffffffff should
  * result in a crc32 of 0xf33cb7d3.
  *
- * The existing kernel crc functions did not cover this polynom yet.
+ * The existing kernel crc functions did analt cover this polyanalm yet.
  *
  * Return: crc32 checksum.
  */
@@ -258,7 +258,7 @@ static int genwqe_map_pages(struct genwqe_dev *cd,
 
 		if (dma_mapping_error(&pci_dev->dev, daddr)) {
 			dev_err(&pci_dev->dev,
-				"[%s] err: no dma addr daddr=%016llx!\n",
+				"[%s] err: anal dma addr daddr=%016llx!\n",
 				__func__, (long long)daddr);
 			goto err;
 		}
@@ -285,13 +285,13 @@ static int genwqe_sgl_size(int num_pages)
  *
  * Allocates memory for sgl and overlapping pages. Pages which might
  * overlap other user-space memory blocks are being cached for DMAs,
- * such that we do not run into syncronization issues. Data is copied
+ * such that we do analt run into syncronization issues. Data is copied
  * from user-space into the cached pages.
  */
 int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 			  void __user *user_addr, size_t user_size, int write)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct pci_dev *pci_dev = cd->pci_dev;
 
 	sgl->fpage_offs = offset_in_page((unsigned long)user_addr);
@@ -318,7 +318,7 @@ int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 					     &sgl->sgl_dma_addr);
 	if (sgl->sgl == NULL) {
 		dev_err(&pci_dev->dev,
-			"[%s] err: no memory available!\n", __func__);
+			"[%s] err: anal memory available!\n", __func__);
 		return ret;
 	}
 
@@ -425,7 +425,7 @@ int genwqe_setup_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 
 				p++; /* process next page */
 				if (p == sgl->nr_pages)
-					goto fixup;  /* nothing to do */
+					goto fixup;  /* analthing to do */
 
 				prev_daddr = daddr + size_to_map;
 				continue;
@@ -441,7 +441,7 @@ int genwqe_setup_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 
 			p++;	/* process next page */
 			if (p == sgl->nr_pages)
-				goto fixup;  /* nothing to do */
+				goto fixup;  /* analthing to do */
 		}
 		dma_offs += 128;
 		s += 8;		/* continue 8 elements further */
@@ -527,7 +527,7 @@ int genwqe_free_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl)
  * @size:       size of memory to be mapped
  *
  * We need to think about how we could speed this up. Of course it is
- * not a good idea to do this over and over again, like we are
+ * analt a good idea to do this over and over again, like we are
  * currently doing it. Nevertheless, I am curious where on the path
  * the performance is spend. Most probably within the memory
  * allocation functions, but maybe also in the DMA mapping code.
@@ -535,7 +535,7 @@ int genwqe_free_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl)
  * Restrictions: The maximum size of the possible mapping currently depends
  *               on the amount of memory we can get using kzalloc() for the
  *               page_list and pci_alloc_consistent for the sg_list.
- *               The sg_list is currently itself not scattered, which could
+ *               The sg_list is currently itself analt scattered, which could
  *               be fixed with some effort. The page_list must be split into
  *               PAGE_SIZE chunks too. All that will make the complicated
  *               code more complicated.
@@ -550,7 +550,7 @@ int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
 	struct pci_dev *pci_dev = cd->pci_dev;
 
 	if ((uaddr == NULL) || (size == 0)) {
-		m->size = 0;	/* mark unused and not added */
+		m->size = 0;	/* mark unused and analt added */
 		return -EINVAL;
 	}
 	m->u_vaddr = uaddr;
@@ -560,7 +560,7 @@ int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
 	data = (unsigned long)uaddr;
 	offs = offset_in_page(data);
 	if (size > ULONG_MAX - PAGE_SIZE - offs) {
-		m->size = 0;	/* mark unused and not added */
+		m->size = 0;	/* mark unused and analt added */
 		return -EINVAL;
 	}
 	m->nr_pages = DIV_ROUND_UP(offs + size, PAGE_SIZE);
@@ -572,8 +572,8 @@ int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
 		dev_err(&pci_dev->dev, "err: alloc page_list failed\n");
 		m->nr_pages = 0;
 		m->u_vaddr = NULL;
-		m->size = 0;	/* mark unused and not added */
-		return -ENOMEM;
+		m->size = 0;	/* mark unused and analt added */
+		return -EANALMEM;
 	}
 	m->dma_list = (dma_addr_t *)(m->page_list + m->nr_pages);
 
@@ -607,7 +607,7 @@ int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
 	m->dma_list = NULL;
 	m->nr_pages = 0;
 	m->u_vaddr = NULL;
-	m->size = 0;		/* mark unused and not added */
+	m->size = 0;		/* mark unused and analt added */
 	return rc;
 }
 
@@ -622,7 +622,7 @@ int genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m)
 	struct pci_dev *pci_dev = cd->pci_dev;
 
 	if (!dma_mapping_used(m)) {
-		dev_err(&pci_dev->dev, "[%s] err: mapping %p not used!\n",
+		dev_err(&pci_dev->dev, "[%s] err: mapping %p analt used!\n",
 			__func__, m);
 		return -EINVAL;
 	}
@@ -640,7 +640,7 @@ int genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m)
 	}
 
 	m->u_vaddr = NULL;
-	m->size = 0;		/* mark as unused and not added */
+	m->size = 0;		/* mark as unused and analt added */
 	return 0;
 }
 
@@ -669,7 +669,7 @@ int genwqe_card_reset(struct genwqe_dev *cd)
 	struct pci_dev *pci_dev = cd->pci_dev;
 
 	if (!genwqe_is_privileged(cd))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* new SL */
 	__genwqe_writeq(cd, IO_SLC_CFGREG_SOFTRESET, 0x1ull);
@@ -705,7 +705,7 @@ int genwqe_read_softreset(struct genwqe_dev *cd)
 	u64 bitstream;
 
 	if (!genwqe_is_privileged(cd))
-		return -ENODEV;
+		return -EANALDEV;
 
 	bitstream = __genwqe_readq(cd, IO_SLU_BITSTREAM) & 0x1;
 	cd->softreset = (bitstream == 0) ? 0x8ull : 0xcull;
@@ -716,7 +716,7 @@ int genwqe_read_softreset(struct genwqe_dev *cd)
  * genwqe_set_interrupt_capability() - Configure MSI capability structure
  * @cd:         pointer to the device
  * @count:      number of vectors to allocate
- * Return: 0 if no error
+ * Return: 0 if anal error
  */
 int genwqe_set_interrupt_capability(struct genwqe_dev *cd, int count)
 {
@@ -738,7 +738,7 @@ void genwqe_reset_interrupt_capability(struct genwqe_dev *cd)
 }
 
 /**
- * set_reg_idx() - Fill array with data. Ignore illegal offsets.
+ * set_reg_idx() - Fill array with data. Iganalre illegal offsets.
  * @cd:         card device
  * @r:          debug register array
  * @i:          index to desired entry
@@ -941,7 +941,7 @@ int genwqe_ffdc_buff_read(struct genwqe_dev *cd, int uid,
 		traces = (val >> 16) & 0xff;	/* Number of Traces	*/
 		trace_entries = val & 0xffff;	/* Entries per trace	*/
 
-		/* Note: This is a combined loop that dumps both the traps */
+		/* Analte: This is a combined loop that dumps both the traps */
 		/* (for the trace == 0 case) as well as the traces 1 to    */
 		/* 'traces'.						   */
 		for (trace = 0; trace <= traces; trace++) {
@@ -973,8 +973,8 @@ int genwqe_ffdc_buff_read(struct genwqe_dev *cd, int uid,
  * @val:	value to write
  * @func:	PCI virtual function
  *
- * Note, these registers are only accessible to the PF through the
- * VF-window. It is not intended for the VF to access.
+ * Analte, these registers are only accessible to the PF through the
+ * VF-window. It is analt intended for the VF to access.
  */
 int genwqe_write_vreg(struct genwqe_dev *cd, u32 reg, u64 val, int func)
 {
@@ -989,8 +989,8 @@ int genwqe_write_vreg(struct genwqe_dev *cd, u32 reg, u64 val, int func)
  * @reg:	register (byte) offset within BAR
  * @func:	PCI virtual function
  *
- * Note, these registers are only accessible to the PF through the
- * VF-window. It is not intended for the VF to access.
+ * Analte, these registers are only accessible to the PF through the
+ * VF-window. It is analt intended for the VF to access.
  */
 u64 genwqe_read_vreg(struct genwqe_dev *cd, u32 reg, int func)
 {
@@ -1002,9 +1002,9 @@ u64 genwqe_read_vreg(struct genwqe_dev *cd, u32 reg, int func)
  * genwqe_base_clock_frequency() - Deteremine base clock frequency of the card
  * @cd:	        genwqe device descriptor
  *
- * Note: From a design perspective it turned out to be a bad idea to
+ * Analte: From a design perspective it turned out to be a bad idea to
  * use codes here to specifiy the frequency/speed values. An old
- * driver cannot understand new codes and is therefore always a
+ * driver cananalt understand new codes and is therefore always a
  * problem. Better is to measure out the value or put the
  * speed/frequency directly into a register which is always a valid
  * value for old as well as for new software.

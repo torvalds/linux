@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-// Copyright (c) 2019 Mellanox Technologies
+// Copyright (c) 2019 Mellaanalx Techanallogies
 
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/device.h>
@@ -30,7 +30,7 @@ struct mlx5_dm *mlx5_dm_create(struct mlx5_core_dev *dev)
 
 	dm = kzalloc(sizeof(*dm), GFP_KERNEL);
 	if (!dm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_init(&dm->lock);
 
@@ -96,7 +96,7 @@ err_modify_hdr:
 err_steering:
 	kfree(dm);
 
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 void mlx5_dm_cleanup(struct mlx5_core_dev *dev)
@@ -158,7 +158,7 @@ int mlx5_dm_sw_icm_alloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type,
 	int ret;
 
 	if (!dev->dm)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!length || (length & (length - 1)) ||
 	    length & (MLX5_SW_ICM_BLOCK_SIZE(dev) - 1))
@@ -200,7 +200,7 @@ int mlx5_dm_sw_icm_alloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type,
 	}
 
 	if (!block_map)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	max_blocks = BIT(log_icm_size - MLX5_LOG_SW_ICM_BLOCK_SIZE(dev));
 
@@ -219,7 +219,7 @@ int mlx5_dm_sw_icm_alloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type,
 	spin_unlock(&dm->lock);
 
 	if (block_idx >= max_blocks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sw_icm = MLX5_ADDR_OF(create_sw_icm_in, in, sw_icm);
 	icm_start_addr += block_idx << MLX5_LOG_SW_ICM_BLOCK_SIZE(dev);
@@ -257,7 +257,7 @@ int mlx5_dm_sw_icm_dealloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type
 	int err;
 
 	if (!dev->dm)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case MLX5_SW_ICM_TYPE_STEERING:

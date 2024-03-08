@@ -10,7 +10,7 @@
 #ifndef _LINUX_DEVPTS_FS_H
 #define _LINUX_DEVPTS_FS_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #ifdef CONFIG_UNIX98_PTYS
 
@@ -23,7 +23,7 @@ void devpts_release(struct pts_fs_info *);
 int devpts_new_index(struct pts_fs_info *);
 void devpts_kill_index(struct pts_fs_info *, int);
 
-/* mknod in devpts */
+/* mkanald in devpts */
 struct dentry *devpts_pty_new(struct pts_fs_info *, int, void *);
 /* get private structure */
 void *devpts_get_priv(struct dentry *);

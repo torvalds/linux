@@ -83,7 +83,7 @@ struct rt_firmware_hdr {
 #define RX_DMA_BOUNDARY_8723B \
 	(RX_DMA_SIZE_8723B - RX_DMA_RESERVED_SIZE_8723B - 1)
 
-/* Note: We will divide number of pages equally for each queue other than the
+/* Analte: We will divide number of pages equally for each queue other than the
  * public queue!
  */
 
@@ -95,7 +95,7 @@ struct rt_firmware_hdr {
 #define MAX_RX_DMA_BUFFER_SIZE_8723B 0x2800 /* RX 10K */
 
 /* For WoWLan, more reserved page */
-/* ARP Rsp:1, RWC:1, GTK Info:1, GTK RSP:2, GTK EXT MEM:2, PNO: 6 */
+/* ARP Rsp:1, RWC:1, GTK Info:1, GTK RSP:2, GTK EXT MEM:2, PANAL: 6 */
 #define WOWLAN_PAGE_NUM_8723B 0x00
 
 #define TX_TOTAL_PAGE_NUMBER_8723B     \
@@ -104,20 +104,20 @@ struct rt_firmware_hdr {
 		WOWLAN_PAGE_NUM_8723B)
 #define TX_PAGE_BOUNDARY_8723B (TX_TOTAL_PAGE_NUMBER_8723B + 1)
 
-#define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8723B TX_TOTAL_PAGE_NUMBER_8723B
-#define WMM_NORMAL_TX_PAGE_BOUNDARY_8723B \
-	(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8723B + 1)
+#define WMM_ANALRMAL_TX_TOTAL_PAGE_NUMBER_8723B TX_TOTAL_PAGE_NUMBER_8723B
+#define WMM_ANALRMAL_TX_PAGE_BOUNDARY_8723B \
+	(WMM_ANALRMAL_TX_TOTAL_PAGE_NUMBER_8723B + 1)
 
-/* For Normal Chip Setting */
+/* For Analrmal Chip Setting */
 /* (HPQ + LPQ + NPQ + PUBQ) shall be TX_TOTAL_PAGE_NUMBER_8723B */
-#define NORMAL_PAGE_NUM_HPQ_8723B 0x0C
-#define NORMAL_PAGE_NUM_LPQ_8723B 0x02
-#define NORMAL_PAGE_NUM_NPQ_8723B 0x02
+#define ANALRMAL_PAGE_NUM_HPQ_8723B 0x0C
+#define ANALRMAL_PAGE_NUM_LPQ_8723B 0x02
+#define ANALRMAL_PAGE_NUM_NPQ_8723B 0x02
 
-/*  Note: For Normal Chip Setting, modify later */
-#define WMM_NORMAL_PAGE_NUM_HPQ_8723B 0x30
-#define WMM_NORMAL_PAGE_NUM_LPQ_8723B 0x20
-#define WMM_NORMAL_PAGE_NUM_NPQ_8723B 0x20
+/*  Analte: For Analrmal Chip Setting, modify later */
+#define WMM_ANALRMAL_PAGE_NUM_HPQ_8723B 0x30
+#define WMM_ANALRMAL_PAGE_NUM_LPQ_8723B 0x20
+#define WMM_ANALRMAL_PAGE_NUM_NPQ_8723B 0x20
 
 #include "HalVerDef.h"
 #include "hal_com.h"
@@ -156,7 +156,7 @@ enum {
 	C2H_DBG = 0,
 	C2H_TSF = 1,
 	C2H_AP_RPT_RSP = 2,
-	C2H_CCX_TX_RPT = 3, /* The FW notify the report
+	C2H_CCX_TX_RPT = 3, /* The FW analtify the report
 			     * of the specific tx packet.
 			     */
 	C2H_BT_RSSI = 4,

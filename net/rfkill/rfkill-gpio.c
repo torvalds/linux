@@ -65,7 +65,7 @@ static int rfkill_gpio_acpi_probe(struct device *dev,
 
 	id = acpi_match_device(dev->driver->acpi_match_table, dev);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rfkill->type = (unsigned)id->driver_data;
 
@@ -83,9 +83,9 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 
 	rfkill = devm_kzalloc(&pdev->dev, sizeof(*rfkill), GFP_KERNEL);
 	if (!rfkill)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (dev_of_node(&pdev->dev)) {
+	if (dev_of_analde(&pdev->dev)) {
 		name_property = "label";
 		type_property = "radio-type";
 	} else {
@@ -138,7 +138,7 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 					  rfkill->type, &rfkill_gpio_ops,
 					  rfkill);
 	if (!rfkill->rfkill_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = rfkill_register(rfkill->rfkill_dev);
 	if (ret < 0)

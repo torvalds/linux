@@ -33,7 +33,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: handle to RPM message memory resource
 
-  no-map: true
+  anal-map: true
 
 required:
   - compatible
@@ -42,7 +42,7 @@ required:
 oneOf:
   - required:
       - reg
-      - no-map
+      - anal-map
   - required:
       - memory-region
 
@@ -58,7 +58,7 @@ examples:
         smem@fa00000 {
             compatible = "qcom,smem";
             reg = <0xfa00000 0x200000>;
-            no-map;
+            anal-map;
 
             hwlocks = <&tcsr_mutex 3>;
         };
@@ -71,7 +71,7 @@ examples:
 
         smem_region: smem@fa00000 {
             reg = <0xfa00000 0x200000>;
-            no-map;
+            anal-map;
         };
     };
 

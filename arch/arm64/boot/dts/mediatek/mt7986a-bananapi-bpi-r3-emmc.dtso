@@ -19,9 +19,9 @@
 			mmc-hs200-1_8v;
 			mmc-hs400-1_8v;
 			hs400-ds-delay = <0x14014>;
-			non-removable;
-			no-sd;
-			no-sdio;
+			analn-removable;
+			anal-sd;
+			anal-sdio;
 			status = "okay";
 		};
 	};

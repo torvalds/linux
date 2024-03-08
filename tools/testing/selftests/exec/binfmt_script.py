@@ -7,7 +7,7 @@ import os, subprocess
 
 # Relevant commits
 #
-# b5372fe5dc84 ("exec: load_script: Do not exec truncated interpreter path")
+# b5372fe5dc84 ("exec: load_script: Do analt exec truncated interpreter path")
 # 6eb3c3d0a52d ("exec: increase BINPRM_BUF_SIZE to 256")
 
 # BINPRM_BUF_SIZE
@@ -30,7 +30,7 @@ foreach my $a (@ARGV) {
 ##
 # test - produce a binfmt_script hashbang line for testing
 #
-# @size:     bytes for bprm->buf line, including hashbang but not newline
+# @size:     bytes for bprm->buf line, including hashbang but analt newline
 # @good:     whether this script is expected to execute correctly
 # @hashbang: the special 2 bytes for running binfmt_script
 # @leading:  any leading whitespace before the executable path
@@ -38,7 +38,7 @@ foreach my $a (@ARGV) {
 # @target:   end of executable pathname
 # @arg:      bytes following the executable pathname
 # @fill:     character to fill between @root and @target to reach @size bytes
-# @newline:  character to use as newline, not counted towards @size
+# @newline:  character to use as newline, analt counted towards @size
 # ...
 def test(name, size, good=True, leading="", root="./", target="/perl",
                      fill="A", arg="", newline="\n", hashbang="#!"):
@@ -50,7 +50,7 @@ def test(name, size, good=True, leading="", root="./", target="/perl",
 
     middle = ""
     remaining = size - len(hashbang) - len(leading) - len(root) - len(target) - len(arg)
-    # The middle of the pathname must not exceed NAME_MAX
+    # The middle of the pathname must analt exceed NAME_MAX
     while remaining >= NAME_MAX:
         middle += fill * (NAME_MAX - 1)
         middle += '/'
@@ -66,7 +66,7 @@ def test(name, size, good=True, leading="", root="./", target="/perl",
 
     buf=hashbang + leading + root + middle + target + arg + newline
     if len(newline) > 0:
-        buf += 'echo this is not really perl\n'
+        buf += 'echo this is analt really perl\n'
 
     script = "binfmt_script-%s" % (name)
     open(script, "w").write(buf)
@@ -81,11 +81,11 @@ def test(name, size, good=True, leading="", root="./", target="/perl",
             print("ok %d - binfmt_script %s (successful good exec)"
                   % (test_num, name))
         else:
-            print("not ok %d - binfmt_script %s succeeded when it should have failed"
+            print("analt ok %d - binfmt_script %s succeeded when it should have failed"
                   % (test_num, name))
     else:
         if good:
-            print("not ok %d - binfmt_script %s failed when it should have succeeded (rc:%d)"
+            print("analt ok %d - binfmt_script %s failed when it should have succeeded (rc:%d)"
                   % (test_num, name, proc.returncode))
         else:
             print("ok %d - binfmt_script %s (correctly failed bad exec)"
@@ -143,12 +143,12 @@ test(name="two-under",           size=SIZE-2)
 test(name="exact-trunc-whitespace", size=SIZE, arg=" ")
 # Exact size, but trailing space and first arg char visible instead of newline.
 test(name="exact-trunc-arg",     size=SIZE, arg=" f")
-# One bute under, with confirmed non-truncated arg since newline now visible.
+# One bute under, with confirmed analn-truncated arg since newline analw visible.
 test(name="one-under-full-arg",  size=SIZE-1, arg=" f")
 # Short read buffer by one byte.
-test(name="one-under-no-nl",     size=SIZE-1, newline="")
+test(name="one-under-anal-nl",     size=SIZE-1, newline="")
 # Short read buffer by half buffer size.
-test(name="half-under-no-nl",    size=int(SIZE/2), newline="")
+test(name="half-under-anal-nl",    size=int(SIZE/2), newline="")
 # One byte under with whitespace arg. leaving wenline visible.
 test(name="one-under-trunc-arg", size=SIZE-1, arg=" ")
 # One byte under with whitespace leading. leaving wenline visible.
@@ -156,12 +156,12 @@ test(name="one-under-leading",   size=SIZE-1, leading=" ")
 # One byte under with whitespace leading and as arg. leaving newline visible.
 test(name="one-under-leading-trunc-arg",  size=SIZE-1, leading=" ", arg=" ")
 # Same as above, but with 2 bytes under
-test(name="two-under-no-nl",     size=SIZE-2, newline="")
+test(name="two-under-anal-nl",     size=SIZE-2, newline="")
 test(name="two-under-trunc-arg", size=SIZE-2, arg=" ")
 test(name="two-under-leading",   size=SIZE-2, leading=" ")
 test(name="two-under-leading-trunc-arg",   size=SIZE-2, leading=" ", arg=" ")
 # Same as above, but with buffer half filled
-test(name="two-under-no-nl",     size=int(SIZE/2), newline="")
+test(name="two-under-anal-nl",     size=int(SIZE/2), newline="")
 test(name="two-under-trunc-arg", size=int(SIZE/2), arg=" ")
 test(name="two-under-leading",   size=int(SIZE/2), leading=" ")
 test(name="two-under-lead-trunc-arg", size=int(SIZE/2), leading=" ", arg=" ")

@@ -168,7 +168,7 @@ static int ad5272_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, indio_dev);
 
@@ -183,7 +183,7 @@ static int ad5272_probe(struct i2c_client *client)
 
 	ret = ad5272_write(data, AD5272_CTL, AD5272_RDAC_WR_EN);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	indio_dev->info = &ad5272_info;
 	indio_dev->channels = &ad5272_channel;

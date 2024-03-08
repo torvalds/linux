@@ -6,11 +6,11 @@
  */
 
 /*
- * NOTICE:
+ * ANALTICE:
  * As the disclosed information on the chip is very limited,
  * this driver lacks some features, including chip config like IF freq.
  * It assumes that users of this driver (such as a PCI bridge of
- * DTV receiver cards) know the relevant info and
+ * DTV receiver cards) kanalw the relevant info and
  * configure the chip via I2C if necessary.
  *
  * Currently, PT3 driver is the only one that uses this driver,
@@ -47,7 +47,7 @@ static const struct qm1d1c0042_config default_cfg = {
 	.fast_srch = 0,
 	.lpf_wait = 20,
 	.fast_srch_wait = 4,
-	.normal_srch_wait = 15,
+	.analrmal_srch_wait = 15,
 };
 
 struct qm1d1c0042_state {
@@ -112,8 +112,8 @@ static int qm1d1c0042_wakeup(struct qm1d1c0042_state *state)
 	int ret;
 
 	state->regs[0x01] |= 1 << 3;             /* BB_Reg_enable */
-	state->regs[0x01] &= (~(1 << 0)) & 0xff; /* NORMAL (wake-up) */
-	state->regs[0x05] &= (~(1 << 3)) & 0xff; /* pfd_rst NORMAL */
+	state->regs[0x01] &= (~(1 << 0)) & 0xff; /* ANALRMAL (wake-up) */
+	state->regs[0x05] &= (~(1 << 3)) & 0xff; /* pfd_rst ANALRMAL */
 	ret = reg_write(state, 0x01, state->regs[0x01]);
 	if (ret == 0)
 		ret = reg_write(state, 0x05, state->regs[0x05]);
@@ -139,7 +139,7 @@ static int qm1d1c0042_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 	if (cfg->xtal_freq != QM1D1C0042_CFG_XTAL_DFLT)
 		dev_warn(&state->i2c->dev,
-			"(%s) changing xtal_freq not supported. ", __func__);
+			"(%s) changing xtal_freq analt supported. ", __func__);
 	state->cfg.xtal_freq = default_cfg.xtal_freq;
 
 	state->cfg.lpf = cfg->lpf;
@@ -155,10 +155,10 @@ static int qm1d1c0042_set_config(struct dvb_frontend *fe, void *priv_cfg)
 	else
 		state->cfg.fast_srch_wait = default_cfg.fast_srch_wait;
 
-	if (cfg->normal_srch_wait != QM1D1C0042_CFG_WAIT_DFLT)
-		state->cfg.normal_srch_wait = cfg->normal_srch_wait;
+	if (cfg->analrmal_srch_wait != QM1D1C0042_CFG_WAIT_DFLT)
+		state->cfg.analrmal_srch_wait = cfg->analrmal_srch_wait;
 	else
-		state->cfg.normal_srch_wait = default_cfg.normal_srch_wait;
+		state->cfg.analrmal_srch_wait = default_cfg.analrmal_srch_wait;
 	return 0;
 }
 
@@ -280,7 +280,7 @@ static int qm1d1c0042_set_params(struct dvb_frontend *fe)
 	else if (state->regs[0x03] & 0x01)
 		msleep(state->cfg.fast_srch_wait);
 	else
-		msleep(state->cfg.normal_srch_wait);
+		msleep(state->cfg.analrmal_srch_wait);
 
 	if (state->cfg.lpf) {
 		/* LPF_FC */
@@ -409,7 +409,7 @@ static int qm1d1c0042_probe(struct i2c_client *client)
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 	state->i2c = client;
 
 	cfg = client->dev.platform_data;

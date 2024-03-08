@@ -2,7 +2,7 @@
 /*
  * IDT CPS RapidIO switches support
  *
- * Copyright 2009-2010 Integrated Device Technology, Inc.
+ * Copyright 2009-2010 Integrated Device Techanallogy, Inc.
  * Alexandre Bounine <alexandre.bounine@idt.com>
  */
 
@@ -13,7 +13,7 @@
 #include "../rio.h"
 
 #define CPS_DEFAULT_ROUTE	0xde
-#define CPS_NO_ROUTE		0xdf
+#define CPS_ANAL_ROUTE		0xdf
 
 #define IDTCPS_RIO_DOMAIN 0xf20020
 
@@ -55,7 +55,7 @@ idtcps_route_get_entry(struct rio_mport *mport, u16 destid, u8 hopcount,
 				RIO_STD_RTE_CONF_PORT_SEL_CSR, &result);
 
 		if (CPS_DEFAULT_ROUTE == (u8)result ||
-		    CPS_NO_ROUTE == (u8)result)
+		    CPS_ANAL_ROUTE == (u8)result)
 			*route_port = RIO_INVALID_ROUTE;
 		else
 			*route_port = (u8)result;
@@ -145,7 +145,7 @@ static int idtcps_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 			rdev->phys_efptr + RIO_PORT_LINKTO_CTL_CSR, 0x8e << 8);
 		/* Ensure that default routing is disabled on startup */
 		rio_write_config_32(rdev,
-				    RIO_STD_RTE_DEFAULT_PORT, CPS_NO_ROUTE);
+				    RIO_STD_RTE_DEFAULT_PORT, CPS_ANAL_ROUTE);
 	}
 
 	spin_unlock(&rdev->rswitch->lock);
@@ -195,5 +195,5 @@ device_initcall(idtcps_init);
 module_exit(idtcps_exit);
 
 MODULE_DESCRIPTION("IDT CPS Gen.1 Serial RapidIO switch family driver");
-MODULE_AUTHOR("Integrated Device Technology, Inc.");
+MODULE_AUTHOR("Integrated Device Techanallogy, Inc.");
 MODULE_LICENSE("GPL");

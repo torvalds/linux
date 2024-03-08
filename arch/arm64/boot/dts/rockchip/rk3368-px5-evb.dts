@@ -54,9 +54,9 @@
 	cap-mmc-highspeed;
 	clock-frequency = <150000000>;
 	mmc-hs200-1_8v;
-	no-sdio;
-	no-sd;
-	non-removable;
+	anal-sdio;
+	anal-sd;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk>, <&emmc_cmd>, <&emmc_bus8>;
 	vmmc-supply = <&vcc_io>;
@@ -223,13 +223,13 @@
 &pinctrl {
 	keys {
 		pwr_key: pwr-key {
-			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	pmic {
 		pmic_sleep: pmic-sleep {
-			rockchip,pins = <0 RK_PA0 2 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA0 2 &pcfg_pull_analne>;
 		};
 
 		pmic_int: pmic-int {
@@ -244,7 +244,7 @@
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
-	no-sdio;
+	anal-sdio;
 	sd-uhs-sdr12;
 	sd-uhs-sdr25;
 	pinctrl-names = "default";

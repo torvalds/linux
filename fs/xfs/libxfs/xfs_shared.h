@@ -16,7 +16,7 @@ struct xfs_buf;
 struct xfs_buf_ops;
 struct xfs_mount;
 struct xfs_trans;
-struct xfs_inode;
+struct xfs_ianalde;
 
 /*
  * Buffer verifier operations are widely used, including userspace tools
@@ -27,15 +27,15 @@ extern const struct xfs_buf_ops xfs_agi_buf_ops;
 extern const struct xfs_buf_ops xfs_attr3_leaf_buf_ops;
 extern const struct xfs_buf_ops xfs_attr3_rmt_buf_ops;
 extern const struct xfs_buf_ops xfs_bmbt_buf_ops;
-extern const struct xfs_buf_ops xfs_bnobt_buf_ops;
+extern const struct xfs_buf_ops xfs_banalbt_buf_ops;
 extern const struct xfs_buf_ops xfs_cntbt_buf_ops;
-extern const struct xfs_buf_ops xfs_da3_node_buf_ops;
+extern const struct xfs_buf_ops xfs_da3_analde_buf_ops;
 extern const struct xfs_buf_ops xfs_dquot_buf_ops;
 extern const struct xfs_buf_ops xfs_dquot_buf_ra_ops;
-extern const struct xfs_buf_ops xfs_finobt_buf_ops;
-extern const struct xfs_buf_ops xfs_inobt_buf_ops;
-extern const struct xfs_buf_ops xfs_inode_buf_ops;
-extern const struct xfs_buf_ops xfs_inode_buf_ra_ops;
+extern const struct xfs_buf_ops xfs_fianalbt_buf_ops;
+extern const struct xfs_buf_ops xfs_ianalbt_buf_ops;
+extern const struct xfs_buf_ops xfs_ianalde_buf_ops;
+extern const struct xfs_buf_ops xfs_ianalde_buf_ra_ops;
 extern const struct xfs_buf_ops xfs_refcountbt_buf_ops;
 extern const struct xfs_buf_ops xfs_rmapbt_buf_ops;
 extern const struct xfs_buf_ops xfs_rtbuf_ops;
@@ -60,12 +60,12 @@ void	xfs_log_get_max_trans_res(struct xfs_mount *mp,
 #define XFS_TRANS_SB_DIRTY		(1u << 1)
 /* Transaction took a permanent log reservation */
 #define XFS_TRANS_PERM_LOG_RES		(1u << 2)
-/* Synchronous transaction commit needed */
+/* Synchroanalus transaction commit needed */
 #define XFS_TRANS_SYNC			(1u << 3)
 /* Transaction can use reserve block pool */
 #define XFS_TRANS_RESERVE		(1u << 4)
 /* Transaction should avoid VFS level superblock write accounting */
-#define XFS_TRANS_NO_WRITECOUNT		(1u << 5)
+#define XFS_TRANS_ANAL_WRITECOUNT		(1u << 5)
 /* Transaction has freed blocks returned to it's reservation */
 #define XFS_TRANS_RES_FDBLKS		(1u << 6)
 /* Transaction contains an intent done log item */
@@ -110,12 +110,12 @@ void	xfs_log_get_max_trans_res(struct xfs_mount *mp,
 #define	XFS_AGF_REF		4
 #define	XFS_AGI_REF		4
 #define	XFS_AGFL_REF		3
-#define	XFS_INO_BTREE_REF	3
+#define	XFS_IANAL_BTREE_REF	3
 #define	XFS_ALLOC_BTREE_REF	2
 #define	XFS_BMAP_BTREE_REF	2
 #define	XFS_RMAP_BTREE_REF	2
 #define	XFS_DIR_BTREE_REF	2
-#define	XFS_INO_REF		2
+#define	XFS_IANAL_REF		2
 #define	XFS_ATTR_BTREE_REF	1
 #define	XFS_DQUOT_REF		1
 #define	XFS_REFC_BTREE_REF	1
@@ -125,64 +125,64 @@ void	xfs_log_get_max_trans_res(struct xfs_mount *mp,
  * Flags for xfs_trans_ichgtime().
  */
 #define	XFS_ICHGTIME_MOD	0x1	/* data fork modification timestamp */
-#define	XFS_ICHGTIME_CHG	0x2	/* inode field change timestamp */
-#define	XFS_ICHGTIME_CREATE	0x4	/* inode create timestamp */
+#define	XFS_ICHGTIME_CHG	0x2	/* ianalde field change timestamp */
+#define	XFS_ICHGTIME_CREATE	0x4	/* ianalde create timestamp */
 
 
 /*
  * Symlink decoding/encoding functions
  */
 int xfs_symlink_blocks(struct xfs_mount *mp, int pathlen);
-int xfs_symlink_hdr_set(struct xfs_mount *mp, xfs_ino_t ino, uint32_t offset,
+int xfs_symlink_hdr_set(struct xfs_mount *mp, xfs_ianal_t ianal, uint32_t offset,
 			uint32_t size, struct xfs_buf *bp);
-bool xfs_symlink_hdr_ok(xfs_ino_t ino, uint32_t offset,
+bool xfs_symlink_hdr_ok(xfs_ianal_t ianal, uint32_t offset,
 			uint32_t size, struct xfs_buf *bp);
 void xfs_symlink_local_to_remote(struct xfs_trans *tp, struct xfs_buf *bp,
-				 struct xfs_inode *ip, struct xfs_ifork *ifp);
+				 struct xfs_ianalde *ip, struct xfs_ifork *ifp);
 xfs_failaddr_t xfs_symlink_shortform_verify(void *sfp, int64_t size);
 
-/* Computed inode geometry for the filesystem. */
-struct xfs_ino_geometry {
-	/* Maximum inode count in this filesystem. */
+/* Computed ianalde geometry for the filesystem. */
+struct xfs_ianal_geometry {
+	/* Maximum ianalde count in this filesystem. */
 	uint64_t	maxicount;
 
-	/* Actual inode cluster buffer size, in bytes. */
-	unsigned int	inode_cluster_size;
+	/* Actual ianalde cluster buffer size, in bytes. */
+	unsigned int	ianalde_cluster_size;
 
 	/*
-	 * Desired inode cluster buffer size, in bytes.  This value is not
+	 * Desired ianalde cluster buffer size, in bytes.  This value is analt
 	 * rounded up to at least one filesystem block, which is necessary for
-	 * the sole purpose of validating sb_spino_align.  Runtime code must
-	 * only ever use inode_cluster_size.
+	 * the sole purpose of validating sb_spianal_align.  Runtime code must
+	 * only ever use ianalde_cluster_size.
 	 */
-	unsigned int	inode_cluster_size_raw;
+	unsigned int	ianalde_cluster_size_raw;
 
-	/* Inode cluster sizes, adjusted to be at least 1 fsb. */
-	unsigned int	inodes_per_cluster;
+	/* Ianalde cluster sizes, adjusted to be at least 1 fsb. */
+	unsigned int	ianaldes_per_cluster;
 	unsigned int	blocks_per_cluster;
 
-	/* Inode cluster alignment. */
+	/* Ianalde cluster alignment. */
 	unsigned int	cluster_align;
-	unsigned int	cluster_align_inodes;
-	unsigned int	inoalign_mask;	/* mask sb_inoalignmt if used */
+	unsigned int	cluster_align_ianaldes;
+	unsigned int	ianalalign_mask;	/* mask sb_ianalalignmt if used */
 
-	unsigned int	inobt_mxr[2]; /* max inobt btree records */
-	unsigned int	inobt_mnr[2]; /* min inobt btree records */
-	unsigned int	inobt_maxlevels; /* max inobt btree levels. */
+	unsigned int	ianalbt_mxr[2]; /* max ianalbt btree records */
+	unsigned int	ianalbt_mnr[2]; /* min ianalbt btree records */
+	unsigned int	ianalbt_maxlevels; /* max ianalbt btree levels. */
 
-	/* Size of inode allocations under normal operation. */
-	unsigned int	ialloc_inos;
+	/* Size of ianalde allocations under analrmal operation. */
+	unsigned int	ialloc_ianals;
 	unsigned int	ialloc_blks;
 
-	/* Minimum inode blocks for a sparse allocation. */
+	/* Minimum ianalde blocks for a sparse allocation. */
 	unsigned int	ialloc_min_blks;
 
-	/* stripe unit inode alignment */
+	/* stripe unit ianalde alignment */
 	unsigned int	ialloc_align;
 
-	unsigned int	agino_log;	/* #bits for agino in inum */
+	unsigned int	agianal_log;	/* #bits for agianal in inum */
 
-	/* precomputed default inode attribute fork offset */
+	/* precomputed default ianalde attribute fork offset */
 	unsigned int	attr_fork_offset;
 
 	/* precomputed value for di_flags2 */

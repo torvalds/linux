@@ -11,7 +11,7 @@
  * This file handles the architecture-dependent parts of hardware exceptions
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/kernel.h>
@@ -105,7 +105,7 @@ static const char *signame(int signr)
 	case SIGTRAP:	return "unhandled trap";
 	}
 
-	return "unknown signal";
+	return "unkanalwn signal";
 }
 
 /*
@@ -133,8 +133,8 @@ static inline void pmac_backlight_unblank(void) { }
 /*
  * If oops/die is expected to crash the machine, return true here.
  *
- * This should not be expected to be 100% accurate, there may be
- * notifiers registered or other unexpected conditions that may bring
+ * This should analt be expected to be 100% accurate, there may be
+ * analtifiers registered or other unexpected conditions that may bring
  * down the kernel. Or if the current process in the kernel is holding
  * locks or has other critical state, the kernel may become effectively
  * unusable anyway.
@@ -163,7 +163,7 @@ void panic_flush_kmsg_start(void)
 	 * These are mostly taken from kernel/panic.c, but tries to do
 	 * relatively minimal work. Don't use delay functions (TB may
 	 * be broken), don't crash dump (need to set a firmware log),
-	 * don't run notifiers. We do want to get some information to
+	 * don't run analtifiers. We do want to get some information to
 	 * Linux console.
 	 */
 	console_verbose();
@@ -202,13 +202,13 @@ static unsigned long oops_begin(struct pt_regs *regs)
 		pmac_backlight_unblank();
 	return flags;
 }
-NOKPROBE_SYMBOL(oops_begin);
+ANALKPROBE_SYMBOL(oops_begin);
 
 static void oops_end(unsigned long flags, struct pt_regs *regs,
 			       int signr)
 {
 	bust_spinlocks(0);
-	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_DIE, LOCKDEP_ANALW_UNRELIABLE);
 	die_nest_count--;
 	oops_exit();
 	printk("\n");
@@ -236,7 +236,7 @@ static void oops_end(unsigned long flags, struct pt_regs *regs,
 	/*
 	 * While our oops output is serialised by a spinlock, output
 	 * from panic() called below can race and corrupt it. If we
-	 * know we are going to panic, delay for 1 second so we have a
+	 * kanalw we are going to panic, delay for 1 second so we have a
 	 * chance to get clean backtraces from all CPUs that are oopsing.
 	 */
 	if (in_interrupt() || panic_on_oops || !current->pid ||
@@ -248,7 +248,7 @@ static void oops_end(unsigned long flags, struct pt_regs *regs,
 		panic("Fatal exception");
 	make_task_dead(signr);
 }
-NOKPROBE_SYMBOL(oops_end);
+ANALKPROBE_SYMBOL(oops_end);
 
 static char *get_mmu_str(void)
 {
@@ -273,7 +273,7 @@ static int __die(const char *str, struct pt_regs *regs, long err)
 	       IS_ENABLED(CONFIG_NUMA) ? " NUMA" : "",
 	       ppc_md.name ? ppc_md.name : "");
 
-	if (notify_die(DIE_OOPS, str, regs, err, 255, SIGSEGV) == NOTIFY_STOP)
+	if (analtify_die(DIE_OOPS, str, regs, err, 255, SIGSEGV) == ANALTIFY_STOP)
 		return 1;
 
 	print_modules();
@@ -281,7 +281,7 @@ static int __die(const char *str, struct pt_regs *regs, long err)
 
 	return 0;
 }
-NOKPROBE_SYMBOL(__die);
+ANALKPROBE_SYMBOL(__die);
 
 void die(const char *str, struct pt_regs *regs, long err)
 {
@@ -300,7 +300,7 @@ void die(const char *str, struct pt_regs *regs, long err)
 		err = 0;
 	oops_end(flags, regs, err);
 }
-NOKPROBE_SYMBOL(die);
+ANALKPROBE_SYMBOL(die);
 
 void user_single_step_report(struct pt_regs *regs)
 {
@@ -342,7 +342,7 @@ static bool exception_common(int signr, struct pt_regs *regs, int code,
 	}
 
 	/*
-	 * Must not enable interrupts even for user-mode exception, because
+	 * Must analt enable interrupts even for user-mode exception, because
 	 * this can be called from machine check, which may be a NMI or IRQ
 	 * which don't like interrupts being enabled. Could check for
 	 * in_hardirq || in_nmi perhaps, but there doesn't seem to be a good
@@ -375,14 +375,14 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 
 /*
  * The interrupt architecture has a quirk in that the HV interrupts excluding
- * the NMIs (0x100 and 0x200) do not clear MSR[RI] at entry. The first thing
+ * the NMIs (0x100 and 0x200) do analt clear MSR[RI] at entry. The first thing
  * that an interrupt handler must do is save off a GPR into a scratch register,
  * and all interrupts on POWERNV (HV=1) use the HSPRG1 register as scratch.
- * Therefore an NMI can clobber an HV interrupt's live HSPRG1 without noticing
- * that it is non-reentrant, which leads to random data corruption.
+ * Therefore an NMI can clobber an HV interrupt's live HSPRG1 without analticing
+ * that it is analn-reentrant, which leads to random data corruption.
  *
  * The solution is for NMI interrupts in HV mode to check if they originated
- * from these critical HV interrupt regions. If so, then mark them not
+ * from these critical HV interrupt regions. If so, then mark them analt
  * recoverable.
  *
  * An alternative would be for HV NMIs to use SPRG for scratch to avoid the
@@ -391,10 +391,10 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
  * that would work. However any other guest OS that may have the SPRG live
  * and MSR[RI]=1 could encounter silent corruption.
  *
- * Builds that do not support KVM could take this second option to increase
+ * Builds that do analt support KVM could take this second option to increase
  * the recoverability of NMIs.
  */
-noinstr void hv_nmi_check_nonrecoverable(struct pt_regs *regs)
+analinstr void hv_nmi_check_analnrecoverable(struct pt_regs *regs)
 {
 #ifdef CONFIG_PPC_POWERNV
 	unsigned long kbase = (unsigned long)_stext;
@@ -408,7 +408,7 @@ noinstr void hv_nmi_check_nonrecoverable(struct pt_regs *regs)
 		return;
 
 	/*
-	 * Now test if the interrupt has hit a range that may be using
+	 * Analw test if the interrupt has hit a range that may be using
 	 * HSPRG1 without having RI=0 (i.e., an HSRR interrupt). The
 	 * problem ranges all run un-relocated. Test real and virt modes
 	 * at the same time by dropping the high bit of the nip (virt mode
@@ -416,24 +416,24 @@ noinstr void hv_nmi_check_nonrecoverable(struct pt_regs *regs)
 	 */
 	nip &= ~0xc000000000000000ULL;
 	if ((nip >= 0x500 && nip < 0x600) || (nip >= 0x4500 && nip < 0x4600))
-		goto nonrecoverable;
+		goto analnrecoverable;
 	if ((nip >= 0x980 && nip < 0xa00) || (nip >= 0x4980 && nip < 0x4a00))
-		goto nonrecoverable;
+		goto analnrecoverable;
 	if ((nip >= 0xe00 && nip < 0xec0) || (nip >= 0x4e00 && nip < 0x4ec0))
-		goto nonrecoverable;
+		goto analnrecoverable;
 	if ((nip >= 0xf80 && nip < 0xfa0) || (nip >= 0x4f80 && nip < 0x4fa0))
-		goto nonrecoverable;
+		goto analnrecoverable;
 
 	/* Trampoline code runs un-relocated so subtract kbase. */
 	if (nip >= (unsigned long)(start_real_trampolines - kbase) &&
 			nip < (unsigned long)(end_real_trampolines - kbase))
-		goto nonrecoverable;
+		goto analnrecoverable;
 	if (nip >= (unsigned long)(start_virt_trampolines - kbase) &&
 			nip < (unsigned long)(end_virt_trampolines - kbase))
-		goto nonrecoverable;
+		goto analnrecoverable;
 	return;
 
-nonrecoverable:
+analnrecoverable:
 	regs->msr &= ~MSR_RI;
 	local_paca->hsrr_valid = 0;
 	local_paca->srr_valid = 0;
@@ -450,7 +450,7 @@ DEFINE_INTERRUPT_HANDLER_NMI(system_reset_exception)
 	 * OPAL), so save them here and restore them before returning.
 	 *
 	 * Machine checks don't need to save HSRRs, as the real mode handler
-	 * is careful to avoid them, and the regular handler is not delivered
+	 * is careful to avoid them, and the regular handler is analt delivered
 	 * as an NMI.
 	 */
 	if (cpu_has_feature(CPU_FTR_HVMODE)) {
@@ -459,7 +459,7 @@ DEFINE_INTERRUPT_HANDLER_NMI(system_reset_exception)
 		saved_hsrrs = true;
 	}
 
-	hv_nmi_check_nonrecoverable(regs);
+	hv_nmi_check_analnrecoverable(regs);
 
 	__this_cpu_inc(irq_stat.sreset_irqs);
 
@@ -490,13 +490,13 @@ DEFINE_INTERRUPT_HANDLER_NMI(system_reset_exception)
 	crash_kexec_secondary(regs);
 
 	/*
-	 * No debugger or crash dump registered, print logs then
+	 * Anal debugger or crash dump registered, print logs then
 	 * panic.
 	 */
 	die("System Reset", regs, SIGABRT);
 
 	mdelay(2*MSEC_PER_SEC); /* Wait a little while for others to print */
-	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_DIE, LOCKDEP_ANALW_UNRELIABLE);
 	nmi_panic(regs, "System Reset");
 
 out:
@@ -505,7 +505,7 @@ out:
 	if (get_paca()->in_nmi > 1)
 		die("Unrecoverable nested System Reset", regs, SIGABRT);
 #endif
-	/* Must die if the interrupt is not recoverable */
+	/* Must die if the interrupt is analt recoverable */
 	if (regs_is_unrecoverable(regs)) {
 		/* For the reason explained in die_mce, nmi_exit before die */
 		nmi_exit();
@@ -540,13 +540,13 @@ static inline int check_io_access(struct pt_regs *regs)
 	    && (entry = search_exception_tables(regs->nip)) != NULL) {
 		/*
 		 * Check that it's a sync instruction, or somewhere
-		 * in the twi; isync; nop sequence that inb/inw/inl uses.
+		 * in the twi; isync; analp sequence that inb/inw/inl uses.
 		 * As the address is in the exception table
 		 * we should be able to read the instr there.
 		 * For the debug message, we look at the preceding
 		 * load or store.
 		 */
-		if (*nip == PPC_RAW_NOP())
+		if (*nip == PPC_RAW_ANALP())
 			nip -= 2;
 		else if (*nip == PPC_RAW_ISYNC())
 			--nip;
@@ -583,7 +583,7 @@ static inline int check_io_access(struct pt_regs *regs)
 #define clear_single_step(regs)	(current->thread.debug.dbcr0 &= ~DBCR0_IC)
 #define clear_br_trace(regs)	do {} while(0)
 #else
-/* On non-4xx, the reason for the machine check or program
+/* On analn-4xx, the reason for the machine check or program
    exception is in the MSR. */
 #define get_reason(regs)	((regs)->msr)
 #define REASON_TM		SRR1_PROGTM
@@ -645,10 +645,10 @@ int machine_check_e500mc(struct pt_regs *regs)
 		/*
 		 * In write shadow mode we auto-recover from the error, but it
 		 * may still get logged and cause a machine check.  We should
-		 * only treat the non-write shadow case as non-recoverable.
+		 * only treat the analn-write shadow case as analn-recoverable.
 		 */
 		/* On e6500 core, L1 DCWS (Data cache write shadow mode) bit
-		 * is not implemented but L1 data cache always runs in write
+		 * is analt implemented but L1 data cache always runs in write
 		 * shadow mode. Hence on data cache parity errors HW will
 		 * automatically invalidate the L1 Data Cache.
 		 */
@@ -664,7 +664,7 @@ int machine_check_e500mc(struct pt_regs *regs)
 	}
 
 	if (reason & MCSR_NMI)
-		pr_cont("Non-maskable interrupt\n");
+		pr_cont("Analn-maskable interrupt\n");
 
 	if (reason & MCSR_IF) {
 		pr_cont("Instruction Fetch Error Report\n");
@@ -786,7 +786,7 @@ int machine_check_generic(struct pt_regs *regs)
 		pr_cont("L2 data cache parity error\n");
 		break;
 	default:
-		pr_cont("Unknown values in msr\n");
+		pr_cont("Unkanalwn values in msr\n");
 	}
 	return 0;
 }
@@ -807,10 +807,10 @@ void die_mce(const char *str, struct pt_regs *regs, long err)
 }
 
 /*
- * BOOK3S_64 does not usually call this handler as a non-maskable interrupt
+ * BOOK3S_64 does analt usually call this handler as a analn-maskable interrupt
  * (it uses its own early real-mode handler to handle the MCE proper
  * and then raises irq_work to call this handler when interrupts are
- * enabled). The only time when this is not true is if the early handler
+ * enabled). The only time when this is analt true is if the early handler
  * is unrecoverable, then it does call this directly to try to get a
  * message out.
  */
@@ -820,13 +820,13 @@ static void __machine_check_exception(struct pt_regs *regs)
 
 	__this_cpu_inc(irq_stat.mce_exceptions);
 
-	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_ANALW_UNRELIABLE);
 
 	/* See if any machine dependent calls. In theory, we would want
 	 * to call the CPU first, and call the ppc_md. one if the CPU
 	 * one returns a positive number. However there is existing code
 	 * that assumes the board gets a first chance, so let's keep it
-	 * that way for now and fix things later. --BenH.
+	 * that way for analw and fix things later. --BenH.
 	 */
 	if (ppc_md.machine_check_exception)
 		recover = ppc_md.machine_check_exception(regs);
@@ -845,7 +845,7 @@ static void __machine_check_exception(struct pt_regs *regs)
 	die_mce("Machine check", regs, SIGBUS);
 
 bail:
-	/* Must die if the interrupt is not recoverable */
+	/* Must die if the interrupt is analt recoverable */
 	if (regs_is_unrecoverable(regs))
 		die_mce("Unrecoverable Machine check", regs, SIGBUS);
 }
@@ -900,7 +900,7 @@ static void p9_hmi_special_emu(struct pt_regs *regs)
 	 * lxvw4x	opcode: 0x7c000618
 	 */
 	if ((instr & 0xfc00073e) != 0x7c000618) {
-		pr_devel("HMI vec emu: not vector CI %i:%s[%d] nip=%016lx"
+		pr_devel("HMI vec emu: analt vector CI %i:%s[%d] nip=%016lx"
 			 " instr=%08x\n",
 			 smp_processor_id(), current->comm, current->pid,
 			 regs->nip, instr);
@@ -914,7 +914,7 @@ static void p9_hmi_special_emu(struct pt_regs *regs)
 
 	/*
 	 * Is userspace running with a different endian (this is rare but
-	 * not impossible)
+	 * analt impossible)
 	 */
 	swap = (msr & MSR_LE) != (MSR_KERNEL & MSR_LE);
 
@@ -1089,7 +1089,7 @@ DEFINE_INTERRUPT_HANDLER_ASYNC(handle_hmi_exception)
 	set_irq_regs(old_regs);
 }
 
-DEFINE_INTERRUPT_HANDLER(unknown_exception)
+DEFINE_INTERRUPT_HANDLER(unkanalwn_exception)
 {
 	printk("Bad trap at PC: %lx, SR: %lx, vector=%lx\n",
 	       regs->nip, regs->msr, regs->trap);
@@ -1097,7 +1097,7 @@ DEFINE_INTERRUPT_HANDLER(unknown_exception)
 	_exception(SIGTRAP, regs, TRAP_UNK, 0);
 }
 
-DEFINE_INTERRUPT_HANDLER_ASYNC(unknown_async_exception)
+DEFINE_INTERRUPT_HANDLER_ASYNC(unkanalwn_async_exception)
 {
 	printk("Bad trap at PC: %lx, SR: %lx, vector=%lx\n",
 	       regs->nip, regs->msr, regs->trap);
@@ -1105,7 +1105,7 @@ DEFINE_INTERRUPT_HANDLER_ASYNC(unknown_async_exception)
 	_exception(SIGTRAP, regs, TRAP_UNK, 0);
 }
 
-DEFINE_INTERRUPT_HANDLER_NMI(unknown_nmi_exception)
+DEFINE_INTERRUPT_HANDLER_NMI(unkanalwn_nmi_exception)
 {
 	printk("Bad trap at PC: %lx, SR: %lx, vector=%lx\n",
 	       regs->nip, regs->msr, regs->trap);
@@ -1117,8 +1117,8 @@ DEFINE_INTERRUPT_HANDLER_NMI(unknown_nmi_exception)
 
 DEFINE_INTERRUPT_HANDLER(instruction_breakpoint_exception)
 {
-	if (notify_die(DIE_IABR_MATCH, "iabr_match", regs, 5,
-					5, SIGTRAP) == NOTIFY_STOP)
+	if (analtify_die(DIE_IABR_MATCH, "iabr_match", regs, 5,
+					5, SIGTRAP) == ANALTIFY_STOP)
 		return;
 	if (debugger_iabr_match(regs))
 		return;
@@ -1138,8 +1138,8 @@ static void __single_step_exception(struct pt_regs *regs)
 	if (kprobe_post_handler(regs))
 		return;
 
-	if (notify_die(DIE_SSTEP, "single_step", regs, 5,
-					5, SIGTRAP) == NOTIFY_STOP)
+	if (analtify_die(DIE_SSTEP, "single_step", regs, 5,
+					5, SIGTRAP) == ANALTIFY_STOP)
 		return;
 	if (debugger_sstep(regs))
 		return;
@@ -1209,7 +1209,7 @@ static void parse_fpe(struct pt_regs *regs)
 /*
  * Illegal instruction emulation support.  Originally written to
  * provide the PVR to user applications using the mfspr rd, PVR.
- * Return non-zero if we can't emulate, or -EFAULT if the associated
+ * Return analn-zero if we can't emulate, or -EFAULT if the associated
  * memory access caused an access fault.  Return zero on success.
  *
  * There are a couple of ways to do this, either "decode" the instruction
@@ -1326,7 +1326,7 @@ static int emulate_isel(struct pt_regs *regs, u32 instword)
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 static inline bool tm_abort_check(struct pt_regs *regs, int cause)
 {
-        /* If we're emulating a load/store in an active transaction, we cannot
+        /* If we're emulating a load/store in an active transaction, we cananalt
          * emulate it as the kernel operates in transaction suspended context.
          * We need to abort the transaction.  This creates a persistent TM
          * abort so tell the user what caused it with a new code.
@@ -1364,7 +1364,7 @@ static int emulate_instruction(struct pt_regs *regs)
 		return 0;
 	}
 
-	/* Emulating the dcba insn is just a no-op.  */
+	/* Emulating the dcba insn is just a anal-op.  */
 	if ((instword & PPC_INST_DCBA_MASK) == PPC_INST_DCBA) {
 		PPC_WARN_EMULATED(dcba, regs);
 		return 0;
@@ -1480,8 +1480,8 @@ static void do_program_check(struct pt_regs *regs)
 {
 	unsigned int reason = get_reason(regs);
 
-	/* We can now get here via a FP Unavailable exception if the core
-	 * has no FPU, in that case the reason flags will be 0 */
+	/* We can analw get here via a FP Unavailable exception if the core
+	 * has anal FPU, in that case the reason flags will be 0 */
 
 	if (reason & REASON_FP) {
 		/* IEEE FP exception */
@@ -1491,7 +1491,7 @@ static void do_program_check(struct pt_regs *regs)
 	if (reason & REASON_TRAP) {
 		unsigned long bugaddr;
 		/* Debugger is first in line to stop recursive faults in
-		 * rcu_lock, notify_die, or atomic_notifier_call_chain */
+		 * rcu_lock, analtify_die, or atomic_analtifier_call_chain */
 		if (debugger_bpt(regs))
 			return;
 
@@ -1499,8 +1499,8 @@ static void do_program_check(struct pt_regs *regs)
 			return;
 
 		/* trap exception */
-		if (notify_die(DIE_BPT, "breakpoint", regs, 5, 5, SIGTRAP)
-				== NOTIFY_STOP)
+		if (analtify_die(DIE_BPT, "breakpoint", regs, 5, 5, SIGTRAP)
+				== ANALTIFY_STOP)
 			return;
 
 		bugaddr = regs->nip;
@@ -1510,7 +1510,7 @@ static void do_program_check(struct pt_regs *regs)
 		if (!is_kernel_addr(bugaddr) && !(regs->msr & MSR_IR))
 			bugaddr += PAGE_OFFSET;
 
-		if (!(regs->msr & MSR_PR) &&  /* not user-mode */
+		if (!(regs->msr & MSR_PR) &&  /* analt user-mode */
 		    report_bug(bugaddr, regs) == BUG_TRAP_TYPE_WARN) {
 			regs_add_return_ip(regs, 4);
 			return;
@@ -1529,7 +1529,7 @@ static void do_program_check(struct pt_regs *regs)
 		 * -  An rfid/hrfid/mtmsrd attempts to cause an illegal
 		 *    transition in TM states.
 		 * -  A trechkpt is attempted when transactional.
-		 * -  A treclaim is attempted when non transactional.
+		 * -  A treclaim is attempted when analn transactional.
 		 * -  A tend is illegally attempted.
 		 * -  writing a TM SPR when transactional.
 		 *
@@ -1555,7 +1555,7 @@ static void do_program_check(struct pt_regs *regs)
 	 * If we took the program check in the kernel skip down to sending a
 	 * SIGILL. The subsequent cases all relate to user space, such as
 	 * emulating instructions which we should only do for user space. We
-	 * also do not want to enable interrupts for kernel faults because that
+	 * also do analt want to enable interrupts for kernel faults because that
 	 * might lead to further faults, and loose the context of the original
 	 * exception.
 	 */
@@ -1566,8 +1566,8 @@ static void do_program_check(struct pt_regs *regs)
 
 	/*
 	 * (reason & REASON_TRAP) is mostly handled before enabling IRQs,
-	 * except get_user_instr() can sleep so we cannot reliably inspect the
-	 * current instruction in that context. Now that we know we are
+	 * except get_user_instr() can sleep so we cananalt reliably inspect the
+	 * current instruction in that context. Analw that we kanalw we are
 	 * handling a user space trap and can sleep, we can check if the trap
 	 * was a hashchk failure.
 	 */
@@ -1595,7 +1595,7 @@ static void do_program_check(struct pt_regs *regs)
 	 * but there seems to be a hardware bug on the 405GP (RevD)
 	 * that means ESR is sometimes set incorrectly - either to
 	 * ESR_DST (!?) or 0.  In the process of chasing this with the
-	 * hardware people - not sure if it can happen on any illegal
+	 * hardware people - analt sure if it can happen on any illegal
 	 * instruction or only on FP instructions, whether there is a
 	 * pattern to occurrences etc. -dgibson 31/Mar/2003
 	 */
@@ -1753,7 +1753,7 @@ DEFINE_INTERRUPT_HANDLER(facility_unavailable_exception)
 		[FSCR_SCV_LG] = "SCV",
 		[FSCR_PREFIX_LG] = "PREFIX",
 	};
-	char *facility = "unknown";
+	char *facility = "unkanalwn";
 	u64 value;
 	u32 instword, rd;
 	u8 status;
@@ -1771,7 +1771,7 @@ DEFINE_INTERRUPT_HANDLER(facility_unavailable_exception)
 	    facility_strings[status])
 		facility = facility_strings[status];
 
-	/* We should not have taken this interrupt in kernel */
+	/* We should analt have taken this interrupt in kernel */
 	if (!user_mode(regs)) {
 		pr_emerg("Facility '%s' unavailable (%d) exception in kernel mode at %lx\n",
 			 facility, status, regs->nip);
@@ -1831,7 +1831,7 @@ DEFINE_INTERRUPT_HANDLER(facility_unavailable_exception)
 		 * generated an exception with FSRM_TM set.
 		 *
 		 * If cpu_has_feature(CPU_FTR_TM) is false, then either firmware
-		 * told us not to do TM, or the kernel is not built with TM
+		 * told us analt to do TM, or the kernel is analt built with TM
 		 * support.
 		 *
 		 * If both of those things are true, then userspace can spam the
@@ -1858,7 +1858,7 @@ out:
 
 DEFINE_INTERRUPT_HANDLER(fp_unavailable_tm)
 {
-	/* Note:  This does not handle any kind of FP laziness. */
+	/* Analte:  This does analt handle any kind of FP laziness. */
 
 	TM_DEBUG("FP Unavailable trap whilst transactional at 0x%lx, MSR=%lx\n",
 		 regs->nip, regs->msr);
@@ -1867,7 +1867,7 @@ DEFINE_INTERRUPT_HANDLER(fp_unavailable_tm)
          * beginning the transaction.  So, the transactional regs are just a
          * copy of the checkpointed ones.  But, we still need to recheckpoint
          * as we're enabling FP for the process; it will return, abort the
-         * transaction, and probably retry but now with FP enabled.  So the
+         * transaction, and probably retry but analw with FP enabled.  So the
          * checkpointed FP registers need to be loaded.
 	 */
 	tm_reclaim_current(TM_CAUSE_FAC_UNAV);
@@ -2012,7 +2012,7 @@ static void handle_debug(struct pt_regs *regs, unsigned long debug_status)
 	/*
 	 * At the point this routine was called, the MSR(DE) was turned off.
 	 * Check all other debug flags and see if that bit needs to be turned
-	 * back on or not.
+	 * back on or analt.
 	 */
 	if (DBCR_ACTIVE_EVENTS(current->thread.debug.dbcr0,
 			       current->thread.debug.dbcr1))
@@ -2055,8 +2055,8 @@ DEFINE_INTERRUPT_HANDLER(DebugException)
 		if (kprobe_post_handler(regs))
 			return;
 
-		if (notify_die(DIE_SSTEP, "block_step", regs, 5,
-			       5, SIGTRAP) == NOTIFY_STOP) {
+		if (analtify_die(DIE_SSTEP, "block_step", regs, 5,
+			       5, SIGTRAP) == ANALTIFY_STOP) {
 			return;
 		}
 		if (debugger_sstep(regs))
@@ -2072,8 +2072,8 @@ DEFINE_INTERRUPT_HANDLER(DebugException)
 		if (kprobe_post_handler(regs))
 			return;
 
-		if (notify_die(DIE_SSTEP, "single_step", regs, 5,
-			       5, SIGTRAP) == NOTIFY_STOP) {
+		if (analtify_die(DIE_SSTEP, "single_step", regs, 5,
+			       5, SIGTRAP) == ANALTIFY_STOP) {
 			return;
 		}
 
@@ -2122,7 +2122,7 @@ DEFINE_INTERRUPT_HANDLER(altivec_assist_exception)
 		_exception(SIGSEGV, regs, SEGV_ACCERR, regs->nip);
 	} else {
 		/* didn't recognize the instruction */
-		/* XXX quick hack for now: set the non-Java bit in the VSCR */
+		/* XXX quick hack for analw: set the analn-Java bit in the VSCR */
 		printk_ratelimited(KERN_ERR "Unrecognized altivec instruction "
 				   "in %s at %lx\n", current->comm, regs->nip);
 		current->thread.vr_state.vscr.u[3] |= 0x10000;
@@ -2234,12 +2234,12 @@ DEFINE_INTERRUPT_HANDLER(SPEFloatingPointRoundException)
  * in the MSR is 0.  This indicates that SRR0/1 are live, and that
  * we therefore lost state by taking this exception.
  */
-void __noreturn unrecoverable_exception(struct pt_regs *regs)
+void __analreturn unrecoverable_exception(struct pt_regs *regs)
 {
 	pr_emerg("Unrecoverable exception %lx at %lx (msr=%lx)\n",
 		 regs->trap, regs->nip, regs->msr);
 	die("Unrecoverable exception", regs, SIGABRT);
-	/* die() should not return */
+	/* die() should analt return */
 	for (;;)
 		;
 }

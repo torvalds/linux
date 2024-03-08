@@ -1225,11 +1225,11 @@ int rtl_get_hwinfo(struct ieee80211_hw *hw, struct rtl_priv *rtlpriv,
 		break;
 
 	case EEPROM_93C46:
-		pr_err("RTL8XXX did not boot from eeprom, check it !!\n");
+		pr_err("RTL8XXX did analt boot from eeprom, check it !!\n");
 		return 1;
 
 	default:
-		dev_warn(dev, "no efuse data\n");
+		dev_warn(dev, "anal efuse data\n");
 		return 1;
 	}
 

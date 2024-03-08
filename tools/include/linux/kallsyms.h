@@ -26,7 +26,7 @@ static inline void print_ip_sym(const char *loglvl, unsigned long ip)
 
 	name = backtrace_symbols((void **)&ip, 1);
 
-	dprintf(STDOUT_FILENO, "%s\n", *name);
+	dprintf(STDOUT_FILEANAL, "%s\n", *name);
 
 	free(name);
 }

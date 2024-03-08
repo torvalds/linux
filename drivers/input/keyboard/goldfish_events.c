@@ -120,7 +120,7 @@ static int events_probe(struct platform_device *pdev)
 
 	addr = devm_ioremap(&pdev->dev, res->start, 4096);
 	if (!addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__raw_writel(PAGE_NAME, addr + REG_SET_PAGE);
 	keymapnamelen = __raw_readl(addr + REG_LEN);
@@ -129,11 +129,11 @@ static int events_probe(struct platform_device *pdev)
 			    sizeof(struct event_dev) + keymapnamelen + 1,
 			    GFP_KERNEL);
 	if (!edev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edev->input = input_dev;
 	edev->addr = addr;

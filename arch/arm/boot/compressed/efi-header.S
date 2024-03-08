@@ -8,23 +8,23 @@
 #include <linux/pe.h>
 #include <linux/sizes.h>
 
-		.macro	__nop
+		.macro	__analp
  AR_CLASS(	mov	r0, r0		)
-  M_CLASS(	nop.w			)
+  M_CLASS(	analp.w			)
 		.endm
 
-		.macro __initial_nops
+		.macro __initial_analps
 #ifdef CONFIG_EFI_STUB
-		@ This is a two-instruction NOP, which happens to bear the
+		@ This is a two-instruction ANALP, which happens to bear the
 		@ PE/COFF signature "MZ" in the first two bytes, so the kernel
 		@ is accepted as an EFI binary. Booting via the UEFI stub
-		@ will not execute those instructions, but the ARM/Linux
-		@ boot protocol does, so we need some NOPs here.
+		@ will analt execute those instructions, but the ARM/Linux
+		@ boot protocol does, so we need some ANALPs here.
 		.inst	MZ_MAGIC | (0xe225 << 16)	@ eor r5, r5, 0x4d000
 		eor	r5, r5, 0x4d000			@ undo previous insn
 #else
-		__nop
-		__nop
+		__analp
+		__analp
 #endif
 		.endm
 
@@ -62,7 +62,7 @@ coff_header:
 optional_header:
 		.short	PE_OPT_MAGIC_PE32		@ PE32 format
 		.byte	0x02				@ MajorLinkerVersion
-		.byte	0x14				@ MinorLinkerVersion
+		.byte	0x14				@ MianalrLinkerVersion
 		.long	__pecoff_code_size		@ SizeOfCode
 		.long	__pecoff_data_size		@ SizeOfInitializedData
 		.long	0				@ SizeOfUninitializedData
@@ -75,11 +75,11 @@ extra_header_fields:
 		.long	SZ_4K				@ SectionAlignment
 		.long	SZ_512				@ FileAlignment
 		.short	0				@ MajorOsVersion
-		.short	0				@ MinorOsVersion
+		.short	0				@ MianalrOsVersion
 		.short	LINUX_EFISTUB_MAJOR_VERSION	@ MajorImageVersion
-		.short	LINUX_EFISTUB_MINOR_VERSION	@ MinorImageVersion
+		.short	LINUX_EFISTUB_MIANALR_VERSION	@ MianalrImageVersion
 		.short	0				@ MajorSubsystemVersion
-		.short	0				@ MinorSubsystemVersion
+		.short	0				@ MianalrSubsystemVersion
 		.long	0				@ Win32VersionValue
 
 		.long	__pecoff_end - start		@ SizeOfImage

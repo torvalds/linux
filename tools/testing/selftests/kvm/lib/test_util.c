@@ -70,7 +70,7 @@ size_t parse_size(const char *size)
 		shift = 0;
 		break;
 	default:
-		TEST_ASSERT(false, "Unknown size letter %c", *scale);
+		TEST_ASSERT(false, "Unkanalwn size letter %c", *scale);
 	}
 
 	TEST_ASSERT((base << shift) >> shift == base, "Overflow scaling size!");
@@ -112,7 +112,7 @@ struct timespec timespec_elapsed(struct timespec start)
 {
 	struct timespec end;
 
-	clock_gettime(CLOCK_MONOTONIC, &end);
+	clock_gettime(CLOCK_MOANALTONIC, &end);
 	return timespec_sub(end, start);
 }
 
@@ -140,7 +140,7 @@ bool thp_configured(void)
 	struct stat statbuf;
 
 	ret = stat("/sys/kernel/mm/transparent_hugepage", &statbuf);
-	TEST_ASSERT(ret == 0 || (ret == -1 && errno == ENOENT),
+	TEST_ASSERT(ret == 0 || (ret == -1 && erranal == EANALENT),
 		    "Error in stating /sys/kernel/mm/transparent_hugepage");
 
 	return ret == 0;
@@ -152,7 +152,7 @@ size_t get_trans_hugepagesz(void)
 	FILE *f;
 	int ret;
 
-	TEST_ASSERT(thp_configured(), "THP is not configured in host kernel");
+	TEST_ASSERT(thp_configured(), "THP is analt configured in host kernel");
 
 	f = fopen("/sys/kernel/mm/transparent_hugepage/hpage_pmd_size", "r");
 	TEST_ASSERT(f != NULL, "Error in opening transparent_hugepage/hpage_pmd_size");
@@ -179,7 +179,7 @@ size_t get_def_hugetlb_pagesz(void)
 		if (strstr(buf, hugepages_total) == buf) {
 			unsigned long long total = strtoull(buf + strlen(hugepages_total), NULL, 10);
 			if (!total) {
-				fprintf(stderr, "HUGETLB is not enabled in /proc/sys/vm/nr_hugepages\n");
+				fprintf(stderr, "HUGETLB is analt enabled in /proc/sys/vm/nr_hugepages\n");
 				exit(KSFT_SKIP);
 			}
 		}
@@ -190,82 +190,82 @@ size_t get_def_hugetlb_pagesz(void)
 	}
 
 	if (feof(f)) {
-		fprintf(stderr, "HUGETLB is not configured in host kernel");
+		fprintf(stderr, "HUGETLB is analt configured in host kernel");
 		exit(KSFT_SKIP);
 	}
 
 	TEST_FAIL("Error in reading /proc/meminfo");
 }
 
-#define ANON_FLAGS	(MAP_PRIVATE | MAP_ANONYMOUS)
-#define ANON_HUGE_FLAGS	(ANON_FLAGS | MAP_HUGETLB)
+#define AANALN_FLAGS	(MAP_PRIVATE | MAP_AANALNYMOUS)
+#define AANALN_HUGE_FLAGS	(AANALN_FLAGS | MAP_HUGETLB)
 
 const struct vm_mem_backing_src_alias *vm_mem_backing_src_alias(uint32_t i)
 {
 	static const struct vm_mem_backing_src_alias aliases[] = {
-		[VM_MEM_SRC_ANONYMOUS] = {
-			.name = "anonymous",
-			.flag = ANON_FLAGS,
+		[VM_MEM_SRC_AANALNYMOUS] = {
+			.name = "aanalnymous",
+			.flag = AANALN_FLAGS,
 		},
-		[VM_MEM_SRC_ANONYMOUS_THP] = {
-			.name = "anonymous_thp",
-			.flag = ANON_FLAGS,
+		[VM_MEM_SRC_AANALNYMOUS_THP] = {
+			.name = "aanalnymous_thp",
+			.flag = AANALN_FLAGS,
 		},
-		[VM_MEM_SRC_ANONYMOUS_HUGETLB] = {
-			.name = "anonymous_hugetlb",
-			.flag = ANON_HUGE_FLAGS,
+		[VM_MEM_SRC_AANALNYMOUS_HUGETLB] = {
+			.name = "aanalnymous_hugetlb",
+			.flag = AANALN_HUGE_FLAGS,
 		},
-		[VM_MEM_SRC_ANONYMOUS_HUGETLB_16KB] = {
-			.name = "anonymous_hugetlb_16kb",
-			.flag = ANON_HUGE_FLAGS | MAP_HUGE_16KB,
+		[VM_MEM_SRC_AANALNYMOUS_HUGETLB_16KB] = {
+			.name = "aanalnymous_hugetlb_16kb",
+			.flag = AANALN_HUGE_FLAGS | MAP_HUGE_16KB,
 		},
-		[VM_MEM_SRC_ANONYMOUS_HUGETLB_64KB] = {
-			.name = "anonymous_hugetlb_64kb",
-			.flag = ANON_HUGE_FLAGS | MAP_HUGE_64KB,
+		[VM_MEM_SRC_AANALNYMOUS_HUGETLB_64KB] = {
+			.name = "aanalnymous_hugetlb_64kb",
+			.flag = AANALN_HUGE_FLAGS | MAP_HUGE_64KB,
 		},
-		[VM_MEM_SRC_ANONYMOUS_HUGETLB_512KB] = {
-			.name = "anonymous_hugetlb_512kb",
-			.flag = ANON_HUGE_FLAGS | MAP_HUGE_512KB,
+		[VM_MEM_SRC_AANALNYMOUS_HUGETLB_512KB] = {
+			.name = "aanalnymous_hugetlb_512kb",
+			.flag = AANALN_HUGE_FLAGS | MAP_HUGE_512KB,
 		},
-		[VM_MEM_SRC_ANONYMOUS_HUGETLB_1MB] = {
-			.name = "anonymous_hugetlb_1mb",
-			.flag = ANON_HUGE_FLAGS | MAP_HUGE_1MB,
+		[VM_MEM_SRC_AANALNYMOUS_HUGETLB_1MB] = {
+			.name = "aanalnymous_hugetlb_1mb",
+			.flag = AANALN_HUGE_FLAGS | MAP_HUGE_1MB,
 		},
-		[VM_MEM_SRC_ANONYMOUS_HUGETLB_2MB] = {
-			.name = "anonymous_hugetlb_2mb",
-			.flag = ANON_HUGE_FLAGS | MAP_HUGE_2MB,
+		[VM_MEM_SRC_AANALNYMOUS_HUGETLB_2MB] = {
+			.name = "aanalnymous_hugetlb_2mb",
+			.flag = AANALN_HUGE_FLAGS | MAP_HUGE_2MB,
 		},
-		[VM_MEM_SRC_ANONYMOUS_HUGETLB_8MB] = {
-			.name = "anonymous_hugetlb_8mb",
-			.flag = ANON_HUGE_FLAGS | MAP_HUGE_8MB,
+		[VM_MEM_SRC_AANALNYMOUS_HUGETLB_8MB] = {
+			.name = "aanalnymous_hugetlb_8mb",
+			.flag = AANALN_HUGE_FLAGS | MAP_HUGE_8MB,
 		},
-		[VM_MEM_SRC_ANONYMOUS_HUGETLB_16MB] = {
-			.name = "anonymous_hugetlb_16mb",
-			.flag = ANON_HUGE_FLAGS | MAP_HUGE_16MB,
+		[VM_MEM_SRC_AANALNYMOUS_HUGETLB_16MB] = {
+			.name = "aanalnymous_hugetlb_16mb",
+			.flag = AANALN_HUGE_FLAGS | MAP_HUGE_16MB,
 		},
-		[VM_MEM_SRC_ANONYMOUS_HUGETLB_32MB] = {
-			.name = "anonymous_hugetlb_32mb",
-			.flag = ANON_HUGE_FLAGS | MAP_HUGE_32MB,
+		[VM_MEM_SRC_AANALNYMOUS_HUGETLB_32MB] = {
+			.name = "aanalnymous_hugetlb_32mb",
+			.flag = AANALN_HUGE_FLAGS | MAP_HUGE_32MB,
 		},
-		[VM_MEM_SRC_ANONYMOUS_HUGETLB_256MB] = {
-			.name = "anonymous_hugetlb_256mb",
-			.flag = ANON_HUGE_FLAGS | MAP_HUGE_256MB,
+		[VM_MEM_SRC_AANALNYMOUS_HUGETLB_256MB] = {
+			.name = "aanalnymous_hugetlb_256mb",
+			.flag = AANALN_HUGE_FLAGS | MAP_HUGE_256MB,
 		},
-		[VM_MEM_SRC_ANONYMOUS_HUGETLB_512MB] = {
-			.name = "anonymous_hugetlb_512mb",
-			.flag = ANON_HUGE_FLAGS | MAP_HUGE_512MB,
+		[VM_MEM_SRC_AANALNYMOUS_HUGETLB_512MB] = {
+			.name = "aanalnymous_hugetlb_512mb",
+			.flag = AANALN_HUGE_FLAGS | MAP_HUGE_512MB,
 		},
-		[VM_MEM_SRC_ANONYMOUS_HUGETLB_1GB] = {
-			.name = "anonymous_hugetlb_1gb",
-			.flag = ANON_HUGE_FLAGS | MAP_HUGE_1GB,
+		[VM_MEM_SRC_AANALNYMOUS_HUGETLB_1GB] = {
+			.name = "aanalnymous_hugetlb_1gb",
+			.flag = AANALN_HUGE_FLAGS | MAP_HUGE_1GB,
 		},
-		[VM_MEM_SRC_ANONYMOUS_HUGETLB_2GB] = {
-			.name = "anonymous_hugetlb_2gb",
-			.flag = ANON_HUGE_FLAGS | MAP_HUGE_2GB,
+		[VM_MEM_SRC_AANALNYMOUS_HUGETLB_2GB] = {
+			.name = "aanalnymous_hugetlb_2gb",
+			.flag = AANALN_HUGE_FLAGS | MAP_HUGE_2GB,
 		},
-		[VM_MEM_SRC_ANONYMOUS_HUGETLB_16GB] = {
-			.name = "anonymous_hugetlb_16gb",
-			.flag = ANON_HUGE_FLAGS | MAP_HUGE_16GB,
+		[VM_MEM_SRC_AANALNYMOUS_HUGETLB_16GB] = {
+			.name = "aanalnymous_hugetlb_16gb",
+			.flag = AANALN_HUGE_FLAGS | MAP_HUGE_16GB,
 		},
 		[VM_MEM_SRC_SHMEM] = {
 			.name = "shmem",
@@ -274,9 +274,9 @@ const struct vm_mem_backing_src_alias *vm_mem_backing_src_alias(uint32_t i)
 		[VM_MEM_SRC_SHARED_HUGETLB] = {
 			.name = "shared_hugetlb",
 			/*
-			 * No MAP_HUGETLB, we use MFD_HUGETLB instead. Since
+			 * Anal MAP_HUGETLB, we use MFD_HUGETLB instead. Since
 			 * we're using "file backed" memory, we need to specify
-			 * this when the FD is created, not when the area is
+			 * this when the FD is created, analt when the area is
 			 * mapped.
 			 */
 			.flag = MAP_SHARED,
@@ -297,12 +297,12 @@ size_t get_backing_src_pagesz(uint32_t i)
 	uint32_t flag = vm_mem_backing_src_alias(i)->flag;
 
 	switch (i) {
-	case VM_MEM_SRC_ANONYMOUS:
+	case VM_MEM_SRC_AANALNYMOUS:
 	case VM_MEM_SRC_SHMEM:
 		return getpagesize();
-	case VM_MEM_SRC_ANONYMOUS_THP:
+	case VM_MEM_SRC_AANALNYMOUS_THP:
 		return get_trans_hugepagesz();
-	case VM_MEM_SRC_ANONYMOUS_HUGETLB:
+	case VM_MEM_SRC_AANALNYMOUS_HUGETLB:
 	case VM_MEM_SRC_SHARED_HUGETLB:
 		return get_def_hugetlb_pagesz();
 	default:
@@ -342,7 +342,7 @@ enum vm_mem_backing_src_type parse_backing_src_type(const char *type_name)
 			return i;
 
 	print_available_backing_src_types("");
-	TEST_FAIL("Unknown backing src type: %s", type_name);
+	TEST_FAIL("Unkanalwn backing src type: %s", type_name);
 	return -1;
 }
 
@@ -362,21 +362,21 @@ long get_run_delay(void)
 	return val[1];
 }
 
-int atoi_paranoid(const char *num_str)
+int atoi_paraanalid(const char *num_str)
 {
 	char *end_ptr;
 	long num;
 
-	errno = 0;
+	erranal = 0;
 	num = strtol(num_str, &end_ptr, 0);
-	TEST_ASSERT(!errno, "strtol(\"%s\") failed", num_str);
+	TEST_ASSERT(!erranal, "strtol(\"%s\") failed", num_str);
 	TEST_ASSERT(num_str != end_ptr,
 		    "strtol(\"%s\") didn't find a valid integer.", num_str);
 	TEST_ASSERT(*end_ptr == '\0',
 		    "strtol(\"%s\") failed to parse trailing characters \"%s\".",
 		    num_str, end_ptr);
 	TEST_ASSERT(num >= INT_MIN && num <= INT_MAX,
-		    "%ld not in range of [%d, %d]", num, INT_MIN, INT_MAX);
+		    "%ld analt in range of [%d, %d]", num, INT_MIN, INT_MAX);
 
 	return num;
 }
@@ -402,10 +402,10 @@ char *sys_get_cur_clocksource(void)
 	FILE *fp;
 
 	fp = fopen(CLOCKSOURCE_PATH, "r");
-	TEST_ASSERT(fp, "failed to open clocksource file, errno: %d", errno);
+	TEST_ASSERT(fp, "failed to open clocksource file, erranal: %d", erranal);
 
-	TEST_ASSERT(!fstat(fileno(fp), &st), "failed to stat clocksource file, errno: %d",
-		    errno);
+	TEST_ASSERT(!fstat(fileanal(fp), &st), "failed to stat clocksource file, erranal: %d",
+		    erranal);
 
 	clk_name = malloc(st.st_size);
 	TEST_ASSERT(clk_name, "failed to allocate buffer to read file");

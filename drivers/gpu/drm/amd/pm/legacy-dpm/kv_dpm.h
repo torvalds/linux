@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -193,7 +193,7 @@ struct kv_power_info {
 	bool caps_db_ramping;
 	bool caps_td_ramping;
 	bool caps_tcp_ramping;
-	bool caps_sclk_throttle_low_notification;
+	bool caps_sclk_throttle_low_analtification;
 	bool caps_fps;
 	bool caps_uvd_dpm;
 	bool caps_uvd_pg;
@@ -214,7 +214,7 @@ struct kv_power_info {
 #define KV_TEMP_RANGE_MAX (120 * 1000)
 
 /* kv_smc.c */
-int amdgpu_kv_notify_message_to_smu(struct amdgpu_device *adev, u32 id);
+int amdgpu_kv_analtify_message_to_smu(struct amdgpu_device *adev, u32 id);
 int amdgpu_kv_dpm_get_enable_mask(struct amdgpu_device *adev, u32 *enable_mask);
 int amdgpu_kv_send_msg_to_smc_with_parameter(struct amdgpu_device *adev,
 				      PPSMC_Msg msg, u32 parameter);

@@ -13,13 +13,13 @@ maintainers:
 description: |
   Common properties for QCom DPU display controller.
 
-# Do not select this by default, otherwise it is also selected for all
-# display-controller@ nodes
+# Do analt select this by default, otherwise it is also selected for all
+# display-controller@ analdes
 select:
   false
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^display-controller@[0-9a-f]+$'
 
   interrupts:

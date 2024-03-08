@@ -3,7 +3,7 @@
 # description: Kretprobe dynamic event with maxactive
 # requires: kprobe_events 'r[maxactive]':README
 
-# Test if we successfully reject unknown messages
+# Test if we successfully reject unkanalwn messages
 if echo 'a:myprobeaccept inet_csk_accept' > kprobe_events; then false; else true; fi
 
 # Test if we successfully reject too big maxactive

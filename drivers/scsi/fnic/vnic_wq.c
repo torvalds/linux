@@ -4,7 +4,7 @@
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -42,7 +42,7 @@ static int vnic_wq_alloc_bufs(struct vnic_wq *wq)
 		wq->bufs[i] = kzalloc(VNIC_WQ_BUF_BLK_SZ, GFP_ATOMIC);
 		if (!wq->bufs[i]) {
 			printk(KERN_ERR "Failed to alloc wq_bufs\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 

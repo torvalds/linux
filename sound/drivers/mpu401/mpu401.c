@@ -75,7 +75,7 @@ static int snd_mpu401_create(struct device *devptr, int dev,
 	err = snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401, port[dev], 0,
 				  irq[dev], NULL);
 	if (err < 0) {
-		printk(KERN_ERR "MPU401 not detected at 0x%lx\n", port[dev]);
+		printk(KERN_ERR "MPU401 analt detected at 0x%lx\n", port[dev]);
 		return err;
 	}
 
@@ -133,20 +133,20 @@ static int snd_mpu401_pnp(int dev, struct pnp_dev *device,
 {
 	if (!pnp_port_valid(device, 0) ||
 	    pnp_port_flags(device, 0) & IORESOURCE_DISABLED) {
-		snd_printk(KERN_ERR "no PnP port\n");
-		return -ENODEV;
+		snd_printk(KERN_ERR "anal PnP port\n");
+		return -EANALDEV;
 	}
 	if (pnp_port_len(device, 0) < IO_EXTENT) {
 		snd_printk(KERN_ERR "PnP port length is %llu, expected %d\n",
 			   (unsigned long long)pnp_port_len(device, 0),
 			   IO_EXTENT);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	port[dev] = pnp_port_start(device, 0);
 
 	if (!pnp_irq_valid(device, 0) ||
 	    pnp_irq_flags(device, 0) & IORESOURCE_DISABLED) {
-		snd_printk(KERN_WARNING "no PnP irq, using polling\n");
+		snd_printk(KERN_WARNING "anal PnP irq, using polling\n");
 		irq[dev] = -1;
 	} else {
 		irq[dev] = pnp_irq(device, 0);
@@ -178,7 +178,7 @@ static int snd_mpu401_pnp_probe(struct pnp_dev *pnp_dev,
 		++dev;
 		return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static struct pnp_driver snd_mpu401_pnp_driver = {
@@ -234,10 +234,10 @@ static int __init alsa_card_mpu401_init(void)
 
 	if (!snd_mpu401_devices) {
 #ifdef MODULE
-		printk(KERN_ERR "MPU-401 device not found or device busy\n");
+		printk(KERN_ERR "MPU-401 device analt found or device busy\n");
 #endif
 		snd_mpu401_unregister_all();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }

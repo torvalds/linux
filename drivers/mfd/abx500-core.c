@@ -39,7 +39,7 @@ int abx500_register_ops(struct device *dev, struct abx500_ops *ops)
 
 	dev_entry = devm_kzalloc(dev, sizeof(*dev_entry), GFP_KERNEL);
 	if (!dev_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_entry->dev = dev;
 	memcpy(&dev_entry->ops, ops, sizeof(*ops));
@@ -68,7 +68,7 @@ int abx500_set_register_interruptible(struct device *dev, u8 bank, u8 reg,
 	if (ops && ops->set_register)
 		return ops->set_register(dev, bank, reg, value);
 	else
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 }
 EXPORT_SYMBOL(abx500_set_register_interruptible);
 
@@ -81,7 +81,7 @@ int abx500_get_register_interruptible(struct device *dev, u8 bank, u8 reg,
 	if (ops && ops->get_register)
 		return ops->get_register(dev, bank, reg, value);
 	else
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 }
 EXPORT_SYMBOL(abx500_get_register_interruptible);
 
@@ -95,7 +95,7 @@ int abx500_get_register_page_interruptible(struct device *dev, u8 bank,
 		return ops->get_register_page(dev, bank,
 			first_reg, regvals, numregs);
 	else
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 }
 EXPORT_SYMBOL(abx500_get_register_page_interruptible);
 
@@ -109,7 +109,7 @@ int abx500_mask_and_set_register_interruptible(struct device *dev, u8 bank,
 		return ops->mask_and_set_register(dev, bank,
 			reg, bitmask, bitvalues);
 	else
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 }
 EXPORT_SYMBOL(abx500_mask_and_set_register_interruptible);
 
@@ -121,7 +121,7 @@ int abx500_get_chip_id(struct device *dev)
 	if (ops && ops->get_chip_id)
 		return ops->get_chip_id(dev);
 	else
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 }
 EXPORT_SYMBOL(abx500_get_chip_id);
 
@@ -133,7 +133,7 @@ int abx500_event_registers_startup_state_get(struct device *dev, u8 *event)
 	if (ops && ops->event_registers_startup_state_get)
 		return ops->event_registers_startup_state_get(dev, event);
 	else
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 }
 EXPORT_SYMBOL(abx500_event_registers_startup_state_get);
 
@@ -145,6 +145,6 @@ int abx500_startup_irq_enabled(struct device *dev, unsigned int irq)
 	if (ops && ops->startup_irq_enabled)
 		return ops->startup_irq_enabled(dev, irq);
 	else
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 }
 EXPORT_SYMBOL(abx500_startup_irq_enabled);

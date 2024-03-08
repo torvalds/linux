@@ -115,13 +115,13 @@ void iproc_pcie_remove(struct iproc_pcie *pcie);
 int iproc_pcie_shutdown(struct iproc_pcie *pcie);
 
 #ifdef CONFIG_PCIE_IPROC_MSI
-int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node);
+int iproc_msi_init(struct iproc_pcie *pcie, struct device_analde *analde);
 void iproc_msi_exit(struct iproc_pcie *pcie);
 #else
 static inline int iproc_msi_init(struct iproc_pcie *pcie,
-				 struct device_node *node)
+				 struct device_analde *analde)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline void iproc_msi_exit(struct iproc_pcie *pcie)
 {

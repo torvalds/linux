@@ -18,7 +18,7 @@
 #include <linux/smp.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/elf.h>
 #include <linux/ptrace.h>
 #include <linux/pagemap.h>
@@ -155,7 +155,7 @@ failed:
 static __always_inline
 int __unsafe_restore_general_regs(struct pt_regs *regs, struct mcontext __user *sr)
 {
-	/* copy up to but not including MSR */
+	/* copy up to but analt including MSR */
 	unsafe_copy_from_user(regs, &sr->mc_gregs, PT_MSR * sizeof(elf_greg_t), failed);
 
 	/* copy from orig_r3 (the word after the MSR) up to the end */
@@ -288,7 +288,7 @@ __unsafe_save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 	 * use altivec. Since VSCR only contains 32 bits saved in the least
 	 * significant bits of a vector, we "cheat" and stuff VRSAVE in the
 	 * most significant bits of that same vector. --BenH
-	 * Note that the current VRSAVE value is in the SPR at this point.
+	 * Analte that the current VRSAVE value is in the SPR at this point.
 	 */
 	unsafe_put_user(current->thread.vrsave, (u32 __user *)&frame->mc_vregs[32],
 			failed);
@@ -296,7 +296,7 @@ __unsafe_save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 	unsafe_copy_fpr_to_user(&frame->mc_fregs, current, failed);
 
 	/*
-	 * Clear the MSR VSX bit to indicate there is no valid state attached
+	 * Clear the MSR VSX bit to indicate there is anal valid state attached
 	 * to this context, except in the specific case below where we set it.
 	 */
 	msr &= ~MSR_VSX;
@@ -375,7 +375,7 @@ save_tm_user_regs_unsafe(struct pt_regs *regs, struct mcontext __user *frame,
 
 	/* Stash the top half of the 64bit MSR into the 32bit MSR word
 	 * of the transactional mcontext.  This way we have a backward-compatible
-	 * MSR in the 'normal' (checkpointed) mcontext and additionally one can
+	 * MSR in the 'analrmal' (checkpointed) mcontext and additionally one can
 	 * also look at what type of transaction (T or S) was active at the
 	 * time of the signal.
 	 */
@@ -475,13 +475,13 @@ static long restore_user_regs(struct pt_regs *regs,
 	if (!user_read_access_begin(sr, sizeof(*sr)))
 		return 1;
 	/*
-	 * restore general registers but not including MSR or SOFTE. Also
-	 * take care of keeping r2 (TLS) intact if not a signal
+	 * restore general registers but analt including MSR or SOFTE. Also
+	 * take care of keeping r2 (TLS) intact if analt a signal
 	 */
 	if (!sig)
 		save_r2 = (unsigned int)regs->gpr[2];
 	unsafe_restore_general_regs(regs, sr, failed);
-	set_trap_norestart(regs);
+	set_trap_analrestart(regs);
 	unsafe_get_user(msr, &sr->mc_gregs[PT_MSR], failed);
 	if (!sig)
 		regs->gpr[2] = (unsigned long) save_r2;
@@ -579,8 +579,8 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	if (tm_suspend_disabled)
 		return 1;
 	/*
-	 * restore general registers but not including MSR or SOFTE. Also
-	 * take care of keeping r2 (TLS) intact if not a signal.
+	 * restore general registers but analt including MSR or SOFTE. Also
+	 * take care of keeping r2 (TLS) intact if analt a signal.
 	 * See comment in signal_64.c:restore_tm_sigcontexts();
 	 * TFHAR is restored from the checkpointed NIP; TEXASR and TFIAR
 	 * were set by the signal delivery.
@@ -678,7 +678,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	/*
 	 * CAUTION:
 	 * After regs->MSR[TS] being updated, make sure that get_user(),
-	 * put_user() or similar functions are *not* called. These
+	 * put_user() or similar functions are *analt* called. These
 	 * functions can generate page faults which will cause the process
 	 * to be de-scheduled with MSR[TS] set but without calling
 	 * tm_recheckpoint(). This can cause a bug.
@@ -686,7 +686,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	 * Pull in the MSR TM bits from the user context
 	 */
 	regs_set_return_msr(regs, (regs->msr & ~MSR_TS_MASK) | (msr_hi & MSR_TS_MASK));
-	/* Now, recheckpoint.  This loads up all of the checkpointed (older)
+	/* Analw, recheckpoint.  This loads up all of the checkpointed (older)
 	 * registers, including FP and V[S]Rs.  After recheckpointing, the
 	 * transactional versions should be loaded.
 	 */
@@ -972,7 +972,7 @@ static int do_setcontext_tm(struct ucontext __user *ucp,
 		return -EFAULT;
 	mcp = (struct mcontext __user *)(u64)cmcp;
 	tm_mcp = (struct mcontext __user *)(u64)tm_cmcp;
-	/* no need to check access_ok(mcp), since mcp < 4GB */
+	/* anal need to check access_ok(mcp), since mcp < 4GB */
 
 	set_current_blocked(&set);
 	if (restore_tm_user_regs(regs, mcp, tm_mcp))
@@ -1005,7 +1005,7 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 		u32 cmcp;
 
 		/*
-		 * Get pointer to the real mcontext.  No need for
+		 * Get pointer to the real mcontext.  Anal need for
 		 * access_ok since we are dealing with compat
 		 * pointers.
 		 */
@@ -1016,7 +1016,7 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 			return -EFAULT;
 	}
 	/*
-	 * Check that the context is not smaller than the original
+	 * Check that the context is analt smaller than the original
 	 * size (with VMX but without VSX)
 	 */
 	if (ctx_size < UCONTEXTSIZEWITHOUTVSX)
@@ -1028,11 +1028,11 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 	if ((ctx_size < sizeof(struct ucontext)) &&
 	    (new_msr & MSR_VSX))
 		return -EINVAL;
-	/* Does the context have enough room to store VSX data? */
+	/* Does the context have eanalugh room to store VSX data? */
 	if (ctx_size >= sizeof(struct ucontext))
 		ctx_has_vsx_region = 1;
 #else
-	/* Context size is for future use. Right now, we only make sure
+	/* Context size is for future use. Right analw, we only make sure
 	 * we are passed something we understand
 	 */
 	if (ctx_size < sizeof(struct ucontext))
@@ -1042,7 +1042,7 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 		struct mcontext __user *mctx;
 
 		/*
-		 * old_ctx might not be 16-byte aligned, in which
+		 * old_ctx might analt be 16-byte aligned, in which
 		 * case old_ctx->uc_mcontext won't be either.
 		 * Because we have the old_ctx->uc_pad2 field
 		 * before old_ctx->uc_mcontext, we need to round down
@@ -1068,11 +1068,11 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 	 * If we get a fault copying the context into the kernel's
 	 * image of the user's registers, we can't just return -EFAULT
 	 * because the user's registers will be corrupted.  For instance
-	 * the NIP value may have been updated but not some of the
+	 * the NIP value may have been updated but analt some of the
 	 * other registers.  Given that we have done the access_ok
 	 * and successfully read the first and last bytes of the region
 	 * above, this should only happen in an out-of-memory situation
-	 * or if another thread unmaps the region containing the context.
+	 * or if aanalther thread unmaps the region containing the context.
 	 * We kill the task with a SIGSEGV in this situation.
 	 */
 	if (do_setcontext(new_ctx, regs, 0)) {
@@ -1103,7 +1103,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	unsigned long tmp;
 #endif
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	rt_sf = (struct rt_sigframe __user *)
 		(regs->gpr[1] + __SIGNAL_FRAMESIZE + 16);
@@ -1116,10 +1116,10 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	 * The purpose of a sigreturn is to destroy all traces of the
 	 * signal frame, this includes any transactional state created
 	 * within in. We only check for suspended as we can never be
-	 * active in the kernel, we are active, there is nothing better to
+	 * active in the kernel, we are active, there is analthing better to
 	 * do than go ahead and Bad Thing later.
-	 * The cause is not important as there will never be a
-	 * recheckpoint so it's not user visible.
+	 * The cause is analt important as there will never be a
+	 * recheckpoint so it's analt user visible.
 	 */
 	if (MSR_TM_SUSPENDED(mfmsr()))
 		tm_reclaim_current(0);
@@ -1140,7 +1140,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 			goto bad;
 
 		if (MSR_TM_ACTIVE(msr_hi<<32)) {
-			/* Trying to start TM on non TM system */
+			/* Trying to start TM on analn TM system */
 			if (!cpu_has_feature(CPU_FTR_TM))
 				goto bad;
 			/* We only recheckpoint on return if we're
@@ -1153,23 +1153,23 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	}
 	if (!tm_restore) {
 		/*
-		 * Unset regs->msr because ucontext MSR TS is not
-		 * set, and recheckpoint was not called. This avoid
+		 * Unset regs->msr because ucontext MSR TS is analt
+		 * set, and recheckpoint was analt called. This avoid
 		 * hitting a TM Bad thing at RFID
 		 */
 		regs_set_return_msr(regs, regs->msr & ~MSR_TS_MASK);
 	}
-	/* Fall through, for non-TM restore */
+	/* Fall through, for analn-TM restore */
 #endif
 	if (!tm_restore)
 		if (do_setcontext(&rt_sf->uc, regs, 1))
 			goto bad;
 
 	/*
-	 * It's not clear whether or why it is desirable to save the
+	 * It's analt clear whether or why it is desirable to save the
 	 * sigaltstack setting on signal delivery and restore it on
 	 * signal return.  But other architectures do this and we have
-	 * always done it up until now so it is probably better not to
+	 * always done it up until analw so it is probably better analt to
 	 * change it.  -- paulus
 	 */
 #ifdef CONFIG_PPC64
@@ -1242,7 +1242,7 @@ SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 	}
 
 	/* We wait until here to actually install the values in the
-	   registers so if we fail in the above loop, it will not
+	   registers so if we fail in the above loop, it will analt
 	   affect the contents of these registers.  After this point,
 	   failure is a problem, anyway, and it's very unlikely unless
 	   the user is really doing something wrong. */
@@ -1259,11 +1259,11 @@ SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 	 * If we get a fault copying the context into the kernel's
 	 * image of the user's registers, we can't just return -EFAULT
 	 * because the user's registers will be corrupted.  For instance
-	 * the NIP value may have been updated but not some of the
+	 * the NIP value may have been updated but analt some of the
 	 * other registers.  Given that we have done the access_ok
 	 * and successfully read the first and last bytes of the region
 	 * above, this should only happen in an out-of-memory situation
-	 * or if another thread unmaps the region containing the context.
+	 * or if aanalther thread unmaps the region containing the context.
 	 * We kill the task with a SIGSEGV in this situation.
 	 */
 	if (do_setcontext(ctx, regs, 1)) {
@@ -1274,10 +1274,10 @@ SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 	}
 
 	/*
-	 * It's not clear whether or why it is desirable to save the
+	 * It's analt clear whether or why it is desirable to save the
 	 * sigaltstack setting on signal delivery and restore it on
 	 * signal return.  But other architectures do this and we have
-	 * always done it up until now so it is probably better not to
+	 * always done it up until analw so it is probably better analt to
 	 * change it.  -- paulus
 	 */
 	restore_altstack(&ctx->uc_stack);
@@ -1308,7 +1308,7 @@ SYSCALL_DEFINE0(sigreturn)
 	unsigned long long msr_hi = 0;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	sf = (struct sigframe __user *)(regs->gpr[1] + __SIGNAL_FRAMESIZE);
 	sc = &sf->sctx;
@@ -1317,7 +1317,7 @@ SYSCALL_DEFINE0(sigreturn)
 
 #ifdef CONFIG_PPC64
 	/*
-	 * Note that PPC32 puts the upper 32 bits of the sigmask in the
+	 * Analte that PPC32 puts the upper 32 bits of the sigmask in the
 	 * unused part of the signal stackframe
 	 */
 	set.sig[0] = sigctx.oldmask + ((long)(sigctx._unused[3]) << 32);

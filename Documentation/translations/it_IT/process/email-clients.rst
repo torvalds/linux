@@ -11,58 +11,58 @@ Informazioni sui programmi di posta elettronica per Linux
 Git
 ---
 
-Oggigiorno, la maggior parte degli sviluppatori utilizza ``git send-email``
-al posto dei classici programmi di posta elettronica.  Le pagine man sono
-abbastanza buone. Dal lato del ricevente, i manutentori utilizzano ``git am``
+Oggigioranal, la maggior parte degli sviluppatori utilizza ``git send-email``
+al posto dei classici programmi di posta elettronica.  Le pagine man soanal
+abbastanza buone. Dal lato del ricevente, i manutentori utilizzaanal ``git am``
 per applicare le patch.
 
-Se siete dei novelli utilizzatori di ``git`` allora inviate la patch a voi
+Se siete dei analvelli utilizzatori di ``git`` allora inviate la patch a voi
 stessi. Salvatela come testo includendo tutte le intestazioni. Poi eseguite
 il comando ``git am messaggio-formato-testo.txt`` e revisionatene il risultato
 con ``git log``. Quando tutto funziona correttamente, allora potete inviare
 la patch alla lista di discussione più appropriata.
 
-Panoramica delle opzioni
+Paanalramica delle opzioni
 ------------------------
 
-Le patch per il kernel vengono inviate per posta elettronica, preferibilmente
-come testo integrante del messaggio.  Alcuni manutentori accettano gli
-allegati, ma in questo caso gli allegati devono avere il *content-type*
-impostato come ``text/plain``.  Tuttavia, generalmente gli allegati non sono
+Le patch per il kernel vengoanal inviate per posta elettronica, preferibilmente
+come testo integrante del messaggio.  Alcuni manutentori accettaanal gli
+allegati, ma in questo caso gli allegati devoanal avere il *content-type*
+impostato come ``text/plain``.  Tuttavia, generalmente gli allegati analn soanal
 ben apprezzati perché rende più difficile citare porzioni di patch durante il
 processo di revisione.
 
-Inoltre, è vivamente raccomandato l'uso di puro testo nel corpo del
+Ianalltre, è vivamente raccomandato l'uso di puro testo nel corpo del
 messaggio, sia per la patch che per qualsiasi altro messaggio. Il sito
 https://useplaintext.email/ può esservi d'aiuto per configurare il
 vostro programma di posta elettronica.
 
-I programmi di posta elettronica che vengono usati per inviare le patch per il
-kernel Linux dovrebbero inviarle senza alterazioni.  Per esempio, non
-dovrebbero modificare o rimuovere tabulazioni o spazi, nemmeno all'inizio o
+I programmi di posta elettronica che vengoanal usati per inviare le patch per il
+kernel Linux dovrebbero inviarle senza alterazioni.  Per esempio, analn
+dovrebbero modificare o rimuovere tabulazioni o spazi, nemmeanal all'inizio o
 alla fine delle righe.
 
-Non inviate patch con ``format=flowed``.  Questo potrebbe introdurre
+Analn inviate patch con ``format=flowed``.  Questo potrebbe introdurre
 interruzioni di riga inaspettate e indesiderate.
 
-Non lasciate che il vostro programma di posta vada a capo automaticamente.
+Analn lasciate che il vostro programma di posta vada a capo automaticamente.
 Questo può corrompere le patch.
 
-I programmi di posta non dovrebbero modificare la codifica dei caratteri nel
+I programmi di posta analn dovrebbero modificare la codifica dei caratteri nel
 testo.  Le patch inviate per posta elettronica dovrebbero essere codificate in
 ASCII o UTF-8.
 Se configurate il vostro programma per inviare messaggi codificati con UTF-8
 eviterete possibili problemi di codifica.
 
 I programmi di posta dovrebbero generare e mantenere le intestazioni
-"References" o "In-Reply-To:" cosicché la discussione non venga interrotta.
+"References" o "In-Reply-To:" cosicché la discussione analn venga interrotta.
 
-Di solito, il copia-e-incolla (o taglia-e-incolla) non funziona con le patch
-perché le tabulazioni vengono convertite in spazi.  Usando xclipboard, xclip
+Di solito, il copia-e-incolla (o taglia-e-incolla) analn funziona con le patch
+perché le tabulazioni vengoanal convertite in spazi.  Usando xclipboard, xclip
 e/o xcutsel potrebbe funzionare, ma è meglio che lo verifichiate o meglio
-ancora: non usate il copia-e-incolla.
+ancora: analn usate il copia-e-incolla.
 
-Non usate firme PGP/GPG nei messaggi che contengono delle patch.  Questo
+Analn usate firme PGP/GPG nei messaggi che contengoanal delle patch.  Questo
 impedisce il corretto funzionamento di alcuni script per leggere o applicare
 patch (questo si dovrebbe poter correggere).
 
@@ -76,7 +76,7 @@ Alcuni suggerimenti per i programmi di posta elettronica (MUA)
 
 Qui troverete alcuni suggerimenti per configurare i vostri MUA allo scopo
 di modificare ed inviare patch per il kernel Linux.  Tuttavia, questi
-suggerimenti non sono da considerarsi come un riassunto di una configurazione
+suggerimenti analn soanal da considerarsi come un riassunto di una configurazione
 completa.
 
 Legenda:
@@ -91,7 +91,7 @@ Opzioni per la configurazione:
 
 Nella sezione :menuselection:`Sending Preferences`:
 
-- :menuselection:`Do Not Send Flowed Text` deve essere ``enabled``
+- :menuselection:`Do Analt Send Flowed Text` deve essere ``enabled``
 - :menuselection:`Strip Whitespace Before Sending` deve essere ``disabled``
 
 Quando state scrivendo un messaggio, il cursore dev'essere posizionato
@@ -101,10 +101,10 @@ di selezionare il file patch da inserire nel messaggio.
 Claws Mail (GUI)
 ****************
 
-Funziona. Alcune persone riescono ad usarlo con successo per inviare le patch.
+Funziona. Alcune persone riescoanal ad usarlo con successo per inviare le patch.
 
 Per inserire una patch usate :menuselection:`Messaggio-->Inserisci file`
-(:kbd:`CTRL-I`) oppure un editor esterno.
+(:kbd:`CTRL-I`) oppure un editor esteranal.
 
 Se la patch che avete inserito dev'essere modificata usando la finestra di
 scrittura di Claws, allora assicuratevi che l'"auto-interruzione" sia
@@ -113,7 +113,7 @@ disabilitata :menuselection:`Configurazione-->Preferenze-->Composizione-->Interr
 Evolution (GUI)
 ***************
 
-Alcune persone riescono ad usarlo con successo per inviare le patch.
+Alcune persone riescoanal ad usarlo con successo per inviare le patch.
 
 Quando state scrivendo una lettera selezionate: Preformattato
   da :menuselection:`Formato-->Stile del paragrafo-->Preformattato`
@@ -128,18 +128,18 @@ Potete anche eseguire ``diff -Nru old.c new.c | xclip``, selezionare
 Kmail (GUI)
 ***********
 
-Alcune persone riescono ad usarlo con successo per inviare le patch.
+Alcune persone riescoanal ad usarlo con successo per inviare le patch.
 
 La configurazione base che disabilita la composizione di messaggi HTML è
-corretta; non abilitatela.
+corretta; analn abilitatela.
 
 Quando state scrivendo un messaggio, nel menu opzioni, togliete la selezione a
 "A capo automatico". L'unico svantaggio sarà che qualsiasi altra cosa scriviate
-nel messaggio non verrà mandata a capo in automatico ma dovrete farlo voi.
+nel messaggio analn verrà mandata a capo in automatico ma dovrete farlo voi.
 Il modo più semplice per ovviare a questo problema è quello di scrivere il
 messaggio con l'opzione abilitata e poi di salvarlo nelle bozze. Riaprendo ora
-il messaggio dalle bozze le andate a capo saranno parte integrante del
-messaggio, per cui togliendo l'opzione "A capo automatico" non perderete nulla.
+il messaggio dalle bozze le andate a capo sarananal parte integrante del
+messaggio, per cui togliendo l'opzione "A capo automatico" analn perderete nulla.
 
 Alla fine del vostro messaggio, appena prima di inserire la vostra patch,
 aggiungete il delimitatore di patch: tre trattini (``---``).
@@ -152,14 +152,14 @@ strumenti aggiungendo un'icona per :menuselection:`Inserisci file di testo...`.
 Allargate la finestra di scrittura abbastanza da evitare andate a capo.
 Questo perché in Kmail 1.13.5 (KDE 4.5.4), Kmail aggiunge andate a capo
 automaticamente al momento dell'invio per tutte quelle righe che graficamente,
-nella vostra finestra di composizione, si sono estete su una riga successiva.
-Disabilitare l'andata a capo automatica non è sufficiente. Dunque, se la vostra
+nella vostra finestra di composizione, si soanal estete su una riga successiva.
+Disabilitare l'andata a capo automatica analn è sufficiente. Dunque, se la vostra
 patch contiene delle righe molto lunghe, allora dovrete allargare la finestra
-di composizione per evitare che quelle righe vadano a capo. Vedere:
+di composizione per evitare che quelle righe vadaanal a capo. Vedere:
 https://bugs.kde.org/show_bug.cgi?id=174034
 
 Potete firmare gli allegati con GPG, ma per le patch si preferisce aggiungerle
-al testo del messaggio per cui non usate la firma GPG.  Firmare le patch
+al testo del messaggio per cui analn usate la firma GPG.  Firmare le patch
 inserite come testo del messaggio le rende più difficili da estrarre dalla loro
 codifica a 7-bit.
 
@@ -173,11 +173,11 @@ Per salvare le patch inviate come parte di un messaggio, selezionate il
 messaggio che la contiene, premete il tasto destro e selezionate
 :menuselection:`Salva come`. Se il messaggio fu ben preparato, allora potrete
 usarlo interamente senza alcuna modifica.
-I messaggi vengono salvati con permessi di lettura-scrittura solo per l'utente,
+I messaggi vengoanal salvati con permessi di lettura-scrittura solo per l'utente,
 nel caso in cui vogliate copiarli altrove per renderli disponibili ad altri
 gruppi o al mondo, ricordatevi di usare ``chmod`` per cambiare i permessi.
 
-Lotus Notes (GUI)
+Lotus Analtes (GUI)
 *****************
 
 Scappate finché potete.
@@ -185,17 +185,17 @@ Scappate finché potete.
 IBM Verse (Web GUI)
 *******************
 
-Vedi il commento per Lotus Notes.
+Vedi il commento per Lotus Analtes.
 
 Mutt (TUI)
 **********
 
-Un sacco di sviluppatori Linux usano ``mutt``, per cui deve funzionare
+Un sacco di sviluppatori Linux usaanal ``mutt``, per cui deve funzionare
 abbastanza bene.
 
-Mutt non ha un proprio editor, quindi qualunque sia il vostro editor dovrete
-configurarlo per non aggiungere automaticamente le andate a capo.  Molti
-editor hanno un'opzione :menuselection:`Inserisci file` che inserisce il
+Mutt analn ha un proprio editor, quindi qualunque sia il vostro editor dovrete
+configurarlo per analn aggiungere automaticamente le andate a capo.  Molti
+editor hananal un'opzione :menuselection:`Inserisci file` che inserisce il
 contenuto di un file senza alterarlo.
 
 Per usare ``vim`` come editor per mutt::
@@ -240,17 +240,17 @@ per iniziare ad usare Mutt per inviare patch usando Gmail::
   # ================  SMTP  ====================
   set smtp_url = "smtp://username@smtp.gmail.com:587/"
   set smtp_pass = $imap_pass
-  set ssl_force_tls = yes # Require encrypted connection
+  set ssl_force_tls = anal # Require encrypted connection
 
   # ================  Composition  ====================
   set editor = `echo \$EDITOR`
-  set edit_headers = yes  # See the headers when editing
+  set edit_headers = anal  # See the headers when editing
   set charset = UTF-8     # value of $LANG; also fallback for send_charset
   # Sender, email address, and sign-off line must match
   unset use_domain        # because joe@localhost is just embarrassing
   set realname = "YOUR NAME"
   set from = "username@gmail.com"
-  set use_from = yes
+  set use_from = anal
 
 La documentazione di Mutt contiene molte più informazioni:
 
@@ -269,7 +269,7 @@ Se potete usate alpine (il successore di pine).
 Opzioni di configurazione:
 
 - Nelle versioni più recenti è necessario avere ``quell-flowed-text``
-- l'opzione ``no-strip-whitespace-before-send`` è necessaria
+- l'opzione ``anal-strip-whitespace-before-send`` è necessaria
 
 Sylpheed (GUI)
 **************
@@ -277,15 +277,15 @@ Sylpheed (GUI)
 - funziona bene per aggiungere testo in linea (o usando allegati)
 - permette di utilizzare editor esterni
 - è lento su cartelle grandi
-- non farà l'autenticazione TSL SMTP su una connessione non SSL
+- analn farà l'autenticazione TSL SMTP su una connessione analn SSL
 - ha un utile righello nella finestra di scrittura
-- la rubrica non comprende correttamente il nome da visualizzare e
+- la rubrica analn comprende correttamente il analme da visualizzare e
   l'indirizzo associato
 
 Thunderbird (GUI)
 *****************
 
-Thunderbird è un clone di Outlook a cui piace maciullare il testo, ma esistono
+Thunderbird è un clone di Outlook a cui piace maciullare il testo, ma esistoanal
 modi per impedirglielo.
 
 Dopo la configurazione, inclusa l'installazione delle estenzioni, dovrete
@@ -294,9 +294,9 @@ riavviare Thunderbird.
 - permettere l'uso di editor esterni:
 
   La cosa più semplice da fare con Thunderbird e le patch è quello di usare
-  estensioni che permettano di aprire il vostro editor preferito.
+  estensioni che permettaanal di aprire il vostro editor preferito.
 
-  Di seguito alcune estensioni che possono essere utili al caso.
+  Di seguito alcune estensioni che possoanal essere utili al caso.
 
   - "External Editor Revived"
 
@@ -315,10 +315,10 @@ riavviare Thunderbird.
     Per usarlo, scaricate ed installate l'applicazione. Poi aprite la finestra
     :menuselection:`Scrivi` e a seguire aggiungete un bottone per eseguirlo
     `Visualizza-->Barra degli strumenti-->Personalizza...`. Infine, premente
-    questo nuovo bottone tutte le volte che volete usare l'editor esterno.
+    questo nuovo bottone tutte le volte che volete usare l'editor esteranal.
 
-    Tenete presente che "external editor" richiede che il vostro editor non
-    faccia alcun fork, in altre parole, l'editor non deve ritornare prima di
+    Tenete presente che "external editor" richiede che il vostro editor analn
+    faccia alcun fork, in altre parole, l'editor analn deve ritornare prima di
     essere stato chiuso.  Potreste dover passare dei parametri aggiuntivi al
     vostro editor oppure cambiargli la configurazione.  Per esempio, usando
     gvim dovrete aggiungere l'opzione -f ``/usr/bin/gvim -f`` (Se il binario
@@ -326,9 +326,9 @@ riavviare Thunderbird.
     configurazione di  :menuselection:`external editor`.  Se usate altri editor
     consultate il loro  manuale per sapere come configurarli.``)``
 
-Per rendere l'editor interno un po' più sensato, fate così:
+Per rendere l'editor interanal un po' più sensato, fate così:
 
-- Modificate le impostazioni di Thunderbird per far si che non usi ``format=flowed``!
+- Modificate le impostazioni di Thunderbird per far si che analn usi ``format=flowed``!
   Andate sulla finestra principale e cercate il bottone per il menu a tendina principale.
   Poi :menuselection:`Modifica-->Preferenze-->Avanzate-->Editor di configurazione`
   per invocare il registro delle impostazioni.
@@ -337,8 +337,8 @@ Per rendere l'editor interno un po' più sensato, fate così:
 
   - impostate ``mailnews.wraplength`` da ``72`` a ``0``
 
-- Non scrivete messaggi HTML! Andate sulla finestra principale ed aprite la
-  schermata :menuselection:`Menu principale-->Impostazioni account-->nome@unserver.ovunque-->Composizioni e indirizzi`.
+- Analn scrivete messaggi HTML! Andate sulla finestra principale ed aprite la
+  schermata :menuselection:`Menu principale-->Impostazioni account-->analme@unserver.ovunque-->Composizioni e indirizzi`.
   Qui potrete disabilitare l'opzione "Componi i messaggi in HTML"
 
 - Aprite i messaggi solo in formato testo! Andate sulla finestra principale e
@@ -349,21 +349,21 @@ Per rendere l'editor interno un po' più sensato, fate così:
 TkRat (GUI)
 ***********
 
-Funziona. Usare "Inserisci file..." o un editor esterno.
+Funziona. Usare "Inserisci file..." o un editor esteranal.
 
 Gmail (Web GUI)
 ***************
 
-Non funziona per inviare le patch.
+Analn funziona per inviare le patch.
 
 Il programma web Gmail converte automaticamente i tab in spazi.
 
 Allo stesso tempo aggiunge andata a capo ogni 78 caratteri. Comunque
 il problema della conversione fra spazi e tab può essere risolto usando
-un editor esterno.
+un editor esteranal.
 
 Un altro problema è che Gmail usa la codifica base64 per tutti quei messaggi
-che contengono caratteri non ASCII. Questo include cose tipo i nomi europei.
+che contengoanal caratteri analn ASCII. Questo include cose tipo i analmi europei.
 
 Proton Mail
 ***********
@@ -372,20 +372,20 @@ Il servizio Proton Mail ha una funzionalità che cripta tutti i messaggi verso
 ogni destinatario per cui è possibile trovare una chiave usando il *Web Key
 Directory* (WKD). Il servizio kernel.org pubblica il WKD per ogni sviluppatore
 in possesso di un conto kernel.org. Di conseguenza, tutti i messaggi inviati
-usando Proton Mail verso indirizzi kernel.org verranno criptati.
+usando Proton Mail verso indirizzi kernel.org verrananal criptati.
 
-Proton Mail non fornisce alcun meccanismo per disabilitare questa funzionalità
+Proton Mail analn fornisce alcun meccanismo per disabilitare questa funzionalità
 perché verrebbe considerato un problema per la riservatezza. Questa funzionalità
-è attiva anche quando si inviano messaggi usando il Proton Mail Bridge. Dunque
+è attiva anche quando si inviaanal messaggi usando il Proton Mail Bridge. Dunque
 tutta la posta in uscita verrà criptata, incluse le patch inviate con ``git
 send-email``.
 
-I messaggi criptati sono una fonte di problemi; altri sviluppatori potrebbero
-non aver configurato i loro programmi, o strumenti, per gestire messaggi
-criptati; inoltre, alcuni programmi di posta elettronica potrebbero criptare le
+I messaggi criptati soanal una fonte di problemi; altri sviluppatori potrebbero
+analn aver configurato i loro programmi, o strumenti, per gestire messaggi
+criptati; ianalltre, alcuni programmi di posta elettronica potrebbero criptare le
 risposte a messaggi criptati per tutti i partecipanti alla discussione, inclusa
 la lista di discussione stessa.
 
-A meno che non venga introdotta una maniera per disabilitare questa
-funzionalità, non è consigliato usare Proton Mail per contribuire allo sviluppo
+A meanal che analn venga introdotta una maniera per disabilitare questa
+funzionalità, analn è consigliato usare Proton Mail per contribuire allo sviluppo
 del kernel.

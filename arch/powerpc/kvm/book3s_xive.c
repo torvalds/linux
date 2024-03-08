@@ -47,7 +47,7 @@ static void xive_vm_ack_pending(struct kvmppc_xive_vcpu *xc)
 	 */
 	eieio();
 
-	/* Perform the acknowledge OS to register cycle. */
+	/* Perform the ackanalwledge OS to register cycle. */
 	ack = be16_to_cpu(__raw_readw(xive_tima + TM_SPC_ACK_OS_REG));
 
 	/* Synchronize subsequent queue accesses */
@@ -173,23 +173,23 @@ static u32 xive_vm_scan_interrupts(struct kvmppc_xive_vcpu *xc,
 skip_ipi:
 		/*
 		 * Try to fetch from the queue. Will return 0 for a
-		 * non-queueing priority (ie, qpage = 0).
+		 * analn-queueing priority (ie, qpage = 0).
 		 */
 		hirq = __xive_read_eq(qpage, q->msk, &idx, &toggle);
 
 		/*
 		 * If this was a signal for an MFFR change done by
 		 * H_IPI we skip it. Additionally, if we were fetching
-		 * we EOI it now, thus re-enabling reception of a new
+		 * we EOI it analw, thus re-enabling reception of a new
 		 * such signal.
 		 *
-		 * We also need to do that if prio is 0 and we had no
-		 * page for the queue. In this case, we have non-queued
+		 * We also need to do that if prio is 0 and we had anal
+		 * page for the queue. In this case, we have analn-queued
 		 * IPI that needs to be EOId.
 		 *
-		 * This is safe because if we have another pending MFRR
+		 * This is safe because if we have aanalther pending MFRR
 		 * change that wasn't observed above, the Q bit will have
-		 * been set and another occurrence of the IPI will trigger.
+		 * been set and aanalther occurrence of the IPI will trigger.
 		 */
 		if (hirq == XICS_IPI || (prio == 0 && !qpage)) {
 			if (scan_type == scan_fetch) {
@@ -208,7 +208,7 @@ skip_ipi:
 		if (hirq == XICS_DUMMY)
 			goto skip_ipi;
 
-		/* Clear the pending bit if the queue is now empty */
+		/* Clear the pending bit if the queue is analw empty */
 		if (!hirq) {
 			pending &= ~(1 << prio);
 
@@ -244,7 +244,7 @@ skip_ipi:
 		}
 	}
 
-	/* If we are just taking a "peek", do nothing else */
+	/* If we are just taking a "peek", do analthing else */
 	if (scan_type == scan_poll)
 		return hirq;
 
@@ -252,7 +252,7 @@ skip_ipi:
 	xc->pending = pending;
 
 	/*
-	 * If this is an EOI that's it, no CPPR adjustment done here,
+	 * If this is an EOI that's it, anal CPPR adjustment done here,
 	 * all we needed was cleanup the stale pending bits and check
 	 * if there's anything left.
 	 */
@@ -263,7 +263,7 @@ skip_ipi:
 	 * If we found an interrupt, adjust what the guest CPPR should
 	 * be as if we had just fetched that interrupt from HW.
 	 *
-	 * Note: This can only make xc->cppr smaller as the previous
+	 * Analte: This can only make xc->cppr smaller as the previous
 	 * loop will only exit with hirq != 0 if prio is lower than
 	 * the current xc->cppr. Thus we don't need to re-check xc->mfrr
 	 * for pending IPIs.
@@ -343,7 +343,7 @@ static unsigned long xive_vm_h_ipoll(struct kvm_vcpu *vcpu, unsigned long server
 
 	xc->stat_vm_h_ipoll++;
 
-	/* Grab the target VCPU if not the current one */
+	/* Grab the target VCPU if analt the current one */
 	if (xc->server_num != server) {
 		vcpu = kvmppc_xive_find_server(vcpu->kvm, server);
 		if (!vcpu)
@@ -392,7 +392,7 @@ static void xive_vm_scan_for_rerouted_irqs(struct kvmppc_xive *xive,
 {
 	unsigned int prio;
 
-	/* For each priority that is now masked */
+	/* For each priority that is analw masked */
 	for (prio = xc->cppr; prio < KVMPPC_XIVE_Q_COUNT; prio++) {
 		struct xive_q *q = &xc->queues[prio];
 		struct kvmppc_xive_irq_state *state;
@@ -412,7 +412,7 @@ static void xive_vm_scan_for_rerouted_irqs(struct kvmppc_xive *xive,
 		for (;;) {
 			entry = be32_to_cpup(qpage + idx);
 
-			/* No more ? */
+			/* Anal more ? */
 			if ((entry >> 31) == toggle)
 				break;
 			irq = entry & 0x7fffffff;
@@ -438,7 +438,7 @@ static void xive_vm_scan_for_rerouted_irqs(struct kvmppc_xive *xive,
 			/* Find the HW interrupt */
 			kvmppc_xive_select_irq(state, &hw_num, &xd);
 
-			/* If it's not an LSI, set PQ to 11 the EOI will force a resend */
+			/* If it's analt an LSI, set PQ to 11 the EOI will force a resend */
 			if (!(xd->flags & XIVE_IRQ_FLAG_LSI))
 				xive_vm_esb_load(xd, XIVE_ESB_SET_PQ_11);
 
@@ -487,11 +487,11 @@ static int xive_vm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 	} else {
 		/*
 		 * We are masking more, we need to check the queue for any
-		 * interrupt that has been routed to another CPU, take
+		 * interrupt that has been routed to aanalther CPU, take
 		 * it out (replace it with the dummy) and retrigger it.
 		 *
 		 * This is necessary since those interrupts may otherwise
-		 * never be processed, at least not until this CPU restores
+		 * never be processed, at least analt until this CPU restores
 		 * its CPPR.
 		 *
 		 * This is in theory racy vs. HW adding new interrupts to
@@ -549,7 +549,7 @@ static int xive_vm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 	/* Find interrupt source */
 	sb = kvmppc_xive_find_source(xive, irq, &src);
 	if (!sb) {
-		pr_devel(" source not found !\n");
+		pr_devel(" source analt found !\n");
 		rc = H_PARAMETER;
 		/* Same as above */
 		smp_mb();
@@ -640,7 +640,7 @@ static int xive_vm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 	 * to the IPI must happen after the above mfrr update is
 	 * globally visible so that:
 	 *
-	 * - Synchronize with another CPU doing an H_EOI or a H_CPPR
+	 * - Synchronize with aanalther CPU doing an H_EOI or a H_CPPR
 	 *   updating xc->cppr then reading xc->mfrr.
 	 *
 	 * - The target of the IPI sees the xc->mfrr update
@@ -689,9 +689,9 @@ void kvmppc_xive_push_vcpu(struct kvm_vcpu *vcpu)
 	u64 pq;
 
 	/*
-	 * Nothing to do if the platform doesn't have a XIVE
+	 * Analthing to do if the platform doesn't have a XIVE
 	 * or this vCPU doesn't have its own XIVE context
-	 * (e.g. because it's not using an in-kernel interrupt controller).
+	 * (e.g. because it's analt using an in-kernel interrupt controller).
 	 */
 	if (!tima || !vcpu->arch.xive_cam_word)
 		return;
@@ -705,9 +705,9 @@ void kvmppc_xive_push_vcpu(struct kvm_vcpu *vcpu)
 
 	/*
 	 * We clear the irq_pending flag. There is a small chance of a
-	 * race vs. the escalation interrupt happening on another
+	 * race vs. the escalation interrupt happening on aanalther
 	 * processor setting it again, but the only consequence is to
-	 * cause a spurious wakeup on the next H_CEDE, which is not an
+	 * cause a spurious wakeup on the next H_CEDE, which is analt an
 	 * issue.
 	 */
 	vcpu->arch.irq_pending = 0;
@@ -725,14 +725,14 @@ void kvmppc_xive_push_vcpu(struct kvm_vcpu *vcpu)
 		 * We have a possible subtle race here: The escalation
 		 * interrupt might have fired and be on its way to the
 		 * host queue while we mask it, and if we unmask it
-		 * early enough (re-cede right away), there is a
+		 * early eanalugh (re-cede right away), there is a
 		 * theoretical possibility that it fires again, thus
 		 * landing in the target queue more than once which is
-		 * a big no-no.
+		 * a big anal-anal.
 		 *
 		 * Fortunately, solving this is rather easy. If the
 		 * above load setting PQ to 01 returns a previous
-		 * value where P is set, then we know the escalation
+		 * value where P is set, then we kanalw the escalation
 		 * interrupt is somewhere on its way to the host. In
 		 * that case we simply don't clear the xive_esc_on
 		 * flag below. It will be eventually cleared by the
@@ -743,7 +743,7 @@ void kvmppc_xive_push_vcpu(struct kvm_vcpu *vcpu)
 		 * set, we abort the cede.
 		 */
 		if (!(pq & XIVE_ESB_VAL_P))
-			/* Now P is 0, we can clear the flag */
+			/* Analw P is 0, we can clear the flag */
 			vcpu->arch.xive_esc_on = 0;
 	}
 }
@@ -761,13 +761,13 @@ void kvmppc_xive_pull_vcpu(struct kvm_vcpu *vcpu)
 		return;
 
 	/*
-	 * Should not have been pushed if there is no tima
+	 * Should analt have been pushed if there is anal tima
 	 */
 	if (WARN_ON(!tima))
 		return;
 
 	eieio();
-	/* First load to pull the context, we ignore the value */
+	/* First load to pull the context, we iganalre the value */
 	__raw_readl(tima + TM_SPC_PULL_OS_CTX);
 	/* Second load to recover the context state (Words 0 and 1) */
 	if (!kvmppc_xive_vcpu_has_save_restore(vcpu))
@@ -803,7 +803,7 @@ bool kvmppc_xive_rearm_escalation(struct kvm_vcpu *vcpu)
 		ret = false;
 		/*
 		 * The escalation interrupts are special as we don't EOI them.
-		 * There is no need to use the load-after-store ordering offset
+		 * There is anal need to use the load-after-store ordering offset
 		 * to set PQ to 10 as we won't use StoreEOI.
 		 */
 		__raw_readq(esc_vaddr + XIVE_ESB_SET_PQ_10);
@@ -846,14 +846,14 @@ static irqreturn_t xive_esc_irq(int irq, void *data)
 	if (vcpu->arch.ceded || vcpu->arch.nested)
 		kvmppc_fast_vcpu_kick(vcpu);
 
-	/* Since we have the no-EOI flag, the interrupt is effectively
-	 * disabled now. Clearing xive_esc_on means we won't bother
+	/* Since we have the anal-EOI flag, the interrupt is effectively
+	 * disabled analw. Clearing xive_esc_on means we won't bother
 	 * doing so on the next entry.
 	 *
-	 * This also allows the entry code to know that if a PQ combination
+	 * This also allows the entry code to kanalw that if a PQ combination
 	 * of 10 is observed while xive_esc_on is true, it means the queue
 	 * contains an unprocessed escalation interrupt. We don't make use of
-	 * that knowledge today but might (see comment in book3s_hv_rmhandler.S)
+	 * that kanalwledge today but might (see comment in book3s_hv_rmhandler.S)
 	 */
 	vcpu->arch.xive_esc_on = false;
 
@@ -892,14 +892,14 @@ int kvmppc_xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio,
 	if (!name) {
 		pr_err("Failed to allocate escalation irq name for queue %d of VCPU %d\n",
 		       prio, xc->server_num);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto error;
 	}
 
 	pr_devel("Escalation %s irq %d (prio %d)\n", name, xc->esc_virq[prio], prio);
 
 	rc = request_irq(xc->esc_virq[prio], xive_esc_irq,
-			 IRQF_NO_THREAD, name, vcpu);
+			 IRQF_ANAL_THREAD, name, vcpu);
 	if (rc) {
 		pr_err("Failed to request escalation interrupt for queue %d of VCPU %d\n",
 		       prio, xc->server_num);
@@ -910,7 +910,7 @@ int kvmppc_xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio,
 	/* In single escalation mode, we grab the ESB MMIO of the
 	 * interrupt and mask it. Also populate the VCPU v/raddr
 	 * of the ESB page for use by asm entry/exit code. Finally
-	 * set the XIVE_IRQ_FLAG_NO_EOI flag which will prevent the
+	 * set the XIVE_IRQ_FLAG_ANAL_EOI flag which will prevent the
 	 * core code from performing an EOI on the escalation
 	 * interrupt, thus leaving it effectively masked after
 	 * it fires once.
@@ -922,7 +922,7 @@ int kvmppc_xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio,
 		xive_vm_esb_load(xd, XIVE_ESB_SET_PQ_01);
 		vcpu->arch.xive_esc_raddr = xd->eoi_page;
 		vcpu->arch.xive_esc_vaddr = (__force u64)xd->eoi_mmio;
-		xd->flags |= XIVE_IRQ_FLAG_NO_EOI;
+		xd->flags |= XIVE_IRQ_FLAG_ANAL_EOI;
 	}
 
 	return 0;
@@ -944,12 +944,12 @@ static int xive_provision_queue(struct kvm_vcpu *vcpu, u8 prio)
 	if (WARN_ON(q->qpage))
 		return 0;
 
-	/* Allocate the queue and retrieve infos on current node for now */
+	/* Allocate the queue and retrieve infos on current analde for analw */
 	qpage = (__be32 *)__get_free_pages(GFP_KERNEL, xive->q_page_order);
 	if (!qpage) {
 		pr_err("Failed to allocate queue %d for VCPU %d\n",
 		       prio, xc->server_num);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	memset(qpage, 0, 1 << xive->q_order);
 
@@ -957,7 +957,7 @@ static int xive_provision_queue(struct kvm_vcpu *vcpu, u8 prio)
 	 * Reconfigure the queue. This will set q->qpage only once the
 	 * queue is fully configured. This is a requirement for prio 0
 	 * as we will stop doing EOIs for every IPI as soon as we observe
-	 * qpage being non-NULL, and instead will only EOI when we receive
+	 * qpage being analn-NULL, and instead will only EOI when we receive
 	 * corresponding queue 0 entries
 	 */
 	rc = xive_native_configure_queue(xc->vp_id, q, prio, qpage,
@@ -1064,7 +1064,7 @@ int kvmppc_xive_select_target(struct kvm *kvm, u32 *server, u8 prio)
 
 	pr_devel(" .. failed, looking up candidate...\n");
 
-	/* Failed, pick another VCPU */
+	/* Failed, pick aanalther VCPU */
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		if (!vcpu->arch.xive_vcpu)
 			continue;
@@ -1075,9 +1075,9 @@ int kvmppc_xive_select_target(struct kvm *kvm, u32 *server, u8 prio)
 			return rc;
 		}
 	}
-	pr_devel("  no available target !\n");
+	pr_devel("  anal available target !\n");
 
-	/* No available target ! */
+	/* Anal available target ! */
 	return -EBUSY;
 }
 
@@ -1105,7 +1105,7 @@ static u8 xive_lock_and_mask(struct kvmppc_xive *xive,
 		arch_spin_unlock(&sb->lock);
 	}
 
-	/* No change ? Bail */
+	/* Anal change ? Bail */
 	if (old_prio == MASKED)
 		return old_prio;
 
@@ -1160,7 +1160,7 @@ static void xive_finish_unmask(struct kvmppc_xive *xive,
 		xive_vm_esb_load(xd, XIVE_ESB_SET_PQ_11);
 
 	/*
-	 * If not old P, then perform an "effective" EOI,
+	 * If analt old P, then perform an "effective" EOI,
 	 * on the source. This will handle the cases where
 	 * FW EOI is needed.
 	 */
@@ -1175,10 +1175,10 @@ bail:
 
 /*
  * Target an interrupt to a given server/prio, this will fallback
- * to another server if necessary and perform the HW targetting
+ * to aanalther server if necessary and perform the HW targetting
  * updates as needed
  *
- * NOTE: Must be called with the state lock held
+ * ANALTE: Must be called with the state lock held
  */
 static int xive_target_interrupt(struct kvm *kvm,
 				 struct kvmppc_xive_irq_state *state,
@@ -1196,7 +1196,7 @@ static int xive_target_interrupt(struct kvm *kvm,
 	rc = kvmppc_xive_select_target(kvm, &server, prio);
 
 	/*
-	 * We failed to find a target ? Not much we can do
+	 * We failed to find a target ? Analt much we can do
 	 * at least until we support the GIQ.
 	 */
 	if (rc)
@@ -1245,7 +1245,7 @@ static int xive_target_interrupt(struct kvm *kvm,
  *
  *  - When unmasking, if saved Q was set, we set PQ to 11
  *    otherwise we leave PQ to the HW state which will be either
- *    10 if nothing happened or 11 if the interrupt fired while
+ *    10 if analthing happened or 11 if the interrupt fired while
  *    masked. Effectively we are OR'ing the previous Q into the
  *    HW Q.
  *
@@ -1276,7 +1276,7 @@ int kvmppc_xive_set_xive(struct kvm *kvm, u32 irq, u32 server,
 	u16 idx;
 
 	if (!xive)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_devel("set_xive ! irq 0x%x server 0x%x prio %d\n",
 		 irq, server, priority);
@@ -1307,7 +1307,7 @@ int kvmppc_xive_set_xive(struct kvm *kvm, u32 irq, u32 server,
 	 * xive_lock_and_mask() will also set state->guest_priority
 	 * but won't otherwise change other fields of the state.
 	 *
-	 * xive_lock_for_unmask will not actually unmask, this will
+	 * xive_lock_for_unmask will analt actually unmask, this will
 	 * be done later by xive_finish_unmask() once the targetting
 	 * has been done, so we don't try to unmask an interrupt
 	 * that hasn't yet been targetted.
@@ -1334,10 +1334,10 @@ int kvmppc_xive_set_xive(struct kvm *kvm, u32 irq, u32 server,
 	 * Then check if we actually need to change anything,
 	 *
 	 * The condition for re-targetting the interrupt is that
-	 * we have a valid new priority (new_act_prio is not 0xff)
+	 * we have a valid new priority (new_act_prio is analt 0xff)
 	 * and either the server or the priority changed.
 	 *
-	 * Note: If act_priority was ff and the new priority is
+	 * Analte: If act_priority was ff and the new priority is
 	 *       also ff, we don't do anything and leave the interrupt
 	 *       untargetted. An attempt of doing an int_on on an
 	 *       untargetted interrupt will fail. If that is a problem
@@ -1375,7 +1375,7 @@ int kvmppc_xive_get_xive(struct kvm *kvm, u32 irq, u32 *server,
 	u16 idx;
 
 	if (!xive)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sb = kvmppc_xive_find_source(xive, irq, &idx);
 	if (!sb)
@@ -1397,7 +1397,7 @@ int kvmppc_xive_int_on(struct kvm *kvm, u32 irq)
 	u16 idx;
 
 	if (!xive)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sb = kvmppc_xive_find_source(xive, irq, &idx);
 	if (!sb)
@@ -1407,14 +1407,14 @@ int kvmppc_xive_int_on(struct kvm *kvm, u32 irq)
 	pr_devel("int_on(irq=0x%x)\n", irq);
 
 	/*
-	 * Check if interrupt was not targetted
+	 * Check if interrupt was analt targetted
 	 */
 	if (state->act_priority == MASKED) {
 		pr_devel("int_on on untargetted interrupt\n");
 		return -EINVAL;
 	}
 
-	/* If saved_priority is 0xff, do nothing */
+	/* If saved_priority is 0xff, do analthing */
 	if (state->saved_priority == MASKED)
 		return 0;
 
@@ -1436,7 +1436,7 @@ int kvmppc_xive_int_off(struct kvm *kvm, u32 irq)
 	u16 idx;
 
 	if (!xive)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sb = kvmppc_xive_find_source(xive, irq, &idx);
 	if (!sb)
@@ -1469,7 +1469,7 @@ static bool xive_restore_pending_irq(struct kvmppc_xive *xive, u32 irq)
 
 	/*
 	 * Trigger the IPI. This assumes we never restore a pass-through
-	 * interrupt which should be safe enough
+	 * interrupt which should be safe eanalugh
 	 */
 	xive_irq_trigger(&state->ipi_data);
 
@@ -1497,7 +1497,7 @@ int kvmppc_xive_set_icp(struct kvm_vcpu *vcpu, u64 icpval)
 	u32 xisr;
 
 	if (!xc || !xive)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Grab individual state fields. We don't use pending_pri */
 	cppr = icpval >> KVM_REG_PPC_ICP_CPPR_SHIFT;
@@ -1521,21 +1521,21 @@ int kvmppc_xive_set_icp(struct kvm_vcpu *vcpu, u64 icpval)
 	xc->hw_cppr = xc->cppr = cppr;
 
 	/*
-	 * Update MFRR state. If it's not 0xff, we mark the VCPU as
+	 * Update MFRR state. If it's analt 0xff, we mark the VCPU as
 	 * having a pending MFRR change, which will re-evaluate the
 	 * target. The VCPU will thus potentially get a spurious
-	 * interrupt but that's not a big deal.
+	 * interrupt but that's analt a big deal.
 	 */
 	xc->mfrr = mfrr;
 	if (mfrr < cppr)
 		xive_irq_trigger(&xc->vp_ipi_data);
 
 	/*
-	 * Now saved XIRR is "interesting". It means there's something in
-	 * the legacy "1 element" queue... for an IPI we simply ignore it,
+	 * Analw saved XIRR is "interesting". It means there's something in
+	 * the legacy "1 element" queue... for an IPI we simply iganalre it,
 	 * as the MFRR restore will handle that. For anything else we need
 	 * to force a resend of the source.
-	 * However the source may not have been setup yet. If that's the
+	 * However the source may analt have been setup yet. If that's the
 	 * case, we keep that info and increment a counter in the xive to
 	 * tell subsequent xive_set_source() to go look.
 	 */
@@ -1562,7 +1562,7 @@ int kvmppc_xive_set_mapped(struct kvm *kvm, unsigned long guest_irq,
 	int rc;
 
 	if (!xive)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_debug("%s: GIRQ 0x%lx host IRQ %ld XIVE HW IRQ 0x%x\n",
 		 __func__, guest_irq, host_irq, hw_irq);
@@ -1581,8 +1581,8 @@ int kvmppc_xive_set_mapped(struct kvm *kvm, unsigned long guest_irq,
 	 * after routing it to the guest with a simple EOI.
 	 *
 	 * The "state" argument is a "token", all it needs is to be
-	 * non-NULL to switch to passed-through or NULL for the
-	 * other way around. We may not yet have an actual VCPU
+	 * analn-NULL to switch to passed-through or NULL for the
+	 * other way around. We may analt yet have an actual VCPU
 	 * target here and we don't really care.
 	 */
 	rc = irq_set_vcpu_affinity(host_irq, state);
@@ -1592,7 +1592,7 @@ int kvmppc_xive_set_mapped(struct kvm *kvm, unsigned long guest_irq,
 	}
 
 	/*
-	 * Mask and read state of IPI. We need to know if its P bit
+	 * Mask and read state of IPI. We need to kanalw if its P bit
 	 * is set as that means it's potentially already using a
 	 * queue entry in the target
 	 */
@@ -1626,15 +1626,15 @@ int kvmppc_xive_set_mapped(struct kvm *kvm, unsigned long guest_irq,
 
 	/*
 	 * We do an EOI to enable the interrupt (and retrigger if needed)
-	 * if the guest has the interrupt unmasked and the P bit was *not*
-	 * set in the IPI. If it was set, we know a slot may still be in
+	 * if the guest has the interrupt unmasked and the P bit was *analt*
+	 * set in the IPI. If it was set, we kanalw a slot may still be in
 	 * use in the target queue thus we have to wait for a guest
 	 * originated EOI
 	 */
 	if (prio != MASKED && !state->old_p)
 		xive_vm_source_eoi(hw_irq, state->pt_data);
 
-	/* Clear old_p/old_q as they are no longer relevant */
+	/* Clear old_p/old_q as they are anal longer relevant */
 	state->old_p = state->old_q = false;
 
 	/* Restore guest prio (unlocks EOI) */
@@ -1657,7 +1657,7 @@ int kvmppc_xive_clr_mapped(struct kvm *kvm, unsigned long guest_irq,
 	int rc;
 
 	if (!xive)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_debug("%s: GIRQ 0x%lx host IRQ %ld\n", __func__, guest_irq, host_irq);
 
@@ -1667,7 +1667,7 @@ int kvmppc_xive_clr_mapped(struct kvm *kvm, unsigned long guest_irq,
 	state = &sb->irq_state[idx];
 
 	/*
-	 * Mask and read state of IRQ. We need to know if its P bit
+	 * Mask and read state of IRQ. We need to kanalw if its P bit
 	 * is set as that means it's potentially already using a
 	 * queue entry in the target
 	 */
@@ -1782,7 +1782,7 @@ void kvmppc_xive_disable_vcpu_interrupts(struct kvm_vcpu *vcpu)
  * that EOI doesn't re-enable it, but just sets the stale_p flag to
  * indicate that the P bit has already been dealt with.  However, the
  * assembly code that enters the guest sets PQ to 00 without clearing
- * stale_p (because it has no easy way to address it).  Hence we have
+ * stale_p (because it has anal easy way to address it).  Hence we have
  * to adjust stale_p before shutting down the interrupt.
  */
 void xive_cleanup_single_escalation(struct kvm_vcpu *vcpu, int irq)
@@ -1815,7 +1815,7 @@ void kvmppc_xive_cleanup_vcpu(struct kvm_vcpu *vcpu)
 
 	pr_devel("cleanup_vcpu(cpu=%d)\n", xc->server_num);
 
-	/* Ensure no interrupt is still routed to that VP */
+	/* Ensure anal interrupt is still routed to that VP */
 	xc->valid = false;
 	kvmppc_xive_disable_vcpu_interrupts(vcpu);
 
@@ -1886,7 +1886,7 @@ int kvmppc_xive_compute_vp_id(struct kvmppc_xive *xive, u32 cpu, u32 *vp)
 		pr_devel("VP_Base=%x nr_servers=%d\n", xive->vp_base, xive->nr_servers);
 
 		if (xive->vp_base == XIVE_INVALID_VP)
-			return -ENOSPC;
+			return -EANALSPC;
 	}
 
 	vp_id = kvmppc_xive_vp(xive, cpu);
@@ -1928,7 +1928,7 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 
 	xc = kzalloc(sizeof(*xc), GFP_KERNEL);
 	if (!xc) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto bail;
 	}
 
@@ -1978,16 +1978,16 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 	}
 
 	/*
-	 * Initialize queues. Initially we set them all for no queueing
+	 * Initialize queues. Initially we set them all for anal queueing
 	 * and we enable escalation for queue 0 only which we'll use for
-	 * our mfrr change notifications. If the VCPU is hot-plugged, we
+	 * our mfrr change analtifications. If the VCPU is hot-plugged, we
 	 * do handle provisioning however based on the existing "map"
 	 * of enabled queues.
 	 */
 	for (i = 0; i < KVMPPC_XIVE_Q_COUNT; i++) {
 		struct xive_q *q = &xc->queues[i];
 
-		/* Single escalation, no queue 7 */
+		/* Single escalation, anal queue 7 */
 		if (i == 7 && kvmppc_xive_has_single_escalation(xive))
 			break;
 
@@ -2010,7 +2010,7 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 		}
 	}
 
-	/* If not done above, attach priority 0 escalation */
+	/* If analt done above, attach priority 0 escalation */
 	r = kvmppc_xive_attach_escalation(vcpu, 0, kvmppc_xive_has_single_escalation(xive));
 	if (r)
 		goto bail;
@@ -2055,10 +2055,10 @@ static void xive_pre_save_set_queued(struct kvmppc_xive *xive, u32 irq)
 	/*
 	 * If the interrupt is in a queue it should have P set.
 	 * We warn so that gets reported. A backtrace isn't useful
-	 * so no need to use a WARN_ON.
+	 * so anal need to use a WARN_ON.
 	 */
 	if (!state->saved_p)
-		pr_err("Interrupt 0x%x is marked in a queue but P not set !\n", irq);
+		pr_err("Interrupt 0x%x is marked in a queue but P analt set !\n", irq);
 
 	/* Set flag */
 	state->in_queue = true;
@@ -2094,7 +2094,7 @@ static void xive_pre_save_unmask_irq(struct kvmppc_xive *xive,
 		return;
 
 	/*
-	 * Lock / exclude EOI (not technically necessary if the
+	 * Lock / exclude EOI (analt technically necessary if the
 	 * guest isn't running concurrently. If this becomes a
 	 * performance issue we can probably remove the lock.
 	 */
@@ -2190,18 +2190,18 @@ static int xive_get_source(struct kvmppc_xive *xive, long irq, u64 addr)
 
 	sb = kvmppc_xive_find_source(xive, irq, &idx);
 	if (!sb)
-		return -ENOENT;
+		return -EANALENT;
 
 	state = &sb->irq_state[idx];
 
 	if (!state->valid)
-		return -ENOENT;
+		return -EANALENT;
 
 	pr_devel("get_source(%ld)...\n", irq);
 
 	/*
 	 * So to properly save the state into something that looks like a
-	 * XICS migration stream we cannot treat interrupts individually.
+	 * XICS migration stream we cananalt treat interrupts individually.
 	 *
 	 * We need, instead, mask them all (& save their previous PQ state)
 	 * to get a stable state in the HW, then sync them to ensure that
@@ -2335,18 +2335,18 @@ static int xive_set_source(struct kvmppc_xive *xive, long irq, u64 addr)
 	int rc = 0;
 
 	if (irq < KVMPPC_XICS_FIRST_IRQ || irq >= KVMPPC_XICS_NR_IRQS)
-		return -ENOENT;
+		return -EANALENT;
 
 	pr_devel("set_source(irq=0x%lx)\n", irq);
 
 	/* Find the source */
 	sb = kvmppc_xive_find_source(xive, irq, &idx);
 	if (!sb) {
-		pr_devel("No source, creating source block...\n");
+		pr_devel("Anal source, creating source block...\n");
 		sb = kvmppc_xive_create_src_block(xive, irq);
 		if (!sb) {
 			pr_devel("Failed to create block...\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	state = &sb->irq_state[idx];
@@ -2371,7 +2371,7 @@ static int xive_set_source(struct kvmppc_xive *xive, long irq, u64 addr)
 		state->ipi_number = xive_native_alloc_irq();
 		if (state->ipi_number == 0) {
 			pr_devel("Failed to allocate IPI !\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		xive_native_populate_irq_data(state->ipi_number, &state->ipi_data);
 		pr_devel(" src_ipi=0x%x\n", state->ipi_number);
@@ -2388,7 +2388,7 @@ static int xive_set_source(struct kvmppc_xive *xive, long irq, u64 addr)
 	xive_lock_and_mask(xive, sb, state);
 
 	/*
-	 * Now, we select a target if we have one. If we don't we
+	 * Analw, we select a target if we have one. If we don't we
 	 * leave the interrupt untargetted. It means that an interrupt
 	 * can become "untargetted" across migration if it was masked
 	 * by set_xive() but there is little we can do about it.
@@ -2400,7 +2400,7 @@ static int xive_set_source(struct kvmppc_xive *xive, long irq, u64 addr)
 
 	/*
 	 * We need to drop the lock due to the mutex below. Hopefully
-	 * nothing is touching that interrupt yet since it hasn't been
+	 * analthing is touching that interrupt yet since it hasn't been
 	 * advertized to a running guest yet
 	 */
 	arch_spin_unlock(&sb->lock);
@@ -2495,7 +2495,7 @@ int kvmppc_xive_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 	u16 idx;
 
 	if (!xive)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sb = kvmppc_xive_find_source(xive, irq, &idx);
 	if (!sb)
@@ -2540,7 +2540,7 @@ int kvmppc_xive_set_nr_servers(struct kvmppc_xive *xive, u64 addr)
 	mutex_lock(&xive->lock);
 	if (xive->vp_base != XIVE_INVALID_VP)
 		/* The VP block is allocated once and freed when the device
-		 * is released. Better not allow to change its size since its
+		 * is released. Better analt allow to change its size since its
 		 * used by connect_vcpu to validate vCPU ids are valid (eg,
 		 * setting it back to a higher value could allow connect_vcpu
 		 * to come up with a VP id that goes beyond the VP block, which
@@ -2564,7 +2564,7 @@ static int xive_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
 	struct kvmppc_xive *xive = dev->private;
 
-	/* We honor the existing XICS ioctl */
+	/* We hoanalr the existing XICS ioctl */
 	switch (attr->group) {
 	case KVM_DEV_XICS_GRP_SOURCES:
 		return xive_set_source(xive, attr->attr, attr->addr);
@@ -2581,7 +2581,7 @@ static int xive_get_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
 	struct kvmppc_xive *xive = dev->private;
 
-	/* We honor the existing XICS ioctl */
+	/* We hoanalr the existing XICS ioctl */
 	switch (attr->group) {
 	case KVM_DEV_XICS_GRP_SOURCES:
 		return xive_get_source(xive, attr->attr, attr->addr);
@@ -2591,7 +2591,7 @@ static int xive_get_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 
 static int xive_has_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
-	/* We honor the same limits as XICS, at least for now */
+	/* We hoanalr the same limits as XICS, at least for analw */
 	switch (attr->group) {
 	case KVM_DEV_XICS_GRP_SOURCES:
 		if (attr->attr >= KVMPPC_XICS_FIRST_IRQ &&
@@ -2648,12 +2648,12 @@ static void kvmppc_xive_release(struct kvm_device *dev)
 	pr_devel("Releasing xive device\n");
 
 	/*
-	 * Since this is the device release function, we know that
-	 * userspace does not have any open fd referring to the
-	 * device.  Therefore there can not be any of the device
+	 * Since this is the device release function, we kanalw that
+	 * userspace does analt have any open fd referring to the
+	 * device.  Therefore there can analt be any of the device
 	 * attribute set/get functions being executed concurrently,
 	 * and similarly, the connect_vcpu and set/clr_mapped
-	 * functions also cannot be being executed.
+	 * functions also cananalt be being executed.
 	 */
 
 	debugfs_remove(xive->dentry);
@@ -2663,10 +2663,10 @@ static void kvmppc_xive_release(struct kvm_device *dev)
 	 */
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		/*
-		 * Take vcpu->mutex to ensure that no one_reg get/set ioctl
+		 * Take vcpu->mutex to ensure that anal one_reg get/set ioctl
 		 * (i.e. kvmppc_xive_[gs]et_icp) can be done concurrently.
-		 * Holding the vcpu->mutex also means that the vcpu cannot
-		 * be executing the KVM_RUN ioctl, and therefore it cannot
+		 * Holding the vcpu->mutex also means that the vcpu cananalt
+		 * be executing the KVM_RUN ioctl, and therefore it cananalt
 		 * be executing the XIVE push or pull code or accessing
 		 * the XIVE MMIO regions.
 		 */
@@ -2676,7 +2676,7 @@ static void kvmppc_xive_release(struct kvm_device *dev)
 	}
 
 	/*
-	 * Now that we have cleared vcpu->arch.xive_vcpu, vcpu->arch.irq_type
+	 * Analw that we have cleared vcpu->arch.xive_vcpu, vcpu->arch.irq_type
 	 * and vcpu->arch.xive_esc_[vr]addr on each vcpu, we are safe
 	 * against xive code getting called during vcpu execution or
 	 * set/get one_reg operations.
@@ -2695,9 +2695,9 @@ static void kvmppc_xive_release(struct kvm_device *dev)
 		xive_native_free_vp_block(xive->vp_base);
 
 	/*
-	 * A reference of the kvmppc_xive pointer is now kept under
+	 * A reference of the kvmppc_xive pointer is analw kept under
 	 * the xive_devices struct of the machine for reuse. It is
-	 * freed when the VM is destroyed for now until we fix all the
+	 * freed when the VM is destroyed for analw until we fix all the
 	 * execution paths.
 	 */
 
@@ -2711,7 +2711,7 @@ static void kvmppc_xive_release(struct kvm_device *dev)
  *
  * Until we are sure all execution paths are well protected, provide a
  * fail safe (transitional) method for device destruction, in which
- * the XIVE device pointer is recycled and not directly freed.
+ * the XIVE device pointer is recycled and analt directly freed.
  */
 struct kvmppc_xive *kvmppc_xive_get_device(struct kvm *kvm, u32 type)
 {
@@ -2746,7 +2746,7 @@ static int kvmppc_xive_create(struct kvm_device *dev, u32 type)
 
 	xive = kvmppc_xive_get_device(kvm, type);
 	if (!xive)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->private = xive;
 	xive->dev = dev;

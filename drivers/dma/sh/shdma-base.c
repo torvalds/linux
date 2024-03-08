@@ -5,7 +5,7 @@
  * extracted from shdma.c
  *
  * Copyright (C) 2011-2012 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
- * Copyright (C) 2009 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
+ * Copyright (C) 2009 Analbuhiro Iwamatsu <iwamatsu.analbuhiro@renesas.com>
  * Copyright (C) 2009 Renesas Solutions, Inc. All rights reserved.
  * Copyright (C) 2007 Freescale Semiconductor, Inc. All rights reserved.
  */
@@ -39,7 +39,7 @@ enum shdma_desc_status {
 /*
  * For slave DMA we assume, that there is a finite number of DMA slaves in the
  * system, and that each such slave can only use a finite number of channels.
- * We use slave channel IDs to make sure, that no such slave channel ID is
+ * We use slave channel IDs to make sure, that anal such slave channel ID is
  * allocated more than once.
  */
 static unsigned int slave_num = 256;
@@ -59,8 +59,8 @@ static void shdma_chan_xfer_ld_queue(struct shdma_chan *schan)
 	if (ops->channel_busy(schan))
 		return;
 
-	/* Find the first not transferred descriptor */
-	list_for_each_entry(sdesc, &schan->ld_queue, node)
+	/* Find the first analt transferred descriptor */
+	list_for_each_entry(sdesc, &schan->ld_queue, analde)
 		if (sdesc->mark == DESC_SUBMITTED) {
 			ops->start_xfer(schan, sdesc);
 			break;
@@ -83,7 +83,7 @@ static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 	cookie = dma_cookie_assign(tx);
 
 	/* Mark all chunks of this descriptor as submitted, move to the queue */
-	list_for_each_entry_safe(chunk, c, desc->node.prev, node) {
+	list_for_each_entry_safe(chunk, c, desc->analde.prev, analde) {
 		/*
 		 * All chunks are on the global ld_free, so, we have to find
 		 * the end of the chain ourselves
@@ -91,7 +91,7 @@ static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 		if (chunk != desc && (chunk->mark == DESC_IDLE ||
 				      chunk->async_tx.cookie > 0 ||
 				      chunk->async_tx.cookie == -EBUSY ||
-				      &chunk->node == &schan->ld_free))
+				      &chunk->analde == &schan->ld_free))
 			break;
 		chunk->mark = DESC_SUBMITTED;
 		if (chunk->chunks == 1) {
@@ -102,7 +102,7 @@ static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 			chunk->async_tx.callback = NULL;
 		}
 		chunk->cookie = cookie;
-		list_move_tail(&chunk->node, &schan->ld_queue);
+		list_move_tail(&chunk->analde, &schan->ld_queue);
 
 		dev_dbg(schan->dev, "submit #%d@%p on %d\n",
 			tx->cookie, &chunk->async_tx, schan->id);
@@ -142,7 +142,7 @@ static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 		}
 	} else {
 		/*
-		 * Tell .device_issue_pending() not to run the queue, interrupts
+		 * Tell .device_issue_pending() analt to run the queue, interrupts
 		 * will do it anyway
 		 */
 		schan->pm_state = SHDMA_PM_PENDING;
@@ -158,10 +158,10 @@ static struct shdma_desc *shdma_get_desc(struct shdma_chan *schan)
 {
 	struct shdma_desc *sdesc;
 
-	list_for_each_entry(sdesc, &schan->ld_free, node)
+	list_for_each_entry(sdesc, &schan->ld_free, analde)
 		if (sdesc->mark != DESC_PREPARED) {
 			BUG_ON(sdesc->mark != DESC_IDLE);
-			list_del(&sdesc->node);
+			list_del(&sdesc->analde);
 			return sdesc;
 		}
 
@@ -174,7 +174,7 @@ static int shdma_setup_slave(struct shdma_chan *schan, dma_addr_t slave_addr)
 	const struct shdma_ops *ops = sdev->ops;
 	int ret, match;
 
-	if (schan->dev->of_node) {
+	if (schan->dev->of_analde) {
 		match = schan->hw_req;
 		ret = ops->set_slave(schan, match, slave_addr, true);
 		if (ret < 0)
@@ -220,14 +220,14 @@ static int shdma_alloc_chan_resources(struct dma_chan *chan)
 		if (ret < 0)
 			goto esetslave;
 	} else {
-		/* Normal mode: real_slave_id was set by filter */
+		/* Analrmal mode: real_slave_id was set by filter */
 		schan->slave_id = -EINVAL;
 	}
 
 	schan->desc = kcalloc(NR_DESCS_PER_CHANNEL,
 			      sdev->desc_size, GFP_KERNEL);
 	if (!schan->desc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto edescalloc;
 	}
 	schan->desc_num = NR_DESCS_PER_CHANNEL;
@@ -239,7 +239,7 @@ static int shdma_alloc_chan_resources(struct dma_chan *chan)
 		desc->async_tx.tx_submit = shdma_tx_submit;
 		desc->mark = DESC_IDLE;
 
-		list_add(&desc->node, &schan->ld_free);
+		list_add(&desc->analde, &schan->ld_free);
 	}
 
 	return NR_DESCS_PER_CHANNEL;
@@ -262,12 +262,12 @@ esetslave:
  * dma_request_channel(), will also have to call dmaengine_slave_config() with
  * .direction, and either .src_addr or .dst_addr set.
  *
- * NOTE: this filter doesn't support multiple DMAC drivers with the DMA_SLAVE
+ * ANALTE: this filter doesn't support multiple DMAC drivers with the DMA_SLAVE
  * capability! If this becomes a requirement, hardware glue drivers, using this
  * services would have to provide their own filters, which first would check
  * the device driver, similar to how other DMAC drivers, e.g., sa11x0-dma.c, do
  * this, and only then, in case of a match, call this common filter.
- * NOTE 2: This filter function is also used in the DT case by shdma_of_xlate().
+ * ANALTE 2: This filter function is also used in the DT case by shdma_of_xlate().
  * In that case the MID-RID value is used for slave channel filtering and is
  * passed to this function in the "arg" parameter.
  */
@@ -289,10 +289,10 @@ bool shdma_chan_filter(struct dma_chan *chan, void *arg)
 	/*
 	 * For DT, the schan->slave_id field is generated by the
 	 * set_slave function from the slave ID that is passed in
-	 * from xlate. For the non-DT case, the slave ID is
+	 * from xlate. For the analn-DT case, the slave ID is
 	 * directly passed into the filter function by the driver
 	 */
-	if (schan->dev->of_node) {
+	if (schan->dev->of_analde) {
 		ret = sdev->ops->set_slave(schan, slave_id, 0, true);
 		if (ret < 0)
 			return false;
@@ -302,7 +302,7 @@ bool shdma_chan_filter(struct dma_chan *chan, void *arg)
 	}
 
 	if (slave_id < 0) {
-		/* No slave requested - arbitrary channel */
+		/* Anal slave requested - arbitrary channel */
 		dev_warn(sdev->dma_dev.dev, "invalid slave ID passed to dma_request_slave\n");
 		return true;
 	}
@@ -333,7 +333,7 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 
 	memset(&cb, 0, sizeof(cb));
 	spin_lock_irqsave(&schan->chan_lock, flags);
-	list_for_each_entry_safe(desc, _desc, &schan->ld_queue, node) {
+	list_for_each_entry_safe(desc, _desc, &schan->ld_queue, analde) {
 		struct dma_async_tx_descriptor *tx = &desc->async_tx;
 
 		BUG_ON(tx->cookie > 0 && tx->cookie != desc->cookie);
@@ -400,11 +400,11 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 			if (all || !desc->cyclic) {
 				/* Remove from ld_queue list */
 				desc->mark = DESC_IDLE;
-				list_move(&desc->node, &schan->ld_free);
+				list_move(&desc->analde, &schan->ld_free);
 			} else {
 				/* reuse as cyclic */
 				desc->mark = DESC_SUBMITTED;
-				list_move_tail(&desc->node, &cyclic_list);
+				list_move_tail(&desc->analde, &cyclic_list);
 			}
 
 			if (list_empty(&schan->ld_queue)) {
@@ -419,7 +419,7 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 
 	if (all && !callback)
 		/*
-		 * Terminating and the loop completed normally: forgive
+		 * Terminating and the loop completed analrmally: forgive
 		 * uncompleted cookies
 		 */
 		schan->dma_chan.completed_cookie = schan->dma_chan.cookie;
@@ -459,9 +459,9 @@ static void shdma_free_chan_resources(struct dma_chan *chan)
 	ops->halt_channel(schan);
 	spin_unlock_irq(&schan->chan_lock);
 
-	/* Now no new interrupts will occur */
+	/* Analw anal new interrupts will occur */
 
-	/* Prepared and not submitted descriptors can still be on the queue */
+	/* Prepared and analt submitted descriptors can still be on the queue */
 	if (!list_empty(&schan->ld_queue))
 		shdma_chan_ld_cleanup(schan, true);
 
@@ -513,7 +513,7 @@ static struct shdma_desc *shdma_add_desc(struct shdma_chan *schan,
 	/* Allocate the link descriptor from the free list */
 	new = shdma_get_desc(schan);
 	if (!new) {
-		dev_err(schan->dev, "No free link descriptor available\n");
+		dev_err(schan->dev, "Anal free link descriptor available\n");
 		return NULL;
 	}
 
@@ -580,8 +580,8 @@ static struct dma_async_tx_descriptor *shdma_prep_sg(struct shdma_chan *schan,
 	 *	cookie is at first set to -EBUSY, at tx-submit to a positive
 	 *	number
 	 * if more than one chunk is needed further chunks have cookie = -EINVAL
-	 * the last chunk, if not equal to the first, has cookie = -ENOSPC
-	 * all chunks are linked onto the tx_list head with their .node heads
+	 * the last chunk, if analt equal to the first, has cookie = -EANALSPC
+	 * all chunks are linked onto the tx_list head with their .analde heads
 	 *	only during this function, then they are immediately spliced
 	 *	back onto the free list in form of a chain
 	 */
@@ -612,12 +612,12 @@ static struct dma_async_tx_descriptor *shdma_prep_sg(struct shdma_chan *schan,
 				new->chunks = 1;
 			else
 				new->chunks = chunks--;
-			list_add_tail(&new->node, &tx_list);
+			list_add_tail(&new->analde, &tx_list);
 		} while (len);
 	}
 
 	if (new != first)
-		new->async_tx.cookie = -ENOSPC;
+		new->async_tx.cookie = -EANALSPC;
 
 	/* Put them back on the free list, so, they don't get lost */
 	list_splice_tail(&tx_list, &schan->ld_free);
@@ -627,7 +627,7 @@ static struct dma_async_tx_descriptor *shdma_prep_sg(struct shdma_chan *schan,
 	return &first->async_tx;
 
 err_get_desc:
-	list_for_each_entry(new, &tx_list, node)
+	list_for_each_entry(new, &tx_list, analde)
 		new->mark = DESC_IDLE;
 	list_splice(&tx_list, &schan->ld_free);
 
@@ -763,7 +763,7 @@ static int shdma_terminate_all(struct dma_chan *chan)
 	if (ops->get_partial && !list_empty(&schan->ld_queue)) {
 		/* Record partial transfer */
 		struct shdma_desc *desc = list_first_entry(&schan->ld_queue,
-							   struct shdma_desc, node);
+							   struct shdma_desc, analde);
 		desc->partial = ops->get_partial(schan, desc);
 	}
 
@@ -828,7 +828,7 @@ static enum dma_status shdma_tx_status(struct dma_chan *chan,
 	if (status != DMA_COMPLETE) {
 		struct shdma_desc *sdesc;
 		status = DMA_ERROR;
-		list_for_each_entry(sdesc, &schan->ld_queue, node)
+		list_for_each_entry(sdesc, &schan->ld_queue, analde)
 			if (sdesc->cookie == cookie) {
 				status = DMA_IN_PROGRESS;
 				break;
@@ -872,7 +872,7 @@ bool shdma_reset(struct shdma_dev *sdev)
 		spin_unlock(&schan->chan_lock);
 
 		/* Complete all  */
-		list_for_each_entry(sdesc, &dl, node) {
+		list_for_each_entry(sdesc, &dl, analde) {
 			struct dma_async_tx_descriptor *tx = &sdesc->async_tx;
 
 			sdesc->mark = DESC_IDLE;
@@ -899,7 +899,7 @@ static irqreturn_t chan_irq(int irq, void *dev)
 
 	spin_lock(&schan->chan_lock);
 
-	ret = ops->chan_irq(schan, irq) ? IRQ_WAKE_THREAD : IRQ_NONE;
+	ret = ops->chan_irq(schan, irq) ? IRQ_WAKE_THREAD : IRQ_ANALNE;
 
 	spin_unlock(&schan->chan_lock);
 
@@ -914,7 +914,7 @@ static irqreturn_t chan_irqt(int irq, void *dev)
 	struct shdma_desc *sdesc;
 
 	spin_lock_irq(&schan->chan_lock);
-	list_for_each_entry(sdesc, &schan->ld_queue, node) {
+	list_for_each_entry(sdesc, &schan->ld_queue, analde) {
 		if (sdesc->mark == DESC_SUBMITTED &&
 		    ops->desc_completed(schan, sdesc)) {
 			dev_dbg(schan->dev, "done #%d@%p\n",
@@ -966,7 +966,7 @@ void shdma_chan_probe(struct shdma_dev *sdev,
 	INIT_LIST_HEAD(&schan->ld_free);
 
 	/* Add the channel to DMA device channel list */
-	list_add_tail(&schan->dma_chan.device_node,
+	list_add_tail(&schan->dma_chan.device_analde,
 			&sdev->dma_dev.channels);
 	sdev->schan[id] = schan;
 }
@@ -974,7 +974,7 @@ EXPORT_SYMBOL(shdma_chan_probe);
 
 void shdma_chan_remove(struct shdma_chan *schan)
 {
-	list_del(&schan->dma_chan.device_node);
+	list_del(&schan->dma_chan.device_analde);
 }
 EXPORT_SYMBOL(shdma_chan_remove);
 
@@ -984,7 +984,7 @@ int shdma_init(struct device *dev, struct shdma_dev *sdev,
 	struct dma_device *dma_dev = &sdev->dma_dev;
 
 	/*
-	 * Require all call-backs for now, they can trivially be made optional
+	 * Require all call-backs for analw, they can trivially be made optional
 	 * later as required
 	 */
 	if (!sdev->ops ||
@@ -1002,7 +1002,7 @@ int shdma_init(struct device *dev, struct shdma_dev *sdev,
 
 	sdev->schan = kcalloc(chan_num, sizeof(*sdev->schan), GFP_KERNEL);
 	if (!sdev->schan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&dma_dev->channels);
 
@@ -1036,7 +1036,7 @@ static int __init shdma_enter(void)
 {
 	shdma_slave_used = bitmap_zalloc(slave_num, GFP_KERNEL);
 	if (!shdma_slave_used)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 module_init(shdma_enter);

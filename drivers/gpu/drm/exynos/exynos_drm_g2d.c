@@ -21,14 +21,14 @@
 #include <linux/workqueue.h>
 
 #include <drm/drm_file.h>
-#include <drm/exynos_drm.h>
+#include <drm/exyanals_drm.h>
 
-#include "exynos_drm_drv.h"
-#include "exynos_drm_g2d.h"
-#include "exynos_drm_gem.h"
+#include "exyanals_drm_drv.h"
+#include "exyanals_drm_g2d.h"
+#include "exyanals_drm_gem.h"
 
 #define G2D_HW_MAJOR_VER		4
-#define G2D_HW_MINOR_VER		1
+#define G2D_HW_MIANALR_VER		1
 
 /* vaild register range set from user: 0x0104 ~ 0x0880 */
 #define G2D_VALID_START			0x0104
@@ -129,7 +129,7 @@ enum {
 };
 
 enum g2d_reg_type {
-	REG_TYPE_NONE = -1,
+	REG_TYPE_ANALNE = -1,
 	REG_TYPE_SRC,
 	REG_TYPE_SRC_PLANE2,
 	REG_TYPE_DST,
@@ -142,7 +142,7 @@ enum g2d_reg_type {
 enum g2d_flag_bits {
 	/*
 	 * If set, suspends the runqueue worker after the currently
-	 * processed node is finished.
+	 * processed analde is finished.
 	 */
 	G2D_BIT_SUSPEND_RUNQUEUE,
 	/*
@@ -196,9 +196,9 @@ struct g2d_buf_info {
 	struct g2d_buf_desc	descs[MAX_REG_TYPE_NR];
 };
 
-struct drm_exynos_pending_g2d_event {
+struct drm_exyanals_pending_g2d_event {
 	struct drm_pending_event	base;
-	struct drm_exynos_g2d_event	event;
+	struct drm_exyanals_g2d_event	event;
 };
 
 struct g2d_cmdlist_userptr {
@@ -213,16 +213,16 @@ struct g2d_cmdlist_userptr {
 	bool			in_pool;
 	bool			out_of_list;
 };
-struct g2d_cmdlist_node {
+struct g2d_cmdlist_analde {
 	struct list_head	list;
 	struct g2d_cmdlist	*cmdlist;
 	dma_addr_t		dma_addr;
 	struct g2d_buf_info	buf_info;
 
-	struct drm_exynos_pending_g2d_event	*event;
+	struct drm_exyanals_pending_g2d_event	*event;
 };
 
-struct g2d_runqueue_node {
+struct g2d_runqueue_analde {
 	struct list_head	list;
 	struct list_head	run_cmdlist;
 	struct list_head	event_list;
@@ -244,7 +244,7 @@ struct g2d_data {
 	unsigned long			flags;
 
 	/* cmdlist */
-	struct g2d_cmdlist_node		*cmdlist_node;
+	struct g2d_cmdlist_analde		*cmdlist_analde;
 	struct list_head		free_cmdlist;
 	struct mutex			cmdlist_mutex;
 	dma_addr_t			cmdlist_pool;
@@ -252,7 +252,7 @@ struct g2d_data {
 	unsigned long			cmdlist_dma_attrs;
 
 	/* runqueue*/
-	struct g2d_runqueue_node	*runqueue_node;
+	struct g2d_runqueue_analde	*runqueue_analde;
 	struct list_head		runqueue;
 	struct mutex			runqueue_mutex;
 	struct kmem_cache		*runqueue_slab;
@@ -270,7 +270,7 @@ static inline void g2d_hw_reset(struct g2d_data *g2d)
 static int g2d_init_cmdlist(struct g2d_data *g2d)
 {
 	struct device *dev = g2d->dev;
-	struct g2d_cmdlist_node *node;
+	struct g2d_cmdlist_analde *analde;
 	int nr;
 	int ret;
 	struct g2d_buf_info *buf_info;
@@ -283,28 +283,28 @@ static int g2d_init_cmdlist(struct g2d_data *g2d)
 						g2d->cmdlist_dma_attrs);
 	if (!g2d->cmdlist_pool_virt) {
 		dev_err(dev, "failed to allocate dma memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	node = kcalloc(G2D_CMDLIST_NUM, sizeof(*node), GFP_KERNEL);
-	if (!node) {
-		ret = -ENOMEM;
+	analde = kcalloc(G2D_CMDLIST_NUM, sizeof(*analde), GFP_KERNEL);
+	if (!analde) {
+		ret = -EANALMEM;
 		goto err;
 	}
 
 	for (nr = 0; nr < G2D_CMDLIST_NUM; nr++) {
 		unsigned int i;
 
-		node[nr].cmdlist =
+		analde[nr].cmdlist =
 			g2d->cmdlist_pool_virt + nr * G2D_CMDLIST_SIZE;
-		node[nr].dma_addr =
+		analde[nr].dma_addr =
 			g2d->cmdlist_pool + nr * G2D_CMDLIST_SIZE;
 
-		buf_info = &node[nr].buf_info;
+		buf_info = &analde[nr].buf_info;
 		for (i = 0; i < MAX_REG_TYPE_NR; i++)
-			buf_info->reg_types[i] = REG_TYPE_NONE;
+			buf_info->reg_types[i] = REG_TYPE_ANALNE;
 
-		list_add_tail(&node[nr].list, &g2d->free_cmdlist);
+		list_add_tail(&analde[nr].list, &g2d->free_cmdlist);
 	}
 
 	return 0;
@@ -318,7 +318,7 @@ err:
 
 static void g2d_fini_cmdlist(struct g2d_data *g2d)
 {
-	kfree(g2d->cmdlist_node);
+	kfree(g2d->cmdlist_analde);
 
 	if (g2d->cmdlist_pool_virt && g2d->cmdlist_pool) {
 		dma_free_attrs(to_dma_dev(g2d->drm_dev),
@@ -328,51 +328,51 @@ static void g2d_fini_cmdlist(struct g2d_data *g2d)
 	}
 }
 
-static struct g2d_cmdlist_node *g2d_get_cmdlist(struct g2d_data *g2d)
+static struct g2d_cmdlist_analde *g2d_get_cmdlist(struct g2d_data *g2d)
 {
 	struct device *dev = g2d->dev;
-	struct g2d_cmdlist_node *node;
+	struct g2d_cmdlist_analde *analde;
 
 	mutex_lock(&g2d->cmdlist_mutex);
 	if (list_empty(&g2d->free_cmdlist)) {
-		dev_err(dev, "there is no free cmdlist\n");
+		dev_err(dev, "there is anal free cmdlist\n");
 		mutex_unlock(&g2d->cmdlist_mutex);
 		return NULL;
 	}
 
-	node = list_first_entry(&g2d->free_cmdlist, struct g2d_cmdlist_node,
+	analde = list_first_entry(&g2d->free_cmdlist, struct g2d_cmdlist_analde,
 				list);
-	list_del_init(&node->list);
+	list_del_init(&analde->list);
 	mutex_unlock(&g2d->cmdlist_mutex);
 
-	return node;
+	return analde;
 }
 
-static void g2d_put_cmdlist(struct g2d_data *g2d, struct g2d_cmdlist_node *node)
+static void g2d_put_cmdlist(struct g2d_data *g2d, struct g2d_cmdlist_analde *analde)
 {
 	mutex_lock(&g2d->cmdlist_mutex);
-	list_move_tail(&node->list, &g2d->free_cmdlist);
+	list_move_tail(&analde->list, &g2d->free_cmdlist);
 	mutex_unlock(&g2d->cmdlist_mutex);
 }
 
-static void g2d_add_cmdlist_to_inuse(struct drm_exynos_file_private *file_priv,
-				     struct g2d_cmdlist_node *node)
+static void g2d_add_cmdlist_to_inuse(struct drm_exyanals_file_private *file_priv,
+				     struct g2d_cmdlist_analde *analde)
 {
-	struct g2d_cmdlist_node *lnode;
+	struct g2d_cmdlist_analde *lanalde;
 
 	if (list_empty(&file_priv->inuse_cmdlist))
 		goto add_to_list;
 
 	/* this links to base address of new cmdlist */
-	lnode = list_entry(file_priv->inuse_cmdlist.prev,
-				struct g2d_cmdlist_node, list);
-	lnode->cmdlist->data[lnode->cmdlist->last] = node->dma_addr;
+	lanalde = list_entry(file_priv->inuse_cmdlist.prev,
+				struct g2d_cmdlist_analde, list);
+	lanalde->cmdlist->data[lanalde->cmdlist->last] = analde->dma_addr;
 
 add_to_list:
-	list_add_tail(&node->list, &file_priv->inuse_cmdlist);
+	list_add_tail(&analde->list, &file_priv->inuse_cmdlist);
 
-	if (node->event)
-		list_add_tail(&node->event->base.link, &file_priv->event_list);
+	if (analde->event)
+		list_add_tail(&analde->event->base.link, &file_priv->event_list);
 }
 
 static void g2d_userptr_put_dma_addr(struct g2d_data *g2d,
@@ -417,7 +417,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct g2d_data *g2d,
 					struct drm_file *filp,
 					void **obj)
 {
-	struct drm_exynos_file_private *file_priv = filp->driver_priv;
+	struct drm_exyanals_file_private *file_priv = filp->driver_priv;
 	struct g2d_cmdlist_userptr *g2d_userptr;
 	struct sg_table	*sgt;
 	unsigned long start, end;
@@ -446,7 +446,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct g2d_data *g2d,
 			/*
 			 * at this moment, maybe g2d dma is accessing this
 			 * g2d_userptr memory region so just remove this
-			 * g2d_userptr object from userptr_list not to be
+			 * g2d_userptr object from userptr_list analt to be
 			 * referred again and also except it the userptr
 			 * pool to be released after the dma access completion.
 			 */
@@ -460,7 +460,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct g2d_data *g2d,
 
 	g2d_userptr = kzalloc(sizeof(*g2d_userptr), GFP_KERNEL);
 	if (!g2d_userptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	refcount_set(&g2d_userptr->refcount, 1);
 	g2d_userptr->size = size;
@@ -472,7 +472,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct g2d_data *g2d,
 	g2d_userptr->pages = kvmalloc_array(npages, sizeof(*g2d_userptr->pages),
 					    GFP_KERNEL);
 	if (!g2d_userptr->pages) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free;
 	}
 
@@ -492,7 +492,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct g2d_data *g2d,
 
 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unpin_pages;
 	}
 
@@ -547,7 +547,7 @@ err_free:
 
 static void g2d_userptr_free_all(struct g2d_data *g2d, struct drm_file *filp)
 {
-	struct drm_exynos_file_private *file_priv = filp->driver_priv;
+	struct drm_exyanals_file_private *file_priv = filp->driver_priv;
 	struct g2d_cmdlist_userptr *g2d_userptr, *n;
 
 	list_for_each_entry_safe(g2d_userptr, n, &file_priv->userptr_list, list)
@@ -589,8 +589,8 @@ static enum g2d_reg_type g2d_get_reg_type(struct g2d_data *g2d, int reg_offset)
 		reg_type = REG_TYPE_MSK;
 		break;
 	default:
-		reg_type = REG_TYPE_NONE;
-		DRM_DEV_ERROR(g2d->dev, "Unknown register offset![%d]\n",
+		reg_type = REG_TYPE_ANALNE;
+		DRM_DEV_ERROR(g2d->dev, "Unkanalwn register offset![%d]\n",
 			      reg_offset);
 		break;
 	}
@@ -663,7 +663,7 @@ static bool g2d_check_buf_desc_is_valid(struct g2d_data *g2d,
 		(unsigned long)buf_desc->right_x * bpp - 1;
 
 	/*
-	 * Since right_x > left_x and bottom_y > top_y we already know
+	 * Since right_x > left_x and bottom_y > top_y we already kanalw
 	 * that the first_pos < last_pos (first_pos being the position
 	 * of the first byte the engine accesses), it just remains to
 	 * check if last_pos is smaller then the buffer size.
@@ -679,12 +679,12 @@ static bool g2d_check_buf_desc_is_valid(struct g2d_data *g2d,
 }
 
 static int g2d_map_cmdlist_gem(struct g2d_data *g2d,
-				struct g2d_cmdlist_node *node,
+				struct g2d_cmdlist_analde *analde,
 				struct drm_device *drm_dev,
 				struct drm_file *file)
 {
-	struct g2d_cmdlist *cmdlist = node->cmdlist;
-	struct g2d_buf_info *buf_info = &node->buf_info;
+	struct g2d_cmdlist *cmdlist = analde->cmdlist;
+	struct g2d_buf_info *buf_info = &analde->buf_info;
 	int offset;
 	int ret;
 	int i;
@@ -702,7 +702,7 @@ static int g2d_map_cmdlist_gem(struct g2d_data *g2d,
 		handle = cmdlist->data[reg_pos + 1];
 
 		reg_type = g2d_get_reg_type(g2d, offset);
-		if (reg_type == REG_TYPE_NONE) {
+		if (reg_type == REG_TYPE_ANALNE) {
 			ret = -EFAULT;
 			goto err;
 		}
@@ -710,28 +710,28 @@ static int g2d_map_cmdlist_gem(struct g2d_data *g2d,
 		buf_desc = &buf_info->descs[reg_type];
 
 		if (buf_info->types[reg_type] == BUF_TYPE_GEM) {
-			struct exynos_drm_gem *exynos_gem;
+			struct exyanals_drm_gem *exyanals_gem;
 
-			exynos_gem = exynos_drm_gem_get(file, handle);
-			if (!exynos_gem) {
+			exyanals_gem = exyanals_drm_gem_get(file, handle);
+			if (!exyanals_gem) {
 				ret = -EFAULT;
 				goto err;
 			}
 
 			if (!g2d_check_buf_desc_is_valid(g2d, buf_desc,
-							 reg_type, exynos_gem->size)) {
-				exynos_drm_gem_put(exynos_gem);
+							 reg_type, exyanals_gem->size)) {
+				exyanals_drm_gem_put(exyanals_gem);
 				ret = -EFAULT;
 				goto err;
 			}
 
-			addr = &exynos_gem->dma_addr;
-			buf_info->obj[reg_type] = exynos_gem;
+			addr = &exyanals_gem->dma_addr;
+			buf_info->obj[reg_type] = exyanals_gem;
 		} else {
-			struct drm_exynos_g2d_userptr g2d_userptr;
+			struct drm_exyanals_g2d_userptr g2d_userptr;
 
 			if (copy_from_user(&g2d_userptr, (void __user *)handle,
-				sizeof(struct drm_exynos_g2d_userptr))) {
+				sizeof(struct drm_exyanals_g2d_userptr))) {
 				ret = -EFAULT;
 				goto err;
 			}
@@ -766,10 +766,10 @@ err:
 }
 
 static void g2d_unmap_cmdlist_gem(struct g2d_data *g2d,
-				  struct g2d_cmdlist_node *node,
+				  struct g2d_cmdlist_analde *analde,
 				  struct drm_file *filp)
 {
-	struct g2d_buf_info *buf_info = &node->buf_info;
+	struct g2d_buf_info *buf_info = &analde->buf_info;
 	int i;
 
 	for (i = 0; i < buf_info->map_nr; i++) {
@@ -783,11 +783,11 @@ static void g2d_unmap_cmdlist_gem(struct g2d_data *g2d,
 		obj = buf_info->obj[reg_type];
 
 		if (buf_info->types[reg_type] == BUF_TYPE_GEM)
-			exynos_drm_gem_put(obj);
+			exyanals_drm_gem_put(obj);
 		else
 			g2d_userptr_put_dma_addr(g2d, obj, false);
 
-		buf_info->reg_types[i] = REG_TYPE_NONE;
+		buf_info->reg_types[i] = REG_TYPE_ANALNE;
 		buf_info->obj[reg_type] = NULL;
 		buf_info->types[reg_type] = 0;
 		memset(buf_desc, 0x00, sizeof(*buf_desc));
@@ -797,68 +797,68 @@ static void g2d_unmap_cmdlist_gem(struct g2d_data *g2d,
 }
 
 static void g2d_dma_start(struct g2d_data *g2d,
-			  struct g2d_runqueue_node *runqueue_node)
+			  struct g2d_runqueue_analde *runqueue_analde)
 {
-	struct g2d_cmdlist_node *node =
-				list_first_entry(&runqueue_node->run_cmdlist,
-						struct g2d_cmdlist_node, list);
+	struct g2d_cmdlist_analde *analde =
+				list_first_entry(&runqueue_analde->run_cmdlist,
+						struct g2d_cmdlist_analde, list);
 
 	set_bit(G2D_BIT_ENGINE_BUSY, &g2d->flags);
-	writel_relaxed(node->dma_addr, g2d->regs + G2D_DMA_SFR_BASE_ADDR);
+	writel_relaxed(analde->dma_addr, g2d->regs + G2D_DMA_SFR_BASE_ADDR);
 	writel_relaxed(G2D_DMA_START, g2d->regs + G2D_DMA_COMMAND);
 }
 
-static struct g2d_runqueue_node *g2d_get_runqueue_node(struct g2d_data *g2d)
+static struct g2d_runqueue_analde *g2d_get_runqueue_analde(struct g2d_data *g2d)
 {
-	struct g2d_runqueue_node *runqueue_node;
+	struct g2d_runqueue_analde *runqueue_analde;
 
 	if (list_empty(&g2d->runqueue))
 		return NULL;
 
-	runqueue_node = list_first_entry(&g2d->runqueue,
-					 struct g2d_runqueue_node, list);
-	list_del_init(&runqueue_node->list);
-	return runqueue_node;
+	runqueue_analde = list_first_entry(&g2d->runqueue,
+					 struct g2d_runqueue_analde, list);
+	list_del_init(&runqueue_analde->list);
+	return runqueue_analde;
 }
 
-static void g2d_free_runqueue_node(struct g2d_data *g2d,
-				   struct g2d_runqueue_node *runqueue_node)
+static void g2d_free_runqueue_analde(struct g2d_data *g2d,
+				   struct g2d_runqueue_analde *runqueue_analde)
 {
-	struct g2d_cmdlist_node *node;
+	struct g2d_cmdlist_analde *analde;
 
 	mutex_lock(&g2d->cmdlist_mutex);
 	/*
 	 * commands in run_cmdlist have been completed so unmap all gem
-	 * objects in each command node so that they are unreferenced.
+	 * objects in each command analde so that they are unreferenced.
 	 */
-	list_for_each_entry(node, &runqueue_node->run_cmdlist, list)
-		g2d_unmap_cmdlist_gem(g2d, node, runqueue_node->filp);
-	list_splice_tail_init(&runqueue_node->run_cmdlist, &g2d->free_cmdlist);
+	list_for_each_entry(analde, &runqueue_analde->run_cmdlist, list)
+		g2d_unmap_cmdlist_gem(g2d, analde, runqueue_analde->filp);
+	list_splice_tail_init(&runqueue_analde->run_cmdlist, &g2d->free_cmdlist);
 	mutex_unlock(&g2d->cmdlist_mutex);
 
-	kmem_cache_free(g2d->runqueue_slab, runqueue_node);
+	kmem_cache_free(g2d->runqueue_slab, runqueue_analde);
 }
 
 /**
- * g2d_remove_runqueue_nodes - remove items from the list of runqueue nodes
+ * g2d_remove_runqueue_analdes - remove items from the list of runqueue analdes
  * @g2d: G2D state object
- * @file: if not zero, only remove items with this DRM file
+ * @file: if analt zero, only remove items with this DRM file
  *
  * Has to be called under runqueue lock.
  */
-static void g2d_remove_runqueue_nodes(struct g2d_data *g2d, struct drm_file *file)
+static void g2d_remove_runqueue_analdes(struct g2d_data *g2d, struct drm_file *file)
 {
-	struct g2d_runqueue_node *node, *n;
+	struct g2d_runqueue_analde *analde, *n;
 
 	if (list_empty(&g2d->runqueue))
 		return;
 
-	list_for_each_entry_safe(node, n, &g2d->runqueue, list) {
-		if (file && node->filp != file)
+	list_for_each_entry_safe(analde, n, &g2d->runqueue, list) {
+		if (file && analde->filp != file)
 			continue;
 
-		list_del_init(&node->list);
-		g2d_free_runqueue_node(g2d, node);
+		list_del_init(&analde->list);
+		g2d_free_runqueue_analde(g2d, analde);
 	}
 }
 
@@ -866,33 +866,33 @@ static void g2d_runqueue_worker(struct work_struct *work)
 {
 	struct g2d_data *g2d = container_of(work, struct g2d_data,
 					    runqueue_work);
-	struct g2d_runqueue_node *runqueue_node;
+	struct g2d_runqueue_analde *runqueue_analde;
 
 	/*
-	 * The engine is busy and the completion of the current node is going
-	 * to poke the runqueue worker, so nothing to do here.
+	 * The engine is busy and the completion of the current analde is going
+	 * to poke the runqueue worker, so analthing to do here.
 	 */
 	if (test_bit(G2D_BIT_ENGINE_BUSY, &g2d->flags))
 		return;
 
 	mutex_lock(&g2d->runqueue_mutex);
 
-	runqueue_node = g2d->runqueue_node;
-	g2d->runqueue_node = NULL;
+	runqueue_analde = g2d->runqueue_analde;
+	g2d->runqueue_analde = NULL;
 
-	if (runqueue_node) {
+	if (runqueue_analde) {
 		pm_runtime_mark_last_busy(g2d->dev);
 		pm_runtime_put_autosuspend(g2d->dev);
 
-		complete(&runqueue_node->complete);
-		if (runqueue_node->async)
-			g2d_free_runqueue_node(g2d, runqueue_node);
+		complete(&runqueue_analde->complete);
+		if (runqueue_analde->async)
+			g2d_free_runqueue_analde(g2d, runqueue_analde);
 	}
 
 	if (!test_bit(G2D_BIT_SUSPEND_RUNQUEUE, &g2d->flags)) {
-		g2d->runqueue_node = g2d_get_runqueue_node(g2d);
+		g2d->runqueue_analde = g2d_get_runqueue_analde(g2d);
 
-		if (g2d->runqueue_node) {
+		if (g2d->runqueue_analde) {
 			int ret;
 
 			ret = pm_runtime_resume_and_get(g2d->dev);
@@ -901,7 +901,7 @@ static void g2d_runqueue_worker(struct work_struct *work)
 				goto out;
 			}
 
-			g2d_dma_start(g2d, g2d->runqueue_node);
+			g2d_dma_start(g2d, g2d->runqueue_analde);
 		}
 	}
 
@@ -909,23 +909,23 @@ out:
 	mutex_unlock(&g2d->runqueue_mutex);
 }
 
-static void g2d_finish_event(struct g2d_data *g2d, u32 cmdlist_no)
+static void g2d_finish_event(struct g2d_data *g2d, u32 cmdlist_anal)
 {
 	struct drm_device *drm_dev = g2d->drm_dev;
-	struct g2d_runqueue_node *runqueue_node = g2d->runqueue_node;
-	struct drm_exynos_pending_g2d_event *e;
-	struct timespec64 now;
+	struct g2d_runqueue_analde *runqueue_analde = g2d->runqueue_analde;
+	struct drm_exyanals_pending_g2d_event *e;
+	struct timespec64 analw;
 
-	if (list_empty(&runqueue_node->event_list))
+	if (list_empty(&runqueue_analde->event_list))
 		return;
 
-	e = list_first_entry(&runqueue_node->event_list,
-			     struct drm_exynos_pending_g2d_event, base.link);
+	e = list_first_entry(&runqueue_analde->event_list,
+			     struct drm_exyanals_pending_g2d_event, base.link);
 
-	ktime_get_ts64(&now);
-	e->event.tv_sec = now.tv_sec;
-	e->event.tv_usec = now.tv_nsec / NSEC_PER_USEC;
-	e->event.cmdlist_no = cmdlist_no;
+	ktime_get_ts64(&analw);
+	e->event.tv_sec = analw.tv_sec;
+	e->event.tv_usec = analw.tv_nsec / NSEC_PER_USEC;
+	e->event.cmdlist_anal = cmdlist_anal;
 
 	drm_send_event(drm_dev, &e->base);
 }
@@ -940,12 +940,12 @@ static irqreturn_t g2d_irq_handler(int irq, void *dev_id)
 		writel_relaxed(pending, g2d->regs + G2D_INTC_PEND);
 
 	if (pending & G2D_INTP_GCMD_FIN) {
-		u32 cmdlist_no = readl_relaxed(g2d->regs + G2D_DMA_STATUS);
+		u32 cmdlist_anal = readl_relaxed(g2d->regs + G2D_DMA_STATUS);
 
-		cmdlist_no = (cmdlist_no & G2D_DMA_LIST_DONE_COUNT) >>
+		cmdlist_anal = (cmdlist_anal & G2D_DMA_LIST_DONE_COUNT) >>
 						G2D_DMA_LIST_DONE_COUNT_OFFSET;
 
-		g2d_finish_event(g2d, cmdlist_no);
+		g2d_finish_event(g2d, cmdlist_anal);
 
 		writel_relaxed(0, g2d->regs + G2D_DMA_HOLD_CMD);
 		if (!(pending & G2D_INTP_ACMD_FIN)) {
@@ -963,42 +963,42 @@ static irqreturn_t g2d_irq_handler(int irq, void *dev_id)
 }
 
 /**
- * g2d_wait_finish - wait for the G2D engine to finish the current runqueue node
+ * g2d_wait_finish - wait for the G2D engine to finish the current runqueue analde
  * @g2d: G2D state object
- * @file: if not zero, only wait if the current runqueue node belongs
+ * @file: if analt zero, only wait if the current runqueue analde belongs
  *        to the DRM file
  *
- * Should the engine not become idle after a 100ms timeout, a hardware
+ * Should the engine analt become idle after a 100ms timeout, a hardware
  * reset is issued.
  */
 static void g2d_wait_finish(struct g2d_data *g2d, struct drm_file *file)
 {
 	struct device *dev = g2d->dev;
 
-	struct g2d_runqueue_node *runqueue_node = NULL;
+	struct g2d_runqueue_analde *runqueue_analde = NULL;
 	unsigned int tries = 10;
 
 	mutex_lock(&g2d->runqueue_mutex);
 
-	/* If no node is currently processed, we have nothing to do. */
-	if (!g2d->runqueue_node)
+	/* If anal analde is currently processed, we have analthing to do. */
+	if (!g2d->runqueue_analde)
 		goto out;
 
-	runqueue_node = g2d->runqueue_node;
+	runqueue_analde = g2d->runqueue_analde;
 
 	/* Check if the currently processed item belongs to us. */
-	if (file && runqueue_node->filp != file)
+	if (file && runqueue_analde->filp != file)
 		goto out;
 
 	mutex_unlock(&g2d->runqueue_mutex);
 
 	/* Wait for the G2D engine to finish. */
-	while (tries-- && (g2d->runqueue_node == runqueue_node))
+	while (tries-- && (g2d->runqueue_analde == runqueue_analde))
 		mdelay(10);
 
 	mutex_lock(&g2d->runqueue_mutex);
 
-	if (g2d->runqueue_node != runqueue_node)
+	if (g2d->runqueue_analde != runqueue_analde)
 		goto out;
 
 	dev_err(dev, "wait timed out, resetting engine...\n");
@@ -1012,25 +1012,25 @@ static void g2d_wait_finish(struct g2d_data *g2d, struct drm_file *file)
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
-	complete(&runqueue_node->complete);
-	if (runqueue_node->async)
-		g2d_free_runqueue_node(g2d, runqueue_node);
+	complete(&runqueue_analde->complete);
+	if (runqueue_analde->async)
+		g2d_free_runqueue_analde(g2d, runqueue_analde);
 
 out:
 	mutex_unlock(&g2d->runqueue_mutex);
 }
 
 static int g2d_check_reg_offset(struct g2d_data *g2d,
-				struct g2d_cmdlist_node *node,
+				struct g2d_cmdlist_analde *analde,
 				int nr, bool for_addr)
 {
-	struct g2d_cmdlist *cmdlist = node->cmdlist;
+	struct g2d_cmdlist *cmdlist = analde->cmdlist;
 	int reg_offset;
 	int index;
 	int i;
 
 	for (i = 0; i < nr; i++) {
-		struct g2d_buf_info *buf_info = &node->buf_info;
+		struct g2d_buf_info *buf_info = &analde->buf_info;
 		struct g2d_buf_desc *buf_desc;
 		enum g2d_reg_type reg_type;
 		unsigned long value;
@@ -1125,34 +1125,34 @@ err:
 }
 
 /* ioctl functions */
-int exynos_g2d_get_ver_ioctl(struct drm_device *drm_dev, void *data,
+int exyanals_g2d_get_ver_ioctl(struct drm_device *drm_dev, void *data,
 			     struct drm_file *file)
 {
-	struct drm_exynos_g2d_get_ver *ver = data;
+	struct drm_exyanals_g2d_get_ver *ver = data;
 
 	ver->major = G2D_HW_MAJOR_VER;
-	ver->minor = G2D_HW_MINOR_VER;
+	ver->mianalr = G2D_HW_MIANALR_VER;
 
 	return 0;
 }
 
-int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
+int exyanals_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 				 struct drm_file *file)
 {
-	struct drm_exynos_file_private *file_priv = file->driver_priv;
-	struct exynos_drm_private *priv = drm_dev->dev_private;
+	struct drm_exyanals_file_private *file_priv = file->driver_priv;
+	struct exyanals_drm_private *priv = drm_dev->dev_private;
 	struct g2d_data *g2d = dev_get_drvdata(priv->g2d_dev);
-	struct drm_exynos_g2d_set_cmdlist *req = data;
-	struct drm_exynos_g2d_cmd *cmd;
-	struct drm_exynos_pending_g2d_event *e;
-	struct g2d_cmdlist_node *node;
+	struct drm_exyanals_g2d_set_cmdlist *req = data;
+	struct drm_exyanals_g2d_cmd *cmd;
+	struct drm_exyanals_pending_g2d_event *e;
+	struct g2d_cmdlist_analde *analde;
 	struct g2d_cmdlist *cmdlist;
 	int size;
 	int ret;
 
-	node = g2d_get_cmdlist(g2d);
-	if (!node)
-		return -ENOMEM;
+	analde = g2d_get_cmdlist(g2d);
+	if (!analde)
+		return -EANALMEM;
 
 	/*
 	 * To avoid an integer overflow for the later size computations, we
@@ -1165,16 +1165,16 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 		return -EINVAL;
 	}
 
-	node->event = NULL;
+	analde->event = NULL;
 
-	if (req->event_type != G2D_EVENT_NOT) {
-		e = kzalloc(sizeof(*node->event), GFP_KERNEL);
+	if (req->event_type != G2D_EVENT_ANALT) {
+		e = kzalloc(sizeof(*analde->event), GFP_KERNEL);
 		if (!e) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
-		e->event.base.type = DRM_EXYNOS_G2D_EVENT;
+		e->event.base.type = DRM_EXYANALS_G2D_EVENT;
 		e->event.base.length = sizeof(e->event);
 		e->event.user_data = req->user_data;
 
@@ -1184,17 +1184,17 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 			goto err;
 		}
 
-		node->event = e;
+		analde->event = e;
 	}
 
-	cmdlist = node->cmdlist;
+	cmdlist = analde->cmdlist;
 
 	cmdlist->last = 0;
 
 	/*
 	 * If don't clear SFR registers, the cmdlist is affected by register
 	 * values of previous cmdlist. G2D hw executes SFR clear command and
-	 * a next command at the same time then the next command is ignored and
+	 * a next command at the same time then the next command is iganalred and
 	 * is executed rightly from next next command, so needs a dummy command
 	 * to next command of SFR clear command.
 	 */
@@ -1212,7 +1212,7 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	 * that one interrupt is occurred after all command lists
 	 * have been completed.
 	 */
-	if (node->event) {
+	if (analde->event) {
 		cmdlist->data[cmdlist->last++] = G2D_INTEN;
 		cmdlist->data[cmdlist->last++] = G2D_INTEN_ACF | G2D_INTEN_GCF;
 		cmdlist->data[cmdlist->last++] = G2D_DMA_HOLD_CMD;
@@ -1234,7 +1234,7 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 		goto err_free_event;
 	}
 
-	cmd = (struct drm_exynos_g2d_cmd *)(unsigned long)req->cmd;
+	cmd = (struct drm_exyanals_g2d_cmd *)(unsigned long)req->cmd;
 
 	if (copy_from_user(cmdlist->data + cmdlist->last,
 				(void __user *)cmd,
@@ -1244,15 +1244,15 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	}
 	cmdlist->last += req->cmd_nr * 2;
 
-	ret = g2d_check_reg_offset(g2d, node, req->cmd_nr, false);
+	ret = g2d_check_reg_offset(g2d, analde, req->cmd_nr, false);
 	if (ret < 0)
 		goto err_free_event;
 
-	node->buf_info.map_nr = req->cmd_buf_nr;
+	analde->buf_info.map_nr = req->cmd_buf_nr;
 	if (req->cmd_buf_nr) {
-		struct drm_exynos_g2d_cmd *cmd_buf;
+		struct drm_exyanals_g2d_cmd *cmd_buf;
 
-		cmd_buf = (struct drm_exynos_g2d_cmd *)
+		cmd_buf = (struct drm_exyanals_g2d_cmd *)
 				(unsigned long)req->cmd_buf;
 
 		if (copy_from_user(cmdlist->data + cmdlist->last,
@@ -1263,11 +1263,11 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 		}
 		cmdlist->last += req->cmd_buf_nr * 2;
 
-		ret = g2d_check_reg_offset(g2d, node, req->cmd_buf_nr, true);
+		ret = g2d_check_reg_offset(g2d, analde, req->cmd_buf_nr, true);
 		if (ret < 0)
 			goto err_free_event;
 
-		ret = g2d_map_cmdlist_gem(g2d, node, drm_dev, file);
+		ret = g2d_map_cmdlist_gem(g2d, analde, drm_dev, file);
 		if (ret < 0)
 			goto err_unmap;
 	}
@@ -1281,65 +1281,65 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	/* tail */
 	cmdlist->data[cmdlist->last] = 0;
 
-	g2d_add_cmdlist_to_inuse(file_priv, node);
+	g2d_add_cmdlist_to_inuse(file_priv, analde);
 
 	return 0;
 
 err_unmap:
-	g2d_unmap_cmdlist_gem(g2d, node, file);
+	g2d_unmap_cmdlist_gem(g2d, analde, file);
 err_free_event:
-	if (node->event)
-		drm_event_cancel_free(drm_dev, &node->event->base);
+	if (analde->event)
+		drm_event_cancel_free(drm_dev, &analde->event->base);
 err:
-	g2d_put_cmdlist(g2d, node);
+	g2d_put_cmdlist(g2d, analde);
 	return ret;
 }
 
-int exynos_g2d_exec_ioctl(struct drm_device *drm_dev, void *data,
+int exyanals_g2d_exec_ioctl(struct drm_device *drm_dev, void *data,
 			  struct drm_file *file)
 {
-	struct drm_exynos_file_private *file_priv = file->driver_priv;
-	struct exynos_drm_private *priv = drm_dev->dev_private;
+	struct drm_exyanals_file_private *file_priv = file->driver_priv;
+	struct exyanals_drm_private *priv = drm_dev->dev_private;
 	struct g2d_data *g2d = dev_get_drvdata(priv->g2d_dev);
-	struct drm_exynos_g2d_exec *req = data;
-	struct g2d_runqueue_node *runqueue_node;
+	struct drm_exyanals_g2d_exec *req = data;
+	struct g2d_runqueue_analde *runqueue_analde;
 	struct list_head *run_cmdlist;
 	struct list_head *event_list;
 
-	runqueue_node = kmem_cache_alloc(g2d->runqueue_slab, GFP_KERNEL);
-	if (!runqueue_node)
-		return -ENOMEM;
+	runqueue_analde = kmem_cache_alloc(g2d->runqueue_slab, GFP_KERNEL);
+	if (!runqueue_analde)
+		return -EANALMEM;
 
-	run_cmdlist = &runqueue_node->run_cmdlist;
-	event_list = &runqueue_node->event_list;
+	run_cmdlist = &runqueue_analde->run_cmdlist;
+	event_list = &runqueue_analde->event_list;
 	INIT_LIST_HEAD(run_cmdlist);
 	INIT_LIST_HEAD(event_list);
-	init_completion(&runqueue_node->complete);
-	runqueue_node->async = req->async;
+	init_completion(&runqueue_analde->complete);
+	runqueue_analde->async = req->async;
 
 	list_splice_init(&file_priv->inuse_cmdlist, run_cmdlist);
 	list_splice_init(&file_priv->event_list, event_list);
 
 	if (list_empty(run_cmdlist)) {
-		dev_err(g2d->dev, "there is no inuse cmdlist\n");
-		kmem_cache_free(g2d->runqueue_slab, runqueue_node);
+		dev_err(g2d->dev, "there is anal inuse cmdlist\n");
+		kmem_cache_free(g2d->runqueue_slab, runqueue_analde);
 		return -EPERM;
 	}
 
 	mutex_lock(&g2d->runqueue_mutex);
-	runqueue_node->pid = current->pid;
-	runqueue_node->filp = file;
-	list_add_tail(&runqueue_node->list, &g2d->runqueue);
+	runqueue_analde->pid = current->pid;
+	runqueue_analde->filp = file;
+	list_add_tail(&runqueue_analde->list, &g2d->runqueue);
 	mutex_unlock(&g2d->runqueue_mutex);
 
-	/* Let the runqueue know that there is work to do. */
+	/* Let the runqueue kanalw that there is work to do. */
 	queue_work(g2d->g2d_workq, &g2d->runqueue_work);
 
 	if (req->async)
 		goto out;
 
-	wait_for_completion(&runqueue_node->complete);
-	g2d_free_runqueue_node(g2d, runqueue_node);
+	wait_for_completion(&runqueue_analde->complete);
+	g2d_free_runqueue_analde(g2d, runqueue_analde);
 
 out:
 	return 0;
@@ -1347,7 +1347,7 @@ out:
 
 int g2d_open(struct drm_device *drm_dev, struct drm_file *file)
 {
-	struct drm_exynos_file_private *file_priv = file->driver_priv;
+	struct drm_exyanals_file_private *file_priv = file->driver_priv;
 
 	INIT_LIST_HEAD(&file_priv->inuse_cmdlist);
 	INIT_LIST_HEAD(&file_priv->event_list);
@@ -1358,24 +1358,24 @@ int g2d_open(struct drm_device *drm_dev, struct drm_file *file)
 
 void g2d_close(struct drm_device *drm_dev, struct drm_file *file)
 {
-	struct drm_exynos_file_private *file_priv = file->driver_priv;
-	struct exynos_drm_private *priv = drm_dev->dev_private;
+	struct drm_exyanals_file_private *file_priv = file->driver_priv;
+	struct exyanals_drm_private *priv = drm_dev->dev_private;
 	struct g2d_data *g2d;
-	struct g2d_cmdlist_node *node, *n;
+	struct g2d_cmdlist_analde *analde, *n;
 
 	if (!priv->g2d_dev)
 		return;
 
 	g2d = dev_get_drvdata(priv->g2d_dev);
 
-	/* Remove the runqueue nodes that belong to us. */
+	/* Remove the runqueue analdes that belong to us. */
 	mutex_lock(&g2d->runqueue_mutex);
-	g2d_remove_runqueue_nodes(g2d, file);
+	g2d_remove_runqueue_analdes(g2d, file);
 	mutex_unlock(&g2d->runqueue_mutex);
 
 	/*
-	 * Wait for the runqueue worker to finish its current node.
-	 * After this the engine should no longer be accessing any
+	 * Wait for the runqueue worker to finish its current analde.
+	 * After this the engine should anal longer be accessing any
 	 * memory belonging to us.
 	 */
 	g2d_wait_finish(g2d, file);
@@ -1387,9 +1387,9 @@ void g2d_close(struct drm_device *drm_dev, struct drm_file *file)
 	 * Properly unmap these buffers here.
 	 */
 	mutex_lock(&g2d->cmdlist_mutex);
-	list_for_each_entry_safe(node, n, &file_priv->inuse_cmdlist, list) {
-		g2d_unmap_cmdlist_gem(g2d, node, file);
-		list_move_tail(&node->list, &g2d->free_cmdlist);
+	list_for_each_entry_safe(analde, n, &file_priv->inuse_cmdlist, list) {
+		g2d_unmap_cmdlist_gem(g2d, analde, file);
+		list_move_tail(&analde->list, &g2d->free_cmdlist);
 	}
 	mutex_unlock(&g2d->cmdlist_mutex);
 
@@ -1401,7 +1401,7 @@ static int g2d_bind(struct device *dev, struct device *master, void *data)
 {
 	struct g2d_data *g2d = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_private *priv = drm_dev->dev_private;
+	struct exyanals_drm_private *priv = drm_dev->dev_private;
 	int ret;
 
 	g2d->drm_dev = drm_dev;
@@ -1413,7 +1413,7 @@ static int g2d_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	ret = exynos_drm_register_dma(drm_dev, dev, &g2d->dma_priv);
+	ret = exyanals_drm_register_dma(drm_dev, dev, &g2d->dma_priv);
 	if (ret < 0) {
 		dev_err(dev, "failed to enable iommu.\n");
 		g2d_fini_cmdlist(g2d);
@@ -1421,8 +1421,8 @@ static int g2d_bind(struct device *dev, struct device *master, void *data)
 	}
 	priv->g2d_dev = dev;
 
-	dev_info(dev, "The Exynos G2D (ver %d.%d) successfully registered.\n",
-			G2D_HW_MAJOR_VER, G2D_HW_MINOR_VER);
+	dev_info(dev, "The Exyanals G2D (ver %d.%d) successfully registered.\n",
+			G2D_HW_MAJOR_VER, G2D_HW_MIANALR_VER);
 	return 0;
 }
 
@@ -1430,7 +1430,7 @@ static void g2d_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct g2d_data *g2d = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_private *priv = drm_dev->dev_private;
+	struct exyanals_drm_private *priv = drm_dev->dev_private;
 
 	/* Suspend operation and wait for engine idle. */
 	set_bit(G2D_BIT_SUSPEND_RUNQUEUE, &g2d->flags);
@@ -1438,7 +1438,7 @@ static void g2d_unbind(struct device *dev, struct device *master, void *data)
 	priv->g2d_dev = NULL;
 
 	cancel_work_sync(&g2d->runqueue_work);
-	exynos_drm_unregister_dma(g2d->drm_dev, dev, &g2d->dma_priv);
+	exyanals_drm_unregister_dma(g2d->drm_dev, dev, &g2d->dma_priv);
 }
 
 static const struct component_ops g2d_component_ops = {
@@ -1454,12 +1454,12 @@ static int g2d_probe(struct platform_device *pdev)
 
 	g2d = devm_kzalloc(dev, sizeof(*g2d), GFP_KERNEL);
 	if (!g2d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	g2d->runqueue_slab = kmem_cache_create("g2d_runqueue_slab",
-			sizeof(struct g2d_runqueue_node), 0, 0, NULL);
+			sizeof(struct g2d_runqueue_analde), 0, 0, NULL);
 	if (!g2d->runqueue_slab)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	g2d->dev = dev;
 
@@ -1536,8 +1536,8 @@ static void g2d_remove(struct platform_device *pdev)
 
 	component_del(&pdev->dev, &g2d_component_ops);
 
-	/* There should be no locking needed here. */
-	g2d_remove_runqueue_nodes(g2d, NULL);
+	/* There should be anal locking needed here. */
+	g2d_remove_runqueue_analdes(g2d, NULL);
 
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -1598,20 +1598,20 @@ static const struct dev_pm_ops g2d_pm_ops = {
 	RUNTIME_PM_OPS(g2d_runtime_suspend, g2d_runtime_resume, NULL)
 };
 
-static const struct of_device_id exynos_g2d_match[] = {
-	{ .compatible = "samsung,exynos5250-g2d" },
-	{ .compatible = "samsung,exynos4212-g2d" },
+static const struct of_device_id exyanals_g2d_match[] = {
+	{ .compatible = "samsung,exyanals5250-g2d" },
+	{ .compatible = "samsung,exyanals4212-g2d" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos_g2d_match);
+MODULE_DEVICE_TABLE(of, exyanals_g2d_match);
 
 struct platform_driver g2d_driver = {
 	.probe		= g2d_probe,
 	.remove_new	= g2d_remove,
 	.driver		= {
-		.name	= "exynos-drm-g2d",
+		.name	= "exyanals-drm-g2d",
 		.owner	= THIS_MODULE,
 		.pm	= pm_ptr(&g2d_pm_ops),
-		.of_match_table = exynos_g2d_match,
+		.of_match_table = exyanals_g2d_match,
 	},
 };

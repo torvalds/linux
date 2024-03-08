@@ -436,13 +436,13 @@ static int bxtwc_probe(struct platform_device *pdev)
 
 	status = acpi_evaluate_integer(ACPI_HANDLE(dev), "_HRV", NULL, &hrv);
 	if (ACPI_FAILURE(status))
-		return dev_err_probe(dev, -ENODEV, "Failed to get PMIC hardware revision\n");
+		return dev_err_probe(dev, -EANALDEV, "Failed to get PMIC hardware revision\n");
 	if (hrv != BROXTON_PMIC_WC_HRV)
-		return dev_err_probe(dev, -ENODEV, "Invalid PMIC hardware revision: %llu\n", hrv);
+		return dev_err_probe(dev, -EANALDEV, "Invalid PMIC hardware revision: %llu\n", hrv);
 
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
@@ -519,13 +519,13 @@ static int bxtwc_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to add CRIT IRQ chip\n");
 
-	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE, bxt_wc_dev, ARRAY_SIZE(bxt_wc_dev),
+	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_ANALNE, bxt_wc_dev, ARRAY_SIZE(bxt_wc_dev),
 				   NULL, 0, NULL);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to add devices\n");
 
 	/*
-	 * There is a known H/W bug. Upon reset, BIT 5 of register
+	 * There is a kanalwn H/W bug. Upon reset, BIT 5 of register
 	 * BXTWC_CHGR_LVL1_IRQ is 0 which is the expected value. However,
 	 * later it's set to 1(masked) automatically by hardware. So we
 	 * place the software workaround here to unmask it again in order

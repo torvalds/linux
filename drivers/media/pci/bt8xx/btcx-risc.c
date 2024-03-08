@@ -5,7 +5,7 @@
 
     bt848/bt878/cx2388x risc code generator.
 
-    (c) 2000-03 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+    (c) 2000-03 Gerd Kanalrr <kraxel@bytesex.org> [SuSE Labs]
 
 
 */
@@ -24,7 +24,7 @@
 
 static unsigned int btcx_debug;
 module_param(btcx_debug, int, 0644);
-MODULE_PARM_DESC(btcx_debug,"debug messages, default is 0 (no)");
+MODULE_PARM_DESC(btcx_debug,"debug messages, default is 0 (anal)");
 
 #define dprintk(fmt, arg...) do {				\
 	if (btcx_debug)						\
@@ -64,7 +64,7 @@ int btcx_riscmem_alloc(struct pci_dev *pci,
 	if (NULL == risc->cpu) {
 		cpu = dma_alloc_coherent(&pci->dev, size, &dma, GFP_KERNEL);
 		if (NULL == cpu)
-			return -ENOMEM;
+			return -EANALMEM;
 		risc->cpu  = cpu;
 		risc->dma  = dma;
 		risc->size = size;

@@ -61,7 +61,7 @@ bool intel_dsb_buffer_create(struct intel_crtc *crtc, struct intel_dsb_buffer *d
 
 void intel_dsb_buffer_cleanup(struct intel_dsb_buffer *dsb_buf)
 {
-	xe_bo_unpin_map_no_vm(dsb_buf->vma->bo);
+	xe_bo_unpin_map_anal_vm(dsb_buf->vma->bo);
 	kfree(dsb_buf->vma);
 }
 

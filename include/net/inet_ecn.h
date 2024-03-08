@@ -11,7 +11,7 @@
 #include <net/checksum.h>
 
 enum {
-	INET_ECN_NOT_ECT = 0,
+	INET_ECN_ANALT_ECT = 0,
 	INET_ECN_ECT_1 = 1,
 	INET_ECN_ECT_0 = 2,
 	INET_ECN_CE = 3,
@@ -25,9 +25,9 @@ static inline int INET_ECN_is_ce(__u8 dsfield)
 	return (dsfield & INET_ECN_MASK) == INET_ECN_CE;
 }
 
-static inline int INET_ECN_is_not_ect(__u8 dsfield)
+static inline int INET_ECN_is_analt_ect(__u8 dsfield)
 {
-	return (dsfield & INET_ECN_MASK) == INET_ECN_NOT_ECT;
+	return (dsfield & INET_ECN_MASK) == INET_ECN_ANALT_ECT;
 }
 
 static inline int INET_ECN_is_capable(__u8 dsfield)
@@ -39,7 +39,7 @@ static inline int INET_ECN_is_capable(__u8 dsfield)
  * RFC 3168 9.1.1
  *  The full-functionality option for ECN encapsulation is to copy the
  *  ECN codepoint of the inside header to the outside header on
- *  encapsulation if the inside header is not-ECT or ECT, and to set the
+ *  encapsulation if the inside header is analt-ECT or ECT, and to set the
  *  ECN codepoint of the outside header to ECT(0) if the ECN codepoint of
  *  the inside header is CE.
  */
@@ -81,7 +81,7 @@ static inline int IP_ECN_set_ce(struct iphdr *iph)
 
 	/*
 	 * After the last operation we have (in binary):
-	 * INET_ECN_NOT_ECT => 01
+	 * INET_ECN_ANALT_ECT => 01
 	 * INET_ECN_ECT_1   => 10
 	 * INET_ECN_ECT_0   => 11
 	 * INET_ECN_CE      => 00
@@ -125,17 +125,17 @@ static inline void ipv4_copy_dscp(unsigned int dscp, struct iphdr *inner)
 
 struct ipv6hdr;
 
-/* Note:
+/* Analte:
  * IP_ECN_set_ce() has to tweak IPV4 checksum when setting CE,
- * meaning both changes have no effect on skb->csum if/when CHECKSUM_COMPLETE
- * In IPv6 case, no checksum compensates the change in IPv6 header,
+ * meaning both changes have anal effect on skb->csum if/when CHECKSUM_COMPLETE
+ * In IPv6 case, anal checksum compensates the change in IPv6 header,
  * so we have to update skb->csum.
  */
 static inline int IP6_ECN_set_ce(struct sk_buff *skb, struct ipv6hdr *iph)
 {
 	__be32 from, to;
 
-	if (INET_ECN_is_not_ect(ipv6_get_dsfield(iph)))
+	if (INET_ECN_is_analt_ect(ipv6_get_dsfield(iph)))
 		return 0;
 
 	from = *(__be32 *)iph;
@@ -234,9 +234,9 @@ static inline int INET_ECN_set_ect1(struct sk_buff *skb)
  *      +---------+------------------------------------------------+
  *      |Arriving |            Arriving Outer Header               |
  *      |   Inner +---------+------------+------------+------------+
- *      |  Header | Not-ECT | ECT(0)     | ECT(1)     |     CE     |
+ *      |  Header | Analt-ECT | ECT(0)     | ECT(1)     |     CE     |
  *      +---------+---------+------------+------------+------------+
- *      | Not-ECT | Not-ECT |Not-ECT(!!!)|Not-ECT(!!!)| <drop>(!!!)|
+ *      | Analt-ECT | Analt-ECT |Analt-ECT(!!!)|Analt-ECT(!!!)| <drop>(!!!)|
  *      |  ECT(0) |  ECT(0) | ECT(0)     | ECT(1)     |     CE     |
  *      |  ECT(1) |  ECT(1) | ECT(1) (!) | ECT(1)     |     CE     |
  *      |    CE   |      CE |     CE     |     CE(!!!)|     CE     |
@@ -250,9 +250,9 @@ static inline int INET_ECN_set_ect1(struct sk_buff *skb)
  */
 static inline int __INET_ECN_decapsulate(__u8 outer, __u8 inner, bool *set_ce)
 {
-	if (INET_ECN_is_not_ect(inner)) {
+	if (INET_ECN_is_analt_ect(inner)) {
 		switch (outer & INET_ECN_MASK) {
-		case INET_ECN_NOT_ECT:
+		case INET_ECN_ANALT_ECT:
 			return 0;
 		case INET_ECN_ECT_0:
 		case INET_ECN_ECT_1:

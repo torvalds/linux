@@ -117,15 +117,15 @@ static int pm860x_touch_dt_init(struct platform_device *pdev,
 					  struct pm860x_chip *chip,
 					  int *res_x)
 {
-	struct device_node *np = pdev->dev.parent->of_node;
+	struct device_analde *np = pdev->dev.parent->of_analde;
 	struct i2c_client *i2c = (chip->id == CHIP_PM8607) ? chip->client \
 				 : chip->companion;
 	int data, n, ret;
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 	np = of_get_child_by_name(np, "touch");
 	if (!np) {
-		dev_err(&pdev->dev, "Can't find touch node\n");
+		dev_err(&pdev->dev, "Can't find touch analde\n");
 		return -EINVAL;
 	}
 	/* set GPADC MISC1 register */
@@ -141,13 +141,13 @@ static int pm860x_touch_dt_init(struct platform_device *pdev,
 	if (data) {
 		ret = pm860x_reg_write(i2c, PM8607_GPADC_MISC1, data);
 		if (ret < 0)
-			goto err_put_node;
+			goto err_put_analde;
 	}
 	/* set tsi prebias time */
 	if (!of_property_read_u32(np, "marvell,88pm860x-tsi-prebias", &data)) {
 		ret = pm860x_reg_write(i2c, PM8607_TSI_PREBIAS, data);
 		if (ret < 0)
-			goto err_put_node;
+			goto err_put_analde;
 	}
 	/* set prebias & prechg time of pen detect */
 	data = 0;
@@ -158,16 +158,16 @@ static int pm860x_touch_dt_init(struct platform_device *pdev,
 	if (data) {
 		ret = pm860x_reg_write(i2c, PM8607_PD_PREBIAS, data);
 		if (ret < 0)
-			goto err_put_node;
+			goto err_put_analde;
 	}
 	of_property_read_u32(np, "marvell,88pm860x-resistor-X", res_x);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	return 0;
 
-err_put_node:
-	of_node_put(np);
+err_put_analde:
+	of_analde_put(np);
 
 	return -EINVAL;
 }
@@ -241,12 +241,12 @@ static int pm860x_touch_probe(struct platform_device *pdev)
 	touch = devm_kzalloc(&pdev->dev, sizeof(struct pm860x_touch),
 			     GFP_KERNEL);
 	if (!touch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	touch->idev = devm_input_allocate_device(&pdev->dev);
 	if (!touch->idev) {
 		dev_err(&pdev->dev, "Failed to allocate input device!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	touch->idev->name = "88pm860x-touch";

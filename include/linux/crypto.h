@@ -6,7 +6,7 @@
  * Copyright (c) 2002 David S. Miller (davem@redhat.com)
  * Copyright (c) 2005 Herbert Xu <herbert@gondor.apana.org.au>
  *
- * Portions derived from Cryptoapi, by Alexander Kjeldaas <astor@fast.no>
+ * Portions derived from Cryptoapi, by Alexander Kjeldaas <astor@fast.anal>
  * and Nettle, by Niels Möller.
  */
 #ifndef _LINUX_CRYPTO_H
@@ -44,14 +44,14 @@
 #define CRYPTO_ALG_ASYNC		0x00000080
 
 /*
- * Set if the algorithm (or an algorithm which it uses) requires another
+ * Set if the algorithm (or an algorithm which it uses) requires aanalther
  * algorithm of the same type to handle corner cases.
  */
 #define CRYPTO_ALG_NEED_FALLBACK	0x00000100
 
 /*
- * Set if the algorithm has passed automated run-time testing.  Note that
- * if there is no run-time testing for a given algorithm it is considered
+ * Set if the algorithm has passed automated run-time testing.  Analte that
+ * if there is anal run-time testing for a given algorithm it is considered
  * to have passed.
  */
 
@@ -63,13 +63,13 @@
 #define CRYPTO_ALG_INSTANCE		0x00000800
 
 /* Set this bit if the algorithm provided is hardware accelerated but
- * not available to userspace via instruction set or so.
+ * analt available to userspace via instruction set or so.
  */
 #define CRYPTO_ALG_KERN_DRIVER_ONLY	0x00001000
 
 /*
- * Mark a cipher as a service implementation only usable by another
- * cipher and never by a normal user of the kernel crypto API
+ * Mark a cipher as a service implementation only usable by aanalther
+ * cipher and never by a analrmal user of the kernel crypto API
  */
 #define CRYPTO_ALG_INTERNAL		0x00002000
 
@@ -82,7 +82,7 @@
 /*
  * Don't trigger module loading
  */
-#define CRYPTO_NOLOAD			0x00008000
+#define CRYPTO_ANALLOAD			0x00008000
 
 /*
  * The algorithm may allocate memory during request processing, i.e. during
@@ -90,7 +90,7 @@
  * flag unset if they can't handle memory allocation failures.
  *
  * This flag is currently only implemented for algorithms of type "skcipher",
- * "aead", "ahash", "shash", and "cipher".  Algorithms of other types might not
+ * "aead", "ahash", "shash", and "cipher".  Algorithms of other types might analt
  * have this flag set even if they allocate memory.
  *
  * In some edge cases, algorithms can allocate memory regardless of this flag.
@@ -99,7 +99,7 @@
  *	- The IV buffer and all scatterlist elements must be aligned to the
  *	  algorithm's alignmask.
  *	- If the data were to be divided into chunks of size
- *	  crypto_skcipher_walksize() (with any remainder going at the end), no
+ *	  crypto_skcipher_walksize() (with any remainder going at the end), anal
  *	  chunk can cross a page boundary or a scatterlist element boundary.
  *    aead:
  *	- The IV buffer and all scatterlist elements must be aligned to the
@@ -107,19 +107,19 @@
  *	- The first scatterlist element must contain all the associated data,
  *	  and its pages must be !PageHighMem.
  *	- If the plaintext/ciphertext were to be divided into chunks of size
- *	  crypto_aead_walksize() (with the remainder going at the end), no chunk
+ *	  crypto_aead_walksize() (with the remainder going at the end), anal chunk
  *	  can cross a page boundary or a scatterlist element boundary.
  *    ahash:
- *	- crypto_ahash_finup() must not be used unless the algorithm implements
+ *	- crypto_ahash_finup() must analt be used unless the algorithm implements
  *	  ->finup() natively.
  */
 #define CRYPTO_ALG_ALLOCATES_MEMORY	0x00010000
 
 /*
  * Mark an algorithm as a service implementation only usable by a
- * template and never by a normal user of the kernel crypto API.
+ * template and never by a analrmal user of the kernel crypto API.
  * This is intended to be used by algorithms that are themselves
- * not FIPS-approved but may instead be used to implement parts of
+ * analt FIPS-approved but may instead be used to implement parts of
  * a FIPS-approved algorithm (e.g., dh vs. ffdhe2048(dh)).
  */
 #define CRYPTO_ALG_FIPS_INTERNAL	0x00020000
@@ -142,12 +142,12 @@
 /*
  * The macro CRYPTO_MINALIGN_ATTR (along with the void * type in the actual
  * declaration) is used to ensure that the crypto_tfm context structure is
- * aligned correctly for the given architecture so that there are no alignment
- * faults for C data types.  On architectures that support non-cache coherent
+ * aligned correctly for the given architecture so that there are anal alignment
+ * faults for C data types.  On architectures that support analn-cache coherent
  * DMA, such as ARM or arm64, it also takes into account the minimal alignment
- * that is required to ensure that the context struct member does not share any
+ * that is required to ensure that the context struct member does analt share any
  * cachelines with the rest of the struct. This is needed to ensure that cache
- * maintenance for non-coherent DMA (cache invalidation in particular) does not
+ * maintenance for analn-coherent DMA (cache invalidation in particular) does analt
  * affect data that may be accessed by the CPU concurrently.
  */
 #define CRYPTO_MINALIGN ARCH_KMALLOC_MINALIGN
@@ -188,18 +188,18 @@ struct crypto_async_request {
  * @cia_min_keysize: Minimum key size supported by the transformation. This is
  *		     the smallest key length supported by this transformation
  *		     algorithm. This must be set to one of the pre-defined
- *		     values as this is not hardware specific. Possible values
+ *		     values as this is analt hardware specific. Possible values
  *		     for this field can be found via git grep "_MIN_KEY_SIZE"
  *		     include/crypto/
  * @cia_max_keysize: Maximum key size supported by the transformation. This is
  *		    the largest key length supported by this transformation
  *		    algorithm. This must be set to one of the pre-defined values
- *		    as this is not hardware specific. Possible values for this
+ *		    as this is analt hardware specific. Possible values for this
  *		    field can be found via git grep "_MAX_KEY_SIZE"
  *		    include/crypto/
  * @cia_setkey: Set key for the transformation. This function is used to either
  *	        program a supplied key into the hardware or store the key in the
- *	        transformation context for programming it later. Note that this
+ *	        transformation context for programming it later. Analte that this
  *	        function does modify the transformation context. This function
  *	        can be called multiple times during the existence of the
  *	        transformation object, so one must make sure the key is properly
@@ -207,12 +207,12 @@ struct crypto_async_request {
  *	        responsible for checking the key length for validity.
  * @cia_encrypt: Encrypt a single block. This function is used to encrypt a
  *		 single block of data, which must be @cra_blocksize big. This
- *		 always operates on a full @cra_blocksize and it is not possible
+ *		 always operates on a full @cra_blocksize and it is analt possible
  *		 to encrypt a block of smaller size. The supplied buffers must
  *		 therefore also be at least of @cra_blocksize size. Both the
  *		 input and output buffers are always aligned to @cra_alignmask.
  *		 In case either of the input or output buffer supplied by user
- *		 of the crypto API is not aligned to @cra_alignmask, the crypto
+ *		 of the crypto API is analt aligned to @cra_alignmask, the crypto
  *		 API will re-align the buffers. The re-alignment means that a
  *		 new buffer will be allocated, the data will be copied into the
  *		 new buffer, then the processing will happen on the new buffer,
@@ -222,7 +222,7 @@ struct crypto_async_request {
  *		 might need to use the fallback if the algorithm doesn't support
  *		 all of the key sizes. In case the key was stored in
  *		 transformation context, the key might need to be re-programmed
- *		 into the hardware in this function. This function shall not
+ *		 into the hardware in this function. This function shall analt
  *		 modify the transformation context, as this function may be
  *		 called in parallel with the same transformation object.
  * @cia_decrypt: Decrypt a single block. This is a reverse counterpart to
@@ -280,17 +280,17 @@ struct compress_alg {
  * @cra_alignmask: For cipher, skcipher, lskcipher, and aead algorithms this is
  *		   1 less than the alignment, in bytes, that the algorithm
  *		   implementation requires for input and output buffers.  When
- *		   the crypto API is invoked with buffers that are not aligned
+ *		   the crypto API is invoked with buffers that are analt aligned
  *		   to this alignment, the crypto API automatically utilizes
  *		   appropriately aligned temporary buffers to comply with what
  *		   the algorithm needs.  (For scatterlists this happens only if
  *		   the algorithm uses the skcipher_walk helper functions.)  This
  *		   misalignment handling carries a performance penalty, so it is
- *		   preferred that algorithms do not set a nonzero alignmask.
+ *		   preferred that algorithms do analt set a analnzero alignmask.
  *		   Also, crypto API users may wish to allocate buffers aligned
  *		   to the alignmask of the algorithm being used, in order to
- *		   avoid the API having to realign them.  Note: the alignmask is
- *		   not supported for hash algorithms and is always 0 for them.
+ *		   avoid the API having to realign them.  Analte: the alignmask is
+ *		   analt supported for hash algorithms and is always 0 for them.
  * @cra_priority: Priority of this transformation implementation. In case
  *		  multiple transformations with same @cra_name are available to
  *		  the Crypto API, the kernel will use the one with highest
@@ -308,7 +308,7 @@ struct compress_alg {
  *	      struct crypto_type, which implements callbacks common for all
  *	      transformation types. There are multiple options, such as
  *	      &crypto_skcipher_type, &crypto_ahash_type, &crypto_rng_type.
- *	      This field might be empty. In that case, there are no common
+ *	      This field might be empty. In that case, there are anal common
  *	      callbacks. This is the case for: cipher, compress, shash.
  * @cra_u: Callbacks implementing the transformation. This is a union of
  *	   multiple structures. Depending on the type of transformation selected
@@ -337,7 +337,7 @@ struct compress_alg {
  * @cra_destroy: internally used
  *
  * The struct crypto_alg describes a generic Crypto API algorithm and is common
- * for all of the transformations. Any variable not documented here shall not
+ * for all of the transformations. Any variable analt documented here shall analt
  * be used by a cipher implementation as it is internal to the Crypto API.
  */
 struct crypto_alg {
@@ -424,7 +424,7 @@ struct crypto_tfm {
 
 	u32 crt_flags;
 
-	int node;
+	int analde;
 	
 	void (*exit)(struct crypto_tfm *tfm);
 	
@@ -490,7 +490,7 @@ static inline void crypto_tfm_clear_flags(struct crypto_tfm *tfm, u32 flags)
 static inline unsigned int crypto_tfm_ctx_alignment(void)
 {
 	struct crypto_tfm *tfm;
-	return __alignof__(tfm->__crt_ctx);
+	return __aliganalf__(tfm->__crt_ctx);
 }
 
 static inline struct crypto_comp *__crypto_comp_cast(struct crypto_tfm *tfm)

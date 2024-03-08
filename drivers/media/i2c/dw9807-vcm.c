@@ -28,7 +28,7 @@
 #define DW9807_CTL_ADDR		0x02
 /*
  * DW9807 separates two registers to control the VCM position.
- * One for MSB value, another is LSB value.
+ * One for MSB value, aanalther is LSB value.
  */
 #define DW9807_MSB_ADDR		0x03
 #define DW9807_LSB_ADDR		0x04
@@ -91,7 +91,7 @@ static int dw9807_set_dac(struct i2c_client *client, u16 data)
 	if (ret || val < 0) {
 		if (ret) {
 			dev_warn(&client->dev,
-				"Cannot do the write operation because VCM is busy\n");
+				"Cananalt do the write operation because VCM is busy\n");
 		}
 
 		return ret ? -EBUSY : val;
@@ -183,10 +183,10 @@ static int dw9807_probe(struct i2c_client *client)
 	dw9807_dev = devm_kzalloc(&client->dev, sizeof(*dw9807_dev),
 				  GFP_KERNEL);
 	if (dw9807_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_i2c_subdev_init(&dw9807_dev->sd, client, &dw9807_ops);
-	dw9807_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	dw9807_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	dw9807_dev->sd.internal_ops = &dw9807_int_ops;
 
 	rval = dw9807_init_controls(dw9807_dev);

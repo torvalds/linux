@@ -14,7 +14,7 @@
 #include <linux/sched/signal.h>
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/smp.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
@@ -116,7 +116,7 @@ int regs_query_register_offset(const char *name)
  * @addr:      address which is checked.
  *
  * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
- * If @addr is within the kernel stack, it returns true. If not, returns false.
+ * If @addr is within the kernel stack, it returns true. If analt, returns false.
  */
 static bool regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
 {
@@ -131,7 +131,7 @@ static bool regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
  * @n:		stack entry number.
  *
  * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
- * is specified by @regs. If the @n th entry is NOT in the kernel stack,
+ * is specified by @regs. If the @n th entry is ANALT in the kernel stack,
  * this returns 0.
  */
 unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
@@ -146,7 +146,7 @@ unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
 }
 
 /*
- * TODO: does not yet catch signals sent when the child dies.
+ * TODO: does analt yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
  */
 
@@ -176,23 +176,23 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 
 #ifdef CONFIG_COMPAT
 	if (is_compat_task()) {
-		int si_errno = 0;
+		int si_erranal = 0;
 		int i;
 
 		for (i = 0; i < ARM_MAX_BRP; ++i) {
 			if (current->thread.debug.hbp_break[i] == bp) {
-				si_errno = (i << 1) + 1;
+				si_erranal = (i << 1) + 1;
 				break;
 			}
 		}
 
 		for (i = 0; i < ARM_MAX_WRP; ++i) {
 			if (current->thread.debug.hbp_watch[i] == bp) {
-				si_errno = -((i << 1) + 1);
+				si_erranal = -((i << 1) + 1);
 				break;
 			}
 		}
-		arm64_force_sig_ptrace_errno_trap(si_errno, bkpt->trigger,
+		arm64_force_sig_ptrace_erranal_trap(si_erranal, bkpt->trigger,
 						  desc);
 		return;
 	}
@@ -229,23 +229,23 @@ void ptrace_hw_copy_thread(struct task_struct *tsk)
 	memset(&tsk->thread.debug, 0, sizeof(struct debug_info));
 }
 
-static struct perf_event *ptrace_hbp_get_event(unsigned int note_type,
+static struct perf_event *ptrace_hbp_get_event(unsigned int analte_type,
 					       struct task_struct *tsk,
 					       unsigned long idx)
 {
 	struct perf_event *bp = ERR_PTR(-EINVAL);
 
-	switch (note_type) {
+	switch (analte_type) {
 	case NT_ARM_HW_BREAK:
 		if (idx >= ARM_MAX_BRP)
 			goto out;
-		idx = array_index_nospec(idx, ARM_MAX_BRP);
+		idx = array_index_analspec(idx, ARM_MAX_BRP);
 		bp = tsk->thread.debug.hbp_break[idx];
 		break;
 	case NT_ARM_HW_WATCH:
 		if (idx >= ARM_MAX_WRP)
 			goto out;
-		idx = array_index_nospec(idx, ARM_MAX_WRP);
+		idx = array_index_analspec(idx, ARM_MAX_WRP);
 		bp = tsk->thread.debug.hbp_watch[idx];
 		break;
 	}
@@ -254,25 +254,25 @@ out:
 	return bp;
 }
 
-static int ptrace_hbp_set_event(unsigned int note_type,
+static int ptrace_hbp_set_event(unsigned int analte_type,
 				struct task_struct *tsk,
 				unsigned long idx,
 				struct perf_event *bp)
 {
 	int err = -EINVAL;
 
-	switch (note_type) {
+	switch (analte_type) {
 	case NT_ARM_HW_BREAK:
 		if (idx >= ARM_MAX_BRP)
 			goto out;
-		idx = array_index_nospec(idx, ARM_MAX_BRP);
+		idx = array_index_analspec(idx, ARM_MAX_BRP);
 		tsk->thread.debug.hbp_break[idx] = bp;
 		err = 0;
 		break;
 	case NT_ARM_HW_WATCH:
 		if (idx >= ARM_MAX_WRP)
 			goto out;
-		idx = array_index_nospec(idx, ARM_MAX_WRP);
+		idx = array_index_analspec(idx, ARM_MAX_WRP);
 		tsk->thread.debug.hbp_watch[idx] = bp;
 		err = 0;
 		break;
@@ -282,7 +282,7 @@ out:
 	return err;
 }
 
-static struct perf_event *ptrace_hbp_create(unsigned int note_type,
+static struct perf_event *ptrace_hbp_create(unsigned int analte_type,
 					    struct task_struct *tsk,
 					    unsigned long idx)
 {
@@ -290,7 +290,7 @@ static struct perf_event *ptrace_hbp_create(unsigned int note_type,
 	struct perf_event_attr attr;
 	int err, type;
 
-	switch (note_type) {
+	switch (analte_type) {
 	case NT_ARM_HW_BREAK:
 		type = HW_BREAKPOINT_X;
 		break;
@@ -316,14 +316,14 @@ static struct perf_event *ptrace_hbp_create(unsigned int note_type,
 	if (IS_ERR(bp))
 		return bp;
 
-	err = ptrace_hbp_set_event(note_type, tsk, idx, bp);
+	err = ptrace_hbp_set_event(analte_type, tsk, idx, bp);
 	if (err)
 		return ERR_PTR(err);
 
 	return bp;
 }
 
-static int ptrace_hbp_fill_attr_ctrl(unsigned int note_type,
+static int ptrace_hbp_fill_attr_ctrl(unsigned int analte_type,
 				     struct arch_hw_breakpoint_ctrl ctrl,
 				     struct perf_event_attr *attr)
 {
@@ -337,7 +337,7 @@ static int ptrace_hbp_fill_attr_ctrl(unsigned int note_type,
 	if (err)
 		return err;
 
-	switch (note_type) {
+	switch (analte_type) {
 	case NT_ARM_HW_BREAK:
 		if ((type & HW_BREAKPOINT_X) != type)
 			return -EINVAL;
@@ -357,12 +357,12 @@ static int ptrace_hbp_fill_attr_ctrl(unsigned int note_type,
 	return 0;
 }
 
-static int ptrace_hbp_get_resource_info(unsigned int note_type, u32 *info)
+static int ptrace_hbp_get_resource_info(unsigned int analte_type, u32 *info)
 {
 	u8 num;
 	u32 reg = 0;
 
-	switch (note_type) {
+	switch (analte_type) {
 	case NT_ARM_HW_BREAK:
 		num = hw_breakpoint_slots(TYPE_INST);
 		break;
@@ -381,12 +381,12 @@ static int ptrace_hbp_get_resource_info(unsigned int note_type, u32 *info)
 	return 0;
 }
 
-static int ptrace_hbp_get_ctrl(unsigned int note_type,
+static int ptrace_hbp_get_ctrl(unsigned int analte_type,
 			       struct task_struct *tsk,
 			       unsigned long idx,
 			       u32 *ctrl)
 {
-	struct perf_event *bp = ptrace_hbp_get_event(note_type, tsk, idx);
+	struct perf_event *bp = ptrace_hbp_get_event(analte_type, tsk, idx);
 
 	if (IS_ERR(bp))
 		return PTR_ERR(bp);
@@ -395,12 +395,12 @@ static int ptrace_hbp_get_ctrl(unsigned int note_type,
 	return 0;
 }
 
-static int ptrace_hbp_get_addr(unsigned int note_type,
+static int ptrace_hbp_get_addr(unsigned int analte_type,
 			       struct task_struct *tsk,
 			       unsigned long idx,
 			       u64 *addr)
 {
-	struct perf_event *bp = ptrace_hbp_get_event(note_type, tsk, idx);
+	struct perf_event *bp = ptrace_hbp_get_event(analte_type, tsk, idx);
 
 	if (IS_ERR(bp))
 		return PTR_ERR(bp);
@@ -409,19 +409,19 @@ static int ptrace_hbp_get_addr(unsigned int note_type,
 	return 0;
 }
 
-static struct perf_event *ptrace_hbp_get_initialised_bp(unsigned int note_type,
+static struct perf_event *ptrace_hbp_get_initialised_bp(unsigned int analte_type,
 							struct task_struct *tsk,
 							unsigned long idx)
 {
-	struct perf_event *bp = ptrace_hbp_get_event(note_type, tsk, idx);
+	struct perf_event *bp = ptrace_hbp_get_event(analte_type, tsk, idx);
 
 	if (!bp)
-		bp = ptrace_hbp_create(note_type, tsk, idx);
+		bp = ptrace_hbp_create(analte_type, tsk, idx);
 
 	return bp;
 }
 
-static int ptrace_hbp_set_ctrl(unsigned int note_type,
+static int ptrace_hbp_set_ctrl(unsigned int analte_type,
 			       struct task_struct *tsk,
 			       unsigned long idx,
 			       u32 uctrl)
@@ -431,7 +431,7 @@ static int ptrace_hbp_set_ctrl(unsigned int note_type,
 	struct perf_event_attr attr;
 	struct arch_hw_breakpoint_ctrl ctrl;
 
-	bp = ptrace_hbp_get_initialised_bp(note_type, tsk, idx);
+	bp = ptrace_hbp_get_initialised_bp(analte_type, tsk, idx);
 	if (IS_ERR(bp)) {
 		err = PTR_ERR(bp);
 		return err;
@@ -439,14 +439,14 @@ static int ptrace_hbp_set_ctrl(unsigned int note_type,
 
 	attr = bp->attr;
 	decode_ctrl_reg(uctrl, &ctrl);
-	err = ptrace_hbp_fill_attr_ctrl(note_type, ctrl, &attr);
+	err = ptrace_hbp_fill_attr_ctrl(analte_type, ctrl, &attr);
 	if (err)
 		return err;
 
 	return modify_user_hw_breakpoint(bp, &attr);
 }
 
-static int ptrace_hbp_set_addr(unsigned int note_type,
+static int ptrace_hbp_set_addr(unsigned int analte_type,
 			       struct task_struct *tsk,
 			       unsigned long idx,
 			       u64 addr)
@@ -455,7 +455,7 @@ static int ptrace_hbp_set_addr(unsigned int note_type,
 	struct perf_event *bp;
 	struct perf_event_attr attr;
 
-	bp = ptrace_hbp_get_initialised_bp(note_type, tsk, idx);
+	bp = ptrace_hbp_get_initialised_bp(analte_type, tsk, idx);
 	if (IS_ERR(bp)) {
 		err = PTR_ERR(bp);
 		return err;
@@ -475,13 +475,13 @@ static int hw_break_get(struct task_struct *target,
 			const struct user_regset *regset,
 			struct membuf to)
 {
-	unsigned int note_type = regset->core_note_type;
+	unsigned int analte_type = regset->core_analte_type;
 	int ret, idx = 0;
 	u32 info, ctrl;
 	u64 addr;
 
 	/* Resource info */
-	ret = ptrace_hbp_get_resource_info(note_type, &info);
+	ret = ptrace_hbp_get_resource_info(analte_type, &info);
 	if (ret)
 		return ret;
 
@@ -489,10 +489,10 @@ static int hw_break_get(struct task_struct *target,
 	membuf_zero(&to, sizeof(u32));
 	/* (address, ctrl) registers */
 	while (to.left) {
-		ret = ptrace_hbp_get_addr(note_type, target, idx, &addr);
+		ret = ptrace_hbp_get_addr(analte_type, target, idx, &addr);
 		if (ret)
 			return ret;
-		ret = ptrace_hbp_get_ctrl(note_type, target, idx, &ctrl);
+		ret = ptrace_hbp_get_ctrl(analte_type, target, idx, &ctrl);
 		if (ret)
 			return ret;
 		membuf_store(&to, addr);
@@ -508,14 +508,14 @@ static int hw_break_set(struct task_struct *target,
 			unsigned int pos, unsigned int count,
 			const void *kbuf, const void __user *ubuf)
 {
-	unsigned int note_type = regset->core_note_type;
+	unsigned int analte_type = regset->core_analte_type;
 	int ret, idx = 0, offset, limit;
 	u32 ctrl;
 	u64 addr;
 
 	/* Resource info and pad */
 	offset = offsetof(struct user_hwdebug_state, dbg_regs);
-	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 0, offset);
+	user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf, 0, offset);
 
 	/* (address, ctrl) registers */
 	limit = regset->n * regset->size;
@@ -526,7 +526,7 @@ static int hw_break_set(struct task_struct *target,
 					 offset, offset + PTRACE_HBP_ADDR_SZ);
 		if (ret)
 			return ret;
-		ret = ptrace_hbp_set_addr(note_type, target, idx, addr);
+		ret = ptrace_hbp_set_addr(analte_type, target, idx, addr);
 		if (ret)
 			return ret;
 		offset += PTRACE_HBP_ADDR_SZ;
@@ -537,12 +537,12 @@ static int hw_break_set(struct task_struct *target,
 					 offset, offset + PTRACE_HBP_CTRL_SZ);
 		if (ret)
 			return ret;
-		ret = ptrace_hbp_set_ctrl(note_type, target, idx, ctrl);
+		ret = ptrace_hbp_set_ctrl(analte_type, target, idx, ctrl);
 		if (ret)
 			return ret;
 		offset += PTRACE_HBP_CTRL_SZ;
 
-		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf,
 					  offset, offset + PTRACE_HBP_PAD_SZ);
 		offset += PTRACE_HBP_PAD_SZ;
 		idx++;
@@ -581,7 +581,7 @@ static int gpr_set(struct task_struct *target, const struct user_regset *regset,
 static int fpr_active(struct task_struct *target, const struct user_regset *regset)
 {
 	if (!system_supports_fpsimd())
-		return -ENODEV;
+		return -EANALDEV;
 	return regset->n;
 }
 
@@ -702,7 +702,7 @@ static int system_call_get(struct task_struct *target,
 			   const struct user_regset *regset,
 			   struct membuf to)
 {
-	return membuf_store(&to, task_pt_regs(target)->syscallno);
+	return membuf_store(&to, task_pt_regs(target)->syscallanal);
 }
 
 static int system_call_set(struct task_struct *target,
@@ -710,14 +710,14 @@ static int system_call_set(struct task_struct *target,
 			   unsigned int pos, unsigned int count,
 			   const void *kbuf, const void __user *ubuf)
 {
-	int syscallno = task_pt_regs(target)->syscallno;
+	int syscallanal = task_pt_regs(target)->syscallanal;
 	int ret;
 
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &syscallno, 0, -1);
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &syscallanal, 0, -1);
 	if (ret)
 		return ret;
 
-	task_pt_regs(target)->syscallno = syscallno;
+	task_pt_regs(target)->syscallanal = syscallanal;
 	return ret;
 }
 
@@ -916,7 +916,7 @@ static int sve_set_common(struct task_struct *target,
 	}
 
 	/*
-	 * Otherwise: no registers or full SVE case.  For backwards
+	 * Otherwise: anal registers or full SVE case.  For backwards
 	 * compatibility reasons we treat empty flags as SVE registers.
 	 */
 
@@ -932,7 +932,7 @@ static int sve_set_common(struct task_struct *target,
 
 	sve_alloc(target, true);
 	if (!target->thread.sve_state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		clear_tsk_thread_flag(target, TIF_SVE);
 		target->thread.fp_type = FP_STATE_FPSIMD;
 		goto out;
@@ -942,8 +942,8 @@ static int sve_set_common(struct task_struct *target,
 	 * Ensure target->thread.sve_state is up to date with target's
 	 * FPSIMD regs, so that a short copyin leaves trailing
 	 * registers unmodified.  Only enable SVE if we are
-	 * configuring normal SVE, a system with streaming SVE may not
-	 * have normal SVE.
+	 * configuring analrmal SVE, a system with streaming SVE may analt
+	 * have analrmal SVE.
 	 */
 	fpsimd_sync_to_sve(target);
 	if (type == ARM64_VEC_SVE)
@@ -961,7 +961,7 @@ static int sve_set_common(struct task_struct *target,
 
 	start = end;
 	end = SVE_PT_SVE_FPSR_OFFSET(vq);
-	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, start, end);
+	user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf, start, end);
 
 	/*
 	 * Copy fpsr, and fpcr which must follow contiguously in
@@ -1038,7 +1038,7 @@ static int za_get(struct task_struct *target,
 	header.max_vl = sme_max_vl();
 	header.max_size = ZA_PT_SIZE(vq);
 
-	/* If ZA is not active there is only the header */
+	/* If ZA is analt active there is only the header */
 	if (thread_za_enabled(&target->thread))
 		header.size = ZA_PT_SIZE(vq);
 	else
@@ -1103,20 +1103,20 @@ static int za_set(struct task_struct *target,
 	if (!target->thread.sve_state) {
 		sve_alloc(target, false);
 		if (!target->thread.sve_state) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 	}
 
 	/*
-	 * Only flush the storage if PSTATE.ZA was not already set,
+	 * Only flush the storage if PSTATE.ZA was analt already set,
 	 * otherwise preserve any existing data.
 	 */
 	sme_alloc(target, !thread_za_enabled(&target->thread));
 	if (!target->thread.sme_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* If there is no data then disable ZA */
+	/* If there is anal data then disable ZA */
 	if (!count) {
 		target->thread.svcr &= ~SVCR_ZA_MASK;
 		goto out;
@@ -1158,7 +1158,7 @@ static int zt_get(struct task_struct *target,
 		return -EINVAL;
 
 	/*
-	 * If PSTATE.ZA is not set then ZT will be zeroed when it is
+	 * If PSTATE.ZA is analt set then ZT will be zeroed when it is
 	 * enabled so report the current register value as zero.
 	 */
 	if (thread_za_enabled(&target->thread))
@@ -1183,12 +1183,12 @@ static int zt_set(struct task_struct *target,
 	/* Ensure SVE storage in case this is first use of SME */
 	sve_alloc(target, false);
 	if (!target->thread.sve_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!thread_za_enabled(&target->thread)) {
 		sme_alloc(target, true);
 		if (!target->thread.sme_state)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
@@ -1443,7 +1443,7 @@ enum aarch64_regset {
 
 static const struct user_regset aarch64_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_analte_type = NT_PRSTATUS,
 		.n = sizeof(struct user_pt_regs) / sizeof(u64),
 		.size = sizeof(u64),
 		.align = sizeof(u64),
@@ -1451,7 +1451,7 @@ static const struct user_regset aarch64_regsets[] = {
 		.set = gpr_set
 	},
 	[REGSET_FPR] = {
-		.core_note_type = NT_PRFPREG,
+		.core_analte_type = NT_PRFPREG,
 		.n = sizeof(struct user_fpsimd_state) / sizeof(u32),
 		/*
 		 * We pretend we have 32-bit registers because the fpsr and
@@ -1464,7 +1464,7 @@ static const struct user_regset aarch64_regsets[] = {
 		.set = fpr_set
 	},
 	[REGSET_TLS] = {
-		.core_note_type = NT_ARM_TLS,
+		.core_analte_type = NT_ARM_TLS,
 		.n = 2,
 		.size = sizeof(void *),
 		.align = sizeof(void *),
@@ -1473,7 +1473,7 @@ static const struct user_regset aarch64_regsets[] = {
 	},
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	[REGSET_HW_BREAK] = {
-		.core_note_type = NT_ARM_HW_BREAK,
+		.core_analte_type = NT_ARM_HW_BREAK,
 		.n = sizeof(struct user_hwdebug_state) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -1481,7 +1481,7 @@ static const struct user_regset aarch64_regsets[] = {
 		.set = hw_break_set,
 	},
 	[REGSET_HW_WATCH] = {
-		.core_note_type = NT_ARM_HW_WATCH,
+		.core_analte_type = NT_ARM_HW_WATCH,
 		.n = sizeof(struct user_hwdebug_state) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -1490,7 +1490,7 @@ static const struct user_regset aarch64_regsets[] = {
 	},
 #endif
 	[REGSET_SYSTEM_CALL] = {
-		.core_note_type = NT_ARM_SYSTEM_CALL,
+		.core_analte_type = NT_ARM_SYSTEM_CALL,
 		.n = 1,
 		.size = sizeof(int),
 		.align = sizeof(int),
@@ -1499,7 +1499,7 @@ static const struct user_regset aarch64_regsets[] = {
 	},
 #ifdef CONFIG_ARM64_SVE
 	[REGSET_SVE] = { /* Scalable Vector Extension */
-		.core_note_type = NT_ARM_SVE,
+		.core_analte_type = NT_ARM_SVE,
 		.n = DIV_ROUND_UP(SVE_PT_SIZE(ARCH_SVE_VQ_MAX,
 					      SVE_PT_REGS_SVE),
 				  SVE_VQ_BYTES),
@@ -1511,7 +1511,7 @@ static const struct user_regset aarch64_regsets[] = {
 #endif
 #ifdef CONFIG_ARM64_SME
 	[REGSET_SSVE] = { /* Streaming mode SVE */
-		.core_note_type = NT_ARM_SSVE,
+		.core_analte_type = NT_ARM_SSVE,
 		.n = DIV_ROUND_UP(SVE_PT_SIZE(SME_VQ_MAX, SVE_PT_REGS_SVE),
 				  SVE_VQ_BYTES),
 		.size = SVE_VQ_BYTES,
@@ -1520,7 +1520,7 @@ static const struct user_regset aarch64_regsets[] = {
 		.set = ssve_set,
 	},
 	[REGSET_ZA] = { /* SME ZA */
-		.core_note_type = NT_ARM_ZA,
+		.core_analte_type = NT_ARM_ZA,
 		/*
 		 * ZA is a single register but it's variably sized and
 		 * the ptrace core requires that the size of any data
@@ -1536,7 +1536,7 @@ static const struct user_regset aarch64_regsets[] = {
 		.set = za_set,
 	},
 	[REGSET_ZT] = { /* SME ZT */
-		.core_note_type = NT_ARM_ZT,
+		.core_analte_type = NT_ARM_ZT,
 		.n = 1,
 		.size = ZT_SIG_REG_BYTES,
 		.align = sizeof(u64),
@@ -1546,15 +1546,15 @@ static const struct user_regset aarch64_regsets[] = {
 #endif
 #ifdef CONFIG_ARM64_PTR_AUTH
 	[REGSET_PAC_MASK] = {
-		.core_note_type = NT_ARM_PAC_MASK,
+		.core_analte_type = NT_ARM_PAC_MASK,
 		.n = sizeof(struct user_pac_mask) / sizeof(u64),
 		.size = sizeof(u64),
 		.align = sizeof(u64),
 		.regset_get = pac_mask_get,
-		/* this cannot be set dynamically */
+		/* this cananalt be set dynamically */
 	},
 	[REGSET_PAC_ENABLED_KEYS] = {
-		.core_note_type = NT_ARM_PAC_ENABLED_KEYS,
+		.core_analte_type = NT_ARM_PAC_ENABLED_KEYS,
 		.n = 1,
 		.size = sizeof(long),
 		.align = sizeof(long),
@@ -1563,7 +1563,7 @@ static const struct user_regset aarch64_regsets[] = {
 	},
 #ifdef CONFIG_CHECKPOINT_RESTORE
 	[REGSET_PACA_KEYS] = {
-		.core_note_type = NT_ARM_PACA_KEYS,
+		.core_analte_type = NT_ARM_PACA_KEYS,
 		.n = sizeof(struct user_pac_address_keys) / sizeof(__uint128_t),
 		.size = sizeof(__uint128_t),
 		.align = sizeof(__uint128_t),
@@ -1571,7 +1571,7 @@ static const struct user_regset aarch64_regsets[] = {
 		.set = pac_address_keys_set,
 	},
 	[REGSET_PACG_KEYS] = {
-		.core_note_type = NT_ARM_PACG_KEYS,
+		.core_analte_type = NT_ARM_PACG_KEYS,
 		.n = sizeof(struct user_pac_generic_keys) / sizeof(__uint128_t),
 		.size = sizeof(__uint128_t),
 		.align = sizeof(__uint128_t),
@@ -1582,7 +1582,7 @@ static const struct user_regset aarch64_regsets[] = {
 #endif
 #ifdef CONFIG_ARM64_TAGGED_ADDR_ABI
 	[REGSET_TAGGED_ADDR_CTRL] = {
-		.core_note_type = NT_ARM_TAGGED_ADDR_CTRL,
+		.core_analte_type = NT_ARM_TAGGED_ADDR_CTRL,
 		.n = 1,
 		.size = sizeof(long),
 		.align = sizeof(long),
@@ -1773,7 +1773,7 @@ static int compat_tls_set(struct task_struct *target,
 
 static const struct user_regset aarch32_regsets[] = {
 	[REGSET_COMPAT_GPR] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_analte_type = NT_PRSTATUS,
 		.n = COMPAT_ELF_NGREG,
 		.size = sizeof(compat_elf_greg_t),
 		.align = sizeof(compat_elf_greg_t),
@@ -1781,7 +1781,7 @@ static const struct user_regset aarch32_regsets[] = {
 		.set = compat_gpr_set
 	},
 	[REGSET_COMPAT_VFP] = {
-		.core_note_type = NT_ARM_VFP,
+		.core_analte_type = NT_ARM_VFP,
 		.n = VFP_STATE_SIZE / sizeof(compat_ulong_t),
 		.size = sizeof(compat_ulong_t),
 		.align = sizeof(compat_ulong_t),
@@ -1798,7 +1798,7 @@ static const struct user_regset_view user_aarch32_view = {
 
 static const struct user_regset aarch32_ptrace_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_analte_type = NT_PRSTATUS,
 		.n = COMPAT_ELF_NGREG,
 		.size = sizeof(compat_elf_greg_t),
 		.align = sizeof(compat_elf_greg_t),
@@ -1806,7 +1806,7 @@ static const struct user_regset aarch32_ptrace_regsets[] = {
 		.set = compat_gpr_set
 	},
 	[REGSET_FPR] = {
-		.core_note_type = NT_ARM_VFP,
+		.core_analte_type = NT_ARM_VFP,
 		.n = VFP_STATE_SIZE / sizeof(compat_ulong_t),
 		.size = sizeof(compat_ulong_t),
 		.align = sizeof(compat_ulong_t),
@@ -1814,7 +1814,7 @@ static const struct user_regset aarch32_ptrace_regsets[] = {
 		.set = compat_vfp_set
 	},
 	[REGSET_TLS] = {
-		.core_note_type = NT_ARM_TLS,
+		.core_analte_type = NT_ARM_TLS,
 		.n = 1,
 		.size = sizeof(compat_ulong_t),
 		.align = sizeof(compat_ulong_t),
@@ -1823,7 +1823,7 @@ static const struct user_regset aarch32_ptrace_regsets[] = {
 	},
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	[REGSET_HW_BREAK] = {
-		.core_note_type = NT_ARM_HW_BREAK,
+		.core_analte_type = NT_ARM_HW_BREAK,
 		.n = sizeof(struct user_hwdebug_state) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -1831,7 +1831,7 @@ static const struct user_regset aarch32_ptrace_regsets[] = {
 		.set = hw_break_set,
 	},
 	[REGSET_HW_WATCH] = {
-		.core_note_type = NT_ARM_HW_WATCH,
+		.core_analte_type = NT_ARM_HW_WATCH,
 		.n = sizeof(struct user_hwdebug_state) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -1840,7 +1840,7 @@ static const struct user_regset aarch32_ptrace_regsets[] = {
 	},
 #endif
 	[REGSET_SYSTEM_CALL] = {
-		.core_note_type = NT_ARM_SYSTEM_CALL,
+		.core_analte_type = NT_ARM_SYSTEM_CALL,
 		.n = 1,
 		.size = sizeof(int),
 		.align = sizeof(int),
@@ -1947,7 +1947,7 @@ static int compat_ptrace_hbp_get_resource_info(u32 *kdata)
 	return 0;
 }
 
-static int compat_ptrace_hbp_get(unsigned int note_type,
+static int compat_ptrace_hbp_get(unsigned int analte_type,
 				 struct task_struct *tsk,
 				 compat_long_t num,
 				 u32 *kdata)
@@ -1958,17 +1958,17 @@ static int compat_ptrace_hbp_get(unsigned int note_type,
 	int err, idx = compat_ptrace_hbp_num_to_idx(num);
 
 	if (num & 1) {
-		err = ptrace_hbp_get_addr(note_type, tsk, idx, &addr);
+		err = ptrace_hbp_get_addr(analte_type, tsk, idx, &addr);
 		*kdata = (u32)addr;
 	} else {
-		err = ptrace_hbp_get_ctrl(note_type, tsk, idx, &ctrl);
+		err = ptrace_hbp_get_ctrl(analte_type, tsk, idx, &ctrl);
 		*kdata = ctrl;
 	}
 
 	return err;
 }
 
-static int compat_ptrace_hbp_set(unsigned int note_type,
+static int compat_ptrace_hbp_set(unsigned int analte_type,
 				 struct task_struct *tsk,
 				 compat_long_t num,
 				 u32 *kdata)
@@ -1980,10 +1980,10 @@ static int compat_ptrace_hbp_set(unsigned int note_type,
 
 	if (num & 1) {
 		addr = *kdata;
-		err = ptrace_hbp_set_addr(note_type, tsk, idx, addr);
+		err = ptrace_hbp_set_addr(analte_type, tsk, idx, addr);
 	} else {
 		ctrl = *kdata;
-		err = ptrace_hbp_set_ctrl(note_type, tsk, idx, ctrl);
+		err = ptrace_hbp_set_ctrl(analte_type, tsk, idx, ctrl);
 	}
 
 	return err;
@@ -2073,7 +2073,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			break;
 
 		case COMPAT_PTRACE_SET_SYSCALL:
-			task_pt_regs(child)->syscallno = data;
+			task_pt_regs(child)->syscallanal = data;
 			ret = 0;
 			break;
 
@@ -2149,38 +2149,38 @@ enum ptrace_syscall_dir {
 
 static void report_syscall(struct pt_regs *regs, enum ptrace_syscall_dir dir)
 {
-	int regno;
+	int reganal;
 	unsigned long saved_reg;
 
 	/*
 	 * We have some ABI weirdness here in the way that we handle syscall
-	 * exit stops because we indicate whether or not the stop has been
+	 * exit stops because we indicate whether or analt the stop has been
 	 * signalled from syscall entry or syscall exit by clobbering a general
 	 * purpose register (ip/r12 for AArch32, x7 for AArch64) in the tracee
 	 * and restoring its old value after the stop. This means that:
 	 *
 	 * - Any writes by the tracer to this register during the stop are
-	 *   ignored/discarded.
+	 *   iganalred/discarded.
 	 *
-	 * - The actual value of the register is not available during the stop,
-	 *   so the tracer cannot save it and restore it later.
+	 * - The actual value of the register is analt available during the stop,
+	 *   so the tracer cananalt save it and restore it later.
 	 *
 	 * - Syscall stops behave differently to seccomp and pseudo-step traps
-	 *   (the latter do not nobble any registers).
+	 *   (the latter do analt analbble any registers).
 	 */
-	regno = (is_compat_task() ? 12 : 7);
-	saved_reg = regs->regs[regno];
-	regs->regs[regno] = dir;
+	reganal = (is_compat_task() ? 12 : 7);
+	saved_reg = regs->regs[reganal];
+	regs->regs[reganal] = dir;
 
 	if (dir == PTRACE_SYSCALL_ENTER) {
 		if (ptrace_report_syscall_entry(regs))
 			forget_syscall(regs);
-		regs->regs[regno] = saved_reg;
+		regs->regs[reganal] = saved_reg;
 	} else if (!test_thread_flag(TIF_SINGLESTEP)) {
 		ptrace_report_syscall_exit(regs, 0);
-		regs->regs[regno] = saved_reg;
+		regs->regs[reganal] = saved_reg;
 	} else {
-		regs->regs[regno] = saved_reg;
+		regs->regs[reganal] = saved_reg;
 
 		/*
 		 * Signal a pseudo-step exception since we are stepping but
@@ -2198,20 +2198,20 @@ int syscall_trace_enter(struct pt_regs *regs)
 	if (flags & (_TIF_SYSCALL_EMU | _TIF_SYSCALL_TRACE)) {
 		report_syscall(regs, PTRACE_SYSCALL_ENTER);
 		if (flags & _TIF_SYSCALL_EMU)
-			return NO_SYSCALL;
+			return ANAL_SYSCALL;
 	}
 
 	/* Do the secure computing after ptrace; failures should be fast. */
 	if (secure_computing() == -1)
-		return NO_SYSCALL;
+		return ANAL_SYSCALL;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
-		trace_sys_enter(regs, regs->syscallno);
+		trace_sys_enter(regs, regs->syscallanal);
 
-	audit_syscall_entry(regs->syscallno, regs->orig_x0, regs->regs[1],
+	audit_syscall_entry(regs->syscallanal, regs->orig_x0, regs->regs[1],
 			    regs->regs[2], regs->regs[3]);
 
-	return regs->syscallno;
+	return regs->syscallanal;
 }
 
 void syscall_trace_exit(struct pt_regs *regs)
@@ -2232,11 +2232,11 @@ void syscall_trace_exit(struct pt_regs *regs)
 /*
  * SPSR_ELx bits which are always architecturally RES0 per ARM DDI 0487D.a.
  * We permit userspace to set SSBS (AArch64 bit 12, AArch32 bit 23) which is
- * not described in ARM DDI 0487D.a.
+ * analt described in ARM DDI 0487D.a.
  * We treat PAN and UAO as RES0 bits, as they are meaningless at EL0, and may
  * be allocated an EL0 meaning in future.
- * Userspace cannot use these until they have an architectural meaning.
- * Note that this follows the SPSR_ELx format, not the AArch32 PSR format.
+ * Userspace cananalt use these until they have an architectural meaning.
+ * Analte that this follows the SPSR_ELx format, analt the AArch32 PSR format.
  * We also reserve IL for the kernel; SS is handled dynamically.
  */
 #define SPSR_EL1_AARCH64_RES0_BITS \

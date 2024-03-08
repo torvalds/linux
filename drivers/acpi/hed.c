@@ -6,7 +6,7 @@
  *	Author: Huang Ying <ying.huang@intel.com>
  *
  * ACPI Hardware Error Device is used to report some hardware errors
- * notified via SCI, mainly the corrected errors.
+ * analtified via SCI, mainly the corrected errors.
  */
 
 #include <linux/kernel.h>
@@ -23,28 +23,28 @@ MODULE_DEVICE_TABLE(acpi, acpi_hed_ids);
 
 static acpi_handle hed_handle;
 
-static BLOCKING_NOTIFIER_HEAD(acpi_hed_notify_list);
+static BLOCKING_ANALTIFIER_HEAD(acpi_hed_analtify_list);
 
-int register_acpi_hed_notifier(struct notifier_block *nb)
+int register_acpi_hed_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&acpi_hed_notify_list, nb);
+	return blocking_analtifier_chain_register(&acpi_hed_analtify_list, nb);
 }
-EXPORT_SYMBOL_GPL(register_acpi_hed_notifier);
+EXPORT_SYMBOL_GPL(register_acpi_hed_analtifier);
 
-void unregister_acpi_hed_notifier(struct notifier_block *nb)
+void unregister_acpi_hed_analtifier(struct analtifier_block *nb)
 {
-	blocking_notifier_chain_unregister(&acpi_hed_notify_list, nb);
+	blocking_analtifier_chain_unregister(&acpi_hed_analtify_list, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_acpi_hed_notifier);
+EXPORT_SYMBOL_GPL(unregister_acpi_hed_analtifier);
 
 /*
  * SCI to report hardware error is forwarded to the listeners of HED,
- * it is used by HEST Generic Hardware Error Source with notify type
+ * it is used by HEST Generic Hardware Error Source with analtify type
  * SCI.
  */
-static void acpi_hed_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_hed_analtify(acpi_handle handle, u32 event, void *data)
 {
-	blocking_notifier_call_chain(&acpi_hed_notify_list, 0, NULL);
+	blocking_analtifier_call_chain(&acpi_hed_analtify_list, 0, NULL);
 }
 
 static int acpi_hed_add(struct acpi_device *device)
@@ -56,8 +56,8 @@ static int acpi_hed_add(struct acpi_device *device)
 		return -EINVAL;
 	hed_handle = device->handle;
 
-	err = acpi_dev_install_notify_handler(device, ACPI_DEVICE_NOTIFY,
-					      acpi_hed_notify, device);
+	err = acpi_dev_install_analtify_handler(device, ACPI_DEVICE_ANALTIFY,
+					      acpi_hed_analtify, device);
 	if (err)
 		hed_handle = NULL;
 
@@ -66,8 +66,8 @@ static int acpi_hed_add(struct acpi_device *device)
 
 static void acpi_hed_remove(struct acpi_device *device)
 {
-	acpi_dev_remove_notify_handler(device, ACPI_DEVICE_NOTIFY,
-				       acpi_hed_notify);
+	acpi_dev_remove_analtify_handler(device, ACPI_DEVICE_ANALTIFY,
+				       acpi_hed_analtify);
 	hed_handle = NULL;
 }
 

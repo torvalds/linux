@@ -26,7 +26,7 @@ static struct platform_device heartbeat_device = {
 	.resource	= &heartbeat_resource,
 };
 
-static struct mtd_partition nor_flash_partitions[] = {
+static struct mtd_partition analr_flash_partitions[] = {
 	{
 		.name		= "loader",
 		.offset		= 0x00000000,
@@ -44,13 +44,13 @@ static struct mtd_partition nor_flash_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data nor_flash_data = {
+static struct physmap_flash_data analr_flash_data = {
 	.width		= 2,
-	.parts		= nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(nor_flash_partitions),
+	.parts		= analr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(analr_flash_partitions),
 };
 
-static struct resource nor_flash_resources[] = {
+static struct resource analr_flash_resources[] = {
 	[0]	= {
 		.start	= 0x00000000,
 		.end	= 0x01ffffff,
@@ -58,13 +58,13 @@ static struct resource nor_flash_resources[] = {
 	}
 };
 
-static struct platform_device nor_flash_device = {
+static struct platform_device analr_flash_device = {
 	.name		= "physmap-flash",
 	.dev		= {
-		.platform_data	= &nor_flash_data,
+		.platform_data	= &analr_flash_data,
 	},
-	.num_resources	= ARRAY_SIZE(nor_flash_resources),
-	.resource	= nor_flash_resources,
+	.num_resources	= ARRAY_SIZE(analr_flash_resources),
+	.resource	= analr_flash_resources,
 };
 
 #define ST16C2550C_FLAGS (UPF_BOOT_AUTOCONF | UPF_IOREMAP)
@@ -139,7 +139,7 @@ static struct platform_device usb_device = {
 
 static struct platform_device *sh7343se_platform_devices[] __initdata = {
 	&heartbeat_device,
-	&nor_flash_device,
+	&analr_flash_device,
 	&uart_device,
 	&usb_device,
 };

@@ -8,19 +8,19 @@ extern const struct export_operations nilfs_export_ops;
 
 /**
  * struct nilfs_fid - NILFS file id type
- * @cno: checkpoint number
- * @ino: inode number
+ * @canal: checkpoint number
+ * @ianal: ianalde number
  * @gen: file generation (version) for NFS
  * @parent_gen: parent generation (version) for NFS
- * @parent_ino: parent inode number
+ * @parent_ianal: parent ianalde number
  */
 struct nilfs_fid {
-	u64 cno;
-	u64 ino;
+	u64 canal;
+	u64 ianal;
 	u32 gen;
 
 	u32 parent_gen;
-	u64 parent_ino;
+	u64 parent_ianal;
 } __packed;
 
 #endif

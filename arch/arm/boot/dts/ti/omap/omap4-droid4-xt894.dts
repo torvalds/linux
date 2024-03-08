@@ -24,7 +24,7 @@
 			gpios = <&gpio5 26 GPIO_ACTIVE_LOW>; /* gpio154 */
 			linux,code = <KEY_VOLUMEDOWN>;
 			linux,can-disable;
-			/* Value above 7.95ms for no GPIO hardware debounce */
+			/* Value above 7.95ms for anal GPIO hardware debounce */
 			debounce-interval = <10>;
 		};
 
@@ -39,7 +39,7 @@
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_KEYPAD_SLIDE>;
 			linux,can-disable;
-			/* Value above 7.95ms for no GPIO hardware debounce */
+			/* Value above 7.95ms for anal GPIO hardware debounce */
 			debounce-interval = <10>;
 		};
 	};

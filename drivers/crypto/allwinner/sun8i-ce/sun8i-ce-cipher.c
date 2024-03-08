@@ -186,7 +186,7 @@ static int sun8i_ce_cipher_prepare(struct crypto_engine *engine, void *async_req
 
 	rctx->addr_key = dma_map_single(ce->dev, op->key, op->keylen, DMA_TO_DEVICE);
 	if (dma_mapping_error(ce->dev, rctx->addr_key)) {
-		dev_err(ce->dev, "Cannot DMA MAP KEY\n");
+		dev_err(ce->dev, "Cananalt DMA MAP KEY\n");
 		err = -EFAULT;
 		goto theend;
 	}
@@ -204,8 +204,8 @@ static int sun8i_ce_cipher_prepare(struct crypto_engine *engine, void *async_req
 		rctx->addr_iv = dma_map_single(ce->dev, chan->bounce_iv, rctx->ivlen,
 					       DMA_TO_DEVICE);
 		if (dma_mapping_error(ce->dev, rctx->addr_iv)) {
-			dev_err(ce->dev, "Cannot DMA MAP IV\n");
-			err = -ENOMEM;
+			dev_err(ce->dev, "Cananalt DMA MAP IV\n");
+			err = -EANALMEM;
 			goto theend_iv;
 		}
 		cet->t_iv = cpu_to_le32(rctx->addr_iv);
@@ -426,7 +426,7 @@ int sun8i_ce_cipher_init(struct crypto_tfm *tfm)
 
 	op->fallback_tfm = crypto_alloc_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(op->fallback_tfm)) {
-		dev_err(op->ce->dev, "ERROR: Cannot allocate fallback for %s %ld\n",
+		dev_err(op->ce->dev, "ERROR: Cananalt allocate fallback for %s %ld\n",
 			name, PTR_ERR(op->fallback_tfm));
 		return PTR_ERR(op->fallback_tfm);
 	}
@@ -444,7 +444,7 @@ int sun8i_ce_cipher_init(struct crypto_tfm *tfm)
 
 	return 0;
 error_pm:
-	pm_runtime_put_noidle(op->ce->dev);
+	pm_runtime_put_analidle(op->ce->dev);
 	crypto_free_skcipher(op->fallback_tfm);
 	return err;
 }
@@ -479,7 +479,7 @@ int sun8i_ce_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	op->keylen = keylen;
 	op->key = kmemdup(key, keylen, GFP_KERNEL | GFP_DMA);
 	if (!op->key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crypto_skcipher_clear_flags(op->fallback_tfm, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(op->fallback_tfm, tfm->base.crt_flags & CRYPTO_TFM_REQ_MASK);
@@ -501,7 +501,7 @@ int sun8i_ce_des3_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	op->keylen = keylen;
 	op->key = kmemdup(key, keylen, GFP_KERNEL | GFP_DMA);
 	if (!op->key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crypto_skcipher_clear_flags(op->fallback_tfm, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(op->fallback_tfm, tfm->base.crt_flags & CRYPTO_TFM_REQ_MASK);

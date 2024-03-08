@@ -94,7 +94,7 @@ static void adv748x_hdmi_fill_format(struct adv748x_hdmi *hdmi,
 
 	fmt->code = MEDIA_BUS_FMT_RGB888_1X24;
 	fmt->field = hdmi->timings.bt.interlaced ?
-			V4L2_FIELD_ALTERNATE : V4L2_FIELD_NONE;
+			V4L2_FIELD_ALTERNATE : V4L2_FIELD_ANALNE;
 
 	/* TODO: The colorspace depends on the AVI InfoFrame contents */
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
@@ -129,7 +129,7 @@ static int adv748x_hdmi_read_pixelclock(struct adv748x_state *state)
 	a = hdmi_read(state, ADV748X_HDMI_TMDS_1);
 	b = hdmi_read(state, ADV748X_HDMI_TMDS_2);
 	if (a < 0 || b < 0)
-		return -ENODATA;
+		return -EANALDATA;
 
 	/*
 	 * The high 9 bits store TMDS frequency measurement in MHz
@@ -284,7 +284,7 @@ static int adv748x_hdmi_query_dv_timings(struct v4l2_subdev *sd,
 	memset(timings, 0, sizeof(struct v4l2_dv_timings));
 
 	/*
-	 * If the pattern generator is enabled the device shall not be queried
+	 * If the pattern generator is enabled the device shall analt be queried
 	 * for timings. Instead the timings programmed shall be reported as they
 	 * are the ones being used to generate the pattern.
 	 */
@@ -294,11 +294,11 @@ static int adv748x_hdmi_query_dv_timings(struct v4l2_subdev *sd,
 	}
 
 	if (!adv748x_hdmi_has_signal(state))
-		return -ENOLINK;
+		return -EANALLINK;
 
 	pixelclock = adv748x_hdmi_read_pixelclock(state);
 	if (pixelclock < 0)
-		return -ENODATA;
+		return -EANALDATA;
 
 	timings->type = V4L2_DV_BT_656_1120;
 
@@ -337,7 +337,7 @@ static int adv748x_hdmi_query_dv_timings(struct v4l2_subdev *sd,
 	adv748x_fill_optional_dv_timings(timings);
 
 	/*
-	 * No interrupt handling is implemented yet.
+	 * Anal interrupt handling is implemented yet.
 	 * There should be an IRQ when a cable is plugged and the new timings
 	 * should be figured out and stored to state.
 	 */
@@ -353,7 +353,7 @@ static int adv748x_hdmi_g_input_status(struct v4l2_subdev *sd, u32 *status)
 
 	mutex_lock(&state->mutex);
 
-	*status = adv748x_hdmi_has_signal(state) ? 0 : V4L2_IN_ST_NO_SIGNAL;
+	*status = adv748x_hdmi_has_signal(state) ? 0 : V4L2_IN_ST_ANAL_SIGNAL;
 
 	mutex_unlock(&state->mutex);
 
@@ -386,7 +386,7 @@ static int adv748x_hdmi_g_pixelaspect(struct v4l2_subdev *sd,
 				      struct v4l2_fract *aspect)
 {
 	aspect->numerator = 1;
-	aspect->denominator = 1;
+	aspect->deanalminator = 1;
 
 	return 0;
 }
@@ -411,7 +411,7 @@ static int adv748x_hdmi_propagate_pixelrate(struct adv748x_hdmi *hdmi)
 
 	tx = adv748x_get_remote_sd(&hdmi->pads[ADV748X_HDMI_SOURCE]);
 	if (!tx)
-		return -ENOLINK;
+		return -EANALLINK;
 
 	adv748x_hdmi_query_dv_timings(&hdmi->sd, &timings);
 
@@ -477,7 +477,7 @@ static int adv748x_hdmi_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	memset(edid->reserved, 0, sizeof(edid->reserved));
 
 	if (!hdmi->edid.present)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (edid->start_block == 0 && edid->blocks == 0) {
 		edid->blocks = hdmi->edid.blocks;
@@ -537,7 +537,7 @@ static int adv748x_hdmi_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 
 		/* Fall back to a 16:9 aspect ratio */
 		hdmi->aspect_ratio.numerator = 16;
-		hdmi->aspect_ratio.denominator = 9;
+		hdmi->aspect_ratio.deanalminator = 9;
 
 		/* Disable the EDID */
 		repeater_write(state, ADV748X_REPEATER_EDID_SZ,
@@ -738,7 +738,7 @@ int adv748x_hdmi_init(struct adv748x_hdmi *hdmi)
 
 	/* Initialise a default 16:9 aspect ratio */
 	hdmi->aspect_ratio.numerator = 16;
-	hdmi->aspect_ratio.denominator = 9;
+	hdmi->aspect_ratio.deanalminator = 9;
 
 	adv748x_subdev_init(&hdmi->sd, state, &adv748x_ops_hdmi,
 			    MEDIA_ENT_F_IO_DTV, "hdmi");

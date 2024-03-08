@@ -71,8 +71,8 @@ config PARPORT_PC_FIFO
 	  printing. Say Y here if you want to take advantage of that.
 
 	  As well as actually having a FIFO, or DMA capability, the kernel
-	  will need to know which IRQ the parallel port has.  By default,
-	  parallel port interrupts will not be used, and so neither will the
+	  will need to kanalw which IRQ the parallel port has.  By default,
+	  parallel port interrupts will analt be used, and so neither will the
 	  FIFO.  See <file:Documentation/admin-guide/parport.rst> to find out how to
 	  specify which IRQ/DMA to use.
 
@@ -94,7 +94,7 @@ config PARPORT_PC_PCMCIA
 config PARPORT_IP32
 	tristate "SGI IP32 builtin port"
 	depends on SGI_IP32
-	select PARPORT_NOT_PC
+	select PARPORT_ANALT_PC
 	help
 	  Say Y here if you need support for the parallel port on
 	  SGI O2 machines. This code is also available as a module (say M),
@@ -103,7 +103,7 @@ config PARPORT_IP32
 config PARPORT_AMIGA
 	tristate "Amiga builtin port"
 	depends on AMIGA
-	select PARPORT_NOT_PC
+	select PARPORT_ANALT_PC
 	help
 	  Say Y here if you need support for the parallel port hardware on
 	  Amiga machines. This code is also available as a module (say M),
@@ -112,7 +112,7 @@ config PARPORT_AMIGA
 config PARPORT_MFC3
 	tristate "Multiface III parallel port"
 	depends on ZORRO
-	select PARPORT_NOT_PC
+	select PARPORT_ANALT_PC
 	help
 	  Say Y here if you need parallel port support for the MFC3 card.
 	  This code is also available as a module (say M), called
@@ -121,7 +121,7 @@ config PARPORT_MFC3
 config PARPORT_ATARI
 	tristate "Atari hardware"
 	depends on ATARI
-	select PARPORT_NOT_PC
+	select PARPORT_ANALT_PC
 	help
 	  Say Y here if you need support for the parallel port hardware on
 	  Atari machines. This code is also available as a module (say M),
@@ -130,15 +130,15 @@ config PARPORT_ATARI
 config PARPORT_GSC
 	tristate
 	default GSC
-	select PARPORT_NOT_PC
+	select PARPORT_ANALT_PC
 
 config PARPORT_SUNBPP
 	tristate "Sparc hardware"
 	depends on SBUS
-	select PARPORT_NOT_PC
+	select PARPORT_ANALT_PC
 	help
 	  This driver provides support for the bidirectional parallel port
-	  found on many Sun machines. Note that many of the newer Ultras
+	  found on many Sun machines. Analte that many of the newer Ultras
 	  actually have pc style hardware instead.
 
 config PARPORT_1284
@@ -150,7 +150,7 @@ config PARPORT_1284
 	  transfer modes. Also say Y if you want device ID information to
 	  appear in /proc/sys/dev/parport/*/autoprobe*. It is safe to say N.
 
-config PARPORT_NOT_PC
+config PARPORT_ANALT_PC
 	bool
 
 endif # PARPORT

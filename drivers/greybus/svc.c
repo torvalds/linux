@@ -42,8 +42,8 @@ static DEVICE_ATTR_RO(ap_intf_id);
 
 // FIXME
 // This is a hack, we need to do this "right" and clean the interface up
-// properly, not just forcibly yank the thing out of the system and hope for the
-// best.  But for now, people want their modules to come out without having to
+// properly, analt just forcibly yank the thing out of the system and hope for the
+// best.  But for analw, people want their modules to come out without having to
 // throw the thing to the ground or get out a screwdriver.
 static ssize_t intf_eject_store(struct device *dev,
 				struct device_attribute *attr, const char *buf,
@@ -195,8 +195,8 @@ static int gb_svc_pwrmon_sample_get(struct gb_svc *svc, u8 rail_id,
 		switch (response.result) {
 		case GB_SVC_PWRMON_GET_SAMPLE_INVAL:
 			return -EINVAL;
-		case GB_SVC_PWRMON_GET_SAMPLE_NOSUPP:
-			return -ENOMSG;
+		case GB_SVC_PWRMON_GET_SAMPLE_ANALSUPP:
+			return -EANALMSG;
 		default:
 			return -EREMOTEIO;
 		}
@@ -233,8 +233,8 @@ int gb_svc_pwrmon_intf_sample_get(struct gb_svc *svc, u8 intf_id,
 		switch (response.result) {
 		case GB_SVC_PWRMON_GET_SAMPLE_INVAL:
 			return -EINVAL;
-		case GB_SVC_PWRMON_GET_SAMPLE_NOSUPP:
-			return -ENOMSG;
+		case GB_SVC_PWRMON_GET_SAMPLE_ANALSUPP:
+			return -EANALMSG;
 		default:
 			return -EREMOTEIO;
 		}
@@ -275,7 +275,7 @@ int gb_svc_intf_eject(struct gb_svc *svc, u8 intf_id)
 
 	/*
 	 * The pulse width for module release in svc is long so we need to
-	 * increase the timeout so the operation will not return to soon.
+	 * increase the timeout so the operation will analt return to soon.
 	 */
 	ret = gb_operation_sync_timeout(svc->connection,
 					GB_SVC_TYPE_INTF_EJECT, &request,
@@ -657,18 +657,18 @@ static int gb_svc_version_request(struct gb_operation *op)
 	if (request->major > GB_SVC_VERSION_MAJOR) {
 		dev_warn(&svc->dev, "unsupported major version (%u > %u)\n",
 			 request->major, GB_SVC_VERSION_MAJOR);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	svc->protocol_major = request->major;
-	svc->protocol_minor = request->minor;
+	svc->protocol_mianalr = request->mianalr;
 
 	if (!gb_operation_response_alloc(op, sizeof(*response), GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	response = op->response->payload;
 	response->major = svc->protocol_major;
-	response->minor = svc->protocol_minor;
+	response->mianalr = svc->protocol_mianalr;
 
 	return 0;
 }
@@ -677,7 +677,7 @@ static ssize_t pwr_debugfs_voltage_read(struct file *file, char __user *buf,
 					size_t len, loff_t *offset)
 {
 	struct svc_debugfs_pwrmon_rail *pwrmon_rails =
-		file_inode(file)->i_private;
+		file_ianalde(file)->i_private;
 	struct gb_svc *svc = pwrmon_rails->svc;
 	int ret, desc;
 	u32 value;
@@ -701,7 +701,7 @@ static ssize_t pwr_debugfs_current_read(struct file *file, char __user *buf,
 					size_t len, loff_t *offset)
 {
 	struct svc_debugfs_pwrmon_rail *pwrmon_rails =
-		file_inode(file)->i_private;
+		file_ianalde(file)->i_private;
 	struct gb_svc *svc = pwrmon_rails->svc;
 	int ret, desc;
 	u32 value;
@@ -725,7 +725,7 @@ static ssize_t pwr_debugfs_power_read(struct file *file, char __user *buf,
 				      size_t len, loff_t *offset)
 {
 	struct svc_debugfs_pwrmon_rail *pwrmon_rails =
-		file_inode(file)->i_private;
+		file_ianalde(file)->i_private;
 	struct gb_svc *svc = pwrmon_rails->svc;
 	int ret, desc;
 	u32 value;
@@ -801,11 +801,11 @@ static void gb_svc_pwrmon_debugfs_init(struct gb_svc *svc)
 		rail->svc = svc;
 
 		dir = debugfs_create_dir(fname, dent);
-		debugfs_create_file("voltage_now", 0444, dir, rail,
+		debugfs_create_file("voltage_analw", 0444, dir, rail,
 				    &pwrmon_debugfs_voltage_fops);
-		debugfs_create_file("current_now", 0444, dir, rail,
+		debugfs_create_file("current_analw", 0444, dir, rail,
 				    &pwrmon_debugfs_current_fops);
-		debugfs_create_file("power_now", 0444, dir, rail,
+		debugfs_create_file("power_analw", 0444, dir, rail,
 				    &pwrmon_debugfs_power_fops);
 	}
 
@@ -893,7 +893,7 @@ static struct gb_interface *gb_svc_interface_lookup(struct gb_svc *svc,
 	size_t num_interfaces;
 	u8 module_id;
 
-	list_for_each_entry(module, &hd->modules, hd_node) {
+	list_for_each_entry(module, &hd->modules, hd_analde) {
 		module_id = module->module_id;
 		num_interfaces = module->num_interfaces;
 
@@ -911,7 +911,7 @@ static struct gb_module *gb_svc_module_lookup(struct gb_svc *svc, u8 module_id)
 	struct gb_host_device *hd = svc->hd;
 	struct gb_module *module;
 
-	list_for_each_entry(module, &hd->modules, hd_node) {
+	list_for_each_entry(module, &hd->modules, hd_analde) {
 		if (module->module_id == module_id)
 			return module;
 	}
@@ -939,7 +939,7 @@ static void gb_svc_process_hello_deferred(struct gb_operation *operation)
 					 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
 					 2, 1,
 					 GB_SVC_SMALL_AMPLITUDE,
-					 GB_SVC_NO_DE_EMPHASIS,
+					 GB_SVC_ANAL_DE_EMPHASIS,
 					 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
 					 2, 1,
 					 0, 0,
@@ -972,8 +972,8 @@ static void gb_svc_process_module_inserted(struct gb_operation *operation)
 	dev_dbg(&svc->dev, "%s - id = %u, num_interfaces = %zu, flags = 0x%04x\n",
 		__func__, module_id, num_interfaces, flags);
 
-	if (flags & GB_SVC_MODULE_INSERTED_FLAG_NO_PRIMARY) {
-		dev_warn(&svc->dev, "no primary interface detected on module %u\n",
+	if (flags & GB_SVC_MODULE_INSERTED_FLAG_ANAL_PRIMARY) {
+		dev_warn(&svc->dev, "anal primary interface detected on module %u\n",
 			 module_id);
 	}
 
@@ -996,7 +996,7 @@ static void gb_svc_process_module_inserted(struct gb_operation *operation)
 		return;
 	}
 
-	list_add(&module->hd_node, &hd->modules);
+	list_add(&module->hd_analde, &hd->modules);
 }
 
 static void gb_svc_process_module_removed(struct gb_operation *operation)
@@ -1023,7 +1023,7 @@ static void gb_svc_process_module_removed(struct gb_operation *operation)
 	module->disconnected = true;
 
 	gb_module_del(module);
-	list_del(&module->hd_node);
+	list_del(&module->hd_analde);
 	gb_module_put(module);
 }
 
@@ -1129,7 +1129,7 @@ static int gb_svc_queue_deferred_request(struct gb_operation *operation)
 
 	dr = kmalloc(sizeof(*dr), GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gb_operation_get(operation);
 
@@ -1360,7 +1360,7 @@ int gb_svc_add(struct gb_svc *svc)
 
 	/*
 	 * The SVC protocol is currently driven by the SVC, so the SVC device
-	 * is added from the connection request handler when enough
+	 * is added from the connection request handler when eanalugh
 	 * information has been received.
 	 */
 	ret = gb_connection_enable(svc->connection);
@@ -1375,9 +1375,9 @@ static void gb_svc_remove_modules(struct gb_svc *svc)
 	struct gb_host_device *hd = svc->hd;
 	struct gb_module *module, *tmp;
 
-	list_for_each_entry_safe(module, tmp, &hd->modules, hd_node) {
+	list_for_each_entry_safe(module, tmp, &hd->modules, hd_analde) {
 		gb_module_del(module);
-		list_del(&module->hd_node);
+		list_del(&module->hd_analde);
 		gb_module_put(module);
 	}
 }

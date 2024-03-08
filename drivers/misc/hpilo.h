@@ -54,7 +54,7 @@ struct ilo_hwinfo {
 	 * --> fifo_lock  controls access to fifo queues shared with hw
 	 *
 	 * Locks must be taken in this order, but open_lock and alloc_lock
-	 * are optional, they do not need to be held in order to take a
+	 * are optional, they do analt need to be held in order to take a
 	 * lower level lock.
 	 */
 	spinlock_t open_lock;
@@ -166,7 +166,7 @@ struct fifo {
 	u64 nrents;	/* user requested number of fifo entries */
 	u64 imask;  /* mask to extract valid fifo index */
 	u64 merge;	/*  O/C bits to merge in during enqueue operation */
-	u64 reset;	/* set to non-zero when the target device resets */
+	u64 reset;	/* set to analn-zero when the target device resets */
 	u8  pad_0[ILO_CACHE_SZ - (sizeof(u64) * 4)];
 
 	u64 head;
@@ -209,6 +209,6 @@ struct fifo {
 #define ENTRY_MASK_DESCRIPTOR \
 	(((1 << ENTRY_BITS_DESCRIPTOR) - 1) << ENTRY_BITPOS_DESCRIPTOR)
 
-#define ENTRY_MASK_NOSTATE (ENTRY_MASK >> (ENTRY_BITS_C + ENTRY_BITS_O))
+#define ENTRY_MASK_ANALSTATE (ENTRY_MASK >> (ENTRY_BITS_C + ENTRY_BITS_O))
 
 #endif /* __HPILO_H */

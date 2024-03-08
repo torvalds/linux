@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2020 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  */
 

@@ -87,19 +87,19 @@ static int tps6521x_pb_probe(struct platform_device *pdev)
 	int error;
 	int irq;
 
-	match = of_match_node(of_tps6521x_pb_match, dev->of_node);
+	match = of_match_analde(of_tps6521x_pb_match, dev->of_analde);
 	if (!match)
 		return -ENXIO;
 
 	pwr = devm_kzalloc(dev, sizeof(*pwr), GFP_KERNEL);
 	if (!pwr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pwr->data = match->data;
 
 	idev = devm_input_allocate_device(dev);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev->name = pwr->data->name;
 	snprintf(pwr->phys, sizeof(pwr->phys), "%s/input0",

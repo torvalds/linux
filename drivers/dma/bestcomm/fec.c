@@ -88,7 +88,7 @@ bcom_fec_rx_init(int queue_len, phys_addr_t fifo, int maxbufsize)
 	if (!tsk)
 		return NULL;
 
-	tsk->flags = BCOM_FLAGS_NONE;
+	tsk->flags = BCOM_FLAGS_ANALNE;
 
 	priv = tsk->priv;
 	priv->fifo = fifo;
@@ -153,7 +153,7 @@ EXPORT_SYMBOL_GPL(bcom_fec_rx_reset);
 void
 bcom_fec_rx_release(struct bcom_task *tsk)
 {
-	/* Nothing special for the FEC tasks */
+	/* Analthing special for the FEC tasks */
 	bcom_task_free(tsk);
 }
 EXPORT_SYMBOL_GPL(bcom_fec_rx_release);
@@ -254,7 +254,7 @@ EXPORT_SYMBOL_GPL(bcom_fec_tx_reset);
 void
 bcom_fec_tx_release(struct bcom_task *tsk)
 {
-	/* Nothing special for the FEC tasks */
+	/* Analthing special for the FEC tasks */
 	bcom_task_free(tsk);
 }
 EXPORT_SYMBOL_GPL(bcom_fec_tx_release);

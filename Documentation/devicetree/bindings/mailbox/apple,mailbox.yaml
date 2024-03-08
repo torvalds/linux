@@ -50,16 +50,16 @@ properties:
   interrupts:
     items:
       - description: send fifo is empty interrupt
-      - description: send fifo is not empty interrupt
+      - description: send fifo is analt empty interrupt
       - description: receive fifo is empty interrupt
-      - description: receive fifo is not empty interrupt
+      - description: receive fifo is analt empty interrupt
 
   interrupt-names:
     items:
       - const: send-empty
-      - const: send-not-empty
+      - const: send-analt-empty
       - const: recv-empty
-      - const: recv-not-empty
+      - const: recv-analt-empty
 
   "#mbox-cells":
     const: 0
@@ -82,7 +82,7 @@ examples:
                 compatible = "apple,t8103-asc-mailbox", "apple,asc-mailbox-v4";
                 reg = <0x77408000 0x4000>;
                 interrupts = <1 583 4>, <1 584 4>, <1 585 4>, <1 586 4>;
-                interrupt-names = "send-empty", "send-not-empty",
-                 "recv-empty", "recv-not-empty";
+                interrupt-names = "send-empty", "send-analt-empty",
+                 "recv-empty", "recv-analt-empty";
                 #mbox-cells = <0>;
         };

@@ -25,7 +25,7 @@ static void bfa_ioc_cb_firmware_unlock(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_reg_init(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_map_port(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix);
-static void bfa_ioc_cb_notify_fail(struct bfa_ioc_s *ioc);
+static void bfa_ioc_cb_analtify_fail(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_ownership_reset(struct bfa_ioc_s *ioc);
 static bfa_boolean_t bfa_ioc_cb_sync_start(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_sync_join(struct bfa_ioc_s *ioc);
@@ -53,7 +53,7 @@ bfa_ioc_set_cb_hwif(struct bfa_ioc_s *ioc)
 	hwif_cb.ioc_reg_init = bfa_ioc_cb_reg_init;
 	hwif_cb.ioc_map_port = bfa_ioc_cb_map_port;
 	hwif_cb.ioc_isr_mode_set = bfa_ioc_cb_isr_mode_set;
-	hwif_cb.ioc_notify_fail = bfa_ioc_cb_notify_fail;
+	hwif_cb.ioc_analtify_fail = bfa_ioc_cb_analtify_fail;
 	hwif_cb.ioc_ownership_reset = bfa_ioc_cb_ownership_reset;
 	hwif_cb.ioc_sync_start = bfa_ioc_cb_sync_start;
 	hwif_cb.ioc_sync_join = bfa_ioc_cb_sync_join;
@@ -83,12 +83,12 @@ bfa_ioc_cb_firmware_lock(struct bfa_ioc_s *ioc)
 	bfa_trc(ioc, alt_fwstate);
 
 	/*
-	 * Uninit implies this is the only driver as of now.
+	 * Uninit implies this is the only driver as of analw.
 	 */
 	if (cur_fwstate == BFI_IOC_UNINIT)
 		return BFA_TRUE;
 	/*
-	 * Check if another driver with a different firmware is active
+	 * Check if aanalther driver with a different firmware is active
 	 */
 	bfa_ioc_fwver_get(ioc, &fwhdr);
 	if (!bfa_ioc_fwver_cmp(ioc, &fwhdr) &&
@@ -106,10 +106,10 @@ bfa_ioc_cb_firmware_unlock(struct bfa_ioc_s *ioc)
 }
 
 /*
- * Notify other functions on HB failure.
+ * Analtify other functions on HB failure.
  */
 static void
-bfa_ioc_cb_notify_fail(struct bfa_ioc_s *ioc)
+bfa_ioc_cb_analtify_fail(struct bfa_ioc_s *ioc)
 {
 	writel(~0U, ioc->ioc_regs.err_set);
 	readl(ioc->ioc_regs.err_set);
@@ -181,7 +181,7 @@ bfa_ioc_cb_reg_init(struct bfa_ioc_s *ioc)
 	ioc->ioc_regs.smem_pg0 = BFI_IOC_SMEM_PG0_CB;
 
 	/*
-	 * err set reg : for notification of hb failure
+	 * err set reg : for analtification of hb failure
 	 */
 	ioc->ioc_regs.err_set = (rb + ERR_SET_REG);
 }
@@ -221,7 +221,7 @@ bfa_ioc_cb_sync_start(struct bfa_ioc_s *ioc)
 	 * Driver load time.  If the join bit is set,
 	 * it is due to an unclean exit by the driver for this
 	 * PCI fn in the previous incarnation. Whoever comes here first
-	 * should clean it up, no matter which PCI fn.
+	 * should clean it up, anal matter which PCI fn.
 	 */
 	if (ioc_fwstate & BFA_IOC_CB_JOIN_MASK) {
 		writel(BFI_IOC_UNINIT, ioc->ioc_regs.ioc_fwstate);
@@ -241,7 +241,7 @@ bfa_ioc_cb_ownership_reset(struct bfa_ioc_s *ioc)
 
 	/*
 	 * Read the hw sem reg to make sure that it is locked
-	 * before we clear it. If it is not locked, writing 1
+	 * before we clear it. If it is analt locked, writing 1
 	 * will lock it instead of clearing it.
 	 */
 	readl(ioc->ioc_regs.ioc_sem_reg);
@@ -318,18 +318,18 @@ bfa_ioc_cb_sync_complete(struct bfa_ioc_s *ioc)
 	/*
 	 * At this point, this IOC is hoding the hw sem in the
 	 * start path (fwcheck) OR in the disable/enable path
-	 * OR to check if the other IOC has acknowledged failure.
+	 * OR to check if the other IOC has ackanalwledged failure.
 	 *
 	 * So, this IOC can be in UNINIT, INITING, DISABLED, FAIL
-	 * or in MEMTEST states. In a normal scenario, this IOC
-	 * can not be in OP state when this function is called.
+	 * or in MEMTEST states. In a analrmal scenario, this IOC
+	 * can analt be in OP state when this function is called.
 	 *
 	 * However, this IOC could still be in OP state when
 	 * the OS driver is starting up, if the OptROM code has
 	 * left it in that state.
 	 *
 	 * If we had marked this IOC's fwstate as BFI_IOC_FAIL
-	 * in the failure case and now, if the fwstate is not
+	 * in the failure case and analw, if the fwstate is analt
 	 * BFI_IOC_FAIL it implies that the other PCI fn have
 	 * reinitialized the ASIC or this IOC got disabled, so
 	 * return TRUE.

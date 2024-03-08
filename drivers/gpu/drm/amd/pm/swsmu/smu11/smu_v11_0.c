@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -47,7 +47,7 @@
 #include "asic_reg/smuio/smuio_11_0_0_sh_mask.h"
 
 /*
- * DO NOT use these for err/warn/info/debug messages.
+ * DO ANALT use these for err/warn/info/debug messages.
  * Use dev_err, dev_warn, dev_info and dev_dbg instead.
  * They are more MGPU friendly.
  */
@@ -199,7 +199,7 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t if_version = 0xff, smu_version = 0xff;
-	uint8_t smu_program, smu_major, smu_minor, smu_debug;
+	uint8_t smu_program, smu_major, smu_mianalr, smu_debug;
 	int ret = 0;
 
 	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
@@ -208,7 +208,7 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 
 	smu_program = (smu_version >> 24) & 0xff;
 	smu_major = (smu_version >> 16) & 0xff;
-	smu_minor = (smu_version >> 8) & 0xff;
+	smu_mianalr = (smu_version >> 8) & 0xff;
 	smu_debug = (smu_version >> 0) & 0xff;
 	if (smu->is_apu)
 		adev->pm.fw_version = smu_version;
@@ -252,7 +252,7 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 	}
 
 	/*
-	 * 1. if_version mismatch is not critical as our fw is designed
+	 * 1. if_version mismatch is analt critical as our fw is designed
 	 * to be backward compatible.
 	 * 2. New fw usually brings some optimizations. But that's visible
 	 * only on the paired driver.
@@ -263,8 +263,8 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 		dev_info(smu->adev->dev, "smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
 			"smu fw program = %d, version = 0x%08x (%d.%d.%d)\n",
 			smu->smc_driver_if_version, if_version,
-			smu_program, smu_version, smu_major, smu_minor, smu_debug);
-		dev_info(smu->adev->dev, "SMU driver if version not matched\n");
+			smu_program, smu_version, smu_major, smu_mianalr, smu_debug);
+		dev_info(smu->adev->dev, "SMU driver if version analt matched\n");
 	}
 
 	return ret;
@@ -321,15 +321,15 @@ int smu_v11_0_setup_pptable(struct smu_context *smu)
 	uint16_t atom_table_size;
 	uint8_t frev, crev;
 	void *table;
-	uint16_t version_major, version_minor;
+	uint16_t version_major, version_mianalr;
 
 	if (!amdgpu_sriov_vf(adev)) {
 		hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
 		version_major = le16_to_cpu(hdr->header.header_version_major);
-		version_minor = le16_to_cpu(hdr->header.header_version_minor);
+		version_mianalr = le16_to_cpu(hdr->header.header_version_mianalr);
 		if (version_major == 2 && smu->smu_table.boot_values.pp_table_id > 0) {
 			dev_info(adev->dev, "use driver provided pptable %d\n", smu->smu_table.boot_values.pp_table_id);
-			switch (version_minor) {
+			switch (version_mianalr) {
 			case 0:
 				ret = smu_v11_0_set_pptable_v2_0(smu, &table, &size);
 				break;
@@ -375,37 +375,37 @@ int smu_v11_0_init_smc_tables(struct smu_context *smu)
 	smu_table->driver_pptable =
 		kzalloc(tables[SMU_TABLE_PPTABLE].size, GFP_KERNEL);
 	if (!smu_table->driver_pptable) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err0_out;
 	}
 
 	smu_table->max_sustainable_clocks =
 		kzalloc(sizeof(struct smu_11_0_max_sustainable_clocks), GFP_KERNEL);
 	if (!smu_table->max_sustainable_clocks) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err1_out;
 	}
 
-	/* Arcturus does not support OVERDRIVE */
+	/* Arcturus does analt support OVERDRIVE */
 	if (tables[SMU_TABLE_OVERDRIVE].size) {
 		smu_table->overdrive_table =
 			kzalloc(tables[SMU_TABLE_OVERDRIVE].size, GFP_KERNEL);
 		if (!smu_table->overdrive_table) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err2_out;
 		}
 
 		smu_table->boot_overdrive_table =
 			kzalloc(tables[SMU_TABLE_OVERDRIVE].size, GFP_KERNEL);
 		if (!smu_table->boot_overdrive_table) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err3_out;
 		}
 
 		smu_table->user_overdrive_table =
 			kzalloc(tables[SMU_TABLE_OVERDRIVE].size, GFP_KERNEL);
 		if (!smu_table->user_overdrive_table) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err4_out;
 		}
 
@@ -481,7 +481,7 @@ int smu_v11_0_init_power(struct smu_context *smu)
 
 	smu_power->power_context = kzalloc(size, GFP_KERNEL);
 	if (!smu_power->power_context)
-		return -ENOMEM;
+		return -EANALMEM;
 	smu_power->power_context_size = size;
 
 	return 0;
@@ -542,7 +542,7 @@ int smu_v11_0_get_vbios_bootup_values(struct smu_context *smu)
 		return ret;
 
 	if (header->format_revision != 3) {
-		dev_err(smu->adev->dev, "unknown atom_firmware_info version! for smu11\n");
+		dev_err(smu->adev->dev, "unkanalwn atom_firmware_info version! for smu11\n");
 		return -EINVAL;
 	}
 
@@ -625,7 +625,7 @@ int smu_v11_0_get_vbios_bootup_values(struct smu_context *smu)
 	return 0;
 }
 
-int smu_v11_0_notify_memory_pool_location(struct smu_context *smu)
+int smu_v11_0_analtify_memory_pool_location(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *memory_pool = &smu_table->memory_pool;
@@ -729,7 +729,7 @@ int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count)
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	/* Navy_Flounder/Dimgrey_Cavefish do not support to change
+	/* Navy_Flounder/Dimgrey_Cavefish do analt support to change
 	 * display num currently
 	 */
 	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 11) ||
@@ -779,7 +779,7 @@ int smu_v11_0_system_features_control(struct smu_context *smu,
 					  SMU_MSG_DisableAllSmuFeatures), NULL);
 }
 
-int smu_v11_0_notify_display_change(struct smu_context *smu)
+int smu_v11_0_analtify_display_change(struct smu_context *smu)
 {
 	int ret = 0;
 
@@ -923,7 +923,7 @@ int smu_v11_0_get_current_power_limit(struct smu_context *smu,
 		return -EINVAL;
 
 	/*
-	 * BIT 24-31: ControllerId (only PPT0 is supported for now)
+	 * BIT 24-31: ControllerId (only PPT0 is supported for analw)
 	 * BIT 16-23: PowerSource
 	 */
 	ret = smu_cmn_send_smc_msg_with_param(smu,
@@ -948,8 +948,8 @@ int smu_v11_0_set_power_limit(struct smu_context *smu,
 		return -EINVAL;
 
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
-		dev_err(smu->adev->dev, "Setting new power limit is not supported!\n");
-		return -EOPNOTSUPP;
+		dev_err(smu->adev->dev, "Setting new power limit is analt supported!\n");
+		return -EOPANALTSUPP;
 	}
 
 	power_src = smu_cmn_to_asic_specific_index(smu,
@@ -961,7 +961,7 @@ int smu_v11_0_set_power_limit(struct smu_context *smu,
 		return -EINVAL;
 
 	/*
-	 * BIT 24-31: ControllerId (only PPT0 is supported for now)
+	 * BIT 24-31: ControllerId (only PPT0 is supported for analw)
 	 * BIT 16-23: PowerSource
 	 * BIT 0-15: PowerLimit
 	 */
@@ -1208,9 +1208,9 @@ int smu_v11_0_set_fan_speed_rpm(struct smu_context *smu,
 	/*
 	 * To prevent from possible overheat, some ASICs may have requirement
 	 * for minimum fan speed:
-	 * - For some NV10 SKU, the fan speed cannot be set lower than
+	 * - For some NV10 SKU, the fan speed cananalt be set lower than
 	 *   700 RPM.
-	 * - For some Sienna Cichlid SKU, the fan speed cannot be set
+	 * - For some Sienna Cichlid SKU, the fan speed cananalt be set
 	 *   lower than 500 RPM.
 	 */
 	tach_period = 60 * crystal_clock_freq * 10000 / (8 * speed);
@@ -1230,7 +1230,7 @@ int smu_v11_0_get_fan_speed_pwm(struct smu_context *smu,
 	uint64_t tmp64;
 
 	/*
-	 * For pre Sienna Cichlid ASICs, the 0 RPM may be not correctly
+	 * For pre Sienna Cichlid ASICs, the 0 RPM may be analt correctly
 	 * detected via register retrieving. To workaround this, we will
 	 * report the fan speed as 0 PWM if user just requested such.
 	 */
@@ -1263,7 +1263,7 @@ int smu_v11_0_get_fan_speed_rpm(struct smu_context *smu,
 	uint64_t tmp64;
 
 	/*
-	 * For pre Sienna Cichlid ASICs, the 0 RPM may be not correctly
+	 * For pre Sienna Cichlid ASICs, the 0 RPM may be analt correctly
 	 * detected via register retrieving. To workaround this, we will
 	 * report the fan speed as 0 RPM if user just requested such.
 	 */
@@ -1294,7 +1294,7 @@ smu_v11_0_set_fan_control_mode(struct smu_context *smu,
 	int ret = 0;
 
 	switch (mode) {
-	case AMD_FAN_CTRL_NONE:
+	case AMD_FAN_CTRL_ANALNE:
 		ret = smu_v11_0_auto_fan_control(smu, 0);
 		if (!ret)
 			ret = smu_v11_0_set_fan_speed_pwm(smu, 255);
@@ -1420,7 +1420,7 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 			dev_emerg(adev->dev, "ERROR: GPU under temperature range detected\n");
 		break;
 		default:
-			dev_emerg(adev->dev, "ERROR: GPU under temperature range unknown src id (%d)\n",
+			dev_emerg(adev->dev, "ERROR: GPU under temperature range unkanalwn src id (%d)\n",
 				src_id);
 		break;
 		}
@@ -1564,7 +1564,7 @@ bool smu_v11_0_baco_is_support(struct smu_context *smu)
 	if (smu_v11_0_baco_get_state(smu) == SMU_BACO_STATE_ENTER)
 		return true;
 
-	/* Arcturus does not support this bit mask */
+	/* Arcturus does analt support this bit mask */
 	if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_BACO_BIT) &&
 	   !smu_cmn_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
 		return false;
@@ -1895,7 +1895,7 @@ int smu_v11_0_set_performance_level(struct smu_context *smu,
 	}
 
 	/*
-	 * Separate MCLK and SOCCLK soft min/max settings are not allowed
+	 * Separate MCLK and SOCCLK soft min/max settings are analt allowed
 	 * on Arcturus.
 	 */
 	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 2)) {
@@ -1945,7 +1945,7 @@ int smu_v11_0_set_power_source(struct smu_context *smu,
 		return -EINVAL;
 
 	return smu_cmn_send_smc_msg_with_param(smu,
-					SMU_MSG_NotifyPowerSource,
+					SMU_MSG_AnaltifyPowerSource,
 					pwr_source,
 					NULL);
 }
@@ -1981,7 +1981,7 @@ int smu_v11_0_get_dpm_freq_by_index(struct smu_context *smu,
 
 	/*
 	 * BIT31:  0 - Fine grained DPM, 1 - Dicrete DPM
-	 * now, we un-support it
+	 * analw, we un-support it
 	 */
 	*value = *value & 0x7fffffff;
 

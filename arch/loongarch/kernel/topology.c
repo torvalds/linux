@@ -3,8 +3,8 @@
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
-#include <linux/node.h>
-#include <linux/nodemask.h>
+#include <linux/analde.h>
+#include <linux/analdemask.h>
 #include <linux/percpu.h>
 #include <asm/bootinfo.h>
 

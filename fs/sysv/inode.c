@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/fs/sysv/inode.c
+ *  linux/fs/sysv/ianalde.c
  *
- *  minix/inode.c
+ *  minix/ianalde.c
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
- *  xenix/inode.c
+ *  xenix/ianalde.c
  *  Copyright (C) 1992  Doug Evans
  *
- *  coh/inode.c
- *  Copyright (C) 1993  Pascal Haible, Bruno Haible
+ *  coh/ianalde.c
+ *  Copyright (C) 1993  Pascal Haible, Bruanal Haible
  *
- *  sysv/inode.c
+ *  sysv/ianalde.c
  *  Copyright (C) 1993  Paul B. Monday
  *
- *  sysv/inode.c
- *  Copyright (C) 1993  Bruno Haible
- *  Copyright (C) 1997, 1998  Krzysztof G. Baranowski
+ *  sysv/ianalde.c
+ *  Copyright (C) 1993  Bruanal Haible
+ *  Copyright (C) 1997, 1998  Krzysztof G. Baraanalwski
  *
- *  This file contains code for allocating/freeing inodes and for read/writing
+ *  This file contains code for allocating/freeing ianaldes and for read/writing
  *  the superblock.
  */
 
@@ -95,8 +95,8 @@ static int sysv_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bsize = sb->s_blocksize;
 	buf->f_blocks = sbi->s_ndatazones;
 	buf->f_bavail = buf->f_bfree = sysv_count_free_blocks(sb);
-	buf->f_files = sbi->s_ninodes;
-	buf->f_ffree = sysv_count_free_inodes(sb);
+	buf->f_files = sbi->s_nianaldes;
+	buf->f_ffree = sysv_count_free_ianaldes(sb);
 	buf->f_namelen = SYSV_NAMELEN;
 	buf->f_fsid = u64_to_fsid(id);
 	return 0;
@@ -144,129 +144,129 @@ static inline void write3byte(struct sysv_sb_info *sbi,
 	}
 }
 
-static const struct inode_operations sysv_symlink_inode_operations = {
+static const struct ianalde_operations sysv_symlink_ianalde_operations = {
 	.get_link	= page_get_link,
 	.getattr	= sysv_getattr,
 };
 
-void sysv_set_inode(struct inode *inode, dev_t rdev)
+void sysv_set_ianalde(struct ianalde *ianalde, dev_t rdev)
 {
-	if (S_ISREG(inode->i_mode)) {
-		inode->i_op = &sysv_file_inode_operations;
-		inode->i_fop = &sysv_file_operations;
-		inode->i_mapping->a_ops = &sysv_aops;
-	} else if (S_ISDIR(inode->i_mode)) {
-		inode->i_op = &sysv_dir_inode_operations;
-		inode->i_fop = &sysv_dir_operations;
-		inode->i_mapping->a_ops = &sysv_aops;
-	} else if (S_ISLNK(inode->i_mode)) {
-		inode->i_op = &sysv_symlink_inode_operations;
-		inode_nohighmem(inode);
-		inode->i_mapping->a_ops = &sysv_aops;
+	if (S_ISREG(ianalde->i_mode)) {
+		ianalde->i_op = &sysv_file_ianalde_operations;
+		ianalde->i_fop = &sysv_file_operations;
+		ianalde->i_mapping->a_ops = &sysv_aops;
+	} else if (S_ISDIR(ianalde->i_mode)) {
+		ianalde->i_op = &sysv_dir_ianalde_operations;
+		ianalde->i_fop = &sysv_dir_operations;
+		ianalde->i_mapping->a_ops = &sysv_aops;
+	} else if (S_ISLNK(ianalde->i_mode)) {
+		ianalde->i_op = &sysv_symlink_ianalde_operations;
+		ianalde_analhighmem(ianalde);
+		ianalde->i_mapping->a_ops = &sysv_aops;
 	} else
-		init_special_inode(inode, inode->i_mode, rdev);
+		init_special_ianalde(ianalde, ianalde->i_mode, rdev);
 }
 
-struct inode *sysv_iget(struct super_block *sb, unsigned int ino)
+struct ianalde *sysv_iget(struct super_block *sb, unsigned int ianal)
 {
 	struct sysv_sb_info * sbi = SYSV_SB(sb);
 	struct buffer_head * bh;
-	struct sysv_inode * raw_inode;
-	struct sysv_inode_info * si;
-	struct inode *inode;
+	struct sysv_ianalde * raw_ianalde;
+	struct sysv_ianalde_info * si;
+	struct ianalde *ianalde;
 	unsigned int block;
 
-	if (!ino || ino > sbi->s_ninodes) {
-		printk("Bad inode number on dev %s: %d is out of range\n",
-		       sb->s_id, ino);
+	if (!ianal || ianal > sbi->s_nianaldes) {
+		printk("Bad ianalde number on dev %s: %d is out of range\n",
+		       sb->s_id, ianal);
 		return ERR_PTR(-EIO);
 	}
 
-	inode = iget_locked(sb, ino);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	ianalde = iget_locked(sb, ianal);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
+	if (!(ianalde->i_state & I_NEW))
+		return ianalde;
 
-	raw_inode = sysv_raw_inode(sb, ino, &bh);
-	if (!raw_inode) {
-		printk("Major problem: unable to read inode from dev %s\n",
-		       inode->i_sb->s_id);
-		goto bad_inode;
+	raw_ianalde = sysv_raw_ianalde(sb, ianal, &bh);
+	if (!raw_ianalde) {
+		printk("Major problem: unable to read ianalde from dev %s\n",
+		       ianalde->i_sb->s_id);
+		goto bad_ianalde;
 	}
-	/* SystemV FS: kludge permissions if ino==SYSV_ROOT_INO ?? */
-	inode->i_mode = fs16_to_cpu(sbi, raw_inode->i_mode);
-	i_uid_write(inode, (uid_t)fs16_to_cpu(sbi, raw_inode->i_uid));
-	i_gid_write(inode, (gid_t)fs16_to_cpu(sbi, raw_inode->i_gid));
-	set_nlink(inode, fs16_to_cpu(sbi, raw_inode->i_nlink));
-	inode->i_size = fs32_to_cpu(sbi, raw_inode->i_size);
-	inode_set_atime(inode, fs32_to_cpu(sbi, raw_inode->i_atime), 0);
-	inode_set_mtime(inode, fs32_to_cpu(sbi, raw_inode->i_mtime), 0);
-	inode_set_ctime(inode, fs32_to_cpu(sbi, raw_inode->i_ctime), 0);
-	inode->i_blocks = 0;
+	/* SystemV FS: kludge permissions if ianal==SYSV_ROOT_IANAL ?? */
+	ianalde->i_mode = fs16_to_cpu(sbi, raw_ianalde->i_mode);
+	i_uid_write(ianalde, (uid_t)fs16_to_cpu(sbi, raw_ianalde->i_uid));
+	i_gid_write(ianalde, (gid_t)fs16_to_cpu(sbi, raw_ianalde->i_gid));
+	set_nlink(ianalde, fs16_to_cpu(sbi, raw_ianalde->i_nlink));
+	ianalde->i_size = fs32_to_cpu(sbi, raw_ianalde->i_size);
+	ianalde_set_atime(ianalde, fs32_to_cpu(sbi, raw_ianalde->i_atime), 0);
+	ianalde_set_mtime(ianalde, fs32_to_cpu(sbi, raw_ianalde->i_mtime), 0);
+	ianalde_set_ctime(ianalde, fs32_to_cpu(sbi, raw_ianalde->i_ctime), 0);
+	ianalde->i_blocks = 0;
 
-	si = SYSV_I(inode);
+	si = SYSV_I(ianalde);
 	for (block = 0; block < 10+1+1+1; block++)
-		read3byte(sbi, &raw_inode->i_data[3*block],
+		read3byte(sbi, &raw_ianalde->i_data[3*block],
 				(u8 *)&si->i_data[block]);
 	brelse(bh);
 	si->i_dir_start_lookup = 0;
-	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
-		sysv_set_inode(inode,
+	if (S_ISCHR(ianalde->i_mode) || S_ISBLK(ianalde->i_mode))
+		sysv_set_ianalde(ianalde,
 			       old_decode_dev(fs32_to_cpu(sbi, si->i_data[0])));
 	else
-		sysv_set_inode(inode, 0);
-	unlock_new_inode(inode);
-	return inode;
+		sysv_set_ianalde(ianalde, 0);
+	unlock_new_ianalde(ianalde);
+	return ianalde;
 
-bad_inode:
-	iget_failed(inode);
+bad_ianalde:
+	iget_failed(ianalde);
 	return ERR_PTR(-EIO);
 }
 
-static int __sysv_write_inode(struct inode *inode, int wait)
+static int __sysv_write_ianalde(struct ianalde *ianalde, int wait)
 {
-	struct super_block * sb = inode->i_sb;
+	struct super_block * sb = ianalde->i_sb;
 	struct sysv_sb_info * sbi = SYSV_SB(sb);
 	struct buffer_head * bh;
-	struct sysv_inode * raw_inode;
-	struct sysv_inode_info * si;
-	unsigned int ino, block;
+	struct sysv_ianalde * raw_ianalde;
+	struct sysv_ianalde_info * si;
+	unsigned int ianal, block;
 	int err = 0;
 
-	ino = inode->i_ino;
-	if (!ino || ino > sbi->s_ninodes) {
-		printk("Bad inode number on dev %s: %d is out of range\n",
-		       inode->i_sb->s_id, ino);
+	ianal = ianalde->i_ianal;
+	if (!ianal || ianal > sbi->s_nianaldes) {
+		printk("Bad ianalde number on dev %s: %d is out of range\n",
+		       ianalde->i_sb->s_id, ianal);
 		return -EIO;
 	}
-	raw_inode = sysv_raw_inode(sb, ino, &bh);
-	if (!raw_inode) {
-		printk("unable to read i-node block\n");
+	raw_ianalde = sysv_raw_ianalde(sb, ianal, &bh);
+	if (!raw_ianalde) {
+		printk("unable to read i-analde block\n");
 		return -EIO;
 	}
 
-	raw_inode->i_mode = cpu_to_fs16(sbi, inode->i_mode);
-	raw_inode->i_uid = cpu_to_fs16(sbi, fs_high2lowuid(i_uid_read(inode)));
-	raw_inode->i_gid = cpu_to_fs16(sbi, fs_high2lowgid(i_gid_read(inode)));
-	raw_inode->i_nlink = cpu_to_fs16(sbi, inode->i_nlink);
-	raw_inode->i_size = cpu_to_fs32(sbi, inode->i_size);
-	raw_inode->i_atime = cpu_to_fs32(sbi, inode_get_atime_sec(inode));
-	raw_inode->i_mtime = cpu_to_fs32(sbi, inode_get_mtime_sec(inode));
-	raw_inode->i_ctime = cpu_to_fs32(sbi, inode_get_ctime_sec(inode));
+	raw_ianalde->i_mode = cpu_to_fs16(sbi, ianalde->i_mode);
+	raw_ianalde->i_uid = cpu_to_fs16(sbi, fs_high2lowuid(i_uid_read(ianalde)));
+	raw_ianalde->i_gid = cpu_to_fs16(sbi, fs_high2lowgid(i_gid_read(ianalde)));
+	raw_ianalde->i_nlink = cpu_to_fs16(sbi, ianalde->i_nlink);
+	raw_ianalde->i_size = cpu_to_fs32(sbi, ianalde->i_size);
+	raw_ianalde->i_atime = cpu_to_fs32(sbi, ianalde_get_atime_sec(ianalde));
+	raw_ianalde->i_mtime = cpu_to_fs32(sbi, ianalde_get_mtime_sec(ianalde));
+	raw_ianalde->i_ctime = cpu_to_fs32(sbi, ianalde_get_ctime_sec(ianalde));
 
-	si = SYSV_I(inode);
-	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
-		si->i_data[0] = cpu_to_fs32(sbi, old_encode_dev(inode->i_rdev));
+	si = SYSV_I(ianalde);
+	if (S_ISCHR(ianalde->i_mode) || S_ISBLK(ianalde->i_mode))
+		si->i_data[0] = cpu_to_fs32(sbi, old_encode_dev(ianalde->i_rdev));
 	for (block = 0; block < 10+1+1+1; block++)
 		write3byte(sbi, (u8 *)&si->i_data[block],
-			&raw_inode->i_data[3*block]);
+			&raw_ianalde->i_data[3*block]);
 	mark_buffer_dirty(bh);
 	if (wait) {
                 sync_dirty_buffer(bh);
                 if (buffer_req(bh) && !buffer_uptodate(bh)) {
-                        printk ("IO error syncing sysv inode [%s:%08x]\n",
-                                sb->s_id, ino);
+                        printk ("IO error syncing sysv ianalde [%s:%08x]\n",
+                                sb->s_id, ianal);
                         err = -EIO;
                 }
         }
@@ -274,58 +274,58 @@ static int __sysv_write_inode(struct inode *inode, int wait)
 	return err;
 }
 
-int sysv_write_inode(struct inode *inode, struct writeback_control *wbc)
+int sysv_write_ianalde(struct ianalde *ianalde, struct writeback_control *wbc)
 {
-	return __sysv_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
+	return __sysv_write_ianalde(ianalde, wbc->sync_mode == WB_SYNC_ALL);
 }
 
-int sysv_sync_inode(struct inode *inode)
+int sysv_sync_ianalde(struct ianalde *ianalde)
 {
-	return __sysv_write_inode(inode, 1);
+	return __sysv_write_ianalde(ianalde, 1);
 }
 
-static void sysv_evict_inode(struct inode *inode)
+static void sysv_evict_ianalde(struct ianalde *ianalde)
 {
-	truncate_inode_pages_final(&inode->i_data);
-	if (!inode->i_nlink) {
-		inode->i_size = 0;
-		sysv_truncate(inode);
+	truncate_ianalde_pages_final(&ianalde->i_data);
+	if (!ianalde->i_nlink) {
+		ianalde->i_size = 0;
+		sysv_truncate(ianalde);
 	}
-	invalidate_inode_buffers(inode);
-	clear_inode(inode);
-	if (!inode->i_nlink)
-		sysv_free_inode(inode);
+	invalidate_ianalde_buffers(ianalde);
+	clear_ianalde(ianalde);
+	if (!ianalde->i_nlink)
+		sysv_free_ianalde(ianalde);
 }
 
-static struct kmem_cache *sysv_inode_cachep;
+static struct kmem_cache *sysv_ianalde_cachep;
 
-static struct inode *sysv_alloc_inode(struct super_block *sb)
+static struct ianalde *sysv_alloc_ianalde(struct super_block *sb)
 {
-	struct sysv_inode_info *si;
+	struct sysv_ianalde_info *si;
 
-	si = alloc_inode_sb(sb, sysv_inode_cachep, GFP_KERNEL);
+	si = alloc_ianalde_sb(sb, sysv_ianalde_cachep, GFP_KERNEL);
 	if (!si)
 		return NULL;
-	return &si->vfs_inode;
+	return &si->vfs_ianalde;
 }
 
-static void sysv_free_in_core_inode(struct inode *inode)
+static void sysv_free_in_core_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(sysv_inode_cachep, SYSV_I(inode));
+	kmem_cache_free(sysv_ianalde_cachep, SYSV_I(ianalde));
 }
 
 static void init_once(void *p)
 {
-	struct sysv_inode_info *si = (struct sysv_inode_info *)p;
+	struct sysv_ianalde_info *si = (struct sysv_ianalde_info *)p;
 
-	inode_init_once(&si->vfs_inode);
+	ianalde_init_once(&si->vfs_ianalde);
 }
 
 const struct super_operations sysv_sops = {
-	.alloc_inode	= sysv_alloc_inode,
-	.free_inode	= sysv_free_in_core_inode,
-	.write_inode	= sysv_write_inode,
-	.evict_inode	= sysv_evict_inode,
+	.alloc_ianalde	= sysv_alloc_ianalde,
+	.free_ianalde	= sysv_free_in_core_ianalde,
+	.write_ianalde	= sysv_write_ianalde,
+	.evict_ianalde	= sysv_evict_ianalde,
 	.put_super	= sysv_put_super,
 	.sync_fs	= sysv_sync_fs,
 	.remount_fs	= sysv_remount,
@@ -334,21 +334,21 @@ const struct super_operations sysv_sops = {
 
 int __init sysv_init_icache(void)
 {
-	sysv_inode_cachep = kmem_cache_create("sysv_inode_cache",
-			sizeof(struct sysv_inode_info), 0,
+	sysv_ianalde_cachep = kmem_cache_create("sysv_ianalde_cache",
+			sizeof(struct sysv_ianalde_info), 0,
 			SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
 			init_once);
-	if (!sysv_inode_cachep)
-		return -ENOMEM;
+	if (!sysv_ianalde_cachep)
+		return -EANALMEM;
 	return 0;
 }
 
 void sysv_destroy_icache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(sysv_inode_cachep);
+	kmem_cache_destroy(sysv_ianalde_cachep);
 }

@@ -18,7 +18,7 @@
 	    Implement MPEG initialization parameter.
 	January, 17th 2009
 	    Fill set_voltage with actually control voltage code.
-	    Correct set tone to not affect voltage.
+	    Correct set tone to analt affect voltage.
 
 */
 
@@ -45,7 +45,7 @@ MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 #define CX24116_DEFAULT_FIRMWARE "dvb-fe-cx24116.fw"
 #define CX24116_SEARCH_RANGE_KHZ 5000
 
-/* known registers */
+/* kanalwn registers */
 #define CX24116_REG_COMMAND (0x00)      /* command args 0x00..0x1e */
 #define CX24116_REG_EXECUTE (0x1f)      /* execute command */
 #define CX24116_REG_MAILBOX (0x96)      /* FW or multipurpose mailbox? */
@@ -64,16 +64,16 @@ MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 #define CX24116_REG_CLKDIV  (0xf3)
 #define CX24116_REG_RATEDIV (0xf9)
 
-/* configured fec (not tuned) or actual FEC (tuned) 1=1/2 2=2/3 etc */
+/* configured fec (analt tuned) or actual FEC (tuned) 1=1/2 2=2/3 etc */
 #define CX24116_REG_FECSTATUS (0x9c)
 
 /* FECSTATUS bits */
-/* mask to determine configured fec (not tuned) or actual fec (tuned) */
+/* mask to determine configured fec (analt tuned) or actual fec (tuned) */
 #define CX24116_FEC_FECMASK   (0x1f)
 
 /* Select DVB-S demodulator, else DVB-S2 */
 #define CX24116_FEC_DVBS      (0x20)
-#define CX24116_FEC_UNKNOWN   (0x40)    /* Unknown/unused */
+#define CX24116_FEC_UNKANALWN   (0x40)    /* Unkanalwn/unused */
 
 /* Pilot mode requested when tuning else always reset when tuned */
 #define CX24116_FEC_PILOT     (0x80)
@@ -95,8 +95,8 @@ MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 #define CX24116_HAS_CARRIER  (0x02)
 #define CX24116_HAS_VITERBI  (0x04)
 #define CX24116_HAS_SYNCLOCK (0x08)
-#define CX24116_HAS_UNKNOWN1 (0x10)
-#define CX24116_HAS_UNKNOWN2 (0x20)
+#define CX24116_HAS_UNKANALWN1 (0x10)
+#define CX24116_HAS_UNKANALWN2 (0x20)
 #define CX24116_STATUS_MASK  (0x0f)
 #define CX24116_SIGNAL_MASK  (0xc0)
 
@@ -106,9 +106,9 @@ MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 
 /* arg offset for DiSEqC */
 #define CX24116_DISEQC_BURST  (1)
-#define CX24116_DISEQC_ARG2_2 (2)   /* unknown value=2 */
-#define CX24116_DISEQC_ARG3_0 (3)   /* unknown value=0 */
-#define CX24116_DISEQC_ARG4_0 (4)   /* unknown value=0 */
+#define CX24116_DISEQC_ARG2_2 (2)   /* unkanalwn value=2 */
+#define CX24116_DISEQC_ARG3_0 (3)   /* unkanalwn value=0 */
+#define CX24116_DISEQC_ARG4_0 (4)   /* unkanalwn value=0 */
 #define CX24116_DISEQC_MSGLEN (5)
 #define CX24116_DISEQC_MSGOFS (6)
 
@@ -123,10 +123,10 @@ MODULE_PARM_DESC(toneburst, "DiSEqC toneburst 0=OFF, 1=TONE CACHE, "\
 	"2=MESSAGE CACHE (default:1)");
 
 /* SNR measurements */
-static int esno_snr;
-module_param(esno_snr, int, 0644);
-MODULE_PARM_DESC(esno_snr, "SNR return units, 0=PERCENTAGE 0-100, "\
-	"1=ESNO(db * 10) (default:0)");
+static int esanal_snr;
+module_param(esanal_snr, int, 0644);
+MODULE_PARM_DESC(esanal_snr, "SNR return units, 0=PERCENTAGE 0-100, "\
+	"1=ESANAL(db * 10) (default:0)");
 
 enum cmds {
 	CMD_SET_VCO     = 0x10,
@@ -141,7 +141,7 @@ enum cmds {
 	CMD_SET_TONE    = 0x23,
 	CMD_UPDFWVERS   = 0x35,
 	CMD_TUNERSLEEP  = 0x36,
-	CMD_AGCCONTROL  = 0x3b, /* Unknown */
+	CMD_AGCCONTROL  = 0x3b, /* Unkanalwn */
 };
 
 /* The Demod/Tuner can't easily provide these, we cache them */
@@ -215,7 +215,7 @@ static int cx24116_writeregN(struct cx24116_state *state, int reg,
 
 	buf = kmalloc(len + 1, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*(buf) = reg;
 	memcpy(buf + 1, data, len);
@@ -305,14 +305,14 @@ static int cx24116_set_inversion(struct cx24116_state *state,
  * QPSK         FEC_5_6         0x20 0x02+X DVB-S
  * QPSK         FEC_6_7         0x40 0x02+X DVB-S
  * QPSK         FEC_7_8         0x80 0x02+X DVB-S
- * QPSK         FEC_8_9         0x01 0x02+X DVB-S (?) (NOT SUPPORTED?)
+ * QPSK         FEC_8_9         0x01 0x02+X DVB-S (?) (ANALT SUPPORTED?)
  * QPSK         AUTO            0xff 0x02+X DVB-S
  *
  * For DVB-S high byte probably represents FEC
  * and low byte selects the modulator. The high
  * byte is search range mask. Bit 5 may turn
  * on DVB-S and remaining bits represent some
- * kind of calibration (how/what i do not know).
+ * kind of calibration (how/what i do analt kanalw).
  *
  * Eg.(2/3) szap "Zone Horror"
  *
@@ -325,7 +325,7 @@ static int cx24116_set_inversion(struct cx24116_state *state,
  * After tuning FECSTATUS contains actual FEC
  * in use numbered 1 through to 8 for 1/2 .. 2/3 etc
  *
- * NBC=NOT/NON BACKWARD COMPATIBLE WITH DVB-S (DVB-S2 only)
+ * NBC=ANALT/ANALN BACKWARD COMPATIBLE WITH DVB-S (DVB-S2 only)
  *
  * NBC-QPSK     FEC_1_2         0x00, 0x04      DVB-S2
  * NBC-QPSK     FEC_3_5         0x00, 0x05      DVB-S2
@@ -347,14 +347,14 @@ static int cx24116_set_inversion(struct cx24116_state *state,
  * and FEC. High byte is meaningless here. To
  * set pilot, bit 6 (0x40) is set. When inspecting
  * FECSTATUS bit 7 (0x80) represents the pilot
- * selection whilst not tuned. When tuned, actual FEC
+ * selection whilst analt tuned. When tuned, actual FEC
  * in use is found in FECSTATUS as per above. Pilot
  * value is reset.
  */
 
 /* A table of modulation, fec and configuration bytes for the demod.
- * Not all S2 mmodulation schemes are support and not all rates with
- * a scheme are support. Especially, no auto detect when in S2 mode.
+ * Analt all S2 mmodulation schemes are support and analt all rates with
+ * a scheme are support. Especially, anal auto detect when in S2 mode.
  */
 static struct cx24116_modfec {
 	enum fe_delivery_system delivery_system;
@@ -363,10 +363,10 @@ static struct cx24116_modfec {
 	u8 mask;	/* In DVBS mode this is used to autodetect */
 	u8 val;		/* Passed to the firmware to indicate mode selection */
 } CX24116_MODFEC_MODES[] = {
- /* QPSK. For unknown rates we set hardware to auto detect 0xfe 0x30 */
+ /* QPSK. For unkanalwn rates we set hardware to auto detect 0xfe 0x30 */
 
  /*mod   fec       mask  val */
- { SYS_DVBS, QPSK, FEC_NONE, 0xfe, 0x30 },
+ { SYS_DVBS, QPSK, FEC_ANALNE, 0xfe, 0x30 },
  { SYS_DVBS, QPSK, FEC_1_2,  0x02, 0x2e }, /* 00000010 00101110 */
  { SYS_DVBS, QPSK, FEC_2_3,  0x04, 0x2f }, /* 00000100 00101111 */
  { SYS_DVBS, QPSK, FEC_3_4,  0x08, 0x30 }, /* 00001000 00110000 */
@@ -401,7 +401,7 @@ static struct cx24116_modfec {
 static int cx24116_lookup_fecmod(struct cx24116_state *state,
 	enum fe_delivery_system d, enum fe_modulation m, enum fe_code_rate f)
 {
-	int i, ret = -EOPNOTSUPP;
+	int i, ret = -EOPANALTSUPP;
 
 	dprintk("%s(0x%02x,0x%02x)\n", __func__, m, f);
 
@@ -448,7 +448,7 @@ static int cx24116_set_symbolrate(struct cx24116_state *state, u32 rate)
 	if ((rate > state->frontend.ops.info.symbol_rate_max) ||
 	    (rate < state->frontend.ops.info.symbol_rate_min)) {
 		dprintk("%s() unsupported symbol_rate = %d\n", __func__, rate);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	state->dnxt.symbol_rate = rate;
@@ -482,7 +482,7 @@ static int cx24116_firmware_ondemand(struct dvb_frontend *fe)
 		printk(KERN_INFO "%s: Waiting for firmware upload(2)...\n",
 			__func__);
 		if (ret) {
-			printk(KERN_ERR "%s: No firmware uploaded (timeout or file not found?)\n",
+			printk(KERN_ERR "%s: Anal firmware uploaded (timeout or file analt found?)\n",
 			       __func__);
 			return ret;
 		}
@@ -538,8 +538,8 @@ static int cx24116_cmd_execute(struct dvb_frontend *fe, struct cx24116_cmd *cmd)
 		msleep(10);
 		if (i++ > 64) {
 			/* Avoid looping forever if the firmware does
-				not respond */
-			printk(KERN_WARNING "%s() Firmware not responding\n",
+				analt respond */
+			printk(KERN_WARNING "%s() Firmware analt responding\n",
 				__func__);
 			return -EREMOTEIO;
 		}
@@ -579,11 +579,11 @@ static int cx24116_load_firmware(struct dvb_frontend *fe,
 	cx24116_writereg(state, 0xe0, 0x03);
 	cx24116_writereg(state, 0xe0, 0x00);
 
-	/* Unknown */
+	/* Unkanalwn */
 	cx24116_writereg(state, CX24116_REG_CLKDIV, 0x46);
 	cx24116_writereg(state, CX24116_REG_RATEDIV, 0x00);
 
-	/* Unknown */
+	/* Unkanalwn */
 	cx24116_writereg(state, 0xF0, 0x03);
 	cx24116_writereg(state, 0xF4, 0x81);
 	cx24116_writereg(state, 0xF5, 0x00);
@@ -594,7 +594,7 @@ static int cx24116_load_firmware(struct dvb_frontend *fe,
 	if (state->config->i2c_wr_max)
 		max = state->config->i2c_wr_max;
 	else
-		max = INT_MAX; /* enough for 32k firmware */
+		max = INT_MAX; /* eanalugh for 32k firmware */
 
 	for (remaining = fw->size; remaining > 0; remaining -= max - 1) {
 		len = remaining;
@@ -764,10 +764,10 @@ static int cx24116_read_snr_pct(struct dvb_frontend *fe, u16 *snr)
 }
 
 /* The reelbox patches show the value in the registers represents
- * ESNO, from 0->30db (values 0->300). We provide this value by
+ * ESANAL, from 0->30db (values 0->300). We provide this value by
  * default.
  */
-static int cx24116_read_snr_esno(struct dvb_frontend *fe, u16 *snr)
+static int cx24116_read_snr_esanal(struct dvb_frontend *fe, u16 *snr)
 {
 	struct cx24116_state *state = fe->demodulator_priv;
 
@@ -783,8 +783,8 @@ static int cx24116_read_snr_esno(struct dvb_frontend *fe, u16 *snr)
 
 static int cx24116_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	if (esno_snr == 1)
-		return cx24116_read_snr_esno(fe, snr);
+	if (esanal_snr == 1)
+		return cx24116_read_snr_esanal(fe, snr);
 	else
 		return cx24116_read_snr_pct(fe, snr);
 }
@@ -824,7 +824,7 @@ static int cx24116_wait_for_lnb(struct dvb_frontend *fe)
 		msleep(10);
 	}
 
-	dprintk("%s(): LNB not ready\n", __func__);
+	dprintk("%s(): LNB analt ready\n", __func__);
 
 	return -ETIMEDOUT; /* -EBUSY ? */
 }
@@ -877,7 +877,7 @@ static int cx24116_set_tone(struct dvb_frontend *fe,
 	/* Min delay time after DiSEqC send */
 	msleep(15); /* XXX determine is FW does this, see send_diseqc/burst */
 
-	/* Now we set the tone */
+	/* Analw we set the tone */
 	cmd.args[0x00] = CMD_SET_TONE;
 	cmd.args[0x01] = 0x00;
 	cmd.args[0x02] = 0x00;
@@ -927,7 +927,7 @@ static int cx24116_diseqc_init(struct dvb_frontend *fe)
 	/* DiSEqC burst */
 	state->dsec_cmd.args[CX24116_DISEQC_BURST]  = CX24116_DISEQC_MINI_A;
 
-	/* Unknown */
+	/* Unkanalwn */
 	state->dsec_cmd.args[CX24116_DISEQC_ARG2_2] = 0x02;
 	state->dsec_cmd.args[CX24116_DISEQC_ARG3_0] = 0x00;
 	/* Continuation flag? */
@@ -1123,7 +1123,7 @@ struct dvb_frontend *cx24116_attach(const struct cx24116_config *config,
 		cx24116_readreg(state, 0xFE);
 	if (ret != 0x0501) {
 		kfree(state);
-		printk(KERN_INFO "Invalid probe, probably not a CX24116 device\n");
+		printk(KERN_INFO "Invalid probe, probably analt a CX24116 device\n");
 		return NULL;
 	}
 
@@ -1217,7 +1217,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe)
 		if (c->modulation != QPSK) {
 			dprintk("%s: unsupported modulation selected (%d)\n",
 				__func__, c->modulation);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		/* Pilot doesn't exist in DVB-S, turn bit off */
@@ -1227,7 +1227,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe)
 		if (c->rolloff != ROLLOFF_35) {
 			dprintk("%s: unsupported rolloff selected (%d)\n",
 				__func__, c->rolloff);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		state->dnxt.rolloff_val = CX24116_ROLLOFF_035;
 		break;
@@ -1237,16 +1237,16 @@ static int cx24116_set_frontend(struct dvb_frontend *fe)
 
 		/*
 		 * NBC 8PSK/QPSK with DVB-S is supported for DVB-S2,
-		 * but not hardware auto detection
+		 * but analt hardware auto detection
 		 */
 		if (c->modulation != PSK_8 && c->modulation != QPSK) {
 			dprintk("%s: unsupported modulation selected (%d)\n",
 				__func__, c->modulation);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		switch (c->pilot) {
-		case PILOT_AUTO:	/* Not supported but emulated */
+		case PILOT_AUTO:	/* Analt supported but emulated */
 			state->dnxt.pilot_val = (c->modulation == QPSK)
 				? CX24116_PILOT_OFF : CX24116_PILOT_ON;
 			retune++;
@@ -1260,7 +1260,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe)
 		default:
 			dprintk("%s: unsupported pilot mode selected (%d)\n",
 				__func__, c->pilot);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		switch (c->rolloff) {
@@ -1277,14 +1277,14 @@ static int cx24116_set_frontend(struct dvb_frontend *fe)
 		default:
 			dprintk("%s: unsupported rolloff selected (%d)\n",
 				__func__, c->rolloff);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 
 	default:
 		dprintk("%s: unsupported delivery system selected (%d)\n",
 			__func__, c->delivery_system);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	state->dnxt.delsys = c->delivery_system;
 	state->dnxt.modulation = c->modulation;
@@ -1296,7 +1296,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe)
 	if (ret !=  0)
 		return ret;
 
-	/* FEC_NONE/AUTO for DVB-S2 is not supported and detected here */
+	/* FEC_ANALNE/AUTO for DVB-S2 is analt supported and detected here */
 	ret = cx24116_set_fec(state, c->delivery_system, c->modulation, c->fec_inner);
 	if (ret !=  0)
 		return ret;
@@ -1322,7 +1322,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe)
 	dprintk("%s:   Inversion   = %d (val = 0x%02x)\n", __func__,
 		state->dcur.inversion, state->dcur.inversion_val);
 
-	/* This is also done in advise/acquire on HVR4000 but not on LITE */
+	/* This is also done in advise/acquire on HVR4000 but analt on LITE */
 	if (state->config->set_ts_params)
 		state->config->set_ts_params(fe, 0);
 
@@ -1379,9 +1379,9 @@ static int cx24116_set_frontend(struct dvb_frontend *fe)
 
 	cmd.len = 0x13;
 
-	/* We need to support pilot and non-pilot tuning in the
+	/* We need to support pilot and analn-pilot tuning in the
 	 * driver automatically. This is a workaround for because
-	 * the demod does not support autodetect.
+	 * the demod does analt support autodetect.
 	 */
 	do {
 		/* Reset status register */
@@ -1410,7 +1410,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe)
 			msleep(10);
 		}
 
-		dprintk("%s: Not tuned\n", __func__);
+		dprintk("%s: Analt tuned\n", __func__);
 
 		/* Toggle pilot bit when in auto-pilot */
 		if (state->dcur.pilot == PILOT_AUTO)

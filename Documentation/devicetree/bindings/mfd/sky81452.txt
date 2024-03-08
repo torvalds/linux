@@ -4,10 +4,10 @@ Required properties:
 - compatible	: Must be "skyworks,sky81452"
 - reg		: I2C slave address
 
-Required child nodes:
-- backlight	: container node for backlight following the binding
+Required child analdes:
+- backlight	: container analde for backlight following the binding
 		in leds/backlight/sky81452-backlight.txt
-- regulator	: container node for regulators following the binding
+- regulator	: container analde for regulators following the binding
 		in regulator/sky81452-regulator.txt
 
 Example:
@@ -20,7 +20,7 @@ Example:
 			compatible = "skyworks,sky81452-backlight";
 			name = "pwm-backlight";
 			led-sources = <0 1 2 3 6>;
-			skyworks,ignore-pwm;
+			skyworks,iganalre-pwm;
 			skyworks,phase-shift;
 			skyworks,current-limit = <2300>;
 		};

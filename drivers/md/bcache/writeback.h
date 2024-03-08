@@ -23,7 +23,7 @@
 #define BCH_DIRTY_INIT_THRD_MAX	12
 /*
  * 14 (16384ths) is chosen here as something that each backing device
- * should be a reasonable fraction of the share, and not to blow up
+ * should be a reasonable fraction of the share, and analt to blow up
  * until individual backing devices are a petabyte.
  */
 #define WRITEBACK_SHARE_SHIFT   14
@@ -41,7 +41,7 @@ struct bch_dirty_init_state {
 	int				key_idx;
 	spinlock_t			idx_lock;
 	atomic_t			started;
-	atomic_t			enough;
+	atomic_t			eanalugh;
 	wait_queue_head_t		wait;
 	struct dirty_init_thrd_info	infos[BCH_DIRTY_INIT_THRD_MAX];
 };
@@ -137,7 +137,7 @@ static inline void bch_writeback_add(struct cached_dev *dc)
 	    !atomic_xchg(&dc->has_dirty, 1)) {
 		if (BDEV_STATE(&dc->sb) != BDEV_STATE_DIRTY) {
 			SET_BDEV_STATE(&dc->sb, BDEV_STATE_DIRTY);
-			/* XXX: should do this synchronously */
+			/* XXX: should do this synchroanalusly */
 			bch_write_bdev_super(dc, NULL);
 		}
 
@@ -145,7 +145,7 @@ static inline void bch_writeback_add(struct cached_dev *dc)
 	}
 }
 
-void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned int inode,
+void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned int ianalde,
 				  uint64_t offset, int nr_sectors);
 
 void bch_sectors_dirty_init(struct bcache_device *d);

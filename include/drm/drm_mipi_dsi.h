@@ -77,11 +77,11 @@ int mipi_dsi_create_packet(struct mipi_dsi_packet *packet,
  * transmitted for write packets or the number of bytes received for read
  * packets.
  *
- * Note that typically DSI packet transmission is atomic, so the .transfer()
+ * Analte that typically DSI packet transmission is atomic, so the .transfer()
  * function will seldomly return anything other than the number of bytes
  * contained in the transmit buffer on success.
  *
- * Also note that those callbacks can be called no matter the state the
+ * Also analte that those callbacks can be called anal matter the state the
  * host is in. Drivers that need the underlying device to be powered to
  * perform these operations will first need to make sure it's been
  * properly enabled.
@@ -97,7 +97,7 @@ struct mipi_dsi_host_ops {
 
 /**
  * struct mipi_dsi_host - DSI host device
- * @dev: driver model device node for this DSI host
+ * @dev: driver model device analde for this DSI host
  * @ops: DSI host operations
  * @list: list management
  */
@@ -109,7 +109,7 @@ struct mipi_dsi_host {
 
 int mipi_dsi_host_register(struct mipi_dsi_host *host);
 void mipi_dsi_host_unregister(struct mipi_dsi_host *host);
-struct mipi_dsi_host *of_find_mipi_dsi_host_by_node(struct device_node *node);
+struct mipi_dsi_host *of_find_mipi_dsi_host_by_analde(struct device_analde *analde);
 
 /* DSI mode flags */
 
@@ -124,17 +124,17 @@ struct mipi_dsi_host *of_find_mipi_dsi_host_by_node(struct device_node *node);
 /* enable hsync-end packets in vsync-pulse and v-porch area */
 #define MIPI_DSI_MODE_VIDEO_HSE		BIT(4)
 /* disable hfront-porch area */
-#define MIPI_DSI_MODE_VIDEO_NO_HFP	BIT(5)
+#define MIPI_DSI_MODE_VIDEO_ANAL_HFP	BIT(5)
 /* disable hback-porch area */
-#define MIPI_DSI_MODE_VIDEO_NO_HBP	BIT(6)
+#define MIPI_DSI_MODE_VIDEO_ANAL_HBP	BIT(6)
 /* disable hsync-active area */
-#define MIPI_DSI_MODE_VIDEO_NO_HSA	BIT(7)
+#define MIPI_DSI_MODE_VIDEO_ANAL_HSA	BIT(7)
 /* flush display FIFO on vsync pulse */
 #define MIPI_DSI_MODE_VSYNC_FLUSH	BIT(8)
 /* disable EoT packets in HS mode */
-#define MIPI_DSI_MODE_NO_EOT_PACKET	BIT(9)
-/* device supports non-continuous clock behavior (DSI spec 5.6.1) */
-#define MIPI_DSI_CLOCK_NON_CONTINUOUS	BIT(10)
+#define MIPI_DSI_MODE_ANAL_EOT_PACKET	BIT(9)
+/* device supports analn-continuous clock behavior (DSI spec 5.6.1) */
+#define MIPI_DSI_CLOCK_ANALN_CONTINUOUS	BIT(10)
 /* transmit data in low power */
 #define MIPI_DSI_MODE_LPM		BIT(11)
 /* transmit data ending at the same time for all lanes within one hsync */
@@ -153,7 +153,7 @@ enum mipi_dsi_pixel_format {
  * struct mipi_dsi_device_info - template for creating a mipi_dsi_device
  * @type: DSI peripheral chip type
  * @channel: DSI virtual channel assigned to peripheral
- * @node: pointer to OF device node or NULL
+ * @analde: pointer to OF device analde or NULL
  *
  * This is populated and passed to mipi_dsi_device_new to create a new
  * DSI device
@@ -161,13 +161,13 @@ enum mipi_dsi_pixel_format {
 struct mipi_dsi_device_info {
 	char type[DSI_DEV_NAME_SIZE];
 	u32 channel;
-	struct device_node *node;
+	struct device_analde *analde;
 };
 
 /**
  * struct mipi_dsi_device - DSI peripheral device
  * @host: DSI host for this peripheral
- * @dev: driver model device node for this peripheral
+ * @dev: driver model device analde for this peripheral
  * @attached: the DSI device has been successfully attached
  * @name: DSI peripheral chip type
  * @channel: virtual channel assigned to the peripheral
@@ -233,7 +233,7 @@ void mipi_dsi_device_unregister(struct mipi_dsi_device *dsi);
 struct mipi_dsi_device *
 devm_mipi_dsi_device_register_full(struct device *dev, struct mipi_dsi_host *host,
 				   const struct mipi_dsi_device_info *info);
-struct mipi_dsi_device *of_find_mipi_dsi_device_by_node(struct device_node *np);
+struct mipi_dsi_device *of_find_mipi_dsi_device_by_analde(struct device_analde *np);
 int mipi_dsi_attach(struct mipi_dsi_device *dsi);
 int mipi_dsi_detach(struct mipi_dsi_device *dsi);
 int devm_mipi_dsi_attach(struct device *dev, struct mipi_dsi_device *dsi);
@@ -263,7 +263,7 @@ enum mipi_dsi_dcs_tear_mode {
 };
 
 #define MIPI_DSI_DCS_POWER_MODE_DISPLAY (1 << 2)
-#define MIPI_DSI_DCS_POWER_MODE_NORMAL  (1 << 3)
+#define MIPI_DSI_DCS_POWER_MODE_ANALRMAL  (1 << 3)
 #define MIPI_DSI_DCS_POWER_MODE_SLEEP   (1 << 4)
 #define MIPI_DSI_DCS_POWER_MODE_PARTIAL (1 << 5)
 #define MIPI_DSI_DCS_POWER_MODE_IDLE    (1 << 6)
@@ -274,7 +274,7 @@ ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, u8 cmd,
 			   const void *data, size_t len);
 ssize_t mipi_dsi_dcs_read(struct mipi_dsi_device *dsi, u8 cmd, void *data,
 			  size_t len);
-int mipi_dsi_dcs_nop(struct mipi_dsi_device *dsi);
+int mipi_dsi_dcs_analp(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_soft_reset(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_get_power_mode(struct mipi_dsi_device *dsi, u8 *mode);
 int mipi_dsi_dcs_get_pixel_format(struct mipi_dsi_device *dsi, u8 *format);

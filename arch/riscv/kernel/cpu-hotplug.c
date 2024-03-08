@@ -32,7 +32,7 @@ int __cpu_disable(void)
 	unsigned int cpu = smp_processor_id();
 
 	if (!cpu_ops->cpu_stop)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	remove_cpu_topology(cpu);
 	numa_remove_cpu(cpu);
@@ -52,19 +52,19 @@ void arch_cpuhp_cleanup_dead_cpu(unsigned int cpu)
 {
 	int ret = 0;
 
-	pr_notice("CPU%u: off\n", cpu);
+	pr_analtice("CPU%u: off\n", cpu);
 
 	/* Verify from the firmware if the cpu is really stopped*/
 	if (cpu_ops->cpu_is_stopped)
 		ret = cpu_ops->cpu_is_stopped(cpu);
 	if (ret)
-		pr_warn("CPU%d may not have stopped: %d\n", cpu, ret);
+		pr_warn("CPU%d may analt have stopped: %d\n", cpu, ret);
 }
 
 /*
  * Called from the idle thread for the CPU which has been shutdown.
  */
-void __noreturn arch_cpu_idle_dead(void)
+void __analreturn arch_cpu_idle_dead(void)
 {
 	idle_task_exit();
 

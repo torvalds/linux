@@ -13,18 +13,18 @@
  */
 enum btrfs_reserve_flush_enum {
 	/* If we are in the transaction, we can't flush anything.*/
-	BTRFS_RESERVE_NO_FLUSH,
+	BTRFS_RESERVE_ANAL_FLUSH,
 
 	/*
 	 * Flush space by:
-	 * - Running delayed inode items
+	 * - Running delayed ianalde items
 	 * - Allocating a new chunk
 	 */
 	BTRFS_RESERVE_FLUSH_LIMIT,
 
 	/*
 	 * Flush space by:
-	 * - Running delayed inode items
+	 * - Running delayed ianalde items
 	 * - Running delayed refs
 	 * - Running delalloc and waiting for ordered extents
 	 * - Allocating a new chunk
@@ -40,7 +40,7 @@ enum btrfs_reserve_flush_enum {
 	 * Can be interrupted by a fatal signal.
 	 */
 	BTRFS_RESERVE_FLUSH_DATA,
-	BTRFS_RESERVE_FLUSH_FREE_SPACE_INODE,
+	BTRFS_RESERVE_FLUSH_FREE_SPACE_IANALDE,
 	BTRFS_RESERVE_FLUSH_ALL,
 
 	/*
@@ -55,7 +55,7 @@ enum btrfs_reserve_flush_enum {
 	 * This is for btrfs_use_block_rsv only.  We have exhausted our block
 	 * rsv and our global block rsv.  This can happen for things like
 	 * delalloc where we are overwriting a lot of extents with a single
-	 * extent and didn't reserve enough space.  Alternatively it can happen
+	 * extent and didn't reserve eanalugh space.  Alternatively it can happen
 	 * with delalloc where we reserve 1 extents worth for a large extent but
 	 * fragmentation leads to multiple extents being created.  This will
 	 * give us the reservation in the case of
@@ -63,7 +63,7 @@ enum btrfs_reserve_flush_enum {
 	 * if (num_bytes < (space_info->total_bytes -
 	 *		    btrfs_space_info_used(space_info, false))
 	 *
-	 * Which ignores bytes_may_use.  This is potentially dangerous, but our
+	 * Which iganalres bytes_may_use.  This is potentially dangerous, but our
 	 * reservation system is generally pessimistic so is able to absorb this
 	 * style of mistake.
 	 */
@@ -102,7 +102,7 @@ struct btrfs_space_info {
 					   resetting the device zone */
 
 	u64 max_extent_size;	/* This will hold the maximum extent size of
-				   the space info if we had an ENOSPC in the
+				   the space info if we had an EANALSPC in the
 				   allocator. */
 	/* Chunk size in bytes */
 	u64 chunk_size;
@@ -117,7 +117,7 @@ struct btrfs_space_info {
 				   flushing. The value is >> clamp, so turns
 				   out to be a 2^clamp divisor. */
 
-	unsigned int full:1;	/* indicates that we cannot allocate any more
+	unsigned int full:1;	/* indicates that we cananalt allocate any more
 				   chunks for this space */
 	unsigned int chunk_alloc:1;	/* set if we are allocating a chunk */
 
@@ -145,8 +145,8 @@ struct btrfs_space_info {
 	u64 reclaim_size;
 
 	/*
-	 * tickets_id just indicates the next ticket will be handled, so note
-	 * it's not stored per ticket.
+	 * tickets_id just indicates the next ticket will be handled, so analte
+	 * it's analt stored per ticket.
 	 */
 	u64 tickets_id;
 

@@ -146,9 +146,9 @@ struct ltr501_chip_info {
 	u8 als_gain_mask;
 	u8 als_gain_shift;
 	struct iio_chan_spec const *channels;
-	const int no_channels;
+	const int anal_channels;
 	const struct iio_info *info;
-	const struct iio_info *info_no_irq;
+	const struct iio_info *info_anal_irq;
 };
 
 struct ltr501_data {
@@ -341,7 +341,7 @@ static int ltr501_drdy(const struct ltr501_data *data, u8 drdy_mask)
 		msleep(25);
 	}
 
-	dev_err(&data->client->dev, "ltr501_drdy() failed, data not ready\n");
+	dev_err(&data->client->dev, "ltr501_drdy() failed, data analt ready\n");
 	return -EIO;
 }
 
@@ -1179,7 +1179,7 @@ static const struct attribute_group ltr301_attribute_group = {
 	.attrs = ltr301_attributes,
 };
 
-static const struct iio_info ltr501_info_no_irq = {
+static const struct iio_info ltr501_info_anal_irq = {
 	.read_raw = ltr501_read_raw,
 	.write_raw = ltr501_write_raw,
 	.attrs = &ltr501_attribute_group,
@@ -1195,7 +1195,7 @@ static const struct iio_info ltr501_info = {
 	.write_event_config	= &ltr501_write_event_config,
 };
 
-static const struct iio_info ltr301_info_no_irq = {
+static const struct iio_info ltr301_info_anal_irq = {
 	.read_raw = ltr501_read_raw,
 	.write_raw = ltr501_write_raw,
 	.attrs = &ltr301_attribute_group,
@@ -1222,9 +1222,9 @@ static const struct ltr501_chip_info ltr501_chip_info_tbl[] = {
 		.als_gain_mask = BIT(3),
 		.als_gain_shift = 3,
 		.info = &ltr501_info,
-		.info_no_irq = &ltr501_info_no_irq,
+		.info_anal_irq = &ltr501_info_anal_irq,
 		.channels = ltr501_channels,
-		.no_channels = ARRAY_SIZE(ltr501_channels),
+		.anal_channels = ARRAY_SIZE(ltr501_channels),
 	},
 	[ltr559] = {
 		.partid = 0x09,
@@ -1236,9 +1236,9 @@ static const struct ltr501_chip_info ltr501_chip_info_tbl[] = {
 		.als_gain_mask = BIT(2) | BIT(3) | BIT(4),
 		.als_gain_shift = 2,
 		.info = &ltr501_info,
-		.info_no_irq = &ltr501_info_no_irq,
+		.info_anal_irq = &ltr501_info_anal_irq,
 		.channels = ltr501_channels,
-		.no_channels = ARRAY_SIZE(ltr501_channels),
+		.anal_channels = ARRAY_SIZE(ltr501_channels),
 	},
 	[ltr301] = {
 		.partid = 0x08,
@@ -1248,9 +1248,9 @@ static const struct ltr501_chip_info ltr501_chip_info_tbl[] = {
 		.als_gain_mask = BIT(3),
 		.als_gain_shift = 3,
 		.info = &ltr301_info,
-		.info_no_irq = &ltr301_info_no_irq,
+		.info_anal_irq = &ltr301_info_anal_irq,
 		.channels = ltr301_channels,
-		.no_channels = ARRAY_SIZE(ltr301_channels),
+		.anal_channels = ARRAY_SIZE(ltr301_channels),
 	},
 	[ltr303] = {
 		.partid = 0x0A,
@@ -1260,9 +1260,9 @@ static const struct ltr501_chip_info ltr501_chip_info_tbl[] = {
 		.als_gain_mask = BIT(2) | BIT(3) | BIT(4),
 		.als_gain_shift = 2,
 		.info = &ltr301_info,
-		.info_no_irq = &ltr301_info_no_irq,
+		.info_anal_irq = &ltr301_info_anal_irq,
 		.channels = ltr301_channels,
-		.no_channels = ARRAY_SIZE(ltr301_channels),
+		.anal_channels = ARRAY_SIZE(ltr301_channels),
 	},
 };
 
@@ -1327,7 +1327,7 @@ static irqreturn_t ltr501_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1444,7 +1444,7 @@ static int ltr501_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_i2c(client, &ltr501_regmap_config);
 	if (IS_ERR(regmap)) {
@@ -1525,13 +1525,13 @@ static int ltr501_probe(struct i2c_client *client)
 	} else  if (ACPI_HANDLE(&client->dev)) {
 		name = ltr501_match_acpi_device(&client->dev, &chip_idx);
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data->chip_info = &ltr501_chip_info_tbl[chip_idx];
 
 	if ((partid >> 4) != data->chip_info->partid)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (device_property_read_u32(&client->dev, "proximity-near-level",
 				     &data->near_level))
@@ -1539,7 +1539,7 @@ static int ltr501_probe(struct i2c_client *client)
 
 	indio_dev->info = data->chip_info->info;
 	indio_dev->channels = data->chip_info->channels;
-	indio_dev->num_channels = data->chip_info->no_channels;
+	indio_dev->num_channels = data->chip_info->anal_channels;
 	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
@@ -1560,7 +1560,7 @@ static int ltr501_probe(struct i2c_client *client)
 			return ret;
 		}
 	} else {
-		indio_dev->info = data->chip_info->info_no_irq;
+		indio_dev->info = data->chip_info->info_anal_irq;
 	}
 
 	ret = iio_triggered_buffer_setup(indio_dev, NULL,

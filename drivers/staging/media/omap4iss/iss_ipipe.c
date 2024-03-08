@@ -87,7 +87,7 @@ static void ipipe_configure(struct iss_ipipe_device *ipipe)
 	/* IPIPE_PAD_SINK */
 	format = &ipipe->formats[IPIPE_PAD_SINK];
 
-	/* NOTE: Currently just supporting pipeline IN: RGB, OUT: YUV422 */
+	/* ANALTE: Currently just supporting pipeline IN: RGB, OUT: YUV422 */
 	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_SRC_FMT,
 		      IPIPE_SRC_FMT_RAW2YUV);
 
@@ -102,7 +102,7 @@ static void ipipe_configure(struct iss_ipipe_device *ipipe)
 	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_SRC_HSZ,
 		      (format->width - 1) & IPIPE_SRC_HSZ_MASK);
 
-	/* Ignore ipipeif_wrt signal, and operate on-the-fly.  */
+	/* Iganalre ipipeif_wrt signal, and operate on-the-fly.  */
 	iss_reg_clr(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_SRC_MODE,
 		    IPIPE_SRC_MODE_WRT | IPIPE_SRC_MODE_OST);
 
@@ -113,7 +113,7 @@ static void ipipe_configure(struct iss_ipipe_device *ipipe)
 
 	/* IPIPE_PAD_SOURCE_VP */
 	format = &ipipe->formats[IPIPE_PAD_SOURCE_VP];
-	/* Do nothing? */
+	/* Do analthing? */
 }
 
 /* -----------------------------------------------------------------------------
@@ -211,7 +211,7 @@ ipipe_try_format(struct iss_ipipe_device *ipipe,
 				break;
 		}
 
-		/* If not found, use SGRBG10 as default */
+		/* If analt found, use SGRBG10 as default */
 		if (i >= ARRAY_SIZE(ipipe_fmts))
 			fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
@@ -233,7 +233,7 @@ ipipe_try_format(struct iss_ipipe_device *ipipe,
 		break;
 	}
 
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 }
 
 /*
@@ -380,7 +380,7 @@ static int ipipe_link_validate(struct v4l2_subdev *sd, struct media_link *link,
  * @sd: ISP IPIPE V4L2 subdevice
  * @fh: V4L2 subdev file handle
  *
- * Initialize all pad formats with default values. If fh is not NULL, try
+ * Initialize all pad formats with default values. If fh is analt NULL, try
  * formats are initialized on the file handle. Otherwise active formats are
  * initialized on the device.
  */
@@ -452,11 +452,11 @@ static int ipipe_link_setup(struct media_entity *entity,
 	case IPIPE_PAD_SINK:
 		/* Read from IPIPEIF. */
 		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
-			ipipe->input = IPIPE_INPUT_NONE;
+			ipipe->input = IPIPE_INPUT_ANALNE;
 			break;
 		}
 
-		if (ipipe->input != IPIPE_INPUT_NONE)
+		if (ipipe->input != IPIPE_INPUT_ANALNE)
 			return -EBUSY;
 
 		if (remote->entity == &iss->ipipeif.subdev.entity)
@@ -501,14 +501,14 @@ static int ipipe_init_entities(struct iss_ipipe_device *ipipe)
 	struct media_entity *me = &sd->entity;
 	int ret;
 
-	ipipe->input = IPIPE_INPUT_NONE;
+	ipipe->input = IPIPE_INPUT_ANALNE;
 
 	v4l2_subdev_init(sd, &ipipe_v4l2_ops);
 	sd->internal_ops = &ipipe_v4l2_internal_ops;
 	strscpy(sd->name, "OMAP4 ISS ISP IPIPE", sizeof(sd->name));
 	sd->grp_id = BIT(16);	/* group ID for iss subdevs */
 	v4l2_set_subdevdata(sd, ipipe);
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	pads[IPIPE_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	pads[IPIPE_PAD_SOURCE_VP].flags = MEDIA_PAD_FL_SOURCE;
@@ -533,7 +533,7 @@ int omap4iss_ipipe_register_entities(struct iss_ipipe_device *ipipe,
 {
 	int ret;
 
-	/* Register the subdev and video node. */
+	/* Register the subdev and video analde. */
 	ret = v4l2_device_register_subdev(vdev, &ipipe->subdev);
 	if (ret < 0)
 		goto error;

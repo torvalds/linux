@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -20,7 +20,7 @@
 #define ATH_DYN_BUF	64
 
 struct ath_hw;
-struct ath_node;
+struct ath_analde;
 
 /**
  * struct ath_dyn_rxbuf - ACK frame ring buffer
@@ -61,7 +61,7 @@ struct ath_dyn_txbuf {
  * @enabled: enable dyn ack processing
  * @ackto: current ACK timeout
  * @lto: last ACK timeout computation
- * @nodes: ath_node linked list
+ * @analdes: ath_analde linked list
  * @qlock: ts queue spinlock
  * @ack_rbf: ACK ts ring buffer
  * @st_rbf: status ts ring buffer
@@ -71,7 +71,7 @@ struct ath_dynack {
 	int ackto;
 	unsigned long lto;
 
-	struct list_head nodes;
+	struct list_head analdes;
 
 	/* protect timestamp queue access */
 	spinlock_t qlock;
@@ -81,8 +81,8 @@ struct ath_dynack {
 
 #if defined(CONFIG_ATH9K_DYNACK)
 void ath_dynack_reset(struct ath_hw *ah);
-void ath_dynack_node_init(struct ath_hw *ah, struct ath_node *an);
-void ath_dynack_node_deinit(struct ath_hw *ah, struct ath_node *an);
+void ath_dynack_analde_init(struct ath_hw *ah, struct ath_analde *an);
+void ath_dynack_analde_deinit(struct ath_hw *ah, struct ath_analde *an);
 void ath_dynack_init(struct ath_hw *ah);
 void ath_dynack_sample_ack_ts(struct ath_hw *ah, struct sk_buff *skb, u32 ts);
 void ath_dynack_sample_tx_ts(struct ath_hw *ah, struct sk_buff *skb,
@@ -90,10 +90,10 @@ void ath_dynack_sample_tx_ts(struct ath_hw *ah, struct sk_buff *skb,
 			     struct ieee80211_sta *sta);
 #else
 static inline void ath_dynack_init(struct ath_hw *ah) {}
-static inline void ath_dynack_node_init(struct ath_hw *ah,
-					struct ath_node *an) {}
-static inline void ath_dynack_node_deinit(struct ath_hw *ah,
-					  struct ath_node *an) {}
+static inline void ath_dynack_analde_init(struct ath_hw *ah,
+					struct ath_analde *an) {}
+static inline void ath_dynack_analde_deinit(struct ath_hw *ah,
+					  struct ath_analde *an) {}
 static inline void ath_dynack_sample_ack_ts(struct ath_hw *ah,
 					    struct sk_buff *skb, u32 ts) {}
 static inline void ath_dynack_sample_tx_ts(struct ath_hw *ah,

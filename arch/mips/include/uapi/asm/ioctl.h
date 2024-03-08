@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -15,11 +15,11 @@
 #define _IOC_DIRBITS	3
 
 /*
- * Direction bits _IOC_NONE could be 0, but OSF/1 gives it a bit.
+ * Direction bits _IOC_ANALNE could be 0, but OSF/1 gives it a bit.
  * And this turns out useful to catch old ioctl numbers in header
  * files for us.
  */
-#define _IOC_NONE	1U
+#define _IOC_ANALNE	1U
 #define _IOC_READ	2U
 #define _IOC_WRITE	4U
 

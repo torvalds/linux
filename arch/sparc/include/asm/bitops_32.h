@@ -26,7 +26,7 @@ unsigned long sp32___change_bit(unsigned long *addr, unsigned long mask);
 /*
  * Set bit 'nr' in 32-bit quantity at address 'addr' where bit '0'
  * is in the highest of the four bytes and bit '31' is the high bit
- * within the first byte. Sparc is BIG-Endian. Unless noted otherwise
+ * within the first byte. Sparc is BIG-Endian. Unless analted otherwise
  * all bit-ops return 0 if bit was previously clear and != 0 otherwise.
  */
 static inline int test_and_set_bit(unsigned long nr, volatile unsigned long *addr)
@@ -89,7 +89,7 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 	(void) sp32___change_bit(ADDR, mask);
 }
 
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/analn-atomic.h>
 
 #include <asm-generic/bitops/ffz.h>
 #include <asm-generic/bitops/__ffs.h>

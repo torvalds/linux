@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <linux/device.h>
 #include <linux/firmware.h>
@@ -159,18 +159,18 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 	BT_DBG("intf %p id %p", intf, id);
 
 	if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(&intf->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->udev  = udev;
 	data->state = BCM203X_LOAD_MINIDRV;
 
 	data->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!data->urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (request_firmware(&firmware, "BCM2033-MD.hex", &udev->dev) < 0) {
 		BT_ERR("Mini driver request failed");
@@ -187,7 +187,7 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 		BT_ERR("Can't allocate memory for mini driver");
 		release_firmware(firmware);
 		usb_free_urb(data->urb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(data->buffer, firmware->data, firmware->size);
@@ -212,7 +212,7 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 		release_firmware(firmware);
 		usb_free_urb(data->urb);
 		kfree(data->buffer);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data->fw_size = firmware->size;

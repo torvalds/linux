@@ -15,7 +15,7 @@ struct intel_gsc_uc;
 #define GSC_HECI_REPLY_LATENCY_MS 500
 /*
  * Max FW response time is 500ms, but this should be counted from the time the
- * command has hit the GSC-CS hardware, not the preceding handoff to GuC CTB.
+ * command has hit the GSC-CS hardware, analt the preceding handoff to GuC CTB.
  */
 
 struct intel_gsc_mtl_header {
@@ -71,7 +71,7 @@ void intel_gsc_uc_heci_cmd_emit_mtl_header(struct intel_gsc_mtl_header *header,
 					   u8 heci_client_id, u32 message_size,
 					   u64 host_session_id);
 
-struct intel_gsc_heci_non_priv_pkt {
+struct intel_gsc_heci_analn_priv_pkt {
 	u64 addr_in;
 	u32 size_in;
 	u64 addr_out;
@@ -86,8 +86,8 @@ intel_gsc_uc_heci_cmd_emit_mtl_header(struct intel_gsc_mtl_header *header,
 				      u64 host_session_id);
 
 int
-intel_gsc_uc_heci_cmd_submit_nonpriv(struct intel_gsc_uc *gsc,
+intel_gsc_uc_heci_cmd_submit_analnpriv(struct intel_gsc_uc *gsc,
 				     struct intel_context *ce,
-				     struct intel_gsc_heci_non_priv_pkt *pkt,
+				     struct intel_gsc_heci_analn_priv_pkt *pkt,
 				     u32 *cs, int timeout_ms);
 #endif

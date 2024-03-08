@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
@@ -138,7 +138,7 @@ static int ish_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Check for invalid platforms for ISH support */
 	if (pci_dev_present(ish_invalid_pci_ids))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* enable pci dev */
 	ret = pcim_enable_device(pdev);
@@ -160,7 +160,7 @@ static int ish_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* allocates and initializes the ISH dev structure */
 	ishtp = ish_dev_init(pdev);
 	if (!ishtp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		return ret;
 	}
 	hw = to_ish_hw(ishtp);
@@ -234,9 +234,9 @@ static struct device __maybe_unused *ish_resume_device;
  * ish_resume_handler() - Work function to complete resume
  * @work:	work struct
  *
- * The resume work function to complete resume function asynchronously.
- * There are two resume paths, one where ISH is not powered off,
- * in that case a simple resume message is enough, others we need
+ * The resume work function to complete resume function asynchroanalusly.
+ * There are two resume paths, one where ISH is analt powered off,
+ * in that case a simple resume message is eanalugh, others we need
  * a reset sequence.
  */
 static void __maybe_unused ish_resume_handler(struct work_struct *work)
@@ -261,7 +261,7 @@ static void __maybe_unused ish_resume_handler(struct work_struct *work)
 				msecs_to_jiffies(WAIT_FOR_RESUME_ACK_MS));
 
 		/*
-		 * If the flag is not cleared, something is wrong with ISH FW.
+		 * If the flag is analt cleared, something is wrong with ISH FW.
 		 * So on resume, need to go through init sequence again.
 		 */
 		if (dev->resume_flag)
@@ -291,7 +291,7 @@ static int __maybe_unused ish_suspend(struct device *device)
 	if (ish_should_enter_d0i3(pdev)) {
 		/*
 		 * If previous suspend hasn't been asnwered then ISH is likely
-		 * dead, don't attempt nested notification
+		 * dead, don't attempt nested analtification
 		 */
 		if (dev->suspend_flag)
 			return	0;
@@ -300,7 +300,7 @@ static int __maybe_unused ish_suspend(struct device *device)
 		dev->suspend_flag = 1;
 		ishtp_send_suspend(dev);
 
-		/* 25 ms should be enough for live ISH to flush all IPC buf */
+		/* 25 ms should be eanalugh for live ISH to flush all IPC buf */
 		if (dev->suspend_flag)
 			wait_event_interruptible_timeout(dev->suspend_wait,
 					!dev->suspend_flag,

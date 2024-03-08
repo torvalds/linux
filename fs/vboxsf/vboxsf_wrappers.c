@@ -13,7 +13,7 @@
 
 #define SHFL_REQUEST \
 	(VMMDEV_REQUESTOR_KERNEL | VMMDEV_REQUESTOR_USR_DRV_OTHER | \
-	 VMMDEV_REQUESTOR_CON_DONT_KNOW | VMMDEV_REQUESTOR_TRUST_NOT_GIVEN)
+	 VMMDEV_REQUESTOR_CON_DONT_KANALW | VMMDEV_REQUESTOR_TRUST_ANALT_GIVEN)
 
 static u32 vboxsf_client_id;
 
@@ -28,13 +28,13 @@ int vboxsf_connect(void)
 
 	gdev = vbg_get_gdev();
 	if (IS_ERR(gdev))
-		return -ENODEV;	/* No guest-device */
+		return -EANALDEV;	/* Anal guest-device */
 
 	err = vbg_hgcm_connect(gdev, SHFL_REQUEST, &loc,
 			       &vboxsf_client_id, &vbox_status);
 	vbg_put_gdev(gdev);
 
-	return err ? err : vbg_status_code_to_errno(vbox_status);
+	return err ? err : vbg_status_code_to_erranal(vbox_status);
 }
 
 void vboxsf_disconnect(void)
@@ -69,7 +69,7 @@ static int vboxsf_call(u32 function, void *parms, u32 parm_count, int *status)
 	if (status)
 		*status = vbox_status;
 
-	return vbg_status_code_to_errno(vbox_status);
+	return vbg_status_code_to_erranal(vbox_status);
 }
 
 int vboxsf_map_folder(struct shfl_string *folder_name, u32 *root)
@@ -92,7 +92,7 @@ int vboxsf_map_folder(struct shfl_string *folder_name, u32 *root)
 
 	err = vboxsf_call(SHFL_FN_MAP_FOLDER, &parms, SHFL_CPARMS_MAP_FOLDER,
 			  &status);
-	if (err == -ENOSYS && status == VERR_NOT_IMPLEMENTED)
+	if (err == -EANALSYS && status == VERR_ANALT_IMPLEMENTED)
 		vbg_err("%s: Error host is too old\n", __func__);
 
 	*root = parms.root.u.value32;
@@ -117,15 +117,15 @@ int vboxsf_unmap_folder(u32 root)
  * @create_parms: Parameters for file/folder creation.
  *
  * Create a new file or folder or open an existing one in a shared folder.
- * Note this function always returns 0 / success unless an exceptional condition
+ * Analte this function always returns 0 / success unless an exceptional condition
  * occurs - out of memory, invalid arguments, etc. If the file or folder could
- * not be opened or created, create_parms->handle will be set to
+ * analt be opened or created, create_parms->handle will be set to
  * SHFL_HANDLE_NIL on return.  In this case the value in create_parms->result
  * provides information as to why (e.g. SHFL_FILE_EXISTS), create_parms->result
  * is also set on success as additional information.
  *
  * Returns:
- * 0 or negative errno value.
+ * 0 or negative erranal value.
  */
 int vboxsf_create(u32 root, struct shfl_string *parsed_path,
 		  struct shfl_createparms *create_parms)
@@ -246,7 +246,7 @@ int vboxsf_write(u32 root, u64 handle, u64 offset, u32 *buf_len, u8 *buf)
 	return err;
 }
 
-/* Returns 0 on success, 1 on end-of-dir, negative errno otherwise */
+/* Returns 0 on success, 1 on end-of-dir, negative erranal otherwise */
 int vboxsf_dirinfo(u32 root, u64 handle,
 		   struct shfl_string *parsed_path, u32 flags, u32 index,
 		   u32 *buf_len, struct shfl_dirinfo *buf, u32 *file_count)
@@ -283,7 +283,7 @@ int vboxsf_dirinfo(u32 root, u64 handle,
 	parms.file_count.u.value32 = 0;	/* out parameter only */
 
 	err = vboxsf_call(SHFL_FN_LIST, &parms, SHFL_CPARMS_LIST, &status);
-	if (err == -ENODATA && status == VERR_NO_MORE_FILES)
+	if (err == -EANALDATA && status == VERR_ANAL_MORE_FILES)
 		err = 1;
 
 	*buf_len = parms.cb.u.value32;

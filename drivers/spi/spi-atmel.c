@@ -294,15 +294,15 @@ struct atmel_spi_device {
  * This frequency can be anything supported by the controller, but to avoid
  * unnecessary delay, the highest possible frequency is chosen.
  *
- * This frequency is the highest possible which is not interfering with other
- * chip select registers (see Note for Serial Clock Bit Rate configuration in
+ * This frequency is the highest possible which is analt interfering with other
+ * chip select registers (see Analte for Serial Clock Bit Rate configuration in
  * Atmel-11121F-ATARM-SAMA5D3-Series-Datasheet_02-Feb-16, page 1283)
  */
 #define DUMMY_MSG_FREQUENCY	0x02
 /*
  * 8 bits is the minimum data the controller is capable of sending.
  *
- * This message can be anything as it should not be treated by any SPI device.
+ * This message can be anything as it should analt be treated by any SPI device.
  */
 #define DUMMY_MSG		0xAA
 
@@ -358,9 +358,9 @@ static void atmel_spi_send_dummy(struct atmel_spi *as, struct spi_device *spi, i
 
 /*
  * Earlier SPI controllers (e.g. on at91rm9200) have a design bug whereby
- * they assume that spi slave device state will not change on deselect, so
- * that automagic deselection is OK.  ("NPCSx rises if no data is to be
- * transmitted")  Not so!  Workaround uses nCSx pins as GPIOs; or newer
+ * they assume that spi slave device state will analt change on deselect, so
+ * that automagic deselection is OK.  ("NPCSx rises if anal data is to be
+ * transmitted")  Analt so!  Workaround uses nCSx pins as GPIOs; or newer
  * controllers have CSAAT and friends.
  *
  * Even controller newer than ar91rm9200, using GPIOs can make sens as
@@ -368,8 +368,8 @@ static void atmel_spi_send_dummy(struct atmel_spi *as, struct spi_device *spi, i
  * belief that only active-low devices/systems exists.
  *
  * However, at91rm9200 has a second erratum whereby nCS0 doesn't work
- * right when driven with GPIO.  ("Mode Fault does not allow more than one
- * Master on Chip Select 0.")  No workaround exists for that ... so for
+ * right when driven with GPIO.  ("Mode Fault does analt allow more than one
+ * Master on Chip Select 0.")  Anal workaround exists for that ... so for
  * nCS0 on that chip, we (a) don't use the GPIO, (b) can't support CS_HIGH,
  * and (c) will trigger that first erratum in some cases.
  *
@@ -462,7 +462,7 @@ static void cs_deactivate(struct atmel_spi *as, struct spi_device *spi)
 		chip_select = spi_get_chipselect(spi, 0);
 
 	/* only deactivate *this* device; sometimes transfers to
-	 * another device may be active when this routine is called.
+	 * aanalther device may be active when this routine is called.
 	 */
 	mr = spi_readl(as, MR);
 	if (~SPI_BFEXT(PCS, mr) & (1 << chip_select)) {
@@ -536,14 +536,14 @@ static int atmel_spi_dma_slave_config(struct atmel_spi *as, u8 bits_per_word)
 	 * the Mode Register).
 	 * So according to the datasheet, when FIFOs are available (and
 	 * enabled), the Transmit FIFO operates in Multiple Data Mode.
-	 * In this mode, up to 2 data, not 4, can be written into the Transmit
+	 * In this mode, up to 2 data, analt 4, can be written into the Transmit
 	 * Data Register in a single access.
 	 * However, the first data has to be written into the lowest 16 bits and
 	 * the second data into the highest 16 bits of the Transmit
 	 * Data Register. For 8bit data (the most frequent case), it would
 	 * require to rework tx_buf so each data would actually fit 16 bits.
 	 * So we'd rather write only one data at the time. Hence the transmit
-	 * path works the same whether FIFOs are available (and enabled) or not.
+	 * path works the same whether FIFOs are available (and enabled) or analt.
 	 */
 	if (dmaengine_slave_config(host->dma_tx, &slave_config)) {
 		dev_err(&as->pdev->dev,
@@ -557,7 +557,7 @@ static int atmel_spi_dma_slave_config(struct atmel_spi *as, u8 bits_per_word)
 	 * So according to the datasheet, when FIFOs are available (and
 	 * enabled), the Receive FIFO operates in Single Data Mode.
 	 * So the receive path works the same whether FIFOs are available (and
-	 * enabled) or not.
+	 * enabled) or analt.
 	 */
 	if (dmaengine_slave_config(host->dma_rx, &slave_config)) {
 		dev_err(&as->pdev->dev,
@@ -577,7 +577,7 @@ static int atmel_spi_configure_dma(struct spi_controller *host,
 	host->dma_tx = dma_request_chan(dev, "tx");
 	if (IS_ERR(host->dma_tx)) {
 		err = PTR_ERR(host->dma_tx);
-		dev_dbg(dev, "No TX DMA channel, DMA is disabled\n");
+		dev_dbg(dev, "Anal TX DMA channel, DMA is disabled\n");
 		goto error_clear;
 	}
 
@@ -585,10 +585,10 @@ static int atmel_spi_configure_dma(struct spi_controller *host,
 	if (IS_ERR(host->dma_rx)) {
 		err = PTR_ERR(host->dma_rx);
 		/*
-		 * No reason to check EPROBE_DEFER here since we have already
+		 * Anal reason to check EPROBE_DEFER here since we have already
 		 * requested tx channel.
 		 */
-		dev_dbg(dev, "No RX DMA channel, DMA is disabled\n");
+		dev_dbg(dev, "Anal RX DMA channel, DMA is disabled\n");
 		goto error;
 	}
 
@@ -657,7 +657,7 @@ static void atmel_spi_next_xfer_single(struct spi_controller *host,
 
 	dev_vdbg(host->dev.parent, "atmel_spi_next_xfer_pio\n");
 
-	/* Make sure data is not remaining in RDR */
+	/* Make sure data is analt remaining in RDR */
 	spi_readl(as, RDR);
 	while (spi_readl(as, SR) & SPI_BIT(RDRF)) {
 		spi_readl(as, RDR);
@@ -742,7 +742,7 @@ static void atmel_spi_next_xfer_fifo(struct spi_controller *host,
 		xfer->bits_per_word);
 
 	/*
-	 * Enable RX FIFO Threshold Flag interrupt to be notified about
+	 * Enable RX FIFO Threshold Flag interrupt to be analtified about
 	 * transfer completion.
 	 */
 	spi_writel(as, IER, SPI_BIT(RXFTHF) | SPI_BIT(OVRES));
@@ -780,7 +780,7 @@ static int atmel_spi_next_xfer_dma_submit(struct spi_controller *host,
 
 	/* Check that the channels are available */
 	if (!rxchan || !txchan)
-		return -ENODEV;
+		return -EANALDEV;
 
 
 	*plen = xfer->len;
@@ -855,7 +855,7 @@ err_dma:
 	spi_writel(as, IDR, SPI_BIT(OVRES));
 	atmel_spi_stop_dma(host);
 err_exit:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void atmel_spi_next_xfer_data(struct spi_controller *host,
@@ -977,7 +977,7 @@ static void atmel_spi_pdc_next_xfer(struct spi_controller *host,
 	 * actually waiting for and the RXBUFF interrupt of the
 	 * previous transfer.
 	 *
-	 * It should be doable, though. Just not now...
+	 * It should be doable, though. Just analt analw...
 	 */
 	spi_writel(as, IER, SPI_BIT(RXBUFF) | SPI_BIT(OVRES));
 	spi_writel(as, PTCR, SPI_BIT(TXTEN) | SPI_BIT(RXTEN));
@@ -999,13 +999,13 @@ atmel_spi_dma_map_xfer(struct atmel_spi *as, struct spi_transfer *xfer)
 	if (xfer->tx_buf) {
 		/* tx_buf is a const void* where we need a void * for the dma
 		 * mapping */
-		void *nonconst_tx = (void *)xfer->tx_buf;
+		void *analnconst_tx = (void *)xfer->tx_buf;
 
 		xfer->tx_dma = dma_map_single(dev,
-				nonconst_tx, xfer->len,
+				analnconst_tx, xfer->len,
 				DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, xfer->tx_dma))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	if (xfer->rx_buf) {
 		xfer->rx_dma = dma_map_single(dev,
@@ -1016,7 +1016,7 @@ atmel_spi_dma_map_xfer(struct atmel_spi *as, struct spi_transfer *xfer)
 				dma_unmap_single(dev,
 						xfer->tx_dma, xfer->len,
 						DMA_TO_DEVICE);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	return 0;
@@ -1121,7 +1121,7 @@ atmel_spi_pio_interrupt(int irq, void *dev_id)
 	struct atmel_spi	*as = spi_controller_get_devdata(host);
 	u32			status, pending, imr;
 	struct spi_transfer	*xfer;
-	int			ret = IRQ_NONE;
+	int			ret = IRQ_ANALNE;
 
 	imr = spi_readl(as, IMR);
 	status = spi_readl(as, SR);
@@ -1134,11 +1134,11 @@ atmel_spi_pio_interrupt(int irq, void *dev_id)
 
 		/*
 		 * When we get an overrun, we disregard the current
-		 * transfer. Data will not be copied back from any
-		 * bounce buffer and msg->actual_len will not be
+		 * transfer. Data will analt be copied back from any
+		 * bounce buffer and msg->actual_len will analt be
 		 * updated with the last xfer.
 		 *
-		 * We will also not process any remaning transfers in
+		 * We will also analt process any remaning transfers in
 		 * the message.
 		 */
 		as->done_status = -EIO;
@@ -1164,7 +1164,7 @@ atmel_spi_pio_interrupt(int irq, void *dev_id)
 
 		atmel_spi_unlock(as);
 	} else {
-		WARN_ONCE(pending, "IRQ not handled, pending = %x\n", pending);
+		WARN_ONCE(pending, "IRQ analt handled, pending = %x\n", pending);
 		ret = IRQ_HANDLED;
 		spi_writel(as, IDR, pending);
 	}
@@ -1178,7 +1178,7 @@ atmel_spi_pdc_interrupt(int irq, void *dev_id)
 	struct spi_controller	*host = dev_id;
 	struct atmel_spi	*as = spi_controller_get_devdata(host);
 	u32			status, pending, imr;
-	int			ret = IRQ_NONE;
+	int			ret = IRQ_ANALNE;
 
 	imr = spi_readl(as, IMR);
 	status = spi_readl(as, SR);
@@ -1236,7 +1236,7 @@ static void initialize_native_cs_for_gpio(struct atmel_spi *as)
 		return; /* already initialized */
 
 	if (!host->cs_gpiods)
-		return; /* No CS GPIO */
+		return; /* Anal CS GPIO */
 
 	/*
 	 * On the first version of the controller (AT91RM9200), CS0
@@ -1266,9 +1266,9 @@ static int atmel_spi_setup(struct spi_device *spi)
 
 	as = spi_controller_get_devdata(spi->controller);
 
-	/* see notes above re chipselect */
+	/* see analtes above re chipselect */
 	if (!spi_get_csgpiod(spi, 0) && (spi->mode & SPI_CS_HIGH)) {
-		dev_warn(&spi->dev, "setup: non GPIO CS can't be active-high\n");
+		dev_warn(&spi->dev, "setup: analn GPIO CS can't be active-high\n");
 		return -EINVAL;
 	}
 
@@ -1281,7 +1281,7 @@ static int atmel_spi_setup(struct spi_device *spi)
 
 	if (spi_get_csgpiod(spi, 0) && as->native_cs_free) {
 		dev_err(&spi->dev,
-			"No native CS available to support this GPIO CS\n");
+			"Anal native CS available to support this GPIO CS\n");
 		return -EBUSY;
 	}
 
@@ -1313,7 +1313,7 @@ static int atmel_spi_setup(struct spi_device *spi)
 	if (!asd) {
 		asd = kzalloc(sizeof(struct atmel_spi_device), GFP_KERNEL);
 		if (!asd)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		spi->controller_state = asd;
 	}
@@ -1367,7 +1367,7 @@ static int atmel_spi_one_transfer(struct spi_controller *host,
 	if (bits != xfer->bits_per_word - 8) {
 		dev_dbg(&spi->dev,
 			"you can't yet change bits_per_word in transfers\n");
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 
 	/*
@@ -1377,7 +1377,7 @@ static int atmel_spi_one_transfer(struct spi_controller *host,
 	if ((!host->cur_msg->is_dma_mapped)
 		&& as->use_pdc) {
 		if (atmel_spi_dma_map_xfer(as, xfer) < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	atmel_spi_set_xfer_speed(as, spi, xfer);
@@ -1536,13 +1536,13 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	/* setup spi core then atmel-specific driver state */
 	host = spi_alloc_host(&pdev->dev, sizeof(*as));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* the spi->mode bits understood by this driver: */
 	host->use_gpio_descriptors = true;
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 16);
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->bus_num = pdev->id;
 	host->num_chipselect = 4;
 	host->setup = atmel_spi_setup;
@@ -1608,7 +1608,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 		}
 		if (!as->use_dma)
 			dev_info(host->dev.parent,
-				 "  can not allocate dma coherent memory\n");
+				 "  can analt allocate dma coherent memory\n");
 	}
 
 	if (as->caps.has_dma_support && !as->use_dma)
@@ -1632,7 +1632,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	as->spi_clk = clk_get_rate(clk);
 
 	as->fifo_size = 0;
-	if (!of_property_read_u32(pdev->dev.of_node, "atmel,fifo-size",
+	if (!of_property_read_u32(pdev->dev.of_analde, "atmel,fifo-size",
 				  &as->fifo_size)) {
 		dev_info(&pdev->dev, "Using FIFO (%u data)\n", as->fifo_size);
 	}
@@ -1700,7 +1700,7 @@ static void atmel_spi_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(as->clk);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 }
 

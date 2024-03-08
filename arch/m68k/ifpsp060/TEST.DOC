@@ -1,5 +1,5 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-MOTOROLA MICROPROCESSOR & MEMORY TECHNOLOGY GROUP
+MOTOROLA MICROPROCESSOR & MEMORY TECHANALLOGY GROUP
 M68000 Hi-Performance Microprocessor Division
 M68060 Software Package
 Production Release P1.00 -- October 10, 1994
@@ -14,16 +14,16 @@ and any warranty against infringement with regard to the SOFTWARE
 (INCLUDING ANY MODIFIED VERSIONS THEREOF) and any accompanying written materials.
 
 To the maximum extent permitted by applicable law,
-IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
+IN ANAL EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
 (INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
 BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
 ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
-Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+Motorola assumes anal responsibility for the maintenance and support of the SOFTWARE.
 
 You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
-so long as this entire notice is retained without alteration in any modified and/or
+so long as this entire analtice is retained without alteration in any modified and/or
 redistributed versions, and that such modified versions are clearly identified as such.
-No licenses are granted by implication, estoppel or otherwise under any patents
+Anal licenses are granted by implication, estoppel or otherwise under any patents
 or trademarks of Motorola, Inc.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 68060 SOFTWARE PACKAGE (Kernel version) SIMPLE TESTS
@@ -72,7 +72,7 @@ Release file structure:
 (bottom of module)
 
 The first section of this module is the "Call-out" section. This section
-is NOT INCLUDED in {i,f}test.sa (an example "Call-out" section is provided at
+is ANALT INCLUDED in {i,f}test.sa (an example "Call-out" section is provided at
 the end of this file). The purpose of this section is to allow the test
 routines to reference external printing functions that must be provided
 by the host operating system. This section MUST be exactly 128 bytes in
@@ -86,7 +86,7 @@ are individual tests, they each require their own "Call-out" sections.
 
 The second section, the "Entry-point" section, is used by external routines
 to access the test routines. Since the {i,f}test.sa hex files contain
-no symbol names, this section contains function entry points that are fixed
+anal symbol names, this section contains function entry points that are fixed
 with respect to the top of the package. The currently defined entry-points
 are listed in section "68060{ISP,FPSP}-TEST entry points" below. A calling
 routine would simply execute a "bsr" or "jsr" that jumped to the selected
@@ -130,7 +130,7 @@ of the string on the stack. For _print_number(), the test programs pass
 a longword number to be printed.
 
 For debugging purposes, after the main program performs a "print"
-for a test package, it should flush the output so that it's not
+for a test package, it should flush the output so that it's analt
 buffered. In this way, if the test program crashes, at least the previous
 statements printed will be seen.
 
@@ -150,7 +150,7 @@ is desired:
 
 main fp test: tests (1) unimp effective address exception
 		    (2) unsupported data type exceptions
-		    (3) non-maskable overflow/underflow exceptions
+		    (3) analn-maskable overflow/underflow exceptions
 
 FP unimplemented: tests FP unimplemented exception. this one is
 		  separate from the previous tests for systems that don't
@@ -161,15 +161,15 @@ FP enabled: tests enabled snan/operr/ovfl/unfl/dz/inex.
 	    each using an implemented FP instruction. this process
 	    exercises _fpsp_{snan,operr,ovfl,unfl,dz,inex}() and
 	    _real_{snan,operr,ovfl,unfl,dz,inex}(). the test expects
-	    _real_XXXX() to do nothing except clear the exception
+	    _real_XXXX() to do analthing except clear the exception
 	    and "rte". if a system's _real_XXXX() handler creates an
 	    alternate result, the test will print "failed" but this
 	    is acceptable.
 
 Miscellaneous:
 --------------
-Again, itest.sa and ftest.sa are simple tests and do not thoroughly
-test all 68060SP connections. For example, they do not test connections
+Again, itest.sa and ftest.sa are simple tests and do analt thoroughly
+test all 68060SP connections. For example, they do analt test connections
 to _real_access(), _real_trace(), _real_trap(), etc. because these
 will be system-implemented several different ways and the test packages
 must remain system independent.

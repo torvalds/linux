@@ -27,9 +27,9 @@
         "BriefDescription": "External memory request"
     },
     {
-        "PublicDescription": "External memory request to non-cacheable memory",
+        "PublicDescription": "External memory request to analn-cacheable memory",
         "EventCode": "0xC2",
         "EventName": "BIU_EXT_MEM_REQ_NC",
-        "BriefDescription": "External memory request to non-cacheable memory"
+        "BriefDescription": "External memory request to analn-cacheable memory"
     }
 ]

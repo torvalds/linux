@@ -77,12 +77,12 @@ static void guest_ipi_handler(struct ex_regs *regs)
 	wrmsr(HV_X64_MSR_EOI, 1);
 }
 
-static inline void nop_loop(void)
+static inline void analp_loop(void)
 {
 	int i;
 
 	for (i = 0; i < 100000000; i++)
-		asm volatile("nop");
+		asm volatile("analp");
 }
 
 static void sender_guest_code(void *hcall_page, vm_vaddr_t pgs_gpa)
@@ -96,21 +96,21 @@ static void sender_guest_code(void *hcall_page, vm_vaddr_t pgs_gpa)
 
 	/* Wait for receiver vCPUs to come up */
 	while (!ipis_rcvd[RECEIVER_VCPU_ID_1] || !ipis_rcvd[RECEIVER_VCPU_ID_2])
-		nop_loop();
+		analp_loop();
 	ipis_rcvd[RECEIVER_VCPU_ID_1] = ipis_rcvd[RECEIVER_VCPU_ID_2] = 0;
 
 	/* 'Slow' HvCallSendSyntheticClusterIpi to RECEIVER_VCPU_ID_1 */
 	ipi->vector = IPI_VECTOR;
 	ipi->cpu_mask = 1 << RECEIVER_VCPU_ID_1;
 	hyperv_hypercall(HVCALL_SEND_IPI, pgs_gpa, pgs_gpa + 4096);
-	nop_loop();
+	analp_loop();
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_1] == ++ipis_expected[0]);
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_2] == ipis_expected[1]);
 	GUEST_SYNC(stage++);
 	/* 'Fast' HvCallSendSyntheticClusterIpi to RECEIVER_VCPU_ID_1 */
 	hyperv_hypercall(HVCALL_SEND_IPI | HV_HYPERCALL_FAST_BIT,
 			 IPI_VECTOR, 1 << RECEIVER_VCPU_ID_1);
-	nop_loop();
+	analp_loop();
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_1] == ++ipis_expected[0]);
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_2] == ipis_expected[1]);
 	GUEST_SYNC(stage++);
@@ -123,7 +123,7 @@ static void sender_guest_code(void *hcall_page, vm_vaddr_t pgs_gpa)
 	ipi_ex->vp_set.bank_contents[0] = BIT(RECEIVER_VCPU_ID_1);
 	hyperv_hypercall(HVCALL_SEND_IPI_EX | (1 << HV_HYPERCALL_VARHEAD_OFFSET),
 			 pgs_gpa, pgs_gpa + 4096);
-	nop_loop();
+	analp_loop();
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_1] == ++ipis_expected[0]);
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_2] == ipis_expected[1]);
 	GUEST_SYNC(stage++);
@@ -132,7 +132,7 @@ static void sender_guest_code(void *hcall_page, vm_vaddr_t pgs_gpa)
 	hyperv_hypercall(HVCALL_SEND_IPI_EX | HV_HYPERCALL_FAST_BIT |
 			 (1 << HV_HYPERCALL_VARHEAD_OFFSET),
 			 IPI_VECTOR, HV_GENERIC_SET_SPARSE_4K);
-	nop_loop();
+	analp_loop();
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_1] == ++ipis_expected[0]);
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_2] == ipis_expected[1]);
 	GUEST_SYNC(stage++);
@@ -145,7 +145,7 @@ static void sender_guest_code(void *hcall_page, vm_vaddr_t pgs_gpa)
 	ipi_ex->vp_set.bank_contents[0] = BIT(RECEIVER_VCPU_ID_2 - 64);
 	hyperv_hypercall(HVCALL_SEND_IPI_EX | (1 << HV_HYPERCALL_VARHEAD_OFFSET),
 			 pgs_gpa, pgs_gpa + 4096);
-	nop_loop();
+	analp_loop();
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_1] == ipis_expected[0]);
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_2] == ++ipis_expected[1]);
 	GUEST_SYNC(stage++);
@@ -154,7 +154,7 @@ static void sender_guest_code(void *hcall_page, vm_vaddr_t pgs_gpa)
 	hyperv_hypercall(HVCALL_SEND_IPI_EX | HV_HYPERCALL_FAST_BIT |
 			 (1 << HV_HYPERCALL_VARHEAD_OFFSET),
 			 IPI_VECTOR, HV_GENERIC_SET_SPARSE_4K);
-	nop_loop();
+	analp_loop();
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_1] == ipis_expected[0]);
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_2] == ++ipis_expected[1]);
 	GUEST_SYNC(stage++);
@@ -168,7 +168,7 @@ static void sender_guest_code(void *hcall_page, vm_vaddr_t pgs_gpa)
 	ipi_ex->vp_set.bank_contents[1] = BIT(RECEIVER_VCPU_ID_2 - 64);
 	hyperv_hypercall(HVCALL_SEND_IPI_EX | (2 << HV_HYPERCALL_VARHEAD_OFFSET),
 			 pgs_gpa, pgs_gpa + 4096);
-	nop_loop();
+	analp_loop();
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_1] == ++ipis_expected[0]);
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_2] == ++ipis_expected[1]);
 	GUEST_SYNC(stage++);
@@ -177,7 +177,7 @@ static void sender_guest_code(void *hcall_page, vm_vaddr_t pgs_gpa)
 	hyperv_hypercall(HVCALL_SEND_IPI_EX | HV_HYPERCALL_FAST_BIT |
 			 (2 << HV_HYPERCALL_VARHEAD_OFFSET),
 			 IPI_VECTOR, HV_GENERIC_SET_SPARSE_4K);
-	nop_loop();
+	analp_loop();
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_1] == ++ipis_expected[0]);
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_2] == ++ipis_expected[1]);
 	GUEST_SYNC(stage++);
@@ -187,7 +187,7 @@ static void sender_guest_code(void *hcall_page, vm_vaddr_t pgs_gpa)
 	ipi_ex->vector = IPI_VECTOR;
 	ipi_ex->vp_set.format = HV_GENERIC_SET_ALL;
 	hyperv_hypercall(HVCALL_SEND_IPI_EX, pgs_gpa, pgs_gpa + 4096);
-	nop_loop();
+	analp_loop();
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_1] == ++ipis_expected[0]);
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_2] == ++ipis_expected[1]);
 	GUEST_SYNC(stage++);
@@ -198,7 +198,7 @@ static void sender_guest_code(void *hcall_page, vm_vaddr_t pgs_gpa)
 	hyperv_write_xmm_input(&ipi_ex->vp_set.valid_bank_mask, 2);
 	hyperv_hypercall(HVCALL_SEND_IPI_EX | HV_HYPERCALL_FAST_BIT,
 			 IPI_VECTOR, HV_GENERIC_SET_ALL);
-	nop_loop();
+	analp_loop();
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_1] == ++ipis_expected[0]);
 	GUEST_ASSERT(ipis_rcvd[RECEIVER_VCPU_ID_2] == ++ipis_expected[1]);
 	GUEST_SYNC(stage++);
@@ -211,8 +211,8 @@ static void *vcpu_thread(void *arg)
 	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)arg;
 	int old, r;
 
-	r = pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &old);
-	TEST_ASSERT(!r, "pthread_setcanceltype failed on vcpu_id=%u with errno=%d",
+	r = pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHROANALUS, &old);
+	TEST_ASSERT(!r, "pthread_setcanceltype failed on vcpu_id=%u with erranal=%d",
 		    vcpu->id, r);
 
 	vcpu_run(vcpu);
@@ -228,11 +228,11 @@ static void cancel_join_vcpu_thread(pthread_t thread, struct kvm_vcpu *vcpu)
 	int r;
 
 	r = pthread_cancel(thread);
-	TEST_ASSERT(!r, "pthread_cancel on vcpu_id=%d failed with errno=%d",
+	TEST_ASSERT(!r, "pthread_cancel on vcpu_id=%d failed with erranal=%d",
 		    vcpu->id, r);
 
 	r = pthread_join(thread, &retval);
-	TEST_ASSERT(!r, "pthread_join on vcpu_id=%d failed with errno=%d",
+	TEST_ASSERT(!r, "pthread_join on vcpu_id=%d failed with erranal=%d",
 		    vcpu->id, r);
 	TEST_ASSERT(retval == PTHREAD_CANCELED,
 		    "expected retval=%p, got %p", PTHREAD_CANCELED,
@@ -276,10 +276,10 @@ int main(int argc, char *argv[])
 	vcpu_set_hv_cpuid(vcpu[0]);
 
 	r = pthread_create(&threads[0], NULL, vcpu_thread, vcpu[1]);
-	TEST_ASSERT(!r, "pthread_create failed errno=%d", r);
+	TEST_ASSERT(!r, "pthread_create failed erranal=%d", r);
 
 	r = pthread_create(&threads[1], NULL, vcpu_thread, vcpu[2]);
-	TEST_ASSERT(!r, "pthread_create failed errno=%d", errno);
+	TEST_ASSERT(!r, "pthread_create failed erranal=%d", erranal);
 
 	while (true) {
 		vcpu_run(vcpu[0]);
@@ -296,9 +296,9 @@ int main(int argc, char *argv[])
 			goto done;
 		case UCALL_ABORT:
 			REPORT_GUEST_ASSERT(uc);
-			/* NOT REACHED */
+			/* ANALT REACHED */
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 
 		stage++;

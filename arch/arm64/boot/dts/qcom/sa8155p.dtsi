@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2023, Linaro Limited
  *
- * SA8155P is an automotive variant of SM8150, with some minor changes.
- * Most notably, the RPMhPD setup differs: MMCX and LCX/LMX rails are gone,
+ * SA8155P is an automotive variant of SM8150, with some mianalr changes.
+ * Most analtably, the RPMhPD setup differs: MMCX and LCX/LMX rails are gone,
  * though the cmd-db doesn't reflect that and access attemps result in a bite.
  */
 

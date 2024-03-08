@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2015 Texas Instruments, Inc.
  *
- * Benoit Parrot <bparrot@ti.com>
+ * Beanalit Parrot <bparrot@ti.com>
  * Lad, Prabhakar <prabhakar.csengg@gmail.com>
  */
 
@@ -19,7 +19,7 @@
 #include <media/i2c/ov2659.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-subdev.h>
 
@@ -144,10 +144,10 @@
 #define REG_SHARPENMT_THRESH2		0x5065
 #define REG_SHARPENMT_OFFSET1		0x5066
 #define REG_SHARPENMT_OFFSET2		0x5067
-#define REG_DENOISE_THRESH1		0x5068
-#define REG_DENOISE_THRESH2		0x5069
-#define REG_DENOISE_OFFSET1		0x506a
-#define REG_DENOISE_OFFSET2		0x506b
+#define REG_DEANALISE_THRESH1		0x5068
+#define REG_DEANALISE_THRESH2		0x5069
+#define REG_DEANALISE_OFFSET1		0x506a
+#define REG_DEANALISE_OFFSET2		0x506b
 #define REG_SHARPEN_THRESH1		0x506c
 #define REG_SHARPEN_THRESH2		0x506d
 #define REG_CIP_CTRL00			0x506e
@@ -352,10 +352,10 @@ static const struct sensor_register ov2659_init_regs[] = {
 	{ REG_SHARPEN_THRESH1, 0x08 },
 	{ REG_SHARPEN_THRESH2, 0x10 },
 	{ REG_CIP_CTRL01, 0xa6 },
-	{ REG_DENOISE_THRESH1, 0x08 },
-	{ REG_DENOISE_THRESH2, 0x10 },
-	{ REG_DENOISE_OFFSET1, 0x04 },
-	{ REG_DENOISE_OFFSET2, 0x12 },
+	{ REG_DEANALISE_THRESH1, 0x08 },
+	{ REG_DEANALISE_THRESH2, 0x10 },
+	{ REG_DEANALISE_OFFSET1, 0x04 },
+	{ REG_DEANALISE_OFFSET2, 0x12 },
 	{ 0x507e, 0x40 },
 	{ 0x507f, 0x20 },
 	{ 0x507b, 0x02 },
@@ -951,7 +951,7 @@ static void ov2659_get_default_format(struct v4l2_mbus_framefmt *format)
 	format->height = ov2659_framesizes[2].height;
 	format->colorspace = V4L2_COLORSPACE_SRGB;
 	format->code = ov2659_formats[0].code;
-	format->field = V4L2_FIELD_NONE;
+	format->field = V4L2_FIELD_ANALNE;
 }
 
 static void ov2659_set_streaming(struct ov2659 *ov2659, int on)
@@ -1104,7 +1104,7 @@ static int ov2659_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	mf->colorspace = V4L2_COLORSPACE_SRGB;
-	mf->field = V4L2_FIELD_NONE;
+	mf->field = V4L2_FIELD_ANALNE;
 
 	mutex_lock(&ov2659->lock);
 
@@ -1352,7 +1352,7 @@ static int ov2659_detect(struct v4l2_subdev *sd)
 	ret = ov2659_write(client, REG_SOFTWARE_RESET, 0x01);
 	if (ret != 0) {
 		dev_err(&client->dev, "Sensor soft reset failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	usleep_range(1000, 2000);
 
@@ -1368,7 +1368,7 @@ static int ov2659_detect(struct v4l2_subdev *sd)
 		if (id != OV2659_ID) {
 			dev_err(&client->dev,
 				"Sensor detection failed (%04X)\n", id);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		} else {
 			dev_info(&client->dev, "Found OV%04X sensor\n", id);
 		}
@@ -1381,18 +1381,18 @@ static struct ov2659_platform_data *
 ov2659_get_pdata(struct i2c_client *client)
 {
 	struct ov2659_platform_data *pdata;
-	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
-	struct device_node *endpoint;
+	struct v4l2_fwanalde_endpoint bus_cfg = { .bus_type = 0 };
+	struct device_analde *endpoint;
 	int ret;
 
-	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
+	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_analde)
 		return client->dev.platform_data;
 
-	endpoint = of_graph_get_next_endpoint(client->dev.of_node, NULL);
+	endpoint = of_graph_get_next_endpoint(client->dev.of_analde, NULL);
 	if (!endpoint)
 		return NULL;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(endpoint),
+	ret = v4l2_fwanalde_endpoint_alloc_parse(of_fwanalde_handle(endpoint),
 					       &bus_cfg);
 	if (ret) {
 		pdata = NULL;
@@ -1405,7 +1405,7 @@ ov2659_get_pdata(struct i2c_client *client)
 
 	if (!bus_cfg.nr_of_link_frequencies) {
 		dev_err(&client->dev,
-			"link-frequencies property not found or too many\n");
+			"link-frequencies property analt found or too many\n");
 		pdata = NULL;
 		goto done;
 	}
@@ -1413,8 +1413,8 @@ ov2659_get_pdata(struct i2c_client *client)
 	pdata->link_frequency = bus_cfg.link_frequencies[0];
 
 done:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
-	of_node_put(endpoint);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
+	of_analde_put(endpoint);
 	return pdata;
 }
 
@@ -1426,13 +1426,13 @@ static int ov2659_probe(struct i2c_client *client)
 	int ret;
 
 	if (!pdata) {
-		dev_err(&client->dev, "platform data not specified\n");
+		dev_err(&client->dev, "platform data analt specified\n");
 		return -EINVAL;
 	}
 
 	ov2659 = devm_kzalloc(&client->dev, sizeof(*ov2659), GFP_KERNEL);
 	if (!ov2659)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ov2659->pdata = pdata;
 	ov2659->client = client;
@@ -1446,13 +1446,13 @@ static int ov2659_probe(struct i2c_client *client)
 	    ov2659->xvclk_frequency > 27000000)
 		return -EINVAL;
 
-	/* Optional gpio don't fail if not present */
+	/* Optional gpio don't fail if analt present */
 	ov2659->pwdn_gpio = devm_gpiod_get_optional(&client->dev, "powerdown",
 						    GPIOD_OUT_LOW);
 	if (IS_ERR(ov2659->pwdn_gpio))
 		return PTR_ERR(ov2659->pwdn_gpio);
 
-	/* Optional gpio don't fail if not present */
+	/* Optional gpio don't fail if analt present */
 	ov2659->resetb_gpio = devm_gpiod_get_optional(&client->dev, "reset",
 						      GPIOD_OUT_HIGH);
 	if (IS_ERR(ov2659->resetb_gpio))
@@ -1482,7 +1482,7 @@ static int ov2659_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(sd, client, &ov2659_subdev_ops);
 	sd->internal_ops = &ov2659_subdev_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 		     V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	ov2659->pad.flags = MEDIA_PAD_FL_SOURCE;
@@ -1577,6 +1577,6 @@ static struct i2c_driver ov2659_i2c_driver = {
 
 module_i2c_driver(ov2659_i2c_driver);
 
-MODULE_AUTHOR("Benoit Parrot <bparrot@ti.com>");
+MODULE_AUTHOR("Beanalit Parrot <bparrot@ti.com>");
 MODULE_DESCRIPTION("OV2659 CMOS Image Sensor driver");
 MODULE_LICENSE("GPL v2");

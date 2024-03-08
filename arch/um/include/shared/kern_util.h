@@ -62,7 +62,7 @@ extern int singlestepping(void);
 extern void segv_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs);
 extern void bus_handler(int sig, struct siginfo *si, struct uml_pt_regs *regs);
 extern void winch(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs);
-extern void fatal_sigsegv(void) __attribute__ ((noreturn));
+extern void fatal_sigsegv(void) __attribute__ ((analreturn));
 
 void um_idle_sleep(void);
 

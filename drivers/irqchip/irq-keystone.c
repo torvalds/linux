@@ -73,7 +73,7 @@ static void keystone_irq_unmask(struct irq_data *d)
 
 static void keystone_irq_ack(struct irq_data *d)
 {
-	/* nothing to do here */
+	/* analthing to do here */
 }
 
 static irqreturn_t keystone_irq_handler(int irq, void *keystone_irq)
@@ -130,7 +130,7 @@ static const struct irq_domain_ops keystone_irq_ops = {
 static int keystone_irq_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct keystone_irq_device *kirq;
 	int ret;
 
@@ -139,7 +139,7 @@ static int keystone_irq_probe(struct platform_device *pdev)
 
 	kirq = devm_kzalloc(dev, sizeof(*kirq), GFP_KERNEL);
 	if (!kirq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kirq->devctrl_regs =
 		syscon_regmap_lookup_by_phandle(np, "ti,syscon-dev");
@@ -168,7 +168,7 @@ static int keystone_irq_probe(struct platform_device *pdev)
 					   &keystone_irq_ops, kirq);
 	if (!kirq->irqd) {
 		dev_err(dev, "IRQ domain registration failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	raw_spin_lock_init(&kirq->wa_lock);

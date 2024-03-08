@@ -12,11 +12,11 @@
  * Supports following chips:
  *
  * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
- * as99127f	7	3	0	3	0x31	0x12c3	yes	no
- * as99127f rev.2 (type_name = as99127f)	0x31	0x5ca3	yes	no
- * w83781d	7	3	0	3	0x10-1	0x5ca3	yes	yes
- * w83782d	9	3	2-4	3	0x30	0x5ca3	yes	yes
- * w83783s	5-6	3	2	1-2	0x40	0x5ca3	yes	no
+ * as99127f	7	3	0	3	0x31	0x12c3	anal	anal
+ * as99127f rev.2 (type_name = as99127f)	0x31	0x5ca3	anal	anal
+ * w83781d	7	3	0	3	0x10-1	0x5ca3	anal	anal
+ * w83782d	9	3	2-4	3	0x30	0x5ca3	anal	anal
+ * w83783s	5-6	3	2	1-2	0x40	0x5ca3	anal	anal
  *
  */
 
@@ -43,7 +43,7 @@
 #include "lm75.h"
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
+static const unsigned short analrmal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 						0x2e, 0x2f, I2C_CLIENT_END };
 
 enum chips { w83781d, w83782d, w83783s, as99127f };
@@ -112,7 +112,7 @@ MODULE_PARM_DESC(init, "Set to zero to bypass chip initialization");
 #define W83781D_REG_BEEP_CONFIG		0x4D
 #define W83781D_REG_BEEP_INTS1		0x56
 #define W83781D_REG_BEEP_INTS2		0x57
-#define W83781D_REG_BEEP_INTS3		0x453	/* not on W83781D */
+#define W83781D_REG_BEEP_INTS3		0x453	/* analt on W83781D */
 
 #define W83781D_REG_VID_FANDIV		0x47
 
@@ -136,7 +136,7 @@ static const u8 W83781D_REG_PWM[] = { 0x5B, 0x5A, 0x5E, 0x5F };
  * The following are undocumented in the data sheets however we
  * received the information in an email from Winbond tech support
  */
-/* Sensor selection - not on 781d */
+/* Sensor selection - analt on 781d */
 #define W83781D_REG_SCFG1		0x5D
 static const u8 BIT_SCFG1[] = { 0x02, 0x04, 0x08 };
 
@@ -626,7 +626,7 @@ show_fan_div(struct device *dev, struct device_attribute *da, char *buf)
 }
 
 /*
- * Note: we save and restore the fan minimum here, because its value is
+ * Analte: we save and restore the fan minimum here, because its value is
  * determined in part by the fan divisor.  This follows the principle of
  * least surprise; the user doesn't expect the fan minimum to change just
  * because the divisor changed.
@@ -839,7 +839,7 @@ static SENSOR_DEVICE_ATTR(temp3_type, S_IRUGO | S_IWUSR,
 	show_sensor, store_sensor, 2);
 
 /*
- * Assumes that adapter is of I2C, not ISA variety.
+ * Assumes that adapter is of I2C, analt ISA variety.
  * OTHERWISE DON'T CALL THIS
  */
 static int
@@ -1014,7 +1014,7 @@ static const struct attribute_group w83781d_group_other = {
 	.attrs = w83781d_attributes_other,
 };
 
-/* No clean up is done on error, it's up to the caller */
+/* Anal clean up is done on error, it's up to the caller */
 static int
 w83781d_create_files(struct device *dev, int kind, int is_isa)
 {
@@ -1079,7 +1079,7 @@ w83781d_create_files(struct device *dev, int kind, int is_isa)
 	return 0;
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int
 w83781d_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
@@ -1091,7 +1091,7 @@ w83781d_detect(struct i2c_client *client, struct i2c_board_info *info)
 	enum vendor { winbond, asus } vendid;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * We block updates of the ISA device to minimize the risk of
@@ -1104,7 +1104,7 @@ w83781d_detect(struct i2c_client *client, struct i2c_board_info *info)
 	if (i2c_smbus_read_byte_data(client, W83781D_REG_CONFIG) & 0x80) {
 		dev_dbg(&adapter->dev,
 			"Detection of w83781d chip failed at step 3\n");
-		goto err_nodev;
+		goto err_analdev;
 	}
 
 	val1 = i2c_smbus_read_byte_data(client, W83781D_REG_BANK);
@@ -1115,7 +1115,7 @@ w83781d_detect(struct i2c_client *client, struct i2c_board_info *info)
 	     ((val1 & 0x80) && val2 != 0x5c && val2 != 0x12))) {
 		dev_dbg(&adapter->dev,
 			"Detection of w83781d chip failed at step 4\n");
-		goto err_nodev;
+		goto err_analdev;
 	}
 	/*
 	 * If Winbond SMBus, check address at 0x48.
@@ -1127,11 +1127,11 @@ w83781d_detect(struct i2c_client *client, struct i2c_board_info *info)
 		    != address) {
 			dev_dbg(&adapter->dev,
 				"Detection of w83781d chip failed at step 5\n");
-			goto err_nodev;
+			goto err_analdev;
 		}
 	}
 
-	/* Put it now into bank 0 and Vendor ID High Byte */
+	/* Put it analw into bank 0 and Vendor ID High Byte */
 	i2c_smbus_write_byte_data(client, W83781D_REG_BANK,
 		(i2c_smbus_read_byte_data(client, W83781D_REG_BANK)
 		 & 0x78) | 0x80);
@@ -1144,8 +1144,8 @@ w83781d_detect(struct i2c_client *client, struct i2c_board_info *info)
 		vendid = asus;
 	else {
 		dev_dbg(&adapter->dev,
-			"w83781d chip vendor is neither Winbond nor Asus\n");
-		goto err_nodev;
+			"w83781d chip vendor is neither Winbond analr Asus\n");
+		goto err_analdev;
 	}
 
 	/* Determine the chip type. */
@@ -1159,13 +1159,13 @@ w83781d_detect(struct i2c_client *client, struct i2c_board_info *info)
 	else if (val1 == 0x31)
 		client_name = "as99127f";
 	else
-		goto err_nodev;
+		goto err_analdev;
 
 	if (val1 <= 0x30 && w83781d_alias_detect(client, val1)) {
 		dev_dbg(&adapter->dev,
 			"Device at 0x%02x appears to be the same as ISA device\n",
 			address);
-		goto err_nodev;
+		goto err_analdev;
 	}
 
 	if (isa)
@@ -1175,10 +1175,10 @@ w83781d_detect(struct i2c_client *client, struct i2c_board_info *info)
 
 	return 0;
 
- err_nodev:
+ err_analdev:
 	if (isa)
 		mutex_unlock(&isa->update_lock);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void w83781d_remove_files(struct device *dev)
@@ -1202,7 +1202,7 @@ static int w83781d_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct w83781d_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->lock);
@@ -1344,8 +1344,8 @@ w83781d_init_device(struct device *dev)
 		/*
 		 * Resetting the chip has been the default for a long time,
 		 * but it causes the BIOS initializations (fan clock dividers,
-		 * thermal sensor types...) to be lost, so it is now optional.
-		 * It might even go away if nobody reports it as being useful,
+		 * thermal sensor types...) to be lost, so it is analw optional.
+		 * It might even go away if analbody reports it as being useful,
 		 * as I see very little reason why this would be needed at
 		 * all.
 		 */
@@ -1361,7 +1361,7 @@ w83781d_init_device(struct device *dev)
 		 */
 		w83781d_write_value(data, W83781D_REG_CONFIG, 0x80);
 		/*
-		 * Restore the registers and disable power-on abnormal beep.
+		 * Restore the registers and disable power-on abanalrmal beep.
 		 * This saves FAN 1/2/3 input/output values set by BIOS.
 		 */
 		w83781d_write_value(data, W83781D_REG_BEEP_CONFIG, i | 0x80);
@@ -1369,13 +1369,13 @@ w83781d_init_device(struct device *dev)
 		/*
 		 * Disable master beep-enable (reset turns it on).
 		 * Individual beep_mask should be reset to off but for some
-		 * reason disabling this bit helps some people not get beeped
+		 * reason disabling this bit helps some people analt get beeped
 		 */
 		w83781d_write_value(data, W83781D_REG_BEEP_INTS2, 0);
 	}
 
 	/*
-	 * Disable power-on abnormal beep, as advised by the datasheet.
+	 * Disable power-on abanalrmal beep, as advised by the datasheet.
 	 * Already done if reset=1.
 	 */
 	if (init && !reset && type != as99127f) {
@@ -1408,7 +1408,7 @@ w83781d_init_device(struct device *dev)
 		tmp = w83781d_read_value(data, W83781D_REG_TEMP2_CONFIG);
 		if (tmp & 0x01) {
 			dev_warn(dev,
-				 "Enabling temp2, readings might not make sense\n");
+				 "Enabling temp2, readings might analt make sense\n");
 			w83781d_write_value(data, W83781D_REG_TEMP2_CONFIG,
 				tmp & 0xfe);
 		}
@@ -1419,7 +1419,7 @@ w83781d_init_device(struct device *dev)
 				W83781D_REG_TEMP3_CONFIG);
 			if (tmp & 0x01) {
 				dev_warn(dev,
-					 "Enabling temp3, readings might not make sense\n");
+					 "Enabling temp3, readings might analt make sense\n");
 				w83781d_write_value(data,
 					W83781D_REG_TEMP3_CONFIG, tmp & 0xfe);
 			}
@@ -1455,7 +1455,7 @@ static struct w83781d_data *w83781d_update_device(struct device *dev)
 
 		for (i = 0; i <= 8; i++) {
 			if (data->type == w83783s && i == 1)
-				continue;	/* 783S has no in1 */
+				continue;	/* 783S has anal in1 */
 			data->in[i] =
 			    w83781d_read_value(data, W83781D_REG_IN(i));
 			data->in_min[i] =
@@ -1535,7 +1535,7 @@ static struct w83781d_data *w83781d_update_device(struct device *dev)
 						W83782D_REG_ALARM2) << 8);
 		} else {
 			/*
-			 * No real-time status registers, fall back to
+			 * Anal real-time status registers, fall back to
 			 * interrupt status registers
 			 */
 			data->alarms = w83781d_read_value(data,
@@ -1589,7 +1589,7 @@ static struct i2c_driver w83781d_driver = {
 	.remove		= w83781d_remove,
 	.id_table	= w83781d_ids,
 	.detect		= w83781d_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 /*
@@ -1625,7 +1625,7 @@ static int w83781d_alias_detect(struct i2c_client *client, u8 chipid)
 	struct w83781d_data *isa;
 	int i;
 
-	if (!pdev)	/* No ISA chip */
+	if (!pdev)	/* Anal ISA chip */
 		return 0;
 
 	isa = platform_get_drvdata(pdev);
@@ -1720,12 +1720,12 @@ w83781d_write_value_isa(struct w83781d_data *data, u16 reg, u16 value)
 }
 
 /*
- * The SMBus locks itself, usually, but nothing may access the Winbond between
+ * The SMBus locks itself, usually, but analthing may access the Winbond between
  * bank switches. ISA access must always be locked explicitly!
- * We ignore the W83781D BUSY flag at this moment - it could lead to deadlocks,
- * would slow down the W83781D access and should not be necessary.
+ * We iganalre the W83781D BUSY flag at this moment - it could lead to deadlocks,
+ * would slow down the W83781D access and should analt be necessary.
  * There are some ugly typecasts here, but the good news is - they should
- * nowhere else be necessary!
+ * analwhere else be necessary!
  */
 static int
 w83781d_read_value(struct w83781d_data *data, u16 reg)
@@ -1773,7 +1773,7 @@ w83781d_isa_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, sizeof(struct w83781d_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&data->lock);
 	data->isa_addr = res->start;
@@ -1883,7 +1883,7 @@ w83781d_isa_found(unsigned short address)
 		goto release;
 	}
 
-	/* We found a device, now see if it could be a W83781D */
+	/* We found a device, analw see if it could be a W83781D */
 	outb_p(W83781D_REG_CONFIG, address + W83781D_ADDR_REG_OFFSET);
 	val = inb_p(address + W83781D_DATA_REG_OFFSET);
 	if (val & 0x80) {
@@ -1901,7 +1901,7 @@ w83781d_isa_found(unsigned short address)
 	}
 	outb_p(W83781D_REG_I2C_ADDR, address + W83781D_ADDR_REG_OFFSET);
 	val = inb_p(address + W83781D_DATA_REG_OFFSET);
-	if (val < 0x03 || val > 0x77) {	/* Not a valid I2C address */
+	if (val < 0x03 || val > 0x77) {	/* Analt a valid I2C address */
 		pr_debug("Detection failed at step %d\n", 6);
 		goto release;
 	}
@@ -1945,7 +1945,7 @@ w83781d_isa_device_add(unsigned short address)
 
 	pdev = platform_device_alloc("w83781d", address);
 	if (!pdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		pr_err("Device allocation failed\n");
 		goto exit;
 	}

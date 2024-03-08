@@ -27,17 +27,17 @@
 锁。
 
 避免这种死锁问题的传统方法是在调用分配器时，在gfp掩码中清除__GFP_FS和__GFP_IO
-（注意后者意味着也要清除第一个）。GFP_NOFS和GFP_NOIO可以作为快捷方式使用。但事
+（注意后者意味着也要清除第一个）。GFP_ANALFS和GFP_ANALIO可以作为快捷方式使用。但事
 实证明，上述方法导致了滥用，当限制性的gfp掩码被用于“万一”时，没有更深入的考虑，
-这导致了问题，因为过度使用GFP_NOFS/GFP_NOIO会导致内存过度回收或其他内存回收的问
+这导致了问题，因为过度使用GFP_ANALFS/GFP_ANALIO会导致内存过度回收或其他内存回收的问
 题。
 
 新API
 =====
 
-从4.12开始，我们为NOFS和NOIO上下文提供了一个通用的作用域API，分别是
-``memalloc_nofs_save`` , ``memalloc_nofs_restore`` 和 ``memalloc_noio_save`` ,
-``memalloc_noio_restore`` ，允许从文件系统或I/O的角度将一个作用域标记为一个
+从4.12开始，我们为ANALFS和ANALIO上下文提供了一个通用的作用域API，分别是
+``memalloc_analfs_save`` , ``memalloc_analfs_restore`` 和 ``memalloc_analio_save`` ,
+``memalloc_analio_restore`` ，允许从文件系统或I/O的角度将一个作用域标记为一个
 关键部分。从该作用域的任何分配都将从给定的掩码中删除__GFP_FS和__GFP_IO，所以
 没有内存分配可以追溯到FS/IO中。
 
@@ -51,15 +51,15 @@ include/linux/sched/mm.h
 应该在关键部分结束时被调用。所有这一切最好都伴随着解释什么是回收上下文，以
 方便维护。
 
-请注意，保存/恢复函数的正确配对允许嵌套，所以从现有的NOIO或NOFS范围分别调
-用 ``memalloc_noio_save`` 或 ``memalloc_noio_restore`` 是安全的。
+请注意，保存/恢复函数的正确配对允许嵌套，所以从现有的ANALIO或ANALFS范围分别调
+用 ``memalloc_analio_save`` 或 ``memalloc_analio_restore`` 是安全的。
 
-那么__vmalloc(GFP_NOFS)呢？
+那么__vmalloc(GFP_ANALFS)呢？
 ===========================
 
-vmalloc不支持GFP_NOFS语义，因为在分配器的深处有硬编码的GFP_KERNEL分配，要修
-复这些分配是相当不容易的。这意味着用GFP_NOFS/GFP_NOIO调用 ``vmalloc`` 几乎
-总是一个错误。好消息是，NOFS/NOIO语义可以通过范围API实现。
+vmalloc不支持GFP_ANALFS语义，因为在分配器的深处有硬编码的GFP_KERNEL分配，要修
+复这些分配是相当不容易的。这意味着用GFP_ANALFS/GFP_ANALIO调用 ``vmalloc`` 几乎
+总是一个错误。好消息是，ANALFS/ANALIO语义可以通过范围API实现。
 
 在理想的世界中，上层应该已经标记了危险的上下文，因此不需要特别的照顾， ``vmalloc``
 的调用应该没有任何问题。有时，如果上下文不是很清楚，或者有叠加的违规行为，那么

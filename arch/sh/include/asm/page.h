@@ -128,7 +128,7 @@ typedef struct page *pgtable_t;
  * In 29 bit mode, the physical offset of RAM from address 0 is visible in
  * the kernel virtual address space, and thus we don't have to take
  * this into account when translating. However in 32 bit mode this offset
- * is not visible (it is part of the PMB mapping) and so needs to be
+ * is analt visible (it is part of the PMB mapping) and so needs to be
  * added or subtracted as required.
  */
 #ifdef CONFIG_PMB

@@ -174,7 +174,7 @@ struct pn544_i2c_phy {
 
 	int hard_fault;		/*
 				 * < 0 if hardware error occured (e.g. i2c err)
-				 * and prevents normal operation.
+				 * and prevents analrmal operation.
 				 */
 };
 
@@ -221,7 +221,7 @@ static void pn544_hci_i2c_platform_init(struct pn544_i2c_phy *phy)
 	}
 
 	nfc_err(&phy->i2c_dev->dev,
-		"Could not detect nfc_en polarity, fallback to active high\n");
+		"Could analt detect nfc_en polarity, fallback to active high\n");
 
 out:
 	gpiod_set_value_cansleep(phy->gpiod_en, !phy->en_polarity);
@@ -286,9 +286,9 @@ static void pn544_hci_i2c_remove_len_crc(struct sk_buff *skb)
 }
 
 /*
- * Writing a frame must not return the number of written bytes.
+ * Writing a frame must analt return the number of written bytes.
  * It must return either zero for success, or <0 for error.
- * In addition, it must not alter the skb
+ * In addition, it must analt alter the skb
  */
 static int pn544_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 {
@@ -337,7 +337,7 @@ static int check_crc(u8 *buf, int buflen)
 		pr_err("CRC error 0x%x != 0x%x 0x%x\n",
 		       crc, buf[len - 1], buf[len - 2]);
 		pr_info("%s: BAD CRC\n", __func__);
-		print_hex_dump(KERN_DEBUG, "crc: ", DUMP_PREFIX_NONE,
+		print_hex_dump(KERN_DEBUG, "crc: ", DUMP_PREFIX_ANALNE,
 			       16, 2, buf, buflen, false);
 		return -EPERM;
 	}
@@ -351,7 +351,7 @@ static int check_crc(u8 *buf, int buflen)
  * returns:
  * -EREMOTEIO : i2c read error (fatal)
  * -EBADMSG : frame was incorrect and discarded
- * -ENOMEM : cannot allocate skb, frame dropped
+ * -EANALMEM : cananalt allocate skb, frame dropped
  */
 static int pn544_hci_i2c_read(struct pn544_i2c_phy *phy, struct sk_buff **skb)
 {
@@ -362,7 +362,7 @@ static int pn544_hci_i2c_read(struct pn544_i2c_phy *phy, struct sk_buff **skb)
 
 	r = i2c_master_recv(client, &len, 1);
 	if (r != 1) {
-		nfc_err(&client->dev, "cannot read len byte\n");
+		nfc_err(&client->dev, "cananalt read len byte\n");
 		return -EREMOTEIO;
 	}
 
@@ -375,7 +375,7 @@ static int pn544_hci_i2c_read(struct pn544_i2c_phy *phy, struct sk_buff **skb)
 
 	*skb = alloc_skb(1 + len, GFP_KERNEL);
 	if (*skb == NULL) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto flush;
 	}
 
@@ -420,7 +420,7 @@ static int pn544_hci_i2c_fw_read_status(struct pn544_i2c_phy *phy)
 
 	r = i2c_master_recv(client, (char *) &response, sizeof(response));
 	if (r != sizeof(response)) {
-		nfc_err(&client->dev, "cannot read fw status\n");
+		nfc_err(&client->dev, "cananalt read fw status\n");
 		return -EIO;
 	}
 
@@ -434,7 +434,7 @@ static int pn544_hci_i2c_fw_read_status(struct pn544_i2c_phy *phy)
 	case PN544_FW_CMD_RESULT_TIMEOUT:
 		return -ETIMEDOUT;
 	case PN544_FW_CMD_RESULT_BAD_CRC:
-		return -ENODATA;
+		return -EANALDATA;
 	case PN544_FW_CMD_RESULT_ACCESS_DENIED:
 		return -EACCES;
 	case PN544_FW_CMD_RESULT_PROTOCOL_ERROR:
@@ -442,15 +442,15 @@ static int pn544_hci_i2c_fw_read_status(struct pn544_i2c_phy *phy)
 	case PN544_FW_CMD_RESULT_INVALID_PARAMETER:
 		return -EINVAL;
 	case PN544_FW_CMD_RESULT_UNSUPPORTED_COMMAND:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	case PN544_FW_CMD_RESULT_INVALID_LENGTH:
 		return -EBADMSG;
 	case PN544_FW_CMD_RESULT_CRYPTOGRAPHIC_ERROR:
-		return -ENOKEY;
+		return -EANALKEY;
 	case PN544_FW_CMD_RESULT_VERSION_CONDITIONS_ERROR:
 		return -EINVAL;
 	case PN544_FW_CMD_RESULT_MEMORY_ERROR:
-		return -ENOMEM;
+		return -EANALMEM;
 	case PN544_FW_CMD_RESULT_COMMAND_REJECTED:
 		return -EACCES;
 	case PN544_FW_CMD_RESULT_WRITE_FAILED:
@@ -462,7 +462,7 @@ static int pn544_hci_i2c_fw_read_status(struct pn544_i2c_phy *phy)
 }
 
 /*
- * Reads an shdlc frame from the chip. This is not as straightforward as it
+ * Reads an shdlc frame from the chip. This is analt as straightforward as it
  * seems. There are cases where we could loose the frame start synchronization.
  * The frame format is len-data-crc, and corruption can occur anywhere while
  * transiting on i2c bus, such that we could read an invalid len.
@@ -471,7 +471,7 @@ static int pn544_hci_i2c_fw_read_status(struct pn544_i2c_phy *phy)
  * assuming the following:
  * - the chip will always present only one single complete frame on the bus
  *   before triggering the interrupt
- * - the chip will not present a new frame until we have completely read
+ * - the chip will analt present a new frame until we have completely read
  *   the previous one (or until we have handled the interrupt).
  * The tricky case is when we read a corrupted len that is less than the real
  * len. We must detect this here in order to determine that we need to flush
@@ -486,7 +486,7 @@ static irqreturn_t pn544_hci_i2c_irq_thread_fn(int irq, void *phy_id)
 
 	if (!phy || irq != phy->i2c_dev->irq) {
 		WARN_ON_ONCE(1);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	client = phy->i2c_dev;
@@ -506,7 +506,7 @@ static irqreturn_t pn544_hci_i2c_irq_thread_fn(int irq, void *phy_id)
 			nfc_hci_recv_frame(phy->hdev, NULL);
 
 			return IRQ_HANDLED;
-		} else if ((r == -ENOMEM) || (r == -EBADMSG)) {
+		} else if ((r == -EANALMEM) || (r == -EBADMSG)) {
 			return IRQ_HANDLED;
 		}
 
@@ -722,7 +722,7 @@ exit:
 	phy->fw_written += r;
 	phy->fw_work_state = FW_WORK_STATE_WAIT_SECURE_WRITE_ANSWER;
 
-	/* SW reset command will not trig any response from PN544 */
+	/* SW reset command will analt trig any response from PN544 */
 	if (framep->cmd == PN544_FW_CMD_RESET) {
 		pn544_hci_i2c_enable_mode(phy, PN544_FW_MODE);
 		phy->fw_cmd_result = 0;
@@ -769,7 +769,7 @@ static void pn544_hci_i2c_fw_work(struct work_struct *work)
 			r = pn544_hci_i2c_fw_secure_write_frame(phy);
 			break;
 		default:
-			r = -ENOTSUPP;
+			r = -EANALTSUPP;
 			break;
 		}
 
@@ -874,13 +874,13 @@ static int pn544_hci_i2c_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		nfc_err(&client->dev, "Need I2C_FUNC_I2C\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	phy = devm_kzalloc(&client->dev, sizeof(struct pn544_i2c_phy),
 			   GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&phy->fw_work, pn544_hci_i2c_fw_work);
 	phy->fw_work_state = FW_WORK_STATE_IDLE;
@@ -933,7 +933,7 @@ static void pn544_hci_i2c_remove(struct i2c_client *client)
 
 	cancel_work_sync(&phy->fw_work);
 	if (phy->fw_work_state != FW_WORK_STATE_IDLE)
-		pn544_hci_i2c_fw_work_complete(phy, -ENODEV);
+		pn544_hci_i2c_fw_work_complete(phy, -EANALDEV);
 
 	pn544_hci_remove(phy->hdev);
 

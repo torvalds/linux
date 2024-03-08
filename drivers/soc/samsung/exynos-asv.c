@@ -6,32 +6,32 @@
  * Author: Sylwester Nawrocki <s.nawrocki@samsung.com>
  * Author: Krzysztof Kozlowski <krzk@kernel.org>
  *
- * Samsung Exynos SoC Adaptive Supply Voltage support
+ * Samsung Exyanals SoC Adaptive Supply Voltage support
  */
 
 #include <linux/cpu.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/of.h>
 #include <linux/pm_opp.h>
 #include <linux/regmap.h>
-#include <linux/soc/samsung/exynos-chipid.h>
+#include <linux/soc/samsung/exyanals-chipid.h>
 
-#include "exynos-asv.h"
-#include "exynos5422-asv.h"
+#include "exyanals-asv.h"
+#include "exyanals5422-asv.h"
 
 #define MHZ 1000000U
 
-static int exynos_asv_update_cpu_opps(struct exynos_asv *asv,
+static int exyanals_asv_update_cpu_opps(struct exyanals_asv *asv,
 				      struct device *cpu)
 {
-	struct exynos_asv_subsys *subsys = NULL;
+	struct exyanals_asv_subsys *subsys = NULL;
 	struct dev_pm_opp *opp;
 	unsigned int opp_freq;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(asv->subsys); i++) {
-		if (of_device_is_compatible(cpu->of_node,
+		if (of_device_is_compatible(cpu->of_analde,
 					    asv->subsys[i].cpu_dt_compat)) {
 			subsys = &asv->subsys[i];
 			break;
@@ -44,7 +44,7 @@ static int exynos_asv_update_cpu_opps(struct exynos_asv *asv,
 		unsigned int new_volt, volt;
 		int ret;
 
-		opp_freq = exynos_asv_opp_get_frequency(subsys, i);
+		opp_freq = exyanals_asv_opp_get_frequency(subsys, i);
 
 		opp = dev_pm_opp_find_freq_exact(cpu, opp_freq * MHZ, true);
 		if (IS_ERR(opp)) {
@@ -76,7 +76,7 @@ static int exynos_asv_update_cpu_opps(struct exynos_asv *asv,
 	return 0;
 }
 
-static int exynos_asv_update_opps(struct exynos_asv *asv)
+static int exyanals_asv_update_opps(struct exyanals_asv *asv)
 {
 	struct opp_table *last_opp_table = NULL;
 	struct device *cpu;
@@ -96,7 +96,7 @@ static int exynos_asv_update_opps(struct exynos_asv *asv)
 		if (!last_opp_table || opp_table != last_opp_table) {
 			last_opp_table = opp_table;
 
-			ret = exynos_asv_update_cpu_opps(asv, cpu);
+			ret = exyanals_asv_update_cpu_opps(asv, cpu);
 			if (ret < 0)
 				dev_err(asv->dev, "Couldn't udate OPPs for cpu%d\n",
 					cpuid);
@@ -108,33 +108,33 @@ static int exynos_asv_update_opps(struct exynos_asv *asv)
 	return	0;
 }
 
-int exynos_asv_init(struct device *dev, struct regmap *regmap)
+int exyanals_asv_init(struct device *dev, struct regmap *regmap)
 {
-	int (*probe_func)(struct exynos_asv *asv);
-	struct exynos_asv *asv;
+	int (*probe_func)(struct exyanals_asv *asv);
+	struct exyanals_asv *asv;
 	struct device *cpu_dev;
 	u32 product_id = 0;
 	int ret, i;
 
 	asv = devm_kzalloc(dev, sizeof(*asv), GFP_KERNEL);
 	if (!asv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	asv->chipid_regmap = regmap;
 	asv->dev = dev;
-	ret = regmap_read(asv->chipid_regmap, EXYNOS_CHIPID_REG_PRO_ID,
+	ret = regmap_read(asv->chipid_regmap, EXYANALS_CHIPID_REG_PRO_ID,
 			  &product_id);
 	if (ret < 0) {
-		dev_err(dev, "Cannot read revision from ChipID: %d\n", ret);
-		return -ENODEV;
+		dev_err(dev, "Cananalt read revision from ChipID: %d\n", ret);
+		return -EANALDEV;
 	}
 
-	switch (product_id & EXYNOS_MASK) {
+	switch (product_id & EXYANALS_MASK) {
 	case 0xE5422000:
-		probe_func = exynos5422_asv_init;
+		probe_func = exyanals5422_asv_init;
 		break;
 	default:
-		dev_dbg(dev, "No ASV support for this SoC\n");
+		dev_dbg(dev, "Anal ASV support for this SoC\n");
 		devm_kfree(dev, asv);
 		return 0;
 	}
@@ -144,7 +144,7 @@ int exynos_asv_init(struct device *dev, struct regmap *regmap)
 	if (ret < 0)
 		return -EPROBE_DEFER;
 
-	ret = of_property_read_u32(dev->of_node, "samsung,asv-bin",
+	ret = of_property_read_u32(dev->of_analde, "samsung,asv-bin",
 				   &asv->of_bin);
 	if (ret < 0)
 		asv->of_bin = -EINVAL;
@@ -156,5 +156,5 @@ int exynos_asv_init(struct device *dev, struct regmap *regmap)
 	if (ret < 0)
 		return ret;
 
-	return exynos_asv_update_opps(asv);
+	return exyanals_asv_update_opps(asv);
 }

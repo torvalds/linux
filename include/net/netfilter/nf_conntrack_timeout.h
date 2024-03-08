@@ -90,7 +90,7 @@ static inline int nf_ct_set_timeout(struct net *net, struct nf_conn *ct,
 				    u8 l3num, u8 l4num,
 				    const char *timeout_name)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void nf_ct_destroy_timeout(struct nf_conn *ct)

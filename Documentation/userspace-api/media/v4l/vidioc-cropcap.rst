@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_CROPCAP:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_CROPCAP - Information about the video cropping and scaling abilities
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_CROPCAP
@@ -40,7 +40,7 @@ constant except when switching the video standard. Remember this switch
 can occur implicit when switching the video input or output.
 
 This ioctl must be implemented for video capture or output devices that
-support cropping and/or scaling and/or have non-square pixels, and for
+support cropping and/or scaling and/or have analn-square pixels, and for
 overlay devices.
 
 .. c:type:: v4l2_cropcap
@@ -57,12 +57,12 @@ overlay devices.
       - Type of the data stream, set by the application. Only these types
 	are valid here: ``V4L2_BUF_TYPE_VIDEO_CAPTURE``, ``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE``,
 	``V4L2_BUF_TYPE_VIDEO_OUTPUT``, ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE`` and
-	``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :c:type:`v4l2_buf_type` and the note below.
+	``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :c:type:`v4l2_buf_type` and the analte below.
     * - struct :ref:`v4l2_rect <v4l2-rect-crop>`
       - ``bounds``
       - Defines the window within capturing or output is possible, this
 	may exclude for example the horizontal and vertical blanking
-	areas. The cropping rectangle cannot exceed these limits. Width
+	areas. The cropping rectangle cananalt exceed these limits. Width
 	and height are defined in pixels, the driver writer is free to
 	choose origin and units of the coordinate system in the analog
 	domain.
@@ -75,7 +75,7 @@ overlay devices.
 	as for ``bounds`` is used.
     * - struct :c:type:`v4l2_fract`
       - ``pixelaspect``
-      - This is the pixel aspect (y / x) when no scaling is applied, the
+      - This is the pixel aspect (y / x) when anal scaling is applied, the
 	ratio of the actual sampling frequency and the frequency required
 	to get square pixels.
 
@@ -83,12 +83,12 @@ overlay devices.
 	``pixelaspect`` to 1/1. Other common values are 54/59 for PAL and
 	SECAM, 11/10 for NTSC sampled according to [:ref:`itu601`].
 
-.. note::
+.. analte::
    Unfortunately in the case of multiplanar buffer types
    (``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE`` and ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``)
    this API was messed up with regards to how the :c:type:`v4l2_cropcap` ``type`` field
    should be filled in. Some drivers only accepted the ``_MPLANE`` buffer type while
-   other drivers only accepted a non-multiplanar buffer type (i.e. without the
+   other drivers only accepted a analn-multiplanar buffer type (i.e. without the
    ``_MPLANE`` at the end).
 
    Starting with kernel 4.13 both variations are allowed.
@@ -121,7 +121,7 @@ overlay devices.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
@@ -129,5 +129,5 @@ EINVAL
     The struct :c:type:`v4l2_cropcap` ``type`` is
     invalid.
 
-ENODATA
-    Cropping is not supported for this input or output.
+EANALDATA
+    Cropping is analt supported for this input or output.

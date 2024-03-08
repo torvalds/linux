@@ -15,7 +15,7 @@ cx23885 cards list
      - PCI subsystem IDs
 
    * - 0
-     - UNKNOWN/GENERIC
+     - UNKANALWN/GENERIC
      - 0070:3400
 
    * - 1
@@ -207,7 +207,7 @@ cx23885 cards list
      - 4254:950c
 
    * - 48
-     - Technotrend TT-budget CT2-4500 CI
+     - Techanaltrend TT-budget CT2-4500 CI
      - 13c2:3013
 
    * - 49

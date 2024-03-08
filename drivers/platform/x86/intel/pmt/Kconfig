@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Intel Platform Monitoring Technology drivers
+# Intel Platform Monitoring Techanallogy drivers
 #
 
 config INTEL_PMT_CLASS
 	tristate
 	help
-	  The Intel Platform Monitoring Technology (PMT) class driver provides
+	  The Intel Platform Monitoring Techanallogy (PMT) class driver provides
 	  the basic sysfs interface and file hierarchy used by PMT devices.
 
 	  For more information, see:
@@ -16,11 +16,11 @@ config INTEL_PMT_CLASS
 	  will be called intel_pmt_class.
 
 config INTEL_PMT_TELEMETRY
-	tristate "Intel Platform Monitoring Technology (PMT) Telemetry driver"
+	tristate "Intel Platform Monitoring Techanallogy (PMT) Telemetry driver"
 	depends on INTEL_VSEC
 	select INTEL_PMT_CLASS
 	help
-	  The Intel Platform Monitory Technology (PMT) Telemetry driver provides
+	  The Intel Platform Monitory Techanallogy (PMT) Telemetry driver provides
 	  access to hardware telemetry metrics on devices that support the
 	  feature.
 
@@ -28,11 +28,11 @@ config INTEL_PMT_TELEMETRY
 	  will be called intel_pmt_telemetry.
 
 config INTEL_PMT_CRASHLOG
-	tristate "Intel Platform Monitoring Technology (PMT) Crashlog driver"
+	tristate "Intel Platform Monitoring Techanallogy (PMT) Crashlog driver"
 	depends on INTEL_VSEC
 	select INTEL_PMT_CLASS
 	help
-	  The Intel Platform Monitoring Technology (PMT) crashlog driver provides
+	  The Intel Platform Monitoring Techanallogy (PMT) crashlog driver provides
 	  access to hardware crashlog capabilities on devices that support the
 	  feature.
 

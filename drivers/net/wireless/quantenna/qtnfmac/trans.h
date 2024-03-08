@@ -18,7 +18,7 @@
 
 struct qtnf_bus;
 
-struct qtnf_cmd_ctl_node {
+struct qtnf_cmd_ctl_analde {
 	struct completion cmd_resp_completion;
 	struct sk_buff *resp_skb;
 	u16 seq_num;
@@ -27,7 +27,7 @@ struct qtnf_cmd_ctl_node {
 };
 
 struct qtnf_qlink_transport {
-	struct qtnf_cmd_ctl_node curr_cmd;
+	struct qtnf_cmd_ctl_analde curr_cmd;
 	struct sk_buff_head event_queue;
 	size_t event_queue_max_len;
 };

@@ -7,7 +7,7 @@
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/ftrace.h>
-#include <asm/nospec-insn.h>
+#include <asm/analspec-insn.h>
 #include <asm/ptrace.h>
 
 #define STACK_FRAME_SIZE_PTREGS		(STACK_FRAME_OVERHEAD + __PT_SIZE)
@@ -23,7 +23,7 @@
 #define STACK_FREGS_PTREGS_ORIG_GPR2	(STACK_FREGS_PTREGS + __PT_ORIG_GPR2)
 #define STACK_FREGS_PTREGS_FLAGS	(STACK_FREGS_PTREGS + __PT_FLAGS)
 
-/* packed stack: allocate just enough for r14, r15 and backchain */
+/* packed stack: allocate just eanalugh for r14, r15 and backchain */
 #define TRACED_FUNC_FRAME_SIZE	24
 
 #ifdef CONFIG_FUNCTION_TRACER
@@ -104,7 +104,7 @@ SYM_CODE_START(ftrace_common)
 	la	%r5,STACK_FREGS(%r15)
 	BASR_EX	%r14,%r1
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-# The j instruction gets runtime patched to a nop instruction.
+# The j instruction gets runtime patched to a analp instruction.
 # See ftrace_enable_ftrace_graph_caller.
 SYM_INNER_LABEL(ftrace_graph_caller, SYM_L_GLOBAL)
 	j	.Lftrace_graph_caller_end

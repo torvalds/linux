@@ -5,7 +5,7 @@
  * Copyright 2016 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -62,7 +62,7 @@ void cec_fill_conn_info_from_drm(struct cec_connector_info *conn_info,
 {
 	memset(conn_info, 0, sizeof(*conn_info));
 	conn_info->type = CEC_CONNECTOR_TYPE_DRM;
-	conn_info->drm.card_no = connector->dev->primary->index;
+	conn_info->drm.card_anal = connector->dev->primary->index;
 	conn_info->drm.connector_id = connector->base.id;
 }
 EXPORT_SYMBOL_GPL(cec_fill_conn_info_from_drm);
@@ -140,13 +140,13 @@ static void cec_queue_event(struct cec_adapter *adap,
 	u64 ts = ktime_get_ns();
 	struct cec_fh *fh;
 
-	mutex_lock(&adap->devnode.lock_fhs);
-	list_for_each_entry(fh, &adap->devnode.fhs, list)
+	mutex_lock(&adap->devanalde.lock_fhs);
+	list_for_each_entry(fh, &adap->devanalde.fhs, list)
 		cec_queue_event_fh(fh, ev, ts);
-	mutex_unlock(&adap->devnode.lock_fhs);
+	mutex_unlock(&adap->devanalde.lock_fhs);
 }
 
-/* Notify userspace that the CEC pin changed state at the given time. */
+/* Analtify userspace that the CEC pin changed state at the given time. */
 void cec_queue_pin_cec_event(struct cec_adapter *adap, bool is_high,
 			     bool dropped_events, ktime_t ts)
 {
@@ -157,16 +157,16 @@ void cec_queue_pin_cec_event(struct cec_adapter *adap, bool is_high,
 	};
 	struct cec_fh *fh;
 
-	mutex_lock(&adap->devnode.lock_fhs);
-	list_for_each_entry(fh, &adap->devnode.fhs, list) {
+	mutex_lock(&adap->devanalde.lock_fhs);
+	list_for_each_entry(fh, &adap->devanalde.fhs, list) {
 		if (fh->mode_follower == CEC_MODE_MONITOR_PIN)
 			cec_queue_event_fh(fh, &ev, ktime_to_ns(ts));
 	}
-	mutex_unlock(&adap->devnode.lock_fhs);
+	mutex_unlock(&adap->devanalde.lock_fhs);
 }
 EXPORT_SYMBOL_GPL(cec_queue_pin_cec_event);
 
-/* Notify userspace that the HPD pin changed state at the given time. */
+/* Analtify userspace that the HPD pin changed state at the given time. */
 void cec_queue_pin_hpd_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
 {
 	struct cec_event ev = {
@@ -175,14 +175,14 @@ void cec_queue_pin_hpd_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
 	};
 	struct cec_fh *fh;
 
-	mutex_lock(&adap->devnode.lock_fhs);
-	list_for_each_entry(fh, &adap->devnode.fhs, list)
+	mutex_lock(&adap->devanalde.lock_fhs);
+	list_for_each_entry(fh, &adap->devanalde.fhs, list)
 		cec_queue_event_fh(fh, &ev, ktime_to_ns(ts));
-	mutex_unlock(&adap->devnode.lock_fhs);
+	mutex_unlock(&adap->devanalde.lock_fhs);
 }
 EXPORT_SYMBOL_GPL(cec_queue_pin_hpd_event);
 
-/* Notify userspace that the 5V pin changed state at the given time. */
+/* Analtify userspace that the 5V pin changed state at the given time. */
 void cec_queue_pin_5v_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
 {
 	struct cec_event ev = {
@@ -191,10 +191,10 @@ void cec_queue_pin_5v_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
 	};
 	struct cec_fh *fh;
 
-	mutex_lock(&adap->devnode.lock_fhs);
-	list_for_each_entry(fh, &adap->devnode.fhs, list)
+	mutex_lock(&adap->devanalde.lock_fhs);
+	list_for_each_entry(fh, &adap->devanalde.fhs, list)
 		cec_queue_event_fh(fh, &ev, ktime_to_ns(ts));
-	mutex_unlock(&adap->devnode.lock_fhs);
+	mutex_unlock(&adap->devanalde.lock_fhs);
 }
 EXPORT_SYMBOL_GPL(cec_queue_pin_5v_event);
 
@@ -224,7 +224,7 @@ static void cec_queue_msg_fh(struct cec_fh *fh, const struct cec_msg *msg)
 		list_add_tail(&entry->list, &fh->msgs);
 
 		if (fh->queued_msgs < CEC_MAX_MSG_RX_QUEUE_SZ) {
-			/* All is fine if there is enough room */
+			/* All is fine if there is eanalugh room */
 			fh->queued_msgs++;
 			mutex_unlock(&fh->lock);
 			wake_up_interruptible(&fh->wait);
@@ -266,12 +266,12 @@ static void cec_queue_msg_monitor(struct cec_adapter *adap,
 	u32 monitor_mode = valid_la ? CEC_MODE_MONITOR :
 				      CEC_MODE_MONITOR_ALL;
 
-	mutex_lock(&adap->devnode.lock_fhs);
-	list_for_each_entry(fh, &adap->devnode.fhs, list) {
+	mutex_lock(&adap->devanalde.lock_fhs);
+	list_for_each_entry(fh, &adap->devanalde.fhs, list) {
 		if (fh->mode_follower >= monitor_mode)
 			cec_queue_msg_fh(fh, msg);
 	}
-	mutex_unlock(&adap->devnode.lock_fhs);
+	mutex_unlock(&adap->devanalde.lock_fhs);
 }
 
 /*
@@ -282,15 +282,15 @@ static void cec_queue_msg_followers(struct cec_adapter *adap,
 {
 	struct cec_fh *fh;
 
-	mutex_lock(&adap->devnode.lock_fhs);
-	list_for_each_entry(fh, &adap->devnode.fhs, list) {
+	mutex_lock(&adap->devanalde.lock_fhs);
+	list_for_each_entry(fh, &adap->devanalde.fhs, list) {
 		if (fh->mode_follower == CEC_MODE_FOLLOWER)
 			cec_queue_msg_fh(fh, msg);
 	}
-	mutex_unlock(&adap->devnode.lock_fhs);
+	mutex_unlock(&adap->devanalde.lock_fhs);
 }
 
-/* Notify userspace of an adapter state change. */
+/* Analtify userspace of an adapter state change. */
 static void cec_post_state_event(struct cec_adapter *adap)
 {
 	struct cec_event ev = {
@@ -300,7 +300,7 @@ static void cec_post_state_event(struct cec_adapter *adap)
 	ev.state_change.phys_addr = adap->phys_addr;
 	ev.state_change.log_addr_mask = adap->log_addrs.log_addr_mask;
 	ev.state_change.have_conn_info =
-		adap->conn_info.type != CEC_CONNECTOR_TYPE_NO_CONNECTOR;
+		adap->conn_info.type != CEC_CONNECTOR_TYPE_ANAL_CONNECTOR;
 	cec_queue_event(adap, &ev);
 }
 
@@ -317,7 +317,7 @@ static void cec_data_completed(struct cec_data *data)
 	 * Delete this transmit from the filehandle's xfer_list since
 	 * we're done with it.
 	 *
-	 * Note that if the filehandle is closed before this transmit
+	 * Analte that if the filehandle is closed before this transmit
 	 * finished, then the release() function will set data->fh to NULL.
 	 * Without that we would be referring to a closed filehandle.
 	 */
@@ -333,7 +333,7 @@ static void cec_data_completed(struct cec_data *data)
 		complete(&data->c);
 	} else {
 		/*
-		 * No blocking, so just queue the message if needed and
+		 * Anal blocking, so just queue the message if needed and
 		 * free the memory.
 		 */
 		if (data->fh)
@@ -419,13 +419,13 @@ static void cec_flush(struct cec_adapter *adap)
 		/*
 		 * If cancel_delayed_work returned false, then
 		 * the cec_wait_timeout function is running,
-		 * which will call cec_data_completed. So no
+		 * which will call cec_data_completed. So anal
 		 * need to do anything special in that case.
 		 */
 	}
 	/*
 	 * If something went wrong and this counter isn't what it should
-	 * be, then this will reset it back to 0. Warn if it is not 0,
+	 * be, then this will reset it back to 0. Warn if it is analt 0,
 	 * since it indicates a bug, either in this framework or in a
 	 * CEC driver.
 	 */
@@ -436,7 +436,7 @@ static void cec_flush(struct cec_adapter *adap)
 /*
  * Main CEC state machine
  *
- * Wait until the thread should be stopped, or we are not transmitting and
+ * Wait until the thread should be stopped, or we are analt transmitting and
  * a new transmit message is queued up, in which case we start transmitting
  * that message. When the adapter finished transmitting the message it will
  * call cec_transmit_done().
@@ -492,8 +492,8 @@ int cec_thread_func(void *_adap)
 
 		if (adap->transmit_in_progress && timeout) {
 			/*
-			 * If we timeout, then log that. Normally this does
-			 * not happen and it is an indication of a faulty CEC
+			 * If we timeout, then log that. Analrmally this does
+			 * analt happen and it is an indication of a faulty CEC
 			 * adapter driver, or the CEC bus is in some weird
 			 * state. On rare occasions it can happen if there is
 			 * so much traffic on the bus that the adapter was
@@ -516,7 +516,7 @@ int cec_thread_func(void *_adap)
 		}
 
 		/*
-		 * If we are still transmitting, or there is nothing new to
+		 * If we are still transmitting, or there is analthing new to
 		 * transmit, then just continue waiting.
 		 */
 		if (adap->transmit_in_progress || list_empty(&adap->transmit_queue))
@@ -535,7 +535,7 @@ int cec_thread_func(void *_adap)
 		/*
 		 * Suggested number of attempts as per the CEC 2.0 spec:
 		 * 4 attempts is the default, except for 'secondary poll
-		 * messages', i.e. poll messages not sent during the adapter
+		 * messages', i.e. poll messages analt sent during the adapter
 		 * configuration phase when it allocates logical addresses.
 		 */
 		if (data->msg.len == 1 && adap->is_configured)
@@ -554,8 +554,8 @@ int cec_thread_func(void *_adap)
 			adap->last_initiator = cec_msg_initiator(&data->msg);
 		} else {
 			/*
-			 * should be >= 7 data bit periods for sending another
-			 * frame immediately after another.
+			 * should be >= 7 data bit periods for sending aanalther
+			 * frame immediately after aanalther.
 			 */
 			signal_free_time = CEC_SIGNAL_FREE_TIME_NEXT_XFER;
 		}
@@ -602,7 +602,7 @@ void cec_transmit_done_ts(struct cec_adapter *adap, u8 status,
 	if (!data) {
 		/*
 		 * This might happen if a transmit was issued and the cable is
-		 * unplugged while the transmit is ongoing. Ignore this
+		 * unplugged while the transmit is ongoing. Iganalre this
 		 * transmit in that case.
 		 */
 		if (!adap->transmit_in_progress)
@@ -630,13 +630,13 @@ void cec_transmit_done_ts(struct cec_adapter *adap, u8 status,
 	adap->tx_error_cnt += error_cnt;
 
 	/*
-	 * Low Drive transmission errors should really not happen for
+	 * Low Drive transmission errors should really analt happen for
 	 * well-behaved CEC devices and proper HDMI cables.
 	 *
 	 * Ditto for the 'Error' status.
 	 *
 	 * For the first few times that this happens, log this.
-	 * Stop logging after that, since that will not add any more
+	 * Stop logging after that, since that will analt add any more
 	 * useful information and instead it will just flood the kernel log.
 	 */
 	if (done && adap->tx_low_drive_log_cnt < 8 && msg->tx_low_drive_cnt) {
@@ -702,7 +702,7 @@ void cec_transmit_done_ts(struct cec_adapter *adap, u8 status,
 
 wake_thread:
 	/*
-	 * Wake up the main thread to see if another message is ready
+	 * Wake up the main thread to see if aanalther message is ready
 	 * for transmitting or to retry the current message.
 	 */
 	wake_up_interruptible(&adap->kthread_waitq);
@@ -761,7 +761,7 @@ unlock:
 }
 
 /*
- * Transmit a message. The fh argument may be NULL if the transmit is not
+ * Transmit a message. The fh argument may be NULL if the transmit is analt
  * associated with a specific filehandle.
  *
  * This function is called with adap->lock held.
@@ -772,8 +772,8 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	struct cec_data *data;
 	bool is_raw = msg_is_raw(msg);
 
-	if (adap->devnode.unregistered)
-		return -ENODEV;
+	if (adap->devanalde.unregistered)
+		return -EANALDEV;
 
 	msg->rx_ts = 0;
 	msg->tx_ts = 0;
@@ -822,7 +822,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		/* A CDC-Only device can only send CDC messages */
 		if ((adap->log_addrs.flags & CEC_LOG_ADDRS_FL_CDC_ONLY) &&
 		    (msg->len == 1 || msg->msg[1] != CEC_MSG_CDC_MESSAGE)) {
-			dprintk(1, "%s: not a CDC message\n", __func__);
+			dprintk(1, "%s: analt a CDC message\n", __func__);
 			return -EINVAL;
 		}
 
@@ -864,7 +864,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		}
 		if (msg->len > 1 && adap->is_configured &&
 		    !cec_has_log_addr(adap, cec_msg_initiator(msg))) {
-			dprintk(1, "%s: initiator has unknown logical address %d\n",
+			dprintk(1, "%s: initiator has unkanalwn logical address %d\n",
 				__func__, cec_msg_initiator(msg));
 			return -EINVAL;
 		}
@@ -880,7 +880,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		     (msg->len == 2 && msg->msg[1] != CEC_MSG_IMAGE_VIEW_ON &&
 		      msg->msg[1] != CEC_MSG_TEXT_VIEW_ON))) {
 			dprintk(1, "%s: adapter is unconfigured\n", __func__);
-			return -ENONET;
+			return -EANALNET;
 		}
 	}
 
@@ -888,7 +888,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		if (adap->needs_hpd) {
 			dprintk(1, "%s: adapter is unconfigured and needs HPD\n",
 				__func__);
-			return -ENONET;
+			return -EANALNET;
 		}
 		if (msg->reply) {
 			dprintk(1, "%s: invalid msg->reply\n", __func__);
@@ -903,7 +903,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->sequence = ++adap->sequence;
 	if (!msg->sequence)
@@ -976,7 +976,7 @@ EXPORT_SYMBOL_GPL(cec_transmit_msg);
  * cec_received_msg() function would come after a bunch of high-level
  * CEC protocol handling functions. That was very confusing.
  */
-static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
+static int cec_receive_analtify(struct cec_adapter *adap, struct cec_msg *msg,
 			      bool is_reply);
 
 #define DIRECTED	0x80
@@ -987,7 +987,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 
 /*
  * Specify minimum length and whether the message is directed, broadcast
- * or both. Messages that do not match the criteria are ignored as per
+ * or both. Messages that do analt match the criteria are iganalred as per
  * the CEC specification.
  */
 static const u8 cec_msg_size[256] = {
@@ -1085,7 +1085,7 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 	if (WARN_ON(!msg->len || msg->len > CEC_MAX_MSG_SIZE))
 		return;
 
-	if (adap->devnode.unregistered)
+	if (adap->devanalde.unregistered)
 		return;
 
 	/*
@@ -1093,7 +1093,7 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 	 * This test filters out those messages by checking if we are the
 	 * initiator, and just returning in that case.
 	 *
-	 * Note that this won't work if this is an Unregistered device.
+	 * Analte that this won't work if this is an Unregistered device.
 	 *
 	 * It is bad practice if the hardware receives the message that it
 	 * transmitted and luckily most CEC adapters behave correctly in this
@@ -1128,9 +1128,9 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 	}
 
 	/*
-	 * Check if the length is not too short or if the message is a
+	 * Check if the length is analt too short or if the message is a
 	 * broadcast message where a directed message was expected or
-	 * vice versa. If so, then the message has to be ignored (according
+	 * vice versa. If so, then the message has to be iganalred (according
 	 * to section CEC 7.3 and CEC 12.2).
 	 */
 	if (valid_la && msg->len > 1 && cec_msg_size[cmd]) {
@@ -1154,8 +1154,8 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 		case CEC_MSG_TIMER_STATUS:
 			if (msg->msg[2] & 0x10) {
 				switch (msg->msg[2] & 0xf) {
-				case CEC_OP_PROG_INFO_NOT_ENOUGH_SPACE:
-				case CEC_OP_PROG_INFO_MIGHT_NOT_BE_ENOUGH_SPACE:
+				case CEC_OP_PROG_INFO_ANALT_EANALUGH_SPACE:
+				case CEC_OP_PROG_INFO_MIGHT_ANALT_BE_EANALUGH_SPACE:
 					if (msg->len < 5)
 						valid_la = false;
 					break;
@@ -1190,7 +1190,7 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 		}
 	}
 
-	/* It's a valid message and not a poll or CDC message */
+	/* It's a valid message and analt a poll or CDC message */
 	if (valid_la && msg->len > 1 && cmd != CEC_MSG_CDC_MESSAGE) {
 		bool abort = cmd == CEC_MSG_FEATURE_ABORT;
 
@@ -1260,7 +1260,7 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 	/* Pass the message on to any monitoring filehandles */
 	cec_queue_msg_monitor(adap, msg, monitor_valid_la);
 
-	/* We're done if it is not for us or a poll message */
+	/* We're done if it is analt for us or a poll message */
 	if (!valid_la || msg->len <= 1)
 		return;
 
@@ -1269,10 +1269,10 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 
 	/*
 	 * Process the message on the protocol level. If is_reply is true,
-	 * then cec_receive_notify() won't pass on the reply to the listener(s)
+	 * then cec_receive_analtify() won't pass on the reply to the listener(s)
 	 * since that was already done by cec_data_completed() above.
 	 */
-	cec_receive_notify(adap, msg, is_reply);
+	cec_receive_analtify(adap, msg, is_reply);
 }
 EXPORT_SYMBOL_GPL(cec_received_msg_ts);
 
@@ -1337,8 +1337,8 @@ static int cec_config_log_addr(struct cec_adapter *adap,
 
 	/*
 	 * If we are unable to get an OK or a NACK after max_retries attempts
-	 * (and note that each attempt already consists of four polls), then
-	 * we assume that something is really weird and that it is not a
+	 * (and analte that each attempt already consists of four polls), then
+	 * we assume that something is really weird and that it is analt a
 	 * good idea to try and claim this logical address.
 	 */
 	if (i == max_retries) {
@@ -1348,7 +1348,7 @@ static int cec_config_log_addr(struct cec_adapter *adap,
 	}
 
 	/*
-	 * Message not acknowledged, so this logical
+	 * Message analt ackanalwledged, so this logical
 	 * address is free to use.
 	 */
 	err = call_op(adap, adap_log_addr, log_addr);
@@ -1500,7 +1500,7 @@ reconfigure:
 		}
 
 		if (la_list[j] == CEC_LOG_ADDR_INVALID)
-			dprintk(1, "could not claim LA %d\n", i);
+			dprintk(1, "could analt claim LA %d\n", i);
 	}
 
 	if (adap->log_addrs.log_addr_mask == 0 &&
@@ -1523,8 +1523,8 @@ configured:
 	cec_post_state_event(adap);
 
 	/*
-	 * Now post the Report Features and Report Physical Address broadcast
-	 * messages. Note that these are non-blocking transmits, meaning that
+	 * Analw post the Report Features and Report Physical Address broadcast
+	 * messages. Analte that these are analn-blocking transmits, meaning that
 	 * they are just queued up and once adap->lock is unlocked the main
 	 * thread will kick in and start transmitting these.
 	 *
@@ -1557,7 +1557,7 @@ configured:
 		cec_transmit_msg_fh(adap, &msg, NULL, false);
 
 		/* Report Vendor ID */
-		if (adap->log_addrs.vendor_id != CEC_VENDOR_ID_NONE) {
+		if (adap->log_addrs.vendor_id != CEC_VENDOR_ID_ANALNE) {
 			cec_msg_device_vendor_id(&msg,
 						 adap->log_addrs.vendor_id);
 			cec_transmit_msg_fh(adap, &msg, NULL, false);
@@ -1623,14 +1623,14 @@ int cec_adap_enable(struct cec_adapter *adap)
 	if (adap->needs_hpd)
 		enable = enable && adap->phys_addr != CEC_PHYS_ADDR_INVALID;
 
-	if (adap->devnode.unregistered)
+	if (adap->devanalde.unregistered)
 		enable = false;
 
 	if (enable == adap->is_enabled)
 		return 0;
 
 	/* serialize adap_enable */
-	mutex_lock(&adap->devnode.lock);
+	mutex_lock(&adap->devanalde.lock);
 	if (enable) {
 		adap->last_initiator = 0xff;
 		adap->transmit_in_progress = false;
@@ -1640,7 +1640,7 @@ int cec_adap_enable(struct cec_adapter *adap)
 		if (!ret) {
 			/*
 			 * Enable monitor-all/pin modes if needed. We warn, but
-			 * continue if this fails as this is not a critical error.
+			 * continue if this fails as this is analt a critical error.
 			 */
 			if (adap->monitor_all_cnt)
 				WARN_ON(call_op(adap, adap_monitor_all_enable, true));
@@ -1663,11 +1663,11 @@ int cec_adap_enable(struct cec_adapter *adap)
 	if (!ret)
 		adap->is_enabled = enable;
 	wake_up_interruptible(&adap->kthread_waitq);
-	mutex_unlock(&adap->devnode.lock);
+	mutex_unlock(&adap->devanalde.lock);
 	return ret;
 }
 
-/* Set a new physical address and send an event notifying userspace of this.
+/* Set a new physical address and send an event analtifying userspace of this.
  *
  * This function is called with adap->lock held.
  */
@@ -1678,7 +1678,7 @@ void __cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 
 	if (phys_addr == adap->phys_addr)
 		return;
-	if (!becomes_invalid && adap->devnode.unregistered)
+	if (!becomes_invalid && adap->devanalde.unregistered)
 		return;
 
 	dprintk(1, "new physical address %x.%x.%x.%x\n",
@@ -1718,7 +1718,7 @@ void cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 EXPORT_SYMBOL_GPL(cec_s_phys_addr);
 
 /*
- * Note: In the drm subsystem, prefer calling (if possible):
+ * Analte: In the drm subsystem, prefer calling (if possible):
  *
  * cec_s_phys_addr(adap, connector->display_info.source_physical_address, false);
  */
@@ -1765,8 +1765,8 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 	int err;
 	int i;
 
-	if (adap->devnode.unregistered)
-		return -ENODEV;
+	if (adap->devanalde.unregistered)
+		return -EANALDEV;
 
 	if (!log_addrs || log_addrs->num_log_addrs == 0) {
 		if (!adap->log_addrs.num_log_addrs)
@@ -1777,7 +1777,7 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 		for (i = 0; i < CEC_MAX_LOG_ADDRS; i++)
 			adap->log_addrs.log_addr[i] = CEC_LOG_ADDR_INVALID;
 		adap->log_addrs.osd_name[0] = '\0';
-		adap->log_addrs.vendor_id = CEC_VENDOR_ID_NONE;
+		adap->log_addrs.vendor_id = CEC_VENDOR_ID_ANALNE;
 		adap->log_addrs.cec_version = CEC_OP_CEC_VERSION_2_0;
 		cec_adap_enable(adap);
 		return 0;
@@ -1790,14 +1790,14 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 		 */
 		log_addrs->num_log_addrs = 1;
 		log_addrs->osd_name[0] = '\0';
-		log_addrs->vendor_id = CEC_VENDOR_ID_NONE;
+		log_addrs->vendor_id = CEC_VENDOR_ID_ANALNE;
 		log_addrs->log_addr_type[0] = CEC_LOG_ADDR_TYPE_UNREGISTERED;
 		/*
 		 * This is just an internal convention since a CDC-Only device
 		 * doesn't have to be a switch. But switches already use
 		 * unregistered, so it makes some kind of sense to pick this
 		 * as the primary device. Since a CDC-Only device never sends
-		 * any 'normal' CEC messages this primary device type is never
+		 * any 'analrmal' CEC messages this primary device type is never
 		 * sent over the CEC bus.
 		 */
 		log_addrs->primary_device_type[0] = CEC_OP_PRIM_DEVTYPE_SWITCH;
@@ -1819,7 +1819,7 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 	 * Vendor ID is a 24 bit number, so check if the value is
 	 * within the correct range.
 	 */
-	if (log_addrs->vendor_id != CEC_VENDOR_ID_NONE &&
+	if (log_addrs->vendor_id != CEC_VENDOR_ID_ANALNE &&
 	    (log_addrs->vendor_id & 0xff000000) != 0) {
 		dprintk(1, "invalid vendor ID\n");
 		return -EINVAL;
@@ -1847,7 +1847,7 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 
 		log_addrs->log_addr[i] = CEC_LOG_ADDR_INVALID;
 		if (log_addrs->log_addr_type[i] > CEC_LOG_ADDR_TYPE_UNREGISTERED) {
-			dprintk(1, "unknown logical address type\n");
+			dprintk(1, "unkanalwn logical address type\n");
 			return -EINVAL;
 		}
 		if (type_mask & (1 << log_addrs->log_addr_type[i])) {
@@ -1863,7 +1863,7 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 		}
 		if (log_addrs->primary_device_type[i] >
 					CEC_OP_PRIM_DEVTYPE_PROCESSOR) {
-			dprintk(1, "unknown primary device type\n");
+			dprintk(1, "unkanalwn primary device type\n");
 			return -EINVAL;
 		}
 		if (log_addrs->primary_device_type[i] == 2) {
@@ -1887,7 +1887,7 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 
 	if (log_addrs->cec_version >= CEC_OP_CEC_VERSION_2_0) {
 		if (log_addrs->num_log_addrs > 2) {
-			dprintk(1, "CEC 2.0 allows no more than 2 logical addresses\n");
+			dprintk(1, "CEC 2.0 allows anal more than 2 logical addresses\n");
 			return -EINVAL;
 		}
 		if (log_addrs->num_log_addrs == 2) {
@@ -2002,7 +2002,7 @@ static int cec_feature_refused(struct cec_adapter *adap, struct cec_msg *msg)
  *
  * The message is either a broadcast message or a valid directed message.
  */
-static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
+static int cec_receive_analtify(struct cec_adapter *adap, struct cec_msg *msg,
 			      bool is_reply)
 {
 	bool is_broadcast = cec_msg_is_broadcast(msg);
@@ -2015,21 +2015,21 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 
 	dprintk(2, "%s: %*ph\n", __func__, msg->len, msg->msg);
 
-	/* If this is a CDC-Only device, then ignore any non-CDC messages */
+	/* If this is a CDC-Only device, then iganalre any analn-CDC messages */
 	if (cec_is_cdc_only(&adap->log_addrs) &&
 	    msg->msg[1] != CEC_MSG_CDC_MESSAGE)
 		return 0;
 
 	/* Allow drivers to process the message first */
-	if (adap->ops->received && !adap->devnode.unregistered &&
-	    adap->ops->received(adap, msg) != -ENOMSG)
+	if (adap->ops->received && !adap->devanalde.unregistered &&
+	    adap->ops->received(adap, msg) != -EANALMSG)
 		return 0;
 
 	/*
 	 * REPORT_PHYSICAL_ADDR, CEC_MSG_USER_CONTROL_PRESSED and
 	 * CEC_MSG_USER_CONTROL_RELEASED messages always have to be
 	 * handled by the CEC core, even if the passthrough mode is on.
-	 * The others are just ignored if passthrough mode is on.
+	 * The others are just iganalred if passthrough mode is on.
 	 */
 	switch (msg->msg[1]) {
 	case CEC_MSG_GET_CEC_VERSION:
@@ -2037,7 +2037,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	case CEC_MSG_GIVE_DEVICE_POWER_STATUS:
 	case CEC_MSG_GIVE_OSD_NAME:
 		/*
-		 * These messages reply with a directed message, so ignore if
+		 * These messages reply with a directed message, so iganalre if
 		 * the initiator is Unregistered.
 		 */
 		if (!adap->passthrough && from_unregistered)
@@ -2052,7 +2052,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		 */
 		if (adap->passthrough)
 			goto skip_processing;
-		/* Ignore if addressing is wrong */
+		/* Iganalre if addressing is wrong */
 		if (is_broadcast)
 			return 0;
 		break;
@@ -2111,12 +2111,12 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 					   msg->msg[2] << 8 | msg->msg[3], 0);
 			break;
 		/*
-		 * Other function messages that are not handled.
-		 * Currently the RC framework does not allow to supply an
+		 * Other function messages that are analt handled.
+		 * Currently the RC framework does analt allow to supply an
 		 * additional parameter to a keypress. These "keys" contain
 		 * other information such as channel number, an input number
 		 * etc.
-		 * For the time being these messages are not processed by the
+		 * For the time being these messages are analt processed by the
 		 * framework and are simply forwarded to the user space.
 		 */
 		case CEC_OP_UI_CMD_SELECT_BROADCAST_TYPE:
@@ -2151,20 +2151,20 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		return cec_transmit_msg(adap, &tx_cec_msg, false);
 
 	case CEC_MSG_GIVE_PHYSICAL_ADDR:
-		/* Do nothing for CEC switches using addr 15 */
+		/* Do analthing for CEC switches using addr 15 */
 		if (devtype == CEC_OP_PRIM_DEVTYPE_SWITCH && dest_laddr == 15)
 			return 0;
 		cec_msg_report_physical_addr(&tx_cec_msg, adap->phys_addr, devtype);
 		return cec_transmit_msg(adap, &tx_cec_msg, false);
 
 	case CEC_MSG_GIVE_DEVICE_VENDOR_ID:
-		if (adap->log_addrs.vendor_id == CEC_VENDOR_ID_NONE)
+		if (adap->log_addrs.vendor_id == CEC_VENDOR_ID_ANALNE)
 			return cec_feature_abort(adap, msg);
 		cec_msg_device_vendor_id(&tx_cec_msg, adap->log_addrs.vendor_id);
 		return cec_transmit_msg(adap, &tx_cec_msg, false);
 
 	case CEC_MSG_ABORT:
-		/* Do nothing for CEC switches */
+		/* Do analthing for CEC switches */
 		if (devtype == CEC_OP_PRIM_DEVTYPE_SWITCH)
 			return 0;
 		return cec_feature_refused(adap, msg);

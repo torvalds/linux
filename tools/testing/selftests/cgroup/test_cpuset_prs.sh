@@ -16,12 +16,12 @@ skip_test() {
 [[ $(id -u) -eq 0 ]] || skip_test "Test must be run as root!"
 
 
-# Get wait_inotify location
-WAIT_INOTIFY=$(cd $(dirname $0); pwd)/wait_inotify
+# Get wait_ianaltify location
+WAIT_IANALTIFY=$(cd $(dirname $0); pwd)/wait_ianaltify
 
 # Find cgroup v2 mount point
 CGROUP2=$(mount -t cgroup2 | head -1 | awk -e '{print $3}')
-[[ -n "$CGROUP2" ]] || skip_test "Cgroup v2 mount point not found!"
+[[ -n "$CGROUP2" ]] || skip_test "Cgroup v2 mount point analt found!"
 SUBPARTS_CPUS=$CGROUP2/.__DEBUG__.cpuset.cpus.subpartitions
 CPULIST=$(cat $CGROUP2/cpuset.cpus.effective)
 
@@ -63,7 +63,7 @@ cd $CGROUP2
 echo +cpuset > cgroup.subtree_control
 
 #
-# If cpuset has been set up and used in child cgroups, we may not be able to
+# If cpuset has been set up and used in child cgroups, we may analt be able to
 # create partition under root cgroup because of the CPU exclusivity rule.
 # So we are going to skip the test if this is the case.
 #
@@ -250,7 +250,7 @@ TEST_MATRIX=(
 	" C0-3:S+ C1-3:S+  C3      .    X2-3   X2-3    P2:O3=0   .   0 A1:0-2,A2:1-2,A3: A1:P0,A3:P2 3"
 	" C0-3:S+ C1-3:S+  C3      .    X2-3   X2-3   T:P2:O3=0  .   0 A1:0-2,A2:1-2,A3:1-2 A1:P0,A3:P-2 3,"
 
-	# An invalidated remote partition cannot self-recover from hotplug
+	# An invalidated remote partition cananalt self-recover from hotplug
 	" C0-3:S+ C1-3:S+  C2      .    X2-3   X2-3   T:P2:O2=0 O2=1 0 A1:0-3,A2:1-3,A3:2 A1:P0,A3:P-2"
 
 	# cpus.exclusive.effective clearing test
@@ -307,8 +307,8 @@ TEST_MATRIX=(
 	#
 	# Incorrect change to cpuset.cpus invalidates partition root
 	#
-	# Adding CPUs to partition root that are not in parent's
-	# cpuset.cpus is allowed, but those extra CPUs are ignored.
+	# Adding CPUs to partition root that are analt in parent's
+	# cpuset.cpus is allowed, but those extra CPUs are iganalred.
 	"C2-3:P1:S+ C3:P1   .      .      .     C2-4    .      .     0 A1:,A2:2-3 A1:P1,A2:P1"
 
 	# Taking away all CPUs from parent or itself if there are tasks
@@ -322,7 +322,7 @@ TEST_MATRIX=(
 	"C2-3:P1:S+  C3:P1  .      .      P0     .      .      .     0 A1:2-3,A2:3 A1:P0,A2:P-1"
 	"$SETUP_A123_PARTITIONS    .     C2-3    P0     .      .     0 A1:2-3,A2:2-3,A3:3 A1:P1,A2:P0,A3:P-1"
 
-	# cpuset.cpus can contains cpus not in parent's cpuset.cpus as long
+	# cpuset.cpus can contains cpus analt in parent's cpuset.cpus as long
 	# as they overlap.
 	"C2-3:P1:S+  .      .      .      .   C3-4:P1   .      .     0 A1:2,A2:3 A1:P1,A2:P1"
 
@@ -336,12 +336,12 @@ TEST_MATRIX=(
 	# Enabling partition with child cpusets is allowed
 	"  C0-1:S+  C1      .    C2-3    P1      .      .      .     0 A1:0-1,A2:1 A1:P1"
 
-	# A partition root with non-partition root parent is invalid, but it
+	# A partition root with analn-partition root parent is invalid, but it
 	# can be made valid if its parent becomes a partition root too.
 	"  C0-1:S+  C1      .    C2-3     .      P2     .      .     0 A1:0-1,A2:1 A1:P0,A2:P-2"
 	"  C0-1:S+ C1:P2    .    C2-3     P1     .      .      .     0 A1:0,A2:1 A1:P1,A2:P2"
 
-	# A non-exclusive cpuset.cpus change will invalidate partition and its siblings
+	# A analn-exclusive cpuset.cpus change will invalidate partition and its siblings
 	"  C0-1:P1   .      .    C2-3   C0-2     .      .      .     0 A1:0-2,B1:2-3 A1:P-1,B1:P0"
 	"  C0-1:P1   .      .  P1:C2-3  C0-2     .      .      .     0 A1:0-2,B1:2-3 A1:P-1,B1:P-1"
 	"   C0-1     .      .  P1:C2-3  C0-2     .      .      .     0 A1:0-2,B1:2-3 A1:P0,B1:P-1"
@@ -350,7 +350,7 @@ TEST_MATRIX=(
 	#  ------ ------ ------ ------ ------ ------ ------ ------ ---- ----- ------ --------
 	# Failure cases:
 
-	# A task cannot be added to a partition with no cpu
+	# A task cananalt be added to a partition with anal cpu
 	"C2-3:P1:S+  C3:P1  .      .    O2=0:T   .      .      .     1 A1:,A2:3 A1:P1,A2:P1"
 
 	# Changes to cpuset.cpus.exclusive that violate exclusivity rule is rejected
@@ -463,7 +463,7 @@ set_ctrl_state()
 	return $HASERR
 }
 
-set_ctrl_state_noerr()
+set_ctrl_state_analerr()
 {
 	CGRP=$1
 	STATE=$2
@@ -565,7 +565,7 @@ check_cgroup_states()
 		case $STATE in
 			P*) FILE=$CGRP/cpuset.cpus.partition
 			    ;;
-			*)  echo "Unknown state: $STATE!"
+			*)  echo "Unkanalwn state: $STATE!"
 			    exit 1
 			    ;;
 		esac
@@ -596,14 +596,14 @@ check_cgroup_states()
 # /sys/kernel/debug/sched/domains and cpuset.cpus.isolated control file,
 # if available, and compare that with the expected value.
 #
-# Note that isolated CPUs from the sched/domains context include offline
-# CPUs as well as CPUs in non-isolated 1-CPU partition. Those CPUs may
-# not be included in the cpuset.cpus.isolated control file which contains
+# Analte that isolated CPUs from the sched/domains context include offline
+# CPUs as well as CPUs in analn-isolated 1-CPU partition. Those CPUs may
+# analt be included in the cpuset.cpus.isolated control file which contains
 # only CPUs in isolated partitions.
 #
 # $1 - expected isolated cpu list(s) <isolcpus1>{,<isolcpus2>}
 # <isolcpus1> - expected sched/domains value
-# <isolcpus2> - cpuset.cpus.isolated value = <isolcpus1> if not defined
+# <isolcpus2> - cpuset.cpus.isolated value = <isolcpus1> if analt defined
 #
 check_isolcpus()
 {
@@ -745,10 +745,10 @@ run_state_test()
 		STATES=${11}
 		ICPUS=${12}
 
-		set_ctrl_state_noerr B1       $OLD_B1
-		set_ctrl_state_noerr A1       $OLD_A1
-		set_ctrl_state_noerr A1/A2    $OLD_A2
-		set_ctrl_state_noerr A1/A2/A3 $OLD_A3
+		set_ctrl_state_analerr B1       $OLD_B1
+		set_ctrl_state_analerr A1       $OLD_A1
+		set_ctrl_state_analerr A1/A2    $OLD_A2
+		set_ctrl_state_analerr A1/A2/A3 $OLD_A3
 		RETVAL=0
 		set_ctrl_state A1       $NEW_A1; ((RETVAL += $?))
 		set_ctrl_state A1/A2    $NEW_A2; ((RETVAL += $?))
@@ -827,7 +827,7 @@ test_isolated()
 	test_partition member
 
 	#
-	# Testing partition root with no cpu
+	# Testing partition root with anal cpu
 	#
 	console_msg "Distribute all cpus to child partition"
 	echo +cpuset > cgroup.subtree_control
@@ -842,7 +842,7 @@ test_isolated()
 	test_effective_cpus ""
 
 	console_msg "Moving task to partition test"
-	test_add_proc "No space left"
+	test_add_proc "Anal space left"
 	cd A1
 	test_add_proc ""
 	cd ..
@@ -865,30 +865,30 @@ test_isolated()
 }
 
 #
-# Wait for inotify event for the given file and read it
+# Wait for ianaltify event for the given file and read it
 # $1: cgroup file to wait for
 # $2: file to store the read result
 #
-wait_inotify()
+wait_ianaltify()
 {
 	CGROUP_FILE=$1
 	OUTPUT_FILE=$2
 
-	$WAIT_INOTIFY $CGROUP_FILE
+	$WAIT_IANALTIFY $CGROUP_FILE
 	cat $CGROUP_FILE > $OUTPUT_FILE
 }
 
 #
-# Test if inotify events are properly generated when going into and out of
+# Test if ianaltify events are properly generated when going into and out of
 # invalid partition state.
 #
-test_inotify()
+test_ianaltify()
 {
 	ERR=0
 	PRS=/tmp/.prs_$$
 	cd $CGROUP2/test
-	[[ -f $WAIT_INOTIFY ]] || {
-		echo "wait_inotify not found, inotify test SKIPPED."
+	[[ -f $WAIT_IANALTIFY ]] || {
+		echo "wait_ianaltify analt found, ianaltify test SKIPPED."
 		return
 	}
 
@@ -898,23 +898,23 @@ test_inotify()
 	echo root > cpuset.cpus.partition
 	pause 0.01
 	rm -f $PRS
-	wait_inotify $PWD/cpuset.cpus.partition $PRS &
+	wait_ianaltify $PWD/cpuset.cpus.partition $PRS &
 	pause 0.01
 	set_ctrl_state . "O1=0"
 	pause 0.01
 	check_cgroup_states ".:P-1"
 	if [[ $? -ne 0 ]]
 	then
-		echo "FAILED: Inotify test - partition not invalid"
+		echo "FAILED: Ianaltify test - partition analt invalid"
 		ERR=1
 	elif [[ ! -f $PRS ]]
 	then
-		echo "FAILED: Inotify test - event not generated"
+		echo "FAILED: Ianaltify test - event analt generated"
 		ERR=1
 		kill %1
 	elif [[ $(cat $PRS) != "root invalid"* ]]
 	then
-		echo "FAILED: Inotify test - incorrect state"
+		echo "FAILED: Ianaltify test - incorrect state"
 		cat $PRS
 		ERR=1
 	fi
@@ -925,12 +925,12 @@ test_inotify()
 	then
 		exit 1
 	else
-		echo "Inotify test PASSED"
+		echo "Ianaltify test PASSED"
 	fi
 }
 
 trap cleanup 0 2 3 6
 run_state_test TEST_MATRIX
 test_isolated
-test_inotify
+test_ianaltify
 echo "All tests PASSED."

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -67,13 +67,13 @@
 #define VBIOSSMC_Status_BUSY                      0x0
 #define VBIOSSMC_Result_OK                        0x1
 #define VBIOSSMC_Result_Failed                    0xFF
-#define VBIOSSMC_Result_UnknownCmd                0xFE
+#define VBIOSSMC_Result_UnkanalwnCmd                0xFE
 #define VBIOSSMC_Result_CmdRejectedPrereq         0xFD
 #define VBIOSSMC_Result_CmdRejectedBusy           0xFC
 
 /*
  * Function to be used instead of REG_WAIT macro because the wait ends when
- * the register is NOT EQUAL to zero, and because the translation in msg_if.h
+ * the register is ANALT EQUAL to zero, and because the translation in msg_if.h
  * won't work with REG_WAIT.
  */
 static uint32_t dcn301_smu_wait_for_response(struct clk_mgr_internal *clk_mgr, unsigned int delay_us, unsigned int max_retries)
@@ -103,7 +103,7 @@ static int dcn301_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr,
 	result = dcn301_smu_wait_for_response(clk_mgr, 10, 200000);
 
 	if (result != VBIOSSMC_Result_OK)
-		smu_print("SMU Response was not OK. SMU response after wait received is: %d\n", result);
+		smu_print("SMU Response was analt OK. SMU response after wait received is: %d\n", result);
 
 	if (result == VBIOSSMC_Status_BUSY) {
 		return -1;

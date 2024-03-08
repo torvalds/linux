@@ -41,7 +41,7 @@ int pdc_model_sysmodel(unsigned int os_id, char *name);
 int pdc_model_cpuid(unsigned long *cpu_id);
 int pdc_model_versions(unsigned long *versions, int id);
 int pdc_model_capabilities(unsigned long *capabilities);
-int pdc_model_platform_info(char *orig_prod_num, char *current_prod_num, char *serial_no);
+int pdc_model_platform_info(char *orig_prod_num, char *current_prod_num, char *serial_anal);
 int pdc_cache_info(struct pdc_cache_info *cache);
 int pdc_spaceid_bits(unsigned long *space_bits);
 int pdc_btlb_info(struct pdc_btlb_info *btlb);
@@ -98,14 +98,14 @@ void pdc_cpu_rendezvous_unlock(void);
 
 static inline char * os_id_to_string(u16 os_id) {
 	switch(os_id) {
-	case OS_ID_NONE:	return "No OS";
+	case OS_ID_ANALNE:	return "Anal OS";
 	case OS_ID_HPUX:	return "HP-UX";
 	case OS_ID_MPEXL:	return "MPE-iX";
 	case OS_ID_OSF:		return "OSF";
 	case OS_ID_HPRT:	return "HP-RT";
-	case OS_ID_NOVEL:	return "Novell Netware";
+	case OS_ID_ANALVEL:	return "Analvell Netware";
 	case OS_ID_LINUX:	return "Linux";
-	default:	return "Unknown";
+	default:	return "Unkanalwn";
 	}
 }
 

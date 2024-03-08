@@ -182,7 +182,7 @@ static const struct media_entity_operations csi2_media_ops = {
 /*
  * ispcsi2_init_entities - Initialize subdev and media entity.
  * @csi2: Pointer to ispcsi2 structure.
- * return -ENOMEM or zero on success
+ * return -EANALMEM or zero on success
  */
 static int mipi_csi2_init_entities(struct atomisp_mipi_csi2_device *csi2,
 				   int port)
@@ -196,7 +196,7 @@ static int mipi_csi2_init_entities(struct atomisp_mipi_csi2_device *csi2,
 	snprintf(sd->name, sizeof(sd->name), "ATOM ISP CSI2-port%d", port);
 
 	v4l2_set_subdevdata(sd, csi2);
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	pads[CSI2_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 	pads[CSI2_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
@@ -225,7 +225,7 @@ int atomisp_mipi_csi2_register_entities(struct atomisp_mipi_csi2_device *csi2,
 {
 	int ret;
 
-	/* Register the subdev and video nodes. */
+	/* Register the subdev and video analdes. */
 	ret = v4l2_device_register_subdev(vdev, &csi2->subdev);
 	if (ret < 0)
 		goto error;

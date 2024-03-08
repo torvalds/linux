@@ -30,12 +30,12 @@ static irqreturn_t gpio_trig_irq(int irq, void *_led)
 	tmp = gpiod_get_value_cansleep(gpio_data->gpiod);
 	if (tmp) {
 		if (gpio_data->desired_brightness)
-			led_set_brightness_nosleep(gpio_data->led,
+			led_set_brightness_analsleep(gpio_data->led,
 					   gpio_data->desired_brightness);
 		else
-			led_set_brightness_nosleep(gpio_data->led, LED_FULL);
+			led_set_brightness_analsleep(gpio_data->led, LED_FULL);
 	} else {
-		led_set_brightness_nosleep(gpio_data->led, LED_OFF);
+		led_set_brightness_analsleep(gpio_data->led, LED_OFF);
 	}
 
 	return IRQ_HANDLED;
@@ -80,7 +80,7 @@ static int gpio_trig_activate(struct led_classdev *led)
 
 	gpio_data = kzalloc(sizeof(*gpio_data), GFP_KERNEL);
 	if (!gpio_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * The generic property "trigger-sources" is followed,
@@ -93,7 +93,7 @@ static int gpio_trig_activate(struct led_classdev *led)
 		return ret;
 	}
 	if (!gpio_data->gpiod) {
-		dev_err(dev, "no valid GPIO for the trigger\n");
+		dev_err(dev, "anal valid GPIO for the trigger\n");
 		kfree(gpio_data);
 		return -EINVAL;
 	}

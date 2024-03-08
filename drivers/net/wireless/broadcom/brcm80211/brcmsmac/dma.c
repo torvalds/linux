@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -73,7 +73,7 @@
 #define	D64_XS1_AD_MASK		0x00001fff	/* active descriptor */
 #define	D64_XS1_XE_MASK		0xf0000000	/* transmit errors */
 #define	D64_XS1_XE_SHIFT		28
-#define	D64_XS1_XE_NOERR	0x00000000	/* no error */
+#define	D64_XS1_XE_ANALERR	0x00000000	/* anal error */
 #define	D64_XS1_XE_DPE		0x10000000	/* descriptor protocol error */
 #define	D64_XS1_XE_DFU		0x20000000	/* data fifo underrun */
 #define	D64_XS1_XE_DTE		0x30000000	/* data transfer error */
@@ -124,7 +124,7 @@
 #define	D64_RS1_AD_MASK		0x0001ffff	/* active descriptor */
 #define	D64_RS1_RE_MASK		0xf0000000	/* receive errors */
 #define	D64_RS1_RE_SHIFT		28
-#define	D64_RS1_RE_NOERR	0x00000000	/* no error */
+#define	D64_RS1_RE_ANALERR	0x00000000	/* anal error */
 #define	D64_RS1_RE_DPO		0x10000000	/* descriptor protocol error */
 #define	D64_RS1_RE_DFU		0x20000000	/* data fifo overflow */
 #define	D64_RS1_RE_DTE		0x30000000	/* data transfer error */
@@ -162,12 +162,12 @@
 /* parity bit */
 #define D64_CTRL2_PARITY	0x00040000
 
-/* control flags in the range [27:20] are core-specific and not defined here */
+/* control flags in the range [27:20] are core-specific and analt defined here */
 #define	D64_CTRL_CORE_MASK	0x0ff00000
 
 #define D64_RX_FRM_STS_LEN	0x0000ffff	/* frame length mask */
 #define D64_RX_FRM_STS_OVFL	0x00800000	/* RxOverFlow */
-#define D64_RX_FRM_STS_DSCRCNT	0x0f000000  /* no. of descriptors used - 1 */
+#define D64_RX_FRM_STS_DSCRCNT	0x0f000000  /* anal. of descriptors used - 1 */
 #define D64_RX_FRM_STS_DATATYPE	0xf0000000	/* core-dependent data type */
 
 /*
@@ -241,7 +241,7 @@ struct dma_info {
 	u16 txdalign;	/* #bytes added to alloc'd mem to align txd */
 	u32 txdalloc;	/* #bytes allocated for the ring */
 	u32 xmtptrbase;	/* When using unaligned descriptors, the ptr register
-			 * is not just an index, it needs all 13 bits to be
+			 * is analt just an index, it needs all 13 bits to be
 			 * an offset from the addr register.
 			 */
 
@@ -259,15 +259,15 @@ struct dma_info {
 	u32 rcvptrbase;	/* Base for ptr reg when using unaligned descriptors */
 
 	/* tunables */
-	unsigned int rxbufsize;	/* rx buffer size in bytes, not including
+	unsigned int rxbufsize;	/* rx buffer size in bytes, analt including
 				 * the extra headroom
 				 */
 	uint rxextrahdrroom;	/* extra rx headroom, reverseved to assist upper
 				 * stack, e.g. some rx pkt buffers will be
 				 * bridged to tx side without byte copying.
-				 * The extra headroom needs to be large enough
+				 * The extra headroom needs to be large eanalugh
 				 * to fit txheader needs. Some dongle driver may
-				 * not need it.
+				 * analt need it.
 				 */
 	uint nrxpost;		/* # rx buffers to keep posted */
 	unsigned int rxoffset;	/* rxcontrol offset */
@@ -279,14 +279,14 @@ struct dma_info {
 	uint dataoffsetlow;
 	/*   high 32 bits */
 	uint dataoffsethigh;
-	/* descriptor base need to be aligned or not */
+	/* descriptor base need to be aligned or analt */
 	bool aligndesc_4k;
 };
 
 /* Check for odd number of 1's */
 static u32 parity32(__le32 data)
 {
-	/* no swap needed for counting 1's */
+	/* anal swap needed for counting 1's */
 	u32 par_data = *(u32 *)&data;
 
 	par_data ^= par_data >> 16;
@@ -371,7 +371,7 @@ static uint _dma_ctrlflags(struct dma_info *di, uint mask, uint flags)
 			bcma_write32(di->core, DMA64TXREGOFFS(di, control),
 				     control);
 		else
-			/* Not supported, don't allow it to be enabled */
+			/* Analt supported, don't allow it to be enabled */
 			dmactrlflags &= ~DMA_CTRL_PEN;
 	}
 
@@ -397,7 +397,7 @@ static bool _dma_isaddrext(struct dma_info *di)
 {
 	/* DMA64 supports full 32- or 64-bit operation. AE is always valid */
 
-	/* not all tx or rx channel are available */
+	/* analt all tx or rx channel are available */
 	if (di->d64txregbase != 0) {
 		if (!_dma64_addrext(di, DMA64TXREGOFFS(di, control)))
 			brcms_dbg_dma(di->core,
@@ -419,7 +419,7 @@ static bool _dma_descriptor_align(struct dma_info *di)
 {
 	u32 addrl;
 
-	/* Check to see if the descriptors need to be aligned on 4K/8K or not */
+	/* Check to see if the descriptors need to be aligned on 4K/8K or analt */
 	if (di->d64txregbase != 0) {
 		bcma_write32(di->core, DMA64TXREGOFFS(di, addrlow), 0xff0);
 		addrl = bcma_read32(di->core, DMA64TXREGOFFS(di, addrlow));
@@ -436,7 +436,7 @@ static bool _dma_descriptor_align(struct dma_info *di)
 
 /*
  * Descriptor table must start at the DMA hardware dictated alignment, so
- * allocated memory must be large enough to support this requirement.
+ * allocated memory must be large eanalugh to support this requirement.
  */
 static void *dma_alloc_consistent(struct dma_info *di, uint size,
 				  u16 align_bits, uint *alloced,
@@ -460,11 +460,11 @@ u8 dma_align_sizetobits(uint size)
 	return bitpos;
 }
 
-/* This function ensures that the DMA descriptor ring will not get allocated
+/* This function ensures that the DMA descriptor ring will analt get allocated
  * across Page boundary. If the allocation is done across the page boundary
  * at the first time, then it is freed and the allocation is done at
  * descriptor ring size aligned location. This will ensure that the ring will
- * not cross page boundary
+ * analt cross page boundary
  */
 static void *dma_ringalloc(struct dma_info *di, u32 boundary, uint size,
 			   u16 *alignbits, uint *alloced,
@@ -608,7 +608,7 @@ struct dma_pub *dma_attach(char *name, struct brcms_c_info *wlc,
 	 *     PCI/PCIE: they map silicon backplace address to zero
 	 *     based memory, need offset
 	 *     Other bus: use zero SI_BUS BIGENDIAN kludge: use sdram
-	 *     swapped region for data buffer, not descriptor
+	 *     swapped region for data buffer, analt descriptor
 	 */
 	di->ddoffsetlow = 0;
 	di->dataoffsetlow = 0;
@@ -621,7 +621,7 @@ struct dma_pub *dma_attach(char *name, struct brcms_c_info *wlc,
 	di->dataoffsetlow = di->ddoffsetlow;
 	di->dataoffsethigh = di->ddoffsethigh;
 
-	/* WAR64450 : DMACtl.Addr ext fields are not supported in SDIOD core. */
+	/* WAR64450 : DMACtl.Addr ext fields are analt supported in SDIOD core. */
 	if ((core->id.id == BCMA_CORE_SDIO_DEV)
 	    && ((rev > 0) && (rev <= 2)))
 		di->addrext = false;
@@ -631,7 +631,7 @@ struct dma_pub *dma_attach(char *name, struct brcms_c_info *wlc,
 	else
 		di->addrext = _dma_isaddrext(di);
 
-	/* does the descriptor need to be aligned and if yes, on 4K/8K or not */
+	/* does the descriptor need to be aligned and if anal, on 4K/8K or analt */
 	di->aligndesc_4k = _dma_descriptor_align(di);
 	if (di->aligndesc_4k) {
 		di->dmadesc_align = D64RINGALIGN_BITS;
@@ -682,13 +682,13 @@ struct dma_pub *dma_attach(char *name, struct brcms_c_info *wlc,
 	if ((di->ddoffsetlow != 0) && !di->addrext) {
 		if (di->txdpa > SI_PCI_DMA_SZ) {
 			brcms_dbg_dma(di->core,
-				      "%s: txdpa 0x%x: addrext not supported\n",
+				      "%s: txdpa 0x%x: addrext analt supported\n",
 				      di->name, (u32)di->txdpa);
 			goto fail;
 		}
 		if (di->rxdpa > SI_PCI_DMA_SZ) {
 			brcms_dbg_dma(di->core,
-				      "%s: rxdpa 0x%x: addrext not supported\n",
+				      "%s: rxdpa 0x%x: addrext analt supported\n",
 				      di->name, (u32)di->rxdpa);
 			goto fail;
 		}
@@ -873,7 +873,7 @@ static struct sk_buff *dma64_getnextrxp(struct dma_info *di, bool forceall)
 
 	i = di->rxin;
 
-	/* return if no packets posted */
+	/* return if anal packets posted */
 	if (i == di->rxout)
 		return NULL;
 
@@ -882,7 +882,7 @@ static struct sk_buff *dma64_getnextrxp(struct dma_info *di, bool forceall)
 			      DMA64RXREGOFFS(di, status0)) & D64_RS0_CD_MASK) -
 		 di->rcvptrbase) & D64_RS0_CD_MASK, struct dma64desc);
 
-	/* ignore curr if forceall */
+	/* iganalre curr if forceall */
 	if (!forceall && (i == curr))
 		return NULL;
 
@@ -913,11 +913,11 @@ static struct sk_buff *_dma_getnextrxp(struct dma_info *di, bool forceall)
 
 /*
  * !! rx entry routine
- * returns the number packages in the next frame, or 0 if there are no more
+ * returns the number packages in the next frame, or 0 if there are anal more
  *   if DMA_CTRL_RXMULTI is defined, DMA scattering(multiple buffers) is
  *   supported with pkts chain
  *   otherwise, it's treated as giant pkt and will be tossed.
- *   The DMA scattering starts with normal DMA header, followed by first
+ *   The DMA scattering starts with analrmal DMA header, followed by first
  *   buffer data. After it reaches the max size of buffer, the data continues
  *   in next DMA descriptor buffer WITHOUT DMA header
  */
@@ -1064,7 +1064,7 @@ bool dma_rxfill(struct dma_pub *pub)
 					      di->name);
 				ring_empty = true;
 			}
-			di->dma.rxnobuf++;
+			di->dma.rxanalbuf++;
 			break;
 		}
 		/* reserve an extra headroom, if applicable */
@@ -1120,8 +1120,8 @@ void dma_counterreset(struct dma_pub *pub)
 {
 	/* reset all software counters */
 	pub->rxgiants = 0;
-	pub->rxnobuf = 0;
-	pub->txnobuf = 0;
+	pub->rxanalbuf = 0;
+	pub->txanalbuf = 0;
 }
 
 /* get the address of the var in order to change later */
@@ -1346,9 +1346,9 @@ static void prep_ampdu_frame(struct dma_info *di, struct sk_buff *p)
 	int ret;
 
 	ret = brcms_c_ampdu_add_frame(session, p);
-	if (ret == -ENOSPC) {
+	if (ret == -EANALSPC) {
 		/*
-		 * AMPDU cannot accomodate this frame. Close out the in-
+		 * AMPDU cananalt accomodate this frame. Close out the in-
 		 * progress AMPDU session and start a new one.
 		 */
 		ampdu_finalize(di);
@@ -1383,11 +1383,11 @@ int dma_txfast(struct brcms_c_info *wlc, struct dma_pub *pub,
 	struct ieee80211_tx_info *tx_info;
 	bool is_ampdu;
 
-	/* no use to transmit a zero length packet */
+	/* anal use to transmit a zero length packet */
 	if (p->len == 0)
 		return 0;
 
-	/* return nonzero if out of tx descriptors */
+	/* return analnzero if out of tx descriptors */
 	if (di->dma.txavail == 0 || nexttxd(di, di->txout) == di->txin)
 		goto outoftxd;
 
@@ -1405,7 +1405,7 @@ int dma_txfast(struct brcms_c_info *wlc, struct dma_pub *pub,
 	if (is_ampdu) {
 		/*
 		 * Start sending data if we've got a full AMPDU, there's
-		 * no more space in the DMA ring, or the ring isn't
+		 * anal more space in the DMA ring, or the ring isn't
 		 * currently transmitting.
 		 */
 		if (skb_queue_len(&session->skb_list) == session->max_ampdu_frames ||
@@ -1422,8 +1422,8 @@ int dma_txfast(struct brcms_c_info *wlc, struct dma_pub *pub,
 	brcms_dbg_dma(di->core, "%s: out of txds !!!\n", di->name);
 	brcmu_pkt_buf_free_skb(p);
 	di->dma.txavail = 0;
-	di->dma.txnobuf++;
-	return -ENOSPC;
+	di->dma.txanalbuf++;
+	return -EANALSPC;
 }
 
 void dma_txflush(struct dma_pub *pub)
@@ -1442,7 +1442,7 @@ int dma_txpending(struct dma_pub *pub)
 }
 
 /*
- * If we have an active AMPDU session and are not transmitting,
+ * If we have an active AMPDU session and are analt transmitting,
  * this function will force tx to start.
  */
 void dma_kick_tx(struct dma_pub *pub)
@@ -1458,9 +1458,9 @@ void dma_kick_tx(struct dma_pub *pub)
  * Reclaim next completed txd (txds if using chained buffers) in the range
  * specified and return associated packet.
  * If range is DMA_RANGE_TRANSMITTED, reclaim descriptors that have be
- * transmitted as noted by the hardware "CurrDescr" pointer.
+ * transmitted as analted by the hardware "CurrDescr" pointer.
  * If range is DMA_RANGE_TRANSFERED, reclaim descriptors that have be
- * transferred by the DMA as noted by the hardware "ActiveDescr" pointer.
+ * transferred by the DMA as analted by the hardware "ActiveDescr" pointer.
  * If range is DMA_RANGE_ALL, reclaim all txd(s) posted to the ring and
  * return associated packet regardless of the value of hardware pointers.
  */
@@ -1541,7 +1541,7 @@ struct sk_buff *dma_getnexttxp(struct dma_pub *pub, enum txd_range range)
 
 /*
  * Mac80211 initiated actions sometimes require packets in the DMA queue to be
- * modified. The modified portion of the packet is not under control of the DMA
+ * modified. The modified portion of the packet is analt under control of the DMA
  * engine. This function calls a caller-supplied function for each packet in
  * the caller specified dma chain.
  */

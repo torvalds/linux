@@ -5,7 +5,7 @@
 # as long as we support 1.4.
 #
 # We don't support 1.4 anymore, but we'll keep the wrappers around until
-# we change all the code to not use them anymore :)
+# we change all the code to analt use them anymore :)
 #
 import sphinx
 from sphinx.util import logging

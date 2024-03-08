@@ -60,7 +60,7 @@ static void ieee80211_he_mcs_disable(__le16 *he_mcs)
 	u32 i;
 
 	for (i = 0; i < 8; i++)
-		*he_mcs |= cpu_to_le16(IEEE80211_HE_MCS_NOT_SUPPORTED << i * 2);
+		*he_mcs |= cpu_to_le16(IEEE80211_HE_MCS_ANALT_SUPPORTED << i * 2);
 }
 
 static void ieee80211_he_mcs_intersection(__le16 *he_own_rx, __le16 *he_peer_rx,
@@ -71,37 +71,37 @@ static void ieee80211_he_mcs_intersection(__le16 *he_own_rx, __le16 *he_peer_rx,
 
 	for (i = 0; i < 8; i++) {
 		own_rx = le16_to_cpu(*he_own_rx);
-		own_rx = (own_rx >> i * 2) & IEEE80211_HE_MCS_NOT_SUPPORTED;
+		own_rx = (own_rx >> i * 2) & IEEE80211_HE_MCS_ANALT_SUPPORTED;
 
 		own_tx = le16_to_cpu(*he_own_tx);
-		own_tx = (own_tx >> i * 2) & IEEE80211_HE_MCS_NOT_SUPPORTED;
+		own_tx = (own_tx >> i * 2) & IEEE80211_HE_MCS_ANALT_SUPPORTED;
 
 		peer_rx = le16_to_cpu(*he_peer_rx);
-		peer_rx = (peer_rx >> i * 2) & IEEE80211_HE_MCS_NOT_SUPPORTED;
+		peer_rx = (peer_rx >> i * 2) & IEEE80211_HE_MCS_ANALT_SUPPORTED;
 
 		peer_tx = le16_to_cpu(*he_peer_tx);
-		peer_tx = (peer_tx >> i * 2) & IEEE80211_HE_MCS_NOT_SUPPORTED;
+		peer_tx = (peer_tx >> i * 2) & IEEE80211_HE_MCS_ANALT_SUPPORTED;
 
-		if (peer_tx != IEEE80211_HE_MCS_NOT_SUPPORTED) {
-			if (own_rx == IEEE80211_HE_MCS_NOT_SUPPORTED)
-				peer_tx = IEEE80211_HE_MCS_NOT_SUPPORTED;
+		if (peer_tx != IEEE80211_HE_MCS_ANALT_SUPPORTED) {
+			if (own_rx == IEEE80211_HE_MCS_ANALT_SUPPORTED)
+				peer_tx = IEEE80211_HE_MCS_ANALT_SUPPORTED;
 			else if (own_rx < peer_tx)
 				peer_tx = own_rx;
 		}
 
-		if (peer_rx != IEEE80211_HE_MCS_NOT_SUPPORTED) {
-			if (own_tx == IEEE80211_HE_MCS_NOT_SUPPORTED)
-				peer_rx = IEEE80211_HE_MCS_NOT_SUPPORTED;
+		if (peer_rx != IEEE80211_HE_MCS_ANALT_SUPPORTED) {
+			if (own_tx == IEEE80211_HE_MCS_ANALT_SUPPORTED)
+				peer_rx = IEEE80211_HE_MCS_ANALT_SUPPORTED;
 			else if (own_tx < peer_rx)
 				peer_rx = own_tx;
 		}
 
 		*he_peer_rx &=
-			~cpu_to_le16(IEEE80211_HE_MCS_NOT_SUPPORTED << i * 2);
+			~cpu_to_le16(IEEE80211_HE_MCS_ANALT_SUPPORTED << i * 2);
 		*he_peer_rx |= cpu_to_le16(peer_rx << i * 2);
 
 		*he_peer_tx &=
-			~cpu_to_le16(IEEE80211_HE_MCS_NOT_SUPPORTED << i * 2);
+			~cpu_to_le16(IEEE80211_HE_MCS_ANALT_SUPPORTED << i * 2);
 		*he_peer_tx |= cpu_to_le16(peer_tx << i * 2);
 	}
 }
@@ -233,7 +233,7 @@ ieee80211_he_spr_ie_to_bss_conf(struct ieee80211_vif *vif,
 	data = he_spr_ie_elem->optional;
 
 	if (he_spr_ie_elem->he_sr_control &
-	    IEEE80211_HE_SPR_NON_SRG_OFFSET_PRESENT)
+	    IEEE80211_HE_SPR_ANALN_SRG_OFFSET_PRESENT)
 		data++;
 	if (he_spr_ie_elem->he_sr_control &
 	    IEEE80211_HE_SPR_SRG_INFORMATION_PRESENT) {

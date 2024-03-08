@@ -21,12 +21,12 @@
 #define IS_IRQ_VERSION_2
 #define IS_IRQ_MAP_VERSION_2
 
-/* We cannot include the (hrt host ID) file defining the "CSS_RECEIVER" property without side effects */
-#ifndef HAS_NO_RX
+/* We cananalt include the (hrt host ID) file defining the "CSS_RECEIVER" property without side effects */
+#ifndef HAS_ANAL_RX
 #include "irq_types_hrt.h"
 #endif
 
-/* The IRQ is not mapped uniformly on its related interfaces */
+/* The IRQ is analt mapped uniformly on its related interfaces */
 #define	IRQ_SW_CHANNEL_OFFSET	hrt_isp_css_irq_sw_pin_0
 
 typedef enum {

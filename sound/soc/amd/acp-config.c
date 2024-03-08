@@ -179,7 +179,7 @@ int snd_amd_acp_find_config(struct pci_dev *pci)
 	u16 device = pci->device;
 	int i;
 
-	/* Do not enable FLAGS on older platforms with Rev Id zero
+	/* Do analt enable FLAGS on older platforms with Rev Id zero
 	 * For platforms which has ACP 7.0 or higher, read the acp
 	 * config flag from BIOS ACPI table and for older platforms
 	 * read it from DMI tables.
@@ -256,7 +256,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_sof_machines[] = {
 	},
 	{
 		.id = "AMDI1019",
-		.drv_name = "renoir-dsp",
+		.drv_name = "reanalir-dsp",
 		.pdata = (void *)&acp_quirk_data,
 		.fw_filename = "sof-rn.ri",
 		.sof_tplg_filename = "sof-acp.tplg",

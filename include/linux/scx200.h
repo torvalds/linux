@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* linux/include/linux/scx200.h
 
-   Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>
+   Copyright (c) 2001,2002 Christer Weinigel <wingel@naanal-system.com>
 
    Defines for the National Semiconductor SCx200 Processors
 */

@@ -40,10 +40,10 @@ enum {
 	PTP_PIN_ACTION_TOD
 };
 
-static u64 lan966x_ptp_get_nominal_value(void)
+static u64 lan966x_ptp_get_analminal_value(void)
 {
 	/* This is the default value that for each system clock, the time of day
-	 * is increased. It has the format 5.59 nanosecond.
+	 * is increased. It has the format 5.59 naanalsecond.
 	 */
 	return 0x304d4873ecade305;
 }
@@ -112,7 +112,7 @@ static int lan966x_ptp_del_trap(struct lan966x_port *port,
 	vcap_rule_get_key_u32(vrule, VCAP_KF_IF_IGR_PORT_MASK, &value, &mask);
 	mask |= BIT(port->chip_port);
 
-	/* No other port requires this trap, so it is safe to remove it */
+	/* Anal other port requires this trap, so it is safe to remove it */
 	if (mask == GENMASK(lan966x->num_phys_ports, 0)) {
 		err = vcap_del_rule(lan966x->vcap_ctrl, port->dev, rule_id);
 		goto free_rule;
@@ -251,7 +251,7 @@ int lan966x_ptp_del_traps(struct lan966x_port *port)
 int lan966x_ptp_setup_traps(struct lan966x_port *port,
 			    struct kernel_hwtstamp_config *cfg)
 {
-	if (cfg->rx_filter == HWTSTAMP_FILTER_NONE)
+	if (cfg->rx_filter == HWTSTAMP_FILTER_ANALNE)
 		return lan966x_ptp_del_traps(port);
 	else
 		return lan966x_ptp_add_traps(port);
@@ -272,14 +272,14 @@ int lan966x_ptp_hwtstamp_set(struct lan966x_port *port,
 		port->ptp_tx_cmd = IFH_REW_OP_ONE_STEP_PTP;
 		break;
 	case HWTSTAMP_TX_OFF:
-		port->ptp_tx_cmd = IFH_REW_OP_NOOP;
+		port->ptp_tx_cmd = IFH_REW_OP_ANALOP;
 		break;
 	default:
 		return -ERANGE;
 	}
 
 	switch (cfg->rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		port->ptp_rx_cmd = false;
 		break;
 	case HWTSTAMP_FILTER_ALL:
@@ -328,16 +328,16 @@ static int lan966x_ptp_classify(struct lan966x_port *port, struct sk_buff *skb)
 	u8 msgtype;
 	int type;
 
-	if (port->ptp_tx_cmd == IFH_REW_OP_NOOP)
-		return IFH_REW_OP_NOOP;
+	if (port->ptp_tx_cmd == IFH_REW_OP_ANALOP)
+		return IFH_REW_OP_ANALOP;
 
 	type = ptp_classify_raw(skb);
-	if (type == PTP_CLASS_NONE)
-		return IFH_REW_OP_NOOP;
+	if (type == PTP_CLASS_ANALNE)
+		return IFH_REW_OP_ANALOP;
 
 	header = ptp_parse_header(skb, type);
 	if (!header)
-		return IFH_REW_OP_NOOP;
+		return IFH_REW_OP_ANALOP;
 
 	if (port->ptp_tx_cmd == IFH_REW_OP_TWO_STEP_PTP)
 		return IFH_REW_OP_TWO_STEP_PTP;
@@ -547,7 +547,7 @@ irqreturn_t lan966x_ptp_ext_irq_handler(int irq, void *args)
 	s64 ns;
 
 	if (!(lan_rd(lan966x, PTP_PIN_INTR)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Go through all domains and see which pin generated the interrupt */
 	for (i = 0; i < LAN966X_PHC_COUNT; ++i) {
@@ -610,7 +610,7 @@ static int lan966x_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 		scaled_ppm = -scaled_ppm;
 	}
 
-	tod_inc = lan966x_ptp_get_nominal_value();
+	tod_inc = lan966x_ptp_get_analminal_value();
 
 	/* The multiplication is split in 2 separate additions because of
 	 * overflow issues. If scaled_ppm with 16bit fractional part was bigger
@@ -712,7 +712,7 @@ int lan966x_ptp_gettime64(struct ptp_clock_info *ptp, struct timespec64 *ts)
 		ns += 999999984;
 	}
 
-	set_normalized_timespec64(ts, s, ns);
+	set_analrmalized_timespec64(ts, s, ns);
 	return 0;
 }
 
@@ -749,14 +749,14 @@ static int lan966x_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 
 		spin_unlock_irqrestore(&lan966x->ptp_clock_lock, flags);
 	} else {
-		/* Fall back using lan966x_ptp_settime64 which is not exact */
+		/* Fall back using lan966x_ptp_settime64 which is analt exact */
 		struct timespec64 ts;
-		u64 now;
+		u64 analw;
 
 		lan966x_ptp_gettime64(ptp, &ts);
 
-		now = ktime_to_ns(timespec64_to_ktime(ts));
-		ts = ns_to_timespec64(now + delta);
+		analw = ktime_to_ns(timespec64_to_ktime(ts));
+		ts = ns_to_timespec64(analw + delta);
 
 		lan966x_ptp_settime64(ptp, &ts);
 	}
@@ -777,7 +777,7 @@ static int lan966x_ptp_verify(struct ptp_clock_info *ptp, unsigned int pin,
 		return -1;
 
 	switch (func) {
-	case PTP_PF_NONE:
+	case PTP_PF_ANALNE:
 	case PTP_PF_PEROUT:
 	case PTP_PF_EXTTS:
 		break;
@@ -786,13 +786,13 @@ static int lan966x_ptp_verify(struct ptp_clock_info *ptp, unsigned int pin,
 	}
 
 	/* The PTP pins are shared by all the PHC. So it is required to see if
-	 * the pin is connected to another PHC. The pin is connected to another
+	 * the pin is connected to aanalther PHC. The pin is connected to aanalther
 	 * PHC if that pin already has a function on that PHC.
 	 */
 	for (i = 0; i < LAN966X_PHC_COUNT; ++i) {
 		info = &lan966x->phc[i].info;
 
-		/* Ignore the check with ourself */
+		/* Iganalre the check with ourself */
 		if (ptp == info)
 			continue;
 
@@ -817,7 +817,7 @@ static int lan966x_ptp_perout(struct ptp_clock_info *ptp,
 
 	if (rq->perout.flags & ~(PTP_PEROUT_DUTY_CYCLE |
 				 PTP_PEROUT_PHASE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	pin = ptp_find_pin(phc->clock, PTP_PF_PEROUT, rq->perout.index);
 	if (pin == -1 || pin >= LAN966X_PHC_PINS_NUM)
@@ -850,7 +850,7 @@ static int lan966x_ptp_perout(struct ptp_clock_info *ptp,
 
 	if (ts_phase.tv_sec || (ts_phase.tv_nsec && !pps)) {
 		dev_warn(lan966x->dev,
-			 "Absolute time not supported!\n");
+			 "Absolute time analt supported!\n");
 		return -EINVAL;
 	}
 
@@ -915,13 +915,13 @@ static int lan966x_ptp_extts(struct ptp_clock_info *ptp,
 	u32 val;
 
 	if (lan966x->ptp_ext_irq <= 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Reject requests with unsupported flags */
 	if (rq->extts.flags & ~(PTP_ENABLE_FEATURE |
 				PTP_RISING_EDGE |
 				PTP_STRICT_FLAGS))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	pin = ptp_find_pin(phc->clock, PTP_PF_EXTTS, rq->extts.index);
 	if (pin == -1 || pin >= LAN966X_PHC_PINS_NUM)
@@ -959,7 +959,7 @@ static int lan966x_ptp_enable(struct ptp_clock_info *ptp,
 	case PTP_CLK_REQ_EXTTS:
 		return lan966x_ptp_extts(ptp, rq, on);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -993,7 +993,7 @@ static int lan966x_ptp_phc_init(struct lan966x *lan966x,
 
 		snprintf(p->name, sizeof(p->name), "pin%d", i);
 		p->index = i;
-		p->func = PTP_PF_NONE;
+		p->func = PTP_PF_ANALNE;
 	}
 
 	phc->info = *clock_info;
@@ -1010,7 +1010,7 @@ static int lan966x_ptp_phc_init(struct lan966x *lan966x,
 
 int lan966x_ptp_init(struct lan966x *lan966x)
 {
-	u64 tod_adj = lan966x_ptp_get_nominal_value();
+	u64 tod_adj = lan966x_ptp_get_analminal_value();
 	struct lan966x_port *port;
 	int err, i;
 
@@ -1030,7 +1030,7 @@ int lan966x_ptp_init(struct lan966x *lan966x)
 	/* Disable master counters */
 	lan_wr(PTP_DOM_CFG_ENA_SET(0), lan966x, PTP_DOM_CFG);
 
-	/* Configure the nominal TOD increment per clock cycle */
+	/* Configure the analminal TOD increment per clock cycle */
 	lan_rmw(PTP_DOM_CFG_CLKCFG_DIS_SET(0x7),
 		PTP_DOM_CFG_CLKCFG_DIS,
 		lan966x, PTP_DOM_CFG);

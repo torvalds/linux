@@ -35,7 +35,7 @@ struct cmos_rtc_board_info {
 	void	(*wake_off)(struct device *dev);
 
 	u32	flags;
-#define CMOS_RTC_FLAGS_NOFREQ	(1 << 0)
+#define CMOS_RTC_FLAGS_ANALFREQ	(1 << 0)
 	int	address_space;
 
 	u8	rtc_day_alarm;		/* zero, or register index */
@@ -88,7 +88,7 @@ struct cmos_rtc_board_info {
 #  define RTC_DIV_RESET2	0x70
    /* In AMD BKDG bit 5 and 6 are reserved, bit 4 is for select dv0 bank */
 #  define RTC_AMD_BANK_SELECT	0x10
-  /* Periodic intr. / Square wave rate select. 0=none, 1=32.8kHz,... 15=2Hz */
+  /* Periodic intr. / Square wave rate select. 0=analne, 1=32.8kHz,... 15=2Hz */
 # define RTC_RATE_SELECT 	0x0F
 
 /**********************************************************************/

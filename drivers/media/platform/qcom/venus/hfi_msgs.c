@@ -20,7 +20,7 @@
 #define SMEM_IMG_OFFSET_VENUS	(14 * 128)
 
 static void event_seq_changed(struct venus_core *core, struct venus_inst *inst,
-			      struct hfi_msg_event_notify_pkt *pkt)
+			      struct hfi_msg_event_analtify_pkt *pkt)
 {
 	enum hfi_version ver = core->res->hfi_version;
 	struct hfi_event_data event = {0};
@@ -36,7 +36,7 @@ static void event_seq_changed(struct venus_core *core, struct venus_inst *inst,
 	u8 *data_ptr;
 	u32 ptype;
 
-	inst->error = HFI_ERR_NONE;
+	inst->error = HFI_ERR_ANALNE;
 
 	switch (pkt->event_data1) {
 	case HFI_EVENT_DATA_SEQUENCE_CHANGED_SUFFICIENT_BUF_RESOURCES:
@@ -124,12 +124,12 @@ static void event_seq_changed(struct venus_core *core, struct venus_inst *inst,
 	} while (num_properties_changed > 0);
 
 done:
-	inst->ops->event_notify(inst, EVT_SYS_EVENT_CHANGE, &event);
+	inst->ops->event_analtify(inst, EVT_SYS_EVENT_CHANGE, &event);
 }
 
 static void event_release_buffer_ref(struct venus_core *core,
 				     struct venus_inst *inst,
-				     struct hfi_msg_event_notify_pkt *pkt)
+				     struct hfi_msg_event_analtify_pkt *pkt)
 {
 	struct hfi_event_data event = {0};
 	struct hfi_msg_event_release_buffer_ref_pkt *data;
@@ -142,12 +142,12 @@ static void event_release_buffer_ref(struct venus_core *core,
 	event.extradata_buffer = data->extradata_buffer;
 	event.tag = data->output_tag;
 
-	inst->error = HFI_ERR_NONE;
-	inst->ops->event_notify(inst, EVT_SYS_EVENT_CHANGE, &event);
+	inst->error = HFI_ERR_ANALNE;
+	inst->ops->event_analtify(inst, EVT_SYS_EVENT_CHANGE, &event);
 }
 
 static void event_sys_error(struct venus_core *core, u32 event,
-			    struct hfi_msg_event_notify_pkt *pkt)
+			    struct hfi_msg_event_analtify_pkt *pkt)
 {
 	if (pkt)
 		dev_dbg(core->dev, VDBGH
@@ -155,12 +155,12 @@ static void event_sys_error(struct venus_core *core, u32 event,
 			pkt->shdr.session_id, pkt->event_data1,
 			pkt->event_data2);
 
-	core->core_ops->event_notify(core, event);
+	core->core_ops->event_analtify(core, event);
 }
 
 static void
 event_session_error(struct venus_core *core, struct venus_inst *inst,
-		    struct hfi_msg_event_notify_pkt *pkt)
+		    struct hfi_msg_event_analtify_pkt *pkt)
 {
 	struct device *dev = core->dev;
 
@@ -171,12 +171,12 @@ event_session_error(struct venus_core *core, struct venus_inst *inst,
 		return;
 
 	switch (pkt->event_data1) {
-	/* non fatal session errors */
+	/* analn fatal session errors */
 	case HFI_ERR_SESSION_INVALID_SCALE_FACTOR:
 	case HFI_ERR_SESSION_UNSUPPORT_BUFFERTYPE:
 	case HFI_ERR_SESSION_UNSUPPORTED_SETTING:
-	case HFI_ERR_SESSION_UPSCALE_NOT_SUPPORTED:
-		inst->error = HFI_ERR_NONE;
+	case HFI_ERR_SESSION_UPSCALE_ANALT_SUPPORTED:
+		inst->error = HFI_ERR_ANALNE;
 		break;
 	default:
 		dev_err(dev, "session error: event id:%x (%x), session id:%x\n",
@@ -184,15 +184,15 @@ event_session_error(struct venus_core *core, struct venus_inst *inst,
 			pkt->shdr.session_id);
 
 		inst->error = pkt->event_data1;
-		inst->ops->event_notify(inst, EVT_SESSION_ERROR, NULL);
+		inst->ops->event_analtify(inst, EVT_SESSION_ERROR, NULL);
 		break;
 	}
 }
 
-static void hfi_event_notify(struct venus_core *core, struct venus_inst *inst,
+static void hfi_event_analtify(struct venus_core *core, struct venus_inst *inst,
 			     void *packet)
 {
-	struct hfi_msg_event_notify_pkt *pkt = packet;
+	struct hfi_msg_event_analtify_pkt *pkt = packet;
 
 	if (!packet)
 		return;
@@ -225,7 +225,7 @@ static void hfi_sys_init_done(struct venus_core *core, struct venus_inst *inst,
 	u32 error;
 
 	error = pkt->error_type;
-	if (error != HFI_ERR_NONE)
+	if (error != HFI_ERR_ANALNE)
 		goto done;
 
 	if (!pkt->num_properties) {
@@ -269,17 +269,17 @@ sys_get_prop_image_version(struct venus_core *core,
 		return;
 
 	ret = sscanf(img_ver, "14:video-firmware.%u.%u-%u",
-		     &core->venus_ver.major, &core->venus_ver.minor, &core->venus_ver.rev);
+		     &core->venus_ver.major, &core->venus_ver.mianalr, &core->venus_ver.rev);
 	if (ret)
 		goto done;
 
 	ret = sscanf(img_ver, "14:VIDEO.VPU.%u.%u-%u",
-		     &core->venus_ver.major, &core->venus_ver.minor, &core->venus_ver.rev);
+		     &core->venus_ver.major, &core->venus_ver.mianalr, &core->venus_ver.rev);
 	if (ret)
 		goto done;
 
 	ret = sscanf(img_ver, "14:VIDEO.VE.%u.%u-%u",
-		     &core->venus_ver.major, &core->venus_ver.minor, &core->venus_ver.rev);
+		     &core->venus_ver.major, &core->venus_ver.mianalr, &core->venus_ver.rev);
 	if (ret)
 		goto done;
 
@@ -287,8 +287,8 @@ sys_get_prop_image_version(struct venus_core *core,
 	return;
 
 done:
-	dev_dbg(dev, VDBGL "F/W version: %s, major %u, minor %u, revision %u\n",
-		img_ver, core->venus_ver.major, core->venus_ver.minor, core->venus_ver.rev);
+	dev_dbg(dev, VDBGL "F/W version: %s, major %u, mianalr %u, revision %u\n",
+		img_ver, core->venus_ver.major, core->venus_ver.mianalr, core->venus_ver.rev);
 
 	smem_tbl_ptr = qcom_smem_get(QCOM_SMEM_HOST_ANY,
 		SMEM_IMG_VER_TBL, &smem_blk_sz);
@@ -304,7 +304,7 @@ static void hfi_sys_property_info(struct venus_core *core,
 	struct device *dev = core->dev;
 
 	if (!pkt->num_properties) {
-		dev_dbg(dev, VDBGL "no properties\n");
+		dev_dbg(dev, VDBGL "anal properties\n");
 		return;
 	}
 
@@ -313,7 +313,7 @@ static void hfi_sys_property_info(struct venus_core *core,
 		sys_get_prop_image_version(core, pkt);
 		break;
 	default:
-		dev_dbg(dev, VDBGL "unknown property data\n");
+		dev_dbg(dev, VDBGL "unkanalwn property data\n");
 		break;
 	}
 }
@@ -333,7 +333,7 @@ static void hfi_sys_ping_done(struct venus_core *core, struct venus_inst *inst,
 {
 	struct hfi_msg_sys_ping_ack_pkt *pkt = packet;
 
-	core->error = HFI_ERR_NONE;
+	core->error = HFI_ERR_ANALNE;
 
 	if (pkt->client_data != 0xbeef)
 		core->error = HFI_ERR_SYS_FATAL;
@@ -373,7 +373,7 @@ session_get_prop_profile_level(struct hfi_msg_session_property_info_pkt *pkt,
 	profile_level->profile = hfi->profile;
 	profile_level->level = hfi->level;
 
-	return HFI_ERR_NONE;
+	return HFI_ERR_ANALNE;
 }
 
 static unsigned int
@@ -405,7 +405,7 @@ session_get_prop_buf_req(struct hfi_msg_session_property_info_pkt *pkt,
 		buf_req++;
 	}
 
-	return HFI_ERR_NONE;
+	return HFI_ERR_ANALNE;
 }
 
 static void hfi_session_prop_info(struct venus_core *core,
@@ -414,11 +414,11 @@ static void hfi_session_prop_info(struct venus_core *core,
 	struct hfi_msg_session_property_info_pkt *pkt = packet;
 	struct device *dev = core->dev;
 	union hfi_get_property *hprop = &inst->hprop;
-	unsigned int error = HFI_ERR_NONE;
+	unsigned int error = HFI_ERR_ANALNE;
 
 	if (!pkt->num_properties) {
 		error = HFI_ERR_SESSION_INVALID_PARAMETER;
-		dev_err(dev, "%s: no properties\n", __func__);
+		dev_err(dev, "%s: anal properties\n", __func__);
 		goto done;
 	}
 
@@ -435,7 +435,7 @@ static void hfi_session_prop_info(struct venus_core *core,
 	case HFI_PROPERTY_CONFIG_VDEC_ENTROPY:
 		break;
 	default:
-		dev_dbg(dev, VDBGM "unknown property id:%x\n", pkt->property);
+		dev_dbg(dev, VDBGM "unkanalwn property id:%x\n", pkt->property);
 		return;
 	}
 
@@ -452,7 +452,7 @@ static void hfi_session_init_done(struct venus_core *core,
 	u32 error;
 
 	error = pkt->error_type;
-	if (error != HFI_ERR_NONE)
+	if (error != HFI_ERR_ANALNE)
 		goto done;
 
 	if (!IS_V1(core))
@@ -563,7 +563,7 @@ static void hfi_session_ftb_done(struct venus_core *core,
 	case HFI_PICTURE_B:
 		flags |= V4L2_BUF_FLAG_BFRAME;
 		break;
-	case HFI_FRAME_NOTCODED:
+	case HFI_FRAME_ANALTCODED:
 	case HFI_UNUSED_PICT:
 	case HFI_FRAME_YUV:
 	default:
@@ -653,9 +653,9 @@ struct hfi_done_handler {
 };
 
 static const struct hfi_done_handler handlers[] = {
-	{.pkt = HFI_MSG_EVENT_NOTIFY,
-	 .pkt_sz = sizeof(struct hfi_msg_event_notify_pkt),
-	 .done = hfi_event_notify,
+	{.pkt = HFI_MSG_EVENT_ANALTIFY,
+	 .pkt_sz = sizeof(struct hfi_msg_event_analtify_pkt),
+	 .done = hfi_event_analtify,
 	},
 	{.pkt = HFI_MSG_SYS_INIT,
 	 .pkt_sz = sizeof(struct hfi_msg_sys_init_done_pkt),
@@ -798,15 +798,15 @@ u32 hfi_process_msg_packet(struct venus_core *core, struct hfi_pkt_hdr *hdr)
 		inst = to_instance(core, pkt->shdr.session_id);
 
 		if (!inst)
-			dev_warn(dev, "no valid instance(pkt session_id:%x, pkt:%x)\n",
+			dev_warn(dev, "anal valid instance(pkt session_id:%x, pkt:%x)\n",
 				 pkt->shdr.session_id,
 				 handler ? handler->pkt : 0);
 
 		/*
-		 * Event of type HFI_EVENT_SYS_ERROR will not have any session
+		 * Event of type HFI_EVENT_SYS_ERROR will analt have any session
 		 * associated with it
 		 */
-		if (!inst && hdr->pkt_type != HFI_MSG_EVENT_NOTIFY) {
+		if (!inst && hdr->pkt_type != HFI_MSG_EVENT_ANALTIFY) {
 			dev_err(dev, "got invalid session id:%x\n",
 				pkt->shdr.session_id);
 			goto invalid_session;

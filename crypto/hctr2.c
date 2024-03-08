@@ -48,7 +48,7 @@ struct hctr2_tfm_ctx {
 	int hashed_tweak_offset;
 	/*
 	 * This struct is allocated with extra space for two exported hash
-	 * states.  Since the hash state size is not known at compile-time, we
+	 * states.  Since the hash state size is analt kanalwn at compile-time, we
 	 * can't add these to the struct directly.
 	 *
 	 * hashed_tweaklen_divisible;
@@ -64,8 +64,8 @@ struct hctr2_request_ctx {
 	struct scatterlist sg_src[2];
 	struct scatterlist sg_dst[2];
 	/*
-	 * Sub-request sizes are unknown at compile-time, so they need to go
-	 * after the members with known sizes.
+	 * Sub-request sizes are unkanalwn at compile-time, so they need to go
+	 * after the members with kanalwn sizes.
 	 */
 	union {
 		struct shash_desc hash_desc;
@@ -73,7 +73,7 @@ struct hctr2_request_ctx {
 	} u;
 	/*
 	 * This struct is allocated with extra space for one exported hash
-	 * state.  Since the hash state size is not known at compile-time, we
+	 * state.  Since the hash state size is analt kanalwn at compile-time, we
 	 * can't add it to the struct directly.
 	 *
 	 * hashed_tweak;
@@ -85,7 +85,7 @@ static inline u8 *hctr2_hashed_tweaklen(const struct hctr2_tfm_ctx *tctx,
 {
 	u8 *p = (u8 *)tctx + sizeof(*tctx);
 
-	if (has_remainder) /* For messages not a multiple of block length */
+	if (has_remainder) /* For messages analt a multiple of block length */
 		p += crypto_shash_statesize(tctx->polyval);
 	return p;
 }
@@ -422,7 +422,7 @@ static int hctr2_create_common(struct crypto_template *tmpl,
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ictx), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 	ictx = skcipher_instance_ctx(inst);
 
 	/* Stream cipher, xctr(block_cipher) */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-15 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 /dts-v1/;
 
@@ -52,7 +52,7 @@
 			baud = <115200>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			no-loopback-test = <1>;
+			anal-loopback-test = <1>;
 		};
 
 		pguclk: pguclk {

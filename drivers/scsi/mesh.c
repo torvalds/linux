@@ -17,7 +17,7 @@
  * To do:
  * - handle aborts correctly
  * - retry arbitration if lost (unless higher levels do this for us)
- * - power down the chip when no device is detected
+ * - power down the chip when anal device is detected
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -65,15 +65,15 @@ static int debug_targets = 0;	/* print debug for these targets */
 static int init_reset_delay = CONFIG_SCSI_MESH_RESET_DELAY_MS;
 
 module_param(sync_rate, int, 0);
-MODULE_PARM_DESC(sync_rate, "Synchronous rate (0..10, 0=async)");
+MODULE_PARM_DESC(sync_rate, "Synchroanalus rate (0..10, 0=async)");
 module_param(sync_targets, int, 0);
-MODULE_PARM_DESC(sync_targets, "Bitmask of targets allowed to set synchronous");
+MODULE_PARM_DESC(sync_targets, "Bitmask of targets allowed to set synchroanalus");
 module_param(resel_targets, int, 0);
 MODULE_PARM_DESC(resel_targets, "Bitmask of targets allowed to set disconnect");
 module_param(debug_targets, int, 0644);
 MODULE_PARM_DESC(debug_targets, "Bitmask of debugged targets");
 module_param(init_reset_delay, int, 0);
-MODULE_PARM_DESC(init_reset_delay, "Initial bus reset delay (0=no reset)");
+MODULE_PARM_DESC(init_reset_delay, "Initial bus reset delay (0=anal reset)");
 
 static int mesh_sync_period = 100;
 static int mesh_sync_offset = 0;
@@ -114,7 +114,7 @@ enum mesh_phase {
 };
 
 enum msg_phase {
-	msg_none,
+	msg_analne,
 	msg_out,
 	msg_out_xxx,
 	msg_out_last,
@@ -343,7 +343,7 @@ static inline void mesh_flush_io(volatile struct mesh_regs __iomem *mr)
 
 
 /* Called with  meshinterrupt disabled, initialize the chipset
- * and eventually do the initial bus reset. The lock must not be
+ * and eventually do the initial bus reset. The lock must analt be
  * held since we can schedule.
  */
 static void mesh_init(struct mesh_state *ms)
@@ -389,7 +389,7 @@ static void mesh_init(struct mesh_state *ms)
 	out_8(&mr->sequence, SEQ_ENBRESEL);
 
 	ms->phase = idle;
-	ms->msgphase = msg_none;
+	ms->msgphase = msg_analne;
 }
 
 
@@ -417,7 +417,7 @@ static void mesh_start_cmd(struct mesh_state *ms, struct scsi_cmnd *cmd)
 		panic("mesh: double DMA start !\n");
 
 	ms->phase = arbitrating;
-	ms->msgphase = msg_none;
+	ms->msgphase = msg_analne;
 	ms->data_ptr = 0;
 	ms->dma_started = 0;
 	ms->n_msgout = 0;
@@ -529,7 +529,7 @@ static void mesh_start_cmd(struct mesh_state *ms, struct scsi_cmnd *cmd)
 #ifndef MESH_MULTIPLE_HOSTS
 		if (in_8(&mr->interrupt) == 0 && (in_8(&mr->bus_status1) & BS1_SEL)
 		    && (in_8(&mr->bus_status0) & BS0_IO)) {
-			printk(KERN_ERR "mesh: controller not responding"
+			printk(KERN_ERR "mesh: controller analt responding"
 			       " to reselection!\n");
 			/*
 			 * If this is a target reselecting us, and the
@@ -637,9 +637,9 @@ static void set_sdtr(struct mesh_state *ms, int period, int offset)
 
 	tp->sdtr_state = sdtr_done;
 	if (offset == 0) {
-		/* asynchronous */
+		/* asynchroanalus */
 		if (SYNC_OFF(tp->sync_params))
-			printk(KERN_INFO "mesh: target %d now asynchronous\n",
+			printk(KERN_INFO "mesh: target %d analw asynchroanalus\n",
 			       ms->conn_tgt);
 		tp->sync_params = ASYNC_PARAMS;
 		out_8(&mr->sync_params, ASYNC_PARAMS);
@@ -666,7 +666,7 @@ static void set_sdtr(struct mesh_state *ms, int period, int offset)
 		offset = 15;	/* can't happen */
 	tp->sync_params = SYNC_PARAMS(offset, v);
 	out_8(&mr->sync_params, tp->sync_params);
-	printk(KERN_INFO "mesh: target %d synchronous at %d.%d MB/s\n",
+	printk(KERN_INFO "mesh: target %d synchroanalus at %d.%d MB/s\n",
 	       ms->conn_tgt, tr/10, tr%10);
 }
 
@@ -683,7 +683,7 @@ static void start_phase(struct mesh_state *ms)
 	out_8(&mr->interrupt, INT_ERROR | INT_EXCEPTION | INT_CMDDONE);
 	seq = use_active_neg + (ms->n_msgout? SEQ_ATN: 0);
 	switch (ms->msgphase) {
-	case msg_none:
+	case msg_analne:
 		break;
 
 	case msg_in:
@@ -703,7 +703,7 @@ static void start_phase(struct mesh_state *ms)
 			printk(KERN_ERR "mesh: msg_out but n_msgout=%d\n",
 			       ms->n_msgout);
 			mesh_dump_regs(ms);
-			ms->msgphase = msg_none;
+			ms->msgphase = msg_analne;
 			break;
 		}
 		if (ALLOW_DEBUG(ms->conn_tgt)) {
@@ -720,7 +720,7 @@ static void start_phase(struct mesh_state *ms)
 		mesh_flush_io(mr);
 		udelay(1);
 		/*
-		 * If ATN is not already asserted, we assert it, then
+		 * If ATN is analt already asserted, we assert it, then
 		 * issue a SEQ_MSGOUT to get the mesh to drop ACK.
 		 */
 		if ((in_8(&mr->bus_status0) & BS0_ATN) == 0) {
@@ -738,7 +738,7 @@ static void start_phase(struct mesh_state *ms)
 			 * We can't issue the SEQ_MSGOUT without ATN
 			 * until the target has asserted REQ.  The logic
 			 * in cmd_complete handles both situations:
-			 * REQ already asserted or not.
+			 * REQ already asserted or analt.
 			 */
 			cmd_complete(ms);
 		} else {
@@ -919,7 +919,7 @@ static void reselected(struct mesh_state *ms)
 	 * Find out who reselected us.
 	 */
 	if (in_8(&mr->fifo_count) == 0) {
-		printk(KERN_ERR "mesh: reselection but nothing in fifo?\n");
+		printk(KERN_ERR "mesh: reselection but analthing in fifo?\n");
 		ms->conn_tgt = ms->host->this_id;
 		goto bogus;
 	}
@@ -951,7 +951,7 @@ static void reselected(struct mesh_state *ms)
 	}
 	ms->current_req = tp->current_req;
 	if (tp->current_req == NULL) {
-		printk(KERN_ERR "mesh: reselected by tgt %d but no cmd!\n", t);
+		printk(KERN_ERR "mesh: reselected by tgt %d but anal cmd!\n", t);
 		goto bogus;
 	}
 	ms->data_ptr = tp->saved_ptr;
@@ -1001,7 +1001,7 @@ static void handle_reset(struct mesh_state *ms)
 		scsi_done(cmd);
 	}
 	ms->phase = idle;
-	ms->msgphase = msg_none;
+	ms->msgphase = msg_analne;
 	out_8(&mr->interrupt, INT_ERROR | INT_EXCEPTION | INT_CMDDONE);
 	out_8(&mr->sequence, SEQ_FLUSHFIFO);
        	mesh_flush_io(mr);
@@ -1042,7 +1042,7 @@ static void handle_error(struct mesh_state *ms)
 		if (ms->dma_started)
 			halt_dma(ms);
 		handle_reset(ms);
-		/* request_q is empty, no point in mesh_start() */
+		/* request_q is empty, anal point in mesh_start() */
 		return;
 	}
 	if (err & ERR_UNEXPDISC) {
@@ -1104,7 +1104,7 @@ static void handle_error(struct mesh_state *ms)
 		printk(KERN_ERR "mesh: sequence error (err=%x exc=%x)\n",
 		       err, exc);
 	} else {
-		printk(KERN_ERR "mesh: unknown error %x (exc=%x)\n", err, exc);
+		printk(KERN_ERR "mesh: unkanalwn error %x (exc=%x)\n", err, exc);
 	}
 	mesh_dump_regs(ms);
 	dumplog(ms, ms->conn_tgt);
@@ -1188,7 +1188,7 @@ static void handle_msgin(struct mesh_state *ms)
 				/* reply with an SDTR */
 				add_sdtr_msg(ms);
 				/* limit period to at least his value,
-				   offset to no more than his */
+				   offset to anal more than his */
 				if (ms->msgout[3] < ms->msgin[3])
 					ms->msgout[3] = ms->msgin[3];
 				if (ms->msgout[4] > ms->msgin[4])
@@ -1218,7 +1218,7 @@ static void handle_msgin(struct mesh_state *ms)
 		if (tp->sdtr_state == sdtr_sent)
 			set_sdtr(ms, 0, 0);
 		break;
-	case NOP:
+	case ANALP:
 		break;
 	default:
 		if (IDENTIFY_BASE <= code && code <= IDENTIFY_BASE + 7) {
@@ -1334,7 +1334,7 @@ static void halt_dma(struct mesh_state *ms)
 	     MKWORD(0, mr->fifo_count, 0, nb));
 	if (ms->tgts[ms->conn_tgt].data_goes_out)
 		nb += mr->fifo_count;
-	/* nb is the number of bytes not yet transferred
+	/* nb is the number of bytes analt yet transferred
 	   to/from the target. */
 	ms->data_ptr -= nb;
 	dlog(ms, "data_ptr %x", ms->data_ptr);
@@ -1391,7 +1391,7 @@ static void phase_mismatch(struct mesh_state *ms)
 		udelay(1);
 	}
 
-	ms->msgphase = msg_none;
+	ms->msgphase = msg_analne;
 	switch (phase) {
 	case BP_DATAIN:
 		ms->tgts[ms->conn_tgt].data_goes_out = 0;
@@ -1419,8 +1419,8 @@ static void phase_mismatch(struct mesh_state *ms)
 			} else {
 				if (ms->last_n_msgout == 0) {
 					printk(KERN_DEBUG
-					       "mesh: no msg to repeat\n");
-					ms->msgout[0] = NOP;
+					       "mesh: anal msg to repeat\n");
+					ms->msgout[0] = ANALP;
 					ms->last_n_msgout = 1;
 				}
 				ms->n_msgout = ms->last_n_msgout;
@@ -1428,7 +1428,7 @@ static void phase_mismatch(struct mesh_state *ms)
 		}
 		break;
 	default:
-		printk(KERN_DEBUG "mesh: unknown scsi phase %x\n", phase);
+		printk(KERN_DEBUG "mesh: unkanalwn scsi phase %x\n", phase);
 		ms->stat = DID_ERROR;
 		mesh_done(ms, 1);
 		return;
@@ -1461,7 +1461,7 @@ static void cmd_complete(struct mesh_state *ms)
 			out_8(&mr->count_lo, n - ms->n_msgin);
 			out_8(&mr->sequence, SEQ_MSGIN + seq);
 		} else {
-			ms->msgphase = msg_none;
+			ms->msgphase = msg_analne;
 			handle_msgin(ms);
 			start_phase(ms);
 		}
@@ -1529,11 +1529,11 @@ static void cmd_complete(struct mesh_state *ms)
 	case msg_out_last:
 		ms->last_n_msgout = ms->n_msgout;
 		ms->n_msgout = 0;
-		ms->msgphase = ms->expect_reply? msg_in: msg_none;
+		ms->msgphase = ms->expect_reply? msg_in: msg_analne;
 		start_phase(ms);
 		break;
 
-	case msg_none:
+	case msg_analne:
 		switch (ms->phase) {
 		case idle:
 			printk(KERN_ERR "mesh: interrupt in idle phase?\n");
@@ -1566,7 +1566,7 @@ static void cmd_complete(struct mesh_state *ms)
 			while ((in_8(&mr->bus_status0) & BS0_REQ) == 0) {
 				if (--t < 0) {
 					dlog(ms, "impatient for req", ms->n_msgout);
-					ms->msgphase = msg_none;
+					ms->msgphase = msg_analne;
 					break;
 				}
 				udelay(1);
@@ -1743,10 +1743,10 @@ static void set_mesh_power(struct mesh_state *ms, int state)
 	if (!machine_is(powermac))
 		return;
 	if (state) {
-		pmac_call_feature(PMAC_FTR_MESH_ENABLE, macio_get_of_node(ms->mdev), 0, 1);
+		pmac_call_feature(PMAC_FTR_MESH_ENABLE, macio_get_of_analde(ms->mdev), 0, 1);
 		msleep(200);
 	} else {
-		pmac_call_feature(PMAC_FTR_MESH_ENABLE, macio_get_of_node(ms->mdev), 0, 0);
+		pmac_call_feature(PMAC_FTR_MESH_ENABLE, macio_get_of_analde(ms->mdev), 0, 0);
 		msleep(10);
 	}
 }
@@ -1806,7 +1806,7 @@ static int mesh_resume(struct macio_dev *mdev)
 #endif /* CONFIG_PM */
 
 /*
- * If we leave drives set for synchronous transfers (especially
+ * If we leave drives set for synchroanalus transfers (especially
  * CDROMs), and reboot to MacOS, it gets confused, poor thing.
  * So, on reboot we reset the SCSI bus.
  */
@@ -1846,7 +1846,7 @@ static const struct scsi_host_template mesh_template = {
 
 static int mesh_probe(struct macio_dev *mdev, const struct of_device_id *match)
 {
-	struct device_node *mesh = macio_get_of_node(mdev);
+	struct device_analde *mesh = macio_get_of_analde(mdev);
 	struct pci_dev* pdev = macio_get_pci_dev(mdev);
 	int tgt, minper;
 	const int *cfp;
@@ -1869,7 +1869,7 @@ static int mesh_probe(struct macio_dev *mdev, const struct of_device_id *match)
        		printk(KERN_ERR "mesh: expected 2 addrs and 2 intrs"
 	       	       " (got %d,%d)\n", macio_resource_count(mdev),
 		       macio_irq_count(mdev));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (macio_request_resources(mdev, "mesh") != 0) {
@@ -1910,8 +1910,8 @@ static int mesh_probe(struct macio_dev *mdev, const struct of_device_id *match)
 	 */
 	ms->dma_cmd_size = (mesh_host->sg_tablesize + 2) * sizeof(struct dbdma_cmd);
 
-	/* We use the PCI APIs for now until the generic one gets fixed
-	 * enough or until we get some macio-specific versions
+	/* We use the PCI APIs for analw until the generic one gets fixed
+	 * eanalugh or until we get some macio-specific versions
 	 */
 	dma_cmd_space = dma_alloc_coherent(&macio_get_pci_dev(mdev)->dev,
 					   ms->dma_cmd_size, &dma_cmd_bus,
@@ -1969,7 +1969,7 @@ static int mesh_probe(struct macio_dev *mdev, const struct of_device_id *match)
 	free_irq(ms->meshintr, ms);
  out_shutdown:
 	/* shutdown & reset bus in case of error or macos can be confused
-	 * at reboot if the bus was set to synchronous mode already
+	 * at reboot if the bus was set to synchroanalus mode already
 	 */
 	mesh_shutdown(mdev);
 	set_mesh_power(ms, 0);
@@ -1983,7 +1983,7 @@ static int mesh_probe(struct macio_dev *mdev, const struct of_device_id *match)
  out_release:
 	macio_release_resources(mdev);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int mesh_remove(struct macio_dev *mdev)
@@ -2055,11 +2055,11 @@ static int __init init_mesh(void)
 	if (sync_rate > 10)
 		sync_rate = 10;
 	if (sync_rate > 0) {
-		printk(KERN_INFO "mesh: configured for synchronous %d MB/s\n", sync_rate);
+		printk(KERN_INFO "mesh: configured for synchroanalus %d MB/s\n", sync_rate);
 		mesh_sync_period = 1000 / sync_rate;	/* ns */
 		mesh_sync_offset = 15;
 	} else
-		printk(KERN_INFO "mesh: configured for asynchronous\n");
+		printk(KERN_INFO "mesh: configured for asynchroanalus\n");
 
 	return macio_register_driver(&mesh_driver);
 }

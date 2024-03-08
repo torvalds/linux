@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/ioctl.h>
 #include <linux/compiler.h>
 #include <linux/hw_breakpoint.h>
@@ -60,7 +60,7 @@ static int __event(int wp_type, void *wp_addr, unsigned long wp_len)
 	fd = sys_perf_event_open(&attr, 0, -1, -1,
 				 perf_event_open_cloexec_flag());
 	if (fd < 0) {
-		fd = -errno;
+		fd = -erranal;
 		pr_debug("failed opening event %x\n", attr.bp_type);
 	}
 
@@ -79,7 +79,7 @@ static int test__wp_ro(struct test_suite *test __maybe_unused,
 
 	fd = __event(HW_BREAKPOINT_R, (void *)&data1, sizeof(data1));
 	if (fd < 0)
-		return fd == -ENODEV ? TEST_SKIP : -1;
+		return fd == -EANALDEV ? TEST_SKIP : -1;
 
 	tmp = data1;
 	WP_TEST_ASSERT_VAL(fd, "RO watchpoint", 1);
@@ -103,7 +103,7 @@ static int test__wp_wo(struct test_suite *test __maybe_unused,
 
 	fd = __event(HW_BREAKPOINT_W, (void *)&data1, sizeof(data1));
 	if (fd < 0)
-		return fd == -ENODEV ? TEST_SKIP : -1;
+		return fd == -EANALDEV ? TEST_SKIP : -1;
 
 	tmp = data1;
 	WP_TEST_ASSERT_VAL(fd, "WO watchpoint", 0);
@@ -128,7 +128,7 @@ static int test__wp_rw(struct test_suite *test __maybe_unused,
 	fd = __event(HW_BREAKPOINT_R | HW_BREAKPOINT_W, (void *)&data1,
 		     sizeof(data1));
 	if (fd < 0)
-		return fd == -ENODEV ? TEST_SKIP : -1;
+		return fd == -EANALDEV ? TEST_SKIP : -1;
 
 	tmp = data1;
 	WP_TEST_ASSERT_VAL(fd, "RW watchpoint", 1);
@@ -152,7 +152,7 @@ static int test__wp_modify(struct test_suite *test __maybe_unused, int subtest _
 
 	fd = __event(HW_BREAKPOINT_W, (void *)&data1, sizeof(data1));
 	if (fd < 0)
-		return fd == -ENODEV ? TEST_SKIP : -1;
+		return fd == -EANALDEV ? TEST_SKIP : -1;
 
 	data1 = tmp;
 	WP_TEST_ASSERT_VAL(fd, "Modify watchpoint", 1);
@@ -163,7 +163,7 @@ static int test__wp_modify(struct test_suite *test __maybe_unused, int subtest _
 	new_attr.disabled = 1;
 	ret = ioctl(fd, PERF_EVENT_IOC_MODIFY_ATTRIBUTES, &new_attr);
 	if (ret < 0) {
-		if (errno == ENOTTY) {
+		if (erranal == EANALTTY) {
 			test->test_cases[subtest].skip_reason = "missing kernel support";
 			ret = TEST_SKIP;
 		}
@@ -173,7 +173,7 @@ static int test__wp_modify(struct test_suite *test __maybe_unused, int subtest _
 		return ret;
 	}
 
-	data2[1] = tmp; /* Not Counted */
+	data2[1] = tmp; /* Analt Counted */
 	WP_TEST_ASSERT_VAL(fd, "Modify watchpoint", 1);
 
 	/* Enable the event */
@@ -187,7 +187,7 @@ static int test__wp_modify(struct test_suite *test __maybe_unused, int subtest _
 	data2[1] = tmp; /* Counted */
 	WP_TEST_ASSERT_VAL(fd, "Modify watchpoint", 2);
 
-	data2[2] = tmp; /* Not Counted */
+	data2[2] = tmp; /* Analt Counted */
 	WP_TEST_ASSERT_VAL(fd, "Modify watchpoint", 2);
 
 	close(fd);

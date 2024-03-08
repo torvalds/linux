@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __ASM_SH_IOCTLS_H
 #define __ASM_SH_IOCTLS_H
 
@@ -68,12 +68,12 @@
 # define TIOCPKT_FLUSHWRITE	 2
 # define TIOCPKT_STOP		 4
 # define TIOCPKT_START		 8
-# define TIOCPKT_NOSTOP		16
+# define TIOCPKT_ANALSTOP		16
 # define TIOCPKT_DOSTOP		32
 # define TIOCPKT_IOCTL		64
 
 
-#define TIOCNOTTY	_IO('T', 34) /* 0x5422 */
+#define TIOCANALTTY	_IO('T', 34) /* 0x5422 */
 #define TIOCSETD	_IOW('T', 35, int) /* 0x5423 */
 #define TIOCGETD	_IOR('T', 36, int) /* 0x5424 */
 #define TCSBRKP		_IOW('T', 37, int) /* 0x5425 */	/* Needed for POSIX tcsendbreak() */
@@ -88,7 +88,7 @@
 #define TIOCSRS485	_IOWR('T', 47, struct serial_rs485)
 #define TIOCGPTN	_IOR('T',0x30, unsigned int) /* Get Pty Number (of pty-mux device) */
 #define TIOCSPTLCK	_IOW('T',0x31, int)  /* Lock/unlock Pty */
-#define TIOCGDEV	_IOR('T',0x32, unsigned int) /* Get primary device node of /dev/console */
+#define TIOCGDEV	_IOR('T',0x32, unsigned int) /* Get primary device analde of /dev/console */
 #define TIOCSIG		_IOW('T',0x36, int)  /* Generate signal on Pty slave */
 #define TIOCVHANGUP	_IO('T', 0x37)
 #define TIOCGPKT	_IOR('T', 0x38, int) /* Get packet mode state */

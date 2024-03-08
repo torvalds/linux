@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -160,13 +160,13 @@ gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 	u32 tag_size, tag_margin, tag_align;
 	int ret;
 
-	/* No VRAM, no tags for now. */
+	/* Anal VRAM, anal tags for analw. */
 	if (!ram) {
 		ltc->num_tags = 0;
 		goto mm_init;
 	}
 
-	/* tags for 1/4 of VRAM should be enough (8192/4 per GiB of VRAM) */
+	/* tags for 1/4 of VRAM should be eanalugh (8192/4 per GiB of VRAM) */
 	ltc->num_tags = (ram->size >> 17) / 4;
 	if (ltc->num_tags > (1 << bits))
 		ltc->num_tags = 1 << bits; /* we have 16/17 bits in PTE */
@@ -186,7 +186,7 @@ gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 	tag_size  = (ltc->num_tags / 64) * 0x6000 + tag_margin;
 	tag_size += tag_align;
 
-	ret = nvkm_ram_get(device, NVKM_RAM_MM_NORMAL, 0x01, 12, tag_size,
+	ret = nvkm_ram_get(device, NVKM_RAM_MM_ANALRMAL, 0x01, 12, tag_size,
 			   true, true, &ltc->tag_ram);
 	if (ret) {
 		ltc->num_tags = 0;

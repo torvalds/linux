@@ -42,7 +42,7 @@ static irqreturn_t bxt_wcove_tmu_irq_handler(int irq, void *data)
 		regmap_write(wctmu->regmap, BXTWC_TMUIRQ, tmu_irq);
 		return IRQ_HANDLED;
 	}
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int bxt_wcove_tmu_probe(struct platform_device *pdev)
@@ -54,7 +54,7 @@ static int bxt_wcove_tmu_probe(struct platform_device *pdev)
 
 	wctmu = devm_kzalloc(&pdev->dev, sizeof(*wctmu), GFP_KERNEL);
 	if (!wctmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wctmu->dev = &pdev->dev;
 	wctmu->regmap = pmic->regmap;

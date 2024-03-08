@@ -222,7 +222,7 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	max-frequency = <200000000>;
-	non-removable;
+	analn-removable;
 	disable-wp;
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;

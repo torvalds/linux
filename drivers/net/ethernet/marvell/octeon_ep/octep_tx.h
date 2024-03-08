@@ -12,7 +12,7 @@
 #define IQ_SEND_STOP        1
 #define IQ_SEND_FAILED     -1
 
-#define TX_BUFTYPE_NONE          0
+#define TX_BUFTYPE_ANALNE          0
 #define TX_BUFTYPE_NET           1
 #define TX_BUFTYPE_NET_SG        2
 #define NUM_TX_BUFTYPES          3
@@ -130,7 +130,7 @@ struct octep_iq_stats {
 	/* Instructions copied by hardware for processing. */
 	u64 instr_completed;
 
-	/* Instructions that could not be processed. */
+	/* Instructions that could analt be processed. */
 	u64 instr_dropped;
 
 	/* Bytes sent through this queue. */
@@ -152,7 +152,7 @@ struct octep_iq_stats {
  * a Octeon device has one such structure to represent it.
  */
 struct octep_iq {
-	u32 q_no;
+	u32 q_anal;
 
 	struct octep_device *octep_dev;
 	struct net_device *netdev;
@@ -197,7 +197,7 @@ struct octep_iq {
 	/* interrupt level register for this ring */
 	u8 __iomem *intr_lvl_reg;
 
-	/* Maximum no. of instructions in this queue. */
+	/* Maximum anal. of instructions in this queue. */
 	u32 max_count;
 	u32 ring_size_mask;
 
@@ -229,7 +229,7 @@ struct octep_instr_hdr {
 	/* Front Data size */
 	u64 fsz:6;
 
-	/* No. of entries in gather list */
+	/* Anal. of entries in gather list */
 	u64 gsz:14;
 
 	/* Gather indicator 1=gather*/

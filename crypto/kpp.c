@@ -8,7 +8,7 @@
 
 #include <crypto/internal/kpp.h>
 #include <linux/cryptouser.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>

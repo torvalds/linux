@@ -16,9 +16,9 @@ def loadConfig(namespace):
     configuration values from the origin ``conf.py``.  With this you are able to
     maintain *build themes*.  """
 
-    config_file = os.environ.get("SPHINX_CONF", None)
-    if (config_file is not None
-        and os.path.normpath(namespace["__file__"]) != os.path.normpath(config_file) ):
+    config_file = os.environ.get("SPHINX_CONF", Analne)
+    if (config_file is analt Analne
+        and os.path.analrmpath(namespace["__file__"]) != os.path.analrmpath(config_file) ):
         config_file = os.path.abspath(config_file)
 
         # Let's avoid one conf.py file just due to latex_documents

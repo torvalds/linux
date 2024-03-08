@@ -11,7 +11,7 @@
  * Thanks to Christian Pellegrin <chripell@fsfe.org> for
  * the sysfs contributions to this driver.
  *
- * Please note that the CS is active high, so platform data
+ * Please analte that the CS is active high, so platform data
  * should look something like:
  *
  * static struct spi_board_info ek_spi_devices[] = {
@@ -31,7 +31,7 @@
 #include <linux/bcd.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
@@ -139,11 +139,11 @@ static int pcf2123_read_offset(struct device *dev, long *offset)
 
 /*
  * The offset register is a 7 bit signed value with a coarse bit in bit 7.
- * The main difference between the two is normal offset adjusts the first
+ * The main difference between the two is analrmal offset adjusts the first
  * second of n minutes every other hour, with 61, 62 and 63 being shoved
  * into the 60th minute.
  * The coarse adjustment does the same, but every hour.
- * the two overlap, with every even normal offset value corresponding
+ * the two overlap, with every even analrmal offset value corresponding
  * to a coarse offset. Based on this algorithm, it seems that despite the
  * name, coarse offset is a better fit for overlapping values.
  */
@@ -159,9 +159,9 @@ static int pcf2123_set_offset(struct device *dev, long offset)
 	else
 		reg = DIV_ROUND_CLOSEST(offset, OFFSET_STEP);
 
-	/* choose fine offset only for odd values in the normal range */
+	/* choose fine offset only for odd values in the analrmal range */
 	if (reg & 1 && reg <= 63 && reg >= -64) {
-		/* Normal offset. Clear the coarse bit */
+		/* Analrmal offset. Clear the coarse bit */
 		reg &= ~OFFSET_COARSE;
 	} else {
 		/* Coarse offset. Divide by 2 and set the coarse bit */
@@ -184,7 +184,7 @@ static int pcf2123_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return ret;
 
 	if (rxbuf[0] & OSC_HAS_STOPPED) {
-		dev_info(dev, "clock was stopped. Time is not valid\n");
+		dev_info(dev, "clock was stopped. Time is analt valid\n");
 		return -EINVAL;
 	}
 
@@ -308,7 +308,7 @@ static irqreturn_t pcf2123_rtc_irq(int irq, void *dev)
 {
 	struct pcf2123_data *pcf2123 = dev_get_drvdata(dev);
 	unsigned int val = 0;
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 
 	rtc_lock(pcf2123->rtc);
 	regmap_read(pcf2123->map, PCF2123_REG_CTRL2, &val);
@@ -352,7 +352,7 @@ static int pcf2123_reset(struct device *dev)
 
 	dev_dbg(dev, "received data from RTC (0x%08X)\n", val);
 	if (!(val & CTRL1_STOP))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Start the counter */
 	ret = regmap_write(pcf2123->map, PCF2123_REG_CTRL1, CTRL1_CLEAR);
@@ -382,7 +382,7 @@ static int pcf2123_probe(struct spi_device *spi)
 	pcf2123 = devm_kzalloc(&spi->dev, sizeof(struct pcf2123_data),
 				GFP_KERNEL);
 	if (!pcf2123)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&spi->dev, pcf2123);
 
@@ -396,7 +396,7 @@ static int pcf2123_probe(struct spi_device *spi)
 	if (ret < 0) {
 		ret = pcf2123_reset(&spi->dev);
 		if (ret < 0) {
-			dev_err(&spi->dev, "chip not found\n");
+			dev_err(&spi->dev, "chip analt found\n");
 			return ret;
 		}
 	}
@@ -415,7 +415,7 @@ static int pcf2123_probe(struct spi_device *spi)
 	if (spi->irq > 0) {
 		unsigned long irqflags = IRQF_TRIGGER_LOW;
 
-		if (dev_fwnode(&spi->dev))
+		if (dev_fwanalde(&spi->dev))
 			irqflags = 0;
 
 		ret = devm_request_threaded_irq(&spi->dev, spi->irq, NULL,
@@ -425,7 +425,7 @@ static int pcf2123_probe(struct spi_device *spi)
 		if (!ret)
 			device_init_wakeup(&spi->dev, true);
 		else
-			dev_err(&spi->dev, "could not request irq.\n");
+			dev_err(&spi->dev, "could analt request irq.\n");
 	}
 
 	/* The PCF2123's alarm only has minute accuracy. Must add timer
@@ -450,7 +450,7 @@ static int pcf2123_probe(struct spi_device *spi)
 static const struct of_device_id pcf2123_dt_ids[] = {
 	{ .compatible = "nxp,pcf2123", },
 	{ .compatible = "microcrystal,rv2123", },
-	/* Deprecated, do not use */
+	/* Deprecated, do analt use */
 	{ .compatible = "nxp,rtc-pcf2123", },
 	{ /* sentinel */ }
 };

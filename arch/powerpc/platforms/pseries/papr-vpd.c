@@ -2,7 +2,7 @@
 
 #define pr_fmt(fmt) "papr-vpd: " fmt
 
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/build_bug.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -51,7 +51,7 @@ struct rtas_ibm_get_vpd_params {
  *
  * Calls ibm,get-vpd until it errors or successfully deposits data
  * into the supplied work area. Handles RTAS retry statuses. Maps RTAS
- * error statuses to reasonable errno values.
+ * error statuses to reasonable erranal values.
  *
  * The caller is expected to invoke rtas_ibm_get_vpd() multiple times
  * to retrieve all the VPD for the provided location code. Only one
@@ -100,7 +100,7 @@ static int rtas_ibm_get_vpd(struct rtas_ibm_get_vpd_params *params)
 	case RTAS_IBM_GET_VPD_COMPLETE:
 		params->written = rets[1];
 		/*
-		 * Kernel or firmware bug, do not continue.
+		 * Kernel or firmware bug, do analt continue.
 		 */
 		if (WARN(params->written > rtas_work_area_size(work_area),
 			 "possible write beyond end of work area"))
@@ -147,7 +147,7 @@ static void vpd_blob_free(const struct vpd_blob *blob)
  * @len:  The length of @data.
  *
  * Context: May sleep.
- * Return: -ENOMEM on allocation failure, 0 otherwise.
+ * Return: -EANALMEM on allocation failure, 0 otherwise.
  */
 static int vpd_blob_extend(struct vpd_blob *blob, const char *data, size_t len)
 {
@@ -161,7 +161,7 @@ static int vpd_blob_extend(struct vpd_blob *blob, const char *data, size_t len)
 		kvmalloc(len, GFP_KERNEL_ACCOUNT);
 
 	if (!new_ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(&new_ptr[old_len], data, len);
 	blob->data = new_ptr;
@@ -215,8 +215,8 @@ free_blob:
 
 /**
  * struct vpd_sequence - State for managing a VPD sequence.
- * @error:  Shall be zero as long as the sequence has not encountered an error,
- *          -ve errno otherwise. Use vpd_sequence_set_err() to update this.
+ * @error:  Shall be zero as long as the sequence has analt encountered an error,
+ *          -ve erranal otherwise. Use vpd_sequence_set_err() to update this.
  * @params: Parameter block to pass to rtas_ibm_get_vpd().
  */
 struct vpd_sequence {
@@ -248,7 +248,7 @@ static void vpd_sequence_begin(struct vpd_sequence *seq,
 	/*
 	 * We could allocate the work area before acquiring the
 	 * function lock, but that would allow concurrent requests to
-	 * exhaust the limited work area pool for no benefit. So
+	 * exhaust the limited work area pool for anal benefit. So
 	 * allocate the work area under the lock.
 	 */
 	mutex_lock(&rtas_ibm_get_vpd_lock);
@@ -361,7 +361,7 @@ static const struct vpd_blob *papr_vpd_run_sequence(const struct papr_location_c
 	vpd_sequence_begin(&seq, loc_code);
 	blob = vpd_blob_generate(vpd_sequence_fill_work_area, &seq);
 	if (!blob)
-		vpd_sequence_set_err(&seq, -ENOMEM);
+		vpd_sequence_set_err(&seq, -EANALMEM);
 	vpd_sequence_end(&seq);
 
 	if (seq.error) {
@@ -392,7 +392,7 @@ static const struct vpd_blob *papr_vpd_retrieve(const struct papr_location_code 
 	 * EAGAIN means the sequence errored with a -4 (VPD changed)
 	 * status from ibm,get-vpd, and we should attempt a new
 	 * sequence. PAPR+ v2.13 R1–7.3.20–5 indicates that this
-	 * should be a transient condition, not something that happens
+	 * should be a transient condition, analt something that happens
 	 * continuously. But we'll stop trying on a fatal signal.
 	 */
 	do {
@@ -412,7 +412,7 @@ static ssize_t papr_vpd_handle_read(struct file *file, char __user *buf, size_t 
 {
 	const struct vpd_blob *blob = file->private_data;
 
-	/* bug: we should not instantiate a handle without any data attached. */
+	/* bug: we should analt instantiate a handle without any data attached. */
 	if (!vpd_blob_has_data(blob)) {
 		pr_err_once("handle without data\n");
 		return -EIO;
@@ -421,7 +421,7 @@ static ssize_t papr_vpd_handle_read(struct file *file, char __user *buf, size_t 
 	return simple_read_from_buffer(buf, size, off, blob->data, blob->len);
 }
 
-static int papr_vpd_handle_release(struct inode *inode, struct file *file)
+static int papr_vpd_handle_release(struct ianalde *ianalde, struct file *file)
 {
 	const struct vpd_blob *blob = file->private_data;
 
@@ -459,7 +459,7 @@ static const struct file_operations papr_vpd_handle_ops = {
  * to user space. This keeps the read handler simple and ensures that
  * the kernel can prevent interleaving of ibm,get-vpd call sequences.
  *
- * Return: The installed fd number if successful, -ve errno otherwise.
+ * Return: The installed fd number if successful, -ve erranal otherwise.
  */
 static long papr_vpd_create_handle(struct papr_location_code __user *ulc)
 {
@@ -485,7 +485,7 @@ static long papr_vpd_create_handle(struct papr_location_code __user *ulc)
 		goto free_blob;
 	}
 
-	file = anon_inode_getfile("[papr-vpd]", &papr_vpd_handle_ops,
+	file = aanaln_ianalde_getfile("[papr-vpd]", &papr_vpd_handle_ops,
 				  (void *)blob, O_RDONLY);
 	if (IS_ERR(file)) {
 		err = PTR_ERR(file);
@@ -515,7 +515,7 @@ static long papr_vpd_dev_ioctl(struct file *filp, unsigned int ioctl, unsigned l
 		ret = papr_vpd_create_handle(argp);
 		break;
 	default:
-		ret = -ENOIOCTLCMD;
+		ret = -EANALIOCTLCMD;
 		break;
 	}
 	return ret;
@@ -526,7 +526,7 @@ static const struct file_operations papr_vpd_ops = {
 };
 
 static struct miscdevice papr_vpd_dev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "papr-vpd",
 	.fops = &papr_vpd_ops,
 };
@@ -534,7 +534,7 @@ static struct miscdevice papr_vpd_dev = {
 static __init int papr_vpd_init(void)
 {
 	if (!rtas_function_implemented(RTAS_FN_IBM_GET_VPD))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return misc_register(&papr_vpd_dev);
 }

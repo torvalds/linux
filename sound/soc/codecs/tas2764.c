@@ -64,7 +64,7 @@ static irqreturn_t tas2764_irq(int irq, void *data)
 {
 	struct tas2764_priv *tas2764 = data;
 	u8 latched[6] = {0, 0, 0, 0, 0, 0};
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(latched); i++)
@@ -215,13 +215,13 @@ static const struct snd_kcontrol_new vsense_switch =
 	SOC_DAPM_SINGLE("Switch", TAS2764_PWR_CTRL, TAS2764_VSENSE_POWER_EN, 1, 1);
 
 static const struct snd_soc_dapm_widget tas2764_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("ASI1", "ASI1 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_MUX("ASI1 Sel", SND_SOC_NOPM, 0, 0, &tas2764_asi1_mux),
+	SND_SOC_DAPM_AIF_IN("ASI1", "ASI1 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_MUX("ASI1 Sel", SND_SOC_ANALPM, 0, 0, &tas2764_asi1_mux),
 	SND_SOC_DAPM_SWITCH("ISENSE", TAS2764_PWR_CTRL, TAS2764_ISENSE_POWER_EN,
 			    1, &isense_switch),
 	SND_SOC_DAPM_SWITCH("VSENSE", TAS2764_PWR_CTRL, TAS2764_VSENSE_POWER_EN,
 			    1, &vsense_switch),
-	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_NOPM, 0, 0, tas2764_dac_event,
+	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_ANALPM, 0, 0, tas2764_dac_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_OUTPUT("OUT"),
 	SND_SOC_DAPM_SIGGEN("VMON"),
@@ -404,7 +404,7 @@ static int tas2764_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		break;
 	default:
 		dev_err(tas2764->dev,
-			"DAI Format is not found, fmt=0x%x\n", fmt);
+			"DAI Format is analt found, fmt=0x%x\n", fmt);
 		return -EINVAL;
 	}
 
@@ -496,7 +496,7 @@ static const struct snd_soc_dai_ops tas2764_dai_ops = {
 	.hw_params  = tas2764_hw_params,
 	.set_fmt    = tas2764_set_fmt,
 	.set_tdm_slot = tas2764_set_dai_tdm_slot,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 #define TAS2764_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
@@ -686,12 +686,12 @@ static int tas2764_parse_dt(struct device *dev, struct tas2764_priv *tas2764)
 		tas2764->sdz_gpio = NULL;
 	}
 
-	ret = fwnode_property_read_u32(dev->fwnode, "ti,imon-slot-no",
+	ret = fwanalde_property_read_u32(dev->fwanalde, "ti,imon-slot-anal",
 				       &tas2764->i_sense_slot);
 	if (ret)
 		tas2764->i_sense_slot = 0;
 
-	ret = fwnode_property_read_u32(dev->fwnode, "ti,vmon-slot-no",
+	ret = fwanalde_property_read_u32(dev->fwanalde, "ti,vmon-slot-anal",
 				       &tas2764->v_sense_slot);
 	if (ret)
 		tas2764->v_sense_slot = 2;
@@ -707,7 +707,7 @@ static int tas2764_i2c_probe(struct i2c_client *client)
 	tas2764 = devm_kzalloc(&client->dev, sizeof(struct tas2764_priv),
 			       GFP_KERNEL);
 	if (!tas2764)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tas2764->dev = &client->dev;
 	tas2764->irq = client->irq;
@@ -722,7 +722,7 @@ static int tas2764_i2c_probe(struct i2c_client *client)
 		return result;
 	}
 
-	if (client->dev.of_node) {
+	if (client->dev.of_analde) {
 		result = tas2764_parse_dt(&client->dev, tas2764);
 		if (result) {
 			dev_err(tas2764->dev, "%s: Failed to parse devicetree\n",

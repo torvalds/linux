@@ -45,7 +45,7 @@ static int chtdc_ti_pwrbtn_probe(struct platform_device *pdev)
 		return irq;
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 	input->name = pdev->name;
 	input->phys = "power-button/input0";
 	input->id.bustype = BUS_HOST;

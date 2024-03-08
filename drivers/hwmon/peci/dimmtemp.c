@@ -47,7 +47,7 @@
 #define GET_TEMP_MAX(x)		(((x) & DIMM_TEMP_MAX) >> 8)
 #define GET_TEMP_CRIT(x)	(((x) & DIMM_TEMP_CRIT) >> 16)
 
-#define NO_DIMM_RETRY_COUNT_MAX	120
+#define ANAL_DIMM_RETRY_COUNT_MAX	120
 
 struct peci_dimmtemp;
 
@@ -82,7 +82,7 @@ struct peci_dimmtemp {
 	} dimm[DIMM_NUMS_MAX];
 	char **dimmtemp_label;
 	DECLARE_BITMAP(dimm_mask, DIMM_NUMS_MAX);
-	u8 no_dimm_retry_count;
+	u8 anal_dimm_retry_count;
 };
 
 static u8 __dimm_temp(u32 reg, int dimm_order)
@@ -90,79 +90,79 @@ static u8 __dimm_temp(u32 reg, int dimm_order)
 	return (reg >> (dimm_order * 8)) & 0xff;
 }
 
-static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no, long *val)
+static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_anal, long *val)
 {
-	int dimm_order = dimm_no % priv->gen_info->dimm_idx_max;
-	int chan_rank = dimm_no / priv->gen_info->dimm_idx_max;
+	int dimm_order = dimm_anal % priv->gen_info->dimm_idx_max;
+	int chan_rank = dimm_anal / priv->gen_info->dimm_idx_max;
 	int ret = 0;
 	u32 data;
 
-	mutex_lock(&priv->dimm[dimm_no].temp.state.lock);
-	if (!peci_sensor_need_update(&priv->dimm[dimm_no].temp.state))
+	mutex_lock(&priv->dimm[dimm_anal].temp.state.lock);
+	if (!peci_sensor_need_update(&priv->dimm[dimm_anal].temp.state))
 		goto skip_update;
 
 	ret = peci_pcs_read(priv->peci_dev, PECI_PCS_DDR_DIMM_TEMP, chan_rank, &data);
 	if (ret)
 		goto unlock;
 
-	priv->dimm[dimm_no].temp.value = __dimm_temp(data, dimm_order) * MILLIDEGREE_PER_DEGREE;
+	priv->dimm[dimm_anal].temp.value = __dimm_temp(data, dimm_order) * MILLIDEGREE_PER_DEGREE;
 
-	peci_sensor_mark_updated(&priv->dimm[dimm_no].temp.state);
+	peci_sensor_mark_updated(&priv->dimm[dimm_anal].temp.state);
 
 skip_update:
-	*val = priv->dimm[dimm_no].temp.value;
+	*val = priv->dimm[dimm_anal].temp.value;
 unlock:
-	mutex_unlock(&priv->dimm[dimm_no].temp.state.lock);
+	mutex_unlock(&priv->dimm[dimm_anal].temp.state.lock);
 	return ret;
 }
 
-static int update_thresholds(struct peci_dimmtemp *priv, int dimm_no)
+static int update_thresholds(struct peci_dimmtemp *priv, int dimm_anal)
 {
-	int dimm_order = dimm_no % priv->gen_info->dimm_idx_max;
-	int chan_rank = dimm_no / priv->gen_info->dimm_idx_max;
+	int dimm_order = dimm_anal % priv->gen_info->dimm_idx_max;
+	int chan_rank = dimm_anal / priv->gen_info->dimm_idx_max;
 	u32 data;
 	int ret;
 
-	if (!peci_sensor_need_update(&priv->dimm[dimm_no].thresholds.state))
+	if (!peci_sensor_need_update(&priv->dimm[dimm_anal].thresholds.state))
 		return 0;
 
 	ret = priv->gen_info->read_thresholds(priv, dimm_order, chan_rank, &data);
-	if (ret == -ENODATA) /* Use default or previous value */
+	if (ret == -EANALDATA) /* Use default or previous value */
 		return 0;
 	if (ret)
 		return ret;
 
-	priv->dimm[dimm_no].thresholds.temp_max = GET_TEMP_MAX(data) * MILLIDEGREE_PER_DEGREE;
-	priv->dimm[dimm_no].thresholds.temp_crit = GET_TEMP_CRIT(data) * MILLIDEGREE_PER_DEGREE;
+	priv->dimm[dimm_anal].thresholds.temp_max = GET_TEMP_MAX(data) * MILLIDEGREE_PER_DEGREE;
+	priv->dimm[dimm_anal].thresholds.temp_crit = GET_TEMP_CRIT(data) * MILLIDEGREE_PER_DEGREE;
 
-	peci_sensor_mark_updated(&priv->dimm[dimm_no].thresholds.state);
+	peci_sensor_mark_updated(&priv->dimm[dimm_anal].thresholds.state);
 
 	return 0;
 }
 
 static int get_dimm_thresholds(struct peci_dimmtemp *priv, enum peci_dimm_threshold_type type,
-			       int dimm_no, long *val)
+			       int dimm_anal, long *val)
 {
 	int ret;
 
-	mutex_lock(&priv->dimm[dimm_no].thresholds.state.lock);
-	ret = update_thresholds(priv, dimm_no);
+	mutex_lock(&priv->dimm[dimm_anal].thresholds.state.lock);
+	ret = update_thresholds(priv, dimm_anal);
 	if (ret)
 		goto unlock;
 
 	switch (type) {
 	case temp_max_type:
-		*val = priv->dimm[dimm_no].thresholds.temp_max;
+		*val = priv->dimm[dimm_anal].thresholds.temp_max;
 		break;
 	case temp_crit_type:
-		*val = priv->dimm[dimm_no].thresholds.temp_crit;
+		*val = priv->dimm[dimm_anal].thresholds.temp_crit;
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 unlock:
-	mutex_unlock(&priv->dimm[dimm_no].thresholds.state.lock);
+	mutex_unlock(&priv->dimm[dimm_anal].thresholds.state.lock);
 
 	return ret;
 }
@@ -174,7 +174,7 @@ static int dimmtemp_read_string(struct device *dev,
 	struct peci_dimmtemp *priv = dev_get_drvdata(dev);
 
 	if (attr != hwmon_temp_label)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	*str = (const char *)priv->dimmtemp_label[channel];
 
@@ -197,7 +197,7 @@ static int dimmtemp_read(struct device *dev, enum hwmon_sensor_types type,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static umode_t dimmtemp_is_visible(const void *data, enum hwmon_sensor_types type,
@@ -241,7 +241,7 @@ static int check_populated_dimms(struct peci_dimmtemp *priv)
 		if (ret) {
 			/*
 			 * Overall, we expect either success or -EINVAL in
-			 * order to determine whether DIMM is populated or not.
+			 * order to determine whether DIMM is populated or analt.
 			 * For anything else we fall back to deferring the
 			 * detection to be performed at a later point in time.
 			 */
@@ -265,21 +265,21 @@ static int check_populated_dimms(struct peci_dimmtemp *priv)
 	 * that the state is persistent.
 	 */
 	if (bitmap_full(chan_rank_empty, chan_rank_max)) {
-		if (priv->no_dimm_retry_count < NO_DIMM_RETRY_COUNT_MAX) {
-			priv->no_dimm_retry_count++;
+		if (priv->anal_dimm_retry_count < ANAL_DIMM_RETRY_COUNT_MAX) {
+			priv->anal_dimm_retry_count++;
 
 			return -EAGAIN;
 		}
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
-	 * It's possible that memory training is not done yet. In this case we
+	 * It's possible that memory training is analt done yet. In this case we
 	 * defer the detection to be performed at a later point in time.
 	 */
 	if (bitmap_empty(dimm_mask, DIMM_NUMS_MAX)) {
-		priv->no_dimm_retry_count = 0;
+		priv->anal_dimm_retry_count = 0;
 		return -EAGAIN;
 	}
 
@@ -301,7 +301,7 @@ static int create_dimm_temp_label(struct peci_dimmtemp *priv, int chan)
 						    "DIMM %c%d", 'A' + rank,
 						    idx + 1);
 	if (!priv->dimmtemp_label[chan])
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -325,13 +325,13 @@ static int create_dimm_temp_info(struct peci_dimmtemp *priv)
 
 	/*
 	 * We expect to either find populated DIMMs and carry on with creating
-	 * sensors, or find out that there are no DIMMs populated.
+	 * sensors, or find out that there are anal DIMMs populated.
 	 * All other states mean that the platform never reached the state that
 	 * allows to check DIMM state - causing us to retry later on.
 	 */
 	ret = check_populated_dimms(priv);
-	if (ret == -ENODEV) {
-		dev_dbg(priv->dev, "No DIMMs found\n");
+	if (ret == -EANALDEV) {
+		dev_dbg(priv->dev, "Anal DIMMs found\n");
 		return 0;
 	} else if (ret) {
 		schedule_delayed_work(&priv->detect_work, DIMM_MASK_CHECK_DELAY_JIFFIES);
@@ -343,7 +343,7 @@ static int create_dimm_temp_info(struct peci_dimmtemp *priv)
 
 	priv->dimmtemp_label = devm_kzalloc(priv->dev, channels * sizeof(char *), GFP_KERNEL);
 	if (!priv->dimmtemp_label)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_set_bit(i, priv->dimm_mask, DIMM_NUMS_MAX) {
 		ret = create_dimm_temp_label(priv, i);
@@ -386,12 +386,12 @@ static int peci_dimmtemp_probe(struct auxiliary_device *adev, const struct auxil
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->name = devm_kasprintf(dev, GFP_KERNEL, "peci_dimmtemp.cpu%d",
 				    peci_dev->info.socket_id);
 	if (!priv->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	priv->peci_dev = peci_dev;
@@ -509,11 +509,11 @@ read_thresholds_icx(struct peci_dimmtemp *priv, int dimm_order, int chan_rank, u
 
 	ret = peci_ep_pci_local_read(priv->peci_dev, 0, 13, 0, 2, 0xd4, &reg_val);
 	if (ret || !(reg_val & BIT(31)))
-		return -ENODATA; /* Use default or previous value */
+		return -EANALDATA; /* Use default or previous value */
 
 	ret = peci_ep_pci_local_read(priv->peci_dev, 0, 13, 0, 2, 0xd0, &reg_val);
 	if (ret)
-		return -ENODATA; /* Use default or previous value */
+		return -EANALDATA; /* Use default or previous value */
 
 	/*
 	 * Device 26, Offset 224e0: IMC 0 channel 0 -> rank 0
@@ -546,11 +546,11 @@ read_thresholds_spr(struct peci_dimmtemp *priv, int dimm_order, int chan_rank, u
 
 	ret = peci_ep_pci_local_read(priv->peci_dev, 0, 30, 0, 2, 0xd4, &reg_val);
 	if (ret || !(reg_val & BIT(31)))
-		return -ENODATA; /* Use default or previous value */
+		return -EANALDATA; /* Use default or previous value */
 
 	ret = peci_ep_pci_local_read(priv->peci_dev, 0, 30, 0, 2, 0xd0, &reg_val);
 	if (ret)
-		return -ENODATA; /* Use default or previous value */
+		return -EANALDATA; /* Use default or previous value */
 
 	/*
 	 * Device 26, Offset 219a8: IMC 0 channel 0 -> rank 0

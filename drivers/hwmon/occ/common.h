@@ -17,7 +17,7 @@ struct device;
  * Allocate the largest possible response.
  */
 struct occ_response {
-	u8 seq_no;
+	u8 seq_anal;
 	u8 cmd_type;
 	u8 return_status;
 	__be16 data_length;
@@ -114,7 +114,7 @@ struct occ {
 	unsigned long last_safe;        /* time OCC entered "safe" state */
 
 	/*
-	 * Store the previous state data for comparison in order to notify
+	 * Store the previous state data for comparison in order to analtify
 	 * sysfs readers of state changes.
 	 */
 	int prev_error;

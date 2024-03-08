@@ -179,8 +179,8 @@ static const struct regmap_range sn65dsi83_readable_ranges[] = {
 };
 
 static const struct regmap_access_table sn65dsi83_readable_table = {
-	.yes_ranges = sn65dsi83_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(sn65dsi83_readable_ranges),
+	.anal_ranges = sn65dsi83_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(sn65dsi83_readable_ranges),
 };
 
 static const struct regmap_range sn65dsi83_writeable_ranges[] = {
@@ -212,8 +212,8 @@ static const struct regmap_range sn65dsi83_writeable_ranges[] = {
 };
 
 static const struct regmap_access_table sn65dsi83_writeable_table = {
-	.yes_ranges = sn65dsi83_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(sn65dsi83_writeable_ranges),
+	.anal_ranges = sn65dsi83_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(sn65dsi83_writeable_ranges),
 };
 
 static const struct regmap_range sn65dsi83_volatile_ranges[] = {
@@ -223,8 +223,8 @@ static const struct regmap_range sn65dsi83_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table sn65dsi83_volatile_table = {
-	.yes_ranges = sn65dsi83_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(sn65dsi83_volatile_ranges),
+	.anal_ranges = sn65dsi83_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(sn65dsi83_volatile_ranges),
 };
 
 static const struct regmap_config sn65dsi83_regmap_config = {
@@ -407,7 +407,7 @@ static void sn65dsi83_atomic_pre_enable(struct drm_bridge *bridge,
 		     REG_DSI_LANE_CHA_DSI_LANES(~(ctx->dsi->lanes - 1)) |
 		     /* CHB is DSI85-only, set to default on DSI83/DSI84 */
 		     REG_DSI_LANE_CHB_DSI_LANES(3));
-	/* No equalization. */
+	/* Anal equalization. */
 	regmap_write(ctx->regmap, REG_DSI_EQ, 0x00);
 
 	/* Set up sync signal polarity. */
@@ -585,14 +585,14 @@ static int sn65dsi83_parse_dt(struct sn65dsi83 *ctx, enum sn65dsi83_model model)
 	ctx->lvds_dual_link = false;
 	ctx->lvds_dual_link_even_odd_swap = false;
 	if (model != MODEL_SN65DSI83) {
-		struct device_node *port2, *port3;
+		struct device_analde *port2, *port3;
 		int dual_link;
 
-		port2 = of_graph_get_port_by_id(dev->of_node, 2);
-		port3 = of_graph_get_port_by_id(dev->of_node, 3);
+		port2 = of_graph_get_port_by_id(dev->of_analde, 2);
+		port3 = of_graph_get_port_by_id(dev->of_analde, 3);
 		dual_link = drm_of_lvds_get_dual_link_pixel_order(port2, port3);
-		of_node_put(port2);
-		of_node_put(port3);
+		of_analde_put(port2);
+		of_analde_put(port3);
 
 		if (dual_link == DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS) {
 			ctx->lvds_dual_link = true;
@@ -605,7 +605,7 @@ static int sn65dsi83_parse_dt(struct sn65dsi83 *ctx, enum sn65dsi83_model model)
 		}
 	}
 
-	panel_bridge = devm_drm_of_get_bridge(dev, dev->of_node, 2, 0);
+	panel_bridge = devm_drm_of_get_bridge(dev, dev->of_analde, 2, 0);
 	if (IS_ERR(panel_bridge))
 		return PTR_ERR(panel_bridge);
 
@@ -622,23 +622,23 @@ static int sn65dsi83_parse_dt(struct sn65dsi83 *ctx, enum sn65dsi83_model model)
 static int sn65dsi83_host_attach(struct sn65dsi83 *ctx)
 {
 	struct device *dev = ctx->dev;
-	struct device_node *host_node;
-	struct device_node *endpoint;
+	struct device_analde *host_analde;
+	struct device_analde *endpoint;
 	struct mipi_dsi_device *dsi;
 	struct mipi_dsi_host *host;
 	const struct mipi_dsi_device_info info = {
 		.type = "sn65dsi83",
 		.channel = 0,
-		.node = NULL,
+		.analde = NULL,
 	};
 	int dsi_lanes, ret;
 
-	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 0, -1);
+	endpoint = of_graph_get_endpoint_by_regs(dev->of_analde, 0, -1);
 	dsi_lanes = drm_of_get_data_lanes_count(endpoint, 1, 4);
-	host_node = of_graph_get_remote_port_parent(endpoint);
-	host = of_find_mipi_dsi_host_by_node(host_node);
-	of_node_put(host_node);
-	of_node_put(endpoint);
+	host_analde = of_graph_get_remote_port_parent(endpoint);
+	host = of_find_mipi_dsi_host_by_analde(host_analde);
+	of_analde_put(host_analde);
+	of_analde_put(endpoint);
 
 	if (!host)
 		return -EPROBE_DEFER;
@@ -656,8 +656,8 @@ static int sn65dsi83_host_attach(struct sn65dsi83 *ctx)
 	dsi->lanes = dsi_lanes;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_MODE_VIDEO_NO_HFP | MIPI_DSI_MODE_VIDEO_NO_HBP |
-			  MIPI_DSI_MODE_VIDEO_NO_HSA | MIPI_DSI_MODE_NO_EOT_PACKET;
+			  MIPI_DSI_MODE_VIDEO_ANAL_HFP | MIPI_DSI_MODE_VIDEO_ANAL_HBP |
+			  MIPI_DSI_MODE_VIDEO_ANAL_HSA | MIPI_DSI_MODE_ANAL_EOT_PACKET;
 
 	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
@@ -678,11 +678,11 @@ static int sn65dsi83_probe(struct i2c_client *client)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->dev = dev;
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		model = (enum sn65dsi83_model)(uintptr_t)
 			of_device_get_match_data(dev);
 	} else {
@@ -709,7 +709,7 @@ static int sn65dsi83_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, ctx);
 
 	ctx->bridge.funcs = &sn65dsi83_funcs;
-	ctx->bridge.of_node = dev->of_node;
+	ctx->bridge.of_analde = dev->of_analde;
 	ctx->bridge.pre_enable_prev_first = true;
 	drm_bridge_add(&ctx->bridge);
 

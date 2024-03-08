@@ -6,7 +6,7 @@ Filesystems in the Linux kernel
 
 This under-development manual will, some glorious day, provide
 comprehensive information on how the Linux virtual filesystem (VFS) layer
-works, along with the filesystems that sit below it.  For now, what we have
+works, along with the filesystems that sit below it.  For analw, what we have
 can be found below.
 
 Core VFS documentation
@@ -25,7 +25,7 @@ algorithms work.
    locking
    directory-locking
    devpts
-   dnotify
+   danaltify
    fiemap
    files
    locks
@@ -94,7 +94,7 @@ Documentation for filesystem implementations.
    hpfs
    fuse
    fuse-io
-   inotify
+   ianaltify
    isofs
    nilfs2
    nfs/index

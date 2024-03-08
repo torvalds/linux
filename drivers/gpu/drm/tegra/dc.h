@@ -175,7 +175,7 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 
 #define DC_CMD_GENERAL_INCR_SYNCPT		0x000
 #define DC_CMD_GENERAL_INCR_SYNCPT_CNTRL	0x001
-#define  SYNCPT_CNTRL_NO_STALL   (1 << 8)
+#define  SYNCPT_CNTRL_ANAL_STALL   (1 << 8)
 #define  SYNCPT_CNTRL_SOFT_RESET (1 << 0)
 #define DC_CMD_GENERAL_INCR_SYNCPT_ERROR	0x002
 #define DC_CMD_WIN_A_INCR_SYNCPT		0x008
@@ -369,7 +369,7 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define DC_DISP_PP_SELECT_C			0x42c
 #define DC_DISP_PP_SELECT_D			0x42d
 
-#define PULSE_MODE_NORMAL    (0 << 3)
+#define PULSE_MODE_ANALRMAL    (0 << 3)
 #define PULSE_MODE_ONE_CLOCK (1 << 3)
 #define PULSE_POLARITY_HIGH  (0 << 4)
 #define PULSE_POLARITY_LOW   (1 << 4)
@@ -449,15 +449,15 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define BASE_COLOR_SIZE_121212 ( 12 << 0)
 
 #define DC_DISP_SHIFT_CLOCK_OPTIONS		0x431
-#define  SC1_H_QUALIFIER_NONE	(1 << 16)
-#define  SC0_H_QUALIFIER_NONE	(1 <<  0)
+#define  SC1_H_QUALIFIER_ANALNE	(1 << 16)
+#define  SC0_H_QUALIFIER_ANALNE	(1 <<  0)
 
 #define DC_DISP_DATA_ENABLE_OPTIONS		0x432
 #define DE_SELECT_ACTIVE_BLANK  (0 << 0)
 #define DE_SELECT_ACTIVE        (1 << 0)
 #define DE_SELECT_ACTIVE_IS     (2 << 0)
 #define DE_CONTROL_ONECLK       (0 << 2)
-#define DE_CONTROL_NORMAL       (1 << 2)
+#define DE_CONTROL_ANALRMAL       (1 << 2)
 #define DE_CONTROL_EARLY_EXT    (2 << 2)
 #define DE_CONTROL_EARLY        (3 << 2)
 #define DE_CONTROL_ACTIVE_BLANK (4 << 2)
@@ -529,7 +529,7 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define CURSOR_COMPOSITION_MODE_BLEND		(0 << 25)
 #define CURSOR_COMPOSITION_MODE_XOR		(1 << 25)
 #define CURSOR_MODE_LEGACY			(0 << 24)
-#define CURSOR_MODE_NORMAL			(1 << 24)
+#define CURSOR_MODE_ANALRMAL			(1 << 24)
 #define CURSOR_DST_BLEND_ZERO			(0 << 16)
 #define CURSOR_DST_BLEND_K1			(1 << 16)
 #define CURSOR_DST_BLEND_NEG_K1_TIMES_SRC	(2 << 16)
@@ -590,7 +590,7 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define WIN_ENABLE   (1 << 30)
 
 #define DC_WIN_BYTE_SWAP			0x701
-#define BYTE_SWAP_NOSWAP  (0 << 0)
+#define BYTE_SWAP_ANALSWAP  (0 << 0)
 #define BYTE_SWAP_SWAP2   (1 << 0)
 #define BYTE_SWAP_SWAP4   (2 << 0)
 #define BYTE_SWAP_SWAP4HW (3 << 0)
@@ -676,14 +676,14 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 
 #define DC_WIN_DV_CONTROL			0x70e
 
-#define DC_WIN_BLEND_NOKEY			0x70f
+#define DC_WIN_BLEND_ANALKEY			0x70f
 #define  BLEND_WEIGHT1(x) (((x) & 0xff) << 16)
 #define  BLEND_WEIGHT0(x) (((x) & 0xff) <<  8)
 
 #define DC_WIN_BLEND_1WIN			0x710
 #define  BLEND_CONTROL_FIX    (0 << 2)
 #define  BLEND_CONTROL_ALPHA  (1 << 2)
-#define  BLEND_COLOR_KEY_NONE (0 << 0)
+#define  BLEND_COLOR_KEY_ANALNE (0 << 0)
 #define  BLEND_COLOR_KEY_0    (1 << 0)
 #define  BLEND_COLOR_KEY_1    (2 << 0)
 #define  BLEND_COLOR_KEY_BOTH (3 << 0)
@@ -765,7 +765,7 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 
 #define DC_WIN_SET_PARAMS			0x70d
 #define  CLAMP_BEFORE_BLEND (1 << 15)
-#define  DEGAMMA_NONE (0 << 13)
+#define  DEGAMMA_ANALNE (0 << 13)
 #define  DEGAMMA_SRGB (1 << 13)
 #define  DEGAMMA_YUV8_10 (2 << 13)
 #define  DEGAMMA_YUV12 (3 << 13)
@@ -793,7 +793,7 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define  INPUT_SCALER_HBYPASS (1 << 0)
 
 #define DC_WIN_BLEND_LAYER_CONTROL		0x716
-#define  COLOR_KEY_NONE (0 << 25)
+#define  COLOR_KEY_ANALNE (0 << 25)
 #define  COLOR_KEY_SRC (1 << 25)
 #define  COLOR_KEY_DST (2 << 25)
 #define  BLEND_BYPASS (1 << 24)
@@ -825,7 +825,7 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define  BLEND_FACTOR_SRC_COLOR_NEG_K1_TIMES_DST	(4 << 0)
 #define  BLEND_FACTOR_SRC_COLOR_K1_TIMES_SRC		(5 << 0)
 
-#define DC_WIN_BLEND_NOMATCH_SELECT		0x718
+#define DC_WIN_BLEND_ANALMATCH_SELECT		0x718
 
 #define DC_WIN_PRECOMP_WGRP_PARAMS		0x724
 #define  SWAP_UV (1 << 0)

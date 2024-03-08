@@ -20,7 +20,7 @@ void spufs_stop_callback(struct spu *spu, int irq)
 	 * It should be impossible to preempt a context while an exception
 	 * is being processed, since the context switch code is specially
 	 * coded to deal with interrupts ... But, just in case, sanity check
-	 * the context pointer.  It is OK to return doing nothing since
+	 * the context pointer.  It is OK to return doing analthing since
 	 * the exception will be regenerated when the context is resumed.
 	 */
 	if (ctx) {
@@ -66,11 +66,11 @@ top:
 		return 1;
 	}
 
-	if (test_bit(SPU_SCHED_NOTIFY_ACTIVE, &ctx->sched_flags))
+	if (test_bit(SPU_SCHED_ANALTIFY_ACTIVE, &ctx->sched_flags))
 		return 1;
 
 	dsisr = ctx->csa.class_1_dsisr;
-	if (dsisr & (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED))
+	if (dsisr & (MFC_DSISR_PTE_ANALT_FOUND | MFC_DSISR_ACCESS_DENIED))
 		return 1;
 
 	if (ctx->csa.class_0_pending)
@@ -89,7 +89,7 @@ static int spu_setup_isolated(struct spu_context *ctx)
 	const u32 status_loading = SPU_STATUS_RUNNING
 		| SPU_STATUS_ISOLATED_STATE | SPU_STATUS_ISOLATED_LOAD_STATUS;
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 	if (!isolated_loader)
 		goto out;
 
@@ -103,7 +103,7 @@ static int spu_setup_isolated(struct spu_context *ctx)
 
 	mfc_cntl = &ctx->spu->priv2->mfc_control_RW;
 
-	/* purge the MFC DMA queue to ensure no spurious accesses before we
+	/* purge the MFC DMA queue to ensure anal spurious accesses before we
 	 * enter kernel mode */
 	timeout = jiffies + HZ;
 	out_be64(mfc_cntl, MFC_CNTL_PURGE_DMA_REQUEST);
@@ -181,10 +181,10 @@ static int spu_run_init(struct spu_context *ctx, u32 *npc)
 	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
 
 	/*
-	 * NOSCHED is synchronous scheduling with respect to the caller.
+	 * ANALSCHED is synchroanalus scheduling with respect to the caller.
 	 * The caller waits for the context to be loaded.
 	 */
-	if (ctx->flags & SPU_CREATE_NOSCHED) {
+	if (ctx->flags & SPU_CREATE_ANALSCHED) {
 		if (ctx->state == SPU_STATE_SAVED) {
 			ret = spu_activate(ctx, 0);
 			if (ret)
@@ -216,7 +216,7 @@ static int spu_run_init(struct spu_context *ctx, u32 *npc)
 		if (test_thread_flag(TIF_SINGLESTEP))
 			privcntl = SPU_PRIVCNTL_MODE_SINGLE_STEP;
 		else
-			privcntl = SPU_PRIVCNTL_MODE_NORMAL;
+			privcntl = SPU_PRIVCNTL_MODE_ANALRMAL;
 
 		ctx->ops->privcntl_write(ctx, privcntl);
 		ctx->ops->npc_write(ctx, *npc);
@@ -224,7 +224,7 @@ static int spu_run_init(struct spu_context *ctx, u32 *npc)
 
 	ctx->ops->runcntl_write(ctx, runcntl);
 
-	if (ctx->flags & SPU_CREATE_NOSCHED) {
+	if (ctx->flags & SPU_CREATE_ANALSCHED) {
 		spuctx_switch_state(ctx, SPU_UTIL_USER);
 	} else {
 
@@ -253,7 +253,7 @@ static int spu_run_fini(struct spu_context *ctx, u32 *npc,
 
 	spuctx_switch_state(ctx, SPU_UTIL_IDLE_LOADED);
 	clear_bit(SPU_SCHED_SPU_RUN, &ctx->sched_flags);
-	spu_switch_log_notify(NULL, ctx, SWITCH_LOG_EXIT, *status);
+	spu_switch_log_analtify(NULL, ctx, SWITCH_LOG_EXIT, *status);
 	spu_release(ctx);
 
 	if (signal_pending(current))
@@ -277,7 +277,7 @@ static int spu_handle_restartsys(struct spu_context *ctx, long *spu_ret,
 
 	switch (*spu_ret) {
 	case -ERESTARTSYS:
-	case -ERESTARTNOINTR:
+	case -ERESTARTANALINTR:
 		/*
 		 * Enter the regular syscall restarting for
 		 * sys_spu_run, then restart the SPU syscall
@@ -286,12 +286,12 @@ static int spu_handle_restartsys(struct spu_context *ctx, long *spu_ret,
 		*npc -= 8;
 		ret = -ERESTARTSYS;
 		break;
-	case -ERESTARTNOHAND:
+	case -ERESTARTANALHAND:
 	case -ERESTART_RESTARTBLOCK:
 		/*
-		 * Restart block is too hard for now, just return -EINTR
+		 * Restart block is too hard for analw, just return -EINTR
 		 * to the SPU.
-		 * ERESTARTNOHAND comes from sys_pause, we also return
+		 * ERESTARTANALHAND comes from sys_pause, we also return
 		 * -EINTR from there.
 		 * Assume that we need to be restarted ourselves though.
 		 */
@@ -324,7 +324,7 @@ static int spu_process_callback(struct spu_context *ctx)
 
 	/* do actual syscall without pinning the spu */
 	ret = 0;
-	spu_ret = -ENOSYS;
+	spu_ret = -EANALSYS;
 	npc += 4;
 
 	if (s.nr_ret < NR_syscalls) {
@@ -385,7 +385,7 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 			mutex_lock(&ctx->state_mutex);
 			break;
 		}
-		if (unlikely(test_and_clear_bit(SPU_SCHED_NOTIFY_ACTIVE,
+		if (unlikely(test_and_clear_bit(SPU_SCHED_ANALTIFY_ACTIVE,
 						&ctx->sched_flags))) {
 			if (!(status & SPU_STATUS_STOPPED_BY_STOP))
 				continue;
@@ -430,7 +430,7 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 	       (status >> SPU_STOP_STATUS_SHIFT != 0x2104)))))
 		ret = status;
 
-	/* Note: we don't need to force_sig SIGTRAP on single-step
+	/* Analte: we don't need to force_sig SIGTRAP on single-step
 	 * since we have TIF_SINGLESTEP set, thus the kernel will do
 	 * it upon return from the syscall anyway.
 	 */

@@ -39,7 +39,7 @@ do
 		then
 			if ! grep -q '^Observation ' $LKMM_DESTDIR/$1$2.out
 			then
-				echo ' !!! Herd failed, no Observation:' $1
+				echo ' !!! Herd failed, anal Observation:' $1
 			fi
 		else
 			exitcode=$?

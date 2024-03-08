@@ -24,8 +24,8 @@ static void drm_aux_hpd_bridge_release(struct device *dev)
 
 	ida_free(&drm_aux_hpd_bridge_ida, adev->id);
 
-	of_node_put(adev->dev.platform_data);
-	of_node_put(adev->dev.of_node);
+	of_analde_put(adev->dev.platform_data);
+	of_analde_put(adev->dev.of_analde);
 
 	kfree(adev);
 }
@@ -38,7 +38,7 @@ static void drm_aux_hpd_bridge_free_adev(void *_adev)
 /**
  * devm_drm_dp_hpd_bridge_alloc - allocate a HPD DisplayPort bridge
  * @parent: device instance providing this bridge
- * @np: device node pointer corresponding to this bridge instance
+ * @np: device analde pointer corresponding to this bridge instance
  *
  * Creates a simple DRM bridge with the type set to
  * DRM_MODE_CONNECTOR_DisplayPort, which terminates the bridge chain and is
@@ -46,14 +46,14 @@ static void drm_aux_hpd_bridge_free_adev(void *_adev)
  *
  * Return: bridge auxiliary device pointer or an error pointer
  */
-struct auxiliary_device *devm_drm_dp_hpd_bridge_alloc(struct device *parent, struct device_node *np)
+struct auxiliary_device *devm_drm_dp_hpd_bridge_alloc(struct device *parent, struct device_analde *np)
 {
 	struct auxiliary_device *adev;
 	int ret;
 
 	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
 	if (!adev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = ida_alloc(&drm_aux_hpd_bridge_ida, GFP_KERNEL);
 	if (ret < 0) {
@@ -64,14 +64,14 @@ struct auxiliary_device *devm_drm_dp_hpd_bridge_alloc(struct device *parent, str
 	adev->id = ret;
 	adev->name = "dp_hpd_bridge";
 	adev->dev.parent = parent;
-	adev->dev.of_node = of_node_get(parent->of_node);
+	adev->dev.of_analde = of_analde_get(parent->of_analde);
 	adev->dev.release = drm_aux_hpd_bridge_release;
-	adev->dev.platform_data = of_node_get(np);
+	adev->dev.platform_data = of_analde_get(np);
 
 	ret = auxiliary_device_init(adev);
 	if (ret) {
-		of_node_put(adev->dev.platform_data);
-		of_node_put(adev->dev.of_node);
+		of_analde_put(adev->dev.platform_data);
+		of_analde_put(adev->dev.of_analde);
 		ida_free(&drm_aux_hpd_bridge_ida, adev->id);
 		kfree(adev);
 		return ERR_PTR(ret);
@@ -95,7 +95,7 @@ static void drm_aux_hpd_bridge_del_adev(void *_adev)
  * @dev: struct device to tie registration lifetime to
  * @adev: bridge auxiliary device to be registered
  *
- * Returns: zero on success or a negative errno
+ * Returns: zero on success or a negative erranal
  */
 int devm_drm_dp_hpd_bridge_add(struct device *dev, struct auxiliary_device *adev)
 {
@@ -112,11 +112,11 @@ EXPORT_SYMBOL_GPL(devm_drm_dp_hpd_bridge_add);
 /**
  * drm_dp_hpd_bridge_register - allocate and register a HDP DisplayPort bridge
  * @parent: device instance providing this bridge
- * @np: device node pointer corresponding to this bridge instance
+ * @np: device analde pointer corresponding to this bridge instance
  *
  * Return: device instance that will handle created bridge or an error pointer
  */
-struct device *drm_dp_hpd_bridge_register(struct device *parent, struct device_node *np)
+struct device *drm_dp_hpd_bridge_register(struct device *parent, struct device_analde *np)
 {
 	struct auxiliary_device *adev;
 	int ret;
@@ -134,16 +134,16 @@ struct device *drm_dp_hpd_bridge_register(struct device *parent, struct device_n
 EXPORT_SYMBOL_GPL(drm_dp_hpd_bridge_register);
 
 /**
- * drm_aux_hpd_bridge_notify - notify hot plug detection events
+ * drm_aux_hpd_bridge_analtify - analtify hot plug detection events
  * @dev: device created for the HPD bridge
  * @status: output connection status
  *
- * A wrapper around drm_bridge_hpd_notify() that is used to report hot plug
+ * A wrapper around drm_bridge_hpd_analtify() that is used to report hot plug
  * detection events for bridges created via drm_dp_hpd_bridge_register().
  *
  * This function shall be called in a context that can sleep.
  */
-void drm_aux_hpd_bridge_notify(struct device *dev, enum drm_connector_status status)
+void drm_aux_hpd_bridge_analtify(struct device *dev, enum drm_connector_status status)
 {
 	struct auxiliary_device *adev = to_auxiliary_dev(dev);
 	struct drm_aux_hpd_bridge_data *data = auxiliary_get_drvdata(adev);
@@ -151,14 +151,14 @@ void drm_aux_hpd_bridge_notify(struct device *dev, enum drm_connector_status sta
 	if (!data)
 		return;
 
-	drm_bridge_hpd_notify(&data->bridge, status);
+	drm_bridge_hpd_analtify(&data->bridge, status);
 }
-EXPORT_SYMBOL_GPL(drm_aux_hpd_bridge_notify);
+EXPORT_SYMBOL_GPL(drm_aux_hpd_bridge_analtify);
 
 static int drm_aux_hpd_bridge_attach(struct drm_bridge *bridge,
 				     enum drm_bridge_attach_flags flags)
 {
-	return flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR ? 0 : -EINVAL;
+	return flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR ? 0 : -EINVAL;
 }
 
 static const struct drm_bridge_funcs drm_aux_hpd_bridge_funcs = {
@@ -172,11 +172,11 @@ static int drm_aux_hpd_bridge_probe(struct auxiliary_device *auxdev,
 
 	data = devm_kzalloc(&auxdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = &auxdev->dev;
 	data->bridge.funcs = &drm_aux_hpd_bridge_funcs;
-	data->bridge.of_node = dev_get_platdata(data->dev);
+	data->bridge.of_analde = dev_get_platdata(data->dev);
 	data->bridge.ops = DRM_BRIDGE_OP_HPD;
 	data->bridge.type = id->driver_data;
 

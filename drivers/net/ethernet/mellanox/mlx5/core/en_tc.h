@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -108,7 +108,7 @@ struct mlx5_flow_attr {
 enum {
 	MLX5_ATTR_FLAG_VLAN_HANDLED  = BIT(0),
 	MLX5_ATTR_FLAG_SLOW_PATH     = BIT(1),
-	MLX5_ATTR_FLAG_NO_IN_PORT    = BIT(2),
+	MLX5_ATTR_FLAG_ANAL_IN_PORT    = BIT(2),
 	MLX5_ATTR_FLAG_SRC_REWRITE   = BIT(3),
 	MLX5_ATTR_FLAG_SAMPLE        = BIT(4),
 	MLX5_ATTR_FLAG_ACCEPT        = BIT(5),
@@ -129,11 +129,11 @@ struct mlx5_rx_tun_attr {
 	union {
 		__be32 v4;
 		struct in6_addr v6;
-	} src_ip; /* Valid if decap_vport is not zero */
+	} src_ip; /* Valid if decap_vport is analt zero */
 	union {
 		__be32 v4;
 		struct in6_addr v6;
-	} dst_ip; /* Valid if decap_vport is not zero */
+	} dst_ip; /* Valid if decap_vport is analt zero */
 };
 
 #define MLX5E_TC_TABLE_CHAIN_TAG_BITS 16
@@ -336,7 +336,7 @@ static inline int mlx5e_tc_ht_init(struct rhashtable *tc_ht) { return 0; }
 static inline void mlx5e_tc_ht_cleanup(struct rhashtable *tc_ht) {}
 static inline int
 mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
-{ return -EOPNOTSUPP; }
+{ return -EOPANALTSUPP; }
 
 #endif /* CONFIG_MLX5_CLS_ACT */
 
@@ -361,7 +361,7 @@ static inline int  mlx5e_tc_num_filters(struct mlx5e_priv *priv,
 
 static inline int
 mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
-{ return -EOPNOTSUPP; }
+{ return -EOPANALTSUPP; }
 #endif
 
 #if IS_ENABLED(CONFIG_MLX5_CLS_ACT)

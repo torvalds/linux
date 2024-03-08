@@ -8,13 +8,13 @@
  *
  * DS2786 added by Yulia Vilensky <vilensky@compulab.co.il>
  *
- * UEvent sending added by Evgeny Romanov <romanov@neurosoft.ru>
+ * UEvent sending added by Evgeny Romaanalv <romaanalv@neurosoft.ru>
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/swab.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
@@ -230,7 +230,7 @@ static int ds278x_get_status(struct ds278x_info *info, int *status)
 	if (capacity == 100)
 		*status = POWER_SUPPLY_STATUS_FULL;
 	else if (current_uA == 0)
-		*status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		*status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 	else if (current_uA < 0)
 		*status = POWER_SUPPLY_STATUS_DISCHARGING;
 	else
@@ -255,11 +255,11 @@ static int ds278x_battery_get_property(struct power_supply *psy,
 		ret = info->ops->get_battery_capacity(info, &val->intval);
 		break;
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = info->ops->get_battery_voltage(info, &val->intval);
 		break;
 
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		ret = info->ops->get_battery_current(info, &val->intval);
 		break;
 
@@ -298,8 +298,8 @@ static void ds278x_bat_work(struct work_struct *work)
 static enum power_supply_property ds278x_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_CAPACITY,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_TEMP,
 };
 
@@ -396,14 +396,14 @@ static int ds278x_battery_probe(struct i2c_client *client)
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_info;
 	}
 
 	info->battery_desc.name = kasprintf(GFP_KERNEL, "%s-%d",
 					    client->name, num);
 	if (!info->battery_desc.name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_name;
 	}
 

@@ -31,7 +31,7 @@ int etnaviv_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 
 	vaddr = etnaviv_gem_vmap(obj);
 	if (!vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 	iosys_map_set_vaddr(map, vaddr);
 
 	return 0;
@@ -67,7 +67,7 @@ static void etnaviv_gem_prime_release(struct etnaviv_gem_object *etnaviv_obj)
 	if (etnaviv_obj->vaddr)
 		dma_buf_vunmap_unlocked(etnaviv_obj->base.import_attach->dmabuf, &map);
 
-	/* Don't drop the pages for imported dmabuf, as they are not
+	/* Don't drop the pages for imported dmabuf, as they are analt
 	 * ours, just free the array we allocated:
 	 */
 	kvfree(etnaviv_obj->pages);
@@ -128,7 +128,7 @@ struct drm_gem_object *etnaviv_gem_prime_import_sg_table(struct drm_device *dev,
 	etnaviv_obj->sgt = sgt;
 	etnaviv_obj->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (!etnaviv_obj->pages) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 

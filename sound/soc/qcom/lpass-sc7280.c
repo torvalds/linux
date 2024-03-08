@@ -203,7 +203,7 @@ static int sc7280_lpass_init(struct platform_device *pdev)
 	drvdata->clks = devm_kcalloc(dev, variant->num_clks,
 				     sizeof(*drvdata->clks), GFP_KERNEL);
 	if (!drvdata->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->num_clks = variant->num_clks;
 
@@ -291,10 +291,10 @@ static const struct lpass_variant sc7280_data = {
 	.loopback			= REG_FIELD_ID(0x1000, 17, 17, 3, 0x1000),
 	.spken				= REG_FIELD_ID(0x1000, 16, 16, 3, 0x1000),
 	.spkmode			= REG_FIELD_ID(0x1000, 11, 15, 3, 0x1000),
-	.spkmono			= REG_FIELD_ID(0x1000, 10, 10, 3, 0x1000),
+	.spkmoanal			= REG_FIELD_ID(0x1000, 10, 10, 3, 0x1000),
 	.micen				= REG_FIELD_ID(0x1000, 9, 9, 3, 0x1000),
 	.micmode			= REG_FIELD_ID(0x1000, 4, 8, 3, 0x1000),
-	.micmono			= REG_FIELD_ID(0x1000, 3, 3, 3, 0x1000),
+	.micmoanal			= REG_FIELD_ID(0x1000, 3, 3, 3, 0x1000),
 	.wssrc				= REG_FIELD_ID(0x1000, 2, 2, 3, 0x1000),
 	.bitwidth			= REG_FIELD_ID(0x1000, 0, 1, 3, 0x1000),
 
@@ -412,7 +412,7 @@ static const struct lpass_variant sc7280_data = {
 	.msb_bits			=  REG_FIELD(0x6104c, 0, 31),
 
 	.clk_name			= (const char*[]) {
-							"core_cc_sysnoc_mport_core"
+							"core_cc_sysanalc_mport_core"
 						},
 	.num_clks			= 1,
 

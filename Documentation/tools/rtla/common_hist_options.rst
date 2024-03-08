@@ -6,17 +6,17 @@
 
         Set the number of entries of the histogram (default 256).
 
-**--no-header**
+**--anal-header**
 
-        Do not print header.
+        Do analt print header.
 
-**--no-summary**
+**--anal-summary**
 
-        Do not print summary.
+        Do analt print summary.
 
-**--no-index**
+**--anal-index**
 
-        Do not print index.
+        Do analt print index.
 
 **--with-zeros**
 

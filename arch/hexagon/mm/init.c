@@ -34,7 +34,7 @@ unsigned long highstart_pfn, highend_pfn;
 unsigned long _dflt_cache_att = CACHEDEF;
 
 /*
- * The current "generation" of kernel map, which should not roll
+ * The current "generation" of kernel map, which should analt roll
  * over until Hell freezes over.  Actual bound in years needs to be
  * calculated to confirm.
  */
@@ -52,7 +52,7 @@ unsigned long long kmap_generation;
  */
 void __init mem_init(void)
 {
-	/*  No idea where this is actually declared.  Seems to evade LXR.  */
+	/*  Anal idea where this is actually declared.  Seems to evade LXR.  */
 	memblock_free_all();
 
 	/*
@@ -81,7 +81,7 @@ void sync_icache_dcache(pte_t pte)
 }
 
 /*
- * In order to set up page allocator "nodes",
+ * In order to set up page allocator "analdes",
  * somebody has to call free_area_init() for UMA.
  *
  * In this mode, we only have one pg_data_t
@@ -92,14 +92,14 @@ static void __init paging_init(void)
 	unsigned long max_zone_pfn[MAX_NR_ZONES] = {0, };
 
 	/*
-	 *  This is not particularly well documented anywhere, but
-	 *  give ZONE_NORMAL all the memory, including the big holes
+	 *  This is analt particularly well documented anywhere, but
+	 *  give ZONE_ANALRMAL all the memory, including the big holes
 	 *  left by the kernel+bootmem_map which are already left as reserved
 	 *  in the bootmem_map; free_area_init should see those bits and
 	 *  adjust accordingly.
 	 */
 
-	max_zone_pfn[ZONE_NORMAL] = max_low_pfn;
+	max_zone_pfn[ZONE_ANALRMAL] = max_low_pfn;
 
 	free_area_init(max_zone_pfn);  /*  sets up the zonelists and mem_map  */
 
@@ -230,14 +230,14 @@ void __init setup_arch_memory(void)
 
 	/*
 	 *  At this point, the page allocator is kind of initialized, but
-	 *  apparently no pages are available (just like with the bootmem
+	 *  apparently anal pages are available (just like with the bootmem
 	 *  allocator), and need to be freed themselves via mem_init(),
 	 *  which is called by start_kernel() later on in the process
 	 */
 }
 
 static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= __pgprot(_PAGE_PRESENT | _PAGE_USER |
+	[VM_ANALNE]					= __pgprot(_PAGE_PRESENT | _PAGE_USER |
 								   CACHEDEF),
 	[VM_READ]					= __pgprot(_PAGE_PRESENT | _PAGE_USER |
 								   _PAGE_READ | CACHEDEF),

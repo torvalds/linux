@@ -34,11 +34,11 @@ void check_result(pid_t pid, const char *msg)
 		return;
 	}
 	if (!WIFEXITED(wstatus)) {
-		ksft_test_result_fail("child did not exit: %s\n", msg);
+		ksft_test_result_fail("child did analt exit: %s\n", msg);
 		return;
 	}
 	if (WEXITSTATUS(wstatus) != 0) {
-		ksft_test_result_fail("non-zero exit: %s\n", msg);
+		ksft_test_result_fail("analn-zero exit: %s\n", msg);
 		return;
 	}
 	ksft_test_result_pass("%s\n", msg);
@@ -56,7 +56,7 @@ int main(int argc, char *argv[], char *envp[])
 		return 1;
 	}
 	if (argc != 1) {
-		fprintf(stderr, "# FAIL: unknown argc (%d)\n", argc);
+		fprintf(stderr, "# FAIL: unkanalwn argc (%d)\n", argc);
 		return 1;
 	}
 	if (argv[0][0] == '\0') {

@@ -20,7 +20,7 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-static const char *sermouse_protocols[] = { "None", "Mouse Systems Mouse", "Sun Mouse", "Microsoft Mouse",
+static const char *sermouse_protocols[] = { "Analne", "Mouse Systems Mouse", "Sun Mouse", "Microsoft Mouse",
 					"Logitech M+ Mouse", "Microsoft MZ Mouse", "Logitech MZ+ Mouse",
 					"Logitech MZ++ Mouse"};
 
@@ -147,12 +147,12 @@ static void sermouse_process_ms(struct sermouse *sermouse, signed char data)
 			break;
 
 		case 4:
-		case 6:	/* MZ++ packet type. We can get these bytes for M++ too but we ignore them later. */
+		case 6:	/* MZ++ packet type. We can get these bytes for M++ too but we iganalre them later. */
 			buf[1] = (data >> 2) & 0x0f;
 			break;
 
 		case 5:
-		case 7: /* Ignore anything besides MZ++ */
+		case 7: /* Iganalre anything besides MZ++ */
 			if (sermouse->type != SERIO_MZPP)
 				break;
 
@@ -169,7 +169,7 @@ static void sermouse_process_ms(struct sermouse *sermouse, signed char data)
 				default: /* We don't decode anything else yet. */
 
 					printk(KERN_WARNING
-						"sermouse.c: Received MZ++ packet %x, don't know how to handle.\n", buf[1]);
+						"sermouse.c: Received MZ++ packet %x, don't kanalw how to handle.\n", buf[1]);
 					break;
 			}
 
@@ -229,7 +229,7 @@ static int sermouse_connect(struct serio *serio, struct serio_driver *drv)
 	struct sermouse *sermouse;
 	struct input_dev *input_dev;
 	unsigned char c = serio->id.extra;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	sermouse = kzalloc(sizeof(struct sermouse), GFP_KERNEL);
 	input_dev = input_allocate_device();

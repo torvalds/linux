@@ -41,8 +41,8 @@
 #define PA_TRACETAG_EN			BIT(4)
 #define PA_TGTID_EN			BIT(11)
 #define PA_SRCID_EN			BIT(11)
-#define PA_TGTID_NONE			0
-#define PA_SRCID_NONE			0
+#define PA_TGTID_ANALNE			0
+#define PA_SRCID_ANALNE			0
 #define PA_TGTID_MSK_SHIFT		12
 #define PA_SRCID_MSK_SHIFT		12
 
@@ -105,7 +105,7 @@ static void hisi_pa_pmu_clear_tgtid(struct perf_event *event)
 	u32 cmd = hisi_get_tgtid_cmd(event);
 
 	if (cmd)
-		writel(PA_TGTID_NONE, pa_pmu->base + PA_TGTID_CTRL);
+		writel(PA_TGTID_ANALNE, pa_pmu->base + PA_TGTID_CTRL);
 }
 
 static void hisi_pa_pmu_config_srcid(struct perf_event *event)
@@ -127,7 +127,7 @@ static void hisi_pa_pmu_clear_srcid(struct perf_event *event)
 	u32 cmd = hisi_get_srcid_cmd(event);
 
 	if (cmd)
-		writel(PA_SRCID_NONE, pa_pmu->base + PA_SRCID_CTRL);
+		writel(PA_SRCID_ANALNE, pa_pmu->base + PA_SRCID_CTRL);
 }
 
 static void hisi_pa_pmu_enable_filter(struct perf_event *event)
@@ -275,13 +275,13 @@ static int hisi_pa_pmu_init_data(struct platform_device *pdev,
 	 */
 	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
 				     &pa_pmu->sicl_id)) {
-		dev_err(&pdev->dev, "Cannot read sicl-id!\n");
+		dev_err(&pdev->dev, "Cananalt read sicl-id!\n");
 		return -EINVAL;
 	}
 
 	if (device_property_read_u32(&pdev->dev, "hisilicon,idx-id",
 				     &pa_pmu->index_id)) {
-		dev_err(&pdev->dev, "Cannot read idx-id!\n");
+		dev_err(&pdev->dev, "Cananalt read idx-id!\n");
 		return -EINVAL;
 	}
 
@@ -290,7 +290,7 @@ static int hisi_pa_pmu_init_data(struct platform_device *pdev,
 
 	pa_pmu->dev_info = device_get_match_data(&pdev->dev);
 	if (!pa_pmu->dev_info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pa_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pa_pmu->base)) {
@@ -482,7 +482,7 @@ static int hisi_pa_pmu_probe(struct platform_device *pdev)
 
 	pa_pmu = devm_kzalloc(&pdev->dev, sizeof(*pa_pmu), GFP_KERNEL);
 	if (!pa_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hisi_pa_pmu_dev_probe(pdev, pa_pmu);
 	if (ret)
@@ -492,10 +492,10 @@ static int hisi_pa_pmu_probe(struct platform_device *pdev)
 			      pa_pmu->sicl_id, pa_pmu->dev_info->name,
 			      pa_pmu->index_id);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HISI_PA_ONLINE,
-				       &pa_pmu->node);
+				       &pa_pmu->analde);
 	if (ret) {
 		dev_err(&pdev->dev, "Error %d registering hotplug\n", ret);
 		return ret;
@@ -505,8 +505,8 @@ static int hisi_pa_pmu_probe(struct platform_device *pdev)
 	ret = perf_pmu_register(&pa_pmu->pmu, name, -1);
 	if (ret) {
 		dev_err(pa_pmu->dev, "PMU register failed, ret = %d\n", ret);
-		cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_PA_ONLINE,
-						    &pa_pmu->node);
+		cpuhp_state_remove_instance_analcalls(CPUHP_AP_PERF_ARM_HISI_PA_ONLINE,
+						    &pa_pmu->analde);
 		return ret;
 	}
 
@@ -519,8 +519,8 @@ static int hisi_pa_pmu_remove(struct platform_device *pdev)
 	struct hisi_pmu *pa_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&pa_pmu->pmu);
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_PA_ONLINE,
-					    &pa_pmu->node);
+	cpuhp_state_remove_instance_analcalls(CPUHP_AP_PERF_ARM_HISI_PA_ONLINE,
+					    &pa_pmu->analde);
 	return 0;
 }
 

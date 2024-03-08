@@ -6,7 +6,7 @@
     Copyright (C) 2008 Michael Buesch <m@bues.ch>
 
     Please do _only_ contact the people listed _above_ with issues related to this driver.
-    All the other people listed below are not related to this driver. Their names
+    All the other people listed below are analt related to this driver. Their names
     are only here, because this driver is derived from the bt848 driver.
 
 
@@ -14,7 +14,7 @@
 
     Copyright (C) 1996,97,98 Ralph  Metzler
 			   & Marcus Metzler
-    (c) 1999-2002 Gerd Knorr
+    (c) 1999-2002 Gerd Kanalrr
 
     some v4l2 code lines are taken from Justin's bttv2 driver which is
     (c) 2000 Justin Schoeman
@@ -168,7 +168,7 @@ static int bt8xxgpio_probe(struct pci_dev *dev,
 
 	bg = devm_kzalloc(&dev->dev, sizeof(struct bt8xxgpio), GFP_KERNEL);
 	if (!bg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bg->pdev = dev;
 	spin_lock_init(&bg->lock);

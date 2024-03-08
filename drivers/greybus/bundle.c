@@ -46,10 +46,10 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 	kfree(bundle->state);
 	bundle->state = kstrdup(buf, GFP_KERNEL);
 	if (!bundle->state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Tell userspace that the file contents changed */
-	sysfs_notify(&bundle->dev.kobj, NULL, "state");
+	sysfs_analtify(&bundle->dev.kobj, NULL, "state");
 
 	return size;
 }
@@ -182,14 +182,14 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 {
 	struct gb_bundle *bundle;
 
-	if (bundle_id == BUNDLE_ID_NONE) {
+	if (bundle_id == BUNDLE_ID_ANALNE) {
 		dev_err(&intf->dev, "can't use bundle id %u\n", bundle_id);
 		return NULL;
 	}
 
 	/*
 	 * Reject any attempt to reuse a bundle id.  We initialize
-	 * these serially, so there's no need to worry about keeping
+	 * these serially, so there's anal need to worry about keeping
 	 * the interface bundle list locked here.
 	 */
 	if (gb_bundle_find(intf, bundle_id)) {

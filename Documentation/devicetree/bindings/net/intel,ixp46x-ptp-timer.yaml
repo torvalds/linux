@@ -11,7 +11,7 @@ maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
 
 description: |
-  The Intel IXP46x PTP timer is known in the manual as IEEE1588 Hardware
+  The Intel IXP46x PTP timer is kanalwn in the manual as IEEE1588 Hardware
   Assist and Time Synchronization Hardware Assist TSYNC provides a PTP
   timer. It exists in the Intel IXP45x and IXP46x XScale SoCs.
 

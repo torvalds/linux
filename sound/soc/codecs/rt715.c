@@ -708,16 +708,16 @@ static const struct snd_soc_dapm_widget rt715_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("ADC 08", NULL, RT715_SET_STREAMID_LINE_ADC, 4, 0),
 	SND_SOC_DAPM_ADC("ADC 09", NULL, RT715_SET_STREAMID_MIX_ADC, 4, 0),
 	SND_SOC_DAPM_ADC("ADC 27", NULL, RT715_SET_STREAMID_MIX_ADC2, 4, 0),
-	SND_SOC_DAPM_MUX("ADC 22 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 22 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt715_adc22_mux),
-	SND_SOC_DAPM_MUX("ADC 23 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 23 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt715_adc23_mux),
-	SND_SOC_DAPM_MUX("ADC 24 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 24 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt715_adc24_mux),
-	SND_SOC_DAPM_MUX("ADC 25 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 25 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt715_adc25_mux),
-	SND_SOC_DAPM_AIF_OUT("DP4TX", "DP4 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DP6TX", "DP6 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP4TX", "DP4 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP6TX", "DP6 Capture", 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route rt715_audio_map[] = {
@@ -875,7 +875,7 @@ static int rt715_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	switch (params_rate(params)) {
 	/* bit 14 0:48K 1:44.1K */
-	/* bit 15 Stream Type 0:PCM 1:Non-PCM, should always be PCM */
+	/* bit 15 Stream Type 0:PCM 1:Analn-PCM, should always be PCM */
 	case 44100:
 		val |= 0x40 << 8;
 		break;
@@ -1030,7 +1030,7 @@ int rt715_init(struct device *dev, struct regmap *sdw_regmap,
 
 	rt715 = devm_kzalloc(dev, sizeof(*rt715), GFP_KERNEL);
 	if (!rt715)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, rt715);
 	rt715->slave = slave;
@@ -1057,14 +1057,14 @@ int rt715_init(struct device *dev, struct regmap *sdw_regmap,
 	pm_runtime_set_autosuspend_delay(dev, 3000);
 	pm_runtime_use_autosuspend(dev);
 
-	/* make sure the device does not suspend immediately */
+	/* make sure the device does analt suspend immediately */
 	pm_runtime_mark_last_busy(dev);
 
 	pm_runtime_enable(dev);
 
-	/* important note: the device is NOT tagged as 'active' and will remain
+	/* important analte: the device is ANALT tagged as 'active' and will remain
 	 * 'suspended' until the hardware is enumerated/initialized. This is required
-	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does analt silently
 	 * fail with -EACCESS because of race conditions between card creation and enumeration
 	 */
 
@@ -1087,7 +1087,7 @@ int rt715_io_init(struct device *dev, struct sdw_slave *slave)
 		/* update count of parent 'active' children */
 		pm_runtime_set_active(&slave->dev);
 
-	pm_runtime_get_noresume(&slave->dev);
+	pm_runtime_get_analresume(&slave->dev);
 
 	rt715_reset(rt715->regmap);
 

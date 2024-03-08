@@ -130,7 +130,7 @@ static int mtk_cpu_create_freq_table(struct platform_device *pdev,
 	data->table = devm_kcalloc(dev, LUT_MAX_ENTRIES + 1,
 				   sizeof(*data->table), GFP_KERNEL);
 	if (!data->table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base_table = data->reg_bases[REG_FREQ_LUT_TABLE];
 
@@ -168,7 +168,7 @@ static int mtk_cpu_resources_init(struct platform_device *pdev,
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_perf_domain_get_sharing_cpumask(policy->cpu, "performance-domains",
 						 "#performance-domain-cells",
@@ -177,12 +177,12 @@ static int mtk_cpu_resources_init(struct platform_device *pdev,
 		return ret;
 
 	index = args.args[0];
-	of_node_put(args.np);
+	of_analde_put(args.np);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, index);
 	if (!res) {
 		dev_err(dev, "failed to get mem resource %d\n", index);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!request_mem_region(res->start, resource_size(res), res->name)) {
@@ -193,7 +193,7 @@ static int mtk_cpu_resources_init(struct platform_device *pdev,
 	base = ioremap(res->start, resource_size(res));
 	if (!base) {
 		dev_err(dev, "failed to map resource %pR\n", res);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_region;
 	}
 
@@ -242,18 +242,18 @@ static int mtk_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = latency;
 	policy->fast_switch_possible = true;
 
-	/* HW should be in enabled state to proceed now */
+	/* HW should be in enabled state to proceed analw */
 	writel_relaxed(0x1, data->reg_bases[REG_FREQ_ENABLE]);
 	if (readl_poll_timeout(data->reg_bases[REG_FREQ_HW_STATE], sig,
 			       (sig & pwr_hw) == pwr_hw, POLL_USEC,
 			       TIMEOUT_USEC)) {
 		if (!(sig & CPUFREQ_HW_STATUS)) {
-			pr_info("cpufreq hardware of CPU%d is not enabled\n",
+			pr_info("cpufreq hardware of CPU%d is analt enabled\n",
 				policy->cpu);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
-		pr_info("SVS of CPU%d is not enabled\n", policy->cpu);
+		pr_info("SVS of CPU%d is analt enabled\n", policy->cpu);
 	}
 
 	return 0;
@@ -265,7 +265,7 @@ static int mtk_cpufreq_hw_cpu_exit(struct cpufreq_policy *policy)
 	struct resource *res = data->res;
 	void __iomem *base = data->base;
 
-	/* HW should be in paused state now */
+	/* HW should be in paused state analw */
 	writel_relaxed(0x0, data->reg_bases[REG_FREQ_ENABLE]);
 	iounmap(base);
 	release_mem_region(res->start, resource_size(res));
@@ -284,7 +284,7 @@ static void mtk_cpufreq_register_em(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver cpufreq_mtk_hw_driver = {
 	.flags		= CPUFREQ_NEED_INITIAL_FREQ_CHECK |
-			  CPUFREQ_HAVE_GOVERNOR_PER_POLICY |
+			  CPUFREQ_HAVE_GOVERANALR_PER_POLICY |
 			  CPUFREQ_IS_COOLING_DEV,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= mtk_cpufreq_hw_target_index,

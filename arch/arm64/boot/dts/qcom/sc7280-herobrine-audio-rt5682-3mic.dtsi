@@ -8,7 +8,7 @@
  */
 
 / {
-	/* BOARD-SPECIFIC TOP LEVEL NODES */
+	/* BOARD-SPECIFIC TOP LEVEL ANALDES */
 	sound: sound {
 		compatible = "google,sc7280-herobrine";
 		model = "sc7280-rt5682-max98360a-3mic";
@@ -143,7 +143,7 @@ hp_i2c: &i2c2 {
 	status = "okay";
 };
 
-/* PINCTRL - ADDITIONS TO NODES IN PARENT DEVICE TREE FILES */
+/* PINCTRL - ADDITIONS TO ANALDES IN PARENT DEVICE TREE FILES */
 
 &lpass_dmic01_clk {
 	drive-strength = <8>;

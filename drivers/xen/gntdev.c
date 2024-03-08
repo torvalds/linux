@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
@@ -259,24 +259,24 @@ void gntdev_put_map(struct gntdev_priv *priv, struct gntdev_grant_map *map)
 	if (map->pages && !use_ptemod) {
 		/*
 		 * Increment the reference count.  This ensures that the
-		 * subsequent call to unmap_grant_pages() will not wind up
+		 * subsequent call to unmap_grant_pages() will analt wind up
 		 * re-entering itself.  It *can* wind up calling
 		 * gntdev_put_map() recursively, but such calls will be with a
 		 * reference count greater than 1, so they will return before
 		 * this code is reached.  The recursion depth is thus limited to
-		 * 1.  Do NOT use refcount_inc() here, as it will detect that
+		 * 1.  Do ANALT use refcount_inc() here, as it will detect that
 		 * the reference count is zero and WARN().
 		 */
 		refcount_set(&map->users, 1);
 
 		/*
-		 * Unmap the grants.  This may or may not be asynchronous, so it
+		 * Unmap the grants.  This may or may analt be asynchroanalus, so it
 		 * is possible that the reference count is 1 on return, but it
 		 * could also be greater than 1.
 		 */
 		unmap_grant_pages(map, 0, map->count);
 
-		/* Check if the memory now needs to be freed */
+		/* Check if the memory analw needs to be freed */
 		if (!refcount_dec_and_test(&map->users))
 			return;
 
@@ -286,12 +286,12 @@ void gntdev_put_map(struct gntdev_priv *priv, struct gntdev_grant_map *map)
 		 */
 	}
 
-	if (use_ptemod && map->notifier_init)
-		mmu_interval_notifier_remove(&map->notifier);
+	if (use_ptemod && map->analtifier_init)
+		mmu_interval_analtifier_remove(&map->analtifier);
 
-	if (map->notify.flags & UNMAP_NOTIFY_SEND_EVENT) {
-		notify_remote_via_evtchn(map->notify.event);
-		evtchn_put(map->notify.event);
+	if (map->analtify.flags & UNMAP_ANALTIFY_SEND_EVENT) {
+		analtify_remote_via_evtchn(map->analtify.event);
+		evtchn_put(map->analtify.event);
 	}
 	gntdev_free_map(map);
 }
@@ -323,7 +323,7 @@ int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 	int i, err = 0;
 
 	if (!use_ptemod) {
-		/* Note: it could already be mapped */
+		/* Analte: it could already be mapped */
 		if (map->map_ops[0].handle != INVALID_GRANT_HANDLE)
 			return 0;
 		for (i = 0; i < map->count; i++) {
@@ -341,9 +341,9 @@ int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 		 * to the kernel linear addresses of the struct pages.
 		 * These ptes are completely different from the user ptes dealt
 		 * with find_grant_ptes.
-		 * Note that GNTMAP_device_map isn't needed here: The
+		 * Analte that GNTMAP_device_map isn't needed here: The
 		 * dev_bus_addr output field gets consumed only from ->map_ops,
-		 * and by not requesting it when mapping we also avoid needing
+		 * and by analt requesting it when mapping we also avoid needing
 		 * to mirror dev_bus_addr into ->unmap_ops (and holding an extra
 		 * reference to the page in the hypervisor).
 		 */
@@ -439,15 +439,15 @@ static void __unmap_grant_pages_done(int result,
 static void __unmap_grant_pages(struct gntdev_grant_map *map, int offset,
 			       int pages)
 {
-	if (map->notify.flags & UNMAP_NOTIFY_CLEAR_BYTE) {
-		int pgno = (map->notify.addr >> PAGE_SHIFT);
+	if (map->analtify.flags & UNMAP_ANALTIFY_CLEAR_BYTE) {
+		int pganal = (map->analtify.addr >> PAGE_SHIFT);
 
-		if (pgno >= offset && pgno < offset + pages) {
-			/* No need for kmap, pages are in lowmem */
-			uint8_t *tmp = pfn_to_kaddr(page_to_pfn(map->pages[pgno]));
+		if (pganal >= offset && pganal < offset + pages) {
+			/* Anal need for kmap, pages are in lowmem */
+			uint8_t *tmp = pfn_to_kaddr(page_to_pfn(map->pages[pganal]));
 
-			tmp[map->notify.addr & (PAGE_SIZE-1)] = 0;
-			map->notify.flags &= ~UNMAP_NOTIFY_CLEAR_BYTE;
+			tmp[map->analtify.addr & (PAGE_SIZE-1)] = 0;
+			map->analtify.flags &= ~UNMAP_ANALTIFY_CLEAR_BYTE;
 		}
 	}
 
@@ -468,7 +468,7 @@ static void unmap_grant_pages(struct gntdev_grant_map *map, int offset,
 	int range;
 
 	if (atomic_read(&map->live_grants) == 0)
-		return; /* Nothing to do */
+		return; /* Analthing to do */
 
 	pr_debug("unmap %d+%d [%d+%d]\n", map->index, map->count, offset, pages);
 
@@ -532,23 +532,23 @@ static const struct vm_operations_struct gntdev_vmops = {
 
 /* ------------------------------------------------------------------ */
 
-static bool gntdev_invalidate(struct mmu_interval_notifier *mn,
-			      const struct mmu_notifier_range *range,
+static bool gntdev_invalidate(struct mmu_interval_analtifier *mn,
+			      const struct mmu_analtifier_range *range,
 			      unsigned long cur_seq)
 {
 	struct gntdev_grant_map *map =
-		container_of(mn, struct gntdev_grant_map, notifier);
+		container_of(mn, struct gntdev_grant_map, analtifier);
 	unsigned long mstart, mend;
 	unsigned long map_start, map_end;
 
-	if (!mmu_notifier_range_blockable(range))
+	if (!mmu_analtifier_range_blockable(range))
 		return false;
 
 	map_start = map->pages_vm_start;
 	map_end = map->pages_vm_start + (map->count << PAGE_SHIFT);
 
 	/*
-	 * If the VMA is split or otherwise changed the notifier is not
+	 * If the VMA is split or otherwise changed the analtifier is analt
 	 * updated, but we don't want to process VA's outside the modified
 	 * VMA. FIXME: It would be much more understandable to just prevent
 	 * modifying the VMA in the first place.
@@ -567,19 +567,19 @@ static bool gntdev_invalidate(struct mmu_interval_notifier *mn,
 	return true;
 }
 
-static const struct mmu_interval_notifier_ops gntdev_mmu_ops = {
+static const struct mmu_interval_analtifier_ops gntdev_mmu_ops = {
 	.invalidate = gntdev_invalidate,
 };
 
 /* ------------------------------------------------------------------ */
 
-static int gntdev_open(struct inode *inode, struct file *flip)
+static int gntdev_open(struct ianalde *ianalde, struct file *flip)
 {
 	struct gntdev_priv *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&priv->maps);
 	mutex_init(&priv->lock);
@@ -604,7 +604,7 @@ static int gntdev_open(struct inode *inode, struct file *flip)
 	return 0;
 }
 
-static int gntdev_release(struct inode *inode, struct file *flip)
+static int gntdev_release(struct ianalde *ianalde, struct file *flip)
 {
 	struct gntdev_priv *priv = flip->private_data;
 	struct gntdev_grant_map *map;
@@ -641,8 +641,8 @@ static long gntdev_ioctl_map_grant_ref(struct gntdev_priv *priv,
 	if (unlikely(gntdev_test_page_count(op.count)))
 		return -EINVAL;
 
-	err = -ENOMEM;
-	map = gntdev_alloc_map(priv, op.count, 0 /* This is not a dma-buf. */);
+	err = -EANALMEM;
+	map = gntdev_alloc_map(priv, op.count, 0 /* This is analt a dma-buf. */);
 	if (!map)
 		return err;
 
@@ -668,7 +668,7 @@ static long gntdev_ioctl_unmap_grant_ref(struct gntdev_priv *priv,
 {
 	struct ioctl_gntdev_unmap_grant_ref op;
 	struct gntdev_grant_map *map;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	if (copy_from_user(&op, u, sizeof(op)) != 0)
 		return -EFAULT;
@@ -719,9 +719,9 @@ static long gntdev_ioctl_get_offset_for_vaddr(struct gntdev_priv *priv,
 	return rv;
 }
 
-static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
+static long gntdev_ioctl_analtify(struct gntdev_priv *priv, void __user *u)
 {
-	struct ioctl_gntdev_unmap_notify op;
+	struct ioctl_gntdev_unmap_analtify op;
 	struct gntdev_grant_map *map;
 	int rc;
 	int out_flags;
@@ -730,17 +730,17 @@ static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
 	if (copy_from_user(&op, u, sizeof(op)))
 		return -EFAULT;
 
-	if (op.action & ~(UNMAP_NOTIFY_CLEAR_BYTE|UNMAP_NOTIFY_SEND_EVENT))
+	if (op.action & ~(UNMAP_ANALTIFY_CLEAR_BYTE|UNMAP_ANALTIFY_SEND_EVENT))
 		return -EINVAL;
 
 	/* We need to grab a reference to the event channel we are going to use
-	 * to send the notify before releasing the reference we may already have
+	 * to send the analtify before releasing the reference we may already have
 	 * (if someone has called this ioctl twice). This is required so that
-	 * it is possible to change the clear_byte part of the notification
-	 * without disturbing the event channel part, which may now be the last
+	 * it is possible to change the clear_byte part of the analtification
+	 * without disturbing the event channel part, which may analw be the last
 	 * reference to that event channel.
 	 */
-	if (op.action & UNMAP_NOTIFY_SEND_EVENT) {
+	if (op.action & UNMAP_ANALTIFY_SEND_EVENT) {
 		if (evtchn_get(op.event_channel_port))
 			return -EINVAL;
 	}
@@ -756,30 +756,30 @@ static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
 		if (op.index >= begin && op.index < end)
 			goto found;
 	}
-	rc = -ENOENT;
+	rc = -EANALENT;
 	goto unlock_out;
 
  found:
-	if ((op.action & UNMAP_NOTIFY_CLEAR_BYTE) &&
+	if ((op.action & UNMAP_ANALTIFY_CLEAR_BYTE) &&
 			(map->flags & GNTMAP_readonly)) {
 		rc = -EINVAL;
 		goto unlock_out;
 	}
 
-	out_flags = map->notify.flags;
-	out_event = map->notify.event;
+	out_flags = map->analtify.flags;
+	out_event = map->analtify.event;
 
-	map->notify.flags = op.action;
-	map->notify.addr = op.index - (map->index << PAGE_SHIFT);
-	map->notify.event = op.event_channel_port;
+	map->analtify.flags = op.action;
+	map->analtify.addr = op.index - (map->index << PAGE_SHIFT);
+	map->analtify.event = op.event_channel_port;
 
 	rc = 0;
 
  unlock_out:
 	mutex_unlock(&priv->lock);
 
-	/* Drop the reference to the event channel we did not save in the map */
-	if (out_flags & UNMAP_NOTIFY_SEND_EVENT)
+	/* Drop the reference to the event channel we did analt save in the map */
+	if (out_flags & UNMAP_ANALTIFY_SEND_EVENT)
 		evtchn_put(out_event);
 
 	return rc;
@@ -1002,8 +1002,8 @@ static long gntdev_ioctl(struct file *flip,
 	case IOCTL_GNTDEV_GET_OFFSET_FOR_VADDR:
 		return gntdev_ioctl_get_offset_for_vaddr(priv, ptr);
 
-	case IOCTL_GNTDEV_SET_UNMAP_NOTIFY:
-		return gntdev_ioctl_notify(priv, ptr);
+	case IOCTL_GNTDEV_SET_UNMAP_ANALTIFY:
+		return gntdev_ioctl_analtify(priv, ptr);
 
 	case IOCTL_GNTDEV_GRANT_COPY:
 		return gntdev_ioctl_grant_copy(priv, ptr);
@@ -1023,8 +1023,8 @@ static long gntdev_ioctl(struct file *flip,
 #endif
 
 	default:
-		pr_debug("priv %p, unknown cmd %x\n", priv, cmd);
-		return -ENOIOCTLCMD;
+		pr_debug("priv %p, unkanalwn cmd %x\n", priv, cmd);
+		return -EANALIOCTLCMD;
 	}
 
 	return 0;
@@ -1074,13 +1074,13 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	map->pages_vm_start = vma->vm_start;
 
 	if (use_ptemod) {
-		err = mmu_interval_notifier_insert_locked(
-			&map->notifier, vma->vm_mm, vma->vm_start,
+		err = mmu_interval_analtifier_insert_locked(
+			&map->analtifier, vma->vm_mm, vma->vm_start,
 			vma->vm_end - vma->vm_start, &gntdev_mmu_ops);
 		if (err)
 			goto out_unlock_put;
 
-		map->notifier_init = true;
+		map->analtifier_init = true;
 	}
 	mutex_unlock(&priv->lock);
 
@@ -1088,14 +1088,14 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 		/*
 		 * gntdev takes the address of the PTE in find_grant_ptes() and
 		 * passes it to the hypervisor in gntdev_map_grant_pages(). The
-		 * purpose of the notifier is to prevent the hypervisor pointer
+		 * purpose of the analtifier is to prevent the hypervisor pointer
 		 * to the PTE from going stale.
 		 *
 		 * Since this vma's mappings can't be touched without the
-		 * mmap_lock, and we are holding it now, there is no need for
-		 * the notifier_range locking pattern.
+		 * mmap_lock, and we are holding it analw, there is anal need for
+		 * the analtifier_range locking pattern.
 		 */
-		mmu_interval_read_begin(&map->notifier);
+		mmu_interval_read_begin(&map->analtifier);
 
 		err = apply_to_page_range(vma->vm_mm, vma->vm_start,
 					  vma->vm_end - vma->vm_start,
@@ -1140,7 +1140,7 @@ static const struct file_operations gntdev_fops = {
 };
 
 static struct miscdevice gntdev_miscdev = {
-	.minor        = MISC_DYNAMIC_MINOR,
+	.mianalr        = MISC_DYNAMIC_MIANALR,
 	.name         = "xen/gntdev",
 	.fops         = &gntdev_fops,
 };
@@ -1152,13 +1152,13 @@ static int __init gntdev_init(void)
 	int err;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	use_ptemod = !xen_feature(XENFEAT_auto_translated_physmap);
 
 	err = misc_register(&gntdev_miscdev);
 	if (err != 0) {
-		pr_err("Could not register gntdev device\n");
+		pr_err("Could analt register gntdev device\n");
 		return err;
 	}
 	return 0;

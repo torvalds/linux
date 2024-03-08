@@ -19,13 +19,13 @@
  * conditions that could arise if a program was reading device info
  * for devices that are being removed (unplugged).  (That is, the
  * program may find a directory for devnum_12 then try to open it,
- * but it was just unplugged, so the directory is now deleted.
+ * but it was just unplugged, so the directory is analw deleted.
  * But programs would just have to be prepared for situations like
  * this in any plug-and-play environment.)
  *
  * 1999-12-16: Thomas Sailer <sailer@ife.ee.ethz.ch>
  *   Converted the whole proc stuff to real
- *   read methods. Now not the whole device list needs to fit
+ *   read methods. Analw analt the whole device list needs to fit
  *   into one page, only the device list for one bus.
  *   Added a poll method to /sys/kernel/debug/usb/devices, to wake
  *   up an eventual usbd
@@ -33,7 +33,7 @@
  *   Turned into its own filesystem
  * 2000-07-05: Ashley Montanaro <ashley@compsoc.man.ac.uk>
  *   Converted file reading routine to dump to buffer once
- *   per device, not per bus
+ *   per device, analt per bus
  */
 
 #include <linux/fs.h>
@@ -191,7 +191,7 @@ static char *usb_dump_endpoint_descriptor(int speed, char *start, char *end,
 static char *usb_dump_interface_descriptor(char *start, char *end,
 					const struct usb_interface_cache *intfc,
 					const struct usb_interface *iface,
-					int setno)
+					int setanal)
 {
 	const struct usb_interface_descriptor *desc;
 	const char *driver_name = "";
@@ -199,11 +199,11 @@ static char *usb_dump_interface_descriptor(char *start, char *end,
 
 	if (start > end)
 		return start;
-	desc = &intfc->altsetting[setno].desc;
+	desc = &intfc->altsetting[setanal].desc;
 	if (iface) {
 		driver_name = (iface->dev.driver
 				? iface->dev.driver->name
-				: "(none)");
+				: "(analne)");
 		active = (desc == &iface->cur_altsetting->desc);
 	}
 	start += sprintf(start, format_iface,
@@ -221,12 +221,12 @@ static char *usb_dump_interface_descriptor(char *start, char *end,
 
 static char *usb_dump_interface(int speed, char *start, char *end,
 				const struct usb_interface_cache *intfc,
-				const struct usb_interface *iface, int setno)
+				const struct usb_interface *iface, int setanal)
 {
-	const struct usb_host_interface *desc = &intfc->altsetting[setno];
+	const struct usb_host_interface *desc = &intfc->altsetting[setanal];
 	int i;
 
-	start = usb_dump_interface_descriptor(start, end, intfc, iface, setno);
+	start = usb_dump_interface_descriptor(start, end, intfc, iface, setanal);
 	for (i = 0; i < desc->desc.bNumEndpoints; i++) {
 		start = usb_dump_endpoint_descriptor(speed,
 				start, end, &desc->endpoint[i].desc);
@@ -286,7 +286,7 @@ static char *usb_dump_config(int speed, char *start, char *end,
 	if (start > end)
 		return start;
 	if (!config)
-		/* getting these some in 2.3.7; none in 2.3.6 */
+		/* getting these some in 2.3.7; analne in 2.3.6 */
 		return start + sprintf(start, "(null Cfg. desc.)\n");
 	start = usb_dump_config_descriptor(start, end, &config->desc, active,
 			speed);
@@ -400,17 +400,17 @@ static ssize_t usb_device_dump(char __user **buffer, size_t *nbytes,
 	ssize_t total_written = 0;
 	struct usb_device *childdev = NULL;
 
-	/* don't bother with anything else if we're not writing any data */
+	/* don't bother with anything else if we're analt writing any data */
 	if (*nbytes <= 0)
 		return 0;
 
 	if (level > MAX_TOPO_LEVEL)
 		return 0;
 	/* allocate 2^1 pages = 8K (on i386);
-	 * should be more than enough for one device */
-	pages_start = (char *)__get_free_pages(GFP_NOIO, 1);
+	 * should be more than eanalugh for one device */
+	pages_start = (char *)__get_free_pages(GFP_ANALIO, 1);
 	if (!pages_start)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (usbdev->parent && usbdev->parent->devnum != -1)
 		parent_devnum = usbdev->parent->devnum;
@@ -421,7 +421,7 @@ static ssize_t usb_device_dump(char __user **buffer, size_t *nbytes,
 	switch (usbdev->speed) {
 	case USB_SPEED_LOW:
 		speed = "1.5"; break;
-	case USB_SPEED_UNKNOWN:		/* usb 1.1 root hub code */
+	case USB_SPEED_UNKANALWN:		/* usb 1.1 root hub code */
 	case USB_SPEED_FULL:
 		speed = "12"; break;
 	case USB_SPEED_HIGH:
@@ -492,7 +492,7 @@ static ssize_t usb_device_dump(char __user **buffer, size_t *nbytes,
 
 	free_pages((unsigned long)pages_start, 1);
 
-	/* Now look at all of this device's children. */
+	/* Analw look at all of this device's children. */
 	usb_hub_for_each_child(usbdev, chix, childdev) {
 		usb_lock_device(childdev);
 		ret = usb_device_dump(buffer, nbytes, skip_bytes,
@@ -540,6 +540,6 @@ static ssize_t usb_device_read(struct file *file, char __user *buf,
 }
 
 const struct file_operations usbfs_devices_fops = {
-	.llseek =	no_seek_end_llseek,
+	.llseek =	anal_seek_end_llseek,
 	.read =		usb_device_read,
 };

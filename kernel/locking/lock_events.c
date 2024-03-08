@@ -35,7 +35,7 @@
  * events.
  *
  * Writing to the special ".reset_counts" file will reset all the above
- * locking event counts. This is a very slow operation and so should not
+ * locking event counts. This is a very slow operation and so should analt
  * be done frequently.
  *
  * These event counts are implemented as per-cpu variables which are
@@ -66,9 +66,9 @@ ssize_t __weak lockevent_read(struct file *file, char __user *user_buf,
 	u64 sum = 0;
 
 	/*
-	 * Get the counter ID stored in file->f_inode->i_private
+	 * Get the counter ID stored in file->f_ianalde->i_private
 	 */
-	id = (long)file_inode(file)->i_private;
+	id = (long)file_ianalde(file)->i_private;
 
 	if (id >= lockevent_num)
 		return -EBADF;
@@ -91,9 +91,9 @@ static ssize_t lockevent_write(struct file *file, const char __user *user_buf,
 	int cpu;
 
 	/*
-	 * Get the counter ID stored in file->f_inode->i_private
+	 * Get the counter ID stored in file->f_ianalde->i_private
 	 */
-	if ((long)file_inode(file)->i_private != LOCKEVENT_reset_cnts)
+	if ((long)file_ianalde(file)->i_private != LOCKEVENT_reset_cnts)
 		return count;
 
 	for_each_possible_cpu(cpu) {
@@ -173,7 +173,7 @@ static int __init init_lockevent_counts(void)
 fail_undo:
 	debugfs_remove_recursive(d_counts);
 out:
-	pr_warn("Could not create '%s' debugfs entries\n", LOCK_EVENTS_DIR);
-	return -ENOMEM;
+	pr_warn("Could analt create '%s' debugfs entries\n", LOCK_EVENTS_DIR);
+	return -EANALMEM;
 }
 fs_initcall(init_lockevent_counts);

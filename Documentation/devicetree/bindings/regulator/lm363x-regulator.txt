@@ -11,7 +11,7 @@ Optional properties:
   - enable-gpios: Two GPIO specifiers for Vpos and Vneg control pins.
                   The first entry is Vpos, the second is Vneg enable pin.
 
-Child nodes:
+Child analdes:
   LM3631
   - vboost
   - vcont
@@ -24,8 +24,8 @@ Child nodes:
   - vpos
   - vneg
 
-  Optional properties of a child node:
-  Each sub-node should contain the constraints and initialization.
+  Optional properties of a child analde:
+  Each sub-analde should contain the constraints and initialization.
   Please refer to [1].
 
 Examples: Please refer to ti-lmu dt-bindings [2].

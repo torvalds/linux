@@ -81,7 +81,7 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 			  sizeof(request->channels[0]) * n_channels,
 			  GFP_KERNEL);
 	if (!request)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (wdev->conn->params.channel) {
 		enum nl80211_band band = wdev->conn->params.channel->band;
@@ -161,12 +161,12 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev,
 	switch (wdev->conn->state) {
 	case CFG80211_CONN_SCANNING:
 		/* didn't find it during scan ... */
-		return -ENOENT;
+		return -EANALENT;
 	case CFG80211_CONN_SCAN_AGAIN:
 		return cfg80211_conn_scan(wdev);
 	case CFG80211_CONN_AUTHENTICATE_NEXT:
 		if (WARN_ON(!rdev->ops->auth))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		wdev->conn->state = CFG80211_CONN_AUTHENTICATING;
 		auth_req.key = params->key;
 		auth_req.key_len = params->key_len;
@@ -183,16 +183,16 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev,
 		return err;
 	case CFG80211_CONN_AUTH_FAILED_TIMEOUT:
 		*treason = NL80211_TIMEOUT_AUTH;
-		return -ENOTCONN;
+		return -EANALTCONN;
 	case CFG80211_CONN_ASSOCIATE_NEXT:
 		if (WARN_ON(!rdev->ops->assoc))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		wdev->conn->state = CFG80211_CONN_ASSOCIATING;
 		if (wdev->conn->prev_bssid_valid)
 			req.prev_bssid = wdev->conn->prev_bssid;
 		req.ie = params->ie;
 		req.ie_len = params->ie_len;
-		req.use_mfp = params->mfp != NL80211_MFP_NO;
+		req.use_mfp = params->mfp != NL80211_MFP_ANAL;
 		req.crypto = params->crypto;
 		req.flags = params->flags;
 		req.ht_capa = params->ht_capa;
@@ -207,7 +207,7 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev,
 					   IEEE80211_BSS_TYPE_ESS,
 					   IEEE80211_PRIVACY_ANY);
 		if (!req.bss) {
-			err = -ENOENT;
+			err = -EANALENT;
 		} else {
 			err = cfg80211_mlme_assoc(rdev, wdev->netdev, &req);
 			cfg80211_put_bss(&rdev->wiphy, req.bss);
@@ -226,7 +226,7 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev,
 		cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
 				     NULL, 0,
 				     WLAN_REASON_DEAUTH_LEAVING, false);
-		return -ENOTCONN;
+		return -EANALTCONN;
 	case CFG80211_CONN_DEAUTH:
 		cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
 				     NULL, 0,
@@ -347,7 +347,7 @@ void cfg80211_sme_rx_auth(struct wireless_dev *wdev, const u8 *buf, size_t len)
 	if (!wdev->conn || wdev->conn->state == CFG80211_CONN_CONNECTED)
 		return;
 
-	if (status_code == WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG &&
+	if (status_code == WLAN_STATUS_ANALT_SUPPORTED_AUTH_ALG &&
 	    wdev->conn->auto_auth &&
 	    wdev->conn->params.auth_type != NL80211_AUTHTYPE_NETWORK_EAP) {
 		/* select automatically between only open, shared, leap */
@@ -402,7 +402,7 @@ bool cfg80211_sme_rx_assoc_resp(struct wireless_dev *wdev, u16 status)
 		/*
 		 * Some stupid APs don't accept reassoc, so we
 		 * need to fall back to trying regular assoc;
-		 * return true so no event is sent to userspace.
+		 * return true so anal event is sent to userspace.
 		 */
 		wdev->conn->prev_bssid_valid = false;
 		wdev->conn->state = CFG80211_CONN_ASSOCIATE_NEXT;
@@ -505,7 +505,7 @@ static int cfg80211_sme_get_conn_ies(struct wireless_dev *wdev,
 	    (ies && cfg80211_find_ie(WLAN_EID_EXT_CAPABILITY, ies, ies_len))) {
 		*out_ies = kmemdup(ies, ies_len, GFP_KERNEL);
 		if (!*out_ies)
-			return -ENOMEM;
+			return -EANALMEM;
 		*out_ies_len = ies_len;
 		return 0;
 	}
@@ -513,11 +513,11 @@ static int cfg80211_sme_get_conn_ies(struct wireless_dev *wdev,
 	buf = kmalloc(ies_len + rdev->wiphy.extended_capabilities_len + 2,
 		      GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (ies_len) {
 		static const u8 before_extcapa[] = {
-			/* not listing IEs expected to be created by driver */
+			/* analt listing IEs expected to be created by driver */
 			WLAN_EID_RSN,
 			WLAN_EID_QOS_CAPA,
 			WLAN_EID_RRM_ENABLED_CAPABILITIES,
@@ -558,7 +558,7 @@ static int cfg80211_sme_connect(struct wireless_dev *wdev,
 	int err;
 
 	if (!rdev->ops->auth || !rdev->ops->assoc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cfg80211_wdev_release_bsses(wdev);
 
@@ -572,7 +572,7 @@ static int cfg80211_sme_connect(struct wireless_dev *wdev,
 
 	wdev->conn = kzalloc(sizeof(*wdev->conn), GFP_KERNEL);
 	if (!wdev->conn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Copy all parameters, and treat explicitly IEs, BSSID, SSID.
@@ -588,7 +588,7 @@ static int cfg80211_sme_connect(struct wireless_dev *wdev,
 				      &wdev->conn->params.ie_len)) {
 		kfree(wdev->conn);
 		wdev->conn = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	wdev->conn->params.ie = wdev->conn->ie;
 
@@ -629,7 +629,7 @@ static int cfg80211_sme_connect(struct wireless_dev *wdev,
 		err = cfg80211_conn_scan(wdev);
 
 		/*
-		 * If we can't scan right now, then we need to scan again
+		 * If we can't scan right analw, then we need to scan again
 		 * after the current scan finished, since the parameters
 		 * changed (unless we find a good AP anyway).
 		 */
@@ -654,7 +654,7 @@ static int cfg80211_sme_disconnect(struct wireless_dev *wdev, u16 reason)
 		return 0;
 
 	if (!rdev->ops->deauth)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (wdev->conn->state == CFG80211_CONN_SCANNING ||
 	    wdev->conn->state == CFG80211_CONN_SCAN_AGAIN) {
@@ -686,7 +686,7 @@ static bool cfg80211_is_all_idle(void)
 	 * scanning some new beacon hints could be learned and would
 	 * count as new regulatory hints.
 	 * Also if there is any other active beaconing interface we
-	 * need not issue a disconnect hint and reset any info such
+	 * need analt issue a disconnect hint and reset any info such
 	 * as chan dfs state, etc.
 	 */
 	for_each_rdev(rdev) {
@@ -731,7 +731,7 @@ cfg80211_connect_result_release_bsses(struct wireless_dev *wdev,
  * SME event handling
  */
 
-/* This method must consume bss one way or another */
+/* This method must consume bss one way or aanalther */
 void __cfg80211_connect_result(struct net_device *dev,
 			       struct cfg80211_connect_resp_params *cr,
 			       bool wextev)
@@ -746,7 +746,7 @@ void __cfg80211_connect_result(struct net_device *dev,
 #endif
 	unsigned int link;
 	const u8 *connected_addr;
-	bool bss_not_found = false;
+	bool bss_analt_found = false;
 
 	lockdep_assert_wiphy(wdev->wiphy);
 
@@ -823,7 +823,7 @@ void __cfg80211_connect_result(struct net_device *dev,
 						 wdev->conn_bss_type,
 						 IEEE80211_PRIVACY_ANY);
 			if (!cr->links[link].bss) {
-				bss_not_found = true;
+				bss_analt_found = true;
 				break;
 			}
 			cfg80211_hold_bss(bss_from_pub(cr->links[link].bss));
@@ -842,7 +842,7 @@ void __cfg80211_connect_result(struct net_device *dev,
 		return;
 	}
 
-	if (WARN_ON(bss_not_found)) {
+	if (WARN_ON(bss_analt_found)) {
 		cfg80211_connect_result_release_bsses(wdev, cr);
 		return;
 	}
@@ -948,7 +948,7 @@ static void cfg80211_update_link_bss(struct wireless_dev *wdev,
 			 * be freshly added and ref cnted, we can free
 			 * the old one.
 			 *
-			 * signal_valid can be false, as we are not
+			 * signal_valid can be false, as we are analt
 			 * expecting the BSS to be found.
 			 *
 			 * keep the old timestamp to avoid confusion
@@ -961,7 +961,7 @@ static void cfg80211_update_link_bss(struct wireless_dev *wdev,
 	}
 }
 
-/* Consumes bss object(s) one way or another */
+/* Consumes bss object(s) one way or aanalther */
 void cfg80211_connect_done(struct net_device *dev,
 			   struct cfg80211_connect_resp_params *params,
 			   gfp_t gfp)
@@ -1070,7 +1070,7 @@ void cfg80211_connect_done(struct net_device *dev,
 }
 EXPORT_SYMBOL(cfg80211_connect_done);
 
-/* Consumes bss object one way or another */
+/* Consumes bss object one way or aanalther */
 void __cfg80211_roamed(struct wireless_dev *wdev,
 		       struct cfg80211_roam_info *info)
 {
@@ -1158,7 +1158,7 @@ out:
 		cfg80211_put_bss(wdev->wiphy, info->links[link].bss);
 }
 
-/* Consumes info->links.bss object(s) one way or another */
+/* Consumes info->links.bss object(s) one way or aanalther */
 void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
 		     gfp_t gfp)
 {
@@ -1169,7 +1169,7 @@ void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
 	u8 *next;
 	unsigned int link;
 	size_t link_info_size = 0;
-	bool bss_not_found = false;
+	bool bss_analt_found = false;
 
 	for_each_valid_link(info, link) {
 		link_info_size += info->links[link].addr ? ETH_ALEN : 0;
@@ -1188,12 +1188,12 @@ void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
 					 IEEE80211_PRIVACY_ANY);
 
 		if (!info->links[link].bss) {
-			bss_not_found = true;
+			bss_analt_found = true;
 			break;
 		}
 	}
 
-	if (WARN_ON(bss_not_found))
+	if (WARN_ON(bss_analt_found))
 		goto out;
 
 	ev = kzalloc(sizeof(*ev) + info->req_ie_len + info->resp_ie_len +
@@ -1458,7 +1458,7 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 			return -EALREADY;
 		if (!ether_addr_equal(prev_bssid,
 				      wdev->u.client.connected_addr))
-			return -ENOTCONN;
+			return -EANALTCONN;
 	}
 
 	/*
@@ -1488,7 +1488,7 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 			connect->key_len = connkeys->params[idx].key_len;
 
 			/*
-			 * If ciphers are not set (e.g. when going through
+			 * If ciphers are analt set (e.g. when going through
 			 * iwconfig), we have to set them appropriately here.
 			 */
 			if (connect->crypto.cipher_group == 0)
@@ -1596,7 +1596,7 @@ void cfg80211_autodisconnect_wk(struct work_struct *work)
 		case NL80211_IFTYPE_P2P_CLIENT:
 			/*
 			 * Use disconnect_bssid if still connecting and
-			 * ops->disconnect not implemented.  Otherwise we can
+			 * ops->disconnect analt implemented.  Otherwise we can
 			 * use cfg80211_disconnect.
 			 */
 			if (rdev->ops->disconnect || wdev->connected)

@@ -146,11 +146,11 @@ static int vchiq_ioc_create_service(struct vchiq_instance *instance,
 	int srvstate;
 
 	if (args->is_open && !instance->connected)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	user_service = kmalloc(sizeof(*user_service), GFP_KERNEL);
 	if (!user_service)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (args->is_open) {
 		srvstate = VCHIQ_SRVSTATE_OPENING;
@@ -259,9 +259,9 @@ static int vchiq_ioc_dequeue_message(struct vchiq_instance *instance,
 
 	complete(&user_service->remove_event);
 	if (!header) {
-		ret = -ENOTCONN;
+		ret = -EANALTCONN;
 	} else if (header->size <= args->bufsize) {
-		/* Copy to user space if msgbuf is not NULL */
+		/* Copy to user space if msgbuf is analt NULL */
 		if (!args->buf || (copy_to_user(args->buf, header->data, header->size) == 0)) {
 			ret = header->size;
 			vchiq_release_message(instance, service->handle, header);
@@ -287,7 +287,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 				      enum vchiq_bulk_mode __user *mode)
 {
 	struct vchiq_service *service;
-	struct bulk_waiter_node *waiter = NULL, *iter;
+	struct bulk_waiter_analde *waiter = NULL, *iter;
 	void *userdata;
 	int status = 0;
 	int ret;
@@ -299,7 +299,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 	if (args->mode == VCHIQ_BULK_MODE_BLOCKING) {
 		waiter = kzalloc(sizeof(*waiter), GFP_KERNEL);
 		if (!waiter) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -317,7 +317,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		mutex_unlock(&instance->bulk_waiter_list_mutex);
 		if (!waiter) {
 			dev_err(service->state->dev,
-				"arm: no bulk_waiter found for pid %d\n", current->pid);
+				"arm: anal bulk_waiter found for pid %d\n", current->pid);
 			ret = -ESRCH;
 			goto out;
 		}
@@ -439,7 +439,7 @@ static int vchiq_ioc_await_completion(struct vchiq_instance *instance,
 
 	DEBUG_TRACE(AWAIT_COMPLETION_LINE);
 	if (!instance->connected)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	mutex_lock(&instance->completion_mutex);
 
@@ -525,7 +525,7 @@ static int vchiq_ioc_await_completion(struct vchiq_instance *instance,
 				break;
 			}
 
-			/* Now it has been copied, the message can be released. */
+			/* Analw it has been copied, the message can be released. */
 			vchiq_release_message(instance, service->handle, header);
 
 			/* The completion must point to the msgbuf. */
@@ -615,7 +615,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		rc = mutex_lock_killable(&instance->state->mutex);
 		if (rc) {
 			dev_err(instance->state->dev,
-				"arm: vchiq: connect: could not lock mutex for state %d: %d\n",
+				"arm: vchiq: connect: could analt lock mutex for state %d: %d\n",
 				instance->state->id, rc);
 			ret = -EINTR;
 			break;
@@ -627,7 +627,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			instance->connected = 1;
 		else
 			dev_err(instance->state->dev,
-				"arm: vchiq: could not connect: %d\n", status);
+				"arm: vchiq: could analt connect: %d\n", status);
 		break;
 
 	case VCHIQ_IOC_CREATE_SERVICE: {
@@ -849,7 +849,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	} break;
 
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		break;
 	}
 
@@ -884,7 +884,7 @@ struct vchiq_service_params32 {
 	int fourcc;
 	compat_uptr_t callback;
 	compat_uptr_t userdata;
-	short version; /* Increment for non-trivial changes */
+	short version; /* Increment for analn-trivial changes */
 	short version_min; /* Update for incompatible changes */
 };
 
@@ -1161,7 +1161,7 @@ vchiq_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 #endif
 
-static int vchiq_open(struct inode *inode, struct file *file)
+static int vchiq_open(struct ianalde *ianalde, struct file *file)
 {
 	struct vchiq_state *state = vchiq_get_state();
 	struct vchiq_instance *instance;
@@ -1169,13 +1169,13 @@ static int vchiq_open(struct inode *inode, struct file *file)
 	dev_dbg(state->dev, "arm: vchiq open\n");
 
 	if (!state) {
-		dev_err(state->dev, "arm: vchiq has no connection to VideoCore\n");
-		return -ENOTCONN;
+		dev_err(state->dev, "arm: vchiq has anal connection to VideoCore\n");
+		return -EANALTCONN;
 	}
 
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 	if (!instance)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	instance->state = state;
 	instance->pid = current->tgid;
@@ -1193,7 +1193,7 @@ static int vchiq_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int vchiq_release(struct inode *inode, struct file *file)
+static int vchiq_release(struct ianalde *ianalde, struct file *file)
 {
 	struct vchiq_instance *instance = file->private_data;
 	struct vchiq_state *state = vchiq_get_state();
@@ -1313,7 +1313,7 @@ vchiq_fops = {
 
 static struct miscdevice vchiq_miscdev = {
 	.fops = &vchiq_fops,
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "vchiq",
 
 };

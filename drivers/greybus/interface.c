@@ -62,9 +62,9 @@ static int gb_interface_read_ara_dme(struct gb_interface *intf)
 	 * standard GMP attributes.
 	 */
 	if (intf->ddbl1_manufacturer_id != TOSHIBA_DMID) {
-		dev_err(&intf->dev, "unknown manufacturer %08x\n",
+		dev_err(&intf->dev, "unkanalwn manufacturer %08x\n",
 			intf->ddbl1_manufacturer_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = gb_interface_dme_attr_get(intf, DME_TOSHIBA_GMP_VID,
@@ -110,8 +110,8 @@ static int gb_interface_read_dme(struct gb_interface *intf)
 
 	if (intf->ddbl1_manufacturer_id == TOSHIBA_DMID &&
 	    intf->ddbl1_product_id == TOSHIBA_ES2_BRIDGE_DPID) {
-		intf->quirks |= GB_INTERFACE_QUIRK_NO_GMP_IDS;
-		intf->quirks |= GB_INTERFACE_QUIRK_NO_INIT_STATUS;
+		intf->quirks |= GB_INTERFACE_QUIRK_ANAL_GMP_IDS;
+		intf->quirks |= GB_INTERFACE_QUIRK_ANAL_INIT_STATUS;
 	}
 
 	ret = gb_interface_read_ara_dme(intf);
@@ -353,7 +353,7 @@ EXPORT_SYMBOL_GPL(gb_interface_request_mode_switch);
 /*
  * T_TstSrcIncrement is written by the module on ES2 as a stand-in for the
  * init-status attribute DME_TOSHIBA_INIT_STATUS. The AP needs to read and
- * clear it after reading a non-zero value from it.
+ * clear it after reading a analn-zero value from it.
  *
  * FIXME: This is module-hardware dependent and needs to be extended for every
  * type of module we want to support.
@@ -373,7 +373,7 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 	 *
 	 * FIXME: Remove ES2 support
 	 */
-	if (intf->quirks & GB_INTERFACE_QUIRK_NO_INIT_STATUS)
+	if (intf->quirks & GB_INTERFACE_QUIRK_ANAL_INIT_STATUS)
 		attr = DME_T_TST_SRC_INCREMENT;
 	else
 		attr = DME_TOSHIBA_GMP_INIT_STATUS;
@@ -384,12 +384,12 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 		return ret;
 
 	/*
-	 * A nonzero init status indicates the module has finished
+	 * A analnzero init status indicates the module has finished
 	 * initializing.
 	 */
 	if (!value) {
 		dev_err(&intf->dev, "invalid init status\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -400,7 +400,7 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 	 *
 	 * FIXME: Remove ES2 support
 	 */
-	if (intf->quirks & GB_INTERFACE_QUIRK_NO_INIT_STATUS)
+	if (intf->quirks & GB_INTERFACE_QUIRK_ANAL_INIT_STATUS)
 		init_status = value & 0xff;
 	else
 		init_status = value >> 24;
@@ -409,12 +409,12 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 	 * Check if the interface is executing the quirky ES3 bootrom that,
 	 * for example, requires E2EFC, CSD and CSV to be disabled.
 	 */
-	bootrom_quirks = GB_INTERFACE_QUIRK_NO_CPORT_FEATURES |
+	bootrom_quirks = GB_INTERFACE_QUIRK_ANAL_CPORT_FEATURES |
 				GB_INTERFACE_QUIRK_FORCED_DISABLE |
 				GB_INTERFACE_QUIRK_LEGACY_MODE_SWITCH |
-				GB_INTERFACE_QUIRK_NO_BUNDLE_ACTIVATE;
+				GB_INTERFACE_QUIRK_ANAL_BUNDLE_ACTIVATE;
 
-	s2l_quirks = GB_INTERFACE_QUIRK_NO_PM;
+	s2l_quirks = GB_INTERFACE_QUIRK_ANAL_PM;
 
 	switch (init_status) {
 	case GB_INIT_BOOTROM_UNIPRO_BOOT_STARTED:
@@ -454,7 +454,7 @@ gb_interface_attr(vendor_id, "0x%08x");
 gb_interface_attr(product_id, "0x%08x");
 gb_interface_attr(serial_number, "0x%016llx");
 
-static ssize_t voltage_now_show(struct device *dev,
+static ssize_t voltage_analw_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct gb_interface *intf = to_gb_interface(dev);
@@ -471,9 +471,9 @@ static ssize_t voltage_now_show(struct device *dev,
 
 	return sprintf(buf, "%u\n", measurement);
 }
-static DEVICE_ATTR_RO(voltage_now);
+static DEVICE_ATTR_RO(voltage_analw);
 
-static ssize_t current_now_show(struct device *dev,
+static ssize_t current_analw_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct gb_interface *intf = to_gb_interface(dev);
@@ -490,9 +490,9 @@ static ssize_t current_now_show(struct device *dev,
 
 	return sprintf(buf, "%u\n", measurement);
 }
-static DEVICE_ATTR_RO(current_now);
+static DEVICE_ATTR_RO(current_analw);
 
-static ssize_t power_now_show(struct device *dev,
+static ssize_t power_analw_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	struct gb_interface *intf = to_gb_interface(dev);
@@ -509,7 +509,7 @@ static ssize_t power_now_show(struct device *dev,
 
 	return sprintf(buf, "%u\n", measurement);
 }
-static DEVICE_ATTR_RO(power_now);
+static DEVICE_ATTR_RO(power_analw);
 
 static ssize_t power_state_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -572,7 +572,7 @@ static const char *gb_interface_type_string(struct gb_interface *intf)
 {
 	static const char * const types[] = {
 		[GB_INTERFACE_TYPE_INVALID] = "invalid",
-		[GB_INTERFACE_TYPE_UNKNOWN] = "unknown",
+		[GB_INTERFACE_TYPE_UNKANALWN] = "unkanalwn",
 		[GB_INTERFACE_TYPE_DUMMY] = "dummy",
 		[GB_INTERFACE_TYPE_UNIPRO] = "unipro",
 		[GB_INTERFACE_TYPE_GREYBUS] = "greybus",
@@ -604,9 +604,9 @@ static struct attribute *interface_greybus_attrs[] = {
 };
 
 static struct attribute *interface_power_attrs[] = {
-	&dev_attr_voltage_now.attr,
-	&dev_attr_current_now.attr,
-	&dev_attr_power_now.attr,
+	&dev_attr_voltage_analw.attr,
+	&dev_attr_current_analw.attr,
+	&dev_attr_power_analw.attr,
 	&dev_attr_power_state.attr,
 	NULL
 };
@@ -888,20 +888,20 @@ static int gb_interface_activate_operation(struct gb_interface *intf,
 	switch (type) {
 	case GB_SVC_INTF_TYPE_DUMMY:
 		*intf_type = GB_INTERFACE_TYPE_DUMMY;
-		/* FIXME: handle as an error for now */
-		return -ENODEV;
+		/* FIXME: handle as an error for analw */
+		return -EANALDEV;
 	case GB_SVC_INTF_TYPE_UNIPRO:
 		*intf_type = GB_INTERFACE_TYPE_UNIPRO;
-		dev_err(&intf->dev, "interface type UniPro not supported\n");
-		/* FIXME: handle as an error for now */
-		return -ENODEV;
+		dev_err(&intf->dev, "interface type UniPro analt supported\n");
+		/* FIXME: handle as an error for analw */
+		return -EANALDEV;
 	case GB_SVC_INTF_TYPE_GREYBUS:
 		*intf_type = GB_INTERFACE_TYPE_GREYBUS;
 		break;
 	default:
-		dev_err(&intf->dev, "unknown interface type: %u\n", type);
-		*intf_type = GB_INTERFACE_TYPE_UNKNOWN;
-		return -ENODEV;
+		dev_err(&intf->dev, "unkanalwn interface type: %u\n", type);
+		*intf_type = GB_INTERFACE_TYPE_UNKANALWN;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -919,10 +919,10 @@ static int _gb_interface_activate(struct gb_interface *intf,
 {
 	int ret;
 
-	*type = GB_INTERFACE_TYPE_UNKNOWN;
+	*type = GB_INTERFACE_TYPE_UNKANALWN;
 
 	if (intf->ejected || intf->removed)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = gb_interface_vsys_set(intf, true);
 	if (ret)
@@ -988,7 +988,7 @@ static int _gb_interface_activate_es3_hack(struct gb_interface *intf,
 
 	while (retries--) {
 		ret = _gb_interface_activate(intf, type);
-		if (ret == -ENODEV && *type == GB_INTERFACE_TYPE_UNIPRO)
+		if (ret == -EANALDEV && *type == GB_INTERFACE_TYPE_UNIPRO)
 			continue;
 
 		break;
@@ -1106,7 +1106,7 @@ int gb_interface_enable(struct gb_interface *intf)
 
 	manifest = kmalloc(size, GFP_KERNEL);
 	if (!manifest) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_disable_control;
 	}
 
@@ -1137,7 +1137,7 @@ int gb_interface_enable(struct gb_interface *intf)
 		goto err_destroy_bundles;
 
 	pm_runtime_use_autosuspend(&intf->dev);
-	pm_runtime_get_noresume(&intf->dev);
+	pm_runtime_get_analresume(&intf->dev);
 	pm_runtime_set_active(&intf->dev);
 	pm_runtime_enable(&intf->dev);
 
@@ -1210,7 +1210,7 @@ void gb_interface_disable(struct gb_interface *intf)
 	pm_runtime_disable(&intf->dev);
 	pm_runtime_set_suspended(&intf->dev);
 	pm_runtime_dont_use_autosuspend(&intf->dev);
-	pm_runtime_put_noidle(&intf->dev);
+	pm_runtime_put_analidle(&intf->dev);
 }
 
 /* Register an interface. */

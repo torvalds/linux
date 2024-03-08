@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/clock/samsung,exynos-clock.yaml#
+$id: http://devicetree.org/schemas/clock/samsung,exyanals-clock.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos SoC clock controller
+title: Samsung Exyanals SoC clock controller
 
 maintainers:
   - Chanwoo Choi <cw00.choi@samsung.com>
@@ -20,17 +20,17 @@ properties:
   compatible:
     oneOf:
       - enum:
-          - samsung,exynos3250-cmu
-          - samsung,exynos3250-cmu-dmc
-          - samsung,exynos3250-cmu-isp
-          - samsung,exynos4210-clock
-          - samsung,exynos4212-clock
-          - samsung,exynos4412-clock
-          - samsung,exynos5250-clock
+          - samsung,exyanals3250-cmu
+          - samsung,exyanals3250-cmu-dmc
+          - samsung,exyanals3250-cmu-isp
+          - samsung,exyanals4210-clock
+          - samsung,exyanals4212-clock
+          - samsung,exyanals4412-clock
+          - samsung,exyanals5250-clock
       - items:
           - enum:
-              - samsung,exynos5420-clock
-              - samsung,exynos5800-clock
+              - samsung,exyanals5420-clock
+              - samsung,exyanals5800-clock
           - const: syscon
 
   clocks:
@@ -52,9 +52,9 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/exynos5250.h>
+    #include <dt-bindings/clock/exyanals5250.h>
     clock: clock-controller@10010000 {
-        compatible = "samsung,exynos5250-clock";
+        compatible = "samsung,exyanals5250-clock";
         reg = <0x10010000 0x30000>;
         #clock-cells = <1>;
     };

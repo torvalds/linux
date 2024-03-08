@@ -14,7 +14,7 @@
 /* Receive Descriptor bit definitions */
 #define E1000_RXD_STAT_DD	0x01    /* Descriptor Done */
 #define E1000_RXD_STAT_EOP	0x02    /* End of Packet */
-#define E1000_RXD_STAT_IXSM	0x04    /* Ignore checksum */
+#define E1000_RXD_STAT_IXSM	0x04    /* Iganalre checksum */
 #define E1000_RXD_STAT_VP	0x08    /* IEEE VLAN Packet */
 #define E1000_RXD_STAT_UDPCS	0x10    /* UDP xsum calculated */
 #define E1000_RXD_STAT_TCPCS	0x20    /* TCP xsum calculated */
@@ -44,7 +44,7 @@
 
 /* Device Status */
 #define E1000_STATUS_FD		0x00000001      /* Full duplex.0=half,1=full */
-#define E1000_STATUS_LU		0x00000002      /* Link up.0=no,1=link */
+#define E1000_STATUS_LU		0x00000002      /* Link up.0=anal,1=link */
 #define E1000_STATUS_TXOFF	0x00000010      /* transmission paused */
 #define E1000_STATUS_SPEED_10	0x00000000      /* Speed 10Mb/s */
 #define E1000_STATUS_SPEED_100	0x00000040      /* Speed 100Mb/s */
@@ -66,7 +66,7 @@
 #define MAX_STD_JUMBO_FRAME_SIZE	9216
 
 /* 802.1q VLAN Packet Size */
-#define VLAN_TAG_SIZE		4    /* 802.3ac tag (not DMA'd) */
+#define VLAN_TAG_SIZE		4    /* 802.3ac tag (analt DMA'd) */
 
 /* Error Codes */
 #define E1000_SUCCESS		0

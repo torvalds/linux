@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020, Mellanox Technologies inc. All rights reserved. */
+/* Copyright (c) 2020, Mellaanalx Techanallogies inc. All rights reserved. */
 
 #include <linux/netdevice.h>
 #include "en.h"
@@ -86,7 +86,7 @@ ipsec_chains_create(struct mlx5_core_dev *mdev, struct mlx5_flow_table *miss_ft,
 	int err;
 
 	attr.flags = MLX5_CHAINS_AND_PRIOS_SUPPORTED |
-		     MLX5_CHAINS_IGNORE_FLOW_LEVEL_SUPPORTED;
+		     MLX5_CHAINS_IGANALRE_FLOW_LEVEL_SUPPORTED;
 	attr.max_grp_num = 2;
 	attr.default_ft = miss_ft;
 	attr.ns = ns;
@@ -180,7 +180,7 @@ static int rx_add_rule_drop_auth_trailer(struct mlx5e_ipsec_sa_entry *sa_entry,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flow_counter = mlx5_fc_create(mdev, true);
 	if (IS_ERR(flow_counter)) {
@@ -192,7 +192,7 @@ static int rx_add_rule_drop_auth_trailer(struct mlx5e_ipsec_sa_entry *sa_entry,
 	sa_entry->ipsec_rule.auth.fc = flow_counter;
 
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP | MLX5_FLOW_CONTEXT_ACTION_COUNT;
-	flow_act.flags = FLOW_ACT_NO_APPEND;
+	flow_act.flags = FLOW_ACT_ANAL_APPEND;
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
 	dest.counter_id = mlx5_fc_id(flow_counter);
 	if (rx == ipsec->rx_esw)
@@ -262,7 +262,7 @@ static int rx_add_rule_drop_replay(struct mlx5e_ipsec_sa_entry *sa_entry, struct
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flow_counter = mlx5_fc_create(mdev, true);
 	if (IS_ERR(flow_counter)) {
@@ -273,7 +273,7 @@ static int rx_add_rule_drop_replay(struct mlx5e_ipsec_sa_entry *sa_entry, struct
 	}
 
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP | MLX5_FLOW_CONTEXT_ACTION_COUNT;
-	flow_act.flags = FLOW_ACT_NO_APPEND;
+	flow_act.flags = FLOW_ACT_ANAL_APPEND;
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
 	dest.counter_id = mlx5_fc_id(flow_counter);
 	if (rx == ipsec->rx_esw)
@@ -324,7 +324,7 @@ static int ipsec_rx_status_drop_all_create(struct mlx5e_ipsec *ipsec,
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!flow_group_in || !spec) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -388,7 +388,7 @@ static int ipsec_rx_status_pass_create(struct mlx5e_ipsec *ipsec,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria,
 			 misc_parameters_2.ipsec_syndrome);
@@ -401,7 +401,7 @@ static int ipsec_rx_status_pass_create(struct mlx5e_ipsec *ipsec,
 	if (rx == ipsec->rx_esw)
 		spec->flow_context.flow_source = MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK;
 	spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS_2;
-	flow_act.flags = FLOW_ACT_NO_APPEND;
+	flow_act.flags = FLOW_ACT_ANAL_APPEND;
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 			  MLX5_FLOW_CONTEXT_ACTION_COUNT;
 	rule = mlx5_add_flow_rules(rx->ft.status, spec, &flow_act, dest, 2);
@@ -463,7 +463,7 @@ static int ipsec_miss_create(struct mlx5_core_dev *mdev,
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!flow_group_in || !spec) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -868,7 +868,7 @@ static int ipsec_counter_rule_tx(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* create fte */
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_ALLOW |
@@ -1230,9 +1230,9 @@ static void setup_fte_spi(struct mlx5_flow_spec *spec, u32 spi, bool encap)
 	}
 }
 
-static void setup_fte_no_frags(struct mlx5_flow_spec *spec)
+static void setup_fte_anal_frags(struct mlx5_flow_spec *spec)
 {
-	/* Non fragmented */
+	/* Analn fragmented */
 	spec->match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
 
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.frag);
@@ -1402,7 +1402,7 @@ setup_pkt_tunnel_reformat(struct mlx5_core_dev *mdev,
 
 	reformatbf = kzalloc(bfflen, GFP_KERNEL);
 	if (!reformatbf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eth_hdr = (struct ethhdr *)reformatbf;
 	switch (attrs->family) {
@@ -1516,7 +1516,7 @@ setup_pkt_transport_reformat(struct mlx5_accel_esp_xfrm_attrs *attrs,
 
 		reformatbf = kzalloc(bfflen, GFP_KERNEL);
 		if (!reformatbf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		hdr = reformatbf;
 		if (attrs->encap) {
@@ -1596,7 +1596,7 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -1608,7 +1608,7 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	setup_fte_spi(spec, attrs->spi, attrs->encap);
 	if (!attrs->encap)
 		setup_fte_esp(spec);
-	setup_fte_no_frags(spec);
+	setup_fte_anal_frags(spec);
 	setup_fte_upper_proto_match(spec, &attrs->upspec);
 
 	if (!attrs->drop) {
@@ -1640,7 +1640,7 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	}
 	flow_act.crypto.type = MLX5_FLOW_CONTEXT_ENCRYPT_DECRYPT_TYPE_IPSEC;
 	flow_act.crypto.obj_id = sa_entry->ipsec_obj_id;
-	flow_act.flags |= FLOW_ACT_NO_APPEND;
+	flow_act.flags |= FLOW_ACT_ANAL_APPEND;
 	flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_CRYPTO_DECRYPT |
 			   MLX5_FLOW_CONTEXT_ACTION_COUNT;
 	if (attrs->drop)
@@ -1715,7 +1715,7 @@ static int tx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -1724,7 +1724,7 @@ static int tx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	else
 		setup_fte_addr6(spec, attrs->saddr.a6, attrs->daddr.a6);
 
-	setup_fte_no_frags(spec);
+	setup_fte_anal_frags(spec);
 	setup_fte_upper_proto_match(spec, &attrs->upspec);
 
 	switch (attrs->type) {
@@ -1752,7 +1752,7 @@ static int tx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 
 	flow_act.crypto.type = MLX5_FLOW_CONTEXT_ENCRYPT_DECRYPT_TYPE_IPSEC;
 	flow_act.crypto.obj_id = sa_entry->ipsec_obj_id;
-	flow_act.flags |= FLOW_ACT_NO_APPEND;
+	flow_act.flags |= FLOW_ACT_ANAL_APPEND;
 	flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_CRYPTO_ENCRYPT |
 			   MLX5_FLOW_CONTEXT_ACTION_COUNT;
 	if (attrs->drop)
@@ -1808,7 +1808,7 @@ static int tx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -1818,7 +1818,7 @@ static int tx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 	else
 		setup_fte_addr6(spec, attrs->saddr.a6, attrs->daddr.a6);
 
-	setup_fte_no_frags(spec);
+	setup_fte_anal_frags(spec);
 	setup_fte_upper_proto_match(spec, &attrs->upspec);
 
 	switch (attrs->action) {
@@ -1845,9 +1845,9 @@ static int tx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 		goto err_mod_header;
 	}
 
-	flow_act.flags |= FLOW_ACT_NO_APPEND;
+	flow_act.flags |= FLOW_ACT_ANAL_APPEND;
 	if (tx == ipsec->tx_esw && tx->chains)
-		flow_act.flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
+		flow_act.flags |= FLOW_ACT_IGANALRE_FLOW_LEVEL;
 	dest[dstn].ft = tx->ft.sa;
 	dest[dstn].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dstn++;
@@ -1895,7 +1895,7 @@ static int rx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -1904,7 +1904,7 @@ static int rx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 	else
 		setup_fte_addr6(spec, attrs->saddr.a6, attrs->daddr.a6);
 
-	setup_fte_no_frags(spec);
+	setup_fte_anal_frags(spec);
 	setup_fte_upper_proto_match(spec, &attrs->upspec);
 
 	switch (attrs->action) {
@@ -1923,9 +1923,9 @@ static int rx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 		goto err_action;
 	}
 
-	flow_act.flags |= FLOW_ACT_NO_APPEND;
+	flow_act.flags |= FLOW_ACT_ANAL_APPEND;
 	if (rx == ipsec->rx_esw && rx->chains)
-		flow_act.flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
+		flow_act.flags |= FLOW_ACT_IGANALRE_FLOW_LEVEL;
 	dest[dstn].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest[dstn].ft = rx->ft.sa;
 	dstn++;
@@ -1975,7 +1975,7 @@ static struct mlx5e_ipsec_fc *ipsec_fs_init_single_counter(struct mlx5_core_dev 
 
 	fc = kzalloc(sizeof(*fc), GFP_KERNEL);
 	if (!fc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	counter = mlx5_fc_create(mdev, false);
 	if (IS_ERR(counter)) {
@@ -2289,21 +2289,21 @@ int mlx5e_accel_ipsec_fs_init(struct mlx5e_ipsec *ipsec,
 {
 	struct mlx5_core_dev *mdev = ipsec->mdev;
 	struct mlx5_flow_namespace *ns, *ns_esw;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	ns = mlx5_get_flow_namespace(ipsec->mdev,
 				     MLX5_FLOW_NAMESPACE_EGRESS_IPSEC);
 	if (!ns)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ipsec->is_uplink_rep) {
 		ns_esw = mlx5_get_flow_namespace(mdev, MLX5_FLOW_NAMESPACE_FDB);
 		if (!ns_esw)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		ipsec->tx_esw = kzalloc(sizeof(*ipsec->tx_esw), GFP_KERNEL);
 		if (!ipsec->tx_esw)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ipsec->rx_esw = kzalloc(sizeof(*ipsec->rx_esw), GFP_KERNEL);
 		if (!ipsec->rx_esw)
@@ -2411,7 +2411,7 @@ void mlx5e_ipsec_handle_mpv_event(int event, struct mlx5e_priv *slave_priv,
 void mlx5e_ipsec_send_event(struct mlx5e_priv *priv, int event)
 {
 	if (!priv->ipsec)
-		return; /* IPsec not supported */
+		return; /* IPsec analt supported */
 
 	mlx5_devcom_send_event(priv->devcom, event, event, priv);
 	wait_for_completion(&priv->ipsec->comp);

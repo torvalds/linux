@@ -7,18 +7,18 @@
  *		* HMAC DRBG with DF with SHA-1, SHA-256, SHA-384, SHA-512 cores
  *		* with and without prediction resistance
  *
- * Copyright Stephan Mueller <smueller@chronox.de>, 2014
+ * Copyright Stephan Mueller <smueller@chroanalx.de>, 2014
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    analtice, and the entire permission analtice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may analt be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
@@ -29,16 +29,16 @@
  * the restrictions contained in a BSD-style copyright.)
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, ALL OF
- * WHICH ARE HEREBY DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE
+ * WHICH ARE HEREBY DISCLAIMED.  IN ANAL EVENT SHALL THE AUTHOR BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT
  * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
- * USE OF THIS SOFTWARE, EVEN IF NOT ADVISED OF THE POSSIBILITY OF SUCH
+ * USE OF THIS SOFTWARE, EVEN IF ANALT ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
  * DRBG Usage
@@ -192,7 +192,7 @@ static int drbg_uninstantiate(struct drbg_state *drbg);
  *
  * @flags DRBG flags reference
  *
- * Return: normalized strength in *bytes* value or 32 as default
+ * Return: analrmalized strength in *bytes* value or 32 as default
  *	   to counter programming errors
  */
 static inline unsigned short drbg_sec_strength(drbg_flag_t flags)
@@ -210,12 +210,12 @@ static inline unsigned short drbg_sec_strength(drbg_flag_t flags)
 }
 
 /*
- * FIPS 140-2 continuous self test for the noise source
- * The test is performed on the noise source input data. Thus, the function
- * implicitly knows the size of the buffer to be equal to the security
+ * FIPS 140-2 continuous self test for the analise source
+ * The test is performed on the analise source input data. Thus, the function
+ * implicitly kanalws the size of the buffer to be equal to the security
  * strength.
  *
- * Note, this function disregards the nonce trailing the entropy data during
+ * Analte, this function disregards the analnce trailing the entropy data during
  * initial seeding.
  *
  * drbg->drbg_mutex must have been taken.
@@ -225,7 +225,7 @@ static inline unsigned short drbg_sec_strength(drbg_flag_t flags)
  *
  * return:
  *	0 on success
- *	-EAGAIN on when the CTRNG is not yet primed
+ *	-EAGAIN on when the CTRNG is analt yet primed
  *	< 0 on error
  */
 static int drbg_fips_continuous_test(struct drbg_state *drbg,
@@ -248,7 +248,7 @@ static int drbg_fips_continuous_test(struct drbg_state *drbg,
 		/* Priming of FIPS test */
 		memcpy(drbg->prev, entropy, entropylen);
 		drbg->fips_primed = true;
-		/* priming: another round is needed */
+		/* priming: aanalther round is needed */
 		return -EAGAIN;
 	}
 	ret = memcmp(drbg->prev, entropy, entropylen);
@@ -256,7 +256,7 @@ static int drbg_fips_continuous_test(struct drbg_state *drbg,
 		panic("DRBG continuous self test failed\n");
 	memcpy(drbg->prev, entropy, entropylen);
 
-	/* the test shall pass when the two values are not equal */
+	/* the test shall pass when the two values are analt equal */
 	return 0;
 }
 
@@ -287,11 +287,11 @@ static inline void drbg_cpu_to_be32(__u32 val, unsigned char *buf)
 #ifdef CONFIG_CRYPTO_DRBG_CTR
 #define CRYPTO_DRBG_CTR_STRING "CTR "
 MODULE_ALIAS_CRYPTO("drbg_pr_ctr_aes256");
-MODULE_ALIAS_CRYPTO("drbg_nopr_ctr_aes256");
+MODULE_ALIAS_CRYPTO("drbg_analpr_ctr_aes256");
 MODULE_ALIAS_CRYPTO("drbg_pr_ctr_aes192");
-MODULE_ALIAS_CRYPTO("drbg_nopr_ctr_aes192");
+MODULE_ALIAS_CRYPTO("drbg_analpr_ctr_aes192");
 MODULE_ALIAS_CRYPTO("drbg_pr_ctr_aes128");
-MODULE_ALIAS_CRYPTO("drbg_nopr_ctr_aes128");
+MODULE_ALIAS_CRYPTO("drbg_analpr_ctr_aes128");
 
 static void drbg_kcapi_symsetkey(struct drbg_state *drbg,
 				 const unsigned char *key);
@@ -345,14 +345,14 @@ static int drbg_ctr_bcc(struct drbg_state *drbg,
 
 /*
  * scratchpad usage: drbg_ctr_update is interlinked with drbg_ctr_df
- * (and drbg_ctr_bcc, but this function does not need any temporary buffers),
+ * (and drbg_ctr_bcc, but this function does analt need any temporary buffers),
  * the scratchpad is used as follows:
  * drbg_ctr_update:
  *	temp
  *		start: drbg->scratchpad
  *		length: drbg_statelen(drbg) + drbg_blocklen(drbg)
- *			note: the cipher writing into this variable works
- *			blocklen-wise. Now, when the statelen is not a multiple
+ *			analte: the cipher writing into this variable works
+ *			blocklen-wise. Analw, when the statelen is analt a multiple
  *			of blocklen, the generateion loop below "spills over"
  *			by at most blocklen. Thus, we need to give sufficient
  *			memory.
@@ -371,12 +371,12 @@ static int drbg_ctr_bcc(struct drbg_state *drbg,
  *	temp
  *		start: iv + drbg_blocklen(drbg)
  *		length: drbg_satelen(drbg) + drbg_blocklen(drbg)
- *			note: temp is the buffer that the BCC function operates
+ *			analte: temp is the buffer that the BCC function operates
  *			on. BCC operates blockwise. drbg_statelen(drbg)
  *			is sufficient when the DRBG state length is a multiple
  *			of the block size. For AES192 (and maybe other ciphers)
- *			this is not correct and the length for temp is
- *			insufficient (yes, that also means for such ciphers,
+ *			this is analt correct and the length for temp is
+ *			insufficient (anal, that also means for such ciphers,
  *			the final output of all BCC rounds are truncated).
  *			Therefore, add drbg_blocklen(drbg) to cover all
  *			possibilities.
@@ -510,12 +510,12 @@ out:
  * 0 => initial seed from initialization
  * 1 => reseed via drbg_seed
  * 2 => first invocation from drbg_ctr_update when addtl is present. In
- *      this case, the df_data scratchpad is not deleted so that it is
- *      available for another calls to prevent calling the DF function
+ *      this case, the df_data scratchpad is analt deleted so that it is
+ *      available for aanalther calls to prevent calling the DF function
  *      again.
  * 3 => second invocation from drbg_ctr_update. When the update function
  *      was called with addtl, the df_data memory already contains the
- *      DFed addtl information and we do not need to call DF again.
+ *      DFed addtl information and we do analt need to call DF again.
  */
 static int drbg_ctr_update(struct drbg_state *drbg, struct list_head *seed,
 			   int reseed)
@@ -631,11 +631,11 @@ static int drbg_fini_hash_kernel(struct drbg_state *drbg);
 #ifdef CONFIG_CRYPTO_DRBG_HMAC
 #define CRYPTO_DRBG_HMAC_STRING "HMAC "
 MODULE_ALIAS_CRYPTO("drbg_pr_hmac_sha512");
-MODULE_ALIAS_CRYPTO("drbg_nopr_hmac_sha512");
+MODULE_ALIAS_CRYPTO("drbg_analpr_hmac_sha512");
 MODULE_ALIAS_CRYPTO("drbg_pr_hmac_sha384");
-MODULE_ALIAS_CRYPTO("drbg_nopr_hmac_sha384");
+MODULE_ALIAS_CRYPTO("drbg_analpr_hmac_sha384");
 MODULE_ALIAS_CRYPTO("drbg_pr_hmac_sha256");
-MODULE_ALIAS_CRYPTO("drbg_nopr_hmac_sha256");
+MODULE_ALIAS_CRYPTO("drbg_analpr_hmac_sha256");
 
 /* update function of HMAC DRBG as defined in 10.1.2.2 */
 static int drbg_hmac_update(struct drbg_state *drbg, struct list_head *seed,
@@ -749,11 +749,11 @@ static const struct drbg_state_ops drbg_hmac_ops = {
 #ifdef CONFIG_CRYPTO_DRBG_HASH
 #define CRYPTO_DRBG_HASH_STRING "HASH "
 MODULE_ALIAS_CRYPTO("drbg_pr_sha512");
-MODULE_ALIAS_CRYPTO("drbg_nopr_sha512");
+MODULE_ALIAS_CRYPTO("drbg_analpr_sha512");
 MODULE_ALIAS_CRYPTO("drbg_pr_sha384");
-MODULE_ALIAS_CRYPTO("drbg_nopr_sha384");
+MODULE_ALIAS_CRYPTO("drbg_analpr_sha384");
 MODULE_ALIAS_CRYPTO("drbg_pr_sha256");
-MODULE_ALIAS_CRYPTO("drbg_nopr_sha256");
+MODULE_ALIAS_CRYPTO("drbg_analpr_sha256");
 
 /*
  * Increment buffer
@@ -799,7 +799,7 @@ static inline void drbg_add_buf(unsigned char *dst, size_t dstlen,
  *
  * drbg_hash_process_addtl uses the scratchpad, but fully completes
  * before either of the functions mentioned before are invoked. Therefore,
- * drbg_hash_process_addtl does not need to be specifically considered.
+ * drbg_hash_process_addtl does analt need to be specifically considered.
  */
 
 /* Derivation Function for Hash DRBG as defined in 10.4.1 */
@@ -1048,7 +1048,7 @@ static inline int __drbg_seed(struct drbg_state *drbg, struct list_head *seed,
 	case DRBG_SEED_STATE_FULL:
 		/*
 		 * Seed source has become fully initialized, frequent
-		 * reseeds no longer required.
+		 * reseeds anal longer required.
 		 */
 		drbg->reseed_threshold = drbg_max_requests(drbg);
 		break;
@@ -1098,7 +1098,7 @@ out:
 	return ret;
 }
 
-static bool drbg_nopr_reseed_interval_elapsed(struct drbg_state *drbg)
+static bool drbg_analpr_reseed_interval_elapsed(struct drbg_state *drbg)
 {
 	unsigned long next_reseed;
 
@@ -1107,9 +1107,9 @@ static bool drbg_nopr_reseed_interval_elapsed(struct drbg_state *drbg)
 		return false;
 
 	/*
-	 * Obtain fresh entropy for the nopr DRBGs after 300s have
+	 * Obtain fresh entropy for the analpr DRBGs after 300s have
 	 * elapsed in order to still achieve sort of partial
-	 * prediction resistance over the time domain at least. Note
+	 * prediction resistance over the time domain at least. Analte
 	 * that the period of 300s has been chosen to match the
 	 * CRNG_RESEED_INTERVAL of the get_random_bytes()' chacha
 	 * rngs.
@@ -1153,10 +1153,10 @@ static int drbg_seed(struct drbg_state *drbg, struct drbg_string *pers,
 	} else {
 		/*
 		 * Gather entropy equal to the security strength of the DRBG.
-		 * With a derivation function, a nonce is required in addition
-		 * to the entropy. A nonce must be at least 1/2 of the security
-		 * strength of the DRBG in size. Thus, entropy + nonce is 3/2
-		 * of the strength. The consideration of a nonce is only
+		 * With a derivation function, a analnce is required in addition
+		 * to the entropy. A analnce must be at least 1/2 of the security
+		 * strength of the DRBG in size. Thus, entropy + analnce is 3/2
+		 * of the strength. The consideration of a analnce is only
 		 * applicable during initial seeding.
 		 */
 		BUG_ON(!entropylen);
@@ -1188,7 +1188,7 @@ static int drbg_seed(struct drbg_state *drbg, struct drbg_string *pers,
 				pr_devel("DRBG: jent failed with %d\n", ret);
 
 				/*
-				 * Do not treat the transient failure of the
+				 * Do analt treat the transient failure of the
 				 * Jitter RNG as an error that needs to be
 				 * reported. The combined number of the
 				 * maximum reseed threshold times the maximum
@@ -1264,7 +1264,7 @@ static inline void drbg_dealloc_state(struct drbg_state *drbg)
  */
 static inline int drbg_alloc_state(struct drbg_state *drbg)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	unsigned int sb_size = 0;
 
 	switch (drbg->core->flags & DRBG_TYPE_MASK) {
@@ -1284,7 +1284,7 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 		break;
 #endif /* CONFIG_CRYPTO_DRBG_CTR */
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto err;
 	}
 
@@ -1294,13 +1294,13 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 
 	drbg->Vbuf = kmalloc(drbg_statelen(drbg) + ret, GFP_KERNEL);
 	if (!drbg->Vbuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fini;
 	}
 	drbg->V = PTR_ALIGN(drbg->Vbuf, ret + 1);
 	drbg->Cbuf = kmalloc(drbg_statelen(drbg) + ret, GFP_KERNEL);
 	if (!drbg->Cbuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fini;
 	}
 	drbg->C = PTR_ALIGN(drbg->Cbuf, ret + 1);
@@ -1319,7 +1319,7 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 	if (0 < sb_size) {
 		drbg->scratchpadbuf = kzalloc(sb_size + ret, GFP_KERNEL);
 		if (!drbg->scratchpadbuf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fini;
 		}
 		drbg->scratchpad = PTR_ALIGN(drbg->scratchpadbuf, ret + 1);
@@ -1329,7 +1329,7 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 		drbg->prev = kzalloc(drbg_sec_strength(drbg->core->flags),
 				     GFP_KERNEL);
 		if (!drbg->prev) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fini;
 		}
 		drbg->fips_primed = false;
@@ -1357,7 +1357,7 @@ err:
  *      be pre-allocated by caller
  * @buflen Length of output buffer - this value defines the number of random
  *	   bytes pulled from DRBG
- * @addtl Additional input that is mixed into state, may be NULL -- note
+ * @addtl Additional input that is mixed into state, may be NULL -- analte
  *	  the entropy is pulled by the DRBG internally unconditionally
  *	  as defined in SP800-90A. The additional input is mixed into
  *	  the state in addition to the pulled entropy.
@@ -1372,11 +1372,11 @@ static int drbg_generate(struct drbg_state *drbg,
 	LIST_HEAD(addtllist);
 
 	if (!drbg->core) {
-		pr_devel("DRBG: not yet seeded\n");
+		pr_devel("DRBG: analt yet seeded\n");
 		return -EINVAL;
 	}
 	if (0 == buflen || !buf) {
-		pr_devel("DRBG: no output buffer provided\n");
+		pr_devel("DRBG: anal output buffer provided\n");
 		return -EINVAL;
 	}
 	if (addtl && NULL == addtl->buf && 0 < addtl->len) {
@@ -1423,7 +1423,7 @@ static int drbg_generate(struct drbg_state *drbg,
 		addtl = NULL;
 	} else if (rng_is_initialized() &&
 		   (drbg->seeded == DRBG_SEED_STATE_PARTIAL ||
-		    drbg_nopr_reseed_interval_elapsed(drbg))) {
+		    drbg_analpr_reseed_interval_elapsed(drbg))) {
 		len = drbg_seed_from_random(drbg);
 		if (len)
 			goto err;
@@ -1443,10 +1443,10 @@ static int drbg_generate(struct drbg_state *drbg,
 	 * Section 11.3.3 requires to re-perform self tests after some
 	 * generated random numbers. The chosen value after which self
 	 * test is performed is arbitrary, but it should be reasonable.
-	 * However, we do not perform the self tests because of the following
+	 * However, we do analt perform the self tests because of the following
 	 * reasons: it is mathematically impossible that the initial self tests
-	 * were successfully and the following are not. If the initial would
-	 * pass and the following would not, the kernel integrity is violated.
+	 * were successfully and the following are analt. If the initial would
+	 * pass and the following would analt, the kernel integrity is violated.
 	 * In this case, the entire kernel operation is questionable and it
 	 * is unlikely that the integrity violation only affects the
 	 * correct operation of the DRBG.
@@ -1470,7 +1470,7 @@ static int drbg_generate(struct drbg_state *drbg,
 		if (err) {
 			pr_err("DRBG: periodical self test failed\n");
 			/*
-			 * uninstantiate implies that from now on, only errors
+			 * uninstantiate implies that from analw on, only errors
 			 * are returned when reusing this DRBG cipher handle
 			 */
 			drbg_uninstantiate(drbg);
@@ -1521,7 +1521,7 @@ static int drbg_generate_long(struct drbg_state *drbg,
 
 static int drbg_prepare_hrng(struct drbg_state *drbg)
 {
-	/* We do not need an HRNG in test mode. */
+	/* We do analt need an HRNG in test mode. */
 	if (list_empty(&drbg->test_data.list))
 		return 0;
 
@@ -1544,7 +1544,7 @@ static int drbg_prepare_hrng(struct drbg_state *drbg)
  * checks required by SP800-90A
  *
  * @drbg memory of state -- if NULL, new memory is allocated
- * @pers Personalization string that is mixed into state, may be NULL -- note
+ * @pers Personalization string that is mixed into state, may be NULL -- analte
  *	 the entropy is pulled by the DRBG internally unconditionally
  *	 as defined in SP800-90A. The additional input is mixed into
  *	 the state in addition to the pulled entropy.
@@ -1629,7 +1629,7 @@ static int drbg_uninstantiate(struct drbg_state *drbg)
 	if (drbg->d_ops)
 		drbg->d_ops->crypto_fini(drbg);
 	drbg_dealloc_state(drbg);
-	/* no scrubbing of test_data -- this shall survive an uninstantiate */
+	/* anal scrubbing of test_data -- this shall survive an uninstantiate */
 	return 0;
 }
 
@@ -1667,7 +1667,7 @@ static int drbg_init_hash_kernel(struct drbg_state *drbg)
 
 	tfm = crypto_alloc_shash(drbg->core->backend_cra_name, 0, 0);
 	if (IS_ERR(tfm)) {
-		pr_info("DRBG: could not allocate digest TFM handle: %s\n",
+		pr_info("DRBG: could analt allocate digest TFM handle: %s\n",
 				drbg->core->backend_cra_name);
 		return PTR_ERR(tfm);
 	}
@@ -1676,7 +1676,7 @@ static int drbg_init_hash_kernel(struct drbg_state *drbg)
 			GFP_KERNEL);
 	if (!sdesc) {
 		crypto_free_shash(tfm);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sdesc->shash.tfm = tfm;
@@ -1750,7 +1750,7 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 
 	tfm = crypto_alloc_cipher(drbg->core->backend_cra_name, 0, 0);
 	if (IS_ERR(tfm)) {
-		pr_info("DRBG: could not allocate cipher TFM handle: %s\n",
+		pr_info("DRBG: could analt allocate cipher TFM handle: %s\n",
 				drbg->core->backend_cra_name);
 		return PTR_ERR(tfm);
 	}
@@ -1764,7 +1764,7 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 	}
 	sk_tfm = crypto_alloc_skcipher(ctr_name, 0, 0);
 	if (IS_ERR(sk_tfm)) {
-		pr_info("DRBG: could not allocate CTR cipher TFM handle: %s\n",
+		pr_info("DRBG: could analt allocate CTR cipher TFM handle: %s\n",
 				ctr_name);
 		drbg_fini_sym_kernel(drbg);
 		return PTR_ERR(sk_tfm);
@@ -1774,9 +1774,9 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 
 	req = skcipher_request_alloc(sk_tfm, GFP_KERNEL);
 	if (!req) {
-		pr_info("DRBG: could not allocate request queue\n");
+		pr_info("DRBG: could analt allocate request queue\n");
 		drbg_fini_sym_kernel(drbg);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	drbg->ctr_req = req;
 	skcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG |
@@ -1788,7 +1788,7 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 					 GFP_KERNEL);
 	if (!drbg->outscratchpadbuf) {
 		drbg_fini_sym_kernel(drbg);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	drbg->outscratchpad = (u8 *)PTR_ALIGN(drbg->outscratchpadbuf,
 					      alignmask + 1);
@@ -1839,7 +1839,7 @@ static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 	while (outlen) {
 		u32 cryptlen = min3(inlen, outlen, (u32)DRBG_OUTSCRATCHLEN);
 
-		/* Output buffer may not be valid for SGL, use scratchpad */
+		/* Output buffer may analt be valid for SGL, use scratchpad */
 		skcipher_request_set_crypt(drbg->ctr_req, sg_in, sg_out,
 					   cryptlen, drbg->V);
 		ret = crypto_wait_req(crypto_skcipher_encrypt(drbg->ctr_req),
@@ -1886,7 +1886,7 @@ static inline void drbg_convert_tfm_core(const char *cra_driver_name,
 
 	*pr = true;
 	/* disassemble the names */
-	if (!memcmp(cra_driver_name, "drbg_nopr_", 10)) {
+	if (!memcmp(cra_driver_name, "drbg_analpr_", 10)) {
 		start = 10;
 		*pr = false;
 	} else if (!memcmp(cra_driver_name, "drbg_pr_", 8)) {
@@ -1938,7 +1938,7 @@ static int drbg_kcapi_random(struct crypto_rng *tfm,
 	struct drbg_string string;
 
 	if (slen) {
-		/* linked list variable is now local to allow modification */
+		/* linked list variable is analw local to allow modification */
 		drbg_string_fill(&string, src, slen);
 		addtl = &string;
 	}
@@ -1977,10 +1977,10 @@ static int drbg_kcapi_seed(struct crypto_rng *tfm,
  * Tests as defined in 11.3.2 in addition to the cipher tests: testing
  * of the error handling.
  *
- * Note: testing of failing seed source as defined in 11.3.2 is not applicable
- * as seed source of get_random_bytes does not fail.
+ * Analte: testing of failing seed source as defined in 11.3.2 is analt applicable
+ * as seed source of get_random_bytes does analt fail.
  *
- * Note 2: There is no sensible way of testing the reseed counter
+ * Analte 2: There is anal sensible way of testing the reseed counter
  * enforcement, so skip it.
  */
 static inline int __init drbg_healthcheck_sanity(void)
@@ -2001,18 +2001,18 @@ static inline int __init drbg_healthcheck_sanity(void)
 		return 0;
 
 #ifdef CONFIG_CRYPTO_DRBG_CTR
-	drbg_convert_tfm_core("drbg_nopr_ctr_aes256", &coreref, &pr);
+	drbg_convert_tfm_core("drbg_analpr_ctr_aes256", &coreref, &pr);
 #endif
 #ifdef CONFIG_CRYPTO_DRBG_HASH
-	drbg_convert_tfm_core("drbg_nopr_sha256", &coreref, &pr);
+	drbg_convert_tfm_core("drbg_analpr_sha256", &coreref, &pr);
 #endif
 #ifdef CONFIG_CRYPTO_DRBG_HMAC
-	drbg_convert_tfm_core("drbg_nopr_hmac_sha512", &coreref, &pr);
+	drbg_convert_tfm_core("drbg_analpr_hmac_sha512", &coreref, &pr);
 #endif
 
 	drbg = kzalloc(sizeof(struct drbg_state), GFP_KERNEL);
 	if (!drbg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&drbg->drbg_mutex);
 	drbg->core = &drbg_cores[coreref];
@@ -2021,7 +2021,7 @@ static inline int __init drbg_healthcheck_sanity(void)
 	/*
 	 * if the following tests fail, it is likely that there is a buffer
 	 * overflow as buf is much smaller than the requested or provided
-	 * string lengths -- in case the error handling does not succeed
+	 * string lengths -- in case the error handling does analt succeed
 	 * we may get an OOPS. And we want to get an OOPS as this is a
 	 * grave bug.
 	 */
@@ -2067,7 +2067,7 @@ static inline void __init drbg_fill_array(struct rng_alg *alg,
 		memcpy(alg->base.cra_driver_name, "drbg_pr_", 8);
 		pos = 8;
 	} else {
-		memcpy(alg->base.cra_driver_name, "drbg_nopr_", 10);
+		memcpy(alg->base.cra_driver_name, "drbg_analpr_", 10);
 		pos = 10;
 	}
 	memcpy(alg->base.cra_driver_name + pos, core->cra_name,
@@ -2104,7 +2104,7 @@ static int __init drbg_init(void)
 		return ret;
 
 	if (ARRAY_SIZE(drbg_cores) * 2 > ARRAY_SIZE(drbg_algs)) {
-		pr_info("DRBG: Cannot register all DRBG types"
+		pr_info("DRBG: Cananalt register all DRBG types"
 			"(slots needed: %zu, slots available: %zu)\n",
 			ARRAY_SIZE(drbg_cores) * 2, ARRAY_SIZE(drbg_algs));
 		return -EFAULT;
@@ -2116,7 +2116,7 @@ static int __init drbg_init(void)
 	 *
 	 * As the order of placing them into the drbg_algs array matters
 	 * (the later DRBGs receive a higher cra_priority) we register the
-	 * prediction resistance DRBGs first as the should not be too
+	 * prediction resistance DRBGs first as the should analt be too
 	 * interesting.
 	 */
 	for (j = 0; ARRAY_SIZE(drbg_cores) > j; j++, i++)
@@ -2143,7 +2143,7 @@ module_exit(drbg_exit);
 #define CRYPTO_DRBG_CTR_STRING ""
 #endif
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Stephan Mueller <smueller@chronox.de>");
+MODULE_AUTHOR("Stephan Mueller <smueller@chroanalx.de>");
 MODULE_DESCRIPTION("NIST SP800-90A Deterministic Random Bit Generator (DRBG) "
 		   "using following cores: "
 		   CRYPTO_DRBG_HASH_STRING

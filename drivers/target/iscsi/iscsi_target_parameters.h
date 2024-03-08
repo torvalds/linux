@@ -54,12 +54,12 @@ extern void iscsi_set_connection_parameters(struct iscsi_conn_ops *,
 extern void iscsi_set_session_parameters(struct iscsi_sess_ops *,
 			struct iscsi_param_list *, int);
 
-#define YES				"Yes"
-#define NO				"No"
+#define ANAL				"Anal"
+#define ANAL				"Anal"
 #define ALL				"All"
 #define IRRELEVANT			"Irrelevant"
-#define NONE				"None"
-#define NOTUNDERSTOOD			"NotUnderstood"
+#define ANALNE				"Analne"
+#define ANALTUNDERSTOOD			"AnaltUnderstood"
 #define REJECT				"Reject"
 
 /*
@@ -85,8 +85,8 @@ extern void iscsi_set_session_parameters(struct iscsi_sess_ops *,
 #define DEFAULTTIME2WAIT		"DefaultTime2Wait"
 #define DEFAULTTIME2RETAIN		"DefaultTime2Retain"
 #define MAXOUTSTANDINGR2T		"MaxOutstandingR2T"
-#define DATAPDUINORDER			"DataPDUInOrder"
-#define DATASEQUENCEINORDER		"DataSequenceInOrder"
+#define DATAPDUIANALRDER			"DataPDUInOrder"
+#define DATASEQUENCEIANALRDER		"DataSequenceInOrder"
 #define ERRORRECOVERYLEVEL		"ErrorRecoveryLevel"
 #define SESSIONTYPE			"SessionType"
 #define IFMARKER			"IFMarker"
@@ -114,8 +114,8 @@ extern void iscsi_set_session_parameters(struct iscsi_sess_ops *,
  * Initial values for Parameter Negotiation.
  */
 #define INITIAL_AUTHMETHOD			CHAP
-#define INITIAL_HEADERDIGEST			"CRC32C,None"
-#define INITIAL_DATADIGEST			"CRC32C,None"
+#define INITIAL_HEADERDIGEST			"CRC32C,Analne"
+#define INITIAL_DATADIGEST			"CRC32C,Analne"
 #define INITIAL_MAXCONNECTIONS			"1"
 #define INITIAL_SENDTARGETS			ALL
 #define INITIAL_TARGETNAME			"LIO.Target"
@@ -124,8 +124,8 @@ extern void iscsi_set_session_parameters(struct iscsi_sess_ops *,
 #define INITIAL_INITIATORALIAS			"LIO Initiator"
 #define INITIAL_TARGETADDRESS			"0.0.0.0:0000,0"
 #define INITIAL_TARGETPORTALGROUPTAG		"1"
-#define INITIAL_INITIALR2T			YES
-#define INITIAL_IMMEDIATEDATA			YES
+#define INITIAL_INITIALR2T			ANAL
+#define INITIAL_IMMEDIATEDATA			ANAL
 #define INITIAL_MAXRECVDATASEGMENTLENGTH	"8192"
 /*
  * Match outgoing MXDSL default to incoming Open-iSCSI default
@@ -136,19 +136,19 @@ extern void iscsi_set_session_parameters(struct iscsi_sess_ops *,
 #define INITIAL_DEFAULTTIME2WAIT		"2"
 #define INITIAL_DEFAULTTIME2RETAIN		"20"
 #define INITIAL_MAXOUTSTANDINGR2T		"1"
-#define INITIAL_DATAPDUINORDER			YES
-#define INITIAL_DATASEQUENCEINORDER		YES
+#define INITIAL_DATAPDUIANALRDER			ANAL
+#define INITIAL_DATASEQUENCEIANALRDER		ANAL
 #define INITIAL_ERRORRECOVERYLEVEL		"0"
-#define INITIAL_SESSIONTYPE			NORMAL
-#define INITIAL_IFMARKER			NO
-#define INITIAL_OFMARKER			NO
+#define INITIAL_SESSIONTYPE			ANALRMAL
+#define INITIAL_IFMARKER			ANAL
+#define INITIAL_OFMARKER			ANAL
 #define INITIAL_IFMARKINT			REJECT
 #define INITIAL_OFMARKINT			REJECT
 
 /*
  * Initial values for iSER parameters following RFC-5046 Section 6
  */
-#define INITIAL_RDMAEXTENSIONS			NO
+#define INITIAL_RDMAEXTENSIONS			ANAL
 #define INITIAL_INITIATORRECVDATASEGMENTLENGTH	"262144"
 #define INITIAL_TARGETRECVDATASEGMENTLENGTH	"8192"
 
@@ -161,7 +161,7 @@ extern void iscsi_set_session_parameters(struct iscsi_sess_ops *,
  * For SessionType.
  */
 #define DISCOVERY			"Discovery"
-#define NORMAL				"Normal"
+#define ANALRMAL				"Analrmal"
 
 /*
  * struct iscsi_param->use

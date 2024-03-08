@@ -66,7 +66,7 @@ int dpsw_open(struct fsl_mc_io *mc_io, u32 cmd_flags, int dpsw_id, u16 *token)
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPSW object
  *
- * After this function is called, no further operations are
+ * After this function is called, anal further operations are
  * allowed on the object without opening a new control session.
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -157,7 +157,7 @@ int dpsw_reset(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
  *
  * Allows GPP software to control when interrupts are generated.
  * Each interrupt can have up to 32 causes.  The enable/disable control's the
- * overall interrupt state. if the interrupt is disabled no causes will cause
+ * overall interrupt state. if the interrupt is disabled anal causes will cause
  * an interrupt
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -188,7 +188,7 @@ int dpsw_set_irq_enable(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  * @irq_index:	The interrupt index to configure
  * @mask:	Event mask to trigger interrupt;
  *		each bit:
- *			0 = ignore event
+ *			0 = iganalre event
  *			1 = consider event for asserting IRQ
  *
  * Every interrupt can have up to 32 causes and the interrupt model supports
@@ -221,7 +221,7 @@ int dpsw_set_irq_mask(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  * @token:	Token of DPSW object
  * @irq_index:	The interrupt index to configure
  * @status:	Returned interrupts status - one bit per cause:
- *			0 = no interrupt pending
+ *			0 = anal interrupt pending
  *			1 = interrupt pending
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -669,7 +669,7 @@ int dpsw_if_set_max_frame_length(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 tok
  *
  * Only VLAN ID and FDB ID are required parameters here.
  * 12 bit VLAN ID is defined in IEEE802.1Q.
- * Adding a duplicate VLAN ID is not allowed.
+ * Adding a duplicate VLAN ID is analt allowed.
  * FDB ID can be shared across multiple VLANs. Shared learning
  * is obtained by calling dpsw_vlan_add for multiple VLAN IDs
  * with same fdb_id
@@ -702,9 +702,9 @@ int dpsw_vlan_add(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  * @vlan_id:	VLAN Identifier
  * @cfg:	Set of interfaces to add
  *
- * It adds only interfaces not belonging to this VLAN yet,
+ * It adds only interfaces analt belonging to this VLAN yet,
  * otherwise an error is generated and an entire command is
- * ignored. This function can be called numerous times always
+ * iganalred. This function can be called numerous times always
  * providing required interfaces delta.
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
@@ -742,7 +742,7 @@ int dpsw_vlan_add_if(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  * By default all interfaces are transmitted as tagged.
  * Providing un-existing interface or untagged interface that is
  * configured untagged already generates an error and the entire
- * command is ignored.
+ * command is iganalred.
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
@@ -773,7 +773,7 @@ int dpsw_vlan_add_if_untagged(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  * @cfg:	Set of interfaces that should be removed
  *
  * Interfaces must belong to this VLAN, otherwise an error
- * is returned and an the command is ignored
+ * is returned and an the command is iganalred
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
@@ -806,7 +806,7 @@ int dpsw_vlan_remove_if(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  *
  * Interfaces provided by API have to belong to this VLAN and
  * configured untagged, otherwise an error is returned and the
- * command is ignored
+ * command is iganalred
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
@@ -959,7 +959,7 @@ int dpsw_fdb_add_unicast(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  * Return:	Completion status. '0' on Success; Error code otherwise.
  *
  * The memory allocated at iova_addr must be initialized with zero before
- * command execution. If the FDB table does not fit into memory MC will stop
+ * command execution. If the FDB table does analt fit into memory MC will stop
  * after the memory is filled up.
  * The struct fdb_dump_entry array must be parsed until the end of memory
  * area or until an entry with mac_addr set to zero is found.
@@ -1033,9 +1033,9 @@ int dpsw_fdb_remove_unicast(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  * @cfg:	Multicast entry configuration
  *
  * If group doesn't exist, it will be created.
- * It adds only interfaces not belonging to this multicast group
+ * It adds only interfaces analt belonging to this multicast group
  * yet, otherwise error will be generated and the command is
- * ignored.
+ * iganalred.
  * This function may be called numerous times always providing
  * required interfaces delta.
  *
@@ -1075,7 +1075,7 @@ int dpsw_fdb_add_multicast(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  *
  * Interfaces provided by this API have to exist in the group,
  * otherwise an error will be returned and an entire command
- * ignored. If there is no interface left in the group,
+ * iganalred. If there is anal interface left in the group,
  * an entire group is deleted
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
@@ -1203,12 +1203,12 @@ int dpsw_ctrl_if_set_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @major_ver:	Major version of data path switch API
- * @minor_ver:	Minor version of data path switch API
+ * @mianalr_ver:	Mianalr version of data path switch API
  *
  * Return:  '0' on Success; Error code otherwise.
  */
 int dpsw_get_api_version(struct fsl_mc_io *mc_io, u32 cmd_flags,
-			 u16 *major_ver, u16 *minor_ver)
+			 u16 *major_ver, u16 *mianalr_ver)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_rsp_get_api_version *rsp_params;
@@ -1224,7 +1224,7 @@ int dpsw_get_api_version(struct fsl_mc_io *mc_io, u32 cmd_flags,
 
 	rsp_params = (struct dpsw_rsp_get_api_version *)cmd.params;
 	*major_ver = le16_to_cpu(rsp_params->version_major);
-	*minor_ver = le16_to_cpu(rsp_params->version_minor);
+	*mianalr_ver = le16_to_cpu(rsp_params->version_mianalr);
 
 	return 0;
 }

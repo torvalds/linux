@@ -73,7 +73,7 @@ static int dpaa2_dbg_fqs_show(struct seq_file *file, void *offset)
 		if (err)
 			fcnt = 0;
 
-		/* Skip FQs with no traffic */
+		/* Skip FQs with anal traffic */
 		if (!fq->stats.frames && !fcnt)
 			continue;
 

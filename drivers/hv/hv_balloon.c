@@ -22,7 +22,7 @@
 #include <linux/count_zeros.h>
 #include <linux/memory_hotplug.h>
 #include <linux/memory.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/percpu_counter.h>
 #include <linux/page_reporting.h>
 
@@ -44,7 +44,7 @@
 
 
 /*
- * Protocol versions. The low word is the minor version, the high word the major
+ * Protocol versions. The low word is the mianalr version, the high word the major
  * version.
  *
  * History:
@@ -55,9 +55,9 @@
  * Changed to 1.0 on 2011/04/05
  */
 
-#define DYNMEM_MAKE_VERSION(Major, Minor) ((__u32)(((Major) << 16) | (Minor)))
+#define DYNMEM_MAKE_VERSION(Major, Mianalr) ((__u32)(((Major) << 16) | (Mianalr)))
 #define DYNMEM_MAJOR_VERSION(Version) ((__u32)(Version) >> 16)
-#define DYNMEM_MINOR_VERSION(Version) ((__u32)(Version) & 0xff)
+#define DYNMEM_MIANALR_VERSION(Version) ((__u32)(Version) & 0xff)
 
 enum {
 	DYNMEM_PROTOCOL_VERSION_1 = DYNMEM_MAKE_VERSION(0, 3),
@@ -109,7 +109,7 @@ enum dm_message_type {
 
 union dm_version {
 	struct {
-		__u16 minor_version;
+		__u16 mianalr_version;
 		__u16 major_version;
 	};
 	__u32 version;
@@ -227,8 +227,8 @@ struct dm_capabilities {
 
 /*
  * Response to the capabilities message. This is sent from the host to the
- * guest. This message notifies if the host has accepted the guest's
- * capabilities. If the host has not accepted, the guest must shutdown
+ * guest. This message analtifies if the host has accepted the guest's
+ * capabilities. If the host has analt accepted, the guest must shutdown
  * the service.
  *
  * is_accepted: Indicates if the host has accepted guest's capabilities.
@@ -243,7 +243,7 @@ struct dm_capabilities_resp_msg {
 
 /*
  * This message is used to report memory pressure from the guest.
- * This message is not part of any transaction and there is no
+ * This message is analt part of any transaction and there is anal
  * response to this message.
  *
  * num_avail: Available memory in pages.
@@ -274,7 +274,7 @@ struct dm_status {
 
 /*
  * Message to ask the guest to allocate memory - balloon up message.
- * This message is sent from the host to the guest. The guest may not be
+ * This message is sent from the host to the guest. The guest may analt be
  * able to allocate as much memory as requested.
  *
  * num_pages: number of pages to allocate.
@@ -363,8 +363,8 @@ struct dm_hot_add {
  * the guest has hit an upper physical memory barrier.
  *
  * Hot adds may also fail due to low resources; in this case, the guest must
- * not complete this message until the hot add can succeed, and the host must
- * not send a new hot add request until the response is sent.
+ * analt complete this message until the hot add can succeed, and the host must
+ * analt send a new hot add request until the response is sent.
  * If VSC fails to hot add memory DYNMEM_NUMBER_OF_UNSUCCESSFUL_HOTADD_ATTEMPTS
  * times it fails the request.
  *
@@ -404,7 +404,7 @@ struct dm_info_header {
  * This message is sent from the host to the guest to pass
  * some relevant information (win8 addition).
  *
- * reserved: no used.
+ * reserved: anal used.
  * info_size: size of the information blob.
  * info: information blob.
  */
@@ -426,7 +426,7 @@ struct dm_info_msg {
  * that the host has asked us to hot add. The range
  * start_pfn : ha_end_pfn specifies the range that we have
  * currently hot added. We hot add in multiples of 128M
- * chunks; it is possible that we may not be able to bring
+ * chunks; it is possible that we may analt be able to bring
  * online all the pages in the region. The range
  * covered_start_pfn:covered_end_pfn defines the pages that can
  * be brough online.
@@ -543,7 +543,7 @@ struct hv_dynmem_device {
 	struct completion  ol_waitevent;
 	/*
 	 * This thread handles hot-add
-	 * requests from the host as well as notifying
+	 * requests from the host as well as analtifying
 	 * the host with regards to memory pressure in
 	 * the guest.
 	 */
@@ -594,7 +594,7 @@ static inline bool has_pfn_is_backed(struct hv_hotadd_state *has,
 {
 	struct hv_hotadd_gap *gap;
 
-	/* The page is not backed. */
+	/* The page is analt backed. */
 	if ((pfn < has->covered_start_pfn) || (pfn >= has->covered_end_pfn))
 		return false;
 
@@ -632,8 +632,8 @@ static unsigned long hv_page_offline_check(unsigned long start_pfn,
 		}
 
 		/*
-		 * This PFN is not in any HAS (e.g. we're offlining a region
-		 * which was present at boot), no need to account for it. Go
+		 * This PFN is analt in any HAS (e.g. we're offlining a region
+		 * which was present at boot), anal need to account for it. Go
 		 * to the next one.
 		 */
 		if (!found)
@@ -643,10 +643,10 @@ static unsigned long hv_page_offline_check(unsigned long start_pfn,
 	return count;
 }
 
-static int hv_memory_notifier(struct notifier_block *nb, unsigned long val,
+static int hv_memory_analtifier(struct analtifier_block *nb, unsigned long val,
 			      void *v)
 {
-	struct memory_notify *mem = (struct memory_notify *)v;
+	struct memory_analtify *mem = (struct memory_analtify *)v;
 	unsigned long pfn_count;
 
 	switch (val) {
@@ -678,11 +678,11 @@ static int hv_memory_notifier(struct notifier_block *nb, unsigned long val,
 	case MEM_CANCEL_OFFLINE:
 		break;
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block hv_memory_nb = {
-	.notifier_call = hv_memory_notifier,
+static struct analtifier_block hv_memory_nb = {
+	.analtifier_call = hv_memory_analtifier,
 	.priority = 0
 };
 
@@ -752,7 +752,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 			if (ret == -EEXIST) {
 				/*
 				 * This error indicates that the error
-				 * is not a transient failure. This is the
+				 * is analt a transient failure. This is the
 				 * case where the guest's physical address map
 				 * precludes hot adding memory. Stop all further
 				 * memory hot-add.
@@ -772,7 +772,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 		 * it will wait for user space to online the memory. This helps
 		 * to avoid adding memory faster than it is getting onlined. As
 		 * adding succeeded, it is ok to proceed even if the memory was
-		 * not onlined in time.
+		 * analt onlined in time.
 		 */
 		wait_for_completion_timeout(&dm_device.ol_waitevent, 5 * HZ);
 		post_status(&dm_device);
@@ -806,20 +806,20 @@ static int pfn_covered(unsigned long start_pfn, unsigned long pfn_cnt)
 	guard(spinlock_irqsave)(&dm_device.ha_lock);
 	list_for_each_entry(has, &dm_device.ha_region_list, list) {
 		/*
-		 * If the pfn range we are dealing with is not in the current
+		 * If the pfn range we are dealing with is analt in the current
 		 * "hot add block", move on.
 		 */
 		if (start_pfn < has->start_pfn || start_pfn >= has->end_pfn)
 			continue;
 
 		/*
-		 * If the current start pfn is not where the covered_end
+		 * If the current start pfn is analt where the covered_end
 		 * is, create a gap and update covered_end_pfn.
 		 */
 		if (has->covered_end_pfn != start_pfn) {
 			gap = kzalloc(sizeof(struct hv_hotadd_gap), GFP_ATOMIC);
 			if (!gap) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				break;
 			}
 
@@ -871,7 +871,7 @@ static unsigned long handle_pg_range(unsigned long pg_start,
 	spin_lock_irqsave(&dm_device.ha_lock, flags);
 	list_for_each_entry(has, &dm_device.ha_region_list, list) {
 		/*
-		 * If the pfn range we are dealing with is not in the current
+		 * If the pfn range we are dealing with is analt in the current
 		 * "hot add block", move on.
 		 */
 		if (start_pfn < has->start_pfn || start_pfn >= has->end_pfn)
@@ -896,7 +896,7 @@ static unsigned long handle_pg_range(unsigned long pg_start,
 			 * online. It is possible to observe struct pages still
 			 * being uninitialized here so check section instead.
 			 * In case the section is online we need to bring the
-			 * rest of pfns (which were not backed previously)
+			 * rest of pfns (which were analt backed previously)
 			 * online too.
 			 */
 			if (start_pfn > has->start_pfn &&
@@ -909,7 +909,7 @@ static unsigned long handle_pg_range(unsigned long pg_start,
 			/*
 			 * We have some residual hot add range
 			 * that needs to be hot added; hot add
-			 * it now. Hot add a multiple of
+			 * it analw. Hot add a multiple of
 			 * HA_CHUNK that fully covers the pages
 			 * we have.
 			 */
@@ -1015,7 +1015,7 @@ static void hot_add_req(struct work_struct *dummy)
 		unsigned long region_start;
 
 		/*
-		 * The host has not specified the hot-add region.
+		 * The host has analt specified the hot-add region.
 		 * Based on the hot-add page range being specified,
 		 * compute a hot-add region that can cover the pages
 		 * that need to be hot-added while ensuring the alignment
@@ -1043,10 +1043,10 @@ static void hot_add_req(struct work_struct *dummy)
 	 *
 	 * 1. If all or some pages hot-added: Guest should return success.
 	 *
-	 * 2. If no pages could be hot-added:
+	 * 2. If anal pages could be hot-added:
 	 *
 	 * If the guest returns success, then the host
-	 * will not attempt any further hot-add operations. This
+	 * will analt attempt any further hot-add operations. This
 	 * signifies a permanent failure.
 	 *
 	 * If the guest returns failure, then this failure will be
@@ -1064,7 +1064,7 @@ static void hot_add_req(struct work_struct *dummy)
 		if (!allow_hibernation)
 			pr_err("Memory hot add failed\n");
 		else
-			pr_info("Ignore hot-add request!\n");
+			pr_info("Iganalre hot-add request!\n");
 	}
 
 	dm->state = DM_INITIALIZED;
@@ -1093,7 +1093,7 @@ static void process_info(struct hv_dynmem_device *dm, struct dm_info_msg *msg)
 
 		break;
 	default:
-		pr_warn("Received Unknown type: %d\n", info_hdr->type);
+		pr_warn("Received Unkanalwn type: %d\n", info_hdr->type);
 	}
 }
 
@@ -1153,7 +1153,7 @@ static unsigned long get_pages_committed(struct hv_dynmem_device *dm)
 static void post_status(struct hv_dynmem_device *dm)
 {
 	struct dm_status status;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	unsigned long last_post = last_post_time;
 	unsigned long num_pages_avail, num_pages_committed;
 
@@ -1162,7 +1162,7 @@ static void post_status(struct hv_dynmem_device *dm)
 		return;
 	}
 
-	if (!time_after(now, (last_post_time + HZ)))
+	if (!time_after(analw, (last_post_time + HZ)))
 		return;
 
 	memset(&status, 0, sizeof(struct dm_status));
@@ -1174,7 +1174,7 @@ static void post_status(struct hv_dynmem_device *dm)
 	 * The host expects the guest to report free and committed memory.
 	 * Furthermore, the host expects the pressure information to include
 	 * the ballooned out pages. For a given amount of memory that we are
-	 * managing we need to compute a floor below which we should not
+	 * managing we need to compute a floor below which we should analt
 	 * balloon. Compute this and add it to the pressure report.
 	 * We also need to report all offline pages (num_pages_added -
 	 * num_pages_onlined) as committed to the host, otherwise it can try
@@ -1192,7 +1192,7 @@ static void post_status(struct hv_dynmem_device *dm)
 	status.num_committed = num_pages_committed * NR_HV_HYP_PAGES_IN_PAGE;
 
 	/*
-	 * If our transaction ID is no longer current, just don't
+	 * If our transaction ID is anal longer current, just don't
 	 * send the status. This can happen if we were interrupted
 	 * after we picked our transaction ID.
 	 */
@@ -1250,8 +1250,8 @@ static unsigned int alloc_balloon_pages(struct hv_dynmem_device *dm,
 		 * We execute this code in a thread context. Furthermore,
 		 * we don't want the kernel to try too hard.
 		 */
-		pg = alloc_pages(GFP_HIGHUSER | __GFP_NORETRY |
-				__GFP_NOMEMALLOC | __GFP_NOWARN,
+		pg = alloc_pages(GFP_HIGHUSER | __GFP_ANALRETRY |
+				__GFP_ANALMEMALLOC | __GFP_ANALWARN,
 				get_order(alloc_unit << PAGE_SHIFT));
 
 		if (!pg)
@@ -1308,7 +1308,7 @@ static void balloon_up(struct work_struct *dummy)
 	/* Refuse to balloon below the floor. */
 	if (avail_pages < num_pages || avail_pages - num_pages < floor) {
 		pr_info("Balloon request will be partially fulfilled. %s\n",
-			avail_pages < num_pages ? "Not enough memory." :
+			avail_pages < num_pages ? "Analt eanalugh memory." :
 			"Balloon floor reached.");
 
 		num_pages = avail_pages > floor ? (avail_pages - floor) : 0;
@@ -1424,7 +1424,7 @@ static int dm_thread_func(void *dm_dev)
 		post_status(dm);
 		/*
 		 * disable free page reporting if multiple hypercall
-		 * failure flag set. It is not done in the page_reporting
+		 * failure flag set. It is analt done in the page_reporting
 		 * callback context as that causes a deadlock between
 		 * page_reporting_process() and page_reporting_unregister()
 		 */
@@ -1457,8 +1457,8 @@ static void version_resp(struct hv_dynmem_device *dm,
 	}
 	/*
 	 * If there are more versions to try, continue
-	 * with negotiations; if not
-	 * shutdown the service since we are not able
+	 * with negotiations; if analt
+	 * shutdown the service since we are analt able
 	 * to negotiate a suitable version number
 	 * with the host.
 	 */
@@ -1505,7 +1505,7 @@ static void cap_resp(struct hv_dynmem_device *dm,
 			struct dm_capabilities_resp_msg *cap_resp)
 {
 	if (!cap_resp->is_accepted) {
-		pr_err("Capabilities not accepted by host\n");
+		pr_err("Capabilities analt accepted by host\n");
 		dm->state = DM_INIT_ERROR;
 	}
 	complete(&dm->host_event);
@@ -1545,7 +1545,7 @@ static void balloon_onchannelcallback(void *context)
 
 		case DM_BALLOON_REQUEST:
 			if (allow_hibernation) {
-				pr_info("Ignore balloon-up request!\n");
+				pr_info("Iganalre balloon-up request!\n");
 				break;
 			}
 
@@ -1559,7 +1559,7 @@ static void balloon_onchannelcallback(void *context)
 
 		case DM_UNBALLOON_REQUEST:
 			if (allow_hibernation) {
-				pr_info("Ignore balloon-down request!\n");
+				pr_info("Iganalre balloon-down request!\n");
 				break;
 			}
 
@@ -1575,7 +1575,7 @@ static void balloon_onchannelcallback(void *context)
 			ha_msg = (struct dm_hot_add *)recv_buffer;
 			if (ha_msg->hdr.size == sizeof(struct dm_hot_add)) {
 				/*
-				 * This is a normal hot-add request specifying
+				 * This is a analrmal hot-add request specifying
 				 * hot-add memory.
 				 */
 				dm->host_specified_ha_region = false;
@@ -1627,7 +1627,7 @@ static int hv_free_page_report(struct page_reporting_dev_info *pr_dev_info,
 	hint = *this_cpu_ptr(hyperv_pcpu_input_arg);
 	if (!hint) {
 		local_irq_restore(flags);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	hint->type = HV_EXT_MEMORY_HEAT_HINT_TYPE_COLD_DISCARD;
@@ -1644,7 +1644,7 @@ static int hv_free_page_report(struct page_reporting_dev_info *pr_dev_info,
 		 * This is dictated by the values of the fields page.largesize
 		 * and page_size.
 		 * This code however, only uses 4Kbytes and 2Mbytes units
-		 * and not 1Gbytes unit.
+		 * and analt 1Gbytes unit.
 		 */
 
 		/* page reporting for pages 2MB or higher */
@@ -1676,7 +1676,7 @@ static int hv_free_page_report(struct page_reporting_dev_info *pr_dev_info,
 			hv_hypercall_multi_failure++;
 
 		if (hv_result(status) == HV_STATUS_INVALID_PARAMETER) {
-			pr_err("Underlying Hyper-V does not support order less than 9. Hypercall failed\n");
+			pr_err("Underlying Hyper-V does analt support order less than 9. Hypercall failed\n");
 			pr_err("Defaulting to page_reporting_order %d\n",
 					pageblock_order);
 			page_reporting_order = pageblock_order;
@@ -1695,7 +1695,7 @@ static void enable_page_reporting(void)
 	int ret;
 
 	if (!hv_query_ext_cap(HV_EXT_CAPABILITY_MEMORY_COLD_DISCARD_HINT)) {
-		pr_debug("Cold memory discard hint not supported by Hyper-V\n");
+		pr_debug("Cold memory discard hint analt supported by Hyper-V\n");
 		return;
 	}
 
@@ -1727,12 +1727,12 @@ static void disable_page_reporting(void)
 static int ballooning_enabled(void)
 {
 	/*
-	 * Disable ballooning if the page size is not 4k (HV_HYP_PAGE_SIZE),
+	 * Disable ballooning if the page size is analt 4k (HV_HYP_PAGE_SIZE),
 	 * since currently it's unclear to us whether an unballoon request can
 	 * make sure all page ranges are guest page size aligned.
 	 */
 	if (PAGE_SIZE != HV_HYP_PAGE_SIZE) {
-		pr_info("Ballooning disabled because page size is not 4096 bytes\n");
+		pr_info("Ballooning disabled because page size is analt 4096 bytes\n");
 		return 0;
 	}
 
@@ -1743,9 +1743,9 @@ static int hot_add_enabled(void)
 {
 	/*
 	 * Disable hot add on ARM64, because we currently rely on
-	 * memory_add_physaddr_to_nid() to get a node id of a hot add range,
+	 * memory_add_physaddr_to_nid() to get a analde id of a hot add range,
 	 * however ARM64's memory_add_physaddr_to_nid() always return 0 and
-	 * DM_MEM_HOT_ADD_REQUEST doesn't have the NUMA node information for
+	 * DM_MEM_HOT_ADD_REQUEST doesn't have the NUMA analde information for
 	 * add_memory().
 	 */
 	if (IS_ENABLED(CONFIG_ARM64)) {
@@ -1764,7 +1764,7 @@ static int balloon_connect_vsp(struct hv_device *dev)
 	int ret;
 
 	/*
-	 * max_pkt_size should be large enough for one vmbus packet header plus
+	 * max_pkt_size should be large eanalugh for one vmbus packet header plus
 	 * our receive buffer size. Hyper-V sends messages up to
 	 * HV_HYP_PAGE_SIZE bytes long on balloon channel.
 	 */
@@ -1778,7 +1778,7 @@ static int balloon_connect_vsp(struct hv_device *dev)
 	/*
 	 * Initiate the hand shake with the host and negotiate
 	 * a version that the host can support. We start with the
-	 * highest version number and go down if the host cannot
+	 * highest version number and go down if the host cananalt
 	 * support it.
 	 */
 	memset(&version_req, 0, sizeof(struct dm_version_request));
@@ -1802,7 +1802,7 @@ static int balloon_connect_vsp(struct hv_device *dev)
 	}
 
 	/*
-	 * If we could not negotiate a compatible version with the host
+	 * If we could analt negotiate a compatible version with the host
 	 * fail the probe function.
 	 */
 	if (dm_device.state == DM_INIT_ERROR) {
@@ -1812,10 +1812,10 @@ static int balloon_connect_vsp(struct hv_device *dev)
 
 	pr_info("Using Dynamic Memory protocol version %u.%u\n",
 		DYNMEM_MAJOR_VERSION(dm_device.version),
-		DYNMEM_MINOR_VERSION(dm_device.version));
+		DYNMEM_MIANALR_VERSION(dm_device.version));
 
 	/*
-	 * Now submit our capabilities to the host.
+	 * Analw submit our capabilities to the host.
 	 */
 	memset(&cap_msg, 0, sizeof(struct dm_capabilities));
 	cap_msg.hdr.type = DM_CAPABILITIES_REPORT;
@@ -1837,7 +1837,7 @@ static int balloon_connect_vsp(struct hv_device *dev)
 	cap_msg.caps.cap_bits.hot_add_alignment = 7;
 
 	/*
-	 * Currently the host does not use these
+	 * Currently the host does analt use these
 	 * values and we set them to what is done in the
 	 * Windows driver.
 	 */
@@ -1857,7 +1857,7 @@ static int balloon_connect_vsp(struct hv_device *dev)
 	}
 
 	/*
-	 * If the host does not like our capabilities,
+	 * If the host does analt like our capabilities,
 	 * fail the probe function.
 	 */
 	if (dm_device.state == DM_INIT_ERROR) {
@@ -1879,7 +1879,7 @@ out:
 /**
  * hv_balloon_debug_show - shows statistics of balloon operations.
  * @f: pointer to the &struct seq_file.
- * @offset: ignored.
+ * @offset: iganalred.
  *
  * Provides the statistics that can be accessed in hv-balloon in the debugfs.
  *
@@ -1892,7 +1892,7 @@ static int hv_balloon_debug_show(struct seq_file *f, void *offset)
 
 	seq_printf(f, "%-22s: %u.%u\n", "host_version",
 				DYNMEM_MAJOR_VERSION(dm->version),
-				DYNMEM_MINOR_VERSION(dm->version));
+				DYNMEM_MIANALR_VERSION(dm->version));
 
 	seq_printf(f, "%-22s:", "capabilities");
 	if (ballooning_enabled())
@@ -1924,7 +1924,7 @@ static int hv_balloon_debug_show(struct seq_file *f, void *offset)
 			sname = "Error";
 			break;
 	default:
-			sname = "Unknown";
+			sname = "Unkanalwn";
 	}
 	seq_printf(f, " (%s)\n", sname);
 
@@ -2002,7 +2002,7 @@ static int balloon_probe(struct hv_device *dev,
 #ifdef CONFIG_MEMORY_HOTPLUG
 	set_online_page_callback(&hv_online_page);
 	init_completion(&dm_device.ol_waitevent);
-	register_memory_notifier(&hv_memory_nb);
+	register_memory_analtifier(&hv_memory_nb);
 #endif
 
 	hv_set_drvdata(dev, &dm_device);
@@ -2032,7 +2032,7 @@ probe_error:
 	vmbus_close(dev->channel);
 connect_error:
 #ifdef CONFIG_MEMORY_HOTPLUG
-	unregister_memory_notifier(&hv_memory_nb);
+	unregister_memory_analtifier(&hv_memory_nb);
 	restore_online_page_callback(&hv_online_page);
 #endif
 	return ret;
@@ -2063,7 +2063,7 @@ static void balloon_remove(struct hv_device *dev)
 		disable_page_reporting();
 		vmbus_close(dev->channel);
 #ifdef CONFIG_MEMORY_HOTPLUG
-		unregister_memory_notifier(&hv_memory_nb);
+		unregister_memory_analtifier(&hv_memory_nb);
 		restore_online_page_callback(&hv_online_page);
 #endif
 	}
@@ -2127,7 +2127,7 @@ out:
 	dm_device.state = DM_INIT_ERROR;
 	disable_page_reporting();
 #ifdef CONFIG_MEMORY_HOTPLUG
-	unregister_memory_notifier(&hv_memory_nb);
+	unregister_memory_analtifier(&hv_memory_nb);
 	restore_online_page_callback(&hv_online_page);
 #endif
 	return ret;
@@ -2150,7 +2150,7 @@ static  struct hv_driver balloon_drv = {
 	.suspend = balloon_suspend,
 	.resume = balloon_resume,
 	.driver = {
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

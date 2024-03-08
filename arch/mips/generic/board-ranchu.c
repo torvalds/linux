@@ -22,7 +22,7 @@ static __init u64 read_rtc_time(void __iomem *base)
 
 	/*
 	 * Reading the low address latches the high value
-	 * as well so there is no fear that we may read
+	 * as well so there is anal fear that we may read
 	 * inaccurate high value.
 	 */
 	time_low = readl(base + GOLDFISH_TIMER_LOW);
@@ -35,21 +35,21 @@ static __init unsigned int ranchu_measure_hpt_freq(void)
 {
 	u64 rtc_start, rtc_current, rtc_delta;
 	unsigned int start, count;
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *rtc_base;
 
-	np = of_find_compatible_node(NULL, NULL, "google,goldfish-rtc");
+	np = of_find_compatible_analde(NULL, NULL, "google,goldfish-rtc");
 	if (!np)
-		panic("%s(): Failed to find 'google,goldfish-rtc' dt node!",
+		panic("%s(): Failed to find 'google,goldfish-rtc' dt analde!",
 		      __func__);
 
 	rtc_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!rtc_base)
 		panic("%s(): Failed to ioremap Goldfish RTC base!", __func__);
 
 	/*
-	 * Poll the nanosecond resolution RTC for one
+	 * Poll the naanalsecond resolution RTC for one
 	 * second to calibrate the CPU frequency.
 	 */
 	rtc_start = read_rtc_time(rtc_base);

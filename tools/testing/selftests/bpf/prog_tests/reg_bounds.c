@@ -382,8 +382,8 @@ static struct range range_cast_s32(enum num_t to_t, struct range x)
 }
 
 /* Reinterpret range in *from_t* domain as a range in *to_t* domain preserving
- * all possible information. Worst case, it will be unknown range within
- * *to_t* domain, if nothing more specific can be guaranteed during the
+ * all possible information. Worst case, it will be unkanalwn range within
+ * *to_t* domain, if analthing more specific can be guaranteed during the
  * conversion
  */
 static struct range range_cast(enum num_t from_t, enum num_t to_t, struct range from)
@@ -433,8 +433,8 @@ static struct range range_refine(enum num_t x_t, struct range x, enum num_t y_t,
 
 	y_cast = range_cast(y_t, x_t, y);
 
-	/* the case when new range knowledge, *y*, is a 32-bit subregister
-	 * range, while previous range knowledge, *x*, is a full register
+	/* the case when new range kanalwledge, *y*, is a 32-bit subregister
+	 * range, while previous range kanalwledge, *x*, is a full register
 	 * 64-bit range, needs special treatment to take into account upper 32
 	 * bits of full register range
 	 */
@@ -444,7 +444,7 @@ static struct range range_refine(enum num_t x_t, struct range x, enum num_t y_t,
 		/* some combinations of upper 32 bits and sign bit can lead to
 		 * invalid ranges, in such cases it's easier to detect them
 		 * after cast/swap than try to enumerate all the conditions
-		 * under which transformation and knowledge transfer is valid
+		 * under which transformation and kanalwledge transfer is valid
 		 */
 		x_swap = range(x_t, swap_low32(x.a, y_cast.a), swap_low32(x.b, y_cast.b));
 		if (!is_valid_range(x_t, x_swap))
@@ -563,7 +563,7 @@ static void range_cond(enum num_t t, struct range x, struct range y,
 		       enum op op, struct range *newx, struct range *newy)
 {
 	if (!range_canbe_op(t, x, y, op)) {
-		/* nothing to adjust, can't happen, return original values */
+		/* analthing to adjust, can't happen, return original values */
 		*newx = x;
 		*newy = y;
 		return;
@@ -590,7 +590,7 @@ static void range_cond(enum num_t t, struct range x, struct range y,
 		*newy = range(t, max_t(t, x.a, y.a), min_t(t, x.b, y.b));
 		break;
 	case OP_NE:
-		/* below logic is supported by the verifier now */
+		/* below logic is supported by the verifier analw */
 		if (x.a == x.b && x.a == y.a) {
 			/* X is a constant matching left side of Y */
 			*newx = range(t, x.a, x.b);
@@ -635,7 +635,7 @@ static void print_reg_state(struct reg_state *r, const char *sfx)
 	int cnt = 0;
 
 	if (!r->valid) {
-		printf("<not found>%s", sfx);
+		printf("<analt found>%s", sfx);
 		return;
 	}
 
@@ -668,7 +668,7 @@ static void reg_state_refine(struct reg_state *r, enum num_t t, struct range x, 
 	bool keep_going = false;
 
 again:
-	/* try to derive new knowledge from just learned range x of type t */
+	/* try to derive new kanalwledge from just learned range x of type t */
 	for (d_t = first_t; d_t <= last_t; d_t++) {
 		old = r->r[d_t];
 		r->r[d_t] = range_refine(d_t, r->r[d_t], t, x);
@@ -679,7 +679,7 @@ again:
 		}
 	}
 
-	/* now see if we can derive anything new from updated reg_state's ranges */
+	/* analw see if we can derive anything new from updated reg_state's ranges */
 	for (s_t = first_t; s_t <= last_t; s_t++) {
 		for (d_t = first_t; d_t <= last_t; d_t++) {
 			old = r->r[d_t];
@@ -720,7 +720,7 @@ static void reg_state_cond(enum num_t t, struct reg_state *x, struct reg_state *
 	struct range z1, z2;
 
 	if (op == OP_EQ || op == OP_NE) {
-		/* OP_EQ and OP_NE are sign-agnostic, so we need to process
+		/* OP_EQ and OP_NE are sign-aganalstic, so we need to process
 		 * both signed and unsigned domains at the same time
 		 */
 		ts[0] = t_unsigned(t);
@@ -758,7 +758,7 @@ static int reg_state_branch_taken_op(enum num_t t, struct reg_state *x, struct r
 				     enum op op)
 {
 	if (op == OP_EQ || op == OP_NE) {
-		/* OP_EQ and OP_NE are sign-agnostic */
+		/* OP_EQ and OP_NE are sign-aganalstic */
 		enum num_t tu = t_unsigned(t);
 		enum num_t ts = t_signed(t);
 		int br_u, br_s, br;
@@ -926,7 +926,7 @@ static int load_range_cmp_prog(struct range x, struct range y, enum op op,
 	case OP_NE: op_code = BPF_JNE; break;
 	default:
 		printf("unrecognized op %d\n", op);
-		return -ENOTSUP;
+		return -EANALTSUP;
 	}
 	/* ; BEFORE conditional, r0/w0 = {r6/w6,r7/w7} is to extract verifier state reliably
 	 * ; this is used for debugging, as verifier doesn't always print
@@ -999,7 +999,7 @@ static int load_range_cmp_prog(struct range x, struct range y, enum op op,
 static int parse_reg_state(const char *s, struct reg_state *reg)
 {
 	/* There are two generic forms for SCALAR register:
-	 * - known constant: R6_rwD=P%lld
+	 * - kanalwn constant: R6_rwD=P%lld
 	 * - range: R6_rwD=scalar(id=1,...), where "..." is a comma-separated
 	 *   list of optional range specifiers:
 	 *     - umin=%llu, if missing, assumed 0;
@@ -1013,8 +1013,8 @@ static int parse_reg_state(const char *s, struct reg_state *reg)
 	 *     - var_off=(%#llx; %#llx), tnum part, we don't care about it.
 	 *
 	 * If some of the values are equal, they will be grouped (but min/max
-	 * are not mixed together, and similarly negative values are not
-	 * grouped with non-negative ones). E.g.:
+	 * are analt mixed together, and similarly negative values are analt
+	 * grouped with analn-negative ones). E.g.:
 	 *
 	 *   R6_w=Pscalar(smin=smin32=0, smax=umax=umax32=1000)
 	 *
@@ -1208,7 +1208,7 @@ static bool assert_reg_state_eq(struct reg_state *r, struct reg_state *e, const 
 	return ok;
 }
 
-/* Printf verifier log, filtering out irrelevant noise */
+/* Printf verifier log, filtering out irrelevant analise */
 static void print_verifier_log(const char *buf)
 {
 	const char *p;
@@ -1411,7 +1411,7 @@ static int verify_case_op(enum num_t init_t, enum num_t cond_t,
 		failed = true;
 	}
 
-	if (failed || env.verbosity >= VERBOSE_NORMAL) {
+	if (failed || env.verbosity >= VERBOSE_ANALRMAL) {
 		if (failed || env.verbosity >= VERBOSE_VERY) {
 			printf("VERIFIER LOG:\n========================\n");
 			print_verifier_log(log_buf);
@@ -1448,7 +1448,7 @@ static int verify_case_opt(struct ctx *ctx, enum num_t init_t, enum num_t cond_t
 	};
 
 	sb->pos = 0; /* reset position in strbuf */
-	subtest_case_str(sb, &sub, false /* ignore op */);
+	subtest_case_str(sb, &sub, false /* iganalre op */);
 	if (is_subtest && !test__start_subtest(sb->buf))
 		return 0;
 
@@ -1456,11 +1456,11 @@ static int verify_case_opt(struct ctx *ctx, enum num_t init_t, enum num_t cond_t
 		sb->pos = 0; /* reset position in strbuf */
 		subtest_case_str(sb, &sub, true /* print op */);
 
-		if (env.verbosity >= VERBOSE_NORMAL) /* this speeds up debugging */
+		if (env.verbosity >= VERBOSE_ANALRMAL) /* this speeds up debugging */
 			printf("TEST CASE: %s\n", sb->buf);
 
 		err = verify_case_op(init_t, cond_t, x, y, sub.op);
-		if (err || env.verbosity >= VERBOSE_NORMAL)
+		if (err || env.verbosity >= VERBOSE_ANALRMAL)
 			ASSERT_OK(err, sb->buf);
 		if (err) {
 			ctx->cur_failure_cnt++;
@@ -1678,28 +1678,28 @@ static int parse_env_vars(struct ctx *ctx)
 	const char *s;
 
 	if ((s = getenv("REG_BOUNDS_MAX_FAILURE_CNT"))) {
-		errno = 0;
+		erranal = 0;
 		ctx->max_failure_cnt = strtol(s, NULL, 10);
-		if (errno || ctx->max_failure_cnt < 0) {
-			ASSERT_OK(-errno, "REG_BOUNDS_MAX_FAILURE_CNT");
+		if (erranal || ctx->max_failure_cnt < 0) {
+			ASSERT_OK(-erranal, "REG_BOUNDS_MAX_FAILURE_CNT");
 			return -EINVAL;
 		}
 	}
 
 	if ((s = getenv("REG_BOUNDS_RAND_CASE_CNT"))) {
-		errno = 0;
+		erranal = 0;
 		ctx->rand_case_cnt = strtol(s, NULL, 10);
-		if (errno || ctx->rand_case_cnt < 0) {
-			ASSERT_OK(-errno, "REG_BOUNDS_RAND_CASE_CNT");
+		if (erranal || ctx->rand_case_cnt < 0) {
+			ASSERT_OK(-erranal, "REG_BOUNDS_RAND_CASE_CNT");
 			return -EINVAL;
 		}
 	}
 
 	if ((s = getenv("REG_BOUNDS_RAND_SEED"))) {
-		errno = 0;
+		erranal = 0;
 		ctx->rand_seed = strtoul(s, NULL, 10);
-		if (errno) {
-			ASSERT_OK(-errno, "REG_BOUNDS_RAND_SEED");
+		if (erranal) {
+			ASSERT_OK(-erranal, "REG_BOUNDS_RAND_SEED");
 			return -EINVAL;
 		}
 	}
@@ -1714,7 +1714,7 @@ static int prepare_gen_tests(struct ctx *ctx)
 
 	if (!(s = getenv("SLOW_TESTS")) || strcmp(s, "1") != 0) {
 		test__skip();
-		return -ENOTSUP;
+		return -EANALTSUP;
 	}
 
 	err = parse_env_vars(ctx);
@@ -1868,7 +1868,7 @@ cleanup:
 
 /* Go over thousands of test cases generated from initial seed values.
  * Given this take a long time, guard this begind SLOW_TESTS=1 envvar. If
- * envvar is not set, this test is skipped during test_progs testing.
+ * envvar is analt set, this test is skipped during test_progs testing.
  *
  * We split this up into smaller subsets based on initialization and
  * conditiona numeric domains to get an easy parallelization with test_progs'
@@ -2038,7 +2038,7 @@ void test_reg_bounds_rand_ranges_s32_s64(void) { validate_rand_ranges(S32, S64, 
 void test_reg_bounds_rand_ranges_s32_u32(void) { validate_rand_ranges(S32, U32, false /* range */); }
 void test_reg_bounds_rand_ranges_s32_s32(void) { validate_rand_ranges(S32, S32, false /* range */); }
 
-/* A set of hard-coded "interesting" cases to validate as part of normal
+/* A set of hard-coded "interesting" cases to validate as part of analrmal
  * test_progs test runs
  */
 static struct subtest_case crafted_cases[] = {
@@ -2077,9 +2077,9 @@ static struct subtest_case crafted_cases[] = {
 	{U64, S32, {0, 0x17fffffffULL}, {0, 0}},
 	{U64, S32, {0, 0x180000001ULL}, {0, 0}},
 
-	/* verifier knows about [-1, 0] range for s32 for this case already */
+	/* verifier kanalws about [-1, 0] range for s32 for this case already */
 	{S64, S64, {0xffffffffffffffffULL, 0}, {0xffffffff00000000ULL, 0xffffffff00000000ULL}},
-	/* but didn't know about these cases initially */
+	/* but didn't kanalw about these cases initially */
 	{U64, U64, {0xffffffff, 0x100000000ULL}, {0, 0}}, /* s32: [-1, 0] */
 	{U64, U64, {0xffffffff, 0x100000001ULL}, {0, 0}}, /* s32: [-1, 1] */
 
@@ -2111,7 +2111,7 @@ static struct subtest_case crafted_cases[] = {
 };
 
 /* Go over crafted hard-coded cases. This is fast, so we do it as part of
- * normal test_progs run.
+ * analrmal test_progs run.
  */
 void test_reg_bounds_crafted(void)
 {

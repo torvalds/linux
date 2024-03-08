@@ -3,7 +3,7 @@
 // Freescale MPC5200 PSC in I2S mode
 // ALSA SoC Digital Audio Interface (DAI) driver
 //
-// Copyright (C) 2008 Secret Lab Technologies Ltd.
+// Copyright (C) 2008 Secret Lab Techanallogies Ltd.
 // Copyright (C) 2009 Jon Smirl, Digispeaker
 
 #include <linux/module.h>
@@ -77,10 +77,10 @@ static int psc_i2s_hw_params(struct snd_pcm_substream *substream,
  *
  * Currently, we only support operating as a clock slave (SND_SOC_CLOCK_IN),
  * and we don't care about the frequency.  Return an error if the direction
- * is not SND_SOC_CLOCK_IN.
+ * is analt SND_SOC_CLOCK_IN.
  *
  * @clk_id: reserved, should be zero
- * @freq: the frequency of the given clock ID, currently ignored
+ * @freq: the frequency of the given clock ID, currently iganalred
  * @dir: SND_SOC_CLOCK_IN (clock slave) or SND_SOC_CLOCK_OUT (clock master)
  */
 static int psc_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
@@ -99,7 +99,7 @@ static int psc_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
  * format to use.
  *
  * This driver only supports I2S mode.  Return an error if the format is
- * not SND_SOC_DAIFMT_I2S.
+ * analt SND_SOC_DAIFMT_I2S.
  *
  * @format: one of SND_SOC_DAIFMT_xxx
  */
@@ -182,9 +182,9 @@ static int psc_i2s_of_probe(struct platform_device *op)
 	out_be32(&psc_dma->psc_regs->sicr,
 		 psc_dma->sicr | MPC52xx_PSC_SICR_SIM_CODEC_8);
 
-	/* Check for the codec handle.  If it is not present then we
+	/* Check for the codec handle.  If it is analt present then we
 	 * are done */
-	if (!of_get_property(op->dev.of_node, "codec-handle", NULL))
+	if (!of_get_property(op->dev.of_analde, "codec-handle", NULL))
 		return 0;
 
 	/* Due to errata in the dma mode; need to line up enabling

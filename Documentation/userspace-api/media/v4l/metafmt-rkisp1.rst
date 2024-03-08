@@ -12,7 +12,7 @@ Configuration parameters
 ========================
 
 The configuration parameters are passed to the
-:ref:`rkisp1_params <rkisp1_params>` metadata output video node, using
+:ref:`rkisp1_params <rkisp1_params>` metadata output video analde, using
 the :c:type:`v4l2_meta_format` interface. The buffer contains
 a single instance of the C structure :c:type:`rkisp1_params_cfg` defined in
 ``rkisp1-config.h``. So the structure can be obtained from the buffer by:
@@ -28,7 +28,7 @@ a single instance of the C structure :c:type:`rkisp1_params_cfg` defined in
 
 The ISP1 device collects different statistics over an input Bayer frame.
 Those statistics are obtained from the :ref:`rkisp1_stats <rkisp1_stats>`
-metadata capture video node,
+metadata capture video analde,
 using the :c:type:`v4l2_meta_format` interface. The buffer contains a single
 instance of the C structure :c:type:`rkisp1_stat_buffer` defined in
 ``rkisp1-config.h``. So the structure can be obtained from the buffer by:

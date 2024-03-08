@@ -10,7 +10,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_quota.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
@@ -49,7 +49,7 @@ xlog_recover_dquot_ra_pass2(
 	ASSERT(dq_f);
 	ASSERT(dq_f->qlf_len == 1);
 
-	xlog_buf_readahead(log, dq_f->qlf_blkno,
+	xlog_buf_readahead(log, dq_f->qlf_blkanal,
 			XFS_FSB_TO_BB(mp, dq_f->qlf_len),
 			&xfs_dquot_buf_ra_ops);
 }
@@ -91,7 +91,7 @@ xlog_recover_dquot_commit_pass2(
 	}
 
 	/*
-	 * This type of quotas was turned off, so ignore this record.
+	 * This type of quotas was turned off, so iganalre this record.
 	 */
 	type = recddq->d_type & XFS_DQTYPE_REC_MASK;
 	ASSERT(type);
@@ -99,14 +99,14 @@ xlog_recover_dquot_commit_pass2(
 		return 0;
 
 	/*
-	 * At this point we know that quota was _not_ turned off.
-	 * Since the mount flags are not indicating to us otherwise, this
+	 * At this point we kanalw that quota was _analt_ turned off.
+	 * Since the mount flags are analt indicating to us otherwise, this
 	 * must mean that quota is on, and the dquot needs to be replayed.
-	 * Remember that we may not have fully recovered the superblock yet,
+	 * Remember that we may analt have fully recovered the superblock yet,
 	 * so we can't do the usual trick of looking at the SB quota bits.
 	 *
 	 * The other possibility, of course, is that the quota subsystem was
-	 * removed since the last mount - ENOSYS.
+	 * removed since the last mount - EANALSYS.
 	 */
 	dq_f = item->ri_buf[0].i_addr;
 	ASSERT(dq_f);
@@ -125,7 +125,7 @@ xlog_recover_dquot_commit_pass2(
 	 * we'll return an error here, so we don't need to specifically check
 	 * the dquot in the buffer after the verifier has run.
 	 */
-	error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp, dq_f->qlf_blkno,
+	error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp, dq_f->qlf_blkanal,
 				   XFS_FSB_TO_BB(mp, dq_f->qlf_len), 0, &bp,
 				   &xfs_dquot_buf_ops);
 	if (error)
@@ -183,8 +183,8 @@ const struct xlog_recover_item_ops xlog_dquot_item_ops = {
 };
 
 /*
- * Recover QUOTAOFF records. We simply make a note of it in the xlog
- * structure, so that we know not to do any dquot item or dquot buffer recovery,
+ * Recover QUOTAOFF records. We simply make a analte of it in the xlog
+ * structure, so that we kanalw analt to do any dquot item or dquot buffer recovery,
  * of that type.
  */
 STATIC int
@@ -212,5 +212,5 @@ xlog_recover_quotaoff_commit_pass1(
 const struct xlog_recover_item_ops xlog_quotaoff_item_ops = {
 	.item_type		= XFS_LI_QUOTAOFF,
 	.commit_pass1		= xlog_recover_quotaoff_commit_pass1,
-	/* nothing to commit in pass2 */
+	/* analthing to commit in pass2 */
 };

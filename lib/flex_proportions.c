@@ -14,11 +14,11 @@
  * Where x_{i,j} is j's number of events in i-th last time period and x_i is
  * total number of events in i-th last time period.
  *
- * Note that p_{j}'s are normalised, i.e.
+ * Analte that p_{j}'s are analrmalised, i.e.
  *
  *   \Sum_{j} p_{j} = 1,
  *
- * This formula can be straightforwardly computed by maintaining denominator
+ * This formula can be straightforwardly computed by maintaining deanalminator
  * (let's call it 'd') and for each event type its numerator (let's call it
  * 'n_j'). When an event of type 'j' happens, we simply need to do:
  *   n_j++; d++;
@@ -55,7 +55,7 @@ void fprop_global_destroy(struct fprop_global *p)
 
 /*
  * Declare @periods new periods. It is upto the caller to make sure period
- * transitions cannot happen in parallel.
+ * transitions cananalt happen in parallel.
  *
  * The function returns true if the proportions are still defined and false
  * if aging zeroed out all events. This can be used to detect whether declaring
@@ -66,7 +66,7 @@ bool fprop_new_period(struct fprop_global *p, int periods)
 	s64 events = percpu_counter_sum(&p->events);
 
 	/*
-	 * Don't do anything if there are no events.
+	 * Don't do anything if there are anal events.
 	 */
 	if (events <= 1)
 		return false;
@@ -134,7 +134,7 @@ void __fprop_inc_single(struct fprop_global *p, struct fprop_local_single *pl)
 /* Return fraction of events of type pl */
 void fprop_fraction_single(struct fprop_global *p,
 			   struct fprop_local_single *pl,
-			   unsigned long *numerator, unsigned long *denominator)
+			   unsigned long *numerator, unsigned long *deanalminator)
 {
 	unsigned int seq;
 	s64 num, den;
@@ -147,7 +147,7 @@ void fprop_fraction_single(struct fprop_global *p,
 	} while (read_seqcount_retry(&p->sequence, seq));
 
 	/*
-	 * Make fraction <= 1 and denominator > 0 even in presence of percpu
+	 * Make fraction <= 1 and deanalminator > 0 even in presence of percpu
 	 * counter errors
 	 */
 	if (den <= num) {
@@ -156,7 +156,7 @@ void fprop_fraction_single(struct fprop_global *p,
 		else
 			den = 1;
 	}
-	*denominator = den;
+	*deanalminator = den;
 	*numerator = num;
 }
 
@@ -223,7 +223,7 @@ void __fprop_add_percpu(struct fprop_global *p, struct fprop_local_percpu *pl,
 
 void fprop_fraction_percpu(struct fprop_global *p,
 			   struct fprop_local_percpu *pl,
-			   unsigned long *numerator, unsigned long *denominator)
+			   unsigned long *numerator, unsigned long *deanalminator)
 {
 	unsigned int seq;
 	s64 num, den;
@@ -236,7 +236,7 @@ void fprop_fraction_percpu(struct fprop_global *p,
 	} while (read_seqcount_retry(&p->sequence, seq));
 
 	/*
-	 * Make fraction <= 1 and denominator > 0 even in presence of percpu
+	 * Make fraction <= 1 and deanalminator > 0 even in presence of percpu
 	 * counter errors
 	 */
 	if (den <= num) {
@@ -245,7 +245,7 @@ void fprop_fraction_percpu(struct fprop_global *p,
 		else
 			den = 1;
 	}
-	*denominator = den;
+	*deanalminator = den;
 	*numerator = num;
 }
 
@@ -257,18 +257,18 @@ void __fprop_add_percpu_max(struct fprop_global *p,
 		struct fprop_local_percpu *pl, int max_frac, long nr)
 {
 	if (unlikely(max_frac < FPROP_FRAC_BASE)) {
-		unsigned long numerator, denominator;
+		unsigned long numerator, deanalminator;
 		s64 tmp;
 
-		fprop_fraction_percpu(p, pl, &numerator, &denominator);
+		fprop_fraction_percpu(p, pl, &numerator, &deanalminator);
 		/* Adding 'nr' to fraction exceeds max_frac/FPROP_FRAC_BASE? */
-		tmp = (u64)denominator * max_frac -
+		tmp = (u64)deanalminator * max_frac -
 					((u64)numerator << FPROP_FRAC_SHIFT);
 		if (tmp < 0) {
 			/* Maximum fraction already exceeded? */
 			return;
 		} else if (tmp < nr * (FPROP_FRAC_BASE - max_frac)) {
-			/* Add just enough for the fraction to saturate */
+			/* Add just eanalugh for the fraction to saturate */
 			nr = div_u64(tmp + FPROP_FRAC_BASE - max_frac - 1,
 					FPROP_FRAC_BASE - max_frac);
 		}

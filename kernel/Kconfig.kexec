@@ -21,16 +21,16 @@ config KEXEC
 	select KEXEC_CORE
 	help
 	  kexec is a system call that implements the ability to shutdown your
-	  current kernel, and to start another kernel. It is like a reboot
+	  current kernel, and to start aanalther kernel. It is like a reboot
 	  but it is independent of the system firmware. And like a reboot
-	  you can start any kernel with it, not just Linux.
+	  you can start any kernel with it, analt just Linux.
 
 	  The name comes from the similarity to the exec system call.
 
 	  It is an ongoing process to be certain the hardware in a machine
-	  is properly shutdown, so do not be surprised if this code does not
+	  is properly shutdown, so do analt be surprised if this code does analt
 	  initially work for you. As of this writing the exact hardware
-	  interface is strongly in flux, so no good recommendation can be
+	  interface is strongly in flux, so anal good recommendation can be
 	  made.
 
 config KEXEC_FILE
@@ -100,11 +100,11 @@ config CRASH_DUMP
 	select KEXEC_CORE
 	help
 	  Generate crash dump after being started by kexec.
-	  This should be normally only set in special crash dump kernels
+	  This should be analrmally only set in special crash dump kernels
 	  which are loaded in the main kernel with kexec-tools into
 	  a specially reserved region and then later executed after
 	  a crash by kdump/kexec. The crash dump kernel must be compiled
-	  to a memory address not used by the main kernel or BIOS using
+	  to a memory address analt used by the main kernel or BIOS using
 	  PHYSICAL_START, or it must be built as a relocatable image
 	  (CONFIG_RELOCATABLE=y).
 	  For more details see Documentation/admin-guide/kdump/kdump.rst

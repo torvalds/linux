@@ -197,12 +197,12 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 
 	davinci_wdt = devm_kzalloc(dev, sizeof(*davinci_wdt), GFP_KERNEL);
 	if (!davinci_wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	davinci_wdt->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(davinci_wdt->clk))
 		return dev_err_probe(dev, PTR_ERR(davinci_wdt->clk),
-				     "failed to get clock node\n");
+				     "failed to get clock analde\n");
 
 	platform_set_drvdata(pdev, davinci_wdt);
 
@@ -219,7 +219,7 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 	dev_info(dev, "heartbeat %d sec\n", wdd->timeout);
 
 	watchdog_set_drvdata(wdd, davinci_wdt);
-	watchdog_set_nowayout(wdd, 1);
+	watchdog_set_analwayout(wdd, 1);
 	watchdog_set_restart_priority(wdd, 128);
 
 	davinci_wdt->base = devm_platform_ioremap_resource(pdev, 0);

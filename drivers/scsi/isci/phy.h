@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -63,15 +63,15 @@
 /* This is the timeout value for the SATA phy to wait for a SIGNATURE FIS
  * before restarting the starting state machine.  Technically, the old parallel
  * ATA specification required up to 30 seconds for a device to issue its
- * signature FIS as a result of a soft reset.  Now we see that devices respond
- * generally within 15 seconds, but we'll use 25 for now.
+ * signature FIS as a result of a soft reset.  Analw we see that devices respond
+ * generally within 15 seconds, but we'll use 25 for analw.
  */
 #define SCIC_SDS_SIGNATURE_FIS_TIMEOUT    25000
 
-/* This is the timeout for the SATA OOB/SN because the hardware does not
+/* This is the timeout for the SATA OOB/SN because the hardware does analt
  * recognize a hot plug after OOB signal but before the SN signals.  We need to
- * make sure after a hotplug timeout if we have not received the speed event
- * notification from the hardware that we restart the hardware OOB state
+ * make sure after a hotplug timeout if we have analt received the speed event
+ * analtification from the hardware that we restart the hardware OOB state
  * machine.
  */
 #define SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT  250
@@ -117,7 +117,7 @@ struct sci_phy_cap {
 			 * The SAS specification indicates the start bit shall
 			 * always be set to
 			 * 1.  This implementation will have the start bit set
-			 * to 0 if the PHY CAPABILITIES were either not
+			 * to 0 if the PHY CAPABILITIES were either analt
 			 * received or speed negotiation failed.
 			 */
 			u8 start:1;
@@ -125,11 +125,11 @@ struct sci_phy_cap {
 			u8 res1:2;
 			u8 req_logical_linkrate:4;
 
-			u32 gen1_no_ssc:1;
+			u32 gen1_anal_ssc:1;
 			u32 gen1_ssc:1;
-			u32 gen2_no_ssc:1;
+			u32 gen2_anal_ssc:1;
 			u32 gen2_ssc:1;
-			u32 gen3_no_ssc:1;
+			u32 gen3_anal_ssc:1;
 			u32 gen3_ssc:1;
 			u32 res2:17;
 			u32 parity:1;
@@ -168,7 +168,7 @@ struct sci_phy_properties {
 	/**
 	 * This field specifies the port that currently contains the
 	 * supplied phy.  This field may be set to NULL
-	 * if the phy is not currently contained in a port.
+	 * if the phy is analt currently contained in a port.
 	 */
 	struct isci_port *iport;
 
@@ -268,7 +268,7 @@ enum sci_phy_counter_id {
 
 	/**
 	 * This PHY information field tracks the number of received frames with a
-	 * CRC error (not including short or truncated frames).
+	 * CRC error (analt including short or truncated frames).
 	 */
 	SCIC_PHY_COUNTER_RECEIVED_FRAME_CRC_ERROR,
 
@@ -305,7 +305,7 @@ enum sci_phy_counter_id {
 	/**
 	 * This PHY information field tracks the number of CREDIT BLOCKED
 	 * primitives received.
-	 * @note Depending on remote device implementation, credit blocks
+	 * @analte Depending on remote device implementation, credit blocks
 	 *       may occur regularly.
 	 */
 	SCIC_PHY_COUNTER_RECEIVED_CREDIT_BLOCKED,
@@ -341,34 +341,34 @@ enum sci_phy_counter_id {
  * @SCI_PHY_INITIAL: Simply the initial state for the base domain state
  *		     machine.
  * @SCI_PHY_STOPPED: phy has successfully been stopped.  In this state
- *		     no new IO operations are permitted on this phy.
+ *		     anal new IO operations are permitted on this phy.
  * @SCI_PHY_STARTING: the phy is in the process of becomming ready.  In
- *		      this state no new IO operations are permitted on
+ *		      this state anal new IO operations are permitted on
  *		      this phy.
  * @SCI_PHY_SUB_INITIAL: Initial state
  * @SCI_PHY_SUB_AWAIT_OSSP_EN: Wait state for the hardware OSSP event
- *			       type notification
+ *			       type analtification
  * @SCI_PHY_SUB_AWAIT_SAS_SPEED_EN: Wait state for the PHY speed
- *				    notification
+ *				    analtification
  * @SCI_PHY_SUB_AWAIT_IAF_UF: Wait state for the IAF Unsolicited frame
- *			      notification
+ *			      analtification
  * @SCI_PHY_SUB_AWAIT_SAS_POWER: Wait state for the request to consume
  *				 power
  * @SCI_PHY_SUB_AWAIT_SATA_POWER: Wait state for request to consume
  *				  power
  * @SCI_PHY_SUB_AWAIT_SATA_PHY_EN: Wait state for the SATA PHY
- *				   notification
+ *				   analtification
  * @SCI_PHY_SUB_AWAIT_SATA_SPEED_EN: Wait for the SATA PHY speed
- *				     notification
+ *				     analtification
  * @SCI_PHY_SUB_AWAIT_SIG_FIS_UF: Wait state for the SIGNATURE FIS
- *				  unsolicited frame notification
+ *				  unsolicited frame analtification
  * @SCI_PHY_SUB_FINAL: Exit state for this state machine
- * @SCI_PHY_READY: phy is now ready.  Thus, the user is able to perform
+ * @SCI_PHY_READY: phy is analw ready.  Thus, the user is able to perform
  *		   IO operations utilizing this phy as long as it is
  *		   currently part of a valid port.  This state is
  *		   entered from the STARTING state.
  * @SCI_PHY_RESETTING: phy is in the process of being reset.  In this
- *		       state no new IO operations are permitted on this
+ *		       state anal new IO operations are permitted on this
  *		       phy.  This state is entered from the READY state.
  * @SCI_PHY_FINAL: Simply the final state for the base phy state
  *		   machine.
@@ -401,7 +401,7 @@ void sci_phy_construct(
 	struct isci_port *iport,
 	u8 phy_index);
 
-struct isci_port *phy_get_non_dummy_port(struct isci_phy *iphy);
+struct isci_port *phy_get_analn_dummy_port(struct isci_phy *iphy);
 
 void sci_phy_set_port(
 	struct isci_phy *iphy,

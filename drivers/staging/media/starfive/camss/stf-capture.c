@@ -4,7 +4,7 @@
  *
  * StarFive Camera Subsystem - capture device
  *
- * Copyright (C) 2021-2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2021-2023 StarFive Techanallogy Co., Ltd.
  */
 
 #include "stf-camss.h"
@@ -593,7 +593,7 @@ int stf_capture_register(struct stfcamss *stfcamss,
 					 stf_cap_names[i]);
 		if (ret < 0) {
 			dev_err(stfcamss->dev,
-				"Failed to register video node: %d\n", ret);
+				"Failed to register video analde: %d\n", ret);
 			stf_capture_unregister(stfcamss);
 			return ret;
 		}

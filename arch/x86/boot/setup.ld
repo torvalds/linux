@@ -58,7 +58,7 @@ SECTIONS
 	_end = .;
 
 	/DISCARD/	: {
-		*(.note*)
+		*(.analte*)
 	}
 
 	/*

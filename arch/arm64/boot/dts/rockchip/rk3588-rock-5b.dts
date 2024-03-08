@@ -298,49 +298,49 @@
 &pinctrl {
 	hym8563 {
 		hym8563_int: hym8563-int {
-			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	leds {
 		led_rgb_b: led-rgb-b {
-			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	sound {
 		hp_detect: hp-detect {
-			rockchip,pins = <1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	pcie2 {
 		pcie2_0_rst: pcie2-0-rst {
-			rockchip,pins = <4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		pcie2_0_vcc3v3_en: pcie2-0-vcc-en {
-			rockchip,pins = <1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		pcie2_2_rst: pcie2-2-rst {
-			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	pcie3 {
 		pcie3_rst: pcie3-rst {
-			rockchip,pins = <4 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PB6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		pcie3_vcc3v3_en: pcie3-vcc3v3-en {
-			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb {
 		vcc5v0_host_en: vcc5v0-host-en {
-			rockchip,pins = <4 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PB0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -356,9 +356,9 @@
 
 &sdhci {
 	bus-width = <8>;
-	no-sdio;
-	no-sd;
-	non-removable;
+	anal-sdio;
+	anal-sd;
+	analn-removable;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
 	status = "okay";
@@ -366,8 +366,8 @@
 
 &sdmmc {
 	max-frequency = <200000000>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
@@ -381,9 +381,9 @@
 
 &sdio {
 	max-frequency = <200000000>;
-	no-sd;
-	no-mmc;
-	non-removable;
+	anal-sd;
+	anal-mmc;
+	analn-removable;
 	bus-width = <4>;
 	cap-sdio-irq;
 	disable-wp;

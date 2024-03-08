@@ -389,7 +389,7 @@ static const struct snd_kcontrol_new dg_controls[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Headphone Playback Switch",
 		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moanal_info,
 		.get = hp_mute_get,
 		.put = hp_mute_put,
 	},

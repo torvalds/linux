@@ -37,7 +37,7 @@ void *ipt_alloc_initial_table(const struct xt_table *info)
 }
 EXPORT_SYMBOL_GPL(ipt_alloc_initial_table);
 
-/* Returns whether matches rule or not. */
+/* Returns whether matches rule or analt. */
 /* Performance critical - called for every packet */
 static inline bool
 ip_packet_match(const struct iphdr *ip,
@@ -69,7 +69,7 @@ ip_packet_match(const struct iphdr *ip,
 	    NF_INVF(ipinfo, IPT_INV_PROTO, ip->protocol != ipinfo->proto))
 		return false;
 
-	/* If we have a fragment rule but the packet is not a fragment
+	/* If we have a fragment rule but the packet is analt a fragment
 	 * then we return zero */
 	if (NF_INVF(ipinfo, IPT_INV_FRAG,
 		    (ipinfo->flags & IPT_F_FRAG) && !isfrag))
@@ -244,10 +244,10 @@ ipt_do_table(void *priv,
 	indev = state->in ? state->in->name : nulldevname;
 	outdev = state->out ? state->out->name : nulldevname;
 	/* We handle fragments by dealing with the first fragment as
-	 * if it was a normal packet.  All other fragments are treated
-	 * normally, except that they will NEVER match rules that ask
-	 * things we don't know, ie. tcp syn flag or ports).  If the
-	 * rule is also a fragment-specific rule, non-fragments won't
+	 * if it was a analrmal packet.  All other fragments are treated
+	 * analrmally, except that they will NEVER match rules that ask
+	 * things we don't kanalw, ie. tcp syn flag or ports).  If the
+	 * rule is also a fragment-specific rule, analn-fragments won't
 	 * match it. */
 	acpar.fragoff = ntohs(ip->frag_off) & IP_OFFSET;
 	acpar.thoff   = ip_hdrlen(skb);
@@ -263,11 +263,11 @@ ipt_do_table(void *priv,
 	jumpstack  = (struct ipt_entry **)private->jumpstack[cpu];
 
 	/* Switch to alternate jumpstack if we're being invoked via TEE.
-	 * TEE issues XT_CONTINUE verdict on original skb so we must not
+	 * TEE issues XT_CONTINUE verdict on original skb so we must analt
 	 * clobber the jumpstack.
 	 *
 	 * For recursion via REJECT or SYNPROXY the stack will be clobbered
-	 * but it is no problem since absolute verdict is issued by these.
+	 * but it is anal problem since absolute verdict is issued by these.
 	 */
 	if (static_key_false(&xt_tee_enabled))
 		jumpstack += private->stacksize * __this_cpu_read(nf_skb_duplicated);
@@ -282,7 +282,7 @@ ipt_do_table(void *priv,
 		WARN_ON(!e);
 		if (!ip_packet_match(ip, indev, outdev,
 		    &e->ip, acpar.fragoff)) {
- no_match:
+ anal_match:
 			e = ipt_next_entry(e);
 			continue;
 		}
@@ -291,7 +291,7 @@ ipt_do_table(void *priv,
 			acpar.match     = ematch->u.kernel.match;
 			acpar.matchinfo = ematch->data;
 			if (!acpar.match->match(skb, &acpar))
-				goto no_match;
+				goto anal_match;
 		}
 
 		counter = xt_get_this_cpu_counter(&e->counters);
@@ -370,7 +370,7 @@ mark_source_chains(const struct xt_table_info *newinfo,
 {
 	unsigned int hook;
 
-	/* No recursion; use packet counter to save back ptrs (reset
+	/* Anal recursion; use packet counter to save back ptrs (reset
 	   to 0 as we leave), and comefrom to save source hook bitmask */
 	for (hook = 0; hook < NF_INET_NUMHOOKS; hook++) {
 		unsigned int pos = newinfo->hook_entry[hook];
@@ -524,7 +524,7 @@ find_check_entry(struct ipt_entry *e, struct net *net, const char *name,
 	struct xt_entry_match *ematch;
 
 	if (!xt_percpu_counter_alloc(alloc_state, &e->counters))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	j = 0;
 	memset(&mtpar, 0, sizeof(mtpar));
@@ -595,7 +595,7 @@ check_entry_size_and_hooks(struct ipt_entry *e,
 	unsigned int h;
 	int err;
 
-	if ((unsigned long)e % __alignof__(struct ipt_entry) != 0 ||
+	if ((unsigned long)e % __aliganalf__(struct ipt_entry) != 0 ||
 	    (unsigned char *)e + sizeof(struct ipt_entry) >= limit ||
 	    (unsigned char *)e + e->next_offset > limit)
 		return -EINVAL;
@@ -677,7 +677,7 @@ translate_table(struct net *net, struct xt_table_info *newinfo, void *entry0,
 
 	offsets = xt_alloc_entry_offsets(newinfo->number);
 	if (!offsets)
-		return -ENOMEM;
+		return -EANALMEM;
 	i = 0;
 	/* Walk through entries, checking offsets. */
 	xt_entry_foreach(iter, entry0, newinfo->size) {
@@ -799,7 +799,7 @@ static struct xt_counters *alloc_counters(const struct xt_table *table)
 	counters = vzalloc(countersize);
 
 	if (counters == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	get_counters(private, counters);
 
@@ -1045,7 +1045,7 @@ __do_replace(struct net *net, const char *name, unsigned int valid_hooks,
 
 	counters = xt_counters_alloc(num_counters);
 	if (!counters) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1113,7 +1113,7 @@ do_replace(struct net *net, sockptr_t arg, unsigned int len)
 
 	/* overflow check */
 	if (tmp.num_counters >= INT_MAX / sizeof(struct xt_counters))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (tmp.num_counters == 0)
 		return -EINVAL;
 
@@ -1121,7 +1121,7 @@ do_replace(struct net *net, sockptr_t arg, unsigned int len)
 
 	newinfo = xt_alloc_table_info(tmp.size);
 	if (!newinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	loc_cpu_entry = newinfo->entries;
 	if (copy_from_sockptr_offset(loc_cpu_entry, arg, sizeof(tmp),
@@ -1292,7 +1292,7 @@ check_compat_entry_size_and_hooks(struct compat_ipt_entry *e,
 	unsigned int j;
 	int ret, off;
 
-	if ((unsigned long)e % __alignof__(struct compat_ipt_entry) != 0 ||
+	if ((unsigned long)e % __aliganalf__(struct compat_ipt_entry) != 0 ||
 	    (unsigned char *)e + sizeof(struct compat_ipt_entry) >= limit ||
 	    (unsigned char *)e + e->next_offset > limit)
 		return -EINVAL;
@@ -1421,7 +1421,7 @@ translate_compat_table(struct net *net,
 	if (j != compatr->num_entries)
 		goto out_unlock;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	newinfo = xt_alloc_table_info(size);
 	if (!newinfo)
 		goto out_unlock;
@@ -1440,7 +1440,7 @@ translate_compat_table(struct net *net,
 		compat_copy_entry_from_user(iter0, &pos, &size,
 					    newinfo, entry1);
 
-	/* all module references in entry0 are now gone.
+	/* all module references in entry0 are analw gone.
 	 * entry1/newinfo contains a 64bit ruleset that looks exactly as
 	 * generated by 64bit userspace.
 	 *
@@ -1497,7 +1497,7 @@ compat_do_replace(struct net *net, sockptr_t arg, unsigned int len)
 
 	/* overflow check */
 	if (tmp.num_counters >= INT_MAX / sizeof(struct xt_counters))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (tmp.num_counters == 0)
 		return -EINVAL;
 
@@ -1505,7 +1505,7 @@ compat_do_replace(struct net *net, sockptr_t arg, unsigned int len)
 
 	newinfo = xt_alloc_table_info(tmp.size);
 	if (!newinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	loc_cpu_entry = newinfo->entries;
 	if (copy_from_sockptr_offset(loc_cpu_entry, arg, sizeof(tmp),
@@ -1726,7 +1726,7 @@ int ipt_register_table(struct net *net, const struct xt_table *table,
 
 	newinfo = xt_alloc_table_info(repl->size);
 	if (!newinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	loc_cpu_entry = newinfo->entries;
 	memcpy(loc_cpu_entry, repl->entries, repl->size);
@@ -1747,7 +1747,7 @@ int ipt_register_table(struct net *net, const struct xt_table *table,
 		return PTR_ERR(new_table);
 	}
 
-	/* No template? No need to do anything. This is used by 'nat' table, it registers
+	/* Anal template? Anal need to do anything. This is used by 'nat' table, it registers
 	 * with the nat core instead of the netfilter core.
 	 */
 	if (!template_ops)
@@ -1761,7 +1761,7 @@ int ipt_register_table(struct net *net, const struct xt_table *table,
 
 	ops = kmemdup(template_ops, sizeof(*ops) * num_ops, GFP_KERNEL);
 	if (!ops) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 
@@ -1850,7 +1850,7 @@ static int __init ip_tables_init(void)
 	if (ret < 0)
 		goto err1;
 
-	/* No one else will be downing sem now, so we won't sleep */
+	/* Anal one else will be downing sem analw, so we won't sleep */
 	ret = xt_register_targets(ipt_builtin_tg, ARRAY_SIZE(ipt_builtin_tg));
 	if (ret < 0)
 		goto err2;

@@ -58,7 +58,7 @@ static void *esp_alloc_tmp(struct crypto_aead *aead, int nfrags, int extralen)
 	}
 
 	len += sizeof(struct aead_request) + crypto_aead_reqsize(aead);
-	len = ALIGN(len, __alignof__(struct scatterlist));
+	len = ALIGN(len, __aliganalf__(struct scatterlist));
 
 	len += sizeof(struct scatterlist) * nfrags;
 
@@ -67,7 +67,7 @@ static void *esp_alloc_tmp(struct crypto_aead *aead, int nfrags, int extralen)
 
 static inline void *esp_tmp_extra(void *tmp)
 {
-	return PTR_ALIGN(tmp, __alignof__(struct esp_output_extra));
+	return PTR_ALIGN(tmp, __aliganalf__(struct esp_output_extra));
 }
 
 static inline u8 *esp_tmp_iv(struct crypto_aead *aead, void *tmp, int extralen)
@@ -92,7 +92,7 @@ static inline struct scatterlist *esp_req_sg(struct crypto_aead *aead,
 {
 	return (void *)ALIGN((unsigned long)(req + 1) +
 			     crypto_aead_reqsize(aead),
-			     __alignof__(struct scatterlist));
+			     __aliganalf__(struct scatterlist));
 }
 
 static void esp_ssg_unref(struct xfrm_state *x, void *tmp)
@@ -153,7 +153,7 @@ static struct sock *esp_find_tcp_sk(struct xfrm_state *x)
 		esk = kmalloc(sizeof(*esk), GFP_ATOMIC);
 		if (!esk) {
 			spin_unlock_bh(&x->lock);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 		RCU_INIT_POINTER(x->encap_sk, NULL);
 		esk->sk = sk;
@@ -164,7 +164,7 @@ static struct sock *esp_find_tcp_sk(struct xfrm_state *x)
 	sk = inet_lookup_established(net, net->ipv4.tcp_death_row.hashinfo, x->id.daddr.a4,
 				     dport, x->props.saddr.a4, sport, 0);
 	if (!sk)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	if (!tcp_is_ulp_esp(sk)) {
 		sock_put(sk);
@@ -240,7 +240,7 @@ static int esp_output_tail_tcp(struct xfrm_state *x, struct sk_buff *skb)
 {
 	kfree_skb(skb);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -289,7 +289,7 @@ static void esp_restore_header(struct sk_buff *skb, unsigned int offset)
 	void *tmp = ESP_SKB_CB(skb)->tmp;
 	__be32 *seqhi = esp_tmp_extra(tmp);
 
-	esph->seq_no = esph->spi;
+	esph->seq_anal = esph->spi;
 	esph->spi = *seqhi;
 }
 
@@ -324,7 +324,7 @@ static struct ip_esp_hdr *esp_output_set_extra(struct sk_buff *skb,
 				 skb_transport_header(skb);
 		esph = (struct ip_esp_hdr *)((unsigned char *)esph - 4);
 		extra->seqhi = esph->spi;
-		esph->seq_no = htonl(seqhi);
+		esph->seq_anal = htonl(seqhi);
 	}
 
 	esph->spi = x->id.spi;
@@ -362,7 +362,7 @@ static struct ip_esp_hdr *esp_output_udp_encap(struct sk_buff *skb,
 
 	*skb_mac_header(skb) = IPPROTO_UDP;
 
-	if (encap_type == UDP_ENCAP_ESPINUDP_NON_IKE) {
+	if (encap_type == UDP_ENCAP_ESPINUDP_ANALN_IKE) {
 		udpdata32 = (__be32 *)(uh + 1);
 		udpdata32[0] = udpdata32[1] = 0;
 		return (struct ip_esp_hdr *)(udpdata32 + 2);
@@ -402,7 +402,7 @@ static struct ip_esp_hdr *esp_output_tcp_encap(struct xfrm_state *x,
 						    struct sk_buff *skb,
 						    struct esp_info *esp)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 #endif
 
@@ -423,7 +423,7 @@ static int esp_output_encap(struct xfrm_state *x, struct sk_buff *skb,
 	switch (encap_type) {
 	default:
 	case UDP_ENCAP_ESPINUDP:
-	case UDP_ENCAP_ESPINUDP_NON_IKE:
+	case UDP_ENCAP_ESPINUDP_ANALN_IKE:
 		esph = esp_output_udp_encap(skb, encap_type, esp, sport, dport);
 		break;
 	case TCP_ENCAP_ESPINTCP:
@@ -448,7 +448,7 @@ int esp_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 	struct sk_buff *trailer;
 	int tailen = esp->tailen;
 
-	/* this is non-NULL only with TCP/UDP Encapsulation */
+	/* this is analn-NULL only with TCP/UDP Encapsulation */
 	if (x->encap) {
 		int err = esp_output_encap(x, skb, esp);
 
@@ -543,7 +543,7 @@ int esp_output_tail(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 	struct aead_request *req;
 	struct scatterlist *sg, *dsg;
 	struct esp_output_extra *extra;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	assoclen = sizeof(struct ip_esp_hdr);
 	extralen = 0;
@@ -619,7 +619,7 @@ int esp_output_tail(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 	aead_request_set_ad(req, assoclen);
 
 	memset(iv, 0, ivlen);
-	memcpy(iv + ivlen - min(ivlen, 8), (u8 *)&esp->seqno + 8 - min(ivlen, 8),
+	memcpy(iv + ivlen - min(ivlen, 8), (u8 *)&esp->seqanal + 8 - min(ivlen, 8),
 	       min(ivlen, 8));
 
 	ESP_SKB_CB(skb)->tmp = tmp;
@@ -629,7 +629,7 @@ int esp_output_tail(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 	case -EINPROGRESS:
 		goto error;
 
-	case -ENOSPC:
+	case -EANALSPC:
 		err = NET_XMIT_DROP;
 		break;
 
@@ -692,8 +692,8 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	esph = esp.esph;
 	esph->spi = x->id.spi;
 
-	esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output.low);
-	esp.seqno = cpu_to_be64(XFRM_SKB_CB(skb)->seq.output.low +
+	esph->seq_anal = htonl(XFRM_SKB_CB(skb)->seq.output.low);
+	esp.seqanal = cpu_to_be64(XFRM_SKB_CB(skb)->seq.output.low +
 				 ((u64)XFRM_SKB_CB(skb)->seq.output.hi << 32));
 
 	skb_push(skb, -skb_network_offset(skb));
@@ -775,7 +775,7 @@ int esp_input_done2(struct sk_buff *skb, int err)
 			source = th->source;
 			break;
 		case UDP_ENCAP_ESPINUDP:
-		case UDP_ENCAP_ESPINUDP_NON_IKE:
+		case UDP_ENCAP_ESPINUDP_ANALN_IKE:
 			source = uh->source;
 			break;
 		default:
@@ -807,7 +807,7 @@ int esp_input_done2(struct sk_buff *skb, int err)
 		}
 
 		/*
-		 * 2) ignore UDP/TCP checksums in case
+		 * 2) iganalre UDP/TCP checksums in case
 		 *    of NAT-T in Transport Mode, or
 		 *    perform other post-processing fixes
 		 *    as per draft-ietf-ipsec-udp-encaps-06,
@@ -824,7 +824,7 @@ int esp_input_done2(struct sk_buff *skb, int err)
 		skb_set_transport_header(skb, -ihl);
 
 	/* RFC4303: Drop dummy packets without any error */
-	if (err == IPPROTO_NONE)
+	if (err == IPPROTO_ANALNE)
 		err = -EINVAL;
 
 out:
@@ -857,8 +857,8 @@ static void esp_input_set_header(struct sk_buff *skb, __be32 *seqhi)
 	if ((x->props.flags & XFRM_STATE_ESN)) {
 		esph = skb_push(skb, 4);
 		*seqhi = esph->spi;
-		esph->spi = esph->seq_no;
-		esph->seq_no = XFRM_SKB_CB(skb)->seq.input.hi;
+		esph->spi = esph->seq_anal;
+		esph->seq_anal = XFRM_SKB_CB(skb)->seq.input.hi;
 	}
 }
 
@@ -871,7 +871,7 @@ static void esp_input_done_esn(void *data, int err)
 }
 
 /*
- * Note: detecting truncated vs. non-truncated authentication data is very
+ * Analte: detecting truncated vs. analn-truncated authentication data is very
  * expensive, so we only support truncated data, which is the recommended
  * and common case.
  */
@@ -906,7 +906,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	}
 
 	if (!skb_cloned(skb)) {
-		if (!skb_is_nonlinear(skb)) {
+		if (!skb_is_analnlinear(skb)) {
 			nfrags = 1;
 
 			goto skip_cow;
@@ -925,7 +925,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	nfrags = err;
 
 skip_cow:
-	err = -ENOMEM;
+	err = -EANALMEM;
 	tmp = esp_alloc_tmp(aead, nfrags, seqhilen);
 	if (!tmp)
 		goto out;
@@ -945,7 +945,7 @@ skip_cow:
 		goto out;
 	}
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	if ((x->props.flags & XFRM_STATE_ESN))
 		aead_request_set_callback(req, 0, esp_input_done_esn, skb);
@@ -1092,7 +1092,7 @@ static int esp_init_authenc(struct xfrm_state *x,
 
 	keylen = (x->aalg ? (x->aalg->alg_key_len + 7) / 8 : 0) +
 		 (x->ealg->alg_key_len + 7) / 8 + RTA_SPACE(sizeof(*param));
-	err = -ENOMEM;
+	err = -EANALMEM;
 	key = kmalloc(keylen, GFP_KERNEL);
 	if (!key)
 		goto error;
@@ -1179,7 +1179,7 @@ static int esp_init_state(struct xfrm_state *x, struct netlink_ext_ack *extack)
 		case UDP_ENCAP_ESPINUDP:
 			x->props.header_len += sizeof(struct udphdr);
 			break;
-		case UDP_ENCAP_ESPINUDP_NON_IKE:
+		case UDP_ENCAP_ESPINUDP_ANALN_IKE:
 			x->props.header_len += sizeof(struct udphdr) + 2 * sizeof(u32);
 			break;
 #ifdef CONFIG_INET_ESPINTCP

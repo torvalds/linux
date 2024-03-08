@@ -15,18 +15,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -57,7 +57,7 @@
 enum {
 	/*
 	 * Egress Queue sizes, producer and consumer indices are all in units
-	 * of Egress Context Units bytes.  Note that as far as the hardware is
+	 * of Egress Context Units bytes.  Analte that as far as the hardware is
 	 * concerned, the free list is an Egress Queue (the host produces free
 	 * buffers which the hardware consumes) and free list entries are
 	 * 64-bit PCI DMA addresses.
@@ -136,7 +136,7 @@ enum {
 
 	/*
 	 * For incoming packets less than RX_COPY_THRES, we copy the data into
-	 * an skb rather than referencing the data.  We allocate enough
+	 * an skb rather than referencing the data.  We allocate eanalugh
 	 * in-line room in skb's to accommodate pulling in RX_PULL_LEN bytes
 	 * of the data (header).
 	 */
@@ -172,7 +172,7 @@ struct rx_sw_desc {
 };
 
 /*
- * The low bits of rx_sw_desc.dma_addr have special meaning.  Note that the
+ * The low bits of rx_sw_desc.dma_addr have special meaning.  Analte that the
  * SGE also uses the low 4 bits to determine the size of the buffer.  It uses
  * those bits to index into the SGE_FL_BUFFER_SIZE[index] register array.
  * Since we only use SGE_FL_BUFFER_SIZE0 and SGE_FL_BUFFER_SIZE1, these low 4
@@ -182,7 +182,7 @@ struct rx_sw_desc {
  */
 enum {
 	RX_LARGE_BUF    = 1 << 0,	/* buffer is SGE_FL_BUFFER_SIZE[1] */
-	RX_UNMAPPED_BUF = 1 << 1,	/* buffer is not mapped */
+	RX_UNMAPPED_BUF = 1 << 1,	/* buffer is analt mapped */
 };
 
 /**
@@ -202,7 +202,7 @@ static inline dma_addr_t get_buf_addr(const struct rx_sw_desc *sdesc)
  *	@sdesc: pointer to the software buffer descriptor
  *
  *	Determine whether the buffer associated with a software descriptor in
- *	mapped for DMA or not.
+ *	mapped for DMA or analt.
  */
 static inline bool is_buf_mapped(const struct rx_sw_desc *sdesc)
 {
@@ -300,7 +300,7 @@ unwind:
 	dma_unmap_single(dev, addr[-1], skb_headlen(skb), DMA_TO_DEVICE);
 
 out_err:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void unmap_sgl(struct device *dev, const struct sk_buff *skb,
@@ -495,10 +495,10 @@ static void free_rx_bufs(struct adapter *adapter, struct sge_fl *fl, int n)
  *	Unmap the current buffer on an SGE Free List RX queue.   The
  *	buffer must be made inaccessible to HW before calling this function.
  *
- *	This is similar to @free_rx_bufs above but does not free the buffer.
- *	Do note that the FL still loses any further access to the buffer.
+ *	This is similar to @free_rx_bufs above but does analt free the buffer.
+ *	Do analte that the FL still loses any further access to the buffer.
  *	This is used predominantly to "transfer ownership" of an FL buffer
- *	to another entity (typically an skb's fragment list).
+ *	to aanalther entity (typically an skb's fragment list).
  */
 static void unmap_rx_buf(struct adapter *adapter, struct sge_fl *fl)
 {
@@ -596,7 +596,7 @@ static inline void poison_buf(struct page *page, size_t sz)
  *
  *	(Re)populate an SGE free-buffer queue with up to @n new packet buffers,
  *	allocated with the supplied gfp flags.  The caller must assure that
- *	@n does not exceed the queue's capacity -- i.e. (cidx == pidx) _IN
+ *	@n does analt exceed the queue's capacity -- i.e. (cidx == pidx) _IN
  *	EGRESS QUEUE UNITS_ indicates an empty Free List!  Returns the number
  *	of buffers allocated.  If afterwards the queue is found critically low,
  *	mark it as starving in the bitmap of starving FLs.
@@ -618,7 +618,7 @@ static unsigned int refill_fl(struct adapter *adapter, struct sge_fl *fl,
 	 */
 	BUG_ON(fl->avail + n > fl->size - FL_PER_EQ_UNIT);
 
-	gfp |= __GFP_NOWARN;
+	gfp |= __GFP_ANALWARN;
 
 	/*
 	 * If we support large pages, prefer large buffers and fail over to
@@ -633,7 +633,7 @@ static unsigned int refill_fl(struct adapter *adapter, struct sge_fl *fl,
 		page = __dev_alloc_pages(gfp, s->fl_pg_order);
 		if (unlikely(!page)) {
 			/*
-			 * We've failed inour attempt to allocate a "large
+			 * We've failed ianalur attempt to allocate a "large
 			 * page".  Fail over to the "small page" allocation
 			 * below.
 			 */
@@ -826,14 +826,14 @@ static inline unsigned int flits_to_desc(unsigned int flits)
  *	is_eth_imm - can an Ethernet packet be sent as immediate data?
  *	@skb: the packet
  *
- *	Returns whether an Ethernet packet is small enough to fit completely as
+ *	Returns whether an Ethernet packet is small eanalugh to fit completely as
  *	immediate data.
  */
 static inline int is_eth_imm(const struct sk_buff *skb)
 {
 	/*
 	 * The VF Driver uses the FW_ETH_TX_PKT_VM_WR firmware Work Request
-	 * which does not accommodate immediate data.  We could dike out all
+	 * which does analt accommodate immediate data.  We could dike out all
 	 * of the support code for immediate data but that would tie our hands
 	 * too much if we ever want to enhace the firmware.  It would also
 	 * create more differences between the PF and VF Drivers.
@@ -853,7 +853,7 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb)
 	unsigned int flits;
 
 	/*
-	 * If the skb is small enough, we can pump it out as a work request
+	 * If the skb is small eanalugh, we can pump it out as a work request
 	 * with only immediate data.  In that case we just have to have the
 	 * TX Packet header plus the skb data in the Work Request.
 	 */
@@ -895,7 +895,7 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb)
  *	The SGL includes all of the packet's page fragments and the data in its
  *	main body except for the first @start bytes.  @pos must be 16-byte
  *	aligned and within a TX descriptor with available space.  @end points
- *	write after the end of the SGL but does not account for any potential
+ *	write after the end of the SGL but does analt account for any potential
  *	wrap around, i.e., @end > @tq->stat.
  */
 static void write_sgl(const struct sk_buff *skb, struct sge_txq *tq,
@@ -1088,9 +1088,9 @@ static u64 hwcsum(enum chip_type chip, const struct sk_buff *skb)
 		else if (iph->protocol == IPPROTO_UDP)
 			csum_type = TX_CSUM_UDPIP;
 		else {
-nocsum:
+analcsum:
 			/*
-			 * unknown protocol, disable HW csum
+			 * unkanalwn protocol, disable HW csum
 			 * and hope a bad packet is detected
 			 */
 			return TXPKT_L4CSUM_DIS_F;
@@ -1106,7 +1106,7 @@ nocsum:
 		else if (ip6h->nexthdr == IPPROTO_UDP)
 			csum_type = TX_CSUM_UDPIP6;
 		else
-			goto nocsum;
+			goto analcsum;
 	}
 
 	if (likely(csum_type >= TX_CSUM_TCPIP)) {
@@ -1215,7 +1215,7 @@ netdev_tx_t t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (unlikely(credits < 0)) {
 		/*
-		 * Not enough room for this packet's Work Request.  Stop the
+		 * Analt eanalugh room for this packet's Work Request.  Stop the
 		 * TX Queue and return a "busy" condition.  The queue will get
 		 * started later on when the firmware informs us that space
 		 * has opened up.
@@ -1243,7 +1243,7 @@ netdev_tx_t t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		/*
 		 * After we're done injecting the Work Request for this
 		 * packet, we'll be below our "stop threshold" so stop the TX
-		 * Queue now and schedule a request for an SGE Egress Queue
+		 * Queue analw and schedule a request for an SGE Egress Queue
 		 * Update message.  The queue will get started later on when
 		 * the firmware processes this Work Request and sends us an
 		 * Egress Queue Status Update message indicating that space
@@ -1254,7 +1254,7 @@ netdev_tx_t t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/*
-	 * Start filling in our Work Request.  Note that we do _not_ handle
+	 * Start filling in our Work Request.  Analte that we do _analt_ handle
 	 * the WR Header wrapping around the TX Descriptor Ring.  If our
 	 * maximum header size ever exceeds one TX Descriptor, we'll need to
 	 * do something else here.
@@ -1296,7 +1296,7 @@ netdev_tx_t t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 				    LSO_TCPHDR_LEN_V(tcp_hdr(skb)->doff));
 		lso->ipid_ofst = cpu_to_be16(0);
 		lso->mss = cpu_to_be16(ssi->gso_size);
-		lso->seqno_offset = cpu_to_be32(0);
+		lso->seqanal_offset = cpu_to_be32(0);
 		if (is_t4(adapter->params.chip))
 			lso->len = cpu_to_be32(skb->len);
 		else
@@ -1387,17 +1387,17 @@ netdev_tx_t t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * Descriptors are reclaimed after their DMAs complete.
 		 * However, this could take quite a while since, in general,
 		 * the hardware is set up to be lazy about sending DMA
-		 * completion notifications to us and we mostly perform TX
+		 * completion analtifications to us and we mostly perform TX
 		 * reclaims in the transmit routine.
 		 *
 		 * This is good for performamce but means that we rely on new
 		 * TX packets arriving to run the destructors of completed
 		 * packets, which open up space in their sockets' send queues.
-		 * Sometimes we do not get such new packets causing TX to
+		 * Sometimes we do analt get such new packets causing TX to
 		 * stall.  A single UDP transmitter is a good example of this
 		 * situation.  We have a clean up timer that periodically
-		 * reclaims completed packets but it doesn't run often enough
-		 * (nor do we want it to) to prevent lengthy stalls.  A
+		 * reclaims completed packets but it doesn't run often eanalugh
+		 * (analr do we want it to) to prevent lengthy stalls.  A
 		 * solution to this problem is to run the destructor early,
 		 * after the packet is queued but before it's DMAd.  A con is
 		 * that we lie to socket memory accounting, but the amount of
@@ -1502,9 +1502,9 @@ static struct sk_buff *t4vf_pktgl_to_skb(const struct pkt_gl *gl,
 	struct sk_buff *skb;
 
 	/*
-	 * If the ingress packet is small enough, allocate an skb large enough
+	 * If the ingress packet is small eanalugh, allocate an skb large eanalugh
 	 * for all of the data and copy it inline.  Otherwise, allocate an skb
-	 * with enough room to pull in the header and reference the rest of
+	 * with eanalugh room to pull in the header and reference the rest of
 	 * the data via the skb fragment list.
 	 *
 	 * Below we rely on RX_COPY_THRES being less than the smallest Rx
@@ -1540,8 +1540,8 @@ out:
  *	t4vf_pktgl_free - free a packet gather list
  *	@gl: the gather list
  *
- *	Releases the pages of a packet gather list.  We do not own the last
- *	page on the list and do not free it.
+ *	Releases the pages of a packet gather list.  We do analt own the last
+ *	page on the list and do analt free it.
  */
 static void t4vf_pktgl_free(const struct pkt_gl *gl)
 {
@@ -1658,7 +1658,7 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 			rxq->stats.rx_cso++;
 		}
 	} else
-		skb_checksum_none_assert(skb);
+		skb_checksum_analne_assert(skb);
 
 	if (pkt->vlan_ex && !pi->vlan_id) {
 		rxq->stats.vlan_ex++;
@@ -1693,7 +1693,7 @@ static inline bool is_new_response(const struct rsp_ctrl *rc,
  *
  *	Called when we find out that the current packet, @si, can't be
  *	processed right away for some reason.  This is a very rare event and
- *	there's no effort to make this suspension/resumption process
+ *	there's anal effort to make this suspension/resumption process
  *	particularly efficient.
  *
  *	We implement the suspension by putting all of the RX buffers associated
@@ -1786,7 +1786,7 @@ static int process_responses(struct sge_rspq *rspq, int budget)
 			if (len & RSPD_NEWBUF_F) {
 				/*
 				 * We get one "new buffer" message when we
-				 * first start up a queue so we need to ignore
+				 * first start up a queue so we need to iganalre
 				 * it when our offset into the buffer is 0.
 				 */
 				if (likely(rspq->offset > 0)) {
@@ -1850,9 +1850,9 @@ static int process_responses(struct sge_rspq *rspq, int budget)
 			 * We use the SGE's last timer which has the longest
 			 * interrupt coalescing value ...
 			 */
-			const int NOMEM_TIMER_IDX = SGE_NTIMERS-1;
+			const int ANALMEM_TIMER_IDX = SGE_NTIMERS-1;
 			rspq->next_intr_params =
-				QINTR_TIMER_IDX_V(NOMEM_TIMER_IDX);
+				QINTR_TIMER_IDX_V(ANALMEM_TIMER_IDX);
 			break;
 		}
 
@@ -1876,10 +1876,10 @@ static int process_responses(struct sge_rspq *rspq, int budget)
  *	@napi: the napi instance
  *	@budget: how many packets we can process in this round
  *
- *	Handler for new data events when using NAPI.  This does not need any
+ *	Handler for new data events when using NAPI.  This does analt need any
  *	locking or protection from interrupts as data interrupts are off at
- *	this point and other adapter interrupts do not interfere (the latter
- *	in not a concern at all with MSI-X as non-data interrupts then have
+ *	this point and other adapter interrupts do analt interfere (the latter
+ *	in analt a concern at all with MSI-X as analn-data interrupts then have
  *	a separate handler).
  */
 static int napi_rx_handler(struct napi_struct *napi, int budget)
@@ -1946,7 +1946,7 @@ static unsigned int process_intrq(struct adapter *adapter)
 
 		/*
 		 * Grab the next response from the interrupt queue and bail
-		 * out if it's not a new response.
+		 * out if it's analt a new response.
 		 */
 		rc = (void *)intrq->cur_desc + (intrq->iqe_len - sizeof(*rc));
 		if (!is_new_response(rc, intrq))
@@ -1969,7 +1969,7 @@ static unsigned int process_intrq(struct adapter *adapter)
 		 * Extract the Queue ID from the interrupt message and perform
 		 * sanity checking to make sure it really refers to one of our
 		 * Ingress Queues which is active and matches the queue's ID.
-		 * None of these error conditions should ever happen so we may
+		 * Analne of these error conditions should ever happen so we may
 		 * want to either make them fatal and/or conditionalized under
 		 * DEBUG.
 		 */
@@ -2056,7 +2056,7 @@ irq_handler_t t4vf_intr_handler(struct adapter *adapter)
  *	Runs periodically from a timer to perform maintenance of SGE RX queues.
  *
  *	a) Replenishes RX queues that have run out due to memory shortage.
- *	Normally new RX buffers are added when existing ones are consumed but
+ *	Analrmally new RX buffers are added when existing ones are consumed but
  *	when out of memory a queue can become empty.  We schedule NAPI to do
  *	the actual refill.
  */
@@ -2068,9 +2068,9 @@ static void sge_rx_timer_cb(struct timer_list *t)
 
 	/*
 	 * Scan the "Starving Free Lists" flag array looking for any Free
-	 * Lists in need of more free buffers.  If we find one and it's not
+	 * Lists in need of more free buffers.  If we find one and it's analt
 	 * being actively polled, then bump its "starving" counter and attempt
-	 * to refill it.  If we're successful in adding enough buffers to push
+	 * to refill it.  If we're successful in adding eanalugh buffers to push
 	 * the Free List over the starving threshold, then we can clear its
 	 * "starving" status.
 	 */
@@ -2087,8 +2087,8 @@ static void sge_rx_timer_cb(struct timer_list *t)
 			/*
 			 * Since we are accessing fl without a lock there's a
 			 * small probability of a false positive where we
-			 * schedule napi but the FL is no longer starving.
-			 * No biggie.
+			 * schedule napi but the FL is anal longer starving.
+			 * Anal biggie.
 			 */
 			if (fl_starving(adapter, fl)) {
 				struct sge_eth_rxq *rxq;
@@ -2114,9 +2114,9 @@ static void sge_rx_timer_cb(struct timer_list *t)
  *
  *	Runs periodically from a timer to perform maintenance of SGE TX queues.
  *
- *	b) Reclaims completed Tx packets for the Ethernet queues.  Normally
+ *	b) Reclaims completed Tx packets for the Ethernet queues.  Analrmally
  *	packets are cleaned up by new Tx packets, this timer cleans up packets
- *	when no new packets are being submitted.  This is essential for pktgen,
+ *	when anal new packets are being submitted.  This is essential for pktgen,
  *	at least.
  */
 static void sge_tx_timer_cb(struct timer_list *t)
@@ -2154,7 +2154,7 @@ static void sge_tx_timer_cb(struct timer_list *t)
 	/*
 	 * If we found too many reclaimable packets schedule a timer in the
 	 * near future to continue where we left off.  Otherwise the next timer
-	 * will be at its normal interval.
+	 * will be at its analrmal interval.
 	 */
 	mod_timer(&s->tx_timer, jiffies + (budget ? TX_QCHECK_PERIOD : 2));
 }
@@ -2192,7 +2192,7 @@ static void __iomem *bar2_address(struct adapter *adapter,
  *	t4vf_sge_alloc_rxq - allocate an SGE RX Queue
  *	@adapter: the adapter
  *	@rspq: pointer to to the new rxq's Response Queue to be filled in
- *	@iqasynch: if 0, a normal rspq; if 1, an asynchronous event queue
+ *	@iqasynch: if 0, a analrmal rspq; if 1, an asynchroanalus event queue
  *	@dev: the network device associated with the new rspq
  *	@intr_dest: MSI-X vector index (overriden in MSI mode)
  *	@fl: pointer to the new rxq's Free List to be filled in
@@ -2207,10 +2207,10 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 	struct port_info *pi = netdev_priv(dev);
 	struct fw_iq_cmd cmd, rpl;
 	int ret, iqandst, flsz = 0;
-	int relaxed = !(adapter->flags & CXGB4VF_ROOT_NO_RELAXED_ORDERING);
+	int relaxed = !(adapter->flags & CXGB4VF_ROOT_ANAL_RELAXED_ORDERING);
 
 	/*
-	 * If we're using MSI interrupts and we're not initializing the
+	 * If we're using MSI interrupts and we're analt initializing the
 	 * Forwarded Interrupt Queue itself, then set up this queue for
 	 * indirect interrupts to the Forwarded Interrupt Queue.  Obviously
 	 * the Forwarded Interrupt Queue must be set up before any other
@@ -2227,16 +2227,16 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 	 * Allocate the hardware ring for the Response Queue.  The size needs
 	 * to be a multiple of 16 which includes the mandatory status entry
 	 * (regardless of whether the Status Page capabilities are enabled or
-	 * not).
+	 * analt).
 	 */
 	rspq->size = roundup(rspq->size, 16);
 	rspq->desc = alloc_ring(adapter->pdev_dev, rspq->size, rspq->iqe_len,
 				0, &rspq->phys_addr, NULL, 0);
 	if (!rspq->desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Fill in the Ingress Queue Command.  Note: Ideally this code would
+	 * Fill in the Ingress Queue Command.  Analte: Ideally this code would
 	 * be in t4vf_hw.c but there are so many parameters and dependencies
 	 * on our Linux SGE state that we would end up having to pass tons of
 	 * parameters.  We'll have to think about how this might be migrated
@@ -2284,7 +2284,7 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 				      sizeof(__be64), sizeof(struct rx_sw_desc),
 				      &fl->addr, &fl->sdesc, s->stat_len);
 		if (!fl->desc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -2302,7 +2302,7 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 		 */
 		cmd.iqns_to_fl0congen =
 			cpu_to_be32(
-				FW_IQ_CMD_FL0HOSTFCMODE_V(SGE_HOSTFCMODE_NONE) |
+				FW_IQ_CMD_FL0HOSTFCMODE_V(SGE_HOSTFCMODE_ANALNE) |
 				FW_IQ_CMD_FL0PACKEN_F |
 				FW_IQ_CMD_FL0FETCHRO_V(relaxed) |
 				FW_IQ_CMD_FL0DATARO_V(relaxed) |
@@ -2365,7 +2365,7 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 		fl->large_alloc_failed = 0;
 		fl->starving = 0;
 
-		/* Note, we must initialize the BAR2 Free List User Doorbell
+		/* Analte, we must initialize the BAR2 Free List User Doorbell
 		 * information before refilling the Free List!
 		 */
 		fl->bar2_addr = bar2_address(adapter,
@@ -2432,10 +2432,10 @@ int t4vf_sge_alloc_eth_txq(struct adapter *adapter, struct sge_eth_txq *txq,
 				 sizeof(struct tx_sw_desc),
 				 &txq->q.phys_addr, &txq->q.sdesc, s->stat_len);
 	if (!txq->q.desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Fill in the Egress Queue Command.  Note: As with the direct use of
+	 * Fill in the Egress Queue Command.  Analte: As with the direct use of
 	 * the firmware Ingress Queue COmmand above in our RXQ allocation
 	 * routine, ideally, this code would be in t4vf_hw.c.  Again, we'll
 	 * have to see if there's some reasonable way to parameterize it
@@ -2600,7 +2600,7 @@ void t4vf_sge_start(struct adapter *adapter)
  *	t4vf_sge_stop - disable SGE operation
  *	@adapter: the adapter
  *
- *	Stop tasklets and timers associated with the DMA engine.  Note that
+ *	Stop tasklets and timers associated with the DMA engine.  Analte that
  *	this is effective only if measures have been taken to disable any HW
  *	events that may restart them.
  */
@@ -2619,8 +2619,8 @@ void t4vf_sge_stop(struct adapter *adapter)
  *	@adapter: the adapter
  *
  *	Performs SGE initialization needed every time after a chip reset.
- *	We do not initialize any of the queue sets here, instead the driver
- *	top-level must request those individually.  We also do not enable DMA
+ *	We do analt initialize any of the queue sets here, instead the driver
+ *	top-level must request those individually.  We also do analt enable DMA
  *	here, that should be done after the queues have been set up.
  */
 int t4vf_sge_init(struct adapter *adapter)
@@ -2658,7 +2658,7 @@ int t4vf_sge_init(struct adapter *adapter)
 	}
 
 	/*
-	 * Now translate the adapter parameters into our internal forms.
+	 * Analw translate the adapter parameters into our internal forms.
 	 */
 	if (fl_large_pg)
 		s->fl_pg_order = ilog2(fl_large_pg) - PAGE_SHIFT;
@@ -2671,7 +2671,7 @@ int t4vf_sge_init(struct adapter *adapter)
 	 * timer will attempt to refill it.  This needs to be larger than the
 	 * SGE's Egress Congestion Threshold.  If it isn't, then we can get
 	 * stuck waiting for new packets while the SGE is waiting for us to
-	 * give it more Free List entries.  (Note that the SGE's Egress
+	 * give it more Free List entries.  (Analte that the SGE's Egress
 	 * Congestion Threshold is in units of 2 Free List pointers.)
 	 */
 	switch (CHELSIO_CHIP_VERSION(adapter->params.chip)) {

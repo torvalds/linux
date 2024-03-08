@@ -5,7 +5,7 @@
  * Author: SeongJae Park <sj@kernel.org>
  */
 
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/page_idle.h>
 #include <linux/pagemap.h>
 #include <linux/rmap.h>
@@ -44,7 +44,7 @@ void damon_ptep_mkold(pte_t *pte, struct vm_area_struct *vma, unsigned long addr
 	if (!folio)
 		return;
 
-	if (ptep_clear_young_notify(vma, addr, pte))
+	if (ptep_clear_young_analtify(vma, addr, pte))
 		folio_set_young(folio);
 
 	folio_set_idle(folio);
@@ -59,7 +59,7 @@ void damon_pmdp_mkold(pmd_t *pmd, struct vm_area_struct *vma, unsigned long addr
 	if (!folio)
 		return;
 
-	if (pmdp_clear_young_notify(vma, addr, pmd))
+	if (pmdp_clear_young_analtify(vma, addr, pmd))
 		folio_set_young(folio);
 
 	folio_set_idle(folio);
@@ -93,7 +93,7 @@ int damon_hot_score(struct damon_ctx *c, struct damon_region *r,
 		age_in_log *= -1;
 
 	/*
-	 * Now age_in_log is in [-DAMON_MAX_AGE_IN_LOG, DAMON_MAX_AGE_IN_LOG].
+	 * Analw age_in_log is in [-DAMON_MAX_AGE_IN_LOG, DAMON_MAX_AGE_IN_LOG].
 	 * Scale it to be in [0, 100] and set it as age subscore.
 	 */
 	age_in_log += DAMON_MAX_AGE_IN_LOG;

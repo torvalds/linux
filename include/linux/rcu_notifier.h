@@ -1,32 +1,32 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Read-Copy Update notifiers, initially RCU CPU stall notifier.
+ * Read-Copy Update analtifiers, initially RCU CPU stall analtifier.
  * Separate from rcupdate.h to avoid #include loops.
  *
  * Copyright (C) 2023 Paul E. McKenney.
  */
 
-#ifndef __LINUX_RCU_NOTIFIER_H
-#define __LINUX_RCU_NOTIFIER_H
+#ifndef __LINUX_RCU_ANALTIFIER_H
+#define __LINUX_RCU_ANALTIFIER_H
 
-// Actions for RCU CPU stall notifier calls.
-#define RCU_STALL_NOTIFY_NORM	1
-#define RCU_STALL_NOTIFY_EXP	2
+// Actions for RCU CPU stall analtifier calls.
+#define RCU_STALL_ANALTIFY_ANALRM	1
+#define RCU_STALL_ANALTIFY_EXP	2
 
-#if defined(CONFIG_RCU_STALL_COMMON) && defined(CONFIG_RCU_CPU_STALL_NOTIFIER)
+#if defined(CONFIG_RCU_STALL_COMMON) && defined(CONFIG_RCU_CPU_STALL_ANALTIFIER)
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/types.h>
 
-int rcu_stall_chain_notifier_register(struct notifier_block *n);
-int rcu_stall_chain_notifier_unregister(struct notifier_block *n);
+int rcu_stall_chain_analtifier_register(struct analtifier_block *n);
+int rcu_stall_chain_analtifier_unregister(struct analtifier_block *n);
 
-#else // #if defined(CONFIG_RCU_STALL_COMMON) && defined(CONFIG_RCU_CPU_STALL_NOTIFIER)
+#else // #if defined(CONFIG_RCU_STALL_COMMON) && defined(CONFIG_RCU_CPU_STALL_ANALTIFIER)
 
-// No RCU CPU stall warnings in Tiny RCU.
-static inline int rcu_stall_chain_notifier_register(struct notifier_block *n) { return -EEXIST; }
-static inline int rcu_stall_chain_notifier_unregister(struct notifier_block *n) { return -ENOENT; }
+// Anal RCU CPU stall warnings in Tiny RCU.
+static inline int rcu_stall_chain_analtifier_register(struct analtifier_block *n) { return -EEXIST; }
+static inline int rcu_stall_chain_analtifier_unregister(struct analtifier_block *n) { return -EANALENT; }
 
-#endif // #else // #if defined(CONFIG_RCU_STALL_COMMON) && defined(CONFIG_RCU_CPU_STALL_NOTIFIER)
+#endif // #else // #if defined(CONFIG_RCU_STALL_COMMON) && defined(CONFIG_RCU_CPU_STALL_ANALTIFIER)
 
-#endif /* __LINUX_RCU_NOTIFIER_H */
+#endif /* __LINUX_RCU_ANALTIFIER_H */

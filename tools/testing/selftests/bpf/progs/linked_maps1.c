@@ -27,7 +27,7 @@ typedef struct {
 
 extern map2_t map2 SEC(".maps");
 
-/* This should be the winning map definition, but we have no way of verifying,
+/* This should be the winning map definition, but we have anal way of verifying,
  * so we just make sure that it links and works without errors
  */
 struct {
@@ -59,7 +59,7 @@ int BPF_PROG(handler_enter1)
 SEC("raw_tp/sys_exit")
 int BPF_PROG(handler_exit1)
 {
-	/* lookup values with key = 2, set in another file */
+	/* lookup values with key = 2, set in aanalther file */
 	int key = 2, *val;
 	struct my_key key_struct = { .x = 2 };
 	struct my_value *value_struct;

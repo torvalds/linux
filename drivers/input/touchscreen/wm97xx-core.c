@@ -9,7 +9,7 @@
  *                   Andrew Zabolotny <zap@homelink.ru>
  *                   Russell King <rmk@arm.linux.org.uk>
  *
- * Notes:
+ * Analtes:
  *
  *  Features:
  *       - supports WM9705, WM9712, WM9713
@@ -24,9 +24,9 @@
  *       - sample AUX adcs
  *       - power management
  *       - codec GPIO
- *       - codec event notification
+ *       - codec event analtification
  * Todo
- *       - Support for async sampling control for noisy LCDs.
+ *       - Support for async sampling control for analisy LCDs.
  */
 
 #include <linux/module.h>
@@ -127,7 +127,7 @@ int wm97xx_read_aux_adc(struct wm97xx *wm, u16 adcsel)
 	/* get codec */
 	mutex_lock(&wm->codec_mutex);
 
-	/* When the touchscreen is not in use, we may have to power up
+	/* When the touchscreen is analt in use, we may have to power up
 	 * the AUX ADC before we can use sample the AUX inputs->
 	 */
 	if (wm->id == WM9713_ID2 &&
@@ -271,7 +271,7 @@ EXPORT_SYMBOL_GPL(wm97xx_config_gpio);
  * Configure the WM97XX_PRP value to use while system is suspended.
  * If a value other than 0 is set then WM97xx pen detection will be
  * left enabled in the configured mode while the system is in suspend,
- * the device has users and suspend has not been disabled via the
+ * the device has users and suspend has analt been disabled via the
  * wakeup sysfs entries.
  *
  * @wm:   WM97xx device to configure
@@ -325,14 +325,14 @@ static irqreturn_t wm97xx_pen_interrupt(int irq, void *dev_id)
 		mutex_unlock(&wm->codec_mutex);
 	}
 
-	/* If the system is not using continuous mode or it provides a
+	/* If the system is analt using continuous mode or it provides a
 	 * pen down operation then we need to schedule polls while the
 	 * pen is down.  Otherwise the machine driver is responsible
 	 * for scheduling reads.
 	 */
 	if (!wm->mach_ops->acc_enabled || wm->mach_ops->acc_pen_down) {
 		if (wm->pen_is_down && !pen_was_down) {
-			/* Data is not available immediately on pen down */
+			/* Data is analt available immediately on pen down */
 			queue_delayed_work(wm->ts_workq, &wm->ts_reader, 1);
 		}
 
@@ -496,7 +496,7 @@ static int wm97xx_ts_input_open(struct input_dev *idev)
 	if (wm->pen_irq)
 		wm97xx_init_pen_irq(wm);
 	else
-		dev_err(wm->dev, "No IRQ specified\n");
+		dev_err(wm->dev, "Anal IRQ specified\n");
 
 	/* If we either don't have an interrupt for pen down events or
 	 * failed to acquire it then we need to poll.
@@ -556,7 +556,7 @@ static int wm97xx_register_touch(struct wm97xx *wm)
 
 	wm->input_dev = devm_input_allocate_device(wm->dev);
 	if (wm->input_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* set up touch configuration */
 	wm->input_dev->name = "wm97xx touchscreen";
@@ -588,7 +588,7 @@ static int wm97xx_register_touch(struct wm97xx *wm)
 	 */
 	wm->touch_dev = platform_device_alloc("wm97xx-touch", -1);
 	if (!wm->touch_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(wm->touch_dev, wm);
 	wm->touch_dev->dev.parent = wm->dev;
@@ -620,8 +620,8 @@ static int _wm97xx_probe(struct wm97xx *wm)
 	id = wm97xx_reg_read(wm, AC97_VENDOR_ID1);
 	if (id != WM97XX_ID1) {
 		dev_err(wm->dev,
-			"Device with vendor %04x is not a wm97xx\n", id);
-		return -ENODEV;
+			"Device with vendor %04x is analt a wm97xx\n", id);
+		return -EANALDEV;
 	}
 
 	wm->id = wm97xx_reg_read(wm, AC97_VENDOR_ID2);
@@ -647,9 +647,9 @@ static int _wm97xx_probe(struct wm97xx *wm)
 		break;
 #endif
 	default:
-		dev_err(wm->dev, "Support for wm97%02x not compiled in.\n",
+		dev_err(wm->dev, "Support for wm97%02x analt compiled in.\n",
 			wm->id & 0xff);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* set up physical characteristics */
@@ -678,7 +678,7 @@ static int wm97xx_add_battery(struct wm97xx *wm,
 
 	wm->battery_dev = platform_device_alloc("wm97xx-battery", -1);
 	if (!wm->battery_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(wm->battery_dev, wm);
 	wm->battery_dev->dev.parent = wm->dev;
@@ -698,7 +698,7 @@ static int wm97xx_probe(struct device *dev)
 
 	wm = devm_kzalloc(dev, sizeof(struct wm97xx), GFP_KERNEL);
 	if (!wm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm->dev = dev;
 	wm->ac97 = to_ac97_t(dev);
@@ -736,7 +736,7 @@ static int wm97xx_mfd_probe(struct platform_device *pdev)
 
 	wm = devm_kzalloc(&pdev->dev, sizeof(struct wm97xx), GFP_KERNEL);
 	if (!wm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm->dev = &pdev->dev;
 	wm->ac97 = mfd_pdata->ac97;
@@ -784,7 +784,7 @@ static int wm97xx_suspend(struct device *dev)
 	wm->ac97->bus->ops->write(wm->ac97, AC97_WM97XX_DIGITISER2, reg);
 
 	/* WM9713 has an additional power bit - turn it off if there
-	 * are no users or if suspend mode is zero. */
+	 * are anal users or if suspend mode is zero. */
 	if (wm->id == WM9713_ID2 &&
 	    (!input_device_enabled(wm->input_dev) || !suspend_mode)) {
 		reg = wm97xx_reg_read(wm, AC97_EXTENDED_MID) | 0x8000;

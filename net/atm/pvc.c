@@ -7,13 +7,13 @@
 #include <linux/net.h>		/* struct socket, struct proto_ops */
 #include <linux/atm.h>		/* ATM stuff */
 #include <linux/atmdev.h>	/* ATM devices */
-#include <linux/errno.h>	/* error codes */
+#include <linux/erranal.h>	/* error codes */
 #include <linux/kernel.h>	/* printk */
 #include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
 #include <linux/export.h>
-#include <net/sock.h>		/* for sock_no_* */
+#include <net/sock.h>		/* for sock_anal_* */
 
 #include "resources.h"		/* devs and vccs */
 #include "common.h"		/* common for PVCs and SVCs */
@@ -36,7 +36,7 @@ static int pvc_bind(struct socket *sock, struct sockaddr *sockaddr,
 		return -EINVAL;
 	addr = (struct sockaddr_atmpvc *)sockaddr;
 	if (addr->sap_family != AF_ATMPVC)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 	lock_sock(sk);
 	vcc = ATM_SD(sock);
 	if (!test_bit(ATM_VF_HASQOS, &vcc->flags)) {
@@ -93,7 +93,7 @@ static int pvc_getname(struct socket *sock, struct sockaddr *sockaddr,
 	struct atm_vcc *vcc = ATM_SD(sock);
 
 	if (!vcc->dev || !test_bit(ATM_VF_ADDR, &vcc->flags))
-		return -ENOTCONN;
+		return -EANALTCONN;
 	addr = (struct sockaddr_atmpvc *)sockaddr;
 	memset(addr, 0, sizeof(*addr));
 	addr->sap_family = AF_ATMPVC;
@@ -110,8 +110,8 @@ static const struct proto_ops pvc_proto_ops = {
 	.release =	vcc_release,
 	.bind =		pvc_bind,
 	.connect =	pvc_connect,
-	.socketpair =	sock_no_socketpair,
-	.accept =	sock_no_accept,
+	.socketpair =	sock_anal_socketpair,
+	.accept =	sock_anal_accept,
 	.getname =	pvc_getname,
 	.poll =		vcc_poll,
 	.ioctl =	vcc_ioctl,
@@ -119,13 +119,13 @@ static const struct proto_ops pvc_proto_ops = {
 	.compat_ioctl = vcc_compat_ioctl,
 #endif
 	.gettstamp =	sock_gettstamp,
-	.listen =	sock_no_listen,
+	.listen =	sock_anal_listen,
 	.shutdown =	pvc_shutdown,
 	.setsockopt =	pvc_setsockopt,
 	.getsockopt =	pvc_getsockopt,
 	.sendmsg =	vcc_sendmsg,
 	.recvmsg =	vcc_recvmsg,
-	.mmap =		sock_no_mmap,
+	.mmap =		sock_anal_mmap,
 };
 
 
@@ -133,7 +133,7 @@ static int pvc_create(struct net *net, struct socket *sock, int protocol,
 		      int kern)
 {
 	if (net != &init_net)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	sock->ops = &pvc_proto_ops;
 	return vcc_create(net, sock, protocol, PF_ATMPVC, kern);

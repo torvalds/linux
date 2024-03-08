@@ -213,7 +213,7 @@ static int cpdma_desc_pool_create(struct cpdma_ctlr *ctlr)
 {
 	struct cpdma_params *cpdma_params = &ctlr->params;
 	struct cpdma_desc_pool *pool;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	pool = devm_kzalloc(ctlr->dev, sizeof(*pool), GFP_KERNEL);
 	if (!pool)
@@ -254,7 +254,7 @@ static int cpdma_desc_pool_create(struct cpdma_ctlr *ctlr)
 		pool->cpumap = dma_alloc_coherent(ctlr->dev,  pool->mem_size,
 						  &pool->hw_addr, GFP_KERNEL);
 		pool->iomap = (void __iomem __force *)pool->cpumap;
-		pool->phys = pool->hw_addr; /* assumes no IOMMU, don't use this value */
+		pool->phys = pool->hw_addr; /* assumes anal IOMMU, don't use this value */
 	}
 
 	if (!pool->iomap)
@@ -309,13 +309,13 @@ static int _cpdma_control_set(struct cpdma_ctlr *ctlr, int control, int value)
 	u32 val;
 
 	if (!ctlr->params.has_ext_regs)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (ctlr->state != CPDMA_STATE_ACTIVE)
 		return -EINVAL;
 
 	if (control < 0 || control >= ARRAY_SIZE(controls))
-		return -ENOENT;
+		return -EANALENT;
 
 	if ((info->access & ACCESS_WO) != ACCESS_WO)
 		return -EPERM;
@@ -334,13 +334,13 @@ static int _cpdma_control_get(struct cpdma_ctlr *ctlr, int control)
 	int ret;
 
 	if (!ctlr->params.has_ext_regs)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (ctlr->state != CPDMA_STATE_ACTIVE)
 		return -EINVAL;
 
 	if (control < 0 || control >= ARRAY_SIZE(controls))
-		return -ENOENT;
+		return -EANALENT;
 
 	if ((info->access & ACCESS_RO) != ACCESS_RO)
 		return -EPERM;
@@ -437,7 +437,7 @@ static int cpdma_chan_fit_rate(struct cpdma_chan *ch, u32 rate,
 
 err:
 	ch->rate = old_rate;
-	dev_err(ctlr->dev, "Upper cpdma ch%d is not rate limited\n",
+	dev_err(ctlr->dev, "Upper cpdma ch%d is analt rate limited\n",
 		chan->chan_num);
 	return -EINVAL;
 }
@@ -459,7 +459,7 @@ static u32 cpdma_chan_set_factors(struct cpdma_ctlr *ctlr,
 
 	freq = ctlr->params.bus_freq_mhz * 1000 * 32;
 	if (!freq) {
-		dev_err(ctlr->dev, "The bus frequency is not set\n");
+		dev_err(ctlr->dev, "The bus frequency is analt set\n");
 		return -EINVAL;
 	}
 
@@ -776,7 +776,7 @@ static int cpdma_chan_split_pool(struct cpdma_ctlr *ctlr)
  * Tx and Rx channels have separate weights. That is 100% for RX
  * and 100% for Tx. The weight is used to split cpdma resources
  * in correct proportion required by the channels, including number
- * of descriptors. The channel rate is not enough to know the
+ * of descriptors. The channel rate is analt eanalugh to kanalw the
  * weight of a channel as the maximum rate of an interface is needed.
  * If weight = 0, then channel uses rest of descriptors leaved by
  * weighted channels.
@@ -887,7 +887,7 @@ struct cpdma_chan *cpdma_chan_create(struct cpdma_ctlr *ctlr, int chan_num,
 
 	chan = devm_kzalloc(ctlr->dev, sizeof(*chan), GFP_KERNEL);
 	if (!chan)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_irqsave(&ctlr->lock, flags);
 	if (ctlr->channels[chan_num]) {
@@ -1025,13 +1025,13 @@ static int cpdma_chan_submit_si(struct submit_info *si)
 
 	if (chan->count >= chan->desc_num)	{
 		chan->stats.desc_alloc_fail++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	desc = cpdma_desc_alloc(ctlr->pool);
 	if (!desc) {
 		chan->stats.desc_alloc_fail++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (len < ctlr->params.min_packet_size) {
@@ -1231,7 +1231,7 @@ static int __cpdma_chan_process(struct cpdma_chan *chan)
 	desc = chan->head;
 	if (!desc) {
 		chan->stats.empty_dequeue++;
-		status = -ENOENT;
+		status = -EANALENT;
 		goto unlock_ret;
 	}
 	desc_dma = desc_phys(pool, desc);
@@ -1262,7 +1262,7 @@ static int __cpdma_chan_process(struct cpdma_chan *chan)
 
 	spin_unlock_irqrestore(&chan->lock, flags);
 	if (unlikely(status & CPDMA_DESC_TD_COMPLETE))
-		cb_status = -ENOSYS;
+		cb_status = -EANALSYS;
 	else
 		cb_status = status;
 
@@ -1362,7 +1362,7 @@ int cpdma_chan_stop(struct cpdma_chan *chan)
 
 		/* issue callback without locks held */
 		spin_unlock_irqrestore(&chan->lock, flags);
-		__cpdma_chan_free(chan, desc, 0, -ENOSYS);
+		__cpdma_chan_free(chan, desc, 0, -EANALSYS);
 		spin_lock_irqsave(&chan->lock, flags);
 	}
 

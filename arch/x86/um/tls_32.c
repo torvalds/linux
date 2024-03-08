@@ -55,7 +55,7 @@ int do_get_thread_area(struct user_desc *info)
 /*
  * sys_get_thread_area: get a yet unused TLS descriptor index.
  * XXX: Consider leaving one free slot for glibc usage at first place. This must
- * be done here (and by changing GDT_ENTRY_TLS_* macros) and nowhere else.
+ * be done here (and by changing GDT_ENTRY_TLS_* macros) and analwhere else.
  *
  * Also, this must be tested when compiling in SKAS mode with dynamic linking
  * and running against NPTL.
@@ -81,7 +81,7 @@ static inline void clear_user_desc(struct user_desc* info)
 	 * indeed an empty user_desc.
 	 */
 	info->read_exec_only = 1;
-	info->seg_not_present = 1;
+	info->seg_analt_present = 1;
 }
 
 #define O_FORCE 1
@@ -96,7 +96,7 @@ static int load_TLS(int flags, struct task_struct *to)
 			&to->thread.arch.tls_array[idx - GDT_ENTRY_TLS_MIN];
 
 		/*
-		 * Actually, now if it wasn't flushed it gets cleared and
+		 * Actually, analw if it wasn't flushed it gets cleared and
 		 * flushed to the host, which will clear it.
 		 */
 		if (!curr->present) {
@@ -177,7 +177,7 @@ void clear_flushed_tls(struct task_struct *task)
  * However, if each thread had a different host process (and this was discussed
  * for SMP support) this won't be needed.
  *
- * And this will not need be used when (and if) we'll add support to the host
+ * And this will analt need be used when (and if) we'll add support to the host
  * SKAS patch.
  */
 
@@ -187,7 +187,7 @@ int arch_switch_tls(struct task_struct *to)
 		return 0;
 
 	/*
-	 * We have no need whatsoever to switch TLS for kernel threads; beyond
+	 * We have anal need whatsoever to switch TLS for kernel threads; beyond
 	 * that, that would also result in us calling os_set_thread_area with
 	 * userspace_pid[cpu] == 0, which gives an error.
 	 */
@@ -231,7 +231,7 @@ out:
 	return ret;
 }
 
-/* XXX: use do_get_thread_area to read the host value? I'm not at all sure! */
+/* XXX: use do_get_thread_area to read the host value? I'm analt at all sure! */
 static int get_tls_entry(struct task_struct *task, struct user_desc *info,
 			 int idx)
 {
@@ -259,7 +259,7 @@ out:
 	return 0;
 clear:
 	/*
-	 * When the TLS entry has not been set, the values read to user in the
+	 * When the TLS entry has analt been set, the values read to user in the
 	 * tls_array are 0 (because it's cleared at boot, see
 	 * arch/i386/kernel/head.S:cpu_gdt_table). Emulate that.
 	 */
@@ -274,7 +274,7 @@ SYSCALL_DEFINE1(set_thread_area, struct user_desc __user *, user_desc)
 	int idx, ret;
 
 	if (!host_supports_tls)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (copy_from_user(&info, user_desc, sizeof(info)))
 		return -EFAULT;
@@ -299,7 +299,7 @@ SYSCALL_DEFINE1(set_thread_area, struct user_desc __user *, user_desc)
 
 /*
  * Perform set_thread_area on behalf of the traced child.
- * Note: error handling is not done on the deferred load, and this differ from
+ * Analte: error handling is analt done on the deferred load, and this differ from
  * i386. However the only possible error are caused by bugs.
  */
 int ptrace_set_thread_area(struct task_struct *child, int idx,
@@ -322,7 +322,7 @@ SYSCALL_DEFINE1(get_thread_area, struct user_desc __user *, user_desc)
 	int idx, ret;
 
 	if (!host_supports_tls)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (get_user(idx, &user_desc->entry_number))
 		return -EFAULT;
@@ -382,8 +382,8 @@ static int __init __setup_host_supports_tls(void)
 		       host_gdt_entry_tls_min,
 		       host_gdt_entry_tls_min + GDT_ENTRY_TLS_ENTRIES);
 	} else
-		printk(KERN_ERR "  Host TLS support NOT detected! "
-				"TLS support inside UML will not work\n");
+		printk(KERN_ERR "  Host TLS support ANALT detected! "
+				"TLS support inside UML will analt work\n");
 	return 0;
 }
 

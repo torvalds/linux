@@ -80,7 +80,7 @@ struct wc_memory_superblock {
 };
 
 struct wc_entry {
-	struct rb_node rb_node;
+	struct rb_analde rb_analde;
 	struct list_head lru;
 	unsigned short wc_list_contiguous;
 #if BITS_PER_LONG == 64
@@ -292,7 +292,7 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 	}
 	if (!pfn_t_has_page(pfn)) {
 		wc->memory_map = NULL;
-		r = -EOPNOTSUPP;
+		r = -EOPANALTSUPP;
 		goto err2;
 	}
 	if (da != p) {
@@ -301,7 +301,7 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 		wc->memory_map = NULL;
 		pages = vmalloc_array(p, sizeof(struct page *));
 		if (!pages) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto err2;
 		}
 		i = 0;
@@ -315,7 +315,7 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 				goto err3;
 			}
 			if (!pfn_t_has_page(pfn)) {
-				r = -EOPNOTSUPP;
+				r = -EOPANALTSUPP;
 				goto err3;
 			}
 			while (daa-- && i < p) {
@@ -327,7 +327,7 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 		} while (i < p);
 		wc->memory_map = vmap(pages, p, VM_MAP, PAGE_KERNEL);
 		if (!wc->memory_map) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto err3;
 		}
 		vfree(pages);
@@ -350,7 +350,7 @@ err1:
 #else
 static int persistent_memory_claim(struct dm_writecache *wc)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -469,15 +469,15 @@ static void writecache_flush_region(struct dm_writecache *wc, void *ptr, size_t 
 
 static void writecache_disk_flush(struct dm_writecache *wc, struct dm_dev *dev);
 
-struct io_notify {
+struct io_analtify {
 	struct dm_writecache *wc;
 	struct completion c;
 	atomic_t count;
 };
 
-static void writecache_notify_io(unsigned long error, void *context)
+static void writecache_analtify_io(unsigned long error, void *context)
 {
-	struct io_notify *endio = context;
+	struct io_analtify *endio = context;
 
 	if (unlikely(error != 0))
 		writecache_error(endio->wc, -EIO, "error writing metadata");
@@ -496,7 +496,7 @@ static void ssd_commit_flushed(struct dm_writecache *wc, bool wait_for_ios)
 {
 	struct dm_io_region region;
 	struct dm_io_request req;
-	struct io_notify endio = {
+	struct io_analtify endio = {
 		wc,
 		COMPLETION_INITIALIZER_ONSTACK(endio.c),
 		ATOMIC_INIT(1),
@@ -527,15 +527,15 @@ static void ssd_commit_flushed(struct dm_writecache *wc, bool wait_for_ios)
 		req.mem.type = DM_IO_VMA;
 		req.mem.ptr.vma = (char *)wc->memory_map + (size_t)i * BITMAP_GRANULARITY;
 		req.client = wc->dm_io;
-		req.notify.fn = writecache_notify_io;
-		req.notify.context = &endio;
+		req.analtify.fn = writecache_analtify_io;
+		req.analtify.context = &endio;
 
-		/* writing via async dm-io (implied by notify.fn above) won't return an error */
+		/* writing via async dm-io (implied by analtify.fn above) won't return an error */
 		(void) dm_io(&req, 1, &region, NULL);
 		i = j;
 	}
 
-	writecache_notify_io(0, &endio);
+	writecache_analtify_io(0, &endio);
 	wait_for_completion_io(&endio.c);
 
 	if (wait_for_ios)
@@ -565,8 +565,8 @@ static void ssd_commit_superblock(struct dm_writecache *wc)
 	req.mem.type = DM_IO_VMA;
 	req.mem.ptr.vma = (char *)wc->memory_map;
 	req.client = wc->dm_io;
-	req.notify.fn = NULL;
-	req.notify.context = NULL;
+	req.analtify.fn = NULL;
+	req.analtify.context = NULL;
 
 	r = dm_io(&req, 1, &region, NULL);
 	if (unlikely(r))
@@ -594,7 +594,7 @@ static void writecache_disk_flush(struct dm_writecache *wc, struct dm_dev *dev)
 	req.mem.type = DM_IO_KMEM;
 	req.mem.ptr.addr = NULL;
 	req.client = wc->dm_io;
-	req.notify.fn = NULL;
+	req.analtify.fn = NULL;
 
 	r = dm_io(&req, 1, &region, NULL);
 	if (unlikely(r))
@@ -608,29 +608,29 @@ static struct wc_entry *writecache_find_entry(struct dm_writecache *wc,
 					      uint64_t block, int flags)
 {
 	struct wc_entry *e;
-	struct rb_node *node = wc->tree.rb_node;
+	struct rb_analde *analde = wc->tree.rb_analde;
 
-	if (unlikely(!node))
+	if (unlikely(!analde))
 		return NULL;
 
 	while (1) {
-		e = container_of(node, struct wc_entry, rb_node);
+		e = container_of(analde, struct wc_entry, rb_analde);
 		if (read_original_sector(wc, e) == block)
 			break;
 
-		node = (read_original_sector(wc, e) >= block ?
-			e->rb_node.rb_left : e->rb_node.rb_right);
-		if (unlikely(!node)) {
+		analde = (read_original_sector(wc, e) >= block ?
+			e->rb_analde.rb_left : e->rb_analde.rb_right);
+		if (unlikely(!analde)) {
 			if (!(flags & WFE_RETURN_FOLLOWING))
 				return NULL;
 			if (read_original_sector(wc, e) >= block)
 				return e;
 
-			node = rb_next(&e->rb_node);
-			if (unlikely(!node))
+			analde = rb_next(&e->rb_analde);
+			if (unlikely(!analde))
 				return NULL;
 
-			e = container_of(node, struct wc_entry, rb_node);
+			e = container_of(analde, struct wc_entry, rb_analde);
 			return e;
 		}
 	}
@@ -639,12 +639,12 @@ static struct wc_entry *writecache_find_entry(struct dm_writecache *wc,
 		struct wc_entry *e2;
 
 		if (flags & WFE_LOWEST_SEQ)
-			node = rb_prev(&e->rb_node);
+			analde = rb_prev(&e->rb_analde);
 		else
-			node = rb_next(&e->rb_node);
-		if (unlikely(!node))
+			analde = rb_next(&e->rb_analde);
+		if (unlikely(!analde))
 			return e;
-		e2 = container_of(node, struct wc_entry, rb_node);
+		e2 = container_of(analde, struct wc_entry, rb_analde);
 		if (read_original_sector(wc, e2) != block)
 			return e;
 		e = e2;
@@ -654,18 +654,18 @@ static struct wc_entry *writecache_find_entry(struct dm_writecache *wc,
 static void writecache_insert_entry(struct dm_writecache *wc, struct wc_entry *ins)
 {
 	struct wc_entry *e;
-	struct rb_node **node = &wc->tree.rb_node, *parent = NULL;
+	struct rb_analde **analde = &wc->tree.rb_analde, *parent = NULL;
 
-	while (*node) {
-		e = container_of(*node, struct wc_entry, rb_node);
-		parent = &e->rb_node;
+	while (*analde) {
+		e = container_of(*analde, struct wc_entry, rb_analde);
+		parent = &e->rb_analde;
 		if (read_original_sector(wc, e) > read_original_sector(wc, ins))
-			node = &parent->rb_left;
+			analde = &parent->rb_left;
 		else
-			node = &parent->rb_right;
+			analde = &parent->rb_right;
 	}
-	rb_link_node(&ins->rb_node, parent, node);
-	rb_insert_color(&ins->rb_node, &wc->tree);
+	rb_link_analde(&ins->rb_analde, parent, analde);
+	rb_insert_color(&ins->rb_analde, &wc->tree);
 	list_add(&ins->lru, &wc->lru);
 	ins->age = jiffies;
 }
@@ -673,25 +673,25 @@ static void writecache_insert_entry(struct dm_writecache *wc, struct wc_entry *i
 static void writecache_unlink(struct dm_writecache *wc, struct wc_entry *e)
 {
 	list_del(&e->lru);
-	rb_erase(&e->rb_node, &wc->tree);
+	rb_erase(&e->rb_analde, &wc->tree);
 }
 
 static void writecache_add_to_freelist(struct dm_writecache *wc, struct wc_entry *e)
 {
 	if (WC_MODE_SORT_FREELIST(wc)) {
-		struct rb_node **node = &wc->freetree.rb_node, *parent = NULL;
+		struct rb_analde **analde = &wc->freetree.rb_analde, *parent = NULL;
 
-		if (unlikely(!*node))
+		if (unlikely(!*analde))
 			wc->current_free = e;
-		while (*node) {
-			parent = *node;
-			if (&e->rb_node < *node)
-				node = &parent->rb_left;
+		while (*analde) {
+			parent = *analde;
+			if (&e->rb_analde < *analde)
+				analde = &parent->rb_left;
 			else
-				node = &parent->rb_right;
+				analde = &parent->rb_right;
 		}
-		rb_link_node(&e->rb_node, parent, node);
-		rb_insert_color(&e->rb_node, &wc->freetree);
+		rb_link_analde(&e->rb_analde, parent, analde);
+		rb_insert_color(&e->rb_analde, &wc->freetree);
 	} else {
 		list_add_tail(&e->lru, &wc->freelist);
 	}
@@ -719,18 +719,18 @@ static struct wc_entry *writecache_pop_from_freelist(struct dm_writecache *wc, s
 	struct wc_entry *e;
 
 	if (WC_MODE_SORT_FREELIST(wc)) {
-		struct rb_node *next;
+		struct rb_analde *next;
 
 		if (unlikely(!wc->current_free))
 			return NULL;
 		e = wc->current_free;
 		if (expected_sector != (sector_t)-1 && unlikely(cache_sector(wc, e) != expected_sector))
 			return NULL;
-		next = rb_next(&e->rb_node);
-		rb_erase(&e->rb_node, &wc->freetree);
+		next = rb_next(&e->rb_analde);
+		rb_erase(&e->rb_analde, &wc->freetree);
 		if (unlikely(!next))
 			next = rb_first(&wc->freetree);
-		wc->current_free = next ? container_of(next, struct wc_entry, rb_node) : NULL;
+		wc->current_free = next ? container_of(next, struct wc_entry, rb_analde) : NULL;
 	} else {
 		if (unlikely(list_empty(&wc->freelist)))
 			return NULL;
@@ -834,11 +834,11 @@ static void writecache_flush(struct dm_writecache *wc)
 
 	need_flush_after_free = false;
 	while (1) {
-		/* Free another committed entry with lower seq-count */
-		struct rb_node *rb_node = rb_prev(&e->rb_node);
+		/* Free aanalther committed entry with lower seq-count */
+		struct rb_analde *rb_analde = rb_prev(&e->rb_analde);
 
-		if (rb_node) {
-			e2 = container_of(rb_node, struct wc_entry, rb_node);
+		if (rb_analde) {
+			e2 = container_of(rb_analde, struct wc_entry, rb_analde);
 			if (read_original_sector(wc, e2) == read_original_sector(wc, e) &&
 			    likely(!e2->write_in_progress)) {
 				writecache_free_entry(wc, e2);
@@ -888,7 +888,7 @@ static void writecache_discard(struct dm_writecache *wc, sector_t start, sector_
 		return;
 
 	while (read_original_sector(wc, e) < end) {
-		struct rb_node *node = rb_next(&e->rb_node);
+		struct rb_analde *analde = rb_next(&e->rb_analde);
 
 		if (likely(!e->write_in_progress)) {
 			if (!discarded_something) {
@@ -903,10 +903,10 @@ static void writecache_discard(struct dm_writecache *wc, sector_t start, sector_
 			writecache_free_entry(wc, e);
 		}
 
-		if (unlikely(!node))
+		if (unlikely(!analde))
 			break;
 
-		e = container_of(node, struct wc_entry, rb_node);
+		e = container_of(analde, struct wc_entry, rb_analde);
 	}
 
 	if (discarded_something)
@@ -964,7 +964,7 @@ static int writecache_alloc_entries(struct dm_writecache *wc)
 		return 0;
 	wc->entries = vmalloc_array(wc->n_blocks, sizeof(struct wc_entry));
 	if (!wc->entries)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (b = 0; b < wc->n_blocks; b++) {
 		struct wc_entry *e = &wc->entries[b];
 
@@ -988,7 +988,7 @@ static int writecache_read_metadata(struct dm_writecache *wc, sector_t n_sectors
 	req.mem.type = DM_IO_VMA;
 	req.mem.ptr.vma = (char *)wc->memory_map;
 	req.client = wc->dm_io;
-	req.notify.fn = NULL;
+	req.analtify.fn = NULL;
 
 	return dm_io(&req, 1, &region, NULL);
 }
@@ -1212,7 +1212,7 @@ static void memcpy_flushcache_optimized(void *dest, void *source, size_t size)
 {
 	/*
 	 * clflushopt performs better with block size 1024, 2048, 4096
-	 * non-temporal stores perform better with block size 512
+	 * analn-temporal stores perform better with block size 512
 	 *
 	 * block size   512             1024            2048            4096
 	 * movnti       496 MB/s        642 MB/s        725 MB/s        744 MB/s
@@ -1222,7 +1222,7 @@ static void memcpy_flushcache_optimized(void *dest, void *source, size_t size)
 	 * clflushopt performs better for 1024-byte and larger blocks. So, we
 	 * prefer clflushopt for sizes >= 768.
 	 *
-	 * NOTE: this happens to be the case now (with dm-writecache's single
+	 * ANALTE: this happens to be the case analw (with dm-writecache's single
 	 * threaded model) but re-evaluate this once memcpy_flushcache() is
 	 * enabled to use movdir64b which might invalidate this performance
 	 * advantage seen with cache-allocating-writes plus flushing.
@@ -1308,7 +1308,7 @@ static int writecache_flush_thread(void *data)
 					   bio_end_sector(bio));
 			wc_unlock(wc);
 			bio_set_dev(bio, wc->dev->bdev);
-			submit_bio_noacct(bio);
+			submit_bio_analacct(bio);
 		} else {
 			writecache_flush(wc);
 			wc_unlock(wc);
@@ -1398,11 +1398,11 @@ static void writecache_bio_copy_ssd(struct dm_writecache *wc, struct bio *bio,
 			wc->uncommitted_blocks++;
 		} else {
 			struct wc_entry *f;
-			struct rb_node *next = rb_next(&e->rb_node);
+			struct rb_analde *next = rb_next(&e->rb_analde);
 
 			if (!next)
 				break;
-			f = container_of(next, struct wc_entry, rb_node);
+			f = container_of(next, struct wc_entry, rb_analde);
 			if (f != e + 1)
 				break;
 			if (read_original_sector(wc, f) !=
@@ -1556,7 +1556,7 @@ static int writecache_map(struct dm_target *ti, struct bio *bio)
 
 	if (unlikely((((unsigned int)bio->bi_iter.bi_sector | bio_sectors(bio)) &
 				(wc->block_size / 512 - 1)) != 0)) {
-		DMERR("I/O is not aligned, sector %llu, size %u, block size %u",
+		DMERR("I/O is analt aligned, sector %llu, size %u, block size %u",
 		      (unsigned long long)bio->bi_iter.bi_sector,
 		      bio->bi_iter.bi_size, wc->block_size);
 		map_op = WC_MAP_ERROR;
@@ -1691,7 +1691,7 @@ static void __writecache_endio_pmem(struct dm_writecache *wc, struct list_head *
 		list_del(&wb->endio_entry);
 
 		if (unlikely(wb->bio.bi_status != BLK_STS_OK))
-			writecache_error(wc, blk_status_to_errno(wb->bio.bi_status),
+			writecache_error(wc, blk_status_to_erranal(wb->bio.bi_status),
 					"write error %d", wb->bio.bi_status);
 		i = 0;
 		do {
@@ -1842,7 +1842,7 @@ static void __writecache_writeback_pmem(struct dm_writecache *wc, struct writeba
 		max_pages = e->wc_list_contiguous;
 
 		bio = bio_alloc_bioset(wc->dev->bdev, max_pages, REQ_OP_WRITE,
-				       GFP_NOIO, &wc->bio_set);
+				       GFP_ANALIO, &wc->bio_set);
 		wb = container_of(bio, struct writeback_struct, bio);
 		wb->wc = wc;
 		bio->bi_end_io = writecache_writeback_endio;
@@ -1850,8 +1850,8 @@ static void __writecache_writeback_pmem(struct dm_writecache *wc, struct writeba
 
 		if (unlikely(max_pages > WB_LIST_INLINE))
 			wb->wc_list = kmalloc_array(max_pages, sizeof(struct wc_entry *),
-						    GFP_NOIO | __GFP_NORETRY |
-						    __GFP_NOMEMALLOC | __GFP_NOWARN);
+						    GFP_ANALIO | __GFP_ANALRETRY |
+						    __GFP_ANALMEMALLOC | __GFP_ANALWARN);
 
 		if (likely(max_pages <= WB_LIST_INLINE) || unlikely(!wb->wc_list)) {
 			wb->wc_list = wb->wc_list_inline;
@@ -1913,7 +1913,7 @@ static void __writecache_writeback_ssd(struct dm_writecache *wc, struct writebac
 		to.sector = read_original_sector(wc, e);
 		to.count = n_sectors;
 
-		c = mempool_alloc(&wc->copy_pool, GFP_NOIO);
+		c = mempool_alloc(&wc->copy_pool, GFP_ANALIO);
 		c->wc = wc;
 		c->e = e;
 		c->n_entries = e->wc_list_contiguous;
@@ -1945,7 +1945,7 @@ static void writecache_writeback(struct work_struct *work)
 	struct dm_writecache *wc = container_of(work, struct dm_writecache, writeback_work);
 	struct blk_plug plug;
 	struct wc_entry *f, *g, *e = NULL;
-	struct rb_node *node, *next_node;
+	struct rb_analde *analde, *next_analde;
 	struct list_head skipped;
 	struct writeback_list wbl;
 	unsigned long n_walked;
@@ -2008,7 +2008,7 @@ restart:
 		if (unlikely(wc->writeback_all)) {
 			if (unlikely(!e)) {
 				writecache_flush(wc);
-				e = container_of(rb_first(&wc->tree), struct wc_entry, rb_node);
+				e = container_of(rb_first(&wc->tree), struct wc_entry, rb_analde);
 			} else
 				e = g;
 		} else
@@ -2017,9 +2017,9 @@ restart:
 		if (unlikely(!writecache_entry_is_committed(wc, e)))
 			writecache_flush(wc);
 
-		node = rb_prev(&e->rb_node);
-		if (node) {
-			f = container_of(node, struct wc_entry, rb_node);
+		analde = rb_prev(&e->rb_analde);
+		if (analde) {
+			f = container_of(analde, struct wc_entry, rb_analde);
 			if (unlikely(read_original_sector(wc, f) ==
 				     read_original_sector(wc, e))) {
 				BUG_ON(!f->write_in_progress);
@@ -2037,10 +2037,10 @@ restart:
 		f = e;
 
 		while (1) {
-			next_node = rb_next(&f->rb_node);
-			if (unlikely(!next_node))
+			next_analde = rb_next(&f->rb_analde);
+			if (unlikely(!next_analde))
 				break;
-			g = container_of(next_node, struct wc_entry, rb_node);
+			g = container_of(next_analde, struct wc_entry, rb_analde);
 			if (unlikely(read_original_sector(wc, g) ==
 			    read_original_sector(wc, f))) {
 				f = g;
@@ -2072,9 +2072,9 @@ restart:
 			e->wc_list_contiguous++;
 			if (unlikely(e->wc_list_contiguous == BIO_MAX_VECS)) {
 				if (unlikely(wc->writeback_all)) {
-					next_node = rb_next(&f->rb_node);
-					if (likely(next_node))
-						g = container_of(next_node, struct wc_entry, rb_node);
+					next_analde = rb_next(&f->rb_analde);
+					if (likely(next_analde))
+						g = container_of(next_analde, struct wc_entry, rb_analde);
 				}
 				break;
 			}
@@ -2122,7 +2122,7 @@ static int calculate_memory_size(uint64_t device_size, unsigned int block_size,
 
 	while (1) {
 		if (!n_blocks)
-			return -ENOSPC;
+			return -EANALSPC;
 		/* Verify the following entries[n_blocks] won't overflow */
 		if (n_blocks >= ((size_t)-sizeof(struct wc_memory_superblock) /
 				 sizeof(struct wc_memory_entry)))
@@ -2249,8 +2249,8 @@ static int writecache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	wc = kzalloc(sizeof(struct dm_writecache), GFP_KERNEL);
 	if (!wc) {
-		ti->error = "Cannot allocate writecache structure";
-		r = -ENOMEM;
+		ti->error = "Cananalt allocate writecache structure";
+		r = -EANALMEM;
 		goto bad;
 	}
 	ti->private = wc;
@@ -2278,8 +2278,8 @@ static int writecache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	wc->writeback_wq = alloc_workqueue("writecache-writeback", WQ_MEM_RECLAIM, 1);
 	if (!wc->writeback_wq) {
-		r = -ENOMEM;
-		ti->error = "Could not allocate writeback workqueue";
+		r = -EANALMEM;
+		ti->error = "Could analt allocate writeback workqueue";
 		goto bad;
 	}
 	INIT_WORK(&wc->writeback_work, writecache_writeback);
@@ -2316,8 +2316,8 @@ static int writecache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		 * the kernel doesn't support any DAX drivers, this driver can
 		 * only be used in SSD-only mode.
 		 */
-		r = -EOPNOTSUPP;
-		ti->error = "Persistent memory or DAX not supported on this system";
+		r = -EOPANALTSUPP;
+		ti->error = "Persistent memory or DAX analt supported on this system";
 		goto bad;
 #endif
 	} else {
@@ -2329,14 +2329,14 @@ static int writecache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 				offsetof(struct writeback_struct, bio),
 				BIOSET_NEED_BVECS);
 		if (r) {
-			ti->error = "Could not allocate bio set";
+			ti->error = "Could analt allocate bio set";
 			goto bad;
 		}
 	} else {
 		wc->pause = PAUSE_WRITEBACK;
 		r = mempool_init_kmalloc_pool(&wc->copy_pool, 1, sizeof(struct copy_struct));
 		if (r) {
-			ti->error = "Could not allocate mempool";
+			ti->error = "Could analt allocate mempool";
 			goto bad;
 		}
 	}
@@ -2469,7 +2469,7 @@ static int writecache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 				wc->writeback_fua_set = true;
 			} else
 				goto invalid_optional;
-		} else if (!strcasecmp(string, "nofua")) {
+		} else if (!strcasecmp(string, "analfua")) {
 			if (WC_MODE_PMEM(wc)) {
 				wc->writeback_fua = false;
 				wc->writeback_fua_set = true;
@@ -2505,9 +2505,9 @@ invalid_optional:
 	}
 
 	if (WC_MODE_PMEM(wc)) {
-		if (!dax_synchronous(wc->ssd_dev->dax_dev)) {
-			r = -EOPNOTSUPP;
-			ti->error = "Asynchronous persistent memory not supported as pmem cache";
+		if (!dax_synchroanalus(wc->ssd_dev->dax_dev)) {
+			r = -EOPANALTSUPP;
+			ti->error = "Asynchroanalus persistent memory analt supported as pmem cache";
 			goto bad;
 		}
 
@@ -2549,7 +2549,7 @@ invalid_optional:
 
 		wc->memory_map = vmalloc(n_metadata_blocks << wc->block_size_bits);
 		if (!wc->memory_map) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			ti->error = "Unable to allocate memory for metadata";
 			goto bad;
 		}
@@ -2567,7 +2567,7 @@ invalid_optional:
 			BITS_PER_LONG * sizeof(unsigned long);
 		wc->dirty_bitmap = vzalloc(wc->dirty_bitmap_size);
 		if (!wc->dirty_bitmap) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			ti->error = "Unable to allocate dirty bitmap";
 			goto bad;
 		}
@@ -2611,7 +2611,7 @@ invalid_optional:
 	}
 
 	if (le32_to_cpu(s.block_size) != wc->block_size) {
-		ti->error = "Block size does not match superblock";
+		ti->error = "Block size does analt match superblock";
 		r = -EINVAL;
 		goto bad;
 	}
@@ -2656,7 +2656,7 @@ overflow:
 
 	r = writecache_alloc_entries(wc);
 	if (r) {
-		ti->error = "Cannot allocate memory";
+		ti->error = "Cananalt allocate memory";
 		goto bad;
 	}
 
@@ -2746,7 +2746,7 @@ static void writecache_status(struct dm_target *ti, status_type_t type,
 		if (wc->cleaner_set)
 			DMEMIT(" cleaner");
 		if (wc->writeback_fua_set)
-			DMEMIT(" %sfua", wc->writeback_fua ? "" : "no");
+			DMEMIT(" %sfua", wc->writeback_fua ? "" : "anal");
 		if (wc->metadata_only)
 			DMEMIT(" metadata_only");
 		if (wc->pause_set)

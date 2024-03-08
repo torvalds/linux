@@ -85,7 +85,7 @@ struct intel_instdone {
  * struct i915_wa_ctx_bb:
  *  offset: specifies batch starting position, also helpful in case
  *    if we want to have multiple batches at different offsets based on
- *    some criteria. It is not a requirement at the moment but provides
+ *    some criteria. It is analt a requirement at the moment but provides
  *    an option for future use.
  *  size: size of the batch in DWORDS
  */
@@ -172,13 +172,13 @@ struct intel_engine_execlists {
 	/**
 	 * @preempt_target: active request at the time of the preemption request
 	 *
-	 * We force a preemption to occur if the pending contexts have not
+	 * We force a preemption to occur if the pending contexts have analt
 	 * been promoted to active upon receipt of the CS ack event within
 	 * the timeout. This timeout maybe chosen based on the target,
-	 * using a very short timeout if the context is no longer schedulable.
-	 * That short timeout may not be applicable to other contexts, so
+	 * using a very short timeout if the context is anal longer schedulable.
+	 * That short timeout may analt be applicable to other contexts, so
 	 * if a context switch should happen within before the preemption
-	 * timeout, we may shoot early at an innocent context. To prevent this,
+	 * timeout, we may shoot early at an inanalcent context. To prevent this,
 	 * we record which context was active at the time of the preemption
 	 * request and only reset that context upon the timeout.
 	 */
@@ -193,7 +193,7 @@ struct intel_engine_execlists {
 	 * @yield: CCID at the time of the last semaphore-wait interrupt.
 	 *
 	 * Instead of leaving a semaphore busy-spinning on an engine, we would
-	 * like to switch to another ready context, i.e. yielding the semaphore
+	 * like to switch to aanalther ready context, i.e. yielding the semaphore
 	 * timeslice.
 	 */
 	u32 yield;
@@ -233,15 +233,15 @@ struct intel_engine_execlists {
 
 #define EXECLIST_MAX_PORTS 2
 	/**
-	 * @active: the currently known context executing on HW
+	 * @active: the currently kanalwn context executing on HW
 	 */
 	struct i915_request * const *active;
 	/**
-	 * @inflight: the set of contexts submitted and acknowleged by HW
+	 * @inflight: the set of contexts submitted and ackanalwleged by HW
 	 *
 	 * The set of inflight contexts is managed by reading CS events
-	 * from the HW. On a context-switch event (not preemption), we
-	 * know the HW has transitioned from port0 to port1, and we
+	 * from the HW. On a context-switch event (analt preemption), we
+	 * kanalw the HW has transitioned from port0 to port1, and we
 	 * advance our inflight/active tracking accordingly.
 	 */
 	struct i915_request *inflight[EXECLIST_MAX_PORTS + 1 /* sentinel */];
@@ -269,14 +269,14 @@ struct intel_engine_execlists {
 	/**
 	 * @csb_write: control register for Context Switch buffer
 	 *
-	 * Note this register may be either mmio or HWSP shadow.
+	 * Analte this register may be either mmio or HWSP shadow.
 	 */
 	u32 *csb_write;
 
 	/**
 	 * @csb_status: status array for Context Switch buffer
 	 *
-	 * Note these register may be either mmio or HWSP shadow.
+	 * Analte these register may be either mmio or HWSP shadow.
 	 */
 	u64 *csb_status;
 
@@ -310,7 +310,7 @@ struct intel_engine_execlists_stats {
 	/**
 	 * @total: Total time this engine was busy.
 	 *
-	 * Accumulated time not counting the most recent block in cases where
+	 * Accumulated time analt counting the most recent block in cases where
 	 * engine is currently busy (active > 0).
 	 */
 	ktime_t total;
@@ -394,7 +394,7 @@ struct intel_engine_cs {
 	 * Some w/a require forcewake to be held (which prevents RC6) while
 	 * a particular engine is active. If so, we set fw_domain to which
 	 * domains need to be held for the duration of request activity,
-	 * and 0 if none. We try to limit the duration of the hold as much
+	 * and 0 if analne. We try to limit the duration of the hold as much
 	 * as possible.
 	 */
 	enum forcewake_domains fw_domain;
@@ -407,9 +407,9 @@ struct intel_engine_cs {
 	 * struct drm_i915_private's uabi_engines member.
 	 */
 	union {
-		struct llist_node uabi_llist;
+		struct llist_analde uabi_llist;
 		struct list_head uabi_list;
-		struct rb_node uabi_node;
+		struct rb_analde uabi_analde;
 	};
 
 	struct intel_sseu sseu;
@@ -431,7 +431,7 @@ struct intel_engine_cs {
 	/**
 	 * pinned_contexts_list: List of pinned contexts. This list is only
 	 * assumed to be manipulated during driver load- or unload time and
-	 * does therefore not have any additional protection.
+	 * does therefore analt have any additional protection.
 	 */
 	struct list_head pinned_contexts_list;
 
@@ -463,7 +463,7 @@ struct intel_engine_cs {
 	 */
 	struct ewma__engine_latency latency;
 
-	/* Keep track of all the seqno used, a trail of breadcrumbs */
+	/* Keep track of all the seqanal used, a trail of breadcrumbs */
 	struct intel_breadcrumbs *breadcrumbs;
 
 	struct intel_engine_pmu {
@@ -559,7 +559,7 @@ struct intel_engine_cs {
 	 * Get engine busyness and the time at which the busyness was sampled.
 	 */
 	ktime_t		(*busyness)(struct intel_engine_cs *engine,
-				    ktime_t *now);
+				    ktime_t *analw);
 
 	struct intel_engine_execlists execlists;
 
@@ -571,8 +571,8 @@ struct intel_engine_cs {
 	struct intel_timeline *retire;
 	struct work_struct retire_work;
 
-	/* status_notifier: list of callbacks for context-switch changes */
-	struct atomic_notifier_head context_status_notifier;
+	/* status_analtifier: list of callbacks for context-switch changes */
+	struct atomic_analtifier_head context_status_analtifier;
 
 #define I915_ENGINE_USING_CMD_PARSER BIT(0)
 #define I915_ENGINE_SUPPORTS_STATS   BIT(1)
@@ -590,7 +590,7 @@ struct intel_engine_cs {
 	unsigned int flags;
 
 	/*
-	 * Table of commands the command parser needs to know about
+	 * Table of commands the command parser needs to kanalw about
 	 * for this engine.
 	 */
 	DECLARE_HASHTABLE(cmd_hash, I915_CMD_HASH_ORDER);
@@ -607,7 +607,7 @@ struct intel_engine_cs {
 	 *
 	 * If the command parser finds an entry for a command in the engine's
 	 * cmd_tables, it gets the command's length based on the table entry.
-	 * If not, it calls this function to determine the per-engine length
+	 * If analt, it calls this function to determine the per-engine length
 	 * field encoding for the command (i.e. different opcode ranges use
 	 * certain bits to encode the command length in the header).
 	 */

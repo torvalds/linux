@@ -27,7 +27,7 @@
 
 #define QAT_AES_HW_CONFIG_ENC(alg, mode) \
 	ICP_QAT_HW_CIPHER_CONFIG_BUILD(mode, alg, \
-				       ICP_QAT_HW_CIPHER_NO_CONVERT, \
+				       ICP_QAT_HW_CIPHER_ANAL_CONVERT, \
 				       ICP_QAT_HW_CIPHER_ENCRYPT)
 
 #define QAT_AES_HW_CONFIG_DEC(alg, mode) \
@@ -35,9 +35,9 @@
 				       ICP_QAT_HW_CIPHER_KEY_CONVERT, \
 				       ICP_QAT_HW_CIPHER_DECRYPT)
 
-#define QAT_AES_HW_CONFIG_DEC_NO_CONV(alg, mode) \
+#define QAT_AES_HW_CONFIG_DEC_ANAL_CONV(alg, mode) \
 	ICP_QAT_HW_CIPHER_CONFIG_BUILD(mode, alg, \
-				       ICP_QAT_HW_CIPHER_NO_CONVERT, \
+				       ICP_QAT_HW_CIPHER_ANAL_CONVERT, \
 				       ICP_QAT_HW_CIPHER_DECRYPT)
 
 #define HW_CAP_AES_V2(accel_dev) \
@@ -224,13 +224,13 @@ static void qat_alg_init_common_hdr(struct icp_qat_fw_comn_req_hdr *header)
 		ICP_QAT_FW_COMN_FLAGS_BUILD(QAT_COMN_CD_FLD_TYPE_64BIT_ADR,
 					    QAT_COMN_PTR_TYPE_SGL);
 	ICP_QAT_FW_LA_PARTIAL_SET(header->serv_specif_flags,
-				  ICP_QAT_FW_LA_PARTIAL_NONE);
+				  ICP_QAT_FW_LA_PARTIAL_ANALNE);
 	ICP_QAT_FW_LA_CIPH_IV_FLD_FLAG_SET(header->serv_specif_flags,
 					   ICP_QAT_FW_CIPH_IV_16BYTE_DATA);
 	ICP_QAT_FW_LA_PROTO_SET(header->serv_specif_flags,
-				ICP_QAT_FW_LA_NO_PROTO);
+				ICP_QAT_FW_LA_ANAL_PROTO);
 	ICP_QAT_FW_LA_UPDATE_STATE_SET(header->serv_specif_flags,
-				       ICP_QAT_FW_LA_NO_UPDATE_STATE);
+				       ICP_QAT_FW_LA_ANAL_UPDATE_STATE);
 }
 
 static int qat_alg_aead_init_enc_session(struct crypto_aead *aead_tfm,
@@ -272,7 +272,7 @@ static int qat_alg_aead_init_enc_session(struct crypto_aead *aead_tfm,
 	ICP_QAT_FW_LA_RET_AUTH_SET(header->serv_specif_flags,
 				   ICP_QAT_FW_LA_RET_AUTH_RES);
 	ICP_QAT_FW_LA_CMP_AUTH_SET(header->serv_specif_flags,
-				   ICP_QAT_FW_LA_NO_CMP_AUTH_RES);
+				   ICP_QAT_FW_LA_ANAL_CMP_AUTH_RES);
 	cd_pars->u.s.content_desc_addr = ctx->enc_cd_paddr;
 	cd_pars->u.s.content_desc_params_sz = sizeof(struct qat_alg_cd) >> 3;
 
@@ -284,7 +284,7 @@ static int qat_alg_aead_init_enc_session(struct crypto_aead *aead_tfm,
 	ICP_QAT_FW_COMN_NEXT_ID_SET(cipher_cd_ctrl, ICP_QAT_FW_SLICE_AUTH);
 	/* Auth CD config setup */
 	hash_cd_ctrl->hash_cfg_offset = ((char *)hash - (char *)cipher) >> 3;
-	hash_cd_ctrl->hash_flags = ICP_QAT_FW_AUTH_HDR_FLAG_NO_NESTED;
+	hash_cd_ctrl->hash_flags = ICP_QAT_FW_AUTH_HDR_FLAG_ANAL_NESTED;
 	hash_cd_ctrl->inner_res_sz = digestsize;
 	hash_cd_ctrl->final_sz = digestsize;
 
@@ -357,7 +357,7 @@ static int qat_alg_aead_init_dec_session(struct crypto_aead *aead_tfm,
 	ICP_QAT_FW_LA_DIGEST_IN_BUFFER_SET(header->serv_specif_flags,
 					   ICP_QAT_FW_LA_DIGEST_IN_BUFFER);
 	ICP_QAT_FW_LA_RET_AUTH_SET(header->serv_specif_flags,
-				   ICP_QAT_FW_LA_NO_RET_AUTH_RES);
+				   ICP_QAT_FW_LA_ANAL_RET_AUTH_RES);
 	ICP_QAT_FW_LA_CMP_AUTH_SET(header->serv_specif_flags,
 				   ICP_QAT_FW_LA_CMP_AUTH_RES);
 	cd_pars->u.s.content_desc_addr = ctx->dec_cd_paddr;
@@ -374,7 +374,7 @@ static int qat_alg_aead_init_dec_session(struct crypto_aead *aead_tfm,
 
 	/* Auth CD config setup */
 	hash_cd_ctrl->hash_cfg_offset = 0;
-	hash_cd_ctrl->hash_flags = ICP_QAT_FW_AUTH_HDR_FLAG_NO_NESTED;
+	hash_cd_ctrl->hash_flags = ICP_QAT_FW_AUTH_HDR_FLAG_ANAL_NESTED;
 	hash_cd_ctrl->inner_res_sz = digestsize;
 	hash_cd_ctrl->final_sz = digestsize;
 
@@ -496,9 +496,9 @@ static void qat_alg_skcipher_init_dec(struct qat_alg_skcipher_ctx *ctx,
 	cd_pars->u.s.content_desc_addr = ctx->dec_cd_paddr;
 
 	if (aes_v2_capable && mode == ICP_QAT_HW_CIPHER_XTS_MODE) {
-		/* Key reversing not supported, set no convert */
+		/* Key reversing analt supported, set anal convert */
 		dec_cd->aes.cipher_config.val =
-				QAT_AES_HW_CONFIG_DEC_NO_CONV(alg, mode);
+				QAT_AES_HW_CONFIG_DEC_ANAL_CONV(alg, mode);
 
 		/* In-place key reversal */
 		qat_alg_xts_reverse_key(dec_cd->ucs_aes.key, keylen / 2,
@@ -605,11 +605,11 @@ static int qat_alg_aead_newkey(struct crypto_aead *tfm, const u8 *key,
 {
 	struct qat_alg_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct qat_crypto_instance *inst = NULL;
-	int node = numa_node_id();
+	int analde = numa_analde_id();
 	struct device *dev;
 	int ret;
 
-	inst = qat_crypto_get_instance_node(node);
+	inst = qat_crypto_get_instance_analde(analde);
 	if (!inst)
 		return -EINVAL;
 	dev = &GET_DEV(inst->accel_dev);
@@ -618,14 +618,14 @@ static int qat_alg_aead_newkey(struct crypto_aead *tfm, const u8 *key,
 					 &ctx->enc_cd_paddr,
 					 GFP_ATOMIC);
 	if (!ctx->enc_cd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_inst;
 	}
 	ctx->dec_cd = dma_alloc_coherent(dev, sizeof(*ctx->dec_cd),
 					 &ctx->dec_cd_paddr,
 					 GFP_ATOMIC);
 	if (!ctx->dec_cd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_enc;
 	}
 
@@ -820,7 +820,7 @@ static int qat_alg_aead_dec(struct aead_request *areq)
 	auth_param->auth_len = areq->assoclen + cipher_param->cipher_length;
 
 	ret = qat_alg_send_sym_message(qat_req, ctx->inst, &areq->base);
-	if (ret == -ENOSPC)
+	if (ret == -EANALSPC)
 		qat_bl_free_bufl(ctx->inst->accel_dev, &qat_req->buf);
 
 	return ret;
@@ -866,7 +866,7 @@ static int qat_alg_aead_enc(struct aead_request *areq)
 	auth_param->auth_len = areq->assoclen + areq->cryptlen;
 
 	ret = qat_alg_send_sym_message(qat_req, ctx->inst, &areq->base);
-	if (ret == -ENOSPC)
+	if (ret == -EANALSPC)
 		qat_bl_free_bufl(ctx->inst->accel_dev, &qat_req->buf);
 
 	return ret;
@@ -890,10 +890,10 @@ static int qat_alg_skcipher_newkey(struct qat_alg_skcipher_ctx *ctx,
 {
 	struct qat_crypto_instance *inst = NULL;
 	struct device *dev;
-	int node = numa_node_id();
+	int analde = numa_analde_id();
 	int ret;
 
-	inst = qat_crypto_get_instance_node(node);
+	inst = qat_crypto_get_instance_analde(analde);
 	if (!inst)
 		return -EINVAL;
 	dev = &GET_DEV(inst->accel_dev);
@@ -902,14 +902,14 @@ static int qat_alg_skcipher_newkey(struct qat_alg_skcipher_ctx *ctx,
 					 &ctx->enc_cd_paddr,
 					 GFP_ATOMIC);
 	if (!ctx->enc_cd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_instance;
 	}
 	ctx->dec_cd = dma_alloc_coherent(dev, sizeof(*ctx->dec_cd),
 					 &ctx->dec_cd_paddr,
 					 GFP_ATOMIC);
 	if (!ctx->dec_cd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_enc;
 	}
 
@@ -1049,7 +1049,7 @@ static int qat_alg_skcipher_encrypt(struct skcipher_request *req)
 	qat_alg_set_req_iv(qat_req);
 
 	ret = qat_alg_send_sym_message(qat_req, ctx->inst, &req->base);
-	if (ret == -ENOSPC)
+	if (ret == -EANALSPC)
 		qat_bl_free_bufl(ctx->inst->accel_dev, &qat_req->buf);
 
 	return ret;
@@ -1117,7 +1117,7 @@ static int qat_alg_skcipher_decrypt(struct skcipher_request *req)
 	qat_alg_update_iv(qat_req);
 
 	ret = qat_alg_send_sym_message(qat_req, ctx->inst, &req->base);
-	if (ret == -ENOSPC)
+	if (ret == -EANALSPC)
 		qat_bl_free_bufl(ctx->inst->accel_dev, &qat_req->buf);
 
 	return ret;

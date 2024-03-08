@@ -185,7 +185,7 @@
 	bus-width = <4>;
 	cd-gpios = <&gpioh 3 GPIO_ACTIVE_LOW>;
 	disable-wp;
-	no-1-8-v;
+	anal-1-8-v;
 	st,neg-edge;
 	vmmc-supply = <&reg_3v3>;
 	status = "okay";
@@ -213,10 +213,10 @@
 	pinctrl-2 = <&sdmmc2_b4_sleep_pins_a &sdmmc2_d47_sleep_pins_b>;
 	bus-width = <8>;
 	mmc-ddr-3_3v;
-	no-1-8-v;
-	no-sd;
-	no-sdio;
-	non-removable;
+	anal-1-8-v;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	st,neg-edge;
 	vmmc-supply = <&reg_3v3>;
 	status = "okay";

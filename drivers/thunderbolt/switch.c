@@ -2,7 +2,7 @@
 /*
  * Thunderbolt driver - switch/port utility functions
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Analever <andreas.analever@gmail.com>
  * Copyright (C) 2018, Intel Corporation
  */
 
@@ -129,7 +129,7 @@ static int nvm_authenticate_host_dma_port(struct tb_switch *sw)
 
 	/*
 	 * Root switch NVM upgrade requires that we disconnect the
-	 * existing paths first (in case it is not in safe mode
+	 * existing paths first (in case it is analt in safe mode
 	 * already).
 	 */
 	if (!sw->safe_mode) {
@@ -197,7 +197,7 @@ static int nvm_authenticate_device_dma_port(struct tb_switch *sw)
 				nvm_set_auth_status(sw, status);
 			}
 
-			tb_sw_info(sw, "power cycling the switch now\n");
+			tb_sw_info(sw, "power cycling the switch analw\n");
 			dma_port_power_cycle(sw->dma_port);
 			return 0;
 		}
@@ -213,14 +213,14 @@ static void nvm_authenticate_start_dma_port(struct tb_switch *sw)
 	struct pci_dev *root_port;
 
 	/*
-	 * During host router NVM upgrade we should not allow root port to
-	 * go into D3cold because some root ports cannot trigger PME
+	 * During host router NVM upgrade we should analt allow root port to
+	 * go into D3cold because some root ports cananalt trigger PME
 	 * itself. To be on the safe side keep the root port in D0 during
 	 * the whole upgrade process.
 	 */
 	root_port = pcie_find_root_port(sw->tb->nhi->pdev);
 	if (root_port)
-		pm_runtime_get_noresume(&root_port->dev);
+		pm_runtime_get_analresume(&root_port->dev);
 }
 
 static void nvm_authenticate_complete_dma_port(struct tb_switch *sw)
@@ -250,7 +250,7 @@ static inline bool nvm_readable(struct tb_switch *sw)
 
 static inline bool nvm_upgradeable(struct tb_switch *sw)
 {
-	if (sw->no_nvm_upgrade)
+	if (sw->anal_nvm_upgrade)
 		return false;
 	return nvm_readable(sw);
 }
@@ -269,7 +269,7 @@ static int nvm_authenticate(struct tb_switch *sw, bool auth_only)
 		return usb4_switch_nvm_authenticate(sw);
 	}
 	if (auth_only)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	sw->nvm->authenticating = true;
 	if (!tb_route(sw)) {
@@ -290,7 +290,7 @@ static int nvm_authenticate(struct tb_switch *sw, bool auth_only)
  * @size: Size of the buffer in bytes
  *
  * Reads from router NVM and returns the requested data in @buf. Locking
- * is up to the caller. Returns %0 in success and negative errno in case
+ * is up to the caller. Returns %0 in success and negative erranal in case
  * of failure.
  */
 int tb_switch_nvm_read(struct tb_switch *sw, unsigned int address, void *buf,
@@ -355,7 +355,7 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 
 	nvm = tb_nvm_alloc(&sw->dev);
 	if (IS_ERR(nvm)) {
-		ret = PTR_ERR(nvm) == -EOPNOTSUPP ? 0 : PTR_ERR(nvm);
+		ret = PTR_ERR(nvm) == -EOPANALTSUPP ? 0 : PTR_ERR(nvm);
 		goto err_nvm;
 	}
 
@@ -365,18 +365,18 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 
 	/*
 	 * If the switch is in safe-mode the only accessible portion of
-	 * the NVM is the non-active one where userspace is expected to
+	 * the NVM is the analn-active one where userspace is expected to
 	 * write new functional NVM.
 	 */
 	if (!sw->safe_mode) {
 		ret = tb_nvm_add_active(nvm, nvm_read);
 		if (ret)
 			goto err_nvm;
-		tb_sw_dbg(sw, "NVM version %x.%x\n", nvm->major, nvm->minor);
+		tb_sw_dbg(sw, "NVM version %x.%x\n", nvm->major, nvm->mianalr);
 	}
 
-	if (!sw->no_nvm_upgrade) {
-		ret = tb_nvm_add_non_active(nvm, nvm_write);
+	if (!sw->anal_nvm_upgrade) {
+		ret = tb_nvm_add_analn_active(nvm, nvm_write);
 		if (ret)
 			goto err_nvm;
 	}
@@ -386,7 +386,7 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 
 err_nvm:
 	tb_sw_dbg(sw, "NVM upgrade disabled\n");
-	sw->no_nvm_upgrade = true;
+	sw->anal_nvm_upgrade = true;
 	if (!IS_ERR(nvm))
 		tb_nvm_free(nvm);
 
@@ -424,7 +424,7 @@ static const char *tb_port_type(const struct tb_regs_port_header *port)
 		case 2:
 			return "NHI";
 		default:
-			return "unknown";
+			return "unkanalwn";
 		}
 	case 0x2:
 		return "Ethernet";
@@ -437,7 +437,7 @@ static const char *tb_port_type(const struct tb_regs_port_header *port)
 	case 0x20:
 		return "USB";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -471,7 +471,7 @@ int tb_port_state(struct tb_port *port)
 	struct tb_cap_phy phy;
 	int res;
 	if (port->cap_phy == 0) {
-		tb_port_WARN(port, "does not have a PHY\n");
+		tb_port_WARN(port, "does analt have a PHY\n");
 		return -EINVAL;
 	}
 	res = tb_port_read(port, &phy, TB_CFG_PORT, port->cap_phy, 2);
@@ -489,9 +489,9 @@ int tb_port_state(struct tb_port *port)
  * wait_if_unplugged is set then we also wait if the port is in state
  * TB_PORT_UNPLUGGED (it takes a while for the device to be registered after
  * switch resume). Otherwise we only wait if a device is registered but the link
- * has not yet been established.
+ * has analt yet been established.
  *
- * Return: Returns an error code on failure. Returns 0 if the port is not
+ * Return: Returns an error code on failure. Returns 0 if the port is analt
  * connected or failed to reach state TB_PORT_UP within one second. Returns 1
  * if the port is connected and in state TB_PORT_UP.
  */
@@ -500,7 +500,7 @@ int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged)
 	int retries = 10;
 	int state;
 	if (!port->cap_phy) {
-		tb_port_WARN(port, "does not have PHY\n");
+		tb_port_WARN(port, "does analt have PHY\n");
 		return -EINVAL;
 	}
 	if (tb_is_upstream_port(port)) {
@@ -543,19 +543,19 @@ int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged)
 			 * time.
 			 */
 			tb_port_dbg(port,
-				    "is connected, link is not up (state: %d), retrying...\n",
+				    "is connected, link is analt up (state: %d), retrying...\n",
 				    state);
 			msleep(100);
 		}
 
 	}
 	tb_port_warn(port,
-		     "failed to reach state TB_PORT_UP. Ignoring port...\n");
+		     "failed to reach state TB_PORT_UP. Iganalring port...\n");
 	return 0;
 }
 
 /**
- * tb_port_add_nfc_credits() - add/remove non flow controlled credits to port
+ * tb_port_add_nfc_credits() - add/remove analn flow controlled credits to port
  * @port: Port to add/remove NFC credits
  * @credits: Credits to add/remove
  *
@@ -679,7 +679,7 @@ int tb_port_disable(struct tb_port *port)
 /*
  * tb_init_port() - initialize a port
  *
- * This is a helper method for tb_switch_alloc. Does not check or initialize
+ * This is a helper method for tb_switch_alloc. Does analt check or initialize
  * any downstream switches.
  *
  * Return: Returns 0 on success or an error code on failure.
@@ -691,14 +691,14 @@ static int tb_init_port(struct tb_port *port)
 
 	INIT_LIST_HEAD(&port->list);
 
-	/* Control adapter does not have configuration space */
+	/* Control adapter does analt have configuration space */
 	if (!port->port)
 		return 0;
 
 	res = tb_port_read(port, &port->config, TB_CFG_PORT, 0, 8);
 	if (res) {
-		if (res == -ENODEV) {
-			tb_dbg(port->sw->tb, " Port %d: not implemented\n",
+		if (res == -EANALDEV) {
+			tb_dbg(port->sw->tb, " Port %d: analt implemented\n",
 			       port->port);
 			port->disabled = true;
 			return 0;
@@ -706,14 +706,14 @@ static int tb_init_port(struct tb_port *port)
 		return res;
 	}
 
-	/* Port 0 is the switch itself and has no PHY. */
+	/* Port 0 is the switch itself and has anal PHY. */
 	if (port->config.type == TB_TYPE_PORT) {
 		cap = tb_port_find_cap(port, TB_PORT_CAP_PHY);
 
 		if (cap > 0)
 			port->cap_phy = cap;
 		else
-			tb_port_WARN(port, "non switch port without a PHY\n");
+			tb_port_WARN(port, "analn switch port without a PHY\n");
 
 		cap = tb_port_find_cap(port, TB_PORT_CAP_USB4);
 		if (cap > 0)
@@ -780,7 +780,7 @@ static int tb_port_alloc_hopid(struct tb_port *port, bool in, int min_hopid,
  * @min_hopid: Minimum acceptable input HopID
  * @max_hopid: Maximum acceptable input HopID
  *
- * Return: HopID between @min_hopid and @max_hopid or negative errno in
+ * Return: HopID between @min_hopid and @max_hopid or negative erranal in
  * case of error.
  */
 int tb_port_alloc_in_hopid(struct tb_port *port, int min_hopid, int max_hopid)
@@ -794,7 +794,7 @@ int tb_port_alloc_in_hopid(struct tb_port *port, int min_hopid, int max_hopid)
  * @min_hopid: Minimum acceptable output HopID
  * @max_hopid: Maximum acceptable output HopID
  *
- * Return: HopID between @min_hopid and @max_hopid or negative errno in
+ * Return: HopID between @min_hopid and @max_hopid or negative erranal in
  * case of error.
  */
 int tb_port_alloc_out_hopid(struct tb_port *port, int min_hopid, int max_hopid)
@@ -835,9 +835,9 @@ static inline bool tb_switch_is_reachable(const struct tb_switch *parent,
  * @end: End port of the walk
  * @prev: Previous port (%NULL if this is the first)
  *
- * This function can be used to walk from one port to another if they
+ * This function can be used to walk from one port to aanalther if they
  * are connected through zero or more switches. If the @prev is dual
- * link port, the function follows that link and returns another end on
+ * link port, the function follows that link and returns aanalther end on
  * that same link.
  *
  * If the @end port has been reached, return %NULL.
@@ -887,7 +887,7 @@ struct tb_port *tb_next_port_on_path(struct tb_port *start, struct tb_port *end,
  * tb_port_get_link_speed() - Get current link speed
  * @port: Port to check (USB4 or CIO)
  *
- * Returns link speed in Gb/s or negative errno in case of failure.
+ * Returns link speed in Gb/s or negative erranal in case of failure.
  */
 int tb_port_get_link_speed(struct tb_port *port)
 {
@@ -919,8 +919,8 @@ int tb_port_get_link_speed(struct tb_port *port)
  * tb_port_get_link_generation() - Returns link generation
  * @port: Lane adapter
  *
- * Returns link generation as number or negative errno in case of
- * failure. Does not distinguish between Thunderbolt 1 and Thunderbolt 2
+ * Returns link generation as number or negative erranal in case of
+ * failure. Does analt distinguish between Thunderbolt 1 and Thunderbolt 2
  * links so for those always returns 2.
  */
 int tb_port_get_link_generation(struct tb_port *port)
@@ -946,7 +946,7 @@ int tb_port_get_link_generation(struct tb_port *port)
  * @port: Port to check (USB4 or CIO)
  *
  * Returns link width. Return the link width as encoded in &enum
- * tb_link_width or negative errno in case of failure.
+ * tb_link_width or negative erranal in case of failure.
  */
 int tb_port_get_link_width(struct tb_port *port)
 {
@@ -1006,10 +1006,10 @@ bool tb_port_width_supported(struct tb_port *port, unsigned int width)
  * @port: Lane adapter
  * @width: Target link width
  *
- * Sets the target link width of the lane adapter to @width. Does not
+ * Sets the target link width of the lane adapter to @width. Does analt
  * enable/disable lane bonding. For that call tb_port_set_lane_bonding().
  *
- * Return: %0 in case of success and negative errno in case of error
+ * Return: %0 in case of success and negative erranal in case of error
  */
 int tb_port_set_link_width(struct tb_port *port, enum tb_link_width width)
 {
@@ -1027,9 +1027,9 @@ int tb_port_set_link_width(struct tb_port *port, enum tb_link_width width)
 	val &= ~LANE_ADP_CS_1_TARGET_WIDTH_MASK;
 	switch (width) {
 	case TB_LINK_WIDTH_SINGLE:
-		/* Gen 4 link cannot be single */
+		/* Gen 4 link cananalt be single */
 		if (tb_port_get_link_generation(port) >= 4)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		val |= LANE_ADP_CS_1_TARGET_WIDTH_SINGLE <<
 			LANE_ADP_CS_1_TARGET_WIDTH_SHIFT;
 		break;
@@ -1059,11 +1059,11 @@ int tb_port_set_link_width(struct tb_port *port, enum tb_link_width width)
  * @bonding: enable/disable bonding
  *
  * Enables or disables lane bonding. This should be called after target
- * link width has been set (tb_port_set_link_width()). Note in most
+ * link width has been set (tb_port_set_link_width()). Analte in most
  * cases one should use tb_port_lane_bonding_enable() instead to enable
  * lane bonding.
  *
- * Return: %0 in case of success and negative errno in case of error
+ * Return: %0 in case of success and negative erranal in case of error
  */
 static int tb_port_set_lane_bonding(struct tb_port *port, bool bonding)
 {
@@ -1092,12 +1092,12 @@ static int tb_port_set_lane_bonding(struct tb_port *port, bool bonding)
  * @port: port to enable
  *
  * Enable bonding by setting the link width of the port and the other
- * port in case of dual link port. Does not wait for the link to
+ * port in case of dual link port. Does analt wait for the link to
  * actually reach the bonded state so caller needs to call
  * tb_port_wait_for_link_width() before enabling any paths through the
  * link to make sure the link is in expected state.
  *
- * Return: %0 in case of success and negative errno in case of error
+ * Return: %0 in case of success and negative erranal in case of error
  */
 int tb_port_lane_bonding_enable(struct tb_port *port)
 {
@@ -1105,7 +1105,7 @@ int tb_port_lane_bonding_enable(struct tb_port *port)
 	int ret;
 
 	/*
-	 * Enable lane bonding for both links if not already enabled by
+	 * Enable lane bonding for both links if analt already enabled by
 	 * for example the boot firmware.
 	 */
 	width = tb_port_get_link_width(port);
@@ -1124,7 +1124,7 @@ int tb_port_lane_bonding_enable(struct tb_port *port)
 	}
 
 	/*
-	 * Only set bonding if the link was not already bonded. This
+	 * Only set bonding if the link was analt already bonded. This
 	 * avoids the lane adapter to re-enter bonding state.
 	 */
 	if (width == TB_LINK_WIDTH_SINGLE && !tb_is_upstream_port(port)) {
@@ -1174,7 +1174,7 @@ void tb_port_lane_bonding_disable(struct tb_port *port)
  *
  * Should be used after both ends of the link have been bonded (or
  * bonding has been disabled) to wait until the link actually reaches
- * the expected state. Returns %-ETIMEDOUT if the width was not reached
+ * the expected state. Returns %-ETIMEDOUT if the width was analt reached
  * within the given timeout, %0 if it did. Can be passed a mask of
  * expected widths and succeeds if any of the widths is reached.
  */
@@ -1184,17 +1184,17 @@ int tb_port_wait_for_link_width(struct tb_port *port, unsigned int width,
 	ktime_t timeout = ktime_add_ms(ktime_get(), timeout_msec);
 	int ret;
 
-	/* Gen 4 link does not support single lane */
+	/* Gen 4 link does analt support single lane */
 	if ((width & TB_LINK_WIDTH_SINGLE) &&
 	    tb_port_get_link_generation(port) >= 4)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	do {
 		ret = tb_port_get_link_width(port);
 		if (ret < 0) {
 			/*
 			 * Sometimes we get port locked error when
-			 * polling the lanes so we can ignore it and
+			 * polling the lanes so we can iganalre it and
 			 * retry.
 			 */
 			if (ret != -EACCES)
@@ -1276,12 +1276,12 @@ static bool tb_port_resume(struct tb_port *port)
 	} else if (!has_remote) {
 		/*
 		 * For disconnected downstream lane adapters start lane
-		 * initialization now so we detect future connects.
+		 * initialization analw so we detect future connects.
 		 *
-		 * For XDomain start the lane initialzation now so the
+		 * For XDomain start the lane initialzation analw so the
 		 * link gets re-established.
 		 *
-		 * This is only needed for non-USB4 ports.
+		 * This is only needed for analn-USB4 ports.
 		 */
 		if (!tb_is_upstream_port(port) || port->xdomain)
 			tb_port_start_lane_initialization(port);
@@ -1422,7 +1422,7 @@ int tb_dp_port_hpd_clear(struct tb_port *port)
  * @aux_rx: AUX RX Hop ID
  *
  * Programs specified Hop IDs for DP IN/OUT port. Can be called for USB4
- * router DP adapters too but does not program the values as the fields
+ * router DP adapters too but does analt program the values as the fields
  * are read-only.
  */
 int tb_dp_port_set_hops(struct tb_port *port, unsigned int video,
@@ -1509,7 +1509,7 @@ static const char *tb_switch_generation_name(const struct tb_switch *sw)
 	case 4:
 		return "USB4";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -1527,8 +1527,8 @@ static void tb_dump_switch(const struct tb *tb, const struct tb_switch *sw)
 	       regs->upstream_port_number, regs->depth,
 	       (((u64) regs->route_hi) << 32) | regs->route_lo,
 	       regs->enabled, regs->plug_events_delay);
-	tb_dbg(tb, "   unknown1: %#x unknown4: %#x\n",
-	       regs->__unknown1, regs->__unknown4);
+	tb_dbg(tb, "   unkanalwn1: %#x unkanalwn4: %#x\n",
+	       regs->__unkanalwn1, regs->__unkanalwn4);
 }
 
 /**
@@ -1565,8 +1565,8 @@ int tb_switch_reset(struct tb_switch *sw)
  * @timeout_msec: Timeout in ms how long to wait
  *
  * Wait till the specified bits in specified offset reach specified value.
- * Returns %0 in case of success, %-ETIMEDOUT if the @value was not reached
- * within the given timeout or a negative errno in case of failure.
+ * Returns %0 in case of success, %-ETIMEDOUT if the @value was analt reached
+ * within the given timeout or a negative erranal in case of failure.
  */
 int tb_switch_wait_for_bit(struct tb_switch *sw, u32 offset, u32 bit,
 			   u32 value, int timeout_msec)
@@ -1646,7 +1646,7 @@ static ssize_t authorized_show(struct device *dev,
 	return sysfs_emit(buf, "%u\n", sw->authorized);
 }
 
-static int disapprove_switch(struct device *dev, void *not_used)
+static int disapprove_switch(struct device *dev, void *analt_used)
 {
 	char *envp[] = { "AUTHORIZED=0", NULL };
 	struct tb_switch *sw;
@@ -1713,7 +1713,7 @@ static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 	if (!ret) {
 		sw->authorized = val;
 		/*
-		 * Notify status change to the userspace, informing the new
+		 * Analtify status change to the userspace, informing the new
 		 * value of /sys/bus/thunderbolt/devices/.../authorized.
 		 */
 		sprintf(envp_string, "AUTHORIZED=%u", sw->authorized);
@@ -1827,7 +1827,7 @@ static ssize_t key_store(struct device *dev, struct device_attribute *attr,
 		} else {
 			sw->key = kmemdup(key, sizeof(key), GFP_KERNEL);
 			if (!sw->key)
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 		}
 	}
 
@@ -1926,12 +1926,12 @@ static ssize_t nvm_authenticate_sysfs(struct device *dev, const char *buf,
 		goto exit_rpm;
 	}
 
-	if (sw->no_nvm_upgrade) {
-		ret = -EOPNOTSUPP;
+	if (sw->anal_nvm_upgrade) {
+		ret = -EOPANALTSUPP;
 		goto exit_unlock;
 	}
 
-	/* If NVMem devices are not yet added */
+	/* If NVMem devices are analt yet added */
 	if (!sw->nvm) {
 		ret = -EAGAIN;
 		goto exit_unlock;
@@ -2015,11 +2015,11 @@ static ssize_t nvm_version_show(struct device *dev,
 		return restart_syscall();
 
 	if (sw->safe_mode)
-		ret = -ENODATA;
+		ret = -EANALDATA;
 	else if (!sw->nvm)
 		ret = -EAGAIN;
 	else
-		ret = sysfs_emit(buf, "%x.%x\n", sw->nvm->major, sw->nvm->minor);
+		ret = sysfs_emit(buf, "%x.%x\n", sw->nvm->major, sw->nvm->mianalr);
 
 	mutex_unlock(&sw->tb->lock);
 
@@ -2081,7 +2081,7 @@ static umode_t switch_attr_is_visible(struct kobject *kobj,
 	struct tb_switch *sw = tb_to_switch(dev);
 
 	if (attr == &dev_attr_authorized.attr) {
-		if (sw->tb->security_level == TB_SECURITY_NOPCIE ||
+		if (sw->tb->security_level == TB_SECURITY_ANALPCIE ||
 		    sw->tb->security_level == TB_SECURITY_DPONLY)
 			return 0;
 	} else if (attr == &dev_attr_device.attr) {
@@ -2169,7 +2169,7 @@ static int tb_switch_uevent(const struct device *dev, struct kobj_uevent_env *en
 	if (tb_switch_is_usb4(sw)) {
 		if (add_uevent_var(env, "USB4_VERSION=%u.0",
 				   usb4_switch_version(sw)))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (!tb_route(sw)) {
@@ -2191,7 +2191,7 @@ static int tb_switch_uevent(const struct device *dev, struct kobj_uevent_env *en
 	}
 
 	if (add_uevent_var(env, "USB4_TYPE=%s", type))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -2269,7 +2269,7 @@ static int tb_switch_get_generation(struct tb_switch *sw)
 	}
 
 	/*
-	 * For unknown switches assume generation to be 1 to be on the
+	 * For unkanalwn switches assume generation to be 1 to be on the
 	 * safe side.
 	 */
 	tb_sw_warn(sw, "unsupported switch device id %#x\n",
@@ -2296,7 +2296,7 @@ static bool tb_switch_exceeds_max_depth(const struct tb_switch *sw, int depth)
  * @parent: Parent device for this switch
  * @route: Route string for this switch
  *
- * Allocates and initializes a switch. Will not upload configuration to
+ * Allocates and initializes a switch. Will analt upload configuration to
  * the switch. For that you need to call tb_switch_configure()
  * separately. The returned switch should be released by calling
  * tb_switch_put().
@@ -2328,7 +2328,7 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 
 	sw = kzalloc(sizeof(*sw), GFP_KERNEL);
 	if (!sw)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sw->tb = tb;
 	ret = tb_cfg_read(tb->ctl, &sw->config, route, 0, TB_CFG_SWITCH, 0, 5);
@@ -2347,9 +2347,9 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 	sw->config.route_lo = lower_32_bits(route);
 	sw->config.enabled = 0;
 
-	/* Make sure we do not exceed maximum topology limit */
+	/* Make sure we do analt exceed maximum topology limit */
 	if (tb_switch_exceeds_max_depth(sw, depth)) {
-		ret = -EADDRNOTAVAIL;
+		ret = -EADDRANALTAVAIL;
 		goto err_free_sw_ports;
 	}
 
@@ -2357,7 +2357,7 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 	sw->ports = kcalloc(sw->config.max_port_number + 1, sizeof(*sw->ports),
 				GFP_KERNEL);
 	if (!sw->ports) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_sw_ports;
 	}
 
@@ -2366,7 +2366,7 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 		sw->ports[i].sw = sw;
 		sw->ports[i].port = i;
 
-		/* Control port does not need HopID allocation */
+		/* Control port does analt need HopID allocation */
 		if (i) {
 			ida_init(&sw->ports[i].in_hopids);
 			ida_init(&sw->ports[i].out_hopids);
@@ -2430,7 +2430,7 @@ tb_switch_alloc_safe_mode(struct tb *tb, struct device *parent, u64 route)
 
 	sw = kzalloc(sizeof(*sw), GFP_KERNEL);
 	if (!sw)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sw->tb = tb;
 	sw->config.depth = tb_route_length(route);
@@ -2457,7 +2457,7 @@ tb_switch_alloc_safe_mode(struct tb *tb, struct device *parent, u64 route)
  * connection manager to use. Can be called to the switch again after
  * resume from low power states to re-initialize it.
  *
- * Return: %0 in case of success and negative errno in case of failure
+ * Return: %0 in case of success and negative erranal in case of failure
  */
 int tb_switch_configure(struct tb_switch *sw)
 {
@@ -2476,7 +2476,7 @@ int tb_switch_configure(struct tb_switch *sw)
 	if (tb_switch_is_usb4(sw)) {
 		/*
 		 * For USB4 devices, we need to program the CM version
-		 * accordingly so that it knows to expose all the
+		 * accordingly so that it kanalws to expose all the
 		 * additional capabilities. Program it according to USB4
 		 * version to avoid changing existing (v1) routers behaviour.
 		 */
@@ -2495,12 +2495,12 @@ int tb_switch_configure(struct tb_switch *sw)
 		ret = usb4_switch_setup(sw);
 	} else {
 		if (sw->config.vendor_id != PCI_VENDOR_ID_INTEL)
-			tb_sw_warn(sw, "unknown switch vendor id %#x\n",
+			tb_sw_warn(sw, "unkanalwn switch vendor id %#x\n",
 				   sw->config.vendor_id);
 
 		if (!sw->cap_plug_events) {
-			tb_sw_warn(sw, "cannot find TB_VSE_CAP_PLUG_EVENTS aborting\n");
-			return -ENODEV;
+			tb_sw_warn(sw, "cananalt find TB_VSE_CAP_PLUG_EVENTS aborting\n");
+			return -EANALDEV;
 		}
 
 		/* Enumerate the switch */
@@ -2520,7 +2520,7 @@ int tb_switch_configure(struct tb_switch *sw)
  * Needs to be called before any tunnels can be setup through the
  * router. Can be called to any router.
  *
- * Returns %0 in success and negative errno otherwise.
+ * Returns %0 in success and negative erranal otherwise.
  */
 int tb_switch_configuration_valid(struct tb_switch *sw)
 {
@@ -2559,7 +2559,7 @@ static int tb_switch_set_uuid(struct tb_switch *sw)
 	if (uid) {
 		/*
 		 * ICM generates UUID based on UID and fills the upper
-		 * two words with ones. This is not strictly following
+		 * two words with ones. This is analt strictly following
 		 * UUID format but we want to be compatible with it so
 		 * we do the same here.
 		 */
@@ -2571,7 +2571,7 @@ static int tb_switch_set_uuid(struct tb_switch *sw)
 
 	sw->uuid = kmemdup(uuid, sizeof(uuid), GFP_KERNEL);
 	if (!sw->uuid)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -2604,7 +2604,7 @@ static int tb_switch_add_dma_port(struct tb_switch *sw)
 		break;
 	}
 
-	if (sw->no_nvm_upgrade)
+	if (sw->anal_nvm_upgrade)
 		return 0;
 
 	if (tb_switch_is_usb4(sw)) {
@@ -2631,7 +2631,7 @@ static int tb_switch_add_dma_port(struct tb_switch *sw)
 	/*
 	 * If there is status already set then authentication failed
 	 * when the dma_port_flash_update_auth() returned. Power cycling
-	 * is not needed (it was done already) so only thing we do here
+	 * is analt needed (it was done already) so only thing we do here
 	 * is to unblock runtime PM of the root port.
 	 */
 	nvm_get_auth_status(sw, &status);
@@ -2650,7 +2650,7 @@ static int tb_switch_add_dma_port(struct tb_switch *sw)
 	if (ret <= 0)
 		return ret;
 
-	/* Now we can allow root port to suspend again */
+	/* Analw we can allow root port to suspend again */
 	if (!tb_route(sw))
 		nvm_authenticate_complete_dma_port(sw);
 
@@ -2659,7 +2659,7 @@ static int tb_switch_add_dma_port(struct tb_switch *sw)
 		nvm_set_auth_status(sw, status);
 	}
 
-	tb_sw_info(sw, "power cycling the switch now\n");
+	tb_sw_info(sw, "power cycling the switch analw\n");
 	dma_port_power_cycle(sw->dma_port);
 
 	/*
@@ -2685,7 +2685,7 @@ static void tb_switch_default_link_ports(struct tb_switch *sw)
 		    !tb_port_is_null(&sw->ports[i + 1]))
 			continue;
 
-		/* Link them if not already done so (by DROM) */
+		/* Link them if analt already done so (by DROM) */
 		subordinate = &sw->ports[i + 1];
 		if (!port->dual_link_port && !subordinate->dual_link_port) {
 			port->link_nr = 0;
@@ -2736,7 +2736,7 @@ static int tb_switch_update_link_attributes(struct tb_switch *sw)
 		change = true;
 	sw->link_width = ret;
 
-	/* Notify userspace that there is possible link attribute change */
+	/* Analtify userspace that there is possible link attribute change */
 	if (device_is_registered(&sw->dev) && change)
 		kobject_uevent(&sw->dev.kobj, KOBJ_CHANGE);
 
@@ -2779,7 +2779,7 @@ static void tb_switch_link_init(struct tb_switch *sw)
 
 	/*
 	 * Set the Gen 4 preferred link width. This is what the router
-	 * prefers when the link is brought up. If the router does not
+	 * prefers when the link is brought up. If the router does analt
 	 * support asymmetric link configuration, this also will be set
 	 * to TB_LINK_WIDTH_DUAL.
 	 */
@@ -2817,7 +2817,7 @@ static int tb_switch_lane_bonding_enable(struct tb_switch *sw)
 	 * CL0 and check just for lane 1.
 	 */
 	if (tb_wait_for_port(down->dual_link_port, false) <= 0)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	ret = tb_port_lane_bonding_enable(up);
 	if (ret) {
@@ -2844,7 +2844,7 @@ static int tb_switch_lane_bonding_enable(struct tb_switch *sw)
  * @sw: Switch whose lane bonding to disable
  *
  * Disables lane bonding between @sw and parent. This can be called even
- * if lanes were not bonded originally.
+ * if lanes were analt bonded originally.
  */
 static int tb_switch_lane_bonding_disable(struct tb_switch *sw)
 {
@@ -2856,15 +2856,15 @@ static int tb_switch_lane_bonding_disable(struct tb_switch *sw)
 		return 0;
 
 	/*
-	 * If the link is Gen 4 there is no way to switch the link to
+	 * If the link is Gen 4 there is anal way to switch the link to
 	 * two single lane links so avoid that here. Also don't bother
-	 * if the link is not up anymore (sw is unplugged).
+	 * if the link is analt up anymore (sw is unplugged).
 	 */
 	ret = tb_port_get_link_generation(up);
 	if (ret < 0)
 		return ret;
 	if (ret >= 4)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	down = tb_switch_downstream_port(sw);
 	tb_port_lane_bonding_disable(up);
@@ -2877,7 +2877,7 @@ static int tb_switch_lane_bonding_disable(struct tb_switch *sw)
 	return tb_port_wait_for_link_width(down, TB_LINK_WIDTH_SINGLE, 100);
 }
 
-/* Note updating sw->link_width done in tb_switch_update_link_attributes() */
+/* Analte updating sw->link_width done in tb_switch_update_link_attributes() */
 static int tb_switch_asym_enable(struct tb_switch *sw, enum tb_link_width width)
 {
 	struct tb_port *up, *down, *port;
@@ -2920,7 +2920,7 @@ static int tb_switch_asym_enable(struct tb_switch *sw, enum tb_link_width width)
 	return 0;
 }
 
-/* Note updating sw->link_width done in tb_switch_update_link_attributes() */
+/* Analte updating sw->link_width done in tb_switch_update_link_attributes() */
 static int tb_switch_asym_disable(struct tb_switch *sw)
 {
 	struct tb_port *up, *down;
@@ -2967,9 +2967,9 @@ static int tb_switch_asym_disable(struct tb_switch *sw)
  * perspective. Supports also asymmetric links if the routers boths side
  * of the link supports it.
  *
- * Does nothing for host router.
+ * Does analthing for host router.
  *
- * Returns %0 in case of success, negative errno otherwise.
+ * Returns %0 in case of success, negative erranal otherwise.
  */
 int tb_switch_set_link_width(struct tb_switch *sw, enum tb_link_width width)
 {
@@ -3011,9 +3011,9 @@ int tb_switch_set_link_width(struct tb_switch *sw, enum tb_link_width width)
 		tb_sw_warn(sw, "timeout changing link width\n");
 		return ret;
 
-	case -ENOTCONN:
-	case -EOPNOTSUPP:
-	case -ENODEV:
+	case -EANALTCONN:
+	case -EOPANALTSUPP:
+	case -EANALDEV:
 		return ret;
 
 	default:
@@ -3035,12 +3035,12 @@ int tb_switch_set_link_width(struct tb_switch *sw, enum tb_link_width width)
  * @sw: Switch whose link is configured
  *
  * Sets the link upstream from @sw configured (from both ends) so that
- * it will not be disconnected when the domain exits sleep. Can be
+ * it will analt be disconnected when the domain exits sleep. Can be
  * called for any switch.
  *
  * It is recommended that this is called after lane bonding is enabled.
  *
- * Returns %0 on success and negative errno in case of error.
+ * Returns %0 on success and negative erranal in case of error.
  */
 int tb_switch_configure_link(struct tb_switch *sw)
 {
@@ -3133,14 +3133,14 @@ static int tb_switch_port_hotplug_enable(struct tb_switch *sw)
  * exposed to the userspace when this function successfully returns. To
  * remove and release the switch, call tb_switch_remove().
  *
- * Return: %0 in case of success and negative errno in case of failure
+ * Return: %0 in case of success and negative erranal in case of failure
  */
 int tb_switch_add(struct tb_switch *sw)
 {
 	int i, ret;
 
 	/*
-	 * Initialize DMA control port now before we read DROM. Recent
+	 * Initialize DMA control port analw before we read DROM. Recent
 	 * host controllers have more complete DROM on NVM that includes
 	 * vendor and model identification strings which we then expose
 	 * to the userspace. NVM can be accessed through DMA
@@ -3229,7 +3229,7 @@ int tb_switch_add(struct tb_switch *sw)
 	}
 
 	/*
-	 * Thunderbolt routers do not generate wakeups themselves but
+	 * Thunderbolt routers do analt generate wakeups themselves but
 	 * they forward wakeups from tunneled protocols, so enable it
 	 * here.
 	 */
@@ -3308,7 +3308,7 @@ void tb_sw_set_unplugged(struct tb_switch *sw)
 	struct tb_port *port;
 
 	if (sw == sw->tb->root_switch) {
-		tb_sw_WARN(sw, "cannot unplug root switch\n");
+		tb_sw_WARN(sw, "cananalt unplug root switch\n");
 		return;
 	}
 	if (sw->is_unplugged) {
@@ -3345,25 +3345,25 @@ int tb_switch_resume(struct tb_switch *sw)
 
 	/*
 	 * Check for UID of the connected switches except for root
-	 * switch which we assume cannot be removed.
+	 * switch which we assume cananalt be removed.
 	 */
 	if (tb_route(sw)) {
 		u64 uid;
 
 		/*
 		 * Check first that we can still read the switch config
-		 * space. It may be that there is now another domain
+		 * space. It may be that there is analw aanalther domain
 		 * connected.
 		 */
 		err = tb_cfg_get_upstream_port(sw->tb->ctl, tb_route(sw));
 		if (err < 0) {
-			tb_sw_info(sw, "switch not present anymore\n");
+			tb_sw_info(sw, "switch analt present anymore\n");
 			return err;
 		}
 
 		/* We don't have any way to confirm this was the same device */
 		if (!sw->uid)
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (tb_switch_is_usb4(sw))
 			err = usb4_switch_read_uid(sw, &uid);
@@ -3377,7 +3377,7 @@ int tb_switch_resume(struct tb_switch *sw)
 			tb_sw_info(sw,
 				"changed while suspended (uid %#llx -> %#llx)\n",
 				sw->uid, uid);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -3496,7 +3496,7 @@ bool tb_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in)
  *
  * Allocates DP resource for DP tunneling. The resource must be
  * available for this to succeed (see tb_switch_query_dp_resource()).
- * Returns %0 in success and negative errno otherwise.
+ * Returns %0 in success and negative erranal otherwise.
  */
 int tb_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 {
@@ -3670,7 +3670,7 @@ struct tb_port *tb_switch_find_port(struct tb_switch *sw,
 
 /*
  * Can be used for read/write a specified PCIe bridge for any Thunderbolt 3
- * device. For now used only for Titan Ridge.
+ * device. For analw used only for Titan Ridge.
  */
 static int tb_switch_pcie_bridge_write(struct tb_switch *sw, unsigned int bridge,
 				       unsigned int pcie_offset, u32 value)
@@ -3679,7 +3679,7 @@ static int tb_switch_pcie_bridge_write(struct tb_switch *sw, unsigned int bridge
 	int ret;
 
 	if (sw->generation != 3)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	offset = sw->cap_plug_events + TB_PLUG_EVENTS_PCIE_WR_DATA;
 	ret = tb_sw_write(sw, &value, TB_CFG_SWITCH, offset, 1);
@@ -3754,7 +3754,7 @@ int tb_switch_pcie_l1_enable(struct tb_switch *sw)
  * Can be called to any router. For Alpine Ridge and Titan Ridge
  * performs special flows that bring the xHCI functional for any device
  * connected to the type-C port. Call only after PCIe tunnel has been
- * established. The function only does the connect if not done already
+ * established. The function only does the connect if analt done already
  * so can be called several times for the same router.
  */
 int tb_switch_xhci_connect(struct tb_switch *sw)

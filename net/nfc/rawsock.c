@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Analkia de Tecanallogia
  *
  * Authors:
  *    Aloisio Almeida Jr <aloisio.almeida@openbossa.org>
@@ -23,14 +23,14 @@ static struct nfc_sock_list raw_sk_list = {
 static void nfc_sock_link(struct nfc_sock_list *l, struct sock *sk)
 {
 	write_lock(&l->lock);
-	sk_add_node(sk, &l->head);
+	sk_add_analde(sk, &l->head);
 	write_unlock(&l->lock);
 }
 
 static void nfc_sock_unlink(struct nfc_sock_list *l, struct sock *sk)
 {
 	write_lock(&l->lock);
-	sk_del_node_init(sk);
+	sk_del_analde_init(sk);
 	write_unlock(&l->lock);
 }
 
@@ -99,7 +99,7 @@ static int rawsock_connect(struct socket *sock, struct sockaddr *_addr,
 
 	dev = nfc_get_device(addr->dev_idx);
 	if (!dev) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto error;
 	}
 
@@ -212,10 +212,10 @@ static int rawsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	pr_debug("sock=%p sk=%p len=%zu\n", sock, sk, len);
 
 	if (msg->msg_namelen)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (sock->state != SS_CONNECTED)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	skb = nfc_alloc_send_skb(dev, sk, msg->msg_flags, len, &rc);
 	if (skb == NULL)
@@ -269,36 +269,36 @@ static const struct proto_ops rawsock_ops = {
 	.family         = PF_NFC,
 	.owner          = THIS_MODULE,
 	.release        = rawsock_release,
-	.bind           = sock_no_bind,
+	.bind           = sock_anal_bind,
 	.connect        = rawsock_connect,
-	.socketpair     = sock_no_socketpair,
-	.accept         = sock_no_accept,
-	.getname        = sock_no_getname,
+	.socketpair     = sock_anal_socketpair,
+	.accept         = sock_anal_accept,
+	.getname        = sock_anal_getname,
 	.poll           = datagram_poll,
-	.ioctl          = sock_no_ioctl,
-	.listen         = sock_no_listen,
-	.shutdown       = sock_no_shutdown,
+	.ioctl          = sock_anal_ioctl,
+	.listen         = sock_anal_listen,
+	.shutdown       = sock_anal_shutdown,
 	.sendmsg        = rawsock_sendmsg,
 	.recvmsg        = rawsock_recvmsg,
-	.mmap           = sock_no_mmap,
+	.mmap           = sock_anal_mmap,
 };
 
 static const struct proto_ops rawsock_raw_ops = {
 	.family         = PF_NFC,
 	.owner          = THIS_MODULE,
 	.release        = rawsock_release,
-	.bind           = sock_no_bind,
-	.connect        = sock_no_connect,
-	.socketpair     = sock_no_socketpair,
-	.accept         = sock_no_accept,
-	.getname        = sock_no_getname,
+	.bind           = sock_anal_bind,
+	.connect        = sock_anal_connect,
+	.socketpair     = sock_anal_socketpair,
+	.accept         = sock_anal_accept,
+	.getname        = sock_anal_getname,
 	.poll           = datagram_poll,
-	.ioctl          = sock_no_ioctl,
-	.listen         = sock_no_listen,
-	.shutdown       = sock_no_shutdown,
-	.sendmsg        = sock_no_sendmsg,
+	.ioctl          = sock_anal_ioctl,
+	.listen         = sock_anal_listen,
+	.shutdown       = sock_anal_shutdown,
+	.sendmsg        = sock_anal_sendmsg,
 	.recvmsg        = rawsock_recvmsg,
-	.mmap           = sock_no_mmap,
+	.mmap           = sock_anal_mmap,
 };
 
 static void rawsock_destruct(struct sock *sk)
@@ -328,7 +328,7 @@ static int rawsock_create(struct net *net, struct socket *sock,
 	pr_debug("sock=%p\n", sock);
 
 	if ((sock->type != SOCK_SEQPACKET) && (sock->type != SOCK_RAW))
-		return -ESOCKTNOSUPPORT;
+		return -ESOCKTANALSUPPORT;
 
 	if (sock->type == SOCK_RAW) {
 		if (!ns_capable(net->user_ns, CAP_NET_RAW))
@@ -340,7 +340,7 @@ static int rawsock_create(struct net *net, struct socket *sock,
 
 	sk = sk_alloc(net, PF_NFC, GFP_ATOMIC, nfc_proto->proto, kern);
 	if (!sk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sock_init_data(sock, sk);
 	sk->sk_protocol = nfc_proto->id;

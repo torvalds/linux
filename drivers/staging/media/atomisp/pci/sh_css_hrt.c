@@ -36,30 +36,30 @@
 
 bool sh_css_hrt_system_is_idle(void)
 {
-	bool not_idle = false, idle;
+	bool analt_idle = false, idle;
 	fifo_channel_t ch;
 
 	idle = sp_ctrl_getbit(SP0_ID, SP_SC_REG, SP_IDLE_BIT);
-	not_idle |= !idle;
+	analt_idle |= !idle;
 	if (!idle)
-		IA_CSS_WARNING("SP not idle");
+		IA_CSS_WARNING("SP analt idle");
 
 	idle = isp_ctrl_getbit(ISP0_ID, ISP_SC_REG, ISP_IDLE_BIT);
-	not_idle |= !idle;
+	analt_idle |= !idle;
 	if (!idle)
-		IA_CSS_WARNING("ISP not idle");
+		IA_CSS_WARNING("ISP analt idle");
 
 	for (ch = 0; ch < N_FIFO_CHANNEL; ch++) {
 		fifo_channel_state_t state;
 
 		fifo_channel_get_state(FIFO_MONITOR0_ID, ch, &state);
 		if (state.fifo_valid) {
-			IA_CSS_WARNING("FIFO channel %d is not empty", ch);
-			not_idle = true;
+			IA_CSS_WARNING("FIFO channel %d is analt empty", ch);
+			analt_idle = true;
 		}
 	}
 
-	return !not_idle;
+	return !analt_idle;
 }
 
 int sh_css_hrt_sp_wait(void)

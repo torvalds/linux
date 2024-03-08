@@ -73,23 +73,23 @@ static int pm80x_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
  * Calculate the next alarm time given the requested alarm time mask
  * and the current time.
  */
-static void rtc_next_alarm_time(struct rtc_time *next, struct rtc_time *now,
+static void rtc_next_alarm_time(struct rtc_time *next, struct rtc_time *analw,
 				struct rtc_time *alrm)
 {
 	unsigned long next_time;
-	unsigned long now_time;
+	unsigned long analw_time;
 
-	next->tm_year = now->tm_year;
-	next->tm_mon = now->tm_mon;
-	next->tm_mday = now->tm_mday;
+	next->tm_year = analw->tm_year;
+	next->tm_mon = analw->tm_mon;
+	next->tm_mday = analw->tm_mday;
 	next->tm_hour = alrm->tm_hour;
 	next->tm_min = alrm->tm_min;
 	next->tm_sec = alrm->tm_sec;
 
-	now_time = rtc_tm_to_time64(now);
+	analw_time = rtc_tm_to_time64(analw);
 	next_time = rtc_tm_to_time64(next);
 
-	if (next_time < now_time) {
+	if (next_time < analw_time) {
 		/* Advance one day */
 		next_time += 60 * 60 * 24;
 		rtc_time64_to_tm(next_time, next);
@@ -170,7 +170,7 @@ static int pm80x_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 static int pm80x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct pm80x_rtc_info *info = dev_get_drvdata(dev);
-	struct rtc_time now_tm, alarm_tm;
+	struct rtc_time analw_tm, alarm_tm;
 	unsigned long ticks, base, data;
 	unsigned char buf[4];
 	int mask;
@@ -190,9 +190,9 @@ static int pm80x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	dev_dbg(info->dev, "get base:0x%lx, RO count:0x%lx, ticks:0x%lx\n",
 		base, data, ticks);
 
-	rtc_time64_to_tm(ticks, &now_tm);
-	dev_dbg(info->dev, "%s, now time : %lu\n", __func__, ticks);
-	rtc_next_alarm_time(&alarm_tm, &now_tm, &alrm->time);
+	rtc_time64_to_tm(ticks, &analw_tm);
+	dev_dbg(info->dev, "%s, analw time : %lu\n", __func__, ticks);
+	rtc_next_alarm_time(&alarm_tm, &analw_tm, &alrm->time);
 	/* get new ticks for alarm in 24 hours */
 	ticks = rtc_tm_to_time64(&alarm_tm);
 	dev_dbg(info->dev, "%s, alarm time: %lu\n", __func__, ticks);
@@ -241,12 +241,12 @@ static int pm80x_rtc_probe(struct platform_device *pdev)
 	struct pm80x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm80x_rtc_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct pm80x_rtc_info *info;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	int ret;
 
-	if (!pdata && !node) {
+	if (!pdata && !analde) {
 		dev_err(&pdev->dev,
-			"pm80x-rtc requires platform data or of_node\n");
+			"pm80x-rtc requires platform data or of_analde\n");
 		return -EINVAL;
 	}
 
@@ -254,14 +254,14 @@ static int pm80x_rtc_probe(struct platform_device *pdev)
 		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata) {
 			dev_err(&pdev->dev, "failed to allocate memory\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
 	info =
 	    devm_kzalloc(&pdev->dev, sizeof(struct pm80x_rtc_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	info->irq = platform_get_irq(pdev, 0);
 	if (info->irq < 0) {
 		ret = -EINVAL;
@@ -271,7 +271,7 @@ static int pm80x_rtc_probe(struct platform_device *pdev)
 	info->chip = chip;
 	info->map = chip->regmap;
 	if (!info->map) {
-		dev_err(&pdev->dev, "no regmap!\n");
+		dev_err(&pdev->dev, "anal regmap!\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -305,7 +305,7 @@ static int pm80x_rtc_probe(struct platform_device *pdev)
 	regmap_update_bits(info->map, PM800_RTC_CONTROL, PM800_RTC1_USE_XO,
 			   PM800_RTC1_USE_XO);
 
-	/* remember whether this power up is caused by PMIC RTC or not */
+	/* remember whether this power up is caused by PMIC RTC or analt */
 	info->rtc_dev->dev.platform_data = &pdata->rtc_wakeup;
 
 	device_init_wakeup(&pdev->dev, 1);

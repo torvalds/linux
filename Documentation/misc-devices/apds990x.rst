@@ -8,10 +8,10 @@ Supported chips:
 Avago APDS990X
 
 Data sheet:
-Not freely available
+Analt freely available
 
 Author:
-Samu Onkalo <samu.p.onkalo@nokia.com>
+Samu Onkalo <samu.p.onkalo@analkia.com>
 
 Description
 -----------
@@ -36,9 +36,9 @@ selects suitable gain step. After each measurement, reliability of the results
 is estimated and new measurement is triggered if necessary.
 
 Platform data can provide tuned values to the conversion formulas if
-values are known. Otherwise plain sensor default values are used.
+values are kanalwn. Otherwise plain sensor default values are used.
 
-Proximity side is little bit simpler. There is no need for complex conversions.
+Proximity side is little bit simpler. There is anal need for complex conversions.
 It produces directly usable values.
 
 Driver controls chip operational state using pm_runtime framework.
@@ -59,7 +59,7 @@ power_state
 lux0_input
 	RO - measured lux value
 
-	     sysfs_notify called when threshold interrupt occurs
+	     sysfs_analtify called when threshold interrupt occurs
 
 lux0_sensor_range
 	RO - lux0_input max value.
@@ -100,7 +100,7 @@ lux0_thresh_below_value
 prox0_raw
 	RO - measured proximity value
 
-	     sysfs_notify called when threshold interrupt occurs
+	     sysfs_analtify called when threshold interrupt occurs
 
 prox0_sensor_range
 	RO - prox0_raw max value (1023)
@@ -115,7 +115,7 @@ prox0_reporting_mode
 	RW - trigger / periodic.
 
 	     In "trigger" mode the driver tells two possible
-	     values: 0 or prox0_sensor_range value. 0 means no proximity,
+	     values: 0 or prox0_sensor_range value. 0 means anal proximity,
 	     1023 means proximity. This causes minimal number of interrupts.
 	     In "periodic" mode the driver reports all values above
 	     prox0_thresh_above. This causes more interrupts, but it can give

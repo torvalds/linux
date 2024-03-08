@@ -76,11 +76,11 @@ enum latency_range {
 #define AUTO_ALL_MODES		0
 #define IGBVF_EEPROM_APME	0x0400
 
-#define IGBVF_MNG_VLAN_NONE	(-1)
+#define IGBVF_MNG_VLAN_ANALNE	(-1)
 
 #define IGBVF_MAX_MAC_FILTERS	3
 
-/* Number of packet split data buffers (not including the header buffer) */
+/* Number of packet split data buffers (analt including the header buffer) */
 #define PS_PAGE_BUFFERS		(MAX_PS_BUFFERS - 1)
 
 enum igbvf_boards {
@@ -176,7 +176,7 @@ struct igbvf_adapter {
 
 	/* Interrupt Throttle Rate */
 	u32 requested_itr; /* ints/sec or adaptive */
-	u32 current_itr; /* Actual ITR register value, not ints/sec */
+	u32 current_itr; /* Actual ITR register value, analt ints/sec */
 
 	/* Tx */
 	struct igbvf_ring *tx_ring /* One per active queue */

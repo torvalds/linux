@@ -5,8 +5,8 @@
    (C) 2004-2006 Luc Saillard (luc@saillard.org)
    (C) 2011 Hans de Goede <hdegoede@redhat.com>
 
-   NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
-   driver and thus may have bugs that are not present in the original version.
+   ANALTE: this version of pwc is an uanalfficial (modified) release of pwc & pcwx
+   driver and thus may have bugs that are analt present in the original version.
    Please send bug reports and support requests to <luc@saillard.org>.
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
@@ -14,7 +14,7 @@
 
 */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -36,7 +36,7 @@ static const struct v4l2_ctrl_ops pwc_ctrl_ops = {
 };
 
 enum { awb_indoor, awb_outdoor, awb_fl, awb_manual, awb_auto };
-enum { custom_autocontour, custom_contour, custom_noise_reduction,
+enum { custom_autocontour, custom_contour, custom_analise_reduction,
 	custom_awb_speed, custom_awb_delay,
 	custom_save_user, custom_restore_user, custom_restore_factory };
 
@@ -96,11 +96,11 @@ static const struct v4l2_ctrl_config pwc_flicker_cfg = {
 	.step	= 1,
 };
 
-static const struct v4l2_ctrl_config pwc_noise_reduction_cfg = {
+static const struct v4l2_ctrl_config pwc_analise_reduction_cfg = {
 	.ops	= &pwc_ctrl_ops,
-	.id	= PWC_CID_CUSTOM(noise_reduction),
+	.id	= PWC_CID_CUSTOM(analise_reduction),
 	.type	= V4L2_CTRL_TYPE_INTEGER,
-	.name	= "Dynamic Noise Reduction",
+	.name	= "Dynamic Analise Reduction",
 	.min	= 0,
 	.max	= 3,
 	.step	= 1,
@@ -222,7 +222,7 @@ int pwc_init_controls(struct pwc_device *pdev)
 	r = pwc_get_u8_ctrl(pdev, GET_LUM_CTL, AGC_MODE_FORMATTER, &def);
 	if (r || (def != 0 && def != 0xff))
 		def = 0;
-	/* Note a register value if 0 means auto gain is on */
+	/* Analte a register value if 0 means auto gain is on */
 	pdev->autogain = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
 				V4L2_CID_AUTOGAIN, 0, 1, 1, def == 0);
 	if (!pdev->autogain)
@@ -326,14 +326,14 @@ int pwc_init_controls(struct pwc_device *pdev)
 	cfg.def = def == 0;
 	pdev->flicker = v4l2_ctrl_new_custom(hdl, &cfg, NULL);
 
-	/* Dynamic noise reduction */
+	/* Dynamic analise reduction */
 	r = pwc_get_u8_ctrl(pdev, GET_LUM_CTL,
-			    DYNAMIC_NOISE_CONTROL_FORMATTER, &def);
+			    DYNAMIC_ANALISE_CONTROL_FORMATTER, &def);
 	if (r || def > 3)
 		def = 2;
-	cfg = pwc_noise_reduction_cfg;
+	cfg = pwc_analise_reduction_cfg;
 	cfg.def = def;
-	pdev->noise_reduction = v4l2_ctrl_new_custom(hdl, &cfg, NULL);
+	pdev->analise_reduction = v4l2_ctrl_new_custom(hdl, &cfg, NULL);
 
 	/* Save / Restore User / Factory Settings */
 	pdev->save_user = v4l2_ctrl_new_custom(hdl, &pwc_save_user_cfg, NULL);
@@ -389,7 +389,7 @@ static void pwc_vidioc_fill_fmt(struct v4l2_format *f,
 	memset(&f->fmt.pix, 0, sizeof(struct v4l2_pix_format));
 	f->fmt.pix.width        = width;
 	f->fmt.pix.height       = height;
-	f->fmt.pix.field        = V4L2_FIELD_NONE;
+	f->fmt.pix.field        = V4L2_FIELD_ANALNE;
 	f->fmt.pix.pixelformat  = pixfmt;
 	f->fmt.pix.bytesperline = f->fmt.pix.width;
 	f->fmt.pix.sizeimage	= f->fmt.pix.height * f->fmt.pix.width * 3 / 2;
@@ -826,9 +826,9 @@ static int pwc_s_ctrl(struct v4l2_ctrl *ctrl)
 				      FLICKERLESS_MODE_FORMATTER,
 				      ctrl->val ? 0 : 0xff);
 		break;
-	case PWC_CID_CUSTOM(noise_reduction):
+	case PWC_CID_CUSTOM(analise_reduction):
 		ret = pwc_set_u8_ctrl(pdev, SET_LUM_CTL,
-				      DYNAMIC_NOISE_CONTROL_FORMATTER,
+				      DYNAMIC_ANALISE_CONTROL_FORMATTER,
 				      ctrl->val);
 		break;
 	case PWC_CID_CUSTOM(save_user):
@@ -953,7 +953,7 @@ static int pwc_enum_frameintervals(struct file *file, void *fh,
 
 	fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 	fival->discrete.numerator = 1;
-	fival->discrete.denominator = i;
+	fival->discrete.deanalminator = i;
 
 	return 0;
 }
@@ -971,7 +971,7 @@ static int pwc_g_parm(struct file *file, void *fh,
 	parm->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	parm->parm.capture.readbuffers = MIN_FRAMES;
 	parm->parm.capture.capability |= V4L2_CAP_TIMEPERFRAME;
-	parm->parm.capture.timeperframe.denominator = pdev->vframes;
+	parm->parm.capture.timeperframe.deanalminator = pdev->vframes;
 	parm->parm.capture.timeperframe.numerator = 1;
 
 	return 0;
@@ -987,14 +987,14 @@ static int pwc_s_parm(struct file *file, void *fh,
 	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	/* If timeperframe == 0, then reset the framerate to the nominal value.
+	/* If timeperframe == 0, then reset the framerate to the analminal value.
 	   We pick a high framerate here, and let pwc_set_video_mode() figure
 	   out the best match. */
 	if (parm->parm.capture.timeperframe.numerator == 0 ||
-	    parm->parm.capture.timeperframe.denominator == 0)
+	    parm->parm.capture.timeperframe.deanalminator == 0)
 		fps = 30;
 	else
-		fps = parm->parm.capture.timeperframe.denominator /
+		fps = parm->parm.capture.timeperframe.deanalminator /
 		      parm->parm.capture.timeperframe.numerator;
 
 	if (vb2_is_busy(&pdev->vb_queue))

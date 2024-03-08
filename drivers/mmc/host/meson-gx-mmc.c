@@ -184,11 +184,11 @@ struct meson_host {
 #define CMD_CFG_R1B BIT(10)
 #define CMD_CFG_END_OF_CHAIN BIT(11)
 #define CMD_CFG_TIMEOUT_MASK GENMASK(15, 12)
-#define CMD_CFG_NO_RESP BIT(16)
-#define CMD_CFG_NO_CMD BIT(17)
+#define CMD_CFG_ANAL_RESP BIT(16)
+#define CMD_CFG_ANAL_CMD BIT(17)
 #define CMD_CFG_DATA_IO BIT(18)
 #define CMD_CFG_DATA_WR BIT(19)
-#define CMD_CFG_RESP_NOCRC BIT(20)
+#define CMD_CFG_RESP_ANALCRC BIT(20)
 #define CMD_CFG_RESP_128 BIT(21)
 #define CMD_CFG_RESP_NUM BIT(22)
 #define CMD_CFG_DATA_NUM BIT(23)
@@ -234,7 +234,7 @@ static void meson_mmc_get_transfer_mode(struct mmc_host *mmc,
 	int i;
 
 	/*
-	 * When Controller DMA cannot directly access DDR memory, disable
+	 * When Controller DMA cananalt directly access DDR memory, disable
 	 * support for Chain Mode to directly use the internal SRAM using
 	 * the bounce buffer mode.
 	 */
@@ -245,11 +245,11 @@ static void meson_mmc_get_transfer_mode(struct mmc_host *mmc,
 	if (data->blocks > 1 || mrq->cmd->opcode == SD_IO_RW_EXTENDED) {
 		/*
 		 * In block mode DMA descriptor format, "length" field indicates
-		 * number of blocks and there is no way to pass DMA size that
-		 * is not multiple of SDIO block size, making it impossible to
+		 * number of blocks and there is anal way to pass DMA size that
+		 * is analt multiple of SDIO block size, making it impossible to
 		 * tie more than one memory buffer with single SDIO block.
 		 * Block mode sg buffer size should be aligned with SDIO block
-		 * size, otherwise chain mode could not be used.
+		 * size, otherwise chain mode could analt be used.
 		 */
 		for_each_sg(data->sg, sg, data->sg_len, i) {
 			if (sg->length % data->blksz) {
@@ -328,7 +328,7 @@ static void meson_mmc_clk_gate(struct meson_host *host)
 		pinctrl_select_state(host->pinctrl, host->pins_clk_gate);
 	} else {
 		/*
-		 * If the pinmux is not provided - default to the classic and
+		 * If the pinmux is analt provided - default to the classic and
 		 * unsafe method
 		 */
 		cfg = readl(host->regs + SD_EMMC_CFG);
@@ -344,7 +344,7 @@ static void meson_mmc_clk_ungate(struct meson_host *host)
 	if (host->pins_clk_gate)
 		pinctrl_select_default_state(host->dev);
 
-	/* Make sure the clock is not stopped in the controller */
+	/* Make sure the clock is analt stopped in the controller */
 	cfg = readl(host->regs + SD_EMMC_CFG);
 	cfg &= ~CFG_STOP_CLOCK;
 	writel(cfg, host->regs + SD_EMMC_CFG);
@@ -454,7 +454,7 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	/* create the mux */
 	mux = devm_kzalloc(host->dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(clk_name, sizeof(clk_name), "%s#mux", dev_name(host->dev));
 	init.name = clk_name;
@@ -475,7 +475,7 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	/* create the divider */
 	div = devm_kzalloc(host->dev, sizeof(*div), GFP_KERNEL);
 	if (!div)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(clk_name, sizeof(clk_name), "%s#div", dev_name(host->dev));
 	init.name = clk_name;
@@ -669,11 +669,11 @@ static void meson_mmc_set_blksz(struct mmc_host *mmc, unsigned int blksz)
 	blksz_old = FIELD_GET(CFG_BLK_LEN_MASK, cfg);
 
 	if (!is_power_of_2(blksz))
-		dev_err(host->dev, "blksz %u is not a power of 2\n", blksz);
+		dev_err(host->dev, "blksz %u is analt a power of 2\n", blksz);
 
 	blksz = ilog2(blksz);
 
-	/* check if block-size matches, if not update */
+	/* check if block-size matches, if analt update */
 	if (blksz == blksz_old)
 		return;
 
@@ -693,12 +693,12 @@ static void meson_mmc_set_response_bits(struct mmc_command *cmd, u32 *cmd_cfg)
 		*cmd_cfg |= CMD_CFG_RESP_NUM;
 
 		if (!(cmd->flags & MMC_RSP_CRC))
-			*cmd_cfg |= CMD_CFG_RESP_NOCRC;
+			*cmd_cfg |= CMD_CFG_RESP_ANALCRC;
 
 		if (cmd->flags & MMC_RSP_BUSY)
 			*cmd_cfg |= CMD_CFG_R1B;
 	} else {
-		*cmd_cfg |= CMD_CFG_NO_RESP;
+		*cmd_cfg |= CMD_CFG_ANAL_RESP;
 	}
 }
 
@@ -728,7 +728,7 @@ static void meson_mmc_desc_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg)
 		desc[i].cmd_cfg = cmd_cfg;
 		desc[i].cmd_cfg |= FIELD_PREP(CMD_CFG_LENGTH_MASK, len);
 		if (i > 0)
-			desc[i].cmd_cfg |= CMD_CFG_NO_CMD;
+			desc[i].cmd_cfg |= CMD_CFG_ANAL_CMD;
 		desc[i].cmd_arg = host->cmd->arg;
 		desc[i].cmd_resp = 0;
 		desc[i].cmd_data = sg_dma_address(sg);
@@ -857,7 +857,7 @@ static int meson_mmc_validate_dram_access(struct mmc_host *mmc, struct mmc_data 
 	struct scatterlist *sg;
 	int i;
 
-	/* Reject request if any element offset or size is not 32bit aligned */
+	/* Reject request if any element offset or size is analt 32bit aligned */
 	for_each_sg(data->sg, sg, data->sg_len, i) {
 		if (!IS_ALIGNED(sg->offset, sizeof(u32)) ||
 		    !IS_ALIGNED(sg->length, sizeof(u32))) {
@@ -933,7 +933,7 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 	struct meson_host *host = dev_id;
 	struct mmc_command *cmd;
 	u32 status, raw_status, irq_mask = IRQ_EN_MASK;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	if (host->mmc->caps & MMC_CAP_SDIO_IRQ)
 		irq_mask |= IRQ_SDIO;
@@ -944,7 +944,7 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 		dev_dbg(host->dev,
 			"Unexpected IRQ! irq_en 0x%08x - status 0x%08x\n",
 			 irq_mask, raw_status);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* ack all raised interrupts */
@@ -963,7 +963,7 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 	}
 
 	if (WARN_ON(!cmd))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	cmd->error = 0;
 	if (status & IRQ_CRC_ERR) {
@@ -1028,7 +1028,7 @@ static irqreturn_t meson_mmc_irq_thread(int irq, void *dev_id)
 	unsigned int xfer_bytes;
 
 	if (WARN_ON(!cmd))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (cmd->error) {
 		meson_mmc_wait_desc_stop(host);
@@ -1100,7 +1100,7 @@ static int meson_mmc_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 		return ret < 0 ? ret : 0;
 	}
 
-	/* no vqmmc regulator, assume fixed regulator at 3/3.3V */
+	/* anal vqmmc regulator, assume fixed regulator at 3/3.3V */
 	if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330)
 		return 0;
 
@@ -1145,7 +1145,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 
 	mmc = devm_mmc_alloc_host(&pdev->dev, sizeof(struct meson_host));
 	if (!mmc)
-		return -ENOMEM;
+		return -EANALMEM;
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
 	host->dev = &pdev->dev;
@@ -1167,7 +1167,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	mmc->caps |= MMC_CAP_CMD23;
 
 	if (mmc->caps & MMC_CAP_SDIO_IRQ)
-		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_NOTHREAD;
+		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_ANALTHREAD;
 
 	host->data = of_device_get_match_data(&pdev->dev);
 	if (!host->data)
@@ -1242,8 +1242,8 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	mmc->max_seg_size = mmc->max_req_size;
 
 	/*
-	 * At the moment, we don't know how to reliably enable HS400.
-	 * From the different datasheets, it is not even clear if this mode
+	 * At the moment, we don't kanalw how to reliably enable HS400.
+	 * From the different datasheets, it is analt even clear if this mode
 	 * is officially supported by any of the SoCs
 	 */
 	mmc->caps2 &= ~MMC_CAP2_HS400;
@@ -1266,7 +1266,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 					    &host->bounce_dma_addr, GFP_KERNEL);
 		if (host->bounce_buf == NULL) {
 			dev_err(host->dev, "Unable to map allocate DMA bounce buffer.\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_irq;
 		}
 	}
@@ -1275,7 +1275,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 					  &host->descs_dma_addr, GFP_KERNEL);
 	if (!host->descs) {
 		dev_err(host->dev, "Allocating descriptor DMA buffer failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_irq;
 	}
 
@@ -1337,7 +1337,7 @@ static struct platform_driver meson_mmc_driver = {
 	.remove_new	= meson_mmc_remove,
 	.driver		= {
 		.name = DRIVER_NAME,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = meson_mmc_of_match,
 	},
 };

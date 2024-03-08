@@ -53,24 +53,24 @@ static int j1939_ac_verify_outgoing(struct j1939_priv *priv,
 	struct j1939_sk_buff_cb *skcb = j1939_skb_to_cb(skb);
 
 	if (skb->len != 8) {
-		netdev_notice(priv->ndev, "tx address claim with dlc %i\n",
+		netdev_analtice(priv->ndev, "tx address claim with dlc %i\n",
 			      skb->len);
 		return -EPROTO;
 	}
 
 	if (skcb->addr.src_name != j1939_skb_to_name(skb)) {
-		netdev_notice(priv->ndev, "tx address claim with different name\n");
+		netdev_analtice(priv->ndev, "tx address claim with different name\n");
 		return -EPROTO;
 	}
 
-	if (skcb->addr.sa == J1939_NO_ADDR) {
-		netdev_notice(priv->ndev, "tx address claim with broadcast sa\n");
+	if (skcb->addr.sa == J1939_ANAL_ADDR) {
+		netdev_analtice(priv->ndev, "tx address claim with broadcast sa\n");
 		return -EPROTO;
 	}
 
 	/* ac must always be a broadcast */
-	if (skcb->addr.dst_name || skcb->addr.da != J1939_NO_ADDR) {
-		netdev_notice(priv->ndev, "tx address claim with dest, not broadcast\n");
+	if (skcb->addr.dst_name || skcb->addr.da != J1939_ANAL_ADDR) {
+		netdev_analtice(priv->ndev, "tx address claim with dest, analt broadcast\n");
 		return -EPROTO;
 	}
 	return 0;
@@ -92,7 +92,7 @@ int j1939_ac_fixup(struct j1939_priv *priv, struct sk_buff *skb)
 			return ret;
 		ecu = j1939_ecu_get_by_name(priv, skcb->addr.src_name);
 		if (!ecu)
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (ecu->addr != skcb->addr.sa)
 			/* hold further traffic for ecu, remove from parent */
@@ -103,9 +103,9 @@ int j1939_ac_fixup(struct j1939_priv *priv, struct sk_buff *skb)
 		addr = j1939_name_to_addr(priv, skcb->addr.src_name);
 		if (!j1939_address_is_unicast(addr) &&
 		    !j1939_ac_msg_is_request(skb)) {
-			netdev_notice(priv->ndev, "tx drop: invalid sa for name 0x%016llx\n",
+			netdev_analtice(priv->ndev, "tx drop: invalid sa for name 0x%016llx\n",
 				      skcb->addr.src_name);
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 		}
 		skcb->addr.sa = addr;
 	}
@@ -114,9 +114,9 @@ int j1939_ac_fixup(struct j1939_priv *priv, struct sk_buff *skb)
 	if (skcb->addr.dst_name) {
 		addr = j1939_name_to_addr(priv, skcb->addr.dst_name);
 		if (!j1939_address_is_unicast(addr)) {
-			netdev_notice(priv->ndev, "tx drop: invalid da for name 0x%016llx\n",
+			netdev_analtice(priv->ndev, "tx drop: invalid da for name 0x%016llx\n",
 				      skcb->addr.dst_name);
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 		}
 		skcb->addr.da = addr;
 	}
@@ -130,7 +130,7 @@ static void j1939_ac_process(struct j1939_priv *priv, struct sk_buff *skb)
 	name_t name;
 
 	if (skb->len != 8) {
-		netdev_notice(priv->ndev, "rx address claim with wrong dlc %i\n",
+		netdev_analtice(priv->ndev, "rx address claim with wrong dlc %i\n",
 			      skb->len);
 		return;
 	}
@@ -138,12 +138,12 @@ static void j1939_ac_process(struct j1939_priv *priv, struct sk_buff *skb)
 	name = j1939_skb_to_name(skb);
 	skcb->addr.src_name = name;
 	if (!name) {
-		netdev_notice(priv->ndev, "rx address claim without name\n");
+		netdev_analtice(priv->ndev, "rx address claim without name\n");
 		return;
 	}
 
 	if (!j1939_address_is_valid(skcb->addr.sa)) {
-		netdev_notice(priv->ndev, "rx address claim with broadcast sa\n");
+		netdev_analtice(priv->ndev, "rx address claim with broadcast sa\n");
 		return;
 	}
 
@@ -169,7 +169,7 @@ static void j1939_ac_process(struct j1939_priv *priv, struct sk_buff *skb)
 	if (ecu && ecu->addr == skcb->addr.sa) {
 		/* The ISO 11783-5 standard, in "4.5.2 - Address claim
 		 * requirements", states:
-		 *   d) No CF shall begin, or resume, transmission on the
+		 *   d) Anal CF shall begin, or resume, transmission on the
 		 *      network until 250 ms after it has successfully claimed
 		 *      an address except when responding to a request for
 		 *      address-claimed.
@@ -177,13 +177,13 @@ static void j1939_ac_process(struct j1939_priv *priv, struct sk_buff *skb)
 		 * But "Figure 6" and "Figure 7" in "4.5.4.2 - Address-claim
 		 * prioritization" show that the CF begins the transmission
 		 * after 250 ms from the first AC (address-claimed) message
-		 * even if it sends another AC message during that time window
-		 * to resolve the address contention with another CF.
+		 * even if it sends aanalther AC message during that time window
+		 * to resolve the address contention with aanalther CF.
 		 *
 		 * As stated in "4.4.2.3 - Address-claimed message":
 		 *   In order to successfully claim an address, the CF sending
-		 *   an address claimed message shall not receive a contending
-		 *   claim from another CF for at least 250 ms.
+		 *   an address claimed message shall analt receive a contending
+		 *   claim from aanalther CF for at least 250 ms.
 		 *
 		 * As stated in "4.4.3.2 - NAME management (NM) message":
 		 *   1) A commanding CF can
@@ -196,10 +196,10 @@ static void j1939_ac_process(struct j1939_priv *priv, struct sk_buff *skb)
 		 * Taking the above arguments into account, the 250 ms wait is
 		 * requested only during network initialization.
 		 *
-		 * Do not restart the timer on AC message if both the NAME and
+		 * Do analt restart the timer on AC message if both the NAME and
 		 * the address match and so if the address has already been
 		 * claimed (timer has expired) or the AC message has been sent
-		 * to resolve the contention with another CF (timer is still
+		 * to resolve the contention with aanalther CF (timer is still
 		 * running).
 		 */
 		goto out_ecu_put;

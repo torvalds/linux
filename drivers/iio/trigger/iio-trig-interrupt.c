@@ -36,7 +36,7 @@ static int iio_interrupt_trigger_probe(struct platform_device *pdev)
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 
 	if (irq_res == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	irqflags = (irq_res->flags & IRQF_TRIGGER_MASK) | IRQF_SHARED;
 
@@ -44,13 +44,13 @@ static int iio_interrupt_trigger_probe(struct platform_device *pdev)
 
 	trig = iio_trigger_alloc(NULL, "irqtrig%d", irq);
 	if (!trig) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_ret;
 	}
 
 	trig_info = kzalloc(sizeof(*trig_info), GFP_KERNEL);
 	if (!trig_info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_free_trigger;
 	}
 	iio_trigger_set_drvdata(trig, trig_info);

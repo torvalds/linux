@@ -308,8 +308,8 @@
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	bus-width = <4>;
 	keep-power-in-suspend;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	vmmc-supply = <&reg_brcm>;
 	status = "okay";
 };
@@ -322,9 +322,9 @@
 	assigned-clocks = <&clks IMX7D_USDHC3_ROOT_CLK>;
 	assigned-clock-rates = <400000000>;
 	bus-width = <8>;
-	no-1-8-v;
+	anal-1-8-v;
 	fsl,tuning-step = <2>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

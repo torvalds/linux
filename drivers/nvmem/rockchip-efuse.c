@@ -107,7 +107,7 @@ static int rockchip_rk3328_efuse_read(void *context, unsigned int offset,
 		return ret;
 	}
 
-	/* 128 Byte efuse, 96 Byte for secure, 32 Byte for non-secure */
+	/* 128 Byte efuse, 96 Byte for secure, 32 Byte for analn-secure */
 	offset += RK3328_SECURE_SIZES;
 	addr_start = rounddown(offset, RK3399_NBYTES) / RK3399_NBYTES;
 	addr_end = roundup(offset + bytes, RK3399_NBYTES) / RK3399_NBYTES;
@@ -117,8 +117,8 @@ static int rockchip_rk3328_efuse_read(void *context, unsigned int offset,
 	buf = kzalloc(array3_size(addr_len, RK3399_NBYTES, sizeof(*buf)),
 		      GFP_KERNEL);
 	if (!buf) {
-		ret = -ENOMEM;
-		goto nomem;
+		ret = -EANALMEM;
+		goto analmem;
 	}
 
 	while (addr_len--) {
@@ -141,7 +141,7 @@ static int rockchip_rk3328_efuse_read(void *context, unsigned int offset,
 	memcpy(val, buf + addr_offset, bytes);
 err:
 	kfree(buf);
-nomem:
+analmem:
 	clk_disable_unprepare(efuse->clk);
 
 	return ret;
@@ -171,7 +171,7 @@ static int rockchip_rk3399_efuse_read(void *context, unsigned int offset,
 		      GFP_KERNEL);
 	if (!buf) {
 		clk_disable_unprepare(efuse->clk);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	writel(RK3399_LOAD | RK3399_PGENB | RK3399_STROBSFTSEL | RK3399_RSB,
@@ -266,7 +266,7 @@ static int rockchip_efuse_probe(struct platform_device *pdev)
 	efuse = devm_kzalloc(dev, sizeof(struct rockchip_efuse_chip),
 			     GFP_KERNEL);
 	if (!efuse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	efuse->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(efuse->base))
@@ -277,7 +277,7 @@ static int rockchip_efuse_probe(struct platform_device *pdev)
 		return PTR_ERR(efuse->clk);
 
 	efuse->dev = dev;
-	if (of_property_read_u32(dev->of_node, "rockchip,efuse-size",
+	if (of_property_read_u32(dev->of_analde, "rockchip,efuse-size",
 				 &econfig.size))
 		econfig.size = resource_size(res);
 	econfig.reg_read = data;

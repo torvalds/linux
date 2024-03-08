@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/file.h>
 #include <linux/slab.h>
 #include <linux/net.h>
@@ -14,7 +14,7 @@
 #include "kbuf.h"
 #include "alloc_cache.h"
 #include "net.h"
-#include "notif.h"
+#include "analtif.h"
 #include "rsrc.h"
 
 #if defined(CONFIG_NET)
@@ -29,7 +29,7 @@ struct io_accept {
 	int __user			*addr_len;
 	int				flags;
 	u32				file_slot;
-	unsigned long			nofile;
+	unsigned long			analfile;
 };
 
 struct io_socket {
@@ -39,7 +39,7 @@ struct io_socket {
 	int				protocol;
 	int				flags;
 	u32				file_slot;
-	unsigned long			nofile;
+	unsigned long			analfile;
 };
 
 struct io_connect {
@@ -68,7 +68,7 @@ struct io_sr_msg {
 	void __user			*addr;
 	void __user			*msg_control;
 	/* used only for send zerocopy */
-	struct io_kiocb 		*notif;
+	struct io_kiocb 		*analtif;
 };
 
 /*
@@ -110,11 +110,11 @@ int io_shutdown(struct io_kiocb *req, unsigned int issue_flags)
 	struct socket *sock;
 	int ret;
 
-	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
+	WARN_ON_ONCE(issue_flags & IO_URING_F_ANALNBLOCK);
 
 	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
-		return -ENOTSOCK;
+		return -EANALTSOCK;
 
 	ret = __sys_shutdown_sock(sock, shutdown->how);
 	io_req_set_res(req, ret, 0);
@@ -135,7 +135,7 @@ static void io_netmsg_recycle(struct io_kiocb *req, unsigned int issue_flags)
 	if (!req_has_async_data(req) || issue_flags & IO_URING_F_UNLOCKED)
 		return;
 
-	/* Let normal cleanup path reap it if we fail adding to the cache */
+	/* Let analrmal cleanup path reap it if we fail adding to the cache */
 	if (io_alloc_cache_put(&req->ctx->netmsg_cache, &hdr->cache)) {
 		req->async_data = NULL;
 		req->flags &= ~REQ_F_ASYNC_DATA;
@@ -185,7 +185,7 @@ static int io_setup_async_msg(struct io_kiocb *req,
 	async_msg = io_msg_alloc_async(req, issue_flags);
 	if (!async_msg) {
 		kfree(kmsg->free_iov);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	req->flags |= REQ_F_NEED_CLEANUP;
 	memcpy(async_msg, kmsg, sizeof(*kmsg));
@@ -229,7 +229,7 @@ int io_send_prep_async(struct io_kiocb *req)
 		return 0;
 	io = io_msg_alloc_async_prep(req);
 	if (!io)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = move_addr_to_kernel(zc->addr, zc->addr_len, &io->addr);
 	return ret;
 }
@@ -245,7 +245,7 @@ static int io_setup_async_addr(struct io_kiocb *req,
 		return -EAGAIN;
 	io = io_msg_alloc_async(req, issue_flags);
 	if (!io)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(&io->addr, addr_storage, sizeof(io->addr));
 	return -EAGAIN;
 }
@@ -255,7 +255,7 @@ int io_sendmsg_prep_async(struct io_kiocb *req)
 	int ret;
 
 	if (!io_msg_alloc_async_prep(req))
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = io_sendmsg_copy_hdr(req, req->async_data);
 	if (!ret)
 		req->flags |= REQ_F_NEED_CLEANUP;
@@ -287,9 +287,9 @@ int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	sr->flags = READ_ONCE(sqe->ioprio);
 	if (sr->flags & ~IORING_RECVSEND_POLL_FIRST)
 		return -EINVAL;
-	sr->msg_flags = READ_ONCE(sqe->msg_flags) | MSG_NOSIGNAL;
+	sr->msg_flags = READ_ONCE(sqe->msg_flags) | MSG_ANALSIGNAL;
 	if (sr->msg_flags & MSG_DONTWAIT)
-		req->flags |= REQ_F_NOWAIT;
+		req->flags |= REQ_F_ANALWAIT;
 
 #ifdef CONFIG_COMPAT
 	if (req->ctx->compat)
@@ -310,7 +310,7 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 
 	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
-		return -ENOTSOCK;
+		return -EANALTSOCK;
 
 	if (req_has_async_data(req)) {
 		kmsg = req->async_data;
@@ -327,7 +327,7 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 		return io_setup_async_msg(req, kmsg, issue_flags);
 
 	flags = sr->msg_flags;
-	if (issue_flags & IO_URING_F_NONBLOCK)
+	if (issue_flags & IO_URING_F_ANALNBLOCK)
 		flags |= MSG_DONTWAIT;
 	if (flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
@@ -335,7 +335,7 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 	ret = __sys_sendmsg_sock(sock, &kmsg->msg, flags);
 
 	if (ret < min_ret) {
-		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
+		if (ret == -EAGAIN && (issue_flags & IO_URING_F_ANALNBLOCK))
 			return io_setup_async_msg(req, kmsg, issue_flags);
 		if (ret > 0 && io_net_retry(sock, flags)) {
 			kmsg->msg.msg_controllen = 0;
@@ -348,7 +348,7 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 			ret = -EINTR;
 		req_set_fail(req);
 	}
-	/* fast path, check for non-NULL to avoid function call */
+	/* fast path, check for analn-NULL to avoid function call */
 	if (kmsg->free_iov)
 		kfree(kmsg->free_iov);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
@@ -397,14 +397,14 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 
 	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
-		return -ENOTSOCK;
+		return -EANALTSOCK;
 
 	ret = import_ubuf(ITER_SOURCE, sr->buf, sr->len, &msg.msg_iter);
 	if (unlikely(ret))
 		return ret;
 
 	flags = sr->msg_flags;
-	if (issue_flags & IO_URING_F_NONBLOCK)
+	if (issue_flags & IO_URING_F_ANALNBLOCK)
 		flags |= MSG_DONTWAIT;
 	if (flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&msg.msg_iter);
@@ -413,7 +413,7 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 	msg.msg_flags = flags;
 	ret = sock_sendmsg(sock, &msg);
 	if (ret < min_ret) {
-		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
+		if (ret == -EAGAIN && (issue_flags & IO_URING_F_ANALNBLOCK))
 			return io_setup_async_addr(req, &__address, issue_flags);
 
 		if (ret > 0 && io_net_retry(sock, flags)) {
@@ -569,7 +569,7 @@ int io_recvmsg_prep_async(struct io_kiocb *req)
 	int ret;
 
 	if (!io_msg_alloc_async_prep(req))
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = io_recvmsg_copy_hdr(req, req->async_data);
 	if (!ret)
 		req->flags |= REQ_F_NEED_CLEANUP;
@@ -592,7 +592,7 @@ int io_recvmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return -EINVAL;
 	sr->msg_flags = READ_ONCE(sqe->msg_flags);
 	if (sr->msg_flags & MSG_DONTWAIT)
-		req->flags |= REQ_F_NOWAIT;
+		req->flags |= REQ_F_ANALWAIT;
 	if (sr->msg_flags & MSG_ERRQUEUE)
 		req->flags |= REQ_F_CLEAR_POLLIN;
 	if (sr->flags & IORING_RECV_MULTISHOT) {
@@ -608,7 +608,7 @@ int io_recvmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		 * as if we end up doing an io-wq based issue that selects a
 		 * buffer, it has to be committed immediately and that will
 		 * clear ->buf_list. This means we lose the link to the buffer
-		 * list, and the eventual buffer put on completion then cannot
+		 * list, and the eventual buffer put on completion then cananalt
 		 * restore it.
 		 */
 		sr->buf_group = req->buf_index;
@@ -646,7 +646,7 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 
 	cflags = io_put_kbuf(req, issue_flags);
 	if (msg->msg_inq && msg->msg_inq != -1)
-		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
+		cflags |= IORING_CQE_F_SOCK_ANALNEMPTY;
 
 	if (!(req->flags & REQ_F_APOLL_MULTISHOT)) {
 		io_req_set_res(req, *ret, cflags);
@@ -667,8 +667,8 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 		int mshot_retry_ret = IOU_ISSUE_SKIP_COMPLETE;
 
 		io_recv_prep_retry(req);
-		/* Known not-empty or unknown state, retry */
-		if (cflags & IORING_CQE_F_SOCK_NONEMPTY || msg->msg_inq == -1) {
+		/* Kanalwn analt-empty or unkanalwn state, retry */
+		if (cflags & IORING_CQE_F_SOCK_ANALNEMPTY || msg->msg_inq == -1) {
 			if (sr->nr_multishot_loops++ < MULTISHOT_MAX_RETRY)
 				return false;
 			/* mshot retries exceeded, force a requeue */
@@ -735,7 +735,7 @@ static int io_recvmsg_multishot(struct socket *sock, struct io_sr_msg *io,
 	kmsg->msg.msg_flags = flags & (MSG_CMSG_CLOEXEC|MSG_CMSG_COMPAT);
 	kmsg->msg.msg_namelen = 0;
 
-	if (sock->file->f_flags & O_NONBLOCK)
+	if (sock->file->f_flags & O_ANALNBLOCK)
 		flags |= MSG_DONTWAIT;
 
 	err = sock_recvmsg(sock, &kmsg->msg, flags);
@@ -764,7 +764,7 @@ static int io_recvmsg_multishot(struct socket *sock, struct io_sr_msg *io,
 	 */
 	hdr.msg.namelen = kmsg->msg.msg_namelen;
 
-	/* ensure that there is no gap between hdr and sockaddr_storage */
+	/* ensure that there is anal gap between hdr and sockaddr_storage */
 	BUILD_BUG_ON(offsetof(struct io_recvmsg_multishot_hdr, addr) !=
 		     sizeof(struct io_uring_recvmsg_out));
 	if (copy_to_user(io->buf, &hdr, copy_len)) {
@@ -783,12 +783,12 @@ int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 	struct socket *sock;
 	unsigned flags;
 	int ret, min_ret = 0;
-	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
+	bool force_analnblock = issue_flags & IO_URING_F_ANALNBLOCK;
 	bool mshot_finished = true;
 
 	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
-		return -ENOTSOCK;
+		return -EANALTSOCK;
 
 	if (req_has_async_data(req)) {
 		kmsg = req->async_data;
@@ -813,7 +813,7 @@ retry_multishot:
 
 		buf = io_buffer_select(req, &len, issue_flags);
 		if (!buf)
-			return -ENOBUFS;
+			return -EANALBUFS;
 
 		if (req->flags & REQ_F_APOLL_MULTISHOT) {
 			ret = io_recvmsg_prep_multishot(kmsg, sr, &buf, &len);
@@ -827,7 +827,7 @@ retry_multishot:
 	}
 
 	flags = sr->msg_flags;
-	if (force_nonblock)
+	if (force_analnblock)
 		flags |= MSG_DONTWAIT;
 
 	kmsg->msg.msg_get_inq = 1;
@@ -845,7 +845,7 @@ retry_multishot:
 	}
 
 	if (ret < min_ret) {
-		if (ret == -EAGAIN && force_nonblock) {
+		if (ret == -EAGAIN && force_analnblock) {
 			ret = io_setup_async_msg(req, kmsg, issue_flags);
 			if (ret == -EAGAIN && (issue_flags & IO_URING_F_MULTISHOT)) {
 				io_kbuf_recycle(req, issue_flags);
@@ -876,7 +876,7 @@ retry_multishot:
 		goto retry_multishot;
 
 	if (mshot_finished) {
-		/* fast path, check for non-NULL to avoid function call */
+		/* fast path, check for analn-NULL to avoid function call */
 		if (kmsg->free_iov)
 			kfree(kmsg->free_iov);
 		io_netmsg_recycle(req, issue_flags);
@@ -893,7 +893,7 @@ int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 	struct socket *sock;
 	unsigned flags;
 	int ret, min_ret = 0;
-	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
+	bool force_analnblock = issue_flags & IO_URING_F_ANALNBLOCK;
 	size_t len = sr->len;
 
 	if (!(req->flags & REQ_F_POLLED) &&
@@ -905,7 +905,7 @@ int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 
 	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
-		return -ENOTSOCK;
+		return -EANALTSOCK;
 
 	msg.msg_name = NULL;
 	msg.msg_namelen = 0;
@@ -921,7 +921,7 @@ retry_multishot:
 
 		buf = io_buffer_select(req, &len, issue_flags);
 		if (!buf)
-			return -ENOBUFS;
+			return -EANALBUFS;
 		sr->buf = buf;
 		sr->len = len;
 	}
@@ -934,14 +934,14 @@ retry_multishot:
 	msg.msg_flags = 0;
 
 	flags = sr->msg_flags;
-	if (force_nonblock)
+	if (force_analnblock)
 		flags |= MSG_DONTWAIT;
 	if (flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&msg.msg_iter);
 
 	ret = sock_recvmsg(sock, &msg, flags);
 	if (ret < min_ret) {
-		if (ret == -EAGAIN && force_nonblock) {
+		if (ret == -EAGAIN && force_analnblock) {
 			if (issue_flags & IO_URING_F_MULTISHOT) {
 				io_kbuf_recycle(req, issue_flags);
 				return IOU_ISSUE_SKIP_COMPLETE;
@@ -988,9 +988,9 @@ void io_send_zc_cleanup(struct io_kiocb *req)
 		if (io->free_iov != io->fast_iov)
 			kfree(io->free_iov);
 	}
-	if (zc->notif) {
-		io_notif_flush(zc->notif);
-		zc->notif = NULL;
+	if (zc->analtif) {
+		io_analtif_flush(zc->analtif);
+		zc->analtif = NULL;
 	}
 }
 
@@ -1001,7 +1001,7 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_sr_msg *zc = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_kiocb *notif;
+	struct io_kiocb *analtif;
 
 	if (unlikely(READ_ONCE(sqe->__pad2[0]) || READ_ONCE(sqe->addr3)))
 		return -EINVAL;
@@ -1009,12 +1009,12 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (req->flags & REQ_F_CQE_SKIP)
 		return -EINVAL;
 
-	notif = zc->notif = io_alloc_notif(ctx);
-	if (!notif)
-		return -ENOMEM;
-	notif->cqe.user_data = req->cqe.user_data;
-	notif->cqe.res = 0;
-	notif->cqe.flags = IORING_CQE_F_NOTIF;
+	analtif = zc->analtif = io_alloc_analtif(ctx);
+	if (!analtif)
+		return -EANALMEM;
+	analtif->cqe.user_data = req->cqe.user_data;
+	analtif->cqe.res = 0;
+	analtif->cqe.flags = IORING_CQE_F_ANALTIF;
 	req->flags |= REQ_F_NEED_CLEANUP;
 
 	zc->flags = READ_ONCE(sqe->ioprio);
@@ -1022,8 +1022,8 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		if (zc->flags & ~IO_ZC_FLAGS_VALID)
 			return -EINVAL;
 		if (zc->flags & IORING_SEND_ZC_REPORT_USAGE) {
-			io_notif_set_extended(notif);
-			io_notif_to_data(notif)->zc_report = true;
+			io_analtif_set_extended(analtif);
+			io_analtif_to_data(analtif)->zc_report = true;
 		}
 	}
 
@@ -1032,9 +1032,9 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 		if (unlikely(idx >= ctx->nr_user_bufs))
 			return -EFAULT;
-		idx = array_index_nospec(idx, ctx->nr_user_bufs);
+		idx = array_index_analspec(idx, ctx->nr_user_bufs);
 		req->imu = READ_ONCE(ctx->user_bufs[idx]);
-		io_req_set_rsrc_node(notif, ctx, 0);
+		io_req_set_rsrc_analde(analtif, ctx, 0);
 	}
 
 	if (req->opcode == IORING_OP_SEND_ZC) {
@@ -1051,9 +1051,9 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	zc->buf = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	zc->len = READ_ONCE(sqe->len);
-	zc->msg_flags = READ_ONCE(sqe->msg_flags) | MSG_NOSIGNAL;
+	zc->msg_flags = READ_ONCE(sqe->msg_flags) | MSG_ANALSIGNAL;
 	if (zc->msg_flags & MSG_DONTWAIT)
-		req->flags |= REQ_F_NOWAIT;
+		req->flags |= REQ_F_ANALWAIT;
 
 	zc->done_io = 0;
 
@@ -1095,7 +1095,7 @@ static int io_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 
 		copied += v.bv_len;
 		truesize += PAGE_ALIGN(v.bv_len + v.bv_offset);
-		__skb_fill_page_desc_noacc(shinfo, frag++, v.bv_page,
+		__skb_fill_page_desc_analacc(shinfo, frag++, v.bv_page,
 					   v.bv_offset, v.bv_len);
 		bvec_iter_advance_single(from->bvec, &bi, v.bv_len);
 	}
@@ -1133,9 +1133,9 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 
 	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
-		return -ENOTSOCK;
+		return -EANALTSOCK;
 	if (!test_bit(SOCK_SUPPORT_ZC, &sock->flags))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	msg.msg_name = NULL;
 	msg.msg_control = NULL;
@@ -1167,29 +1167,29 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 			return ret;
 		msg.sg_from_iter = io_sg_from_iter;
 	} else {
-		io_notif_set_extended(zc->notif);
+		io_analtif_set_extended(zc->analtif);
 		ret = import_ubuf(ITER_SOURCE, zc->buf, zc->len, &msg.msg_iter);
 		if (unlikely(ret))
 			return ret;
-		ret = io_notif_account_mem(zc->notif, zc->len);
+		ret = io_analtif_account_mem(zc->analtif, zc->len);
 		if (unlikely(ret))
 			return ret;
 		msg.sg_from_iter = io_sg_from_iter_iovec;
 	}
 
 	msg_flags = zc->msg_flags | MSG_ZEROCOPY;
-	if (issue_flags & IO_URING_F_NONBLOCK)
+	if (issue_flags & IO_URING_F_ANALNBLOCK)
 		msg_flags |= MSG_DONTWAIT;
 	if (msg_flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&msg.msg_iter);
 	msg_flags &= ~MSG_INTERNAL_SENDMSG_FLAGS;
 
 	msg.msg_flags = msg_flags;
-	msg.msg_ubuf = &io_notif_to_data(zc->notif)->uarg;
+	msg.msg_ubuf = &io_analtif_to_data(zc->analtif)->uarg;
 	ret = sock_sendmsg(sock, &msg);
 
 	if (unlikely(ret < min_ret)) {
-		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
+		if (ret == -EAGAIN && (issue_flags & IO_URING_F_ANALNBLOCK))
 			return io_setup_async_addr(req, &__address, issue_flags);
 
 		if (ret > 0 && io_net_retry(sock, msg.msg_flags)) {
@@ -1211,10 +1211,10 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 
 	/*
 	 * If we're in io-wq we can't rely on tw ordering guarantees, defer
-	 * flushing notif to io_send_zc_cleanup()
+	 * flushing analtif to io_send_zc_cleanup()
 	 */
 	if (!(issue_flags & IO_URING_F_UNLOCKED)) {
-		io_notif_flush(zc->notif);
+		io_analtif_flush(zc->analtif);
 		req->flags &= ~REQ_F_NEED_CLEANUP;
 	}
 	io_req_set_res(req, ret, IORING_CQE_F_MORE);
@@ -1229,13 +1229,13 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 	unsigned flags;
 	int ret, min_ret = 0;
 
-	io_notif_set_extended(sr->notif);
+	io_analtif_set_extended(sr->analtif);
 
 	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
-		return -ENOTSOCK;
+		return -EANALTSOCK;
 	if (!test_bit(SOCK_SUPPORT_ZC, &sock->flags))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (req_has_async_data(req)) {
 		kmsg = req->async_data;
@@ -1251,17 +1251,17 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 		return io_setup_async_msg(req, kmsg, issue_flags);
 
 	flags = sr->msg_flags | MSG_ZEROCOPY;
-	if (issue_flags & IO_URING_F_NONBLOCK)
+	if (issue_flags & IO_URING_F_ANALNBLOCK)
 		flags |= MSG_DONTWAIT;
 	if (flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
 
-	kmsg->msg.msg_ubuf = &io_notif_to_data(sr->notif)->uarg;
+	kmsg->msg.msg_ubuf = &io_analtif_to_data(sr->analtif)->uarg;
 	kmsg->msg.sg_from_iter = io_sg_from_iter_iovec;
 	ret = __sys_sendmsg_sock(sock, &kmsg->msg, flags);
 
 	if (unlikely(ret < min_ret)) {
-		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
+		if (ret == -EAGAIN && (issue_flags & IO_URING_F_ANALNBLOCK))
 			return io_setup_async_msg(req, kmsg, issue_flags);
 
 		if (ret > 0 && io_net_retry(sock, flags)) {
@@ -1273,7 +1273,7 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 			ret = -EINTR;
 		req_set_fail(req);
 	}
-	/* fast path, check for non-NULL to avoid function call */
+	/* fast path, check for analn-NULL to avoid function call */
 	if (kmsg->free_iov) {
 		kfree(kmsg->free_iov);
 		kmsg->free_iov = NULL;
@@ -1287,10 +1287,10 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 
 	/*
 	 * If we're in io-wq we can't rely on tw ordering guarantees, defer
-	 * flushing notif to io_send_zc_cleanup()
+	 * flushing analtif to io_send_zc_cleanup()
 	 */
 	if (!(issue_flags & IO_URING_F_UNLOCKED)) {
-		io_notif_flush(sr->notif);
+		io_analtif_flush(sr->analtif);
 		req->flags &= ~REQ_F_NEED_CLEANUP;
 	}
 	io_req_set_res(req, ret, IORING_CQE_F_MORE);
@@ -1320,7 +1320,7 @@ int io_accept_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	accept->addr = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	accept->addr_len = u64_to_user_ptr(READ_ONCE(sqe->addr2));
 	accept->flags = READ_ONCE(sqe->accept_flags);
-	accept->nofile = rlimit(RLIMIT_NOFILE);
+	accept->analfile = rlimit(RLIMIT_ANALFILE);
 	flags = READ_ONCE(sqe->ioprio);
 	if (flags & ~IORING_ACCEPT_MULTISHOT)
 		return -EINVAL;
@@ -1333,10 +1333,10 @@ int io_accept_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		    accept->file_slot != IORING_FILE_INDEX_ALLOC)
 			return -EINVAL;
 	}
-	if (accept->flags & ~(SOCK_CLOEXEC | SOCK_NONBLOCK))
+	if (accept->flags & ~(SOCK_CLOEXEC | SOCK_ANALNBLOCK))
 		return -EINVAL;
-	if (SOCK_NONBLOCK != O_NONBLOCK && (accept->flags & SOCK_NONBLOCK))
-		accept->flags = (accept->flags & ~SOCK_NONBLOCK) | O_NONBLOCK;
+	if (SOCK_ANALNBLOCK != O_ANALNBLOCK && (accept->flags & SOCK_ANALNBLOCK))
+		accept->flags = (accept->flags & ~SOCK_ANALNBLOCK) | O_ANALNBLOCK;
 	if (flags & IORING_ACCEPT_MULTISHOT)
 		req->flags |= REQ_F_APOLL_MULTISHOT;
 	return 0;
@@ -1345,8 +1345,8 @@ int io_accept_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 int io_accept(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_accept *accept = io_kiocb_to_cmd(req, struct io_accept);
-	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
-	unsigned int file_flags = force_nonblock ? O_NONBLOCK : 0;
+	bool force_analnblock = issue_flags & IO_URING_F_ANALNBLOCK;
+	unsigned int file_flags = force_analnblock ? O_ANALNBLOCK : 0;
 	bool fixed = !!accept->file_slot;
 	struct file *file;
 	int ret, fd;
@@ -1355,7 +1355,7 @@ int io_accept(struct io_kiocb *req, unsigned int issue_flags)
 		return -EAGAIN;
 retry:
 	if (!fixed) {
-		fd = __get_unused_fd_flags(accept->flags, accept->nofile);
+		fd = __get_unused_fd_flags(accept->flags, accept->analfile);
 		if (unlikely(fd < 0))
 			return fd;
 	}
@@ -1365,7 +1365,7 @@ retry:
 		if (!fixed)
 			put_unused_fd(fd);
 		ret = PTR_ERR(file);
-		if (ret == -EAGAIN && force_nonblock) {
+		if (ret == -EAGAIN && force_analnblock) {
 			/*
 			 * if it's multishot and polled, we don't need to
 			 * return EAGAIN to arm the poll infra since it
@@ -1412,12 +1412,12 @@ int io_socket_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	sock->type = READ_ONCE(sqe->off);
 	sock->protocol = READ_ONCE(sqe->len);
 	sock->file_slot = READ_ONCE(sqe->file_index);
-	sock->nofile = rlimit(RLIMIT_NOFILE);
+	sock->analfile = rlimit(RLIMIT_ANALFILE);
 
 	sock->flags = sock->type & ~SOCK_TYPE_MASK;
 	if (sock->file_slot && (sock->flags & SOCK_CLOEXEC))
 		return -EINVAL;
-	if (sock->flags & ~(SOCK_CLOEXEC | SOCK_NONBLOCK))
+	if (sock->flags & ~(SOCK_CLOEXEC | SOCK_ANALNBLOCK))
 		return -EINVAL;
 	return 0;
 }
@@ -1430,7 +1430,7 @@ int io_socket(struct io_kiocb *req, unsigned int issue_flags)
 	int ret, fd;
 
 	if (!fixed) {
-		fd = __get_unused_fd_flags(sock->flags, sock->nofile);
+		fd = __get_unused_fd_flags(sock->flags, sock->analfile);
 		if (unlikely(fd < 0))
 			return fd;
 	}
@@ -1439,7 +1439,7 @@ int io_socket(struct io_kiocb *req, unsigned int issue_flags)
 		if (!fixed)
 			put_unused_fd(fd);
 		ret = PTR_ERR(file);
-		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
+		if (ret == -EAGAIN && (issue_flags & IO_URING_F_ANALNBLOCK))
 			return -EAGAIN;
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
@@ -1482,7 +1482,7 @@ int io_connect(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_async_connect __io, *io;
 	unsigned file_flags;
 	int ret;
-	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
+	bool force_analnblock = issue_flags & IO_URING_F_ANALNBLOCK;
 
 	if (req_has_async_data(req)) {
 		io = req->async_data;
@@ -1495,12 +1495,12 @@ int io_connect(struct io_kiocb *req, unsigned int issue_flags)
 		io = &__io;
 	}
 
-	file_flags = force_nonblock ? O_NONBLOCK : 0;
+	file_flags = force_analnblock ? O_ANALNBLOCK : 0;
 
 	ret = __sys_connect_file(req->file, &io->address,
 					connect->addr_len, file_flags);
 	if ((ret == -EAGAIN || ret == -EINPROGRESS || ret == -ECONNABORTED)
-	    && force_nonblock) {
+	    && force_analnblock) {
 		if (ret == -EINPROGRESS) {
 			connect->in_progress = true;
 		} else if (ret == -ECONNABORTED) {
@@ -1511,7 +1511,7 @@ int io_connect(struct io_kiocb *req, unsigned int issue_flags)
 		if (req_has_async_data(req))
 			return -EAGAIN;
 		if (io_alloc_async_data(req)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		memcpy(req->async_data, &__io, sizeof(__io));

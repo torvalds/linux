@@ -12,9 +12,9 @@ maintainers:
 
 description:
   On MediaTek SoCs the PMIC is connected via SPI. The SPI master interface
-  is not directly visible to the CPU, but only through the PMIC wrapper
+  is analt directly visible to the CPU, but only through the PMIC wrapper
   inside the SoC. The communication between the SoC and the PMIC can
-  optionally be encrypted. Also a non standard Dual IO SPI mode can be
+  optionally be encrypted. Also a analn standard Dual IO SPI mode can be
   used to increase speed.
 
   IP Pairing
@@ -22,7 +22,7 @@ description:
   On MT8135 the pins of some SoC internal peripherals can be on the PMIC.
   The signals of these pins are routed over the SPI bus using the pwrap
   bridge. In the binding description below the properties needed for bridging
-  are marked with "IP Pairing". These are optional on SoCs which do not support
+  are marked with "IP Pairing". These are optional on SoCs which do analt support
   IP Pairing
 
 properties:

@@ -54,7 +54,7 @@ do {									\
 #ifdef CONFIG_X86_32
 static inline void refresh_sysenter_cs(struct thread_struct *thread)
 {
-	/* Only happens when SEP is enabled, no need to test "SEP"arately: */
+	/* Only happens when SEP is enabled, anal need to test "SEP"arately: */
 	if (unlikely(this_cpu_read(cpu_tss_rw.x86_tss.ss1) == thread->sysenter_cs))
 		return;
 

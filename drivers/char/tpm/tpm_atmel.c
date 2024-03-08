@@ -169,7 +169,7 @@ static int __init init_atmel(void)
 		return rc;
 
 	if ((iobase = atmel_get_base_addr(&base, &region_size)) == NULL) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto err_unreg_drv;
 	}
 
@@ -185,7 +185,7 @@ static int __init init_atmel(void)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_unreg_dev;
 	}
 

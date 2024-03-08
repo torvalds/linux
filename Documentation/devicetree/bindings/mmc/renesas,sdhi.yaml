@@ -133,7 +133,7 @@ allOf:
             - description: CLK_HS, SDHI channel High speed clock which operates
                            4 times that of SDHI channel main clock1.
             - description: IMCLK2, SDHI channel main clock2. When this clock is
-                           turned off, external SD card detection cannot be
+                           turned off, external SD card detection cananalt be
                            detected.
             - description: ACLK, SDHI channel bus clock.
         clock-names:

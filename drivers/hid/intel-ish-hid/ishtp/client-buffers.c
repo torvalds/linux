@@ -14,7 +14,7 @@
  *
  * Allocate and initialize RX ring buffers
  *
- * Return: 0 on success else -ENOMEM
+ * Return: 0 on success else -EANALMEM
  */
 int ishtp_cl_alloc_rx_ring(struct ishtp_cl *cl)
 {
@@ -27,7 +27,7 @@ int ishtp_cl_alloc_rx_ring(struct ishtp_cl *cl)
 	for (j = 0; j < cl->rx_ring_size; ++j) {
 		rb = ishtp_io_rb_init(cl);
 		if (!rb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		ret = ishtp_io_rb_alloc_buf(rb, len);
@@ -52,7 +52,7 @@ out:
  *
  * Allocate and initialize TX ring buffers
  *
- * Return: 0 on success else -ENOMEM
+ * Return: 0 on success else -EANALMEM
  */
 int ishtp_cl_alloc_tx_ring(struct ishtp_cl *cl)
 {
@@ -85,7 +85,7 @@ int ishtp_cl_alloc_tx_ring(struct ishtp_cl *cl)
 out:
 	dev_err(&cl->device->dev, "error in allocating Tx pool\n");
 	ishtp_cl_free_tx_ring(cl);
-	return	-ENOMEM;
+	return	-EANALMEM;
 }
 
 /**
@@ -200,7 +200,7 @@ struct ishtp_cl_rb *ishtp_io_rb_init(struct ishtp_cl *cl)
  *
  * Allocate respose buffer
  *
- * Return: 0 on success else -ENOMEM
+ * Return: 0 on success else -EANALMEM
  */
 int ishtp_io_rb_alloc_buf(struct ishtp_cl_rb *rb, size_t length)
 {
@@ -212,7 +212,7 @@ int ishtp_io_rb_alloc_buf(struct ishtp_cl_rb *rb, size_t length)
 
 	rb->buffer.data = kmalloc(length, GFP_KERNEL);
 	if (!rb->buffer.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rb->buffer.size = length;
 	return 0;

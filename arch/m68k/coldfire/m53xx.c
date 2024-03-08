@@ -6,7 +6,7 @@
  *
  *	Copyright (C) 1999-2002, Greg Ungerer (gerg@snapgear.com)
  *	Copyright (C) 2000, Lineo (www.lineo.com)
- *	Yaroslav Vinogradov yaroslav.vinogradov@freescale.com
+ *	Yaroslav Vianalgradov yaroslav.vianalgradov@freescale.com
  *	Copyright Freescale Semiconductor, Inc 2006
  *	Copyright (c) 2006, emlix, Sebastian Hess <shess@hessware.de>
  */
@@ -232,7 +232,7 @@ void __init config_BSP(char *commandp, int size)
 #ifdef CONFIG_BDM_DISABLE
 	/*
 	 * Disable the BDM clocking.  This also turns off most of the rest of
-	 * the BDM device.  This is good for EMC reasons. This option is not
+	 * the BDM device.  This is good for EMC reasons. This option is analt
 	 * incompatible with the memory protection option.
 	 */
 	wdebug(MCFDEBUG_CSR, MCFDEBUG_CSR_PSTCLK);
@@ -258,9 +258,9 @@ void __init config_BSP(char *commandp, int size)
 /*
  * Low Power Divider specifications
  */
-#define MIN_LPD		(1 << 0)    /* Divider (not encoded) */
-#define MAX_LPD		(1 << 15)   /* Divider (not encoded) */
-#define DEFAULT_LPD	(1 << 1)	/* Divider (not encoded) */
+#define MIN_LPD		(1 << 0)    /* Divider (analt encoded) */
+#define MAX_LPD		(1 << 15)   /* Divider (analt encoded) */
+#define DEFAULT_LPD	(1 << 1)	/* Divider (analt encoded) */
 
 #define SYS_CLK_KHZ	80000
 #define SYSTEM_PERIOD	12.5
@@ -525,7 +525,7 @@ int clock_pll(int fsys, int flags)
 	clock_exit_limp();
 	
 	/*
-	 * Return the SDRAM to normal operation if it is in use.
+	 * Return the SDRAM to analrmal operation if it is in use.
 	 */
 	if (readl(MCF_SDRAMC_SDCR) & MCF_SDRAMC_SDCR_REF)
 		/* Exit self refresh mode */

@@ -71,12 +71,12 @@ static const struct snd_kcontrol_new mtk_dai_pcm_o001_mix[] = {
 };
 
 static const struct snd_soc_dapm_widget mtk_dai_pcm_widgets[] = {
-	SND_SOC_DAPM_MIXER("I002", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I003", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("O000", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I002", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I003", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("O000", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_pcm_o000_mix,
 			   ARRAY_SIZE(mtk_dai_pcm_o000_mix)),
-	SND_SOC_DAPM_MIXER("O001", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O001", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_pcm_o001_mix,
 			   ARRAY_SIZE(mtk_dai_pcm_o001_mix)),
 
@@ -341,7 +341,7 @@ static int init_pcmif_priv_data(struct mtk_base_afe *afe)
 	pcmif_priv = devm_kzalloc(afe->dev, sizeof(struct mtk_dai_pcmif_priv),
 				  GFP_KERNEL);
 	if (!pcmif_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	afe_priv->dai_priv[MT8195_AFE_IO_PCM] = pcmif_priv;
 	return 0;
@@ -353,7 +353,7 @@ int mt8195_dai_pcm_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 

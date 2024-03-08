@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * include/asm-alpha/sysinfo.h
  */
@@ -19,14 +19,14 @@
 #define SSI_LMF				7
 #define SSI_IEEE_FP_CONTROL		14
 #define SSI_IEEE_STATE_AT_SIGNAL	15
-#define SSI_IEEE_IGNORE_STATE_AT_SIGNAL	16
+#define SSI_IEEE_IGANALRE_STATE_AT_SIGNAL	16
 #define SSI_IEEE_RAISE_EXCEPTION	1001	/* linux specific */
 
 #define SSIN_UACPROC			6
 
 #define UAC_BITMASK			7
-#define UAC_NOPRINT			1
-#define UAC_NOFIX			2
+#define UAC_ANALPRINT			1
+#define UAC_ANALFIX			2
 #define UAC_SIGBUS			4
 
 #endif /* __ASM_ALPHA_SYSINFO_H */

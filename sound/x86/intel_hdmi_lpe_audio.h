@@ -26,7 +26,7 @@
 #define HAD_MIN_PERIODS		1
 #define HAD_MAX_PERIOD_BYTES	((HAD_MAX_BUFFER / HAD_MIN_PERIODS) & ~0x3f)
 #define HAD_MIN_PERIOD_BYTES	1024	/* might be smaller */
-#define HAD_FIFO_SIZE		0 /* fifo not being used */
+#define HAD_FIFO_SIZE		0 /* fifo analt being used */
 #define MAX_SPEAKERS		8
 
 #define AUD_SAMPLE_RATE_32	32000

@@ -43,7 +43,7 @@ nlmsvc_share_file(struct nlm_host *host, struct nlm_file *file,
 	share = kmalloc(sizeof(*share) + oh->len,
 						GFP_KERNEL);
 	if (share == NULL)
-		return nlm_lck_denied_nolocks;
+		return nlm_lck_denied_anallocks;
 
 	/* Copy owner handle */
 	ohdata = (u8 *) (share + 1);
@@ -81,7 +81,7 @@ nlmsvc_unshare_file(struct nlm_host *host, struct nlm_file *file,
 		}
 	}
 
-	/* X/Open spec says return success even if there was no
+	/* X/Open spec says return success even if there was anal
 	 * corresponding share. */
 	return nlm_granted;
 }

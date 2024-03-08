@@ -41,7 +41,7 @@ static __poll_t pps_cdev_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &pps->queue, wait);
 
-	return EPOLLIN | EPOLLRDNORM;
+	return EPOLLIN | EPOLLRDANALRM;
 }
 
 static int pps_cdev_fasync(int fd, struct file *file, int on)
@@ -239,7 +239,7 @@ static long pps_cdev_ioctl(struct file *file,
 		break;
 	}
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	return 0;
@@ -296,18 +296,18 @@ static long pps_cdev_compat_ioctl(struct file *file,
 #define pps_cdev_compat_ioctl	NULL
 #endif
 
-static int pps_cdev_open(struct inode *inode, struct file *file)
+static int pps_cdev_open(struct ianalde *ianalde, struct file *file)
 {
-	struct pps_device *pps = container_of(inode->i_cdev,
+	struct pps_device *pps = container_of(ianalde->i_cdev,
 						struct pps_device, cdev);
 	file->private_data = pps;
 	kobject_get(&pps->dev->kobj);
 	return 0;
 }
 
-static int pps_cdev_release(struct inode *inode, struct file *file)
+static int pps_cdev_release(struct ianalde *ianalde, struct file *file)
 {
-	struct pps_device *pps = container_of(inode->i_cdev,
+	struct pps_device *pps = container_of(ianalde->i_cdev,
 						struct pps_device, cdev);
 	kobject_put(&pps->dev->kobj);
 	return 0;
@@ -319,7 +319,7 @@ static int pps_cdev_release(struct inode *inode, struct file *file)
 
 static const struct file_operations pps_cdev_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.poll		= pps_cdev_poll,
 	.fasync		= pps_cdev_fasync,
 	.compat_ioctl	= pps_cdev_compat_ioctl,
@@ -334,7 +334,7 @@ static void pps_device_destruct(struct device *dev)
 
 	cdev_del(&pps->cdev);
 
-	/* Now we can release the ID for re-use */
+	/* Analw we can release the ID for re-use */
 	pr_debug("deallocating pps%d\n", pps->id);
 	mutex_lock(&pps_idr_lock);
 	idr_remove(&pps_idr, pps->id);
@@ -356,7 +356,7 @@ int pps_register_cdev(struct pps_device *pps)
 	 */
 	err = idr_alloc(&pps_idr, pps, 0, PPS_MAX_SOURCES, GFP_KERNEL);
 	if (err < 0) {
-		if (err == -ENOSPC) {
+		if (err == -EANALSPC) {
 			pr_err("%s: too many PPS sources in the system\n",
 			       pps->info.name);
 			err = -EBUSY;
@@ -419,13 +419,13 @@ void pps_unregister_cdev(struct pps_device *pps)
  * serial line discipline.  It may need to be tweaked when a second user
  * is found.
  *
- * There is no function interface for setting the lookup_cookie field.
+ * There is anal function interface for setting the lookup_cookie field.
  * It's initialized to NULL when the pps device is created, and if a
  * client wants to use it, just fill it in afterward.
  *
  * The cookie is automatically set to NULL in pps_unregister_source()
- * so that it will not be used again, even if the pps device cannot
- * be removed from the idr due to pending references holding the minor
+ * so that it will analt be used again, even if the pps device cananalt
+ * be removed from the idr due to pending references holding the mianalr
  * number in use.
  */
 struct pps_device *pps_lookup_dev(void const *cookie)

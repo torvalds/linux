@@ -106,7 +106,7 @@ int build_spnego_ntlmssp_neg_blob(unsigned char **pbuffer, u16 *buflen,
 
 	buf = kmalloc(total_len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* insert main gss header */
 	encode_asn_tag(buf, &ofs, 0xa1, 0x30, neg_result_len + oid_len +
@@ -142,7 +142,7 @@ int build_spnego_ntlmssp_auth_blob(unsigned char **pbuffer, u16 *buflen,
 
 	buf = kmalloc(total_len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* insert main gss header */
 	encode_asn_tag(buf, &ofs, 0xa1, 0x30, neg_result_len);
@@ -219,7 +219,7 @@ static int ksmbd_neg_token_alloc(void *context, size_t hdrlen,
 
 	conn->mechToken = kmemdup_nul(value, vlen, GFP_KERNEL);
 	if (!conn->mechToken)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	conn->mechTokenLen = (unsigned int)vlen;
 

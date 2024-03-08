@@ -31,7 +31,7 @@ int siw_mem_add(struct siw_device *sdev, struct siw_mem *m)
 
 	if (xa_alloc_cyclic(&sdev->mem_xa, &id, m, limit, &next,
 	    GFP_KERNEL) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Set the STag index part */
 	m->stag = id << 8;
@@ -87,7 +87,7 @@ int siw_mr_add_mem(struct siw_mr *mr, struct ib_pd *pd, void *mem_obj,
 	u32 id, next;
 
 	if (!mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mem->mem_obj = mem_obj;
 	mem->stag_valid = 0;
@@ -104,7 +104,7 @@ int siw_mr_add_mem(struct siw_mr *mr, struct ib_pd *pd, void *mem_obj,
 	if (xa_alloc_cyclic(&sdev->mem_xa, &id, mem, limit, &next,
 	    GFP_KERNEL) < 0) {
 		kfree(mem);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mr->mem = mem;
@@ -206,10 +206,10 @@ int siw_check_mem(struct ib_pd *pd, struct siw_mem *mem, u64 addr,
  * @off:	starting offset in SGE
  * @len:	len of memory interval to be checked
  *
- * NOTE: Function references SGE's memory object (mem->obj)
- * if not yet done. New reference is kept if check went ok and
- * released if check failed. If mem->obj is already valid, no new
- * lookup is being done and mem is not released it check fails.
+ * ANALTE: Function references SGE's memory object (mem->obj)
+ * if analt yet done. New reference is kept if check went ok and
+ * released if check failed. If mem->obj is already valid, anal new
+ * lookup is being done and mem is analt released it check fails.
  */
 int siw_check_sge(struct ib_pd *pd, struct siw_sge *sge, struct siw_mem *mem[],
 		  enum ib_access_flags perms, u32 off, int len)
@@ -225,7 +225,7 @@ int siw_check_sge(struct ib_pd *pd, struct siw_sge *sge, struct siw_mem *mem[],
 	if (*mem == NULL) {
 		new = siw_mem_id2obj(sdev, sge->lkey >> 8);
 		if (unlikely(!new)) {
-			siw_dbg_pd(pd, "STag unknown: 0x%08x\n", sge->lkey);
+			siw_dbg_pd(pd, "STag unkanalwn: 0x%08x\n", sge->lkey);
 			rv = -E_STAG_INVALID;
 			goto fail;
 		}
@@ -275,7 +275,7 @@ void siw_wqe_put_mem(struct siw_wqe *wqe, enum siw_opcode op)
 	default:
 		/*
 		 * SIW_OP_INVAL_STAG and SIW_OP_REG_MR
-		 * do not hold memory references
+		 * do analt hold memory references
 		 */
 		break;
 	}
@@ -288,7 +288,7 @@ int siw_invalidate_stag(struct ib_pd *pd, u32 stag)
 	int rv = 0;
 
 	if (unlikely(!mem)) {
-		siw_dbg_pd(pd, "STag 0x%08x unknown\n", stag);
+		siw_dbg_pd(pd, "STag 0x%08x unkanalwn\n", stag);
 		return -EINVAL;
 	}
 	if (unlikely(mem->pd != pd)) {
@@ -298,11 +298,11 @@ int siw_invalidate_stag(struct ib_pd *pd, u32 stag)
 	}
 	/*
 	 * Per RDMA verbs definition, an STag may already be in invalid
-	 * state if invalidation is requested. So no state check here.
+	 * state if invalidation is requested. So anal state check here.
 	 */
 	mem->stag_valid = 0;
 
-	siw_dbg_pd(pd, "STag 0x%08x now invalid\n", stag);
+	siw_dbg_pd(pd, "STag 0x%08x analw invalid\n", stag);
 out:
 	siw_mem_put(mem);
 	return rv;
@@ -347,7 +347,7 @@ struct siw_pbl *siw_pbl_alloc(u32 num_buf)
 
 	pbl = kzalloc(struct_size(pbl, pbe, num_buf), GFP_KERNEL);
 	if (!pbl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pbl->max_buf = num_buf;
 
@@ -373,18 +373,18 @@ struct siw_umem *siw_umem_get(struct ib_device *base_dev, u64 start,
 
 	umem = kzalloc(sizeof(*umem), GFP_KERNEL);
 	if (!umem)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	umem->page_chunk =
 		kcalloc(num_chunks, sizeof(struct siw_page_chunk), GFP_KERNEL);
 	if (!umem->page_chunk) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_out;
 	}
 	base_mem = ib_umem_get(base_dev, start, len, rights);
 	if (IS_ERR(base_mem)) {
 		rv = PTR_ERR(base_mem);
-		siw_dbg(base_dev, "Cannot pin user memory: %d\n", rv);
+		siw_dbg(base_dev, "Cananalt pin user memory: %d\n", rv);
 		goto err_out;
 	}
 	umem->fp_addr = first_page_va;
@@ -403,7 +403,7 @@ struct siw_umem *siw_umem_get(struct ib_device *base_dev, u64 start,
 			kcalloc(nents, sizeof(struct page *), GFP_KERNEL);
 
 		if (!plist) {
-			rv = -ENOMEM;
+			rv = -EANALMEM;
 			goto err_out;
 		}
 		umem->page_chunk[i].plist = plist;

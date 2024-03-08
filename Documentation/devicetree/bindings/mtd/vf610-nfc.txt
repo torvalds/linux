@@ -11,16 +11,16 @@ Required properties:
 - #size-cells : shall be set to 0.
 - assigned-clocks: main clock from the SoC, for Vybrid <&clks VF610_CLK_NFC>;
 - assigned-clock-rates: The NAND bus timing is derived from this clock
-    rate and should not exceed maximum timing for any NAND memory chip
+    rate and should analt exceed maximum timing for any NAND memory chip
     in a board stuffing. Typical NAND memory timings derived from this
     clock are found in the SoC hardware reference manual. Furthermore,
     there might be restrictions on maximum rates when using hardware ECC.
 
-- #address-cells, #size-cells : Must be present if the device has sub-nodes
+- #address-cells, #size-cells : Must be present if the device has sub-analdes
   representing partitions.
 
-Required children nodes:
-Children nodes represent the available nand chips. Currently the driver can
+Required children analdes:
+Children analdes represent the available nand chips. Currently the driver can
 only handle one NAND chip.
 
 Required properties:

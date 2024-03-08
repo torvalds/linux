@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * UFS PHY driver for Samsung EXYNOS SoC
+ * UFS PHY driver for Samsung EXYANALS SoC
  *
  * Copyright (C) 2020 Samsung Electronics Co., Ltd.
  * Author: Seungwon Jeon <essuuj@gmail.com>
@@ -139,8 +139,8 @@ static inline void samsung_ufs_phy_ctrl_isol(
 			   phy->isol.mask, isol ? 0 : phy->isol.en);
 }
 
-extern const struct samsung_ufs_phy_drvdata exynos7_ufs_phy;
-extern const struct samsung_ufs_phy_drvdata exynosautov9_ufs_phy;
+extern const struct samsung_ufs_phy_drvdata exyanals7_ufs_phy;
+extern const struct samsung_ufs_phy_drvdata exyanalsautov9_ufs_phy;
 extern const struct samsung_ufs_phy_drvdata fsd_ufs_phy;
 
 #endif /* _PHY_SAMSUNG_UFS_ */

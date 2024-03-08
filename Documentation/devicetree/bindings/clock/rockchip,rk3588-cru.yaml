@@ -15,7 +15,7 @@ description: |
   controller for SoC peripherals. For example it provides SCLK_UART2 and
   PCLK_UART2, as well as SRST_P_UART2 and SRST_S_UART2 for the second UART
   module.
-  Each clock is assigned an identifier and client nodes can use this identifier
+  Each clock is assigned an identifier and client analdes can use this identifier
   to specify the clock which they consume. All available clock and reset IDs
   are defined as preprocessor macros in dt-binding headers.
 
@@ -50,7 +50,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: >
       phandle to the syscon managing the "general register files". It is used
-      for GRF muxes, if missing any muxes present in the GRF will not be
+      for GRF muxes, if missing any muxes present in the GRF will analt be
       available.
 
 required:

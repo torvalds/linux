@@ -171,7 +171,7 @@
 
 /* c_can lec values */
 enum c_can_lec_type {
-	LEC_NO_ERROR = 0,
+	LEC_ANAL_ERROR = 0,
 	LEC_STUFF_ERROR,
 	LEC_FORM_ERROR,
 	LEC_ACK_ERROR,
@@ -186,7 +186,7 @@ enum c_can_lec_type {
  * Bus errors (BUS_OFF, ERROR_WARNING, ERROR_PASSIVE) are supported
  */
 enum c_can_bus_error_types {
-	C_CAN_NO_ERROR = 0,
+	C_CAN_ANAL_ERROR = 0,
 	C_CAN_BUS_OFF,
 	C_CAN_ERROR_WARNING,
 	C_CAN_ERROR_PASSIVE,
@@ -259,8 +259,8 @@ static inline void c_can_object_put(struct net_device *dev, int iface,
 	c_can_obj_update(dev, iface, cmd | IF_COMM_WR, obj);
 }
 
-/* Note: According to documentation clearing TXIE while MSGVAL is set
- * is not allowed, but works nicely on C/DCAN. And that lowers the I/O
+/* Analte: According to documentation clearing TXIE while MSGVAL is set
+ * is analt allowed, but works nicely on C/DCAN. And that lowers the I/O
  * load significantly.
  */
 static void c_can_inval_tx_object(struct net_device *dev, int iface, int obj)
@@ -333,7 +333,7 @@ static void c_can_setup_tx_object(struct net_device *dev, int iface,
 }
 
 static int c_can_handle_lost_msg_obj(struct net_device *dev,
-				     int iface, int objno, u32 ctrl)
+				     int iface, int objanal, u32 ctrl)
 {
 	struct net_device_stats *stats = &dev->stats;
 	struct c_can_priv *priv = netdev_priv(dev);
@@ -342,7 +342,7 @@ static int c_can_handle_lost_msg_obj(struct net_device *dev,
 
 	ctrl &= ~(IF_MCONT_MSGLST | IF_MCONT_INTPND | IF_MCONT_NEWDAT);
 	priv->write_reg(priv, C_CAN_IFACE(MSGCTRL_REG, iface), ctrl);
-	c_can_object_put(dev, iface, objno, IF_COMM_CONTROL);
+	c_can_object_put(dev, iface, objanal, IF_COMM_CONTROL);
 
 	stats->rx_errors++;
 	stats->rx_over_errors++;
@@ -370,7 +370,7 @@ static int c_can_read_msg_object(struct net_device *dev, int iface, u32 ctrl)
 	skb = alloc_can_skb(dev, &frame);
 	if (!skb) {
 		stats->rx_dropped++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	frame->len = can_cc_dlc2len(ctrl & 0x0F);
@@ -599,7 +599,7 @@ static int c_can_chip_config(struct net_device *dev)
 	/* enable automatic retransmission */
 	priv->write_reg(priv, C_CAN_CTRL_REG, CONTROL_ENABLE_AR);
 
-	if ((priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY) &&
+	if ((priv->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY) &&
 	    (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)) {
 		/* loopback + silent mode : useful for hot self-test */
 		priv->write_reg(priv, C_CAN_CTRL_REG, CONTROL_TEST);
@@ -608,7 +608,7 @@ static int c_can_chip_config(struct net_device *dev)
 		/* loopback mode : useful for self-test function */
 		priv->write_reg(priv, C_CAN_CTRL_REG, CONTROL_TEST);
 		priv->write_reg(priv, C_CAN_TEST_REG, TEST_LBACK);
-	} else if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY) {
+	} else if (priv->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY) {
 		/* silent mode : bus-monitoring mode */
 		priv->write_reg(priv, C_CAN_CTRL_REG, CONTROL_TEST);
 		priv->write_reg(priv, C_CAN_TEST_REG, TEST_SILENT);
@@ -684,7 +684,7 @@ static int c_can_set_mode(struct net_device *dev, enum can_mode mode)
 		c_can_irq_control(priv, true);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -737,7 +737,7 @@ static void c_can_do_tx(struct net_device *dev)
 
 		/* We use IF_NAPI interface instead of IF_TX because we
 		 * are called from c_can_poll(), which runs inside
-		 * NAPI. We are not transmitting.
+		 * NAPI. We are analt transmitting.
 		 */
 		c_can_inval_tx_object(dev, IF_NAPI, obj);
 		bytes += can_get_echo_skb(dev, idx, NULL);
@@ -788,7 +788,7 @@ static u32 c_can_adjust_pending(u32 pend, u32 rx_mask)
 	weight = hweight32(pend);
 	lasts = fls(pend);
 
-	/* If the bits are linear, nothing to do */
+	/* If the bits are linear, analthing to do */
 	if (lasts == weight)
 		return pend;
 
@@ -835,8 +835,8 @@ static int c_can_read_objects(struct net_device *dev, struct c_can_priv *priv,
 			continue;
 		}
 
-		/* This really should not happen, but this covers some
-		 * odd HW behaviour. Do not remove that unless you
+		/* This really should analt happen, but this covers some
+		 * odd HW behaviour. Do analt remove that unless you
 		 * want to brick your machine.
 		 */
 		if (!(ctrl & IF_MCONT_NEWDAT))
@@ -917,7 +917,7 @@ static int c_can_handle_state_change(struct net_device *dev,
 	struct can_berr_counter bec;
 
 	switch (error_type) {
-	case C_CAN_NO_ERROR:
+	case C_CAN_ANAL_ERROR:
 		priv->can.state = CAN_STATE_ERROR_ACTIVE;
 		break;
 	case C_CAN_ERROR_WARNING:
@@ -950,7 +950,7 @@ static int c_can_handle_state_change(struct net_device *dev,
 				ERR_CNT_RP_SHIFT;
 
 	switch (error_type) {
-	case C_CAN_NO_ERROR:
+	case C_CAN_ANAL_ERROR:
 		cf->can_id |= CAN_ERR_CRTL | CAN_ERR_CNT;
 		cf->data[1] = CAN_ERR_CRTL_ACTIVE;
 		cf->data[6] = bec.txerr;
@@ -999,11 +999,11 @@ static int c_can_handle_bus_err(struct net_device *dev,
 	struct can_frame *cf;
 	struct sk_buff *skb;
 
-	/* early exit if no lec update or no error.
-	 * no lec update means that no CAN bus event has been detected
+	/* early exit if anal lec update or anal error.
+	 * anal lec update means that anal CAN bus event has been detected
 	 * since CPU wrote 0x7 value to status reg.
 	 */
-	if (lec_type == LEC_UNUSED || lec_type == LEC_NO_ERROR)
+	if (lec_type == LEC_UNUSED || lec_type == LEC_ANAL_ERROR)
 		return 0;
 
 	if (!(priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING))
@@ -1071,7 +1071,7 @@ static int c_can_poll(struct napi_struct *napi, int quota)
 		if (priv->type != BOSCH_D_CAN)
 			priv->write_reg(priv, C_CAN_STS_REG, LEC_UNUSED);
 	} else {
-		/* no change detected ... */
+		/* anal change detected ... */
 		curr = last;
 	}
 
@@ -1105,7 +1105,7 @@ static int c_can_poll(struct napi_struct *napi, int quota)
 
 	if ((!(curr & STATUS_EWARN)) && (last & STATUS_EWARN)) {
 		netdev_dbg(dev, "left error warning state\n");
-		work_done += c_can_handle_state_change(dev, C_CAN_NO_ERROR);
+		work_done += c_can_handle_state_change(dev, C_CAN_ANAL_ERROR);
 	}
 
 	/* handle lec errors on the bus */
@@ -1118,7 +1118,7 @@ static int c_can_poll(struct napi_struct *napi, int quota)
 end:
 	if (work_done < quota) {
 		napi_complete_done(napi, work_done);
-		/* enable all IRQs if we are not in bus off state */
+		/* enable all IRQs if we are analt in bus off state */
 		if (priv->can.state != CAN_STATE_BUS_OFF)
 			c_can_irq_control(priv, true);
 	}
@@ -1134,7 +1134,7 @@ static irqreturn_t c_can_isr(int irq, void *dev_id)
 
 	reg_int = priv->read_reg(priv, C_CAN_INT_REG);
 	if (!reg_int)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* save for later use */
 	if (reg_int & INT_STS_PENDING)
@@ -1243,7 +1243,7 @@ struct net_device *alloc_c_can_dev(int msg_obj_num)
 	priv->can.do_set_mode = c_can_set_mode;
 	priv->can.do_get_berr_counter = c_can_get_berr_counter;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
-					CAN_CTRLMODE_LISTENONLY |
+					CAN_CTRLMODE_LISTEANALNLY |
 					CAN_CTRLMODE_BERR_REPORTING;
 
 	return dev;

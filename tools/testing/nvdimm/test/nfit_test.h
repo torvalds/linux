@@ -29,7 +29,7 @@ struct nfit_test_resource {
 #define NFIT_ARS_INJECT_INVALID 2
 
 enum err_inj_options {
-	ND_ARS_ERR_INJ_OPT_NOTIFY = 0,
+	ND_ARS_ERR_INJ_OPT_ANALTIFY = 0,
 };
 
 /* nfit commands */
@@ -102,7 +102,7 @@ struct nd_cmd_ars_err_inj_stat {
 #define ND_INTEL_SMART_SPARE_TRIP               (1 << 0)
 #define ND_INTEL_SMART_TEMP_TRIP                (1 << 1)
 #define ND_INTEL_SMART_CTEMP_TRIP               (1 << 2)
-#define ND_INTEL_SMART_NON_CRITICAL_HEALTH      (1 << 0)
+#define ND_INTEL_SMART_ANALN_CRITICAL_HEALTH      (1 << 0)
 #define ND_INTEL_SMART_CRITICAL_HEALTH          (1 << 1)
 #define ND_INTEL_SMART_FATAL_HEALTH             (1 << 2)
 #define ND_INTEL_SMART_INJECT_MTEMP		(1 << 0)
@@ -181,7 +181,7 @@ struct nd_intel_fw_send_data {
 	__u32 offset;
 	__u32 length;
 	__u8 data[];
-/* this field is not declared due ot variable data from input */
+/* this field is analt declared due ot variable data from input */
 /*	__u32 status; */
 } __packed;
 

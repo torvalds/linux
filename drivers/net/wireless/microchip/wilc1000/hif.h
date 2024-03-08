@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries
+ * Copyright (c) 2012 - 2018 Microchip Techanallogy Inc., and its subsidiaries
  * All rights reserved.
  */
 
@@ -73,7 +73,7 @@ enum scan_event {
 
 enum conn_event {
 	CONN_DISCONN_EVENT_CONN_RESP		= 0,
-	CONN_DISCONN_EVENT_DISCONN_NOTIF	= 1,
+	CONN_DISCONN_EVENT_DISCONN_ANALTIF	= 1,
 	CONN_DISCONN_EVENT_FORCE_32BIT		= 0xFFFFFFFF
 };
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Renesas Technology Corp. R0P7785LC0011RL Support.
+ * Renesas Techanallogy Corp. R0P7785LC0011RL Support.
  *
  * Copyright (C) 2008  Yoshihiro Shimoda
  * Copyright (C) 2009  Paul Mundt
@@ -21,7 +21,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/machine.h>
 #include <mach/sh7785lcr.h>
 #include <cpu/sh7785.h>
@@ -30,7 +30,7 @@
 #include <asm/bl_bit.h>
 
 /*
- * NOTE: This board has 2 physical memory maps.
+ * ANALTE: This board has 2 physical memory maps.
  *	 Please look at include/asm-sh/sh7785lcr.h or hardware manual.
  */
 static struct resource heartbeat_resource = {
@@ -46,7 +46,7 @@ static struct platform_device heartbeat_device = {
 	.resource	= &heartbeat_resource,
 };
 
-static struct mtd_partition nor_flash_partitions[] = {
+static struct mtd_partition analr_flash_partitions[] = {
 	{
 		.name		= "loader",
 		.offset		= 0x00000000,
@@ -69,27 +69,27 @@ static struct mtd_partition nor_flash_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data nor_flash_data = {
+static struct physmap_flash_data analr_flash_data = {
 	.width		= 4,
-	.parts		= nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(nor_flash_partitions),
+	.parts		= analr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(analr_flash_partitions),
 };
 
-static struct resource nor_flash_resources[] = {
+static struct resource analr_flash_resources[] = {
 	[0]	= {
-		.start	= NOR_FLASH_ADDR,
-		.end	= NOR_FLASH_ADDR + NOR_FLASH_SIZE - 1,
+		.start	= ANALR_FLASH_ADDR,
+		.end	= ANALR_FLASH_ADDR + ANALR_FLASH_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	}
 };
 
-static struct platform_device nor_flash_device = {
+static struct platform_device analr_flash_device = {
 	.name		= "physmap-flash",
 	.dev		= {
-		.platform_data	= &nor_flash_data,
+		.platform_data	= &analr_flash_data,
 	},
-	.num_resources	= ARRAY_SIZE(nor_flash_resources),
-	.resource	= nor_flash_resources,
+	.num_resources	= ARRAY_SIZE(analr_flash_resources),
+	.resource	= analr_flash_resources,
 };
 
 static struct r8a66597_platdata r8a66597_data = {
@@ -172,7 +172,7 @@ static struct sm501_platdata_fbsub sm501_pdata_fbsub_pnl = {
 			  SM501FB_FLAG_USE_HWCURSOR |
 			  SM501FB_FLAG_USE_HWACCEL |
 			  SM501FB_FLAG_DISABLE_AT_EXIT |
-			  SM501FB_FLAG_PANEL_NO_VBIASEN,
+			  SM501FB_FLAG_PANEL_ANAL_VBIASEN,
 };
 
 static struct sm501_platdata_fbsub sm501_pdata_fbsub_crt = {
@@ -266,7 +266,7 @@ static struct platform_device i2c_device = {
 
 static struct platform_device *sh7785lcr_devices[] __initdata = {
 	&heartbeat_device,
-	&nor_flash_device,
+	&analr_flash_device,
 	&r8a66597_usb_host_device,
 	&sm501_device,
 	&i2c_device,
@@ -336,7 +336,7 @@ static void __init sh7785lcr_setup(char **cmdline_p)
 {
 	void __iomem *sm501_reg;
 
-	printk(KERN_INFO "Renesas Technology Corp. R0P7785LC0011RL support.\n");
+	printk(KERN_INFO "Renesas Techanallogy Corp. R0P7785LC0011RL support.\n");
 
 	pm_power_off = sh7785lcr_power_off;
 
@@ -366,7 +366,7 @@ static int sh7785lcr_mode_pins(void)
 	value |= MODE_PIN7; /* Area 0 SRAM interface [fixed] */
 	value |= MODE_PIN8; /* Little Endian */
 	value |= MODE_PIN9; /* Master Mode */
-	value |= MODE_PIN14; /* No PLL step-up */
+	value |= MODE_PIN14; /* Anal PLL step-up */
 
 	return value;
 }

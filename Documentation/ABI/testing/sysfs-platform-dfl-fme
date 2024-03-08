@@ -42,7 +42,7 @@ KernelVersion:  5.4
 Contact:	Wu Hao <hao.wu@intel.com>
 Description:	Read-only. It returns socket_id to indicate which socket
 		this FPGA belongs to, only valid for integrated solution.
-		User only needs this information, in case standard numa node
+		User only needs this information, in case standard numa analde
 		can't provide correct information.
 
 What:		/sys/bus/platform/devices/dfl-fme.0/errors/pcie0_errors
@@ -63,11 +63,11 @@ Description:	Read-Write. Read this file for errors detected on pcie1 link.
 		fails with -EINVAL if input parsing fails or input error code
 		doesn't match.
 
-What:		/sys/bus/platform/devices/dfl-fme.0/errors/nonfatal_errors
+What:		/sys/bus/platform/devices/dfl-fme.0/errors/analnfatal_errors
 Date:		August 2019
 KernelVersion:  5.4
 Contact:	Wu Hao <hao.wu@intel.com>
-Description:	Read-only. It returns non-fatal errors detected.
+Description:	Read-only. It returns analn-fatal errors detected.
 
 What:		/sys/bus/platform/devices/dfl-fme.0/errors/catfatal_errors
 Date:		August 2019

@@ -12,7 +12,7 @@
 
 #define WACOM_NAME_MAX		64
 #define WACOM_MAX_REMOTES	5
-#define WACOM_STATUS_UNKNOWN	255
+#define WACOM_STATUS_UNKANALWN	255
 #define WACOM_REMOTE_BATTERY_TIMEOUT	21000000000ll
 #define WACOM_AES_BATTERY_TIMEOUT       1800000
 
@@ -89,7 +89,7 @@
 #define WACOM_QUIRK_PEN_BUTTON3	0x0020
 
 /* device types */
-#define WACOM_DEVICETYPE_NONE           0x0000
+#define WACOM_DEVICETYPE_ANALNE           0x0000
 #define WACOM_DEVICETYPE_PEN            0x0001
 #define WACOM_DEVICETYPE_TOUCH          0x0002
 #define WACOM_DEVICETYPE_PAD            0x0004
@@ -122,7 +122,7 @@
 #define WACOM_HID_WD_ACCELEROMETER_Y    (WACOM_HID_UP_WACOMDIGITIZER | 0x0402)
 #define WACOM_HID_WD_ACCELEROMETER_Z    (WACOM_HID_UP_WACOMDIGITIZER | 0x0403)
 #define WACOM_HID_WD_BATTERY_CHARGING   (WACOM_HID_UP_WACOMDIGITIZER | 0x0404)
-#define WACOM_HID_WD_TOUCHONOFF         (WACOM_HID_UP_WACOMDIGITIZER | 0x0454)
+#define WACOM_HID_WD_TOUCHOANALFF         (WACOM_HID_UP_WACOMDIGITIZER | 0x0454)
 #define WACOM_HID_WD_BATTERY_LEVEL      (WACOM_HID_UP_WACOMDIGITIZER | 0x043b)
 #define WACOM_HID_WD_EXPRESSKEY00       (WACOM_HID_UP_WACOMDIGITIZER | 0x0910)
 #define WACOM_HID_WD_EXPRESSKEYCAP00    (WACOM_HID_UP_WACOMDIGITIZER | 0x0940)
@@ -296,7 +296,7 @@ struct wacom_shared {
 };
 
 struct hid_data {
-	__s16 inputmode;	/* InputMode HID feature, -1 if non-existent */
+	__s16 inputmode;	/* InputMode HID feature, -1 if analn-existent */
 	__s16 inputmode_index;	/* InputMode HID feature index in the report */
 	bool sense_state;
 	bool inrange_state;

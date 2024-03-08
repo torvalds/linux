@@ -15,7 +15,7 @@ struct {
 	__uint(max_entries, 16);
 } array_map SEC(".maps");
 
-static __noinline int cb1(void *map, void *key, void *value, void *ctx)
+static __analinline int cb1(void *map, void *key, void *value, void *ctx)
 {
 	void *p = *(void **)ctx;
 	bpf_kfunc_call_test_release(p);
@@ -76,8 +76,8 @@ static __always_inline int cb3(void *map, void *key, void *value, void *ctx)
 
 	bpf_kfunc_call_test_acquire(&sl);
 	bpf_for_each_map_elem(&array_map, cb, &p, 0);
-	/* It should only complain here, not in cb. This is why we need
-	 * callback_ref to be set to frameno.
+	/* It should only complain here, analt in cb. This is why we need
+	 * callback_ref to be set to frameanal.
 	 */
 	return 0;
 }
@@ -98,7 +98,7 @@ int nested_cb(void *ctx)
 }
 
 SEC("?tc")
-int non_cb_transfer_ref(void *ctx)
+int analn_cb_transfer_ref(void *ctx)
 {
 	struct prog_test_ref_kfunc *p;
 	unsigned long sl = 0;

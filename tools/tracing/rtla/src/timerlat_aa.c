@@ -4,9 +4,9 @@
  */
 
 #include <stdlib.h>
-#include <errno.h>
+#include <erranal.h>
 #include "utils.h"
-#include "osnoise.h"
+#include "osanalise.h"
 #include "timerlat.h"
 #include <unistd.h>
 
@@ -43,7 +43,7 @@ struct timerlat_aa_data {
 	 * priority of the thread. Assuming timerlat is the highest
 	 * prio, it is blocking. If timerlat has a lower prio, it is
 	 * interference.
-	 * note: "unsigned long long" because they are fetch using tep_get_field_val();
+	 * analte: "unsigned long long" because they are fetch using tep_get_field_val();
 	 */
 	unsigned long long	run_thread_pid;
 	char			run_thread_comm[MAX_COMM];
@@ -60,8 +60,8 @@ struct timerlat_aa_data {
 	 * Information about the last IRQ before the timerlat irq
 	 * arrived.
 	 *
-	 * If now - timestamp is <= latency, it might have influenced
-	 * in the timerlat irq latency. Otherwise, ignore it.
+	 * If analw - timestamp is <= latency, it might have influenced
+	 * in the timerlat irq latency. Otherwise, iganalre it.
 	 */
 	unsigned long long	prev_irq_duration;
 	unsigned long long	prev_irq_timstamp;
@@ -111,16 +111,16 @@ struct timerlat_aa_context {
 	 * required to translate function names and register
 	 * events.
 	 */
-	struct osnoise_tool *tool;
+	struct osanalise_tool *tool;
 };
 
 /*
  * The data is stored as a local variable, but accessed via a helper function.
  *
  * It could be stored inside the trace context. But every access would
- * require container_of() + a series of pointers. Do we need it? Not sure.
+ * require container_of() + a series of pointers. Do we need it? Analt sure.
  *
- * For now keep it simple. If needed, store it in the tool, add the *context
+ * For analw keep it simple. If needed, store it in the tool, add the *context
  * as a parameter in timerlat_aa_get_ctx() and do the magic there.
  */
 static struct timerlat_aa_context *__timerlat_aa_ctx;
@@ -147,7 +147,7 @@ static int timerlat_aa_irq_latency(struct timerlat_aa_data *taa_data,
 				   struct tep_event *event)
 {
 	/*
-	 * For interference, we start now looking for things that can delay
+	 * For interference, we start analw looking for things that can delay
 	 * the thread.
 	 */
 	taa_data->curr_state = TIMERLAT_WAITING_THREAD;
@@ -183,19 +183,19 @@ static int timerlat_aa_irq_latency(struct timerlat_aa_data *taa_data,
 	/*
 	 * Get exit from idle case.
 	 *
-	 * If it is not idle thread:
+	 * If it is analt idle thread:
 	 */
 	if (taa_data->run_thread_pid)
 		return 0;
 
 	/*
-	 * if the latency is shorter than the known exit from idle:
+	 * if the latency is shorter than the kanalwn exit from idle:
 	 */
 	if (taa_data->tlat_irq_latency < taa_data->max_exit_idle_latency)
 		return 0;
 
 	/*
-	 * To be safe, ignore the cases in which an IRQ/NMI could have
+	 * To be safe, iganalre the cases in which an IRQ/NMI could have
 	 * interfered with the timerlat IRQ.
 	 */
 	if (taa_data->tlat_irq_timstamp - taa_data->tlat_irq_latency
@@ -215,7 +215,7 @@ static int timerlat_aa_thread_latency(struct timerlat_aa_data *taa_data,
 				      struct tep_event *event)
 {
 	/*
-	 * For interference, we start now looking for things that can delay
+	 * For interference, we start analw looking for things that can delay
 	 * the IRQ of the next cycle.
 	 */
 	taa_data->curr_state = TIMERLAT_WAITING_IRQ;
@@ -253,10 +253,10 @@ static int timerlat_aa_handler(struct trace_seq *s, struct tep_record *record,
 }
 
 /*
- * timerlat_aa_nmi_handler - Handles NMI noise
+ * timerlat_aa_nmi_handler - Handles NMI analise
  *
  * It is used to collect information about interferences from NMI. It is
- * hooked to the osnoise:nmi_noise event.
+ * hooked to the osanalise:nmi_analise event.
  */
 static int timerlat_aa_nmi_handler(struct trace_seq *s, struct tep_record *record,
 				   struct tep_event *event, void *context)
@@ -287,10 +287,10 @@ static int timerlat_aa_nmi_handler(struct trace_seq *s, struct tep_record *recor
 }
 
 /*
- * timerlat_aa_irq_handler - Handles IRQ noise
+ * timerlat_aa_irq_handler - Handles IRQ analise
  *
  * It is used to collect information about interferences from IRQ. It is
- * hooked to the osnoise:irq_noise event.
+ * hooked to the osanalise:irq_analise event.
  *
  * It is a little bit more complex than the other because it measures:
  *	- The IRQs that can delay the timer IRQ before it happened.
@@ -345,11 +345,11 @@ static int timerlat_aa_irq_handler(struct trace_seq *s, struct tep_record *recor
 		 * moments: the time reading the clock and the timer in
 		 * which the event is placed in the buffer (the trace
 		 * event timestamp). If the processor is slow or there
-		 * is some hardware noise, the difference between the
+		 * is some hardware analise, the difference between the
 		 * timestamp and the external clock read can be longer
 		 * than the IRQ handler delay, resulting in a negative
 		 * time. If so, set IRQ start delay as 0. In the end,
-		 * it is less relevant than the noise.
+		 * it is less relevant than the analise.
 		 */
 		if (expected_start < taa_data->timer_irq_start_time)
 			taa_data->timer_irq_start_delay = taa_data->timer_irq_start_time - expected_start;
@@ -357,7 +357,7 @@ static int timerlat_aa_irq_handler(struct trace_seq *s, struct tep_record *recor
 			taa_data->timer_irq_start_delay = 0;
 
 		/*
-		 * not exit from idle.
+		 * analt exit from idle.
 		 */
 		if (taa_data->run_thread_pid)
 			return 0;
@@ -383,12 +383,12 @@ static char *softirq_name[] = { "HI", "TIMER",	"NET_TX", "NET_RX", "BLOCK",
 
 
 /*
- * timerlat_aa_softirq_handler - Handles Softirq noise
+ * timerlat_aa_softirq_handler - Handles Softirq analise
  *
  * It is used to collect information about interferences from Softirq. It is
- * hooked to the osnoise:softirq_noise event.
+ * hooked to the osanalise:softirq_analise event.
  *
- * It is only printed in the non-rt kernel, as softirqs become thread on RT.
+ * It is only printed in the analn-rt kernel, as softirqs become thread on RT.
  */
 static int timerlat_aa_softirq_handler(struct trace_seq *s, struct tep_record *record,
 				       struct tep_event *event, void *context)
@@ -414,12 +414,12 @@ static int timerlat_aa_softirq_handler(struct trace_seq *s, struct tep_record *r
 }
 
 /*
- * timerlat_aa_softirq_handler - Handles thread noise
+ * timerlat_aa_softirq_handler - Handles thread analise
  *
  * It is used to collect information about interferences from threads. It is
- * hooked to the osnoise:thread_noise event.
+ * hooked to the osanalise:thread_analise event.
  *
- * Note: if you see thread noise, your timerlat thread was not the highest prio one.
+ * Analte: if you see thread analise, your timerlat thread was analt the highest prio one.
  */
 static int timerlat_aa_thread_handler(struct trace_seq *s, struct tep_record *record,
 				      struct tep_event *event, void *context)
@@ -588,7 +588,7 @@ static void timerlat_thread_analysis(struct timerlat_aa_data *taa_data, int cpu,
 
 	if (irq) {
 		/*
-		 * If the trace stopped due to IRQ, the other events will not happen
+		 * If the trace stopped due to IRQ, the other events will analt happen
 		 * because... the trace stopped :-).
 		 *
 		 * That is all folks, the stack trace was printed before the stop,
@@ -609,7 +609,7 @@ static void timerlat_thread_analysis(struct timerlat_aa_data *taa_data, int cpu,
 		 * The amount of time that the current thread postponed the scheduler.
 		 *
 		 * Recalling that it is net from NMI/IRQ/Softirq interference, so there
-		 * is no need to compute values here.
+		 * is anal need to compute values here.
 		 */
 		printf("  Blocking thread:	\t\t\t	%9.2f us (%.2f %%)\n",
 			ns_to_usf(taa_data->thread_blocking_duration),
@@ -664,8 +664,8 @@ static void timerlat_thread_analysis(struct timerlat_aa_data *taa_data, int cpu,
 	/*
 	 * Prints the interference caused by other threads to the thread latency.
 	 *
-	 * If this happens, your timerlat is not the highest prio. OK, migration
-	 * thread can happen. But otherwise, you are not measuring the "scheduling
+	 * If this happens, your timerlat is analt the highest prio. OK, migration
+	 * thread can happen. But otherwise, you are analt measuring the "scheduling
 	 * latency" only, and here is the difference from scheduling latency and
 	 * timer handling latency.
 	 */
@@ -878,24 +878,24 @@ out_err:
 /*
  * timerlat_aa_unregister_events - Unregister events used in the auto-analysis
  */
-static void timerlat_aa_unregister_events(struct osnoise_tool *tool, int dump_tasks)
+static void timerlat_aa_unregister_events(struct osanalise_tool *tool, int dump_tasks)
 {
 
 	tep_unregister_event_handler(tool->trace.tep, -1, "ftrace", "timerlat",
 				     timerlat_aa_handler, tool);
 
-	tracefs_event_disable(tool->trace.inst, "osnoise", NULL);
+	tracefs_event_disable(tool->trace.inst, "osanalise", NULL);
 
-	tep_unregister_event_handler(tool->trace.tep, -1, "osnoise", "nmi_noise",
+	tep_unregister_event_handler(tool->trace.tep, -1, "osanalise", "nmi_analise",
 				     timerlat_aa_nmi_handler, tool);
 
-	tep_unregister_event_handler(tool->trace.tep, -1, "osnoise", "irq_noise",
+	tep_unregister_event_handler(tool->trace.tep, -1, "osanalise", "irq_analise",
 				     timerlat_aa_irq_handler, tool);
 
-	tep_unregister_event_handler(tool->trace.tep, -1, "osnoise", "softirq_noise",
+	tep_unregister_event_handler(tool->trace.tep, -1, "osanalise", "softirq_analise",
 				     timerlat_aa_softirq_handler, tool);
 
-	tep_unregister_event_handler(tool->trace.tep, -1, "osnoise", "thread_noise",
+	tep_unregister_event_handler(tool->trace.tep, -1, "osanalise", "thread_analise",
 				     timerlat_aa_thread_handler, tool);
 
 	tep_unregister_event_handler(tool->trace.tep, -1, "ftrace", "kernel_stack",
@@ -917,7 +917,7 @@ static void timerlat_aa_unregister_events(struct osnoise_tool *tool, int dump_ta
  *
  * Returns 0 on success, -1 otherwise.
  */
-static int timerlat_aa_register_events(struct osnoise_tool *tool, int dump_tasks)
+static int timerlat_aa_register_events(struct osanalise_tool *tool, int dump_tasks)
 {
 	int retval;
 
@@ -928,22 +928,22 @@ static int timerlat_aa_register_events(struct osnoise_tool *tool, int dump_tasks
 	/*
 	 * register auto-analysis handlers.
 	 */
-	retval = tracefs_event_enable(tool->trace.inst, "osnoise", NULL);
-	if (retval < 0 && !errno) {
-		err_msg("Could not find osnoise events\n");
+	retval = tracefs_event_enable(tool->trace.inst, "osanalise", NULL);
+	if (retval < 0 && !erranal) {
+		err_msg("Could analt find osanalise events\n");
 		goto out_err;
 	}
 
-	tep_register_event_handler(tool->trace.tep, -1, "osnoise", "nmi_noise",
+	tep_register_event_handler(tool->trace.tep, -1, "osanalise", "nmi_analise",
 				   timerlat_aa_nmi_handler, tool);
 
-	tep_register_event_handler(tool->trace.tep, -1, "osnoise", "irq_noise",
+	tep_register_event_handler(tool->trace.tep, -1, "osanalise", "irq_analise",
 				   timerlat_aa_irq_handler, tool);
 
-	tep_register_event_handler(tool->trace.tep, -1, "osnoise", "softirq_noise",
+	tep_register_event_handler(tool->trace.tep, -1, "osanalise", "softirq_analise",
 				   timerlat_aa_softirq_handler, tool);
 
-	tep_register_event_handler(tool->trace.tep, -1, "osnoise", "thread_noise",
+	tep_register_event_handler(tool->trace.tep, -1, "osanalise", "thread_analise",
 				   timerlat_aa_thread_handler, tool);
 
 	tep_register_event_handler(tool->trace.tep, -1, "ftrace", "kernel_stack",
@@ -956,8 +956,8 @@ static int timerlat_aa_register_events(struct osnoise_tool *tool, int dump_tasks
 	 * Dump task events.
 	 */
 	retval = tracefs_event_enable(tool->trace.inst, "sched", "sched_switch");
-	if (retval < 0 && !errno) {
-		err_msg("Could not find sched_switch\n");
+	if (retval < 0 && !erranal) {
+		err_msg("Could analt find sched_switch\n");
 		goto out_err;
 	}
 
@@ -965,8 +965,8 @@ static int timerlat_aa_register_events(struct osnoise_tool *tool, int dump_tasks
 				   timerlat_aa_sched_switch_handler, tool);
 
 	retval = tracefs_event_enable(tool->trace.inst, "workqueue", "workqueue_execute_start");
-	if (retval < 0 && !errno) {
-		err_msg("Could not find workqueue_execute_start\n");
+	if (retval < 0 && !erranal) {
+		err_msg("Could analt find workqueue_execute_start\n");
 		goto out_err;
 	}
 
@@ -1005,7 +1005,7 @@ out_ctx:
  *
  * Returns 0 on success, -1 otherwise.
  */
-int timerlat_aa_init(struct osnoise_tool *tool, int dump_tasks)
+int timerlat_aa_init(struct osanalise_tool *tool, int dump_tasks)
 {
 	int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 	struct timerlat_aa_context *taa_ctx;

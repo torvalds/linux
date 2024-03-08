@@ -5,8 +5,8 @@
 XFRM device - offloading the IPsec computations
 ===============================================
 
-Shannon Nelson <shannon.nelson@oracle.com>
-Leon Romanovsky <leonro@nvidia.com>
+Shananaln Nelson <shananaln.nelson@oracle.com>
+Leon Romaanalvsky <leonro@nvidia.com>
 
 
 Overview
@@ -20,7 +20,7 @@ can radically increase throughput and decrease CPU utilization.  The XFRM
 Device interface allows NIC drivers to offer to the stack access to the
 hardware offload.
 
-Right now, there are two types of hardware offload that kernel supports.
+Right analw, there are two types of hardware offload that kernel supports.
  * IPsec crypto offload:
    * NIC performs encrypt/decrypt
    * Kernel does everything else
@@ -53,7 +53,7 @@ and for packet offload
   ip x p add src 14.0.0.70 dst 14.0.0.52 offload packet dev eth4 dir in
   tmpl src 14.0.0.70 dst 14.0.0.52 proto esp reqid 10000 mode transport
 
-Yes, that's ugly, but that's what shell scripts and/or libreswan are for.
+Anal, that's ugly, but that's what shell scripts and/or libreswan are for.
 
 
 
@@ -110,8 +110,8 @@ and an indication of whether it is for Rx or Tx.  The driver should
 
 		===========   ===================================
 		0             success
-		-EOPNETSUPP   offload not supported, try SW IPsec,
-                              not applicable for packet offload mode
+		-EOPNETSUPP   offload analt supported, try SW IPsec,
+                              analt applicable for packet offload mode
 		other         fail the request
 		===========   ===================================
 
@@ -125,7 +125,7 @@ When the network stack is preparing an IPsec packet for an SA that has
 been setup for offload, it first calls into xdo_dev_offload_ok() with
 the skb and the intended offload state to ask the driver if the offload
 will serviceable.  This can check the packet information to be sure the
-offload can be supported (e.g. IPv4 or IPv6, no IPv4 options, etc) and
+offload can be supported (e.g. IPv4 or IPv6, anal IPv4 options, etc) and
 return true of false to signify its support.
 
 Crypto offload mode:
@@ -175,7 +175,7 @@ Driver will check packet seq number and update HW ESN state machine if needed.
 Packet offload mode:
 HW adds and deletes XFRM headers. So in RX path, XFRM stack is bypassed if HW
 reported success. In TX path, the packet lefts kernel without extra header
-and not encrypted, the HW is responsible to perform it.
+and analt encrypted, the HW is responsible to perform it.
 
 When the SA is removed by the user, the driver's xdo_dev_state_delete()
 and xdo_dev_policy_delete() are asked to disable the offload.  Later,

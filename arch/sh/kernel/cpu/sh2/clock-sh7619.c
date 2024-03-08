@@ -4,7 +4,7 @@
  *
  * SH7619 support for the clock framework
  *
- *  Copyright (C) 2006  Yoshinori Sato
+ *  Copyright (C) 2006  Yoshianalri Sato
  *
  * Based on clock-sh4.c
  *  Copyright (C) 2005  Paul Mundt

@@ -58,7 +58,7 @@ struct rdma_route {
 	struct sa_path_rec *path_rec_outbound;
 
 	/*
-	 * 0 - No primary nor alternate path is available
+	 * 0 - Anal primary analr alternate path is available
 	 * 1 - Only primary path is available
 	 * 2 - Both primary and alternate path are available
 	 */
@@ -71,9 +71,9 @@ struct rdma_conn_param {
 	u8 responder_resources;
 	u8 initiator_depth;
 	u8 flow_control;
-	u8 retry_count;		/* ignored when accepting */
+	u8 retry_count;		/* iganalred when accepting */
 	u8 rnr_retry_count;
-	/* Fields below ignored if a QP is created on the rdma_cm_id. */
+	/* Fields below iganalred if a QP is created on the rdma_cm_id. */
 	u8 srq;
 	u32 qp_num;
 	u32 qkey;
@@ -102,9 +102,9 @@ struct rdma_cm_id;
 /**
  * rdma_cm_event_handler - Callback used to report user events.
  *
- * Notes: Users may not call rdma_destroy_id from this callback to destroy
+ * Analtes: Users may analt call rdma_destroy_id from this callback to destroy
  *   the passed in id, or a corresponding listen id.  Returning a
- *   non-zero value from the callback will destroy the passed in id.
+ *   analn-zero value from the callback will destroy the passed in id.
  */
 typedef int (*rdma_cm_event_handler)(struct rdma_cm_id *id,
 				     struct rdma_cm_event *event);
@@ -155,8 +155,8 @@ struct rdma_cm_id *rdma_create_user_id(rdma_cm_event_handler event_handler,
   *
   * @id: RDMA identifier.
   *
-  * Note: calling this function has the effect of canceling in-flight
-  * asynchronous operations associated with the id.
+  * Analte: calling this function has the effect of canceling in-flight
+  * asynchroanalus operations associated with the id.
   */
 void rdma_destroy_id(struct rdma_cm_id *id);
 
@@ -229,7 +229,7 @@ void rdma_destroy_qp(struct rdma_cm_id *id);
  *
  * Users must set the @qp_attr->qp_state to the desired QP state.  This call
  * will set all required attributes for the given transition, along with
- * known optional attributes.  Users may override the attributes returned from
+ * kanalwn optional attributes.  Users may override the attributes returned from
  * this call before calling ib_modify_qp.
  *
  * Users that wish to have their QP automatically transitioned through its
@@ -262,19 +262,19 @@ int rdma_accept_ece(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
 		    struct rdma_ucm_ece *ece);
 
 /**
- * rdma_notify - Notifies the RDMA CM of an asynchronous event that has
+ * rdma_analtify - Analtifies the RDMA CM of an asynchroanalus event that has
  * occurred on the connection.
  * @id: Connection identifier to transition to established.
- * @event: Asynchronous event.
+ * @event: Asynchroanalus event.
  *
- * This routine should be invoked by users to notify the CM of relevant
+ * This routine should be invoked by users to analtify the CM of relevant
  * communication events.  Events that should be reported to the CM and
  * when to report them are:
  *
  * IB_EVENT_COMM_EST - Used when a message is received on a connected
  *    QP before an RTU has been received.
  */
-int rdma_notify(struct rdma_cm_id *id, enum ib_event_type event);
+int rdma_analtify(struct rdma_cm_id *id, enum ib_event_type event);
 
 /**
  * rdma_reject - Called to reject a connection request or response.
@@ -317,7 +317,7 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr);
  * field (RFC 2474).  The service type should be specified before
  * performing route resolution, as existing communication on the
  * connection identifier may be unaffected.  The type of service
- * requested may not be supported by the network to all destinations.
+ * requested may analt be supported by the network to all destinations.
  */
 void rdma_set_service_type(struct rdma_cm_id *id, int tos);
 
@@ -373,12 +373,12 @@ const void *rdma_consumer_reject_data(struct rdma_cm_id *id,
  *                  connection. This can be used after rdma_resolve_addr()
  *                  on client side. This can be use on new connection
  *                  on server side. This is applicable to IB, RoCE, iWarp.
- *                  If cm_id is not bound yet to the RDMA device, it doesn't
+ *                  If cm_id is analt bound yet to the RDMA device, it doesn't
  *                  copy and SGID or DGID to the given pointers.
  * @id: Communication identifier whose GIDs are queried.
  * @sgid: Pointer to SGID where SGID will be returned. It is optional.
  * @dgid: Pointer to DGID where DGID will be returned. It is optional.
- * Note: This API should not be used by any new ULPs or new code.
+ * Analte: This API should analt be used by any new ULPs or new code.
  * Instead, users interested in querying GIDs should refer to path record
  * of the rdma_cm_id to query the GIDs.
  * This API is provided for compatibility for existing users.

@@ -18,7 +18,7 @@
 #define VPIF_DISPLAY_VERSION	"0.0.2"
 
 #define VPIF_VALID_FIELD(field) \
-	(((V4L2_FIELD_ANY == field) || (V4L2_FIELD_NONE == field)) || \
+	(((V4L2_FIELD_ANY == field) || (V4L2_FIELD_ANALNE == field)) || \
 	(((V4L2_FIELD_INTERLACED == field) || (V4L2_FIELD_SEQ_TB == field)) || \
 	(V4L2_FIELD_SEQ_BT == field)))
 

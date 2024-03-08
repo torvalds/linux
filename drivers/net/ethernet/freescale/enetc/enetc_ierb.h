@@ -14,7 +14,7 @@ int enetc_ierb_register_pf(struct platform_device *pdev,
 static inline int enetc_ierb_register_pf(struct platform_device *pdev,
 					 struct pci_dev *pf_pdev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 #endif

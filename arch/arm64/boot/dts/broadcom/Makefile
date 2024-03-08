@@ -13,5 +13,5 @@ dtb-$(CONFIG_ARCH_BCM2835) += bcm2711-rpi-400.dtb \
 			      bcm2837-rpi-zero-2-w.dtb
 
 subdir-y	+= bcmbca
-subdir-y	+= northstar2
+subdir-y	+= analrthstar2
 subdir-y	+= stingray

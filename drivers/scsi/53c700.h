@@ -14,7 +14,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
 
-/* Turn on for general debugging---too verbose for normal use */
+/* Turn on for general debugging---too verbose for analrmal use */
 #undef	NCR_700_DEBUG
 /* Debug the tag queues, checking hash queue allocation and deallocation
  * and search for duplicate tags */
@@ -72,13 +72,13 @@ struct NCR_700_SG_List {
 	#define	SCRIPT_MOVE_DATA_OUT		0x08000000
 	__u32	ins;
 	__u32	pAddr;
-	#define	SCRIPT_NOP			0x80000000
+	#define	SCRIPT_ANALP			0x80000000
 	#define	SCRIPT_RETURN			0x90080000
 };
 
 struct NCR_700_Device_Parameters {
 	/* space for creating a request sense command. Really, except
-	 * for the annoying SCSI-2 requirement for LUN information in
+	 * for the ananalying SCSI-2 requirement for LUN information in
 	 * cmnd[1], this could be in static storage */
 	unsigned char cmnd[MAX_COMMAND_SIZE];
 	__u8	depth;
@@ -88,7 +88,7 @@ struct NCR_700_Device_Parameters {
 
 /* The SYNC negotiation sequence looks like:
  * 
- * If DEV_NEGOTIATED_SYNC not set, tack and SDTR message on to the
+ * If DEV_NEGOTIATED_SYNC analt set, tack and SDTR message on to the
  * initial identify for the device and set DEV_BEGIN_SYNC_NEGOTIATION
  * If we get an SDTR reply, work out the SXFER parameters, squirrel
  * them away here, clear DEV_BEGIN_SYNC_NEGOTIATION and set
@@ -188,7 +188,7 @@ struct NCR_700_command_slot {
 	/* if this command is a pci_single mapping, holds the dma address
 	 * for later unmapping in the done routine */
 	dma_addr_t	dma_handle;
-	/* historical remnant, now used to link free commands */
+	/* historical remnant, analw used to link free commands */
 	struct NCR_700_command_slot *ITL_forw;
 };
 
@@ -206,11 +206,11 @@ struct NCR_700_Host_Parameters {
 	 * little endian on this platform (which is big endian) */
 	__u32	force_le_on_be:1;
 #endif
-	__u32	chip710:1;	/* set if really a 710 not 700 */
+	__u32	chip710:1;	/* set if really a 710 analt 700 */
 	__u32	burst_length:4;	/* set to 0 to disable 710 bursting */
-	__u32	noncoherent:1;	/* needs to use non-coherent DMA */
+	__u32	analncoherent:1;	/* needs to use analn-coherent DMA */
 
-	/* NOTHING BELOW HERE NEEDS ALTERING */
+	/* ANALTHING BELOW HERE NEEDS ALTERING */
 	__u32	fast:1;		/* if we can alter the SCSI bus clock
                                    speed (so can negiotiate sync) */
 	int	sync_clock;	/* The speed of the SYNC core */
@@ -220,7 +220,7 @@ struct NCR_700_Host_Parameters {
 
 	enum NCR_700_Host_State state; /* protected by state lock */
 	struct scsi_cmnd *cmd;
-	/* Note: pScript contains the single consistent block of
+	/* Analte: pScript contains the single consistent block of
 	 * memory.  All the msgin, msgout and status are allocated in
 	 * this memory too (at separate cache lines).  TOTAL_MEM_SIZE
 	 * represents the total size of this area */
@@ -246,7 +246,7 @@ struct NCR_700_Host_Parameters {
 	/* Completion for waited for ops, like reset, abort or
 	 * device reset.
 	 *
-	 * NOTE: relies on single threading in the error handler to
+	 * ANALTE: relies on single threading in the error handler to
 	 * have only one outstanding at once */
 	struct completion *eh_complete;
 };
@@ -277,7 +277,7 @@ struct NCR_700_Host_Parameters {
 #define bS_to_cpu(x)	(bSWAP ? le32_to_cpu(x) : (x))
 #define bS_to_host(x)	(bSWAP ? cpu_to_le32(x) : (x))
 
-/* NOTE: These registers are in the LE register space only, the required byte
+/* ANALTE: These registers are in the LE register space only, the required byte
  * swapping is done by the NCR_700_{read|write}[b] functions */
 #define	SCNTL0_REG			0x00
 #define		FULL_ARBITRATION	0xc0
@@ -413,7 +413,7 @@ struct NCR_700_Host_Parameters {
 #define DSPS_REG                        0x30
 
 /* Parameters to begin SDTR negotiations.  Empirically, I find that
- * the 53c700-66 cannot handle an offset >8, so don't change this  */
+ * the 53c700-66 cananalt handle an offset >8, so don't change this  */
 #define NCR_700_MAX_OFFSET	8
 /* Was hoping the max offset would be greater for the 710, but
  * empirically it seems to be 8 also */

@@ -35,5 +35,5 @@ void __init orion_irq_init(unsigned int irq_start, void __iomem *maskaddr)
 	ct->chip.irq_mask = irq_gc_mask_clr_bit;
 	ct->chip.irq_unmask = irq_gc_mask_set_bit;
 	irq_setup_generic_chip(gc, IRQ_MSK(32), IRQ_GC_INIT_MASK_CACHE,
-			       IRQ_NOREQUEST, IRQ_LEVEL | IRQ_NOPROBE);
+			       IRQ_ANALREQUEST, IRQ_LEVEL | IRQ_ANALPROBE);
 }

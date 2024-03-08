@@ -3,7 +3,7 @@ ABI stable symbols
 
 Documents the interfaces that the developer has defined to be stable.
 
-Userspace programs are free to use these interfaces with no
+Userspace programs are free to use these interfaces with anal
 restrictions, and backward compatibility for them will be guaranteed
 for at least 2 years.
 

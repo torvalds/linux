@@ -17,7 +17,7 @@ config VIDEO_COBALT
 	help
 	  This is a video4linux driver for the Cisco PCIe Cobalt card.
 
-	  This board is sadly not available outside of Cisco, but it is
+	  This board is sadly analt available outside of Cisco, but it is
 	  very useful as an example of a real driver that uses all the
 	  latest frameworks and APIs.
 

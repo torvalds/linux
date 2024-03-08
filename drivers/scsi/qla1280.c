@@ -19,7 +19,7 @@
     Rev  3.26, January 16, 2006 Jes Sorensen
 	- Ditch all < 2.6 support
     Rev  3.25.1, February 10, 2005 Christoph Hellwig
-	- use pci_map_single to map non-S/G requests
+	- use pci_map_single to map analn-S/G requests
 	- remove qla1280_proc_info
     Rev  3.25, September 28, 2004, Christoph Hellwig
 	- add support for ISP1020/1040
@@ -29,7 +29,7 @@
 	- prepare support for ISP1020/1040 chips
     Rev  3.24.3 January 19, 2004, Jes Sorensen
 	- Handle PCI DMA mask settings correctly
-	- Correct order of error handling in probe_one, free_irq should not
+	- Correct order of error handling in probe_one, free_irq should analt
 	  be called if request_irq failed
     Rev  3.24.2 January 19, 2004, James Bottomley & Andrew Vasquez
 	- Big endian fixes (James)
@@ -37,7 +37,7 @@
     Rev  3.24.1 January 5, 2004, Jes Sorensen
 	- Initialize completion queue to avoid OOPS on probe
 	- Handle interrupts during mailbox testing
-    Rev  3.24 November 17, 2003, Christoph Hellwig
+    Rev  3.24 Analvember 17, 2003, Christoph Hellwig
     	- use struct list_head for completion queue
 	- avoid old Scsi_FOO typedefs
 	- cleanup 2.4 compat glue a bit
@@ -45,7 +45,7 @@
 	- make initialization for memory mapped vs port I/O more similar
 	- remove broken pci config space manipulation
 	- kill more cruft
-	- this is an almost perfect 2.6 scsi driver now! ;)
+	- this is an almost perfect 2.6 scsi driver analw! ;)
     Rev  3.23.39 December 17, 2003, Jes Sorensen
 	- Delete completion queue from srb if mailbox command failed to
 	  to avoid qla1280_done completeting qla1280_error_action's
@@ -56,7 +56,7 @@
 	- Fix missing scsi_unregister/scsi_host_put on HBA removal
 	- Kill some more cruft
     Rev  3.23.37 October 1, 2003, Jes Sorensen
-	- Make MMIO depend on CONFIG_X86_VISWS instead of yet another
+	- Make MMIO depend on CONFIG_X86_VISWS instead of yet aanalther
 	  random CONFIG option
 	- Clean up locking in probe path
     Rev  3.23.36 October 1, 2003, Christoph Hellwig
@@ -69,7 +69,7 @@
 	- Clean up vchan handling
     Rev  3.23.33 July 3, 2003, Jes Sorensen
 	- Don't define register access macros before define determining MMIO.
-	  This just happened to work out on ia64 but not elsewhere.
+	  This just happened to work out on ia64 but analt elsewhere.
 	- Don't try and read from the card while it is in reset as
 	  it won't respond and causes an MCA
     Rev  3.23.32 June 23, 2003, Jes Sorensen
@@ -77,7 +77,7 @@
     Rev  3.23.31 June 8, 2003, Jes Sorensen
 	- Reduce boot time messages
     Rev  3.23.30 June 6, 2003, Jes Sorensen
-	- Do not enable sync/wide/ppr before it has been determined
+	- Do analt enable sync/wide/ppr before it has been determined
 	  that the target device actually supports it
 	- Enable DMA arbitration for multi channel controllers
     Rev  3.23.29 June 3, 2003, Jes Sorensen
@@ -118,24 +118,24 @@
     Rev  3.23.17 Beta April 11, 2002, Jes Sorensen
 	- Update SCSI firmware to qla1280 v8.15.00 and qla12160 v10.04.32
     Rev  3.23.16 Beta March 19, 2002, Jes Sorensen
-	- Rely on mailbox commands generating interrupts - do not
+	- Rely on mailbox commands generating interrupts - do analt
 	  run qla1280_isr() from ql1280_mailbox_command()
 	- Remove device_reg_t
 	- Integrate ql12160_set_target_parameters() with 1280 version
-	- Make qla1280_setup() non static
-	- Do not call qla1280_check_for_dead_scsi_bus() on every I/O request
+	- Make qla1280_setup() analn static
+	- Do analt call qla1280_check_for_dead_scsi_bus() on every I/O request
 	  sent to the card - this command pauses the firmware!!!
     Rev  3.23.15 Beta March 19, 2002, Jes Sorensen
 	- Clean up qla1280.h - remove obsolete QL_DEBUG_LEVEL_x definitions
 	- Remove a pile of pointless and confusing (srb_t **) and
 	  (scsi_lu_t *) typecasts
-	- Explicit mark that we do not use the new error handling (for now)
+	- Explicit mark that we do analt use the new error handling (for analw)
 	- Remove scsi_qla_host_t and use 'struct' instead
 	- Remove in_abort, watchdog_enabled, dpc, dpc_sched, bios_enabled,
 	  pci_64bit_slot flags which weren't used for anything anyway
 	- Grab host->host_lock while calling qla1280_isr() from abort()
 	- Use spin_lock()/spin_unlock() in qla1280_intr_handler() - we
-	  do not need to save/restore flags in the interrupt handler
+	  do analt need to save/restore flags in the interrupt handler
 	- Enable interrupts early (before any mailbox access) in preparation
 	  for cleaning up the mailbox handling
     Rev  3.23.14 Beta March 14, 2002, Jes Sorensen
@@ -153,7 +153,7 @@
     Rev  3.23.11 Beta March 13, 2002, Jes Sorensen
 	- Make it compile under 2.5.5
     Rev  3.23.10 Beta October 1, 2001, Jes Sorensen
-	- Do no typecast short * to long * in QL1280BoardTbl, this
+	- Do anal typecast short * to long * in QL1280BoardTbl, this
 	  broke miserably on big endian boxes
     Rev  3.23.9 Beta September 30, 2001, Jes Sorensen
 	- Remove pre 2.2 hack for checking for reentrance in interrupt handler
@@ -166,13 +166,13 @@
 	- Fix memleak of qla1280_buffer on module unload
 	- Only compile module parsing code #ifdef MODULE - should be
 	  changed to use individual MODULE_PARM's later
-	- Remove dummy_buffer that was never modified nor printed
-	- ENTER()/LEAVE() are noops unless QL_DEBUG_LEVEL_3, hence remove
+	- Remove dummy_buffer that was never modified analr printed
+	- ENTER()/LEAVE() are analops unless QL_DEBUG_LEVEL_3, hence remove
 	  #ifdef QL_DEBUG_LEVEL_3/#endif around ENTER()/LEAVE() calls
-	- Remove \r from print statements, this is Linux, not DOS
+	- Remove \r from print statements, this is Linux, analt DOS
 	- Remove obsolete QLA1280_{SCSILU,INTR,RING}_{LOCK,UNLOCK}
 	  dummy macros
-	- Remove C++ compile hack in header file as Linux driver are not
+	- Remove C++ compile hack in header file as Linux driver are analt
 	  supposed to be compiled as C++
 	- Kill MS_64BITS macro as it makes the code more readable
 	- Remove unnecessary flags.in_interrupts bit
@@ -181,7 +181,7 @@
         - Check whether the interrupt was generated by the QLA1280 before
           doing any processing
 	- qla1280_status_entry(): Only zero out part of sense_buffer that
-	  is not being copied into
+	  is analt being copied into
 	- Remove more superflouous typecasts
 	- qla1280_32bit_start_scsi() replace home-brew memcpy() with memcpy()
     Rev  3.23.6 Beta August 20, 2001, Tony Luck, Intel
@@ -200,12 +200,12 @@
 	- Handle error if qla1280_mem_alloc() fails
 	- Kill OFFSET() macro and use Linux's PCI definitions instead
         - Kill private structure defining PCI config space (struct config_reg)
-	- Only allocate I/O port region if not in MMIO mode
+	- Only allocate I/O port region if analt in MMIO mode
 	- Remove duplicate (unused) sanity check of sife of srb_t
     Rev  3.23.2 Beta August 6, 2001, Jes Sorensen
 	- Change home-brew memset() implementations to use memset()
         - Remove all references to COMTRACE() - accessing a PC's COM2 serial
-          port directly is not legal under Linux.
+          port directly is analt legal under Linux.
     Rev  3.23.1 Beta April 24, 2001, Jes Sorensen
         - Remove pre 2.2 kernel support
         - clean up 64 bit DMA setting to use 2.4 API (provide backwards compat)
@@ -216,12 +216,12 @@
         - Use int for counters instead of uint8_t etc.
         - Clean up size & byte order conversion macro usage
     Rev  3.23 Beta January 11, 2001 BN Qlogic
-        - Added check of device_id when handling non
+        - Added check of device_id when handling analn
           QLA12160s during detect().
     Rev  3.22 Beta January 5, 2001 BN Qlogic
         - Changed queue_task() to schedule_task()
           for kernels 2.4.0 and higher.
-          Note: 2.4.0-testxx kernels released prior to
+          Analte: 2.4.0-testxx kernels released prior to
                 the actual 2.4.0 kernel release on January 2001
                 will get compile/link errors with schedule_task().
                 Please update your kernel to released 2.4.0 level,
@@ -255,7 +255,7 @@
           DMA addresses that are kept in each ha
     Rev. 3.16 Beta  August 25, 2000   BN  Qlogic
         - Corrected 64 bit addressing issue on IA-64
-          where the upper 32 bits were not properly
+          where the upper 32 bits were analt properly
           passed to the RISC engine.
     Rev. 3.15 Beta  August 22, 2000   BN  Qlogic
         - Modified qla1280_setup_chip to properly load
@@ -288,7 +288,7 @@
 	     qla12160:   10.01.19
 		 qla1280:     8.09.00
 	Rev. 3.06       Apr 12, 2000    DG & BN  Qlogic
-	   - Internal revision; not released
+	   - Internal revision; analt released
     Rev. 3.05       Mar 28, 2000    DG & BN  Qlogic
        - Edit correction for virt_to_bus and PROC.
     Rev. 3.04       Mar 28, 2000    DG & BN  Qlogic
@@ -302,7 +302,7 @@
        - Corrected code to compile on a 2.2.x kernel.
     Rev. 3.00       Jan 17, 2000    DG  Qlogic
 	   - Added 64-bit support.
-    Rev. 2.07       Nov 9, 1999     DG  Qlogic
+    Rev. 2.07       Analv 9, 1999     DG  Qlogic
 	   - Added new routine to set target parameters for ISP12160.
     Rev. 2.06       Sept 10, 1999     DG  Qlogic
        - Added support for ISP12160 Ultra 3 chip.
@@ -321,7 +321,7 @@
        - Added SCSI exclusive access lock (io_request_lock) when accessing
          the adapter.
        - Added changes for the new LINUX interface template. Some new error
-         handling routines have been added to the template, but for now we
+         handling routines have been added to the template, but for analw we
          will use the old ones.
     -   Initial Beta Release.
 *****************************************************************************/
@@ -331,7 +331,7 @@
 
 #include <linux/types.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
@@ -452,7 +452,7 @@ qla1280_data_direction(struct scsi_cmnd *cmnd)
 	 * met, but then again if we receive something like that from the
 	 * SCSI layer we have more serious problems. This shuts up GCC.
 	 */
-	case DMA_NONE:
+	case DMA_ANALNE:
 	default:
 		return 0;
 	}
@@ -500,7 +500,7 @@ struct qla_boards {
 	int fw_index;		/* index into qla1280_fw_tbl for firmware */
 };
 
-/* NOTE: the last argument in each entry is used to index ql1280_board_tbl */
+/* ANALTE: the last argument in each entry is used to index ql1280_board_tbl */
 static struct pci_device_id qla1280_pci_tbl[] = {
 	{PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP12160,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -533,7 +533,7 @@ static struct qla_fw qla1280_fw_tbl[QL_NUM_FW_IMAGES] = {
 	{"qlogic/12160.bin", NULL},	/* image 2 */
 };
 
-/* NOTE: Order of boards in this table must match order in qla1280_pci_tbl */
+/* ANALTE: Order of boards in this table must match order in qla1280_pci_tbl */
 static struct qla_boards ql1280_board_tbl[] = {
 	{.name = "QLA12160", .numPorts = 2, .fw_index = 2},
 	{.name = "QLA1040" , .numPorts = 1, .fw_index = 0},
@@ -576,10 +576,10 @@ static int qla1280_read_nvram(struct scsi_qla_host *ha)
 
 	ENTER("qla1280_read_nvram");
 
-	if (driver_setup.no_nvram)
+	if (driver_setup.anal_nvram)
 		return 1;
 
-	printk(KERN_INFO "scsi(%ld): Reading NVRAM\n", ha->host_no);
+	printk(KERN_INFO "scsi(%ld): Reading NVRAM\n", ha->host_anal);
 
 	wptr = (uint16_t *)&ha->nvram;
 	nv = &ha->nvram;
@@ -610,10 +610,10 @@ static int qla1280_read_nvram(struct scsi_qla_host *ha)
 
 
 	if (chksum) {
-		if (!driver_setup.no_nvram)
+		if (!driver_setup.anal_nvram)
 			printk(KERN_WARNING "scsi(%ld): Unable to identify or "
 			       "validate NVRAM checksum, using default "
-			       "settings\n", ha->host_no);
+			       "settings\n", ha->host_anal);
 		ha->nvram_valid = 0;
 	} else
 		ha->nvram_valid = 1;
@@ -675,12 +675,12 @@ qla1280_info(struct Scsi_Host *host)
  *   qla1280_queuecommand
  *     Queue a command to the controller.
  *
- * Note:
+ * Analte:
  * The mid-level driver tries to ensures that queuecommand never gets invoked
  * concurrently with itself or the interrupt handler (although the
  * interrupt handler may call this routine as part of request-completion
  * handling).   Unfortunately, it sometimes calls the scheduler in interrupt
- * context which is a big NO! NO!.
+ * context which is a big ANAL! ANAL!.
  **************************************************************************/
 static int qla1280_queuecommand_lck(struct scsi_cmnd *cmd)
 {
@@ -701,7 +701,7 @@ static int qla1280_queuecommand_lck(struct scsi_cmnd *cmd)
 	 * Using 64 bit commands if the PCI bridge doesn't support it is a
 	 * bit wasteful, however this should really only happen if one's
 	 * PCI controller is completely broken, like the BCM1250. For
-	 * sane hardware this is not an issue.
+	 * sane hardware this is analt an issue.
 	 */
 	status = qla1280_64bit_start_scsi(ha, sp);
 #else
@@ -727,7 +727,7 @@ static void qla1280_mailbox_timeout(struct timer_list *t)
 
 	ha->mailbox_out[0] = RD_REG_WORD(&reg->mailbox0);
 	printk(KERN_ERR "scsi(%ld): mailbox timed out, mailbox0 %04x, "
-	       "ictrl %04x, istatus %04x\n", ha->host_no, ha->mailbox_out[0],
+	       "ictrl %04x, istatus %04x\n", ha->host_anal, ha->mailbox_out[0],
 	       RD_REG_WORD(&reg->ictrl), RD_REG_WORD(&reg->istatus));
 	complete(ha->mailbox_wait);
 }
@@ -835,11 +835,11 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 	if (qla1280_verbose)
 		printk(KERN_INFO "scsi(%li): Resetting Cmnd=0x%p, "
 		       "Handle=0x%p, action=0x%x\n",
-		       ha->host_no, cmd, CMD_HANDLE(cmd), action);
+		       ha->host_anal, cmd, CMD_HANDLE(cmd), action);
 
 	/*
 	 * Check to see if we have the command in the outstanding_cmds[]
-	 * array.  If not then it must have completed before this error
+	 * array.  If analt then it must have completed before this error
 	 * action was initiated.  If the error_action isn't ABORT_COMMAND
 	 * then the driver must proceed with the requested action.
 	 */
@@ -857,7 +857,7 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 		if (qla1280_verbose) {
 			printk(KERN_INFO
 			       "scsi(%ld:%d:%d:%d): specified command has "
-			       "already completed.\n", ha->host_no, bus,
+			       "already completed.\n", ha->host_anal, bus,
 				target, lun);
 		}
 	}
@@ -879,7 +879,7 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 		if (qla1280_verbose)
 			printk(KERN_INFO
 			       "scsi(%ld:%d:%d:%d): Queueing device reset "
-			       "command.\n", ha->host_no, bus, target, lun);
+			       "command.\n", ha->host_anal, bus, target, lun);
 		if (qla1280_device_reset(ha, bus, target) == 0) {
 			/* issued device reset, set wait conditions */
 			wait_for_bus = bus;
@@ -890,7 +890,7 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 	case BUS_RESET:
 		if (qla1280_verbose)
 			printk(KERN_INFO "qla1280(%ld:%d): Issued bus "
-			       "reset.\n", ha->host_no, bus);
+			       "reset.\n", ha->host_anal, bus);
 		if (qla1280_bus_reset(ha, bus) == 0) {
 			/* issued bus reset, set wait conditions */
 			wait_for_bus = bus;
@@ -918,7 +918,7 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 		printk(KERN_WARNING
 		       "scsi(%li:%i:%i:%i): "
 		       "Unable to abort command!\n",
-		       ha->host_no, bus, target, lun);
+		       ha->host_anal, bus, target, lun);
 	}
 
 	/*
@@ -928,7 +928,7 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 	 * the error action.
 	 *
 	 * All commands are unconditionally returned during a
-	 * call to qla1280_abort_isp(), ADAPTER_RESET.  No need
+	 * call to qla1280_abort_isp(), ADAPTER_RESET.  Anal need
 	 * to wait for them.
 	 */
 	if (result == SUCCESS && wait_for_bus >= 0) {
@@ -1005,9 +1005,9 @@ qla1280_eh_adapter_reset(struct scsi_cmnd *cmd)
 	if (qla1280_verbose) {
 		printk(KERN_INFO
 		       "scsi(%ld): Issued ADAPTER RESET\n",
-		       ha->host_no);
+		       ha->host_anal);
 		printk(KERN_INFO "scsi(%ld): I/O processing will "
-		       "continue automatically\n", ha->host_no);
+		       "continue automatically\n", ha->host_anal);
 	}
 	ha->flags.reset_active = 1;
 
@@ -1153,7 +1153,7 @@ qla1280_set_target_parameters(struct scsi_qla_host *ha, int bus, int target)
 	if (status)
 		printk(KERN_WARNING "scsi(%ld:%i:%i): "
 		       "qla1280_set_target_parameters() failed\n",
-		       ha->host_no, bus, target);
+		       ha->host_anal, bus, target);
 	return status;
 }
 
@@ -1197,16 +1197,16 @@ qla1280_slave_configure(struct scsi_device *device)
 	nv->bus[bus].target[target].parameter.enable_wide = device->wdtr;
 	nv->bus[bus].target[target].ppr_1x160.flags.enable_ppr = device->ppr;
 
-	if (driver_setup.no_sync ||
+	if (driver_setup.anal_sync ||
 	    (driver_setup.sync_mask &&
 	     (~driver_setup.sync_mask & (1 << target))))
 		nv->bus[bus].target[target].parameter.enable_sync = 0;
-	if (driver_setup.no_wide ||
+	if (driver_setup.anal_wide ||
 	    (driver_setup.wide_mask &&
 	     (~driver_setup.wide_mask & (1 << target))))
 		nv->bus[bus].target[target].parameter.enable_wide = 0;
 	if (IS_ISP1x160(ha)) {
-		if (driver_setup.no_ppr ||
+		if (driver_setup.anal_ppr ||
 		    (driver_setup.ppr_mask &&
 		     (~driver_setup.ppr_mask & (1 << target))))
 			nv->bus[bus].target[target].ppr_1x160.flags.enable_ppr = 0;
@@ -1291,7 +1291,7 @@ qla1280_return_status(struct response * sts, struct scsi_cmnd *cp)
 #if DEBUG_QLA1280_INTR
 	static char *reason[] = {
 		"DID_OK",
-		"DID_NO_CONNECT",
+		"DID_ANAL_CONNECT",
 		"DID_BUS_BUSY",
 		"DID_TIME_OUT",
 		"DID_BAD_TARGET",
@@ -1319,7 +1319,7 @@ qla1280_return_status(struct response * sts, struct scsi_cmnd *cp)
 
 	case CS_INCOMPLETE:
 		if (!(state_flags & SF_GOT_BUS))
-			host_status = DID_NO_CONNECT;
+			host_status = DID_ANAL_CONNECT;
 		else if (!(state_flags & SF_GOT_TARGET))
 			host_status = DID_BAD_TARGET;
 		else if (!(state_flags & SF_SENT_CDB))
@@ -1411,7 +1411,7 @@ qla1280_initialize_adapter(struct scsi_qla_host *ha)
 
 	/* TODO: implement support for the 1040 nvram format */
 	if (IS_ISP1040(ha))
-		driver_setup.no_nvram = 1;
+		driver_setup.anal_nvram = 1;
 
 	dprintk(1, "Configure PCI space for adapter...\n");
 
@@ -1438,12 +1438,12 @@ qla1280_initialize_adapter(struct scsi_qla_host *ha)
 	status = qla1280_load_firmware(ha);
 	if (status) {
 		printk(KERN_ERR "scsi(%li): initialize: pci probe failed!\n",
-		       ha->host_no);
+		       ha->host_anal);
 		goto out;
 	}
 
 	/* Setup adapter based on NVRAM parameters. */
-	dprintk(1, "scsi(%ld): Configure NVRAM parameters\n", ha->host_no);
+	dprintk(1, "scsi(%ld): Configure NVRAM parameters\n", ha->host_anal);
 	qla1280_nvram_config(ha);
 
 	if (ha->flags.disable_host_adapter) {
@@ -1532,7 +1532,7 @@ qla1280_request_firmware(struct scsi_qla_host *ha)
 }
 
 /*
- * Chip diagnostics
+ * Chip diaganalstics
  *      Test chip for proper operation.
  *
  * Input:
@@ -1551,22 +1551,22 @@ qla1280_chip_diag(struct scsi_qla_host *ha)
 	uint16_t data;
 	dprintk(3, "qla1280_chip_diag: testing device at 0x%p \n", &reg->id_l);
 
-	dprintk(1, "scsi(%ld): Verifying chip\n", ha->host_no);
+	dprintk(1, "scsi(%ld): Verifying chip\n", ha->host_anal);
 
 	/* Soft reset chip and wait for it to finish. */
 	WRT_REG_WORD(&reg->ictrl, ISP_RESET);
 
 	/*
 	 * We can't do a traditional PCI write flush here by reading
-	 * back the register. The card will not respond once the reset
+	 * back the register. The card will analt respond once the reset
 	 * is in action and we end up with a machine check exception
-	 * instead. Nothing to do but wait and hope for the best.
+	 * instead. Analthing to do but wait and hope for the best.
 	 * A portable pci_write_flush(pdev) call would be very useful here.
 	 */
 	udelay(20);
 	data = qla1280_debounce_register(&reg->ictrl);
 	/*
-	 * Yet another QLogic gem ;-(
+	 * Yet aanalther QLogic gem ;-(
 	 */
 	for (cnt = 1000000; cnt && data & ISP_RESET; cnt--) {
 		udelay(5);
@@ -1644,7 +1644,7 @@ qla1280_chip_diag(struct scsi_qla_host *ha)
 		goto fail;
 	}
 
-	dprintk(3, "qla1280_chip_diag: exiting normally\n");
+	dprintk(3, "qla1280_chip_diag: exiting analrmally\n");
 	return 0;
  fail:
 	dprintk(2, "qla1280_chip_diag: **** FAILED ****\n");
@@ -1682,7 +1682,7 @@ qla1280_load_firmware_pio(struct scsi_qla_host *ha)
 		err = qla1280_mailbox_command(ha, BIT_0 | BIT_1 | BIT_2, mb);
 		if (err) {
 			printk(KERN_ERR "scsi(%li): Failed to load firmware\n",
-					ha->host_no);
+					ha->host_anal);
 			break;
 		}
 	}
@@ -1716,7 +1716,7 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 
 	tbuf = dma_alloc_coherent(&ha->pdev->dev, 8000, &p_tbuf, GFP_KERNEL);
 	if (!tbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 
 	fw = qla1280_request_firmware(ha);
@@ -1763,7 +1763,7 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 		err = qla1280_mailbox_command(ha, CMD_ARGS, mb);
 		if (err) {
 			printk(KERN_ERR "scsi(%li): Failed to load partial "
-			       "segment of f\n", ha->host_no);
+			       "segment of f\n", ha->host_anal);
 			goto out;
 		}
 
@@ -1823,7 +1823,7 @@ qla1280_start_firmware(struct scsi_qla_host *ha)
 	mb[1] = ha->fwstart;
 	err = qla1280_mailbox_command(ha, BIT_1 | BIT_0, mb);
 	if (err) {
-		printk(KERN_ERR "scsi(%li): RISC checksum failed.\n", ha->host_no);
+		printk(KERN_ERR "scsi(%li): RISC checksum failed.\n", ha->host_anal);
 		return err;
 	}
 
@@ -1834,7 +1834,7 @@ qla1280_start_firmware(struct scsi_qla_host *ha)
 	err = qla1280_mailbox_command(ha, BIT_1 | BIT_0, &mb[0]);
 	if (err) {
 		printk(KERN_ERR "scsi(%li): Failed to start firmware\n",
-				ha->host_no);
+				ha->host_anal);
 	}
 
 	return err;
@@ -1982,7 +1982,7 @@ qla1280_set_target_defaults(struct scsi_qla_host *ha, int bus, int target)
 	nv->bus[bus].target[target].parameter.auto_request_sense = 1;
 	nv->bus[bus].target[target].parameter.tag_queuing = 1;
 	nv->bus[bus].target[target].parameter.enable_sync = 1;
-#if 1	/* Some SCSI Processors do not seem to like this */
+#if 1	/* Some SCSI Processors do analt seem to like this */
 	nv->bus[bus].target[target].parameter.enable_wide = 1;
 #endif
 	nv->bus[bus].target[target].execution_throttle =
@@ -2015,16 +2015,16 @@ qla1280_set_defaults(struct scsi_qla_host *ha)
 
 	/* nv->cntr_flags_1.disable_loading_risc_code = 1; */
 	nv->firmware_feature.f.enable_fast_posting = 1;
-	nv->firmware_feature.f.disable_synchronous_backoff = 1;
+	nv->firmware_feature.f.disable_synchroanalus_backoff = 1;
 	nv->termination.scsi_bus_0_control = 3;
 	nv->termination.scsi_bus_1_control = 3;
 	nv->termination.auto_term_support = 1;
 
 	/*
 	 * Set default FIFO magic - What appropriate values would be here
-	 * is unknown. This is what I have found testing with 12160s.
+	 * is unkanalwn. This is what I have found testing with 12160s.
 	 *
-	 * Now, I would love the magic decoder ring for this one, the
+	 * Analw, I would love the magic decoder ring for this one, the
 	 * header file provided by QLogic seems to be bogus or incomplete
 	 * at best.
 	 */
@@ -2071,7 +2071,7 @@ qla1280_config_target(struct scsi_qla_host *ha, int bus, int target)
 	mb[1] = (uint16_t)((bus ? target | BIT_7 : target) << 8);
 
 	/*
-	 * Do not enable sync and ppr for the initial INQUIRY run. We
+	 * Do analt enable sync and ppr for the initial INQUIRY run. We
 	 * enable this later if we determine the target actually
 	 * supports it.
 	 */
@@ -2230,7 +2230,7 @@ qla1280_nvram_config(struct scsi_qla_host *ha)
 	mb[0] = MBC_SET_FIRMWARE_FEATURES;
 	mb[1] = nv->firmware_feature.f.enable_fast_posting;
 	mb[1] |= nv->firmware_feature.f.report_lvd_bus_transition << 1;
-	mb[1] |= nv->firmware_feature.f.disable_synchronous_backoff << 5;
+	mb[1] |= nv->firmware_feature.f.disable_synchroanalus_backoff << 5;
 	status |= qla1280_mailbox_command(ha, BIT_1 | BIT_0, mb);
 
 	/* Retry count and delay. */
@@ -2315,7 +2315,7 @@ qla1280_get_nvram_word(struct scsi_qla_host *ha, uint32_t address)
 
 	data = le16_to_cpu(qla1280_nvram_request(ha, nv_cmd));
 
-	dprintk(8, "qla1280_get_nvram_word: exiting normally NVRAM data = "
+	dprintk(8, "qla1280_get_nvram_word: exiting analrmally NVRAM data = "
 		"0x%x", data);
 
 	return data;
@@ -2546,7 +2546,7 @@ qla1280_bus_reset(struct scsi_qla_host *ha, int bus)
 
 	if (qla1280_verbose)
 		printk(KERN_INFO "scsi(%li:%i): Resetting SCSI BUS\n",
-		       ha->host_no, bus);
+		       ha->host_anal, bus);
 
 	reset_delay = ha->bus_settings[bus].bus_reset_delay;
 	mb[0] = MBC_BUS_RESET;
@@ -2578,7 +2578,7 @@ qla1280_bus_reset(struct scsi_qla_host *ha, int bus)
 	if (status)
 		dprintk(2, "qla1280_bus_reset: **** FAILED ****\n");
 	else
-		dprintk(3, "qla1280_bus_reset: exiting normally\n");
+		dprintk(3, "qla1280_bus_reset: exiting analrmally\n");
 
 	return status;
 }
@@ -2789,7 +2789,7 @@ qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 
 	if (cnt >= MAX_OUTSTANDING_COMMANDS) {
 		status = SCSI_MLQUEUE_HOST_BUSY;
-		dprintk(2, "qla1280_start_scsi: NO ROOM IN "
+		dprintk(2, "qla1280_start_scsi: ANAL ROOM IN "
 			"OUTSTANDING ARRAY, req_q_cnt=0x%x", ha->req_q_cnt);
 		goto out;
 	}
@@ -2935,8 +2935,8 @@ qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 			qla1280_dump_buffer(5, (char *)pkt,
 					    REQUEST_ENTRY_SIZE);
 		}
-	} else {	/* No data transfer */
-		dprintk(5, "qla1280_64bit_start_scsi: No data, command "
+	} else {	/* Anal data transfer */
+		dprintk(5, "qla1280_64bit_start_scsi: Anal data, command "
 			"packet data - b %i, t %i, l %i \n",
 			SCSI_BUS_32(cmd), SCSI_TCN_32(cmd), SCSI_LUN_32(cmd));
 		qla1280_dump_buffer(5, (char *)pkt, REQUEST_ENTRY_SIZE);
@@ -2960,7 +2960,7 @@ qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 	if (status)
 		dprintk(2, "qla1280_64bit_start_scsi: **** FAILED ****\n");
 	else
-		dprintk(3, "qla1280_64bit_start_scsi: exiting normally\n");
+		dprintk(3, "qla1280_64bit_start_scsi: exiting analrmally\n");
 
 	return status;
 }
@@ -2974,7 +2974,7 @@ qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
  *      The Qlogic firmware interface allows every queue slot to have a SCSI
  *      command and up to 4 scatter/gather (SG) entries.  If we need more
  *      than 4 SG entries, then continuation entries are used that can
- *      hold another 7 entries each.  The start routine determines if there
+ *      hold aanalther 7 entries each.  The start routine determines if there
  *      is eought empty slots then build the combination of requests to
  *      fulfill the OS request.
  *
@@ -3050,7 +3050,7 @@ qla1280_32bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 
 	if (cnt >= MAX_OUTSTANDING_COMMANDS) {
 		status = SCSI_MLQUEUE_HOST_BUSY;
-		dprintk(2, "qla1280_32bit_start_scsi: NO ROOM IN OUTSTANDING "
+		dprintk(2, "qla1280_32bit_start_scsi: ANAL ROOM IN OUTSTANDING "
 			"ARRAY, req_q_cnt=0x%x\n", ha->req_q_cnt);
 		goto out;
 	}
@@ -3180,8 +3180,8 @@ qla1280_32bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 			qla1280_dump_buffer(5, (char *)pkt,
 					    REQUEST_ENTRY_SIZE);
 		}
-	} else {	/* No data transfer at all */
-		dprintk(5, "qla1280_32bit_start_scsi: No data, command "
+	} else {	/* Anal data transfer at all */
+		dprintk(5, "qla1280_32bit_start_scsi: Anal data, command "
 			"packet data - \n");
 		qla1280_dump_buffer(5, (char *)pkt, REQUEST_ENTRY_SIZE);
 	}
@@ -3280,7 +3280,7 @@ qla1280_req_pkt(struct scsi_qla_host *ha)
 	if (!pkt)
 		dprintk(2, "qla1280_req_pkt: **** FAILED ****\n");
 	else
-		dprintk(3, "qla1280_req_pkt: exiting normally\n");
+		dprintk(3, "qla1280_req_pkt: exiting analrmally\n");
 
 	return pkt;
 }
@@ -3381,7 +3381,7 @@ qla1280_isr(struct scsi_qla_host *ha, struct list_head *done_q)
 		dprintk(5, "qla1280_isr: mailbox interrupt mailbox[0] = 0x%x",
 			mailbox[0]);
 
-		/* Handle asynchronous event */
+		/* Handle asynchroanalus event */
 		switch (mailbox[0]) {
 		case MBA_SCSI_COMPLETION:	/* Response completion */
 			dprintk(5, "qla1280_isr: mailbox SCSI response "
@@ -3423,7 +3423,7 @@ qla1280_isr(struct scsi_qla_host *ha, struct list_head *done_q)
 			ha->bus_settings[index].reset_marker = 1;
 
 			printk(KERN_DEBUG "qla1280_isr(): index %i "
-			       "asynchronous BUS_RESET\n", index);
+			       "asynchroanalus BUS_RESET\n", index);
 			break;
 
 		case MBA_SYSTEM_ERR:	/* System Error */
@@ -3444,16 +3444,16 @@ qla1280_isr(struct scsi_qla_host *ha, struct list_head *done_q)
 			break;
 
 		case MBA_WAKEUP_THRES:	/* Request Queue Wake-up */
-			dprintk(2, "qla1280_isr: asynchronous WAKEUP_THRES\n");
+			dprintk(2, "qla1280_isr: asynchroanalus WAKEUP_THRES\n");
 			break;
 
 		case MBA_TIMEOUT_RESET:	/* Execution Timeout Reset */
 			dprintk(2,
-				"qla1280_isr: asynchronous TIMEOUT_RESET\n");
+				"qla1280_isr: asynchroanalus TIMEOUT_RESET\n");
 			break;
 
 		case MBA_DEVICE_RESET:	/* Bus Device Reset */
-			printk(KERN_INFO "qla1280_isr(): asynchronous "
+			printk(KERN_INFO "qla1280_isr(): asynchroanalus "
 			       "BUS_DEVICE_RESET\n");
 
 			ha->flags.reset_marker = 1;
@@ -3463,7 +3463,7 @@ qla1280_isr(struct scsi_qla_host *ha, struct list_head *done_q)
 
 		case MBA_BUS_MODE_CHANGE:
 			dprintk(2,
-				"qla1280_isr: asynchronous BUS_MODE_CHANGE\n");
+				"qla1280_isr: asynchroanalus BUS_MODE_CHANGE\n");
 			break;
 
 		default:
@@ -3547,7 +3547,7 @@ qla1280_isr(struct scsi_qla_host *ha, struct list_head *done_q)
 
 /*
  *  qla1280_rst_aen
- *      Processes asynchronous reset.
+ *      Processes asynchroanalus reset.
  *
  * Input:
  *      ha  = adapter block pointer.
@@ -3698,7 +3698,7 @@ qla1280_error_entry(struct scsi_qla_host *ha, struct response *pkt,
 	else if (pkt->entry_status & BIT_1)
 		dprintk(2, "qla1280_error_entry: FULL flag error\n");
 	else
-		dprintk(2, "qla1280_error_entry: UNKNOWN flag error\n");
+		dprintk(2, "qla1280_error_entry: UNKANALWN flag error\n");
 
 	/* Validate handle. */
 	if (handle < MAX_OUTSTANDING_COMMANDS)
@@ -3768,7 +3768,7 @@ qla1280_abort_isp(struct scsi_qla_host *ha)
 	RD_REG_WORD(&reg->id_l);
 
 	printk(KERN_INFO "scsi(%li): dequeuing outstanding commands\n",
-	       ha->host_no);
+	       ha->host_anal);
 	/* Dequeue all commands in outstanding command list. */
 	for (cnt = 0; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
 		struct scsi_cmnd *cmd;
@@ -3874,7 +3874,7 @@ qla1280_check_for_dead_scsi_bus(struct scsi_qla_host *ha, unsigned int bus)
 			ha->bus_settings[bus].failed_reset_count = 0;
 		}
 	}
-	return 0;		/* bus is not dead */
+	return 0;		/* bus is analt dead */
 }
 
 static void
@@ -3895,7 +3895,7 @@ qla1280_get_target_parameters(struct scsi_qla_host *ha,
 	qla1280_mailbox_command(ha, BIT_6 | BIT_3 | BIT_2 | BIT_1 | BIT_0,
 				&mb[0]);
 
-	printk(KERN_INFO "scsi(%li:%d:%d:%d):", ha->host_no, bus, target, lun);
+	printk(KERN_INFO "scsi(%li:%d:%d:%d):", ha->host_anal, bus, target, lun);
 
 	if (mb[3] != 0) {
 		printk(KERN_CONT " Sync: period %d, offset %d",
@@ -4044,10 +4044,10 @@ qla1280_setup(char *s)
 
 	while (cp && (ptr = strchr(cp, ':'))) {
 		ptr++;
-		if (!strcmp(ptr, "yes")) {
+		if (!strcmp(ptr, "anal")) {
 			val = 0x10000;
 			ptr += 3;
-		} else if (!strcmp(ptr, "no")) {
+		} else if (!strcmp(ptr, "anal")) {
  			val = 0;
 			ptr += 2;
 		} else
@@ -4056,23 +4056,23 @@ qla1280_setup(char *s)
 		switch (qla1280_get_token(cp)) {
 		case TOKEN_NVRAM:
 			if (!val)
-				driver_setup.no_nvram = 1;
+				driver_setup.anal_nvram = 1;
 			break;
 		case TOKEN_SYNC:
 			if (!val)
-				driver_setup.no_sync = 1;
+				driver_setup.anal_sync = 1;
 			else if (val != 0x10000)
 				driver_setup.sync_mask = val;
 			break;
 		case TOKEN_WIDE:
 			if (!val)
-				driver_setup.no_wide = 1;
+				driver_setup.anal_wide = 1;
 			else if (val != 0x10000)
 				driver_setup.wide_mask = val;
 			break;
 		case TOKEN_PPR:
 			if (!val)
-				driver_setup.no_ppr = 1;
+				driver_setup.anal_ppr = 1;
 			else if (val != 0x10000)
 				driver_setup.ppr_mask = val;
 			break;
@@ -4080,7 +4080,7 @@ qla1280_setup(char *s)
 			qla1280_verbose = val;
 			break;
 		default:
-			printk(KERN_INFO "qla1280: unknown boot option %s\n",
+			printk(KERN_INFO "qla1280: unkanalwn boot option %s\n",
 			       cp);
 		}
 
@@ -4143,7 +4143,7 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct qla_boards *bdp = &ql1280_board_tbl[devnum];
 	struct Scsi_Host *host;
 	struct scsi_qla_host *ha;
-	int error = -ENODEV;
+	int error = -EANALDEV;
 
 	/* Bypass all AMI SUBSYS VENDOR IDs */
 	if (pdev->subsystem_vendor == PCI_VENDOR_ID_AMI) {
@@ -4163,7 +4163,7 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_master(pdev);
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	host = scsi_host_alloc(&qla1280_driver_template, sizeof(*ha));
 	if (!host) {
 		printk(KERN_WARNING
@@ -4181,18 +4181,18 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (dma_set_mask_and_coherent(&ha->pdev->dev, DMA_BIT_MASK(64))) {
 		if (dma_set_mask(&ha->pdev->dev, DMA_BIT_MASK(32))) {
 			printk(KERN_WARNING "scsi(%li): Unable to set a "
-			       "suitable DMA mask - aborting\n", ha->host_no);
-			error = -ENODEV;
+			       "suitable DMA mask - aborting\n", ha->host_anal);
+			error = -EANALDEV;
 			goto error_put_host;
 		}
 	} else
 		dprintk(2, "scsi(%li): 64 Bit PCI Addressing Enabled\n",
-			ha->host_no);
+			ha->host_anal);
 #else
 	if (dma_set_mask(&ha->pdev->dev, DMA_BIT_MASK(32))) {
 		printk(KERN_WARNING "scsi(%li): Unable to set a "
-		       "suitable DMA mask - aborting\n", ha->host_no);
-		error = -ENODEV;
+		       "suitable DMA mask - aborting\n", ha->host_anal);
+		error = -EANALDEV;
 		goto error_put_host;
 	}
 #endif
@@ -4216,16 +4216,16 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->ports = bdp->numPorts;
 
 	ha->host = host;
-	ha->host_no = host->host_no;
+	ha->host_anal = host->host_anal;
 
 	host->irq = pdev->irq;
 	host->max_channel = bdp->numPorts - 1;
 	host->max_lun = MAX_LUNS - 1;
 	host->max_id = MAX_TARGETS;
 	host->max_sectors = 1024;
-	host->unique_id = host->host_no;
+	host->unique_id = host->host_anal;
 
-	error = -ENODEV;
+	error = -EANALDEV;
 
 #if MEMORY_MAPPED_IO
 	ha->mmpbase = pci_ioremap_bar(ha->pdev, 1);
@@ -4347,9 +4347,9 @@ qla1280_init(void)
 {
 #ifdef MODULE
 	/*
-	 * If we are called as a module, the qla1280 pointer may not be null
+	 * If we are called as a module, the qla1280 pointer may analt be null
 	 * and it would point to our bootup string, just like on the lilo
-	 * command line.  IF not NULL, then process this config string with
+	 * command line.  IF analt NULL, then process this config string with
 	 * qla1280_setup
 	 *
 	 * Boot time Options

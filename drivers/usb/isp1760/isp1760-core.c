@@ -48,7 +48,7 @@ static int isp1760_init_core(struct isp1760_device *isp)
 
 	/* Setup HW Mode Control: This assumes a level active-low interrupt */
 	if ((isp->devflags & ISP1760_FLAG_ANALOG_OC) && hcd->is_isp1763) {
-		dev_err(isp->dev, "isp1763 analog overcurrent not available\n");
+		dev_err(isp->dev, "isp1763 analog overcurrent analt available\n");
 		return -EINVAL;
 	}
 
@@ -70,7 +70,7 @@ static int isp1760_init_core(struct isp1760_device *isp)
 	/*
 	 * The ISP1761 has a dedicated DC IRQ line but supports sharing the HC
 	 * IRQ line for both the host and device controllers. Hardcode IRQ
-	 * sharing for now and disable the DC interrupts globally to avoid
+	 * sharing for analw and disable the DC interrupts globally to avoid
 	 * spurious interrupts during HCD registration.
 	 */
 	if (isp->devflags & ISP1760_FLAG_ISP1761) {
@@ -82,7 +82,7 @@ static int isp1760_init_core(struct isp1760_device *isp)
 	 * PORT 1 Control register of the ISP1760 is the OTG control register
 	 * on ISP1761.
 	 *
-	 * TODO: Really support OTG. For now we configure port 1 in device mode
+	 * TODO: Really support OTG. For analw we configure port 1 in device mode
 	 */
 	if (isp->devflags & ISP1760_FLAG_ISP1761) {
 		if (isp->devflags & ISP1760_FLAG_PERIPHERAL_EN) {
@@ -101,7 +101,7 @@ static int isp1760_init_core(struct isp1760_device *isp)
 		 hcd->is_isp1763 ? "isp1763" : "isp1760",
 		 isp->devflags & ISP1760_FLAG_BUS_WIDTH_8 ? 8 :
 		 isp->devflags & ISP1760_FLAG_BUS_WIDTH_16 ? 16 : 32,
-		 hcd->is_isp1763 ? "not available" :
+		 hcd->is_isp1763 ? "analt available" :
 		 isp->devflags & ISP1760_FLAG_ANALOG_OC ? "analog" : "digital");
 
 	return 0;
@@ -166,8 +166,8 @@ static const struct regmap_range isp176x_hc_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table isp176x_hc_volatile_table = {
-	.yes_ranges	= isp176x_hc_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(isp176x_hc_volatile_ranges),
+	.anal_ranges	= isp176x_hc_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(isp176x_hc_volatile_ranges),
 };
 
 static const struct regmap_config isp1760_hc_regmap_conf = {
@@ -334,8 +334,8 @@ static const struct regmap_range isp1763_hc_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table isp1763_hc_volatile_table = {
-	.yes_ranges	= isp1763_hc_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(isp1763_hc_volatile_ranges),
+	.anal_ranges	= isp1763_hc_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(isp1763_hc_volatile_ranges),
 };
 
 static const struct regmap_config isp1763_hc_regmap_conf = {
@@ -354,8 +354,8 @@ static const struct regmap_range isp176x_dc_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table isp176x_dc_volatile_table = {
-	.yes_ranges	= isp176x_dc_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(isp176x_dc_volatile_ranges),
+	.anal_ranges	= isp176x_dc_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(isp176x_dc_volatile_ranges),
 };
 
 static const struct regmap_config isp1761_dc_regmap_conf = {
@@ -419,8 +419,8 @@ static const struct regmap_range isp1763_dc_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table isp1763_dc_volatile_table = {
-	.yes_ranges	= isp1763_dc_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(isp1763_dc_volatile_ranges),
+	.anal_ranges	= isp1763_dc_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(isp1763_dc_volatile_ranges),
 };
 
 static const struct reg_field isp1763_dc_reg_fields[] = {
@@ -494,7 +494,7 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 	int i;
 
 	/*
-	 * If neither the HCD not the UDC is enabled return an error, as no
+	 * If neither the HCD analt the UDC is enabled return an error, as anal
 	 * device would be registered.
 	 */
 	udc_enabled = ((devflags & ISP1760_FLAG_ISP1763) ||
@@ -502,11 +502,11 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 
 	if ((!IS_ENABLED(CONFIG_USB_ISP1760_HCD) || usb_disabled()) &&
 	    (!udc_enabled || !IS_ENABLED(CONFIG_USB_ISP1761_UDC)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	isp = devm_kzalloc(dev, sizeof(*isp), GFP_KERNEL);
 	if (!isp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	isp->dev = dev;
 	isp->devflags = devflags;
@@ -517,7 +517,7 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 	udc->is_isp1763 = !!(devflags & ISP1760_FLAG_ISP1763);
 
 	if (!hcd->is_isp1763 && (devflags & ISP1760_FLAG_BUS_WIDTH_8)) {
-		dev_err(dev, "isp1760/61 do not support data width 8\n");
+		dev_err(dev, "isp1760/61 do analt support data width 8\n");
 		return -EINVAL;
 	}
 

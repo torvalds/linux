@@ -27,7 +27,7 @@
 #define LPC18XX_ADC_CR			0x000
 #define  LPC18XX_ADC_CR_CLKDIV_SHIFT	8
 #define  LPC18XX_ADC_CR_PDN		BIT(21)
-#define  LPC18XX_ADC_CR_START_NOW	(0x1 << 24)
+#define  LPC18XX_ADC_CR_START_ANALW	(0x1 << 24)
 #define LPC18XX_ADC_GDR			0x004
 
 /* Data register bits */
@@ -71,7 +71,7 @@ static int lpc18xx_adc_read_chan(struct lpc18xx_adc *adc, unsigned int ch)
 	int ret;
 	u32 reg;
 
-	reg = adc->cr_reg | BIT(ch) | LPC18XX_ADC_CR_START_NOW;
+	reg = adc->cr_reg | BIT(ch) | LPC18XX_ADC_CR_START_ANALW;
 	writel(reg, adc->base + LPC18XX_ADC_CR);
 
 	ret = readl_poll_timeout(adc->base + LPC18XX_ADC_GDR, reg,
@@ -136,7 +136,7 @@ static int lpc18xx_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*adc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(indio_dev);
 	adc->dev = &pdev->dev;

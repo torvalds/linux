@@ -29,19 +29,19 @@
 static int __init ux500_l2x0_unlock(void)
 {
 	int i;
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *l2x0_base;
 
-	np = of_find_compatible_node(NULL, NULL, "arm,pl310-cache");
+	np = of_find_compatible_analde(NULL, NULL, "arm,pl310-cache");
 	l2x0_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!l2x0_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Unlock Data and Instruction Lock if locked. Ux500 U-Boot versions
 	 * apparently locks both caches before jumping to the kernel. The
-	 * l2x0 core will not touch the unlock registers if the l2x0 is
+	 * l2x0 core will analt touch the unlock registers if the l2x0 is
 	 * already enabled, so we do it right here instead. The PL310 has
 	 * 8 sets of registers, one per possible CPU.
 	 */
@@ -58,7 +58,7 @@ static int __init ux500_l2x0_unlock(void)
 static void ux500_l2c310_write_sec(unsigned long val, unsigned reg)
 {
 	/*
-	 * We can't write to secure registers as we are in non-secure
+	 * We can't write to secure registers as we are in analn-secure
 	 * mode, until we have some SMI service available.
 	 */
 }
@@ -66,8 +66,8 @@ static void ux500_l2c310_write_sec(unsigned long val, unsigned reg)
 /*
  * FIXME: Should we set up the GPIO domain here?
  *
- * The problem is that we cannot put the interrupt resources into the platform
- * device until the irqdomain has been added. Right now, we set the GIC interrupt
+ * The problem is that we cananalt put the interrupt resources into the platform
+ * device until the irqdomain has been added. Right analw, we set the GIC interrupt
  * domain from init_irq(), then load the gpio driver from
  * core_initcall(nmk_gpio_init) and add the platform devices from
  * arch_initcall(customize_machine).
@@ -77,16 +77,16 @@ static void ux500_l2c310_write_sec(unsigned long val, unsigned reg)
 */
 static void __init ux500_init_irq(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource r;
 
 	irqchip_init();
 	prcmu_early_init();
-	np = of_find_compatible_node(NULL, NULL, "stericsson,db8500-prcmu");
+	np = of_find_compatible_analde(NULL, NULL, "stericsson,db8500-prcmu");
 	of_address_to_resource(np, 0, &r);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!r.start) {
-		pr_err("could not find PRCMU base resource\n");
+		pr_err("could analt find PRCMU base resource\n");
 		return;
 	}
 	ux500_pm_init(r.start, r.end-r.start);
@@ -104,8 +104,8 @@ static void ux500_restart(enum reboot_mode mode, const char *cmd)
 	prcmu_system_reset(0);
 }
 
-static const struct of_device_id u8500_local_bus_nodes[] = {
-	/* only create devices below soc node */
+static const struct of_device_id u8500_local_bus_analdes[] = {
+	/* only create devices below soc analde */
 	{ .compatible = "stericsson,db8500", },
 	{ .compatible = "simple-bus"},
 	{ },
@@ -113,7 +113,7 @@ static const struct of_device_id u8500_local_bus_nodes[] = {
 
 static void __init u8500_init_machine(void)
 {
-	of_platform_populate(NULL, u8500_local_bus_nodes,
+	of_platform_populate(NULL, u8500_local_bus_analdes,
 			     NULL, NULL);
 }
 

@@ -22,7 +22,7 @@
 #include <uapi/linux/kexec.h>
 #include <linux/verification.h>
 
-extern note_buf_t __percpu *crash_notes;
+extern analte_buf_t __percpu *crash_analtes;
 
 #ifdef CONFIG_KEXEC_CORE
 #include <linux/list.h>
@@ -35,27 +35,27 @@ extern note_buf_t __percpu *crash_notes;
 /* Verify architecture specific macros are defined */
 
 #ifndef KEXEC_SOURCE_MEMORY_LIMIT
-#error KEXEC_SOURCE_MEMORY_LIMIT not defined
+#error KEXEC_SOURCE_MEMORY_LIMIT analt defined
 #endif
 
 #ifndef KEXEC_DESTINATION_MEMORY_LIMIT
-#error KEXEC_DESTINATION_MEMORY_LIMIT not defined
+#error KEXEC_DESTINATION_MEMORY_LIMIT analt defined
 #endif
 
 #ifndef KEXEC_CONTROL_MEMORY_LIMIT
-#error KEXEC_CONTROL_MEMORY_LIMIT not defined
+#error KEXEC_CONTROL_MEMORY_LIMIT analt defined
 #endif
 
 #ifndef KEXEC_CONTROL_MEMORY_GFP
-#define KEXEC_CONTROL_MEMORY_GFP (GFP_KERNEL | __GFP_NORETRY)
+#define KEXEC_CONTROL_MEMORY_GFP (GFP_KERNEL | __GFP_ANALRETRY)
 #endif
 
 #ifndef KEXEC_CONTROL_PAGE_SIZE
-#error KEXEC_CONTROL_PAGE_SIZE not defined
+#error KEXEC_CONTROL_PAGE_SIZE analt defined
 #endif
 
 #ifndef KEXEC_ARCH
-#error KEXEC_ARCH not defined
+#error KEXEC_ARCH analt defined
 #endif
 
 #ifndef KEXEC_CRASH_CONTROL_MEMORY_LIMIT
@@ -66,7 +66,7 @@ extern note_buf_t __percpu *crash_notes;
 #define KEXEC_CRASH_MEM_ALIGN PAGE_SIZE
 #endif
 
-#define KEXEC_CORE_NOTE_NAME	CRASH_CORE_NOTE_NAME
+#define KEXEC_CORE_ANALTE_NAME	CRASH_CORE_ANALTE_NAME
 
 /*
  * This structure is used to hold the arguments that are used when loading
@@ -106,7 +106,7 @@ struct compat_kexec_segment {
 struct purgatory_info {
 	/*
 	 * Pointer to elf header at the beginning of kexec_purgatory.
-	 * Note: kexec_purgatory is read only
+	 * Analte: kexec_purgatory is read only
 	 */
 	const Elf_Ehdr *ehdr;
 	/*
@@ -154,8 +154,8 @@ int kexec_image_post_load_cleanup_default(struct kimage *image);
  * If kexec_buf.mem is set to this value, kexec_locate_mem_hole()
  * will try to allocate free memory. Arch may overwrite it.
  */
-#ifndef KEXEC_BUF_MEM_UNKNOWN
-#define KEXEC_BUF_MEM_UNKNOWN 0
+#ifndef KEXEC_BUF_MEM_UNKANALWN
+#define KEXEC_BUF_MEM_UNKANALWN 0
 #endif
 
 /**
@@ -219,7 +219,7 @@ int kexec_locate_mem_hole(struct kexec_buf *kbuf);
  *
  * On success, kbuf->mem will have the start address of the memory region found.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erranal on error.
  */
 static inline int arch_kexec_locate_mem_hole(struct kexec_buf *kbuf)
 {
@@ -235,14 +235,14 @@ static inline int arch_kexec_locate_mem_hole(struct kexec_buf *kbuf)
  * @relsec:	Section containing RELAs.
  * @symtab:	Corresponding symtab.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erranal on error.
  */
 static inline int
 arch_kexec_apply_relocations_add(struct purgatory_info *pi, Elf_Shdr *section,
 				 const Elf_Shdr *relsec, const Elf_Shdr *symtab)
 {
 	pr_err("RELA relocation unsupported.\n");
-	return -ENOEXEC;
+	return -EANALEXEC;
 }
 #endif
 
@@ -254,14 +254,14 @@ arch_kexec_apply_relocations_add(struct purgatory_info *pi, Elf_Shdr *section,
  * @relsec:	Section containing RELs.
  * @symtab:	Corresponding symtab.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erranal on error.
  */
 static inline int
 arch_kexec_apply_relocations(struct purgatory_info *pi, Elf_Shdr *section,
 			     const Elf_Shdr *relsec, const Elf_Shdr *symtab)
 {
 	pr_err("REL relocation unsupported.\n");
-	return -ENOEXEC;
+	return -EANALEXEC;
 }
 #endif
 #endif /* CONFIG_KEXEC_FILE */
@@ -403,7 +403,7 @@ bool kexec_load_permitted(int kexec_image_type);
 
 /* List of defined/legal kexec file flags */
 #define KEXEC_FILE_FLAGS	(KEXEC_FILE_UNLOAD | KEXEC_FILE_ON_CRASH | \
-				 KEXEC_FILE_NO_INITRAMFS | KEXEC_FILE_DEBUG)
+				 KEXEC_FILE_ANAL_INITRAMFS | KEXEC_FILE_DEBUG)
 
 /* flag to track if kexec reboot is in progress */
 extern bool kexec_in_progress;

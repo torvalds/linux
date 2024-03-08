@@ -26,7 +26,7 @@
 struct sk_buff;
 
 enum sw_flow_mac_proto {
-	MAC_PROTO_NONE = 0,
+	MAC_PROTO_ANALNE = 0,
 	MAC_PROTO_ETHERNET,
 };
 #define SW_FLOW_KEY_INVALID	0x80
@@ -34,7 +34,7 @@ enum sw_flow_mac_proto {
 
 /* Bit definitions for IPv6 Extension Header pseudo-field. */
 enum ofp12_ipv6exthdr_flags {
-	OFPIEH12_NONEXT = 1 << 0,   /* "No next header" encountered. */
+	OFPIEH12_ANALNEXT = 1 << 0,   /* "Anal next header" encountered. */
 	OFPIEH12_ESP    = 1 << 1,   /* Encrypted Sec Payload header present. */
 	OFPIEH12_AUTH   = 1 << 2,   /* Authentication header present. */
 	OFPIEH12_DEST   = 1 << 3,   /* 1 or 2 dest headers present. */
@@ -60,7 +60,7 @@ struct ovs_tunnel_info {
 
 struct vlan_head {
 	__be16 tpid; /* Vlan type. Generally 802.1q or 802.1ad.*/
-	__be16 tci;  /* 0 if no VLAN, VLAN_CFI_MASK set otherwise. */
+	__be16 tci;  /* 0 if anal VLAN, VLAN_CFI_MASK set otherwise. */
 };
 
 #define OVS_SW_FLOW_KEY_METADATA_SIZE			\
@@ -155,7 +155,7 @@ struct sw_flow_key {
 		struct ovs_key_nsh nsh;         /* network service header */
 	};
 	struct {
-		/* Connection tracking fields not packed above. */
+		/* Connection tracking fields analt packed above. */
 		struct {
 			__be16 src;	/* CT orig tuple tp src port. */
 			__be16 dst;	/* CT orig tuple tp dst port. */
@@ -221,7 +221,7 @@ struct sw_flow_stats {
 struct sw_flow {
 	struct rcu_head rcu;
 	struct {
-		struct hlist_node node[2];
+		struct hlist_analde analde[2];
 		u32 hash;
 	} flow_table, ufid_table;
 	int stats_last_writer;		/* CPU id of the last writer on

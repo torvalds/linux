@@ -10,7 +10,7 @@
 #include <linux/workqueue.h>
 #include <linux/skbuff.h>
 #include <linux/timer.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/inetdevice.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -40,7 +40,7 @@ static int data_sgl_len(const struct sk_buff *skb)
 	return sgl_len(cnt) * 8;
 }
 
-static int nos_ivs(struct sock *sk, unsigned int size)
+static int anals_ivs(struct sock *sk, unsigned int size)
 {
 	struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);
 
@@ -49,7 +49,7 @@ static int nos_ivs(struct sock *sk, unsigned int size)
 
 static int set_ivs_imm(struct sock *sk, const struct sk_buff *skb)
 {
-	int ivs_size = nos_ivs(sk, skb->len) * CIPHER_BLOCK_SIZE;
+	int ivs_size = anals_ivs(sk, skb->len) * CIPHER_BLOCK_SIZE;
 	int hlen = TLS_WR_CPL_LEN + data_sgl_len(skb);
 
 	if ((hlen + KEY_ON_MEM_SZ + ivs_size) <
@@ -63,12 +63,12 @@ static int set_ivs_imm(struct sock *sk, const struct sk_buff *skb)
 
 static int max_ivs_size(struct sock *sk, int size)
 {
-	return nos_ivs(sk, size) * CIPHER_BLOCK_SIZE;
+	return anals_ivs(sk, size) * CIPHER_BLOCK_SIZE;
 }
 
 static int ivs_size(struct sock *sk, const struct sk_buff *skb)
 {
-	return set_ivs_imm(sk, skb) ? (nos_ivs(sk, skb->len) *
+	return set_ivs_imm(sk, skb) ? (anals_ivs(sk, skb->len) *
 		 CIPHER_BLOCK_SIZE) : 0;
 }
 
@@ -117,10 +117,10 @@ static int send_flowc_wr(struct sock *sk, struct fw_flowc_wr *flowc,
 	if (csk_flag(sk, CSK_TX_DATA_SENT)) {
 		skb = create_flowc_wr_skb(sk, flowc, flowclen);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		skb_entail(sk, skb,
-			   ULPCB_FLAG_NO_HDR | ULPCB_FLAG_NO_APPEND);
+			   ULPCB_FLAG_ANAL_HDR | ULPCB_FLAG_ANAL_APPEND);
 		return 0;
 	}
 
@@ -131,7 +131,7 @@ static int send_flowc_wr(struct sock *sk, struct fw_flowc_wr *flowc,
 		return flowclen16;
 	skb = create_flowc_wr_skb(sk, flowc, flowclen);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	send_or_defer(sk, tp, skb, 0);
 	return flowclen16;
 }
@@ -229,17 +229,17 @@ static int tls_copy_ivs(struct sock *sk, struct sk_buff *skb)
 
 	csk = rcu_dereference_sk_user_data(sk);
 	hws = &csk->tlshws;
-	number_of_ivs = nos_ivs(sk, skb->len);
+	number_of_ivs = anals_ivs(sk, skb->len);
 
 	if (number_of_ivs > MAX_IVS_PAGE) {
 		pr_warn("MAX IVs in PAGE exceeded %d\n", number_of_ivs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* generate the  IVs */
 	ivs = kmalloc_array(CIPHER_BLOCK_SIZE, number_of_ivs, GFP_ATOMIC);
 	if (!ivs)
-		return -ENOMEM;
+		return -EANALMEM;
 	get_random_bytes(ivs, number_of_ivs * CIPHER_BLOCK_SIZE);
 
 	if (skb_ulp_tls_iv_imm(skb)) {
@@ -258,7 +258,7 @@ static int tls_copy_ivs(struct sock *sk, struct sk_buff *skb)
 		if (!page) {
 			pr_info("%s : Page allocation for IVs failed\n",
 				__func__);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		memcpy(page_address(page), ivs, number_of_ivs *
@@ -291,7 +291,7 @@ static void tls_copy_tx_key(struct sock *sk, struct sk_buff *skb)
 	kaddr = keyid_to_addr(cdev->kmap.start, hws->txkey);
 	sc = (struct ulptx_idata *)__skb_push(skb, immdlen);
 	if (sc) {
-		sc->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_NOOP));
+		sc->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_ANALOP));
 		sc->len = htonl(0);
 		sc_memrd = (struct ulptx_sc_memrd *)(sc + 1);
 		sc_memrd->cmd_to_len =
@@ -304,7 +304,7 @@ static void tls_copy_tx_key(struct sock *sk, struct sk_buff *skb)
 
 static u64 tlstx_incr_seqnum(struct chtls_hws *hws)
 {
-	return hws->tx_seq_no++;
+	return hws->tx_seq_anal++;
 }
 
 static bool is_sg_request(const struct sk_buff *skb)
@@ -368,8 +368,8 @@ static void tls_tx_data_wr(struct sock *sk, struct sk_buff *skb,
 	atomic_inc(&adap->chcr_stats.tls_pdu_tx);
 
 	updated_scmd = scmd;
-	updated_scmd->seqno_numivs &= 0xffffff80;
-	updated_scmd->seqno_numivs |= SCMD_NUM_IVS_V(pdus);
+	updated_scmd->seqanal_numivs &= 0xffffff80;
+	updated_scmd->seqanal_numivs |= SCMD_NUM_IVS_V(pdus);
 	hws->scmd = *updated_scmd;
 
 	req = (unsigned char *)__skb_push(skb, sizeof(struct cpl_tx_tls_sfo));
@@ -389,7 +389,7 @@ static void tls_tx_data_wr(struct sock *sk, struct sk_buff *skb,
 
 	if (is_sg_request(skb))
 		wr_ulp_mode_force |= FW_OFLD_TX_DATA_WR_ALIGNPLD_F |
-			((tcp_sk(sk)->nonagle & TCP_NAGLE_OFF) ? 0 :
+			((tcp_sk(sk)->analnagle & TCP_NAGLE_OFF) ? 0 :
 			FW_OFLD_TX_DATA_WR_SHOVE_F);
 
 	req_wr->lsodisable_to_flags =
@@ -431,7 +431,7 @@ static void tls_tx_data_wr(struct sock *sk, struct sk_buff *skb,
 
 	/* create the s-command */
 	req_cpl->r1_lo = 0;
-	req_cpl->seqno_numivs  = cpu_to_be32(hws->scmd.seqno_numivs);
+	req_cpl->seqanal_numivs  = cpu_to_be32(hws->scmd.seqanal_numivs);
 	req_cpl->ivgen_hdrlen = cpu_to_be32(hws->scmd.ivgen_hdrlen);
 	req_cpl->scmd1 = cpu_to_be64(tlstx_incr_seqnum(hws));
 }
@@ -452,7 +452,7 @@ static int chtls_expansion_size(struct sock *sk, int data_len,
 	int fragcnt;
 	int expppdu;
 
-	if (SCMD_CIPH_MODE_G(scmd->seqno_numivs) ==
+	if (SCMD_CIPH_MODE_G(scmd->seqanal_numivs) ==
 	    SCMD_CIPH_MODE_AES_GCM) {
 		expppdu = GCM_TAG_SIZE + AEAD_EXPLICIT_DATA_SIZE +
 			  TLS_HEADER_LENGTH;
@@ -502,7 +502,7 @@ static void make_tlstx_data_wr(struct sock *sk, struct sk_buff *skb,
 		return;
 	tls_copy_tx_key(sk, skb);
 	tls_tx_data_wr(sk, skb, tls_len, tls_tx_imm, credits, expn_sz, pdus);
-	hws->tx_seq_no += (pdus - 1);
+	hws->tx_seq_anal += (pdus - 1);
 }
 
 static void make_tx_data_wr(struct sock *sk, struct sk_buff *skb,
@@ -527,7 +527,7 @@ static void make_tx_data_wr(struct sock *sk, struct sk_buff *skb,
 	wr_ulp_mode_force = TX_ULP_MODE_V(csk->ulp_mode);
 	if (is_sg_request(skb))
 		wr_ulp_mode_force |= FW_OFLD_TX_DATA_WR_ALIGNPLD_F |
-			((tcp_sk(sk)->nonagle & TCP_NAGLE_OFF) ? 0 :
+			((tcp_sk(sk)->analnagle & TCP_NAGLE_OFF) ? 0 :
 				FW_OFLD_TX_DATA_WR_SHOVE_F);
 
 	req->tunnel_to_proxy = htonl(wr_ulp_mode_force |
@@ -639,14 +639,14 @@ int chtls_push_frames(struct chtls_sock *csk, int comp)
 		if (likely(ULP_SKB_CB(skb)->flags & ULPCB_FLAG_NEED_HDR))
 			credit_len += wr_size;
 		credits_needed = DIV_ROUND_UP(credit_len, 16);
-		if (!csk_flag_nochk(csk, CSK_TX_DATA_SENT)) {
+		if (!csk_flag_analchk(csk, CSK_TX_DATA_SENT)) {
 			flowclen16 = send_tx_flowc_wr(sk, 1, tp->snd_nxt,
 						      tp->rcv_nxt);
 			if (flowclen16 <= 0)
 				break;
 			csk->wr_credits -= flowclen16;
 			csk->wr_unacked += flowclen16;
-			csk->wr_nondata += flowclen16;
+			csk->wr_analndata += flowclen16;
 			csk_set_flag(csk, CSK_TX_DATA_SENT);
 		}
 
@@ -662,10 +662,10 @@ int chtls_push_frames(struct chtls_sock *csk, int comp)
 				      CPL_PRIORITY_DATA);
 		if (hws->ofld)
 			hws->txqid = (skb->queue_mapping >> 1);
-		skb->csum = (__force __wsum)(credits_needed + csk->wr_nondata);
+		skb->csum = (__force __wsum)(credits_needed + csk->wr_analndata);
 		csk->wr_credits -= credits_needed;
 		csk->wr_unacked += credits_needed;
-		csk->wr_nondata = 0;
+		csk->wr_analndata = 0;
 		enqueue_wr(csk, skb);
 
 		if (likely(ULP_SKB_CB(skb)->flags & ULPCB_FLAG_NEED_HDR)) {
@@ -717,7 +717,7 @@ static void mark_urg(struct tcp_sock *tp, int flags,
 		tp->snd_up = tp->write_seq;
 		ULP_SKB_CB(skb)->flags = ULPCB_FLAG_URG |
 					 ULPCB_FLAG_BARRIER |
-					 ULPCB_FLAG_NO_APPEND |
+					 ULPCB_FLAG_ANAL_APPEND |
 					 ULPCB_FLAG_NEED_HDR;
 	}
 }
@@ -732,18 +732,18 @@ static bool should_push(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	/*
-	 * If we've released our offload resources there's nothing to do ...
+	 * If we've released our offload resources there's analthing to do ...
 	 */
 	if (!cdev)
 		return false;
 
 	/*
-	 * If there aren't any work requests in flight, or there isn't enough
+	 * If there aren't any work requests in flight, or there isn't eanalugh
 	 * data in flight, or Nagle is off then send the current TX_DATA
 	 * otherwise hold it and wait to accumulate more data.
 	 */
 	return csk->wr_credits == csk->wr_max_credits ||
-		(tp->nonagle & TCP_NAGLE_OFF);
+		(tp->analnagle & TCP_NAGLE_OFF);
 }
 
 /*
@@ -751,7 +751,7 @@ static bool should_push(struct sock *sk)
  */
 static bool corked(const struct tcp_sock *tp, int flags)
 {
-	return (flags & MSG_MORE) || (tp->nonagle & TCP_NAGLE_CORK);
+	return (flags & MSG_MORE) || (tp->analnagle & TCP_NAGLE_CORK);
 }
 
 /*
@@ -773,7 +773,7 @@ void chtls_tcp_push(struct sock *sk, int flags)
 
 		mark_urg(tp, flags, skb);
 
-		if (!(ULP_SKB_CB(skb)->flags & ULPCB_FLAG_NO_APPEND) &&
+		if (!(ULP_SKB_CB(skb)->flags & ULPCB_FLAG_ANAL_APPEND) &&
 		    corked(tp, flags)) {
 			ULP_SKB_CB(skb)->flags |= ULPCB_FLAG_HOLD;
 			return;
@@ -781,7 +781,7 @@ void chtls_tcp_push(struct sock *sk, int flags)
 
 		ULP_SKB_CB(skb)->flags &= ~ULPCB_FLAG_HOLD;
 		if (qlen == 1 &&
-		    ((ULP_SKB_CB(skb)->flags & ULPCB_FLAG_NO_APPEND) ||
+		    ((ULP_SKB_CB(skb)->flags & ULPCB_FLAG_ANAL_APPEND) ||
 		     should_push(sk)))
 			chtls_push_frames(csk, 1);
 	}
@@ -792,8 +792,8 @@ void chtls_tcp_push(struct sock *sk, int flags)
  * pack lots of data into it, unless we plan to send it immediately, in which
  * case we size it more tightly.
  *
- * Note: we don't bother compensating for MSS < PAGE_SIZE because it doesn't
- * arise in normal cases and when it does we are just wasting memory.
+ * Analte: we don't bother compensating for MSS < PAGE_SIZE because it doesn't
+ * arise in analrmal cases and when it does we are just wasting memory.
  */
 static int select_size(struct sock *sk, int io_len, int flags, int len)
 {
@@ -869,9 +869,9 @@ static void tx_skb_finalize(struct sk_buff *skb)
 {
 	struct ulp_skb_cb *cb = ULP_SKB_CB(skb);
 
-	if (!(cb->flags & ULPCB_FLAG_NO_HDR))
+	if (!(cb->flags & ULPCB_FLAG_ANAL_HDR))
 		cb->flags = ULPCB_FLAG_NEED_HDR;
-	cb->flags |= ULPCB_FLAG_NO_APPEND;
+	cb->flags |= ULPCB_FLAG_ANAL_APPEND;
 }
 
 static void push_frames_if_head(struct sock *sk)
@@ -882,7 +882,7 @@ static void push_frames_if_head(struct sock *sk)
 		chtls_push_frames(csk, 1);
 }
 
-static int chtls_skb_copy_to_page_nocache(struct sock *sk,
+static int chtls_skb_copy_to_page_analcache(struct sock *sk,
 					  struct iov_iter *from,
 					  struct sk_buff *skb,
 					  struct page *page,
@@ -890,7 +890,7 @@ static int chtls_skb_copy_to_page_nocache(struct sock *sk,
 {
 	int err;
 
-	err = skb_do_copy_data_nocache(sk, skb, from, page_address(page) +
+	err = skb_do_copy_data_analcache(sk, skb, from, page_address(page) +
 				       off, copy, skb->len);
 	if (err)
 		return err;
@@ -914,10 +914,10 @@ static int csk_wait_memory(struct chtls_dev *cdev,
 	int ret, err = 0;
 	long current_timeo;
 	long vm_wait = 0;
-	bool noblock;
+	bool analblock;
 
 	current_timeo = *timeo_p;
-	noblock = (*timeo_p ? false : true);
+	analblock = (*timeo_p ? false : true);
 	if (csk_mem_free(cdev, sk)) {
 		current_timeo = get_random_u32_below(HZ / 5) + 2;
 		vm_wait = get_random_u32_below(HZ / 5) + 2;
@@ -925,22 +925,22 @@ static int csk_wait_memory(struct chtls_dev *cdev,
 
 	add_wait_queue(sk_sleep(sk), &wait);
 	while (1) {
-		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
+		sk_set_bit(SOCKWQ_ASYNC_ANALSPACE, sk);
 
 		if (sk->sk_err || (sk->sk_shutdown & SEND_SHUTDOWN))
 			goto do_error;
 		if (!*timeo_p) {
-			if (noblock)
-				set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
-			goto do_nonblock;
+			if (analblock)
+				set_bit(SOCK_ANALSPACE, &sk->sk_socket->flags);
+			goto do_analnblock;
 		}
 		if (signal_pending(current))
 			goto do_interrupted;
-		sk_clear_bit(SOCKWQ_ASYNC_NOSPACE, sk);
+		sk_clear_bit(SOCKWQ_ASYNC_ANALSPACE, sk);
 		if (csk_mem_free(cdev, sk) && !vm_wait)
 			break;
 
-		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+		set_bit(SOCK_ANALSPACE, &sk->sk_socket->flags);
 		sk->sk_write_pending++;
 		ret = sk_wait_event(sk, &current_timeo, sk->sk_err ||
 				    (sk->sk_shutdown & SEND_SHUTDOWN) ||
@@ -968,11 +968,11 @@ do_rm_wq:
 do_error:
 	err = -EPIPE;
 	goto do_rm_wq;
-do_nonblock:
+do_analnblock:
 	err = -EAGAIN;
 	goto do_rm_wq;
 do_interrupted:
-	err = sock_intr_errno(*timeo_p);
+	err = sock_intr_erranal(*timeo_p);
 	goto do_rm_wq;
 }
 
@@ -1028,7 +1028,7 @@ int chtls_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 			goto out_err;
 	}
 
-	sk_clear_bit(SOCKWQ_ASYNC_NOSPACE, sk);
+	sk_clear_bit(SOCKWQ_ASYNC_ANALSPACE, sk);
 	err = -EPIPE;
 	if (sk->sk_err || (sk->sk_shutdown & SEND_SHUTDOWN))
 		goto out_err;
@@ -1066,7 +1066,7 @@ int chtls_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 			csk->tlshws.type = record_type;
 		}
 
-		if (!skb || (ULP_SKB_CB(skb)->flags & ULPCB_FLAG_NO_APPEND) ||
+		if (!skb || (ULP_SKB_CB(skb)->flags & ULPCB_FLAG_ANAL_APPEND) ||
 		    copy <= 0) {
 new_buf:
 			if (skb) {
@@ -1109,7 +1109,7 @@ new_buf:
 			copy = min(copy, skb_tailroom(skb));
 			if (is_tls_tx(csk))
 				copy = min_t(int, copy, csk->tlshws.txleft);
-			err = skb_add_data_nocache(sk, skb,
+			err = skb_add_data_analcache(sk, skb,
 						   &msg->msg_iter, copy);
 			if (err)
 				goto do_fault;
@@ -1144,8 +1144,8 @@ new_buf:
 
 				if (order) {
 					page = alloc_pages(gfp | __GFP_COMP |
-							   __GFP_NOWARN |
-							   __GFP_NORETRY,
+							   __GFP_ANALWARN |
+							   __GFP_ANALRETRY,
 							   order);
 					if (page)
 						pg_size <<= order;
@@ -1164,7 +1164,7 @@ copy:
 			if (is_tls_tx(csk))
 				copy = min_t(int, copy, csk->tlshws.txleft);
 
-			err = chtls_skb_copy_to_page_nocache(sk, &msg->msg_iter,
+			err = chtls_skb_copy_to_page_analcache(sk, &msg->msg_iter,
 							     skb, page,
 							     off, copy);
 			if (unlikely(err)) {
@@ -1202,16 +1202,16 @@ copy:
 
 		if (corked(tp, flags) &&
 		    (sk_stream_wspace(sk) < sk_stream_min_wspace(sk)))
-			ULP_SKB_CB(skb)->flags |= ULPCB_FLAG_NO_APPEND;
+			ULP_SKB_CB(skb)->flags |= ULPCB_FLAG_ANAL_APPEND;
 
 		if (size == 0)
 			goto out;
 
-		if (ULP_SKB_CB(skb)->flags & ULPCB_FLAG_NO_APPEND)
+		if (ULP_SKB_CB(skb)->flags & ULPCB_FLAG_ANAL_APPEND)
 			push_frames_if_head(sk);
 		continue;
 wait_for_sndbuf:
-		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+		set_bit(SOCK_ANALSPACE, &sk->sk_socket->flags);
 wait_for_memory:
 		err = csk_wait_memory(cdev, sk, &timeo);
 		if (err)
@@ -1277,7 +1277,7 @@ static void chtls_select_window(struct sock *sk)
 
 /*
  * Send RX credits through an RX_DATA_ACK CPL message.  We are permitted
- * to return without sending the message in case we cannot allocate
+ * to return without sending the message in case we cananalt allocate
  * an sk_buff.  Returns the number of credits sent.
  */
 static u32 send_rx_credits(struct chtls_sock *csk, u32 credits)
@@ -1370,7 +1370,7 @@ static int chtls_pt_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 			if (copied)
 				break;
 			if (signal_pending(current)) {
-				copied = timeo ? sock_intr_errno(timeo) :
+				copied = timeo ? sock_intr_erranal(timeo) :
 					-EAGAIN;
 				break;
 			}
@@ -1405,7 +1405,7 @@ static int chtls_pt_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 			if (sk->sk_shutdown & RCV_SHUTDOWN)
 				break;
 			if (sk->sk_state == TCP_CLOSE) {
-				copied = -ENOTCONN;
+				copied = -EANALTCONN;
 				break;
 			}
 			if (!timeo) {
@@ -1413,7 +1413,7 @@ static int chtls_pt_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 				break;
 			}
 			if (signal_pending(current)) {
-				copied = sock_intr_errno(timeo);
+				copied = sock_intr_erranal(timeo);
 				break;
 			}
 		}
@@ -1472,8 +1472,8 @@ found_ok_skb:
 				}
 			}
 		}
-		/* Set record type if not already done. For a non-data record,
-		 * do not proceed if record type could not be copied.
+		/* Set record type if analt already done. For a analn-data record,
+		 * do analt proceed if record type could analt be copied.
 		 */
 		if (ULP_SKB_CB(skb)->flags & ULPCB_FLAG_TLS_HDR) {
 			struct tls_hdr *thdr = (struct tls_hdr *)skb->data;
@@ -1555,7 +1555,7 @@ static int peekmsg(struct sock *sk, struct msghdr *msg,
 			if (copied)
 				break;
 			if (signal_pending(current)) {
-				copied = timeo ? sock_intr_errno(timeo) :
+				copied = timeo ? sock_intr_erranal(timeo) :
 				-EAGAIN;
 				break;
 			}
@@ -1579,7 +1579,7 @@ static int peekmsg(struct sock *sk, struct msghdr *msg,
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
 			break;
 		if (sk->sk_state == TCP_CLOSE) {
-			copied = -ENOTCONN;
+			copied = -EANALTCONN;
 			break;
 		}
 		if (!timeo) {
@@ -1587,12 +1587,12 @@ static int peekmsg(struct sock *sk, struct msghdr *msg,
 			break;
 		}
 		if (signal_pending(current)) {
-			copied = sock_intr_errno(timeo);
+			copied = sock_intr_erranal(timeo);
 			break;
 		}
 
 		if (READ_ONCE(sk->sk_backlog.tail)) {
-			/* Do not sleep, just process backlog. */
+			/* Do analt sleep, just process backlog. */
 			release_sock(sk);
 			lock_sock(sk);
 		} else {
@@ -1707,7 +1707,7 @@ int chtls_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 			if (copied)
 				break;
 			if (signal_pending(current)) {
-				copied = timeo ? sock_intr_errno(timeo) :
+				copied = timeo ? sock_intr_erranal(timeo) :
 					-EAGAIN;
 				break;
 			}
@@ -1741,7 +1741,7 @@ int chtls_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 			if (sk->sk_shutdown & RCV_SHUTDOWN)
 				break;
 			if (sk->sk_state == TCP_CLOSE) {
-				copied = -ENOTCONN;
+				copied = -EANALTCONN;
 				break;
 			}
 			if (!timeo) {
@@ -1749,7 +1749,7 @@ int chtls_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 				break;
 			}
 			if (signal_pending(current)) {
-				copied = sock_intr_errno(timeo);
+				copied = sock_intr_erranal(timeo);
 				break;
 			}
 		}

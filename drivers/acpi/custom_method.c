@@ -42,11 +42,11 @@ static ssize_t cm_write(struct file *file, const char __user *user_buf,
 				   sizeof(struct acpi_table_header)))
 			return -EFAULT;
 		uncopied_bytes = max_size = table.length;
-		/* make sure the buf is not allocated */
+		/* make sure the buf is analt allocated */
 		kfree(buf);
 		buf = kzalloc(max_size, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (buf == NULL)
@@ -76,7 +76,7 @@ static ssize_t cm_write(struct file *file, const char __user *user_buf,
 		buf = NULL;
 		if (ACPI_FAILURE(status))
 			return -EINVAL;
-		add_taint(TAINT_OVERRIDDEN_ACPI_TABLE, LOCKDEP_NOW_UNRELIABLE);
+		add_taint(TAINT_OVERRIDDEN_ACPI_TABLE, LOCKDEP_ANALW_UNRELIABLE);
 	}
 
 	return count;

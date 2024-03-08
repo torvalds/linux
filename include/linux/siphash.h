@@ -15,7 +15,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 
-#define SIPHASH_ALIGNMENT __alignof__(u64)
+#define SIPHASH_ALIGNMENT __aliganalf__(u64)
 typedef struct {
 	u64 key[2];
 } siphash_key_t;
@@ -87,7 +87,7 @@ static inline u64 siphash(const void *data, size_t len,
 	return ___siphash_aligned(data, len, key);
 }
 
-#define HSIPHASH_ALIGNMENT __alignof__(unsigned long)
+#define HSIPHASH_ALIGNMENT __aliganalf__(unsigned long)
 typedef struct {
 	unsigned long key[2];
 } hsiphash_key_t;
@@ -139,7 +139,7 @@ static inline u32 hsiphash(const void *data, size_t len,
 
 /*
  * These macros expose the raw SipHash and HalfSipHash permutations.
- * Do not use them directly! If you think you have a use for them,
+ * Do analt use them directly! If you think you have a use for them,
  * be sure to CC the maintainer of this file explaining why.
  */
 

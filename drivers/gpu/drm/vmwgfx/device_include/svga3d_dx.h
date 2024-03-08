@@ -10,13 +10,13 @@
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be
+ * The above copyright analtice and this permission analtice shall be
  * included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -67,7 +67,7 @@ typedef uint32 SVGA3dFilter;
 
 #define SVGA3D_CULL_INVALID 0
 #define SVGA3D_CULL_MIN 1
-#define SVGA3D_CULL_NONE 1
+#define SVGA3D_CULL_ANALNE 1
 #define SVGA3D_CULL_FRONT 2
 #define SVGA3D_CULL_BACK 3
 #define SVGA3D_CULL_MAX 4
@@ -80,7 +80,7 @@ typedef uint8 SVGA3dCullMode;
 #define SVGA3D_COMPARISON_EQUAL 3
 #define SVGA3D_COMPARISON_LESS_EQUAL 4
 #define SVGA3D_COMPARISON_GREATER 5
-#define SVGA3D_COMPARISON_NOT_EQUAL 6
+#define SVGA3D_COMPARISON_ANALT_EQUAL 6
 #define SVGA3D_COMPARISON_GREATER_EQUAL 7
 #define SVGA3D_COMPARISON_ALWAYS 8
 #define SVGA3D_COMPARISON_MAX 9
@@ -789,7 +789,7 @@ typedef struct SVGA3dCmdDXSurfaceCopyAndReadback {
 #pragma pack(pop)
 
 typedef uint32 SVGADXHintId;
-#define SVGA_DX_HINT_NONE 0
+#define SVGA_DX_HINT_ANALNE 0
 #define SVGA_DX_HINT_PREFETCH_OBJECT 1
 #define SVGA_DX_HINT_PREEVICT_OBJECT 2
 #define SVGA_DX_HINT_PREFETCH_COBJECT 3
@@ -1388,7 +1388,7 @@ typedef struct SVGA3dCmdDXDestroySamplerState {
 #define SVGADX_SIGNATURE_SEMANTIC_NAME_MAX 23
 typedef uint32 SVGA3dDXSignatureSemanticName;
 
-#define SVGADX_SIGNATURE_REGISTER_COMPONENT_UNKNOWN 0
+#define SVGADX_SIGNATURE_REGISTER_COMPONENT_UNKANALWN 0
 typedef uint32 SVGA3dDXSignatureRegisterComponentType;
 
 #define SVGADX_SIGNATURE_MIN_PRECISION_DEFAULT 0
@@ -1503,7 +1503,7 @@ typedef struct SVGA3dCmdDXDefineStreamOutput {
 } SVGA3dCmdDXDefineStreamOutput;
 #pragma pack(pop)
 
-#define SVGA3D_DX_SO_NO_RASTERIZED_STREAM 0xFFFFFFFF
+#define SVGA3D_DX_SO_ANAL_RASTERIZED_STREAM 0xFFFFFFFF
 
 #pragma pack(push, 1)
 typedef struct SVGA3dCmdDXDefineStreamOutputWithMob {

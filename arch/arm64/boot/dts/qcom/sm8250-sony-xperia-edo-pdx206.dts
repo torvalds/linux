@@ -53,7 +53,7 @@
 
 	g_assist_n: g-assist-n-state {
 		pins = "gpio6";
-		function = "normal";
+		function = "analrmal";
 		power-source = <1>;
 		bias-pull-up;
 		input-enable;

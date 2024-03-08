@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
@@ -154,7 +154,7 @@ static int machine__thread_dso_type_maps_cb(struct map *map, void *data)
 		return 0;
 
 	args->dso_type = dso__type(dso, args->machine);
-	return (args->dso_type != DSO__TYPE_UNKNOWN) ? 1 : 0;
+	return (args->dso_type != DSO__TYPE_UNKANALWN) ? 1 : 0;
 }
 
 static enum dso_type machine__thread_dso_type(struct machine *machine,
@@ -162,7 +162,7 @@ static enum dso_type machine__thread_dso_type(struct machine *machine,
 {
 	struct machine__thread_dso_type_maps_cb_args args = {
 		.machine = machine,
-		.dso_type = DSO__TYPE_UNKNOWN,
+		.dso_type = DSO__TYPE_UNKANALWN,
 	};
 
 	maps__for_each_map(thread__maps(thread), machine__thread_dso_type_maps_cb, &args);
@@ -180,11 +180,11 @@ static int vdso__do_copy_compat(FILE *f, int fd)
 	while (1) {
 		count = fread(buf, 1, sizeof(buf), f);
 		if (ferror(f))
-			return -errno;
+			return -erranal;
 		if (feof(f))
 			break;
 		if (count && writen(fd, buf, count) != (ssize_t)count)
-			return -errno;
+			return -erranal;
 	}
 
 	return 0;
@@ -197,12 +197,12 @@ static int vdso__copy_compat(const char *prog, int fd)
 
 	f = popen(prog, "r");
 	if (!f)
-		return -errno;
+		return -erranal;
 
 	err = vdso__do_copy_compat(f, fd);
 
 	if (pclose(f) == -1)
-		return -errno;
+		return -erranal;
 
 	return err;
 }
@@ -213,12 +213,12 @@ static int vdso__create_compat_file(const char *prog, char *temp_name)
 
 	fd = mkstemp(temp_name);
 	if (fd < 0)
-		return -errno;
+		return -erranal;
 
 	err = vdso__copy_compat(prog, fd);
 
 	if (close(fd) == -1)
-		return -errno;
+		return -erranal;
 
 	return err;
 }
@@ -290,7 +290,7 @@ static int __machine__findnew_vdso_compat(struct machine *machine,
 	case DSO__TYPE_X32BIT:
 		*dso = __machine__findnew_compat(machine, &vdso_info->vdsox32);
 		return 1;
-	case DSO__TYPE_UNKNOWN:
+	case DSO__TYPE_UNKANALWN:
 	case DSO__TYPE_64BIT:
 	default:
 		return 0;
@@ -320,7 +320,7 @@ static struct dso *machine__find_vdso(struct machine *machine,
 		dso = __dsos__find(&machine->dsos, DSO__NAME_VDSOX32, true);
 		break;
 	case DSO__TYPE_64BIT:
-	case DSO__TYPE_UNKNOWN:
+	case DSO__TYPE_UNKANALWN:
 	default:
 		dso = __dsos__find(&machine->dsos, DSO__NAME_VDSO, true);
 		break;

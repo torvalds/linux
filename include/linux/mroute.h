@@ -5,7 +5,7 @@
 #include <linux/in.h>
 #include <linux/pim.h>
 #include <net/fib_rules.h>
-#include <net/fib_notifier.h>
+#include <net/fib_analtifier.h>
 #include <uapi/linux/mroute.h>
 #include <linux/mroute_base.h>
 #include <linux/sockptr.h>
@@ -27,18 +27,18 @@ int ipmr_sk_ioctl(struct sock *sk, unsigned int cmd, void __user *arg);
 static inline int ip_mroute_setsockopt(struct sock *sock, int optname,
 				       sockptr_t optval, unsigned int optlen)
 {
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 }
 
 static inline int ip_mroute_getsockopt(struct sock *sk, int optname,
 				       sockptr_t optval, sockptr_t optlen)
 {
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 }
 
 static inline int ipmr_ioctl(struct sock *sk, int cmd, void *arg)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 static inline int ip_mr_init(void)

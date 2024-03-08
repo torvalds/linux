@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -31,8 +31,8 @@ struct i915_syncmap;
 #define KSYNCMAP 16 /* radix of the tree, how many slots in each layer */
 
 void i915_syncmap_init(struct i915_syncmap **root);
-int i915_syncmap_set(struct i915_syncmap **root, u64 id, u32 seqno);
-bool i915_syncmap_is_later(struct i915_syncmap **root, u64 id, u32 seqno);
+int i915_syncmap_set(struct i915_syncmap **root, u64 id, u32 seqanal);
+bool i915_syncmap_is_later(struct i915_syncmap **root, u64 id, u32 seqanal);
 void i915_syncmap_free(struct i915_syncmap **root);
 
 #endif /* __I915_SYNCMAP_H__ */

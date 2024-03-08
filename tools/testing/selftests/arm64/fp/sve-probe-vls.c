@@ -4,7 +4,7 @@
  * Original author: Dave Martin <Dave.Martin@arm.com>
  */
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,7 +26,7 @@ int main(int argc, char **argv)
 	ksft_set_plan(2);
 
 	if (!(getauxval(AT_HWCAP) & HWCAP_SVE))
-		ksft_exit_skip("SVE not available\n");
+		ksft_exit_skip("SVE analt available\n");
 
 	/*
 	 * Enumerate up to SVE_VQ_MAX vector lengths
@@ -35,7 +35,7 @@ int main(int argc, char **argv)
 		vl = prctl(PR_SVE_SET_VL, vq * 16);
 		if (vl == -1)
 			ksft_exit_fail_msg("PR_SVE_SET_VL failed: %s (%d)\n",
-					   strerror(errno), errno);
+					   strerror(erranal), erranal);
 
 		vl &= PR_SVE_VL_LEN_MASK;
 

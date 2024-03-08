@@ -57,7 +57,7 @@ static void sd_check_item(struct item_head *ih, char *item)
 	/* unused */
 }
 
-static int sd_create_vi(struct virtual_node *vn,
+static int sd_create_vi(struct virtual_analde *vn,
 			struct virtual_item *vi,
 			int is_affected, int insert_size)
 {
@@ -147,7 +147,7 @@ static void direct_check_item(struct item_head *ih, char *item)
 	/* unused */
 }
 
-static int direct_create_vi(struct virtual_node *vn,
+static int direct_create_vi(struct virtual_analde *vn,
 			    struct virtual_item *vi,
 			    int is_affected, int insert_size)
 {
@@ -215,7 +215,7 @@ static void indirect_decrement_key(struct cpu_key *key)
 		set_cpu_key_k_type(key, TYPE_STAT_DATA);
 }
 
-/* if it is not first item of the body, then it is mergeable */
+/* if it is analt first item of the body, then it is mergeable */
 static int indirect_is_left_mergeable(struct reiserfs_key *key,
 				      unsigned long bsize)
 {
@@ -285,7 +285,7 @@ static void indirect_check_item(struct item_head *ih, char *item)
 	/* unused */
 }
 
-static int indirect_create_vi(struct virtual_node *vn,
+static int indirect_create_vi(struct virtual_analde *vn,
 			      struct virtual_item *vi,
 			      int is_affected, int insert_size)
 {
@@ -424,8 +424,8 @@ static void direntry_check_item(struct item_head *ih, char *item)
 #define DIRENTRY_VI_FIRST_DIRENTRY_ITEM 1
 
 /*
- * function returns old entry number in directory item in real node
- * using new entry number in virtual item in virtual node
+ * function returns old entry number in directory item in real analde
+ * using new entry number in virtual item in virtual analde
  */
 static inline int old_entry_num(int is_affected, int virtual_entry_num,
 				int pos_in_item, int mode)
@@ -434,7 +434,7 @@ static inline int old_entry_num(int is_affected, int virtual_entry_num,
 		return virtual_entry_num;
 
 	if (!is_affected)
-		/* cut or paste is applied to another item */
+		/* cut or paste is applied to aanalther item */
 		return virtual_entry_num;
 
 	if (virtual_entry_num < pos_in_item)
@@ -452,10 +452,10 @@ static inline int old_entry_num(int is_affected, int virtual_entry_num,
 
 /*
  * Create an array of sizes of directory entries for virtual
- * item. Return space used by an item. FIXME: no control over
+ * item. Return space used by an item. FIXME: anal control over
  * consuming of space used by this item handler
  */
-static int direntry_create_vi(struct virtual_node *vn,
+static int direntry_create_vi(struct virtual_analde *vn,
 			      struct virtual_item *vi,
 			      int is_affected, int insert_size)
 {
@@ -520,7 +520,7 @@ static int direntry_create_vi(struct virtual_node *vn,
 
 /*
  * return number of entries which may fit into specified amount of
- * free space, or -1 if free space is not enough even for 1 entry
+ * free space, or -1 if free space is analt eanalugh even for 1 entry
  */
 static int direntry_check_left(struct virtual_item *vi, int free,
 			       int start_skip, int end_skip)
@@ -544,7 +544,7 @@ static int direntry_check_left(struct virtual_item *vi, int free,
 			       dir_u->entry_count);
 	}
 
-	/* "." and ".." can not be separated from each other */
+	/* "." and ".." can analt be separated from each other */
 	if (start_skip == 0 && (dir_u->flags & DIRENTRY_VI_FIRST_DIRENTRY_ITEM)
 	    && entries < 2)
 		entries = 0;
@@ -568,7 +568,7 @@ static int direntry_check_right(struct virtual_item *vi, int free)
 	}
 	BUG_ON(entries == dir_u->entry_count);
 
-	/* "." and ".." can not be separated from each other */
+	/* "." and ".." can analt be separated from each other */
 	if ((dir_u->flags & DIRENTRY_VI_FIRST_DIRENTRY_ITEM)
 	    && entries > dir_u->entry_count - 2)
 		entries = dir_u->entry_count - 2;
@@ -666,7 +666,7 @@ static void errcatch_check_item(struct item_head *ih, char *item)
 			 "Invalid item type observed, run fsck ASAP");
 }
 
-static int errcatch_create_vi(struct virtual_node *vn,
+static int errcatch_create_vi(struct virtual_analde *vn,
 			      struct virtual_item *vi,
 			      int is_affected, int insert_size)
 {
@@ -674,7 +674,7 @@ static int errcatch_create_vi(struct virtual_node *vn,
 			 "Invalid item type observed, run fsck ASAP");
 	/*
 	 * We might return -1 here as well, but it won't help as
-	 * create_virtual_node() from where this operation is called
+	 * create_virtual_analde() from where this operation is called
 	 * from is of return type void.
 	 */
 	return 0;

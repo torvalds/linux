@@ -10,7 +10,7 @@ maintainers:
   - Bjorn Andersson <bjorn.andersson@linaro.org>
   - Andy Gross <agross@kernel.org>
 
-# Select only our matches, not all jedec,ufs-2.0
+# Select only our matches, analt all jedec,ufs-2.0
 select:
   properties:
     compatible:
@@ -76,7 +76,7 @@ properties:
 
   qcom,ice:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: phandle to the Inline Crypto Engine node
+    description: phandle to the Inline Crypto Engine analde
 
   reg:
     minItems: 1
@@ -293,8 +293,8 @@ examples:
 
             power-domains = <&gcc UFS_PHY_GDSC>;
             iommus = <&apps_smmu 0xe0 0x0>;
-            interconnects = <&aggre1_noc MASTER_UFS_MEM &mc_virt SLAVE_EBI1>,
-                            <&gem_noc MASTER_APPSS_PROC &config_noc SLAVE_UFS_MEM_CFG>;
+            interconnects = <&aggre1_analc MASTER_UFS_MEM &mc_virt SLAVE_EBI1>,
+                            <&gem_analc MASTER_APPSS_PROC &config_analc SLAVE_UFS_MEM_CFG>;
             interconnect-names = "ufs-ddr", "cpu-ufs";
 
             clock-names = "core_clk",

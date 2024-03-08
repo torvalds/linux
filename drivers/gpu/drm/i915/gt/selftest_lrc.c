@@ -53,7 +53,7 @@ static int wait_for_submit(struct intel_engine_cs *engine,
 			   struct i915_request *rq,
 			   unsigned long timeout)
 {
-	/* Ignore our own attempts to suppress excess tasklets */
+	/* Iganalre our own attempts to suppress excess tasklets */
 	tasklet_hi_schedule(&engine->sched_engine->tasklet);
 
 	timeout += jiffies;
@@ -63,7 +63,7 @@ static int wait_for_submit(struct intel_engine_cs *engine,
 		if (i915_request_completed(rq)) /* that was quick! */
 			return 0;
 
-		/* Wait until the HW has acknowleged the submission (or err) */
+		/* Wait until the HW has ackanalwleged the submission (or err) */
 		intel_engine_flush_submission(engine);
 		if (!READ_ONCE(engine->execlists.pending[0]) && is_active(rq))
 			return 0;
@@ -127,7 +127,7 @@ static int context_flush(struct intel_context *ce, long timeout)
 		err = -ETIME;
 	i915_request_put(rq);
 
-	rmb(); /* We know the request is written, make sure all state is too! */
+	rmb(); /* We kanalw the request is written, make sure all state is too! */
 	return err;
 }
 
@@ -167,7 +167,7 @@ static int live_lrc_layout(void *arg)
 
 	lrc = (u32 *)__get_free_page(GFP_KERNEL); /* requires page alignment */
 	if (!lrc)
-		return -ENOMEM;
+		return -EANALMEM;
 	GEM_BUG_ON(offset_in_page(lrc));
 
 	err = 0;
@@ -180,7 +180,7 @@ static int live_lrc_layout(void *arg)
 
 		hw = shmem_pin_map(engine->default_state);
 		if (!hw) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 		hw += LRC_STATE_OFFSET / sizeof(*hw);
@@ -221,7 +221,7 @@ static int live_lrc_layout(void *arg)
 
 			/*
 			 * When bit 19 of MI_LOAD_REGISTER_IMM instruction
-			 * opcode is set on Gen12+ devices, HW does not
+			 * opcode is set on Gen12+ devices, HW does analt
 			 * care about certain register address offsets, and
 			 * instead check the following for valid address
 			 * ranges on specific engines:
@@ -374,7 +374,7 @@ static int live_lrc_fixed(void *arg)
 
 		hw = shmem_pin_map(engine->default_state);
 		if (!hw) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 		hw += LRC_STATE_OFFSET / sizeof(*hw);
@@ -475,7 +475,7 @@ retry:
 
 	for (n = 0; n < MAX_IDX; n++) {
 		if (cs[n] != expected[n]) {
-			pr_err("%s: Stored register[%d] value[0x%x] did not match expected[0x%x]\n",
+			pr_err("%s: Stored register[%d] value[0x%x] did analt match expected[0x%x]\n",
 			       engine->name, n, cs[n], expected[n]);
 			err = -EINVAL;
 			break;
@@ -550,7 +550,7 @@ static int gpr_make_dirty(struct intel_context *ce)
 		*cs++ = CS_GPR(ce->engine, n);
 		*cs++ = STACK_MAGIC;
 	}
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	intel_ring_advance(rq, cs);
 
@@ -582,7 +582,7 @@ __gpr_read(struct intel_context *ce, struct i915_vma *scratch, u32 *slot)
 	}
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	*cs++ = MI_SEMAPHORE_WAIT |
 		MI_SEMAPHORE_GLOBAL_GTT |
@@ -673,7 +673,7 @@ static int __live_lrc_gpr(struct intel_engine_cs *engine,
 
 	for (n = 0; n < NUM_GPR_DW; n++) {
 		if (cs[n]) {
-			pr_err("%s: GPR[%d].%s was not zero, found 0x%08x!\n",
+			pr_err("%s: GPR[%d].%s was analt zero, found 0x%08x!\n",
 			       engine->name,
 			       n / 2, n & 1 ? "udw" : "ldw",
 			       cs[n]);
@@ -754,7 +754,7 @@ create_timestamp(struct intel_context *ce, void *slot, int idx)
 	}
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	*cs++ = MI_SEMAPHORE_WAIT |
 		MI_SEMAPHORE_GLOBAL_GTT |
@@ -860,7 +860,7 @@ static int live_lrc_timestamp(void *arg)
 
 	/*
 	 * We want to verify that the timestamp is saved and restore across
-	 * context switches and is monotonic.
+	 * context switches and is moanaltonic.
 	 *
 	 * So we do this with a little bit of LRC poisoning to check various
 	 * boundary conditions, and see what happens if we preempt the context
@@ -950,8 +950,8 @@ create_user_vma(struct i915_address_space *vm, unsigned long size)
 static u32 safe_poison(u32 offset, u32 poison)
 {
 	/*
-	 * Do not enable predication as it will nop all subsequent commands,
-	 * not only disabling the tests (by preventing all the other SRM) but
+	 * Do analt enable predication as it will analp all subsequent commands,
+	 * analt only disabling the tests (by preventing all the other SRM) but
 	 * also preventing the arbitration events at the end of the request.
 	 */
 	if (offset == i915_mmio_reg_offset(RING_PREDICATE_RESULT(0)))
@@ -981,7 +981,7 @@ store_context(struct intel_context *ce, struct i915_vma *scratch)
 	if (!defaults) {
 		i915_gem_object_unpin_map(batch->obj);
 		i915_vma_put(batch);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	x = 0;
@@ -994,7 +994,7 @@ store_context(struct intel_context *ce, struct i915_vma *scratch)
 		/*
 		 * Keep it simple, skip parsing complex commands
 		 *
-		 * At present, there are no more MI_LOAD_REGISTER_IMM
+		 * At present, there are anal more MI_LOAD_REGISTER_IMM
 		 * commands after the first 3D state command. Rather
 		 * than include a table (see i915_cmd_parser.c) of all
 		 * the possible commands and their instruction lengths
@@ -1108,7 +1108,7 @@ record_registers(struct intel_context *ce,
 	*cs++ = i915_ggtt_offset(ce->engine->status_page.vma) +
 		offset_in_page(sema);
 	*cs++ = 0;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
 	*cs++ = MI_BATCH_BUFFER_START_GEN8 | BIT(8);
@@ -1152,7 +1152,7 @@ static struct i915_vma *load_context(struct intel_context *ce, u32 poison)
 	if (!defaults) {
 		i915_gem_object_unpin_map(batch->obj);
 		i915_vma_put(batch);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	dw = 0;
@@ -1303,7 +1303,7 @@ static int compare_isolation(struct intel_engine_cs *engine,
 
 	defaults = shmem_pin_map(ce->engine->default_state);
 	if (!defaults) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_lrc;
 	}
 
@@ -1384,7 +1384,7 @@ create_result_vma(struct i915_address_space *vm, unsigned long sz)
 	if (IS_ERR(vma))
 		return vma;
 
-	/* Set the results to a known value distinct from the poison */
+	/* Set the results to a kanalwn value distinct from the poison */
 	ptr = i915_gem_object_pin_map_unlocked(vma->obj, I915_MAP_WC);
 	if (IS_ERR(ptr)) {
 		i915_vma_put(vma);
@@ -1518,8 +1518,8 @@ static int live_lrc_isolation(void *arg)
 	int err = 0;
 
 	/*
-	 * Our goal is try and verify that per-context state cannot be
-	 * tampered with by another non-privileged client.
+	 * Our goal is try and verify that per-context state cananalt be
+	 * tampered with by aanalther analn-privileged client.
 	 *
 	 * We take the list of context registers from the LRI in the default
 	 * context image and attempt to modify that list from a remote context.
@@ -1815,14 +1815,14 @@ static int __lrc_garbage(struct intel_engine_cs *engine, struct rnd_state *prng)
 	intel_engine_flush_submission(engine);
 	if (!hang->fence.error) {
 		i915_request_put(hang);
-		pr_err("%s: corrupted context was not reset\n",
+		pr_err("%s: corrupted context was analt reset\n",
 		       engine->name);
 		err = -EINVAL;
 		goto err_ce;
 	}
 
 	if (i915_request_wait(hang, 0, HZ / 2) < 0) {
-		pr_err("%s: corrupted context did not recover\n",
+		pr_err("%s: corrupted context did analt recover\n",
 		       engine->name);
 		i915_request_put(hang);
 		err = -EIO;
@@ -1911,7 +1911,7 @@ static int __live_pphwsp_runtime(struct intel_engine_cs *engine)
 
 	err = i915_request_wait(rq, 0, HZ / 5);
 	if (err < 0) {
-		pr_err("%s: request not completed!\n", engine->name);
+		pr_err("%s: request analt completed!\n", engine->name);
 		goto err_wait;
 	}
 
@@ -1948,7 +1948,7 @@ static int live_pphwsp_runtime(void *arg)
 
 	/*
 	 * Check that cumulative context runtime as stored in the pphwsp[16]
-	 * is monotonic.
+	 * is moanaltonic.
 	 */
 
 	for_each_engine(engine, gt, id) {

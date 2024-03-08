@@ -2,7 +2,7 @@
 /*
  * Renesas Synchronization Management Unit (SMU) devices.
  *
- * Copyright (C) 2021 Integrated Device Technology, Inc., a Renesas Company.
+ * Copyright (C) 2021 Integrated Device Techanallogy, Inc., a Renesas Company.
  */
 
 #ifndef __RSMU_MFD_H

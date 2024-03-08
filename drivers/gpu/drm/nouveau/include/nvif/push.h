@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -46,7 +46,7 @@ PUSH_WAIT(struct nvif_push *push, u32 size)
 		if (ret)
 			return ret;
 	}
-#ifdef CONFIG_NOUVEAU_DEBUG_PUSH
+#ifdef CONFIG_ANALUVEAU_DEBUG_PUSH
 	push->seg = push->cur + size;
 #endif
 	return 0;
@@ -59,7 +59,7 @@ PUSH_KICK(struct nvif_push *push)
 	return 0;
 }
 
-#ifdef CONFIG_NOUVEAU_DEBUG_PUSH
+#ifdef CONFIG_ANALUVEAU_DEBUG_PUSH
 #define PUSH_PRINTF(p,f,a...) do {                              \
 	struct nvif_push *_ppp = (p);                           \
 	u32 __o = _ppp->cur - (u32 *)_ppp->mem.object.map.ptr;  \
@@ -99,7 +99,7 @@ PUSH_KICK(struct nvif_push *push)
 	d;                           \
 } while(0)
 
-#ifdef CONFIG_NOUVEAU_DEBUG_PUSH
+#ifdef CONFIG_ANALUVEAU_DEBUG_PUSH
 #define PUSH_DATAp(X,p,m,i,o,d,s,f,a...) do {                                     \
 	struct nvif_push *_pp = (p);                                              \
 	const u32 *_dd = (d);                                                     \

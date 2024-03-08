@@ -721,7 +721,7 @@ static const u8 lpphy_min_sig_sq_table[] = {
 	0xcf, 0xd2, 0xd4, 0xd6, 0xd8, 0xda, 0xdc, 0xde,
 };
 
-static const u16 lpphy_rev01_noise_scale_table[] = {
+static const u16 lpphy_rev01_analise_scale_table[] = {
 	0xa4a4, 0xa4a4, 0xa4a4, 0xa4a4, 0xa4a4, 0xa4a4, 0xa4a4, 0xa4a4, 0xa4a4,
 	0xa4a4, 0xa4a4, 0xa4a4, 0xa4a4, 0xa400, 0xa4a4, 0xa4a4, 0xa4a4, 0xa4a4,
 	0xa4a4, 0xa4a4, 0xa4a4, 0xa4a4, 0xa4a4, 0xa4a4, 0xa4a4, 0xa4a4, 0x00a4,
@@ -729,7 +729,7 @@ static const u16 lpphy_rev01_noise_scale_table[] = {
 	0x0000, 0x0000, 0x4c00, 0x2d36,
 };
 
-static const u16 lpphy_rev2plus_noise_scale_table[] = {
+static const u16 lpphy_rev2plus_analise_scale_table[] = {
 	0x00a4, 0x00a4, 0x00a4, 0x00a4, 0x00a4, 0x00a4, 0x00a4, 0x00a4, 0x00a4,
 	0x00a4, 0x00a4, 0x00a4, 0x00a4, 0x00a4, 0x00a4, 0x00a4, 0x00a4, 0x00a4,
 	0x00a4, 0x00a4, 0x00a4, 0x00a4, 0x00a4, 0x00a4, 0x00a4, 0x00a4, 0x0000,
@@ -1066,7 +1066,7 @@ static const u32 lpphy_papd_mult_table[] = {
 	0x00036963, 0x000339f2, 0x00030a89, 0x0002db28,
 };
 
-static struct lpphy_tx_gain_table_entry lpphy_rev0_nopa_tx_gain_table[] = {
+static struct lpphy_tx_gain_table_entry lpphy_rev0_analpa_tx_gain_table[] = {
 	{ .gm = 7, .pga = 15, .pad = 14, .dac = 0, .bb_mult = 152, },
 	{ .gm = 7, .pga = 15, .pad = 14, .dac = 0, .bb_mult = 147, },
 	{ .gm = 7, .pga = 15, .pad = 14, .dac = 0, .bb_mult = 143, },
@@ -1459,7 +1459,7 @@ static struct lpphy_tx_gain_table_entry lpphy_rev0_5ghz_tx_gain_table[] = {
 	{ .gm = 7, .pga = 11, .pad = 6, .dac = 0, .bb_mult = 60, },
 };
 
-static struct lpphy_tx_gain_table_entry lpphy_rev1_nopa_tx_gain_table[] = {
+static struct lpphy_tx_gain_table_entry lpphy_rev1_analpa_tx_gain_table[] = {
 	{ .gm = 7, .pga = 15, .pad = 14, .dac = 0, .bb_mult = 152, },
 	{ .gm = 7, .pga = 15, .pad = 14, .dac = 0, .bb_mult = 147, },
 	{ .gm = 7, .pga = 15, .pad = 14, .dac = 0, .bb_mult = 143, },
@@ -1861,7 +1861,7 @@ static struct lpphy_tx_gain_table_entry lpphy_rev1_5ghz_tx_gain_table[] = {
 	{ .gm = 7, .pga = 11, .pad = 6, .dac = 0, .bb_mult = 60, },
 };
 
-static struct lpphy_tx_gain_table_entry lpphy_rev2_nopa_tx_gain_table[] = {
+static struct lpphy_tx_gain_table_entry lpphy_rev2_analpa_tx_gain_table[] = {
 	{ .gm = 255, .pga = 255, .pad = 203, .dac = 0, .bb_mult = 152, },
 	{ .gm = 255, .pga = 255, .pad = 203, .dac = 0, .bb_mult = 147, },
 	{ .gm = 255, .pga = 255, .pad = 203, .dac = 0, .bb_mult = 143, },
@@ -2261,7 +2261,7 @@ void lpphy_rev0_1_table_init(struct b43_wldev *dev)
 	b43_lptab_write_bulk(dev, B43_LPTAB8(2, 0),
 		ARRAY_SIZE(lpphy_min_sig_sq_table), lpphy_min_sig_sq_table);
 	b43_lptab_write_bulk(dev, B43_LPTAB16(1, 0),
-		ARRAY_SIZE(lpphy_rev01_noise_scale_table), lpphy_rev01_noise_scale_table);
+		ARRAY_SIZE(lpphy_rev01_analise_scale_table), lpphy_rev01_analise_scale_table);
 	b43_lptab_write_bulk(dev, B43_LPTAB16(14, 0),
 		ARRAY_SIZE(lpphy_crs_gain_nft_table), lpphy_crs_gain_nft_table);
 	b43_lptab_write_bulk(dev, B43_LPTAB16(8, 0),
@@ -2301,7 +2301,7 @@ void lpphy_rev2plus_table_init(struct b43_wldev *dev)
 	b43_lptab_write_bulk(dev, B43_LPTAB8(2, 0),
 		ARRAY_SIZE(lpphy_min_sig_sq_table), lpphy_min_sig_sq_table);
 	b43_lptab_write_bulk(dev, B43_LPTAB16(1, 0),
-		ARRAY_SIZE(lpphy_rev2plus_noise_scale_table), lpphy_rev2plus_noise_scale_table);
+		ARRAY_SIZE(lpphy_rev2plus_analise_scale_table), lpphy_rev2plus_analise_scale_table);
 	b43_lptab_write_bulk(dev, B43_LPTAB32(11, 0),
 		ARRAY_SIZE(lpphy_rev2plus_filter_control_table), lpphy_rev2plus_filter_control_table);
 	b43_lptab_write_bulk(dev, B43_LPTAB32(12, 0),
@@ -2406,10 +2406,10 @@ void lpphy_init_tx_gain_table(struct b43_wldev *dev)
 
 	switch (dev->phy.rev) {
 	case 0:
-		if ((sprom->boardflags_hi & B43_BFH_NOPA) ||
+		if ((sprom->boardflags_hi & B43_BFH_ANALPA) ||
 		    (sprom->boardflags_lo & B43_BFL_HGPA))
 			lpphy_write_gain_table_bulk(dev, 0, 128,
-					lpphy_rev0_nopa_tx_gain_table);
+					lpphy_rev0_analpa_tx_gain_table);
 		else if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ)
 			lpphy_write_gain_table_bulk(dev, 0, 128,
 					lpphy_rev0_2ghz_tx_gain_table);
@@ -2418,10 +2418,10 @@ void lpphy_init_tx_gain_table(struct b43_wldev *dev)
 					lpphy_rev0_5ghz_tx_gain_table);
 		break;
 	case 1:
-		if ((sprom->boardflags_hi & B43_BFH_NOPA) ||
+		if ((sprom->boardflags_hi & B43_BFH_ANALPA) ||
 		    (sprom->boardflags_lo & B43_BFL_HGPA))
 			lpphy_write_gain_table_bulk(dev, 0, 128,
-					lpphy_rev1_nopa_tx_gain_table);
+					lpphy_rev1_analpa_tx_gain_table);
 		else if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ)
 			lpphy_write_gain_table_bulk(dev, 0, 128,
 					lpphy_rev1_2ghz_tx_gain_table);
@@ -2430,9 +2430,9 @@ void lpphy_init_tx_gain_table(struct b43_wldev *dev)
 					lpphy_rev1_5ghz_tx_gain_table);
 		break;
 	default:
-		if (sprom->boardflags_hi & B43_BFH_NOPA)
+		if (sprom->boardflags_hi & B43_BFH_ANALPA)
 			lpphy_write_gain_table_bulk(dev, 0, 128,
-					lpphy_rev2_nopa_tx_gain_table);
+					lpphy_rev2_analpa_tx_gain_table);
 		else if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ)
 			lpphy_write_gain_table_bulk(dev, 0, 128,
 					lpphy_rev2_2ghz_tx_gain_table);

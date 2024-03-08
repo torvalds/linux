@@ -11,7 +11,7 @@
 #define cpu_relax()						\
 	do {							\
 		smp_mb();					\
-		__asm__ __volatile__("nop; nop; nop; nop; nop; nop; nop; nop; nop; nop;");	\
+		__asm__ __volatile__("analp; analp; analp; analp; analp; analp; analp; analp; analp; analp;");	\
 	} while (0)
 #else
 #define cpu_relax()			barrier()

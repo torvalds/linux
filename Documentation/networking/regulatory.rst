@@ -39,7 +39,7 @@ is CRDA - central regulatory domain agent. Its documented here:
 
 https://wireless.wiki.kernel.org/en/developers/Regulatory/CRDA
 
-Essentially the kernel will send a udev event when it knows
+Essentially the kernel will send a udev event when it kanalws
 it needs a new regulatory domain. A udev rule can be put in place
 to trigger crda to send the respective regulatory domain for a
 specific ISO/IEC 3166 alpha2.
@@ -83,13 +83,13 @@ set they can inform the wireless core using regulatory_hint().
 They have two options -- they either provide an alpha2 so that
 crda can provide back a regulatory domain for that country or
 they can build their own regulatory domain based on internal
-custom knowledge so the wireless core can respect it.
+custom kanalwledge so the wireless core can respect it.
 
 *Most* drivers will rely on the first mechanism of providing a
 regulatory hint with an alpha2. For these drivers there is an additional
 check that can be used to ensure compliance based on custom EEPROM
 regulatory data. This additional check can be used by drivers by
-registering on its struct wiphy a reg_notifier() callback. This notifier
+registering on its struct wiphy a reg_analtifier() callback. This analtifier
 is called when the core's regulatory domain has been changed. The driver
 can use this to review the changes made and also review who made them
 (driver, user, country IE) and determine what to allow based on its
@@ -98,9 +98,9 @@ roaming should use this callback. More on world roaming will be
 added to this document when its support is enabled.
 
 Device drivers who provide their own built regulatory domain
-do not need a callback as the channels registered by them are
+do analt need a callback as the channels registered by them are
 the only ones that will be allowed and therefore *additional*
-channels cannot be enabled.
+channels cananalt be enabled.
 
 Example code - drivers hinting an alpha2:
 ------------------------------------------
@@ -149,12 +149,12 @@ are expected to do this during initialization.
 Example code - drivers providing a built in regulatory domain:
 --------------------------------------------------------------
 
-[NOTE: This API is not currently available, it can be added when required]
+[ANALTE: This API is analt currently available, it can be added when required]
 
 If you have regulatory information you can obtain from your
 driver and you *need* to use this we let you build a regulatory domain
 structure and pass it to the wireless core. To do this you should
-kmalloc() a structure big enough to hold your regulatory domain
+kmalloc() a structure big eanalugh to hold your regulatory domain
 structure and you should then fill it with your data. Finally you simply
 call regulatory_hint() with the regulatory domain structure in it.
 
@@ -166,16 +166,16 @@ Example cache of some regulatory domain::
   struct ieee80211_regdomain mydriver_jp_regdom = {
 	.n_reg_rules = 3,
 	.alpha2 =  "JP",
-	//.alpha2 =  "99", /* If I have no alpha2 to map it to */
+	//.alpha2 =  "99", /* If I have anal alpha2 to map it to */
 	.reg_rules = {
 		/* IEEE 802.11b/g, channels 1..14 */
 		REG_RULE(2412-10, 2484+10, 40, 6, 20, 0),
 		/* IEEE 802.11a, channels 34..48 */
 		REG_RULE(5170-10, 5240+10, 40, 6, 20,
-			NL80211_RRF_NO_IR),
+			NL80211_RRF_ANAL_IR),
 		/* IEEE 802.11a, channels 52..64 */
 		REG_RULE(5260-10, 5320+10, 40, 6, 20,
-			NL80211_RRF_NO_IR|
+			NL80211_RRF_ANAL_IR|
 			NL80211_RRF_DFS),
 	}
   };
@@ -192,7 +192,7 @@ Then in some part of your code after your wiphy has been registered::
 
 	rd = kzalloc(size_of_regd, GFP_KERNEL);
 	if (!rd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(rd, &mydriver_jp_regdom, sizeof(struct ieee80211_regdomain));
 

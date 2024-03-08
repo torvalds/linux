@@ -52,8 +52,8 @@ enum qbman_pull_type_e {
 	qbman_pull_type_prio = 1,
 	/* dequeue with active FQ precedence, respect ICS */
 	qbman_pull_type_active,
-	/* dequeue with active FQ precedence, no ICS */
-	qbman_pull_type_active_noics
+	/* dequeue with active FQ precedence, anal ICS */
+	qbman_pull_type_active_analics
 };
 
 /* Definitions for parsing dequeue entries */
@@ -154,7 +154,7 @@ struct qbman_swp {
 		u32 ci;
 		int available;
 		u32 pend;
-		u32 no_pfdr;
+		u32 anal_pfdr;
 	} eqcr;
 
 	spinlock_t access_spinlock;
@@ -221,7 +221,7 @@ void qbman_swp_dqrr_consume(struct qbman_swp *s, const struct dpaa2_dq *dq);
 int qbman_result_has_new_result(struct qbman_swp *p, const struct dpaa2_dq *dq);
 
 void qbman_eq_desc_clear(struct qbman_eq_desc *d);
-void qbman_eq_desc_set_no_orp(struct qbman_eq_desc *d, int respond_success);
+void qbman_eq_desc_set_anal_orp(struct qbman_eq_desc *d, int respond_success);
 void qbman_eq_desc_set_token(struct qbman_eq_desc *d, u8 token);
 void qbman_eq_desc_set_fq(struct qbman_eq_desc *d, u32 fqid);
 void qbman_eq_desc_set_qd(struct qbman_eq_desc *d, u32 qdid,
@@ -250,7 +250,7 @@ void *qbman_swp_mc_result(struct qbman_swp *p);
  * @d:  the enqueue descriptor
  * @fd: the frame descriptor to be enqueued
  *
- * Return 0 for successful enqueue, -EBUSY if the EQCR is not ready.
+ * Return 0 for successful enqueue, -EBUSY if the EQCR is analt ready.
  */
 static inline int
 qbman_swp_enqueue(struct qbman_swp *s, const struct qbman_eq_desc *d,
@@ -265,7 +265,7 @@ qbman_swp_enqueue(struct qbman_swp *s, const struct qbman_eq_desc *d,
  * @s:  the software portal used for enqueue
  * @d:  the enqueue descriptor
  * @fd: table pointer of frame descriptor table to be enqueued
- * @flags: table pointer of QBMAN_ENQUEUE_FLAG_DCA flags, not used if NULL
+ * @flags: table pointer of QBMAN_ENQUEUE_FLAG_DCA flags, analt used if NULL
  * @num_frames: number of fd to be enqueued
  *
  * Return the number of fd enqueued, or a negative error number.
@@ -303,7 +303,7 @@ qbman_swp_enqueue_multiple_desc(struct qbman_swp *s,
  * qbman_result_is_DQ() - check if the dequeue result is a dequeue response
  * @dq: the dequeue result to be checked
  *
- * DQRR entries may contain non-dequeue results, ie. notifications
+ * DQRR entries may contain analn-dequeue results, ie. analtifications
  */
 static inline int qbman_result_is_DQ(const struct dpaa2_dq *dq)
 {
@@ -311,7 +311,7 @@ static inline int qbman_result_is_DQ(const struct dpaa2_dq *dq)
 }
 
 /**
- * qbman_result_is_SCN() - Check the dequeue result is notification or not
+ * qbman_result_is_SCN() - Check the dequeue result is analtification or analt
  * @dq: the dequeue result to be checked
  *
  */
@@ -369,7 +369,7 @@ static inline int qbman_result_is_FQPN(const struct dpaa2_dq *dq)
 }
 
 /**
- * qbman_result_SCN_state() - Get the state field in State-change notification
+ * qbman_result_SCN_state() - Get the state field in State-change analtification
  */
 static inline u8 qbman_result_SCN_state(const struct dpaa2_dq *scn)
 {
@@ -379,7 +379,7 @@ static inline u8 qbman_result_SCN_state(const struct dpaa2_dq *scn)
 #define SCN_RID_MASK 0x00FFFFFF
 
 /**
- * qbman_result_SCN_rid() - Get the resource id in State-change notification
+ * qbman_result_SCN_rid() - Get the resource id in State-change analtification
  */
 static inline u32 qbman_result_SCN_rid(const struct dpaa2_dq *scn)
 {
@@ -387,7 +387,7 @@ static inline u32 qbman_result_SCN_rid(const struct dpaa2_dq *scn)
 }
 
 /**
- * qbman_result_SCN_ctx() - Get the context data in State-change notification
+ * qbman_result_SCN_ctx() - Get the context data in State-change analtification
  */
 static inline u64 qbman_result_SCN_ctx(const struct dpaa2_dq *scn)
 {
@@ -417,7 +417,7 @@ static inline int qbman_swp_fq_schedule(struct qbman_swp *s, u32 fqid)
  * Force eligible will force a tentatively-scheduled FQ to be fully-scheduled
  * and thus be available for selection by any channel-dequeuing behaviour (push
  * or pull). If the FQ is subsequently "dequeued" from the channel and is still
- * empty at the time this happens, the resulting dq_entry will have no FD.
+ * empty at the time this happens, the resulting dq_entry will have anal FD.
  * (qbman_result_DQ_fd() will return NULL.)
  *
  * Return 0 for success, or negative error code for failure.
@@ -448,10 +448,10 @@ static inline int qbman_swp_fq_xon(struct qbman_swp *s, u32 fqid)
  *
  * This setting doesn't affect enqueues to the FQ, just dequeues.
  * XOFF FQs will remain in the tenatively-scheduled state, even when
- * non-empty, meaning they won't be selected for scheduled dequeuing.
+ * analn-empty, meaning they won't be selected for scheduled dequeuing.
  * If a FQ is changed to XOFF after it had already become truly-scheduled
  * to a channel, and a pull dequeue of that channel occurs that selects
- * that FQ for dequeuing, then the resulting dq_entry will have no FD.
+ * that FQ for dequeuing, then the resulting dq_entry will have anal FD.
  * (qbman_result_DQ_fd() will return NULL.)
  *
  * Return 0 for success, or negative error code for failure.
@@ -462,11 +462,11 @@ static inline int qbman_swp_fq_xoff(struct qbman_swp *s, u32 fqid)
 }
 
 /* If the user has been allocated a channel object that is going to generate
- * CDANs to another channel, then the qbman_swp_CDAN* functions will be
+ * CDANs to aanalther channel, then the qbman_swp_CDAN* functions will be
  * necessary.
  *
- * CDAN-enabled channels only generate a single CDAN notification, after which
- * they need to be reenabled before they'll generate another. The idea is
+ * CDAN-enabled channels only generate a single CDAN analtification, after which
+ * they need to be reenabled before they'll generate aanalther. The idea is
  * that pull dequeuing will occur in reaction to the CDAN, followed by a
  * reenable step. Each function generates a distinct command to hardware, so a
  * combination function is provided if the user wishes to modify the "context"
@@ -617,7 +617,7 @@ u32 qbman_bp_info_num_free_bufs(struct qbman_bp_query_rslt *a);
  * @buffers:     a pointer pointing to the buffer address to be released
  * @num_buffers: number of buffers to be released,  must be less than 8
  *
- * Return 0 for success, -EBUSY if the release command ring is not ready.
+ * Return 0 for success, -EBUSY if the release command ring is analt ready.
  */
 static inline int qbman_swp_release(struct qbman_swp *s,
 				    const struct qbman_release_desc *d,
@@ -633,7 +633,7 @@ static inline int qbman_swp_release(struct qbman_swp *s,
  * @d: the software portal descriptor which has been configured with
  *     the set of qbman_pull_desc_set_*() calls
  *
- * Return 0 for success, and -EBUSY if the software portal is not ready
+ * Return 0 for success, and -EBUSY if the software portal is analt ready
  * to do pull dequeue.
  */
 static inline int qbman_swp_pull(struct qbman_swp *s,
@@ -646,7 +646,7 @@ static inline int qbman_swp_pull(struct qbman_swp *s,
  * qbman_swp_dqrr_next() - Get an valid DQRR entry
  * @s: the software portal object
  *
- * Return NULL if there are no unconsumed DQRR entries. Return a DQRR entry
+ * Return NULL if there are anal unconsumed DQRR entries. Return a DQRR entry
  * only once, so repeated calls can return a sequence of DQRR entries, without
  * requiring they be consumed immediately or in any particular order.
  */

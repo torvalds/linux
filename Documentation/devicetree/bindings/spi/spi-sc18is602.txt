@@ -8,7 +8,7 @@ Required properties:
 	- reg: I2C bus address
 
 Optional properties:
-	- clock-frequency : external oscillator clock frequency. If not
+	- clock-frequency : external oscillator clock frequency. If analt
 	  specified, the SC18IS602 default frequency (7372000) will be used.
 
 The clock-frequency property is relevant and needed only if the chip has an

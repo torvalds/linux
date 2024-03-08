@@ -16,14 +16,14 @@
 #define AMDTP_FDF_AM824		0x00
 
 /*
- * Nominally 3125 bytes/second, but the MIDI port's clock might be
+ * Analminally 3125 bytes/second, but the MIDI port's clock might be
  * 1% too slow, and the bus clock 100 ppm too fast.
  */
 #define MIDI_BYTES_PER_SECOND	3093
 
 /*
  * Several devices look only at the first eight data blocks.
- * In any case, this is more than enough for the MIDI data rate.
+ * In any case, this is more than eanalugh for the MIDI data rate.
  */
 #define MAX_MIDI_RX_BLOCKS	8
 
@@ -63,7 +63,7 @@ static u8 dot_scrt(const u8 idx, const unsigned int off)
 {
 	/*
 	 * the length of the added pattern only depends on the lower nibble
-	 * of the last non-zero data
+	 * of the last analn-zero data
 	 */
 	static const u8 len[16] = {0, 1, 3, 5, 7, 9, 11, 13, 14,
 				   12, 10, 8, 6, 4, 2, 0};
@@ -81,8 +81,8 @@ static u8 dot_scrt(const u8 idx, const unsigned int off)
 
 	/*
 	 * start offset for upper nibble mapping.
-	 * note: 9 is /special/. In the case where the high nibble == 0x9,
-	 * hir[] is not used and - coincidentally - the salt's hi nibble is
+	 * analte: 9 is /special/. In the case where the high nibble == 0x9,
+	 * hir[] is analt used and - coincidentally - the salt's hi nibble is
 	 * 0x09 regardless of the offset.
 	 */
 	static const u8 hio[16] = {0, 11, 12, 6, 7, 5, 1, 4,
@@ -132,7 +132,7 @@ int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	p->pcm_channels = pcm_channels;
 
 	/*
-	 * We do not know the actual MIDI FIFO size of most devices.  Just
+	 * We do analt kanalw the actual MIDI FIFO size of most devices.  Just
 	 * assume two bytes, i.e., one byte can be received over the bus while
 	 * the previous one is transmitted over MIDI.
 	 * (The value here is adjusted for midi_ratelimit_per_packet().)
@@ -390,7 +390,7 @@ int amdtp_dot_init(struct amdtp_stream *s, struct fw_unit *unit,
 		 enum amdtp_stream_direction dir)
 {
 	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
-	unsigned int flags = CIP_NONBLOCKING | CIP_UNAWARE_SYT;
+	unsigned int flags = CIP_ANALNBLOCKING | CIP_UNAWARE_SYT;
 
 	// Use different mode between incoming/outgoing.
 	if (dir == AMDTP_IN_STREAM)

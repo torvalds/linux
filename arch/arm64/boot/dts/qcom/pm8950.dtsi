@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2022, AngeloGioacchino Del Regno
- *                     <angelogioacchino.delregno@somainline.org>
+ * Copyright (c) 2022, AngeloGioacchianal Del Reganal
+ *                     <angelogioacchianal.delreganal@somainline.org>
  * Copyright (c) 2022, Marijn Suijten <marijn.suijten@somainline.org>
  */
 
@@ -141,7 +141,7 @@
 			compatible = "qcom,pm8941-rtc";
 			reg = <0x6000>, <0x6100>;
 			reg-names = "rtc", "alarm";
-			interrupts = <0x0 0x61 0x1 IRQ_TYPE_NONE>;
+			interrupts = <0x0 0x61 0x1 IRQ_TYPE_ANALNE>;
 		};
 
 		pm8950_mpps: mpps@a000 {

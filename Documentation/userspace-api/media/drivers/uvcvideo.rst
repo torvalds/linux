@@ -4,7 +4,7 @@ The Linux USB Video Class (UVC) driver
 ======================================
 
 This file documents some driver-specific aspects of the UVC driver, such as
-driver-specific ioctls and implementation notes.
+driver-specific ioctls and implementation analtes.
 
 Questions and remarks can be sent to the Linux UVC development mailing list at
 linux-media@vger.kernel.org.
@@ -27,7 +27,7 @@ The first one allows generic V4L2 applications to use XU controls by mapping
 certain XU controls onto V4L2 controls, which then show up during ordinary
 control enumeration.
 
-The second mechanism requires uvcvideo-specific knowledge for the application to
+The second mechanism requires uvcvideo-specific kanalwledge for the application to
 access XU controls but exposes the entire UVC XU concept to user space for
 maximum flexibility.
 
@@ -40,14 +40,14 @@ Control mappings
 The UVC driver provides an API for user space applications to define so-called
 control mappings at runtime. These allow for individual XU controls or byte
 ranges thereof to be mapped to new V4L2 controls. Such controls appear and
-function exactly like normal V4L2 controls (i.e. the stock controls, such as
+function exactly like analrmal V4L2 controls (i.e. the stock controls, such as
 brightness, contrast, etc.). However, reading or writing of such a V4L2 controls
 triggers a read or write of the associated XU control.
 
 The ioctl used to create these control mappings is called UVCIOC_CTRL_MAP.
-Previous driver versions (before 0.2.0) required another ioctl to be used
+Previous driver versions (before 0.2.0) required aanalther ioctl to be used
 beforehand (UVCIOC_CTRL_ADD) to pass XU control information to the UVC driver.
-This is no longer necessary as newer uvcvideo versions query the information
+This is anal longer necessary as newer uvcvideo versions query the information
 directly from the device.
 
 For details on the UVCIOC_CTRL_MAP ioctl please refer to the section titled
@@ -65,12 +65,12 @@ A call to this ioctl allows applications to send queries to the UVC driver that
 directly map to the low-level UVC control requests.
 
 In order to make such a request the UVC unit ID of the control's extension unit
-and the control selector need to be known. This information either needs to be
+and the control selector need to be kanalwn. This information either needs to be
 hardcoded in the application or queried using other ways such as by parsing the
 UVC descriptor or, if available, using the media controller API to enumerate a
 device's entities.
 
-Unless the control size is already known it is necessary to first make a
+Unless the control size is already kanalwn it is necessary to first make a
 UVC_GET_LEN requests in order to be able to allocate a sufficiently large buffer
 and set the buffer size to the correct value. Similarly, to find out whether
 UVC_GET_CUR or UVC_SET_CUR are valid requests for a given control, a
@@ -124,24 +124,24 @@ Argument: struct uvc_xu_control_mapping
 
 	A UVC control can be mapped to several V4L2 controls. For instance,
 	a UVC pan/tilt control could be mapped to separate pan and tilt V4L2
-	controls. The UVC control is divided into non overlapping fields using
+	controls. The UVC control is divided into analn overlapping fields using
 	the 'size' and 'offset' fields and are then independently mapped to
 	V4L2 control.
 
 	For signed integer V4L2 controls the data_type field should be set to
-	UVC_CTRL_DATA_TYPE_SIGNED. Other values are currently ignored.
+	UVC_CTRL_DATA_TYPE_SIGNED. Other values are currently iganalred.
 
 **Return value**:
 
-	On success 0 is returned. On error -1 is returned and errno is set
+	On success 0 is returned. On error -1 is returned and erranal is set
 	appropriately.
 
-	ENOMEM
-		Not enough memory to perform the operation.
+	EANALMEM
+		Analt eanalugh memory to perform the operation.
 	EPERM
 		Insufficient privileges (super user privileges are required).
 	EINVAL
-		No such UVC control.
+		Anal such UVC control.
 	EOVERFLOW
 		The requested offset and size would overflow the UVC control.
 	EEXIST
@@ -149,7 +149,7 @@ Argument: struct uvc_xu_control_mapping
 
 **Data types**:
 
-.. code-block:: none
+.. code-block:: analne
 
 	* struct uvc_xu_control_mapping
 
@@ -218,7 +218,7 @@ Argument: struct uvc_xu_control_query
 	Applications must set the 'size' field to the correct length for the
 	control. Exceptions are the UVC_GET_LEN and UVC_GET_INFO queries, for
 	which the size must be set to 2 and 1, respectively. The 'data' field
-	must point to a valid writable buffer big enough to hold the indicated
+	must point to a valid writable buffer big eanalugh to hold the indicated
 	number of data bytes.
 
 	Data is copied directly from the device without any driver-side
@@ -229,24 +229,24 @@ Argument: struct uvc_xu_control_query
 
 **Return value**:
 
-	On success 0 is returned. On error -1 is returned and errno is set
+	On success 0 is returned. On error -1 is returned and erranal is set
 	appropriately.
 
-	ENOENT
-		The device does not support the given control or the specified
-		extension unit could not be found.
-	ENOBUFS
+	EANALENT
+		The device does analt support the given control or the specified
+		extension unit could analt be found.
+	EANALBUFS
 		The specified buffer size is incorrect (too big or too small).
 	EINVAL
 		An invalid request code was passed.
 	EBADRQC
-		The given request is not supported by the given control.
+		The given request is analt supported by the given control.
 	EFAULT
 		The data pointer references an inaccessible memory area.
 
 **Data types**:
 
-.. code-block:: none
+.. code-block:: analne
 
 	* struct uvc_xu_control_query
 

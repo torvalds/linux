@@ -47,7 +47,7 @@ properties:
       - const: spdif
 
   # Even though it only applies to subschemas under the conditionals,
-  # not listing them here will trigger a warning because of the
+  # analt listing them here will trigger a warning because of the
   # additionalsProperties set to false.
   dmas: true
   dma-names: true

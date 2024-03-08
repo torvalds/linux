@@ -22,5 +22,5 @@ variants are also supported. The name needed for instantiating has the form
 You can also preload data during boot if a device-property named
 'firmware-name' contains a valid filename (DT or ACPI only).
 
-As of 2015, Linux doesn't support poll on binary sysfs files, so there is no
-notification when another master changed the content.
+As of 2015, Linux doesn't support poll on binary sysfs files, so there is anal
+analtification when aanalther master changed the content.

@@ -8,11 +8,11 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -59,7 +59,7 @@
  *
  * -Different operating modes: AP, STA, IBSS
  *
- * Note: Most of these functions can be tweaked/bypassed so you can do
+ * Analte: Most of these functions can be tweaked/bypassed so you can do
  * them on sw above for debugging or research. For more infos check out PCU
  * registers on reg.h.
  */
@@ -107,7 +107,7 @@ static const unsigned int ack_rates_high[] =
  * @shortpre: Indicate short preample
  *
  * Calculate tx duration of a frame given it's rate and length
- * It extends ieee80211_generic_frame_duration for non standard
+ * It extends ieee80211_generic_frame_duration for analn standard
  * bwmodes.
  */
 int
@@ -238,7 +238,7 @@ ath5k_hw_get_default_sifs(struct ath5k_hw *ah)
  * MIB interrupt, because one of these counters might have reached their maximum
  * and triggered the MIB interrupt, to let us read and clear the counter.
  *
- * NOTE: Is called in interrupt context!
+ * ANALTE: Is called in interrupt context!
  */
 void
 ath5k_hw_update_mib_counters(struct ath5k_hw *ah)
@@ -269,7 +269,7 @@ ath5k_hw_update_mib_counters(struct ath5k_hw *ah)
  * different rate code so we write their value twice (one for long preamble
  * and one for short).
  *
- * Note: Band doesn't matter here, if we set the values for OFDM it works
+ * Analte: Band doesn't matter here, if we set the values for OFDM it works
  * on both a and g modes. So all we have to do is set values for all g rates
  * that include all OFDM and CCK rates.
  *
@@ -301,7 +301,7 @@ ath5k_hw_write_rate_duration(struct ath5k_hw *ah)
 
 		/* An ACK frame consists of 10 bytes. If you add the FCS,
 		 * which ieee80211_generic_frame_duration() adds,
-		 * its 14 bytes. Note we use the control rate and not the
+		 * its 14 bytes. Analte we use the control rate and analt the
 		 * actual rate for this rate. See mac80211 tx.c
 		 * ieee80211_duration() for a brief description of
 		 * what rate we should choose to TX ACKs. */
@@ -438,7 +438,7 @@ ath5k_hw_set_bssid(struct ath5k_hw *ah)
  * which bits of the interface's MAC address should be looked at when trying
  * to decide which packets to ACK. In station mode and AP mode with a single
  * BSS every bit matters since we lock to only one BSS. In AP mode with
- * multiple BSSes (virtual interfaces) not every bit matters because hw must
+ * multiple BSSes (virtual interfaces) analt every bit matters because hw must
  * accept frames for all BSSes and so we tweak some bits of our mac address
  * in order to have multiple BSSes.
  *
@@ -572,7 +572,7 @@ ath5k_hw_get_tsf64(struct ath5k_hw *ah)
 	 * While reading TSF upper and then lower part, the clock is still
 	 * counting (or jumping in case of IBSS merge) so we might get
 	 * inconsistent values. To avoid this, we read the upper part again
-	 * and check it has not been changed. We make the hypothesis that a
+	 * and check it has analt been changed. We make the hypothesis that a
 	 * maximum of 3 changes can happens in a row (we use 10 as a safe
 	 * value).
 	 *
@@ -666,14 +666,14 @@ ath5k_hw_init_beacon_timers(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 			timer1 = 0x0000ffff;
 			timer2 = 0x0007ffff;
 		}
-		/* Mark associated AP as PCF incapable for now */
+		/* Mark associated AP as PCF incapable for analw */
 		AR5K_REG_DISABLE_BITS(ah, AR5K_STA_ID1, AR5K_STA_ID1_PCF);
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		AR5K_REG_ENABLE_BITS(ah, AR5K_TXCFG, AR5K_TXCFG_ADHOC_BCN_ATIM);
 		fallthrough;
 	default:
-		/* On non-STA modes timer1 is used as next DMA
+		/* On analn-STA modes timer1 is used as next DMA
 		 * beacon alert (DBA) timer and timer2 as next
 		 * software beacon alert. Both in 1/8TUs. */
 		timer1 = (next_beacon - AR5K_TUNE_DMA_BEACON_RESP) << 3;
@@ -682,8 +682,8 @@ ath5k_hw_init_beacon_timers(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 	}
 
 	/* Timer3 marks the end of our ATIM window
-	 * a zero length window is not allowed because
-	 * we 'll get no beacons */
+	 * a zero length window is analt allowed because
+	 * we 'll get anal beacons */
 	timer3 = next_beacon + 1;
 
 	/*
@@ -742,7 +742,7 @@ ath5k_check_timer_win(int a, int b, int window, int intval)
 {
 	/*
 	 * 1.) usually B should be A + window
-	 * 2.) A already updated, B not updated yet
+	 * 2.) A already updated, B analt updated yet
 	 * 3.) A already updated and has wrapped around
 	 * 4.) B has wrapped around
 	 */
@@ -770,22 +770,22 @@ ath5k_check_timer_win(int a, int b, int window, int intval)
  *
  * The reception of a beacon with the same BSSID can update the local HW TSF
  * at any time - this is something we can't avoid. If the TSF jumps to a
- * time which is later than the time stored in a timer, this timer will not
+ * time which is later than the time stored in a timer, this timer will analt
  * be updated until the TSF in TU wraps around at 16 bit (the size of the
  * timers) and reaches the time which is stored in the timer.
  *
  * The problem is that these timers are closely related to TIMER0 (NBTT) and
  * that they define a time "window". When the TSF jumps between two timers
- * (e.g. ATIM and NBTT), the one in the past will be left behind (not
+ * (e.g. ATIM and NBTT), the one in the past will be left behind (analt
  * updated), while the one in the future will be updated every beacon
  * interval. This causes the window to get larger, until the TSF wraps
  * around as described above and the timer which was left behind gets
- * updated again. But - because the beacon interval is usually not an exact
+ * updated again. But - because the beacon interval is usually analt an exact
  * divisor of the size of the timers (16 bit), an unwanted "window" between
  * these timers has developed!
  *
  * This is especially important with the ATIM window, because during
- * the ATIM window only ATIM frames and no data frames are allowed to be
+ * the ATIM window only ATIM frames and anal data frames are allowed to be
  * sent, which creates transmission pauses after each beacon. This symptom
  * has been described as "ramping ping" because ping times increase linearly
  * for some time and then drop down again. A wrong window on the DMA beacon
@@ -802,7 +802,7 @@ ath5k_hw_check_beacon_timers(struct ath5k_hw *ah, int intval)
 	atim = ath5k_hw_reg_read(ah, AR5K_TIMER3);
 	dma = ath5k_hw_reg_read(ah, AR5K_TIMER1) >> 3;
 
-	/* NOTE: SWBA is different. Having a wrong window there does not
+	/* ANALTE: SWBA is different. Having a wrong window there does analt
 	 * stop us from sending data and this condition is caught by
 	 * other means (SWBA interrupt) */
 
@@ -846,7 +846,7 @@ ath5k_hw_set_coverage_class(struct ath5k_hw *ah, u8 coverage_class)
  * Starts RX engine on PCU so that hw can process RXed frames
  * (ACK etc).
  *
- * NOTE: RX DMA should be already enabled using ath5k_hw_start_rx_dma
+ * ANALTE: RX DMA should be already enabled using ath5k_hw_start_rx_dma
  */
 void
 ath5k_hw_start_rx_pcu(struct ath5k_hw *ah)
@@ -886,7 +886,7 @@ ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype op_mode)
 	pcu_reg &= ~(AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_AP
 			| AR5K_STA_ID1_KEYSRCH_MODE
 			| (ah->ah_version == AR5K_AR5210 ?
-			(AR5K_STA_ID1_PWR_SV | AR5K_STA_ID1_NO_PSPOLL) : 0));
+			(AR5K_STA_ID1_PWR_SV | AR5K_STA_ID1_ANAL_PSPOLL) : 0));
 
 	beacon_reg = 0;
 
@@ -895,7 +895,7 @@ ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype op_mode)
 		pcu_reg |= AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_KEYSRCH_MODE;
 		beacon_reg |= AR5K_BCR_ADHOC;
 		if (ah->ah_version == AR5K_AR5210)
-			pcu_reg |= AR5K_STA_ID1_NO_PSPOLL;
+			pcu_reg |= AR5K_STA_ID1_ANAL_PSPOLL;
 		else
 			AR5K_REG_ENABLE_BITS(ah, AR5K_CFG, AR5K_CFG_IBSS);
 		break;
@@ -905,7 +905,7 @@ ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype op_mode)
 		pcu_reg |= AR5K_STA_ID1_AP | AR5K_STA_ID1_KEYSRCH_MODE;
 		beacon_reg |= AR5K_BCR_AP;
 		if (ah->ah_version == AR5K_AR5210)
-			pcu_reg |= AR5K_STA_ID1_NO_PSPOLL;
+			pcu_reg |= AR5K_STA_ID1_ANAL_PSPOLL;
 		else
 			AR5K_REG_DISABLE_BITS(ah, AR5K_CFG, AR5K_CFG_IBSS);
 		break;
@@ -918,7 +918,7 @@ ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype op_mode)
 	case NL80211_IFTYPE_MONITOR:
 		pcu_reg |= AR5K_STA_ID1_KEYSRCH_MODE
 			| (ah->ah_version == AR5K_AR5210 ?
-				AR5K_STA_ID1_NO_PSPOLL : 0);
+				AR5K_STA_ID1_ANAL_PSPOLL : 0);
 		break;
 
 	default:
@@ -969,7 +969,7 @@ ath5k_hw_pcu_init(struct ath5k_hw *ah, enum nl80211_iftype op_mode)
 
 	/* Set RSSI/BRSSI thresholds
 	 *
-	 * Note: If we decide to set this value
+	 * Analte: If we decide to set this value
 	 * dynamically, have in mind that when AR5K_RSSI_THR
 	 * register is read it might return 0x40 if we haven't
 	 * wrote anything to it plus BMISS RSSI threshold is zeroed.
@@ -986,13 +986,13 @@ ath5k_hw_pcu_init(struct ath5k_hw *ah, enum nl80211_iftype op_mode)
 		ath5k_hw_reg_write(ah, 0x00003210, AR5K_MIC_QOS_SEL);
 	}
 
-	/* QoS NOACK Policy */
+	/* QoS ANALACK Policy */
 	if (ah->ah_version == AR5K_AR5212) {
 		ath5k_hw_reg_write(ah,
-			AR5K_REG_SM(2, AR5K_QOS_NOACK_2BIT_VALUES) |
-			AR5K_REG_SM(5, AR5K_QOS_NOACK_BIT_OFFSET)  |
-			AR5K_REG_SM(0, AR5K_QOS_NOACK_BYTE_OFFSET),
-			AR5K_QOS_NOACK);
+			AR5K_REG_SM(2, AR5K_QOS_ANALACK_2BIT_VALUES) |
+			AR5K_REG_SM(5, AR5K_QOS_ANALACK_BIT_OFFSET)  |
+			AR5K_REG_SM(0, AR5K_QOS_ANALACK_BYTE_OFFSET),
+			AR5K_QOS_ANALACK);
 	}
 
 	/* Restore slot time and ACK timeouts */

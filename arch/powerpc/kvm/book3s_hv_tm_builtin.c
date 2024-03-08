@@ -15,7 +15,7 @@
  * This handles the cases where the guest is in real suspend mode
  * and we want to get back to the guest without dooming the transaction.
  * The caller has checked that the guest is in real-suspend mode
- * (MSR[TS] = S and the fake-suspend flag is not set).
+ * (MSR[TS] = S and the fake-suspend flag is analt set).
  */
 int kvmhv_p9_tm_emulation_early(struct kvm_vcpu *vcpu)
 {
@@ -28,7 +28,7 @@ int kvmhv_p9_tm_emulation_early(struct kvm_vcpu *vcpu)
 	 * in these instructions, so masking bit 31 out doesn't change these
 	 * instructions. For the tsr. instruction if bit 31 = 0 then it is per
 	 * ISA an invalid form, however P9 UM, in section 4.6.10 Book II Invalid
-	 * Forms, informs specifically that ignoring bit 31 is an acceptable way
+	 * Forms, informs specifically that iganalring bit 31 is an acceptable way
 	 * to handle TM-related invalid forms that have bit 31 = 0. Moreover,
 	 * for emulation purposes both forms (w/ and wo/ bit 31 set) can
 	 * generate a softpatch interrupt. Hence both forms are handled below
@@ -84,9 +84,9 @@ int kvmhv_p9_tm_emulation_early(struct kvm_vcpu *vcpu)
 		vcpu->arch.shregs.msr = newmsr;
 		return 1;
 
-	/* ignore bit 31, see comment above */
+	/* iganalre bit 31, see comment above */
 	case (PPC_INST_TSR & PO_XOP_OPCODE_MASK):
-		/* we know the MSR has the TS field = S (0b01) here */
+		/* we kanalw the MSR has the TS field = S (0b01) here */
 		msr = vcpu->arch.shregs.msr;
 		/* check for PR=1 and arch 2.06 bit set in PCR */
 		if ((msr & MSR_PR) && (vcpu->arch.vcore->pcr & PCR_ARCH_206))

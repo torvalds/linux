@@ -221,7 +221,7 @@ static void ca_midi_output_trigger(struct snd_rawmidi_substream *substream, int 
 			if (ca_midi_output_ready(midi)) {
 				if (!(midi->midi_mode & CA_MIDI_MODE_OUTPUT) ||
 				    snd_rawmidi_transmit(substream, &byte, 1) != 1) {
-					/* no more data */
+					/* anal more data */
 					spin_unlock_irqrestore(&midi->output_lock, flags);
 					return;
 				}

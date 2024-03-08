@@ -79,16 +79,16 @@ struct macsec_rx_sc_stats {
 	__u64 InPktsOK;
 	__u64 InPktsInvalid;
 	__u64 InPktsLate;
-	__u64 InPktsNotValid;
-	__u64 InPktsNotUsingSA;
+	__u64 InPktsAnaltValid;
+	__u64 InPktsAnaltUsingSA;
 	__u64 InPktsUnusedSA;
 };
 
 struct macsec_rx_sa_stats {
 	__u32 InPktsOK;
 	__u32 InPktsInvalid;
-	__u32 InPktsNotValid;
-	__u32 InPktsNotUsingSA;
+	__u32 InPktsAnaltValid;
+	__u32 InPktsAnaltUsingSA;
 	__u32 InPktsUnusedSA;
 };
 
@@ -108,10 +108,10 @@ struct macsec_dev_stats {
 	__u64 OutPktsUntagged;
 	__u64 InPktsUntagged;
 	__u64 OutPktsTooLong;
-	__u64 InPktsNoTag;
+	__u64 InPktsAnalTag;
 	__u64 InPktsBadTag;
-	__u64 InPktsUnknownSCI;
-	__u64 InPktsNoSCI;
+	__u64 InPktsUnkanalwnSCI;
+	__u64 InPktsAnalSCI;
 	__u64 InPktsOverrun;
 };
 

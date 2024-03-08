@@ -17,8 +17,8 @@
 #include <linux/regmap.h>
 
 /*
- * Unfortunately there is no detailed documentation available for the
- * HHI_HDMI_PHY_CNTL0 register. CTL0 and CTL1 is all we know about.
+ * Unfortunately there is anal detailed documentation available for the
+ * HHI_HDMI_PHY_CNTL0 register. CTL0 and CTL1 is all we kanalw about.
  * Magic register values in the driver below are taken from the vendor
  * BSP / kernel.
  */
@@ -106,7 +106,7 @@ static const struct phy_ops phy_meson8_hdmi_tx_ops = {
 
 static int phy_meson8_hdmi_tx_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct phy_meson8_hdmi_tx_priv *priv;
 	struct phy_provider *phy_provider;
 	struct resource *res;
@@ -118,9 +118,9 @@ static int phy_meson8_hdmi_tx_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	priv->hhi = syscon_node_to_regmap(np->parent);
+	priv->hhi = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(priv->hhi))
 		return PTR_ERR(priv->hhi);
 

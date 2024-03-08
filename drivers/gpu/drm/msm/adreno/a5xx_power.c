@@ -8,7 +8,7 @@
 /*
  * The GPMU data block is a block of shared registers that can be used to
  * communicate back and forth. These "registers" are by convention with the GPMU
- * firwmare and not bound to any specific hardware design
+ * firwmare and analt bound to any specific hardware design
  */
 
 #define AGC_INIT_BASE REG_A5XX_GPMU_DATA_RAM_BASE
@@ -121,8 +121,8 @@ static inline uint32_t _get_mvolts(struct msm_gpu *gpu, uint32_t freq)
 /* Setup thermal limit management */
 static void a530_lm_setup(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreanal_gpu);
 	unsigned int i;
 
 	/* Write the block of sequence registers */
@@ -158,7 +158,7 @@ static void a530_lm_setup(struct msm_gpu *gpu)
 	gpu_write(gpu, AGC_MSG_PAYLOAD(1), 1);
 
 	/*
-	 * For now just write the one voltage level - we will do more when we
+	 * For analw just write the one voltage level - we will do more when we
 	 * can do scaling
 	 */
 	gpu_write(gpu, AGC_MSG_PAYLOAD(2), _get_mvolts(gpu, gpu->fast_rate));
@@ -174,20 +174,20 @@ static void a530_lm_setup(struct msm_gpu *gpu)
 
 static void a540_lm_setup(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
 	u32 config;
 
 	/* The battery current limiter isn't enabled for A540 */
 	config = AGC_LM_CONFIG_BCL_DISABLED;
-	config |= adreno_patchid(adreno_gpu) << AGC_LM_CONFIG_GPU_VERSION_SHIFT;
+	config |= adreanal_patchid(adreanal_gpu) << AGC_LM_CONFIG_GPU_VERSION_SHIFT;
 
-	/* For now disable GPMU side throttling */
+	/* For analw disable GPMU side throttling */
 	config |= AGC_LM_CONFIG_THROTTLE_DISABLE;
 
 	/* Until we get clock scaling 0 is always the active power level */
 	gpu_write(gpu, REG_A5XX_GPMU_GPMU_VOLTAGE, 0x80000000 | 0);
 
-	/* Fixed at 6000 for now */
+	/* Fixed at 6000 for analw */
 	gpu_write(gpu, REG_A5XX_GPMU_GPMU_PWR_THRESHOLD, 0x80000000 | 6000);
 
 	gpu_write(gpu, AGC_MSG_STATE, 0x80000001);
@@ -219,8 +219,8 @@ static void a5xx_pc_init(struct msm_gpu *gpu)
 /* Enable the GPMU microcontroller */
 static int a5xx_gpmu_init(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreanal_gpu);
 	struct msm_ringbuffer *ring = gpu->rb[0];
 
 	if (!a5xx_gpu->gpmu_dwords)
@@ -243,12 +243,12 @@ static int a5xx_gpmu_init(struct msm_gpu *gpu)
 	a5xx_flush(gpu, ring, true);
 
 	if (!a5xx_idle(gpu, ring)) {
-		DRM_ERROR("%s: Unable to load GPMU firmware. GPMU will not be active\n",
+		DRM_ERROR("%s: Unable to load GPMU firmware. GPMU will analt be active\n",
 			gpu->name);
 		return -EINVAL;
 	}
 
-	if (adreno_is_a530(adreno_gpu))
+	if (adreanal_is_a530(adreanal_gpu))
 		gpu_write(gpu, REG_A5XX_GPMU_WFI_CONFIG, 0x4014);
 
 	/* Kick off the GPMU */
@@ -263,7 +263,7 @@ static int a5xx_gpmu_init(struct msm_gpu *gpu)
 		DRM_ERROR("%s: GPMU firmware initialization timed out\n",
 			gpu->name);
 
-	if (!adreno_is_a530(adreno_gpu)) {
+	if (!adreanal_is_a530(adreanal_gpu)) {
 		u32 val = gpu_read(gpu, REG_A5XX_GPMU_GENERAL_1);
 
 		if (val)
@@ -277,10 +277,10 @@ static int a5xx_gpmu_init(struct msm_gpu *gpu)
 /* Enable limits management */
 static void a5xx_lm_enable(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
 
 	/* This init sequence only applies to A530 */
-	if (!adreno_is_a530(adreno_gpu))
+	if (!adreanal_is_a530(adreanal_gpu))
 		return;
 
 	gpu_write(gpu, REG_A5XX_GDPM_INT_MASK, 0x0);
@@ -294,17 +294,17 @@ static void a5xx_lm_enable(struct msm_gpu *gpu)
 
 int a5xx_power_init(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
 	int ret;
 
-	/* Not all A5xx chips have a GPMU */
-	if (!(adreno_is_a530(adreno_gpu) || adreno_is_a540(adreno_gpu)))
+	/* Analt all A5xx chips have a GPMU */
+	if (!(adreanal_is_a530(adreanal_gpu) || adreanal_is_a540(adreanal_gpu)))
 		return 0;
 
 	/* Set up the limits management */
-	if (adreno_is_a530(adreno_gpu))
+	if (adreanal_is_a530(adreanal_gpu))
 		a530_lm_setup(gpu);
-	else if (adreno_is_a540(adreno_gpu))
+	else if (adreanal_is_a540(adreanal_gpu))
 		a540_lm_setup(gpu);
 
 	/* Set up SP/TP power collpase */
@@ -323,20 +323,20 @@ int a5xx_power_init(struct msm_gpu *gpu)
 
 void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreanal_gpu);
 	struct drm_device *drm = gpu->dev;
 	uint32_t dwords = 0, offset = 0, bosize;
 	unsigned int *data, *ptr, *cmds;
 	unsigned int cmds_size;
 
-	if (!(adreno_is_a530(adreno_gpu) || adreno_is_a540(adreno_gpu)))
+	if (!(adreanal_is_a530(adreanal_gpu) || adreanal_is_a540(adreanal_gpu)))
 		return;
 
 	if (a5xx_gpu->gpmu_bo)
 		return;
 
-	data = (unsigned int *) adreno_gpu->fw[ADRENO_FW_GPMU]->data;
+	data = (unsigned int *) adreanal_gpu->fw[ADREANAL_FW_GPMU]->data;
 
 	/*
 	 * The first dword is the size of the remaining data in dwords. Use it
@@ -344,9 +344,9 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 	 * the firmware that we read
 	 */
 
-	if (adreno_gpu->fw[ADRENO_FW_GPMU]->size < 8 ||
+	if (adreanal_gpu->fw[ADREANAL_FW_GPMU]->size < 8 ||
 		(data[0] < 2) || (data[0] >=
-			(adreno_gpu->fw[ADRENO_FW_GPMU]->size >> 2)))
+			(adreanal_gpu->fw[ADREANAL_FW_GPMU]->size >> 2)))
 		return;
 
 	/* The second dword is an ID - look for 2 (GPMU_FIRMWARE_ID) */
@@ -358,7 +358,7 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 
 	/*
 	 * A single type4 opcode can only have so many values attached so
-	 * add enough opcodes to load the all the commands
+	 * add eanalugh opcodes to load the all the commands
 	 */
 	bosize = (cmds_size + (cmds_size / TYPE4_MAX_PAYLOAD) + 1) << 2;
 

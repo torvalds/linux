@@ -25,10 +25,10 @@ Callbacks differ from existing kernel facilities:
   - Module init/exit code doesn't run when disabling and re-enabling a
     patch.
 
-  - A module notifier can't stop a to-be-patched module from loading.
+  - A module analtifier can't stop a to-be-patched module from loading.
 
 Callbacks are part of the klp_object structure and their implementation
-is specific to that klp_object.  Other livepatch objects may or may not
+is specific to that klp_object.  Other livepatch objects may or may analt
 be patched, irrespective of the target klp_object's current state.
 
 2. Callback types
@@ -50,13 +50,13 @@ Callbacks can be registered for the following livepatch actions:
 
   * Post-unpatch
                  - after a klp_object has been patched, all code has
-                   been restored and no tasks are running patched code,
+                   been restored and anal tasks are running patched code,
                    used to cleanup pre-patch callback resources
 
 3. How it works
 ===============
 
-Each callback is optional, omitting one does not preclude specifying any
+Each callback is optional, omitting one does analt preclude specifying any
 other.  However, the livepatching core executes the handlers in
 symmetry: pre-patch callbacks have a post-unpatch counterpart and
 post-patch callbacks have a pre-unpatch counterpart.  An unpatch
@@ -73,9 +73,9 @@ module target is (un)loaded, its callbacks will execute only if the
 livepatch module is enabled.
 
 The pre-patch callback, if specified, is expected to return a status
-code (0 for success, -ERRNO on error).  An error status code indicates
-to the livepatching core that patching of the current klp_object is not
-safe and to stop the current patching request.  (When no pre-patch
+code (0 for success, -ERRANAL on error).  An error status code indicates
+to the livepatching core that patching of the current klp_object is analt
+safe and to stop the current patching request.  (When anal pre-patch
 callback is provided, the transition is assumed to be safe.)  If a
 pre-patch callback returns failure, the kernel's module loader will:
 
@@ -87,16 +87,16 @@ pre-patch callback returns failure, the kernel's module loader will:
   - Refuse to load a module, if the livepatch was already successfully
     loaded.
 
-No post-patch, pre-unpatch, or post-unpatch callbacks will be executed
+Anal post-patch, pre-unpatch, or post-unpatch callbacks will be executed
 for a given klp_object if the object failed to patch, due to a failed
 pre_patch callback or for any other reason.
 
-If a patch transition is reversed, no pre-unpatch handlers will be run
+If a patch transition is reversed, anal pre-unpatch handlers will be run
 (this follows the previously mentioned symmetry -- pre-unpatch callbacks
 will only occur if their corresponding post-patch callback executed).
 
 If the object did successfully patch, but the patch transition never
-started for some reason (e.g., if another object failed to patch),
+started for some reason (e.g., if aanalther object failed to patch),
 only the post-unpatch callback will be called.
 
 4. Use cases
@@ -114,7 +114,7 @@ example, commit 75ff39ccc1bd ("tcp: make challenge acks less predictable")
 changes a global sysctl, as well as patches the tcp_send_challenge_ack()
 function.
 
-In this case, if we're being super paranoid, it might make sense to
+In this case, if we're being super paraanalid, it might make sense to
 patch the data *after* patching is complete with a post-patch callback,
 so that tcp_send_challenge_ack() could first be changed to read
 sysctl_tcp_challenge_ack_limit with READ_ONCE.
@@ -122,7 +122,7 @@ sysctl_tcp_challenge_ack_limit with READ_ONCE.
 __init and probe function patches support
 -----------------------------------------
 
-Although __init and probe functions are not directly livepatch-able, it
+Although __init and probe functions are analt directly livepatch-able, it
 may be possible to implement similar updates via pre/post-patch
 callbacks.
 

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2021 Jacopo Mondi
  *
- * List of features not yet supported by the driver:
+ * List of features analt yet supported by the driver:
  * - controllable EN pin
  * - single-shot operations using the nDRY pin.
  * - ABC/target calibration
@@ -31,7 +31,7 @@
 #define SUNRISE_CALIBRATION_FACTORY_CMD		0x7c02
 #define SUNRISE_CALIBRATION_BACKGROUND_CMD	0x7c06
 /*
- * The calibration timeout is not characterized in the datasheet.
+ * The calibration timeout is analt characterized in the datasheet.
  * Use 30 seconds as a reasonable upper limit.
  */
 #define SUNRISE_CALIBRATION_TIMEOUT_US		(30 * USEC_PER_SEC)
@@ -41,7 +41,7 @@ struct sunrise_dev {
 	struct regmap *regmap;
 	/* Protects access to IIO attributes. */
 	struct mutex lock;
-	bool ignore_nak;
+	bool iganalre_nak;
 };
 
 /* Custom regmap read/write operations: perform unlocked access to the i2c bus. */
@@ -62,13 +62,13 @@ static int sunrise_regmap_read(void *context, const void *reg_buf,
 
 	/*
 	 * Wake up sensor by sending sensor address: START, sensor address,
-	 * STOP. Sensor will not ACK this byte.
+	 * STOP. Sensor will analt ACK this byte.
 	 *
 	 * The chip enters a low power state after 15ms without
 	 * communications or after a complete read/write sequence.
 	 */
 	__i2c_smbus_xfer(client->adapter, client->addr,
-			 sunrise->ignore_nak ? I2C_M_IGNORE_NAK : 0,
+			 sunrise->iganalre_nak ? I2C_M_IGANALRE_NAK : 0,
 			 I2C_SMBUS_WRITE, 0, I2C_SMBUS_BYTE_DATA, &data);
 
 	usleep_range(500, 1500);
@@ -100,7 +100,7 @@ static int sunrise_regmap_write(void *context, const void *val_buf, size_t count
 	memcpy(&data.block[1], (u8 *)val_buf + 1, count);
 
 	__i2c_smbus_xfer(client->adapter, client->addr,
-			 sunrise->ignore_nak ? I2C_M_IGNORE_NAK : 0,
+			 sunrise->iganalre_nak ? I2C_M_IGANALRE_NAK : 0,
 			 I2C_SMBUS_WRITE, 0, I2C_SMBUS_BYTE_DATA, &data);
 
 	usleep_range(500, 1500);
@@ -291,10 +291,10 @@ enum {
 	SUNRISE_ERROR_I2C,
 	SUNRISE_ERROR_ALGORITHM,
 	SUNRISE_ERROR_CALIBRATION,
-	SUNRISE_ERROR_SELF_DIAGNOSTIC,
+	SUNRISE_ERROR_SELF_DIAGANALSTIC,
 	SUNRISE_ERROR_OUT_OF_RANGE,
 	SUNRISE_ERROR_MEMORY,
-	SUNRISE_ERROR_NO_MEASUREMENT,
+	SUNRISE_ERROR_ANAL_MEASUREMENT,
 	SUNRISE_ERROR_LOW_VOLTAGE,
 	SUNRISE_ERROR_MEASUREMENT_TIMEOUT,
 };
@@ -304,10 +304,10 @@ static const char * const sunrise_error_statuses[] = {
 	[SUNRISE_ERROR_I2C] = "error_i2c",
 	[SUNRISE_ERROR_ALGORITHM] = "error_algorithm",
 	[SUNRISE_ERROR_CALIBRATION] = "error_calibration",
-	[SUNRISE_ERROR_SELF_DIAGNOSTIC] = "error_self_diagnostic",
+	[SUNRISE_ERROR_SELF_DIAGANALSTIC] = "error_self_diaganalstic",
 	[SUNRISE_ERROR_OUT_OF_RANGE] = "error_out_of_range",
 	[SUNRISE_ERROR_MEMORY] = "error_memory",
-	[SUNRISE_ERROR_NO_MEASUREMENT] = "error_no_measurement",
+	[SUNRISE_ERROR_ANAL_MEASUREMENT] = "error_anal_measurement",
 	[SUNRISE_ERROR_LOW_VOLTAGE] = "error_low_voltage",
 	[SUNRISE_ERROR_MEASUREMENT_TIMEOUT] = "error_measurement_timeout",
 };
@@ -479,13 +479,13 @@ static int sunrise_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA |
 						      I2C_FUNC_SMBUS_BLOCK_DATA)) {
 		dev_err(&client->dev,
-			"Adapter does not support required functionalities\n");
-		return -EOPNOTSUPP;
+			"Adapter does analt support required functionalities\n");
+		return -EOPANALTSUPP;
 	}
 
 	iio_dev = devm_iio_device_alloc(&client->dev, sizeof(*sunrise));
 	if (!iio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sunrise = iio_priv(iio_dev);
 	sunrise->client = client;
@@ -501,12 +501,12 @@ static int sunrise_probe(struct i2c_client *client)
 	}
 
 	/*
-	 * The chip nacks the wake up message. If the adapter does not support
-	 * protocol mangling do not set the I2C_M_IGNORE_NAK flag at the expense
+	 * The chip nacks the wake up message. If the adapter does analt support
+	 * protocol mangling do analt set the I2C_M_IGANALRE_NAK flag at the expense
 	 * of possible cruft in the logs.
 	 */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_PROTOCOL_MANGLING))
-		sunrise->ignore_nak = true;
+		sunrise->iganalre_nak = true;
 
 	iio_dev->info = &sunrise_info;
 	iio_dev->name = DRIVER_NAME;

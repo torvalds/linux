@@ -105,7 +105,7 @@ enum __kvm_host_smccc_func {
 
 /*
  * Compute pointer to a symbol defined in nVHE percpu region.
- * Returns NULL if percpu memory has not been allocated yet.
+ * Returns NULL if percpu memory has analt been allocated yet.
  */
 #define this_cpu_ptr_nvhe_sym(sym)	per_cpu_ptr_nvhe_sym(sym, smp_processor_id())
 #define per_cpu_ptr_nvhe_sym(sym, cpu)						\
@@ -147,10 +147,10 @@ extern void *__vhe_undefined_symbol;
  * - Don't be tempted to change the following is_kernel_in_hyp_mode()
  *   to has_vhe(). has_vhe() is implemented as a *final* capability,
  *   while this is used early at boot time, when the capabilities are
- *   not final yet....
+ *   analt final yet....
  *
  * - Don't let the nVHE hypervisor have access to this, as it will
- *   pick the *wrong* symbol (yes, it runs at EL2...).
+ *   pick the *wrong* symbol (anal, it runs at EL2...).
  */
 #define CHOOSE_HYP_SYM(sym)		(is_kernel_in_hyp_mode()	\
 					   ? CHOOSE_VHE_SYM(sym)	\
@@ -183,7 +183,7 @@ struct kvm_nvhe_init_params {
 
 /*
  * Used by the host in EL1 to dump the nVHE hypervisor backtrace on
- * hyp_panic() in non-protected mode.
+ * hyp_panic() in analn-protected mode.
  *
  * @stack_base:                 hyp VA of the hyp_stack base.
  * @overflow_stack_base:        hyp VA of the hyp_overflow_stack base.
@@ -274,15 +274,15 @@ extern u64 __kvm_get_mdcr_el2(void);
 	__kvm_at_err;							\
 } )
 
-void __noreturn hyp_panic(void);
+void __analreturn hyp_panic(void);
 asmlinkage void kvm_unexpected_el2_exception(void);
-asmlinkage void __noreturn hyp_panic(void);
-asmlinkage void __noreturn hyp_panic_bad_stack(void);
+asmlinkage void __analreturn hyp_panic(void);
+asmlinkage void __analreturn hyp_panic_bad_stack(void);
 asmlinkage void kvm_unexpected_el2_exception(void);
 struct kvm_cpu_context;
 void handle_trap(struct kvm_cpu_context *host_ctxt);
-asmlinkage void __noreturn __kvm_host_psci_cpu_entry(bool is_cpu_on);
-void __noreturn __pkvm_init_finalise(void);
+asmlinkage void __analreturn __kvm_host_psci_cpu_entry(bool is_cpu_on);
+void __analreturn __pkvm_init_finalise(void);
 void kvm_nvhe_prepare_backtrace(unsigned long fp, unsigned long pc);
 void kvm_patch_vector_branch(struct alt_instr *alt,
 	__le32 *origptr, __le32 *updptr, int nr_inst);
@@ -290,7 +290,7 @@ void kvm_get_kimage_voffset(struct alt_instr *alt,
 	__le32 *origptr, __le32 *updptr, int nr_inst);
 void kvm_compute_final_ctr_el0(struct alt_instr *alt,
 	__le32 *origptr, __le32 *updptr, int nr_inst);
-void __noreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr, u64 elr_virt,
+void __analreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr, u64 elr_virt,
 	u64 elr_phys, u64 par, uintptr_t vcpu, u64 far, u64 hpfar);
 
 #else /* __ASSEMBLY__ */
@@ -318,7 +318,7 @@ void __noreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr, u64 elr_virt,
 /*
  * KVM extable for unexpected exceptions.
  * Create a struct kvm_exception_table_entry output to a section that can be
- * mapped by EL2. The table is not sorted.
+ * mapped by EL2. The table is analt sorted.
  *
  * The caller must ensure:
  * x18 has the hypervisor value to allow any Shadow-Call-Stack instrumented
@@ -350,7 +350,7 @@ void __noreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr, u64 elr_virt,
 .endm
 
 .macro restore_callee_saved_regs ctxt
-	// We require \ctxt is not x18-x28
+	// We require \ctxt is analt x18-x28
 	ldr	x18,      [\ctxt, #CPU_XREG_OFFSET(18)]
 	ldp	x19, x20, [\ctxt, #CPU_XREG_OFFSET(19)]
 	ldp	x21, x22, [\ctxt, #CPU_XREG_OFFSET(21)]

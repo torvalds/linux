@@ -222,7 +222,7 @@ static void process_ce(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
 			     row, channel, -1, "e7xxx CE", "");
 }
 
-static void process_ce_no_info(struct mem_ctl_info *mci)
+static void process_ce_anal_info(struct mem_ctl_info *mci)
 {
 	edac_dbg(3, "\n");
 	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1, 0, 0, 0, -1, -1, -1,
@@ -245,7 +245,7 @@ static void process_ue(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
 			     row, -1, -1, "e7xxx UE", "");
 }
 
-static void process_ue_no_info(struct mem_ctl_info *mci)
+static void process_ue_anal_info(struct mem_ctl_info *mci)
 {
 	edac_dbg(3, "\n");
 
@@ -309,7 +309,7 @@ static int e7xxx_process_error_info(struct mem_ctl_info *mci,
 
 		if (handle_errors) {
 			if (info->dram_ferr & 1)
-				process_ce_no_info(mci);
+				process_ce_anal_info(mci);
 			else
 				process_ce(mci, info);
 		}
@@ -320,7 +320,7 @@ static int e7xxx_process_error_info(struct mem_ctl_info *mci,
 
 		if (handle_errors) {
 			if (info->dram_ferr & 2)
-				process_ue_no_info(mci);
+				process_ue_anal_info(mci);
 			else
 				process_ue(mci, info);
 		}
@@ -383,7 +383,7 @@ static void e7xxx_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		cumul_size = value << (25 + drc_drbg - PAGE_SHIFT);
 		edac_dbg(3, "(%d) cumul_size 0x%x\n", index, cumul_size);
 		if (cumul_size == last_cumul_size)
-			continue;	/* not populated */
+			continue;	/* analt populated */
 
 		csrow->first_page = last_cumul_size;
 		csrow->last_page = cumul_size - 1;
@@ -403,7 +403,7 @@ static void e7xxx_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 				mci->edac_cap |= EDAC_FLAG_SECDED;
 			}
 		} else
-			edac_mode = EDAC_NONE;
+			edac_mode = EDAC_ANALNE;
 
 		for (j = 0; j < drc_chan + 1; j++) {
 			dimm = csrow->channels[j]->dimm;
@@ -448,11 +448,11 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 	layers[1].is_virt_csrow = false;
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
 	if (mci == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edac_dbg(3, "init mci\n");
 	mci->mtype_cap = MEM_FLAG_RDDR;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED |
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_SECDED |
 		EDAC_FLAG_S4ECD4ED;
 	/* FIXME - what if different memory types are in different csrows? */
 	mci->mod_name = EDAC_MOD_STR;
@@ -464,7 +464,7 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 					pvt->dev_info->err_dev, pvt->bridge_ck);
 
 	if (!pvt->bridge_ck) {
-		e7xxx_printk(KERN_ERR, "error reporting device not found:"
+		e7xxx_printk(KERN_ERR, "error reporting device analt found:"
 			"vendor %x device 0x%x (broken BIOS?)\n",
 			PCI_VENDOR_ID_INTEL, e7xxx_devs[dev_idx].err_dev);
 		goto fail0;
@@ -476,7 +476,7 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_check = e7xxx_check;
 	mci->ctl_page_to_phys = ctl_page_to_phys;
 	e7xxx_init_csrows(mci, pdev, dev_idx, drc);
-	mci->edac_cap |= EDAC_FLAG_NONE;
+	mci->edac_cap |= EDAC_FLAG_ANALNE;
 	edac_dbg(3, "tolm, remapbase, remaplimit\n");
 	/* load the top of low memory, remap base, and remap limit vars */
 	pci_read_config_word(pdev, E7XXX_TOLM, &pci_data);
@@ -507,7 +507,7 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 			"%s(): Unable to create PCI control\n",
 			__func__);
 		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
+			"%s(): PCI error report via EDAC analt setup\n",
 			__func__);
 	}
 
@@ -521,7 +521,7 @@ fail1:
 fail0:
 	edac_mc_free(mci);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* returns count (>= 0), or negative on error */

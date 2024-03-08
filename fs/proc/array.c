@@ -24,7 +24,7 @@
  * Jeff Tranter      :  added BogoMips field to cpuinfo
  *                      <Jeff_Tranter@Mitel.COM>
  *
- * Bruno Haible      :  remove 4K limit for the maps file
+ * Bruanal Haible      :  remove 4K limit for the maps file
  *			<haible@ma2s2.mathematik.uni-karlsruhe.de>
  *
  * Yves Arrouye      :  remove removal of trailing spaces in get_array.
@@ -33,7 +33,7 @@
  * Jerome Forissier  :  added per-CPU time information to /proc/stat
  *                      and /proc/<pid>/cpu extension
  *                      <forissier@isia.cma.fr>
- *			- Incorporation and non-SMP safe operation
+ *			- Incorporation and analn-SMP safe operation
  *			of forissier patch in 2.1.78 by
  *			Hans Marcus <crowbar@concepts.nl>
  *
@@ -54,7 +54,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/time.h>
 #include <linux/time_namespace.h>
 #include <linux/kernel.h>
@@ -264,7 +264,7 @@ static void collect_sigign_sigcatch(struct task_struct *p, sigset_t *sigign,
 static inline void task_sig(struct seq_file *m, struct task_struct *p)
 {
 	unsigned long flags;
-	sigset_t pending, shpending, blocked, ignored, caught;
+	sigset_t pending, shpending, blocked, iganalred, caught;
 	int num_threads = 0;
 	unsigned int qsize = 0;
 	unsigned long qlim = 0;
@@ -272,14 +272,14 @@ static inline void task_sig(struct seq_file *m, struct task_struct *p)
 	sigemptyset(&pending);
 	sigemptyset(&shpending);
 	sigemptyset(&blocked);
-	sigemptyset(&ignored);
+	sigemptyset(&iganalred);
 	sigemptyset(&caught);
 
 	if (lock_task_sighand(p, &flags)) {
 		pending = p->pending.signal;
 		shpending = p->signal->shared_pending.signal;
 		blocked = p->blocked;
-		collect_sigign_sigcatch(p, &ignored, &caught);
+		collect_sigign_sigcatch(p, &iganalred, &caught);
 		num_threads = get_nr_threads(p);
 		rcu_read_lock();  /* FIXME: is this correct? */
 		qsize = get_rlimit_value(task_ucounts(p), UCOUNT_RLIMIT_SIGPENDING);
@@ -296,7 +296,7 @@ static inline void task_sig(struct seq_file *m, struct task_struct *p)
 	render_sigset_t(m, "\nSigPnd:\t", &pending);
 	render_sigset_t(m, "ShdPnd:\t", &shpending);
 	render_sigset_t(m, "SigBlk:\t", &blocked);
-	render_sigset_t(m, "SigIgn:\t", &ignored);
+	render_sigset_t(m, "SigIgn:\t", &iganalred);
 	render_sigset_t(m, "SigCgt:\t", &caught);
 }
 
@@ -332,7 +332,7 @@ static inline void task_cap(struct seq_file *m, struct task_struct *p)
 
 static inline void task_seccomp(struct seq_file *m, struct task_struct *p)
 {
-	seq_put_decimal_ull(m, "NoNewPrivs:\t", task_no_new_privs(p));
+	seq_put_decimal_ull(m, "AnalNewPrivs:\t", task_anal_new_privs(p));
 #ifdef CONFIG_SECCOMP
 	seq_put_decimal_ull(m, "\nSeccomp:\t", p->seccomp.mode);
 #ifdef CONFIG_SECCOMP_FILTER
@@ -343,10 +343,10 @@ static inline void task_seccomp(struct seq_file *m, struct task_struct *p)
 	seq_puts(m, "\nSpeculation_Store_Bypass:\t");
 	switch (arch_prctl_spec_ctrl_get(p, PR_SPEC_STORE_BYPASS)) {
 	case -EINVAL:
-		seq_puts(m, "unknown");
+		seq_puts(m, "unkanalwn");
 		break;
-	case PR_SPEC_NOT_AFFECTED:
-		seq_puts(m, "not vulnerable");
+	case PR_SPEC_ANALT_AFFECTED:
+		seq_puts(m, "analt vulnerable");
 		break;
 	case PR_SPEC_PRCTL | PR_SPEC_FORCE_DISABLE:
 		seq_puts(m, "thread force mitigated");
@@ -370,8 +370,8 @@ static inline void task_seccomp(struct seq_file *m, struct task_struct *p)
 	case -EINVAL:
 		seq_puts(m, "unsupported");
 		break;
-	case PR_SPEC_NOT_AFFECTED:
-		seq_puts(m, "not affected");
+	case PR_SPEC_ANALT_AFFECTED:
+		seq_puts(m, "analt affected");
 		break;
 	case PR_SPEC_PRCTL | PR_SPEC_FORCE_DISABLE:
 		seq_puts(m, "conditional force disabled");
@@ -389,7 +389,7 @@ static inline void task_seccomp(struct seq_file *m, struct task_struct *p)
 		seq_puts(m, "always disabled");
 		break;
 	default:
-		seq_puts(m, "unknown");
+		seq_puts(m, "unkanalwn");
 		break;
 	}
 	seq_putc(m, '\n');
@@ -399,7 +399,7 @@ static inline void task_context_switch_counts(struct seq_file *m,
 						struct task_struct *p)
 {
 	seq_put_decimal_ull(m, "voluntary_ctxt_switches:\t", p->nvcsw);
-	seq_put_decimal_ull(m, "\nnonvoluntary_ctxt_switches:\t", p->nivcsw);
+	seq_put_decimal_ull(m, "\nanalnvoluntary_ctxt_switches:\t", p->nivcsw);
 	seq_putc(m, '\n');
 }
 
@@ -487,17 +487,17 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 
 	state = *get_task_state(task);
 	vsize = eip = esp = 0;
-	permitted = ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS | PTRACE_MODE_NOAUDIT);
+	permitted = ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS | PTRACE_MODE_ANALAUDIT);
 	mm = get_task_mm(task);
 	if (mm) {
 		vsize = task_vsize(mm);
 		/*
-		 * esp and eip are intentionally zeroed out.  There is no
-		 * non-racy way to read them without freezing the task.
+		 * esp and eip are intentionally zeroed out.  There is anal
+		 * analn-racy way to read them without freezing the task.
 		 * Programs that need reliable values can use ptrace(2).
 		 *
 		 * The only exception is if the task is core dumping because
-		 * a program is not able to use ptrace(2) in that case. It is
+		 * a program is analt able to use ptrace(2) in that case. It is
 		 * safe because the task has stopped executing permanently.
 		 */
 		if (permitted && (task->flags & (PF_EXITING|PF_DUMPCORE))) {
@@ -578,7 +578,7 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 	}
 
 	/* scale priority and nice values from timeslices to -20..20 */
-	/* to make it look like a "normal" Unix priority/nice value  */
+	/* to make it look like a "analrmal" Unix priority/nice value  */
 	priority = task_prio(task);
 	nice = task_nice(task);
 
@@ -717,14 +717,14 @@ int proc_pid_statm(struct seq_file *m, struct pid_namespace *ns,
 
 #ifdef CONFIG_PROC_CHILDREN
 static struct pid *
-get_children_pid(struct inode *inode, struct pid *pid_prev, loff_t pos)
+get_children_pid(struct ianalde *ianalde, struct pid *pid_prev, loff_t pos)
 {
 	struct task_struct *start, *task;
 	struct pid *pid = NULL;
 
 	read_lock(&tasklist_lock);
 
-	start = pid_task(proc_pid(inode), PIDTYPE_PID);
+	start = pid_task(proc_pid(ianalde), PIDTYPE_PID);
 	if (!start)
 		goto out;
 
@@ -749,12 +749,12 @@ get_children_pid(struct inode *inode, struct pid *pid_prev, loff_t pos)
 	 * Slow search case.
 	 *
 	 * We might miss some children here if children
-	 * are exited while we were not holding the lock,
+	 * are exited while we were analt holding the lock,
 	 * but it was never promised to be accurate that
 	 * much.
 	 *
 	 * "Just suppose that the parent sleeps, but N children
-	 *  exit after we printed their tids. Now the slow paths
+	 *  exit after we printed their tids. Analw the slow paths
 	 *  skips N extra children, we miss N tasks." (c)
 	 *
 	 * So one need to stop or freeze the leader and all
@@ -774,22 +774,22 @@ out:
 
 static int children_seq_show(struct seq_file *seq, void *v)
 {
-	struct inode *inode = file_inode(seq->file);
+	struct ianalde *ianalde = file_ianalde(seq->file);
 
-	seq_printf(seq, "%d ", pid_nr_ns(v, proc_pid_ns(inode->i_sb)));
+	seq_printf(seq, "%d ", pid_nr_ns(v, proc_pid_ns(ianalde->i_sb)));
 	return 0;
 }
 
 static void *children_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	return get_children_pid(file_inode(seq->file), NULL, *pos);
+	return get_children_pid(file_ianalde(seq->file), NULL, *pos);
 }
 
 static void *children_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct pid *pid;
 
-	pid = get_children_pid(file_inode(seq->file), v, *pos + 1);
+	pid = get_children_pid(file_ianalde(seq->file), v, *pos + 1);
 	put_pid(v);
 
 	++*pos;
@@ -808,7 +808,7 @@ static const struct seq_operations children_seq_ops = {
 	.show	= children_seq_show,
 };
 
-static int children_seq_open(struct inode *inode, struct file *file)
+static int children_seq_open(struct ianalde *ianalde, struct file *file)
 {
 	return seq_open(file, &children_seq_ops);
 }

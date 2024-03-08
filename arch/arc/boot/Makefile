@@ -4,7 +4,7 @@
 # You will need to build u-boot for ARC, rename mkimage to arc-elf32-mkimage
 # and make sure it's reacable from your PATH
 
-OBJCOPYFLAGS= -O binary -R .note -R .note.gnu.build-id -R .comment -S
+OBJCOPYFLAGS= -O binary -R .analte -R .analte.gnu.build-id -R .comment -S
 
 LINUX_START_TEXT = $$($(READELF) -h vmlinux | \
 			grep "Entry point address" | grep -o 0x.*)
@@ -29,7 +29,7 @@ $(obj)/vmlinux.bin.lzma: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,lzma)
 
 $(obj)/uImage.bin: $(obj)/vmlinux.bin FORCE
-	$(call if_changed,uimage,none)
+	$(call if_changed,uimage,analne)
 
 $(obj)/uImage.gz: $(obj)/vmlinux.bin.gz FORCE
 	$(call if_changed,uimage,gzip)

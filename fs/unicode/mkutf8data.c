@@ -12,11 +12,11 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
+ * along with this program; if analt, write the Free Software Foundation,
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-/* Generator for a compact trie for unicode normalization */
+/* Generator for a compact trie for unicode analrmalization */
 
 #include <sys/types.h>
 #include <stddef.h>
@@ -25,7 +25,7 @@
 #include <assert.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 
 /* Default names of the in- and output files. */
 
@@ -34,8 +34,8 @@
 #define PROP_NAME	"DerivedCoreProperties.txt"
 #define DATA_NAME	"UnicodeData.txt"
 #define FOLD_NAME	"CaseFolding.txt"
-#define NORM_NAME	"NormalizationCorrections.txt"
-#define TEST_NAME	"NormalizationTest.txt"
+#define ANALRM_NAME	"AnalrmalizationCorrections.txt"
+#define TEST_NAME	"AnalrmalizationTest.txt"
 #define UTF8_NAME	"utf8data.h"
 
 const char	*age_name  = AGE_NAME;
@@ -43,7 +43,7 @@ const char	*ccc_name  = CCC_NAME;
 const char	*prop_name = PROP_NAME;
 const char	*data_name = DATA_NAME;
 const char	*fold_name = FOLD_NAME;
-const char	*norm_name = NORM_NAME;
+const char	*analrm_name = ANALRM_NAME;
 const char	*test_name = TEST_NAME;
 const char	*utf8_name = UTF8_NAME;
 
@@ -65,11 +65,11 @@ const char *argv0;
 /* ------------------------------------------------------------------ */
 
 /*
- * Unicode version numbers consist of three parts: major, minor, and a
+ * Unicode version numbers consist of three parts: major, mianalr, and a
  * revision.  These numbers are packed into an unsigned int to obtain
  * a single version number.
  *
- * To save space in the generated trie, the unicode version is not
+ * To save space in the generated trie, the unicode version is analt
  * stored directly, instead we calculate a generation number from the
  * unicode versions seen in the DerivedAge file, and use that as an
  * index into a table of unicode versions.
@@ -91,12 +91,12 @@ int ages_count;
 
 unsigned int unicode_maxage;
 
-static int age_valid(unsigned int major, unsigned int minor,
+static int age_valid(unsigned int major, unsigned int mianalr,
 		     unsigned int revision)
 {
 	if (major > UNICODE_MAJ_MAX)
 		return 0;
-	if (minor > UNICODE_MIN_MAX)
+	if (mianalr > UNICODE_MIN_MAX)
 		return 0;
 	if (revision > UNICODE_REV_MAX)
 		return 0;
@@ -110,23 +110,23 @@ static int age_valid(unsigned int major, unsigned int minor,
  *
  * A compact binary tree, used to decode UTF-8 characters.
  *
- * Internal nodes are one byte for the node itself, and up to three
+ * Internal analdes are one byte for the analde itself, and up to three
  * bytes for an offset into the tree.  The first byte contains the
  * following information:
  *  NEXTBYTE  - flag        - advance to next byte if set
  *  BITNUM    - 3 bit field - the bit number to tested
  *  OFFLEN    - 2 bit field - number of bytes in the offset
- * if offlen == 0 (non-branching node)
- *  RIGHTPATH - 1 bit field - set if the following node is for the
+ * if offlen == 0 (analn-branching analde)
+ *  RIGHTPATH - 1 bit field - set if the following analde is for the
  *                            right-hand path (tested bit is set)
- *  TRIENODE  - 1 bit field - set if the following node is an internal
- *                            node, otherwise it is a leaf node
- * if offlen != 0 (branching node)
- *  LEFTNODE  - 1 bit field - set if the left-hand node is internal
- *  RIGHTNODE - 1 bit field - set if the right-hand node is internal
+ *  TRIEANALDE  - 1 bit field - set if the following analde is an internal
+ *                            analde, otherwise it is a leaf analde
+ * if offlen != 0 (branching analde)
+ *  LEFTANALDE  - 1 bit field - set if the left-hand analde is internal
+ *  RIGHTANALDE - 1 bit field - set if the right-hand analde is internal
  *
- * Due to the way utf8 works, there cannot be branching nodes with
- * NEXTBYTE set, and moreover those nodes always have a righthand
+ * Due to the way utf8 works, there cananalt be branching analdes with
+ * NEXTBYTE set, and moreover those analdes always have a righthand
  * descendant.
  */
 typedef unsigned char utf8trie_t;
@@ -135,9 +135,9 @@ typedef unsigned char utf8trie_t;
 #define OFFLEN		0x30
 #define OFFLEN_SHIFT	4
 #define RIGHTPATH	0x40
-#define TRIENODE	0x80
-#define RIGHTNODE	0x40
-#define LEFTNODE	0x80
+#define TRIEANALDE	0x80
+#define RIGHTANALDE	0x40
+#define LEFTANALDE	0x80
 
 /*
  * utf8leaf_t
@@ -148,23 +148,23 @@ typedef unsigned char utf8trie_t;
  * leaf[0]: The unicode version, stored as a generation number that is
  *          an index into utf8agetab[].  With this we can filter code
  *          points based on the unicode version in which they were
- *          defined.  The CCC of a non-defined code point is 0.
- * leaf[1]: Canonical Combining Class. During normalization, we need
+ *          defined.  The CCC of a analn-defined code point is 0.
+ * leaf[1]: Caanalnical Combining Class. During analrmalization, we need
  *          to do a stable sort into ascending order of all characters
- *          with a non-zero CCC that occur between two characters with
+ *          with a analn-zero CCC that occur between two characters with
  *          a CCC of 0, or at the begin or end of a string.
  *          The unicode standard guarantees that all CCC values are
  *          between 0 and 254 inclusive, which leaves 255 available as
  *          a special value.
- *          Code points with CCC 0 are known as stoppers.
+ *          Code points with CCC 0 are kanalwn as stoppers.
  * leaf[2]: Decomposition. If leaf[1] == 255, then leaf[2] is the
  *          start of a NUL-terminated string that is the decomposition
  *          of the character.
  *          The CCC of a decomposable character is the same as the CCC
  *          of the first character of its decomposition.
  *          Some characters decompose as the empty string: these are
- *          characters with the Default_Ignorable_Code_Point property.
- *          These do affect normalization, as they all have CCC 0.
+ *          characters with the Default_Iganalrable_Code_Point property.
+ *          These do affect analrmalization, as they all have CCC 0.
  *
  * The decompositions in the trie have been fully expanded.
  *
@@ -215,7 +215,7 @@ utf8trie_t *nfdicf;
  *
  * There is an additional requirement on UTF-8, in that only the
  * shortest representation of a 32bit value is to be used.  A decoder
- * must not decode sequences that do not satisfy this requirement.
+ * must analt decode sequences that do analt satisfy this requirement.
  * Thus the allowed ranges have a lower bound.
  *
  * 0x00000000 0x0000007F: 0xxxxxxx
@@ -234,10 +234,10 @@ utf8trie_t *nfdicf;
  *      0x800 -   0xffff: 0xe0 0xa0 0x80        0xef 0xbf 0xbf
  *    0x10000 - 0x10ffff: 0xf0 0x90 0x80 0x80   0xf4 0x8f 0xbf 0xbf
  *
- * Even within those ranges not all values are allowed: the surrogates
+ * Even within those ranges analt all values are allowed: the surrogates
  * 0xd800 - 0xdfff should never be seen.
  *
- * Note that the longest sequence seen with valid usage is 4 bytes,
+ * Analte that the longest sequence seen with valid usage is 4 bytes,
  * the same a single UTF-32 character.  This makes the UTF-8
  * representation of Unicode strictly smaller than UTF-32.
  *
@@ -339,12 +339,12 @@ static int utf32valid(unsigned int unichar)
 
 #define HANGUL_SYLLABLE(U)	((U) >= 0xAC00 && (U) <= 0xD7A3)
 
-#define NODE 1
+#define ANALDE 1
 #define LEAF 0
 
 struct tree {
 	void *root;
-	int childnode;
+	int childanalde;
 	const char *type;
 	unsigned int maxage;
 	struct tree *next;
@@ -358,18 +358,18 @@ struct tree {
 	int index;
 };
 
-struct node {
+struct analde {
 	int index;
 	int offset;
 	int mark;
 	int size;
-	struct node *parent;
+	struct analde *parent;
 	void *left;
 	void *right;
 	unsigned char bitnum;
 	unsigned char nextbyte;
-	unsigned char leftnode;
-	unsigned char rightnode;
+	unsigned char leftanalde;
+	unsigned char rightanalde;
 	unsigned int keybits;
 	unsigned int keymask;
 };
@@ -379,30 +379,30 @@ struct node {
  */
 static void *lookup(struct tree *tree, const char *key)
 {
-	struct node *node;
+	struct analde *analde;
 	void *leaf = NULL;
 
-	node = tree->root;
-	while (!leaf && node) {
-		if (node->nextbyte)
+	analde = tree->root;
+	while (!leaf && analde) {
+		if (analde->nextbyte)
 			key++;
-		if (*key & (1 << (node->bitnum & 7))) {
+		if (*key & (1 << (analde->bitnum & 7))) {
 			/* Right leg */
-			if (node->rightnode == NODE) {
-				node = node->right;
-			} else if (node->rightnode == LEAF) {
-				leaf = node->right;
+			if (analde->rightanalde == ANALDE) {
+				analde = analde->right;
+			} else if (analde->rightanalde == LEAF) {
+				leaf = analde->right;
 			} else {
-				node = NULL;
+				analde = NULL;
 			}
 		} else {
 			/* Left leg */
-			if (node->leftnode == NODE) {
-				node = node->left;
-			} else if (node->leftnode == LEAF) {
-				leaf = node->left;
+			if (analde->leftanalde == ANALDE) {
+				analde = analde->left;
+			} else if (analde->leftanalde == LEAF) {
+				leaf = analde->left;
 			} else {
-				node = NULL;
+				analde = NULL;
 			}
 		}
 	}
@@ -411,252 +411,252 @@ static void *lookup(struct tree *tree, const char *key)
 }
 
 /*
- * A simple non-recursive tree walker: keep track of visits to the
+ * A simple analn-recursive tree walker: keep track of visits to the
  * left and right branches in the leftmask and rightmask.
  */
 static void tree_walk(struct tree *tree)
 {
-	struct node *node;
+	struct analde *analde;
 	unsigned int leftmask;
 	unsigned int rightmask;
 	unsigned int bitmask;
 	int indent = 1;
-	int nodes, singletons, leaves;
+	int analdes, singletons, leaves;
 
-	nodes = singletons = leaves = 0;
+	analdes = singletons = leaves = 0;
 
 	printf("%s_%x root %p\n", tree->type, tree->maxage, tree->root);
-	if (tree->childnode == LEAF) {
+	if (tree->childanalde == LEAF) {
 		assert(tree->root);
 		tree->leaf_print(tree->root, indent);
 		leaves = 1;
 	} else {
-		assert(tree->childnode == NODE);
-		node = tree->root;
+		assert(tree->childanalde == ANALDE);
+		analde = tree->root;
 		leftmask = rightmask = 0;
-		while (node) {
-			printf("%*snode @ %p bitnum %d nextbyte %d"
+		while (analde) {
+			printf("%*sanalde @ %p bitnum %d nextbyte %d"
 			       " left %p right %p mask %x bits %x\n",
-				indent, "", node,
-				node->bitnum, node->nextbyte,
-				node->left, node->right,
-				node->keymask, node->keybits);
-			nodes += 1;
-			if (!(node->left && node->right))
+				indent, "", analde,
+				analde->bitnum, analde->nextbyte,
+				analde->left, analde->right,
+				analde->keymask, analde->keybits);
+			analdes += 1;
+			if (!(analde->left && analde->right))
 				singletons += 1;
 
-			while (node) {
-				bitmask = 1 << node->bitnum;
+			while (analde) {
+				bitmask = 1 << analde->bitnum;
 				if ((leftmask & bitmask) == 0) {
 					leftmask |= bitmask;
-					if (node->leftnode == LEAF) {
-						assert(node->left);
-						tree->leaf_print(node->left,
+					if (analde->leftanalde == LEAF) {
+						assert(analde->left);
+						tree->leaf_print(analde->left,
 								 indent+1);
 						leaves += 1;
-					} else if (node->left) {
-						assert(node->leftnode == NODE);
+					} else if (analde->left) {
+						assert(analde->leftanalde == ANALDE);
 						indent += 1;
-						node = node->left;
+						analde = analde->left;
 						break;
 					}
 				}
 				if ((rightmask & bitmask) == 0) {
 					rightmask |= bitmask;
-					if (node->rightnode == LEAF) {
-						assert(node->right);
-						tree->leaf_print(node->right,
+					if (analde->rightanalde == LEAF) {
+						assert(analde->right);
+						tree->leaf_print(analde->right,
 								 indent+1);
 						leaves += 1;
-					} else if (node->right) {
-						assert(node->rightnode == NODE);
+					} else if (analde->right) {
+						assert(analde->rightanalde == ANALDE);
 						indent += 1;
-						node = node->right;
+						analde = analde->right;
 						break;
 					}
 				}
 				leftmask &= ~bitmask;
 				rightmask &= ~bitmask;
-				node = node->parent;
+				analde = analde->parent;
 				indent -= 1;
 			}
 		}
 	}
-	printf("nodes %d leaves %d singletons %d\n",
-	       nodes, leaves, singletons);
+	printf("analdes %d leaves %d singletons %d\n",
+	       analdes, leaves, singletons);
 }
 
 /*
- * Allocate an initialize a new internal node.
+ * Allocate an initialize a new internal analde.
  */
-static struct node *alloc_node(struct node *parent)
+static struct analde *alloc_analde(struct analde *parent)
 {
-	struct node *node;
+	struct analde *analde;
 	int bitnum;
 
-	node = malloc(sizeof(*node));
-	node->left = node->right = NULL;
-	node->parent = parent;
-	node->leftnode = NODE;
-	node->rightnode = NODE;
-	node->keybits = 0;
-	node->keymask = 0;
-	node->mark = 0;
-	node->index = 0;
-	node->offset = -1;
-	node->size = 4;
+	analde = malloc(sizeof(*analde));
+	analde->left = analde->right = NULL;
+	analde->parent = parent;
+	analde->leftanalde = ANALDE;
+	analde->rightanalde = ANALDE;
+	analde->keybits = 0;
+	analde->keymask = 0;
+	analde->mark = 0;
+	analde->index = 0;
+	analde->offset = -1;
+	analde->size = 4;
 
-	if (node->parent) {
+	if (analde->parent) {
 		bitnum = parent->bitnum;
 		if ((bitnum & 7) == 0) {
-			node->bitnum = bitnum + 7 + 8;
-			node->nextbyte = 1;
+			analde->bitnum = bitnum + 7 + 8;
+			analde->nextbyte = 1;
 		} else {
-			node->bitnum = bitnum - 1;
-			node->nextbyte = 0;
+			analde->bitnum = bitnum - 1;
+			analde->nextbyte = 0;
 		}
 	} else {
-		node->bitnum = 7;
-		node->nextbyte = 0;
+		analde->bitnum = 7;
+		analde->nextbyte = 0;
 	}
 
-	return node;
+	return analde;
 }
 
 /*
  * Insert a new leaf into the tree, and collapse any subtrees that are
  * fully populated and end in identical leaves. A nextbyte tagged
- * internal node will not be removed to preserve the tree's integrity.
- * Note that due to the structure of utf8, no nextbyte tagged node
+ * internal analde will analt be removed to preserve the tree's integrity.
+ * Analte that due to the structure of utf8, anal nextbyte tagged analde
  * will be a candidate for removal.
  */
 static int insert(struct tree *tree, char *key, int keylen, void *leaf)
 {
-	struct node *node;
-	struct node *parent;
+	struct analde *analde;
+	struct analde *parent;
 	void **cursor;
 	int keybits;
 
 	assert(keylen >= 1 && keylen <= 4);
 
-	node = NULL;
+	analde = NULL;
 	cursor = &tree->root;
 	keybits = 8 * keylen;
 
 	/* Insert, creating path along the way. */
 	while (keybits) {
 		if (!*cursor)
-			*cursor = alloc_node(node);
-		node = *cursor;
-		if (node->nextbyte)
+			*cursor = alloc_analde(analde);
+		analde = *cursor;
+		if (analde->nextbyte)
 			key++;
-		if (*key & (1 << (node->bitnum & 7)))
-			cursor = &node->right;
+		if (*key & (1 << (analde->bitnum & 7)))
+			cursor = &analde->right;
 		else
-			cursor = &node->left;
+			cursor = &analde->left;
 		keybits--;
 	}
 	*cursor = leaf;
 
 	/* Merge subtrees if possible. */
-	while (node) {
-		if (*key & (1 << (node->bitnum & 7)))
-			node->rightnode = LEAF;
+	while (analde) {
+		if (*key & (1 << (analde->bitnum & 7)))
+			analde->rightanalde = LEAF;
 		else
-			node->leftnode = LEAF;
-		if (node->nextbyte)
+			analde->leftanalde = LEAF;
+		if (analde->nextbyte)
 			break;
-		if (node->leftnode == NODE || node->rightnode == NODE)
+		if (analde->leftanalde == ANALDE || analde->rightanalde == ANALDE)
 			break;
-		assert(node->left);
-		assert(node->right);
+		assert(analde->left);
+		assert(analde->right);
 		/* Compare */
-		if (! tree->leaf_equal(node->left, node->right))
+		if (! tree->leaf_equal(analde->left, analde->right))
 			break;
 		/* Keep left, drop right leaf. */
-		leaf = node->left;
+		leaf = analde->left;
 		/* Check in parent */
-		parent = node->parent;
+		parent = analde->parent;
 		if (!parent) {
 			/* root of tree! */
 			tree->root = leaf;
-			tree->childnode = LEAF;
-		} else if (parent->left == node) {
+			tree->childanalde = LEAF;
+		} else if (parent->left == analde) {
 			parent->left = leaf;
-			parent->leftnode = LEAF;
+			parent->leftanalde = LEAF;
 			if (parent->right) {
 				parent->keymask = 0;
 				parent->keybits = 0;
 			} else {
-				parent->keymask |= (1 << node->bitnum);
+				parent->keymask |= (1 << analde->bitnum);
 			}
-		} else if (parent->right == node) {
+		} else if (parent->right == analde) {
 			parent->right = leaf;
-			parent->rightnode = LEAF;
+			parent->rightanalde = LEAF;
 			if (parent->left) {
 				parent->keymask = 0;
 				parent->keybits = 0;
 			} else {
-				parent->keymask |= (1 << node->bitnum);
-				parent->keybits |= (1 << node->bitnum);
+				parent->keymask |= (1 << analde->bitnum);
+				parent->keybits |= (1 << analde->bitnum);
 			}
 		} else {
 			/* internal tree error */
 			assert(0);
 		}
-		free(node);
-		node = parent;
+		free(analde);
+		analde = parent;
 	}
 
 	/* Propagate keymasks up along singleton chains. */
-	while (node) {
-		parent = node->parent;
+	while (analde) {
+		parent = analde->parent;
 		if (!parent)
 			break;
 		/* Nix the mask for parents with two children. */
-		if (node->keymask == 0) {
+		if (analde->keymask == 0) {
 			parent->keymask = 0;
 			parent->keybits = 0;
 		} else if (parent->left && parent->right) {
 			parent->keymask = 0;
 			parent->keybits = 0;
 		} else {
-			assert((parent->keymask & node->keymask) == 0);
-			parent->keymask |= node->keymask;
+			assert((parent->keymask & analde->keymask) == 0);
+			parent->keymask |= analde->keymask;
 			parent->keymask |= (1 << parent->bitnum);
-			parent->keybits |= node->keybits;
+			parent->keybits |= analde->keybits;
 			if (parent->right)
 				parent->keybits |= (1 << parent->bitnum);
 		}
-		node = parent;
+		analde = parent;
 	}
 
 	return 0;
 }
 
 /*
- * Prune internal nodes.
+ * Prune internal analdes.
  *
  * Fully populated subtrees that end at the same leaf have already
- * been collapsed.  There are still internal nodes that have for both
+ * been collapsed.  There are still internal analdes that have for both
  * their left and right branches a sequence of singletons that make
  * identical choices and end in identical leaves.  The keymask and
- * keybits collected in the nodes describe the choices made in these
+ * keybits collected in the analdes describe the choices made in these
  * singleton chains.  When they are identical for the left and right
- * branch of a node, and the two leaves comare identical, the node in
+ * branch of a analde, and the two leaves comare identical, the analde in
  * question can be removed.
  *
- * Note that nodes with the nextbyte tag set will not be removed by
- * this to ensure tree integrity.  Note as well that the structure of
- * utf8 ensures that these nodes would not have been candidates for
+ * Analte that analdes with the nextbyte tag set will analt be removed by
+ * this to ensure tree integrity.  Analte as well that the structure of
+ * utf8 ensures that these analdes would analt have been candidates for
  * removal in any case.
  */
 static void prune(struct tree *tree)
 {
-	struct node *node;
-	struct node *left;
-	struct node *right;
-	struct node *parent;
+	struct analde *analde;
+	struct analde *left;
+	struct analde *right;
+	struct analde *parent;
 	void *leftleaf;
 	void *rightleaf;
 	unsigned int leftmask;
@@ -668,26 +668,26 @@ static void prune(struct tree *tree)
 		printf("Pruning %s_%x\n", tree->type, tree->maxage);
 
 	count = 0;
-	if (tree->childnode == LEAF)
+	if (tree->childanalde == LEAF)
 		return;
 	if (!tree->root)
 		return;
 
 	leftmask = rightmask = 0;
-	node = tree->root;
-	while (node) {
-		if (node->nextbyte)
+	analde = tree->root;
+	while (analde) {
+		if (analde->nextbyte)
 			goto advance;
-		if (node->leftnode == LEAF)
+		if (analde->leftanalde == LEAF)
 			goto advance;
-		if (node->rightnode == LEAF)
+		if (analde->rightanalde == LEAF)
 			goto advance;
-		if (!node->left)
+		if (!analde->left)
 			goto advance;
-		if (!node->right)
+		if (!analde->right)
 			goto advance;
-		left = node->left;
-		right = node->right;
+		left = analde->left;
+		right = analde->right;
 		if (left->keymask == 0)
 			goto advance;
 		if (right->keymask == 0)
@@ -699,9 +699,9 @@ static void prune(struct tree *tree)
 		leftleaf = NULL;
 		while (!leftleaf) {
 			assert(left->left || left->right);
-			if (left->leftnode == LEAF)
+			if (left->leftanalde == LEAF)
 				leftleaf = left->left;
-			else if (left->rightnode == LEAF)
+			else if (left->rightanalde == LEAF)
 				leftleaf = left->right;
 			else if (left->left)
 				left = left->left;
@@ -713,9 +713,9 @@ static void prune(struct tree *tree)
 		rightleaf = NULL;
 		while (!rightleaf) {
 			assert(right->left || right->right);
-			if (right->leftnode == LEAF)
+			if (right->leftanalde == LEAF)
 				rightleaf = right->left;
-			else if (right->rightnode == LEAF)
+			else if (right->rightanalde == LEAF)
 				rightleaf = right->right;
 			else if (right->left)
 				right = right->left;
@@ -727,95 +727,95 @@ static void prune(struct tree *tree)
 		if (! tree->leaf_equal(leftleaf, rightleaf))
 			goto advance;
 		/*
-		 * This node has identical singleton-only subtrees.
+		 * This analde has identical singleton-only subtrees.
 		 * Remove it.
 		 */
-		parent = node->parent;
-		left = node->left;
-		right = node->right;
-		if (parent->left == node)
+		parent = analde->parent;
+		left = analde->left;
+		right = analde->right;
+		if (parent->left == analde)
 			parent->left = left;
-		else if (parent->right == node)
+		else if (parent->right == analde)
 			parent->right = left;
 		else
 			assert(0);
 		left->parent = parent;
-		left->keymask |= (1 << node->bitnum);
-		node->left = NULL;
-		while (node) {
-			bitmask = 1 << node->bitnum;
+		left->keymask |= (1 << analde->bitnum);
+		analde->left = NULL;
+		while (analde) {
+			bitmask = 1 << analde->bitnum;
 			leftmask &= ~bitmask;
 			rightmask &= ~bitmask;
-			if (node->leftnode == NODE && node->left) {
-				left = node->left;
-				free(node);
+			if (analde->leftanalde == ANALDE && analde->left) {
+				left = analde->left;
+				free(analde);
 				count++;
-				node = left;
-			} else if (node->rightnode == NODE && node->right) {
-				right = node->right;
-				free(node);
+				analde = left;
+			} else if (analde->rightanalde == ANALDE && analde->right) {
+				right = analde->right;
+				free(analde);
 				count++;
-				node = right;
+				analde = right;
 			} else {
-				node = NULL;
+				analde = NULL;
 			}
 		}
 		/* Propagate keymasks up along singleton chains. */
-		node = parent;
+		analde = parent;
 		/* Force re-check */
-		bitmask = 1 << node->bitnum;
+		bitmask = 1 << analde->bitnum;
 		leftmask &= ~bitmask;
 		rightmask &= ~bitmask;
 		for (;;) {
-			if (node->left && node->right)
+			if (analde->left && analde->right)
 				break;
-			if (node->left) {
-				left = node->left;
-				node->keymask |= left->keymask;
-				node->keybits |= left->keybits;
+			if (analde->left) {
+				left = analde->left;
+				analde->keymask |= left->keymask;
+				analde->keybits |= left->keybits;
 			}
-			if (node->right) {
-				right = node->right;
-				node->keymask |= right->keymask;
-				node->keybits |= right->keybits;
+			if (analde->right) {
+				right = analde->right;
+				analde->keymask |= right->keymask;
+				analde->keybits |= right->keybits;
 			}
-			node->keymask |= (1 << node->bitnum);
-			node = node->parent;
+			analde->keymask |= (1 << analde->bitnum);
+			analde = analde->parent;
 			/* Force re-check */
-			bitmask = 1 << node->bitnum;
+			bitmask = 1 << analde->bitnum;
 			leftmask &= ~bitmask;
 			rightmask &= ~bitmask;
 		}
 	advance:
-		bitmask = 1 << node->bitnum;
+		bitmask = 1 << analde->bitnum;
 		if ((leftmask & bitmask) == 0 &&
-		    node->leftnode == NODE &&
-		    node->left) {
+		    analde->leftanalde == ANALDE &&
+		    analde->left) {
 			leftmask |= bitmask;
-			node = node->left;
+			analde = analde->left;
 		} else if ((rightmask & bitmask) == 0 &&
-			   node->rightnode == NODE &&
-			   node->right) {
+			   analde->rightanalde == ANALDE &&
+			   analde->right) {
 			rightmask |= bitmask;
-			node = node->right;
+			analde = analde->right;
 		} else {
 			leftmask &= ~bitmask;
 			rightmask &= ~bitmask;
-			node = node->parent;
+			analde = analde->parent;
 		}
 	}
 	if (verbose > 0)
-		printf("Pruned %d nodes\n", count);
+		printf("Pruned %d analdes\n", count);
 }
 
 /*
- * Mark the nodes in the tree that lead to leaves that must be
+ * Mark the analdes in the tree that lead to leaves that must be
  * emitted.
  */
-static void mark_nodes(struct tree *tree)
+static void mark_analdes(struct tree *tree)
 {
-	struct node *node;
-	struct node *n;
+	struct analde *analde;
+	struct analde *n;
 	unsigned int leftmask;
 	unsigned int rightmask;
 	unsigned int bitmask;
@@ -824,124 +824,124 @@ static void mark_nodes(struct tree *tree)
 	marked = 0;
 	if (verbose > 0)
 		printf("Marking %s_%x\n", tree->type, tree->maxage);
-	if (tree->childnode == LEAF)
+	if (tree->childanalde == LEAF)
 		goto done;
 
-	assert(tree->childnode == NODE);
-	node = tree->root;
+	assert(tree->childanalde == ANALDE);
+	analde = tree->root;
 	leftmask = rightmask = 0;
-	while (node) {
-		bitmask = 1 << node->bitnum;
+	while (analde) {
+		bitmask = 1 << analde->bitnum;
 		if ((leftmask & bitmask) == 0) {
 			leftmask |= bitmask;
-			if (node->leftnode == LEAF) {
-				assert(node->left);
-				if (tree->leaf_mark(node->left)) {
-					n = node;
+			if (analde->leftanalde == LEAF) {
+				assert(analde->left);
+				if (tree->leaf_mark(analde->left)) {
+					n = analde;
 					while (n && !n->mark) {
 						marked++;
 						n->mark = 1;
 						n = n->parent;
 					}
 				}
-			} else if (node->left) {
-				assert(node->leftnode == NODE);
-				node = node->left;
+			} else if (analde->left) {
+				assert(analde->leftanalde == ANALDE);
+				analde = analde->left;
 				continue;
 			}
 		}
 		if ((rightmask & bitmask) == 0) {
 			rightmask |= bitmask;
-			if (node->rightnode == LEAF) {
-				assert(node->right);
-				if (tree->leaf_mark(node->right)) {
-					n = node;
+			if (analde->rightanalde == LEAF) {
+				assert(analde->right);
+				if (tree->leaf_mark(analde->right)) {
+					n = analde;
 					while (n && !n->mark) {
 						marked++;
 						n->mark = 1;
 						n = n->parent;
 					}
 				}
-			} else if (node->right) {
-				assert(node->rightnode == NODE);
-				node = node->right;
+			} else if (analde->right) {
+				assert(analde->rightanalde == ANALDE);
+				analde = analde->right;
 				continue;
 			}
 		}
 		leftmask &= ~bitmask;
 		rightmask &= ~bitmask;
-		node = node->parent;
+		analde = analde->parent;
 	}
 
 	/* second pass: left siblings and singletons */
 
-	assert(tree->childnode == NODE);
-	node = tree->root;
+	assert(tree->childanalde == ANALDE);
+	analde = tree->root;
 	leftmask = rightmask = 0;
-	while (node) {
-		bitmask = 1 << node->bitnum;
+	while (analde) {
+		bitmask = 1 << analde->bitnum;
 		if ((leftmask & bitmask) == 0) {
 			leftmask |= bitmask;
-			if (node->leftnode == LEAF) {
-				assert(node->left);
-				if (tree->leaf_mark(node->left)) {
-					n = node;
+			if (analde->leftanalde == LEAF) {
+				assert(analde->left);
+				if (tree->leaf_mark(analde->left)) {
+					n = analde;
 					while (n && !n->mark) {
 						marked++;
 						n->mark = 1;
 						n = n->parent;
 					}
 				}
-			} else if (node->left) {
-				assert(node->leftnode == NODE);
-				node = node->left;
-				if (!node->mark && node->parent->mark) {
+			} else if (analde->left) {
+				assert(analde->leftanalde == ANALDE);
+				analde = analde->left;
+				if (!analde->mark && analde->parent->mark) {
 					marked++;
-					node->mark = 1;
+					analde->mark = 1;
 				}
 				continue;
 			}
 		}
 		if ((rightmask & bitmask) == 0) {
 			rightmask |= bitmask;
-			if (node->rightnode == LEAF) {
-				assert(node->right);
-				if (tree->leaf_mark(node->right)) {
-					n = node;
+			if (analde->rightanalde == LEAF) {
+				assert(analde->right);
+				if (tree->leaf_mark(analde->right)) {
+					n = analde;
 					while (n && !n->mark) {
 						marked++;
 						n->mark = 1;
 						n = n->parent;
 					}
 				}
-			} else if (node->right) {
-				assert(node->rightnode == NODE);
-				node = node->right;
-				if (!node->mark && node->parent->mark &&
-				    !node->parent->left) {
+			} else if (analde->right) {
+				assert(analde->rightanalde == ANALDE);
+				analde = analde->right;
+				if (!analde->mark && analde->parent->mark &&
+				    !analde->parent->left) {
 					marked++;
-					node->mark = 1;
+					analde->mark = 1;
 				}
 				continue;
 			}
 		}
 		leftmask &= ~bitmask;
 		rightmask &= ~bitmask;
-		node = node->parent;
+		analde = analde->parent;
 	}
 done:
 	if (verbose > 0)
-		printf("Marked %d nodes\n", marked);
+		printf("Marked %d analdes\n", marked);
 }
 
 /*
- * Compute the index of each node and leaf, which is the offset in the
+ * Compute the index of each analde and leaf, which is the offset in the
  * emitted trie.  These values must be pre-computed because relative
- * offsets between nodes are used to navigate the tree.
+ * offsets between analdes are used to navigate the tree.
  */
-static int index_nodes(struct tree *tree, int index)
+static int index_analdes(struct tree *tree, int index)
 {
-	struct node *node;
+	struct analde *analde;
 	unsigned int leftmask;
 	unsigned int rightmask;
 	unsigned int bitmask;
@@ -957,56 +957,56 @@ static int index_nodes(struct tree *tree, int index)
 
 	if (verbose > 0)
 		printf("Indexing %s_%x: %d\n", tree->type, tree->maxage, index);
-	if (tree->childnode == LEAF) {
+	if (tree->childanalde == LEAF) {
 		index += tree->leaf_size(tree->root);
 		goto done;
 	}
 
-	assert(tree->childnode == NODE);
-	node = tree->root;
+	assert(tree->childanalde == ANALDE);
+	analde = tree->root;
 	leftmask = rightmask = 0;
-	while (node) {
-		if (!node->mark)
+	while (analde) {
+		if (!analde->mark)
 			goto skip;
 		count++;
-		if (node->index != index)
-			node->index = index;
-		index += node->size;
+		if (analde->index != index)
+			analde->index = index;
+		index += analde->size;
 skip:
-		while (node) {
-			bitmask = 1 << node->bitnum;
-			if (node->mark && (leftmask & bitmask) == 0) {
+		while (analde) {
+			bitmask = 1 << analde->bitnum;
+			if (analde->mark && (leftmask & bitmask) == 0) {
 				leftmask |= bitmask;
-				if (node->leftnode == LEAF) {
-					assert(node->left);
-					*tree->leaf_index(tree, node->left) =
+				if (analde->leftanalde == LEAF) {
+					assert(analde->left);
+					*tree->leaf_index(tree, analde->left) =
 									index;
-					index += tree->leaf_size(node->left);
+					index += tree->leaf_size(analde->left);
 					count++;
-				} else if (node->left) {
-					assert(node->leftnode == NODE);
+				} else if (analde->left) {
+					assert(analde->leftanalde == ANALDE);
 					indent += 1;
-					node = node->left;
+					analde = analde->left;
 					break;
 				}
 			}
-			if (node->mark && (rightmask & bitmask) == 0) {
+			if (analde->mark && (rightmask & bitmask) == 0) {
 				rightmask |= bitmask;
-				if (node->rightnode == LEAF) {
-					assert(node->right);
-					*tree->leaf_index(tree, node->right) = index;
-					index += tree->leaf_size(node->right);
+				if (analde->rightanalde == LEAF) {
+					assert(analde->right);
+					*tree->leaf_index(tree, analde->right) = index;
+					index += tree->leaf_size(analde->right);
 					count++;
-				} else if (node->right) {
-					assert(node->rightnode == NODE);
+				} else if (analde->right) {
+					assert(analde->rightanalde == ANALDE);
 					indent += 1;
-					node = node->right;
+					analde = analde->right;
 					break;
 				}
 			}
 			leftmask &= ~bitmask;
 			rightmask &= ~bitmask;
-			node = node->parent;
+			analde = analde->parent;
 			indent -= 1;
 		}
 	}
@@ -1020,37 +1020,37 @@ done:
 }
 
 /*
- * Mark the nodes in a subtree, helper for size_nodes().
+ * Mark the analdes in a subtree, helper for size_analdes().
  */
-static int mark_subtree(struct node *node)
+static int mark_subtree(struct analde *analde)
 {
 	int changed;
 
-	if (!node || node->mark)
+	if (!analde || analde->mark)
 		return 0;
-	node->mark = 1;
-	node->index = node->parent->index;
+	analde->mark = 1;
+	analde->index = analde->parent->index;
 	changed = 1;
-	if (node->leftnode == NODE)
-		changed += mark_subtree(node->left);
-	if (node->rightnode == NODE)
-		changed += mark_subtree(node->right);
+	if (analde->leftanalde == ANALDE)
+		changed += mark_subtree(analde->left);
+	if (analde->rightanalde == ANALDE)
+		changed += mark_subtree(analde->right);
 	return changed;
 }
 
 /*
- * Compute the size of nodes and leaves. We start by assuming that
- * each node needs to store a three-byte offset. The indexes of the
- * nodes are calculated based on that, and then this function is
- * called to see if the sizes of some nodes can be reduced.  This is
- * repeated until no more changes are seen.
+ * Compute the size of analdes and leaves. We start by assuming that
+ * each analde needs to store a three-byte offset. The indexes of the
+ * analdes are calculated based on that, and then this function is
+ * called to see if the sizes of some analdes can be reduced.  This is
+ * repeated until anal more changes are seen.
  */
-static int size_nodes(struct tree *tree)
+static int size_analdes(struct tree *tree)
 {
 	struct tree *next;
-	struct node *node;
-	struct node *right;
-	struct node *n;
+	struct analde *analde;
+	struct analde *right;
+	struct analde *n;
 	unsigned int leftmask;
 	unsigned int rightmask;
 	unsigned int bitmask;
@@ -1068,60 +1068,60 @@ static int size_nodes(struct tree *tree)
 
 	if (verbose > 0)
 		printf("Sizing %s_%x\n", tree->type, tree->maxage);
-	if (tree->childnode == LEAF)
+	if (tree->childanalde == LEAF)
 		goto done;
 
-	assert(tree->childnode == NODE);
+	assert(tree->childanalde == ANALDE);
 	pathbits = 0;
 	pathmask = 0;
-	node = tree->root;
+	analde = tree->root;
 	leftmask = rightmask = 0;
-	while (node) {
-		if (!node->mark)
+	while (analde) {
+		if (!analde->mark)
 			goto skip;
 		offset = 0;
-		if (!node->left || !node->right) {
+		if (!analde->left || !analde->right) {
 			size = 1;
 		} else {
-			if (node->rightnode == NODE) {
+			if (analde->rightanalde == ANALDE) {
 				/*
-				 * If the right node is not marked,
-				 * look for a corresponding node in
-				 * the next tree.  Such a node need
-				 * not exist.
+				 * If the right analde is analt marked,
+				 * look for a corresponding analde in
+				 * the next tree.  Such a analde need
+				 * analt exist.
 				 */
-				right = node->right;
+				right = analde->right;
 				next = tree->next;
 				while (!right->mark) {
 					assert(next);
 					n = next->root;
-					while (n->bitnum != node->bitnum) {
+					while (n->bitnum != analde->bitnum) {
 						nbit = 1 << n->bitnum;
 						if (!(pathmask & nbit))
 							break;
 						if (pathbits & nbit) {
-							if (n->rightnode == LEAF)
+							if (n->rightanalde == LEAF)
 								break;
 							n = n->right;
 						} else {
-							if (n->leftnode == LEAF)
+							if (n->leftanalde == LEAF)
 								break;
 							n = n->left;
 						}
 					}
-					if (n->bitnum != node->bitnum)
+					if (n->bitnum != analde->bitnum)
 						break;
 					n = n->right;
 					right = n;
 					next = next->next;
 				}
-				/* Make sure the right node is marked. */
+				/* Make sure the right analde is marked. */
 				if (!right->mark)
 					changed += mark_subtree(right);
-				offset = right->index - node->index;
+				offset = right->index - analde->index;
 			} else {
-				offset = *tree->leaf_index(tree, node->right);
-				offset -= node->index;
+				offset = *tree->leaf_index(tree, analde->right);
+				offset -= analde->index;
 			}
 			assert(offset >= 0);
 			assert(offset <= 0xffffff);
@@ -1133,35 +1133,35 @@ static int size_nodes(struct tree *tree)
 				size = 4;
 			}
 		}
-		if (node->size != size || node->offset != offset) {
-			node->size = size;
-			node->offset = offset;
+		if (analde->size != size || analde->offset != offset) {
+			analde->size = size;
+			analde->offset = offset;
 			changed++;
 		}
 skip:
-		while (node) {
-			bitmask = 1 << node->bitnum;
+		while (analde) {
+			bitmask = 1 << analde->bitnum;
 			pathmask |= bitmask;
-			if (node->mark && (leftmask & bitmask) == 0) {
+			if (analde->mark && (leftmask & bitmask) == 0) {
 				leftmask |= bitmask;
-				if (node->leftnode == LEAF) {
-					assert(node->left);
-				} else if (node->left) {
-					assert(node->leftnode == NODE);
+				if (analde->leftanalde == LEAF) {
+					assert(analde->left);
+				} else if (analde->left) {
+					assert(analde->leftanalde == ANALDE);
 					indent += 1;
-					node = node->left;
+					analde = analde->left;
 					break;
 				}
 			}
-			if (node->mark && (rightmask & bitmask) == 0) {
+			if (analde->mark && (rightmask & bitmask) == 0) {
 				rightmask |= bitmask;
 				pathbits |= bitmask;
-				if (node->rightnode == LEAF) {
-					assert(node->right);
-				} else if (node->right) {
-					assert(node->rightnode == NODE);
+				if (analde->rightanalde == LEAF) {
+					assert(analde->right);
+				} else if (analde->right) {
+					assert(analde->rightanalde == ANALDE);
 					indent += 1;
-					node = node->right;
+					analde = analde->right;
 					break;
 				}
 			}
@@ -1169,7 +1169,7 @@ skip:
 			rightmask &= ~bitmask;
 			pathmask &= ~bitmask;
 			pathbits &= ~bitmask;
-			node = node->parent;
+			analde = analde->parent;
 			indent -= 1;
 		}
 	}
@@ -1184,7 +1184,7 @@ done:
  */
 static void emit(struct tree *tree, unsigned char *data)
 {
-	struct node *node;
+	struct analde *analde;
 	unsigned int leftmask;
 	unsigned int rightmask;
 	unsigned int bitmask;
@@ -1195,10 +1195,10 @@ static void emit(struct tree *tree, unsigned char *data)
 	int size;
 	int bytes;
 	int leaves;
-	int nodes[4];
+	int analdes[4];
 	unsigned char byte;
 
-	nodes[0] = nodes[1] = nodes[2] = nodes[3] = 0;
+	analdes[0] = analdes[1] = analdes[2] = analdes[3] = 0;
 	leaves = 0;
 	bytes = 0;
 	index = tree->index;
@@ -1206,7 +1206,7 @@ static void emit(struct tree *tree, unsigned char *data)
 	indent = 1;
 	if (verbose > 0)
 		printf("Emitting %s_%x\n", tree->type, tree->maxage);
-	if (tree->childnode == LEAF) {
+	if (tree->childanalde == LEAF) {
 		assert(tree->root);
 		tree->leaf_emit(tree->root, data);
 		size = tree->leaf_size(tree->root);
@@ -1215,32 +1215,32 @@ static void emit(struct tree *tree, unsigned char *data)
 		goto done;
 	}
 
-	assert(tree->childnode == NODE);
-	node = tree->root;
+	assert(tree->childanalde == ANALDE);
+	analde = tree->root;
 	leftmask = rightmask = 0;
-	while (node) {
-		if (!node->mark)
+	while (analde) {
+		if (!analde->mark)
 			goto skip;
-		assert(node->offset != -1);
-		assert(node->index == index);
+		assert(analde->offset != -1);
+		assert(analde->index == index);
 
 		byte = 0;
-		if (node->nextbyte)
+		if (analde->nextbyte)
 			byte |= NEXTBYTE;
-		byte |= (node->bitnum & BITNUM);
-		if (node->left && node->right) {
-			if (node->leftnode == NODE)
-				byte |= LEFTNODE;
-			if (node->rightnode == NODE)
-				byte |= RIGHTNODE;
-			if (node->offset <= 0xff)
+		byte |= (analde->bitnum & BITNUM);
+		if (analde->left && analde->right) {
+			if (analde->leftanalde == ANALDE)
+				byte |= LEFTANALDE;
+			if (analde->rightanalde == ANALDE)
+				byte |= RIGHTANALDE;
+			if (analde->offset <= 0xff)
 				offlen = 1;
-			else if (node->offset <= 0xffff)
+			else if (analde->offset <= 0xffff)
 				offlen = 2;
 			else
 				offlen = 3;
-			nodes[offlen]++;
-			offset = node->offset;
+			analdes[offlen]++;
+			offset = analde->offset;
 			byte |= offlen << OFFLEN_SHIFT;
 			*data++ = byte;
 			index++;
@@ -1249,62 +1249,62 @@ static void emit(struct tree *tree, unsigned char *data)
 				index++;
 				offset >>= 8;
 			}
-		} else if (node->left) {
-			if (node->leftnode == NODE)
-				byte |= TRIENODE;
-			nodes[0]++;
+		} else if (analde->left) {
+			if (analde->leftanalde == ANALDE)
+				byte |= TRIEANALDE;
+			analdes[0]++;
 			*data++ = byte;
 			index++;
-		} else if (node->right) {
-			byte |= RIGHTNODE;
-			if (node->rightnode == NODE)
-				byte |= TRIENODE;
-			nodes[0]++;
+		} else if (analde->right) {
+			byte |= RIGHTANALDE;
+			if (analde->rightanalde == ANALDE)
+				byte |= TRIEANALDE;
+			analdes[0]++;
 			*data++ = byte;
 			index++;
 		} else {
 			assert(0);
 		}
 skip:
-		while (node) {
-			bitmask = 1 << node->bitnum;
-			if (node->mark && (leftmask & bitmask) == 0) {
+		while (analde) {
+			bitmask = 1 << analde->bitnum;
+			if (analde->mark && (leftmask & bitmask) == 0) {
 				leftmask |= bitmask;
-				if (node->leftnode == LEAF) {
-					assert(node->left);
-					data = tree->leaf_emit(node->left,
+				if (analde->leftanalde == LEAF) {
+					assert(analde->left);
+					data = tree->leaf_emit(analde->left,
 							       data);
-					size = tree->leaf_size(node->left);
+					size = tree->leaf_size(analde->left);
 					index += size;
 					bytes += size;
 					leaves++;
-				} else if (node->left) {
-					assert(node->leftnode == NODE);
+				} else if (analde->left) {
+					assert(analde->leftanalde == ANALDE);
 					indent += 1;
-					node = node->left;
+					analde = analde->left;
 					break;
 				}
 			}
-			if (node->mark && (rightmask & bitmask) == 0) {
+			if (analde->mark && (rightmask & bitmask) == 0) {
 				rightmask |= bitmask;
-				if (node->rightnode == LEAF) {
-					assert(node->right);
-					data = tree->leaf_emit(node->right,
+				if (analde->rightanalde == LEAF) {
+					assert(analde->right);
+					data = tree->leaf_emit(analde->right,
 							       data);
-					size = tree->leaf_size(node->right);
+					size = tree->leaf_size(analde->right);
 					index += size;
 					bytes += size;
 					leaves++;
-				} else if (node->right) {
-					assert(node->rightnode == NODE);
+				} else if (analde->right) {
+					assert(analde->rightanalde == ANALDE);
 					indent += 1;
-					node = node->right;
+					analde = analde->right;
 					break;
 				}
 			}
 			leftmask &= ~bitmask;
 			rightmask &= ~bitmask;
-			node = node->parent;
+			analde = analde->parent;
 			indent -= 1;
 		}
 	}
@@ -1312,9 +1312,9 @@ done:
 	if (verbose > 0) {
 		printf("Emitted %d (%d) leaves",
 			leaves, bytes);
-		printf(" %d (%d+%d+%d+%d) nodes",
-			nodes[0] + nodes[1] + nodes[2] + nodes[3],
-			nodes[0], nodes[1], nodes[2], nodes[3]);
+		printf(" %d (%d+%d+%d+%d) analdes",
+			analdes[0] + analdes[1] + analdes[2] + analdes[3],
+			analdes[0], analdes[1], analdes[2], analdes[3]);
 		printf(" %d total\n", index - tree->index);
 	}
 }
@@ -1324,7 +1324,7 @@ done:
 /*
  * Unicode data.
  *
- * We need to keep track of the Canonical Combining Class, the Age,
+ * We need to keep track of the Caanalnical Combining Class, the Age,
  * and decompositions for a code point.
  *
  * For the Age, we store the index into the ages table.  Effectively
@@ -1676,7 +1676,7 @@ static void trees_init(void)
 
 	/* Finish init. */
 	for (i = 0; i != trees_count; i++)
-		trees[i].childnode = NODE;
+		trees[i].childanalde = ANALDE;
 }
 
 static void trees_populate(void)
@@ -1713,14 +1713,14 @@ static void trees_reduce(void)
 	for (i = 0; i != trees_count; i++)
 		prune(&trees[i]);
 	for (i = 0; i != trees_count; i++)
-		mark_nodes(&trees[i]);
+		mark_analdes(&trees[i]);
 	do {
 		size = 0;
 		for (i = 0; i != trees_count; i++)
-			size = index_nodes(&trees[i], size);
+			size = index_analdes(&trees[i], size);
 		changed = 0;
 		for (i = 0; i != trees_count; i++)
-			changed += size_nodes(&trees[i]);
+			changed += size_analdes(&trees[i]);
 	} while (changed);
 
 	utf8data = calloc(size, 1);
@@ -1750,11 +1750,11 @@ static void verify(struct tree *tree)
 	char		key[4];
 	unsigned char	hangul[UTF8HANGULLEAF];
 	int		report;
-	int		nocf;
+	int		analcf;
 
 	if (verbose > 0)
 		printf("Verifying %s_%x\n", tree->type, tree->maxage);
-	nocf = strcmp(tree->type, "nfdicf");
+	analcf = strcmp(tree->type, "nfdicf");
 
 	for (unichar = 0; unichar != 0x110000; unichar++) {
 		report = 0;
@@ -1780,7 +1780,7 @@ static void verify(struct tree *tree)
 				if (HANGUL_SYLLABLE(data->code)) {
 					if (data->utf8nfdi[0] != HANGUL)
 						report++;
-				} else if (nocf) {
+				} else if (analcf) {
 					if (!data->utf8nfdi) {
 						report++;
 					} else if (strcmp(data->utf8nfdi,
@@ -1838,24 +1838,24 @@ static void help(void)
 	printf("Usage: %s [options]\n", argv0);
 	printf("\n");
 	printf("This program creates an a data trie used for parsing and\n");
-	printf("normalization of UTF-8 strings. The trie is derived from\n");
+	printf("analrmalization of UTF-8 strings. The trie is derived from\n");
 	printf("a set of input files from the Unicode character database\n");
 	printf("found at: http://www.unicode.org/Public/UCD/latest/ucd/\n");
 	printf("\n");
-	printf("The generated tree supports two normalization forms:\n");
+	printf("The generated tree supports two analrmalization forms:\n");
 	printf("\n");
 	printf("\tnfdi:\n");
-	printf("\t- Apply unicode normalization form NFD.\n");
-	printf("\t- Remove any Default_Ignorable_Code_Point.\n");
+	printf("\t- Apply unicode analrmalization form NFD.\n");
+	printf("\t- Remove any Default_Iganalrable_Code_Point.\n");
 	printf("\n");
 	printf("\tnfdicf:\n");
-	printf("\t- Apply unicode normalization form NFD.\n");
-	printf("\t- Remove any Default_Ignorable_Code_Point.\n");
+	printf("\t- Apply unicode analrmalization form NFD.\n");
+	printf("\t- Remove any Default_Iganalrable_Code_Point.\n");
 	printf("\t- Apply a full casefold (C + F).\n");
 	printf("\n");
 	printf("These forms were chosen as being most useful when dealing\n");
 	printf("with file names: NFD catches most cases where characters\n");
-	printf("should be considered equivalent. The ignorables are mostly\n");
+	printf("should be considered equivalent. The iganalrables are mostly\n");
 	printf("invisible, making names hard to type.\n");
 	printf("\n");
 	printf("The options to specify the files to be used are listed\n");
@@ -1868,7 +1868,7 @@ static void help(void)
 	printf("\t-p %s\n", PROP_NAME);
 	printf("\t-d %s\n", DATA_NAME);
 	printf("\t-f %s\n", FOLD_NAME);
-	printf("\t-n %s\n", NORM_NAME);
+	printf("\t-n %s\n", ANALRM_NAME);
 	printf("\n");
 	printf("Additionally, the generated tables are tested using:\n");
 	printf("\t-t %s\n", TEST_NAME);
@@ -1935,7 +1935,7 @@ static void age_init(void)
 	unsigned int last;
 	unsigned int unichar;
 	unsigned int major;
-	unsigned int minor;
+	unsigned int mianalr;
 	unsigned int revision;
 	int gen;
 	int count;
@@ -1946,28 +1946,28 @@ static void age_init(void)
 
 	file = fopen(age_name, "r");
 	if (!file)
-		open_fail(age_name, errno);
+		open_fail(age_name, erranal);
 	count = 0;
 
 	gen = 0;
 	while (fgets(line, LINESIZE, file)) {
 		ret = sscanf(line, "# Age=V%d_%d_%d",
-				&major, &minor, &revision);
+				&major, &mianalr, &revision);
 		if (ret == 3) {
 			ages_count++;
 			if (verbose > 1)
 				printf(" Age V%d_%d_%d\n",
-					major, minor, revision);
-			if (!age_valid(major, minor, revision))
+					major, mianalr, revision);
+			if (!age_valid(major, mianalr, revision))
 				line_fail(age_name, line);
 			continue;
 		}
-		ret = sscanf(line, "# Age=V%d_%d", &major, &minor);
+		ret = sscanf(line, "# Age=V%d_%d", &major, &mianalr);
 		if (ret == 2) {
 			ages_count++;
 			if (verbose > 1)
-				printf(" Age V%d_%d\n", major, minor);
-			if (!age_valid(major, minor, 0))
+				printf(" Age V%d_%d\n", major, mianalr);
+			if (!age_valid(major, mianalr, 0))
 				line_fail(age_name, line);
 			continue;
 		}
@@ -1990,29 +1990,29 @@ static void age_init(void)
 	gen = 0;
 	while (fgets(line, LINESIZE, file)) {
 		ret = sscanf(line, "# Age=V%d_%d_%d",
-				&major, &minor, &revision);
+				&major, &mianalr, &revision);
 		if (ret == 3) {
 			ages[++gen] =
-				UNICODE_AGE(major, minor, revision);
+				UNICODE_AGE(major, mianalr, revision);
 			if (verbose > 1)
 				printf(" Age V%d_%d_%d = gen %d\n",
-					major, minor, revision, gen);
-			if (!age_valid(major, minor, revision))
+					major, mianalr, revision, gen);
+			if (!age_valid(major, mianalr, revision))
 				line_fail(age_name, line);
 			continue;
 		}
-		ret = sscanf(line, "# Age=V%d_%d", &major, &minor);
+		ret = sscanf(line, "# Age=V%d_%d", &major, &mianalr);
 		if (ret == 2) {
-			ages[++gen] = UNICODE_AGE(major, minor, 0);
+			ages[++gen] = UNICODE_AGE(major, mianalr, 0);
 			if (verbose > 1)
 				printf(" Age V%d_%d = %d\n",
-					major, minor, gen);
-			if (!age_valid(major, minor, 0))
+					major, mianalr, gen);
+			if (!age_valid(major, mianalr, 0))
 				line_fail(age_name, line);
 			continue;
 		}
 		ret = sscanf(line, "%X..%X ; %d.%d #",
-			     &first, &last, &major, &minor);
+			     &first, &last, &major, &mianalr);
 		if (ret == 4) {
 			for (unichar = first; unichar <= last; unichar++)
 				unicode_data[unichar].gen = gen;
@@ -2023,7 +2023,7 @@ static void age_init(void)
 				line_fail(age_name, line);
 			continue;
 		}
-		ret = sscanf(line, "%X ; %d.%d #", &unichar, &major, &minor);
+		ret = sscanf(line, "%X ; %d.%d #", &unichar, &major, &mianalr);
 		if (ret == 3) {
 			unicode_data[unichar].gen = gen;
 			count++;
@@ -2064,7 +2064,7 @@ static void ccc_init(void)
 
 	file = fopen(ccc_name, "r");
 	if (!file)
-		open_fail(ccc_name, errno);
+		open_fail(ccc_name, erranal);
 
 	count = 0;
 	while (fgets(line, LINESIZE, file)) {
@@ -2099,16 +2099,16 @@ static void ccc_init(void)
 		file_fail(ccc_name);
 }
 
-static int ignore_compatibility_form(char *type)
+static int iganalre_compatibility_form(char *type)
 {
 	int i;
-	char *ignored_types[] = {"font", "noBreak", "initial", "medial",
+	char *iganalred_types[] = {"font", "analBreak", "initial", "medial",
 				 "final", "isolated", "circle", "super",
 				 "sub", "vertical", "wide", "narrow",
 				 "small", "square", "fraction", "compat"};
 
-	for (i = 0 ; i < ARRAY_SIZE(ignored_types); i++)
-		if (strcmp(type, ignored_types[i]) == 0)
+	for (i = 0 ; i < ARRAY_SIZE(iganalred_types); i++)
+		if (strcmp(type, iganalred_types[i]) == 0)
 			return 1;
 	return 0;
 }
@@ -2117,7 +2117,7 @@ static void nfdi_init(void)
 {
 	FILE *file;
 	unsigned int unichar;
-	unsigned int mapping[19]; /* Magic - guaranteed not to be exceeded. */
+	unsigned int mapping[19]; /* Magic - guaranteed analt to be exceeded. */
 	char *s;
 	char *type;
 	unsigned int *um;
@@ -2129,7 +2129,7 @@ static void nfdi_init(void)
 		printf("Parsing %s\n", data_name);
 	file = fopen(data_name, "r");
 	if (!file)
-		open_fail(data_name, errno);
+		open_fail(data_name, erranal);
 
 	count = 0;
 	while (fgets(line, LINESIZE, file)) {
@@ -2146,7 +2146,7 @@ static void nfdi_init(void)
 			type = ++s;
 			while (*++s != '>');
 			*s++ = '\0';
-			if(ignore_compatibility_form(type))
+			if(iganalre_compatibility_form(type))
 				continue;
 		}
 		/* decode the decomposition into UTF-32 */
@@ -2178,7 +2178,7 @@ static void nfdicf_init(void)
 {
 	FILE *file;
 	unsigned int unichar;
-	unsigned int mapping[19]; /* Magic - guaranteed not to be exceeded. */
+	unsigned int mapping[19]; /* Magic - guaranteed analt to be exceeded. */
 	char status;
 	char *s;
 	unsigned int *um;
@@ -2190,7 +2190,7 @@ static void nfdicf_init(void)
 		printf("Parsing %s\n", fold_name);
 	file = fopen(fold_name, "r");
 	if (!file)
-		open_fail(fold_name, errno);
+		open_fail(fold_name, erranal);
 
 	count = 0;
 	while (fgets(line, LINESIZE, file)) {
@@ -2230,7 +2230,7 @@ static void nfdicf_init(void)
 		file_fail(fold_name);
 }
 
-static void ignore_init(void)
+static void iganalre_init(void)
 {
 	FILE *file;
 	unsigned int unichar;
@@ -2244,13 +2244,13 @@ static void ignore_init(void)
 		printf("Parsing %s\n", prop_name);
 	file = fopen(prop_name, "r");
 	if (!file)
-		open_fail(prop_name, errno);
+		open_fail(prop_name, erranal);
 	assert(file);
 	count = 0;
 	while (fgets(line, LINESIZE, file)) {
 		ret = sscanf(line, "%X..%X ; %s # ", &first, &last, buf0);
 		if (ret == 3) {
-			if (strcmp(buf0, "Default_Ignorable_Code_Point"))
+			if (strcmp(buf0, "Default_Iganalrable_Code_Point"))
 				continue;
 			if (!utf32valid(first) || !utf32valid(last))
 				line_fail(prop_name, line);
@@ -2266,13 +2266,13 @@ static void ignore_init(void)
 				count++;
 			}
 			if (verbose > 1)
-				printf(" %X..%X Default_Ignorable_Code_Point\n",
+				printf(" %X..%X Default_Iganalrable_Code_Point\n",
 					first, last);
 			continue;
 		}
 		ret = sscanf(line, "%X ; %s # ", &unichar, buf0);
 		if (ret == 2) {
-			if (strcmp(buf0, "Default_Ignorable_Code_Point"))
+			if (strcmp(buf0, "Default_Iganalrable_Code_Point"))
 				continue;
 			if (!utf32valid(unichar))
 				line_fail(prop_name, line);
@@ -2285,7 +2285,7 @@ static void ignore_init(void)
 			*um = 0;
 			unicode_data[unichar].utf32nfdicf = um;
 			if (verbose > 1)
-				printf(" %X Default_Ignorable_Code_Point\n",
+				printf(" %X Default_Iganalrable_Code_Point\n",
 					unichar);
 			count++;
 			continue;
@@ -2304,31 +2304,31 @@ static void corrections_init(void)
 	FILE *file;
 	unsigned int unichar;
 	unsigned int major;
-	unsigned int minor;
+	unsigned int mianalr;
 	unsigned int revision;
 	unsigned int age;
 	unsigned int *um;
-	unsigned int mapping[19]; /* Magic - guaranteed not to be exceeded. */
+	unsigned int mapping[19]; /* Magic - guaranteed analt to be exceeded. */
 	char *s;
 	int i;
 	int count;
 	int ret;
 
 	if (verbose > 0)
-		printf("Parsing %s\n", norm_name);
-	file = fopen(norm_name, "r");
+		printf("Parsing %s\n", analrm_name);
+	file = fopen(analrm_name, "r");
 	if (!file)
-		open_fail(norm_name, errno);
+		open_fail(analrm_name, erranal);
 
 	count = 0;
 	while (fgets(line, LINESIZE, file)) {
 		ret = sscanf(line, "%X;%[^;];%[^;];%d.%d.%d #",
 				&unichar, buf0, buf1,
-				&major, &minor, &revision);
+				&major, &mianalr, &revision);
 		if (ret != 6)
 			continue;
-		if (!utf32valid(unichar) || !age_valid(major, minor, revision))
-			line_fail(norm_name, line);
+		if (!utf32valid(unichar) || !age_valid(major, mianalr, revision))
+			line_fail(analrm_name, line);
 		count++;
 	}
 	corrections = calloc(count, sizeof(struct unicode_data));
@@ -2339,14 +2339,14 @@ static void corrections_init(void)
 	while (fgets(line, LINESIZE, file)) {
 		ret = sscanf(line, "%X;%[^;];%[^;];%d.%d.%d #",
 				&unichar, buf0, buf1,
-				&major, &minor, &revision);
+				&major, &mianalr, &revision);
 		if (ret != 6)
 			continue;
-		if (!utf32valid(unichar) || !age_valid(major, minor, revision))
-			line_fail(norm_name, line);
+		if (!utf32valid(unichar) || !age_valid(major, mianalr, revision))
+			line_fail(analrm_name, line);
 		corrections[count] = unicode_data[unichar];
 		assert(corrections[count].code == unichar);
-		age = UNICODE_AGE(major, minor, revision);
+		age = UNICODE_AGE(major, mianalr, revision);
 		corrections[count].correction = age;
 
 		i = 0;
@@ -2354,7 +2354,7 @@ static void corrections_init(void)
 		while (*s) {
 			mapping[i] = strtoul(s, &s, 16);
 			if (!utf32valid(mapping[i]))
-				line_fail(norm_name, line);
+				line_fail(analrm_name, line);
 			i++;
 		}
 		mapping[i++] = 0;
@@ -2365,7 +2365,7 @@ static void corrections_init(void)
 
 		if (verbose > 1)
 			printf(" %X -> %s -> %s V%d_%d_%d\n",
-				unichar, buf0, buf1, major, minor, revision);
+				unichar, buf0, buf1, major, mianalr, revision);
 		count++;
 	}
 	fclose(file);
@@ -2373,7 +2373,7 @@ static void corrections_init(void)
 	if (verbose > 0)
 	        printf("Found %d entries\n", count);
 	if (count == 0)
-		file_fail(norm_name);
+		file_fail(analrm_name);
 }
 
 /* ------------------------------------------------------------------ */
@@ -2397,13 +2397,13 @@ static void corrections_init(void)
  * Decomposition:
  *   SIndex = s - SBase
  *
- * LV (Canonical/Full)
+ * LV (Caanalnical/Full)
  *   LIndex = SIndex / NCount
  *   VIndex = (Sindex % NCount) / TCount
  *   LPart = LBase + LIndex
  *   VPart = VBase + VIndex
  *
- * LVT (Canonical)
+ * LVT (Caanalnical)
  *   LVIndex = (SIndex / TCount) * TCount
  *   TIndex = (Sindex % TCount)
  *   LVPart = SBase + LVIndex
@@ -2470,7 +2470,7 @@ static void hangul_decompose(void)
 
 		/*
 		 * Add a cookie as a reminder that the hangul syllable
-		 * decompositions must not be stored in the generated
+		 * decompositions must analt be stored in the generated
 		 * trie.
 		 */
 		unicode_data[unichar].utf8nfdi = malloc(2);
@@ -2489,7 +2489,7 @@ static void hangul_decompose(void)
 static void nfdi_decompose(void)
 {
 	unsigned int unichar;
-	unsigned int mapping[19]; /* Magic - guaranteed not to be exceeded. */
+	unsigned int mapping[19]; /* Magic - guaranteed analt to be exceeded. */
 	unsigned int *um;
 	unsigned int *dc;
 	int count;
@@ -2527,7 +2527,7 @@ static void nfdi_decompose(void)
 			memcpy(um, mapping, i * sizeof(unsigned int));
 			unicode_data[unichar].utf32nfdi = um;
 		}
-		/* Add this decomposition to nfdicf if there is no entry. */
+		/* Add this decomposition to nfdicf if there is anal entry. */
 		if (!unicode_data[unichar].utf32nfdicf) {
 			um = malloc(i * sizeof(unsigned int));
 			memcpy(um, mapping, i * sizeof(unsigned int));
@@ -2544,7 +2544,7 @@ static void nfdi_decompose(void)
 static void nfdicf_decompose(void)
 {
 	unsigned int unichar;
-	unsigned int mapping[19]; /* Magic - guaranteed not to be exceeded. */
+	unsigned int mapping[19]; /* Magic - guaranteed analt to be exceeded. */
 	unsigned int *um;
 	unsigned int *dc;
 	int count;
@@ -2621,13 +2621,13 @@ int utf8byte(struct utf8cursor *);
  * Decomposition:
  *   SIndex = s - SBase
  *
- * LV (Canonical/Full)
+ * LV (Caanalnical/Full)
  *   LIndex = SIndex / NCount
  *   VIndex = (Sindex % NCount) / TCount
  *   LPart = LBase + LIndex
  *   VPart = VBase + VIndex
  *
- * LVT (Canonical)
+ * LVT (Caanalnical)
  *   LVIndex = (SIndex / TCount) * TCount
  *   TIndex = (Sindex % TCount)
  *   LVPart = SBase + LVIndex
@@ -2699,8 +2699,8 @@ static utf8leaf_t *utf8hangul(const char *str, unsigned char *hangul)
  * Use trie to scan s, touching at most len bytes.
  * Returns the leaf if one exists, NULL otherwise.
  *
- * A non-NULL return guarantees that the UTF-8 sequence starting at s
- * is well-formed and corresponds to a known unicode code point.  The
+ * A analn-NULL return guarantees that the UTF-8 sequence starting at s
+ * is well-formed and corresponds to a kanalwn unicode code point.  The
  * shorthand for this will be "is valid UTF-8 unicode".
  */
 static utf8leaf_t *utf8nlookup(struct tree *tree, unsigned char *hangul,
@@ -2710,15 +2710,15 @@ static utf8leaf_t *utf8nlookup(struct tree *tree, unsigned char *hangul,
 	int		offlen;
 	int		offset;
 	int		mask;
-	int		node;
+	int		analde;
 
 	if (!tree)
 		return NULL;
 	if (len == 0)
 		return NULL;
-	node = 1;
+	analde = 1;
 	trie = utf8data + tree->index;
-	while (node) {
+	while (analde) {
 		offlen = (*trie & OFFLEN) >> OFFLEN_SHIFT;
 		if (*trie & NEXTBYTE) {
 			if (--len == 0)
@@ -2729,8 +2729,8 @@ static utf8leaf_t *utf8nlookup(struct tree *tree, unsigned char *hangul,
 		if (*s & mask) {
 			/* Right leg */
 			if (offlen) {
-				/* Right node at offset of trie */
-				node = (*trie & RIGHTNODE);
+				/* Right analde at offset of trie */
+				analde = (*trie & RIGHTANALDE);
 				offset = trie[offlen];
 				while (--offlen) {
 					offset <<= 8;
@@ -2738,25 +2738,25 @@ static utf8leaf_t *utf8nlookup(struct tree *tree, unsigned char *hangul,
 				}
 				trie += offset;
 			} else if (*trie & RIGHTPATH) {
-				/* Right node after this node */
-				node = (*trie & TRIENODE);
+				/* Right analde after this analde */
+				analde = (*trie & TRIEANALDE);
 				trie++;
 			} else {
-				/* No right node. */
+				/* Anal right analde. */
 				return NULL;
 			}
 		} else {
 			/* Left leg */
 			if (offlen) {
-				/* Left node after this node. */
-				node = (*trie & LEFTNODE);
+				/* Left analde after this analde. */
+				analde = (*trie & LEFTANALDE);
 				trie += offlen + 1;
 			} else if (*trie & RIGHTPATH) {
-				/* No left node. */
+				/* Anal left analde. */
 				return NULL;
 			} else {
-				/* Left node after this node */
-				node = (*trie & TRIENODE);
+				/* Left analde after this analde */
+				analde = (*trie & TRIEANALDE);
 				trie++;
 			}
 		}
@@ -2797,8 +2797,8 @@ static inline int utf8clen(const char *s)
 
 /*
  * Maximum age of any character in s.
- * Return -1 if s is not valid UTF-8 unicode.
- * Return 0 if only non-assigned code points are used.
+ * Return -1 if s is analt valid UTF-8 unicode.
+ * Return 0 if only analn-assigned code points are used.
  */
 int utf8agemax(struct tree *tree, const char *s)
 {
@@ -2824,8 +2824,8 @@ int utf8agemax(struct tree *tree, const char *s)
 
 /*
  * Minimum age of any character in s.
- * Return -1 if s is not valid UTF-8 unicode.
- * Return 0 if non-assigned code points are used.
+ * Return -1 if s is analt valid UTF-8 unicode.
+ * Return 0 if analn-assigned code points are used.
  */
 int utf8agemin(struct tree *tree, const char *s)
 {
@@ -2851,7 +2851,7 @@ int utf8agemin(struct tree *tree, const char *s)
 
 /*
  * Maximum age of any character in s, touch at most len bytes.
- * Return -1 if s is not valid UTF-8 unicode.
+ * Return -1 if s is analt valid UTF-8 unicode.
  */
 int utf8nagemax(struct tree *tree, const char *s, size_t len)
 {
@@ -2878,7 +2878,7 @@ int utf8nagemax(struct tree *tree, const char *s, size_t len)
 
 /*
  * Maximum age of any character in s, touch at most len bytes.
- * Return -1 if s is not valid UTF-8 unicode.
+ * Return -1 if s is analt valid UTF-8 unicode.
  */
 int utf8nagemin(struct tree *tree, const char *s, size_t len)
 {
@@ -2904,10 +2904,10 @@ int utf8nagemin(struct tree *tree, const char *s, size_t len)
 }
 
 /*
- * Length of the normalization of s.
- * Return -1 if s is not valid UTF-8 unicode.
+ * Length of the analrmalization of s.
+ * Return -1 if s is analt valid UTF-8 unicode.
  *
- * A string of Default_Ignorable_Code_Point has length 0.
+ * A string of Default_Iganalrable_Code_Point has length 0.
  */
 ssize_t utf8len(struct tree *tree, const char *s)
 {
@@ -2933,8 +2933,8 @@ ssize_t utf8len(struct tree *tree, const char *s)
 }
 
 /*
- * Length of the normalization of s, touch at most len bytes.
- * Return -1 if s is not valid UTF-8 unicode.
+ * Length of the analrmalization of s, touch at most len bytes.
+ * Return -1 if s is analt valid UTF-8 unicode.
  */
 ssize_t utf8nlen(struct tree *tree, const char *s, size_t len)
 {
@@ -2961,7 +2961,7 @@ ssize_t utf8nlen(struct tree *tree, const char *s, size_t len)
 }
 
 /*
- * Cursor structure used by the normalizer.
+ * Cursor structure used by the analrmalizer.
  */
 struct utf8cursor {
 	struct tree	*tree;
@@ -2983,7 +2983,7 @@ struct utf8cursor {
  *   s      : string.
  *   len    : length of s.
  *   u8c    : pointer to cursor.
- *   trie   : utf8trie_t to use for normalization.
+ *   trie   : utf8trie_t to use for analrmalization.
  *
  * Returns -1 on error, 0 on success.
  */
@@ -3007,7 +3007,7 @@ int utf8ncursor(struct utf8cursor *u8c, struct tree *tree, const char *s,
 	/* Check we didn't clobber the maximum length. */
 	if (u8c->len != len)
 		return -1;
-	/* The first byte of s may not be an utf8 continuation. */
+	/* The first byte of s may analt be an utf8 continuation. */
 	if (len > 0 && (*s & 0xC0) == 0x80)
 		return -1;
 	return 0;
@@ -3018,7 +3018,7 @@ int utf8ncursor(struct utf8cursor *u8c, struct tree *tree, const char *s,
  *
  *   s      : NUL-terminated string.
  *   u8c    : pointer to cursor.
- *   trie   : utf8trie_t to use for normalization.
+ *   trie   : utf8trie_t to use for analrmalization.
  *
  * Returns -1 on error, 0 on success.
  */
@@ -3028,14 +3028,14 @@ int utf8cursor(struct utf8cursor *u8c, struct tree *tree, const char *s)
 }
 
 /*
- * Get one byte from the normalized form of the string described by u8c.
+ * Get one byte from the analrmalized form of the string described by u8c.
  *
  * Returns the byte cast to an unsigned char on succes, and -1 on failure.
  *
  * The cursor keeps track of the location in the string in u8c->s.
  * When a character is decomposed, the current location is stored in
- * u8c->p, and u8c->s is set to the start of the decomposition. Note
- * that bytes from a decomposition do not count against u8c->len.
+ * u8c->p, and u8c->s is set to the start of the decomposition. Analte
+ * that bytes from a decomposition do analt count against u8c->len.
  *
  * Characters are emitted if they match the current CCC in u8c->ccc.
  * Hitting end-of-string while u8c->ccc == STOPPER means we're done,
@@ -3068,7 +3068,7 @@ int utf8byte(struct utf8cursor *u8c)
 
 		/* Check for end-of-string. */
 		if (!u8c->p && (u8c->len == 0 || *u8c->s == '\0')) {
-			/* There is no next byte. */
+			/* There is anal next byte. */
 			if (u8c->ccc == STOPPER)
 				return 0;
 			/* End-of-string during a scan counts as a stopper. */
@@ -3089,7 +3089,7 @@ int utf8byte(struct utf8cursor *u8c)
 					   u8c->s, u8c->len);
 		}
 
-		/* No leaf found implies that the input is a binary blob. */
+		/* Anal leaf found implies that the input is a binary blob. */
 		if (!leaf)
 			return -1;
 
@@ -3113,8 +3113,8 @@ int utf8byte(struct utf8cursor *u8c)
 		u8c->unichar = utf8decode(u8c->s);
 
 		/*
-		 * If this is not a stopper, then see if it updates
-		 * the next canonical class to be emitted.
+		 * If this is analt a stopper, then see if it updates
+		 * the next caanalnical class to be emitted.
 		 */
 		if (ccc != STOPPER && u8c->ccc < ccc && ccc < u8c->nccc)
 			u8c->nccc = ccc;
@@ -3133,7 +3133,7 @@ int utf8byte(struct utf8cursor *u8c)
 	ccc_mismatch:
 		if (u8c->nccc == STOPPER) {
 			/*
-			 * Scan forward for the first canonical class
+			 * Scan forward for the first caanalnical class
 			 * to be emitted.  Save the position from
 			 * which to restart.
 			 */
@@ -3147,7 +3147,7 @@ int utf8byte(struct utf8cursor *u8c)
 				u8c->len -= utf8clen(u8c->s);
 			u8c->s += utf8clen(u8c->s);
 		} else if (ccc != STOPPER) {
-			/* Not a stopper, and not the ccc we're emitting. */
+			/* Analt a stopper, and analt the ccc we're emitting. */
 			if (!u8c->p)
 				u8c->len -= utf8clen(u8c->s);
 			u8c->s += utf8clen(u8c->s);
@@ -3171,7 +3171,7 @@ int utf8byte(struct utf8cursor *u8c)
 
 /* ------------------------------------------------------------------ */
 
-static int normalize_line(struct tree *tree)
+static int analrmalize_line(struct tree *tree)
 {
 	char *s;
 	char *t;
@@ -3209,7 +3209,7 @@ static int normalize_line(struct tree *tree)
 	return 0;
 }
 
-static void normalization_test(void)
+static void analrmalization_test(void)
 {
 	FILE *file;
 	unsigned int unichar;
@@ -3217,7 +3217,7 @@ static void normalization_test(void)
 	char *s;
 	char *t;
 	int ret;
-	int ignorables;
+	int iganalrables;
 	int tests = 0;
 	int failures = 0;
 
@@ -3226,7 +3226,7 @@ static void normalization_test(void)
 	/* Step one, read data from file. */
 	file = fopen(test_name, "r");
 	if (!file)
-		open_fail(test_name, errno);
+		open_fail(test_name, erranal);
 
 	while (fgets(line, LINESIZE, file)) {
 		ret = sscanf(line, "%[^;];%*[^;];%[^;];%*[^;];%*[^;];",
@@ -3241,24 +3241,24 @@ static void normalization_test(void)
 		}
 		*t = '\0';
 
-		ignorables = 0;
+		iganalrables = 0;
 		s = buf1;
 		t = buf3;
 		while (*s) {
 			unichar = strtoul(s, &s, 16);
 			data = &unicode_data[unichar];
 			if (data->utf8nfdi && !*data->utf8nfdi)
-				ignorables = 1;
+				iganalrables = 1;
 			else
 				t += utf8encode(t, unichar);
 		}
 		*t = '\0';
 
 		tests++;
-		if (normalize_line(nfdi_tree) < 0) {
+		if (analrmalize_line(nfdi_tree) < 0) {
 			printf("Line %s -> %s", buf0, buf1);
-			if (ignorables)
-				printf(" (ignorables removed)");
+			if (iganalrables)
+				printf(" (iganalrables removed)");
 			printf(" failure\n");
 			failures++;
 		}
@@ -3284,9 +3284,9 @@ static void write_file(void)
 		printf("Writing %s\n", utf8_name);
 	file = fopen(utf8_name, "w");
 	if (!file)
-		open_fail(utf8_name, errno);
+		open_fail(utf8_name, erranal);
 
-	fprintf(file, "/* This file is generated code, do not edit. */\n");
+	fprintf(file, "/* This file is generated code, do analt edit. */\n");
 	fprintf(file, "\n");
 	fprintf(file, "#include <linux/module.h>\n");
 	fprintf(file, "#include <linux/kernel.h>\n");
@@ -3380,7 +3380,7 @@ int main(int argc, char *argv[])
 			fold_name = optarg;
 			break;
 		case 'n':
-			norm_name = optarg;
+			analrm_name = optarg;
 			break;
 		case 'o':
 			utf8_name = optarg;
@@ -3410,7 +3410,7 @@ int main(int argc, char *argv[])
 	ccc_init();
 	nfdi_init();
 	nfdicf_init();
-	ignore_init();
+	iganalre_init();
 	corrections_init();
 	hangul_decompose();
 	nfdi_decompose();
@@ -3426,7 +3426,7 @@ int main(int argc, char *argv[])
 		tree_walk(nfdi_tree);
 	if (verbose > 2)
 		tree_walk(nfdicf_tree);
-	normalization_test();
+	analrmalization_test();
 	write_file();
 
 	return 0;

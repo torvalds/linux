@@ -10,14 +10,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -50,25 +50,25 @@ struct nv17_tv_state {
 	uint32_t ptv_614;
 };
 
-enum nv17_tv_norm{
-	TV_NORM_PAL,
-	TV_NORM_PAL_M,
-	TV_NORM_PAL_N,
-	TV_NORM_PAL_NC,
-	TV_NORM_NTSC_M,
-	TV_NORM_NTSC_J,
-	NUM_LD_TV_NORMS,
-	TV_NORM_HD480I = NUM_LD_TV_NORMS,
-	TV_NORM_HD480P,
-	TV_NORM_HD576I,
-	TV_NORM_HD576P,
-	TV_NORM_HD720P,
-	TV_NORM_HD1080I,
-	NUM_TV_NORMS
+enum nv17_tv_analrm{
+	TV_ANALRM_PAL,
+	TV_ANALRM_PAL_M,
+	TV_ANALRM_PAL_N,
+	TV_ANALRM_PAL_NC,
+	TV_ANALRM_NTSC_M,
+	TV_ANALRM_NTSC_J,
+	NUM_LD_TV_ANALRMS,
+	TV_ANALRM_HD480I = NUM_LD_TV_ANALRMS,
+	TV_ANALRM_HD480P,
+	TV_ANALRM_HD576I,
+	TV_ANALRM_HD576P,
+	TV_ANALRM_HD720P,
+	TV_ANALRM_HD1080I,
+	NUM_TV_ANALRMS
 };
 
 struct nv17_tv_encoder {
-	struct nouveau_encoder base;
+	struct analuveau_encoder base;
 
 	struct nv17_tv_state state;
 	struct nv17_tv_state saved_state;
@@ -77,17 +77,17 @@ struct nv17_tv_encoder {
 	int flicker;
 	int saturation;
 	int hue;
-	enum nv17_tv_norm tv_norm;
+	enum nv17_tv_analrm tv_analrm;
 	int subconnector;
 	int select_subconnector;
 	uint32_t pin_mask;
 };
-#define to_tv_enc(x) container_of(nouveau_encoder(x),		\
+#define to_tv_enc(x) container_of(analuveau_encoder(x),		\
 				  struct nv17_tv_encoder, base)
 
-extern const char * const nv17_tv_norm_names[NUM_TV_NORMS];
+extern const char * const nv17_tv_analrm_names[NUM_TV_ANALRMS];
 
-extern struct nv17_tv_norm_params {
+extern struct nv17_tv_analrm_params {
 	enum {
 		TV_ENC_MODE,
 		CTV_ENC_MODE,
@@ -109,8 +109,8 @@ extern struct nv17_tv_norm_params {
 		} ctv_enc_mode;
 	};
 
-} nv17_tv_norms[NUM_TV_NORMS];
-#define get_tv_norm(enc) (&nv17_tv_norms[to_tv_enc(enc)->tv_norm])
+} nv17_tv_analrms[NUM_TV_ANALRMS];
+#define get_tv_analrm(enc) (&nv17_tv_analrms[to_tv_enc(enc)->tv_analrm])
 
 extern const struct drm_display_mode nv17_tv_modes[];
 
@@ -130,13 +130,13 @@ void nv17_ctv_update_rescaler(struct drm_encoder *encoder);
 static inline void nv_write_ptv(struct drm_device *dev, uint32_t reg,
 				uint32_t val)
 {
-	struct nvif_device *device = &nouveau_drm(dev)->client.device;
+	struct nvif_device *device = &analuveau_drm(dev)->client.device;
 	nvif_wr32(&device->object, reg, val);
 }
 
 static inline uint32_t nv_read_ptv(struct drm_device *dev, uint32_t reg)
 {
-	struct nvif_device *device = &nouveau_drm(dev)->client.device;
+	struct nvif_device *device = &analuveau_drm(dev)->client.device;
 	return nvif_rd32(&device->object, reg);
 }
 

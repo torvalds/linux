@@ -46,19 +46,19 @@
 #define __always_unused __attribute__((__unused__))
 #endif
 
-#ifndef __noreturn
-#define __noreturn __attribute__((__noreturn__))
+#ifndef __analreturn
+#define __analreturn __attribute__((__analreturn__))
 #endif
 
 #ifndef unreachable
 #define unreachable() __builtin_unreachable()
 #endif
 
-#ifndef noinline
-#define noinline
+#ifndef analinline
+#define analinline
 #endif
 
-/* Are two types/vars the same type (ignoring qualifiers)? */
+/* Are two types/vars the same type (iganalring qualifiers)? */
 #ifndef __same_type
 # define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
 #endif
@@ -74,7 +74,7 @@
 #ifdef __ANDROID__
 /*
  * FIXME: Big hammer to get rid of tons of:
- *   "warning: always_inline function might not be inlinable"
+ *   "warning: always_inline function might analt be inlinable"
  *
  * At least on android-ndk-r12/platforms/android-24/arch-arm
  */
@@ -128,7 +128,7 @@
  * Following functions are taken from kernel sources and
  * break aliasing rules in their original form.
  *
- * While kernel is compiled with -fno-strict-aliasing,
+ * While kernel is compiled with -fanal-strict-aliasing,
  * perf uses -Wstrict-aliasing=3 which makes build fail
  * under gcc 4.4.
  *
@@ -183,8 +183,8 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  *
  * Their two major use cases are: (1) Mediating communication between
  * process-level code and irq/NMI handlers, all running on the same CPU,
- * and (2) Ensuring that the compiler does not fold, spindle, or otherwise
- * mutilate accesses that either do not require ordering or that interact
+ * and (2) Ensuring that the compiler does analt fold, spindle, or otherwise
+ * mutilate accesses that either do analt require ordering or that interact
  * with an explicit memory barrier or atomic instruction that provides the
  * required ordering.
  */

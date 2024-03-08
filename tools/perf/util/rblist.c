@@ -4,16 +4,16 @@
  * (c) 2009 Arnaldo Carvalho de Melo <acme@redhat.com>
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "rblist.h"
 
-int rblist__add_node(struct rblist *rblist, const void *new_entry)
+int rblist__add_analde(struct rblist *rblist, const void *new_entry)
 {
-	struct rb_node **p = &rblist->entries.rb_root.rb_node;
-	struct rb_node *parent = NULL, *new_node;
+	struct rb_analde **p = &rblist->entries.rb_root.rb_analde;
+	struct rb_analde *parent = NULL, *new_analde;
 	bool leftmost = true;
 
 	while (*p != NULL) {
@@ -21,7 +21,7 @@ int rblist__add_node(struct rblist *rblist, const void *new_entry)
 
 		parent = *p;
 
-		rc = rblist->node_cmp(parent, new_entry);
+		rc = rblist->analde_cmp(parent, new_entry);
 		if (rc > 0)
 			p = &(*p)->rb_left;
 		else if (rc < 0) {
@@ -32,30 +32,30 @@ int rblist__add_node(struct rblist *rblist, const void *new_entry)
 			return -EEXIST;
 	}
 
-	new_node = rblist->node_new(rblist, new_entry);
-	if (new_node == NULL)
-		return -ENOMEM;
+	new_analde = rblist->analde_new(rblist, new_entry);
+	if (new_analde == NULL)
+		return -EANALMEM;
 
-	rb_link_node(new_node, parent, p);
-	rb_insert_color_cached(new_node, &rblist->entries, leftmost);
+	rb_link_analde(new_analde, parent, p);
+	rb_insert_color_cached(new_analde, &rblist->entries, leftmost);
 	++rblist->nr_entries;
 
 	return 0;
 }
 
-void rblist__remove_node(struct rblist *rblist, struct rb_node *rb_node)
+void rblist__remove_analde(struct rblist *rblist, struct rb_analde *rb_analde)
 {
-	rb_erase_cached(rb_node, &rblist->entries);
+	rb_erase_cached(rb_analde, &rblist->entries);
 	--rblist->nr_entries;
-	rblist->node_delete(rblist, rb_node);
+	rblist->analde_delete(rblist, rb_analde);
 }
 
-static struct rb_node *__rblist__findnew(struct rblist *rblist,
+static struct rb_analde *__rblist__findnew(struct rblist *rblist,
 					 const void *entry,
 					 bool create)
 {
-	struct rb_node **p = &rblist->entries.rb_root.rb_node;
-	struct rb_node *parent = NULL, *new_node = NULL;
+	struct rb_analde **p = &rblist->entries.rb_root.rb_analde;
+	struct rb_analde *parent = NULL, *new_analde = NULL;
 	bool leftmost = true;
 
 	while (*p != NULL) {
@@ -63,7 +63,7 @@ static struct rb_node *__rblist__findnew(struct rblist *rblist,
 
 		parent = *p;
 
-		rc = rblist->node_cmp(parent, entry);
+		rc = rblist->analde_cmp(parent, entry);
 		if (rc > 0)
 			p = &(*p)->rb_left;
 		else if (rc < 0) {
@@ -75,24 +75,24 @@ static struct rb_node *__rblist__findnew(struct rblist *rblist,
 	}
 
 	if (create) {
-		new_node = rblist->node_new(rblist, entry);
-		if (new_node) {
-			rb_link_node(new_node, parent, p);
-			rb_insert_color_cached(new_node,
+		new_analde = rblist->analde_new(rblist, entry);
+		if (new_analde) {
+			rb_link_analde(new_analde, parent, p);
+			rb_insert_color_cached(new_analde,
 					       &rblist->entries, leftmost);
 			++rblist->nr_entries;
 		}
 	}
 
-	return new_node;
+	return new_analde;
 }
 
-struct rb_node *rblist__find(struct rblist *rblist, const void *entry)
+struct rb_analde *rblist__find(struct rblist *rblist, const void *entry)
 {
 	return __rblist__findnew(rblist, entry, false);
 }
 
-struct rb_node *rblist__findnew(struct rblist *rblist, const void *entry)
+struct rb_analde *rblist__findnew(struct rblist *rblist, const void *entry)
 {
 	return __rblist__findnew(rblist, entry, true);
 }
@@ -109,12 +109,12 @@ void rblist__init(struct rblist *rblist)
 
 void rblist__exit(struct rblist *rblist)
 {
-	struct rb_node *pos, *next = rb_first_cached(&rblist->entries);
+	struct rb_analde *pos, *next = rb_first_cached(&rblist->entries);
 
 	while (next) {
 		pos = next;
 		next = rb_next(pos);
-		rblist__remove_node(rblist, pos);
+		rblist__remove_analde(rblist, pos);
 	}
 }
 
@@ -126,14 +126,14 @@ void rblist__delete(struct rblist *rblist)
 	}
 }
 
-struct rb_node *rblist__entry(const struct rblist *rblist, unsigned int idx)
+struct rb_analde *rblist__entry(const struct rblist *rblist, unsigned int idx)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 
-	for (node = rb_first_cached(&rblist->entries); node;
-	     node = rb_next(node)) {
+	for (analde = rb_first_cached(&rblist->entries); analde;
+	     analde = rb_next(analde)) {
 		if (!idx--)
-			return node;
+			return analde;
 	}
 
 	return NULL;

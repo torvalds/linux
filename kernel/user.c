@@ -68,7 +68,7 @@ struct user_namespace init_user_ns = {
 	.ns.count = REFCOUNT_INIT(3),
 	.owner = GLOBAL_ROOT_UID,
 	.group = GLOBAL_ROOT_GID,
-	.ns.inum = PROC_USER_INIT_INO,
+	.ns.inum = PROC_USER_INIT_IANAL,
 #ifdef CONFIG_USER_NS
 	.ns.ops = &userns_operations,
 #endif
@@ -120,19 +120,19 @@ struct user_struct root_user = {
  */
 static void uid_hash_insert(struct user_struct *up, struct hlist_head *hashent)
 {
-	hlist_add_head(&up->uidhash_node, hashent);
+	hlist_add_head(&up->uidhash_analde, hashent);
 }
 
 static void uid_hash_remove(struct user_struct *up)
 {
-	hlist_del_init(&up->uidhash_node);
+	hlist_del_init(&up->uidhash_analde);
 }
 
 static struct user_struct *uid_hash_find(kuid_t uid, struct hlist_head *hashent)
 {
 	struct user_struct *user;
 
-	hlist_for_each_entry(user, hashent, uidhash_node) {
+	hlist_for_each_entry(user, hashent, uidhash_analde) {
 		if (uid_eq(user->uid, uid)) {
 			refcount_inc(&user->__count);
 			return user;
@@ -175,7 +175,7 @@ static void free_user(struct user_struct *up, unsigned long flags)
  * Locate the user_struct for the passed UID.  If found, take a ref on it.  The
  * caller must undo that ref with free_uid().
  *
- * If the user_struct could not be found, return NULL.
+ * If the user_struct could analt be found, return NULL.
  */
 struct user_struct *find_user(kuid_t uid)
 {

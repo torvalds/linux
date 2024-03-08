@@ -7,33 +7,33 @@
 #include <linux/types.h>
 #include <asm/unified.h>
 
-#define JUMP_LABEL_NOP_SIZE 4
+#define JUMP_LABEL_ANALP_SIZE 4
 
 static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
 {
 	asm goto("1:\n\t"
-		 WASM(nop) "\n\t"
+		 WASM(analp) "\n\t"
 		 ".pushsection __jump_table,  \"aw\"\n\t"
-		 ".word 1b, %l[l_yes], %c0\n\t"
+		 ".word 1b, %l[l_anal], %c0\n\t"
 		 ".popsection\n\t"
-		 : :  "i" (&((char *)key)[branch]) :  : l_yes);
+		 : :  "i" (&((char *)key)[branch]) :  : l_anal);
 
 	return false;
-l_yes:
+l_anal:
 	return true;
 }
 
 static __always_inline bool arch_static_branch_jump(struct static_key *key, bool branch)
 {
 	asm goto("1:\n\t"
-		 WASM(b) " %l[l_yes]\n\t"
+		 WASM(b) " %l[l_anal]\n\t"
 		 ".pushsection __jump_table,  \"aw\"\n\t"
-		 ".word 1b, %l[l_yes], %c0\n\t"
+		 ".word 1b, %l[l_anal], %c0\n\t"
 		 ".popsection\n\t"
-		 : :  "i" (&((char *)key)[branch]) :  : l_yes);
+		 : :  "i" (&((char *)key)[branch]) :  : l_anal);
 
 	return false;
-l_yes:
+l_anal:
 	return true;
 }
 

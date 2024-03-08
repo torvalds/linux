@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -82,7 +82,7 @@ init_exec_force(struct nvbios_init *init, bool exec)
 }
 
 /******************************************************************************
- * init parser wrappers for normal register/i2c/whatever accessors
+ * init parser wrappers for analrmal register/i2c/whatever accessors
  *****************************************************************************/
 
 static inline int
@@ -173,7 +173,7 @@ init_nvreg(struct nvbios_init *init, u32 reg)
 	}
 
 	if (reg & ~0x00fffffc)
-		warn("unknown bits in register 0x%08x\n", reg);
+		warn("unkanalwn bits in register 0x%08x\n", reg);
 
 	return nvkm_devinit_mmio(devinit, reg);
 }
@@ -287,7 +287,7 @@ init_rdi2cr(struct nvbios_init *init, u8 index, u8 addr, u8 reg)
 	struct i2c_adapter *adap = init_i2c(init, index);
 	if (adap && init_exec(init))
 		return nvkm_rdi2cr(adap, addr, reg);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int
@@ -296,7 +296,7 @@ init_wri2cr(struct nvbios_init *init, u8 index, u8 addr, u8 reg, u8 val)
 	struct i2c_adapter *adap = init_i2c(init, index);
 	if (adap && init_exec(init))
 		return nvkm_wri2cr(adap, addr, reg, val);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static struct nvkm_i2c_aux *
@@ -337,7 +337,7 @@ init_wrauxr(struct nvbios_init *init, u32 addr, u8 data)
 			trace("auxch write failed with %d\n", ret);
 		return ret;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void
@@ -392,7 +392,7 @@ init_table_(struct nvbios_init *init, u16 offset, const char *name)
 		return 0x0000;
 	}
 
-	warn("init data not found\n");
+	warn("init data analt found\n");
 	return 0x0000;
 }
 
@@ -427,7 +427,7 @@ init_script(struct nvkm_bios *bios, int index)
 }
 
 static u16
-init_unknown_script(struct nvkm_bios *bios)
+init_unkanalwn_script(struct nvkm_bios *bios)
 {
 	u16 len, data = init_table(bios, &len);
 	if (data && len >= 16)
@@ -449,8 +449,8 @@ init_ram_restrict(struct nvbios_init *init)
 	 * avoid fucking up the memory controller (somehow) by reading it
 	 * on every INIT_RAM_RESTRICT_ZM_GROUP opcode.
 	 *
-	 * Preserving the non-caching behaviour on earlier chipsets just
-	 * in case *not* re-reading the strap causes similar breakage.
+	 * Preserving the analn-caching behaviour on earlier chipsets just
+	 * in case *analt* re-reading the strap causes similar breakage.
 	 */
 	if (!init->ramcfg || init->subdev->device->bios->version.major < 0x70)
 		init->ramcfg = 0x80000000 | nvbios_ramcfg_index(init->subdev);
@@ -565,7 +565,7 @@ init_tmds_reg(struct nvbios_init *init, u8 tmds)
 		if (tmds < ARRAY_SIZE(pramdac_table))
 			return pramdac_table[tmds];
 
-		error("tmds selector 0x%02x unknown\n", tmds);
+		error("tmds selector 0x%02x unkanalwn\n", tmds);
 	}
 
 	return 0;
@@ -576,7 +576,7 @@ init_tmds_reg(struct nvbios_init *init, u8 tmds)
  *****************************************************************************/
 
 /**
- * init_reserved - stub for various unknown/unused single-byte opcodes
+ * init_reserved - stub for various unkanalwn/unused single-byte opcodes
  *
  */
 static void
@@ -760,13 +760,13 @@ init_copy(struct nvbios_init *init)
 }
 
 /**
- * INIT_NOT - opcode 0x38
+ * INIT_ANALT - opcode 0x38
  *
  */
 static void
-init_not(struct nvbios_init *init)
+init_analt(struct nvbios_init *init)
 {
-	trace("NOT\n");
+	trace("ANALT\n");
 	init->offset += 1;
 	init_exec_inv(init);
 }
@@ -830,11 +830,11 @@ init_generic_condition(struct nvbios_init *init)
 		if (!(init_rdauxr(init, 0x0d) & 1))
 			init_exec_set(init, false);
 		break;
-	case 7: /* CONDITION_ID_NO_PANEL_SEQ_DELAYS. */
+	case 7: /* CONDITION_ID_ANAL_PANEL_SEQ_DELAYS. */
 		init_exec_set(init, false);
 		break;
 	default:
-		warn("INIT_GENERIC_CONDITION: unknown 0x%02x\n", cond);
+		warn("INIT_GENERIC_CONDITION: unkanalwn 0x%02x\n", cond);
 		init->offset += size;
 		break;
 	}
@@ -1536,7 +1536,7 @@ init_configure_mem(struct nvbios_init *init)
 
 	for (; (addr = nvbios_rd32(bios, sdata)) != 0xffffffff; sdata += 4) {
 		switch (addr) {
-		case 0x10021c: /* CKE_NORMAL */
+		case 0x10021c: /* CKE_ANALRMAL */
 		case 0x1002d0: /* CMD_REFRESH */
 		case 0x1002d4: /* CMD_PRECHARGE */
 			data = 0x00000001;
@@ -1631,7 +1631,7 @@ init_io(struct nvbios_init *init)
 	trace("IO\t\tI[0x%04x] &= 0x%02x |= 0x%02x\n", port, mask, data);
 	init->offset += 5;
 
-	/* ummm.. yes.. should really figure out wtf this is and why it's
+	/* ummm.. anal.. should really figure out wtf this is and why it's
 	 * needed some day..  it's almost certainly wrong, but, it also
 	 * somehow makes things work...
 	 */
@@ -2232,7 +2232,7 @@ static struct nvbios_init_opcode {
 	[0x34] = { init_io_restrict_pll },
 	[0x36] = { init_end_repeat },
 	[0x37] = { init_copy },
-	[0x38] = { init_not },
+	[0x38] = { init_analt },
 	[0x39] = { init_io_flag_condition },
 	[0x3a] = { init_generic_condition },
 	[0x3b] = { init_io_mask_or },
@@ -2308,7 +2308,7 @@ nvbios_exec(struct nvbios_init *init)
 		u8 opcode = nvbios_rd08(bios, init->offset);
 		if (opcode >= ARRAY_SIZE(init_opcode) ||
 		    !init_opcode[opcode].exec) {
-			error("unknown opcode 0x%02x\n", opcode);
+			error("unkanalwn opcode 0x%02x\n", opcode);
 			return -EINVAL;
 		}
 
@@ -2334,10 +2334,10 @@ nvbios_post(struct nvkm_subdev *subdev, bool execute)
 		      );
 	}
 
-	/* the vbios parser will run this right after the normal init
+	/* the vbios parser will run this right after the analrmal init
 	 * tables, whereas the binary driver appears to run it later.
 	 */
-	if (!ret && (data = init_unknown_script(bios))) {
+	if (!ret && (data = init_unkanalwn_script(bios))) {
 		ret = nvbios_init(subdev, data,
 			init.execute = execute ? 1 : 0;
 		      );

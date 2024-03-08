@@ -10,8 +10,8 @@
  * <jkmaline@cc.hut.fi>
  * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
  *
- * Adaption to a generic IEEE 802.11 stack by James Ketrenos
- * <jketreno@linux.intel.com>
+ * Adaption to a generic IEEE 802.11 stack by James Ketreanals
+ * <jketreanal@linux.intel.com>
  * Copyright (c) 2004, Intel Corporation
  *
  * Modified for Realtek's wi-fi cards by Andrea Merello
@@ -237,7 +237,7 @@ enum hw_variables {
 	HW_VAR_ACM_CTRL,
 	HW_VAR_DIS_Req_Qsize,
 	HW_VAR_CCX_CHNL_LOAD,
-	HW_VAR_CCX_NOISE_HISTOGRAM,
+	HW_VAR_CCX_ANALISE_HISTOGRAM,
 	HW_VAR_CCX_CLM_NHM,
 	HW_VAR_TxOPLimit,
 	HW_VAR_TURBO_MODE,
@@ -296,7 +296,7 @@ enum rt_op_mode {
 	RT_OP_MODE_AP,
 	RT_OP_MODE_INFRASTRUCTURE,
 	RT_OP_MODE_IBSS,
-	RT_OP_MODE_NO_LINK,
+	RT_OP_MODE_ANAL_LINK,
 };
 
 #define aSifsTime						\
@@ -369,7 +369,7 @@ enum init_gain_op_type {
 };
 
 enum wireless_mode {
-	WIRELESS_MODE_UNKNOWN = 0x00,
+	WIRELESS_MODE_UNKANALWN = 0x00,
 	WIRELESS_MODE_A = 0x01,
 	WIRELESS_MODE_B = 0x02,
 	WIRELESS_MODE_G = 0x04,
@@ -427,7 +427,7 @@ enum _REG_PREAMBLE_MODE {
 
 #define RTLLIB_STATMASK_SIGNAL (1<<0)
 #define RTLLIB_STATMASK_RSSI (1<<1)
-#define RTLLIB_STATMASK_NOISE (1<<2)
+#define RTLLIB_STATMASK_ANALISE (1<<2)
 #define RTLLIB_STATMASK_WEMASK 0x7
 
 #define RTLLIB_CCK_MODULATION    (1<<0)
@@ -462,14 +462,14 @@ enum _REG_PREAMBLE_MODE {
 /* this is stolen from ipw2200 driver */
 #define IEEE_IBSS_MAC_HASH_SIZE 31
 
-/* NOTE: This data is for statistical purposes; not all hardware provides this
- *       information for frames received.  Not setting these will not cause
+/* ANALTE: This data is for statistical purposes; analt all hardware provides this
+ *       information for frames received.  Analt setting these will analt cause
  *       any adverse affects.
  */
 struct rtllib_rx_stats {
 	s8  rssi;
 	u8  signal;
-	u8  noise;
+	u8  analise;
 	u16 rate; /* in 100 kbps */
 	u8  control;
 	u8  mask;
@@ -519,7 +519,7 @@ struct rtllib_rx_stats {
 
 /* IEEE 802.11 requires that STA supports concurrent reception of at least
  * three fragmented frames. This define can be increased to support more
- * concurrent frames, but it should be noted that each entry can consume about
+ * concurrent frames, but it should be analted that each entry can consume about
  * 2 kB of RAM and increasing cache size will slow down frame reassembly.
  */
 #define RTLLIB_FRAG_CACHE_LEN 4
@@ -541,13 +541,13 @@ struct rtllib_device;
 #define SEC_LEVEL	 (1<<7)
 #define SEC_ENABLED       (1<<8)
 
-#define SEC_LEVEL_0      0 /* None */
+#define SEC_LEVEL_0      0 /* Analne */
 #define SEC_LEVEL_1      1 /* WEP 40 and 104 bit */
 #define SEC_LEVEL_2      2 /* Level 1 + TKIP */
 #define SEC_LEVEL_2_CKIP 3 /* Level 1 + CKIP */
 #define SEC_LEVEL_3      4 /* Level 2 + CCMP */
 
-#define SEC_ALG_NONE		0
+#define SEC_ALG_ANALNE		0
 #define SEC_ALG_WEP		1
 #define SEC_ALG_TKIP		2
 #define SEC_ALG_CCMP		4
@@ -812,7 +812,7 @@ static const char * const eap_types[] = {
 
 static inline const char *eap_get_type(int type)
 {
-	return ((u32)type >= ARRAY_SIZE(eap_types)) ? "Unknown" :
+	return ((u32)type >= ARRAY_SIZE(eap_types)) ? "Unkanalwn" :
 		 eap_types[type];
 }
 
@@ -845,8 +845,8 @@ struct rtllib_softmac_stats {
 	unsigned int rx_auth_rs_ok;
 	unsigned int rx_auth_rs_err;
 	unsigned int tx_auth_rq;
-	unsigned int no_auth_rs;
-	unsigned int no_ass_rs;
+	unsigned int anal_auth_rs;
+	unsigned int anal_ass_rs;
 	unsigned int tx_ass_rq;
 	unsigned int rx_ass_rq;
 	unsigned int tx_probe_rq;
@@ -880,7 +880,7 @@ struct rtllib_softmac_stats {
 enum {WMM_all_frame, WMM_two_frame, WMM_four_frame, WMM_six_frame};
 #define MAX_SP_Len  (WMM_all_frame << 4)
 #define RTLLIB_QOS_TID 0x0f
-#define QOS_CTL_NOTCONTAIN_ACK (0x01 << 5)
+#define QOS_CTL_ANALTCONTAIN_ACK (0x01 << 5)
 
 #define RTLLIB_DTIM_MBCAST 4
 #define RTLLIB_DTIM_UCAST 2
@@ -911,7 +911,7 @@ enum {WMM_all_frame, WMM_two_frame, WMM_four_frame, WMM_six_frame};
 					 */
 
 enum erp_t {
-	ERP_NonERPpresent	= 0x01,
+	ERP_AnalnERPpresent	= 0x01,
 	ERP_UseProtection	= 0x02,
 	ERP_BarkerPreambleMode = 0x04,
 };
@@ -976,7 +976,7 @@ struct rtllib_network {
 	bool atheros_cap_exist;
 	bool cisco_cap_exist;
 	bool airgo_cap_exist;
-	bool unknown_cap_exist;
+	bool unkanalwn_cap_exist;
 	bool	berp_info_valid;
 	bool buseprotection;
 	u8 SignalStrength;
@@ -985,14 +985,14 @@ struct rtllib_network {
 };
 
 enum rtl_link_state {
-	/* the card is not linked at all */
-	MAC80211_NOLINK = 0,
+	/* the card is analt linked at all */
+	MAC80211_ANALLINK = 0,
 
 	/* RTLLIB_ASSOCIATING* are for BSS client mode
-	 * the driver shall not perform RX filtering unless
+	 * the driver shall analt perform RX filtering unless
 	 * the state is LINKED.
 	 * The driver shall just check for the state LINKED and
-	 * defaults to NOLINK for ALL the other states (including
+	 * defaults to ANALLINK for ALL the other states (including
 	 * LINKED_SCANNING)
 	 */
 
@@ -1014,7 +1014,7 @@ enum rtl_link_state {
 	MAC80211_LINKED,
 
 	/* same as LINKED, but the driver shall apply RX filter
-	 * rules as we are in NO_LINK mode. As the card is still
+	 * rules as we are in ANAL_LINK mode. As the card is still
 	 * logically linked, but it is doing a syncro site survey
 	 * then it will be back to LINKED state.
 	 */
@@ -1054,7 +1054,7 @@ enum fsync_state {
 };
 
 enum ips_callback_function {
-	IPS_CALLBACK_NONE = 0,
+	IPS_CALLBACK_ANALNE = 0,
 	IPS_CALLBACK_MGNT_LINK_REQUEST = 1,
 	IPS_CALLBACK_JOIN_REQUEST = 2,
 };
@@ -1198,7 +1198,7 @@ struct rtllib_device {
 	u8 hwsec_active;
 	bool is_roaming;
 	bool ieee_up;
-	bool cannot_notify;
+	bool cananalt_analtify;
 	bool bSupportRemoteWakeUp;
 	bool actscanning;
 	bool FirstIe_InScan;
@@ -1299,7 +1299,7 @@ struct rtllib_device {
 	 * Either the network we are associated in INFRASTRUCTURE
 	 * or the network that we are creating in MASTER mode.
 	 * ad-hoc is a mixture ;-).
-	 * Note that in infrastructure mode, even when not associated,
+	 * Analte that in infrastructure mode, even when analt associated,
 	 * fields bssid and essid may be valid (if wpa_set and essid_set
 	 * are true) as thy carry the value set by the user via iwconfig
 	 */
@@ -1324,7 +1324,7 @@ struct rtllib_device {
 	/* this contains flags for selectively enable softmac support */
 	u16 softmac_features;
 
-	/* if the sequence control field is not filled by HW */
+	/* if the sequence control field is analt filled by HW */
 	u16 seq_ctrl[5];
 
 	/* association procedure transaction sequence number */
@@ -1397,7 +1397,7 @@ struct rtllib_device {
 	u32	fsync_firstdiff_ratethreshold;
 	u32	fsync_seconddiff_ratethreshold;
 	enum fsync_state fsync_state;
-	bool		bis_any_nonbepkts;
+	bool		bis_any_analnbepkts;
 	struct bandwidth_autoswitch bandwidth_auto_switch;
 	bool FwRWRF;
 
@@ -1438,7 +1438,7 @@ struct rtllib_device {
 
 	/* Softmac-generated frames (management) are TXed via this
 	 * callback if the flag IEEE_SOFTMAC_SINGLE_QUEUE is
-	 * not set. As some cards may have different HW queues that
+	 * analt set. As some cards may have different HW queues that
 	 * one might want to use for data and management frames
 	 * the option to have two callbacks might be useful.
 	 * This function can't sleep.
@@ -1446,7 +1446,7 @@ struct rtllib_device {
 	int (*softmac_hard_start_xmit)(struct sk_buff *skb,
 			       struct net_device *dev);
 
-	/* used instead of hard_start_xmit (not softmac_hard_start_xmit)
+	/* used instead of hard_start_xmit (analt softmac_hard_start_xmit)
 	 * if the IEEE_SOFTMAC_TX_QUEUE feature is used to TX data
 	 * frames. If the option IEEE_SOFTMAC_SINGLE_QUEUE is also set
 	 * then also management frames are sent via this callback.
@@ -1462,7 +1462,7 @@ struct rtllib_device {
 	void (*set_chan)(struct net_device *dev, u8 ch);
 
 	/* indicate the driver that the link state is changed
-	 * for example it may indicate the card is associated now.
+	 * for example it may indicate the card is associated analw.
 	 * Driver might be interested in this to apply RX filter
 	 * rules or simply light the LINK led
 	 */
@@ -1480,7 +1480,7 @@ struct rtllib_device {
 				     struct rtllib_network *network);
 
 	/* check whether Tx hw resource available */
-	short (*check_nic_enough_desc)(struct net_device *dev, int queue_index);
+	short (*check_nic_eanalugh_desc)(struct net_device *dev, int queue_index);
 	void (*set_bw_mode_handler)(struct net_device *dev,
 				    enum ht_channel_width bandwidth,
 				    enum ht_extchnl_offset Offset);
@@ -1687,7 +1687,7 @@ void rtllib_reset_queue(struct rtllib_device *ieee);
 void rtllib_wake_all_queues(struct rtllib_device *ieee);
 void rtllib_stop_all_queues(struct rtllib_device *ieee);
 
-void notify_wx_assoc_event(struct rtllib_device *ieee);
+void analtify_wx_assoc_event(struct rtllib_device *ieee);
 void rtllib_ps_tx_ack(struct rtllib_device *ieee, short success);
 
 void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee);

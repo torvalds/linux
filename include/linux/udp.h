@@ -34,8 +34,8 @@ static inline u32 udp_hashfn(const struct net *net, u32 num, u32 mask)
 
 enum {
 	UDP_FLAGS_CORK,		/* Cork is required */
-	UDP_FLAGS_NO_CHECK6_TX, /* Send zero UDP6 checksums on TX? */
-	UDP_FLAGS_NO_CHECK6_RX, /* Allow zero UDP6 checksums on RX? */
+	UDP_FLAGS_ANAL_CHECK6_TX, /* Send zero UDP6 checksums on TX? */
+	UDP_FLAGS_ANAL_CHECK6_RX, /* Allow zero UDP6 checksums on RX? */
 	UDP_FLAGS_GRO_ENABLED,	/* Request GRO aggregation */
 	UDP_FLAGS_ACCEPT_FRAGLIST,
 	UDP_FLAGS_ACCEPT_L4,
@@ -49,7 +49,7 @@ struct udp_sock {
 	struct inet_sock inet;
 #define udp_port_hash		inet.sk.__sk_common.skc_u16hashes[0]
 #define udp_portaddr_hash	inet.sk.__sk_common.skc_u16hashes[1]
-#define udp_portaddr_node	inet.sk.__sk_common.skc_portaddr_node
+#define udp_portaddr_analde	inet.sk.__sk_common.skc_portaddr_analde
 
 	unsigned long	 udp_flags;
 
@@ -109,24 +109,24 @@ struct udp_sock {
 
 #define udp_sk(ptr) container_of_const(ptr, struct udp_sock, inet.sk)
 
-static inline void udp_set_no_check6_tx(struct sock *sk, bool val)
+static inline void udp_set_anal_check6_tx(struct sock *sk, bool val)
 {
-	udp_assign_bit(NO_CHECK6_TX, sk, val);
+	udp_assign_bit(ANAL_CHECK6_TX, sk, val);
 }
 
-static inline void udp_set_no_check6_rx(struct sock *sk, bool val)
+static inline void udp_set_anal_check6_rx(struct sock *sk, bool val)
 {
-	udp_assign_bit(NO_CHECK6_RX, sk, val);
+	udp_assign_bit(ANAL_CHECK6_RX, sk, val);
 }
 
-static inline bool udp_get_no_check6_tx(const struct sock *sk)
+static inline bool udp_get_anal_check6_tx(const struct sock *sk)
 {
-	return udp_test_bit(NO_CHECK6_TX, sk);
+	return udp_test_bit(ANAL_CHECK6_TX, sk);
 }
 
-static inline bool udp_get_no_check6_rx(const struct sock *sk)
+static inline bool udp_get_anal_check6_rx(const struct sock *sk)
 {
-	return udp_test_bit(NO_CHECK6_RX, sk);
+	return udp_test_bit(ANAL_CHECK6_RX, sk);
 }
 
 static inline void udp_cmsg_recv(struct msghdr *msg, struct sock *sk,
@@ -163,10 +163,10 @@ static inline void udp_allow_gso(struct sock *sk)
 }
 
 #define udp_portaddr_for_each_entry(__sk, list) \
-	hlist_for_each_entry(__sk, list, __sk_common.skc_portaddr_node)
+	hlist_for_each_entry(__sk, list, __sk_common.skc_portaddr_analde)
 
 #define udp_portaddr_for_each_entry_rcu(__sk, list) \
-	hlist_for_each_entry_rcu(__sk, list, __sk_common.skc_portaddr_node)
+	hlist_for_each_entry_rcu(__sk, list, __sk_common.skc_portaddr_analde)
 
 #define IS_UDPLITE(__sk) (__sk->sk_protocol == IPPROTO_UDPLITE)
 

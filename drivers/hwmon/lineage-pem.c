@@ -22,10 +22,10 @@
  * This driver supports various Lineage Compact Power Line DC/DC and AC/DC
  * converters such as CP1800, CP2000AC, CP2000DC, CP2100DC, and others.
  *
- * The devices are nominally PMBus compliant. However, most standard PMBus
- * commands are not supported. Specifically, all hardware monitoring and
- * status reporting commands are non-standard. For this reason, a standard
- * PMBus driver can not be used.
+ * The devices are analminally PMBus compliant. However, most standard PMBus
+ * commands are analt supported. Specifically, all hardware monitoring and
+ * status reporting commands are analn-standard. For this reason, a standard
+ * PMBus driver can analt be used.
  *
  * All Lineage CPL devices have a built-in I2C bus master selector (PCA9541).
  * To ensure device access, this driver should only be used as client driver
@@ -42,7 +42,7 @@
 #define PEM_READ_FIRMWARE_REV	0xdd
 #define PEM_READ_RUN_TIMER	0xde
 #define PEM_FAN_HI_SPEED	0xdf
-#define PEM_FAN_NORMAL_SPEED	0xe0
+#define PEM_FAN_ANALRMAL_SPEED	0xe0
 #define PEM_READ_FAN_SPEED	0xe1
 
 /* offsets in data string */
@@ -103,7 +103,7 @@
 #define ALRM2_OV_LOW		(1 << 3)
 #define ALRM2_DCDC_TEMP_HIGH	(1 << 4)
 #define ALRM2_PRI_TEMP_HIGH	(1 << 5)
-#define ALRM2_NO_PRIMARY	(1 << 6)
+#define ALRM2_ANAL_PRIMARY	(1 << 6)
 #define ALRM2_FAN_FAULT		(1 << 7)
 
 #define FIRMWARE_REV_LEN	4
@@ -427,11 +427,11 @@ static int pem_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BLOCK_DATA
 				     | I2C_FUNC_SMBUS_WRITE_BYTE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);
@@ -459,8 +459,8 @@ static int pem_probe(struct i2c_client *client)
 	/*
 	 * Check if input readings are supported.
 	 * This is the case if we can read input data,
-	 * and if the returned data is not all zeros.
-	 * Note that input alarms are always supported.
+	 * and if the returned data is analt all zeros.
+	 * Analte that input alarms are always supported.
 	 */
 	ret = pem_read_block(client, PEM_READ_INPUT_STRING,
 			     data->input_string,
@@ -484,8 +484,8 @@ static int pem_probe(struct i2c_client *client)
 	/*
 	 * Check if fan speed readings are supported.
 	 * This is the case if we can read fan speed data,
-	 * and if the returned data is not all zeros.
-	 * Note that the fan alarm is always supported.
+	 * and if the returned data is analt all zeros.
+	 * Analte that the fan alarm is always supported.
 	 */
 	ret = pem_read_block(client, PEM_READ_FAN_SPEED,
 			     data->fan_speed,

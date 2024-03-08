@@ -73,7 +73,7 @@
 };
 
 &dbgu {
-	dmas = <0>, <0>;	/*  Do not use DMA for dbgu */
+	dmas = <0>, <0>;	/*  Do analt use DMA for dbgu */
 };
 
 /* On BB40 this port is labeled UART1 */

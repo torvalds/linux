@@ -5,19 +5,19 @@
 #include <linux/smp.h>
 
 /*
- * Do not use outside of architecture code which knows its limitations.
+ * Do analt use outside of architecture code which kanalws its limitations.
  *
- * sched_clock() has no promise of monotonicity or bounded drift between
- * CPUs, use (which you should not) requires disabling IRQs.
+ * sched_clock() has anal promise of moanaltonicity or bounded drift between
+ * CPUs, use (which you should analt) requires disabling IRQs.
  *
  * Please use one of the three interfaces below.
  */
 extern u64 sched_clock(void);
 
-#if defined(CONFIG_ARCH_WANTS_NO_INSTR) || defined(CONFIG_GENERIC_SCHED_CLOCK)
-extern u64 sched_clock_noinstr(void);
+#if defined(CONFIG_ARCH_WANTS_ANAL_INSTR) || defined(CONFIG_GENERIC_SCHED_CLOCK)
+extern u64 sched_clock_analinstr(void);
 #else
-static __always_inline u64 sched_clock_noinstr(void)
+static __always_inline u64 sched_clock_analinstr(void)
 {
 	return sched_clock();
 }
@@ -54,9 +54,9 @@ static inline u64 cpu_clock(int cpu)
 	return sched_clock();
 }
 
-static __always_inline u64 local_clock_noinstr(void)
+static __always_inline u64 local_clock_analinstr(void)
 {
-	return sched_clock_noinstr();
+	return sched_clock_analinstr();
 }
 
 static __always_inline u64 local_clock(void)
@@ -79,8 +79,8 @@ extern void sched_clock_idle_sleep_event(void);
 extern void sched_clock_idle_wakeup_event(void);
 
 /*
- * As outlined in clock.c, provides a fast, high resolution, nanosecond
- * time source that is monotonic per cpu argument and has bounded drift
+ * As outlined in clock.c, provides a fast, high resolution, naanalsecond
+ * time source that is moanaltonic per cpu argument and has bounded drift
  * between cpus.
  *
  * ######################### BIG FAT WARNING ##########################
@@ -93,7 +93,7 @@ static inline u64 cpu_clock(int cpu)
 	return sched_clock_cpu(cpu);
 }
 
-extern u64 local_clock_noinstr(void);
+extern u64 local_clock_analinstr(void);
 extern u64 local_clock(void);
 
 #endif
@@ -101,7 +101,7 @@ extern u64 local_clock(void);
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 /*
  * An i/f to runtime opt-in for irq time accounting based off of sched_clock.
- * The reason for this explicit opt-in is not to have perf penalty with
+ * The reason for this explicit opt-in is analt to have perf penalty with
  * slow sched_clocks.
  */
 extern void enable_sched_clock_irqtime(void);

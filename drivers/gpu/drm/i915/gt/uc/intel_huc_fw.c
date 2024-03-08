@@ -36,7 +36,7 @@ int intel_huc_fw_auth_via_gsccs(struct intel_huc *huc)
 	int err = 0;
 
 	if (!huc->heci_pkt)
-		return -ENODEV;
+		return -EANALDEV;
 
 	obj = huc->heci_pkt->obj;
 	pkt_offset = i915_ggtt_offset(huc->heci_pkt);
@@ -47,7 +47,7 @@ int intel_huc_fw_auth_via_gsccs(struct intel_huc *huc)
 		return PTR_ERR(pkt_vaddr);
 
 	msg_in = pkt_vaddr;
-	msg_out = pkt_vaddr + PXP43_HUC_AUTH_INOUT_SIZE;
+	msg_out = pkt_vaddr + PXP43_HUC_AUTH_IANALUT_SIZE;
 
 	intel_gsc_uc_heci_cmd_emit_mtl_header(&msg_in->header,
 					      HECI_MEADDRESS_PXP,
@@ -64,8 +64,8 @@ int intel_huc_fw_auth_via_gsccs(struct intel_huc *huc)
 	do {
 		err = intel_gsc_uc_heci_cmd_submit_packet(&gt->uc.gsc,
 							  pkt_offset, sizeof(*msg_in),
-							  pkt_offset + PXP43_HUC_AUTH_INOUT_SIZE,
-							  PXP43_HUC_AUTH_INOUT_SIZE);
+							  pkt_offset + PXP43_HUC_AUTH_IANALUT_SIZE,
+							  PXP43_HUC_AUTH_IANALUT_SIZE);
 		if (err) {
 			huc_err(huc, "failed to submit GSC request to auth: %d\n", err);
 			goto out_unpin;
@@ -89,12 +89,12 @@ int intel_huc_fw_auth_via_gsccs(struct intel_huc *huc)
 	}
 
 	/*
-	 * The GSC will return PXP_STATUS_OP_NOT_PERMITTED if the HuC is already
-	 * loaded. If the same error is ever returned with HuC not loaded we'll
+	 * The GSC will return PXP_STATUS_OP_ANALT_PERMITTED if the HuC is already
+	 * loaded. If the same error is ever returned with HuC analt loaded we'll
 	 * still catch it when we check the authentication bit later.
 	 */
 	if (msg_out->huc_out.header.status != PXP_STATUS_SUCCESS &&
-	    msg_out->huc_out.header.status != PXP_STATUS_OP_NOT_PERMITTED) {
+	    msg_out->huc_out.header.status != PXP_STATUS_OP_ANALT_PERMITTED) {
 		huc_err(huc, "auth failed with GSC error = 0x%x\n",
 			msg_out->huc_out.header.status);
 		err = -EIO;
@@ -142,7 +142,7 @@ int intel_huc_fw_get_binary_info(struct intel_uc_fw *huc_fw, const void *data, s
 
 	if (size < sizeof(*header)) {
 		huc_err(huc, "FW too small! %zu < %zu\n", size, min_size);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	/*
@@ -194,7 +194,7 @@ int intel_huc_fw_get_binary_info(struct intel_uc_fw *huc_fw, const void *data, s
 		return -EINVAL;
 	}
 
-	/* we only have binaries with header v2 and entry v1 for now */
+	/* we only have binaries with header v2 and entry v1 for analw */
 	if (header->header_version != 2 || header->entry_version != 1) {
 		huc_err(huc, "invalid CPD header/entry version %u:%u!\n",
 			header->header_version, header->entry_version);
@@ -210,7 +210,7 @@ int intel_huc_fw_get_binary_info(struct intel_uc_fw *huc_fw, const void *data, s
 	min_size = header->header_length + sizeof(*entry) * header->num_of_entries;
 	if (size < min_size) {
 		huc_err(huc, "FW too small! %zu < %zu\n", size, min_size);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	entry = data + header->header_length;
@@ -236,10 +236,10 @@ int intel_huc_fw_load_and_auth_via_gsc(struct intel_huc *huc)
 	int ret;
 
 	if (!intel_huc_is_loaded_by_gsc(huc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!intel_uc_fw_is_loadable(&huc->fw))
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	/*
 	 * If we abort a suspend, HuC might still be loaded when the mei
@@ -267,17 +267,17 @@ int intel_huc_fw_load_and_auth_via_gsc(struct intel_huc *huc)
  * @huc: intel_huc structure
  *
  * Called from intel_uc_init_hw() during driver load, resume from sleep and
- * after a GPU reset. Note that HuC must be loaded before GuC.
+ * after a GPU reset. Analte that HuC must be loaded before GuC.
  *
  * The firmware image should have already been fetched into memory, so only
  * check that fetch succeeded, and then transfer the image to the h/w.
  *
- * Return:	non-zero code on error
+ * Return:	analn-zero code on error
  */
 int intel_huc_fw_upload(struct intel_huc *huc)
 {
 	if (intel_huc_is_loaded_by_gsc(huc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* HW doesn't look at destination address for HuC, so set it to 0 */
 	return intel_uc_fw_upload(&huc->fw, 0, HUC_UKERNEL);

@@ -2,7 +2,7 @@
 /* Authors: Karl MacMillan <kmacmillan@tresys.com>
  *          Frank Mayer <mayerf@tresys.com>
  *
- * Copyright (C) 2003 - 2004 Tresys Technology, LLC
+ * Copyright (C) 2003 - 2004 Tresys Techanallogy, LLC
  */
 
 #ifndef _CONDITIONAL_H_
@@ -17,11 +17,11 @@
 
 /*
  * A conditional expression is a list of operators and operands
- * in reverse polish notation.
+ * in reverse polish analtation.
  */
-struct cond_expr_node {
+struct cond_expr_analde {
 #define COND_BOOL	1 /* plain bool */
-#define COND_NOT	2 /* !bool */
+#define COND_ANALT	2 /* !bool */
 #define COND_OR		3 /* bool || bool */
 #define COND_AND	4 /* bool && bool */
 #define COND_XOR	5 /* bool ^ bool */
@@ -33,28 +33,28 @@ struct cond_expr_node {
 };
 
 struct cond_expr {
-	struct cond_expr_node *nodes;
+	struct cond_expr_analde *analdes;
 	u32 len;
 };
 
 /*
- * Each cond_node contains a list of rules to be enabled/disabled
+ * Each cond_analde contains a list of rules to be enabled/disabled
  * depending on the current value of the conditional expression. This
  * struct is for that list.
  */
 struct cond_av_list {
-	struct avtab_node **nodes;
+	struct avtab_analde **analdes;
 	u32 len;
 };
 
 /*
- * A cond node represents a conditional block in a policy. It
+ * A cond analde represents a conditional block in a policy. It
  * contains a conditional expression, the current state of the expression,
  * two lists of rules to enable/disable depending on the value of the
  * expression (the true list corresponds to if and the false list corresponds
  * to else)..
  */
-struct cond_node {
+struct cond_analde {
 	int cur_state;
 	struct cond_expr expr;
 	struct cond_av_list true_list;
@@ -78,7 +78,7 @@ void cond_compute_av(struct avtab *ctab, struct avtab_key *key,
 		struct av_decision *avd, struct extended_perms *xperms);
 void cond_compute_xperms(struct avtab *ctab, struct avtab_key *key,
 		struct extended_perms_decision *xpermd);
-void evaluate_cond_nodes(struct policydb *p);
+void evaluate_cond_analdes(struct policydb *p);
 void cond_policydb_destroy_dup(struct policydb *p);
 int cond_policydb_dup(struct policydb *new, struct policydb *orig);
 

@@ -44,13 +44,13 @@ additionalProperties:
   anyOf:
     - type: object
       allOf:
-        - $ref: pincfg-node.yaml#
-        - $ref: pinmux-node.yaml#
+        - $ref: pincfg-analde.yaml#
+        - $ref: pinmux-analde.yaml#
 
       description:
-        A pin multiplexing sub-node describes how to configure a set of (or a
+        A pin multiplexing sub-analde describes how to configure a set of (or a
         single) pin in some desired alternate function mode.
-        A single sub-node may define several pin configurations.
+        A single sub-analde may define several pin configurations.
 
       properties:
         pinmux:

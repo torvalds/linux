@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Unicode table for IBM Codepage 437.  Note that there are many more
+# Unicode table for IBM Codepage 437.  Analte that there are many more
 # substitutions that could be conceived (for example, thick-line
 # graphs probably should be replaced with double-line ones, accented
-# Latin characters should replaced with their nonaccented versions,
+# Latin characters should replaced with their analnaccented versions,
 # and some upper case Greek characters could be replaced by Latin), however,
 # I have limited myself to the Unicodes used by the kernel ISO 8859-1,
 # DEC VT, and IBM CP 437 tables.
@@ -149,7 +149,7 @@
 #
 0x7f	U+2302
 #
-# Non-English characters, mostly lower case letters...
+# Analn-English characters, mostly lower case letters...
 #
 0x80	U+00c7
 0x81	U+00fc
@@ -284,7 +284,7 @@
 0xfc	U+207f
 0xfd	U+00b2
 #
-# Square bullet, non-spacing blank
+# Square bullet, analn-spacing blank
 # Mapping U+fffd to the square bullet means it is the substitution
 # character
 # 

@@ -7,7 +7,7 @@
  *  License.  See the file COPYING in the main directory of this archive for
  *  more details.
  *
- * NOTES:
+ * ANALTES:
  *
  *  This is for cfb packed pixels. Iplan and such are incorporated in the
  *  drivers that need them.
@@ -392,7 +392,7 @@ void cfb_copyarea(struct fb_info *p, const struct fb_copyarea *area)
 		return;
 
 	if (p->flags & FBINFO_VIRTFB)
-		fb_warn_once(p, "Framebuffer is not in I/O address space.");
+		fb_warn_once(p, "Framebuffer is analt in I/O address space.");
 
 	/* if the beginning of the target area might overlap with the end of
 	the source area, be have to copy the area reverse. */

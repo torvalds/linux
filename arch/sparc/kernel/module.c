@@ -29,8 +29,8 @@ static void *module_map(unsigned long size)
 {
 	if (PAGE_ALIGN(size) > MODULES_LEN)
 		return NULL;
-	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
-				GFP_KERNEL, PAGE_KERNEL, 0, NUMA_NO_NODE,
+	return __vmalloc_analde_range(size, 1, MODULES_VADDR, MODULES_END,
+				GFP_KERNEL, PAGE_KERNEL, 0, NUMA_ANAL_ANALDE,
 				__builtin_return_address(0));
 }
 #else
@@ -51,7 +51,7 @@ void *module_alloc(unsigned long size)
 	return ret;
 }
 
-/* Make generic code ignore STT_REGISTER dummy undefined symbols.  */
+/* Make generic code iganalre STT_REGISTER dummy undefined symbols.  */
 int module_frob_arch_sections(Elf_Ehdr *hdr,
 			      Elf_Shdr *sechdrs,
 			      char *secstrings,
@@ -64,8 +64,8 @@ int module_frob_arch_sections(Elf_Ehdr *hdr,
 
 	for (symidx = 0; sechdrs[symidx].sh_type != SHT_SYMTAB; symidx++) {
 		if (symidx == hdr->e_shnum-1) {
-			printk("%s: no symtab found.\n", mod->name);
-			return -ENOEXEC;
+			printk("%s: anal symtab found.\n", mod->name);
+			return -EANALEXEC;
 		}
 	}
 	sym = (Elf_Sym *)sechdrs[symidx].sh_addr;
@@ -104,7 +104,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 		BUG_ON(((u64)location >> (u64)32) != (u64)0);
 #endif /* CONFIG_SPARC64 */
 
-		/* This is the symbol it is referring to.  Note that all
+		/* This is the symbol it is referring to.  Analte that all
 		   undefined symbols have been resolved.  */
 		sym = (Elf_Sym *)sechdrs[symindex].sh_addr
 			+ ELF_R_SYM(rel[i].r_info);
@@ -171,10 +171,10 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			break;
 
 		default:
-			printk(KERN_ERR "module %s: Unknown relocation: %x\n",
+			printk(KERN_ERR "module %s: Unkanalwn relocation: %x\n",
 			       me->name,
 			       (int) (ELF_R_TYPE(rel[i].r_info) & 0xff));
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 	}
 	return 0;

@@ -22,11 +22,11 @@ static const struct nla_policy ath10k_tm_policy[ATH10K_TM_ATTR_MAX + 1] = {
 					    .len = ATH10K_TM_DATA_MAX_LEN },
 	[ATH10K_TM_ATTR_WMI_CMDID]	= { .type = NLA_U32 },
 	[ATH10K_TM_ATTR_VERSION_MAJOR]	= { .type = NLA_U32 },
-	[ATH10K_TM_ATTR_VERSION_MINOR]	= { .type = NLA_U32 },
+	[ATH10K_TM_ATTR_VERSION_MIANALR]	= { .type = NLA_U32 },
 };
 
 /* Returns true if callee consumes the skb and the skb should be discarded.
- * Returns false if skb is not used. Does not sleep.
+ * Returns false if skb is analt used. Does analt sleep.
  */
 bool ath10k_tm_event_wmi(struct ath10k *ar, u32 cmd_id, struct sk_buff *skb)
 {
@@ -49,7 +49,7 @@ bool ath10k_tm_event_wmi(struct ath10k *ar, u32 cmd_id, struct sk_buff *skb)
 
 	/* Only testmode.c should be handling events from utf firmware,
 	 * otherwise all sort of problems will arise as mac80211 operations
-	 * are not initialised.
+	 * are analt initialised.
 	 */
 	consumed = true;
 
@@ -103,14 +103,14 @@ static int ath10k_tm_cmd_get_version(struct ath10k *ar, struct nlattr *tb[])
 	int ret;
 
 	ath10k_dbg(ar, ATH10K_DBG_TESTMODE,
-		   "testmode cmd get version_major %d version_minor %d\n",
+		   "testmode cmd get version_major %d version_mianalr %d\n",
 		   ATH10K_TESTMODE_VERSION_MAJOR,
-		   ATH10K_TESTMODE_VERSION_MINOR);
+		   ATH10K_TESTMODE_VERSION_MIANALR);
 
 	skb = cfg80211_testmode_alloc_reply_skb(ar->hw->wiphy,
 						nla_total_size(sizeof(u32)));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = nla_put_u32(skb, ATH10K_TM_ATTR_VERSION_MAJOR,
 			  ATH10K_TESTMODE_VERSION_MAJOR);
@@ -119,15 +119,15 @@ static int ath10k_tm_cmd_get_version(struct ath10k *ar, struct nlattr *tb[])
 		return ret;
 	}
 
-	ret = nla_put_u32(skb, ATH10K_TM_ATTR_VERSION_MINOR,
-			  ATH10K_TESTMODE_VERSION_MINOR);
+	ret = nla_put_u32(skb, ATH10K_TM_ATTR_VERSION_MIANALR,
+			  ATH10K_TESTMODE_VERSION_MIANALR);
 	if (ret) {
 		kfree_skb(skb);
 		return ret;
 	}
 
 	ret = nla_put_u32(skb, ATH10K_TM_ATTR_WMI_OP_VERSION,
-			  ar->normal_mode_fw.fw_file.wmi_op_version);
+			  ar->analrmal_mode_fw.fw_file.wmi_op_version);
 	if (ret) {
 		kfree_skb(skb);
 		return ret;
@@ -146,7 +146,7 @@ static int ath10k_tm_fetch_utf_firmware_api_1(struct ath10k *ar,
 		 ar->hw_params.fw.dir, ATH10K_FW_UTF_FILE);
 
 	/* load utf firmware image */
-	ret = firmware_request_nowarn(&fw_file->firmware, filename, ar->dev);
+	ret = firmware_request_analwarn(&fw_file->firmware, filename, ar->dev);
 	ath10k_dbg(ar, ATH10K_DBG_TESTMODE, "testmode fw request '%s': %d\n",
 		   filename, ret);
 
@@ -156,7 +156,7 @@ static int ath10k_tm_fetch_utf_firmware_api_1(struct ath10k *ar,
 		return ret;
 	}
 
-	/* We didn't find FW UTF API 1 ("utf.bin") does not advertise
+	/* We didn't find FW UTF API 1 ("utf.bin") does analt advertise
 	 * firmware features. Do an ugly hack where we force the firmware
 	 * features to match with 10.1 branch so that wmi.c will use the
 	 * correct WMI interface.
@@ -208,16 +208,16 @@ static int ath10k_tm_fetch_firmware(struct ath10k *ar)
 out:
 	utf_mode_fw = &ar->testmode.utf_mode_fw;
 
-	/* Use the same board data file as the normal firmware uses (but
-	 * it's still "owned" by normal_mode_fw so we shouldn't free it.
+	/* Use the same board data file as the analrmal firmware uses (but
+	 * it's still "owned" by analrmal_mode_fw so we shouldn't free it.
 	 */
-	utf_mode_fw->board_data = ar->normal_mode_fw.board_data;
-	utf_mode_fw->board_len = ar->normal_mode_fw.board_len;
+	utf_mode_fw->board_data = ar->analrmal_mode_fw.board_data;
+	utf_mode_fw->board_len = ar->analrmal_mode_fw.board_len;
 
 	if (!utf_mode_fw->fw_file.otp_data) {
-		ath10k_info(ar, "utf.bin didn't contain otp binary, taking it from the normal mode firmware");
-		utf_mode_fw->fw_file.otp_data = ar->normal_mode_fw.fw_file.otp_data;
-		utf_mode_fw->fw_file.otp_len = ar->normal_mode_fw.fw_file.otp_len;
+		ath10k_info(ar, "utf.bin didn't contain otp binary, taking it from the analrmal mode firmware");
+		utf_mode_fw->fw_file.otp_data = ar->analrmal_mode_fw.fw_file.otp_data;
+		utf_mode_fw->fw_file.otp_len = ar->analrmal_mode_fw.fw_file.otp_len;
 	}
 
 	return 0;
@@ -237,7 +237,7 @@ static int ath10k_tm_cmd_utf_start(struct ath10k *ar, struct nlattr *tb[])
 		goto err;
 	}
 
-	/* start utf only when the driver is not in use  */
+	/* start utf only when the driver is analt in use  */
 	if (ar->state != ATH10K_STATE_OFF) {
 		ret = -EBUSY;
 		goto err;
@@ -404,7 +404,7 @@ static int ath10k_tm_cmd_wmi(struct ath10k *ar, struct nlattr *tb[])
 
 	skb = ath10k_wmi_alloc_skb(ar, buf_len);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -449,7 +449,7 @@ int ath10k_tm_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	case ATH10K_TM_CMD_WMI:
 		return ath10k_tm_cmd_wmi(ar, tb);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -458,7 +458,7 @@ void ath10k_testmode_destroy(struct ath10k *ar)
 	mutex_lock(&ar->conf_mutex);
 
 	if (ar->state != ATH10K_STATE_UTF) {
-		/* utf firmware is not running, nothing to do */
+		/* utf firmware is analt running, analthing to do */
 		goto out;
 	}
 

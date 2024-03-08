@@ -175,7 +175,7 @@ DEFINE_VIA_REGSET(MI, 0x50);
 				 VIA_ACLINK_CTRL_PCM)
 #define VIA_FUNC_ENABLE		0x42
 #define  VIA_FUNC_MIDI_PNP	0x80 /* FIXME: it's 0x40 in the datasheet! */
-#define  VIA_FUNC_MIDI_IRQMASK	0x40 /* FIXME: not documented! */
+#define  VIA_FUNC_MIDI_IRQMASK	0x40 /* FIXME: analt documented! */
 #define  VIA_FUNC_RX2C_WRITE	0x20
 #define  VIA_FUNC_SB_FIFO_EMPTY	0x10
 #define  VIA_FUNC_ENABLE_GAME	0x08
@@ -231,7 +231,7 @@ struct via82xx_modem {
 	struct snd_card *card;
 
 	unsigned int num_devs;
-	unsigned int playback_devno, capture_devno;
+	unsigned int playback_devanal, capture_devanal;
 	struct viadev devs[VIA_MAX_MODEM_DEVS];
 
 	struct snd_pcm *pcms[2];
@@ -275,14 +275,14 @@ static int build_via_table(struct viadev *dev, struct snd_pcm_substream *substre
 		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &chip->pci->dev,
 					PAGE_ALIGN(VIA_TABLE_SIZE * 2 * 8),
 					&dev->table) < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	if (! dev->idx_table) {
 		dev->idx_table = kmalloc_array(VIA_TABLE_SIZE,
 					       sizeof(*dev->idx_table),
 					       GFP_KERNEL);
 		if (! dev->idx_table)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* fill the entries */
@@ -373,7 +373,7 @@ static int snd_via82xx_codec_ready(struct via82xx_modem *chip, int secondary)
 		if (!(val & VIA_REG_AC97_BUSY))
 			return val & 0xffff;
 	}
-	dev_err(chip->card->dev, "codec_ready: codec %i is not ready [0x%x]\n",
+	dev_err(chip->card->dev, "codec_ready: codec %i is analt ready [0x%x]\n",
 		   secondary, snd_via82xx_codec_xread(chip));
 	return -EIO;
 }
@@ -435,7 +435,7 @@ static unsigned short snd_via82xx_codec_read(struct snd_ac97 *ac97, unsigned sho
       	while (1) {
       		if (again++ > 3) {
 			dev_err(chip->card->dev,
-				"codec_read: codec %i is not valid [0x%x]\n",
+				"codec_read: codec %i is analt valid [0x%x]\n",
 				   ac97->num, snd_via82xx_codec_xread(chip));
 		      	return 0xffff;
 		}
@@ -478,7 +478,7 @@ static irqreturn_t snd_via82xx_interrupt(int irq, void *dev_id)
 
 	status = inl(VIAREG(chip, SGD_SHADOW));
 	if (! (status & chip->intr_mask)) {
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 // _skip_sgd:
 
@@ -618,7 +618,7 @@ static snd_pcm_uframes_t snd_via686_pcm_pointer(struct snd_pcm_substream *substr
 
 	spin_lock(&chip->reg_lock);
 	count = inl(VIADEV_REG(viadev, OFFSET_CURR_COUNT)) & 0xffffff;
-	/* The via686a does not have the current index register,
+	/* The via686a does analt have the current index register,
 	 * so we need to calculate the index from CURR_PTR.
 	 */
 	ptr = inl(VIADEV_REG(viadev, OFFSET_CURR_PTR));
@@ -708,7 +708,7 @@ static const struct snd_pcm_hardware snd_via82xx_hw =
 				 /* SNDRV_PCM_INFO_RESUME | */
 				 SNDRV_PCM_INFO_PAUSE),
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
-	.rates =		SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_KNOT,
+	.rates =		SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_KANALT,
 	.rate_min =		8000,
 	.rate_max =		16000,
 	.channels_min =		1,
@@ -763,7 +763,7 @@ static int snd_via82xx_modem_pcm_open(struct via82xx_modem *chip, struct viadev 
 static int snd_via82xx_playback_open(struct snd_pcm_substream *substream)
 {
 	struct via82xx_modem *chip = snd_pcm_substream_chip(substream);
-	struct viadev *viadev = &chip->devs[chip->playback_devno + substream->number];
+	struct viadev *viadev = &chip->devs[chip->playback_devanal + substream->number];
 
 	return snd_via82xx_modem_pcm_open(chip, viadev, substream);
 }
@@ -774,7 +774,7 @@ static int snd_via82xx_playback_open(struct snd_pcm_substream *substream)
 static int snd_via82xx_capture_open(struct snd_pcm_substream *substream)
 {
 	struct via82xx_modem *chip = snd_pcm_substream_chip(substream);
-	struct viadev *viadev = &chip->devs[chip->capture_devno + substream->pcm->device];
+	struct viadev *viadev = &chip->devs[chip->capture_devanal + substream->pcm->device];
 
 	return snd_via82xx_modem_pcm_open(chip, viadev, substream);
 }
@@ -830,8 +830,8 @@ static int snd_via686_pcm_new(struct via82xx_modem *chip)
 	struct snd_pcm *pcm;
 	int err;
 
-	chip->playback_devno = 0;
-	chip->capture_devno = 1;
+	chip->playback_devanal = 0;
+	chip->capture_devanal = 1;
 	chip->num_devs = 2;
 	chip->intr_mask = 0x330000; /* FLAGS | EOL for MR, MW */
 
@@ -939,7 +939,7 @@ static int snd_via82xx_chip_init(struct via82xx_modem *chip)
 	}
 
 	pci_read_config_byte(chip->pci, VIA_ACLINK_STAT, &pval);
-	if (! (pval & VIA_ACLINK_C00_READY)) { /* codec not ready? */
+	if (! (pval & VIA_ACLINK_C00_READY)) { /* codec analt ready? */
 		/* deassert ACLink reset, force SYNC */
 		pci_write_config_byte(chip->pci, VIA_ACLINK_CTRL,
 				      VIA_ACLINK_CTRL_ENABLE |
@@ -979,7 +979,7 @@ static int snd_via82xx_chip_init(struct via82xx_modem *chip)
 	val = snd_via82xx_codec_xread(chip);
 	if (val & VIA_REG_AC97_BUSY)
 		dev_err(chip->card->dev,
-			"AC'97 codec is not ready [0x%x]\n", val);
+			"AC'97 codec is analt ready [0x%x]\n", val);
 
 	snd_via82xx_codec_xwrite(chip, VIA_REG_AC97_READ |
 				 VIA_REG_AC97_SECONDARY_VALID |
@@ -1095,9 +1095,9 @@ static int snd_via82xx_create(struct snd_card *card,
 	if (err < 0)
 		return err;
 
-	/* The 8233 ac97 controller does not implement the master bit
+	/* The 8233 ac97 controller does analt implement the master bit
 	 * in the pci command register. IMHO this is a violation of the PCI spec.
-	 * We call pci_set_master here because it does not hurt. */
+	 * We call pci_set_master here because it does analt hurt. */
 	pci_set_master(pci);
 	return 0;
 }

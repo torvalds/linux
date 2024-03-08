@@ -120,18 +120,18 @@ static int sc27xx_vibra_probe(struct platform_device *pdev)
 
 	data = device_get_match_data(&pdev->dev);
 	if (!data) {
-		dev_err(&pdev->dev, "no matching driver data found\n");
+		dev_err(&pdev->dev, "anal matching driver data found\n");
 		return -EINVAL;
 	}
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!info->regmap) {
 		dev_err(&pdev->dev, "failed to get vibrator regmap.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	error = device_property_read_u32(&pdev->dev, "reg", &info->base);
@@ -143,7 +143,7 @@ static int sc27xx_vibra_probe(struct platform_device *pdev)
 	info->input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!info->input_dev) {
 		dev_err(&pdev->dev, "failed to allocate input device.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	info->input_dev->name = "sc27xx:vibrator";

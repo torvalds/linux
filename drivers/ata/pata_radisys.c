@@ -6,10 +6,10 @@
  *
  *    Some parts based on ata_piix.c by Jeff Garzik and others.
  *
- *    A PIIX relative, this device has a single ATA channel and no
+ *    A PIIX relative, this device has a single ATA channel and anal
  *    slave timings, SITRE or PPE. In that sense it is a close relative
  *    of the original PIIX. It does however support UDMA 33/66 per channel
- *    although no other modes/timings. Also lacking is 32bit I/O on the ATA
+ *    although anal other modes/timings. Also lacking is 32bit I/O on the ATA
  *    port.
  */
 
@@ -34,7 +34,7 @@
  *	Set PIO mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void radisys_set_piomode (struct ata_port *ap, struct ata_device *adev)
@@ -46,9 +46,9 @@ static void radisys_set_piomode (struct ata_port *ap, struct ata_device *adev)
 
 	/*
 	 *	See Intel Document 298600-004 for the timing programing rules
-	 *	for PIIX/ICH. Note that the early PIIX does not have the slave
+	 *	for PIIX/ICH. Analte that the early PIIX does analt have the slave
 	 *	timing port at 0x44. The Radisys is a relative of the PIIX
-	 *	but not the same so be careful.
+	 *	but analt the same so be careful.
 	 */
 
 	static const	 /* ISP  RTC */
@@ -68,7 +68,7 @@ static void radisys_set_piomode (struct ata_port *ap, struct ata_device *adev)
 	/* Enable IE and TIME as appropriate. Clear the other
 	   drive timing bits */
 	idetm_data &= 0xCCCC;
-	idetm_data |= (control << (4 * adev->devno));
+	idetm_data |= (control << (4 * adev->devanal));
 	idetm_data |= (timings[pio][0] << 12) |
 			(timings[pio][1] << 8);
 	pci_write_config_word(dev, 0x40, idetm_data);
@@ -85,7 +85,7 @@ static void radisys_set_piomode (struct ata_port *ap, struct ata_device *adev)
  *	Set MWDMA mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void radisys_set_dmamode (struct ata_port *ap, struct ata_device *adev)
@@ -127,10 +127,10 @@ static void radisys_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 		   clear the other drive TIME register as a precaution */
 
 		idetm_data &= 0xCCCC;
-		idetm_data |= control << (4 * adev->devno);
+		idetm_data |= control << (4 * adev->devanal);
 		idetm_data |= (timings[pio][0] << 12) | (timings[pio][1] << 8);
 
-		udma_enable &= ~(1 << adev->devno);
+		udma_enable &= ~(1 << adev->devanal);
 	} else {
 		u8 udma_mode;
 
@@ -139,13 +139,13 @@ static void radisys_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 		pci_read_config_byte(dev, 0x4A, &udma_mode);
 
 		if (adev->xfer_mode == XFER_UDMA_2)
-			udma_mode &= ~(2 << (adev->devno * 4));
+			udma_mode &= ~(2 << (adev->devanal * 4));
 		else /* UDMA 4 */
-			udma_mode |= (2 << (adev->devno * 4));
+			udma_mode |= (2 << (adev->devanal * 4));
 
 		pci_write_config_byte(dev, 0x4A, udma_mode);
 
-		udma_enable |= (1 << adev->devno);
+		udma_enable |= (1 << adev->devanal);
 	}
 	pci_write_config_word(dev, 0x40, idetm_data);
 	pci_write_config_byte(dev, 0x48, udma_enable);
@@ -171,7 +171,7 @@ static unsigned int radisys_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_device *adev = qc->dev;
 
 	if (adev != ap->private_data) {
-		/* UDMA timing is not shared */
+		/* UDMA timing is analt shared */
 		if (adev->dma_mode < XFER_UDMA_0 || !ata_dma_enabled(adev)) {
 			if (ata_dma_enabled(adev))
 				radisys_set_dmamode(ap, adev);
@@ -190,7 +190,7 @@ static const struct scsi_host_template radisys_sht = {
 static struct ata_port_operations radisys_pata_ops = {
 	.inherits		= &ata_bmdma_port_ops,
 	.qc_issue		= radisys_qc_issue,
-	.cable_detect		= ata_cable_unknown,
+	.cable_detect		= ata_cable_unkanalwn,
 	.set_piomode		= radisys_set_piomode,
 	.set_dmamode		= radisys_set_dmamode,
 };
@@ -208,7 +208,7 @@ static struct ata_port_operations radisys_pata_ops = {
  *	Inherited from PCI layer (may sleep).
  *
  *	RETURNS:
- *	Zero on success, or -ERRNO value.
+ *	Zero on success, or -ERRANAL value.
  */
 
 static int radisys_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)

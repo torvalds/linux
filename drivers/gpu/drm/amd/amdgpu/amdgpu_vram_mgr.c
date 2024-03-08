@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -197,7 +197,7 @@ static ssize_t amdgpu_mem_info_vram_vendor(struct device *dev,
 	case MICRON:
 		return sysfs_emit(buf, "micron\n");
 	default:
-		return sysfs_emit(buf, "unknown\n");
+		return sysfs_emit(buf, "unkanalwn\n");
 	}
 }
 
@@ -337,7 +337,7 @@ int amdgpu_vram_mgr_reserve_range(struct amdgpu_vram_mgr *mgr,
 
 	rsv = kzalloc(sizeof(*rsv), GFP_KERNEL);
 	if (!rsv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&rsv->allocated);
 	INIT_LIST_HEAD(&rsv->blocks);
@@ -362,7 +362,7 @@ int amdgpu_vram_mgr_reserve_range(struct amdgpu_vram_mgr *mgr,
  * Returns:
  *	-EBUSY: the page is still hold and in pending list
  *	0: the page has been reserved
- *	-ENOENT: the input page is not a reservation
+ *	-EANALENT: the input page is analt a reservation
  */
 int amdgpu_vram_mgr_query_page_status(struct amdgpu_vram_mgr *mgr,
 				      uint64_t start)
@@ -388,7 +388,7 @@ int amdgpu_vram_mgr_query_page_status(struct amdgpu_vram_mgr *mgr,
 		}
 	}
 
-	ret = -ENOENT;
+	ret = -EANALENT;
 out:
 	mutex_unlock(&mgr->lock);
 	return ret;
@@ -430,7 +430,7 @@ static int amdgpu_dummy_vram_mgr_new(struct ttm_resource_manager *man,
 			       struct ttm_resource **res)
 {
 	DRM_DEBUG_DRIVER("Dummy vram mgr new\n");
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 /**
@@ -483,13 +483,13 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 
 	vres = kzalloc(sizeof(*vres), GFP_KERNEL);
 	if (!vres)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ttm_resource_init(tbo, place, &vres->base);
 
-	/* bail out quickly if there's likely not enough VRAM for this BO */
+	/* bail out quickly if there's likely analt eanalugh VRAM for this BO */
 	if (ttm_resource_manager_usage(man) > max_bytes) {
-		r = -ENOSPC;
+		r = -EANALSPC;
 		goto error_fini;
 	}
 
@@ -640,7 +640,7 @@ int amdgpu_vram_mgr_alloc_sgt(struct amdgpu_device *adev,
 
 	*sgt = kmalloc(sizeof(**sgt), GFP_KERNEL);
 	if (!*sgt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Determine the number of DRM_BUDDY blocks to export */
 	amdgpu_res_first(res, offset, length, &cursor);
@@ -653,13 +653,13 @@ int amdgpu_vram_mgr_alloc_sgt(struct amdgpu_device *adev,
 	if (r)
 		goto error_free;
 
-	/* Initialize scatterlist nodes of sg_table */
+	/* Initialize scatterlist analdes of sg_table */
 	for_each_sgtable_sg((*sgt), sg, i)
 		sg->length = 0;
 
 	/*
-	 * Walk down DRM_BUDDY blocks to populate scatterlist nodes
-	 * @note: Use iterator api to get first the DRM_BUDDY block
+	 * Walk down DRM_BUDDY blocks to populate scatterlist analdes
+	 * @analte: Use iterator api to get first the DRM_BUDDY block
 	 * and the number of bytes from it. Access the following
 	 * DRM_BUDDY block(s) if more buffer needs to exported
 	 */

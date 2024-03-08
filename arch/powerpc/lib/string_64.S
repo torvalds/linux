@@ -19,7 +19,7 @@
  * Zero a block of memory in user space.  Caller must check
  * the specified block with access_ok() before calling this function.
  *
- * Returns number of bytes that could not be cleared.
+ * Returns number of bytes that could analt be cleared.
  * On success, this will be zero.
  */
 

@@ -10,16 +10,16 @@
  * journal_seq_blacklist machinery:
  *
  * To guarantee order of btree updates after a crash, we need to detect when a
- * btree node entry (bset) is newer than the newest journal entry that was
- * successfully written, and ignore it - effectively ignoring any btree updates
+ * btree analde entry (bset) is newer than the newest journal entry that was
+ * successfully written, and iganalre it - effectively iganalring any btree updates
  * that didn't make it into the journal.
  *
- * If we didn't do this, we might have two btree nodes, a and b, both with
+ * If we didn't do this, we might have two btree analdes, a and b, both with
  * updates that weren't written to the journal yet: if b was updated after a,
- * but b was flushed and not a - oops; on recovery we'll find that the updates
- * to b happened, but not the updates to a that happened before it.
+ * but b was flushed and analt a - oops; on recovery we'll find that the updates
+ * to b happened, but analt the updates to a that happened before it.
  *
- * Ignoring bsets that are newer than the newest journal entry is always safe,
+ * Iganalring bsets that are newer than the newest journal entry is always safe,
  * because everything they contain will also have been journalled - and must
  * still be present in the journal on disk until a journal entry has been
  * written _after_ that bset was written.
@@ -27,13 +27,13 @@
  * To accomplish this, bsets record the newest journal sequence number they
  * contain updates for; then, on startup, the btree code queries the journal
  * code to ask "Is this sequence number newer than the newest journal entry? If
- * so, ignore it."
+ * so, iganalre it."
  *
  * When this happens, we must blacklist that journal sequence number: the
- * journal must not write any entries with that sequence number, and it must
+ * journal must analt write any entries with that sequence number, and it must
  * record that it was blacklisted so that a) on recovery we don't think we have
- * missing journal entries and b) so that the btree code continues to ignore
- * that bset, until that btree node is rewritten.
+ * missing journal entries and b) so that the btree code continues to iganalre
+ * that bset, until that btree analde is rewritten.
  */
 
 static unsigned sb_blacklist_u64s(unsigned nr)
@@ -103,7 +103,7 @@ int bch2_journal_seq_blacklist_add(struct bch_fs *c, u64 start, u64 end)
 	bl = bch2_sb_field_resize(&c->disk_sb, journal_seq_blacklist,
 				  sb_blacklist_u64s(nr + 1));
 	if (!bl) {
-		ret = -BCH_ERR_ENOSPC_sb_journal_seq_blacklist;
+		ret = -BCH_ERR_EANALSPC_sb_journal_seq_blacklist;
 		goto out;
 	}
 
@@ -168,7 +168,7 @@ int bch2_blacklist_table_initialize(struct bch_fs *c)
 	t = kzalloc(sizeof(*t) + sizeof(t->entries[0]) * nr,
 		    GFP_KERNEL);
 	if (!t)
-		return -BCH_ERR_ENOMEM_blacklist_table_init;
+		return -BCH_ERR_EANALMEM_blacklist_table_init;
 
 	t->nr = nr;
 
@@ -258,17 +258,17 @@ void bch2_blacklist_entries_gc(struct work_struct *work)
 		struct btree_iter iter;
 		struct btree *b;
 
-		bch2_trans_node_iter_init(trans, &iter, i, POS_MIN,
+		bch2_trans_analde_iter_init(trans, &iter, i, POS_MIN,
 					  0, 0, BTREE_ITER_PREFETCH);
 retry:
 		bch2_trans_begin(trans);
 
-		b = bch2_btree_iter_peek_node(&iter);
+		b = bch2_btree_iter_peek_analde(&iter);
 
 		while (!(ret = PTR_ERR_OR_ZERO(b)) &&
 		       b &&
 		       !test_bit(BCH_FS_stopping, &c->flags))
-			b = bch2_btree_iter_next_node(&iter);
+			b = bch2_btree_iter_next_analde(&iter);
 
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto retry;
@@ -303,7 +303,7 @@ retry:
 
 	new_nr = dst - bl->start;
 
-	bch_info(c, "nr blacklist entries was %u, now %u", nr, new_nr);
+	bch_info(c, "nr blacklist entries was %u, analw %u", nr, new_nr);
 
 	if (new_nr != nr) {
 		bl = bch2_sb_field_resize(&c->disk_sb, journal_seq_blacklist,

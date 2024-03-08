@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -299,7 +299,7 @@ struct vega20_registry_data {
 	uint8_t   lclk_deep_sleep_support;
 	uint8_t   dce_fclk_deep_sleep_support;
 	uint8_t   sclk_dpm_key_disabled;
-	uint8_t   sclk_throttle_low_notification;
+	uint8_t   sclk_throttle_low_analtification;
 	uint8_t   skip_baco_hardware;
 	uint8_t   socclk_dpm_key_disabled;
 	uint8_t   sq_ramping_support;
@@ -555,7 +555,7 @@ struct vega20_hwmgr {
 #define VEGA20_DPM2_SQ_RAMP_SHORT_TERM_INTERVAL_SIZE  0x1E
 #define VEGA20_DPM2_SQ_RAMP_LONG_TERM_INTERVAL_RATIO  0xF
 
-#define VEGA20_VOLTAGE_CONTROL_NONE                   0x0
+#define VEGA20_VOLTAGE_CONTROL_ANALNE                   0x0
 #define VEGA20_VOLTAGE_CONTROL_BY_GPIO                0x1
 #define VEGA20_VOLTAGE_CONTROL_BY_SVID2               0x2
 #define VEGA20_VOLTAGE_CONTROL_MERGED                 0x3

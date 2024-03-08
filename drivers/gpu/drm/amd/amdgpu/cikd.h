@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -70,7 +70,7 @@
 #define mmGRPH_LUT_10BIT_BYPASS_CONTROL			0x1a02
 #define		LUT_10BIT_BYPASS_EN			(1 << 8)
 
-#       define CURSOR_MONO                    0
+#       define CURSOR_MOANAL                    0
 #       define CURSOR_24_1                    1
 #       define CURSOR_24_8_PRE_MULT           2
 #       define CURSOR_24_8_UNPRE_MULT         3
@@ -90,7 +90,7 @@
 #       define GRPH_FORMAT_ARGB565            1
 #       define GRPH_FORMAT_ARGB4444           2
 #       define GRPH_FORMAT_AI88               3
-#       define GRPH_FORMAT_MONO16             4
+#       define GRPH_FORMAT_MOANAL16             4
 #       define GRPH_FORMAT_BGRA5551           5
 /* 32 BPP */
 #       define GRPH_FORMAT_ARGB8888           0
@@ -113,7 +113,7 @@
 #       define THIN_MICRO_TILING             1
 #       define DEPTH_MICRO_TILING            2
 #       define ROTATED_MICRO_TILING          4
-#       define GRPH_ENDIAN_NONE               0
+#       define GRPH_ENDIAN_ANALNE               0
 #       define GRPH_ENDIAN_8IN16              1
 #       define GRPH_ENDIAN_8IN32              2
 #       define GRPH_ENDIAN_8IN64              3
@@ -181,7 +181,7 @@
 #       define AFMT_AVI_INFO_Y_YCBCR422      1
 #       define AFMT_AVI_INFO_Y_YCBCR444      2
 
-#define			NO_AUTO						0
+#define			ANAL_AUTO						0
 #define			ES_AUTO						1
 #define			GS_AUTO						2
 #define			ES_AND_GS_AUTO					3
@@ -227,7 +227,7 @@
 #define PACKET3_COMPUTE(op, n) (PACKET3(op, n) | 1 << 1)
 
 /* Packet 3 types */
-#define	PACKET3_NOP					0x10
+#define	PACKET3_ANALP					0x10
 #define	PACKET3_SET_BASE				0x11
 #define		PACKET3_BASE_INDEX(x)                  ((x) << 0)
 #define			CE_PARTITION_BASE		3
@@ -344,7 +344,7 @@
 #define	PACKET3_EVENT_WRITE				0x46
 #define		EVENT_TYPE(x)                           ((x) << 0)
 #define		EVENT_INDEX(x)                          ((x) << 8)
-		/* 0 - any non-TS event
+		/* 0 - any analn-TS event
 		 * 1 - ZPASS_DONE, PIXEL_PIPE_STAT_*
 		 * 2 - SAMPLE_PIPELINESTAT
 		 * 3 - SAMPLE_STREAMOUTSTAT*
@@ -372,7 +372,7 @@
 		 * 4 - send 64bit sys counter value
 		 */
 #define		INT_SEL(x)                              ((x) << 24)
-		/* 0 - none
+		/* 0 - analne
 		 * 1 - interrupt only (DATA_SEL = 0)
 		 * 2 - interrupt when data write is confirmed
 		 */
@@ -426,13 +426,13 @@
 /* COMMAND */
 #              define PACKET3_DMA_DATA_DIS_WC      (1 << 21)
 #              define PACKET3_DMA_DATA_CMD_SRC_SWAP(x) ((x) << 22)
-		/* 0 - none
+		/* 0 - analne
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
 		 * 3 - 8 in 64
 		 */
 #              define PACKET3_DMA_DATA_CMD_DST_SWAP(x) ((x) << 24)
-		/* 0 - none
+		/* 0 - analne
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
 		 * 3 - 8 in 64
@@ -481,16 +481,16 @@
 #define	PACKET3_SWITCH_BUFFER				0x8B
 
 /* SDMA - first instance at 0xd000, second at 0xd800 */
-#define SDMA0_REGISTER_OFFSET                             0x0 /* not a register */
-#define SDMA1_REGISTER_OFFSET                             0x200 /* not a register */
+#define SDMA0_REGISTER_OFFSET                             0x0 /* analt a register */
+#define SDMA1_REGISTER_OFFSET                             0x200 /* analt a register */
 #define SDMA_MAX_INSTANCE 2
 
 #define SDMA_PACKET(op, sub_op, e)	((((e) & 0xFFFF) << 16) |	\
 					 (((sub_op) & 0xFF) << 8) |	\
 					 (((op) & 0xFF) << 0))
 /* sDMA opcodes */
-#define	SDMA_OPCODE_NOP					  0
-#	define SDMA_NOP_COUNT(x)			  (((x) & 0x3FFF) << 16)
+#define	SDMA_OPCODE_ANALP					  0
+#	define SDMA_ANALP_COUNT(x)			  (((x) & 0x3FFF) << 16)
 #define	SDMA_OPCODE_COPY				  1
 #       define SDMA_COPY_SUB_OPCODE_LINEAR                0
 #       define SDMA_COPY_SUB_OPCODE_TILED                 1
@@ -548,7 +548,7 @@
 #       define SDMA_SRBM_WRITE_EXTRA_BYTE_ENABLE(x)       ((x) << 12)
 		/* byte mask */
 
-#define VCE_CMD_NO_OP		0x00000000
+#define VCE_CMD_ANAL_OP		0x00000000
 #define VCE_CMD_END		0x00000001
 #define VCE_CMD_IB		0x00000002
 #define VCE_CMD_FENCE		0x00000003
@@ -565,7 +565,7 @@
 /* valid for both DEFAULT_MTYPE and APE1_MTYPE */
 enum {
 	MTYPE_CACHED = 0,
-	MTYPE_NONCACHED = 3
+	MTYPE_ANALNCACHED = 3
 };
 
 /* mmPA_SC_RASTER_CONFIG mask */

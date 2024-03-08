@@ -43,14 +43,14 @@
 #define CS35L34_VPBR_VOL_CTL		0x3B	/* VPBR Volume Ctl */
 #define CS35L34_VPBR_TIMING_CTL		0x3C	/* VPBR Timing Ctl */
 #define CS35L34_PRED_MAX_ATTEN_SPK_LOAD	0x40	/* PRD Max Atten / Spkr Load */
-#define CS35L34_PRED_BROWNOUT_THRESH	0x41	/* PRD Brownout Threshold */
-#define CS35L34_PRED_BROWNOUT_VOL_CTL	0x42	/* PRD Brownout Volume Ctl */
-#define CS35L34_PRED_BROWNOUT_RATE_CTL	0x43	/* PRD Brownout Rate Ctl */
+#define CS35L34_PRED_BROWANALUT_THRESH	0x41	/* PRD Browanalut Threshold */
+#define CS35L34_PRED_BROWANALUT_VOL_CTL	0x42	/* PRD Browanalut Volume Ctl */
+#define CS35L34_PRED_BROWANALUT_RATE_CTL	0x43	/* PRD Browanalut Rate Ctl */
 #define CS35L34_PRED_WAIT_CTL		0x44	/* PRD Wait Ctl */
 #define CS35L34_PRED_ZVP_INIT_IMP_CTL	0x46	/* PRD ZVP Initial Imp Ctl */
 #define CS35L34_PRED_MAN_SAFE_VPI_CTL	0x47	/* PRD Manual Safe VPI Ctl */
 #define CS35L34_VPBR_ATTEN_STATUS	0x4B	/* VPBR Attenuation Status */
-#define CS35L34_PRED_BRWNOUT_ATT_STATUS	0x4C	/* PRD Brownout Atten Status */
+#define CS35L34_PRED_BRWANALUT_ATT_STATUS	0x4C	/* PRD Browanalut Atten Status */
 #define CS35L34_SPKR_MON_CTL		0x4E	/* Speaker Monitoring Ctl */
 #define CS35L34_ADSP_I2S_CTL		0x50	/* ADSP I2S Ctl */
 #define CS35L34_ADSP_TDM_CTL		0x51	/* ADSP TDM Ctl */
@@ -69,9 +69,9 @@
 #define CS35L34_MULT_DEV_SYNCH1		0x62	/* Multidevice Synch */
 #define CS35L34_MULT_DEV_SYNCH2		0x63	/* Multidevice Synch 2 */
 #define CS35L34_PROT_RELEASE_CTL	0x64	/* Protection Release Ctl */
-#define CS35L34_DIAG_MODE_REG_LOCK	0x68	/* Diagnostic Mode Reg Lock */
-#define CS35L34_DIAG_MODE_CTL_1		0x69	/* Diagnostic Mode Ctl 1 */
-#define CS35L34_DIAG_MODE_CTL_2		0x6A	/* Diagnostic Mode Ctl 2 */
+#define CS35L34_DIAG_MODE_REG_LOCK	0x68	/* Diaganalstic Mode Reg Lock */
+#define CS35L34_DIAG_MODE_CTL_1		0x69	/* Diaganalstic Mode Ctl 1 */
+#define CS35L34_DIAG_MODE_CTL_2		0x6A	/* Diaganalstic Mode Ctl 2 */
 #define CS35L34_INT_MASK_1		0x70	/* Interrupt Mask 1 */
 #define CS35L34_INT_MASK_2		0x71	/* Interrupt Mask 2 */
 #define CS35L34_INT_MASK_3		0x72	/* Interrupt Mask 3 */
@@ -139,7 +139,7 @@
 /* CS35L34_AMP_DIG_VOL_CTL */
 #define CS35L34_AMP_DSR_RATE_MASK	0xF0
 #define CS35L34_AMP_DSR_RATE_SHIFT	(1 << 4)
-#define CS35L34_NOTCH_DIS		(1 << 3)
+#define CS35L34_ANALTCH_DIS		(1 << 3)
 #define CS35L34_AMP_DIGSFT		(1 << 1)
 #define CS35L34_INV			1
 

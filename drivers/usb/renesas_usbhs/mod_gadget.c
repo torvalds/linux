@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Copyright (C) 2019 Renesas Electronics Corporation
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  */
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -104,7 +104,7 @@ struct usbhsg_recip_handle {
 #define usbhsg_pkt_to_ureq(i)	\
 	container_of(i, struct usbhsg_request, pkt)
 
-#define usbhsg_is_not_connected(gp) ((gp)->gadget.speed == USB_SPEED_UNKNOWN)
+#define usbhsg_is_analt_connected(gp) ((gp)->gadget.speed == USB_SPEED_UNKANALWN)
 
 /* status */
 #define usbhsg_status_init(gp)   do {(gp)->status = 0; } while (0)
@@ -196,7 +196,7 @@ static int usbhsg_dma_map_ctrl(struct device *dma_dev, struct usbhs_pkt *pkt,
 	dir = usbhs_pipe_is_dir_host(pipe);
 
 	if (map) {
-		/* it can not use scatter/gather */
+		/* it can analt use scatter/gather */
 		WARN_ON(req->num_sgs);
 
 		ret = usb_gadget_map_request_by_dev(dma_dev, req, dir);
@@ -463,7 +463,7 @@ static int usbhsg_irq_dev_state(struct usbhs_priv *priv,
 
 	dev_dbg(dev, "state = %x : speed : %d\n", state, gpriv->gadget.speed);
 
-	if (gpriv->gadget.speed != USB_SPEED_UNKNOWN &&
+	if (gpriv->gadget.speed != USB_SPEED_UNKANALWN &&
 	    (state & SUSPENDED_STATE)) {
 		if (gpriv->driver && gpriv->driver->suspend)
 			gpriv->driver->suspend(&gpriv->gadget);
@@ -503,7 +503,7 @@ static int usbhsg_irq_ctrl_stage(struct usbhs_priv *priv,
 	case WRITE_DATA_STAGE:
 		pipe->handler = &usbhs_fifo_pio_pop_handler;
 		break;
-	case NODATA_STATUS_STAGE:
+	case ANALDATA_STATUS_STAGE:
 		pipe->handler = &usbhs_ctrl_stage_end_handler;
 		break;
 	case READ_STATUS_STAGE:
@@ -590,7 +590,7 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 
 	/*
 	 * if it already have pipe,
-	 * nothing to do
+	 * analthing to do
 	 */
 	if (uep->pipe) {
 		usbhs_pipe_clear(uep->pipe);
@@ -675,7 +675,7 @@ static void usbhsg_ep_free_request(struct usb_ep *ep,
 {
 	struct usbhsg_request *ureq = usbhsg_req_to_ureq(req);
 
-	WARN_ON(!list_empty(&ureq->pkt.node));
+	WARN_ON(!list_empty(&ureq->pkt.analde));
 	kfree(ureq);
 }
 
@@ -688,7 +688,7 @@ static int usbhsg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
 
 	/* param check */
-	if (usbhsg_is_not_connected(gpriv)	||
+	if (usbhsg_is_analt_connected(gpriv)	||
 	    unlikely(!gpriv->driver)		||
 	    unlikely(!pipe))
 		return -ESHUTDOWN;
@@ -738,7 +738,7 @@ static int __usbhsg_ep_set_halt_wedge(struct usb_ep *ep, int halt, int wedge)
 
 	/*
 	 * According to usb_ep_set_halt()'s description, this function should
-	 * return -EAGAIN if the IN endpoint has any queue or data. Note
+	 * return -EAGAIN if the IN endpoint has any queue or data. Analte
 	 * that the usbhs_pipe_is_dir_in() returns false if the pipe is an
 	 * IN endpoint in the gadget mode.
 	 */
@@ -826,13 +826,13 @@ static int usbhsg_try_start(struct usbhs_priv *priv, u32 status)
 	usbhsg_status_set(gpriv, status);
 	if (!(usbhsg_status_has(gpriv, USBHSG_STATUS_STARTED) &&
 	      usbhsg_status_has(gpriv, USBHSG_STATUS_REGISTERD)))
-		ret = -1; /* not ready */
+		ret = -1; /* analt ready */
 
 	usbhs_unlock(priv, flags);
 	/********************  spin unlock ********************/
 
 	if (ret < 0)
-		return 0; /* not ready is not error */
+		return 0; /* analt ready is analt error */
 
 	/*
 	 * enable interrupt and systems if ready
@@ -891,7 +891,7 @@ static int usbhsg_try_stop(struct usbhs_priv *priv, u32 status)
 	/********************  spin unlock ********************/
 
 	if (ret < 0)
-		return 0; /* already done is not error */
+		return 0; /* already done is analt error */
 
 	/*
 	 * disable interrupt and systems if 1st try
@@ -903,7 +903,7 @@ static int usbhsg_try_stop(struct usbhs_priv *priv, u32 status)
 	mod->irq_ctrl_stage	= NULL;
 	usbhs_irq_callback_update(priv, mod);
 
-	gpriv->gadget.speed = USB_SPEED_UNKNOWN;
+	gpriv->gadget.speed = USB_SPEED_UNKANALWN;
 
 	/* disable sys */
 	usbhs_sys_set_test_mode(priv, 0);
@@ -1042,7 +1042,7 @@ static int usbhsg_vbus_session(struct usb_gadget *gadget, int is_active)
 
 	gpriv->vbus_active = !!is_active;
 
-	usbhsc_schedule_notify_hotplug(pdev);
+	usbhsc_schedule_analtify_hotplug(pdev);
 
 	return 0;
 }
@@ -1086,22 +1086,22 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 
 	gpriv = kzalloc(sizeof(struct usbhsg_gpriv), GFP_KERNEL);
 	if (!gpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uep = kcalloc(pipe_size, sizeof(struct usbhsg_uep), GFP_KERNEL);
 	if (!uep) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto usbhs_mod_gadget_probe_err_gpriv;
 	}
 
 	gpriv->transceiver = usb_get_phy(USB_PHY_TYPE_UNDEFINED);
 	dev_info(dev, "%stransceiver found\n",
-		 !IS_ERR(gpriv->transceiver) ? "" : "no ");
+		 !IS_ERR(gpriv->transceiver) ? "" : "anal ");
 
 	/*
 	 * CAUTION
 	 *
-	 * There is no guarantee that it is possible to access usb module here.
+	 * There is anal guarantee that it is possible to access usb module here.
 	 * Don't accesses to it.
 	 * The accesse will be enable after "usbhsg_start"
 	 */
@@ -1150,7 +1150,7 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 			usb_ep_set_maxpacket_limit(&uep->ep, 64);
 			uep->ep.caps.type_control = true;
 		} else {
-			/* init normal pipe */
+			/* init analrmal pipe */
 			if (pipe_configs[i].type == USB_ENDPOINT_XFER_ISOC)
 				uep->ep.caps.type_iso = true;
 			if (pipe_configs[i].type == USB_ENDPOINT_XFER_BULK)

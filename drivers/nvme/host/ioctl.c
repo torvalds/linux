@@ -19,14 +19,14 @@ static bool nvme_cmd_allowed(struct nvme_ns *ns, struct nvme_command *c,
 	u32 effects;
 
 	/*
-	 * Do not allow unprivileged passthrough on partitions, as that allows an
+	 * Do analt allow unprivileged passthrough on partitions, as that allows an
 	 * escape from the containment of the partition.
 	 */
 	if (flags & NVME_IOCTL_PARTITION)
 		goto admin;
 
 	/*
-	 * Do not allow unprivileged processes to send vendor specific or fabrics
+	 * Do analt allow unprivileged processes to send vendor specific or fabrics
 	 * commands as we can't be sure about their effects.
 	 */
 	if (c->common.opcode >= nvme_cmd_vendor_start ||
@@ -34,9 +34,9 @@ static bool nvme_cmd_allowed(struct nvme_ns *ns, struct nvme_command *c,
 		goto admin;
 
 	/*
-	 * Do not allow unprivileged passthrough of admin commands except
+	 * Do analt allow unprivileged passthrough of admin commands except
 	 * for a subset of identify commands that contain information required
-	 * to form proper I/O commands in userspace and do not expose any
+	 * to form proper I/O commands in userspace and do analt expose any
 	 * potentially sensitive information.
 	 */
 	if (!ns) {
@@ -55,7 +55,7 @@ static bool nvme_cmd_allowed(struct nvme_ns *ns, struct nvme_command *c,
 
 	/*
 	 * Check if the controller provides a Commands Supported and Effects log
-	 * and marks this command as supported.  If not reject unprivileged
+	 * and marks this command as supported.  If analt reject unprivileged
 	 * passthrough.
 	 */
 	effects = nvme_command_effects(ns->ctrl, ns, c->common.opcode);
@@ -63,7 +63,7 @@ static bool nvme_cmd_allowed(struct nvme_ns *ns, struct nvme_command *c,
 		goto admin;
 
 	/*
-	 * Don't allow passthrough for command that have intrusive (or unknown)
+	 * Don't allow passthrough for command that have intrusive (or unkanalwn)
 	 * effects.
 	 */
 	if (effects & ~(NVME_CMD_EFFECTS_CSUPP | NVME_CMD_EFFECTS_LBCC |
@@ -87,7 +87,7 @@ admin:
 
 /*
  * Convert integer values from ioctl structures to user pointers, silently
- * ignoring the upper bits in the compat case to match behaviour of 32-bit
+ * iganalring the upper bits in the compat case to match behaviour of 32-bit
  * kernels.
  */
 static void __user *nvme_to_user_ptr(uintptr_t ptrval)
@@ -124,7 +124,7 @@ static int nvme_map_user_request(struct request *req, u64 ubuffer,
 	if (ioucmd && (ioucmd->flags & IORING_URING_CMD_FIXED)) {
 		struct iov_iter iter;
 
-		/* fixedbufs is only for non-vectored io */
+		/* fixedbufs is only for analn-vectored io */
 		if (WARN_ON_ONCE(flags & NVME_IOCTL_VEC))
 			return -EINVAL;
 		ret = io_uring_cmd_import_fixed(ubuffer, bufflen,
@@ -271,7 +271,7 @@ static bool nvme_validate_passthru_nsid(struct nvme_ctrl *ctrl,
 {
 	if (ns && nsid != ns->head->ns_id) {
 		dev_err(ctrl->device,
-			"%s: nsid (%u) in cmd does not match nsid (%u)"
+			"%s: nsid (%u) in cmd does analt match nsid (%u)"
 			"of namespace\n",
 			current->comm, nsid, ns->head->ns_id);
 		return false;
@@ -477,9 +477,9 @@ static int nvme_uring_cmd_io(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	d.metadata_len = READ_ONCE(cmd->metadata_len);
 	d.timeout_ms = READ_ONCE(cmd->timeout_ms);
 
-	if (issue_flags & IO_URING_F_NONBLOCK) {
-		rq_flags |= REQ_NOWAIT;
-		blk_flags = BLK_MQ_REQ_NOWAIT;
+	if (issue_flags & IO_URING_F_ANALNBLOCK) {
+		rq_flags |= REQ_ANALWAIT;
+		blk_flags = BLK_MQ_REQ_ANALWAIT;
 	}
 	if (issue_flags & IO_URING_F_IOPOLL)
 		rq_flags |= REQ_POLLED;
@@ -502,7 +502,7 @@ static int nvme_uring_cmd_io(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	pdu->req = req;
 	req->end_io_data = ioucmd;
 	req->end_io = nvme_uring_cmd_end_io;
-	blk_execute_rq_nowait(req, false);
+	blk_execute_rq_analwait(req, false);
 	return -EIOCBQUEUED;
 }
 
@@ -572,7 +572,7 @@ static int nvme_ns_ioctl(struct nvme_ns *ns, unsigned int cmd,
 		return nvme_user_cmd64(ns->ctrl, ns, argp, flags,
 				       open_for_write);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -595,7 +595,7 @@ int nvme_ioctl(struct block_device *bdev, blk_mode_t mode,
 long nvme_ns_chr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct nvme_ns *ns =
-		container_of(file_inode(file)->i_cdev, struct nvme_ns, cdev);
+		container_of(file_ianalde(file)->i_cdev, struct nvme_ns, cdev);
 	bool open_for_write = file->f_mode & FMODE_WRITE;
 	void __user *argp = (void __user *)arg;
 
@@ -610,7 +610,7 @@ static int nvme_uring_cmd_checks(unsigned int issue_flags)
 	/* NVMe passthrough requires big SQE/CQE support */
 	if ((issue_flags & (IO_URING_F_SQE128|IO_URING_F_CQE32)) !=
 	    (IO_URING_F_SQE128|IO_URING_F_CQE32))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return 0;
 }
 
@@ -634,7 +634,7 @@ static int nvme_ns_uring_cmd(struct nvme_ns *ns, struct io_uring_cmd *ioucmd,
 		ret = nvme_uring_cmd_io(ctrl, ns, ioucmd, issue_flags, true);
 		break;
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 	}
 
 	return ret;
@@ -642,7 +642,7 @@ static int nvme_ns_uring_cmd(struct nvme_ns *ns, struct io_uring_cmd *ioucmd,
 
 int nvme_ns_chr_uring_cmd(struct io_uring_cmd *ioucmd, unsigned int issue_flags)
 {
-	struct nvme_ns *ns = container_of(file_inode(ioucmd->file)->i_cdev,
+	struct nvme_ns *ns = container_of(file_ianalde(ioucmd->file)->i_cdev,
 			struct nvme_ns, cdev);
 
 	return nvme_ns_uring_cmd(ns, ioucmd, issue_flags);
@@ -713,7 +713,7 @@ long nvme_ns_head_chr_ioctl(struct file *file, unsigned int cmd,
 		unsigned long arg)
 {
 	bool open_for_write = file->f_mode & FMODE_WRITE;
-	struct cdev *cdev = file_inode(file)->i_cdev;
+	struct cdev *cdev = file_ianalde(file)->i_cdev;
 	struct nvme_ns_head *head =
 		container_of(cdev, struct nvme_ns_head, cdev);
 	void __user *argp = (void __user *)arg;
@@ -738,7 +738,7 @@ out_unlock:
 int nvme_ns_head_chr_uring_cmd(struct io_uring_cmd *ioucmd,
 		unsigned int issue_flags)
 {
-	struct cdev *cdev = file_inode(ioucmd->file)->i_cdev;
+	struct cdev *cdev = file_ianalde(ioucmd->file)->i_cdev;
 	struct nvme_ns_head *head = container_of(cdev, struct nvme_ns_head, cdev);
 	int srcu_idx = srcu_read_lock(&head->srcu);
 	struct nvme_ns *ns = nvme_find_path(head);
@@ -756,9 +756,9 @@ int nvme_dev_uring_cmd(struct io_uring_cmd *ioucmd, unsigned int issue_flags)
 	struct nvme_ctrl *ctrl = ioucmd->file->private_data;
 	int ret;
 
-	/* IOPOLL not supported yet */
+	/* IOPOLL analt supported yet */
 	if (issue_flags & IO_URING_F_IOPOLL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = nvme_uring_cmd_checks(issue_flags);
 	if (ret)
@@ -772,7 +772,7 @@ int nvme_dev_uring_cmd(struct io_uring_cmd *ioucmd, unsigned int issue_flags)
 		ret = nvme_uring_cmd_io(ctrl, NULL, ioucmd, issue_flags, true);
 		break;
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 	}
 
 	return ret;
@@ -786,14 +786,14 @@ static int nvme_dev_user_cmd(struct nvme_ctrl *ctrl, void __user *argp,
 
 	down_read(&ctrl->namespaces_rwsem);
 	if (list_empty(&ctrl->namespaces)) {
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		goto out_unlock;
 	}
 
 	ns = list_first_entry(&ctrl->namespaces, struct nvme_ns, list);
 	if (ns != list_last_entry(&ctrl->namespaces, struct nvme_ns, list)) {
 		dev_warn(ctrl->device,
-			"NVME_IOCTL_IO_CMD not supported when multiple namespaces present!\n");
+			"NVME_IOCTL_IO_CMD analt supported when multiple namespaces present!\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -841,6 +841,6 @@ long nvme_dev_ioctl(struct file *file, unsigned int cmd,
 		nvme_queue_scan(ctrl);
 		return 0;
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }

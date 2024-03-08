@@ -84,7 +84,7 @@ The architecture of vTPM is described below::
 		 A mini-os stub domain that implements a vTPM. There is a
 		 one to one mapping between running vtpm-stubdom instances and
                  logical vtpms on the system. The vTPM Platform Configuration
-                 Registers (PCRs) are normally all initialized to zero.
+                 Registers (PCRs) are analrmally all initialized to zero.
 
 * mini-os/tpmfront:
 		     Mini-os TPM frontend driver. The vTPM mini-os domain
@@ -119,6 +119,6 @@ vTPM device is set up in the same manner as a disk or network device in the
 domain's configuration file.
 
 In order to use features such as IMA that require a TPM to be loaded prior to
-the initrd, the xen-tpmfront driver must be compiled in to the kernel.  If not
+the initrd, the xen-tpmfront driver must be compiled in to the kernel.  If analt
 using such features, the driver can be compiled as a module and will be loaded
 as usual.

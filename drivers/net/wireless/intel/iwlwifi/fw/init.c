@@ -73,8 +73,8 @@ int iwl_set_soc_latency(struct iwl_fw_runtime *fwrt)
 	if (!fwrt->trans->trans_cfg->integrated)
 		cmd.flags = cpu_to_le32(SOC_CONFIG_CMD_FLAGS_DISCRETE);
 
-	BUILD_BUG_ON(IWL_CFG_TRANS_LTR_DELAY_NONE !=
-		     SOC_FLAGS_LTR_APPLY_DELAY_NONE);
+	BUILD_BUG_ON(IWL_CFG_TRANS_LTR_DELAY_ANALNE !=
+		     SOC_FLAGS_LTR_APPLY_DELAY_ANALNE);
 	BUILD_BUG_ON(IWL_CFG_TRANS_LTR_DELAY_200US !=
 		     SOC_FLAGS_LTR_APPLY_DELAY_200);
 	BUILD_BUG_ON(IWL_CFG_TRANS_LTR_DELAY_2500US !=
@@ -82,13 +82,13 @@ int iwl_set_soc_latency(struct iwl_fw_runtime *fwrt)
 	BUILD_BUG_ON(IWL_CFG_TRANS_LTR_DELAY_1820US !=
 		     SOC_FLAGS_LTR_APPLY_DELAY_1820);
 
-	if (fwrt->trans->trans_cfg->ltr_delay != IWL_CFG_TRANS_LTR_DELAY_NONE &&
+	if (fwrt->trans->trans_cfg->ltr_delay != IWL_CFG_TRANS_LTR_DELAY_ANALNE &&
 	    !WARN_ON(!fwrt->trans->trans_cfg->integrated))
 		cmd.flags |= le32_encode_bits(fwrt->trans->trans_cfg->ltr_delay,
 					      SOC_FLAGS_LTR_APPLY_DELAY_MASK);
 
 	if (iwl_fw_lookup_cmd_ver(fwrt->fw, SCAN_REQ_UMAC,
-				  IWL_FW_CMD_VER_UNKNOWN) >= 2 &&
+				  IWL_FW_CMD_VER_UNKANALWN) >= 2 &&
 	    fwrt->trans->trans_cfg->low_latency_xtal)
 		cmd.flags |= cpu_to_le32(SOC_CONFIG_CMD_FLAGS_LOW_LATENCY);
 
@@ -107,12 +107,12 @@ int iwl_configure_rxq(struct iwl_fw_runtime *fwrt)
 	struct iwl_rfh_queue_config *cmd;
 	struct iwl_host_cmd hcmd = {
 		.id = WIDE_ID(DATA_PATH_GROUP, RFH_QUEUE_CONFIG_CMD),
-		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
+		.dataflags[0] = IWL_HCMD_DFL_ANALCOPY,
 	};
 
 	/*
 	 * The default queue is configured via context info, so if we
-	 * have a single queue, there's nothing to do here.
+	 * have a single queue, there's analthing to do here.
 	 */
 	if (fwrt->trans->num_rx_queues == 1)
 		return 0;
@@ -127,7 +127,7 @@ int iwl_configure_rxq(struct iwl_fw_runtime *fwrt)
 
 	cmd = kzalloc(size, GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->num_queues = num_queues;
 

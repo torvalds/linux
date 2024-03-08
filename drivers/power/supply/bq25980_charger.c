@@ -622,12 +622,12 @@ static int bq25980_get_battery_property(struct power_supply *psy,
 		val->intval = bq->init_data.vreg_max;
 		break;
 
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		ret = bq25980_get_ibat_adc(bq);
 		val->intval = ret;
 		break;
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = bq25980_get_adc_vbat(bq);
 		if (ret < 0)
 			return ret;
@@ -748,28 +748,28 @@ static int bq25980_get_charger_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_STATUS:
-		val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+		val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 
 		if ((state.ce) && (!state.hiz))
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else if (state.dischg)
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		else if (!state.ce)
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
-		val->intval = POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
+		val->intval = POWER_SUPPLY_CHARGE_TYPE_UNKANALWN;
 
 		if (!state.ce)
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 		else if (state.bypass)
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_BYPASS;
 		else if (!state.bypass)
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_STANDARD;
 		break;
 
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		ret = bq25980_get_adc_ibus(bq);
 		if (ret < 0)
 			return ret;
@@ -777,7 +777,7 @@ static int bq25980_get_charger_property(struct power_supply *psy,
 		val->intval = ret;
 		break;
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = bq25980_get_adc_vbus(bq);
 		if (ret < 0)
 			return ret;
@@ -862,15 +862,15 @@ static enum power_supply_property bq25980_power_supply_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 };
 
 static enum power_supply_property bq25980_battery_props[] = {
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 };
 
 static char *bq25980_charger_supplied_to[] = {
@@ -1057,7 +1057,7 @@ static int bq25980_power_supply_init(struct bq25980_device *bq,
 							struct device *dev)
 {
 	struct power_supply_config psy_cfg = { .drv_data = bq,
-						.of_node = dev->of_node, };
+						.of_analde = dev->of_analde, };
 
 	psy_cfg.supplied_to = bq25980_charger_supplied_to;
 	psy_cfg.num_supplicants = ARRAY_SIZE(bq25980_charger_supplied_to);
@@ -1216,7 +1216,7 @@ static int bq25980_probe(struct i2c_client *client)
 
 	bq = devm_kzalloc(dev, sizeof(*bq), GFP_KERNEL);
 	if (!bq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bq->client = client;
 	bq->dev = dev;
@@ -1259,7 +1259,7 @@ static int bq25980_probe(struct i2c_client *client)
 
 	ret = bq25980_hw_init(bq);
 	if (ret) {
-		dev_err(dev, "Cannot initialize the chip.\n");
+		dev_err(dev, "Cananalt initialize the chip.\n");
 		return ret;
 	}
 

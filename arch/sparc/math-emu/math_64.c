@@ -11,7 +11,7 @@
 
 #include <linux/types.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/perf_event.h>
 
 #include <asm/fpumacro.h>
@@ -43,7 +43,7 @@
 #define FSTOQ	0x0cd
 #define FDTOQ	0x0ce
 #define FQTOI	0x0d3
-/* SUBNORMAL - ftt == 2 */
+/* SUBANALRMAL - ftt == 2 */
 #define FSQRTS	0x029
 #define FSQRTD	0x02a
 #define FADDS	0x041
@@ -134,7 +134,7 @@ static inline int record_exception(struct pt_regs *regs, int eflag)
 
 	/* Set the AEXC field, rule is:
 	 *
-	 *    If a trap would not be generated, the
+	 *    If a trap would analt be generated, the
 	 *    CEXC just generated is OR'd into the
 	 *    existing value of AEXC.
 	 */
@@ -147,7 +147,7 @@ static inline int record_exception(struct pt_regs *regs, int eflag)
 
 	current_thread_info()->xfsr[0] = fsr;
 
-	/* If we will not trap, advance the program counter over
+	/* If we will analt trap, advance the program counter over
 	 * the instruction being handled.
 	 */
 	if(would_trap == 0) {
@@ -171,8 +171,8 @@ int do_mathemu(struct pt_regs *regs, struct fpustate *f, bool illegal_insn_trap)
 	u32 insn = 0;
 	int type = 0;
 	/* ftt tells which ftt it may happen in, r is rd, b is rs2 and a is rs1. The *u arg tells
-	   whether the argument should be packed/unpacked (0 - do not unpack/pack, 1 - unpack/pack)
-	   non-u args tells the size of the argument (0 - no argument, 1 - single, 2 - double, 3 - quad */
+	   whether the argument should be packed/unpacked (0 - do analt unpack/pack, 1 - unpack/pack)
+	   analn-u args tells the size of the argument (0 - anal argument, 1 - single, 2 - double, 3 - quad */
 #define TYPE(ftt, r, ru, b, bu, a, au) type = (au << 2) | (a << 0) | (bu << 5) | (b << 3) | (ru << 8) | (r << 6) | (ftt << 9)
 	int freg;
 	static u64 zero[2] = { 0L, 0L };
@@ -213,7 +213,7 @@ int do_mathemu(struct pt_regs *regs, struct fpustate *f, bool illegal_insn_trap)
 
 			/* We can get either unimplemented or unfinished
 			 * for these cases.  Pre-Niagara systems generate
-			 * unfinished fpop for SUBNORMAL cases, and Niagara
+			 * unfinished fpop for SUBANALRMAL cases, and Niagara
 			 * always gives unimplemented fpop for fsqrt{s,d}.
 			 */
 			case FSQRTS: {
@@ -232,7 +232,7 @@ int do_mathemu(struct pt_regs *regs, struct fpustate *f, bool illegal_insn_trap)
 				break;
 			}
 
-			/* SUBNORMAL - ftt == 2 */
+			/* SUBANALRMAL - ftt == 2 */
 			case FADDD:
 			case FSUBD:
 			case FMULD:
@@ -263,7 +263,7 @@ int do_mathemu(struct pt_regs *regs, struct fpustate *f, bool illegal_insn_trap)
 			switch ((insn >> 5) & 0x1ff) {
 			case FCMPQ: TYPE(3,0,0,3,1,3,1); break;
 			case FCMPEQ: TYPE(3,0,0,3,1,3,1); break;
-			/* Now the conditional fmovq support */
+			/* Analw the conditional fmovq support */
 			case FMOVQ0:
 			case FMOVQ1:
 			case FMOVQ2:
@@ -277,13 +277,13 @@ int do_mathemu(struct pt_regs *regs, struct fpustate *f, bool illegal_insn_trap)
 				IR = 0;
 				switch ((insn >> 14) & 0x7) {
 				/* case 0: IR = 0; break; */			/* Never */
-				case 1: if (XR) IR = 1; break;			/* Not Equal */
+				case 1: if (XR) IR = 1; break;			/* Analt Equal */
 				case 2: if (XR == 1 || XR == 2) IR = 1; break;	/* Less or Greater */
-				case 3: if (XR & 1) IR = 1; break;		/* Unordered or Less */
+				case 3: if (XR & 1) IR = 1; break;		/* Uanalrdered or Less */
 				case 4: if (XR == 1) IR = 1; break;		/* Less */
-				case 5: if (XR & 2) IR = 1; break;		/* Unordered or Greater */
+				case 5: if (XR & 2) IR = 1; break;		/* Uanalrdered or Greater */
 				case 6: if (XR == 2) IR = 1; break;		/* Greater */
-				case 7: if (XR == 3) IR = 1; break;		/* Unordered */
+				case 7: if (XR == 3) IR = 1; break;		/* Uanalrdered */
 				}
 				if ((insn >> 14) & 8)
 					IR ^= 1;
@@ -343,7 +343,7 @@ int do_mathemu(struct pt_regs *regs, struct fpustate *f, bool illegal_insn_trap)
 				break;
 			}
 			if (IR == 0) {
-				/* The fmov test was false. Do a nop instead */
+				/* The fmov test was false. Do a analp instead */
 				current_thread_info()->xfsr[0] &= ~(FSR_CEXC_MASK);
 				regs->tpc = regs->tnpc;
 				regs->tnpc += 4;
@@ -358,8 +358,8 @@ int do_mathemu(struct pt_regs *regs, struct fpustate *f, bool illegal_insn_trap)
 	if (type) {
 		argp rs1 = NULL, rs2 = NULL, rd = NULL;
 		
-		/* Starting with UltraSPARC-T2, the cpu does not set the FP Trap
-		 * Type field in the %fsr to unimplemented_FPop.  Nor does it
+		/* Starting with UltraSPARC-T2, the cpu does analt set the FP Trap
+		 * Type field in the %fsr to unimplemented_FPop.  Analr does it
 		 * use the fp_exception_other trap.  Instead it signals an
 		 * illegal instruction and leaves the FP trap type field of
 		 * the %fsr unchanged.
@@ -515,7 +515,7 @@ int do_mathemu(struct pt_regs *regs, struct fpustate *f, bool illegal_insn_trap)
 		if(_fex != 0)
 			return record_exception(regs, _fex);
 
-		/* Success and no exceptions detected. */
+		/* Success and anal exceptions detected. */
 		current_thread_info()->xfsr[0] &= ~(FSR_CEXC_MASK);
 		regs->tpc = regs->tnpc;
 		regs->tnpc += 4;

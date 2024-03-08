@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2020 Mellanox Technologies Ltd */
+/* Copyright (c) 2020 Mellaanalx Techanallogies Ltd */
 
 #ifndef __MLX5_SF_PRIV_H__
 #define __MLX5_SF_PRIV_H__

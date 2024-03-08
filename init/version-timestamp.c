@@ -11,14 +11,14 @@ struct uts_namespace init_uts_ns = {
 	.ns.count = REFCOUNT_INIT(2),
 	.name = {
 		.sysname	= UTS_SYSNAME,
-		.nodename	= UTS_NODENAME,
+		.analdename	= UTS_ANALDENAME,
 		.release	= UTS_RELEASE,
 		.version	= UTS_VERSION,
 		.machine	= UTS_MACHINE,
 		.domainname	= UTS_DOMAINNAME,
 	},
 	.user_ns = &init_user_ns,
-	.ns.inum = PROC_UTS_INIT_INO,
+	.ns.inum = PROC_UTS_INIT_IANAL,
 #ifdef CONFIG_UTS_NS
 	.ns.ops = &utsns_operations,
 #endif

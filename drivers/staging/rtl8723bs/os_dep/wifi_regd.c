@@ -50,7 +50,7 @@ static int rtw_ieee80211_channel_to_frequency(int chan, int band)
 	else if (chan < 14)
 		return 2407 + chan * 5;
 	else
-		return 0;	/* not supported */
+		return 0;	/* analt supported */
 }
 
 static void _rtw_reg_apply_flags(struct wiphy *wiphy)
@@ -90,14 +90,14 @@ static void _rtw_reg_apply_flags(struct wiphy *wiphy)
 		ch = ieee80211_get_channel(wiphy, freq);
 		if (ch) {
 			if (channel_set[i].ScanType == SCAN_PASSIVE)
-				ch->flags = IEEE80211_CHAN_NO_IR;
+				ch->flags = IEEE80211_CHAN_ANAL_IR;
 			else
 				ch->flags = 0;
 		}
 	}
 }
 
-static int _rtw_reg_notifier_apply(struct wiphy *wiphy,
+static int _rtw_reg_analtifier_apply(struct wiphy *wiphy,
 				   struct regulatory_request *request,
 				   struct rtw_regulatory *reg)
 {
@@ -115,14 +115,14 @@ static const struct ieee80211_regdomain *_rtw_regdomain_select(struct
 
 static void _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
 				 struct wiphy *wiphy,
-				 void (*reg_notifier)(struct wiphy *wiphy,
+				 void (*reg_analtifier)(struct wiphy *wiphy,
 						      struct
 						      regulatory_request *
 						      request))
 {
 	const struct ieee80211_regdomain *regd;
 
-	wiphy->reg_notifier = reg_notifier;
+	wiphy->reg_analtifier = reg_analtifier;
 
 	wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
 	wiphy->regulatory_flags &= ~REGULATORY_STRICT_REG;
@@ -136,15 +136,15 @@ static void _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
 }
 
 void rtw_regd_init(struct wiphy *wiphy,
-		   void (*reg_notifier)(struct wiphy *wiphy,
+		   void (*reg_analtifier)(struct wiphy *wiphy,
 					struct regulatory_request *request))
 {
-	_rtw_regd_init_wiphy(NULL, wiphy, reg_notifier);
+	_rtw_regd_init_wiphy(NULL, wiphy, reg_analtifier);
 }
 
-void rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+void rtw_reg_analtifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct rtw_regulatory *reg = NULL;
 
-	_rtw_reg_notifier_apply(wiphy, request, reg);
+	_rtw_reg_analtifier_apply(wiphy, request, reg);
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2013-2018, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2013-2018, Mellaanalx Techanallogies inc.  All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -132,7 +132,7 @@ static int create_srq_cmd(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 	inlen	  = MLX5_ST_SZ_BYTES(create_srq_in) + pas_size;
 	create_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!create_in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(create_srq_in, create_in, uid, in->uid);
 	srqc = MLX5_ADDR_OF(create_srq_in, create_in, srq_context_entry);
@@ -196,11 +196,11 @@ static int query_srq_cmd(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 
 	srq_out = kvzalloc(MLX5_ST_SZ_BYTES(query_srq_out), GFP_KERNEL);
 	if (!srq_out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(query_srq_in, in, opcode, MLX5_CMD_OP_QUERY_SRQ);
 	MLX5_SET(query_srq_in, in, srqn, srq->srqn);
-	err = mlx5_cmd_exec_inout(dev->mdev, query_srq, in, srq_out);
+	err = mlx5_cmd_exec_ianalut(dev->mdev, query_srq, in, srq_out);
 	if (err)
 		goto out;
 
@@ -235,7 +235,7 @@ static int create_xrc_srq_cmd(struct mlx5_ib_dev *dev,
 	inlen	  = MLX5_ST_SZ_BYTES(create_xrc_srq_in) + pas_size;
 	create_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!create_in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(create_xrc_srq_in, create_in, uid, in->uid);
 	xrc_srqc = MLX5_ADDR_OF(create_xrc_srq_in, create_in,
@@ -305,12 +305,12 @@ static int query_xrc_srq_cmd(struct mlx5_ib_dev *dev,
 
 	xrcsrq_out = kvzalloc(MLX5_ST_SZ_BYTES(query_xrc_srq_out), GFP_KERNEL);
 	if (!xrcsrq_out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(query_xrc_srq_in, in, opcode, MLX5_CMD_OP_QUERY_XRC_SRQ);
 	MLX5_SET(query_xrc_srq_in, in, xrc_srqn, srq->srqn);
 
-	err = mlx5_cmd_exec_inout(dev->mdev, query_xrc_srq, in, xrcsrq_out);
+	err = mlx5_cmd_exec_ianalut(dev->mdev, query_xrc_srq, in, xrcsrq_out);
 	if (err)
 		goto out;
 
@@ -350,7 +350,7 @@ static int create_rmp_cmd(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 	create_in = kvzalloc(inlen, GFP_KERNEL);
 	create_out = kvzalloc(outlen, GFP_KERNEL);
 	if (!create_in || !create_out) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -411,7 +411,7 @@ static int arm_rmp_cmd(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 	in = kvzalloc(inlen, GFP_KERNEL);
 	out = kvzalloc(outlen, GFP_KERNEL);
 	if (!in || !out) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -427,7 +427,7 @@ static int arm_rmp_cmd(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 	MLX5_SET(rmpc, rmpc, state, MLX5_RMPC_STATE_RDY);
 	MLX5_SET(modify_rmp_in, in, opcode, MLX5_CMD_OP_MODIFY_RMP);
 
-	err = mlx5_cmd_exec_inout(dev->mdev, modify_rmp, in, out);
+	err = mlx5_cmd_exec_ianalut(dev->mdev, modify_rmp, in, out);
 
 out:
 	kvfree(in);
@@ -451,13 +451,13 @@ static int query_rmp_cmd(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 	rmp_out = kvzalloc(outlen, GFP_KERNEL);
 	rmp_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!rmp_out || !rmp_in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
 	MLX5_SET(query_rmp_in, rmp_in, opcode, MLX5_CMD_OP_QUERY_RMP);
 	MLX5_SET(query_rmp_in, rmp_in, rmpn,   srq->srqn);
-	err = mlx5_cmd_exec_inout(dev->mdev, query_rmp, rmp_in, rmp_out);
+	err = mlx5_cmd_exec_ianalut(dev->mdev, query_rmp, rmp_in, rmp_out);
 	if (err)
 		goto out;
 
@@ -494,7 +494,7 @@ static int create_xrq_cmd(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 	inlen = MLX5_ST_SZ_BYTES(create_xrq_in) + pas_size;
 	create_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!create_in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xrqc = MLX5_ADDR_OF(create_xrq_in, create_in, xrq_context);
 	wq = MLX5_ADDR_OF(xrqc, xrqc, wq);
@@ -569,12 +569,12 @@ static int query_xrq_cmd(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 
 	xrq_out = kvzalloc(outlen, GFP_KERNEL);
 	if (!xrq_out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(query_xrq_in, in, opcode, MLX5_CMD_OP_QUERY_XRQ);
 	MLX5_SET(query_xrq_in, in, xrqn, srq->srqn);
 
-	err = mlx5_cmd_exec_inout(dev->mdev, query_xrq, in, xrq_out);
+	err = mlx5_cmd_exec_ianalut(dev->mdev, query_xrq, in, xrq_out);
 	if (err)
 		goto out;
 
@@ -720,7 +720,7 @@ int mlx5_cmd_arm_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 	}
 }
 
-static int srq_event_notifier(struct notifier_block *nb,
+static int srq_event_analtifier(struct analtifier_block *nb,
 			      unsigned long type, void *data)
 {
 	struct mlx5_srq_table *table;
@@ -730,7 +730,7 @@ static int srq_event_notifier(struct notifier_block *nb,
 
 	if (type != MLX5_EVENT_TYPE_SRQ_CATAS_ERROR &&
 	    type != MLX5_EVENT_TYPE_SRQ_RQ_LIMIT)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	table = container_of(nb, struct mlx5_srq_table, nb);
 
@@ -744,13 +744,13 @@ static int srq_event_notifier(struct notifier_block *nb,
 	xa_unlock(&table->array);
 
 	if (!srq)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	srq->event(srq, eqe->type);
 
 	mlx5_core_res_put(&srq->common);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 int mlx5_init_srq_table(struct mlx5_ib_dev *dev)
@@ -760,8 +760,8 @@ int mlx5_init_srq_table(struct mlx5_ib_dev *dev)
 	memset(table, 0, sizeof(*table));
 	xa_init_flags(&table->array, XA_FLAGS_LOCK_IRQ);
 
-	table->nb.notifier_call = srq_event_notifier;
-	mlx5_notifier_register(dev->mdev, &table->nb);
+	table->nb.analtifier_call = srq_event_analtifier;
+	mlx5_analtifier_register(dev->mdev, &table->nb);
 
 	return 0;
 }
@@ -770,5 +770,5 @@ void mlx5_cleanup_srq_table(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_srq_table *table = &dev->srq_table;
 
-	mlx5_notifier_unregister(dev->mdev, &table->nb);
+	mlx5_analtifier_unregister(dev->mdev, &table->nb);
 }

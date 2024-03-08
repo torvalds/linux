@@ -14,12 +14,12 @@ struct imx_sc_msg_rm_rsrc_owned {
 } __packed __aligned(4);
 
 /*
- * This function check @resource is owned by current partition or not
+ * This function check @resource is owned by current partition or analt
  *
  * @param[in]     ipc         IPC handle
  * @param[in]     resource    resource the control is associated with
  *
- * @return Returns 0 for not owned and 1 for owned.
+ * @return Returns 0 for analt owned and 1 for owned.
  */
 bool imx_sc_rm_is_resource_owned(struct imx_sc_ipc *ipc, u16 resource)
 {
@@ -35,7 +35,7 @@ bool imx_sc_rm_is_resource_owned(struct imx_sc_ipc *ipc, u16 resource)
 
 	/*
 	 * SCU firmware only returns value 0 or 1
-	 * for resource owned check which means not owned or owned.
+	 * for resource owned check which means analt owned or owned.
 	 * So it is always successful.
 	 */
 	imx_scu_call_rpc(ipc, &msg, true);

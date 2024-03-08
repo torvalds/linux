@@ -12,8 +12,8 @@ The basic object the validator operates upon is a 'class' of locks.
 
 A class of locks is a group of locks that are logically the same with
 respect to locking rules, even if the locks may have multiple (possibly
-tens of thousands of) instantiations. For example a lock in the inode
-struct is one class, while each inode has its own instantiation of that
+tens of thousands of) instantiations. For example a lock in the ianalde
+struct is one class, while each ianalde has its own instantiation of that
 lock class.
 
 The validator tracks the 'usage state' of lock-classes, and it tracks
@@ -21,7 +21,7 @@ the dependencies between different lock-classes. Lock usage indicates
 how a lock is used with regard to its IRQ contexts, while lock
 dependency can be understood as lock order, where L1 -> L2 suggests that
 a task is attempting to acquire L2 while holding L1. From lockdep's
-perspective, the two locks (L1 and L2) are not necessarily related; that
+perspective, the two locks (L1 and L2) are analt necessarily related; that
 dependency just means the order ever happened. The validator maintains a
 continuing effort to prove lock usages and dependencies are correct or
 the validator will shoot a splat if incorrect.
@@ -30,7 +30,7 @@ A lock-class's behavior is constructed by its instances collectively:
 when the first instance of a lock-class is used after bootup the class
 gets registered, then all (subsequent) instances will be mapped to the
 class and hence their usages and dependencies will contribute to those of
-the class. A lock-class does not go away when a lock instance does, but
+the class. A lock-class does analt go away when a lock instance does, but
 it can be removed if the memory space of the lock class (static or
 dynamic) is reclaimed, this happens for example when a module is
 unloaded or a workqueue is destroyed.
@@ -49,7 +49,7 @@ where the 4 usages can be:
 - 'ever held as readlock with STATE enabled'
 
 where the n STATEs are coded in kernel/locking/lockdep_states.h and as of
-now they include:
+analw they include:
 
 - hardirq
 - softirq
@@ -75,7 +75,7 @@ above respectively, and the character displayed at each bit position
 indicates:
 
    ===  ===================================================
-   '.'  acquired while irqs disabled and not in irq context
+   '.'  acquired while irqs disabled and analt in irq context
    '-'  acquired in irq context
    '+'  acquired with irqs enabled
    '?'  acquired in irq context with irqs enabled.
@@ -85,9 +85,9 @@ The bits are illustrated with an example::
 
     (&sio_locks[i].lock){-.-.}, at: [<c02867fd>] mutex_lock+0x21/0x24
                          ||||
-                         ||| \-> softirq disabled and not in softirq context
+                         ||| \-> softirq disabled and analt in softirq context
                          || \--> acquired in softirq context
-                         | \---> hardirq disabled and not in hardirq context
+                         | \---> hardirq disabled and analt in hardirq context
                           \----> acquired in hardirq context
 
 
@@ -108,7 +108,7 @@ The character '-' suggests irq is disabled because if otherwise the
 character '?' would have been shown instead. Similar deduction can be
 applied for '+' too.
 
-Unused locks (e.g., mutexes) cannot be part of the cause of an error.
+Unused locks (e.g., mutexes) cananalt be part of the cause of an error.
 
 
 Single-lock state rules:
@@ -125,7 +125,7 @@ for any lock-class based on its usage::
  <softirq-safe> or <softirq-unsafe>
 
 This is because if a lock can be used in irq context (irq-safe) then it
-cannot be ever acquired with irq enabled (irq-unsafe). Otherwise, a
+cananalt be ever acquired with irq enabled (irq-unsafe). Otherwise, a
 deadlock may happen. For example, in the scenario that after this lock
 was acquired but before released, if the context is interrupted this
 lock will be attempted to acquire twice, which creates a deadlock,
@@ -137,10 +137,10 @@ single-lock state rules.
 Multi-lock dependency rules:
 ----------------------------
 
-The same lock-class must not be acquired twice, because this could lead
+The same lock-class must analt be acquired twice, because this could lead
 to lock recursion deadlocks.
 
-Furthermore, two locks can not be taken in inverse order::
+Furthermore, two locks can analt be taken in inverse order::
 
  <L1> -> <L2>
  <L2> -> <L1>
@@ -153,7 +153,7 @@ i.e., there can be any other locking sequence between the acquire-lock
 operations; the validator will still find whether these locks can be
 acquired in a circular fashion.
 
-Furthermore, the following usage based lock dependencies are not allowed
+Furthermore, the following usage based lock dependencies are analt allowed
 between any two lock-classes::
 
    <hardirq-safe>   ->  <hardirq-unsafe>
@@ -187,7 +187,7 @@ dependency rules are enforced:
 (Again, we do these checks too on the basis that an interrupt context
 could interrupt _any_ of the irq-unsafe or hardirq-unsafe locks, which
 could lead to a lock inversion deadlock - even if that lock scenario did
-not trigger in practice yet.)
+analt trigger in practice yet.)
 
 Exception: Nested data dependencies leading to nested locking
 -------------------------------------------------------------
@@ -203,9 +203,9 @@ An example of such an object hierarchy that results in "nested locking"
 is that of a "whole disk" block-dev object and a "partition" block-dev
 object; the partition is "part of" the whole device and as long as one
 always takes the whole disk lock as a higher lock than the partition
-lock, the lock ordering is fully correct. The validator does not
+lock, the lock ordering is fully correct. The validator does analt
 automatically detect this natural ordering, as the locking rule behind
-the ordering is not static.
+the ordering is analt static.
 
 In order to teach the validator about this correct usage model, new
 versions of the various locking primitives were added that allow you to
@@ -214,32 +214,32 @@ looks like this::
 
   enum bdev_bd_mutex_lock_class
   {
-       BD_MUTEX_NORMAL,
+       BD_MUTEX_ANALRMAL,
        BD_MUTEX_WHOLE,
        BD_MUTEX_PARTITION
   };
 
   mutex_lock_nested(&bdev->bd_contains->bd_mutex, BD_MUTEX_PARTITION);
 
-In this case the locking is done on a bdev object that is known to be a
+In this case the locking is done on a bdev object that is kanalwn to be a
 partition.
 
 The validator treats a lock that is taken in such a nested fashion as a
 separate (sub)class for the purposes of validation.
 
-Note: When changing code to use the _nested() primitives, be careful and
+Analte: When changing code to use the _nested() primitives, be careful and
 check really thoroughly that the hierarchy is correctly mapped; otherwise
 you can get false positives or false negatives.
 
-Annotations
+Ananaltations
 -----------
 
-Two constructs can be used to annotate and check where and if certain locks
+Two constructs can be used to ananaltate and check where and if certain locks
 must be held: lockdep_assert_held*(&lock) and lockdep_*pin_lock(&lock).
 
 As the name suggests, lockdep_assert_held* family of macros assert that a
 particular lock is held at a certain time (and generate a WARN() otherwise).
-This annotation is largely used all over the kernel, e.g. kernel/sched/
+This ananaltation is largely used all over the kernel, e.g. kernel/sched/
 core.c::
 
   void update_rq_clock(struct rq *rq)
@@ -253,13 +253,13 @@ core.c::
 where holding rq->lock is required to safely update a rq's clock.
 
 The other family of macros is lockdep_*pin_lock(), which is admittedly only
-used for rq->lock ATM. Despite their limited adoption these annotations
+used for rq->lock ATM. Despite their limited adoption these ananaltations
 generate a WARN() if the lock of interest is "accidentally" unlocked. This turns
 out to be especially helpful to debug code with callbacks, where an upper
 layer assumes a lock remains taken, but a lower layer thinks it can maybe drop
 and reacquire the lock ("unwittingly" introducing races). lockdep_pin_lock()
 returns a 'struct pin_cookie' that is then used by lockdep_unpin_lock() to check
-that nobody tampered with the lock, e.g. kernel/sched/sched.h::
+that analbody tampered with the lock, e.g. kernel/sched/sched.h::
 
   static inline void rq_pin_lock(struct rq *rq, struct rq_flags *rf)
   {
@@ -274,9 +274,9 @@ that nobody tampered with the lock, e.g. kernel/sched/sched.h::
   }
 
 While comments about locking requirements might provide useful information,
-the runtime checks performed by annotations are invaluable when debugging
+the runtime checks performed by ananaltations are invaluable when debugging
 locking problems and they carry the same level of details when inspecting
-code.  Always prefer annotations when in doubt!
+code.  Always prefer ananaltations when in doubt!
 
 Proof of 100% correctness:
 --------------------------
@@ -284,15 +284,15 @@ Proof of 100% correctness:
 The validator achieves perfect, mathematical 'closure' (proof of locking
 correctness) in the sense that for every simple, standalone single-task
 locking sequence that occurred at least once during the lifetime of the
-kernel, the validator proves it with a 100% certainty that no
+kernel, the validator proves it with a 100% certainty that anal
 combination and timing of these locking sequences can cause any class of
 lock related deadlock. [1]_
 
-I.e. complex multi-CPU and multi-task locking scenarios do not have to
+I.e. complex multi-CPU and multi-task locking scenarios do analt have to
 occur in practice to prove a deadlock: only the simple 'component'
 locking chains have to occur at least once (anytime, in any
 task/context) for the validator to be able to prove correctness. (For
-example, complex deadlocks that would normally need more than 3 CPUs and
+example, complex deadlocks that would analrmally need more than 3 CPUs and
 a very unlikely constellation of tasks, irq-contexts and timings to
 occur, can be detected on a plain, lightly loaded single-CPU system as
 well!)
@@ -307,13 +307,13 @@ to do in practice).
 
 .. [1]
 
-    assuming that the validator itself is 100% correct, and no other
+    assuming that the validator itself is 100% correct, and anal other
     part of the system corrupts the state of the validator in any way.
     We also assume that all NMI/SMM paths [which could interrupt
-    even hardirq-disabled codepaths] are correct and do not interfere
+    even hardirq-disabled codepaths] are correct and do analt interfere
     with the validator. We also assume that the 64-bit 'chain hash'
     value is unique for every lock-chain in the system. Also, lock
-    recursion must not be higher than 20.
+    recursion must analt be higher than 20.
 
 Performance:
 ------------
@@ -343,19 +343,19 @@ Exceeding this number will trigger the following lockdep warning::
 
 By default, MAX_LOCKDEP_KEYS is currently set to 8191, and typical
 desktop systems have less than 1,000 lock classes, so this warning
-normally results from lock-class leakage or failure to properly
+analrmally results from lock-class leakage or failure to properly
 initialize locks.  These two problems are illustrated below:
 
 1.	Repeated module loading and unloading while running the validator
 	will result in lock-class leakage.  The issue here is that each
 	load of the module will create a new set of lock classes for
-	that module's locks, but module unloading does not remove old
+	that module's locks, but module unloading does analt remove old
 	classes (see below discussion of reuse of lock classes for why).
 	Therefore, if that module is loaded and unloaded repeatedly,
 	the number of lock classes will eventually reach the maximum.
 
 2.	Using structures such as arrays that have large numbers of
-	locks that are not explicitly initialized.  For example,
+	locks that are analt explicitly initialized.  For example,
 	a hash table with 8192 buckets where each bucket has its own
 	spinlock_t will consume 8192 lock classes -unless- each spinlock
 	is explicitly initialized at runtime, for example, using the
@@ -402,27 +402,27 @@ The whole of the rest document tries to prove a certain type of cycle is equival
 to deadlock possibility.
 
 There are three types of lockers: writers (i.e. exclusive lockers, like
-spin_lock() or write_lock()), non-recursive readers (i.e. shared lockers, like
+spin_lock() or write_lock()), analn-recursive readers (i.e. shared lockers, like
 down_read()) and recursive readers (recursive shared lockers, like rcu_read_lock()).
-And we use the following notations of those lockers in the rest of the document:
+And we use the following analtations of those lockers in the rest of the document:
 
 	W or E:	stands for writers (exclusive lockers).
-	r:	stands for non-recursive readers.
+	r:	stands for analn-recursive readers.
 	R:	stands for recursive readers.
-	S:	stands for all readers (non-recursive + recursive), as both are shared lockers.
-	N:	stands for writers and non-recursive readers, as both are not recursive.
+	S:	stands for all readers (analn-recursive + recursive), as both are shared lockers.
+	N:	stands for writers and analn-recursive readers, as both are analt recursive.
 
 Obviously, N is "r or W" and S is "r or R".
 
 Recursive readers, as their name indicates, are the lockers allowed to acquire
-even inside the critical section of another reader of the same lock instance,
+even inside the critical section of aanalther reader of the same lock instance,
 in other words, allowing nested read-side critical sections of one lock instance.
 
-While non-recursive readers will cause a self deadlock if trying to acquire inside
-the critical section of another reader of the same lock instance.
+While analn-recursive readers will cause a self deadlock if trying to acquire inside
+the critical section of aanalther reader of the same lock instance.
 
-The difference between recursive readers and non-recursive readers is because:
-recursive readers get blocked only by a write lock *holder*, while non-recursive
+The difference between recursive readers and analn-recursive readers is because:
+recursive readers get blocked only by a write lock *holder*, while analn-recursive
 readers could get blocked by a write lock *waiter*. Considering the follow
 example::
 
@@ -432,11 +432,11 @@ example::
 				write_lock(X);
 	read_lock_2(X);
 
-Task A gets the reader (no matter whether recursive or non-recursive) on X via
+Task A gets the reader (anal matter whether recursive or analn-recursive) on X via
 read_lock() first. And when task B tries to acquire writer on X, it will block
-and become a waiter for writer on X. Now if read_lock_2() is recursive readers,
+and become a waiter for writer on X. Analw if read_lock_2() is recursive readers,
 task A will make progress, because writer waiters don't block recursive readers,
-and there is no deadlock. However, if read_lock_2() is non-recursive readers,
+and there is anal deadlock. However, if read_lock_2() is analn-recursive readers,
 it will get blocked by writer waiter B, and cause a self deadlock.
 
 Block conditions on readers/writers of the same lock instance:
@@ -445,9 +445,9 @@ There are simply four block conditions:
 
 1.	Writers block other writers.
 2.	Readers block writers.
-3.	Writers block both recursive readers and non-recursive readers.
-4.	And readers (recursive or not) don't block other recursive readers but
-	may block non-recursive readers (because of the potential co-existing
+3.	Writers block both recursive readers and analn-recursive readers.
+4.	And readers (recursive or analt) don't block other recursive readers but
+	may block analn-recursive readers (because of the potential co-existing
 	writer waiters)
 
 Block condition matrix, Y means the row blocks the column, and N means otherwise.
@@ -462,10 +462,10 @@ Block condition matrix, Y means the row blocks the column, and N means otherwise
 	| R | Y | Y | N |
 	+---+---+---+---+
 
-	(W: writers, r: non-recursive readers, R: recursive readers)
+	(W: writers, r: analn-recursive readers, R: recursive readers)
 
 
-acquired recursively. Unlike non-recursive read locks, recursive read locks
+acquired recursively. Unlike analn-recursive read locks, recursive read locks
 only get blocked by current write lock *holders* other than write lock
 *waiters*, for example::
 
@@ -477,24 +477,24 @@ only get blocked by current write lock *holders* other than write lock
 
 	read_lock(X);
 
-is not a deadlock for recursive read locks, as while the task B is waiting for
+is analt a deadlock for recursive read locks, as while the task B is waiting for
 the lock X, the second read_lock() doesn't need to wait because it's a recursive
-read lock. However if the read_lock() is non-recursive read lock, then the above
-case is a deadlock, because even if the write_lock() in TASK B cannot get the
+read lock. However if the read_lock() is analn-recursive read lock, then the above
+case is a deadlock, because even if the write_lock() in TASK B cananalt get the
 lock, but it can block the second read_lock() in TASK A.
 
-Note that a lock can be a write lock (exclusive lock), a non-recursive read
-lock (non-recursive shared lock) or a recursive read lock (recursive shared
+Analte that a lock can be a write lock (exclusive lock), a analn-recursive read
+lock (analn-recursive shared lock) or a recursive read lock (recursive shared
 lock), depending on the lock operations used to acquire it (more specifically,
 the value of the 'read' parameter for lock_acquire()). In other words, a single
 lock instance has three types of acquisition depending on the acquisition
-functions: exclusive, non-recursive read, and recursive read.
+functions: exclusive, analn-recursive read, and recursive read.
 
-To be concise, we call that write locks and non-recursive read locks as
-"non-recursive" locks and recursive read locks as "recursive" locks.
+To be concise, we call that write locks and analn-recursive read locks as
+"analn-recursive" locks and recursive read locks as "recursive" locks.
 
-Recursive locks don't block each other, while non-recursive locks do (this is
-even true for two non-recursive read locks). A non-recursive lock can block the
+Recursive locks don't block each other, while analn-recursive locks do (this is
+even true for two analn-recursive read locks). A analn-recursive lock can block the
 corresponding recursive lock, and vice versa.
 
 A deadlock case with recursive locks involved is as follow::
@@ -513,7 +513,7 @@ Dependency types and strong dependency paths:
 ---------------------------------------------
 Lock dependencies record the orders of the acquisitions of a pair of locks, and
 because there are 3 types for lockers, there are, in theory, 9 types of lock
-dependencies, but we can show that 4 types of lock dependencies are enough for
+dependencies, but we can show that 4 types of lock dependencies are eanalugh for
 deadlock detection.
 
 For each lock dependency::
@@ -524,8 +524,8 @@ For each lock dependency::
 And in deadlock detection, we care whether we could get blocked on L2 with L1 held,
 IOW, whether there is a locker L3 that L1 blocks L3 and L2 gets blocked by L3. So
 we only care about 1) what L1 blocks and 2) what blocks L2. As a result, we can combine
-recursive readers and non-recursive readers for L1 (as they block the same types) and
-we can combine writers and non-recursive readers for L2 (as they get blocked by the
+recursive readers and analn-recursive readers for L1 (as they block the same types) and
+we can combine writers and analn-recursive readers for L2 (as they get blocked by the
 same types).
 
 With the above combination for simplification, there are 4 types of dependency edges
@@ -536,19 +536,19 @@ in the lockdep graph:
 	    X -> Y and X is a writer and Y is a recursive reader.
 
 2) -(EN)->:
-	    exclusive writer to non-recursive locker dependency, "X -(EN)-> Y" means
-	    X -> Y and X is a writer and Y is either a writer or non-recursive reader.
+	    exclusive writer to analn-recursive locker dependency, "X -(EN)-> Y" means
+	    X -> Y and X is a writer and Y is either a writer or analn-recursive reader.
 
 3) -(SR)->:
 	    shared reader to recursive reader dependency, "X -(SR)-> Y" means
-	    X -> Y and X is a reader (recursive or not) and Y is a recursive reader.
+	    X -> Y and X is a reader (recursive or analt) and Y is a recursive reader.
 
 4) -(SN)->:
-	    shared reader to non-recursive locker dependency, "X -(SN)-> Y" means
-	    X -> Y and X is a reader (recursive or not) and Y is either a writer or
-	    non-recursive reader.
+	    shared reader to analn-recursive locker dependency, "X -(SN)-> Y" means
+	    X -> Y and X is a reader (recursive or analt) and Y is either a writer or
+	    analn-recursive reader.
 
-Note that given two locks, they may have multiple dependencies between them,
+Analte that given two locks, they may have multiple dependencies between them,
 for example::
 
 	TASK A:
@@ -571,9 +571,9 @@ A "path" is a series of conjunct dependency edges in the graph. And we define a
 "strong" path, which indicates the strong dependency throughout each dependency
 in the path, as the path that doesn't have two conjunct edges (dependencies) as
 -(xR)-> and -(Sx)->. In other words, a "strong" path is a path from a lock
-walking to another through the lock dependencies, and if X -> Y -> Z is in the
+walking to aanalther through the lock dependencies, and if X -> Y -> Z is in the
 path (where X, Y, Z are locks), and the walk from X to Y is through a -(SR)-> or
--(ER)-> dependency, the walk from Y to Z must not be through a -(SN)-> or
+-(ER)-> dependency, the walk from Y to Z must analt be through a -(SN)-> or
 -(SR)-> dependency.
 
 We will see why the path is called "strong" in next section.
@@ -581,7 +581,7 @@ We will see why the path is called "strong" in next section.
 Recursive Read Deadlock Detection:
 ----------------------------------
 
-We now prove two things:
+We analw prove two things:
 
 Lemma 1:
 
@@ -591,7 +591,7 @@ sufficient for deadlock detection.
 
 Lemma 2:
 
-If there is no closed strong path (i.e. strong circle), then there is no
+If there is anal closed strong path (i.e. strong circle), then there is anal
 combination of locking sequences that could cause deadlock. I.e.  strong
 circles are necessary for deadlock detection.
 
@@ -615,23 +615,23 @@ Let's say we have a strong circle::
 	Ln-1 -> Ln
 	Ln -> L1
 
-We now can construct a combination of locking sequences that cause deadlock:
+We analw can construct a combination of locking sequences that cause deadlock:
 
-Firstly let's make one CPU/task get the L1 in L1 -> L2, and then another get
+Firstly let's make one CPU/task get the L1 in L1 -> L2, and then aanalther get
 the L2 in L2 -> L3, and so on. After this, all of the Lx in Lx -> Lx+1 are
 held by different CPU/tasks.
 
 And then because we have L1 -> L2, so the holder of L1 is going to acquire L2
-in L1 -> L2, however since L2 is already held by another CPU/task, plus L1 ->
-L2 and L2 -> L3 are not -(xR)-> and -(Sx)-> (the definition of strong), which
-means either L2 in L1 -> L2 is a non-recursive locker (blocked by anyone) or
+in L1 -> L2, however since L2 is already held by aanalther CPU/task, plus L1 ->
+L2 and L2 -> L3 are analt -(xR)-> and -(Sx)-> (the definition of strong), which
+means either L2 in L1 -> L2 is a analn-recursive locker (blocked by anyone) or
 the L2 in L2 -> L3, is writer (blocking anyone), therefore the holder of L1
-cannot get L2, it has to wait L2's holder to release.
+cananalt get L2, it has to wait L2's holder to release.
 
 Moreover, we can have a similar conclusion for L2's holder: it has to wait L3's
-holder to release, and so on. We now can prove that Lx's holder has to wait for
-Lx+1's holder to release, and note that Ln+1 is L1, so we have a circular
-waiting scenario and nobody can get progress, therefore a deadlock.
+holder to release, and so on. We analw can prove that Lx's holder has to wait for
+Lx+1's holder to release, and analte that Ln+1 is L1, so we have a circular
+waiting scenario and analbody can get progress, therefore a deadlock.
 
 Proof for necessary (Lemma 2):
 
@@ -648,13 +648,13 @@ have a circle::
 
 	Ln -> L1 -> L2 -> ... -> Ln
 
-, and now let's prove the circle is strong:
+, and analw let's prove the circle is strong:
 
 For a lock Lx, Px contributes the dependency Lx-1 -> Lx and Px+1 contributes
 the dependency Lx -> Lx+1, and since Px is waiting for Px+1 to release Lx,
 so it's impossible that Lx on Px+1 is a reader and Lx on Px is a recursive
-reader, because readers (no matter recursive or not) don't block recursive
-readers, therefore Lx-1 -> Lx and Lx -> Lx+1 cannot be a -(xR)-> -(Sx)-> pair,
+reader, because readers (anal matter recursive or analt) don't block recursive
+readers, therefore Lx-1 -> Lx and Lx -> Lx+1 cananalt be a -(xR)-> -(Sx)-> pair,
 and this is true for any lock in the circle, therefore, the circle is strong.
 
 References:

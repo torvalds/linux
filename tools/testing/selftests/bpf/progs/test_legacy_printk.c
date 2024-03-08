@@ -2,7 +2,7 @@
 /* Copyright (c) 2021 Facebook */
 
 #include <linux/bpf.h>
-#define BPF_NO_GLOBAL_DATA
+#define BPF_ANAL_GLOBAL_DATA
 #include <bpf/bpf_helpers.h>
 
 char LICENSE[] SEC("license") = "GPL";
@@ -42,7 +42,7 @@ int handle_legacy(void *ctx)
 		return 1;
 
 	if (*my_res == 0)
-		/* use bpf_printk() in combination with BPF_NO_GLOBAL_DATA to
+		/* use bpf_printk() in combination with BPF_ANAL_GLOBAL_DATA to
 		 * force .rodata.str1.1 section that previously caused
 		 * problems on old kernels due to libbpf always tried to
 		 * create a global data map for it

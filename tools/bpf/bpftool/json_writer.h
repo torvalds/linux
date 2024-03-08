@@ -2,7 +2,7 @@
 /*
  * Simple streaming JSON writer
  *
- * This takes care of the annoying bits of JSON syntax like the commas
+ * This takes care of the ananalying bits of JSON syntax like the commas
  * after elements
  *
  * Authors:	Stephen Hemminger <stephen@networkplumber.org>

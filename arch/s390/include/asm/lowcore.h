@@ -130,7 +130,7 @@ struct lowcore {
 
 	/* Interrupt, DAT-off and restartstack. */
 	__u64	async_stack;			/* 0x0350 */
-	__u64	nodat_stack;			/* 0x0358 */
+	__u64	analdat_stack;			/* 0x0358 */
 	__u64	restart_stack;			/* 0x0360 */
 	__u64	mcck_stack;			/* 0x0368 */
 	/* Restart function and parameter. */
@@ -171,7 +171,7 @@ struct lowcore {
 	/*
 	 * 0xe00 contains the address of the IPL Parameter Information
 	 * block. Dump tools need IPIB for IPL after dump.
-	 * Note: do not change the position of any fields in 0x0e00-0x0f00
+	 * Analte: do analt change the position of any fields in 0x0e00-0x0f00
 	 */
 	__u64	ipib;				/* 0x0e00 */
 	__u32	ipib_checksum;			/* 0x0e08 */
@@ -208,7 +208,7 @@ struct lowcore {
 	__u64	aicd;				/* 0x1508 */
 	__u8	pad_0x1510[0x1800-0x1510];	/* 0x1510 */
 
-	/* Transaction abort diagnostic block */
+	/* Transaction abort diaganalstic block */
 	struct pgm_tdb pgm_tdb;			/* 0x1800 */
 	__u8	pad_0x1900[0x2000-0x1900];	/* 0x1900 */
 } __packed __aligned(8192);

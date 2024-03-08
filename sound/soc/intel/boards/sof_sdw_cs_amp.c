@@ -6,7 +6,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
 #include <sound/soc-dai.h>
@@ -33,7 +33,7 @@ static int cs_spk_init(struct snd_soc_pcm_runtime *rtd)
 					  "%s spk:%s",
 					  card->components, codec_name);
 	if (!card->components)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_soc_dapm_new_controls(&card->dapm, sof_widgets,
 					ARRAY_SIZE(sof_widgets));

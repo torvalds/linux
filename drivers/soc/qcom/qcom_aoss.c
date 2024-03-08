@@ -39,7 +39,7 @@
 #define QMP_MAGIC			0x4d41494c /* mail */
 #define QMP_VERSION			1
 
-/* 64 bytes is enough to store the requests and provides padding to 4 bytes */
+/* 64 bytes is eanalugh to store the requests and provides padding to 4 bytes */
 #define QMP_MSG_LEN			64
 
 #define QMP_NUM_COOLING_RESOURCES	2
@@ -208,11 +208,11 @@ static bool qmp_message_empty(struct qmp *qmp)
  * @fmt: format string for message to be sent
  * @...: arguments for the format string
  *
- * Transmit message to AOSS and wait for the AOSS to acknowledge the message.
- * data must not be longer than the mailbox size. Access is synchronized by
+ * Transmit message to AOSS and wait for the AOSS to ackanalwledge the message.
+ * data must analt be longer than the mailbox size. Access is synchronized by
  * this implementation.
  *
- * Return: 0 on success, negative errno on failure
+ * Return: 0 on success, negative erranal on failure
  */
 int qmp_send(struct qmp *qmp, const char *fmt, ...)
 {
@@ -247,7 +247,7 @@ int qmp_send(struct qmp *qmp, const char *fmt, ...)
 	time_left = wait_event_interruptible_timeout(qmp->event,
 						     qmp_message_empty(qmp), HZ);
 	if (!time_left) {
-		dev_err(qmp->dev, "ucore did not ack channel\n");
+		dev_err(qmp->dev, "ucore did analt ack channel\n");
 		ret = -ETIMEDOUT;
 
 		/* Clear message from buffer */
@@ -298,7 +298,7 @@ static int qmp_qdss_clk_add(struct qmp *qmp)
 		return ret;
 	}
 
-	ret = of_clk_add_hw_provider(qmp->dev->of_node, of_clk_hw_simple_get,
+	ret = of_clk_add_hw_provider(qmp->dev->of_analde, of_clk_hw_simple_get,
 				     &qmp->qdss_clk);
 	if (ret < 0) {
 		dev_err(qmp->dev, "unable to register of clk hw provider\n");
@@ -310,7 +310,7 @@ static int qmp_qdss_clk_add(struct qmp *qmp)
 
 static void qmp_qdss_clk_remove(struct qmp *qmp)
 {
-	of_clk_del_provider(qmp->dev->of_node);
+	of_clk_del_provider(qmp->dev->of_analde);
 	clk_hw_unregister(&qmp->qdss_clk);
 }
 
@@ -337,7 +337,7 @@ static int qmp_cdev_set_cur_state(struct thermal_cooling_device *cdev,
 	bool cdev_state;
 	int ret;
 
-	/* Normalize state */
+	/* Analrmalize state */
 	cdev_state = !!state;
 
 	if (qmp_cdev->state == state)
@@ -359,15 +359,15 @@ static const struct thermal_cooling_device_ops qmp_cooling_device_ops = {
 
 static int qmp_cooling_device_add(struct qmp *qmp,
 				  struct qmp_cooling_device *qmp_cdev,
-				  struct device_node *node)
+				  struct device_analde *analde)
 {
-	char *cdev_name = (char *)node->name;
+	char *cdev_name = (char *)analde->name;
 
 	qmp_cdev->qmp = qmp;
 	qmp_cdev->state = !qmp_cdev_max_state;
 	qmp_cdev->name = cdev_name;
 	qmp_cdev->cdev = devm_thermal_of_cooling_device_register
-				(qmp->dev, node,
+				(qmp->dev, analde,
 				cdev_name,
 				qmp_cdev, &qmp_cooling_device_ops);
 
@@ -380,26 +380,26 @@ static int qmp_cooling_device_add(struct qmp *qmp,
 
 static int qmp_cooling_devices_register(struct qmp *qmp)
 {
-	struct device_node *np, *child;
+	struct device_analde *np, *child;
 	int count = 0;
 	int ret;
 
-	np = qmp->dev->of_node;
+	np = qmp->dev->of_analde;
 
 	qmp->cooling_devs = devm_kcalloc(qmp->dev, QMP_NUM_COOLING_RESOURCES,
 					 sizeof(*qmp->cooling_devs),
 					 GFP_KERNEL);
 
 	if (!qmp->cooling_devs)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		if (!of_property_present(child, "#cooling-cells"))
 			continue;
 		ret = qmp_cooling_device_add(qmp, &qmp->cooling_devs[count++],
 					     child);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			goto unroll;
 		}
 	}
@@ -435,18 +435,18 @@ static void qmp_cooling_devices_remove(struct qmp *qmp)
 struct qmp *qmp_get(struct device *dev)
 {
 	struct platform_device *pdev;
-	struct device_node *np;
+	struct device_analde *np;
 	struct qmp *qmp;
 
-	if (!dev || !dev->of_node)
+	if (!dev || !dev->of_analde)
 		return ERR_PTR(-EINVAL);
 
-	np = of_parse_phandle(dev->of_node, "qcom,qmp", 0);
+	np = of_parse_phandle(dev->of_analde, "qcom,qmp", 0);
 	if (!np)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
-	pdev = of_find_device_by_node(np);
-	of_node_put(np);
+	pdev = of_find_device_by_analde(np);
+	of_analde_put(np);
 	if (!pdev)
 		return ERR_PTR(-EINVAL);
 
@@ -467,7 +467,7 @@ EXPORT_SYMBOL_GPL(qmp_get);
 void qmp_put(struct qmp *qmp)
 {
 	/*
-	 * Match get_device() inside of_find_device_by_node() in
+	 * Match get_device() inside of_find_device_by_analde() in
 	 * qmp_get()
 	 */
 	if (!IS_ERR_OR_NULL(qmp))
@@ -483,7 +483,7 @@ static int qmp_probe(struct platform_device *pdev)
 
 	qmp = devm_kzalloc(&pdev->dev, sizeof(*qmp), GFP_KERNEL);
 	if (!qmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qmp->dev = &pdev->dev;
 	init_waitqueue_head(&qmp->event);
@@ -494,7 +494,7 @@ static int qmp_probe(struct platform_device *pdev)
 		return PTR_ERR(qmp->msgram);
 
 	qmp->mbox_client.dev = &pdev->dev;
-	qmp->mbox_client.knows_txdone = true;
+	qmp->mbox_client.kanalws_txdone = true;
 	qmp->mbox_chan = mbox_request_channel(&qmp->mbox_client, 0);
 	if (IS_ERR(qmp->mbox_chan)) {
 		dev_err(&pdev->dev, "failed to acquire ipc mailbox\n");

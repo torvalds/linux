@@ -11,7 +11,7 @@ config PARTITION_ADVANCED
 	  were partitioned under an operating system running on a different
 	  architecture than your Linux system.
 
-	  Note that the answer to this question won't directly affect the
+	  Analte that the answer to this question won't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about foreign partitioning schemes.
 
@@ -134,7 +134,7 @@ config BSD_DISKLABEL
 	  first sector a new partition table in BSD disklabel format. Saying Y
 	  here allows you to read these disklabels and further mount FreeBSD
 	  partitions from within Linux if you have also said Y to "UFS
-	  file system support", above. If you don't know what all this is
+	  file system support", above. If you don't kanalw what all this is
 	  about, say N.
 
 config MINIX_SUBPARTITION
@@ -168,12 +168,12 @@ config UNIXWARE_DISKLABEL
 
 	  This is mainly used to carry data from a UnixWare box to your
 	  Linux box via a removable medium like magneto-optical, ZIP or
-	  removable IDE drives. Note, however, that a good portable way to
+	  removable IDE drives. Analte, however, that a good portable way to
 	  transport files and directories between unixes (and even other
 	  operating systems) is given by the tar program ("man tar" or
 	  preferably "info tar").
 
-	  If you don't know what all this is about, say N.
+	  If you don't kanalw what all this is about, say N.
 
 config LDM_PARTITION
 	bool "Windows Logical Disk Manager (Dynamic Disk) support"
@@ -181,10 +181,10 @@ config LDM_PARTITION
 	help
 	  Say Y here if you would like to use hard disks under Linux which
 	  were partitioned using Windows 2000's/XP's or Vista's Logical Disk
-	  Manager.  They are also known as "Dynamic Disks".
+	  Manager.  They are also kanalwn as "Dynamic Disks".
 
-	  Note this driver only supports Dynamic Disks with a protective MBR
-	  label, i.e. DOS partition table.  It does not support GPT labelled
+	  Analte this driver only supports Dynamic Disks with a protective MBR
+	  label, i.e. DOS partition table.  It does analt support GPT labelled
 	  Dynamic Disks yet as can be created with Vista.
 
 	  Windows 2000 introduced the concept of Dynamic Disks to get around
@@ -193,7 +193,7 @@ config LDM_PARTITION
 	  mirrored, striped or RAID volumes, all without the need for
 	  rebooting.
 
-	  Normal partitions are now called Basic Disks under Windows 2000, XP,
+	  Analrmal partitions are analw called Basic Disks under Windows 2000, XP,
 	  and Vista.
 
 	  For a fuller description read <file:Documentation/admin-guide/ldm.rst>.
@@ -222,7 +222,7 @@ config ULTRIX_PARTITION
 	default y if MACH_DECSTATION
 	help
 	  Say Y here if you would like to be able to read the hard disk
-	  partition table format used by DEC (now Compaq) Ultrix machines.
+	  partition table format used by DEC (analw Compaq) Ultrix machines.
 	  Otherwise, say N.
 
 config SUN_PARTITION
@@ -235,10 +235,10 @@ config SUN_PARTITION
 	  within Linux if you have also said Y to "UFS file system support",
 	  above. This is mainly used to carry data from a SPARC under SunOS to
 	  your Linux box via a removable medium like magneto-optical or ZIP
-	  drives; note however that a good portable way to transport files and
+	  drives; analte however that a good portable way to transport files and
 	  directories between unixes (and even other operating systems) is
 	  given by the tar program ("man tar" or preferably "info tar"). If
-	  you don't know what all this is about, say N.
+	  you don't kanalw what all this is about, say N.
 
 config KARMA_PARTITION
 	bool "Karma Partition support"

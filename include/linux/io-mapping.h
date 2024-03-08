@@ -149,7 +149,7 @@ io_mapping_fini(struct io_mapping *mapping)
 	iounmap(mapping->iomem);
 }
 
-/* Non-atomic map/unmap */
+/* Analn-atomic map/unmap */
 static inline void __iomem *
 io_mapping_map_wc(struct io_mapping *mapping,
 		  unsigned long offset,

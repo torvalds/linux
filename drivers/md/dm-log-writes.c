@@ -34,7 +34,7 @@
  * verify it matches what was written.
  *
  * We log writes only after they have been flushed, this makes the log describe
- * close to the order in which the data hits the actual disk, not its cache.  So
+ * close to the order in which the data hits the actual disk, analt its cache.  So
  * for example the following sequence (W means write, C means complete)
  *
  * Wa,Wb,Wc,Cc,Ca,FLUSH,FUAd,Cb,CFLUSH,CFUAd
@@ -43,12 +43,12 @@
  *
  * c,a,b,flush,fuad,<other writes>,<next flush>
  *
- * This is meant to help expose problems where file systems do not properly wait
+ * This is meant to help expose problems where file systems do analt properly wait
  * on data being written before invoking a FLUSH.  FUA bypasses cache so once it
  * completes it is added to the log as it should be on disk.
  *
  * We treat DISCARDs as if they don't bypass cache so that they are logged in
- * order of completion along with the normal writes.  If we didn't do it this
+ * order of completion along with the analrmal writes.  If we didn't do it this
  * way we would process all the discards first and then write all the data, when
  * in fact we want to do the data and the discard in the order that they
  * completed.
@@ -452,7 +452,7 @@ static int log_writes_kthread(void *arg)
 			lc->next_sector += dev_to_bio_sectors(lc, 1);
 
 			/*
-			 * Apparently the size of the device may not be known
+			 * Apparently the size of the device may analt be kanalwn
 			 * right away, so handle this properly.
 			 */
 			if (!lc->end_sector)
@@ -520,8 +520,8 @@ static int log_writes_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	lc = kzalloc(sizeof(struct log_writes_c), GFP_KERNEL);
 	if (!lc) {
-		ti->error = "Cannot allocate context";
-		return -ENOMEM;
+		ti->error = "Cananalt allocate context";
+		return -EANALMEM;
 	}
 	spin_lock_init(&lc->blocks_lock);
 	INIT_LIST_HEAD(&lc->unflushed_blocks);
@@ -589,14 +589,14 @@ static int log_mark(struct log_writes_c *lc, char *data)
 	block = kzalloc(sizeof(struct pending_block), GFP_KERNEL);
 	if (!block) {
 		DMERR("Error allocating pending block");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	block->data = kstrndup(data, maxsize - 1, GFP_KERNEL);
 	if (!block->data) {
 		DMERR("Error copying mark data");
 		kfree(block);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	atomic_inc(&lc->pending_blocks);
 	block->datalen = strlen(block->data);
@@ -633,7 +633,7 @@ static void log_writes_dtr(struct dm_target *ti)
 	kfree(lc);
 }
 
-static void normal_map_bio(struct dm_target *ti, struct bio *bio)
+static void analrmal_map_bio(struct dm_target *ti, struct bio *bio)
 {
 	struct log_writes_c *lc = ti->private;
 
@@ -661,17 +661,17 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 		goto map_bio;
 
 	/*
-	 * Map reads as normal.
+	 * Map reads as analrmal.
 	 */
 	if (bio_data_dir(bio) == READ)
 		goto map_bio;
 
-	/* No sectors and not a flush?  Don't care */
+	/* Anal sectors and analt a flush?  Don't care */
 	if (!bio_sectors(bio) && !flush_bio)
 		goto map_bio;
 
 	/*
-	 * Discards will have bi_size set but there's no actual data, so just
+	 * Discards will have bi_size set but there's anal actual data, so just
 	 * allocate the size of the pending block.
 	 */
 	if (discard_bio)
@@ -679,7 +679,7 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 	else
 		alloc_size = struct_size(block, vecs, bio_segments(bio));
 
-	block = kzalloc(alloc_size, GFP_NOIO);
+	block = kzalloc(alloc_size, GFP_ANALIO);
 	if (!block) {
 		DMERR("Error allocating pending block");
 		spin_lock_irq(&lc->blocks_lock);
@@ -722,7 +722,7 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 
 	/*
 	 * We will write this bio somewhere else way later so we need to copy
-	 * the actual contents into new pages so we know the data will always be
+	 * the actual contents into new pages so we kanalw the data will always be
 	 * there.
 	 *
 	 * We do this because this could be a bio from O_DIRECT in which case we
@@ -733,7 +733,7 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 		struct page *page;
 		void *dst;
 
-		page = alloc_page(GFP_NOIO);
+		page = alloc_page(GFP_ANALIO);
 		if (!page) {
 			DMERR("Error allocing page");
 			free_pending_block(lc, block);
@@ -759,11 +759,11 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 		spin_unlock_irq(&lc->blocks_lock);
 	}
 map_bio:
-	normal_map_bio(ti, bio);
+	analrmal_map_bio(ti, bio);
 	return DM_MAPIO_REMAPPED;
 }
 
-static int normal_end_io(struct dm_target *ti, struct bio *bio,
+static int analrmal_end_io(struct dm_target *ti, struct bio *bio,
 		blk_status_t *error)
 {
 	struct log_writes_c *lc = ti->private;
@@ -927,7 +927,7 @@ static struct target_type log_writes_target = {
 	.ctr    = log_writes_ctr,
 	.dtr    = log_writes_dtr,
 	.map    = log_writes_map,
-	.end_io = normal_end_io,
+	.end_io = analrmal_end_io,
 	.status = log_writes_status,
 	.prepare_ioctl = log_writes_prepare_ioctl,
 	.message = log_writes_message,

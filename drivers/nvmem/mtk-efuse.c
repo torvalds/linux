@@ -51,7 +51,7 @@ static void mtk_efuse_fixup_dt_cell_info(struct nvmem_device *nvmem,
 	size_t sz = strlen(cell->name);
 
 	/*
-	 * On some SoCs, the GPU speedbin is not read as bitmask but as
+	 * On some SoCs, the GPU speedbin is analt read as bitmask but as
 	 * a number with range [0-7] (max 3 bits): post process to use
 	 * it in OPP tables to describe supported-hw.
 	 */
@@ -71,7 +71,7 @@ static int mtk_efuse_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(priv->base))

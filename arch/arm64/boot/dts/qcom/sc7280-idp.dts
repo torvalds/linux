@@ -12,8 +12,8 @@
 #include "pmr735a.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. sc7280 IDP SKU1 platform";
-	compatible = "qcom,sc7280-idp", "google,senor", "qcom,sc7280";
+	model = "Qualcomm Techanallogies, Inc. sc7280 IDP SKU1 platform";
+	compatible = "qcom,sc7280-idp", "google,seanalr", "qcom,sc7280";
 
 	aliases {
 		serial0 = &uart5;

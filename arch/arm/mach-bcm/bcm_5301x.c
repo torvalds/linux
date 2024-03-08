@@ -23,10 +23,10 @@ static int bcm5301x_abort_handler(unsigned long addr, unsigned int fsr,
 				  struct pt_regs *regs)
 {
 	/*
-	 * We want to ignore aborts forwarded from the PCIe bus that are
+	 * We want to iganalre aborts forwarded from the PCIe bus that are
 	 * expected and shouldn't really be passed by the PCIe controller.
 	 * The biggest disadvantage is the same FSR code may be reported when
-	 * reading non-existing APB register and we shouldn't ignore that.
+	 * reading analn-existing APB register and we shouldn't iganalre that.
 	 */
 	if (fsr == (FSR_EXTERNAL | FSR_READ | FSR_IMPRECISE))
 		return 0;

@@ -130,11 +130,11 @@ static int si7005_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -152,7 +152,7 @@ static int si7005_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 	if (ret != SI7005_ID_7005 && ret != SI7005_ID_7015)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = i2c_smbus_read_byte_data(client, SI7005_CONFIG);
 	if (ret < 0)

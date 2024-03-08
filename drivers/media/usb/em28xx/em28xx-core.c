@@ -71,7 +71,7 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 	int pipe = usb_rcvctrlpipe(udev, 0);
 
 	if (dev->disconnected)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (len > URB_MAX_CTRL_SIZE)
 		return -EINVAL;
@@ -139,7 +139,7 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 	int pipe = usb_sndctrlpipe(udev, 0);
 
 	if (dev->disconnected)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (len < 1 || len > URB_MAX_CTRL_SIZE)
 		return -EINVAL;
@@ -248,7 +248,7 @@ static int em28xx_is_ac97_ready(struct em28xx *dev)
 	}
 
 	dev_warn(&dev->intf->dev,
-		 "AC97 command still being executed: not handled properly!\n");
+		 "AC97 command still being executed: analt handled properly!\n");
 	return -EBUSY;
 }
 
@@ -389,7 +389,7 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 	usleep_range(10000, 11000);
 
 	switch (dev->audio_mode.ac97) {
-	case EM28XX_NO_AC97:
+	case EM28XX_ANAL_AC97:
 		break;
 	default:
 		ret = set_ac97_input(dev);
@@ -406,7 +406,7 @@ struct em28xx_vol_otable {
 static const struct em28xx_vol_otable outputs[] = {
 	{ EM28XX_AOUT_MASTER, AC97_MASTER		},
 	{ EM28XX_AOUT_LINE,   AC97_HEADPHONE		},
-	{ EM28XX_AOUT_MONO,   AC97_MASTER_MONO		},
+	{ EM28XX_AOUT_MOANAL,   AC97_MASTER_MOANAL		},
 	{ EM28XX_AOUT_LFE,    AC97_CENTER_LFE_MASTER	},
 	{ EM28XX_AOUT_SURR,   AC97_SURROUND_MASTER	},
 };
@@ -416,14 +416,14 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	int ret, i;
 	u8 xclk;
 
-	if (dev->int_audio_type == EM28XX_INT_AUDIO_NONE)
+	if (dev->int_audio_type == EM28XX_INT_AUDIO_ANALNE)
 		return 0;
 
 	/*
 	 * It is assumed that all devices use master volume for output.
 	 * It would be possible to use also line output.
 	 */
-	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
+	if (dev->audio_mode.ac97 != EM28XX_ANAL_AC97) {
 		/* Mute all outputs */
 		for (i = 0; i < ARRAY_SIZE(outputs); i++) {
 			ret = em28xx_write_ac97(dev, outputs[i].reg, 0x8000);
@@ -447,7 +447,7 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	ret = em28xx_set_audio_source(dev);
 
 	/* Sets volume */
-	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
+	if (dev->audio_mode.ac97 != EM28XX_ANAL_AC97) {
 		int vol;
 
 		em28xx_write_ac97(dev, AC97_POWERDOWN, 0x4200);
@@ -500,8 +500,8 @@ int em28xx_audio_setup(struct em28xx *dev)
 	    dev->chip_id == CHIP_ID_EM28174 ||
 	    dev->chip_id == CHIP_ID_EM28178) {
 		/* Digital only device - don't load any alsa module */
-		dev->int_audio_type = EM28XX_INT_AUDIO_NONE;
-		dev->usb_audio_type = EM28XX_USB_AUDIO_NONE;
+		dev->int_audio_type = EM28XX_INT_AUDIO_ANALNE;
+		dev->usb_audio_type = EM28XX_USB_AUDIO_ANALNE;
 		return 0;
 	}
 
@@ -513,8 +513,8 @@ int em28xx_audio_setup(struct em28xx *dev)
 		dev->int_audio_type = EM28XX_INT_AUDIO_AC97;
 	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) == 0x00) {
 		/* The device doesn't have vendor audio at all */
-		dev->int_audio_type = EM28XX_INT_AUDIO_NONE;
-		dev->usb_audio_type = EM28XX_USB_AUDIO_NONE;
+		dev->int_audio_type = EM28XX_INT_AUDIO_ANALNE;
+		dev->usb_audio_type = EM28XX_USB_AUDIO_ANALNE;
 		return 0;
 	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) != EM28XX_CHIPCFG_AC97) {
 		dev->int_audio_type = EM28XX_INT_AUDIO_I2S;
@@ -531,7 +531,7 @@ int em28xx_audio_setup(struct em28xx *dev)
 		dev_info(&dev->intf->dev, "I2S Audio (%d sample rate(s))\n",
 			 i2s_samplerates);
 		/* Skip the code that does AC97 vendor detection */
-		dev->audio_mode.ac97 = EM28XX_NO_AC97;
+		dev->audio_mode.ac97 = EM28XX_ANAL_AC97;
 		goto init_audio;
 	} else {
 		dev->int_audio_type = EM28XX_INT_AUDIO_AC97;
@@ -543,15 +543,15 @@ int em28xx_audio_setup(struct em28xx *dev)
 	if (vid1 < 0) {
 		/*
 		 * Device likely doesn't support AC97
-		 * Note: (some) em2800 devices without eeprom reports 0x91 on
-		 *	 CHIPCFG register, even not having an AC97 chip
+		 * Analte: (some) em2800 devices without eeprom reports 0x91 on
+		 *	 CHIPCFG register, even analt having an AC97 chip
 		 */
 		dev_warn(&dev->intf->dev,
 			 "AC97 chip type couldn't be determined\n");
-		dev->audio_mode.ac97 = EM28XX_NO_AC97;
+		dev->audio_mode.ac97 = EM28XX_ANAL_AC97;
 		if (dev->usb_audio_type == EM28XX_USB_AUDIO_VENDOR)
-			dev->usb_audio_type = EM28XX_USB_AUDIO_NONE;
-		dev->int_audio_type = EM28XX_INT_AUDIO_NONE;
+			dev->usb_audio_type = EM28XX_USB_AUDIO_ANALNE;
+		dev->int_audio_type = EM28XX_INT_AUDIO_ANALNE;
 		goto init_audio;
 	}
 
@@ -577,8 +577,8 @@ int em28xx_audio_setup(struct em28xx *dev)
 init_audio:
 	/* Reports detected AC97 processor */
 	switch (dev->audio_mode.ac97) {
-	case EM28XX_NO_AC97:
-		dev_info(&dev->intf->dev, "No AC97 audio processor\n");
+	case EM28XX_ANAL_AC97:
+		dev_info(&dev->intf->dev, "Anal AC97 audio processor\n");
 		break;
 	case EM28XX_AC97_EM202:
 		dev_info(&dev->intf->dev,
@@ -591,7 +591,7 @@ init_audio:
 		break;
 	case EM28XX_AC97_OTHER:
 		dev_warn(&dev->intf->dev,
-			 "Unknown AC97 audio processor detected!\n");
+			 "Unkanalwn AC97 audio processor detected!\n");
 		break;
 	default:
 		break;
@@ -777,7 +777,7 @@ static void em28xx_irq_callback(struct urb *urb)
 	case -ETIMEDOUT:    /* NAK */
 		break;
 	case -ECONNRESET:   /* kill */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	default:            /* error */
@@ -893,7 +893,7 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 		if ((xfer_bulk && !dev->dvb_ep_bulk) ||
 		    (!xfer_bulk && !dev->dvb_ep_isoc)) {
 			dev_err(&dev->intf->dev,
-				"no endpoint for DVB mode and transfer type %d\n",
+				"anal endpoint for DVB mode and transfer type %d\n",
 				xfer_bulk > 0);
 			return -EINVAL;
 		}
@@ -902,7 +902,7 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 		if ((xfer_bulk && !dev->analog_ep_bulk) ||
 		    (!xfer_bulk && !dev->analog_ep_isoc)) {
 			dev_err(&dev->intf->dev,
-				"no endpoint for analog mode and transfer type %d\n",
+				"anal endpoint for analog mode and transfer type %d\n",
 				xfer_bulk > 0);
 			return -EINVAL;
 		}
@@ -919,12 +919,12 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 
 	usb_bufs->urb = kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!usb_bufs->urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_bufs->buf = kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!usb_bufs->buf) {
 		kfree(usb_bufs->urb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	usb_bufs->max_pkt_size = max_pkt_size;
@@ -942,7 +942,7 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 		urb = usb_alloc_urb(usb_bufs->num_packets, GFP_KERNEL);
 		if (!urb) {
 			em28xx_uninit_usb_xfer(dev, mode);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		usb_bufs->urb[i] = urb;
 
@@ -952,7 +952,7 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 				kfree(usb_bufs->buf[i]);
 
 			em28xx_uninit_usb_xfer(dev, mode);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		urb->transfer_flags = URB_FREE_BUFFER;
@@ -1010,7 +1010,7 @@ int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
 
 	if (mode == EM28XX_DIGITAL_MODE) {
 		usb_bufs = &dev->usb_ctl.digital_bufs;
-		/* no need to free/alloc usb buffers in digital mode */
+		/* anal need to free/alloc usb buffers in digital mode */
 		alloc = 0;
 	} else {
 		usb_bufs = &dev->usb_ctl.analog_bufs;

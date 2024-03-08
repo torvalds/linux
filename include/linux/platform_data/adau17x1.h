@@ -21,14 +21,14 @@ enum adau17x1_micbias_voltage {
 
 /**
  * enum adau1761_digmic_jackdet_pin_mode - Configuration of the JACKDET/MICIN pin
- * @ADAU1761_DIGMIC_JACKDET_PIN_MODE_NONE: Disable the pin
+ * @ADAU1761_DIGMIC_JACKDET_PIN_MODE_ANALNE: Disable the pin
  * @ADAU1761_DIGMIC_JACKDET_PIN_MODE_DIGMIC: Configure the pin for usage as
  *   digital microphone input.
  * @ADAU1761_DIGMIC_JACKDET_PIN_MODE_JACKDETECT: Configure the pin for jack
  *  insertion detection.
  */
 enum adau1761_digmic_jackdet_pin_mode {
-	ADAU1761_DIGMIC_JACKDET_PIN_MODE_NONE,
+	ADAU1761_DIGMIC_JACKDET_PIN_MODE_ANALNE,
 	ADAU1761_DIGMIC_JACKDET_PIN_MODE_DIGMIC,
 	ADAU1761_DIGMIC_JACKDET_PIN_MODE_JACKDETECT,
 };
@@ -67,7 +67,7 @@ enum adau1761_output_mode {
  * @headphone_mode: Output mode for the LHP/RHP pins
  * @digmic_jackdetect_pin_mode: JACKDET/MICIN pin configuration
  * @jackdetect_debounce_time: Jack insertion detection debounce time.
- *  Note: This value will only be used, if the JACKDET/MICIN pin is configured
+ *  Analte: This value will only be used, if the JACKDET/MICIN pin is configured
  *  for jack insertion detection.
  * @jackdetect_active_low: If true the jack insertion detection is active low.
  *  Othwise it will be active high.

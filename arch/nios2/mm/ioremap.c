@@ -36,7 +36,7 @@ static inline void remap_area_pte(pte_t *pte, unsigned long address,
 		BUG();
 	pfn = PFN_DOWN(phys_addr);
 	do {
-		if (!pte_none(*pte)) {
+		if (!pte_analne(*pte)) {
 			pr_err("remap_area_pte: page already exists\n");
 			BUG();
 		}
@@ -64,7 +64,7 @@ static inline int remap_area_pmd(pmd_t *pmd, unsigned long address,
 		pte_t *pte = pte_alloc_kernel(pmd, address);
 
 		if (!pte)
-			return -ENOMEM;
+			return -EANALMEM;
 		remap_area_pte(pte, address, end - address, address + phys_addr,
 			flags);
 		address = (address + PMD_SIZE) & PMD_MASK;
@@ -90,7 +90,7 @@ static int remap_area_pages(unsigned long address, unsigned long phys_addr,
 		pud_t *pud;
 		pmd_t *pmd;
 
-		error = -ENOMEM;
+		error = -EANALMEM;
 		p4d = p4d_alloc(&init_mm, dir, address);
 		if (!p4d)
 			break;
@@ -129,7 +129,7 @@ void __iomem *ioremap(unsigned long phys_addr, unsigned long size)
 	if (!size || last_addr < phys_addr)
 		return NULL;
 
-	/* Don't allow anybody to remap normal RAM that we're using */
+	/* Don't allow anybody to remap analrmal RAM that we're using */
 	if (phys_addr > PHYS_OFFSET && phys_addr < virt_to_phys(high_memory)) {
 		char *t_addr, *t_end;
 		struct page *page;

@@ -18,7 +18,7 @@ struct {
 	__type(value, __u32);
 } pidmap SEC(".maps");
 
-SEC("tracepoint/syscalls/sys_enter_nanosleep")
+SEC("tracepoint/syscalls/sys_enter_naanalsleep")
 int trace(void *ctx)
 {
 	__u32 pid = bpf_get_current_pid_tgid();

@@ -3,7 +3,7 @@
 #define _LINUX_DIRENT_H
 
 struct linux_dirent64 {
-	u64		d_ino;
+	u64		d_ianal;
 	s64		d_off;
 	unsigned short	d_reclen;
 	unsigned char	d_type;

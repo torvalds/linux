@@ -45,8 +45,8 @@ static struct reg_default max98396_reg[] = {
 	{MAX98396_R2023_THERM_HYSTERESIS, 0x02},
 	{MAX98396_R2024_THERM_FOLDBACK_SET, 0xC5},
 	{MAX98396_R2027_THERM_FOLDBACK_EN, 0x01},
-	{MAX98396_R2030_NOISEGATE_MODE_CTRL, 0x32},
-	{MAX98396_R2033_NOISEGATE_MODE_EN, 0x00},
+	{MAX98396_R2030_ANALISEGATE_MODE_CTRL, 0x32},
+	{MAX98396_R2033_ANALISEGATE_MODE_EN, 0x00},
 	{MAX98396_R2038_CLK_MON_CTRL, 0x00},
 	{MAX98396_R2039_DATA_MON_CTRL, 0x00},
 	{MAX98396_R203F_ENABLE_CTRLS, 0x0F},
@@ -203,8 +203,8 @@ static struct reg_default max98397_reg[] = {
 	{MAX98396_R2023_THERM_HYSTERESIS, 0x02},
 	{MAX98396_R2024_THERM_FOLDBACK_SET, 0xC5},
 	{MAX98396_R2027_THERM_FOLDBACK_EN, 0x01},
-	{MAX98396_R2030_NOISEGATE_MODE_CTRL, 0x32},
-	{MAX98396_R2033_NOISEGATE_MODE_EN, 0x00},
+	{MAX98396_R2030_ANALISEGATE_MODE_CTRL, 0x32},
+	{MAX98396_R2033_ANALISEGATE_MODE_EN, 0x00},
 	{MAX98396_R2038_CLK_MON_CTRL, 0x00},
 	{MAX98396_R2039_DATA_MON_CTRL, 0x00},
 	{MAX98397_R203A_SPK_MON_THRESH, 0x03},
@@ -338,9 +338,9 @@ static struct reg_default max98397_reg[] = {
 	{MAX98397_R22FF_REVISION_ID, 0x00},
 };
 
-static void max98396_global_enable_onoff(struct regmap *regmap, bool onoff)
+static void max98396_global_enable_oanalff(struct regmap *regmap, bool oanalff)
 {
-	regmap_write(regmap, MAX98396_R210F_GLOBAL_EN, onoff ? 1 : 0);
+	regmap_write(regmap, MAX98396_R210F_GLOBAL_EN, oanalff ? 1 : 0);
 	usleep_range(11000, 12000);
 }
 
@@ -419,7 +419,7 @@ static int max98396_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		}
 		/* GLOBAL_EN OFF prior to pcm mode, clock configuration change */
 		if (update)
-			max98396_global_enable_onoff(max98396->regmap, false);
+			max98396_global_enable_oanalff(max98396->regmap, false);
 	}
 
 	regmap_update_bits(max98396->regmap,
@@ -432,7 +432,7 @@ static int max98396_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 			   bclk_pol);
 
 	if (status && update)
-		max98396_global_enable_onoff(max98396->regmap, true);
+		max98396_global_enable_oanalff(max98396->regmap, true);
 
 	return 0;
 }
@@ -571,7 +571,7 @@ static int max98396_dai_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = MAX98396_PCM_SR_192000;
 		break;
 	default:
-		dev_err(component->dev, "rate %d not supported\n",
+		dev_err(component->dev, "rate %d analt supported\n",
 			params_rate(params));
 		goto err;
 	}
@@ -589,7 +589,7 @@ static int max98396_dai_hw_params(struct snd_pcm_substream *substream,
 						snd_pcm_format_width(params_format(params)));
 		if (ret < 0) {
 			dev_err(component->dev,
-				"no PCM config for %d channels, format %d\n",
+				"anal PCM config for %d channels, format %d\n",
 				params_channels(params), params_format(params));
 			goto err;
 		}
@@ -623,7 +623,7 @@ static int max98396_dai_hw_params(struct snd_pcm_substream *substream,
 
 		/* GLOBAL_EN OFF prior to channel size and sampling rate change */
 		if (update)
-			max98396_global_enable_onoff(max98396->regmap, false);
+			max98396_global_enable_oanalff(max98396->regmap, false);
 	}
 
 	/* set channel size */
@@ -655,7 +655,7 @@ static int max98396_dai_hw_params(struct snd_pcm_substream *substream,
 				bsel);
 
 	if (status && update)
-		max98396_global_enable_onoff(max98396->regmap, true);
+		max98396_global_enable_oanalff(max98396->regmap, true);
 
 	return 0;
 
@@ -684,7 +684,7 @@ static int max98396_dai_tdm_slot(struct snd_soc_dai *dai,
 	/* BCLK configuration */
 	ret = max98396_pcm_config_index(slots, slots, slot_width);
 	if (ret < 0) {
-		dev_err(component->dev, "no TDM config for %d slots %d bits\n",
+		dev_err(component->dev, "anal TDM config for %d slots %d bits\n",
 			slots, slot_width);
 		return -EINVAL;
 	}
@@ -729,7 +729,7 @@ static int max98396_dai_tdm_slot(struct snd_soc_dai *dai,
 
 		/* GLOBAL_EN OFF prior to channel size and BCLK per LRCLK change */
 		if (update)
-			max98396_global_enable_onoff(max98396->regmap, false);
+			max98396_global_enable_oanalff(max98396->regmap, false);
 	}
 
 	regmap_update_bits(max98396->regmap,
@@ -780,7 +780,7 @@ static int max98396_dai_tdm_slot(struct snd_soc_dai *dai,
 	}
 
 	if (status && update)
-		max98396_global_enable_onoff(max98396->regmap, true);
+		max98396_global_enable_oanalff(max98396->regmap, true);
 
 	return 0;
 }
@@ -806,10 +806,10 @@ static int max98396_dac_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		max98396_global_enable_onoff(max98396->regmap, true);
+		max98396_global_enable_oanalff(max98396->regmap, true);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		max98396_global_enable_onoff(max98396->regmap, false);
+		max98396_global_enable_oanalff(max98396->regmap, false);
 
 		max98396->tdm_mode = false;
 		break;
@@ -829,8 +829,8 @@ static bool max98396_readable_register(struct device *dev, unsigned int reg)
 	case MAX98396_R2015_INT_FLAG_CLR1 ... MAX98396_R2018_INT_FLAG_CLR4:
 	case MAX98396_R201F_IRQ_CTRL ... MAX98396_R2024_THERM_FOLDBACK_SET:
 	case MAX98396_R2027_THERM_FOLDBACK_EN:
-	case MAX98396_R2030_NOISEGATE_MODE_CTRL:
-	case MAX98396_R2033_NOISEGATE_MODE_EN:
+	case MAX98396_R2030_ANALISEGATE_MODE_CTRL:
+	case MAX98396_R2033_ANALISEGATE_MODE_EN:
 	case MAX98396_R2038_CLK_MON_CTRL ... MAX98396_R2039_DATA_MON_CTRL:
 	case MAX98396_R203F_ENABLE_CTRLS ... MAX98396_R2053_PCM_TX_HIZ_CTRL_8:
 	case MAX98396_R2055_PCM_RX_SRC1 ... MAX98396_R2056_PCM_RX_SRC2:
@@ -886,8 +886,8 @@ static bool max98397_readable_register(struct device *dev, unsigned int reg)
 	case MAX98396_R2015_INT_FLAG_CLR1 ... MAX98396_R2018_INT_FLAG_CLR4:
 	case MAX98396_R201F_IRQ_CTRL ... MAX98396_R2024_THERM_FOLDBACK_SET:
 	case MAX98396_R2027_THERM_FOLDBACK_EN:
-	case MAX98396_R2030_NOISEGATE_MODE_CTRL:
-	case MAX98396_R2033_NOISEGATE_MODE_EN:
+	case MAX98396_R2030_ANALISEGATE_MODE_CTRL:
+	case MAX98396_R2033_ANALISEGATE_MODE_EN:
 	case MAX98396_R2038_CLK_MON_CTRL ... MAX98397_R203A_SPK_MON_THRESH:
 	case MAX98396_R203F_ENABLE_CTRLS ... MAX98397_R2054_PCM_TX_HIZ_CTRL_8:
 	case MAX98397_R2056_PCM_RX_SRC1... MAX98396_R2058_PCM_BYPASS_SRC:
@@ -1007,7 +1007,7 @@ static int max98396_mux_put(struct snd_kcontrol *kcontrol,
 static const char * const max98396_switch_text[] = {
 	"Left", "Right", "LeftRight"};
 
-static SOC_ENUM_SINGLE_DECL(dai_sel_enum, SND_SOC_NOPM, 0,
+static SOC_ENUM_SINGLE_DECL(dai_sel_enum, SND_SOC_ANALPM, 0,
 			    max98396_switch_text);
 
 static const struct snd_kcontrol_new max98396_dai_mux =
@@ -1021,14 +1021,14 @@ static const struct snd_soc_dapm_widget max98396_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC_E("Amp Enable", "HiFi Playback",
 			   MAX98396_R20AF_AMP_EN, 0, 0, max98396_dac_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_ANALPM, 0, 0,
 			 &max98396_dai_mux),
 	SND_SOC_DAPM_OUTPUT("BE_OUT"),
 	SND_SOC_DAPM_AIF_OUT("Voltage Sense", "HiFi Capture", 0,
 			     MAX98396_R20E4_IV_SENSE_PATH_EN, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("Current Sense", "HiFi Capture", 0,
 			     MAX98396_R20E4_IV_SENSE_PATH_EN, 1, 0),
-	SND_SOC_DAPM_SWITCH("VI Sense", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("VI Sense", SND_SOC_ANALPM, 0, 0,
 			    &max98396_vi_control),
 	SND_SOC_DAPM_SIGGEN("VMON"),
 	SND_SOC_DAPM_SIGGEN("IMON"),
@@ -1114,7 +1114,7 @@ static int max98396_adc_value_get(struct snd_kcontrol *kcontrol,
 	u8 val[2];
 	int reg = mc->reg;
 
-	/* ADC value is not available if the device is powered down */
+	/* ADC value is analt available if the device is powered down */
 	if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF)
 		goto exit;
 
@@ -1181,7 +1181,7 @@ static const struct snd_kcontrol_new max98396_snd_controls[] = {
 		   MAX98396_IV_SENSE_WB_FLT_EN_SHIFT, 1, 0),
 	/* Dynamic Headroom Tracking */
 	SOC_SINGLE("DHT Switch", MAX98396_R20DF_DHT_EN, 0, 1, 0),
-	/* Brownout Protection Engine */
+	/* Browanalut Protection Engine */
 	SOC_SINGLE("BPE Switch", MAX98396_R210D_BPE_EN, 0, 1, 0),
 	SOC_SINGLE("BPE Limiter Switch", MAX98396_R210D_BPE_EN, 1, 1, 0),
 	/* Bypass Path Enable */
@@ -1254,7 +1254,7 @@ static const struct snd_kcontrol_new max98397_snd_controls[] = {
 		   MAX98396_IV_SENSE_WB_FLT_EN_SHIFT, 1, 0),
 	/* Dynamic Headroom Tracking */
 	SOC_SINGLE("DHT Switch", MAX98396_R20DF_DHT_EN, 0, 1, 0),
-	/* Brownout Protection Engine */
+	/* Browanalut Protection Engine */
 	SOC_SINGLE("BPE Switch", MAX98396_R210D_BPE_EN, 0, 1, 0),
 	SOC_SINGLE("BPE Limiter Switch", MAX98396_R210D_BPE_EN, 1, 1, 0),
 	/* Bypass Path Enable */
@@ -1396,9 +1396,9 @@ static int max98396_probe(struct snd_soc_component *component)
 	/* Supply control */
 	regmap_update_bits(max98396->regmap,
 			   MAX98396_R20A0_AMP_SUPPLY_CTL,
-			   MAX98396_AMP_SUPPLY_NOVBAT,
+			   MAX98396_AMP_SUPPLY_ANALVBAT,
 			   (max98396->vbat == NULL) ?
-				MAX98396_AMP_SUPPLY_NOVBAT : 0);
+				MAX98396_AMP_SUPPLY_ANALVBAT : 0);
 	/* Enable DC blocker */
 	regmap_update_bits(max98396->regmap,
 			   MAX98396_R2092_AMP_DSP_CFG, 1, 1);
@@ -1675,22 +1675,22 @@ static void max98396_read_device_property(struct device *dev,
 {
 	int value;
 
-	if (!device_property_read_u32(dev, "adi,vmon-slot-no", &value))
+	if (!device_property_read_u32(dev, "adi,vmon-slot-anal", &value))
 		max98396->v_slot = value & 0xF;
 	else
 		max98396->v_slot = 0;
 
-	if (!device_property_read_u32(dev, "adi,imon-slot-no", &value))
+	if (!device_property_read_u32(dev, "adi,imon-slot-anal", &value))
 		max98396->i_slot = value & 0xF;
 	else
 		max98396->i_slot = 1;
 
-	if (!device_property_read_u32(dev, "adi,spkfb-slot-no", &value))
+	if (!device_property_read_u32(dev, "adi,spkfb-slot-anal", &value))
 		max98396->spkfb_slot = value & 0xF;
 	else
 		max98396->spkfb_slot = 2;
 
-	if (!device_property_read_u32(dev, "adi,bypass-slot-no", &value))
+	if (!device_property_read_u32(dev, "adi,bypass-slot-anal", &value))
 		max98396->bypass_slot = value & 0xF;
 	else
 		max98396->bypass_slot = 0;
@@ -1739,7 +1739,7 @@ static int max98396_i2c_probe(struct i2c_client *i2c)
 	max98396 = devm_kzalloc(&i2c->dev, sizeof(*max98396), GFP_KERNEL);
 
 	if (!max98396) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		return ret;
 	}
 	i2c_set_clientdata(i2c, max98396);

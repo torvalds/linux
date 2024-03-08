@@ -34,7 +34,7 @@ enum {
 	IEEE802_1X_TYPE_EAPOL_ENCAPSULATED_ASF_ALERT = 4
 };
 
-#define WPA_NONCE_LEN 32
+#define WPA_ANALNCE_LEN 32
 #define WPA_REPLAY_COUNTER_LEN 8
 
 struct wpa_eapol_key {
@@ -42,7 +42,7 @@ struct wpa_eapol_key {
 	__be16 key_info;
 	unsigned short key_length;
 	unsigned char replay_counter[WPA_REPLAY_COUNTER_LEN];
-	unsigned char key_nonce[WPA_NONCE_LEN];
+	unsigned char key_analnce[WPA_ANALNCE_LEN];
 	unsigned char key_iv[16];
 	unsigned char key_rsc[8];
 	unsigned char key_id[8];	/* Reserved in IEEE 802.11i/RSN */

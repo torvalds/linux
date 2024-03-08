@@ -42,7 +42,7 @@ enum qdisc_state_t {
 };
 
 enum qdisc_state2_t {
-	/* Only for !TCQ_F_NOLOCK qdisc. Never access it directly.
+	/* Only for !TCQ_F_ANALLOCK qdisc. Never access it directly.
 	 * Use qdisc_run_begin/end() or qdisc_is_running() instead.
 	 */
 	__QDISC_STATE2_RUNNING,
@@ -51,7 +51,7 @@ enum qdisc_state2_t {
 #define QDISC_STATE_MISSED	BIT(__QDISC_STATE_MISSED)
 #define QDISC_STATE_DRAINING	BIT(__QDISC_STATE_DRAINING)
 
-#define QDISC_STATE_NON_EMPTY	(QDISC_STATE_MISSED | \
+#define QDISC_STATE_ANALN_EMPTY	(QDISC_STATE_MISSED | \
 					QDISC_STATE_DRAINING)
 
 struct qdisc_size_table {
@@ -84,21 +84,21 @@ struct Qdisc {
 				      * q->dev_queue : It can test
 				      * netif_xmit_frozen_or_stopped() before
 				      * dequeueing next packet.
-				      * Its true for MQ/MQPRIO slaves, or non
+				      * Its true for MQ/MQPRIO slaves, or analn
 				      * multiqueue device.
 				      */
-#define TCQ_F_WARN_NONWC	(1 << 16)
+#define TCQ_F_WARN_ANALNWC	(1 << 16)
 #define TCQ_F_CPUSTATS		0x20 /* run using percpu statistics */
-#define TCQ_F_NOPARENT		0x40 /* root of its hierarchy :
+#define TCQ_F_ANALPARENT		0x40 /* root of its hierarchy :
 				      * qdisc_tree_decrease_qlen() should stop.
 				      */
 #define TCQ_F_INVISIBLE		0x80 /* invisible by default in dump */
-#define TCQ_F_NOLOCK		0x100 /* qdisc does not require locking */
+#define TCQ_F_ANALLOCK		0x100 /* qdisc does analt require locking */
 #define TCQ_F_OFFLOADED		0x200 /* qdisc is offloaded to HW */
 	u32			limit;
 	const struct Qdisc_ops	*ops;
 	struct qdisc_size_table	__rcu *stab;
-	struct hlist_node       hash;
+	struct hlist_analde       hash;
 	u32			handle;
 	u32			parent;
 
@@ -153,25 +153,25 @@ static inline struct Qdisc *qdisc_refcount_inc_nz(struct Qdisc *qdisc)
 {
 	if (qdisc->flags & TCQ_F_BUILTIN)
 		return qdisc;
-	if (refcount_inc_not_zero(&qdisc->refcnt))
+	if (refcount_inc_analt_zero(&qdisc->refcnt))
 		return qdisc;
 	return NULL;
 }
 
-/* For !TCQ_F_NOLOCK qdisc: callers must either call this within a qdisc
+/* For !TCQ_F_ANALLOCK qdisc: callers must either call this within a qdisc
  * root_lock section, or provide their own memory barriers -- ordering
  * against qdisc_run_begin/end() atomic bit operations.
  */
 static inline bool qdisc_is_running(struct Qdisc *qdisc)
 {
-	if (qdisc->flags & TCQ_F_NOLOCK)
+	if (qdisc->flags & TCQ_F_ANALLOCK)
 		return spin_is_locked(&qdisc->seqlock);
 	return test_bit(__QDISC_STATE2_RUNNING, &qdisc->state2);
 }
 
-static inline bool nolock_qdisc_is_empty(const struct Qdisc *qdisc)
+static inline bool anallock_qdisc_is_empty(const struct Qdisc *qdisc)
 {
-	return !(READ_ONCE(qdisc->state) & QDISC_STATE_NON_EMPTY);
+	return !(READ_ONCE(qdisc->state) & QDISC_STATE_ANALN_EMPTY);
 }
 
 static inline bool qdisc_is_percpu_stats(const struct Qdisc *q)
@@ -182,21 +182,21 @@ static inline bool qdisc_is_percpu_stats(const struct Qdisc *q)
 static inline bool qdisc_is_empty(const struct Qdisc *qdisc)
 {
 	if (qdisc_is_percpu_stats(qdisc))
-		return nolock_qdisc_is_empty(qdisc);
+		return anallock_qdisc_is_empty(qdisc);
 	return !READ_ONCE(qdisc->q.qlen);
 }
 
-/* For !TCQ_F_NOLOCK qdisc, qdisc_run_begin/end() must be invoked with
+/* For !TCQ_F_ANALLOCK qdisc, qdisc_run_begin/end() must be invoked with
  * the qdisc root lock acquired.
  */
 static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 {
-	if (qdisc->flags & TCQ_F_NOLOCK) {
+	if (qdisc->flags & TCQ_F_ANALLOCK) {
 		if (spin_trylock(&qdisc->seqlock))
 			return true;
 
-		/* No need to insist if the MISSED flag was already set.
-		 * Note that test_and_set_bit() also gives us memory ordering
+		/* Anal need to insist if the MISSED flag was already set.
+		 * Analte that test_and_set_bit() also gives us memory ordering
 		 * guarantees wrt potential earlier enqueue() and below
 		 * spin_trylock(), both of which are necessary to prevent races
 		 */
@@ -214,7 +214,7 @@ static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 
 static inline void qdisc_run_end(struct Qdisc *qdisc)
 {
-	if (qdisc->flags & TCQ_F_NOLOCK) {
+	if (qdisc->flags & TCQ_F_ANALLOCK) {
 		spin_unlock(&qdisc->seqlock);
 
 		/* spin_unlock() only has store-release semantic. The unlock
@@ -249,7 +249,7 @@ struct Qdisc_class_ops {
 					struct Qdisc *, struct Qdisc **,
 					struct netlink_ext_ack *extack);
 	struct Qdisc *		(*leaf)(struct Qdisc *, unsigned long cl);
-	void			(*qlen_notify)(struct Qdisc *, unsigned long);
+	void			(*qlen_analtify)(struct Qdisc *, unsigned long);
 
 	/* Class manipulation routines */
 	unsigned long		(*find)(struct Qdisc *, u32 classid);
@@ -424,7 +424,7 @@ struct tcf_proto {
 	bool			deleting;
 	refcount_t		refcnt;
 	struct rcu_head		rcu;
-	struct hlist_node	destroy_ht_node;
+	struct hlist_analde	destroy_ht_analde;
 };
 
 struct qdisc_skb_cb {
@@ -472,7 +472,7 @@ struct tcf_block {
 	struct list_head owner_list;
 	bool keep_dst;
 	atomic_t offloadcnt; /* Number of oddloaded filters */
-	unsigned int nooffloaddevcnt; /* Number of devs unable to do offload */
+	unsigned int analoffloaddevcnt; /* Number of devs unable to do offload */
 	unsigned int lockeddevcnt; /* Number of devs that require rtnl lock. */
 	struct {
 		struct tcf_chain *chain;
@@ -585,12 +585,12 @@ static inline void sch_tree_unlock(struct Qdisc *q)
 		spin_unlock_bh(qdisc_root_sleeping_lock(q));
 }
 
-extern struct Qdisc noop_qdisc;
-extern struct Qdisc_ops noop_qdisc_ops;
+extern struct Qdisc analop_qdisc;
+extern struct Qdisc_ops analop_qdisc_ops;
 extern struct Qdisc_ops pfifo_fast_ops;
 extern const u8 sch_default_prio2band[TC_PRIO_MAX + 1];
 extern struct Qdisc_ops mq_qdisc_ops;
-extern struct Qdisc_ops noqueue_qdisc_ops;
+extern struct Qdisc_ops analqueue_qdisc_ops;
 extern const struct Qdisc_ops *default_qdisc_ops;
 static inline const struct Qdisc_ops *
 get_default_qdisc_ops(const struct net_device *dev, int ntx)
@@ -602,7 +602,7 @@ get_default_qdisc_ops(const struct net_device *dev, int ntx)
 struct Qdisc_class_common {
 	u32			classid;
 	unsigned int		filter_cnt;
-	struct hlist_node	hnode;
+	struct hlist_analde	hanalde;
 };
 
 struct Qdisc_class_hash {
@@ -629,7 +629,7 @@ qdisc_class_find(const struct Qdisc_class_hash *hash, u32 id)
 		return NULL;
 
 	h = qdisc_class_hash(id, hash->hashmask);
-	hlist_for_each_entry(cl, &hash->hash[h], hnode) {
+	hlist_for_each_entry(cl, &hash->hash[h], hanalde) {
 		if (cl->classid == id)
 			return cl;
 	}
@@ -798,14 +798,14 @@ static inline bool qdisc_tx_changing(const struct net_device *dev)
 	return false;
 }
 
-/* Is the device using the noop qdisc on all queues?  */
-static inline bool qdisc_tx_is_noop(const struct net_device *dev)
+/* Is the device using the analop qdisc on all queues?  */
+static inline bool qdisc_tx_is_analop(const struct net_device *dev)
 {
 	unsigned int i;
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-		if (rcu_access_pointer(txq->qdisc) != &noop_qdisc)
+		if (rcu_access_pointer(txq->qdisc) != &analop_qdisc)
 			return false;
 	}
 	return true;
@@ -1113,7 +1113,7 @@ static inline struct sk_buff *qdisc_peek_head(struct Qdisc *sch)
 	return qh->head;
 }
 
-/* generic pseudo peek method for non-work-conserving qdisc */
+/* generic pseudo peek method for analn-work-conserving qdisc */
 static inline struct sk_buff *qdisc_peek_dequeued(struct Qdisc *sch)
 {
 	struct sk_buff *skb = skb_peek(&sch->gso_skb);
@@ -1183,7 +1183,7 @@ static inline struct sk_buff *qdisc_dequeue_peeked(struct Qdisc *sch)
 static inline void __qdisc_reset_queue(struct qdisc_skb_head *qh)
 {
 	/*
-	 * We do not know the backlog in bytes of this list, it
+	 * We do analt kanalw the backlog in bytes of this list, it
 	 * is up to the caller to correct it
 	 */
 	ASSERT_RTNL();
@@ -1345,7 +1345,7 @@ void mq_change_real_num_tx(struct Qdisc *sch, unsigned int new_real_tx);
 
 int sch_frag_xmit_hook(struct sk_buff *skb, int (*xmit)(struct sk_buff *skb));
 
-/* Make sure qdisc is no longer in SCHED state. */
+/* Make sure qdisc is anal longer in SCHED state. */
 static inline void qdisc_synchronize(const struct Qdisc *q)
 {
 	while (test_bit(__QDISC_STATE_SCHED, &q->state))

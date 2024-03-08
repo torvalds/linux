@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * TOPEET's Exynos4412 based itop board device tree source
+ * TOPEET's Exyanals4412 based itop board device tree source
  *
  * Copyright (c) 2016 SUMOMO Computer Association
  *			https://www.sumomo.mobi
  *			Randy Li <ayaka@soulik.info>
  *
- * Device tree source file for TOPEET iTop Exynos 4412 SCP package core
- * board which is based on Samsung's Exynos4412 SoC.
+ * Device tree source file for TOPEET iTop Exyanals 4412 SCP package core
+ * board which is based on Samsung's Exyanals4412 SoC.
  */
 
 #include <dt-bindings/clock/samsung,s2mps11.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
-#include "exynos4412.dtsi"
-#include "exynos4412-ppmu-common.dtsi"
-#include "exynos-mfc-reserved-memory.dtsi"
+#include "exyanals4412.dtsi"
+#include "exyanals4412-ppmu-common.dtsi"
+#include "exyanals-mfc-reserved-memory.dtsi"
 
 / {
 	memory@40000000 {
@@ -176,7 +176,7 @@
 				regulator-max-microvolt = <1100000>;
 				regulator-always-on;
 				regulator-boot-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			/* SCP uses 1.5v, POP uses 1.2v */
@@ -186,7 +186,7 @@
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 				regulator-boot-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo3_reg: LDO3 {
@@ -194,7 +194,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo4_reg: LDO4 {
@@ -202,7 +202,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo5_reg: LDO5 {
@@ -215,7 +215,7 @@
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo7_reg: LDO7 {
@@ -223,28 +223,28 @@
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo8_reg: LDO8 {
 				regulator-name = "VDD10_MIPI";
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo9_reg: LDO9 {
 				regulator-name = "VDD33_LCD";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo10_reg: LDO10 {
 				regulator-name = "VDD18_MIPI";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo11_reg: LDO11 {
@@ -252,7 +252,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo12_reg: LDO12 {
@@ -260,7 +260,7 @@
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo13_reg: LDO13 {
@@ -268,7 +268,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo14_reg: LDO14 {
@@ -276,7 +276,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo15_reg: LDO15 {
@@ -284,7 +284,7 @@
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo16_reg: LDO16 {
@@ -292,14 +292,14 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo17_reg: LDO17 {
 				regulator-name = "VDDIOAP_MMC012_28";
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			/* Used by HSIC */
@@ -308,7 +308,7 @@
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo19_reg: LDO19 {
@@ -320,63 +320,63 @@
 				regulator-name = "VDD28_CAM";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <2800000>;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo21_reg: LDO21 {
 				regulator-name = "VDD28_AF";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <2800000>;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo22_reg: LDO22 {
 				regulator-name = "VDDA28_2M";
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo23_reg: LDO23 {
 				regulator-name = "VDD28_TF";
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo24_reg: LDO24 {
 				regulator-name = "VDD33_A31";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo25_reg: LDO25 {
 				regulator-name = "VDD18_CAM";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo26_reg: LDO26 {
 				regulator-name = "VDD18_A31";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo27_reg: LDO27 {
 				regulator-name = "GPS_1V8";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			ldo28_reg: LDO28 {
 				regulator-name = "DVDD12";
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			buck1_reg: BUCK1 {
@@ -385,7 +385,7 @@
 				regulator-max-microvolt = <1100000>;
 				regulator-always-on;
 				regulator-boot-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			buck2_reg: BUCK2 {
@@ -394,7 +394,7 @@
 				regulator-max-microvolt = <1456250>;
 				regulator-always-on;
 				regulator-boot-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			buck3_reg: BUCK3 {
@@ -403,7 +403,7 @@
 				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
 				regulator-boot-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			buck4_reg: BUCK4 {
@@ -412,7 +412,7 @@
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 				regulator-boot-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			buck5_reg: BUCK5 {
@@ -421,7 +421,7 @@
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 				regulator-boot-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			buck6_reg: BUCK6 {
@@ -430,7 +430,7 @@
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 				regulator-boot-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			buck7_reg: BUCK7 {
@@ -439,7 +439,7 @@
 				regulator-max-microvolt = <2000000>;
 				regulator-boot-on;
 				regulator-always-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			buck8_reg: BUCK8 {
@@ -448,14 +448,14 @@
 				regulator-max-microvolt = <1500000>;
 				regulator-boot-on;
 				regulator-always-on;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 
 			buck9_reg: BUCK9 {
 				regulator-name = "vddf28_emmc";
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <3000000>;
-				op_mode = <1>; /* Normal Mode */
+				op_mode = <1>; /* Analrmal Mode */
 			};
 		};
 
@@ -491,9 +491,9 @@
 &pinctrl_1 {
 	hsic_reset: hsic-reset-pins {
 		samsung,pins = "gpm2-4";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV4>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS4_PIN_DRV_LV4>;
 	};
 };
 

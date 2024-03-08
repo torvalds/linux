@@ -10,8 +10,8 @@
 # define SOCK_CLOEXEC		02000000
 #endif
 
-#ifndef SOCK_NONBLOCK
-# define SOCK_NONBLOCK		00004000
+#ifndef SOCK_ANALNBLOCK
+# define SOCK_ANALNBLOCK		00004000
 #endif
 
 #ifndef SOCK_TYPE_MASK
@@ -51,7 +51,7 @@ static size_t syscall_arg__scnprintf_socket_type(char *bf, size_t size, struct s
 	}
 
 	P_SK_FLAG(CLOEXEC);
-	P_SK_FLAG(NONBLOCK);
+	P_SK_FLAG(ANALNBLOCK);
 #undef P_SK_FLAG
 
 	if (flags)

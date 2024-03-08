@@ -60,7 +60,7 @@ static int ir35221_read_word_data(struct i2c_client *client, int page,
 					   IR35221_MFR_TEMP_VALLEY);
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 
@@ -77,7 +77,7 @@ static int ir35221_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA
 				| I2C_FUNC_SMBUS_READ_WORD_DATA
 				| I2C_FUNC_SMBUS_READ_BLOCK_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = i2c_smbus_read_block_data(client, PMBUS_MFR_ID, buf);
 	if (ret < 0) {
@@ -86,7 +86,7 @@ static int ir35221_probe(struct i2c_client *client)
 	}
 	if (ret != 2 || strncmp(buf, "RI", strlen("RI"))) {
 		dev_err(&client->dev, "MFR_ID unrecognised\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = i2c_smbus_read_block_data(client, PMBUS_MFR_MODEL, buf);
@@ -96,13 +96,13 @@ static int ir35221_probe(struct i2c_client *client)
 	}
 	if (ret != 2 || !(buf[0] == 0x6c && buf[1] == 0x00)) {
 		dev_err(&client->dev, "MFR_MODEL unrecognised\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	info = devm_kzalloc(&client->dev, sizeof(struct pmbus_driver_info),
 			    GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->read_word_data = ir35221_read_word_data;
 

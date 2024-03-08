@@ -19,7 +19,7 @@
  *  http://www.silan.com.cn/english/product/pdf/SC92031AY.pdf 
  */
 
-/* Note about set_mac_address: I don't know how to change the hardware
+/* Analte about set_mac_address: I don't kanalw how to change the hardware
  * matching, so you need to enable IFF_PROMISC when using it.
  */
 
@@ -176,7 +176,7 @@ enum TxConfigBits {
    TxEnbPad       = 0x20000000,
    TxEnbHuge      = 0x10000000,
    TxEnbFCS       = 0x08000000,
-   TxNoBackOff    = 0x04000000,
+   TxAnalBackOff    = 0x04000000,
    TxEnbPrem      = 0x02000000,
    TxCareLostCrs  = 0x1000000,
    TxExdCollNum   = 0xf00000,
@@ -244,11 +244,11 @@ enum PMConfigBits {
 
 /* Locking rules:
  * priv->lock protects most of the fields of priv and most of the
- * hardware registers. It does not have to protect against softirqs
+ * hardware registers. It does analt have to protect against softirqs
  * between sc92031_disable_interrupts and sc92031_enable_interrupts;
- * it also does not need to be used in ->open and ->stop while the
+ * it also does analt need to be used in ->open and ->stop while the
  * device interrupts are off.
- * Not having to protect against softirqs is very useful due to heavy
+ * Analt having to protect against softirqs is very useful due to heavy
  * use of mdelay() at _sc92031_reset.
  * Functions prefixed with _sc92031_ must be called with the lock held;
  * functions prefixed with sc92031_ must be called without the lock held.
@@ -304,7 +304,7 @@ struct sc92031_priv {
 	struct net_device	*ndev;
 };
 
-/* I don't know which registers can be safely read; however, I can guess
+/* I don't kanalw which registers can be safely read; however, I can guess
  * MAC0 is one of them. */
 static inline void _sc92031_dummy_read(void __iomem *port_base)
 {
@@ -355,7 +355,7 @@ static void sc92031_disable_interrupts(struct net_device *dev)
 	struct sc92031_priv *priv = netdev_priv(dev);
 	void __iomem *port_base = priv->port_base;
 
-	/* tell the tasklet/interrupt not to enable interrupts */
+	/* tell the tasklet/interrupt analt to enable interrupts */
 	atomic_set(&priv->intr_mask, 0);
 	wmb();
 
@@ -504,7 +504,7 @@ static bool _sc92031_check_media(struct net_device *dev)
 		priv->rx_config = (0x40 << LowThresholdShift) | (0x1c0 << HighThresholdShift);
 		priv->tx_config = 0x48800000;
 
-		/* NOTE: vendor driver had dead code here to enable tx padding */
+		/* ANALTE: vendor driver had dead code here to enable tx padding */
 
 		if (!speed_100)
 			priv->tx_config |= 0x80000;
@@ -628,7 +628,7 @@ static void _sc92031_reset(struct net_device *dev)
 	priv->mc_flags = 0;
 
 	/* configure rx buffer size */
-	/* NOTE: vendor driver had dead code here to enable early tx/rx */
+	/* ANALTE: vendor driver had dead code here to enable early tx/rx */
 	iowrite32(Cfg1_Rcv64K, port_base + Config1);
 
 	_sc92031_phy_reset(dev);
@@ -666,7 +666,7 @@ static void _sc92031_tx_tasklet(struct net_device *dev)
 		if (tx_status & TxStatOK) {
 			dev->stats.tx_bytes += tx_status & 0x1fff;
 			dev->stats.tx_packets++;
-			/* Note: TxCarrierLost is always asserted at 100mbps. */
+			/* Analte: TxCarrierLost is always asserted at 100mbps. */
 			dev->stats.collisions += (tx_status >> 22) & 0xf;
 		}
 
@@ -883,24 +883,24 @@ static irqreturn_t sc92031_interrupt(int irq, void *dev_id)
 
 	intr_status = ioread32(port_base + IntrStatus);
 	if (unlikely(intr_status == 0xffffffff))
-		return IRQ_NONE;	// hardware has gone missing
+		return IRQ_ANALNE;	// hardware has gone missing
 
 	intr_status &= IntrBits;
 	if (!intr_status)
-		goto out_none;
+		goto out_analne;
 
 	priv->intr_status = intr_status;
 	tasklet_schedule(&priv->tasklet);
 
 	return IRQ_HANDLED;
 
-out_none:
+out_analne:
 	intr_mask = atomic_read(&priv->intr_mask);
 	rmb();
 
 	iowrite32(intr_mask, port_base + IntrMask);
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static struct net_device_stats *sc92031_get_stats(struct net_device *dev)
@@ -908,7 +908,7 @@ static struct net_device_stats *sc92031_get_stats(struct net_device *dev)
 	struct sc92031_priv *priv = netdev_priv(dev);
 	void __iomem *port_base = priv->port_base;
 
-	// FIXME I do not understand what is this trying to do.
+	// FIXME I do analt understand what is this trying to do.
 	if (netif_running(dev)) {
 		int temp;
 
@@ -997,14 +997,14 @@ static int sc92031_open(struct net_device *dev)
 	priv->rx_ring = dma_alloc_coherent(&pdev->dev, RX_BUF_LEN,
 					   &priv->rx_ring_dma_addr, GFP_KERNEL);
 	if (unlikely(!priv->rx_ring)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_alloc_rx_ring;
 	}
 
 	priv->tx_bufs = dma_alloc_coherent(&pdev->dev, TX_BUF_TOT_LEN,
 					   &priv->tx_bufs_dma_addr, GFP_KERNEL);
 	if (unlikely(!priv->tx_bufs)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_alloc_tx_bufs;
 	}
 	priv->tx_head = priv->tx_tail = 0;
@@ -1108,7 +1108,7 @@ static void sc92031_poll_controller(struct net_device *dev)
 	const int irq = priv->pdev->irq;
 
 	disable_irq(irq);
-	if (sc92031_interrupt(irq, dev) != IRQ_NONE)
+	if (sc92031_interrupt(irq, dev) != IRQ_ANALNE)
 		sc92031_tasklet(&priv->tasklet);
 	enable_irq(irq);
 }
@@ -1214,7 +1214,7 @@ sc92031_ethtool_set_link_ksettings(struct net_device *dev,
 
 		phy_ctrl = PhyCtrlAne;
 
-		// FIXME: I'm not sure what the original code was trying to do
+		// FIXME: I'm analt sure what the original code was trying to do
 		if (advertising & ADVERTISED_Autoneg)
 			phy_ctrl |= PhyCtrlDux | PhyCtrlSpd100 | PhyCtrlSpd10;
 		if (advertising & ADVERTISED_100baseT_Full)
@@ -1352,7 +1352,7 @@ static int sc92031_ethtool_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return SILAN_STATS_NUM;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1429,7 +1429,7 @@ static int sc92031_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	dev = alloc_etherdev(sizeof(struct sc92031_priv));
 	if (unlikely(!dev)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_alloc_etherdev;
 	}
 
@@ -1452,7 +1452,7 @@ static int sc92031_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	tasklet_setup(&priv->tasklet, sc92031_tasklet);
 	/* Fudge tasklet count so the call to sc92031_enable_interrupts at
 	 * sc92031_open will work correctly */
-	tasklet_disable_nosync(&priv->tasklet);
+	tasklet_disable_analsync(&priv->tasklet);
 
 	/* PCI PM Wakeup */
 	iowrite32((~PM_LongWF & ~PM_LWPTN) | PM_Enable, port_base + PMConfig);

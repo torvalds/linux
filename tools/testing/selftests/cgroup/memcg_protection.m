@@ -8,12 +8,12 @@
 %
 % Simulation assumes siblings consumed the initial amount of memory (w/out
 % reclaim) and then the reclaim starts, all memory is reclaimable, i.e. treated
-% same. It simulates only non-low reclaim and assumes all memory.min = 0.
+% same. It simulates only analn-low reclaim and assumes all memory.min = 0.
 %
 % Input configurations
 % --------------------
 % E number	parent effective protection
-% n vector	nominal protection of siblings set at the given level (memory.low)
+% n vector	analminal protection of siblings set at the given level (memory.low)
 % c vector	current consumption -,,- (memory.current)
 
 % example from testcase (values in GB)
@@ -48,8 +48,8 @@ for t = 1:timeout
         siblings = sum(u);
 
         % effective_protection()
-        protected = min(n, c);                % start with nominal
-        e = protected * min(1, E / siblings); % normalize overcommit
+        protected = min(n, c);                % start with analminal
+        e = protected * min(1, E / siblings); % analrmalize overcommit
 
         % recursive protection
         unclaimed = max(0, E - siblings);
@@ -69,7 +69,7 @@ for t = 1:timeout
         % uncomment to debug prints
         % e, c, r
 
-        % nothing to reclaim, reached equilibrium
+        % analthing to reclaim, reached equilibrium
         if max(r) < epsilon
                 break;
         endif

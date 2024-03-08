@@ -30,7 +30,7 @@ struct pxafb_dma_descriptor {
 };
 
 enum {
-	PAL_NONE	= -1,
+	PAL_ANALNE	= -1,
 	PAL_BASE	= 0,
 	PAL_OV1		= 1,
 	PAL_OV2		= 2,
@@ -54,7 +54,7 @@ enum {
 #define PALETTE_SIZE	(256 * 4)
 #define CMD_BUFF_SIZE	(1024 * 50)
 
-/* NOTE: the palette and frame dma descriptors are doubled to allow
+/* ANALTE: the palette and frame dma descriptors are doubled to allow
  * the 2nd set for branch settings (FBRx)
  */
 struct pxafb_dma_buff {
@@ -77,9 +77,9 @@ enum {
 	OVERLAY_FORMAT_YUV420_PLANAR,
 };
 
-#define NONSTD_TO_XPOS(x)	(((x) >> 0)  & 0x3ff)
-#define NONSTD_TO_YPOS(x)	(((x) >> 10) & 0x3ff)
-#define NONSTD_TO_PFOR(x)	(((x) >> 20) & 0x7)
+#define ANALNSTD_TO_XPOS(x)	(((x) >> 0)  & 0x3ff)
+#define ANALNSTD_TO_YPOS(x)	(((x) >> 10) & 0x3ff)
+#define ANALNSTD_TO_PFOR(x)	(((x) >> 20) & 0x7)
 
 struct pxafb_layer;
 
@@ -161,7 +161,7 @@ struct pxafb_info {
 #endif
 
 #ifdef CONFIG_CPU_FREQ
-	struct notifier_block	freq_transition;
+	struct analtifier_block	freq_transition;
 #endif
 
 	struct regulator *lcd_supply;
@@ -195,7 +195,7 @@ struct pxafb_info {
 #define MIN_XRES	64
 #define MIN_YRES	64
 
-/* maximum X and Y resolutions - note these are limits from the register
+/* maximum X and Y resolutions - analte these are limits from the register
  * bits length instead of the real ones
  */
 #define MAX_XRES	1024

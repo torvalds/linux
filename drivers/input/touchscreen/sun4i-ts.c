@@ -11,7 +11,7 @@
 /*
  * The sun4i-ts controller is capable of detecting a second touch, but when a
  * second touch is present then the accuracy becomes so bad the reported touch
- * location is not useable.
+ * location is analt useable.
  *
  * The original android driver contains some complicated heuristics using the
  * aprox. distance between the 2 touches to see if the user is making a pinch
@@ -108,7 +108,7 @@ struct sun4i_ts_data {
 	struct input_dev *input;
 	void __iomem *base;
 	unsigned int irq;
-	bool ignore_fifo_data;
+	bool iganalre_fifo_data;
 	int temp_data;
 	int temp_offset;
 	int temp_step;
@@ -122,7 +122,7 @@ static void sun4i_ts_irq_handle_input(struct sun4i_ts_data *ts, u32 reg_val)
 		x = readl(ts->base + TP_DATA);
 		y = readl(ts->base + TP_DATA);
 		/* The 1st location reported after an up event is unreliable */
-		if (!ts->ignore_fifo_data) {
+		if (!ts->iganalre_fifo_data) {
 			input_report_abs(ts->input, ABS_X, x);
 			input_report_abs(ts->input, ABS_Y, y);
 			/*
@@ -133,12 +133,12 @@ static void sun4i_ts_irq_handle_input(struct sun4i_ts_data *ts, u32 reg_val)
 			input_report_key(ts->input, BTN_TOUCH, 1);
 			input_sync(ts->input);
 		} else {
-			ts->ignore_fifo_data = false;
+			ts->iganalre_fifo_data = false;
 		}
 	}
 
 	if (reg_val & TP_UP_PENDING) {
-		ts->ignore_fifo_data = true;
+		ts->iganalre_fifo_data = true;
 		input_report_key(ts->input, BTN_TOUCH, 0);
 		input_sync(ts->input);
 	}
@@ -183,7 +183,7 @@ static void sun4i_ts_close(struct input_dev *dev)
 
 static int sun4i_get_temp(const struct sun4i_ts_data *ts, int *temp)
 {
-	/* No temp_data until the first irq */
+	/* Anal temp_data until the first irq */
 	if (ts->temp_data == -1)
 		return -EAGAIN;
 
@@ -235,7 +235,7 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 {
 	struct sun4i_ts_data *ts;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct device *hwmon;
 	struct thermal_zone_device *thermal;
 	int error;
@@ -246,10 +246,10 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 
 	ts = devm_kzalloc(dev, sizeof(struct sun4i_ts_data), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->dev = dev;
-	ts->ignore_fifo_data = true;
+	ts->iganalre_fifo_data = true;
 	ts->temp_data = -1;
 	if (of_device_is_compatible(np, "allwinner,sun6i-a31-ts")) {
 		/* Allwinner SDK has temperature (C) = (value / 6) - 271 */
@@ -266,15 +266,15 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 		ts->temp_step = 133;
 	} else {
 		/*
-		 * The user manuals do not contain the formula for calculating
+		 * The user manuals do analt contain the formula for calculating
 		 * the temperature. The formula used here is from the AXP209,
 		 * which is designed by X-Powers, an affiliate of Allwinner:
 		 *
 		 *     temperature (C) = (value * 0.1) - 144.7
 		 *
-		 * Allwinner does not have any documentation whatsoever for
+		 * Allwinner does analt have any documentation whatsoever for
 		 * this hardware. Moreover, it is claimed that the sensor
-		 * is inaccurate and cannot work properly.
+		 * is inaccurate and cananalt work properly.
 		 */
 		ts->temp_offset = 144700;
 		ts->temp_step = 100;
@@ -284,7 +284,7 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 	if (ts_attached) {
 		ts->input = devm_input_allocate_device(dev);
 		if (!ts->input)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ts->input->name = pdev->name;
 		ts->input->phys = "sun4i_ts/input0";
@@ -348,7 +348,7 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 	writel(reg, ts->base + TP_CTRL1);
 
 	/*
-	 * The thermal core does not register hwmon devices for DT-based
+	 * The thermal core does analt register hwmon devices for DT-based
 	 * thermal zone sensors, such as this one.
 	 */
 	hwmon = devm_hwmon_device_register_with_groups(ts->dev, "sun4i_ts",

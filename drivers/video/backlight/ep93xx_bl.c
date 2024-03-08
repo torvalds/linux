@@ -60,7 +60,7 @@ static int ep93xxbl_probe(struct platform_device *dev)
 
 	ep93xxbl = devm_kzalloc(&dev->dev, sizeof(*ep93xxbl), GFP_KERNEL);
 	if (!ep93xxbl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -72,7 +72,7 @@ static int ep93xxbl_probe(struct platform_device *dev)
 	 * drivers/video/ep93xx-fb.c) and doing so will cause the second
 	 * loaded driver to return -EBUSY.
 	 *
-	 * NOTE: No locking is required; the framebuffer does not touch
+	 * ANALTE: Anal locking is required; the framebuffer does analt touch
 	 * this register.
 	 */
 	ep93xxbl->mmio = devm_ioremap(&dev->dev, res->start,

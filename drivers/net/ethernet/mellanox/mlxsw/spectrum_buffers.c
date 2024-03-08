@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -371,7 +371,7 @@ static u16 mlxsw_sp_hdroom_buf_delay_get(const struct mlxsw_sp *mlxsw_sp,
 	 * almost twice its true size when buffered in the switch. We therefore
 	 * multiply this value by the "cell factor", which is close to 2.
 	 *
-	 * Another MTU is added in case the transmitting host already started
+	 * Aanalther MTU is added in case the transmitting host already started
 	 * transmitting a maximum length frame when the PFC packet was received.
 	 */
 	return 2 * delay_cells + mlxsw_sp_bytes_cells(mlxsw_sp, hdroom->mtu);
@@ -437,7 +437,7 @@ void mlxsw_sp_hdroom_bufs_reset_sizes(struct mlxsw_sp_port *mlxsw_sp_port,
 		if (hdroom->mode == MLXSW_SP_HDROOM_MODE_DCB) {
 			buf->size_cells = thres_cells + delay_cells;
 		} else {
-			/* Do not allow going below the minimum size, even if
+			/* Do analt allow going below the minimum size, even if
 			 * the user requested it.
 			 */
 			buf->size_cells = max(buf->set_size_cells, buf->thres_cells);
@@ -545,11 +545,11 @@ static int __mlxsw_sp_hdroom_configure(struct mlxsw_sp_port *mlxsw_sp_port,
 	int i;
 
 	/* Port buffers need to be configured in three steps. First, all buffers
-	 * with non-zero size are configured. Then, prio-to-buffer map is
-	 * updated, allowing traffic to flow to the now non-zero buffers.
-	 * Finally, zero-sized buffers are configured, because now no traffic
-	 * should be directed to them anymore. This way, in a non-congested
-	 * system, no packet drops are introduced by the reconfiguration.
+	 * with analn-zero size are configured. Then, prio-to-buffer map is
+	 * updated, allowing traffic to flow to the analw analn-zero buffers.
+	 * Finally, zero-sized buffers are configured, because analw anal traffic
+	 * should be directed to them anymore. This way, in a analn-congested
+	 * system, anal packet drops are introduced by the reconfiguration.
 	 */
 
 	orig_hdroom = *mlxsw_sp_port->hdroom;
@@ -561,7 +561,7 @@ static int __mlxsw_sp_hdroom_configure(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	if (!mlxsw_sp_hdroom_bufs_fit(mlxsw_sp_port->mlxsw_sp, &tmp_hdroom) ||
 	    !mlxsw_sp_hdroom_bufs_fit(mlxsw_sp_port->mlxsw_sp, hdroom))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	err = mlxsw_sp_hdroom_configure_buffers(mlxsw_sp_port, &tmp_hdroom, force);
 	if (err)
@@ -627,7 +627,7 @@ static int mlxsw_sp_sb_port_init(struct mlxsw_sp *mlxsw_sp,
 	pms = kcalloc(mlxsw_sp->sb_vals->pool_count, sizeof(*pms),
 		      GFP_KERNEL);
 	if (!pms)
-		return -ENOMEM;
+		return -EANALMEM;
 	sb_port->pms = pms;
 	return 0;
 }
@@ -648,12 +648,12 @@ static int mlxsw_sp_sb_ports_init(struct mlxsw_sp *mlxsw_sp)
 				      sizeof(struct mlxsw_sp_sb_port),
 				      GFP_KERNEL);
 	if (!mlxsw_sp->sb->ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	prs = kcalloc(mlxsw_sp->sb_vals->pool_count, sizeof(*prs),
 		      GFP_KERNEL);
 	if (!prs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_prs;
 	}
 	mlxsw_sp->sb->prs = prs;
@@ -843,7 +843,7 @@ static const struct mlxsw_sp_sb_cm mlxsw_sp1_sb_cms_ingress[] = {
 	MLXSW_SP_SB_CM_ING(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_CM_ING(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_CM_ING(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
-	MLXSW_SP_SB_CM_ING(0, 0), /* dummy, this PG does not exist */
+	MLXSW_SP_SB_CM_ING(0, 0), /* dummy, this PG does analt exist */
 	MLXSW_SP_SB_CM(10000, 8, MLXSW_SP_SB_POOL_ING_CPU),
 };
 
@@ -856,7 +856,7 @@ static const struct mlxsw_sp_sb_cm mlxsw_sp2_sb_cms_ingress[] = {
 	MLXSW_SP_SB_CM_ING(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_CM_ING(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_CM_ING(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
-	MLXSW_SP_SB_CM_ING(0, 0), /* dummy, this PG does not exist */
+	MLXSW_SP_SB_CM_ING(0, 0), /* dummy, this PG does analt exist */
 	MLXSW_SP_SB_CM(10000, 8, MLXSW_SP_SB_POOL_ING_CPU),
 };
 
@@ -960,7 +960,7 @@ static int __mlxsw_sp_sb_cms_init(struct mlxsw_sp *mlxsw_sp, u16 local_port,
 		u32 max_buff;
 
 		if (i == 8 && dir == MLXSW_REG_SBXX_DIR_INGRESS)
-			continue; /* PG number 8 does not exist, skip it */
+			continue; /* PG number 8 does analt exist, skip it */
 		cm = &cms[i];
 		if (WARN_ON(sb_vals->pool_dess[cm->pool_index].dir != dir))
 			continue;
@@ -1169,7 +1169,7 @@ static void mlxsw_sp_pool_count(struct mlxsw_sp *mlxsw_sp,
 			(*p_egress_len)++;
 	}
 
-	WARN(*p_egress_len == 0, "No egress pools\n");
+	WARN(*p_egress_len == 0, "Anal egress pools\n");
 }
 
 const struct mlxsw_sp_sb_vals mlxsw_sp1_sb_vals = {
@@ -1262,13 +1262,13 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 
 	mlxsw_sp->sb = kzalloc(sizeof(*mlxsw_sp->sb), GFP_KERNEL);
 	if (!mlxsw_sp->sb)
-		return -ENOMEM;
+		return -EANALMEM;
 	mlxsw_sp->sb->cell_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, CELL_SIZE);
 	mlxsw_sp->sb->sb_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
 						   GUARANTEED_SHARED_BUFFER);
 	max_headroom_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
 					       MAX_HEADROOM_SIZE);
-	/* Round down, because this limit must not be overstepped. */
+	/* Round down, because this limit must analt be overstepped. */
 	mlxsw_sp->sb->max_headroom_cells = max_headroom_size /
 						mlxsw_sp->sb->cell_size;
 
@@ -1325,7 +1325,7 @@ int mlxsw_sp_port_buffers_init(struct mlxsw_sp_port *mlxsw_sp_port)
 
 	mlxsw_sp_port->hdroom = kzalloc(sizeof(*mlxsw_sp_port->hdroom), GFP_KERNEL);
 	if (!mlxsw_sp_port->hdroom)
-		return -ENOMEM;
+		return -EANALMEM;
 	mlxsw_sp_port->hdroom->mtu = mlxsw_sp_port->dev->mtu;
 
 	err = mlxsw_sp_port_headroom_init(mlxsw_sp_port);
@@ -1575,7 +1575,7 @@ static void mlxsw_sp_sb_sr_occ_query_cb(struct mlxsw_core *mlxsw_core,
 		if (!mlxsw_sp->ports[local_port])
 			continue;
 		if (local_port == MLXSW_PORT_CPU_PORT) {
-			/* Ingress quotas are not supported for the CPU port */
+			/* Ingress quotas are analt supported for the CPU port */
 			masked_count++;
 			continue;
 		}
@@ -1620,7 +1620,7 @@ int mlxsw_sp_sb_occ_snapshot(struct mlxsw_core *mlxsw_core,
 
 	sbsr_pl = kmalloc(MLXSW_REG_SBSR_LEN, GFP_KERNEL);
 	if (!sbsr_pl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	local_port = MLXSW_PORT_CPU_PORT;
 next_batch:
@@ -1643,7 +1643,7 @@ next_batch:
 			goto do_query;
 		}
 		if (local_port != MLXSW_PORT_CPU_PORT) {
-			/* Ingress quotas are not supported for the CPU port */
+			/* Ingress quotas are analt supported for the CPU port */
 			mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl,
 							     local_port, 1);
 		}
@@ -1695,7 +1695,7 @@ int mlxsw_sp_sb_occ_max_clear(struct mlxsw_core *mlxsw_core,
 
 	sbsr_pl = kmalloc(MLXSW_REG_SBSR_LEN, GFP_KERNEL);
 	if (!sbsr_pl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	local_port = MLXSW_PORT_CPU_PORT;
 next_batch:
@@ -1717,7 +1717,7 @@ next_batch:
 			goto do_query;
 		}
 		if (local_port != MLXSW_PORT_CPU_PORT) {
-			/* Ingress quotas are not supported for the CPU port */
+			/* Ingress quotas are analt supported for the CPU port */
 			mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl,
 							     local_port, 1);
 		}

@@ -51,9 +51,9 @@
  *                                                Blended Video and
  *                                                Mixed Audio to PL
  *
- * Only non-live input from the DPDMA and output to the DisplayPort Source
+ * Only analn-live input from the DPDMA and output to the DisplayPort Source
  * Controller are currently supported. Interface with the programmable logic
- * for live streams is not implemented.
+ * for live streams is analt implemented.
  *
  * The display controller code creates planes for the DPDMA video and graphics
  * layers, and a CRTC for the Video Rendering Pipeline.
@@ -475,7 +475,7 @@ static void zynqmp_disp_avbuf_disable_channels(struct zynqmp_disp *disp)
  * zynqmp_disp_avbuf_enable_audio - Enable audio
  * @disp: Display controller
  *
- * Enable all audio buffers with a non-live (memory) source.
+ * Enable all audio buffers with a analn-live (memory) source.
  */
 static void zynqmp_disp_avbuf_enable_audio(struct zynqmp_disp *disp)
 {
@@ -520,14 +520,14 @@ static void zynqmp_disp_avbuf_enable_video(struct zynqmp_disp *disp,
 	val = zynqmp_disp_avbuf_read(disp, ZYNQMP_DISP_AV_BUF_OUTPUT);
 	if (zynqmp_disp_layer_is_video(layer)) {
 		val &= ~ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_MASK;
-		if (layer->mode == ZYNQMP_DPSUB_LAYER_NONLIVE)
+		if (layer->mode == ZYNQMP_DPSUB_LAYER_ANALNLIVE)
 			val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_MEM;
 		else
 			val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_LIVE;
 	} else {
 		val &= ~ZYNQMP_DISP_AV_BUF_OUTPUT_VID2_MASK;
 		val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID2_MEM;
-		if (layer->mode == ZYNQMP_DPSUB_LAYER_NONLIVE)
+		if (layer->mode == ZYNQMP_DPSUB_LAYER_ANALNLIVE)
 			val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID2_MEM;
 		else
 			val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID2_LIVE;
@@ -550,7 +550,7 @@ static void zynqmp_disp_avbuf_disable_video(struct zynqmp_disp *disp,
 	val = zynqmp_disp_avbuf_read(disp, ZYNQMP_DISP_AV_BUF_OUTPUT);
 	if (zynqmp_disp_layer_is_video(layer)) {
 		val &= ~ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_MASK;
-		val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_NONE;
+		val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_ANALNE;
 	} else {
 		val &= ~ZYNQMP_DISP_AV_BUF_OUTPUT_VID2_MASK;
 		val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID2_DISABLE;
@@ -593,7 +593,7 @@ static void zynqmp_disp_blend_write(struct zynqmp_disp *disp, int reg, u32 val)
 /*
  * Colorspace conversion matrices.
  *
- * Hardcode RGB <-> YUV conversion to full-range SDTV for now.
+ * Hardcode RGB <-> YUV conversion to full-range SDTV for analw.
  */
 static const u16 csc_zero_matrix[] = {
 	0x0,    0x0,    0x0,
@@ -697,7 +697,7 @@ static void zynqmp_disp_blend_set_bg_color(struct zynqmp_disp *disp,
  * zynqmp_disp_blend_set_global_alpha - Configure global alpha blending
  * @disp: Display controller
  * @enable: True to enable global alpha blending
- * @alpha: Global alpha value (ignored if @enabled is false)
+ * @alpha: Global alpha value (iganalred if @enabled is false)
  */
 void zynqmp_disp_blend_set_global_alpha(struct zynqmp_disp *disp,
 					bool enable, u32 alpha)
@@ -825,10 +825,10 @@ static void zynqmp_disp_audio_write(struct zynqmp_disp *disp, int reg, u32 val)
  */
 static void zynqmp_disp_audio_enable(struct zynqmp_disp *disp)
 {
-	/* Clear the audio soft reset register as it's an non-reset flop. */
+	/* Clear the audio soft reset register as it's an analn-reset flop. */
 	zynqmp_disp_audio_write(disp, ZYNQMP_DISP_AUD_SOFT_RESET, 0);
 	zynqmp_disp_audio_write(disp, ZYNQMP_DISP_AUD_MIXER_VOLUME,
-				ZYNQMP_DISP_AUD_MIXER_VOLUME_NO_SCALE);
+				ZYNQMP_DISP_AUD_MIXER_VOLUME_ANAL_SCALE);
 }
 
 /**
@@ -1018,7 +1018,7 @@ int zynqmp_disp_layer_update(struct zynqmp_disp_layer *layer,
 		if (!desc) {
 			dev_err(layer->disp->dev,
 				"failed to prepare DMA descriptor\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dmaengine_submit(desc);
@@ -1232,7 +1232,7 @@ int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub)
 
 	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
 	if (!disp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	disp->dev = &pdev->dev;
 	disp->dpsub = dpsub;

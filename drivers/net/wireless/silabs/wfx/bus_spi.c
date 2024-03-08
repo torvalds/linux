@@ -175,7 +175,7 @@ static int wfx_spi_irq_unsubscribe(void *priv)
 
 static size_t wfx_spi_align_size(void *priv, size_t size)
 {
-	/* Most of SPI controllers avoid DMA if buffer size is not 32bit aligned */
+	/* Most of SPI controllers avoid DMA if buffer size is analt 32bit aligned */
 	return ALIGN(size, 4);
 }
 
@@ -203,7 +203,7 @@ static int wfx_spi_probe(struct spi_device *func)
 	pdata = (struct wfx_platform_data *)spi_get_device_id(func)->driver_data;
 	if (!pdata) {
 		dev_err(&func->dev, "unable to retrieve driver data (please report)\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Trace below is also displayed by spi_setup() if compiled with DEBUG */
@@ -216,7 +216,7 @@ static int wfx_spi_probe(struct spi_device *func)
 
 	bus = devm_kzalloc(&func->dev, sizeof(*bus), GFP_KERNEL);
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 	bus->func = func;
 	if (func->bits_per_word == 8 || IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
 		bus->need_swab = true;
@@ -226,7 +226,7 @@ static int wfx_spi_probe(struct spi_device *func)
 	if (IS_ERR(bus->gpio_reset))
 		return PTR_ERR(bus->gpio_reset);
 	if (!bus->gpio_reset) {
-		dev_warn(&func->dev, "gpio reset is not defined, trying to load firmware anyway\n");
+		dev_warn(&func->dev, "gpio reset is analt defined, trying to load firmware anyway\n");
 	} else {
 		gpiod_set_consumer_name(bus->gpio_reset, "wfx reset");
 		gpiod_set_value_cansleep(bus->gpio_reset, 1);
@@ -249,8 +249,8 @@ static void wfx_spi_remove(struct spi_device *func)
 	wfx_release(bus->core);
 }
 
-/* For dynamic driver binding, kernel does not use OF to match driver. It only
- * use modalias and modalias is a copy of 'compatible' DT node with vendor
+/* For dynamic driver binding, kernel does analt use OF to match driver. It only
+ * use modalias and modalias is a copy of 'compatible' DT analde with vendor
  * stripped.
  */
 static const struct spi_device_id wfx_spi_id[] = {

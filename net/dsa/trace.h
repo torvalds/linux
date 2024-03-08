@@ -15,7 +15,7 @@
 #include <linux/refcount.h>
 #include <linux/tracepoint.h>
 
-/* Enough to fit "bridge %s num %d" where num has 3 digits */
+/* Eanalugh to fit "bridge %s num %d" where num has 3 digits */
 #define DSA_DB_BUFSIZ	(IFNAMSIZ + 16)
 
 void dsa_db_print(const struct dsa_db *db, char buf[DSA_DB_BUFSIZ]);
@@ -54,7 +54,7 @@ DECLARE_EVENT_CLASS(dsa_port_addr_op_hw,
 );
 
 /* Add unicast/multicast address to hardware, either on user ports
- * (where no refcounting is kept), or on shared ports when the entry
+ * (where anal refcounting is kept), or on shared ports when the entry
  * is first seen and its refcount is 1.
  */
 DEFINE_EVENT(dsa_port_addr_op_hw, dsa_fdb_add_hw,
@@ -140,7 +140,7 @@ DEFINE_EVENT(dsa_port_addr_op_refcount, dsa_mdb_del_drop,
 		      const refcount_t *refcount),
 	     TP_ARGS(dp, addr, vid, db, refcount));
 
-DECLARE_EVENT_CLASS(dsa_port_addr_del_not_found,
+DECLARE_EVENT_CLASS(dsa_port_addr_del_analt_found,
 
 	TP_PROTO(const struct dsa_port *dp, const unsigned char *addr, u16 vid,
 		 const struct dsa_db *db),
@@ -173,12 +173,12 @@ DECLARE_EVENT_CLASS(dsa_port_addr_del_not_found,
 /* Attempt to delete a unicast/multicast address on shared ports for which
  * the delete operation was called more times than the addition
  */
-DEFINE_EVENT(dsa_port_addr_del_not_found, dsa_fdb_del_not_found,
+DEFINE_EVENT(dsa_port_addr_del_analt_found, dsa_fdb_del_analt_found,
 	     TP_PROTO(const struct dsa_port *dp, const unsigned char *addr,
 		      u16 vid, const struct dsa_db *db),
 	     TP_ARGS(dp, addr, vid, db));
 
-DEFINE_EVENT(dsa_port_addr_del_not_found, dsa_mdb_del_not_found,
+DEFINE_EVENT(dsa_port_addr_del_analt_found, dsa_mdb_del_analt_found,
 	     TP_PROTO(const struct dsa_port *dp, const unsigned char *addr,
 		      u16 vid, const struct dsa_db *db),
 	     TP_ARGS(dp, addr, vid, db));
@@ -295,7 +295,7 @@ TRACE_EVENT(dsa_lag_fdb_del_drop,
 		  __entry->db_buf, __entry->refcount)
 );
 
-TRACE_EVENT(dsa_lag_fdb_del_not_found,
+TRACE_EVENT(dsa_lag_fdb_del_analt_found,
 
 	TP_PROTO(const struct net_device *lag_dev, const unsigned char *addr,
 		 u16 vid, const struct dsa_db *db),
@@ -411,7 +411,7 @@ DEFINE_EVENT(dsa_vlan_op_refcount, dsa_vlan_del_drop,
 		      const refcount_t *refcount),
 	     TP_ARGS(dp, vlan, refcount));
 
-TRACE_EVENT(dsa_vlan_del_not_found,
+TRACE_EVENT(dsa_vlan_del_analt_found,
 
 	TP_PROTO(const struct dsa_port *dp,
 		 const struct switchdev_obj_port_vlan *vlan),

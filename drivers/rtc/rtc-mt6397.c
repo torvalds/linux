@@ -56,7 +56,7 @@ static irqreturn_t mtk_rtc_irq_handler_thread(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int __mtk_rtc_read_time(struct mt6397_rtc *rtc,
@@ -266,7 +266,7 @@ static int mtk_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(struct mt6397_rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)

@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -78,9 +78,9 @@ enum signal_type dcn35_get_dig_mode(
 	case 5:
 		return SIGNAL_TYPE_DISPLAY_PORT_MST;
 	default:
-		return SIGNAL_TYPE_NONE;
+		return SIGNAL_TYPE_ANALNE;
 	}
-	return SIGNAL_TYPE_NONE;
+	return SIGNAL_TYPE_ANALNE;
 }
 
 void dcn35_link_encoder_setup(
@@ -185,7 +185,7 @@ void dcn35_link_encoder_construct(
 	enc10->base.connector = init_data->connector;
 
 
-	enc10->base.preferred_engine = ENGINE_ID_UNKNOWN;
+	enc10->base.preferred_engine = ENGINE_ID_UNKANALWN;
 
 	enc10->base.features = *enc_features;
 
@@ -234,7 +234,7 @@ void dcn35_link_encoder_construct(
 	break;
 	default:
 		ASSERT_CRITICAL(false);
-		enc10->base.preferred_engine = ENGINE_ID_UNKNOWN;
+		enc10->base.preferred_engine = ENGINE_ID_UNKANALWN;
 	}
 
 	enc10->base.features.flags.bits.HDMI_6GB_EN = 1;
@@ -257,7 +257,7 @@ void dcn35_link_encoder_construct(
 		enc10->base.features.flags.bits.IS_UHBR13_5_CAPABLE = bp_cap_info.DP_UHBR13_5_EN;
 		enc10->base.features.flags.bits.IS_UHBR20_CAPABLE = bp_cap_info.DP_UHBR20_EN;
 		if (bp_cap_info.DP_IS_USB_C) {
-			/*BIOS not switch to use CONNECTOR_ID_USBC = 24 yet*/
+			/*BIOS analt switch to use CONNECTOR_ID_USBC = 24 yet*/
 			enc10->base.features.flags.bits.DP_IS_USB_C = 1;
 		}
 

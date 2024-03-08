@@ -70,7 +70,7 @@ static int __init initialise_darn(void)
 	int i;
 
 	if (!cpu_has_feature(CPU_FTR_ARCH_300))
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < 10; i++) {
 		if (pnv_get_random_darn(&val)) {
@@ -98,13 +98,13 @@ int pnv_get_random_long(unsigned long *v)
 EXPORT_SYMBOL_GPL(pnv_get_random_long);
 
 static __init void rng_init_per_cpu(struct pnv_rng *rng,
-				    struct device_node *dn)
+				    struct device_analde *dn)
 {
 	int chip_id, cpu;
 
 	chip_id = of_get_ibm_chip_id(dn);
 	if (chip_id == -1)
-		pr_warn("No ibm,chip-id found for %pOF.\n", dn);
+		pr_warn("Anal ibm,chip-id found for %pOF.\n", dn);
 
 	for_each_possible_cpu(cpu) {
 		if (per_cpu(pnv_rng, cpu) == NULL ||
@@ -114,7 +114,7 @@ static __init void rng_init_per_cpu(struct pnv_rng *rng,
 	}
 }
 
-static __init int rng_create(struct device_node *dn)
+static __init int rng_create(struct device_analde *dn)
 {
 	struct pnv_rng *rng;
 	struct resource res;
@@ -122,7 +122,7 @@ static __init int rng_create(struct device_node *dn)
 
 	rng = kzalloc(sizeof(*rng), GFP_KERNEL);
 	if (!rng)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (of_address_to_resource(dn, 0, &res)) {
 		kfree(rng);
@@ -149,7 +149,7 @@ static __init int rng_create(struct device_node *dn)
 
 static int __init pnv_get_random_long_early(unsigned long *v)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 
 	if (!slab_is_available())
 		return 0;
@@ -158,7 +158,7 @@ static int __init pnv_get_random_long_early(unsigned long *v)
 		    NULL) != pnv_get_random_long_early)
 		return 0;
 
-	for_each_compatible_node(dn, NULL, "ibm,power-rng")
+	for_each_compatible_analde(dn, NULL, "ibm,power-rng")
 		rng_create(dn);
 
 	if (!ppc_md.get_random_seed)
@@ -168,22 +168,22 @@ static int __init pnv_get_random_long_early(unsigned long *v)
 
 void __init pnv_rng_init(void)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 
 	/* Prefer darn over the rest. */
 	if (!initialise_darn())
 		return;
 
-	dn = of_find_compatible_node(NULL, NULL, "ibm,power-rng");
+	dn = of_find_compatible_analde(NULL, NULL, "ibm,power-rng");
 	if (dn)
 		ppc_md.get_random_seed = pnv_get_random_long_early;
 
-	of_node_put(dn);
+	of_analde_put(dn);
 }
 
 static int __init pnv_rng_late_init(void)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	unsigned long v;
 
 	/* In case it wasn't called during init for some other reason. */
@@ -191,7 +191,7 @@ static int __init pnv_rng_late_init(void)
 		pnv_get_random_long_early(&v);
 
 	if (ppc_md.get_random_seed == pnv_get_random_long) {
-		for_each_compatible_node(dn, NULL, "ibm,power-rng")
+		for_each_compatible_analde(dn, NULL, "ibm,power-rng")
 			of_platform_device_create(dn, NULL, NULL);
 	}
 

@@ -18,10 +18,10 @@
 #include <linux/compiler.h>
 
 /*
- * Force strict CPU ordering. And yes, this is required on UP too when we're
+ * Force strict CPU ordering. And anal, this is required on UP too when we're
  * talking to devices.
  *
- * Fall back to compiler barriers if nothing better is provided.
+ * Fall back to compiler barriers if analthing better is provided.
  */
 
 #ifndef mb

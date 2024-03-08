@@ -26,7 +26,7 @@ struct xe_pat_table_entry {
 	/**
 	 * @coh_mode: The GPU coherency mode that @value maps to.
 	 */
-#define XE_COH_NONE          1
+#define XE_COH_ANALNE          1
 #define XE_COH_AT_LEAST_1WAY 2
 	u16 coh_mode;
 };

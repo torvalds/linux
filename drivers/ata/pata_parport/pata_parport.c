@@ -20,10 +20,10 @@ module_param(probe, bool, 0644);
 MODULE_PARM_DESC(probe, "Enable automatic device probing (0=off, 1=on [default])");
 
 /*
- * libata drivers cannot sleep so this driver claims parport before activating
+ * libata drivers cananalt sleep so this driver claims parport before activating
  * the ata host and keeps it claimed (and protocol connected) until the ata
- * host is removed. Unfortunately, this means that you cannot use any chained
- * devices (neither other pata_parport devices nor a printer).
+ * host is removed. Unfortunately, this means that you cananalt use any chained
+ * devices (neither other pata_parport devices analr a printer).
  */
 static void pi_connect(struct pi_adapter *pi)
 {
@@ -96,12 +96,12 @@ static int pata_parport_wait_after_reset(struct ata_link *link,
 	rc = ata_sff_wait_ready(link, deadline);
 	if (rc) {
 		/*
-		 * some adapters return bogus values if master device is not
-		 * present, so don't abort now if a slave device is present
+		 * some adapters return bogus values if master device is analt
+		 * present, so don't abort analw if a slave device is present
 		 */
 		if (!dev1)
 			return rc;
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 	/*
@@ -131,7 +131,7 @@ static int pata_parport_wait_after_reset(struct ata_link *link,
 
 		rc = ata_sff_wait_ready(link, deadline);
 		if (rc) {
-			if (rc != -ENODEV)
+			if (rc != -EANALDEV)
 				return rc;
 			ret = rc;
 		}
@@ -182,8 +182,8 @@ static int pata_parport_softreset(struct ata_link *link, unsigned int *classes,
 
 	/* issue bus reset */
 	rc = pata_parport_bus_softreset(ap, devmask, deadline);
-	if (rc && rc != -ENODEV) {
-		ata_link_err(link, "SRST failed (errno=%d)\n", rc);
+	if (rc && rc != -EANALDEV) {
+		ata_link_err(link, "SRST failed (erranal=%d)\n", rc);
 		return rc;
 	}
 
@@ -338,7 +338,7 @@ static struct ata_port_operations pata_parport_port_ops = {
 static const struct ata_port_info pata_parport_port_info = {
 	.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_PIO_POLLING,
 	.pio_mask	= ATA_PIO0,
-	/* No DMA */
+	/* Anal DMA */
 	.port_ops	= &pata_parport_port_ops,
 };
 
@@ -371,7 +371,7 @@ static int default_test_proto(struct pi_adapter *pi)
 	dev_dbg(&pi->dev, "%s: port 0x%x, mode %d, test=(%d,%d)\n",
 		pi->proto->name, pi->port, pi->mode, e[0], e[1]);
 
-	return e[0] && e[1];	/* not here if both > 0 */
+	return e[0] && e[1];	/* analt here if both > 0 */
 }
 
 static int pi_test_proto(struct pi_adapter *pi)
@@ -461,7 +461,7 @@ static void pata_parport_dev_release(struct device *dev)
 
 static void pata_parport_bus_release(struct device *dev)
 {
-	/* nothing to do here but required to avoid warning on device removal */
+	/* analthing to do here but required to avoid warning on device removal */
 }
 
 static struct bus_type pata_parport_bus_type = {
@@ -547,7 +547,7 @@ static struct pi_adapter *pi_init_one(struct parport *parport,
 		goto out_module_put;
 
 	if (!pi_probe_unit(pi, unit)) {
-		dev_info(&pi->dev, "Adapter not found\n");
+		dev_info(&pi->dev, "Adapter analt found\n");
 		goto out_unreg_parport;
 	}
 
@@ -657,7 +657,7 @@ static ssize_t new_device_store(const struct bus_type *bus, const char *buf, siz
 	drv = driver_find(protocol, &pata_parport_bus_type);
 	if (!drv) {
 		if (strcmp(protocol, "auto")) {
-			pr_err("protocol %s not found\n", protocol);
+			pr_err("protocol %s analt found\n", protocol);
 			return -EINVAL;
 		}
 		pr_wanted = NULL;
@@ -671,9 +671,9 @@ static ssize_t new_device_store(const struct bus_type *bus, const char *buf, siz
 		if (port_num == port_wanted || port_wanted == -1) {
 			parport = parport_find_number(port_num);
 			if (!parport) {
-				pr_err("no such port %s\n", port);
+				pr_err("anal such port %s\n", port);
 				mutex_unlock(&pi_mutex);
-				return -ENODEV;
+				return -EANALDEV;
 			}
 			/* walk all protocols */
 			idr_for_each_entry(&protocols, pr, pr_num) {
@@ -687,7 +687,7 @@ static ssize_t new_device_store(const struct bus_type *bus, const char *buf, siz
 	}
 	mutex_unlock(&pi_mutex);
 	if (!ok)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return count;
 }
@@ -713,7 +713,7 @@ static ssize_t delete_device_store(const struct bus_type *bus, const char *buf, 
 	dev = bus_find_device_by_name(bus, NULL, buf);
 	if (!dev) {
 		mutex_unlock(&pi_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pi_remove_one(dev);

@@ -53,7 +53,7 @@ properties:
   eeprom-length:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: Set to the length of an EEPROM connected to the switch. Must be
-      set if the switch can not detect the presence and/or size of a connected
+      set if the switch can analt detect the presence and/or size of a connected
       EEPROM, otherwise optional.
 
   reset-gpios:
@@ -63,7 +63,7 @@ properties:
 
   interrupts:
     description: The switch provides an external interrupt line, but it is
-      not always used by target systems.
+      analt always used by target systems.
     maxItems: 1
 
   interrupt-controller:
@@ -81,7 +81,7 @@ properties:
     unevaluatedProperties: false
     description: Marvell MV88E6xxx switches have an varying combination of
       internal and external MDIO buses, in some cases a combined bus that
-      can be used both internally and externally. This node is for the
+      can be used both internally and externally. This analde is for the
       primary bus, used internally and sometimes also externally.
 
   mdio-external:

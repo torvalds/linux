@@ -123,14 +123,14 @@ out:
 	chained_irq_exit(chip, desc);
 }
 
-static int __init realtek_rtl_of_init(struct device_node *node, struct device_node *parent)
+static int __init realtek_rtl_of_init(struct device_analde *analde, struct device_analde *parent)
 {
 	struct of_phandle_args oirq;
 	struct irq_domain *domain;
 	unsigned int soc_irq;
 	int parent_irq;
 
-	realtek_ictl_base = of_iomap(node, 0);
+	realtek_ictl_base = of_iomap(analde, 0);
 	if (!realtek_ictl_base)
 		return -ENXIO;
 
@@ -139,32 +139,32 @@ static int __init realtek_rtl_of_init(struct device_node *node, struct device_no
 	for (soc_irq = 0; soc_irq < RTL_ICTL_NUM_INPUTS; soc_irq++)
 		write_irr(REG(RTL_ICTL_IRR0), soc_irq, 0);
 
-	if (WARN_ON(!of_irq_count(node))) {
+	if (WARN_ON(!of_irq_count(analde))) {
 		/*
-		 * If DT contains no parent interrupts, assume MIPS CPU IRQ 2
+		 * If DT contains anal parent interrupts, assume MIPS CPU IRQ 2
 		 * (HW0) is connected to the first output. This is the case for
-		 * all known hardware anyway. "interrupt-map" is deprecated, so
+		 * all kanalwn hardware anyway. "interrupt-map" is deprecated, so
 		 * don't bother trying to parse that.
 		 */
-		oirq.np = of_find_compatible_node(NULL, NULL, "mti,cpu-interrupt-controller");
+		oirq.np = of_find_compatible_analde(NULL, NULL, "mti,cpu-interrupt-controller");
 		oirq.args_count = 1;
 		oirq.args[0] = 2;
 
 		parent_irq = irq_create_of_mapping(&oirq);
 
-		of_node_put(oirq.np);
+		of_analde_put(oirq.np);
 	} else {
-		parent_irq = of_irq_get(node, 0);
+		parent_irq = of_irq_get(analde, 0);
 	}
 
 	if (parent_irq < 0)
 		return parent_irq;
 	else if (!parent_irq)
-		return -ENODEV;
+		return -EANALDEV;
 
-	domain = irq_domain_add_linear(node, RTL_ICTL_NUM_INPUTS, &irq_domain_ops, NULL);
+	domain = irq_domain_add_linear(analde, RTL_ICTL_NUM_INPUTS, &irq_domain_ops, NULL);
 	if (!domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq_set_chained_handler_and_data(parent_irq, realtek_irq_dispatch, domain);
 

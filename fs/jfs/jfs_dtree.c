@@ -17,7 +17,7 @@
  * are returned to freelist.
  *
  * leaf entry stores full name as key and file serial number
- * (aka inode number) as data.
+ * (aka ianalde number) as data.
  * internal/router entry stores sufffix compressed name
  * as key and simple extent descriptor as data.
  *
@@ -25,7 +25,7 @@
  * which stores the start slot index of sorted entries
  * to allow binary search on the table.
  *
- * directory starts as a root/leaf page in on-disk inode
+ * directory starts as a root/leaf page in on-disk ianalde
  * inline data area.
  * when it becomes full, it starts a leaf of a external extent
  * of length of 1 block. each time the first leaf becomes full,
@@ -43,7 +43,7 @@
  * names are stored in case-sensitive way in leaf entry.
  * but stored, searched and compared in case-insensitive (uppercase) order
  * (i.e., both search key and entry key are folded for search/compare):
- * (note that case-sensitive order is BROKEN in storage, e.g.,
+ * (analte that case-sensitive order is BROKEN in storage, e.g.,
  *  sensitive: Ad, aB, aC, aD -> insensitive: aB, aC, aD, Ad
  *
  *  entries which folds to the same key makes up a equivalent class
@@ -78,10 +78,10 @@
  *			return EDUPLICATE;
  *		return match;
  *	else
- *		return no match;
+ *		return anal match;
  *
  *	serialization:
- * target directory inode lock is being held on entry/exit
+ * target directory ianalde lock is being held on entry/exit
  * of all main directory service routines.
  *
  *	log based recovery:
@@ -136,26 +136,26 @@ do {									\
 /*
  * forward references
  */
-static int dtSplitUp(tid_t tid, struct inode *ip,
+static int dtSplitUp(tid_t tid, struct ianalde *ip,
 		     struct dtsplit * split, struct btstack * btstack);
 
-static int dtSplitPage(tid_t tid, struct inode *ip, struct dtsplit * split,
+static int dtSplitPage(tid_t tid, struct ianalde *ip, struct dtsplit * split,
 		       struct metapage ** rmpp, dtpage_t ** rpp, pxd_t * rxdp);
 
-static int dtExtendPage(tid_t tid, struct inode *ip,
+static int dtExtendPage(tid_t tid, struct ianalde *ip,
 			struct dtsplit * split, struct btstack * btstack);
 
-static int dtSplitRoot(tid_t tid, struct inode *ip,
+static int dtSplitRoot(tid_t tid, struct ianalde *ip,
 		       struct dtsplit * split, struct metapage ** rmpp);
 
-static int dtDeleteUp(tid_t tid, struct inode *ip, struct metapage * fmp,
+static int dtDeleteUp(tid_t tid, struct ianalde *ip, struct metapage * fmp,
 		      dtpage_t * fp, struct btstack * btstack);
 
-static int dtRelink(tid_t tid, struct inode *ip, dtpage_t * p);
+static int dtRelink(tid_t tid, struct ianalde *ip, dtpage_t * p);
 
-static int dtReadFirst(struct inode *ip, struct btstack * btstack);
+static int dtReadFirst(struct ianalde *ip, struct btstack * btstack);
 
-static int dtReadNext(struct inode *ip,
+static int dtReadNext(struct ianalde *ip,
 		      loff_t * offset, struct btstack * btstack);
 
 static int dtCompare(struct component_name * key, dtpage_t * p, int si);
@@ -188,22 +188,22 @@ static void dtLinelockFreelist(dtpage_t * p, int m, struct dt_lock ** dtlock);
  *	read_index_page()
  *
  *	Reads a page of a directory's index table.
- *	Having metadata mapped into the directory inode's address space
+ *	Having metadata mapped into the directory ianalde's address space
  *	presents a multitude of problems.  We avoid this by mapping to
  *	the absolute address space outside of the *_metapage routines
  */
-static struct metapage *read_index_page(struct inode *inode, s64 blkno)
+static struct metapage *read_index_page(struct ianalde *ianalde, s64 blkanal)
 {
 	int rc;
 	s64 xaddr;
 	int xflag;
 	s32 xlen;
 
-	rc = xtLookup(inode, blkno, 1, &xflag, &xaddr, &xlen, 1);
+	rc = xtLookup(ianalde, blkanal, 1, &xflag, &xaddr, &xlen, 1);
 	if (rc || (xaddr == 0))
 		return NULL;
 
-	return read_metapage(inode, xaddr, PSIZE, 1);
+	return read_metapage(ianalde, xaddr, PSIZE, 1);
 }
 
 /*
@@ -211,18 +211,18 @@ static struct metapage *read_index_page(struct inode *inode, s64 blkno)
  *
  *	Same as get_index_page(), but get's a new page without reading
  */
-static struct metapage *get_index_page(struct inode *inode, s64 blkno)
+static struct metapage *get_index_page(struct ianalde *ianalde, s64 blkanal)
 {
 	int rc;
 	s64 xaddr;
 	int xflag;
 	s32 xlen;
 
-	rc = xtLookup(inode, blkno, 1, &xflag, &xaddr, &xlen, 1);
+	rc = xtLookup(ianalde, blkanal, 1, &xflag, &xaddr, &xlen, 1);
 	if (rc || (xaddr == 0))
 		return NULL;
 
-	return get_metapage(inode, xaddr, PSIZE, 1);
+	return get_metapage(ianalde, xaddr, PSIZE, 1);
 }
 
 /*
@@ -233,11 +233,11 @@ static struct metapage *get_index_page(struct inode *inode, s64 blkno)
  *
  *	mp must be released by caller.
  */
-static struct dir_table_slot *find_index(struct inode *ip, u32 index,
+static struct dir_table_slot *find_index(struct ianalde *ip, u32 index,
 					 struct metapage ** mp, s64 *lblock)
 {
-	struct jfs_inode_info *jfs_ip = JFS_IP(ip);
-	s64 blkno;
+	struct jfs_ianalde_info *jfs_ip = JFS_IP(ip);
+	s64 blkanal;
 	s64 offset;
 	int page_offset;
 	struct dir_table_slot *slot;
@@ -265,16 +265,16 @@ static struct dir_table_slot *find_index(struct inode *ip, u32 index,
 	} else {
 		offset = (index - 2) * sizeof(struct dir_table_slot);
 		page_offset = offset & (PSIZE - 1);
-		blkno = ((offset + 1) >> L2PSIZE) <<
+		blkanal = ((offset + 1) >> L2PSIZE) <<
 		    JFS_SBI(ip->i_sb)->l2nbperpage;
 
-		if (*mp && (*lblock != blkno)) {
+		if (*mp && (*lblock != blkanal)) {
 			release_metapage(*mp);
 			*mp = NULL;
 		}
 		if (!(*mp)) {
-			*lblock = blkno;
-			*mp = read_index_page(ip, blkno);
+			*lblock = blkanal;
+			*mp = read_index_page(ip, blkanal);
 		}
 		if (!(*mp)) {
 			jfs_err("free_index: error reading directory table");
@@ -288,7 +288,7 @@ static struct dir_table_slot *find_index(struct inode *ip, u32 index,
 	return slot;
 }
 
-static inline void lock_index(tid_t tid, struct inode *ip, struct metapage * mp,
+static inline void lock_index(tid_t tid, struct ianalde *ip, struct metapage * mp,
 			      u32 index)
 {
 	struct tlock *tlck;
@@ -318,12 +318,12 @@ static inline void lock_index(tid_t tid, struct inode *ip, struct metapage * mp,
  *	each directory entry with a persistent index in which to resume
  *	directory traversals
  */
-static u32 add_index(tid_t tid, struct inode *ip, s64 bn, int slot)
+static u32 add_index(tid_t tid, struct ianalde *ip, s64 bn, int slot)
 {
 	struct super_block *sb = ip->i_sb;
 	struct jfs_sb_info *sbi = JFS_SBI(sb);
-	struct jfs_inode_info *jfs_ip = JFS_IP(ip);
-	u64 blkno;
+	struct jfs_ianalde_info *jfs_ip = JFS_IP(ip);
+	u64 blkanal;
 	struct dir_table_slot *dirtab_slot;
 	u32 index;
 	struct linelock *llck;
@@ -351,7 +351,7 @@ static u32 add_index(tid_t tid, struct inode *ip, s64 bn, int slot)
 		ip->i_size = (loff_t) (index - 1) << 3;
 
 		/*
-		 * dir table fits inline within inode
+		 * dir table fits inline within ianalde
 		 */
 		dirtab_slot = &jfs_ip->i_dirtable[index-2];
 		dirtab_slot->flag = DIR_INDEX_VALID;
@@ -424,31 +424,31 @@ static u32 add_index(tid_t tid, struct inode *ip, s64 bn, int slot)
 		release_metapage(mp);
 
 		/*
-		 * Logging is now directed by xtree tlocks
+		 * Logging is analw directed by xtree tlocks
 		 */
 		clear_cflag(COMMIT_Dirtable, ip);
 	}
 
 	offset = (index - 2) * sizeof(struct dir_table_slot);
 	page_offset = offset & (PSIZE - 1);
-	blkno = ((offset + 1) >> L2PSIZE) << sbi->l2nbperpage;
+	blkanal = ((offset + 1) >> L2PSIZE) << sbi->l2nbperpage;
 	if (page_offset == 0) {
 		/*
 		 * This will be the beginning of a new page
 		 */
 		xaddr = 0;
-		if (xtInsert(tid, ip, 0, blkno, sbi->nbperpage, &xaddr, 0)) {
+		if (xtInsert(tid, ip, 0, blkanal, sbi->nbperpage, &xaddr, 0)) {
 			jfs_warn("add_index: xtInsert failed!");
 			goto clean_up;
 		}
 		ip->i_size += PSIZE;
 
-		if ((mp = get_index_page(ip, blkno)))
+		if ((mp = get_index_page(ip, blkanal)))
 			memset(mp->data, 0, PSIZE);	/* Just looks better */
 		else
 			xtTruncate(tid, ip, offset, COMMIT_PWMAP);
 	} else
-		mp = read_index_page(ip, blkno);
+		mp = read_index_page(ip, blkanal);
 
 	if (!mp) {
 		jfs_err("add_index: get/read_metapage failed!");
@@ -480,7 +480,7 @@ static u32 add_index(tid_t tid, struct inode *ip, s64 bn, int slot)
  *
  *	Marks an entry to the directory index table as free.
  */
-static void free_index(tid_t tid, struct inode *ip, u32 index, u32 next)
+static void free_index(tid_t tid, struct ianalde *ip, u32 index, u32 next)
 {
 	struct dir_table_slot *dirtab_slot;
 	s64 lblock;
@@ -508,7 +508,7 @@ static void free_index(tid_t tid, struct inode *ip, u32 index, u32 next)
  *
  *	Changes an entry in the directory index table
  */
-static void modify_index(tid_t tid, struct inode *ip, u32 index, s64 bn,
+static void modify_index(tid_t tid, struct ianalde *ip, u32 index, s64 bn,
 			 int slot, struct metapage ** mp, s64 *lblock)
 {
 	struct dir_table_slot *dirtab_slot;
@@ -533,7 +533,7 @@ static void modify_index(tid_t tid, struct inode *ip, u32 index, s64 bn,
  *
  *	reads a directory table slot
  */
-static int read_index(struct inode *ip, u32 index,
+static int read_index(struct ianalde *ip, u32 index,
 		     struct dir_table_slot * dirtab_slot)
 {
 	s64 lblock;
@@ -562,9 +562,9 @@ static int read_index(struct inode *ip, u32 index,
  * parameter:
  *
  * return: 0 - search result on stack, leaf page pinned;
- *	   errno - I/O error
+ *	   erranal - I/O error
  */
-int dtSearch(struct inode *ip, struct component_name * key, ino_t * data,
+int dtSearch(struct ianalde *ip, struct component_name * key, ianal_t * data,
 	     struct btstack * btstack, int flag)
 {
 	int rc = 0;
@@ -577,14 +577,14 @@ int dtSearch(struct inode *ip, struct component_name * key, ino_t * data,
 	struct btframe *btsp;
 	pxd_t *pxd;
 	int psize = 288;	/* initial in-line directory */
-	ino_t inumber;
+	ianal_t inumber;
 	struct component_name ciKey;
 	struct super_block *sb = ip->i_sb;
 
 	ciKey.name = kmalloc_array(JFS_NAME_MAX + 1, sizeof(wchar_t),
-				   GFP_NOFS);
+				   GFP_ANALFS);
 	if (!ciKey.name) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto dtSearch_Exit2;
 	}
 
@@ -608,7 +608,7 @@ int dtSearch(struct inode *ip, struct component_name * key, ino_t * data,
 	 * between two consecutive entries of <Ki, Pi> and <Kj, Pj> of
 	 * internal page, child page Pi contains entry with k, Ki <= K < Kj.
 	 *
-	 * if entry with search key K is not found
+	 * if entry with search key K is analt found
 	 * internal page search find the entry with largest key Ki
 	 * less than K which point to the child page to search;
 	 * leaf page search find the entry with smallest key Kj
@@ -733,7 +733,7 @@ int dtSearch(struct inode *ip, struct component_name * key, ino_t * data,
 			 */
 			if (flag == JFS_LOOKUP || flag == JFS_REMOVE ||
 			    flag == JFS_RENAME) {
-				rc = -ENOENT;
+				rc = -EANALENT;
 				goto out;
 			}
 
@@ -755,7 +755,7 @@ int dtSearch(struct inode *ip, struct component_name * key, ino_t * data,
 		/*
 		 * search miss - internal page
 		 *
-		 * if base is non-zero, decrement base by one to get the parent
+		 * if base is analn-zero, decrement base by one to get the parent
 		 * entry of the child page to search.
 		 */
 		index = base ? base - 1 : base;
@@ -809,10 +809,10 @@ int dtSearch(struct inode *ip, struct component_name * key, ino_t * data,
  * parameter:
  *
  * return: 0 - success;
- *	   errno - failure;
+ *	   erranal - failure;
  */
-int dtInsert(tid_t tid, struct inode *ip,
-	 struct component_name * name, ino_t * fsn, struct btstack * btstack)
+int dtInsert(tid_t tid, struct ianalde *ip,
+	 struct component_name * name, ianal_t * fsn, struct btstack * btstack)
 {
 	int rc = 0;
 	struct metapage *mp;	/* meta-page buffer */
@@ -850,10 +850,10 @@ int dtInsert(tid_t tid, struct inode *ip,
 		n = NDTLEAF_LEGACY(name->namlen);
 		data.leaf.ip = NULL;	/* signifies legacy directory format */
 	}
-	data.leaf.ino = *fsn;
+	data.leaf.ianal = *fsn;
 
 	/*
-	 *	leaf page does not have enough room for new entry:
+	 *	leaf page does analt have eanalugh room for new entry:
 	 *
 	 *	extend/split the leaf page;
 	 *
@@ -870,7 +870,7 @@ int dtInsert(tid_t tid, struct inode *ip,
 	}
 
 	/*
-	 *	leaf page does have enough room for new entry:
+	 *	leaf page does have eanalugh room for new entry:
 	 *
 	 *	insert the new data entry into the leaf page;
 	 */
@@ -890,7 +890,7 @@ int dtInsert(tid_t tid, struct inode *ip,
 
 	dtInsertEntry(p, index, name, &data, &dtlck);
 
-	/* linelock stbl of non-root leaf page */
+	/* linelock stbl of analn-root leaf page */
 	if (!(p->header.flag & BT_ROOT)) {
 		if (dtlck->index >= dtlck->maxcnt)
 			dtlck = (struct dt_lock *) txLinelock(dtlck);
@@ -917,11 +917,11 @@ int dtInsert(tid_t tid, struct inode *ip,
  * parameter:
  *
  * return: 0 - success;
- *	   errno - failure;
+ *	   erranal - failure;
  *	leaf page unpinned;
  */
 static int dtSplitUp(tid_t tid,
-	  struct inode *ip, struct dtsplit * split, struct btstack * btstack)
+	  struct ianalde *ip, struct dtsplit * split, struct btstack * btstack)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(ip->i_sb);
 	int rc = 0;
@@ -950,10 +950,10 @@ static int dtSplitUp(tid_t tid,
 	smp = split->mp;
 	sp = DT_PAGE(ip, smp);
 
-	key.name = kmalloc_array(JFS_NAME_MAX + 2, sizeof(wchar_t), GFP_NOFS);
+	key.name = kmalloc_array(JFS_NAME_MAX + 2, sizeof(wchar_t), GFP_ANALFS);
 	if (!key.name) {
 		DT_PUTPAGE(smp);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto dtSplitUp_Exit;
 	}
 
@@ -1150,7 +1150,7 @@ static int dtSplitUp(tid_t tid,
 		 * the new entry and the entry on the page to its left.
 		 * If the keys compare equal, retain the entire key.
 		 *
-		 * note that compression is performed only at computing
+		 * analte that compression is performed only at computing
 		 * router key at the lowest internal level.
 		 * further compression of the key between pairs of higher
 		 * level internal pages loses too much information and
@@ -1248,7 +1248,7 @@ static int dtSplitUp(tid_t tid,
 			/* smp and rmp are pinned */
 		}
 		/*
-		 * parent page is not full - insert router entry in parent page
+		 * parent page is analt full - insert router entry in parent page
 		 */
 		else {
 			BT_MARK_DIRTY(smp, ip);
@@ -1265,7 +1265,7 @@ static int dtSplitUp(tid_t tid,
 			lv->length = 1;
 			dtlck->index++;
 
-			/* linelock stbl of non-root parent page */
+			/* linelock stbl of analn-root parent page */
 			if (!(sp->header.flag & BT_ROOT)) {
 				lv++;
 				n = skip >> L2DTSLOTSIZE;
@@ -1312,15 +1312,15 @@ static int dtSplitUp(tid_t tid,
 /*
  *	dtSplitPage()
  *
- * function: Split a non-root page of a btree.
+ * function: Split a analn-root page of a btree.
  *
  * parameter:
  *
  * return: 0 - success;
- *	   errno - failure;
+ *	   erranal - failure;
  *	return split and new page pinned;
  */
-static int dtSplitPage(tid_t tid, struct inode *ip, struct dtsplit * split,
+static int dtSplitPage(tid_t tid, struct ianalde *ip, struct dtsplit * split,
 	    struct metapage ** rmpp, dtpage_t ** rpp, pxd_t * rpxdp)
 {
 	int rc = 0;
@@ -1429,12 +1429,12 @@ static int dtSplitPage(tid_t tid, struct inode *ip, struct dtsplit * split,
 	 * If splitting the last page on a level because of appending
 	 * a entry to it (skip is maxentry), it's likely that the access is
 	 * sequential. Adding an empty page on the side of the level is less
-	 * work and can push the fill factor much higher than normal.
-	 * If we're wrong it's no big deal, we'll just do the split the right
+	 * work and can push the fill factor much higher than analrmal.
+	 * If we're wrong it's anal big deal, we'll just do the split the right
 	 * way next time.
 	 * (It may look like it's equally easy to do a similar hack for
 	 * reverse sorted data, that is, split the tree left,
-	 * but it's not. Be my guest.)
+	 * but it's analt. Be my guest.)
 	 */
 	if (nextbn == 0 && split->index == sp->header.nextindex) {
 		/* linelock header + stbl (first slot) of new page */
@@ -1458,7 +1458,7 @@ static int dtSplitPage(tid_t tid, struct inode *ip, struct dtsplit * split,
 	}
 
 	/*
-	 *	non-sequential insert (at possibly middle page)
+	 *	analn-sequential insert (at possibly middle page)
 	 */
 
 	/*
@@ -1569,7 +1569,7 @@ static int dtSplitPage(tid_t tid, struct inode *ip, struct dtsplit * split,
 	f->next = -1;
 
 	/*
-	 * Update directory index table for entries now in right page
+	 * Update directory index table for entries analw in right page
 	 */
 	if ((rp->header.flag & BT_LEAF) && DO_INDEX(ip)) {
 		s64 lblock;
@@ -1629,11 +1629,11 @@ static int dtSplitPage(tid_t tid, struct inode *ip, struct dtsplit * split,
  * parameter:
  *
  * return: 0 - success;
- *	   errno - failure;
+ *	   erranal - failure;
  *	return extended page pinned;
  */
 static int dtExtendPage(tid_t tid,
-	     struct inode *ip, struct dtsplit * split, struct btstack * btstack)
+	     struct ianalde *ip, struct dtsplit * split, struct btstack * btstack)
 {
 	struct super_block *sb = ip->i_sb;
 	int rc;
@@ -1853,20 +1853,20 @@ static int dtExtendPage(tid_t tid,
  * function:
  *	split the full root page into
  *	original/root/split page and new right page
- *	i.e., root remains fixed in tree anchor (inode) and
+ *	i.e., root remains fixed in tree anchor (ianalde) and
  *	the root is copied to a single new right child page
- *	since root page << non-root page, and
+ *	since root page << analn-root page, and
  *	the split root page contains a single entry for the
  *	new right child page.
  *
  * parameter:
  *
  * return: 0 - success;
- *	   errno - failure;
+ *	   erranal - failure;
  *	return new page pinned;
  */
 static int dtSplitRoot(tid_t tid,
-	    struct inode *ip, struct dtsplit * split, struct metapage ** rmpp)
+	    struct ianalde *ip, struct dtsplit * split, struct metapage ** rmpp)
 {
 	struct super_block *sb = ip->i_sb;
 	struct metapage *smp;
@@ -1983,7 +1983,7 @@ static int dtSplitRoot(tid_t tid,
 	rp->header.freecnt = sp->header.freecnt + rp->header.maxslot - n;
 
 	/*
-	 * Update directory index table for entries now in right page
+	 * Update directory index table for entries analw in right page
 	 */
 	if ((rp->header.flag & BT_LEAF) && DO_INDEX(ip)) {
 		s64 lblock;
@@ -2001,7 +2001,7 @@ static int dtSplitRoot(tid_t tid,
 	}
 	/*
 	 * insert the new entry into the new right/child page
-	 * (skip index in the new right page will not change)
+	 * (skip index in the new right page will analt change)
 	 */
 	dtInsertEntry(rp, split->index, split->key, split->data, &dtlck);
 
@@ -2016,7 +2016,7 @@ static int dtSplitRoot(tid_t tid,
 	 */
 	BT_MARK_DIRTY(smp, ip);
 	/*
-	 * acquire a transaction lock on the root page (in-memory inode)
+	 * acquire a transaction lock on the root page (in-memory ianalde)
 	 */
 	tlck = txLock(tid, ip, smp, tlckDTREE | tlckNEW | tlckBTROOT);
 	dtlck = (struct dt_lock *) & tlck->lock;
@@ -2073,7 +2073,7 @@ static int dtSplitRoot(tid_t tid,
  * return:
  */
 int dtDelete(tid_t tid,
-	 struct inode *ip, struct component_name * key, ino_t * ino, int flag)
+	 struct ianalde *ip, struct component_name * key, ianal_t * ianal, int flag)
 {
 	int rc = 0;
 	s64 bn;
@@ -2096,7 +2096,7 @@ int dtDelete(tid_t tid,
 	 *
 	 * dtSearch() returns (leaf page pinned, index at which to delete).
 	 */
-	if ((rc = dtSearch(ip, key, ino, &btstack, flag)))
+	if ((rc = dtSearch(ip, key, ianal, &btstack, flag)))
 		return rc;
 
 	/* retrieve search result */
@@ -2162,7 +2162,7 @@ int dtDelete(tid_t tid,
 		dtlck = (struct dt_lock *) & tlck->lock;
 
 		/*
-		 * Do not assume that dtlck->index will be zero.  During a
+		 * Do analt assume that dtlck->index will be zero.  During a
 		 * rename within a directory, this transaction may have
 		 * modified this page already when adding the new entry.
 		 */
@@ -2175,7 +2175,7 @@ int dtDelete(tid_t tid,
 		lv->length = 1;
 		dtlck->index++;
 
-		/* linelock stbl of non-root leaf page */
+		/* linelock stbl of analn-root leaf page */
 		if (!(p->header.flag & BT_ROOT)) {
 			if (dtlck->index >= dtlck->maxcnt)
 				dtlck = (struct dt_lock *) txLinelock(dtlck);
@@ -2227,7 +2227,7 @@ int dtDelete(tid_t tid,
  *
  * return:
  */
-static int dtDeleteUp(tid_t tid, struct inode *ip,
+static int dtDeleteUp(tid_t tid, struct ianalde *ip,
 	   struct metapage * fmp, dtpage_t * fp, struct btstack * btstack)
 {
 	int rc = 0;
@@ -2259,12 +2259,12 @@ static int dtDeleteUp(tid_t tid, struct inode *ip,
 	}
 
 	/*
-	 *	free the non-root leaf page
+	 *	free the analn-root leaf page
 	 */
 	/*
 	 * acquire a transaction lock on the page
 	 *
-	 * write FREEXTENT|NOREDOPAGE log record
+	 * write FREEXTENT|ANALREDOPAGE log record
 	 * N.B. linelock is overlaid as freed extent descriptor, and
 	 * the buffer page is freed;
 	 */
@@ -2294,7 +2294,7 @@ static int dtDeleteUp(tid_t tid, struct inode *ip,
 	 * If the delete from the parent page makes it empty,
 	 * continue all the way up the tree.
 	 * stop if the root page is reached (which is never deleted) or
-	 * if the entry deletion does not empty the page.
+	 * if the entry deletion does analt empty the page.
 	 */
 	while ((parent = BT_POP(btstack)) != NULL) {
 		/* pin the parent page <sp> */
@@ -2340,7 +2340,7 @@ static int dtDeleteUp(tid_t tid, struct inode *ip,
 				/*
 				 * acquire a transaction lock on the page
 				 *
-				 * write FREEXTENT|NOREDOPAGE log record
+				 * write FREEXTENT|ANALREDOPAGE log record
 				 */
 				tlck =
 				    txMaplock(tid, ip,
@@ -2391,7 +2391,7 @@ static int dtDeleteUp(tid_t tid, struct inode *ip,
 		lv->length = 1;
 		dtlck->index++;
 
-		/* linelock stbl of non-root leaf page */
+		/* linelock stbl of analn-root leaf page */
 		if (!(p->header.flag & BT_ROOT)) {
 			if (dtlck->index < dtlck->maxcnt)
 				lv++;
@@ -2439,7 +2439,7 @@ static int dtDeleteUp(tid_t tid, struct inode *ip,
  *
  * return:
  */
-static int dtRelink(tid_t tid, struct inode *ip, dtpage_t * p)
+static int dtRelink(tid_t tid, struct ianalde *ip, dtpage_t * p)
 {
 	int rc;
 	struct metapage *mp;
@@ -2516,11 +2516,11 @@ static int dtRelink(tid_t tid, struct inode *ip, dtpage_t * p)
 /*
  *	dtInitRoot()
  *
- * initialize directory root (inline in inode)
+ * initialize directory root (inline in ianalde)
  */
-void dtInitRoot(tid_t tid, struct inode *ip, u32 idotdot)
+void dtInitRoot(tid_t tid, struct ianalde *ip, u32 idotdot)
 {
-	struct jfs_inode_info *jfs_ip = JFS_IP(ip);
+	struct jfs_ianalde_info *jfs_ip = JFS_IP(ip);
 	dtroot_t *p;
 	int fsi;
 	struct dtslot *f;
@@ -2530,7 +2530,7 @@ void dtInitRoot(tid_t tid, struct inode *ip, u32 idotdot)
 	u16 xflag_save;
 
 	/*
-	 * If this was previously an non-empty directory, we need to remove
+	 * If this was previously an analn-empty directory, we need to remove
 	 * the old directory table.
 	 */
 	if (DO_INDEX(ip)) {
@@ -2607,10 +2607,10 @@ void dtInitRoot(tid_t tid, struct inode *ip, u32 idotdot)
  *	add_missing_indices()
  *
  * function: Fix dtree page in which one or more entries has an invalid index.
- *	     fsck.jfs should really fix this, but it currently does not.
+ *	     fsck.jfs should really fix this, but it currently does analt.
  *	     Called from jfs_readdir when bad index is detected.
  */
-static void add_missing_indices(struct inode *inode, s64 bn)
+static void add_missing_indices(struct ianalde *ianalde, s64 bn)
 {
 	struct ldtentry *d;
 	struct dt_lock *dtlck;
@@ -2624,19 +2624,19 @@ static void add_missing_indices(struct inode *inode, s64 bn)
 	tid_t tid;
 	struct tlock *tlck;
 
-	tid = txBegin(inode->i_sb, 0);
+	tid = txBegin(ianalde->i_sb, 0);
 
-	DT_GETPAGE(inode, bn, mp, PSIZE, p, rc);
+	DT_GETPAGE(ianalde, bn, mp, PSIZE, p, rc);
 
 	if (rc) {
 		printk(KERN_ERR "DT_GETPAGE failed!\n");
 		goto end;
 	}
-	BT_MARK_DIRTY(mp, inode);
+	BT_MARK_DIRTY(mp, ianalde);
 
 	ASSERT(p->header.flag & BT_LEAF);
 
-	tlck = txLock(tid, inode, mp, tlckDTREE | tlckENTRY);
+	tlck = txLock(tid, ianalde, mp, tlckDTREE | tlckENTRY);
 	if (BT_IS_ROOT(mp))
 		tlck->type |= tlckBTROOT;
 
@@ -2646,8 +2646,8 @@ static void add_missing_indices(struct inode *inode, s64 bn)
 	for (i = 0; i < p->header.nextindex; i++) {
 		d = (struct ldtentry *) &p->slot[stbl[i]];
 		index = le32_to_cpu(d->index);
-		if ((index < 2) || (index >= JFS_IP(inode)->next_index)) {
-			d->index = cpu_to_le32(add_index(tid, inode, bn, i));
+		if ((index < 2) || (index >= JFS_IP(ianalde)->next_index)) {
+			d->index = cpu_to_le32(add_index(tid, ianalde, bn, i));
 			if (dtlck->index >= dtlck->maxcnt)
 				dtlck = (struct dt_lock *) txLinelock(dtlck);
 			lv = &dtlck->lv[dtlck->index];
@@ -2658,7 +2658,7 @@ static void add_missing_indices(struct inode *inode, s64 bn)
 	}
 
 	DT_PUTPAGE(mp);
-	(void) txCommit(tid, 1, &inode, 0);
+	(void) txCommit(tid, 1, &ianalde, 0);
 end:
 	txEnd(tid);
 }
@@ -2669,7 +2669,7 @@ end:
  */
 struct jfs_dirent {
 	loff_t position;
-	int ino;
+	int ianal;
 	u16 name_len;
 	char name[];
 };
@@ -2699,7 +2699,7 @@ static inline struct jfs_dirent *next_jfs_dirent(struct jfs_dirent *dirent)
  */
 int jfs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *ip = file_inode(file);
+	struct ianalde *ip = file_ianalde(file);
 	struct nls_table *codepage = JFS_SBI(ip->i_sb)->nls_tab;
 	int rc = 0;
 	loff_t dtpos;	/* legacy OS/2 style position */
@@ -2797,7 +2797,7 @@ int jfs_readdir(struct file *file, struct dir_context *ctx)
 				 * self "."
 				 */
 				ctx->pos = 1;
-				if (!dir_emit(ctx, ".", 1, ip->i_ino, DT_DIR))
+				if (!dir_emit(ctx, ".", 1, ip->i_ianal, DT_DIR))
 					return 0;
 			}
 			/*
@@ -2827,13 +2827,13 @@ int jfs_readdir(struct file *file, struct dir_context *ctx)
 		 * pn = 0; index = 1:	First entry "."
 		 * pn = 0; index = 2:	Second entry ".."
 		 * pn > 0:		Real entries, pn=1 -> leftmost page
-		 * pn = index = -1:	No more entries
+		 * pn = index = -1:	Anal more entries
 		 */
 		dtpos = ctx->pos;
 		if (dtpos < 2) {
 			/* build "." entry */
 			ctx->pos = 1;
-			if (!dir_emit(ctx, ".", 1, ip->i_ino, DT_DIR))
+			if (!dir_emit(ctx, ".", 1, ip->i_ianal, DT_DIR))
 				return 0;
 			dtoffset->index = 2;
 			ctx->pos = dtpos;
@@ -2878,7 +2878,7 @@ int jfs_readdir(struct file *file, struct dir_context *ctx)
 		DT_PUTPAGE(mp);
 		jfs_warn("jfs_readdir: __get_free_page failed!");
 		ctx->pos = DIREND;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	while (1) {
@@ -2901,7 +2901,7 @@ int jfs_readdir(struct file *file, struct dir_context *ctx)
 
 			d_namleft = d->namlen;
 			name_ptr = jfs_dirent->name;
-			jfs_dirent->ino = le32_to_cpu(d->inumber);
+			jfs_dirent->ianal = le32_to_cpu(d->inumber);
 
 			if (do_index) {
 				len = min(d_namleft, DTLHDRDATALEN);
@@ -2955,8 +2955,8 @@ int jfs_readdir(struct file *file, struct dir_context *ctx)
 				/* Sanity Check */
 				if (d_namleft == 0) {
 					jfs_error(ip->i_sb,
-						  "JFS:Dtree error: ino = %ld, bn=%lld, index = %d\n",
-						  (long)ip->i_ino,
+						  "JFS:Dtree error: ianal = %ld, bn=%lld, index = %d\n",
+						  (long)ip->i_ianal,
 						  (long long)bn,
 						  i);
 					goto skip_one;
@@ -3000,7 +3000,7 @@ skip_one:
 			ctx->pos = jfs_dirent->position;
 			if (!dir_emit(ctx, jfs_dirent->name,
 				    jfs_dirent->name_len,
-				    jfs_dirent->ino, DT_UNKNOWN))
+				    jfs_dirent->ianal, DT_UNKANALWN))
 				goto out;
 			jfs_dirent = next_jfs_dirent(jfs_dirent);
 		}
@@ -3034,7 +3034,7 @@ skip_one:
  *
  * function: get the leftmost page of the directory
  */
-static int dtReadFirst(struct inode *ip, struct btstack * btstack)
+static int dtReadFirst(struct ianalde *ip, struct btstack * btstack)
 {
 	int rc = 0;
 	s64 bn;
@@ -3103,10 +3103,10 @@ static int dtReadFirst(struct inode *ip, struct btstack * btstack)
  *
  * return: if (offset > eof), bn = -1;
  *
- * note: if index > nextindex of the target leaf page,
+ * analte: if index > nextindex of the target leaf page,
  * start with 1st entry of next leaf page;
  */
-static int dtReadNext(struct inode *ip, loff_t * offset,
+static int dtReadNext(struct ianalde *ip, loff_t * offset,
 		      struct btstack * btstack)
 {
 	int rc = 0;
@@ -3134,7 +3134,7 @@ static int dtReadNext(struct inode *ip, loff_t * offset,
 	DT_GETSEARCH(ip, btstack->top, bn, mp, p, index);
 
 	/* get the start offset (pn:index) */
-	pn = dtoffset->pn - 1;	/* Now pn = 0 represents leftmost leaf */
+	pn = dtoffset->pn - 1;	/* Analw pn = 0 represents leftmost leaf */
 	index = dtoffset->index;
 
 	/* start at leftmost page ? */
@@ -3154,7 +3154,7 @@ static int dtReadNext(struct inode *ip, loff_t * offset,
 		goto a;
 	}
 
-	/* start at non-leftmost page: scan parent pages for large pn */
+	/* start at analn-leftmost page: scan parent pages for large pn */
 	if (p->header.flag & BT_ROOT) {
 		bn = -1;
 		goto out;
@@ -3463,7 +3463,7 @@ static int ciCompare(struct component_name * key,	/* search key */
  *	     from two adjacent leaf entries
  *	     across page boundary
  *
- * return: non-zero on error
+ * return: analn-zero on error
  *
  */
 static int ciGetLeafPrefixKey(dtpage_t * lp, int li, dtpage_t * rp,
@@ -3477,13 +3477,13 @@ static int ciGetLeafPrefixKey(dtpage_t * lp, int li, dtpage_t * rp,
 	lkey.name = kmalloc_array(JFS_NAME_MAX + 1, sizeof(wchar_t),
 					GFP_KERNEL);
 	if (lkey.name == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rkey.name = kmalloc_array(JFS_NAME_MAX + 1, sizeof(wchar_t),
 					GFP_KERNEL);
 	if (rkey.name == NULL) {
 		kfree(lkey.name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* get left and right key */
@@ -3634,7 +3634,7 @@ static void dtInsertEntry(dtpage_t * p, int index, struct component_name * key,
 	if (p->header.flag & BT_LEAF) {
 		lh = (struct ldtentry *) h;
 		lh->next = h->next;
-		lh->inumber = cpu_to_le32(data->leaf.ino);
+		lh->inumber = cpu_to_le32(data->leaf.ianal);
 		lh->namlen = klen;
 		name = lh->name;
 		if (data->leaf.ip) {
@@ -4196,23 +4196,23 @@ static void dtLinelockFreelist(dtpage_t * p,	/* directory page */
 /*
  * NAME: dtModify
  *
- * FUNCTION: Modify the inode number part of a directory entry
+ * FUNCTION: Modify the ianalde number part of a directory entry
  *
  * PARAMETERS:
  *	tid	- Transaction id
- *	ip	- Inode of parent directory
+ *	ip	- Ianalde of parent directory
  *	key	- Name of entry to be modified
- *	orig_ino	- Original inode number expected in entry
- *	new_ino	- New inode number to put into entry
+ *	orig_ianal	- Original ianalde number expected in entry
+ *	new_ianal	- New ianalde number to put into entry
  *	flag	- JFS_RENAME
  *
  * RETURNS:
- *	-ESTALE	- If entry found does not match orig_ino passed in
- *	-ENOENT	- If no entry can be found to match key
+ *	-ESTALE	- If entry found does analt match orig_ianal passed in
+ *	-EANALENT	- If anal entry can be found to match key
  *	0	- If successfully modified entry
  */
-int dtModify(tid_t tid, struct inode *ip,
-	 struct component_name * key, ino_t * orig_ino, ino_t new_ino, int flag)
+int dtModify(tid_t tid, struct ianalde *ip,
+	 struct component_name * key, ianal_t * orig_ianal, ianal_t new_ianal, int flag)
 {
 	int rc;
 	s64 bn;
@@ -4232,7 +4232,7 @@ int dtModify(tid_t tid, struct inode *ip,
 	 *
 	 * dtSearch() returns (leaf page pinned, index at which to modify).
 	 */
-	if ((rc = dtSearch(ip, key, orig_ino, &btstack, flag)))
+	if ((rc = dtSearch(ip, key, orig_ianal, &btstack, flag)))
 		return rc;
 
 	/* retrieve search result */
@@ -4259,8 +4259,8 @@ int dtModify(tid_t tid, struct inode *ip,
 	/* get the head/only segment */
 	entry = (struct ldtentry *) & p->slot[entry_si];
 
-	/* substitute the inode number of the entry */
-	entry->inumber = cpu_to_le32(new_ino);
+	/* substitute the ianalde number of the entry */
+	entry->inumber = cpu_to_le32(new_ianal);
 
 	/* unpin the leaf page */
 	DT_PUTPAGE(mp);

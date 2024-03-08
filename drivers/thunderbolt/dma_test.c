@@ -31,7 +31,7 @@ struct dma_test_frame {
 };
 
 enum dma_test_test_error {
-	DMA_TEST_NO_ERROR,
+	DMA_TEST_ANAL_ERROR,
 	DMA_TEST_INTERRUPTED,
 	DMA_TEST_BUFFER_ERROR,
 	DMA_TEST_DMA_ERROR,
@@ -43,11 +43,11 @@ enum dma_test_test_error {
 };
 
 static const char * const dma_test_error_names[] = {
-	[DMA_TEST_NO_ERROR] = "no errors",
+	[DMA_TEST_ANAL_ERROR] = "anal errors",
 	[DMA_TEST_INTERRUPTED] = "interrupted by signal",
-	[DMA_TEST_BUFFER_ERROR] = "no memory for packet buffers",
+	[DMA_TEST_BUFFER_ERROR] = "anal memory for packet buffers",
 	[DMA_TEST_DMA_ERROR] = "DMA ring setup failed",
-	[DMA_TEST_CONFIG_ERROR] = "configuration is not valid",
+	[DMA_TEST_CONFIG_ERROR] = "configuration is analt valid",
 	[DMA_TEST_SPEED_ERROR] = "unexpected link speed",
 	[DMA_TEST_WIDTH_ERROR] = "unexpected link width",
 	[DMA_TEST_BONDING_ERROR] = "lane bonding configuration error",
@@ -55,13 +55,13 @@ static const char * const dma_test_error_names[] = {
 };
 
 enum dma_test_result {
-	DMA_TEST_NOT_RUN,
+	DMA_TEST_ANALT_RUN,
 	DMA_TEST_SUCCESS,
 	DMA_TEST_FAIL,
 };
 
 static const char * const dma_test_result_names[] = {
-	[DMA_TEST_NOT_RUN] = "not run",
+	[DMA_TEST_ANALT_RUN] = "analt run",
 	[DMA_TEST_SUCCESS] = "success",
 	[DMA_TEST_FAIL] = "failed",
 };
@@ -152,7 +152,7 @@ static int dma_test_start_rings(struct dma_test *dt)
 		ring = tb_ring_alloc_tx(xd->tb->nhi, -1, DMA_TEST_TX_RING_SIZE,
 					flags);
 		if (!ring)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dt->tx_ring = ring;
 		e2e_tx_hop = ring->hop;
@@ -177,7 +177,7 @@ static int dma_test_start_rings(struct dma_test *dt)
 					NULL, NULL);
 		if (!ring) {
 			dma_test_free_rings(dt);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dt->rx_ring = ring;
@@ -269,12 +269,12 @@ static int dma_test_submit_rx(struct dma_test *dt, size_t npackets)
 
 		tf = kzalloc(sizeof(*tf), GFP_KERNEL);
 		if (!tf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		tf->data = kzalloc(DMA_TEST_FRAME_SIZE, GFP_KERNEL);
 		if (!tf->data) {
 			kfree(tf);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dma_addr = dma_map_single(dma_dev, tf->data, DMA_TEST_FRAME_SIZE,
@@ -282,7 +282,7 @@ static int dma_test_submit_rx(struct dma_test *dt, size_t npackets)
 		if (dma_mapping_error(dma_dev, dma_addr)) {
 			kfree(tf->data);
 			kfree(tf);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		tf->frame.buffer_phy = dma_addr;
@@ -320,7 +320,7 @@ static int dma_test_submit_tx(struct dma_test *dt, size_t npackets)
 
 		tf = kzalloc(sizeof(*tf), GFP_KERNEL);
 		if (!tf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		tf->frame.size = 0; /* means 4096 */
 		tf->dma_test = dt;
@@ -328,7 +328,7 @@ static int dma_test_submit_tx(struct dma_test *dt, size_t npackets)
 		tf->data = kmemdup(dma_test_pattern, DMA_TEST_FRAME_SIZE, GFP_KERNEL);
 		if (!tf->data) {
 			kfree(tf);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dma_addr = dma_map_single(dma_dev, tf->data, DMA_TEST_FRAME_SIZE,
@@ -336,7 +336,7 @@ static int dma_test_submit_tx(struct dma_test *dt, size_t npackets)
 		if (dma_mapping_error(dma_dev, dma_addr)) {
 			kfree(tf->data);
 			kfree(tf);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		tf->frame.buffer_phy = dma_addr;
@@ -522,7 +522,7 @@ static int test_store(void *data, u64 val)
 	dt->crc_errors = 0;
 	dt->buffer_overflow_errors = 0;
 	dt->result = DMA_TEST_SUCCESS;
-	dt->error_code = DMA_TEST_NO_ERROR;
+	dt->error_code = DMA_TEST_ANAL_ERROR;
 
 	dev_dbg(&svc->dev, "DMA test starting\n");
 	if (dt->link_speed)
@@ -590,7 +590,7 @@ out_unlock:
 }
 DEFINE_DEBUGFS_ATTRIBUTE(test_fops, NULL, test_store, "%llu\n");
 
-static int status_show(struct seq_file *s, void *not_used)
+static int status_show(struct seq_file *s, void *analt_used)
 {
 	struct tb_service *svc = s->private;
 	struct dma_test *dt = tb_service_get_drvdata(svc);
@@ -601,7 +601,7 @@ static int status_show(struct seq_file *s, void *not_used)
 		return ret;
 
 	seq_printf(s, "result: %s\n", dma_test_result_names[dt->result]);
-	if (dt->result == DMA_TEST_NOT_RUN)
+	if (dt->result == DMA_TEST_ANALT_RUN)
 		goto out_unlock;
 
 	seq_printf(s, "packets received: %u\n", dt->packets_received);
@@ -640,7 +640,7 @@ static int dma_test_probe(struct tb_service *svc, const struct tb_service_id *id
 
 	dt = devm_kzalloc(&svc->dev, sizeof(*dt), GFP_KERNEL);
 	if (!dt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dt->svc = svc;
 	dt->xd = xd;
@@ -665,7 +665,7 @@ static void dma_test_remove(struct tb_service *svc)
 static int __maybe_unused dma_test_suspend(struct device *dev)
 {
 	/*
-	 * No need to do anything special here. If userspace is writing
+	 * Anal need to do anything special here. If userspace is writing
 	 * to the test attribute when suspend started, it comes out from
 	 * wait_for_completion_interruptible() with -ERESTARTSYS and the
 	 * DMA test fails tearing down the rings. Once userspace is
@@ -708,14 +708,14 @@ static int __init dma_test_init(void)
 
 	dma_test_pattern = kmalloc(DMA_TEST_FRAME_SIZE, GFP_KERNEL);
 	if (!dma_test_pattern)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i <	DMA_TEST_FRAME_SIZE / sizeof(data_value); i++)
 		((u32 *)dma_test_pattern)[i] = data_value++;
 
 	dma_test_dir = tb_property_create_dir(&dma_test_dir_uuid);
 	if (!dma_test_dir) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_pattern;
 	}
 

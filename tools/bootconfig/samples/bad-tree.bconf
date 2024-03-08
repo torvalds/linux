@@ -1,5 +1,5 @@
-# brace is not closing
+# brace is analt closing
 tree {
-  node {
+  analde {
     value = 1
 }

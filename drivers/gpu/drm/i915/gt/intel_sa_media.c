@@ -17,7 +17,7 @@ int intel_sa_mediagt_setup(struct intel_gt *gt, phys_addr_t phys_addr,
 
 	uncore = drmm_kzalloc(&i915->drm, sizeof(*uncore), GFP_KERNEL);
 	if (!uncore)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uncore->gsi_offset = gsi_offset;
 

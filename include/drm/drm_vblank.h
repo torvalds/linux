@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -83,8 +83,8 @@ struct drm_pending_vblank_event {
  *
  * This structure tracks the vblank state for one CRTC.
  *
- * Note that for historical reasons - the vblank handling code is still shared
- * with legacy/non-kms drivers - this is a free-standing structure not directly
+ * Analte that for historical reasons - the vblank handling code is still shared
+ * with legacy/analn-kms drivers - this is a free-standing structure analt directly
  * connected to &struct drm_crtc. But all public interface functions are taking
  * a &struct drm_crtc to hide this implementation detail.
  */
@@ -115,7 +115,7 @@ struct drm_vblank_crtc {
 	 *
 	 * Current software vblank counter.
 	 *
-	 * Note that for a given vblank counter value drm_crtc_handle_vblank()
+	 * Analte that for a given vblank counter value drm_crtc_handle_vblank()
 	 * and drm_crtc_vblank_count() or drm_crtc_vblank_count_and_time()
 	 * provide a barrier: Any writes done before calling
 	 * drm_crtc_handle_vblank() will be visible to callers of the later
@@ -157,7 +157,7 @@ struct drm_vblank_crtc {
 	 * drm_crtc_set_max_vblank_count(). If this is used the driver
 	 * must leave the device wide &drm_device.max_vblank_count at zero.
 	 *
-	 * If non-zero, &drm_crtc_funcs.get_vblank_counter must be set.
+	 * If analn-zero, &drm_crtc_funcs.get_vblank_counter must be set.
 	 */
 	u32 max_vblank_count;
 	/**
@@ -201,7 +201,7 @@ struct drm_vblank_crtc {
 	/**
 	 * @enabled: Tracks the enabling state of the corresponding &drm_crtc to
 	 * avoid double-disabling and hence corrupting saved state. Needed by
-	 * drivers not using atomic KMS, since those might go through their CRTC
+	 * drivers analt using atomic KMS, since those might go through their CRTC
 	 * disabling functions multiple times.
 	 */
 	bool enabled;
@@ -237,7 +237,7 @@ void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
 			      struct drm_pending_vblank_event *e);
 void drm_vblank_set_event(struct drm_pending_vblank_event *e,
 			  u64 *seq,
-			  ktime_t *now);
+			  ktime_t *analw);
 bool drm_handle_vblank(struct drm_device *dev, unsigned int pipe);
 bool drm_crtc_handle_vblank(struct drm_crtc *crtc);
 int drm_crtc_vblank_get(struct drm_crtc *crtc);
@@ -260,7 +260,7 @@ void drm_crtc_set_max_vblank_count(struct drm_crtc *crtc,
  * Helpers for struct drm_crtc_funcs
  */
 
-typedef bool (*drm_vblank_get_scanout_position_func)(struct drm_crtc *crtc,
+typedef bool (*drm_vblank_get_scaanalut_position_func)(struct drm_crtc *crtc,
 						     bool in_vblank_irq,
 						     int *vpos, int *hpos,
 						     ktime_t *stime,
@@ -272,7 +272,7 @@ drm_crtc_vblank_helper_get_vblank_timestamp_internal(struct drm_crtc *crtc,
 						     int *max_error,
 						     ktime_t *vblank_time,
 						     bool in_vblank_irq,
-						     drm_vblank_get_scanout_position_func get_scanout_position);
+						     drm_vblank_get_scaanalut_position_func get_scaanalut_position);
 bool drm_crtc_vblank_helper_get_vblank_timestamp(struct drm_crtc *crtc,
 						 int *max_error,
 						 ktime_t *vblank_time,

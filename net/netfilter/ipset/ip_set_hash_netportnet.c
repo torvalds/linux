@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/random.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -52,7 +52,7 @@ struct hash_netportnet4_elem {
 		u16 ccmp;
 	};
 	u16 padding;
-	u8 nomatch;
+	u8 analmatch;
 	u8 proto;
 };
 
@@ -72,19 +72,19 @@ hash_netportnet4_data_equal(const struct hash_netportnet4_elem *ip1,
 static int
 hash_netportnet4_do_data_match(const struct hash_netportnet4_elem *elem)
 {
-	return elem->nomatch ? -ENOTEMPTY : 1;
+	return elem->analmatch ? -EANALTEMPTY : 1;
 }
 
 static void
 hash_netportnet4_data_set_flags(struct hash_netportnet4_elem *elem, u32 flags)
 {
-	elem->nomatch = !!((flags >> 16) & IPSET_FLAG_NOMATCH);
+	elem->analmatch = !!((flags >> 16) & IPSET_FLAG_ANALMATCH);
 }
 
 static void
 hash_netportnet4_data_reset_flags(struct hash_netportnet4_elem *elem, u8 *flags)
 {
-	swap(*flags, elem->nomatch);
+	swap(*flags, elem->analmatch);
 }
 
 static void
@@ -111,7 +111,7 @@ static bool
 hash_netportnet4_data_list(struct sk_buff *skb,
 			   const struct hash_netportnet4_elem *data)
 {
-	u32 flags = data->nomatch ? IPSET_FLAG_NOMATCH : 0;
+	u32 flags = data->analmatch ? IPSET_FLAG_ANALMATCH : 0;
 
 	if (nla_put_ipaddr4(skb, IPSET_ATTR_IP, data->ip[0]) ||
 	    nla_put_ipaddr4(skb, IPSET_ATTR_IP2, data->ip[1]) ||
@@ -186,7 +186,7 @@ hash_netportnet4_range_to_cidr(u32 from, u32 to, u8 *cidr)
 
 static int
 hash_netportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
-		      enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+		      enum ipset_adt adt, u32 *lineanal, u32 flags, bool retried)
 {
 	struct hash_netportnet4 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -197,8 +197,8 @@ hash_netportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 	bool with_ports = false;
 	int ret;
 
-	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+	if (tb[IPSET_ATTR_LINEANAL])
+		*lineanal = nla_get_u32(tb[IPSET_ATTR_LINEANAL]);
 
 	hash_netportnet4_init(&e);
 	if (unlikely(!tb[IPSET_ATTR_IP] || !tb[IPSET_ATTR_IP2] ||
@@ -249,8 +249,8 @@ hash_netportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (tb[IPSET_ATTR_CADT_FLAGS]) {
 		u32 cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
 
-		if (cadt_flags & IPSET_FLAG_NOMATCH)
-			flags |= (IPSET_FLAG_NOMATCH << 16);
+		if (cadt_flags & IPSET_FLAG_ANALMATCH)
+			flags |= (IPSET_FLAG_ANALMATCH << 16);
 	}
 
 	with_ports = with_ports && tb[IPSET_ATTR_PORT_TO];
@@ -259,7 +259,7 @@ hash_netportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 		e.ip[0] = htonl(ip & ip_set_hostmask(e.cidr[0]));
 		e.ip[1] = htonl(ip2_from & ip_set_hostmask(e.cidr[1]));
 		ret = adtfn(set, &e, &ext, &ext, flags);
-		return ip_set_enomatch(ret, flags, adt, set) ? -ret :
+		return ip_set_eanalmatch(ret, flags, adt, set) ? -ret :
 		       ip_set_eexist(ret, flags) ? 0 : ret;
 	}
 
@@ -343,7 +343,7 @@ struct hash_netportnet6_elem {
 		u16 ccmp;
 	};
 	u16 padding;
-	u8 nomatch;
+	u8 analmatch;
 	u8 proto;
 };
 
@@ -364,19 +364,19 @@ hash_netportnet6_data_equal(const struct hash_netportnet6_elem *ip1,
 static int
 hash_netportnet6_do_data_match(const struct hash_netportnet6_elem *elem)
 {
-	return elem->nomatch ? -ENOTEMPTY : 1;
+	return elem->analmatch ? -EANALTEMPTY : 1;
 }
 
 static void
 hash_netportnet6_data_set_flags(struct hash_netportnet6_elem *elem, u32 flags)
 {
-	elem->nomatch = !!((flags >> 16) & IPSET_FLAG_NOMATCH);
+	elem->analmatch = !!((flags >> 16) & IPSET_FLAG_ANALMATCH);
 }
 
 static void
 hash_netportnet6_data_reset_flags(struct hash_netportnet6_elem *elem, u8 *flags)
 {
-	swap(*flags, elem->nomatch);
+	swap(*flags, elem->analmatch);
 }
 
 static void
@@ -403,7 +403,7 @@ static bool
 hash_netportnet6_data_list(struct sk_buff *skb,
 			   const struct hash_netportnet6_elem *data)
 {
-	u32 flags = data->nomatch ? IPSET_FLAG_NOMATCH : 0;
+	u32 flags = data->analmatch ? IPSET_FLAG_ANALMATCH : 0;
 
 	if (nla_put_ipaddr6(skb, IPSET_ATTR_IP, &data->ip[0].in6) ||
 	    nla_put_ipaddr6(skb, IPSET_ATTR_IP2, &data->ip[1].in6) ||
@@ -471,7 +471,7 @@ hash_netportnet6_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_netportnet6_uadt(struct ip_set *set, struct nlattr *tb[],
-		      enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+		      enum ipset_adt adt, u32 *lineanal, u32 flags, bool retried)
 {
 	const struct hash_netportnet6 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -481,8 +481,8 @@ hash_netportnet6_uadt(struct ip_set *set, struct nlattr *tb[],
 	bool with_ports = false;
 	int ret;
 
-	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+	if (tb[IPSET_ATTR_LINEANAL])
+		*lineanal = nla_get_u32(tb[IPSET_ATTR_LINEANAL]);
 
 	hash_netportnet6_init(&e);
 	if (unlikely(!tb[IPSET_ATTR_IP] || !tb[IPSET_ATTR_IP2] ||
@@ -538,13 +538,13 @@ hash_netportnet6_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (tb[IPSET_ATTR_CADT_FLAGS]) {
 		u32 cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
 
-		if (cadt_flags & IPSET_FLAG_NOMATCH)
-			flags |= (IPSET_FLAG_NOMATCH << 16);
+		if (cadt_flags & IPSET_FLAG_ANALMATCH)
+			flags |= (IPSET_FLAG_ANALMATCH << 16);
 	}
 
 	if (adt == IPSET_TEST || !with_ports || !tb[IPSET_ATTR_PORT_TO]) {
 		ret = adtfn(set, &e, &ext, &ext, flags);
-		return ip_set_enomatch(ret, flags, adt, set) ? -ret :
+		return ip_set_eanalmatch(ret, flags, adt, set) ? -ret :
 		       ip_set_eexist(ret, flags) ? 0 : ret;
 	}
 
@@ -571,7 +571,7 @@ static struct ip_set_type hash_netportnet_type __read_mostly = {
 	.name		= "hash:net,port,net",
 	.protocol	= IPSET_PROTOCOL,
 	.features	= IPSET_TYPE_IP | IPSET_TYPE_PORT | IPSET_TYPE_IP2 |
-			  IPSET_TYPE_NOMATCH,
+			  IPSET_TYPE_ANALMATCH,
 	.dimension	= IPSET_DIM_THREE,
 	.family		= NFPROTO_UNSPEC,
 	.revision_min	= IPSET_TYPE_REV_MIN,
@@ -599,7 +599,7 @@ static struct ip_set_type hash_netportnet_type __read_mostly = {
 		[IPSET_ATTR_PROTO]	= { .type = NLA_U8 },
 		[IPSET_ATTR_CADT_FLAGS]	= { .type = NLA_U32 },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
-		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
+		[IPSET_ATTR_LINEANAL]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
 		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
 		[IPSET_ATTR_COMMENT]	= { .type = NLA_NUL_STRING,

@@ -28,61 +28,61 @@
 #define ONLY_5_6_7			(BIT(5) | BIT(6) | BIT(7))
 
 /*
- * Description of the events we actually know about, as well as those with
- * a specific counter affinity. Yes, this is a grand total of two known
+ * Description of the events we actually kanalw about, as well as those with
+ * a specific counter affinity. Anal, this is a grand total of two kanalwn
  * counters, and the rest is anybody's guess.
  *
- * Not all counters can count all events. Counters #0 and #1 are wired to
+ * Analt all counters can count all events. Counters #0 and #1 are wired to
  * count cycles and instructions respectively, and some events have
  * bizarre mappings (every other counter, or even *one* counter). These
  * restrictions equally apply to both P and E cores.
  *
- * It is worth noting that the PMUs attached to P and E cores are likely
+ * It is worth analting that the PMUs attached to P and E cores are likely
  * to be different because the underlying uarches are different. At the
  * moment, we don't really need to distinguish between the two because we
- * know next to nothing about the events themselves, and we already have
+ * kanalw next to analthing about the events themselves, and we already have
  * per cpu-type PMU abstractions.
  *
  * If we eventually find out that the events are different across
  * implementations, we'll have to introduce per cpu-type tables.
  */
 enum m1_pmu_events {
-	M1_PMU_PERFCTR_UNKNOWN_01	= 0x01,
+	M1_PMU_PERFCTR_UNKANALWN_01	= 0x01,
 	M1_PMU_PERFCTR_CPU_CYCLES	= 0x02,
 	M1_PMU_PERFCTR_INSTRUCTIONS	= 0x8c,
-	M1_PMU_PERFCTR_UNKNOWN_8d	= 0x8d,
-	M1_PMU_PERFCTR_UNKNOWN_8e	= 0x8e,
-	M1_PMU_PERFCTR_UNKNOWN_8f	= 0x8f,
-	M1_PMU_PERFCTR_UNKNOWN_90	= 0x90,
-	M1_PMU_PERFCTR_UNKNOWN_93	= 0x93,
-	M1_PMU_PERFCTR_UNKNOWN_94	= 0x94,
-	M1_PMU_PERFCTR_UNKNOWN_95	= 0x95,
-	M1_PMU_PERFCTR_UNKNOWN_96	= 0x96,
-	M1_PMU_PERFCTR_UNKNOWN_97	= 0x97,
-	M1_PMU_PERFCTR_UNKNOWN_98	= 0x98,
-	M1_PMU_PERFCTR_UNKNOWN_99	= 0x99,
-	M1_PMU_PERFCTR_UNKNOWN_9a	= 0x9a,
-	M1_PMU_PERFCTR_UNKNOWN_9b	= 0x9b,
-	M1_PMU_PERFCTR_UNKNOWN_9c	= 0x9c,
-	M1_PMU_PERFCTR_UNKNOWN_9f	= 0x9f,
-	M1_PMU_PERFCTR_UNKNOWN_bf	= 0xbf,
-	M1_PMU_PERFCTR_UNKNOWN_c0	= 0xc0,
-	M1_PMU_PERFCTR_UNKNOWN_c1	= 0xc1,
-	M1_PMU_PERFCTR_UNKNOWN_c4	= 0xc4,
-	M1_PMU_PERFCTR_UNKNOWN_c5	= 0xc5,
-	M1_PMU_PERFCTR_UNKNOWN_c6	= 0xc6,
-	M1_PMU_PERFCTR_UNKNOWN_c8	= 0xc8,
-	M1_PMU_PERFCTR_UNKNOWN_ca	= 0xca,
-	M1_PMU_PERFCTR_UNKNOWN_cb	= 0xcb,
-	M1_PMU_PERFCTR_UNKNOWN_f5	= 0xf5,
-	M1_PMU_PERFCTR_UNKNOWN_f6	= 0xf6,
-	M1_PMU_PERFCTR_UNKNOWN_f7	= 0xf7,
-	M1_PMU_PERFCTR_UNKNOWN_f8	= 0xf8,
-	M1_PMU_PERFCTR_UNKNOWN_fd	= 0xfd,
+	M1_PMU_PERFCTR_UNKANALWN_8d	= 0x8d,
+	M1_PMU_PERFCTR_UNKANALWN_8e	= 0x8e,
+	M1_PMU_PERFCTR_UNKANALWN_8f	= 0x8f,
+	M1_PMU_PERFCTR_UNKANALWN_90	= 0x90,
+	M1_PMU_PERFCTR_UNKANALWN_93	= 0x93,
+	M1_PMU_PERFCTR_UNKANALWN_94	= 0x94,
+	M1_PMU_PERFCTR_UNKANALWN_95	= 0x95,
+	M1_PMU_PERFCTR_UNKANALWN_96	= 0x96,
+	M1_PMU_PERFCTR_UNKANALWN_97	= 0x97,
+	M1_PMU_PERFCTR_UNKANALWN_98	= 0x98,
+	M1_PMU_PERFCTR_UNKANALWN_99	= 0x99,
+	M1_PMU_PERFCTR_UNKANALWN_9a	= 0x9a,
+	M1_PMU_PERFCTR_UNKANALWN_9b	= 0x9b,
+	M1_PMU_PERFCTR_UNKANALWN_9c	= 0x9c,
+	M1_PMU_PERFCTR_UNKANALWN_9f	= 0x9f,
+	M1_PMU_PERFCTR_UNKANALWN_bf	= 0xbf,
+	M1_PMU_PERFCTR_UNKANALWN_c0	= 0xc0,
+	M1_PMU_PERFCTR_UNKANALWN_c1	= 0xc1,
+	M1_PMU_PERFCTR_UNKANALWN_c4	= 0xc4,
+	M1_PMU_PERFCTR_UNKANALWN_c5	= 0xc5,
+	M1_PMU_PERFCTR_UNKANALWN_c6	= 0xc6,
+	M1_PMU_PERFCTR_UNKANALWN_c8	= 0xc8,
+	M1_PMU_PERFCTR_UNKANALWN_ca	= 0xca,
+	M1_PMU_PERFCTR_UNKANALWN_cb	= 0xcb,
+	M1_PMU_PERFCTR_UNKANALWN_f5	= 0xf5,
+	M1_PMU_PERFCTR_UNKANALWN_f6	= 0xf6,
+	M1_PMU_PERFCTR_UNKANALWN_f7	= 0xf7,
+	M1_PMU_PERFCTR_UNKANALWN_f8	= 0xf8,
+	M1_PMU_PERFCTR_UNKANALWN_fd	= 0xfd,
 	M1_PMU_PERFCTR_LAST		= M1_PMU_CFG_EVENT,
 
 	/*
-	 * From this point onwards, these are not actual HW events,
+	 * From this point onwards, these are analt actual HW events,
 	 * but attributes that get stored in hw->config_base.
 	 */
 	M1_PMU_CFG_COUNT_USER		= BIT(8),
@@ -91,51 +91,51 @@ enum m1_pmu_events {
 
 /*
  * Per-event affinity table. Most events can be installed on counter
- * 2-9, but there are a number of exceptions. Note that this table
+ * 2-9, but there are a number of exceptions. Analte that this table
  * has been created experimentally, and I wouldn't be surprised if more
  * counters had strange affinities.
  */
 static const u16 m1_pmu_event_affinity[M1_PMU_PERFCTR_LAST + 1] = {
 	[0 ... M1_PMU_PERFCTR_LAST]	= ANY_BUT_0_1,
-	[M1_PMU_PERFCTR_UNKNOWN_01]	= BIT(7),
+	[M1_PMU_PERFCTR_UNKANALWN_01]	= BIT(7),
 	[M1_PMU_PERFCTR_CPU_CYCLES]	= ANY_BUT_0_1 | BIT(0),
 	[M1_PMU_PERFCTR_INSTRUCTIONS]	= BIT(7) | BIT(1),
-	[M1_PMU_PERFCTR_UNKNOWN_8d]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_8e]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_8f]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_90]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_93]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_94]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_95]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_96]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_97]	= BIT(7),
-	[M1_PMU_PERFCTR_UNKNOWN_98]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_99]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_9a]	= BIT(7),
-	[M1_PMU_PERFCTR_UNKNOWN_9b]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_9c]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_9f]	= BIT(7),
-	[M1_PMU_PERFCTR_UNKNOWN_bf]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_c0]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_c1]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_c4]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_c5]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_c6]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_c8]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_ca]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_cb]	= ONLY_5_6_7,
-	[M1_PMU_PERFCTR_UNKNOWN_f5]	= ONLY_2_4_6,
-	[M1_PMU_PERFCTR_UNKNOWN_f6]	= ONLY_2_4_6,
-	[M1_PMU_PERFCTR_UNKNOWN_f7]	= ONLY_2_4_6,
-	[M1_PMU_PERFCTR_UNKNOWN_f8]	= ONLY_2_TO_7,
-	[M1_PMU_PERFCTR_UNKNOWN_fd]	= ONLY_2_4_6,
+	[M1_PMU_PERFCTR_UNKANALWN_8d]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_8e]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_8f]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_90]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_93]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_94]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_95]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_96]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_97]	= BIT(7),
+	[M1_PMU_PERFCTR_UNKANALWN_98]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_99]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_9a]	= BIT(7),
+	[M1_PMU_PERFCTR_UNKANALWN_9b]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_9c]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_9f]	= BIT(7),
+	[M1_PMU_PERFCTR_UNKANALWN_bf]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_c0]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_c1]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_c4]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_c5]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_c6]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_c8]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_ca]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_cb]	= ONLY_5_6_7,
+	[M1_PMU_PERFCTR_UNKANALWN_f5]	= ONLY_2_4_6,
+	[M1_PMU_PERFCTR_UNKANALWN_f6]	= ONLY_2_4_6,
+	[M1_PMU_PERFCTR_UNKANALWN_f7]	= ONLY_2_4_6,
+	[M1_PMU_PERFCTR_UNKANALWN_f8]	= ONLY_2_TO_7,
+	[M1_PMU_PERFCTR_UNKANALWN_fd]	= ONLY_2_4_6,
 };
 
 static const unsigned m1_pmu_perf_map[PERF_COUNT_HW_MAX] = {
 	PERF_MAP_ALL_UNSUPPORTED,
 	[PERF_COUNT_HW_CPU_CYCLES]	= M1_PMU_PERFCTR_CPU_CYCLES,
 	[PERF_COUNT_HW_INSTRUCTIONS]	= M1_PMU_PERFCTR_INSTRUCTIONS,
-	/* No idea about the rest yet */
+	/* Anal idea about the rest yet */
 };
 
 /* sysfs definitions */
@@ -176,7 +176,7 @@ static const struct attribute_group m1_pmu_format_attr_group = {
 	.attrs = m1_pmu_format_attrs,
 };
 
-/* Low level accessors. No synchronisation. */
+/* Low level accessors. Anal synchronisation. */
 #define PMU_READ_COUNTER(_idx)						\
 	case _idx:	return read_sysreg_s(SYS_IMP_APL_PMC## _idx ##_EL1)
 
@@ -393,7 +393,7 @@ static irqreturn_t m1_pmu_handle_irq(struct arm_pmu *cpu_pmu)
 		state &= ~PMCR0_IACT;
 		write_sysreg_s(state, SYS_IMP_APL_PMCR0_EL1);
 		isb();
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	cpu_pmu->stop(cpu_pmu);
@@ -498,7 +498,7 @@ static int m2_pmu_map_event(struct perf_event *event)
 	/*
 	 * Same deal as the above, except that M2 has 64bit counters.
 	 * Which, as far as we're concerned, actually means 63 bits.
-	 * Yes, this is getting awkward.
+	 * Anal, this is getting awkward.
 	 */
 	event->hw.flags |= ARMPMU_EVT_63BIT;
 	return armpmu_map_event(event, &m1_pmu_perf_map, NULL, M1_PMU_CFG_EVENT);
@@ -525,8 +525,8 @@ static int m1_pmu_set_event_filter(struct hw_perf_event *event,
 	unsigned long config_base = 0;
 
 	if (!attr->exclude_guest) {
-		pr_debug("ARM performance counters do not support mode exclusion\n");
-		return -EOPNOTSUPP;
+		pr_debug("ARM performance counters do analt support mode exclusion\n");
+		return -EOPANALTSUPP;
 	}
 	if (!attr->exclude_kernel)
 		config_base |= M1_PMU_CFG_COUNT_KERNEL;

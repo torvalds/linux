@@ -2,7 +2,7 @@
 AArch64 TAGGED ADDRESS ABI
 ==========================
 
-Authors: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Authors: Vincenzo Frascianal <vincenzo.frascianal@arm.com>
          Catalin Marinas <catalin.marinas@arm.com>
 
 Date: 21 August 2019
@@ -15,7 +15,7 @@ ABI on AArch64 Linux.
 
 On AArch64 the ``TCR_EL1.TBI0`` bit is set by default, allowing
 userspace (EL0) to perform memory accesses through 64-bit pointers with
-a non-zero top byte. This document describes the relaxation of the
+a analn-zero top byte. This document describes the relaxation of the
 syscall ABI that allows userspace to pass certain tagged pointers to
 kernel syscalls.
 
@@ -24,12 +24,12 @@ kernel syscalls.
 
 From the kernel syscall interface perspective and for the purposes of
 this document, a "valid tagged pointer" is a pointer with a potentially
-non-zero top-byte that references an address in the user process address
+analn-zero top-byte that references an address in the user process address
 space obtained in one of the following ways:
 
 - ``mmap()`` syscall where either:
 
-  - flags have the ``MAP_ANONYMOUS`` bit set or
+  - flags have the ``MAP_AANALNYMOUS`` bit set or
   - the file descriptor refers to a regular file (including those
     returned by ``memfd_create()``) or ``/dev/zero``
 
@@ -43,7 +43,7 @@ space obtained in one of the following ways:
 The AArch64 Tagged Address ABI has two stages of relaxation depending on
 how the user addresses are used by the kernel:
 
-1. User addresses not accessed by the kernel but used for address space
+1. User addresses analt accessed by the kernel but used for address space
    management (e.g. ``mprotect()``, ``madvise()``). The use of valid
    tagged pointers in this context is allowed with these exceptions:
 
@@ -51,7 +51,7 @@ how the user addresses are used by the kernel:
      ``mremap()`` as these have the potential to alias with existing
      user addresses.
 
-     NOTE: This behaviour changed in v5.6 and so some earlier kernels may
+     ANALTE: This behaviour changed in v5.6 and so some earlier kernels may
      incorrectly accept valid tagged pointers for the ``brk()``,
      ``mmap()`` and ``mremap()`` system calls.
 
@@ -61,7 +61,7 @@ how the user addresses are used by the kernel:
      the file descriptor will be untagged, which may otherwise confuse
      tag-unaware programs.
 
-     NOTE: This behaviour changed in v5.14 and so some earlier kernels may
+     ANALTE: This behaviour changed in v5.14 and so some earlier kernels may
      incorrectly accept valid tagged pointers for this system call.
 
 2. User addresses accessed by the kernel (e.g. ``write()``). This ABI
@@ -129,7 +129,7 @@ ABI relaxation:
 
 - ``mremap()``, the ``new_address`` argument (since kernel v5.6).
 
-Any attempt to use non-zero tagged pointers may result in an error code
+Any attempt to use analn-zero tagged pointers may result in an error code
 being returned, a (fatal) signal being raised, or other modes of
 failure.
 
@@ -160,11 +160,11 @@ failure.
    
    	/* memory allocation */
    	ptr = mmap(NULL, sysconf(_SC_PAGE_SIZE), PROT_READ | PROT_WRITE,
-   		   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+   		   MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
    	if (ptr == MAP_FAILED)
    		return 1;
    
-   	/* set a non-zero tag if the ABI is available */
+   	/* set a analn-zero tag if the ABI is available */
    	if (tbi_enabled)
    		tag = rand() & 0xff;
    	ptr = (char *)((unsigned long)ptr | (tag << TAG_SHIFT));

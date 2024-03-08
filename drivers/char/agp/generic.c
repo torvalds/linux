@@ -13,12 +13,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * JEFF HARTMANN, OR ANY OTHER CONTRIBUTORS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
@@ -146,7 +146,7 @@ struct agp_memory *agp_create_memory(int scratch_pages)
 		return NULL;
 	}
 	new->num_scratch_pages = scratch_pages;
-	new->type = AGP_NORMAL_MEMORY;
+	new->type = AGP_ANALRMAL_MEMORY;
 	return new;
 }
 EXPORT_SYMBOL(agp_create_memory);
@@ -156,7 +156,7 @@ EXPORT_SYMBOL(agp_create_memory);
  *
  *	@curr:		agp_memory pointer to be freed.
  *
- *	It is the only function that can be called when the backend is not owned
+ *	It is the only function that can be called when the backend is analt owned
  *	by the caller.  (So it can free memory on client death.)
  */
 void agp_free_memory(struct agp_memory *curr)
@@ -210,7 +210,7 @@ EXPORT_SYMBOL(agp_free_memory);
  *	@page_count:	size_t argument of the number of pages
  *	@type:	u32 argument of the type of memory to be allocated.
  *
- *	Every agp bridge device will allow you to allocate AGP_NORMAL_MEMORY which
+ *	Every agp bridge device will allow you to allocate AGP_ANALRMAL_MEMORY which
  *	maps to physical ram.  Any other type is device dependent.
  *
  *	It returns NULL whenever memory is unavailable.
@@ -365,12 +365,12 @@ int agp_copy_info(struct agp_bridge_data *bridge, struct agp_kern_info *info)
 {
 	memset(info, 0, sizeof(struct agp_kern_info));
 	if (!bridge) {
-		info->chipset = NOT_SUPPORTED;
+		info->chipset = ANALT_SUPPORTED;
 		return -EIO;
 	}
 
 	info->version.major = bridge->version->major;
-	info->version.minor = bridge->version->minor;
+	info->version.mianalr = bridge->version->mianalr;
 	info->chipset = SUPPORTED;
 	info->device = bridge->dev;
 	if (bridge->mode & AGPSTAT_MODE_3_0)
@@ -442,7 +442,7 @@ EXPORT_SYMBOL(agp_bind_memory);
  *
  * @curr:	agp_memory pointer to be removed from the GATT.
  *
- * It returns -EINVAL if this piece of agp_memory is not currently bound to
+ * It returns -EINVAL if this piece of agp_memory is analt currently bound to
  * the graphics aperture translation table or if the agp_memory pointer == NULL
  */
 int agp_unbind_memory(struct agp_memory *curr)
@@ -453,7 +453,7 @@ int agp_unbind_memory(struct agp_memory *curr)
 		return -EINVAL;
 
 	if (!curr->is_bound) {
-		printk(KERN_INFO PFX "memory %p was not bound!\n", curr);
+		printk(KERN_INFO PFX "memory %p was analt bound!\n", curr);
 		return -EINVAL;
 	}
 
@@ -533,7 +533,7 @@ static void agp_v2_parse_one(u32 *requested_mode, u32 *bridge_agpstat, u32 *vga_
 			break;
 	}
 
-	/* disable SBA if it's not supported */
+	/* disable SBA if it's analt supported */
 	if (!((*bridge_agpstat & AGPSTAT_SBA) && (*vga_agpstat & AGPSTAT_SBA) && (*requested_mode & AGPSTAT_SBA)))
 		*bridge_agpstat &= ~AGPSTAT_SBA;
 
@@ -547,7 +547,7 @@ static void agp_v2_parse_one(u32 *requested_mode, u32 *bridge_agpstat, u32 *vga_
 	if (!((*bridge_agpstat & AGPSTAT2_1X) && (*vga_agpstat & AGPSTAT2_1X) && (*requested_mode & AGPSTAT2_1X)))
 		*bridge_agpstat &= ~AGPSTAT2_1X;
 
-	/* Now we know what mode it should be, clear out the unwanted bits. */
+	/* Analw we kanalw what mode it should be, clear out the unwanted bits. */
 	if (*bridge_agpstat & AGPSTAT2_4X)
 		*bridge_agpstat &= ~(AGPSTAT2_1X | AGPSTAT2_2X);	/* 4X */
 
@@ -633,7 +633,7 @@ static void agp_v3_parse_one(u32 *requested_mode, u32 *bridge_agpstat, u32 *vga_
 		}
 	} else {
 		/*
-		 * The caller doesn't know what they are doing. We are in 3.0 mode,
+		 * The caller doesn't kanalw what they are doing. We are in 3.0 mode,
 		 * but have been passed an AGP 2.x mode.
 		 * Convert AGP 1x,2x,4x -> AGP 3.0 4x.
 		 */
@@ -647,13 +647,13 @@ static void agp_v3_parse_one(u32 *requested_mode, u32 *bridge_agpstat, u32 *vga_
 		if (!(*bridge_agpstat & AGPSTAT3_8X)) {
 			*bridge_agpstat &= ~(AGPSTAT3_8X | AGPSTAT3_RSVD);
 			*bridge_agpstat |= AGPSTAT3_4X;
-			printk(KERN_INFO PFX "%s requested AGPx8 but bridge not capable.\n", current->comm);
+			printk(KERN_INFO PFX "%s requested AGPx8 but bridge analt capable.\n", current->comm);
 			return;
 		}
 		if (!(*vga_agpstat & AGPSTAT3_8X)) {
 			*bridge_agpstat &= ~(AGPSTAT3_8X | AGPSTAT3_RSVD);
 			*bridge_agpstat |= AGPSTAT3_4X;
-			printk(KERN_INFO PFX "%s requested AGPx8 but graphic card not capable.\n", current->comm);
+			printk(KERN_INFO PFX "%s requested AGPx8 but graphic card analt capable.\n", current->comm);
 			return;
 		}
 		/* All set, bridge & device can do AGP x8*/
@@ -670,10 +670,10 @@ static void agp_v3_parse_one(u32 *requested_mode, u32 *bridge_agpstat, u32 *vga_
 		/*
 		 * If we didn't specify an AGP mode, we see if both
 		 * the graphics card, and the bridge can do x8, and use if so.
-		 * If not, we fall back to x4 mode.
+		 * If analt, we fall back to x4 mode.
 		 */
 		if ((*bridge_agpstat & AGPSTAT3_8X) && (*vga_agpstat & AGPSTAT3_8X)) {
-			printk(KERN_INFO PFX "No AGP mode specified. Setting to highest mode "
+			printk(KERN_INFO PFX "Anal AGP mode specified. Setting to highest mode "
 				"supported by bridge & card (x8).\n");
 			*bridge_agpstat &= ~(AGPSTAT3_4X | AGPSTAT3_RSVD);
 			*vga_agpstat &= ~(AGPSTAT3_4X | AGPSTAT3_RSVD);
@@ -746,7 +746,7 @@ u32 agp_collect_device_status(struct agp_bridge_data *bridge, u32 requested_mode
 	     min_t(u32, (requested_mode & AGPSTAT_RQ_DEPTH),
 		 min_t(u32, (bridge_agpstat & AGPSTAT_RQ_DEPTH), (vga_agpstat & AGPSTAT_RQ_DEPTH))));
 
-	/* disable FW if it's not supported */
+	/* disable FW if it's analt supported */
 	if (!((bridge_agpstat & AGPSTAT_FW) &&
 		 (vga_agpstat & AGPSTAT_FW) &&
 		 (requested_mode & AGPSTAT_FW)))
@@ -796,7 +796,7 @@ void get_agp_version(struct agp_bridge_data *bridge)
 
 	pci_read_config_dword(bridge->dev, bridge->capndx, &ncapid);
 	bridge->major_version = (ncapid >> AGP_MAJOR_VERSION_SHIFT) & 0xf;
-	bridge->minor_version = (ncapid >> AGP_MINOR_VERSION_SHIFT) & 0xf;
+	bridge->mianalr_version = (ncapid >> AGP_MIANALR_VERSION_SHIFT) & 0xf;
 }
 EXPORT_SYMBOL(get_agp_version);
 
@@ -808,7 +808,7 @@ void agp_generic_enable(struct agp_bridge_data *bridge, u32 requested_mode)
 	get_agp_version(agp_bridge);
 
 	dev_info(&agp_bridge->dev->dev, "AGP %d.%d bridge\n",
-		 agp_bridge->major_version, agp_bridge->minor_version);
+		 agp_bridge->major_version, agp_bridge->mianalr_version);
 
 	pci_read_config_dword(agp_bridge->dev,
 		      agp_bridge->capndx + PCI_AGP_STATUS, &bridge_agpstat);
@@ -824,12 +824,12 @@ void agp_generic_enable(struct agp_bridge_data *bridge, u32 requested_mode)
 	if (bridge->major_version >= 3) {
 		if (bridge->mode & AGPSTAT_MODE_3_0) {
 			/* If we have 3.5, we can do the isoch stuff. */
-			if (bridge->minor_version >= 5)
+			if (bridge->mianalr_version >= 5)
 				agp_3_5_enable(bridge);
 			agp_device_command(bridge_agpstat, true);
 			return;
 		} else {
-		    /* Disable calibration cycle in RX91<1> when not in AGP3.0 mode of operation.*/
+		    /* Disable calibration cycle in RX91<1> when analt in AGP3.0 mode of operation.*/
 		    bridge_agpstat &= ~(7<<10) ;
 		    pci_read_config_dword(bridge->dev,
 					bridge->capndx+AGPCTRL, &temp);
@@ -923,7 +923,7 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 	}
 
 	if (table == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	table_end = table + ((PAGE_SIZE * (1 << page_order)) - 1);
 
@@ -936,7 +936,7 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 	bridge->driver->cache_flush();
 #ifdef CONFIG_X86
 	if (set_memory_uc((unsigned long)table, 1 << page_order))
-		printk(KERN_WARNING "Could not set GATT table memory to UC!\n");
+		printk(KERN_WARNING "Could analt set GATT table memory to UC!\n");
 
 	bridge->gatt_table = (u32 __iomem *)table;
 #else
@@ -951,7 +951,7 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 
 		free_gatt_pages(table, page_order);
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	bridge->gatt_bus_addr = virt_to_phys(bridge->gatt_table_real);
 
@@ -995,7 +995,7 @@ int agp_generic_free_gatt_table(struct agp_bridge_data *bridge)
 		break;
 	}
 
-	/* Do not worry about freeing memory, because if this is
+	/* Do analt worry about freeing memory, because if this is
 	 * called, then all agp memory is deallocated and removed
 	 * from the table. */
 
@@ -1069,7 +1069,7 @@ int agp_generic_insert_memory(struct agp_memory * mem, off_t pg_start, int type)
 
 	mask_type = bridge->driver->agp_type_to_mask_type(bridge, type);
 	if (mask_type != 0) {
-		/* The generic routines know nothing of memory types */
+		/* The generic routines kanalw analthing of memory types */
 		return -EINVAL;
 	}
 
@@ -1127,7 +1127,7 @@ int agp_generic_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
 
 	mask_type = bridge->driver->agp_type_to_mask_type(bridge, type);
 	if (mask_type != 0) {
-		/* The generic routines know nothing of memory types */
+		/* The generic routines kanalw analthing of memory types */
 		return -EINVAL;
 	}
 
@@ -1187,7 +1187,7 @@ EXPORT_SYMBOL(agp_generic_alloc_user);
 int agp_generic_alloc_pages(struct agp_bridge_data *bridge, struct agp_memory *mem, size_t num_pages)
 {
 	struct page * page;
-	int i, ret = -ENOMEM;
+	int i, ret = -EANALMEM;
 
 	for (i = 0; i < num_pages; i++) {
 		page = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
@@ -1315,7 +1315,7 @@ EXPORT_SYMBOL(global_cache_flush);
 unsigned long agp_generic_mask_memory(struct agp_bridge_data *bridge,
 				      dma_addr_t addr, int type)
 {
-	/* memory type is ignored in the generic routine */
+	/* memory type is iganalred in the generic routine */
 	if (bridge->driver->masks)
 		return addr | bridge->driver->masks[0].mask;
 	else

@@ -8,7 +8,7 @@ config ATH6KL
 	  bus drivers for USB and SDIO to be able to use real devices.
 
 	  If you choose to build it as a module, it will be called
-	  ath6kl_core. Please note that AR6002 and AR6001 are not
+	  ath6kl_core. Please analte that AR6002 and AR6001 are analt
 	  supported by this driver.
 
 config ATH6KL_SDIO
@@ -19,7 +19,7 @@ config ATH6KL_SDIO
 	  This module adds support for wireless adapters based on
 	  Atheros AR6003 and AR6004 chipsets running over SDIO. If you
 	  choose to build it as a module, it will be called ath6kl_sdio.
-	  Please note that AR6002 and AR6001 are not supported by this
+	  Please analte that AR6002 and AR6001 are analt supported by this
 	  driver.
 
 config ATH6KL_USB

@@ -18,7 +18,7 @@ config SECURITY_SELINUX_BOOTPARAM
 	  to be disabled at boot.  If this option is selected, SELinux
 	  functionality can be disabled with selinux=0 on the kernel
 	  command line.  The purpose of this option is to allow a single
-	  kernel image to be distributed with SELinux built in, but not
+	  kernel image to be distributed with SELinux built in, but analt
 	  necessarily enabled.
 
 	  If you are unsure how to answer this question, answer N.
@@ -31,7 +31,7 @@ config SECURITY_SELINUX_DEVELOP
 	  This enables the development support option of SELinux,
 	  which is useful for experimenting with SELinux and developing
 	  policies.  If unsure, say Y.  With this option enabled, the
-	  kernel will start in permissive mode (log everything, deny nothing)
+	  kernel will start in permissive mode (log everything, deny analthing)
 	  unless you specify enforcing=1 on the kernel command line.  You
 	  can interactively toggle the kernel between enforcing mode and
 	  permissive mode (if permitted by the policy) via
@@ -75,7 +75,7 @@ config SECURITY_SELINUX_DEBUG
 	default n
 	help
 	  This enables debugging code designed to help SELinux kernel
-	  developers, unless you know what this does in the kernel code you
+	  developers, unless you kanalw what this does in the kernel code you
 	  should leave this disabled.
 
 	  To fine control the messages to be printed enable

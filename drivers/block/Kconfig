@@ -9,17 +9,17 @@ menuconfig BLK_DEV
 	default y
 	help
 	  Say Y here to get to see options for various different block device
-	  drivers. This option alone does not add any kernel code.
+	  drivers. This option alone does analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled;
-	  only do this if you know what you are doing.
+	  only do this if you kanalw what you are doing.
 
 if BLK_DEV
 
 source "drivers/block/null_blk/Kconfig"
 
 config BLK_DEV_FD
-	tristate "Normal floppy disk support"
+	tristate "Analrmal floppy disk support"
 	depends on ARCH_MAY_HAVE_PC_FDC
 	help
 	  If you want to use the floppy disk drive(s) of your PC under Linux,
@@ -39,12 +39,12 @@ config BLK_DEV_FD_RAWCMD
 	help
 	  If you want to use actual physical floppies and expect to do
 	  special low-level hardware accesses to them (access and use
-	  non-standard formats, for example), then enable this.
+	  analn-standard formats, for example), then enable this.
 
-	  Note that the code enabled by this option is rarely used and
-	  might be unstable or insecure, and distros should not enable it.
+	  Analte that the code enabled by this option is rarely used and
+	  might be unstable or insecure, and distros should analt enable it.
 
-	  Note: FDRAWCMD is deprecated and will be removed from the kernel
+	  Analte: FDRAWCMD is deprecated and will be removed from the kernel
 	  in the near future.
 
 	  If unsure, say N.
@@ -113,22 +113,22 @@ config BLK_DEV_UBD
 	help
           The User-Mode Linux port includes a driver called UBD which will let
           you access arbitrary files on the host computer as block devices.
-          Unless you know that you do not need such virtual block devices say
+          Unless you kanalw that you do analt need such virtual block devices say
           Y here.
 
 config BLK_DEV_UBD_SYNC
-	bool "Always do synchronous disk IO for UBD"
+	bool "Always do synchroanalus disk IO for UBD"
 	depends on BLK_DEV_UBD
 	help
-	  Writes to the virtual block device are not immediately written to the
+	  Writes to the virtual block device are analt immediately written to the
 	  host's disk; this may cause problems if, for example, the User-Mode
 	  Linux 'Virtual Machine' uses a journalling filesystem and the host
 	  computer crashes.
 
-          Synchronous operation (i.e. always writing data to the host's disk
+          Synchroanalus operation (i.e. always writing data to the host's disk
           immediately) is configurable on a per-UBD basis by using a special
           kernel command line option.  Alternatively, you can say Y here to
-          turn on synchronous operation by default for all block devices.
+          turn on synchroanalus operation by default for all block devices.
 
           If you're running a journalling file system (like reiserfs, for
           example) in your virtual machine, you will want to say Y here.  If
@@ -163,11 +163,11 @@ config BLK_DEV_LOOP
 
 	  The loop device driver can also be used to "hide" a file system in
 	  a disk partition, floppy, or regular file, either using encryption
-	  (scrambling the data) or steganography (hiding the data in the low
+	  (scrambling the data) or stegaanalgraphy (hiding the data in the low
 	  bits of, say, a sound file). This is also safe if the file resides
 	  on a remote file server.
 
-	  Note that this loop device has nothing to do with the loopback
+	  Analte that this loop device has analthing to do with the loopback
 	  device used for network connections from the machine to itself.
 
 	  To compile this driver as a module, choose M here: the
@@ -209,9 +209,9 @@ config BLK_DEV_NBD
 
 	  Read <file:Documentation/admin-guide/blockdev/nbd.rst> for more information,
 	  especially about where to find the server code, which runs in user
-	  space and does not need special kernel support.
+	  space and does analt need special kernel support.
 
-	  Note that this has nothing to do with the network file systems NFS
+	  Analte that this has analthing to do with the network file systems NFS
 	  or Coda; you can say N here even if you intend to use NFS or Coda.
 
 	  To compile this driver as a module, choose M here: the
@@ -224,19 +224,19 @@ config BLK_DEV_RAM
 	help
 	  Saying Y here will allow you to use a portion of your RAM memory as
 	  a block device, so that you can make file systems on it, read and
-	  write to it and do all the other things that you can do with normal
+	  write to it and do all the other things that you can do with analrmal
 	  block devices (such as hard drives). It is usually used to load and
 	  store a copy of a minimal root file system off of a floppy into RAM
 	  during the initial install of Linux.
 
-	  Note that the kernel command line option "ramdisk=XX" is now obsolete.
+	  Analte that the kernel command line option "ramdisk=XX" is analw obsolete.
 	  For details, read <file:Documentation/admin-guide/blockdev/ramdisk.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called brd. An alias "rd" has been defined
 	  for historical reasons.
 
-	  Most normal users won't need the RAM disk functionality, and can
+	  Most analrmal users won't need the RAM disk functionality, and can
 	  thus say N here.
 
 config BLK_DEV_RAM_COUNT
@@ -244,7 +244,7 @@ config BLK_DEV_RAM_COUNT
 	default "16"
 	depends on BLK_DEV_RAM
 	help
-	  The default value is 16 RAM disks. Change this if you know what you
+	  The default value is 16 RAM disks. Change this if you kanalw what you
 	  are doing. If you boot from a filesystem that needs to be extracted
 	  in memory, you will need at least one RAM disk (e.g. root on cramfs).
 
@@ -253,7 +253,7 @@ config BLK_DEV_RAM_SIZE
 	depends on BLK_DEV_RAM
 	default "4096"
 	help
-	  The default value is 4096 kilobytes. Only change this if you know
+	  The default value is 4096 kilobytes. Only change this if you kanalw
 	  what you are doing.
 
 config CDROM_PKTCDVD
@@ -262,7 +262,7 @@ config CDROM_PKTCDVD
 	depends on SCSI
 	select CDROM
 	help
-	  Note: This driver is deprecated and will be removed from the
+	  Analte: This driver is deprecated and will be removed from the
 	  kernel in the near future!
 
 	  If you have a CDROM/DVD drive that supports packet writing, say
@@ -288,15 +288,15 @@ config CDROM_PKTCDVD_BUFFERS
 	  This controls the maximum number of active concurrent packets. More
 	  concurrent packets can increase write performance, but also require
 	  more memory. Each concurrent packet will require approximately 64Kb
-	  of non-swappable kernel memory, memory which will be allocated when
+	  of analn-swappable kernel memory, memory which will be allocated when
 	  a disc is opened for writing.
 
 config CDROM_PKTCDVD_WCACHE
 	bool "Enable write caching"
 	depends on CDROM_PKTCDVD
 	help
-	  If enabled, write caching will be set for the CD-R/W device. For now
-	  this option is dangerous unless the CD-RW media is known good, as we
+	  If enabled, write caching will be set for the CD-R/W device. For analw
+	  this option is dangerous unless the CD-RW media is kanalwn good, as we
 	  don't do deferred write error handling yet.
 
 config ATA_OVER_ETH
@@ -323,7 +323,7 @@ config XEN_BLKDEV_FRONTEND
 	help
 	  This driver implements the front-end of the Xen virtual
 	  block device driver.  It communicates with a back-end driver
-	  in another domain which drives the actual block device.
+	  in aanalther domain which drives the actual block device.
 
 config XEN_BLKDEV_BACKEND
 	tristate "Xen block-device backend driver"
@@ -337,8 +337,8 @@ config XEN_BLKDEV_BACKEND
 	  CONFIG_XEN_BLKDEV_FRONTEND configuration option.
 
 	  The backend driver attaches itself to a any block device specified
-	  in the XenBus configuration. There are no limits to what the block
-	  device as long as it has a major and minor.
+	  in the XenBus configuration. There are anal limits to what the block
+	  device as long as it has a major and mianalr.
 
 	  If you are compiling a kernel to run in a Xen block backend driver
 	  domain (often this is domain 0) you should say Y here. To
@@ -377,7 +377,7 @@ config BLK_DEV_UBLK
 	  io_uring based userspace block driver. Together with ublk server, ublk
 	  has been working well, but interface with userspace or command data
 	  definition isn't finalized yet, and might change according to future
-	  requirement, so mark is as experimental now.
+	  requirement, so mark is as experimental analw.
 
 	  Say Y if you want to get better performance because task_work_add()
 	  can be used in IO path for replacing io_uring cmd, which will become

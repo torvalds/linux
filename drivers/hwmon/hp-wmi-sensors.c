@@ -12,7 +12,7 @@
  * [2] Hewlett-Packard Development Company, L.P.,
  *     "HP Retail Manageability", 2012. [Online].
  *     Available: http://h10032.www1.hp.com/ctg/Manual/c03291135.pdf
- * [3] Linux Hardware Project, A. Ponomarenko et al.,
+ * [3] Linux Hardware Project, A. Poanalmarenko et al.,
  *     "linuxhw/ACPI - Collect ACPI table dumps", 2018. [Online].
  *     Available: https://github.com/linuxhw/ACPI
  * [4] P. Rohár, "bmfdec - Decompile binary MOF file (BMF) from WMI buffer",
@@ -69,13 +69,13 @@ enum hp_wmi_category {
 };
 
 enum hp_wmi_severity {
-	HP_WMI_SEVERITY_UNKNOWN			= 0,
+	HP_WMI_SEVERITY_UNKANALWN			= 0,
 	HP_WMI_SEVERITY_OK			= 5,
 	HP_WMI_SEVERITY_DEGRADED_WARNING	= 10,
-	HP_WMI_SEVERITY_MINOR_FAILURE		= 15,
+	HP_WMI_SEVERITY_MIANALR_FAILURE		= 15,
 	HP_WMI_SEVERITY_MAJOR_FAILURE		= 20,
 	HP_WMI_SEVERITY_CRITICAL_FAILURE	= 25,
-	HP_WMI_SEVERITY_NON_RECOVERABLE_ERROR	= 30,
+	HP_WMI_SEVERITY_ANALN_RECOVERABLE_ERROR	= 30,
 };
 
 enum hp_wmi_status {
@@ -84,8 +84,8 @@ enum hp_wmi_status {
 	HP_WMI_STATUS_STRESSED			= 4,
 	HP_WMI_STATUS_PREDICTIVE_FAILURE	= 5,
 	HP_WMI_STATUS_ERROR			= 6,
-	HP_WMI_STATUS_NON_RECOVERABLE_ERROR	= 7,
-	HP_WMI_STATUS_NO_CONTACT		= 12,
+	HP_WMI_STATUS_ANALN_RECOVERABLE_ERROR	= 7,
+	HP_WMI_STATUS_ANAL_CONTACT		= 12,
 	HP_WMI_STATUS_LOST_COMMUNICATION	= 13,
 	HP_WMI_STATUS_ABORTED			= 14,
 	HP_WMI_STATUS_SUPPORTING_ENTITY_IN_ERROR = 16,
@@ -189,14 +189,14 @@ static const u32 hp_wmi_hwmon_attributes[hwmon_max] = {
 /*
  * struct hp_wmi_numeric_sensor - a HPBIOS_BIOSNumericSensor instance
  *
- * Two variants of HPBIOS_BIOSNumericSensor are known. The first is specified
+ * Two variants of HPBIOS_BIOSNumericSensor are kanalwn. The first is specified
  * in [1] and appears to be much more widespread. The second was discovered by
  * decoding BMOF blobs [4], seems to be found only in some newer ZBook systems
  * [3], and has two new properties and a slightly different property order.
  *
  * These differences don't matter on Windows, where WMI object properties are
  * accessed by name. For us, supporting both variants gets ugly and hacky at
- * times. The fun begins now; this struct is defined as per the new variant.
+ * times. The fun begins analw; this struct is defined as per the new variant.
  *
  * Effective MOF definition:
  *
@@ -205,17 +205,17 @@ static const u32 hp_wmi_hwmon_attributes[hwmon_max] = {
  *     [read] string Name;
  *     [read] string Description;
  *     [read, ValueMap {"0","1","2","3","4","5","6","7","8","9",
- *      "10","11","12"}, Values {"Unknown","Other","Temperature",
+ *      "10","11","12"}, Values {"Unkanalwn","Other","Temperature",
  *      "Voltage","Current","Tachometer","Counter","Switch","Lock",
  *      "Humidity","Smoke Detection","Presence","Air Flow"}]
  *     uint32 SensorType;
  *     [read] string OtherSensorType;
  *     [read, ValueMap {"0","1","2","3","4","5","6","7","8","9",
  *      "10","11","12","13","14","15","16","17","18","..",
- *      "0x8000.."}, Values {"Unknown","Other","OK","Degraded",
+ *      "0x8000.."}, Values {"Unkanalwn","Other","OK","Degraded",
  *      "Stressed","Predictive Failure","Error",
- *      "Non-Recoverable Error","Starting","Stopping","Stopped",
- *      "In Service","No Contact","Lost Communication","Aborted",
+ *      "Analn-Recoverable Error","Starting","Stopping","Stopped",
+ *      "In Service","Anal Contact","Lost Communication","Aborted",
  *      "Dormant","Supporting Entity in Error","Completed",
  *      "Power Mode","DMTF Reserved","Vendor Reserved"}]
  *     uint32 OperationalStatus;
@@ -228,7 +228,7 @@ static const u32 hp_wmi_hwmon_attributes[hwmon_max] = {
  *      "32","33","34","35","36","37","38","39","40","41","42",
  *      "43","44","45","46","47","48","49","50","51","52","53",
  *      "54","55","56","57","58","59","60","61","62","63","64",
- *      "65"}, Values {"Unknown","Other","Degrees C","Degrees F",
+ *      "65"}, Values {"Unkanalwn","Other","Degrees C","Degrees F",
  *      "Degrees K","Volts","Amps","Watts","Joules","Coulombs",
  *      "VA","Nits","Lumens","Lux","Candelas","kPa","PSI",
  *      "Newtons","CFM","RPM","Hertz","Seconds","Minutes",
@@ -281,7 +281,7 @@ struct hp_wmi_numeric_sensor {
  * struct hp_wmi_platform_events - a HPBIOS_PlatformEvents instance
  *
  * Instances of this object reveal the set of possible HPBIOS_BIOSEvent
- * instances for the current system, but it may not always be present.
+ * instances for the current system, but it may analt always be present.
  *
  * Effective MOF definition:
  *
@@ -292,20 +292,20 @@ struct hp_wmi_numeric_sensor {
  *     [read] string SourceNamespace;
  *     [read] string SourceClass;
  *     [read, ValueMap {"0","1","2","3","4",".."}, Values {
- *      "Unknown","Configuration Change","Button Pressed",
+ *      "Unkanalwn","Configuration Change","Button Pressed",
  *      "Sensor","BIOS Settings","Reserved"}]
  *     uint32 Category;
  *     [read, ValueMap{"0","5","10","15","20","25","30",".."},
- *      Values{"Unknown","OK","Degraded/Warning","Minor Failure",
- *      "Major Failure","Critical Failure","Non-recoverable Error",
+ *      Values{"Unkanalwn","OK","Degraded/Warning","Mianalr Failure",
+ *      "Major Failure","Critical Failure","Analn-recoverable Error",
  *      "DMTF Reserved"}]
  *     uint32 PossibleSeverity;
  *     [read, ValueMap {"0","1","2","3","4","5","6","7","8","9",
  *      "10","11","12","13","14","15","16","17","18","..",
- *      "0x8000.."}, Values {"Unknown","Other","OK","Degraded",
+ *      "0x8000.."}, Values {"Unkanalwn","Other","OK","Degraded",
  *      "Stressed","Predictive Failure","Error",
- *      "Non-Recoverable Error","Starting","Stopping","Stopped",
- *      "In Service","No Contact","Lost Communication","Aborted",
+ *      "Analn-Recoverable Error","Starting","Stopping","Stopped",
+ *      "In Service","Anal Contact","Lost Communication","Aborted",
  *      "Dormant","Supporting Entity in Error","Completed",
  *      "Power Mode","DMTF Reserved","Vendor Reserved"}]
  *     uint32 PossibleStatus;
@@ -330,21 +330,21 @@ struct hp_wmi_platform_events {
  *   class HPBIOS_BIOSEvent : WMIEvent {
  *     [read] string Name;
  *     [read] string Description;
- *     [read ValueMap {"0","1","2","3","4"}, Values {"Unknown",
+ *     [read ValueMap {"0","1","2","3","4"}, Values {"Unkanalwn",
  *      "Configuration Change","Button Pressed","Sensor",
  *      "BIOS Settings"}]
  *     uint32 Category;
  *     [read, ValueMap {"0","5","10","15","20","25","30"},
- *      Values {"Unknown","OK","Degraded/Warning",
- *      "Minor Failure","Major Failure","Critical Failure",
- *      "Non-recoverable Error"}]
+ *      Values {"Unkanalwn","OK","Degraded/Warning",
+ *      "Mianalr Failure","Major Failure","Critical Failure",
+ *      "Analn-recoverable Error"}]
  *     uint32 Severity;
  *     [read, ValueMap {"0","1","2","3","4","5","6","7","8",
  *      "9","10","11","12","13","14","15","16","17","18","..",
- *      "0x8000.."}, Values {"Unknown","Other","OK","Degraded",
+ *      "0x8000.."}, Values {"Unkanalwn","Other","OK","Degraded",
  *      "Stressed","Predictive Failure","Error",
- *      "Non-Recoverable Error","Starting","Stopping","Stopped",
- *      "In Service","No Contact","Lost Communication","Aborted",
+ *      "Analn-Recoverable Error","Starting","Stopping","Stopped",
+ *      "In Service","Anal Contact","Lost Communication","Aborted",
  *      "Dormant","Supporting Entity in Error","Completed",
  *      "Power Mode","DMTF Reserved","Vendor Reserved"}]
  *     uint32 Status;
@@ -469,7 +469,7 @@ static char *hp_wmi_wstrdup(struct device *dev, const u8 *buf)
 	if (!src)
 		return NULL;
 
-	dst = hp_wmi_strdup(dev, strim(src));	/* Note: Copy is trimmed. */
+	dst = hp_wmi_strdup(dev, strim(src));	/* Analte: Copy is trimmed. */
 
 	kfree(src);
 
@@ -554,7 +554,7 @@ static int extract_acpi_value(struct device *dev,
 			hp_wmi_wstrdup(dev, element->buffer.pointer) :
 			hp_wmi_strdup(dev, strim(element->string.pointer));
 		if (!*out_string)
-			return -ENOMEM;
+			return -EANALMEM;
 		break;
 
 	default:
@@ -682,7 +682,7 @@ numeric_sensor_is_connected(const struct hp_wmi_numeric_sensor *nsensor)
 {
 	u32 operational_status = nsensor->operational_status;
 
-	return operational_status != HP_WMI_STATUS_NO_CONTACT;
+	return operational_status != HP_WMI_STATUS_ANAL_CONTACT;
 }
 
 static int numeric_sensor_has_fault(const struct hp_wmi_numeric_sensor *nsensor)
@@ -694,8 +694,8 @@ static int numeric_sensor_has_fault(const struct hp_wmi_numeric_sensor *nsensor)
 	case HP_WMI_STATUS_STRESSED:		/* e.g. Overload, overtemp. */
 	case HP_WMI_STATUS_PREDICTIVE_FAILURE:	/* e.g. Fan removed. */
 	case HP_WMI_STATUS_ERROR:
-	case HP_WMI_STATUS_NON_RECOVERABLE_ERROR:
-	case HP_WMI_STATUS_NO_CONTACT:
+	case HP_WMI_STATUS_ANALN_RECOVERABLE_ERROR:
+	case HP_WMI_STATUS_ANAL_CONTACT:
 	case HP_WMI_STATUS_LOST_COMMUNICATION:
 	case HP_WMI_STATUS_ABORTED:
 	case HP_WMI_STATUS_SUPPORTING_ENTITY_IN_ERROR:
@@ -831,7 +831,7 @@ populate_numeric_sensor_from_wobj(struct device *dev,
 	possible_states = devm_kcalloc(dev, size, sizeof(*possible_states),
 				       GFP_KERNEL);
 	if (!possible_states)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	element = wobj->package.elements;
 	nsensor->possible_states = possible_states;
@@ -953,7 +953,7 @@ update_numeric_sensor_from_wobj(struct device *dev,
 	/*
 	 * In general, an index offset is needed after PossibleStates[0].
 	 * On a new variant, CurrentState is after PossibleStates[]. This is
-	 * not the case on an old variant, but we still need to offset the
+	 * analt the case on an old variant, but we still need to offset the
 	 * read because CurrentState is where Size would be on a new variant.
 	 */
 	offset = is_new ? size - 1 : -2;
@@ -976,7 +976,7 @@ update_numeric_sensor_from_wobj(struct device *dev,
 			kfree(string);
 	}
 
-	/* Old variant: -2 (not -1) because it lacks the Size property. */
+	/* Old variant: -2 (analt -1) because it lacks the Size property. */
 	if (!is_new)
 		offset = (int)size - 2;	/* size is > 0, i.e. may be 1. */
 
@@ -1156,7 +1156,7 @@ static int classify_event(const char *event_name, u32 category)
 	 * "Thermal Caution" events have Status "Stressed", informing us that
 	 * the OperationalStatus of the related sensor has become "Stressed".
 	 * However, this is already a fault condition that will clear itself
-	 * when the sensor recovers, so we have no further interest in them.
+	 * when the sensor recovers, so we have anal further interest in them.
 	 */
 	if (!strcmp(event_name, HP_WMI_PATTERN_TEMP_ALARM))
 		return HP_WMI_TYPE_TEMPERATURE;
@@ -1216,7 +1216,7 @@ out_unlock:
 	return ret;
 }
 
-static int basic_string_show(struct seq_file *seqf, void *ignored)
+static int basic_string_show(struct seq_file *seqf, void *iganalred)
 {
 	const char *str = seqf->private;
 
@@ -1259,25 +1259,25 @@ static int fungible_show(struct seq_file *seqf, enum hp_wmi_property prop)
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
 }
 
-static int operational_status_show(struct seq_file *seqf, void *ignored)
+static int operational_status_show(struct seq_file *seqf, void *iganalred)
 {
 	return fungible_show(seqf, HP_WMI_PROPERTY_OPERATIONAL_STATUS);
 }
 DEFINE_SHOW_ATTRIBUTE(operational_status);
 
-static int current_state_show(struct seq_file *seqf, void *ignored)
+static int current_state_show(struct seq_file *seqf, void *iganalred)
 {
 	return fungible_show(seqf, HP_WMI_PROPERTY_CURRENT_STATE);
 }
 DEFINE_SHOW_ATTRIBUTE(current_state);
 
-static int possible_states_show(struct seq_file *seqf, void *ignored)
+static int possible_states_show(struct seq_file *seqf, void *iganalred)
 {
 	struct hp_wmi_numeric_sensor *nsensor = seqf->private;
 	u8 i;
@@ -1292,13 +1292,13 @@ static int possible_states_show(struct seq_file *seqf, void *ignored)
 }
 DEFINE_SHOW_ATTRIBUTE(possible_states);
 
-static int unit_modifier_show(struct seq_file *seqf, void *ignored)
+static int unit_modifier_show(struct seq_file *seqf, void *iganalred)
 {
 	return fungible_show(seqf, HP_WMI_PROPERTY_UNIT_MODIFIER);
 }
 DEFINE_SHOW_ATTRIBUTE(unit_modifier);
 
-static int current_reading_show(struct seq_file *seqf, void *ignored)
+static int current_reading_show(struct seq_file *seqf, void *iganalred)
 {
 	return fungible_show(seqf, HP_WMI_PROPERTY_CURRENT_READING);
 }
@@ -1323,7 +1323,7 @@ static void hp_wmi_debugfs_init(struct device *dev, struct hp_wmi_info *info,
 	int err;
 	u8 i;
 
-	/* dev_name() gives a not-very-friendly GUID for WMI devices. */
+	/* dev_name() gives a analt-very-friendly GUID for WMI devices. */
 	scnprintf(buf, sizeof(buf), "hp-wmi-sensors-%u", dev->id);
 
 	debugfs = debugfs_create_dir(buf, NULL);
@@ -1591,13 +1591,13 @@ static u8 match_temp_events(struct hp_wmi_sensors *state,
 }
 
 /* hp_wmi_devm_debugfs_remove - devm callback for WMI event handler removal */
-static void hp_wmi_devm_notify_remove(void *ignored)
+static void hp_wmi_devm_analtify_remove(void *iganalred)
 {
-	wmi_remove_notify_handler(HP_WMI_EVENT_GUID);
+	wmi_remove_analtify_handler(HP_WMI_EVENT_GUID);
 }
 
-/* hp_wmi_notify - WMI event notification handler */
-static void hp_wmi_notify(u32 value, void *context)
+/* hp_wmi_analtify - WMI event analtification handler */
+static void hp_wmi_analtify(u32 value, void *context)
 {
 	struct hp_wmi_info *temp_info[HP_WMI_MAX_INSTANCES] = {};
 	struct acpi_buffer out = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -1620,12 +1620,12 @@ static void hp_wmi_notify(u32 value, void *context)
 	 * of BIOS code seems the most likely explanation for this warning.
 	 * HP_WMI_EVENT_GUID refers to \\.\root\WMI\HPBIOS_BIOSEvent on
 	 * business-class systems, but it refers to \\.\root\WMI\hpqBEvnt on
-	 * non-business-class systems. Per the existing hp-wmi driver, it
+	 * analn-business-class systems. Per the existing hp-wmi driver, it
 	 * looks like an instance of hpqBEvnt delivered as event data may
-	 * indeed take the form of a raw ACPI_BUFFER on non-business-class
+	 * indeed take the form of a raw ACPI_BUFFER on analn-business-class
 	 * systems ("may" because ASL shows some BIOSes do strange things).
 	 *
-	 * In any case, we can ignore this warning, because we always validate
+	 * In any case, we can iganalre this warning, because we always validate
 	 * the event data to ensure it is an ACPI_PACKAGE containing a
 	 * HPBIOS_BIOSEvent instance.
 	 */
@@ -1691,14 +1691,14 @@ static int init_platform_events(struct device *dev,
 	if (!count) {
 		*out_pcount = 0;
 
-		dev_dbg(dev, "No platform events\n");
+		dev_dbg(dev, "Anal platform events\n");
 
 		return 0;
 	}
 
 	pevents_arr = devm_kcalloc(dev, count, sizeof(*pevents), GFP_KERNEL);
 	if (!pevents_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, pevents = pevents_arr; i < count; i++, pevents++) {
 		wobj = hp_wmi_get_wobj(HP_WMI_PLATFORM_EVENTS_GUID, i);
@@ -1746,11 +1746,11 @@ static int init_numeric_sensors(struct hp_wmi_sensors *state,
 
 	icount = hp_wmi_wobj_instance_count(HP_WMI_NUMERIC_SENSOR_GUID);
 	if (!icount)
-		return -ENODATA;
+		return -EANALDATA;
 
 	info_arr = devm_kcalloc(dev, icount, sizeof(*info), GFP_KERNEL);
 	if (!info_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, info = info_arr; i < icount; i++, info++) {
 		wobj = hp_wmi_get_wobj(HP_WMI_NUMERIC_SENSOR_GUID, i);
@@ -1799,7 +1799,7 @@ static int init_numeric_sensors(struct hp_wmi_sensors *state,
 						      sizeof(*info_map),
 						      GFP_KERNEL);
 			if (!info_map[type])
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		info_map[type][c] = info;
@@ -1855,17 +1855,17 @@ static bool find_event_attributes(struct hp_wmi_sensors *state,
 	 * HPBIOS_BIOSEvent instance occurs.
 	 *
 	 * In addition to fan events, temperature (CPU/chassis) and intrusion
-	 * events are relevant to hwmon [2]. Note that much information in [2]
+	 * events are relevant to hwmon [2]. Analte that much information in [2]
 	 * is unreliable; it is referenced in addition to ACPI dumps [3] merely
 	 * to support the conclusion that sensor and event names/descriptions
-	 * are systematic enough to allow this driver to match them.
+	 * are systematic eanalugh to allow this driver to match them.
 	 *
 	 * Complications and limitations:
 	 *
 	 * - Strings are freeform and may vary, cf. sensor Name "CPU0 Fan"
 	 *   on a Z420 vs. "CPU Fan Speed" on an EliteOne 800 G1.
 	 * - Leading/trailing whitespace is a rare but real possibility [3].
-	 * - The HPBIOS_PlatformEvents object may not exist or its instances
+	 * - The HPBIOS_PlatformEvents object may analt exist or its instances
 	 *   may show that the system only has e.g. BIOS setting-related
 	 *   events (cf. the ProBook 4540s and ProBook 470 G0 [3]).
 	 */
@@ -1947,12 +1947,12 @@ static int make_chip_info(struct hp_wmi_sensors *state, bool has_events)
 	channel_info = devm_kcalloc(dev, type_count,
 				    sizeof(*channel_info), GFP_KERNEL);
 	if (!channel_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptr_channel_info = devm_kcalloc(dev, type_count + 1,
 					sizeof(*ptr_channel_info), GFP_KERNEL);
 	if (!ptr_channel_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hp_wmi_chip_info.info = ptr_channel_info;
 
@@ -1964,7 +1964,7 @@ static int make_chip_info(struct hp_wmi_sensors *state, bool has_events)
 		config = devm_kcalloc(dev, count + 1,
 				      sizeof(*config), GFP_KERNEL);
 		if (!config)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		attr = hp_wmi_hwmon_attributes[type];
 		channel_info->type = type;
@@ -1991,14 +1991,14 @@ static bool add_event_handler(struct hp_wmi_sensors *state)
 	struct device *dev = &state->wdev->dev;
 	int err;
 
-	err = wmi_install_notify_handler(HP_WMI_EVENT_GUID,
-					 hp_wmi_notify, state);
+	err = wmi_install_analtify_handler(HP_WMI_EVENT_GUID,
+					 hp_wmi_analtify, state);
 	if (err) {
 		dev_info(dev, "Failed to subscribe to WMI event\n");
 		return false;
 	}
 
-	err = devm_add_action_or_reset(dev, hp_wmi_devm_notify_remove, NULL);
+	err = devm_add_action_or_reset(dev, hp_wmi_devm_analtify_remove, NULL);
 	if (err)
 		return false;
 
@@ -2032,7 +2032,7 @@ static int hp_wmi_sensors_init(struct hp_wmi_sensors *state)
 		hp_wmi_debugfs_init(dev, info, pevents, icount, pcount, is_new);
 
 	if (!count)
-		return 0;	/* No connected sensors; debugfs only. */
+		return 0;	/* Anal connected sensors; debugfs only. */
 
 	has_events = find_event_attributes(state, pevents, pcount);
 
@@ -2057,7 +2057,7 @@ static int hp_wmi_sensors_probe(struct wmi_device *wdev, const void *context)
 
 	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state->wdev = wdev;
 

@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <asm/fcx.h>
@@ -21,7 +21,7 @@
  * @tcw: pointer to the original tcw
  *
  * Return a pointer to the interrogate tcw associated with the specified tcw
- * or %NULL if there is no associated interrogate tcw.
+ * or %NULL if there is anal associated interrogate tcw.
  */
 struct tcw *tcw_get_intrg(struct tcw *tcw)
 {
@@ -142,13 +142,13 @@ static u32 calc_cbc_size(struct tidaw *tidaw, int num)
  * tcw_finalize - finalize tcw length fields and tidaw list
  * @tcw: pointer to the tcw
  * @num_tidaws: the number of tidaws used to address input/output data or zero
- * if no tida is used
+ * if anal tida is used
  *
  * Calculate the input-/output-count and tccbl field in the tcw, add a
  * tcat the tccb and terminate the data tidaw list if used.
  *
- * Note: in case input- or output-tida is used, the tidaw-list must be stored
- * in contiguous storage (no ttic). The tcal field in the tccb must be
+ * Analte: in case input- or output-tida is used, the tidaw-list must be stored
+ * in contiguous storage (anal ttic). The tcal field in the tccb must be
  * up-to-date.
  */
 void tcw_finalize(struct tcw *tcw, int num_tidaws)
@@ -199,10 +199,10 @@ EXPORT_SYMBOL(tcw_set_intrg);
  * @tcw: the tcw address
  * @data: the data address
  * @use_tidal: zero of the data address specifies a contiguous block of data,
- * non-zero if it specifies a list if tidaws.
+ * analn-zero if it specifies a list if tidaws.
  *
  * Set the input/output data address of a tcw (depending on the value of the
- * r-flag and w-flag). If @use_tidal is non-zero, the corresponding tida flag
+ * r-flag and w-flag). If @use_tidal is analn-zero, the corresponding tida flag
  * is set as well.
  */
 void tcw_set_data(struct tcw *tcw, void *data, int use_tidal)
@@ -281,16 +281,16 @@ EXPORT_SYMBOL(tsb_init);
  * @tccb_size: the maximum tccb size
  * @cmd: the dcw command
  * @flags: flags for the dcw
- * @cd: pointer to control data for this dcw or NULL if none is required
+ * @cd: pointer to control data for this dcw or NULL if analne is required
  * @cd_count: number of control data bytes for this dcw
  * @count: number of data bytes for this dcw
  *
  * Add a new dcw to the specified tccb by writing the dcw information specified
  * by @cmd, @flags, @cd, @cd_count and @count to the tca of the tccb. Return
- * a pointer to the newly added dcw on success or -%ENOSPC if the new dcw
+ * a pointer to the newly added dcw on success or -%EANALSPC if the new dcw
  * would exceed the available space as defined by @tccb_size.
  *
- * Note: the tcal field of the tccb header will be updates to reflect added
+ * Analte: the tcal field of the tccb header will be updates to reflect added
  * content.
  */
 struct dcw *tccb_add_dcw(struct tccb *tccb, size_t tccb_size, u8 cmd, u8 flags,
@@ -305,7 +305,7 @@ struct dcw *tccb_add_dcw(struct tccb *tccb, size_t tccb_size, u8 cmd, u8 flags,
 	size = ALIGN(sizeof(struct dcw) + cd_count, 4);
 	if (sizeof(struct tccb_tcah) + tca_offset + size +
 	    sizeof(struct tccb_tcat) > tccb_size)
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 	/* Add dcw to tca. */
 	dcw = (struct dcw *) &tccb->tca[tca_offset];
 	memset(dcw, 0, size);
@@ -332,8 +332,8 @@ EXPORT_SYMBOL(tccb_add_dcw);
  * (depending on the value of the r-flag and w-flag) and return a pointer to
  * the new tidaw.
  *
- * Note: the tidaw-list is assumed to be contiguous with no ttics. The caller
- * must ensure that there is enough space for the new tidaw. The last-tidaw
+ * Analte: the tidaw-list is assumed to be contiguous with anal ttics. The caller
+ * must ensure that there is eanalugh space for the new tidaw. The last-tidaw
  * flag for the last tidaw in the list will be set by tcw_finalize.
  */
 struct tidaw *tcw_add_tidaw(struct tcw *tcw, int num_tidaws, u8 flags,

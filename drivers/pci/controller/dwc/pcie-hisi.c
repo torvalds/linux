@@ -31,7 +31,7 @@ static int hisi_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 	if (bus->number == cfg->busr.start) {
 		/* access only one slot on each root port */
 		if (dev > 0)
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 		else
 			return pci_generic_config_read32(bus, devfn, where,
 							 size, val);
@@ -49,7 +49,7 @@ static int hisi_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 	if (bus->number == cfg->busr.start) {
 		/* access only one slot on each root port */
 		if (dev > 0)
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 		else
 			return pci_generic_config_write32(bus, devfn, where,
 							  size, val);
@@ -83,7 +83,7 @@ static int hisi_pcie_init(struct pci_config_window *cfg)
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Retrieve RC base and size from a HISI0081 device with _UID
@@ -91,17 +91,17 @@ static int hisi_pcie_init(struct pci_config_window *cfg)
 	 */
 	res = devm_kzalloc(dev, sizeof(*res), GFP_KERNEL);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = acpi_get_rc_resources(dev, "HISI0081", root->segment, res);
 	if (ret) {
 		dev_err(dev, "can't get rc base address\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pcie->reg_base = devm_pci_remap_cfgspace(dev, res->start, resource_size(res));
 	if (!pcie->reg_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cfg->priv = pcie;
 	return 0;
@@ -129,7 +129,7 @@ static int hisi_pcie_platform_init(struct pci_config_window *cfg)
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
@@ -139,7 +139,7 @@ static int hisi_pcie_platform_init(struct pci_config_window *cfg)
 
 	pcie->reg_base = devm_pci_remap_cfgspace(dev, res->start, resource_size(res));
 	if (!pcie->reg_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cfg->priv = pcie;
 	return 0;

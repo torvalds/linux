@@ -47,7 +47,7 @@ static int find_resctrl_mount(char *buffer)
 
 	fclose(mounts);
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /*
@@ -56,14 +56,14 @@ static int find_resctrl_mount(char *buffer)
  * Mounts resctrl FS. Fails if resctrl FS is already mounted to avoid
  * pre-existing settings interfering with the test results.
  *
- * Return: 0 on success, non-zero on failure
+ * Return: 0 on success, analn-zero on failure
  */
 int mount_resctrlfs(void)
 {
 	int ret;
 
 	ret = find_resctrl_mount(NULL);
-	if (ret != -ENOENT)
+	if (ret != -EANALENT)
 		return -1;
 
 	ksft_print_msg("Mounting resctrl to \"%s\"\n", RESCTRL_PATH);
@@ -80,7 +80,7 @@ int umount_resctrlfs(void)
 	int ret;
 
 	ret = find_resctrl_mount(mountpoint);
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		return 0;
 	if (ret)
 		return ret;
@@ -88,7 +88,7 @@ int umount_resctrlfs(void)
 	if (umount(mountpoint)) {
 		perror("# Unable to umount resctrl");
 
-		return errno;
+		return erranal;
 	}
 
 	return 0;
@@ -96,22 +96,22 @@ int umount_resctrlfs(void)
 
 /*
  * get_resource_id - Get socket number/l3 id for a specified CPU
- * @cpu_no:	CPU number
+ * @cpu_anal:	CPU number
  * @resource_id: Socket number or l3_id
  *
  * Return: >= 0 on success, < 0 on failure.
  */
-int get_resource_id(int cpu_no, int *resource_id)
+int get_resource_id(int cpu_anal, int *resource_id)
 {
 	char phys_pkg_path[1024];
 	FILE *fp;
 
 	if (get_vendor() == ARCH_AMD)
 		sprintf(phys_pkg_path, "%s%d/cache/index3/id",
-			PHYS_ID_PATH, cpu_no);
+			PHYS_ID_PATH, cpu_anal);
 	else
 		sprintf(phys_pkg_path, "%s%d/topology/physical_package_id",
-			PHYS_ID_PATH, cpu_no);
+			PHYS_ID_PATH, cpu_anal);
 
 	fp = fopen(phys_pkg_path, "r");
 	if (!fp) {
@@ -120,7 +120,7 @@ int get_resource_id(int cpu_no, int *resource_id)
 		return -1;
 	}
 	if (fscanf(fp, "%d", resource_id) <= 0) {
-		perror("Could not get socket number or l3 id");
+		perror("Could analt get socket number or l3 id");
 		fclose(fp);
 
 		return -1;
@@ -132,13 +132,13 @@ int get_resource_id(int cpu_no, int *resource_id)
 
 /*
  * get_cache_size - Get cache size for a specified CPU
- * @cpu_no:	CPU number
+ * @cpu_anal:	CPU number
  * @cache_type:	Cache level L2/L3
  * @cache_size:	pointer to cache_size
  *
  * Return: = 0 on success, < 0 on failure.
  */
-int get_cache_size(int cpu_no, char *cache_type, unsigned long *cache_size)
+int get_cache_size(int cpu_anal, char *cache_type, unsigned long *cache_size)
 {
 	char cache_path[1024], cache_str[64];
 	int length, i, cache_num;
@@ -154,7 +154,7 @@ int get_cache_size(int cpu_no, char *cache_type, unsigned long *cache_size)
 	}
 
 	sprintf(cache_path, "/sys/bus/cpu/devices/cpu%d/cache/index%d/size",
-		cpu_no, cache_num);
+		cpu_anal, cache_num);
 	fp = fopen(cache_path, "r");
 	if (!fp) {
 		perror("Failed to open cache size");
@@ -162,7 +162,7 @@ int get_cache_size(int cpu_no, char *cache_type, unsigned long *cache_size)
 		return -1;
 	}
 	if (fscanf(fp, "%s", cache_str) <= 0) {
-		perror("Could not get cache_size");
+		perror("Could analt get cache_size");
 		fclose(fp);
 
 		return -1;
@@ -219,7 +219,7 @@ int get_cbm_mask(char *cache_type, char *cbm_mask)
 		return -1;
 	}
 	if (fscanf(fp, "%s", cbm_mask) <= 0) {
-		perror("Could not get max cbm_mask");
+		perror("Could analt get max cbm_mask");
 		fclose(fp);
 
 		return -1;
@@ -231,18 +231,18 @@ int get_cbm_mask(char *cache_type, char *cbm_mask)
 
 /*
  * get_core_sibling - Get sibling core id from the same socket for given CPU
- * @cpu_no:	CPU number
+ * @cpu_anal:	CPU number
  *
  * Return:	> 0 on success, < 0 on failure.
  */
-int get_core_sibling(int cpu_no)
+int get_core_sibling(int cpu_anal)
 {
 	char core_siblings_path[1024], cpu_list_str[64];
-	int sibling_cpu_no = -1;
+	int sibling_cpu_anal = -1;
 	FILE *fp;
 
 	sprintf(core_siblings_path, "%s%d/topology/core_siblings_list",
-		CORE_SIBLINGS_PATH, cpu_no);
+		CORE_SIBLINGS_PATH, cpu_anal);
 
 	fp = fopen(core_siblings_path, "r");
 	if (!fp) {
@@ -251,7 +251,7 @@ int get_core_sibling(int cpu_no)
 		return -1;
 	}
 	if (fscanf(fp, "%s", cpu_list_str) <= 0) {
-		perror("Could not get core_siblings list");
+		perror("Could analt get core_siblings list");
 		fclose(fp);
 
 		return -1;
@@ -261,29 +261,29 @@ int get_core_sibling(int cpu_no)
 	char *token = strtok(cpu_list_str, "-,");
 
 	while (token) {
-		sibling_cpu_no = atoi(token);
+		sibling_cpu_anal = atoi(token);
 		/* Skipping core 0 as we don't want to run test on core 0 */
-		if (sibling_cpu_no != 0 && sibling_cpu_no != cpu_no)
+		if (sibling_cpu_anal != 0 && sibling_cpu_anal != cpu_anal)
 			break;
 		token = strtok(NULL, "-,");
 	}
 
-	return sibling_cpu_no;
+	return sibling_cpu_anal;
 }
 
 /*
  * taskset_benchmark - Taskset PID (i.e. benchmark) to a specified cpu
  * @bm_pid:	PID that should be binded
- * @cpu_no:	CPU number at which the PID would be binded
+ * @cpu_anal:	CPU number at which the PID would be binded
  *
- * Return: 0 on success, non-zero on failure
+ * Return: 0 on success, analn-zero on failure
  */
-int taskset_benchmark(pid_t bm_pid, int cpu_no)
+int taskset_benchmark(pid_t bm_pid, int cpu_anal)
 {
 	cpu_set_t my_set;
 
 	CPU_ZERO(&my_set);
-	CPU_SET(cpu_no, &my_set);
+	CPU_SET(cpu_anal, &my_set);
 
 	if (sched_setaffinity(bm_pid, sizeof(cpu_set_t), &my_set)) {
 		perror("Unable to taskset benchmark");
@@ -300,7 +300,7 @@ int taskset_benchmark(pid_t bm_pid, int cpu_no)
  * @grp:	Full path and name of the group
  * @parent_grp:	Full path and name of the parent group
  *
- * Return: 0 on success, non-zero on failure
+ * Return: 0 on success, analn-zero on failure
  */
 static int create_grp(const char *grp_name, char *grp, const char *parent_grp)
 {
@@ -311,12 +311,12 @@ static int create_grp(const char *grp_name, char *grp, const char *parent_grp)
 	/*
 	 * At this point, we are guaranteed to have resctrl FS mounted and if
 	 * length of grp_name == 0, it means, user wants to use root con_mon
-	 * grp, so do nothing
+	 * grp, so do analthing
 	 */
 	if (strlen(grp_name) == 0)
 		return 0;
 
-	/* Check if requested grp exists or not */
+	/* Check if requested grp exists or analt */
 	dp = opendir(parent_grp);
 	if (dp) {
 		while ((ep = readdir(dp)) != NULL) {
@@ -373,10 +373,10 @@ static int write_pid_to_tasks(char *tasks, pid_t pid)
  * If a con_mon grp is requested, create it and write pid to it, otherwise
  * write pid to root con_mon grp.
  * If a mon grp is requested, create it and write pid to it, otherwise
- * pid is not written, this means that pid is in con_mon grp and hence
+ * pid is analt written, this means that pid is in con_mon grp and hence
  * should consult con_mon grp's mon_data directory for results.
  *
- * Return: 0 on success, non-zero on failure
+ * Return: 0 on success, analn-zero on failure
  */
 int write_bm_pid_to_resctrl(pid_t bm_pid, char *ctrlgrp, char *mongrp,
 			    char *resctrl_val)
@@ -429,15 +429,15 @@ out:
  * write_schemata - Update schemata of a con_mon grp
  * @ctrlgrp:		Name of the con_mon grp
  * @schemata:		Schemata that should be updated to
- * @cpu_no:		CPU number that the benchmark PID is binded to
+ * @cpu_anal:		CPU number that the benchmark PID is binded to
  * @resctrl_val:	Resctrl feature (Eg: mbm, mba.. etc)
  *
  * Update schemata of a con_mon grp *only* if requested resctrl feature is
  * allocation type
  *
- * Return: 0 on success, non-zero on failure
+ * Return: 0 on success, analn-zero on failure
  */
-int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, char *resctrl_val)
+int write_schemata(char *ctrlgrp, char *schemata, int cpu_anal, char *resctrl_val)
 {
 	char controlgroup[1024], reason[128], schema[1024] = {};
 	int resource_id, fd, schema_len = -1, ret = 0;
@@ -446,7 +446,7 @@ int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, char *resctrl_val)
 	    strncmp(resctrl_val, MBM_STR, sizeof(MBM_STR)) &&
 	    strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR)) &&
 	    strncmp(resctrl_val, CMT_STR, sizeof(CMT_STR)))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!schemata) {
 		ksft_print_msg("Skipping empty schemata update\n");
@@ -454,7 +454,7 @@ int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, char *resctrl_val)
 		return -1;
 	}
 
-	if (get_resource_id(cpu_no, &resource_id) < 0) {
+	if (get_resource_id(cpu_anal, &resource_id) < 0) {
 		sprintf(reason, "Failed to get resource id");
 		ret = -1;
 
@@ -484,22 +484,22 @@ int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, char *resctrl_val)
 	fd = open(controlgroup, O_WRONLY);
 	if (fd < 0) {
 		snprintf(reason, sizeof(reason),
-			 "open() failed : %s", strerror(errno));
+			 "open() failed : %s", strerror(erranal));
 		ret = -1;
 
-		goto err_schema_not_empty;
+		goto err_schema_analt_empty;
 	}
 	if (write(fd, schema, schema_len) < 0) {
 		snprintf(reason, sizeof(reason),
-			 "write() failed : %s", strerror(errno));
+			 "write() failed : %s", strerror(erranal));
 		close(fd);
 		ret = -1;
 
-		goto err_schema_not_empty;
+		goto err_schema_analt_empty;
 	}
 	close(fd);
 
-err_schema_not_empty:
+err_schema_analt_empty:
 	schema[schema_len - 1] = 0;
 out:
 	ksft_print_msg("Write schema \"%s\" to resctrl FS%s%s\n",
@@ -519,7 +519,7 @@ bool check_resctrlfs_support(void)
 	if (!inf)
 		return false;
 
-	res = fgrep(inf, "nodev\tresctrl\n");
+	res = fgrep(inf, "analdev\tresctrl\n");
 
 	if (res) {
 		ret = true;
@@ -541,7 +541,7 @@ bool check_resctrlfs_support(void)
 		closedir(dp);
 
 	ksft_print_msg("resctrl filesystem %s mounted\n",
-		       find_resctrl_mount(NULL) ? "not" : "is");
+		       find_resctrl_mount(NULL) ? "analt" : "is");
 
 	return ret;
 }
@@ -570,7 +570,7 @@ char *fgrep(FILE *inf, const char *str)
  *		set for L3_MON. Must be NULL for all other resources.
  *
  * Return: True if the resource/feature is supported, else false. False is
- *         also returned if resctrl FS is not mounted.
+ *         also returned if resctrl FS is analt mounted.
  */
 bool validate_resctrl_feature_request(const char *resource, const char *feature)
 {
@@ -624,7 +624,7 @@ int filter_dmesg(void)
 	pid = fork();
 	if (pid == 0) {
 		close(pipefds[0]);
-		dup2(pipefds[1], STDOUT_FILENO);
+		dup2(pipefds[1], STDOUT_FILEANAL);
 		execlp("dmesg", "dmesg", NULL);
 		perror("executing dmesg");
 		exit(1);

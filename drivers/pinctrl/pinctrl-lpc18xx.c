@@ -65,7 +65,7 @@
 
 /* LPC18xx pin types */
 enum {
-	TYPE_ND,	/* Normal-drive */
+	TYPE_ND,	/* Analrmal-drive */
 	TYPE_HD,	/* High-drive */
 	TYPE_HS,	/* High-speed */
 	TYPE_I2C0,
@@ -668,7 +668,7 @@ static int lpc18xx_pconf_get_usb1(enum pin_config_param param, int *arg, u32 reg
 		break;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -714,7 +714,7 @@ static int lpc18xx_pconf_get_i2c0(enum pin_config_param param, int *arg, u32 reg
 		break;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -724,7 +724,7 @@ static int lpc18xx_pin_to_gpio(struct pinctrl_dev *pctldev, unsigned pin)
 {
 	struct pinctrl_gpio_range *range;
 
-	range = pinctrl_find_gpio_range_from_pin_nolock(pctldev, pin);
+	range = pinctrl_find_gpio_range_from_pin_anallock(pctldev, pin);
 	if (!range)
 		return -EINVAL;
 
@@ -767,7 +767,7 @@ static int lpc18xx_pconf_get_gpio_pin_int(struct pinctrl_dev *pctldev,
 
 	gpio = lpc18xx_pin_to_gpio(pctldev, pin);
 	if (gpio < 0)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	val = lpc18xx_gpio_to_pintsel_val(gpio);
 
@@ -818,7 +818,7 @@ static int lpc18xx_pconf_get_pin(struct pinctrl_dev *pctldev, unsigned param,
 
 	case PIN_CONFIG_SLEW_RATE:
 		if (pin_cap->type == TYPE_HD)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		if (reg & LPC18XX_SCU_PIN_EHS)
 			*arg = 1;
@@ -835,7 +835,7 @@ static int lpc18xx_pconf_get_pin(struct pinctrl_dev *pctldev, unsigned param,
 
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		if (pin_cap->type != TYPE_HD)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		*arg = (reg & LPC18XX_SCU_PIN_EHD_MASK) >> LPC18XX_SCU_PIN_EHD_POS;
 		switch (*arg) {
@@ -853,7 +853,7 @@ static int lpc18xx_pconf_get_pin(struct pinctrl_dev *pctldev, unsigned param,
 		return lpc18xx_pconf_get_gpio_pin_int(pctldev, arg, pin);
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -922,8 +922,8 @@ static int lpc18xx_pconf_set_usb1(struct pinctrl_dev *pctldev,
 		break;
 
 	default:
-		dev_err(pctldev->dev, "Property not supported\n");
-		return -ENOTSUPP;
+		dev_err(pctldev->dev, "Property analt supported\n");
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -962,7 +962,7 @@ static int lpc18xx_pconf_set_i2c0(struct pinctrl_dev *pctldev,
 		else if (param_val == 50)
 			*reg &= ~(LPC18XX_SCU_I2C0_EFP << shift);
 		else
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		break;
 
 	case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
@@ -973,8 +973,8 @@ static int lpc18xx_pconf_set_i2c0(struct pinctrl_dev *pctldev,
 		break;
 
 	default:
-		dev_err(pctldev->dev, "Property not supported\n");
-		return -ENOTSUPP;
+		dev_err(pctldev->dev, "Property analt supported\n");
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -992,7 +992,7 @@ static int lpc18xx_pconf_set_gpio_pin_int(struct pinctrl_dev *pctldev,
 
 	gpio = lpc18xx_pin_to_gpio(pctldev, pin);
 	if (gpio < 0)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	val = lpc18xx_gpio_to_pintsel_val(gpio);
 
@@ -1034,7 +1034,7 @@ static int lpc18xx_pconf_set_pin(struct pinctrl_dev *pctldev, unsigned param,
 	case PIN_CONFIG_SLEW_RATE:
 		if (pin_cap->type == TYPE_HD) {
 			dev_err(pctldev->dev, "Slew rate unsupported on high-drive pins\n");
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		if (param_val == 0)
@@ -1053,7 +1053,7 @@ static int lpc18xx_pconf_set_pin(struct pinctrl_dev *pctldev, unsigned param,
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		if (pin_cap->type != TYPE_HD) {
 			dev_err(pctldev->dev, "Drive strength available only on high-drive pins\n");
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		*reg &= ~LPC18XX_SCU_PIN_EHD_MASK;
 
@@ -1068,7 +1068,7 @@ static int lpc18xx_pconf_set_pin(struct pinctrl_dev *pctldev, unsigned param,
 			 break;
 		default:
 			dev_err(pctldev->dev, "Drive strength %u unsupported\n", param_val);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		*reg |= param_val << LPC18XX_SCU_PIN_EHD_POS;
 		break;
@@ -1077,8 +1077,8 @@ static int lpc18xx_pconf_set_pin(struct pinctrl_dev *pctldev, unsigned param,
 		return lpc18xx_pconf_set_gpio_pin_int(pctldev, param_val, pin);
 
 	default:
-		dev_err(pctldev->dev, "Property not supported\n");
-		return -ENOTSUPP;
+		dev_err(pctldev->dev, "Property analt supported\n");
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -1253,7 +1253,7 @@ static const struct pinctrl_ops lpc18xx_pctl_ops = {
 	.get_groups_count	= lpc18xx_pctl_get_groups_count,
 	.get_group_name		= lpc18xx_pctl_get_group_name,
 	.get_group_pins		= lpc18xx_pctl_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -1314,7 +1314,7 @@ static int lpc18xx_create_group_func_map(struct device *dev,
 						      ngroups, sizeof(char *),
 						      GFP_KERNEL);
 		if (!scu->func[func].groups)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < ngroups; i++)
 			scu->func[func].groups[i] = lpc18xx_pins[pins[i]].name;
@@ -1330,7 +1330,7 @@ static int lpc18xx_scu_probe(struct platform_device *pdev)
 
 	scu = devm_kzalloc(&pdev->dev, sizeof(*scu), GFP_KERNEL);
 	if (!scu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(scu->base))
@@ -1338,7 +1338,7 @@ static int lpc18xx_scu_probe(struct platform_device *pdev)
 
 	scu->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(scu->clk)) {
-		dev_err(&pdev->dev, "Input clock not found.\n");
+		dev_err(&pdev->dev, "Input clock analt found.\n");
 		return PTR_ERR(scu->clk);
 	}
 
@@ -1358,7 +1358,7 @@ static int lpc18xx_scu_probe(struct platform_device *pdev)
 
 	scu->pctl = devm_pinctrl_register(&pdev->dev, &lpc18xx_scu_desc, scu);
 	if (IS_ERR(scu->pctl)) {
-		dev_err(&pdev->dev, "Could not register pinctrl driver\n");
+		dev_err(&pdev->dev, "Could analt register pinctrl driver\n");
 		clk_disable_unprepare(scu->clk);
 		return PTR_ERR(scu->pctl);
 	}

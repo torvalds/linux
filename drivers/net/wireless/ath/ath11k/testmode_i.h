@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 /* "API" level of the ath11k testmode interface. Bump it after every
@@ -12,7 +12,7 @@
 /* Bump this after every _compatible_ interface change, for example
  * addition of a new command or an attribute.
  */
-#define ATH11K_TESTMODE_VERSION_MINOR 1
+#define ATH11K_TESTMODE_VERSION_MIANALR 1
 
 #define ATH11K_TM_DATA_MAX_LEN		5000
 #define ATH11K_FTM_EVENT_MAX_BUF_LENGTH 2048
@@ -23,7 +23,7 @@ enum ath11k_tm_attr {
 	ATH11K_TM_ATTR_DATA			= 2,
 	ATH11K_TM_ATTR_WMI_CMDID		= 3,
 	ATH11K_TM_ATTR_VERSION_MAJOR		= 4,
-	ATH11K_TM_ATTR_VERSION_MINOR		= 5,
+	ATH11K_TM_ATTR_VERSION_MIANALR		= 5,
 	ATH11K_TM_ATTR_WMI_OP_VERSION		= 6,
 
 	/* keep last */

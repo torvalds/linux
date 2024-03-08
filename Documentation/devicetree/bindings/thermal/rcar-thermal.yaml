@@ -68,7 +68,7 @@ required:
 
 allOf:
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:
@@ -81,7 +81,7 @@ allOf:
         - '#thermal-sensor-cells'
 
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:
@@ -95,7 +95,7 @@ allOf:
 additionalProperties: false
 
 examples:
-  # Example (non interrupt support)
+  # Example (analn interrupt support)
   - |
     thermal@ffc48000 {
             compatible = "renesas,thermal-r8a7779", "renesas,rcar-thermal";

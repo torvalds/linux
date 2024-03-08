@@ -7,8 +7,8 @@
 
 #include "rblist.h"
 
-struct str_node {
-	struct rb_node rb_node;
+struct str_analde {
+	struct rb_analde rb_analde;
 	const char     *s;
 };
 
@@ -20,7 +20,7 @@ struct strlist {
 
 /*
  * @file_only: When dirname is present, only consider entries as filenames,
- *             that should not be added to the list if dirname/entry is not
+ *             that should analt be added to the list if dirname/entry is analt
  *             found
  */
 struct strlist_config {
@@ -32,12 +32,12 @@ struct strlist_config {
 struct strlist *strlist__new(const char *slist, const struct strlist_config *config);
 void strlist__delete(struct strlist *slist);
 
-void strlist__remove(struct strlist *slist, struct str_node *sn);
+void strlist__remove(struct strlist *slist, struct str_analde *sn);
 int strlist__load(struct strlist *slist, const char *filename);
 int strlist__add(struct strlist *slist, const char *str);
 
-struct str_node *strlist__entry(const struct strlist *slist, unsigned int idx);
-struct str_node *strlist__find(struct strlist *slist, const char *entry);
+struct str_analde *strlist__entry(const struct strlist *slist, unsigned int idx);
+struct str_analde *strlist__find(struct strlist *slist, const char *entry);
 
 static inline bool strlist__has_entry(struct strlist *slist, const char *entry)
 {
@@ -55,23 +55,23 @@ static inline unsigned int strlist__nr_entries(const struct strlist *slist)
 }
 
 /* For strlist iteration */
-static inline struct str_node *strlist__first(struct strlist *slist)
+static inline struct str_analde *strlist__first(struct strlist *slist)
 {
-	struct rb_node *rn = rb_first_cached(&slist->rblist.entries);
-	return rn ? rb_entry(rn, struct str_node, rb_node) : NULL;
+	struct rb_analde *rn = rb_first_cached(&slist->rblist.entries);
+	return rn ? rb_entry(rn, struct str_analde, rb_analde) : NULL;
 }
-static inline struct str_node *strlist__next(struct str_node *sn)
+static inline struct str_analde *strlist__next(struct str_analde *sn)
 {
-	struct rb_node *rn;
+	struct rb_analde *rn;
 	if (!sn)
 		return NULL;
-	rn = rb_next(&sn->rb_node);
-	return rn ? rb_entry(rn, struct str_node, rb_node) : NULL;
+	rn = rb_next(&sn->rb_analde);
+	return rn ? rb_entry(rn, struct str_analde, rb_analde) : NULL;
 }
 
 /**
  * strlist_for_each      - iterate over a strlist
- * @pos:	the &struct str_node to use as a loop cursor.
+ * @pos:	the &struct str_analde to use as a loop cursor.
  * @slist:	the &struct strlist for loop.
  */
 #define strlist__for_each_entry(pos, slist)	\
@@ -79,9 +79,9 @@ static inline struct str_node *strlist__next(struct str_node *sn)
 
 /**
  * strlist_for_each_safe - iterate over a strlist safe against removal of
- *                         str_node
- * @pos:	the &struct str_node to use as a loop cursor.
- * @n:		another &struct str_node to use as temporary storage.
+ *                         str_analde
+ * @pos:	the &struct str_analde to use as a loop cursor.
+ * @n:		aanalther &struct str_analde to use as temporary storage.
  * @slist:	the &struct strlist for loop.
  */
 #define strlist__for_each_entry_safe(pos, n, slist)	\

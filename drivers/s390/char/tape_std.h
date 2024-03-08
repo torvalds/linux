@@ -30,7 +30,7 @@
 #define FORSPACEBLOCK		0x37	/* Forward space block */
 #define FORSPACEFILE		0x3F	/* Forward Space file */
 #define FORCE_STREAM_CNT	0xEB	/* Forced streaming count # */
-#define NOP			0x03	/* No operation	*/
+#define ANALP			0x03	/* Anal operation	*/
 #define READ_FORWARD		0x02	/* Read forward */
 #define REWIND			0x07	/* Rewind */
 #define REWIND_UNLOAD		0x0F	/* Rewind and Unload */
@@ -41,9 +41,9 @@
 
 #define ASSIGN			0xB7	/* 3420 REJECT,3480 OK	*/
 #define CONTROL_ACCESS		0xE3	/* Set high speed */
-#define DIAG_MODE_SET		0x0B	/* 3420 NOP, 3480 REJECT */
+#define DIAG_MODE_SET		0x0B	/* 3420 ANALP, 3480 REJECT */
 #define LOAD_DISPLAY		0x9F	/* 3420 REJECT,3480 OK */
-#define LOCATE			0x4F	/* 3420 REJ, 3480 NOP */
+#define LOCATE			0x4F	/* 3420 REJ, 3480 ANALP */
 #define LOOP_WRITE_TO_READ	0x8B	/* 3480 REJECT */
 #define MODE_SET_DB		0xDB	/* 3420 REJECT,3480 OK */
 #define MODE_SET_C3		0xC3	/* for 3420 */
@@ -53,16 +53,16 @@
 #define READ_BLOCK_ID		0x22	/* 3420 REJECT,3480 OK */
 #define READ_BUFFER		0x12	/* 3420 REJECT,3480 OK */
 #define READ_BUFF_LOG		0x24	/* 3420 REJECT,3480 OK */
-#define RELEASE			0xD4	/* 3420 NOP, 3480 REJECT */
-#define REQ_TRK_IN_ERROR	0x1B	/* 3420 NOP, 3480 REJECT */
-#define RESERVE			0xF4	/* 3420 NOP, 3480 REJECT */
+#define RELEASE			0xD4	/* 3420 ANALP, 3480 REJECT */
+#define REQ_TRK_IN_ERROR	0x1B	/* 3420 ANALP, 3480 REJECT */
+#define RESERVE			0xF4	/* 3420 ANALP, 3480 REJECT */
 #define SENSE_GROUP_ID		0x34	/* 3420 REJECT,3480 OK */
 #define SENSE_ID		0xE4	/* 3420 REJECT,3480 OK */
 #define READ_DEV_CHAR		0x64	/* Read device characteristics */
-#define SET_DIAGNOSE		0x4B	/* 3420 NOP, 3480 REJECT */
+#define SET_DIAGANALSE		0x4B	/* 3420 ANALP, 3480 REJECT */
 #define SET_GROUP_ID		0xAF	/* 3420 REJECT,3480 OK */
 #define SET_TAPE_WRITE_IMMED	0xC3	/* for 3480 */
-#define SUSPEND			0x5B	/* 3420 REJ, 3480 NOP */
+#define SUSPEND			0x5B	/* 3420 REJ, 3480 ANALP */
 #define SYNC			0x43	/* Synchronize (flush buffer) */
 #define UNASSIGN		0xC7	/* 3420 REJECT,3480 OK */
 #define PERF_SUBSYS_FUNC	0x77	/* 3490 CMD */
@@ -87,7 +87,7 @@
 #define SENSE_BEGINNING_OF_TAPE		0x08
 #define SENSE_WRITE_MODE		0x04
 #define SENSE_WRITE_PROTECT		0x02
-#define SENSE_NOT_CAPABLE		0x01
+#define SENSE_ANALT_CAPABLE		0x01
 
 #define SENSE_CHANNEL_ADAPTER_CODE	0xE0
 #define SENSE_CHANNEL_ADAPTER_LOC	0x10
@@ -102,7 +102,7 @@ void tape_std_read_backward(struct tape_device *device,
 			    struct tape_request *request);
 struct tape_request *tape_std_write_block(struct tape_device *, size_t);
 
-/* Some non-mtop commands. */
+/* Some analn-mtop commands. */
 int tape_std_assign(struct tape_device *);
 int tape_std_unassign(struct tape_device *);
 int tape_std_read_block_id(struct tape_device *device, __u64 *id);
@@ -120,7 +120,7 @@ int tape_std_mtfsf(struct tape_device *, int);
 int tape_std_mtfsfm(struct tape_device *, int);
 int tape_std_mtfsr(struct tape_device *, int);
 int tape_std_mtload(struct tape_device *, int);
-int tape_std_mtnop(struct tape_device *, int);
+int tape_std_mtanalp(struct tape_device *, int);
 int tape_std_mtoffl(struct tape_device *, int);
 int tape_std_mtreset(struct tape_device *, int);
 int tape_std_mtreten(struct tape_device *, int);

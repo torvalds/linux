@@ -43,13 +43,13 @@ int cx23885_vbi_fmt(struct file *file, void *priv,
 	f->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
 	f->fmt.vbi.offset = 0;
 	f->fmt.vbi.flags = 0;
-	if (dev->tvnorm & V4L2_STD_525_60) {
+	if (dev->tvanalrm & V4L2_STD_525_60) {
 		/* ntsc */
 		f->fmt.vbi.start[0] = V4L2_VBI_ITU_525_F1_START + 9;
 		f->fmt.vbi.start[1] = V4L2_VBI_ITU_525_F2_START + 9;
 		f->fmt.vbi.count[0] = VBI_NTSC_LINE_COUNT;
 		f->fmt.vbi.count[1] = VBI_NTSC_LINE_COUNT;
-	} else if (dev->tvnorm & V4L2_STD_625_50) {
+	} else if (dev->tvanalrm & V4L2_STD_625_50) {
 		/* pal */
 		f->fmt.vbi.start[0] = V4L2_VBI_ITU_625_F1_START + 5;
 		f->fmt.vbi.start[1] = V4L2_VBI_ITU_625_F2_START + 5;
@@ -118,7 +118,7 @@ static int queue_setup(struct vb2_queue *q,
 	struct cx23885_dev *dev = q->drv_priv;
 	unsigned lines = VBI_PAL_LINE_COUNT;
 
-	if (dev->tvnorm & V4L2_STD_525_60)
+	if (dev->tvanalrm & V4L2_STD_525_60)
 		lines = VBI_NTSC_LINE_COUNT;
 	*num_planes = 1;
 	sizes[0] = lines * VBI_LINE_LENGTH * 2;
@@ -134,7 +134,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 	unsigned lines = VBI_PAL_LINE_COUNT;
 
-	if (dev->tvnorm & V4L2_STD_525_60)
+	if (dev->tvanalrm & V4L2_STD_525_60)
 		lines = VBI_NTSC_LINE_COUNT;
 
 	if (vb2_plane_size(vb, 0) < lines * VBI_LINE_LENGTH * 2)
@@ -160,7 +160,7 @@ static void buffer_finish(struct vb2_buffer *vb)
 
 /*
  * The risc program for each buffer works as follows: it starts with a simple
- * 'JUMP to addr + 12', which is effectively a NOP. Then the code to DMA the
+ * 'JUMP to addr + 12', which is effectively a ANALP. Then the code to DMA the
  * buffer follows and at the end we have a JUMP back to the start + 12 (skipping
  * the initial JUMP).
  *
@@ -174,7 +174,7 @@ static void buffer_finish(struct vb2_buffer *vb)
  *
  * It also sets the final jump of the previous buffer to the start of the new
  * buffer, thus chaining the new buffer into the DMA chain. This is a single
- * atomic u32 write, so there is no race condition.
+ * atomic u32 write, so there is anal race condition.
  *
  * The end-result of all this that you only get an interrupt when a buffer
  * is ready, so the control flow is very easy.

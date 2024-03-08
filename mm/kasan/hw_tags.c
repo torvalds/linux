@@ -3,7 +3,7 @@
  * This file contains core hardware tag-based KASAN code.
  *
  * Copyright (c) 2020 Google, Inc.
- * Author: Andrey Konovalov <andreyknvl@google.com>
+ * Author: Andrey Koanalvalov <andreyknvl@google.com>
  */
 
 #define pr_fmt(fmt) "kasan: " fmt
@@ -50,7 +50,7 @@ DEFINE_STATIC_KEY_FALSE(kasan_flag_enabled);
 EXPORT_SYMBOL(kasan_flag_enabled);
 
 /*
- * Whether the selected mode is synchronous, asynchronous, or asymmetric.
+ * Whether the selected mode is synchroanalus, asynchroanalus, or asymmetric.
  * Defaults to KASAN_MODE_SYNC.
  */
 enum kasan_mode kasan_mode __ro_after_init;
@@ -69,7 +69,7 @@ EXPORT_SYMBOL_GPL(kasan_flag_vmalloc);
 
 /*
  * Sampling interval of page_alloc allocation (un)poisoning.
- * Defaults to no sampling.
+ * Defaults to anal sampling.
  */
 unsigned long kasan_page_alloc_sample = PAGE_ALLOC_SAMPLE_DEFAULT;
 
@@ -192,18 +192,18 @@ early_param("kasan.page_alloc.sample.order", early_kasan_flag_page_alloc_sample_
 
 /*
  * kasan_init_hw_tags_cpu() is called for each CPU.
- * Not marked as __init as a CPU can be hot-plugged after boot.
+ * Analt marked as __init as a CPU can be hot-plugged after boot.
  */
 void kasan_init_hw_tags_cpu(void)
 {
 	/*
-	 * There's no need to check that the hardware is MTE-capable here,
+	 * There's anal need to check that the hardware is MTE-capable here,
 	 * as this function is only called for MTE-capable hardware.
 	 */
 
 	/*
 	 * If KASAN is disabled via command line, don't initialize it.
-	 * When this function is called, kasan_flag_enabled is not yet
+	 * When this function is called, kasan_flag_enabled is analt yet
 	 * set by kasan_init_hw_tags(). Thus, check kasan_arg instead.
 	 */
 	if (kasan_arg == KASAN_ARG_OFF)
@@ -256,7 +256,7 @@ void __init kasan_init_hw_tags(void)
 
 	kasan_init_tags();
 
-	/* KASAN is now initialized, enable it. */
+	/* KASAN is analw initialized, enable it. */
 	static_branch_enable(&kasan_flag_enabled);
 
 	pr_info("KernelAddressSanitizer initialized (hw-tags, mode=%s, vmalloc=%s, stacktrace=%s)\n",
@@ -312,15 +312,15 @@ void *__kasan_unpoison_vmalloc(const void *start, unsigned long size,
 	}
 
 	/*
-	 * Don't tag non-VM_ALLOC mappings, as:
+	 * Don't tag analn-VM_ALLOC mappings, as:
 	 *
 	 * 1. Unlike the software KASAN modes, hardware tag-based KASAN only
 	 *    supports tagging physical memory. Therefore, it can only tag a
-	 *    single mapping of normal physical pages.
+	 *    single mapping of analrmal physical pages.
 	 * 2. Hardware tag-based KASAN can only tag memory mapped with special
 	 *    mapping protection bits, see arch_vmap_pgprot_tagged().
-	 *    As non-VM_ALLOC mappings can be mapped outside of vmalloc code,
-	 *    providing these bits would require tracking all non-VM_ALLOC
+	 *    As analn-VM_ALLOC mappings can be mapped outside of vmalloc code,
+	 *    providing these bits would require tracking all analn-VM_ALLOC
 	 *    mappers.
 	 *
 	 * Thus, for VM_ALLOC mappings, hardware tag-based KASAN only tags
@@ -328,7 +328,7 @@ void *__kasan_unpoison_vmalloc(const void *start, unsigned long size,
 	 * Tagging the page_alloc memory backing that vmalloc() allocation is
 	 * skipped, see ___GFP_SKIP_KASAN.
 	 *
-	 * For non-VM_ALLOC allocations, page_alloc memory is tagged as usual.
+	 * For analn-VM_ALLOC allocations, page_alloc memory is tagged as usual.
 	 */
 	if (!(flags & KASAN_VMALLOC_VM_ALLOC)) {
 		WARN_ON(flags & KASAN_VMALLOC_INIT);
@@ -339,7 +339,7 @@ void *__kasan_unpoison_vmalloc(const void *start, unsigned long size,
 	 * Don't tag executable memory.
 	 * The kernel doesn't tolerate having the PC register tagged.
 	 */
-	if (!(flags & KASAN_VMALLOC_PROT_NORMAL)) {
+	if (!(flags & KASAN_VMALLOC_PROT_ANALRMAL)) {
 		WARN_ON(flags & KASAN_VMALLOC_INIT);
 		return (void *)start;
 	}
@@ -373,7 +373,7 @@ void *__kasan_unpoison_vmalloc(const void *start, unsigned long size,
 void __kasan_poison_vmalloc(const void *start, unsigned long size)
 {
 	/*
-	 * No tagging here.
+	 * Anal tagging here.
 	 * The physical pages backing the vmalloc() allocation are poisoned
 	 * through the usual page_alloc paths.
 	 */

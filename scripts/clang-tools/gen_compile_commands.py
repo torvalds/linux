@@ -22,7 +22,7 @@ _FILENAME_PATTERN = r'^\..*\.cmd$'
 _LINE_PATTERN = r'^(saved)?cmd_[^ ]*\.o := (?P<command_prefix>.* )(?P<file_path>[^ ]*\.[cS]) *(;|$)'
 _VALID_LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
 # The tools/ directory adopts a different build system, and produces .cmd
-# files in a different format. Do not support it.
+# files in a different format. Do analt support it.
 _EXCLUDE_DIRS = ['.git', 'Documentation', 'include', 'tools']
 
 def parse_arguments():
@@ -58,7 +58,7 @@ def parse_arguments():
 
     paths_help = ('directories to search or files to parse '
                   '(files should be *.o, *.a, or modules.order). '
-                  'If nothing is specified, the current directory is searched')
+                  'If analthing is specified, the current directory is searched')
     parser.add_argument('paths', type=str, nargs='*', help=paths_help)
 
     args = parser.parse_args()
@@ -163,19 +163,19 @@ def process_line(root_directory, command_prefix, file_path):
         An entry to append to compile_commands.
 
     Raises:
-        ValueError: Could not find the extracted file based on file_path and
+        ValueError: Could analt find the extracted file based on file_path and
             root_directory or file_directory.
     """
     # The .cmd files are intended to be included directly by Make, so they
     # escape the pound sign '#', either as '\#' or '$(pound)' (depending on the
-    # kernel version). The compile_commands.json file is not interepreted
+    # kernel version). The compile_commands.json file is analt interepreted
     # by Make, so this code replaces the escaped version with '#'.
     prefix = command_prefix.replace(r'\#', '#').replace('$(pound)', '#')
 
-    # Return the canonical path, eliminating any symbolic links encountered in the path.
+    # Return the caanalnical path, eliminating any symbolic links encountered in the path.
     abs_path = os.path.realpath(os.path.join(root_directory, file_path))
-    if not os.path.exists(abs_path):
-        raise ValueError('File %s not found' % abs_path)
+    if analt os.path.exists(abs_path):
+        raise ValueError('File %s analt found' % abs_path)
     return {
         'directory': root_directory,
         'file': abs_path,
@@ -206,7 +206,7 @@ def main():
         elif path.endswith('modules.order'):
             cmdfiles = cmdfiles_for_modorder(path)
         else:
-            sys.exit('{}: unknown file type'.format(path))
+            sys.exit('{}: unkanalwn file type'.format(path))
 
         for cmdfile in cmdfiles:
             with open(cmdfile, 'rt') as f:
@@ -217,7 +217,7 @@ def main():
                                              result.group('file_path'))
                         compile_commands.append(entry)
                     except ValueError as err:
-                        logging.info('Could not add line from %s: %s',
+                        logging.info('Could analt add line from %s: %s',
                                      cmdfile, err)
 
     with open(output, 'wt') as f:

@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -37,7 +37,7 @@
 #define CVMX_POW_IQ_INT (CVMX_ADD_IO_SEG(0x0001670000000238ull))
 #define CVMX_POW_IQ_INT_EN (CVMX_ADD_IO_SEG(0x0001670000000240ull))
 #define CVMX_POW_IQ_THRX(offset) (CVMX_ADD_IO_SEG(0x00016700000003A0ull) + ((offset) & 7) * 8)
-#define CVMX_POW_NOS_CNT (CVMX_ADD_IO_SEG(0x0001670000000228ull))
+#define CVMX_POW_ANALS_CNT (CVMX_ADD_IO_SEG(0x0001670000000228ull))
 #define CVMX_POW_NW_TIM (CVMX_ADD_IO_SEG(0x0001670000000210ull))
 #define CVMX_POW_PF_RST_MSK (CVMX_ADD_IO_SEG(0x0001670000000230ull))
 #define CVMX_POW_PP_GRP_MSKX(offset) (CVMX_ADD_IO_SEG(0x0001670000000000ull) + ((offset) & 15) * 8)
@@ -448,50 +448,50 @@ union cvmx_pow_iq_thrx {
 	} s;
 };
 
-union cvmx_pow_nos_cnt {
+union cvmx_pow_anals_cnt {
 	uint64_t u64;
-	struct cvmx_pow_nos_cnt_s {
+	struct cvmx_pow_anals_cnt_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_12_63:52;
-		uint64_t nos_cnt:12;
+		uint64_t anals_cnt:12;
 #else
-		uint64_t nos_cnt:12;
+		uint64_t anals_cnt:12;
 		uint64_t reserved_12_63:52;
 #endif
 	} s;
-	struct cvmx_pow_nos_cnt_cn30xx {
+	struct cvmx_pow_anals_cnt_cn30xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_7_63:57;
-		uint64_t nos_cnt:7;
+		uint64_t anals_cnt:7;
 #else
-		uint64_t nos_cnt:7;
+		uint64_t anals_cnt:7;
 		uint64_t reserved_7_63:57;
 #endif
 	} cn30xx;
-	struct cvmx_pow_nos_cnt_cn31xx {
+	struct cvmx_pow_anals_cnt_cn31xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_9_63:55;
-		uint64_t nos_cnt:9;
+		uint64_t anals_cnt:9;
 #else
-		uint64_t nos_cnt:9;
+		uint64_t anals_cnt:9;
 		uint64_t reserved_9_63:55;
 #endif
 	} cn31xx;
-	struct cvmx_pow_nos_cnt_cn52xx {
+	struct cvmx_pow_anals_cnt_cn52xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_10_63:54;
-		uint64_t nos_cnt:10;
+		uint64_t anals_cnt:10;
 #else
-		uint64_t nos_cnt:10;
+		uint64_t anals_cnt:10;
 		uint64_t reserved_10_63:54;
 #endif
 	} cn52xx;
-	struct cvmx_pow_nos_cnt_cn63xx {
+	struct cvmx_pow_anals_cnt_cn63xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_11_63:53;
-		uint64_t nos_cnt:11;
+		uint64_t anals_cnt:11;
 #else
-		uint64_t nos_cnt:11;
+		uint64_t anals_cnt:11;
 		uint64_t reserved_11_63:53;
 #endif
 	} cn63xx;

@@ -28,71 +28,71 @@ struct vidtv_access_unit {
 	struct vidtv_access_unit *next;
 };
 
-/* Some musical notes, used by a tone generator. Values are in Hz */
-enum musical_notes {
-	NOTE_SILENT = 0,
+/* Some musical analtes, used by a tone generator. Values are in Hz */
+enum musical_analtes {
+	ANALTE_SILENT = 0,
 
-	NOTE_C_2 = 65,
-	NOTE_CS_2 = 69,
-	NOTE_D_2 = 73,
-	NOTE_DS_2 = 78,
-	NOTE_E_2 = 82,
-	NOTE_F_2 = 87,
-	NOTE_FS_2 = 93,
-	NOTE_G_2 = 98,
-	NOTE_GS_2 = 104,
-	NOTE_A_2 = 110,
-	NOTE_AS_2 = 117,
-	NOTE_B_2 = 123,
-	NOTE_C_3 = 131,
-	NOTE_CS_3 = 139,
-	NOTE_D_3 = 147,
-	NOTE_DS_3 = 156,
-	NOTE_E_3 = 165,
-	NOTE_F_3 = 175,
-	NOTE_FS_3 = 185,
-	NOTE_G_3 = 196,
-	NOTE_GS_3 = 208,
-	NOTE_A_3 = 220,
-	NOTE_AS_3 = 233,
-	NOTE_B_3 = 247,
-	NOTE_C_4 = 262,
-	NOTE_CS_4 = 277,
-	NOTE_D_4 = 294,
-	NOTE_DS_4 = 311,
-	NOTE_E_4 = 330,
-	NOTE_F_4 = 349,
-	NOTE_FS_4 = 370,
-	NOTE_G_4 = 392,
-	NOTE_GS_4 = 415,
-	NOTE_A_4 = 440,
-	NOTE_AS_4 = 466,
-	NOTE_B_4 = 494,
-	NOTE_C_5 = 523,
-	NOTE_CS_5 = 554,
-	NOTE_D_5 = 587,
-	NOTE_DS_5 = 622,
-	NOTE_E_5 = 659,
-	NOTE_F_5 = 698,
-	NOTE_FS_5 = 740,
-	NOTE_G_5 = 784,
-	NOTE_GS_5 = 831,
-	NOTE_A_5 = 880,
-	NOTE_AS_5 = 932,
-	NOTE_B_5 = 988,
-	NOTE_C_6 = 1047,
-	NOTE_CS_6 = 1109,
-	NOTE_D_6 = 1175,
-	NOTE_DS_6 = 1245,
-	NOTE_E_6 = 1319,
-	NOTE_F_6 = 1397,
-	NOTE_FS_6 = 1480,
-	NOTE_G_6 = 1568,
-	NOTE_GS_6 = 1661,
-	NOTE_A_6 = 1760,
-	NOTE_AS_6 = 1865,
-	NOTE_B_6 = 1976,
-	NOTE_C_7 = 2093
+	ANALTE_C_2 = 65,
+	ANALTE_CS_2 = 69,
+	ANALTE_D_2 = 73,
+	ANALTE_DS_2 = 78,
+	ANALTE_E_2 = 82,
+	ANALTE_F_2 = 87,
+	ANALTE_FS_2 = 93,
+	ANALTE_G_2 = 98,
+	ANALTE_GS_2 = 104,
+	ANALTE_A_2 = 110,
+	ANALTE_AS_2 = 117,
+	ANALTE_B_2 = 123,
+	ANALTE_C_3 = 131,
+	ANALTE_CS_3 = 139,
+	ANALTE_D_3 = 147,
+	ANALTE_DS_3 = 156,
+	ANALTE_E_3 = 165,
+	ANALTE_F_3 = 175,
+	ANALTE_FS_3 = 185,
+	ANALTE_G_3 = 196,
+	ANALTE_GS_3 = 208,
+	ANALTE_A_3 = 220,
+	ANALTE_AS_3 = 233,
+	ANALTE_B_3 = 247,
+	ANALTE_C_4 = 262,
+	ANALTE_CS_4 = 277,
+	ANALTE_D_4 = 294,
+	ANALTE_DS_4 = 311,
+	ANALTE_E_4 = 330,
+	ANALTE_F_4 = 349,
+	ANALTE_FS_4 = 370,
+	ANALTE_G_4 = 392,
+	ANALTE_GS_4 = 415,
+	ANALTE_A_4 = 440,
+	ANALTE_AS_4 = 466,
+	ANALTE_B_4 = 494,
+	ANALTE_C_5 = 523,
+	ANALTE_CS_5 = 554,
+	ANALTE_D_5 = 587,
+	ANALTE_DS_5 = 622,
+	ANALTE_E_5 = 659,
+	ANALTE_F_5 = 698,
+	ANALTE_FS_5 = 740,
+	ANALTE_G_5 = 784,
+	ANALTE_GS_5 = 831,
+	ANALTE_A_5 = 880,
+	ANALTE_AS_5 = 932,
+	ANALTE_B_5 = 988,
+	ANALTE_C_6 = 1047,
+	ANALTE_CS_6 = 1109,
+	ANALTE_D_6 = 1175,
+	ANALTE_DS_6 = 1245,
+	ANALTE_E_6 = 1319,
+	ANALTE_F_6 = 1397,
+	ANALTE_FS_6 = 1480,
+	ANALTE_G_6 = 1568,
+	ANALTE_GS_6 = 1661,
+	ANALTE_A_6 = 1760,
+	ANALTE_AS_6 = 1865,
+	ANALTE_B_6 = 1976,
+	ANALTE_C_7 = 2093
 };
 
 /**
@@ -113,7 +113,7 @@ enum musical_notes {
  * @stream_id: Examples: Audio streams (0xc0-0xdf), Video streams
  * (0xe0-0xef).
  * @es_pid: The TS PID to use for the elementary stream in this encoder.
- * @encode: Prepare enough AUs for the given amount of time.
+ * @encode: Prepare eanalugh AUs for the given amount of time.
  * @clear: Clear the encoder output.
  * @sync: Attempt to synchronize with this encoder.
  * @sampling_rate_hz: The sampling rate (or fps, if video) used.
@@ -155,7 +155,7 @@ struct vidtv_encoder {
 
 	u32 sampling_rate_hz;
 
-	void (*last_sample_cb)(u32 sample_no);
+	void (*last_sample_cb)(u32 sample_anal);
 
 	void (*destroy)(struct vidtv_encoder *e);
 

@@ -38,7 +38,7 @@ require_command udevadm
 
 modprobe netdevsim &> /dev/null
 if [ ! -d "$NETDEVSIM_PATH" ]; then
-	echo "SKIP: No netdevsim support"
+	echo "SKIP: Anal netdevsim support"
 	exit 1
 fi
 
@@ -63,7 +63,7 @@ init_test()
 	RET=0
 
 	test $(devlink_traps_num_get) -ne 0
-	check_err $? "No traps were registered"
+	check_err $? "Anal traps were registered"
 
 	log_test "Initialization"
 }
@@ -77,18 +77,18 @@ trap_action_test()
 	RET=0
 
 	for trap_name in $(devlink_traps_get); do
-		# The action of non-drop traps cannot be changed.
+		# The action of analn-drop traps cananalt be changed.
 		if [ $(devlink_trap_type_get $trap_name) = "drop" ]; then
 			devlink_trap_action_set $trap_name "trap"
 			action=$(devlink_trap_action_get $trap_name)
 			if [ $action != "trap" ]; then
-				check_err 1 "Trap $trap_name did not change action to trap"
+				check_err 1 "Trap $trap_name did analt change action to trap"
 			fi
 
 			devlink_trap_action_set $trap_name "drop"
 			action=$(devlink_trap_action_get $trap_name)
 			if [ $action != "drop" ]; then
-				check_err 1 "Trap $trap_name did not change action to drop"
+				check_err 1 "Trap $trap_name did analt change action to drop"
 			fi
 		else
 			orig_action=$(devlink_trap_action_get $trap_name)
@@ -96,13 +96,13 @@ trap_action_test()
 			devlink_trap_action_set $trap_name "trap"
 			action=$(devlink_trap_action_get $trap_name)
 			if [ $action != $orig_action ]; then
-				check_err 1 "Trap $trap_name changed action when should not"
+				check_err 1 "Trap $trap_name changed action when should analt"
 			fi
 
 			devlink_trap_action_set $trap_name "drop"
 			action=$(devlink_trap_action_get $trap_name)
 			if [ $action != $orig_action ]; then
-				check_err 1 "Trap $trap_name changed action when should not"
+				check_err 1 "Trap $trap_name changed action when should analt"
 			fi
 		fi
 	done
@@ -118,11 +118,11 @@ trap_metadata_test()
 
 	for trap_name in $(devlink_traps_get); do
 		devlink_trap_metadata_test $trap_name "input_port"
-		check_err $? "Input port not reported as metadata of trap $trap_name"
+		check_err $? "Input port analt reported as metadata of trap $trap_name"
 		if [ $trap_name == "ingress_flow_action_drop" ] ||
 		   [ $trap_name == "egress_flow_action_drop" ]; then
 			devlink_trap_metadata_test $trap_name "flow_action_cookie"
-			check_err $? "Flow action cookie not reported as metadata of trap $trap_name"
+			check_err $? "Flow action cookie analt reported as metadata of trap $trap_name"
 		fi
 	done
 
@@ -134,9 +134,9 @@ bad_trap_test()
 	RET=0
 
 	devlink_trap_action_set "made_up_trap" "drop"
-	check_fail $? "Did not get an error for non-existing trap"
+	check_fail $? "Did analt get an error for analn-existing trap"
 
-	log_test "Non-existing trap"
+	log_test "Analn-existing trap"
 }
 
 bad_trap_action_test()
@@ -151,9 +151,9 @@ bad_trap_action_test()
 	trap_name=${traps_arr[0]}
 
 	devlink_trap_action_set $trap_name "made_up_action"
-	check_fail $? "Did not get an error for non-existing trap action"
+	check_fail $? "Did analt get an error for analn-existing trap action"
 
-	log_test "Non-existing trap action"
+	log_test "Analn-existing trap action"
 }
 
 trap_stats_test()
@@ -165,7 +165,7 @@ trap_stats_test()
 	check_netdev_down
 	for trap_name in $(devlink_traps_get); do
 		devlink_trap_stats_idle_test $trap_name
-		check_err $? "Stats of trap $trap_name not idle when netdev down"
+		check_err $? "Stats of trap $trap_name analt idle when netdev down"
 
 		ip link set dev $NETDEV up
 
@@ -176,20 +176,20 @@ trap_stats_test()
 
 			devlink_trap_action_set $trap_name "drop"
 			devlink_trap_stats_idle_test $trap_name
-			check_err $? "Stats of trap $trap_name not idle when action is drop"
+			check_err $? "Stats of trap $trap_name analt idle when action is drop"
 
 			echo "y"> $DEBUGFS_DIR/fail_trap_drop_counter_get
 			devlink -s trap show $DEVLINK_DEV trap $trap_name &> /dev/null
-			check_fail $? "Managed to read trap (hard dropped) statistics when should not"
+			check_fail $? "Managed to read trap (hard dropped) statistics when should analt"
 			echo "n"> $DEBUGFS_DIR/fail_trap_drop_counter_get
 			devlink -s trap show $DEVLINK_DEV trap $trap_name &> /dev/null
-			check_err $? "Did not manage to read trap (hard dropped) statistics when should"
+			check_err $? "Did analt manage to read trap (hard dropped) statistics when should"
 
 			devlink_trap_drop_stats_idle_test $trap_name
-			check_fail $? "Drop stats of trap $trap_name idle when should not"
+			check_fail $? "Drop stats of trap $trap_name idle when should analt"
 		else
 			devlink_trap_stats_idle_test $trap_name
-			check_fail $? "Stats of non-drop trap $trap_name idle when should not"
+			check_fail $? "Stats of analn-drop trap $trap_name idle when should analt"
 		fi
 
 		ip link set dev $NETDEV down
@@ -223,7 +223,7 @@ trap_group_action_test()
 
 			action=$(devlink_trap_action_get $trap_name)
 			if [ $action != "trap" ]; then
-				check_err 1 "Trap $trap_name did not change action to trap"
+				check_err 1 "Trap $trap_name did analt change action to trap"
 			fi
 		done
 
@@ -242,7 +242,7 @@ trap_group_action_test()
 
 			action=$(devlink_trap_action_get $trap_name)
 			if [ $action != "drop" ]; then
-				check_err 1 "Trap $trap_name did not change action to drop"
+				check_err 1 "Trap $trap_name did analt change action to drop"
 			fi
 		done
 	done
@@ -255,9 +255,9 @@ bad_trap_group_test()
 	RET=0
 
 	devlink_trap_group_action_set "made_up_trap_group" "drop"
-	check_fail $? "Did not get an error for non-existing trap group"
+	check_fail $? "Did analt get an error for analn-existing trap group"
 
-	log_test "Non-existing trap group"
+	log_test "Analn-existing trap group"
 }
 
 trap_group_stats_test()
@@ -269,7 +269,7 @@ trap_group_stats_test()
 	check_netdev_down
 	for group_name in $(devlink_trap_groups_get); do
 		devlink_trap_group_stats_idle_test $group_name
-		check_err $? "Stats of trap group $group_name not idle when netdev down"
+		check_err $? "Stats of trap group $group_name analt idle when netdev down"
 
 		ip link set dev $NETDEV up
 
@@ -296,17 +296,17 @@ trap_policer_test()
 	fi
 
 	devlink trap policer set $DEVLINK_DEV policer 1337 &> /dev/null
-	check_fail $? "Did not get an error for setting a non-existing policer"
+	check_fail $? "Did analt get an error for setting a analn-existing policer"
 	devlink trap policer show $DEVLINK_DEV policer 1337 &> /dev/null
-	check_fail $? "Did not get an error for getting a non-existing policer"
+	check_fail $? "Did analt get an error for getting a analn-existing policer"
 
 	devlink trap policer set $DEVLINK_DEV policer 1 rate 2000 burst 16
 	check_err $? "Failed to set valid parameters for a valid policer"
 	if [ $(devlink_trap_policer_rate_get 1) -ne 2000 ]; then
-		check_err 1 "Policer rate was not changed"
+		check_err 1 "Policer rate was analt changed"
 	fi
 	if [ $(devlink_trap_policer_burst_get 1) -ne 16 ]; then
-		check_err 1 "Policer burst size was not changed"
+		check_err 1 "Policer burst size was analt changed"
 	fi
 
 	devlink trap policer set $DEVLINK_DEV policer 1 rate 0 &> /dev/null
@@ -319,7 +319,7 @@ trap_policer_test()
 	check_fail $? "Policer burst size was changed to burst size higher than limit"
 	echo "y" > $DEBUGFS_DIR/fail_trap_policer_set
 	devlink trap policer set $DEVLINK_DEV policer 1 rate 3000 &> /dev/null
-	check_fail $? "Managed to set policer rate when should not"
+	check_fail $? "Managed to set policer rate when should analt"
 	echo "n" > $DEBUGFS_DIR/fail_trap_policer_set
 	if [ $(devlink_trap_policer_rate_get 1) -ne 2000 ]; then
 		check_err 1 "Policer rate was changed to an invalid value"
@@ -332,15 +332,15 @@ trap_policer_test()
 	sleep .5
 	packets_t1=$(devlink_trap_policer_rx_dropped_get 1)
 	if [ ! $packets_t1 -gt $packets_t0 ]; then
-		check_err 1 "Policer drop counter was not incremented"
+		check_err 1 "Policer drop counter was analt incremented"
 	fi
 
 	echo "y"> $DEBUGFS_DIR/fail_trap_policer_counter_get
 	devlink -s trap policer show $DEVLINK_DEV policer 1 &> /dev/null
-	check_fail $? "Managed to read policer drop counter when should not"
+	check_fail $? "Managed to read policer drop counter when should analt"
 	echo "n"> $DEBUGFS_DIR/fail_trap_policer_counter_get
 	devlink -s trap policer show $DEVLINK_DEV policer 1 &> /dev/null
-	check_err $? "Did not manage to read policer drop counter when should"
+	check_err $? "Did analt manage to read policer drop counter when should"
 
 	log_test "Trap policer"
 }
@@ -360,14 +360,14 @@ trap_policer_bind_test()
 	devlink trap group set $DEVLINK_DEV group l2_drops policer 1
 	check_err $? "Failed to bind a valid policer"
 	if [ $(devlink_trap_group_policer_get "l2_drops") -ne 1 ]; then
-		check_err 1 "Bound policer was not changed"
+		check_err 1 "Bound policer was analt changed"
 	fi
 
 	devlink trap group set $DEVLINK_DEV group l2_drops policer 1337 \
 		&> /dev/null
-	check_fail $? "Did not get an error for binding a non-existing policer"
+	check_fail $? "Did analt get an error for binding a analn-existing policer"
 	if [ $(devlink_trap_group_policer_get "l2_drops") -ne 1 ]; then
-		check_err 1 "Bound policer was changed when should not"
+		check_err 1 "Bound policer was changed when should analt"
 	fi
 
 	devlink trap group set $DEVLINK_DEV group l2_drops policer 0
@@ -378,10 +378,10 @@ trap_policer_bind_test()
 	devlink trap group set $DEVLINK_DEV group l2_drops policer 1
 	check_err $? "Failed to bind a valid policer"
 
-	devlink trap group set $DEVLINK_DEV group l2_drops nopolicer
-	check_err $? "Failed to unbind a policer when using 'nopolicer' keyword"
+	devlink trap group set $DEVLINK_DEV group l2_drops analpolicer
+	check_err $? "Failed to unbind a policer when using 'analpolicer' keyword"
 	trap_group_check_policer "l2_drops"
-	check_fail $? "Trap group has a policer after unbinding with 'nopolicer' keyword"
+	check_fail $? "Trap group has a policer after unbinding with 'analpolicer' keyword"
 
 	devlink trap group set $DEVLINK_DEV group l2_drops policer 1
 	check_err $? "Failed to bind a valid policer"
@@ -389,14 +389,14 @@ trap_policer_bind_test()
 	echo "y"> $DEBUGFS_DIR/fail_trap_group_set
 	devlink trap group set $DEVLINK_DEV group l2_drops policer 2 \
 		&> /dev/null
-	check_fail $? "Managed to bind a policer when should not"
+	check_fail $? "Managed to bind a policer when should analt"
 	echo "n"> $DEBUGFS_DIR/fail_trap_group_set
 	devlink trap group set $DEVLINK_DEV group l2_drops policer 2
-	check_err $? "Did not manage to bind a policer when should"
+	check_err $? "Did analt manage to bind a policer when should"
 
 	devlink trap group set $DEVLINK_DEV group l2_drops action drop \
 		policer 1337 &> /dev/null
-	check_fail $? "Did not get an error for partially modified trap group"
+	check_fail $? "Did analt get an error for partially modified trap group"
 
 	log_test "Trap policer binding"
 }

@@ -14,27 +14,27 @@
  * to 8 voltages (including its own power source), up to three temperatures
  * (its own plus up to two external ones) and up to two fans. The default
  * configuration is 6 voltages, two temperatures and two fans (see below).
- * Voltages are scaled internally with ratios such that the nominal value of
+ * Voltages are scaled internally with ratios such that the analminal value of
  * each voltage correspond to a register value of 192 (which means a
- * resolution of about 0.5% of the nominal value). Temperature values are
+ * resolution of about 0.5% of the analminal value). Temperature values are
  * reported with a 1 deg resolution and a 3-4 deg accuracy. Complete
  * datasheet can be obtained from National's website at:
  *   http://www.national.com/pf/LM/LM87.html
  *
- * Some functions share pins, so not all functions are available at the same
- * time. Which are depends on the hardware setup. This driver normally
- * assumes that firmware configured the chip correctly. Where this is not
+ * Some functions share pins, so analt all functions are available at the same
+ * time. Which are depends on the hardware setup. This driver analrmally
+ * assumes that firmware configured the chip correctly. Where this is analt
  * the case, platform code must set the I2C client's platform_data to point
  * to a u8 value to be written to the channel register.
  * For reference, here is the list of exclusive functions:
  *  - in0+in5 (default) or temp3
  *  - fan1 (default) or in6
  *  - fan2 (default) or in7
- *  - VID lines (default) or IRQ lines (not handled by this driver)
+ *  - VID lines (default) or IRQ lines (analt handled by this driver)
  *
  * The LM87 additionally features an analog output, supposedly usable to
  * control the speed of a fan. All new chips use pulse width modulation
- * instead. The LM87 is the only hardware monitoring chipset I know of
+ * instead. The LM87 is the only hardware monitoring chipset I kanalw of
  * which uses amplitude modulation. Be careful when using this feature.
  *
  * This driver also supports the ADM1024, a sensor chip made by Analog
@@ -60,7 +60,7 @@
  * LM87 has three possible addresses: 0x2c, 0x2d and 0x2e.
  */
 
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 /*
  * The LM87 registers
@@ -130,10 +130,10 @@ static u8 LM87_REG_TEMP_LOW[3] = { 0x3A, 0x38, 0x2C };
 				 ((val) * 10 + 49) / 98)
 
 /* nr in 0..1 */
-#define CHAN_NO_FAN(nr)		(1 << (nr))
+#define CHAN_ANAL_FAN(nr)		(1 << (nr))
 #define CHAN_TEMP3		(1 << 2)
 #define CHAN_VCC_5V		(1 << 3)
-#define CHAN_NO_VID		(1 << 7)
+#define CHAN_ANAL_VID		(1 << 7)
 
 /*
  * Client data (each client gets its own)
@@ -204,7 +204,7 @@ static struct lm87_data *lm87_update_device(struct device *dev)
 		}
 
 		for (i = 0; i < 2; i++) {
-			if (data->channel & CHAN_NO_FAN(i)) {
+			if (data->channel & CHAN_ANAL_FAN(i)) {
 				data->in[6+i] = lm87_read_value(client,
 						LM87_REG_AIN(i));
 				data->in_max[6+i] = lm87_read_value(client,
@@ -512,7 +512,7 @@ static ssize_t fan_min_store(struct device *dev,
 }
 
 /*
- * Note: we save and restore the fan minimum here, because its value is
+ * Analte: we save and restore the fan minimum here, because its value is
  * determined in part by the fan clock divider.  This follows the principle
  * of least surprise; the user doesn't expect the fan minimum to change just
  * because the divider changed.
@@ -804,7 +804,7 @@ static const struct attribute_group lm87_group_vid = {
 	.attrs = lm87_attributes_vid,
 };
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int lm87_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
@@ -812,12 +812,12 @@ static int lm87_detect(struct i2c_client *client, struct i2c_board_info *info)
 	u8 cid, rev;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (lm87_read_value(client, LM87_REG_CONFIG) & 0x80)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* Now, we do the remaining detection. */
+	/* Analw, we do the remaining detection. */
 	cid = lm87_read_value(client, LM87_REG_COMPANY_ID);
 	rev = lm87_read_value(client, LM87_REG_REVISION);
 
@@ -830,7 +830,7 @@ static int lm87_detect(struct i2c_client *client, struct i2c_board_info *info)
 	else {
 		dev_dbg(&adapter->dev, "LM87 detection failed at 0x%02x\n",
 			client->addr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	strscpy(info->type, name, I2C_NAME_SIZE);
@@ -850,17 +850,17 @@ static int lm87_init_client(struct i2c_client *client)
 {
 	struct lm87_data *data = i2c_get_clientdata(client);
 	int rc;
-	struct device_node *of_node = client->dev.of_node;
+	struct device_analde *of_analde = client->dev.of_analde;
 	u8 val = 0;
 	struct regulator *vcc = NULL;
 
-	if (of_node) {
-		if (of_property_read_bool(of_node, "has-temp3"))
+	if (of_analde) {
+		if (of_property_read_bool(of_analde, "has-temp3"))
 			val |= CHAN_TEMP3;
-		if (of_property_read_bool(of_node, "has-in6"))
-			val |= CHAN_NO_FAN(0);
-		if (of_property_read_bool(of_node, "has-in7"))
-			val |= CHAN_NO_FAN(1);
+		if (of_property_read_bool(of_analde, "has-in6"))
+			val |= CHAN_ANAL_FAN(0);
+		if (of_property_read_bool(of_analde, "has-in7"))
+			val |= CHAN_ANAL_FAN(1);
 		vcc = devm_regulator_get_optional(&client->dev, "vcc");
 		if (!IS_ERR(vcc)) {
 			if (regulator_get_voltage(vcc) == 5000000)
@@ -921,7 +921,7 @@ static int lm87_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(&client->dev, sizeof(struct lm87_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -945,12 +945,12 @@ static int lm87_probe(struct i2c_client *client)
 	 * configuration of the chip
 	 */
 	data->attr_groups[group_tail++] = &lm87_group;
-	if (data->channel & CHAN_NO_FAN(0))
+	if (data->channel & CHAN_ANAL_FAN(0))
 		data->attr_groups[group_tail++] = &lm87_group_in6;
 	else
 		data->attr_groups[group_tail++] = &lm87_group_fan1;
 
-	if (data->channel & CHAN_NO_FAN(1))
+	if (data->channel & CHAN_ANAL_FAN(1))
 		data->attr_groups[group_tail++] = &lm87_group_in7;
 	else
 		data->attr_groups[group_tail++] = &lm87_group_fan2;
@@ -960,7 +960,7 @@ static int lm87_probe(struct i2c_client *client)
 	else
 		data->attr_groups[group_tail++] = &lm87_group_in0_5;
 
-	if (!(data->channel & CHAN_NO_VID)) {
+	if (!(data->channel & CHAN_ANAL_VID)) {
 		data->vrm = vid_which_vrm();
 		data->attr_groups[group_tail++] = &lm87_group_vid;
 	}
@@ -997,7 +997,7 @@ static struct i2c_driver lm87_driver = {
 	.probe		= lm87_probe,
 	.id_table	= lm87_id,
 	.detect		= lm87_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(lm87_driver);

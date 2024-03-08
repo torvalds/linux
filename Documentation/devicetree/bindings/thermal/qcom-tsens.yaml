@@ -14,7 +14,7 @@ description: |
   QCOM SoCs have TSENS IP to allow temperature measurement. There are currently
   three distinct major versions of the IP that is supported by a single driver.
   The IP versions are named v0.1, v1 and v2 in the driver, where v0.1 captures
-  everything before v1 when there was no versioning information.
+  everything before v1 when there was anal versioning information.
 
 properties:
   compatible:
@@ -97,7 +97,7 @@ properties:
       - minItems: 1
         maxItems: 2
         description:
-          Reference to an nvmem node for the calibration data
+          Reference to an nvmem analde for the calibration data
       - minItems: 5
         maxItems: 35
         description: |

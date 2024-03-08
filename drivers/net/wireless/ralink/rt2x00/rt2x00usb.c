@@ -22,7 +22,7 @@
 
 static bool rt2x00usb_check_usb_error(struct rt2x00_dev *rt2x00dev, int status)
 {
-	if (status == -ENODEV || status == -ENOENT)
+	if (status == -EANALDEV || status == -EANALENT)
 		return true;
 
 	if (!test_bit(DEVICE_STATE_STARTED, &rt2x00dev->flags))
@@ -56,7 +56,7 @@ int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
 	unsigned long expire = jiffies + msecs_to_jiffies(timeout);
 
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
-		return -ENODEV;
+		return -EANALDEV;
 
 	do {
 		status = usb_control_msg(usb_dev, pipe, request, requesttype,
@@ -93,8 +93,8 @@ int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
 	 * Check for Cache availability.
 	 */
 	if (unlikely(!rt2x00dev->csr.cache || buffer_length > CSR_CACHE_SIZE)) {
-		rt2x00_err(rt2x00dev, "CSR cache not available\n");
-		return -ENOMEM;
+		rt2x00_err(rt2x00dev, "CSR cache analt available\n");
+		return -EANALMEM;
 	}
 
 	if (requesttype == USB_VENDOR_REQUEST_OUT)
@@ -150,7 +150,7 @@ int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 	unsigned int i;
 
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < REGISTER_USB_BUSY_COUNT; i++) {
 		*reg = rt2x00usb_register_read_lock(rt2x00dev, offset);
@@ -232,17 +232,17 @@ EXPORT_SYMBOL_GPL(rt2x00usb_register_read_async);
 static void rt2x00usb_work_txdone_entry(struct queue_entry *entry)
 {
 	/*
-	 * If the transfer to hardware succeeded, it does not mean the
+	 * If the transfer to hardware succeeded, it does analt mean the
 	 * frame was send out correctly. It only means the frame
-	 * was successfully pushed to the hardware, we have no
-	 * way to determine the transmission status right now.
+	 * was successfully pushed to the hardware, we have anal
+	 * way to determine the transmission status right analw.
 	 * (Only indirectly by looking at the failed TX counters
 	 * in the register).
 	 */
 	if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
-		rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
+		rt2x00lib_txdone_analinfo(entry, TXDONE_FAILURE);
 	else
-		rt2x00lib_txdone_noinfo(entry, TXDONE_UNKNOWN);
+		rt2x00lib_txdone_analinfo(entry, TXDONE_UNKANALWN);
 }
 
 static void rt2x00usb_work_txdone(struct work_struct *work)
@@ -307,7 +307,7 @@ static bool rt2x00usb_kick_tx_entry(struct queue_entry *entry, void *data)
 
 	/*
 	 * USB devices require certain padding at the end of each frame
-	 * and urb. Those paddings are not included in skbs. Pass entry
+	 * and urb. Those paddings are analt included in skbs. Pass entry
 	 * to the driver to determine what the overall length should be.
 	 */
 	length = rt2x00dev->ops->lib->get_tx_data_len(entry);
@@ -629,12 +629,12 @@ static int rt2x00usb_find_endpoints(struct rt2x00_dev *rt2x00dev)
 	 * At least 1 endpoint for RX and 1 endpoint for TX must be available.
 	 */
 	if (!rt2x00dev->rx->usb_endpoint || !rt2x00dev->tx->usb_endpoint) {
-		rt2x00_err(rt2x00dev, "Bulk-in/Bulk-out endpoints not found\n");
+		rt2x00_err(rt2x00dev, "Bulk-in/Bulk-out endpoints analt found\n");
 		return -EPIPE;
 	}
 
 	/*
-	 * It might be possible not all queues have a dedicated endpoint.
+	 * It might be possible analt all queues have a dedicated endpoint.
 	 * Loop through all TX queues and copy the endpoint information
 	 * which we have gathered from already assigned endpoints.
 	 */
@@ -657,12 +657,12 @@ static int rt2x00usb_alloc_entries(struct data_queue *queue)
 		entry_priv = queue->entries[i].priv_data;
 		entry_priv->urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!entry_priv->urb)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/*
-	 * If this is not the beacon queue or
-	 * no guardian byte was required for the beacon,
+	 * If this is analt the beacon queue or
+	 * anal guardian byte was required for the beacon,
 	 * then we are done.
 	 */
 	if (queue->qid != QID_BEACON ||
@@ -673,7 +673,7 @@ static int rt2x00usb_alloc_entries(struct data_queue *queue)
 		bcn_priv = queue->entries[i].priv_data;
 		bcn_priv->guardian_urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!bcn_priv->guardian_urb)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -696,8 +696,8 @@ static void rt2x00usb_free_entries(struct data_queue *queue)
 	}
 
 	/*
-	 * If this is not the beacon queue or
-	 * no guardian byte was required for the beacon,
+	 * If this is analt the beacon queue or
+	 * anal guardian byte was required for the beacon,
 	 * then we are done.
 	 */
 	if (queue->qid != QID_BEACON ||
@@ -791,7 +791,7 @@ exit:
 
 	rt2x00usb_free_reg(rt2x00dev);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int rt2x00usb_probe(struct usb_interface *usb_intf,
@@ -808,7 +808,7 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 	hw = ieee80211_alloc_hw(sizeof(struct rt2x00_dev), ops->hw);
 	if (!hw) {
 		rt2x00_probe_err("Failed to allocate hardware\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto exit_put_device;
 	}
 
@@ -823,7 +823,7 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 
 	INIT_WORK(&rt2x00dev->rxdone_work, rt2x00usb_work_rxdone);
 	INIT_WORK(&rt2x00dev->txdone_work, rt2x00usb_work_txdone);
-	hrtimer_init(&rt2x00dev->txstatus_timer, CLOCK_MONOTONIC,
+	hrtimer_init(&rt2x00dev->txstatus_timer, CLOCK_MOANALTONIC,
 		     HRTIMER_MODE_REL);
 
 	retval = rt2x00usb_alloc_reg(rt2x00dev);
@@ -834,7 +834,7 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 					sizeof(struct usb_anchor),
 					GFP_KERNEL);
 	if (!rt2x00dev->anchor) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto exit_free_reg;
 	}
 	init_usb_anchor(rt2x00dev->anchor);

@@ -18,7 +18,7 @@
 
 int  num_pkey;		/* Max number of pkeys supported */
 /*
- *  Keys marked in the reservation list cannot be allocated by  userspace
+ *  Keys marked in the reservation list cananalt be allocated by  userspace
  */
 u32 reserved_allocation_mask __ro_after_init;
 
@@ -48,19 +48,19 @@ static bool pkey_execute_disable_supported;
 #define PKEY_REG_BITS (sizeof(u64) * 8)
 #define pkeyshift(pkey) (PKEY_REG_BITS - ((pkey+1) * AMR_BITS_PER_PKEY))
 
-static int __init dt_scan_storage_keys(unsigned long node,
+static int __init dt_scan_storage_keys(unsigned long analde,
 				       const char *uname, int depth,
 				       void *data)
 {
-	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const char *type = of_get_flat_dt_prop(analde, "device_type", NULL);
 	const __be32 *prop;
 	int *pkeys_total = (int *) data;
 
-	/* We are scanning "cpu" nodes only */
+	/* We are scanning "cpu" analdes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
 
-	prop = of_get_flat_dt_prop(node, "ibm,processor-storage-keys", NULL);
+	prop = of_get_flat_dt_prop(analde, "ibm,processor-storage-keys", NULL);
 	if (!prop)
 		return 0;
 	*pkeys_total = be32_to_cpu(prop[0]);
@@ -73,7 +73,7 @@ static int __init scan_pkey_feature(void)
 	int pkeys_total = 0;
 
 	/*
-	 * Pkey is not supported with Radix translation.
+	 * Pkey is analt supported with Radix translation.
 	 */
 	if (early_radix_enabled())
 		return 0;
@@ -81,7 +81,7 @@ static int __init scan_pkey_feature(void)
 	ret = of_scan_flat_dt(dt_scan_storage_keys, &pkeys_total);
 	if (ret == 0) {
 		/*
-		 * Let's assume 32 pkeys on P8/P9 bare metal, if its not defined by device
+		 * Let's assume 32 pkeys on P8/P9 bare metal, if its analt defined by device
 		 * tree. We make this exception since some version of skiboot forgot to
 		 * expose this property on power8/9.
 		 */
@@ -144,7 +144,7 @@ void __init pkey_early_init_devtree(void)
 	cur_cpu_spec->mmu_features |= MMU_FTR_PKEY;
 
 	/*
-	 * The device tree cannot be relied to indicate support for
+	 * The device tree cananalt be relied to indicate support for
 	 * execute_disable support. Instead we use a PVR check.
 	 */
 	if (pvr_version_is(PVR_POWER7) || pvr_version_is(PVR_POWER7p))
@@ -170,7 +170,7 @@ void __init pkey_early_init_devtree(void)
 		execute_only_key = -1;
 	} else {
 		/*
-		 * Mark the execute_only_pkey as not available for
+		 * Mark the execute_only_pkey as analt available for
 		 * user allocation via pkey_alloc.
 		 */
 		reserved_allocation_mask |= (0x1 << execute_only_key);
@@ -223,8 +223,8 @@ void __init pkey_early_init_devtree(void)
 	initial_allocation_mask |= (0x1 << 0);
 
 	/*
-	 * key 1 is recommended not to be used. PowerISA(3.0) page 1015,
-	 * programming note.
+	 * key 1 is recommended analt to be used. PowerISA(3.0) page 1015,
+	 * programming analte.
 	 */
 	reserved_allocation_mask |= (0x1 << 1);
 	default_uamor &= ~(0x3ul << pkeyshift(1));
@@ -259,7 +259,7 @@ void setup_kuep(bool disabled)
 	if (disabled)
 		return;
 	/*
-	 * On hash if PKEY feature is not enabled, disable KUAP too.
+	 * On hash if PKEY feature is analt enabled, disable KUAP too.
 	 */
 	if (!early_radix_enabled() && !early_mmu_has_feature(MMU_FTR_PKEY))
 		return;
@@ -285,7 +285,7 @@ void setup_kuap(bool disabled)
 	if (disabled)
 		return;
 	/*
-	 * On hash if PKEY feature is not enabled, disable KUAP too.
+	 * On hash if PKEY feature is analt enabled, disable KUAP too.
 	 */
 	if (!early_radix_enabled() && !early_mmu_has_feature(MMU_FTR_PKEY))
 		return;
@@ -393,7 +393,7 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot,
 {
 	/*
 	 * If the currently associated pkey is execute-only, but the requested
-	 * protection is not execute-only, move it back to the default pkey.
+	 * protection is analt execute-only, move it back to the default pkey.
 	 */
 	if (vma_is_pkey_exec_only(vma) && (prot != PROT_EXEC))
 		return 0;
@@ -408,7 +408,7 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot,
 			return pkey;
 	}
 
-	/* Nothing to override. */
+	/* Analthing to override. */
 	return vma_pkey(vma);
 }
 
@@ -438,10 +438,10 @@ bool arch_pte_access_permitted(u64 pte, bool write, bool execute)
 
 /*
  * We only want to enforce protection keys on the current thread because we
- * effectively have no access to AMR/IAMR for other threads or any way to tell
+ * effectively have anal access to AMR/IAMR for other threads or any way to tell
  * which AMR/IAMR in a threaded process we could use.
  *
- * So do not enforce things if the VMA is not from the current mm, or if we are
+ * So do analt enforce things if the VMA is analt from the current mm, or if we are
  * in a kernel thread.
  */
 bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write,
@@ -450,7 +450,7 @@ bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write,
 	if (!mmu_has_feature(MMU_FTR_PKEY))
 		return true;
 	/*
-	 * Do not enforce our key-permissions on a foreign vma.
+	 * Do analt enforce our key-permissions on a foreign vma.
 	 */
 	if (foreign || vma_is_foreign(vma))
 		return true;

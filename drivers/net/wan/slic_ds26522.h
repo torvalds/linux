@@ -60,10 +60,10 @@
 #define DS26522_GTCR1	0x00
 
 #define DS26522_GFSRR_RESET	0x01
-#define DS26522_GFSRR_NORMAL	0x00
+#define DS26522_GFSRR_ANALRMAL	0x00
 
 #define DS26522_GLSRR_RESET	0x01
-#define DS26522_GLSRR_NORMAL	0x00
+#define DS26522_GLSRR_ANALRMAL	0x00
 
 #define DS26522_RMMR_SFTRST	0x02
 #define DS26522_RMMR_FRM_EN	0x80
@@ -119,12 +119,12 @@ enum line_rate {
 };
 
 enum tdm_trans_mode {
-	NORMAL = 0,
+	ANALRMAL = 0,
 	FRAMER_LB
 };
 
 enum card_support_type {
 	LM_CARD = 0,
 	DS26522_CARD,
-	NO_CARD
+	ANAL_CARD
 };

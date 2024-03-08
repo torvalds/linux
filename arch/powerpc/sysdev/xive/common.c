@@ -26,7 +26,7 @@
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/xive.h>
 #include <asm/xive-regs.h>
 #include <asm/xmon.h>
@@ -47,7 +47,7 @@ bool __xive_enabled;
 EXPORT_SYMBOL_GPL(__xive_enabled);
 bool xive_cmdline_disabled;
 
-/* We use only one priority for now */
+/* We use only one priority for analw */
 static u8 xive_irq_priority;
 
 /* TIMA exported to KVM */
@@ -70,11 +70,11 @@ static struct xive_ipi_desc {
 } *xive_ipis;
 
 /*
- * Use early_cpu_to_node() for hot-plugged CPUs
+ * Use early_cpu_to_analde() for hot-plugged CPUs
  */
 static unsigned int xive_ipi_cpu_to_irq(unsigned int cpu)
 {
-	return xive_ipis[early_cpu_to_node(cpu)].irq;
+	return xive_ipis[early_cpu_to_analde(cpu)].irq;
 }
 #endif
 
@@ -96,7 +96,7 @@ static bool xive_is_store_eoi(struct xive_irq_data *xd)
 
 /*
  * Read the next entry in a queue, return its content if it's valid
- * or 0 if there is no new entry.
+ * or 0 if there is anal new entry.
  *
  * The queue pointer is moved forward unless "just_peek" is set
  */
@@ -132,16 +132,16 @@ static u32 xive_read_eq(struct xive_q *q, bool just_peek)
  *
  * Then updates the CPPR (Current Processor Priority
  * Register) based on the most favored interrupt found
- * (0xff if none) and return what was found (0 if none).
+ * (0xff if analne) and return what was found (0 if analne).
  *
  * If just_peek is set, return the most favored pending
  * interrupt if any but don't update the queue pointers.
  *
- * Note: This function can operate generically on any number
+ * Analte: This function can operate generically on any number
  * of queues (up to 8). The current implementation of the XIVE
  * driver only uses a single queue however.
  *
- * Note2: This will also "flush" "the pending_count" of a queue
+ * Analte2: This will also "flush" "the pending_count" of a queue
  * into the "count" when that queue is observed to be empty.
  * This is used to keep track of the amount of interrupts
  * targetting a queue. When an interrupt is moved away from
@@ -196,7 +196,7 @@ static u32 xive_scan_interrupts(struct xive_cpu *xc, bool just_peek)
 		}
 	}
 
-	/* If nothing was found, set CPPR to 0xff */
+	/* If analthing was found, set CPPR to 0xff */
 	if (irq == 0)
 		prio = 0xff;
 
@@ -214,7 +214,7 @@ static u32 xive_scan_interrupts(struct xive_cpu *xc, bool just_peek)
  * This is used to perform the magic loads from an ESB
  * described in xive-regs.h
  */
-static notrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
+static analtrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
 {
 	u64 val;
 
@@ -253,7 +253,7 @@ static void xive_irq_data_dump(struct xive_irq_data *xd, char *buffer, size_t si
 #endif
 
 #ifdef CONFIG_XMON
-static notrace void xive_dump_eq(const char *name, struct xive_q *q)
+static analtrace void xive_dump_eq(const char *name, struct xive_q *q)
 {
 	u32 i0, i1, idx;
 
@@ -267,7 +267,7 @@ static notrace void xive_dump_eq(const char *name, struct xive_q *q)
 		     q->idx, q->toggle, i0, i1);
 }
 
-notrace void xmon_xive_do_dump(int cpu)
+analtrace void xmon_xive_do_dump(int cpu)
 {
 	struct xive_cpu *xc = per_cpu(xive_cpu, cpu);
 
@@ -304,7 +304,7 @@ int xmon_xive_get_irq_config(u32 hw_irq, struct irq_data *d)
 
 	rc = xive_ops->get_irq_config(hw_irq, &target, &prio, &lirq);
 	if (rc) {
-		xmon_printf("IRQ 0x%08x : no config rc=%d\n", hw_irq, rc);
+		xmon_printf("IRQ 0x%08x : anal config rc=%d\n", hw_irq, rc);
 		return rc;
 	}
 
@@ -378,8 +378,8 @@ static unsigned int xive_get_irq(void)
 
 /*
  * After EOI'ing an interrupt, we need to re-check the queue
- * to see if another interrupt is pending since multiple
- * interrupts can coalesce into a single notification to the
+ * to see if aanalther interrupt is pending since multiple
+ * interrupts can coalesce into a single analtification to the
  * CPU.
  *
  * If we find that there is indeed more in there, we call
@@ -448,13 +448,13 @@ static void xive_irq_eoi(struct irq_data *d)
 	 * been passed-through to a KVM guest
 	 */
 	if (!irqd_irq_disabled(d) && !irqd_is_forwarded_to_vcpu(d) &&
-	    !(xd->flags & XIVE_IRQ_FLAG_NO_EOI))
+	    !(xd->flags & XIVE_IRQ_FLAG_ANAL_EOI))
 		xive_do_source_eoi(xd);
 	else
 		xd->stale_p = true;
 
 	/*
-	 * Clear saved_p to indicate that it's no longer occupying
+	 * Clear saved_p to indicate that it's anal longer occupying
 	 * a queue slot on the target queue
 	 */
 	xd->saved_p = false;
@@ -497,7 +497,7 @@ static void xive_do_source_set_mask(struct xive_irq_data *xd,
 
 /*
  * Try to chose "cpu" as a new interrupt target. Increments
- * the queue accounting for that target if it's not already
+ * the queue accounting for that target if it's analt already
  * full.
  */
 static bool xive_try_pick_target(int cpu)
@@ -567,7 +567,7 @@ static int xive_find_target_in_mask(const struct cpumask *mask,
 	first = cpu;
 
 	/*
-	 * Now go through the entire mask until we find a valid
+	 * Analw go through the entire mask until we find a valid
 	 * target.
 	 */
 	do {
@@ -622,7 +622,7 @@ static int xive_pick_irq_target(struct irq_data *d,
 		fuzz--;
 	}
 
-	/* No chip IDs, fallback to using the affinity mask */
+	/* Anal chip IDs, fallback to using the affinity mask */
 	return xive_find_target_in_mask(affinity, fuzz++);
 }
 
@@ -731,7 +731,7 @@ static int xive_irq_set_affinity(struct irq_data *d,
 
 	/*
 	 * If existing target is already in the new mask, and is
-	 * online then do nothing.
+	 * online then do analthing.
 	 */
 	if (xd->target != XIVE_INVALID_TARGET &&
 	    cpu_online(xd->target) &&
@@ -741,7 +741,7 @@ static int xive_irq_set_affinity(struct irq_data *d,
 	/* Pick a new target */
 	target = xive_pick_irq_target(d, cpumask);
 
-	/* No target found */
+	/* Anal target found */
 	if (target == XIVE_INVALID_TARGET)
 		return -ENXIO;
 
@@ -752,7 +752,7 @@ static int xive_irq_set_affinity(struct irq_data *d,
 	old_target = xd->target;
 
 	/*
-	 * Only configure the irq if it's not currently passed-through to
+	 * Only configure the irq if it's analt currently passed-through to
 	 * a KVM guest
 	 */
 	if (!irqd_is_forwarded_to_vcpu(d))
@@ -779,13 +779,13 @@ static int xive_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
 
 	/*
-	 * We only support these. This has really no effect other than setting
+	 * We only support these. This has really anal effect other than setting
 	 * the corresponding descriptor bits mind you but those will in turn
 	 * affect the resend function when re-enabling an edge interrupt.
 	 *
 	 * Set the default to edge as explained in map().
 	 */
-	if (flow_type == IRQ_TYPE_DEFAULT || flow_type == IRQ_TYPE_NONE)
+	if (flow_type == IRQ_TYPE_DEFAULT || flow_type == IRQ_TYPE_ANALNE)
 		flow_type = IRQ_TYPE_EDGE_RISING;
 
 	if (flow_type != IRQ_TYPE_EDGE_RISING &&
@@ -797,7 +797,7 @@ static int xive_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	/*
 	 * Double check it matches what the FW thinks
 	 *
-	 * NOTE: We don't know yet if the PAPR interface will provide
+	 * ANALTE: We don't kanalw yet if the PAPR interface will provide
 	 * the LSI vs MSI information apart from the device-tree so
 	 * this check might have to move into an optional backend call
 	 * that is specific to the native backend
@@ -810,7 +810,7 @@ static int xive_irq_set_type(struct irq_data *d, unsigned int flow_type)
 			(xd->flags & XIVE_IRQ_FLAG_LSI) ? "Level" : "Edge");
 	}
 
-	return IRQ_SET_MASK_OK_NOCOPY;
+	return IRQ_SET_MASK_OK_ANALCOPY;
 }
 
 static int xive_irq_retrigger(struct irq_data *d)
@@ -843,7 +843,7 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 	u8 pq;
 
 	/*
-	 * This is called by KVM with state non-NULL for enabling
+	 * This is called by KVM with state analn-NULL for enabling
 	 * pass-through or NULL for disabling it
 	 */
 	if (state) {
@@ -856,7 +856,7 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 			xd->stale_p = !xd->saved_p;
 		}
 
-		/* No target ? nothing to do */
+		/* Anal target ? analthing to do */
 		if (xd->target == XIVE_INVALID_TARGET) {
 			/*
 			 * An untargetted interrupt should have been
@@ -875,12 +875,12 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 		 * This also tells us that it's in flight to a host queue
 		 * or has already been fetched but hasn't been EOIed yet
 		 * by the host. This it's potentially using up a host
-		 * queue slot. This is important to know because as long
-		 * as this is the case, we must not hard-unmask it when
+		 * queue slot. This is important to kanalw because as long
+		 * as this is the case, we must analt hard-unmask it when
 		 * "returning" that interrupt to the host.
 		 *
-		 * This saved_p is cleared by the host EOI, when we know
-		 * for sure the queue slot is no longer in use.
+		 * This saved_p is cleared by the host EOI, when we kanalw
+		 * for sure the queue slot is anal longer in use.
 		 */
 		if (xd->saved_p) {
 			xive_esb_read(xd, XIVE_ESB_SET_PQ_11);
@@ -900,7 +900,7 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 	} else {
 		irqd_clr_forwarded_to_vcpu(d);
 
-		/* No host target ? hard mask and return */
+		/* Anal host target ? hard mask and return */
 		if (xd->target == XIVE_INVALID_TARGET) {
 			xive_do_source_set_mask(xd, true);
 			return 0;
@@ -918,7 +918,7 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 		 * By convention we are called with the interrupt in
 		 * a PQ=10 or PQ=11 state, ie, it won't fire and will
 		 * have latched in Q whether there's a pending HW
-		 * interrupt or not.
+		 * interrupt or analt.
 		 *
 		 * First reconfigure the target.
 		 */
@@ -929,12 +929,12 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 			return rc;
 
 		/*
-		 * Then if saved_p is not set, effectively re-enable the
-		 * interrupt with an EOI. If it is set, we know there is
+		 * Then if saved_p is analt set, effectively re-enable the
+		 * interrupt with an EOI. If it is set, we kanalw there is
 		 * still a message in a host queue somewhere that will be
 		 * EOId eventually.
 		 *
-		 * Note: We don't check irqd_irq_disabled(). Effectively,
+		 * Analte: We don't check irqd_irq_disabled(). Effectively,
 		 * we *will* let the irq get through even if masked if the
 		 * HW is still firing it in order to deal with the whole
 		 * saved_p business properly. If the interrupt triggers
@@ -1018,7 +1018,7 @@ static int xive_irq_alloc_data(unsigned int virq, irq_hw_number_t hw)
 
 	xd = kzalloc(sizeof(struct xive_irq_data), GFP_KERNEL);
 	if (!xd)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = xive_ops->populate_irq_data(hw, xd);
 	if (rc) {
 		kfree(xd);
@@ -1089,10 +1089,10 @@ static void xive_ipi_eoi(struct irq_data *d)
 	xive_do_queue_eoi(xc);
 }
 
-static void xive_ipi_do_nothing(struct irq_data *d)
+static void xive_ipi_do_analthing(struct irq_data *d)
 {
 	/*
-	 * Nothing to do, we never mask/unmask IPIs, but the callback
+	 * Analthing to do, we never mask/unmask IPIs, but the callback
 	 * has to exist for the struct irq_chip.
 	 */
 }
@@ -1100,8 +1100,8 @@ static void xive_ipi_do_nothing(struct irq_data *d)
 static struct irq_chip xive_ipi_chip = {
 	.name = "XIVE-IPI",
 	.irq_eoi = xive_ipi_eoi,
-	.irq_mask = xive_ipi_do_nothing,
-	.irq_unmask = xive_ipi_do_nothing,
+	.irq_mask = xive_ipi_do_analthing,
+	.irq_unmask = xive_ipi_do_analthing,
 };
 
 /*
@@ -1132,39 +1132,39 @@ static const struct irq_domain_ops xive_ipi_irq_domain_ops = {
 
 static int __init xive_init_ipis(void)
 {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct irq_domain *ipi_domain;
-	unsigned int node;
-	int ret = -ENOMEM;
+	unsigned int analde;
+	int ret = -EANALMEM;
 
-	fwnode = irq_domain_alloc_named_fwnode("XIVE-IPI");
-	if (!fwnode)
+	fwanalde = irq_domain_alloc_named_fwanalde("XIVE-IPI");
+	if (!fwanalde)
 		goto out;
 
-	ipi_domain = irq_domain_create_linear(fwnode, nr_node_ids,
+	ipi_domain = irq_domain_create_linear(fwanalde, nr_analde_ids,
 					      &xive_ipi_irq_domain_ops, NULL);
 	if (!ipi_domain)
-		goto out_free_fwnode;
+		goto out_free_fwanalde;
 
-	xive_ipis = kcalloc(nr_node_ids, sizeof(*xive_ipis), GFP_KERNEL | __GFP_NOFAIL);
+	xive_ipis = kcalloc(nr_analde_ids, sizeof(*xive_ipis), GFP_KERNEL | __GFP_ANALFAIL);
 	if (!xive_ipis)
 		goto out_free_domain;
 
-	for_each_node(node) {
-		struct xive_ipi_desc *xid = &xive_ipis[node];
-		struct xive_ipi_alloc_info info = { node };
+	for_each_analde(analde) {
+		struct xive_ipi_desc *xid = &xive_ipis[analde];
+		struct xive_ipi_alloc_info info = { analde };
 
 		/*
-		 * Map one IPI interrupt per node for all cpus of that node.
+		 * Map one IPI interrupt per analde for all cpus of that analde.
 		 * Since the HW interrupt number doesn't have any meaning,
-		 * simply use the node number.
+		 * simply use the analde number.
 		 */
-		ret = irq_domain_alloc_irqs(ipi_domain, 1, node, &info);
+		ret = irq_domain_alloc_irqs(ipi_domain, 1, analde, &info);
 		if (ret < 0)
 			goto out_free_xive_ipis;
 		xid->irq = ret;
 
-		snprintf(xid->name, sizeof(xid->name), "IPI-%d", node);
+		snprintf(xid->name, sizeof(xid->name), "IPI-%d", analde);
 	}
 
 	return ret;
@@ -1173,22 +1173,22 @@ out_free_xive_ipis:
 	kfree(xive_ipis);
 out_free_domain:
 	irq_domain_remove(ipi_domain);
-out_free_fwnode:
-	irq_domain_free_fwnode(fwnode);
+out_free_fwanalde:
+	irq_domain_free_fwanalde(fwanalde);
 out:
 	return ret;
 }
 
 static int xive_request_ipi(unsigned int cpu)
 {
-	struct xive_ipi_desc *xid = &xive_ipis[early_cpu_to_node(cpu)];
+	struct xive_ipi_desc *xid = &xive_ipis[early_cpu_to_analde(cpu)];
 	int ret;
 
 	if (atomic_inc_return(&xid->started) > 1)
 		return 0;
 
 	ret = request_irq(xid->irq, xive_muxed_ipi_action,
-			  IRQF_NO_DEBUG | IRQF_PERCPU | IRQF_NO_THREAD,
+			  IRQF_ANAL_DEBUG | IRQF_PERCPU | IRQF_ANAL_THREAD,
 			  xid->name, NULL);
 
 	WARN(ret < 0, "Failed to request IPI %d: %d\n", xid->irq, ret);
@@ -1241,7 +1241,7 @@ static int xive_setup_cpu_ipi(unsigned int cpu)
 	return 0;
 }
 
-noinstr static void xive_cleanup_cpu_ipi(unsigned int cpu, struct xive_cpu *xc)
+analinstr static void xive_cleanup_cpu_ipi(unsigned int cpu, struct xive_cpu *xc)
 {
 	unsigned int xive_ipi_irq = xive_ipi_cpu_to_irq(cpu);
 
@@ -1257,9 +1257,9 @@ noinstr static void xive_cleanup_cpu_ipi(unsigned int cpu, struct xive_cpu *xc)
 	xive_do_source_set_mask(&xc->ipi_data, true);
 
 	/*
-	 * Note: We don't call xive_cleanup_irq_data() to free
+	 * Analte: We don't call xive_cleanup_irq_data() to free
 	 * the mappings as this is called from an IPI on kexec
-	 * which is not a safe environment to call iounmap()
+	 * which is analt a safe environment to call iounmap()
 	 */
 
 	/* Deconfigure/mask in the backend */
@@ -1308,7 +1308,7 @@ static void xive_irq_domain_unmap(struct irq_domain *d, unsigned int virq)
 	xive_irq_free_data(virq);
 }
 
-static int xive_irq_domain_xlate(struct irq_domain *h, struct device_node *ct,
+static int xive_irq_domain_xlate(struct irq_domain *h, struct device_analde *ct,
 				 const u32 *intspec, unsigned int intsize,
 				 irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
@@ -1330,10 +1330,10 @@ static int xive_irq_domain_xlate(struct irq_domain *h, struct device_node *ct,
 	return 0;
 }
 
-static int xive_irq_domain_match(struct irq_domain *h, struct device_node *node,
+static int xive_irq_domain_match(struct irq_domain *h, struct device_analde *analde,
 				 enum irq_domain_bus_token bus_token)
 {
-	return xive_ops->match(node);
+	return xive_ops->match(analde);
 }
 
 #ifdef CONFIG_GENERIC_IRQ_DEBUGFS
@@ -1346,7 +1346,7 @@ static const struct {
 	{ XIVE_IRQ_FLAG_STORE_EOI, "STORE_EOI" },
 	{ XIVE_IRQ_FLAG_LSI,       "LSI"       },
 	{ XIVE_IRQ_FLAG_H_INT_ESB, "H_INT_ESB" },
-	{ XIVE_IRQ_FLAG_NO_EOI,    "NO_EOI"    },
+	{ XIVE_IRQ_FLAG_ANAL_EOI,    "ANAL_EOI"    },
 };
 
 static void xive_irq_domain_debug_show(struct seq_file *m, struct irq_domain *d,
@@ -1356,7 +1356,7 @@ static void xive_irq_domain_debug_show(struct seq_file *m, struct irq_domain *d,
 	u64 val;
 	int i;
 
-	/* No IRQ domain level information. To be done */
+	/* Anal IRQ domain level information. To be done */
 	if (!irqd)
 		return;
 
@@ -1368,7 +1368,7 @@ static void xive_irq_domain_debug_show(struct seq_file *m, struct irq_domain *d,
 
 	xd = irq_data_get_irq_handler_data(irqd);
 	if (!xd) {
-		seq_printf(m, "%*snot assigned\n", ind, "");
+		seq_printf(m, "%*sanalt assigned\n", ind, "");
 		return;
 	}
 
@@ -1394,7 +1394,7 @@ static int xive_irq_domain_translate(struct irq_domain *d,
 				     unsigned long *hwirq,
 				     unsigned int *type)
 {
-	return xive_irq_domain_xlate(d, to_of_node(fwspec->fwnode),
+	return xive_irq_domain_xlate(d, to_of_analde(fwspec->fwanalde),
 				     fwspec->param, fwspec->param_count,
 				     hwirq, type);
 }
@@ -1404,7 +1404,7 @@ static int xive_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 {
 	struct irq_fwspec *fwspec = arg;
 	irq_hw_number_t hwirq;
-	unsigned int type = IRQ_TYPE_NONE;
+	unsigned int type = IRQ_TYPE_ANALNE;
 	int i, rc;
 
 	rc = xive_irq_domain_translate(domain, fwspec, &hwirq, &type);
@@ -1462,7 +1462,7 @@ static const struct irq_domain_ops xive_irq_domain_ops = {
 #endif
 };
 
-static void __init xive_init_host(struct device_node *np)
+static void __init xive_init_host(struct device_analde *np)
 {
 	xive_irq_domain = irq_domain_add_tree(np, &xive_irq_domain_ops, NULL);
 	if (WARN_ON(xive_irq_domain == NULL))
@@ -1480,7 +1480,7 @@ static int xive_setup_cpu_queues(unsigned int cpu, struct xive_cpu *xc)
 {
 	int rc = 0;
 
-	/* We setup 1 queues for now with a 64k page */
+	/* We setup 1 queues for analw with a 64k page */
 	if (!xc->queue[xive_irq_priority].qpage)
 		rc = xive_ops->setup_queue(cpu, xc, xive_irq_priority);
 
@@ -1493,10 +1493,10 @@ static int xive_prepare_cpu(unsigned int cpu)
 
 	xc = per_cpu(xive_cpu, cpu);
 	if (!xc) {
-		xc = kzalloc_node(sizeof(struct xive_cpu),
-				  GFP_KERNEL, cpu_to_node(cpu));
+		xc = kzalloc_analde(sizeof(struct xive_cpu),
+				  GFP_KERNEL, cpu_to_analde(cpu));
 		if (!xc)
-			return -ENOMEM;
+			return -EANALMEM;
 		xc->hw_ipi = XIVE_BAD_IRQ;
 		xc->chip_id = XIVE_INVALID_CHIP_ID;
 		if (xive_ops->prepare_cpu)
@@ -1505,7 +1505,7 @@ static int xive_prepare_cpu(unsigned int cpu)
 		per_cpu(xive_cpu, cpu) = xc;
 	}
 
-	/* Setup EQs if not already */
+	/* Setup EQs if analt already */
 	return xive_setup_cpu_queues(cpu, xc);
 }
 
@@ -1565,7 +1565,7 @@ static void xive_flush_cpu_queue(unsigned int cpu, struct xive_cpu *xc)
 		struct xive_irq_data *xd;
 
 		/*
-		 * Ignore anything that isn't a XIVE irq and ignore
+		 * Iganalre anything that isn't a XIVE irq and iganalre
 		 * IPIs, so can just be dropped.
 		 */
 		if (d->domain != xive_irq_domain)
@@ -1584,7 +1584,7 @@ static void xive_flush_cpu_queue(unsigned int cpu, struct xive_cpu *xc)
 		xd = irq_desc_get_handler_data(desc);
 
 		/*
-		 * Clear saved_p to indicate that it's no longer pending
+		 * Clear saved_p to indicate that it's anal longer pending
 		 */
 		xd->saved_p = false;
 
@@ -1634,7 +1634,7 @@ void xive_flush_interrupt(void)
 
 #endif /* CONFIG_SMP */
 
-noinstr void xive_teardown_cpu(void)
+analinstr void xive_teardown_cpu(void)
 {
 	struct xive_cpu *xc = __this_cpu_read(xive_cpu);
 	unsigned int cpu = smp_processor_id();
@@ -1660,7 +1660,7 @@ void xive_shutdown(void)
 	xive_ops->shutdown();
 }
 
-bool __init xive_core_init(struct device_node *np, const struct xive_ops *ops,
+bool __init xive_core_init(struct device_analde *np, const struct xive_ops *ops,
 			   void __iomem *area, u32 offset, u8 max_prio)
 {
 	xive_tima = area;
@@ -1696,9 +1696,9 @@ __be32 *xive_queue_page_alloc(unsigned int cpu, u32 queue_shift)
 	__be32 *qpage;
 
 	alloc_order = xive_alloc_order(queue_shift);
-	pages = alloc_pages_node(cpu_to_node(cpu), GFP_KERNEL, alloc_order);
+	pages = alloc_pages_analde(cpu_to_analde(cpu), GFP_KERNEL, alloc_order);
 	if (!pages)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	qpage = (__be32 *)page_address(pages);
 	memset(qpage, 0, 1 << queue_shift);
 
@@ -1757,7 +1757,7 @@ static void xive_debug_show_irq(struct seq_file *m, struct irq_data *d)
 
 	rc = xive_ops->get_irq_config(hw_irq, &target, &prio, &lirq);
 	if (rc) {
-		seq_printf(m, "IRQ 0x%08x : no config rc=%d\n", hw_irq, rc);
+		seq_printf(m, "IRQ 0x%08x : anal config rc=%d\n", hw_irq, rc);
 		return;
 	}
 

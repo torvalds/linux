@@ -48,7 +48,7 @@ static int sharp_nt_panel_init(struct sharp_nt_panel *sharp_nt)
 
 	msleep(120);
 
-	/* Novatek two-lane operation */
+	/* Analvatek two-lane operation */
 	ret = mipi_dsi_dcs_write(dsi, 0xae, (u8[]){ 0x03 }, 1);
 	if (ret < 0)
 		return ret;
@@ -185,7 +185,7 @@ static int sharp_nt_panel_get_modes(struct drm_panel *panel,
 		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
 			drm_mode_vrefresh(&default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -215,7 +215,7 @@ static int sharp_nt_panel_add(struct sharp_nt_panel *sharp_nt)
 
 	sharp_nt->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(sharp_nt->reset_gpio)) {
-		dev_err(dev, "cannot get reset-gpios %ld\n",
+		dev_err(dev, "cananalt get reset-gpios %ld\n",
 			PTR_ERR(sharp_nt->reset_gpio));
 		sharp_nt->reset_gpio = NULL;
 	} else {
@@ -250,12 +250,12 @@ static int sharp_nt_panel_probe(struct mipi_dsi_device *dsi)
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO |
 			MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
 			MIPI_DSI_MODE_VIDEO_HSE |
-			MIPI_DSI_CLOCK_NON_CONTINUOUS |
-			MIPI_DSI_MODE_NO_EOT_PACKET;
+			MIPI_DSI_CLOCK_ANALN_CONTINUOUS |
+			MIPI_DSI_MODE_ANAL_EOT_PACKET;
 
 	sharp_nt = devm_kzalloc(&dsi->dev, sizeof(*sharp_nt), GFP_KERNEL);
 	if (!sharp_nt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, sharp_nt);
 

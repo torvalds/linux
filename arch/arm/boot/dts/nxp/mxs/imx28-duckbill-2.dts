@@ -147,7 +147,7 @@
 	bus-width = <8>;
 	vmmc-supply = <&reg_3p3v>;
 	status = "okay";
-	non-removable;
+	analn-removable;
 };
 
 &ssp2 {

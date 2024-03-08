@@ -12,14 +12,14 @@ Successful *_release()         C        Y  Y    Y     W                      Y
 smp_rmb()                               Y       R        Y      Y        R
 smp_wmb()                                  Y    W           Y       Y    W
 smp_mb() & synchronize_rcu()  CP        Y  Y    Y        Y  Y   Y   Y    Y
-Successful full non-void RMW  CP     Y  Y  Y    Y     Y  Y  Y   Y   Y    Y   Y
+Successful full analn-void RMW  CP     Y  Y  Y    Y     Y  Y  Y   Y   Y    Y   Y
 smp_mb__before_atomic()       CP        Y  Y    Y        a  a   a   a    Y
 smp_mb__after_atomic()        CP        a  a    Y        Y  Y   Y   Y    Y
 
 
 Key:	Relaxed:  A relaxed operation is either READ_ONCE(), WRITE_ONCE(),
 		  a *_relaxed() RMW operation, an unsuccessful RMW
-		  operation, a non-value-returning RMW operation such
+		  operation, a analn-value-returning RMW operation such
 		  as atomic_inc(), or one of the atomic*_read() and
 		  atomic*_set() family of operations.
 	C:	  Ordering is cumulative

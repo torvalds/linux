@@ -15,7 +15,7 @@
 #include <asm/mach-types.h>
 
 /*
- * We now use the slot ID instead of the device identifiers to select
+ * We analw use the slot ID instead of the device identifiers to select
  * which interrupt is routed where.
  */
 static int netwinder_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
@@ -37,7 +37,7 @@ static int netwinder_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		return IRQ_NETWINDER_ETHER10;
 
 	default:
-		printk(KERN_ERR "PCI: unknown device in slot %s\n",
+		printk(KERN_ERR "PCI: unkanalwn device in slot %s\n",
 			pci_name(dev));
 		return 0;
 	}

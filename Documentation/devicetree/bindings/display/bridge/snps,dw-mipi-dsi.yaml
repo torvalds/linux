@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/display/bridge/snps,dw-mipi-dsi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Synopsys DesignWare MIPI DSI host controller
+title: Syanalpsys DesignWare MIPI DSI host controller
 
 maintainers:
   - Philippe CORNU <philippe.cornu@foss.st.com>
 
 description: |
-  This document defines device tree properties for the Synopsys DesignWare MIPI
+  This document defines device tree properties for the Syanalpsys DesignWare MIPI
   DSI host controller. It doesn't constitute a device tree binding specification
   by itself but is meant to be referenced by platform-specific device tree
   bindings.
@@ -42,11 +42,11 @@ properties:
     properties:
       port@0:
         $ref: /schemas/graph.yaml#/properties/port
-        description: Input node to receive pixel data.
+        description: Input analde to receive pixel data.
 
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
-        description: DSI output node to panel.
+        description: DSI output analde to panel.
 
     required:
       - port@0

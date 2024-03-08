@@ -9,12 +9,12 @@
 /*
  * struct mm_slot - hash lookup from mm to mm_slot
  * @hash: link to the mm_slots hash list
- * @mm_node: link into the mm_slots list
+ * @mm_analde: link into the mm_slots list
  * @mm: the mm that this information is valid for
  */
 struct mm_slot {
-	struct hlist_node hash;
-	struct list_head mm_node;
+	struct hlist_analde hash;
+	struct list_head mm_analde;
 	struct mm_struct *mm;
 };
 

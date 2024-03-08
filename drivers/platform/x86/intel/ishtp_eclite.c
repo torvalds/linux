@@ -9,7 +9,7 @@
 #include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/intel-ish-client-if.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -34,7 +34,7 @@
 #define ECL_CL_TX_RING_SIZE	8
 
 #define ECL_DATA_OPR_BUFLEN	384
-#define ECL_EVENTS_NOTIFY	333
+#define ECL_EVENTS_ANALTIFY	333
 
 #define cmd_opr_offsetof(element)	offsetof(struct opregion_cmd, element)
 #define cl_data_to_dev(opr_dev)	ishtp_device((opr_dev)->cl_device)
@@ -152,7 +152,7 @@ static int ecl_ish_cl_read(struct ishtp_opregion_dev *opr_dev)
 					      2 * HZ);
 	if (!rv) {
 		dev_err(cl_data_to_dev(opr_dev),
-			"[ish_rd] No response from firmware\n");
+			"[ish_rd] Anal response from firmware\n");
 		return -EIO;
 	}
 
@@ -291,8 +291,8 @@ static int acpi_find_eclite_device(struct ishtp_opregion_dev *opr_dev)
 	/* Find ECLite device and save reference */
 	adev = acpi_dev_get_first_match_dev("INTC1035", NULL, -1);
 	if (!adev) {
-		dev_err(cl_data_to_dev(opr_dev), "eclite ACPI device not found\n");
-		return -ENODEV;
+		dev_err(cl_data_to_dev(opr_dev), "eclite ACPI device analt found\n");
+		return -EANALDEV;
 	}
 
 	opr_dev->adev = adev;
@@ -311,7 +311,7 @@ static int acpi_opregion_init(struct ishtp_opregion_dev *opr_dev)
 	if (ACPI_FAILURE(status)) {
 		dev_err(cl_data_to_dev(opr_dev),
 			"cmd space handler install failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	status = acpi_install_address_space_handler(opr_dev->adev->handle,
@@ -325,7 +325,7 @@ static int acpi_opregion_init(struct ishtp_opregion_dev *opr_dev)
 		acpi_remove_address_space_handler(opr_dev->adev->handle,
 						  ECLITE_CMD_OPREGION_ID,
 						  ecl_opregion_cmd_handler);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	opr_dev->acpi_init_done = true;
 
@@ -411,7 +411,7 @@ static int ecl_ish_cl_enable_events(struct ishtp_opregion_dev *opr_dev,
 	message.header.version = ECL_ISH_HEADER_VERSION;
 	message.header.data_type = ECL_MSG_DATA;
 	message.header.request_type = ECL_ISH_WRITE;
-	message.header.offset = ECL_EVENTS_NOTIFY;
+	message.header.offset = ECL_EVENTS_ANALTIFY;
 	message.header.data_len = 1;
 	message.payload[0] = config_enable;
 
@@ -437,7 +437,7 @@ static void ecl_ishtp_cl_event_cb(struct ishtp_cl_device *cl_device)
 		else if (header->data_type == ECL_MSG_EVENT)
 			ecl_ish_process_rx_event(opr_dev);
 		else
-			/* Got an event with wrong data_type, ignore it */
+			/* Got an event with wrong data_type, iganalre it */
 			dev_err(cl_data_to_dev(opr_dev),
 				"[ish_cb] Received wrong data_type\n");
 
@@ -467,8 +467,8 @@ static int ecl_ishtp_cl_init(struct ishtp_cl *ecl_ishtp_cl)
 
 	fw_client = ishtp_fw_cl_get_client(dev, &ecl_ishtp_id_table[0].guid);
 	if (!fw_client) {
-		dev_err(cl_data_to_dev(opr_dev), "fw client not found\n");
-		return -ENOENT;
+		dev_err(cl_data_to_dev(opr_dev), "fw client analt found\n");
+		return -EANALENT;
 	}
 
 	ishtp_cl_set_fw_client_id(ecl_ishtp_cl,
@@ -531,7 +531,7 @@ static void ecl_ishtp_cl_reset_handler(struct work_struct *work)
 		ishtp_cl_free(ecl_ishtp_cl);
 		opr_dev->ecl_ishtp_cl = NULL;
 		dev_err(cl_data_to_dev(opr_dev),
-			"[ish_rst] Reset failed. Link not ready.\n");
+			"[ish_rst] Reset failed. Link analt ready.\n");
 		return;
 	}
 
@@ -560,11 +560,11 @@ static int ecl_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 	opr_dev = devm_kzalloc(ishtp_device(cl_device), sizeof(*opr_dev),
 			       GFP_KERNEL);
 	if (!opr_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ecl_ishtp_cl = ishtp_cl_allocate(cl_device);
 	if (!ecl_ishtp_cl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ishtp_set_drvdata(cl_device, ecl_ishtp_cl);
 	ishtp_set_client_data(ecl_ishtp_cl, opr_dev);
@@ -589,14 +589,14 @@ static int ecl_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 
 	rv = acpi_find_eclite_device(opr_dev);
 	if (rv) {
-		dev_err(cl_data_to_dev(opr_dev), "ECLite ACPI ID not found\n");
+		dev_err(cl_data_to_dev(opr_dev), "ECLite ACPI ID analt found\n");
 		goto err_exit;
 	}
 
 	/* Register a handler for eclite fw events */
 	ishtp_register_event_cb(cl_device, ecl_ishtp_cl_event_cb);
 
-	/* Now init opregion handlers */
+	/* Analw init opregion handlers */
 	rv = acpi_opregion_init(opr_dev);
 	if (rv) {
 		dev_err(cl_data_to_dev(opr_dev), "ACPI opregion init failed\n");
@@ -664,8 +664,8 @@ static int ecl_ishtp_cl_suspend(struct device *device)
 static int ecl_ishtp_cl_resume(struct device *device)
 {
 	/* A reset is expected to call after an Sx. At this point
-	 * we are not sure if the link is up or not to restore anything,
-	 * so do nothing in resume path
+	 * we are analt sure if the link is up or analt to restore anything,
+	 * so do analthing in resume path
 	 */
 	return 0;
 }

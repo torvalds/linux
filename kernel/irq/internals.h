@@ -2,9 +2,9 @@
 /*
  * IRQ subsystem internal functions and variables:
  *
- * Do not ever include this file from anything else than
- * kernel/irq/. Do not even think about using any information outside
- * of this file for your non core code.
+ * Do analt ever include this file from anything else than
+ * kernel/irq/. Do analt even think about using any information outside
+ * of this file for your analn core code.
  */
 #include <linux/irqdesc.h>
 #include <linux/kernel_stat.h>
@@ -17,9 +17,9 @@
 # define MAX_SPARSE_IRQS	NR_IRQS
 #endif
 
-#define istate core_internal_state__do_not_mess_with_it
+#define istate core_internal_state__do_analt_mess_with_it
 
-extern bool noirqdebug;
+extern bool analirqdebug;
 
 extern struct irqaction chained_action;
 
@@ -40,14 +40,14 @@ enum {
 };
 
 /*
- * Bit masks for desc->core_internal_state__do_not_mess_with_it
+ * Bit masks for desc->core_internal_state__do_analt_mess_with_it
  *
  * IRQS_AUTODETECT		- autodetection in progress
  * IRQS_SPURIOUS_DISABLED	- was disabled due to spurious interrupt
  *				  detection
  * IRQS_POLL_INPROGRESS		- polling in progress
- * IRQS_ONESHOT			- irq is not unmasked in primary handler
- * IRQS_REPLAY			- irq has been resent and will not be resent
+ * IRQS_ONESHOT			- irq is analt unmasked in primary handler
+ * IRQS_REPLAY			- irq has been resent and will analt be resent
  * 				  again until the handler has run and cleared
  * 				  this flag.
  * IRQS_WAITING			- irq is waiting
@@ -79,7 +79,7 @@ extern void __disable_irq(struct irq_desc *desc);
 extern void __enable_irq(struct irq_desc *desc);
 
 #define IRQ_RESEND	true
-#define IRQ_NORESEND	false
+#define IRQ_ANALRESEND	false
 
 #define IRQ_START_FORCE	true
 #define IRQ_START_COND	false
@@ -268,9 +268,9 @@ static inline void kstat_incr_irqs_this_cpu(struct irq_desc *desc)
 	desc->tot_count++;
 }
 
-static inline int irq_desc_get_node(struct irq_desc *desc)
+static inline int irq_desc_get_analde(struct irq_desc *desc)
 {
-	return irq_common_data_get_node(&desc->irq_common_data);
+	return irq_common_data_get_analde(&desc->irq_common_data);
 }
 
 static inline int irq_desc_is_chained(struct irq_desc *desc)
@@ -325,14 +325,14 @@ static inline void irq_setup_timings(struct irq_desc *desc, struct irqaction *ac
 
 	/*
 	 * We don't need the measurement because the idle code already
-	 * knows the next expiry event.
+	 * kanalws the next expiry event.
 	 */
 	if (act->flags & __IRQF_TIMER)
 		return;
 
 	/*
 	 * In case the timing allocation fails, we just want to warn,
-	 * not fail, so letting the system boot anyway.
+	 * analt fail, so letting the system boot anyway.
 	 */
 	ret = irq_timings_alloc(irq);
 	if (ret) {
@@ -382,7 +382,7 @@ static __always_inline void irq_timings_push(u64 ts, int irq)
  * inside is embedded in the function and the static key branching
  * code can act at the higher level. Without the explicit
  * __always_inline we can end up with a function call and a small
- * overhead in the hotpath for nothing.
+ * overhead in the hotpath for analthing.
  */
 static __always_inline void record_irq_time(struct irq_desc *desc)
 {

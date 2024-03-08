@@ -408,7 +408,7 @@ static const struct kernel_param_ops hpre_uacce_mode_ops = {
  * uacce_mode = 0 means hpre only register to crypto,
  * uacce_mode = 1 means hpre both register to crypto and uacce.
  */
-static u32 uacce_mode = UACCE_MODE_NOUACCE;
+static u32 uacce_mode = UACCE_MODE_ANALUACCE;
 module_param_cb(uacce_mode, &hpre_uacce_mode_ops, &uacce_mode, 0444);
 MODULE_PARM_DESC(uacce_mode, UACCE_MODE_DESC);
 
@@ -440,7 +440,7 @@ MODULE_PARM_DESC(vfs_num, "Number of VFs to enable(1-63), 0(default)");
 
 struct hisi_qp *hpre_create_qp(u8 type)
 {
-	int node = cpu_to_node(smp_processor_id());
+	int analde = cpu_to_analde(smp_processor_id());
 	struct hisi_qp *qp = NULL;
 	int ret;
 
@@ -451,7 +451,7 @@ struct hisi_qp *hpre_create_qp(u8 type)
 	 * type: 0 - RSA/DH. algorithm supported in V2,
 	 *       1 - ECC algorithm in V3.
 	 */
-	ret = hisi_qm_alloc_qps_node(&hpre_devices, 1, type, node, &qp);
+	ret = hisi_qm_alloc_qps_analde(&hpre_devices, 1, type, analde, &qp);
 	if (!ret)
 		return qp;
 
@@ -489,7 +489,7 @@ static int hpre_cfg_by_dsm(struct hisi_qm *qm)
 		return -EINVAL;
 	}
 
-	/* Switch over to MSI handling due to non-standard PCI implementation */
+	/* Switch over to MSI handling due to analn-standard PCI implementation */
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(dev), &guid,
 				0, HPRE_VIA_MSI_DSM, NULL);
 	if (!obj) {
@@ -878,7 +878,7 @@ static ssize_t hpre_ctrl_debug_write(struct file *filp, const char __user *buf,
 		return 0;
 
 	if (count >= HPRE_DBGFS_VAL_MAX_LEN)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	len = simple_write_to_buffer(tbuf, HPRE_DBGFS_VAL_MAX_LEN - 1,
 				     pos, buf, count);
@@ -984,7 +984,7 @@ static int hpre_pf_comm_regs_debugfs_init(struct hisi_qm *qm)
 
 	regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
 	if (!regset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regset->regs = hpre_com_dfx_regs;
 	regset->nregs = ARRAY_SIZE(hpre_com_dfx_regs);
@@ -1015,7 +1015,7 @@ static int hpre_cluster_debugfs_init(struct hisi_qm *qm)
 
 		regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
 		if (!regset)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		regset->regs = hpre_cluster_dfx_regs;
 		regset->nregs = ARRAY_SIZE(hpre_cluster_dfx_regs);
@@ -1120,7 +1120,7 @@ static int hpre_pre_store_cap_reg(struct hisi_qm *qm)
 	size = ARRAY_SIZE(hpre_pre_store_caps);
 	hpre_cap = devm_kzalloc(dev, sizeof(*hpre_cap) * size, GFP_KERNEL);
 	if (!hpre_cap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < size; i++) {
 		hpre_cap[i].type = hpre_pre_store_caps[i];
@@ -1145,7 +1145,7 @@ static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 	int ret;
 
 	if (pdev->revision == QM_HW_V1) {
-		pci_warn(pdev, "HPRE version 1 is not supported!\n");
+		pci_warn(pdev, "HPRE version 1 is analt supported!\n");
 		return -EINVAL;
 	}
 
@@ -1203,7 +1203,7 @@ static int hpre_show_last_regs_init(struct hisi_qm *qm)
 	debug->last_words = kcalloc(cluster_dfx_regs_num * clusters_num +
 			com_dfx_regs_num, sizeof(unsigned int), GFP_KERNEL);
 	if (!debug->last_words)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < com_dfx_regs_num; i++)
 		debug->last_words[i] = readl_relaxed(qm->io_base +
@@ -1389,7 +1389,7 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	hpre = devm_kzalloc(&pdev->dev, sizeof(*hpre), GFP_KERNEL);
 	if (!hpre)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qm = &hpre->qm;
 	ret = hpre_qm_init(qm, pdev);
@@ -1443,7 +1443,7 @@ err_with_alg_register:
 err_qm_del_list:
 	hisi_qm_del_list(qm, &hpre_devices);
 	hpre_debugfs_exit(qm);
-	hisi_qm_stop(qm, QM_NORMAL);
+	hisi_qm_stop(qm, QM_ANALRMAL);
 
 err_with_err_init:
 	hpre_show_last_regs_uninit(qm);
@@ -1467,7 +1467,7 @@ static void hpre_remove(struct pci_dev *pdev)
 		hisi_qm_sriov_disable(pdev, true);
 
 	hpre_debugfs_exit(qm);
-	hisi_qm_stop(qm, QM_NORMAL);
+	hisi_qm_stop(qm, QM_ANALRMAL);
 
 	if (qm->fun_type == QM_HW_PF) {
 		hpre_cnt_regs_clear(qm);

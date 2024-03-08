@@ -365,7 +365,7 @@
 #define HSIO_S1G_PLL_CFG_PLL_FSM_OOR_RECAL_ENA            BIT(5)
 #define HSIO_S1G_PLL_CFG_PLL_RB_DATA_SEL                  BIT(3)
 
-#define HSIO_S1G_PLL_STATUS_PLL_CAL_NOT_DONE              BIT(12)
+#define HSIO_S1G_PLL_STATUS_PLL_CAL_ANALT_DONE              BIT(12)
 #define HSIO_S1G_PLL_STATUS_PLL_CAL_ERR                   BIT(11)
 #define HSIO_S1G_PLL_STATUS_PLL_OUT_OF_RANGE_ERR          BIT(10)
 #define HSIO_S1G_PLL_STATUS_PLL_RB_DATA(x)                ((x) & GENMASK(7, 0))
@@ -428,11 +428,11 @@
 #define HSIO_S1G_MISC_CFG_TX_DATA_INV_ENA                 BIT(2)
 #define HSIO_S1G_MISC_CFG_LANE_RST                        BIT(0)
 
-#define HSIO_S1G_DFT_STATUS_PLL_BIST_NOT_DONE             BIT(7)
+#define HSIO_S1G_DFT_STATUS_PLL_BIST_ANALT_DONE             BIT(7)
 #define HSIO_S1G_DFT_STATUS_PLL_BIST_FAILED               BIT(6)
 #define HSIO_S1G_DFT_STATUS_PLL_BIST_TIMEOUT_ERR          BIT(5)
 #define HSIO_S1G_DFT_STATUS_BIST_ACTIVE                   BIT(3)
-#define HSIO_S1G_DFT_STATUS_BIST_NOSYNC                   BIT(2)
+#define HSIO_S1G_DFT_STATUS_BIST_ANALSYNC                   BIT(2)
 #define HSIO_S1G_DFT_STATUS_BIST_COMPLETE_N               BIT(1)
 #define HSIO_S1G_DFT_STATUS_BIST_ERROR                    BIT(0)
 
@@ -532,11 +532,11 @@
 #define HSIO_S6G_OB_ANEG_CFG_AN_OB_LEV_M                  GENMASK(5, 0)
 
 #define HSIO_S6G_DFT_STATUS_PRBS_SYNC_STAT                BIT(8)
-#define HSIO_S6G_DFT_STATUS_PLL_BIST_NOT_DONE             BIT(7)
+#define HSIO_S6G_DFT_STATUS_PLL_BIST_ANALT_DONE             BIT(7)
 #define HSIO_S6G_DFT_STATUS_PLL_BIST_FAILED               BIT(6)
 #define HSIO_S6G_DFT_STATUS_PLL_BIST_TIMEOUT_ERR          BIT(5)
 #define HSIO_S6G_DFT_STATUS_BIST_ACTIVE                   BIT(3)
-#define HSIO_S6G_DFT_STATUS_BIST_NOSYNC                   BIT(2)
+#define HSIO_S6G_DFT_STATUS_BIST_ANALSYNC                   BIT(2)
 #define HSIO_S6G_DFT_STATUS_BIST_COMPLETE_N               BIT(1)
 #define HSIO_S6G_DFT_STATUS_BIST_ERROR                    BIT(0)
 
@@ -787,7 +787,7 @@
 #define HSIO_S6G_ACJTAG_STATUS_ACJTAG_CAPT_DATA_P         BIT(1)
 #define HSIO_S6G_ACJTAG_STATUS_IB_DIRECT                  BIT(0)
 
-#define HSIO_S6G_PLL_STATUS_PLL_CAL_NOT_DONE              BIT(10)
+#define HSIO_S6G_PLL_STATUS_PLL_CAL_ANALT_DONE              BIT(10)
 #define HSIO_S6G_PLL_STATUS_PLL_CAL_ERR                   BIT(9)
 #define HSIO_S6G_PLL_STATUS_PLL_OUT_OF_RANGE_ERR          BIT(8)
 #define HSIO_S6G_PLL_STATUS_PLL_RB_DATA(x)                ((x) & GENMASK(7, 0))
@@ -841,7 +841,7 @@
 
 #define HSIO_TEMP_SENSOR_CTRL_FORCE_TEMP_RD               BIT(5)
 #define HSIO_TEMP_SENSOR_CTRL_FORCE_RUN                   BIT(4)
-#define HSIO_TEMP_SENSOR_CTRL_FORCE_NO_RST                BIT(3)
+#define HSIO_TEMP_SENSOR_CTRL_FORCE_ANAL_RST                BIT(3)
 #define HSIO_TEMP_SENSOR_CTRL_FORCE_POWER_UP              BIT(2)
 #define HSIO_TEMP_SENSOR_CTRL_FORCE_CLK                   BIT(1)
 #define HSIO_TEMP_SENSOR_CTRL_SAMPLE_ENA                  BIT(0)

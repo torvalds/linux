@@ -99,7 +99,7 @@
 #define PIO_POW_MOD_CTL_REG	0x344
 
 enum sunxi_desc_bias_voltage {
-	BIAS_VOLTAGE_NONE,
+	BIAS_VOLTAGE_ANALNE,
 	/*
 	 * Bias voltage configuration is done through
 	 * Pn_GRP_CONFIG registers, as seen on A80 SoC.

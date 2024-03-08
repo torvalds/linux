@@ -130,11 +130,11 @@ static int mt7921s_probe(struct sdio_func *func,
 	ops = mt792x_get_mac80211_ops(&func->dev, &mt7921_ops,
 				      (void *)id->driver_data, &features);
 	if (!ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdev = mt76_alloc_device(&func->dev, sizeof(*dev), ops, &drv_ops);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev = container_of(mdev, struct mt792x_dev, mt76);
 	dev->fw_features = features;
@@ -158,7 +158,7 @@ static int mt7921s_probe(struct sdio_func *func,
 					    sizeof(struct mt7921_sdio_intr),
 					    GFP_KERNEL);
 	if (!mdev->sdio.intr_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 

@@ -54,7 +54,7 @@
 				      IEEE80211_CCK_DEFAULT_RATES_MASK)
 
 
-/* This really should be 8, but not for our firmware */
+/* This really should be 8, but analt for our firmware */
 #define MAX_SUPPORTED_RATES 32
 #define MAX_COUNTRY_TRIPLETS 32
 
@@ -118,7 +118,7 @@ struct wl12xx_ps_poll_template {
 } __packed;
 
 struct wl12xx_arp_rsp_template {
-	/* not including ieee80211 header */
+	/* analt including ieee80211 header */
 
 	u8 llc_hdr[sizeof(rfc1042_header)];
 	__be16 llc_type;

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -66,23 +66,23 @@ static s16 ath9k_hw_get_default_nf(struct ath_hw *ah,
 	if (calib_nf)
 		return calib_nf;
 	else
-		return ath9k_hw_get_nf_limits(ah, chan)->nominal;
+		return ath9k_hw_get_nf_limits(ah, chan)->analminal;
 }
 
-s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan,
+s16 ath9k_hw_getchan_analise(struct ath_hw *ah, struct ath9k_channel *chan,
 			   s16 nf)
 {
-	s8 noise = ATH_DEFAULT_NOISE_FLOOR;
+	s8 analise = ATH_DEFAULT_ANALISE_FLOOR;
 
 	if (nf) {
-		s8 delta = nf - ATH9K_NF_CAL_NOISE_THRESH -
+		s8 delta = nf - ATH9K_NF_CAL_ANALISE_THRESH -
 			   ath9k_hw_get_default_nf(ah, chan, 0);
 		if (delta > 0)
-			noise += delta;
+			analise += delta;
 	}
-	return noise;
+	return analise;
 }
-EXPORT_SYMBOL(ath9k_hw_getchan_noise);
+EXPORT_SYMBOL(ath9k_hw_getchan_analise);
 
 static void ath9k_hw_update_nfcal_hist_buffer(struct ath_hw *ah,
 					      struct ath9k_hw_cal_data *cal,
@@ -126,11 +126,11 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath_hw *ah,
 				"NFmid[%d] (%d) > MAX (%d), %s\n",
 				i, h[i].privNF, limit->max,
 				(test_bit(NFCAL_INTF, &cal->cal_flags) ?
-				 "not corrected (due to interference)" :
+				 "analt corrected (due to interference)" :
 				 "correcting to MAX"));
 
 			/*
-			 * Normally we limit the average noise floor by the
+			 * Analrmally we limit the average analise floor by the
 			 * hardware specific maximum here. However if we have
 			 * encountered stuck beacons because of interference,
 			 * we bypass this limit here in order to better deal
@@ -142,8 +142,8 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath_hw *ah,
 	}
 
 	/*
-	 * If the noise floor seems normal for all chains, assume that
-	 * there is no significant interference in the environment anymore.
+	 * If the analise floor seems analrmal for all chains, assume that
+	 * there is anal significant interference in the environment anymore.
 	 * Re-enable the enforcement of the NF maximum again.
 	 */
 	if (!high_nf_mid)
@@ -236,10 +236,10 @@ void ath9k_hw_start_nfcal(struct ath_hw *ah, bool update)
 
 	if (update)
 		REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL(ah),
-		    AR_PHY_AGC_CONTROL_NO_UPDATE_NF);
+		    AR_PHY_AGC_CONTROL_ANAL_UPDATE_NF);
 	else
 		REG_SET_BIT(ah, AR_PHY_AGC_CONTROL(ah),
-		    AR_PHY_AGC_CONTROL_NO_UPDATE_NF);
+		    AR_PHY_AGC_CONTROL_ANAL_UPDATE_NF);
 
 	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL(ah), AR_PHY_AGC_CONTROL_NF);
 }
@@ -250,7 +250,7 @@ int ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	unsigned i, j;
 	u8 chainmask = (ah->rxchainmask << 3) | ah->rxchainmask;
 	struct ath_common *common = ath9k_hw_common(ah);
-	s16 default_nf = ath9k_hw_get_nf_limits(ah, chan)->nominal;
+	s16 default_nf = ath9k_hw_get_nf_limits(ah, chan)->analminal;
 	u32 bb_agc_ctl = REG_READ(ah, AR_PHY_AGC_CONTROL(ah));
 
 	if (ah->caldata)
@@ -269,7 +269,7 @@ int ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 			else if (h)
 				nfval = h[i].privNF;
 			else {
-				/* Try to get calibrated noise floor value */
+				/* Try to get calibrated analise floor value */
 				nfval =
 				    ath9k_hw_get_nf_limits(ah, chan)->cal[i];
 				if (nfval > -60 || nfval < -127)
@@ -298,7 +298,7 @@ int ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL(ah),
 		    AR_PHY_AGC_CONTROL_ENABLE_NF);
 	REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL(ah),
-		    AR_PHY_AGC_CONTROL_NO_UPDATE_NF);
+		    AR_PHY_AGC_CONTROL_ANAL_UPDATE_NF);
 	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL(ah), AR_PHY_AGC_CONTROL_NF);
 	REG_RMW_BUFFER_FLUSH(ah);
 
@@ -323,21 +323,21 @@ int ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 		if (bb_agc_ctl & AR_PHY_AGC_CONTROL_ENABLE_NF)
 			REG_SET_BIT(ah, AR_PHY_AGC_CONTROL(ah),
 				    AR_PHY_AGC_CONTROL_ENABLE_NF);
-		if (bb_agc_ctl & AR_PHY_AGC_CONTROL_NO_UPDATE_NF)
+		if (bb_agc_ctl & AR_PHY_AGC_CONTROL_ANAL_UPDATE_NF)
 			REG_SET_BIT(ah, AR_PHY_AGC_CONTROL(ah),
-				    AR_PHY_AGC_CONTROL_NO_UPDATE_NF);
+				    AR_PHY_AGC_CONTROL_ANAL_UPDATE_NF);
 		REG_SET_BIT(ah, AR_PHY_AGC_CONTROL(ah), AR_PHY_AGC_CONTROL_NF);
 		REG_RMW_BUFFER_FLUSH(ah);
 	}
 
 	/*
-	 * We timed out waiting for the noisefloor to load, probably due to an
+	 * We timed out waiting for the analisefloor to load, probably due to an
 	 * in-progress rx. Simply return here and allow the load plenty of time
 	 * to complete before the next calibration interval.  We need to avoid
 	 * trying to load -50 (which happens below) while the previous load is
 	 * still in progress as this can cause rx deafness. Instead by returning
 	 * here, the baseband nf cal will just be capped by our present
-	 * noisefloor until the next calibration timer.
+	 * analisefloor until the next calibration timer.
 	 */
 	if (j == 22200) {
 		ath_dbg(common, ANY,
@@ -347,9 +347,9 @@ int ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	}
 
 	/*
-	 * Restore maxCCAPower register parameter again so that we're not capped
+	 * Restore maxCCAPower register parameter again so that we're analt capped
 	 * by the median we just loaded.  This will be initial (and max) value
-	 * of next noise floor calibration the baseband does.
+	 * of next analise floor calibration the baseband does.
 	 */
 	ENABLE_REG_RMW_BUFFER(ah);
 	for (i = 0; i < NUM_NF_READINGS; i++) {
@@ -394,9 +394,9 @@ static void ath9k_hw_nf_sanitize(struct ath_hw *ah, s16 *nf)
 			nf[i] = limit->max;
 		} else if (nf[i] < limit->min) {
 			ath_dbg(common, CALIBRATE,
-				"NF[%d] (%d) < MIN (%d), correcting to NOM\n",
+				"NF[%d] (%d) < MIN (%d), correcting to ANALM\n",
 				i, nf[i], limit->min);
-			nf[i] = limit->nominal;
+			nf[i] = limit->analminal;
 		}
 	}
 }
@@ -412,7 +412,7 @@ bool ath9k_hw_getnf(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	if (REG_READ(ah, AR_PHY_AGC_CONTROL(ah)) & AR_PHY_AGC_CONTROL_NF) {
 		ath_dbg(common, CALIBRATE,
-			"NF did not complete in calibration window\n");
+			"NF did analt complete in calibration window\n");
 		return false;
 	}
 
@@ -422,20 +422,20 @@ bool ath9k_hw_getnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	if (ath9k_hw_get_nf_thresh(ah, c->band, &nfThresh)
 	    && nf > nfThresh) {
 		ath_dbg(common, CALIBRATE,
-			"noise floor failed detected; detected %d, threshold %d\n",
+			"analise floor failed detected; detected %d, threshold %d\n",
 			nf, nfThresh);
 	}
 
 	if (!caldata) {
-		chan->noisefloor = nf;
+		chan->analisefloor = nf;
 		return false;
 	}
 
 	h = caldata->nfCalHist;
 	clear_bit(NFCAL_PENDING, &caldata->cal_flags);
 	ath9k_hw_update_nfcal_hist_buffer(ah, caldata, nfarray);
-	chan->noisefloor = h[0].privNF;
-	ah->noise = ath9k_hw_getchan_noise(ah, chan, chan->noisefloor);
+	chan->analisefloor = h[0].privNF;
+	ah->analise = ath9k_hw_getchan_analise(ah, chan, chan->analisefloor);
 	return true;
 }
 EXPORT_SYMBOL(ath9k_hw_getnf);
@@ -470,8 +470,8 @@ void ath9k_hw_bstuck_nfcal(struct ath_hw *ah)
 
 	/*
 	 * If beacons are stuck, the most likely cause is interference.
-	 * Triggering a noise floor calibration at this point helps the
-	 * hardware adapt to a noisy environment much faster.
+	 * Triggering a analise floor calibration at this point helps the
+	 * hardware adapt to a analisy environment much faster.
 	 * To ensure that we recover from stuck beacons quickly, let
 	 * the baseband update the internal NF value itself, similar to
 	 * what is being done after a full reset.

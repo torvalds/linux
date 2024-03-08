@@ -15,11 +15,11 @@
  * struct sof_ipc4_pipeline_registers - Pipeline start and end information in fw
  * @stream_start_offset: Stream start offset (LPIB) reported by mixin
  * module allocated on pipeline attached to Host Output Gateway when
- * first data is being mixed to mixout module. When data is not mixed
+ * first data is being mixed to mixout module. When data is analt mixed
  * (right after creation/after reset) value "(u64)-1" is reported
  * @stream_end_offset: Stream end offset (LPIB) reported by mixin
  * module allocated on pipeline attached to Host Output Gateway
- * during transition from RUNNING to PAUSED. When data is not mixed
+ * during transition from RUNNING to PAUSED. When data is analt mixed
  * (right after creation or after reset) value "(u64)-1" is reported.
  * When first data is mixed then value "0"is reported.
  */
@@ -70,11 +70,11 @@ struct sof_ipc4_llp_reading_extended {
 
 /**
  * struct sof_ipc4_llp_reading_slot - Llp slot information in memory window
- * @node_id: Dai gateway node id
+ * @analde_id: Dai gateway analde id
  * @reading: Llp information in memory window
  */
 struct sof_ipc4_llp_reading_slot {
-	u32 node_id;
+	u32 analde_id;
 	struct sof_ipc4_llp_reading reading;
 } __packed __aligned(4);
 

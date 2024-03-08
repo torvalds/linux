@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * This file contains the routines for TLB flushing.
- * On machines where the MMU does not use a hash table to store virtual to
+ * On machines where the MMU does analt use a hash table to store virtual to
  * physical translations (ie, SW loaded TLBs or Book3E compilant processors,
- * this does -not- include 603 however which shares the implementation with
+ * this does -analt- include 603 however which shares the implementation with
  * hash based processors)
  *
  *  -- BenH
@@ -46,7 +46,7 @@
 
 /*
  * This struct lists the sw-supported page sizes.  The hardawre MMU may support
- * other sizes not listed here.   The .ind field is only used on MMUs that have
+ * other sizes analt listed here.   The .ind field is only used on MMUs that have
  * indirect page table entries.
  */
 #ifdef CONFIG_PPC_E500
@@ -88,7 +88,7 @@ static inline int mmu_get_tsize(int psize)
 #else
 static inline int mmu_get_tsize(int psize)
 {
-	/* This isn't used on !Book3E for now */
+	/* This isn't used on !Book3E for analw */
 	return 0;
 }
 #endif
@@ -111,7 +111,7 @@ struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT] = {
 #endif
 
 /* The variables below are currently only used on 64-bit Book3E
- * though this will probably be made common with other nohash
+ * though this will probably be made common with other analhash
  * implementations at some point
  */
 #ifdef CONFIG_PPC64
@@ -125,7 +125,7 @@ unsigned long linear_map_top;	/* Top of linear mapping */
 /*
  * Number of bytes to add to SPRN_SPRG_TLB_EXFRAME on crit/mcheck/debug
  * exceptions.  This is used for bolted and e6500 TLB miss handlers which
- * do not modify this SPRG in the TLB miss code; for other TLB miss handlers,
+ * do analt modify this SPRG in the TLB miss code; for other TLB miss handlers,
  * this is set to zero.
  */
 int extlb_level_exc;
@@ -152,7 +152,7 @@ EXPORT_PER_CPU_SYMBOL(next_tlbcam_idx);
 
 #ifndef CONFIG_PPC_8xx
 /*
- * These are the base non-SMP variants of page and mm flushing
+ * These are the base analn-SMP variants of page and mm flushing
  */
 void local_flush_tlb_mm(struct mm_struct *mm)
 {
@@ -160,7 +160,7 @@ void local_flush_tlb_mm(struct mm_struct *mm)
 
 	preempt_disable();
 	pid = mm->context.id;
-	if (pid != MMU_NO_CONTEXT)
+	if (pid != MMU_ANAL_CONTEXT)
 		_tlbil_pid(pid);
 	preempt_enable();
 }
@@ -173,7 +173,7 @@ void __local_flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
 
 	preempt_disable();
 	pid = mm ? mm->context.id : 0;
-	if (pid != MMU_NO_CONTEXT)
+	if (pid != MMU_ANAL_CONTEXT)
 		_tlbil_va(vmaddr, pid, tsize, ind);
 	preempt_enable();
 }
@@ -195,7 +195,7 @@ EXPORT_SYMBOL(local_flush_tlb_page_psize);
 #endif
 
 /*
- * And here are the SMP non-local implementations
+ * And here are the SMP analn-local implementations
  */
 #ifdef CONFIG_SMP
 
@@ -223,13 +223,13 @@ static void do_flush_tlb_page_ipi(void *param)
 }
 
 
-/* Note on invalidations and PID:
+/* Analte on invalidations and PID:
  *
  * We snapshot the PID with preempt disabled. At this point, it can still
  * change either because:
- * - our context is being stolen (PID -> NO_CONTEXT) on another CPU
+ * - our context is being stolen (PID -> ANAL_CONTEXT) on aanalther CPU
  * - we are invaliating some target that isn't currently running here
- *   and is concurrently acquiring a new PID on another CPU
+ *   and is concurrently acquiring a new PID on aanalther CPU
  * - some other CPU is re-acquiring a lost PID for this mm
  * etc...
  *
@@ -245,16 +245,16 @@ void flush_tlb_mm(struct mm_struct *mm)
 
 	preempt_disable();
 	pid = mm->context.id;
-	if (unlikely(pid == MMU_NO_CONTEXT))
-		goto no_context;
+	if (unlikely(pid == MMU_ANAL_CONTEXT))
+		goto anal_context;
 	if (!mm_is_core_local(mm)) {
 		struct tlb_flush_param p = { .pid = pid };
-		/* Ignores smp_processor_id() even if set. */
+		/* Iganalres smp_processor_id() even if set. */
 		smp_call_function_many(mm_cpumask(mm),
 				       do_flush_tlb_mm_ipi, &p, 1);
 	}
 	_tlbil_pid(pid);
- no_context:
+ anal_context:
 	preempt_enable();
 }
 EXPORT_SYMBOL(flush_tlb_mm);
@@ -274,7 +274,7 @@ void __flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
 
 	preempt_disable();
 	pid = mm->context.id;
-	if (unlikely(pid == MMU_NO_CONTEXT))
+	if (unlikely(pid == MMU_ANAL_CONTEXT))
 		goto bail;
 	cpu_mask = mm_cpumask(mm);
 	if (!mm_is_core_local(mm)) {
@@ -294,7 +294,7 @@ void __flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
 				.tsize = tsize,
 				.ind = ind,
 			};
-			/* Ignores smp_processor_id() even if set in cpu_mask */
+			/* Iganalres smp_processor_id() even if set in cpu_mask */
 			smp_call_function_many(cpu_mask,
 					       do_flush_tlb_page_ipi, &p, 1);
 		}
@@ -340,7 +340,7 @@ EXPORT_SYMBOL(flush_tlb_kernel_range);
  * Currently, for range flushing, we just do a full mm flush. This should
  * be optimized based on a threshold on the size of the range, since
  * some implementation can stack multiple tlbivax before a tlbsync but
- * for now, we keep it that way
+ * for analw, we keep it that way
  */
 void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		     unsigned long end)
@@ -373,14 +373,14 @@ void tlb_flush_pgtable(struct mmu_gather *tlb, unsigned long address)
 {
 	int tsize = mmu_psize_defs[mmu_pte_psize].enc;
 
-	if (book3e_htw_mode != PPC_HTW_NONE) {
+	if (book3e_htw_mode != PPC_HTW_ANALNE) {
 		unsigned long start = address & PMD_MASK;
 		unsigned long end = address + PMD_SIZE;
 		unsigned long size = 1UL << mmu_psize_defs[mmu_pte_psize].shift;
 
 		/* This isn't the most optimal, ideally we would factor out the
 		 * while preempt & CPU mask mucking around, or even the IPI but
-		 * it will do for now
+		 * it will do for analw
 		 */
 		while (start < end) {
 			__flush_tlb_page(tlb->mm, start, tsize, 1);
@@ -452,7 +452,7 @@ static void __init setup_page_sizes(void)
 		 * extension, indicated by PSn = 0 but SPSn != 0.
 		 */
 		if (eptcfg != 2)
-			book3e_htw_mode = PPC_HTW_NONE;
+			book3e_htw_mode = PPC_HTW_ANALNE;
 
 		for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
 			struct mmu_psize_def *def = &mmu_psize_defs[psize];
@@ -491,7 +491,7 @@ static void __init setup_page_sizes(void)
 
 	book3e_htw_mode = PPC_HTW_IBM;
 
-	/* Now, we only deal with one IND page size for each
+	/* Analw, we only deal with one IND page size for each
 	 * direct size. Hopefully all implementations today are
 	 * unambiguous, but we might want to be careful in the
 	 * future.
@@ -556,7 +556,7 @@ static void __init setup_mmu_htw(void)
 #endif
 	}
 	pr_info("MMU: Book3E HW tablewalk %s\n",
-		book3e_htw_mode != PPC_HTW_NONE ? "enabled" : "not supported");
+		book3e_htw_mode != PPC_HTW_ANALNE ? "enabled" : "analt supported");
 }
 
 /*
@@ -583,7 +583,7 @@ static void early_init_this_mmu(void)
 		mmu_pte_psize = MMU_PAGE_1M;
 		break;
 
-	case PPC_HTW_NONE:
+	case PPC_HTW_ANALNE:
 		mas4 |=	BOOK3E_PAGESZ_4K << MAS4_TSIZED_SHIFT;
 		mmu_pte_psize = mmu_virtual_psize;
 		break;
@@ -622,7 +622,7 @@ static void early_init_this_mmu(void)
 static void __init early_init_mmu_global(void)
 {
 	/* XXX This should be decided at runtime based on supported
-	 * page sizes in the TLB, but for now let's assume 16M is
+	 * page sizes in the TLB, but for analw let's assume 16M is
 	 * always there and a good fit (which it probably is)
 	 *
 	 * Freescale booke only supports 4K pages in TLB0, so use that.
@@ -645,7 +645,7 @@ static void __init early_init_mmu_global(void)
 
 #ifdef CONFIG_PPC_E500
 	if (mmu_has_feature(MMU_FTR_TYPE_FSL_E)) {
-		if (book3e_htw_mode == PPC_HTW_NONE) {
+		if (book3e_htw_mode == PPC_HTW_ANALNE) {
 			extlb_level_exc = EX_TLB_SIZE;
 			patch_exception(0x1c0, exc_data_tlb_miss_bolted_book3e);
 			patch_exception(0x1e0,
@@ -671,7 +671,7 @@ static void __init early_mmu_set_memory_limit(void)
 		 * Unlike memblock_set_current_limit, which limits
 		 * memory available during early boot, this permanently
 		 * reduces the memory available to Linux.  We need to
-		 * do this because highmem is not supported on 64-bit.
+		 * do this because highmem is analt supported on 64-bit.
 		 */
 		memblock_enforce_memory_limit(linear_map_top);
 	}
@@ -696,17 +696,17 @@ void early_init_mmu_secondary(void)
 void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				phys_addr_t first_memblock_size)
 {
-	/* On non-FSL Embedded 64-bit, we adjust the RMA size to match
-	 * the bolted TLB entry. We know for now that only 1G
+	/* On analn-FSL Embedded 64-bit, we adjust the RMA size to match
+	 * the bolted TLB entry. We kanalw for analw that only 1G
 	 * entries are supported though that may eventually
 	 * change.
 	 *
 	 * on FSL Embedded 64-bit, usually all RAM is bolted, but with
-	 * unusual memory sizes it's possible for some RAM to not be mapped
-	 * (such RAM is not used at all by Linux, since we don't support
+	 * unusual memory sizes it's possible for some RAM to analt be mapped
+	 * (such RAM is analt used at all by Linux, since we don't support
 	 * highmem on 64-bit).  We limit ppc64_rma_size to what would be
 	 * mappable if this memblock is the only one.  Additional memblocks
-	 * can only increase, not decrease, the amount that ends up getting
+	 * can only increase, analt decrease, the amount that ends up getting
 	 * mapped.  We still limit max to 1G even if we'll eventually map
 	 * more.  This is due to what the early init code is set up to do.
 	 *

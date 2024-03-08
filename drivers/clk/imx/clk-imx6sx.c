@@ -117,9 +117,9 @@ static u32 share_count_ssi3;
 static u32 share_count_sai1;
 static u32 share_count_sai2;
 
-static void __init imx6sx_clocks_init(struct device_node *ccm_node)
+static void __init imx6sx_clocks_init(struct device_analde *ccm_analde)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *base;
 	bool lcdif1_assigned_clk;
 
@@ -133,21 +133,21 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 
 	hws[IMX6SX_CLK_DUMMY] = imx_clk_hw_fixed("dummy", 0);
 
-	hws[IMX6SX_CLK_CKIL] = imx_get_clk_hw_by_name(ccm_node, "ckil");
-	hws[IMX6SX_CLK_OSC] = imx_get_clk_hw_by_name(ccm_node, "osc");
+	hws[IMX6SX_CLK_CKIL] = imx_get_clk_hw_by_name(ccm_analde, "ckil");
+	hws[IMX6SX_CLK_OSC] = imx_get_clk_hw_by_name(ccm_analde, "osc");
 
 	/* ipp_di clock is external input */
-	hws[IMX6SX_CLK_IPP_DI0] = imx_get_clk_hw_by_name(ccm_node, "ipp_di0");
-	hws[IMX6SX_CLK_IPP_DI1] = imx_get_clk_hw_by_name(ccm_node, "ipp_di1");
+	hws[IMX6SX_CLK_IPP_DI0] = imx_get_clk_hw_by_name(ccm_analde, "ipp_di0");
+	hws[IMX6SX_CLK_IPP_DI1] = imx_get_clk_hw_by_name(ccm_analde, "ipp_di1");
 
 	/* Clock source from external clock via CLK1/2 PAD */
-	hws[IMX6SX_CLK_ANACLK1] = imx_get_clk_hw_by_name(ccm_node, "anaclk1");
-	hws[IMX6SX_CLK_ANACLK2] = imx_get_clk_hw_by_name(ccm_node, "anaclk2");
+	hws[IMX6SX_CLK_ANACLK1] = imx_get_clk_hw_by_name(ccm_analde, "anaclk1");
+	hws[IMX6SX_CLK_ANACLK2] = imx_get_clk_hw_by_name(ccm_analde, "anaclk2");
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6sx-anatop");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx6sx-anatop");
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
-	of_node_put(np);
+	of_analde_put(np);
 
 	hws[IMX6SX_PLL1_BYPASS_SRC] = imx_clk_hw_mux("pll1_bypass_src", base + 0x00, 14, 1, pll_bypass_src_sels, ARRAY_SIZE(pll_bypass_src_sels));
 	hws[IMX6SX_PLL2_BYPASS_SRC] = imx_clk_hw_mux("pll2_bypass_src", base + 0x30, 14, 1, pll_bypass_src_sels, ARRAY_SIZE(pll_bypass_src_sels));
@@ -174,7 +174,7 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 	hws[IMX6SX_PLL6_BYPASS] = imx_clk_hw_mux_flags("pll6_bypass", base + 0xe0, 16, 1, pll6_bypass_sels, ARRAY_SIZE(pll6_bypass_sels), CLK_SET_RATE_PARENT);
 	hws[IMX6SX_PLL7_BYPASS] = imx_clk_hw_mux_flags("pll7_bypass", base + 0x20, 16, 1, pll7_bypass_sels, ARRAY_SIZE(pll7_bypass_sels), CLK_SET_RATE_PARENT);
 
-	/* Do not bypass PLLs initially */
+	/* Do analt bypass PLLs initially */
 	clk_set_parent(hws[IMX6SX_PLL1_BYPASS]->clk, hws[IMX6SX_CLK_PLL1]->clk);
 	clk_set_parent(hws[IMX6SX_PLL2_BYPASS]->clk, hws[IMX6SX_CLK_PLL2]->clk);
 	clk_set_parent(hws[IMX6SX_PLL3_BYPASS]->clk, hws[IMX6SX_CLK_PLL3]->clk);
@@ -193,7 +193,7 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 
 	/*
 	 * Bit 20 is the reserved and read-only bit, we do this only for:
-	 * - Do nothing for usbphy clk_enable/disable
+	 * - Do analthing for usbphy clk_enable/disable
 	 * - Keep refcount when do usbphy clk_enable/disable, in that case,
 	 * the clk framework may need to enable/disable usbphy's parent
 	 */
@@ -258,7 +258,7 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 	hws[IMX6SX_CLK_LVDS1_SEL]          = imx_clk_hw_mux("lvds1_sel",        base + 0x160, 0,      5,      lvds_sels,         ARRAY_SIZE(lvds_sels));
 	hws[IMX6SX_CLK_LVDS2_SEL]          = imx_clk_hw_mux("lvds2_sel",        base + 0x160, 5,      5,      lvds_sels,         ARRAY_SIZE(lvds_sels));
 
-	np = ccm_node;
+	np = ccm_analde;
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
 
@@ -499,10 +499,10 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 	clk_set_parent(hws[IMX6SX_CLK_EIM_SLOW_SEL]->clk, hws[IMX6SX_CLK_PLL2_PFD2]->clk);
 	clk_set_rate(hws[IMX6SX_CLK_EIM_SLOW]->clk, 132000000);
 
-	np = of_find_node_by_path("/soc/bus@2200000/spba-bus@2240000/lcdif@2220000");
+	np = of_find_analde_by_path("/soc/bus@2200000/spba-bus@2240000/lcdif@2220000");
 	lcdif1_assigned_clk = of_find_property(np, "assigned-clock-parents", NULL);
 
-	/* Set parent clock for LCDIF1 pixel clock if not done via devicetree */
+	/* Set parent clock for LCDIF1 pixel clock if analt done via devicetree */
 	if (!lcdif1_assigned_clk) {
 		clk_set_parent(hws[IMX6SX_CLK_LCDIF1_PRE_SEL]->clk,
 			       hws[IMX6SX_CLK_PLL5_VIDEO_DIV]->clk);

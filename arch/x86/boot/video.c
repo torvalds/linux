@@ -31,10 +31,10 @@ static void store_cursor_position(void)
 	boot_params.screen_info.orig_y = oreg.dh;
 
 	if (oreg.ch & 0x20)
-		boot_params.screen_info.flags |= VIDEO_FLAGS_NOCURSOR;
+		boot_params.screen_info.flags |= VIDEO_FLAGS_ANALCURSOR;
 
 	if ((oreg.ch & 0x1f) > (oreg.cl & 0x1f))
-		boot_params.screen_info.flags |= VIDEO_FLAGS_NOCURSOR;
+		boot_params.screen_info.flags |= VIDEO_FLAGS_ANALCURSOR;
 }
 
 static void store_video_mode(void)
@@ -47,7 +47,7 @@ static void store_video_mode(void)
 	ireg.ah = 0x0f;
 	intcall(0x10, &ireg, &oreg);
 
-	/* Not all BIOSes are clean with respect to the top bit */
+	/* Analt all BIOSes are clean with respect to the top bit */
 	boot_params.screen_info.orig_video_mode = oreg.al & 0x7f;
 	boot_params.screen_info.orig_video_page = oreg.bh;
 }
@@ -72,7 +72,7 @@ static void store_mode_params(void)
 	store_video_mode();
 
 	if (boot_params.screen_info.orig_video_mode == 0x07) {
-		/* MDA, HGC, or VGA in monochrome mode */
+		/* MDA, HGC, or VGA in moanalchrome mode */
 		video_segment = 0xb000;
 	} else {
 		/* CGA, EGA, VGA and so forth */
@@ -245,7 +245,7 @@ static void save_screen(void)
 	saved.cury = boot_params.screen_info.orig_y;
 
 	if (!heap_free(saved.x*saved.y*sizeof(u16)+512))
-		return;		/* Not enough heap to save the screen */
+		return;		/* Analt eanalugh heap to save the screen */
 
 	saved.data = GET_HEAP(u16, saved.x*saved.y);
 
@@ -267,7 +267,7 @@ static void restore_screen(void)
 		return;		/* Can't restore onto a graphic mode */
 
 	if (!src)
-		return;		/* No saved screen contents */
+		return;		/* Anal saved screen contents */
 
 	/* Restore screen contents */
 

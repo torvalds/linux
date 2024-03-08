@@ -15,12 +15,12 @@
 #include <linux/err.h>
 
 /*
- * DOC: basic adjustable multiplexer clock that cannot gate
+ * DOC: basic adjustable multiplexer clock that cananalt gate
  *
  * Traits of this clock:
  * prepare - clk_prepare only ensures that parents are prepared
  * enable - clk_enable only ensures that parents are enabled
- * rate - rate is only affected by parent switching.  No clk_set_rate support
+ * rate - rate is only affected by parent switching.  Anal clk_set_rate support
  * parent - parent is adjustable through clk_set_parent
  */
 
@@ -146,7 +146,7 @@ const struct clk_ops clk_mux_ro_ops = {
 };
 EXPORT_SYMBOL_GPL(clk_mux_ro_ops);
 
-struct clk_hw *__clk_hw_register_mux(struct device *dev, struct device_node *np,
+struct clk_hw *__clk_hw_register_mux(struct device *dev, struct device_analde *np,
 		const char *name, u8 num_parents,
 		const char * const *parent_names,
 		const struct clk_hw **parent_hws,
@@ -171,7 +171,7 @@ struct clk_hw *__clk_hw_register_mux(struct device *dev, struct device_node *np,
 	/* allocate the mux */
 	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	if (clk_mux_flags & CLK_MUX_READ_ONLY)
@@ -212,7 +212,7 @@ static void devm_clk_hw_release_mux(struct device *dev, void *res)
 	clk_hw_unregister_mux(*(struct clk_hw **)res);
 }
 
-struct clk_hw *__devm_clk_hw_register_mux(struct device *dev, struct device_node *np,
+struct clk_hw *__devm_clk_hw_register_mux(struct device *dev, struct device_analde *np,
 		const char *name, u8 num_parents,
 		const char * const *parent_names,
 		const struct clk_hw **parent_hws,
@@ -224,7 +224,7 @@ struct clk_hw *__devm_clk_hw_register_mux(struct device *dev, struct device_node
 
 	ptr = devres_alloc(devm_clk_hw_release_mux, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hw = __clk_hw_register_mux(dev, np, name, num_parents, parent_names, parent_hws,
 				       parent_data, flags, reg, shift, mask,

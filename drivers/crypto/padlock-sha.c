@@ -14,7 +14,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/scatterlist.h>
@@ -201,7 +201,7 @@ static int padlock_init_tfm(struct crypto_shash *hash)
 	fallback_tfm = crypto_alloc_shash(fallback_driver_name, 0,
 					  CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(fallback_tfm)) {
-		printk(KERN_WARNING PFX "Fallback driver '%s' could not be loaded!\n",
+		printk(KERN_WARNING PFX "Fallback driver '%s' could analt be loaded!\n",
 		       fallback_driver_name);
 		return PTR_ERR(fallback_tfm);
 	}
@@ -265,8 +265,8 @@ static struct shash_alg sha256_alg = {
 };
 
 /* Add two shash_alg instance for hardware-implemented *
-* multiple-parts hash supported by VIA Nano Processor.*/
-static int padlock_sha1_init_nano(struct shash_desc *desc)
+* multiple-parts hash supported by VIA Naanal Processor.*/
+static int padlock_sha1_init_naanal(struct shash_desc *desc)
 {
 	struct sha1_state *sctx = shash_desc_ctx(desc);
 
@@ -277,7 +277,7 @@ static int padlock_sha1_init_nano(struct shash_desc *desc)
 	return 0;
 }
 
-static int padlock_sha1_update_nano(struct shash_desc *desc,
+static int padlock_sha1_update_naanal(struct shash_desc *desc,
 			const u8 *data,	unsigned int len)
 {
 	struct sha1_state *sctx = shash_desc_ctx(desc);
@@ -326,7 +326,7 @@ static int padlock_sha1_update_nano(struct shash_desc *desc,
 	return 0;
 }
 
-static int padlock_sha1_final_nano(struct shash_desc *desc, u8 *out)
+static int padlock_sha1_final_naanal(struct shash_desc *desc, u8 *out)
 {
 	struct sha1_state *state = (struct sha1_state *)shash_desc_ctx(desc);
 	unsigned int partial, padlen;
@@ -338,10 +338,10 @@ static int padlock_sha1_final_nano(struct shash_desc *desc, u8 *out)
 	/* Pad out to 56 mod 64 */
 	partial = state->count & 0x3f;
 	padlen = (partial < 56) ? (56 - partial) : ((64+56) - partial);
-	padlock_sha1_update_nano(desc, padding, padlen);
+	padlock_sha1_update_naanal(desc, padding, padlen);
 
 	/* Append length field bytes */
-	padlock_sha1_update_nano(desc, (const u8 *)&bits, sizeof(bits));
+	padlock_sha1_update_naanal(desc, (const u8 *)&bits, sizeof(bits));
 
 	/* Swap to output */
 	padlock_output_block((uint32_t *)(state->state), (uint32_t *)out, 5);
@@ -349,7 +349,7 @@ static int padlock_sha1_final_nano(struct shash_desc *desc, u8 *out)
 	return 0;
 }
 
-static int padlock_sha256_init_nano(struct shash_desc *desc)
+static int padlock_sha256_init_naanal(struct shash_desc *desc)
 {
 	struct sha256_state *sctx = shash_desc_ctx(desc);
 
@@ -361,7 +361,7 @@ static int padlock_sha256_init_nano(struct shash_desc *desc)
 	return 0;
 }
 
-static int padlock_sha256_update_nano(struct shash_desc *desc, const u8 *data,
+static int padlock_sha256_update_naanal(struct shash_desc *desc, const u8 *data,
 			  unsigned int len)
 {
 	struct sha256_state *sctx = shash_desc_ctx(desc);
@@ -410,7 +410,7 @@ static int padlock_sha256_update_nano(struct shash_desc *desc, const u8 *data,
 	return 0;
 }
 
-static int padlock_sha256_final_nano(struct shash_desc *desc, u8 *out)
+static int padlock_sha256_final_naanal(struct shash_desc *desc, u8 *out)
 {
 	struct sha256_state *state =
 		(struct sha256_state *)shash_desc_ctx(desc);
@@ -423,10 +423,10 @@ static int padlock_sha256_final_nano(struct shash_desc *desc, u8 *out)
 	/* Pad out to 56 mod 64 */
 	partial = state->count & 0x3f;
 	padlen = (partial < 56) ? (56 - partial) : ((64+56) - partial);
-	padlock_sha256_update_nano(desc, padding, padlen);
+	padlock_sha256_update_naanal(desc, padding, padlen);
 
 	/* Append length field bytes */
-	padlock_sha256_update_nano(desc, (const u8 *)&bits, sizeof(bits));
+	padlock_sha256_update_naanal(desc, (const u8 *)&bits, sizeof(bits));
 
 	/* Swap to output */
 	padlock_output_block((uint32_t *)(state->state), (uint32_t *)out, 8);
@@ -434,7 +434,7 @@ static int padlock_sha256_final_nano(struct shash_desc *desc, u8 *out)
 	return 0;
 }
 
-static int padlock_sha_export_nano(struct shash_desc *desc,
+static int padlock_sha_export_naanal(struct shash_desc *desc,
 				void *out)
 {
 	int statesize = crypto_shash_statesize(desc->tfm);
@@ -444,7 +444,7 @@ static int padlock_sha_export_nano(struct shash_desc *desc,
 	return 0;
 }
 
-static int padlock_sha_import_nano(struct shash_desc *desc,
+static int padlock_sha_import_naanal(struct shash_desc *desc,
 				const void *in)
 {
 	int statesize = crypto_shash_statesize(desc->tfm);
@@ -454,36 +454,36 @@ static int padlock_sha_import_nano(struct shash_desc *desc,
 	return 0;
 }
 
-static struct shash_alg sha1_alg_nano = {
+static struct shash_alg sha1_alg_naanal = {
 	.digestsize	=	SHA1_DIGEST_SIZE,
-	.init		=	padlock_sha1_init_nano,
-	.update		=	padlock_sha1_update_nano,
-	.final		=	padlock_sha1_final_nano,
-	.export		=	padlock_sha_export_nano,
-	.import		=	padlock_sha_import_nano,
+	.init		=	padlock_sha1_init_naanal,
+	.update		=	padlock_sha1_update_naanal,
+	.final		=	padlock_sha1_final_naanal,
+	.export		=	padlock_sha_export_naanal,
+	.import		=	padlock_sha_import_naanal,
 	.descsize	=	sizeof(struct sha1_state),
 	.statesize	=	sizeof(struct sha1_state),
 	.base		=	{
 		.cra_name		=	"sha1",
-		.cra_driver_name	=	"sha1-padlock-nano",
+		.cra_driver_name	=	"sha1-padlock-naanal",
 		.cra_priority		=	PADLOCK_CRA_PRIORITY,
 		.cra_blocksize		=	SHA1_BLOCK_SIZE,
 		.cra_module		=	THIS_MODULE,
 	}
 };
 
-static struct shash_alg sha256_alg_nano = {
+static struct shash_alg sha256_alg_naanal = {
 	.digestsize	=	SHA256_DIGEST_SIZE,
-	.init		=	padlock_sha256_init_nano,
-	.update		=	padlock_sha256_update_nano,
-	.final		=	padlock_sha256_final_nano,
-	.export		=	padlock_sha_export_nano,
-	.import		=	padlock_sha_import_nano,
+	.init		=	padlock_sha256_init_naanal,
+	.update		=	padlock_sha256_update_naanal,
+	.final		=	padlock_sha256_final_naanal,
+	.export		=	padlock_sha_export_naanal,
+	.import		=	padlock_sha_import_naanal,
 	.descsize	=	sizeof(struct sha256_state),
 	.statesize	=	sizeof(struct sha256_state),
 	.base		=	{
 		.cra_name		=	"sha256",
-		.cra_driver_name	=	"sha256-padlock-nano",
+		.cra_driver_name	=	"sha256-padlock-naanal",
 		.cra_priority		=	PADLOCK_CRA_PRIORITY,
 		.cra_blocksize		=	SHA256_BLOCK_SIZE,
 		.cra_module		=	THIS_MODULE,
@@ -498,22 +498,22 @@ MODULE_DEVICE_TABLE(x86cpu, padlock_sha_ids);
 
 static int __init padlock_init(void)
 {
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 	struct cpuinfo_x86 *c = &cpu_data(0);
 	struct shash_alg *sha1;
 	struct shash_alg *sha256;
 
 	if (!x86_match_cpu(padlock_sha_ids) || !boot_cpu_has(X86_FEATURE_PHE_EN))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Register the newly added algorithm module if on *
-	* VIA Nano processor, or else just do as before */
+	* VIA Naanal processor, or else just do as before */
 	if (c->x86_model < 0x0f) {
 		sha1 = &sha1_alg;
 		sha256 = &sha256_alg;
 	} else {
-		sha1 = &sha1_alg_nano;
-		sha256 = &sha256_alg_nano;
+		sha1 = &sha1_alg_naanal;
+		sha256 = &sha256_alg_naanal;
 	}
 
 	rc = crypto_register_shash(sha1);
@@ -524,7 +524,7 @@ static int __init padlock_init(void)
 	if (rc)
 		goto out_unreg1;
 
-	printk(KERN_NOTICE PFX "Using VIA PadLock ACE for SHA1/SHA256 algorithms.\n");
+	printk(KERN_ANALTICE PFX "Using VIA PadLock ACE for SHA1/SHA256 algorithms.\n");
 
 	return 0;
 
@@ -541,8 +541,8 @@ static void __exit padlock_fini(void)
 	struct cpuinfo_x86 *c = &cpu_data(0);
 
 	if (c->x86_model >= 0x0f) {
-		crypto_unregister_shash(&sha1_alg_nano);
-		crypto_unregister_shash(&sha256_alg_nano);
+		crypto_unregister_shash(&sha1_alg_naanal);
+		crypto_unregister_shash(&sha256_alg_naanal);
 	} else {
 		crypto_unregister_shash(&sha1_alg);
 		crypto_unregister_shash(&sha256_alg);

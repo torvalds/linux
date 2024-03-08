@@ -10,7 +10,7 @@
  */
 #include "vp7045.h"
 
-/* It is a Zarlink MT352 within a Samsung Tuner (DNOS404ZH102A) - 040929 - AAT
+/* It is a Zarlink MT352 within a Samsung Tuner (DANALS404ZH102A) - 040929 - AAT
  *
  * Programming is hidden inside the firmware, so set_frontend is very easy.
  * Even though there is a Firmware command that one can use to access the demod

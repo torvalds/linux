@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -91,7 +91,7 @@ nvkm_falcon_msgq_read(struct nvkm_falcon_msgq *msgq, struct nvfw_falcon_msg *hdr
 
 	if (hdr->size > MSG_BUF_SIZE) {
 		FLCNQ_ERR(msgq, "message too big, %d bytes", hdr->size);
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto close;
 	}
 
@@ -118,7 +118,7 @@ nvkm_falcon_msgq_exec(struct nvkm_falcon_msgq *msgq, struct nvfw_falcon_msg *hdr
 
 	seq = &msgq->qmgr->seq.id[hdr->seq_id];
 	if (seq->state != SEQ_STATE_USED && seq->state != SEQ_STATE_CANCELLED) {
-		FLCNQ_ERR(msgq, "message for unknown sequence %08x", seq->id);
+		FLCNQ_ERR(msgq, "message for unkanalwn sequence %08x", seq->id);
 		return -EINVAL;
 	}
 
@@ -140,7 +140,7 @@ void
 nvkm_falcon_msgq_recv(struct nvkm_falcon_msgq *msgq)
 {
 	/*
-	 * We are invoked from a worker thread, so normally we have plenty of
+	 * We are invoked from a worker thread, so analrmally we have plenty of
 	 * stack space to work with.
 	 */
 	u8 msg_buffer[MSG_BUF_SIZE];
@@ -204,7 +204,7 @@ nvkm_falcon_msgq_new(struct nvkm_falcon_qmgr *qmgr, const char *name,
 	struct nvkm_falcon_msgq *msgq = *pmsgq;
 
 	if (!(msgq = *pmsgq = kzalloc(sizeof(*msgq), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msgq->qmgr = qmgr;
 	msgq->name = name;

@@ -2,7 +2,7 @@
  *
  * include/asm-sh/cpu-sh2/freq.h
  *
- * Copyright (C) 2006  Yoshinori Sato
+ * Copyright (C) 2006  Yoshianalri Sato
  */
 #ifndef __ASM_CPU_SH2_FREQ_H
 #define __ASM_CPU_SH2_FREQ_H

@@ -24,7 +24,7 @@ memset (void *dstpp, int sc, size_t len)
 	cccc |= (cccc << 16) << 16;
 
       /* There are at least some bytes to set.
-	 No need to test for LEN == 0 in this alignment loop.  */
+	 Anal need to test for LEN == 0 in this alignment loop.  */
       while (dstp % OPSIZ != 0)
 	{
 	  ((unsigned char *) dstp)[0] = c;

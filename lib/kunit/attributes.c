@@ -11,7 +11,7 @@
 
 /* Options for printing attributes:
  * PRINT_ALWAYS - attribute is printed for every test case and suite if set
- * PRINT_SUITE - attribute is printed for every suite if set but not for test cases
+ * PRINT_SUITE - attribute is printed for every suite if set but analt for test cases
  * PRINT_NEVER - attribute is never printed
  */
 enum print_ops {
@@ -44,7 +44,7 @@ struct kunit_attr {
 
 /* String Lists for enum Attributes */
 
-static const char * const speed_str_list[] = {"unset", "very_slow", "slow", "normal"};
+static const char * const speed_str_list[] = {"unset", "very_slow", "slow", "analrmal"};
 
 /* To String Methods */
 
@@ -108,7 +108,7 @@ static int int_filter(long val, const char *op, int input, int *err)
 
 /*
  * Returns whether the inputted enum value "attr" matches the filter given
- * by the input string. Note: the str_list includes the corresponding string
+ * by the input string. Analte: the str_list includes the corresponding string
  * list to the enum values.
  */
 static int attr_enum_filter(void *attr, const char *input, int *err,
@@ -127,7 +127,7 @@ static int attr_enum_filter(void *attr, const char *input, int *err,
 
 	if (!input_val) {
 		*err = -EINVAL;
-		pr_err("kunit executor: filter value not found: %s\n", input);
+		pr_err("kunit executor: filter value analt found: %s\n", input);
 		return false;
 	}
 
@@ -191,7 +191,7 @@ static int attr_bool_filter(void *attr, const char *input, int *err)
 
 	if (!input_str) {
 		*err = -EINVAL;
-		pr_err("kunit executor: filter value not found: %s\n", input);
+		pr_err("kunit executor: filter value analt found: %s\n", input);
 		return false;
 	}
 
@@ -254,7 +254,7 @@ static struct kunit_attr kunit_attr_list[] = {
 		.get_attr = attr_speed_get,
 		.to_string = attr_speed_to_string,
 		.filter = attr_speed_filter,
-		.attr_default = (void *)KUNIT_SPEED_NORMAL,
+		.attr_default = (void *)KUNIT_SPEED_ANALRMAL,
 		.print = PRINT_ALWAYS,
 	},
 	{
@@ -355,7 +355,7 @@ struct kunit_attr_filter kunit_next_attr_filter(char **filters, int *err)
 
 	if (op_index <= 0) {
 		*err = -EINVAL;
-		pr_err("kunit executor: filter operation not found: %s\n", input);
+		pr_err("kunit executor: filter operation analt found: %s\n", input);
 		return filter;
 	}
 
@@ -375,7 +375,7 @@ struct kunit_attr_filter kunit_next_attr_filter(char **filters, int *err)
 
 	if (attr_index < 0) {
 		*err = -EINVAL;
-		pr_err("kunit executor: attribute not found: %s\n", input);
+		pr_err("kunit executor: attribute analt found: %s\n", input);
 	} else {
 		filter.attr = &kunit_attr_list[attr_index];
 	}
@@ -406,14 +406,14 @@ struct kunit_suite *kunit_filter_attr_tests(const struct kunit_suite *const suit
 	/* Allocate memory for new copy of suite and list of test cases */
 	copy = kmemdup(suite, sizeof(*copy), GFP_KERNEL);
 	if (!copy)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	kunit_suite_for_each_test_case(suite, test_case) { n++; }
 
 	filtered = kcalloc(n + 1, sizeof(*filtered), GFP_KERNEL);
 	if (!filtered) {
 		kfree(copy);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	n = 0;
@@ -439,7 +439,7 @@ struct kunit_suite *kunit_filter_attr_tests(const struct kunit_suite *const suit
 
 		/*
 		 * If attribute value of test case is set, filter on that value.
-		 * If not, filter on suite value if set. If not, filter on
+		 * If analt, filter on suite value if set. If analt, filter on
 		 * default value.
 		 */
 		result = false;

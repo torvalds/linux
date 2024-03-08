@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * HighPoint RR3xxx/4xxx controller driver for Linux
- * Copyright (C) 2006-2015 HighPoint Technologies, Inc. All Rights Reserved.
+ * Copyright (C) 2006-2015 HighPoint Techanallogies, Inc. All Rights Reserved.
  *
  * Please report bugs/comments/suggestions to linux@highpoint-tech.com
  *
@@ -123,7 +123,7 @@ struct mvfrey_outlist_entry {
 
 enum hpt_iopmu_message {
 	/* host-to-iop messages */
-	IOPMU_INBOUND_MSG0_NOP = 0,
+	IOPMU_INBOUND_MSG0_ANALP = 0,
 	IOPMU_INBOUND_MSG0_RESET,
 	IOPMU_INBOUND_MSG0_FLUSH,
 	IOPMU_INBOUND_MSG0_SHUTDOWN,
@@ -198,7 +198,7 @@ struct hpt_iop_request_set_config {
 
 struct hpt_iopsg {
 	__le32 size;
-	__le32 eot; /* non-zero: end of table */
+	__le32 eot; /* analn-zero: end of table */
 	__le64 pci_address;
 };
 
@@ -260,7 +260,7 @@ struct hpt_cmd_priv {
 #define HPT_SCP(scp) ((struct hpt_cmd_priv *)scsi_cmd_priv(scp))
 
 enum hptiop_family {
-	UNKNOWN_BASED_IOP,
+	UNKANALWN_BASED_IOP,
 	INTEL_BASED_IOP,
 	MV_BASED_IOP,
 	MVFREY_BASED_IOP

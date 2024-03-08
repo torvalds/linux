@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* Function to determine if a thread group is single threaded or not
+/* Function to determine if a thread group is single threaded or analt
  *
  * Copyright (C) 2008 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -10,7 +10,7 @@
 #include <linux/sched/mm.h>
 
 /*
- * Returns true if the task does not share ->mm with another thread/process.
+ * Returns true if the task does analt share ->mm with aanalther thread/process.
  */
 bool current_is_single_threaded(void)
 {

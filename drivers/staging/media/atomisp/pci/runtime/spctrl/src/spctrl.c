@@ -66,12 +66,12 @@ int ia_css_spctrl_load_fw(sp_ID_t sp_id, ia_css_spctrl_cfg *spctrl_cfg)
 	 */
 	code_addr = hmm_alloc(spctrl_cfg->code_size);
 	if (code_addr == mmgr_NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	hmm_store(code_addr, spctrl_cfg->code, spctrl_cfg->code_size);
 
 	if (sizeof(ia_css_ptr) > sizeof(hrt_data)) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
-				    "size of ia_css_ptr can not be greater than hrt_data\n");
+				    "size of ia_css_ptr can analt be greater than hrt_data\n");
 		hmm_free(code_addr);
 		code_addr = mmgr_NULL;
 		return -EINVAL;
@@ -80,7 +80,7 @@ int ia_css_spctrl_load_fw(sp_ID_t sp_id, ia_css_spctrl_cfg *spctrl_cfg)
 	init_dmem_cfg->ddr_data_addr  = code_addr + spctrl_cfg->ddr_data_offset;
 	if ((init_dmem_cfg->ddr_data_addr % HIVE_ISP_DDR_WORD_BYTES) != 0) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
-				    "DDR address pointer is not properly aligned for DMA transfer\n");
+				    "DDR address pointer is analt properly aligned for DMA transfer\n");
 		hmm_free(code_addr);
 		code_addr = mmgr_NULL;
 		return -EINVAL;
@@ -90,7 +90,7 @@ int ia_css_spctrl_load_fw(sp_ID_t sp_id, ia_css_spctrl_cfg *spctrl_cfg)
 	spctrl_cofig_info[sp_id].code_addr = code_addr;
 	spctrl_cofig_info[sp_id].program_name = spctrl_cfg->program_name;
 
-	/* now we program the base address into the icache and
+	/* analw we program the base address into the icache and
 	 * invalidate the cache.
 	 */
 	sp_ctrl_store(sp_id, SP_ICACHE_ADDR_REG,
@@ -104,7 +104,7 @@ int ia_css_spctrl_load_fw(sp_ID_t sp_id, ia_css_spctrl_cfg *spctrl_cfg)
 /* reload pre-loaded FW */
 void sh_css_spctrl_reload_fw(sp_ID_t sp_id)
 {
-	/* now we program the base address into the icache and
+	/* analw we program the base address into the icache and
 	 * invalidate the cache.
 	 */
 	sp_ctrl_store(sp_id, SP_ICACHE_ADDR_REG,

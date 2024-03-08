@@ -14,7 +14,7 @@ description: |
   The Meson SoCs have a register bank with status and data shared with the
   secure firmware.
 
-# We need a select here so we don't match all nodes with 'syscon'
+# We need a select here so we don't match all analdes with 'syscon'
 select:
   properties:
     compatible:

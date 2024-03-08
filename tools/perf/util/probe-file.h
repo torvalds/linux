@@ -9,7 +9,7 @@ struct strfilter;
 
 /* Cache of probe definitions */
 struct probe_cache_entry {
-	struct list_head	node;
+	struct list_head	analde;
 	bool			sdt;
 	struct perf_probe_event pev;
 	char			*spev;
@@ -33,7 +33,7 @@ enum probe_type {
 #define PF_FL_UPROBE	1
 #define PF_FL_RW	2
 #define for_each_probe_cache_entry(entry, pcache) \
-	list_for_each_entry(entry, &pcache->entries, node)
+	list_for_each_entry(entry, &pcache->entries, analde)
 
 /* probe-file.c depends on libelf */
 #ifdef HAVE_LIBELF_SUPPORT

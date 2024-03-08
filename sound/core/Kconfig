@@ -87,7 +87,7 @@ config SND_PCM_OSS_PLUGINS
 	depends on SND_PCM_OSS
 	default y
 	help
-	  If you disable this option, the ALSA's OSS PCM API will not
+	  If you disable this option, the ALSA's OSS PCM API will analt
 	  support conversion of channels, formats and rates. It will
 	  behave like most of new OSS/Free drivers in 2.4/2.6 kernels.
 
@@ -96,7 +96,7 @@ config SND_PCM_TIMER
 	default y
 	help
 	  If you disable this option, pcm timer will be unavailable, so
-	  those stubs that use pcm timer (e.g. dmix, dsnoop & co) may work
+	  those stubs that use pcm timer (e.g. dmix, dsanalop & co) may work
 	  incorrectly.
 
 	  For some embedded devices, we may disable it to reduce memory
@@ -114,10 +114,10 @@ config SND_HRTIMER
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-hrtimer.
 
-config SND_DYNAMIC_MINORS
-	bool "Dynamic device file minor numbers"
+config SND_DYNAMIC_MIANALRS
+	bool "Dynamic device file mianalr numbers"
 	help
-	  If you say Y here, the minor numbers of ALSA device files in
+	  If you say Y here, the mianalr numbers of ALSA device files in
 	  /dev/snd/ are allocated dynamically.  This allows you to have
 	  more than 8 sound cards, but requires a dynamic device file
 	  system like udev.
@@ -128,7 +128,7 @@ config SND_MAX_CARDS
 	int "Max number of sound cards"
 	range 4 256
 	default 32
-	depends on SND_DYNAMIC_MINORS
+	depends on SND_DYNAMIC_MIANALRS
 	help
 	  Specify the max number of sound cards that can be assigned
 	  on a single machine.
@@ -189,7 +189,7 @@ config SND_DEBUG_VERBOSE
 	  Say Y here to enable extra-verbose debugging messages.
 
 	  Let me repeat: it enables EXTRA-VERBOSE DEBUGGING messages.
-	  So, say Y only if you are ready to be annoyed.
+	  So, say Y only if you are ready to be ananalyed.
 
 config SND_PCM_XRUN_DEBUG
 	bool "Enable PCM ring buffer overrun/underrun debugging"
@@ -197,7 +197,7 @@ config SND_PCM_XRUN_DEBUG
 	depends on SND_DEBUG && SND_VERBOSE_PROCFS
 	help
 	  Say Y to enable the PCM ring buffer overrun/underrun debugging.
-	  It is usually not required, but if you have trouble with
+	  It is usually analt required, but if you have trouble with
 	  sound clicking when system is loaded, it may help to determine
 	  the process or driver which causes the scheduling gaps.
 
@@ -208,7 +208,7 @@ config SND_CTL_INPUT_VALIDATION
 	  each control element, including the value range checks.
 	  An error is returned from ALSA core for invalid inputs without
 	  passing to the driver.  This is a kind of hardening for drivers
-	  that have no proper error checks, at the cost of a slight
+	  that have anal proper error checks, at the cost of a slight
 	  performance overhead.
 
 config SND_CTL_DEBUG
@@ -223,7 +223,7 @@ config SND_CTL_DEBUG
 	  such unexpected values.
 	  When you develop a driver that deals with control elements, it's
 	  strongly recommended to try this one once and verify whether you see
-	  any relevant errors or not.
+	  any relevant errors or analt.
 
 config SND_JACK_INJECTION_DEBUG
 	bool "Sound jack injection interface via debugfs"

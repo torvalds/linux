@@ -55,7 +55,7 @@ exit_%=:	r0 = 0;					\
 		      : __clobber_all);
 }
 
-static __noinline void dummy(void) {}
+static __analinline void dummy(void) {}
 
 /* Pass a pointer to uninitialized stack memory to a helper.
  * Passed memory block should be marked as STACK_MISC after helper call.

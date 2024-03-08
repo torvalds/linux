@@ -6,7 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/acpi.h>
 #include <linux/pci.h>
-#include <linux/node.h>
+#include <linux/analde.h>
 #include <asm/div64.h>
 #include "cxlpci.h"
 #include "cxl.h"
@@ -64,7 +64,7 @@ static struct cxl_dport *cxl_hb_xor(struct cxl_root_decoder *cxlrd, int pos)
 
 	hpa = cxlrd->res->start + pos * ig;
 
-	/* Entry (n) is 0 for no interleave (iw == 1) */
+	/* Entry (n) is 0 for anal interleave (iw == 1) */
 	if (iw != 1)
 		n = cxl_xor_calc_n(hpa, cximsd, iw, ig);
 
@@ -99,7 +99,7 @@ static int cxl_parse_cxims(union acpi_subtable_headers *header, void *arg,
 	if (hbig != cxld->interleave_granularity)
 		return 0;
 
-	/* IW 1,3 do not use xormaps and skip this parsing entirely */
+	/* IW 1,3 do analt use xormaps and skip this parsing entirely */
 	if (is_power_of_2(cxld->interleave_ways))
 		/* 2, 4, 8, 16 way */
 		nr_maps = ilog2(cxld->interleave_ways);
@@ -116,7 +116,7 @@ static int cxl_parse_cxims(union acpi_subtable_headers *header, void *arg,
 	cximsd = devm_kzalloc(dev, struct_size(cximsd, xormaps, nr_maps),
 			      GFP_KERNEL);
 	if (!cximsd)
-		return -ENOMEM;
+		return -EANALMEM;
 	cximsd->nr_maps = nr_maps;
 	memcpy(cximsd->xormaps, cxims->xormap_list,
 	       nr_maps * sizeof(*cximsd->xormaps));
@@ -151,18 +151,18 @@ static int cxl_acpi_cfmws_verify(struct device *dev,
 
 	if (cfmws->interleave_arithmetic != ACPI_CEDT_CFMWS_ARITHMETIC_MODULO &&
 	    cfmws->interleave_arithmetic != ACPI_CEDT_CFMWS_ARITHMETIC_XOR) {
-		dev_err(dev, "CFMWS Unknown Interleave Arithmetic: %d\n",
+		dev_err(dev, "CFMWS Unkanalwn Interleave Arithmetic: %d\n",
 			cfmws->interleave_arithmetic);
 		return -EINVAL;
 	}
 
 	if (!IS_ALIGNED(cfmws->base_hpa, SZ_256M)) {
-		dev_err(dev, "CFMWS Base HPA not 256MB aligned\n");
+		dev_err(dev, "CFMWS Base HPA analt 256MB aligned\n");
 		return -EINVAL;
 	}
 
 	if (!IS_ALIGNED(cfmws->window_size, SZ_256M)) {
-		dev_err(dev, "CFMWS Window Size not 256MB aligned\n");
+		dev_err(dev, "CFMWS Window Size analt 256MB aligned\n");
 		return -EINVAL;
 	}
 
@@ -189,7 +189,7 @@ static int cxl_acpi_cfmws_verify(struct device *dev,
 }
 
 /*
- * Note, @dev must be the first member, see 'struct cxl_chbs_context'
+ * Analte, @dev must be the first member, see 'struct cxl_chbs_context'
  * and mock_acpi_table_parse_cedt()
  */
 struct cxl_cfmws_context {
@@ -206,7 +206,7 @@ struct cxl_cfmws_context {
  * @entries: number of QTG IDs to return
  * @qos_class: int array provided by caller to return QTG IDs
  *
- * Return: number of QTG IDs returned, or -errno for errors
+ * Return: number of QTG IDs returned, or -erranal for errors
  *
  * Issue QTG _DSM with accompanied bandwidth and latency data in order to get
  * the QTG IDs that are suitable for the performance point in order of most
@@ -303,11 +303,11 @@ static int cxl_acpi_qos_class(struct cxl_root *cxl_root,
 	acpi_handle handle;
 
 	if (!dev_is_platform(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	handle = ACPI_HANDLE(dev);
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return cxl_acpi_evaluate_qtg_dsm(handle, coord, entries, qos_class);
 }
@@ -333,7 +333,7 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 
 	rc = cxl_acpi_cfmws_verify(dev, cfmws);
 	if (rc) {
-		dev_err(dev, "CFMWS range %#llx-%#llx not registered\n",
+		dev_err(dev, "CFMWS range %#llx-%#llx analt registered\n",
 			cfmws->base_hpa,
 			cfmws->base_hpa + cfmws->window_size - 1);
 		return rc;
@@ -350,7 +350,7 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 
 	res = kzalloc(sizeof(*res), GFP_KERNEL);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res->name = kasprintf(GFP_KERNEL, "CXL Window %d", ctx->id++);
 	if (!res->name)
@@ -401,7 +401,7 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 			if (rc < 0)
 				goto err_xormap;
 			if (!cxlrd->platform_data) {
-				dev_err(dev, "No CXIMS for HBIG %u\n", ig);
+				dev_err(dev, "Anal CXIMS for HBIG %u\n", ig);
 				rc = -EINVAL;
 				goto err_xormap;
 			}
@@ -422,7 +422,7 @@ err_insert:
 	kfree(res->name);
 err_name:
 	kfree(res);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
@@ -440,8 +440,8 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 			cfmws->base_hpa,
 			cfmws->base_hpa + cfmws->window_size - 1, rc);
 	else
-		dev_dbg(dev, "decode range: node: %d range [%#llx - %#llx]\n",
-			phys_to_target_node(cfmws->base_hpa), cfmws->base_hpa,
+		dev_dbg(dev, "decode range: analde: %d range [%#llx - %#llx]\n",
+			phys_to_target_analde(cfmws->base_hpa), cfmws->base_hpa,
 			cfmws->base_hpa + cfmws->window_size - 1);
 
 	/* never fail cxl_acpi load for a single window failure */
@@ -461,7 +461,7 @@ __mock struct acpi_device *to_cxl_host_bridge(struct device *host,
 	return NULL;
 }
 
-/* Note, @dev is used by mock_acpi_table_parse_cedt() */
+/* Analte, @dev is used by mock_acpi_table_parse_cedt() */
 struct cxl_chbs_context {
 	struct device *dev;
 	unsigned long long uid;
@@ -475,7 +475,7 @@ static int cxl_get_chbs_iter(union acpi_subtable_headers *header, void *arg,
 	struct cxl_chbs_context *ctx = arg;
 	struct acpi_cedt_chbs *chbs;
 
-	if (ctx->base != CXL_RESOURCE_NONE)
+	if (ctx->base != CXL_RESOURCE_ANALNE)
 		return 0;
 
 	chbs = (struct acpi_cedt_chbs *) header;
@@ -505,14 +505,14 @@ static int cxl_get_chbs(struct device *dev, struct acpi_device *hb,
 	rc = acpi_evaluate_integer(hb->handle, METHOD_NAME__UID, NULL, &uid);
 	if (rc != AE_OK) {
 		dev_err(dev, "unable to retrieve _UID\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	dev_dbg(dev, "UID found: %lld\n", uid);
 	*ctx = (struct cxl_chbs_context) {
 		.dev = dev,
 		.uid = uid,
-		.base = CXL_RESOURCE_NONE,
+		.base = CXL_RESOURCE_ANALNE,
 		.cxl_version = UINT_MAX,
 	};
 
@@ -534,7 +534,7 @@ static int get_genport_coordinates(struct device *dev, struct cxl_dport *dport)
 	if (rc < 0)
 		return rc;
 
-	/* Adjust back to picoseconds from nanoseconds */
+	/* Adjust back to picoseconds from naanalseconds */
 	dport->hb_coord.read_latency *= 1000;
 	dport->hb_coord.write_latency *= 1000;
 
@@ -561,12 +561,12 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 		return rc;
 
 	if (ctx.cxl_version == UINT_MAX) {
-		dev_warn(match, "No CHBS found for Host Bridge (UID %lld)\n",
+		dev_warn(match, "Anal CHBS found for Host Bridge (UID %lld)\n",
 			 ctx.uid);
 		return 0;
 	}
 
-	if (ctx.base == CXL_RESOURCE_NONE) {
+	if (ctx.base == CXL_RESOURCE_ANALNE) {
 		dev_warn(match, "CHBS invalid for Host Bridge (UID %lld)\n",
 			 ctx.uid);
 		return 0;
@@ -587,7 +587,7 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 					       ctx.base);
 	} else {
 		dport = devm_cxl_add_dport(root_port, bridge, ctx.uid,
-					   CXL_RESOURCE_NONE);
+					   CXL_RESOURCE_ANALNE);
 	}
 
 	if (IS_ERR(dport))
@@ -624,7 +624,7 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 	bridge = pci_root->bus->bridge;
 	dport = cxl_find_dport_by_dev(root_port, bridge);
 	if (!dport) {
-		dev_dbg(host, "host bridge expected and not found\n");
+		dev_dbg(host, "host bridge expected and analt found\n");
 		return 0;
 	}
 
@@ -644,7 +644,7 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 	}
 
 	component_reg_phys = ctx.base;
-	if (component_reg_phys != CXL_RESOURCE_NONE)
+	if (component_reg_phys != CXL_RESOURCE_ANALNE)
 		dev_dbg(match, "CHBCR found for UID %lld: %pa\n",
 			ctx.uid, &component_reg_phys);
 
@@ -733,7 +733,7 @@ static void remove_cxl_resources(void *data)
  *
  * Walk each CXL window in @cxl_res and add it to iomem_resource potentially
  * expanding its boundaries to ensure that any conflicting resources become
- * children. If a window is expanded it may then conflict with a another window
+ * children. If a window is expanded it may then conflict with a aanalther window
  * entry and require the window to be truncated or trimmed. Consider this
  * situation:
  *
@@ -753,7 +753,7 @@ static int add_cxl_resources(struct resource *cxl_res)
 	for (res = cxl_res->child; res; res = next) {
 		new = kzalloc(sizeof(*new), GFP_KERNEL);
 		if (!new)
-			return -ENOMEM;
+			return -EANALMEM;
 		new->name = res->name;
 		new->start = res->start;
 		new->end = res->end;
@@ -827,7 +827,7 @@ static int cxl_acpi_probe(struct platform_device *pdev)
 
 	cxl_res = devm_kzalloc(host, sizeof(*cxl_res), GFP_KERNEL);
 	if (!cxl_res)
-		return -ENOMEM;
+		return -EANALMEM;
 	cxl_res->name = "CXL mem";
 	cxl_res->start = 0;
 	cxl_res->end = -1;
@@ -867,7 +867,7 @@ static int cxl_acpi_probe(struct platform_device *pdev)
 	device_for_each_child(&root_port->dev, cxl_res, pair_cxl_resource);
 
 	/*
-	 * Root level scanned with host-bridge as dports, now scan host-bridges
+	 * Root level scanned with host-bridge as dports, analw scan host-bridges
 	 * for their role as CXL uports to their CXL-capable PCIe Root Ports.
 	 */
 	rc = bus_for_each_dev(adev->dev.bus, NULL, root_port,

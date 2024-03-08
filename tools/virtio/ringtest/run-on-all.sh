@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 CPUS_ONLINE=$(lscpu --online -p=cpu|grep -v -e '#')
-#use last CPU for host. Why not the first?
+#use last CPU for host. Why analt the first?
 #many devices tend to use cpu0 by default so
 #it tends to be busier
 HOST_AFFINITY=$(echo "${CPUS_ONLINE}"|tail -n 1)
@@ -20,7 +20,7 @@ do
 		"$@" --host-affinity $HOST_AFFINITY --guest-affinity $cpu
 	fi
 done
-echo "NO GUEST AFFINITY"
+echo "ANAL GUEST AFFINITY"
 "$@" --host-affinity $HOST_AFFINITY
-echo "NO AFFINITY"
+echo "ANAL AFFINITY"
 "$@"

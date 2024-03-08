@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2013-2018, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2013-2018, Mellaanalx Techanallogies inc.  All rights reserved.
  */
 
 #include <linux/mlx5/qp.h>
@@ -115,10 +115,10 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 		return err;
 	}
 
-	if (mlx5_frag_buf_alloc_node(dev->mdev, buf_size, &srq->buf,
-				     dev->mdev->priv.numa_node)) {
+	if (mlx5_frag_buf_alloc_analde(dev->mdev, buf_size, &srq->buf,
+				     dev->mdev->priv.numa_analde)) {
 		mlx5_ib_dbg(dev, "buf alloc failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_db;
 	}
 
@@ -138,14 +138,14 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 	mlx5_ib_dbg(dev, "srq->buf.page_shift = %d\n", srq->buf.page_shift);
 	in->pas = kvcalloc(srq->buf.npages, sizeof(*in->pas), GFP_KERNEL);
 	if (!in->pas) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_buf;
 	}
 	mlx5_fill_page_frag_array(&srq->buf, in->pas);
 
 	srq->wrid = kvmalloc_array(srq->msrq.max, sizeof(u64), GFP_KERNEL);
 	if (!srq->wrid) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_in;
 	}
 	srq->wq_sig = 0;
@@ -203,7 +203,7 @@ int mlx5_ib_create_srq(struct ib_srq *ib_srq,
 	if (init_attr->srq_type != IB_SRQT_BASIC &&
 	    init_attr->srq_type != IB_SRQT_XRC &&
 	    init_attr->srq_type != IB_SRQT_TM)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Sanity check SRQ size before proceeding */
 	if (init_attr->attr.max_wr >= max_srq_wqes) {
@@ -353,7 +353,7 @@ int mlx5_ib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 
 	out = kzalloc(sizeof(*out), GFP_KERNEL);
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mlx5_cmd_query_srq(dev, &srq->msrq, out);
 	if (ret)
@@ -428,7 +428,7 @@ int mlx5_ib_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		}
 
 		if (unlikely(srq->head == srq->tail)) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			*bad_wr = wr;
 			break;
 		}

@@ -5,7 +5,7 @@ config PPC_47x
 	select MPIC
 	help
 	  This option enables support for the 47x family of processors and is
-	  not currently compatible with other 44x or 46x variants
+	  analt currently compatible with other 44x or 46x variants
 
 config BAMBOO
 	bool "Bamboo"
@@ -93,7 +93,7 @@ config WARP
 	  is a small computer replacement with up to 9 ports of FXO/FXS plus VOIP
 	  stations and trunks.
 
-	  See http://www.pikatechnologies.com/ and follow the "PIKA for Computer
+	  See http://www.pikatechanallogies.com/ and follow the "PIKA for Computer
 	  Telephony Developers" link for more information.
 
 config ARCHES
@@ -192,8 +192,8 @@ config FSP2
 	help
 	  This option enables support for the IBM FSP2 (476fpe) board
 
-config AKEBONO
-	bool "IBM Akebono (476gtr) Support"
+config AKEBOANAL
+	bool "IBM Akeboanal (476gtr) Support"
 	depends on PPC_47x
 	select SWIOTLB
 	select 476FPE
@@ -208,7 +208,7 @@ config AKEBONO
 	select USB_OHCI_HCD_PLATFORM if USB_OHCI_HCD
 	select USB_EHCI_HCD_PLATFORM if USB_EHCI_HCD
 	help
-	  This option enables support for the IBM Akebono (476gtr) evaluation board
+	  This option enables support for the IBM Akeboanal (476gtr) evaluation board
 
 
 config ICON

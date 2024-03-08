@@ -2,7 +2,7 @@
 /*
  * PIC32 Integrated Serial Driver.
  *
- * Copyright (C) 2015 Microchip Technology, Inc.
+ * Copyright (C) 2015 Microchip Techanallogy, Inc.
  *
  * Authors:
  *   Sorin-Andrei Pistirica <andrei.pistirica@microchip.com>
@@ -168,8 +168,8 @@ static unsigned int pic32_uart_get_mctrl(struct uart_port *port)
 	else if (gpiod_get_value(sport->cts_gpiod))
 		mctrl |= TIOCM_CTS;
 
-	/* DSR and CD are not supported in PIC32, so return 1
-	 * RI is not supported in PIC32, so return 0
+	/* DSR and CD are analt supported in PIC32, so return 1
+	 * RI is analt supported in PIC32, so return 0
 	 */
 	mctrl |= TIOCM_CD;
 	mctrl |= TIOCM_DSR;
@@ -177,7 +177,7 @@ static unsigned int pic32_uart_get_mctrl(struct uart_port *port)
 	return mctrl;
 }
 
-/* stop tx and start tx are not called in pairs, therefore a flag indicates
+/* stop tx and start tx are analt called in pairs, therefore a flag indicates
  * the status of irq to control the irq-depth.
  */
 static inline void pic32_uart_irqtxen(struct pic32_sport *sport, u8 en)
@@ -186,11 +186,11 @@ static inline void pic32_uart_irqtxen(struct pic32_sport *sport, u8 en)
 		enable_irq(sport->irq_tx);
 		sport->enable_tx_irq = true;
 	} else if (!en && sport->enable_tx_irq) {
-		/* use disable_irq_nosync() and not disable_irq() to avoid self
-		 * imposed deadlock by not waiting for irq handler to end,
+		/* use disable_irq_analsync() and analt disable_irq() to avoid self
+		 * imposed deadlock by analt waiting for irq handler to end,
 		 * since this callback is called from interrupt context.
 		 */
-		disable_irq_nosync(sport->irq_tx);
+		disable_irq_analsync(sport->irq_tx);
 		sport->enable_tx_irq = false;
 	}
 }
@@ -268,7 +268,7 @@ static void pic32_uart_do_rx(struct uart_port *port)
 	struct tty_port *tty;
 	unsigned int max_count;
 
-	/* limit number of char read in interrupt, should not be
+	/* limit number of char read in interrupt, should analt be
 	 * higher than fifo size anyway since we're much faster than
 	 * serial port
 	 */
@@ -302,7 +302,7 @@ static void pic32_uart_do_rx(struct uart_port *port)
 		c = pic32_uart_readl(sport, PIC32_UART_RX);
 
 		port->icount.rx++;
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		c &= 0xff;
 
 		if (unlikely((sta_reg & PIC32_UART_STA_PERR) ||
@@ -326,7 +326,7 @@ static void pic32_uart_do_rx(struct uart_port *port)
 		if (uart_handle_sysrq_char(port, c))
 			continue;
 
-		if ((sta_reg & port->ignore_status_mask) == 0)
+		if ((sta_reg & port->iganalre_status_mask) == 0)
 			tty_insert_flip_char(tty, c, flag);
 
 	} while (--max_count);
@@ -420,7 +420,7 @@ static irqreturn_t pic32_uart_tx_interrupt(int irq, void *dev_id)
 /* FAULT interrupt handler */
 static irqreturn_t pic32_uart_fault_interrupt(int irq, void *dev_id)
 {
-	/* do nothing: pic32_uart_do_rx() handles faults. */
+	/* do analthing: pic32_uart_do_rx() handles faults. */
 	return IRQ_HANDLED;
 }
 
@@ -490,12 +490,12 @@ static int pic32_uart_startup(struct uart_port *port)
 					  sport->idx);
 	if (!sport->irq_fault_name) {
 		dev_err(port->dev, "%s: kasprintf err!", __func__);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_disable_clk;
 	}
-	irq_set_status_flags(sport->irq_fault, IRQ_NOAUTOEN);
+	irq_set_status_flags(sport->irq_fault, IRQ_ANALAUTOEN);
 	ret = request_irq(sport->irq_fault, pic32_uart_fault_interrupt,
-			  IRQF_NO_THREAD, sport->irq_fault_name, port);
+			  IRQF_ANAL_THREAD, sport->irq_fault_name, port);
 	if (ret) {
 		dev_err(port->dev, "%s: request irq(%d) err! ret:%d name:%s\n",
 			__func__, sport->irq_fault, ret,
@@ -508,12 +508,12 @@ static int pic32_uart_startup(struct uart_port *port)
 				       sport->idx);
 	if (!sport->irq_rx_name) {
 		dev_err(port->dev, "%s: kasprintf err!", __func__);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_f;
 	}
-	irq_set_status_flags(sport->irq_rx, IRQ_NOAUTOEN);
+	irq_set_status_flags(sport->irq_rx, IRQ_ANALAUTOEN);
 	ret = request_irq(sport->irq_rx, pic32_uart_rx_interrupt,
-			  IRQF_NO_THREAD, sport->irq_rx_name, port);
+			  IRQF_ANAL_THREAD, sport->irq_rx_name, port);
 	if (ret) {
 		dev_err(port->dev, "%s: request irq(%d) err! ret:%d name:%s\n",
 			__func__, sport->irq_rx, ret,
@@ -526,12 +526,12 @@ static int pic32_uart_startup(struct uart_port *port)
 				       sport->idx);
 	if (!sport->irq_tx_name) {
 		dev_err(port->dev, "%s: kasprintf err!", __func__);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_r;
 	}
-	irq_set_status_flags(sport->irq_tx, IRQ_NOAUTOEN);
+	irq_set_status_flags(sport->irq_tx, IRQ_ANALAUTOEN);
 	ret = request_irq(sport->irq_tx, pic32_uart_tx_interrupt,
-			  IRQF_NO_THREAD, sport->irq_tx_name, port);
+			  IRQF_ANAL_THREAD, sport->irq_tx_name, port);
 	if (ret) {
 		dev_err(port->dev, "%s: request irq(%d) err! ret:%d name:%s\n",
 			__func__, sport->irq_tx, ret,
@@ -657,7 +657,7 @@ static void pic32_uart_set_termios(struct uart_port *port,
 	/* Always 8-bit */
 	new->c_cflag |= CS8;
 
-	/* Mark/Space parity is not supported */
+	/* Mark/Space parity is analt supported */
 	new->c_cflag &= ~CMSPAR;
 
 	/* update baud */
@@ -694,7 +694,7 @@ static int pic32_uart_request_port(struct uart_port *port)
 	if (!port->membase) {
 		dev_err(port->dev, "Unable to map registers\n");
 		release_mem_region(port->mapbase, resource_size(res_mem));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -801,11 +801,11 @@ static int pic32_console_setup(struct console *co, char *options)
 	int ret = 0;
 
 	if (unlikely(co->index < 0 || co->index >= PIC32_MAX_UARTS))
-		return -ENODEV;
+		return -EANALDEV;
 
 	sport = pic32_sports[co->index];
 	if (!sport)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = clk_prepare_enable(sport->clk);
 	if (ret)
@@ -864,7 +864,7 @@ static struct uart_driver pic32_uart_driver = {
 static int pic32_uart_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct pic32_sport *sport;
 	int uart_idx = 0;
 	struct resource *res_mem;
@@ -881,7 +881,7 @@ static int pic32_uart_probe(struct platform_device *pdev)
 
 	sport = devm_kzalloc(&pdev->dev, sizeof(*sport), GFP_KERNEL);
 	if (!sport)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sport->idx		= uart_idx;
 	sport->irq_fault	= irq_of_parse_and_map(np, 0);
@@ -893,7 +893,7 @@ static int pic32_uart_probe(struct platform_device *pdev)
 	sport->dev		= &pdev->dev;
 
 	/* Hardware flow control: gpios
-	 * !Note: Basically, CTS is needed for reading the status.
+	 * !Analte: Basically, CTS is needed for reading the status.
 	 */
 	sport->cts_gpiod = devm_gpiod_get_optional(dev, "cts", GPIOD_IN);
 	if (IS_ERR(sport->cts_gpiod))

@@ -27,13 +27,13 @@ Description:	Remote processor state
 		"suspended" means that the remote processor is suspended and
 		must be woken to receive messages.
 
-		"running" is the normal state of an available remote processor
+		"running" is the analrmal state of an available remote processor
 
 		"crashed" indicates that a problem/crash has been detected on
 		the remote processor.
 
 		"invalid" is returned if the remote processor is in an
-		unknown state.
+		unkanalwn state.
 
 		Writing this file controls the state of the remote processor.
 		The following states can be written:
@@ -71,7 +71,7 @@ Description:	Remote processor coredump configuration
 		"enabled"
 		"inline"
 
-		"disabled" means no dump will be collected.
+		"disabled" means anal dump will be collected.
 
 		"enabled" means when the remote processor's coredump is
 		collected it will be copied to a separate buffer and that
@@ -79,8 +79,8 @@ Description:	Remote processor coredump configuration
 
 		"inline" means when the remote processor's coredump is
 		collected userspace will directly read from the remote
-		processor's device memory. Extra buffer will not be used to
-		copy the dump. Also recovery process will not proceed until
+		processor's device memory. Extra buffer will analt be used to
+		copy the dump. Also recovery process will analt proceed until
 		all data is read by userspace.
 
 What:		/sys/class/remoteproc/.../recovery

@@ -18,7 +18,7 @@
 #include "vm_util.h"
 
 int backing_fd = -1;
-int mmap_flags = MAP_ANONYMOUS | MAP_NORESERVE | MAP_PRIVATE;
+int mmap_flags = MAP_AANALNYMOUS | MAP_ANALRESERVE | MAP_PRIVATE;
 #define PROT_RW (PROT_READ | PROT_WRITE)
 
 int main(int argc, char **argv)
@@ -81,14 +81,14 @@ int main(int argc, char **argv)
 	if (!map)
 		errx(2, "map malloc");
 
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(CLOCK_MOANALTONIC, &start);
 
 	while (1) {
 		int nr_succeed = 0, nr_failed = 0, nr_pages = 0;
 
 		memset(map, 0, map_len);
 
-		clock_gettime(CLOCK_MONOTONIC, &a);
+		clock_gettime(CLOCK_MOANALTONIC, &a);
 		for (p = ptr; p < ptr + len; p += HPAGE_SIZE) {
 			int64_t pfn;
 
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 			if (madvise(p, HPAGE_SIZE - psize(), MADV_DONTNEED))
 				err(2, "MADV_DONTNEED");
 		}
-		clock_gettime(CLOCK_MONOTONIC, &b);
+		clock_gettime(CLOCK_MOANALTONIC, &b);
 		s = b.tv_sec - a.tv_sec + (b.tv_nsec - a.tv_nsec) / 1000000000.;
 
 		warnx("%.3f s/loop, %.3f ms/page, %10.3f MiB/s\t"

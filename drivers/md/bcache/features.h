@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _BCACHE_FEATURES_H
 #define _BCACHE_FEATURES_H
 
@@ -91,17 +91,17 @@ static inline void bch_clear_feature_##name(struct cache_sb *sb) \
 BCH_FEATURE_INCOMPAT_FUNCS(obso_large_bucket, OBSO_LARGE_BUCKET);
 BCH_FEATURE_INCOMPAT_FUNCS(large_bucket, LOG_LARGE_BUCKET_SIZE);
 
-static inline bool bch_has_unknown_compat_features(struct cache_sb *sb)
+static inline bool bch_has_unkanalwn_compat_features(struct cache_sb *sb)
 {
 	return ((sb->feature_compat & ~BCH_FEATURE_COMPAT_SUPP) != 0);
 }
 
-static inline bool bch_has_unknown_ro_compat_features(struct cache_sb *sb)
+static inline bool bch_has_unkanalwn_ro_compat_features(struct cache_sb *sb)
 {
 	return ((sb->feature_ro_compat & ~BCH_FEATURE_RO_COMPAT_SUPP) != 0);
 }
 
-static inline bool bch_has_unknown_incompat_features(struct cache_sb *sb)
+static inline bool bch_has_unkanalwn_incompat_features(struct cache_sb *sb)
 {
 	return ((sb->feature_incompat & ~BCH_FEATURE_INCOMPAT_SUPP) != 0);
 }

@@ -67,7 +67,7 @@ int sdw_slave_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	sdw_slave_modalias(slave, modalias, sizeof(modalias));
 
 	if (add_uevent_var(env, "MODALIAS=%s", modalias))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -89,15 +89,15 @@ static int sdw_drv_probe(struct device *dev)
 	/*
 	 * fw description is mandatory to bind
 	 */
-	if (!dev->fwnode)
-		return -ENODEV;
+	if (!dev->fwanalde)
+		return -EANALDEV;
 
-	if (!IS_ENABLED(CONFIG_ACPI) && !dev->of_node)
-		return -ENODEV;
+	if (!IS_ENABLED(CONFIG_ACPI) && !dev->of_analde)
+		return -EANALDEV;
 
 	id = sdw_get_device_id(slave, drv);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * attach to power domain but don't turn on (last arg)
@@ -119,14 +119,14 @@ static int sdw_drv_probe(struct device *dev)
 
 	mutex_lock(&slave->sdw_dev_lock);
 
-	/* device is probed so let's read the properties now */
+	/* device is probed so let's read the properties analw */
 	if (drv->ops && drv->ops->read_prop)
 		drv->ops->read_prop(slave);
 
 	if (slave->prop.use_domain_irq)
 		sdw_irq_create_mapping(slave);
 
-	/* init the sysfs as we have properties now */
+	/* init the sysfs as we have properties analw */
 	ret = sdw_slave_sysfs_init(slave);
 	if (ret < 0)
 		dev_warn(dev, "Slave sysfs init failed:%d\n", ret);
@@ -146,7 +146,7 @@ static int sdw_drv_probe(struct device *dev)
 	slave->probed = true;
 
 	/*
-	 * if the probe happened after the bus was started, notify the codec driver
+	 * if the probe happened after the bus was started, analtify the codec driver
 	 * of the current hardware status to e.g. start the initialization.
 	 * Errors are only logged as warnings to avoid failing the probe.
 	 */

@@ -12,7 +12,7 @@
  * Returns : r4 - r11, r13 preserved
  *
  * Purpose : obtain information about current aborted instruction.
- * Note: we read user space.  This means we might cause a data
+ * Analte: we read user space.  This means we might cause a data
  * abort here if the I-TLB and D-TLB aren't seeing the same
  * picture.  Unfortunately, this does happen.  We live with it.
  */

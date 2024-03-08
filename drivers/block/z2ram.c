@@ -8,8 +8,8 @@
 ** ++roman: translate accesses via an array
 ** ++Milan: support for ChipRAM usage
 ** ++yambo: converted to 2.0 kernel
-** ++yambo: modularized and support added for 3 minor devices including:
-**          MAJOR  MINOR  DESCRIPTION
+** ++yambo: modularized and support added for 3 mianalr devices including:
+**          MAJOR  MIANALR  DESCRIPTION
 **          -----  -----  ----------------------------------------------
 **          37     0       Use Zorro II and Chip ram
 **          37     1       Use only Zorro II ram
@@ -19,8 +19,8 @@
 **
 ** Permission to use, copy, modify, and distribute this software and its
 ** documentation for any purpose and without fee is hereby granted, provided
-** that the above copyright notice appear in all copies and that both that
-** copyright notice and this permission notice appear in supporting
+** that the above copyright analtice appear in all copies and that both that
+** copyright analtice and this permission analtice appear in supporting
 ** documentation.  This software is provided "as is" without express or
 ** implied warranty.
 */
@@ -42,14 +42,14 @@
 
 #include <linux/zorro.h>
 
-#define Z2MINOR_COMBINED      (0)
-#define Z2MINOR_Z2ONLY        (1)
-#define Z2MINOR_CHIPONLY      (2)
-#define Z2MINOR_MEMLIST1      (4)
-#define Z2MINOR_MEMLIST2      (5)
-#define Z2MINOR_MEMLIST3      (6)
-#define Z2MINOR_MEMLIST4      (7)
-#define Z2MINOR_COUNT         (8)	/* Move this down when adding a new minor */
+#define Z2MIANALR_COMBINED      (0)
+#define Z2MIANALR_Z2ONLY        (1)
+#define Z2MIANALR_CHIPONLY      (2)
+#define Z2MIANALR_MEMLIST1      (4)
+#define Z2MIANALR_MEMLIST2      (5)
+#define Z2MIANALR_MEMLIST3      (6)
+#define Z2MIANALR_MEMLIST4      (7)
+#define Z2MIANALR_COUNT         (8)	/* Move this down when adding a new mianalr */
 
 #define Z2RAM_CHUNK1024       ( Z2RAM_CHUNKSIZE >> 10 )
 
@@ -63,7 +63,7 @@ static int current_device = -1;
 
 static DEFINE_SPINLOCK(z2ram_lock);
 
-static struct gendisk *z2ram_gendisk[Z2MINOR_COUNT];
+static struct gendisk *z2ram_gendisk[Z2MIANALR_COUNT];
 
 static blk_status_t z2_queue_rq(struct blk_mq_hw_ctx *hctx,
 				const struct blk_mq_queue_data *bd)
@@ -142,11 +142,11 @@ static void get_chipram(void)
 
 static int z2_open(struct gendisk *disk, blk_mode_t mode)
 {
-	int device = disk->first_minor;
+	int device = disk->first_mianalr;
 	int max_z2_map = (Z2RAM_SIZE / Z2RAM_CHUNKSIZE) * sizeof(z2ram_map[0]);
 	int max_chip_map = (amiga_chip_size / Z2RAM_CHUNKSIZE) *
 	    sizeof(z2ram_map[0]);
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	mutex_lock(&z2ram_mutex);
 	if (current_device != -1 && current_device != device) {
@@ -161,13 +161,13 @@ static int z2_open(struct gendisk *disk, blk_mode_t mode)
 		z2ram_size = 0;
 
 		/* Use a specific list entry. */
-		if (device >= Z2MINOR_MEMLIST1 && device <= Z2MINOR_MEMLIST4) {
-			int index = device - Z2MINOR_MEMLIST1 + 1;
+		if (device >= Z2MIANALR_MEMLIST1 && device <= Z2MIANALR_MEMLIST4) {
+			int index = device - Z2MIANALR_MEMLIST1 + 1;
 			unsigned long size, paddr, vaddr;
 
 			if (index >= m68k_realnum_memory) {
 				printk(KERN_ERR DEVICE_NAME
-				       ": no such entry in z2ram_map\n");
+				       ": anal such entry in z2ram_map\n");
 				goto err_out;
 			}
 
@@ -184,14 +184,14 @@ static int z2_open(struct gendisk *disk, blk_mode_t mode)
 
 #else
 			vaddr =
-			    (unsigned long)z_remap_nocache_nonser(paddr, size);
+			    (unsigned long)z_remap_analcache_analnser(paddr, size);
 #endif
 			z2ram_map =
 			    kmalloc_array(size / Z2RAM_CHUNKSIZE,
 					  sizeof(z2ram_map[0]), GFP_KERNEL);
 			if (z2ram_map == NULL) {
 				printk(KERN_ERR DEVICE_NAME
-				       ": cannot get mem for z2ram_map\n");
+				       ": cananalt get mem for z2ram_map\n");
 				goto err_out;
 			}
 
@@ -208,14 +208,14 @@ static int z2_open(struct gendisk *disk, blk_mode_t mode)
 				       list_count * Z2RAM_CHUNK1024, index);
 		} else
 			switch (device) {
-			case Z2MINOR_COMBINED:
+			case Z2MIANALR_COMBINED:
 
 				z2ram_map =
 				    kmalloc(max_z2_map + max_chip_map,
 					    GFP_KERNEL);
 				if (z2ram_map == NULL) {
 					printk(KERN_ERR DEVICE_NAME
-					       ": cannot get mem for z2ram_map\n");
+					       ": cananalt get mem for z2ram_map\n");
 					goto err_out;
 				}
 
@@ -232,7 +232,7 @@ static int z2_open(struct gendisk *disk, blk_mode_t mode)
 
 				break;
 
-			case Z2MINOR_Z2ONLY:
+			case Z2MIANALR_Z2ONLY:
 				z2ram_map = kmalloc(max_z2_map, GFP_KERNEL);
 				if (!z2ram_map)
 					goto err_out;
@@ -246,7 +246,7 @@ static int z2_open(struct gendisk *disk, blk_mode_t mode)
 
 				break;
 
-			case Z2MINOR_CHIPONLY:
+			case Z2MIANALR_CHIPONLY:
 				z2ram_map = kmalloc(max_chip_map, GFP_KERNEL);
 				if (!z2ram_map)
 					goto err_out;
@@ -261,15 +261,15 @@ static int z2_open(struct gendisk *disk, blk_mode_t mode)
 				break;
 
 			default:
-				rc = -ENODEV;
+				rc = -EANALDEV;
 				goto err_out;
 
 				break;
 			}
 
 		if (z2ram_size == 0) {
-			printk(KERN_NOTICE DEVICE_NAME
-			       ": no unused ZII/Chip RAM found\n");
+			printk(KERN_ANALTICE DEVICE_NAME
+			       ": anal unused ZII/Chip RAM found\n");
 			goto err_out_kfree;
 		}
 
@@ -313,7 +313,7 @@ static const struct blk_mq_ops z2_mq_ops = {
 	.queue_rq = z2_queue_rq,
 };
 
-static int z2ram_register_disk(int minor)
+static int z2ram_register_disk(int mianalr)
 {
 	struct gendisk *disk;
 	int err;
@@ -323,16 +323,16 @@ static int z2ram_register_disk(int minor)
 		return PTR_ERR(disk);
 
 	disk->major = Z2RAM_MAJOR;
-	disk->first_minor = minor;
-	disk->minors = 1;
-	disk->flags |= GENHD_FL_NO_PART;
+	disk->first_mianalr = mianalr;
+	disk->mianalrs = 1;
+	disk->flags |= GENHD_FL_ANAL_PART;
 	disk->fops = &z2_fops;
-	if (minor)
-		sprintf(disk->disk_name, "z2ram%d", minor);
+	if (mianalr)
+		sprintf(disk->disk_name, "z2ram%d", mianalr);
 	else
 		sprintf(disk->disk_name, "z2ram");
 
-	z2ram_gendisk[minor] = disk;
+	z2ram_gendisk[mianalr] = disk;
 	err = add_disk(disk);
 	if (err)
 		put_disk(disk);
@@ -344,7 +344,7 @@ static int __init z2_init(void)
 	int ret, i;
 
 	if (!MACH_IS_AMIGA)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (register_blkdev(Z2RAM_MAJOR, DEVICE_NAME))
 		return -EBUSY;
@@ -353,13 +353,13 @@ static int __init z2_init(void)
 	tag_set.nr_hw_queues = 1;
 	tag_set.nr_maps = 1;
 	tag_set.queue_depth = 16;
-	tag_set.numa_node = NUMA_NO_NODE;
+	tag_set.numa_analde = NUMA_ANAL_ANALDE;
 	tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	ret = blk_mq_alloc_tag_set(&tag_set);
 	if (ret)
 		goto out_unregister_blkdev;
 
-	for (i = 0; i < Z2MINOR_COUNT; i++) {
+	for (i = 0; i < Z2MIANALR_COUNT; i++) {
 		ret = z2ram_register_disk(i);
 		if (ret && i == 0)
 			goto out_free_tagset;
@@ -380,7 +380,7 @@ static void __exit z2_exit(void)
 
 	unregister_blkdev(Z2RAM_MAJOR, DEVICE_NAME);
 
-	for (i = 0; i < Z2MINOR_COUNT; i++) {
+	for (i = 0; i < Z2MIANALR_COUNT; i++) {
 		del_gendisk(z2ram_gendisk[i]);
 		put_disk(z2ram_gendisk[i]);
 	}

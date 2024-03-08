@@ -18,8 +18,8 @@
 /* version */
 #define CQHCI_VER			0x00
 #define CQHCI_VER_MAJOR(x)		(((x) & GENMASK(11, 8)) >> 8)
-#define CQHCI_VER_MINOR1(x)		(((x) & GENMASK(7, 4)) >> 4)
-#define CQHCI_VER_MINOR2(x)		((x) & GENMASK(3, 0))
+#define CQHCI_VER_MIANALR1(x)		(((x) & GENMASK(7, 4)) >> 4)
+#define CQHCI_VER_MIANALR2(x)		((x) & GENMASK(3, 0))
 
 /* capabilities */
 #define CQHCI_CAP			0x04
@@ -75,7 +75,7 @@
 /* door-bell */
 #define CQHCI_TDBR			0x28
 
-/* task completion notification */
+/* task completion analtification */
 #define CQHCI_TCN			0x2C
 
 /* device queue status */

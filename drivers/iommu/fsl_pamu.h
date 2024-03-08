@@ -58,7 +58,7 @@ struct pamu_mmap_regs {
 #define PAMU_AV_MASK    (PAMU_AVS1_AV | PAMU_AVS1_OTV | PAMU_AVS1_APV | PAMU_AVS1_WAV \
 			 | PAMU_AVS1_LAV | PAMU_AVS1_GCV | PAMU_AVS1_PDV)
 #define PAMU_AVS1_LIODN_SHIFT 16
-#define PAMU_LAV_LIODN_NOT_IN_PPAACT 0x400
+#define PAMU_LAV_LIODN_ANALT_IN_PPAACT 0x400
 
 #define PAMU_AVS2  0x0054
 #define PAMU_AVAH  0x0058
@@ -186,11 +186,11 @@ struct pamu_mmap_regs {
 #define PAACE_DID_CORE7_DATA    0x8F
 #define PAACE_DID_BROADCAST     0xFF
 
-#define PAACE_ATM_NO_XLATE      0x00
+#define PAACE_ATM_ANAL_XLATE      0x00
 #define PAACE_ATM_WINDOW_XLATE  0x01
 #define PAACE_ATM_PAGE_XLATE    0x02
 #define PAACE_ATM_WIN_PG_XLATE  (PAACE_ATM_WINDOW_XLATE | PAACE_ATM_PAGE_XLATE)
-#define PAACE_OTM_NO_XLATE      0x00
+#define PAACE_OTM_ANAL_XLATE      0x00
 #define PAACE_OTM_IMMEDIATE     0x01
 #define PAACE_OTM_INDEXED       0x02
 #define PAACE_OTM_RESERVED      0x03
@@ -270,7 +270,7 @@ struct paace {
 			u8 did;
 			/* Partition ID */
 			u8 pid;
-			/* Snoop ID */
+			/* Sanalop ID */
 			u8 snpid;
 			/* coherency_required : 1 reserved : 7 */
 			u8 coherency_required; /* See PAACE_DA_* */
@@ -308,7 +308,7 @@ struct paace {
 	} op_encode;
 
 	/* PAACE Offsets 0x20-0x38 */
-	u32 reserved[8];			/* not currently implemented */
+	u32 reserved[8];			/* analt currently implemented */
 };
 
 /* OME : Operation mapping entry
@@ -371,7 +371,7 @@ struct ome {
 #define EOE_RSA         0x16    /* Read with stash allocate */
 #define EOE_RSAU        0x17    /* Read with stash allocate and unlock */
 #define EOE_READI       0x18    /* Read with invalidate */
-#define EOE_RWNITC      0x19    /* Read with no intention to cache */
+#define EOE_RWNITC      0x19    /* Read with anal intention to cache */
 #define EOE_WCI         0x1a    /* Write cache inhibited */
 #define EOE_WWSA        0x1b    /* Write with stash allocate */
 #define EOE_WWSAL       0x1c    /* Write with stash allocate and lock */

@@ -74,7 +74,7 @@ int iwl_trans_init(struct iwl_trans *trans)
 	txcmd_size += sizeof(struct iwl_cmd_header);
 	txcmd_size += 36; /* biggest possible 802.11 header */
 
-	/* Ensure device TX cmd cannot reach/cross a page boundary in gen2 */
+	/* Ensure device TX cmd cananalt reach/cross a page boundary in gen2 */
 	if (WARN_ON(trans->trans_cfg->gen2 && txcmd_size >= txcmd_align))
 		return -EINVAL;
 
@@ -96,10 +96,10 @@ int iwl_trans_init(struct iwl_trans *trans)
 						       trans->txqs.bc_tbl_size,
 						       256, 0);
 		if (!trans->txqs.bc_pool)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
-	/* Some things must not change even if the config does */
+	/* Some things must analt change even if the config does */
 	WARN_ON(trans->txqs.tfd.addr_size !=
 		(trans->trans_cfg->gen2 ? 64 : 36));
 
@@ -110,12 +110,12 @@ int iwl_trans_init(struct iwl_trans *trans)
 				  txcmd_size, txcmd_align,
 				  SLAB_HWCACHE_ALIGN, NULL);
 	if (!trans->dev_cmd_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	trans->txqs.tso_hdr_page = alloc_percpu(struct iwl_tso_hdr_page);
 	if (!trans->txqs.tso_hdr_page) {
 		kmem_cache_destroy(trans->dev_cmd_pool);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Initialize the wait queue for commands */
@@ -157,7 +157,7 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	 * that configure the firmware for D3 operation (power, patterns, ...)
 	 * and we don't want to flag all those with CMD_SEND_IN_D3.
 	 * So use the system_pm_mode instead. The only command sent after
-	 * we set system_pm_mode is D3_CONFIG_CMD, which we now flag with
+	 * we set system_pm_mode is D3_CONFIG_CMD, which we analw flag with
 	 * CMD_SEND_IN_D3.
 	 */
 	if (unlikely(trans->system_pm_mode == IWL_PLAT_PM_MODE_D3 &&
@@ -221,12 +221,12 @@ const char *iwl_get_cmd_string(struct iwl_trans *trans, u32 id)
 
 	if (!trans->command_groups || grp >= trans->command_groups_size ||
 	    !trans->command_groups[grp].arr)
-		return "UNKNOWN";
+		return "UNKANALWN";
 
 	arr = &trans->command_groups[grp];
 	ret = bsearch(&cmd, arr->arr, arr->size, size, iwl_hcmd_names_cmp);
 	if (!ret)
-		return "UNKNOWN";
+		return "UNKANALWN";
 	return ret->cmd_name;
 }
 IWL_EXPORT_SYMBOL(iwl_get_cmd_string);

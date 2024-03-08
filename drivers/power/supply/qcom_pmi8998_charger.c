@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
  * Copyright (c) 2023, Linaro Ltd.
- * Author: Caleb Connolly <caleb.connolly@linaro.org>
+ * Author: Caleb Conanallly <caleb.conanallly@linaro.org>
  *
  * This driver is for the switch-mode battery charger and boost
  * hardware found in pmi8998 and related PMICs.
@@ -158,8 +158,8 @@
 
 #define TYPE_C_STATUS_3					0x30D
 #define ENABLE_BANDGAP_BIT				BIT(7)
-#define U_USB_GND_NOVBUS_BIT				BIT(6)
-#define U_USB_FLOAT_NOVBUS_BIT				BIT(5)
+#define U_USB_GND_ANALVBUS_BIT				BIT(6)
+#define U_USB_FLOAT_ANALVBUS_BIT				BIT(5)
 #define U_USB_GND_BIT					BIT(4)
 #define U_USB_FMB1_BIT					BIT(3)
 #define U_USB_FLOAT1_BIT				BIT(2)
@@ -181,7 +181,7 @@
 #define TRY_SINK_FAILED_BIT				BIT(5)
 #define TIMER_STAGE_2_BIT				BIT(4)
 #define TYPEC_LEGACY_CABLE_STATUS_BIT			BIT(3)
-#define TYPEC_NONCOMP_LEGACY_CABLE_STATUS_BIT		BIT(2)
+#define TYPEC_ANALNCOMP_LEGACY_CABLE_STATUS_BIT		BIT(2)
 #define TYPEC_TRYSOURCE_DETECT_STATUS_BIT		BIT(1)
 #define TYPEC_TRYSINK_DETECT_STATUS_BIT			BIT(0)
 
@@ -195,7 +195,7 @@
 #define FACTORY_MODE_DETECTION_EN_BIT			BIT(5)
 #define FACTORY_MODE_ICL_3A_4A_BIT			BIT(4)
 #define FACTORY_MODE_DIS_CHGING_CFG_BIT			BIT(3)
-#define SUSPEND_NON_COMPLIANT_CFG_BIT			BIT(2)
+#define SUSPEND_ANALN_COMPLIANT_CFG_BIT			BIT(2)
 #define VCONN_OC_CFG_BIT				BIT(1)
 #define TYPE_C_OR_U_USB_BIT				BIT(0)
 
@@ -211,7 +211,7 @@
 #define TYPE_C_CFG_3					0x35A
 #define TVBUS_DEBOUNCE_BIT				BIT(7)
 #define TYPEC_LEGACY_CABLE_INT_EN_BIT			BIT(6)
-#define TYPEC_NONCOMPLIANT_LEGACY_CABLE_INT_EN_B	BIT(5)
+#define TYPEC_ANALNCOMPLIANT_LEGACY_CABLE_INT_EN_B	BIT(5)
 #define TYPEC_TRYSOURCE_DETECT_INT_EN_BIT		BIT(4)
 #define TYPEC_TRYSINK_DETECT_INT_EN_BIT			BIT(3)
 #define EN_TRYSINK_MODE_BIT				BIT(2)
@@ -221,7 +221,7 @@
 #define USBIN_OPTIONS_1_CFG				0x362
 #define CABLE_R_SEL_BIT					BIT(7)
 #define HVDCP_AUTH_ALG_EN_CFG_BIT			BIT(6)
-#define HVDCP_AUTONOMOUS_MODE_EN_CFG_BIT		BIT(5)
+#define HVDCP_AUTOANALMOUS_MODE_EN_CFG_BIT		BIT(5)
 #define INPUT_PRIORITY_BIT				BIT(4)
 #define AUTO_SRC_DETECT_BIT				BIT(3)
 #define HVDCP_EN_BIT					BIT(2)
@@ -403,8 +403,8 @@ static enum power_supply_property smb2_properties[] = {
 	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_ONLINE,
@@ -412,7 +412,7 @@ static enum power_supply_property smb2_properties[] = {
 };
 
 static enum power_supply_usb_type smb2_usb_types[] = {
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
+	POWER_SUPPLY_USB_TYPE_UNKANALWN,
 	POWER_SUPPLY_USB_TYPE_SDP,
 	POWER_SUPPLY_USB_TYPE_DCP,
 	POWER_SUPPLY_USB_TYPE_CDP,
@@ -446,7 +446,7 @@ static int smb2_apsd_get_charger_type(struct smb2_chip *chip, int *val)
 
 	rc = smb2_get_prop_usb_online(chip, &usb_online);
 	if (!usb_online) {
-		*val = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+		*val = POWER_SUPPLY_USB_TYPE_UNKANALWN;
 		return rc;
 	}
 
@@ -456,7 +456,7 @@ static int smb2_apsd_get_charger_type(struct smb2_chip *chip, int *val)
 		return rc;
 	}
 	if (!(apsd_stat & APSD_DTC_STATUS_DONE_BIT)) {
-		dev_dbg(chip->dev, "Apsd not ready");
+		dev_dbg(chip->dev, "Apsd analt ready");
 		return -EAGAIN;
 	}
 
@@ -499,7 +499,7 @@ static int smb2_get_prop_status(struct smb2_chip *chip, int *val)
 	}
 
 	if (stat[1] & CHARGER_ERROR_STATUS_BAT_OV_BIT) {
-		*val = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		*val = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		return 0;
 	}
 
@@ -514,14 +514,14 @@ static int smb2_get_prop_status(struct smb2_chip *chip, int *val)
 		*val = POWER_SUPPLY_STATUS_CHARGING;
 		return rc;
 	case DISABLE_CHARGE:
-		*val = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		*val = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		return rc;
 	case TERMINATE_CHARGE:
 	case INHIBIT_CHARGE:
 		*val = POWER_SUPPLY_STATUS_FULL;
 		return rc;
 	default:
-		*val = POWER_SUPPLY_STATUS_UNKNOWN;
+		*val = POWER_SUPPLY_STATUS_UNKANALWN;
 		return rc;
 	}
 }
@@ -673,10 +673,10 @@ static int smb2_get_property(struct power_supply *psy,
 		return 0;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		return smb2_get_current_limit(chip, &val->intval);
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		return smb2_get_iio_chan(chip, chip->usb_in_i_chan,
 					 &val->intval);
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		return smb2_get_iio_chan(chip, chip->usb_in_v_chan,
 					 &val->intval);
 	case POWER_SUPPLY_PROP_ONLINE:
@@ -703,7 +703,7 @@ static int smb2_set_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		return smb2_set_current_limit(chip, val->intval);
 	default:
-		dev_err(chip->dev, "No setter for property: %d\n", psp);
+		dev_err(chip->dev, "Anal setter for property: %d\n", psp);
 		return -EINVAL;
 	}
 }
@@ -938,14 +938,14 @@ static int smb2_probe(struct platform_device *pdev)
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = &pdev->dev;
 	chip->name = pdev->name;
 
 	chip->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!chip->regmap)
-		return dev_err_probe(chip->dev, -ENODEV,
+		return dev_err_probe(chip->dev, -EANALDEV,
 				     "failed to locate the regmap\n");
 
 	rc = device_property_read_u32(chip->dev, "reg", &chip->base);
@@ -969,17 +969,17 @@ static int smb2_probe(struct platform_device *pdev)
 		return rc;
 
 	supply_config.drv_data = chip;
-	supply_config.of_node = pdev->dev.of_node;
+	supply_config.of_analde = pdev->dev.of_analde;
 
 	desc = devm_kzalloc(chip->dev, sizeof(smb2_psy_desc), GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(desc, &smb2_psy_desc, sizeof(smb2_psy_desc));
 	desc->name =
 		devm_kasprintf(chip->dev, GFP_KERNEL, "%s-charger",
 			       (const char *)device_get_match_data(chip->dev));
 	if (!desc->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->chg_psy =
 		devm_power_supply_register(chip->dev, desc, &supply_config);
@@ -1050,6 +1050,6 @@ static struct platform_driver qcom_spmi_smb2 = {
 
 module_platform_driver(qcom_spmi_smb2);
 
-MODULE_AUTHOR("Caleb Connolly <caleb.connolly@linaro.org>");
+MODULE_AUTHOR("Caleb Conanallly <caleb.conanallly@linaro.org>");
 MODULE_DESCRIPTION("Qualcomm SMB2 Charger Driver");
 MODULE_LICENSE("GPL");

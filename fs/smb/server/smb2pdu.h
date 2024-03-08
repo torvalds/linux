@@ -33,7 +33,7 @@
  *
  *  See MS-SMB2.PDF specification for protocol details.
  *  The Naming convention is the lower case version of the SMB2
- *  command code name for the struct. Note that structures must be packed.
+ *  command code name for the struct. Analte that structures must be packed.
  *
  */
 
@@ -170,7 +170,7 @@ struct file_object_buf_type1_ioctl_rsp {
 struct resume_key_ioctl_rsp {
 	__u64 ResumeKey[3];
 	__le32 ContextLength;
-	__u8 Context[4]; /* ignored, Windows sets to 4 bytes of zero */
+	__u8 Context[4]; /* iganalred, Windows sets to 4 bytes of zero */
 } __packed;
 
 struct copychunk_ioctl_req {
@@ -227,7 +227,7 @@ struct file_sparse {
 #define FILE_MAILSLOT_SET_INFORMATION_SIZE    27
 #define FILE_COMPRESSION_INFORMATION_SIZE     16
 #define FILE_OBJECT_ID_INFORMATION_SIZE       29
-/* Number 30 not defined in documents */
+/* Number 30 analt defined in documents */
 #define FILE_MOVE_CLUSTER_INFORMATION_SIZE    31
 #define FILE_QUOTA_INFORMATION_SIZE           32
 #define FILE_REPARSE_POINT_INFORMATION_SIZE   33
@@ -329,7 +329,7 @@ struct smb2_file_mode_info {
 	__le32 Mode;
 } __packed;
 
-#define COMPRESSION_FORMAT_NONE 0x0000
+#define COMPRESSION_FORMAT_ANALNE 0x0000
 #define COMPRESSION_FORMAT_LZNT1 0x0002
 
 struct smb2_file_comp_info {
@@ -379,7 +379,7 @@ struct create_sd_buf_req {
 
 struct smb2_posix_info {
 	__le32 NextEntryOffset;
-	__u32 Ignored;
+	__u32 Iganalred;
 	__le64 CreationTime;
 	__le64 LastAccessTime;
 	__le64 LastWriteTime;
@@ -387,7 +387,7 @@ struct smb2_posix_info {
 	__le64 EndOfFile;
 	__le64 AllocationSize;
 	__le32 DosAttributes;
-	__le64 Inode;
+	__le64 Ianalde;
 	__le32 DeviceId;
 	__le32 Zero;
 	/* beginning of POSIX Create Context Response */
@@ -474,7 +474,7 @@ int smb2_cancel(struct ksmbd_work *work);
 int smb2_lock(struct ksmbd_work *work);
 int smb2_ioctl(struct ksmbd_work *work);
 int smb2_oplock_break(struct ksmbd_work *work);
-int smb2_notify(struct ksmbd_work *ksmbd_work);
+int smb2_analtify(struct ksmbd_work *ksmbd_work);
 
 /*
  * Get the body of the smb2 message excluding the 4 byte rfc1002 headers

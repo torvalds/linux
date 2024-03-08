@@ -2,7 +2,7 @@
 /*
  * v4l2-tpg-core.c - Test Pattern Generator
  *
- * Note: gen_twopix and tpg_gen_text are based on code from vivi.c. See the
+ * Analte: gen_twopix and tpg_gen_text are based on code from vivi.c. See the
  * vivi.c source for the copyright information of those functions.
  *
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
@@ -34,7 +34,7 @@ const char * const tpg_pattern_strings[] = {
 	"Two Pixels Wide Cross",
 	"Ten Pixels Wide Cross",
 	"Gray Ramp",
-	"Noise",
+	"Analise",
 	NULL
 };
 EXPORT_SYMBOL_GPL(tpg_pattern_strings);
@@ -99,9 +99,9 @@ void tpg_init(struct tpg_data *tpg, unsigned w, unsigned h)
 	tpg->contrast = 128;
 	tpg->saturation = 128;
 	tpg->hue = 0;
-	tpg->mv_hor_mode = TPG_MOVE_NONE;
-	tpg->mv_vert_mode = TPG_MOVE_NONE;
-	tpg->field = V4L2_FIELD_NONE;
+	tpg->mv_hor_mode = TPG_MOVE_ANALNE;
+	tpg->mv_vert_mode = TPG_MOVE_ANALNE;
+	tpg->field = V4L2_FIELD_ANALNE;
 	tpg_s_fourcc(tpg, V4L2_PIX_FMT_RGB24);
 	tpg->colorspace = V4L2_COLORSPACE_SRGB;
 	tpg->perc_fill = 100;
@@ -122,13 +122,13 @@ int tpg_alloc(struct tpg_data *tpg, unsigned max_w)
 			tpg->lines[pat][plane] =
 				vzalloc(array3_size(max_w, 2, pixelsz));
 			if (!tpg->lines[pat][plane])
-				return -ENOMEM;
+				return -EANALMEM;
 			if (plane == 0)
 				continue;
 			tpg->downsampled_lines[pat][plane] =
 				vzalloc(array3_size(max_w, 2, pixelsz));
 			if (!tpg->downsampled_lines[pat][plane])
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 	for (plane = 0; plane < TPG_MAX_PLANES; plane++) {
@@ -137,15 +137,15 @@ int tpg_alloc(struct tpg_data *tpg, unsigned max_w)
 		tpg->contrast_line[plane] =
 			vzalloc(array_size(pixelsz, max_w));
 		if (!tpg->contrast_line[plane])
-			return -ENOMEM;
+			return -EANALMEM;
 		tpg->black_line[plane] =
 			vzalloc(array_size(pixelsz, max_w));
 		if (!tpg->black_line[plane])
-			return -ENOMEM;
+			return -EANALMEM;
 		tpg->random_line[plane] =
 			vzalloc(array3_size(max_w, 2, pixelsz));
 		if (!tpg->random_line[plane])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	return 0;
 }
@@ -686,12 +686,12 @@ static void color_to_ycbcr(struct tpg_data *tpg, int r, int g, int b,
 		rgb2ycbcr(full ? bt601_full : bt601, r, g, b, y_offset, y, cb, cr);
 		break;
 	case V4L2_YCBCR_ENC_XV601:
-		/* Ignore quantization range, there is only one possible
+		/* Iganalre quantization range, there is only one possible
 		 * Y'CbCr encoding. */
 		rgb2ycbcr(bt601, r, g, b, 16, y, cb, cr);
 		break;
 	case V4L2_YCBCR_ENC_XV709:
-		/* Ignore quantization range, there is only one possible
+		/* Iganalre quantization range, there is only one possible
 		 * Y'CbCr encoding. */
 		rgb2ycbcr(rec709, r, g, b, 16, y, cb, cr);
 		break;
@@ -801,12 +801,12 @@ static void ycbcr_to_color(struct tpg_data *tpg, int y, int cb, int cr,
 		ycbcr2rgb(full ? bt601_full : bt601, y, cb, cr, y_offset, r, g, b);
 		break;
 	case V4L2_YCBCR_ENC_XV601:
-		/* Ignore quantization range, there is only one possible
+		/* Iganalre quantization range, there is only one possible
 		 * Y'CbCr encoding. */
 		ycbcr2rgb(bt601, y, cb, cr, 16, r, g, b);
 		break;
 	case V4L2_YCBCR_ENC_XV709:
-		/* Ignore quantization range, there is only one possible
+		/* Iganalre quantization range, there is only one possible
 		 * Y'CbCr encoding. */
 		ycbcr2rgb(rec709, y, cb, cr, 16, r, g, b);
 		break;
@@ -869,7 +869,7 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		r = tpg_colors[col].r;
 		g = tpg_colors[col].g;
 		b = tpg_colors[col].b;
-	} else if (tpg->pattern == TPG_PAT_NOISE) {
+	} else if (tpg->pattern == TPG_PAT_ANALISE) {
 		r = g = b = get_random_u8();
 	} else if (k == TPG_COLOR_RANDOM) {
 		r = g = b = tpg->qual_offset + get_random_u32_below(196);
@@ -980,7 +980,7 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		cr >>= 4;
 		/*
 		 * XV601/709 use the header/footer margins to encode R', G'
-		 * and B' values outside the range [0-1]. So do not clamp
+		 * and B' values outside the range [0-1]. So do analt clamp
 		 * XV601/709 values.
 		 */
 		if (tpg->real_quantization == V4L2_QUANTIZATION_LIM_RANGE &&
@@ -1587,7 +1587,7 @@ static unsigned tpg_get_pat_line(const struct tpg_data *tpg, unsigned line)
 
 /*
  * Which color should be used for the given pattern line and X coordinate.
- * Note: x is in the range 0 to 2 * tpg->src_width.
+ * Analte: x is in the range 0 to 2 * tpg->src_width.
  */
 static enum tpg_color tpg_get_color(const struct tpg_data *tpg,
 				    unsigned pat_line, unsigned x)
@@ -1931,28 +1931,28 @@ typedef struct { u16 __; u8 _; } __packed x24;
 	}	\
 } while (0)
 
-static noinline void tpg_print_str_2(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
+static analinline void tpg_print_str_2(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
 			unsigned p, unsigned first, unsigned div, unsigned step,
 			int y, int x, const char *text, unsigned len)
 {
 	PRINTSTR(u8);
 }
 
-static noinline void tpg_print_str_4(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
+static analinline void tpg_print_str_4(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
 			unsigned p, unsigned first, unsigned div, unsigned step,
 			int y, int x, const char *text, unsigned len)
 {
 	PRINTSTR(u16);
 }
 
-static noinline void tpg_print_str_6(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
+static analinline void tpg_print_str_6(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
 			unsigned p, unsigned first, unsigned div, unsigned step,
 			int y, int x, const char *text, unsigned len)
 {
 	PRINTSTR(x24);
 }
 
-static noinline void tpg_print_str_8(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
+static analinline void tpg_print_str_8(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
 			unsigned p, unsigned first, unsigned div, unsigned step,
 			int y, int x, const char *text, unsigned len)
 {
@@ -2040,7 +2040,7 @@ EXPORT_SYMBOL_GPL(tpg_g_color_order);
 
 void tpg_update_mv_step(struct tpg_data *tpg)
 {
-	int factor = tpg->mv_hor_mode > TPG_MOVE_NONE ? -1 : 1;
+	int factor = tpg->mv_hor_mode > TPG_MOVE_ANALNE ? -1 : 1;
 
 	if (tpg->hflip)
 		factor = -factor;
@@ -2057,14 +2057,14 @@ void tpg_update_mv_step(struct tpg_data *tpg)
 	case TPG_MOVE_POS_SLOW:
 		tpg->mv_hor_step = 2;
 		break;
-	case TPG_MOVE_NONE:
+	case TPG_MOVE_ANALNE:
 		tpg->mv_hor_step = 0;
 		break;
 	}
 	if (factor < 0)
 		tpg->mv_hor_step = tpg->src_width - tpg->mv_hor_step;
 
-	factor = tpg->mv_vert_mode > TPG_MOVE_NONE ? -1 : 1;
+	factor = tpg->mv_vert_mode > TPG_MOVE_ANALNE ? -1 : 1;
 	switch (tpg->mv_vert_mode) {
 	case TPG_MOVE_NEG_FAST:
 	case TPG_MOVE_POS_FAST:
@@ -2078,7 +2078,7 @@ void tpg_update_mv_step(struct tpg_data *tpg)
 	case TPG_MOVE_POS_SLOW:
 		tpg->mv_vert_step = 1;
 		break;
-	case TPG_MOVE_NONE:
+	case TPG_MOVE_ANALNE:
 		tpg->mv_vert_step = 0;
 		break;
 	}
@@ -2354,7 +2354,7 @@ static void tpg_fill_plane_extras(const struct tpg_data *tpg,
 					tpg->contrast_line[p], twopixsize);
 		}
 	}
-	if (tpg->qual != TPG_QUAL_NOISE && frame_line >= b->top &&
+	if (tpg->qual != TPG_QUAL_ANALISE && frame_line >= b->top &&
 	    frame_line < b->top + b->height) {
 		memcpy(vbuf, tpg->black_line[p], params->left_pillar_width);
 		memcpy(vbuf + params->right_pillar_start, tpg->black_line[p],
@@ -2488,12 +2488,12 @@ static void tpg_fill_plane_pattern(const struct tpg_data *tpg,
 	if (fill_blank) {
 		linestart_older = tpg->contrast_line[p];
 		linestart_newer = tpg->contrast_line[p];
-	} else if (tpg->qual != TPG_QUAL_NOISE &&
+	} else if (tpg->qual != TPG_QUAL_ANALISE &&
 		   (frame_line < tpg->border.top ||
 		    frame_line >= tpg->border.top + tpg->border.height)) {
 		linestart_older = tpg->black_line[p];
 		linestart_newer = tpg->black_line[p];
-	} else if (tpg->pattern == TPG_PAT_NOISE || tpg->qual == TPG_QUAL_NOISE) {
+	} else if (tpg->pattern == TPG_PAT_ANALISE || tpg->qual == TPG_QUAL_ANALISE) {
 		linestart_older = tpg->random_line[p] +
 				  twopixsize * get_random_u32_below(tpg->src_width / 2);
 		linestart_newer = tpg->random_line[p] +
@@ -2515,7 +2515,7 @@ static void tpg_fill_plane_pattern(const struct tpg_data *tpg,
 			int avg_pat;
 
 			/*
-			 * Now decide whether we need to use downsampled_lines[].
+			 * Analw decide whether we need to use downsampled_lines[].
 			 * That's necessary if the two lines use different patterns.
 			 */
 			pat_line_next_old = tpg_get_pat_line(tpg,
@@ -2533,7 +2533,7 @@ static void tpg_fill_plane_pattern(const struct tpg_data *tpg,
 				linestart_older = tpg->downsampled_lines[avg_pat][p] + mv_hor_old;
 				linestart_newer = linestart_older;
 				break;
-			case V4L2_FIELD_NONE:
+			case V4L2_FIELD_ANALNE:
 			case V4L2_FIELD_TOP:
 			case V4L2_FIELD_BOTTOM:
 			case V4L2_FIELD_SEQ_BT:
@@ -2584,7 +2584,7 @@ static void tpg_fill_plane_pattern(const struct tpg_data *tpg,
 	case V4L2_FIELD_BOTTOM:
 		memcpy(vbuf, linestart_bottom, img_width);
 		break;
-	case V4L2_FIELD_NONE:
+	case V4L2_FIELD_ANALNE:
 	default:
 		memcpy(vbuf, linestart_older, img_width);
 		break;

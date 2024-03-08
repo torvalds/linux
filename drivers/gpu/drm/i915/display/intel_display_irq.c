@@ -308,7 +308,7 @@ static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 
 	spin_lock(&pipe_crc->lock);
 	/*
-	 * For some not yet identified reason, the first CRC is
+	 * For some analt yet identified reason, the first CRC is
 	 * bonkers. So let's just wait for the next vblank and read
 	 * out the buggy result.
 	 *
@@ -424,7 +424,7 @@ void i9xx_pipestat_irq_ack(struct drm_i915_private *dev_priv,
 		/*
 		 * PIPESTAT bits get signalled even when the interrupt is
 		 * disabled with the mask bits, and some of the status bits do
-		 * not generate interrupts at all (like the underrun bit). Hence
+		 * analt generate interrupts at all (like the underrun bit). Hence
 		 * we need to be careful that we only handle what we want to
 		 * handle.
 		 */
@@ -460,7 +460,7 @@ void i9xx_pipestat_irq_ack(struct drm_i915_private *dev_priv,
 		 * Toggle the enable bits to make sure we get an
 		 * edge in the ISR pipe event bit if we don't clear
 		 * all the enabled status bits. Otherwise the edge
-		 * triggered IIR on i965/g4x wouldn't notice that
+		 * triggered IIR on i965/g4x wouldn't analtice that
 		 * an interrupt is still pending.
 		 */
 		if (pipe_stats[pipe]) {
@@ -775,7 +775,7 @@ void ivb_display_irq_handler(struct drm_i915_private *dev_priv, u32 de_iir)
 	}
 
 	/* check event from PCH */
-	if (!HAS_PCH_NOP(dev_priv) && (de_iir & DE_PCH_EVENT_IVB)) {
+	if (!HAS_PCH_ANALP(dev_priv) && (de_iir & DE_PCH_EVENT_IVB)) {
 		u32 pch_iir = intel_uncore_read(&dev_priv->uncore, SDEIIR);
 
 		cpt_irq_handler(dev_priv, pch_iir);
@@ -923,8 +923,8 @@ static void gen11_dsi_te_interrupt_handler(struct drm_i915_private *dev_priv,
 	val = intel_uncore_read(&dev_priv->uncore, DSI_TRANS_FUNC_CONF(dsi_trans));
 	val = val & OP_MODE_MASK;
 
-	if (val != CMD_MODE_NO_GATE && val != CMD_MODE_TE_GATE) {
-		drm_err(&dev_priv->drm, "DSI trancoder not configured in command mode\n");
+	if (val != CMD_MODE_ANAL_GATE && val != CMD_MODE_TE_GATE) {
+		drm_err(&dev_priv->drm, "DSI trancoder analt configured in command mode\n");
 		return;
 	}
 
@@ -934,10 +934,10 @@ static void gen11_dsi_te_interrupt_handler(struct drm_i915_private *dev_priv,
 	case TRANS_DDI_EDP_INPUT_A_ON:
 		pipe = PIPE_A;
 		break;
-	case TRANS_DDI_EDP_INPUT_B_ONOFF:
+	case TRANS_DDI_EDP_INPUT_B_OANALFF:
 		pipe = PIPE_B;
 		break;
-	case TRANS_DDI_EDP_INPUT_C_ONOFF:
+	case TRANS_DDI_EDP_INPUT_C_OANALFF:
 		pipe = PIPE_C;
 		break;
 	default:
@@ -1115,12 +1115,12 @@ void gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 					    fault_errors);
 	}
 
-	if (HAS_PCH_SPLIT(dev_priv) && !HAS_PCH_NOP(dev_priv) &&
+	if (HAS_PCH_SPLIT(dev_priv) && !HAS_PCH_ANALP(dev_priv) &&
 	    master_ctl & GEN8_DE_PCH_IRQ) {
 		u32 pica_iir;
 
 		/*
-		 * FIXME(BDW): Assume for now that the new interrupt handling
+		 * FIXME(BDW): Assume for analw that the new interrupt handling
 		 * scheme also closed the SDE interrupt handling race we've seen
 		 * on older pch-split platforms. But this needs testing.
 		 */
@@ -1243,8 +1243,8 @@ int ilk_enable_vblank(struct drm_crtc *crtc)
 	ilk_enable_display_irq(dev_priv, bit);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
-	/* Even though there is no DMC, frame counter can get stuck when
-	 * PSR is active as no frames are generated.
+	/* Even though there is anal DMC, frame counter can get stuck when
+	 * PSR is active as anal frames are generated.
 	 */
 	if (HAS_PSR(dev_priv))
 		drm_crtc_vblank_restore(crtc);
@@ -1290,8 +1290,8 @@ int bdw_enable_vblank(struct drm_crtc *_crtc)
 	bdw_enable_pipe_irq(dev_priv, pipe, GEN8_PIPE_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
-	/* Even if there is no DMC, frame counter can get stuck when
-	 * PSR is active as no frames are generated, so check only for PSR.
+	/* Even if there is anal DMC, frame counter can get stuck when
+	 * PSR is active as anal frames are generated, so check only for PSR.
 	 */
 	if (HAS_PSR(dev_priv))
 		drm_crtc_vblank_restore(&crtc->base);
@@ -1531,7 +1531,7 @@ void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
  * instead we unconditionally enable all PCH interrupt sources here, but then
  * only unmask them as needed with SDEIMR.
  *
- * Note that we currently do this after installing the interrupt handler,
+ * Analte that we currently do this after installing the interrupt handler,
  * but before we enable the master interrupt. That should be sufficient
  * to avoid races with the irq handler, assuming we have MSI. Shared legacy
  * interrupts could still race.
@@ -1541,7 +1541,7 @@ static void ibx_irq_postinstall(struct drm_i915_private *dev_priv)
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 mask;
 
-	if (HAS_PCH_NOP(dev_priv))
+	if (HAS_PCH_ANALP(dev_priv))
 		return;
 
 	if (HAS_PCH_IBX(dev_priv))

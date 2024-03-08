@@ -8,7 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/pkt_sched.h>
@@ -110,7 +110,7 @@ static int cfservl_modemcmd(struct cflayer *layr, enum caif_modemcmd ctrl)
 			u8 flow_on = SRVL_FLOW_ON;
 			pkt = cfpkt_create(SRVL_CTRL_PKT_SIZE);
 			if (!pkt)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			if (cfpkt_add_head(pkt, &flow_on, 1) < 0) {
 				pr_err("Packet is erroneous!\n");
@@ -131,7 +131,7 @@ static int cfservl_modemcmd(struct cflayer *layr, enum caif_modemcmd ctrl)
 			u8 flow_off = SRVL_FLOW_OFF;
 			pkt = cfpkt_create(SRVL_CTRL_PKT_SIZE);
 			if (!pkt)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			if (cfpkt_add_head(pkt, &flow_off, 1) < 0) {
 				pr_err("Packet is erroneous!\n");
@@ -177,7 +177,7 @@ void cfsrvl_init(struct cfsrvl *service,
 bool cfsrvl_ready(struct cfsrvl *service, int *err)
 {
 	if (!service->open) {
-		*err = -ENOTCONN;
+		*err = -EANALTCONN;
 		return false;
 	}
 	return true;

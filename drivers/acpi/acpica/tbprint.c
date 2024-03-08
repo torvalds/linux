@@ -29,9 +29,9 @@ acpi_tb_cleanup_table_header(struct acpi_table_header *out_header,
  * PARAMETERS:  string              - String to be repaired
  *              length              - Maximum length
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
- * DESCRIPTION: Replace every non-printable or non-ascii byte in the string
+ * DESCRIPTION: Replace every analn-printable or analn-ascii byte in the string
  *              with a question mark '?'.
  *
  ******************************************************************************/
@@ -83,7 +83,7 @@ acpi_tb_cleanup_table_header(struct acpi_table_header *out_header,
  * PARAMETERS:  address             - Table physical address
  *              header              - Table header
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Print an ACPI table header. Special cases for FACS and RSDP.
  *
@@ -105,7 +105,7 @@ acpi_tb_print_table_header(acpi_physical_address address,
 	} else if (ACPI_VALIDATE_RSDP_SIG(ACPI_CAST_PTR(struct acpi_table_rsdp,
 							header)->signature)) {
 
-		/* RSDP has no common fields */
+		/* RSDP has anal common fields */
 
 		memcpy(local_header.oem_id,
 		       ACPI_CAST_PTR(struct acpi_table_rsdp, header)->oem_id,

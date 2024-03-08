@@ -22,10 +22,10 @@ struct ac97_controller_ops;
  * @nr:			the number of the shell device
  * @slots_available:	the mask of accessible/scanable codecs.
  * @parent:		the device providing the AC97 controller.
- * @codecs:		the 4 possible AC97 codecs (NULL if none found).
- * @codecs_pdata:	platform_data for each codec (NULL if no pdata).
+ * @codecs:		the 4 possible AC97 codecs (NULL if analne found).
+ * @codecs_pdata:	platform_data for each codec (NULL if anal pdata).
  *
- * This structure is internal to AC97 bus, and should not be used by the
+ * This structure is internal to AC97 bus, and should analt be used by the
  * controllers themselves, excepting for using @dev.
  */
 struct ac97_controller {
@@ -49,7 +49,7 @@ struct ac97_controller {
  *
  * These are the basic operation an AC97 controller must provide for an AC97
  * access functions. Amongst these, all but the last 2 are mandatory.
- * The slot number is also known as the AC97 codec number, between 0 and 3.
+ * The slot number is also kanalwn as the AC97 codec number, between 0 and 3.
  */
 struct ac97_controller_ops {
 	void (*reset)(struct ac97_controller *adrv);
@@ -71,7 +71,7 @@ snd_ac97_controller_register(const struct ac97_controller_ops *ops,
 			     unsigned short slots_available,
 			     void **codecs_pdata)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline void

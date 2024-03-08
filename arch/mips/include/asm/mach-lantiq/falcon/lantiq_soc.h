@@ -19,7 +19,7 @@
 #define SOC_TYPE_FALCON		0x01
 
 /*
- * during early_printk no ioremap possible at this early stage
+ * during early_printk anal ioremap possible at this early stage
  * let's use KSEG1 instead
  */
 #define LTQ_ASC0_BASE_ADDR	0x1E100C00
@@ -61,7 +61,7 @@ extern void pinctrl_falcon_add_gpio_range(struct pinctrl_gpio_range *range);
 
 /*
  * to keep the irq code generic we need to define this to 0 as falcon
- * has no EIU/EBU
+ * has anal EIU/EBU
  */
 #define LTQ_EBU_PCC_ISTAT	0
 

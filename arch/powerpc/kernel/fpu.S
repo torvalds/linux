@@ -68,7 +68,7 @@ _GLOBAL(load_fp_state)
 	REST_32FPVSRS(0, R4, R3)
 	blr
 EXPORT_SYMBOL(load_fp_state)
-_ASM_NOKPROBE_SYMBOL(load_fp_state); /* used by restore_math */
+_ASM_ANALKPROBE_SYMBOL(load_fp_state); /* used by restore_math */
 
 /*
  * Store FP state into memory, including FPSCR
@@ -83,12 +83,12 @@ _GLOBAL(store_fp_state)
 EXPORT_SYMBOL(store_fp_state)
 
 /*
- * This task wants to use the FPU now.
+ * This task wants to use the FPU analw.
  * On UP, disable FP for the task which had the FPU previously,
  * and save its floating-point registers in its thread_struct.
  * Load up this task's FP registers from its thread_struct,
  * enable the FPU for the current task and return to the task.
- * Note that on 32-bit this can only use registers that will be
+ * Analte that on 32-bit this can only use registers that will be
  * restored by fast_exception_return, i.e. r3 - r6, r10 and r11.
  */
 _GLOBAL(load_up_fpu)
@@ -104,7 +104,7 @@ BEGIN_FTR_SECTION
 	oris	r5,r5,MSR_VSX@h
 END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif
-	MTMSRD(r5)			/* enable use of fpu now */
+	MTMSRD(r5)			/* enable use of fpu analw */
 	isync
 	/* enable use of FP after return */
 #ifdef CONFIG_PPC32
@@ -133,7 +133,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	/* restore registers and return */
 	/* we haven't used ctr or xer or lr */
 	blr
-_ASM_NOKPROBE_SYMBOL(load_up_fpu)
+_ASM_ANALKPROBE_SYMBOL(load_up_fpu)
 
 /*
  * save_fpu(tsk)

@@ -12,7 +12,7 @@ struct xdp_mem_allocator {
 		void *allocator;
 		struct page_pool *page_pool;
 	};
-	struct rhash_head node;
+	struct rhash_head analde;
 	struct rcu_head rcu;
 };
 

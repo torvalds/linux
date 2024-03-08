@@ -51,7 +51,7 @@ PING_ARG="-c 3 -w 10 -q"
 ret=0
 GREEN='\033[0;92m'
 RED='\033[0;31m'
-NC='\033[0m' # No Color
+NC='\033[0m' # Anal Color
 
 config_device()
 {
@@ -187,7 +187,7 @@ add_ip6geneve_tunnel()
 	# at_ns0 namespace
 	ip netns exec at_ns0 \
 		ip link add dev $DEV_NS type $TYPE id 22 \
-		remote ::22     # geneve has no local option
+		remote ::22     # geneve has anal local option
 	ip netns exec at_ns0 ip addr add dev $DEV_NS 10.1.1.100/24
 	ip netns exec at_ns0 ip link set dev $DEV_NS up
 
@@ -258,7 +258,7 @@ test_gre()
         echo -e ${GREEN}"PASS: $TYPE"${NC}
 }
 
-test_gre_no_tunnel_key()
+test_gre_anal_tunnel_key()
 {
 	TYPE=gre
 	DEV_NS=gre00
@@ -268,7 +268,7 @@ test_gre_no_tunnel_key()
 	check $TYPE
 	config_device
 	add_gre_tunnel
-	attach_bpf $DEV gre_set_tunnel_no_key gre_get_tunnel
+	attach_bpf $DEV gre_set_tunnel_anal_key gre_get_tunnel
 	ping $PING_ARG 10.1.1.100
 	check_err $?
 	ip netns exec at_ns0 ping $PING_ARG 10.1.1.200
@@ -559,7 +559,7 @@ check()
 {
 	ip link help 2>&1 | grep -q "\s$1\s"
 	if [ $? -ne 0 ];then
-		echo "SKIP $1: iproute2 not support"
+		echo "SKIP $1: iproute2 analt support"
 	cleanup
 	return 1
 	fi
@@ -589,7 +589,7 @@ bpf_tunnel_test()
 	errors=$(( $errors + $? ))
 
 	echo "Testing GRE tunnel (without tunnel keys)..."
-	test_gre_no_tunnel_key
+	test_gre_anal_tunnel_key
 	errors=$(( $errors + $? ))
 
 	echo "Testing IP6GRE tunnel..."

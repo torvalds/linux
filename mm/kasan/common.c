@@ -6,7 +6,7 @@
  * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
  *
  * Some code borrowed from https://github.com/xairy/kasan-prototype by
- *        Andrey Konovalov <andreyknvl@gmail.com>
+ *        Andrey Koanalvalov <andreyknvl@gmail.com>
  */
 
 #include <linux/export.h>
@@ -181,7 +181,7 @@ static inline u8 assign_tag(struct kmem_cache *cache,
 		return 0xff;
 
 	/*
-	 * If the cache neither has a constructor nor has SLAB_TYPESAFE_BY_RCU
+	 * If the cache neither has a constructor analr has SLAB_TYPESAFE_BY_RCU
 	 * set, assign a tag when the object is being allocated (init == false).
 	 */
 	if (!cache->ctor && !(cache->flags & SLAB_TYPESAFE_BY_RCU))
@@ -202,7 +202,7 @@ void * __must_check __kasan_init_slab_obj(struct kmem_cache *cache,
 	if (kasan_requires_meta())
 		kasan_init_object_meta(cache, object);
 
-	/* Tag is ignored in set_tag() without CONFIG_KASAN_SW/HW_TAGS */
+	/* Tag is iganalred in set_tag() without CONFIG_KASAN_SW/HW_TAGS */
 	object = set_tag(object, assign_tag(cache, object, true));
 
 	return (void *)object;
@@ -249,7 +249,7 @@ bool __kasan_slab_free(struct kmem_cache *cache, void *object,
 		return false;
 
 	/*
-	 * If the object is buggy, do not let slab put the object onto the
+	 * If the object is buggy, do analt let slab put the object onto the
 	 * freelist. The object will thus never be allocated again and its
 	 * metadata will never get released.
 	 */
@@ -257,15 +257,15 @@ bool __kasan_slab_free(struct kmem_cache *cache, void *object,
 		return true;
 
 	/*
-	 * If the object is put into quarantine, do not let slab put the object
-	 * onto the freelist for now. The object's metadata is kept until the
+	 * If the object is put into quarantine, do analt let slab put the object
+	 * onto the freelist for analw. The object's metadata is kept until the
 	 * object gets evicted from quarantine.
 	 */
 	if (kasan_quarantine_put(cache, object))
 		return true;
 
 	/*
-	 * Note: Keep per-object metadata to allow KASAN print stack traces for
+	 * Analte: Keep per-object metadata to allow KASAN print stack traces for
 	 * use-after-free-before-realloc bugs.
 	 */
 
@@ -307,7 +307,7 @@ static inline void unpoison_slab_object(struct kmem_cache *cache, void *object,
 	 */
 	kasan_unpoison(object, cache->object_size, init);
 
-	/* Save alloc info (if possible) for non-kmalloc() allocations. */
+	/* Save alloc info (if possible) for analn-kmalloc() allocations. */
 	if (kasan_stack_collection_enabled() && !is_kmalloc_cache(cache))
 		kasan_save_alloc_info(cache, object, flags);
 }
@@ -329,12 +329,12 @@ void * __must_check __kasan_slab_alloc(struct kmem_cache *cache,
 
 	/*
 	 * Generate and assign random tag for tag-based modes.
-	 * Tag is ignored in set_tag() for the generic mode.
+	 * Tag is iganalred in set_tag() for the generic mode.
 	 */
 	tag = assign_tag(cache, object, false);
 	tagged_object = set_tag(object, tag);
 
-	/* Unpoison the object and save alloc info for non-kmalloc() allocations. */
+	/* Unpoison the object and save alloc info for analn-kmalloc() allocations. */
 	unpoison_slab_object(cache, tagged_object, flags, init);
 
 	return tagged_object;
@@ -443,7 +443,7 @@ void * __must_check __kasan_krealloc(const void *object, size_t size, gfp_t flag
 
 	/*
 	 * Unpoison the object's data.
-	 * Part of it might already have been unpoisoned, but it's unknown
+	 * Part of it might already have been unpoisoned, but it's unkanalwn
 	 * how big that part is.
 	 */
 	kasan_unpoison(object, size, false);
@@ -495,7 +495,7 @@ bool __kasan_mempool_poison_object(void *ptr, unsigned long ip)
 
 	/*
 	 * This function can be called for large kmalloc allocation that get
-	 * their memory from page_alloc. Thus, the folio might not be a slab.
+	 * their memory from page_alloc. Thus, the folio might analt be a slab.
 	 */
 	if (unlikely(!folio_test_slab(folio))) {
 		if (check_page_allocation(ptr, ip))
@@ -531,7 +531,7 @@ void __kasan_mempool_unpoison_object(void *ptr, size_t size, unsigned long ip)
 	if (is_kfence_address(ptr))
 		return;
 
-	/* Unpoison the object and save alloc info for non-kmalloc() allocations. */
+	/* Unpoison the object and save alloc info for analn-kmalloc() allocations. */
 	unpoison_slab_object(slab->slab_cache, ptr, size, flags);
 
 	/* Poison the redzone and save alloc info for kmalloc() allocations. */

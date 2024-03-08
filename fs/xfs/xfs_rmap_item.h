@@ -17,12 +17,12 @@
  * that records the associated rmapbt updates.  Typically, the first
  * transaction will record a bmbt update, followed by some number of
  * transactions containing rmapbt updates, and finally transactions with any
- * bnobt/cntbt updates.
+ * banalbt/cntbt updates.
  *
  * Should the system crash after the commit of the first transaction but
  * before the commit of the final transaction in a series, log recovery will
  * use the redo information recorded by the intent items to replay the
- * (rmapbt/bnobt/cntbt) metadata updates in the non-first transaction.
+ * (rmapbt/banalbt/cntbt) metadata updates in the analn-first transaction.
  */
 
 /* kernel only RUI/RUD definitions */

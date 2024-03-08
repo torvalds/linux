@@ -2,7 +2,7 @@
   {
     "EventCode": "0x10132",
     "EventName": "PM_MRK_INST_ISSUED",
-    "BriefDescription": "Marked instruction issued. Note that stores always get issued twice, the address gets issued to the LSU and the data gets issued to the VSU. Also, issues can sometimes get killed/cancelled and cause multiple sequential issues for the same instruction."
+    "BriefDescription": "Marked instruction issued. Analte that stores always get issued twice, the address gets issued to the LSU and the data gets issued to the VSU. Also, issues can sometimes get killed/cancelled and cause multiple sequential issues for the same instruction."
   },
   {
     "EventCode": "0x10134",
@@ -77,7 +77,7 @@
   {
     "EventCode": "0x20138",
     "EventName": "PM_MRK_ST_NEST",
-    "BriefDescription": "A store has been sampled/marked and is at the point of execution where it has completed in the core and can no longer be flushed. At this point the store is sent to the L2."
+    "BriefDescription": "A store has been sampled/marked and is at the point of execution where it has completed in the core and can anal longer be flushed. At this point the store is sent to the L2."
   },
   {
     "EventCode": "0x2013A",
@@ -187,7 +187,7 @@
   {
     "EventCode": "0x301E2",
     "EventName": "PM_MRK_ST_CMPL",
-    "BriefDescription": "Marked store completed and sent to nest. Note that this count excludes cache-inhibited stores."
+    "BriefDescription": "Marked store completed and sent to nest. Analte that this count excludes cache-inhibited stores."
   },
   {
     "EventCode": "0x301E4",

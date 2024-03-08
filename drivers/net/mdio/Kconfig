@@ -19,12 +19,12 @@ config MDIO_BUS
 	  reflects whether the mdio_bus/mdio_device code is built as a
 	  loadable module or built-in.
 
-config FWNODE_MDIO
+config FWANALDE_MDIO
 	def_tristate PHYLIB
 	depends on (ACPI || OF) || COMPILE_TEST
 	select FIXED_PHY
 	help
-	  FWNODE MDIO bus (Ethernet PHY) accessors
+	  FWANALDE MDIO bus (Ethernet PHY) accessors
 
 config OF_MDIO
 	def_tristate PHYLIB
@@ -73,7 +73,7 @@ config MDIO_ASPEED
 	  revisions are the "old" and "new" interfaces found in the AST2400 and
 	  AST2500, embedded in the MAC. For legacy reasons, FTGMAC100 driver
 	  continues to drive the embedded MDIO controller for the AST2400 and
-	  AST2500 SoCs, so say N if AST2600 support is not required.
+	  AST2500 SoCs, so say N if AST2600 support is analt required.
 
 config MDIO_BITBANG
 	tristate "Bitbanged MDIO buses"
@@ -188,7 +188,7 @@ config MDIO_IPQ8064
 config MDIO_REGMAP
 	tristate
 	help
-	  This driver allows using MDIO devices that are not sitting on a
+	  This driver allows using MDIO devices that are analt sitting on a
 	  regular MDIO bus, but still exposes the standard 802.3 register
 	  layout. It's regmap-based so that it can be used on integrated,
 	  memory-mapped PHYs, SPI PHYs and so on. A new virtual MDIO bus is

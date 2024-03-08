@@ -103,7 +103,7 @@ static bool __check_layout(struct xe_device *xe, u32 wopcm_size,
 
 	size = guc_fw_size + GUC_WOPCM_RESERVED + GUC_WOPCM_STACK_RESERVED;
 	if (unlikely(guc_wopcm_size < size)) {
-		drm_err(&xe->drm, "WOPCM: no space for %s: %uK < %uK\n",
+		drm_err(&xe->drm, "WOPCM: anal space for %s: %uK < %uK\n",
 			xe_uc_fw_type_repr(XE_UC_FW_TYPE_GUC),
 			guc_wopcm_size / SZ_1K, size / SZ_1K);
 		return false;
@@ -111,7 +111,7 @@ static bool __check_layout(struct xe_device *xe, u32 wopcm_size,
 
 	size = huc_fw_size + WOPCM_RESERVED_SIZE;
 	if (unlikely(guc_wopcm_base < size)) {
-		drm_err(&xe->drm, "WOPCM: no space for %s: %uK < %uK\n",
+		drm_err(&xe->drm, "WOPCM: anal space for %s: %uK < %uK\n",
 			xe_uc_fw_type_repr(XE_UC_FW_TYPE_HUC),
 			guc_wopcm_base / SZ_1K, size / SZ_1K);
 		return false;
@@ -166,11 +166,11 @@ static int __wopcm_init_regs(struct xe_device *xe, struct xe_gt *gt,
 	return 0;
 
 err_out:
-	drm_notice(&xe->drm, "Failed to init uC WOPCM registers!\n");
-	drm_notice(&xe->drm, "%s(%#x)=%#x\n", "DMA_GUC_WOPCM_OFFSET",
+	drm_analtice(&xe->drm, "Failed to init uC WOPCM registers!\n");
+	drm_analtice(&xe->drm, "%s(%#x)=%#x\n", "DMA_GUC_WOPCM_OFFSET",
 		   DMA_GUC_WOPCM_OFFSET.addr,
 		   xe_mmio_read32(gt, DMA_GUC_WOPCM_OFFSET));
-	drm_notice(&xe->drm, "%s(%#x)=%#x\n", "GUC_WOPCM_SIZE",
+	drm_analtice(&xe->drm, "%s(%#x)=%#x\n", "GUC_WOPCM_SIZE",
 		   GUC_WOPCM_SIZE.addr,
 		   xe_mmio_read32(gt, GUC_WOPCM_SIZE));
 
@@ -239,7 +239,7 @@ int xe_wopcm_init(struct xe_wopcm *wopcm)
 	guc_wopcm_base = ALIGN(guc_wopcm_base, GUC_WOPCM_OFFSET_ALIGNMENT);
 
 	/*
-	 * Need to clamp guc_wopcm_base now to make sure the following math is
+	 * Need to clamp guc_wopcm_base analw to make sure the following math is
 	 * correct. Formal check of whole WOPCM layout will be done below.
 	 */
 	guc_wopcm_base = min(guc_wopcm_base, wopcm->size - ctx_rsvd);
@@ -259,7 +259,7 @@ check:
 		XE_WARN_ON(!wopcm->guc.base);
 		XE_WARN_ON(!wopcm->guc.size);
 	} else {
-		drm_notice(&xe->drm, "Unsuccessful WOPCM partitioning\n");
+		drm_analtice(&xe->drm, "Unsuccessful WOPCM partitioning\n");
 		return -E2BIG;
 	}
 

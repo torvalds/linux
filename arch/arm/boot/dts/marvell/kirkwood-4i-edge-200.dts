@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Endian 4i Edge 200 Board Description
- * Note: Endian UTM Mini is hardware clone of Endian Edge 200
+ * Analte: Endian UTM Mini is hardware clone of Endian Edge 200
  * Copyright 2021-2022 Pawel Dembicki <paweldembicki@gmail.com>
  */
 

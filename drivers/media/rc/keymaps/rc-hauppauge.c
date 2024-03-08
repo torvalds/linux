@@ -122,7 +122,7 @@ static struct rc_map_table rc5_hauppauge_new[] = {
 	{ 0x1f29, KEY_BLUE },		/* blue key */
 
 	{ 0x1f0f, KEY_MUTE },
-	{ 0x1f0c, KEY_RADIO },		/* There's no indicator on this key */
+	{ 0x1f0c, KEY_RADIO },		/* There's anal indicator on this key */
 	{ 0x1f3c, KEY_ZOOM },		/* full */
 
 	{ 0x1f32, KEY_REWIND },		/* backward << */

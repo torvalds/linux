@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _dmabuf:
@@ -9,9 +9,9 @@ Streaming I/O (DMA buffer importing)
 
 The DMABUF framework provides a generic method for sharing buffers
 between multiple devices. Device drivers that support DMABUF can export
-a DMA buffer to userspace as a file descriptor (known as the exporter
+a DMA buffer to userspace as a file descriptor (kanalwn as the exporter
 role), import a DMA buffer from userspace using a file descriptor
-previously exported for a different or the same device (known as the
+previously exported for a different or the same device (kanalwn as the
 importer role), or both. This section describes the DMABUF importer role
 API in V4L2.
 
@@ -50,8 +50,8 @@ Example: Initiating streaming I/O with DMABUF file descriptors
     reqbuf.count = 1;
 
     if (ioctl(fd, VIDIOC_REQBUFS, &reqbuf) == -1) {
-	if (errno == EINVAL)
-	    printf("Video capturing or DMABUF streaming is not supported\\n");
+	if (erranal == EINVAL)
+	    printf("Video capturing or DMABUF streaming is analt supported\\n");
 	else
 	    perror("VIDIOC_REQBUFS");
 
@@ -128,16 +128,16 @@ memory is also unlocked when
 For capturing applications it is customary to enqueue a number of empty
 buffers, to start capturing and enter the read loop. Here the
 application waits until a filled buffer can be dequeued, and re-enqueues
-the buffer when the data is no longer needed. Output applications fill
-and enqueue buffers, when enough buffers are stacked up output is
+the buffer when the data is anal longer needed. Output applications fill
+and enqueue buffers, when eanalugh buffers are stacked up output is
 started. In the write loop, when the application runs out of free
 buffers it must wait until an empty buffer can be dequeued and reused.
 Two methods exist to suspend execution of the application until one or
 more buffers can be dequeued. By default :ref:`VIDIOC_DQBUF
-<VIDIOC_QBUF>` blocks when no buffer is in the outgoing queue. When the
-``O_NONBLOCK`` flag was given to the :c:func:`open()` function,
+<VIDIOC_QBUF>` blocks when anal buffer is in the outgoing queue. When the
+``O_ANALNBLOCK`` flag was given to the :c:func:`open()` function,
 :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` returns immediately with an ``EAGAIN``
-error code when no buffer is available. The
+error code when anal buffer is available. The
 :c:func:`select()` and :c:func:`poll()`
 functions are always available.
 
@@ -145,12 +145,12 @@ To start and stop capturing or displaying applications call the
 :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` and
 :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctls.
 
-.. note::
+.. analte::
 
    :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` removes all buffers from
-   both queues and unlocks all buffers as a side effect. Since there is no
-   notion of doing anything "now" on a multitasking system, if an
-   application needs to synchronize with another event it should examine
+   both queues and unlocks all buffers as a side effect. Since there is anal
+   analtion of doing anything "analw" on a multitasking system, if an
+   application needs to synchronize with aanalther event it should examine
    the struct :c:type:`v4l2_buffer` ``timestamp`` of captured or
    outputted buffers.
 

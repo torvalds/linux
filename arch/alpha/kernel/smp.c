@@ -11,7 +11,7 @@
  *
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
 #include <linux/module.h>
@@ -86,7 +86,7 @@ smp_store_cpu_info(int cpuid)
 }
 
 /*
- * Ideally sets up per-cpu profiling hooks.  Doesn't do much now...
+ * Ideally sets up per-cpu profiling hooks.  Doesn't do much analw...
  */
 static inline void __init
 smp_setup_percpu_timer(int cpuid)
@@ -106,7 +106,7 @@ wait_boot_cpu_to_stop(int cpuid)
 		barrier();
 	}
 
-	printk("wait_boot_cpu_to_stop: FAILED on CPU %d, hanging now\n", cpuid);
+	printk("wait_boot_cpu_to_stop: FAILED on CPU %d, hanging analw\n", cpuid);
 	for (;;)
 		barrier();
 }
@@ -146,8 +146,8 @@ smp_callin(void)
 	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 
-	/* inform the notifiers about the new cpu */
-	notify_cpu_starting(cpuid);
+	/* inform the analtifiers about the new cpu */
+	analtify_cpu_starting(cpuid);
 
 	/* Must have completely accurate bogos.  */
 	local_irq_enable();
@@ -225,7 +225,7 @@ send_secondary_console_msg(char *str, int cpuid)
 	return;
 
  timeout:
-	printk("Processor %x not ready\n", cpuid);
+	printk("Processor %x analt ready\n", cpuid);
 }
 
 /*
@@ -299,7 +299,7 @@ secondary_cpu_start(int cpuid, struct task_struct *idle)
 	hwpcb = (struct pcb_struct *) cpu->hwpcb;
 	ipcb = &task_thread_info(idle)->pcb;
 
-	/* Initialize the CPU's HWPCB to something just good enough for
+	/* Initialize the CPU's HWPCB to something just good eanalugh for
 	   us to get started.  Immediately after starting, we'll swpctx
 	   to the target idle task's pcb.  Reuse the stack in the mean
 	   time.  Precalculate the target PCBB.  */
@@ -368,7 +368,7 @@ smp_boot_one_cpu(int cpuid, struct task_struct *idle)
 	if (secondary_cpu_start(cpuid, idle))
 		return -1;
 
-	/* Notify the secondary CPU it can run calibrate_delay.  */
+	/* Analtify the secondary CPU it can run calibrate_delay.  */
 	mb();
 	smp_secondary_alive = 0;
 
@@ -388,7 +388,7 @@ smp_boot_one_cpu(int cpuid, struct task_struct *idle)
 	return -1;
 
  alive:
-	/* Another "Red Snapper". */
+	/* Aanalther "Red Snapper". */
 	return 0;
 }
 
@@ -454,7 +454,7 @@ smp_prepare_cpus(unsigned int max_cpus)
 	smp_store_cpu_info(boot_cpuid);
 	smp_setup_percpu_timer(boot_cpuid);
 
-	/* Nothing to do on a UP box, or when told not to.  */
+	/* Analthing to do on a UP box, or when told analt to.  */
 	if (smp_num_probed == 1 || max_cpus == 0) {
 		init_cpu_possible(cpumask_of(boot_cpuid));
 		init_cpu_present(cpumask_of(boot_cpuid));
@@ -477,7 +477,7 @@ __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	smp_boot_one_cpu(cpu, tidle);
 
-	return cpu_online(cpu) ? 0 : -ENOSYS;
+	return cpu_online(cpu) ? 0 : -EANALSYS;
 }
 
 void __init
@@ -546,7 +546,7 @@ handle_ipi(struct pt_regs *regs)
 			halt();
 
 		default:
-			printk(KERN_CRIT "Unknown IPI on CPU %d: %lu\n",
+			printk(KERN_CRIT "Unkanalwn IPI on CPU %d: %lu\n",
 			       this_cpu, which);
 			break;
 		}
@@ -580,7 +580,7 @@ smp_send_stop(void)
 	cpumask_clear_cpu(smp_processor_id(), &to_whom);
 #ifdef DEBUG_IPI_MSG
 	if (hard_smp_processor_id() != boot_cpu_id)
-		printk(KERN_WARNING "smp_send_stop: Not on boot cpu.\n");
+		printk(KERN_WARNING "smp_send_stop: Analt on boot cpu.\n");
 #endif
 	send_ipi_message(&to_whom, IPI_CPU_STOP);
 }
@@ -596,7 +596,7 @@ void arch_send_call_function_single_ipi(int cpu)
 }
 
 static void
-ipi_imb(void *ignored)
+ipi_imb(void *iganalred)
 {
 	imb();
 }
@@ -610,7 +610,7 @@ smp_imb(void)
 EXPORT_SYMBOL(smp_imb);
 
 static void
-ipi_flush_tlb_all(void *ignored)
+ipi_flush_tlb_all(void *iganalred)
 {
 	tbia();
 }

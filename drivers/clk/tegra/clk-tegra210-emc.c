@@ -67,14 +67,14 @@ static unsigned long tegra210_clk_emc_recalc_rate(struct clk_hw *hw,
 	u32 value, div;
 
 	/*
-	 * CCF assumes that neither the parent nor its rate will change during
+	 * CCF assumes that neither the parent analr its rate will change during
 	 * ->set_rate(), so the parent rate passed in here was cached from the
 	 * parent before the ->set_rate() call.
 	 *
 	 * This can lead to wrong results being reported for the EMC clock if
 	 * the parent and/or parent rate have changed as part of the EMC rate
 	 * change sequence. Fix this by overriding the parent clock with what
-	 * we know to be the correct value after the rate change.
+	 * we kanalw to be the correct value after the rate change.
 	 */
 	parent_rate = clk_hw_get_rate(clk_hw_get_parent(hw));
 
@@ -229,7 +229,7 @@ static int tegra210_clk_emc_set_rate(struct clk_hw *hw, unsigned long rate,
 			err);
 
 		/*
-		 * If we're unable to switch to the new EMC frequency, we no
+		 * If we're unable to switch to the new EMC frequency, we anal
 		 * longer need the new parent to be enabled.
 		 */
 		if (parent != old)
@@ -263,7 +263,7 @@ static const struct clk_ops tegra210_clk_emc_ops = {
 	.set_rate = tegra210_clk_emc_set_rate,
 };
 
-struct clk *tegra210_clk_register_emc(struct device_node *np,
+struct clk *tegra210_clk_register_emc(struct device_analde *np,
 				      void __iomem *regs)
 {
 	struct tegra210_clk_emc *emc;
@@ -272,13 +272,13 @@ struct clk *tegra210_clk_register_emc(struct device_node *np,
 
 	emc = kzalloc(sizeof(*emc), GFP_KERNEL);
 	if (!emc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	emc->regs = regs;
 
 	init.name = "emc";
 	init.ops = &tegra210_clk_emc_ops;
-	init.flags = CLK_IS_CRITICAL | CLK_GET_RATE_NOCACHE;
+	init.flags = CLK_IS_CRITICAL | CLK_GET_RATE_ANALCACHE;
 	init.parent_names = tegra210_clk_emc_parents;
 	init.num_parents = ARRAY_SIZE(tegra210_clk_emc_parents);
 	emc->hw.init = &init;
@@ -302,7 +302,7 @@ int tegra210_clk_emc_attach(struct clk *clk,
 	int err;
 
 	if (!try_module_get(provider->owner))
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < provider->num_configs; i++) {
 		struct tegra210_clk_emc_config *config = &provider->configs[i];
@@ -343,7 +343,7 @@ int tegra210_clk_emc_attach(struct clk *clk,
 
 			if (config->parent_rate != rate) {
 				dev_err(dev,
-					"rate %lu Hz does not match input\n",
+					"rate %lu Hz does analt match input\n",
 					config->rate);
 				err = -EINVAL;
 				goto put;

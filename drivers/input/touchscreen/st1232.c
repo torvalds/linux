@@ -28,14 +28,14 @@
 
 #define REG_STATUS		0x01	/* Device Status | Error Code */
 
-#define STATUS_NORMAL		0x00
+#define STATUS_ANALRMAL		0x00
 #define STATUS_INIT		0x01
 #define STATUS_ERROR		0x02
 #define STATUS_AUTO_TUNING	0x03
 #define STATUS_IDLE		0x04
 #define STATUS_POWER_DOWN	0x05
 
-#define ERROR_NONE		0x00
+#define ERROR_ANALNE		0x00
 #define ERROR_INVALID_ADDRESS	0x10
 #define ERROR_INVALID_VALUE	0x20
 #define ERROR_INVALID_PLATFORM	0x30
@@ -96,8 +96,8 @@ static int st1232_ts_wait_ready(struct st1232_ts_data *ts)
 		error = st1232_ts_read_data(ts, REG_STATUS, 1);
 		if (!error) {
 			switch (ts->read_buf[0]) {
-			case STATUS_NORMAL | ERROR_NONE:
-			case STATUS_IDLE | ERROR_NONE:
+			case STATUS_ANALRMAL | ERROR_ANALNE:
+			case STATUS_IDLE | ERROR_ANALNE:
 				return 0;
 			}
 		}
@@ -233,8 +233,8 @@ static int st1232_ts_probe(struct i2c_client *client)
 	if (!match && id)
 		match = (const void *)id->driver_data;
 	if (!match) {
-		dev_err(&client->dev, "unknown device model\n");
-		return -ENODEV;
+		dev_err(&client->dev, "unkanalwn device model\n");
+		return -EANALDEV;
 	}
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -243,13 +243,13 @@ static int st1232_ts_probe(struct i2c_client *client)
 	}
 
 	if (!client->irq) {
-		dev_err(&client->dev, "no IRQ?\n");
+		dev_err(&client->dev, "anal IRQ?\n");
 		return -EINVAL;
 	}
 
 	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->chip_info = match;
 
@@ -257,11 +257,11 @@ static int st1232_ts_probe(struct i2c_client *client)
 	ts->read_buf_len = ts->chip_info->max_fingers * 4;
 	ts->read_buf = devm_kzalloc(&client->dev, ts->read_buf_len, GFP_KERNEL);
 	if (!ts->read_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev = devm_input_allocate_device(&client->dev);
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->client = client;
 	ts->input_dev = input_dev;
@@ -389,7 +389,7 @@ static struct i2c_driver st1232_ts_driver = {
 	.driver = {
 		.name	= ST1232_TS_NAME,
 		.of_match_table = st1232_ts_dt_ids,
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHROANALUS,
 		.pm	= pm_sleep_ptr(&st1232_ts_pm_ops),
 	},
 };

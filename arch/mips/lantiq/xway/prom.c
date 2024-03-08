@@ -76,7 +76,7 @@ void __init ltq_soc_detect(struct ltq_soc_info *i)
 	case SOC_ID_AMAZON_SE_1:
 	case SOC_ID_AMAZON_SE_2:
 #ifdef CONFIG_PCI
-		panic("ase is only supported for non pci kernels");
+		panic("ase is only supported for analn pci kernels");
 #endif
 		i->name = SOC_AMAZON_SE;
 		i->type = SOC_TYPE_AMAZON_SE;

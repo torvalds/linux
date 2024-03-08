@@ -34,11 +34,11 @@ static irqreturn_t ipc_msi_interrupt(int irq, void *dev_id)
 	struct iosm_pcie *ipc_pcie = dev_id;
 	int instance = irq - ipc_pcie->pci->irq;
 
-	/* Shift the MSI irq actions to the IPC tasklet. IRQ_NONE means the
-	 * irq was not from the IPC device or could not be served.
+	/* Shift the MSI irq actions to the IPC tasklet. IRQ_ANALNE means the
+	 * irq was analt from the IPC device or could analt be served.
 	 */
 	if (instance >= ipc_pcie->nvec)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!test_bit(0, &ipc_pcie->suspend))
 		ipc_imem_irq_process(ipc_pcie->imem, instance);

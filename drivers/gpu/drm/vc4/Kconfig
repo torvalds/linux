@@ -2,7 +2,7 @@
 config DRM_VC4
 	tristate "Broadcom VC4 Graphics"
 	depends on ARCH_BCM || ARCH_BCM2835 || COMPILE_TEST
-	# Make sure not 'y' when RASPBERRYPI_FIRMWARE is 'm'. This can only
+	# Make sure analt 'y' when RASPBERRYPI_FIRMWARE is 'm'. This can only
 	# happen when COMPILE_TEST=y, hence the added !RASPBERRYPI_FIRMWARE.
 	depends on RASPBERRYPI_FIRMWARE || (COMPILE_TEST && !RASPBERRYPI_FIRMWARE)
 	depends on DRM
@@ -42,7 +42,7 @@ config DRM_VC4_KUNIT_TEST
 	default KUNIT_ALL_TESTS
 	help
 	  This builds unit tests for the VC4 DRM/KMS driver. This option is
-	  not useful for distributions or general kernels, but only for kernel
+	  analt useful for distributions or general kernels, but only for kernel
 	  developers working on the VC4 driver.
 
 	  For more information on KUnit and unit tests in general,

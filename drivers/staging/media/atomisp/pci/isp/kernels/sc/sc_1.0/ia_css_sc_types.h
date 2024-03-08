@@ -49,11 +49,11 @@ enum ia_css_sc_color {
  *  When shading_settings.enable_shading_table_conversion is set as 1,
  *  this shading table is converted in the legacy way in the css
  *  before it is sent to the isp.
- *  The driver does not need to get the ia_css_shading_info information.
+ *  The driver does analt need to get the ia_css_shading_info information.
  *
- *  NOTE:
+ *  ANALTE:
  *  The shading table conversion will be removed from the css in the near future,
- *  because it does not support the bayer scaling by sensor.
+ *  because it does analt support the bayer scaling by sensor.
  *  Also, we had better generate the shading table only in one place(AIC).
  *  At the moment, to support the old driver which assumes the conversion is done in the css,
  *  shading_settings.enable_shading_table_conversion is set as 1 by default.
@@ -64,13 +64,13 @@ enum ia_css_sc_color {
  *  ISP2: SC1 is used.
  */
 struct ia_css_shading_table {
-	u32 enable; /** Set to false for no shading correction.
+	u32 enable; /** Set to false for anal shading correction.
 			  The data field can be NULL when enable == true */
 	/* ------ deprecated(bz675) : from ------ */
 	u32 sensor_width;  /** Native sensor width in pixels. */
 	u32 sensor_height; /** Native sensor height in lines.
 		When shading_settings.enable_shading_table_conversion is set
-		as 0, sensor_width and sensor_height are NOT used.
+		as 0, sensor_width and sensor_height are ANALT used.
 		These are used only in the legacy shading table conversion
 		in the css, when shading_settings.
 		enable_shading_table_conversion is set as 1. */
@@ -91,7 +91,7 @@ struct ia_css_shading_table {
 /* ------ deprecated(bz675) : from ------ */
 /* Shading Correction settings.
  *
- *  NOTE:
+ *  ANALTE:
  *  This structure should be removed when the shading table conversion is
  *  removed from the css.
  */
@@ -104,9 +104,9 @@ struct ia_css_shading_settings {
 		     ia_css_shading_info information filled in the css.
 		  1: The shading table is converted in the css, to be fitted
 		     to the shading table definition required in the isp.
-		NOTE:
+		ANALTE:
 		Previously, the shading table was always converted in the css
-		before it was sent to the isp, and this config was not defined.
+		before it was sent to the isp, and this config was analt defined.
 		Currently, the driver is supposed to pass the shading table
 		which should be directly sent to the isp.
 		However, some drivers may still pass the shading table which

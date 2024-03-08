@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018, Craig Tatlor.
- * Copyright (c) 2020, Alexey Minnekhanov <alexey.min@gmail.com>
- * Copyright (c) 2020, AngeloGioacchino Del Regno <kholk11@gmail.com>
+ * Copyright (c) 2020, Alexey Minnekhaanalv <alexey.min@gmail.com>
+ * Copyright (c) 2020, AngeloGioacchianal Del Reganal <kholk11@gmail.com>
  * Copyright (c) 2020, Konrad Dybcio <konradybcio@gmail.com>
  * Copyright (c) 2020, Martin Botka <martin.botka1@gmail.com>
  */
 
 #include "sdm630.dtsi"
 
-&adreno_gpu {
-	compatible = "qcom,adreno-512.0", "qcom,adreno";
+&adreanal_gpu {
+	compatible = "qcom,adreanal-512.0", "qcom,adreanal";
 	operating-points-v2 = <&gpu_sdm660_opp_table>;
 
 	gpu_sdm660_opp_table: opp-table {
@@ -18,8 +18,8 @@
 
 		/*
 		 * 775MHz is only available on the highest speed bin
-		 * Though it cannot be used for now due to interconnect
-		 * framework not supporting multiple frequencies
+		 * Though it cananalt be used for analw due to interconnect
+		 * framework analt supporting multiple frequencies
 		 * at the same opp-level
 
 		opp-750000000 {
@@ -30,7 +30,7 @@
 		};
 
 		* These OPPs are correct, but we are lacking support for the
-		* GPU regulator. Hence, disable them for now to prevent the
+		* GPU regulator. Hence, disable them for analw to prevent the
 		* platform from hanging on high graphics loads.
 
 		opp-700000000 {
@@ -42,14 +42,14 @@
 
 		opp-647000000 {
 			opp-hz = /bits/ 64 <647000000>;
-			opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
+			opp-level = <RPM_SMD_LEVEL_ANALM_PLUS>;
 			opp-peak-kBps = <4068000>;
 			opp-supported-hw = <0xff>;
 		};
 
 		opp-588000000 {
 			opp-hz = /bits/ 64 <588000000>;
-			opp-level = <RPM_SMD_LEVEL_NOM>;
+			opp-level = <RPM_SMD_LEVEL_ANALM>;
 			opp-peak-kBps = <3072000>;
 			opp-supported-hw = <0xff>;
 		};
@@ -176,7 +176,7 @@
 		clocks = <&mmcc MDSS_MDP_CLK>,
 				<&mmcc MDSS_BYTE1_CLK>,
 				<&mmcc MDSS_BYTE1_INTF_CLK>,
-				<&mmcc MNOC_AHB_CLK>,
+				<&mmcc MANALC_AHB_CLK>,
 				<&mmcc MDSS_AHB_CLK>,
 				<&mmcc MDSS_AXI_CLK>,
 				<&mmcc MISC_AHB_CLK>,
@@ -185,7 +185,7 @@
 		clock-names = "mdp_core",
 					"byte",
 					"byte_intf",
-					"mnoc",
+					"manalc",
 					"iface",
 					"bus",
 					"core_mmss",

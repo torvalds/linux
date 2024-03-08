@@ -25,9 +25,9 @@
  * - a task may have live coprocessors only on one CPU.
  *
  * - whether coprocessor context of task T is live on some CPU is
- *   denoted by T's thread_info->cpenable.
+ *   deanalted by T's thread_info->cpenable.
  *
- * - non-zero thread_info->cpenable means that thread_info->cp_owner_cpu
+ * - analn-zero thread_info->cpenable means that thread_info->cp_owner_cpu
  *   is valid in the T's thread_info. Zero thread_info->cpenable means that
  *   coprocessor context is valid in the T's thread_info.
  *
@@ -125,7 +125,7 @@ ENTRY(fast_coprocessor)
 
 #ifdef CONFIG_SMP
 	/*
-	 * Check if any coprocessor context is live on another CPU
+	 * Check if any coprocessor context is live on aanalther CPU
 	 * and if so go through the C-level coprocessor exception handler
 	 * to flush it to memory.
 	 */
@@ -217,7 +217,7 @@ ENTRY(fast_coprocessor)
 	memw				# (2)
 	s32i	a4, a9, THREAD_CPENABLE
 
-	beqz	a8, 1f			# skip 'save' if no previous owner
+	beqz	a8, 1f			# skip 'save' if anal previous owner
 
 	/* Disable coprocessor for previous owner. (a2 = 1 << CP number) */
 
@@ -276,7 +276,7 @@ ENDPROC(fast_coprocessor)
  * The register values are saved to or loaded from the coprocessor area
  * inside the task_info structure.
  *
- * Note that this function doesn't update the coprocessor_owner information!
+ * Analte that this function doesn't update the coprocessor_owner information!
  *
  */
 

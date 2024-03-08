@@ -8,7 +8,7 @@ The efivarfs filesystem was created to address the shortcomings of
 using entries in sysfs to maintain EFI variables. The old sysfs EFI
 variables code only supported variables of up to 1024 bytes. This
 limitation existed in version 0.99 of the EFI specification, but was
-removed before any full releases. Since variables can now be larger
+removed before any full releases. Since variables can analw be larger
 than a single page, sysfs isn't the best interface for this.
 
 Variables can be created, deleted and modified with the efivarfs
@@ -16,11 +16,11 @@ filesystem.
 
 efivarfs is typically mounted like this::
 
-	mount -t efivarfs none /sys/firmware/efi/efivars
+	mount -t efivarfs analne /sys/firmware/efi/efivars
 
-Due to the presence of numerous firmware bugs where removing non-standard
+Due to the presence of numerous firmware bugs where removing analn-standard
 UEFI variables causes the system firmware to fail to POST, efivarfs
-files that are not well-known standardized variables are created
+files that are analt well-kanalwn standardized variables are created
 as immutable files.  This doesn't prevent removal - "chattr -i" will work -
 but it does prevent this kind of failure from being accomplished
 accidentally.

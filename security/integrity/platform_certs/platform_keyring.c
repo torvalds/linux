@@ -48,7 +48,7 @@ static __init int platform_keyring_init(void)
 	if (rc)
 		return rc;
 
-	pr_notice("Platform Keyring initialized\n");
+	pr_analtice("Platform Keyring initialized\n");
 	return 0;
 }
 

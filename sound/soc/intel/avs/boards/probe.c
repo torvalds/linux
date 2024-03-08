@@ -18,7 +18,7 @@ SND_SOC_DAILINK_DEF(platform, DAILINK_COMP_ARRAY(COMP_PLATFORM("probe-platform")
 static struct snd_soc_dai_link probe_mb_dai_links[] = {
 	{
 		.name = "Compress Probe Capture",
-		.nonatomic = 1,
+		.analnatomic = 1,
 		SND_SOC_DAILINK_REG(probe_cp, dummy, platform),
 	},
 };
@@ -34,7 +34,7 @@ static int avs_probe_mb_probe(struct platform_device *pdev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->name = "avs_probe_mb";
 	card->dev = dev;

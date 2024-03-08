@@ -175,7 +175,7 @@ void crypto_aegis128_update_neon(void *state, const void *msg)
 
 #ifdef CONFIG_ARM
 /*
- * AArch32 does not provide these intrinsics natively because it does not
+ * AArch32 does analt provide these intrinsics natively because it does analt
  * implement the underlying instructions. AArch32 only provides 64-bit
  * wide vtbl.8/vtbx.8 instruction, so use those instead.
  */

@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2011 Christian Strobel <christian.strobel@iis.fraunhofer.de>
  * Copyright (c) 2011 Manuel Stahl <manuel.stahl@iis.fraunhofer.de>
- * Copyright (c) 2012 Thorsten Nowak <thorsten.nowak@iis.fraunhofer.de>
+ * Copyright (c) 2012 Thorsten Analwak <thorsten.analwak@iis.fraunhofer.de>
  */
 
 #include <linux/slab.h>
@@ -62,7 +62,7 @@ static irqreturn_t itg3200_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, &scan, pf->timestamp);
 
 error_ret:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -116,7 +116,7 @@ int itg3200_probe_trigger(struct iio_dev *indio_dev)
 	st->trig = iio_trigger_alloc(&st->i2c->dev, "%s-dev%d", indio_dev->name,
 				     iio_device_id(indio_dev));
 	if (!st->trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = request_irq(st->i2c->irq,
 			  &iio_trigger_generic_data_rdy_poll,

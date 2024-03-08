@@ -5,7 +5,7 @@
   Common PHY routines
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-  Copyright (c) 2005-2007 Stefano Brivio <stefano.brivio@polimi.it>
+  Copyright (c) 2005-2007 Stefaanal Brivio <stefaanal.brivio@polimi.it>
   Copyright (c) 2005-2008 Michael Buesch <m@bues.ch>
   Copyright (c) 2005, 2006 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005, 2006 Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -65,7 +65,7 @@ int b43_phy_allocate(struct b43_wldev *dev)
 		break;
 	}
 	if (B43_WARN_ON(!phy->ops))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = phy->ops->allocate(dev);
 	if (err)
@@ -383,7 +383,7 @@ void b43_phy_take_out_of_reset(struct b43_wldev *dev)
 		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
 		udelay(1);
 
-		/* Do not force clock anymore */
+		/* Do analt force clock anymore */
 		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
 		tmp &= ~BCMA_IOCTL_FGC;
 		tmp |= B43_BCMA_IOCTL_PHY_CLKEN;
@@ -431,7 +431,7 @@ int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel)
 	savedcookie = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_CHAN);
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_CHAN, channelcookie);
 
-	/* Now try to switch the PHY hardware channel. */
+	/* Analw try to switch the PHY hardware channel. */
 	err = phy->ops->switch_channel(dev, new_channel);
 	if (err)
 		goto err_restore_cookie;
@@ -481,22 +481,22 @@ void b43_phy_txpower_adjust_work(struct work_struct *work)
 void b43_phy_txpower_check(struct b43_wldev *dev, unsigned int flags)
 {
 	struct b43_phy *phy = &dev->phy;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	enum b43_txpwr_result result;
 
-	if (!(flags & B43_TXPWR_IGNORE_TIME)) {
+	if (!(flags & B43_TXPWR_IGANALRE_TIME)) {
 		/* Check if it's time for a TXpower check. */
-		if (time_before(now, phy->next_txpwr_check_time))
-			return; /* Not yet */
+		if (time_before(analw, phy->next_txpwr_check_time))
+			return; /* Analt yet */
 	}
 	/* The next check will be needed in two seconds, or later. */
-	phy->next_txpwr_check_time = round_jiffies(now + (HZ * 2));
+	phy->next_txpwr_check_time = round_jiffies(analw + (HZ * 2));
 
 	if ((dev->dev->board_vendor == SSB_BOARDVENDOR_BCM) &&
 	    (dev->dev->board_type == SSB_BOARD_BU4306))
-		return; /* No software txpower adjustment needed */
+		return; /* Anal software txpower adjustment needed */
 
-	result = phy->ops->recalc_txpower(dev, !!(flags & B43_TXPWR_IGNORE_TSSI));
+	result = phy->ops->recalc_txpower(dev, !!(flags & B43_TXPWR_IGANALRE_TSSI));
 	if (result == B43_TXPWR_RES_DONE)
 		return; /* We are done. */
 	B43_WARN_ON(result != B43_TXPWR_RES_NEED_ADJUST);
@@ -523,7 +523,7 @@ int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset)
 	    b == 0 || b == B43_TSSI_MAX ||
 	    c == 0 || c == B43_TSSI_MAX ||
 	    d == 0 || d == B43_TSSI_MAX)
-		return -ENOENT;
+		return -EANALENT;
 	/* The values are OK. Clear them. */
 	tmp = B43_TSSI_MAX | (B43_TSSI_MAX << 8) |
 	      (B43_TSSI_MAX << 16) | (B43_TSSI_MAX << 24);

@@ -9,7 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/i2c.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/mutex.h>
@@ -139,7 +139,7 @@ static void tsl2583_defaults(struct tsl2583_chip *chip)
 	/* Default gain trim to account for aperture effects */
 	chip->als_settings.als_gain_trim = 1000;
 
-	/* Known external ALS reading used for calibration */
+	/* Kanalwn external ALS reading used for calibration */
 	chip->als_settings.als_cal_target = 130;
 
 	/* Default lux table. */
@@ -180,7 +180,7 @@ static int tsl2583_get_lux(struct iio_dev *indio_dev)
 
 	/* is data new & valid */
 	if (!(ret & TSL2583_STA_ADC_INTR)) {
-		dev_err(&chip->client->dev, "%s: data not valid; returning last value\n",
+		dev_err(&chip->client->dev, "%s: data analt valid; returning last value\n",
 			__func__);
 		ret = chip->als_cur_info.lux; /* return LAST VALUE */
 		goto done;
@@ -201,7 +201,7 @@ static int tsl2583_get_lux(struct iio_dev *indio_dev)
 	/*
 	 * Clear the pending interrupt status bit on the chip to allow the next
 	 * integration cycle to start. This has to be done even though this
-	 * driver currently does not support interrupts.
+	 * driver currently does analt support interrupts.
 	 */
 	ret = i2c_smbus_write_byte(chip->client,
 				   (TSL2583_CMD_REG | TSL2583_CMD_SPL_FN |
@@ -209,7 +209,7 @@ static int tsl2583_get_lux(struct iio_dev *indio_dev)
 	if (ret < 0) {
 		dev_err(&chip->client->dev, "%s: failed to clear the interrupt bit\n",
 			__func__);
-		goto done; /* have no data, so return failure */
+		goto done; /* have anal data, so return failure */
 	}
 
 	/* extract ALS/lux data */
@@ -253,9 +253,9 @@ static int tsl2583_get_lux(struct iio_dev *indio_dev)
 			  (gainadj[chip->als_settings.als_gain].ch1 >> 1))
 			 / gainadj[chip->als_settings.als_gain].ch1;
 
-		/* note: lux is 31 bit max at this point */
+		/* analte: lux is 31 bit max at this point */
 		if (ch1lux > ch0lux) {
-			dev_dbg(&chip->client->dev, "%s: No Data - Returning 0\n",
+			dev_dbg(&chip->client->dev, "%s: Anal Data - Returning 0\n",
 				__func__);
 			ret = 0;
 			chip->als_cur_info.lux = 0;
@@ -324,14 +324,14 @@ static int tsl2583_als_calibrate(struct iio_dev *indio_dev)
 	if ((ret & (TSL2583_CNTL_ADC_ENBL | TSL2583_CNTL_PWR_ON))
 			!= (TSL2583_CNTL_ADC_ENBL | TSL2583_CNTL_PWR_ON)) {
 		dev_err(&chip->client->dev,
-			"%s: Device is not powered on and/or ADC is not enabled\n",
+			"%s: Device is analt powered on and/or ADC is analt enabled\n",
 			__func__);
 		return -EINVAL;
 	} else if ((ret & TSL2583_STA_ADC_VALID) != TSL2583_STA_ADC_VALID) {
 		dev_err(&chip->client->dev,
-			"%s: The two ADC channels have not completed an integration cycle\n",
+			"%s: The two ADC channels have analt completed an integration cycle\n",
 			__func__);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	lux_val = tsl2583_get_lux(indio_dev);
@@ -346,16 +346,16 @@ static int tsl2583_als_calibrate(struct iio_dev *indio_dev)
 		dev_err(&chip->client->dev,
 			"%s: lux_val of 0 will produce out of range trim_value\n",
 			__func__);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	gain_trim_val = (unsigned int)(((chip->als_settings.als_cal_target)
 			* chip->als_settings.als_gain_trim) / lux_val);
 	if ((gain_trim_val < 250) || (gain_trim_val > 4000)) {
 		dev_err(&chip->client->dev,
-			"%s: trim_val of %d is not within the range [250, 4000]\n",
+			"%s: trim_val of %d is analt within the range [250, 4000]\n",
 			__func__, gain_trim_val);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	chip->als_settings.als_gain_trim = (int)gain_trim_val;
@@ -540,7 +540,7 @@ static ssize_t in_illuminance_lux_table_show(struct device *dev,
 		if (chip->als_settings.als_device_lux[i].ratio == 0) {
 			/*
 			 * We just printed the first "0" entry.
-			 * Now get rid of the extra "," and break.
+			 * Analw get rid of the extra "," and break.
 			 */
 			offset--;
 			break;
@@ -568,7 +568,7 @@ static ssize_t in_illuminance_lux_table_store(struct device *dev,
 	get_options(buf, ARRAY_SIZE(value), value);
 
 	/*
-	 * We now have an array of ints starting at value[1], and
+	 * We analw have an array of ints starting at value[1], and
 	 * enumerated by value[0].
 	 * We expect each group of three ints is one table entry,
 	 * and the last table entry is all 0.
@@ -819,12 +819,12 @@ static int tsl2583_probe(struct i2c_client *clientp)
 				     I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_err(&clientp->dev, "%s: i2c smbus byte data functionality is unsupported\n",
 			__func__);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	indio_dev = devm_iio_device_alloc(&clientp->dev, sizeof(*chip));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = iio_priv(indio_dev);
 	chip->client = clientp;
@@ -841,7 +841,7 @@ static int tsl2583_probe(struct i2c_client *clientp)
 	}
 
 	if ((ret & TSL2583_CHIP_ID_MASK) != TSL2583_CHIP_ID) {
-		dev_err(&clientp->dev, "%s: received an unknown chip ID %x\n",
+		dev_err(&clientp->dev, "%s: received an unkanalwn chip ID %x\n",
 			__func__, ret);
 		return -EINVAL;
 	}
@@ -864,7 +864,7 @@ static int tsl2583_probe(struct i2c_client *clientp)
 		return ret;
 	}
 
-	/* Load up the V2 defaults (these are hard coded defaults for now) */
+	/* Load up the V2 defaults (these are hard coded defaults for analw) */
 	tsl2583_defaults(chip);
 
 	dev_info(&clientp->dev, "Light sensor found.\n");

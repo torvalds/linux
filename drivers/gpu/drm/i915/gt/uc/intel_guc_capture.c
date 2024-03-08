@@ -24,7 +24,7 @@
 
 /*
  * Define all device tables of GuC error capture register lists
- * NOTE: For engine-registers, GuC only needs the register offsets
+ * ANALTE: For engine-registers, GuC only needs the register offsets
  *       from the engine-mmio-base
  */
 #define COMMON_BASE_GLOBAL \
@@ -62,7 +62,7 @@
 	{ RING_ACTHD_UDW(0),        0,      0, "ACTHD_UDW" }, \
 	{ RING_INSTPM(0),           0,      0, "INSTPM" }, \
 	{ RING_INSTDONE(0),         0,      0, "INSTDONE" }, \
-	{ RING_NOPID(0),            0,      0, "RING_NOPID" }, \
+	{ RING_ANALPID(0),            0,      0, "RING_ANALPID" }, \
 	{ RING_START(0),            0,      0, "START" }, \
 	{ RING_HEAD(0),             0,      0, "HEAD" }, \
 	{ RING_TAIL(0),             0,      0, "TAIL" }, \
@@ -153,8 +153,8 @@ static const struct __guc_mmio_reg_descr gen8_rc_class_regs[] = {
 };
 
 /*
- * Empty list to prevent warnings about unknown class/instance types
- * as not all class/instanace types have entries on all platforms.
+ * Empty list to prevent warnings about unkanalwn class/instance types
+ * as analt all class/instanace types have entries on all platforms.
  */
 static const struct __guc_mmio_reg_descr empty_regs_list[] = {
 };
@@ -281,7 +281,7 @@ __alloc_ext_regs(struct __guc_mmio_reg_descr_group *newlist,
 
 	list = kcalloc(num_regs, sizeof(struct __guc_mmio_reg_descr), GFP_KERNEL);
 	if (!list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	newlist->extlist = list;
 	newlist->num_regs = num_regs;
@@ -388,7 +388,7 @@ __stringify_type(u32 type)
 		break;
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 static const char *
@@ -409,7 +409,7 @@ __stringify_engclass(u32 class)
 		break;
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 static int
@@ -423,11 +423,11 @@ guc_capture_list_init(struct intel_guc *guc, u32 owner, u32 type, u32 classid,
 	struct __guc_mmio_reg_descr_group *matchext;
 
 	if (!reglists)
-		return -ENODEV;
+		return -EANALDEV;
 
 	match = guc_capture_get_one_list(reglists, owner, type, classid);
 	if (!match)
-		return -ENODATA;
+		return -EANALDATA;
 
 	for (i = 0; i < num_entries && i < match->num_regs; ++i) {
 		ptr[i].offset = match->list[i].reg.reg;
@@ -482,8 +482,8 @@ guc_capture_getlistsize(struct intel_guc *guc, u32 owner, u32 type, u32 classid,
 	int num_regs;
 
 	if (!gc->reglists) {
-		guc_warn(guc, "No capture reglist for this device\n");
-		return -ENODEV;
+		guc_warn(guc, "Anal capture reglist for this device\n");
+		return -EANALDEV;
 	}
 
 	if (cache->is_valid) {
@@ -499,13 +499,13 @@ guc_capture_getlistsize(struct intel_guc *guc, u32 owner, u32 type, u32 classid,
 			guc_warn(guc, "Missing capture reglist: %s(%u):%s(%u)!\n",
 				 __stringify_type(type), type,
 				 __stringify_engclass(classid), classid);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	num_regs = guc_cap_list_num_regs(gc, owner, type, classid);
 	/* intentional empty lists can exist depending on hw config */
 	if (!num_regs)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (size)
 		*size = PAGE_ALIGN((sizeof(struct guc_debug_capture_list)) +
@@ -521,7 +521,7 @@ intel_guc_capture_getlistsize(struct intel_guc *guc, u32 owner, u32 type, u32 cl
 	return guc_capture_getlistsize(guc, owner, type, classid, size, false);
 }
 
-static void guc_capture_create_prealloc_nodes(struct intel_guc *guc);
+static void guc_capture_create_prealloc_analdes(struct intel_guc *guc);
 
 int
 intel_guc_capture_getlist(struct intel_guc *guc, u32 owner, u32 type, u32 classid,
@@ -529,13 +529,13 @@ intel_guc_capture_getlist(struct intel_guc *guc, u32 owner, u32 type, u32 classi
 {
 	struct intel_guc_state_capture *gc = guc->capture;
 	struct __guc_capture_ads_cache *cache = &gc->ads_cache[owner][type][classid];
-	struct guc_debug_capture_list *listnode;
+	struct guc_debug_capture_list *listanalde;
 	int ret, num_regs;
 	u8 *caplist, *tmp;
 	size_t size = 0;
 
 	if (!gc->reglists)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (cache->is_valid) {
 		*outptr = cache->ptr;
@@ -544,9 +544,9 @@ intel_guc_capture_getlist(struct intel_guc *guc, u32 owner, u32 type, u32 classi
 
 	/*
 	 * ADS population of input registers is a good
-	 * time to pre-allocate cachelist output nodes
+	 * time to pre-allocate cachelist output analdes
 	 */
-	guc_capture_create_prealloc_nodes(guc);
+	guc_capture_create_prealloc_analdes(guc);
 
 	ret = intel_guc_capture_getlistsize(guc, owner, type, classid, &size);
 	if (ret) {
@@ -560,14 +560,14 @@ intel_guc_capture_getlist(struct intel_guc *guc, u32 owner, u32 type, u32 classi
 	caplist = kzalloc(size, GFP_KERNEL);
 	if (!caplist) {
 		guc_dbg(guc, "Failed to alloc cached register capture list");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* populate capture list header */
 	tmp = caplist;
 	num_regs = guc_cap_list_num_regs(guc->capture, owner, type, classid);
-	listnode = (struct guc_debug_capture_list *)tmp;
-	listnode->header.info = FIELD_PREP(GUC_CAPTURELISTHDR_NUMDESCR, (u32)num_regs);
+	listanalde = (struct guc_debug_capture_list *)tmp;
+	listanalde->header.info = FIELD_PREP(GUC_CAPTURELISTHDR_NUMDESCR, (u32)num_regs);
 
 	/* populate list of register descriptor */
 	tmp += sizeof(struct guc_debug_capture_list);
@@ -601,7 +601,7 @@ intel_guc_capture_getnullheader(struct intel_guc *guc,
 	null_header = kzalloc(tmp, GFP_KERNEL);
 	if (!null_header) {
 		guc_dbg(guc, "Failed to alloc cached register capture null list");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	gc->ads_null_cache = null_header;
@@ -621,7 +621,7 @@ guc_capture_output_min_size_est(struct intel_guc *guc)
 	size_t tmp = 0;
 
 	if (!guc->capture)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * If every single engine-instance suffered a failure in quick succession but
@@ -667,12 +667,12 @@ static void check_guc_capture_size(struct intel_guc *guc)
 	u32 buffer_size = intel_guc_log_section_size_capture(&guc->log);
 
 	/*
-	 * NOTE: min_size is much smaller than the capture region allocation (DG2: <80K vs 1MB)
+	 * ANALTE: min_size is much smaller than the capture region allocation (DG2: <80K vs 1MB)
 	 * Additionally, its based on space needed to fit all engines getting reset at once
 	 * within the same G2H handler task slot. This is very unlikely. However, if GuC really
 	 * does run out of space for whatever reason, we will see an separate warning message
-	 * when processing the G2H event capture-notification, search for:
-	 * INTEL_GUC_STATE_CAPTURE_EVENT_STATUS_NOSPACE.
+	 * when processing the G2H event capture-analtification, search for:
+	 * INTEL_GUC_STATE_CAPTURE_EVENT_STATUS_ANALSPACE.
 	 */
 	if (min_size < 0)
 		guc_warn(guc, "Failed to calculate error state capture buffer minimum size: %d!\n",
@@ -700,32 +700,32 @@ static void check_guc_capture_size(struct intel_guc *guc)
  *
  *     --> alloc B: GuC output capture buf (registered via guc_init_params(log_param))
  *                  Size = #define CAPTURE_BUFFER_SIZE (warns if on too-small)
- *                  Note2: 'x 3' to hold multiple capture groups
+ *                  Analte2: 'x 3' to hold multiple capture groups
  *
- * GUC Runtime notify capture:
+ * GUC Runtime analtify capture:
  * --------------------------
- *     --> G2H STATE_CAPTURE_NOTIFICATION
+ *     --> G2H STATE_CAPTURE_ANALTIFICATION
  *                   L--> intel_guc_capture_process
  *                           L--> Loop through B (head..tail) and for each engine instance's
  *                                err-state-captured register-list we find, we alloc 'C':
- *      --> alloc C: A capture-output-node structure that includes misc capture info along
+ *      --> alloc C: A capture-output-analde structure that includes misc capture info along
  *                   with 3 register list dumps (global, engine-class and engine-instance)
- *                   This node is created from a pre-allocated list of blank nodes in
+ *                   This analde is created from a pre-allocated list of blank analdes in
  *                   guc->capture->cachelist and populated with the error-capture
  *                   data from GuC and then it's added into guc->capture->outlist linked
  *                   list. This list is used for matchup and printout by i915_gpu_coredump
  *                   and err_print_gt, (when user invokes the error capture sysfs).
  *
- * GUC --> notify context reset:
+ * GUC --> analtify context reset:
  * -----------------------------
  *     --> G2H CONTEXT RESET
  *                   L--> guc_handle_context_reset --> i915_capture_error_state
  *                          L--> i915_gpu_coredump(..IS_GUC_CAPTURE) --> gt_record_engines
  *                               --> capture_engine(..IS_GUC_CAPTURE)
- *                               L--> intel_guc_capture_get_matching_node is where
+ *                               L--> intel_guc_capture_get_matching_analde is where
  *                                    detach C from internal linked list and add it into
  *                                    intel_engine_coredump struct (if the context and
- *                                    engine of the event notification matches a node
+ *                                    engine of the event analtification matches a analde
  *                                    in the link list).
  *
  * User Sysfs / Debugfs
@@ -733,13 +733,13 @@ static void check_guc_capture_size(struct intel_guc *guc)
  *      --> i915_gpu_coredump_copy_to_buffer->
  *                   L--> err_print_to_sgl --> err_print_gt
  *                        L--> error_print_guc_captures
- *                             L--> intel_guc_capture_print_node prints the
- *                                  register lists values of the attached node
+ *                             L--> intel_guc_capture_print_analde prints the
+ *                                  register lists values of the attached analde
  *                                  on the error-engine-dump being reported.
  *                   L--> i915_reset_error_state ... -->__i915_gpu_coredump_free
  *                        L--> ... cleanup_gt -->
- *                             L--> intel_guc_capture_free_node returns the
- *                                  capture-output-node back to the internal
+ *                             L--> intel_guc_capture_free_analde returns the
+ *                                  capture-output-analde back to the internal
  *                                  cachelist for reuse.
  *
  */
@@ -774,7 +774,7 @@ static int guc_capture_buf_cnt_to_end(struct __guc_capture_bufstate *buf)
  * Below function, guc_capture_log_remove_dw is a helper for that. All callers of this
  * function would typically do a straight-up memcpy from the ring contents and will only
  * call this helper if their structure-extraction is straddling across the end of the
- * ring. GuC firmware does not add any padding. The reason for the no-padding is to ease
+ * ring. GuC firmware does analt add any padding. The reason for the anal-padding is to ease
  * scalability for future expansion of output data types without requiring a redesign
  * of the flow controls.
  */
@@ -798,7 +798,7 @@ guc_capture_log_remove_dw(struct intel_guc *guc, struct __guc_capture_bufstate *
 			return 4;
 		}
 		if (avail)
-			guc_dbg(guc, "Register capture log not dword aligned, skipping.\n");
+			guc_dbg(guc, "Register capture log analt dword aligned, skipping.\n");
 		buf->rd = 0;
 	}
 
@@ -886,81 +886,81 @@ guc_capture_log_get_register(struct intel_guc *guc, struct __guc_capture_bufstat
 }
 
 static void
-guc_capture_delete_one_node(struct intel_guc *guc, struct __guc_capture_parsed_output *node)
+guc_capture_delete_one_analde(struct intel_guc *guc, struct __guc_capture_parsed_output *analde)
 {
 	int i;
 
 	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i)
-		kfree(node->reginfo[i].regs);
-	list_del(&node->link);
-	kfree(node);
+		kfree(analde->reginfo[i].regs);
+	list_del(&analde->link);
+	kfree(analde);
 }
 
 static void
-guc_capture_delete_prealloc_nodes(struct intel_guc *guc)
+guc_capture_delete_prealloc_analdes(struct intel_guc *guc)
 {
 	struct __guc_capture_parsed_output *n, *ntmp;
 
 	/*
-	 * NOTE: At the end of driver operation, we must assume that we
-	 * have prealloc nodes in both the cachelist as well as outlist
+	 * ANALTE: At the end of driver operation, we must assume that we
+	 * have prealloc analdes in both the cachelist as well as outlist
 	 * if unclaimed error capture events occurred prior to shutdown.
 	 */
 	list_for_each_entry_safe(n, ntmp, &guc->capture->outlist, link)
-		guc_capture_delete_one_node(guc, n);
+		guc_capture_delete_one_analde(guc, n);
 
 	list_for_each_entry_safe(n, ntmp, &guc->capture->cachelist, link)
-		guc_capture_delete_one_node(guc, n);
+		guc_capture_delete_one_analde(guc, n);
 }
 
 static void
-guc_capture_add_node_to_list(struct __guc_capture_parsed_output *node,
+guc_capture_add_analde_to_list(struct __guc_capture_parsed_output *analde,
 			     struct list_head *list)
 {
-	list_add_tail(&node->link, list);
+	list_add_tail(&analde->link, list);
 }
 
 static void
-guc_capture_add_node_to_outlist(struct intel_guc_state_capture *gc,
-				struct __guc_capture_parsed_output *node)
+guc_capture_add_analde_to_outlist(struct intel_guc_state_capture *gc,
+				struct __guc_capture_parsed_output *analde)
 {
-	guc_capture_add_node_to_list(node, &gc->outlist);
+	guc_capture_add_analde_to_list(analde, &gc->outlist);
 }
 
 static void
-guc_capture_add_node_to_cachelist(struct intel_guc_state_capture *gc,
-				  struct __guc_capture_parsed_output *node)
+guc_capture_add_analde_to_cachelist(struct intel_guc_state_capture *gc,
+				  struct __guc_capture_parsed_output *analde)
 {
-	guc_capture_add_node_to_list(node, &gc->cachelist);
+	guc_capture_add_analde_to_list(analde, &gc->cachelist);
 }
 
 static void
-guc_capture_init_node(struct intel_guc *guc, struct __guc_capture_parsed_output *node)
+guc_capture_init_analde(struct intel_guc *guc, struct __guc_capture_parsed_output *analde)
 {
 	struct guc_mmio_reg *tmp[GUC_CAPTURE_LIST_TYPE_MAX];
 	int i;
 
 	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i) {
-		tmp[i] = node->reginfo[i].regs;
+		tmp[i] = analde->reginfo[i].regs;
 		memset(tmp[i], 0, sizeof(struct guc_mmio_reg) *
-		       guc->capture->max_mmio_per_node);
+		       guc->capture->max_mmio_per_analde);
 	}
-	memset(node, 0, sizeof(*node));
+	memset(analde, 0, sizeof(*analde));
 	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i)
-		node->reginfo[i].regs = tmp[i];
+		analde->reginfo[i].regs = tmp[i];
 
-	INIT_LIST_HEAD(&node->link);
+	INIT_LIST_HEAD(&analde->link);
 }
 
 static struct __guc_capture_parsed_output *
-guc_capture_get_prealloc_node(struct intel_guc *guc)
+guc_capture_get_prealloc_analde(struct intel_guc *guc)
 {
 	struct __guc_capture_parsed_output *found = NULL;
 
 	if (!list_empty(&guc->capture->cachelist)) {
 		struct __guc_capture_parsed_output *n, *ntmp;
 
-		/* get first avail node from the cache list */
+		/* get first avail analde from the cache list */
 		list_for_each_entry_safe(n, ntmp, &guc->capture->cachelist, link) {
 			found = n;
 			list_del(&n->link);
@@ -969,7 +969,7 @@ guc_capture_get_prealloc_node(struct intel_guc *guc)
 	} else {
 		struct __guc_capture_parsed_output *n, *ntmp;
 
-		/* traverse down and steal back the oldest node already allocated */
+		/* traverse down and steal back the oldest analde already allocated */
 		list_for_each_entry_safe(n, ntmp, &guc->capture->outlist, link) {
 			found = n;
 		}
@@ -977,13 +977,13 @@ guc_capture_get_prealloc_node(struct intel_guc *guc)
 			list_del(&found->link);
 	}
 	if (found)
-		guc_capture_init_node(guc, found);
+		guc_capture_init_analde(guc, found);
 
 	return found;
 }
 
 static struct __guc_capture_parsed_output *
-guc_capture_alloc_one_node(struct intel_guc *guc)
+guc_capture_alloc_one_analde(struct intel_guc *guc)
 {
 	struct __guc_capture_parsed_output *new;
 	int i;
@@ -993,7 +993,7 @@ guc_capture_alloc_one_node(struct intel_guc *guc)
 		return NULL;
 
 	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i) {
-		new->reginfo[i].regs = kcalloc(guc->capture->max_mmio_per_node,
+		new->reginfo[i].regs = kcalloc(guc->capture->max_mmio_per_analde,
 					       sizeof(struct guc_mmio_reg), GFP_KERNEL);
 		if (!new->reginfo[i].regs) {
 			while (i)
@@ -1002,19 +1002,19 @@ guc_capture_alloc_one_node(struct intel_guc *guc)
 			return NULL;
 		}
 	}
-	guc_capture_init_node(guc, new);
+	guc_capture_init_analde(guc, new);
 
 	return new;
 }
 
 static struct __guc_capture_parsed_output *
-guc_capture_clone_node(struct intel_guc *guc, struct __guc_capture_parsed_output *original,
+guc_capture_clone_analde(struct intel_guc *guc, struct __guc_capture_parsed_output *original,
 		       u32 keep_reglist_mask)
 {
 	struct __guc_capture_parsed_output *new;
 	int i;
 
-	new = guc_capture_get_prealloc_node(guc);
+	new = guc_capture_get_prealloc_analde(guc);
 	if (!new)
 		return NULL;
 	if (!original)
@@ -1026,7 +1026,7 @@ guc_capture_clone_node(struct intel_guc *guc, struct __guc_capture_parsed_output
 	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i) {
 		if (keep_reglist_mask & BIT(i)) {
 			GEM_BUG_ON(original->reginfo[i].num_regs  >
-				   guc->capture->max_mmio_per_node);
+				   guc->capture->max_mmio_per_analde);
 
 			memcpy(new->reginfo[i].regs, original->reginfo[i].regs,
 			       original->reginfo[i].num_regs * sizeof(struct guc_mmio_reg));
@@ -1048,19 +1048,19 @@ guc_capture_clone_node(struct intel_guc *guc, struct __guc_capture_parsed_output
 }
 
 static void
-__guc_capture_create_prealloc_nodes(struct intel_guc *guc)
+__guc_capture_create_prealloc_analdes(struct intel_guc *guc)
 {
-	struct __guc_capture_parsed_output *node = NULL;
+	struct __guc_capture_parsed_output *analde = NULL;
 	int i;
 
-	for (i = 0; i < PREALLOC_NODES_MAX_COUNT; ++i) {
-		node = guc_capture_alloc_one_node(guc);
-		if (!node) {
+	for (i = 0; i < PREALLOC_ANALDES_MAX_COUNT; ++i) {
+		analde = guc_capture_alloc_one_analde(guc);
+		if (!analde) {
 			guc_warn(guc, "Register capture pre-alloc-cache failure\n");
 			/* dont free the priors, use what we got and cleanup at shutdown */
 			return;
 		}
-		guc_capture_add_node_to_cachelist(guc->capture, node);
+		guc_capture_add_analde_to_cachelist(guc->capture, analde);
 	}
 }
 
@@ -1082,20 +1082,20 @@ guc_get_max_reglist_count(struct intel_guc *guc)
 		}
 	}
 	if (!maxregcount)
-		maxregcount = PREALLOC_NODES_DEFAULT_NUMREGS;
+		maxregcount = PREALLOC_ANALDES_DEFAULT_NUMREGS;
 
 	return maxregcount;
 }
 
 static void
-guc_capture_create_prealloc_nodes(struct intel_guc *guc)
+guc_capture_create_prealloc_analdes(struct intel_guc *guc)
 {
 	/* skip if we've already done the pre-alloc */
-	if (guc->capture->max_mmio_per_node)
+	if (guc->capture->max_mmio_per_analde)
 		return;
 
-	guc->capture->max_mmio_per_node = guc_get_max_reglist_count(guc);
-	__guc_capture_create_prealloc_nodes(guc);
+	guc->capture->max_mmio_per_analde = guc_get_max_reglist_count(guc);
+	__guc_capture_create_prealloc_analdes(guc);
 }
 
 static int
@@ -1103,7 +1103,7 @@ guc_capture_extract_reglists(struct intel_guc *guc, struct __guc_capture_bufstat
 {
 	struct guc_state_capture_group_header_t ghdr = {};
 	struct guc_state_capture_header_t hdr = {};
-	struct __guc_capture_parsed_output *node = NULL;
+	struct __guc_capture_parsed_output *analde = NULL;
 	struct guc_mmio_reg *regs = NULL;
 	int i, numlists, numregs, ret = 0;
 	enum guc_capture_type datatype;
@@ -1112,7 +1112,7 @@ guc_capture_extract_reglists(struct intel_guc *guc, struct __guc_capture_bufstat
 
 	i = guc_capture_buf_cnt(buf);
 	if (!i)
-		return -ENODATA;
+		return -EANALDATA;
 	if (i % sizeof(u32)) {
 		guc_warn(guc, "Got mis-aligned register capture entries\n");
 		ret = -EIO;
@@ -1187,7 +1187,7 @@ guc_capture_extract_reglists(struct intel_guc *guc, struct __guc_capture_bufstat
 
 		datatype = FIELD_GET(CAP_HDR_CAPTURE_TYPE, hdr.info);
 		if (datatype > GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE) {
-			/* unknown capture type - skip over to next capture set */
+			/* unkanalwn capture type - skip over to next capture set */
 			numregs = FIELD_GET(CAP_HDR_NUM_MMIOS, hdr.num_mmios);
 			while (numregs--) {
 				if (guc_capture_log_get_register(guc, buf, &tmp)) {
@@ -1196,68 +1196,68 @@ guc_capture_extract_reglists(struct intel_guc *guc, struct __guc_capture_bufstat
 				}
 			}
 			continue;
-		} else if (node) {
+		} else if (analde) {
 			/*
 			 * Based on the current capture type and what we have so far,
-			 * decide if we should add the current node into the internal
+			 * decide if we should add the current analde into the internal
 			 * linked list for match-up when i915_gpu_coredump calls later
-			 * (and alloc a blank node for the next set of reglists)
-			 * or continue with the same node or clone the current node
+			 * (and alloc a blank analde for the next set of reglists)
+			 * or continue with the same analde or clone the current analde
 			 * but only retain the global or class registers (such as the
 			 * case of dependent engine resets).
 			 */
 			if (datatype == GUC_CAPTURE_LIST_TYPE_GLOBAL) {
-				guc_capture_add_node_to_outlist(guc->capture, node);
-				node = NULL;
+				guc_capture_add_analde_to_outlist(guc->capture, analde);
+				analde = NULL;
 			} else if (datatype == GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS &&
-				   node->reginfo[GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS].num_regs) {
-				/* Add to list, clone node and duplicate global list */
-				guc_capture_add_node_to_outlist(guc->capture, node);
-				node = guc_capture_clone_node(guc, node,
+				   analde->reginfo[GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS].num_regs) {
+				/* Add to list, clone analde and duplicate global list */
+				guc_capture_add_analde_to_outlist(guc->capture, analde);
+				analde = guc_capture_clone_analde(guc, analde,
 							      GCAP_PARSED_REGLIST_INDEX_GLOBAL);
 			} else if (datatype == GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE &&
-				   node->reginfo[GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE].num_regs) {
-				/* Add to list, clone node and duplicate global + class lists */
-				guc_capture_add_node_to_outlist(guc->capture, node);
-				node = guc_capture_clone_node(guc, node,
+				   analde->reginfo[GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE].num_regs) {
+				/* Add to list, clone analde and duplicate global + class lists */
+				guc_capture_add_analde_to_outlist(guc->capture, analde);
+				analde = guc_capture_clone_analde(guc, analde,
 							      (GCAP_PARSED_REGLIST_INDEX_GLOBAL |
 							      GCAP_PARSED_REGLIST_INDEX_ENGCLASS));
 			}
 		}
 
-		if (!node) {
-			node = guc_capture_get_prealloc_node(guc);
-			if (!node) {
-				ret = -ENOMEM;
+		if (!analde) {
+			analde = guc_capture_get_prealloc_analde(guc);
+			if (!analde) {
+				ret = -EANALMEM;
 				break;
 			}
 			if (datatype != GUC_CAPTURE_LIST_TYPE_GLOBAL)
 				guc_dbg(guc, "Register capture missing global dump: %08x!\n",
 					datatype);
 		}
-		node->is_partial = is_partial;
-		node->reginfo[datatype].vfid = FIELD_GET(CAP_HDR_CAPTURE_VFID, hdr.owner);
+		analde->is_partial = is_partial;
+		analde->reginfo[datatype].vfid = FIELD_GET(CAP_HDR_CAPTURE_VFID, hdr.owner);
 		switch (datatype) {
 		case GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE:
-			node->eng_class = FIELD_GET(CAP_HDR_ENGINE_CLASS, hdr.info);
-			node->eng_inst = FIELD_GET(CAP_HDR_ENGINE_INSTANCE, hdr.info);
-			node->lrca = hdr.lrca;
-			node->guc_id = hdr.guc_id;
+			analde->eng_class = FIELD_GET(CAP_HDR_ENGINE_CLASS, hdr.info);
+			analde->eng_inst = FIELD_GET(CAP_HDR_ENGINE_INSTANCE, hdr.info);
+			analde->lrca = hdr.lrca;
+			analde->guc_id = hdr.guc_id;
 			break;
 		case GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS:
-			node->eng_class = FIELD_GET(CAP_HDR_ENGINE_CLASS, hdr.info);
+			analde->eng_class = FIELD_GET(CAP_HDR_ENGINE_CLASS, hdr.info);
 			break;
 		default:
 			break;
 		}
 
 		numregs = FIELD_GET(CAP_HDR_NUM_MMIOS, hdr.num_mmios);
-		if (numregs > guc->capture->max_mmio_per_node) {
+		if (numregs > guc->capture->max_mmio_per_analde) {
 			guc_dbg(guc, "Register capture list extraction clipped by prealloc!\n");
-			numregs = guc->capture->max_mmio_per_node;
+			numregs = guc->capture->max_mmio_per_analde;
 		}
-		node->reginfo[datatype].num_regs = numregs;
-		regs = node->reginfo[datatype].regs;
+		analde->reginfo[datatype].num_regs = numregs;
+		regs = analde->reginfo[datatype].regs;
 		i = 0;
 		while (numregs--) {
 			if (guc_capture_log_get_register(guc, buf, &regs[i++])) {
@@ -1268,17 +1268,17 @@ guc_capture_extract_reglists(struct intel_guc *guc, struct __guc_capture_bufstat
 	}
 
 bailout:
-	if (node) {
+	if (analde) {
 		/* If we have data, add to linked list for match-up when i915_gpu_coredump calls */
 		for (i = GUC_CAPTURE_LIST_TYPE_GLOBAL; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i) {
-			if (node->reginfo[i].regs) {
-				guc_capture_add_node_to_outlist(guc->capture, node);
-				node = NULL;
+			if (analde->reginfo[i].regs) {
+				guc_capture_add_analde_to_outlist(guc->capture, analde);
+				analde = NULL;
 				break;
 			}
 		}
-		if (node) /* else return it back to cache list */
-			guc_capture_add_node_to_cachelist(guc->capture, node);
+		if (analde) /* else return it back to cache list */
+			guc_capture_add_analde_to_cachelist(guc->capture, analde);
 	}
 	return ret;
 }
@@ -1326,7 +1326,7 @@ static void __guc_capture_process_output(struct intel_guc *guc)
 	new_overflow = intel_guc_check_log_buf_overflow(&guc->log, GUC_CAPTURE_LOG_BUFFER,
 							full_count);
 
-	/* Now copy the actual logs. */
+	/* Analw copy the actual logs. */
 	if (unlikely(new_overflow)) {
 		/* copy the whole buffer in case of overflow */
 		read_offset = 0;
@@ -1406,15 +1406,15 @@ guc_capture_reg_to_str(const struct intel_guc *guc, u32 owner, u32 type,
 				  (eng)->logical_mask); \
 	} while (0)
 
-#define GCAP_PRINT_GUC_INST_INFO(ebuf, node) \
+#define GCAP_PRINT_GUC_INST_INFO(ebuf, analde) \
 	do { \
 		i915_error_printf(ebuf, "    GuC-Engine-Inst-Id: 0x%08x\n", \
-				  (node)->eng_inst); \
-		i915_error_printf(ebuf, "    GuC-Context-Id: 0x%08x\n", (node)->guc_id); \
-		i915_error_printf(ebuf, "    LRCA: 0x%08x\n", (node)->lrca); \
+				  (analde)->eng_inst); \
+		i915_error_printf(ebuf, "    GuC-Context-Id: 0x%08x\n", (analde)->guc_id); \
+		i915_error_printf(ebuf, "    LRCA: 0x%08x\n", (analde)->lrca); \
 	} while (0)
 
-int intel_guc_capture_print_engine_node(struct drm_i915_error_state_buf *ebuf,
+int intel_guc_capture_print_engine_analde(struct drm_i915_error_state_buf *ebuf,
 					const struct intel_engine_coredump *ee)
 {
 	const char *grptype[GUC_STATE_CAPTURE_GROUP_TYPE_MAX] = {
@@ -1427,7 +1427,7 @@ int intel_guc_capture_print_engine_node(struct drm_i915_error_state_buf *ebuf,
 		"Engine-Instance"
 	};
 	struct intel_guc_state_capture *cap;
-	struct __guc_capture_parsed_output *node;
+	struct __guc_capture_parsed_output *analde;
 	struct intel_engine_cs *eng;
 	struct guc_mmio_reg *regs;
 	struct intel_guc *guc;
@@ -1439,52 +1439,52 @@ int intel_guc_capture_print_engine_node(struct drm_i915_error_state_buf *ebuf,
 		return -EINVAL;
 	cap = ee->guc_capture;
 	if (!cap || !ee->engine)
-		return -ENODEV;
+		return -EANALDEV;
 
 	guc = &ee->engine->gt->uc.guc;
 
 	i915_error_printf(ebuf, "global --- GuC Error Capture on %s command stream:\n",
 			  ee->engine->name);
 
-	node = ee->guc_capture_node;
-	if (!node) {
-		i915_error_printf(ebuf, "  No matching ee-node\n");
+	analde = ee->guc_capture_analde;
+	if (!analde) {
+		i915_error_printf(ebuf, "  Anal matching ee-analde\n");
 		return 0;
 	}
 
-	i915_error_printf(ebuf, "Coverage:  %s\n", grptype[node->is_partial]);
+	i915_error_printf(ebuf, "Coverage:  %s\n", grptype[analde->is_partial]);
 
 	for (i = GUC_CAPTURE_LIST_TYPE_GLOBAL; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i) {
 		i915_error_printf(ebuf, "  RegListType: %s\n",
 				  datatype[i % GUC_CAPTURE_LIST_TYPE_MAX]);
-		i915_error_printf(ebuf, "    Owner-Id: %d\n", node->reginfo[i].vfid);
+		i915_error_printf(ebuf, "    Owner-Id: %d\n", analde->reginfo[i].vfid);
 
 		switch (i) {
 		case GUC_CAPTURE_LIST_TYPE_GLOBAL:
 		default:
 			break;
 		case GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS:
-			i915_error_printf(ebuf, "    GuC-Eng-Class: %d\n", node->eng_class);
+			i915_error_printf(ebuf, "    GuC-Eng-Class: %d\n", analde->eng_class);
 			i915_error_printf(ebuf, "    i915-Eng-Class: %d\n",
-					  guc_class_to_engine_class(node->eng_class));
+					  guc_class_to_engine_class(analde->eng_class));
 			break;
 		case GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE:
-			eng = intel_guc_lookup_engine(guc, node->eng_class, node->eng_inst);
+			eng = intel_guc_lookup_engine(guc, analde->eng_class, analde->eng_inst);
 			if (eng)
 				GCAP_PRINT_INTEL_ENG_INFO(ebuf, eng);
 			else
 				i915_error_printf(ebuf, "    i915-Eng-Lookup Fail!\n");
-			GCAP_PRINT_GUC_INST_INFO(ebuf, node);
+			GCAP_PRINT_GUC_INST_INFO(ebuf, analde);
 			break;
 		}
 
-		numregs = node->reginfo[i].num_regs;
+		numregs = analde->reginfo[i].num_regs;
 		i915_error_printf(ebuf, "    NumRegs: %d\n", numregs);
 		j = 0;
 		while (numregs--) {
-			regs = node->reginfo[i].regs;
+			regs = analde->reginfo[i].regs;
 			str = guc_capture_reg_to_str(guc, GUC_CAPTURE_LIST_INDEX_PF, i,
-						     node->eng_class, 0, regs[j].offset, &is_ext);
+						     analde->eng_class, 0, regs[j].offset, &is_ext);
 			if (!str)
 				i915_error_printf(ebuf, "      REG-0x%08x", regs[j].offset);
 			else
@@ -1510,10 +1510,10 @@ static void guc_capture_find_ecode(struct intel_engine_coredump *ee)
 	i915_reg_t reg_instdone = RING_INSTDONE(0);
 	int i;
 
-	if (!ee->guc_capture_node)
+	if (!ee->guc_capture_analde)
 		return;
 
-	reginfo = ee->guc_capture_node->reginfo + GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE;
+	reginfo = ee->guc_capture_analde->reginfo + GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE;
 	regs = reginfo->regs;
 	for (i = 0; i < reginfo->num_regs; i++) {
 		if (regs[i].offset == reg_ipehr.reg)
@@ -1523,14 +1523,14 @@ static void guc_capture_find_ecode(struct intel_engine_coredump *ee)
 	}
 }
 
-void intel_guc_capture_free_node(struct intel_engine_coredump *ee)
+void intel_guc_capture_free_analde(struct intel_engine_coredump *ee)
 {
-	if (!ee || !ee->guc_capture_node)
+	if (!ee || !ee->guc_capture_analde)
 		return;
 
-	guc_capture_add_node_to_cachelist(ee->guc_capture, ee->guc_capture_node);
+	guc_capture_add_analde_to_cachelist(ee->guc_capture, ee->guc_capture_analde);
 	ee->guc_capture = NULL;
-	ee->guc_capture_node = NULL;
+	ee->guc_capture_analde = NULL;
 }
 
 bool intel_guc_capture_is_matching_engine(struct intel_gt *gt,
@@ -1548,7 +1548,7 @@ bool intel_guc_capture_is_matching_engine(struct intel_gt *gt,
 		return false;
 
 	/*
-	 * Look for a matching GuC reported error capture node from
+	 * Look for a matching GuC reported error capture analde from
 	 * the internal output link-list based on lrca, guc-id and engine
 	 * identification.
 	 */
@@ -1563,7 +1563,7 @@ bool intel_guc_capture_is_matching_engine(struct intel_gt *gt,
 	return false;
 }
 
-void intel_guc_capture_get_matching_node(struct intel_gt *gt,
+void intel_guc_capture_get_matching_analde(struct intel_gt *gt,
 					 struct intel_engine_coredump *ee,
 					 struct intel_context *ce)
 {
@@ -1577,10 +1577,10 @@ void intel_guc_capture_get_matching_node(struct intel_gt *gt,
 	if (!guc->capture)
 		return;
 
-	GEM_BUG_ON(ee->guc_capture_node);
+	GEM_BUG_ON(ee->guc_capture_analde);
 
 	/*
-	 * Look for a matching GuC reported error capture node from
+	 * Look for a matching GuC reported error capture analde from
 	 * the internal output link-list based on lrca, guc-id and engine
 	 * identification.
 	 */
@@ -1590,14 +1590,14 @@ void intel_guc_capture_get_matching_node(struct intel_gt *gt,
 		    n->guc_id == ce->guc_id.id &&
 		    (n->lrca & CTX_GTT_ADDRESS_MASK) == (ce->lrc.lrca & CTX_GTT_ADDRESS_MASK)) {
 			list_del(&n->link);
-			ee->guc_capture_node = n;
+			ee->guc_capture_analde = n;
 			ee->guc_capture = guc->capture;
 			guc_capture_find_ecode(ee);
 			return;
 		}
 	}
 
-	guc_warn(guc, "No register capture node found for 0x%04X / 0x%08X\n",
+	guc_warn(guc, "Anal register capture analde found for 0x%04X / 0x%08X\n",
 		 ce->guc_id.id, ce->lrc.lrca);
 }
 
@@ -1632,7 +1632,7 @@ void intel_guc_capture_destroy(struct intel_guc *guc)
 
 	guc_capture_free_ads_cache(guc->capture);
 
-	guc_capture_delete_prealloc_nodes(guc);
+	guc_capture_delete_prealloc_analdes(guc);
 
 	guc_capture_free_extlists(guc->capture->extlists);
 	kfree(guc->capture->extlists);
@@ -1645,7 +1645,7 @@ int intel_guc_capture_init(struct intel_guc *guc)
 {
 	guc->capture = kzalloc(sizeof(*guc->capture), GFP_KERNEL);
 	if (!guc->capture)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	guc->capture->reglists = guc_capture_get_device_reglist(guc);
 

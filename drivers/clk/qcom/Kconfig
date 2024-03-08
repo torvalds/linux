@@ -25,7 +25,7 @@ config CLK_X1E80100_GCC
 	depends on ARM64 || COMPILE_TEST
 	select QCOM_GDSC
 	help
-	  Support for the global clock controller on Qualcomm Technologies, Inc
+	  Support for the global clock controller on Qualcomm Techanallogies, Inc
 	  X1E80100 devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI, I2C,
 	  USB, UFS, SD/eMMC, PCIe, etc.
@@ -105,7 +105,7 @@ config QCOM_CLK_RPMH
 	tristate "RPMh Clock Driver"
 	depends on QCOM_RPMH
 	help
-	 RPMh manages shared resources on some Qualcomm Technologies, Inc.
+	 RPMh manages shared resources on some Qualcomm Techanallogies, Inc.
 	 SoCs. It accepts requests from other hardware subsystems via RSC.
 	 Say Y if you want to support the clocks exposed by RPMh on
 	 platforms such as SDM845.
@@ -405,7 +405,7 @@ config QCM_DISPCC_2290
 	tristate "QCM2290 Display Clock Controller"
 	select QCM_GCC_2290
 	help
-	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  Support for the display clock controller on Qualcomm Techanallogies, Inc
 	  QCM2290 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
@@ -422,7 +422,7 @@ config SC_CAMCC_7180
 	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_7180
 	help
-	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  Support for the camera clock controller on Qualcomm Techanallogies, Inc
 	  SC7180 devices.
 	  Say Y if you want to support camera devices and functionality such as
 	  capturing pictures.
@@ -432,7 +432,7 @@ config SC_CAMCC_7280
 	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_7280
 	help
-	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  Support for the camera clock controller on Qualcomm Techanallogies, Inc
 	  SC7280 devices.
 	  Say Y if you want to support camera devices and functionality such as
 	  capturing pictures.
@@ -441,7 +441,7 @@ config SC_CAMCC_8280XP
 	tristate "SC8280XP Camera Clock Controller"
 	select SC_GCC_8280XP
 	help
-	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  Support for the camera clock controller on Qualcomm Techanallogies, Inc
 	  SC8280XP devices.
 	  Say Y if you want to support camera devices and functionality such as
 	  capturing pictures.
@@ -451,7 +451,7 @@ config SC_DISPCC_7180
 	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_7180
 	help
-	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  Support for the display clock controller on Qualcomm Techanallogies, Inc
 	  SC7180 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
@@ -461,7 +461,7 @@ config SC_DISPCC_7280
 	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_7280
 	help
-	  Support for the display clock controller on Qualcomm Technologies, Inc.
+	  Support for the display clock controller on Qualcomm Techanallogies, Inc.
 	  SC7280 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
@@ -472,7 +472,7 @@ config SC_DISPCC_8280XP
 	select SC_GCC_8280XP
 	help
 	  Support for the two display clock controllers on Qualcomm
-	  Technologies, Inc. SC8280XP devices.
+	  Techanallogies, Inc. SC8280XP devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
@@ -606,7 +606,7 @@ config SC_MSS_7180
 	select SC_GCC_7180
 	help
 	  Support for the Modem Subsystem clock controller on Qualcomm
-	  Technologies, Inc on SC7180 devices.
+	  Techanallogies, Inc on SC7180 devices.
 	  Say Y if you want to use the Modem branch clocks of the Modem
 	  subsystem clock controller to reset the MSS subsystem.
 
@@ -729,7 +729,7 @@ config SDM_DISPCC_845
 	depends on ARM64 || COMPILE_TEST
 	select SDM_GCC_845
 	help
-	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  Support for the display clock controller on Qualcomm Techanallogies, Inc
 	  SDM845 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
@@ -806,7 +806,7 @@ config SM_DISPCC_6115
 	depends on ARM64 || COMPILE_TEST
 	depends on SM_GCC_6115
 	help
-	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  Support for the display clock controller on Qualcomm Techanallogies, Inc
 	  SM6115/SM4250 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen
@@ -816,7 +816,7 @@ config SM_DISPCC_6125
 	depends on ARM64 || COMPILE_TEST
 	depends on SM_GCC_6125
 	help
-	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  Support for the display clock controller on Qualcomm Techanallogies, Inc
 	  SM6125 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen
@@ -826,7 +826,7 @@ config SM_DISPCC_8250
 	depends on ARM64 || COMPILE_TEST
 	depends on SM_GCC_8150 || SM_GCC_8250 || SM_GCC_8350
 	help
-	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  Support for the display clock controller on Qualcomm Techanallogies, Inc
 	  SM8150/SM8250/SM8350 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
@@ -836,7 +836,7 @@ config SM_DISPCC_6350
 	depends on ARM64 || COMPILE_TEST
 	depends on SM_GCC_6350
 	help
-	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  Support for the display clock controller on Qualcomm Techanallogies, Inc
 	  SM6350 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
@@ -846,7 +846,7 @@ config SM_DISPCC_6375
 	depends on ARM64 || COMPILE_TEST
 	depends on SM_GCC_6375
 	help
-	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  Support for the display clock controller on Qualcomm Techanallogies, Inc
 	  SM6375 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
@@ -856,7 +856,7 @@ config SM_DISPCC_8450
 	depends on ARM64 || COMPILE_TEST
 	depends on SM_GCC_8450
 	help
-	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  Support for the display clock controller on Qualcomm Techanallogies, Inc
 	  SM8450 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
@@ -866,7 +866,7 @@ config SM_DISPCC_8550
 	depends on ARM64 || COMPILE_TEST
 	depends on SM_GCC_8550
 	help
-	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  Support for the display clock controller on Qualcomm Techanallogies, Inc
 	  SM8550 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
@@ -876,7 +876,7 @@ config SM_DISPCC_8650
 	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8650
 	help
-	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  Support for the display clock controller on Qualcomm Techanallogies, Inc
 	  SM8650 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
@@ -1127,7 +1127,7 @@ config SM_VIDEOCC_8550
 	select SM_GCC_8550
 	select QCOM_GDSC
 	help
-	  Support for the video clock controller on Qualcomm Technologies, Inc.
+	  Support for the video clock controller on Qualcomm Techanallogies, Inc.
 	  SM8550 devices.
 	  Say Y if you want to support video devices and functionality such as
 	  video encode/decode.
@@ -1137,7 +1137,7 @@ config SPMI_PMIC_CLKDIV
 	depends on SPMI || COMPILE_TEST
 	help
 	  This driver supports the clkdiv functionality on the Qualcomm
-	  Technologies, Inc. SPMI PMIC. It configures the frequency of
+	  Techanallogies, Inc. SPMI PMIC. It configures the frequency of
 	  clkdiv outputs of the PMIC. These clocks are typically wired
 	  through alternate functions on GPIO pins.
 
@@ -1176,7 +1176,7 @@ config SM_VIDEOCC_8450
 	select SM_GCC_8450
 	select QCOM_GDSC
 	help
-	  Support for the video clock controller on Qualcomm Technologies, Inc.
+	  Support for the video clock controller on Qualcomm Techanallogies, Inc.
 	  SM8450 devices.
 	  Say Y if you want to support video devices and functionality such as
 	  video encode/decode.

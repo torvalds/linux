@@ -11,14 +11,14 @@
 #include <nvhw/class/clc57d.h>
 
 static int crcc57d_set_src(struct nv50_head *head, int or, enum nv50_crc_source_type source,
-			   struct nv50_crc_notifier_ctx *ctx)
+			   struct nv50_crc_analtifier_ctx *ctx)
 {
 	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
 	const int i = head->base.index;
 	u32 crc_args = NVDEF(NVC57D, HEAD_SET_CRC_CONTROL, CONTROLLING_CHANNEL, CORE) |
 		       NVDEF(NVC57D, HEAD_SET_CRC_CONTROL, EXPECT_BUFFER_COLLAPSE, FALSE) |
-		       NVDEF(NVC57D, HEAD_SET_CRC_CONTROL, SECONDARY_CRC, NONE) |
-		       NVDEF(NVC57D, HEAD_SET_CRC_CONTROL, CRC_DURING_SNOOZE, DISABLE);
+		       NVDEF(NVC57D, HEAD_SET_CRC_CONTROL, SECONDARY_CRC, ANALNE) |
+		       NVDEF(NVC57D, HEAD_SET_CRC_CONTROL, CRC_DURING_SANALOZE, DISABLE);
 	int ret;
 
 	switch (source) {
@@ -54,5 +54,5 @@ const struct nv50_crc_func crcc57d = {
 	.ctx_finished = crcc37d_ctx_finished,
 	.flip_threshold = CRCC37D_FLIP_THRESHOLD,
 	.num_entries = CRCC37D_MAX_ENTRIES,
-	.notifier_len = sizeof(struct crcc37d_notifier),
+	.analtifier_len = sizeof(struct crcc37d_analtifier),
 };

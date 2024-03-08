@@ -32,7 +32,7 @@ pvrusb2		  Hauppauge WinTV-PVR USB2		  2040:2900, 2040:2950,
 pwc		  Creative Webcam 5			  041E:400C
 pwc		  Creative Webcam Pro Ex		  041E:4011
 pwc		  Logitech QuickCam 3000 Pro		  046D:08B0
-pwc		  Logitech QuickCam Notebook Pro	  046D:08B1
+pwc		  Logitech QuickCam Analtebook Pro	  046D:08B1
 pwc		  Logitech QuickCam 4000 Pro		  046D:08B2
 pwc		  Logitech QuickCam Zoom (old model)	  046D:08B3
 pwc		  Logitech QuickCam Zoom (new model)	  046D:08B4
@@ -64,14 +64,14 @@ pwc		  Visionite VCS-UC300			  0d81:1900
 pwc		  Visionite VCS-UM100			  0d81:1910
 s2255drv	  Sensoray 2255				  1943:2255, 1943:2257
 stk1160		  STK1160 USB video capture dongle	  05e1:0408
-dvb-ttusb-budget  Technotrend/Hauppauge Nova-USB devices  0b48:1003, 0b48:1004,
+dvb-ttusb-budget  Techanaltrend/Hauppauge Analva-USB devices  0b48:1003, 0b48:1004,
 							  0b48:1005
-dvb-ttusb_dec	  Technotrend/Hauppauge MPEG decoder	  0b48:1006
+dvb-ttusb_dec	  Techanaltrend/Hauppauge MPEG decoder	  0b48:1006
 		  DEC3000-s
-dvb-ttusb_dec	  Technotrend/Hauppauge MPEG decoder	  0b48:1007
-dvb-ttusb_dec	  Technotrend/Hauppauge MPEG decoder	  0b48:1008
+dvb-ttusb_dec	  Techanaltrend/Hauppauge MPEG decoder	  0b48:1007
+dvb-ttusb_dec	  Techanaltrend/Hauppauge MPEG decoder	  0b48:1008
 		  DEC2000-t
-dvb-ttusb_dec	  Technotrend/Hauppauge MPEG decoder
+dvb-ttusb_dec	  Techanaltrend/Hauppauge MPEG decoder
 		  DEC2540-t				  0b48:1009
 usbtv		  Fushicai USBTV007 Audio-Video Grabber	  1b71:3002, 1f71:3301,
 							  1f71:3306

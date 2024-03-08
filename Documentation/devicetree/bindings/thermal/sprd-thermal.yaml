@@ -28,7 +28,7 @@ properties:
   nvmem-cells:
     maxItems: 2
     description:
-      Reference to nvmem nodes for the calibration data.
+      Reference to nvmem analdes for the calibration data.
 
   nvmem-cell-names:
     items:
@@ -58,7 +58,7 @@ patternProperties:
       nvmem-cells:
         maxItems: 1
         description:
-          Reference to an nvmem node for the calibration data.
+          Reference to an nvmem analde for the calibration data.
 
       nvmem-cell-names:
         const: sen_delta_cal

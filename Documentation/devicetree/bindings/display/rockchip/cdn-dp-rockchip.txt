@@ -21,7 +21,7 @@ Required properties:
 
 - rockchip,grf: this soc should set GRF regs, so need get grf here.
 
-- ports: contain a port nodes with endpoint definitions as defined in
+- ports: contain a port analdes with endpoint definitions as defined in
 	 Documentation/devicetree/bindings/media/video-interfaces.txt.
 	 contained 2 endpoints, connecting to the output of vop.
 

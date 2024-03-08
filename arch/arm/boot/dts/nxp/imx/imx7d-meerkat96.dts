@@ -9,7 +9,7 @@
 
 / {
 	model = "96Boards Meerkat96 Board";
-	compatible = "novtech,imx7d-meerkat96", "fsl,imx7d";
+	compatible = "analvtech,imx7d-meerkat96", "fsl,imx7d";
 
 	chosen {
 		stdout-path = &uart6;
@@ -86,7 +86,7 @@
 		led4 {
 			label = "green:user4";
 			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 			default-state = "off";
 			panic-indicator;
 		};
@@ -195,7 +195,7 @@
 	keep-power-in-suspend;
 	fsl,tuning-step = <2>;
 	vmmc-supply = <&reg_3p3v>;
-	no-1-8-v;
+	anal-1-8-v;
 	broken-cd;
 	status = "okay";
 };
@@ -206,9 +206,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	bus-width = <4>;
-	no-1-8-v;
-	no-mmc;
-	non-removable;
+	anal-1-8-v;
+	anal-mmc;
+	analn-removable;
 	keep-power-in-suspend;
 	wakeup-source;
 	vmmc-supply = <&reg_wlreg_on>;

@@ -7,7 +7,7 @@
  */
 
 /*
- * Quirk: Python and Perl headers cannot be in arbitrary places, so keep
+ * Quirk: Python and Perl headers cananalt be in arbitrary places, so keep
  * these 3 testcases at the top:
  */
 #define main main_test_libpython
@@ -54,8 +54,8 @@
 # include "test-libelf-getphdrnum.c"
 #undef main
 
-#define main main_test_libelf_gelf_getnote
-# include "test-libelf-gelf_getnote.c"
+#define main main_test_libelf_gelf_getanalte
+# include "test-libelf-gelf_getanalte.c"
 #undef main
 
 #define main main_test_libelf_getshdrstrndx
@@ -125,7 +125,7 @@
 # if 0
 /*
  * Disable libbabeltrace check for test-all, because the requested
- * library version is not released yet in most distributions. Will
+ * library version is analt released yet in most distributions. Will
  * reenable later.
  */
 
@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
 	main_test_dwarf_getlocations();
 	main_test_eventfd();
 	main_test_libelf_getphdrnum();
-	main_test_libelf_gelf_getnote();
+	main_test_libelf_gelf_getanalte();
 	main_test_libelf_getshdrstrndx();
 	main_test_libunwind();
 	main_test_libslang();

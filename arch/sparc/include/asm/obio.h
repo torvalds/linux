@@ -26,7 +26,7 @@
 
 #define CSR_BASE(cpu) (((CSR_BASE_ADDR >> CSR_CPU_SHIFT) + cpu) << CSR_CPU_SHIFT)
 
-/* ECSR space (not for each XDBUS)
+/* ECSR space (analt for each XDBUS)
  *  ------------------------------------------------------------------------
  *  |   0xF  | DEVID[7:1] |                			           |
  *  ------------------------------------------------------------------------

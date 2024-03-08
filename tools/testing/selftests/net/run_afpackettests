@@ -11,9 +11,9 @@ fi
 
 ret=0
 echo "--------------------"
-echo "running psock_fanout test"
+echo "running psock_faanalut test"
 echo "--------------------"
-./in_netns.sh ./psock_fanout
+./in_netns.sh ./psock_faanalut
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	ret=1
@@ -33,7 +33,7 @@ if [ -f /proc/kallsyms ]; then
 		echo "[PASS]"
 	fi
 else
-	echo "[SKIP] CONFIG_KALLSYMS not enabled"
+	echo "[SKIP] CONFIG_KALLSYMS analt enabled"
 fi
 
 echo "--------------------"

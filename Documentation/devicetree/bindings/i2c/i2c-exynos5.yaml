@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/i2c/i2c-exynos5.yaml#
+$id: http://devicetree.org/schemas/i2c/i2c-exyanals5.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Samsung's High Speed I2C controller
@@ -14,28 +14,28 @@ description: |
   at various speeds ranging from 100kHz to 3.4MHz.
 
   In case the HSI2C controller is encapsulated within USI block (it's the case
-  e.g. for Exynos850 and Exynos Auto V9 SoCs), it might be also necessary to
-  define USI node in device tree file, choosing "i2c" configuration. Please see
-  Documentation/devicetree/bindings/soc/samsung/exynos-usi.yaml for details.
+  e.g. for Exyanals850 and Exyanals Auto V9 SoCs), it might be also necessary to
+  define USI analde in device tree file, choosing "i2c" configuration. Please see
+  Documentation/devicetree/bindings/soc/samsung/exyanals-usi.yaml for details.
 
 properties:
   compatible:
     oneOf:
       - enum:
-          - samsung,exynos5250-hsi2c    # Exynos5250 and Exynos5420
-          - samsung,exynos5260-hsi2c    # Exynos5260
-          - samsung,exynos7-hsi2c       # Exynos7
-          - samsung,exynosautov9-hsi2c
+          - samsung,exyanals5250-hsi2c    # Exyanals5250 and Exyanals5420
+          - samsung,exyanals5260-hsi2c    # Exyanals5260
+          - samsung,exyanals7-hsi2c       # Exyanals7
+          - samsung,exyanalsautov9-hsi2c
       - items:
           - enum:
-              - samsung,exynos5433-hsi2c
+              - samsung,exyanals5433-hsi2c
               - tesla,fsd-hsi2c
-          - const: samsung,exynos7-hsi2c
+          - const: samsung,exyanals7-hsi2c
       - items:
           - enum:
-              - samsung,exynos850-hsi2c
-          - const: samsung,exynosautov9-hsi2c
-      - const: samsung,exynos5-hsi2c    # Exynos5250 and Exynos5420
+              - samsung,exyanals850-hsi2c
+          - const: samsung,exyanalsautov9-hsi2c
+      - const: samsung,exyanals5-hsi2c    # Exyanals5250 and Exyanals5420
         deprecated: true
 
   reg:
@@ -49,7 +49,7 @@ properties:
     description:
       Desired operating frequency in Hz of the bus.
 
-      If not specified, the bus operates in fast-speed mode at 100kHz.
+      If analt specified, the bus operates in fast-speed mode at 100kHz.
 
       If specified, the bus operates in high-speed mode only if the
       clock-frequency is >= 1MHz.
@@ -79,7 +79,7 @@ allOf:
         compatible:
           contains:
             enum:
-              - samsung,exynosautov9-hsi2c
+              - samsung,exyanalsautov9-hsi2c
 
     then:
       properties:
@@ -101,12 +101,12 @@ unevaluatedProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/exynos5420.h>
+    #include <dt-bindings/clock/exyanals5420.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
     hsi2c_8: i2c@12e00000 {
-        compatible = "samsung,exynos5250-hsi2c";
+        compatible = "samsung,exyanals5250-hsi2c";
         reg = <0x12e00000 0x1000>;
         interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
         #address-cells = <1>;
@@ -122,11 +122,11 @@ examples:
     };
 
   - |
-    #include <dt-bindings/clock/exynos850.h>
+    #include <dt-bindings/clock/exyanals850.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     hsi2c_2: i2c@138c0000 {
-        compatible = "samsung,exynosautov9-hsi2c";
+        compatible = "samsung,exyanalsautov9-hsi2c";
         reg = <0x138c0000 0xc0>;
         interrupts = <GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>;
         #address-cells = <1>;

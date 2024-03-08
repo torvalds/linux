@@ -2,7 +2,7 @@
 /* radio-trust.c - Trust FM Radio card driver for Linux 2.2
  * by Eric Lammerts <eric@scintilla.utwente.nl>
  *
- * Based on radio-aztech.c. Original notes:
+ * Based on radio-aztech.c. Original analtes:
  *
  * Adapted to support the Video for Linux API by
  * Russell Kroll <rkroll@exploits.org>.  Based on original tuner code by:
@@ -97,7 +97,7 @@ static void write_i2c(struct trust *tr, int n, ...)
 			TR_CLR_SCL;
 			TR_DELAY;
 		}
-		/* acknowledge bit */
+		/* ackanalwledge bit */
 		TR_SET_SDA;
 		TR_SET_SCL;
 		TR_DELAY;

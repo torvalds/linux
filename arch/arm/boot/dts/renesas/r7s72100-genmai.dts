@@ -20,7 +20,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		bootargs = "iganalre_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -185,7 +185,7 @@
 
 	status = "okay";
 
-	renesas,no-ether-link;
+	renesas,anal-ether-link;
 	phy-handle = <&phy0>;
 	phy0: ethernet-phy@0 {
 		compatible = "ethernet-phy-idb824.2814",

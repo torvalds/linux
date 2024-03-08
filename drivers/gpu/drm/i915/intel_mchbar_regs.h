@@ -13,7 +13,7 @@
  *
  * This mirrors the MCHBAR MMIO space whose location is determined by
  * device 0 function 0's pci config register 0x44 or 0x48 and matches it in
- * every way.  It is not accessible from the CP register read instructions.
+ * every way.  It is analt accessible from the CP register read instructions.
  *
  * Starting from Haswell, you can't write registers using the MCHBAR mirror,
  * just read.

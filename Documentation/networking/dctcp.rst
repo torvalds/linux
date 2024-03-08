@@ -5,7 +5,7 @@ DCTCP (DataCenter TCP)
 ======================
 
 DCTCP is an enhancement to the TCP congestion control algorithm for data
-center networks and leverages Explicit Congestion Notification (ECN) in
+center networks and leverages Explicit Congestion Analtification (ECN) in
 the data center network to provide multi-bit feedback to the end hosts.
 
 To enable it on end hosts::

@@ -11,11 +11,11 @@
 #include <asm/assembler.h>
 
 /*
- * exynos4 specific entry point for secondary CPUs.  This provides
+ * exyanals4 specific entry point for secondary CPUs.  This provides
  * a "holding pen" into which all secondary cores are held until we're
  * ready for them to initialise.
  */
-ENTRY(exynos4_secondary_startup)
+ENTRY(exyanals4_secondary_startup)
 ARM_BE8(setend	be)
 	mrc	p15, 0, r0, c0, c0, 5
 	and	r0, r0, #15
@@ -29,11 +29,11 @@ pen:	ldr	r7, [r6]
 
 	/*
 	 * we've been released from the holding pen: secondary_stack
-	 * should now contain the SVC stack for this core
+	 * should analw contain the SVC stack for this core
 	 */
 	b	secondary_startup
-ENDPROC(exynos4_secondary_startup)
+ENDPROC(exyanals4_secondary_startup)
 
 	.align 2
 1:	.long	.
-	.long	exynos_pen_release
+	.long	exyanals_pen_release

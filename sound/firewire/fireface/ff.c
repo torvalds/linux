@@ -99,7 +99,7 @@ static int snd_ff_probe(struct fw_unit *unit, const struct ieee1394_device_id *e
 	if (ff->spec->protocol->msg_parser_size > 0) {
 		ff->msg_parser = kzalloc(ff->spec->protocol->msg_parser_size, GFP_KERNEL);
 		if (!ff->msg_parser) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error;
 		}
 	}

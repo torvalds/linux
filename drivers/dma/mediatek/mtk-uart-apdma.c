@@ -45,7 +45,7 @@
 
 /*
  * interrupt trigger level for tx
- * if threshold is n, no polling is required to start tx.
+ * if threshold is n, anal polling is required to start tx.
  * otherwise need polling VFF_FLUSH.
  */
 #define VFF_TX_THRE(n)		(n)
@@ -243,7 +243,7 @@ static void mtk_uart_apdma_chan_complete_handler(struct mtk_chan *c)
 	struct mtk_uart_apdma_desc *d = c->desc;
 
 	if (d) {
-		list_del(&d->vd.node);
+		list_del(&d->vd.analde);
 		vchan_cookie_complete(&d->vd);
 		c->desc = NULL;
 	}
@@ -275,7 +275,7 @@ static int mtk_uart_apdma_alloc_chan_resources(struct dma_chan *chan)
 
 	ret = pm_runtime_resume_and_get(mtkd->ddev.dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(chan->device->dev);
+		pm_runtime_put_analidle(chan->device->dev);
 		return ret;
 	}
 
@@ -290,7 +290,7 @@ static int mtk_uart_apdma_alloc_chan_resources(struct dma_chan *chan)
 		goto err_pm;
 
 	ret = request_irq(c->irq, mtk_uart_apdma_irq_handler,
-			  IRQF_TRIGGER_NONE, KBUILD_MODNAME, chan);
+			  IRQF_TRIGGER_ANALNE, KBUILD_MODNAME, chan);
 	if (ret < 0) {
 		dev_err(chan->device->dev, "Can't request dma IRQ\n");
 		ret = -EINVAL;
@@ -301,7 +301,7 @@ static int mtk_uart_apdma_alloc_chan_resources(struct dma_chan *chan)
 		mtk_uart_apdma_write(c, VFF_4G_SUPPORT, VFF_4G_SUPPORT_CLR_B);
 
 err_pm:
-	pm_runtime_put_noidle(mtkd->ddev.dev);
+	pm_runtime_put_analidle(mtkd->ddev.dev);
 	return ret;
 }
 
@@ -350,8 +350,8 @@ static struct dma_async_tx_descriptor *mtk_uart_apdma_prep_slave_sg
 	if (!is_slave_direction(dir) || sglen != 1)
 		return NULL;
 
-	/* Now allocate and setup the descriptor */
-	d = kzalloc(sizeof(*d), GFP_NOWAIT);
+	/* Analw allocate and setup the descriptor */
+	d = kzalloc(sizeof(*d), GFP_ANALWAIT);
 	if (!d)
 		return NULL;
 
@@ -460,9 +460,9 @@ static void mtk_uart_apdma_free(struct mtk_uart_apdmadev *mtkd)
 {
 	while (!list_empty(&mtkd->ddev.channels)) {
 		struct mtk_chan *c = list_first_entry(&mtkd->ddev.channels,
-			struct mtk_chan, vc.chan.device_node);
+			struct mtk_chan, vc.chan.device_analde);
 
-		list_del(&c->vc.chan.device_node);
+		list_del(&c->vc.chan.device_analde);
 		tasklet_kill(&c->vc.task);
 	}
 }
@@ -475,7 +475,7 @@ MODULE_DEVICE_TABLE(of, mtk_uart_apdma_match);
 
 static int mtk_uart_apdma_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct mtk_uart_apdmadev *mtkd;
 	int bit_mask = 32, rc;
 	struct mtk_chan *c;
@@ -483,11 +483,11 @@ static int mtk_uart_apdma_probe(struct platform_device *pdev)
 
 	mtkd = devm_kzalloc(&pdev->dev, sizeof(*mtkd), GFP_KERNEL);
 	if (!mtkd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mtkd->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(mtkd->clk)) {
-		dev_err(&pdev->dev, "No clock specified\n");
+		dev_err(&pdev->dev, "Anal clock specified\n");
 		rc = PTR_ERR(mtkd->clk);
 		return rc;
 	}
@@ -530,21 +530,21 @@ static int mtk_uart_apdma_probe(struct platform_device *pdev)
 	for (i = 0; i < mtkd->dma_requests; i++) {
 		c = devm_kzalloc(mtkd->ddev.dev, sizeof(*c), GFP_KERNEL);
 		if (!c) {
-			rc = -ENODEV;
-			goto err_no_dma;
+			rc = -EANALDEV;
+			goto err_anal_dma;
 		}
 
 		c->base = devm_platform_ioremap_resource(pdev, i);
 		if (IS_ERR(c->base)) {
 			rc = PTR_ERR(c->base);
-			goto err_no_dma;
+			goto err_anal_dma;
 		}
 		c->vc.desc_free = mtk_uart_apdma_desc_free;
 		vchan_init(&c->vc, &mtkd->ddev);
 
 		rc = platform_get_irq(pdev, i);
 		if (rc < 0)
-			goto err_no_dma;
+			goto err_anal_dma;
 		c->irq = rc;
 	}
 
@@ -567,7 +567,7 @@ dma_remove:
 	dma_async_device_unregister(&mtkd->ddev);
 rpm_disable:
 	pm_runtime_disable(&pdev->dev);
-err_no_dma:
+err_anal_dma:
 	mtk_uart_apdma_free(mtkd);
 	return rc;
 }
@@ -576,7 +576,7 @@ static void mtk_uart_apdma_remove(struct platform_device *pdev)
 {
 	struct mtk_uart_apdmadev *mtkd = platform_get_drvdata(pdev);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 
 	mtk_uart_apdma_free(mtkd);
 

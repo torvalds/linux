@@ -45,7 +45,7 @@ properties:
   xlnx,rproc:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      phandle to the remoteproc_r5 rproc node using which APU interacts
+      phandle to the remoteproc_r5 rproc analde using which APU interacts
       with remote processor.
 
   ranges: true

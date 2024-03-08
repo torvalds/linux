@@ -80,7 +80,7 @@ static irqreturn_t ls_pcie_ep_event_handler(int irq, void *dev_id)
 	ls_pcie_pf_lut_writel(pcie, PEX_PF0_PME_MES_DR, val);
 
 	if (!val)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (val & PEX_PF0_PME_MES_DR_LUD) {
 
@@ -152,7 +152,7 @@ static void ls_pcie_ep_init(struct dw_pcie_ep *ep)
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct ls_pcie_ep *pcie = to_ls_pcie_ep(pci);
 	struct dw_pcie_ep_func *ep_func;
-	enum pci_barno bar;
+	enum pci_baranal bar;
 
 	ep_func = dw_pcie_ep_get_func_from_ep(ep, 0);
 	if (!ep_func)
@@ -165,32 +165,32 @@ static void ls_pcie_ep_init(struct dw_pcie_ep *ep)
 	pcie->ls_epc->msix_capable = ep_func->msix_cap ? true : false;
 }
 
-static int ls_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
+static int ls_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_anal,
 				unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
 	switch (type) {
 	case PCI_IRQ_INTX:
-		return dw_pcie_ep_raise_intx_irq(ep, func_no);
+		return dw_pcie_ep_raise_intx_irq(ep, func_anal);
 	case PCI_IRQ_MSI:
-		return dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
+		return dw_pcie_ep_raise_msi_irq(ep, func_anal, interrupt_num);
 	case PCI_IRQ_MSIX:
-		return dw_pcie_ep_raise_msix_irq_doorbell(ep, func_no,
+		return dw_pcie_ep_raise_msix_irq_doorbell(ep, func_anal,
 							  interrupt_num);
 	default:
-		dev_err(pci->dev, "UNKNOWN IRQ type\n");
+		dev_err(pci->dev, "UNKANALWN IRQ type\n");
 		return -EINVAL;
 	}
 }
 
-static unsigned int ls_pcie_ep_get_dbi_offset(struct dw_pcie_ep *ep, u8 func_no)
+static unsigned int ls_pcie_ep_get_dbi_offset(struct dw_pcie_ep *ep, u8 func_anal)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct ls_pcie_ep *pcie = to_ls_pcie_ep(pci);
 
-	WARN_ON(func_no && !pcie->drvdata->func_offset);
-	return pcie->drvdata->func_offset * func_no;
+	WARN_ON(func_anal && !pcie->drvdata->func_offset);
+	return pcie->drvdata->func_offset * func_anal;
 }
 
 static const struct dw_pcie_ep_ops ls_pcie_ep_ops = {
@@ -235,15 +235,15 @@ static int __init ls_pcie_ep_probe(struct platform_device *pdev)
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
 	if (!pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ls_epc = devm_kzalloc(dev, sizeof(*ls_epc), GFP_KERNEL);
 	if (!ls_epc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie->drvdata = of_device_get_match_data(dev);
 
@@ -251,7 +251,7 @@ static int __init ls_pcie_ep_probe(struct platform_device *pdev)
 	pci->ops = pcie->drvdata->dw_pcie_ops;
 
 	ls_epc->bar_fixed_64bit = (1 << BAR_2) | (1 << BAR_4);
-	ls_epc->linkup_notifier = true;
+	ls_epc->linkup_analtifier = true;
 
 	pcie->pci = pci;
 	pcie->ls_epc = ls_epc;
@@ -263,7 +263,7 @@ static int __init ls_pcie_ep_probe(struct platform_device *pdev)
 
 	pci->ep.ops = &ls_pcie_ep_ops;
 
-	pcie->big_endian = of_property_read_bool(dev->of_node, "big-endian");
+	pcie->big_endian = of_property_read_bool(dev->of_analde, "big-endian");
 
 	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 

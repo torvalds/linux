@@ -42,9 +42,9 @@ static const struct sxgbe_stats sxgbe_gstrings_stats[] = {
 	SXGBE_STAT(rx_threshold),
 	SXGBE_STAT(tx_pkt_n),
 	SXGBE_STAT(rx_pkt_n),
-	SXGBE_STAT(normal_irq_n),
-	SXGBE_STAT(tx_normal_irq_n),
-	SXGBE_STAT(rx_normal_irq_n),
+	SXGBE_STAT(analrmal_irq_n),
+	SXGBE_STAT(tx_analrmal_irq_n),
+	SXGBE_STAT(rx_analrmal_irq_n),
 	SXGBE_STAT(napi_poll),
 	SXGBE_STAT(tx_clean),
 	SXGBE_STAT(tx_reset_ic_bit),
@@ -97,15 +97,15 @@ static const struct sxgbe_stats sxgbe_gstrings_stats[] = {
 	SXGBE_STAT(dvan_ocvlan_icvlan_pkt),
 
 	/* L3/L4 Pkt type */
-	SXGBE_STAT(not_ip_pkt),
+	SXGBE_STAT(analt_ip_pkt),
 	SXGBE_STAT(ip4_tcp_pkt),
 	SXGBE_STAT(ip4_udp_pkt),
 	SXGBE_STAT(ip4_icmp_pkt),
-	SXGBE_STAT(ip4_unknown_pkt),
+	SXGBE_STAT(ip4_unkanalwn_pkt),
 	SXGBE_STAT(ip6_tcp_pkt),
 	SXGBE_STAT(ip6_udp_pkt),
 	SXGBE_STAT(ip6_icmp_pkt),
-	SXGBE_STAT(ip6_unknown_pkt),
+	SXGBE_STAT(ip6_unkanalwn_pkt),
 
 	/* Filter specific */
 	SXGBE_STAT(vlan_filter_match),
@@ -117,7 +117,7 @@ static const struct sxgbe_stats sxgbe_gstrings_stats[] = {
 
 	/* RX context specific */
 	SXGBE_STAT(timestamp_dropped),
-	SXGBE_STAT(rx_msg_type_no_ptp),
+	SXGBE_STAT(rx_msg_type_anal_ptp),
 	SXGBE_STAT(rx_ptp_type_sync),
 	SXGBE_STAT(rx_ptp_type_follow_up),
 	SXGBE_STAT(rx_ptp_type_delay_req),
@@ -125,7 +125,7 @@ static const struct sxgbe_stats sxgbe_gstrings_stats[] = {
 	SXGBE_STAT(rx_ptp_type_pdelay_req),
 	SXGBE_STAT(rx_ptp_type_pdelay_resp),
 	SXGBE_STAT(rx_ptp_type_pdelay_follow_up),
-	SXGBE_STAT(rx_ptp_announce),
+	SXGBE_STAT(rx_ptp_ananalunce),
 	SXGBE_STAT(rx_ptp_mgmt),
 	SXGBE_STAT(rx_ptp_signal),
 	SXGBE_STAT(rx_ptp_resv_msg_type),
@@ -138,7 +138,7 @@ static int sxgbe_get_eee(struct net_device *dev,
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
 
 	if (!priv->hw_cap.eee)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	edata->eee_enabled = priv->eee_enabled;
 	edata->eee_active = priv->eee_active;
@@ -163,9 +163,9 @@ static int sxgbe_set_eee(struct net_device *dev,
 		 */
 		priv->eee_enabled = sxgbe_eee_init(priv);
 		if (!priv->eee_enabled)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
-		/* Do not change tx_lpi_timer in case of failure */
+		/* Do analt change tx_lpi_timer in case of failure */
 		priv->tx_lpi_timer = edata->tx_lpi_timer;
 	}
 
@@ -302,7 +302,7 @@ static int sxgbe_set_coalesce(struct net_device *dev,
 	if ((rx_riwt > SXGBE_MAX_DMA_RIWT) || (rx_riwt < SXGBE_MIN_DMA_RIWT))
 		return -EINVAL;
 	else if (!priv->use_riwt)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	priv->rx_riwt = rx_riwt;
 	priv->hw->dma->rx_watchdog(priv->ioaddr, priv->rx_riwt);
@@ -350,7 +350,7 @@ static int sxgbe_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 			   u32 *rule_locs)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXFH:
@@ -368,7 +368,7 @@ static int sxgbe_set_rss_hash_opt(struct sxgbe_priv_data *priv,
 {
 	u32 reg_val = 0;
 
-	/* RSS does not support anything other than hashing
+	/* RSS does analt support anything other than hashing
 	 * to queues on src and dst IPs and ports
 	 */
 	if (cmd->data & ~(RXH_IP_SRC | RXH_IP_DST |
@@ -426,7 +426,7 @@ static int sxgbe_set_rss_hash_opt(struct sxgbe_priv_data *priv,
 static int sxgbe_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXFH:

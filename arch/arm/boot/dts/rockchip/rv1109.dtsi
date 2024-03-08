@@ -11,8 +11,8 @@
 	compatible = "rockchip,rv1109";
 
 	cpus {
-		/delete-node/ cpu@f02;
-		/delete-node/ cpu@f03;
+		/delete-analde/ cpu@f02;
+		/delete-analde/ cpu@f03;
 	};
 
 	arm-pmu {

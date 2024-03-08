@@ -51,7 +51,7 @@ static unsigned int wm8400_dcdc_get_mode(struct regulator_dev *dev)
 	if (data[1] & WM8400_DC1_FRC_PWM)
 		return REGULATOR_MODE_FAST;
 	else
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 }
 
 static int wm8400_dcdc_set_mode(struct regulator_dev *dev, unsigned int mode)
@@ -72,7 +72,7 @@ static int wm8400_dcdc_set_mode(struct regulator_dev *dev, unsigned int mode)
 				       WM8400_DC1_ACTIVE | WM8400_DC1_SLEEP,
 				       WM8400_DC1_ACTIVE);
 
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		/* Datasheet: active */
 		ret = regmap_update_bits(rmap, WM8400_DCDC1_CONTROL_2 + offset,
 				      WM8400_DC1_FRC_PWM, 0);
@@ -96,7 +96,7 @@ static unsigned int wm8400_dcdc_get_optimum_mode(struct regulator_dev *dev,
 						 int input_uV, int output_uV,
 						 int load_uA)
 {
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static const struct regulator_ops wm8400_dcdc_ops = {
@@ -223,7 +223,7 @@ static int wm8400_regulator_probe(struct platform_device *pdev)
 static struct platform_driver wm8400_regulator_driver = {
 	.driver = {
 		.name = "wm8400-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = wm8400_regulator_probe,
 };

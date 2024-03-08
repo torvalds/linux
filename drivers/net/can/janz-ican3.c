@@ -87,10 +87,10 @@
 /*
  * Janz ICAN3 CAN Inquiry Message Types
  *
- * NOTE: there appears to be a firmware bug here. You must send
- * NOTE: INQUIRY_STATUS and expect to receive an INQUIRY_EXTENDED
- * NOTE: response. The controller never responds to a message with
- * NOTE: the INQUIRY_EXTENDED subspec :(
+ * ANALTE: there appears to be a firmware bug here. You must send
+ * ANALTE: INQUIRY_STATUS and expect to receive an INQUIRY_EXTENDED
+ * ANALTE: response. The controller never responds to a message with
+ * ANALTE: the INQUIRY_EXTENDED subspec :(
  */
 #define INQUIRY_STATUS		0x00
 #define INQUIRY_TERMINATION	0x01
@@ -129,7 +129,7 @@
 #define ICAN3_CAN_DLC_MASK	0x0f
 
 /* Janz ICAN3 NMTS subtypes */
-#define NMTS_CREATE_NODE_REQ	0x0
+#define NMTS_CREATE_ANALDE_REQ	0x0
 #define NMTS_SLAVE_STATE_IND	0x8
 #define NMTS_SLAVE_EVENT_IND	0x9
 
@@ -183,8 +183,8 @@
 
 /* Janz ICAN3 firmware types */
 enum ican3_fwtype {
-	ICAN3_FWTYPE_ICANOS,
-	ICAN3_FWTYPE_CAL_CANOPEN,
+	ICAN3_FWTYPE_ICAANALS,
+	ICAN3_FWTYPE_CAL_CAANALPEN,
 };
 
 /* Driver Name */
@@ -250,7 +250,7 @@ struct ican3_dev {
 	/*
 	 * Any function which changes the current DPM page must hold this
 	 * lock while it is performing data accesses. This ensures that the
-	 * function will not be preempted and end up reading data from a
+	 * function will analt be preempted and end up reading data from a
 	 * different DPM page than it expects.
 	 */
 	spinlock_t lock;
@@ -304,7 +304,7 @@ static inline void ican3_set_page(struct ican3_dev *mod, unsigned int page)
  *
  * LOCKING: must hold mod->lock
  *
- * returns 0 on success, -ENOMEM when no message exists
+ * returns 0 on success, -EANALMEM when anal message exists
  */
 static int ican3_old_recv_msg(struct ican3_dev *mod, struct ican3_msg *msg)
 {
@@ -318,8 +318,8 @@ static int ican3_old_recv_msg(struct ican3_dev *mod, struct ican3_msg *msg)
 	xord = locl ^ peer;
 
 	if ((xord & MSYNC_RB_MASK) == 0x00) {
-		netdev_dbg(mod->ndev, "no mbox for reading\n");
-		return -ENOMEM;
+		netdev_dbg(mod->ndev, "anal mbox for reading\n");
+		return -EANALMEM;
 	}
 
 	/* find the first free mbox to read */
@@ -334,7 +334,7 @@ static int ican3_old_recv_msg(struct ican3_dev *mod, struct ican3_msg *msg)
 	memcpy_fromio(msg, mod->dpm, sizeof(*msg));
 
 	/*
-	 * notify the firmware that the read buffer is available
+	 * analtify the firmware that the read buffer is available
 	 * for it to fill again
 	 */
 	locl ^= mbox;
@@ -349,7 +349,7 @@ static int ican3_old_recv_msg(struct ican3_dev *mod, struct ican3_msg *msg)
  *
  * LOCKING: must hold mod->lock
  *
- * returns 0 on success, -ENOMEM when no free space exists
+ * returns 0 on success, -EANALMEM when anal free space exists
  */
 static int ican3_old_send_msg(struct ican3_dev *mod, struct ican3_msg *msg)
 {
@@ -363,8 +363,8 @@ static int ican3_old_send_msg(struct ican3_dev *mod, struct ican3_msg *msg)
 	xord = locl ^ peer;
 
 	if ((xord & MSYNC_WB_MASK) == MSYNC_WB_MASK) {
-		netdev_err(mod->ndev, "no mbox for writing\n");
-		return -ENOMEM;
+		netdev_err(mod->ndev, "anal mbox for writing\n");
+		return -EANALMEM;
 	}
 
 	/* calculate a free mbox to use */
@@ -565,8 +565,8 @@ static int ican3_new_send_msg(struct ican3_dev *mod, struct ican3_msg *msg)
 	memcpy_fromio(&desc, desc_addr, sizeof(desc));
 
 	if (!(desc.control & DESC_VALID)) {
-		netdev_dbg(mod->ndev, "%s: no free buffers\n", __func__);
-		return -ENOMEM;
+		netdev_dbg(mod->ndev, "%s: anal free buffers\n", __func__);
+		return -EANALMEM;
 	}
 
 	/* switch to the data page, copy the data */
@@ -596,8 +596,8 @@ static int ican3_new_recv_msg(struct ican3_dev *mod, struct ican3_msg *msg)
 	memcpy_fromio(&desc, desc_addr, sizeof(desc));
 
 	if (!(desc.control & DESC_VALID)) {
-		netdev_dbg(mod->ndev, "%s: no buffers to recv\n", __func__);
-		return -ENOMEM;
+		netdev_dbg(mod->ndev, "%s: anal buffers to recv\n", __func__);
+		return -EANALMEM;
 	}
 
 	/* switch to the data page, copy the data */
@@ -685,7 +685,7 @@ static int ican3_msg_newhostif(struct ican3_dev *mod)
 	msg.spec = MSG_NEWHOSTIF;
 	msg.len = cpu_to_le16(0);
 
-	/* If we're not using the old interface, switching seems bogus */
+	/* If we're analt using the old interface, switching seems bogus */
 	WARN_ON(mod->iftype != 0);
 
 	ret = ican3_send_msg(mod, &msg);
@@ -720,7 +720,7 @@ static int ican3_msg_fasthostif(struct ican3_dev *mod)
 	msg.data[6] = (addr >> 16) & 0xff;
 	msg.data[7] = (addr >> 24) & 0xff;
 
-	/* If we're not using the new interface yet, we cannot do this */
+	/* If we're analt using the new interface yet, we cananalt do this */
 	WARN_ON(mod->iftype != 1);
 
 	return ican3_send_msg(mod, &msg);
@@ -790,7 +790,7 @@ static int ican3_set_bus_state(struct ican3_dev *mod, bool on)
 	if (mod->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES)
 		btr1 |= 0x80;
 
-	if (mod->fwtype == ICAN3_FWTYPE_ICANOS) {
+	if (mod->fwtype == ICAN3_FWTYPE_ICAANALS) {
 		if (on) {
 			/* set bittiming */
 			memset(&msg, 0, sizeof(msg));
@@ -813,7 +813,7 @@ static int ican3_set_bus_state(struct ican3_dev *mod, bool on)
 
 		return ican3_send_msg(mod, &msg);
 
-	} else if (mod->fwtype == ICAN3_FWTYPE_CAL_CANOPEN) {
+	} else if (mod->fwtype == ICAN3_FWTYPE_CAL_CAANALPEN) {
 		/* bittiming + can-on/off request */
 		memset(&msg, 0, sizeof(msg));
 		msg.spec = MSG_LMTS;
@@ -833,24 +833,24 @@ static int ican3_set_bus_state(struct ican3_dev *mod, bool on)
 			return res;
 
 		if (on) {
-			/* create NMT Slave Node for error processing
+			/* create NMT Slave Analde for error processing
 			 *   class 2 (with error capability, see CiA/DS203-1)
 			 *   id    1
-			 *   name  locnod1 (must be exactly 7 bytes)
+			 *   name  locanald1 (must be exactly 7 bytes)
 			 */
 			memset(&msg, 0, sizeof(msg));
 			msg.spec = MSG_NMTS;
 			msg.len = cpu_to_le16(11);
-			msg.data[0] = NMTS_CREATE_NODE_REQ;
+			msg.data[0] = NMTS_CREATE_ANALDE_REQ;
 			msg.data[1] = 0;
-			msg.data[2] = 2;                 /* node class */
-			msg.data[3] = 1;                 /* node id */
-			strcpy(msg.data + 4, "locnod1"); /* node name  */
+			msg.data[2] = 2;                 /* analde class */
+			msg.data[3] = 1;                 /* analde id */
+			strcpy(msg.data + 4, "locanald1"); /* analde name  */
 			return ican3_send_msg(mod, &msg);
 		}
 		return 0;
 	}
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int ican3_set_termination(struct ican3_dev *mod, bool on)
@@ -883,13 +883,13 @@ static int ican3_set_buserror(struct ican3_dev *mod, u8 quota)
 {
 	struct ican3_msg msg;
 
-	if (mod->fwtype == ICAN3_FWTYPE_ICANOS) {
+	if (mod->fwtype == ICAN3_FWTYPE_ICAANALS) {
 		memset(&msg, 0, sizeof(msg));
 		msg.spec = MSG_CCONFREQ;
 		msg.len = cpu_to_le16(2);
 		msg.data[0] = 0x00;
 		msg.data[1] = quota;
-	} else if (mod->fwtype == ICAN3_FWTYPE_CAL_CANOPEN) {
+	} else if (mod->fwtype == ICAN3_FWTYPE_CAL_CAANALPEN) {
 		memset(&msg, 0, sizeof(msg));
 		msg.spec = MSG_LMTS;
 		msg.len = cpu_to_le16(4);
@@ -898,7 +898,7 @@ static int ican3_set_buserror(struct ican3_dev *mod, u8 quota)
 		msg.data[2] = 0x00;
 		msg.data[3] = quota;
 	} else {
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 	return ican3_send_msg(mod, &msg);
 }
@@ -951,7 +951,7 @@ static void can_frame_to_ican3(struct ican3_dev *mod,
 	desc->data[0] |= cf->len;
 	desc->data[1] |= ICAN3_ECHO;
 
-	/* support single transmission (no retries) mode */
+	/* support single transmission (anal retries) mode */
 	if (mod->can.ctrlmode & CAN_CTRLMODE_ONE_SHOT)
 		desc->data[1] |= ICAN3_SNGL;
 
@@ -997,7 +997,7 @@ static void ican3_handle_msglost(struct ican3_dev *mod, struct ican3_msg *msg)
 
 	/*
 	 * Report that communication messages with the microcontroller firmware
-	 * are being lost. These are never CAN frames, so we do not generate an
+	 * are being lost. These are never CAN frames, so we do analt generate an
 	 * error frame for userspace
 	 */
 	if (msg->spec == MSG_MSGLOST) {
@@ -1008,10 +1008,10 @@ static void ican3_handle_msglost(struct ican3_dev *mod, struct ican3_msg *msg)
 	/*
 	 * Oops, this indicates that we have lost messages in the fast queue,
 	 * which are exclusively CAN messages. Our driver isn't reading CAN
-	 * frames fast enough.
+	 * frames fast eanalugh.
 	 *
 	 * We'll pretend that the SJA1000 told us that it ran out of buffer
-	 * space, because there is not a better message for this.
+	 * space, because there is analt a better message for this.
 	 */
 	skb = alloc_can_err_skb(dev, &cf);
 	if (skb) {
@@ -1041,8 +1041,8 @@ static int ican3_handle_cevtind(struct ican3_dev *mod, struct ican3_msg *msg)
 
 	/* we can only handle the SJA1000 part */
 	if (msg->data[1] != CEVTIND_CHIP_SJA1000) {
-		netdev_err(mod->ndev, "unable to handle errors on non-SJA1000\n");
-		return -ENODEV;
+		netdev_err(mod->ndev, "unable to handle errors on analn-SJA1000\n");
+		return -EANALDEV;
 	}
 
 	/* check the message length for sanity */
@@ -1096,7 +1096,7 @@ static int ican3_handle_cevtind(struct ican3_dev *mod, struct ican3_msg *msg)
 
 	skb = alloc_can_err_skb(dev, &cf);
 	if (skb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* data overrun interrupt */
 	if (isrc == CEVTIND_DOI || isrc == CEVTIND_LOST) {
@@ -1190,7 +1190,7 @@ static void ican3_handle_inquiry(struct ican3_dev *mod, struct ican3_msg *msg)
 		complete(&mod->termination_comp);
 		break;
 	default:
-		netdev_err(mod->ndev, "received an unknown inquiry response\n");
+		netdev_err(mod->ndev, "received an unkanalwn inquiry response\n");
 		break;
 	}
 }
@@ -1205,7 +1205,7 @@ static void ican3_handle_nmtsind(struct ican3_dev *mod, struct ican3_msg *msg)
 		switch (msg->data[2]) {
 		case NE_LOCAL_OCCURRED:
 		case NE_LOCAL_RESOLVED:
-			/* now follows the same message as Raw ICANOS CEVTIND
+			/* analw follows the same message as Raw ICAANALS CEVTIND
 			 * shift the data at the same place and call this method
 			 */
 			le16_add_cpu(&msg->len, -3);
@@ -1214,15 +1214,15 @@ static void ican3_handle_nmtsind(struct ican3_dev *mod, struct ican3_msg *msg)
 			break;
 		case NE_REMOTE_OCCURRED:
 		case NE_REMOTE_RESOLVED:
-			/* should not occurre, ignore */
+			/* should analt occurre, iganalre */
 			break;
 		default:
-			netdev_warn(mod->ndev, "unknown NMTS event indication %x\n",
+			netdev_warn(mod->ndev, "unkanalwn NMTS event indication %x\n",
 				    msg->data[2]);
 			break;
 		}
 	} else if (subspec == NMTS_SLAVE_STATE_IND) {
-		/* ignore state indications */
+		/* iganalre state indications */
 	} else {
 		netdev_warn(mod->ndev, "unhandled NMTS indication %x\n",
 			    subspec);
@@ -1230,10 +1230,10 @@ static void ican3_handle_nmtsind(struct ican3_dev *mod, struct ican3_msg *msg)
 	}
 }
 
-static void ican3_handle_unknown_message(struct ican3_dev *mod,
+static void ican3_handle_unkanalwn_message(struct ican3_dev *mod,
 					struct ican3_msg *msg)
 {
-	netdev_warn(mod->ndev, "received unknown message: spec 0x%.2x length %d\n",
+	netdev_warn(mod->ndev, "received unkanalwn message: spec 0x%.2x length %d\n",
 			   msg->spec, le16_to_cpu(msg->len));
 }
 
@@ -1242,7 +1242,7 @@ static void ican3_handle_unknown_message(struct ican3_dev *mod,
  */
 static void ican3_handle_message(struct ican3_dev *mod, struct ican3_msg *msg)
 {
-	netdev_dbg(mod->ndev, "%s: modno %d spec 0x%.2x len %d bytes\n", __func__,
+	netdev_dbg(mod->ndev, "%s: modanal %d spec 0x%.2x len %d bytes\n", __func__,
 			   mod->num, msg->spec, le16_to_cpu(msg->len));
 
 	switch (msg->spec) {
@@ -1263,13 +1263,13 @@ static void ican3_handle_message(struct ican3_dev *mod, struct ican3_msg *msg)
 		ican3_handle_nmtsind(mod, msg);
 		break;
 	default:
-		ican3_handle_unknown_message(mod, msg);
+		ican3_handle_unkanalwn_message(mod, msg);
 		break;
 	}
 }
 
 /*
- * The ican3 needs to store all echo skbs, and therefore cannot
+ * The ican3 needs to store all echo skbs, and therefore cananalt
  * use the generic infrastructure for this.
  */
 static void ican3_put_echo_skb(struct ican3_dev *mod, struct sk_buff *skb)
@@ -1292,7 +1292,7 @@ static unsigned int ican3_get_echo_skb(struct ican3_dev *mod)
 
 	/* this should never trigger unless there is a driver bug */
 	if (!skb) {
-		netdev_err(mod->ndev, "BUG: echo skb not occupied\n");
+		netdev_err(mod->ndev, "BUG: echo skb analt occupied\n");
 		return 0;
 	}
 
@@ -1343,7 +1343,7 @@ static bool ican3_echo_skb_matches(struct ican3_dev *mod, struct sk_buff *skb)
 }
 
 /*
- * Check that there is room in the TX ring to transmit another skb
+ * Check that there is room in the TX ring to transmit aanalther skb
  *
  * LOCKING: must hold mod->lock
  */
@@ -1361,7 +1361,7 @@ static bool ican3_txok(struct ican3_dev *mod)
 	desc = mod->dpm + ((mod->fasttx_num % 16) * sizeof(*desc));
 	control = ioread8(&desc->control);
 
-	/* if the control bits are not valid, then we have no more space */
+	/* if the control bits are analt valid, then we have anal more space */
 	if (!(control & DESC_VALID))
 		return false;
 
@@ -1394,13 +1394,13 @@ static int ican3_recv_skb(struct ican3_dev *mod)
 
 	/* check that we actually have a CAN frame */
 	if (!(desc.control & DESC_VALID))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	/* allocate an skb */
 	skb = alloc_can_skb(ndev, &cf);
 	if (unlikely(skb == NULL)) {
 		stats->rx_dropped++;
-		goto err_noalloc;
+		goto err_analalloc;
 	}
 
 	/* convert the ICAN3 frame into Linux CAN format */
@@ -1420,7 +1420,7 @@ static int ican3_recv_skb(struct ican3_dev *mod)
 		stats->tx_packets++;
 		stats->tx_bytes += ican3_get_echo_skb(mod);
 		kfree_skb(skb);
-		goto err_noalloc;
+		goto err_analalloc;
 	}
 
 	/* update statistics, receive the skb */
@@ -1429,7 +1429,7 @@ static int ican3_recv_skb(struct ican3_dev *mod)
 		stats->rx_bytes += cf->len;
 	netif_receive_skb(skb);
 
-err_noalloc:
+err_analalloc:
 	/* toggle the valid bit and return the descriptor to the ring */
 	desc.control ^= DESC_VALID;
 
@@ -1502,7 +1502,7 @@ static irqreturn_t ican3_irq(int irq, void *dev_id)
 	 */
 	stat = ioread8(&mod->ctrl->int_disable) & (1 << mod->num);
 	if (stat == (1 << mod->num))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* clear the MODULbus interrupt from the microcontroller */
 	ioread8(&mod->dpmctrl->interrupt);
@@ -1520,21 +1520,21 @@ static irqreturn_t ican3_irq(int irq, void *dev_id)
 /*
  * Reset an ICAN module to its power-on state
  *
- * CONTEXT: no network device registered
+ * CONTEXT: anal network device registered
  */
 static int ican3_reset_module(struct ican3_dev *mod)
 {
 	unsigned long start;
-	u8 runold, runnew;
+	u8 ruanalld, runnew;
 
-	/* disable interrupts so no more work is scheduled */
+	/* disable interrupts so anal more work is scheduled */
 	iowrite8(1 << mod->num, &mod->ctrl->int_disable);
 
 	/* the first unallocated page in the DPM is #9 */
 	mod->free_page = DPM_FREE_START;
 
 	ican3_set_page(mod, QUEUE_OLD_CONTROL);
-	runold = ioread8(mod->dpm + TARGET_RUNNING);
+	ruanalld = ioread8(mod->dpm + TARGET_RUNNING);
 
 	/* reset the module */
 	iowrite8(0x00, &mod->dpmctrl->hwreset);
@@ -1544,7 +1544,7 @@ static int ican3_reset_module(struct ican3_dev *mod)
 	do {
 		ican3_set_page(mod, QUEUE_OLD_CONTROL);
 		runnew = ioread8(mod->dpm + TARGET_RUNNING);
-		if (runnew == (runold ^ 0xff))
+		if (runnew == (ruanalld ^ 0xff))
 			return 0;
 
 		msleep(10);
@@ -1576,13 +1576,13 @@ static int ican3_startup_module(struct ican3_dev *mod)
 	/* detect firmware */
 	memcpy_fromio(mod->fwinfo, mod->dpm + FIRMWARE_STAMP, sizeof(mod->fwinfo) - 1);
 	if (strncmp(mod->fwinfo, "JANZ-ICAN3", 10)) {
-		netdev_err(mod->ndev, "ICAN3 not detected (found %s)\n", mod->fwinfo);
-		return -ENODEV;
+		netdev_err(mod->ndev, "ICAN3 analt detected (found %s)\n", mod->fwinfo);
+		return -EANALDEV;
 	}
-	if (strstr(mod->fwinfo, "CAL/CANopen"))
-		mod->fwtype = ICAN3_FWTYPE_CAL_CANOPEN;
+	if (strstr(mod->fwinfo, "CAL/CAAnalpen"))
+		mod->fwtype = ICAN3_FWTYPE_CAL_CAANALPEN;
 	else
-		mod->fwtype = ICAN3_FWTYPE_ICANOS;
+		mod->fwtype = ICAN3_FWTYPE_ICAANALS;
 
 	/* re-enable interrupts so we can send messages */
 	iowrite8(1 << mod->num, &mod->ctrl->int_enable);
@@ -1700,7 +1700,7 @@ static netdev_tx_t ican3_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	/* check that we can actually transmit */
 	if (!ican3_txok(mod)) {
-		netdev_err(mod->ndev, "BUG: no free descriptors\n");
+		netdev_err(mod->ndev, "BUG: anal free descriptors\n");
 		spin_unlock_irqrestore(&mod->lock, flags);
 		return NETDEV_TX_BUSY;
 	}
@@ -1715,7 +1715,7 @@ static netdev_tx_t ican3_xmit(struct sk_buff *skb, struct net_device *ndev)
 	can_frame_to_ican3(mod, cf, &desc);
 
 	/*
-	 * This hardware doesn't have TX-done notifications, so we'll try and
+	 * This hardware doesn't have TX-done analtifications, so we'll try and
 	 * emulate it the best we can using ECHO skbs. Add the skb to the ECHO
 	 * stack. Upon packet reception, check if the ECHO skb and received
 	 * skb match, and use that to wake the queue.
@@ -1740,7 +1740,7 @@ static netdev_tx_t ican3_xmit(struct sk_buff *skb, struct net_device *ndev)
 	mod->fasttx_num = (desc.control & DESC_WRAP) ? 0
 						     : (mod->fasttx_num + 1);
 
-	/* if there is no free descriptor space, stop the transmit queue */
+	/* if there is anal free descriptor space, stop the transmit queue */
 	if (!ican3_txok(mod))
 		netif_stop_queue(ndev);
 
@@ -1782,7 +1782,7 @@ static int ican3_set_mode(struct net_device *ndev, enum can_mode mode)
 	int ret;
 
 	if (mode != CAN_MODE_START)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* bring the bus online */
 	ret = ican3_set_bus_state(mod, true);
@@ -1900,7 +1900,7 @@ static int ican3_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENXIO;
 
-	dev_dbg(&pdev->dev, "probe: module number %d\n", pdata->modno);
+	dev_dbg(&pdev->dev, "probe: module number %d\n", pdata->modanal);
 
 	/* save the struct device for printing */
 	dev = &pdev->dev;
@@ -1909,14 +1909,14 @@ static int ican3_probe(struct platform_device *pdev)
 	ndev = alloc_candev(sizeof(*mod), 0);
 	if (!ndev) {
 		dev_err(dev, "unable to allocate CANdev\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_return;
 	}
 
 	platform_set_drvdata(pdev, ndev);
 	mod = netdev_priv(ndev);
 	mod->ndev = ndev;
-	mod->num = pdata->modno;
+	mod->num = pdata->modanal;
 	netif_napi_add_weight(ndev, &mod->napi, ican3_napi, ICAN3_RX_BUFFERS);
 	skb_queue_head_init(&mod->echoq);
 	spin_lock_init(&mod->lock);
@@ -1945,7 +1945,7 @@ static int ican3_probe(struct platform_device *pdev)
 	/* find our IRQ number */
 	mod->irq = platform_get_irq(pdev, 0);
 	if (mod->irq < 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_free_ndev;
 	}
 
@@ -1954,15 +1954,15 @@ static int ican3_probe(struct platform_device *pdev)
 	/* get access to the MODULbus registers for this module */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(dev, "MODULbus registers not found\n");
-		ret = -ENODEV;
+		dev_err(dev, "MODULbus registers analt found\n");
+		ret = -EANALDEV;
 		goto out_free_ndev;
 	}
 
 	mod->dpm = ioremap(res->start, resource_size(res));
 	if (!mod->dpm) {
-		dev_err(dev, "MODULbus registers not ioremap\n");
-		ret = -ENOMEM;
+		dev_err(dev, "MODULbus registers analt ioremap\n");
+		ret = -EANALMEM;
 		goto out_free_ndev;
 	}
 
@@ -1971,15 +1971,15 @@ static int ican3_probe(struct platform_device *pdev)
 	/* get access to the control registers for this module */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
-		dev_err(dev, "CONTROL registers not found\n");
-		ret = -ENODEV;
+		dev_err(dev, "CONTROL registers analt found\n");
+		ret = -EANALDEV;
 		goto out_iounmap_dpm;
 	}
 
 	mod->ctrl = ioremap(res->start, resource_size(res));
 	if (!mod->ctrl) {
-		dev_err(dev, "CONTROL registers not ioremap\n");
-		ret = -ENOMEM;
+		dev_err(dev, "CONTROL registers analt ioremap\n");
+		ret = -EANALMEM;
 		goto out_iounmap_dpm;
 	}
 
@@ -2006,7 +2006,7 @@ static int ican3_probe(struct platform_device *pdev)
 		goto out_free_irq;
 	}
 
-	netdev_info(mod->ndev, "module %d: registered CAN device\n", pdata->modno);
+	netdev_info(mod->ndev, "module %d: registered CAN device\n", pdata->modanal);
 	return 0;
 
 out_free_irq:

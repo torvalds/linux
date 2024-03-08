@@ -137,7 +137,7 @@ static struct clk_hfpll hfpll0 = {
 		.num_parents = 1,
 		.name = "hfpll0",
 		.ops = &clk_ops_hfpll,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 	},
 	.lock = __SPIN_LOCK_UNLOCKED(hfpll0.lock),
 };
@@ -163,7 +163,7 @@ static struct clk_hfpll hfpll1 = {
 		.num_parents = 1,
 		.name = "hfpll1",
 		.ops = &clk_ops_hfpll,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 	},
 	.lock = __SPIN_LOCK_UNLOCKED(hfpll1.lock),
 };
@@ -189,7 +189,7 @@ static struct clk_hfpll hfpll_l2 = {
 		.num_parents = 1,
 		.name = "hfpll_l2",
 		.ops = &clk_ops_hfpll,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 	},
 	.lock = __SPIN_LOCK_UNLOCKED(hfpll_l2.lock),
 };
@@ -857,7 +857,7 @@ static struct clk_rcg gsbi4_qup_src = {
 			.parent_data = gcc_pxo_pll8,
 			.num_parents = ARRAY_SIZE(gcc_pxo_pll8),
 			.ops = &clk_rcg_ops,
-			.flags = CLK_SET_PARENT_GATE | CLK_IGNORE_UNUSED,
+			.flags = CLK_SET_PARENT_GATE | CLK_IGANALRE_UNUSED,
 		},
 	},
 };
@@ -875,7 +875,7 @@ static struct clk_branch gsbi4_qup_clk = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch_ops,
-			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 		},
 	},
 };
@@ -959,7 +959,7 @@ static struct clk_rcg gsbi6_qup_src = {
 			.parent_data = gcc_pxo_pll8,
 			.num_parents = ARRAY_SIZE(gcc_pxo_pll8),
 			.ops = &clk_rcg_ops,
-			.flags = CLK_SET_PARENT_GATE | CLK_IGNORE_UNUSED,
+			.flags = CLK_SET_PARENT_GATE | CLK_IGANALRE_UNUSED,
 		},
 	},
 };
@@ -1028,7 +1028,7 @@ static struct clk_branch gsbi7_qup_clk = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch_ops,
-			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 		},
 	},
 };
@@ -1074,7 +1074,7 @@ static struct clk_branch gsbi4_h_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gsbi4_h_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IGNORE_UNUSED,
+			.flags = CLK_IGANALRE_UNUSED,
 		},
 	},
 };
@@ -2825,7 +2825,7 @@ static struct clk_dyn_rcg ubi32_core1_src_clk = {
 			.parent_data = gcc_pxo_pll8_pll14_pll18_pll0,
 			.num_parents = ARRAY_SIZE(gcc_pxo_pll8_pll14_pll18_pll0),
 			.ops = &clk_dyn_rcg_ops,
-			.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+			.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE,
 		},
 	},
 };
@@ -2878,7 +2878,7 @@ static struct clk_dyn_rcg ubi32_core2_src_clk = {
 			.parent_data = gcc_pxo_pll8_pll14_pll18_pll0,
 			.num_parents = ARRAY_SIZE(gcc_pxo_pll8_pll14_pll18_pll0),
 			.ops = &clk_dyn_rcg_ops,
-			.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+			.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE,
 		},
 	},
 };
@@ -3408,7 +3408,7 @@ static int gcc_ipq806x_probe(struct platform_device *pdev)
 
 	regmap = dev_get_regmap(dev, NULL);
 	if (!regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Setup PLL18 static bits */
 	regmap_update_bits(regmap, 0x31a4, 0xffffffc0, 0x40000400);
@@ -3420,7 +3420,7 @@ static int gcc_ipq806x_probe(struct platform_device *pdev)
 	regmap_write(regmap, 0x3cf8, 8);
 	regmap_write(regmap, 0x3d18, 8);
 
-	return of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	return of_platform_populate(pdev->dev.of_analde, NULL, NULL, &pdev->dev);
 }
 
 static struct platform_driver gcc_ipq806x_driver = {

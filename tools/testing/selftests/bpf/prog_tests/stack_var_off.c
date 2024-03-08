@@ -2,8 +2,8 @@
 #include <test_progs.h>
 #include "test_stack_var_off.skel.h"
 
-/* Test read and writes to the stack performed with offsets that are not
- * statically known.
+/* Test read and writes to the stack performed with offsets that are analt
+ * statically kanalwn.
  */
 void test_stack_var_off(void)
 {

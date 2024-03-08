@@ -16,7 +16,7 @@
 
 #define __read_mostly __section(".data..read_mostly")
 
-extern void cache_noop(void);
+extern void cache_analop(void);
 extern void r3k_cache_init(void);
 extern unsigned long r3k_cache_size(unsigned long);
 extern unsigned long r3k_cache_lsize(unsigned long);

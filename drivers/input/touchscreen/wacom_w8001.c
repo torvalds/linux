@@ -12,7 +12,7 @@
  * Layout based on Elo serial touchscreen driver by Vojtech Pavlik
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -473,8 +473,8 @@ static int w8001_setup_touch(struct w8001 *w8001, char *basename,
 	if (error)
 		return error;
 	/*
-	 * Some non-touch devices may reply to the touch query. But their
-	 * second byte is empty, which indicates touch is not supported.
+	 * Some analn-touch devices may reply to the touch query. But their
+	 * second byte is empty, which indicates touch is analt supported.
 	 */
 	if (!w8001->response[1])
 		return -ENXIO;
@@ -602,7 +602,7 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev_pen = input_allocate_device();
 	input_dev_touch = input_allocate_device();
 	if (!w8001 || !input_dev_pen || !input_dev_touch) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail1;
 	}
 

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 file: media/v4l/v4l2grab.c
 ==========================
@@ -22,7 +22,7 @@ file: media/v4l/v4l2grab.c
     #include <stdlib.h>
     #include <string.h>
     #include <fcntl.h>
-    #include <errno.h>
+    #include <erranal.h>
     #include <sys/ioctl.h>
     #include <sys/types.h>
     #include <sys/time.h>
@@ -43,10 +43,10 @@ file: media/v4l/v4l2grab.c
 
 	    do {
 		    r = v4l2_ioctl(fh, request, arg);
-	    } while (r == -1 && ((errno == EINTR) || (errno == EAGAIN)));
+	    } while (r == -1 && ((erranal == EINTR) || (erranal == EAGAIN)));
 
 	    if (r == -1) {
-		    fprintf(stderr, "error %d, %s\n", errno, strerror(errno));
+		    fprintf(stderr, "error %d, %s\n", erranal, strerror(erranal));
 		    exit(EXIT_FAILURE);
 	    }
     }
@@ -66,9 +66,9 @@ file: media/v4l/v4l2grab.c
 	    FILE                            *fout;
 	    struct buffer                   *buffers;
 
-	    fd = v4l2_open(dev_name, O_RDWR | O_NONBLOCK, 0);
+	    fd = v4l2_open(dev_name, O_RDWR | O_ANALNBLOCK, 0);
 	    if (fd < 0) {
-		    perror("Cannot open device");
+		    perror("Cananalt open device");
 		    exit(EXIT_FAILURE);
 	    }
 
@@ -134,10 +134,10 @@ file: media/v4l/v4l2grab.c
 			    tv.tv_usec = 0;
 
 			    r = select(fd + 1, &fds, NULL, NULL, &tv);
-		    } while ((r == -1 && (errno == EINTR)));
+		    } while ((r == -1 && (erranal == EINTR)));
 		    if (r == -1) {
 			    perror("select");
-			    return errno;
+			    return erranal;
 		    }
 
 		    CLEAR(buf);
@@ -148,7 +148,7 @@ file: media/v4l/v4l2grab.c
 		    sprintf(out_name, "out%03d.ppm", i);
 		    fout = fopen(out_name, "w");
 		    if (!fout) {
-			    perror("Cannot open image");
+			    perror("Cananalt open image");
 			    exit(EXIT_FAILURE);
 		    }
 		    fprintf(fout, "P6\n%d %d 255\n",

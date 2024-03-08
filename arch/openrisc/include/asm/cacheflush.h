@@ -50,9 +50,9 @@ static inline void sync_icache_dcache(struct page *page)
 }
 
 /*
- * Pages with this bit set need not be flushed/invalidated, since
- * they have not changed since last flush. New pages start with
- * PG_arch_1 not set and are therefore dirty by default.
+ * Pages with this bit set need analt be flushed/invalidated, since
+ * they have analt changed since last flush. New pages start with
+ * PG_arch_1 analt set and are therefore dirty by default.
  */
 #define PG_dc_clean                  PG_arch_1
 

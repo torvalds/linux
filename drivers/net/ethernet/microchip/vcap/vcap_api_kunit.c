@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright (C) 2022 Microchip Technology Inc. and its subsidiaries.
+/* Copyright (C) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  * Microchip VCAP API kunit test suite
  */
 
@@ -44,9 +44,9 @@ static enum vcap_keyfield_set test_val_keyset(struct net_device *ndev,
 					return kslist->keysets[idx];
 				if (kslist->keysets[idx] == VCAP_KFS_PURE_5TUPLE_IP4)
 					return kslist->keysets[idx];
-				if (kslist->keysets[idx] == VCAP_KFS_NORMAL_5TUPLE_IP4)
+				if (kslist->keysets[idx] == VCAP_KFS_ANALRMAL_5TUPLE_IP4)
 					return kslist->keysets[idx];
-				if (kslist->keysets[idx] == VCAP_KFS_NORMAL_7TUPLE)
+				if (kslist->keysets[idx] == VCAP_KFS_ANALRMAL_7TUPLE)
 					return kslist->keysets[idx];
 			}
 			break;
@@ -61,7 +61,7 @@ static enum vcap_keyfield_set test_val_keyset(struct net_device *ndev,
 			}
 			break;
 		default:
-			pr_info("%s:%d: no validation for VCAP %d\n",
+			pr_info("%s:%d: anal validation for VCAP %d\n",
 				__func__, __LINE__, admin->vtype);
 			break;
 		}
@@ -177,7 +177,7 @@ static void test_cache_write(struct net_device *ndev, struct vcap_admin *admin,
 		test_hw_cache.sticky = admin->cache.sticky;
 		break;
 	case VCAP_SEL_ALL:
-		pr_err("%s:%d: cannot write all streams at once\n",
+		pr_err("%s:%d: cananalt write all streams at once\n",
 		       __func__, __LINE__);
 		break;
 	}
@@ -249,8 +249,8 @@ static void test_vcap_xn_rule_creator(struct kunit *test, int cid,
 {
 	struct vcap_rule *rule;
 	struct vcap_rule_internal *ri;
-	enum vcap_keyfield_set keyset = VCAP_KFS_NO_VALUE;
-	enum vcap_actionfield_set actionset = VCAP_AFS_NO_VALUE;
+	enum vcap_keyfield_set keyset = VCAP_KFS_ANAL_VALUE;
+	enum vcap_actionfield_set actionset = VCAP_AFS_ANAL_VALUE;
 	int ret;
 
 	/* init before testing */
@@ -270,11 +270,11 @@ static void test_vcap_xn_rule_creator(struct kunit *test, int cid,
 		actionset = VCAP_AFS_CLASSIFICATION;
 		break;
 	case 6:
-		keyset = VCAP_KFS_NORMAL_5TUPLE_IP4;
+		keyset = VCAP_KFS_ANALRMAL_5TUPLE_IP4;
 		actionset = VCAP_AFS_CLASSIFICATION;
 		break;
 	case 12:
-		keyset = VCAP_KFS_NORMAL_7TUPLE;
+		keyset = VCAP_KFS_ANALRMAL_7TUPLE;
 		actionset = VCAP_AFS_FULL;
 		break;
 	default:
@@ -282,7 +282,7 @@ static void test_vcap_xn_rule_creator(struct kunit *test, int cid,
 	}
 
 	/* Check that a valid size was used */
-	KUNIT_ASSERT_NE(test, VCAP_KFS_NO_VALUE, keyset);
+	KUNIT_ASSERT_NE(test, VCAP_KFS_ANAL_VALUE, keyset);
 
 	/* Allocate the rule */
 	rule = vcap_alloc_rule(&test_vctrl, &test_netdev, cid, user, priority,
@@ -797,11 +797,11 @@ static void vcap_api_vcap_keyfields_test(struct kunit *test)
 	ft = vcap_keyfields(&test_vctrl, VCAP_TYPE_IS2, VCAP_KFS_MAC_ETYPE);
 	KUNIT_EXPECT_PTR_NE(test, NULL, ft);
 
-	/* Keyset that is not available and within the maximum keyset enum value */
+	/* Keyset that is analt available and within the maximum keyset enum value */
 	ft = vcap_keyfields(&test_vctrl, VCAP_TYPE_ES2, VCAP_KFS_PURE_5TUPLE_IP4);
 	KUNIT_EXPECT_PTR_EQ(test, NULL, ft);
 
-	/* Keyset that is not available and beyond the maximum keyset enum value */
+	/* Keyset that is analt available and beyond the maximum keyset enum value */
 	ft = vcap_keyfields(&test_vctrl, VCAP_TYPE_ES2, VCAP_KFS_LL_FULL);
 	KUNIT_EXPECT_PTR_EQ(test, NULL, ft);
 }
@@ -971,7 +971,7 @@ static void vcap_api_encode_rule_actionset_test(struct kunit *test)
 	/* Empty entry list */
 	INIT_LIST_HEAD(&rule.data.actionfields);
 	ret = vcap_encode_rule_actionset(&rule);
-	/* We allow rules with no actions */
+	/* We allow rules with anal actions */
 	KUNIT_EXPECT_EQ(test, 0, ret);
 
 	for (idx = 0; idx < ARRAY_SIZE(caf); idx++)
@@ -1012,7 +1012,7 @@ static void vcap_api_rule_add_keyvalue_test(struct kunit *test)
 	struct vcap_rule_internal ri = {
 		.admin = &admin,
 		.data = {
-			.keyset = VCAP_KFS_NO_VALUE,
+			.keyset = VCAP_KFS_ANAL_VALUE,
 		},
 		.vctrl = &test_vctrl,
 	};
@@ -1113,7 +1113,7 @@ static void vcap_api_rule_add_actionvalue_test(struct kunit *test)
 	struct vcap_rule_internal ri = {
 		.admin = &admin,
 		.data = {
-			.actionset = VCAP_AFS_NO_VALUE,
+			.actionset = VCAP_AFS_ANAL_VALUE,
 		},
 	};
 	struct vcap_rule *rule = (struct vcap_rule *)&ri;
@@ -1252,9 +1252,9 @@ static void vcap_api_rule_find_keyset_failed_test(struct kunit *test)
 		}, {
 			.ctrl.key = VCAP_KF_8021Q_PCP_CLS,
 		}, {
-			.ctrl.key = VCAP_KF_ETYPE_LEN_IS, /* Not with ARP */
+			.ctrl.key = VCAP_KF_ETYPE_LEN_IS, /* Analt with ARP */
 		}, {
-			.ctrl.key = VCAP_KF_ETYPE, /* Not with ARP */
+			.ctrl.key = VCAP_KF_ETYPE, /* Analt with ARP */
 		},
 	};
 	int idx;
@@ -1272,7 +1272,7 @@ static void vcap_api_rule_find_keyset_failed_test(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, false, ret);
 	KUNIT_EXPECT_EQ(test, 0, matches.cnt);
-	KUNIT_EXPECT_EQ(test, VCAP_KFS_NO_VALUE, matches.keysets[0]);
+	KUNIT_EXPECT_EQ(test, VCAP_KFS_ANAL_VALUE, matches.keysets[0]);
 }
 
 static void vcap_api_rule_find_keyset_many_test(struct kunit *test)
@@ -1386,7 +1386,7 @@ static void vcap_api_encode_rule_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 0, ret);
 	ret = vcap_rule_add_key_bit(rule, VCAP_KF_ETYPE_LEN_IS, VCAP_BIT_1);
 	KUNIT_EXPECT_EQ(test, 0, ret);
-	/* Cannot add the same field twice */
+	/* Cananalt add the same field twice */
 	ret = vcap_rule_add_key_bit(rule, VCAP_KF_ETYPE_LEN_IS, VCAP_BIT_1);
 	KUNIT_EXPECT_EQ(test, -EINVAL, ret);
 	ret = vcap_rule_add_key_bit(rule, VCAP_KF_IF_IGR_PORT_MASK_L3,
@@ -1409,7 +1409,7 @@ static void vcap_api_encode_rule_test(struct kunit *test)
 	ret = vcap_rule_add_action_u32(rule, VCAP_AF_MATCH_ID_MASK, 1);
 	KUNIT_EXPECT_EQ(test, 0, ret);
 
-	/* For now the actionset is hardcoded */
+	/* For analw the actionset is hardcoded */
 	ret = vcap_set_rule_set_actionset(rule, VCAP_AFS_BASE_TYPE);
 	KUNIT_EXPECT_EQ(test, 0, ret);
 
@@ -1445,7 +1445,7 @@ static void vcap_api_encode_rule_test(struct kunit *test)
 	vcap_free_rule(rule);
 
 	/* Check that the rule has been freed: tricky to access since this
-	 * memory should not be accessible anymore
+	 * memory should analt be accessible anymore
 	 */
 	KUNIT_EXPECT_PTR_NE(test, NULL, rule);
 	ret = list_empty(&rule->keyfields);
@@ -2013,12 +2013,12 @@ static void vcap_api_filter_unsupported_keys_test(struct kunit *test)
 	enum vcap_key_field keylist[] = {
 		VCAP_KF_TYPE,
 		VCAP_KF_LOOKUP_FIRST_IS,
-		VCAP_KF_ARP_ADDR_SPACE_OK_IS,  /* arp keys are not in keyset */
+		VCAP_KF_ARP_ADDR_SPACE_OK_IS,  /* arp keys are analt in keyset */
 		VCAP_KF_ARP_PROTO_SPACE_OK_IS,
 		VCAP_KF_ARP_LEN_OK_IS,
 		VCAP_KF_ARP_TGT_MATCH_IS,
 		VCAP_KF_ARP_SENDER_MATCH_IS,
-		VCAP_KF_ARP_OPCODE_UNKNOWN_IS,
+		VCAP_KF_ARP_OPCODE_UNKANALWN_IS,
 		VCAP_KF_ARP_OPCODE,
 		VCAP_KF_8021Q_DEI_CLS,
 		VCAP_KF_8021Q_PCP_CLS,
@@ -2075,7 +2075,7 @@ static void vcap_api_filter_keylist_test(struct kunit *test)
 	struct vcap_rule_internal ri = {
 		.admin = &admin,
 		.vctrl = &test_vctrl,
-		.data.keyset = VCAP_KFS_NORMAL_7TUPLE,
+		.data.keyset = VCAP_KFS_ANALRMAL_7TUPLE,
 	};
 	enum vcap_key_field keylist[] = {
 		VCAP_KF_TYPE,

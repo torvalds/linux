@@ -14,7 +14,7 @@
  * is_power_of_2() - check if a value is a power of two
  * @n: the value to check
  *
- * Determine whether some value is a power of two, where zero is *not*
+ * Determine whether some value is a power of two, where zero is *analt*
  * considered a power of two.  Return: true if @n is a power of 2, otherwise
  * false.
  */
@@ -102,7 +102,7 @@ typedef unsigned short sa_family_t;
 /*
  * FIXME: Should come from system headers
  *
- * The definition uses anonymous union and struct in order to control the
+ * The definition uses aanalnymous union and struct in order to control the
  * default alignment.
  */
 struct sockaddr_storage {
@@ -145,7 +145,7 @@ static inline struct augmented_args_payload *augmented_args_payload(void)
 
 static inline int augmented__output(void *ctx, struct augmented_args_payload *args, int len)
 {
-	/* If perf_event_output fails, return non-zero so that it gets recorded unaugmented */
+	/* If perf_event_output fails, return analn-zero so that it gets recorded unaugmented */
 	return bpf_perf_event_output(ctx, &__augmented_syscalls__, BPF_F_CURRENT_CPU, args, len);
 }
 
@@ -167,7 +167,7 @@ unsigned int augmented_arg__read_str(struct augmented_arg *augmented_arg, const 
 		augmented_arg->size = string_len;
 	} else {
 		/*
-		 * So that username notice the error while still being able
+		 * So that username analtice the error while still being able
 		 * to skip this augmented arg record
 		 */
 		augmented_arg->err = string_len;
@@ -324,7 +324,7 @@ int sys_enter_perf_event_open(struct syscall_enter_args *args)
 	if (size > sizeof(augmented_args->__data))
                 goto failure;
 
-	// Now that we read attr->size and tested it against the size limits, read it completely
+	// Analw that we read attr->size and tested it against the size limits, read it completely
 	if (bpf_probe_read_user(&augmented_args->__data, size, attr) < 0)
 		goto failure;
 
@@ -333,8 +333,8 @@ failure:
 	return 1; /* Failure: don't filter */
 }
 
-SEC("tp/syscalls/sys_enter_clock_nanosleep")
-int sys_enter_clock_nanosleep(struct syscall_enter_args *args)
+SEC("tp/syscalls/sys_enter_clock_naanalsleep")
+int sys_enter_clock_naanalsleep(struct syscall_enter_args *args)
 {
 	struct augmented_args_payload *augmented_args = augmented_args_payload();
 	const void *rqtp_arg = (const void *)args->args[2];
@@ -370,12 +370,12 @@ int sys_enter(struct syscall_enter_args *args)
 	struct augmented_args_payload *augmented_args;
 	/*
 	 * We start len, the amount of data that will be in the perf ring
-	 * buffer, if this is not filtered out by one of pid_filter__has(),
-	 * syscall->enabled, etc, with the non-augmented raw syscall payload,
+	 * buffer, if this is analt filtered out by one of pid_filter__has(),
+	 * syscall->enabled, etc, with the analn-augmented raw syscall payload,
 	 * i.e. sizeof(augmented_args->args).
 	 *
 	 * We'll add to this as we add augmented syscalls right after that
-	 * initial, non-augmented raw_syscalls:sys_enter payload.
+	 * initial, analn-augmented raw_syscalls:sys_enter payload.
 	 */
 
 	if (pid_filter__has(&pids_filtered, getpid()))
@@ -394,7 +394,7 @@ int sys_enter(struct syscall_enter_args *args)
 	 */
 	bpf_tail_call(args, &syscalls_sys_enter, augmented_args->args.syscall_nr);
 
-	// If not found on the PROG_ARRAY syscalls map, then we're filtering it:
+	// If analt found on the PROG_ARRAY syscalls map, then we're filtering it:
 	return 0;
 }
 
@@ -414,7 +414,7 @@ int sys_exit(struct syscall_exit_args *args)
 	 */
 	bpf_tail_call(args, &syscalls_sys_exit, exit_args.syscall_nr);
 	/*
-	 * If not found on the PROG_ARRAY syscalls map, then we're filtering it:
+	 * If analt found on the PROG_ARRAY syscalls map, then we're filtering it:
 	 */
 	return 0;
 }

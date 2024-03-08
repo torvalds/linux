@@ -60,11 +60,11 @@ static int digitv_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num
 		return -EAGAIN;
 
 	if (num > 2)
-		warn("more than 2 i2c messages at a time is not handled yet. TODO.");
+		warn("more than 2 i2c messages at a time is analt handled yet. TODO.");
 
 	for (i = 0; i < num; i++) {
 		if (msg[i].len < 1) {
-			i = -EOPNOTSUPP;
+			i = -EOPANALTSUPP;
 			break;
 		}
 		/* write/read request */
@@ -167,7 +167,7 @@ static int digitv_tuner_attach(struct dvb_usb_adapter *adap)
 	struct digitv_state *st = adap->dev->priv;
 
 	if (!dvb_attach(dvb_pll_attach, adap->fe_adap[0].fe, 0x60, NULL, DVB_PLL_TDED4))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (st->is_nxt6000)
 		adap->fe_adap[0].fe->ops.tuner_ops.set_params = digitv_nxt6000_tuner_set_params;
@@ -241,13 +241,13 @@ static int digitv_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	u8 b[4] = { 0 };
 
 	*event = 0;
-	*state = REMOTE_NO_KEY_PRESSED;
+	*state = REMOTE_ANAL_KEY_PRESSED;
 
 	ret = digitv_ctrl_msg(d, USB_READ_REMOTE, 0, NULL, 0, key, 4);
 	if (ret)
 		return ret;
 
-	/* Tell the device we've read the remote. Not sure how necessary
+	/* Tell the device we've read the remote. Analt sure how necessary
 	   this is, but the Nebula SDK does it. */
 	ret = digitv_ctrl_msg(d, USB_WRITE_REMOTE, 0, b, 4, NULL, 0);
 	if (ret)

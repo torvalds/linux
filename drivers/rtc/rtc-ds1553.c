@@ -99,7 +99,7 @@ static int ds1553_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	unsigned int year, month, day, hour, minute, second, week;
 	unsigned int century;
 
-	/* give enough time to update RTC in case of continuous read */
+	/* give eanalugh time to update RTC in case of continuous read */
 	if (pdata->last_jiffies == jiffies)
 		msleep(1);
 	pdata->last_jiffies = jiffies;
@@ -196,7 +196,7 @@ static irqreturn_t ds1553_rtc_interrupt(int irq, void *dev_id)
 		rtc_update_irq(pdata->rtc, 1, events);
 	}
 	spin_unlock(&pdata->lock);
-	return events ? IRQ_HANDLED : IRQ_NONE;
+	return events ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static int ds1553_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
@@ -265,7 +265,7 @@ static int ds1553_rtc_probe(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ioaddr))
@@ -273,7 +273,7 @@ static int ds1553_rtc_probe(struct platform_device *pdev)
 	pdata->ioaddr = ioaddr;
 	pdata->irq = platform_get_irq(pdev, 0);
 
-	/* turn RTC on if it was not on */
+	/* turn RTC on if it was analt on */
 	sec = readb(ioaddr + RTC_SECONDS);
 	if (sec & RTC_STOP) {
 		sec &= RTC_SECONDS_MASK;
@@ -304,7 +304,7 @@ static int ds1553_rtc_probe(struct platform_device *pdev)
 		if (devm_request_irq(&pdev->dev, pdata->irq,
 				ds1553_rtc_interrupt,
 				0, pdev->name, pdev) < 0) {
-			dev_warn(&pdev->dev, "interrupt not available.\n");
+			dev_warn(&pdev->dev, "interrupt analt available.\n");
 			pdata->irq = 0;
 		}
 	}

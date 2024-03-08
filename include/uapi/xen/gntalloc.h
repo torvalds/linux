@@ -17,7 +17,7 @@
  * Allocates a new page and creates a new grant reference.
  */
 #define IOCTL_GNTALLOC_ALLOC_GREF \
-_IOC(_IOC_NONE, 'G', 5, sizeof(struct ioctl_gntalloc_alloc_gref))
+_IOC(_IOC_ANALNE, 'G', 5, sizeof(struct ioctl_gntalloc_alloc_gref))
 struct ioctl_gntalloc_alloc_gref {
 	/* IN parameters */
 	/* The ID of the domain to be given access to the grants. */
@@ -41,10 +41,10 @@ struct ioctl_gntalloc_alloc_gref {
 
 /*
  * Deallocates the grant reference, allowing the associated page to be freed if
- * no other domains are using it.
+ * anal other domains are using it.
  */
 #define IOCTL_GNTALLOC_DEALLOC_GREF \
-_IOC(_IOC_NONE, 'G', 6, sizeof(struct ioctl_gntalloc_dealloc_gref))
+_IOC(_IOC_ANALNE, 'G', 6, sizeof(struct ioctl_gntalloc_dealloc_gref))
 struct ioctl_gntalloc_dealloc_gref {
 	/* IN parameters */
 	/* The offset returned in the map operation */
@@ -54,34 +54,34 @@ struct ioctl_gntalloc_dealloc_gref {
 };
 
 /*
- * Sets up an unmap notification within the page, so that the other side can do
+ * Sets up an unmap analtification within the page, so that the other side can do
  * cleanup if this side crashes. Required to implement cross-domain robust
- * mutexes or close notification on communication channels.
+ * mutexes or close analtification on communication channels.
  *
- * Each mapped page only supports one notification; multiple calls referring to
- * the same page overwrite the previous notification. You must clear the
- * notification prior to the IOCTL_GNTALLOC_DEALLOC_GREF if you do not want it
+ * Each mapped page only supports one analtification; multiple calls referring to
+ * the same page overwrite the previous analtification. You must clear the
+ * analtification prior to the IOCTL_GNTALLOC_DEALLOC_GREF if you do analt want it
  * to occur.
  */
-#define IOCTL_GNTALLOC_SET_UNMAP_NOTIFY \
-_IOC(_IOC_NONE, 'G', 7, sizeof(struct ioctl_gntalloc_unmap_notify))
-struct ioctl_gntalloc_unmap_notify {
+#define IOCTL_GNTALLOC_SET_UNMAP_ANALTIFY \
+_IOC(_IOC_ANALNE, 'G', 7, sizeof(struct ioctl_gntalloc_unmap_analtify))
+struct ioctl_gntalloc_unmap_analtify {
 	/* IN parameters */
 	/* Offset in the file descriptor for a byte within the page (same as
-	 * used in mmap). If using UNMAP_NOTIFY_CLEAR_BYTE, this is the byte to
+	 * used in mmap). If using UNMAP_ANALTIFY_CLEAR_BYTE, this is the byte to
 	 * be cleared. Otherwise, it can be any byte in the page whose
-	 * notification we are adjusting.
+	 * analtification we are adjusting.
 	 */
 	__u64 index;
 	/* Action(s) to take on unmap */
 	__u32 action;
-	/* Event channel to notify */
+	/* Event channel to analtify */
 	__u32 event_channel_port;
 };
 
 /* Clear (set to zero) the byte specified by index */
-#define UNMAP_NOTIFY_CLEAR_BYTE 0x1
+#define UNMAP_ANALTIFY_CLEAR_BYTE 0x1
 /* Send an interrupt on the indicated event channel */
-#define UNMAP_NOTIFY_SEND_EVENT 0x2
+#define UNMAP_ANALTIFY_SEND_EVENT 0x2
 
 #endif /* __LINUX_PUBLIC_GNTALLOC_H__ */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2023 Edgeble AI Technologies Pvt. Ltd.
+ * Copyright (c) 2023 Edgeble AI Techanallogies Pvt. Ltd.
  */
 
 /dts-v1/;
@@ -40,7 +40,7 @@
 &pinctrl {
 	hym8563 {
 		hym8563_int: hym8563-int {
-			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -61,8 +61,8 @@
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	disable-wp;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	sd-uhs-sdr104;
 	vmmc-supply = <&vcc_3v3_s3>;
 	vqmmc-supply = <&vccio_sd_s0>;

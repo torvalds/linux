@@ -4,13 +4,13 @@ ifneq ($(CONFIG_UNICODE),)
 obj-y			+= unicode.o
 endif
 obj-$(CONFIG_UNICODE)	+= utf8data.o
-obj-$(CONFIG_UNICODE_NORMALIZATION_SELFTEST) += utf8-selftest.o
+obj-$(CONFIG_UNICODE_ANALRMALIZATION_SELFTEST) += utf8-selftest.o
 
-unicode-y := utf8-norm.o utf8-core.o
+unicode-y := utf8-analrm.o utf8-core.o
 
 $(obj)/utf8-data.o: $(obj)/utf8data.c
 
-# In the normal build, the checked-in utf8data.c is just shipped.
+# In the analrmal build, the checked-in utf8data.c is just shipped.
 #
 # To generate utf8data.c from UCD, put *.txt files in this directory
 # and pass REGENERATE_UTF8DATA=1 from the command line.
@@ -23,8 +23,8 @@ quiet_cmd_utf8data = GEN     $@
 		-p $(srctree)/$(src)/DerivedCoreProperties.txt \
 		-d $(srctree)/$(src)/UnicodeData.txt \
 		-f $(srctree)/$(src)/CaseFolding.txt \
-		-n $(srctree)/$(src)/NormalizationCorrections.txt \
-		-t $(srctree)/$(src)/NormalizationTest.txt \
+		-n $(srctree)/$(src)/AnalrmalizationCorrections.txt \
+		-t $(srctree)/$(src)/AnalrmalizationTest.txt \
 		-o $@
 
 $(obj)/utf8data.c: $(obj)/mkutf8data $(filter %.txt, $(cmd_utf8data)) FORCE

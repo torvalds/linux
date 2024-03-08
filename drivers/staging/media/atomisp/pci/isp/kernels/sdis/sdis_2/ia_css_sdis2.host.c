@@ -194,7 +194,7 @@ ia_css_get_dvs2_statistics(
 	} else
 	{
 		IA_CSS_ERROR("out of memory");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 
 	IA_CSS_LEAVE_ERR(ret);

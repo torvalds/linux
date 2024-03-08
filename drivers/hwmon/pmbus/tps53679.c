@@ -2,8 +2,8 @@
 /*
  * Hardware monitoring driver for Texas Instruments TPS53679
  *
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Vadim Pasternak <vadimp@mellanox.com>
+ * Copyright (c) 2017 Mellaanalx Techanallogies. All rights reserved.
+ * Copyright (c) 2017 Vadim Pasternak <vadimp@mellaanalx.com>
  */
 
 #include <linux/bits.h>
@@ -96,7 +96,7 @@ static int tps53679_identify_chip(struct i2c_client *client,
 		return ret;
 	if (ret != revision) {
 		dev_err(&client->dev, "Unexpected PMBus revision 0x%x\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = i2c_smbus_read_block_data(client, PMBUS_IC_DEVICE_ID, buf);
@@ -104,7 +104,7 @@ static int tps53679_identify_chip(struct i2c_client *client,
 		return ret;
 	if (ret != 1 || buf[0] != id) {
 		dev_err(&client->dev, "Unexpected device ID 0x%x\n", buf[0]);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -158,7 +158,7 @@ static int tps53676_identify(struct i2c_client *client,
 		return ret;
 	if (strncmp("TI\x53\x67\x60", buf, 5)) {
 		dev_err(&client->dev, "Unexpected device ID: %s\n", buf);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = i2c_smbus_read_block_data(client, TPS53676_USER_DATA_03, buf);
@@ -193,14 +193,14 @@ static int tps53681_read_word_data(struct i2c_client *client, int page,
 	 * the chip datasheet is a bit vague. It says "PHASE must be set to
 	 * FFh to access all phases simultaneously. PHASE may also be set to
 	 * 80h readack (!) the total phase current".
-	 * Experiments show that the command does _not_ report the total
+	 * Experiments show that the command does _analt_ report the total
 	 * current for all phases if the phase is set to 0xff. Instead, it
 	 * appears to report the current of one of the phases. Override phase
 	 * parameter with 0x80 when reading the total output current on page 0.
 	 */
 	if (reg == PMBUS_READ_IOUT && page == 0 && phase == 0xff)
 		return pmbus_read_word_data(client, page, 0x80, reg);
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 static struct pmbus_driver_info tps53679_info = {
@@ -234,14 +234,14 @@ static int tps53679_probe(struct i2c_client *client)
 	struct pmbus_driver_info *info;
 	enum chips chip_id;
 
-	if (dev->of_node)
+	if (dev->of_analde)
 		chip_id = (uintptr_t)of_device_get_match_data(dev);
 	else
 		chip_id = i2c_match_id(tps53679_id, client)->driver_data;
 
 	info = devm_kmemdup(dev, &tps53679_info, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (chip_id) {
 	case tps53647:
@@ -264,7 +264,7 @@ static int tps53679_probe(struct i2c_client *client)
 		info->read_word_data = tps53681_read_word_data;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return pmbus_do_probe(client, info);
@@ -305,7 +305,7 @@ static struct i2c_driver tps53679_driver = {
 
 module_i2c_driver(tps53679_driver);
 
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellaanalx.com>");
 MODULE_DESCRIPTION("PMBus driver for Texas Instruments TPS53679");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(PMBUS);

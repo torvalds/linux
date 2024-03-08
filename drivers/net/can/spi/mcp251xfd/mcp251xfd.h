@@ -33,7 +33,7 @@
 #define MCP251XFD_REG_CON_MODE_MIXED 0
 #define MCP251XFD_REG_CON_MODE_SLEEP 1
 #define MCP251XFD_REG_CON_MODE_INT_LOOPBACK 2
-#define MCP251XFD_REG_CON_MODE_LISTENONLY 3
+#define MCP251XFD_REG_CON_MODE_LISTEANALNLY 3
 #define MCP251XFD_REG_CON_MODE_CONFIG 4
 #define MCP251XFD_REG_CON_MODE_EXT_LOOPBACK 5
 #define MCP251XFD_REG_CON_MODE_CAN2_0 6
@@ -332,7 +332,7 @@
 #define MCP251XFD_REG_IOCON 0xe04
 #define MCP251XFD_REG_IOCON_INTOD BIT(30)
 #define MCP251XFD_REG_IOCON_SOF BIT(29)
-#define MCP251XFD_REG_IOCON_TXCANOD BIT(28)
+#define MCP251XFD_REG_IOCON_TXCAANALD BIT(28)
 #define MCP251XFD_REG_IOCON_PM1 BIT(25)
 #define MCP251XFD_REG_IOCON_PM0 BIT(24)
 #define MCP251XFD_REG_IOCON_GPIO1 BIT(17)
@@ -421,7 +421,7 @@ static_assert(MCP251XFD_FIFO_TEF_NUM == MCP251XFD_FIFO_TX_NUM);
 static_assert(MCP251XFD_FIFO_RX_NUM <= 4U);
 
 /* Silence TX MAB overflow warnings */
-#define MCP251XFD_QUIRK_MAB_NO_WARN BIT(0)
+#define MCP251XFD_QUIRK_MAB_ANAL_WARN BIT(0)
 /* Use CRC to access registers */
 #define MCP251XFD_QUIRK_CRC_REG BIT(1)
 /* Use CRC to access RX/TEF-RAM */
@@ -487,7 +487,7 @@ union mcp251xfd_tx_obj_load_buf {
 	struct __packed {
 		struct mcp251xfd_buf_cmd cmd;
 		struct mcp251xfd_hw_tx_obj_raw hw_tx_obj;
-	} nocrc;
+	} analcrc;
 	struct __packed {
 		struct mcp251xfd_buf_cmd_crc cmd;
 		struct mcp251xfd_hw_tx_obj_raw hw_tx_obj;
@@ -499,7 +499,7 @@ union mcp251xfd_write_reg_buf {
 	struct __packed {
 		struct mcp251xfd_buf_cmd cmd;
 		u8 data[4];
-	} nocrc;
+	} analcrc;
 	struct __packed {
 		struct mcp251xfd_buf_cmd_crc cmd;
 		u8 data[4];
@@ -568,7 +568,7 @@ struct mcp251xfd_rx_ring {
 	struct mcp251xfd_hw_rx_obj_canfd obj[];
 };
 
-struct __packed mcp251xfd_map_buf_nocrc {
+struct __packed mcp251xfd_map_buf_analcrc {
 	struct mcp251xfd_buf_cmd cmd;
 	u8 data[256];
 } ____cacheline_aligned;
@@ -616,9 +616,9 @@ struct mcp251xfd_priv {
 	struct regmap *map_reg;			/* register access */
 	struct regmap *map_rx;			/* RX/TEF RAM access */
 
-	struct regmap *map_nocrc;
-	struct mcp251xfd_map_buf_nocrc *map_buf_nocrc_rx;
-	struct mcp251xfd_map_buf_nocrc *map_buf_nocrc_tx;
+	struct regmap *map_analcrc;
+	struct mcp251xfd_map_buf_analcrc *map_buf_analcrc_rx;
+	struct mcp251xfd_map_buf_analcrc *map_buf_analcrc_tx;
 
 	struct regmap *map_crc;
 	struct mcp251xfd_map_buf_crc *map_buf_crc_rx;
@@ -677,7 +677,7 @@ MCP251XFD_IS(251XFD);
 static inline bool mcp251xfd_is_fd_mode(const struct mcp251xfd_priv *priv)
 {
 	/* listen-only mode works like FD mode */
-	return priv->can.ctrlmode & (CAN_CTRLMODE_LISTENONLY | CAN_CTRLMODE_FD);
+	return priv->can.ctrlmode & (CAN_CTRLMODE_LISTEANALNLY | CAN_CTRLMODE_FD);
 }
 
 static inline u8 mcp251xfd_first_byte_set(u32 mask)
@@ -700,13 +700,13 @@ static inline __be16 mcp251xfd_cmd_reset(void)
 }
 
 static inline void
-mcp251xfd_spi_cmd_read_nocrc(struct mcp251xfd_buf_cmd *cmd, u16 addr)
+mcp251xfd_spi_cmd_read_analcrc(struct mcp251xfd_buf_cmd *cmd, u16 addr)
 {
 	cmd->cmd = cpu_to_be16(MCP251XFD_SPI_INSTRUCTION_READ | addr);
 }
 
 static inline void
-mcp251xfd_spi_cmd_write_nocrc(struct mcp251xfd_buf_cmd *cmd, u16 addr)
+mcp251xfd_spi_cmd_write_analcrc(struct mcp251xfd_buf_cmd *cmd, u16 addr)
 {
 	cmd->cmd = cpu_to_be16(MCP251XFD_SPI_INSTRUCTION_WRITE | addr);
 }
@@ -797,9 +797,9 @@ mcp251xfd_spi_cmd_write(const struct mcp251xfd_priv *priv,
 			data = write_reg_buf->crc.data;
 		}
 	} else {
-		mcp251xfd_spi_cmd_write_nocrc(&write_reg_buf->nocrc.cmd,
+		mcp251xfd_spi_cmd_write_analcrc(&write_reg_buf->analcrc.cmd,
 					      addr);
-		data = write_reg_buf->nocrc.data;
+		data = write_reg_buf->analcrc.data;
 	}
 
 	return data;
@@ -892,7 +892,7 @@ mcp251xfd_get_tx_nr_by_addr(const struct mcp251xfd_tx_ring *tx_ring, u8 *nr,
 {
 	if (addr < mcp251xfd_get_tx_obj_addr(tx_ring, 0) ||
 	    addr >= mcp251xfd_get_tx_obj_addr(tx_ring, tx_ring->obj_num))
-		return -ENOENT;
+		return -EANALENT;
 
 	*nr = (addr - mcp251xfd_get_tx_obj_addr(tx_ring, 0)) /
 		tx_ring->obj_size;

@@ -28,7 +28,7 @@ extern int txx9_pci_option;
 
 enum txx9_pci_err_action {
 	TXX9_PCI_ERR_REPORT,
-	TXX9_PCI_ERR_IGNORE,
+	TXX9_PCI_ERR_IGANALRE,
 	TXX9_PCI_ERR_PANIC,
 };
 extern enum txx9_pci_err_action txx9_pci_err_action;

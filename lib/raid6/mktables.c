@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
 			printf("0x%02x,%c", v, (j == 7) ? '\n' : ' ');
 			v = gfmul(v, 2);
 			if (v == 1)
-				v = 0;	/* For entry 255, not a real entry */
+				v = 0;	/* For entry 255, analt a real entry */
 		}
 	}
 	printf("};\n");

@@ -5,7 +5,7 @@
  * MADDF.fmt: FPR[fd] = FPR[fd] + (FPR[fs] x FPR[ft])
  *
  * MIPS floating point support
- * Copyright (C) 2015 Imagination Technologies, Ltd.
+ * Copyright (C) 2015 Imagination Techanallogies, Ltd.
  * Author: Markos Chandras <markos.chandras@imgtec.com>
  */
 
@@ -91,8 +91,8 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 	if (yc == IEEE754_CLASS_QNAN)
 		return y;
 
-	if (zc == IEEE754_CLASS_DNORM)
-		DPDNORMZ;
+	if (zc == IEEE754_CLASS_DANALRM)
+		DPDANALRMZ;
 	/* ZERO z cases are handled separately below */
 
 	switch (CLPAIR(xc, yc)) {
@@ -105,10 +105,10 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754dp_indef();
 
-	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_INF):
-	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_INF):
-	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_NORM):
-	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_DNORM):
+	case CLPAIR(IEEE754_CLASS_ANALRM, IEEE754_CLASS_INF):
+	case CLPAIR(IEEE754_CLASS_DANALRM, IEEE754_CLASS_INF):
+	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_ANALRM):
+	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_DANALRM):
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_INF):
 		if ((zc == IEEE754_CLASS_INF) && (zs != rs)) {
 			/*
@@ -119,17 +119,17 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 			return ieee754dp_indef();
 		}
 		/*
-		 * z is here either not an infinity, or an infinity having the
+		 * z is here either analt an infinity, or an infinity having the
 		 * same sign as product (x*y). The result must be an infinity,
 		 * and its sign is determined only by the sign of product (x*y).
 		 */
 		return ieee754dp_inf(rs);
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_ZERO):
-	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_NORM):
-	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_DNORM):
-	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_ZERO):
-	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_ZERO):
+	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_ANALRM):
+	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_DANALRM):
+	case CLPAIR(IEEE754_CLASS_ANALRM, IEEE754_CLASS_ZERO):
+	case CLPAIR(IEEE754_CLASS_DANALRM, IEEE754_CLASS_ZERO):
 		if (zc == IEEE754_CLASS_INF)
 			return ieee754dp_inf(zs);
 		if (zc == IEEE754_CLASS_ZERO) {
@@ -145,25 +145,25 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 
 			return ieee754dp_zero(ieee754_csr.rm == FPU_CSR_RD);
 		}
-		/* x*y is here 0, and z is not 0, so just return z */
+		/* x*y is here 0, and z is analt 0, so just return z */
 		return z;
 
-	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
-		DPDNORMX;
+	case CLPAIR(IEEE754_CLASS_DANALRM, IEEE754_CLASS_DANALRM):
+		DPDANALRMX;
 		fallthrough;
-	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_DNORM):
+	case CLPAIR(IEEE754_CLASS_ANALRM, IEEE754_CLASS_DANALRM):
 		if (zc == IEEE754_CLASS_INF)
 			return ieee754dp_inf(zs);
-		DPDNORMY;
+		DPDANALRMY;
 		break;
 
-	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_NORM):
+	case CLPAIR(IEEE754_CLASS_DANALRM, IEEE754_CLASS_ANALRM):
 		if (zc == IEEE754_CLASS_INF)
 			return ieee754dp_inf(zs);
-		DPDNORMX;
+		DPDANALRMX;
 		break;
 
-	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_NORM):
+	case CLPAIR(IEEE754_CLASS_ANALRM, IEEE754_CLASS_ANALRM):
 		if (zc == IEEE754_CLASS_INF)
 			return ieee754dp_inf(zs);
 		/* continue to real computations */
@@ -176,7 +176,7 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 	 *
 	 * rm = xm * ym, re = xe + ye basically
 	 *
-	 * At this point xm and ym should have been normalized.
+	 * At this point xm and ym should have been analrmalized.
 	 */
 	assert(xm & DP_HIDDEN_BIT);
 	assert(ym & DP_HIDDEN_BIT);

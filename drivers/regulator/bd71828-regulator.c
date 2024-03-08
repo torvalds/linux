@@ -91,7 +91,7 @@ static const struct linear_range bd71828_ldo_volts[] = {
 
 static const unsigned int bd71828_ramp_delay[] = { 2500, 5000, 10000, 20000 };
 
-static int buck_set_hw_dvs_levels(struct device_node *np,
+static int buck_set_hw_dvs_levels(struct device_analde *np,
 				  const struct regulator_desc *desc,
 				  struct regulator_config *cfg)
 {
@@ -102,7 +102,7 @@ static int buck_set_hw_dvs_levels(struct device_node *np,
 	return rohm_regulator_set_dvs_levels(&data->dvs, np, desc, cfg->regmap);
 }
 
-static int ldo6_parse_dt(struct device_node *np,
+static int ldo6_parse_dt(struct device_analde *np,
 			 const struct regulator_desc *desc,
 			 struct regulator_config *cfg)
 {
@@ -176,7 +176,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 		.desc = {
 			.name = "buck1",
 			.of_match = of_match_ptr("BUCK1"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = BD71828_BUCK1,
 			.ops = &bd71828_dvs_buck_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -222,7 +222,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 		.desc = {
 			.name = "buck2",
 			.of_match = of_match_ptr("BUCK2"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = BD71828_BUCK2,
 			.ops = &bd71828_dvs_buck_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -263,7 +263,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 		.desc = {
 			.name = "buck3",
 			.of_match = of_match_ptr("BUCK3"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = BD71828_BUCK3,
 			.ops = &bd71828_buck_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -304,7 +304,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 		.desc = {
 			.name = "buck4",
 			.of_match = of_match_ptr("BUCK4"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = BD71828_BUCK4,
 			.ops = &bd71828_buck_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -345,7 +345,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 		.desc = {
 			.name = "buck5",
 			.of_match = of_match_ptr("BUCK5"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = BD71828_BUCK5,
 			.ops = &bd71828_buck_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -386,7 +386,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 		.desc = {
 			.name = "buck6",
 			.of_match = of_match_ptr("BUCK6"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = BD71828_BUCK6,
 			.ops = &bd71828_dvs_buck_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -427,7 +427,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 		.desc = {
 			.name = "buck7",
 			.of_match = of_match_ptr("BUCK7"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = BD71828_BUCK7,
 			.ops = &bd71828_dvs_buck_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -468,7 +468,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 		.desc = {
 			.name = "ldo1",
 			.of_match = of_match_ptr("LDO1"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = BD71828_LDO1,
 			.ops = &bd71828_ldo_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -508,7 +508,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 		.desc = {
 			.name = "ldo2",
 			.of_match = of_match_ptr("LDO2"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = BD71828_LDO2,
 			.ops = &bd71828_ldo_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -548,7 +548,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 		.desc = {
 			.name = "ldo3",
 			.of_match = of_match_ptr("LDO3"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = BD71828_LDO3,
 			.ops = &bd71828_ldo_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -589,7 +589,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 		.desc = {
 			.name = "ldo4",
 			.of_match = of_match_ptr("LDO4"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = BD71828_LDO4,
 			.ops = &bd71828_ldo_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -629,7 +629,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 		.desc = {
 			.name = "ldo5",
 			.of_match = of_match_ptr("LDO5"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = BD71828_LDO5,
 			.ops = &bd71828_ldo_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -671,7 +671,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 		.desc = {
 			.name = "ldo6",
 			.of_match = of_match_ptr("LDO6"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = BD71828_LDO6,
 			.ops = &bd71828_ldo6_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -691,7 +691,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 			/* SNVS LDO in data-sheet */
 			.name = "ldo7",
 			.of_match = of_match_ptr("LDO7"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_analde = of_match_ptr("regulators"),
 			.id = BD71828_LDO_SNVS,
 			.ops = &bd71828_ldo_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -740,7 +740,7 @@ static int bd71828_probe(struct platform_device *pdev)
 
 	config.regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!config.regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < ARRAY_SIZE(bd71828_rdata); i++) {
 		struct regulator_dev *rdev;
@@ -771,7 +771,7 @@ static int bd71828_probe(struct platform_device *pdev)
 static struct platform_driver bd71828_regulator = {
 	.driver = {
 		.name = "bd71828-pmic",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = bd71828_probe,
 };

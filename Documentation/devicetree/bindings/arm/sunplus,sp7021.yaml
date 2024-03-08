@@ -15,7 +15,7 @@ description: |
   Wiki: https://sunplus-tibbo.atlassian.net/wiki/spaces/doc/overview
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     items:

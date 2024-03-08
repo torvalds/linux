@@ -253,9 +253,9 @@ struct sdw_dma_ring_buf_reg {
  * struct acp63_dev_data - acp pci driver context
  * @acp63_base: acp mmio base
  * @res: resource
- * @pdev: array of child platform device node structures
+ * @pdev: array of child platform device analde structures
  * @acp_lock: used to protect acp common registers
- * @sdw_fw_node: SoundWire controller fw node handle
+ * @sdw_fw_analde: SoundWire controller fw analde handle
  * @pdev_config: platform device configuration
  * @pdev_count: platform devices count
  * @pdm_dev_index: pdm platform device index
@@ -274,7 +274,7 @@ struct acp63_dev_data {
 	struct resource *res;
 	struct platform_device *pdev[ACP63_DEVS];
 	struct mutex acp_lock; /* protect shared registers */
-	struct fwnode_handle *sdw_fw_node;
+	struct fwanalde_handle *sdw_fw_analde;
 	u16 pdev_config;
 	u16 pdev_count;
 	u16 pdm_dev_index;

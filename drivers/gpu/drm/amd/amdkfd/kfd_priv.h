@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -25,7 +25,7 @@
 #define KFD_PRIV_H_INCLUDED
 
 #include <linux/hashtable.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/memremap.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
@@ -61,7 +61,7 @@
  * BITS[61:46] - Encode gpu_id. To identify to which GPU the offset belongs to
  * BITS[45:0]  - MMAP offset value
  *
- * NOTE: struct vm_area_struct.vm_pgoff uses offset in pages. Hence, these
+ * ANALTE: struct vm_area_struct.vm_pgoff uses offset in pages. Hence, these
  *  defines are w.r.t to PAGE_SIZE
  */
 #define KFD_MMAP_TYPE_SHIFT	62
@@ -140,7 +140,7 @@ enum kfd_ioctl_flags {
 	 *
 	 * This is equivalent to callers with the CHECKPOINT_RESTORE capability.
 	 *
-	 * Note: Since earlier versions of docker do not support CHECKPOINT_RESTORE,
+	 * Analte: Since earlier versions of docker do analt support CHECKPOINT_RESTORE,
 	 * we also allow ioctls with SYS_ADMIN capability.
 	 */
 	KFD_IOC_FLAG_CHECKPOINT_RESTORE = BIT(0),
@@ -170,13 +170,13 @@ extern int cwsr_enable;
 extern int send_sigterm;
 
 /*
- * This kernel module is used to simulate large bar machine on non-large bar
+ * This kernel module is used to simulate large bar machine on analn-large bar
  * enabled machines.
  */
 extern int debug_largebar;
 
 /* Set sh_mem_config.retry_disable on GFX v9 */
-extern int amdgpu_noretry;
+extern int amdgpu_analretry;
 
 /* Halt if HWS hang is detected */
 extern int halt_if_hws_hang;
@@ -190,7 +190,7 @@ extern int queue_preemption_timeout_ms;
 /*
  * Don't evict process queues on vm fault
  */
-extern int amdgpu_no_queue_eviction_on_vm_fault;
+extern int amdgpu_anal_queue_eviction_on_vm_fault;
 
 /* Enable eviction debug messages */
 extern bool debug_evictions;
@@ -199,7 +199,7 @@ extern struct mutex kfd_processes_mutex;
 
 enum cache_policy {
 	cache_policy_coherent,
-	cache_policy_noncoherent
+	cache_policy_analncoherent
 };
 
 #define KFD_GC_VERSION(dev) (amdgpu_ip_version((dev)->adev, GC_HWIP, 0))
@@ -208,13 +208,13 @@ enum cache_policy {
 	((KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2)) ||	\
 	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3)))
 
-struct kfd_node;
+struct kfd_analde;
 
 struct kfd_event_interrupt_class {
-	bool (*interrupt_isr)(struct kfd_node *dev,
+	bool (*interrupt_isr)(struct kfd_analde *dev,
 			const uint32_t *ih_ring_entry, uint32_t *patched_ihre,
 			bool *patched_flag);
-	void (*interrupt_wq)(struct kfd_node *dev,
+	void (*interrupt_wq)(struct kfd_analde *dev,
 			const uint32_t *ih_ring_entry);
 };
 
@@ -222,21 +222,21 @@ struct kfd_device_info {
 	uint32_t gfx_target_version;
 	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
-	unsigned int max_no_of_hqd;
+	unsigned int max_anal_of_hqd;
 	unsigned int doorbell_size;
 	size_t ih_ring_entry_size;
 	uint8_t num_of_watch_points;
 	uint16_t mqd_size_aligned;
 	bool supports_cwsr;
 	bool needs_pci_atomics;
-	uint32_t no_atomic_fw_version;
+	uint32_t anal_atomic_fw_version;
 	unsigned int num_sdma_queues_per_engine;
 	unsigned int num_reserved_sdma_queues_per_engine;
 	DECLARE_BITMAP(reserved_sdma_queues_bitmap, KFD_MAX_SDMA_QUEUES);
 };
 
-unsigned int kfd_get_num_sdma_engines(struct kfd_node *kdev);
-unsigned int kfd_get_num_xgmi_sdma_engines(struct kfd_node *kdev);
+unsigned int kfd_get_num_sdma_engines(struct kfd_analde *kdev);
+unsigned int kfd_get_num_xgmi_sdma_engines(struct kfd_analde *kdev);
 
 struct kfd_mem_obj {
 	uint32_t range_start;
@@ -252,12 +252,12 @@ struct kfd_vmid_info {
 	uint32_t vmid_num_kfd;
 };
 
-#define MAX_KFD_NODES	8
+#define MAX_KFD_ANALDES	8
 
 struct kfd_dev;
 
-struct kfd_node {
-	unsigned int node_id;
+struct kfd_analde {
+	unsigned int analde_id;
 	struct amdgpu_device *adev;     /* Duplicated here along with keeping
 					 * a copy in kfd_dev to save a hop
 					 */
@@ -356,10 +356,10 @@ struct kfd_dev {
 	struct ida doorbell_ida;
 	unsigned int max_doorbell_slices;
 
-	int noretry;
+	int analretry;
 
-	struct kfd_node *nodes[MAX_KFD_NODES];
-	unsigned int num_nodes;
+	struct kfd_analde *analdes[MAX_KFD_ANALDES];
+	unsigned int num_analdes;
 
 	/* Track per device allocated watch points */
 	uint32_t alloc_watch_ids;
@@ -388,7 +388,7 @@ void kfd_chardev_exit(void);
  * @KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES: Preempts all queues in the
  *						running queues list.
  *
- * @KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES: Preempts all non-static queues
+ * @KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES: Preempts all analn-static queues
  *						in the run list.
  *
  * @KFD_UNMAP_QUEUES_FILTER_BY_PASID: Preempts queues that belongs to
@@ -451,14 +451,14 @@ enum KFD_QUEUE_PRIORITY {
  * currently all queues are initialized with the highest priority.
  *
  * @queue_percent: This field is partially implemented and currently a zero in
- * this field defines that the queue is non active.
+ * this field defines that the queue is analn active.
  *
  * @read_ptr: User space address which points to the number of dwords the
  * cp read from the ring buffer. This field updates automatically by the H/W.
  *
  * @write_ptr: Defines the number of dwords written to the ring buffer.
  *
- * @doorbell_ptr: Notifies the H/W of new packet written to the queue ring
+ * @doorbell_ptr: Analtifies the H/W of new packet written to the queue ring
  * buffer. This field should be similar to write_ptr and the user should
  * update this field after updating the write_ptr.
  *
@@ -470,17 +470,17 @@ enum KFD_QUEUE_PRIORITY {
  * @is_evicted: Defines if the queue is evicted. Only active queues
  * are evicted, rendering them inactive.
  *
- * @is_active: Defines if the queue is active or not. @is_active and
+ * @is_active: Defines if the queue is active or analt. @is_active and
  * @is_evicted are protected by the DQM lock.
  *
- * @is_gws: Defines if the queue has been updated to be GWS-capable or not.
+ * @is_gws: Defines if the queue has been updated to be GWS-capable or analt.
  * @is_gws should be protected by the DQM lock, since changing it can yield the
  * possibility of updating DQM state on number of GWS queues.
  *
- * @vmid: If the scheduling mode is no cp scheduling the field defines the vmid
+ * @vmid: If the scheduling mode is anal cp scheduling the field defines the vmid
  * of the queue.
  *
- * This structure represents the queue properties for each queue no matter if
+ * This structure represents the queue properties for each queue anal matter if
  * it's user mode or kernel mode queue.
  *
  */
@@ -506,7 +506,7 @@ struct queue_properties {
 	uint32_t pm4_target_xcc;
 	bool is_dbg_wa;
 	bool is_user_cu_masked;
-	/* Not relevant for user mode queues in cp scheduling */
+	/* Analt relevant for user mode queues in cp scheduling */
 	unsigned int vmid;
 	/* Relevant only for sdma queues*/
 	uint32_t sdma_engine_id;
@@ -558,13 +558,13 @@ struct mqd_update_info {
  *
  * @properties: The queue properties.
  *
- * @mec: Used only in no cp scheduling mode and identifies to micro engine id
+ * @mec: Used only in anal cp scheduling mode and identifies to micro engine id
  *	 that the queue should be executed on.
  *
- * @pipe: Used only in no cp scheduling mode and identifies the queue's pipe
+ * @pipe: Used only in anal cp scheduling mode and identifies the queue's pipe
  *	  id.
  *
- * @queue: Used only in no cp scheduliong mode and identifies the queue's slot.
+ * @queue: Used only in anal cp scheduliong mode and identifies the queue's slot.
  *
  * @process: The kfd process that created this queue.
  *
@@ -593,7 +593,7 @@ struct queue {
 	unsigned int doorbell_id;
 
 	struct kfd_process	*process;
-	struct kfd_node		*device;
+	struct kfd_analde		*device;
 	void *gws;
 
 	/* procfs */
@@ -657,7 +657,7 @@ struct qcm_process_device {
 
 	/* This flag tells us if this process has a GWS-capable
 	 * queue that will be mapped into the runlist. It's
-	 * possible to request a GWS BO, but not have the queue
+	 * possible to request a GWS BO, but analt have the queue
 	 * currently mapped, and this changes how the MAP_PROCESS
 	 * PM4 packet is configured.
 	 */
@@ -730,7 +730,7 @@ enum kfd_pdd_bound {
 /* Data that is per-process-per device. */
 struct kfd_process_device {
 	/* The device that owns this data. */
-	struct kfd_node *dev;
+	struct kfd_analde *dev;
 
 	/* The process that owns this kfd_process_device. */
 	struct kfd_process *process;
@@ -788,17 +788,17 @@ struct kfd_process_device {
 	 * on this device. A very important property of occupancy parameter is
 	 * that its value is a snapshot of current use.
 	 *
-	 * Following is to be noted regarding how this parameter is reported:
+	 * Following is to be analted regarding how this parameter is reported:
 	 *
 	 *  The number of waves that a CU can launch is limited by couple of
 	 *  parameters. These are encoded by struct amdgpu_cu_info instance
 	 *  that is part of every device definition. For GFX9 devices this
 	 *  translates to 40 waves (simd_per_cu * max_waves_per_simd) when waves
-	 *  do not use scratch memory and 32 waves (max_scratch_slots_per_cu)
+	 *  do analt use scratch memory and 32 waves (max_scratch_slots_per_cu)
 	 *  when they do use scratch memory. This could change for future
 	 *  devices and therefore this example should be considered as a guide.
 	 *
-	 *  All CU's of a device are available for the process. This may not be true
+	 *  All CU's of a device are available for the process. This may analt be true
 	 *  under certain conditions - e.g. CU masking.
 	 *
 	 *  Finally number of CU's that are occupied by a process is affected by both
@@ -829,7 +829,7 @@ struct kfd_process_device {
 	/*
 	 * If this process has been checkpointed before, then the user
 	 * application will use the original gpu_id on the
-	 * checkpointed node to refer to this device.
+	 * checkpointed analde to refer to this device.
 	 */
 	uint32_t user_gpu_id;
 
@@ -861,7 +861,7 @@ struct kfd_process {
 	 * kfd_process are stored in an mm_struct*->kfd_process*
 	 * hash table (kfd_processes in kfd_process.c)
 	 */
-	struct hlist_node kfd_processes;
+	struct hlist_analde kfd_processes;
 
 	/*
 	 * Opaque pointer to mm_struct. We don't hold a reference to
@@ -884,8 +884,8 @@ struct kfd_process {
 	 */
 	struct task_struct *lead_thread;
 
-	/* We want to receive a notification when the mm_struct is destroyed */
-	struct mmu_notifier mmu_notifier;
+	/* We want to receive a analtification when the mm_struct is destroyed */
+	struct mmu_analtifier mmu_analtifier;
 
 	u32 pasid;
 
@@ -923,8 +923,8 @@ struct kfd_process {
 	/* Work items for evicting and restoring BOs */
 	struct delayed_work eviction_work;
 	struct delayed_work restore_work;
-	/* seqno of the last scheduled eviction */
-	unsigned int last_eviction_seqno;
+	/* seqanal of the last scheduled eviction */
+	unsigned int last_eviction_seqanal;
 	/* Approx. the last timestamp (in jiffies) when the process was
 	 * restored after an eviction
 	 */
@@ -936,7 +936,7 @@ struct kfd_process {
 	/* per-process-per device debug event fd file */
 	struct file *dbg_ev_file;
 
-	/* If the process is a kfd debugger, we need to know so we can clean
+	/* If the process is a kfd debugger, we need to kanalw so we can clean
 	 * up at exit time.  If a process enables debugging on itself, it does
 	 * its own clean-up, so we don't set the flag here.  We track this by
 	 * counting the number of processes this process is debugging.
@@ -1006,7 +1006,7 @@ struct amdkfd_ioctl_desc {
 	unsigned int cmd_drv;
 	const char *name;
 };
-bool kfd_dev_is_large_bar(struct kfd_node *dev);
+bool kfd_dev_is_large_bar(struct kfd_analde *dev);
 
 int kfd_process_create_wq(void);
 void kfd_process_destroy_wq(void);
@@ -1017,7 +1017,7 @@ struct kfd_process *kfd_lookup_process_by_pasid(u32 pasid);
 struct kfd_process *kfd_lookup_process_by_mm(const struct mm_struct *mm);
 
 int kfd_process_gpuidx_from_gpuid(struct kfd_process *p, uint32_t gpu_id);
-int kfd_process_gpuid_from_node(struct kfd_process *p, struct kfd_node *node,
+int kfd_process_gpuid_from_analde(struct kfd_process *p, struct kfd_analde *analde,
 				uint32_t *gpuid, uint32_t *gpuidx);
 static inline int kfd_process_gpuid_from_gpuidx(struct kfd_process *p,
 				uint32_t gpuidx, uint32_t *gpuid) {
@@ -1041,16 +1041,16 @@ int kfd_process_get_user_gpu_id(struct kfd_process *p, uint32_t actual_gpu_id);
 
 int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 			       struct file *drm_file);
-struct kfd_process_device *kfd_bind_process_to_device(struct kfd_node *dev,
+struct kfd_process_device *kfd_bind_process_to_device(struct kfd_analde *dev,
 						struct kfd_process *p);
-struct kfd_process_device *kfd_get_process_device_data(struct kfd_node *dev,
+struct kfd_process_device *kfd_get_process_device_data(struct kfd_analde *dev,
 							struct kfd_process *p);
-struct kfd_process_device *kfd_create_process_device_data(struct kfd_node *dev,
+struct kfd_process_device *kfd_create_process_device_data(struct kfd_analde *dev,
 							struct kfd_process *p);
 
 bool kfd_process_xnack_mode(struct kfd_process *p, bool supported);
 
-int kfd_reserved_mem_mmap(struct kfd_node *dev, struct kfd_process *process,
+int kfd_reserved_mem_mmap(struct kfd_analde *dev, struct kfd_process *process,
 			  struct vm_area_struct *vma);
 
 /* KFD process API for creating and translating handles */
@@ -1074,7 +1074,7 @@ void kfd_pasid_free(u32 pasid);
 size_t kfd_doorbell_process_slice(struct kfd_dev *kfd);
 int kfd_doorbell_init(struct kfd_dev *kfd);
 void kfd_doorbell_fini(struct kfd_dev *kfd);
-int kfd_doorbell_mmap(struct kfd_node *dev, struct kfd_process *process,
+int kfd_doorbell_mmap(struct kfd_analde *dev, struct kfd_process *process,
 		      struct vm_area_struct *vma);
 void __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 					unsigned int *doorbell_off);
@@ -1092,10 +1092,10 @@ void kfd_free_process_doorbells(struct kfd_dev *kfd,
 				struct kfd_process_device *pdd);
 /* GTT Sub-Allocator */
 
-int kfd_gtt_sa_allocate(struct kfd_node *node, unsigned int size,
+int kfd_gtt_sa_allocate(struct kfd_analde *analde, unsigned int size,
 			struct kfd_mem_obj **mem_obj);
 
-int kfd_gtt_sa_free(struct kfd_node *node, struct kfd_mem_obj *mem_obj);
+int kfd_gtt_sa_free(struct kfd_analde *analde, struct kfd_mem_obj *mem_obj);
 
 extern struct device *kfd_device;
 
@@ -1108,37 +1108,37 @@ void kfd_procfs_del_queue(struct queue *q);
 /* Topology */
 int kfd_topology_init(void);
 void kfd_topology_shutdown(void);
-int kfd_topology_add_device(struct kfd_node *gpu);
-int kfd_topology_remove_device(struct kfd_node *gpu);
+int kfd_topology_add_device(struct kfd_analde *gpu);
+int kfd_topology_remove_device(struct kfd_analde *gpu);
 struct kfd_topology_device *kfd_topology_device_by_proximity_domain(
 						uint32_t proximity_domain);
-struct kfd_topology_device *kfd_topology_device_by_proximity_domain_no_lock(
+struct kfd_topology_device *kfd_topology_device_by_proximity_domain_anal_lock(
 						uint32_t proximity_domain);
 struct kfd_topology_device *kfd_topology_device_by_id(uint32_t gpu_id);
-struct kfd_node *kfd_device_by_id(uint32_t gpu_id);
-struct kfd_node *kfd_device_by_pci_dev(const struct pci_dev *pdev);
-static inline bool kfd_irq_is_from_node(struct kfd_node *node, uint32_t node_id,
+struct kfd_analde *kfd_device_by_id(uint32_t gpu_id);
+struct kfd_analde *kfd_device_by_pci_dev(const struct pci_dev *pdev);
+static inline bool kfd_irq_is_from_analde(struct kfd_analde *analde, uint32_t analde_id,
 					uint32_t vmid)
 {
-	return (node->interrupt_bitmap & (1 << node_id)) != 0 &&
-	       (node->compute_vmid_bitmap & (1 << vmid)) != 0;
+	return (analde->interrupt_bitmap & (1 << analde_id)) != 0 &&
+	       (analde->compute_vmid_bitmap & (1 << vmid)) != 0;
 }
-static inline struct kfd_node *kfd_node_by_irq_ids(struct amdgpu_device *adev,
-					uint32_t node_id, uint32_t vmid) {
+static inline struct kfd_analde *kfd_analde_by_irq_ids(struct amdgpu_device *adev,
+					uint32_t analde_id, uint32_t vmid) {
 	struct kfd_dev *dev = adev->kfd.dev;
 	uint32_t i;
 
 	if (KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 3))
-		return dev->nodes[0];
+		return dev->analdes[0];
 
-	for (i = 0; i < dev->num_nodes; i++)
-		if (kfd_irq_is_from_node(dev->nodes[i], node_id, vmid))
-			return dev->nodes[i];
+	for (i = 0; i < dev->num_analdes; i++)
+		if (kfd_irq_is_from_analde(dev->analdes[i], analde_id, vmid))
+			return dev->analdes[i];
 
 	return NULL;
 }
-int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_node **kdev);
-int kfd_numa_node_to_apic_id(int numa_node_id);
+int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_analde **kdev);
+int kfd_numa_analde_to_apic_id(int numa_analde_id);
 
 /* Interrupts */
 #define	KFD_IRQ_FENCE_CLIENTID	0xff
@@ -1146,10 +1146,10 @@ int kfd_numa_node_to_apic_id(int numa_node_id);
 #define	KFD_IRQ_IS_FENCE(client, source)				\
 				((client) == KFD_IRQ_FENCE_CLIENTID &&	\
 				(source) == KFD_IRQ_FENCE_SOURCEID)
-int kfd_interrupt_init(struct kfd_node *dev);
-void kfd_interrupt_exit(struct kfd_node *dev);
-bool enqueue_ih_ring_entry(struct kfd_node *kfd, const void *ih_ring_entry);
-bool interrupt_is_wanted(struct kfd_node *dev,
+int kfd_interrupt_init(struct kfd_analde *dev);
+void kfd_interrupt_exit(struct kfd_analde *dev);
+bool enqueue_ih_ring_entry(struct kfd_analde *kfd, const void *ih_ring_entry);
+bool interrupt_is_wanted(struct kfd_analde *dev,
 				const uint32_t *ih_ring_entry,
 				uint32_t *patched_ihre, bool *flag);
 int kfd_process_drain_interrupts(struct kfd_process_device *pdd);
@@ -1284,24 +1284,24 @@ void print_queue_properties(struct queue_properties *q);
 void print_queue(struct queue *q);
 
 struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
-		struct kfd_node *dev);
+		struct kfd_analde *dev);
 struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
-		struct kfd_node *dev);
+		struct kfd_analde *dev);
 struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
-		struct kfd_node *dev);
+		struct kfd_analde *dev);
 struct mqd_manager *mqd_manager_init_v10(enum KFD_MQD_TYPE type,
-		struct kfd_node *dev);
+		struct kfd_analde *dev);
 struct mqd_manager *mqd_manager_init_v11(enum KFD_MQD_TYPE type,
-		struct kfd_node *dev);
-struct device_queue_manager *device_queue_manager_init(struct kfd_node *dev);
+		struct kfd_analde *dev);
+struct device_queue_manager *device_queue_manager_init(struct kfd_analde *dev);
 void device_queue_manager_uninit(struct device_queue_manager *dqm);
-struct kernel_queue *kernel_queue_init(struct kfd_node *dev,
+struct kernel_queue *kernel_queue_init(struct kfd_analde *dev,
 					enum kfd_queue_type type);
 void kernel_queue_uninit(struct kernel_queue *kq, bool hanging);
 int kfd_dqm_evict_pasid(struct device_queue_manager *dqm, u32 pasid);
 
 /* Process Queue Manager */
-struct process_queue_node {
+struct process_queue_analde {
 	struct queue *q;
 	struct kernel_queue *kq;
 	struct list_head process_queue_list;
@@ -1312,7 +1312,7 @@ void kfd_process_dequeue_from_all_devices(struct kfd_process *p);
 int pqm_init(struct process_queue_manager *pqm, struct kfd_process *p);
 void pqm_uninit(struct process_queue_manager *pqm);
 int pqm_create_queue(struct process_queue_manager *pqm,
-			    struct kfd_node *dev,
+			    struct kfd_analde *dev,
 			    struct file *f,
 			    struct queue_properties *properties,
 			    unsigned int *qid,
@@ -1447,20 +1447,20 @@ int kfd_reset_event(struct kfd_process *p, uint32_t event_id);
 int kfd_kmap_event_page(struct kfd_process *p, uint64_t event_page_offset);
 
 int kfd_event_create(struct file *devkfd, struct kfd_process *p,
-		     uint32_t event_type, bool auto_reset, uint32_t node_id,
+		     uint32_t event_type, bool auto_reset, uint32_t analde_id,
 		     uint32_t *event_id, uint32_t *event_trigger_data,
 		     uint64_t *event_page_offset, uint32_t *event_slot_index);
 
 int kfd_get_num_events(struct kfd_process *p);
 int kfd_event_destroy(struct kfd_process *p, uint32_t event_id);
 
-void kfd_signal_vm_fault_event(struct kfd_node *dev, u32 pasid,
+void kfd_signal_vm_fault_event(struct kfd_analde *dev, u32 pasid,
 				struct kfd_vm_fault_info *info,
 				struct kfd_hsa_memory_exception_data *data);
 
-void kfd_signal_reset_event(struct kfd_node *dev);
+void kfd_signal_reset_event(struct kfd_analde *dev);
 
-void kfd_signal_poison_consumed_event(struct kfd_node *dev, u32 pasid);
+void kfd_signal_poison_consumed_event(struct kfd_analde *dev, u32 pasid);
 
 static inline void kfd_flush_tlb(struct kfd_process_device *pdd,
 				 enum TLB_FLUSH_TYPE type)
@@ -1484,20 +1484,20 @@ int kfd_send_exception_to_runtime(struct kfd_process *p,
 bool kfd_is_locked(void);
 
 /* Compute profile */
-void kfd_inc_compute_active(struct kfd_node *dev);
-void kfd_dec_compute_active(struct kfd_node *dev);
+void kfd_inc_compute_active(struct kfd_analde *dev);
+void kfd_dec_compute_active(struct kfd_analde *dev);
 
 /* Cgroup Support */
 /* Check with device cgroup if @kfd device is accessible */
-static inline int kfd_devcgroup_check_permission(struct kfd_node *node)
+static inline int kfd_devcgroup_check_permission(struct kfd_analde *analde)
 {
 #if defined(CONFIG_CGROUP_DEVICE) || defined(CONFIG_CGROUP_BPF)
 	struct drm_device *ddev;
 
-	if (node->xcp)
-		ddev = node->xcp->ddev;
+	if (analde->xcp)
+		ddev = analde->xcp->ddev;
 	else
-		ddev = adev_to_drm(node->adev);
+		ddev = adev_to_drm(analde->adev);
 
 	return devcgroup_check_permission(DEVCG_DEV_CHAR, DRM_MAJOR,
 					  ddev->render->index,
@@ -1507,9 +1507,9 @@ static inline int kfd_devcgroup_check_permission(struct kfd_node *node)
 #endif
 }
 
-static inline bool kfd_is_first_node(struct kfd_node *node)
+static inline bool kfd_is_first_analde(struct kfd_analde *analde)
 {
-	return (node == node->kfd->nodes[0]);
+	return (analde == analde->kfd->analdes[0]);
 }
 
 /* Debugfs */
@@ -1524,7 +1524,7 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data);
 int kfd_debugfs_rls_by_device(struct seq_file *m, void *data);
 int pm_debugfs_runlist(struct seq_file *m, void *data);
 
-int kfd_debugfs_hang_hws(struct kfd_node *dev);
+int kfd_debugfs_hang_hws(struct kfd_analde *dev);
 int pm_debugfs_hang_hws(struct packet_manager *pm);
 int dqm_debugfs_hang_hws(struct device_queue_manager *dqm);
 

@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// (C) 2017-2018 Synopsys, Inc. (www.synopsys.com)
+// (C) 2017-2018 Syanalpsys, Inc. (www.syanalpsys.com)
 
 /*
- * Synopsys DesignWare AXI DMA Controller driver.
+ * Syanalpsys DesignWare AXI DMA Controller driver.
  *
- * Author: Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
+ * Author: Eugeniy Paltsev <Eugeniy.Paltsev@syanalpsys.com>
  */
 
 #ifndef _AXI_DMA_PLATFORM_H
@@ -279,7 +279,7 @@ enum {
 #define CH_CTL_L_SRC_INC_POS		4
 enum {
 	DWAXIDMAC_CH_CTL_L_INC		= 0,
-	DWAXIDMAC_CH_CTL_L_NOINC
+	DWAXIDMAC_CH_CTL_L_ANALINC
 };
 
 #define CH_CTL_L_DST_MAST		BIT(2)
@@ -330,7 +330,7 @@ enum {
 /**
  * DW AXI DMA channel interrupts
  *
- * @DWAXIDMAC_IRQ_NONE: Bitmask of no one interrupt
+ * @DWAXIDMAC_IRQ_ANALNE: Bitmask of anal one interrupt
  * @DWAXIDMAC_IRQ_BLOCK_TRF: Block transfer complete
  * @DWAXIDMAC_IRQ_DMA_TRF: Dma transfer complete
  * @DWAXIDMAC_IRQ_SRC_TRAN: Source transaction complete
@@ -360,7 +360,7 @@ enum {
  * @DWAXIDMAC_IRQ_ALL: Bitmask of all interrupts
  */
 enum {
-	DWAXIDMAC_IRQ_NONE		= 0,
+	DWAXIDMAC_IRQ_ANALNE		= 0,
 	DWAXIDMAC_IRQ_BLOCK_TRF		= BIT(0),
 	DWAXIDMAC_IRQ_DMA_TRF		= BIT(1),
 	DWAXIDMAC_IRQ_SRC_TRAN		= BIT(3),

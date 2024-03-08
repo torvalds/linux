@@ -20,7 +20,7 @@ typedef struct {
 	unsigned int irq_resched_count;
 	unsigned int irq_call_count;
 #endif
-	int prom_node;
+	int prom_analde;
 	int mid;
 	int next;
 } cpuinfo_sparc;

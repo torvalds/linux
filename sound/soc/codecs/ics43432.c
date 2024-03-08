@@ -3,7 +3,7 @@
  * I2S MEMS microphone driver for InvenSense ICS-43432 and similar
  * MEMS-based microphones.
  *
- * - Non configurable.
+ * - Analn configurable.
  * - I2S interface, 64 BCLs per frame, 32 bits per channel, 24 bit data
  *
  * Copyright (c) 2015 Axis Communications AB

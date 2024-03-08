@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2020, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2020, Mellaanalx Techanallogies inc.  All rights reserved.
  */
 
 #include <rdma/uverbs_std_types.h>
@@ -18,10 +18,10 @@ static int uverbs_free_qp(struct ib_uobject *uobject,
 	int ret;
 
 	/*
-	 * If this is a user triggered destroy then do not allow destruction
+	 * If this is a user triggered destroy then do analt allow destruction
 	 * until the user cleans up all the mcast bindings. Unlike in other
 	 * places we forcibly clean up the mcast attachments for !DESTROY
-	 * because the mcast attaches are not ubojects and will not be
+	 * because the mcast attaches are analt ubojects and will analt be
 	 * destroyed by anything else during cleanup processing.
 	 */
 	if (why == RDMA_REMOVE_DESTROY) {

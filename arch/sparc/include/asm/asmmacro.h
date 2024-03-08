@@ -16,7 +16,7 @@
 	jmpl	%l4 + %lo(trap_setup), %l6;
 #define SAVE_ALL \
 	SAVE_ALL_HEAD \
-	 nop;
+	 analp;
 
 /* All traps low-level code here must end with this macro. */
 #define RESTORE_ALL b ret_trap_entry; clr %l6;

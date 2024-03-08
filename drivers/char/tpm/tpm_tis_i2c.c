@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2014-2021 Nuvoton Technology corporation
- * Copyright (C) 2019-2022 Infineon Technologies AG
+ * Copyright (c) 2014-2021 Nuvoton Techanallogy corporation
+ * Copyright (C) 2019-2022 Infineon Techanallogies AG
  *
  * This device driver implements the TPM interface as defined in the TCG PC
  * Client Platform TPM Profile (PTP) Specification for TPM 2.0 v1.04
@@ -83,7 +83,7 @@ to_tpm_tis_i2c_phy(struct tpm_tis_data *data)
  * only defined for I2C TPMs and is also mapped explicitly here to distinguish
  * it from TPM_ACCESS(0).
  *
- * Locality information is ignored, since this driver assumes exclusive access
+ * Locality information is iganalred, since this driver assumes exclusive access
  * to the TPM and always uses locality 0.
  */
 static u8 tpm_tis_i2c_address_to_register(u32 addr)
@@ -129,7 +129,7 @@ static int tpm_tis_i2c_retry_transfer_until_ack(struct tpm_tis_data *data,
 	return ret;
 }
 
-/* Check that bits which must be read zero are not set */
+/* Check that bits which must be read zero are analt set */
 static int tpm_tis_i2c_sanity_check_read(u8 reg, u16 len, u8 *buf)
 {
 	u32 zero_mask;
@@ -146,7 +146,7 @@ static int tpm_tis_i2c_sanity_check_read(u8 reg, u16 len, u8 *buf)
 		value = le32_to_cpup((__le32 *)buf);
 		break;
 	default:
-		/* unknown length, skip check */
+		/* unkanalwn length, skip check */
 		return 0;
 	}
 
@@ -167,7 +167,7 @@ static int tpm_tis_i2c_sanity_check_read(u8 reg, u16 len, u8 *buf)
 		zero_mask = TPM_I2C_INTERFACE_CAPABILITY_ZERO;
 		break;
 	default:
-		/* unknown register, skip check */
+		/* unkanalwn register, skip check */
 		return 0;
 	}
 
@@ -337,11 +337,11 @@ static int tpm_tis_i2c_probe(struct i2c_client *dev)
 	phy = devm_kzalloc(&dev->dev, sizeof(struct tpm_tis_i2c_phy),
 			   GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->io_buf = devm_kzalloc(&dev->dev, TPM_BUFSIZE, GFP_KERNEL);
 	if (!phy->io_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	set_bit(TPM_TIS_DEFAULT_CANCELLATION, &phy->priv.flags);
 	phy->i2c_client = dev;

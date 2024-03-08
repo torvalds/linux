@@ -26,34 +26,34 @@
 
 #include <asm/kvm_asm.h>
 
-.macro DO_KVM intno
-	.if (\intno == BOOK3S_INTERRUPT_SYSTEM_RESET) || \
-	    (\intno == BOOK3S_INTERRUPT_MACHINE_CHECK) || \
-	    (\intno == BOOK3S_INTERRUPT_DATA_STORAGE) || \
-	    (\intno == BOOK3S_INTERRUPT_INST_STORAGE) || \
-	    (\intno == BOOK3S_INTERRUPT_DATA_SEGMENT) || \
-	    (\intno == BOOK3S_INTERRUPT_INST_SEGMENT) || \
-	    (\intno == BOOK3S_INTERRUPT_EXTERNAL) || \
-	    (\intno == BOOK3S_INTERRUPT_EXTERNAL_HV) || \
-	    (\intno == BOOK3S_INTERRUPT_ALIGNMENT) || \
-	    (\intno == BOOK3S_INTERRUPT_PROGRAM) || \
-	    (\intno == BOOK3S_INTERRUPT_FP_UNAVAIL) || \
-	    (\intno == BOOK3S_INTERRUPT_DECREMENTER) || \
-	    (\intno == BOOK3S_INTERRUPT_SYSCALL) || \
-	    (\intno == BOOK3S_INTERRUPT_TRACE) || \
-	    (\intno == BOOK3S_INTERRUPT_PERFMON) || \
-	    (\intno == BOOK3S_INTERRUPT_ALTIVEC) || \
-	    (\intno == BOOK3S_INTERRUPT_VSX)
+.macro DO_KVM intanal
+	.if (\intanal == BOOK3S_INTERRUPT_SYSTEM_RESET) || \
+	    (\intanal == BOOK3S_INTERRUPT_MACHINE_CHECK) || \
+	    (\intanal == BOOK3S_INTERRUPT_DATA_STORAGE) || \
+	    (\intanal == BOOK3S_INTERRUPT_INST_STORAGE) || \
+	    (\intanal == BOOK3S_INTERRUPT_DATA_SEGMENT) || \
+	    (\intanal == BOOK3S_INTERRUPT_INST_SEGMENT) || \
+	    (\intanal == BOOK3S_INTERRUPT_EXTERNAL) || \
+	    (\intanal == BOOK3S_INTERRUPT_EXTERNAL_HV) || \
+	    (\intanal == BOOK3S_INTERRUPT_ALIGNMENT) || \
+	    (\intanal == BOOK3S_INTERRUPT_PROGRAM) || \
+	    (\intanal == BOOK3S_INTERRUPT_FP_UNAVAIL) || \
+	    (\intanal == BOOK3S_INTERRUPT_DECREMENTER) || \
+	    (\intanal == BOOK3S_INTERRUPT_SYSCALL) || \
+	    (\intanal == BOOK3S_INTERRUPT_TRACE) || \
+	    (\intanal == BOOK3S_INTERRUPT_PERFMON) || \
+	    (\intanal == BOOK3S_INTERRUPT_ALTIVEC) || \
+	    (\intanal == BOOK3S_INTERRUPT_VSX)
 
-	b	kvmppc_trampoline_\intno
-kvmppc_resume_\intno:
+	b	kvmppc_trampoline_\intanal
+kvmppc_resume_\intanal:
 
 	.endif
 .endm
 
 #else
 
-.macro DO_KVM intno
+.macro DO_KVM intanal
 .endm
 
 #endif /* CONFIG_KVM_BOOK3S_HANDLER */

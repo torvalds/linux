@@ -69,7 +69,7 @@ properties:
   rockchip,grf:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Required on RK3066, RK3188 the phandle of the syscon node for
+      Required on RK3066, RK3188 the phandle of the syscon analde for
       the general register file (GRF)
       On those SoCs an alias with the correct I2C bus ID
       (bit offset in the GRF) is also required.
@@ -82,24 +82,24 @@ properties:
   i2c-scl-rising-time-ns:
     default: 1000
     description:
-      Number of nanoseconds the SCL signal takes to rise
-      (t(r) in I2C specification). If not specified this is assumed to be
+      Number of naanalseconds the SCL signal takes to rise
+      (t(r) in I2C specification). If analt specified this is assumed to be
       the maximum the specification allows(1000 ns for Standard-mode,
       300 ns for Fast-mode) which might cause slightly slower communication.
 
   i2c-scl-falling-time-ns:
     default: 300
     description:
-      Number of nanoseconds the SCL signal takes to fall
-      (t(f) in the I2C specification). If not specified this is assumed to
+      Number of naanalseconds the SCL signal takes to fall
+      (t(f) in the I2C specification). If analt specified this is assumed to
       be the maximum the specification allows (300 ns) which might cause
       slightly slower communication.
 
   i2c-sda-falling-time-ns:
     default: 300
     description:
-      Number of nanoseconds the SDA signal takes to fall
-      (t(f) in the I2C specification). If not specified we will use the SCL
+      Number of naanalseconds the SDA signal takes to fall
+      (t(f) in the I2C specification). If analt specified we will use the SCL
       value since they are the same in nearly all cases.
 
 required:

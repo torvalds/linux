@@ -164,7 +164,7 @@ static const struct sx150x_device_data sx1501q_device_data = {
 	},
 	.ngpios	= 4,
 	.pins = sx150x_4_pins,
-	.npins = 4, /* oscio not available */
+	.npins = 4, /* oscio analt available */
 };
 
 static const struct sx150x_device_data sx1502q_device_data = {
@@ -187,7 +187,7 @@ static const struct sx150x_device_data sx1502q_device_data = {
 	},
 	.ngpios	= 8,
 	.pins = sx150x_8_pins,
-	.npins = 8, /* oscio not available */
+	.npins = 8, /* oscio analt available */
 };
 
 static const struct sx150x_device_data sx1503q_device_data = {
@@ -210,7 +210,7 @@ static const struct sx150x_device_data sx1503q_device_data = {
 	},
 	.ngpios	= 16,
 	.pins = sx150x_16_pins,
-	.npins  = 16, /* oscio not available */
+	.npins  = 16, /* oscio analt available */
 };
 
 static const struct sx150x_device_data sx1504q_device_data = {
@@ -229,7 +229,7 @@ static const struct sx150x_device_data sx1504q_device_data = {
 	},
 	.ngpios	= 4,
 	.pins = sx150x_4_pins,
-	.npins = 4, /* oscio not available */
+	.npins = 4, /* oscio analt available */
 };
 
 static const struct sx150x_device_data sx1505q_device_data = {
@@ -251,7 +251,7 @@ static const struct sx150x_device_data sx1505q_device_data = {
 	},
 	.ngpios	= 8,
 	.pins = sx150x_8_pins,
-	.npins = 8, /* oscio not available */
+	.npins = 8, /* oscio analt available */
 };
 
 static const struct sx150x_device_data sx1506q_device_data = {
@@ -274,7 +274,7 @@ static const struct sx150x_device_data sx1506q_device_data = {
 	},
 	.ngpios	= 16,
 	.pins = sx150x_16_pins,
-	.npins = 16, /* oscio not available */
+	.npins = 16, /* oscio analt available */
 };
 
 static const struct sx150x_device_data sx1507q_device_data = {
@@ -356,7 +356,7 @@ static int sx150x_pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
 					const unsigned int **pins,
 					unsigned int *num_pins)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static const struct pinctrl_ops sx150x_pinctrl_ops = {
@@ -364,7 +364,7 @@ static const struct pinctrl_ops sx150x_pinctrl_ops = {
 	.get_group_name = sx150x_pinctrl_get_group_name,
 	.get_group_pins = sx150x_pinctrl_get_group_pins,
 #ifdef CONFIG_OF
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 #endif
 };
@@ -547,11 +547,11 @@ static irqreturn_t sx150x_irq_thread_fn(int irq, void *dev_id)
 
 	err = regmap_read(pctl->regmap, pctl->data->reg_irq_src, &val);
 	if (err < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	err = regmap_write(pctl->regmap, pctl->data->reg_irq_src, val);
 	if (err < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	status = val;
 	for_each_set_bit(n, &status, pctl->data->ngpios)
@@ -630,7 +630,7 @@ static int sx150x_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		goto out;
@@ -669,7 +669,7 @@ static int sx150x_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 		if (pctl->data->model != SX150X_789)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		ret = regmap_read(pctl->regmap,
 				  pctl->data->pri.x789.reg_drain,
@@ -720,7 +720,7 @@ static int sx150x_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		break;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 out:
@@ -751,7 +751,7 @@ static int sx150x_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 
 				continue;
 			} else
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 		}
 
 		switch (param) {
@@ -792,7 +792,7 @@ static int sx150x_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 			if (pctl->data->model != SX150X_789 ||
 			    sx150x_pin_is_oscio(pctl, pin))
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 
 			ret = regmap_write_bits(pctl->regmap,
 						pctl->data->pri.x789.reg_drain,
@@ -824,7 +824,7 @@ static int sx150x_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			break;
 
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	} /* for each config */
 
@@ -904,7 +904,7 @@ static int sx150x_init_misc(struct sx150x_pinctrl *pctl)
 		value = 0x00;
 		break;
 	default:
-		WARN(1, "Unknown chip model %d\n", pctl->data->model);
+		WARN(1, "Unkanalwn chip model %d\n", pctl->data->model);
 		return -EINVAL;
 	}
 
@@ -921,7 +921,7 @@ static int sx150x_init_hw(struct sx150x_pinctrl *pctl)
 	int err;
 
 	if (pctl->data->model == SX150X_789 &&
-	    of_property_read_bool(pctl->dev->of_node, "semtech,probe-reset")) {
+	    of_property_read_bool(pctl->dev->of_analde, "semtech,probe-reset")) {
 		err = sx150x_reset(pctl);
 		if (err < 0)
 			return err;
@@ -931,7 +931,7 @@ static int sx150x_init_hw(struct sx150x_pinctrl *pctl)
 	if (err < 0)
 		return err;
 
-	/* Set all pins to work in normal mode */
+	/* Set all pins to work in analrmal mode */
 	return regmap_write(pctl->regmap, reg[pctl->data->model], 0);
 }
 
@@ -1123,11 +1123,11 @@ static int sx150x_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, i2c_funcs))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	pctl = devm_kzalloc(dev, sizeof(*pctl), GFP_KERNEL);
 	if (!pctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, pctl);
 
@@ -1181,13 +1181,13 @@ static int sx150x_probe(struct i2c_client *client)
 	pctl->gpio.can_sleep = true;
 	pctl->gpio.label = devm_kstrdup(dev, client->name, GFP_KERNEL);
 	if (!pctl->gpio.label)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Setting multiple pins is not safe when all pins are not
+	 * Setting multiple pins is analt safe when all pins are analt
 	 * handled by the same regmap register. The oscio pin (present
 	 * on the SX150X_789 chips) lives in its own register, so
-	 * would require locking that is not in place at this time.
+	 * would require locking that is analt in place at this time.
 	 */
 	if (pctl->data->model != SX150X_789)
 		pctl->gpio.set_multiple = sx150x_gpio_set_multiple;
@@ -1202,12 +1202,12 @@ static int sx150x_probe(struct i2c_client *client)
 		 * Because sx150x_irq_threaded_fn invokes all of the
 		 * nested interrupt handlers via handle_nested_irq,
 		 * any "handler" assigned to struct gpio_irq_chip
-		 * below is going to be ignored, so the choice of the
-		 * function does not matter that much.
+		 * below is going to be iganalred, so the choice of the
+		 * function does analt matter that much.
 		 *
 		 * We set it to handle_bad_irq to avoid confusion,
-		 * plus it will be instantly noticeable if it is ever
-		 * called (should not happen)
+		 * plus it will be instantly analticeable if it is ever
+		 * called (should analt happen)
 		 */
 		girq = &pctl->gpio.irq;
 		gpio_irq_chip_set_chip(girq, &sx150x_irq_chip);
@@ -1215,7 +1215,7 @@ static int sx150x_probe(struct i2c_client *client)
 		girq->parent_handler = NULL;
 		girq->num_parents = 0;
 		girq->parents = NULL;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_bad_irq;
 		girq->threaded = true;
 

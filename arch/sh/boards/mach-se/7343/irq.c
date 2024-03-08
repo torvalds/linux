@@ -6,7 +6,7 @@
  * Copyright (C) 2012  Paul Mundt
  *
  * Based on linux/arch/sh/boards/se/7343/irq.c
- * Copyright (C) 2007  Nobuhiro Iwamatsu
+ * Copyright (C) 2007  Analbuhiro Iwamatsu
  */
 #define DRV_NAME "SE7343-FPGA"
 #define pr_fmt(fmt) DRV_NAME ": " fmt
@@ -85,7 +85,7 @@ static void __init se7343_gc_init(void)
 
 	irq_setup_generic_chip(gc, IRQ_MSK(SE7343_FPGA_IRQ_NR),
 			       IRQ_GC_INIT_MASK_CACHE,
-			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);
+			       IRQ_ANALREQUEST | IRQ_ANALPROBE, 0);
 
 	irq_set_chained_handler(IRQ0_IRQ, se7343_irq_demux);
 	irq_set_irq_type(IRQ0_IRQ, IRQ_TYPE_LEVEL_LOW);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2023. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2023. Huawei Techanallogies Co., Ltd */
 #include <vmlinux.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_helpers.h>
@@ -7,13 +7,13 @@
 #include "bpf_misc.h"
 #include "bpf_experimental.h"
 
-struct node_data {
+struct analde_data {
 	__u64 data;
-	struct bpf_list_node node;
+	struct bpf_list_analde analde;
 };
 
 struct map_value {
-	struct bpf_list_head head __contains(node_data, node);
+	struct bpf_list_head head __contains(analde_data, analde);
 	struct bpf_spin_lock lock;
 };
 
@@ -29,11 +29,11 @@ char _license[] SEC("license") = "GPL";
 int pid = 0;
 bool done = false;
 
-SEC("fentry/" SYS_PREFIX "sys_nanosleep")
+SEC("fentry/" SYS_PREFIX "sys_naanalsleep")
 int add_to_list_in_array(void *ctx)
 {
 	struct map_value *value;
-	struct node_data *new;
+	struct analde_data *new;
 	int zero = 0;
 
 	if (done || (int)bpf_get_current_pid_tgid() != pid)
@@ -48,7 +48,7 @@ int add_to_list_in_array(void *ctx)
 		return 0;
 
 	bpf_spin_lock(&value->lock);
-	bpf_list_push_back(&value->head, &new->node);
+	bpf_list_push_back(&value->head, &new->analde);
 	bpf_spin_unlock(&value->lock);
 	done = true;
 

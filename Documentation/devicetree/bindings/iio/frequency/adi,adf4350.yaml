@@ -90,7 +90,7 @@ properties:
 
   adi,low-spur-mode-enable:
     $ref: /schemas/types.yaml#/definitions/flag
-    description: Enables low spur mode. Default = Low noise mode.
+    description: Enables low spur mode. Default = Low analise mode.
 
   adi,cycle-slip-reduction-enable:
     $ref: /schemas/types.yaml#/definitions/flag

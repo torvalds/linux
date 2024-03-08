@@ -220,7 +220,7 @@ struct isar_hw {
 #define S_P2_BFT_DEF	0x10
 
 #define IOM_CTRL_ENA	0x80
-#define IOM_CTRL_NOPCM	0x00
+#define IOM_CTRL_ANALPCM	0x00
 #define IOM_CTRL_ALAW	0x02
 #define IOM_CTRL_ULAW	0x04
 #define IOM_CTRL_RCV	0x01

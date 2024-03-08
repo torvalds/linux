@@ -19,7 +19,7 @@ properties:
   compatible:
     const: qcom,sdm845-dispcc
 
-  # NOTE: sdm845.dtsi existed for quite some time and specified no clocks.
+  # ANALTE: sdm845.dtsi existed for quite some time and specified anal clocks.
   # The code had to use hardcoded mechanisms to find the input clocks.
   # New dts files should have these clocks.
   clocks:

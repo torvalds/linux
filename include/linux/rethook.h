@@ -11,20 +11,20 @@
 #include <linux/llist.h>
 #include <linux/rcupdate.h>
 
-struct rethook_node;
+struct rethook_analde;
 
-typedef void (*rethook_handler_t) (struct rethook_node *, void *, unsigned long, struct pt_regs *);
+typedef void (*rethook_handler_t) (struct rethook_analde *, void *, unsigned long, struct pt_regs *);
 
 /**
  * struct rethook - The rethook management data structure.
  * @data: The user-defined data storage.
  * @handler: The user-defined return hook handler.
- * @pool: The pool of struct rethook_node.
+ * @pool: The pool of struct rethook_analde.
  * @ref: The reference counter.
  * @rcu: The rcu_head for deferred freeing.
  *
- * Don't embed to another data structure, because this is a self-destructive
- * data structure when all rethook_node are freed.
+ * Don't embed to aanalther data structure, because this is a self-destructive
+ * data structure when all rethook_analde are freed.
  */
 struct rethook {
 	void			*data;
@@ -33,13 +33,13 @@ struct rethook {
 	 * __rcu, instead of rethook_handler_t. But this must be same as
 	 * rethook_handler_t.
 	 */
-	void (__rcu *handler) (struct rethook_node *, void *, unsigned long, struct pt_regs *);
+	void (__rcu *handler) (struct rethook_analde *, void *, unsigned long, struct pt_regs *);
 	struct objpool_head	pool;
 	struct rcu_head		rcu;
 };
 
 /**
- * struct rethook_node - The rethook shadow-stack entry node.
+ * struct rethook_analde - The rethook shadow-stack entry analde.
  * @rcu: The rcu_head for deferred freeing.
  * @llist: The llist, linked to a struct task_struct::rethooks.
  * @rethook: The pointer to the struct rethook.
@@ -49,9 +49,9 @@ struct rethook {
  * You can embed this to your extended data structure to store any data
  * on each entry of the shadow stack.
  */
-struct rethook_node {
+struct rethook_analde {
 	struct rcu_head		rcu;
-	struct llist_node	llist;
+	struct llist_analde	llist;
 	struct rethook		*rethook;
 	unsigned long		ret_addr;
 	unsigned long		frame;
@@ -60,14 +60,14 @@ struct rethook_node {
 struct rethook *rethook_alloc(void *data, rethook_handler_t handler, int size, int num);
 void rethook_stop(struct rethook *rh);
 void rethook_free(struct rethook *rh);
-struct rethook_node *rethook_try_get(struct rethook *rh);
-void rethook_recycle(struct rethook_node *node);
-void rethook_hook(struct rethook_node *node, struct pt_regs *regs, bool mcount);
+struct rethook_analde *rethook_try_get(struct rethook *rh);
+void rethook_recycle(struct rethook_analde *analde);
+void rethook_hook(struct rethook_analde *analde, struct pt_regs *regs, bool mcount);
 unsigned long rethook_find_ret_addr(struct task_struct *tsk, unsigned long frame,
-				    struct llist_node **cur);
+				    struct llist_analde **cur);
 
 /* Arch dependent code must implement arch_* and trampoline code */
-void arch_rethook_prepare(struct rethook_node *node, struct pt_regs *regs, bool mcount);
+void arch_rethook_prepare(struct rethook_analde *analde, struct pt_regs *regs, bool mcount);
 void arch_rethook_trampoline(void);
 
 /**

@@ -17,7 +17,7 @@ module_param_named(deflate_streams, z_erofs_deflate_nstrms, uint, 0444);
 
 void z_erofs_deflate_exit(void)
 {
-	/* there should be no running fs instance */
+	/* there should be anal running fs instance */
 	while (z_erofs_deflate_avail_strms) {
 		struct z_erofs_deflate *strm;
 
@@ -55,7 +55,7 @@ int __init z_erofs_deflate_init(void)
 		if (!strm)
 			goto out_failed;
 
-		/* XXX: in-kernel zlib cannot shrink windowbits currently */
+		/* XXX: in-kernel zlib cananalt shrink windowbits currently */
 		strm->z.workspace = vmalloc(zlib_inflate_workspacesize());
 		if (!strm->z.workspace) {
 			kfree(strm);
@@ -72,7 +72,7 @@ int __init z_erofs_deflate_init(void)
 out_failed:
 	erofs_err(NULL, "failed to allocate zlib workspace");
 	z_erofs_deflate_exit();
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int z_erofs_load_deflate_config(struct super_block *sb,
@@ -87,7 +87,7 @@ int z_erofs_load_deflate_config(struct super_block *sb,
 
 	if (dfl->windowbits > MAX_WBITS) {
 		erofs_err(sb, "unsupported windowbits %u", dfl->windowbits);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	erofs_info(sb, "EXPERIMENTAL DEFLATE feature in use. Use at your own risk!");
@@ -106,7 +106,7 @@ int z_erofs_deflate_decompress(struct z_erofs_decompress_req *rq,
 	struct z_erofs_deflate *strm;
 	u8 *kin, *kout = NULL;
 	bool bounced = false;
-	int no = -1, ni = 0, j = 0, zerr, err;
+	int anal = -1, ni = 0, j = 0, zerr, err;
 
 	/* 1. get the exact DEFLATE compressed size */
 	kin = kmap_local_page(*rq->in);
@@ -147,7 +147,7 @@ again:
 
 	while (1) {
 		if (!strm->z.avail_out) {
-			if (++no >= nrpages_out || !outsz) {
+			if (++anal >= nrpages_out || !outsz) {
 				erofs_err(sb, "insufficient space for decompressed data");
 				err = -EFSCORRUPTED;
 				break;
@@ -157,17 +157,17 @@ again:
 				kunmap_local(kout);
 			strm->z.avail_out = min_t(u32, outsz, PAGE_SIZE - pofs);
 			outsz -= strm->z.avail_out;
-			if (!rq->out[no]) {
-				rq->out[no] = erofs_allocpage(pgpl, rq->gfp);
-				if (!rq->out[no]) {
+			if (!rq->out[anal]) {
+				rq->out[anal] = erofs_allocpage(pgpl, rq->gfp);
+				if (!rq->out[anal]) {
 					kout = NULL;
-					err = -ENOMEM;
+					err = -EANALMEM;
 					break;
 				}
-				set_page_private(rq->out[no],
+				set_page_private(rq->out[anal],
 						 Z_EROFS_SHORTLIVED_PAGE);
 			}
-			kout = kmap_local_page(rq->out[no]);
+			kout = kmap_local_page(rq->out[anal]);
 			strm->z.next_out = kout + pofs;
 			pofs = 0;
 		}
@@ -190,7 +190,7 @@ again:
 			strm->z.next_in = kin;
 			bounced = false;
 			if (kout) {
-				kout = kmap_local_page(rq->out[no]);
+				kout = kmap_local_page(rq->out[anal]);
 				strm->z.next_out = kout + j;
 			}
 		}
@@ -199,9 +199,9 @@ again:
 		 * Handle overlapping: Use bounced buffer if the compressed
 		 * data is under processing; Or use short-lived pages from the
 		 * on-stack pagepool where pages share among the same request
-		 * and not _all_ inplace I/O pages are needed to be doubled.
+		 * and analt _all_ inplace I/O pages are needed to be doubled.
 		 */
-		if (!bounced && rq->out[no] == rq->in[ni]) {
+		if (!bounced && rq->out[anal] == rq->in[ni]) {
 			memcpy(strm->bounce, strm->z.next_in, strm->z.avail_in);
 			strm->z.next_in = strm->bounce;
 			bounced = true;
@@ -210,14 +210,14 @@ again:
 		for (j = ni + 1; j < nrpages_in; ++j) {
 			struct page *tmppage;
 
-			if (rq->out[no] != rq->in[j])
+			if (rq->out[anal] != rq->in[j])
 				continue;
 
 			DBG_BUGON(erofs_page_is_managed(EROFS_SB(sb),
 							rq->in[j]));
 			tmppage = erofs_allocpage(pgpl, rq->gfp);
 			if (!tmppage) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto failed;
 			}
 			set_page_private(tmppage, Z_EROFS_SHORTLIVED_PAGE);

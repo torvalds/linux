@@ -27,7 +27,7 @@
 
 #define MAX_TTYS (16)
 
-static void stdio_announce(char *dev_name, int dev)
+static void stdio_ananalunce(char *dev_name, int dev)
 {
 	printk(KERN_INFO "Virtual console %d assigned device '%s'\n", dev,
 	       dev_name);
@@ -35,7 +35,7 @@ static void stdio_announce(char *dev_name, int dev)
 
 /* Almost const, except that xterm_title may be changed in an initcall */
 static struct chan_opts opts = {
-	.announce 	= stdio_announce,
+	.ananalunce 	= stdio_ananalunce,
 	.xterm_title	= "Virtual Console #%d",
 	.raw		= 1,
 };
@@ -50,7 +50,7 @@ static struct line_driver driver = {
 	.name 			= "UML console",
 	.device_name 		= "tty",
 	.major 			= TTY_MAJOR,
-	.minor_start 		= 0,
+	.mianalr_start 		= 0,
 	.type 		 	= TTY_DRIVER_TYPE_CONSOLE,
 	.subtype 	 	= SYSTEM_TYPE_CONSOLE,
 	.read_irq_name 		= "console",
@@ -133,7 +133,7 @@ static int uml_console_setup(struct console *co, char *options)
 	return console_open_chan(line, co);
 }
 
-/* No locking for register_console call - relies on single-threaded initcalls */
+/* Anal locking for register_console call - relies on single-threaded initcalls */
 static struct console stdiocons = {
 	.name		= "tty",
 	.write		= uml_console_write,

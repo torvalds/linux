@@ -17,7 +17,7 @@
 		ethernet2 = "/icssg2-eth/ethernet-ports/port@1";
 	};
 
-	/* Ethernet node on PRU-ICSSG2 */
+	/* Ethernet analde on PRU-ICSSG2 */
 	icssg2_eth: icssg2-eth {
 		compatible = "ti,am654-icssg-prueth";
 		pinctrl-names = "default";

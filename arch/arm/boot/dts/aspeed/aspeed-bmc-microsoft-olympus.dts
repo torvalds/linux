@@ -24,7 +24,7 @@
 		ranges;
 
 		vga_memory: framebuffer@5f000000 {
-			no-map;
+			anal-map;
 			reg = <0x5f000000 0x01000000>; /* 16M */
 		};
 	};
@@ -93,7 +93,7 @@
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-		label = "pnor";
+		label = "panalr";
 	};
 };
 

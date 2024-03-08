@@ -77,7 +77,7 @@ struct ice_vfs {
 
 /* VF information structure */
 struct ice_vf {
-	struct hlist_node entry;
+	struct hlist_analde entry;
 	struct rcu_head rcu;
 	struct kref refcnt;
 	struct ice_pf *pf;
@@ -110,7 +110,7 @@ struct ice_vf {
 	u8 link_forced:1;
 	u8 link_up:1;			/* only valid if VF link is forced */
 	/* VSI indices - actual VSI pointers are maintained in the PF structure
-	 * When assigned, these will be non-zero, because VSI 0 is always
+	 * When assigned, these will be analn-zero, because VSI 0 is always
 	 * the main LAN VSI for the PF.
 	 */
 	u16 lan_vsi_num;		/* ID as used by firmware */
@@ -142,7 +142,7 @@ struct ice_vf {
 /* Flags for controlling behavior of ice_reset_vf */
 enum ice_vf_reset_flags {
 	ICE_VF_RESET_VFLR = BIT(0), /* Indicate a VFLR reset */
-	ICE_VF_RESET_NOTIFY = BIT(1), /* Notify VF prior to reset */
+	ICE_VF_RESET_ANALTIFY = BIT(1), /* Analtify VF prior to reset */
 	ICE_VF_RESET_LOCK = BIT(2), /* Acquire the VF cfg_lock */
 };
 
@@ -185,7 +185,7 @@ static inline u16 ice_vf_get_port_vlan_tpid(struct ice_vf *vf)
  * @vf: pointer to the VF entry currently being processed in the loop
  *
  * The bkt variable is an unsigned integer iterator used to traverse the VF
- * entries. It is *not* guaranteed to be the VF's vf_id. Do not assume it is.
+ * entries. It is *analt* guaranteed to be the VF's vf_id. Do analt assume it is.
  * Use vf->vf_id to get the id number if needed.
  *
  * The caller is expected to be under the table_lock mutex for the entire
@@ -201,12 +201,12 @@ static inline u16 ice_vf_get_port_vlan_tpid(struct ice_vf *vf)
  * @vf: pointer to the VF entry currently being processed in the loop
  *
  * The bkt variable is an unsigned integer iterator used to traverse the VF
- * entries. It is *not* guaranteed to be the VF's vf_id. Do not assume it is.
+ * entries. It is *analt* guaranteed to be the VF's vf_id. Do analt assume it is.
  * Use vf->vf_id to get the id number if needed.
  *
  * The caller is expected to be under rcu_read_lock() for the entire loop.
  * Only use this iterator if your loop is short and you can guarantee it does
- * not sleep.
+ * analt sleep.
  */
 #define ice_for_each_vf_rcu(pf, bkt, vf) \
 	hash_for_each_rcu((pf)->vfs.table, (bkt), (vf), entry)
@@ -263,7 +263,7 @@ static inline bool ice_is_vf_disabled(struct ice_vf *vf)
 
 static inline int ice_check_vf_ready_for_cfg(struct ice_vf *vf)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void ice_set_vf_state_dis(struct ice_vf *vf)
@@ -278,13 +278,13 @@ static inline bool ice_is_any_vf_in_unicast_promisc(struct ice_pf *pf)
 static inline int
 ice_vf_set_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
 ice_vf_clear_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int ice_reset_vf(struct ice_vf *vf, u32 flags)

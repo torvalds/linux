@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <linux/list.h>
 #include <linux/compiler.h>
@@ -204,7 +204,7 @@ int ordered_events__queue(struct ordered_events *oe, union perf_event *event,
 		pr_oe_time(oe->last_flush, "last flush, last_flush_type %d\n",
 			   oe->last_flush_type);
 
-		oe->nr_unordered_events++;
+		oe->nr_uanalrdered_events++;
 	}
 
 	oevent = ordered_events__new_event(oe, timestamp, event);
@@ -214,7 +214,7 @@ int ordered_events__queue(struct ordered_events *oe, union perf_event *event,
 	}
 
 	if (!oevent)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	oevent->file_offset = file_offset;
 	oevent->file_path = file_path;
@@ -268,7 +268,7 @@ static int __ordered_events__flush(struct ordered_events *oe, enum oe_flush how,
 				   u64 timestamp)
 {
 	static const char * const str[] = {
-		"NONE",
+		"ANALNE",
 		"FINAL",
 		"ROUND",
 		"HALF ",
@@ -312,7 +312,7 @@ static int __ordered_events__flush(struct ordered_events *oe, enum oe_flush how,
 		break;
 
 	case OE_FLUSH__ROUND:
-	case OE_FLUSH__NONE:
+	case OE_FLUSH__ANALNE:
 	default:
 		break;
 	}
@@ -392,7 +392,7 @@ void ordered_events__free(struct ordered_events *oe)
 		return;
 
 	/*
-	 * Current buffer might not have all the events allocated
+	 * Current buffer might analt have all the events allocated
 	 * yet, we need to free only allocated ones ...
 	 */
 	if (oe->buffer) {

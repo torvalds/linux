@@ -126,7 +126,7 @@ static int pmu_event_init(struct perf_event *event)
 
 	/* Only look at AMD power events. */
 	if (event->attr.type != pmu_class.type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Unsupported modes and filters. */
 	if (event->attr.sample_period)
@@ -212,7 +212,7 @@ static struct pmu pmu_class = {
 	.start		= pmu_event_start,
 	.stop		= pmu_event_stop,
 	.read		= pmu_event_read,
-	.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+	.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 	.module		= THIS_MODULE,
 };
 
@@ -242,11 +242,11 @@ static int power_cpu_init(unsigned int cpu)
 
 	/*
 	 * 1) If any CPU is set at cpu_mask in the same compute unit, do
-	 * nothing.
-	 * 2) If no CPU is set at cpu_mask in the same compute unit,
+	 * analthing.
+	 * 2) If anal CPU is set at cpu_mask in the same compute unit,
 	 * set current ONLINE CPU.
 	 *
-	 * Note: if there is a CPU aside of the new one already in the
+	 * Analte: if there is a CPU aside of the new one already in the
 	 * sibling mask, then it is also in cpu_mask.
 	 */
 	target = cpumask_any_but(topology_sibling_cpumask(cpu), cpu);
@@ -265,16 +265,16 @@ static int __init amd_power_pmu_init(void)
 	int ret;
 
 	if (!x86_match_cpu(cpu_match))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!boot_cpu_has(X86_FEATURE_ACC_POWER))
-		return -ENODEV;
+		return -EANALDEV;
 
 	cpu_pwr_sample_ratio = cpuid_ecx(0x80000007);
 
 	if (rdmsrl_safe(MSR_F15H_CU_MAX_PWR_ACCUMULATOR, &max_cu_acc_power)) {
 		pr_err("Failed to read max compute unit power accumulator MSR\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 
@@ -295,7 +295,7 @@ module_init(amd_power_pmu_init);
 
 static void __exit amd_power_pmu_exit(void)
 {
-	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_AMD_POWER_ONLINE);
+	cpuhp_remove_state_analcalls(CPUHP_AP_PERF_X86_AMD_POWER_ONLINE);
 	perf_pmu_unregister(&pmu_class);
 }
 module_exit(amd_power_pmu_exit);

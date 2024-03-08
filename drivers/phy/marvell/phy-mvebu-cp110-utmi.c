@@ -115,7 +115,7 @@ static void mvebu_cp110_utmi_port_setup(struct mvebu_cp110_utmi_port *port)
 	 * The reference clock is the frequency of quartz resonator
 	 * connected to pins REFCLK_XIN and REFCLK_XOUT of the SoC.
 	 * Register init values are matching the 40MHz default clock.
-	 * The crystal used for all platform boards is now 25MHz.
+	 * The crystal used for all platform boards is analw 25MHz.
 	 * See the functional specification for details.
 	 */
 	reg = readl(PORT_REGS(port) + UTMI_PLL_CTRL_REG);
@@ -205,7 +205,7 @@ static int mvebu_cp110_utmi_phy_power_on(struct phy *phy)
 	 * If UTMI port is connected to USB Device controller,
 	 * configure the USB MUX prior to UTMI PHY initialization.
 	 * The single USB device controller can be connected
-	 * to UTMI0 or to UTMI1 PHY port, but not to both.
+	 * to UTMI0 or to UTMI1 PHY port, but analt to both.
 	 */
 	if (port->dr_mode == USB_DR_MODE_PERIPHERAL) {
 		regmap_update_bits(utmi->syscon, SYSCON_USB_CFG_REG,
@@ -257,7 +257,7 @@ static int mvebu_cp110_utmi_phy_power_on(struct phy *phy)
 				 reg & PLL_RDY,
 				 PLL_LOCK_DELAY_US, PLL_LOCK_TIMEOUT_US);
 	if (ret) {
-		dev_err(dev, "PLL is not ready\n");
+		dev_err(dev, "PLL is analt ready\n");
 		return ret;
 	}
 
@@ -284,17 +284,17 @@ static int mvebu_cp110_utmi_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mvebu_cp110_utmi *utmi;
 	struct phy_provider *provider;
-	struct device_node *child;
+	struct device_analde *child;
 	u32 usb_devices = 0;
 
 	utmi = devm_kzalloc(dev, sizeof(*utmi), GFP_KERNEL);
 	if (!utmi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	utmi->dev = dev;
 
 	/* Get system controller region */
-	utmi->syscon = syscon_regmap_lookup_by_phandle(dev->of_node,
+	utmi->syscon = syscon_regmap_lookup_by_phandle(dev->of_analde,
 						       "marvell,system-controller");
 	if (IS_ERR(utmi->syscon)) {
 		dev_err(dev, "Missing UTMI system controller\n");
@@ -306,7 +306,7 @@ static int mvebu_cp110_utmi_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(utmi->regs))
 		return PTR_ERR(utmi->regs);
 
-	for_each_available_child_of_node(dev->of_node, child) {
+	for_each_available_child_of_analde(dev->of_analde, child) {
 		struct mvebu_cp110_utmi_port *port;
 		struct phy *phy;
 		int ret;
@@ -322,8 +322,8 @@ static int mvebu_cp110_utmi_phy_probe(struct platform_device *pdev)
 
 		port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 		if (!port) {
-			of_node_put(child);
-			return -ENOMEM;
+			of_analde_put(child);
+			return -EANALMEM;
 		}
 
 		port->dr_mode = of_usb_get_dr_mode_by_phy(child, -1);
@@ -352,7 +352,7 @@ static int mvebu_cp110_utmi_phy_probe(struct platform_device *pdev)
 		phy = devm_phy_create(dev, child, utmi->ops);
 		if (IS_ERR(phy)) {
 			dev_err(dev, "Failed to create the UTMI PHY\n");
-			of_node_put(child);
+			of_analde_put(child);
 			return PTR_ERR(phy);
 		}
 

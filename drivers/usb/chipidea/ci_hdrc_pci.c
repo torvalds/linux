@@ -2,7 +2,7 @@
 /*
  * ci_hdrc_pci.c - MIPS USB IP core family device controller
  *
- * Copyright (C) 2008 Chipidea - MIPS Technologies, Inc. All rights reserved.
+ * Copyright (C) 2008 Chipidea - MIPS Techanallogies, Inc. All rights reserved.
  *
  * Author: David Lopo
  */
@@ -61,26 +61,26 @@ static int ci_hdrc_pci_probe(struct pci_dev *pdev,
 
 	if (!platdata) {
 		dev_err(&pdev->dev, "device doesn't provide driver data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ci = devm_kzalloc(&pdev->dev, sizeof(*ci), GFP_KERNEL);
 	if (!ci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = pcim_enable_device(pdev);
 	if (retval)
 		return retval;
 
 	if (!pdev->irq) {
-		dev_err(&pdev->dev, "No IRQ, check BIOS/PCI setup!");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal IRQ, check BIOS/PCI setup!");
+		return -EANALDEV;
 	}
 
 	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
 
-	/* register a nop PHY */
+	/* register a analp PHY */
 	ci->phy = usb_phy_generic_register();
 	if (IS_ERR(ci->phy))
 		return PTR_ERR(ci->phy);
@@ -126,7 +126,7 @@ static void ci_hdrc_pci_remove(struct pci_dev *pdev)
  *
  * Check "pci.h" for details
  *
- * Note: ehci-pci driver may try to probe the device first. You have to add an
+ * Analte: ehci-pci driver may try to probe the device first. You have to add an
  * ID to the bypass_pci_id_table in ehci-pci driver to prevent this.
  */
 static const struct pci_device_id ci_hdrc_pci_id_table[] = {

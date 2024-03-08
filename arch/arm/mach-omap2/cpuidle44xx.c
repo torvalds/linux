@@ -79,7 +79,7 @@ static DEFINE_RAW_SPINLOCK(mpu_lock);
  * @index: the index of state to be entered
  *
  * Called from the CPUidle framework to program the device to the
- * specified low power state selected by the governor.
+ * specified low power state selected by the goveranalr.
  * Returns the amount of time spent in the low power state.
  */
 static int omap_enter_idle_simple(struct cpuidle_device *dev,
@@ -126,7 +126,7 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 
 	/*
 	 * CPU0 has to wait and stay ON until CPU1 is OFF state.
-	 * This is necessary to honour hardware recommondation
+	 * This is necessary to hoanalur hardware recommondation
 	 * of triggeing all the possible low power modes once CPU1 is
 	 * out of coherency and in OFF mode.
 	 */
@@ -157,7 +157,7 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 	tick_broadcast_enter();
 
 	/*
-	 * Call idle CPU PM enter notifier chain so that
+	 * Call idle CPU PM enter analtifier chain so that
 	 * VFP and per CPU interrupt context is saved.
 	 */
 	error = cpu_pm_enter();
@@ -169,7 +169,7 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 		omap_set_pwrdm_state(mpu_pd, cx->mpu_state);
 
 		/*
-		 * Call idle CPU cluster PM enter notifier chain
+		 * Call idle CPU cluster PM enter analtifier chain
 		 * to save GIC and wakeupgen context.
 		 */
 		if (mpuss_can_lose_context) {
@@ -187,7 +187,7 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 	omap4_enter_lowpower(dev->cpu, cx->cpu_state, true);
 	cpu_done[dev->cpu] = true;
 
-	/* Wakeup CPU1 only if it is not offlined */
+	/* Wakeup CPU1 only if it is analt offlined */
 	if (dev->cpu == 0 && cpumask_test_cpu(1, cpu_online_mask)) {
 
 		if (IS_PM44XX_ERRATUM(PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD) &&
@@ -209,14 +209,14 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 	}
 
 	/*
-	 * Call idle CPU cluster PM exit notifier chain
+	 * Call idle CPU cluster PM exit analtifier chain
 	 * to restore GIC and wakeupgen context.
 	 */
 	if (dev->cpu == 0 && mpuss_can_lose_context)
 		cpu_cluster_pm_exit();
 
 	/*
-	 * Call idle CPU PM exit notifier chain to restore
+	 * Call idle CPU PM exit analtifier chain to restore
 	 * VFP and per CPU IRQ context.
 	 */
 	cpu_pm_exit();
@@ -319,12 +319,12 @@ int __init omap4_idle_init(void)
 	cpu_pd[0] = pwrdm_lookup("cpu0_pwrdm");
 	cpu_pd[1] = pwrdm_lookup("cpu1_pwrdm");
 	if ((!mpu_pd) || (!cpu_pd[0]) || (!cpu_pd[1]))
-		return -ENODEV;
+		return -EANALDEV;
 
 	cpu_clkdm[0] = clkdm_lookup("mpu0_clkdm");
 	cpu_clkdm[1] = clkdm_lookup("mpu1_clkdm");
 	if (!cpu_clkdm[0] || !cpu_clkdm[1])
-		return -ENODEV;
+		return -EANALDEV;
 
 	return cpuidle_register(idle_driver, cpu_online_mask);
 }

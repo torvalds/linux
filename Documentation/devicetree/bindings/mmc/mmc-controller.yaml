@@ -16,42 +16,42 @@ description: |
 
   It is possible to assign a fixed index mmcN to an MMC host controller
   (and the corresponding mmcblkN devices) by defining an alias in the
-  /aliases device tree node.
+  /aliases device tree analde.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^mmc(@.*)?$"
 
   "#address-cells":
     const: 1
     description: |
-      The cell is the slot ID if a function subnode is used.
+      The cell is the slot ID if a function subanalde is used.
 
   "#size-cells":
     const: 0
 
   # Card Detection.
-  # If none of these properties are supplied, the host native card
+  # If analne of these properties are supplied, the host native card
   # detect will be used. Only one of them should be provided.
 
   broken-cd:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      There is no card detection available; polling must be used.
+      There is anal card detection available; polling must be used.
 
   cd-gpios:
     maxItems: 1
     description:
       The card detection will be done using the GPIO provided.
 
-  non-removable:
+  analn-removable:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      Non-removable slot (like eMMC); assume always present.
+      Analn-removable slot (like eMMC); assume always present.
 
-  # *NOTE* on CD and WP polarity. To use common for all SD/MMC host
+  # *ANALTE* on CD and WP polarity. To use common for all SD/MMC host
   # controllers line polarity properties, we have to fix the meaning
-  # of the "normal" and "inverted" line levels. We choose to follow
+  # of the "analrmal" and "inverted" line levels. We choose to follow
   # the SDHCI standard, which specifies both those lines as "active
   # low." Therefore, using the "cd-inverted" property means, that the
   # CD line is active high, i.e. it is high, when a card is
@@ -66,7 +66,7 @@ properties:
   # lines.  This means, the two properties are "superimposed," for
   # example leaving the GPIO_ACTIVE_LOW flag clear and specifying the
   # respective *-inverted property property results in a
-  # double-inversion and actually means the "normal" line polarity is
+  # double-inversion and actually means the "analrmal" line polarity is
   # in effect.
   wp-inverted:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -104,12 +104,12 @@ properties:
   disable-wp:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      When set, no physical write-protect line is present. This
+      When set, anal physical write-protect line is present. This
       property should only be specified when the controller has a
       dedicated write-protect detection logic. If a GPIO is always used
-      for the write-protect detection logic, it is sufficient to not
+      for the write-protect detection logic, it is sufficient to analt
       specify the wp-gpios property in the absence of a write-protect
-      line. Not used in combination with eMMC or SDIO.
+      line. Analt used in combination with eMMC or SDIO.
 
   wp-gpios:
     maxItems: 1
@@ -121,10 +121,10 @@ properties:
       Set delay time before detecting card after card insert
       interrupt.
 
-  no-1-8-v:
+  anal-1-8-v:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      When specified, denotes that 1.8V card voltage is not supported
+      When specified, deanaltes that 1.8V card voltage is analt supported
       on this system, even if the controller claims it.
 
   cap-sd-highspeed:
@@ -227,10 +227,10 @@ properties:
     description:
       eMMC HS400 enhanced strobe mode is supported
 
-  no-mmc-hs400:
+  anal-mmc-hs400:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      All eMMC HS400 modes are not supported.
+      All eMMC HS400 modes are analt supported.
 
   dsr:
     description:
@@ -240,18 +240,18 @@ properties:
     minimum: 0
     maximum: 0xffff
 
-  no-sdio:
+  anal-sdio:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       Controller is limited to send SDIO commands during
       initialization.
 
-  no-sd:
+  anal-sd:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       Controller is limited to send SD commands during initialization.
 
-  no-mmc:
+  anal-mmc:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       Controller is limited to send MMC commands during
@@ -259,7 +259,7 @@ properties:
 
   fixed-emmc-driver-type:
     description:
-      For non-removable eMMC, enforce this driver type. The value is
+      For analn-removable eMMC, enforce this driver type. The value is
       the driver type as specified in the eMMC specification (table
       206 in spec version 5.1)
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -269,10 +269,10 @@ properties:
   post-power-on-delay-ms:
     description:
       It was invented for MMC pwrseq-simple which could be referred to
-      mmc-pwrseq-simple.yaml. But now it\'s reused as a tunable delay
+      mmc-pwrseq-simple.yaml. But analw it\'s reused as a tunable delay
       waiting for I/O signalling and card power supply to be stable,
       regardless of whether pwrseq-simple is used. Default to 10ms if
-      no available.
+      anal available.
     default: 10
 
   supports-cqe:
@@ -285,7 +285,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       The presence of this property indicates that the MMC
-      controller\'s command queue engine (CQE) does not support direct
+      controller\'s command queue engine (CQE) does analt support direct
       commands (DCMDs).
 
   keep-power-in-suspend:
@@ -321,11 +321,11 @@ patternProperties:
     type: object
     description: |
       On embedded systems the cards connected to a host may need
-      additional properties. These can be specified in subnodes to the
-      host controller node. The subnodes are identified by the
+      additional properties. These can be specified in subanaldes to the
+      host controller analde. The subanaldes are identified by the
       standard \'reg\' property. Which information exactly can be
       specified depends on the bindings for the SDIO function driver
-      for the subnode, as specified by the compatible string.
+      for the subanalde, as specified by the compatible string.
 
     properties:
       compatible:
@@ -339,8 +339,8 @@ patternProperties:
             maximum: 7
             description:
               Must contain the SDIO function number of the function this
-              subnode describes. A value of 0 denotes the memory SD
-              function, values from 1 to 7 denote the SDIO functions.
+              subanalde describes. A value of 0 deanaltes the memory SD
+              function, values from 1 to 7 deanalte the SDIO functions.
 
     required:
       - reg
@@ -360,7 +360,7 @@ patternProperties:
 
 dependencies:
   cd-debounce-delay-ms: [ cd-gpios ]
-  fixed-emmc-driver-type: [ non-removable ]
+  fixed-emmc-driver-type: [ analn-removable ]
 
 additionalProperties: true
 
@@ -374,7 +374,7 @@ examples:
         pinctrl-0 = <&mmc3_pins_a>;
         vmmc-supply = <&reg_vmmc3>;
         bus-width = <4>;
-        non-removable;
+        analn-removable;
         mmc-pwrseq = <&sdhci0_pwrseq>;
 
         brcmf: wifi@1 {

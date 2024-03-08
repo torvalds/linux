@@ -22,7 +22,7 @@ config VIDEO_CX231XX_RC
 	default y
 	help
 	  cx231xx hardware has a builtin RX/TX support. However, a few
-	  designs opted to not use it, but, instead, some other hardware.
+	  designs opted to analt use it, but, instead, some other hardware.
 	  This module enables the usage of those other hardware, like the
 	  ones used with ISDB-T boards.
 

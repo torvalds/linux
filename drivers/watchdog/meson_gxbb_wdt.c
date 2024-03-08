@@ -28,10 +28,10 @@
 #define GXBB_WDT_TCNT_SETUP_MASK		(BIT(16) - 1)
 #define GXBB_WDT_TCNT_CNT_SHIFT			16
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static unsigned int timeout;
 module_param(timeout, uint, 0);
@@ -167,7 +167,7 @@ static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->reg_base))
@@ -188,7 +188,7 @@ static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 	data->wdt_dev.min_timeout = 1;
 	data->wdt_dev.timeout = DEFAULT_TIMEOUT;
 	watchdog_init_timeout(&data->wdt_dev, timeout, dev);
-	watchdog_set_nowayout(&data->wdt_dev, nowayout);
+	watchdog_set_analwayout(&data->wdt_dev, analwayout);
 	watchdog_set_drvdata(&data->wdt_dev, data);
 
 	ctrl_reg = readl(data->reg_base + GXBB_WDT_CTRL_REG) &

@@ -253,9 +253,9 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins>;
-	no-sdio;
-	no-mmc;
-	no-1-8-v;
+	anal-sdio;
+	anal-mmc;
+	anal-1-8-v;
 	cd-gpios = <&pinctrl 117 GPIO_ACTIVE_LOW>;
 	bus-width = <4>;
 	vmmc-supply = <&sd_vcc>;

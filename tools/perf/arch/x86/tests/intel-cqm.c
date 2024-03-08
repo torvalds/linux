@@ -10,7 +10,7 @@
 #include <signal.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 
 static pid_t spawn(void)
@@ -107,7 +107,7 @@ int test__intel_cqm_count_nmi_context(struct test_suite *test __maybe_unused, in
 
 	event = mmap(NULL, mmap_len, PROT_READ, MAP_SHARED, fd[0], 0);
 	if (event == (void *)(-1)) {
-		pr_debug("failed to mmap %d\n", errno);
+		pr_debug("failed to mmap %d\n", erranal);
 		goto out;
 	}
 

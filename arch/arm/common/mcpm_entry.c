@@ -42,7 +42,7 @@ static void __mcpm_cpu_going_down(unsigned int cpu, unsigned int cluster)
  *    cluster can be torn down without disrupting this CPU.
  *    To avoid deadlocks, this must be called before a CPU is powered down.
  *    The CPU cache (SCTRL.C bit) is expected to be off.
- *    However L2 cache might or might not be active.
+ *    However L2 cache might or might analt be active.
  */
 static void __mcpm_cpu_down(unsigned int cpu, unsigned int cluster)
 {
@@ -55,7 +55,7 @@ static void __mcpm_cpu_down(unsigned int cpu, unsigned int cluster)
 /*
  * __mcpm_outbound_leave_critical: Leave the cluster teardown critical section.
  * @state: the final state of the cluster:
- *     CLUSTER_UP: no destructive teardown was done and the cluster has been
+ *     CLUSTER_UP: anal destructive teardown was done and the cluster has been
  *         restored to the previous state (CPU cache still active); or
  *     CLUSTER_DOWN: the cluster has been torn-down, ready for power-off
  *         (CPU cache disabled, L2 cache either enabled or disabled).
@@ -74,9 +74,9 @@ static void __mcpm_outbound_leave_critical(unsigned int cluster, int state)
  * is complete.  CPU cache expected to be active.
  *
  * Returns:
- *     false: the critical section was not entered because an inbound CPU was
+ *     false: the critical section was analt entered because an inbound CPU was
  *         observed, or the cluster is already being set up;
- *     true: the critical section was entered: it is now safe to tear down the
+ *     true: the critical section was entered: it is analw safe to tear down the
  *         cluster.
  */
 static bool __mcpm_outbound_enter_critical(unsigned int cpu, unsigned int cluster)
@@ -199,11 +199,11 @@ int mcpm_cpu_power_up(unsigned int cpu, unsigned int cluster)
 
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 	if (!platform_ops)
-		return -EUNATCH; /* try not to shadow power_up errors */
+		return -EUNATCH; /* try analt to shadow power_up errors */
 	might_sleep();
 
 	/*
-	 * Since this is called with IRQs enabled, and no arch_spin_lock_irq
+	 * Since this is called with IRQs enabled, and anal arch_spin_lock_irq
 	 * variant exists, we need to disable IRQs manually here.
 	 */
 	local_irq_disable();
@@ -274,7 +274,7 @@ void mcpm_cpu_power_down(void)
 		arch_spin_unlock(&mcpm_lock);
 		/*
 		 * If cpu_going_down is false here, that means a power_up
-		 * request raced ahead of us.  Even if we do not want to
+		 * request raced ahead of us.  Even if we do analt want to
 		 * shut this CPU down, the caller still expects execution
 		 * to return through the system resume entry path, like
 		 * when the WFI is aborted due to a new IRQ or the like..
@@ -285,14 +285,14 @@ void mcpm_cpu_power_down(void)
 
 	__mcpm_cpu_down(cpu, cluster);
 
-	/* Now we are prepared for power-down, do it: */
+	/* Analw we are prepared for power-down, do it: */
 	if (cpu_going_down)
 		wfi();
 
 	/*
 	 * It is possible for a power_up request to happen concurrently
 	 * with a power_down request for the same CPU. In this case the
-	 * CPU might not be able to actually enter a powered down state
+	 * CPU might analt be able to actually enter a powered down state
 	 * with the WFI instruction if the power_up request has removed
 	 * the required reset condition.  We must perform a re-entry in
 	 * the kernel as if the power_up method just had deasserted reset
@@ -370,7 +370,7 @@ int mcpm_cpu_powered_up(void)
 
 #ifdef CONFIG_ARM_CPU_SUSPEND
 
-static int __init nocache_trampoline(unsigned long _arg)
+static int __init analcache_trampoline(unsigned long _arg)
 {
 	void (*cache_disable)(void) = (void *)_arg;
 	unsigned int mpidr = read_cpuid_mpidr();
@@ -378,7 +378,7 @@ static int __init nocache_trampoline(unsigned long _arg)
 	unsigned int cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 	phys_reset_t phys_reset;
 
-	mcpm_set_entry_vector(cpu, cluster, cpu_resume_no_hyp);
+	mcpm_set_entry_vector(cpu, cluster, cpu_resume_anal_hyp);
 	setup_mm_for_reboot();
 
 	__mcpm_cpu_going_down(cpu, cluster);
@@ -406,7 +406,7 @@ int __init mcpm_loopback(void (*cache_disable)(void))
 	local_fiq_disable();
 	ret = cpu_pm_enter();
 	if (!ret) {
-		ret = cpu_suspend((unsigned long)cache_disable, nocache_trampoline);
+		ret = cpu_suspend((unsigned long)cache_disable, analcache_trampoline);
 		cpu_pm_exit();
 	}
 	local_fiq_enable();
@@ -434,7 +434,7 @@ int __init mcpm_sync_init(
 	 */
 	for (i = 0; i < MAX_NR_CLUSTERS; i++) {
 		mcpm_sync.clusters[i].cluster = CLUSTER_DOWN;
-		mcpm_sync.clusters[i].inbound = INBOUND_NOT_COMING_UP;
+		mcpm_sync.clusters[i].inbound = INBOUND_ANALT_COMING_UP;
 		for (j = 0; j < MAX_CPUS_PER_CLUSTER; j++)
 			mcpm_sync.clusters[i].cpus[j].cpu = CPU_DOWN;
 	}

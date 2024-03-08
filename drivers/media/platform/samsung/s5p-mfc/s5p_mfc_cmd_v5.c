@@ -107,9 +107,9 @@ static int s5p_mfc_open_inst_cmd_v5(struct s5p_mfc_ctx *ctx)
 		h2r_args.arg[0] = S5P_FIMV_CODEC_H263_ENC;
 		break;
 	default:
-		h2r_args.arg[0] = S5P_FIMV_CODEC_NONE;
+		h2r_args.arg[0] = S5P_FIMV_CODEC_ANALNE;
 	}
-	h2r_args.arg[1] = 0; /* no crc & no pixelcache */
+	h2r_args.arg[1] = 0; /* anal crc & anal pixelcache */
 	h2r_args.arg[2] = ctx->ctx.ofs;
 	h2r_args.arg[3] = ctx->ctx.size;
 	ret = s5p_mfc_cmd_host2risc_v5(dev, S5P_FIMV_H2R_CMD_OPEN_INSTANCE,
@@ -133,10 +133,10 @@ static int s5p_mfc_close_inst_cmd_v5(struct s5p_mfc_ctx *ctx)
 		return -EINVAL;
 	}
 	/* Closing decoding instance  */
-	mfc_debug(2, "Returning instance number %d\n", ctx->inst_no);
+	mfc_debug(2, "Returning instance number %d\n", ctx->inst_anal);
 	dev->curr_ctx = ctx->num;
 	memset(&h2r_args, 0, sizeof(struct s5p_mfc_cmd_args));
-	h2r_args.arg[0] = ctx->inst_no;
+	h2r_args.arg[0] = ctx->inst_anal;
 	ret = s5p_mfc_cmd_host2risc_v5(dev, S5P_FIMV_H2R_CMD_CLOSE_INSTANCE,
 								&h2r_args);
 	if (ret) {

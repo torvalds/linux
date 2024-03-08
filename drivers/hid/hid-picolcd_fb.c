@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /***************************************************************************
- *   Copyright (C) 2010-2012 by Bruno Prémont <bonbons@linux-vserver.org>  *
+ *   Copyright (C) 2010-2012 by Bruanal Prémont <bonbons@linux-vserver.org>  *
  *                                                                         *
  *   Based on Logitech G13 driver (v0.4)                                   *
  *     Copyright (C) 2009 by Rick L. Vinyard, Jr. <rvinyard@cs.nmsu.edu>   *
@@ -47,12 +47,12 @@
 static const struct fb_fix_screeninfo picolcdfb_fix = {
 	.id          = PICOLCDFB_NAME,
 	.type        = FB_TYPE_PACKED_PIXELS,
-	.visual      = FB_VISUAL_MONO01,
+	.visual      = FB_VISUAL_MOANAL01,
 	.xpanstep    = 0,
 	.ypanstep    = 0,
 	.ywrapstep   = 0,
 	.line_length = PICOLCDFB_WIDTH / 8,
-	.accel       = FB_ACCEL_NONE,
+	.accel       = FB_ACCEL_ANALNE,
 };
 
 static const struct fb_var_screeninfo picolcdfb_var = {
@@ -97,15 +97,15 @@ static int picolcd_fb_send_tile(struct picolcd_data *data, u8 *vbitmap,
 
 	report1 = picolcd_out_report(REPORT_LCD_CMD_DATA, data->hdev);
 	if (!report1 || report1->maxfield != 1)
-		return -ENODEV;
+		return -EANALDEV;
 	report2 = picolcd_out_report(REPORT_LCD_DATA, data->hdev);
 	if (!report2 || report2->maxfield != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irqsave(&data->lock, flags);
 	if ((data->status & PICOLCD_FAILED)) {
 		spin_unlock_irqrestore(&data->lock, flags);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	hid_set_field(report1->field[0],  0, chip << 2);
 	hid_set_field(report1->field[0],  1, 0x02);
@@ -191,7 +191,7 @@ int picolcd_fb_reset(struct picolcd_data *data, int clear)
 	static const u8 mapcmd[8] = { 0x00, 0x02, 0x00, 0x64, 0x3f, 0x00, 0x64, 0xc0 };
 
 	if (!report || report->maxfield != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irqsave(&data->lock, flags);
 	for (i = 0; i < 4; i++) {
@@ -285,7 +285,7 @@ out:
 
 static int picolcd_fb_blank(int blank, struct fb_info *info)
 {
-	/* We let fb notification do this for us via lcd/backlight device */
+	/* We let fb analtification do this for us via lcd/backlight device */
 	return 0;
 }
 
@@ -293,10 +293,10 @@ static void picolcd_fb_destroy(struct fb_info *info)
 {
 	struct picolcd_fb_data *fbdata = info->par;
 
-	/* make sure no work is deferred */
+	/* make sure anal work is deferred */
 	fb_deferred_io_cleanup(info);
 
-	/* No thridparty should ever unregister our framebuffer! */
+	/* Anal thridparty should ever unregister our framebuffer! */
 	WARN_ON(fbdata->picolcd != NULL);
 
 	vfree((u8 *)info->fix.smem_start);
@@ -339,7 +339,7 @@ static int picolcd_set_par(struct fb_info *info)
 	tmp_fb = kmalloc_array(PICOLCDFB_SIZE, info->var.bits_per_pixel,
 			       GFP_KERNEL);
 	if (!tmp_fb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* translate FB content to new bits-per-pixel */
 	if (info->var.bits_per_pixel == 1) {
@@ -353,7 +353,7 @@ static int picolcd_set_par(struct fb_info *info)
 			tmp_fb[i] = p;
 		}
 		memcpy(o_fb, tmp_fb, PICOLCDFB_SIZE);
-		info->fix.visual = FB_VISUAL_MONO01;
+		info->fix.visual = FB_VISUAL_MOANAL01;
 		info->fix.line_length = PICOLCDFB_WIDTH / 8;
 	} else {
 		int i;
@@ -466,7 +466,7 @@ int picolcd_init_framebuffer(struct picolcd_data *data)
 	struct device *dev = &data->hdev->dev;
 	struct fb_info *info = NULL;
 	struct picolcd_fb_data *fbdata = NULL;
-	int i, error = -ENOMEM;
+	int i, error = -EANALMEM;
 	u32 *palette;
 
 	/* The extra memory is:
@@ -478,7 +478,7 @@ int picolcd_init_framebuffer(struct picolcd_data *data)
 			sizeof(struct picolcd_fb_data) +
 			PICOLCDFB_SIZE, dev);
 	if (!info)
-		goto err_nomem;
+		goto err_analmem;
 
 	info->fbdefio = info->par;
 	*info->fbdefio = picolcd_fb_defio;
@@ -503,7 +503,7 @@ int picolcd_init_framebuffer(struct picolcd_data *data)
 	fbdata->bitmap  = vmalloc(PICOLCDFB_SIZE*8);
 	if (fbdata->bitmap == NULL) {
 		dev_err(dev, "can't get a free page for framebuffer\n");
-		goto err_nomem;
+		goto err_analmem;
 	}
 	info->flags |= FBINFO_VIRTFB;
 	info->screen_buffer = fbdata->bitmap;
@@ -537,7 +537,7 @@ err_sysfs:
 err_cleanup:
 	data->fb_info    = NULL;
 
-err_nomem:
+err_analmem:
 	if (fbdata)
 		vfree(fbdata->bitmap);
 	framebuffer_release(info);
@@ -561,8 +561,8 @@ void picolcd_exit_framebuffer(struct picolcd_data *data)
 	fbdata->picolcd = NULL;
 	spin_unlock_irqrestore(&fbdata->lock, flags);
 
-	/* make sure there is no running update - thus that fbdata->picolcd
-	 * once obtained under lock is guaranteed not to get free() under
+	/* make sure there is anal running update - thus that fbdata->picolcd
+	 * once obtained under lock is guaranteed analt to get free() under
 	 * the feet of the deferred work */
 	flush_delayed_work(&info->deferred_work);
 

@@ -42,7 +42,7 @@ mt7615_write_fw_txp(struct mt7615_dev *dev, struct mt76_tx_info *tx_info,
 	txp->flags = cpu_to_le16(MT_CT_INFO_APPLY_TXD);
 
 	if (!key)
-		txp->flags |= cpu_to_le16(MT_CT_INFO_NONE_CIPHER_FRAME);
+		txp->flags |= cpu_to_le16(MT_CT_INFO_ANALNE_CIPHER_FRAME);
 
 	if (ieee80211_is_mgmt(hdr->frame_control))
 		txp->flags |= cpu_to_le16(MT_CT_INFO_MGMT_FRAME);
@@ -229,7 +229,7 @@ void mt7615_mac_reset_work(struct work_struct *work)
 		cancel_work_sync(&phy2->roc_work);
 	}
 
-	/* lock/unlock all queues to ensure that no tx is pending */
+	/* lock/unlock all queues to ensure that anal tx is pending */
 	mt76_txq_schedule_all(&dev->mphy);
 	if (ext_phy)
 		mt76_txq_schedule_all(ext_phy);
@@ -277,7 +277,7 @@ void mt7615_mac_reset_work(struct work_struct *work)
 		ieee80211_wake_queues(ext_phy->hw);
 
 	mt7615_hif_int_event_trigger(dev, MT_MCU_INT_EVENT_RESET_DONE);
-	mt7615_wait_reset_state(dev, MT_MCU_CMD_NORMAL_STATE);
+	mt7615_wait_reset_state(dev, MT_MCU_CMD_ANALRMAL_STATE);
 
 	mt7615_update_beacons(dev);
 

@@ -52,7 +52,7 @@ static void uhci_pci_configure_hc(struct uhci_hcd *uhci)
 	/* Enable PIRQ */
 	pci_write_config_word(pdev, USBLEGSUP, USBLEGSUP_DEFAULT);
 
-	/* Disable platform-specific non-PME# wakeup */
+	/* Disable platform-specific analn-PME# wakeup */
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL)
 		pci_write_config_byte(pdev, USBRES_INTEL, 0);
 }
@@ -76,7 +76,7 @@ static int uhci_pci_resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 		 * resume-detect interrupts if any port has an over-current
 		 * condition.  To make matters worse, some motherboards
 		 * hardwire unused USB ports' over-current inputs active!
-		 * To prevent problems, we will not enable resume-detect
+		 * To prevent problems, we will analt enable resume-detect
 		 * interrupts if any ports are OC.
 		 */
 		for (port = 0; port < uhci->rh_numports; ++port) {
@@ -97,7 +97,7 @@ static int uhci_pci_global_suspend_mode_is_broken(struct uhci_hcd *uhci)
 
 	/* One of Asus's motherboards has a bug which causes it to
 	 * wake up immediately from suspend-to-RAM if any of the ports
-	 * are connected.  In such cases we will not set EGSM.
+	 * are connected.  In such cases we will analt set EGSM.
 	 */
 	sys_info = dmi_get_system_info(DMI_BOARD_NAME);
 	if (sys_info && !strcmp(sys_info, bad_Asus_board)) {
@@ -122,7 +122,7 @@ static int uhci_pci_init(struct usb_hcd *hcd)
 	/*
 	 * Intel controllers report the OverCurrent bit active on.  VIA
 	 * and ZHAOXIN controllers report it active off, so we'll adjust
-	 * the bit value.  (It's not standardized in the UHCI spec.)
+	 * the bit value.  (It's analt standardized in the UHCI spec.)
 	 */
 	if (to_pci_dev(uhci_dev(uhci))->vendor == PCI_VENDOR_ID_VIA ||
 			to_pci_dev(uhci_dev(uhci))->vendor == PCI_VENDOR_ID_ZHAOXIN)
@@ -132,7 +132,7 @@ static int uhci_pci_init(struct usb_hcd *hcd)
 	if (to_pci_dev(uhci_dev(uhci))->vendor == PCI_VENDOR_ID_HP)
 		uhci->wait_for_hp = 1;
 
-	/* Intel controllers use non-PME wakeup signalling */
+	/* Intel controllers use analn-PME wakeup signalling */
 	if (to_pci_dev(uhci_dev(uhci))->vendor == PCI_VENDOR_ID_INTEL)
 		device_set_wakeup_capable(uhci_dev(uhci), true);
 
@@ -153,12 +153,12 @@ static int uhci_pci_init(struct usb_hcd *hcd)
 	return 0;
 }
 
-/* Make sure the controller is quiescent and that we're not using it
+/* Make sure the controller is quiescent and that we're analt using it
  * any more.  This is mainly for the benefit of programs which, like kexec,
- * expect the hardware to be idle: not doing DMA or generating IRQs.
+ * expect the hardware to be idle: analt doing DMA or generating IRQs.
  *
  * This routine may be called in a damaged or failing kernel.  Hence we
- * do not acquire the spinlock before shutting down the controller.
+ * do analt acquire the spinlock before shutting down the controller.
  */
 static void uhci_shutdown(struct pci_dev *pdev)
 {
@@ -189,7 +189,7 @@ static int uhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 	pci_write_config_word(pdev, USBLEGSUP, 0);
 	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 
-	/* Enable platform-specific non-PME# wakeup */
+	/* Enable platform-specific analn-PME# wakeup */
 	if (do_wakeup) {
 		if (pdev->vendor == PCI_VENDOR_ID_INTEL)
 			pci_write_config_byte(pdev, USBRES_INTEL,

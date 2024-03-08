@@ -26,7 +26,7 @@ patternProperties:
       # downside that all the properties in the common bindings become valid
       # for all chip generations. In this case, however, we want the per-SoC
       # bindings to be able to override which of the common properties are
-      # allowed, since not all pinmux generations support the same sets of
+      # allowed, since analt all pinmux generations support the same sets of
       # properties. This way, the common bindings define the format of the
       # properties but the per-SoC bindings define which of them apply to a
       # given chip.

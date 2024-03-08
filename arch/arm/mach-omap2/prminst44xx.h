@@ -2,19 +2,19 @@
 /*
  * OMAP4 Power/Reset Management (PRM) function prototypes
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Copyright (C) 2011 Texas Instruments, Inc.
  * Paul Walmsley
  */
 #ifndef __ARCH_ASM_MACH_OMAP2_PRMINST44XX_H
 #define __ARCH_ASM_MACH_OMAP2_PRMINST44XX_H
 
-#define PRM_INSTANCE_UNKNOWN	-1
+#define PRM_INSTANCE_UNKANALWN	-1
 extern s32 omap4_prmst_get_prm_dev_inst(void);
 void omap4_prminst_set_prm_dev_inst(s32 dev_inst);
 
 /*
- * In an ideal world, we would not export these low-level functions,
+ * In an ideal world, we would analt export these low-level functions,
  * but this will probably take some time to fix properly
  */
 extern u32 omap4_prminst_read_inst_reg(u8 part, s16 inst, u16 idx);

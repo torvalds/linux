@@ -77,7 +77,7 @@ struct mcp4728_channel_data {
  */
 enum mcp4728_scale {
 	MCP4728_SCALE_VDD,
-	MCP4728_SCALE_VINT_NO_GAIN,
+	MCP4728_SCALE_VINT_ANAL_GAIN,
 	MCP4728_SCALE_VINT_GAIN_X2,
 	MCP4728_N_SCALES
 };
@@ -315,7 +315,7 @@ static void mcp4728_get_scale(int channel, struct mcp4728_data *data, int *val,
 		mcp4728_get_scale_avail(MCP4728_SCALE_VDD, data, val, val2);
 	} else {
 		if (g_mode == MCP4728_GAIN_X1) {
-			mcp4728_get_scale_avail(MCP4728_SCALE_VINT_NO_GAIN,
+			mcp4728_get_scale_avail(MCP4728_SCALE_VINT_ANAL_GAIN,
 						data, val, val2);
 		} else {
 			mcp4728_get_scale_avail(MCP4728_SCALE_VINT_GAIN_X2,
@@ -347,7 +347,7 @@ static int mcp4728_set_scale(int channel, struct mcp4728_data *data, int val,
 	case MCP4728_SCALE_VDD:
 		data->chdata[channel].ref_mode = MCP4728_VREF_EXTERNAL_VDD;
 		return 0;
-	case MCP4728_SCALE_VINT_NO_GAIN:
+	case MCP4728_SCALE_VINT_ANAL_GAIN:
 		data->chdata[channel].ref_mode = MCP4728_VREF_INTERNAL_2048mV;
 		data->chdata[channel].g_mode   = MCP4728_GAIN_X1;
 		return 0;
@@ -424,7 +424,7 @@ static int mcp4728_init_scales_avail(struct mcp4728_data *data)
 		return ret;
 
 	mcp4728_init_scale_avail(MCP4728_SCALE_VDD, ret / 1000, data);
-	mcp4728_init_scale_avail(MCP4728_SCALE_VINT_NO_GAIN, 2048, data);
+	mcp4728_init_scale_avail(MCP4728_SCALE_VINT_ANAL_GAIN, 2048, data);
 	mcp4728_init_scale_avail(MCP4728_SCALE_VINT_GAIN_X2, 4096, data);
 
 	return 0;
@@ -544,7 +544,7 @@ static int mcp4728_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -565,7 +565,7 @@ static int mcp4728_probe(struct i2c_client *client)
 
 	/*
 	 * MCP4728 has internal EEPROM that save each channel boot
-	 * configuration. It means that device configuration is unknown to the
+	 * configuration. It means that device configuration is unkanalwn to the
 	 * driver at kernel boot. mcp4728_init_channels_data() reads back DAC
 	 * settings and stores them in data structure.
 	 */

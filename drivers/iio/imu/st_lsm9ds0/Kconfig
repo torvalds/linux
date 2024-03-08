@@ -9,7 +9,7 @@ config IIO_ST_LSM9DS0
 	select IIO_ST_MAGN_3AXIS
 
 	help
-	  Say yes here to build support for STMicroelectronics LSM9DS0 IMU
+	  Say anal here to build support for STMicroelectronics LSM9DS0 IMU
 	  sensor. Supported devices: accelerometer/magnetometer of lsm9ds0
 	  and lsm303d.
 

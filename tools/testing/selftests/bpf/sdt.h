@@ -12,17 +12,17 @@
 
        STAP_PROBEn(op1, ..., opn)
 
-  that emit a nop into the instruction stream, and some data into an auxiliary
-  note section.  The data in the note section describes the operands, in terms
+  that emit a analp into the instruction stream, and some data into an auxiliary
+  analte section.  The data in the analte section describes the operands, in terms
   of size and location.  Each location is encoded as assembler operand string.
   Consumer tools such as gdb or systemtap insert breakpoints on top of
-  the nop, and decode the location operand-strings, like an assembler,
+  the analp, and decode the location operand-strings, like an assembler,
   to find the values being passed.
 
   The operand strings are selected by the compiler for each operand.
   They are constrained by gcc inline-assembler codes.  The default is:
 
-  #define STAP_SDT_ARG_CONSTRAINT nor
+  #define STAP_SDT_ARG_CONSTRAINT analr
 
   This is a good default if the operands tend to be integral and
   moderate in number (smaller than number of registers).  In other
@@ -66,15 +66,15 @@
 # define _SDT_DEPAREN_12(a,b,c,d,e,f,g,h,i,j,k,l)	a b c d e f g h i j k l
 #else
 #if defined _SDT_HAS_SEMAPHORES
-#define _SDT_NOTE_SEMAPHORE_USE(provider, name) \
+#define _SDT_ANALTE_SEMAPHORE_USE(provider, name) \
   __asm__ __volatile__ ("" :: "m" (provider##_##name##_semaphore));
 #else
-#define _SDT_NOTE_SEMAPHORE_USE(provider, name)
+#define _SDT_ANALTE_SEMAPHORE_USE(provider, name)
 #endif
 
 # define _SDT_PROBE(provider, name, n, arglist) \
   do {									    \
-    _SDT_NOTE_SEMAPHORE_USE(provider, name); \
+    _SDT_ANALTE_SEMAPHORE_USE(provider, name); \
     __asm__ __volatile__ (_SDT_ASM_BODY(provider, name, _SDT_ASM_ARGS, (n)) \
 			  :: _SDT_ASM_OPERANDS_##n arglist);		    \
     __asm__ __volatile__ (_SDT_ASM_BASE);				    \
@@ -91,10 +91,10 @@
 # define _SDT_ASM_STRING_1(x)		_SDT_ASM_1(.asciz #x)
 # define _SDT_ASM_SUBSTR_1(x)		_SDT_ASM_1(.ascii #x)
 
-# define _SDT_ARGFMT(no)                _SDT_ASM_1(_SDT_SIGN %n[_SDT_S##no]) \
-                                        _SDT_ASM_1(_SDT_SIZE %n[_SDT_S##no]) \
-                                        _SDT_ASM_1(_SDT_TYPE %n[_SDT_S##no]) \
-                                        _SDT_ASM_SUBSTR(_SDT_ARGTMPL(_SDT_A##no))
+# define _SDT_ARGFMT(anal)                _SDT_ASM_1(_SDT_SIGN %n[_SDT_S##anal]) \
+                                        _SDT_ASM_1(_SDT_SIZE %n[_SDT_S##anal]) \
+                                        _SDT_ASM_1(_SDT_TYPE %n[_SDT_S##anal]) \
+                                        _SDT_ASM_SUBSTR(_SDT_ARGTMPL(_SDT_A##anal))
 
 
 # ifndef STAP_SDT_ARG_CONSTRAINT
@@ -103,7 +103,7 @@
 # elif defined __arm__
 # define STAP_SDT_ARG_CONSTRAINT        g
 # else
-# define STAP_SDT_ARG_CONSTRAINT        nor
+# define STAP_SDT_ARG_CONSTRAINT        analr
 # endif
 # endif
 
@@ -168,7 +168,7 @@ __SDT_COND_SIGNED(const char, char)
 __SDT_COND_SIGNED(const wchar_t, wchar_t)
 __SDT_COND_SIGNED(const volatile char, char)
 __SDT_COND_SIGNED(const volatile wchar_t, wchar_t)
-#if defined (__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4))
+#if defined (__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MIANALR__ >= 4))
 /* __SDT_COND_SIGNED(char16_t) */
 /* __SDT_COND_SIGNED(char32_t) */
 #endif
@@ -205,7 +205,7 @@ __extension__ extern unsigned long long __sdt_unsp;
 #endif
 
 /* NB: gdb PR24541 highlighted an unspecified corner of the sdt.h
-   operand note format.
+   operand analte format.
 
    The named register may be a longer or shorter (!) alias for the
    storage where the value in question is found.  For example, on
@@ -216,7 +216,7 @@ __extension__ extern unsigned long long __sdt_unsp;
 
    Bottom line: the byte-width given before the @ sign governs.  If
    there is a mismatch between that width and that of the named
-   register, then a sys/sdt.h note consumer may need to employ
+   register, then a sys/sdt.h analte consumer may need to employ
    architecture-specific heuristics to figure out where the compiler
    has actually put the complete value.
 */
@@ -227,15 +227,15 @@ __extension__ extern unsigned long long __sdt_unsp;
 # define _SDT_ASM_ADDR	.4byte
 #endif
 
-/* The ia64 and s390 nop instructions take an argument. */
+/* The ia64 and s390 analp instructions take an argument. */
 #if defined(__ia64__) || defined(__s390__) || defined(__s390x__)
-#define _SDT_NOP	nop 0
+#define _SDT_ANALP	analp 0
 #else
-#define _SDT_NOP	nop
+#define _SDT_ANALP	analp
 #endif
 
-#define _SDT_NOTE_NAME	"stapsdt"
-#define _SDT_NOTE_TYPE	3
+#define _SDT_ANALTE_NAME	"stapsdt"
+#define _SDT_ANALTE_TYPE	3
 
 /* If the assembler supports the necessary feature, then we can play
    nice with code in COMDAT sections, which comes up in C++ code.
@@ -251,14 +251,14 @@ __extension__ extern unsigned long long __sdt_unsp;
 #define _SDT_DEF_MACROS							     \
 	_SDT_ASM_1(.altmacro)						     \
 	_SDT_ASM_1(.macro _SDT_SIGN x)				     	     \
-	_SDT_ASM_3(.pushsection .note.stapsdt,"","note")		     \
+	_SDT_ASM_3(.pushsection .analte.stapsdt,"","analte")		     \
 	_SDT_ASM_1(.iflt \\x)						     \
 	_SDT_ASM_1(.ascii "-")						     \
 	_SDT_ASM_1(.endif)						     \
 	_SDT_ASM_1(.popsection)						     \
 	_SDT_ASM_1(.endm)						     \
 	_SDT_ASM_1(.macro _SDT_SIZE_ x)					     \
-	_SDT_ASM_3(.pushsection .note.stapsdt,"","note")		     \
+	_SDT_ASM_3(.pushsection .analte.stapsdt,"","analte")		     \
 	_SDT_ASM_1(.ascii "\x")						     \
 	_SDT_ASM_1(.popsection)						     \
 	_SDT_ASM_1(.endm)						     \
@@ -266,7 +266,7 @@ __extension__ extern unsigned long long __sdt_unsp;
 	_SDT_ASM_1(_SDT_SIZE_ %%((-(-\\x*((-\\x>0)-(-\\x<0))))>>8))	     \
 	_SDT_ASM_1(.endm)						     \
 	_SDT_ASM_1(.macro _SDT_TYPE_ x)				             \
-	_SDT_ASM_3(.pushsection .note.stapsdt,"","note")		     \
+	_SDT_ASM_3(.pushsection .analte.stapsdt,"","analte")		     \
 	_SDT_ASM_2(.ifc 8,\\x)					     	     \
 	_SDT_ASM_1(.ascii "f")						     \
 	_SDT_ASM_1(.endif)						     \
@@ -286,11 +286,11 @@ __extension__ extern unsigned long long __sdt_unsp;
 
 #define _SDT_ASM_BODY(provider, name, pack_args, args, ...)		      \
   _SDT_DEF_MACROS							      \
-  _SDT_ASM_1(990:	_SDT_NOP)					      \
-  _SDT_ASM_3(		.pushsection .note.stapsdt,_SDT_ASM_AUTOGROUP,"note") \
+  _SDT_ASM_1(990:	_SDT_ANALP)					      \
+  _SDT_ASM_3(		.pushsection .analte.stapsdt,_SDT_ASM_AUTOGROUP,"analte") \
   _SDT_ASM_1(		.balign 4)					      \
-  _SDT_ASM_3(		.4byte 992f-991f, 994f-993f, _SDT_NOTE_TYPE)	      \
-  _SDT_ASM_1(991:	.asciz _SDT_NOTE_NAME)				      \
+  _SDT_ASM_3(		.4byte 992f-991f, 994f-993f, _SDT_ANALTE_TYPE)	      \
+  _SDT_ASM_1(991:	.asciz _SDT_ANALTE_NAME)				      \
   _SDT_ASM_1(992:	.balign 4)					      \
   _SDT_ASM_1(993:	_SDT_ASM_ADDR 990b)				      \
   _SDT_ASM_1(		_SDT_ASM_ADDR _.stapsdt.base)			      \
@@ -322,7 +322,7 @@ __extension__ extern unsigned long long __sdt_unsp;
 #endif
 
 #define _SDT_ASM_BLANK _SDT_ASM_SUBSTR(\x20)
-#define _SDT_ASM_TEMPLATE_0		/* no arguments */
+#define _SDT_ASM_TEMPLATE_0		/* anal arguments */
 #define _SDT_ASM_TEMPLATE_1		_SDT_ARGFMT(1)
 #define _SDT_ASM_TEMPLATE_2		_SDT_ASM_TEMPLATE_1 _SDT_ASM_BLANK _SDT_ARGFMT(2)
 #define _SDT_ASM_TEMPLATE_3		_SDT_ASM_TEMPLATE_2 _SDT_ASM_BLANK _SDT_ARGFMT(3)
@@ -366,7 +366,7 @@ __extension__ extern unsigned long long __sdt_unsp;
     _SDT_ARG(12, arg12)
 
 /* These macros can be used in C, C++, or assembly code.
-   In assembly code the arguments should use normal assembly operand syntax.  */
+   In assembly code the arguments should use analrmal assembly operand syntax.  */
 
 #define STAP_PROBE(provider, name) \
   _SDT_PROBE(provider, name, 0, ())
@@ -399,7 +399,7 @@ __extension__ extern unsigned long long __sdt_unsp;
 	     (arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9,arg10,arg11,arg12))
 
 /* This STAP_PROBEV macro can be used in variadic scenarios, where the
-   number of probe arguments is not known until compile time.  Since
+   number of probe arguments is analt kanalwn until compile time.  Since
    variadic macro support may vary with compiler options, you must
    pre-#define SDT_USE_VARIADIC to enable this type of probe.
 
@@ -407,7 +407,7 @@ __extension__ extern unsigned long long __sdt_unsp;
    Laurent Deniau <laurent.deniau@cern.ch>:
        http://groups.google.com/group/comp.std.c/msg/346fc464319b1ee5
 
-   Note that our _SDT_NARG is called with an extra 0 arg that's not
+   Analte that our _SDT_NARG is called with an extra 0 arg that's analt
    counted, so we don't have to worry about the behavior of macros
    called without any arguments.  */
 
@@ -435,9 +435,9 @@ __extension__ extern unsigned long long __sdt_unsp;
 
    emits the assembly code for "before\nafter", with a probe in between.
    The probe arguments are the %eax register, and the value of the memory
-   word located 4 bytes past the address in the %esi register.  Note that
-   because this is a simple asm, not a GNU C extended asm statement, these
-   % characters do not need to be doubled to generate literal %reg names.
+   word located 4 bytes past the address in the %esi register.  Analte that
+   because this is a simple asm, analt a GNU C extended asm statement, these
+   % characters do analt need to be doubled to generate literal %reg names.
 
    In a GNU C extended asm statement, the probe arguments can be specified
    using the macro STAP_PROBE_ASM_TEMPLATE(n) for n arguments.  The paired
@@ -459,13 +459,13 @@ __extension__ extern unsigned long long __sdt_unsp;
 
     The probe arguments in STAP_PROBE_ASM can be given as assembly
     operands instead, even inside a GNU C extended asm statement.
-    Note that these can use operand templates like %0 or %[name],
+    Analte that these can use operand templates like %0 or %[name],
     and likewise they must write %%reg for a literal operand of %reg.  */
 
 #define _SDT_ASM_BODY_1(p,n,...) _SDT_ASM_BODY(p,n,_SDT_ASM_SUBSTR,(__VA_ARGS__))
 #define _SDT_ASM_BODY_2(p,n,...) _SDT_ASM_BODY(p,n,/*_SDT_ASM_STRING */,__VA_ARGS__)
-#define _SDT_ASM_BODY_N2(p,n,no,...) _SDT_ASM_BODY_ ## no(p,n,__VA_ARGS__)
-#define _SDT_ASM_BODY_N1(p,n,no,...) _SDT_ASM_BODY_N2(p,n,no,__VA_ARGS__)
+#define _SDT_ASM_BODY_N2(p,n,anal,...) _SDT_ASM_BODY_ ## anal(p,n,__VA_ARGS__)
+#define _SDT_ASM_BODY_N1(p,n,anal,...) _SDT_ASM_BODY_N2(p,n,anal,__VA_ARGS__)
 #define _SDT_ASM_BODY_N(p,n,...) _SDT_ASM_BODY_N1(p,n,_SDT_NARG(0, __VA_ARGS__),__VA_ARGS__)
 
 #if __STDC_VERSION__ >= 199901L

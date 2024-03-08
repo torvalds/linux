@@ -20,7 +20,7 @@ static int lpss_atom_clk_probe(struct platform_device *pdev)
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* LPSS free running clock */
 	drvdata->name = "lpss_clk";

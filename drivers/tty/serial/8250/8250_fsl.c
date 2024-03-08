@@ -33,7 +33,7 @@ int fsl8250_handle_irq(struct uart_port *port)
 	uart_port_lock_irqsave(&up->port, &flags);
 
 	iir = port->serial_in(port, UART_IIR);
-	if (iir & UART_IIR_NO_INT) {
+	if (iir & UART_IIR_ANAL_INT) {
 		uart_port_unlock_irqrestore(&up->port, flags);
 		return 0;
 	}
@@ -46,7 +46,7 @@ int fsl8250_handle_irq(struct uart_port *port)
 	 * In practise it's less (around 500) because of hardware
 	 * and software latencies. The workaround recommended by the vendor is
 	 * to read the RX register (to clear LSR.DR and thus prevent a FIFO
-	 * aging interrupt). To prevent the irq from retriggering LSR must not be
+	 * aging interrupt). To prevent the irq from retriggering LSR must analt be
 	 * read. (This would clear LSR.BI, hardware would reassert the BI event
 	 * immediately and interrupt the CPU again. The hardware clears LSR.BI
 	 * when the next valid char is read.)
@@ -114,7 +114,7 @@ static int fsl8250_acpi_probe(struct platform_device *pdev)
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
-		dev_err(dev, "no registers defined\n");
+		dev_err(dev, "anal registers defined\n");
 		return -EINVAL;
 	}
 
@@ -146,11 +146,11 @@ static int fsl8250_acpi_probe(struct platform_device *pdev)
 	port8250.port.membase = devm_ioremap(dev,  port8250.port.mapbase,
 							port8250.port.mapsize);
 	if (!port8250.port.membase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->line = serial8250_register_8250_port(&port8250);
 	if (data->line < 0)

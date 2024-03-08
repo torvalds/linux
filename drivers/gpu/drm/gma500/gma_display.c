@@ -72,9 +72,9 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	if (!gma_power_begin(dev, true))
 		return 0;
 
-	/* no fb bound */
+	/* anal fb bound */
 	if (!fb) {
-		dev_err(dev->dev, "No FB bound\n");
+		dev_err(dev->dev, "Anal FB bound\n");
 		goto gma_pipe_cleaner;
 	}
 
@@ -105,10 +105,10 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		break;
 	case 24:
 	case 32:
-		dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
+		dspcntr |= DISPPLANE_32BPP_ANAL_ALPHA;
 		break;
 	default:
-		dev_err(dev->dev, "Unknown color depth\n");
+		dev_err(dev->dev, "Unkanalwn color depth\n");
 		ret = -EINVAL;
 		goto gma_pipe_set_base_exit;
 	}
@@ -119,7 +119,7 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 
 	/* FIXME: Investigate whether this really is the base for psb and why
 		  the linear offset is named base for the other chips. map->surf
-		  should be the base and map->linoff the offset for all chips */
+		  should be the base and map->lianalff the offset for all chips */
 	if (IS_PSB(dev)) {
 		REG_WRITE(map->base, offset + start);
 		REG_READ(map->base);
@@ -131,7 +131,7 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	}
 
 gma_pipe_cleaner:
-	/* If there was a previous display we can now unpin it */
+	/* If there was a previous display we can analw unpin it */
 	if (old_fb)
 		psb_gem_unpin(to_psb_gem_object(old_fb->obj[0]));
 
@@ -169,7 +169,7 @@ void gma_crtc_load_lut(struct drm_crtc *crtc)
 		gma_power_end(dev);
 	} else {
 		for (i = 0; i < 256; i++) {
-			/* FIXME: Why pipe[0] and not pipe[..._crtc->pipe]? */
+			/* FIXME: Why pipe[0] and analt pipe[..._crtc->pipe]? */
 			dev_priv->regs.pipe[0].palette[i] =
 				(((*r++ >> 8) + gma_crtc->lut_adj[i]) << 16) |
 				(((*g++ >> 8) + gma_crtc->lut_adj[i]) << 8) |
@@ -371,13 +371,13 @@ static int gma_crtc_cursor_set(struct drm_crtc *crtc,
 
 	obj = drm_gem_object_lookup(file_priv, handle);
 	if (!obj) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto unlock;
 	}
 
 	if (obj->size < width * height * 4) {
 		dev_dbg(dev->dev, "Buffer is too small\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unref_cursor;
 	}
 
@@ -386,14 +386,14 @@ static int gma_crtc_cursor_set(struct drm_crtc *crtc,
 	/* Pin the memory into the GTT */
 	ret = psb_gem_pin(pobj);
 	if (ret) {
-		dev_err(dev->dev, "Can not pin down handle 0x%x\n", handle);
+		dev_err(dev->dev, "Can analt pin down handle 0x%x\n", handle);
 		goto unref_cursor;
 	}
 
 	if (dev_priv->ops->cursor_needs_phys) {
 		if (!cursor_pobj) {
-			dev_err(dev->dev, "No hardware cursor mem available");
-			ret = -ENOMEM;
+			dev_err(dev->dev, "Anal hardware cursor mem available");
+			ret = -EANALMEM;
 			goto unref_cursor;
 		}
 
@@ -583,7 +583,7 @@ void gma_crtc_save(struct drm_crtc *crtc)
 	int i;
 
 	if (!crtc_state) {
-		dev_err(dev->dev, "No CRTC state found\n");
+		dev_err(dev->dev, "Anal CRTC state found\n");
 		return;
 	}
 
@@ -601,7 +601,7 @@ void gma_crtc_save(struct drm_crtc *crtc)
 	crtc_state->saveVSYNC = REG_READ(map->vsync);
 	crtc_state->saveDSPSTRIDE = REG_READ(map->stride);
 
-	/* NOTE: DSPSIZE DSPPOS only for psb */
+	/* ANALTE: DSPSIZE DSPPOS only for psb */
 	crtc_state->saveDSPSIZE = REG_READ(map->size);
 	crtc_state->saveDSPPOS = REG_READ(map->pos);
 
@@ -626,7 +626,7 @@ void gma_crtc_restore(struct drm_crtc *crtc)
 	int i;
 
 	if (!crtc_state) {
-		dev_err(dev->dev, "No crtc state\n");
+		dev_err(dev->dev, "Anal crtc state\n");
 		return;
 	}
 

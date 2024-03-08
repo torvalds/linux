@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Cyclades PC300 synchronous serial card driver for Linux
+ * Cyclades PC300 synchroanalus serial card driver for Linux
  *
  * Copyright (C) 2000-2008 Krzysztof Halasa <khc@pm.waw.pl>
  *
@@ -24,7 +24,7 @@
 #include <linux/fcntl.h>
 #include <linux/in.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/moduleparam.h>
@@ -183,7 +183,7 @@ static int pc300_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
 		return 0;
 	}
 #endif
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int pc300_ioctl(struct net_device *dev, struct if_settings *ifs)
@@ -198,7 +198,7 @@ static int pc300_ioctl(struct net_device *dev, struct if_settings *ifs)
 		ifs->type = port->iface;
 		if (ifs->size < size) {
 			ifs->size = size; /* data size wanted */
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 		if (copy_to_user(line, &port->settings, size))
 			return -EFAULT;
@@ -232,7 +232,7 @@ static int pc300_ioctl(struct net_device *dev, struct if_settings *ifs)
 	    new_line.clock_type != CLOCK_TXFROMRX &&
 	    new_line.clock_type != CLOCK_INT &&
 	    new_line.clock_type != CLOCK_TXINT)
-		return -EINVAL;	/* No such clock setting */
+		return -EINVAL;	/* Anal such clock setting */
 
 	if (new_line.loopback != 0 && new_line.loopback != 1)
 		return -EINVAL;
@@ -304,7 +304,7 @@ static int pc300_pci_init_one(struct pci_dev *pdev,
 	if (!card) {
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 	pci_set_drvdata(pdev, card);
 
@@ -328,7 +328,7 @@ static int pc300_pci_init_one(struct pci_dev *pdev,
 	if (!card->plxbase || !card->scabase || !card->rambase) {
 		pr_err("ioremap() failed\n");
 		pc300_pci_remove_one(pdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* PLX PCI 9050 workaround for local configuration register read bug */
@@ -338,7 +338,7 @@ static int pc300_pci_init_one(struct pci_dev *pdev,
 
 	if (pdev->device == PCI_DEVICE_ID_PC300_TE_1 ||
 	    pdev->device == PCI_DEVICE_ID_PC300_TE_2)
-		card->type = PC300_TE; /* not fully supported */
+		card->type = PC300_TE; /* analt fully supported */
 	else if (card->init_ctrl_value & PC300_CTYPE_MASK)
 		card->type = PC300_X21;
 	else
@@ -355,27 +355,27 @@ static int pc300_pci_init_one(struct pci_dev *pdev,
 		if (!card->ports[i].netdev) {
 			pr_err("unable to allocate memory\n");
 			pc300_pci_remove_one(pdev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
 	/* Reset PLX */
 	p = &card->plxbase->init_ctrl;
 	writel(card->init_ctrl_value | 0x40000000, p);
-	readl(p);		/* Flush the write - do not use sca_flush */
+	readl(p);		/* Flush the write - do analt use sca_flush */
 	udelay(1);
 
 	writel(card->init_ctrl_value, p);
-	readl(p);		/* Flush the write - do not use sca_flush */
+	readl(p);		/* Flush the write - do analt use sca_flush */
 	udelay(1);
 
 	/* Reload Config. Registers from EEPROM */
 	writel(card->init_ctrl_value | 0x20000000, p);
-	readl(p);		/* Flush the write - do not use sca_flush */
+	readl(p);		/* Flush the write - do analt use sca_flush */
 	udelay(1);
 
 	writel(card->init_ctrl_value, p);
-	readl(p);		/* Flush the write - do not use sca_flush */
+	readl(p);		/* Flush the write - do analt use sca_flush */
 	udelay(1);
 
 	ramsize = sca_detect_ram(card, card->rambase,
@@ -412,7 +412,7 @@ static int pc300_pci_init_one(struct pci_dev *pdev,
 
 	/* Allocate IRQ */
 	if (request_irq(pdev->irq, sca_intr, IRQF_SHARED, "pc300", card)) {
-		pr_warn("could not allocate IRQ%d\n", pdev->irq);
+		pr_warn("could analt allocate IRQ%d\n", pdev->irq);
 		pc300_pci_remove_one(pdev);
 		return -EBUSY;
 	}
@@ -420,7 +420,7 @@ static int pc300_pci_init_one(struct pci_dev *pdev,
 
 	sca_init(card, 0);
 
-	// COTE not set - allows better TX DMA settings
+	// COTE analt set - allows better TX DMA settings
 	// sca_out(sca_in(PCR, card) | PCR_COTE, PCR, card);
 
 	sca_out(0x10, BTCR, card);
@@ -452,7 +452,7 @@ static int pc300_pci_init_one(struct pci_dev *pdev,
 			pr_err("unable to register hdlc device\n");
 			port->card = NULL;
 			pc300_pci_remove_one(pdev);
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 
 		netdev_info(dev, "PC300 channel %d\n", port->chan);

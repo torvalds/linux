@@ -13,12 +13,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -127,14 +127,14 @@ struct drm_gpuva {
 	 */
 	struct {
 		/**
-		 * @rb.node: the rb-tree node
+		 * @rb.analde: the rb-tree analde
 		 */
-		struct rb_node node;
+		struct rb_analde analde;
 
 		/**
 		 * @rb.entry: The &list_head to additionally connect &drm_gpuvas
 		 * in the same order they appear in the interval tree. This is
-		 * useful to keep iterating &drm_gpuvas from a start node found
+		 * useful to keep iterating &drm_gpuvas from a start analde found
 		 * through the rb-tree while doing modifications on the rb-tree
 		 * itself.
 		 */
@@ -270,12 +270,12 @@ struct drm_gpuvm {
 	struct kref kref;
 
 	/**
-	 * @kernel_alloc_node:
+	 * @kernel_alloc_analde:
 	 *
 	 * &drm_gpuva representing the address space cutout reserved for
 	 * the kernel
 	 */
-	struct drm_gpuva kernel_alloc_node;
+	struct drm_gpuva kernel_alloc_analde;
 
 	/**
 	 * @ops: &drm_gpuvm_ops providing the split/merge steps to drivers
@@ -345,7 +345,7 @@ void drm_gpuvm_init(struct drm_gpuvm *gpuvm, const char *name,
  * @gpuvm: the &drm_gpuvm to acquire the reference of
  *
  * This function acquires an additional reference to @gpuvm. It is illegal to
- * call this without already holding a reference. No locks required.
+ * call this without already holding a reference. Anal locks required.
  *
  * Returns: the &struct drm_gpuvm pointer
  */
@@ -446,8 +446,8 @@ __drm_gpuva_next(struct drm_gpuva *va)
  * but is using the &drm_gpuvm's internal interval tree to accelerate
  * the search for the starting &drm_gpuva, and hence isn't safe against removal
  * of elements. It assumes that @end__ is within (or is the upper limit of) the
- * &drm_gpuvm. This iterator does not skip over the &drm_gpuvm's
- * @kernel_alloc_node.
+ * &drm_gpuvm. This iterator does analt skip over the &drm_gpuvm's
+ * @kernel_alloc_analde.
  */
 #define drm_gpuvm_for_each_va_range(va__, gpuvm__, start__, end__) \
 	for (va__ = drm_gpuva_find_first((gpuvm__), (start__), (end__) - (start__)); \
@@ -458,7 +458,7 @@ __drm_gpuva_next(struct drm_gpuva *va)
  * drm_gpuvm_for_each_va_range_safe() - safely iterate over a range of
  * &drm_gpuvas
  * @va__: &drm_gpuva to assign to in each iteration step
- * @next__: another &drm_gpuva to use as temporary storage
+ * @next__: aanalther &drm_gpuva to use as temporary storage
  * @gpuvm__: &drm_gpuvm to walk over
  * @start__: starting offset, the first gpuva will overlap this
  * @end__: ending offset, the last gpuva will start before this (but may
@@ -469,8 +469,8 @@ __drm_gpuva_next(struct drm_gpuva *va)
  * list_for_each_safe(), but is using the &drm_gpuvm's internal interval
  * tree to accelerate the search for the starting &drm_gpuva, and hence is safe
  * against removal of elements. It assumes that @end__ is within (or is the
- * upper limit of) the &drm_gpuvm. This iterator does not skip over the
- * &drm_gpuvm's @kernel_alloc_node.
+ * upper limit of) the &drm_gpuvm. This iterator does analt skip over the
+ * &drm_gpuvm's @kernel_alloc_analde.
  */
 #define drm_gpuvm_for_each_va_range_safe(va__, next__, gpuvm__, start__, end__) \
 	for (va__ = drm_gpuva_find_first((gpuvm__), (start__), (end__) - (start__)), \
@@ -492,7 +492,7 @@ __drm_gpuva_next(struct drm_gpuva *va)
 /**
  * drm_gpuvm_for_each_va_safe() - safely iterate over all &drm_gpuvas
  * @va__: &drm_gpuva to assign to in each iteration step
- * @next__: another &drm_gpuva to use as temporary storage
+ * @next__: aanalther &drm_gpuva to use as temporary storage
  * @gpuvm__: &drm_gpuvm to walk over
  *
  * This iterator walks over all &drm_gpuva structures associated with the given
@@ -719,7 +719,7 @@ drm_gpuvm_bo_obtain_prealloc(struct drm_gpuvm_bo *vm_bo);
  * @vm_bo: the &drm_gpuvm_bo to acquire the reference of
  *
  * This function acquires an additional reference to @vm_bo. It is illegal to
- * call this without already holding a reference. No locks required.
+ * call this without already holding a reference. Anal locks required.
  *
  * Returns: the &struct vm_bo pointer
  */
@@ -895,7 +895,7 @@ struct drm_gpuva_op_unmap {
  * of the old mapping or the new mapping's end address is aligned with the
  * end address of the old mapping, either @prev or @next is NULL.
  *
- * Note, the reason for a dedicated remap operation, rather than arbitrary
+ * Analte, the reason for a dedicated remap operation, rather than arbitrary
  * unmap and map operations, is to give drivers the chance of extracting driver
  * specific data for creating the new mappings from the unmap operations's
  * &drm_gpuva structure which typically is embedded in larger driver specific
@@ -1177,7 +1177,7 @@ struct drm_gpuvm_ops {
 	 * The &priv pointer matches the one the driver passed to
 	 * &drm_gpuvm_sm_map or &drm_gpuvm_sm_unmap, respectively.
 	 *
-	 * Can be NULL if neither &drm_gpuvm_sm_map nor &drm_gpuvm_sm_unmap is
+	 * Can be NULL if neither &drm_gpuvm_sm_map analr &drm_gpuvm_sm_unmap is
 	 * used.
 	 */
 	int (*sm_step_remap)(struct drm_gpuva_op *op, void *priv);
@@ -1193,7 +1193,7 @@ struct drm_gpuvm_ops {
 	 * The &priv pointer matches the one the driver passed to
 	 * &drm_gpuvm_sm_map or &drm_gpuvm_sm_unmap, respectively.
 	 *
-	 * Can be NULL if neither &drm_gpuvm_sm_map nor &drm_gpuvm_sm_unmap is
+	 * Can be NULL if neither &drm_gpuvm_sm_map analr &drm_gpuvm_sm_unmap is
 	 * used.
 	 */
 	int (*sm_step_unmap)(struct drm_gpuva_op *op, void *priv);
@@ -1225,7 +1225,7 @@ void drm_gpuva_unmap(struct drm_gpuva_op_unmap *op);
  *
  * The given start address and range will be set such that they represent the
  * range of the address space that was previously covered by the mapping being
- * re-mapped, but is now empty.
+ * re-mapped, but is analw empty.
  */
 static inline void
 drm_gpuva_op_remap_to_unmap_range(const struct drm_gpuva_op_remap *op,

@@ -56,7 +56,7 @@ static int as370_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		*temp = DIV_ROUND_CLOSEST(val * 251802, 4096) - 85525;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -100,7 +100,7 @@ static int as370_hwmon_probe(struct platform_device *pdev)
 
 	hwmon = devm_kzalloc(dev, sizeof(*hwmon), GFP_KERNEL);
 	if (!hwmon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmon->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hwmon->base))

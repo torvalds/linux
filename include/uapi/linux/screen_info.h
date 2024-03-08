@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_SCREEN_INFO_H
 #define _UAPI_SCREEN_INFO_H
 
@@ -48,9 +48,9 @@ struct screen_info {
 	__u8  _reserved[2];	/* 0x3e */
 } __attribute__((packed));
 
-#define VIDEO_TYPE_MDA		0x10	/* Monochrome Text Display	*/
+#define VIDEO_TYPE_MDA		0x10	/* Moanalchrome Text Display	*/
 #define VIDEO_TYPE_CGA		0x11	/* CGA Display 			*/
-#define VIDEO_TYPE_EGAM		0x20	/* EGA/VGA in Monochrome Mode	*/
+#define VIDEO_TYPE_EGAM		0x20	/* EGA/VGA in Moanalchrome Mode	*/
 #define VIDEO_TYPE_EGAC		0x21	/* EGA in Color Mode		*/
 #define VIDEO_TYPE_VGAC		0x22	/* VGA+ in Color Mode		*/
 #define VIDEO_TYPE_VLFB		0x23	/* VESA VGA in graphic mode	*/
@@ -68,7 +68,7 @@ struct screen_info {
 
 #define VIDEO_TYPE_EFI		0x70	/* EFI graphic mode		*/
 
-#define VIDEO_FLAGS_NOCURSOR	(1 << 0) /* The video mode has no cursor set */
+#define VIDEO_FLAGS_ANALCURSOR	(1 << 0) /* The video mode has anal cursor set */
 
 #define VIDEO_CAPABILITY_SKIP_QUIRKS	(1 << 0)
 #define VIDEO_CAPABILITY_64BIT_BASE	(1 << 1)	/* Frame buffer base is 64-bit */

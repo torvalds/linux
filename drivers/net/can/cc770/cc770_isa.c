@@ -29,7 +29,7 @@
  *   bcr: Bus configuration register (default=0x40 [CBY])
  *   cor: Clockout register (default=0x00)
  *
- * Note: for clk, cir, bcr and cor, the first argument re-defines the
+ * Analte: for clk, cir, bcr and cor, the first argument re-defines the
  * default for all other devices, e.g.:
  *
  *   insmod cc770_isa.ko mem=0xd1000,0xd1000 irq=7,11 clk=24000000
@@ -177,7 +177,7 @@ static int cc770_isa_probe(struct platform_device *pdev)
 		}
 		base = ioremap(mem[idx], iosize);
 		if (!base) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto exit_release;
 		}
 	} else {
@@ -192,7 +192,7 @@ static int cc770_isa_probe(struct platform_device *pdev)
 
 	dev = alloc_cc770dev(0);
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_unmap;
 	}
 	priv = netdev_priv(dev);
@@ -230,12 +230,12 @@ static int cc770_isa_probe(struct platform_device *pdev)
 	} else if (cir[0] != 0xff) {
 		priv->cpu_interface = cir[0];
 	} else {
-		/* The system clock may not exceed 10 MHz */
+		/* The system clock may analt exceed 10 MHz */
 		if (clktmp > 10000000) {
 			priv->cpu_interface |= CPUIF_DSC;
 			clktmp /= 2;
 		}
-		/* The memory clock may not exceed 8 MHz */
+		/* The memory clock may analt exceed 8 MHz */
 		if (clktmp > 8000000)
 			priv->cpu_interface |= CPUIF_DMC;
 	}
@@ -322,7 +322,7 @@ static int __init cc770_isa_init(void)
 			cc770_isa_devs[idx] =
 				platform_device_alloc(KBUILD_MODNAME, idx);
 			if (!cc770_isa_devs[idx]) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto exit_free_devices;
 			}
 			err = platform_device_add(cc770_isa_devs[idx]);

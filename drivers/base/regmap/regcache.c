@@ -48,17 +48,17 @@ static int regcache_hw_init(struct regmap *map)
 	map->reg_defaults = kmalloc_array(count, sizeof(struct reg_default),
 					  GFP_KERNEL);
 	if (!map->reg_defaults)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!map->reg_defaults_raw) {
 		bool cache_bypass = map->cache_bypass;
-		dev_warn(map->dev, "No cache defaults, reading back from HW\n");
+		dev_warn(map->dev, "Anal cache defaults, reading back from HW\n");
 
 		/* Bypass the cache access till data read from HW */
 		map->cache_bypass = true;
 		tmp_buf = kmalloc(map->cache_size_raw, GFP_KERNEL);
 		if (!tmp_buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free;
 		}
 		ret = regmap_raw_read(map, 0, tmp_buf,
@@ -116,10 +116,10 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 	int i;
 	void *tmp_buf;
 
-	if (map->cache_type == REGCACHE_NONE) {
+	if (map->cache_type == REGCACHE_ANALNE) {
 		if (config->reg_defaults || config->num_reg_defaults_raw)
 			dev_warn(map->dev,
-				 "No cache used with register defaults set!\n");
+				 "Anal cache used with register defaults set!\n");
 
 		map->cache_bypass = true;
 		return 0;
@@ -146,7 +146,7 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 			break;
 
 	if (i == ARRAY_SIZE(cache_types)) {
-		dev_err(map->dev, "Could not match cache type: %d\n",
+		dev_err(map->dev, "Could analt match cache type: %d\n",
 			map->cache_type);
 		return -EINVAL;
 	}
@@ -173,7 +173,7 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 		tmp_buf = kmemdup(config->reg_defaults, map->num_reg_defaults *
 				  sizeof(struct reg_default), GFP_KERNEL);
 		if (!tmp_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		map->reg_defaults = tmp_buf;
 	} else if (map->num_reg_defaults_raw) {
 		/* Some devices such as PMICs don't have cache defaults,
@@ -209,7 +209,7 @@ err_free:
 
 void regcache_exit(struct regmap *map)
 {
-	if (map->cache_type == REGCACHE_NONE)
+	if (map->cache_type == REGCACHE_ANALNE)
 		return;
 
 	BUG_ON(!map->cache_ops);
@@ -239,7 +239,7 @@ int regcache_read(struct regmap *map,
 {
 	int ret;
 
-	if (map->cache_type == REGCACHE_NONE)
+	if (map->cache_type == REGCACHE_ANALNE)
 		return -EINVAL;
 
 	BUG_ON(!map->cache_ops);
@@ -268,7 +268,7 @@ int regcache_read(struct regmap *map,
 int regcache_write(struct regmap *map,
 		   unsigned int reg, unsigned int value)
 {
-	if (map->cache_type == REGCACHE_NONE)
+	if (map->cache_type == REGCACHE_ANALNE)
 		return 0;
 
 	BUG_ON(!map->cache_ops);
@@ -287,8 +287,8 @@ bool regcache_reg_needs_sync(struct regmap *map, unsigned int reg,
 	if (!regmap_writeable(map, reg))
 		return false;
 
-	/* If we don't know the chip just got reset, then sync everything. */
-	if (!map->no_sync_defaults)
+	/* If we don't kanalw the chip just got reset, then sync everything. */
+	if (!map->anal_sync_defaults)
 		return true;
 
 	/* Is this the hardware default?  If so skip. */
@@ -312,7 +312,7 @@ static int regcache_default_sync(struct regmap *map, unsigned int min,
 			continue;
 
 		ret = regcache_read(map, reg, &val);
-		if (ret == -ENOENT)
+		if (ret == -EANALENT)
 			continue;
 		if (ret)
 			return ret;
@@ -334,7 +334,7 @@ static int regcache_default_sync(struct regmap *map, unsigned int min,
 	return 0;
 }
 
-static int rbtree_all(const void *key, const struct rb_node *node)
+static int rbtree_all(const void *key, const struct rb_analde *analde)
 {
 	return 0;
 }
@@ -344,8 +344,8 @@ static int rbtree_all(const void *key, const struct rb_node *node)
  *
  * @map: map to configure.
  *
- * Any registers that should not be synced should be marked as
- * volatile.  In general drivers can choose not to use the provided
+ * Any registers that should analt be synced should be marked as
+ * volatile.  In general drivers can choose analt to use the provided
  * syncing functionality if they so require.
  *
  * Return a negative value on failure, 0 on success.
@@ -356,9 +356,9 @@ int regcache_sync(struct regmap *map)
 	unsigned int i;
 	const char *name;
 	bool bypass;
-	struct rb_node *node;
+	struct rb_analde *analde;
 
-	if (WARN_ON(map->cache_type == REGCACHE_NONE))
+	if (WARN_ON(map->cache_type == REGCACHE_ANALNE))
 		return -EINVAL;
 
 	BUG_ON(!map->cache_ops);
@@ -397,7 +397,7 @@ int regcache_sync(struct regmap *map)
 out:
 	/* Restore the bypass state */
 	map->cache_bypass = bypass;
-	map->no_sync_defaults = false;
+	map->anal_sync_defaults = false;
 
 	/*
 	 * If we did any paging with cache bypassed and a cached
@@ -405,11 +405,11 @@ out:
 	 * have gone out of sync, force writes of all the paging
 	 * registers.
 	 */
-	rb_for_each(node, 0, &map->range_tree, rbtree_all) {
-		struct regmap_range_node *this =
-			rb_entry(node, struct regmap_range_node, node);
+	rb_for_each(analde, 0, &map->range_tree, rbtree_all) {
+		struct regmap_range_analde *this =
+			rb_entry(analde, struct regmap_range_analde, analde);
 
-		/* If there's nothing in the cache there's nothing to sync */
+		/* If there's analthing in the cache there's analthing to sync */
 		if (regcache_read(map, this->selector_reg, &i) != 0)
 			continue;
 
@@ -438,7 +438,7 @@ EXPORT_SYMBOL_GPL(regcache_sync);
  * @min: first register to sync
  * @max: last register to sync
  *
- * Write all non-default register values in the specified region to
+ * Write all analn-default register values in the specified region to
  * the hardware.
  *
  * Return a negative value on failure, 0 on success.
@@ -450,7 +450,7 @@ int regcache_sync_region(struct regmap *map, unsigned int min,
 	const char *name;
 	bool bypass;
 
-	if (WARN_ON(map->cache_type == REGCACHE_NONE))
+	if (WARN_ON(map->cache_type == REGCACHE_ANALNE))
 		return -EINVAL;
 
 	BUG_ON(!map->cache_ops);
@@ -479,7 +479,7 @@ out:
 	/* Restore the bypass state */
 	map->cache_bypass = bypass;
 	map->async = false;
-	map->no_sync_defaults = false;
+	map->anal_sync_defaults = false;
 	map->unlock(map->lock_arg);
 
 	regmap_async_complete(map);
@@ -528,15 +528,15 @@ EXPORT_SYMBOL_GPL(regcache_drop_region);
  * @enable: flag if changes should be written to the hardware
  *
  * When a register map is marked as cache only writes to the register
- * map API will only update the register cache, they will not cause
+ * map API will only update the register cache, they will analt cause
  * any hardware changes.  This is useful for allowing portions of
- * drivers to act as though the device were functioning as normal when
+ * drivers to act as though the device were functioning as analrmal when
  * it is disabled for power saving reasons.
  */
 void regcache_cache_only(struct regmap *map, bool enable)
 {
 	map->lock(map->lock_arg);
-	WARN_ON(map->cache_type != REGCACHE_NONE &&
+	WARN_ON(map->cache_type != REGCACHE_ANALNE &&
 		map->cache_bypass && enable);
 	map->cache_only = enable;
 	trace_regmap_cache_only(map, enable);
@@ -550,10 +550,10 @@ EXPORT_SYMBOL_GPL(regcache_cache_only);
  * @map: map to mark
  *
  * Inform regcache that the device has been powered down or reset, so that
- * on resume, regcache_sync() knows to write out all non-default values
+ * on resume, regcache_sync() kanalws to write out all analn-default values
  * stored in the cache.
  *
- * If this function is not called, regcache_sync() will assume that
+ * If this function is analt called, regcache_sync() will assume that
  * the hardware state still matches the cache state, modulo any writes that
  * happened when cache_only was true.
  */
@@ -561,7 +561,7 @@ void regcache_mark_dirty(struct regmap *map)
 {
 	map->lock(map->lock_arg);
 	map->cache_dirty = true;
-	map->no_sync_defaults = true;
+	map->anal_sync_defaults = true;
 	map->unlock(map->lock_arg);
 }
 EXPORT_SYMBOL_GPL(regcache_mark_dirty);
@@ -570,10 +570,10 @@ EXPORT_SYMBOL_GPL(regcache_mark_dirty);
  * regcache_cache_bypass - Put a register map into cache bypass mode
  *
  * @map: map to configure
- * @enable: flag if changes should not be written to the cache
+ * @enable: flag if changes should analt be written to the cache
  *
  * When a register map is marked with the cache bypass option, writes
- * to the register map API will only update the hardware and not
+ * to the register map API will only update the hardware and analt
  * the cache directly.  This is useful when syncing the cache back to
  * the hardware.
  */
@@ -700,7 +700,7 @@ int regcache_lookup_reg(struct regmap *map, unsigned int reg)
 	if (r)
 		return r - map->reg_defaults;
 	else
-		return -ENOENT;
+		return -EANALENT;
 }
 
 static bool regcache_reg_present(unsigned long *cache_present, unsigned int idx)

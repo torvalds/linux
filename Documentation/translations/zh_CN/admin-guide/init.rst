@@ -6,7 +6,7 @@
 
  吴想成 Wu XiangCheng <bobwxc@email.cn>
 
-解释“No working init found.”启动挂起消息
+解释“Anal working init found.”启动挂起消息
 =========================================
 
 :作者:
@@ -31,11 +31,11 @@
    IRQ问题（如缺少基于中断的配置）导致的某些串行控制台不可靠。尝试使用不同的
    ``console= device`` 或像 ``netconsole=`` 。
 
-4) **二进制存在但依赖项不可用Binary exists but dependencies not available** ：
+4) **二进制存在但依赖项不可用Binary exists but dependencies analt available** ：
    例如初始化二进制的必需库依赖项，像 ``/lib/ld-linux.so.2`` 丢失或损坏。使用
    ``readelf -d <INIT>|grep NEEDED`` 找出需要哪些库。
 
-5) **无法加载二进制Binary cannot be loaded** ：请确保二进制的体系结构与您的
+5) **无法加载二进制Binary cananalt be loaded** ：请确保二进制的体系结构与您的
    硬件匹配。例如i386不匹配x86_64，或者尝试在ARM硬件上加载x86。如果您尝试在
    此处加载非二进制文件（shell脚本？），您应该确保脚本在其工作头（shebang
    header）行 ``#!/...`` 中指定能正常工作的解释器（包括其库依赖项）。在处理

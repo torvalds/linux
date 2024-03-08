@@ -13,7 +13,7 @@
 
 static char *get_mbox_opcode_str(int msg_opcode)
 {
-	char *str = "Unknown";
+	char *str = "Unkanalwn";
 
 	switch (msg_opcode) {
 	case OTX_CPT_MSG_VF_UP:
@@ -91,7 +91,7 @@ static void otx_cpt_mbox_send_ack(struct otx_cpt_device *cpt, int vf,
 	otx_cpt_send_msg_to_vf(cpt, vf, mbx);
 }
 
-/* NACKs VF's mailbox message that PF is not able to complete the action */
+/* NACKs VF's mailbox message that PF is analt able to complete the action */
 static void otx_cptpf_mbox_send_nack(struct otx_cpt_device *cpt, int vf,
 				     struct otx_cpt_mbox *mbx)
 {

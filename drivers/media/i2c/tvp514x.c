@@ -32,7 +32,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mediabus.h>
 
 #include "tvp514x_regs.h"
@@ -275,7 +275,7 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
  * @sd: ptr to v4l2_subdev struct
  * @reg: TVP5146/47 register address
  *
- * Returns value read if successful, or non-zero (-1) otherwise.
+ * Returns value read if successful, or analn-zero (-1) otherwise.
  */
 static int tvp514x_read_reg(struct v4l2_subdev *sd, u8 reg)
 {
@@ -317,7 +317,7 @@ static void dump_reg(struct v4l2_subdev *sd, u8 reg)
  * @val: value to be written to the register
  *
  * Write a value to a register in an TVP5146/47 decoder device.
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or analn-zero otherwise.
  */
 static int tvp514x_write_reg(struct v4l2_subdev *sd, u8 reg, u8 val)
 {
@@ -349,7 +349,7 @@ write_again:
  *		if token is TOK_DELAY, then a delay of 'val' msec is introduced
  *		if token is TOK_SKIP, then the register write is skipped
  *		if token is TOK_WRITE, then the register write is performed
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or analn-zero otherwise.
  */
 static int tvp514x_write_regs(struct v4l2_subdev *sd,
 			      const struct tvp514x_reg reglist[])
@@ -379,7 +379,7 @@ static int tvp514x_write_regs(struct v4l2_subdev *sd,
  * tvp514x_query_current_std() : Query the current standard detected by TVP5146/47
  * @sd: ptr to v4l2_subdev struct
  *
- * Returns the current standard detected by TVP5146/47, STD_INVALID if there is no
+ * Returns the current standard detected by TVP5146/47, STD_INVALID if there is anal
  * standard detected.
  */
 static enum tvp514x_std tvp514x_query_current_std(struct v4l2_subdev *sd)
@@ -460,7 +460,7 @@ static void tvp514x_reg_dump(struct v4l2_subdev *sd)
  * @sd: ptr to v4l2_subdev struct
  * @decoder: ptr to tvp514x_decoder structure
  *
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or analn-zero otherwise.
  */
 static int tvp514x_configure(struct v4l2_subdev *sd,
 		struct tvp514x_decoder *decoder)
@@ -487,7 +487,7 @@ static int tvp514x_configure(struct v4l2_subdev *sd,
  * A device is considered to be detected if the chip ID (LSB and MSB)
  * registers match the expected values.
  * Any value of the rom version register is accepted.
- * Returns ENODEV error number if no device is detected, or zero
+ * Returns EANALDEV error number if anal device is detected, or zero
  * if a device is detected.
  */
 static int tvp514x_detect(struct v4l2_subdev *sd,
@@ -506,12 +506,12 @@ static int tvp514x_detect(struct v4l2_subdev *sd,
 	if ((chip_id_msb != TVP514X_CHIP_ID_MSB)
 		|| ((chip_id_lsb != TVP5146_CHIP_ID_LSB)
 		&& (chip_id_lsb != TVP5147_CHIP_ID_LSB))) {
-		/* We didn't read the values we expected, so this must not be
+		/* We didn't read the values we expected, so this must analt be
 		 * an TVP5146/47.
 		 */
 		v4l2_err(sd, "chip id mismatch msb:0x%x lsb:0x%x\n",
 				chip_id_msb, chip_id_lsb);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	decoder->ver = rom_ver;
@@ -527,7 +527,7 @@ static int tvp514x_detect(struct v4l2_subdev *sd,
  * @sd: pointer to standard V4L2 sub-device structure
  * @std_id: standard V4L2 std_id ioctl enum
  *
- * Returns the current standard detected by TVP5146/47. If no active input is
+ * Returns the current standard detected by TVP5146/47. If anal active input is
  * detected then *std_id is set to 0 and the function returns 0.
  */
 static int tvp514x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std_id)
@@ -549,7 +549,7 @@ static int tvp514x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std_id)
 	/* query the current standard */
 	current_std = tvp514x_query_current_std(sd);
 	if (current_std == STD_INVALID) {
-		*std_id = V4L2_STD_UNKNOWN;
+		*std_id = V4L2_STD_UNKANALWN;
 		return 0;
 	}
 
@@ -593,8 +593,8 @@ static int tvp514x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std_id)
 	/* check whether signal is locked */
 	sync_lock_status = tvp514x_read_reg(sd, REG_STATUS1);
 	if (lock_mask != (sync_lock_status & lock_mask)) {
-		*std_id = V4L2_STD_UNKNOWN;
-		return 0;	/* No input detected */
+		*std_id = V4L2_STD_UNKANALWN;
+		return 0;	/* Anal input detected */
 	}
 
 	*std_id &= decoder->std_list[current_std].standard.id;
@@ -643,10 +643,10 @@ static int tvp514x_s_std(struct v4l2_subdev *sd, v4l2_std_id std_id)
  * @sd: pointer to standard V4L2 sub-device structure
  * @input: input selector for routing the signal
  * @output: output selector for routing the signal
- * @config: config value. Not used
+ * @config: config value. Analt used
  *
  * If index is valid, selects the requested input. Otherwise, returns -EINVAL if
- * the input is not supported or there is no active signal present in the
+ * the input is analt supported or there is anal active signal present in the
  * selected input.
  */
 static int tvp514x_s_routing(struct v4l2_subdev *sd,
@@ -691,7 +691,7 @@ static int tvp514x_s_routing(struct v4l2_subdev *sd,
  * @ctrl: pointer to v4l2_ctrl structure
  *
  * If the requested control is supported, sets the control's current
- * value in HW. Otherwise, returns -EINVAL if the control is not supported.
+ * value in HW. Otherwise, returns -EINVAL if the control is analt supported.
  */
 static int tvp514x_s_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -824,7 +824,7 @@ static int tvp514x_s_stream(struct v4l2_subdev *sd, int enable)
 			v4l2_err(sd, "Unable to turn on decoder\n");
 			return err;
 		}
-		/* Detect if not already detected */
+		/* Detect if analt already detected */
 		err = tvp514x_detect(sd, decoder);
 		if (err) {
 			v4l2_err(sd, "Unable to detect decoder\n");
@@ -839,7 +839,7 @@ static int tvp514x_s_stream(struct v4l2_subdev *sd, int enable)
 		break;
 	}
 	default:
-		err = -ENODEV;
+		err = -EANALDEV;
 		break;
 	}
 
@@ -980,18 +980,18 @@ static struct tvp514x_platform_data *
 tvp514x_get_pdata(struct i2c_client *client)
 {
 	struct tvp514x_platform_data *pdata = NULL;
-	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
-	struct device_node *endpoint;
+	struct v4l2_fwanalde_endpoint bus_cfg = { .bus_type = 0 };
+	struct device_analde *endpoint;
 	unsigned int flags;
 
-	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
+	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_analde)
 		return client->dev.platform_data;
 
-	endpoint = of_graph_get_next_endpoint(client->dev.of_node, NULL);
+	endpoint = of_graph_get_next_endpoint(client->dev.of_analde, NULL);
 	if (!endpoint)
 		return NULL;
 
-	if (v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint), &bus_cfg))
+	if (v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(endpoint), &bus_cfg))
 		goto done;
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
@@ -1010,7 +1010,7 @@ tvp514x_get_pdata(struct i2c_client *client)
 		pdata->clk_polarity = 1;
 
 done:
-	of_node_put(endpoint);
+	of_analde_put(endpoint);
 	return pdata;
 }
 
@@ -1030,7 +1030,7 @@ tvp514x_probe(struct i2c_client *client)
 	int ret;
 
 	if (pdata == NULL) {
-		dev_err(&client->dev, "No platform data\n");
+		dev_err(&client->dev, "Anal platform data\n");
 		return -EINVAL;
 	}
 
@@ -1040,7 +1040,7 @@ tvp514x_probe(struct i2c_client *client)
 
 	decoder = devm_kzalloc(&client->dev, sizeof(*decoder), GFP_KERNEL);
 	if (!decoder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize the tvp514x_decoder with default configuration */
 	*decoder = tvp514x_dev;
@@ -1056,7 +1056,7 @@ tvp514x_probe(struct i2c_client *client)
 	/**
 	 * Fetch platform specific data, and configure the
 	 * tvp514x_reg_list[] accordingly. Since this is one
-	 * time configuration, no need to preserve.
+	 * time configuration, anal need to preserve.
 	 */
 	decoder->tvp514x_regs[REG_OUTPUT_FORMATTER2].val |=
 		(decoder->pdata->clk_polarity << 1);
@@ -1073,7 +1073,7 @@ tvp514x_probe(struct i2c_client *client)
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	decoder->pad.flags = MEDIA_PAD_FL_SOURCE;
-	decoder->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	decoder->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	decoder->sd.entity.function = MEDIA_ENT_F_ATV_DECODER;
 
 	ret = media_entity_pads_init(&decoder->sd.entity, 1, &decoder->pad);
@@ -1134,12 +1134,12 @@ static const struct tvp514x_reg tvp5146_init_reg_seq[] = {
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS1, 0x02},
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS2, 0x00},
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS3, 0x80},
-	{TOK_WRITE, REG_VBUS_DATA_ACCESS_NO_VBUS_ADDR_INCR, 0x01},
+	{TOK_WRITE, REG_VBUS_DATA_ACCESS_ANAL_VBUS_ADDR_INCR, 0x01},
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS1, 0x60},
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS2, 0x00},
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS3, 0xB0},
-	{TOK_WRITE, REG_VBUS_DATA_ACCESS_NO_VBUS_ADDR_INCR, 0x01},
-	{TOK_WRITE, REG_VBUS_DATA_ACCESS_NO_VBUS_ADDR_INCR, 0x00},
+	{TOK_WRITE, REG_VBUS_DATA_ACCESS_ANAL_VBUS_ADDR_INCR, 0x01},
+	{TOK_WRITE, REG_VBUS_DATA_ACCESS_ANAL_VBUS_ADDR_INCR, 0x00},
 	{TOK_WRITE, REG_OPERATION_MODE, 0x01},
 	{TOK_WRITE, REG_OPERATION_MODE, 0x00},
 	{TOK_TERM, 0, 0},
@@ -1150,19 +1150,19 @@ static const struct tvp514x_reg tvp5147_init_reg_seq[] =	{
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS1, 0x02},
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS2, 0x00},
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS3, 0x80},
-	{TOK_WRITE, REG_VBUS_DATA_ACCESS_NO_VBUS_ADDR_INCR, 0x01},
+	{TOK_WRITE, REG_VBUS_DATA_ACCESS_ANAL_VBUS_ADDR_INCR, 0x01},
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS1, 0x60},
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS2, 0x00},
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS3, 0xB0},
-	{TOK_WRITE, REG_VBUS_DATA_ACCESS_NO_VBUS_ADDR_INCR, 0x01},
+	{TOK_WRITE, REG_VBUS_DATA_ACCESS_ANAL_VBUS_ADDR_INCR, 0x01},
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS1, 0x16},
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS2, 0x00},
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS3, 0xA0},
-	{TOK_WRITE, REG_VBUS_DATA_ACCESS_NO_VBUS_ADDR_INCR, 0x16},
+	{TOK_WRITE, REG_VBUS_DATA_ACCESS_ANAL_VBUS_ADDR_INCR, 0x16},
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS1, 0x60},
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS2, 0x00},
 	{TOK_WRITE, REG_VBUS_ADDRESS_ACCESS3, 0xB0},
-	{TOK_WRITE, REG_VBUS_DATA_ACCESS_NO_VBUS_ADDR_INCR, 0x00},
+	{TOK_WRITE, REG_VBUS_DATA_ACCESS_ANAL_VBUS_ADDR_INCR, 0x00},
 	{TOK_WRITE, REG_OPERATION_MODE, 0x01},
 	{TOK_WRITE, REG_OPERATION_MODE, 0x00},
 	{TOK_TERM, 0, 0},

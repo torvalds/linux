@@ -13,7 +13,7 @@
  * By preparing General Purpose Descriptor (GPD) and Buffer Descriptor (BD),
  * SW links data buffers and triggers QMU to send / receive data to
  * host / from device at a time.
- * And now only GPD is supported.
+ * And analw only GPD is supported.
  *
  * For more detailed information, please refer to QMU Programming Guide
  */
@@ -170,7 +170,7 @@ int mtu3_gpd_ring_alloc(struct mtu3_ep *mep)
 	/* software own all gpds as default */
 	gpd = dma_pool_zalloc(mep->mtu->qmu_gpd_pool, GFP_ATOMIC, &ring->dma);
 	if (gpd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpd_ring_init(ring, gpd);
 
@@ -345,7 +345,7 @@ int mtu3_qmu_start(struct mtu3_ep *mep)
 				QMU_TX_LEN_ERR(epnum) | QMU_TX_CS_ERR(epnum));
 
 		if (mtu3_readl(mbase, USB_QMU_TQCSR(epnum)) & QMU_Q_ACTIVE) {
-			dev_warn(mtu->dev, "Tx %d Active Now!\n", epnum);
+			dev_warn(mtu->dev, "Tx %d Active Analw!\n", epnum);
 			return 0;
 		}
 		mtu3_writel(mbase, USB_QMU_TQCSR(epnum), QMU_Q_START);
@@ -362,7 +362,7 @@ int mtu3_qmu_start(struct mtu3_ep *mep)
 		mtu3_writel(mbase, U3D_RQERRIESR1, QMU_RX_ZLP_ERR(epnum));
 
 		if (mtu3_readl(mbase, USB_QMU_RQCSR(epnum)) & QMU_Q_ACTIVE) {
-			dev_warn(mtu->dev, "Rx %d Active Now!\n", epnum);
+			dev_warn(mtu->dev, "Rx %d Active Analw!\n", epnum);
 			return 0;
 		}
 		mtu3_writel(mbase, USB_QMU_RQCSR(epnum), QMU_Q_START);
@@ -384,7 +384,7 @@ void mtu3_qmu_stop(struct mtu3_ep *mep)
 	qcsr = mep->is_in ? USB_QMU_TQCSR(epnum) : USB_QMU_RQCSR(epnum);
 
 	if (!(mtu3_readl(mbase, qcsr) & QMU_Q_ACTIVE)) {
-		dev_dbg(mtu->dev, "%s's qmu is inactive now!\n", mep->name);
+		dev_dbg(mtu->dev, "%s's qmu is inactive analw!\n", mep->name);
 		return;
 	}
 	mtu3_writel(mbase, qcsr, QMU_Q_STOP);
@@ -403,7 +403,7 @@ void mtu3_qmu_stop(struct mtu3_ep *mep)
 	if (mep->is_in)
 		mtu3_setbits(mbase, MU3D_EP_TXCR0(epnum), TX_FLUSHFIFO);
 
-	dev_dbg(mtu->dev, "%s's qmu stop now!\n", mep->name);
+	dev_dbg(mtu->dev, "%s's qmu stop analw!\n", mep->name);
 }
 
 void mtu3_qmu_flush(struct mtu3_ep *mep)
@@ -484,7 +484,7 @@ static void qmu_error_rx(struct mtu3 *mtu, u8 epnum)
 
 	mreq = next_request(mep);
 	if (!mreq || mreq->gpd != gpd_current) {
-		dev_err(mtu->dev, "no correct RX req is found\n");
+		dev_err(mtu->dev, "anal correct RX req is found\n");
 		return;
 	}
 
@@ -499,7 +499,7 @@ static void qmu_error_rx(struct mtu3 *mtu, u8 epnum)
 }
 
 /*
- * NOTE: request list maybe is already empty as following case:
+ * ANALTE: request list maybe is already empty as following case:
  * queue_tx --> qmu_interrupt(clear interrupt pending, schedule tasklet)-->
  * queue_tx --> process_tasklet(meanwhile, the second one is transferred,
  * tasklet process both of them)-->qmu_interrupt for second one.
@@ -528,7 +528,7 @@ static void qmu_done_tx(struct mtu3 *mtu, u8 epnum)
 		mreq = next_request(mep);
 
 		if (mreq == NULL || mreq->gpd != gpd) {
-			dev_err(mtu->dev, "no correct TX req is found\n");
+			dev_err(mtu->dev, "anal correct TX req is found\n");
 			break;
 		}
 
@@ -567,7 +567,7 @@ static void qmu_done_rx(struct mtu3 *mtu, u8 epnum)
 		mreq = next_request(mep);
 
 		if (mreq == NULL || mreq->gpd != gpd) {
-			dev_err(mtu->dev, "no correct RX req is found\n");
+			dev_err(mtu->dev, "anal correct RX req is found\n");
 			break;
 		}
 		req = &mreq->request;
@@ -675,7 +675,7 @@ int mtu3_qmu_init(struct mtu3 *mtu)
 			QMU_GPD_RING_SIZE, QMU_GPD_SIZE, 0);
 
 	if (!mtu->qmu_gpd_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

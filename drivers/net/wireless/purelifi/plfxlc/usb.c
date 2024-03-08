@@ -6,7 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/usb.h>
@@ -87,7 +87,7 @@ static void rx_urb_complete(struct urb *urb)
 	usb = urb->context;
 
 	if (usb->initialized != 1) {
-		pr_err("usb is not initialized\n");
+		pr_err("usb is analt initialized\n");
 		return;
 	}
 
@@ -97,8 +97,8 @@ static void rx_urb_complete(struct urb *urb)
 		break;
 	case -ESHUTDOWN:
 	case -EINVAL:
-	case -ENODEV:
-	case -ENOENT:
+	case -EANALDEV:
+	case -EANALENT:
 	case -ECONNRESET:
 	case -EPIPE:
 		dev_dbg(plfxlc_urb_dev(urb), "urb %p error %d\n", urb, urb->status);
@@ -129,9 +129,9 @@ static void rx_urb_complete(struct urb *urb)
 	status = buffer[PLF_MSG_STATUS_OFFSET];
 
 	switch (status) {
-	case STATION_FIFO_ALMOST_FULL_NOT_MESSAGE:
+	case STATION_FIFO_ALMOST_FULL_ANALT_MESSAGE:
 		dev_dbg(&usb->intf->dev,
-			"FIFO full not packet receipt\n");
+			"FIFO full analt packet receipt\n");
 		tx->mac_fifo_full = 1;
 		for (sidx = 0; sidx < MAX_STA_NUM; sidx++)
 			tx->station[sidx].flag |= STATION_FIFO_FULL_FLAG;
@@ -153,7 +153,7 @@ static void rx_urb_complete(struct urb *urb)
 		dev_dbg(&usb->intf->dev, "ST_DISCONN_MSG packet receipt\n");
 		break;
 	default:
-		dev_dbg(&usb->intf->dev, "Unknown packet receipt\n");
+		dev_dbg(&usb->intf->dev, "Unkanalwn packet receipt\n");
 		break;
 	}
 
@@ -183,7 +183,7 @@ static struct urb *alloc_rx_urb(struct plfxlc_usb *usb)
 	usb_fill_bulk_urb(urb, udev, usb_rcvbulkpipe(udev, EP_DATA_IN),
 			  buffer, USB_MAX_RX_SIZE,
 			  rx_urb_complete, usb);
-	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	return urb;
 }
@@ -203,7 +203,7 @@ static int __lf_x_usb_enable_rx(struct plfxlc_usb *usb)
 	struct urb **urbs;
 	int i, r;
 
-	r = -ENOMEM;
+	r = -EANALMEM;
 	urbs = kcalloc(RX_URBS_COUNT, sizeof(struct urb *), GFP_KERNEL);
 	if (!urbs)
 		goto error;
@@ -317,7 +317,7 @@ void plfxlc_usb_disable_tx(struct plfxlc_usb *usb)
 	tx->submitted_urbs = 0;
 	spin_unlock_irqrestore(&tx->lock, flags);
 
-	/* The stopped state is ignored, relying on ieee80211_wake_queues()
+	/* The stopped state is iganalred, relying on ieee80211_wake_queues()
 	 * in a potentionally following plfxlc_usb_enable_tx().
 	 */
 }
@@ -353,8 +353,8 @@ void plfxlc_tx_urb_complete(struct urb *urb)
 		break;
 	case -ESHUTDOWN:
 	case -EINVAL:
-	case -ENODEV:
-	case -ENOENT:
+	case -EANALDEV:
+	case -EANALENT:
 	case -ECONNRESET:
 	case -EPIPE:
 		dev_dbg(plfxlc_urb_dev(urb), "urb %p error %d\n", urb, urb->status);
@@ -425,7 +425,7 @@ const char *plfxlc_speed(enum usb_device_speed speed)
 	case USB_SPEED_HIGH:
 		return "high";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -454,7 +454,7 @@ static void get_usb_req(struct usb_device *udev, void *buffer,
 	usb_req->len  = cpu_to_be32(0);
 
 	/* Copy buffer length into the transmitted buffer, as it is important
-	 * for the Rx MAC to know its exact length.
+	 * for the Rx MAC to kanalw its exact length.
 	 */
 	if (usb_req->id == cpu_to_be32(USB_REQ_BEACON_WR)) {
 		memcpy(buffer_dst, &payload_len_nw, sizeof(payload_len_nw));
@@ -498,7 +498,7 @@ int plfxlc_usb_wreq_async(struct plfxlc_usb *usb, const u8 *buffer,
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb)
-		return -ENOMEM;
+		return -EANALMEM;
 	usb_fill_bulk_urb(urb, udev, usb_sndbulkpipe(udev, EP_DATA_OUT),
 			  (void *)buffer, buffer_len, complete_fn, context);
 
@@ -526,7 +526,7 @@ int plfxlc_usb_wreq(struct usb_interface *ez_usb, void *buffer, int buffer_len,
 	dma_buffer = kmemdup(&usb_req, usb_bulk_msg_len, GFP_KERNEL);
 
 	if (!dma_buffer) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto error;
 	}
 
@@ -537,7 +537,7 @@ int plfxlc_usb_wreq(struct usb_interface *ez_usb, void *buffer, int buffer_len,
 	kfree(dma_buffer);
 error:
 	if (r) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		dev_err(&udev->dev, "usb_bulk_msg failed (%d)\n", r);
 	}
 
@@ -590,7 +590,7 @@ static int probe(struct usb_interface *intf,
 	hw = plfxlc_mac_alloc_hw(intf);
 
 	if (!hw) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto error;
 	}
 
@@ -723,7 +723,7 @@ static void disconnect(struct usb_interface *intf)
 
 	/* If the disconnect has been caused by a removal of the
 	 * driver module, the reset allows reloading of the driver. If the
-	 * reset will not be executed here, the upload of the firmware in the
+	 * reset will analt be executed here, the upload of the firmware in the
 	 * probe function caused by the reloading of the driver will fail.
 	 */
 	usb_reset_device(interface_to_usbdev(intf));
@@ -829,7 +829,7 @@ static int suspend(struct usb_interface *interface,
 	struct plfxlc_mac *mac = plfxlc_usb_to_mac(pl);
 
 	if (!pl)
-		return -ENODEV;
+		return -EANALDEV;
 	if (pl->initialized == 0)
 		return 0;
 	pl->was_running = test_bit(PURELIFI_DEVICE_RUNNING, &mac->flags);
@@ -842,7 +842,7 @@ static int resume(struct usb_interface *interface)
 	struct plfxlc_usb *pl = get_plfxlc_usb(interface);
 
 	if (!pl)
-		return -ENODEV;
+		return -EANALDEV;
 	if (pl->was_running)
 		plfxlc_usb_resume(pl);
 	return 0;

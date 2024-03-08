@@ -10,7 +10,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_trace.h"
 
 /*
@@ -82,27 +82,27 @@ xfs_iext_get(
 	if (rec->hi & (1 << 21))
 		irec->br_state = XFS_EXT_UNWRITTEN;
 	else
-		irec->br_state = XFS_EXT_NORM;
+		irec->br_state = XFS_EXT_ANALRM;
 }
 
 enum {
-	NODE_SIZE	= 256,
-	KEYS_PER_NODE	= NODE_SIZE / (sizeof(uint64_t) + sizeof(void *)),
-	RECS_PER_LEAF	= (NODE_SIZE - (2 * sizeof(struct xfs_iext_leaf *))) /
+	ANALDE_SIZE	= 256,
+	KEYS_PER_ANALDE	= ANALDE_SIZE / (sizeof(uint64_t) + sizeof(void *)),
+	RECS_PER_LEAF	= (ANALDE_SIZE - (2 * sizeof(struct xfs_iext_leaf *))) /
 				sizeof(struct xfs_iext_rec),
 };
 
 /*
  * In-core extent btree block layout:
  *
- * There are two types of blocks in the btree: leaf and inner (non-leaf) blocks.
+ * There are two types of blocks in the btree: leaf and inner (analn-leaf) blocks.
  *
- * The leaf blocks are made up by %KEYS_PER_NODE extent records, which each
+ * The leaf blocks are made up by %KEYS_PER_ANALDE extent records, which each
  * contain the startoffset, blockcount, startblock and unwritten extent flag.
  * See above for the exact format, followed by pointers to the previous and next
  * leaf blocks (if there are any).
  *
- * The inner (non-leaf) blocks first contain KEYS_PER_NODE lookup keys, followed
+ * The inner (analn-leaf) blocks first contain KEYS_PER_ANALDE lookup keys, followed
  * by an equal number of pointers to the btree blocks at the next lower level.
  *
  *		+-------+-------+-------+-------+-------+----------+----------+
@@ -113,10 +113,10 @@ enum {
  * Inner:	| key 1 | key 2 | key 3 | key N | ptr 1 | ptr 2 | ptr3 | ptr N |
  *		+-------+-------+-------+-------+-------+-------+------+-------+
  */
-struct xfs_iext_node {
-	uint64_t		keys[KEYS_PER_NODE];
+struct xfs_iext_analde {
+	uint64_t		keys[KEYS_PER_ANALDE];
 #define XFS_IEXT_KEY_INVALID	(1ULL << 63)
-	void			*ptrs[KEYS_PER_NODE];
+	void			*ptrs[KEYS_PER_ANALDE];
 };
 
 struct xfs_iext_leaf {
@@ -158,39 +158,39 @@ static void *
 xfs_iext_find_first_leaf(
 	struct xfs_ifork	*ifp)
 {
-	struct xfs_iext_node	*node = ifp->if_data;
+	struct xfs_iext_analde	*analde = ifp->if_data;
 	int			height;
 
 	if (!ifp->if_height)
 		return NULL;
 
 	for (height = ifp->if_height; height > 1; height--) {
-		node = node->ptrs[0];
-		ASSERT(node);
+		analde = analde->ptrs[0];
+		ASSERT(analde);
 	}
 
-	return node;
+	return analde;
 }
 
 static void *
 xfs_iext_find_last_leaf(
 	struct xfs_ifork	*ifp)
 {
-	struct xfs_iext_node	*node = ifp->if_data;
+	struct xfs_iext_analde	*analde = ifp->if_data;
 	int			height, i;
 
 	if (!ifp->if_height)
 		return NULL;
 
 	for (height = ifp->if_height; height > 1; height--) {
-		for (i = 1; i < KEYS_PER_NODE; i++)
-			if (!node->ptrs[i])
+		for (i = 1; i < KEYS_PER_ANALDE; i++)
+			if (!analde->ptrs[i])
 				break;
-		node = node->ptrs[i - 1];
-		ASSERT(node);
+		analde = analde->ptrs[i - 1];
+		ASSERT(analde);
 	}
 
-	return node;
+	return analde;
 }
 
 void
@@ -274,13 +274,13 @@ recurse:
 
 static inline int
 xfs_iext_key_cmp(
-	struct xfs_iext_node	*node,
+	struct xfs_iext_analde	*analde,
 	int			n,
 	xfs_fileoff_t		offset)
 {
-	if (node->keys[n] > offset)
+	if (analde->keys[n] > offset)
 		return 1;
-	if (node->keys[n] < offset)
+	if (analde->keys[n] < offset)
 		return -1;
 	return 0;
 }
@@ -306,34 +306,34 @@ xfs_iext_find_level(
 	xfs_fileoff_t		offset,
 	int			level)
 {
-	struct xfs_iext_node	*node = ifp->if_data;
+	struct xfs_iext_analde	*analde = ifp->if_data;
 	int			height, i;
 
 	if (!ifp->if_height)
 		return NULL;
 
 	for (height = ifp->if_height; height > level; height--) {
-		for (i = 1; i < KEYS_PER_NODE; i++)
-			if (xfs_iext_key_cmp(node, i, offset) > 0)
+		for (i = 1; i < KEYS_PER_ANALDE; i++)
+			if (xfs_iext_key_cmp(analde, i, offset) > 0)
 				break;
 
-		node = node->ptrs[i - 1];
-		if (!node)
+		analde = analde->ptrs[i - 1];
+		if (!analde)
 			break;
 	}
 
-	return node;
+	return analde;
 }
 
 static int
-xfs_iext_node_pos(
-	struct xfs_iext_node	*node,
+xfs_iext_analde_pos(
+	struct xfs_iext_analde	*analde,
 	xfs_fileoff_t		offset)
 {
 	int			i;
 
-	for (i = 1; i < KEYS_PER_NODE; i++) {
-		if (xfs_iext_key_cmp(node, i, offset) > 0)
+	for (i = 1; i < KEYS_PER_ANALDE; i++) {
+		if (xfs_iext_key_cmp(analde, i, offset) > 0)
 			break;
 	}
 
@@ -341,29 +341,29 @@ xfs_iext_node_pos(
 }
 
 static int
-xfs_iext_node_insert_pos(
-	struct xfs_iext_node	*node,
+xfs_iext_analde_insert_pos(
+	struct xfs_iext_analde	*analde,
 	xfs_fileoff_t		offset)
 {
 	int			i;
 
-	for (i = 0; i < KEYS_PER_NODE; i++) {
-		if (xfs_iext_key_cmp(node, i, offset) > 0)
+	for (i = 0; i < KEYS_PER_ANALDE; i++) {
+		if (xfs_iext_key_cmp(analde, i, offset) > 0)
 			return i;
 	}
 
-	return KEYS_PER_NODE;
+	return KEYS_PER_ANALDE;
 }
 
 static int
-xfs_iext_node_nr_entries(
-	struct xfs_iext_node	*node,
+xfs_iext_analde_nr_entries(
+	struct xfs_iext_analde	*analde,
 	int			start)
 {
 	int			i;
 
-	for (i = start; i < KEYS_PER_NODE; i++) {
-		if (node->keys[i] == XFS_IEXT_KEY_INVALID)
+	for (i = start; i < KEYS_PER_ANALDE; i++) {
+		if (analde->keys[i] == XFS_IEXT_KEY_INVALID)
 			break;
 	}
 
@@ -398,70 +398,70 @@ static void
 xfs_iext_grow(
 	struct xfs_ifork	*ifp)
 {
-	struct xfs_iext_node	*node = kmem_zalloc(NODE_SIZE, KM_NOFS);
+	struct xfs_iext_analde	*analde = kmem_zalloc(ANALDE_SIZE, KM_ANALFS);
 	int			i;
 
 	if (ifp->if_height == 1) {
 		struct xfs_iext_leaf *prev = ifp->if_data;
 
-		node->keys[0] = xfs_iext_leaf_key(prev, 0);
-		node->ptrs[0] = prev;
+		analde->keys[0] = xfs_iext_leaf_key(prev, 0);
+		analde->ptrs[0] = prev;
 	} else  {
-		struct xfs_iext_node *prev = ifp->if_data;
+		struct xfs_iext_analde *prev = ifp->if_data;
 
 		ASSERT(ifp->if_height > 1);
 
-		node->keys[0] = prev->keys[0];
-		node->ptrs[0] = prev;
+		analde->keys[0] = prev->keys[0];
+		analde->ptrs[0] = prev;
 	}
 
-	for (i = 1; i < KEYS_PER_NODE; i++)
-		node->keys[i] = XFS_IEXT_KEY_INVALID;
+	for (i = 1; i < KEYS_PER_ANALDE; i++)
+		analde->keys[i] = XFS_IEXT_KEY_INVALID;
 
-	ifp->if_data = node;
+	ifp->if_data = analde;
 	ifp->if_height++;
 }
 
 static void
-xfs_iext_update_node(
+xfs_iext_update_analde(
 	struct xfs_ifork	*ifp,
 	xfs_fileoff_t		old_offset,
 	xfs_fileoff_t		new_offset,
 	int			level,
 	void			*ptr)
 {
-	struct xfs_iext_node	*node = ifp->if_data;
+	struct xfs_iext_analde	*analde = ifp->if_data;
 	int			height, i;
 
 	for (height = ifp->if_height; height > level; height--) {
-		for (i = 0; i < KEYS_PER_NODE; i++) {
-			if (i > 0 && xfs_iext_key_cmp(node, i, old_offset) > 0)
+		for (i = 0; i < KEYS_PER_ANALDE; i++) {
+			if (i > 0 && xfs_iext_key_cmp(analde, i, old_offset) > 0)
 				break;
-			if (node->keys[i] == old_offset)
-				node->keys[i] = new_offset;
+			if (analde->keys[i] == old_offset)
+				analde->keys[i] = new_offset;
 		}
-		node = node->ptrs[i - 1];
-		ASSERT(node);
+		analde = analde->ptrs[i - 1];
+		ASSERT(analde);
 	}
 
-	ASSERT(node == ptr);
+	ASSERT(analde == ptr);
 }
 
-static struct xfs_iext_node *
-xfs_iext_split_node(
-	struct xfs_iext_node	**nodep,
+static struct xfs_iext_analde *
+xfs_iext_split_analde(
+	struct xfs_iext_analde	**analdep,
 	int			*pos,
 	int			*nr_entries)
 {
-	struct xfs_iext_node	*node = *nodep;
-	struct xfs_iext_node	*new = kmem_zalloc(NODE_SIZE, KM_NOFS);
-	const int		nr_move = KEYS_PER_NODE / 2;
-	int			nr_keep = nr_move + (KEYS_PER_NODE & 1);
+	struct xfs_iext_analde	*analde = *analdep;
+	struct xfs_iext_analde	*new = kmem_zalloc(ANALDE_SIZE, KM_ANALFS);
+	const int		nr_move = KEYS_PER_ANALDE / 2;
+	int			nr_keep = nr_move + (KEYS_PER_ANALDE & 1);
 	int			i = 0;
 
-	/* for sequential append operations just spill over into the new node */
-	if (*pos == KEYS_PER_NODE) {
-		*nodep = new;
+	/* for sequential append operations just spill over into the new analde */
+	if (*pos == KEYS_PER_ANALDE) {
+		*analdep = new;
 		*pos = 0;
 		*nr_entries = 0;
 		goto done;
@@ -469,34 +469,34 @@ xfs_iext_split_node(
 
 
 	for (i = 0; i < nr_move; i++) {
-		new->keys[i] = node->keys[nr_keep + i];
-		new->ptrs[i] = node->ptrs[nr_keep + i];
+		new->keys[i] = analde->keys[nr_keep + i];
+		new->ptrs[i] = analde->ptrs[nr_keep + i];
 
-		node->keys[nr_keep + i] = XFS_IEXT_KEY_INVALID;
-		node->ptrs[nr_keep + i] = NULL;
+		analde->keys[nr_keep + i] = XFS_IEXT_KEY_INVALID;
+		analde->ptrs[nr_keep + i] = NULL;
 	}
 
 	if (*pos >= nr_keep) {
-		*nodep = new;
+		*analdep = new;
 		*pos -= nr_keep;
 		*nr_entries = nr_move;
 	} else {
 		*nr_entries = nr_keep;
 	}
 done:
-	for (; i < KEYS_PER_NODE; i++)
+	for (; i < KEYS_PER_ANALDE; i++)
 		new->keys[i] = XFS_IEXT_KEY_INVALID;
 	return new;
 }
 
 static void
-xfs_iext_insert_node(
+xfs_iext_insert_analde(
 	struct xfs_ifork	*ifp,
 	uint64_t		offset,
 	void			*ptr,
 	int			level)
 {
-	struct xfs_iext_node	*node, *new;
+	struct xfs_iext_analde	*analde, *new;
 	int			i, pos, nr_entries;
 
 again:
@@ -504,29 +504,29 @@ again:
 		xfs_iext_grow(ifp);
 
 	new = NULL;
-	node = xfs_iext_find_level(ifp, offset, level);
-	pos = xfs_iext_node_insert_pos(node, offset);
-	nr_entries = xfs_iext_node_nr_entries(node, pos);
+	analde = xfs_iext_find_level(ifp, offset, level);
+	pos = xfs_iext_analde_insert_pos(analde, offset);
+	nr_entries = xfs_iext_analde_nr_entries(analde, pos);
 
-	ASSERT(pos >= nr_entries || xfs_iext_key_cmp(node, pos, offset) != 0);
-	ASSERT(nr_entries <= KEYS_PER_NODE);
+	ASSERT(pos >= nr_entries || xfs_iext_key_cmp(analde, pos, offset) != 0);
+	ASSERT(nr_entries <= KEYS_PER_ANALDE);
 
-	if (nr_entries == KEYS_PER_NODE)
-		new = xfs_iext_split_node(&node, &pos, &nr_entries);
+	if (nr_entries == KEYS_PER_ANALDE)
+		new = xfs_iext_split_analde(&analde, &pos, &nr_entries);
 
 	/*
 	 * Update the pointers in higher levels if the first entry changes
-	 * in an existing node.
+	 * in an existing analde.
 	 */
-	if (node != new && pos == 0 && nr_entries > 0)
-		xfs_iext_update_node(ifp, node->keys[0], offset, level, node);
+	if (analde != new && pos == 0 && nr_entries > 0)
+		xfs_iext_update_analde(ifp, analde->keys[0], offset, level, analde);
 
 	for (i = nr_entries; i > pos; i--) {
-		node->keys[i] = node->keys[i - 1];
-		node->ptrs[i] = node->ptrs[i - 1];
+		analde->keys[i] = analde->keys[i - 1];
+		analde->ptrs[i] = analde->ptrs[i - 1];
 	}
-	node->keys[pos] = offset;
-	node->ptrs[pos] = ptr;
+	analde->keys[pos] = offset;
+	analde->ptrs[pos] = ptr;
 
 	if (new) {
 		offset = new->keys[0];
@@ -542,12 +542,12 @@ xfs_iext_split_leaf(
 	int			*nr_entries)
 {
 	struct xfs_iext_leaf	*leaf = cur->leaf;
-	struct xfs_iext_leaf	*new = kmem_zalloc(NODE_SIZE, KM_NOFS);
+	struct xfs_iext_leaf	*new = kmem_zalloc(ANALDE_SIZE, KM_ANALFS);
 	const int		nr_move = RECS_PER_LEAF / 2;
 	int			nr_keep = nr_move + (RECS_PER_LEAF & 1);
 	int			i;
 
-	/* for sequential append operations just spill over into the new node */
+	/* for sequential append operations just spill over into the new analde */
 	if (cur->pos == RECS_PER_LEAF) {
 		cur->leaf = new;
 		cur->pos = 0;
@@ -583,10 +583,10 @@ xfs_iext_alloc_root(
 {
 	ASSERT(ifp->if_bytes == 0);
 
-	ifp->if_data = kmem_zalloc(sizeof(struct xfs_iext_rec), KM_NOFS);
+	ifp->if_data = kmem_zalloc(sizeof(struct xfs_iext_rec), KM_ANALFS);
 	ifp->if_height = 1;
 
-	/* now that we have a node step into it */
+	/* analw that we have a analde step into it */
 	cur->leaf = ifp->if_data;
 	cur->pos = 0;
 }
@@ -601,9 +601,9 @@ xfs_iext_realloc_root(
 
 	/* account for the prev/next pointers */
 	if (new_size / sizeof(struct xfs_iext_rec) == RECS_PER_LEAF)
-		new_size = NODE_SIZE;
+		new_size = ANALDE_SIZE;
 
-	new = krealloc(ifp->if_data, new_size, GFP_NOFS | __GFP_NOFAIL);
+	new = krealloc(ifp->if_data, new_size, GFP_ANALFS | __GFP_ANALFAIL);
 	memset(new + ifp->if_bytes, 0, new_size - ifp->if_bytes);
 	ifp->if_data = new;
 	cur->leaf = new;
@@ -648,10 +648,10 @@ xfs_iext_insert_raw(
 
 	/*
 	 * Update the pointers in higher levels if the first entry changes
-	 * in an existing node.
+	 * in an existing analde.
 	 */
 	if (cur->leaf != new && cur->pos == 0 && nr_entries > 0) {
-		xfs_iext_update_node(ifp, xfs_iext_leaf_key(cur->leaf, 0),
+		xfs_iext_update_analde(ifp, xfs_iext_leaf_key(cur->leaf, 0),
 				offset, 1, cur->leaf);
 	}
 
@@ -661,12 +661,12 @@ xfs_iext_insert_raw(
 	ifp->if_bytes += sizeof(struct xfs_iext_rec);
 
 	if (new)
-		xfs_iext_insert_node(ifp, xfs_iext_leaf_key(new, 0), new, 2);
+		xfs_iext_insert_analde(ifp, xfs_iext_leaf_key(new, 0), new, 2);
 }
 
 void
 xfs_iext_insert(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	struct xfs_iext_cursor	*cur,
 	struct xfs_bmbt_irec	*irec,
 	int			state)
@@ -677,47 +677,47 @@ xfs_iext_insert(
 	trace_xfs_iext_insert(ip, cur, state, _RET_IP_);
 }
 
-static struct xfs_iext_node *
-xfs_iext_rebalance_node(
-	struct xfs_iext_node	*parent,
+static struct xfs_iext_analde *
+xfs_iext_rebalance_analde(
+	struct xfs_iext_analde	*parent,
 	int			*pos,
-	struct xfs_iext_node	*node,
+	struct xfs_iext_analde	*analde,
 	int			nr_entries)
 {
 	/*
-	 * If the neighbouring nodes are completely full, or have different
-	 * parents, we might never be able to merge our node, and will only
+	 * If the neighbouring analdes are completely full, or have different
+	 * parents, we might never be able to merge our analde, and will only
 	 * delete it once the number of entries hits zero.
 	 */
 	if (nr_entries == 0)
-		return node;
+		return analde;
 
 	if (*pos > 0) {
-		struct xfs_iext_node *prev = parent->ptrs[*pos - 1];
-		int nr_prev = xfs_iext_node_nr_entries(prev, 0), i;
+		struct xfs_iext_analde *prev = parent->ptrs[*pos - 1];
+		int nr_prev = xfs_iext_analde_nr_entries(prev, 0), i;
 
-		if (nr_prev + nr_entries <= KEYS_PER_NODE) {
+		if (nr_prev + nr_entries <= KEYS_PER_ANALDE) {
 			for (i = 0; i < nr_entries; i++) {
-				prev->keys[nr_prev + i] = node->keys[i];
-				prev->ptrs[nr_prev + i] = node->ptrs[i];
+				prev->keys[nr_prev + i] = analde->keys[i];
+				prev->ptrs[nr_prev + i] = analde->ptrs[i];
 			}
-			return node;
+			return analde;
 		}
 	}
 
-	if (*pos + 1 < xfs_iext_node_nr_entries(parent, *pos)) {
-		struct xfs_iext_node *next = parent->ptrs[*pos + 1];
-		int nr_next = xfs_iext_node_nr_entries(next, 0), i;
+	if (*pos + 1 < xfs_iext_analde_nr_entries(parent, *pos)) {
+		struct xfs_iext_analde *next = parent->ptrs[*pos + 1];
+		int nr_next = xfs_iext_analde_nr_entries(next, 0), i;
 
-		if (nr_entries + nr_next <= KEYS_PER_NODE) {
+		if (nr_entries + nr_next <= KEYS_PER_ANALDE) {
 			/*
-			 * Merge the next node into this node so that we don't
+			 * Merge the next analde into this analde so that we don't
 			 * have to do an additional update of the keys in the
 			 * higher levels.
 			 */
 			for (i = 0; i < nr_next; i++) {
-				node->keys[nr_entries + i] = next->keys[i];
-				node->ptrs[nr_entries + i] = next->ptrs[i];
+				analde->keys[nr_entries + i] = next->keys[i];
+				analde->ptrs[nr_entries + i] = next->ptrs[i];
 			}
 
 			++*pos;
@@ -729,67 +729,67 @@ xfs_iext_rebalance_node(
 }
 
 static void
-xfs_iext_remove_node(
+xfs_iext_remove_analde(
 	struct xfs_ifork	*ifp,
 	xfs_fileoff_t		offset,
 	void			*victim)
 {
-	struct xfs_iext_node	*node, *parent;
+	struct xfs_iext_analde	*analde, *parent;
 	int			level = 2, pos, nr_entries, i;
 
 	ASSERT(level <= ifp->if_height);
-	node = xfs_iext_find_level(ifp, offset, level);
-	pos = xfs_iext_node_pos(node, offset);
+	analde = xfs_iext_find_level(ifp, offset, level);
+	pos = xfs_iext_analde_pos(analde, offset);
 again:
-	ASSERT(node->ptrs[pos]);
-	ASSERT(node->ptrs[pos] == victim);
+	ASSERT(analde->ptrs[pos]);
+	ASSERT(analde->ptrs[pos] == victim);
 	kmem_free(victim);
 
-	nr_entries = xfs_iext_node_nr_entries(node, pos) - 1;
-	offset = node->keys[0];
+	nr_entries = xfs_iext_analde_nr_entries(analde, pos) - 1;
+	offset = analde->keys[0];
 	for (i = pos; i < nr_entries; i++) {
-		node->keys[i] = node->keys[i + 1];
-		node->ptrs[i] = node->ptrs[i + 1];
+		analde->keys[i] = analde->keys[i + 1];
+		analde->ptrs[i] = analde->ptrs[i + 1];
 	}
-	node->keys[nr_entries] = XFS_IEXT_KEY_INVALID;
-	node->ptrs[nr_entries] = NULL;
+	analde->keys[nr_entries] = XFS_IEXT_KEY_INVALID;
+	analde->ptrs[nr_entries] = NULL;
 
 	if (pos == 0 && nr_entries > 0) {
-		xfs_iext_update_node(ifp, offset, node->keys[0], level, node);
-		offset = node->keys[0];
+		xfs_iext_update_analde(ifp, offset, analde->keys[0], level, analde);
+		offset = analde->keys[0];
 	}
 
-	if (nr_entries >= KEYS_PER_NODE / 2)
+	if (nr_entries >= KEYS_PER_ANALDE / 2)
 		return;
 
 	if (level < ifp->if_height) {
 		/*
-		 * If we aren't at the root yet try to find a neighbour node to
-		 * merge with (or delete the node if it is empty), and then
+		 * If we aren't at the root yet try to find a neighbour analde to
+		 * merge with (or delete the analde if it is empty), and then
 		 * recurse up to the next level.
 		 */
 		level++;
 		parent = xfs_iext_find_level(ifp, offset, level);
-		pos = xfs_iext_node_pos(parent, offset);
+		pos = xfs_iext_analde_pos(parent, offset);
 
-		ASSERT(pos != KEYS_PER_NODE);
-		ASSERT(parent->ptrs[pos] == node);
+		ASSERT(pos != KEYS_PER_ANALDE);
+		ASSERT(parent->ptrs[pos] == analde);
 
-		node = xfs_iext_rebalance_node(parent, &pos, node, nr_entries);
-		if (node) {
-			victim = node;
-			node = parent;
+		analde = xfs_iext_rebalance_analde(parent, &pos, analde, nr_entries);
+		if (analde) {
+			victim = analde;
+			analde = parent;
 			goto again;
 		}
 	} else if (nr_entries == 1) {
 		/*
 		 * If we are at the root and only one entry is left we can just
-		 * free this node and update the root pointer.
+		 * free this analde and update the root pointer.
 		 */
-		ASSERT(node == ifp->if_data);
-		ifp->if_data = node->ptrs[0];
+		ASSERT(analde == ifp->if_data);
+		ifp->if_data = analde->ptrs[0];
 		ifp->if_height--;
-		kmem_free(node);
+		kmem_free(analde);
 	}
 }
 
@@ -802,12 +802,12 @@ xfs_iext_rebalance_leaf(
 	int			nr_entries)
 {
 	/*
-	 * If the neighbouring nodes are completely full we might never be able
-	 * to merge our node, and will only delete it once the number of
+	 * If the neighbouring analdes are completely full we might never be able
+	 * to merge our analde, and will only delete it once the number of
 	 * entries hits zero.
 	 */
 	if (nr_entries == 0)
-		goto remove_node;
+		goto remove_analde;
 
 	if (leaf->prev) {
 		int nr_prev = xfs_iext_leaf_nr_entries(ifp, leaf->prev, 0), i;
@@ -820,7 +820,7 @@ xfs_iext_rebalance_leaf(
 				cur->leaf = leaf->prev;
 				cur->pos += nr_prev;
 			}
-			goto remove_node;
+			goto remove_analde;
 		}
 	}
 
@@ -829,7 +829,7 @@ xfs_iext_rebalance_leaf(
 
 		if (nr_entries + nr_next <= RECS_PER_LEAF) {
 			/*
-			 * Merge the next node into this node so that we don't
+			 * Merge the next analde into this analde so that we don't
 			 * have to do an additional update of the keys in the
 			 * higher levels.
 			 */
@@ -845,17 +845,17 @@ xfs_iext_rebalance_leaf(
 
 			offset = xfs_iext_leaf_key(leaf->next, 0);
 			leaf = leaf->next;
-			goto remove_node;
+			goto remove_analde;
 		}
 	}
 
 	return;
-remove_node:
+remove_analde:
 	if (leaf->prev)
 		leaf->prev->next = leaf->next;
 	if (leaf->next)
 		leaf->next->prev = leaf->prev;
-	xfs_iext_remove_node(ifp, offset, leaf);
+	xfs_iext_remove_analde(ifp, offset, leaf);
 }
 
 static void
@@ -869,7 +869,7 @@ xfs_iext_free_last_leaf(
 
 void
 xfs_iext_remove(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	struct xfs_iext_cursor	*cur,
 	int			state)
 {
@@ -893,7 +893,7 @@ xfs_iext_remove(
 	ifp->if_bytes -= sizeof(struct xfs_iext_rec);
 
 	if (cur->pos == 0 && nr_entries > 0) {
-		xfs_iext_update_node(ifp, offset, xfs_iext_leaf_key(leaf, 0), 1,
+		xfs_iext_update_analde(ifp, offset, xfs_iext_leaf_key(leaf, 0), 1,
 				leaf);
 		offset = xfs_iext_leaf_key(leaf, 0);
 	} else if (cur->pos == nr_entries) {
@@ -914,19 +914,19 @@ xfs_iext_remove(
 }
 
 /*
- * Lookup the extent covering bno.
+ * Lookup the extent covering banal.
  *
- * If there is an extent covering bno return the extent index, and store the
+ * If there is an extent covering banal return the extent index, and store the
  * expanded extent structure in *gotp, and the extent cursor in *cur.
- * If there is no extent covering bno, but there is an extent after it (e.g.
+ * If there is anal extent covering banal, but there is an extent after it (e.g.
  * it lies in a hole) return that extent in *gotp and its cursor in *cur
  * instead.
- * If bno is beyond the last extent return false, and return an invalid
+ * If banal is beyond the last extent return false, and return an invalid
  * cursor value.
  */
 bool
 xfs_iext_lookup_extent(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	struct xfs_ifork	*ifp,
 	xfs_fileoff_t		offset,
 	struct xfs_iext_cursor	*cur,
@@ -949,7 +949,7 @@ xfs_iext_lookup_extent(
 			goto found;
 	}
 
-	/* Try looking in the next node for an entry > offset */
+	/* Try looking in the next analde for an entry > offset */
 	if (ifp->if_height == 1 || !cur->leaf->next)
 		return false;
 	cur->leaf = cur->leaf->next;
@@ -967,13 +967,13 @@ found:
  */
 bool
 xfs_iext_lookup_extent_before(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	struct xfs_ifork	*ifp,
 	xfs_fileoff_t		*end,
 	struct xfs_iext_cursor	*cur,
 	struct xfs_bmbt_irec	*gotp)
 {
-	/* could be optimized to not even look up the next on a match.. */
+	/* could be optimized to analt even look up the next on a match.. */
 	if (xfs_iext_lookup_extent(ip, ifp, *end - 1, cur, gotp) &&
 	    gotp->br_startoff <= *end - 1)
 		return true;
@@ -985,7 +985,7 @@ xfs_iext_lookup_extent_before(
 
 void
 xfs_iext_update_extent(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	int			state,
 	struct xfs_iext_cursor	*cur,
 	struct xfs_bmbt_irec	*new)
@@ -999,7 +999,7 @@ xfs_iext_update_extent(
 
 		xfs_iext_get(&old, cur_rec(cur));
 		if (new->br_startoff != old.br_startoff) {
-			xfs_iext_update_node(ifp, old.br_startoff,
+			xfs_iext_update_analde(ifp, old.br_startoff,
 					new->br_startoff, 1, cur->leaf);
 		}
 	}
@@ -1030,28 +1030,28 @@ xfs_iext_get_extent(
  * careful with stack usage.
  */
 static void
-xfs_iext_destroy_node(
-	struct xfs_iext_node	*node,
+xfs_iext_destroy_analde(
+	struct xfs_iext_analde	*analde,
 	int			level)
 {
 	int			i;
 
 	if (level > 1) {
-		for (i = 0; i < KEYS_PER_NODE; i++) {
-			if (node->keys[i] == XFS_IEXT_KEY_INVALID)
+		for (i = 0; i < KEYS_PER_ANALDE; i++) {
+			if (analde->keys[i] == XFS_IEXT_KEY_INVALID)
 				break;
-			xfs_iext_destroy_node(node->ptrs[i], level - 1);
+			xfs_iext_destroy_analde(analde->ptrs[i], level - 1);
 		}
 	}
 
-	kmem_free(node);
+	kmem_free(analde);
 }
 
 void
 xfs_iext_destroy(
 	struct xfs_ifork	*ifp)
 {
-	xfs_iext_destroy_node(ifp->if_data, ifp->if_height);
+	xfs_iext_destroy_analde(ifp->if_data, ifp->if_height);
 
 	ifp->if_bytes = 0;
 	ifp->if_height = 0;

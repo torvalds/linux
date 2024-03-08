@@ -27,8 +27,8 @@ static void lan966x_vcap_is1_port_keys(struct lan966x_port *port,
 
 		out->prf(out->dst, "\n      other: ");
 		switch (ANA_VCAP_S1_CFG_KEY_OTHER_CFG_GET(val)) {
-		case VCAP_IS1_PS_OTHER_NORMAL:
-			out->prf(out->dst, "normal");
+		case VCAP_IS1_PS_OTHER_ANALRMAL:
+			out->prf(out->dst, "analrmal");
 			break;
 		case VCAP_IS1_PS_OTHER_7TUPLE:
 			out->prf(out->dst, "7tuple");
@@ -46,8 +46,8 @@ static void lan966x_vcap_is1_port_keys(struct lan966x_port *port,
 
 		out->prf(out->dst, "\n      ipv4: ");
 		switch (ANA_VCAP_S1_CFG_KEY_IP4_CFG_GET(val)) {
-		case VCAP_IS1_PS_IPV4_NORMAL:
-			out->prf(out->dst, "normal");
+		case VCAP_IS1_PS_IPV4_ANALRMAL:
+			out->prf(out->dst, "analrmal");
 			break;
 		case VCAP_IS1_PS_IPV4_7TUPLE:
 			out->prf(out->dst, "7tuple");
@@ -68,8 +68,8 @@ static void lan966x_vcap_is1_port_keys(struct lan966x_port *port,
 
 		out->prf(out->dst, "\n      ipv6: ");
 		switch (ANA_VCAP_S1_CFG_KEY_IP6_CFG_GET(val)) {
-		case VCAP_IS1_PS_IPV6_NORMAL:
-			out->prf(out->dst, "normal");
+		case VCAP_IS1_PS_IPV6_ANALRMAL:
+			out->prf(out->dst, "analrmal");
 			break;
 		case VCAP_IS1_PS_IPV6_7TUPLE:
 			out->prf(out->dst, "7tuple");
@@ -77,8 +77,8 @@ static void lan966x_vcap_is1_port_keys(struct lan966x_port *port,
 		case VCAP_IS1_PS_IPV6_5TUPLE_IP4:
 			out->prf(out->dst, "5tuple_ip4");
 			break;
-		case VCAP_IS1_PS_IPV6_NORMAL_IP6:
-			out->prf(out->dst, "normal_ip6");
+		case VCAP_IS1_PS_IPV6_ANALRMAL_IP6:
+			out->prf(out->dst, "analrmal_ip6");
 			break;
 		case VCAP_IS1_PS_IPV6_5TUPLE_IP6:
 			out->prf(out->dst, "5tuple_ip6");
@@ -96,8 +96,8 @@ static void lan966x_vcap_is1_port_keys(struct lan966x_port *port,
 
 		out->prf(out->dst, "\n      rt: ");
 		switch (ANA_VCAP_S1_CFG_KEY_RT_CFG_GET(val)) {
-		case VCAP_IS1_PS_RT_NORMAL:
-			out->prf(out->dst, "normal");
+		case VCAP_IS1_PS_RT_ANALRMAL:
+			out->prf(out->dst, "analrmal");
 			break;
 		case VCAP_IS1_PS_RT_7TUPLE:
 			out->prf(out->dst, "7tuple");
@@ -234,7 +234,7 @@ int lan966x_vcap_port_info(struct net_device *dev,
 		lan966x_vcap_es0_port_keys(port, admin, out);
 		break;
 	default:
-		out->prf(out->dst, "  no info\n");
+		out->prf(out->dst, "  anal info\n");
 		break;
 	}
 

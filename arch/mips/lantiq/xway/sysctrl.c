@@ -424,25 +424,25 @@ static void clkdev_add_clkout(void)
 void __init ltq_soc_init(void)
 {
 	struct resource res_pmu, res_cgu, res_ebu;
-	struct device_node *np_pmu =
-			of_find_compatible_node(NULL, NULL, "lantiq,pmu-xway");
-	struct device_node *np_cgu =
-			of_find_compatible_node(NULL, NULL, "lantiq,cgu-xway");
-	struct device_node *np_ebu =
-			of_find_compatible_node(NULL, NULL, "lantiq,ebu-xway");
+	struct device_analde *np_pmu =
+			of_find_compatible_analde(NULL, NULL, "lantiq,pmu-xway");
+	struct device_analde *np_cgu =
+			of_find_compatible_analde(NULL, NULL, "lantiq,cgu-xway");
+	struct device_analde *np_ebu =
+			of_find_compatible_analde(NULL, NULL, "lantiq,ebu-xway");
 
 	/* check if all the core register ranges are available */
 	if (!np_pmu || !np_cgu || !np_ebu)
-		panic("Failed to load core nodes from devicetree");
+		panic("Failed to load core analdes from devicetree");
 
 	if (of_address_to_resource(np_pmu, 0, &res_pmu) ||
 			of_address_to_resource(np_cgu, 0, &res_cgu) ||
 			of_address_to_resource(np_ebu, 0, &res_ebu))
 		panic("Failed to get core resources");
 
-	of_node_put(np_pmu);
-	of_node_put(np_cgu);
-	of_node_put(np_ebu);
+	of_analde_put(np_pmu);
+	of_analde_put(np_cgu);
+	of_analde_put(np_ebu);
 
 	if (!request_mem_region(res_pmu.start, resource_size(&res_pmu),
 				res_pmu.name) ||

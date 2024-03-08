@@ -31,18 +31,18 @@
 
 struct workqueue_struct *gfs2_control_wq;
 
-static void gfs2_init_inode_once(void *foo)
+static void gfs2_init_ianalde_once(void *foo)
 {
-	struct gfs2_inode *ip = foo;
+	struct gfs2_ianalde *ip = foo;
 
-	inode_init_once(&ip->i_inode);
+	ianalde_init_once(&ip->i_ianalde);
 	atomic_set(&ip->i_sizehint, 0);
 	init_rwsem(&ip->i_rw_mutex);
 	INIT_LIST_HEAD(&ip->i_ordered);
 	ip->i_qadata = NULL;
 	gfs2_holder_mark_uninitialized(&ip->i_rgd_gh);
 	memset(&ip->i_res, 0, sizeof(ip->i_res));
-	RB_CLEAR_NODE(&ip->i_res.rs_node);
+	RB_CLEAR_ANALDE(&ip->i_res.rs_analde);
 	ip->i_hash_cache = NULL;
 	gfs2_holder_mark_uninitialized(&ip->i_iopen_gh);
 }
@@ -93,7 +93,7 @@ static int __init init_gfs2_fs(void)
 	if (error)
 		goto fail_glock;
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	gfs2_glock_cachep = kmem_cache_create("gfs2_glock",
 					      sizeof(struct gfs2_glock),
 					      0, SLAB_RECLAIM_ACCOUNT,
@@ -108,13 +108,13 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_glock_aspace_cachep)
 		goto fail_cachep2;
 
-	gfs2_inode_cachep = kmem_cache_create("gfs2_inode",
-					      sizeof(struct gfs2_inode),
+	gfs2_ianalde_cachep = kmem_cache_create("gfs2_ianalde",
+					      sizeof(struct gfs2_ianalde),
 					      0,  SLAB_RECLAIM_ACCOUNT|
 						  SLAB_MEM_SPREAD|
 						  SLAB_ACCOUNT,
-					      gfs2_init_inode_once);
-	if (!gfs2_inode_cachep)
+					      gfs2_init_ianalde_once);
+	if (!gfs2_ianalde_cachep)
 		goto fail_cachep3;
 
 	gfs2_bufdata_cachep = kmem_cache_create("gfs2_bufdata",
@@ -151,7 +151,7 @@ static int __init init_gfs2_fs(void)
 	if (error)
 		goto fail_shrinker;
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	gfs2_recovery_wq = alloc_workqueue("gfs2_recovery",
 					  WQ_MEM_RECLAIM | WQ_FREEZABLE, 0);
 	if (!gfs2_recovery_wq)
@@ -208,7 +208,7 @@ fail_cachep6:
 fail_cachep5:
 	kmem_cache_destroy(gfs2_bufdata_cachep);
 fail_cachep4:
-	kmem_cache_destroy(gfs2_inode_cachep);
+	kmem_cache_destroy(gfs2_ianalde_cachep);
 fail_cachep3:
 	kmem_cache_destroy(gfs2_glock_aspace_cachep);
 fail_cachep2:
@@ -247,7 +247,7 @@ static void __exit exit_gfs2_fs(void)
 	kmem_cache_destroy(gfs2_quotad_cachep);
 	kmem_cache_destroy(gfs2_rgrpd_cachep);
 	kmem_cache_destroy(gfs2_bufdata_cachep);
-	kmem_cache_destroy(gfs2_inode_cachep);
+	kmem_cache_destroy(gfs2_ianalde_cachep);
 	kmem_cache_destroy(gfs2_glock_aspace_cachep);
 	kmem_cache_destroy(gfs2_glock_cachep);
 

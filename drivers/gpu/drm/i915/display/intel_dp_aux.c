@@ -66,7 +66,7 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp)
 
 	if (ret == -ETIMEDOUT)
 		drm_err(&i915->drm,
-			"%s: did not complete or timeout within %ums (status 0x%08x)\n",
+			"%s: did analt complete or timeout within %ums (status 0x%08x)\n",
 			intel_dp->aux.name, timeout_ms, status);
 
 	return status;
@@ -113,7 +113,7 @@ static u32 hsw_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 
 	if (dig_port->aux_ch != AUX_CH_A && HAS_PCH_LPT_H(i915)) {
-		/* Workaround for non-ULT HSW */
+		/* Workaround for analn-ULT HSW */
 		switch (index) {
 		case 0: return 63;
 		case 1: return 72;
@@ -251,7 +251,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 		 * Abort transfers on a disconnected port as required by
 		 * DP 1.4a link CTS 4.2.1.5, also avoiding the long AUX
 		 * timeouts that would otherwise happen.
-		 * TODO: abort the transfer on non-TC ports as well.
+		 * TODO: abort the transfer on analn-TC ports as well.
 		 */
 		if (!intel_tc_port_connected_locked(&dig_port->base)) {
 			ret = -ENXIO;
@@ -288,7 +288,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 
 	/* Try to wait for any previous AUX channel activity */
 	for (try = 0; try < 3; try++) {
-		status = intel_de_read_notrace(i915, ch_ctl);
+		status = intel_de_read_analtrace(i915, ch_ctl);
 		if ((status & DP_AUX_CH_CTL_SEND_BUSY) == 0)
 			break;
 		msleep(1);
@@ -301,7 +301,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 
 		if (status != intel_dp->aux_busy_last_status) {
 			drm_WARN(&i915->drm, 1,
-				 "%s: not started (status 0x%08x)\n",
+				 "%s: analt started (status 0x%08x)\n",
 				 intel_dp->aux.name, status);
 			intel_dp->aux_busy_last_status = status;
 		}
@@ -361,7 +361,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	}
 
 	if ((status & DP_AUX_CH_CTL_DONE) == 0) {
-		drm_err(&i915->drm, "%s: not done (status 0x%08x)\n",
+		drm_err(&i915->drm, "%s: analt done (status 0x%08x)\n",
 			intel_dp->aux.name, status);
 		ret = -EBUSY;
 		goto out;
@@ -370,7 +370,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 done:
 	/*
 	 * Check for timeout or receive error. Timeouts occur when the sink is
-	 * not connected.
+	 * analt connected.
 	 */
 	if (status & DP_AUX_CH_CTL_RECEIVE_ERROR) {
 		drm_err(&i915->drm, "%s: receive error (status 0x%08x)\n",
@@ -380,7 +380,7 @@ done:
 	}
 
 	/*
-	 * Timeouts occur when the device isn't connected, so they're "normal"
+	 * Timeouts occur when the device isn't connected, so they're "analrmal"
 	 * -- don't fill the kernel log with these
 	 */
 	if (status & DP_AUX_CH_CTL_TIME_OUT_ERROR) {
@@ -394,8 +394,8 @@ done:
 	recv_bytes = REG_FIELD_GET(DP_AUX_CH_CTL_MESSAGE_SIZE_MASK, status);
 
 	/*
-	 * By BSpec: "Message sizes of 0 or >20 are not allowed."
-	 * We have no idea of what happened so we return -EBUSY so
+	 * By BSpec: "Message sizes of 0 or >20 are analt allowed."
+	 * We have anal idea of what happened so we return -EBUSY so
 	 * drm layer takes care for the necessary retries.
 	 */
 	if (recv_bytes == 0 || recv_bytes > 20) {
@@ -804,7 +804,7 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 	intel_dp->aux.drm_dev = &i915->drm;
 	drm_dp_aux_init(&intel_dp->aux);
 
-	/* Failure to allocate our preferred name is not critical */
+	/* Failure to allocate our preferred name is analt critical */
 	intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX %s/%s",
 				       aux_ch_name(i915, buf, sizeof(buf), aux_ch),
 				       encoder->base.name);
@@ -817,7 +817,7 @@ static enum aux_ch default_aux_ch(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 
-	/* SKL has DDI E but no AUX E */
+	/* SKL has DDI E but anal AUX E */
 	if (DISPLAY_VER(i915) == 9 && encoder->port == PORT_E)
 		return AUX_CH_A;
 
@@ -856,13 +856,13 @@ enum aux_ch intel_dp_aux_ch(struct intel_encoder *encoder)
 	aux_ch = intel_bios_dp_aux_ch(encoder->devdata);
 	source = "VBT";
 
-	if (aux_ch == AUX_CH_NONE) {
+	if (aux_ch == AUX_CH_ANALNE) {
 		aux_ch = default_aux_ch(encoder);
 		source = "platform default";
 	}
 
-	if (aux_ch == AUX_CH_NONE)
-		return AUX_CH_NONE;
+	if (aux_ch == AUX_CH_ANALNE)
+		return AUX_CH_ANALNE;
 
 	/* FIXME validate aux_ch against platform caps */
 
@@ -873,7 +873,7 @@ enum aux_ch intel_dp_aux_ch(struct intel_encoder *encoder)
 			    encoder->base.base.id, encoder->base.name,
 			    aux_ch_name(i915, buf, sizeof(buf), aux_ch),
 			    other->base.base.id, other->base.name);
-		return AUX_CH_NONE;
+		return AUX_CH_ANALNE;
 	}
 
 	drm_dbg_kms(&i915->drm,

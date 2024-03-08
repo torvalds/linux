@@ -19,7 +19,7 @@
  *   allowed
  *
  * We could manage different device classes through the enumerated
- * lists (C) or the use of classes (C++), but that is presently not
+ * lists (C) or the use of classes (C++), but that is presently analt
  * fully supported
  *
  * N.B. the 3 input formatters are of 2 different classess
@@ -29,7 +29,7 @@
 #define DMA_DDR_TO_HMEM_WORKAROUND
 
 /*
- * The longest allowed (uninteruptible) bus transfer, does not
+ * The longest allowed (uninteruptible) bus transfer, does analt
  * take stalling into account
  */
 #define HIVE_ISP_MAX_BURST_LENGTH	1024
@@ -51,7 +51,7 @@
 #include "hive_types.h"
 
 /*
- * Semi global. "HRT" is accessible from SP, but the HRT types do not fully apply
+ * Semi global. "HRT" is accessible from SP, but the HRT types do analt fully apply
  */
 #define HRT_VADDRESS_WIDTH	32
 

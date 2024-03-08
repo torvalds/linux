@@ -31,7 +31,7 @@ s32 fm10k_get_bus_info_generic(struct fm10k_hw *hw)
 		hw->bus_caps.width = fm10k_bus_width_pcie_x8;
 		break;
 	default:
-		hw->bus_caps.width = fm10k_bus_width_unknown;
+		hw->bus_caps.width = fm10k_bus_width_unkanalwn;
 		break;
 	}
 
@@ -46,7 +46,7 @@ s32 fm10k_get_bus_info_generic(struct fm10k_hw *hw)
 		hw->bus_caps.speed = fm10k_bus_speed_8000;
 		break;
 	default:
-		hw->bus_caps.speed = fm10k_bus_speed_unknown;
+		hw->bus_caps.speed = fm10k_bus_speed_unkanalwn;
 		break;
 	}
 
@@ -64,7 +64,7 @@ s32 fm10k_get_bus_info_generic(struct fm10k_hw *hw)
 		hw->bus_caps.payload = fm10k_bus_payload_512;
 		break;
 	default:
-		hw->bus_caps.payload = fm10k_bus_payload_unknown;
+		hw->bus_caps.payload = fm10k_bus_payload_unkanalwn;
 		break;
 	}
 
@@ -85,7 +85,7 @@ s32 fm10k_get_bus_info_generic(struct fm10k_hw *hw)
 		hw->bus.width = fm10k_bus_width_pcie_x8;
 		break;
 	default:
-		hw->bus.width = fm10k_bus_width_unknown;
+		hw->bus.width = fm10k_bus_width_unkanalwn;
 		break;
 	}
 
@@ -100,7 +100,7 @@ s32 fm10k_get_bus_info_generic(struct fm10k_hw *hw)
 		hw->bus.speed = fm10k_bus_speed_8000;
 		break;
 	default:
-		hw->bus.speed = fm10k_bus_speed_unknown;
+		hw->bus.speed = fm10k_bus_speed_unkanalwn;
 		break;
 	}
 
@@ -118,7 +118,7 @@ s32 fm10k_get_bus_info_generic(struct fm10k_hw *hw)
 		hw->bus.payload = fm10k_bus_payload_512;
 		break;
 	default:
-		hw->bus.payload = fm10k_bus_payload_unknown;
+		hw->bus.payload = fm10k_bus_payload_unkanalwn;
 		break;
 	}
 
@@ -153,7 +153,7 @@ s32 fm10k_get_invariants_generic(struct fm10k_hw *hw)
 	struct fm10k_mac_info *mac = &hw->mac;
 
 	/* initialize GLORT state to avoid any false hits */
-	mac->dglort_map = FM10K_DGLORTMAP_NONE;
+	mac->dglort_map = FM10K_DGLORTMAP_ANALNE;
 
 	/* record maximum number of MSI-X vectors */
 	mac->max_msix_vectors = fm10k_get_pcie_msix_count_generic(hw);
@@ -350,7 +350,7 @@ static void fm10k_update_hw_stats_tx_q(struct fm10k_hw *hw,
 		id_tx = fm10k_read_reg(hw, FM10K_TXQCTL(idx));
 	} while ((id_tx ^ id_tx_prev) & FM10K_TXQCTL_ID_MASK);
 
-	/* drop non-ID bits and set VALID ID bit */
+	/* drop analn-ID bits and set VALID ID bit */
 	id_tx &= FM10K_TXQCTL_ID_MASK;
 	id_tx |= FM10K_STAT_VALID;
 
@@ -404,7 +404,7 @@ static void fm10k_update_hw_stats_rx_q(struct fm10k_hw *hw,
 		id_rx = fm10k_read_reg(hw, FM10K_RXQCTL(idx));
 	} while ((id_rx ^ id_rx_prev) & FM10K_RXQCTL_ID_MASK);
 
-	/* drop non-ID bits and set VALID ID bit */
+	/* drop analn-ID bits and set VALID ID bit */
 	id_rx &= FM10K_RXQCTL_ID_MASK;
 	id_rx |= FM10K_STAT_VALID;
 
@@ -451,7 +451,7 @@ void fm10k_update_hw_stats_q(struct fm10k_hw *hw, struct fm10k_hw_stats_q *q,
  *  @count: number of queues to iterate over
  *
  *  Function invalidates the index values for the queues so any updates that
- *  may have happened are ignored and the base for the queue stats is reset.
+ *  may have happened are iganalred and the base for the queue stats is reset.
  **/
 void fm10k_unbind_hw_stats_q(struct fm10k_hw_stats_q *q, u32 idx, u32 count)
 {
@@ -469,7 +469,7 @@ void fm10k_unbind_hw_stats_q(struct fm10k_hw_stats_q *q, u32 idx, u32 count)
  *  @host_ready: pointer to boolean value that will record host state
  *
  *  This function will check the health of the mailbox and Tx queue 0
- *  in order to determine if we should report that the link is up or not.
+ *  in order to determine if we should report that the link is up or analt.
  **/
 s32 fm10k_get_host_state_generic(struct fm10k_hw *hw, bool *host_ready)
 {
@@ -481,11 +481,11 @@ s32 fm10k_get_host_state_generic(struct fm10k_hw *hw, bool *host_ready)
 	/* process upstream mailbox in case interrupts were disabled */
 	mbx->ops.process(hw, mbx);
 
-	/* If Tx is no longer enabled link should come down */
+	/* If Tx is anal longer enabled link should come down */
 	if (!(~txdctl) || !(txdctl & FM10K_TXDCTL_ENABLE))
 		mac->get_host_state = true;
 
-	/* exit if not checking for link, or link cannot be changed */
+	/* exit if analt checking for link, or link cananalt be changed */
 	if (!mac->get_host_state || !(~txdctl))
 		goto out;
 
@@ -505,15 +505,15 @@ s32 fm10k_get_host_state_generic(struct fm10k_hw *hw, bool *host_ready)
 	if (mbx->state != FM10K_STATE_OPEN)
 		goto out;
 
-	/* interface cannot receive traffic without logical ports */
-	if (mac->dglort_map == FM10K_DGLORTMAP_NONE) {
+	/* interface cananalt receive traffic without logical ports */
+	if (mac->dglort_map == FM10K_DGLORTMAP_ANALNE) {
 		if (mac->ops.request_lport_map)
 			ret_val = mac->ops.request_lport_map(hw);
 
 		goto out;
 	}
 
-	/* if we passed all the tests above then the switch is ready and we no
+	/* if we passed all the tests above then the switch is ready and we anal
 	 * longer need to check for link
 	 */
 	mac->get_host_state = false;

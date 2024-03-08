@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -23,7 +23,7 @@
 #include "atom.h"
 
 #include <drm/drm_atomic_helper.h>
-#include <nouveau_bo.h>
+#include <analuveau_bo.h>
 
 #include <nvif/if0014.h>
 #include <nvif/pushc37b.h>
@@ -111,11 +111,11 @@ wndwc37e_blend_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 				SET_COMPOSITION_FACTOR_SELECT,
 		  NVVAL(NVC37E, SET_COMPOSITION_FACTOR_SELECT, SRC_COLOR_FACTOR_MATCH_SELECT,
 							       asyw->blend.src_color) |
-		  NVVAL(NVC37E, SET_COMPOSITION_FACTOR_SELECT, SRC_COLOR_FACTOR_NO_MATCH_SELECT,
+		  NVVAL(NVC37E, SET_COMPOSITION_FACTOR_SELECT, SRC_COLOR_FACTOR_ANAL_MATCH_SELECT,
 							       asyw->blend.src_color) |
 		  NVVAL(NVC37E, SET_COMPOSITION_FACTOR_SELECT, DST_COLOR_FACTOR_MATCH_SELECT,
 							       asyw->blend.dst_color) |
-		  NVVAL(NVC37E, SET_COMPOSITION_FACTOR_SELECT, DST_COLOR_FACTOR_NO_MATCH_SELECT,
+		  NVVAL(NVC37E, SET_COMPOSITION_FACTOR_SELECT, DST_COLOR_FACTOR_ANAL_MATCH_SELECT,
 							       asyw->blend.dst_color),
 
 				SET_KEY_ALPHA,
@@ -147,7 +147,7 @@ wndwc37e_image_clr(struct nv50_wndw *wndw)
 
 	PUSH_MTHD(push, NVC37E, SET_PRESENT_CONTROL,
 		  NVVAL(NVC37E, SET_PRESENT_CONTROL, MIN_PRESENT_INTERVAL, 0) |
-		  NVDEF(NVC37E, SET_PRESENT_CONTROL, BEGIN_MODE, NON_TEARING));
+		  NVDEF(NVC37E, SET_PRESENT_CONTROL, BEGIN_MODE, ANALN_TEARING));
 
 	PUSH_MTHD(push, NVC37E, SET_CONTEXT_DMA_ISO(0), 0x00000000);
 	return 0;
@@ -180,7 +180,7 @@ wndwc37e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 		  NVVAL(NVC37E, SET_PARAMS, COLOR_SPACE, asyw->image.colorspace) |
 		  NVDEF(NVC37E, SET_PARAMS, INPUT_RANGE, BYPASS) |
 		  NVDEF(NVC37E, SET_PARAMS, UNDERREPLICATE, DISABLE) |
-		  NVDEF(NVC37E, SET_PARAMS, DE_GAMMA, NONE) |
+		  NVDEF(NVC37E, SET_PARAMS, DE_GAMMA, ANALNE) |
 		  NVVAL(NVC37E, SET_PARAMS, CSC, asyw->csc.valid) |
 		  NVDEF(NVC37E, SET_PARAMS, CLAMP_BEFORE_BLEND, DISABLE) |
 		  NVDEF(NVC37E, SET_PARAMS, SWAP_UV, DISABLE),
@@ -215,7 +215,7 @@ wndwc37e_ntfy_clr(struct nv50_wndw *wndw)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_MTHD(push, NVC37E, SET_CONTEXT_DMA_NOTIFIER, 0x00000000);
+	PUSH_MTHD(push, NVC37E, SET_CONTEXT_DMA_ANALTIFIER, 0x00000000);
 	return 0;
 }
 
@@ -228,11 +228,11 @@ wndwc37e_ntfy_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 3)))
 		return ret;
 
-	PUSH_MTHD(push, NVC37E, SET_CONTEXT_DMA_NOTIFIER, asyw->ntfy.handle,
+	PUSH_MTHD(push, NVC37E, SET_CONTEXT_DMA_ANALTIFIER, asyw->ntfy.handle,
 
-				SET_NOTIFIER_CONTROL,
-		  NVVAL(NVC37E, SET_NOTIFIER_CONTROL, MODE, asyw->ntfy.awaken) |
-		  NVVAL(NVC37E, SET_NOTIFIER_CONTROL, OFFSET, asyw->ntfy.offset >> 4));
+				SET_ANALTIFIER_CONTROL,
+		  NVVAL(NVC37E, SET_ANALTIFIER_CONTROL, MODE, asyw->ntfy.awaken) |
+		  NVVAL(NVC37E, SET_ANALTIFIER_CONTROL, OFFSET, asyw->ntfy.offset >> 4));
 	return 0;
 }
 
@@ -296,8 +296,8 @@ wndwc37e_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 		 struct nv50_head_atom *asyh)
 {
 	return drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
-						   DRM_PLANE_NO_SCALING,
-						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
 						   true, true);
 }
 
@@ -346,7 +346,7 @@ wndwc37e = {
 };
 
 int
-wndwc37e_new_(const struct nv50_wndw_func *func, struct nouveau_drm *drm,
+wndwc37e_new_(const struct nv50_wndw_func *func, struct analuveau_drm *drm,
 	      enum drm_plane_type type, int index, s32 oclass, u32 heads,
 	      struct nv50_wndw **pwndw)
 {
@@ -378,7 +378,7 @@ wndwc37e_new_(const struct nv50_wndw_func *func, struct nouveau_drm *drm,
 }
 
 int
-wndwc37e_new(struct nouveau_drm *drm, enum drm_plane_type type, int index,
+wndwc37e_new(struct analuveau_drm *drm, enum drm_plane_type type, int index,
 	     s32 oclass, struct nv50_wndw **pwndw)
 {
 	return wndwc37e_new_(&wndwc37e, drm, type, index, oclass,

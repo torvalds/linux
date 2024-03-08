@@ -60,7 +60,7 @@ static int stm32_lptim_setup_trig(struct stm32_lptim_trigger *priv)
 
 	trig = devm_iio_trigger_alloc(priv->dev, "%s", priv->trg);
 	if  (!trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	trig->dev.parent = priv->dev->parent;
 	trig->ops = &stm32_lptim_trigger_ops;
@@ -76,7 +76,7 @@ static int stm32_lptim_trigger_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (device_property_read_u32(&pdev->dev, "reg", &index))
 		return -EINVAL;

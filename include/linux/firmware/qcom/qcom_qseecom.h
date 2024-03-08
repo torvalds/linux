@@ -38,10 +38,10 @@ struct qseecom_client {
  * respective (app-specific) request data. The QSEE app reads this and returns
  * its response in the @rsp region.
  *
- * Note: This is a convenience wrapper around qcom_scm_qseecom_app_send().
+ * Analte: This is a convenience wrapper around qcom_scm_qseecom_app_send().
  * Clients should prefer to use this wrapper.
  *
- * Return: Zero on success, nonzero on failure.
+ * Return: Zero on success, analnzero on failure.
  */
 static inline int qcom_qseecom_app_send(struct qseecom_client *client, void *req, size_t req_size,
 					void *rsp, size_t rsp_size)

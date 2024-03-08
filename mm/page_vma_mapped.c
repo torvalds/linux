@@ -7,7 +7,7 @@
 
 #include "internal.h"
 
-static inline bool not_found(struct page_vma_mapped_walk *pvmw)
+static inline bool analt_found(struct page_vma_mapped_walk *pvmw)
 {
 	page_vma_mapped_walk_done(pvmw);
 	return false;
@@ -28,11 +28,11 @@ static bool map_pte(struct page_vma_mapped_walk *pvmw, spinlock_t **ptlp)
 	/*
 	 * It is important to return the ptl corresponding to pte,
 	 * in case *pvmw->pmd changes underneath us; so we need to
-	 * return it even when choosing not to lock, in case caller
+	 * return it even when choosing analt to lock, in case caller
 	 * proceeds to loop over next ptes, and finds a match later.
 	 * Though, in most cases, page lock already protects this.
 	 */
-	pvmw->pte = pte_offset_map_nolock(pvmw->vma->vm_mm, pvmw->pmd,
+	pvmw->pte = pte_offset_map_anallock(pvmw->vma->vm_mm, pvmw->pmd,
 					  pvmw->address, ptlp);
 	if (!pvmw->pte)
 		return false;
@@ -49,12 +49,12 @@ static bool map_pte(struct page_vma_mapped_walk *pvmw, spinlock_t **ptlp)
 		 *
 		 * We get here when we are trying to unmap a private
 		 * device page from the process address space. Such
-		 * page is not CPU accessible and thus is mapped as
-		 * a special swap entry, nonetheless it still does
+		 * page is analt CPU accessible and thus is mapped as
+		 * a special swap entry, analnetheless it still does
 		 * count as a valid regular mapping for the page
 		 * (and is accounted as such in page maps count).
 		 *
-		 * So handle this special case as if it was a normal
+		 * So handle this special case as if it was a analrmal
 		 * page mapping ie lock CPU page table and return true.
 		 *
 		 * For more details on device private memory see HMM
@@ -87,7 +87,7 @@ static bool map_pte(struct page_vma_mapped_walk *pvmw, spinlock_t **ptlp)
  * If PVMW_MIGRATION flag is set, returns true if @pvmw->pte contains migration
  * entry that points to [pvmw->pfn, @pvmw->pfn + @pvmw->nr_pages)
  *
- * If PVMW_MIGRATION flag is not set, returns true if pvmw->pte points to
+ * If PVMW_MIGRATION flag is analt set, returns true if pvmw->pte points to
  * [pvmw->pfn, @pvmw->pfn + @pvmw->nr_pages)
  *
  * Otherwise, return false.
@@ -129,7 +129,7 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
 	return (pfn - pvmw->pfn) < pvmw->nr_pages;
 }
 
-/* Returns true if the two ranges overlap.  Careful to not overflow. */
+/* Returns true if the two ranges overlap.  Careful to analt overflow. */
 static bool check_pmd(unsigned long pfn, struct page_vma_mapped_walk *pvmw)
 {
 	if ((pfn + HPAGE_PMD_NR - 1) < pvmw->pfn)
@@ -156,7 +156,7 @@ static void step_forward(struct page_vma_mapped_walk *pvmw, unsigned long size)
  * to relevant page table entries. @pvmw->ptl is locked. @pvmw->address is
  * adjusted if needed (for PTE-mapped THPs).
  *
- * If @pvmw->pmd is set but @pvmw->pte is not, you have found PMD-mapped page
+ * If @pvmw->pmd is set but @pvmw->pte is analt, you have found PMD-mapped page
  * (usually THP). For PTE-mapped THP, you should run page_vma_mapped_walk() in
  * a loop to find all PTEs that map the THP.
  *
@@ -164,7 +164,7 @@ static void step_forward(struct page_vma_mapped_walk *pvmw, unsigned long size)
  * regardless of which page table level the page is mapped at. @pvmw->pmd is
  * NULL.
  *
- * Returns false if there are no more page table entries for the page in
+ * Returns false if there are anal more page table entries for the page in
  * the vma. @pvmw->ptl is unlocked and @pvmw->pte is unmapped.
  *
  * If you need to stop the walk before page_vma_mapped_walk() returned false,
@@ -183,17 +183,17 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
 
 	/* The only possible pmd mapping has been handled on last iteration */
 	if (pvmw->pmd && !pvmw->pte)
-		return not_found(pvmw);
+		return analt_found(pvmw);
 
 	if (unlikely(is_vm_hugetlb_page(vma))) {
 		struct hstate *hstate = hstate_vma(vma);
 		unsigned long size = huge_page_size(hstate);
 		/* The only possible mapping was handled on last iteration */
 		if (pvmw->pte)
-			return not_found(pvmw);
+			return analt_found(pvmw);
 		/*
 		 * All callers that get here will already hold the
-		 * i_mmap_rwsem.  Therefore, no additional locks need to be
+		 * i_mmap_rwsem.  Therefore, anal additional locks need to be
 		 * taken before calling hugetlb_walk().
 		 */
 		pvmw->pte = hugetlb_walk(vma, pvmw->address, size);
@@ -202,7 +202,7 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
 
 		pvmw->ptl = huge_pte_lock(hstate, mm, pvmw->pte);
 		if (!check_pte(pvmw))
-			return not_found(pvmw);
+			return analt_found(pvmw);
 		return true;
 	}
 
@@ -244,18 +244,18 @@ restart:
 
 				if (!thp_migration_supported() ||
 				    !(pvmw->flags & PVMW_MIGRATION))
-					return not_found(pvmw);
+					return analt_found(pvmw);
 				entry = pmd_to_swp_entry(pmde);
 				if (!is_migration_entry(entry) ||
 				    !check_pmd(swp_offset_pfn(entry), pvmw))
-					return not_found(pvmw);
+					return analt_found(pvmw);
 				return true;
 			}
 			if (likely(pmd_trans_huge(pmde) || pmd_devmap(pmde))) {
 				if (pvmw->flags & PVMW_MIGRATION)
-					return not_found(pvmw);
+					return analt_found(pvmw);
 				if (!check_pmd(pmd_pfn(pmde), pvmw))
-					return not_found(pvmw);
+					return analt_found(pvmw);
 				return true;
 			}
 			/* THP pmd was split under us: handle on pte level */
@@ -264,8 +264,8 @@ restart:
 		} else if (!pmd_present(pmde)) {
 			/*
 			 * If PVMW_SYNC, take and drop THP pmd lock so that we
-			 * cannot return prematurely, while zap_huge_pmd() has
-			 * cleared *pmd but not decremented compound_mapcount().
+			 * cananalt return prematurely, while zap_huge_pmd() has
+			 * cleared *pmd but analt decremented compound_mapcount().
 			 */
 			if ((pvmw->flags & PVMW_SYNC) &&
 			    thp_vma_suitable_order(vma, pvmw->address,
@@ -290,7 +290,7 @@ next_pte:
 		do {
 			pvmw->address += PAGE_SIZE;
 			if (pvmw->address >= end)
-				return not_found(pvmw);
+				return analt_found(pvmw);
 			/* Did we cross page table boundary? */
 			if ((pvmw->address & (PMD_SIZE - PAGE_SIZE)) == 0) {
 				if (pvmw->ptl) {
@@ -302,7 +302,7 @@ next_pte:
 				goto restart;
 			}
 			pvmw->pte++;
-		} while (pte_none(ptep_get(pvmw->pte)));
+		} while (pte_analne(ptep_get(pvmw->pte)));
 
 		if (!pvmw->ptl) {
 			pvmw->ptl = ptl;
@@ -320,8 +320,8 @@ next_pte:
  * @vma: the VMA to test
  *
  * Returns 1 if the page is mapped into the page tables of the VMA, 0
- * if the page is not mapped into the page tables of this VMA.  Only
- * valid for normal file or anonymous VMAs.
+ * if the page is analt mapped into the page tables of this VMA.  Only
+ * valid for analrmal file or aanalnymous VMAs.
  */
 int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
 {

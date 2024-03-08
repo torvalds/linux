@@ -29,7 +29,7 @@ int iso_packets_buffer_init(struct iso_packets_buffer *b, struct fw_unit *unit,
 
 	b->packets = kmalloc_array(count, sizeof(*b->packets), GFP_KERNEL);
 	if (!b->packets) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 

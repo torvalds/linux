@@ -5,14 +5,14 @@
 // Copyright (c) 2021 Takashi Sakamoto <o-takashi@sakamocchi.jp>
 
 // Below models allow software to configure their DSP function by command transferred in
-// asynchronous transaction:
+// asynchroanalus transaction:
 //  * 828 mk3 (FireWire only and Hybrid)
 //  * 896 mk3 (FireWire only and Hybrid)
 //  * Ultralite mk3 (FireWire only and Hybrid)
 //  * Traveler mk3
 //  * Track 16
 //
-// Isochronous packets from the above models includes messages to report state of hardware meter.
+// Isochroanalus packets from the above models includes messages to report state of hardware meter.
 
 #include "motu.h"
 
@@ -39,7 +39,7 @@ int snd_motu_command_dsp_message_parser_new(struct snd_motu *motu)
 
 	parser = devm_kzalloc(&motu->card->card_dev, sizeof(*parser), GFP_KERNEL);
 	if (!parser)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&parser->lock);
 	motu->message_parser = parser;
 

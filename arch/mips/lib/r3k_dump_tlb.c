@@ -33,9 +33,9 @@ static void dump_tlb(int first, int last)
 	for (i = first; i <= last; i++) {
 		write_c0_index(i<<8);
 		__asm__ __volatile__(
-			".set\tnoreorder\n\t"
+			".set\tanalreorder\n\t"
 			"tlbr\n\t"
-			"nop\n\t"
+			"analp\n\t"
 			".set\treorder");
 		entryhi	 = read_c0_entryhi();
 		entrylo0 = read_c0_entrylo0();

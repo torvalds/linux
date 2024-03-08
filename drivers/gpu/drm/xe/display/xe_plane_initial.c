@@ -4,7 +4,7 @@
  */
 
 /* for ioread64 */
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 #include "xe_ggtt.h"
 
@@ -60,7 +60,7 @@ initial_plane_bo(struct xe_device *xe,
 	if (plane_config->size == 0)
 		return NULL;
 
-	flags = XE_BO_CREATE_PINNED_BIT | XE_BO_SCANOUT_BIT | XE_BO_CREATE_GGTT_BIT;
+	flags = XE_BO_CREATE_PINNED_BIT | XE_BO_SCAANALUT_BIT | XE_BO_CREATE_GGTT_BIT;
 
 	base = round_down(plane_config->base, page_size);
 	if (IS_DGFX(xe)) {
@@ -102,7 +102,7 @@ initial_plane_bo(struct xe_device *xe,
 		flags |= XE_BO_CREATE_STOLEN_BIT;
 
 		/*
-		 * If the FB is too big, just don't use it since fbdev is not very
+		 * If the FB is too big, just don't use it since fbdev is analt very
 		 * important and we should probably use that space with FBC or other
 		 * features.
 		 */
@@ -172,7 +172,7 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	return true;
 
 err_bo:
-	xe_bo_unpin_map_no_vm(bo);
+	xe_bo_unpin_map_anal_vm(bo);
 	return false;
 }
 
@@ -194,7 +194,7 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 	/*
 	 * TODO:
 	 *   Disable planes if get_initial_plane_config() failed.
-	 *   Make sure things work if the surface base is not page aligned.
+	 *   Make sure things work if the surface base is analt page aligned.
 	 */
 	if (!plane_config->fb)
 		return;
@@ -202,7 +202,7 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 	if (intel_alloc_initial_plane_obj(crtc, plane_config))
 		fb = &plane_config->fb->base;
 	else if (!intel_reuse_initial_plane_obj(dev_priv, plane_config, &fb))
-		goto nofb;
+		goto analfb;
 
 	plane_state->uapi.rotation = plane_config->rotation;
 	intel_fb_fill_view(to_intel_framebuffer(fb),
@@ -211,7 +211,7 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 	vma = intel_pin_and_fence_fb_obj(fb, false, &plane_state->view.gtt,
 					 false, &plane_state->flags);
 	if (IS_ERR(vma))
-		goto nofb;
+		goto analfb;
 
 	plane_state->ggtt_vma = vma;
 	plane_state->uapi.src_x = 0;
@@ -243,15 +243,15 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 	plane->async_flip(plane, crtc_state, plane_state, true);
 	return;
 
-nofb:
+analfb:
 	/*
 	 * We've failed to reconstruct the BIOS FB.  Current display state
 	 * indicates that the primary plane is visible, but has a NULL FB,
 	 * which will lead to problems later if we don't fix it up.  The
-	 * simplest solution is to just disable the primary plane now and
+	 * simplest solution is to just disable the primary plane analw and
 	 * pretend the BIOS never had it enabled.
 	 */
-	intel_plane_disable_noatomic(crtc, plane);
+	intel_plane_disable_analatomic(crtc, plane);
 }
 
 static void plane_config_fini(struct intel_initial_plane_config *plane_config)
@@ -259,7 +259,7 @@ static void plane_config_fini(struct intel_initial_plane_config *plane_config)
 	if (plane_config->fb) {
 		struct drm_framebuffer *fb = &plane_config->fb->base;
 
-		/* We may only have the stub and not a full framebuffer */
+		/* We may only have the stub and analt a full framebuffer */
 		if (drm_framebuffer_read_refcount(fb))
 			drm_framebuffer_put(fb);
 		else
@@ -273,11 +273,11 @@ void intel_crtc_initial_plane_config(struct intel_crtc *crtc)
 	struct intel_initial_plane_config plane_config = {};
 
 	/*
-	 * Note that reserving the BIOS fb up front prevents us
+	 * Analte that reserving the BIOS fb up front prevents us
 	 * from stuffing other stolen allocations like the ring
 	 * on top.  This prevents some ugliness at boot time, and
 	 * can even allow for smooth boot transitions if the BIOS
-	 * fb is large enough for the active pipe configuration.
+	 * fb is large eanalugh for the active pipe configuration.
 	 */
 	xe->display.funcs.display->get_initial_plane_config(crtc, &plane_config);
 

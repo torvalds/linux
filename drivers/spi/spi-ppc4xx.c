@@ -14,7 +14,7 @@
  */
 
 /*
- * The PPC4xx SPI controller has no FIFO so each sent/received byte will
+ * The PPC4xx SPI controller has anal FIFO so each sent/received byte will
  * generate an interrupt to the CPU. This can cause high CPU utilization.
  * This driver allows platforms to reduce the interrupt load on the CPU
  * during SPI transfers by setting max_speed_hz via the device tree.
@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/wait.h>
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
@@ -45,7 +45,7 @@
 /*
  * SPI_PPC4XX_MODE_SCP = 0 means "data latched on trailing edge of clock"
  * SPI_PPC4XX_MODE_SCP = 1 means "data latched on leading edge of clock"
- * Note: This is the inverse of CPHA.
+ * Analte: This is the inverse of CPHA.
  */
 #define SPI_PPC4XX_MODE_SCP	(0x80 >> 3)
 
@@ -53,16 +53,16 @@
 #define SPI_PPC4XX_MODE_SPE	(0x80 >> 4)
 
 /*
- * SPI_PPC4XX_MODE_RD = 0 means "MSB first" - this is the normal mode
+ * SPI_PPC4XX_MODE_RD = 0 means "MSB first" - this is the analrmal mode
  * SPI_PPC4XX_MODE_RD = 1 means "LSB first" - this is bit-reversed mode
- * Note: This is identical to SPI_LSB_FIRST.
+ * Analte: This is identical to SPI_LSB_FIRST.
  */
 #define SPI_PPC4XX_MODE_RD	(0x80 >> 5)
 
 /*
  * SPI_PPC4XX_MODE_CI = 0 means "clock idles low"
  * SPI_PPC4XX_MODE_CI = 1 means "clock idles high"
- * Note: This is identical to CPOL.
+ * Analte: This is identical to CPOL.
  */
 #define SPI_PPC4XX_MODE_CI	(0x80 >> 6)
 
@@ -173,7 +173,7 @@ static int spi_ppc4xx_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 	speed = spi->max_speed_hz;
 
 	/*
-	 * Modify the configuration if the transfer overrides it.  Do not allow
+	 * Modify the configuration if the transfer overrides it.  Do analt allow
 	 * the transfer to overwrite the generic configuration with zeros.
 	 */
 	if (t) {
@@ -215,20 +215,20 @@ static int spi_ppc4xx_setup(struct spi_device *spi)
 	struct spi_ppc4xx_cs *cs = spi->controller_state;
 
 	if (!spi->max_speed_hz) {
-		dev_err(&spi->dev, "invalid max_speed_hz (must be non-zero)\n");
+		dev_err(&spi->dev, "invalid max_speed_hz (must be analn-zero)\n");
 		return -EINVAL;
 	}
 
 	if (cs == NULL) {
 		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 		if (!cs)
-			return -ENOMEM;
+			return -EANALMEM;
 		spi->controller_state = cs;
 	}
 
 	/*
 	 * We set all bits of the SPI0_MODE register, so,
-	 * no need to read-modify-write
+	 * anal need to read-modify-write
 	 */
 	cs->mode = SPI_PPC4XX_MODE_SPE;
 
@@ -264,12 +264,12 @@ static irqreturn_t spi_ppc4xx_int(int irq, void *dev_id)
 
 	status = in_8(&hw->regs->sr);
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * BSY de-asserts one cycle after the transfer is complete.  The
 	 * interrupt is asserted after the transfer is complete.  The exact
-	 * relationship is not documented, hence this code.
+	 * relationship is analt documented, hence this code.
 	 */
 
 	if (unlikely(status & SPI_PPC4XX_SR_BSY)) {
@@ -340,16 +340,16 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 	struct spi_controller *host;
 	struct spi_bitbang *bbp;
 	struct resource resource;
-	struct device_node *np = op->dev.of_node;
+	struct device_analde *np = op->dev.of_analde;
 	struct device *dev = &op->dev;
-	struct device_node *opbnp;
+	struct device_analde *opbnp;
 	int ret;
 	const unsigned int *clk;
 
 	host = spi_alloc_host(dev, sizeof(*hw));
 	if (host == NULL)
-		return -ENOMEM;
-	host->dev.of_node = np;
+		return -EANALMEM;
+	host->dev.of_analde = np;
 	platform_set_drvdata(op, host);
 	hw = spi_controller_get_devdata(host);
 	hw->host = host;
@@ -378,27 +378,27 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 		SPI_CPHA | SPI_CPOL | SPI_CS_HIGH | SPI_LSB_FIRST;
 
 	/* Get the clock for the OPB */
-	opbnp = of_find_compatible_node(NULL, NULL, "ibm,opb");
+	opbnp = of_find_compatible_analde(NULL, NULL, "ibm,opb");
 	if (opbnp == NULL) {
-		dev_err(dev, "OPB: cannot find node\n");
-		ret = -ENODEV;
+		dev_err(dev, "OPB: cananalt find analde\n");
+		ret = -EANALDEV;
 		goto free_host;
 	}
 	/* Get the clock (Hz) for the OPB */
 	clk = of_get_property(opbnp, "clock-frequency", NULL);
 	if (clk == NULL) {
-		dev_err(dev, "OPB: no clock-frequency property set\n");
-		of_node_put(opbnp);
-		ret = -ENODEV;
+		dev_err(dev, "OPB: anal clock-frequency property set\n");
+		of_analde_put(opbnp);
+		ret = -EANALDEV;
 		goto free_host;
 	}
 	hw->opb_freq = *clk;
 	hw->opb_freq >>= 2;
-	of_node_put(opbnp);
+	of_analde_put(opbnp);
 
 	ret = of_address_to_resource(np, 0, &resource);
 	if (ret) {
-		dev_err(dev, "error while parsing device node resource\n");
+		dev_err(dev, "error while parsing device analde resource\n");
 		goto free_host;
 	}
 	hw->mapbase = resource.start;

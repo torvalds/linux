@@ -263,7 +263,7 @@ static int clk_smd_rpm_prepare(struct clk_hw *hw)
 
 	mutex_lock(&rpm_smd_clk_lock);
 
-	/* Don't send requests to the RPM if the rate has not been set. */
+	/* Don't send requests to the RPM if the rate has analt been set. */
 	if (!r->rate)
 		goto out;
 
@@ -380,7 +380,7 @@ static long clk_smd_rpm_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	/*
 	 * RPM handles rate rounding and we don't have a way to
-	 * know what the rate will be, so just return whatever
+	 * kanalw what the rate will be, so just return whatever
 	 * rate is requested.
 	 */
 	return rate;
@@ -393,7 +393,7 @@ static unsigned long clk_smd_rpm_recalc_rate(struct clk_hw *hw,
 
 	/*
 	 * RPM handles rate rounding and we don't have a way to
-	 * know what the rate will be, so just return whatever
+	 * kanalw what the rate will be, so just return whatever
 	 * rate was set.
 	 */
 	return r->rate;
@@ -412,7 +412,7 @@ static int clk_smd_rpm_enable_scaling(void)
 				 QCOM_SMD_RPM_MISC_CLK,
 				 QCOM_RPM_SCALING_ENABLE_ID, &req, sizeof(req));
 	if (ret) {
-		pr_err("RPM clock scaling (sleep set) not enabled!\n");
+		pr_err("RPM clock scaling (sleep set) analt enabled!\n");
 		return ret;
 	}
 
@@ -420,7 +420,7 @@ static int clk_smd_rpm_enable_scaling(void)
 				 QCOM_SMD_RPM_MISC_CLK,
 				 QCOM_RPM_SCALING_ENABLE_ID, &req, sizeof(req));
 	if (ret) {
-		pr_err("RPM clock scaling (active set) not enabled!\n");
+		pr_err("RPM clock scaling (active set) analt enabled!\n");
 		return ret;
 	}
 
@@ -450,23 +450,23 @@ DEFINE_CLK_SMD_RPM_BRANCH_A(bimc_freq_log, QCOM_SMD_RPM_MISC_CLK, 4, 1, 0);
 
 DEFINE_CLK_SMD_RPM_BRANCH(mss_cfg_ahb, QCOM_SMD_RPM_MCFG_CLK, 0, 19200000);
 
-DEFINE_CLK_SMD_RPM_BRANCH(aggre1_noc, QCOM_SMD_RPM_AGGR_CLK, 1, 1000);
-DEFINE_CLK_SMD_RPM_BRANCH(aggre2_noc, QCOM_SMD_RPM_AGGR_CLK, 2, 1000);
-DEFINE_CLK_SMD_RPM(aggre1_noc, QCOM_SMD_RPM_AGGR_CLK, 1);
-DEFINE_CLK_SMD_RPM(aggre2_noc, QCOM_SMD_RPM_AGGR_CLK, 2);
+DEFINE_CLK_SMD_RPM_BRANCH(aggre1_analc, QCOM_SMD_RPM_AGGR_CLK, 1, 1000);
+DEFINE_CLK_SMD_RPM_BRANCH(aggre2_analc, QCOM_SMD_RPM_AGGR_CLK, 2, 1000);
+DEFINE_CLK_SMD_RPM(aggre1_analc, QCOM_SMD_RPM_AGGR_CLK, 1);
+DEFINE_CLK_SMD_RPM(aggre2_analc, QCOM_SMD_RPM_AGGR_CLK, 2);
 
-DEFINE_CLK_SMD_RPM_BUS_A(pcnoc, 0, 19200000, CLK_IS_CRITICAL);
-DEFINE_CLK_SMD_RPM_BUS(snoc, 1);
-DEFINE_CLK_SMD_RPM_BUS(sysmmnoc, 2);
-DEFINE_CLK_SMD_RPM_BUS(cnoc, 2);
-DEFINE_CLK_SMD_RPM_BUS(mmssnoc_ahb, 3);
-DEFINE_CLK_SMD_RPM_BUS(snoc_periph, 0);
-DEFINE_CLK_SMD_RPM_BUS(cnoc, 1);
-DEFINE_CLK_SMD_RPM_BUS(snoc, 2);
-DEFINE_CLK_SMD_RPM_BUS(snoc_lpass, 5);
+DEFINE_CLK_SMD_RPM_BUS_A(pcanalc, 0, 19200000, CLK_IS_CRITICAL);
+DEFINE_CLK_SMD_RPM_BUS(sanalc, 1);
+DEFINE_CLK_SMD_RPM_BUS(sysmmanalc, 2);
+DEFINE_CLK_SMD_RPM_BUS(canalc, 2);
+DEFINE_CLK_SMD_RPM_BUS(mmssanalc_ahb, 3);
+DEFINE_CLK_SMD_RPM_BUS(sanalc_periph, 0);
+DEFINE_CLK_SMD_RPM_BUS(canalc, 1);
+DEFINE_CLK_SMD_RPM_BUS(sanalc, 2);
+DEFINE_CLK_SMD_RPM_BUS(sanalc_lpass, 5);
 
 DEFINE_CLK_SMD_RPM(bimc, QCOM_SMD_RPM_MEM_CLK, 0);
-DEFINE_CLK_SMD_RPM(cpuss_gnoc, QCOM_SMD_RPM_MEM_CLK, 1);
+DEFINE_CLK_SMD_RPM(cpuss_ganalc, QCOM_SMD_RPM_MEM_CLK, 1);
 DEFINE_CLK_SMD_RPM_CLK_SRC(gfx3d, QCOM_SMD_RPM_MEM_CLK, 1);
 DEFINE_CLK_SMD_RPM(ocmemgx, QCOM_SMD_RPM_MEM_CLK, 2);
 DEFINE_CLK_SMD_RPM(bimc_gpu, QCOM_SMD_RPM_MEM_CLK, 2);
@@ -479,7 +479,7 @@ DEFINE_CLK_SMD_RPM(ipa, QCOM_SMD_RPM_IPA_CLK, 0);
 
 DEFINE_CLK_SMD_RPM(hwkm, QCOM_SMD_RPM_HWKM_CLK, 0);
 
-DEFINE_CLK_SMD_RPM(mmssnoc_axi_rpm, QCOM_SMD_RPM_MMAXI_CLK, 0);
+DEFINE_CLK_SMD_RPM(mmssanalc_axi_rpm, QCOM_SMD_RPM_MMAXI_CLK, 0);
 DEFINE_CLK_SMD_RPM(mmnrt, QCOM_SMD_RPM_MMAXI_CLK, 0);
 DEFINE_CLK_SMD_RPM(mmrt, QCOM_SMD_RPM_MMAXI_CLK, 1);
 
@@ -512,76 +512,76 @@ DEFINE_CLK_SMD_RPM_XO_BUFFER(div_clk1, 11, 19200000);
 DEFINE_CLK_SMD_RPM_XO_BUFFER(div_clk2, 12, 19200000);
 DEFINE_CLK_SMD_RPM_XO_BUFFER(div_clk3, 13, 19200000);
 
-static const struct clk_smd_rpm *bimc_pcnoc_icc_clks[] = {
+static const struct clk_smd_rpm *bimc_pcanalc_icc_clks[] = {
 	&clk_smd_rpm_bimc_clk,
-	&clk_smd_rpm_bus_0_pcnoc_clk,
+	&clk_smd_rpm_bus_0_pcanalc_clk,
 };
 
-static const struct clk_smd_rpm *bimc_pcnoc_snoc_icc_clks[] = {
+static const struct clk_smd_rpm *bimc_pcanalc_sanalc_icc_clks[] = {
 	&clk_smd_rpm_bimc_clk,
-	&clk_smd_rpm_bus_0_pcnoc_clk,
-	&clk_smd_rpm_bus_1_snoc_clk,
+	&clk_smd_rpm_bus_0_pcanalc_clk,
+	&clk_smd_rpm_bus_1_sanalc_clk,
 };
 
-static const struct clk_smd_rpm *bimc_pcnoc_snoc_smmnoc_icc_clks[] = {
+static const struct clk_smd_rpm *bimc_pcanalc_sanalc_smmanalc_icc_clks[] = {
 	&clk_smd_rpm_bimc_clk,
-	&clk_smd_rpm_bus_0_pcnoc_clk,
-	&clk_smd_rpm_bus_1_snoc_clk,
-	&clk_smd_rpm_bus_2_sysmmnoc_clk,
+	&clk_smd_rpm_bus_0_pcanalc_clk,
+	&clk_smd_rpm_bus_1_sanalc_clk,
+	&clk_smd_rpm_bus_2_sysmmanalc_clk,
 };
 
-static const struct clk_smd_rpm *bimc_pcnoc_snoc_cnoc_ocmem_icc_clks[] = {
+static const struct clk_smd_rpm *bimc_pcanalc_sanalc_canalc_ocmem_icc_clks[] = {
 	&clk_smd_rpm_bimc_clk,
-	&clk_smd_rpm_bus_0_pcnoc_clk,
-	&clk_smd_rpm_bus_1_snoc_clk,
-	&clk_smd_rpm_bus_2_cnoc_clk,
+	&clk_smd_rpm_bus_0_pcanalc_clk,
+	&clk_smd_rpm_bus_1_sanalc_clk,
+	&clk_smd_rpm_bus_2_canalc_clk,
 	&clk_smd_rpm_ocmemgx_clk,
 };
 
 static const struct clk_smd_rpm *msm8996_icc_clks[] = {
 	&clk_smd_rpm_bimc_clk,
-	&clk_smd_rpm_branch_aggre1_noc_clk,
-	&clk_smd_rpm_branch_aggre2_noc_clk,
-	&clk_smd_rpm_bus_0_pcnoc_clk,
-	&clk_smd_rpm_bus_1_snoc_clk,
-	&clk_smd_rpm_bus_2_cnoc_clk,
-	&clk_smd_rpm_mmssnoc_axi_rpm_clk,
+	&clk_smd_rpm_branch_aggre1_analc_clk,
+	&clk_smd_rpm_branch_aggre2_analc_clk,
+	&clk_smd_rpm_bus_0_pcanalc_clk,
+	&clk_smd_rpm_bus_1_sanalc_clk,
+	&clk_smd_rpm_bus_2_canalc_clk,
+	&clk_smd_rpm_mmssanalc_axi_rpm_clk,
 };
 
 static const struct clk_smd_rpm *msm8998_icc_clks[] = {
-	&clk_smd_rpm_aggre1_noc_clk,
-	&clk_smd_rpm_aggre2_noc_clk,
+	&clk_smd_rpm_aggre1_analc_clk,
+	&clk_smd_rpm_aggre2_analc_clk,
 	&clk_smd_rpm_bimc_clk,
-	&clk_smd_rpm_bus_1_snoc_clk,
-	&clk_smd_rpm_bus_2_cnoc_clk,
-	&clk_smd_rpm_mmssnoc_axi_rpm_clk,
+	&clk_smd_rpm_bus_1_sanalc_clk,
+	&clk_smd_rpm_bus_2_canalc_clk,
+	&clk_smd_rpm_mmssanalc_axi_rpm_clk,
 };
 
 static const struct clk_smd_rpm *sdm660_icc_clks[] = {
-	&clk_smd_rpm_aggre2_noc_clk,
+	&clk_smd_rpm_aggre2_analc_clk,
 	&clk_smd_rpm_bimc_clk,
-	&clk_smd_rpm_bus_1_snoc_clk,
-	&clk_smd_rpm_bus_2_cnoc_clk,
-	&clk_smd_rpm_mmssnoc_axi_rpm_clk,
+	&clk_smd_rpm_bus_1_sanalc_clk,
+	&clk_smd_rpm_bus_2_canalc_clk,
+	&clk_smd_rpm_mmssanalc_axi_rpm_clk,
 };
 
-static const struct clk_smd_rpm *sm_qnoc_icc_clks[] = {
+static const struct clk_smd_rpm *sm_qanalc_icc_clks[] = {
 	&clk_smd_rpm_bimc_clk,
-	&clk_smd_rpm_bus_1_cnoc_clk,
+	&clk_smd_rpm_bus_1_canalc_clk,
 	&clk_smd_rpm_mmnrt_clk,
 	&clk_smd_rpm_mmrt_clk,
 	&clk_smd_rpm_qup_clk,
-	&clk_smd_rpm_bus_2_snoc_clk,
+	&clk_smd_rpm_bus_2_sanalc_clk,
 };
 
 static const struct clk_smd_rpm *qcm2290_icc_clks[] = {
 	&clk_smd_rpm_bimc_clk,
-	&clk_smd_rpm_bus_1_cnoc_clk,
+	&clk_smd_rpm_bus_1_canalc_clk,
 	&clk_smd_rpm_mmnrt_clk,
 	&clk_smd_rpm_mmrt_clk,
 	&clk_smd_rpm_qup_clk,
-	&clk_smd_rpm_bus_2_snoc_clk,
-	&clk_smd_rpm_cpuss_gnoc_clk,
+	&clk_smd_rpm_bus_2_sanalc_clk,
+	&clk_smd_rpm_cpuss_ganalc_clk,
 };
 
 static struct clk_smd_rpm *msm8909_clks[] = {
@@ -610,8 +610,8 @@ static struct clk_smd_rpm *msm8909_clks[] = {
 static const struct rpm_smd_clk_desc rpm_clk_msm8909 = {
 	.clks = msm8909_clks,
 	.num_clks = ARRAY_SIZE(msm8909_clks),
-	.icc_clks = bimc_pcnoc_snoc_icc_clks,
-	.num_icc_clks = ARRAY_SIZE(bimc_pcnoc_snoc_icc_clks),
+	.icc_clks = bimc_pcanalc_sanalc_icc_clks,
+	.num_icc_clks = ARRAY_SIZE(bimc_pcanalc_sanalc_icc_clks),
 };
 
 static struct clk_smd_rpm *msm8916_clks[] = {
@@ -638,8 +638,8 @@ static struct clk_smd_rpm *msm8916_clks[] = {
 static const struct rpm_smd_clk_desc rpm_clk_msm8916 = {
 	.clks = msm8916_clks,
 	.num_clks = ARRAY_SIZE(msm8916_clks),
-	.icc_clks = bimc_pcnoc_snoc_icc_clks,
-	.num_icc_clks = ARRAY_SIZE(bimc_pcnoc_snoc_icc_clks),
+	.icc_clks = bimc_pcanalc_sanalc_icc_clks,
+	.num_icc_clks = ARRAY_SIZE(bimc_pcanalc_sanalc_icc_clks),
 };
 
 static struct clk_smd_rpm *msm8917_clks[] = {
@@ -666,8 +666,8 @@ static struct clk_smd_rpm *msm8917_clks[] = {
 static const struct rpm_smd_clk_desc rpm_clk_msm8917 = {
 	.clks = msm8917_clks,
 	.num_clks = ARRAY_SIZE(msm8917_clks),
-	.icc_clks = bimc_pcnoc_snoc_smmnoc_icc_clks,
-	.num_icc_clks = ARRAY_SIZE(bimc_pcnoc_snoc_smmnoc_icc_clks),
+	.icc_clks = bimc_pcanalc_sanalc_smmanalc_icc_clks,
+	.num_icc_clks = ARRAY_SIZE(bimc_pcanalc_sanalc_smmanalc_icc_clks),
 };
 
 static struct clk_smd_rpm *msm8936_clks[] = {
@@ -696,15 +696,15 @@ static struct clk_smd_rpm *msm8936_clks[] = {
 static const struct rpm_smd_clk_desc rpm_clk_msm8936 = {
 		.clks = msm8936_clks,
 		.num_clks = ARRAY_SIZE(msm8936_clks),
-		.icc_clks = bimc_pcnoc_snoc_smmnoc_icc_clks,
-		.num_icc_clks = ARRAY_SIZE(bimc_pcnoc_snoc_smmnoc_icc_clks),
+		.icc_clks = bimc_pcanalc_sanalc_smmanalc_icc_clks,
+		.num_icc_clks = ARRAY_SIZE(bimc_pcanalc_sanalc_smmanalc_icc_clks),
 };
 
 static struct clk_smd_rpm *msm8974_clks[] = {
 	[RPM_SMD_XO_CLK_SRC]		= &clk_smd_rpm_branch_bi_tcxo,
 	[RPM_SMD_XO_A_CLK_SRC]		= &clk_smd_rpm_branch_bi_tcxo_a,
-	[RPM_SMD_MMSSNOC_AHB_CLK]	= &clk_smd_rpm_bus_3_mmssnoc_ahb_clk,
-	[RPM_SMD_MMSSNOC_AHB_A_CLK]	= &clk_smd_rpm_bus_3_mmssnoc_ahb_a_clk,
+	[RPM_SMD_MMSSANALC_AHB_CLK]	= &clk_smd_rpm_bus_3_mmssanalc_ahb_clk,
+	[RPM_SMD_MMSSANALC_AHB_A_CLK]	= &clk_smd_rpm_bus_3_mmssanalc_ahb_a_clk,
 	[RPM_SMD_GFX3D_CLK_SRC]		= &clk_smd_rpm_gfx3d_clk_src,
 	[RPM_SMD_GFX3D_A_CLK_SRC]	= &clk_smd_rpm_gfx3d_a_clk_src,
 	[RPM_SMD_QDSS_CLK]		= &clk_smd_rpm_qdss_clk,
@@ -740,8 +740,8 @@ static struct clk_smd_rpm *msm8974_clks[] = {
 static const struct rpm_smd_clk_desc rpm_clk_msm8974 = {
 	.clks = msm8974_clks,
 	.num_clks = ARRAY_SIZE(msm8974_clks),
-	.icc_clks = bimc_pcnoc_snoc_cnoc_ocmem_icc_clks,
-	.num_icc_clks = ARRAY_SIZE(bimc_pcnoc_snoc_cnoc_ocmem_icc_clks),
+	.icc_clks = bimc_pcanalc_sanalc_canalc_ocmem_icc_clks,
+	.num_icc_clks = ARRAY_SIZE(bimc_pcanalc_sanalc_canalc_ocmem_icc_clks),
 	.scaling_before_handover = true,
 };
 
@@ -768,8 +768,8 @@ static struct clk_smd_rpm *msm8976_clks[] = {
 
 static const struct rpm_smd_clk_desc rpm_clk_msm8976 = {
 	.clks = msm8976_clks,
-	.icc_clks = bimc_pcnoc_snoc_smmnoc_icc_clks,
-	.num_icc_clks = ARRAY_SIZE(bimc_pcnoc_snoc_smmnoc_icc_clks),
+	.icc_clks = bimc_pcanalc_sanalc_smmanalc_icc_clks,
+	.num_icc_clks = ARRAY_SIZE(bimc_pcanalc_sanalc_smmanalc_icc_clks),
 };
 
 static struct clk_smd_rpm *msm8992_clks[] = {
@@ -795,8 +795,8 @@ static struct clk_smd_rpm *msm8992_clks[] = {
 	[RPM_SMD_IPA_A_CLK] = &clk_smd_rpm_ipa_a_clk,
 	[RPM_SMD_LN_BB_CLK] = &clk_smd_rpm_ln_bb_clk,
 	[RPM_SMD_LN_BB_A_CLK] = &clk_smd_rpm_ln_bb_clk_a,
-	[RPM_SMD_MMSSNOC_AHB_CLK] = &clk_smd_rpm_bus_3_mmssnoc_ahb_clk,
-	[RPM_SMD_MMSSNOC_AHB_A_CLK] = &clk_smd_rpm_bus_3_mmssnoc_ahb_a_clk,
+	[RPM_SMD_MMSSANALC_AHB_CLK] = &clk_smd_rpm_bus_3_mmssanalc_ahb_clk,
+	[RPM_SMD_MMSSANALC_AHB_A_CLK] = &clk_smd_rpm_bus_3_mmssanalc_ahb_a_clk,
 	[RPM_SMD_MSS_CFG_AHB_CLK] = &clk_smd_rpm_branch_mss_cfg_ahb_clk,
 	[RPM_SMD_MSS_CFG_AHB_A_CLK] = &clk_smd_rpm_branch_mss_cfg_ahb_a_clk,
 	[RPM_SMD_QDSS_CLK] = &clk_smd_rpm_qdss_clk,
@@ -818,8 +818,8 @@ static struct clk_smd_rpm *msm8992_clks[] = {
 static const struct rpm_smd_clk_desc rpm_clk_msm8992 = {
 	.clks = msm8992_clks,
 	.num_clks = ARRAY_SIZE(msm8992_clks),
-	.icc_clks = bimc_pcnoc_snoc_cnoc_ocmem_icc_clks,
-	.num_icc_clks = ARRAY_SIZE(bimc_pcnoc_snoc_cnoc_ocmem_icc_clks),
+	.icc_clks = bimc_pcanalc_sanalc_canalc_ocmem_icc_clks,
+	.num_icc_clks = ARRAY_SIZE(bimc_pcanalc_sanalc_canalc_ocmem_icc_clks),
 };
 
 static struct clk_smd_rpm *msm8994_clks[] = {
@@ -845,8 +845,8 @@ static struct clk_smd_rpm *msm8994_clks[] = {
 	[RPM_SMD_IPA_A_CLK] = &clk_smd_rpm_ipa_a_clk,
 	[RPM_SMD_LN_BB_CLK] = &clk_smd_rpm_ln_bb_clk,
 	[RPM_SMD_LN_BB_A_CLK] = &clk_smd_rpm_ln_bb_clk_a,
-	[RPM_SMD_MMSSNOC_AHB_CLK] = &clk_smd_rpm_bus_3_mmssnoc_ahb_clk,
-	[RPM_SMD_MMSSNOC_AHB_A_CLK] = &clk_smd_rpm_bus_3_mmssnoc_ahb_a_clk,
+	[RPM_SMD_MMSSANALC_AHB_CLK] = &clk_smd_rpm_bus_3_mmssanalc_ahb_clk,
+	[RPM_SMD_MMSSANALC_AHB_A_CLK] = &clk_smd_rpm_bus_3_mmssanalc_ahb_a_clk,
 	[RPM_SMD_MSS_CFG_AHB_CLK] = &clk_smd_rpm_branch_mss_cfg_ahb_clk,
 	[RPM_SMD_MSS_CFG_AHB_A_CLK] = &clk_smd_rpm_branch_mss_cfg_ahb_a_clk,
 	[RPM_SMD_QDSS_CLK] = &clk_smd_rpm_qdss_clk,
@@ -870,8 +870,8 @@ static struct clk_smd_rpm *msm8994_clks[] = {
 static const struct rpm_smd_clk_desc rpm_clk_msm8994 = {
 	.clks = msm8994_clks,
 	.num_clks = ARRAY_SIZE(msm8994_clks),
-	.icc_clks = bimc_pcnoc_snoc_cnoc_ocmem_icc_clks,
-	.num_icc_clks = ARRAY_SIZE(bimc_pcnoc_snoc_cnoc_ocmem_icc_clks),
+	.icc_clks = bimc_pcanalc_sanalc_canalc_ocmem_icc_clks,
+	.num_icc_clks = ARRAY_SIZE(bimc_pcanalc_sanalc_canalc_ocmem_icc_clks),
 };
 
 static struct clk_smd_rpm *msm8996_clks[] = {
@@ -919,10 +919,10 @@ static const struct rpm_smd_clk_desc rpm_clk_msm8996 = {
 static struct clk_smd_rpm *qcs404_clks[] = {
 	[RPM_SMD_QDSS_CLK] = &clk_smd_rpm_qdss_clk,
 	[RPM_SMD_QDSS_A_CLK] = &clk_smd_rpm_qdss_a_clk,
-	[RPM_SMD_PNOC_CLK] = &clk_smd_rpm_bus_0_pcnoc_clk,
-	[RPM_SMD_PNOC_A_CLK] = &clk_smd_rpm_bus_0_pcnoc_a_clk,
-	[RPM_SMD_SNOC_CLK] = &clk_smd_rpm_bus_1_snoc_clk,
-	[RPM_SMD_SNOC_A_CLK] = &clk_smd_rpm_bus_1_snoc_a_clk,
+	[RPM_SMD_PANALC_CLK] = &clk_smd_rpm_bus_0_pcanalc_clk,
+	[RPM_SMD_PANALC_A_CLK] = &clk_smd_rpm_bus_0_pcanalc_a_clk,
+	[RPM_SMD_SANALC_CLK] = &clk_smd_rpm_bus_1_sanalc_clk,
+	[RPM_SMD_SANALC_A_CLK] = &clk_smd_rpm_bus_1_sanalc_a_clk,
 	[RPM_SMD_BIMC_CLK] = &clk_smd_rpm_bimc_clk,
 	[RPM_SMD_BIMC_A_CLK] = &clk_smd_rpm_bimc_a_clk,
 	[RPM_SMD_BIMC_GPU_CLK] = &clk_smd_rpm_bimc_gpu_clk,
@@ -942,15 +942,15 @@ static struct clk_smd_rpm *qcs404_clks[] = {
 static const struct rpm_smd_clk_desc rpm_clk_qcs404 = {
 	.clks = qcs404_clks,
 	.num_clks = ARRAY_SIZE(qcs404_clks),
-	.icc_clks = bimc_pcnoc_snoc_icc_clks,
-	.num_icc_clks = ARRAY_SIZE(bimc_pcnoc_snoc_icc_clks),
+	.icc_clks = bimc_pcanalc_sanalc_icc_clks,
+	.num_icc_clks = ARRAY_SIZE(bimc_pcanalc_sanalc_icc_clks),
 };
 
 static struct clk_smd_rpm *msm8998_clks[] = {
 	[RPM_SMD_XO_CLK_SRC] = &clk_smd_rpm_branch_bi_tcxo,
 	[RPM_SMD_XO_A_CLK_SRC] = &clk_smd_rpm_branch_bi_tcxo_a,
-	[RPM_SMD_PCNOC_CLK] = &clk_smd_rpm_bus_0_pcnoc_clk,
-	[RPM_SMD_PCNOC_A_CLK] = &clk_smd_rpm_bus_0_pcnoc_a_clk,
+	[RPM_SMD_PCANALC_CLK] = &clk_smd_rpm_bus_0_pcanalc_clk,
+	[RPM_SMD_PCANALC_A_CLK] = &clk_smd_rpm_bus_0_pcanalc_a_clk,
 	[RPM_SMD_CE1_CLK] = &clk_smd_rpm_ce1_clk,
 	[RPM_SMD_CE1_A_CLK] = &clk_smd_rpm_ce1_a_clk,
 	[RPM_SMD_DIV_CLK1] = &clk_smd_rpm_div_clk1,
@@ -999,8 +999,8 @@ static const struct rpm_smd_clk_desc rpm_clk_msm8998 = {
 static struct clk_smd_rpm *sdm660_clks[] = {
 	[RPM_SMD_XO_CLK_SRC] = &clk_smd_rpm_branch_bi_tcxo,
 	[RPM_SMD_XO_A_CLK_SRC] = &clk_smd_rpm_branch_bi_tcxo_a,
-	[RPM_SMD_CNOC_PERIPH_CLK] = &clk_smd_rpm_bus_0_pcnoc_clk,
-	[RPM_SMD_CNOC_PERIPH_A_CLK] = &clk_smd_rpm_bus_0_pcnoc_a_clk,
+	[RPM_SMD_CANALC_PERIPH_CLK] = &clk_smd_rpm_bus_0_pcanalc_clk,
+	[RPM_SMD_CANALC_PERIPH_A_CLK] = &clk_smd_rpm_bus_0_pcanalc_a_clk,
 	[RPM_SMD_IPA_CLK] = &clk_smd_rpm_ipa_clk,
 	[RPM_SMD_IPA_A_CLK] = &clk_smd_rpm_ipa_a_clk,
 	[RPM_SMD_CE1_CLK] = &clk_smd_rpm_ce1_clk,
@@ -1050,8 +1050,8 @@ static struct clk_smd_rpm *mdm9607_clks[] = {
 static const struct rpm_smd_clk_desc rpm_clk_mdm9607 = {
 	.clks = mdm9607_clks,
 	.num_clks = ARRAY_SIZE(mdm9607_clks),
-	.icc_clks = bimc_pcnoc_icc_clks,
-	.num_icc_clks = ARRAY_SIZE(bimc_pcnoc_icc_clks),
+	.icc_clks = bimc_pcanalc_icc_clks,
+	.num_icc_clks = ARRAY_SIZE(bimc_pcanalc_icc_clks),
 };
 
 static struct clk_smd_rpm *msm8953_clks[] = {
@@ -1080,8 +1080,8 @@ static struct clk_smd_rpm *msm8953_clks[] = {
 static const struct rpm_smd_clk_desc rpm_clk_msm8953 = {
 	.clks = msm8953_clks,
 	.num_clks = ARRAY_SIZE(msm8953_clks),
-	.icc_clks = bimc_pcnoc_snoc_smmnoc_icc_clks,
-	.num_icc_clks = ARRAY_SIZE(bimc_pcnoc_snoc_smmnoc_icc_clks),
+	.icc_clks = bimc_pcanalc_sanalc_smmanalc_icc_clks,
+	.num_icc_clks = ARRAY_SIZE(bimc_pcanalc_sanalc_smmanalc_icc_clks),
 };
 
 static struct clk_smd_rpm *sm6125_clks[] = {
@@ -1103,17 +1103,17 @@ static struct clk_smd_rpm *sm6125_clks[] = {
 	[RPM_SMD_LN_BB_CLK2_A] = &clk_smd_rpm_ln_bb_clk2_a,
 	[RPM_SMD_LN_BB_CLK3] = &clk_smd_rpm_ln_bb_clk3,
 	[RPM_SMD_LN_BB_CLK3_A] = &clk_smd_rpm_ln_bb_clk3_a,
-	[RPM_SMD_SNOC_PERIPH_CLK] = &clk_smd_rpm_bus_0_snoc_periph_clk,
-	[RPM_SMD_SNOC_PERIPH_A_CLK] = &clk_smd_rpm_bus_0_snoc_periph_a_clk,
-	[RPM_SMD_SNOC_LPASS_CLK] = &clk_smd_rpm_bus_5_snoc_lpass_clk,
-	[RPM_SMD_SNOC_LPASS_A_CLK] = &clk_smd_rpm_bus_5_snoc_lpass_a_clk,
+	[RPM_SMD_SANALC_PERIPH_CLK] = &clk_smd_rpm_bus_0_sanalc_periph_clk,
+	[RPM_SMD_SANALC_PERIPH_A_CLK] = &clk_smd_rpm_bus_0_sanalc_periph_a_clk,
+	[RPM_SMD_SANALC_LPASS_CLK] = &clk_smd_rpm_bus_5_sanalc_lpass_clk,
+	[RPM_SMD_SANALC_LPASS_A_CLK] = &clk_smd_rpm_bus_5_sanalc_lpass_a_clk,
 };
 
 static const struct rpm_smd_clk_desc rpm_clk_sm6125 = {
 	.clks = sm6125_clks,
 	.num_clks = ARRAY_SIZE(sm6125_clks),
-	.icc_clks = sm_qnoc_icc_clks,
-	.num_icc_clks = ARRAY_SIZE(sm_qnoc_icc_clks)
+	.icc_clks = sm_qanalc_icc_clks,
+	.num_icc_clks = ARRAY_SIZE(sm_qanalc_icc_clks)
 };
 
 /* SM6115 */
@@ -1130,10 +1130,10 @@ static struct clk_smd_rpm *sm6115_clks[] = {
 	[RPM_SMD_IPA_A_CLK] = &clk_smd_rpm_ipa_a_clk,
 	[RPM_SMD_CE1_CLK] = &clk_smd_rpm_ce1_clk,
 	[RPM_SMD_CE1_A_CLK] = &clk_smd_rpm_ce1_a_clk,
-	[RPM_SMD_SNOC_PERIPH_CLK] = &clk_smd_rpm_bus_0_snoc_periph_clk,
-	[RPM_SMD_SNOC_PERIPH_A_CLK] = &clk_smd_rpm_bus_0_snoc_periph_a_clk,
-	[RPM_SMD_SNOC_LPASS_CLK] = &clk_smd_rpm_bus_5_snoc_lpass_clk,
-	[RPM_SMD_SNOC_LPASS_A_CLK] = &clk_smd_rpm_bus_5_snoc_lpass_a_clk,
+	[RPM_SMD_SANALC_PERIPH_CLK] = &clk_smd_rpm_bus_0_sanalc_periph_clk,
+	[RPM_SMD_SANALC_PERIPH_A_CLK] = &clk_smd_rpm_bus_0_sanalc_periph_a_clk,
+	[RPM_SMD_SANALC_LPASS_CLK] = &clk_smd_rpm_bus_5_sanalc_lpass_clk,
+	[RPM_SMD_SANALC_LPASS_A_CLK] = &clk_smd_rpm_bus_5_sanalc_lpass_a_clk,
 	[RPM_SMD_RF_CLK1_PIN] = &clk_smd_rpm_rf_clk1_pin,
 	[RPM_SMD_RF_CLK1_A_PIN] = &clk_smd_rpm_rf_clk1_a_pin,
 	[RPM_SMD_RF_CLK2_PIN] = &clk_smd_rpm_rf_clk2_pin,
@@ -1143,8 +1143,8 @@ static struct clk_smd_rpm *sm6115_clks[] = {
 static const struct rpm_smd_clk_desc rpm_clk_sm6115 = {
 	.clks = sm6115_clks,
 	.num_clks = ARRAY_SIZE(sm6115_clks),
-	.icc_clks = sm_qnoc_icc_clks,
-	.num_icc_clks = ARRAY_SIZE(sm_qnoc_icc_clks)
+	.icc_clks = sm_qanalc_icc_clks,
+	.num_icc_clks = ARRAY_SIZE(sm_qanalc_icc_clks)
 };
 
 static struct clk_smd_rpm *sm6375_clks[] = {
@@ -1154,10 +1154,10 @@ static struct clk_smd_rpm *sm6375_clks[] = {
 	[RPM_SMD_QDSS_A_CLK] = &clk_smd_rpm_branch_qdss_a_clk,
 	[RPM_SMD_IPA_CLK] = &clk_smd_rpm_ipa_clk,
 	[RPM_SMD_IPA_A_CLK] = &clk_smd_rpm_ipa_a_clk,
-	[RPM_SMD_SNOC_PERIPH_CLK] = &clk_smd_rpm_bus_0_snoc_periph_clk,
-	[RPM_SMD_SNOC_PERIPH_A_CLK] = &clk_smd_rpm_bus_0_snoc_periph_a_clk,
-	[RPM_SMD_SNOC_LPASS_CLK] = &clk_smd_rpm_bus_5_snoc_lpass_clk,
-	[RPM_SMD_SNOC_LPASS_A_CLK] = &clk_smd_rpm_bus_5_snoc_lpass_a_clk,
+	[RPM_SMD_SANALC_PERIPH_CLK] = &clk_smd_rpm_bus_0_sanalc_periph_clk,
+	[RPM_SMD_SANALC_PERIPH_A_CLK] = &clk_smd_rpm_bus_0_sanalc_periph_a_clk,
+	[RPM_SMD_SANALC_LPASS_CLK] = &clk_smd_rpm_bus_5_sanalc_lpass_clk,
+	[RPM_SMD_SANALC_LPASS_A_CLK] = &clk_smd_rpm_bus_5_sanalc_lpass_a_clk,
 	[RPM_SMD_CE1_CLK] = &clk_smd_rpm_ce1_clk,
 	[RPM_SMD_CE1_A_CLK] = &clk_smd_rpm_ce1_a_clk,
 	[RPM_SMD_HWKM_CLK] = &clk_smd_rpm_hwkm_clk,
@@ -1170,8 +1170,8 @@ static struct clk_smd_rpm *sm6375_clks[] = {
 static const struct rpm_smd_clk_desc rpm_clk_sm6375 = {
 	.clks = sm6375_clks,
 	.num_clks = ARRAY_SIZE(sm6375_clks),
-	.icc_clks = sm_qnoc_icc_clks,
-	.num_icc_clks = ARRAY_SIZE(sm_qnoc_icc_clks)
+	.icc_clks = sm_qanalc_icc_clks,
+	.num_icc_clks = ARRAY_SIZE(sm_qanalc_icc_clks)
 };
 
 static struct clk_smd_rpm *qcm2290_clks[] = {
@@ -1185,10 +1185,10 @@ static struct clk_smd_rpm *qcm2290_clks[] = {
 	[RPM_SMD_RF_CLK3_A] = &clk_smd_rpm_38m4_rf_clk3_a,
 	[RPM_SMD_IPA_CLK] = &clk_smd_rpm_ipa_clk,
 	[RPM_SMD_IPA_A_CLK] = &clk_smd_rpm_ipa_a_clk,
-	[RPM_SMD_SNOC_PERIPH_CLK] = &clk_smd_rpm_bus_0_snoc_periph_clk,
-	[RPM_SMD_SNOC_PERIPH_A_CLK] = &clk_smd_rpm_bus_0_snoc_periph_a_clk,
-	[RPM_SMD_SNOC_LPASS_CLK] = &clk_smd_rpm_bus_5_snoc_lpass_clk,
-	[RPM_SMD_SNOC_LPASS_A_CLK] = &clk_smd_rpm_bus_5_snoc_lpass_a_clk,
+	[RPM_SMD_SANALC_PERIPH_CLK] = &clk_smd_rpm_bus_0_sanalc_periph_clk,
+	[RPM_SMD_SANALC_PERIPH_A_CLK] = &clk_smd_rpm_bus_0_sanalc_periph_a_clk,
+	[RPM_SMD_SANALC_LPASS_CLK] = &clk_smd_rpm_bus_5_sanalc_lpass_clk,
+	[RPM_SMD_SANALC_LPASS_A_CLK] = &clk_smd_rpm_bus_5_sanalc_lpass_a_clk,
 	[RPM_SMD_CE1_CLK] = &clk_smd_rpm_ce1_clk,
 	[RPM_SMD_CE1_A_CLK] = &clk_smd_rpm_ce1_a_clk,
 	[RPM_SMD_QPIC_CLK] = &clk_smd_rpm_qpic_clk,
@@ -1243,7 +1243,7 @@ static struct clk_hw *qcom_smdrpm_clk_hw_get(struct of_phandle_args *clkspec,
 		return ERR_PTR(-EINVAL);
 	}
 
-	return desc->clks[idx] ? &desc->clks[idx]->hw : ERR_PTR(-ENOENT);
+	return desc->clks[idx] ? &desc->clks[idx]->hw : ERR_PTR(-EANALENT);
 }
 
 static void rpm_smd_unregister_icc(void *data)
@@ -1264,7 +1264,7 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 	rpmcc_smd_rpm = dev_get_drvdata(pdev->dev.parent);
 	if (!rpmcc_smd_rpm) {
 		dev_err(&pdev->dev, "Unable to retrieve handle to RPM\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	desc = of_device_get_match_data(&pdev->dev);
@@ -1323,7 +1323,7 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(icc_pdev)) {
 		dev_err(&pdev->dev, "Failed to register icc_smd_rpm device: %pE\n",
 			icc_pdev);
-		/* No need to unregister clocks because of this */
+		/* Anal need to unregister clocks because of this */
 	} else {
 		ret = devm_add_action_or_reset(&pdev->dev, rpm_smd_unregister_icc,
 					       icc_pdev);

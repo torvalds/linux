@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Intel Smart Sound Technology
+ * Intel Smart Sound Techanallogy
  *
  * Copyright (C) 2013, Intel Corporation. All rights reserved.
  */

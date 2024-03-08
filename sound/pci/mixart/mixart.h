@@ -61,7 +61,7 @@ struct mixart_mgr {
 	/* memory-maps */
 	struct mem_area mem[2];
 
-	/* one and only blocking message or notification may be pending  */
+	/* one and only blocking message or analtification may be pending  */
 	u32 pending_event;
 	wait_queue_head_t msg_sleep;
 
@@ -108,12 +108,12 @@ struct mixart_mgr {
 #define MIXART_MAX_STREAM_PER_CARD  (MIXART_PCM_TOTAL * (MIXART_PLAYBACK_STREAMS + MIXART_CAPTURE_STREAMS) )
 
 
-#define MIXART_NOTIFY_CARD_MASK		0xF000
-#define MIXART_NOTIFY_CARD_OFFSET	12
-#define MIXART_NOTIFY_PCM_MASK		0x0F00
-#define MIXART_NOTIFY_PCM_OFFSET	8
-#define MIXART_NOTIFY_CAPT_MASK		0x0080
-#define MIXART_NOTIFY_SUBS_MASK		0x007F
+#define MIXART_ANALTIFY_CARD_MASK		0xF000
+#define MIXART_ANALTIFY_CARD_OFFSET	12
+#define MIXART_ANALTIFY_PCM_MASK		0x0F00
+#define MIXART_ANALTIFY_PCM_OFFSET	8
+#define MIXART_ANALTIFY_CAPT_MASK		0x0080
+#define MIXART_ANALTIFY_SUBS_MASK		0x007F
 
 
 struct mixart_stream {
@@ -121,7 +121,7 @@ struct mixart_stream {
 	struct mixart_pipe *pipe;
 	int pcm_number;
 
-	int status;      /* nothing, running, draining */
+	int status;      /* analthing, running, draining */
 
 	u64  abs_period_elapsed;  /* last absolute stream position where period_elapsed was called (multiple of runtime->period_size) */
 	u32  buf_periods;         /* periods counter in the buffer (< runtime->periods) */

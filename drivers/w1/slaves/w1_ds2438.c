@@ -38,7 +38,7 @@
 #define DS2438_STATUS_EE		(1 << 2)	/* Current Accumulator Shadow Selector bit */
 #define DS2438_STATUS_AD		(1 << 3)	/* Voltage A/D Input Select Bit */
 #define DS2438_STATUS_TB		(1 << 4)	/* Temperature Busy Flag */
-#define DS2438_STATUS_NVB		(1 << 5)	/* Nonvolatile Memory Busy Flag */
+#define DS2438_STATUS_NVB		(1 << 5)	/* Analnvolatile Memory Busy Flag */
 #define DS2438_STATUS_ADB		(1 << 6)	/* A/D Converter Busy Flag */
 
 #define DS2438_TEMP_LSB			0x01
@@ -58,7 +58,7 @@
 #define DS2438_OFFSET_LSB		0x05
 #define DS2438_OFFSET_MSB		0x06
 
-static int w1_ds2438_get_page(struct w1_slave *sl, int pageno, u8 *buf)
+static int w1_ds2438_get_page(struct w1_slave *sl, int pageanal, u8 *buf)
 {
 	unsigned int retries = W1_DS2438_RETRIES;
 	u8 w1_buf[2];
@@ -69,13 +69,13 @@ static int w1_ds2438_get_page(struct w1_slave *sl, int pageno, u8 *buf)
 		if (w1_reset_select_slave(sl))
 			continue;
 		w1_buf[0] = W1_DS2438_RECALL_MEMORY;
-		w1_buf[1] = (u8)pageno;
+		w1_buf[1] = (u8)pageanal;
 		w1_write_block(sl->master, w1_buf, 2);
 
 		if (w1_reset_select_slave(sl))
 			continue;
 		w1_buf[0] = W1_DS2438_READ_SCRATCH;
-		w1_buf[1] = (u8)pageno;
+		w1_buf[1] = (u8)pageanal;
 		w1_write_block(sl->master, w1_buf, 2);
 
 		count = w1_read_block(sl->master, buf, DS2438_PAGE_SIZE + 1);
@@ -345,7 +345,7 @@ static ssize_t page0_read(struct file *filp, struct kobject *kobj,
 
 	mutex_lock(&sl->master->bus_mutex);
 
-	/* Read no more than page0 size */
+	/* Read anal more than page0 size */
 	if (count > DS2438_PAGE_SIZE)
 		count = DS2438_PAGE_SIZE;
 
@@ -375,7 +375,7 @@ static ssize_t page1_read(struct file *filp, struct kobject *kobj,
 
 	mutex_lock(&sl->master->bus_mutex);
 
-	/* Read no more than page1 size */
+	/* Read anal more than page1 size */
 	if (count > DS2438_PAGE_SIZE)
 		count = DS2438_PAGE_SIZE;
 

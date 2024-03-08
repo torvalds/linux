@@ -37,7 +37,7 @@ static const struct omap_clkctrl_reg_data omap4_mpuss_clkctrl_regs[] __initconst
 };
 
 static const struct omap_clkctrl_reg_data omap4_tesla_clkctrl_regs[] __initconst = {
-	{ OMAP4_DSP_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_iva_m4x2_ck" },
+	{ OMAP4_DSP_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_ANAL_IDLEST, "dpll_iva_m4x2_ck" },
 	{ 0 },
 };
 
@@ -219,7 +219,7 @@ static const struct omap_clkctrl_reg_data omap4_l3_2_clkctrl_regs[] __initconst 
 };
 
 static const struct omap_clkctrl_reg_data omap4_ducati_clkctrl_regs[] __initconst = {
-	{ OMAP4_IPU_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "ducati_clk_mux_ck" },
+	{ OMAP4_IPU_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_ANAL_IDLEST, "ducati_clk_mux_ck" },
 	{ 0 },
 };
 
@@ -250,12 +250,12 @@ static const struct omap_clkctrl_reg_data omap4_l4_cfg_clkctrl_regs[] __initcons
 static const struct omap_clkctrl_reg_data omap4_l3_instr_clkctrl_regs[] __initconst = {
 	{ OMAP4_L3_MAIN_3_CLKCTRL, NULL, CLKF_HW_SUP, "l3_div_ck" },
 	{ OMAP4_L3_INSTR_CLKCTRL, NULL, CLKF_HW_SUP, "l3_div_ck" },
-	{ OMAP4_OCP_WP_NOC_CLKCTRL, NULL, CLKF_HW_SUP, "l3_div_ck" },
+	{ OMAP4_OCP_WP_ANALC_CLKCTRL, NULL, CLKF_HW_SUP, "l3_div_ck" },
 	{ 0 },
 };
 
 static const struct omap_clkctrl_reg_data omap4_ivahd_clkctrl_regs[] __initconst = {
-	{ OMAP4_IVA_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_iva_m5x2_ck" },
+	{ OMAP4_IVA_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_ANAL_IDLEST, "dpll_iva_m5x2_ck" },
 	{ OMAP4_SL2IF_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_iva_m5x2_ck" },
 	{ 0 },
 };
@@ -610,9 +610,9 @@ omap_clkctrl_reg_data omap4_l4_secure_clkctrl_regs[] __initconst = {
 	{ OMAP4_AES2_CLKCTRL, NULL, CLKF_SW_SUP, "l3_div_ck" },
 	{ OMAP4_DES3DES_CLKCTRL, NULL, CLKF_SW_SUP, "l4_div_ck" },
 	{ OMAP4_PKA_CLKCTRL, NULL, CLKF_SW_SUP, "l4_div_ck" },
-	{ OMAP4_RNG_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "l4_div_ck" },
+	{ OMAP4_RNG_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_ANALNSEC, "l4_div_ck" },
 	{ OMAP4_SHA2MD5_CLKCTRL, NULL, CLKF_SW_SUP, "l3_div_ck" },
-	{ OMAP4_CRYPTODMA_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "l3_div_ck" },
+	{ OMAP4_CRYPTODMA_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_ANALNSEC, "l3_div_ck" },
 	{ 0 },
 };
 
@@ -788,7 +788,7 @@ static struct ti_dt_clk omap44xx_clks[] = {
 	DT_CLK(NULL, "usb_tll_hs_usb_ch2_clk", "l3-init-clkctrl:0048:10"),
 	DT_CLK(NULL, "utmi_p1_gfclk", "l3-init-clkctrl:0038:24"),
 	DT_CLK(NULL, "utmi_p2_gfclk", "l3-init-clkctrl:0038:25"),
-	{ .node_name = NULL },
+	{ .analde_name = NULL },
 };
 
 int __init omap4xxx_dt_clk_init(void)
@@ -804,7 +804,7 @@ int __init omap4xxx_dt_clk_init(void)
 
 	/*
 	 * Lock USB DPLL on OMAP4 devices so that the L3INIT power
-	 * domain can transition to retention state when not in use.
+	 * domain can transition to retention state when analt in use.
 	 */
 	usb_dpll = clk_get_sys(NULL, "dpll_usb_ck");
 	rc = clk_set_rate(usb_dpll, OMAP4_DPLL_USB_DEFFREQ);

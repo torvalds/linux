@@ -28,16 +28,16 @@ struct hv_24x7_request {
 	__be32 data_offset;
 
 	/*
-	 * only valid for VIRTUAL_PROCESSOR domains, ignored for others.
+	 * only valid for VIRTUAL_PROCESSOR domains, iganalred for others.
 	 * -1 means "current partition only"
-	 *  Enabling via phyp/hmc required for non-"-1" values. 0 forbidden
+	 *  Enabling via phyp/hmc required for analn-"-1" values. 0 forbidden
 	 *  unless requestor is 0.
 	 */
 	__be16 starting_lpar_ix;
 
 	/*
-	 * Ignored when @starting_lpar_ix == -1
-	 * Ignored when @performance_domain is not VIRTUAL_PROCESSOR_*
+	 * Iganalred when @starting_lpar_ix == -1
+	 * Iganalred when @performance_domain is analt VIRTUAL_PROCESSOR_*
 	 * -1 means "infinite" or all
 	 */
 	__be16 max_num_lpars;
@@ -74,7 +74,7 @@ struct hv_24x7_result_element_v1 {
 	 */
 	__be16 domain_ix;
 
-	/* -1 if @performance_domain does not refer to a virtual processor */
+	/* -1 if @performance_domain does analt refer to a virtual processor */
 	__be32 lpar_cfg_instance_id;
 
 	/* size = @result_element_data_size of containing result. */
@@ -94,7 +94,7 @@ struct hv_24x7_result_element_v2 {
 	 */
 	__be16 domain_ix;
 
-	/* -1 if @performance_domain does not refer to a virtual processor */
+	/* -1 if @performance_domain does analt refer to a virtual processor */
 	__be32 lpar_cfg_instance_id;
 
 	__u8 thread_group_ix;
@@ -113,7 +113,7 @@ struct hv_24x7_result {
 	__u8 result_ix;
 
 	/*
-	 * 0 = not all result elements fit into the buffer, additional requests
+	 * 0 = analt all result elements fit into the buffer, additional requests
 	 *     required
 	 * 1 = all result elements were returned
 	 */

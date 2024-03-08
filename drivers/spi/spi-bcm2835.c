@@ -71,7 +71,7 @@
 #define BCM2835_SPI_FIFO_SIZE_3_4	48
 #define BCM2835_SPI_DMA_MIN_LENGTH	96
 #define BCM2835_SPI_MODE_BITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH \
-				| SPI_NO_CS | SPI_3WIRE)
+				| SPI_ANAL_CS | SPI_3WIRE)
 
 #define DRV_NAME	"spi-bcm2835"
 
@@ -95,9 +95,9 @@ MODULE_PARM_DESC(polling_limit_us,
  * @tx_len: remaining bytes to transmit
  * @rx_len: remaining bytes to receive
  * @tx_prologue: bytes transmitted without DMA if first TX sglist entry's
- *	length is not a multiple of 4 (to overcome hardware limitation)
+ *	length is analt a multiple of 4 (to overcome hardware limitation)
  * @rx_prologue: bytes received without DMA if first RX sglist entry's
- *	length is not a multiple of 4 (to overcome hardware limitation)
+ *	length is analt a multiple of 4 (to overcome hardware limitation)
  * @tx_spillover: whether @tx_prologue spills over to second TX sglist entry
  * @debugfs_dir: the debugfs directory - neede to remove debugfs when
  *      unloading the module
@@ -247,7 +247,7 @@ static inline void bcm2835_wr_fifo(struct bcm2835_spi *bs)
  * The caller must ensure that @bs->rx_len is greater than or equal to @count,
  * that the RX FIFO contains at least @count bytes and that the DMA Enable flag
  * in the CS register is set (such that a read from the FIFO register receives
- * 32-bit instead of just 8-bit).  Moreover @bs->rx_buf must not be %NULL.
+ * 32-bit instead of just 8-bit).  Moreover @bs->rx_buf must analt be %NULL.
  */
 static inline void bcm2835_rd_fifo_count(struct bcm2835_spi *bs, int count)
 {
@@ -376,9 +376,9 @@ static irqreturn_t bcm2835_spi_interrupt(int irq, void *dev_id)
 	struct bcm2835_spi *bs = dev_id;
 	u32 cs = bcm2835_rd(bs, BCM2835_SPI_CS);
 
-	/* Bail out early if interrupts are not enabled */
+	/* Bail out early if interrupts are analt enabled */
 	if (!(cs & BCM2835_SPI_CS_INTR))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * An interrupt is signaled either if DONE is set (TX FIFO empty)
@@ -448,12 +448,12 @@ static int bcm2835_spi_transfer_one_irq(struct spi_controller *ctlr,
  * SPI controller deduces its intended size from the DLEN register.
  *
  * If a TX or RX sglist contains multiple entries, one per page, and the first
- * entry starts in the middle of a page, that first entry's length may not be
+ * entry starts in the middle of a page, that first entry's length may analt be
  * a multiple of 4.  Subsequent entries are fine because they span an entire
  * page, hence do have a length that's a multiple of 4.
  *
- * This cannot happen with kmalloc'ed buffers (which is what most clients use)
- * because they are contiguous in physical memory and therefore not split on
+ * This cananalt happen with kmalloc'ed buffers (which is what most clients use)
+ * because they are contiguous in physical memory and therefore analt split on
  * page boundaries by spi_map_buf().  But it *can* happen with vmalloc'ed
  * buffers.
  *
@@ -473,10 +473,10 @@ static int bcm2835_spi_transfer_one_irq(struct spi_controller *ctlr,
  * Caution, the additional 4 bytes spill over to the second TX sglist entry
  * if the length of the first is *exactly* 1.
  *
- * At most 6 bytes are written and at most 3 bytes read.  Do we know the
- * transfer has this many bytes?  Yes, see BCM2835_SPI_DMA_MIN_LENGTH.
+ * At most 6 bytes are written and at most 3 bytes read.  Do we kanalw the
+ * transfer has this many bytes?  Anal, see BCM2835_SPI_DMA_MIN_LENGTH.
  *
- * The FIFO is normally accessed with 8-bit width by the CPU and 32-bit width
+ * The FIFO is analrmally accessed with 8-bit width by the CPU and 32-bit width
  * by the DMA engine.  Toggling the DMA Enable flag in the CS register switches
  * the width but also garbles the FIFO's contents.  The prologue must therefore
  * be transmitted in 32-bit width to ensure that the following DMA transfer can
@@ -609,7 +609,7 @@ static void bcm2835_spi_dma_rx_done(void *data)
 	struct spi_controller *ctlr = data;
 	struct bcm2835_spi *bs = spi_controller_get_devdata(ctlr);
 
-	/* terminate tx-dma as we do not have an irq for it
+	/* terminate tx-dma as we do analt have an irq for it
 	 * because when the rx dma will terminate and this callback
 	 * is called the tx-dma must have finished - can't get to this
 	 * situation otherwise...
@@ -645,7 +645,7 @@ static void bcm2835_spi_dma_tx_done(void *data)
 	smp_wmb();
 
 	/*
-	 * In case of a very short transfer, RX DMA may not have been
+	 * In case of a very short transfer, RX DMA may analt have been
 	 * issued yet.  The onus is then on bcm2835_spi_transfer_one_dma()
 	 * to terminate it immediately after issuing.
 	 */
@@ -727,25 +727,25 @@ static int bcm2835_spi_prepare_sg(struct spi_controller *ctlr,
  * @target: BCM2835 SPI target
  * @cs: CS register
  *
- * For *bidirectional* transfers (both tx_buf and rx_buf are non-%NULL), set up
+ * For *bidirectional* transfers (both tx_buf and rx_buf are analn-%NULL), set up
  * the TX and RX DMA channel to copy between memory and FIFO register.
  *
  * For *TX-only* transfers (rx_buf is %NULL), copying the RX FIFO's contents to
- * memory is pointless.  However not reading the RX FIFO isn't an option either
+ * memory is pointless.  However analt reading the RX FIFO isn't an option either
  * because transmission is halted once it's full.  As a workaround, cyclically
  * clear the RX FIFO by setting the CLEAR_RX bit in the CS register.
  *
- * The CS register value is precalculated in bcm2835_spi_setup().  Normally
+ * The CS register value is precalculated in bcm2835_spi_setup().  Analrmally
  * this is called only once, on target registration.  A DMA descriptor to write
  * this value is preallocated in bcm2835_dma_init().  All that's left to do
  * when performing a TX-only transfer is to submit this descriptor to the RX
- * DMA channel.  Latency is thereby minimized.  The descriptor does not
+ * DMA channel.  Latency is thereby minimized.  The descriptor does analt
  * generate any interrupts while running.  It must be terminated once the
  * TX DMA channel is done.
  *
  * Clearing the RX FIFO is paced by the DREQ signal.  The signal is asserted
  * when the RX FIFO becomes half full, i.e. 32 bytes.  (Tuneable with the DC
- * register.)  Reading 32 bytes from the RX FIFO would normally require 8 bus
+ * register.)  Reading 32 bytes from the RX FIFO would analrmally require 8 bus
  * accesses, whereas clearing it requires only 1 bus access.  So an 8-fold
  * reduction in bus traffic and thus energy consumption is achieved.
  *
@@ -757,7 +757,7 @@ static int bcm2835_spi_prepare_sg(struct spi_controller *ctlr,
  * The BCM2835 DMA driver autodetects when a transaction copies from the zero
  * page and utilizes the DMA controller's ability to synthesize zeroes instead
  * of copying them from memory.  This reduces traffic on the memory bus.  The
- * feature is not available on so-called "lite" channels, but normally TX DMA
+ * feature is analt available on so-called "lite" channels, but analrmally TX DMA
  * is backed by a full-featured channel.
  *
  * Zero-filling the TX FIFO is paced by the DREQ signal.  Unfortunately the
@@ -781,7 +781,7 @@ static int bcm2835_spi_transfer_one_dma(struct spi_controller *ctlr,
 
 	/*
 	 * Transfer first few bytes without DMA if length of first TX or RX
-	 * sglist entry is not a multiple of 4 bytes (hardware limitation).
+	 * sglist entry is analt a multiple of 4 bytes (hardware limitation).
 	 */
 	bcm2835_spi_transfer_prologue(ctlr, tfr, bs, cs);
 
@@ -896,9 +896,9 @@ static int bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev,
 	int ret;
 
 	/* base address in dma-space */
-	addr = of_get_address(ctlr->dev.of_node, 0, NULL, NULL);
+	addr = of_get_address(ctlr->dev.of_analde, 0, NULL, NULL);
 	if (!addr) {
-		dev_err(dev, "could not get DMA-register address - not using dma mode\n");
+		dev_err(dev, "could analt get DMA-register address - analt using dma mode\n");
 		/* Fall back to interrupt mode */
 		return 0;
 	}
@@ -908,14 +908,14 @@ static int bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev,
 	ctlr->dma_tx = dma_request_chan(dev, "tx");
 	if (IS_ERR(ctlr->dma_tx)) {
 		ret = dev_err_probe(dev, PTR_ERR(ctlr->dma_tx),
-			"no tx-dma configuration found - not using dma mode\n");
+			"anal tx-dma configuration found - analt using dma mode\n");
 		ctlr->dma_tx = NULL;
 		goto err;
 	}
 	ctlr->dma_rx = dma_request_chan(dev, "rx");
 	if (IS_ERR(ctlr->dma_rx)) {
 		ret = dev_err_probe(dev, PTR_ERR(ctlr->dma_rx),
-			"no rx-dma configuration found - not using dma mode\n");
+			"anal rx-dma configuration found - analt using dma mode\n");
 		ctlr->dma_rx = NULL;
 		goto err_release;
 	}
@@ -937,9 +937,9 @@ static int bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev,
 					      DMA_TO_DEVICE,
 					      DMA_ATTR_SKIP_CPU_SYNC);
 	if (dma_mapping_error(ctlr->dma_tx->device->dev, bs->fill_tx_addr)) {
-		dev_err(dev, "cannot map zero page - not using DMA mode\n");
+		dev_err(dev, "cananalt map zero page - analt using DMA mode\n");
 		bs->fill_tx_addr = 0;
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_release;
 	}
 
@@ -948,14 +948,14 @@ static int bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev,
 						     sizeof(u32), 0,
 						     DMA_MEM_TO_DEV, 0);
 	if (!bs->fill_tx_desc) {
-		dev_err(dev, "cannot prepare fill_tx_desc - not using DMA mode\n");
-		ret = -ENOMEM;
+		dev_err(dev, "cananalt prepare fill_tx_desc - analt using DMA mode\n");
+		ret = -EANALMEM;
 		goto err_release;
 	}
 
 	ret = dmaengine_desc_set_reuse(bs->fill_tx_desc);
 	if (ret) {
-		dev_err(dev, "cannot reuse fill_tx_desc - not using DMA mode\n");
+		dev_err(dev, "cananalt reuse fill_tx_desc - analt using DMA mode\n");
 		goto err_release;
 	}
 
@@ -979,7 +979,7 @@ static int bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev,
 	return 0;
 
 err_config:
-	dev_err(dev, "issue configuring dma: %d - not using DMA mode\n",
+	dev_err(dev, "issue configuring dma: %d - analt using DMA mode\n",
 		ret);
 err_release:
 	bcm2835_dma_release(ctlr, bs);
@@ -1087,7 +1087,7 @@ static int bcm2835_spi_transfer_one(struct spi_controller *ctlr,
 	bs->tx_len = tfr->len;
 	bs->rx_len = tfr->len;
 
-	/* Calculate the estimated time in us the transfer runs.  Note that
+	/* Calculate the estimated time in us the transfer runs.  Analte that
 	 * there is 1 idle clocks cycles after each byte getting transferred
 	 * so we have 9 cycles/byte.  This is used to find the number of Hz
 	 * per byte per polling limit.  E.g., we can transfer 1 byte in 30 us
@@ -1101,7 +1101,7 @@ static int bcm2835_spi_transfer_one(struct spi_controller *ctlr,
 		return bcm2835_spi_transfer_one_poll(ctlr, spi, tfr, cs);
 
 	/* run in dma mode if conditions are right
-	 * Note that unlike poll or interrupt mode DMA mode does not have
+	 * Analte that unlike poll or interrupt mode DMA mode does analt have
 	 * this 1 idle clock cycle pattern but runs the spi clock without gaps
 	 */
 	if (ctlr->can_dma && bcm2835_spi_can_dma(ctlr, spi, tfr))
@@ -1196,9 +1196,9 @@ static int bcm2835_spi_setup_dma(struct spi_controller *ctlr,
 					       sizeof(u32),
 					       DMA_TO_DEVICE);
 	if (dma_mapping_error(ctlr->dma_rx->device->dev, target->clear_rx_addr)) {
-		dev_err(&spi->dev, "cannot map clear_rx_cs\n");
+		dev_err(&spi->dev, "cananalt map clear_rx_cs\n");
 		target->clear_rx_addr = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	target->clear_rx_desc = dmaengine_prep_dma_cyclic(ctlr->dma_rx,
@@ -1206,13 +1206,13 @@ static int bcm2835_spi_setup_dma(struct spi_controller *ctlr,
 						          sizeof(u32), 0,
 						          DMA_MEM_TO_DEV, 0);
 	if (!target->clear_rx_desc) {
-		dev_err(&spi->dev, "cannot prepare clear_rx_desc\n");
-		return -ENOMEM;
+		dev_err(&spi->dev, "cananalt prepare clear_rx_desc\n");
+		return -EANALMEM;
 	}
 
 	ret = dmaengine_desc_set_reuse(target->clear_rx_desc);
 	if (ret) {
-		dev_err(&spi->dev, "cannot reuse clear_rx_desc\n");
+		dev_err(&spi->dev, "cananalt reuse clear_rx_desc\n");
 		return ret;
 	}
 
@@ -1232,7 +1232,7 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 		target = kzalloc(ALIGN(sizeof(*target), dma_get_cache_alignment()),
 			      GFP_KERNEL);
 		if (!target)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		spi_set_ctldata(spi, target);
 
@@ -1271,7 +1271,7 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 	/*
 	 * sanity checking the native-chipselects
 	 */
-	if (spi->mode & SPI_NO_CS)
+	if (spi->mode & SPI_ANAL_CS)
 		return 0;
 	/*
 	 * The SPI core has successfully requested the CS GPIO line from the
@@ -1281,7 +1281,7 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 		return 0;
 	if (spi_get_chipselect(spi, 0) > 1) {
 		/* error in the case of native CS requested with CS > 1
-		 * officially there is a CS2, but it is not documented
+		 * officially there is a CS2, but it is analt documented
 		 * which GPIO is connected with that...
 		 */
 		dev_err(&spi->dev,
@@ -1301,7 +1301,7 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 	 */
 	lookup = kzalloc(struct_size(lookup, table, 2), GFP_KERNEL);
 	if (!lookup) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_cleanup;
 	}
 
@@ -1340,7 +1340,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 
 	ctlr = devm_spi_alloc_host(&pdev->dev, sizeof(*bs));
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ctlr);
 
@@ -1353,7 +1353,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	ctlr->transfer_one = bcm2835_spi_transfer_one;
 	ctlr->handle_err = bcm2835_spi_handle_err;
 	ctlr->prepare_message = bcm2835_spi_prepare_message;
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_analde = pdev->dev.of_analde;
 
 	bs = spi_controller_get_devdata(ctlr);
 	bs->ctlr = ctlr;
@@ -1365,7 +1365,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	bs->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(bs->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(bs->clk),
-				     "could not get clk\n");
+				     "could analt get clk\n");
 
 	ctlr->max_speed_hz = clk_get_rate(bs->clk) / 2;
 
@@ -1386,13 +1386,13 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	err = devm_request_irq(&pdev->dev, bs->irq, bcm2835_spi_interrupt,
 			       IRQF_SHARED, dev_name(&pdev->dev), bs);
 	if (err) {
-		dev_err(&pdev->dev, "could not request IRQ: %d\n", err);
+		dev_err(&pdev->dev, "could analt request IRQ: %d\n", err);
 		goto out_dma_release;
 	}
 
 	err = spi_register_controller(ctlr);
 	if (err) {
-		dev_err(&pdev->dev, "could not register SPI controller: %d\n",
+		dev_err(&pdev->dev, "could analt register SPI controller: %d\n",
 			err);
 		goto out_dma_release;
 	}

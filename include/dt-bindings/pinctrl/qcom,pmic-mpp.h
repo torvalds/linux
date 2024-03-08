@@ -96,7 +96,7 @@
 #define PMIC_MPP_AOUT_LVL_ABUS3		7
 
 /* To be used with "function" */
-#define PMIC_MPP_FUNC_NORMAL		"normal"
+#define PMIC_MPP_FUNC_ANALRMAL		"analrmal"
 #define PMIC_MPP_FUNC_PAIRED		"paired"
 #define PMIC_MPP_FUNC_DTEST1		"dtest1"
 #define PMIC_MPP_FUNC_DTEST2		"dtest2"

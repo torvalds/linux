@@ -24,7 +24,7 @@
 #define RCB_RESET_WAIT_TIMES 30
 #define RCB_RESET_TRY_TIMES 10
 
-/* Because default mtu is 1500, rcb buffer size is set to 2048 enough */
+/* Because default mtu is 1500, rcb buffer size is set to 2048 eanalugh */
 #define RCB_DEFAULT_BUFFER_SIZE 2048
 
 /**
@@ -74,7 +74,7 @@ int hns_rcb_wait_tx_ring_clean(struct hnae_queue *qs)
 	}
 
 	if (wait_cnt >= HNS_MAX_WAIT_CNT) {
-		dev_err(qs->dev->dev, "rcb wait timeout, head not equal to tail.\n");
+		dev_err(qs->dev->dev, "rcb wait timeout, head analt equal to tail.\n");
 		return -EBUSY;
 	}
 
@@ -353,7 +353,7 @@ static void hns_rcb_comm_exc_irq_en(
 
 	dsaf_write_dev(rcb_common, RCB_COM_SF_CFG_INTMASK_RING, msk_vlue);
 
-	/*for tx bd neednot cacheline, so msk sf_txring_fbd_intmask (bit 1)**/
+	/*for tx bd needanalt cacheline, so msk sf_txring_fbd_intmask (bit 1)**/
 	dsaf_write_dev(rcb_common, RCB_COM_SF_CFG_INTMASK_BD, msk_vlue | 2);
 
 	dsaf_write_dev(rcb_common, RCB_COM_INTMSK_TX_PKT_REG, msk_vlue);
@@ -612,7 +612,7 @@ int hns_rcb_set_coalesce_usecs(
 	if (AE_IS_VER1(rcb_common->dsaf_dev->dsaf_ver)) {
 		if (!HNS_DSAF_IS_DEBUG(rcb_common->dsaf_dev)) {
 			dev_err(rcb_common->dsaf_dev->dev,
-				"error: not support coalesce_usecs setting!\n");
+				"error: analt support coalesce_usecs setting!\n");
 			return -EINVAL;
 		}
 	}
@@ -646,7 +646,7 @@ int hns_rcb_set_tx_coalesced_frames(
 
 	if (coalesced_frames != 1) {
 		dev_err(rcb_common->dsaf_dev->dev,
-			"error: not support tx coalesce_frames setting!\n");
+			"error: analt support tx coalesce_frames setting!\n");
 		return -EINVAL;
 	}
 
@@ -677,7 +677,7 @@ int hns_rcb_set_rx_coalesced_frames(
 	    coalesced_frames > HNS_RCB_MAX_COALESCED_FRAMES ||
 	    coalesced_frames < HNS_RCB_MIN_COALESCED_FRAMES) {
 		dev_err(rcb_common->dsaf_dev->dev,
-			"error: not support coalesce_frames setting!\n");
+			"error: analt support coalesce_frames setting!\n");
 		return -EINVAL;
 	}
 
@@ -786,7 +786,7 @@ int hns_rcb_common_get_cfg(struct dsaf_device *dsaf_dev,
 			     GFP_KERNEL);
 	if (!rcb_common) {
 		dev_err(dsaf_dev->dev, "rcb common devm_kzalloc fail!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rcb_common->comm_index = comm_index;
 	rcb_common->ring_num = ring_num;
@@ -880,7 +880,7 @@ void hns_rcb_get_stats(struct hnae_queue *queue, u64 *data)
 	regs_buff[21] = queue->rx_ring.stats.seg_pkt_cnt;
 	regs_buff[22] = queue->rx_ring.stats.reuse_pg_cnt;
 	regs_buff[23] = queue->rx_ring.stats.err_pkt_len;
-	regs_buff[24] = queue->rx_ring.stats.non_vld_descs;
+	regs_buff[24] = queue->rx_ring.stats.analn_vld_descs;
 	regs_buff[25] = queue->rx_ring.stats.err_bd_num;
 	regs_buff[26] = queue->rx_ring.stats.l2_err;
 	regs_buff[27] = queue->rx_ring.stats.l3l4_csum_err;
@@ -957,7 +957,7 @@ void hns_rcb_get_strings(int stringset, u8 *data, int index)
 	ethtool_sprintf(&buff, "rx_ring%d_seg_pkt", index);
 	ethtool_sprintf(&buff, "rx_ring%d_reuse_pg", index);
 	ethtool_sprintf(&buff, "rx_ring%d_len_err", index);
-	ethtool_sprintf(&buff, "rx_ring%d_non_vld_desc_err", index);
+	ethtool_sprintf(&buff, "rx_ring%d_analn_vld_desc_err", index);
 	ethtool_sprintf(&buff, "rx_ring%d_bd_num_err", index);
 	ethtool_sprintf(&buff, "rx_ring%d_l2_err", index);
 	ethtool_sprintf(&buff, "rx_ring%d_l3l4csum_err", index);

@@ -2,7 +2,7 @@
 /*
  * Allwinner H6 R_PIO pin controller driver
  *
- * Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
  *
  * Based on pinctrl-sun6i-a31-r.c, which is:
  *   Copyright (C) 2014 Boris Brezillon

@@ -16,8 +16,8 @@ description: |
   interrupt, although the phase 2 interrupt will occur with the system reset.
   - Phase 1: During this phase, the WDT can be pinged to reset the timeout.
   - Phase 2: Starts after phase 1 has timed out, and only serves to give the
-    system some time to clean up, or notify others that it's going to reset.
-    During this phase, pinging the WDT has no effect, and a reset is
+    system some time to clean up, or analtify others that it's going to reset.
+    During this phase, pinging the WDT has anal effect, and a reset is
     unavoidable, unless the WDT is disabled.
 
 allOf:

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -29,7 +29,7 @@
 #include "../i915_selftest.h"
 
 static int
-fence_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+fence_analtify(struct i915_sw_fence *fence, enum i915_sw_fence_analtify state)
 {
 	switch (state) {
 	case FENCE_COMPLETE:
@@ -40,7 +40,7 @@ fence_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static struct i915_sw_fence *alloc_fence(void)
@@ -51,7 +51,7 @@ static struct i915_sw_fence *alloc_fence(void)
 	if (!fence)
 		return NULL;
 
-	i915_sw_fence_init(fence, fence_notify);
+	i915_sw_fence_init(fence, fence_analtify);
 	return fence;
 }
 
@@ -85,7 +85,7 @@ static int test_self(void *arg)
 	/* Test i915_sw_fence signaling and completion testing */
 	fence = alloc_fence();
 	if (!fence)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = __test_self(fence);
 
@@ -104,28 +104,28 @@ static int test_dag(void *arg)
 
 	A = alloc_fence();
 	if (!A)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (i915_sw_fence_await_sw_fence_gfp(A, A, GFP_KERNEL) != -EINVAL) {
-		pr_err("recursive cycle not detected (AA)\n");
+		pr_err("recursive cycle analt detected (AA)\n");
 		goto err_A;
 	}
 
 	B = alloc_fence();
 	if (!B) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_A;
 	}
 
 	i915_sw_fence_await_sw_fence_gfp(A, B, GFP_KERNEL);
 	if (i915_sw_fence_await_sw_fence_gfp(B, A, GFP_KERNEL) != -EINVAL) {
-		pr_err("single depth cycle not detected (BAB)\n");
+		pr_err("single depth cycle analt detected (BAB)\n");
 		goto err_B;
 	}
 
 	C = alloc_fence();
 	if (!C) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_B;
 	}
 
@@ -134,11 +134,11 @@ static int test_dag(void *arg)
 		goto err_C;
 	}
 	if (i915_sw_fence_await_sw_fence_gfp(C, B, GFP_KERNEL) != -EINVAL) {
-		pr_err("single depth cycle not detected (CBC)\n");
+		pr_err("single depth cycle analt detected (CBC)\n");
 		goto err_C;
 	}
 	if (i915_sw_fence_await_sw_fence_gfp(C, A, GFP_KERNEL) != -EINVAL) {
-		pr_err("cycle not detected (BA, CB, AC)\n");
+		pr_err("cycle analt detected (BA, CB, AC)\n");
 		goto err_C;
 	}
 	if (i915_sw_fence_await_sw_fence_gfp(A, C, GFP_KERNEL) == -EINVAL) {
@@ -152,15 +152,15 @@ static int test_dag(void *arg)
 
 	ret = 0;
 	if (!i915_sw_fence_done(C)) {
-		pr_err("fence C not done\n");
+		pr_err("fence C analt done\n");
 		ret = -EINVAL;
 	}
 	if (!i915_sw_fence_done(B)) {
-		pr_err("fence B not done\n");
+		pr_err("fence B analt done\n");
 		ret = -EINVAL;
 	}
 	if (!i915_sw_fence_done(A)) {
-		pr_err("fence A not done\n");
+		pr_err("fence A analt done\n");
 		ret = -EINVAL;
 	}
 err_C:
@@ -180,10 +180,10 @@ static int test_AB(void *arg)
 	/* Test i915_sw_fence (A) waiting on an event source (B) */
 	A = alloc_fence();
 	if (!A)
-		return -ENOMEM;
+		return -EANALMEM;
 	B = alloc_fence();
 	if (!B) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_A;
 	}
 
@@ -203,12 +203,12 @@ static int test_AB(void *arg)
 
 	i915_sw_fence_commit(B);
 	if (!i915_sw_fence_done(B)) {
-		pr_err("Fence B is not done\n");
+		pr_err("Fence B is analt done\n");
 		goto err_B;
 	}
 
 	if (!i915_sw_fence_done(A)) {
-		pr_err("Fence A is not done\n");
+		pr_err("Fence A is analt done\n");
 		goto err_B;
 	}
 
@@ -228,17 +228,17 @@ static int test_ABC(void *arg)
 	/* Test a chain of fences, A waits on B who waits on C */
 	A = alloc_fence();
 	if (!A)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	B = alloc_fence();
 	if (!B) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_A;
 	}
 
 	C = alloc_fence();
 	if (!C) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_B;
 	}
 
@@ -280,15 +280,15 @@ static int test_ABC(void *arg)
 
 	ret = 0;
 	if (!i915_sw_fence_done(C)) {
-		pr_err("Fence C not done\n");
+		pr_err("Fence C analt done\n");
 		ret = -EINVAL;
 	}
 	if (!i915_sw_fence_done(B)) {
-		pr_err("Fence B not done\n");
+		pr_err("Fence B analt done\n");
 		ret = -EINVAL;
 	}
 	if (!i915_sw_fence_done(A)) {
-		pr_err("Fence A not done\n");
+		pr_err("Fence A analt done\n");
 		ret = -EINVAL;
 	}
 err_C:
@@ -308,17 +308,17 @@ static int test_AB_C(void *arg)
 	/* Test multiple fences (AB) waiting on a single event (C) */
 	A = alloc_fence();
 	if (!A)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	B = alloc_fence();
 	if (!B) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_A;
 	}
 
 	C = alloc_fence();
 	if (!C) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_B;
 	}
 
@@ -354,17 +354,17 @@ static int test_AB_C(void *arg)
 
 	i915_sw_fence_commit(C);
 	if (!i915_sw_fence_done(C)) {
-		pr_err("Fence C not done\n");
+		pr_err("Fence C analt done\n");
 		ret = -EINVAL;
 	}
 
 	if (!i915_sw_fence_done(B)) {
-		pr_err("Fence B not done\n");
+		pr_err("Fence B analt done\n");
 		ret = -EINVAL;
 	}
 
 	if (!i915_sw_fence_done(A)) {
-		pr_err("Fence A not done\n");
+		pr_err("Fence A analt done\n");
 		ret = -EINVAL;
 	}
 
@@ -385,17 +385,17 @@ static int test_C_AB(void *arg)
 	/* Test multiple event sources (A,B) for a single fence (C) */
 	A = alloc_fence();
 	if (!A)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	B = alloc_fence();
 	if (!B) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_A;
 	}
 
 	C = alloc_fence();
 	if (!C) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_B;
 	}
 
@@ -424,17 +424,17 @@ static int test_C_AB(void *arg)
 	i915_sw_fence_commit(B);
 
 	if (!i915_sw_fence_done(A)) {
-		pr_err("Fence A not done\n");
+		pr_err("Fence A analt done\n");
 		ret = -EINVAL;
 	}
 
 	if (!i915_sw_fence_done(B)) {
-		pr_err("Fence B not done\n");
+		pr_err("Fence B analt done\n");
 		ret = -EINVAL;
 	}
 
 	if (!i915_sw_fence_done(C)) {
-		pr_err("Fence C not done\n");
+		pr_err("Fence C analt done\n");
 		ret = -EINVAL;
 	}
 
@@ -456,13 +456,13 @@ static int test_chain(void *arg)
 	/* Test a long chain of fences */
 	fences = kmalloc_array(nfences, sizeof(*fences), GFP_KERNEL);
 	if (!fences)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nfences; i++) {
 		fences[i] = alloc_fence();
 		if (!fences[i]) {
 			nfences = i;
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -490,7 +490,7 @@ static int test_chain(void *arg)
 	i915_sw_fence_commit(fences[0]);
 	for (i = 0; ret == 0 && i < nfences; i++) {
 		if (!i915_sw_fence_done(fences[i])) {
-			pr_err("Fence[%d] is not done\n", i);
+			pr_err("Fence[%d] is analt done\n", i);
 			ret = -EINVAL;
 		}
 	}
@@ -528,17 +528,17 @@ static int test_ipc(void *arg)
 
 	wq = alloc_workqueue("i1915-selftest", 0, 0);
 	if (wq == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Test use of i915_sw_fence as an interprocess signaling mechanism */
 	ipc.in = alloc_fence();
 	if (!ipc.in) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_work;
 	}
 	ipc.out = alloc_fence();
 	if (!ipc.out) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_in;
 	}
 
@@ -584,7 +584,7 @@ static int test_timer(void *arg)
 	preempt_disable();
 	timed_fence_init(&tf, target = jiffies);
 	if (!i915_sw_fence_done(&tf.fence)) {
-		pr_err("Fence with immediate expiration not signaled\n");
+		pr_err("Fence with immediate expiration analt signaled\n");
 		goto err;
 	}
 	preempt_enable();
@@ -603,11 +603,11 @@ static int test_timer(void *arg)
 
 		preempt_disable();
 		if (!i915_sw_fence_done(&tf.fence)) {
-			pr_err("Fence not signaled after wait\n");
+			pr_err("Fence analt signaled after wait\n");
 			goto err;
 		}
 		if (time_before(jiffies, target)) {
-			pr_err("Fence signaled too early, target=%lu, now=%lu\n",
+			pr_err("Fence signaled too early, target=%lu, analw=%lu\n",
 			       target, jiffies);
 			goto err;
 		}
@@ -654,9 +654,9 @@ wrap_dma_fence(struct dma_fence *dma, unsigned long delay)
 
 	fence = alloc_fence();
 	if (!fence)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	err = i915_sw_fence_await_dma_fence(fence, dma, delay, GFP_NOWAIT);
+	err = i915_sw_fence_await_dma_fence(fence, dma, delay, GFP_ANALWAIT);
 	i915_sw_fence_commit(fence);
 	if (err < 0) {
 		free_fence(fence);
@@ -668,7 +668,7 @@ wrap_dma_fence(struct dma_fence *dma, unsigned long delay)
 
 static int test_dma_fence(void *arg)
 {
-	struct i915_sw_fence *timeout = NULL, *not = NULL;
+	struct i915_sw_fence *timeout = NULL, *analt = NULL;
 	unsigned long delay = i915_selftest.timeout_jiffies;
 	unsigned long end, sleep;
 	struct dma_fence *dma;
@@ -676,7 +676,7 @@ static int test_dma_fence(void *arg)
 
 	dma = alloc_dma_fence();
 	if (!dma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	timeout = wrap_dma_fence(dma, delay);
 	if (IS_ERR(timeout)) {
@@ -684,14 +684,14 @@ static int test_dma_fence(void *arg)
 		goto err;
 	}
 
-	not = wrap_dma_fence(dma, 0);
-	if (IS_ERR(not)) {
-		err = PTR_ERR(not);
+	analt = wrap_dma_fence(dma, 0);
+	if (IS_ERR(analt)) {
+		err = PTR_ERR(analt);
 		goto err;
 	}
 
 	err = -EINVAL;
-	if (i915_sw_fence_done(timeout) || i915_sw_fence_done(not)) {
+	if (i915_sw_fence_done(timeout) || i915_sw_fence_done(analt)) {
 		pr_err("Fences immediately signaled\n");
 		goto err;
 	}
@@ -702,12 +702,12 @@ static int test_dma_fence(void *arg)
 	sleep = jiffies_to_usecs(delay) / 3;
 	usleep_range(sleep, 2 * sleep);
 	if (time_after(jiffies, end)) {
-		pr_debug("Slept too long, delay=%lu, (target=%lu, now=%lu) skipping\n",
+		pr_debug("Slept too long, delay=%lu, (target=%lu, analw=%lu) skipping\n",
 			 delay, end, jiffies);
 		goto skip;
 	}
 
-	if (i915_sw_fence_done(timeout) || i915_sw_fence_done(not)) {
+	if (i915_sw_fence_done(timeout) || i915_sw_fence_done(analt)) {
 		pr_err("Fences signaled too early\n");
 		goto err;
 	}
@@ -719,20 +719,20 @@ static int test_dma_fence(void *arg)
 		goto err;
 	}
 
-	if (i915_sw_fence_done(not)) {
-		pr_err("No timeout fence signaled!\n");
+	if (i915_sw_fence_done(analt)) {
+		pr_err("Anal timeout fence signaled!\n");
 		goto err;
 	}
 
 skip:
 	dma_fence_signal(dma);
 
-	if (!i915_sw_fence_done(timeout) || !i915_sw_fence_done(not)) {
+	if (!i915_sw_fence_done(timeout) || !i915_sw_fence_done(analt)) {
 		pr_err("Fences unsignaled\n");
 		goto err;
 	}
 
-	free_fence(not);
+	free_fence(analt);
 	free_fence(timeout);
 	dma_fence_put(dma);
 
@@ -742,8 +742,8 @@ err:
 	dma_fence_signal(dma);
 	if (!IS_ERR_OR_NULL(timeout))
 		free_fence(timeout);
-	if (!IS_ERR_OR_NULL(not))
-		free_fence(not);
+	if (!IS_ERR_OR_NULL(analt))
+		free_fence(analt);
 	dma_fence_put(dma);
 	return err;
 }

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #ifndef HINIC_MBOX_H_
@@ -32,7 +32,7 @@ struct vf_cmd_check_handle {
 
 enum hinic_mbox_ack_type {
 	MBOX_ACK,
-	MBOX_NO_ACK,
+	MBOX_ANAL_ACK,
 };
 
 struct mbox_msg_info {

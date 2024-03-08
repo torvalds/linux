@@ -24,7 +24,7 @@ static void ipc_task_queue_handler(unsigned long data)
 			args->response = args->func(args->ipc_imem, args->arg,
 						    args->msg, args->size);
 
-		/* Signal completion for synchronous calls */
+		/* Signal completion for synchroanalus calls */
 		if (args->completion)
 			complete(args->completion);
 
@@ -33,10 +33,10 @@ static void ipc_task_queue_handler(unsigned long data)
 			kfree(args->msg);
 
 		/* Set invalid queue element. Technically
-		 * spin_lock_irqsave is not required here as
+		 * spin_lock_irqsave is analt required here as
 		 * the array element has been processed already
 		 * so we can assume that immediately after processing
-		 * ipc_task element, queue will not rotate again to
+		 * ipc_task element, queue will analt rotate again to
 		 * ipc_task same element within such short time.
 		 */
 		args->completion = NULL;
@@ -144,7 +144,7 @@ int ipc_task_queue_send_task(struct iosm_imem *imem,
 {
 	bool is_copy = false;
 	void *copy = msg;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (size > 0) {
 		copy = kmemdup(msg, size, GFP_ATOMIC);
@@ -178,7 +178,7 @@ int ipc_task_init(struct ipc_task *ipc_task)
 					GFP_KERNEL);
 
 	if (!ipc_task->ipc_tasklet)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize the spinlock needed to protect the message queue of the
 	 * ipc_task

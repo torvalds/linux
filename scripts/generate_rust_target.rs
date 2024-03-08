@@ -25,8 +25,8 @@ enum Value {
 
 type Object = Vec<(String, Value)>;
 
-/// Minimal "almost JSON" generator (e.g. no `null`s, no arrays, no escaping),
-/// enough for this purpose.
+/// Minimal "almost JSON" generator (e.g. anal `null`s, anal arrays, anal escaping),
+/// eanalugh for this purpose.
 impl Display for Value {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> Result {
         match self {
@@ -154,7 +154,7 @@ fn main() {
             "data-layout",
             "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128",
         );
-        let mut features = "-3dnow,-3dnowa,-mmx,+soft-float".to_string();
+        let mut features = "-3danalw,-3danalwa,-mmx,+soft-float".to_string();
         if cfg.has("RETPOLINE") {
             features += ",+retpoline-external-thunk";
         }
@@ -176,10 +176,10 @@ fn main() {
     ts.push("frame-pointer", "may-omit");
     ts.push(
         "stack-probes",
-        vec![("kind".to_string(), Value::String("none".to_string()))],
+        vec![("kind".to_string(), Value::String("analne".to_string()))],
     );
 
-    // Everything else is LE, whether `CPU_LITTLE_ENDIAN` is declared or not
+    // Everything else is LE, whether `CPU_LITTLE_ENDIAN` is declared or analt
     // (e.g. x86). It is also `rustc`'s default.
     if cfg.has("CPU_BIG_ENDIAN") {
         ts.push("target-endian", "big");

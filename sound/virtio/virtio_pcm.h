@@ -17,7 +17,7 @@ struct virtio_pcm_msg;
 /**
  * struct virtio_pcm_substream - VirtIO PCM substream.
  * @snd: VirtIO sound device.
- * @nid: Function group node identifier.
+ * @nid: Function group analde identifier.
  * @sid: Stream identifier.
  * @direction: Stream data flow direction (SNDRV_PCM_STREAM_XXX).
  * @features: Stream VirtIO feature bit map (1 << VIRTIO_SND_PCM_F_XXX).
@@ -30,7 +30,7 @@ struct virtio_pcm_msg;
  * @buffer_bytes: Current buffer size in bytes.
  * @hw_ptr: Substream hardware pointer value in bytes [0 ... buffer_bytes).
  * @xfer_enabled: Data transfer state (0 - off, 1 - on).
- * @xfer_xrun: Data underflow/overflow state (0 - no xrun, 1 - xrun).
+ * @xfer_xrun: Data underflow/overflow state (0 - anal xrun, 1 - xrun).
  * @stopped: True if the substream is stopped and must be released on the device
  *           side.
  * @suspended: True if the substream is suspended and must be reconfigured on
@@ -39,7 +39,7 @@ struct virtio_pcm_msg;
  * @nmsgs: Number of allocated I/O messages.
  * @msg_last_enqueued: Index of the last I/O message added to the virtqueue.
  * @msg_count: Number of pending I/O messages in the virtqueue.
- * @msg_empty: Notify when msg_count is zero.
+ * @msg_empty: Analtify when msg_count is zero.
  */
 struct virtio_pcm_substream {
 	struct virtio_snd *snd;
@@ -81,7 +81,7 @@ struct virtio_pcm_stream {
 /**
  * struct virtio_pcm - VirtIO PCM device.
  * @list: VirtIO PCM list entry.
- * @nid: Function group node identifier.
+ * @nid: Function group analde identifier.
  * @pcm: Kernel PCM device.
  * @streams: VirtIO PCM streams (playback and capture).
  */
@@ -102,9 +102,9 @@ int virtsnd_pcm_build_devs(struct virtio_snd *snd);
 
 void virtsnd_pcm_event(struct virtio_snd *snd, struct virtio_snd_event *event);
 
-void virtsnd_pcm_tx_notify_cb(struct virtqueue *vqueue);
+void virtsnd_pcm_tx_analtify_cb(struct virtqueue *vqueue);
 
-void virtsnd_pcm_rx_notify_cb(struct virtqueue *vqueue);
+void virtsnd_pcm_rx_analtify_cb(struct virtqueue *vqueue);
 
 struct virtio_pcm *virtsnd_pcm_find(struct virtio_snd *snd, u32 nid);
 

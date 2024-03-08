@@ -55,8 +55,8 @@ static int cxgb4_mqprio_validate(struct net_device *dev,
 			end_b = start_b + mqprio->qopt.count[j] - 1;
 
 			/* If queue count is 0, then the traffic
-			 * belonging to this class will not use
-			 * ETHOFLD queues. So, no need to validate
+			 * belonging to this class will analt use
+			 * ETHOFLD queues. So, anal need to validate
 			 * further.
 			 */
 			if (!mqprio->qopt.count[i])
@@ -79,7 +79,7 @@ static int cxgb4_mqprio_validate(struct net_device *dev,
 	}
 
 	if (qoffset >= adap->tids.neotids || qcount > adap->tids.neotids)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (min_rate > max_link_rate || max_rate > max_link_rate) {
 		netdev_err(dev,
@@ -103,7 +103,7 @@ static int cxgb4_init_eosw_txq(struct net_device *dev,
 	ring = kcalloc(CXGB4_EOSW_TXQ_DEFAULT_DESC_NUM,
 		       sizeof(*ring), GFP_KERNEL);
 	if (!ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eosw_txq->desc = ring;
 	eosw_txq->ndesc = CXGB4_EOSW_TXQ_DEFAULT_DESC_NUM;
@@ -155,20 +155,20 @@ static int cxgb4_mqprio_alloc_hw_resources(struct net_device *dev)
 	int ret, msix = 0;
 	u32 i;
 
-	/* Allocate ETHOFLD hardware queue structures if not done already */
+	/* Allocate ETHOFLD hardware queue structures if analt done already */
 	if (!refcount_read(&adap->tc_mqprio->refcnt)) {
 		adap->sge.eohw_rxq = kcalloc(adap->sge.eoqsets,
 					     sizeof(struct sge_ofld_rxq),
 					     GFP_KERNEL);
 		if (!adap->sge.eohw_rxq)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		adap->sge.eohw_txq = kcalloc(adap->sge.eoqsets,
 					     sizeof(struct sge_eohw_txq),
 					     GFP_KERNEL);
 		if (!adap->sge.eohw_txq) {
 			kfree(adap->sge.eohw_rxq);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		refcount_set(&adap->tc_mqprio->refcnt, 1);
@@ -277,11 +277,11 @@ static void cxgb4_mqprio_free_hw_resources(struct net_device *dev)
 	struct sge_eohw_txq *eotxq;
 	u32 i;
 
-	/* Return if no ETHOFLD structures have been allocated yet */
+	/* Return if anal ETHOFLD structures have been allocated yet */
 	if (!refcount_read(&adap->tc_mqprio->refcnt))
 		return;
 
-	/* Return if no hardware queues have been allocated */
+	/* Return if anal hardware queues have been allocated */
 	if (!adap->sge.eohw_rxq[pi->first_qset].rspq.desc)
 		return;
 
@@ -291,7 +291,7 @@ static void cxgb4_mqprio_free_hw_resources(struct net_device *dev)
 
 		/* Device removal path will already disable NAPI
 		 * before unregistering netdevice. So, only disable
-		 * NAPI if we're not in device removal path
+		 * NAPI if we're analt in device removal path
 		 */
 		if (!(adap->flags & CXGB4_SHUTTING_DOWN))
 			cxgb4_quiesce_rx(&eorxq->rspq);
@@ -307,7 +307,7 @@ static void cxgb4_mqprio_free_hw_resources(struct net_device *dev)
 		t4_sge_free_ethofld_txq(adap, eotxq);
 	}
 
-	/* Free up ETHOFLD structures if there are no users */
+	/* Free up ETHOFLD structures if there are anal users */
 	if (refcount_dec_and_test(&adap->tc_mqprio->refcnt)) {
 		kfree(adap->sge.eohw_txq);
 		kfree(adap->sge.eohw_rxq);
@@ -323,7 +323,7 @@ static int cxgb4_mqprio_alloc_tc(struct net_device *dev,
 		.u.params.mode = SCHED_CLASS_MODE_FLOW,
 		.u.params.rateunit = SCHED_CLASS_RATEUNIT_BITS,
 		.u.params.ratemode = SCHED_CLASS_RATEMODE_ABS,
-		.u.params.class = SCHED_CLS_NONE,
+		.u.params.class = SCHED_CLS_ANALNE,
 		.u.params.weight = 0,
 		.u.params.pktsize = dev->mtu,
 	};
@@ -350,7 +350,7 @@ static int cxgb4_mqprio_alloc_tc(struct net_device *dev,
 
 		e = cxgb4_sched_class_alloc(dev, &p);
 		if (!e) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_err;
 		}
 
@@ -409,7 +409,7 @@ static void cxgb4_mqprio_class_unbind(struct net_device *dev,
 	struct adapter *adap = netdev2adap(dev);
 	struct ch_sched_flowc fe;
 
-	/* If we're shutting down, interrupts are disabled and no completions
+	/* If we're shutting down, interrupts are disabled and anal completions
 	 * come back. So, skip waiting for completions in this scenario.
 	 */
 	if (!(adap->flags & CXGB4_SHUTTING_DOWN))
@@ -438,7 +438,7 @@ static int cxgb4_mqprio_enable_offload(struct net_device *dev,
 
 	ret = cxgb4_mqprio_alloc_hw_resources(dev);
 	if (ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tc_port_mqprio = &adap->tc_mqprio->port_mqprio[pi->port_id];
 	for (i = 0; i < mqprio->qopt.num_tc; i++) {
@@ -447,7 +447,7 @@ static int cxgb4_mqprio_enable_offload(struct net_device *dev,
 		for (j = 0; j < qcount; j++) {
 			eotid = cxgb4_get_free_eotid(&adap->tids);
 			if (eotid < 0) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out_free_eotids;
 			}
 
@@ -473,7 +473,7 @@ static int cxgb4_mqprio_enable_offload(struct net_device *dev,
 
 	/* Inform the stack about the configured tc params.
 	 *
-	 * Set the correct queue map. If no queue count has been
+	 * Set the correct queue map. If anal queue count has been
 	 * specified, then send the traffic through default NIC
 	 * queues; instead of ETHOFLD queues.
 	 */
@@ -597,7 +597,7 @@ int cxgb4_setup_tc_mqprio(struct net_device *dev,
 	cxgb4_mqprio_disable_offload(dev);
 
 	/* If requested for clear, then just return since resources are
-	 * already freed up by now.
+	 * already freed up by analw.
 	 */
 	if (!mqprio->qopt.num_tc)
 		goto out;
@@ -659,12 +659,12 @@ int cxgb4_init_tc_mqprio(struct adapter *adap)
 
 	tc_mqprio = kzalloc(sizeof(*tc_mqprio), GFP_KERNEL);
 	if (!tc_mqprio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tc_port_mqprio = kcalloc(adap->params.nports, sizeof(*tc_port_mqprio),
 				 GFP_KERNEL);
 	if (!tc_port_mqprio) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_mqprio;
 	}
 
@@ -676,7 +676,7 @@ int cxgb4_init_tc_mqprio(struct adapter *adap)
 		eosw_txq = kcalloc(adap->tids.neotids, sizeof(*eosw_txq),
 				   GFP_KERNEL);
 		if (!eosw_txq) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_free_ports;
 		}
 		port_mqprio->eosw_txq = eosw_txq;

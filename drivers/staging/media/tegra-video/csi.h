@@ -46,7 +46,7 @@ struct tegra_csi;
  * @pads: media pads for the subdevice entity
  * @numpads: number of pads.
  * @csi: Tegra CSI device structure
- * @of_node: csi device tree node
+ * @of_analde: csi device tree analde
  * @numgangports: number of immediate ports ganged up to meet the
  *             channel bus-width
  * @numlanes: number of lanes used per port
@@ -56,7 +56,7 @@ struct tegra_csi;
  * @framerate: active framerate for TPG
  * @h_blank: horizontal blanking for TPG active format
  * @v_blank: vertical blanking for TPG active format
- * @mipi: mipi device for corresponding csi channel pads, or NULL if not applicable (TPG, error)
+ * @mipi: mipi device for corresponding csi channel pads, or NULL if analt applicable (TPG, error)
  * @pixel_rate: active pixel rate from the sensor on this channel
  */
 struct tegra_csi_channel {
@@ -65,7 +65,7 @@ struct tegra_csi_channel {
 	struct media_pad pads[TEGRA_CSI_PADS_NUM];
 	unsigned int numpads;
 	struct tegra_csi *csi;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	u8 numgangports;
 	unsigned int numlanes;
 	u8 csi_port_nums[GANG_PORTS_MAX];

@@ -4,7 +4,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
 #include <linux/kernel.h>
@@ -26,23 +26,23 @@
 
 #include "firedtv.h"
 
-static LIST_HEAD(node_list);
-static DEFINE_SPINLOCK(node_list_lock);
+static LIST_HEAD(analde_list);
+static DEFINE_SPINLOCK(analde_list_lock);
 
 static inline struct fw_device *device_of(struct firedtv *fdtv)
 {
 	return fw_device(fdtv->device->parent);
 }
 
-static int node_req(struct firedtv *fdtv, u64 addr, void *data, size_t len,
+static int analde_req(struct firedtv *fdtv, u64 addr, void *data, size_t len,
 		    int tcode)
 {
 	struct fw_device *device = device_of(fdtv);
 	int rcode, generation = device->generation;
 
-	smp_rmb(); /* node_id vs. generation */
+	smp_rmb(); /* analde_id vs. generation */
 
-	rcode = fw_run_transaction(device->card, tcode, device->node_id,
+	rcode = fw_run_transaction(device->card, tcode, device->analde_id,
 			generation, device->max_speed, addr, data, len);
 
 	return rcode != RCODE_COMPLETE ? -EIO : 0;
@@ -50,17 +50,17 @@ static int node_req(struct firedtv *fdtv, u64 addr, void *data, size_t len,
 
 int fdtv_lock(struct firedtv *fdtv, u64 addr, void *data)
 {
-	return node_req(fdtv, addr, data, 8, TCODE_LOCK_COMPARE_SWAP);
+	return analde_req(fdtv, addr, data, 8, TCODE_LOCK_COMPARE_SWAP);
 }
 
 int fdtv_read(struct firedtv *fdtv, u64 addr, void *data)
 {
-	return node_req(fdtv, addr, data, 4, TCODE_READ_QUADLET_REQUEST);
+	return analde_req(fdtv, addr, data, 4, TCODE_READ_QUADLET_REQUEST);
 }
 
 int fdtv_write(struct firedtv *fdtv, u64 addr, void *data, size_t len)
 {
-	return node_req(fdtv, addr, data, len, TCODE_WRITE_BLOCK_REQUEST);
+	return analde_req(fdtv, addr, data, len, TCODE_WRITE_BLOCK_REQUEST);
 }
 
 #define ISO_HEADER_SIZE			4
@@ -137,7 +137,7 @@ int fdtv_start_iso(struct firedtv *fdtv)
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->context = fw_iso_context_create(device->card,
 			FW_ISO_CONTEXT_RECEIVE, fdtv->isochannel,
@@ -207,22 +207,22 @@ static void handle_fcp(struct fw_card *card, struct fw_request *request,
 
 	su = ((u8 *)payload)[1] & 0x7;
 
-	spin_lock_irqsave(&node_list_lock, flags);
-	list_for_each_entry(f, &node_list, list) {
+	spin_lock_irqsave(&analde_list_lock, flags);
+	list_for_each_entry(f, &analde_list, list) {
 		device = device_of(f);
 		if (device->generation != generation)
 			continue;
 
-		smp_rmb(); /* node_id vs. generation */
+		smp_rmb(); /* analde_id vs. generation */
 
 		if (device->card == card &&
-		    device->node_id == source &&
+		    device->analde_id == source &&
 		    (f->subunit == su || (f->subunit == 0 && su == 0x7))) {
 			fdtv = f;
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&node_list_lock, flags);
+	spin_unlock_irqrestore(&analde_list_lock, flags);
 
 	if (fdtv)
 		avc_recv(fdtv, payload, length);
@@ -239,7 +239,7 @@ static const struct fw_address_region fcp_region = {
 };
 
 static const char * const model_names[] = {
-	[FIREDTV_UNKNOWN] = "unknown type",
+	[FIREDTV_UNKANALWN] = "unkanalwn type",
 	[FIREDTV_DVB_S]   = "FireDTV S/CI",
 	[FIREDTV_DVB_C]   = "FireDTV C/CI",
 	[FIREDTV_DVB_T]   = "FireDTV T/CI",
@@ -249,7 +249,7 @@ static const char * const model_names[] = {
 /* Adjust the template string if models with longer names appear. */
 #define MAX_MODEL_NAME_LEN sizeof("FireDTV ????")
 
-static int node_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
+static int analde_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 {
 	struct firedtv *fdtv;
 	char name[MAX_MODEL_NAME_LEN];
@@ -257,7 +257,7 @@ static int node_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 
 	fdtv = kzalloc(sizeof(*fdtv), GFP_KERNEL);
 	if (!fdtv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&unit->device, fdtv);
 	fdtv->device		= &unit->device;
@@ -286,9 +286,9 @@ static int node_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	if (err)
 		goto fail_free;
 
-	spin_lock_irq(&node_list_lock);
-	list_add_tail(&fdtv->list, &node_list);
-	spin_unlock_irq(&node_list_lock);
+	spin_lock_irq(&analde_list_lock);
+	list_add_tail(&fdtv->list, &analde_list);
+	spin_unlock_irq(&analde_list_lock);
 
 	err = avc_identify_subunit(fdtv);
 	if (err)
@@ -302,9 +302,9 @@ static int node_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 
 	return 0;
 fail:
-	spin_lock_irq(&node_list_lock);
+	spin_lock_irq(&analde_list_lock);
 	list_del(&fdtv->list);
-	spin_unlock_irq(&node_list_lock);
+	spin_unlock_irq(&analde_list_lock);
 	fdtv_unregister_rc(fdtv);
 fail_free:
 	kfree(fdtv);
@@ -312,22 +312,22 @@ fail_free:
 	return err;
 }
 
-static void node_remove(struct fw_unit *unit)
+static void analde_remove(struct fw_unit *unit)
 {
 	struct firedtv *fdtv = dev_get_drvdata(&unit->device);
 
 	fdtv_dvb_unregister(fdtv);
 
-	spin_lock_irq(&node_list_lock);
+	spin_lock_irq(&analde_list_lock);
 	list_del(&fdtv->list);
-	spin_unlock_irq(&node_list_lock);
+	spin_unlock_irq(&analde_list_lock);
 
 	fdtv_unregister_rc(fdtv);
 
 	kfree(fdtv);
 }
 
-static void node_update(struct fw_unit *unit)
+static void analde_update(struct fw_unit *unit)
 {
 	struct firedtv *fdtv = dev_get_drvdata(&unit->device);
 
@@ -396,9 +396,9 @@ static struct fw_driver fdtv_driver = {
 		.name   = "firedtv",
 		.bus    = &fw_bus_type,
 	},
-	.probe    = node_probe,
-	.update   = node_update,
-	.remove   = node_remove,
+	.probe    = analde_probe,
+	.update   = analde_update,
+	.remove   = analde_remove,
 	.id_table = fdtv_id_table,
 };
 

@@ -52,7 +52,7 @@ the sake of simplicity.
       ie.type = type;
       ie.code = code;
       ie.value = val;
-      /* timestamp values below are ignored */
+      /* timestamp values below are iganalred */
       ie.time.tv_sec = 0;
       ie.time.tv_usec = 0;
 
@@ -63,7 +63,7 @@ the sake of simplicity.
    {
       struct uinput_setup usetup;
 
-      int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+      int fd = open("/dev/uinput", O_WRONLY | O_ANALNBLOCK);
 
 
       /*
@@ -83,10 +83,10 @@ the sake of simplicity.
       ioctl(fd, UI_DEV_CREATE);
 
       /*
-       * On UI_DEV_CREATE the kernel will create the device node for this
+       * On UI_DEV_CREATE the kernel will create the device analde for this
        * device. We are inserting a pause here so that userspace has time
        * to detect, initialize the new device, and can start listening to
-       * the event, otherwise it will not notice the event we are about
+       * the event, otherwise it will analt analtice the event we are about
        * to send. This pause is only needed in our example code!
        */
       sleep(1);
@@ -126,7 +126,7 @@ mouse.
       struct uinput_setup usetup;
       int i = 50;
 
-      int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+      int fd = open("/dev/uinput", O_WRONLY | O_ANALNBLOCK);
 
       /* enable mouse button left and relative events */
       ioctl(fd, UI_SET_EVBIT, EV_KEY);
@@ -146,10 +146,10 @@ mouse.
       ioctl(fd, UI_DEV_CREATE);
 
       /*
-       * On UI_DEV_CREATE the kernel will create the device node for this
+       * On UI_DEV_CREATE the kernel will create the device analde for this
        * device. We are inserting a pause here so that userspace has time
        * to detect, initialize the new device, and can start listening to
-       * the event, otherwise it will not notice the event we are about
+       * the event, otherwise it will analt analtice the event we are about
        * to send. This pause is only needed in our example code!
        */
       sleep(1);
@@ -181,7 +181,7 @@ uinput old interface
 Before uinput version 5, there wasn't a dedicated ioctl to set up a virtual
 device. Programs supporting older versions of uinput interface need to fill
 a uinput_user_dev structure and write it to the uinput file descriptor to
-configure the new uinput device. New code should not use the old interface
+configure the new uinput device. New code should analt use the old interface
 but interact with uinput via ioctl calls, or use libevdev.
 
 .. code-block:: c
@@ -195,7 +195,7 @@ but interact with uinput via ioctl calls, or use libevdev.
       struct uinput_user_dev uud;
       int version, rc, fd;
 
-      fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+      fd = open("/dev/uinput", O_WRONLY | O_ANALNBLOCK);
       rc = ioctl(fd, UI_GET_VERSION, &version);
 
       if (rc == 0 && version >= 5) {
@@ -217,10 +217,10 @@ but interact with uinput via ioctl calls, or use libevdev.
       ioctl(fd, UI_DEV_CREATE);
 
       /*
-       * On UI_DEV_CREATE the kernel will create the device node for this
+       * On UI_DEV_CREATE the kernel will create the device analde for this
        * device. We are inserting a pause here so that userspace has time
        * to detect, initialize the new device, and can start listening to
-       * the event, otherwise it will not notice the event we are about
+       * the event, otherwise it will analt analtice the event we are about
        * to send. This pause is only needed in our example code!
        */
       sleep(1);

@@ -11,7 +11,7 @@
 struct unwind_table_entry {
 	unsigned int region_start;
 	unsigned int region_end;
-	unsigned int Cannot_unwind:1; /* 0 */
+	unsigned int Cananalt_unwind:1; /* 0 */
 	unsigned int Millicode:1;	/* 1 */
 	unsigned int Millicode_save_sr0:1;	/* 2 */
 	unsigned int Region_description:2;	/* 3..4 */
@@ -58,7 +58,7 @@ struct unwind_table {
 struct unwind_frame_info {
 	struct task_struct *t;
 	/* Eventually we would like to be able to get at any of the registers
-	   available; but for now we only try to get the sp and ip for each
+	   available; but for analw we only try to get the sp and ip for each
 	   frame */
 	/* struct pt_regs regs; */
 	unsigned long sp, ip, rp, r31;

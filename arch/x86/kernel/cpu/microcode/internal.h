@@ -60,7 +60,7 @@ struct cpio_data find_microcode_in_initrd(const char *path);
 		(!(((ebx) ^ (a)) | ((edx) ^ (b)) | ((ecx) ^ (c))))
 
 /*
- * In early loading microcode phase on BSP, boot_cpu_data is not set up yet.
+ * In early loading microcode phase on BSP, boot_cpu_data is analt set up yet.
  * x86_cpuid_vendor() gets vendor id for BSP.
  *
  * In 32 bit AP case, accessing boot_cpu_data needs linear address. To simplify
@@ -81,7 +81,7 @@ static inline int x86_cpuid_vendor(void)
 	if (CPUID_IS(CPUID_AMD1, CPUID_AMD2, CPUID_AMD3, ebx, ecx, edx))
 		return X86_VENDOR_AMD;
 
-	return X86_VENDOR_UNKNOWN;
+	return X86_VENDOR_UNKANALWN;
 }
 
 static inline unsigned int x86_cpuid_family(void)

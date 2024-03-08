@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -26,7 +26,7 @@ ga102_grctx_generate_sm_id(struct gf100_gr *gr, int gpc, int tpc, int sm)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 
-	tpc = gv100_gr_nonpes_aware_tpc(gr, gpc, tpc);
+	tpc = gv100_gr_analnpes_aware_tpc(gr, gpc, tpc);
 
 	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x608), sm);
 }
@@ -65,8 +65,8 @@ ga102_grctx = {
 	.attrib_nr = 0x4a1,
 	.alpha_nr_max = 0xc00,
 	.alpha_nr = 0x800,
-	.unknown_size = 0x80000,
-	.unknown = tu102_grctx_generate_unknown,
+	.unkanalwn_size = 0x80000,
+	.unkanalwn = tu102_grctx_generate_unkanalwn,
 	.gfxp_nr = 0xd28,
 	.sm_id = ga102_grctx_generate_sm_id,
 	.skip_pd_num_tpc_per_gpc = true,

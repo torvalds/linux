@@ -40,7 +40,7 @@ MODULE_PARM_DESC(debug, "Toggle FT260 debugging messages");
  * transfers, we set the maximum read payload length to a multiple of 60.
  * With a 100 kHz I2C clock, one 240 bytes read takes about 1/27 second,
  * which is excessive; On the other hand, some higher layer drivers like at24
- * or optoe limit the i2c reads to 128 bytes. To not block other drivers out
+ * or optoe limit the i2c reads to 128 bytes. To analt block other drivers out
  * of I2C for potentially troublesome amounts of time, we select the maximum
  * read payload length to be 180 bytes.
 */
@@ -115,8 +115,8 @@ enum {
 	FT260_I2C_STATUS_SUCCESS	= 0x00,
 	FT260_I2C_STATUS_CTRL_BUSY	= 0x01,
 	FT260_I2C_STATUS_ERROR		= 0x02,
-	FT260_I2C_STATUS_ADDR_NO_ACK	= 0x04,
-	FT260_I2C_STATUS_DATA_NO_ACK	= 0x08,
+	FT260_I2C_STATUS_ADDR_ANAL_ACK	= 0x04,
+	FT260_I2C_STATUS_DATA_ANAL_ACK	= 0x08,
 	FT260_I2C_STATUS_ARBITR_LOST	= 0x10,
 	FT260_I2C_STATUS_CTRL_IDLE	= 0x20,
 	FT260_I2C_STATUS_BUS_BUSY	= 0x40,
@@ -124,7 +124,7 @@ enum {
 
 /* I2C Conditions flags */
 enum {
-	FT260_FLAG_NONE			= 0x00,
+	FT260_FLAG_ANALNE			= 0x00,
 	FT260_FLAG_START		= 0x02,
 	FT260_FLAG_START_REPEATED	= 0x03,
 	FT260_FLAG_STOP			= 0x04,
@@ -146,11 +146,11 @@ struct ft260_get_system_status_report {
 	u8 report;		/* FT260_SYSTEM_SETTINGS */
 	u8 chip_mode;		/* DCNF0 and DCNF1 status, bits 0-1 */
 	u8 clock_ctl;		/* 0 - 12MHz, 1 - 24MHz, 2 - 48MHz */
-	u8 suspend_status;	/* 0 - not suspended, 1 - suspended */
-	u8 pwren_status;	/* 0 - FT260 is not ready, 1 - ready */
+	u8 suspend_status;	/* 0 - analt suspended, 1 - suspended */
+	u8 pwren_status;	/* 0 - FT260 is analt ready, 1 - ready */
 	u8 i2c_enable;		/* 0 - disabled, 1 - enabled */
 	u8 uart_mode;		/* 0 - OFF; 1 - RTS_CTS, 2 - DTR_DSR, */
-				/* 3 - XON_XOFF, 4 - No flow control */
+				/* 3 - XON_XOFF, 4 - Anal flow control */
 	u8 hid_over_i2c_en;	/* 0 - disabled, 1 - enabled */
 	u8 gpio2_function;	/* 0 - GPIO,  1 - SUSPOUT, */
 				/* 2 - PWREN, 4 - TX_LED */
@@ -189,7 +189,7 @@ struct ft260_set_uart_mode_report {
 	u8 report;		/* FT260_SYSTEM_SETTINGS */
 	u8 request;		/* FT260_SET_UART_MODE */
 	u8 uart_mode;		/* 0 - OFF; 1 - RTS_CTS, 2 - DTR_DSR, */
-				/* 3 - XON_XOFF, 4 - No flow control */
+				/* 3 - XON_XOFF, 4 - Anal flow control */
 } __packed;
 
 struct ft260_set_i2c_reset_report {
@@ -227,7 +227,7 @@ struct ft260_i2c_input_report {
 } __packed;
 
 static const struct hid_device_id ft260_devices[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_FUTURE_TECHNOLOGY,
+	{ HID_USB_DEVICE(USB_VENDOR_ID_FUTURE_TECHANALLOGY,
 			 USB_DEVICE_ID_FT260) },
 	{ /* END OF LIST */ }
 };
@@ -255,7 +255,7 @@ static int ft260_hid_feature_report_get(struct hid_device *hdev,
 
 	buf = kmalloc(len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_hw_raw_request(hdev, report_id, buf, len, HID_FEATURE_REPORT,
 				 HID_REQ_GET_REPORT);
@@ -275,7 +275,7 @@ static int ft260_hid_feature_report_set(struct hid_device *hdev, u8 *data,
 
 	buf = kmemdup(data, len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = FT260_SYSTEM_SETTINGS;
 
@@ -313,7 +313,7 @@ static int ft260_xfer_status(struct ft260_device *dev, u8 bus_busy)
 		ret = ft260_hid_feature_report_get(hdev, FT260_I2C_STATUS,
 						(u8 *)&report, sizeof(report));
 		if (unlikely(ret < 0)) {
-			hid_err(hdev, "failed to retrieve status: %d, no wakeup\n",
+			hid_err(hdev, "failed to retrieve status: %d, anal wakeup\n",
 				ret);
 		} else {
 			dev->need_wakeup_at = jiffies +
@@ -358,7 +358,7 @@ static int ft260_hid_output_report(struct hid_device *hdev, u8 *data,
 
 	buf = kmemdup(data, len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_hw_output_report(hdev, buf, len);
 
@@ -392,7 +392,7 @@ static int ft260_hid_output_report_check_status(struct ft260_device *dev,
 	}
 
 	/*
-	 * Do not check the busy bit for combined transactions
+	 * Do analt check the busy bit for combined transactions
 	 * since the controller keeps the bus busy between writing
 	 * and reading IOs to ensure an atomic operation.
 	 */
@@ -583,7 +583,7 @@ static int ft260_i2c_write_read(struct ft260_device *dev, struct i2c_msg *msgs)
 
 	if (wr_len > 2) {
 		hid_err(hdev, "%s: invalid wr_len: %d\n", __func__, wr_len);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (ft260_debug) {
@@ -644,7 +644,7 @@ static int ft260_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 
 	ret = num;
 i2c_exit:
-	hid_hw_power(hdev, PM_HINT_NORMAL);
+	hid_hw_power(hdev, PM_HINT_ANALRMAL);
 	mutex_unlock(&dev->lock);
 	return ret;
 }
@@ -740,11 +740,11 @@ static int ft260_smbus_xfer(struct i2c_adapter *adapter, u16 addr, u16 flags,
 		break;
 	default:
 		hid_err(hdev, "unsupported smbus transaction size %d\n", size);
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 smbus_exit:
-	hid_hw_power(hdev, PM_HINT_NORMAL);
+	hid_hw_power(hdev, PM_HINT_ANALRMAL);
 	mutex_unlock(&dev->lock);
 	return ret;
 }
@@ -803,12 +803,12 @@ static int ft260_is_interface_enabled(struct hid_device *hdev)
 	case FT260_MODE_ALL:
 	case FT260_MODE_BOTH:
 		if (interface == 1)
-			hid_info(hdev, "uart interface is not supported\n");
+			hid_info(hdev, "uart interface is analt supported\n");
 		else
 			ret = 1;
 		break;
 	case FT260_MODE_UART:
-		hid_info(hdev, "uart interface is not supported\n");
+		hid_info(hdev, "uart interface is analt supported\n");
 		break;
 	case FT260_MODE_I2C:
 		ret = 1;
@@ -968,7 +968,7 @@ static int ft260_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	dev = devm_kzalloc(&hdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_parse(hdev);
 	if (ret) {

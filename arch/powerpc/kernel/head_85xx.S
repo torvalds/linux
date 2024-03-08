@@ -61,7 +61,7 @@ _GLOBAL(_start);
 	 * Reserve a word at a fixed location to store the address
 	 * of abatron_pteptrs
 	 */
-	nop
+	analp
 
 	/* Translate device tree address to physical, save in r30/r31 */
 	bl	get_phys_addr
@@ -136,7 +136,7 @@ _GLOBAL(_start);
 	beq	set_ivor
 #endif
 
-/* We try to not make any assumptions about how the boot loader
+/* We try to analt make any assumptions about how the boot loader
  * setup or used the TLBs.  We invalidate all mappings from the
  * boot loader and load a single entry in TLB1[0] to map the
  * first 64M of kernel memory.  Any boot info passed from the
@@ -144,7 +144,7 @@ _GLOBAL(_start);
  *
  * Requirement on bootloader:
  *  - The page we're executing in needs to reside in TLB1 and
- *    have IPROT=1.  If not an invalidate broadcast could
+ *    have IPROT=1.  If analt an invalidate broadcast could
  *    evict the entry we're currently executing in.
  *
  *  r3 = Index of TLB1 were executing in
@@ -192,7 +192,7 @@ set_ivor:
 
 #if !defined(CONFIG_BDI_SWITCH)
 	/*
-	 * The Abatron BDI JTAG debugger does not tolerate others
+	 * The Abatron BDI JTAG debugger does analt tolerate others
 	 * mucking with the debug registers.
 	 */
 	lis	r2,DBCR0_IDM@h
@@ -310,8 +310,8 @@ set_ivor:
 	rlwinm	r12, r10, 13, 19, 29;	/* Compute pgdir/pmd offset */	\
 	lwzx	r11, r12, r11;		/* Get pgd/pmd entry */		\
 	rlwinm.	r12, r11, 0, 0, 20;	/* Extract pt base address */	\
-	blt	1000f;			/* Normal non-huge page */	\
-	beq	2f;			/* Bail if no table */		\
+	blt	1000f;			/* Analrmal analn-huge page */	\
+	beq	2f;			/* Bail if anal table */		\
 	oris	r11, r11, PD_HUGE@h;	/* Put back address bit */	\
 	andi.	r10, r11, HUGEPD_SHIFT_MASK@l; /* extract size field */	\
 	xor	r12, r10, r11;		/* drop size bits from pointer */ \
@@ -324,7 +324,7 @@ set_ivor:
 	rlwinm	r12, r10, 13, 19, 29;	/* Compute pgdir/pmd offset */	\
 	lwzx	r11, r12, r11;		/* Get pgd/pmd entry */		\
 	rlwinm.	r12, r11, 0, 0, 20;	/* Extract pt base address */	\
-	beq	2f;			/* Bail if no table */		\
+	beq	2f;			/* Bail if anal table */		\
 	rlwimi	r12, r10, 23, 20, 28;	/* Compute pte address */	\
 	lwz	r11, 4(r12);		/* Get pte entry */
 #endif /* HUGEPAGE */
@@ -333,7 +333,7 @@ set_ivor:
 	rlwimi	r11, r10, 12, 20, 29;	/* Create L1 (pgdir/pmd) address */	\
 	lwz	r11, 0(r11);		/* Get L1 entry */			\
 	rlwinm.	r12, r11, 0, 0, 19;	/* Extract L2 (pte) base address */	\
-	beq	2f;			/* Bail if no table */			\
+	beq	2f;			/* Bail if anal table */			\
 	rlwimi	r12, r10, 22, 20, 29;	/* Compute PTE address */		\
 	lwz	r11, 0(r12);		/* Get Linux PTE */
 #endif
@@ -357,14 +357,14 @@ set_ivor:
 
 interrupt_base:
 	/* Critical Input Interrupt */
-	CRITICAL_EXCEPTION(0x0100, CRITICAL, CriticalInput, unknown_exception)
+	CRITICAL_EXCEPTION(0x0100, CRITICAL, CriticalInput, unkanalwn_exception)
 
 	/* Machine Check Interrupt */
 	MCHECK_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
 
 	/* Data Storage Interrupt */
 	START_EXCEPTION(DataStorage)
-	NORMAL_EXCEPTION_PROLOG(0x300, DATA_STORAGE)
+	ANALRMAL_EXCEPTION_PROLOG(0x300, DATA_STORAGE)
 	mfspr	r5,SPRN_ESR		/* Grab the ESR, save it */
 	stw	r5,_ESR(r11)
 	mfspr	r4,SPRN_DEAR		/* Grab the DEAR, save it */
@@ -403,36 +403,36 @@ interrupt_base:
 	SYSCALL_ENTRY   0xc00 BOOKE_INTERRUPT_SYSCALL SPRN_SRR1
 
 	/* Auxiliary Processor Unavailable Interrupt */
-	EXCEPTION(0x2900, AP_UNAVAIL, AuxillaryProcessorUnavailable, unknown_exception)
+	EXCEPTION(0x2900, AP_UNAVAIL, AuxillaryProcessorUnavailable, unkanalwn_exception)
 
 	/* Decrementer Interrupt */
 	DECREMENTER_EXCEPTION
 
 	/* Fixed Internal Timer Interrupt */
 	/* TODO: Add FIT support */
-	EXCEPTION(0x3100, FIT, FixedIntervalTimer, unknown_exception)
+	EXCEPTION(0x3100, FIT, FixedIntervalTimer, unkanalwn_exception)
 
 	/* Watchdog Timer Interrupt */
 #ifdef CONFIG_BOOKE_WDT
 	CRITICAL_EXCEPTION(0x3200, WATCHDOG, WatchdogTimer, WatchdogException)
 #else
-	CRITICAL_EXCEPTION(0x3200, WATCHDOG, WatchdogTimer, unknown_exception)
+	CRITICAL_EXCEPTION(0x3200, WATCHDOG, WatchdogTimer, unkanalwn_exception)
 #endif
 
 	/* Data TLB Error Interrupt */
 	START_EXCEPTION(DataTLBError)
 	mtspr	SPRN_SPRG_WSCRATCH0, r10 /* Save some working registers */
 	mfspr	r10, SPRN_SPRG_THREAD
-	stw	r11, THREAD_NORMSAVE(0)(r10)
+	stw	r11, THREAD_ANALRMSAVE(0)(r10)
 #ifdef CONFIG_KVM_BOOKE_HV
 BEGIN_FTR_SECTION
 	mfspr	r11, SPRN_SRR1
 END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 #endif
-	stw	r12, THREAD_NORMSAVE(1)(r10)
-	stw	r13, THREAD_NORMSAVE(2)(r10)
+	stw	r12, THREAD_ANALRMSAVE(1)(r10)
+	stw	r13, THREAD_ANALRMSAVE(2)(r10)
 	mfcr	r13
-	stw	r13, THREAD_NORMSAVE(3)(r10)
+	stw	r13, THREAD_ANALRMSAVE(3)(r10)
 	DO_KVM	BOOKE_INTERRUPT_DTLB_MISS SPRN_SRR1
 START_BTB_FLUSH_SECTION
 	mfspr r11, SPRN_SRR1
@@ -470,7 +470,7 @@ END_BTB_FLUSH_SECTION
 #endif
 
 4:
-	/* Mask of required permission bits. Note that while we
+	/* Mask of required permission bits. Analte that while we
 	 * do copy ESR:ST to _PAGE_WRITE position as trying to write
 	 * to an RO page is pretty common, we don't do it with
 	 * _PAGE_DIRTY. We could do it, but it's a fairly rare
@@ -513,11 +513,11 @@ END_BTB_FLUSH_SECTION
 	 * and call the heavyweights to help us out.
 	 */
 	mfspr	r10, SPRN_SPRG_THREAD
-	lwz	r11, THREAD_NORMSAVE(3)(r10)
+	lwz	r11, THREAD_ANALRMSAVE(3)(r10)
 	mtcr	r11
-	lwz	r13, THREAD_NORMSAVE(2)(r10)
-	lwz	r12, THREAD_NORMSAVE(1)(r10)
-	lwz	r11, THREAD_NORMSAVE(0)(r10)
+	lwz	r13, THREAD_ANALRMSAVE(2)(r10)
+	lwz	r12, THREAD_ANALRMSAVE(1)(r10)
+	lwz	r11, THREAD_ANALRMSAVE(0)(r10)
 	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	b	DataStorage
 
@@ -530,16 +530,16 @@ END_BTB_FLUSH_SECTION
 	START_EXCEPTION(InstructionTLBError)
 	mtspr	SPRN_SPRG_WSCRATCH0, r10 /* Save some working registers */
 	mfspr	r10, SPRN_SPRG_THREAD
-	stw	r11, THREAD_NORMSAVE(0)(r10)
+	stw	r11, THREAD_ANALRMSAVE(0)(r10)
 #ifdef CONFIG_KVM_BOOKE_HV
 BEGIN_FTR_SECTION
 	mfspr	r11, SPRN_SRR1
 END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 #endif
-	stw	r12, THREAD_NORMSAVE(1)(r10)
-	stw	r13, THREAD_NORMSAVE(2)(r10)
+	stw	r12, THREAD_ANALRMSAVE(1)(r10)
+	stw	r13, THREAD_ANALRMSAVE(2)(r10)
 	mfcr	r13
-	stw	r13, THREAD_NORMSAVE(3)(r10)
+	stw	r13, THREAD_ANALRMSAVE(3)(r10)
 	DO_KVM	BOOKE_INTERRUPT_ITLB_MISS SPRN_SRR1
 START_BTB_FLUSH_SECTION
 	mfspr r11, SPRN_SRR1
@@ -615,11 +615,11 @@ END_BTB_FLUSH_SECTION
 	 * and call the heavyweights to help us out.
 	 */
 	mfspr	r10, SPRN_SPRG_THREAD
-	lwz	r11, THREAD_NORMSAVE(3)(r10)
+	lwz	r11, THREAD_ANALRMSAVE(3)(r10)
 	mtcr	r11
-	lwz	r13, THREAD_NORMSAVE(2)(r10)
-	lwz	r12, THREAD_NORMSAVE(1)(r10)
-	lwz	r11, THREAD_NORMSAVE(0)(r10)
+	lwz	r13, THREAD_ANALRMSAVE(2)(r10)
+	lwz	r12, THREAD_ANALRMSAVE(1)(r10)
+	lwz	r11, THREAD_ANALRMSAVE(0)(r10)
 	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	b	InstructionStorage
 
@@ -627,7 +627,7 @@ END_BTB_FLUSH_SECTION
 #ifdef CONFIG_SPE
 	/* SPE Unavailable */
 	START_EXCEPTION(SPEUnavailable)
-	NORMAL_EXCEPTION_PROLOG(0x2010, SPE_UNAVAIL)
+	ANALRMAL_EXCEPTION_PROLOG(0x2010, SPE_UNAVAIL)
 	beq	1f
 	bl	load_up_spe
 	b	fast_exception_return
@@ -635,13 +635,13 @@ END_BTB_FLUSH_SECTION
 	bl	KernelSPE
 	b	interrupt_return
 #elif defined(CONFIG_SPE_POSSIBLE)
-	EXCEPTION(0x2020, SPE_UNAVAIL, SPEUnavailable, unknown_exception)
+	EXCEPTION(0x2020, SPE_UNAVAIL, SPEUnavailable, unkanalwn_exception)
 #endif /* CONFIG_SPE_POSSIBLE */
 
 	/* SPE Floating Point Data */
 #ifdef CONFIG_SPE
 	START_EXCEPTION(SPEFloatingPointData)
-	NORMAL_EXCEPTION_PROLOG(0x2030, SPE_FP_DATA)
+	ANALRMAL_EXCEPTION_PROLOG(0x2030, SPE_FP_DATA)
 	prepare_transfer_to_handler
 	bl	SPEFloatingPointException
 	REST_NVGPRS(r1)
@@ -649,14 +649,14 @@ END_BTB_FLUSH_SECTION
 
 	/* SPE Floating Point Round */
 	START_EXCEPTION(SPEFloatingPointRound)
-	NORMAL_EXCEPTION_PROLOG(0x2050, SPE_FP_ROUND)
+	ANALRMAL_EXCEPTION_PROLOG(0x2050, SPE_FP_ROUND)
 	prepare_transfer_to_handler
 	bl	SPEFloatingPointRoundException
 	REST_NVGPRS(r1)
 	b	interrupt_return
 #elif defined(CONFIG_SPE_POSSIBLE)
-	EXCEPTION(0x2040, SPE_FP_DATA, SPEFloatingPointData, unknown_exception)
-	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, unknown_exception)
+	EXCEPTION(0x2040, SPE_FP_DATA, SPEFloatingPointData, unkanalwn_exception)
+	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, unkanalwn_exception)
 #endif /* CONFIG_SPE_POSSIBLE */
 
 
@@ -667,7 +667,7 @@ END_BTB_FLUSH_SECTION
 	EXCEPTION(0x2070, DOORBELL, Doorbell, doorbell_exception)
 
 	CRITICAL_EXCEPTION(0x2080, DOORBELL_CRITICAL, \
-			   CriticalDoorbell, unknown_exception)
+			   CriticalDoorbell, unkanalwn_exception)
 
 	/* Debug Interrupt */
 	DEBUG_DEBUG_EXCEPTION
@@ -676,13 +676,13 @@ END_BTB_FLUSH_SECTION
 	GUEST_DOORBELL_EXCEPTION
 
 	CRITICAL_EXCEPTION(0, GUEST_DBELL_CRIT, CriticalGuestDoorbell, \
-			   unknown_exception)
+			   unkanalwn_exception)
 
 	/* Hypercall */
-	EXCEPTION(0, HV_SYSCALL, Hypercall, unknown_exception)
+	EXCEPTION(0, HV_SYSCALL, Hypercall, unkanalwn_exception)
 
 	/* Embedded Hypervisor Privilege */
-	EXCEPTION(0, HV_PRIV, Ehvpriv, unknown_exception)
+	EXCEPTION(0, HV_PRIV, Ehvpriv, unkanalwn_exception)
 
 interrupt_end:
 
@@ -709,10 +709,10 @@ finish_tlb_load:
 
 	/* Alas, we need more scratch registers for hugepages */
 	mfspr	r12, SPRN_SPRG_THREAD
-	stw	r14, THREAD_NORMSAVE(4)(r12)
-	stw	r15, THREAD_NORMSAVE(5)(r12)
-	stw	r16, THREAD_NORMSAVE(6)(r12)
-	stw	r17, THREAD_NORMSAVE(7)(r12)
+	stw	r14, THREAD_ANALRMSAVE(4)(r12)
+	stw	r15, THREAD_ANALRMSAVE(5)(r12)
+	stw	r16, THREAD_ANALRMSAVE(6)(r12)
+	stw	r17, THREAD_ANALRMSAVE(7)(r12)
 
 	/* Get the next_tlbcam_idx percpu var */
 #ifdef CONFIG_SMP
@@ -819,21 +819,21 @@ tlb_write_entry:
 	mfspr	r10, SPRN_SPRG_THREAD
 #ifdef CONFIG_HUGETLB_PAGE
 	beq	6, 8f /* skip restore for 4k page faults */
-	lwz	r14, THREAD_NORMSAVE(4)(r10)
-	lwz	r15, THREAD_NORMSAVE(5)(r10)
-	lwz	r16, THREAD_NORMSAVE(6)(r10)
-	lwz	r17, THREAD_NORMSAVE(7)(r10)
+	lwz	r14, THREAD_ANALRMSAVE(4)(r10)
+	lwz	r15, THREAD_ANALRMSAVE(5)(r10)
+	lwz	r16, THREAD_ANALRMSAVE(6)(r10)
+	lwz	r17, THREAD_ANALRMSAVE(7)(r10)
 #endif
-8:	lwz	r11, THREAD_NORMSAVE(3)(r10)
+8:	lwz	r11, THREAD_ANALRMSAVE(3)(r10)
 	mtcr	r11
-	lwz	r13, THREAD_NORMSAVE(2)(r10)
-	lwz	r12, THREAD_NORMSAVE(1)(r10)
-	lwz	r11, THREAD_NORMSAVE(0)(r10)
+	lwz	r13, THREAD_ANALRMSAVE(2)(r10)
+	lwz	r12, THREAD_ANALRMSAVE(1)(r10)
+	lwz	r11, THREAD_ANALRMSAVE(0)(r10)
 	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	rfi					/* Force context change */
 
 #ifdef CONFIG_SPE
-/* Note that the SPE support is closely modeled after the AltiVec
+/* Analte that the SPE support is closely modeled after the AltiVec
  * support.  Changes to one are likely to be applicable to the
  * other!  */
 _GLOBAL(load_up_spe)
@@ -841,12 +841,12 @@ _GLOBAL(load_up_spe)
  * Disable SPE for the task which had SPE previously,
  * and save its SPE registers in its thread_struct.
  * Enables SPE for use in the kernel on return.
- * On SMP we know the SPE units are free, since we give it up every
+ * On SMP we kanalw the SPE units are free, since we give it up every
  * switch.  -- Kumar
  */
 	mfmsr	r5
 	oris	r5,r5,MSR_SPE@h
-	mtmsr	r5			/* enable use of SPE now */
+	mtmsr	r5			/* enable use of SPE analw */
 	isync
 	/* enable use of SPE after return */
 	oris	r9,r9,MSR_SPE@h
@@ -1028,13 +1028,13 @@ __secondary_start:
 	cmpw	r20,r7		/* if kernstart_virt_addr != KERNELBASE, randomized */
 	beq	2f
 	li	r4,0
-2:	li	r5,0		/* no device tree */
-	li	r6,0		/* not boot cpu */
+2:	li	r5,0		/* anal device tree */
+	li	r6,0		/* analt boot cpu */
 	bl	restore_to_as0
 
 
-	lis	r3,__secondary_hold_acknowledge@h
-	ori	r3,r3,__secondary_hold_acknowledge@l
+	lis	r3,__secondary_hold_ackanalwledge@h
+	ori	r3,r3,__secondary_hold_ackanalwledge@l
 	stw	r24,0(r3)
 
 	li	r3,0
@@ -1070,8 +1070,8 @@ __secondary_start:
 	rfi
 	sync
 
-	.globl __secondary_hold_acknowledge
-__secondary_hold_acknowledge:
+	.globl __secondary_hold_ackanalwledge
+__secondary_hold_ackanalwledge:
 	.long	-1
 #endif
 
@@ -1132,7 +1132,7 @@ _GLOBAL(reloc_kernel_entry)
 _GLOBAL(switch_to_as1)
 	mflr	r5
 
-	/* Find a entry not used */
+	/* Find a entry analt used */
 	mfspr	r3,SPRN_TLB1CFG
 	andi.	r3,r3,0xfff
 	mfspr	r4,SPRN_PID
@@ -1176,7 +1176,7 @@ _GLOBAL(switch_to_as1)
  * by switch_to_as1.
  * r3 - the tlb entry which should be invalidated
  * r4 - __pa(PAGE_OFFSET in AS1) - __pa(PAGE_OFFSET in AS0)
- * r5 - device tree virtual address. If r4 is 0, r5 is ignored.
+ * r5 - device tree virtual address. If r4 is 0, r5 is iganalred.
  * r6 - boot cpu
 */
 _GLOBAL(restore_to_as0)
@@ -1224,7 +1224,7 @@ _GLOBAL(restore_to_as0)
 
 	/*
 	 * The PAGE_OFFSET will map to a different physical address,
-	 * jump to _start to do another relocation again.
+	 * jump to _start to do aanalther relocation again.
 	*/
 3:	mr	r3,r5
 	bl	_start

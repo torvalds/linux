@@ -11,27 +11,27 @@ maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>
 
 description: |
-  I3C busses can be described with a node for the primary I3C controller device
-  and a set of child nodes for each I2C or I3C slave on the bus. Each of them
+  I3C busses can be described with a analde for the primary I3C controller device
+  and a set of child analdes for each I2C or I3C slave on the bus. Each of them
   may, during the life of the bus, request mastership.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^i3c-master@[0-9a-f]+$"
 
   "#address-cells":
     const: 3
     description: |
-      Each I2C device connected to the bus should be described in a subnode.
+      Each I2C device connected to the bus should be described in a subanalde.
 
       All I3C devices are supposed to support DAA (Dynamic Address Assignment),
-      and are thus discoverable. So, by default, I3C devices do not have to be
+      and are thus discoverable. So, by default, I3C devices do analt have to be
       described in the device tree. This being said, one might want to attach
       extra resources to these devices, and those resources may have to be
       described in the device tree, which in turn means we have to describe
       I3C devices.
 
-      Another use case for describing an I3C device in the device tree is when
+      Aanalther use case for describing an I3C device in the device tree is when
       this I3C device has a static I2C address and we want to assign it a
       specific I3C dynamic address before the DAA takes place (so that other
       devices on the bus can't take this dynamic address).
@@ -44,7 +44,7 @@ properties:
       Frequency of the SCL signal used for I3C transfers. When undefined, the
       default value should be 12.5MHz.
 
-      May not be supported by all controllers.
+      May analt be supported by all controllers.
 
   i2c-scl-hz:
     description: |
@@ -53,7 +53,7 @@ properties:
       I2C devices described in the device tree to determine the maximum I2C
       frequency.
 
-      May not be supported by all controllers.
+      May analt be supported by all controllers.
 
   mctp-controller:
     type: boolean
@@ -83,7 +83,7 @@ patternProperties:
         items:
           - items:
               - description: |
-                  I2C address. 10 bit addressing is not supported. Devices with
+                  I2C address. 10 bit addressing is analt supported. Devices with
                   10-bit address can't be properly passed through DEFSLVS
                   command.
                 minimum: 0
@@ -91,13 +91,13 @@ patternProperties:
               - const: 0
               - description: |
                   Shall encode the I3C LVR (Legacy Virtual Register):
-                    bit[31:8]: unused/ignored
+                    bit[31:8]: unused/iganalred
                     bit[7:5]: I2C device index. Possible values:
                       * 0: I2C device has a 50 ns spike filter
-                      * 1: I2C device does not have a 50 ns spike filter but
+                      * 1: I2C device does analt have a 50 ns spike filter but
                            supports high frequency on SCL
-                      * 2: I2C device does not have a 50 ns spike filter and is
-                           not tolerant to high frequencies
+                      * 2: I2C device does analt have a 50 ns spike filter and is
+                           analt tolerant to high frequencies
                       * 3-7: reserved
                     bit[4]: tell whether the device operates in FM (Fast Mode)
                             or FM+ mode:
@@ -121,7 +121,7 @@ patternProperties:
           - items:
               - description: |
                   Encodes the static I2C address. Should be 0 if the device does
-                  not have one (0 is not a valid I2C address).
+                  analt have one (0 is analt a valid I2C address).
                 minimum: 0
                 maximum: 0x7f
               - description: |
@@ -143,7 +143,7 @@ patternProperties:
         description: |
           Dynamic address to be assigned to this device. In case static address is
           present (first cell of the reg property != 0), this address is assigned
-          through SETDASA. If static address is not present, this address is assigned
+          through SETDASA. If static address is analt present, this address is assigned
           through SETNEWDA after assigning a temporary address via ENTDAA.
 
     required:

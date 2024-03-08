@@ -8,9 +8,9 @@
  * The ADM1025 is a sensor chip made by Analog Devices. It reports up to 6
  * voltages (including its own power source) and up to two temperatures
  * (its own plus up to one external one). Voltages are scaled internally
- * (which is not the common way) with ratios such that the nominal value
+ * (which is analt the common way) with ratios such that the analminal value
  * of each voltage correspond to a register value of 192 (which means a
- * resolution of about 0.5% of the nominal value). Temperature values are
+ * resolution of about 0.5% of the analminal value). Temperature values are
  * reported with a 1 deg resolution and a 3 deg accuracy. Complete
  * datasheet can be obtained from Analog's website at:
  *   https://www.onsemi.com/PowerSolutions/product.do?id=ADM1025
@@ -49,7 +49,7 @@
  * NE1619 has two possible addresses: 0x2c and 0x2d.
  */
 
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 enum chips { adm1025, ne1619 };
 
@@ -437,7 +437,7 @@ static const struct attribute_group adm1025_group_in4 = {
 	.attrs = adm1025_attributes_in4,
 };
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int adm1025_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
@@ -446,7 +446,7 @@ static int adm1025_detect(struct i2c_client *client,
 	u8 man_id, chip_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check for unused bits */
 	if ((i2c_smbus_read_byte_data(client, ADM1025_REG_CONFIG) & 0x80)
@@ -454,13 +454,13 @@ static int adm1025_detect(struct i2c_client *client,
 	 || (i2c_smbus_read_byte_data(client, ADM1025_REG_STATUS2) & 0xBC)) {
 		dev_dbg(&adapter->dev, "ADM1025 detection failed at 0x%02x\n",
 			client->addr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Identification */
 	chip_id = i2c_smbus_read_byte_data(client, ADM1025_REG_CHIP_ID);
 	if ((chip_id & 0xF0) != 0x20)
-		return -ENODEV;
+		return -EANALDEV;
 
 	man_id = i2c_smbus_read_byte_data(client, ADM1025_REG_MAN_ID);
 	if (man_id == 0x41)
@@ -468,7 +468,7 @@ static int adm1025_detect(struct i2c_client *client,
 	else if (man_id == 0xA1 && client->addr != 0x2E)
 		name = "ne1619";
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, name, I2C_NAME_SIZE);
 
@@ -487,9 +487,9 @@ static void adm1025_init_client(struct i2c_client *client)
 	 * Set high limits
 	 * Usually we avoid setting limits on driver init, but it happens
 	 * that the ADM1025 comes with stupid default limits (all registers
-	 * set to 0). In case the chip has not gone through any limit
+	 * set to 0). In case the chip has analt gone through any limit
 	 * setting yet, we better set the high limits to the max so that
-	 * no alarm triggers.
+	 * anal alarm triggers.
 	 */
 	for (i = 0; i < 6; i++) {
 		reg = i2c_smbus_read_byte_data(client,
@@ -526,7 +526,7 @@ static int adm1025_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct adm1025_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	data->client = client;
@@ -562,7 +562,7 @@ static struct i2c_driver adm1025_driver = {
 	.probe		= adm1025_probe,
 	.id_table	= adm1025_id,
 	.detect		= adm1025_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(adm1025_driver);

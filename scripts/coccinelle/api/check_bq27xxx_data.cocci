@@ -41,7 +41,7 @@ i1dmregs; i2dmregs;
 i1props; i2props;
 @@
 
-if not(i1 = i2)
+if analt(i1 = i2)
 then
   begin
     i1regs := make_ident (i1 ^ "_regs");

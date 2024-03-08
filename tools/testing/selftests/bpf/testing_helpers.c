@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroanalme Systems, Inc. */
 /* Copyright (C) 2020 Facebook, Inc. */
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 #include "test_progs.h"
@@ -18,10 +18,10 @@ int parse_num_list(const char *s, bool **num_set, int *num_set_len)
 	char *next;
 
 	while (s[0]) {
-		errno = 0;
+		erranal = 0;
 		num = strtol(s, &next, 10);
-		if (errno)
-			return -errno;
+		if (erranal)
+			return -erranal;
 
 		if (parsing_end)
 			end = num;
@@ -52,7 +52,7 @@ int parse_num_list(const char *s, bool **num_set, int *num_set_len)
 			tmp = realloc(set, new_len);
 			if (!tmp) {
 				free(set);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			for (i = set_len; i < start; i++)
 				tmp[i] = false;
@@ -91,7 +91,7 @@ static int do_insert_test(struct test_filter_set *set,
 
 	tmp = realloc(set->tests, sizeof(*test) * (set->cnt + 1));
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	set->tests = tmp;
 	test = &set->tests[set->cnt];
@@ -116,7 +116,7 @@ subtest:
 	ctmp = realloc(test->subtests,
 		       sizeof(*test->subtests) * (test->subtest_cnt + 1));
 	if (!ctmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	test->subtests = ctmp;
 	test->subtests[test->subtest_cnt] = subtest_str;
@@ -166,7 +166,7 @@ err:
 	free(ext_test_str);
 	free(ext_subtest_str);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int parse_test_list_file(const char *path,
@@ -180,7 +180,7 @@ int parse_test_list_file(const char *path,
 
 	f = fopen(path, "r");
 	if (!f) {
-		err = -errno;
+		err = -erranal;
 		fprintf(stderr, "Failed to open '%s': %d\n", path, err);
 		return err;
 	}
@@ -224,7 +224,7 @@ int parse_test_list(const char *s,
 
 	input = strdup(s);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while ((test_spec = strtok_r(state ? NULL : input, ",", &state))) {
 		err = insert_test(set, test_spec, is_glob_pattern);
@@ -244,7 +244,7 @@ __u32 link_info_prog_id(const struct bpf_link *link, struct bpf_link_info *info)
 	memset(info, 0, sizeof(*info));
 	err = bpf_link_get_info_by_fd(bpf_link__fd(link), info, &info_len);
 	if (err) {
-		printf("failed to get link info: %d\n", -errno);
+		printf("failed to get link info: %d\n", -erranal);
 		return 0;
 	}
 	return info->prog_id;
@@ -265,11 +265,11 @@ int bpf_prog_test_load(const char *file, enum bpf_prog_type type,
 
 	obj = bpf_object__open_file(file, &opts);
 	if (!obj)
-		return -errno;
+		return -erranal;
 
 	prog = bpf_object__next_program(obj, NULL);
 	if (!prog) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_out;
 	}
 
@@ -316,12 +316,12 @@ __u64 read_perf_max_sample_freq(void)
 	f = fopen("/proc/sys/kernel/perf_event_max_sample_rate", "r");
 	if (f == NULL) {
 		printf("Failed to open /proc/sys/kernel/perf_event_max_sample_rate: err %d\n"
-		       "return default value: 5000\n", -errno);
+		       "return default value: 5000\n", -erranal);
 		return sample_freq;
 	}
 	if (fscanf(f, "%llu", &sample_freq) != 1) {
 		printf("Failed to parse /proc/sys/kernel/perf_event_max_sample_rate: err %d\n"
-		       "return default value: 5000\n", -errno);
+		       "return default value: 5000\n", -erranal);
 	}
 
 	fclose(f);
@@ -343,12 +343,12 @@ int unload_bpf_testmod(bool verbose)
 	if (kern_sync_rcu())
 		fprintf(stdout, "Failed to trigger kernel-side RCU sync!\n");
 	if (delete_module("bpf_testmod", 0)) {
-		if (errno == ENOENT) {
+		if (erranal == EANALENT) {
 			if (verbose)
 				fprintf(stdout, "bpf_testmod.ko is already unloaded.\n");
 			return -1;
 		}
-		fprintf(stdout, "Failed to unload bpf_testmod.ko from kernel: %d\n", -errno);
+		fprintf(stdout, "Failed to unload bpf_testmod.ko from kernel: %d\n", -erranal);
 		return -1;
 	}
 	if (verbose)
@@ -365,11 +365,11 @@ int load_bpf_testmod(bool verbose)
 
 	fd = open("bpf_testmod.ko", O_RDONLY);
 	if (fd < 0) {
-		fprintf(stdout, "Can't find bpf_testmod.ko kernel module: %d\n", -errno);
-		return -ENOENT;
+		fprintf(stdout, "Can't find bpf_testmod.ko kernel module: %d\n", -erranal);
+		return -EANALENT;
 	}
 	if (finit_module(fd, "", 0)) {
-		fprintf(stdout, "Failed to load bpf_testmod.ko into the kernel: %d\n", -errno);
+		fprintf(stdout, "Failed to load bpf_testmod.ko into the kernel: %d\n", -erranal);
 		close(fd);
 		return -EINVAL;
 	}

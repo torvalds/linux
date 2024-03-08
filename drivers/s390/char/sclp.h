@@ -30,7 +30,7 @@
 #define EVTYP_ASYNC		0x0A
 #define EVTYP_CTLPROGIDENT	0x0B
 #define EVTYP_STORE_DATA	0x0C
-#define EVTYP_ERRNOTIFY		0x18
+#define EVTYP_ERRANALTIFY		0x18
 #define EVTYP_VT220MSG		0x1A
 #define EVTYP_SDIAS		0x1C
 #define EVTYP_SIGQUIESCE	0x1D
@@ -45,7 +45,7 @@
 #define EVTYP_ASYNC_MASK	SCLP_EVTYP_MASK(EVTYP_ASYNC)
 #define EVTYP_CTLPROGIDENT_MASK	SCLP_EVTYP_MASK(EVTYP_CTLPROGIDENT)
 #define EVTYP_STORE_DATA_MASK	SCLP_EVTYP_MASK(EVTYP_STORE_DATA)
-#define EVTYP_ERRNOTIFY_MASK	SCLP_EVTYP_MASK(EVTYP_ERRNOTIFY)
+#define EVTYP_ERRANALTIFY_MASK	SCLP_EVTYP_MASK(EVTYP_ERRANALTIFY)
 #define EVTYP_VT220MSG_MASK	SCLP_EVTYP_MASK(EVTYP_VT220MSG)
 #define EVTYP_SDIAS_MASK	SCLP_EVTYP_MASK(EVTYP_SDIAS)
 #define EVTYP_SIGQUIESCE_MASK	SCLP_EVTYP_MASK(EVTYP_SIGQUIESCE)
@@ -322,7 +322,7 @@ struct read_info_sccb * __init sclp_early_get_info(void);
 
 /* useful inlines */
 
-/* Perform service call. Return 0 on success, non-zero otherwise. */
+/* Perform service call. Return 0 on success, analn-zero otherwise. */
 static inline int sclp_service_call(sclp_cmdw_t command, void *sccb)
 {
 	int cc = 4; /* Initialize for program check handling */

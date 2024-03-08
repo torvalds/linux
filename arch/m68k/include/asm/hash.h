@@ -20,14 +20,14 @@
  * chosen to minimise the shift distances.
  *
  * Despite every attempt to spoon-feed it simple operations, GCC
- * 6.1.1 doggedly insists on doing annoying things like converting
+ * 6.1.1 doggedly insists on doing ananalying things like converting
  * "lsl.l #2,<reg>" (12 cycles) to two adds (8+8 cycles).
  *
- * It also likes to notice two shifts in a row, like "a = x << 2" and
+ * It also likes to analtice two shifts in a row, like "a = x << 2" and
  * "a <<= 7", and convert that to "a = x << 9".  But shifts longer
  * than 8 bits are extra-slow on m68k, so that's a lose.
  *
- * Since the 68000 is a very simple in-order processor with no
+ * Since the 68000 is a very simple in-order processor with anal
  * instruction scheduling effects on execution time, we can safely
  * take it out of GCC's hands and write one big asm() block.
  *

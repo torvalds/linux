@@ -581,7 +581,7 @@ static int cxd2820r_probe(struct i2c_client *client)
 		.max_register = 0x3fff,
 		.ranges = regmap_range_cfg0,
 		.num_ranges = ARRAY_SIZE(regmap_range_cfg0),
-		.cache_type = REGCACHE_NONE,
+		.cache_type = REGCACHE_ANALNE,
 	};
 	static const struct regmap_config regmap_config1 = {
 		.reg_bits = 8,
@@ -589,14 +589,14 @@ static int cxd2820r_probe(struct i2c_client *client)
 		.max_register = 0x01ff,
 		.ranges = regmap_range_cfg1,
 		.num_ranges = ARRAY_SIZE(regmap_range_cfg1),
-		.cache_type = REGCACHE_NONE,
+		.cache_type = REGCACHE_ANALNE,
 	};
 
 	dev_dbg(&client->dev, "\n");
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -622,7 +622,7 @@ static int cxd2820r_probe(struct i2c_client *client)
 	dev_dbg(&client->dev, "chip_id=%02x\n", utmp);
 
 	if (utmp != 0xe1) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_regmap_0_regmap_exit;
 	}
 

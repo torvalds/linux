@@ -17,9 +17,9 @@ description: |
   device for convenience.
 
   The actual action taken when powerdown is asserted is hardware dependent.
-  However, when asserted it may not be possible to access the hardware's
+  However, when asserted it may analt be possible to access the hardware's
   registers and after an assert/deassert sequence the hardware's previous state
-  may no longer be valid.
+  may anal longer be valid.
 
 properties:
   compatible:

@@ -74,7 +74,7 @@ examples:
                             };
 
                             ldo4 {
-                                    /* not used */
+                                    /* analt used */
                             };
 
                             back_7: ldo5 {

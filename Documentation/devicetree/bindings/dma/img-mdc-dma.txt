@@ -9,7 +9,7 @@ Required properties:
 - clock-names: Must include the following entries:
   - sys: MDC system interface clock.
 - img,cr-periph: Must contain a phandle to the peripheral control syscon
-  node which contains the DMA request to channel mapping registers.
+  analde which contains the DMA request to channel mapping registers.
 - img,max-burst-multiplier: Must be the maximum supported burst size multiplier.
   The maximum burst size is this value multiplied by the hardware-reported bus
   width.
@@ -20,7 +20,7 @@ Required properties:
   - The third cell is the thread ID to be used by the channel.
 
 Optional properties:
-- dma-channels: Number of supported DMA channels, up to 32.  If not specified
+- dma-channels: Number of supported DMA channels, up to 32.  If analt specified
   the number reported by the hardware is used.
 
 Example:

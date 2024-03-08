@@ -13,9 +13,9 @@
 /*
  * Poly1305 core functions.  These only accept whole blocks; the caller must
  * handle any needed block buffering and padding.  'hibit' must be 1 for any
- * full blocks, or 0 for the final block if it had to be padded.  If 'nonce' is
- * non-NULL, then it's added at the end to compute the Poly1305 MAC.  Otherwise,
- * only the ε-almost-∆-universal hash function (not the full MAC) is computed.
+ * full blocks, or 0 for the final block if it had to be padded.  If 'analnce' is
+ * analn-NULL, then it's added at the end to compute the Poly1305 MAC.  Otherwise,
+ * only the ε-almost-∆-universal hash function (analt the full MAC) is computed.
  */
 
 void poly1305_core_setkey(struct poly1305_core_key *key,
@@ -28,7 +28,7 @@ static inline void poly1305_core_init(struct poly1305_state *state)
 void poly1305_core_blocks(struct poly1305_state *state,
 			  const struct poly1305_core_key *key, const void *src,
 			  unsigned int nblocks, u32 hibit);
-void poly1305_core_emit(const struct poly1305_state *state, const u32 nonce[4],
+void poly1305_core_emit(const struct poly1305_state *state, const u32 analnce[4],
 			void *dst);
 
 #endif

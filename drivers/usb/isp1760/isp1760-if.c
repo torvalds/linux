@@ -43,7 +43,7 @@ static int isp1761_pci_init(struct pci_dev *dev)
 	mem_length = pci_resource_len(dev, 3);
 	if (mem_length < 0xffff) {
 		printk(KERN_ERR "memory length for this resource is wrong\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (!request_mem_region(mem_start, mem_length, "ISP-PCI")) {
@@ -56,7 +56,7 @@ static int isp1761_pci_init(struct pci_dev *dev)
 	if (!iobase) {
 		printk(KERN_ERR "Error ioremap failed\n");
 		release_mem_region(mem_start, mem_length);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* bad pci latencies can contribute to overruns */
@@ -68,7 +68,7 @@ static int isp1761_pci_init(struct pci_dev *dev)
 	}
 
 	/* Try to check whether we can access Scratch Register of
-	 * Host Controller or not. The initial PCI access is retried until
+	 * Host Controller or analt. The initial PCI access is retried until
 	 * local init for the PCI bridge is completed
 	 */
 	retry_count = 20;
@@ -87,11 +87,11 @@ static int isp1761_pci_init(struct pci_dev *dev)
 	release_mem_region(mem_start, mem_length);
 
 	/* Host Controller presence is detected by writing to scratch register
-	 * and reading back and checking the contents are same or not
+	 * and reading back and checking the contents are same or analt
 	 */
 	if (reg_data != 0xFACE) {
 		dev_err(&dev->dev, "scratch register mismatch %x\n", reg_data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Grab the PLX PCI mem maped port start address we need  */
@@ -107,7 +107,7 @@ static int isp1761_pci_init(struct pci_dev *dev)
 	if (!iobase) {
 		printk(KERN_ERR "ioremap #1\n");
 		release_mem_region(mem_start, mem_length);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* configure PLX PCI chip to pass interrupts */
@@ -130,10 +130,10 @@ static int isp1761_pci_probe(struct pci_dev *dev,
 	int ret;
 
 	if (!dev->irq)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pci_enable_device(dev) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = isp1761_pci_init(dev);
 	if (ret < 0)
@@ -202,8 +202,8 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 		return irq;
 	irqflags = irq_get_trigger_type(irq);
 
-	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
-		struct device_node *dp = pdev->dev.of_node;
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_analde) {
+		struct device_analde *dp = pdev->dev.of_analde;
 		u32 bus_width = 0;
 
 		if (of_device_is_compatible(dp, "nxp,usb-isp1761"))
@@ -234,7 +234,7 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 		if (of_property_read_bool(dp, "dreq-polarity"))
 			devflags |= ISP1760_FLAG_DREQ_POL_HIGH;
 	} else {
-		pr_err("isp1760: no platform data\n");
+		pr_err("isp1760: anal platform data\n");
 		return -ENXIO;
 	}
 
@@ -272,7 +272,7 @@ static struct platform_driver isp1760_plat_driver = {
 
 static int __init isp1760_init(void)
 {
-	int ret, any_ret = -ENODEV;
+	int ret, any_ret = -EANALDEV;
 
 	isp1760_init_kmem_once();
 

@@ -23,7 +23,7 @@
  *
  * Returns:
  *  - a pointer to a kmalloc'd buffer containing the cert list on success
- *  - NULL if the key does not exist
+ *  - NULL if the key does analt exist
  *  - an ERR_PTR on error
  */
 static __init void *get_cert_list(u8 *key, unsigned long keylen, u64 *size)
@@ -33,14 +33,14 @@ static __init void *get_cert_list(u8 *key, unsigned long keylen, u64 *size)
 
 	rc = secvar_ops->get(key, keylen, NULL, size);
 	if (rc) {
-		if (rc == -ENOENT)
+		if (rc == -EANALENT)
 			return NULL;
 		return ERR_PTR(rc);
 	}
 
 	db = kmalloc(*size, GFP_KERNEL);
 	if (!db)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rc = secvar_ops->get(key, keylen, db, size);
 	if (rc) {
@@ -68,16 +68,16 @@ static int __init load_powerpc_certs(void)
 	char buf[32];
 
 	if (!secvar_ops)
-		return -ENODEV;
+		return -EANALDEV;
 
 	len = secvar_ops->format(buf, sizeof(buf));
 	if (len <= 0)
-		return -ENODEV;
+		return -EANALDEV;
 
-	// Check for known secure boot implementations from OPAL or PLPKS
+	// Check for kanalwn secure boot implementations from OPAL or PLPKS
 	if (strcmp("ibm,edk2-compat-v1", buf) && strcmp("ibm,plpks-sb-v1", buf)) {
-		pr_err("Unsupported secvar implementation \"%s\", not loading certs\n", buf);
-		return -ENODEV;
+		pr_err("Unsupported secvar implementation \"%s\", analt loading certs\n", buf);
+		return -EANALDEV;
 	}
 
 	if (strcmp("ibm,plpks-sb-v1", buf) == 0)
@@ -85,7 +85,7 @@ static int __init load_powerpc_certs(void)
 		offset = 8;
 
 	/*
-	 * Get db, and dbx. They might not exist, so it isn't an error if we
+	 * Get db, and dbx. They might analt exist, so it isn't an error if we
 	 * can't get them.
 	 */
 	data = get_cert_list("db", 3, &dsize);

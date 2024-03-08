@@ -26,7 +26,7 @@ Mandatory parameters:
 
     <dev path>:
         Full pathname to the underlying block-device, or a
-        "major:minor" device-number.
+        "major:mianalr" device-number.
     <offset>:
         Starting sector within the device.
     <up interval>:
@@ -36,7 +36,7 @@ Mandatory parameters:
 
 Optional feature parameters:
 
-  If no feature parameters are present, during the periods of
+  If anal feature parameters are present, during the periods of
   unreliability, all I/O returns errors.
 
   error_reads:
@@ -44,7 +44,7 @@ Optional feature parameters:
 	Write I/O is handled correctly.
 
   drop_writes:
-	All write I/O is silently ignored.
+	All write I/O is silently iganalred.
 	Read I/O is handled correctly.
 
   error_writes:

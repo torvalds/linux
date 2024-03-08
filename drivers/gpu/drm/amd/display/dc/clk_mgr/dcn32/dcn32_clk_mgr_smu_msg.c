@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -44,7 +44,7 @@
 
 /*
  * Function to be used instead of REG_WAIT macro because the wait ends when
- * the register is NOT EQUAL to zero, and because the translation in msg_if.h
+ * the register is ANALT EQUAL to zero, and because the translation in msg_if.h
  * won't work with REG_WAIT.
  */
 static uint32_t dcn32_smu_wait_for_response(struct clk_mgr_internal *clk_mgr, unsigned int delay_us, unsigned int max_retries)
@@ -153,7 +153,7 @@ void dcn32_smu_send_fclk_pstate_message(struct clk_mgr_internal *clk_mgr, bool e
 	smu_print("FCLK P-state support value is : %d\n", enable);
 
 	dcn32_smu_send_msg_with_param(clk_mgr,
-			DALSMC_MSG_SetFclkSwitchAllow, enable ? FCLK_PSTATE_SUPPORTED : FCLK_PSTATE_NOTSUPPORTED, NULL);
+			DALSMC_MSG_SetFclkSwitchAllow, enable ? FCLK_PSTATE_SUPPORTED : FCLK_PSTATE_ANALTSUPPORTED, NULL);
 }
 
 void dcn32_smu_send_cab_for_uclk_message(struct clk_mgr_internal *clk_mgr, unsigned int num_ways)
@@ -197,18 +197,18 @@ static bool dcn32_get_hard_min_status_supported(struct clk_mgr_internal *clk_mgr
 }
 
 /* Returns the clocks which were fulfilled by the DAL hard min arbiter in PMFW */
-static unsigned int dcn32_smu_get_hard_min_status(struct clk_mgr_internal *clk_mgr, bool *no_timeout, unsigned int *total_delay_us)
+static unsigned int dcn32_smu_get_hard_min_status(struct clk_mgr_internal *clk_mgr, bool *anal_timeout, unsigned int *total_delay_us)
 {
 	uint32_t response = 0;
 
 	/* bits 23:16 for clock type, lower 16 bits for frequency in MHz */
 	uint32_t param = 0;
 
-	*no_timeout = dcn32_smu_send_msg_with_param_delay(clk_mgr,
+	*anal_timeout = dcn32_smu_send_msg_with_param_delay(clk_mgr,
 			DALSMC_MSG_ReturnHardMinStatus, param, &response, total_delay_us);
 
-	smu_print("SMU Get hard min status: no_timeout %d delay %d us clk bits %x\n",
-		*no_timeout, *total_delay_us, response);
+	smu_print("SMU Get hard min status: anal_timeout %d delay %d us clk bits %x\n",
+		*anal_timeout, *total_delay_us, response);
 
 	return response;
 }
@@ -218,7 +218,7 @@ static bool dcn32_smu_wait_get_hard_min_status(struct clk_mgr_internal *clk_mgr,
 {
 	int readDalHardMinClkBits, checkDalHardMinClkBits;
 	unsigned int total_delay_us, read_total_delay_us;
-	bool no_timeout, hard_min_done;
+	bool anal_timeout, hard_min_done;
 
 	static unsigned int cur_wait_get_hard_min_max_us;
 	static unsigned int cur_wait_get_hard_min_max_timeouts;
@@ -241,7 +241,7 @@ static bool dcn32_smu_wait_get_hard_min_status(struct clk_mgr_internal *clk_mgr,
 	total_delay_us = 0;
 	hard_min_done = false;
 	while (1) {
-		readDalHardMinClkBits = dcn32_smu_get_hard_min_status(clk_mgr, &no_timeout, &read_total_delay_us);
+		readDalHardMinClkBits = dcn32_smu_get_hard_min_status(clk_mgr, &anal_timeout, &read_total_delay_us);
 		total_delay_us += read_total_delay_us;
 		if (checkDalHardMinClkBits == (readDalHardMinClkBits & checkDalHardMinClkBits)) {
 			hard_min_done = true;
@@ -261,8 +261,8 @@ static bool dcn32_smu_wait_get_hard_min_status(struct clk_mgr_internal *clk_mgr,
 	if (total_delay_us > cur_wait_get_hard_min_max_us)
 		cur_wait_get_hard_min_max_us = total_delay_us;
 
-	smu_print("SMU Wait get hard min status: no_timeout %d, delay %d us, max %d us, read %x, check %x\n",
-		no_timeout, total_delay_us, cur_wait_get_hard_min_max_us, readDalHardMinClkBits, checkDalHardMinClkBits);
+	smu_print("SMU Wait get hard min status: anal_timeout %d, delay %d us, max %d us, read %x, check %x\n",
+		anal_timeout, total_delay_us, cur_wait_get_hard_min_max_us, readDalHardMinClkBits, checkDalHardMinClkBits);
 
 	return hard_min_done;
 }

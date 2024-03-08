@@ -12,12 +12,12 @@
  * Description: Analog Devices RTI-800/815
  * Devices: [Analog Devices] RTI-800 (rti800), RTI-815 (rti815)
  * Author: David A. Schleef <ds@schleef.org>
- * Status: unknown
+ * Status: unkanalwn
  * Updated: Fri, 05 Sep 2008 14:50:44 +0100
  *
  * Configuration options:
  *   [0] - I/O port base address
- *   [1] - IRQ (not supported / unused)
+ *   [1] - IRQ (analt supported / unused)
  *   [2] - A/D mux/reference (number of channels)
  *	   0 = differential
  *	   1 = pseudodifferential (common)
@@ -267,7 +267,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devpriv->adc_2comp = (it->options[4] == 0);
 	devpriv->dac_2comp[0] = (it->options[6] == 0);
@@ -288,7 +288,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= 0x0fff;
 	s->range_table	= (it->options[3] < ARRAY_SIZE(rti800_ai_ranges))
 				? rti800_ai_ranges[it->options[3]]
-				: &range_unknown;
+				: &range_unkanalwn;
 
 	s = &dev->subdevices[1];
 	if (board->has_ao) {
@@ -301,11 +301,11 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->ao_range_type_list[0] =
 			(it->options[5] < ARRAY_SIZE(rti800_ao_ranges))
 				? rti800_ao_ranges[it->options[5]]
-				: &range_unknown;
+				: &range_unkanalwn;
 		devpriv->ao_range_type_list[1] =
 			(it->options[7] < ARRAY_SIZE(rti800_ao_ranges))
 				? rti800_ao_ranges[it->options[7]]
-				: &range_unknown;
+				: &range_unkanalwn;
 		s->insn_write	= rti800_ao_insn_write;
 
 		ret = comedi_alloc_subdev_readback(s);
@@ -335,7 +335,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/*
 	 * There is also an Am9513 timer on these boards. This subdevice
-	 * is not currently supported.
+	 * is analt currently supported.
 	 */
 
 	return 0;

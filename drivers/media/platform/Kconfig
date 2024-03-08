@@ -57,7 +57,7 @@ config VIDEO_MUX
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	select REGMAP
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  This driver provides support for N:1 video bus multiplexers.
 

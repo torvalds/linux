@@ -123,7 +123,7 @@ static int mxc6255_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_i2c(client, &mxc6255_regmap_config);
 	if (IS_ERR(regmap)) {
@@ -150,14 +150,14 @@ static int mxc6255_probe(struct i2c_client *client)
 
 	if ((chip_id & 0x1f) != MXC6255_CHIP_ID) {
 		dev_err(&client->dev, "Invalid chip id %x\n", chip_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(&client->dev, "Chip id %x\n", chip_id);
 
 	ret = devm_iio_device_register(&client->dev, indio_dev);
 	if (ret < 0) {
-		dev_err(&client->dev, "Could not register IIO device\n");
+		dev_err(&client->dev, "Could analt register IIO device\n");
 		return ret;
 	}
 

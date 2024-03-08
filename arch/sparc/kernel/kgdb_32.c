@@ -107,7 +107,7 @@ void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 		win->ins[i] = gdb_regs[GDB_I0 + i];
 }
 
-int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
+int kgdb_arch_handle_exception(int e_vector, int siganal, int err_code,
 			       char *remcomInBuffer, char *remcomOutBuffer,
 			       struct pt_regs *linux_regs)
 {
@@ -116,7 +116,7 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 
 	switch (remcomInBuffer[0]) {
 	case 'c':
-		/* try to read optional parameter, pc unchanged if no parm */
+		/* try to read optional parameter, pc unchanged if anal parm */
 		ptr = &remcomInBuffer[1];
 		if (kgdb_hex2long(&ptr, &addr)) {
 			linux_regs->pc = addr;

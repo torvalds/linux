@@ -31,9 +31,9 @@ SCHED_FEAT(HRTICK_DL, false)
 SCHED_FEAT(DOUBLE_TICK, false)
 
 /*
- * Decrement CPU capacity based on time not spent running tasks
+ * Decrement CPU capacity based on time analt spent running tasks
  */
-SCHED_FEAT(NONTASK_CAPACITY, true)
+SCHED_FEAT(ANALNTASK_CAPACITY, true)
 
 #ifdef CONFIG_PREEMPT_RT
 SCHED_FEAT(TTWU_QUEUE, false)
@@ -54,7 +54,7 @@ SCHED_FEAT(SIS_UTIL, true)
 /*
  * Issue a WARN when we do multiple update_rq_clock() calls
  * in a single rq->lock section. Default disabled because the
- * annotations are not complete.
+ * ananaltations are analt complete.
  */
 SCHED_FEAT(WARN_DOUBLE_CLOCK, false)
 

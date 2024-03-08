@@ -3,7 +3,7 @@ PXA2xx SPI on SSP driver HOWTO
 ==============================
 
 This a mini HOWTO on the pxa2xx_spi driver. The driver turns a PXA2xx
-synchronous serial port into an SPI host controller
+synchroanalus serial port into an SPI host controller
 (see Documentation/spi/spi-summary.rst). The driver has the following features
 
 - Support for any PXA2xx and compatible SSP.
@@ -123,10 +123,10 @@ dma_burst_size == 0.
 The "pxa2xx_spi_chip.timeout" fields is used to efficiently handle
 trailing bytes in the SSP receiver FIFO. The correct value for this field is
 dependent on the SPI bus speed ("spi_board_info.max_speed_hz") and the specific
-peripheral device. Please note that the PXA2xx SSP 1 does not support trailing byte
+peripheral device. Please analte that the PXA2xx SSP 1 does analt support trailing byte
 timeouts and must busy-wait any trailing bytes.
 
-NOTE: the SPI driver cannot control the chip select if SSPFRM is used, so the
+ANALTE: the SPI driver cananalt control the chip select if SSPFRM is used, so the
 chipselect is dropped after each spi_transfer.  Most devices need chip select
 asserted around the complete message. Use SSPFRM as a GPIO (through a descriptor)
 to accommodate these chips.
@@ -160,7 +160,7 @@ field. Below is a sample configuration using the PXA255 NSSP.
 		.max_speed_hz = 3686400, /* Run SSP as fast a possible */
 		.bus_num = 2, /* Framework bus number */
 		.chip_select = 0, /* Framework chip select */
-		.platform_data = NULL; /* No spi_driver specific config */
+		.platform_data = NULL; /* Anal spi_driver specific config */
 		.controller_data = &cs8415a_chip_info, /* Host controller config */
 		.irq = STREETRACER_APCI_IRQ, /* Peripheral device interrupt */
 	},
@@ -186,7 +186,7 @@ DMA and PIO I/O Support
 The pxa2xx_spi driver supports both DMA and interrupt driven PIO message
 transfers.  The driver defaults to PIO mode and DMA transfers must be enabled
 by setting the "enable_dma" flag in the "pxa2xx_spi_controller" structure.
-For the newer platforms, that are known to support DMA, the driver will enable
+For the newer platforms, that are kanalwn to support DMA, the driver will enable
 it automatically and try it first with a possible fallback to PIO. The DMA
 mode supports both coherent and stream based DMA mappings.
 

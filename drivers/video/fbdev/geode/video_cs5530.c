@@ -140,7 +140,7 @@ static int cs5530_blank_display(struct fb_info *info, int blank_mode)
 	case FB_BLANK_UNBLANK:
 		blank = 0; hsync = 1; vsync = 1;
 		break;
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		blank = 1; hsync = 1; vsync = 1;
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:

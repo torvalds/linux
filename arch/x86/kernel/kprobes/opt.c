@@ -30,7 +30,7 @@
 #include <asm/debugreg.h>
 #include <asm/set_memory.h>
 #include <asm/sections.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 
 #include "common.h"
 
@@ -46,8 +46,8 @@ unsigned long __recover_optprobed_insn(kprobe_opcode_t *buf, unsigned long addr)
 		/* This function only handles jump-optimized kprobe */
 		if (kp && kprobe_optimized(kp)) {
 			op = container_of(kp, struct optimized_kprobe, kp);
-			/* If op is optimized or under unoptimizing */
-			if (list_empty(&op->list) || optprobe_queued_unopt(op))
+			/* If op is optimized or under uanalptimizing */
+			if (list_empty(&op->list) || optprobe_queued_uanalpt(op))
 				goto found;
 		}
 	}
@@ -59,7 +59,7 @@ found:
 	 * overwritten by jump destination address. In this case, original
 	 * bytes must be recovered from op->optinsn.copied_insn buffer.
 	 */
-	if (copy_from_kernel_nofault(buf, (void *)addr,
+	if (copy_from_kernel_analfault(buf, (void *)addr,
 		MAX_INSN_SIZE * sizeof(kprobe_opcode_t)))
 		return 0UL;
 
@@ -83,7 +83,7 @@ static void synthesize_clac(kprobe_opcode_t *addr)
 	if (!boot_cpu_has(X86_FEATURE_SMAP))
 		return;
 
-	/* Replace the NOP3 with CLAC */
+	/* Replace the ANALP3 with CLAC */
 	addr[0] = 0x0f;
 	addr[1] = 0x01;
 	addr[2] = 0xca;
@@ -113,16 +113,16 @@ asm (
 			"	pushfq\n"
 			".global optprobe_template_clac\n"
 			"optprobe_template_clac:\n"
-			ASM_NOP3
+			ASM_ANALP3
 			SAVE_REGS_STRING
 			"	movq %rsp, %rsi\n"
 			".global optprobe_template_val\n"
 			"optprobe_template_val:\n"
-			ASM_NOP5
-			ASM_NOP5
+			ASM_ANALP5
+			ASM_ANALP5
 			".global optprobe_template_call\n"
 			"optprobe_template_call:\n"
-			ASM_NOP5
+			ASM_ANALP5
 			/* Copy 'regs->flags' into 'regs->ss'. */
 			"	movq 18*8(%rsp), %rdx\n"
 			"	movq %rdx, 20*8(%rsp)\n"
@@ -138,15 +138,15 @@ asm (
 			"	pushfl\n"
 			".global optprobe_template_clac\n"
 			"optprobe_template_clac:\n"
-			ASM_NOP3
+			ASM_ANALP3
 			SAVE_REGS_STRING
 			"	movl %esp, %edx\n"
 			".global optprobe_template_val\n"
 			"optprobe_template_val:\n"
-			ASM_NOP5
+			ASM_ANALP5
 			".global optprobe_template_call\n"
 			"optprobe_template_call:\n"
-			ASM_NOP5
+			ASM_ANALP5
 			/* Copy 'regs->flags' into 'regs->ss'. */
 			"	movl 14*4(%esp), %edx\n"
 			"	movl %edx, 16*4(%esp)\n"
@@ -161,7 +161,7 @@ asm (
 			".popsection\n");
 
 void optprobe_template_func(void);
-STACK_FRAME_NON_STANDARD(optprobe_template_func);
+STACK_FRAME_ANALN_STANDARD(optprobe_template_func);
 
 #define TMPL_CLAC_IDX \
 	((long)optprobe_template_clac - (long)optprobe_template_entry)
@@ -176,7 +176,7 @@ STACK_FRAME_NON_STANDARD(optprobe_template_func);
 static void
 optimized_callback(struct optimized_kprobe *op, struct pt_regs *regs)
 {
-	/* This is possible if op is under delayed unoptimizing */
+	/* This is possible if op is under delayed uanalptimizing */
 	if (kprobe_disabled(&op->kp))
 		return;
 
@@ -202,7 +202,7 @@ optimized_callback(struct optimized_kprobe *op, struct pt_regs *regs)
 	}
 	preempt_enable();
 }
-NOKPROBE_SYMBOL(optimized_callback);
+ANALKPROBE_SYMBOL(optimized_callback);
 
 static int copy_optimized_instructions(u8 *dest, u8 *src, u8 *real)
 {
@@ -272,14 +272,14 @@ static int can_optimize(unsigned long paddr)
 		return 0;
 
 	/*
-	 * Do not optimize in the entry code due to the unstable
+	 * Do analt optimize in the entry code due to the unstable
 	 * stack handling and registers setup.
 	 */
 	if (((paddr >= (unsigned long)__entry_text_start) &&
 	     (paddr <  (unsigned long)__entry_text_end)))
 		return 0;
 
-	/* Check there is enough space for a relative jump. */
+	/* Check there is eanalugh space for a relative jump. */
 	if (size - offset < JMP32_INSN_SIZE)
 		return 0;
 
@@ -305,7 +305,7 @@ static int can_optimize(unsigned long paddr)
 #ifdef CONFIG_KGDB
 		/*
 		 * If there is a dynamically installed kgdb sw breakpoint,
-		 * this function should not be probed.
+		 * this function should analt be probed.
 		 */
 		if (insn.opcode.bytes[0] == INT3_INSN_OPCODE &&
 		    kgdb_has_hit_break(addr))
@@ -400,11 +400,11 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op,
 
 	buf = kzalloc(MAX_OPTINSN_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	op->optinsn.insn = slot = get_optinsn_slot();
 	if (!slot) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -444,7 +444,7 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op,
 	len += JMP32_INSN_SIZE;
 
 	/*
-	 * Note	len = TMPL_END_IDX + op->optinsn.size + JMP32_INSN_SIZE is also
+	 * Analte	len = TMPL_END_IDX + op->optinsn.size + JMP32_INSN_SIZE is also
 	 * used in __arch_remove_optimized_kprobe().
 	 */
 
@@ -468,7 +468,7 @@ err:
  *
  * The caller will have installed a regular kprobe and after that issued
  * syncrhonize_rcu_tasks(), this ensures that the instruction(s) that live in
- * the 4 bytes after the INT3 are unused and can now be overwritten.
+ * the 4 bytes after the INT3 are unused and can analw be overwritten.
  */
 void arch_optimize_kprobes(struct list_head *oplist)
 {
@@ -501,7 +501,7 @@ void arch_optimize_kprobes(struct list_head *oplist)
  * arch_optimize_kprobes() scribbled. This is safe since those bytes will be
  * unused once the INT3 lands.
  */
-void arch_unoptimize_kprobe(struct optimized_kprobe *op)
+void arch_uanalptimize_kprobe(struct optimized_kprobe *op)
 {
 	u8 new[JMP32_INSN_SIZE] = { INT3_INSN_OPCODE, };
 	u8 old[JMP32_INSN_SIZE];
@@ -526,13 +526,13 @@ void arch_unoptimize_kprobe(struct optimized_kprobe *op)
  * Recover original instructions and breakpoints from relative jumps.
  * Caller must call with locking kprobe_mutex.
  */
-extern void arch_unoptimize_kprobes(struct list_head *oplist,
+extern void arch_uanalptimize_kprobes(struct list_head *oplist,
 				    struct list_head *done_list)
 {
 	struct optimized_kprobe *op, *tmp;
 
 	list_for_each_entry_safe(op, tmp, oplist, list) {
-		arch_unoptimize_kprobe(op);
+		arch_uanalptimize_kprobe(op);
 		list_move(&op->list, done_list);
 	}
 }
@@ -552,4 +552,4 @@ int setup_detour_execution(struct kprobe *p, struct pt_regs *regs, int reenter)
 	}
 	return 0;
 }
-NOKPROBE_SYMBOL(setup_detour_execution);
+ANALKPROBE_SYMBOL(setup_detour_execution);

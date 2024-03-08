@@ -49,7 +49,7 @@
 		NULL, "clk20m")
 
 #define GATE_APMIXED(_id, _name, _parent, _shift)			\
-	GATE_MTK(_id, _name, _parent, &apmixed_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &apmixed_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 #define GATE_INFRA(_id, _name, _parent, _shift)				\
 	GATE_MTK(_id, _name, _parent, &infra_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
@@ -548,7 +548,7 @@ static int mtk_topckgen_init(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
 	void __iomem *base;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -556,7 +556,7 @@ static int mtk_topckgen_init(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_TOP_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mtk_clk_register_fixed_clks(top_fixed_clks, ARRAY_SIZE(top_fixed_clks),
 				    clk_data);
@@ -572,25 +572,25 @@ static int mtk_topckgen_init(struct platform_device *pdev)
 	clk_prepare_enable(clk_data->hws[CLK_TOP_MEM_SEL]->clk);
 	clk_prepare_enable(clk_data->hws[CLK_TOP_DDRPHYCFG_SEL]->clk);
 
-	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	return of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 }
 
 static int mtk_infrasys_init(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct clk_hw_onecell_data *clk_data;
 
 	clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	mtk_clk_register_gates(&pdev->dev, node, infra_clks,
+	mtk_clk_register_gates(&pdev->dev, analde, infra_clks,
 			       ARRAY_SIZE(infra_clks), clk_data);
 
-	mtk_clk_register_cpumuxes(&pdev->dev, node, infra_muxes,
+	mtk_clk_register_cpumuxes(&pdev->dev, analde, infra_muxes,
 				  ARRAY_SIZE(infra_muxes), clk_data);
 
-	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get,
+	return of_clk_add_hw_provider(analde, of_clk_hw_onecell_get,
 				      clk_data);
 }
 
@@ -599,7 +599,7 @@ static int mtk_pericfg_init(struct platform_device *pdev)
 	struct clk_hw_onecell_data *clk_data;
 	void __iomem *base;
 	int r;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -607,16 +607,16 @@ static int mtk_pericfg_init(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_PERI_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	mtk_clk_register_gates(&pdev->dev, node, peri_clks,
+	mtk_clk_register_gates(&pdev->dev, analde, peri_clks,
 			       ARRAY_SIZE(peri_clks), clk_data);
 
 	mtk_clk_register_composites(&pdev->dev, peri_muxes,
 				    ARRAY_SIZE(peri_muxes), base,
 				    &mt7629_clk_lock, clk_data);
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (r)
 		return r;
 
@@ -628,22 +628,22 @@ static int mtk_pericfg_init(struct platform_device *pdev)
 static int mtk_apmixedsys_init(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 
 	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls),
+	mtk_clk_register_plls(analde, plls, ARRAY_SIZE(plls),
 			      clk_data);
 
-	mtk_clk_register_gates(&pdev->dev, node, apmixed_clks,
+	mtk_clk_register_gates(&pdev->dev, analde, apmixed_clks,
 			       ARRAY_SIZE(apmixed_clks), clk_data);
 
 	clk_prepare_enable(clk_data->hws[CLK_APMIXED_ARMPLL]->clk);
 	clk_prepare_enable(clk_data->hws[CLK_APMIXED_MAIN_CORE_EN]->clk);
 
-	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	return of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 }
 
 
@@ -678,7 +678,7 @@ static int clk_mt7629_probe(struct platform_device *pdev)
 	r = clk_init(pdev);
 	if (r)
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could analt register clock provider: %s: %d\n",
 			pdev->name, r);
 
 	return r;

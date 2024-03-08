@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2011 Nokia Corporation
+ * Copyright (C) 2011 Analkia Corporation
  * Copyright (C) 2011 Intel Corporation
  *
  * Author:
- * Dmitry Kasatkin <dmitry.kasatkin@nokia.com>
+ * Dmitry Kasatkin <dmitry.kasatkin@analkia.com>
  *                 <dmitry.kasatkin@intel.com>
  *
  * File: sign.c
@@ -50,7 +50,7 @@ static const char *pkcs_1_v1_5_decode_emsa(const unsigned char *msg,
 
 	/* separator check */
 	if (msg[i] != 0)
-		/* There was no octet with hexadecimal value 0x00
+		/* There was anal octet with hexadecimal value 0x00
 		to separate ps from m. */
 		return NULL;
 
@@ -125,7 +125,7 @@ static int digsig_verify_rsa(struct key *key,
 		goto err;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 
 	out1 = kzalloc(mlen, GFP_KERNEL);
 	if (!out1)
@@ -193,13 +193,13 @@ err1:
  *
  * Verifies data integrity against digital signature.
  * Currently only RSA is supported.
- * Normally hash of the content is used as a data for this function.
+ * Analrmally hash of the content is used as a data for this function.
  *
  */
 int digsig_verify(struct key *keyring, const char *sig, int siglen,
 						const char *data, int datalen)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct signature_hdr *sh = (struct signature_hdr *)sig;
 	struct shash_desc *desc = NULL;
 	unsigned char hash[SHA1_DIGEST_SIZE];
@@ -210,7 +210,7 @@ int digsig_verify(struct key *keyring, const char *sig, int siglen,
 		return -EINVAL;
 
 	if (sh->algo != PUBKEY_ALGO_RSA)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	sprintf(name, "%llX", __be64_to_cpup((uint64_t *)sh->keyid));
 
@@ -227,7 +227,7 @@ int digsig_verify(struct key *keyring, const char *sig, int siglen,
 		key = request_key(&key_type_user, name, NULL);
 	}
 	if (IS_ERR(key)) {
-		pr_err("key not found, id: %s\n", name);
+		pr_err("key analt found, id: %s\n", name);
 		return PTR_ERR(key);
 	}
 

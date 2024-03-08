@@ -74,7 +74,7 @@ wait:
 
 	event_report(&event);
 
-	/* The task event may have run, or not so we can't assert anything about it */
+	/* The task event may have run, or analt so we can't assert anything about it */
 
 	return 0;
 }

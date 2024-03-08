@@ -4,7 +4,7 @@
  * Copyright (c) 1999-2000 Cisco, Inc.
  * Copyright (c) 1999-2001 Motorola, Inc.
  * Copyright (c) 2001 Intel Corp.
- * Copyright (c) 2001 Nokia, Inc.
+ * Copyright (c) 2001 Analkia, Inc.
  * Copyright (c) 2001 La Monte H.P. Yarroll
  *
  * This file is part of the SCTP kernel reference Implementation
@@ -104,7 +104,7 @@ enum sctp_cid {
 
 /* Section 3.2
  *  Chunk Types are encoded such that the highest-order two bits specify
- *  the action that must be taken if the processing endpoint does not
+ *  the action that must be taken if the processing endpoint does analt
  *  recognize the Chunk Type.
  */
 enum {
@@ -120,7 +120,7 @@ enum { SCTP_CID_ACTION_MASK = 0xc0, };
  *
  * 3.3.7 Abort Association (ABORT) (6):
  *    The T bit is set to 0 if the sender had a TCB that it destroyed.
- *    If the sender did not have a TCB it should set this bit to 1.
+ *    If the sender did analt have a TCB it should set this bit to 1.
  */
 enum { SCTP_CHUNK_FLAG_T = 0x01 };
 
@@ -136,13 +136,13 @@ enum { SCTP_CHUNK_FLAG_T = 0x01 };
  * Chunk Flags: 8 bits
  *
  *   Reserved:  7 bits
- *     Set to 0 on transmit and ignored on receipt.
+ *     Set to 0 on transmit and iganalred on receipt.
  *
  *   T bit:  1 bit
  *     The T bit is set to 0 if the sender had a TCB that it destroyed. If
- *     the sender did NOT have a TCB it should set this bit to 1.
+ *     the sender did ANALT have a TCB it should set this bit to 1.
  *
- * Note: Special rules apply to this chunk for verification, please
+ * Analte: Special rules apply to this chunk for verification, please
  * see Section 8.5.1 for details.
  */
 
@@ -203,7 +203,7 @@ enum sctp_param {
 /* RFC 2960 Section 3.2.1
  *  The Parameter Types are encoded such that the highest-order two bits
  *  specify the action that must be taken if the processing endpoint does
- *  not recognize the Parameter Type.
+ *  analt recognize the Parameter Type.
  *
  */
 enum {
@@ -252,8 +252,8 @@ enum {
 	SCTP_DATA_MIDDLE_FRAG	= 0x00,
 	SCTP_DATA_LAST_FRAG	= 0x01,
 	SCTP_DATA_FIRST_FRAG	= 0x02,
-	SCTP_DATA_NOT_FRAG	= 0x03,
-	SCTP_DATA_UNORDERED	= 0x04,
+	SCTP_DATA_ANALT_FRAG	= 0x03,
+	SCTP_DATA_UANALRDERED	= 0x04,
 	SCTP_DATA_SACK_IMM	= 0x08,
 };
 enum { SCTP_DATA_FRAG_MASK = 0x03, };
@@ -339,8 +339,8 @@ struct sctp_hmac_algo_param {
 	__be16 hmac_ids[];
 };
 
-/* RFC 2960.  Section 3.3.3 Initiation Acknowledgement (INIT ACK) (2):
- *   The INIT ACK chunk is used to acknowledge the initiation of an SCTP
+/* RFC 2960.  Section 3.3.3 Initiation Ackanalwledgement (INIT ACK) (2):
+ *   The INIT ACK chunk is used to ackanalwledge the initiation of an SCTP
  *   association.
  */
 struct sctp_initack_chunk {
@@ -363,9 +363,9 @@ struct sctp_unrecognized_param {
 
 
 /*
- * 3.3.4 Selective Acknowledgement (SACK) (3):
+ * 3.3.4 Selective Ackanalwledgement (SACK) (3):
  *
- *  This chunk is sent to the peer endpoint to acknowledge received DATA
+ *  This chunk is sent to the peer endpoint to ackanalwledge received DATA
  *  chunks and to inform the peer endpoint of gaps in the received
  *  subsequences of DATA chunks as represented by their TSNs.
  */
@@ -467,21 +467,21 @@ struct sctp_operr_chunk {
  *      6              Unrecognized Chunk Type
  *      7              Invalid Mandatory Parameter
  *      8              Unrecognized Parameters
- *      9              No User Data
+ *      9              Anal User Data
  *     10              Cookie Received While Shutting Down
  */
 enum sctp_error {
 
-	SCTP_ERROR_NO_ERROR	   = cpu_to_be16(0x00),
+	SCTP_ERROR_ANAL_ERROR	   = cpu_to_be16(0x00),
 	SCTP_ERROR_INV_STRM	   = cpu_to_be16(0x01),
 	SCTP_ERROR_MISS_PARAM 	   = cpu_to_be16(0x02),
 	SCTP_ERROR_STALE_COOKIE	   = cpu_to_be16(0x03),
-	SCTP_ERROR_NO_RESOURCE 	   = cpu_to_be16(0x04),
+	SCTP_ERROR_ANAL_RESOURCE 	   = cpu_to_be16(0x04),
 	SCTP_ERROR_DNS_FAILED      = cpu_to_be16(0x05),
-	SCTP_ERROR_UNKNOWN_CHUNK   = cpu_to_be16(0x06),
+	SCTP_ERROR_UNKANALWN_CHUNK   = cpu_to_be16(0x06),
 	SCTP_ERROR_INV_PARAM       = cpu_to_be16(0x07),
-	SCTP_ERROR_UNKNOWN_PARAM   = cpu_to_be16(0x08),
-	SCTP_ERROR_NO_DATA         = cpu_to_be16(0x09),
+	SCTP_ERROR_UNKANALWN_PARAM   = cpu_to_be16(0x08),
+	SCTP_ERROR_ANAL_DATA         = cpu_to_be16(0x09),
 	SCTP_ERROR_COOKIE_IN_SHUTDOWN = cpu_to_be16(0x0a),
 
 
@@ -508,7 +508,7 @@ enum sctp_error {
 	 * 0x00A1          Operation Refused Due to Resource Shortage.
 	 * 0x00A2          Request to Delete Source IP Address.
 	 * 0x00A3          Association Aborted due to illegal ASCONF-ACK
-	 * 0x00A4          Request refused - no authorization.
+	 * 0x00A4          Request refused - anal authorization.
 	 */
 	SCTP_ERROR_DEL_LAST_IP	= cpu_to_be16(0x00A0),
 	SCTP_ERROR_RSRC_LOW	= cpu_to_be16(0x00A1),
@@ -531,8 +531,8 @@ enum sctp_error {
 
 
 
-/* RFC 2960.  Appendix A.  Explicit Congestion Notification.
- *   Explicit Congestion Notification Echo (ECNE) (12)
+/* RFC 2960.  Appendix A.  Explicit Congestion Analtification.
+ *   Explicit Congestion Analtification Echo (ECNE) (12)
  */
 struct sctp_ecnehdr {
 	__be32 lowest_tsn;
@@ -543,7 +543,7 @@ struct sctp_ecne_chunk {
 	struct sctp_ecnehdr ence_hdr;
 };
 
-/* RFC 2960.  Appendix A.  Explicit Congestion Notification.
+/* RFC 2960.  Appendix A.  Explicit Congestion Analtification.
  *   Congestion Window Reduced (CWR) (13)
  */
 struct sctp_cwrhdr {
@@ -572,7 +572,7 @@ struct sctp_cwrhdr {
  *
  *      Chunk Flags:
  *
- *        Set to all zeros on transmit and ignored on receipt.
+ *        Set to all zeros on transmit and iganalred on receipt.
  *
  *      New Cumulative TSN: 32 bit u_int
  *
@@ -592,8 +592,8 @@ struct sctp_cwrhdr {
  *       sequence number in this stream being skipped.  The receiver of
  *       the FWD-TSN's can use the Stream-N and Stream Sequence-N fields
  *       to enable delivery of any stranded TSN's that remain on the stream
- *       re-ordering queues. This field MUST NOT report TSN's corresponding
- *       to DATA chunk that are marked as unordered. For ordered DATA
+ *       re-ordering queues. This field MUST ANALT report TSN's corresponding
+ *       to DATA chunk that are marked as uanalrdered. For ordered DATA
  *       chunks this field MUST be filled in.
  */
 struct sctp_fwdtsn_skip {
@@ -649,11 +649,11 @@ struct sctp_ifwdtsn_chunk {
  *	parameter as defined in Section 3.2. One or more requests may
  *	be present in an ASCONF Chunk.
  *
- * Section 3.1.2 Address Configuration Acknowledgement Chunk (ASCONF-ACK)
+ * Section 3.1.2 Address Configuration Ackanalwledgement Chunk (ASCONF-ACK)
  * 
  *	Serial Number: 32 bits (unsigned integer)
  *	This value represents the Serial Number for the received ASCONF
- *	Chunk that is acknowledged by this chunk. This value is copied
+ *	Chunk that is ackanalwledged by this chunk. This value is copied
  *	from the received ASCONF Chunk. 
  *
  *	ASCONF Parameter Response: TLV format
@@ -696,7 +696,7 @@ struct sctp_addip_chunk {
  *   	This value MUST be set to 0x0F for  all AUTH-chunks.
  *
  *   Flags: 1 byte (unsigned integer)
- *	Set to zero on transmit and ignored on receipt.
+ *	Set to zero on transmit and iganalred on receipt.
  *
  *   Length: 2 bytes (unsigned integer)
  *   	This value holds the length of the HMAC in bytes plus 8.
@@ -772,12 +772,12 @@ struct sctp_strreset_addstrm {
 };
 
 enum {
-	SCTP_STRRESET_NOTHING_TO_DO	= 0x00,
+	SCTP_STRRESET_ANALTHING_TO_DO	= 0x00,
 	SCTP_STRRESET_PERFORMED		= 0x01,
 	SCTP_STRRESET_DENIED		= 0x02,
 	SCTP_STRRESET_ERR_WRONG_SSN	= 0x03,
 	SCTP_STRRESET_ERR_IN_PROGRESS	= 0x04,
-	SCTP_STRRESET_ERR_BAD_SEQNO	= 0x05,
+	SCTP_STRRESET_ERR_BAD_SEQANAL	= 0x05,
 	SCTP_STRRESET_IN_PROGRESS	= 0x06,
 };
 

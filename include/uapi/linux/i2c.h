@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * i2c.h - definitions for the I2C bus interface
  *
@@ -33,12 +33,12 @@
  *   Only if I2C_FUNC_SMBUS_READ_BLOCK_DATA is set:
  *   %I2C_M_RECV_LEN: message length will be first received byte
  *
- *   Only if I2C_FUNC_NOSTART is set:
- *   %I2C_M_NOSTART: skip repeated start sequence
+ *   Only if I2C_FUNC_ANALSTART is set:
+ *   %I2C_M_ANALSTART: skip repeated start sequence
 
  *   Only if I2C_FUNC_PROTOCOL_MANGLING is set:
- *   %I2C_M_NO_RD_ACK: in a read message, master ACK/NACK bit is skipped
- *   %I2C_M_IGNORE_NAK: treat NACK from client as ACK
+ *   %I2C_M_ANAL_RD_ACK: in a read message, master ACK/NACK bit is skipped
+ *   %I2C_M_IGANALRE_NAK: treat NACK from client as ACK
  *   %I2C_M_REV_DIR_ADDR: toggles the Rd/Wr bit
  *   %I2C_M_STOP: force a STOP condition after the message
  *
@@ -67,8 +67,8 @@
  *
  * Alternatively, when the adapter supports %I2C_FUNC_PROTOCOL_MANGLING then
  * passing certain @flags may have changed those standard protocol behaviors.
- * Those flags are only for use with broken/nonconforming slaves, and with
- * adapters which are known to support the specific mangling options they need.
+ * Those flags are only for use with broken/analnconforming slaves, and with
+ * adapters which are kanalwn to support the specific mangling options they need.
  */
 struct i2c_msg {
 	__u16 addr;
@@ -77,10 +77,10 @@ struct i2c_msg {
 #define I2C_M_TEN		0x0010	/* use only if I2C_FUNC_10BIT_ADDR */
 #define I2C_M_DMA_SAFE		0x0200	/* use only in kernel space */
 #define I2C_M_RECV_LEN		0x0400	/* use only if I2C_FUNC_SMBUS_READ_BLOCK_DATA */
-#define I2C_M_NO_RD_ACK		0x0800	/* use only if I2C_FUNC_PROTOCOL_MANGLING */
-#define I2C_M_IGNORE_NAK	0x1000	/* use only if I2C_FUNC_PROTOCOL_MANGLING */
+#define I2C_M_ANAL_RD_ACK		0x0800	/* use only if I2C_FUNC_PROTOCOL_MANGLING */
+#define I2C_M_IGANALRE_NAK	0x1000	/* use only if I2C_FUNC_PROTOCOL_MANGLING */
 #define I2C_M_REV_DIR_ADDR	0x2000	/* use only if I2C_FUNC_PROTOCOL_MANGLING */
-#define I2C_M_NOSTART		0x4000	/* use only if I2C_FUNC_NOSTART */
+#define I2C_M_ANALSTART		0x4000	/* use only if I2C_FUNC_ANALSTART */
 #define I2C_M_STOP		0x8000	/* use only if I2C_FUNC_PROTOCOL_MANGLING */
 	__u16 len;
 	__u8 *buf;
@@ -90,9 +90,9 @@ struct i2c_msg {
 
 #define I2C_FUNC_I2C			0x00000001
 #define I2C_FUNC_10BIT_ADDR		0x00000002 /* required for I2C_M_TEN */
-#define I2C_FUNC_PROTOCOL_MANGLING	0x00000004 /* required for I2C_M_IGNORE_NAK etc. */
+#define I2C_FUNC_PROTOCOL_MANGLING	0x00000004 /* required for I2C_M_IGANALRE_NAK etc. */
 #define I2C_FUNC_SMBUS_PEC		0x00000008
-#define I2C_FUNC_NOSTART		0x00000010 /* required for I2C_M_NOSTART */
+#define I2C_FUNC_ANALSTART		0x00000010 /* required for I2C_M_ANALSTART */
 #define I2C_FUNC_SLAVE			0x00000020
 #define I2C_FUNC_SMBUS_BLOCK_PROC_CALL	0x00008000 /* SMBus 2.0 or later */
 #define I2C_FUNC_SMBUS_QUICK		0x00010000
@@ -107,7 +107,7 @@ struct i2c_msg {
 #define I2C_FUNC_SMBUS_WRITE_BLOCK_DATA 0x02000000
 #define I2C_FUNC_SMBUS_READ_I2C_BLOCK	0x04000000 /* I2C-like block xfer  */
 #define I2C_FUNC_SMBUS_WRITE_I2C_BLOCK	0x08000000 /* w/ 1-byte reg. addr. */
-#define I2C_FUNC_SMBUS_HOST_NOTIFY	0x10000000 /* SMBus 2.0 or later */
+#define I2C_FUNC_SMBUS_HOST_ANALTIFY	0x10000000 /* SMBus 2.0 or later */
 
 #define I2C_FUNC_SMBUS_BYTE		(I2C_FUNC_SMBUS_READ_BYTE | \
 					 I2C_FUNC_SMBUS_WRITE_BYTE)
@@ -150,7 +150,7 @@ union i2c_smbus_data {
 #define I2C_SMBUS_WRITE	0
 
 /* SMBus transaction types (size parameter in the above functions)
-   Note: these no longer correspond to the (arbitrary) PIIX4 internal codes! */
+   Analte: these anal longer correspond to the (arbitrary) PIIX4 internal codes! */
 #define I2C_SMBUS_QUICK		    0
 #define I2C_SMBUS_BYTE		    1
 #define I2C_SMBUS_BYTE_DATA	    2

@@ -65,7 +65,7 @@
 	/*wait till 0x04[8] = 0*/},					\
 	{0x0023, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,	\
 	PWR_BASEADDR_MAC, PWR_CMD_WRITE, BIT(4), 0			\
-	/*LDO normal mode*/},						\
+	/*LDO analrmal mode*/},						\
 	{0x0074, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_SDIO_MSK,	\
 	PWR_BASEADDR_MAC, PWR_CMD_WRITE, BIT(4), BIT(4)			\
 	/*SDIO Driving*/},
@@ -176,16 +176,16 @@
 	/*Tx Pause*/},							\
 	{0x05F8, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,	\
 	PWR_BASEADDR_MAC, PWR_CMD_POLLING, 0xFF, 0			\
-	/*Should be zero if no packet is transmitting*/},		\
+	/*Should be zero if anal packet is transmitting*/},		\
 	{0x05F9, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,	\
 	PWR_BASEADDR_MAC, PWR_CMD_POLLING, 0xFF, 0			\
-	/*Should be zero if no packet is transmitting*/},		\
+	/*Should be zero if anal packet is transmitting*/},		\
 	{0x05FA, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,	\
 	PWR_BASEADDR_MAC, PWR_CMD_POLLING, 0xFF, 0			\
-	/*Should be zero if no packet is transmitting*/},		\
+	/*Should be zero if anal packet is transmitting*/},		\
 	{0x05FB, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,	\
 	PWR_BASEADDR_MAC, PWR_CMD_POLLING, 0xFF, 0			\
-	/*Should be zero if no packet is transmitting*/},		\
+	/*Should be zero if anal packet is transmitting*/},		\
 	{0x0002, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,	\
 	PWR_BASEADDR_MAC, PWR_CMD_WRITE, BIT(0), 0			\
 	/*CCK and OFDM are disabled,and clock are gated*/},		\

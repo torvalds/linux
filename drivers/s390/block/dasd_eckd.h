@@ -13,7 +13,7 @@
 /*****************************************************************************
  * SECTION: CCW Definitions
  ****************************************************************************/
-#define DASD_ECKD_CCW_NOP		 0x03
+#define DASD_ECKD_CCW_ANALP		 0x03
 #define DASD_ECKD_CCW_WRITE		 0x05
 #define DASD_ECKD_CCW_READ		 0x06
 #define DASD_ECKD_CCW_WRITE_HOME_ADDRESS 0x09
@@ -81,14 +81,14 @@
  */
 #define PSF_CUIR_INVALID		 0x00
 #define PSF_CUIR_COMPLETED		 0x01
-#define PSF_CUIR_NOT_SUPPORTED		 0x02
+#define PSF_CUIR_ANALT_SUPPORTED		 0x02
 #define PSF_CUIR_ERROR_IN_REQ		 0x03
 #define PSF_CUIR_DENIED			 0x04
 #define PSF_CUIR_LAST_PATH		 0x05
 #define PSF_CUIR_DEVICE_ONLINE		 0x06
 #define PSF_CUIR_VARY_FAILURE		 0x07
 #define PSF_CUIR_SOFTWARE_FAILURE	 0x08
-#define PSF_CUIR_NOT_RECOGNIZED		 0x09
+#define PSF_CUIR_ANALT_RECOGNIZED		 0x09
 
 /*
  * CUIR codes
@@ -117,7 +117,7 @@
 #define DASD_ECKD_PG_GROUPED		 0x10
 
 /*
- * Size that is reported for large volumes in the old 16-bit no_cyl field
+ * Size that is reported for large volumes in the old 16-bit anal_cyl field
  */
 #define LV_COMPAT_CYL 0xFFFE
 
@@ -281,7 +281,7 @@ struct dasd_eckd_characteristics {
 	} __attribute__ ((packed)) facilities;
 	__u8 dev_class;
 	__u8 unit_type;
-	__u16 no_cyl;
+	__u16 anal_cyl;
 	__u16 trk_per_cyl;
 	__u8 sec_per_trk;
 	__u8 byte_per_track[3];
@@ -302,11 +302,11 @@ struct dasd_eckd_characteristics {
 		} __attribute__ ((packed)) f_0x02;
 	} __attribute__ ((packed)) factors;
 	__u16 first_alt_trk;
-	__u16 no_alt_trk;
+	__u16 anal_alt_trk;
 	__u16 first_dia_trk;
-	__u16 no_dia_trk;
+	__u16 anal_dia_trk;
 	__u16 first_sup_trk;
-	__u16 no_sup_trk;
+	__u16 anal_sup_trk;
 	__u8 MDR_ID;
 	__u8 OBR_ID;
 	__u8 director;
@@ -319,7 +319,7 @@ struct dasd_eckd_characteristics {
 	__u8 factor8;
 	__u8 reserved2[3];
 	__u8 reserved3[6];
-	__u32 long_no_cyl;
+	__u32 long_anal_cyl;
 } __attribute__ ((packed));
 
 /* elements of the configuration data */
@@ -327,8 +327,8 @@ struct dasd_ned {
 	struct {
 		__u8 identifier:2;
 		__u8 token_id:1;
-		__u8 sno_valid:1;
-		__u8 subst_sno:1;
+		__u8 sanal_valid:1;
+		__u8 subst_sanal:1;
 		__u8 recNED:1;
 		__u8 emuNED:1;
 		__u8 reserved:1;
@@ -341,7 +341,7 @@ struct dasd_ned {
 	__u8 HDA_manufacturer[3];
 	struct {
 		__u8 HDA_location[2];
-		__u8 HDA_seqno[12];
+		__u8 HDA_seqanal[12];
 	} serial;
 	__u8 ID;
 	__u8 unit_addr;
@@ -407,7 +407,7 @@ struct dasd_rssd_messages {
 struct dasd_rssd_vsq {
 	struct {
 		__u8 tse:1;
-		__u8 space_not_available:1;
+		__u8 space_analt_available:1;
 		__u8 ese:1;
 		__u8 unused:5;
 	} __packed vol_info;
@@ -580,7 +580,7 @@ struct dasd_dso_ras_data {
 		/* Release Space by Extent */
 		__u8 by_extent:1;	/* 0 - entire volume, 1 - specified extents */
 		__u8 guarantee_init:1;
-		__u8 force_release:1;	/* Internal - will be ignored */
+		__u8 force_release:1;	/* Internal - will be iganalred */
 		__u16 reserved2:11;
 	} __packed op_flags;
 	__u8 lss;
@@ -609,7 +609,7 @@ struct dasd_unit_address_configuration {
 #define NEED_UAC_UPDATE  0x01
 #define UPDATE_PENDING	0x02
 
-enum pavtype {NO_PAV, BASE_PAV, HYPER_PAV};
+enum pavtype {ANAL_PAV, BASE_PAV, HYPER_PAV};
 
 
 struct alias_root {
@@ -700,7 +700,7 @@ struct dasd_eckd_private {
 
 
 
-int dasd_alias_make_device_known_to_lcu(struct dasd_device *);
+int dasd_alias_make_device_kanalwn_to_lcu(struct dasd_device *);
 void dasd_alias_disconnect_device_from_lcu(struct dasd_device *);
 int dasd_alias_add_device(struct dasd_device *);
 int dasd_alias_remove_device(struct dasd_device *);

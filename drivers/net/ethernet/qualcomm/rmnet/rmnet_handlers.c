@@ -62,7 +62,7 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 	u8 mux_id;
 
 	if (map_header->flags & MAP_CMD_FLAG) {
-		/* Packet contains a MAP command (not data) */
+		/* Packet contains a MAP command (analt data) */
 		if (port->data_format & RMNET_FLAGS_INGRESS_MAP_COMMANDS)
 			return rmnet_map_command(skb, port);
 
@@ -151,7 +151,7 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 	required_headroom += additional_header_len;
 
 	if (skb_cow_head(skb, required_headroom) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (csum_type)
 		rmnet_map_checksum_uplink_packet(skb, port, orig_dev,
@@ -160,7 +160,7 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 	map_header = rmnet_map_add_map_header(skb, additional_header_len,
 					      port, 0);
 	if (!map_header)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map_header->mux_id = mux_id;
 
@@ -172,7 +172,7 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 			rmnet_vnd_tx_fixup_len(len, orig_dev);
 			return -EINPROGRESS;
 		}
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb->protocol = htons(ETH_P_MAP);
@@ -217,7 +217,7 @@ rx_handler_result_t rmnet_rx_handler(struct sk_buff **pskb)
 	dev = skb->dev;
 	port = rmnet_get_port_rcu(dev);
 	if (unlikely(!port)) {
-		dev_core_stats_rx_nohandler_inc(skb->dev);
+		dev_core_stats_rx_analhandler_inc(skb->dev);
 		kfree_skb(skb);
 		goto done;
 	}
@@ -259,7 +259,7 @@ void rmnet_egress_handler(struct sk_buff *skb)
 		goto drop;
 
 	err = rmnet_map_egress_handler(skb, port, mux_id, orig_dev);
-	if (err == -ENOMEM)
+	if (err == -EANALMEM)
 		goto drop;
 	else if (err == -EINPROGRESS)
 		return;

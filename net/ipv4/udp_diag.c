@@ -2,7 +2,7 @@
 /*
  * udp_diag.c	Module for monitoring UDP transport protocols sockets.
  *
- * Authors:	Pavel Emelyanov, <xemul@parallels.com>
+ * Authors:	Pavel Emelyaanalv, <xemul@parallels.com>
  */
 
 
@@ -51,18 +51,18 @@ static int udp_dump_one(struct udp_table *tbl,
 				req->id.idiag_dport,
 				req->id.idiag_if, 0, tbl, NULL);
 #endif
-	if (sk && !refcount_inc_not_zero(&sk->sk_refcnt))
+	if (sk && !refcount_inc_analt_zero(&sk->sk_refcnt))
 		sk = NULL;
 	rcu_read_unlock();
-	err = -ENOENT;
+	err = -EANALENT;
 	if (!sk)
-		goto out_nosk;
+		goto out_analsk;
 
 	err = sock_diag_check_cookie(sk, req->id.idiag_cookie);
 	if (err)
 		goto out;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	rep = nlmsg_new(nla_total_size(sizeof(struct inet_diag_msg)) +
 			inet_diag_msg_attrs_size() +
 			nla_total_size(sizeof(struct inet_diag_meminfo)) + 64,
@@ -82,7 +82,7 @@ static int udp_dump_one(struct udp_table *tbl,
 out:
 	if (sk)
 		sock_put(sk);
-out_nosk:
+out_analsk:
 	return err;
 }
 
@@ -202,17 +202,17 @@ static int __udp_diag_destroy(struct sk_buff *in_skb,
 		return -EINVAL;
 	}
 
-	if (sk && !refcount_inc_not_zero(&sk->sk_refcnt))
+	if (sk && !refcount_inc_analt_zero(&sk->sk_refcnt))
 		sk = NULL;
 
 	rcu_read_unlock();
 
 	if (!sk)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (sock_diag_check_cookie(sk, req->id.idiag_cookie)) {
 		sock_put(sk);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = sock_diag_destroy(sk, ECONNABORTED);

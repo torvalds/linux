@@ -123,19 +123,19 @@ static int rdc321x_gpio_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data supplied\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal platform data supplied\n");
+		return -EANALDEV;
 	}
 
 	rdc321x_gpio_dev = devm_kzalloc(&pdev->dev, sizeof(struct rdc321x_gpio),
 					GFP_KERNEL);
 	if (!rdc321x_gpio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_IO, "gpio-reg1");
 	if (!r) {
 		dev_err(&pdev->dev, "failed to get gpio-reg1 resource\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	spin_lock_init(&rdc321x_gpio_dev->lock);
@@ -146,7 +146,7 @@ static int rdc321x_gpio_probe(struct platform_device *pdev)
 	r = platform_get_resource_byname(pdev, IORESOURCE_IO, "gpio-reg2");
 	if (!r) {
 		dev_err(&pdev->dev, "failed to get gpio-reg2 resource\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rdc321x_gpio_dev->reg2_ctrl_base = r->start;
@@ -163,7 +163,7 @@ static int rdc321x_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rdc321x_gpio_dev);
 
-	/* This might not be, what others (BIOS, bootloader, etc.)
+	/* This might analt be, what others (BIOS, bootloader, etc.)
 	   wrote to these registers before, but it's a good guess. Still
 	   better than just using 0xffffffff. */
 	err = pci_read_config_dword(rdc321x_gpio_dev->sb_pdev,

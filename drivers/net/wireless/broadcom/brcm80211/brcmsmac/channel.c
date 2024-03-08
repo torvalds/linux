@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -59,18 +59,18 @@
 
 #define BRCM_2GHZ_2412_2462	REG_RULE(2412-10, 2462+10, 40, 0, 19, 0)
 #define BRCM_2GHZ_2467_2472	REG_RULE(2467-10, 2472+10, 20, 0, 19, \
-					 NL80211_RRF_NO_IR)
+					 NL80211_RRF_ANAL_IR)
 
 #define BRCM_5GHZ_5180_5240	REG_RULE(5180-10, 5240+10, 40, 0, 21, \
-					 NL80211_RRF_NO_IR)
+					 NL80211_RRF_ANAL_IR)
 #define BRCM_5GHZ_5260_5320	REG_RULE(5260-10, 5320+10, 40, 0, 21, \
 					 NL80211_RRF_DFS | \
-					 NL80211_RRF_NO_IR)
+					 NL80211_RRF_ANAL_IR)
 #define BRCM_5GHZ_5500_5700	REG_RULE(5500-10, 5700+10, 40, 0, 21, \
 					 NL80211_RRF_DFS | \
-					 NL80211_RRF_NO_IR)
+					 NL80211_RRF_ANAL_IR)
 #define BRCM_5GHZ_5745_5825	REG_RULE(5745-10, 5825+10, 40, 0, 21, \
-					 NL80211_RRF_NO_IR)
+					 NL80211_RRF_ANAL_IR)
 
 static const struct ieee80211_regdomain brcms_regdom_x2 = {
 	.n_reg_rules = 6,
@@ -167,9 +167,9 @@ static const struct locale_mimo_info *brcms_c_get_mimo_5g(u8 locale_idx)
 
 /*
  * Indicates whether the country provided is valid to pass
- * to cfg80211 or not.
+ * to cfg80211 or analt.
  *
- * returns true if valid; false if not.
+ * returns true if valid; false if analt.
  */
 static bool brcms_c_country_valid(const char *ccode)
 {
@@ -182,7 +182,7 @@ static bool brcms_c_country_valid(const char *ccode)
 		return false;
 
 	/*
-	 * do not match ISO 3166-1 user assigned country codes
+	 * do analt match ISO 3166-1 user assigned country codes
 	 * that may be in the driver table
 	 */
 	if (!strcmp("AA", ccode) ||        /* AA */
@@ -344,7 +344,7 @@ struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc)
 		memcpy(wlc->pub->srom_ccode, ccode, ccode_len);
 
 	/*
-	 * If no custom world domain is found in the SROM, use the
+	 * If anal custom world domain is found in the SROM, use the
 	 * default "X2" domain.
 	 */
 	if (!wlc_cm->world_regd) {
@@ -384,13 +384,13 @@ brcms_c_channel_set_chanspec(struct brcms_cm_info *wlc_cm, u16 chanspec,
 	);
 
 	/* set or restore gmode as required by regulatory */
-	if (ch->flags & IEEE80211_CHAN_NO_OFDM)
+	if (ch->flags & IEEE80211_CHAN_ANAL_OFDM)
 		brcms_c_set_gmode(wlc, GMODE_LEGACY_B, false);
 	else
 		brcms_c_set_gmode(wlc, wlc->protection->gmode_user, false);
 
 	brcms_b_set_chanspec(wlc->hw, chanspec,
-			      !!(ch->flags & IEEE80211_CHAN_NO_IR),
+			      !!(ch->flags & IEEE80211_CHAN_ANAL_IR),
 			      &txpwr);
 }
 
@@ -582,9 +582,9 @@ static bool brcms_c_chspec_malformed(u16 chanspec)
 	if (!CHSPEC_IS40(chanspec) && !CHSPEC_IS20(chanspec))
 		return true;
 
-	/* 20MHZ b/w must have no ctl sb, 40 must have a ctl sb */
+	/* 20MHZ b/w must have anal ctl sb, 40 must have a ctl sb */
 	if (CHSPEC_IS20(chanspec)) {
-		if (!CHSPEC_SB_NONE(chanspec))
+		if (!CHSPEC_SB_ANALNE(chanspec))
 			return true;
 	} else if (!CHSPEC_SB_UPPER(chanspec) && !CHSPEC_SB_LOWER(chanspec)) {
 		return true;
@@ -650,7 +650,7 @@ static void brcms_reg_apply_radar_flags(struct wiphy *wiphy)
 		 */
 		if (!(ch->flags & IEEE80211_CHAN_DISABLED))
 			ch->flags |= IEEE80211_CHAN_RADAR |
-				     IEEE80211_CHAN_NO_IR;
+				     IEEE80211_CHAN_ANAL_IR;
 	}
 }
 
@@ -681,16 +681,16 @@ brcms_reg_apply_beaconing_flags(struct wiphy *wiphy,
 				if (IS_ERR(rule))
 					continue;
 
-				if (!(rule->flags & NL80211_RRF_NO_IR))
-					ch->flags &= ~IEEE80211_CHAN_NO_IR;
+				if (!(rule->flags & NL80211_RRF_ANAL_IR))
+					ch->flags &= ~IEEE80211_CHAN_ANAL_IR;
 			} else if (ch->beacon_found) {
-				ch->flags &= ~IEEE80211_CHAN_NO_IR;
+				ch->flags &= ~IEEE80211_CHAN_ANAL_IR;
 			}
 		}
 	}
 }
 
-static void brcms_reg_notifier(struct wiphy *wiphy,
+static void brcms_reg_analtifier(struct wiphy *wiphy,
 			       struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
@@ -725,7 +725,7 @@ static void brcms_reg_notifier(struct wiphy *wiphy,
 	} else {
 		mboolset(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
 		brcms_err(wlc->hw->d11core,
-			  "wl%d: %s: no valid channel for \"%s\"\n",
+			  "wl%d: %s: anal valid channel for \"%s\"\n",
 			  wlc->pub->unit, __func__, request->alpha2);
 	}
 
@@ -744,7 +744,7 @@ void brcms_c_regd_init(struct brcms_c_info *wlc)
 	struct brcms_band *band;
 	int band_idx, i;
 
-	/* Disable any channels not supported by the phy */
+	/* Disable any channels analt supported by the phy */
 	for (band_idx = 0; band_idx < wlc->pub->_nbands; band_idx++) {
 		band = wlc->bandstate[band_idx];
 
@@ -763,7 +763,7 @@ void brcms_c_regd_init(struct brcms_c_info *wlc)
 		}
 	}
 
-	wlc->wiphy->reg_notifier = brcms_reg_notifier;
+	wlc->wiphy->reg_analtifier = brcms_reg_analtifier;
 	wlc->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
 					REGULATORY_STRICT_REG;
 	wiphy_apply_custom_regulatory(wlc->wiphy, regd->regdomain);

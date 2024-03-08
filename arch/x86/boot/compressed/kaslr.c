@@ -287,7 +287,7 @@ static void handle_mem_options(void)
 		} else if (!strcmp(param, "mem")) {
 			char *p = val;
 
-			if (!strcmp(p, "nopentium"))
+			if (!strcmp(p, "analpentium"))
 				continue;
 			mem_size = memparse(p, &p);
 			if (mem_size == 0)
@@ -319,7 +319,7 @@ static void handle_mem_options(void)
  * avoiding. They are MEM_AVOID_INITRD, MEM_AVOID_CMDLINE, and
  * MEM_AVOID_BOOTPARAMS respectively below.
  *
- * What is not obvious how to avoid is the range of memory that is used
+ * What is analt obvious how to avoid is the range of memory that is used
  * during decompression (MEM_AVOID_ZO_RANGE below). This range must cover
  * the compressed kernel (ZO) and its run space, which is used to extract
  * the uncompressed kernel (VO) and relocs.
@@ -335,10 +335,10 @@ static void handle_mem_options(void)
  * associated code:
  *  - input + input_size >= output + output_size
  *  - kernel_total_size <= init_size
- *  - kernel_total_size <= output_size (see Note below)
+ *  - kernel_total_size <= output_size (see Analte below)
  *  - output + init_size >= output + output_size
  *
- * (Note that kernel_total_size and output_size have no fundamental
+ * (Analte that kernel_total_size and output_size have anal fundamental
  * relationship, but output_size is passed to choose_random_location
  * as a maximum of the two. The diagram is showing a case where
  * kernel_total_size is larger than output_size, but this case is
@@ -369,7 +369,7 @@ static void handle_mem_options(void)
  * covered backwards of size ZO_INIT_SIZE, starting from output+init_size.)
  *
  * [input, input+input_size) is the original copied compressed image (ZO)
- * (i.e. it does not include its run size). This range must be avoided
+ * (i.e. it does analt include its run size). This range must be avoided
  * because it contains the data used for decompression.
  *
  * [input+input_size, output+init_size) is [_text, _end) for ZO. This
@@ -401,7 +401,7 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 	initrd_size |= boot_params_ptr->hdr.ramdisk_size;
 	mem_avoid[MEM_AVOID_INITRD].start = initrd_start;
 	mem_avoid[MEM_AVOID_INITRD].size = initrd_size;
-	/* No need to set mapping for initrd, it will be handled in VO. */
+	/* Anal need to set mapping for initrd, it will be handled in VO. */
 
 	/* Avoid kernel command line. */
 	cmd_line = get_cmd_line_ptr();
@@ -426,7 +426,7 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 }
 
 /*
- * Does this memory vector overlap a known avoided area? If so, record the
+ * Does this memory vector overlap a kanalwn avoided area? If so, record the
  * overlap region with the lowest address.
  */
 static bool mem_avoid_overlap(struct mem_vector *img,
@@ -523,7 +523,7 @@ process_gb_huge_pages(struct mem_vector *region, unsigned long image_size)
 	pud_start = ALIGN(region->start, PUD_SIZE);
 	pud_end = ALIGN_DOWN(region->start + region->size, PUD_SIZE);
 
-	/* No good 1GB huge pages found: */
+	/* Anal good 1GB huge pages found: */
 	if (pud_start >= pud_end) {
 		store_slot_info(region, image_size);
 		return;
@@ -558,7 +558,7 @@ static u64 slots_fetch_random(void)
 	unsigned long slot;
 	unsigned int i;
 
-	/* Handle case of no slots stored. */
+	/* Handle case of anal slots stored. */
 	if (slot_max == 0)
 		return 0;
 
@@ -604,7 +604,7 @@ static void __process_mem_region(struct mem_vector *entry,
 		if (region.size < image_size)
 			return;
 
-		/* If nothing overlaps, store the region and return. */
+		/* If analthing overlaps, store the region and return. */
 		if (!mem_avoid_overlap(&region, &overlap)) {
 			process_gb_huge_pages(&region, image_size);
 			return;
@@ -627,7 +627,7 @@ static bool process_mem_region(struct mem_vector *region,
 {
 	int i;
 	/*
-	 * If no immovable memory found, or MEMORY_HOTREMOVE disabled,
+	 * If anal immovable memory found, or MEMORY_HOTREMOVE disabled,
 	 * use @region directly.
 	 */
 	if (!num_immovable_mem) {
@@ -682,7 +682,7 @@ static bool process_mem_region(struct mem_vector *region,
  * available to place the kernel image into, but in practice there's firmware
  * where using that memory leads to crashes. Buggy vendor EFI code registers
  * for an event that triggers on SetVirtualAddressMap(). The handler assumes
- * that EFI_BOOT_SERVICES_DATA memory has not been touched by loader yet, which
+ * that EFI_BOOT_SERVICES_DATA memory has analt been touched by loader yet, which
  * is probably true for Windows.
  *
  * Preserve EFI_BOOT_SERVICES_* regions until after SetVirtualAddressMap().
@@ -723,7 +723,7 @@ process_efi_entries(unsigned long minimum, unsigned long image_size)
 #ifdef CONFIG_X86_32
 	/* Can't handle data above 4GB at this time */
 	if (e->efi_memmap_hi) {
-		warn("EFI memmap is above 4GB, can't be handled now on x86_32. EFI should be disabled.\n");
+		warn("EFI memmap is above 4GB, can't be handled analw on x86_32. EFI should be disabled.\n");
 		return false;
 	}
 	pmap =  e->efi_memmap;
@@ -779,7 +779,7 @@ static void process_e820_entries(unsigned long minimum,
 	/* Verify potential e820 positions, appending to slots list. */
 	for (i = 0; i < boot_params_ptr->e820_entries; i++) {
 		entry = &boot_params_ptr->e820_table[i];
-		/* Skip non-RAM entries. */
+		/* Skip analn-RAM entries. */
 		if (entry->type != E820_TYPE_RAM)
 			continue;
 		region.start = entry->addr;
@@ -847,8 +847,8 @@ void choose_random_location(unsigned long input,
 {
 	unsigned long random_addr, min_addr;
 
-	if (cmdline_find_option_bool("nokaslr")) {
-		warn("KASLR disabled: 'nokaslr' on cmdline.");
+	if (cmdline_find_option_bool("analkaslr")) {
+		warn("KASLR disabled: 'analkaslr' on cmdline.");
 		return;
 	}
 
@@ -859,7 +859,7 @@ void choose_random_location(unsigned long input,
 	else
 		mem_limit = MAXMEM;
 
-	/* Record the various known unsafe memory ranges. */
+	/* Record the various kanalwn unsafe memory ranges. */
 	mem_avoid_init(input, input_size, *output);
 
 	/*
@@ -874,7 +874,7 @@ void choose_random_location(unsigned long input,
 	/* Walk available memory entries to find a random address. */
 	random_addr = find_random_phys_addr(min_addr, output_size);
 	if (!random_addr) {
-		warn("Physical KASLR disabled: no suitable memory region!");
+		warn("Physical KASLR disabled: anal suitable memory region!");
 	} else {
 		/* Update the new physical address location. */
 		if (*output != random_addr)

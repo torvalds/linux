@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2014 Marvell Technology Group Ltd.
+ * Copyright (C) 2014 Marvell Techanallogy Group Ltd.
  *
  * Antoine Tenart <antoine.tenart@free-electrons.com>
  */
@@ -57,7 +57,7 @@ static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 	if (!ci_pdata) {
 		ci_pdata = devm_kmalloc(dev, sizeof(*ci_pdata), GFP_KERNEL);
 		if (!ci_pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 		*ci_pdata = ci_default_pdata;	/* struct copy */
 	}
 
@@ -68,7 +68,7 @@ static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->clk = devm_clk_get_optional(dev, NULL);
 	if (IS_ERR(priv->clk))
@@ -95,7 +95,7 @@ static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	pm_runtime_no_callbacks(dev);
+	pm_runtime_anal_callbacks(dev);
 	pm_runtime_enable(dev);
 
 	return 0;

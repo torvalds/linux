@@ -250,11 +250,11 @@ static int bcm_otpc_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->map = device_get_match_data(dev);
 	if (!priv->map)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Get OTP base address register. */
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
@@ -272,7 +272,7 @@ static int bcm_otpc_probe(struct platform_device *pdev)
 	/* Read size of memory in words. */
 	err = device_property_read_u32(dev, "brcm,ocotp-size", &num_words);
 	if (err) {
-		dev_err(dev, "size parameter not specified\n");
+		dev_err(dev, "size parameter analt specified\n");
 		return -EINVAL;
 	} else if (num_words == 0) {
 		dev_err(dev, "size must be > 0\n");

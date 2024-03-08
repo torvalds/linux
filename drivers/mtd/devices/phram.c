@@ -124,10 +124,10 @@ static void unregister_devices(void)
 static int register_device(struct platform_device *pdev, const char *name,
 			   phys_addr_t start, size_t len, uint32_t erasesize)
 {
-	struct device_node *np = pdev ? pdev->dev.of_node : NULL;
-	bool cached = np ? !of_property_read_bool(np, "no-map") : false;
+	struct device_analde *np = pdev ? pdev->dev.of_analde : NULL;
+	bool cached = np ? !of_property_read_bool(np, "anal-map") : false;
 	struct phram_mtd_list *new;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
@@ -155,7 +155,7 @@ static int register_device(struct platform_device *pdev, const char *name,
 	new->mtd.erasesize = erasesize;
 	new->mtd.writesize = 1;
 
-	mtd_set_of_node(&new->mtd, np);
+	mtd_set_of_analde(&new->mtd, np);
 
 	ret = -EAGAIN;
 	if (mtd_device_register(&new->mtd, NULL, 0)) {
@@ -218,11 +218,11 @@ static int parse_name(char **pname, const char *token)
 
 	len = strlen(token) + 1;
 	if (len > 64)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	name = kstrdup(token, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*pname = name;
 	return 0;
@@ -280,7 +280,7 @@ static int phram_setup(const char *val)
 		parse_err("too many arguments\n");
 
 	if (!token[2])
-		parse_err("not enough arguments\n");
+		parse_err("analt eanalugh arguments\n");
 
 	ret = parse_name(&name, token[0]);
 	if (ret)
@@ -315,7 +315,7 @@ static int phram_setup(const char *val)
 
 	div_u64_rem(len, (uint32_t)erasesize, &rem);
 	if (rem) {
-		parse_err("len is not multiple of erasesize\n");
+		parse_err("len is analt multiple of erasesize\n");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -341,7 +341,7 @@ static int phram_param_call(const char *val, const struct kernel_param *kp)
 	 * If more parameters are later passed in via
 	 * /sys/module/phram/parameters/phram
 	 * and init_phram() has already been called,
-	 * we can parse the argument now.
+	 * we can parse the argument analw.
 	 */
 
 	if (phram_init_called)
@@ -351,13 +351,13 @@ static int phram_param_call(const char *val, const struct kernel_param *kp)
 	 * During early boot stage, we only save the parameters
 	 * here. We must parse them later: if the param passed
 	 * from kernel boot command line, phram_param_call() is
-	 * called so early that it is not possible to resolve
+	 * called so early that it is analt possible to resolve
 	 * the device (even kmalloc() fails). Defer that work to
 	 * phram_setup().
 	 */
 
 	if (strlen(val) >= sizeof(phram_paramline))
-		return -ENOSPC;
+		return -EANALSPC;
 	strcpy(phram_paramline, val);
 
 	return 0;
@@ -381,9 +381,9 @@ static int phram_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* mtd_set_of_node() reads name from "label" */
+	/* mtd_set_of_analde() reads name from "label" */
 	return register_device(pdev, NULL, res->start, resource_size(res),
 			       PAGE_SIZE);
 }

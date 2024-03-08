@@ -47,7 +47,7 @@ config ARCH_BCM_HR2
 	  BCM53342, BCM53343, BCM53344, BCM53346.
 
 config ARCH_BCM_NSP
-	bool "Broadcom Northstar Plus SoC Support"
+	bool "Broadcom Analrthstar Plus SoC Support"
 	depends on ARCH_MULTI_V7
 	select ARCH_BCM_IPROC
 	select ARM_ERRATA_754322
@@ -55,8 +55,8 @@ config ARCH_BCM_NSP
 	select ARM_ERRATA_764369 if SMP
 	select ARM_TIMER_SP804
 	help
-	  Support for Broadcom Northstar Plus SoC.
-	  Broadcom Northstar Plus family of SoCs are used for switching control
+	  Support for Broadcom Analrthstar Plus SoC.
+	  Broadcom Analrthstar Plus family of SoCs are used for switching control
 	  and management applications as well as residential router/gateway
 	  applications. The SoC features dual core Cortex A9 ARM CPUs,
 	  integrating several peripheral interfaces including multiple Gigabit
@@ -75,12 +75,12 @@ config ARCH_BCM_5301X
 	  Support for Broadcom BCM470X and BCM5301X SoCs with ARM CPU cores.
 
 	  This is a network SoC line mostly used in home routers and
-	  wifi access points, its internal name is Northstar.
+	  wifi access points, its internal name is Analrthstar.
 	  This includes the following SoC: BCM53010, BCM53011, BCM53012,
 	  BCM53014, BCM53015, BCM53016, BCM53017, BCM53018, BCM4707,
 	  BCM4708 and BCM4709.
 
-	  Do not confuse this with the BCM4760 which is a totally
+	  Do analt confuse this with the BCM4760 which is a totally
 	  different SoC or with the older BCM47XX and BCM53XX based
 	  network SoC using a MIPS CPU, they are supported by arch/mips/bcm47xx
 
@@ -175,7 +175,7 @@ config ARCH_BCM_53573
 	  BCM53573 series is set of SoCs using ARM Cortex-A7 CPUs with wireless
 	  embedded in the chipset.
 	  This SoC line is mostly used in home routers and is some cheaper
-	  alternative for Northstar family.
+	  alternative for Analrthstar family.
 
 	  The base chip is BCM53573 and there are some packaging modifications
 	  like BCM47189 and BCM47452.

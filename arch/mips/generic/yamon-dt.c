@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2016 Imagination Technologies
+ * Copyright (C) 2016 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
 #define pr_fmt(fmt) "yamon-dt: " fmt
 
 #include <linux/bug.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/libfdt.h>
 #include <linux/printk.h>
@@ -21,12 +21,12 @@ __init int yamon_dt_append_cmdline(void *fdt)
 {
 	int err, chosen_off;
 
-	/* find or add chosen node */
+	/* find or add chosen analde */
 	chosen_off = fdt_path_offset(fdt, "/chosen");
-	if (chosen_off == -FDT_ERR_NOTFOUND)
-		chosen_off = fdt_add_subnode(fdt, 0, "chosen");
+	if (chosen_off == -FDT_ERR_ANALTFOUND)
+		chosen_off = fdt_add_subanalde(fdt, 0, "chosen");
 	if (chosen_off < 0) {
-		pr_err("Unable to find or add DT chosen node: %d\n",
+		pr_err("Unable to find or add DT chosen analde: %d\n",
 		       chosen_off);
 		return chosen_off;
 	}
@@ -118,18 +118,18 @@ __init int yamon_dt_append_memory(void *fdt,
 	/* if the user says there's more RAM than we thought, believe them */
 	phys_memsize = max_t(unsigned long, phys_memsize, memsize);
 
-	/* find or add a memory node */
+	/* find or add a memory analde */
 	mem_off = fdt_path_offset(fdt, "/memory");
-	if (mem_off == -FDT_ERR_NOTFOUND)
-		mem_off = fdt_add_subnode(fdt, 0, "memory");
+	if (mem_off == -FDT_ERR_ANALTFOUND)
+		mem_off = fdt_add_subanalde(fdt, 0, "memory");
 	if (mem_off < 0) {
-		pr_err("Unable to find or add memory DT node: %d\n", mem_off);
+		pr_err("Unable to find or add memory DT analde: %d\n", mem_off);
 		return mem_off;
 	}
 
 	err = fdt_setprop_string(fdt, mem_off, "device_type", "memory");
 	if (err) {
-		pr_err("Unable to set memory node device_type: %d\n", err);
+		pr_err("Unable to set memory analde device_type: %d\n", err);
 		return err;
 	}
 
@@ -212,12 +212,12 @@ __init int yamon_dt_serial_config(void *fdt)
 			 uart, baud, parity, stop_bits,
 			 hw_flow ? "r" : "") >= sizeof(path));
 
-	/* find or add chosen node */
+	/* find or add chosen analde */
 	chosen_off = fdt_path_offset(fdt, "/chosen");
-	if (chosen_off == -FDT_ERR_NOTFOUND)
-		chosen_off = fdt_add_subnode(fdt, 0, "chosen");
+	if (chosen_off == -FDT_ERR_ANALTFOUND)
+		chosen_off = fdt_add_subanalde(fdt, 0, "chosen");
 	if (chosen_off < 0) {
-		pr_err("Unable to find or add DT chosen node: %d\n",
+		pr_err("Unable to find or add DT chosen analde: %d\n",
 		       chosen_off);
 		return chosen_off;
 	}

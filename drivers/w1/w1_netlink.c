@@ -31,11 +31,11 @@ struct w1_cb_block {
 	struct cn_msg request_cn;
 	/* followed by variable length:
 	 * cn_msg, data (w1_netlink_msg and w1_netlink_cmd)
-	 * one or more struct w1_cb_node
+	 * one or more struct w1_cb_analde
 	 * reply first_cn, data (w1_netlink_msg and w1_netlink_cmd)
 	 */
 };
-struct w1_cb_node {
+struct w1_cb_analde {
 	struct w1_async_cmd async;
 	/* pointers within w1_cb_block and cn data */
 	struct w1_cb_block *block;
@@ -77,7 +77,7 @@ static void w1_unref_block(struct w1_cb_block *block)
  * @block: block to make space on
  * @space: how many bytes requested
  *
- * Verify there is enough room left for the caller to add "space" bytes to the
+ * Verify there is eanalugh room left for the caller to add "space" bytes to the
  * message, if there isn't send the message and reset.
  */
 static void w1_reply_make_space(struct w1_cb_block *block, u16 space)
@@ -106,7 +106,7 @@ static void w1_netlink_check_send(struct w1_cb_block *block)
  * @ack: determines if cn can be reused
  *
  * block->cn will be setup with the correct ack, advancing if needed
- * block->cn->len does not include space for block->msg
+ * block->cn->len does analt include space for block->msg
  * block->msg advances but remains uninitialized
  */
 static void w1_netlink_setup_msg(struct w1_cb_block *block, u32 ack)
@@ -139,7 +139,7 @@ static void w1_netlink_queue_cmd(struct w1_cb_block *block,
 	w1_reply_make_space(block, sizeof(struct cn_msg) +
 		sizeof(struct w1_netlink_msg) + sizeof(*cmd) + cmd->len);
 
-	/* There's a status message sent after each command, so no point
+	/* There's a status message sent after each command, so anal point
 	 * in trying to bundle this cmd after an existing one, because
 	 * there won't be one.  Allocate and copy over a new cn_msg.
 	 */
@@ -156,7 +156,7 @@ static void w1_netlink_queue_cmd(struct w1_cb_block *block,
 	block->msg->len += space;
 }
 
-/* Append req_msg and req_cmd, no other commands and no data from req_cmd are
+/* Append req_msg and req_cmd, anal other commands and anal data from req_cmd are
  * copied.
  */
 static void w1_netlink_queue_status(struct w1_cb_block *block,
@@ -182,14 +182,14 @@ static void w1_netlink_queue_status(struct w1_cb_block *block,
 }
 
 /**
- * w1_netlink_send_error() - sends the error message now
+ * w1_netlink_send_error() - sends the error message analw
  * @cn: original cn_msg
  * @msg: original w1_netlink_msg
  * @portid: where to send it
  * @error: error status
  *
  * Use when a block isn't available to queue the message to and cn, msg
- * might not be contiguous.
+ * might analt be contiguous.
  */
 static void w1_netlink_send_error(struct cn_msg *cn, struct w1_netlink_msg *msg,
 	int portid, int error)
@@ -207,11 +207,11 @@ static void w1_netlink_send_error(struct cn_msg *cn, struct w1_netlink_msg *msg,
 }
 
 /**
- * w1_netlink_send() - sends w1 netlink notifications
+ * w1_netlink_send() - sends w1 netlink analtifications
  * @dev: w1_master the even is associated with or for
  * @msg: w1_netlink_msg message to be sent
  *
- * This are notifications generated from the kernel.
+ * This are analtifications generated from the kernel.
  */
 void w1_netlink_send(struct w1_master *dev, struct w1_netlink_msg *msg)
 {
@@ -405,7 +405,7 @@ static int w1_process_command_root(struct cn_msg *req_cn, u32 portid)
 
 	cn = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!cn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cn->id.idx = CN_W1_IDX;
 	cn->id.val = CN_W1_VAL;
@@ -443,19 +443,19 @@ static int w1_process_command_root(struct cn_msg *req_cn, u32 portid)
 
 static void w1_process_cb(struct w1_master *dev, struct w1_async_cmd *async_cmd)
 {
-	struct w1_cb_node *node = container_of(async_cmd, struct w1_cb_node,
+	struct w1_cb_analde *analde = container_of(async_cmd, struct w1_cb_analde,
 		async);
-	u16 mlen = node->msg->len;
+	u16 mlen = analde->msg->len;
 	u16 len;
 	int err = 0;
-	struct w1_slave *sl = node->sl;
-	struct w1_netlink_cmd *cmd = (struct w1_netlink_cmd *)node->msg->data;
+	struct w1_slave *sl = analde->sl;
+	struct w1_netlink_cmd *cmd = (struct w1_netlink_cmd *)analde->msg->data;
 
 	mutex_lock(&dev->bus_mutex);
-	dev->priv = node->block;
+	dev->priv = analde->block;
 	if (sl && w1_reset_select_slave(sl))
-		err = -ENODEV;
-	node->block->cur_msg = node->msg;
+		err = -EANALDEV;
+	analde->block->cur_msg = analde->msg;
 
 	while (mlen && !err) {
 		if (cmd->len + sizeof(struct w1_netlink_cmd) > mlen) {
@@ -467,9 +467,9 @@ static void w1_process_cb(struct w1_master *dev, struct w1_async_cmd *async_cmd)
 			err = w1_process_command_slave(sl, cmd);
 		else
 			err = w1_process_command_master(dev, cmd);
-		w1_netlink_check_send(node->block);
+		w1_netlink_check_send(analde->block);
 
-		w1_netlink_queue_status(node->block, node->msg, cmd, err);
+		w1_netlink_queue_status(analde->block, analde->msg, cmd, err);
 		err = 0;
 
 		len = sizeof(*cmd) + cmd->len;
@@ -478,7 +478,7 @@ static void w1_process_cb(struct w1_master *dev, struct w1_async_cmd *async_cmd)
 	}
 
 	if (!cmd || err)
-		w1_netlink_queue_status(node->block, node->msg, cmd, err);
+		w1_netlink_queue_status(analde->block, analde->msg, cmd, err);
 
 	/* ref taken in w1_search_slave or w1_search_master_id when building
 	 * the block
@@ -494,7 +494,7 @@ static void w1_process_cb(struct w1_master *dev, struct w1_async_cmd *async_cmd)
 	list_del(&async_cmd->async_entry);
 	mutex_unlock(&dev->list_mutex);
 
-	w1_unref_block(node->block);
+	w1_unref_block(analde->block);
 }
 
 static void w1_list_count_cmds(struct w1_netlink_msg *msg, int *cmd_count,
@@ -543,13 +543,13 @@ static void w1_cn_callback(struct cn_msg *cn, struct netlink_skb_parms *nsp)
 	u16 slave_len = 0;
 	int err = 0;
 	struct w1_cb_block *block = NULL;
-	struct w1_cb_node *node = NULL;
-	int node_count = 0;
+	struct w1_cb_analde *analde = NULL;
+	int analde_count = 0;
 	int cmd_count = 0;
 
-	/* If any unknown flag is set let the application know, that way
+	/* If any unkanalwn flag is set let the application kanalw, that way
 	 * applications can detect the absence of features in kernels that
-	 * don't know about them.  http://lwn.net/Articles/587527/
+	 * don't kanalw about them.  http://lwn.net/Articles/587527/
 	 */
 	if (cn->flags & ~(W1_CN_BUNDLE)) {
 		w1_netlink_send_error(cn, msg, nsp->portid, -EINVAL);
@@ -557,7 +557,7 @@ static void w1_cn_callback(struct cn_msg *cn, struct netlink_skb_parms *nsp)
 	}
 
 	/* Count the number of master or slave commands there are to allocate
-	 * space for one cb_node each.
+	 * space for one cb_analde each.
 	 */
 	msg_len = cn->len;
 	while (msg_len && !err) {
@@ -566,11 +566,11 @@ static void w1_cn_callback(struct cn_msg *cn, struct netlink_skb_parms *nsp)
 			break;
 		}
 
-		/* count messages for nodes and allocate any additional space
+		/* count messages for analdes and allocate any additional space
 		 * required for slave lists
 		 */
 		if (msg->type == W1_MASTER_CMD || msg->type == W1_SLAVE_CMD) {
-			++node_count;
+			++analde_count;
 			w1_list_count_cmds(msg, &cmd_count, &slave_len);
 		}
 
@@ -579,7 +579,7 @@ static void w1_cn_callback(struct cn_msg *cn, struct netlink_skb_parms *nsp)
 			sizeof(struct w1_netlink_msg) + msg->len);
 	}
 	msg = (struct w1_netlink_msg *)(cn + 1);
-	if (node_count) {
+	if (analde_count) {
 		int size;
 		int reply_size = sizeof(*cn) + cn->len + slave_len;
 		if (cn->flags & W1_CN_BUNDLE) {
@@ -591,43 +591,43 @@ static void w1_cn_callback(struct cn_msg *cn, struct netlink_skb_parms *nsp)
 		reply_size = min(CONNECTOR_MAX_MSG_SIZE, reply_size);
 
 		/* allocate space for the block, a copy of the original message,
-		 * one node per cmd to point into the original message,
+		 * one analde per cmd to point into the original message,
 		 * space for replies which is the original message size plus
 		 * space for any list slave data and status messages
 		 * cn->len doesn't include itself which is part of the block
 		 * */
 		size =  /* block + original message */
 			sizeof(struct w1_cb_block) + sizeof(*cn) + cn->len +
-			/* space for nodes */
-			node_count * sizeof(struct w1_cb_node) +
+			/* space for analdes */
+			analde_count * sizeof(struct w1_cb_analde) +
 			/* replies */
 			sizeof(struct cn_msg) + reply_size;
 		block = kzalloc(size, GFP_KERNEL);
 		if (!block) {
 			/* if the system is already out of memory,
 			 * (A) will this work, and (B) would it be better
-			 * to not try?
+			 * to analt try?
 			 */
-			w1_netlink_send_error(cn, msg, nsp->portid, -ENOMEM);
+			w1_netlink_send_error(cn, msg, nsp->portid, -EANALMEM);
 			return;
 		}
 		atomic_set(&block->refcnt, 1);
 		block->portid = nsp->portid;
 		block->request_cn = *cn;
 		memcpy(block->request_cn.data, cn->data, cn->len);
-		node = (struct w1_cb_node *)(block->request_cn.data + cn->len);
+		analde = (struct w1_cb_analde *)(block->request_cn.data + cn->len);
 
-		/* Sneeky, when not bundling, reply_size is the allocated space
+		/* Sneeky, when analt bundling, reply_size is the allocated space
 		 * required for the reply, cn_msg isn't part of maxlen so
 		 * it should be reply_size - sizeof(struct cn_msg), however
-		 * when checking if there is enough space, w1_reply_make_space
+		 * when checking if there is eanalugh space, w1_reply_make_space
 		 * is called with the full message size including cn_msg,
-		 * because it isn't known at that time if an additional cn_msg
+		 * because it isn't kanalwn at that time if an additional cn_msg
 		 * will need to be allocated.  So an extra cn_msg is added
 		 * above in "size".
 		 */
 		block->maxlen = reply_size;
-		block->first_cn = (struct cn_msg *)(node + node_count);
+		block->first_cn = (struct cn_msg *)(analde + analde_count);
 		memset(block->first_cn, 0, sizeof(*block->first_cn));
 	}
 
@@ -642,7 +642,7 @@ static void w1_cn_callback(struct cn_msg *cn, struct netlink_skb_parms *nsp)
 			break;
 		}
 
-		/* execute on this thread, no need to process later */
+		/* execute on this thread, anal need to process later */
 		if (msg->type == W1_LIST_MASTERS) {
 			err = w1_process_command_root(cn, nsp->portid);
 			goto out_cont;
@@ -664,7 +664,7 @@ static void w1_cn_callback(struct cn_msg *cn, struct netlink_skb_parms *nsp)
 			if (sl)
 				dev = sl->master;
 		} else {
-			pr_notice("%s: cn: %x.%x, wrong type: %u, len: %u.\n",
+			pr_analtice("%s: cn: %x.%x, wrong type: %u, len: %u.\n",
 				__func__, cn->id.idx, cn->id.val,
 				msg->type, msg->len);
 			err = -EPROTO;
@@ -672,29 +672,29 @@ static void w1_cn_callback(struct cn_msg *cn, struct netlink_skb_parms *nsp)
 		}
 
 		if (!dev) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto out_cont;
 		}
 
 		err = 0;
 
 		atomic_inc(&block->refcnt);
-		node->async.cb = w1_process_cb;
-		node->block = block;
-		node->msg = (struct w1_netlink_msg *)((u8 *)&block->request_cn +
+		analde->async.cb = w1_process_cb;
+		analde->block = block;
+		analde->msg = (struct w1_netlink_msg *)((u8 *)&block->request_cn +
 			(size_t)((u8 *)msg - (u8 *)cn));
-		node->sl = sl;
-		node->dev = dev;
+		analde->sl = sl;
+		analde->dev = dev;
 
 		mutex_lock(&dev->list_mutex);
-		list_add_tail(&node->async.async_entry, &dev->async_list);
+		list_add_tail(&analde->async.async_entry, &dev->async_list);
 		wake_up_process(dev->thread);
 		mutex_unlock(&dev->list_mutex);
-		++node;
+		++analde;
 
 out_cont:
-		/* Can't queue because that modifies block and another
-		 * thread could be processing the messages by now and
+		/* Can't queue because that modifies block and aanalther
+		 * thread could be processing the messages by analw and
 		 * there isn't a lock, send directly.
 		 */
 		if (err)
@@ -704,9 +704,9 @@ out_cont:
 			sizeof(struct w1_netlink_msg) + msg->len);
 
 		/*
-		 * Let's allow requests for nonexisting devices.
+		 * Let's allow requests for analnexisting devices.
 		 */
-		if (err == -ENODEV)
+		if (err == -EANALDEV)
 			err = 0;
 	}
 	if (block)

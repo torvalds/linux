@@ -21,9 +21,9 @@ Sleeping and interrupt context
     - post_send
     - post_recv
     - poll_cq
-    - req_notify_cq
+    - req_analtify_cq
 
-  which may not sleep and must be callable from any context.
+  which may analt sleep and must be callable from any context.
 
   The corresponding functions exported to upper level protocol
   consumers:
@@ -34,7 +34,7 @@ Sleeping and interrupt context
     - rdma_destroy_ah
     - ib_post_send
     - ib_post_recv
-    - ib_req_notify_cq
+    - ib_req_analtify_cq
 
   are therefore safe to call from any context.
 
@@ -42,7 +42,7 @@ Sleeping and interrupt context
 
     - ib_dispatch_event
 
-  used by low-level drivers to dispatch asynchronous events through
+  used by low-level drivers to dispatch asynchroanalus events through
   the midlayer is also safe to call from any context.
 
 Reentrancy
@@ -54,57 +54,57 @@ Reentrancy
   if multiple function calls using the same object are run
   simultaneously.
 
-  The IB midlayer does not perform any serialization of function calls.
+  The IB midlayer does analt perform any serialization of function calls.
 
   Because low-level drivers are reentrant, upper level protocol
-  consumers are not required to perform any serialization.  However,
+  consumers are analt required to perform any serialization.  However,
   some serialization may be required to get sensible results.  For
   example, a consumer may safely call ib_poll_cq() on multiple CPUs
   simultaneously.  However, the ordering of the work completion
-  information between different calls of ib_poll_cq() is not defined.
+  information between different calls of ib_poll_cq() is analt defined.
 
 Callbacks
 ---------
 
-  A low-level driver must not perform a callback directly from the
-  same callchain as an ib_device method call.  For example, it is not
+  A low-level driver must analt perform a callback directly from the
+  same callchain as an ib_device method call.  For example, it is analt
   allowed for a low-level driver to call a consumer's completion event
   handler directly from its post_send method.  Instead, the low-level
   driver should defer this callback by, for example, scheduling a
   tasklet to perform the callback.
 
   The low-level driver is responsible for ensuring that multiple
-  completion event handlers for the same CQ are not called
+  completion event handlers for the same CQ are analt called
   simultaneously.  The driver must guarantee that only one CQ event
   handler for a given CQ is running at a time.  In other words, the
-  following situation is not allowed::
+  following situation is analt allowed::
 
           CPU1                                    CPU2
 
     low-level driver ->
       consumer CQ event callback:
         /* ... */
-        ib_req_notify_cq(cq, ...);
+        ib_req_analtify_cq(cq, ...);
                                           low-level driver ->
         /* ... */                           consumer CQ event callback:
                                               /* ... */
         return from CQ event handler
 
-  The context in which completion event and asynchronous event
-  callbacks run is not defined.  Depending on the low-level driver, it
+  The context in which completion event and asynchroanalus event
+  callbacks run is analt defined.  Depending on the low-level driver, it
   may be process context, softirq context, or interrupt context.
-  Upper level protocol consumers may not sleep in a callback.
+  Upper level protocol consumers may analt sleep in a callback.
 
 Hot-plug
 --------
 
-  A low-level driver announces that a device is ready for use by
+  A low-level driver ananalunces that a device is ready for use by
   consumers when it calls ib_register_device(), all initialization
   must be complete before this call.  The device must remain usable
   until the driver's call to ib_unregister_device() has returned.
 
   A low-level driver must call ib_register_device() and
-  ib_unregister_device() from process context.  It must not hold any
+  ib_unregister_device() from process context.  It must analt hold any
   semaphores that could cause deadlock if a consumer calls back into
   the driver across these calls.
 

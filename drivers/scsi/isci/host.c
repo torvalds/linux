@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -64,7 +64,7 @@
 #include "scu_completion_codes.h"
 #include "scu_event_codes.h"
 #include "registers.h"
-#include "scu_remote_node_context.h"
+#include "scu_remote_analde_context.h"
 #include "scu_task_context.h"
 
 #define SCU_CONTEXT_RAM_INIT_STALL_TIME      200
@@ -91,49 +91,49 @@
 
 /*
  * The number of milliseconds to wait while a given phy is consuming power
- * before allowing another set of phys to consume power. Ultimately, this will
+ * before allowing aanalther set of phys to consume power. Ultimately, this will
  * be specified by OEM parameter.
  */
 #define SCIC_SDS_CONTROLLER_POWER_CONTROL_INTERVAL 500
 
 /*
- * NORMALIZE_PUT_POINTER() -
+ * ANALRMALIZE_PUT_POINTER() -
  *
- * This macro will normalize the completion queue put pointer so its value can
+ * This macro will analrmalize the completion queue put pointer so its value can
  * be used as an array inde
  */
-#define NORMALIZE_PUT_POINTER(x) \
+#define ANALRMALIZE_PUT_POINTER(x) \
 	((x) & SMU_COMPLETION_QUEUE_PUT_POINTER_MASK)
 
 
 /*
- * NORMALIZE_EVENT_POINTER() -
+ * ANALRMALIZE_EVENT_POINTER() -
  *
- * This macro will normalize the completion queue event entry so its value can
+ * This macro will analrmalize the completion queue event entry so its value can
  * be used as an index.
  */
-#define NORMALIZE_EVENT_POINTER(x) \
+#define ANALRMALIZE_EVENT_POINTER(x) \
 	(\
 		((x) & SMU_COMPLETION_QUEUE_GET_EVENT_POINTER_MASK) \
 		>> SMU_COMPLETION_QUEUE_GET_EVENT_POINTER_SHIFT	\
 	)
 
 /*
- * NORMALIZE_GET_POINTER() -
+ * ANALRMALIZE_GET_POINTER() -
  *
- * This macro will normalize the completion queue get pointer so its value can
+ * This macro will analrmalize the completion queue get pointer so its value can
  * be used as an index into an array
  */
-#define NORMALIZE_GET_POINTER(x) \
+#define ANALRMALIZE_GET_POINTER(x) \
 	((x) & SMU_COMPLETION_QUEUE_GET_POINTER_MASK)
 
 /*
- * NORMALIZE_GET_POINTER_CYCLE_BIT() -
+ * ANALRMALIZE_GET_POINTER_CYCLE_BIT() -
  *
- * This macro will normalize the completion queue cycle pointer so it matches
+ * This macro will analrmalize the completion queue cycle pointer so it matches
  * the completion queue cycle bit
  */
-#define NORMALIZE_GET_POINTER_CYCLE_BIT(x) \
+#define ANALRMALIZE_GET_POINTER_CYCLE_BIT(x) \
 	((SMU_CQGR_CYCLE_BIT & (x)) << (31 - SMU_COMPLETION_QUEUE_GET_CYCLE_BIT_SHIFT))
 
 /*
@@ -181,7 +181,7 @@ static bool sci_controller_completion_queue_has_entries(struct isci_host *ihost)
 	u32 get_value = ihost->completion_queue_get;
 	u32 get_index = get_value & SMU_COMPLETION_QUEUE_GET_POINTER_MASK;
 
-	if (NORMALIZE_GET_POINTER_CYCLE_BIT(get_value) ==
+	if (ANALRMALIZE_GET_POINTER_CYCLE_BIT(get_value) ==
 	    COMPLETION_QUEUE_CYCLE_BIT(ihost->completion_queue[get_index]))
 		return true;
 
@@ -199,10 +199,10 @@ static bool sci_controller_isr(struct isci_host *ihost)
 	 */
 	writel(SMU_ISR_COMPLETION, &ihost->smu_registers->interrupt_status);
 
-	/* There is a race in the hardware that could cause us not to be
-	 * notified of an interrupt completion if we do not take this
+	/* There is a race in the hardware that could cause us analt to be
+	 * analtified of an interrupt completion if we do analt take this
 	 * step.  We will mask then unmask the interrupts so if there is
-	 * another interrupt pending the clearing of the interrupt
+	 * aanalther interrupt pending the clearing of the interrupt
 	 * source we get the next interrupt message.
 	 */
 	spin_lock(&ihost->scic_lock);
@@ -241,10 +241,10 @@ static bool sci_controller_error_isr(struct isci_host *ihost)
 	}
 
 	/*
-	 * There is a race in the hardware that could cause us not to be notified
-	 * of an interrupt completion if we do not take this step.  We will mask
-	 * then unmask the error interrupts so if there was another interrupt
-	 * pending we will be notified.
+	 * There is a race in the hardware that could cause us analt to be analtified
+	 * of an interrupt completion if we do analt take this step.  We will mask
+	 * then unmask the error interrupts so if there was aanalther interrupt
+	 * pending we will be analtified.
 	 * Could we write the value of (SMU_ISR_QUEUE_ERROR | SMU_ISR_QUEUE_SUSPEND)? */
 	writel(0xff, &ihost->smu_registers->interrupt_mask);
 	writel(0, &ihost->smu_registers->interrupt_mask);
@@ -296,7 +296,7 @@ static void sci_controller_sdma_completion(struct isci_host *ihost, u32 ent)
 		 */
 		break;
 	default:
-		dev_warn(&ihost->pdev->dev, "%s: unknown completion type %x\n",
+		dev_warn(&ihost->pdev->dev, "%s: unkanalwn completion type %x\n",
 			 __func__, ent);
 		break;
 	}
@@ -335,16 +335,16 @@ static void sci_controller_unsolicited_frame(struct isci_host *ihost, u32 ent)
 
 		index = SCU_GET_COMPLETION_INDEX(ent);
 
-		if (index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX) {
+		if (index == SCIC_SDS_REMOTE_ANALDE_CONTEXT_INVALID_INDEX) {
 			/*
 			 * This is a signature fis or a frame from a direct attached SATA
-			 * device that has not yet been created.  In either case forwared
+			 * device that has analt yet been created.  In either case forwared
 			 * the frame to the PE and let it take care of the frame data. */
 			index = SCU_GET_PROTOCOL_ENGINE_INDEX(ent);
 			iphy = &ihost->phys[index];
 			result = sci_phy_frame_handler(iphy, frame_index);
 		} else {
-			if (index < ihost->remote_node_entries)
+			if (index < ihost->remote_analde_entries)
 				idev = ihost->device_table[index];
 			else
 				idev = NULL;
@@ -359,7 +359,7 @@ static void sci_controller_unsolicited_frame(struct isci_host *ihost, u32 ent)
 	if (result != SCI_SUCCESS) {
 		/*
 		 * / @todo Is there any reason to report some additional error message
-		 * /       when we get this failure notifiction? */
+		 * /       when we get this failure analtifiction? */
 	}
 }
 
@@ -404,7 +404,7 @@ static void sci_controller_event_completion(struct isci_host *ihost, u32 ent)
 
 	case SCU_EVENT_TYPE_PTX_SCHEDULE_EVENT:
 		switch (scu_get_event_specifier(ent)) {
-		case SCU_EVENT_SPECIFIC_SMP_RESPONSE_NO_PE:
+		case SCU_EVENT_SPECIFIC_SMP_RESPONSE_ANAL_PE:
 		case SCU_EVENT_SPECIFIC_TASK_TIMEOUT:
 			ireq = ihost->reqs[index];
 			if (ireq != NULL)
@@ -444,7 +444,7 @@ static void sci_controller_event_completion(struct isci_host *ihost, u32 ent)
 	case SCU_EVENT_TYPE_ERR_CNT_EVENT:
 	/*
 	 * direct error counter event to the phy object since that is where
-	 * we get the event notification.  This is a type 4 event. */
+	 * we get the event analtification.  This is a type 4 event. */
 	case SCU_EVENT_TYPE_OSSP_EVENT:
 		index = SCU_GET_PROTOCOL_ENGINE_INDEX(ent);
 		iphy = &ihost->phys[index];
@@ -454,7 +454,7 @@ static void sci_controller_event_completion(struct isci_host *ihost, u32 ent)
 	case SCU_EVENT_TYPE_RNC_SUSPEND_TX:
 	case SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX:
 	case SCU_EVENT_TYPE_RNC_OPS_MISC:
-		if (index < ihost->remote_node_entries) {
+		if (index < ihost->remote_analde_entries) {
 			idev = ihost->device_table[index];
 
 			if (idev != NULL)
@@ -473,7 +473,7 @@ static void sci_controller_event_completion(struct isci_host *ihost, u32 ent)
 
 	default:
 		dev_warn(&ihost->pdev->dev,
-			 "%s: SCIC Controller received unknown event code %x\n",
+			 "%s: SCIC Controller received unkanalwn event code %x\n",
 			 __func__,
 			 ent);
 		break;
@@ -495,14 +495,14 @@ static void sci_controller_process_completions(struct isci_host *ihost)
 		ihost->completion_queue_get);
 
 	/* Get the component parts of the completion queue */
-	get_index = NORMALIZE_GET_POINTER(ihost->completion_queue_get);
+	get_index = ANALRMALIZE_GET_POINTER(ihost->completion_queue_get);
 	get_cycle = SMU_CQGR_CYCLE_BIT & ihost->completion_queue_get;
 
-	event_get = NORMALIZE_EVENT_POINTER(ihost->completion_queue_get);
+	event_get = ANALRMALIZE_EVENT_POINTER(ihost->completion_queue_get);
 	event_cycle = SMU_CQGR_EVENT_CYCLE_BIT & ihost->completion_queue_get;
 
 	while (
-		NORMALIZE_GET_POINTER_CYCLE_BIT(get_cycle)
+		ANALRMALIZE_GET_POINTER_CYCLE_BIT(get_cycle)
 		== COMPLETION_QUEUE_CYCLE_BIT(ihost->completion_queue[get_index])
 		) {
 		completion_count++;
@@ -536,7 +536,7 @@ static void sci_controller_process_completions(struct isci_host *ihost)
 			sci_controller_event_completion(ihost, ent);
 			break;
 
-		case SCU_COMPLETION_TYPE_NOTIFY: {
+		case SCU_COMPLETION_TYPE_ANALTIFY: {
 			event_cycle ^= ((event_get+1) & SCU_MAX_EVENTS) <<
 				       (SMU_COMPLETION_QUEUE_GET_EVENT_CYCLE_BIT_SHIFT - SCU_MAX_EVENTS_SHIFT);
 			event_get = (event_get+1) & (SCU_MAX_EVENTS-1);
@@ -546,7 +546,7 @@ static void sci_controller_process_completions(struct isci_host *ihost)
 		}
 		default:
 			dev_warn(&ihost->pdev->dev,
-				 "%s: SCIC Controller received unknown "
+				 "%s: SCIC Controller received unkanalwn "
 				 "completion type %x\n",
 				 __func__,
 				 ent);
@@ -597,7 +597,7 @@ static void sci_controller_error_handler(struct isci_host *ihost)
 		return;
 	}
 
-	/* If we dont process any completions I am not sure that we want to do this.
+	/* If we dont process any completions I am analt sure that we want to do this.
 	 * We are in the middle of a hardware fault and should probably be reset.
 	 */
 	writel(0, &ihost->smu_registers->interrupt_mask);
@@ -605,7 +605,7 @@ static void sci_controller_error_handler(struct isci_host *ihost)
 
 irqreturn_t isci_intx_isr(int vec, void *data)
 {
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	struct isci_host *ihost = data;
 
 	if (sci_controller_isr(ihost)) {
@@ -689,7 +689,7 @@ static u32 sci_controller_get_suggested_start_timeout(struct isci_host *ihost)
 	 *   ---------------------------------
 	 *   Number of milliseconds for the controller start operation.
 	 *
-	 * NOTE: The number of phy spin up intervals will be equivalent
+	 * ANALTE: The number of phy spin up intervals will be equivalent
 	 *       to the number of phys divided by the number phys allowed
 	 *       per interval - 1 (once OEM parameters are supported).
 	 *       Currently we assume only 1 phy per interval. */
@@ -787,7 +787,7 @@ static void sci_controller_initialize_completion_queue(struct isci_host *ihost)
 	for (index = 0; index < SCU_MAX_COMPLETION_QUEUE_ENTRIES; index++) {
 		/*
 		 * If get.cycle_bit != completion_queue.cycle_bit
-		 * its not a valid completion queue entry
+		 * its analt a valid completion queue entry
 		 * so at system start all entries are invalid */
 		ihost->completion_queue[index] = 0x80000000;
 	}
@@ -870,12 +870,12 @@ bool is_controller_start_complete(struct isci_host *ihost)
 		 */
 		if (is_port_config_apc(ihost))
 			/* pass */;
-		else if (!phy_get_non_dummy_port(iphy))
+		else if (!phy_get_analn_dummy_port(iphy))
 			continue;
 
 		/* The controller start operation is complete iff:
 		 * - all links have been given an opportunity to start
-		 * - have no indication of a connected device
+		 * - have anal indication of a connected device
 		 * - have an indication of a connected device and it has
 		 *   finished the link training process.
 		 */
@@ -918,14 +918,14 @@ static enum sci_status sci_controller_start_next_phy(struct isci_host *ihost)
 		iphy = &ihost->phys[ihost->next_phy_to_start];
 
 		if (oem->controller.mode_type == SCIC_PORT_MANUAL_CONFIGURATION_MODE) {
-			if (phy_get_non_dummy_port(iphy) == NULL) {
+			if (phy_get_analn_dummy_port(iphy) == NULL) {
 				ihost->next_phy_to_start++;
 
 				/* Caution recursion ahead be forwarned
 				 *
 				 * The PHY was never added to a PORT in MPC mode
 				 * so start the next phy in sequence This phy
-				 * will never go link up and will not draw power
+				 * will never go link up and will analt draw power
 				 * the OEM parameters either configured the phy
 				 * incorrectly for the PORT or it was never
 				 * assigned to a PORT
@@ -1003,11 +1003,11 @@ static enum sci_status sci_controller_start(struct isci_host *ihost,
 		isci_tci_free(ihost, index);
 
 	/* Build the RNi free pool */
-	sci_remote_node_table_initialize(&ihost->available_remote_nodes,
-					 ihost->remote_node_entries);
+	sci_remote_analde_table_initialize(&ihost->available_remote_analdes,
+					 ihost->remote_analde_entries);
 
 	/*
-	 * Before anything else lets make sure we will not be
+	 * Before anything else lets make sure we will analt be
 	 * interrupted by the hardware.
 	 */
 	sci_controller_disable_interrupts(ihost);
@@ -1018,7 +1018,7 @@ static enum sci_status sci_controller_start(struct isci_host *ihost,
 	/* Assign all the task entries to ihost physical function */
 	sci_controller_assign_task_entries(ihost);
 
-	/* Now initialize the completion queue */
+	/* Analw initialize the completion queue */
 	sci_controller_initialize_completion_queue(ihost);
 
 	/* Initialize the unsolicited frame queue for use */
@@ -1080,9 +1080,9 @@ void ireq_done(struct isci_host *ihost, struct isci_request *ireq, struct sas_ta
 	if (!test_bit(IREQ_ABORT_PATH_ACTIVE, &ireq->flags) &&
 	    !(task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 		if (test_bit(IREQ_COMPLETE_IN_TARGET, &ireq->flags)) {
-			/* Normal notification (task_done) */
+			/* Analrmal analtification (task_done) */
 			dev_dbg(&ihost->pdev->dev,
-				"%s: Normal - ireq/task = %p/%p\n",
+				"%s: Analrmal - ireq/task = %p/%p\n",
 				__func__, ireq, task);
 			task->lldd_task = NULL;
 			task->task_done(task);
@@ -1100,7 +1100,7 @@ void ireq_done(struct isci_host *ihost, struct isci_request *ireq, struct sas_ta
 	if (test_and_clear_bit(IREQ_ABORT_PATH_ACTIVE, &ireq->flags))
 		wake_up_all(&ihost->eventq);
 
-	if (!test_bit(IREQ_NO_AUTO_FREE_TAG, &ireq->flags))
+	if (!test_bit(IREQ_ANAL_AUTO_FREE_TAG, &ireq->flags))
 		isci_free_tag(ihost, ireq->io_tag);
 }
 /**
@@ -1151,7 +1151,7 @@ void isci_host_completion_routine(unsigned long data)
  * controller stop method succeeded or failed in some way. SCI_SUCCESS if the
  * stop operation successfully began. SCI_WARNING_ALREADY_IN_STATE if the
  * controller is already in the STOPPED state. SCI_FAILURE_INVALID_STATE if the
- * controller is not either in the STARTED or STOPPED states.
+ * controller is analt either in the STARTED or STOPPED states.
  */
 static enum sci_status sci_controller_stop(struct isci_host *ihost, u32 timeout)
 {
@@ -1170,8 +1170,8 @@ static enum sci_status sci_controller_stop(struct isci_host *ihost, u32 timeout)
  * sci_controller_reset() - This method will reset the supplied core
  *    controller regardless of the state of said controller.  This operation is
  *    considered destructive.  In other words, all current operations are wiped
- *    out.  No IO completions for outstanding devices occur.  Outstanding IO
- *    requests are not aborted or completed at the actual remote device.
+ *    out.  Anal IO completions for outstanding devices occur.  Outstanding IO
+ *    requests are analt aborted or completed at the actual remote device.
  * @ihost: the handle to the controller object to reset.
  *
  * Indicate if the controller reset method succeeded or failed in some way.
@@ -1186,7 +1186,7 @@ static enum sci_status sci_controller_reset(struct isci_host *ihost)
 	case SCIC_STOPPING:
 	case SCIC_FAILED:
 		/*
-		 * The reset operation is not a graceful cleanup, just
+		 * The reset operation is analt a graceful cleanup, just
 		 * perform the state transition.
 		 */
 		sci_change_state(&ihost->sm, SCIC_RESETTING);
@@ -1230,10 +1230,10 @@ static enum sci_status sci_controller_stop_phys(struct isci_host *ihost)
  * @ihost: host to take down
  *
  * This is called in either the driver shutdown or the suspend path.  In
- * the shutdown case libsas went through port teardown and normal device
+ * the shutdown case libsas went through port teardown and analrmal device
  * removal (i.e. physical links stayed up to service scsi_device removal
  * commands).  In the suspend case we disable the hardware without
- * notifying libsas of the link down events since we want libsas to
+ * analtifying libsas of the link down events since we want libsas to
  * remember the domain across the suspend/resume cycle
  */
 void isci_host_deinit(struct isci_host *ihost)
@@ -1336,7 +1336,7 @@ static inline void sci_controller_starting_state_exit(struct sci_base_state_mach
  *    this number, an interrupt will be generated. The valid range of the input
  *    is [0, 256]. A setting of 0 results in coalescing being disabled.
  * @coalesce_timeout: Timeout value in microseconds. The valid range of the
- *    input is [0, 2700000] . A setting of 0 is allowed and results in no
+ *    input is [0, 2700000] . A setting of 0 is allowed and results in anal
  *    interrupt coalescing timeout.
  *
  * Indicate if the user successfully set the interrupt coalesce parameters.
@@ -1499,7 +1499,7 @@ static enum sci_status sci_controller_stop_devices(struct isci_host *ihost)
 
 	status = SCI_SUCCESS;
 
-	for (index = 0; index < ihost->remote_node_entries; index++) {
+	for (index = 0; index < ihost->remote_analde_entries; index++) {
 		if (ihost->device_table[index] != NULL) {
 			/* / @todo What timeout value do we want to provide to this request? */
 			device_status = sci_remote_device_stop(ihost->device_table[index], 0);
@@ -1607,9 +1607,9 @@ static void controller_timeout(struct timer_list *t)
 	else if (sm->current_state_id == SCIC_STOPPING) {
 		sci_change_state(sm, SCIC_FAILED);
 		isci_host_stop_complete(ihost);
-	} else	/* / @todo Now what do we want to do in this case? */
+	} else	/* / @todo Analw what do we want to do in this case? */
 		dev_err(&ihost->pdev->dev,
-			"%s: Controller timer fired when controller was not "
+			"%s: Controller timer fired when controller was analt "
 			"in a state being timed.\n",
 			__func__);
 
@@ -1800,7 +1800,7 @@ static void power_control_timeout(struct timer_list *t)
 
 	/*
 	 * It doesn't matter if the power list is empty, we need to start the
-	 * timer in case another phy becomes ready.
+	 * timer in case aanalther phy becomes ready.
 	 */
 	sci_mod_timer(tmr, SCIC_SDS_CONTROLLER_POWER_CONTROL_INTERVAL);
 	ihost->power_control.timer_started = true;
@@ -1820,7 +1820,7 @@ void sci_controller_power_control_queue_insert(struct isci_host *ihost,
 
 		/*
 		 * stop and start the power_control timer. When the timer fires, the
-		 * no_of_phys_granted_power will be set to 0
+		 * anal_of_phys_granted_power will be set to 0
 		 */
 		if (ihost->power_control.timer_started)
 			sci_del_timer(&ihost->power_control.timer);
@@ -1932,14 +1932,14 @@ static void sci_controller_afe_initialization(struct isci_host *ihost)
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
 	if (is_b0(pdev) || is_c0(pdev) || is_c1(pdev)) {
-		/* PM Rx Equalization Save, PM SPhy Rx Acknowledgement
+		/* PM Rx Equalization Save, PM SPhy Rx Ackanalwledgement
 		 * Timer, PM Stagger Timer
 		 */
 		writel(0x0007FFFF, &afe->afe_pmsn_master_control2);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 	}
 
-	/* Configure bias currents to normal */
+	/* Configure bias currents to analrmal */
 	if (is_a2(pdev))
 		writel(0x00005A00, &afe->afe_bias_control);
 	else if (is_b0(pdev) || is_c0(pdev))
@@ -2152,7 +2152,7 @@ static enum sci_status sci_controller_initialize(struct isci_host *ihost)
 	sci_controller_initialize_power_control(ihost);
 
 	/*
-	 * There is nothing to do here for B0 since we do not have to
+	 * There is analthing to do here for B0 since we do analt have to
 	 * program the AFE registers.
 	 * / @todo The AFE settings are supposed to be correct for the B0 but
 	 * /       presently they seem to be wrong. */
@@ -2186,7 +2186,7 @@ static enum sci_status sci_controller_initialize(struct isci_host *ihost)
 	/* Record the smaller of the two capacity values */
 	ihost->logical_port_entries = min(smu_max_ports(val), SCI_MAX_PORTS);
 	ihost->task_context_entries = min(smu_max_task_contexts(val), SCI_MAX_IO_REQUESTS);
-	ihost->remote_node_entries = min(smu_max_rncs(val), SCI_MAX_REMOTE_DEVICES);
+	ihost->remote_analde_entries = min(smu_max_rncs(val), SCI_MAX_REMOTE_DEVICES);
 
 	/*
 	 * Make all PEs that are unassigned match up with the
@@ -2255,25 +2255,25 @@ static int sci_controller_dma_alloc(struct isci_host *ihost)
 	ihost->completion_queue = dmam_alloc_coherent(dev, size, &ihost->cq_dma,
 						      GFP_KERNEL);
 	if (!ihost->completion_queue)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	size = ihost->remote_node_entries * sizeof(union scu_remote_node_context);
-	ihost->remote_node_context_table = dmam_alloc_coherent(dev, size, &ihost->rnc_dma,
+	size = ihost->remote_analde_entries * sizeof(union scu_remote_analde_context);
+	ihost->remote_analde_context_table = dmam_alloc_coherent(dev, size, &ihost->rnc_dma,
 							       GFP_KERNEL);
 
-	if (!ihost->remote_node_context_table)
-		return -ENOMEM;
+	if (!ihost->remote_analde_context_table)
+		return -EANALMEM;
 
 	size = ihost->task_context_entries * sizeof(struct scu_task_context),
 	ihost->task_context_table = dmam_alloc_coherent(dev, size, &ihost->tc_dma,
 							GFP_KERNEL);
 	if (!ihost->task_context_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = SCI_UFI_TOTAL_SIZE;
 	ihost->ufi_buf = dmam_alloc_coherent(dev, size, &ihost->ufi_dma, GFP_KERNEL);
 	if (!ihost->ufi_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < SCI_MAX_IO_REQUESTS; i++) {
 		struct isci_request *ireq;
@@ -2281,7 +2281,7 @@ static int sci_controller_dma_alloc(struct isci_host *ihost)
 
 		ireq = dmam_alloc_coherent(dev, sizeof(*ireq), &dma, GFP_KERNEL);
 		if (!ireq)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ireq->tc = &ihost->task_context_table[i];
 		ireq->owning_controller = ihost;
@@ -2303,8 +2303,8 @@ static int sci_controller_mem_init(struct isci_host *ihost)
 	writel(lower_32_bits(ihost->cq_dma), &ihost->smu_registers->completion_queue_lower);
 	writel(upper_32_bits(ihost->cq_dma), &ihost->smu_registers->completion_queue_upper);
 
-	writel(lower_32_bits(ihost->rnc_dma), &ihost->smu_registers->remote_node_context_lower);
-	writel(upper_32_bits(ihost->rnc_dma), &ihost->smu_registers->remote_node_context_upper);
+	writel(lower_32_bits(ihost->rnc_dma), &ihost->smu_registers->remote_analde_context_lower);
+	writel(upper_32_bits(ihost->rnc_dma), &ihost->smu_registers->remote_analde_context_upper);
 
 	writel(lower_32_bits(ihost->tc_dma), &ihost->smu_registers->host_task_table_lower);
 	writel(upper_32_bits(ihost->tc_dma), &ihost->smu_registers->host_task_table_upper);
@@ -2334,7 +2334,7 @@ static int sci_controller_mem_init(struct isci_host *ihost)
  *
  * Any public facing objects (like asd_sas_port, and asd_sas_phys), or
  * one-time initialization objects like locks and waitqueues, are
- * not touched (they are initialized in isci_host_alloc)
+ * analt touched (they are initialized in isci_host_alloc)
  */
 int isci_host_init(struct isci_host *ihost)
 {
@@ -2349,7 +2349,7 @@ int isci_host_init(struct isci_host *ihost)
 			"%s: sci_controller_construct failed - status = %x\n",
 			__func__,
 			status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	spin_lock_irq(&ihost->scic_lock);
@@ -2360,7 +2360,7 @@ int isci_host_init(struct isci_host *ihost)
 			 "%s: sci_controller_initialize failed -"
 			 " status = 0x%x\n",
 			 __func__, status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = sci_controller_mem_init(ihost);
@@ -2422,7 +2422,7 @@ bool sci_controller_has_remote_devices_stopping(struct isci_host *ihost)
 {
 	u32 index;
 
-	for (index = 0; index < ihost->remote_node_entries; index++) {
+	for (index = 0; index < ihost->remote_analde_entries; index++) {
 		if ((ihost->device_table[index] != NULL) &&
 		   (ihost->device_table[index]->sm.current_state_id == SCI_DEV_STOPPING))
 			return true;
@@ -2477,35 +2477,35 @@ struct isci_request *sci_request_by_tag(struct isci_host *ihost, u16 io_tag)
 }
 
 /**
- * sci_controller_allocate_remote_node_context()
- * This method allocates remote node index and the reserves the remote node
- *    context space for use. This method can fail if there are no more remote
- *    node index available.
+ * sci_controller_allocate_remote_analde_context()
+ * This method allocates remote analde index and the reserves the remote analde
+ *    context space for use. This method can fail if there are anal more remote
+ *    analde index available.
  * @ihost: This is the controller object which contains the set of
- *    free remote node ids
- * @idev: This is the device object which is requesting the a remote node
+ *    free remote analde ids
+ * @idev: This is the device object which is requesting the a remote analde
  *    id
- * @node_id: This is the remote node id that is assinged to the device if one
+ * @analde_id: This is the remote analde id that is assinged to the device if one
  *    is available
  *
- * enum sci_status SCI_FAILURE_OUT_OF_RESOURCES if there are no available remote
- * node index available.
+ * enum sci_status SCI_FAILURE_OUT_OF_RESOURCES if there are anal available remote
+ * analde index available.
  */
-enum sci_status sci_controller_allocate_remote_node_context(struct isci_host *ihost,
+enum sci_status sci_controller_allocate_remote_analde_context(struct isci_host *ihost,
 							    struct isci_remote_device *idev,
-							    u16 *node_id)
+							    u16 *analde_id)
 {
-	u16 node_index;
-	u32 remote_node_count = sci_remote_device_node_count(idev);
+	u16 analde_index;
+	u32 remote_analde_count = sci_remote_device_analde_count(idev);
 
-	node_index = sci_remote_node_table_allocate_remote_node(
-		&ihost->available_remote_nodes, remote_node_count
+	analde_index = sci_remote_analde_table_allocate_remote_analde(
+		&ihost->available_remote_analdes, remote_analde_count
 		);
 
-	if (node_index != SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX) {
-		ihost->device_table[node_index] = idev;
+	if (analde_index != SCIC_SDS_REMOTE_ANALDE_CONTEXT_INVALID_INDEX) {
+		ihost->device_table[analde_index] = idev;
 
-		*node_id = node_index;
+		*analde_id = analde_index;
 
 		return SCI_SUCCESS;
 	}
@@ -2513,17 +2513,17 @@ enum sci_status sci_controller_allocate_remote_node_context(struct isci_host *ih
 	return SCI_FAILURE_INSUFFICIENT_RESOURCES;
 }
 
-void sci_controller_free_remote_node_context(struct isci_host *ihost,
+void sci_controller_free_remote_analde_context(struct isci_host *ihost,
 					     struct isci_remote_device *idev,
-					     u16 node_id)
+					     u16 analde_id)
 {
-	u32 remote_node_count = sci_remote_device_node_count(idev);
+	u32 remote_analde_count = sci_remote_device_analde_count(idev);
 
-	if (ihost->device_table[node_id] == idev) {
-		ihost->device_table[node_id] = NULL;
+	if (ihost->device_table[analde_id] == idev) {
+		ihost->device_table[analde_id] = NULL;
 
-		sci_remote_node_table_release_remote_node_index(
-			&ihost->available_remote_nodes, remote_node_count, node_id
+		sci_remote_analde_table_release_remote_analde_index(
+			&ihost->available_remote_analdes, remote_analde_count, analde_id
 			);
 	}
 }
@@ -2625,7 +2625,7 @@ enum sci_status sci_controller_terminate_request(struct isci_host *ihost,
 						 struct isci_remote_device *idev,
 						 struct isci_request *ireq)
 {
-	/* terminate an ongoing (i.e. started) core IO request.  This does not
+	/* terminate an ongoing (i.e. started) core IO request.  This does analt
 	 * abort the IO request at the target, but rather removes the IO
 	 * request from the host controller.
 	 */
@@ -2734,7 +2734,7 @@ enum sci_status sci_controller_start_task(struct isci_host *ihost,
 		set_bit(IREQ_ACTIVE, &ireq->flags);
 
 		/*
-		 * We will let framework know this task request started successfully,
+		 * We will let framework kanalw this task request started successfully,
 		 * although core is still woring on starting the request (to post tc when
 		 * RNC is resumed.)
 		 */
@@ -2754,7 +2754,7 @@ static int sci_write_gpio_tx_gp(struct isci_host *ihost, u8 reg_index, u8 reg_co
 {
 	int d;
 
-	/* no support for TX_GP_CFG */
+	/* anal support for TX_GP_CFG */
 	if (reg_index == 0)
 		return -EINVAL;
 

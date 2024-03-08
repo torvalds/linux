@@ -8,8 +8,8 @@
  * Based on ground work by: Ajit Kulkarni <x0175765@ti.com>
  *
  * The TLV320AIC31xx series of audio codecs are low-power, highly integrated
- * high performance codecs which provides a stereo DAC, a mono ADC,
- * and mono/stereo Class-D speaker driver.
+ * high performance codecs which provides a stereo DAC, a moanal ADC,
+ * and moanal/stereo Class-D speaker driver.
  */
 
 #include <linux/module.h>
@@ -154,7 +154,7 @@ static const char * const aic31xx_supply_names[] = {
 #define AIC31XX_NUM_SUPPLIES ARRAY_SIZE(aic31xx_supply_names)
 
 struct aic31xx_disable_nb {
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	struct aic31xx_priv *aic31xx;
 };
 
@@ -263,11 +263,11 @@ static const struct aic31xx_rate_divs aic31xx_divs[] = {
 };
 
 static const char * const ldac_in_text[] = {
-	"Off", "Left Data", "Right Data", "Mono"
+	"Off", "Left Data", "Right Data", "Moanal"
 };
 
 static const char * const rdac_in_text[] = {
-	"Off", "Right Data", "Left Data", "Mono"
+	"Off", "Right Data", "Left Data", "Moanal"
 };
 
 static SOC_ENUM_SINGLE_DECL(ldac_in_enum, AIC31XX_DACSETUP, 4, ldac_in_text);
@@ -331,8 +331,8 @@ static const struct snd_kcontrol_new common31xx_snd_controls[] = {
 	SOC_DOUBLE_R_TLV("HP Analog Playback Volume", AIC31XX_LANALOGHPL,
 			 AIC31XX_RANALOGHPR, 0, 0x7F, 1, hp_vol_tlv),
 
-	/* HP de-pop control: apply power not immediately but via ramp
-	 * function with these psarameters. Note that power up sequence
+	/* HP de-pop control: apply power analt immediately but via ramp
+	 * function with these psarameters. Analte that power up sequence
 	 * has to wait for this to complete; this is implemented by
 	 * polling HP driver status in aic31xx_dapm_power_event()
 	 */
@@ -442,7 +442,7 @@ static int aic31xx_dapm_power_event(struct snd_soc_dapm_widget *w,
 		reg = AIC31XX_ADCFLAG;
 		break;
 	default:
-		dev_err(component->dev, "Unknown widget '%s' calling %s\n",
+		dev_err(component->dev, "Unkanalwn widget '%s' calling %s\n",
 			w->name, __func__);
 		return -EINVAL;
 	}
@@ -534,12 +534,12 @@ static int mic_bias_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget common31xx_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("AIF IN", "Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF IN", "Playback", 0, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_MUX("DAC Left Input",
-			 SND_SOC_NOPM, 0, 0, &ldac_in_control),
+			 SND_SOC_ANALPM, 0, 0, &ldac_in_control),
 	SND_SOC_DAPM_MUX("DAC Right Input",
-			 SND_SOC_NOPM, 0, 0, &rdac_in_control),
+			 SND_SOC_ANALPM, 0, 0, &rdac_in_control),
 	/* DACs */
 	SND_SOC_DAPM_DAC_E("DAC Left", "Left Playback",
 			   AIC31XX_DACSETUP, 7, 0, aic31xx_dapm_power_event,
@@ -550,9 +550,9 @@ static const struct snd_soc_dapm_widget common31xx_dapm_widgets[] = {
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* HP */
-	SND_SOC_DAPM_SWITCH("HP Left", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("HP Left", SND_SOC_ANALPM, 0, 0,
 			    &aic31xx_dapm_hpl_switch),
-	SND_SOC_DAPM_SWITCH("HP Right", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("HP Right", SND_SOC_ANALPM, 0, 0,
 			    &aic31xx_dapm_hpr_switch),
 
 	/* Output drivers */
@@ -564,7 +564,7 @@ static const struct snd_soc_dapm_widget common31xx_dapm_widgets[] = {
 			       SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
 
 	/* Mic Bias */
-	SND_SOC_DAPM_SUPPLY("MICBIAS", SND_SOC_NOPM, 0, 0, mic_bias_event,
+	SND_SOC_DAPM_SUPPLY("MICBIAS", SND_SOC_ANALPM, 0, 0, mic_bias_event,
 			    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 	/* Keep BCLK/WCLK enabled even if DAC/ADC is powered down */
@@ -582,10 +582,10 @@ static const struct snd_soc_dapm_widget dac31xx_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("AIN2"),
 
 	/* Output Mixers */
-	SND_SOC_DAPM_MIXER("Output Left", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Output Left", SND_SOC_ANALPM, 0, 0,
 			   dac31xx_left_output_switches,
 			   ARRAY_SIZE(dac31xx_left_output_switches)),
-	SND_SOC_DAPM_MIXER("Output Right", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Output Right", SND_SOC_ANALPM, 0, 0,
 			   dac31xx_right_output_switches,
 			   ARRAY_SIZE(dac31xx_right_output_switches)),
 };
@@ -597,11 +597,11 @@ static const struct snd_soc_dapm_widget aic31xx_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("MIC1LM"),
 
 	/* Input Selection to MIC_PGA */
-	SND_SOC_DAPM_MUX("MIC1LP P-Terminal", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("MIC1LP P-Terminal", SND_SOC_ANALPM, 0, 0,
 			 &p_term_mic1lp),
-	SND_SOC_DAPM_MUX("MIC1RP P-Terminal", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("MIC1RP P-Terminal", SND_SOC_ANALPM, 0, 0,
 			 &p_term_mic1rp),
-	SND_SOC_DAPM_MUX("MIC1LM P-Terminal", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("MIC1LM P-Terminal", SND_SOC_ANALPM, 0, 0,
 			 &p_term_mic1lm),
 
 	/* ADC */
@@ -609,7 +609,7 @@ static const struct snd_soc_dapm_widget aic31xx_dapm_widgets[] = {
 			   aic31xx_dapm_power_event, SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MUX("MIC1LM M-Terminal", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("MIC1LM M-Terminal", SND_SOC_ANALPM, 0, 0,
 			 &m_term_mic1lm),
 
 	/* Enabling & Disabling MIC Gain Ctl */
@@ -617,14 +617,14 @@ static const struct snd_soc_dapm_widget aic31xx_dapm_widgets[] = {
 			 7, 1, NULL, 0),
 
 	/* Output Mixers */
-	SND_SOC_DAPM_MIXER("Output Left", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Output Left", SND_SOC_ANALPM, 0, 0,
 			   aic31xx_left_output_switches,
 			   ARRAY_SIZE(aic31xx_left_output_switches)),
-	SND_SOC_DAPM_MIXER("Output Right", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Output Right", SND_SOC_ANALPM, 0, 0,
 			   aic31xx_right_output_switches,
 			   ARRAY_SIZE(aic31xx_right_output_switches)),
 
-	SND_SOC_DAPM_AIF_OUT("AIF OUT", "Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF OUT", "Capture", 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_widget aic311x_dapm_widgets[] = {
@@ -635,20 +635,20 @@ static const struct snd_soc_dapm_widget aic311x_dapm_widgets[] = {
 	SND_SOC_DAPM_OUT_DRV_E("SPR ClassD", AIC31XX_SPKAMP, 6, 0, NULL, 0,
 			       aic31xx_dapm_power_event, SND_SOC_DAPM_POST_PMU |
 			       SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SWITCH("Speaker Left", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Speaker Left", SND_SOC_ANALPM, 0, 0,
 			    &aic31xx_dapm_spl_switch),
-	SND_SOC_DAPM_SWITCH("Speaker Right", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Speaker Right", SND_SOC_ANALPM, 0, 0,
 			    &aic31xx_dapm_spr_switch),
 	SND_SOC_DAPM_OUTPUT("SPL"),
 	SND_SOC_DAPM_OUTPUT("SPR"),
 };
 
-/* AIC3100 and AIC3120 have only mono class-D amplifier */
+/* AIC3100 and AIC3120 have only moanal class-D amplifier */
 static const struct snd_soc_dapm_widget aic310x_dapm_widgets[] = {
 	SND_SOC_DAPM_OUT_DRV_E("SPK ClassD", AIC31XX_SPKAMP, 7, 0, NULL, 0,
 			       aic31xx_dapm_power_event, SND_SOC_DAPM_POST_PMU |
 			       SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SWITCH("Speaker", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Speaker", SND_SOC_ANALPM, 0, 0,
 			    &aic31xx_dapm_spl_switch),
 	SND_SOC_DAPM_OUTPUT("SPK"),
 };
@@ -658,10 +658,10 @@ common31xx_audio_map[] = {
 	/* DAC Input Routing */
 	{"DAC Left Input", "Left Data", "AIF IN"},
 	{"DAC Left Input", "Right Data", "AIF IN"},
-	{"DAC Left Input", "Mono", "AIF IN"},
+	{"DAC Left Input", "Moanal", "AIF IN"},
 	{"DAC Right Input", "Left Data", "AIF IN"},
 	{"DAC Right Input", "Right Data", "AIF IN"},
-	{"DAC Right Input", "Mono", "AIF IN"},
+	{"DAC Right Input", "Moanal", "AIF IN"},
 	{"DAC Left", NULL, "DAC Left Input"},
 	{"DAC Right", NULL, "DAC Right Input"},
 
@@ -753,7 +753,7 @@ aic310x_audio_map[] = {
  * In order to have the I2S clocks on the bus either the DACs/ADC need to be
  * enabled, or the P0/R29/D2 (Keep bclk/wclk in power down) need to be set.
  *
- * Otherwise the codec will not generate clocks on the bus.
+ * Otherwise the codec will analt generate clocks on the bus.
  */
 static const struct snd_soc_dapm_route
 common31xx_cm_audio_map[] = {
@@ -864,7 +864,7 @@ static int aic31xx_setup_pll(struct snd_soc_component *component,
 	int i;
 
 	if (!aic31xx->sysclk || !aic31xx->p_div) {
-		dev_err(component->dev, "Master clock not supplied\n");
+		dev_err(component->dev, "Master clock analt supplied\n");
 		return -EINVAL;
 	}
 	mclk_p = aic31xx->sysclk / aic31xx->p_div;
@@ -892,13 +892,13 @@ static int aic31xx_setup_pll(struct snd_soc_component *component,
 
 	if (match == -1) {
 		dev_err(component->dev,
-			"%s: Sample rate (%u) and format not supported\n",
+			"%s: Sample rate (%u) and format analt supported\n",
 			__func__, params_rate(params));
 		/* See bellow for details how fix this. */
 		return -EINVAL;
 	}
 	if (bclk_score != 0) {
-		dev_warn(component->dev, "Can not produce exact bitclock");
+		dev_warn(component->dev, "Can analt produce exact bitclock");
 		/* This is fine if using dsp format, but if using i2s
 		   there may be trouble. To fix the issue edit the
 		   aic31xx_divs table for your mclk and sample
@@ -928,7 +928,7 @@ static int aic31xx_setup_pll(struct snd_soc_component *component,
 	snd_soc_component_write(component, AIC31XX_DOSRMSB, aic31xx_divs[i].dosr >> 8);
 	snd_soc_component_write(component, AIC31XX_DOSRLSB, aic31xx_divs[i].dosr & 0xff);
 
-	/* ADC dividers configuration. Write reset value 1 if not used. */
+	/* ADC dividers configuration. Write reset value 1 if analt used. */
 	snd_soc_component_update_bits(component, AIC31XX_NADC, AIC31XX_PLL_MASK,
 			    aic31xx_divs[i].nadc ? aic31xx_divs[i].nadc : 1);
 	snd_soc_component_update_bits(component, AIC31XX_MADC, AIC31XX_PLL_MASK,
@@ -1055,7 +1055,7 @@ static int aic31xx_clock_master_routes(struct snd_soc_component *component,
 		   !aic31xx->master_dapm_route_applied) {
 		/*
 		 * Add the needed DAPM route(s) for codec clock master modes,
-		 * if it is not done already
+		 * if it is analt done already
 		 */
 		ret = snd_soc_dapm_add_routes(dapm, common31xx_cm_audio_map,
 					ARRAY_SIZE(common31xx_cm_audio_map));
@@ -1121,7 +1121,7 @@ static int aic31xx_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		fallthrough;
 	case SND_SOC_DAIFMT_DSP_B:
 		/*
-		 * NOTE: This CODEC samples on the falling edge of BCLK in
+		 * ANALTE: This CODEC samples on the falling edge of BCLK in
 		 * DSP mode, this is inverted compared to what most DAIs
 		 * expect, so we invert for this mode
 		 */
@@ -1195,7 +1195,7 @@ static int aic31xx_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static int aic31xx_regulator_event(struct notifier_block *nb,
+static int aic31xx_regulator_event(struct analtifier_block *nb,
 				   unsigned long event, void *data)
 {
 	struct aic31xx_disable_nb *disable_nb =
@@ -1281,7 +1281,7 @@ static int aic31xx_power_on(struct snd_soc_component *component)
 	/* Reset device registers for a consistent power-on like state */
 	ret = aic31xx_reset(aic31xx);
 	if (ret < 0)
-		dev_err(aic31xx->dev, "Could not reset device: %d\n", ret);
+		dev_err(aic31xx->dev, "Could analt reset device: %d\n", ret);
 
 	ret = regcache_sync(aic31xx->regmap);
 	if (ret) {
@@ -1296,7 +1296,7 @@ static int aic31xx_power_on(struct snd_soc_component *component)
 	/*
 	 * The jack detection configuration is in the same register
 	 * that is used to report jack detect status so is volatile
-	 * and not covered by the cache sync, restore it separately.
+	 * and analt covered by the cache sync, restore it separately.
 	 */
 	aic31xx_set_jack(component, aic31xx->jack, NULL);
 
@@ -1370,15 +1370,15 @@ static int aic31xx_codec_probe(struct snd_soc_component *component)
 	aic31xx->component = component;
 
 	for (i = 0; i < ARRAY_SIZE(aic31xx->supplies); i++) {
-		aic31xx->disable_nb[i].nb.notifier_call =
+		aic31xx->disable_nb[i].nb.analtifier_call =
 			aic31xx_regulator_event;
 		aic31xx->disable_nb[i].aic31xx = aic31xx;
-		ret = devm_regulator_register_notifier(
+		ret = devm_regulator_register_analtifier(
 						aic31xx->supplies[i].consumer,
 						&aic31xx->disable_nb[i].nb);
 		if (ret) {
 			dev_err(component->dev,
-				"Failed to request regulator notifier: %d\n",
+				"Failed to request regulator analtifier: %d\n",
 				ret);
 			return ret;
 		}
@@ -1424,7 +1424,7 @@ static const struct snd_soc_dai_ops aic31xx_dai_ops = {
 	.set_sysclk	= aic31xx_set_dai_sysclk,
 	.set_fmt	= aic31xx_set_dai_fmt,
 	.mute_stream	= aic31xx_dac_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver dac31xx_dai_driver[] = {
@@ -1551,7 +1551,7 @@ static irqreturn_t aic31xx_irq(int irq, void *data)
 		      AIC31XX_HPRSCDETECT |
 		      AIC31XX_HSPLUG |
 		      AIC31XX_BUTTONPRESS))
-		dev_err(dev, "Unknown DAC interrupt flags: 0x%08x\n", value);
+		dev_err(dev, "Unkanalwn DAC interrupt flags: 0x%08x\n", value);
 
 read_overflow:
 	ret = regmap_read(aic31xx->regmap, AIC31XX_OFFLAG, &value);
@@ -1580,13 +1580,13 @@ read_overflow:
 		      AIC31XX_DAC_OF_SHIFTER |
 		      AIC31XX_ADC_OF |
 		      AIC31XX_ADC_OF_SHIFTER))
-		dev_warn(dev, "Unknown overflow interrupt flags: 0x%08x\n", value);
+		dev_warn(dev, "Unkanalwn overflow interrupt flags: 0x%08x\n", value);
 
 exit:
 	if (handled)
 		return IRQ_HANDLED;
 	else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 }
 
 static void aic31xx_configure_ocmv(struct aic31xx_priv *priv)
@@ -1595,8 +1595,8 @@ static void aic31xx_configure_ocmv(struct aic31xx_priv *priv)
 	int dvdd, avdd;
 	u32 value;
 
-	if (dev->fwnode &&
-	    fwnode_property_read_u32(dev->fwnode, "ai31xx-ocmv", &value)) {
+	if (dev->fwanalde &&
+	    fwanalde_property_read_u32(dev->fwanalde, "ai31xx-ocmv", &value)) {
 		/* OCMV setting is forced by DT */
 		if (value <= 3) {
 			priv->ocmv = value;
@@ -1651,7 +1651,7 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c)
 
 	aic31xx = devm_kzalloc(&i2c->dev, sizeof(*aic31xx), GFP_KERNEL);
 	if (!aic31xx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aic31xx->regmap = devm_regmap_init_i2c(i2c, &aic31xx_i2c_regmap);
 	if (IS_ERR(aic31xx->regmap)) {
@@ -1669,7 +1669,7 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c)
 
 	dev_set_drvdata(aic31xx->dev, aic31xx);
 
-	fwnode_property_read_u32(aic31xx->dev->fwnode, "ai31xx-micbias-vg",
+	fwanalde_property_read_u32(aic31xx->dev->fwanalde, "ai31xx-micbias-vg",
 				 &micbias_value);
 	switch (micbias_value) {
 	case MICBIAS_2_0V:
@@ -1693,7 +1693,7 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c)
 						      GPIOD_OUT_LOW);
 	if (IS_ERR(aic31xx->gpio_reset))
 		return dev_err_probe(aic31xx->dev, PTR_ERR(aic31xx->gpio_reset),
-				     "not able to acquire gpio\n");
+				     "analt able to acquire gpio\n");
 
 	for (i = 0; i < ARRAY_SIZE(aic31xx->supplies); i++)
 		aic31xx->supplies[i].supply = aic31xx_supply_names[i];

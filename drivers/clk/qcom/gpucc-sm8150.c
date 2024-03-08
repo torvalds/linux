@@ -162,14 +162,14 @@ static struct clk_branch gpu_cc_cx_gmu_clk = {
 	},
 };
 
-static struct clk_branch gpu_cc_cx_snoc_dvm_clk = {
+static struct clk_branch gpu_cc_cx_sanalc_dvm_clk = {
 	.halt_reg = 0x108c,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x108c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gpu_cc_cx_snoc_dvm_clk",
+			.name = "gpu_cc_cx_sanalc_dvm_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -234,7 +234,7 @@ static struct gdsc gpu_gx_gdsc = {
 	.clamp_io_ctrl = 0x1508,
 	.pd = {
 		.name = "gpu_gx_gdsc",
-		.power_on = gdsc_gx_do_nothing_enable,
+		.power_on = gdsc_gx_do_analthing_enable,
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = CLAMP_IO | AON_RESET | POLL_CFG_GDSCR,
@@ -245,7 +245,7 @@ static struct clk_regmap *gpu_cc_sm8150_clocks[] = {
 	[GPU_CC_CRC_AHB_CLK] = &gpu_cc_crc_ahb_clk.clkr,
 	[GPU_CC_CX_APB_CLK] = &gpu_cc_cx_apb_clk.clkr,
 	[GPU_CC_CX_GMU_CLK] = &gpu_cc_cx_gmu_clk.clkr,
-	[GPU_CC_CX_SNOC_DVM_CLK] = &gpu_cc_cx_snoc_dvm_clk.clkr,
+	[GPU_CC_CX_SANALC_DVM_CLK] = &gpu_cc_cx_sanalc_dvm_clk.clkr,
 	[GPU_CC_CXO_AON_CLK] = &gpu_cc_cxo_aon_clk.clkr,
 	[GPU_CC_CXO_CLK] = &gpu_cc_cxo_clk.clkr,
 	[GPU_CC_GMU_CLK_SRC] = &gpu_cc_gmu_clk_src.clkr,
@@ -299,7 +299,7 @@ static int gpu_cc_sm8150_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	if (of_device_is_compatible(pdev->dev.of_node, "qcom,sc8180x-gpucc"))
+	if (of_device_is_compatible(pdev->dev.of_analde, "qcom,sc8180x-gpucc"))
 		gpu_cc_gmu_clk_src.freq_tbl = ftbl_gpu_cc_gmu_clk_src_sc8180x;
 
 	clk_trion_pll_configure(&gpu_cc_pll1, regmap, &gpu_cc_pll1_config);

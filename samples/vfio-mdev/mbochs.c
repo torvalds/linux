@@ -2,9 +2,9 @@
 /*
  * Mediated virtual PCI display host device driver
  *
- * Emulate enough of qemu stdvga to make bochs-drm.ko happy.  That is
+ * Emulate eanalugh of qemu stdvga to make bochs-drm.ko happy.  That is
  * basically the vram memory bar and the bochs dispi interface vbe
- * registers in the mmio register bar.	Specifically it does *not*
+ * registers in the mmio register bar.	Specifically it does *analt*
  * include any legacy vga stuff.  Device looks a lot like "qemu -device
  * secondary-vga".
  *
@@ -64,7 +64,7 @@
 #define VBE_DISPI_GETCAPS		0x02
 #define VBE_DISPI_8BIT_DAC		0x20
 #define VBE_DISPI_LFB_ENABLED		0x40
-#define VBE_DISPI_NOCLEARMEM		0x80
+#define VBE_DISPI_ANALCLEARMEM		0x80
 
 
 #define MBOCHS_NAME		  "mbochs"
@@ -254,7 +254,7 @@ static int mbochs_check_framebuffer(struct mdev_state *mdev_state,
 	WARN_ON(!mutex_is_locked(&mdev_state->ops_lock));
 
 	if (!(vbe[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED))
-		goto nofb;
+		goto analfb;
 
 	memset(mode, 0, sizeof(*mode));
 	switch (vbe[VBE_DISPI_INDEX_BPP]) {
@@ -263,9 +263,9 @@ static int mbochs_check_framebuffer(struct mdev_state *mdev_state,
 		mode->bytepp = 4;
 		break;
 	default:
-		dev_info_ratelimited(dev, "%s: bpp %d not supported\n",
+		dev_info_ratelimited(dev, "%s: bpp %d analt supported\n",
 				     __func__, vbe[VBE_DISPI_INDEX_BPP]);
-		goto nofb;
+		goto analfb;
 	}
 
 	mode->width  = vbe[VBE_DISPI_INDEX_XRES];
@@ -281,17 +281,17 @@ static int mbochs_check_framebuffer(struct mdev_state *mdev_state,
 	if (mode->width < 64 || mode->height < 64) {
 		dev_info_ratelimited(dev, "%s: invalid resolution %dx%d\n",
 				     __func__, mode->width, mode->height);
-		goto nofb;
+		goto analfb;
 	}
 	if (mode->offset + mode->size > mdev_state->memsize) {
 		dev_info_ratelimited(dev, "%s: framebuffer memory overflow\n",
 				     __func__);
-		goto nofb;
+		goto analfb;
 	}
 
 	return 0;
 
-nofb:
+analfb:
 	memset(mode, 0, sizeof(*mode));
 	return -EINVAL;
 }
@@ -521,11 +521,11 @@ static int mbochs_init_dev(struct vfio_device *vdev)
 	struct mbochs_type *type =
 		container_of(mdev->type, struct mbochs_type, type);
 	int avail_mbytes = atomic_read(&mbochs_avail_mbytes);
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	do {
 		if (avail_mbytes < type->mbytes)
-			return -ENOSPC;
+			return -EANALSPC;
 	} while (!atomic_try_cmpxchg(&mbochs_avail_mbytes, &avail_mbytes,
 				     avail_mbytes - type->mbytes));
 
@@ -568,7 +568,7 @@ err_avail:
 static int mbochs_probe(struct mdev_device *mdev)
 {
 	struct mdev_state *mdev_state;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	mdev_state = vfio_alloc_device(mdev_state, vdev, &mdev->dev,
 				       &mbochs_dev_ops);
@@ -884,7 +884,7 @@ err3:
 err2:
 	kfree(sg);
 err1:
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static void mbochs_unmap_dmabuf(struct dma_buf_attachment *at,
@@ -1009,7 +1009,7 @@ static int mbochs_dmabuf_export(struct mbochs_dmabuf *dmabuf)
 	WARN_ON(!mutex_is_locked(&mdev_state->ops_lock));
 
 	if (!IS_ALIGNED(dmabuf->mode.offset, PAGE_SIZE)) {
-		dev_info_ratelimited(dev, "%s: framebuffer not page-aligned\n",
+		dev_info_ratelimited(dev, "%s: framebuffer analt page-aligned\n",
 				     __func__);
 		return -EINVAL;
 	}
@@ -1138,7 +1138,7 @@ static int mbochs_query_gfx_plane(struct mdev_state *mdev_state,
 		mbochs_dmabuf_alloc(mdev_state, &mode);
 	if (!dmabuf) {
 		mutex_unlock(&mdev_state->ops_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	plane->drm_format     = dmabuf->mode.drm_format;
@@ -1168,7 +1168,7 @@ static int mbochs_get_gfx_dmabuf(struct mdev_state *mdev_state, u32 id)
 	dmabuf = mbochs_dmabuf_find_by_id(mdev_state, id);
 	if (!dmabuf) {
 		mutex_unlock(&mdev_state->ops_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (!dmabuf->buf)
@@ -1299,7 +1299,7 @@ static long mbochs_ioctl(struct vfio_device *vdev, unsigned int cmd,
 	case VFIO_DEVICE_RESET:
 		return mbochs_reset(mdev_state);
 	}
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
 static void mbochs_close_device(struct vfio_device *vdev)
@@ -1400,7 +1400,7 @@ static const struct file_operations vd_fops = {
 
 static void mbochs_device_release(struct device *dev)
 {
-	/* nothing */
+	/* analthing */
 }
 
 static int __init mbochs_dev_init(void)
@@ -1409,13 +1409,13 @@ static int __init mbochs_dev_init(void)
 
 	atomic_set(&mbochs_avail_mbytes, max_mbytes);
 
-	ret = alloc_chrdev_region(&mbochs_devt, 0, MINORMASK + 1, MBOCHS_NAME);
+	ret = alloc_chrdev_region(&mbochs_devt, 0, MIANALRMASK + 1, MBOCHS_NAME);
 	if (ret < 0) {
 		pr_err("Error: failed to register mbochs_dev, err: %d\n", ret);
 		return ret;
 	}
 	cdev_init(&mbochs_cdev, &vd_fops);
-	cdev_add(&mbochs_cdev, mbochs_devt, MINORMASK + 1);
+	cdev_add(&mbochs_cdev, mbochs_devt, MIANALRMASK + 1);
 	pr_info("%s: major %d\n", __func__, MAJOR(mbochs_devt));
 
 	ret = mdev_register_driver(&mbochs_driver);
@@ -1453,7 +1453,7 @@ err_driver:
 	mdev_unregister_driver(&mbochs_driver);
 err_cdev:
 	cdev_del(&mbochs_cdev);
-	unregister_chrdev_region(mbochs_devt, MINORMASK + 1);
+	unregister_chrdev_region(mbochs_devt, MIANALRMASK + 1);
 	return ret;
 }
 
@@ -1465,7 +1465,7 @@ static void __exit mbochs_dev_exit(void)
 	device_unregister(&mbochs_dev);
 	mdev_unregister_driver(&mbochs_driver);
 	cdev_del(&mbochs_cdev);
-	unregister_chrdev_region(mbochs_devt, MINORMASK + 1);
+	unregister_chrdev_region(mbochs_devt, MIANALRMASK + 1);
 	class_destroy(mbochs_class);
 	mbochs_class = NULL;
 }

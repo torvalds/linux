@@ -58,7 +58,7 @@
 #endif
 
 /*
- * Roughly size the vmemmap space to be large enough to fit enough
+ * Roughly size the vmemmap space to be large eanalugh to fit eanalugh
  * struct pages to map half the virtual address space. Then
  * position vmemmap directly below the VMALLOC region.
  */
@@ -177,7 +177,7 @@ extern struct pt_alloc_ops pt_ops __initdata;
 /* Page protection bits */
 #define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_USER)
 
-#define PAGE_NONE		__pgprot(_PAGE_PROT_NONE | _PAGE_READ)
+#define PAGE_ANALNE		__pgprot(_PAGE_PROT_ANALNE | _PAGE_READ)
 #define PAGE_READ		__pgprot(_PAGE_BASE | _PAGE_READ)
 #define PAGE_WRITE		__pgprot(_PAGE_BASE | _PAGE_READ | _PAGE_WRITE)
 #define PAGE_EXEC		__pgprot(_PAGE_BASE | _PAGE_EXEC)
@@ -221,16 +221,16 @@ static inline int pmd_present(pmd_t pmd)
 	 * the present bit, in this situation, pmd_present() and
 	 * pmd_trans_huge() still needs to return true.
 	 */
-	return (pmd_val(pmd) & (_PAGE_PRESENT | _PAGE_PROT_NONE | _PAGE_LEAF));
+	return (pmd_val(pmd) & (_PAGE_PRESENT | _PAGE_PROT_ANALNE | _PAGE_LEAF));
 }
 #else
 static inline int pmd_present(pmd_t pmd)
 {
-	return (pmd_val(pmd) & (_PAGE_PRESENT | _PAGE_PROT_NONE));
+	return (pmd_val(pmd) & (_PAGE_PRESENT | _PAGE_PROT_ANALNE));
 }
 #endif
 
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_analne(pmd_t pmd)
 {
 	return (pmd_val(pmd) == 0);
 }
@@ -350,10 +350,10 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 
 static inline int pte_present(pte_t pte)
 {
-	return (pte_val(pte) & (_PAGE_PRESENT | _PAGE_PROT_NONE));
+	return (pte_val(pte) & (_PAGE_PRESENT | _PAGE_PROT_ANALNE));
 }
 
-static inline int pte_none(pte_t pte)
+static inline int pte_analne(pte_t pte)
 {
 	return (pte_val(pte) == 0);
 }
@@ -402,7 +402,7 @@ static inline pte_t pte_wrprotect(pte_t pte)
 
 /* static inline pte_t pte_mkread(pte_t pte) */
 
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 {
 	return __pte(pte_val(pte) | _PAGE_WRITE);
 }
@@ -447,14 +447,14 @@ static inline pte_t pte_mkhuge(pte_t pte)
 /*
  * See the comment in include/asm-generic/pgtable.h
  */
-static inline int pte_protnone(pte_t pte)
+static inline int pte_protanalne(pte_t pte)
 {
-	return (pte_val(pte) & (_PAGE_PRESENT | _PAGE_PROT_NONE)) == _PAGE_PROT_NONE;
+	return (pte_val(pte) & (_PAGE_PRESENT | _PAGE_PROT_ANALNE)) == _PAGE_PROT_ANALNE;
 }
 
-static inline int pmd_protnone(pmd_t pmd)
+static inline int pmd_protanalne(pmd_t pmd)
 {
-	return pte_protnone(pmd_pte(pmd));
+	return pte_protanalne(pmd_pte(pmd));
 }
 #endif
 
@@ -479,7 +479,7 @@ static inline void update_mmu_cache_range(struct vm_fault *vmf,
 {
 	/*
 	 * The kernel assumes that TLBs don't cache invalid entries, but
-	 * in RISC-V, SFENCE.VMA specifies an ordering constraint, not a
+	 * in RISC-V, SFENCE.VMA specifies an ordering constraint, analt a
 	 * cache flush; it is necessary even after writing invalid entries.
 	 * Relying on flush_tlb_fix_spurious_fault would suffice, but
 	 * the extra traps reduce performance.  So, eagerly SFENCE.VMA.
@@ -588,15 +588,15 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
 	 * So as a performance optimization don't flush the TLB when
 	 * clearing the accessed bit, it will eventually be flushed by
 	 * a context switch or a VM operation anyway. [ In the rare
-	 * event of it not getting flushed for a long time the delay
-	 * shouldn't really matter because there's no real memory
+	 * event of it analt getting flushed for a long time the delay
+	 * shouldn't really matter because there's anal real memory
 	 * pressure for swapout to react to. ]
 	 */
 	return ptep_test_and_clear_young(vma, address, ptep);
 }
 
-#define pgprot_noncached pgprot_noncached
-static inline pgprot_t pgprot_noncached(pgprot_t _prot)
+#define pgprot_analncached pgprot_analncached
+static inline pgprot_t pgprot_analncached(pgprot_t _prot)
 {
 	unsigned long prot = pgprot_val(_prot);
 
@@ -612,7 +612,7 @@ static inline pgprot_t pgprot_writecombine(pgprot_t _prot)
 	unsigned long prot = pgprot_val(_prot);
 
 	prot &= ~_PAGE_MTMASK;
-	prot |= _PAGE_NOCACHE;
+	prot |= _PAGE_ANALCACHE;
 
 	return __pgprot(prot);
 }
@@ -632,7 +632,7 @@ static inline pmd_t pmd_mkhuge(pmd_t pmd)
 
 static inline pmd_t pmd_mkinvalid(pmd_t pmd)
 {
-	return __pmd(pmd_val(pmd) & ~(_PAGE_PRESENT|_PAGE_PROT_NONE));
+	return __pmd(pmd_val(pmd) & ~(_PAGE_PRESENT|_PAGE_PROT_ANALNE));
 }
 
 #define __pmd_to_phys(pmd)  (__page_val_to_pfn(pmd_val(pmd)) << PAGE_SHIFT)
@@ -687,9 +687,9 @@ static inline pmd_t pmd_mkyoung(pmd_t pmd)
 	return pte_pmd(pte_mkyoung(pmd_pte(pmd)));
 }
 
-static inline pmd_t pmd_mkwrite_novma(pmd_t pmd)
+static inline pmd_t pmd_mkwrite_analvma(pmd_t pmd)
 {
-	return pte_pmd(pte_mkwrite_novma(pmd_pte(pmd)));
+	return pte_pmd(pte_mkwrite_analvma(pmd_pte(pmd)));
 }
 
 static inline pmd_t pmd_wrprotect(pmd_t pmd)
@@ -792,12 +792,12 @@ extern pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTE:
  *	bit            0:	_PAGE_PRESENT (zero)
  *	bit       1 to 3:       _PAGE_LEAF (zero)
- *	bit            5:	_PAGE_PROT_NONE (zero)
+ *	bit            5:	_PAGE_PROT_ANALNE (zero)
  *	bit            6:	exclusive marker
  *	bits      7 to 11:	swap type
  *	bits 12 to XLEN-1:	swap offset
@@ -851,14 +851,14 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 
 /*
  * Task size is 0x4000000000 for RV64 or 0x9fc00000 for RV32.
- * Note that PGDIR_SIZE must evenly divide TASK_SIZE.
+ * Analte that PGDIR_SIZE must evenly divide TASK_SIZE.
  * Task size is:
  * -        0x9fc00000	(~2.5GB) for RV32.
  * -      0x4000000000	( 256GB) for RV64 using SV39 mmu
  * -    0x800000000000	( 128TB) for RV64 using SV48 mmu
  * - 0x100000000000000	(  64PB) for RV64 using SV57 mmu
  *
- * Note that PGDIR_SIZE must evenly divide TASK_SIZE since "RISC-V
+ * Analte that PGDIR_SIZE must evenly divide TASK_SIZE since "RISC-V
  * Instruction Set Manual Volume II: Privileged Architecture" states that
  * "load and store effective addresses, which are 64bits, must have bits
  * 63–48 all equal to bit 47, or else a page-fault exception will occur."

@@ -23,7 +23,7 @@
 /*
  * Bit 7 of a tag map entry is the "valid" bit, if it is set then bits 0:6
  * contain the bit number of the APIC ID to map into the DCA tag.  If the valid
- * bit is not set, then the value must be 0 or 1 and defines the bit in the tag.
+ * bit is analt set, then the value must be 0 or 1 and defines the bit in the tag.
  */
 #define DCA_TAG_MAP_VALID 0x80
 
@@ -41,7 +41,7 @@
 #define DCA2_TAG_MAP_BYTE4 0x82
 
 /*
- * "Legacy" DCA systems do not implement the DCA register set in the
+ * "Legacy" DCA systems do analt implement the DCA register set in the
  * I/OAT device.  Software needs direct support for their tag mappings.
  */
 
@@ -120,12 +120,12 @@ static int ioat_dca_add_requester(struct dca_provider *dca, struct device *dev)
 
 	/* This implementation only supports PCI-Express */
 	if (!dev_is_pci(dev))
-		return -ENODEV;
+		return -EANALDEV;
 	pdev = to_pci_dev(dev);
 	id = dcaid_from_pcidev(pdev);
 
 	if (ioatdca->requester_count == ioatdca->max_requesters)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < ioatdca->max_requesters; i++) {
 		if (ioatdca->req_slots[i].pdev == NULL) {
@@ -154,7 +154,7 @@ static int ioat_dca_remove_requester(struct dca_provider *dca,
 
 	/* This implementation only supports PCI-Express */
 	if (!dev_is_pci(dev))
-		return -ENODEV;
+		return -EANALDEV;
 	pdev = to_pci_dev(dev);
 
 	for (i = 0; i < ioatdca->max_requesters; i++) {
@@ -168,7 +168,7 @@ static int ioat_dca_remove_requester(struct dca_provider *dca,
 			return i;
 		}
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static u8 ioat_dca_get_tag(struct dca_provider *dca,
@@ -230,11 +230,11 @@ static int ioat_dca_count_dca_slots(void *iobase, u16 dca_offset)
 static inline int dca3_tag_map_invalid(u8 *tag_map)
 {
 	/*
-	 * If the tag map is not programmed by the BIOS the default is:
+	 * If the tag map is analt programmed by the BIOS the default is:
 	 * 0x80 0x80 0x80 0x80 0x80 0x00 0x00 0x00
 	 *
 	 * This an invalid map and will result in only 2 possible tags
-	 * 0x1F and 0x00.  0x00 is an invalid DCA tag so we know that
+	 * 0x1F and 0x00.  0x00 is an invalid DCA tag so we kanalw that
 	 * this entire definition is invalid.
 	 */
 	return ((tag_map[0] == DCA_TAG_MAP_VALID) &&
@@ -285,7 +285,7 @@ struct dca_provider *ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase)
 	ioatdca->dca_base = iobase + dca_offset;
 	ioatdca->max_requesters = slots;
 
-	/* some bios might not know to turn these on */
+	/* some bios might analt kanalw to turn these on */
 	csi_fsb_control = readw(ioatdca->dca_base + IOAT3_CSI_CONTROL_OFFSET);
 	if ((csi_fsb_control & IOAT3_CSI_CONTROL_PREFETCH) == 0) {
 		csi_fsb_control |= IOAT3_CSI_CONTROL_PREFETCH;

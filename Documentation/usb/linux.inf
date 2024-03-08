@@ -56,9 +56,9 @@ HKR, NDI\params\VistaProperty, UpperCase,  0, "1"
 HKR, NDI\params\VistaProperty, default,    0, " "
 HKR, NDI\params\VistaProperty, optional,   0, "1"
 
-; No sys copyfiles - the sys files are already in-build
+; Anal sys copyfiles - the sys files are already in-build
 ; (part of the operating system).
-; We do not support XP SP1-, 2003 SP1-, ME, 9x.
+; We do analt support XP SP1-, 2003 SP1-, ME, 9x.
 
 [Strings]
 Linux                 = "Linux Developer Community"

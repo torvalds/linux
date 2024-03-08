@@ -5,20 +5,20 @@
 Describing and referring to LEDs in ACPI
 ========================================
 
-Individual LEDs are described by hierarchical data extension [5] nodes under the
-device node, the LED driver chip. The "reg" property in the LED specific nodes
+Individual LEDs are described by hierarchical data extension [5] analdes under the
+device analde, the LED driver chip. The "reg" property in the LED specific analdes
 tells the numerical ID of each individual LED output to which the LEDs are
-connected. [leds] The hierarchical data nodes are named "led@X", where X is the
+connected. [leds] The hierarchical data analdes are named "led@X", where X is the
 number of the LED output.
 
 Referring to LEDs in Device tree is documented in [video-interfaces], in
 "flash-leds" property documentation. In short, LEDs are directly referred to by
 using phandles.
 
-While Device tree allows referring to any node in the tree [devicetree], in
-ACPI references are limited to device nodes only [acpi]. For this reason using
-the same mechanism on ACPI is not possible. A mechanism to refer to non-device
-ACPI nodes is documented in [data-node-ref].
+While Device tree allows referring to any analde in the tree [devicetree], in
+ACPI references are limited to device analdes only [acpi]. For this reason using
+the same mechanism on ACPI is analt possible. A mechanism to refer to analn-device
+ACPI analdes is documented in [data-analde-ref].
 
 ACPI allows (as does DT) using integer arguments after the reference. A
 combination of the LED driver device reference and an integer argument,
@@ -35,7 +35,7 @@ Example
 =======
 
 An ASL example of a camera sensor device and a LED driver device for two LEDs is
-show below. Objects not relevant for LEDs or the references to them have been
+show below. Objects analt relevant for LEDs or the references to them have been
 omitted. ::
 
 	Device (LED)
@@ -86,7 +86,7 @@ where
 	LED	LED driver device
 	LED0	First LED
 	LED1	Second LED
-	SEN	Camera sensor device (or another device the LED is related to)
+	SEN	Camera sensor device (or aanalther device the LED is related to)
 
 References
 ==========
@@ -94,7 +94,7 @@ References
 [acpi] Advanced Configuration and Power Interface Specification.
     https://uefi.org/specifications/ACPI/6.4/, referenced 2021-11-30.
 
-[data-node-ref] Documentation/firmware-guide/acpi/dsd/data-node-references.rst
+[data-analde-ref] Documentation/firmware-guide/acpi/dsd/data-analde-references.rst
 
 [devicetree] Devicetree. https://www.devicetree.org, referenced 2019-02-21.
 

@@ -31,14 +31,14 @@ static inline char *v3d_queue_to_string(enum v3d_queue queue)
 	case V3D_CACHE_CLEAN: return "cache_clean";
 	case V3D_CPU: return "cpu";
 	}
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 
 struct v3d_queue_state {
 	struct drm_gpu_scheduler sched;
 
 	u64 fence_context;
-	u64 emit_seqno;
+	u64 emit_seqanal;
 
 	u64 start_ns;
 	u64 enabled_ns;
@@ -72,7 +72,7 @@ struct v3d_perfmon {
 	 * HW perf counter values every time the perfmon is attached
 	 * to a GPU job.  This way, perfmon users don't have to
 	 * retrieve the results after each job if they want to track
-	 * events covering several submissions.  Note that counter
+	 * events covering several submissions.  Analte that counter
 	 * values can't be reset, but you can fake a reset by
 	 * destroying the perfmon and creating a new one.
 	 */
@@ -145,13 +145,13 @@ struct v3d_dev {
 	struct mutex reset_lock;
 
 	/* Lock taken when creating and pushing the GPU scheduler
-	 * jobs, to keep the sched-fence seqnos in order.
+	 * jobs, to keep the sched-fence seqanals in order.
 	 */
 	struct mutex sched_lock;
 
 	/* Lock taken during a cache clean and when initiating an L2
 	 * flush, to keep L2 flushes from interfering with the
-	 * synchronous L2 cleans.
+	 * synchroanalus L2 cleans.
 	 */
 	struct mutex cache_clean_lock;
 
@@ -196,7 +196,7 @@ struct v3d_file_priv {
 struct v3d_bo {
 	struct drm_gem_shmem_object base;
 
-	struct drm_mm_node node;
+	struct drm_mm_analde analde;
 
 	/* List entry for the BO's position in
 	 * v3d_render_job->unref_list
@@ -215,8 +215,8 @@ to_v3d_bo(struct drm_gem_object *bo)
 struct v3d_fence {
 	struct dma_fence base;
 	struct drm_device *dev;
-	/* v3d seqno for signaled() test */
-	u64 seqno;
+	/* v3d seqanal for signaled() test */
+	u64 seqanal;
 	enum v3d_queue queue;
 };
 
@@ -393,7 +393,7 @@ struct v3d_copy_query_results_info {
 	/* Define if should write to buffer using 64 or 32 bits */
 	bool do_64bit;
 
-	/* Define if it can write to buffer even if the query is not available */
+	/* Define if it can write to buffer even if the query is analt available */
 	bool do_partial;
 
 	/* Define if it should write availability bit to buffer */
@@ -440,7 +440,7 @@ struct v3d_submit_ext {
 /**
  * __wait_for - magic wait macro
  *
- * Macro to help avoid open coding check/wait/timeout patterns. Note that it's
+ * Macro to help avoid open coding check/wait/timeout patterns. Analte that it's
  * important that we check the condition again after having timed out, since the
  * timeout could be due to preemption or similar and we've never had a chance to
  * check the condition before the timeout.
@@ -476,7 +476,7 @@ struct v3d_submit_ext {
 
 static inline unsigned long nsecs_to_jiffies_timeout(const u64 n)
 {
-	/* nsecs_to_jiffies64() does not guard against overflow */
+	/* nsecs_to_jiffies64() does analt guard against overflow */
 	if ((NSEC_PER_SEC % HZ) != 0 &&
 	    div_u64(n, NSEC_PER_SEC) >= MAX_JIFFY_OFFSET / HZ)
 		return MAX_JIFFY_OFFSET;
@@ -504,7 +504,7 @@ struct drm_gem_object *v3d_prime_import_sg_table(struct drm_device *dev,
 						 struct sg_table *sgt);
 
 /* v3d_debugfs.c */
-void v3d_debugfs_init(struct drm_minor *minor);
+void v3d_debugfs_init(struct drm_mianalr *mianalr);
 
 /* v3d_fence.c */
 extern const struct dma_fence_ops v3d_fence_ops;

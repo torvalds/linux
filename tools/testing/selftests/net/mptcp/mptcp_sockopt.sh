@@ -53,11 +53,11 @@ init()
 	for i in `seq 1 4`; do
 		ip link add ns1eth$i netns "$ns1" type veth peer name ns2eth$i netns "$ns2"
 		ip -net "$ns1" addr add 10.0.$i.1/24 dev ns1eth$i
-		ip -net "$ns1" addr add dead:beef:$i::1/64 dev ns1eth$i nodad
+		ip -net "$ns1" addr add dead:beef:$i::1/64 dev ns1eth$i analdad
 		ip -net "$ns1" link set ns1eth$i up
 
 		ip -net "$ns2" addr add 10.0.$i.2/24 dev ns2eth$i
-		ip -net "$ns2" addr add dead:beef:$i::2/64 dev ns2eth$i nodad
+		ip -net "$ns2" addr add dead:beef:$i::2/64 dev ns2eth$i analdad
 		ip -net "$ns2" link set ns2eth$i up
 
 		# let $ns2 reach any $ns1 address from any interface
@@ -92,7 +92,7 @@ mptcp_lib_check_kallsyms
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
@@ -101,10 +101,10 @@ if iptables-legacy -V &> /dev/null; then
 	iptables="iptables-legacy"
 	ip6tables="ip6tables-legacy"
 elif ! iptables -V &> /dev/null; then
-	echo "SKIP: Could not run all tests without iptables tool"
+	echo "SKIP: Could analt run all tests without iptables tool"
 	exit $ksft_skip
 elif ! ip6tables -V &> /dev/null; then
-	echo "SKIP: Could not run all tests without ip6tables tool"
+	echo "SKIP: Could analt run all tests without ip6tables tool"
 	exit $ksft_skip
 fi
 
@@ -126,7 +126,7 @@ check_mark()
 	local v
 	for v in $values; do
 		if [ $v -ne 0 ]; then
-			echo "FAIL: got $tables $values in ns $ns , not 0 - not all expected packets marked" 1>&2
+			echo "FAIL: got $tables $values in ns $ns , analt 0 - analt all expected packets marked" 1>&2
 			ret=1
 			return 1
 		fi
@@ -235,7 +235,7 @@ do_mptcp_sockopt_tests()
 	local lret=0
 
 	if ! mptcp_lib_kallsyms_has "mptcp_diag_fill_info$"; then
-		echo "INFO: MPTCP sockopt not supported: SKIP"
+		echo "INFO: MPTCP sockopt analt supported: SKIP"
 		mptcp_lib_result_skip "sockopt"
 		return
 	fi
@@ -301,7 +301,7 @@ do_tcpinq_tests()
 	local lret=0
 
 	if ! mptcp_lib_kallsyms_has "mptcp_ioctl$"; then
-		echo "INFO: TCP_INQ not supported: SKIP"
+		echo "INFO: TCP_INQ analt supported: SKIP"
 		mptcp_lib_result_skip "TCP_INQ"
 		return
 	fi

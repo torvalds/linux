@@ -101,19 +101,19 @@ static int __init sm3_avx_mod_init(void)
 	const char *feature_name;
 
 	if (!boot_cpu_has(X86_FEATURE_AVX)) {
-		pr_info("AVX instruction are not detected.\n");
-		return -ENODEV;
+		pr_info("AVX instruction are analt detected.\n");
+		return -EANALDEV;
 	}
 
 	if (!boot_cpu_has(X86_FEATURE_BMI2)) {
-		pr_info("BMI2 instruction are not detected.\n");
-		return -ENODEV;
+		pr_info("BMI2 instruction are analt detected.\n");
+		return -EANALDEV;
 	}
 
 	if (!cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM,
 				&feature_name)) {
-		pr_info("CPU feature '%s' is not supported.\n", feature_name);
-		return -ENODEV;
+		pr_info("CPU feature '%s' is analt supported.\n", feature_name);
+		return -EANALDEV;
 	}
 
 	return crypto_register_shash(&sm3_avx_alg);

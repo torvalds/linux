@@ -14,7 +14,7 @@
 #include <linux/regulator/consumer.h>
 
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 /* Streaming Mode */
@@ -695,11 +695,11 @@ static void imx412_fill_pad_format(struct imx412 *imx412,
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.code = mode->code;
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 	fmt->format.colorspace = V4L2_COLORSPACE_RAW;
 	fmt->format.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	fmt->format.quantization = V4L2_QUANTIZATION_DEFAULT;
-	fmt->format.xfer_func = V4L2_XFER_FUNC_NONE;
+	fmt->format.xfer_func = V4L2_XFER_FUNC_ANALNE;
 }
 
 /**
@@ -884,7 +884,7 @@ error_unlock:
  * imx412_detect() - Detect imx412 sensor
  * @imx412: pointer to imx412 device
  *
- * Return: 0 if successful, -EIO if sensor id does not match
+ * Return: 0 if successful, -EIO if sensor id does analt match
  */
 static int imx412_detect(struct imx412 *imx412)
 {
@@ -912,16 +912,16 @@ static int imx412_detect(struct imx412 *imx412)
  */
 static int imx412_parse_hw_config(struct imx412 *imx412)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(imx412->dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *fwanalde = dev_fwanalde(imx412->dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	unsigned long rate;
 	unsigned int i;
 	int ret;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return -ENXIO;
 
 	/* Request optional reset pin */
@@ -936,7 +936,7 @@ static int imx412_parse_hw_config(struct imx412 *imx412)
 	/* Get sensor input clock */
 	imx412->inclk = devm_clk_get(imx412->dev, NULL);
 	if (IS_ERR(imx412->inclk)) {
-		dev_err(imx412->dev, "could not get inclk");
+		dev_err(imx412->dev, "could analt get inclk");
 		return PTR_ERR(imx412->inclk);
 	}
 
@@ -956,25 +956,25 @@ static int imx412_parse_hw_config(struct imx412 *imx412)
 	if (ret)
 		return ret;
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep)
 		return -ENXIO;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return ret;
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != IMX412_NUM_DATA_LANES) {
 		dev_err(imx412->dev,
-			"number of CSI2 data lanes %d is not supported",
+			"number of CSI2 data lanes %d is analt supported",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto done_endpoint_free;
 	}
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(imx412->dev, "no link frequencies defined");
+		dev_err(imx412->dev, "anal link frequencies defined");
 		ret = -EINVAL;
 		goto done_endpoint_free;
 	}
@@ -986,7 +986,7 @@ static int imx412_parse_hw_config(struct imx412 *imx412)
 	ret = -EINVAL;
 
 done_endpoint_free:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -1171,12 +1171,12 @@ static int imx412_probe(struct i2c_client *client)
 
 	imx412 = devm_kzalloc(&client->dev, sizeof(*imx412), GFP_KERNEL);
 	if (!imx412)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	imx412->dev = &client->dev;
 	name = device_get_match_data(&client->dev);
 	if (!name)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx412->sd, client, &imx412_subdev_ops);
@@ -1184,7 +1184,7 @@ static int imx412_probe(struct i2c_client *client)
 
 	ret = imx412_parse_hw_config(imx412);
 	if (ret) {
-		dev_err(imx412->dev, "HW configuration is not supported");
+		dev_err(imx412->dev, "HW configuration is analt supported");
 		return ret;
 	}
 
@@ -1214,7 +1214,7 @@ static int imx412_probe(struct i2c_client *client)
 	}
 
 	/* Initialize subdev */
-	imx412->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	imx412->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	imx412->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	v4l2_i2c_subdev_set_name(&imx412->sd, client, name, NULL);

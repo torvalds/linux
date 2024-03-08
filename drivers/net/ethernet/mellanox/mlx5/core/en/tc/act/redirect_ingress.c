@@ -29,7 +29,7 @@ tc_act_can_offload_redirect_ingress(struct mlx5e_tc_act_parse_state *parse_state
 
 	if (netif_is_ovs_master(parse_attr->filter_dev)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "redirect to ingress is not supported from internal port");
+				   "redirect to ingress is analt supported from internal port");
 		return false;
 	}
 

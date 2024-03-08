@@ -11,8 +11,8 @@ Required properties :
   clock bindings.
 
 Optional properties :
-- clock-frequency : Desired I2C bus clock frequency in Hz. If not specified,
-  the default 100 kHz frequency will be used. As only Normal and Fast modes
+- clock-frequency : Desired I2C bus clock frequency in Hz. If analt specified,
+  the default 100 kHz frequency will be used. As only Analrmal and Fast modes
   are supported, possible values are 100000 and 400000.
 
 Example :

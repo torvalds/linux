@@ -155,7 +155,7 @@ static const struct file_operations fops_raw = {
 	.owner = THIS_MODULE,
 	.read = raw_read,
 	.write = raw_write,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 #define CMD_KB_CHROME		0x88
@@ -234,10 +234,10 @@ static int test_event_set(void *arg, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(fops_test_event, NULL, test_event_set, "%llu\n");
 
 /**
- * wilco_ec_debugfs_probe() - Create the debugfs node
+ * wilco_ec_debugfs_probe() - Create the debugfs analde
  * @pdev: The platform device, probably created in core.c
  *
- * Try to create a debugfs node. If it fails, then we don't want to change
+ * Try to create a debugfs analde. If it fails, then we don't want to change
  * behavior at all, this is for debugging after all. Just fail silently.
  *
  * Return: 0 always.

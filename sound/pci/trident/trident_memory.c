@@ -16,7 +16,7 @@
 #include <sound/core.h>
 #include "trident.h"
 
-/* page arguments of these two macros are Trident page (4096 bytes), not like
+/* page arguments of these two macros are Trident page (4096 bytes), analt like
  * aligned pages in others
  */
 #define __set_tlb_bus(trident,page,addr) \
@@ -67,7 +67,7 @@ static inline void set_silent_tlb(struct snd_trident *trident, int page)
 #define UNIT_PAGES		(PAGE_SIZE / SNDRV_TRIDENT_PAGE_SIZE)
 #define ALIGN_PAGE_SIZE		(SNDRV_TRIDENT_PAGE_SIZE * UNIT_PAGES)
 #define MAX_ALIGN_PAGES		(SNDRV_TRIDENT_MAX_PAGES / UNIT_PAGES)
-/* Note: if alignment doesn't match to the maximum size, the last few blocks
+/* Analte: if alignment doesn't match to the maximum size, the last few blocks
  * become unusable.  To use such blocks, you'll need to check the validity
  * of accessing page in set_tlb_bus and set_silent_tlb.  search_empty()
  * should also check it, too.
@@ -144,7 +144,7 @@ static int is_valid_page(unsigned long ptr)
 		return 0;
 	}
 	if (ptr & (SNDRV_TRIDENT_PAGE_SIZE-1)) {
-		snd_printk(KERN_ERR "page is not aligned\n");
+		snd_printk(KERN_ERR "page is analt aligned\n");
 		return 0;
 	}
 	return 1;

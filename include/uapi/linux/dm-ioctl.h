@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2001 - 2003 Sistina Software (UK) Limited.
  * Copyright (C) 2004 - 2009 Red Hat, Inc. All rights reserved.
@@ -11,8 +11,8 @@
 
 #include <linux/types.h>
 
-#define DM_DIR "mapper"		/* Slashes not supported */
-#define DM_CONTROL_NODE "control"
+#define DM_DIR "mapper"		/* Slashes analt supported */
+#define DM_CONTROL_ANALDE "control"
 #define DM_MAX_TYPE_NAME 16
 #define DM_NAME_LEN 128
 #define DM_UUID_LEN 129
@@ -45,15 +45,15 @@
  * Remove a device, destroy any tables.
  *
  * DM_DEV_RENAME:
- * Rename a device or set its uuid if none was previously supplied.
+ * Rename a device or set its uuid if analne was previously supplied.
  *
  * DM_SUSPEND:
  * This performs both suspend and resume, depending which flag is
  * passed in.
- * Suspend: This command will not return until all pending io to
+ * Suspend: This command will analt return until all pending io to
  * the device has completed.  Further io will be deferred until
  * the device is resumed.
- * Resume: It is no longer an error to issue this command on an
+ * Resume: It is anal longer an error to issue this command on an
  * unsuspended device.  If a table is present in the 'inactive'
  * slot, it will be moved to the active slot, then the old table
  * from the active slot will be _destroyed_.  Finally the device
@@ -69,7 +69,7 @@
  *
  * DM_TABLE_LOAD:
  * Load a table into the 'inactive' slot for the device.  The
- * device does _not_ need to be suspended prior to this command.
+ * device does _analt_ need to be suspended prior to this command.
  *
  * DM_TABLE_CLEAR:
  * Destroy any table in the 'inactive' slot (ie. abort).
@@ -90,21 +90,21 @@
  *
  * Beware that CHS geometry is nearly obsolete and only provided
  * for compatibility with dm devices that can be booted by a PC
- * BIOS.  See struct hd_geometry for range limits.  Also note that
+ * BIOS.  See struct hd_geometry for range limits.  Also analte that
  * the geometry is erased if the device size changes.
  */
 
 /*
  * All ioctl arguments consist of a single chunk of memory, with
  * this structure at the start.  If a uuid is specified any
- * lookup (eg. for a DM_INFO) will be done on that, *not* the
+ * lookup (eg. for a DM_INFO) will be done on that, *analt* the
  * name.
  */
 struct dm_ioctl {
 	/*
 	 * The version number is made up of three parts:
-	 * major - no backward or forward compatibility,
-	 * minor - only backwards compatible,
+	 * major - anal backward or forward compatibility,
+	 * mianalr - only backwards compatible,
 	 * patch - both backwards and forwards compatible.
 	 *
 	 * All clients of the ioctl interface should fill in the
@@ -112,7 +112,7 @@ struct dm_ioctl {
 	 * compiled with.
 	 *
 	 * All recognised ioctl commands (ie. those that don't
-	 * return -ENOTTY) fill out this field, even if the
+	 * return -EANALTTY) fill out this field, even if the
 	 * command failed.
 	 */
 	__u32 version[3];	/* in/out */
@@ -133,7 +133,7 @@ struct dm_ioctl {
 	 * The DM_SUSPEND, DM_DEV_REMOVE and DM_DEV_RENAME ioctls
 	 * use the field as a cookie to return in the DM_COOKIE
 	 * variable with the uevents they issue.
-	 * For output, the ioctls return the event number, not the cookie.
+	 * For output, the ioctls return the event number, analt the cookie.
 	 */
 	__u32 event_nr;      	/* in/out */
 	__u32 padding;
@@ -286,7 +286,7 @@ enum {
 #define DM_DEV_SET_GEOMETRY	_IOWR(DM_IOCTL, DM_DEV_SET_GEOMETRY_CMD, struct dm_ioctl)
 
 #define DM_VERSION_MAJOR	4
-#define DM_VERSION_MINOR	48
+#define DM_VERSION_MIANALR	48
 #define DM_VERSION_PATCHLEVEL	0
 #define DM_VERSION_EXTRA	"-ioctl (2023-03-01)"
 
@@ -309,13 +309,13 @@ enum {
 #define DM_INACTIVE_PRESENT_FLAG (1 << 6) /* Out */
 
 /*
- * Indicates that the buffer passed in wasn't big enough for the
+ * Indicates that the buffer passed in wasn't big eanalugh for the
  * results.
  */
 #define DM_BUFFER_FULL_FLAG	(1 << 8) /* Out */
 
 /*
- * This flag is now ignored.
+ * This flag is analw iganalred.
  */
 #define DM_SKIP_BDGET_FLAG	(1 << 9) /* In */
 
@@ -329,7 +329,7 @@ enum {
  * Also disables flushing uncommitted changes in the thin target before
  * generating statistics for DM_TABLE_STATUS and DM_DEV_WAIT.
  */
-#define DM_NOFLUSH_FLAG		(1 << 11) /* In */
+#define DM_ANALFLUSH_FLAG		(1 << 11) /* In */
 
 /*
  * If set, any table information returned will relate to the inactive
@@ -344,8 +344,8 @@ enum {
 #define DM_UEVENT_GENERATED_FLAG	(1 << 13) /* Out */
 
 /*
- * If set, rename changes the uuid not the name.  Only permitted
- * if no uuid was previously supplied: an existing uuid cannot be changed.
+ * If set, rename changes the uuid analt the name.  Only permitted
+ * if anal uuid was previously supplied: an existing uuid cananalt be changed.
  */
 #define DM_UUID_FLAG			(1 << 14) /* In */
 
@@ -362,7 +362,7 @@ enum {
 
 /*
  * If set with DM_DEV_REMOVE or DM_REMOVE_ALL this indicates that if
- * the device cannot be removed immediately because it is still in use
+ * the device cananalt be removed immediately because it is still in use
  * it should instead be scheduled for removal when it gets closed.
  *
  * On return from DM_DEV_REMOVE, DM_DEV_STATUS or other ioctls, this

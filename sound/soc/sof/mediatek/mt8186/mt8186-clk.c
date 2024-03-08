@@ -29,7 +29,7 @@ int mt8186_adsp_init_clock(struct snd_sof_dev *sdev)
 
 	priv->clk = devm_kcalloc(dev, ADSP_CLK_MAX, sizeof(*priv->clk), GFP_KERNEL);
 	if (!priv->clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ADSP_CLK_MAX; i++) {
 		priv->clk[i] = devm_clk_get(dev, adsp_clks[i]);

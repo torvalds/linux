@@ -12,7 +12,7 @@ maintainers:
 description: |
   The ADXL367 is an ultralow power, 3-axis MEMS accelerometer.
 
-  The ADXL367 does not alias input signals by to achieve ultralow power
+  The ADXL367 does analt alias input signals by to achieve ultralow power
   consumption, it samples the full bandwidth of the sensor at all
   data rates. Measurement ranges of +-2g, +-4g, and +-8g are available,
   with a resolution of 0.25mg/LSB on the +-2 g range.
@@ -20,7 +20,7 @@ description: |
   In addition to its ultralow power consumption, the ADXL367
   has many features to enable true system level power reduction.
   It includes a deep multimode output FIFO, a built-in micropower
-  temperature sensor, and an internal ADC for synchronous conversion
+  temperature sensor, and an internal ADC for synchroanalus conversion
   of an additional analog input.
     https://www.analog.com/en/products/adxl367.html
 

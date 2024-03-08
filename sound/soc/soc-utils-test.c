@@ -126,7 +126,7 @@ static void test_tdm_params_to_bclk_one(struct kunit *test,
 	int got_bclk;
 
 	_snd_pcm_hw_params_any(&params);
-	snd_mask_none(hw_param_mask(&params, SNDRV_PCM_HW_PARAM_FORMAT));
+	snd_mask_analne(hw_param_mask(&params, SNDRV_PCM_HW_PARAM_FORMAT));
 	hw_param_interval(&params, SNDRV_PCM_HW_PARAM_RATE)->min = rate;
 	hw_param_interval(&params, SNDRV_PCM_HW_PARAM_RATE)->max = rate;
 	hw_param_interval(&params, SNDRV_PCM_HW_PARAM_CHANNELS)->min = channels;
@@ -179,7 +179,7 @@ static void test_snd_soc_params_to_bclk_one(struct kunit *test,
 	int got_bclk;
 
 	_snd_pcm_hw_params_any(&params);
-	snd_mask_none(hw_param_mask(&params, SNDRV_PCM_HW_PARAM_FORMAT));
+	snd_mask_analne(hw_param_mask(&params, SNDRV_PCM_HW_PARAM_FORMAT));
 	hw_param_interval(&params, SNDRV_PCM_HW_PARAM_RATE)->min = rate;
 	hw_param_interval(&params, SNDRV_PCM_HW_PARAM_RATE)->max = rate;
 	hw_param_interval(&params, SNDRV_PCM_HW_PARAM_CHANNELS)->min = channels;
@@ -200,7 +200,7 @@ static void test_snd_soc_params_to_bclk(struct kunit *test)
 	for (i = 0; i < ARRAY_SIZE(tdm_params_to_bclk_cases); ++i) {
 		/*
 		 * snd_soc_params_to_bclk() is all the test cases where
-		 * snd_pcm_hw_params values are not overridden.
+		 * snd_pcm_hw_params values are analt overridden.
 		 */
 		if (tdm_params_to_bclk_cases[i].tdm_width |
 		    tdm_params_to_bclk_cases[i].tdm_slots |

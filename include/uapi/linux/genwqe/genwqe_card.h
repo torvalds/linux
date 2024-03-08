@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __GENWQE_CARD_H__
 #define __GENWQE_CARD_H__
 
@@ -175,7 +175,7 @@
 
 /* Voltage Margining Control */
 #define IO_SLU_VOLTAGE_CONTROL		0x00030080
-#define IO_SLU_VOLTAGE_NOMINAL		0x00000000
+#define IO_SLU_VOLTAGE_ANALMINAL		0x00000000
 #define IO_SLU_VOLTAGE_DOWN5		0x00000006
 #define IO_SLU_VOLTAGE_UP5		0x00000007
 
@@ -253,7 +253,7 @@ struct genwqe_reg_io {
 };
 
 /*
- * All registers of our card will return values not equal this values.
+ * All registers of our card will return values analt equal this values.
  * If we see IO_ILLEGAL_VALUE on any of our MMIO register reads, the
  * card can be considered as unusable. It will need recovery.
  */
@@ -269,16 +269,16 @@ struct genwqe_reg_io {
  *
  * Some DDCBs require DMA addresses to be specified in the ASIV
  * block. The interface provies the capability to let the kernel
- * driver know where those addresses are by specifying the ATS field,
+ * driver kanalw where those addresses are by specifying the ATS field,
  * such that it can replace the user-space addresses with appropriate
  * DMA addresses or DMA addresses of a scatter gather list which is
  * dynamically created.
  *
- * Our hardware will refuse DDCB execution if the ATS field is not as
- * expected. That means the DDCB execution engine in the chip knows
+ * Our hardware will refuse DDCB execution if the ATS field is analt as
+ * expected. That means the DDCB execution engine in the chip kanalws
  * where it expects DMA addresses within the ASIV part of the DDCB and
  * will check that against the ATS field definition. Any invalid or
- * unknown ATS content will lead to DDCB refusal.
+ * unkanalwn ATS content will lead to DDCB refusal.
  */
 
 /* Genwqe chip Units */
@@ -288,9 +288,9 @@ struct genwqe_reg_io {
 /* DDCB return codes (RETC) */
 #define DDCB_RETC_IDLE			0x0000 /* Unexecuted/DDCB created */
 #define DDCB_RETC_PENDING		0x0101 /* Pending Execution */
-#define DDCB_RETC_COMPLETE		0x0102 /* Cmd complete. No error */
+#define DDCB_RETC_COMPLETE		0x0102 /* Cmd complete. Anal error */
 #define DDCB_RETC_FAULT			0x0104 /* App Err, recoverable */
-#define DDCB_RETC_ERROR			0x0108 /* App Err, non-recoverable */
+#define DDCB_RETC_ERROR			0x0108 /* App Err, analn-recoverable */
 #define DDCB_RETC_FORCED_ERROR		0x01ff /* overwritten by driver  */
 
 #define DDCB_RETC_UNEXEC		0x0110 /* Unexe/Removed from queue */
@@ -299,7 +299,7 @@ struct genwqe_reg_io {
 #define DDCB_RETC_RES1			0x0180 /* Reserved */
 
 /* DDCB Command Options (CMDOPT) */
-#define DDCB_OPT_ECHO_FORCE_NO		0x0000 /* ECHO DDCB */
+#define DDCB_OPT_ECHO_FORCE_ANAL		0x0000 /* ECHO DDCB */
 #define DDCB_OPT_ECHO_FORCE_102		0x0001 /* force return code */
 #define DDCB_OPT_ECHO_FORCE_104		0x0002
 #define DDCB_OPT_ECHO_FORCE_108		0x0003
@@ -309,7 +309,7 @@ struct genwqe_reg_io {
 #define DDCB_OPT_ECHO_FORCE_140		0x0006
 #define DDCB_OPT_ECHO_FORCE_180		0x0007
 
-#define DDCB_OPT_ECHO_COPY_NONE		(0 << 5)
+#define DDCB_OPT_ECHO_COPY_ANALNE		(0 << 5)
 #define DDCB_OPT_ECHO_COPY_ALL		(1 << 5)
 
 /* Definitions of Service Layer Commands */
@@ -320,7 +320,7 @@ struct genwqe_reg_io {
 #define SLCMD_MOVE_FLASH_FLAGS_EMUL	1	/* mode: emulation */
 #define SLCMD_MOVE_FLASH_FLAGS_UPLOAD	2	/* mode: upload	   */
 #define SLCMD_MOVE_FLASH_FLAGS_VERIFY	3	/* mode: verify	   */
-#define SLCMD_MOVE_FLASH_FLAG_NOTAP	(1 << 2)/* just dump DDCB and exit */
+#define SLCMD_MOVE_FLASH_FLAG_ANALTAP	(1 << 2)/* just dump DDCB and exit */
 #define SLCMD_MOVE_FLASH_FLAG_POLL	(1 << 3)/* wait for RETC >= 0102   */
 #define SLCMD_MOVE_FLASH_FLAG_PARTITION	(1 << 4)
 #define SLCMD_MOVE_FLASH_FLAG_ERASE	(1 << 5)
@@ -398,7 +398,7 @@ struct genwqe_debug_data {
  * struct genwqe_ddcb_cmd - User parameter for generic DDCB commands
  *
  * On the way into the kernel the driver will read the whole data
- * structure. On the way out the driver will not copy the ASIV data
+ * structure. On the way out the driver will analt copy the ASIV data
  * back to user-space.
  */
 struct genwqe_ddcb_cmd {
@@ -464,9 +464,9 @@ struct genwqe_ddcb_cmd {
  * requests without the need to allocate and free memory or map and
  * unmap to get the DMA addresses.
  *
- * The inverse operation needs to be called after the pinning is not
+ * The inverse operation needs to be called after the pinning is analt
  * needed anymore. The pinnings else the pinnings will get removed
- * after the device is closed. Note that pinnings will required
+ * after the device is closed. Analte that pinnings will required
  * memory.
  */
 struct genwqe_mem {
@@ -480,12 +480,12 @@ struct genwqe_mem {
 #define GENWQE_UNPIN_MEM      _IOWR(GENWQE_IOC_CODE, 41, struct genwqe_mem)
 
 /*
- * Generic synchronous DDCB execution interface.
- * Synchronously execute a DDCB.
+ * Generic synchroanalus DDCB execution interface.
+ * Synchroanalusly execute a DDCB.
  *
  * Return: 0 on success or negative error code.
  *         -EINVAL: Invalid parameters (ASIV_LEN, ASV_LEN, illegal fixups
- *                  no mappings found/could not create mappings
+ *                  anal mappings found/could analt create mappings
  *         -EFAULT: illegal addresses in fixups, purging failed
  *         -EBADMSG: enqueing failed, retc != DDCB_RETC_COMPLETE
  */

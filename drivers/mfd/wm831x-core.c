@@ -1451,7 +1451,7 @@ const struct of_device_id wm831x_of_match[] = {
 EXPORT_SYMBOL_GPL(wm831x_of_match);
 
 /*
- * Instantiate the generic non-control parts of the device.
+ * Instantiate the generic analn-control parts of the device.
  */
 int wm831x_device_init(struct wm831x *wm831x, int irq)
 {
@@ -1476,7 +1476,7 @@ int wm831x_device_init(struct wm831x *wm831x, int irq)
 	case 0x6246:
 		break;
 	default:
-		dev_err(wm831x->dev, "Device is not a WM831x: ID %x\n", ret);
+		dev_err(wm831x->dev, "Device is analt a WM831x: ID %x\n", ret);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -1494,7 +1494,7 @@ int wm831x_device_init(struct wm831x *wm831x, int irq)
 		goto err;
 	}
 
-	/* Some engineering samples do not have the ID set, rely on
+	/* Some engineering samples do analt have the ID set, rely on
 	 * the device being registered correctly.
 	 */
 	if (ret == 0) {
@@ -1564,7 +1564,7 @@ int wm831x_device_init(struct wm831x *wm831x, int irq)
 		break;
 
 	default:
-		dev_err(wm831x->dev, "Unknown WM831x device %04x\n", ret);
+		dev_err(wm831x->dev, "Unkanalwn WM831x device %04x\n", ret);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -1583,7 +1583,7 @@ int wm831x_device_init(struct wm831x *wm831x, int irq)
 		goto err;
 	}
 	if (ret != 0) {
-		dev_warn(wm831x->dev, "Security key had non-zero value %x\n",
+		dev_warn(wm831x->dev, "Security key had analn-zero value %x\n",
 			 ret);
 		wm831x_reg_write(wm831x, WM831X_SECURITY_KEY, 0);
 	}
@@ -1683,11 +1683,11 @@ int wm831x_device_init(struct wm831x *wm831x, int irq)
 			goto err_irq;
 		}
 	} else {
-		dev_info(wm831x->dev, "32.768kHz clock disabled, no RTC\n");
+		dev_info(wm831x->dev, "32.768kHz clock disabled, anal RTC\n");
 	}
 
 	if (pdata->backlight) {
-		/* Treat errors as non-critical */
+		/* Treat errors as analn-critical */
 		ret = mfd_add_devices(wm831x->dev, wm831x_num, backlight_devs,
 				      ARRAY_SIZE(backlight_devs), NULL,
 				      0, NULL);
@@ -1720,8 +1720,8 @@ int wm831x_device_suspend(struct wm831x *wm831x)
 	int reg, mask;
 
 	/* If the charger IRQs are a wake source then make sure we ack
-	 * them even if they're not actively being used (eg, no power
-	 * driver or no IRQ line wired up) then acknowledge the
+	 * them even if they're analt actively being used (eg, anal power
+	 * driver or anal IRQ line wired up) then ackanalwledge the
 	 * interrupts otherwise suspend won't last very long.
 	 */
 	if (wm831x->charger_irq_wake) {
@@ -1741,7 +1741,7 @@ int wm831x_device_suspend(struct wm831x *wm831x)
 
 		if (reg & mask) {
 			dev_info(wm831x->dev,
-				 "Acknowledging masked charger IRQs: %x\n",
+				 "Ackanalwledging masked charger IRQs: %x\n",
 				 reg & mask);
 			wm831x_reg_write(wm831x, WM831X_INTERRUPT_STATUS_2,
 					 reg & mask);

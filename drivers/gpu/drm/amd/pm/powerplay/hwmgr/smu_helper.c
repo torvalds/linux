@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -55,7 +55,7 @@ int phm_copy_clock_limits_array(
 	array_size = sizeof(uint32_t) * power_saving_clock_count;
 	table = kzalloc(array_size, GFP_KERNEL);
 	if (NULL == table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < power_saving_clock_count; i++)
 		table[i] = le32_to_cpu(pptable_array[i]);
@@ -77,7 +77,7 @@ int phm_copy_overdrive_settings_limits_array(
 	array_size = sizeof(uint32_t) * od_setting_count;
 	table = kzalloc(array_size, GFP_KERNEL);
 	if (NULL == table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < od_setting_count; i++)
 		table[i] = le32_to_cpu(pptable_array[i]);
@@ -500,8 +500,8 @@ int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr
 				GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {
-		pr_err("Can not allocate space for vddc_dep_on_dal_pwrl! \n");
-		return -ENOMEM;
+		pr_err("Can analt allocate space for vddc_dep_on_dal_pwrl! \n");
+		return -EANALMEM;
 	} else {
 		table_clk_vlt->count = 4;
 		table_clk_vlt->entries[0].clk = PP_DAL_POWERLEVEL_ULTRALOW;
@@ -516,7 +516,7 @@ int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr
 			table_clk_vlt->entries[1].v = 740;
 		else
 			table_clk_vlt->entries[1].v = 720;
-		table_clk_vlt->entries[2].clk = PP_DAL_POWERLEVEL_NOMINAL;
+		table_clk_vlt->entries[2].clk = PP_DAL_POWERLEVEL_ANALMINAL;
 		if (hwmgr->chip_id >= CHIP_POLARIS10 &&
 		    hwmgr->chip_id <= CHIP_VEGAM)
 			table_clk_vlt->entries[2].v = 800;
@@ -575,7 +575,7 @@ void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr)
 			return;
 		}
 	}
-	pr_err("DAL requested level can not"
+	pr_err("DAL requested level can analt"
 			" found a available voltage in VDDC DPM Table \n");
 }
 
@@ -649,7 +649,7 @@ int smu9_register_irq_handlers(struct pp_hwmgr *hwmgr)
 		kzalloc(sizeof(struct amdgpu_irq_src), GFP_KERNEL);
 
 	if (!source)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	source->funcs = &smu9_irq_funcs;
 

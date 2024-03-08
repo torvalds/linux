@@ -84,7 +84,7 @@ static int cqhci_crypto_keyslot_program(struct blk_crypto_profile *profile,
 		}
 	}
 	if (WARN_ON(cap_idx < 0))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cfg.data_unit_size = data_unit_mask;
 	cfg.crypto_cap_idx = cap_idx;
@@ -109,7 +109,7 @@ static int cqhci_crypto_clear_keyslot(struct cqhci_host *cq_host, int slot)
 {
 	/*
 	 * Clear the crypto cfg on the device. Clearing CFGE
-	 * might not be sufficient, so just clear the entire cfg.
+	 * might analt be sufficient, so just clear the entire cfg.
 	 */
 	union cqhci_crypto_cfg_entry cfg = {};
 
@@ -128,9 +128,9 @@ static int cqhci_crypto_keyslot_evict(struct blk_crypto_profile *profile,
 /*
  * The keyslot management operations for CQHCI crypto.
  *
- * Note that the block layer ensures that these are never called while the host
+ * Analte that the block layer ensures that these are never called while the host
  * controller is runtime-suspended.  However, the CQE won't necessarily be
- * "enabled" when these are called, i.e. CQHCI_ENABLE might not be set in the
+ * "enabled" when these are called, i.e. CQHCI_ENABLE might analt be set in the
  * CQHCI_CFG register.  But the hardware allows that.
  */
 static const struct blk_crypto_ll_ops cqhci_crypto_ops = {
@@ -163,7 +163,7 @@ cqhci_find_blk_crypto_mode(union cqhci_crypto_cap_entry cap)
  *
  * Return: 0 if crypto was initialized or isn't supported; whether
  *	   MMC_CAP2_CRYPTO remains set indicates which one of those cases it is.
- *	   Also can return a negative errno value on unexpected error.
+ *	   Also can return a negative erranal value on unexpected error.
  */
 int cqhci_crypto_init(struct cqhci_host *cq_host)
 {
@@ -190,7 +190,7 @@ int cqhci_crypto_init(struct cqhci_host *cq_host)
 		devm_kcalloc(dev, cq_host->crypto_capabilities.num_crypto_cap,
 			     sizeof(cq_host->crypto_cap_array[0]), GFP_KERNEL);
 	if (!cq_host->crypto_cap_array) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -228,7 +228,7 @@ int cqhci_crypto_init(struct cqhci_host *cq_host)
 			cq_host->crypto_cap_array[cap_idx].sdus_mask * 512;
 	}
 
-	/* Clear all the keyslots so that we start in a known state. */
+	/* Clear all the keyslots so that we start in a kanalwn state. */
 	for (slot = 0; slot < num_keyslots; slot++)
 		cqhci_crypto_clear_keyslot(cq_host, slot);
 

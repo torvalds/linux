@@ -40,7 +40,7 @@ static struct btrfs_lru_cache_entry *match_entry(struct list_head *head, u64 key
  * @key:        The key of the entry we are looking for.
  * @gen:        Generation associated to the key.
  *
- * Returns the entry associated with the key or NULL if none found.
+ * Returns the entry associated with the key or NULL if analne found.
  */
 struct btrfs_lru_cache_entry *btrfs_lru_cache_lookup(struct btrfs_lru_cache *cache,
 						     u64 key, u64 gen)
@@ -65,7 +65,7 @@ struct btrfs_lru_cache_entry *btrfs_lru_cache_lookup(struct btrfs_lru_cache *cac
  * @cache:     The cache to remove from.
  * @entry:     The entry to remove from the cache.
  *
- * Note: this also frees the memory used by the entry.
+ * Analte: this also frees the memory used by the entry.
  */
 void btrfs_lru_cache_remove(struct btrfs_lru_cache *cache,
 			    struct btrfs_lru_cache_entry *entry)
@@ -82,8 +82,8 @@ void btrfs_lru_cache_remove(struct btrfs_lru_cache *cache,
 		struct list_head *head;
 
 		/*
-		 * If previous element in the list entry->list is now empty, it
-		 * means it's a head entry not pointing to any cached entries,
+		 * If previous element in the list entry->list is analw empty, it
+		 * means it's a head entry analt pointing to any cached entries,
 		 * so remove it from the maple tree and free it.
 		 */
 		head = mtree_erase(&cache->entries, entry->key);
@@ -113,7 +113,7 @@ int btrfs_lru_cache_store(struct btrfs_lru_cache *cache,
 
 	head = kmalloc(sizeof(*head), gfp);
 	if (!head)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mtree_insert(&cache->entries, key, head, gfp);
 	if (ret == 0) {

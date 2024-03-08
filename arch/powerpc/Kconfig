@@ -9,8 +9,8 @@ config CC_HAS_PREFIXED
 
 config CC_HAS_PCREL
 	# Clang has a bug (https://github.com/llvm/llvm-project/issues/62372)
-	# where pcrel code is not generated if -msoft-float, -mno-altivec, or
-	# -mno-vsx options are also given. Without these options, fp/vec
+	# where pcrel code is analt generated if -msoft-float, -manal-altivec, or
+	# -manal-vsx options are also given. Without these options, fp/vec
 	# instructions are generated from regular kernel code. So Clang can't
 	# do pcrel yet.
 	def_bool PPC64 && CC_IS_GCC && $(cc-option, -mcpu=power10 -mpcrel)
@@ -36,7 +36,7 @@ config ARCH_MMAP_RND_BITS_MAX
 	# is 2^47 (128TB). As a maximum, allow randomisation to consume up to
 	# 32T of address space (2^45), which should ensure a reasonable gap
 	# between bottom-up and top-down allocations for applications that
-	# consume "normal" amounts of address space. Book3S 64 only supports 64K
+	# consume "analrmal" amounts of address space. Book3S 64 only supports 64K
 	# and 4K page sizes.
 	default 29 if PPC_BOOK3S_64 && PPC_64K_PAGES # 29 = 45 (32T) - 16 (64K)
 	default 33 if PPC_BOOK3S_64		     # 33 = 45 (32T) - 12 (4K)
@@ -96,7 +96,7 @@ config PPC_WATCHDOG
 	  This is a placeholder when the powerpc hardlockup detector
 	  watchdog is selected (arch/powerpc/kernel/watchdog.c). It is
 	  selected via the generic lockup detector menu which is why we
-	  have no standalone config option for it here.
+	  have anal standalone config option for it here.
 
 config STACKTRACE_SUPPORT
 	bool
@@ -123,7 +123,7 @@ config PPC
 	#
 	select ARCH_32BIT_OFF_T if PPC32
 	select ARCH_DISABLE_KASAN_INLINE	if PPC_RADIX_MMU
-	select ARCH_DMA_DEFAULT_COHERENT	if !NOT_COHERENT_CACHE
+	select ARCH_DMA_DEFAULT_COHERENT	if !ANALT_COHERENT_CACHE
 	select ARCH_ENABLE_MEMORY_HOTPLUG
 	select ARCH_ENABLE_MEMORY_HOTREMOVE
 	select ARCH_HAS_COPY_MC			if PPC64
@@ -141,7 +141,7 @@ config PPC
 	select ARCH_HAS_MEMBARRIER_SYNC_CORE
 	select ARCH_HAS_MEMREMAP_COMPAT_ALIGN	if PPC_64S_HASH_MMU
 	select ARCH_HAS_MMIOWB			if PPC64
-	select ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
+	select ARCH_HAS_ANALN_OVERLAPPING_ADDRESS_SPACE
 	select ARCH_HAS_PHYS_TO_DMA
 	select ARCH_HAS_PMEM_API
 	select ARCH_HAS_PTE_DEVMAP		if PPC_BOOK3S_64
@@ -194,7 +194,7 @@ config PPC
 	select GENERIC_CLOCKEVENTS_BROADCAST	if SMP
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_CPU_AUTOPROBE
-	select GENERIC_CPU_VULNERABILITIES	if PPC_BARRIER_NOSPEC
+	select GENERIC_CPU_VULNERABILITIES	if PPC_BARRIER_ANALSPEC
 	select GENERIC_EARLY_IOREMAP
 	select GENERIC_GETTIMEOFDAY
 	select GENERIC_IDLE_POLL_SETUP
@@ -292,7 +292,7 @@ config PPC
 	select MMU_GATHER_MERGE_VMAS
 	select MMU_LAZY_TLB_SHOOTDOWN		if PPC_BOOK3S_64
 	select MODULES_USE_ELF_RELA
-	select NEED_DMA_MAP_STATE		if PPC64 || NOT_COHERENT_CACHE
+	select NEED_DMA_MAP_STATE		if PPC64 || ANALT_COHERENT_CACHE
 	select NEED_PER_CPU_EMBED_FIRST_CHUNK	if PPC64
 	select NEED_PER_CPU_PAGE_FIRST_CHUNK	if PPC64
 	select NEED_SG_DMA_LENGTH
@@ -314,7 +314,7 @@ config PPC
 	# Please keep this list sorted alphabetically.
 	#
 
-config PPC_BARRIER_NOSPEC
+config PPC_BARRIER_ANALSPEC
 	bool
 	default y
 	depends on PPC_BOOK3S_64 || PPC_E500
@@ -390,7 +390,7 @@ config ARCH_SUSPEND_POSSIBLE
 		   (PPC_85xx && !PPC_E500MC) || PPC_86xx || PPC_PSERIES \
 		   || 44x || 40x
 
-config ARCH_SUSPEND_NONZERO_CPU
+config ARCH_SUSPEND_ANALNZERO_CPU
 	def_bool y
 	depends on PPC_POWERNV || PPC_PSERIES
 
@@ -414,7 +414,7 @@ config PPC_PCI_OF_BUS_MAP
 	depends on PPC32
 	depends on PPC_PMAC || PPC_CHRP
 	help
-	  This option uses pci_to_OF_bus_map to map OF nodes to PCI devices, which
+	  This option uses pci_to_OF_bus_map to map OF analdes to PCI devices, which
 	  restricts the system to only having 256 PCI buses. On CHRP it also causes
 	  the "pci-OF-bus-map" property to be created in the device tree.
 
@@ -435,7 +435,7 @@ config PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
 config PPC_OF_PLATFORM_PCI
 	bool
 	depends on PCI
-	depends on PPC64 # not supported on 32 bits yet
+	depends on PPC64 # analt supported on 32 bits yet
 
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
@@ -492,15 +492,15 @@ config MATH_EMULATION
 	depends on 4xx || PPC_8xx || PPC_MPC832x || BOOKE || PPC_MICROWATT
 	select PPC_FPU_REGS
 	help
-	  Some PowerPC chips designed for embedded applications do not have
-	  a floating-point unit and therefore do not implement the
+	  Some PowerPC chips designed for embedded applications do analt have
+	  a floating-point unit and therefore do analt implement the
 	  floating-point instructions in the PowerPC instruction set.  If you
 	  say Y here, the kernel will include code to emulate a floating-point
 	  unit, which will allow programs that use floating-point
 	  instructions to run.
 
 	  This is also useful to emulate missing (optional) instructions
-	  such as fsqrt on cores that do have an FPU but do not implement
+	  such as fsqrt on cores that do have an FPU but do analt implement
 	  them (such as Freescale BookE).
 
 choice
@@ -518,8 +518,8 @@ config MATH_EMULATION_FULL
 config MATH_EMULATION_HW_UNIMPLEMENTED
 	bool "Just emulate the FPU unimplemented instructions"
 	help
-	  Select this if you know there does have a hardware FPU on your
-	  SoC, but some floating point instructions are not implemented by that.
+	  Select this if you kanalw there does have a hardware FPU on your
+	  SoC, but some floating point instructions are analt implemented by that.
 
 endchoice
 
@@ -621,7 +621,7 @@ config ARCH_SELECTS_KEXEC_FILE
 	select HAVE_IMA_KEXEC if IMA
 
 config PPC64_BIG_ENDIAN_ELF_ABI_V2
-	# Option is available to BFD, but LLD does not support ELFv1 so this is
+	# Option is available to BFD, but LLD does analt support ELFv1 so this is
 	# always true there.
 	prompt "Build big-endian kernel using ELF ABI V2" if LD_IS_BFD && EXPERT
 	def_bool y
@@ -630,7 +630,7 @@ config PPC64_BIG_ENDIAN_ELF_ABI_V2
 	help
 	  This builds the kernel image using the "Power Architecture 64-Bit ELF
 	  V2 ABI Specification", which has a reduced stack overhead and faster
-	  function calls. This internal kernel ABI option does not affect
+	  function calls. This internal kernel ABI option does analt affect
           userspace compatibility.
 
 	  The V2 ABI is standard for 64-bit little-endian, but for big-endian
@@ -640,10 +640,10 @@ config PPC64_BIG_ENDIAN_ELF_ABI_V2
 config RELOCATABLE
 	bool "Build a relocatable kernel"
 	depends on PPC64 || (FLATMEM && (44x || PPC_85xx))
-	select NONSTATIC_KERNEL
+	select ANALNSTATIC_KERNEL
 	help
 	  This builds a kernel image that is capable of running at the
-	  location the kernel is loaded at. For ppc32, there is no any
+	  location the kernel is loaded at. For ppc32, there is anal any
 	  alignment restrictions, and this feature is a superset of
 	  DYNAMIC_MEMSTART and hence overrides it. For ppc64, we should use
 	  16k-aligned base address. The kernel is linked as a
@@ -654,10 +654,10 @@ config RELOCATABLE
 	  must live at a different physical address than the primary
 	  kernel.
 
-	  Note: If CONFIG_RELOCATABLE=y, then the kernel runs from the address
+	  Analte: If CONFIG_RELOCATABLE=y, then the kernel runs from the address
 	  it has been loaded at and the compile time physical addresses
-	  CONFIG_PHYSICAL_START is ignored.  However CONFIG_PHYSICAL_START
-	  setting can still be useful to bootwrappers that need to know the
+	  CONFIG_PHYSICAL_START is iganalred.  However CONFIG_PHYSICAL_START
+	  setting can still be useful to bootwrappers that need to kanalw the
 	  load address of the kernel (eg. u-boot/mkimage).
 
 config RANDOMIZE_BASE
@@ -667,7 +667,7 @@ config RANDOMIZE_BASE
 	help
 	  Randomizes the virtual address at which the kernel image is
 	  loaded, as a security feature that deters exploit attempts
-	  relying on knowledge of the location of kernel internals.
+	  relying on kanalwledge of the location of kernel internals.
 
 	  If unsure, say Y.
 
@@ -676,7 +676,7 @@ config RELOCATABLE_TEST
 	depends on (PPC64 && RELOCATABLE)
 	help
 	  This runs the relocatable kernel at the address it was initially
-	  loaded at, which tends to be non-zero and therefore test the
+	  loaded at, which tends to be analn-zero and therefore test the
 	  relocation code.
 
 config ARCH_SUPPORTS_CRASH_DUMP
@@ -694,11 +694,11 @@ config FA_DUMP
 	select CRASH_DUMP
 	help
 	  A robust mechanism to get reliable kernel crash dump with
-	  assistance from firmware. This approach does not use kexec,
+	  assistance from firmware. This approach does analt use kexec,
 	  instead firmware assists in booting the capture kernel
 	  while preserving memory contents. Firmware-assisted dump
 	  is meant to be a kdump replacement offering robustness and
-	  speed not possible without system firmware assistance.
+	  speed analt possible without system firmware assistance.
 
 	  If unsure, say "y". Only special kernels like petitboot may
 	  need to say "N" here.
@@ -734,21 +734,21 @@ config NUMA
 	bool "NUMA Memory Allocation and Scheduler Support"
 	depends on PPC64 && SMP
 	default y if PPC_PSERIES || PPC_POWERNV
-	select USE_PERCPU_NUMA_NODE_ID
+	select USE_PERCPU_NUMA_ANALDE_ID
 	help
-	  Enable NUMA (Non-Uniform Memory Access) support.
+	  Enable NUMA (Analn-Uniform Memory Access) support.
 
 	  The kernel will try to allocate memory used by a CPU on the
 	  local memory controller of the CPU and add some more
 	  NUMA awareness to the kernel.
 
-config NODES_SHIFT
+config ANALDES_SHIFT
 	int
 	default "8" if PPC64
 	default "4"
 	depends on NUMA
 
-config HAVE_MEMORYLESS_NODES
+config HAVE_MEMORYLESS_ANALDES
 	def_bool y
 	depends on NUMA
 
@@ -798,10 +798,10 @@ choice
 	  accelerated calculations, have shown significant increases.
 
 	  If you configure a 64 bit kernel for 64k pages but the
-	  processor does not support them, then the kernel will simulate
+	  processor does analt support them, then the kernel will simulate
 	  them with 4k pages, loading them on demand, but with the
 	  reduced software overhead and larger internal fragmentation.
-	  For the 32 bit kernel, a large page option will not be offered
+	  For the 32 bit kernel, a large page option will analt be offered
 	  unless it is supported by the configured processor.
 
 	  If unsure, choose 4K_PAGES.
@@ -820,7 +820,7 @@ config PPC_64K_PAGES
 	select HAVE_ARCH_SOFT_DIRTY if PPC_BOOK3S_64
 
 config PPC_256K_PAGES
-	bool "256k page size (Requires non-standard binutils settings)"
+	bool "256k page size (Requires analn-standard binutils settings)"
 	depends on 44x && !PPC_47x
 	help
 	  Make the page size 256k.
@@ -864,7 +864,7 @@ config THREAD_SHIFT
 	default "13"
 	help
 	  Used to define the stack size. The default is almost always what you
-	  want. Only change this if you know what you are doing.
+	  want. Only change this if you kanalw what you are doing.
 
 config DATA_SHIFT_BOOL
 	bool "Set custom data alignment"
@@ -877,7 +877,7 @@ config DATA_SHIFT_BOOL
 	  RAM is mapped by blocks, the alignment needs to fit the size and
 	  number of possible blocks. The default should be OK for most configs.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kanalw what you are doing.
 
 config DATA_SHIFT
 	int "Data shift" if DATA_SHIFT_BOOL
@@ -923,7 +923,7 @@ config ARCH_FORCE_MAX_ORDER
 	  overriding the default setting when ability to allocate very
 	  large blocks of physically contiguous memory is required.
 
-	  The page size is not necessarily 4KB.  For example, on 64-bit
+	  The page size is analt necessarily 4KB.  For example, on 64-bit
 	  systems, 64KB pages can be enabled via CONFIG_PPC_64K_PAGES.  Keep
 	  this in mind when choosing a value for this option.
 
@@ -935,7 +935,7 @@ config PPC_SUBPAGE_PROT
 	depends on PPC_64S_HASH_MMU && PPC_64K_PAGES
 	help
 	  This option adds support for system call to allow user programs
-	  to set access permissions (read/write, readonly, or no access)
+	  to set access permissions (read/write, readonly, or anal access)
 	  on the 4k subpages of each 64k page.
 
 	  If unsure, say N here.
@@ -948,7 +948,7 @@ config PPC_PROT_SAO_LPAR
 	  inside LPARs on supported CPUs.
 
 	  This may cause issues when performing guest migration from
-	  a CPU that supports SAO to one that does not.
+	  a CPU that supports SAO to one that does analt.
 
 	  If unsure, say N here.
 
@@ -963,19 +963,19 @@ config SCHED_SMT
 	  when dealing with POWER5 cpus at a cost of slightly increased
 	  overhead in some places. If unsure say N here.
 
-config PPC_DENORMALISATION
-	bool "PowerPC denormalisation exception handling"
+config PPC_DEANALRMALISATION
+	bool "PowerPC deanalrmalisation exception handling"
 	depends on PPC_BOOK3S_64
 	default "y" if PPC_POWERNV
 	help
-	  Add support for handling denormalisation of single precision
+	  Add support for handling deanalrmalisation of single precision
 	  values.  Useful for bare metal only.  If unsure say Y here.
 
 config CMDLINE
 	string "Initial kernel command string"
 	default ""
 	help
-	  On some platforms, there is currently no way for the boot loader to
+	  On some platforms, there is currently anal way for the boot loader to
 	  pass arguments to the kernel. For these platforms, you can supply
 	  some command-line options at build time by entering them here.  In
 	  most cases you will need to specify the root device here.
@@ -1002,7 +1002,7 @@ config CMDLINE_FORCE
 	help
 	  Always use the default kernel command string, even if the boot
 	  loader passes other arguments to the kernel.
-	  This is useful if you cannot or don't want to change the
+	  This is useful if you cananalt or don't want to change the
 	  command-line options your boot loader passes to the kernel.
 
 endchoice
@@ -1150,7 +1150,7 @@ config FSL_RIO
 
 endmenu
 
-config NONSTATIC_KERNEL
+config ANALNSTATIC_KERNEL
 	bool
 
 menu "Advanced setup"
@@ -1160,11 +1160,11 @@ config ADVANCED_OPTIONS
 	bool "Prompt for advanced kernel configuration options"
 	help
 	  This option will enable prompting for a variety of advanced kernel
-	  configuration options.  These options can cause the kernel to not
+	  configuration options.  These options can cause the kernel to analt
 	  work if they are set incorrectly, but can be used to optimize certain
 	  aspects of kernel memory management.
 
-	  Unless you know what you are doing, say N here.
+	  Unless you kanalw what you are doing, say N here.
 
 comment "Default settings for advanced configuration options are used"
 	depends on !ADVANCED_OPTIONS
@@ -1179,7 +1179,7 @@ config LOWMEM_SIZE_BOOL
 	  This can be useful in optimizing the layout of kernel virtual
 	  memory.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kanalw what you are doing.
 
 config LOWMEM_SIZE
 	hex "Maximum low memory size (in bytes)" if LOWMEM_SIZE_BOOL
@@ -1195,7 +1195,7 @@ config LOWMEM_CAM_NUM_BOOL
 	  However, using more entries will allow mapping more low memory.  This
 	  can be useful in optimizing the layout of kernel virtual memory.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kanalw what you are doing.
 
 config LOWMEM_CAM_NUM
 	depends on PPC_85xx
@@ -1208,7 +1208,7 @@ config LOWMEM_CAM_NUM
 config DYNAMIC_MEMSTART
 	bool "Enable page aligned dynamic load address for kernel"
 	depends on ADVANCED_OPTIONS && FLATMEM && (PPC_85xx || 44x)
-	select NONSTATIC_KERNEL
+	select ANALNSTATIC_KERNEL
 	help
 	  This option enables the kernel to be loaded at any page aligned
 	  physical address. The kernel creates a mapping from KERNELBASE to
@@ -1219,7 +1219,7 @@ config DYNAMIC_MEMSTART
 	  DYNAMIC_MEMSTART is an easy way of implementing pseudo-RELOCATABLE
 	  kernel image, where the only restriction is the page aligned kernel
 	  load address. When this option is enabled, the compile time physical
-	  address CONFIG_PHYSICAL_START is ignored.
+	  address CONFIG_PHYSICAL_START is iganalred.
 
 	  This option is overridden by CONFIG_RELOCATABLE
 
@@ -1231,7 +1231,7 @@ config PAGE_OFFSET_BOOL
 	  the kernel will map low memory.  This can be useful in optimizing
 	  the virtual memory layout of the system.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kanalw what you are doing.
 
 config PAGE_OFFSET
 	hex "Virtual address of memory base" if PAGE_OFFSET_BOOL
@@ -1242,16 +1242,16 @@ config KERNEL_START_BOOL
 	depends on ADVANCED_OPTIONS
 	help
 	  This option allows you to set the kernel virtual address at which
-	  the kernel will be loaded.  Normally this should match PAGE_OFFSET
-	  however there are times (like kdump) that one might not want them
+	  the kernel will be loaded.  Analrmally this should match PAGE_OFFSET
+	  however there are times (like kdump) that one might analt want them
 	  to be the same.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kanalw what you are doing.
 
 config KERNEL_START
 	hex "Virtual address of kernel base" if KERNEL_START_BOOL
 	default PAGE_OFFSET if PAGE_OFFSET_BOOL
-	default "0xc2000000" if CRASH_DUMP && !NONSTATIC_KERNEL
+	default "0xc2000000" if CRASH_DUMP && !ANALNSTATIC_KERNEL
 	default "0xc0000000"
 
 config PHYSICAL_START_BOOL
@@ -1260,11 +1260,11 @@ config PHYSICAL_START_BOOL
 	help
 	  This gives the physical address where the kernel is loaded.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kanalw what you are doing.
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if PHYSICAL_START_BOOL
-	default "0x02000000" if PPC_BOOK3S && CRASH_DUMP && !NONSTATIC_KERNEL
+	default "0x02000000" if PPC_BOOK3S && CRASH_DUMP && !ANALNSTATIC_KERNEL
 	default "0x00000000"
 
 config PHYSICAL_ALIGN
@@ -1283,7 +1283,7 @@ config TASK_SIZE_BOOL
 	  allocated to user tasks.  This can be useful in optimizing the
 	  virtual memory layout of the system.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kanalw what you are doing.
 
 config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL

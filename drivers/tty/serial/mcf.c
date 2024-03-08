@@ -152,7 +152,7 @@ static int mcf_startup(struct uart_port *port)
 
 	uart_port_lock_irqsave(port, &flags);
 
-	/* Reset UART, get it into known state... */
+	/* Reset UART, get it into kanalwn state... */
 	writeb(MCFUART_UCR_CMDRESETRX, port->membase + MCFUART_UCR);
 	writeb(MCFUART_UCR_CMDRESETTX, port->membase + MCFUART_UCR);
 
@@ -160,7 +160,7 @@ static int mcf_startup(struct uart_port *port)
 	writeb(MCFUART_UCR_RXENABLE | MCFUART_UCR_TXENABLE,
 		port->membase + MCFUART_UCR);
 
-	/* Enable RX interrupts now */
+	/* Enable RX interrupts analw */
 	pp->imr = MCFUART_UIR_RXREADY;
 	writeb(pp->imr, port->membase + MCFUART_UIMR);
 
@@ -178,7 +178,7 @@ static void mcf_shutdown(struct uart_port *port)
 
 	uart_port_lock_irqsave(port, &flags);
 
-	/* Disable all interrupts now */
+	/* Disable all interrupts analw */
 	pp->imr = 0;
 	writeb(pp->imr, port->membase + MCFUART_UIMR);
 
@@ -233,11 +233,11 @@ static void mcf_set_termios(struct uart_port *port, struct ktermios *termios,
 				mr1 |= MCFUART_MR1_PARITYEVEN;
 		}
 	} else {
-		mr1 |= MCFUART_MR1_PARITYNONE;
+		mr1 |= MCFUART_MR1_PARITYANALNE;
 	}
 
 	/*
-	 * FIXME: port->read_status_mask and port->ignore_status_mask
+	 * FIXME: port->read_status_mask and port->iganalre_status_mask
 	 * need to be initialized based on termios settings for
 	 * INPCK, IGNBRK, IGNPAR, PARMRK, BRKINT
 	 */
@@ -285,7 +285,7 @@ static void mcf_rx_chars(struct mcf_uart *pp)
 
 	while ((status = readb(port->membase + MCFUART_USR)) & MCFUART_USR_RXREADY) {
 		ch = readb(port->membase + MCFUART_URB);
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		port->icount.rx++;
 
 		if (status & MCFUART_USR_RXERR) {
@@ -346,7 +346,7 @@ static irqreturn_t mcf_interrupt(int irq, void *data)
 	struct uart_port *port = data;
 	struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
 	unsigned int isr;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	isr = readb(port->membase + MCFUART_UISR) & pp->imr;
 
@@ -371,7 +371,7 @@ static void mcf_config_port(struct uart_port *port, int flags)
 	port->type = PORT_MCF;
 	port->fifosize = MCFUART_TXFIFOSIZE;
 
-	/* Clear mask, so no surprise interrupts. */
+	/* Clear mask, so anal surprise interrupts. */
 	writeb(0, port->membase + MCFUART_UIMR);
 
 	if (request_irq(port->irq, mcf_interrupt, 0, "UART", port))
@@ -398,14 +398,14 @@ static int mcf_request_port(struct uart_port *port)
 
 static void mcf_release_port(struct uart_port *port)
 {
-	/* Nothing to release... */
+	/* Analthing to release... */
 }
 
 /****************************************************************************/
 
 static int mcf_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
-	if ((ser->type != PORT_UNKNOWN) && (ser->type != PORT_MCF))
+	if ((ser->type != PORT_UNKANALWN) && (ser->type != PORT_MCF))
 		return -EINVAL;
 	return 0;
 }
@@ -538,7 +538,7 @@ static int __init mcf_console_setup(struct console *co, char *options)
 		co->index = 0;
 	port = &mcf_ports[co->index].port;
 	if (port->membase == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -588,7 +588,7 @@ static struct uart_driver mcf_driver = {
 	.driver_name	= "mcf",
 	.dev_name	= "ttyS",
 	.major		= TTY_MAJOR,
-	.minor		= 64,
+	.mianalr		= 64,
 	.nr		= MCF_MAXPORTS,
 	.cons		= MCF_CONSOLE,
 };

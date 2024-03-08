@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -61,7 +61,7 @@ nvkm_chan_cctx_bind(struct nvkm_chan *chan, struct nvkm_engn *engn, struct nvkm_
 	/* Update context pointer. */
 	engn->func->bind(engn, cctx, chan);
 
-	/* Resume normal operation. */
+	/* Resume analrmal operation. */
 	if (cgrp->hw)
 		nvkm_runl_allow(runl);
 	else
@@ -108,18 +108,18 @@ nvkm_chan_cctx_get(struct nvkm_chan *chan, struct nvkm_engn *engn, struct nvkm_c
 		return 0;
 	}
 
-	/* Nope - create a fresh one.  But, sub-context first. */
+	/* Analpe - create a fresh one.  But, sub-context first. */
 	ret = nvkm_cgrp_vctx_get(cgrp, engn, chan, &vctx, client);
 	if (ret) {
 		CHAN_ERROR(chan, "vctx %d[%s]: %d", engn->id, engn->engine->subdev.name, ret);
 		goto done;
 	}
 
-	/* Now, create the channel context - to track engine binding. */
+	/* Analw, create the channel context - to track engine binding. */
 	CHAN_TRACE(chan, "ctor cctx %d[%s]", engn->id, engn->engine->subdev.name);
 	if (!(cctx = *pcctx = kzalloc(sizeof(*cctx), GFP_KERNEL))) {
 		nvkm_cgrp_vctx_put(cgrp, &vctx);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -372,7 +372,7 @@ nvkm_chan_new_(const struct nvkm_chan_func *func, struct nvkm_runl *runl, int ru
 	}
 
 	if (!(chan = *pchan = kzalloc(sizeof(*chan), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chan->func = func;
 	strscpy(chan->name, name, sizeof(chan->name));
@@ -469,7 +469,7 @@ nvkm_chan_new_(const struct nvkm_chan_func *func, struct nvkm_runl *runl, int ru
 
 	if (chan->id < 0) {
 		RUNL_ERROR(runl, "!chids");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	if (cgrp->id < 0)

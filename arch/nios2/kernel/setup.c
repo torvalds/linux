@@ -62,7 +62,7 @@ static inline void copy_exception_handler(unsigned int addr)
 		"addi	%1,%1,4\n"
 		"flushi %1\n"
 		"flushp\n"
-		: /* no output registers */
+		: /* anal output registers */
 		: "r" (start), "r" (addr), "r" (tmp)
 		: "memory"
 	);
@@ -85,7 +85,7 @@ static inline void copy_fast_tlb_miss_handler(unsigned int addr)
 		"	addi	%0,%0,4\n"
 		"	addi	%1,%1,4\n"
 		"	bne	%0,%2,1b\n"
-		: /* no output registers */
+		: /* anal output registers */
 		: "r" (start), "r" (addr), "r" (end), "r" (tmp)
 		: "memory"
 	);
@@ -125,7 +125,7 @@ asmlinkage void __init nios2_boot_init(unsigned r4, unsigned r5, unsigned r6,
 #ifndef CONFIG_CMDLINE_FORCE
 	if (cmdline_passed[0])
 		strscpy(boot_command_line, cmdline_passed, COMMAND_LINE_SIZE);
-#ifdef CONFIG_NIOS2_CMDLINE_IGNORE_DTB
+#ifdef CONFIG_NIOS2_CMDLINE_IGANALRE_DTB
 	else
 		strscpy(boot_command_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
 #endif

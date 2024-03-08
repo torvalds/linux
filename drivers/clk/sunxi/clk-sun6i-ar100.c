@@ -70,7 +70,7 @@ static DEFINE_SPINLOCK(sun6i_ar100_lock);
 
 static int sun6i_a31_ar100_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	void __iomem *reg;
 	struct clk *clk;
 
@@ -81,7 +81,7 @@ static int sun6i_a31_ar100_clk_probe(struct platform_device *pdev)
 	clk = sunxi_factors_register(np, &sun6i_ar100_data, &sun6i_ar100_lock,
 				     reg);
 	if (!clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, clk);
 

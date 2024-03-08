@@ -15,7 +15,7 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/regmap.h>
 
-#define S5M8767_OPMODE_NORMAL_MODE 0x1
+#define S5M8767_OPMODE_ANALRMAL_MODE 0x1
 
 struct s5m8767_info {
 	struct device *dev;
@@ -443,15 +443,15 @@ static void s5m8767_regulator_config_ext_control(struct s5m8767_info *s5m8767,
 	}
 	if (mode != S5M8767_ENCTRL_USE_GPIO) {
 		dev_warn(s5m8767->dev,
-				"ext-control for %pOFn: mismatched op_mode (%x), ignoring\n",
-				rdata->reg_node, mode);
+				"ext-control for %pOFn: mismatched op_mode (%x), iganalring\n",
+				rdata->reg_analde, mode);
 		return;
 	}
 
 	if (!rdata->ext_control_gpiod) {
 		dev_warn(s5m8767->dev,
-				"ext-control for %pOFn: GPIO not valid, ignoring\n",
-			 rdata->reg_node);
+				"ext-control for %pOFn: GPIO analt valid, iganalring\n",
+			 rdata->reg_analde);
 		return;
 	}
 
@@ -483,7 +483,7 @@ static int s5m8767_enable_ext_control(struct s5m8767_info *s5m8767,
 #ifdef CONFIG_OF
 static int s5m8767_pmic_dt_parse_dvs_gpio(struct sec_pmic_dev *iodev,
 			struct sec_platform_data *pdata,
-			struct device_node *pmic_np)
+			struct device_analde *pmic_np)
 {
 	int i, gpio;
 
@@ -501,7 +501,7 @@ static int s5m8767_pmic_dt_parse_dvs_gpio(struct sec_pmic_dev *iodev,
 
 static int s5m8767_pmic_dt_parse_ds_gpio(struct sec_pmic_dev *iodev,
 			struct sec_platform_data *pdata,
-			struct device_node *pmic_np)
+			struct device_analde *pmic_np)
 {
 	int i, gpio;
 
@@ -521,20 +521,20 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 					struct sec_platform_data *pdata)
 {
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *pmic_np, *regulators_np, *reg_np;
+	struct device_analde *pmic_np, *regulators_np, *reg_np;
 	struct sec_regulator_data *rdata;
 	struct sec_opmode_data *rmode;
 	unsigned int i, dvs_voltage_nr = 8, ret;
 
-	pmic_np = iodev->dev->of_node;
+	pmic_np = iodev->dev->of_analde;
 	if (!pmic_np) {
-		dev_err(iodev->dev, "could not find pmic sub-node\n");
-		return -ENODEV;
+		dev_err(iodev->dev, "could analt find pmic sub-analde\n");
+		return -EANALDEV;
 	}
 
 	regulators_np = of_get_child_by_name(pmic_np, "regulators");
 	if (!regulators_np) {
-		dev_err(iodev->dev, "could not find regulators sub-node\n");
+		dev_err(iodev->dev, "could analt find regulators sub-analde\n");
 		return -EINVAL;
 	}
 
@@ -545,43 +545,43 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 			     pdata->num_regulators, sizeof(*rdata),
 			     GFP_KERNEL);
 	if (!rdata) {
-		of_node_put(regulators_np);
-		return -ENOMEM;
+		of_analde_put(regulators_np);
+		return -EANALMEM;
 	}
 
 	rmode = devm_kcalloc(&pdev->dev,
 			     pdata->num_regulators, sizeof(*rmode),
 			     GFP_KERNEL);
 	if (!rmode) {
-		of_node_put(regulators_np);
-		return -ENOMEM;
+		of_analde_put(regulators_np);
+		return -EANALMEM;
 	}
 
 	pdata->regulators = rdata;
 	pdata->opmode = rmode;
-	for_each_child_of_node(regulators_np, reg_np) {
+	for_each_child_of_analde(regulators_np, reg_np) {
 		for (i = 0; i < ARRAY_SIZE(regulators); i++)
-			if (of_node_name_eq(reg_np, regulators[i].name))
+			if (of_analde_name_eq(reg_np, regulators[i].name))
 				break;
 
 		if (i == ARRAY_SIZE(regulators)) {
 			dev_warn(iodev->dev,
-			"don't know how to configure regulator %pOFn\n",
+			"don't kanalw how to configure regulator %pOFn\n",
 			reg_np);
 			continue;
 		}
 
-		rdata->ext_control_gpiod = devm_fwnode_gpiod_get(
+		rdata->ext_control_gpiod = devm_fwanalde_gpiod_get(
 			&pdev->dev,
-			of_fwnode_handle(reg_np),
+			of_fwanalde_handle(reg_np),
 			"s5m8767,pmic-ext-control",
-			GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
+			GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_ANALNEXCLUSIVE,
 			"s5m8767");
-		if (PTR_ERR(rdata->ext_control_gpiod) == -ENOENT) {
+		if (PTR_ERR(rdata->ext_control_gpiod) == -EANALENT) {
 			rdata->ext_control_gpiod = NULL;
 		} else if (IS_ERR(rdata->ext_control_gpiod)) {
-			of_node_put(reg_np);
-			of_node_put(regulators_np);
+			of_analde_put(reg_np);
+			of_analde_put(regulators_np);
 			return PTR_ERR(rdata->ext_control_gpiod);
 		}
 
@@ -589,21 +589,21 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 		rdata->initdata = of_get_regulator_init_data(
 						&pdev->dev, reg_np,
 						&regulators[i]);
-		rdata->reg_node = reg_np;
+		rdata->reg_analde = reg_np;
 		rdata++;
 		rmode->id = i;
 		if (of_property_read_u32(reg_np, "op_mode",
 				&rmode->mode)) {
 			dev_warn(iodev->dev,
-				"no op_mode property at %pOF\n",
+				"anal op_mode property at %pOF\n",
 				reg_np);
 
-			rmode->mode = S5M8767_OPMODE_NORMAL_MODE;
+			rmode->mode = S5M8767_OPMODE_ANALRMAL_MODE;
 		}
 		rmode++;
 	}
 
-	of_node_put(regulators_np);
+	of_analde_put(regulators_np);
 
 	if (of_property_read_bool(pmic_np, "s5m8767,pmic-buck2-uses-gpio-dvs")) {
 		pdata->buck2_gpiodvs = true;
@@ -611,7 +611,7 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 		if (of_property_read_u32_array(pmic_np,
 				"s5m8767,pmic-buck2-dvs-voltage",
 				pdata->buck2_voltage, dvs_voltage_nr)) {
-			dev_err(iodev->dev, "buck2 voltages not specified\n");
+			dev_err(iodev->dev, "buck2 voltages analt specified\n");
 			return -EINVAL;
 		}
 	}
@@ -622,7 +622,7 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 		if (of_property_read_u32_array(pmic_np,
 				"s5m8767,pmic-buck3-dvs-voltage",
 				pdata->buck3_voltage, dvs_voltage_nr)) {
-			dev_err(iodev->dev, "buck3 voltages not specified\n");
+			dev_err(iodev->dev, "buck3 voltages analt specified\n");
 			return -EINVAL;
 		}
 	}
@@ -633,7 +633,7 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 		if (of_property_read_u32_array(pmic_np,
 				"s5m8767,pmic-buck4-dvs-voltage",
 				pdata->buck4_voltage, dvs_voltage_nr)) {
-			dev_err(iodev->dev, "buck4 voltages not specified\n");
+			dev_err(iodev->dev, "buck4 voltages analt specified\n");
 			return -EINVAL;
 		}
 	}
@@ -691,11 +691,11 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 	int i, ret, buck_init;
 
 	if (!pdata) {
-		dev_err(pdev->dev.parent, "Platform data not supplied\n");
-		return -ENODEV;
+		dev_err(pdev->dev.parent, "Platform data analt supplied\n");
+		return -EANALDEV;
 	}
 
-	if (iodev->dev->of_node) {
+	if (iodev->dev->of_analde) {
 		ret = s5m8767_pmic_dt_parse_pdata(pdev, pdata);
 		if (ret)
 			return ret;
@@ -703,21 +703,21 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 
 	if (pdata->buck2_gpiodvs) {
 		if (pdata->buck3_gpiodvs || pdata->buck4_gpiodvs) {
-			dev_err(&pdev->dev, "S5M8767 GPIO DVS NOT VALID\n");
+			dev_err(&pdev->dev, "S5M8767 GPIO DVS ANALT VALID\n");
 			return -EINVAL;
 		}
 	}
 
 	if (pdata->buck3_gpiodvs) {
 		if (pdata->buck2_gpiodvs || pdata->buck4_gpiodvs) {
-			dev_err(&pdev->dev, "S5M8767 GPIO DVS NOT VALID\n");
+			dev_err(&pdev->dev, "S5M8767 GPIO DVS ANALT VALID\n");
 			return -EINVAL;
 		}
 	}
 
 	if (pdata->buck4_gpiodvs) {
 		if (pdata->buck2_gpiodvs || pdata->buck3_gpiodvs) {
-			dev_err(&pdev->dev, "S5M8767 GPIO DVS NOT VALID\n");
+			dev_err(&pdev->dev, "S5M8767 GPIO DVS ANALT VALID\n");
 			return -EINVAL;
 		}
 	}
@@ -725,7 +725,7 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 	s5m8767 = devm_kzalloc(&pdev->dev, sizeof(struct s5m8767_info),
 				GFP_KERNEL);
 	if (!s5m8767)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s5m8767->dev = &pdev->dev;
 	s5m8767->iodev = iodev;
@@ -796,7 +796,7 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 		if (!gpio_is_valid(pdata->buck_gpios[0]) ||
 			!gpio_is_valid(pdata->buck_gpios[1]) ||
 			!gpio_is_valid(pdata->buck_gpios[2])) {
-			dev_err(&pdev->dev, "GPIO NOT VALID\n");
+			dev_err(&pdev->dev, "GPIO ANALT VALID\n");
 			return -EINVAL;
 		}
 
@@ -954,7 +954,7 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 		config.init_data = pdata->regulators[i].initdata;
 		config.driver_data = s5m8767;
 		config.regmap = iodev->regmap_pmic;
-		config.of_node = pdata->regulators[i].reg_node;
+		config.of_analde = pdata->regulators[i].reg_analde;
 		config.ena_gpiod = NULL;
 		if (pdata->regulators[i].ext_control_gpiod) {
 			/* Assigns config.ena_gpiod */
@@ -999,7 +999,7 @@ MODULE_DEVICE_TABLE(platform, s5m8767_pmic_id);
 static struct platform_driver s5m8767_pmic_driver = {
 	.driver = {
 		.name = "s5m8767-pmic",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = s5m8767_pmic_probe,
 	.id_table = s5m8767_pmic_id,

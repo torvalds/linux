@@ -7,7 +7,7 @@
  *     Greentime Hu <greentime.hu@sifive.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <linux/uaccess.h>
@@ -59,7 +59,7 @@ void kvm_riscv_vcpu_guest_vector_restore(struct kvm_cpu_context *cntx,
 
 void kvm_riscv_vcpu_host_vector_save(struct kvm_cpu_context *cntx)
 {
-	/* No need to check host sstatus as it can be modified outside */
+	/* Anal need to check host sstatus as it can be modified outside */
 	if (riscv_isa_extension_available(NULL, v))
 		__kvm_riscv_vector_save(cntx);
 }
@@ -75,12 +75,12 @@ int kvm_riscv_vcpu_alloc_vector_context(struct kvm_vcpu *vcpu,
 {
 	cntx->vector.datap = kmalloc(riscv_v_vsize, GFP_KERNEL);
 	if (!cntx->vector.datap)
-		return -ENOMEM;
+		return -EANALMEM;
 	cntx->vector.vlenb = riscv_v_vsize / 32;
 
 	vcpu->arch.host_context.vector.datap = kzalloc(riscv_v_vsize, GFP_KERNEL);
 	if (!vcpu->arch.host_context.vector.datap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -121,7 +121,7 @@ static int kvm_riscv_vcpu_vreg_addr(struct kvm_vcpu *vcpu,
 			break;
 		case KVM_REG_RISCV_VECTOR_CSR_REG(datap):
 		default:
-			return -ENOENT;
+			return -EANALENT;
 		}
 	} else if (reg_num <= KVM_REG_RISCV_VECTOR_REG(31)) {
 		if (reg_size != vlenb)
@@ -129,7 +129,7 @@ static int kvm_riscv_vcpu_vreg_addr(struct kvm_vcpu *vcpu,
 		*reg_addr = cntx->vector.datap +
 			    (reg_num - KVM_REG_RISCV_VECTOR_REG(0)) * vlenb;
 	} else {
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return 0;
@@ -149,7 +149,7 @@ int kvm_riscv_vcpu_get_reg_vector(struct kvm_vcpu *vcpu,
 	int rc;
 
 	if (!riscv_isa_extension_available(isa, v))
-		return -ENOENT;
+		return -EANALENT;
 
 	rc = kvm_riscv_vcpu_vreg_addr(vcpu, reg_num, reg_size, &reg_addr);
 	if (rc)
@@ -175,7 +175,7 @@ int kvm_riscv_vcpu_set_reg_vector(struct kvm_vcpu *vcpu,
 	int rc;
 
 	if (!riscv_isa_extension_available(isa, v))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (reg_num == KVM_REG_RISCV_VECTOR_CSR_REG(vlenb)) {
 		struct kvm_cpu_context *cntx = &vcpu->arch.guest_context;

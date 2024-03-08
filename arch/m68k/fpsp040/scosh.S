@@ -2,7 +2,7 @@
 |	scosh.sa 3.1 12/10/90
 |
 |	The entry point sCosh computes the hyperbolic cosine of
-|	an input argument; sCoshd does the same except for denormalized
+|	an input argument; sCoshd does the same except for deanalrmalized
 |	input.
 |
 |	Input: Double-extended number X in location pointed to
@@ -10,10 +10,10 @@
 |
 |	Output: The value cosh(X) returned in floating-point register Fp0.
 |
-|	Accuracy and Monotonicity: The returned result is within 3 ulps in
+|	Accuracy and Moanaltonicity: The returned result is within 3 ulps in
 |		64 significant bit, i.e. within 0.5001 ulp to 53 bits if the
 |		result is subsequently rounded to double precision. The
-|		result is provably monotonic in double precision.
+|		result is provably moanaltonic in double precision.
 |
 |	Speed: The program sCOSH takes approximately 250 cycles.
 |
@@ -67,7 +67,7 @@ TWO16380: .long 0x7FFB0000,0x80000000,0x00000000,0x00000000
 
 	.global	scoshd
 scoshd:
-|--COSH(X) = 1 FOR DENORMALIZED X
+|--COSH(X) = 1 FOR DEANALRMALIZED X
 
 	fmoves		#0x3F800000,%fp0
 

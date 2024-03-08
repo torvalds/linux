@@ -68,10 +68,10 @@ gact_goto_chain_test()
 	check_fail $? "Matched on a wrong filter"
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match on correct filter with goto chain action"
+	check_err $? "Did analt match on correct filter with goto chain action"
 
 	tc_check_packets "dev $h2 ingress" 1101 1
-	check_err $? "Did not match on correct filter in chain 1"
+	check_err $? "Did analt match on correct filter in chain 1"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
@@ -136,7 +136,7 @@ template_filter_fits()
 
 	tc filter add dev $h2 ingress protocol ip pref 1 handle 1102 \
 		flower src_mac $h2mac action drop &> /dev/null
-	check_fail $? "Incorrectly succeeded to insert filter which does not template"
+	check_fail $? "Incorrectly succeeded to insert filter which does analt template"
 
 	tc filter add dev $h2 ingress chain 1 protocol ip pref 1 handle 1101 \
 		flower src_mac $h2mac action drop
@@ -144,7 +144,7 @@ template_filter_fits()
 
 	tc filter add dev $h2 ingress chain 1 protocol ip pref 1 handle 1102 \
 		flower dst_mac $h2mac action drop &> /dev/null
-	check_fail $? "Incorrectly succeeded to insert filter which does not template"
+	check_fail $? "Incorrectly succeeded to insert filter which does analt template"
 
 	tc filter del dev $h2 ingress chain 1 protocol ip pref 1 handle 1102 \
 		flower &> /dev/null
@@ -196,7 +196,7 @@ tests_run
 
 tc_offload_check
 if [[ $? -ne 0 ]]; then
-	log_info "Could not test offloaded functionality"
+	log_info "Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	tests_run

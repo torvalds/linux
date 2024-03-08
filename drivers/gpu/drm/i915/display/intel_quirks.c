@@ -15,7 +15,7 @@ static void intel_set_quirk(struct drm_i915_private *i915, enum intel_quirk_id q
 }
 
 /*
- * Some machines (Lenovo U160) do not work with SSC on LVDS for some reason
+ * Some machines (Leanalvo U160) do analt work with SSC on LVDS for some reason
  */
 static void quirk_ssc_force_disable(struct drm_i915_private *i915)
 {
@@ -33,7 +33,7 @@ static void quirk_invert_brightness(struct drm_i915_private *i915)
 	drm_info(&i915->drm, "applying inverted panel brightness quirk\n");
 }
 
-/* Some VBT's incorrectly indicate no backlight is present */
+/* Some VBT's incorrectly indicate anal backlight is present */
 static void quirk_backlight_present(struct drm_i915_private *i915)
 {
 	intel_set_quirk(i915, QUIRK_BACKLIGHT_PRESENT);
@@ -59,10 +59,10 @@ static void quirk_increase_ddi_disabled_time(struct drm_i915_private *i915)
 	drm_info(&i915->drm, "Applying Increase DDI Disabled quirk\n");
 }
 
-static void quirk_no_pps_backlight_power_hook(struct drm_i915_private *i915)
+static void quirk_anal_pps_backlight_power_hook(struct drm_i915_private *i915)
 {
-	intel_set_quirk(i915, QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK);
-	drm_info(&i915->drm, "Applying no pps backlight power quirk\n");
+	intel_set_quirk(i915, QUIRK_ANAL_PPS_BACKLIGHT_POWER_HOOK);
+	drm_info(&i915->drm, "Applying anal pps backlight power quirk\n");
 }
 
 struct intel_quirk {
@@ -84,9 +84,9 @@ static int intel_dmi_reverse_brightness(const struct dmi_system_id *id)
 	return 1;
 }
 
-static int intel_dmi_no_pps_backlight(const struct dmi_system_id *id)
+static int intel_dmi_anal_pps_backlight(const struct dmi_system_id *id)
 {
-	DRM_INFO("No pps backlight support on %s\n", id->ident);
+	DRM_INFO("Anal pps backlight support on %s\n", id->ident);
 	return 1;
 }
 
@@ -117,7 +117,7 @@ static const struct intel_dmi_quirk intel_dmi_quirks[] = {
 	{
 		.dmi_id_list = &(const struct dmi_system_id[]) {
 			{
-				.callback = intel_dmi_no_pps_backlight,
+				.callback = intel_dmi_anal_pps_backlight,
 				.ident = "Google Lillipup sku524294",
 				.matches = {DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "Google"),
 					    DMI_EXACT_MATCH(DMI_BOARD_NAME, "Lindar"),
@@ -125,7 +125,7 @@ static const struct intel_dmi_quirk intel_dmi_quirks[] = {
 				},
 			},
 			{
-				.callback = intel_dmi_no_pps_backlight,
+				.callback = intel_dmi_anal_pps_backlight,
 				.ident = "Google Lillipup sku524295",
 				.matches = {DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "Google"),
 					    DMI_EXACT_MATCH(DMI_BOARD_NAME, "Lindar"),
@@ -134,15 +134,15 @@ static const struct intel_dmi_quirk intel_dmi_quirks[] = {
 			},
 			{ }
 		},
-		.hook = quirk_no_pps_backlight_power_hook,
+		.hook = quirk_anal_pps_backlight_power_hook,
 	},
 };
 
 static struct intel_quirk intel_quirks[] = {
-	/* Lenovo U160 cannot use SSC on LVDS */
+	/* Leanalvo U160 cananalt use SSC on LVDS */
 	{ 0x0046, 0x17aa, 0x3920, quirk_ssc_force_disable },
 
-	/* Sony Vaio Y cannot use SSC on LVDS */
+	/* Sony Vaio Y cananalt use SSC on LVDS */
 	{ 0x0046, 0x104d, 0x9076, quirk_ssc_force_disable },
 
 	/* Acer Aspire 5734Z must invert backlight brightness */
@@ -199,7 +199,7 @@ static struct intel_quirk intel_quirks[] = {
 	/* ECS Liva Q2 */
 	{ 0x3185, 0x1019, 0xa94d, quirk_increase_ddi_disabled_time },
 	{ 0x3184, 0x1019, 0xa94d, quirk_increase_ddi_disabled_time },
-	/* HP Notebook - 14-r206nv */
+	/* HP Analtebook - 14-r206nv */
 	{ 0x0f31, 0x103c, 0x220f, quirk_invert_brightness },
 };
 

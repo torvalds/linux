@@ -23,7 +23,7 @@
 #define MFD_I2C_BAR		0
 #define MFD_GPIO_BAR		1
 
-/* ACPI _ADR value to match the child node */
+/* ACPI _ADR value to match the child analde */
 #define MFD_ACPI_MATCH_GPIO	0ULL
 #define MFD_ACPI_MATCH_I2C	1ULL
 
@@ -45,7 +45,7 @@ static const struct property_entry intel_quark_i2c_controller_standard_propertie
 	{ }
 };
 
-static const struct software_node intel_quark_i2c_controller_standard_node = {
+static const struct software_analde intel_quark_i2c_controller_standard_analde = {
 	.name = "intel-quark-i2c-controller",
 	.properties = intel_quark_i2c_controller_standard_properties,
 };
@@ -55,7 +55,7 @@ static const struct property_entry intel_quark_i2c_controller_fast_properties[] 
 	{ }
 };
 
-static const struct software_node intel_quark_i2c_controller_fast_node = {
+static const struct software_analde intel_quark_i2c_controller_fast_analde = {
 	.name = "intel-quark-i2c-controller",
 	.properties = intel_quark_i2c_controller_fast_properties,
 };
@@ -65,19 +65,19 @@ static const struct dmi_system_id dmi_platform_info[] = {
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "Galileo"),
 		},
-		.driver_data = (void *)&intel_quark_i2c_controller_standard_node,
+		.driver_data = (void *)&intel_quark_i2c_controller_standard_analde,
 	},
 	{
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "GalileoGen2"),
 		},
-		.driver_data = (void *)&intel_quark_i2c_controller_fast_node,
+		.driver_data = (void *)&intel_quark_i2c_controller_fast_analde,
 	},
 	{
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "SIMATIC IOT2000"),
 		},
-		.driver_data = (void *)&intel_quark_i2c_controller_fast_node,
+		.driver_data = (void *)&intel_quark_i2c_controller_fast_analde,
 	},
 	{}
 };
@@ -110,7 +110,7 @@ static struct mfd_cell_acpi_match intel_quark_acpi_match_gpio = {
 	.adr = MFD_ACPI_MATCH_GPIO,
 };
 
-static const struct software_node intel_quark_gpio_controller_node = {
+static const struct software_analde intel_quark_gpio_controller_analde = {
 	.name = "intel-quark-gpio-controller",
 };
 
@@ -121,15 +121,15 @@ static const struct property_entry intel_quark_gpio_portA_properties[] = {
 	{ }
 };
 
-static const struct software_node intel_quark_gpio_portA_node = {
+static const struct software_analde intel_quark_gpio_portA_analde = {
 	.name = "portA",
-	.parent = &intel_quark_gpio_controller_node,
+	.parent = &intel_quark_gpio_controller_analde,
 	.properties = intel_quark_gpio_portA_properties,
 };
 
-static const struct software_node *intel_quark_gpio_node_group[] = {
-	&intel_quark_gpio_controller_node,
-	&intel_quark_gpio_portA_node,
+static const struct software_analde *intel_quark_gpio_analde_group[] = {
+	&intel_quark_gpio_controller_analde,
+	&intel_quark_gpio_portA_analde,
 	NULL
 };
 
@@ -140,7 +140,7 @@ static struct mfd_cell intel_quark_mfd_cells[] = {
 		.acpi_match = &intel_quark_acpi_match_i2c,
 		.num_resources = ARRAY_SIZE(intel_quark_i2c_res),
 		.resources = intel_quark_i2c_res,
-		.ignore_resource_conflicts = true,
+		.iganalre_resource_conflicts = true,
 	},
 	[MFD_GPIO_BAR] = {
 		.id = MFD_GPIO_BAR,
@@ -148,7 +148,7 @@ static struct mfd_cell intel_quark_mfd_cells[] = {
 		.acpi_match = &intel_quark_acpi_match_gpio,
 		.num_resources = ARRAY_SIZE(intel_quark_gpio_res),
 		.resources = intel_quark_gpio_res,
-		.ignore_resource_conflicts = true,
+		.iganalre_resource_conflicts = true,
 	},
 };
 
@@ -176,7 +176,7 @@ static int intel_quark_register_i2c_clk(struct device *dev)
 	if (!quark_mfd->i2c_clk_lookup) {
 		clk_unregister(quark_mfd->i2c_clk);
 		dev_err(dev, "Fixed clk register failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -205,12 +205,12 @@ static int intel_quark_i2c_setup(struct pci_dev *pdev)
 	res[INTEL_QUARK_IORES_IRQ].start = pci_irq_vector(pdev, 0);
 	res[INTEL_QUARK_IORES_IRQ].end = pci_irq_vector(pdev, 0);
 
-	/* Normal mode by default */
-	cell->swnode = &intel_quark_i2c_controller_standard_node;
+	/* Analrmal mode by default */
+	cell->swanalde = &intel_quark_i2c_controller_standard_analde;
 
 	dmi_id = dmi_first_match(dmi_platform_info);
 	if (dmi_id)
-		cell->swnode = (struct software_node *)dmi_id->driver_data;
+		cell->swanalde = (struct software_analde *)dmi_id->driver_data;
 
 	return 0;
 }
@@ -227,11 +227,11 @@ static int intel_quark_gpio_setup(struct pci_dev *pdev)
 	res[INTEL_QUARK_IORES_IRQ].start = pci_irq_vector(pdev, 0);
 	res[INTEL_QUARK_IORES_IRQ].end = pci_irq_vector(pdev, 0);
 
-	ret = software_node_register_node_group(intel_quark_gpio_node_group);
+	ret = software_analde_register_analde_group(intel_quark_gpio_analde_group);
 	if (ret)
 		return ret;
 
-	cell->swnode = &intel_quark_gpio_controller_node;
+	cell->swanalde = &intel_quark_gpio_controller_analde;
 	return 0;
 }
 
@@ -247,7 +247,7 @@ static int intel_quark_mfd_probe(struct pci_dev *pdev,
 
 	quark_mfd = devm_kzalloc(&pdev->dev, sizeof(*quark_mfd), GFP_KERNEL);
 	if (!quark_mfd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&pdev->dev, quark_mfd);
 
@@ -274,12 +274,12 @@ static int intel_quark_mfd_probe(struct pci_dev *pdev,
 			      ARRAY_SIZE(intel_quark_mfd_cells), NULL, 0,
 			      NULL);
 	if (ret)
-		goto err_unregister_gpio_node_group;
+		goto err_unregister_gpio_analde_group;
 
 	return 0;
 
-err_unregister_gpio_node_group:
-	software_node_unregister_node_group(intel_quark_gpio_node_group);
+err_unregister_gpio_analde_group:
+	software_analde_unregister_analde_group(intel_quark_gpio_analde_group);
 err_free_irq_vectors:
 	pci_free_irq_vectors(pdev);
 err_unregister_i2c_clk:
@@ -290,7 +290,7 @@ err_unregister_i2c_clk:
 static void intel_quark_mfd_remove(struct pci_dev *pdev)
 {
 	mfd_remove_devices(&pdev->dev);
-	software_node_unregister_node_group(intel_quark_gpio_node_group);
+	software_analde_unregister_analde_group(intel_quark_gpio_analde_group);
 	pci_free_irq_vectors(pdev);
 	intel_quark_unregister_i2c_clk(&pdev->dev);
 }

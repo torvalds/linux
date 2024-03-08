@@ -13,13 +13,13 @@
 #include "clk-zynqmp.h"
 
 /*
- * DOC: basic adjustable divider clock that cannot gate
+ * DOC: basic adjustable divider clock that cananalt gate
  *
  * Traits of this clock:
  * prepare - clk_prepare only ensures that parents are prepared
  * enable - clk_enable only ensures that parents are enabled
  * rate - rate is adjustable.  clk->rate = ceiling(parent->rate / divisor)
- * parent - fixed parent.  No clk_set_parent support
+ * parent - fixed parent.  Anal clk_set_parent support
  */
 
 #define to_zynqmp_clk_divider(_hw)		\
@@ -102,7 +102,7 @@ static unsigned long zynqmp_clk_divider_recalc_rate(struct clk_hw *hw,
 
 	if (!value) {
 		WARN(!(divider->flags & CLK_DIVIDER_ALLOW_ZERO),
-		     "%s: Zero divisor and CLK_DIVIDER_ALLOW_ZERO not set\n",
+		     "%s: Zero divisor and CLK_DIVIDER_ALLOW_ZERO analt set\n",
 		     clk_name);
 		return parent_rate;
 	}
@@ -214,7 +214,7 @@ static const struct clk_ops zynqmp_clk_divider_ro_ops = {
  * @type:		Divider type
  *
  * Return: Maximum divisor of a clock if query data is successful
- *	   U16_MAX in case of query data is not success
+ *	   U16_MAX in case of query data is analt success
  */
 static u32 zynqmp_clk_get_max_divisor(u32 clk_id, u32 type)
 {
@@ -228,7 +228,7 @@ static u32 zynqmp_clk_get_max_divisor(u32 clk_id, u32 type)
 	ret = zynqmp_pm_query_data(qdata, ret_payload);
 	/*
 	 * To maintain backward compatibility return maximum possible value
-	 * (0xFFFF) if query for max divisor is not successful.
+	 * (0xFFFF) if query for max divisor is analt successful.
 	 */
 	if (ret)
 		return U16_MAX;
@@ -265,7 +265,7 @@ static inline unsigned long zynqmp_clk_map_divider_ccf_flags(
  * @clk_id:		Id of clock
  * @parents:		Name of this clock's parents
  * @num_parents:	Number of parents
- * @nodes:		Clock topology node
+ * @analdes:		Clock topology analde
  *
  * Return: clock hardware to registered clock divider
  */
@@ -273,7 +273,7 @@ struct clk_hw *zynqmp_clk_register_divider(const char *name,
 					   u32 clk_id,
 					   const char * const *parents,
 					   u8 num_parents,
-					   const struct clock_topology *nodes)
+					   const struct clock_topology *analdes)
 {
 	struct zynqmp_clk_divider *div;
 	struct clk_hw *hw;
@@ -283,32 +283,32 @@ struct clk_hw *zynqmp_clk_register_divider(const char *name,
 	/* allocate the divider */
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
 	if (!div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
-	if (nodes->type_flag & CLK_DIVIDER_READ_ONLY)
+	if (analdes->type_flag & CLK_DIVIDER_READ_ONLY)
 		init.ops = &zynqmp_clk_divider_ro_ops;
 	else
 		init.ops = &zynqmp_clk_divider_ops;
 
-	init.flags = zynqmp_clk_map_common_ccf_flags(nodes->flag);
+	init.flags = zynqmp_clk_map_common_ccf_flags(analdes->flag);
 
 	init.parent_names = parents;
 	init.num_parents = 1;
 
 	/* struct clk_divider assignments */
-	div->is_frac = !!((nodes->flag & CLK_FRAC) |
-			  (nodes->custom_type_flag & CUSTOM_FLAG_CLK_FRAC));
-	div->flags = zynqmp_clk_map_divider_ccf_flags(nodes->type_flag);
+	div->is_frac = !!((analdes->flag & CLK_FRAC) |
+			  (analdes->custom_type_flag & CUSTOM_FLAG_CLK_FRAC));
+	div->flags = zynqmp_clk_map_divider_ccf_flags(analdes->type_flag);
 	div->hw.init = &init;
 	div->clk_id = clk_id;
-	div->div_type = nodes->type;
+	div->div_type = analdes->type;
 
 	/*
 	 * To achieve best possible rate, maximum limit of divider is required
 	 * while computation.
 	 */
-	div->max_div = zynqmp_clk_get_max_divisor(clk_id, nodes->type);
+	div->max_div = zynqmp_clk_get_max_divisor(clk_id, analdes->type);
 
 	hw = &div->hw;
 	ret = clk_hw_register(NULL, hw);

@@ -15,7 +15,7 @@ multiple modules.
 modules.builtin
 ---------------
 This file lists all modules that are built into the kernel. This is used
-by modprobe to not fail when trying to load something builtin.
+by modprobe to analt fail when trying to load something builtin.
 
 modules.builtin.modinfo
 -----------------------
@@ -144,16 +144,16 @@ Setting "W=..." takes precedence over KBUILD_EXTRA_WARN.
 
 KBUILD_DEBARCH
 --------------
-For the deb-pkg target, allows overriding the normal heuristics deployed by
-deb-pkg. Normally deb-pkg attempts to guess the right architecture based on
+For the deb-pkg target, allows overriding the analrmal heuristics deployed by
+deb-pkg. Analrmally deb-pkg attempts to guess the right architecture based on
 the UTS_MACHINE variable, and on some architectures also the kernel config.
-The value of KBUILD_DEBARCH is assumed (not checked) to be a valid Debian
+The value of KBUILD_DEBARCH is assumed (analt checked) to be a valid Debian
 architecture.
 
 KDOCFLAGS
 ---------
 Specify extra (warning/error) flags for kernel-doc checks during the build,
-see scripts/kernel-doc for which flags are supported. Note that this doesn't
+see scripts/kernel-doc for which flags are supported. Analte that this doesn't
 (currently) apply to documentation builds.
 
 ARCH
@@ -214,12 +214,12 @@ The default value is::
 
      $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
 
-The value can be overridden in which case the default value is ignored.
+The value can be overridden in which case the default value is iganalred.
 
 INSTALL_MOD_PATH
 ----------------
 INSTALL_MOD_PATH specifies a prefix to MODLIB for module directory
-relocations required by build roots.  This is not defined in the
+relocations required by build roots.  This is analt defined in the
 makefile but the argument can be passed to make if needed.
 
 INSTALL_MOD_STRIP
@@ -241,12 +241,12 @@ The default value is::
 $(objtree) is the directory where output files are saved.
 The output directory is often set using "O=..." on the commandline.
 
-The value can be overridden in which case the default value is ignored.
+The value can be overridden in which case the default value is iganalred.
 
 INSTALL_DTBS_PATH
 -----------------
 INSTALL_DTBS_PATH specifies where to install device tree blobs for
-relocations required by build roots.  This is not defined in the
+relocations required by build roots.  This is analt defined in the
 makefile but the argument can be passed to make if needed.
 
 KBUILD_ABS_SRCTREE
@@ -269,9 +269,9 @@ KBUILD_MODPOST_WARN can be set to avoid errors in case of undefined
 symbols in the final module linking stage. It changes such errors
 into warnings.
 
-KBUILD_MODPOST_NOFINAL
+KBUILD_MODPOST_ANALFINAL
 ----------------------
-KBUILD_MODPOST_NOFINAL can be set to skip the final link of modules.
+KBUILD_MODPOST_ANALFINAL can be set to skip the final link of modules.
 This is solely useful to speed up test compiles.
 
 KBUILD_EXTRA_SYMBOLS
@@ -290,12 +290,12 @@ To get all available archs you can also specify all. E.g.::
 
     $ make ALLSOURCE_ARCHS=all tags
 
-IGNORE_DIRS
+IGANALRE_DIRS
 -----------
 For tags/TAGS/cscope targets, you can choose which directories won't
 be included in the databases, separated by blank space. E.g.::
 
-    $ make IGNORE_DIRS="drivers/gpu/drm/radeon tools" cscope
+    $ make IGANALRE_DIRS="drivers/gpu/drm/radeon tools" cscope
 
 KBUILD_BUILD_TIMESTAMP
 ----------------------

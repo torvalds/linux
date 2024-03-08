@@ -62,8 +62,8 @@
 #define CS42L73_ALCARATE	0x2F	/* ALC Enable, Attack Rate AB. */
 #define CS42L73_ALCRRATE	0x30	/* ALC Release Rate AB.  */
 #define CS42L73_ALCMINMAX	0x31	/* ALC Thresholds AB. */
-#define CS42L73_NGCAB		0x32	/* Noise Gate Ctl AB. */
-#define CS42L73_ALCNGMC		0x33	/* ALC & Noise Gate Misc Ctl. */
+#define CS42L73_NGCAB		0x32	/* Analise Gate Ctl AB. */
+#define CS42L73_ALCNGMC		0x33	/* ALC & Analise Gate Misc Ctl. */
 #define CS42L73_MIXERCTL	0x34	/* Mixer Control. */
 #define CS42L73_HLAIPAA		0x35	/* HP/LO Left Mixer: L. */
 #define CS42L73_HLBIPBA		0x36	/* HP/LO Right Mixer: R.  */
@@ -97,15 +97,15 @@
 #define CS42L73_VSPBASPBA	0x52	/* VSP Rt. Mixer: ASP Right */
 #define CS42L73_VSPAVSPMA	0x53	/* VSP Left Mixer: VSP */
 #define CS42L73_VSPBVSPMA	0x54	/* VSP Rt. Mixer: VSP */
-#define CS42L73_MMIXCTL		0x55	/* Mono Mixer Controls. */
-#define CS42L73_SPKMIPMA	0x56	/* SPK Mono Mixer: In. Path */
-#define CS42L73_SPKMXSPA	0x57	/* SPK Mono Mixer: XSP Mono/L/R Att. */
-#define CS42L73_SPKMASPA	0x58	/* SPK Mono Mixer: ASP Mono/L/R Att. */
-#define CS42L73_SPKMVSPMA	0x59	/* SPK Mono Mixer: VSP Mono Atten. */
-#define CS42L73_ESLMIPMA	0x5A	/* Ear/SpLO Mono Mixer: */
-#define CS42L73_ESLMXSPA	0x5B	/* Ear/SpLO Mono Mixer: XSP */
-#define CS42L73_ESLMASPA	0x5C	/* Ear/SpLO Mono Mixer: ASP */
-#define CS42L73_ESLMVSPMA	0x5D	/* Ear/SpLO Mono Mixer: VSP */
+#define CS42L73_MMIXCTL		0x55	/* Moanal Mixer Controls. */
+#define CS42L73_SPKMIPMA	0x56	/* SPK Moanal Mixer: In. Path */
+#define CS42L73_SPKMXSPA	0x57	/* SPK Moanal Mixer: XSP Moanal/L/R Att. */
+#define CS42L73_SPKMASPA	0x58	/* SPK Moanal Mixer: ASP Moanal/L/R Att. */
+#define CS42L73_SPKMVSPMA	0x59	/* SPK Moanal Mixer: VSP Moanal Atten. */
+#define CS42L73_ESLMIPMA	0x5A	/* Ear/SpLO Moanal Mixer: */
+#define CS42L73_ESLMXSPA	0x5B	/* Ear/SpLO Moanal Mixer: XSP */
+#define CS42L73_ESLMASPA	0x5C	/* Ear/SpLO Moanal Mixer: ASP */
+#define CS42L73_ESLMVSPMA	0x5D	/* Ear/SpLO Moanal Mixer: VSP */
 #define CS42L73_IM1		0x5E	/* Interrupt Mask 1.  */
 #define CS42L73_IM2		0x5F	/* Interrupt Mask 2. */
 #define CS42L73_IS1		0x60	/* Interrupt Status 1 [RO]. */

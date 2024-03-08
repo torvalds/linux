@@ -5,12 +5,12 @@
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
  *
  *  This hardware is really sick:
- *   - No way to clear interrupts.
+ *   - Anal way to clear interrupts.
  *   - Have to turn off the clock whenever we touch the device.
  *   - Doesn't tell you how many data blocks were transferred.
  *  Yuck!
  *
- *	1 and 3 byte data transfers not supported
+ *	1 and 3 byte data transfers analt supported
  *	max block length up to 1023
  */
 #include <linux/module.h>
@@ -161,14 +161,14 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 	enum dma_transfer_direction direction;
 	struct dma_slave_config	config;
 	struct dma_chan *chan;
-	unsigned int nob = data->blocks;
+	unsigned int analb = data->blocks;
 	unsigned long long clks;
 	unsigned int timeout;
 	int ret;
 
 	host->data = data;
 
-	writel(nob, host->base + MMC_NOB);
+	writel(analb, host->base + MMC_ANALB);
 	writel(data->blksz, host->base + MMC_BLKLEN);
 
 	clks = (unsigned long long)data->timeout_ns * host->clkrate;
@@ -221,7 +221,7 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 
 	/*
 	 * workaround for erratum #91:
-	 * only start DMA now if we are doing a read,
+	 * only start DMA analw if we are doing a read,
 	 * otherwise we wait until CMD/RESP has finished
 	 * before starting DMA.
 	 */
@@ -305,7 +305,7 @@ static int pxamci_cmd_done(struct pxamci_host *host, unsigned int stat)
 		 */
 		if (cpu_is_pxa27x() &&
 		    (cmd->flags & MMC_RSP_136 && cmd->resp[0] & 0x80000000))
-			pr_debug("ignoring CRC from command %d - *risky*\n", cmd->opcode);
+			pr_debug("iganalring CRC from command %d - *risky*\n", cmd->opcode);
 		else
 			cmd->error = -EILSEQ;
 	}
@@ -348,7 +348,7 @@ static int pxamci_data_done(struct pxamci_host *host, unsigned int stat)
 
 	/*
 	 * There appears to be a hardware design bug here.  There seems to
-	 * be no way to find out how much data was transferred to the card.
+	 * be anal way to find out how much data was transferred to the card.
 	 * This means that if there was an error on any block, we mark all
 	 * data blocks as being in error.
 	 */
@@ -434,7 +434,7 @@ static int pxamci_get_ro(struct mmc_host *mmc)
 	 * Board doesn't support read only detection; let the mmc core
 	 * decide what to do.
 	 */
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
@@ -577,7 +577,7 @@ MODULE_DEVICE_TABLE(of, pxa_mmc_dt_ids);
 static int pxamci_of_init(struct platform_device *pdev,
 			  struct mmc_host *mmc)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct pxamci_host *host = mmc_priv(mmc);
 	u32 tmp;
 	int ret;
@@ -617,14 +617,14 @@ static int pxamci_probe(struct platform_device *pdev)
 
 	mmc = mmc_alloc_host(sizeof(struct pxamci_host), dev);
 	if (!mmc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	mmc->ops = &pxamci_ops;
 
 	/*
-	 * We can do SG-DMA, but we don't because we never know how much
+	 * We can do SG-DMA, but we don't because we never kanalw how much
 	 * data we successfully wrote to the card.
 	 */
 	mmc->max_segs = NR_SG;
@@ -736,7 +736,7 @@ static int pxamci_probe(struct platform_device *pdev)
 
 		/* FIXME: should we pass detection delay to debounce? */
 		ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0);
-		if (ret && ret != -ENOENT) {
+		if (ret && ret != -EANALENT) {
 			dev_err(dev, "Failed requesting gpio_cd\n");
 			goto out;
 		}
@@ -745,7 +745,7 @@ static int pxamci_probe(struct platform_device *pdev)
 			mmc->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
 
 		ret = mmc_gpiod_request_ro(mmc, "wp", 0, 0);
-		if (ret && ret != -ENOENT) {
+		if (ret && ret != -EANALENT) {
 			dev_err(dev, "Failed requesting gpio_ro\n");
 			goto out;
 		}
@@ -813,7 +813,7 @@ static struct platform_driver pxamci_driver = {
 	.remove_new	= pxamci_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(pxa_mmc_dt_ids),
 	},
 };

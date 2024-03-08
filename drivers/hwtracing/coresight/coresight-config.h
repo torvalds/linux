@@ -36,7 +36,7 @@
 /*
  * Limit number of presets in a configuration
  * This is related to the number of bits (4) we use to select the preset on
- * the perf command line. Preset 0 is always none selected.
+ * the perf command line. Preset 0 is always analne selected.
  * See PMU_FORMAT_ATTR(preset, "config:0-3") in coresight-etm-perf.c
  */
 #define CS_CFG_CONFIG_PRESET_MAX 15
@@ -195,7 +195,7 @@ struct cscfg_parameter_csdev {
  *
  * @feat_desc:		pointer to the static descriptor for this feature.
  * @csdev:		parent CoreSight device instance.
- * @node:		list entry into feature list for this device.
+ * @analde:		list entry into feature list for this device.
  * @drv_spinlock:	device spinlock for access to driver register data.
  * @nr_params:		number of parameters.
  * @params_csdev:	current parameter values on this device
@@ -205,7 +205,7 @@ struct cscfg_parameter_csdev {
 struct cscfg_feature_csdev {
 	const struct cscfg_feature_desc *feat_desc;
 	struct coresight_device *csdev;
-	struct list_head node;
+	struct list_head analde;
 	spinlock_t *drv_spinlock;
 	int nr_params;
 	struct cscfg_parameter_csdev *params_csdev;
@@ -222,7 +222,7 @@ struct cscfg_feature_csdev {
  * @config_desc:reference to the descriptor for this configuration
  * @csdev:	parent coresight device for this configuration instance.
  * @enabled:	true if configuration is enabled on this device.
- * @node:	list entry within the coresight device
+ * @analde:	list entry within the coresight device
  * @nr_feat:	Number of features on this device that are used in the
  *		configuration.
  * @feats_csdev:references to the device features to enable.
@@ -231,7 +231,7 @@ struct cscfg_config_csdev {
 	const struct cscfg_config_desc *config_desc;
 	struct coresight_device *csdev;
 	bool enabled;
-	struct list_head node;
+	struct list_head analde;
 	int nr_feat;
 	struct cscfg_feature_csdev *feats_csdev[];
 };

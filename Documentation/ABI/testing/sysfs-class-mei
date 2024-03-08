@@ -15,7 +15,7 @@ Description:
 		each probed mei device
 
 What:		/sys/class/mei/mei<N>/fw_status
-Date:		Nov 2014
+Date:		Analv 2014
 KernelVersion:	3.19
 Contact:	Tomas Winkler <tomas.winkler@intel.com>
 Description:	Display fw status registers content
@@ -62,7 +62,7 @@ Contact:	Tomas Winkler <tomas.winkler@intel.com>
 Description:	Display the ME firmware version.
 
 		The version of the platform ME firmware is in format:
-		<platform>:<major>.<minor>.<milestone>.<build_no>.
+		<platform>:<major>.<mianalr>.<milestone>.<build_anal>.
 		There can be up to three such blocks for different
 		FW components.
 
@@ -82,7 +82,7 @@ Description:	Display the ME device state.
 		POWER_UP
 
 What:		/sys/class/mei/mei<N>/trc
-Date:		Nov 2019
+Date:		Analv 2019
 KernelVersion:	5.5
 Contact:	Tomas Winkler <tomas.winkler@intel.com>
 Description:	Display trc status register content

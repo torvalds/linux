@@ -114,7 +114,7 @@ static struct snd_soc_dai_link lowland_dai[] = {
 		.stream_name = "Baseband",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				SND_SOC_DAIFMT_CBM_CFM,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(baseband),
 	},
 	{
@@ -122,7 +122,7 @@ static struct snd_soc_dai_link lowland_dai[] = {
 		.stream_name = "Sub Speaker",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				SND_SOC_DAIFMT_CBM_CFM,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.c2c_params = &sub_params,
 		.num_c2c_params = 1,
 		.init = lowland_wm9081_init,

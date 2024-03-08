@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright (C) 2022 Microchip Technology Inc. and its subsidiaries.
+/* Copyright (C) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  * Microchip VCAP API
  */
 
@@ -35,7 +35,7 @@
 #define VCAP_CID_EGRESS_STAGE2_L0    20000000 /* Egress Stage 2 Lookup 0 */
 #define VCAP_CID_EGRESS_STAGE2_L1    20100000 /* Egress Stage 2 Lookup 1 */
 
-/* Known users of the VCAP API */
+/* Kanalwn users of the VCAP API */
 enum vcap_user {
 	VCAP_USER_PTP,
 	VCAP_USER_MRP,
@@ -93,7 +93,7 @@ struct vcap_info {
 	u16 sticky_width; /* sticky bits per rule */
 	u16 act_width;  /* bits per subword in an actionset */
 	u16 default_cnt; /* number of default rules */
-	u16 require_cnt_dis; /* not used */
+	u16 require_cnt_dis; /* analt used */
 	u16 version; /* vcap rtl version */
 	const struct vcap_set *keyfield_set; /* keysets */
 	int keyfield_set_size; /* number of keysets */
@@ -151,12 +151,12 @@ enum vcap_command {
 };
 
 enum vcap_rule_error {
-	VCAP_ERR_NONE = 0,  /* No known error */
-	VCAP_ERR_NO_ADMIN,  /* No admin instance */
-	VCAP_ERR_NO_NETDEV,  /* No netdev instance */
-	VCAP_ERR_NO_KEYSET_MATCH, /* No keyset matched the rule keys */
-	VCAP_ERR_NO_ACTIONSET_MATCH, /* No actionset matched the rule actions */
-	VCAP_ERR_NO_PORT_KEYSET_MATCH, /* No port keyset matched the rule keys */
+	VCAP_ERR_ANALNE = 0,  /* Anal kanalwn error */
+	VCAP_ERR_ANAL_ADMIN,  /* Anal admin instance */
+	VCAP_ERR_ANAL_NETDEV,  /* Anal netdev instance */
+	VCAP_ERR_ANAL_KEYSET_MATCH, /* Anal keyset matched the rule keys */
+	VCAP_ERR_ANAL_ACTIONSET_MATCH, /* Anal actionset matched the rule actions */
+	VCAP_ERR_ANAL_PORT_KEYSET_MATCH, /* Anal port keyset matched the rule keys */
 };
 
 /* Administration of each VCAP instance */

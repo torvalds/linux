@@ -11,12 +11,12 @@
  *
  * The virtual rawmidi client is a sequencer client which associate
  * a rawmidi device file.  The created rawmidi device file can be
- * accessed as a normal raw midi, but its MIDI source and destination
+ * accessed as a analrmal raw midi, but its MIDI source and destination
  * are arbitrary.  For example, a user-client software synth connected
- * to this port can be used as a normal midi device as well.
+ * to this port can be used as a analrmal midi device as well.
  *
  * The virtual rawmidi device accepts also multiple opens.  Each file
- * has its own input buffer, so that no conflict would occur.  The drain
+ * has its own input buffer, so that anal conflict would occur.  The drain
  * of input/output buffer acts only to the local buffer.
  *
  */
@@ -29,7 +29,7 @@
 #include <sound/rawmidi.h>
 #include <sound/info.h>
 #include <sound/control.h>
-#include <sound/minors.h>
+#include <sound/mianalrs.h>
 #include <sound/seq_kernel.h>
 #include <sound/seq_midi_event.h>
 #include <sound/seq_virmidi.h>
@@ -51,12 +51,12 @@ static void snd_virmidi_init_event(struct snd_virmidi *vmidi,
 		ev->dest.client = SNDRV_SEQ_ADDRESS_SUBSCRIBERS;
 		break;
 	case SNDRV_VIRMIDI_SEQ_ATTACH:
-		/* FIXME: source and destination are same - not good.. */
+		/* FIXME: source and destination are same - analt good.. */
 		ev->dest.client = vmidi->client;
 		ev->dest.port = vmidi->port;
 		break;
 	}
-	ev->type = SNDRV_SEQ_EVENT_NONE;
+	ev->type = SNDRV_SEQ_EVENT_ANALNE;
 }
 
 /*
@@ -106,7 +106,7 @@ static int snd_virmidi_event_input(struct snd_seq_event *ev, int direct,
 
 	rdev = private_data;
 	if (!(rdev->flags & SNDRV_VIRMIDI_USE))
-		return 0; /* ignored */
+		return 0; /* iganalred */
 	return snd_virmidi_dev_receive_event(rdev, ev, atomic);
 }
 
@@ -121,7 +121,7 @@ static void snd_virmidi_input_trigger(struct snd_rawmidi_substream *substream, i
 }
 
 /* process rawmidi bytes and send events;
- * we need no lock here for vmidi->event since it's handled only in this work
+ * we need anal lock here for vmidi->event since it's handled only in this work
  */
 static void snd_vmidi_output_work(struct work_struct *work)
 {
@@ -146,11 +146,11 @@ static void snd_vmidi_output_work(struct work_struct *work)
 		if (!snd_midi_event_encode_byte(vmidi->parser, input,
 						&vmidi->event))
 			continue;
-		if (vmidi->event.type != SNDRV_SEQ_EVENT_NONE) {
+		if (vmidi->event.type != SNDRV_SEQ_EVENT_ANALNE) {
 			ret = snd_seq_kernel_client_dispatch(vmidi->client,
 							     &vmidi->event,
 							     false, 0);
-			vmidi->event.type = SNDRV_SEQ_EVENT_NONE;
+			vmidi->event.type = SNDRV_SEQ_EVENT_ANALNE;
 			if (ret < 0)
 				break;
 		}
@@ -182,11 +182,11 @@ static int snd_virmidi_input_open(struct snd_rawmidi_substream *substream)
 
 	vmidi = kzalloc(sizeof(*vmidi), GFP_KERNEL);
 	if (vmidi == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	vmidi->substream = substream;
 	if (snd_midi_event_new(0, &vmidi->parser) < 0) {
 		kfree(vmidi);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	vmidi->seq_mode = rdev->seq_mode;
 	vmidi->client = rdev->client;
@@ -212,11 +212,11 @@ static int snd_virmidi_output_open(struct snd_rawmidi_substream *substream)
 
 	vmidi = kzalloc(sizeof(*vmidi), GFP_KERNEL);
 	if (vmidi == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	vmidi->substream = substream;
 	if (snd_midi_event_new(MAX_MIDI_EVENT_BUF, &vmidi->parser) < 0) {
 		kfree(vmidi);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	vmidi->seq_mode = rdev->seq_mode;
 	vmidi->client = rdev->client;
@@ -364,7 +364,7 @@ static int snd_virmidi_dev_attach_seq(struct snd_virmidi_dev *rdev)
 
 	pinfo = kzalloc(sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto __error;
 	}
 
@@ -446,7 +446,7 @@ static int snd_virmidi_dev_register(struct snd_rawmidi *rmidi)
 		/* should check presence of port more strictly.. */
 		break;
 	default:
-		pr_err("ALSA: seq_virmidi: seq_mode is not set: %d\n", rdev->seq_mode);
+		pr_err("ALSA: seq_virmidi: seq_mode is analt set: %d\n", rdev->seq_mode);
 		return -EINVAL;
 	}
 	return 0;
@@ -504,7 +504,7 @@ int snd_virmidi_new(struct snd_card *card, int device, struct snd_rawmidi **rrmi
 	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
 	if (rdev == NULL) {
 		snd_device_free(card, rmidi);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rdev->card = card;
 	rdev->rmidi = rmidi;

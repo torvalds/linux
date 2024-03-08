@@ -42,7 +42,7 @@ enum brcmf_fwvendor {
 
 /* The level of bus communication with the dongle */
 enum brcmf_bus_state {
-	BRCMF_BUS_DOWN,		/* Not ready for frame transfers */
+	BRCMF_BUS_DOWN,		/* Analt ready for frame transfers */
 	BRCMF_BUS_UP		/* Ready for frame transfers */
 };
 
@@ -75,7 +75,7 @@ struct brcmf_bus_dcmd {
  * @stop: clear pending frames, disable data flow.
  * @txdata: send a data frame to the dongle. When the data
  *	has been transferred, the common driver must be
- *	notified using brcmf_txcomplete(). The common
+ *	analtified using brcmf_txcomplete(). The common
  *	driver calls this function with interrupts
  *	disabled.
  * @txctl: transmit a control request message to dongle.
@@ -135,7 +135,7 @@ struct brcmf_bus_msgbuf {
 /**
  * struct brcmf_bus_stats - bus statistic counters.
  *
- * @pktcowed: packets cowed for extra headroom/unorphan.
+ * @pktcowed: packets cowed for extra headroom/uanalrphan.
  * @pktcow_failed: packets dropped due to failed cow-ing.
  */
 struct brcmf_bus_stats {
@@ -222,7 +222,7 @@ static inline
 struct pktq *brcmf_bus_gettxq(struct brcmf_bus *bus)
 {
 	if (!bus->ops->gettxq)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	return bus->ops->gettxq(bus->dev);
 }
@@ -246,7 +246,7 @@ static inline
 int brcmf_bus_get_memdump(struct brcmf_bus *bus, void *data, size_t len)
 {
 	if (!bus->ops->get_memdump)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return bus->ops->get_memdump(bus->dev, data, len);
 }
@@ -271,7 +271,7 @@ static inline
 int brcmf_bus_reset(struct brcmf_bus *bus)
 {
 	if (!bus->ops->reset)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return bus->ops->reset(bus->dev);
 }

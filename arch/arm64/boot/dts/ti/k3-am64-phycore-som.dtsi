@@ -37,55 +37,55 @@
 		secure_ddr: optee@9e800000 {
 			reg = <0x00 0x9e800000 0x00 0x01800000>; /* for OP-TEE */
 			alignment = <0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		main_r5fss0_core0_dma_memory_region: r5f-dma-memory@a0000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x00 0xa0000000 0x00 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		main_r5fss0_core0_memory_region: r5f-memory@a0100000 {
 			compatible = "shared-dma-pool";
 			reg = <0x00 0xa0100000 0x00 0xf00000>;
-			no-map;
+			anal-map;
 		};
 
 		main_r5fss0_core1_dma_memory_region: r5f-dma-memory@a1000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x00 0xa1000000 0x00 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		main_r5fss0_core1_memory_region: r5f-memory@a1100000 {
 			compatible = "shared-dma-pool";
 			reg = <0x00 0xa1100000 0x00 0xf00000>;
-			no-map;
+			anal-map;
 		};
 
 		main_r5fss1_core0_dma_memory_region: r5f-dma-memory@a2000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x00 0xa2000000 0x00 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		main_r5fss1_core0_memory_region: r5f-memory@a2100000 {
 			compatible = "shared-dma-pool";
 			reg = <0x00 0xa2100000 0x00 0xf00000>;
-			no-map;
+			anal-map;
 		};
 
 		main_r5fss1_core1_dma_memory_region: r5f-dma-memory@a3000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x00 0xa3000000 0x00 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		main_r5fss1_core1_memory_region: r5f-memory@a3100000 {
 			compatible = "shared-dma-pool";
 			reg = <0x00 0xa3100000 0x00 0xf00000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -297,7 +297,7 @@
 	pinctrl-0 = <&ospi0_pins_default>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0x0>;
 		spi-tx-bus-width = <8>;
 		spi-rx-bus-width = <8>;
@@ -313,7 +313,7 @@
 &sdhci0 {
 	status = "okay";
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
 	keep-power-in-suspend;

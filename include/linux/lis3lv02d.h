@@ -49,8 +49,8 @@
  */
 
 struct lis3lv02d_platform_data {
-	/* please note: the 'click' feature is only supported for
-	 * LIS[32]02DL variants of the chip and will be ignored for
+	/* please analte: the 'click' feature is only supported for
+	 * LIS[32]02DL variants of the chip and will be iganalred for
 	 * others */
 #define LIS3_CLICK_SINGLE_X	(1 << 0)
 #define LIS3_CLICK_DOUBLE_X	(1 << 1)
@@ -104,7 +104,7 @@ struct lis3lv02d_platform_data {
 #define LIS3_HIPASS1_DISABLE    (1 << 2)
 #define LIS3_HIPASS2_DISABLE    (1 << 3)
 	unsigned char hipass_ctrl;
-#define LIS3_NO_MAP		0
+#define LIS3_ANAL_MAP		0
 #define LIS3_DEV_X		1
 #define LIS3_DEV_Y		2
 #define LIS3_DEV_Z		3

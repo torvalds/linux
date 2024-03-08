@@ -106,11 +106,11 @@ static int vidioc_decoder_cmd(struct file *file, void *priv,
 		src_vq = v4l2_m2m_get_vq(ctx->m2m_ctx,
 				V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
 		if (!vb2_is_streaming(src_vq)) {
-			mtk_v4l2_vdec_dbg(1, ctx, "Output stream is off. No need to flush.");
+			mtk_v4l2_vdec_dbg(1, ctx, "Output stream is off. Anal need to flush.");
 			return 0;
 		}
 		if (!vb2_is_streaming(dst_vq)) {
-			mtk_v4l2_vdec_dbg(1, ctx, "Capture stream is off. No need to flush.");
+			mtk_v4l2_vdec_dbg(1, ctx, "Capture stream is off. Anal need to flush.");
 			return 0;
 		}
 		v4l2_m2m_buf_queue(ctx->m2m_ctx, &ctx->empty_flush_buf.vb);
@@ -162,7 +162,7 @@ void mtk_vcodec_dec_set_default_params(struct mtk_vcodec_dec_ctx *ctx)
 	q_data->visible_width = DFT_CFG_WIDTH;
 	q_data->visible_height = DFT_CFG_HEIGHT;
 	q_data->fmt = ctx->dev->vdec_pdata->default_out_fmt;
-	q_data->field = V4L2_FIELD_NONE;
+	q_data->field = V4L2_FIELD_ANALNE;
 
 	q_data->sizeimage[0] = DFT_CFG_WIDTH * DFT_CFG_HEIGHT;
 	q_data->bytesperline[0] = 0;
@@ -174,7 +174,7 @@ void mtk_vcodec_dec_set_default_params(struct mtk_vcodec_dec_ctx *ctx)
 	q_data->coded_width = DFT_CFG_WIDTH;
 	q_data->coded_height = DFT_CFG_HEIGHT;
 	q_data->fmt = ctx->dev->vdec_pdata->default_cap_fmt;
-	q_data->field = V4L2_FIELD_NONE;
+	q_data->field = V4L2_FIELD_ANALNE;
 
 	q_data->sizeimage[0] = q_data->coded_width * q_data->coded_height;
 	q_data->bytesperline[0] = q_data->coded_width;
@@ -244,7 +244,7 @@ static int vidioc_try_fmt(struct mtk_vcodec_dec_ctx *ctx, struct v4l2_format *f,
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 	const struct v4l2_frmsize_stepwise *frmsize;
 
-	pix_fmt_mp->field = V4L2_FIELD_NONE;
+	pix_fmt_mp->field = V4L2_FIELD_ANALNE;
 
 	/* Always apply frame size constraints from the coded side */
 	if (V4L2_TYPE_IS_OUTPUT(f->type))
@@ -264,7 +264,7 @@ static int vidioc_try_fmt(struct mtk_vcodec_dec_ctx *ctx, struct v4l2_format *f,
 		/*
 		 * Find next closer width align 64, heign align 64, size align
 		 * 64 rectangle
-		 * Note: This only get default value, the real HW needed value
+		 * Analte: This only get default value, the real HW needed value
 		 *       only available when ctx in MTK_STATE_HEADER state
 		 */
 		tmp_w = pix_fmt_mp->width;
@@ -368,7 +368,7 @@ static int vidioc_vdec_g_selection(struct file *file, void *priv,
 		break;
 	case V4L2_SEL_TGT_COMPOSE:
 		if (vdec_if_get_param(ctx, GET_PARAM_CROP_INFO, &(s->r))) {
-			/* set to default value if header info not ready yet*/
+			/* set to default value if header info analt ready yet*/
 			s->r.left = 0;
 			s->r.top = 0;
 			s->r.width = q_data->visible_width;
@@ -380,7 +380,7 @@ static int vidioc_vdec_g_selection(struct file *file, void *priv,
 	}
 
 	if (ctx->state < MTK_STATE_HEADER) {
-		/* set to default value if header info not ready yet*/
+		/* set to default value if header info analt ready yet*/
 		s->r.left = 0;
 		s->r.top = 0;
 		s->r.width = q_data->visible_width;
@@ -494,7 +494,7 @@ static int vidioc_vdec_s_fmt(struct file *file, void *priv,
 
 	/*
 	 * If using the stateless API, S_FMT should have the effect of setting
-	 * the CAPTURE queue resolution no matter which queue it was called on.
+	 * the CAPTURE queue resolution anal matter which queue it was called on.
 	 */
 	if (dec_pdata->uses_stateless_api) {
 		ctx->picinfo.pic_w = pix_mp->width;
@@ -558,7 +558,7 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 
 		/* Only coded formats have frame sizes set */
 		if (!dec_pdata->vdec_formats[i].frmsize.max_width)
-			return -ENOTTY;
+			return -EANALTTY;
 
 		fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
 		fsize->stepwise = dec_pdata->vdec_formats[i].frmsize;
@@ -631,13 +631,13 @@ static int vidioc_vdec_g_fmt(struct file *file, void *priv,
 
 	vq = v4l2_m2m_get_vq(ctx->m2m_ctx, f->type);
 	if (!vq) {
-		mtk_v4l2_vdec_err(ctx, "no vb2 queue for type=%d", f->type);
+		mtk_v4l2_vdec_err(ctx, "anal vb2 queue for type=%d", f->type);
 		return -EINVAL;
 	}
 
 	q_data = mtk_vdec_get_q_data(ctx, f->type);
 
-	pix_mp->field = V4L2_FIELD_NONE;
+	pix_mp->field = V4L2_FIELD_ANALNE;
 	pix_mp->colorspace = ctx->colorspace;
 	pix_mp->ycbcr_enc = ctx->ycbcr_enc;
 	pix_mp->quantization = ctx->quantization;
@@ -646,7 +646,7 @@ static int vidioc_vdec_g_fmt(struct file *file, void *priv,
 	if ((f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) &&
 	    (ctx->state >= MTK_STATE_HEADER)) {
 		/* Until STREAMOFF is called on the CAPTURE queue
-		 * (acknowledging the event), the driver operates as if
+		 * (ackanalwledging the event), the driver operates as if
 		 * the resolution hasn't changed yet.
 		 * So we just return picinfo yet, and update picinfo in
 		 * stop_streaming hook function
@@ -683,7 +683,7 @@ static int vidioc_vdec_g_fmt(struct file *file, void *priv,
 		/*
 		 * This is run on OUTPUT
 		 * The buffer contains compressed image
-		 * so width and height have no meaning.
+		 * so width and height have anal meaning.
 		 * Assign value here to pass v4l2-compliance test
 		 */
 		pix_mp->width = q_data->visible_width;
@@ -702,7 +702,7 @@ static int vidioc_vdec_g_fmt(struct file *file, void *priv,
 		pix_mp->plane_fmt[1].bytesperline = q_data->bytesperline[1];
 		pix_mp->plane_fmt[1].sizeimage = q_data->sizeimage[1];
 
-		mtk_v4l2_vdec_dbg(1, ctx, "[%d] type=%d state=%d Format information not ready!",
+		mtk_v4l2_vdec_dbg(1, ctx, "[%d] type=%d state=%d Format information analt ready!",
 				  ctx->id, f->type, ctx->state);
 	}
 
@@ -766,7 +766,7 @@ int vb2ops_vdec_buf_prepare(struct vb2_buffer *vb)
 
 	for (i = 0; i < q_data->fmt->num_planes; i++) {
 		if (vb2_plane_size(vb, i) < q_data->sizeimage[i]) {
-			mtk_v4l2_vdec_err(ctx, "data will not fit into plane %d (%lu < %d)",
+			mtk_v4l2_vdec_err(ctx, "data will analt fit into plane %d (%lu < %d)",
 					  i, vb2_plane_size(vb, i), q_data->sizeimage[i]);
 			return -EINVAL;
 		}
@@ -851,7 +851,7 @@ void vb2ops_vdec_stop_streaming(struct vb2_queue *q)
 	if (ctx->state >= MTK_STATE_HEADER) {
 
 		/* Until STREAMOFF is called on the CAPTURE queue
-		 * (acknowledging the event), the driver operates
+		 * (ackanalwledging the event), the driver operates
 		 * as if the resolution hasn't changed yet, i.e.
 		 * VIDIOC_G_FMT< etc. return previous resolution.
 		 * So we update picinfo here

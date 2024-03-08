@@ -21,7 +21,7 @@ static int cs35l45_i2c_probe(struct i2c_client *client)
 
 	cs35l45 = devm_kzalloc(dev, sizeof(struct cs35l45_private), GFP_KERNEL);
 	if (!cs35l45)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, cs35l45);
 	cs35l45->regmap = devm_regmap_init_i2c(client, &cs35l45_i2c_regmap);

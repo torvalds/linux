@@ -93,12 +93,12 @@
  *  Number of tasks per device we want to handle.
  */
 #if	SYM_CONF_MAX_TAG_ORDER > 8
-#error	"more than 256 tags per logical unit not allowed."
+#error	"more than 256 tags per logical unit analt allowed."
 #endif
 #define	SYM_CONF_MAX_TASK	(1<<SYM_CONF_MAX_TAG_ORDER)
 
 /*
- *  Donnot use more tasks that we can handle.
+ *  Donanalt use more tasks that we can handle.
  */
 #ifndef	SYM_CONF_MAX_TAG
 #define	SYM_CONF_MAX_TAG	SYM_CONF_MAX_TASK
@@ -109,26 +109,26 @@
 #endif
 
 /*
- *    This one means 'NO TAG for this job'
+ *    This one means 'ANAL TAG for this job'
  */
-#define NO_TAG	(256)
+#define ANAL_TAG	(256)
 
 /*
  *  Number of SCSI targets.
  */
 #if	SYM_CONF_MAX_TARGET > 16
-#error	"more than 16 targets not allowed."
+#error	"more than 16 targets analt allowed."
 #endif
 
 /*
  *  Number of logical units per target.
  */
 #if	SYM_CONF_MAX_LUN > 64
-#error	"more than 64 logical units per target not allowed."
+#error	"more than 64 logical units per target analt allowed."
 #endif
 
 /*
- *    Asynchronous pre-scaler (ns). Shall be 40 for 
+ *    Asynchroanalus pre-scaler (ns). Shall be 40 for 
  *    the SCSI timings to be compliant.
  */
 #define	SYM_CONF_MIN_ASYNC (40)
@@ -205,7 +205,7 @@
 #define OUTOFFL(np, r, m)	OUTL(np, r, INL(np, r) & ~(m))
 
 /*
- *  We normally want the chip to have a consistent view
+ *  We analrmally want the chip to have a consistent view
  *  of driver internal data structures when we restart it.
  *  Thus these macros.
  */
@@ -218,7 +218,7 @@
 #define OUTONB_STD()				\
 	do {					\
 		MEMORY_WRITE_BARRIER();		\
-		OUTONB(np, nc_dcntl, (STD|NOCOM));	\
+		OUTONB(np, nc_dcntl, (STD|ANALCOM));	\
 	} while (0)
 
 /*
@@ -240,7 +240,7 @@
  *  Software Interrupt Codes
  */
 #define	SIR_BAD_SCSI_STATUS	(1)
-#define	SIR_SEL_ATN_NO_MSG_OUT	(2)
+#define	SIR_SEL_ATN_ANAL_MSG_OUT	(2)
 #define	SIR_MSG_RECEIVED	(3)
 #define	SIR_MSG_WEIRD		(4)
 #define	SIR_NEGO_FAILED		(5)
@@ -249,8 +249,8 @@
 #define	SIR_REJECT_TO_SEND	(8)
 #define	SIR_SWIDE_OVERRUN	(9)
 #define	SIR_SODL_UNDERRUN	(10)
-#define	SIR_RESEL_NO_MSG_IN	(11)
-#define	SIR_RESEL_NO_IDENTIFY	(12)
+#define	SIR_RESEL_ANAL_MSG_IN	(11)
+#define	SIR_RESEL_ANAL_IDENTIFY	(12)
 #define	SIR_RESEL_BAD_LUN	(13)
 #define	SIR_TARGET_SELECTED	(14)
 #define	SIR_RESEL_BAD_I_T_L	(15)
@@ -326,7 +326,7 @@
 /*
  *  Misc.
  */
-#define SYM_SNOOP_TIMEOUT (10000000)
+#define SYM_SANALOP_TIMEOUT (10000000)
 #define BUS_8_BIT	0
 #define BUS_16_BIT	1
 
@@ -351,13 +351,13 @@ struct sym_trans {
  *  this substructure is copied from the TCB to a global 
  *  address after selection.
  *  For SYMBIOS chips that support LOAD/STORE this copy is 
- *  not needed and thus not performed.
+ *  analt needed and thus analt performed.
  */
 struct sym_tcbh {
 	/*
 	 *  Scripts bus addresses of LUN table accessed from scripts.
 	 *  LUN #0 is a special case, since multi-lun devices are rare, 
-	 *  and we we want to speed-up the general case and not waste 
+	 *  and we we want to speed-up the general case and analt waste 
 	 *  resources.
 	 */
 	u32	luntbl_sa;	/* bus address of this table	*/
@@ -440,12 +440,12 @@ struct sym_tcb {
  *  this substructure is copied from the LCB to a global 
  *  address after selection.
  *  For SYMBIOS chips that support LOAD/STORE this copy is 
- *  not needed and thus not performed.
+ *  analt needed and thus analt performed.
  */
 struct sym_lcbh {
 	/*
 	 *  SCRIPTS address jumped by SCRIPTS on reselection.
-	 *  For not probed logical units, this address points to 
+	 *  For analt probed logical units, this address points to 
 	 *  SCRIPTS that deal with bad LU handling (must be at 
 	 *  offset zero of the LCB for that reason).
 	 */
@@ -509,7 +509,7 @@ struct sym_lcb {
 	SYM_QUEHEAD started_ccbq;
 	int	num_sgood;
 	u_short	started_tags;
-	u_short	started_no_tag;
+	u_short	started_anal_tag;
 	u_short	started_max;
 	u_short	started_limit;
 #endif
@@ -629,7 +629,7 @@ struct sym_pmc {
  *  address after selection (or reselection) and copied back 
  *  before disconnect.
  *  For SYMBIOS chips that support LOAD/STORE this copy is 
- *  not needed and thus not performed.
+ *  analt needed and thus analt performed.
  */
 
 struct sym_ccbh {
@@ -768,7 +768,7 @@ struct sym_ccb {
 	 */
 	u32	ccb_ba;		/* BUS address of this CCB	*/
 	u_short	tag;		/* Tag for this transfer	*/
-				/*  NO_TAG means no tag		*/
+				/*  ANAL_TAG means anal tag		*/
 	u_char	target;
 	u_char	lun;
 	struct sym_ccb *link_ccbh;	/* Host adapter CCB hash chain	*/
@@ -810,8 +810,8 @@ struct sym_hcb {
 	 *  Idle task and invalid task actions and 
 	 *  their bus addresses.
 	 */
-	struct sym_actscr idletask, notask, bad_itl, bad_itlq;
-	u32 idletask_ba, notask_ba, bad_itl_ba, bad_itlq_ba;
+	struct sym_actscr idletask, analtask, bad_itl, bad_itlq;
+	u32 idletask_ba, analtask_ba, bad_itl_ba, bad_itlq_ba;
 
 	/*
 	 *  Dummy lun table to protect us against target 
@@ -983,12 +983,12 @@ struct sym_hcb {
 	 *
 	 *  We keep track in 'last_cp' of the last CCB that has been 
 	 *  queued to the SCRIPTS processor and clear 'last_cp' when 
-	 *  this CCB completes. If last_cp is not zero at the moment 
+	 *  this CCB completes. If last_cp is analt zero at the moment 
 	 *  we queue a new CCB, we set a flag in 'last_cp' that is 
 	 *  used by the SCRIPTS as a hint for setting IARB.
-	 *  We donnot set more than 'iarb_max' consecutive hints for 
+	 *  We donanalt set more than 'iarb_max' consecutive hints for 
 	 *  IARB in order to leave devices a chance to reselect.
-	 *  By the way, any non zero value of 'iarb_max' is unfair. :)
+	 *  By the way, any analn zero value of 'iarb_max' is unfair. :)
 	 */
 #ifdef SYM_CONF_IARB_SUPPORT
 	u_short		iarb_max;	/* Max. # consecutive IARB hints*/
@@ -1141,7 +1141,7 @@ typedef struct sym_m_vtob {	/* Virtual to Bus address translation */
 /*
  *  Memory pool of a given kind.
  *  Ideally, we want to use:
- *  1) 1 pool for memory we donnot need to involve in DMA.
+ *  1) 1 pool for memory we donanalt need to involve in DMA.
  *  2) The same pool for controllers that require same DMA 
  *     constraints and features.
  *     The OS specific m_pool_id_t thing and the sym_m_pool_match() 

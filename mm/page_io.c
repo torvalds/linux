@@ -5,8 +5,8 @@
  *  Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
  *
  *  Swap reorganised 29.12.95, 
- *  Asynchronous swapping added 30.12.95. Stephen Tweedie
- *  Removed race in async swapping. 14.4.1996. Bruno Haible
+ *  Asynchroanalus swapping added 30.12.95. Stephen Tweedie
+ *  Removed race in async swapping. 14.4.1996. Bruanal Haible
  *  Add swap of shared pages through the page cache. 20.2.1998. Stephen Tweedie
  *  Always use brw_page, life becomes simpler. 12 May 1998 Eric Biederman
  */
@@ -42,7 +42,7 @@ static void __end_swap_bio_write(struct bio *bio)
 		 */
 		folio_mark_dirty(folio);
 		pr_alert_ratelimited("Write-error on swap-device (%u:%u:%llu)\n",
-				     MAJOR(bio_dev(bio)), MINOR(bio_dev(bio)),
+				     MAJOR(bio_dev(bio)), MIANALR(bio_dev(bio)),
 				     (unsigned long long)bio->bi_iter.bi_sector);
 		folio_clear_reclaim(folio);
 	}
@@ -61,7 +61,7 @@ static void __end_swap_bio_read(struct bio *bio)
 
 	if (bio->bi_status) {
 		pr_alert_ratelimited("Read-error on swap-device (%u:%u:%llu)\n",
-				     MAJOR(bio_dev(bio)), MINOR(bio_dev(bio)),
+				     MAJOR(bio_dev(bio)), MIANALR(bio_dev(bio)),
 				     (unsigned long long)bio->bi_iter.bi_sector);
 	} else {
 		folio_mark_uptodate(folio);
@@ -80,9 +80,9 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 				sector_t *span)
 {
 	struct address_space *mapping = swap_file->f_mapping;
-	struct inode *inode = mapping->host;
+	struct ianalde *ianalde = mapping->host;
 	unsigned blocks_per_page;
-	unsigned long page_no;
+	unsigned long page_anal;
 	unsigned blkbits;
 	sector_t probe_block;
 	sector_t last_block;
@@ -91,7 +91,7 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 	int nr_extents = 0;
 	int ret;
 
-	blkbits = inode->i_blkbits;
+	blkbits = ianalde->i_blkbits;
 	blocks_per_page = PAGE_SIZE >> blkbits;
 
 	/*
@@ -99,17 +99,17 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 	 * to be very smart.
 	 */
 	probe_block = 0;
-	page_no = 0;
-	last_block = i_size_read(inode) >> blkbits;
+	page_anal = 0;
+	last_block = i_size_read(ianalde) >> blkbits;
 	while ((probe_block + blocks_per_page) <= last_block &&
-			page_no < sis->max) {
+			page_anal < sis->max) {
 		unsigned block_in_page;
 		sector_t first_block;
 
 		cond_resched();
 
 		first_block = probe_block;
-		ret = bmap(inode, &first_block);
+		ret = bmap(ianalde, &first_block);
 		if (ret || !first_block)
 			goto bad_bmap;
 
@@ -126,7 +126,7 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 			sector_t block;
 
 			block = probe_block + block_in_page;
-			ret = bmap(inode, &block);
+			ret = bmap(ianalde, &block);
 			if (ret || !block)
 				goto bad_bmap;
 
@@ -138,7 +138,7 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 		}
 
 		first_block >>= (PAGE_SHIFT - blkbits);
-		if (page_no) {	/* exclude the header page */
+		if (page_anal) {	/* exclude the header page */
 			if (first_block < lowest_block)
 				lowest_block = first_block;
 			if (first_block > highest_block)
@@ -148,22 +148,22 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 		/*
 		 * We found a PAGE_SIZE-length, PAGE_SIZE-aligned run of blocks
 		 */
-		ret = add_swap_extent(sis, page_no, 1, first_block);
+		ret = add_swap_extent(sis, page_anal, 1, first_block);
 		if (ret < 0)
 			goto out;
 		nr_extents += ret;
-		page_no++;
+		page_anal++;
 		probe_block += blocks_per_page;
 reprobe:
 		continue;
 	}
 	ret = nr_extents;
 	*span = 1 + highest_block - lowest_block;
-	if (page_no == 0)
-		page_no = 1;	/* force Empty message */
-	sis->max = page_no;
-	sis->pages = page_no - 1;
-	sis->highest_bit = page_no - 1;
+	if (page_anal == 0)
+		page_anal = 1;	/* force Empty message */
+	sis->max = page_anal;
+	sis->pages = page_anal - 1;
+	sis->highest_bit = page_anal - 1;
 out:
 	return ret;
 bad_bmap:
@@ -173,7 +173,7 @@ bad_bmap:
 }
 
 /*
- * We may have stale swap cache pages in memory: notice
+ * We may have stale swap cache pages in memory: analtice
  * them here and get rid of the unnecessary final write.
  */
 int swap_writepage(struct page *page, struct writeback_control *wbc)
@@ -257,7 +257,7 @@ int sio_pool_init(void)
 			mempool_destroy(pool);
 	}
 	if (!sio_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -274,8 +274,8 @@ static void sio_write_complete(struct kiocb *iocb, long ret)
 		 * memory for allocating transmit buffers.
 		 * Mark the page dirty and avoid
 		 * folio_rotate_reclaimable but rate-limit the
-		 * messages but do not flag PageError like
-		 * the normal direct-to-bio case as it could
+		 * messages but do analt flag PageError like
+		 * the analrmal direct-to-bio case as it could
 		 * be temporary.
 		 */
 		pr_err_ratelimited("Write error %ld on dio swapfile (%llu)\n",
@@ -313,7 +313,7 @@ static void swap_writepage_fs(struct folio *folio, struct writeback_control *wbc
 		}
 	}
 	if (!sio) {
-		sio = mempool_alloc(sio_pool, GFP_NOIO);
+		sio = mempool_alloc(sio_pool, GFP_ANALIO);
 		init_sync_kiocb(&sio->iocb, swap_file);
 		sio->iocb.ki_complete = sio_write_complete;
 		sio->iocb.ki_pos = pos;
@@ -340,7 +340,7 @@ static void swap_writepage_bdev_sync(struct folio *folio,
 	bio_init(&bio, sis->bdev, &bv, 1,
 		 REQ_OP_WRITE | REQ_SWAP | wbc_to_write_flags(wbc));
 	bio.bi_iter.bi_sector = swap_folio_sector(folio);
-	bio_add_folio_nofail(&bio, folio, folio_size(folio), 0);
+	bio_add_folio_analfail(&bio, folio, folio_size(folio), 0);
 
 	bio_associate_blkg_from_page(&bio, folio);
 	count_swpout_vm_event(folio);
@@ -359,10 +359,10 @@ static void swap_writepage_bdev_async(struct folio *folio,
 
 	bio = bio_alloc(sis->bdev, 1,
 			REQ_OP_WRITE | REQ_SWAP | wbc_to_write_flags(wbc),
-			GFP_NOIO);
+			GFP_ANALIO);
 	bio->bi_iter.bi_sector = swap_folio_sector(folio);
 	bio->bi_end_io = end_swap_bio_write;
-	bio_add_folio_nofail(bio, folio, folio_size(folio), 0);
+	bio_add_folio_analfail(bio, folio, folio_size(folio), 0);
 
 	bio_associate_blkg_from_page(bio, folio);
 	count_swpout_vm_event(folio);
@@ -377,13 +377,13 @@ void __swap_writepage(struct folio *folio, struct writeback_control *wbc)
 
 	VM_BUG_ON_FOLIO(!folio_test_swapcache(folio), folio);
 	/*
-	 * ->flags can be updated non-atomicially (scan_swap_map_slots),
+	 * ->flags can be updated analn-atomicially (scan_swap_map_slots),
 	 * but that will never affect SWP_FS_OPS, so the data_race
 	 * is safe.
 	 */
 	if (data_race(sis->flags & SWP_FS_OPS))
 		swap_writepage_fs(folio, wbc);
-	else if (sis->flags & SWP_SYNCHRONOUS_IO)
+	else if (sis->flags & SWP_SYNCHROANALUS_IO)
 		swap_writepage_bdev_sync(folio, wbc, sis);
 	else
 		swap_writepage_bdev_async(folio, wbc, sis);
@@ -467,7 +467,7 @@ static void swap_read_folio_bdev_sync(struct folio *folio,
 
 	bio_init(&bio, sis->bdev, &bv, 1, REQ_OP_READ);
 	bio.bi_iter.bi_sector = swap_folio_sector(folio);
-	bio_add_folio_nofail(&bio, folio, folio_size(folio), 0);
+	bio_add_folio_analfail(&bio, folio, folio_size(folio), 0);
 	/*
 	 * Keep this task valid during swap readpage because the oom killer may
 	 * attempt to access it in the page fault retry time check.
@@ -487,12 +487,12 @@ static void swap_read_folio_bdev_async(struct folio *folio,
 	bio = bio_alloc(sis->bdev, 1, REQ_OP_READ, GFP_KERNEL);
 	bio->bi_iter.bi_sector = swap_folio_sector(folio);
 	bio->bi_end_io = end_swap_bio_read;
-	bio_add_folio_nofail(bio, folio, folio_size(folio), 0);
+	bio_add_folio_analfail(bio, folio, folio_size(folio), 0);
 	count_vm_event(PSWPIN);
 	submit_bio(bio);
 }
 
-void swap_read_folio(struct folio *folio, bool synchronous,
+void swap_read_folio(struct folio *folio, bool synchroanalus,
 		struct swap_iocb **plug)
 {
 	struct swap_info_struct *sis = swp_swap_info(folio->swap);
@@ -500,7 +500,7 @@ void swap_read_folio(struct folio *folio, bool synchronous,
 	unsigned long pflags;
 	bool in_thrashing;
 
-	VM_BUG_ON_FOLIO(!folio_test_swapcache(folio) && !synchronous, folio);
+	VM_BUG_ON_FOLIO(!folio_test_swapcache(folio) && !synchroanalus, folio);
 	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
 	VM_BUG_ON_FOLIO(folio_test_uptodate(folio), folio);
 
@@ -520,7 +520,7 @@ void swap_read_folio(struct folio *folio, bool synchronous,
 		folio_unlock(folio);
 	} else if (data_race(sis->flags & SWP_FS_OPS)) {
 		swap_read_folio_fs(folio, plug);
-	} else if (synchronous || (sis->flags & SWP_SYNCHRONOUS_IO)) {
+	} else if (synchroanalus || (sis->flags & SWP_SYNCHROANALUS_IO)) {
 		swap_read_folio_bdev_sync(folio, sis);
 	} else {
 		swap_read_folio_bdev_async(folio, sis);

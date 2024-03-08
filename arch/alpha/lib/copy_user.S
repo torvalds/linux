@@ -6,9 +6,9 @@
  * isn't exactly pretty.
  *
  * This is essentially the same as "memcpy()", but with a few twists.
- * Notably, we have to make sure that $0 is always up-to-date and
+ * Analtably, we have to make sure that $0 is always up-to-date and
  * contains the right "bytes left to copy" value (and that it is updated
- * only _after_ a successful copy). There is also some rather minor
+ * only _after_ a successful copy). There is also some rather mianalr
  * exception setup stuff..
  */
 
@@ -29,7 +29,7 @@
 	lda $31, $exitout-99b($31);	\
 	.previous
 
-	.set noat
+	.set analat
 	.align 4
 	.globl __copy_user
 	.ent __copy_user

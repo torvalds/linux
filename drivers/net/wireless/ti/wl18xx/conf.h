@@ -106,7 +106,7 @@ struct conf_ap_sleep_settings {
 	 */
 	u8 connected_duty_cycle;
 	/* Maximum stations that are allowed to be connected to AP
-	 *  (255: no limit)
+	 *  (255: anal limit)
 	 */
 	u8 max_stations_thresh;
 	/* Timeout till enabling the Sleep Mechanism after data stops

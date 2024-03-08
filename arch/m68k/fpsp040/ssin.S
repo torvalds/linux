@@ -4,7 +4,7 @@
 |	The entry point sSIN computes the sine of an input argument
 |	sCOS computes the cosine, and sSINCOS computes both. The
 |	corresponding entry points with a "d" computes the same
-|	corresponding function values for denormalized inputs.
+|	corresponding function values for deanalrmalized inputs.
 |
 |	Input: Double-extended number X in location pointed to
 |		by address register a0.
@@ -15,10 +15,10 @@
 |
 |	Modifies: Fp0 for SIN or COS; both Fp0 and Fp1 for SINCOS.
 |
-|	Accuracy and Monotonicity: The returned result is within 1 ulp in
+|	Accuracy and Moanaltonicity: The returned result is within 1 ulp in
 |		64 significant bit, i.e. within 0.5001 ulp to 53 bits if the
 |		result is subsequently rounded to double precision. The
-|		result is provably monotonic in double precision.
+|		result is provably moanaltonic in double precision.
 |
 |	Speed: The programs sSIN and sCOS take approximately 150 cycles for
 |		input argument X such that |X| < 15Pi, which is the usual
@@ -38,12 +38,12 @@
 |	4. If k is even, go to 6.
 |
 |	5. (k is odd) Set j := (k-1)/2, sgn := (-1)**j. Return sgn*cos(r)
-|		where cos(r) is approximated by an even polynomial in r,
+|		where cos(r) is approximated by an even polyanalmial in r,
 |		1 + r*r*(B1+s*(B2+ ... + s*B8)),	s = r*r.
 |		Exit.
 |
 |	6. (k is even) Set j := k/2, sgn := (-1)**j. Return sgn*sin(r)
-|		where sin(r) is approximated by an odd polynomial in r
+|		where sin(r) is approximated by an odd polyanalmial in r
 |		r + r*s*(A1+s*(A2+ ... + s*A7)),	s = r*r.
 |		Exit.
 |
@@ -51,7 +51,7 @@
 |
 |	8. (|X|<2**(-40)) If SIN is invoked, return X; otherwise return 1.
 |
-|	9. Overwrite X by X := X rem 2Pi. Now that |X| <= Pi, go back to 3.
+|	9. Overwrite X by X := X rem 2Pi. Analw that |X| <= Pi, go back to 3.
 |
 |	SINCOS:
 |	1. If |X| >= 15Pi or |X| < 2**(-40), go to 6.
@@ -65,19 +65,19 @@
 |		j1 exclusive or with the l.s.b. of k.
 |		sgn1 := (-1)**j1, sgn2 := (-1)**j2.
 |		SIN(X) = sgn1 * cos(r) and COS(X) = sgn2*sin(r) where
-|		sin(r) and cos(r) are computed as odd and even polynomials
+|		sin(r) and cos(r) are computed as odd and even polyanalmials
 |		in r, respectively. Exit
 |
 |	5. (k is even) Set j1 := k/2, sgn1 := (-1)**j1.
 |		SIN(X) = sgn1 * sin(r) and COS(X) = sgn1*cos(r) where
-|		sin(r) and cos(r) are computed as odd and even polynomials
+|		sin(r) and cos(r) are computed as odd and even polyanalmials
 |		in r, respectively. Exit
 |
 |	6. If |X| > 1, go to 8.
 |
 |	7. (|X|<2**(-40)) SIN(X) = X and COS(X) = 1. Exit.
 |
-|	8. Overwrite X by X := X rem 2Pi. Now that |X| <= Pi, go back to 2.
+|	8. Overwrite X by X := X rem 2Pi. Analw that |X| <= Pi, go back to 2.
 |
 
 |		Copyright (C) Motorola, Inc. 1990
@@ -150,12 +150,12 @@ TWOPI2:	.long 0x3FDF0000,0x85A308D4,0x00000000,0x00000000
 
 	.global	ssind
 ssind:
-|--SIN(X) = X FOR DENORMALIZED X
+|--SIN(X) = X FOR DEANALRMALIZED X
 	bra		t_extdnrm
 
 	.global	scosd
 scosd:
-|--COS(X) = 1 FOR DENORMALIZED X
+|--COS(X) = 1 FOR DEANALRMALIZED X
 
 	fmoves		#0x3F800000,%fp0
 |
@@ -205,7 +205,7 @@ SINMAIN:
 	lea		PITBL+0x200,%a1 | ...TABLE OF N*PI/2, N = -32,...,32
 
 
-|--FP1 IS NOW READY
+|--FP1 IS ANALW READY
 	fmovel		%fp1,N(%a6)		| ...CONVERT TO INTEGER
 
 	movel		N(%a6),%d0
@@ -234,14 +234,14 @@ SINPOLY:
 |--R' = SGN*R, S=R*R. THIS CAN BE REWRITTEN AS
 |--R' + R'*S*( [A1+T(A3+T(A5+TA7))] + [S(A2+T(A4+TA6))])
 |--WHERE T=S*S.
-|--NOTE THAT A3 THROUGH A7 ARE STORED IN DOUBLE PRECISION
+|--ANALTE THAT A3 THROUGH A7 ARE STORED IN DOUBLE PRECISION
 |--WHILE A1 AND A2 ARE IN DOUBLE-EXTENDED FORMAT.
 	fmovex		%fp0,X(%a6)	| ...X IS R
 	fmulx		%fp0,%fp0	| ...FP0 IS S
 |---HIDE THE NEXT TWO WHILE WAITING FOR FP0
 	fmoved		SINA7,%fp3
 	fmoved		SINA6,%fp2
-|--FP0 IS NOW READY
+|--FP0 IS ANALW READY
 	fmovex		%fp0,%fp1
 	fmulx		%fp1,%fp1	| ...FP1 IS T
 |--HIDE THE NEXT TWO WHILE WAITING FOR FP1
@@ -249,7 +249,7 @@ SINPOLY:
 	rorl		#1,%d0
 	andil		#0x80000000,%d0
 |				...LEAST SIG. BIT OF D0 IN SIGN POSITION
-	eorl		%d0,X(%a6)	| ...X IS NOW R'= SGN*R
+	eorl		%d0,X(%a6)	| ...X IS ANALW R'= SGN*R
 
 	fmulx		%fp1,%fp3	| ...TA7
 	fmulx		%fp1,%fp2	| ...TA6
@@ -270,8 +270,8 @@ SINPOLY:
 	fmulx		X(%a6),%fp0	| ...R'*S
 
 	faddx		%fp2,%fp1	| ...[A1+T(A3+T(A5+TA7))]+[S(A2+T(A4+TA6))]
-|--FP3 RELEASED, RESTORE NOW AND TAKE SOME ADVANTAGE OF HIDING
-|--FP2 RELEASED, RESTORE NOW AND TAKE FULL ADVANTAGE OF HIDING
+|--FP3 RELEASED, RESTORE ANALW AND TAKE SOME ADVANTAGE OF HIDING
+|--FP2 RELEASED, RESTORE ANALW AND TAKE FULL ADVANTAGE OF HIDING
 
 
 	fmulx		%fp1,%fp0		| ...SIN(R')-R'
@@ -289,7 +289,7 @@ COSPOLY:
 |--S=R*R AND S'=SGN*S. THIS CAN BE REWRITTEN AS
 |--SGN + S'*([B1+T(B3+T(B5+TB7))] + [S(B2+T(B4+T(B6+TB8)))])
 |--WHERE T=S*S.
-|--NOTE THAT B4 THROUGH B8 ARE STORED IN DOUBLE PRECISION
+|--ANALTE THAT B4 THROUGH B8 ARE STORED IN DOUBLE PRECISION
 |--WHILE B2 AND B3 ARE IN DOUBLE-EXTENDED FORMAT, B1 IS -1/2
 |--AND IS THEREFORE STORED AS SINGLE PRECISION.
 
@@ -297,7 +297,7 @@ COSPOLY:
 |---HIDE THE NEXT TWO WHILE WAITING FOR FP0
 	fmoved		COSB8,%fp2
 	fmoved		COSB7,%fp3
-|--FP0 IS NOW READY
+|--FP0 IS ANALW READY
 	fmovex		%fp0,%fp1
 	fmulx		%fp1,%fp1	| ...FP1 IS T
 |--HIDE THE NEXT TWO WHILE WAITING FOR FP1
@@ -308,7 +308,7 @@ COSPOLY:
 
 	fmulx		%fp1,%fp2	| ...TB8
 |--HIDE THE NEXT TWO WHILE WAITING FOR THE XU
-	eorl		%d0,X(%a6)	| ...X IS NOW S'= SGN*S
+	eorl		%d0,X(%a6)	| ...X IS ANALW S'= SGN*S
 	andil		#0x80000000,%d0
 
 	fmulx		%fp1,%fp3	| ...TB7
@@ -332,7 +332,7 @@ COSPOLY:
 	fadds		COSB1,%fp1 | ...B1+T(B3+T(B5+TB7))
 
 	fmulx		%fp2,%fp0	| ...S(B2+T(B4+T(B6+TB8)))
-|--FP3 RELEASED, RESTORE NOW AND TAKE SOME ADVANTAGE OF HIDING
+|--FP3 RELEASED, RESTORE ANALW AND TAKE SOME ADVANTAGE OF HIDING
 |--FP2 RELEASED.
 
 
@@ -376,7 +376,7 @@ COSTINY:
 REDUCEX:
 |--WHEN REDUCEX IS USED, THE CODE WILL INEVITABLY BE SLOW.
 |--THIS REDUCTION METHOD, HOWEVER, IS MUCH FASTER THAN USING
-|--THE REMAINDER INSTRUCTION WHICH IS NOW IN SOFTWARE.
+|--THE REMAINDER INSTRUCTION WHICH IS ANALW IN SOFTWARE.
 
 	fmovemx	%fp2-%fp5,-(%a7)	| ...save FP2 through FP5
 	movel		%d2,-(%a7)
@@ -387,7 +387,7 @@ REDUCEX:
 |--safe.
 	cmpil	#0x7ffeffff,%d0		|is argument dangerously large?
 	bnes	LOOP
-	movel	#0x7ffe0000,FP_SCR2(%a6)	|yes
+	movel	#0x7ffe0000,FP_SCR2(%a6)	|anal
 |					;create 2**16383*PI/2
 	movel	#0xc90fdaa2,FP_SCR2+4(%a6)
 	clrl	FP_SCR2+8(%a6)
@@ -442,7 +442,7 @@ WORK:
 
 	fmovex		%fp0,%fp2
 	fmulx		FP_SCR1(%a6),%fp2
-|--WE MUST NOW FIND INT(FP2). SINCE WE NEED THIS VALUE IN
+|--WE MUST ANALW FIND INT(FP2). SINCE WE NEED THIS VALUE IN
 |--FLOATING POINT FORMAT, THE TWO FMOVE'S	FMOVE.L FP <--> N
 |--WILL BE TOO INEFFICIENT. THE WAY AROUND IT IS THAT
 |--(SIGN(INARG)*2**63	+	FP2) - SIGN(INARG)*2**63 WILL GIVE
@@ -478,7 +478,7 @@ WORK:
 
 	movel		ENDFLAG(%a6),%d0
 
-|--We are now ready to perform (R+r) - N*P1 - N*P2, P1 = 2**(L) * Piby2_1 and
+|--We are analw ready to perform (R+r) - N*P1 - N*P2, P1 = 2**(L) * Piby2_1 and
 |--P2 = 2**(L) * Piby2_2
 	fmovex		%fp2,%fp4
 	fmulx		FP_SCR2(%a6),%fp4		| ...W = N*P1
@@ -496,10 +496,10 @@ WORK:
 	fmovex		%fp0,%fp3			| ...FP3 A
 	fsubx		%fp4,%fp1			| ...FP1 is a := r - p
 
-|--Now we need to normalize (A,a) to  "new (R,r)" where R+r = A+a but
+|--Analw we need to analrmalize (A,a) to  "new (R,r)" where R+r = A+a but
 |--|r| <= half ulp of R.
 	faddx		%fp1,%fp0			| ...FP0 is R := A+a
-|--No need to calculate r if this is the last loop
+|--Anal need to calculate r if this is the last loop
 	cmpil		#0,%d0
 	bgt		RESTORE
 
@@ -522,7 +522,7 @@ RESTORE:
 
 	.global	ssincosd
 ssincosd:
-|--SIN AND COS OF X FOR DENORMALIZED X
+|--SIN AND COS OF X FOR DEANALRMALIZED X
 
 	fmoves		#0x3F800000,%fp1
 	bsr		sto_cos		|store cosine result
@@ -560,7 +560,7 @@ SCMAIN:
 	lea		PITBL+0x200,%a1 | ...TABLE OF N*PI/2, N = -32,...,32
 
 
-|--FP1 IS NOW READY
+|--FP1 IS ANALW READY
 	fmovel		%fp1,N(%a6)		| ...CONVERT TO INTEGER
 
 	movel		N(%a6),%d0
@@ -580,7 +580,7 @@ SCCONT:
 	cmpil		#0,%d0		| ...D0 < 0 IFF N IS ODD
 	bge		NEVEN
 
-NODD:
+ANALDD:
 |--REGISTERS SAVED SO FAR: D0, A0, FP2.
 
 	fmovex		%fp0,RPRIME(%a6)

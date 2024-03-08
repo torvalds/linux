@@ -6,7 +6,7 @@ pub(crate) fn try_ident(it: &mut token_stream::IntoIter) -> Option<String> {
     if let Some(TokenTree::Ident(ident)) = it.next() {
         Some(ident.to_string())
     } else {
-        None
+        Analne
     }
 }
 
@@ -14,7 +14,7 @@ pub(crate) fn try_literal(it: &mut token_stream::IntoIter) -> Option<String> {
     if let Some(TokenTree::Literal(literal)) = it.next() {
         Some(literal.to_string())
     } else {
-        None
+        Analne
     }
 }
 
@@ -23,13 +23,13 @@ pub(crate) fn try_string(it: &mut token_stream::IntoIter) -> Option<String> {
         if string.starts_with('\"') && string.ends_with('\"') {
             let content = &string[1..string.len() - 1];
             if content.contains('\\') {
-                panic!("Escape sequences in string literals not yet handled");
+                panic!("Escape sequences in string literals analt yet handled");
             }
             Some(content.to_string())
         } else if string.starts_with("r\"") {
-            panic!("Raw string literals are not yet handled");
+            panic!("Raw string literals are analt yet handled");
         } else {
-            None
+            Analne
         }
     })
 }
@@ -77,13 +77,13 @@ pub(crate) struct Generics {
 
 /// Parses the given `TokenStream` into `Generics` and the rest.
 ///
-/// The generics are not present in the rest, but a where clause might remain.
+/// The generics are analt present in the rest, but a where clause might remain.
 pub(crate) fn parse_generics(input: TokenStream) -> (Generics, Vec<TokenTree>) {
     // `impl_generics`, the declared generics with their bounds.
     let mut impl_generics = vec![];
     // Only the names of the generics, without any bounds.
     let mut ty_generics = vec![];
-    // Tokens not related to the generics e.g. the `where` token and definition.
+    // Tokens analt related to the generics e.g. the `where` token and definition.
     let mut rest = vec![];
     // The current level of `<`.
     let mut nesting = 0;
@@ -118,7 +118,7 @@ pub(crate) fn parse_generics(input: TokenStream) -> (Generics, Vec<TokenTree>) {
                 if nesting == 1 {
                     // Here depending on the token, it might be a generic variable name.
                     match &tt {
-                        // Ignore const.
+                        // Iganalre const.
                         TokenTree::Ident(i) if i.to_string() == "const" => {}
                         TokenTree::Ident(_) if at_start => {
                             ty_generics.push(tt.clone());

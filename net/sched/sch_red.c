@@ -26,7 +26,7 @@
 	limit		- bytes (must be > qth_max + burst)
 
 	Hard limit on queue length, should be chosen >qth_max
-	to allow packet bursts. This parameter does not
+	to allow packet bursts. This parameter does analt
 	affect the algorithms behaviour and can be chosen
 	arbitrarily high (well, less than ram size)
 	Really, this limit will never be reached
@@ -37,7 +37,7 @@ struct red_sched_data {
 	u32			limit;		/* HARD maximal queue length */
 
 	unsigned char		flags;
-	/* Non-flags in tc_red_qopt.flags. */
+	/* Analn-flags in tc_red_qopt.flags. */
 	unsigned char		userbits;
 
 	struct timer_list	adapt_timer;
@@ -50,7 +50,7 @@ struct red_sched_data {
 	struct tcf_qevent	qe_mark;
 };
 
-#define TC_RED_SUPPORTED_FLAGS (TC_RED_HISTORIC_FLAGS | TC_RED_NODROP)
+#define TC_RED_SUPPORTED_FLAGS (TC_RED_HISTORIC_FLAGS | TC_RED_ANALDROP)
 
 static inline int red_use_ecn(struct red_sched_data *q)
 {
@@ -62,9 +62,9 @@ static inline int red_use_harddrop(struct red_sched_data *q)
 	return q->flags & TC_RED_HARDDROP;
 }
 
-static int red_use_nodrop(struct red_sched_data *q)
+static int red_use_analdrop(struct red_sched_data *q)
 {
-	return q->flags & TC_RED_NODROP;
+	return q->flags & TC_RED_ANALDROP;
 }
 
 static int red_enqueue(struct sk_buff *skb, struct Qdisc *sch,
@@ -98,12 +98,12 @@ static int red_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			skb = tcf_qevent_handle(&q->qe_mark, sch, skb, to_free, &ret);
 			if (!skb)
 				return NET_XMIT_CN | ret;
-		} else if (!red_use_nodrop(q)) {
+		} else if (!red_use_analdrop(q)) {
 			q->stats.prob_drop++;
 			goto congestion_drop;
 		}
 
-		/* Non-ECT packet in ECN nodrop mode: queue it. */
+		/* Analn-ECT packet in ECN analdrop mode: queue it. */
 		break;
 
 	case RED_HARD_MARK:
@@ -118,12 +118,12 @@ static int red_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			skb = tcf_qevent_handle(&q->qe_mark, sch, skb, to_free, &ret);
 			if (!skb)
 				return NET_XMIT_CN | ret;
-		} else if (!red_use_nodrop(q)) {
+		} else if (!red_use_analdrop(q)) {
 			q->stats.forced_drop++;
 			goto congestion_drop;
 		}
 
-		/* Non-ECT packet in ECN nodrop mode: queue it. */
+		/* Analn-ECT packet in ECN analdrop mode: queue it. */
 		break;
 	}
 
@@ -191,7 +191,7 @@ static int red_offload(struct Qdisc *sch, bool enable)
 	};
 
 	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (enable) {
 		opt.command = TC_RED_REPLACE;
@@ -201,7 +201,7 @@ static int red_offload(struct Qdisc *sch, bool enable)
 		opt.set.limit = q->limit;
 		opt.set.is_ecn = red_use_ecn(q);
 		opt.set.is_harddrop = red_use_harddrop(q);
-		opt.set.is_nodrop = red_use_nodrop(q);
+		opt.set.is_analdrop = red_use_analdrop(q);
 		opt.set.qstats = &sch->qstats;
 	} else {
 		opt.command = TC_RED_DESTROY;
@@ -268,7 +268,7 @@ static int __red_change(struct Qdisc *sch, struct nlattr **tb,
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 
-		/* child is fifo, no need to check for noop_qdisc */
+		/* child is fifo, anal need to check for analop_qdisc */
 		qdisc_hash_add(child, true);
 	}
 
@@ -339,7 +339,7 @@ static int red_init(struct Qdisc *sch, struct nlattr *opt,
 	struct nlattr *tb[TCA_RED_MAX + 1];
 	int err;
 
-	q->qdisc = &noop_qdisc;
+	q->qdisc = &analop_qdisc;
 	q->sch = sch;
 	timer_setup(&q->adapt_timer, red_adaptative_timer, 0);
 
@@ -426,7 +426,7 @@ static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (err)
 		goto nla_put_failure;
 
-	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	opts = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 	if (nla_put(skb, TCA_RED_PARMS, sizeof(opt), &opt) ||
@@ -499,7 +499,7 @@ static int red_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	struct red_sched_data *q = qdisc_priv(sch);
 
 	if (new == NULL)
-		new = &noop_qdisc;
+		new = &analop_qdisc;
 
 	*old = qdisc_replace(sch, new, &q->qdisc);
 

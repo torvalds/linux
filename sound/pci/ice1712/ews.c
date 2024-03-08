@@ -323,7 +323,7 @@ static void ews88_setup_spdif(struct snd_ice1712 *ice, int rate)
 	ice->spdif.cs8403_stream_bits = tmp;
 	spin_unlock_irqrestore(&ice->reg_lock, flags);
 	if (change)
-		snd_ctl_notify(ice->card, SNDRV_CTL_EVENT_MASK_VALUE, &ice->spdif.stream_ctl->id);
+		snd_ctl_analtify(ice->card, SNDRV_CTL_EVENT_MASK_VALUE, &ice->spdif.stream_ctl->id);
 	snd_ice1712_ews_cs8404_spdif_write(ice, tmp);
 }
 
@@ -347,7 +347,7 @@ static const struct snd_ak4xxx_private akm_ews88mt_priv = {
 	.clk_mask = ICE1712_EWS88_SERIAL_CLOCK,
 	.cs_mask = 0,
 	.cs_addr = 0,
-	.cs_none = 0, /* no chip select on gpio */
+	.cs_analne = 0, /* anal chip select on gpio */
 	.add_flags = ICE1712_EWS88_RW, /* set rw bit high */
 	.mask_flags = 0,
 };
@@ -368,7 +368,7 @@ static const struct snd_ak4xxx_private akm_ewx2496_priv = {
 	.clk_mask = ICE1712_EWS88_SERIAL_CLOCK,
 	.cs_mask = ICE1712_EWX2496_AK4524_CS,
 	.cs_addr = ICE1712_EWX2496_AK4524_CS,
-	.cs_none = 0,
+	.cs_analne = 0,
 	.add_flags = ICE1712_EWS88_RW, /* set rw bit high */
 	.mask_flags = 0,
 };
@@ -389,7 +389,7 @@ static const struct snd_ak4xxx_private akm_6fire_priv = {
 	.clk_mask = ICE1712_6FIRE_SERIAL_CLOCK,
 	.cs_mask = 0,
 	.cs_addr = 0, /* set later */
-	.cs_none = 0,
+	.cs_analne = 0,
 	.add_flags = ICE1712_6FIRE_RW, /* set rw bit high */
 	.mask_flags = 0,
 };
@@ -426,7 +426,7 @@ static int snd_ice1712_ews_init(struct snd_ice1712 *ice)
 		ice->num_total_adcs = 8;
 		break;
 	case ICE1712_SUBDEVICE_EWS88D:
-		/* Note: not analog but ADAT I/O */
+		/* Analte: analt analog but ADAT I/O */
 		ice->num_total_dacs = 8;
 		ice->num_total_adcs = 8;
 		break;
@@ -438,7 +438,7 @@ static int snd_ice1712_ews_init(struct snd_ice1712 *ice)
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->spec = spec;
 
 	/* create i2c */
@@ -528,7 +528,7 @@ static int snd_ice1712_ews_init(struct snd_ice1712 *ice)
 		break;
 	}
 
-	/* no analog? */
+	/* anal analog? */
 	switch (ice->eeprom.subvendor) {
 	case ICE1712_SUBDEVICE_EWS88D:
 		return 0;
@@ -537,7 +537,7 @@ static int snd_ice1712_ews_init(struct snd_ice1712 *ice)
 	/* analog section */
 	ak = ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ak)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->akm_codecs = 1;
 
 	switch (ice->eeprom.subvendor) {
@@ -731,7 +731,7 @@ static const struct snd_kcontrol_new snd_ice1712_ews88mt_output_sense = {
  * EWS88D specific controls
  */
 
-#define snd_ice1712_ews88d_control_info		snd_ctl_boolean_mono_info
+#define snd_ice1712_ews88d_control_info		snd_ctl_boolean_moanal_info
 
 static int snd_ice1712_ews88d_control_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -818,14 +818,14 @@ static int snd_ice1712_6fire_read_pca(struct snd_ice1712 *ice, unsigned char reg
 	byte = reg;
 	if (snd_i2c_sendbytes(spec->i2cdevs[EWS_I2C_6FIRE], &byte, 1) != 1) {
 		snd_i2c_unlock(ice->i2c);
-		dev_err(ice->card->dev, "cannot send pca\n");
+		dev_err(ice->card->dev, "cananalt send pca\n");
 		return -EIO;
 	}
 
 	byte = 0;
 	if (snd_i2c_readbytes(spec->i2cdevs[EWS_I2C_6FIRE], &byte, 1) != 1) {
 		snd_i2c_unlock(ice->i2c);
-		dev_err(ice->card->dev, "cannot read pca\n");
+		dev_err(ice->card->dev, "cananalt read pca\n");
 		return -EIO;
 	}
 	snd_i2c_unlock(ice->i2c);
@@ -848,7 +848,7 @@ static int snd_ice1712_6fire_write_pca(struct snd_ice1712 *ice, unsigned char re
 	return 0;
 }
 
-#define snd_ice1712_6fire_control_info		snd_ctl_boolean_mono_info
+#define snd_ice1712_6fire_control_info		snd_ctl_boolean_moanal_info
 
 static int snd_ice1712_6fire_control_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -947,7 +947,7 @@ static const struct snd_kcontrol_new snd_ice1712_6fire_controls[] = {
 	DMX6FIRE_CONTROL("Front Digital Input Switch", 2, 1),
 	// DMX6FIRE_CONTROL("Master Clock Select", 3, 0),
 	DMX6FIRE_CONTROL("Optical Digital Input Switch", 4, 0),
-	DMX6FIRE_CONTROL("Phono Analog Input Switch", 5, 0),
+	DMX6FIRE_CONTROL("Phoanal Analog Input Switch", 5, 0),
 	DMX6FIRE_CONTROL("Breakbox LED", 6, 0),
 };
 

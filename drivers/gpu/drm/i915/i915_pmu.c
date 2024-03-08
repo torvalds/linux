@@ -92,8 +92,8 @@ static unsigned int other_bit(const u64 config)
 		break;
 	default:
 		/*
-		 * Events that do not require sampling, or tracking state
-		 * transitions between enabled and disabled can be ignored.
+		 * Events that do analt require sampling, or tracking state
+		 * transitions between enabled and disabled can be iganalred.
 		 */
 		return -1;
 	}
@@ -162,13 +162,13 @@ static bool pmu_needs_timer(struct i915_pmu *pmu)
 	enable = pmu->enable;
 
 	/*
-	 * Mask out all the ones which do not need the timer, or in
+	 * Mask out all the ones which do analt need the timer, or in
 	 * other words keep all the ones that could need the timer.
 	 */
 	enable &= frequency_enabled_mask() | ENGINE_SAMPLE_MASK;
 
 	/*
-	 * Also there is software busyness tracking available we do not
+	 * Also there is software busyness tracking available we do analt
 	 * need the timer for I915_SAMPLE_BUSY counter.
 	 */
 	if (i915->caps.scheduler & I915_SCHEDULER_CAP_ENGINE_BUSY_STATS)
@@ -241,8 +241,8 @@ static u64 get_rc6(struct intel_gt *gt)
 		/*
 		 * We think we are runtime suspended.
 		 *
-		 * Report the delta from when the device was suspended to now,
-		 * on top of the last known real value, as the approximated RC6
+		 * Report the delta from when the device was suspended to analw,
+		 * on top of the last kanalwn real value, as the approximated RC6
 		 * counter value.
 		 */
 		val = ktime_since_raw(pmu->sleep_last[gt_id]);
@@ -371,13 +371,13 @@ static void engine_sample(struct intel_engine_cs *engine, unsigned int period_ns
 	if (val & RING_WAIT_SEMAPHORE)
 		add_sample(&pmu->sample[I915_SAMPLE_SEMA], period_ns);
 
-	/* No need to sample when busy stats are supported. */
+	/* Anal need to sample when busy stats are supported. */
 	if (intel_engine_supports_stats(engine))
 		return;
 
 	/*
 	 * While waiting on a semaphore or event, MI_MODE reports the
-	 * ring as idle. However, previously using the seqno, and with
+	 * ring as idle. However, previously using the seqanal, and with
 	 * execlists sampling, we account for the ring waiting as the
 	 * engine being busy. Therefore, we record the sample as being
 	 * busy if either waiting or !idle.
@@ -485,17 +485,17 @@ static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
 	unsigned int period_ns;
 	struct intel_gt *gt;
 	unsigned int i;
-	ktime_t now;
+	ktime_t analw;
 
 	if (!READ_ONCE(pmu->timer_enabled))
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
-	now = ktime_get();
-	period_ns = ktime_to_ns(ktime_sub(now, pmu->timer_last));
-	pmu->timer_last = now;
+	analw = ktime_get();
+	period_ns = ktime_to_ns(ktime_sub(analw, pmu->timer_last));
+	pmu->timer_last = analw;
 
 	/*
-	 * Strictly speaking the passed in period may not be 100% accurate for
+	 * Strictly speaking the passed in period may analt be 100% accurate for
 	 * all internal calculation, since some amount of time can be spent on
 	 * grabbing the forcewake. However the potential error from timer call-
 	 * back delay greatly dominates this so we keep it simple.
@@ -509,7 +509,7 @@ static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
 		frequency_sample(gt, period_ns);
 	}
 
-	hrtimer_forward(hrtimer, now, ns_to_ktime(PERIOD));
+	hrtimer_forward(hrtimer, analw, ns_to_ktime(PERIOD));
 
 	return HRTIMER_RESTART;
 }
@@ -534,10 +534,10 @@ engine_event_status(struct intel_engine_cs *engine,
 		break;
 	case I915_SAMPLE_SEMA:
 		if (GRAPHICS_VER(engine->i915) < 6)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return 0;
@@ -552,30 +552,30 @@ config_status(struct drm_i915_private *i915, u64 config)
 	unsigned int max_gt_id = HAS_EXTRA_GT_LIST(i915) ? 1 : 0;
 
 	if (gt_id > max_gt_id)
-		return -ENOENT;
+		return -EANALENT;
 
 	switch (config_counter(config)) {
 	case I915_PMU_ACTUAL_FREQUENCY:
 		if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
 			/* Requires a mutex for sampling! */
-			return -ENODEV;
+			return -EANALDEV;
 		fallthrough;
 	case I915_PMU_REQUESTED_FREQUENCY:
 		if (GRAPHICS_VER(i915) < 6)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	case I915_PMU_INTERRUPTS:
 		if (gt_id)
-			return -ENOENT;
+			return -EANALENT;
 		break;
 	case I915_PMU_RC6_RESIDENCY:
 		if (!gt->rc6.supported)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	case I915_PMU_SOFTWARE_GT_AWAKE_TIME:
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return 0;
@@ -590,7 +590,7 @@ static int engine_event_init(struct perf_event *event)
 	engine = intel_engine_lookup_user(i915, engine_event_class(event),
 					  engine_event_instance(event));
 	if (!engine)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return engine_event_status(engine, engine_event_sample(event));
 }
@@ -602,17 +602,17 @@ static int i915_pmu_event_init(struct perf_event *event)
 	int ret;
 
 	if (pmu->closed)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* unsupported modes and filters */
-	if (event->attr.sample_period) /* no sampling */
+	if (event->attr.sample_period) /* anal sampling */
 		return -EINVAL;
 
 	if (has_branch_stack(event))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (event->cpu < 0)
 		return -EINVAL;
@@ -651,7 +651,7 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 						  engine_event_instance(event));
 
 		if (drm_WARN_ON_ONCE(&i915->drm, !engine)) {
-			/* Do nothing */
+			/* Do analthing */
 		} else if (sample == I915_SAMPLE_BUSY &&
 			   intel_engine_supports_stats(engine)) {
 			ktime_t unused;
@@ -736,7 +736,7 @@ static void i915_pmu_enable(struct perf_event *event)
 	pmu->enable_count[bit]++;
 
 	/*
-	 * Start the sampling timer if needed and not already enabled.
+	 * Start the sampling timer if needed and analt already enabled.
 	 */
 	__i915_pmu_maybe_start_timer(pmu);
 
@@ -770,7 +770,7 @@ update:
 	/*
 	 * Store the current counter value so we can report the correct delta
 	 * for all listeners. Even when the event was already enabled and has
-	 * an existing non-zero value.
+	 * an existing analn-zero value.
 	 */
 	local64_set(&event->hw.prev_count, __i915_pmu_event_read(event));
 }
@@ -854,7 +854,7 @@ static int i915_pmu_event_add(struct perf_event *event, int flags)
 	struct i915_pmu *pmu = event_to_pmu(event);
 
 	if (pmu->closed)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (flags & PERF_EF_START)
 		i915_pmu_event_start(event, flags);
@@ -1048,7 +1048,7 @@ create_event_attributes(struct i915_pmu *pmu)
 	pmu_iter = pmu_attr;
 	attr_iter = attr;
 
-	/* Initialize supported non-engine counters. */
+	/* Initialize supported analn-engine counters. */
 	for_each_gt(gt, i915, j) {
 		for (i = 0; i < ARRAY_SIZE(events); i++) {
 			u64 config = ___I915_PMU_OTHER(j, events[i].counter);
@@ -1149,9 +1149,9 @@ static void free_event_attributes(struct i915_pmu *pmu)
 	pmu->pmu_attr = NULL;
 }
 
-static int i915_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
+static int i915_pmu_cpu_online(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct i915_pmu *pmu = hlist_entry_safe(node, typeof(*pmu), cpuhp.node);
+	struct i915_pmu *pmu = hlist_entry_safe(analde, typeof(*pmu), cpuhp.analde);
 
 	GEM_BUG_ON(!pmu->base.event_init);
 
@@ -1162,16 +1162,16 @@ static int i915_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int i915_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)
+static int i915_pmu_cpu_offline(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct i915_pmu *pmu = hlist_entry_safe(node, typeof(*pmu), cpuhp.node);
+	struct i915_pmu *pmu = hlist_entry_safe(analde, typeof(*pmu), cpuhp.analde);
 	unsigned int target = i915_pmu_target_cpu;
 
 	GEM_BUG_ON(!pmu->base.event_init);
 
 	/*
 	 * Unregistering an instance generates a CPU offline event which we must
-	 * ignore to avoid incorrectly modifying the shared i915_pmu_cpumask.
+	 * iganalre to avoid incorrectly modifying the shared i915_pmu_cpumask.
 	 */
 	if (pmu->closed)
 		return 0;
@@ -1205,7 +1205,7 @@ int i915_pmu_init(void)
 				      i915_pmu_cpu_online,
 				      i915_pmu_cpu_offline);
 	if (ret < 0)
-		pr_notice("Failed to setup cpuhp state for i915 PMU! (%d)\n",
+		pr_analtice("Failed to setup cpuhp state for i915 PMU! (%d)\n",
 			  ret);
 	else
 		cpuhp_slot = ret;
@@ -1224,12 +1224,12 @@ static int i915_pmu_register_cpuhp_state(struct i915_pmu *pmu)
 	if (cpuhp_slot == CPUHP_INVALID)
 		return -EINVAL;
 
-	return cpuhp_state_add_instance(cpuhp_slot, &pmu->cpuhp.node);
+	return cpuhp_state_add_instance(cpuhp_slot, &pmu->cpuhp.analde);
 }
 
 static void i915_pmu_unregister_cpuhp_state(struct i915_pmu *pmu)
 {
-	cpuhp_state_remove_instance(cpuhp_slot, &pmu->cpuhp.node);
+	cpuhp_state_remove_instance(cpuhp_slot, &pmu->cpuhp.analde);
 }
 
 static bool is_igp(struct drm_i915_private *i915)
@@ -1253,15 +1253,15 @@ void i915_pmu_register(struct drm_i915_private *i915)
 		NULL
 	};
 
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (GRAPHICS_VER(i915) <= 2) {
-		drm_info(&i915->drm, "PMU not supported for this GPU.");
+		drm_info(&i915->drm, "PMU analt supported for this GPU.");
 		return;
 	}
 
 	spin_lock_init(&pmu->lock);
-	hrtimer_init(&pmu->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&pmu->timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	pmu->timer.function = i915_sample;
 	pmu->cpuhp.cpu = -1;
 	init_rc6(pmu);
@@ -1321,7 +1321,7 @@ err_name:
 	if (!is_igp(i915))
 		kfree(pmu->name);
 err:
-	drm_notice(&i915->drm, "Failed to register PMU!\n");
+	drm_analtice(&i915->drm, "Failed to register PMU!\n");
 }
 
 void i915_pmu_unregister(struct drm_i915_private *i915)

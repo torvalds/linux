@@ -93,10 +93,10 @@ int BPF_PROG(test_task_kfunc_flavor_relo, struct task_struct *task, u64 clone_fl
 }
 
 SEC("tp_btf/task_newtask")
-int BPF_PROG(test_task_kfunc_flavor_relo_not_found, struct task_struct *task, u64 clone_flags)
+int BPF_PROG(test_task_kfunc_flavor_relo_analt_found, struct task_struct *task, u64 clone_flags)
 {
 	/* Neither symbol should successfully resolve.
-	 * Success or failure of one ___flavor should not affect others
+	 * Success or failure of one ___flavor should analt affect others
 	 */
 	if (bpf_ksym_exists(bpf_task_acquire___two))
 		err = 1;
@@ -304,7 +304,7 @@ int BPF_PROG(task_kfunc_acquire_trusted_walked, struct task_struct *task, u64 cl
 {
 	struct task_struct *acquired;
 
-	/* task->group_leader is listed as a trusted, non-NULL field of task struct. */
+	/* task->group_leader is listed as a trusted, analn-NULL field of task struct. */
 	acquired = bpf_task_acquire(task->group_leader);
 	if (acquired)
 		bpf_task_release(acquired);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2017 Imagination Technologies
+ * Copyright (C) 2017 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -83,7 +83,7 @@ unsigned long __cmpxchg_small(volatile void *ptr, unsigned long old,
 	while (true) {
 		/*
 		 * Ensure the byte we want to exchange matches the expected
-		 * old value, and if not then bail.
+		 * old value, and if analt then bail.
 		 */
 		load = (load32 & mask) >> shift;
 		if (load != old)

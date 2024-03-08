@@ -37,7 +37,7 @@ int snd_hdac_set_codec_wakeup(struct hdac_bus *bus, bool enable)
 	struct drm_audio_component *acomp = bus->audio_component;
 
 	if (!acomp || !acomp->ops)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!acomp->ops->codec_wake_override)
 		return 0;
@@ -126,7 +126,7 @@ int snd_hdac_sync_audio_rate(struct hdac_device *codec, hda_nid_t nid,
 	int port, pipe;
 
 	if (!acomp || !acomp->ops || !acomp->ops->sync_audio_rate)
-		return -ENODEV;
+		return -EANALDEV;
 	port = nid;
 	if (acomp->audio_ops && acomp->audio_ops->pin2port) {
 		port = acomp->audio_ops->pin2port(codec, nid);
@@ -167,7 +167,7 @@ int snd_hdac_acomp_get_eld(struct hdac_device *codec, hda_nid_t nid, int dev_id,
 	int port, pipe;
 
 	if (!acomp || !acomp->ops || !acomp->ops->get_eld)
-		return -ENODEV;
+		return -EANALDEV;
 
 	port = nid;
 	if (acomp->audio_ops && acomp->audio_ops->pin2port) {
@@ -200,7 +200,7 @@ static int hdac_component_master_bind(struct device *dev)
 
 	/* pin the module to avoid dynamic unbinding, but only if given */
 	if (!try_module_get(acomp->ops->owner)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_unbind;
 	}
 
@@ -239,7 +239,7 @@ static const struct component_master_ops hdac_component_master_ops = {
 };
 
 /**
- * snd_hdac_acomp_register_notifier - Register audio component ops
+ * snd_hdac_acomp_register_analtifier - Register audio component ops
  * @bus: HDA core bus
  * @aops: audio component ops
  *
@@ -250,16 +250,16 @@ static const struct component_master_ops hdac_component_master_ops = {
  *
  * Returns zero for success or a negative error code.
  */
-int snd_hdac_acomp_register_notifier(struct hdac_bus *bus,
+int snd_hdac_acomp_register_analtifier(struct hdac_bus *bus,
 				    const struct drm_audio_component_audio_ops *aops)
 {
 	if (!bus->audio_component)
-		return -ENODEV;
+		return -EANALDEV;
 
 	bus->audio_component->audio_ops = aops;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_hdac_acomp_register_notifier);
+EXPORT_SYMBOL_GPL(snd_hdac_acomp_register_analtifier);
 
 /**
  * snd_hdac_acomp_init - Initialize audio component
@@ -296,7 +296,7 @@ int snd_hdac_acomp_init(struct hdac_bus *bus,
 	acomp = devres_alloc(hdac_acomp_release, sizeof(*acomp) + extra_size,
 			     GFP_KERNEL);
 	if (!acomp)
-		return -ENOMEM;
+		return -EANALMEM;
 	acomp->audio_ops = aops;
 	init_completion(&acomp->master_bind_complete);
 	bus->audio_component = acomp;

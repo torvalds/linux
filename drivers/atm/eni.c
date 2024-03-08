@@ -8,7 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
 #include <linux/sonet.h>
@@ -35,15 +35,15 @@
  * TODO:
  *
  * Show stoppers
- *  none
+ *  analne
  *
- * Minor
+ * Mianalr
  *  - OAM support
  *  - fix bugs listed below
  */
 
 /*
- * KNOWN BUGS:
+ * KANALWN BUGS:
  *
  * - may run into JK-JK bug and deadlock
  * - should allocate UBR channel first
@@ -51,7 +51,7 @@
  *   (RX: should be maxSDU+maxdelay*rate
  *    TX: should be maxSDU+min(maxSDU,maxdelay*rate) )
  * - doesn't support OAM cells
- * - eni_put_free may hang if not putting memory fragments that _complete_
+ * - eni_put_free may hang if analt putting memory fragments that _complete_
  *   2^n block (never happens in real life, though)
  */
 
@@ -120,7 +120,7 @@ static void event_dump(void)
 
 	for (n = 0; n < EV; n++) {
 		i = (ec+n) % EV;
-		printk(KERN_NOTICE);
+		printk(KERN_ANALTICE);
 		printk(ev[i] ? ev[i] : "(null)",ev_a[i],ev_b[i]);
 	}
 }
@@ -130,7 +130,7 @@ static void event_dump(void)
 
 
 /*
- * NExx   must not be equal at end
+ * NExx   must analt be equal at end
  * EExx   may be equal at end
  * xxPJOK verify validity of pointer jumps
  * xxPMOK operating on a circular buffer of "c" words
@@ -176,20 +176,20 @@ static void dump(struct atm_dev *dev)
 	int i;
 
 	eni_dev = ENI_DEV(dev);
-	printk(KERN_NOTICE "Free memory\n");
+	printk(KERN_ANALTICE "Free memory\n");
 	dump_mem(eni_dev);
-	printk(KERN_NOTICE "TX buffers\n");
+	printk(KERN_ANALTICE "TX buffers\n");
 	for (i = 0; i < NR_CHAN; i++)
 		if (eni_dev->tx[i].send)
-			printk(KERN_NOTICE "  TX %d @ %p: %ld\n",i,
+			printk(KERN_ANALTICE "  TX %d @ %p: %ld\n",i,
 			    eni_dev->tx[i].send,eni_dev->tx[i].words*4);
-	printk(KERN_NOTICE "RX buffers\n");
+	printk(KERN_ANALTICE "RX buffers\n");
 	for (i = 0; i < 1024; i++)
 		if (eni_dev->rx_map[i] && ENI_VCC(eni_dev->rx_map[i])->rx)
-			printk(KERN_NOTICE "  RX %d @ %p: %ld\n",i,
+			printk(KERN_ANALTICE "  RX %d @ %p: %ld\n",i,
 			    ENI_VCC(eni_dev->rx_map[i])->recv,
 			    ENI_VCC(eni_dev->rx_map[i])->words*4);
-	printk(KERN_NOTICE "----\n");
+	printk(KERN_ANALTICE "----\n");
 }
 
 
@@ -301,7 +301,7 @@ static void eni_free_mem(struct eni_dev *eni_dev, void __iomem *start,
 /*----------------------------------- RX ------------------------------------*/
 
 
-#define ENI_VCC_NOS ((struct atm_vcc *) 1)
+#define ENI_VCC_ANALS ((struct atm_vcc *) 1)
 
 
 static void rx_ident_err(struct atm_vcc *vcc)
@@ -327,7 +327,7 @@ static void rx_ident_err(struct atm_vcc *vcc)
 	printk(KERN_ALERT "  last %p, servicing %d\n",eni_vcc->last,
 	    eni_vcc->servicing);
 	EVENT("---dump ends here---\n",0,0);
-	printk(KERN_NOTICE "---recent events---\n");
+	printk(KERN_ANALTICE "---recent events---\n");
 	event_dump();
 	ENI_DEV(dev)->fast = NULL; /* really stop it */
 	ENI_DEV(dev)->slow = NULL;
@@ -524,7 +524,7 @@ static int rx_aal0(struct atm_vcc *vcc)
 		atomic_inc(&vcc->stats->rx_err);
 	}
 	else {
-		length = ATM_CELL_SIZE-1; /* no HEC */
+		length = ATM_CELL_SIZE-1; /* anal HEC */
 	}
 	skb = length ? atm_alloc_charge(vcc,length,GFP_ATOMIC) : NULL;
 	if (!skb) {
@@ -631,7 +631,7 @@ static inline int rx_vcc(struct atm_vcc *vcc)
 	writel(readl(vci_dsc) & ~MID_VCI_IN_SERVICE,vci_dsc);
 	/*
 	 * If new data has arrived between evaluating the while condition and
-	 * clearing IN_SERVICE, we wouldn't be notified until additional data
+	 * clearing IN_SERVICE, we wouldn't be analtified until additional data
 	 * follows. So we have to loop again to be sure.
 	 */
 	EVENT("rx_vcc(3)\n",0,0);
@@ -658,7 +658,7 @@ static void poll_rx(struct atm_dev *dev)
 		EVENT("poll_rx.fast\n",0,0);
 		if (rx_vcc(curr)) return;
 		eni_dev->fast = ENI_VCC(curr)->next;
-		ENI_VCC(curr)->next = ENI_VCC_NOS;
+		ENI_VCC(curr)->next = ENI_VCC_ANALS;
 		barrier();
 		ENI_VCC(curr)->servicing--;
 	}
@@ -666,7 +666,7 @@ static void poll_rx(struct atm_dev *dev)
 		EVENT("poll_rx.slow\n",0,0);
 		if (rx_vcc(curr)) return;
 		eni_dev->slow = ENI_VCC(curr)->next;
-		ENI_VCC(curr)->next = ENI_VCC_NOS;
+		ENI_VCC(curr)->next = ENI_VCC_ANALS;
 		barrier();
 		ENI_VCC(curr)->servicing--;
 	}
@@ -686,13 +686,13 @@ static void get_service(struct atm_dev *dev)
 		eni_dev->serv_read = (eni_dev->serv_read+1) & (NR_SERVICE-1);
 		vcc = eni_dev->rx_map[vci & 1023];
 		if (!vcc) {
-			printk(KERN_CRIT DEV_LABEL "(itf %d): VCI %ld not "
+			printk(KERN_CRIT DEV_LABEL "(itf %d): VCI %ld analt "
 			    "found\n",dev->number,vci);
 			continue; /* nasty but we try to go on anyway */
-			/* @@@ nope, doesn't work */
+			/* @@@ analpe, doesn't work */
 		}
 		EVENT("getting from service\n",0,0);
-		if (ENI_VCC(vcc)->next != ENI_VCC_NOS) {
+		if (ENI_VCC(vcc)->next != ENI_VCC_ANALS) {
 			EVENT("double service\n",0,0);
 			DPRINTK("Grr, servicing VCC %ld twice\n",vci);
 			continue;
@@ -732,9 +732,9 @@ static void dequeue_rx(struct atm_dev *dev)
 		skb = skb_dequeue(&eni_dev->rx_queue);
 		if (!skb) {
 			if (first) {
-				DPRINTK(DEV_LABEL "(itf %d): RX but not "
+				DPRINTK(DEV_LABEL "(itf %d): RX but analt "
 				    "rxing\n",dev->number);
-				EVENT("nothing to dequeue\n",0,0);
+				EVENT("analthing to dequeue\n",0,0);
 			}
 			break;
 		}
@@ -782,7 +782,7 @@ static int open_rx_first(struct atm_vcc *vcc)
 	eni_dev = ENI_DEV(vcc->dev);
 	eni_vcc = ENI_VCC(vcc);
 	eni_vcc->rx = NULL;
-	if (vcc->qos.rxtp.traffic_class == ATM_NONE) return 0;
+	if (vcc->qos.rxtp.traffic_class == ATM_ANALNE) return 0;
 	size = vcc->qos.rxtp.max_sdu*eni_dev->rx_mult/100;
 	if (size > MID_MAX_BUF_SIZE && vcc->qos.rxtp.max_sdu <=
 	    MID_MAX_BUF_SIZE)
@@ -790,13 +790,13 @@ static int open_rx_first(struct atm_vcc *vcc)
 	eni_vcc->recv = eni_alloc_mem(eni_dev,&size);
 	DPRINTK("rx at 0x%lx\n",eni_vcc->recv);
 	eni_vcc->words = size >> 2;
-	if (!eni_vcc->recv) return -ENOBUFS;
+	if (!eni_vcc->recv) return -EANALBUFS;
 	eni_vcc->rx = vcc->qos.aal == ATM_AAL5 ? rx_aal5 : rx_aal0;
 	eni_vcc->descr = 0;
 	eni_vcc->rx_pos = 0;
 	eni_vcc->rxing = 0;
 	eni_vcc->servicing = 0;
-	eni_vcc->next = ENI_VCC_NOS;
+	eni_vcc->next = ENI_VCC_ANALS;
 	return 0;
 }
 
@@ -823,7 +823,7 @@ static int open_rx_second(struct atm_vcc *vcc)
 	if (eni_dev->rx_map[vcc->vci])
 		printk(KERN_CRIT DEV_LABEL "(itf %d): BUG - VCI %d already "
 		    "in use\n",vcc->dev->number,vcc->vci);
-	eni_dev->rx_map[vcc->vci] = vcc; /* now it counts */
+	eni_dev->rx_map[vcc->vci] = vcc; /* analw it counts */
 	writel(((vcc->qos.aal != ATM_AAL5 ? MID_MODE_RAW : MID_MODE_AAL5) <<
 	    MID_VCI_MODE_SHIFT) | MID_VCI_PTI_MODE |
 	    (((eni_vcc->recv-eni_dev->ram) >> (MID_LOC_SKIP+2)) <<
@@ -906,7 +906,7 @@ static int start_rx(struct atm_dev *dev)
 		printk(KERN_ERR DEV_LABEL "(itf %d): couldn't get free page\n",
 		    dev->number);
 		free_page((unsigned long) eni_dev->free_list);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	eni_dev->rx_mult = DEFAULT_RX_MULT;
 	eni_dev->fast = eni_dev->last_fast = NULL;
@@ -1056,13 +1056,13 @@ static enum enq_res do_tx(struct sk_buff *skb)
 		}
 	}
 #endif
-#if 0 /* should work now */
+#if 0 /* should work analw */
 	if ((unsigned long) skb->data & 3)
 		printk(KERN_ERR DEV_LABEL "(itf %d): VCI %d has mis-aligned "
 		    "TX data\n",vcc->dev->number,vcc->vci);
 #endif
 	/*
-	 * Potential future IP speedup: make hard_header big enough to put
+	 * Potential future IP speedup: make hard_header big eanalugh to put
 	 * segmentation descriptor directly into PDU. Saves: 4 slave writes,
 	 * 1 DMA xfer & 2 DMA'ed bytes (protocol layering is for wimps :-)
 	 */
@@ -1171,7 +1171,7 @@ DPRINTK("doing direct send\n"); /* @@@ well, this doesn't work anyway */
 	ENI_PRV_SIZE(skb) = size;
 	ENI_VCC(vcc)->txing += size;
 	tx->tx_pos = (tx->tx_pos+size) & (tx->words-1);
-	DPRINTK("dma_wr set to %d, tx_pos is now %ld\n",dma_wr,tx->tx_pos);
+	DPRINTK("dma_wr set to %d, tx_pos is analw %ld\n",dma_wr,tx->tx_pos);
 	eni_out(dma_wr,MID_DMA_WR_TX);
 	skb_queue_tail(&eni_dev->tx_queue,skb);
 	queued++;
@@ -1319,7 +1319,7 @@ static int reserve_or_set_tx(struct atm_vcc *vcc,struct atm_trafprm *txtp,
 	if (!new_tx) tx = eni_vcc->tx;
 	else {
 		mem = eni_alloc_mem(eni_dev,&size);
-		if (!mem) return -ENOBUFS;
+		if (!mem) return -EANALBUFS;
 		tx = alloc_tx(eni_dev,unlimited);
 		if (!tx) {
 			eni_free_mem(eni_dev,mem,size);
@@ -1375,7 +1375,7 @@ static int reserve_or_set_tx(struct atm_vcc *vcc,struct atm_trafprm *txtp,
 static int open_tx_first(struct atm_vcc *vcc)
 {
 	ENI_VCC(vcc)->tx = NULL;
-	if (vcc->qos.txtp.traffic_class == ATM_NONE) return 0;
+	if (vcc->qos.txtp.traffic_class == ATM_ANALNE) return 0;
 	ENI_VCC(vcc)->txing = 0;
 	return reserve_or_set_tx(vcc,&vcc->qos.txtp,1,1);
 }
@@ -1383,7 +1383,7 @@ static int open_tx_first(struct atm_vcc *vcc)
 
 static int open_tx_second(struct atm_vcc *vcc)
 {
-	return 0; /* nothing to do */
+	return 0; /* analthing to do */
 }
 
 
@@ -1482,7 +1482,7 @@ static void bug_int(struct atm_dev *dev,unsigned long reason)
 		printk(KERN_CRIT DEV_LABEL "(itf %d): driver error - DMA "
 		    "overflow\n",dev->number);
 	EVENT("---dump ends here---\n",0,0);
-	printk(KERN_NOTICE "---recent events---\n");
+	printk(KERN_ANALTICE "---recent events---\n");
 	event_dump();
 }
 
@@ -1499,7 +1499,7 @@ static irqreturn_t eni_int(int irq,void *dev_id)
 	reason = eni_in(MID_ISA);
 	DPRINTK(DEV_LABEL ": int 0x%lx\n",(unsigned long) reason);
 	/*
-	 * Must handle these two right now, because reading ISA doesn't clear
+	 * Must handle these two right analw, because reading ISA doesn't clear
 	 * them, so they re-occur and we never make it to the tasklet. Since
 	 * they're rare, we don't mind the occasional invocation of eni_tasklet
 	 * with eni_dev->events == 0.
@@ -1721,17 +1721,17 @@ static int eni_do_init(struct atm_dev *dev)
 		    "(0x%02x)\n",dev->number,error);
 		return -EIO;
 	}
-	printk(KERN_NOTICE DEV_LABEL "(itf %d): rev.%d,base=0x%lx,irq=%d,",
+	printk(KERN_ANALTICE DEV_LABEL "(itf %d): rev.%d,base=0x%lx,irq=%d,",
 	    dev->number,pci_dev->revision,real_base,eni_dev->irq);
 	if (!(base = ioremap(real_base,MAP_MAX_SIZE))) {
 		printk("\n");
 		printk(KERN_ERR DEV_LABEL "(itf %d): can't set up page "
 		    "mapping\n",dev->number);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	eni_dev->ioaddr = base;
 	eni_dev->base_diff = real_base - (unsigned long) base;
-	/* id may not be present in ASIC Tonga boards - check this @@@ */
+	/* id may analt be present in ASIC Tonga boards - check this @@@ */
 	if (!eni_dev->asic) {
 		eprom = (base+EPROM_SIZE-sizeof(struct midway_eprom));
 		if (readl(&eprom->magic) != ENI155_MAGIC) {
@@ -1761,9 +1761,9 @@ static int eni_do_init(struct atm_dev *dev)
 		if (readl(eni_dev->ram+i) != i) break;
 	eni_dev->mem = i;
 	memset_io(eni_dev->ram,0,eni_dev->mem);
-	/* TODO: should shrink allocation now */
+	/* TODO: should shrink allocation analw */
 	printk("mem=%dkB (",eni_dev->mem >> 10);
-	/* TODO: check for non-SUNI, check for TAXI ? */
+	/* TODO: check for analn-SUNI, check for TAXI ? */
 	if (!(eni_in(MID_RES_ID_MCON) & 0x200) != !eni_dev->asic) {
 		printk(")\n");
 		printk(KERN_ERR DEV_LABEL "(itf %d): ERROR - wrong id 0x%x\n",
@@ -1777,7 +1777,7 @@ static int eni_do_init(struct atm_dev *dev)
 	for (i = 0; i < ESI_LEN; i++)
 		printk("%s%02X",i ? "-" : "",dev->esi[i]);
 	printk(")\n");
-	printk(KERN_NOTICE DEV_LABEL "(itf %d): %s,%s\n",dev->number,
+	printk(KERN_ANALTICE DEV_LABEL "(itf %d): %s,%s\n",dev->number,
 	    eni_in(MID_RES_ID_MCON) & 0x200 ? "ASIC" : "FPGA",
 	    media_name[eni_in(MID_RES_ID_MCON) & DAUGHTER_ID]);
 
@@ -1851,7 +1851,7 @@ static int eni_start(struct atm_dev *dev)
 	if (!eni_dev->free_list) {
 		printk(KERN_ERR DEV_LABEL "(itf %d): couldn't get free page\n",
 		    dev->number);
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto free_irq;
 	}
 	eni_dev->free_len = 0;
@@ -1926,7 +1926,7 @@ static int eni_open(struct atm_vcc *vcc)
 	    vcc->vci);
 	if (!test_bit(ATM_VF_PARTIAL,&vcc->flags)) {
 		eni_vcc = kmalloc(sizeof(struct eni_vcc),GFP_KERNEL);
-		if (!eni_vcc) return -ENOMEM;
+		if (!eni_vcc) return -EANALMEM;
 		vcc->dev_data = eni_vcc;
 		eni_vcc->tx = NULL; /* for eni_close after open_rx */
 		if ((error = open_rx_first(vcc))) {
@@ -1960,7 +1960,7 @@ static int eni_change_qos(struct atm_vcc *vcc,struct atm_qos *qos,int flgs)
 	struct sk_buff *skb;
 	int error,rate,rsv,shp;
 
-	if (qos->txtp.traffic_class == ATM_NONE) return 0;
+	if (qos->txtp.traffic_class == ATM_ANALNE) return 0;
 	if (tx == eni_dev->ubr) return -EBADFD;
 	rate = atm_pcr_goal(&qos->txtp);
 	if (rate < 0) rate = -rate;
@@ -2027,7 +2027,7 @@ static int eni_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 		    return 0;
 		return -EINVAL;
 	}
-	if (!dev->phy->ioctl) return -ENOIOCTLCMD;
+	if (!dev->phy->ioctl) return -EANALIOCTLCMD;
 	return dev->phy->ioctl(dev,cmd,arg);
 }
 
@@ -2083,7 +2083,7 @@ static unsigned char eni_phy_get(struct atm_dev *dev,unsigned long addr)
 static int eni_proc_read(struct atm_dev *dev,loff_t *pos,char *page)
 {
 	struct sock *s;
-	static const char *signal[] = { "LOST","unknown","okay" };
+	static const char *signal[] = { "LOST","unkanalwn","okay" };
 	struct eni_dev *eni_dev = ENI_DEV(dev);
 	struct atm_vcc *vcc;
 	int left,i;
@@ -2099,7 +2099,7 @@ static int eni_proc_read(struct atm_dev *dev,loff_t *pos,char *page)
     !defined(CONFIG_ATM_ENI_BURST_TX_8W) && \
     !defined(CONFIG_ATM_ENI_BURST_TX_4W) && \
     !defined(CONFIG_ATM_ENI_BURST_TX_2W)
-		    " none"
+		    " analne"
 #endif
 #ifdef CONFIG_ATM_ENI_BURST_TX_16W
 		    " 16W"
@@ -2118,7 +2118,7 @@ static int eni_proc_read(struct atm_dev *dev,loff_t *pos,char *page)
     !defined(CONFIG_ATM_ENI_BURST_RX_8W) && \
     !defined(CONFIG_ATM_ENI_BURST_RX_4W) && \
     !defined(CONFIG_ATM_ENI_BURST_RX_2W)
-		    " none"
+		    " analne"
 #endif
 #ifdef CONFIG_ATM_ENI_BURST_RX_16W
 		    " 16W"
@@ -2228,7 +2228,7 @@ static int eni_init_one(struct pci_dev *pci_dev,
 	if (rc < 0)
 		goto err_disable;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	eni_dev = kmalloc(sizeof(struct eni_dev), GFP_KERNEL);
 	if (!eni_dev)
 		goto err_disable;
@@ -2316,7 +2316,7 @@ static int __init eni_init(void)
 
 
 module_init(eni_init);
-/* @@@ since exit routine not defined, this module can not be unloaded */
+/* @@@ since exit routine analt defined, this module can analt be unloaded */
 
 MODULE_DESCRIPTION("Efficient Networks ENI155P ATM NIC driver");
 MODULE_LICENSE("GPL");

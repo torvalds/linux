@@ -21,7 +21,7 @@
 #include <media/v4l2-dv-timings.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-fh.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-dma-contig.h>
 
@@ -35,7 +35,7 @@
 /**
  * struct tegra_vi_graph_entity - Entity in the video graph
  *
- * @asd: subdev asynchronous registration information
+ * @asd: subdev asynchroanalus registration information
  * @entity: media entity from the corresponding V4L2 subdev
  * @subdev: V4L2 subdev
  */
@@ -206,7 +206,7 @@ static int tegra_channel_enable_stream(struct tegra_vi_channel *chan)
 
 	subdev = tegra_channel_get_remote_csi_subdev(chan);
 	ret = v4l2_subdev_call(subdev, video, s_stream, true);
-	if (ret < 0 && ret != -ENOIOCTLCMD)
+	if (ret < 0 && ret != -EANALIOCTLCMD)
 		return ret;
 
 	return 0;
@@ -219,7 +219,7 @@ static int tegra_channel_disable_stream(struct tegra_vi_channel *chan)
 
 	subdev = tegra_channel_get_remote_csi_subdev(chan);
 	ret = v4l2_subdev_call(subdev, video, s_stream, false);
-	if (ret < 0 && ret != -ENOIOCTLCMD)
+	if (ret < 0 && ret != -EANALIOCTLCMD)
 		return ret;
 
 	return 0;
@@ -386,7 +386,7 @@ static int tegra_channel_enum_frameintervals(struct file *file, void *fh,
 
 	ivals->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 	ivals->discrete.numerator = fie.interval.numerator;
-	ivals->discrete.denominator = fie.interval.denominator;
+	ivals->discrete.deanalminator = fie.interval.deanalminator;
 
 	return 0;
 }
@@ -444,10 +444,10 @@ static int __tegra_channel_try_format(struct tegra_vi_channel *chan,
 
 	subdev = tegra_channel_get_remote_source_subdev(chan);
 	if (!subdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * FIXME: Drop this call, drivers are not supposed to use
+	 * FIXME: Drop this call, drivers are analt supposed to use
 	 * __v4l2_subdev_state_alloc().
 	 */
 	sd_state = __v4l2_subdev_state_alloc(subdev, "tegra:state->lock",
@@ -466,13 +466,13 @@ static int __tegra_channel_try_format(struct tegra_vi_channel *chan,
 						     pix->pixelformat);
 	}
 
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 	fmt.pad = 0;
 	v4l2_fill_mbus_format(&fmt.format, pix, fmtinfo->code);
 
 	/*
 	 * Attempt to obtain the format size from subdev.
-	 * If not available, try to get crop boundary from subdev.
+	 * If analt available, try to get crop boundary from subdev.
 	 */
 	try_crop = v4l2_subdev_state_get_crop(sd_state, 0);
 	fse.code = fmtinfo->code;
@@ -623,18 +623,18 @@ static int tegra_channel_g_selection(struct file *file, void *priv,
 
 	subdev = tegra_channel_get_remote_source_subdev(chan);
 	if (!v4l2_subdev_has_op(subdev, pad, get_selection))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	/*
-	 * Try the get selection operation and fallback to get format if not
+	 * Try the get selection operation and fallback to get format if analt
 	 * implemented.
 	 */
 	ret = v4l2_subdev_call(subdev, pad, get_selection, NULL, &sdsel);
 	if (!ret)
 		sel->r = sdsel.r;
-	if (ret != -ENOIOCTLCMD)
+	if (ret != -EANALIOCTLCMD)
 		return ret;
 
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
@@ -664,7 +664,7 @@ static int tegra_channel_s_selection(struct file *file, void *fh,
 
 	subdev = tegra_channel_get_remote_source_subdev(chan);
 	if (!v4l2_subdev_has_op(subdev, pad, set_selection))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -694,7 +694,7 @@ static int tegra_channel_g_edid(struct file *file, void *fh,
 
 	subdev = tegra_channel_get_remote_source_subdev(chan);
 	if (!v4l2_subdev_has_op(subdev, pad, get_edid))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	return v4l2_subdev_call(subdev, pad, get_edid, edid);
 }
@@ -707,7 +707,7 @@ static int tegra_channel_s_edid(struct file *file, void *fh,
 
 	subdev = tegra_channel_get_remote_source_subdev(chan);
 	if (!v4l2_subdev_has_op(subdev, pad, set_edid))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	return v4l2_subdev_call(subdev, pad, set_edid, edid);
 }
@@ -720,7 +720,7 @@ static int tegra_channel_g_dv_timings(struct file *file, void *fh,
 
 	subdev = tegra_channel_get_remote_source_subdev(chan);
 	if (!v4l2_subdev_has_op(subdev, video, g_dv_timings))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	return v4l2_device_call_until_err(chan->video.v4l2_dev, 0,
 					  video, g_dv_timings, timings);
@@ -737,7 +737,7 @@ static int tegra_channel_s_dv_timings(struct file *file, void *fh,
 
 	subdev = tegra_channel_get_remote_source_subdev(chan);
 	if (!v4l2_subdev_has_op(subdev, video, s_dv_timings))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	ret = tegra_channel_g_dv_timings(file, fh, &curr_timings);
 	if (ret)
@@ -772,7 +772,7 @@ static int tegra_channel_query_dv_timings(struct file *file, void *fh,
 
 	subdev = tegra_channel_get_remote_source_subdev(chan);
 	if (!v4l2_subdev_has_op(subdev, video, query_dv_timings))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	return v4l2_device_call_until_err(chan->video.v4l2_dev, 0,
 					  video, query_dv_timings, timings);
@@ -786,7 +786,7 @@ static int tegra_channel_enum_dv_timings(struct file *file, void *fh,
 
 	subdev = tegra_channel_get_remote_source_subdev(chan);
 	if (!v4l2_subdev_has_op(subdev, pad, enum_dv_timings))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	return v4l2_subdev_call(subdev, pad, enum_dv_timings, timings);
 }
@@ -799,7 +799,7 @@ static int tegra_channel_dv_timings_cap(struct file *file, void *fh,
 
 	subdev = tegra_channel_get_remote_source_subdev(chan);
 	if (!v4l2_subdev_has_op(subdev, pad, dv_timings_cap))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	return v4l2_subdev_call(subdev, pad, dv_timings_cap, cap);
 }
@@ -980,7 +980,7 @@ static int tegra_channel_setup_ctrl_handler(struct tegra_vi_channel *chan)
 
 	subdev = tegra_channel_get_remote_source_subdev(chan);
 	if (!subdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = v4l2_ctrl_add_handler(&chan->ctrl_handler, subdev->ctrl_handler,
 				    NULL, true);
@@ -1065,7 +1065,7 @@ static int vi_fmts_bitmap_init(struct tegra_vi_channel *chan)
 
 	/*
 	 * Set the bitmap bit corresponding to default tegra video format if
-	 * there are no matched formats.
+	 * there are anal matched formats.
 	 */
 	if (!match_code) {
 		match_code = chan->vi->soc->default_video_format->code;
@@ -1122,7 +1122,7 @@ static int tegra_channel_init(struct tegra_vi_channel *chan)
 	chan->fmtinfo = chan->vi->soc->default_video_format;
 	chan->format.pixelformat = chan->fmtinfo->fourcc;
 	chan->format.colorspace = V4L2_COLORSPACE_SRGB;
-	chan->format.field = V4L2_FIELD_NONE;
+	chan->format.field = V4L2_FIELD_ANALNE;
 	chan->format.width = TEGRA_DEF_WIDTH;
 	chan->format.height = TEGRA_DEF_HEIGHT;
 	chan->format.bytesperline = TEGRA_DEF_WIDTH * chan->fmtinfo->bpp;
@@ -1155,7 +1155,7 @@ static int tegra_channel_init(struct tegra_vi_channel *chan)
 	chan->video.release = video_device_release_empty;
 	chan->video.queue = &chan->queue;
 	snprintf(chan->video.name, sizeof(chan->video.name), "%s-%s-%u",
-		 dev_name(vi->dev), "output", chan->portnos[0]);
+		 dev_name(vi->dev), "output", chan->portanals[0]);
 	chan->video.vfl_type = VFL_TYPE_VIDEO;
 	chan->video.vfl_dir = VFL_DIR_RX;
 	chan->video.ioctl_ops = &tegra_channel_ioctl_ops;
@@ -1173,7 +1173,7 @@ static int tegra_channel_init(struct tegra_vi_channel *chan)
 	chan->queue.buf_struct_size = sizeof(struct tegra_channel_buffer);
 	chan->queue.ops = &tegra_channel_queue_qops;
 	chan->queue.mem_ops = &vb2_dma_contig_memops;
-	chan->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	chan->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	chan->queue.min_queued_buffers = 2;
 	chan->queue.dev = vi->dev;
 	ret = vb2_queue_init(&chan->queue);
@@ -1183,7 +1183,7 @@ static int tegra_channel_init(struct tegra_vi_channel *chan)
 	}
 
 	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
-		v4l2_async_nf_init(&chan->notifier, &vid->v4l2_dev);
+		v4l2_async_nf_init(&chan->analtifier, &vid->v4l2_dev);
 
 	return 0;
 
@@ -1197,23 +1197,23 @@ free_syncpts:
 }
 
 static int tegra_vi_channel_alloc(struct tegra_vi *vi, unsigned int port_num,
-				  struct device_node *node, unsigned int lanes)
+				  struct device_analde *analde, unsigned int lanes)
 {
 	struct tegra_vi_channel *chan;
 	unsigned int i;
 
 	/*
-	 * Do not use devm_kzalloc as memory is freed immediately
+	 * Do analt use devm_kzalloc as memory is freed immediately
 	 * when device instance is unbound but application might still
-	 * be holding the device node open. Channel memory allocated
+	 * be holding the device analde open. Channel memory allocated
 	 * with kzalloc is freed during video device release callback.
 	 */
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chan->vi = vi;
-	chan->portnos[0] = port_num;
+	chan->portanals[0] = port_num;
 	/*
 	 * For data lanes more than maximum csi lanes per brick, multiple of
 	 * x4 ports are used simultaneously for capture.
@@ -1225,9 +1225,9 @@ static int tegra_vi_channel_alloc(struct tegra_vi *vi, unsigned int port_num,
 	chan->numgangports = chan->totalports;
 
 	for (i = 1; i < chan->totalports; i++)
-		chan->portnos[i] = chan->portnos[0] + i * CSI_PORTS_PER_BRICK;
+		chan->portanals[i] = chan->portanals[0] + i * CSI_PORTS_PER_BRICK;
 
-	chan->of_node = node;
+	chan->of_analde = analde;
 	list_add_tail(&chan->list, &vi->vi_chans);
 
 	return 0;
@@ -1241,7 +1241,7 @@ static int tegra_vi_tpg_channels_alloc(struct tegra_vi *vi)
 
 	for (port_num = 0; port_num < nchannels; port_num++) {
 		ret = tegra_vi_channel_alloc(vi, port_num,
-					     vi->dev->of_node, 2);
+					     vi->dev->of_analde, 2);
 		if (ret < 0)
 			return ret;
 	}
@@ -1251,22 +1251,22 @@ static int tegra_vi_tpg_channels_alloc(struct tegra_vi *vi)
 
 static int tegra_vi_channels_alloc(struct tegra_vi *vi)
 {
-	struct device_node *node = vi->dev->of_node;
-	struct device_node *ep = NULL;
-	struct device_node *ports;
-	struct device_node *port = NULL;
+	struct device_analde *analde = vi->dev->of_analde;
+	struct device_analde *ep = NULL;
+	struct device_analde *ports;
+	struct device_analde *port = NULL;
 	unsigned int port_num;
-	struct device_node *parent;
-	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
+	struct device_analde *parent;
+	struct v4l2_fwanalde_endpoint v4l2_ep = { .bus_type = 0 };
 	unsigned int lanes;
 	int ret = 0;
 
-	ports = of_get_child_by_name(node, "ports");
+	ports = of_get_child_by_name(analde, "ports");
 	if (!ports)
-		return dev_err_probe(vi->dev, -ENODEV, "%pOF: missing 'ports' node\n", node);
+		return dev_err_probe(vi->dev, -EANALDEV, "%pOF: missing 'ports' analde\n", analde);
 
-	for_each_child_of_node(ports, port) {
-		if (!of_node_name_eq(port, "port"))
+	for_each_child_of_analde(ports, port) {
+		if (!of_analde_name_eq(port, "port"))
 			continue;
 
 		ret = of_property_read_u32(port, "reg", &port_num);
@@ -1285,15 +1285,15 @@ static int tegra_vi_channels_alloc(struct tegra_vi *vi)
 			continue;
 
 		parent = of_graph_get_remote_port_parent(ep);
-		of_node_put(ep);
+		of_analde_put(ep);
 		if (!parent)
 			continue;
 
 		ep = of_graph_get_endpoint_by_regs(parent, 0, 0);
-		of_node_put(parent);
-		ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep),
+		of_analde_put(parent);
+		ret = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(ep),
 						 &v4l2_ep);
-		of_node_put(ep);
+		of_analde_put(ep);
 		if (ret)
 			continue;
 
@@ -1304,8 +1304,8 @@ static int tegra_vi_channels_alloc(struct tegra_vi *vi)
 	}
 
 cleanup:
-	of_node_put(port);
-	of_node_put(ports);
+	of_analde_put(port);
+	of_analde_put(ports);
 	return ret;
 }
 
@@ -1319,7 +1319,7 @@ static int tegra_vi_channels_init(struct tegra_vi *vi)
 		if (ret < 0) {
 			dev_err(vi->dev,
 				"failed to initialize channel-%d: %d\n",
-				chan->portnos[0], ret);
+				chan->portanals[0], ret);
 			goto cleanup;
 		}
 	}
@@ -1333,7 +1333,7 @@ cleanup:
 	return ret;
 }
 
-void tegra_v4l2_nodes_cleanup_tpg(struct tegra_video_device *vid)
+void tegra_v4l2_analdes_cleanup_tpg(struct tegra_video_device *vid)
 {
 	struct tegra_vi *vi = vid->vi;
 	struct tegra_csi *csi = vid->csi;
@@ -1347,7 +1347,7 @@ void tegra_v4l2_nodes_cleanup_tpg(struct tegra_video_device *vid)
 		v4l2_device_unregister_subdev(&csi_chan->subdev);
 }
 
-int tegra_v4l2_nodes_setup_tpg(struct tegra_video_device *vid)
+int tegra_v4l2_analdes_setup_tpg(struct tegra_video_device *vid)
 {
 	struct tegra_vi *vi = vid->vi;
 	struct tegra_csi *csi = vid->csi;
@@ -1357,7 +1357,7 @@ int tegra_v4l2_nodes_setup_tpg(struct tegra_video_device *vid)
 	int ret;
 
 	if (!vi || !csi)
-		return -ENODEV;
+		return -EANALDEV;
 
 	csi_chan = list_first_entry(&csi->csi_chans,
 				    struct tegra_csi_channel, list);
@@ -1411,7 +1411,7 @@ int tegra_v4l2_nodes_setup_tpg(struct tegra_video_device *vid)
 	return 0;
 
 cleanup:
-	tegra_v4l2_nodes_cleanup_tpg(vid);
+	tegra_v4l2_analdes_cleanup_tpg(vid);
 	return ret;
 }
 
@@ -1457,11 +1457,11 @@ static int __maybe_unused vi_runtime_suspend(struct device *dev)
 }
 
 /*
- * Find the entity matching a given fwnode in an v4l2_async_notifier list
+ * Find the entity matching a given fwanalde in an v4l2_async_analtifier list
  */
 static struct tegra_vi_graph_entity *
 tegra_vi_graph_find_entity(struct list_head *list,
-			   const struct fwnode_handle *fwnode)
+			   const struct fwanalde_handle *fwanalde)
 {
 	struct tegra_vi_graph_entity *entity;
 	struct v4l2_async_connection *asd;
@@ -1469,7 +1469,7 @@ tegra_vi_graph_find_entity(struct list_head *list,
 	list_for_each_entry(asd, list, asc_entry) {
 		entity = to_tegra_vi_graph_entity(asd);
 
-		if (entity->asd.match.fwnode == fwnode)
+		if (entity->asd.match.fwanalde == fwanalde)
 			return entity;
 	}
 
@@ -1481,8 +1481,8 @@ static int tegra_vi_graph_build(struct tegra_vi_channel *chan,
 {
 	struct tegra_vi *vi = chan->vi;
 	struct tegra_vi_graph_entity *ent;
-	struct fwnode_handle *ep = NULL;
-	struct v4l2_fwnode_link link;
+	struct fwanalde_handle *ep = NULL;
+	struct v4l2_fwanalde_link link;
 	struct media_entity *local = entity->entity;
 	struct media_entity *remote;
 	struct media_pad *local_pad;
@@ -1493,31 +1493,31 @@ static int tegra_vi_graph_build(struct tegra_vi_channel *chan,
 	dev_dbg(vi->dev, "creating links for entity %s\n", local->name);
 
 	while (1) {
-		ep = fwnode_graph_get_next_endpoint(entity->asd.match.fwnode,
+		ep = fwanalde_graph_get_next_endpoint(entity->asd.match.fwanalde,
 						    ep);
 		if (!ep)
 			break;
 
-		ret = v4l2_fwnode_parse_link(ep, &link);
+		ret = v4l2_fwanalde_parse_link(ep, &link);
 		if (ret < 0) {
 			dev_err(vi->dev, "failed to parse link for %pOF: %d\n",
-				to_of_node(ep), ret);
+				to_of_analde(ep), ret);
 			continue;
 		}
 
 		if (link.local_port >= local->num_pads) {
 			dev_err(vi->dev, "invalid port number %u on %pOF\n",
-				link.local_port, to_of_node(link.local_node));
-			v4l2_fwnode_put_link(&link);
+				link.local_port, to_of_analde(link.local_analde));
+			v4l2_fwanalde_put_link(&link);
 			ret = -EINVAL;
 			break;
 		}
 
 		local_pad = &local->pads[link.local_port];
-		/* Remote node is vi node. So use channel video entity and pad
+		/* Remote analde is vi analde. So use channel video entity and pad
 		 * as remote/sink.
 		 */
-		if (link.remote_node == of_fwnode_handle(vi->dev->of_node)) {
+		if (link.remote_analde == of_fwanalde_handle(vi->dev->of_analde)) {
 			remote = &chan->video.entity;
 			remote_pad = &chan->pad;
 			goto create_link;
@@ -1529,19 +1529,19 @@ static int tegra_vi_graph_build(struct tegra_vi_channel *chan,
 		 */
 		if (local_pad->flags & MEDIA_PAD_FL_SINK) {
 			dev_dbg(vi->dev, "skipping sink port %pOF:%u\n",
-				to_of_node(link.local_node), link.local_port);
-			v4l2_fwnode_put_link(&link);
+				to_of_analde(link.local_analde), link.local_port);
+			v4l2_fwanalde_put_link(&link);
 			continue;
 		}
 
-		/* find the remote entity from notifier list */
-		ent = tegra_vi_graph_find_entity(&chan->notifier.done_list,
-						 link.remote_node);
+		/* find the remote entity from analtifier list */
+		ent = tegra_vi_graph_find_entity(&chan->analtifier.done_list,
+						 link.remote_analde);
 		if (!ent) {
-			dev_err(vi->dev, "no entity found for %pOF\n",
-				to_of_node(link.remote_node));
-			v4l2_fwnode_put_link(&link);
-			ret = -ENODEV;
+			dev_err(vi->dev, "anal entity found for %pOF\n",
+				to_of_analde(link.remote_analde));
+			v4l2_fwanalde_put_link(&link);
+			ret = -EANALDEV;
 			break;
 		}
 
@@ -1549,8 +1549,8 @@ static int tegra_vi_graph_build(struct tegra_vi_channel *chan,
 		if (link.remote_port >= remote->num_pads) {
 			dev_err(vi->dev, "invalid port number %u on %pOF\n",
 				link.remote_port,
-				to_of_node(link.remote_node));
-			v4l2_fwnode_put_link(&link);
+				to_of_analde(link.remote_analde));
+			v4l2_fwanalde_put_link(&link);
 			ret = -EINVAL;
 			break;
 		}
@@ -1565,7 +1565,7 @@ create_link:
 		ret = media_create_pad_link(local, local_pad->index,
 					    remote, remote_pad->index,
 					    link_flags);
-		v4l2_fwnode_put_link(&link);
+		v4l2_fwanalde_put_link(&link);
 		if (ret < 0) {
 			dev_err(vi->dev,
 				"failed to create %s:%u -> %s:%u link: %d\n",
@@ -1575,11 +1575,11 @@ create_link:
 		}
 	}
 
-	fwnode_handle_put(ep);
+	fwanalde_handle_put(ep);
 	return ret;
 }
 
-static int tegra_vi_graph_notify_complete(struct v4l2_async_notifier *notifier)
+static int tegra_vi_graph_analtify_complete(struct v4l2_async_analtifier *analtifier)
 {
 	struct tegra_vi_graph_entity *entity;
 	struct v4l2_async_connection *asd;
@@ -1588,13 +1588,13 @@ static int tegra_vi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 	struct tegra_vi *vi;
 	int ret;
 
-	chan = container_of(notifier, struct tegra_vi_channel, notifier);
+	chan = container_of(analtifier, struct tegra_vi_channel, analtifier);
 	vi = chan->vi;
 
-	dev_dbg(vi->dev, "notify complete, all subdevs registered\n");
+	dev_dbg(vi->dev, "analtify complete, all subdevs registered\n");
 
 	/*
-	 * Video device node should be created at the end of all the device
+	 * Video device analde should be created at the end of all the device
 	 * related initialization/setup.
 	 * Current video_register_device() does both initialize and register
 	 * video device in same API.
@@ -1612,7 +1612,7 @@ static int tegra_vi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 	}
 
 	/* create links between the entities */
-	list_for_each_entry(asd, &chan->notifier.done_list, asc_entry) {
+	list_for_each_entry(asd, &chan->analtifier.done_list, asc_entry) {
 		entity = to_tegra_vi_graph_entity(asd);
 		ret = tegra_vi_graph_build(chan, entity);
 		if (ret < 0)
@@ -1635,7 +1635,7 @@ static int tegra_vi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 
 	subdev = tegra_channel_get_remote_csi_subdev(chan);
 	if (!subdev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(vi->dev,
 			"failed to get remote csi subdev: %d\n", ret);
 		goto unregister_video;
@@ -1653,7 +1653,7 @@ unregister_video:
 	return ret;
 }
 
-static int tegra_vi_graph_notify_bound(struct v4l2_async_notifier *notifier,
+static int tegra_vi_graph_analtify_bound(struct v4l2_async_analtifier *analtifier,
 				       struct v4l2_subdev *subdev,
 				       struct v4l2_async_connection *asd)
 {
@@ -1661,23 +1661,23 @@ static int tegra_vi_graph_notify_bound(struct v4l2_async_notifier *notifier,
 	struct tegra_vi *vi;
 	struct tegra_vi_channel *chan;
 
-	chan = container_of(notifier, struct tegra_vi_channel, notifier);
+	chan = container_of(analtifier, struct tegra_vi_channel, analtifier);
 	vi = chan->vi;
 
 	/*
 	 * Locate the entity corresponding to the bound subdev and store the
 	 * subdev pointer.
 	 */
-	entity = tegra_vi_graph_find_entity(&chan->notifier.waiting_list,
-					    subdev->fwnode);
+	entity = tegra_vi_graph_find_entity(&chan->analtifier.waiting_list,
+					    subdev->fwanalde);
 	if (!entity) {
-		dev_err(vi->dev, "no entity for subdev %s\n", subdev->name);
+		dev_err(vi->dev, "anal entity for subdev %s\n", subdev->name);
 		return -EINVAL;
 	}
 
 	if (entity->subdev) {
-		dev_err(vi->dev, "duplicate subdev for node %pOF\n",
-			to_of_node(entity->asd.match.fwnode));
+		dev_err(vi->dev, "duplicate subdev for analde %pOF\n",
+			to_of_analde(entity->asd.match.fwanalde));
 		return -EINVAL;
 	}
 
@@ -1688,108 +1688,108 @@ static int tegra_vi_graph_notify_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static const struct v4l2_async_notifier_operations tegra_vi_async_ops = {
-	.bound = tegra_vi_graph_notify_bound,
-	.complete = tegra_vi_graph_notify_complete,
+static const struct v4l2_async_analtifier_operations tegra_vi_async_ops = {
+	.bound = tegra_vi_graph_analtify_bound,
+	.complete = tegra_vi_graph_analtify_complete,
 };
 
 static int tegra_vi_graph_parse_one(struct tegra_vi_channel *chan,
-				    struct fwnode_handle *fwnode)
+				    struct fwanalde_handle *fwanalde)
 {
 	struct tegra_vi *vi = chan->vi;
-	struct fwnode_handle *ep = NULL;
-	struct fwnode_handle *remote = NULL;
+	struct fwanalde_handle *ep = NULL;
+	struct fwanalde_handle *remote = NULL;
 	struct tegra_vi_graph_entity *tvge;
-	struct device_node *node = NULL;
+	struct device_analde *analde = NULL;
 	int ret;
 
-	dev_dbg(vi->dev, "parsing node %pOF\n", to_of_node(fwnode));
+	dev_dbg(vi->dev, "parsing analde %pOF\n", to_of_analde(fwanalde));
 
 	/* parse all the remote entities and put them into the list */
-	for_each_endpoint_of_node(to_of_node(fwnode), node) {
-		ep = of_fwnode_handle(node);
-		remote = fwnode_graph_get_remote_port_parent(ep);
+	for_each_endpoint_of_analde(to_of_analde(fwanalde), analde) {
+		ep = of_fwanalde_handle(analde);
+		remote = fwanalde_graph_get_remote_port_parent(ep);
 		if (!remote) {
 			dev_err(vi->dev,
-				"remote device at %pOF not found\n", node);
+				"remote device at %pOF analt found\n", analde);
 			ret = -EINVAL;
 			goto cleanup;
 		}
 
 		/* skip entities that are already processed */
-		if (device_match_fwnode(vi->dev, remote) ||
-		    tegra_vi_graph_find_entity(&chan->notifier.waiting_list,
+		if (device_match_fwanalde(vi->dev, remote) ||
+		    tegra_vi_graph_find_entity(&chan->analtifier.waiting_list,
 					       remote)) {
-			fwnode_handle_put(remote);
+			fwanalde_handle_put(remote);
 			continue;
 		}
 
-		tvge = v4l2_async_nf_add_fwnode(&chan->notifier, remote,
+		tvge = v4l2_async_nf_add_fwanalde(&chan->analtifier, remote,
 						struct tegra_vi_graph_entity);
 		if (IS_ERR(tvge)) {
 			ret = PTR_ERR(tvge);
 			dev_err(vi->dev,
-				"failed to add subdev to notifier: %d\n", ret);
-			fwnode_handle_put(remote);
+				"failed to add subdev to analtifier: %d\n", ret);
+			fwanalde_handle_put(remote);
 			goto cleanup;
 		}
 
 		ret = tegra_vi_graph_parse_one(chan, remote);
 		if (ret < 0) {
-			fwnode_handle_put(remote);
+			fwanalde_handle_put(remote);
 			goto cleanup;
 		}
 
-		fwnode_handle_put(remote);
+		fwanalde_handle_put(remote);
 	}
 
 	return 0;
 
 cleanup:
 	dev_err(vi->dev, "failed parsing the graph: %d\n", ret);
-	v4l2_async_nf_cleanup(&chan->notifier);
-	of_node_put(node);
+	v4l2_async_nf_cleanup(&chan->analtifier);
+	of_analde_put(analde);
 	return ret;
 }
 
 static int tegra_vi_graph_init(struct tegra_vi *vi)
 {
 	struct tegra_vi_channel *chan;
-	struct fwnode_handle *fwnode = dev_fwnode(vi->dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(vi->dev);
 	int ret;
 
 	/*
 	 * Walk the links to parse the full graph. Each channel will have
-	 * one endpoint of the composite node. Start by parsing the
-	 * composite node and parse the remote entities in turn.
-	 * Each channel will register a v4l2 async notifier to make the graph
+	 * one endpoint of the composite analde. Start by parsing the
+	 * composite analde and parse the remote entities in turn.
+	 * Each channel will register a v4l2 async analtifier to make the graph
 	 * independent between the channels so we can skip the current channel
 	 * in case of something wrong during graph parsing and continue with
 	 * the next channels.
 	 */
 	list_for_each_entry(chan, &vi->vi_chans, list) {
-		struct fwnode_handle *ep, *remote;
+		struct fwanalde_handle *ep, *remote;
 
-		ep = fwnode_graph_get_endpoint_by_id(fwnode,
-						     chan->portnos[0], 0, 0);
+		ep = fwanalde_graph_get_endpoint_by_id(fwanalde,
+						     chan->portanals[0], 0, 0);
 		if (!ep)
 			continue;
 
-		remote = fwnode_graph_get_remote_port_parent(ep);
-		fwnode_handle_put(ep);
+		remote = fwanalde_graph_get_remote_port_parent(ep);
+		fwanalde_handle_put(ep);
 
 		ret = tegra_vi_graph_parse_one(chan, remote);
-		fwnode_handle_put(remote);
-		if (ret < 0 || list_empty(&chan->notifier.waiting_list))
+		fwanalde_handle_put(remote);
+		if (ret < 0 || list_empty(&chan->analtifier.waiting_list))
 			continue;
 
-		chan->notifier.ops = &tegra_vi_async_ops;
-		ret = v4l2_async_nf_register(&chan->notifier);
+		chan->analtifier.ops = &tegra_vi_async_ops;
+		ret = v4l2_async_nf_register(&chan->analtifier);
 		if (ret < 0) {
 			dev_err(vi->dev,
-				"failed to register channel %d notifier: %d\n",
-				chan->portnos[0], ret);
-			v4l2_async_nf_cleanup(&chan->notifier);
+				"failed to register channel %d analtifier: %d\n",
+				chan->portanals[0], ret);
+			v4l2_async_nf_cleanup(&chan->analtifier);
 		}
 	}
 
@@ -1802,8 +1802,8 @@ static void tegra_vi_graph_cleanup(struct tegra_vi *vi)
 
 	list_for_each_entry(chan, &vi->vi_chans, list) {
 		vb2_video_unregister_device(&chan->video);
-		v4l2_async_nf_unregister(&chan->notifier);
-		v4l2_async_nf_cleanup(&chan->notifier);
+		v4l2_async_nf_unregister(&chan->analtifier);
+		v4l2_async_nf_cleanup(&chan->analtifier);
 	}
 }
 
@@ -1858,10 +1858,10 @@ static int tegra_vi_exit(struct host1x_client *client)
 	struct tegra_vi *vi = host1x_client_to_vi(client);
 
 	/*
-	 * Do not cleanup the channels here as application might still be
-	 * holding video device nodes. Channels cleanup will happen during
+	 * Do analt cleanup the channels here as application might still be
+	 * holding video device analdes. Channels cleanup will happen during
 	 * v4l2_device release callback which gets called after all video
-	 * device nodes are released.
+	 * device analdes are released.
 	 */
 
 	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
@@ -1882,7 +1882,7 @@ static int tegra_vi_probe(struct platform_device *pdev)
 
 	vi = devm_kzalloc(&pdev->dev, sizeof(*vi), GFP_KERNEL);
 	if (!vi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vi->iomem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vi->iomem))
@@ -1905,8 +1905,8 @@ static int tegra_vi_probe(struct platform_device *pdev)
 	}
 
 	if (!pdev->dev.pm_domain) {
-		ret = -ENOENT;
-		dev_warn(&pdev->dev, "PM domain is not attached: %d\n", ret);
+		ret = -EANALENT;
+		dev_warn(&pdev->dev, "PM domain is analt attached: %d\n", ret);
 		return ret;
 	}
 

@@ -38,12 +38,12 @@ static irqreturn_t timebase_interrupt(int irq, void *dev)
 
 static int __init get_freq(char *name, unsigned long *val)
 {
-	struct device_node *cpu;
+	struct device_analde *cpu;
 	const unsigned int *fp;
 	int found = 0;
 
-	/* The cpu node should have timebase and clock frequency properties */
-	cpu = of_get_cpu_node(0, NULL);
+	/* The cpu analde should have timebase and clock frequency properties */
+	cpu = of_get_cpu_analde(0, NULL);
 
 	if (cpu) {
 		fp = of_get_property(cpu, name, NULL);
@@ -52,7 +52,7 @@ static int __init get_freq(char *name, unsigned long *val)
 			*val = *fp;
 		}
 
-		of_node_put(cpu);
+		of_analde_put(cpu);
 	}
 
 	return found;
@@ -64,7 +64,7 @@ static int __init get_freq(char *name, unsigned long *val)
  */
 void __init mpc8xx_calibrate_decr(void)
 {
-	struct device_node *cpu;
+	struct device_analde *cpu;
 	int irq, virq;
 
 	/* Unlock the SCCR. */
@@ -79,7 +79,7 @@ void __init mpc8xx_calibrate_decr(void)
 	ppc_proc_freq = 50000000;
 	if (!get_freq("clock-frequency", &ppc_proc_freq))
 		printk(KERN_ERR "WARNING: Estimating processor frequency "
-		                "(not found)\n");
+		                "(analt found)\n");
 
 	ppc_tb_freq = ppc_proc_freq / 16;
 	printk("Decrementer Frequency = 0x%lx\n", ppc_tb_freq);
@@ -115,19 +115,19 @@ void __init mpc8xx_calibrate_decr(void)
 	/* Enabling the decrementer also enables the timebase interrupts
 	 * (or from the other point of view, to get decrementer interrupts
 	 * we have to enable the timebase).  The decrementer interrupt
-	 * is wired into the vector table, nothing to do here for that.
+	 * is wired into the vector table, analthing to do here for that.
 	 */
-	cpu = of_get_cpu_node(0, NULL);
+	cpu = of_get_cpu_analde(0, NULL);
 	virq= irq_of_parse_and_map(cpu, 0);
-	of_node_put(cpu);
+	of_analde_put(cpu);
 	irq = virq_to_hw(virq);
 
 	out_be16(&mpc8xx_immr->im_sit.sit_tbscr,
 		 ((1 << (7 - (irq / 2))) << 8) | (TBSCR_TBF | TBSCR_TBE));
 
-	if (request_irq(virq, timebase_interrupt, IRQF_NO_THREAD, "tbint",
+	if (request_irq(virq, timebase_interrupt, IRQF_ANAL_THREAD, "tbint",
 			NULL))
-		panic("Could not allocate timer IRQ!");
+		panic("Could analt allocate timer IRQ!");
 }
 
 /* The RTC on the MPC8xx is an internal register.
@@ -158,7 +158,7 @@ void mpc8xx_get_rtc_time(struct rtc_time *tm)
 	return;
 }
 
-void __noreturn mpc8xx_restart(char *cmd)
+void __analreturn mpc8xx_restart(char *cmd)
 {
 	local_irq_disable();
 

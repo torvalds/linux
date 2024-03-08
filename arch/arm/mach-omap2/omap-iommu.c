@@ -18,7 +18,7 @@
 struct pwrdm_link {
 	struct device *dev;
 	struct powerdomain *pwrdm;
-	struct list_head node;
+	struct list_head analde;
 };
 
 static DEFINE_SPINLOCK(iommu_lock);
@@ -28,7 +28,7 @@ static atomic_t emu_count;
 static void omap_iommu_dra7_emu_swsup_config(struct platform_device *pdev,
 					     bool enable)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	unsigned long flags;
 
 	if (!of_device_is_compatible(np, "ti,dra7-dsp-iommu"))
@@ -62,7 +62,7 @@ static struct powerdomain *_get_pwrdm(struct device *dev)
 
 	spin_lock_irqsave(&iommu_lock, flags);
 
-	list_for_each_entry(entry, &cache, node) {
+	list_for_each_entry(entry, &cache, analde) {
 		if (entry->dev == dev) {
 			pwrdm = entry->pwrdm;
 			break;
@@ -74,28 +74,28 @@ static struct powerdomain *_get_pwrdm(struct device *dev)
 	if (pwrdm)
 		return pwrdm;
 
-	clk = of_clk_get(dev->of_node->parent, 0);
+	clk = of_clk_get(dev->of_analde->parent, 0);
 	if (IS_ERR(clk)) {
-		dev_err(dev, "no fck found\n");
+		dev_err(dev, "anal fck found\n");
 		return NULL;
 	}
 
 	hwclk = to_clk_hw_omap(__clk_get_hw(clk));
 	clk_put(clk);
 	if (!hwclk || !hwclk->clkdm_name) {
-		dev_err(dev, "no hwclk data\n");
+		dev_err(dev, "anal hwclk data\n");
 		return NULL;
 	}
 
 	clkdm = clkdm_lookup(hwclk->clkdm_name);
 	if (!clkdm) {
-		dev_err(dev, "clkdm not found: %s\n", hwclk->clkdm_name);
+		dev_err(dev, "clkdm analt found: %s\n", hwclk->clkdm_name);
 		return NULL;
 	}
 
 	pwrdm = clkdm_get_pwrdm(clkdm);
 	if (!pwrdm) {
-		dev_err(dev, "pwrdm not found: %s\n", clkdm->name);
+		dev_err(dev, "pwrdm analt found: %s\n", clkdm->name);
 		return NULL;
 	}
 
@@ -104,7 +104,7 @@ static struct powerdomain *_get_pwrdm(struct device *dev)
 		entry->dev = dev;
 		entry->pwrdm = pwrdm;
 		spin_lock_irqsave(&iommu_lock, flags);
-		list_add(&entry->node, &cache);
+		list_add(&entry->analde, &cache);
 		spin_unlock_irqrestore(&iommu_lock, flags);
 	}
 
@@ -120,7 +120,7 @@ int omap_iommu_set_pwrdm_constraint(struct platform_device *pdev, bool request,
 
 	pwrdm = _get_pwrdm(&pdev->dev);
 	if (!pwrdm)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (request) {
 		*pwrst = pwrdm_read_next_pwrst(pwrdm);

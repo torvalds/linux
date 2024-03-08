@@ -14,7 +14,7 @@ struct migration_target_control;
 
 /*
  * Return values from addresss_space_operations.migratepage():
- * - negative errno on page migration failure;
+ * - negative erranal on page migration failure;
  * - zero on page migration success;
  */
 #define MIGRATEPAGE_SUCCESS		0
@@ -24,8 +24,8 @@ struct migration_target_control;
  * struct movable_operations - Driver page migration
  * @isolate_page:
  * The VM calls this function to prepare the page to be moved.  The page
- * is locked and the driver should not unlock it.  The driver should
- * return ``true`` if the page is movable and ``false`` if it is not
+ * is locked and the driver should analt unlock it.  The driver should
+ * return ``true`` if the page is movable and ``false`` if it is analt
  * currently movable.  After this function returns, the VM uses the
  * page->lru field, so the driver must preserve any information which
  * is usually stored here.
@@ -37,16 +37,16 @@ struct migration_target_control;
  * Both pages are locked.
  * If page migration is successful, the driver should call
  * __ClearPageMovable(@src) and return MIGRATEPAGE_SUCCESS.
- * If the driver cannot migrate the page at the moment, it can return
+ * If the driver cananalt migrate the page at the moment, it can return
  * -EAGAIN.  The VM interprets this as a temporary migration failure and
  * will retry it later.  Any other error value is a permanent migration
- * failure and migration will not be retried.
+ * failure and migration will analt be retried.
  * The driver shouldn't touch the @src->lru field while in the
  * migrate_page() function.  It may write to @dst->lru.
  *
  * @putback_page:
  * If migration fails on the isolated page, the VM informs the driver
- * that the page is no longer a candidate for migration by calling
+ * that the page is anal longer a candidate for migration by calling
  * this function.  The driver should put the isolated page back into
  * its own data structure.
  */
@@ -88,7 +88,7 @@ static inline void putback_movable_pages(struct list_head *l) {}
 static inline int migrate_pages(struct list_head *l, new_folio_t new,
 		free_folio_t free, unsigned long private,
 		enum migrate_mode mode, int reason, unsigned int *ret_succeeded)
-	{ return -ENOSYS; }
+	{ return -EANALSYS; }
 static inline struct folio *alloc_migration_target(struct folio *src,
 		unsigned long private)
 	{ return NULL; }
@@ -98,7 +98,7 @@ static inline bool isolate_movable_page(struct page *page, isolate_mode_t mode)
 static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
 				  struct folio *dst, struct folio *src)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 #endif /* CONFIG_MIGRATION */
@@ -143,21 +143,21 @@ const struct movable_operations *page_movable_ops(struct page *page)
 
 #ifdef CONFIG_NUMA_BALANCING
 int migrate_misplaced_folio(struct folio *folio, struct vm_area_struct *vma,
-			   int node);
+			   int analde);
 #else
 static inline int migrate_misplaced_folio(struct folio *folio,
-					 struct vm_area_struct *vma, int node)
+					 struct vm_area_struct *vma, int analde)
 {
-	return -EAGAIN; /* can't migrate now */
+	return -EAGAIN; /* can't migrate analw */
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
 #ifdef CONFIG_MIGRATION
 
 /*
- * Watch out for PAE architecture, which has an unsigned long, and might not
- * have enough bits to store all physical address and flags. So far we have
- * enough room for all our flags.
+ * Watch out for PAE architecture, which has an unsigned long, and might analt
+ * have eanalugh bits to store all physical address and flags. So far we have
+ * eanalugh room for all our flags.
  */
 #define MIGRATE_PFN_VALID	(1UL << 0)
 #define MIGRATE_PFN_MIGRATE	(1UL << 1)
@@ -185,11 +185,11 @@ enum migrate_vma_direction {
 struct migrate_vma {
 	struct vm_area_struct	*vma;
 	/*
-	 * Both src and dst array must be big enough for
+	 * Both src and dst array must be big eanalugh for
 	 * (end - start) >> PAGE_SHIFT entries.
 	 *
-	 * The src array must not be modified by the caller after
-	 * migrate_vma_setup(), and must not change the dst array after
+	 * The src array must analt be modified by the caller after
+	 * migrate_vma_setup(), and must analt change the dst array after
 	 * migrate_vma_pages() returns.
 	 */
 	unsigned long		*dst;
@@ -203,9 +203,9 @@ struct migrate_vma {
 	 * Set to the owner value also stored in page->pgmap->owner for
 	 * migrating out of device private memory. The flags also need to
 	 * be set to MIGRATE_VMA_SELECT_DEVICE_PRIVATE.
-	 * The caller should always set this field when using mmu notifier
+	 * The caller should always set this field when using mmu analtifier
 	 * callbacks to avoid device MMU invalidations for device private
-	 * pages that are not being migrated.
+	 * pages that are analt being migrated.
 	 */
 	void			*pgmap_owner;
 	unsigned long		flags;

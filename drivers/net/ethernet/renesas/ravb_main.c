@@ -135,7 +135,7 @@ static void ravb_set_buffer_align(struct sk_buff *skb)
  * Ethernet AVB device doesn't have ROM for MAC address.
  * This function gets the MAC address that was used by a bootloader.
  */
-static void ravb_read_mac_address(struct device_node *np,
+static void ravb_read_mac_address(struct device_analde *np,
 				  struct net_device *ndev)
 {
 	int ret;
@@ -519,7 +519,7 @@ static int ravb_ring_init(struct net_device *ndev, int q)
 error:
 	ravb_ring_free(ndev, q);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void ravb_emac_init_gbeth(struct net_device *ndev)
@@ -869,7 +869,7 @@ static bool ravb_rx_gbeth(struct net_device *ndev, int *quota, int q)
 						  skb->data,
 						  GBETH_RX_BUFF_MAX,
 						  DMA_FROM_DEVICE);
-			skb_checksum_none_assert(skb);
+			skb_checksum_analne_assert(skb);
 			/* We just set the data size to 0 for a failed mapping
 			 * which should prevent DMA  from happening...
 			 */
@@ -984,7 +984,7 @@ static bool ravb_rx_rcar(struct net_device *ndev, int *quota, int q)
 			dma_addr = dma_map_single(ndev->dev.parent, skb->data,
 						  le16_to_cpu(desc->ds_cc),
 						  DMA_FROM_DEVICE);
-			skb_checksum_none_assert(skb);
+			skb_checksum_analne_assert(skb);
 			/* We just set the data size to 0 for a failed mapping
 			 * which should prevent DMA  from happening...
 			 */
@@ -1069,7 +1069,7 @@ static void ravb_emac_interrupt_unlocked(struct net_device *ndev)
 		ndev->stats.tx_carrier_errors++;
 	if (ecsr & ECSR_LCHNG) {
 		/* Link changed */
-		if (priv->no_avb_link)
+		if (priv->anal_avb_link)
 			return;
 		psr = ravb_read(ndev, PSR);
 		if (priv->avb_link_active_low)
@@ -1144,7 +1144,7 @@ static bool ravb_queue_interrupt(struct net_device *ndev, int q)
 			__napi_schedule(&priv->napi[q]);
 		} else {
 			netdev_warn(ndev,
-				    "ignoring interrupt, rx status 0x%08x, rx mask 0x%08x,\n",
+				    "iganalring interrupt, rx status 0x%08x, rx mask 0x%08x,\n",
 				    ris0, ric0);
 			netdev_warn(ndev,
 				    "                    tx status 0x%08x, tx mask 0x%08x.\n",
@@ -1172,7 +1172,7 @@ static irqreturn_t ravb_interrupt(int irq, void *dev_id)
 	struct net_device *ndev = dev_id;
 	struct ravb_private *priv = netdev_priv(ndev);
 	const struct ravb_hw_info *info = priv->info;
-	irqreturn_t result = IRQ_NONE;
+	irqreturn_t result = IRQ_ANALNE;
 	u32 iss;
 
 	spin_lock(&priv->lock);
@@ -1226,7 +1226,7 @@ static irqreturn_t ravb_multi_interrupt(int irq, void *dev_id)
 {
 	struct net_device *ndev = dev_id;
 	struct ravb_private *priv = netdev_priv(ndev);
-	irqreturn_t result = IRQ_NONE;
+	irqreturn_t result = IRQ_ANALNE;
 	u32 iss;
 
 	spin_lock(&priv->lock);
@@ -1257,7 +1257,7 @@ static irqreturn_t ravb_dma_interrupt(int irq, void *dev_id, int q)
 {
 	struct net_device *ndev = dev_id;
 	struct ravb_private *priv = netdev_priv(ndev);
-	irqreturn_t result = IRQ_NONE;
+	irqreturn_t result = IRQ_ANALNE;
 
 	spin_lock(&priv->lock);
 
@@ -1355,8 +1355,8 @@ static void ravb_adjust_link(struct net_device *ndev)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	/* Disable TX and RX right over here, if E-MAC change is ignored */
-	if (priv->no_avb_link)
+	/* Disable TX and RX right over here, if E-MAC change is iganalred */
+	if (priv->anal_avb_link)
 		ravb_rcv_snd_disable(ndev);
 
 	if (phydev->link) {
@@ -1384,8 +1384,8 @@ static void ravb_adjust_link(struct net_device *ndev)
 			priv->duplex = -1;
 	}
 
-	/* Enable TX and RX right over here, if E-MAC change is ignored */
-	if (priv->no_avb_link && phydev->link)
+	/* Enable TX and RX right over here, if E-MAC change is iganalred */
+	if (priv->anal_avb_link && phydev->link)
 		ravb_rcv_snd_enable(ndev);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -1397,11 +1397,11 @@ static void ravb_adjust_link(struct net_device *ndev)
 /* PHY init function */
 static int ravb_phy_init(struct net_device *ndev)
 {
-	struct device_node *np = ndev->dev.parent->of_node;
+	struct device_analde *np = ndev->dev.parent->of_analde;
 	struct ravb_private *priv = netdev_priv(ndev);
 	const struct ravb_hw_info *info = priv->info;
 	struct phy_device *phydev;
-	struct device_node *pn;
+	struct device_analde *pn;
 	phy_interface_t iface;
 	int err;
 
@@ -1412,35 +1412,35 @@ static int ravb_phy_init(struct net_device *ndev)
 	/* Try connecting to PHY */
 	pn = of_parse_phandle(np, "phy-handle", 0);
 	if (!pn) {
-		/* In the case of a fixed PHY, the DT node associated
-		 * to the PHY is the Ethernet MAC DT node.
+		/* In the case of a fixed PHY, the DT analde associated
+		 * to the PHY is the Ethernet MAC DT analde.
 		 */
 		if (of_phy_is_fixed_link(np)) {
 			err = of_phy_register_fixed_link(np);
 			if (err)
 				return err;
 		}
-		pn = of_node_get(np);
+		pn = of_analde_get(np);
 	}
 
 	iface = priv->rgmii_override ? PHY_INTERFACE_MODE_RGMII
 				     : priv->phy_interface;
 	phydev = of_phy_connect(ndev, pn, ravb_adjust_link, 0, iface);
-	of_node_put(pn);
+	of_analde_put(pn);
 	if (!phydev) {
 		netdev_err(ndev, "failed to connect PHY\n");
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_deregister_fixed_link;
 	}
 
 	if (!info->half_duplex) {
-		/* 10BASE, Pause and Asym Pause is not supported */
+		/* 10BASE, Pause and Asym Pause is analt supported */
 		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Half_BIT);
 		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Full_BIT);
 		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_Pause_BIT);
 		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_Asym_Pause_BIT);
 
-		/* Half Duplex is not supported */
+		/* Half Duplex is analt supported */
 		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
 		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Half_BIT);
 	}
@@ -1545,7 +1545,7 @@ static int ravb_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_STATS:
 		return info->stats_len;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1632,7 +1632,7 @@ static int ravb_set_ringparam(struct net_device *ndev,
 		error = ravb_stop_dma(ndev);
 		if (error) {
 			netdev_err(ndev,
-				   "cannot set ringparam! Any AVB processes are still running?\n");
+				   "cananalt set ringparam! Any AVB processes are still running?\n");
 			return error;
 		}
 		synchronize_irq(ndev->irq);
@@ -1683,7 +1683,7 @@ static int ravb_get_ts_info(struct net_device *ndev,
 		SOF_TIMESTAMPING_RAW_HARDWARE;
 	info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
 	info->rx_filters =
-		(1 << HWTSTAMP_FILTER_NONE) |
+		(1 << HWTSTAMP_FILTER_ANALNE) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
 		(1 << HWTSTAMP_FILTER_ALL);
 	if (hw_info->gptp || hw_info->ccc_gac)
@@ -1706,7 +1706,7 @@ static int ravb_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 	const struct ravb_hw_info *info = priv->info;
 
 	if (!info->magic_pkt || (wol->wolopts & ~WAKE_MAGIC))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	priv->wol_enabled = !!(wol->wolopts & WAKE_MAGIC);
 
@@ -1741,10 +1741,10 @@ static inline int ravb_hook_irq(unsigned int irq, irq_handler_t handler,
 
 	name = devm_kasprintf(dev, GFP_KERNEL, "%s:%s", ndev->name, ch);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 	error = request_irq(irq, handler, 0, name, ndev);
 	if (error)
-		netdev_err(ndev, "cannot request IRQ %s\n", name);
+		netdev_err(ndev, "cananalt request IRQ %s\n", name);
 
 	return error;
 }
@@ -1766,7 +1766,7 @@ static int ravb_open(struct net_device *ndev)
 		error = request_irq(ndev->irq, ravb_interrupt, IRQF_SHARED,
 				    ndev->name, ndev);
 		if (error) {
-			netdev_err(ndev, "cannot request IRQ\n");
+			netdev_err(ndev, "cananalt request IRQ\n");
 			goto out_napi_off;
 		}
 	} else {
@@ -1896,9 +1896,9 @@ static void ravb_tx_timeout_work(struct work_struct *work)
 	/* Wait for DMA stopping */
 	if (ravb_stop_dma(ndev)) {
 		/* If ravb_stop_dma() fails, the hardware is still operating
-		 * for TX and/or RX. So, this should not call the following
+		 * for TX and/or RX. So, this should analt call the following
 		 * functions because ravb_dmac_init() is possible to fail too.
-		 * Also, this should not retry ravb_stop_dma() again and again
+		 * Also, this should analt retry ravb_stop_dma() again and again
 		 * here because it's possible to wait forever. So, this just
 		 * re-enables the TX and RX and skip the following
 		 * re-initialization procedure.
@@ -2145,7 +2145,7 @@ static void ravb_set_rx_mode(struct net_device *ndev)
 /* Device close function for Ethernet AVB */
 static int ravb_close(struct net_device *ndev)
 {
-	struct device_node *np = ndev->dev.parent->of_node;
+	struct device_analde *np = ndev->dev.parent->of_analde;
 	struct ravb_private *priv = netdev_priv(ndev);
 	const struct ravb_hw_info *info = priv->info;
 	struct ravb_tstamp_skb *ts_skb, *ts_skb2;
@@ -2226,7 +2226,7 @@ static int ravb_hwtstamp_get(struct net_device *ndev, struct ifreq *req)
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	default:
-		config.rx_filter = HWTSTAMP_FILTER_NONE;
+		config.rx_filter = HWTSTAMP_FILTER_ANALNE;
 	}
 
 	return copy_to_user(req->ifr_data, &config, sizeof(config)) ?
@@ -2256,7 +2256,7 @@ static int ravb_hwtstamp_set(struct net_device *ndev, struct ifreq *req)
 	}
 
 	switch (config.rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		tstamp_rx_ctrl = 0;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
@@ -2283,7 +2283,7 @@ static int ravb_do_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 		return -EINVAL;
 
 	if (!phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (cmd) {
 	case SIOCGHWTSTAMP:
@@ -2380,7 +2380,7 @@ static int ravb_mdio_init(struct ravb_private *priv)
 	struct platform_device *pdev = priv->pdev;
 	struct device *dev = &pdev->dev;
 	struct phy_device *phydev;
-	struct device_node *pn;
+	struct device_analde *pn;
 	int error;
 
 	/* Bitbang init */
@@ -2389,7 +2389,7 @@ static int ravb_mdio_init(struct ravb_private *priv)
 	/* MII controller setting */
 	priv->mii_bus = alloc_mdio_bitbang(&priv->mdiobb);
 	if (!priv->mii_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Hook up MII support for ethtool */
 	priv->mii_bus->name = "ravb_mii";
@@ -2398,17 +2398,17 @@ static int ravb_mdio_init(struct ravb_private *priv)
 		 pdev->name, pdev->id);
 
 	/* Register MDIO bus */
-	error = of_mdiobus_register(priv->mii_bus, dev->of_node);
+	error = of_mdiobus_register(priv->mii_bus, dev->of_analde);
 	if (error)
 		goto out_free_bus;
 
-	pn = of_parse_phandle(dev->of_node, "phy-handle", 0);
+	pn = of_parse_phandle(dev->of_analde, "phy-handle", 0);
 	phydev = of_phy_find_device(pn);
 	if (phydev) {
 		phydev->mac_managed_pm = true;
 		put_device(&phydev->mdio.dev);
 	}
-	of_node_put(pn);
+	of_analde_put(pn);
 
 	return 0;
 
@@ -2587,7 +2587,7 @@ static int ravb_set_config_mode(struct net_device *ndev)
 }
 
 /* Set tx and rx clock internal delay modes */
-static void ravb_parse_delay_mode(struct device_node *np, struct net_device *ndev)
+static void ravb_parse_delay_mode(struct device_analde *np, struct net_device *ndev)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
 	bool explicit_delay = false;
@@ -2635,7 +2635,7 @@ static void ravb_set_delay_mode(struct net_device *ndev)
 
 static int ravb_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct ravb_hw_info *info;
 	struct reset_control *rstc;
 	struct ravb_private *priv;
@@ -2658,7 +2658,7 @@ static int ravb_probe(struct platform_device *pdev)
 	ndev = alloc_etherdev_mqs(sizeof(struct ravb_private),
 				  NUM_TX_QUEUE, NUM_RX_QUEUE);
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = of_device_get_match_data(&pdev->dev);
 
@@ -2715,10 +2715,10 @@ static int ravb_probe(struct platform_device *pdev)
 	INIT_WORK(&priv->work, ravb_tx_timeout_work);
 
 	error = of_get_phy_mode(np, &priv->phy_interface);
-	if (error && error != -ENODEV)
+	if (error && error != -EANALDEV)
 		goto out_release;
 
-	priv->no_avb_link = of_property_read_bool(np, "renesas,no-ether-link");
+	priv->anal_avb_link = of_property_read_bool(np, "renesas,anal-ether-link");
 	priv->avb_link_active_low =
 		of_property_read_bool(np, "renesas,ether-link-active-low");
 
@@ -2828,9 +2828,9 @@ static int ravb_probe(struct platform_device *pdev)
 					    &priv->desc_bat_dma, GFP_KERNEL);
 	if (!priv->desc_bat) {
 		dev_err(&pdev->dev,
-			"Cannot allocate desc base address table (size %d bytes)\n",
+			"Cananalt allocate desc base address table (size %d bytes)\n",
 			priv->desc_bat_size);
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out_disable_gptp_clk;
 	}
 	for (q = RAVB_BE; q < DBAT_ENTRY_NUM; q++)
@@ -2851,7 +2851,7 @@ static int ravb_probe(struct platform_device *pdev)
 	ravb_read_mac_address(np, ndev);
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		dev_warn(&pdev->dev,
-			 "no valid MAC address supplied, using a random one\n");
+			 "anal valid MAC address supplied, using a random one\n");
 		eth_hw_addr_random(ndev);
 	}
 
@@ -3061,13 +3061,13 @@ static int __maybe_unused ravb_resume(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused ravb_runtime_nop(struct device *dev)
+static int __maybe_unused ravb_runtime_analp(struct device *dev)
 {
 	/* Runtime PM callback shared between ->runtime_suspend()
 	 * and ->runtime_resume(). Simply returns success.
 	 *
 	 * This driver re-initializes all registers after
-	 * pm_runtime_get_sync() anyway so there is no need
+	 * pm_runtime_get_sync() anyway so there is anal need
 	 * to save and restore registers here.
 	 */
 	return 0;
@@ -3075,7 +3075,7 @@ static int __maybe_unused ravb_runtime_nop(struct device *dev)
 
 static const struct dev_pm_ops ravb_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(ravb_suspend, ravb_resume)
-	SET_RUNTIME_PM_OPS(ravb_runtime_nop, ravb_runtime_nop, NULL)
+	SET_RUNTIME_PM_OPS(ravb_runtime_analp, ravb_runtime_analp, NULL)
 };
 
 static struct platform_driver ravb_driver = {

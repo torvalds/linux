@@ -77,7 +77,7 @@ struct xe_mem_region {
 	 * via the CPU through the VRAM BAR. This can be smaller
 	 * than @usable_size, in which case only part of VRAM is CPU
 	 * accessible (typically the first 256M). This
-	 * configuration is known as small-bar.
+	 * configuration is kanalwn as small-bar.
 	 */
 	resource_size_t io_size;
 	/** @dpa_base: This memory regions's DPA (device physical address) base */
@@ -335,8 +335,8 @@ struct xe_device {
 		u32 next_asid;
 		/** @num_vm_in_fault_mode: number of VM in fault mode */
 		u32 num_vm_in_fault_mode;
-		/** @num_vm_in_non_fault_mode: number of VM in non-fault mode */
-		u32 num_vm_in_non_fault_mode;
+		/** @num_vm_in_analn_fault_mode: number of VM in analn-fault mode */
+		u32 num_vm_in_analn_fault_mode;
 		/** @lock: protects UM state */
 		struct mutex lock;
 	} usm;
@@ -359,8 +359,8 @@ struct xe_device {
 	/** @ordered_wq: used to serialize compute mode resume */
 	struct workqueue_struct *ordered_wq;
 
-	/** @unordered_wq: used to serialize unordered work, mostly display */
-	struct workqueue_struct *unordered_wq;
+	/** @uanalrdered_wq: used to serialize uanalrdered work, mostly display */
+	struct workqueue_struct *uanalrdered_wq;
 
 	/** @tiles: device tiles */
 	struct xe_tile tiles[XE_MAX_TILES_PER_DEVICE];
@@ -445,7 +445,7 @@ struct xe_device {
 		u8 num_channels;
 		bool symmetric_memory;
 		enum intel_dram_type {
-			INTEL_DRAM_UNKNOWN,
+			INTEL_DRAM_UNKANALWN,
 			INTEL_DRAM_DDR3,
 			INTEL_DRAM_DDR4,
 			INTEL_DRAM_LPDDR3,
@@ -459,7 +459,7 @@ struct xe_device {
 
 	/*
 	 * edram size in MB.
-	 * Cannot be determined by PCIID. You must always read a register.
+	 * Cananalt be determined by PCIID. You must always read a register.
 	 */
 	u32 edram_size_mb;
 
@@ -476,7 +476,7 @@ struct xe_device {
 	struct list_head global_obj_list;
 
 	union {
-		/* only to allow build, not used functionally */
+		/* only to allow build, analt used functionally */
 		u32 irq_mask;
 		u32 de_irq_mask[I915_MAX_PIPES];
 	};
@@ -489,7 +489,7 @@ struct xe_device {
 		spinlock_t lock;
 	} uncore;
 
-	/* only to allow build, not used functionally */
+	/* only to allow build, analt used functionally */
 	struct {
 		unsigned int hpll_freq;
 		unsigned int czclk_freq;

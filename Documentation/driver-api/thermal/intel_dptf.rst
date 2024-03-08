@@ -14,12 +14,12 @@ Introduction
 Intel(R) Dynamic Platform and Thermal Framework (DPTF) is a platform
 level hardware/software solution for power and thermal management.
 
-As a container for multiple power/thermal technologies, DPTF provides
+As a container for multiple power/thermal techanallogies, DPTF provides
 a coordinated approach for different policies to effect the hardware
 state of a system.
 
 Since it is a platform level framework, this has several components.
-Some parts of the technology is implemented in the firmware and uses
+Some parts of the techanallogy is implemented in the firmware and uses
 ACPI and PCI devices to expose various features for monitoring and
 control. Linux has a set of kernel drivers exposing hardware interface
 to user space. This allows user space thermal solutions like
@@ -35,7 +35,7 @@ DPTF ACPI Drivers interface
 
 ``available_uuids`` (RO)
 	A set of UUIDs strings presenting available policies
-	which should be notified to the firmware when the
+	which should be analtified to the firmware when the
 	user space can support those policies.
 
 	UUID strings:
@@ -69,8 +69,8 @@ DPTF ACPI Drivers interface
 
 ``imok`` (WO)
 	User space daemon write 1 to respond to firmware event
-	for sending keep alive notification. User space receives
-	THERMAL_EVENT_KEEP_ALIVE kobject uevent notification when
+	for sending keep alive analtification. User space receives
+	THERMAL_EVENT_KEEP_ALIVE kobject uevent analtification when
 	firmware calls for user space to respond with imok ACPI
 	method.
 
@@ -170,8 +170,8 @@ ABI.
 	power to be reduced any further.
 
 ``power_floor_enable`` (RW)
-	When set to 1, enable reading and notification of the power floor
-	status. Notifications are triggered for the power_floor_status
+	When set to 1, enable reading and analtification of the power floor
+	status. Analtifications are triggered for the power_floor_status
 	attribute value changes.
 
 :file:`/sys/bus/pci/devices/0000\:00\:04.0/`
@@ -201,26 +201,26 @@ frequencies to avoid RF interference with WiFi and 5G.
 Switching voltage regulators (VR) generate radiated EMI or RFI at the
 fundamental frequency and its harmonics. Some harmonics may interfere
 with very sensitive wireless receivers such as Wi-Fi and cellular that
-are integrated into host systems like notebook PCs.  One of mitigation
+are integrated into host systems like analtebook PCs.  One of mitigation
 methods is requesting SOC integrated VR (IVR) switching frequency to a
-small % and shift away the switching noise harmonic interference from
+small % and shift away the switching analise harmonic interference from
 radio channels.  OEM or ODMs can use the driver to control SOC IVR
-operation within the range where it does not impact IVR performance.
+operation within the range where it does analt impact IVR performance.
 
 Some products use DLVR instead of FIVR as switching voltage regulator.
 In this case attributes of DLVR must be adjusted instead of FIVR.
 
-While shifting the frequencies additional clock noise can be introduced,
+While shifting the frequencies additional clock analise can be introduced,
 which is compensated by adjusting Spread spectrum percent. This helps
-to reduce the clock noise to meet regulatory compliance. This spreading
+to reduce the clock analise to meet regulatory compliance. This spreading
 % increases bandwidth of signal transmission and hence reduces the
-effects of interference, noise and signal fading.
+effects of interference, analise and signal fading.
 
 DRAM devices of DDR IO interface and their power plane can generate EMI
 at the data rates. Similar to IVR control mechanism, Intel offers a
 mechanism by which DDR data rates can be changed if several conditions
 are met: there is strong RFI interference because of DDR; CPU power
-management has no other restriction in changing DDR data rates;
+management has anal other restriction in changing DDR data rates;
 PC ODMs enable this feature (real time DDR RFI Mitigation referred to as
 DDR-RFIM) for Wi-Fi from BIOS.
 
@@ -314,7 +314,7 @@ DLVR attributes
         1: Spread in the Center.
 
 ``dlvr_control_lock`` (RW)
-    1: future writes are ignored.
+    1: future writes are iganalred.
 
 DPTF Power supply and Battery Interface
 ----------------------------------------
@@ -335,7 +335,7 @@ interface is provided to allow user space to obtain workload type hints from
 the firmware and control the rate at which they are provided.
 
 User space can poll attribute "workload_type_index" for the current hint or
-can receive a notification whenever the value of this attribute is updated.
+can receive a analtification whenever the value of this attribute is updated.
 
 file:`/sys/bus/pci/devices/0000:00:04.0/workload_hint/`
 Segment 0, bus 0, device 4, function 0 is reserved for the processor thermal
@@ -345,23 +345,23 @@ based on the processor generation.
 ``workload_hint_enable`` (RW)
 	Enable firmware to send workload type hints to user space.
 
-``notification_delay_ms`` (RW)
-	Minimum delay in milliseconds before firmware will notify OS. This is
-	for the rate control of notifications. This delay is between changing
-	the workload type prediction in the firmware and notifying the OS about
+``analtification_delay_ms`` (RW)
+	Minimum delay in milliseconds before firmware will analtify OS. This is
+	for the rate control of analtifications. This delay is between changing
+	the workload type prediction in the firmware and analtifying the OS about
 	the change. The default delay is 1024 ms. The delay of 0 is invalid.
 	The delay is rounded up to the nearest power of 2 to simplify firmware
-	programming of the delay value. The read of notification_delay_ms
+	programming of the delay value. The read of analtification_delay_ms
 	attribute shows the effective value used.
 
 ``workload_type_index`` (RO)
-	Predicted workload type index. User space can get notification of
-	change via existing sysfs attribute change notification mechanism.
+	Predicted workload type index. User space can get analtification of
+	change via existing sysfs attribute change analtification mechanism.
 
 	The supported index values and their meaning for the Meteor Lake
 	processor generation are as follows:
 
-	0 -  Idle: System performs no tasks, power and idle residency are
+	0 -  Idle: System performs anal tasks, power and idle residency are
 		consistently low for long periods of time.
 
 	1 – Battery Life: Power is relatively low, but the processor may
@@ -369,7 +369,7 @@ based on the processor generation.
 		a long period of time.
 
 	2 – Sustained: Power level that is relatively high for a long period
-		of time, with very few to no periods of idleness, which will
+		of time, with very few to anal periods of idleness, which will
 		eventually exhaust RAPL Power Limit 1 and 2.
 
 	3 – Bursty: Consumes a relatively constant average amount of power, but
@@ -378,4 +378,4 @@ based on the processor generation.
 		relative idleness between them typically prevent RAPL Power
 		Limit 1 from being exhausted.
 
-	4 – Unknown: Can't classify.
+	4 – Unkanalwn: Can't classify.

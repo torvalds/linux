@@ -30,11 +30,11 @@ static void a4xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 	for (i = 0; i < submit->nr_cmds; i++) {
 		switch (submit->cmd[i].type) {
 		case MSM_SUBMIT_CMD_IB_TARGET_BUF:
-			/* ignore IB-targets */
+			/* iganalre IB-targets */
 			break;
 		case MSM_SUBMIT_CMD_CTX_RESTORE_BUF:
-			/* ignore if there has not been a ctx switch: */
-			if (gpu->cur_ctx_seqno == submit->queue->ctx->seqno)
+			/* iganalre if there has analt been a ctx switch: */
+			if (gpu->cur_ctx_seqanal == submit->queue->ctx->seqanal)
 				break;
 			fallthrough;
 		case MSM_SUBMIT_CMD_BUF:
@@ -47,9 +47,9 @@ static void a4xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 	}
 
 	OUT_PKT0(ring, REG_AXXX_CP_SCRATCH_REG2, 1);
-	OUT_RING(ring, submit->seqno);
+	OUT_RING(ring, submit->seqanal);
 
-	/* Flush HLSQ lazy updates to make sure there is nothing
+	/* Flush HLSQ lazy updates to make sure there is analthing
 	 * pending for indirect loads after the timestamp has
 	 * passed:
 	 */
@@ -64,18 +64,18 @@ static void a4xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 	OUT_PKT3(ring, CP_EVENT_WRITE, 3);
 	OUT_RING(ring, CACHE_FLUSH_TS | CP_EVENT_WRITE_0_IRQ);
 	OUT_RING(ring, rbmemptr(ring, fence));
-	OUT_RING(ring, submit->seqno);
+	OUT_RING(ring, submit->seqanal);
 
-	adreno_flush(gpu, ring, REG_A4XX_CP_RB_WPTR);
+	adreanal_flush(gpu, ring, REG_A4XX_CP_RB_WPTR);
 }
 
 /*
  * a4xx_enable_hwcg() - Program the clock control registers
- * @device: The adreno device pointer
+ * @device: The adreanal device pointer
  */
 static void a4xx_enable_hwcg(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
 	unsigned int i;
 	for (i = 0; i < 4; i++)
 		gpu_write(gpu, REG_A4XX_RBBM_CLOCK_CTL_TP(i), 0x02222202);
@@ -104,7 +104,7 @@ static void a4xx_enable_hwcg(struct msm_gpu *gpu)
 
 	/* Disable L1 clocking in A420 due to CCU issues with it */
 	for (i = 0; i < 4; i++) {
-		if (adreno_is_a420(adreno_gpu)) {
+		if (adreanal_is_a420(adreanal_gpu)) {
 			gpu_write(gpu, REG_A4XX_RBBM_CLOCK_CTL2_RB(i),
 					0x00002020);
 		} else {
@@ -113,8 +113,8 @@ static void a4xx_enable_hwcg(struct msm_gpu *gpu)
 		}
 	}
 
-	/* No CCU for A405 */
-	if (!adreno_is_a405(adreno_gpu)) {
+	/* Anal CCU for A405 */
+	if (!adreanal_is_a405(adreanal_gpu)) {
 		for (i = 0; i < 4; i++) {
 			gpu_write(gpu, REG_A4XX_RBBM_CLOCK_CTL_MARB_CCU(i),
 					0x00000922);
@@ -145,7 +145,7 @@ static void a4xx_enable_hwcg(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A4XX_RBBM_CLOCK_DELAY_HLSQ, 0x00220000);
 	/* Early A430's have a timing issue with SP/TP power collapse;
 	   disabling HW clock gating prevents it. */
-	if (adreno_is_a430(adreno_gpu) && adreno_patchid(adreno_gpu) < 2)
+	if (adreanal_is_a430(adreanal_gpu) && adreanal_patchid(adreanal_gpu) < 2)
 		gpu_write(gpu, REG_A4XX_RBBM_CLOCK_CTL, 0);
 	else
 		gpu_write(gpu, REG_A4XX_RBBM_CLOCK_CTL, 0xAAAAAAAA);
@@ -176,20 +176,20 @@ static bool a4xx_me_init(struct msm_gpu *gpu)
 	OUT_RING(ring, 0x00000000);
 	OUT_RING(ring, 0x00000000);
 
-	adreno_flush(gpu, ring, REG_A4XX_CP_RB_WPTR);
+	adreanal_flush(gpu, ring, REG_A4XX_CP_RB_WPTR);
 	return a4xx_idle(gpu);
 }
 
 static int a4xx_hw_init(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a4xx_gpu *a4xx_gpu = to_a4xx_gpu(adreno_gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
+	struct a4xx_gpu *a4xx_gpu = to_a4xx_gpu(adreanal_gpu);
 	uint32_t *ptr, len;
 	int i, ret;
 
-	if (adreno_is_a405(adreno_gpu)) {
+	if (adreanal_is_a405(adreanal_gpu)) {
 		gpu_write(gpu, REG_A4XX_VBIF_ROUND_ROBIN_QOS_ARB, 0x00000003);
-	} else if (adreno_is_a420(adreno_gpu)) {
+	} else if (adreanal_is_a420(adreanal_gpu)) {
 		gpu_write(gpu, REG_A4XX_VBIF_ABIT_SORT, 0x0001001F);
 		gpu_write(gpu, REG_A4XX_VBIF_ABIT_SORT_CONF, 0x000000A4);
 		gpu_write(gpu, REG_A4XX_VBIF_GATE_OFF_WRREQ_EN, 0x00000001);
@@ -198,7 +198,7 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 		gpu_write(gpu, REG_A4XX_VBIF_IN_WR_LIM_CONF0, 0x18181818);
 		gpu_write(gpu, REG_A4XX_VBIF_IN_WR_LIM_CONF1, 0x00000018);
 		gpu_write(gpu, REG_A4XX_VBIF_ROUND_ROBIN_QOS_ARB, 0x00000003);
-	} else if (adreno_is_a430(adreno_gpu)) {
+	} else if (adreanal_is_a430(adreanal_gpu)) {
 		gpu_write(gpu, REG_A4XX_VBIF_GATE_OFF_WRREQ_EN, 0x00000001);
 		gpu_write(gpu, REG_A4XX_VBIF_IN_RD_LIM_CONF0, 0x18181818);
 		gpu_write(gpu, REG_A4XX_VBIF_IN_RD_LIM_CONF1, 0x00000018);
@@ -216,7 +216,7 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A4XX_RBBM_SP_HYST_CNT, 0x10);
 	gpu_write(gpu, REG_A4XX_RBBM_WAIT_IDLE_CLOCKS_CTL, 0x10);
 
-	if (adreno_is_a430(adreno_gpu)) {
+	if (adreanal_is_a430(adreanal_gpu)) {
 		gpu_write(gpu, REG_A4XX_RBBM_WAIT_IDLE_CLOCKS_CTL2, 0x30);
 	}
 
@@ -247,7 +247,7 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 	 */
 	gpu_write(gpu, REG_A4XX_CP_PERFCTR_CP_SEL_0, CP_ALWAYS_COUNT);
 
-	if (adreno_is_a430(adreno_gpu))
+	if (adreanal_is_a430(adreanal_gpu))
 		gpu_write(gpu, REG_A4XX_UCHE_CACHE_WAYS_VFD, 0x07);
 
 	/* Disable L2 bypass to avoid UCHE out of bounds errors */
@@ -255,11 +255,11 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A4XX_UCHE_TRAP_BASE_HI, 0xffff0000);
 
 	gpu_write(gpu, REG_A4XX_CP_DEBUG, (1 << 25) |
-			(adreno_is_a420(adreno_gpu) ? (1 << 29) : 0));
+			(adreanal_is_a420(adreanal_gpu) ? (1 << 29) : 0));
 
 	/* On A430 enable SP regfile sleep for power savings */
 	/* TODO downstream does this for !420, so maybe applies for 405 too? */
-	if (!adreno_is_a420(adreno_gpu)) {
+	if (!adreanal_is_a420(adreanal_gpu)) {
 		gpu_write(gpu, REG_A4XX_RBBM_SP_REGFILE_SLEEP_CNTL_0,
 			0x00000441);
 		gpu_write(gpu, REG_A4XX_RBBM_SP_REGFILE_SLEEP_CNTL_1,
@@ -272,7 +272,7 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 	 * For A420 set RBBM_CLOCK_DELAY_HLSQ.CGC_HLSQ_TP_EARLY_CYC >= 2
 	 * due to timing issue with HLSQ_TP_CLK_EN
 	 */
-	if (adreno_is_a420(adreno_gpu)) {
+	if (adreanal_is_a420(adreanal_gpu)) {
 		unsigned int val;
 		val = gpu_read(gpu, REG_A4XX_RBBM_CLOCK_DELAY_HLSQ);
 		val &= ~A4XX_CGC_HLSQ_EARLY_CYC__MASK;
@@ -310,7 +310,7 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 
 	gpu_write(gpu, REG_A4XX_RBBM_INT_0_MASK, A4XX_INT0_MASK);
 
-	ret = adreno_hw_init(gpu);
+	ret = adreanal_hw_init(gpu);
 	if (ret)
 		return ret;
 
@@ -319,22 +319,22 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 	 * shadow
 	 */
 	gpu_write(gpu, REG_A4XX_CP_RB_CNTL,
-		MSM_GPU_RB_CNTL_DEFAULT | AXXX_CP_RB_CNTL_NO_UPDATE);
+		MSM_GPU_RB_CNTL_DEFAULT | AXXX_CP_RB_CNTL_ANAL_UPDATE);
 
 	/* Set the ringbuffer address */
 	gpu_write(gpu, REG_A4XX_CP_RB_BASE, lower_32_bits(gpu->rb[0]->iova));
 
 	/* Load PM4: */
-	ptr = (uint32_t *)(adreno_gpu->fw[ADRENO_FW_PM4]->data);
-	len = adreno_gpu->fw[ADRENO_FW_PM4]->size / 4;
+	ptr = (uint32_t *)(adreanal_gpu->fw[ADREANAL_FW_PM4]->data);
+	len = adreanal_gpu->fw[ADREANAL_FW_PM4]->size / 4;
 	DBG("loading PM4 ucode version: %u", ptr[0]);
 	gpu_write(gpu, REG_A4XX_CP_ME_RAM_WADDR, 0);
 	for (i = 1; i < len; i++)
 		gpu_write(gpu, REG_A4XX_CP_ME_RAM_DATA, ptr[i]);
 
 	/* Load PFP: */
-	ptr = (uint32_t *)(adreno_gpu->fw[ADRENO_FW_PFP]->data);
-	len = adreno_gpu->fw[ADRENO_FW_PFP]->size / 4;
+	ptr = (uint32_t *)(adreanal_gpu->fw[ADREANAL_FW_PFP]->data);
+	len = adreanal_gpu->fw[ADREANAL_FW_PFP]->size / 4;
 	DBG("loading PFP ucode version: %u", ptr[0]);
 
 	gpu_write(gpu, REG_A4XX_CP_PFP_UCODE_ADDR, 0);
@@ -351,7 +351,7 @@ static void a4xx_recover(struct msm_gpu *gpu)
 {
 	int i;
 
-	adreno_dump_info(gpu);
+	adreanal_dump_info(gpu);
 
 	for (i = 0; i < 8; i++) {
 		printk("CP_SCRATCH_REG%d: %u\n", i,
@@ -365,19 +365,19 @@ static void a4xx_recover(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A4XX_RBBM_SW_RESET_CMD, 1);
 	gpu_read(gpu, REG_A4XX_RBBM_SW_RESET_CMD);
 	gpu_write(gpu, REG_A4XX_RBBM_SW_RESET_CMD, 0);
-	adreno_recover(gpu);
+	adreanal_recover(gpu);
 }
 
 static void a4xx_destroy(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a4xx_gpu *a4xx_gpu = to_a4xx_gpu(adreno_gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
+	struct a4xx_gpu *a4xx_gpu = to_a4xx_gpu(adreanal_gpu);
 
 	DBG("%s", gpu->name);
 
-	adreno_gpu_cleanup(adreno_gpu);
+	adreanal_gpu_cleanup(adreanal_gpu);
 
-	adreno_gpu_ocmem_cleanup(&a4xx_gpu->ocmem);
+	adreanal_gpu_ocmem_cleanup(&a4xx_gpu->ocmem);
 
 	kfree(a4xx_gpu);
 }
@@ -385,7 +385,7 @@ static void a4xx_destroy(struct msm_gpu *gpu)
 static bool a4xx_idle(struct msm_gpu *gpu)
 {
 	/* wait for ringbuffer to drain: */
-	if (!adreno_idle(gpu, gpu->rb[0]))
+	if (!adreanal_idle(gpu, gpu->rb[0]))
 		return false;
 
 	/* then wait for GPU to finish: */
@@ -553,9 +553,9 @@ static struct msm_gpu_state *a4xx_gpu_state_get(struct msm_gpu *gpu)
 	struct msm_gpu_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
 
 	if (!state)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	adreno_gpu_state_get(gpu, state);
+	adreanal_gpu_state_get(gpu, state);
 
 	state->rbbm_status = gpu_read(gpu, REG_A4XX_RBBM_STATUS);
 
@@ -566,18 +566,18 @@ static void a4xx_dump(struct msm_gpu *gpu)
 {
 	printk("status:   %08x\n",
 			gpu_read(gpu, REG_A4XX_RBBM_STATUS));
-	adreno_dump(gpu);
+	adreanal_dump(gpu);
 }
 
 static int a4xx_pm_resume(struct msm_gpu *gpu) {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
 	int ret;
 
 	ret = msm_gpu_pm_resume(gpu);
 	if (ret)
 		return ret;
 
-	if (adreno_is_a430(adreno_gpu)) {
+	if (adreanal_is_a430(adreanal_gpu)) {
 		unsigned int reg;
 		/* Set the default register values; set SW_COLLAPSE to 0 */
 		gpu_write(gpu, REG_A4XX_RBBM_POWER_CNTL_IP, 0x778000);
@@ -590,14 +590,14 @@ static int a4xx_pm_resume(struct msm_gpu *gpu) {
 }
 
 static int a4xx_pm_suspend(struct msm_gpu *gpu) {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
 	int ret;
 
 	ret = msm_gpu_pm_suspend(gpu);
 	if (ret)
 		return ret;
 
-	if (adreno_is_a430(adreno_gpu)) {
+	if (adreanal_is_a430(adreanal_gpu)) {
 		/* Set the default register values; set SW_COLLAPSE to 1 */
 		gpu_write(gpu, REG_A4XX_RBBM_POWER_CNTL_IP, 0x778001);
 	}
@@ -627,25 +627,25 @@ static u32 a4xx_get_rptr(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 	return ring->memptrs->rptr;
 }
 
-static const struct adreno_gpu_funcs funcs = {
+static const struct adreanal_gpu_funcs funcs = {
 	.base = {
-		.get_param = adreno_get_param,
-		.set_param = adreno_set_param,
+		.get_param = adreanal_get_param,
+		.set_param = adreanal_set_param,
 		.hw_init = a4xx_hw_init,
 		.pm_suspend = a4xx_pm_suspend,
 		.pm_resume = a4xx_pm_resume,
 		.recover = a4xx_recover,
 		.submit = a4xx_submit,
-		.active_ring = adreno_active_ring,
+		.active_ring = adreanal_active_ring,
 		.irq = a4xx_irq,
 		.destroy = a4xx_destroy,
 #if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
-		.show = adreno_show,
+		.show = adreanal_show,
 #endif
 		.gpu_busy = a4xx_gpu_busy,
 		.gpu_state_get = a4xx_gpu_state_get,
-		.gpu_state_put = adreno_gpu_state_put,
-		.create_address_space = adreno_create_address_space,
+		.gpu_state_put = adreanal_gpu_state_put,
+		.create_address_space = adreanal_create_address_space,
 		.get_rptr = a4xx_get_rptr,
 	},
 	.get_timestamp = a4xx_get_timestamp,
@@ -654,7 +654,7 @@ static const struct adreno_gpu_funcs funcs = {
 struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)
 {
 	struct a4xx_gpu *a4xx_gpu = NULL;
-	struct adreno_gpu *adreno_gpu;
+	struct adreanal_gpu *adreanal_gpu;
 	struct msm_gpu *gpu;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = priv->gpu_pdev;
@@ -663,32 +663,32 @@ struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)
 	int ret;
 
 	if (!pdev) {
-		DRM_DEV_ERROR(dev->dev, "no a4xx device\n");
+		DRM_DEV_ERROR(dev->dev, "anal a4xx device\n");
 		ret = -ENXIO;
 		goto fail;
 	}
 
 	a4xx_gpu = kzalloc(sizeof(*a4xx_gpu), GFP_KERNEL);
 	if (!a4xx_gpu) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
-	adreno_gpu = &a4xx_gpu->base;
-	gpu = &adreno_gpu->base;
+	adreanal_gpu = &a4xx_gpu->base;
+	gpu = &adreanal_gpu->base;
 
 	gpu->perfcntrs = NULL;
 	gpu->num_perfcntrs = 0;
 
-	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 1);
+	ret = adreanal_gpu_init(dev, pdev, adreanal_gpu, &funcs, 1);
 	if (ret)
 		goto fail;
 
-	adreno_gpu->registers = adreno_is_a405(adreno_gpu) ? a405_registers :
+	adreanal_gpu->registers = adreanal_is_a405(adreanal_gpu) ? a405_registers :
 							     a4xx_registers;
 
 	/* if needed, allocate gmem: */
-	ret = adreno_gpu_ocmem_init(dev->dev, adreno_gpu,
+	ret = adreanal_gpu_ocmem_init(dev->dev, adreanal_gpu,
 				    &a4xx_gpu->ocmem);
 	if (ret)
 		goto fail;
@@ -696,12 +696,12 @@ struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)
 	if (!gpu->aspace) {
 		/* TODO we think it is possible to configure the GPU to
 		 * restrict access to VRAM carveout.  But the required
-		 * registers are unknown.  For now just bail out and
+		 * registers are unkanalwn.  For analw just bail out and
 		 * limp along with just modesetting.  If it turns out
-		 * to not be possible to restrict access, then we must
+		 * to analt be possible to restrict access, then we must
 		 * implement a cmdstream validator.
 		 */
-		DRM_DEV_ERROR(dev->dev, "No memory protection without IOMMU\n");
+		DRM_DEV_ERROR(dev->dev, "Anal memory protection without IOMMU\n");
 		if (!allow_vram_carveout) {
 			ret = -ENXIO;
 			goto fail;
@@ -717,14 +717,14 @@ struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)
 	ocmem_icc_path = devm_of_icc_get(&pdev->dev, "ocmem");
 	if (IS_ERR(ocmem_icc_path)) {
 		ret = PTR_ERR(ocmem_icc_path);
-		/* allow -ENODATA, ocmem icc is optional */
-		if (ret != -ENODATA)
+		/* allow -EANALDATA, ocmem icc is optional */
+		if (ret != -EANALDATA)
 			goto fail;
 		ocmem_icc_path = NULL;
 	}
 
 	/*
-	 * Set the ICC path to maximum speed for now by multiplying the fastest
+	 * Set the ICC path to maximum speed for analw by multiplying the fastest
 	 * frequency by the bus width (8). We'll want to scale this later on to
 	 * improve battery life.
 	 */

@@ -13,7 +13,7 @@
 #undef PULL_ENA
 
 /*
- * Note that dm814x silicon revision 2.1 and older require input enabled
+ * Analte that dm814x silicon revision 2.1 and older require input enabled
  * (bit 18 set) for all 3.3V I/Os to avoid cumulative hardware damage. For
  * more info, see errata advisory 2.1.87. We leave bit 18 out of
  * function-mask in dm814x.h and rely on the bootloader for it.
@@ -37,8 +37,8 @@
 #define PIN_INPUT_PULLUP	(INPUT_EN | PULL_UP)
 #define PIN_INPUT_PULLDOWN	(INPUT_EN)
 
-/* undef non-existing modes */
-#undef PIN_OFF_NONE
+/* undef analn-existing modes */
+#undef PIN_OFF_ANALNE
 #undef PIN_OFF_OUTPUT_HIGH
 #undef PIN_OFF_OUTPUT_LOW
 #undef PIN_OFF_INPUT_PULLUP

@@ -2,7 +2,7 @@
 Triggered Buffers
 =================
 
-Now that we know what buffers and triggers are let's see how they work together.
+Analw that we kanalw what buffers and triggers are let's see how they work together.
 
 IIO triggered buffer setup
 ==========================
@@ -38,7 +38,7 @@ A typical triggered buffer setup looks like this::
 
         iio_push_to_buffers_with_timestamp(indio_dev, buf, timestamp);
 
-        iio_trigger_notify_done(trigger);
+        iio_trigger_analtify_done(trigger);
         return IRQ_HANDLED;
     }
 
@@ -47,11 +47,11 @@ A typical triggered buffer setup looks like this::
                                sensor_trigger_handler,
                                sensor_buffer_setup_ops);
 
-The important things to notice here are:
+The important things to analtice here are:
 
 * :c:type:`iio_buffer_setup_ops`, the buffer setup functions to be called at
   predefined points in the buffer configuration sequence (e.g. before enable,
-  after disable). If not specified, the IIO core uses the default
+  after disable). If analt specified, the IIO core uses the default
   iio_triggered_buffer_setup_ops.
 * **sensor_iio_pollfunc**, the function that will be used as top half of poll
   function. It should do as little processing as possible, because it runs in

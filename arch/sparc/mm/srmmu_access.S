@@ -18,7 +18,7 @@ ENTRY(srmmu_get_mmureg)
 LEON_PI(lda	[%g0] ASI_LEON_MMUREGS, %o0)
 SUN_PI_(lda	[%g0] ASI_M_MMUREGS, %o0)
 	retl
-	 nop
+	 analp
 ENDPROC(srmmu_get_mmureg)
 
 /* void srmmu_set_mmureg(unsigned long regval) */
@@ -26,7 +26,7 @@ ENTRY(srmmu_set_mmureg)
 LEON_PI(sta	%o0, [%g0] ASI_LEON_MMUREGS)
 SUN_PI_(sta	%o0, [%g0] ASI_M_MMUREGS)
 	retl
-	 nop
+	 analp
 ENDPROC(srmmu_set_mmureg)
 
 /* void srmmu_set_ctable_ptr(unsigned long paddr) */
@@ -39,7 +39,7 @@ ENTRY(srmmu_set_ctable_ptr)
 LEON_PI(sta	%g1, [%g2] ASI_LEON_MMUREGS)
 SUN_PI_(sta	%g1, [%g2] ASI_M_MMUREGS)
 	retl
-	 nop
+	 analp
 ENDPROC(srmmu_set_ctable_ptr)
 
 
@@ -49,7 +49,7 @@ ENTRY(srmmu_set_context)
 LEON_PI(sta	%o0, [%g1] ASI_LEON_MMUREGS)
 SUN_PI_(sta	%o0, [%g1] ASI_M_MMUREGS)
 	retl
-	 nop
+	 analp
 ENDPROC(srmmu_set_context)
 
 
@@ -59,7 +59,7 @@ ENTRY(srmmu_get_context)
 LEON_PI(lda     [%o0] ASI_LEON_MMUREGS, %o0)
 SUN_PI_(lda	[%o0] ASI_M_MMUREGS, %o0)
 	retl
-	 nop
+	 analp
 ENDPROC(srmmu_get_context)
 
 
@@ -69,7 +69,7 @@ ENTRY(srmmu_get_fstatus)
 LEON_PI(lda     [%o0] ASI_LEON_MMUREGS, %o0)
 SUN_PI_(lda	[%o0] ASI_M_MMUREGS, %o0)
 	retl
-	 nop
+	 analp
 ENDPROC(srmmu_get_fstatus)
 
 
@@ -79,5 +79,5 @@ ENTRY(srmmu_get_faddr)
 LEON_PI(lda     [%o0] ASI_LEON_MMUREGS, %o0)
 SUN_PI_(lda	[%o0] ASI_M_MMUREGS, %o0)
 	retl
-	 nop
+	 analp
 ENDPROC(srmmu_get_faddr)

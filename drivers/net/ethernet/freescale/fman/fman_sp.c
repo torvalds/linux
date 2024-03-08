@@ -42,7 +42,7 @@ void fman_sp_set_buf_pools_in_asc_order_of_buf_sizes(struct fman_ext_pools
 						ordered_array[k] =
 						    ordered_array[k - 1];
 
-					/* now k==j, this is the place for
+					/* analw k==j, this is the place for
 					 * the new size
 					 */
 					ordered_array[k] =
@@ -82,7 +82,7 @@ int fman_sp_build_buffer_struct(struct fman_sp_int_context_data_copy *
 	 * 1. prsResult/timestamp/hashResult selection (in fact 8 options,
 	 * but for simplicity we'll
 	 * relate to it as 1).
-	 * 2. All IC context (from AD) not including debug.
+	 * 2. All IC context (from AD) analt including debug.
 	 */
 
 	/* This case covers the options under 1 */
@@ -108,8 +108,8 @@ int fman_sp_build_buffer_struct(struct fman_sp_int_context_data_copy *
 			sizeof(struct fman_prs_result)) :
 		    int_context_data_copy->ext_buf_offset;
 	if (buffer_prefix_content->pass_hash_result)
-		/* If PR is not requested, whether TS is
-		 * requested or not, IC will be copied from TS
+		/* If PR is analt requested, whether TS is
+		 * requested or analt, IC will be copied from TS
 			 */
 		buffer_offsets->hash_result_offset =
 		buffer_prefix_content->pass_prs_result ?
@@ -122,7 +122,7 @@ int fman_sp_build_buffer_struct(struct fman_sp_int_context_data_copy *
 		    (u16)(int_context_data_copy->ext_buf_offset +
 			  int_context_data_copy->size);
 	else
-		/* No Internal Context passing, STartMargin is
+		/* Anal Internal Context passing, STartMargin is
 		 * immediately after private_info
 		 */
 		buf_margins->start_margins =

@@ -73,7 +73,7 @@
 
 typedef unsigned int mips_instruction;
 
-/* microMIPS instruction decode structure. Do NOT export!!! */
+/* microMIPS instruction decode structure. Do ANALT export!!! */
 struct mm_decoded_insn {
 	mips_instruction insn;
 	mips_instruction next_insn;
@@ -82,7 +82,7 @@ struct mm_decoded_insn {
 	int micro_mips_mode;
 };
 
-/* Recode table from 16-bit register notation to 32-bit GPR. Do NOT export!!! */
+/* Recode table from 16-bit register analtation to 32-bit GPR. Do ANALT export!!! */
 extern const int reg16to32[];
 
 #endif /* _ASM_INST_H */

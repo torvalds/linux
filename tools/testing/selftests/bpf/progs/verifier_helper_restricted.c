@@ -30,7 +30,7 @@ struct {
 
 SEC("kprobe")
 __description("bpf_ktime_get_coarse_ns is forbidden in BPF_PROG_TYPE_KPROBE")
-__failure __msg("unknown func bpf_ktime_get_coarse_ns")
+__failure __msg("unkanalwn func bpf_ktime_get_coarse_ns")
 __naked void in_bpf_prog_type_kprobe_1(void)
 {
 	asm volatile ("					\
@@ -44,7 +44,7 @@ __naked void in_bpf_prog_type_kprobe_1(void)
 
 SEC("tracepoint")
 __description("bpf_ktime_get_coarse_ns is forbidden in BPF_PROG_TYPE_TRACEPOINT")
-__failure __msg("unknown func bpf_ktime_get_coarse_ns")
+__failure __msg("unkanalwn func bpf_ktime_get_coarse_ns")
 __naked void in_bpf_prog_type_tracepoint_1(void)
 {
 	asm volatile ("					\
@@ -58,7 +58,7 @@ __naked void in_bpf_prog_type_tracepoint_1(void)
 
 SEC("perf_event")
 __description("bpf_ktime_get_coarse_ns is forbidden in BPF_PROG_TYPE_PERF_EVENT")
-__failure __msg("unknown func bpf_ktime_get_coarse_ns")
+__failure __msg("unkanalwn func bpf_ktime_get_coarse_ns")
 __naked void bpf_prog_type_perf_event_1(void)
 {
 	asm volatile ("					\
@@ -72,7 +72,7 @@ __naked void bpf_prog_type_perf_event_1(void)
 
 SEC("raw_tracepoint")
 __description("bpf_ktime_get_coarse_ns is forbidden in BPF_PROG_TYPE_RAW_TRACEPOINT")
-__failure __msg("unknown func bpf_ktime_get_coarse_ns")
+__failure __msg("unkanalwn func bpf_ktime_get_coarse_ns")
 __naked void bpf_prog_type_raw_tracepoint_1(void)
 {
 	asm volatile ("					\
@@ -86,7 +86,7 @@ __naked void bpf_prog_type_raw_tracepoint_1(void)
 
 SEC("kprobe")
 __description("bpf_timer_init isn restricted in BPF_PROG_TYPE_KPROBE")
-__failure __msg("tracing progs cannot use bpf_timer yet")
+__failure __msg("tracing progs cananalt use bpf_timer yet")
 __naked void in_bpf_prog_type_kprobe_2(void)
 {
 	asm volatile ("					\
@@ -111,7 +111,7 @@ l0_%=:	call %[bpf_timer_init];				\
 
 SEC("perf_event")
 __description("bpf_timer_init is forbidden in BPF_PROG_TYPE_PERF_EVENT")
-__failure __msg("tracing progs cannot use bpf_timer yet")
+__failure __msg("tracing progs cananalt use bpf_timer yet")
 __naked void bpf_prog_type_perf_event_2(void)
 {
 	asm volatile ("					\
@@ -136,7 +136,7 @@ l0_%=:	call %[bpf_timer_init];				\
 
 SEC("tracepoint")
 __description("bpf_timer_init is forbidden in BPF_PROG_TYPE_TRACEPOINT")
-__failure __msg("tracing progs cannot use bpf_timer yet")
+__failure __msg("tracing progs cananalt use bpf_timer yet")
 __naked void in_bpf_prog_type_tracepoint_2(void)
 {
 	asm volatile ("					\
@@ -161,7 +161,7 @@ l0_%=:	call %[bpf_timer_init];				\
 
 SEC("raw_tracepoint")
 __description("bpf_timer_init is forbidden in BPF_PROG_TYPE_RAW_TRACEPOINT")
-__failure __msg("tracing progs cannot use bpf_timer yet")
+__failure __msg("tracing progs cananalt use bpf_timer yet")
 __naked void bpf_prog_type_raw_tracepoint_2(void)
 {
 	asm volatile ("					\
@@ -186,7 +186,7 @@ l0_%=:	call %[bpf_timer_init];				\
 
 SEC("kprobe")
 __description("bpf_spin_lock is forbidden in BPF_PROG_TYPE_KPROBE")
-__failure __msg("tracing progs cannot use bpf_spin_lock yet")
+__failure __msg("tracing progs cananalt use bpf_spin_lock yet")
 __naked void in_bpf_prog_type_kprobe_3(void)
 {
 	asm volatile ("					\
@@ -209,7 +209,7 @@ l0_%=:	exit;						\
 
 SEC("tracepoint")
 __description("bpf_spin_lock is forbidden in BPF_PROG_TYPE_TRACEPOINT")
-__failure __msg("tracing progs cannot use bpf_spin_lock yet")
+__failure __msg("tracing progs cananalt use bpf_spin_lock yet")
 __naked void in_bpf_prog_type_tracepoint_3(void)
 {
 	asm volatile ("					\
@@ -232,7 +232,7 @@ l0_%=:	exit;						\
 
 SEC("perf_event")
 __description("bpf_spin_lock is forbidden in BPF_PROG_TYPE_PERF_EVENT")
-__failure __msg("tracing progs cannot use bpf_spin_lock yet")
+__failure __msg("tracing progs cananalt use bpf_spin_lock yet")
 __naked void bpf_prog_type_perf_event_3(void)
 {
 	asm volatile ("					\
@@ -255,7 +255,7 @@ l0_%=:	exit;						\
 
 SEC("raw_tracepoint")
 __description("bpf_spin_lock is forbidden in BPF_PROG_TYPE_RAW_TRACEPOINT")
-__failure __msg("tracing progs cannot use bpf_spin_lock yet")
+__failure __msg("tracing progs cananalt use bpf_spin_lock yet")
 __naked void bpf_prog_type_raw_tracepoint_3(void)
 {
 	asm volatile ("					\

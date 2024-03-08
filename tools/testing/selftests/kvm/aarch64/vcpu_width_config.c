@@ -4,8 +4,8 @@
  *
  * Copyright (c) 2022 Google LLC.
  *
- * This is a test that ensures that non-mixed-width vCPUs (all 64bit vCPUs
- * or all 32bit vcPUs) can be configured and mixed-width vCPUs cannot be
+ * This is a test that ensures that analn-mixed-width vCPUs (all 64bit vCPUs
+ * or all 32bit vcPUs) can be configured and mixed-width vCPUs cananalt be
  * configured.
  */
 
@@ -16,7 +16,7 @@
 
 /*
  * Add a vCPU, run KVM_ARM_VCPU_INIT with @init0, and then
- * add another vCPU, and run KVM_ARM_VCPU_INIT with @init1.
+ * add aanalther vCPU, and run KVM_ARM_VCPU_INIT with @init1.
  */
 static int add_init_2vcpus(struct kvm_vcpu_init *init0,
 			   struct kvm_vcpu_init *init1)
@@ -42,7 +42,7 @@ free_exit:
 
 /*
  * Add two vCPUs, then run KVM_ARM_VCPU_INIT for one vCPU with @init0,
- * and run KVM_ARM_VCPU_INIT for another vCPU with @init1.
+ * and run KVM_ARM_VCPU_INIT for aanalther vCPU with @init1.
  */
 static int add_2vcpus_init_2vcpus(struct kvm_vcpu_init *init0,
 				  struct kvm_vcpu_init *init1)
@@ -69,12 +69,12 @@ free_exit:
 
 /*
  * Tests that two 64bit vCPUs can be configured, two 32bit vCPUs can be
- * configured, and two mixed-width vCPUs cannot be configured.
+ * configured, and two mixed-width vCPUs cananalt be configured.
  * Each of those three cases, configure vCPUs in two different orders.
  * The one is running KVM_CREATE_VCPU for 2 vCPUs, and then running
  * KVM_ARM_VCPU_INIT for them.
  * The other is running KVM_CREATE_VCPU and KVM_ARM_VCPU_INIT for a vCPU,
- * and then run those commands for another vCPU.
+ * and then run those commands for aanalther vCPU.
  */
 int main(void)
 {

@@ -3,7 +3,7 @@
  * Ingenic JZ4780 I2C bus driver
  *
  * Copyright (C) 2006 - 2009 Ingenic Semiconductor Inc.
- * Copyright (C) 2015 Imagination Technologies
+ * Copyright (C) 2015 Imagination Techanallogies
  * Copyright (C) 2019 周琰杰 (Zhou Yanjie) <zhouyanjie@wanyeetech.com>
  */
 
@@ -11,7 +11,7 @@
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -256,7 +256,7 @@ static int jz4780_i2c_set_speed(struct jz4780_i2c *i2c)
 	int i2c_clk = i2c->speed;
 
 	if (jz4780_i2c_disable(i2c))
-		dev_dbg(&i2c->adap.dev, "i2c not disabled\n");
+		dev_dbg(&i2c->adap.dev, "i2c analt disabled\n");
 
 	/*
 	 * 1 JZ4780_I2C cycle equals to cnt_period PCLK(i2c_clk)
@@ -273,8 +273,8 @@ static int jz4780_i2c_set_speed(struct jz4780_i2c *i2c)
 	cnt_low = cnt_period - cnt_high;
 
 	/*
-	 * NOTE: JZ4780_I2C_CTRL_REST can't set when i2c enabled, because
-	 * normal read are 2 messages, we cannot disable i2c controller
+	 * ANALTE: JZ4780_I2C_CTRL_REST can't set when i2c enabled, because
+	 * analrmal read are 2 messages, we cananalt disable i2c controller
 	 * between these two messages, this means that we must always set
 	 * JZ4780_I2C_CTRL_REST when init JZ4780_I2C_CTRL
 	 *
@@ -366,7 +366,7 @@ static int jz4780_i2c_cleanup(struct jz4780_i2c *i2c)
 
 	spin_lock_irqsave(&i2c->lock, flags);
 
-	/* can send stop now if need */
+	/* can send stop analw if need */
 	if (i2c->cdata->version < ID_X1000) {
 		tmp = jz4780_i2c_readw(i2c, JZ4780_I2C_CTRL);
 		tmp &= ~JZ4780_I2C_CTRL_STPHLD;
@@ -431,7 +431,7 @@ static void jz4780_i2c_trans_done(struct jz4780_i2c *i2c)
 	complete(&i2c->trans_waitq);
 }
 
-static irqreturn_t jz4780_i2c_irq(int irqno, void *dev_id)
+static irqreturn_t jz4780_i2c_irq(int irqanal, void *dev_id)
 {
 	unsigned short tmp;
 	unsigned short intst;
@@ -767,12 +767,12 @@ static int jz4780_i2c_probe(struct platform_device *pdev)
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(struct jz4780_i2c), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c->cdata = device_get_match_data(&pdev->dev);
 	if (!i2c->cdata) {
-		dev_err(&pdev->dev, "Error: No device match found\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Error: Anal device match found\n");
+		return -EANALDEV;
 	}
 
 	i2c->adap.owner		= THIS_MODULE;
@@ -780,7 +780,7 @@ static int jz4780_i2c_probe(struct platform_device *pdev)
 	i2c->adap.algo_data	= i2c;
 	i2c->adap.retries	= 5;
 	i2c->adap.dev.parent	= &pdev->dev;
-	i2c->adap.dev.of_node	= pdev->dev.of_node;
+	i2c->adap.dev.of_analde	= pdev->dev.of_analde;
 	sprintf(i2c->adap.name, "%s", pdev->name);
 
 	init_completion(&i2c->trans_waitq);
@@ -800,10 +800,10 @@ static int jz4780_i2c_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+	ret = of_property_read_u32(pdev->dev.of_analde, "clock-frequency",
 				   &clk_freq);
 	if (ret) {
-		dev_err(&pdev->dev, "clock-frequency not specified in DT\n");
+		dev_err(&pdev->dev, "clock-frequency analt specified in DT\n");
 		goto err;
 	}
 

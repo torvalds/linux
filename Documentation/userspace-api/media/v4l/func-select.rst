@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _func-select:
@@ -10,9 +10,9 @@ V4L2 select()
 Name
 ====
 
-v4l2-select - Synchronous I/O multiplexing
+v4l2-select - Synchroanalus I/O multiplexing
 
-Synopsis
+Syanalpsis
 ========
 
 .. code-block:: c
@@ -55,8 +55,8 @@ the outgoing queue of the driver the function returns immediately.
 
 On success :c:func:`select()` returns the total number of bits set in
 ``fd_set``. When the function timed out it returns
-a value of zero. On failure it returns -1 and the ``errno`` variable is
-set appropriately. When the application did not call
+a value of zero. On failure it returns -1 and the ``erranal`` variable is
+set appropriately. When the application did analt call
 :ref:`VIDIOC_QBUF` or
 :ref:`VIDIOC_STREAMON` yet the :c:func:`select()`
 function succeeds, setting the bit of the file descriptor in ``readfds``
@@ -64,7 +64,7 @@ or ``writefds``, but subsequent :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`
 calls will fail. [#f1]_
 
 When use of the :c:func:`read()` function has been negotiated and the
-driver does not capture yet, the :c:func:`select()` function starts
+driver does analt capture yet, the :c:func:`select()` function starts
 capturing. When that fails, :c:func:`select()` returns successful and
 a subsequent :c:func:`read()` call, which also attempts to start
 capturing, will return an appropriate error code. When the driver
@@ -74,7 +74,7 @@ immediately.
 
 When use of the :c:func:`write()` function has been negotiated the
 :c:func:`select()` function just waits until the driver is ready for a
-non-blocking :c:func:`write()` call.
+analn-blocking :c:func:`write()` call.
 
 All drivers implementing the :c:func:`read()` or :c:func:`write()`
 function or streaming I/O must also support the :c:func:`select()`
@@ -87,16 +87,16 @@ Return Value
 
 On success, :c:func:`select()` returns the number of descriptors
 contained in the three returned descriptor sets, which will be zero if
-the timeout expired. On error -1 is returned, and the ``errno`` variable
+the timeout expired. On error -1 is returned, and the ``erranal`` variable
 is set appropriately; the sets and ``timeout`` are undefined. Possible
 error codes are:
 
 EBADF
     One or more of the file descriptor sets specified a file descriptor
-    that is not open.
+    that is analt open.
 
 EBUSY
-    The driver does not support multiple read or write streams and the
+    The driver does analt support multiple read or write streams and the
     device is already in use.
 
 EFAULT
@@ -112,5 +112,5 @@ EINVAL
 
 .. [#f1]
    The Linux kernel implements :c:func:`select()` like the
-   :c:func:`poll()` function, but :c:func:`select()` cannot
+   :c:func:`poll()` function, but :c:func:`select()` cananalt
    return a ``POLLERR``.

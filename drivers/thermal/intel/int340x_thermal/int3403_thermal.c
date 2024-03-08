@@ -48,7 +48,7 @@ struct int3403_priv {
 	void *priv;
 };
 
-static void int3403_notify(acpi_handle handle,
+static void int3403_analtify(acpi_handle handle,
 		u32 event, void *data)
 {
 	struct int3403_priv *priv = data;
@@ -86,7 +86,7 @@ static int int3403_sensor_add(struct int3403_priv *priv)
 
 	obj = devm_kzalloc(&priv->pdev->dev, sizeof(*obj), GFP_KERNEL);
 	if (!obj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->priv = obj;
 
@@ -94,8 +94,8 @@ static int int3403_sensor_add(struct int3403_priv *priv)
 	if (IS_ERR(obj->int340x_zone))
 		return PTR_ERR(obj->int340x_zone);
 
-	result = acpi_install_notify_handler(priv->adev->handle,
-			ACPI_DEVICE_NOTIFY, int3403_notify,
+	result = acpi_install_analtify_handler(priv->adev->handle,
+			ACPI_DEVICE_ANALTIFY, int3403_analtify,
 			(void *)priv);
 	if (result)
 		goto err_free_obj;
@@ -111,8 +111,8 @@ static int int3403_sensor_remove(struct int3403_priv *priv)
 {
 	struct int3403_sensor *obj = priv->priv;
 
-	acpi_remove_notify_handler(priv->adev->handle,
-				   ACPI_DEVICE_NOTIFY, int3403_notify);
+	acpi_remove_analtify_handler(priv->adev->handle,
+				   ACPI_DEVICE_ANALTIFY, int3403_analtify);
 	int340x_thermal_zone_remove(obj->int340x_zone);
 
 	return 0;
@@ -173,11 +173,11 @@ static int int3403_cdev_add(struct int3403_priv *priv)
 
 	obj = devm_kzalloc(&priv->pdev->dev, sizeof(*obj), GFP_KERNEL);
 	if (!obj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = acpi_evaluate_object(priv->adev->handle, "PPSS", NULL, &buf);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	p = buf.pointer;
 	if (!p || (p->type != ACPI_TYPE_PACKAGE)) {
@@ -195,7 +195,7 @@ static int int3403_cdev_add(struct int3403_priv *priv)
 		result = PTR_ERR(obj->cdev);
 
 	kfree(buf.pointer);
-	/* TODO: add ACPI notification support */
+	/* TODO: add ACPI analtification support */
 
 	return result;
 }
@@ -218,7 +218,7 @@ static int int3403_add(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct int3403_priv),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->pdev = pdev;
 	priv->adev = ACPI_COMPANION(&(pdev->dev));

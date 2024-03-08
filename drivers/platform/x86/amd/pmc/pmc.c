@@ -71,7 +71,7 @@
 #define AMD_PMC_RESULT_OK                    0x01
 #define AMD_PMC_RESULT_CMD_REJECT_BUSY       0xFC
 #define AMD_PMC_RESULT_CMD_REJECT_PREREQ     0xFD
-#define AMD_PMC_RESULT_CMD_UNKNOWN           0xFE
+#define AMD_PMC_RESULT_CMD_UNKANALWN           0xFE
 #define AMD_PMC_RESULT_FAILED                0xFF
 
 /* FCH SSC Registers */
@@ -189,20 +189,20 @@ struct smu_metrics {
 	u64 timein_s0i3_totaltime;
 	u64 timein_swdrips_lastcapture;
 	u64 timein_swdrips_totaltime;
-	u64 timecondition_notmet_lastcapture[32];
-	u64 timecondition_notmet_totaltime[32];
+	u64 timecondition_analtmet_lastcapture[32];
+	u64 timecondition_analtmet_totaltime[32];
 } __packed;
 
-static int amd_pmc_stb_debugfs_open(struct inode *inode, struct file *filp)
+static int amd_pmc_stb_debugfs_open(struct ianalde *ianalde, struct file *filp)
 {
-	struct amd_pmc_dev *dev = filp->f_inode->i_private;
+	struct amd_pmc_dev *dev = filp->f_ianalde->i_private;
 	u32 size = FIFO_SIZE * sizeof(u32);
 	u32 *buf;
 	int rc;
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = amd_pmc_read_stb(dev, buf);
 	if (rc) {
@@ -224,7 +224,7 @@ static ssize_t amd_pmc_stb_debugfs_read(struct file *filp, char __user *buf, siz
 				       FIFO_SIZE * sizeof(u32));
 }
 
-static int amd_pmc_stb_debugfs_release(struct inode *inode, struct file *filp)
+static int amd_pmc_stb_debugfs_release(struct ianalde *ianalde, struct file *filp)
 {
 	kfree(filp->private_data);
 	return 0;
@@ -240,14 +240,14 @@ static const struct file_operations amd_pmc_stb_debugfs_fops = {
 /* Enhanced STB Firmware Reporting Mechanism */
 static int amd_pmc_stb_handle_efr(struct file *filp)
 {
-	struct amd_pmc_dev *dev = filp->f_inode->i_private;
+	struct amd_pmc_dev *dev = filp->f_ianalde->i_private;
 	struct amd_pmc_stb_v2_data *stb_data_arr;
 	u32 fsize;
 
 	fsize = dev->dram_size - S2D_RSVD_RAM_SPACE;
 	stb_data_arr = kmalloc(struct_size(stb_data_arr, data, fsize), GFP_KERNEL);
 	if (!stb_data_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stb_data_arr->size = fsize;
 	memcpy_fromio(stb_data_arr->data, dev->stb_virt_addr, fsize);
@@ -256,9 +256,9 @@ static int amd_pmc_stb_handle_efr(struct file *filp)
 	return 0;
 }
 
-static int amd_pmc_stb_debugfs_open_v2(struct inode *inode, struct file *filp)
+static int amd_pmc_stb_debugfs_open_v2(struct ianalde *ianalde, struct file *filp)
 {
-	struct amd_pmc_dev *dev = filp->f_inode->i_private;
+	struct amd_pmc_dev *dev = filp->f_ianalde->i_private;
 	u32 fsize, num_samples, val, stb_rdptr_offset = 0;
 	struct amd_pmc_stb_v2_data *stb_data_arr;
 	int ret;
@@ -273,11 +273,11 @@ static int amd_pmc_stb_debugfs_open_v2(struct inode *inode, struct file *filp)
 
 	ret = amd_pmc_send_cmd(dev, 0, &val, STB_FORCE_FLUSH_DATA, 1);
 	if (ret)
-		dev_dbg_once(dev->dev, "S2D force flush not supported: %d\n", ret);
+		dev_dbg_once(dev->dev, "S2D force flush analt supported: %d\n", ret);
 
 	/*
 	 * We have a custom stb size and the PMFW is supposed to give
-	 * the enhanced dram size. Note that we land here only for the
+	 * the enhanced dram size. Analte that we land here only for the
 	 * platforms that support enhanced dram size reporting.
 	 */
 	if (dump_custom_stb)
@@ -288,14 +288,14 @@ static int amd_pmc_stb_debugfs_open_v2(struct inode *inode, struct file *filp)
 	/* Clear msg_port for other SMU operation */
 	dev->msg_port = 0;
 	if (ret) {
-		dev_err(dev->dev, "error: S2D_NUM_SAMPLES not supported : %d\n", ret);
+		dev_err(dev->dev, "error: S2D_NUM_SAMPLES analt supported : %d\n", ret);
 		return ret;
 	}
 
 	fsize = min(num_samples, S2D_TELEMETRY_BYTES_MAX);
 	stb_data_arr = kmalloc(struct_size(stb_data_arr, data, fsize), GFP_KERNEL);
 	if (!stb_data_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stb_data_arr->size = fsize;
 
@@ -329,7 +329,7 @@ static ssize_t amd_pmc_stb_debugfs_read_v2(struct file *filp, char __user *buf, 
 	return simple_read_from_buffer(buf, size, pos, data->data, data->size);
 }
 
-static int amd_pmc_stb_debugfs_release_v2(struct inode *inode, struct file *filp)
+static int amd_pmc_stb_debugfs_release_v2(struct ianalde *ianalde, struct file *filp)
 {
 	kfree(filp->private_data);
 	return 0;
@@ -369,7 +369,7 @@ static void amd_pmc_get_ip_info(struct amd_pmc_dev *dev)
 static int amd_pmc_setup_smu_logging(struct amd_pmc_dev *dev)
 {
 	if (dev->cpu_id == AMD_CPU_ID_PCO) {
-		dev_warn_once(dev->dev, "SMU debugging info not supported on this platform\n");
+		dev_warn_once(dev->dev, "SMU debugging info analt supported on this platform\n");
 		return -EINVAL;
 	}
 
@@ -389,7 +389,7 @@ static int amd_pmc_setup_smu_logging(struct amd_pmc_dev *dev)
 		dev->smu_virt_addr = devm_ioremap(dev->dev, smu_phys_addr,
 						  sizeof(struct smu_metrics));
 		if (!dev->smu_virt_addr)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* Start the logging */
@@ -409,7 +409,7 @@ static int get_metrics_table(struct amd_pmc_dev *pdev, struct smu_metrics *table
 	}
 
 	if (pdev->cpu_id == AMD_CPU_ID_PCO)
-		return -ENODEV;
+		return -EANALDEV;
 	memcpy_fromio(table, pdev->smu_virt_addr, sizeof(struct smu_metrics));
 	return 0;
 }
@@ -433,7 +433,7 @@ static int amd_pmc_get_smu_version(struct amd_pmc_dev *dev)
 	u32 val;
 
 	if (dev->cpu_id == AMD_CPU_ID_PCO)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = amd_pmc_send_cmd(dev, 0, &val, SMU_MSG_GETSMUVERSION, true);
 	if (rc)
@@ -441,11 +441,11 @@ static int amd_pmc_get_smu_version(struct amd_pmc_dev *dev)
 
 	dev->smu_program = (val >> 24) & GENMASK(7, 0);
 	dev->major = (val >> 16) & GENMASK(7, 0);
-	dev->minor = (val >> 8) & GENMASK(7, 0);
+	dev->mianalr = (val >> 8) & GENMASK(7, 0);
 	dev->rev = (val >> 0) & GENMASK(7, 0);
 
 	dev_dbg(dev->dev, "SMU program %u version is %u.%u.%u\n",
-		dev->smu_program, dev->major, dev->minor, dev->rev);
+		dev->smu_program, dev->major, dev->mianalr, dev->rev);
 
 	return 0;
 }
@@ -461,7 +461,7 @@ static ssize_t smu_fw_version_show(struct device *d, struct device_attribute *at
 		if (rc)
 			return rc;
 	}
-	return sysfs_emit(buf, "%u.%u.%u\n", dev->major, dev->minor, dev->rev);
+	return sysfs_emit(buf, "%u.%u.%u\n", dev->major, dev->mianalr, dev->rev);
 }
 
 static ssize_t smu_program_show(struct device *d, struct device_attribute *attr,
@@ -520,7 +520,7 @@ static int smu_fw_info_show(struct seq_file *s, void *unused)
 	seq_printf(s, "Table Version: %d\n", table.table_version);
 	seq_printf(s, "Hint Count: %d\n", table.hint_count);
 	seq_printf(s, "Last S0i3 Status: %s\n", table.s0i3_last_entry_status ? "Success" :
-		   "Unknown/Fail");
+		   "Unkanalwn/Fail");
 	seq_printf(s, "Time (in us) to S0i3: %lld\n", table.timeentering_s0i3_lastcapture);
 	seq_printf(s, "Time (in us) in S0i3: %lld\n", table.timein_s0i3_lastcapture);
 	seq_printf(s, "Time (in us) to resume from S0i3: %lld\n",
@@ -530,7 +530,7 @@ static int smu_fw_info_show(struct seq_file *s, void *unused)
 	for (idx = 0 ; idx < dev->num_ips ; idx++) {
 		if (soc15_ip_blk[idx].bit_mask & dev->active_ips)
 			seq_printf(s, "%-8s : %lld\n", soc15_ip_blk[idx].name,
-				   table.timecondition_notmet_lastcapture[idx]);
+				   table.timecondition_analtmet_lastcapture[idx]);
 	}
 
 	return 0;
@@ -550,7 +550,7 @@ static int s0ix_stats_show(struct seq_file *s, void *unused)
 
 		dev->fch_virt_addr = devm_ioremap(dev->dev, fch_phys_addr, FCH_SSC_MAPPING_SIZE);
 		if (!dev->fch_virt_addr)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	entry_time = ioread32(dev->fch_virt_addr + FCH_S0I3_ENTRY_TIME_H_OFFSET);
@@ -586,7 +586,7 @@ static int amd_pmc_idlemask_read(struct amd_pmc_dev *pdev, struct device *dev,
 			if (rc)
 				return rc;
 		}
-		if (pdev->major > 56 || (pdev->major >= 55 && pdev->minor >= 37))
+		if (pdev->major > 56 || (pdev->major >= 55 && pdev->mianalr >= 37))
 			val = amd_pmc_reg_read(pdev, AMD_PMC_SCRATCH_REG_CZN);
 		else
 			return -EINVAL;
@@ -733,11 +733,11 @@ static int amd_pmc_send_cmd(struct amd_pmc_dev *dev, u32 arg, u32 *data, u8 msg,
 		}
 		break;
 	case AMD_PMC_RESULT_CMD_REJECT_BUSY:
-		dev_err(dev->dev, "SMU not ready. err: 0x%x\n", val);
+		dev_err(dev->dev, "SMU analt ready. err: 0x%x\n", val);
 		rc = -EBUSY;
 		goto out_unlock;
-	case AMD_PMC_RESULT_CMD_UNKNOWN:
-		dev_err(dev->dev, "SMU cmd unknown. err: 0x%x\n", val);
+	case AMD_PMC_RESULT_CMD_UNKANALWN:
+		dev_err(dev->dev, "SMU cmd unkanalwn. err: 0x%x\n", val);
 		rc = -EINVAL;
 		goto out_unlock;
 	case AMD_PMC_RESULT_CMD_REJECT_PREREQ:
@@ -782,7 +782,7 @@ static int amd_pmc_wa_irq1(struct amd_pmc_dev *pdev)
 				return rc;
 		}
 
-		if (pdev->major > 64 || (pdev->major == 64 && pdev->minor > 65))
+		if (pdev->major > 64 || (pdev->major == 64 && pdev->mianalr > 65))
 			return 0;
 	}
 
@@ -802,7 +802,7 @@ static int amd_pmc_wa_irq1(struct amd_pmc_dev *pdev)
 static int amd_pmc_verify_czn_rtc(struct amd_pmc_dev *pdev, u32 *arg)
 {
 	struct rtc_device *rtc_device;
-	time64_t then, now, duration;
+	time64_t then, analw, duration;
 	struct rtc_wkalrm alarm;
 	struct rtc_time tm;
 	int rc;
@@ -814,7 +814,7 @@ static int amd_pmc_verify_czn_rtc(struct amd_pmc_dev *pdev, u32 *arg)
 			return rc;
 	}
 
-	if (pdev->major < 64 || (pdev->major == 64 && pdev->minor < 53))
+	if (pdev->major < 64 || (pdev->major == 64 && pdev->mianalr < 53))
 		return 0;
 
 	rtc_device = rtc_class_open("rtc0");
@@ -824,18 +824,18 @@ static int amd_pmc_verify_czn_rtc(struct amd_pmc_dev *pdev, u32 *arg)
 	if (rc)
 		return rc;
 	if (!alarm.enabled) {
-		dev_dbg(pdev->dev, "alarm not enabled\n");
+		dev_dbg(pdev->dev, "alarm analt enabled\n");
 		return 0;
 	}
 	rc = rtc_read_time(rtc_device, &tm);
 	if (rc)
 		return rc;
 	then = rtc_tm_to_time64(&alarm.time);
-	now = rtc_tm_to_time64(&tm);
-	duration = then-now;
+	analw = rtc_tm_to_time64(&tm);
+	duration = then-analw;
 
 	/* in the past */
-	if (then < now)
+	if (then < analw)
 		return 0;
 
 	/* will be stored in upper 16 bits of s0i3 hint argument,
@@ -904,7 +904,7 @@ static void amd_pmc_s2idle_check(void)
 static int amd_pmc_dump_data(struct amd_pmc_dev *pdev)
 {
 	if (pdev->cpu_id == AMD_CPU_ID_PCO)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return amd_pmc_send_cmd(pdev, 0, NULL, SMU_MSG_LOG_DUMP_DATA, false);
 }
@@ -920,14 +920,14 @@ static void amd_pmc_s2idle_restore(void)
 	if (rc)
 		dev_err(pdev->dev, "resume failed: %d\n", rc);
 
-	/* Let SMU know that we are looking for stats */
+	/* Let SMU kanalw that we are looking for stats */
 	amd_pmc_dump_data(pdev);
 
 	rc = amd_pmc_write_stb(pdev, AMD_PMC_STB_S2IDLE_RESTORE);
 	if (rc)
 		dev_err(pdev->dev, "error writing to STB: %d\n", rc);
 
-	/* Notify on failed entry */
+	/* Analtify on failed entry */
 	amd_pmc_validate_deepest(pdev);
 
 	amd_pmc_process_restore_quirks(pdev);
@@ -1000,7 +1000,7 @@ static int amd_pmc_s2d_init(struct amd_pmc_dev *dev)
 
 	dev->stb_virt_addr = devm_ioremap(dev->dev, stb_phys_addr, dev->dram_size);
 	if (!dev->stb_virt_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1012,7 +1012,7 @@ static int amd_pmc_write_stb(struct amd_pmc_dev *dev, u32 data)
 	err = amd_smn_write(0, AMD_PMC_STB_PMI_0, data);
 	if (err) {
 		dev_err(dev->dev, "failed to write data in stb: 0x%X\n", AMD_PMC_STB_PMI_0);
-		return pcibios_err_to_errno(err);
+		return pcibios_err_to_erranal(err);
 	}
 
 	return 0;
@@ -1026,7 +1026,7 @@ static int amd_pmc_read_stb(struct amd_pmc_dev *dev, u32 *buf)
 		err = amd_smn_read(0, AMD_PMC_STB_PMI_0, buf++);
 		if (err) {
 			dev_err(dev->dev, "error reading data from stb: 0x%X\n", AMD_PMC_STB_PMI_0);
-			return pcibios_err_to_errno(err);
+			return pcibios_err_to_erranal(err);
 		}
 	}
 
@@ -1046,15 +1046,15 @@ static int amd_pmc_probe(struct platform_device *pdev)
 
 	rdev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0, 0));
 	if (!rdev || !pci_match_id(pmc_pci_ids, rdev)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_pci_dev_put;
 	}
 
 	dev->cpu_id = rdev->device;
 
 	if (dev->cpu_id == AMD_CPU_ID_SP) {
-		dev_warn_once(dev->dev, "S0i3 is not supported on this hardware\n");
-		err = -ENODEV;
+		dev_warn_once(dev->dev, "S0i3 is analt supported on this hardware\n");
+		err = -EANALDEV;
 		goto err_pci_dev_put;
 	}
 
@@ -1062,7 +1062,7 @@ static int amd_pmc_probe(struct platform_device *pdev)
 	err = amd_smn_read(0, AMD_PMC_BASE_ADDR_LO, &val);
 	if (err) {
 		dev_err(dev->dev, "error reading 0x%x\n", AMD_PMC_BASE_ADDR_LO);
-		err = pcibios_err_to_errno(err);
+		err = pcibios_err_to_erranal(err);
 		goto err_pci_dev_put;
 	}
 
@@ -1071,7 +1071,7 @@ static int amd_pmc_probe(struct platform_device *pdev)
 	err = amd_smn_read(0, AMD_PMC_BASE_ADDR_HI, &val);
 	if (err) {
 		dev_err(dev->dev, "error reading 0x%x\n", AMD_PMC_BASE_ADDR_HI);
-		err = pcibios_err_to_errno(err);
+		err = pcibios_err_to_erranal(err);
 		goto err_pci_dev_put;
 	}
 
@@ -1081,7 +1081,7 @@ static int amd_pmc_probe(struct platform_device *pdev)
 	dev->regbase = devm_ioremap(dev->dev, base_addr + AMD_PMC_BASE_ADDR_OFFSET,
 				    AMD_PMC_MAPPING_SIZE);
 	if (!dev->regbase) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_pci_dev_put;
 	}
 

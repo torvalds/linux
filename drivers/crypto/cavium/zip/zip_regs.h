@@ -14,14 +14,14 @@
  * conditions are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  *
  *  * Redistributions in binary form must reproduce the above
- *    copyright notice, this list of conditions and the following
+ *    copyright analtice, this list of conditions and the following
  *    disclaimer in the documentation and/or other materials provided
  *    with the distribution.
  *
- *  * Neither the name of Cavium Inc. nor the names of its contributors may be
+ *  * Neither the name of Cavium Inc. analr the names of its contributors may be
  *    used to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -31,12 +31,12 @@
  * regulations in other countries.
  *
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES ANAL PROMISES, REPRESENTATIONS
  * OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
  * RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
  * REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
  * DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY)
- * WARRANTIES OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A
+ * WARRANTIES OF TITLE, MERCHANTABILITY, ANALNINFRINGEMENT, FITNESS FOR A
  * PARTICULAR PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET
  * ENJOYMENT, QUIET POSSESSION OR CORRESPONDENCE TO DESCRIPTION. THE
  * ENTIRE  RISK ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE LIES
@@ -54,7 +54,7 @@
 #include <linux/kern_levels.h>
 
 /* ZIP invocation result completion status codes */
-#define ZIP_CMD_NOTDONE        0x0
+#define ZIP_CMD_ANALTDONE        0x0
 
 /* Successful completion. */
 #define ZIP_CMD_SUCCESS        0x1
@@ -476,8 +476,8 @@ union zip_ctl_bist_status {
  * union zip_ctl_cfg - Represents the register that controls the behavior of
  * the ZIP DMA engines.
  *
- * It is recommended to keep default values for normal operation. Changing the
- * values of the fields may be useful for diagnostics.
+ * It is recommended to keep default values for analrmal operation. Changing the
+ * values of the fields may be useful for diaganalstics.
  */
 union zip_ctl_cfg {
 	u64 u_reg64;
@@ -1326,8 +1326,8 @@ union zip_que_pri {
  * number of in-flight X2I data fetch transactions.
  *
  * Writing 0 to this register causes the ZIP module to temporarily suspend NCB
- * accesses; it is not recommended for normal operation, but may be useful for
- * diagnostics.
+ * accesses; it is analt recommended for analrmal operation, but may be useful for
+ * diaganalstics.
  */
 union zip_throttle {
 	u64 u_reg64;

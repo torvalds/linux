@@ -4,8 +4,8 @@
  * Display Working Group standards: DSI, DCS, DBI, DPI
  *
  * Copyright (C) 2010 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
- * Copyright (C) 2006 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Copyright (C) 2006 Analkia Corporation
+ * Author: Imre Deak <imre.deak@analkia.com>
  */
 #ifndef MIPI_DISPLAY_H
 #define MIPI_DISPLAY_H
@@ -65,7 +65,7 @@ enum {
 
 /* MIPI DSI Peripheral-to-Processor transaction types */
 enum {
-	MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT	= 0x02,
+	MIPI_DSI_RX_ACKANALWLEDGE_AND_ERROR_REPORT	= 0x02,
 	MIPI_DSI_RX_END_OF_TRANSMISSION			= 0x08,
 	MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_1BYTE	= 0x11,
 	MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_2BYTE	= 0x12,
@@ -77,7 +77,7 @@ enum {
 
 /* MIPI DCS commands */
 enum {
-	MIPI_DCS_NOP			= 0x00,
+	MIPI_DCS_ANALP			= 0x00,
 	MIPI_DCS_SOFT_RESET		= 0x01,
 	MIPI_DCS_GET_COMPRESSION_MODE	= 0x03,
 	MIPI_DCS_GET_DISPLAY_ID		= 0x04,
@@ -91,11 +91,11 @@ enum {
 	MIPI_DCS_GET_PIXEL_FORMAT	= 0x0C,
 	MIPI_DCS_GET_DISPLAY_MODE	= 0x0D,
 	MIPI_DCS_GET_SIGNAL_MODE	= 0x0E,
-	MIPI_DCS_GET_DIAGNOSTIC_RESULT	= 0x0F,
+	MIPI_DCS_GET_DIAGANALSTIC_RESULT	= 0x0F,
 	MIPI_DCS_ENTER_SLEEP_MODE	= 0x10,
 	MIPI_DCS_EXIT_SLEEP_MODE	= 0x11,
 	MIPI_DCS_ENTER_PARTIAL_MODE	= 0x12,
-	MIPI_DCS_ENTER_NORMAL_MODE	= 0x13,
+	MIPI_DCS_ENTER_ANALRMAL_MODE	= 0x13,
 	MIPI_DCS_GET_IMAGE_CHECKSUM_RGB	= 0x14,
 	MIPI_DCS_GET_IMAGE_CHECKSUM_CT	= 0x15,
 	MIPI_DCS_EXIT_INVERT_MODE	= 0x20,

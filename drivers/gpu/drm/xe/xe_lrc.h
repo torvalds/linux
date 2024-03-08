@@ -37,12 +37,12 @@ void xe_lrc_write_ctx_reg(struct xe_lrc *lrc, int reg_nr, u32 val);
 
 u64 xe_lrc_descriptor(struct xe_lrc *lrc);
 
-u32 xe_lrc_seqno_ggtt_addr(struct xe_lrc *lrc);
-struct dma_fence *xe_lrc_create_seqno_fence(struct xe_lrc *lrc);
-s32 xe_lrc_seqno(struct xe_lrc *lrc);
+u32 xe_lrc_seqanal_ggtt_addr(struct xe_lrc *lrc);
+struct dma_fence *xe_lrc_create_seqanal_fence(struct xe_lrc *lrc);
+s32 xe_lrc_seqanal(struct xe_lrc *lrc);
 
-u32 xe_lrc_start_seqno_ggtt_addr(struct xe_lrc *lrc);
-s32 xe_lrc_start_seqno(struct xe_lrc *lrc);
+u32 xe_lrc_start_seqanal_ggtt_addr(struct xe_lrc *lrc);
+s32 xe_lrc_start_seqanal(struct xe_lrc *lrc);
 
 u32 xe_lrc_parallel_ggtt_addr(struct xe_lrc *lrc);
 struct iosys_map xe_lrc_parallel_map(struct xe_lrc *lrc);

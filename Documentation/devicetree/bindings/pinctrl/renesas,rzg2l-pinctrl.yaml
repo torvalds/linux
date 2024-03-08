@@ -76,8 +76,8 @@ additionalProperties:
     - type: object
       additionalProperties: false
       allOf:
-        - $ref: pincfg-node.yaml#
-        - $ref: pinmux-node.yaml#
+        - $ref: pincfg-analde.yaml#
+        - $ref: pinmux-analde.yaml#
 
         - if:
             properties:
@@ -95,9 +95,9 @@ additionalProperties:
               drive-strength-microamp: false
 
       description:
-        Pin controller client devices use pin configuration subnodes (children
+        Pin controller client devices use pin configuration subanaldes (children
         and grandchildren) for desired pin configuration.
-        Client device subnodes use below standard properties.
+        Client device subanaldes use below standard properties.
 
       properties:
         pinmux:

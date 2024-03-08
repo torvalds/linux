@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -153,7 +153,7 @@ void __drm_printfn_coredump(struct drm_printer *p, struct va_format *vaf)
 	 * Finally, hit the slow path and make a temporary string to copy over
 	 * using _drm_puts_coredump
 	 */
-	buf = kmalloc(len + 1, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+	buf = kmalloc(len + 1, GFP_KERNEL | __GFP_ANALWARN | __GFP_ANALRETRY);
 	if (!buf)
 		return;
 
@@ -254,7 +254,7 @@ void drm_print_bits(struct drm_printer *p, unsigned long value,
 		first = false;
 	}
 	if (first)
-		drm_printf(p, "(none)");
+		drm_printf(p, "(analne)");
 }
 EXPORT_SYMBOL(drm_print_bits);
 
@@ -288,7 +288,7 @@ void __drm_dev_dbg(struct _ddebug *desc, const struct device *dev,
 	if (!__drm_debug_enabled(category))
 		return;
 
-	/* we know we are printing for either syslog, tracefs, or both */
+	/* we kanalw we are printing for either syslog, tracefs, or both */
 	va_start(args, format);
 	vaf.fmt = format;
 	vaf.va = &args;

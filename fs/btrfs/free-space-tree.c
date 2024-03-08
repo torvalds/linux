@@ -84,7 +84,7 @@ static int add_new_free_space_info(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 
-	leaf = path->nodes[0];
+	leaf = path->analdes[0];
 	info = btrfs_item_ptr(leaf, path->slots[0],
 			      struct btrfs_free_space_info);
 	btrfs_set_free_space_extent_count(leaf, info, 0);
@@ -119,10 +119,10 @@ struct btrfs_free_space_info *search_free_space_info(
 		btrfs_warn(fs_info, "missing free space info for %llu",
 			   block_group->start);
 		ASSERT(0);
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	}
 
-	return btrfs_item_ptr(path->nodes[0], path->slots[0],
+	return btrfs_item_ptr(path->analdes[0], path->slots[0],
 			      struct btrfs_free_space_info);
 }
 
@@ -164,20 +164,20 @@ static inline u32 free_space_bitmap_size(const struct btrfs_fs_info *fs_info,
 static unsigned long *alloc_bitmap(u32 bitmap_size)
 {
 	unsigned long *ret;
-	unsigned int nofs_flag;
+	unsigned int analfs_flag;
 	u32 bitmap_rounded_size = round_up(bitmap_size, sizeof(unsigned long));
 
 	/*
-	 * GFP_NOFS doesn't work with kvmalloc(), but we really can't recurse
+	 * GFP_ANALFS doesn't work with kvmalloc(), but we really can't recurse
 	 * into the filesystem as the free space bitmap can be modified in the
 	 * critical section of a transaction commit.
 	 *
-	 * TODO: push the memalloc_nofs_{save,restore}() to the caller where we
-	 * know that recursion is unsafe.
+	 * TODO: push the memalloc_analfs_{save,restore}() to the caller where we
+	 * kanalw that recursion is unsafe.
 	 */
-	nofs_flag = memalloc_nofs_save();
+	analfs_flag = memalloc_analfs_save();
 	ret = kvzalloc(bitmap_rounded_size, GFP_KERNEL);
-	memalloc_nofs_restore(nofs_flag);
+	memalloc_analfs_restore(analfs_flag);
 	return ret;
 }
 
@@ -223,7 +223,7 @@ int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 	bitmap_size = free_space_bitmap_size(fs_info, block_group->length);
 	bitmap = alloc_bitmap(bitmap_size);
 	if (!bitmap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -239,7 +239,7 @@ int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 		if (ret)
 			goto out;
 
-		leaf = path->nodes[0];
+		leaf = path->analdes[0];
 		nr = 0;
 		path->slots[0]++;
 		while (path->slots[0] > 0) {
@@ -282,7 +282,7 @@ int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 		ret = PTR_ERR(info);
 		goto out;
 	}
-	leaf = path->nodes[0];
+	leaf = path->analdes[0];
 	flags = btrfs_free_space_flags(leaf, info);
 	flags |= BTRFS_FREE_SPACE_USING_BITMAPS;
 	btrfs_set_free_space_flags(leaf, info, flags);
@@ -320,7 +320,7 @@ int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 		if (ret)
 			goto out;
 
-		leaf = path->nodes[0];
+		leaf = path->analdes[0];
 		ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
 		write_extent_buffer(leaf, bitmap_cursor, ptr,
 				    data_size);
@@ -360,7 +360,7 @@ int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 	bitmap_size = free_space_bitmap_size(fs_info, block_group->length);
 	bitmap = alloc_bitmap(bitmap_size);
 	if (!bitmap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -376,7 +376,7 @@ int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 		if (ret)
 			goto out;
 
-		leaf = path->nodes[0];
+		leaf = path->analdes[0];
 		nr = 0;
 		path->slots[0]++;
 		while (path->slots[0] > 0) {
@@ -425,7 +425,7 @@ int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 		ret = PTR_ERR(info);
 		goto out;
 	}
-	leaf = path->nodes[0];
+	leaf = path->analdes[0];
 	flags = btrfs_free_space_flags(leaf, info);
 	flags &= ~BTRFS_FREE_SPACE_USING_BITMAPS;
 	btrfs_set_free_space_flags(leaf, info, flags);
@@ -490,12 +490,12 @@ static int update_free_space_extent_count(struct btrfs_trans_handle *trans,
 		ret = PTR_ERR(info);
 		goto out;
 	}
-	flags = btrfs_free_space_flags(path->nodes[0], info);
-	extent_count = btrfs_free_space_extent_count(path->nodes[0], info);
+	flags = btrfs_free_space_flags(path->analdes[0], info);
+	extent_count = btrfs_free_space_extent_count(path->analdes[0], info);
 
 	extent_count += new_extents;
-	btrfs_set_free_space_extent_count(path->nodes[0], info, extent_count);
-	btrfs_mark_buffer_dirty(trans, path->nodes[0]);
+	btrfs_set_free_space_extent_count(path->analdes[0], info, extent_count);
+	btrfs_mark_buffer_dirty(trans, path->analdes[0]);
 	btrfs_release_path(path);
 
 	if (!(flags & BTRFS_FREE_SPACE_USING_BITMAPS) &&
@@ -519,7 +519,7 @@ int free_space_test_bit(struct btrfs_block_group *block_group,
 	u64 found_start, found_end;
 	unsigned long ptr, i;
 
-	leaf = path->nodes[0];
+	leaf = path->analdes[0];
 	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
 	ASSERT(key.type == BTRFS_FREE_SPACE_BITMAP_KEY);
 
@@ -545,7 +545,7 @@ static void free_space_set_bits(struct btrfs_trans_handle *trans,
 	u64 found_start, found_end;
 	unsigned long ptr, first, last;
 
-	leaf = path->nodes[0];
+	leaf = path->analdes[0];
 	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
 	ASSERT(key.type == BTRFS_FREE_SPACE_BITMAP_KEY);
 
@@ -573,7 +573,7 @@ static void free_space_set_bits(struct btrfs_trans_handle *trans,
 /*
  * We can't use btrfs_next_item() in modify_free_space_bitmap() because
  * btrfs_next_leaf() doesn't get the path for writing. We can forgo the fancy
- * tree walking in btrfs_next_leaf() anyways because we know exactly what we're
+ * tree walking in btrfs_next_leaf() anyways because we kanalw exactly what we're
  * looking for.
  */
 static int free_space_next_bitmap(struct btrfs_trans_handle *trans,
@@ -581,12 +581,12 @@ static int free_space_next_bitmap(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_key key;
 
-	if (p->slots[0] + 1 < btrfs_header_nritems(p->nodes[0])) {
+	if (p->slots[0] + 1 < btrfs_header_nritems(p->analdes[0])) {
 		p->slots[0]++;
 		return 0;
 	}
 
-	btrfs_item_key_to_cpu(p->nodes[0], &key, p->slots[0]);
+	btrfs_item_key_to_cpu(p->analdes[0], &key, p->slots[0]);
 	btrfs_release_path(p);
 
 	key.objectid += key.offset;
@@ -632,7 +632,7 @@ static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
 		prev_bit = free_space_test_bit(block_group, path, prev_block);
 
 		/* The previous block may have been in the previous bitmap. */
-		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+		btrfs_item_key_to_cpu(path->analdes[0], &key, path->slots[0]);
 		if (start >= key.objectid + key.offset) {
 			ret = free_space_next_bitmap(trans, root, path);
 			if (ret)
@@ -672,7 +672,7 @@ static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
 	 */
 	if (end < block_group->start + block_group->length) {
 		/* The next block may be in the next bitmap. */
-		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+		btrfs_item_key_to_cpu(path->analdes[0], &key, path->slots[0]);
 		if (end >= key.objectid + key.offset) {
 			ret = free_space_next_bitmap(trans, root, path);
 			if (ret)
@@ -734,7 +734,7 @@ static int remove_free_space_extent(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 
-	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+	btrfs_item_key_to_cpu(path->analdes[0], &key, path->slots[0]);
 
 	ASSERT(key.type == BTRFS_FREE_SPACE_EXTENT_KEY);
 
@@ -743,20 +743,20 @@ static int remove_free_space_extent(struct btrfs_trans_handle *trans,
 	ASSERT(start >= found_start && end <= found_end);
 
 	/*
-	 * Okay, now that we've found the free space extent which contains the
+	 * Okay, analw that we've found the free space extent which contains the
 	 * free space that we are removing, there are four cases:
 	 *
 	 * 1. We're using the whole extent: delete the key we found and
 	 * decrement the free space extent count.
 	 * 2. We are using part of the extent starting at the beginning: delete
 	 * the key we found and insert a new key representing the leftover at
-	 * the end. There is no net change in the number of extents.
+	 * the end. There is anal net change in the number of extents.
 	 * 3. We are using part of the extent ending at the end: delete the key
 	 * we found and insert a new key representing the leftover at the
-	 * beginning. There is no net change in the number of extents.
+	 * beginning. There is anal net change in the number of extents.
 	 * 4. We are using part of the extent in the middle: delete the key we
 	 * found and insert two new keys representing the leftovers on each
-	 * side. Where we used to have one extent, we now have two, so increment
+	 * side. Where we used to have one extent, we analw have two, so increment
 	 * the extent count. We may need to convert the block group to bitmaps
 	 * as a result.
 	 */
@@ -818,7 +818,7 @@ int __remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 	info = search_free_space_info(NULL, block_group, path, 0);
 	if (IS_ERR(info))
 		return PTR_ERR(info);
-	flags = btrfs_free_space_flags(path->nodes[0], info);
+	flags = btrfs_free_space_flags(path->analdes[0], info);
 	btrfs_release_path(path);
 
 	if (flags & BTRFS_FREE_SPACE_USING_BITMAPS) {
@@ -842,14 +842,14 @@ int remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	block_group = btrfs_lookup_block_group(trans->fs_info, start);
 	if (!block_group) {
 		ASSERT(0);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -882,18 +882,18 @@ static int add_free_space_extent(struct btrfs_trans_handle *trans,
 	 * We are adding a new extent of free space, but we need to merge
 	 * extents. There are four cases here:
 	 *
-	 * 1. The new extent does not have any immediate neighbors to merge
+	 * 1. The new extent does analt have any immediate neighbors to merge
 	 * with: add the new key and increment the free space extent count. We
 	 * may need to convert the block group to bitmaps as a result.
 	 * 2. The new extent has an immediate neighbor before it: remove the
-	 * previous key and insert a new key combining both of them. There is no
+	 * previous key and insert a new key combining both of them. There is anal
 	 * net change in the number of extents.
 	 * 3. The new extent has an immediate neighbor after it: remove the next
-	 * key and insert a new key combining both of them. There is no net
+	 * key and insert a new key combining both of them. There is anal net
 	 * change in the number of extents.
 	 * 4. The new extent has immediate neighbors on both sides: remove both
 	 * of the keys and insert a new key combining all of them. Where we used
-	 * to have two extents, we now have one, so decrement the extent count.
+	 * to have two extents, we analw have one, so decrement the extent count.
 	 */
 
 	new_key.objectid = start;
@@ -911,7 +911,7 @@ static int add_free_space_extent(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 
-	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+	btrfs_item_key_to_cpu(path->analdes[0], &key, path->slots[0]);
 
 	if (key.type != BTRFS_FREE_SPACE_EXTENT_KEY) {
 		ASSERT(key.type == BTRFS_FREE_SPACE_INFO_KEY);
@@ -951,7 +951,7 @@ right:
 	if (ret)
 		goto out;
 
-	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+	btrfs_item_key_to_cpu(path->analdes[0], &key, path->slots[0]);
 
 	if (key.type != BTRFS_FREE_SPACE_EXTENT_KEY) {
 		ASSERT(key.type == BTRFS_FREE_SPACE_INFO_KEY);
@@ -1011,7 +1011,7 @@ int __add_to_free_space_tree(struct btrfs_trans_handle *trans,
 	info = search_free_space_info(NULL, block_group, path, 0);
 	if (IS_ERR(info))
 		return PTR_ERR(info);
-	flags = btrfs_free_space_flags(path->nodes[0], info);
+	flags = btrfs_free_space_flags(path->analdes[0], info);
 	btrfs_release_path(path);
 
 	if (flags & BTRFS_FREE_SPACE_USING_BITMAPS) {
@@ -1035,14 +1035,14 @@ int add_to_free_space_tree(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	block_group = btrfs_lookup_block_group(trans->fs_info, start);
 	if (!block_group) {
 		ASSERT(0);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -1061,7 +1061,7 @@ out:
 /*
  * Populate the free space tree by walking the extent tree. Operations on the
  * extent tree that happen as a result of writes to the free space tree will go
- * through the normal add/remove hooks.
+ * through the analrmal add/remove hooks.
  */
 static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 				    struct btrfs_block_group *block_group)
@@ -1074,13 +1074,13 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 	path->reada = READA_FORWARD;
 
 	path2 = btrfs_alloc_path();
 	if (!path2) {
 		btrfs_free_path(path);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = add_new_free_space_info(trans, block_group, path2);
@@ -1092,7 +1092,7 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 	/*
 	 * Iterate through all of the extent and metadata items in this block
 	 * group, adding the free space between them and the free space at the
-	 * end. Note that EXTENT_ITEM and METADATA_ITEM are less than
+	 * end. Analte that EXTENT_ITEM and METADATA_ITEM are less than
 	 * BLOCK_GROUP_ITEM, so an extent may precede the block group that it's
 	 * contained in.
 	 */
@@ -1109,7 +1109,7 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 	start = block_group->start;
 	end = block_group->start + block_group->length;
 	while (1) {
-		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+		btrfs_item_key_to_cpu(path->analdes[0], &key, path->slots[0]);
 
 		if (key.type == BTRFS_EXTENT_ITEM_KEY ||
 		    key.type == BTRFS_METADATA_ITEM_KEY) {
@@ -1127,7 +1127,7 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 			}
 			start = key.objectid;
 			if (key.type == BTRFS_METADATA_ITEM_KEY)
-				start += trans->fs_info->nodesize;
+				start += trans->fs_info->analdesize;
 			else
 				start += key.offset;
 		} else if (key.type == BTRFS_BLOCK_GROUP_ITEM_KEY) {
@@ -1163,7 +1163,7 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_root *free_space_root;
 	struct btrfs_block_group *block_group;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	int ret;
 
 	trans = btrfs_start_transaction(tree_root, 0);
@@ -1184,14 +1184,14 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 		goto abort;
 	}
 
-	node = rb_first_cached(&fs_info->block_group_cache_tree);
-	while (node) {
-		block_group = rb_entry(node, struct btrfs_block_group,
-				       cache_node);
+	analde = rb_first_cached(&fs_info->block_group_cache_tree);
+	while (analde) {
+		block_group = rb_entry(analde, struct btrfs_block_group,
+				       cache_analde);
 		ret = populate_free_space_tree(trans, block_group);
 		if (ret)
 			goto abort;
-		node = rb_next(node);
+		analde = rb_next(analde);
 	}
 
 	btrfs_set_fs_compat_ro(fs_info, FREE_SPACE_TREE);
@@ -1200,8 +1200,8 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 	ret = btrfs_commit_transaction(trans);
 
 	/*
-	 * Now that we've committed the transaction any reading of our commit
-	 * root will be safe, so we can cache from the free space tree now.
+	 * Analw that we've committed the transaction any reading of our commit
+	 * root will be safe, so we can cache from the free space tree analw.
 	 */
 	clear_bit(BTRFS_FS_FREE_SPACE_TREE_UNTRUSTED, &fs_info->flags);
 	return ret;
@@ -1224,7 +1224,7 @@ static int clear_free_space_tree(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	key.objectid = 0;
 	key.type = 0;
@@ -1235,7 +1235,7 @@ static int clear_free_space_tree(struct btrfs_trans_handle *trans,
 		if (ret < 0)
 			goto out;
 
-		nr = btrfs_header_nritems(path->nodes[0]);
+		nr = btrfs_header_nritems(path->analdes[0]);
 		if (!nr)
 			break;
 
@@ -1286,11 +1286,11 @@ int btrfs_delete_free_space_tree(struct btrfs_fs_info *fs_info)
 	list_del(&free_space_root->dirty_list);
 	spin_unlock(&fs_info->trans_lock);
 
-	btrfs_tree_lock(free_space_root->node);
-	btrfs_clear_buffer_dirty(trans, free_space_root->node);
-	btrfs_tree_unlock(free_space_root->node);
+	btrfs_tree_lock(free_space_root->analde);
+	btrfs_clear_buffer_dirty(trans, free_space_root->analde);
+	btrfs_tree_unlock(free_space_root->analde);
 	btrfs_free_tree_block(trans, btrfs_root_id(free_space_root),
-			      free_space_root->node, 0, 1);
+			      free_space_root->analde, 0, 1);
 
 	btrfs_put_root(free_space_root);
 
@@ -1311,7 +1311,7 @@ int btrfs_rebuild_free_space_tree(struct btrfs_fs_info *fs_info)
 		.offset = 0,
 	};
 	struct btrfs_root *free_space_root = btrfs_global_root(fs_info, &key);
-	struct rb_node *node;
+	struct rb_analde *analde;
 	int ret;
 
 	trans = btrfs_start_transaction(free_space_root, 1);
@@ -1325,16 +1325,16 @@ int btrfs_rebuild_free_space_tree(struct btrfs_fs_info *fs_info)
 	if (ret)
 		goto abort;
 
-	node = rb_first_cached(&fs_info->block_group_cache_tree);
-	while (node) {
+	analde = rb_first_cached(&fs_info->block_group_cache_tree);
+	while (analde) {
 		struct btrfs_block_group *block_group;
 
-		block_group = rb_entry(node, struct btrfs_block_group,
-				       cache_node);
+		block_group = rb_entry(analde, struct btrfs_block_group,
+				       cache_analde);
 		ret = populate_free_space_tree(trans, block_group);
 		if (ret)
 			goto abort;
-		node = rb_next(node);
+		analde = rb_next(analde);
 	}
 
 	btrfs_set_fs_compat_ro(fs_info, FREE_SPACE_TREE);
@@ -1383,7 +1383,7 @@ int add_block_group_free_space(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1418,7 +1418,7 @@ int remove_block_group_free_space(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1434,7 +1434,7 @@ int remove_block_group_free_space(struct btrfs_trans_handle *trans,
 		if (ret)
 			goto out;
 
-		leaf = path->nodes[0];
+		leaf = path->analdes[0];
 		nr = 0;
 		path->slots[0]++;
 		while (path->slots[0] > 0) {
@@ -1502,7 +1502,7 @@ static int load_free_space_bitmaps(struct btrfs_caching_control *caching_ctl,
 		if (ret)
 			break;
 
-		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+		btrfs_item_key_to_cpu(path->analdes[0], &key, path->slots[0]);
 
 		if (key.type == BTRFS_FREE_SPACE_INFO_KEY)
 			break;
@@ -1585,7 +1585,7 @@ static int load_free_space_extents(struct btrfs_caching_control *caching_ctl,
 		if (ret)
 			break;
 
-		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+		btrfs_item_key_to_cpu(path->analdes[0], &key, path->slots[0]);
 
 		if (key.type == BTRFS_FREE_SPACE_INFO_KEY)
 			break;
@@ -1633,7 +1633,7 @@ int load_free_space_tree(struct btrfs_caching_control *caching_ctl)
 
 	path = btrfs_alloc_path();
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Just like caching_thread() doesn't want to deadlock on the extent
@@ -1648,11 +1648,11 @@ int load_free_space_tree(struct btrfs_caching_control *caching_ctl)
 		ret = PTR_ERR(info);
 		goto out;
 	}
-	extent_count = btrfs_free_space_extent_count(path->nodes[0], info);
-	flags = btrfs_free_space_flags(path->nodes[0], info);
+	extent_count = btrfs_free_space_extent_count(path->analdes[0], info);
+	flags = btrfs_free_space_flags(path->analdes[0], info);
 
 	/*
-	 * We left path pointing to the free space info item, so now
+	 * We left path pointing to the free space info item, so analw
 	 * load_free_space_foo can just iterate through the free space tree from
 	 * there.
 	 */

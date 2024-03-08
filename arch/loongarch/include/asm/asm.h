@@ -2,12 +2,12 @@
 /*
  * Some useful macros for LoongArch assembler code
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  *
  * Derived from MIPS:
  * Copyright (C) 1995, 1996, 1997, 1999, 2001 by Ralf Baechle
  * Copyright (C) 1999 by Silicon Graphics, Inc.
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techanallogies, Inc.
  * Copyright (C) 2002  Maciej W. Rozycki
  */
 #ifndef __ASM_ASM_H
@@ -188,14 +188,14 @@
 #define PTRLOG		3
 #endif
 
-/* Annotate a function as being unsuitable for kprobes. */
+/* Ananaltate a function as being unsuitable for kprobes. */
 #ifdef CONFIG_KPROBES
-#define _ASM_NOKPROBE(name)				\
+#define _ASM_ANALKPROBE(name)				\
 	.pushsection "_kprobe_blacklist", "aw";		\
 	.quad	name;					\
 	.popsection
 #else
-#define _ASM_NOKPROBE(name)
+#define _ASM_ANALKPROBE(name)
 #endif
 
 #endif /* __ASM_ASM_H */

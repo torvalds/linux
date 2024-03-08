@@ -32,8 +32,8 @@ static int ns87410_pre_reset(struct ata_link *link, unsigned long deadline)
 		{ 0x47, 1, 0x08, 0x08 }
 	};
 
-	if (!pci_test_config_bits(pdev, &ns87410_enable_bits[ap->port_no]))
-		return -ENOENT;
+	if (!pci_test_config_bits(pdev, &ns87410_enable_bits[ap->port_anal]))
+		return -EANALENT;
 
 	return ata_sff_prereset(link, deadline);
 }
@@ -43,14 +43,14 @@ static int ns87410_pre_reset(struct ata_link *link, unsigned long deadline)
  *	@ap: ATA interface
  *	@adev: ATA device
  *
- *	Program timing data. This is kept per channel not per device,
+ *	Program timing data. This is kept per channel analt per device,
  *	and only affects the data port.
  */
 
 static void ns87410_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int port = 0x40 + 4 * ap->port_no;
+	int port = 0x40 + 4 * ap->port_anal;
 	u8 idetcr, idefr;
 	struct ata_timing at;
 
@@ -72,7 +72,7 @@ static void ns87410_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		idefr &= ~0x04;
 
 	if (ata_timing_compute(adev, adev->pio_mode, &at, 30303, 1) < 0) {
-		dev_err(&pdev->dev, "unknown mode %d\n", adev->pio_mode);
+		dev_err(&pdev->dev, "unkanalwn mode %d\n", adev->pio_mode);
 		return;
 	}
 
@@ -103,9 +103,9 @@ static unsigned int ns87410_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
 
-	/* If modes have been configured and the channel data is not loaded
+	/* If modes have been configured and the channel data is analt loaded
 	   then load it. We have to check if pio_mode is set as the core code
-	   does not set adev->pio_mode to XFER_PIO_0 while probing as would be
+	   does analt set adev->pio_mode to XFER_PIO_0 while probing as would be
 	   logical */
 
 	if (adev->pio_mode && adev != ap->private_data)

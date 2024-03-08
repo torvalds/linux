@@ -11,14 +11,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -159,7 +159,7 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 		old_start += rdev->mc.gtt_start;
 		break;
 	default:
-		DRM_ERROR("Unknown placement %d\n", old_mem->mem_type);
+		DRM_ERROR("Unkanalwn placement %d\n", old_mem->mem_type);
 		return -EINVAL;
 	}
 	switch (new_mem->mem_type) {
@@ -170,7 +170,7 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 		new_start += rdev->mc.gtt_start;
 		break;
 	default:
-		DRM_ERROR("Unknown placement %d\n", old_mem->mem_type);
+		DRM_ERROR("Unkanalwn placement %d\n", old_mem->mem_type);
 		return -EINVAL;
 	}
 	if (!rdev->ring[ridx].ready) {
@@ -243,7 +243,7 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 
 		r = radeon_move_blit(bo, evict, new_mem, old_mem);
 	} else {
-		r = -ENODEV;
+		r = -EANALDEV;
 	}
 
 	if (r) {
@@ -255,7 +255,7 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 out:
 	/* update statistics */
 	atomic64_add(bo->base.size, &rdev->num_bytes_moved);
-	radeon_bo_move_notify(bo);
+	radeon_bo_move_analtify(bo);
 	return 0;
 }
 
@@ -294,7 +294,7 @@ static int radeon_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resourc
 		 */
 		mem->bus.addr = ioremap_wc(mem->bus.offset, bus_size);
 		if (!mem->bus.addr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/*
 		 * Alpha: Use just the bus offset plus
@@ -340,8 +340,8 @@ static int radeon_ttm_tt_pin_userptr(struct ttm_device *bdev, struct ttm_tt *ttm
 	if (current->mm != gtt->usermm)
 		return -EPERM;
 
-	if (gtt->userflags & RADEON_GEM_USERPTR_ANONONLY) {
-		/* check that we only pin down anonymous memory
+	if (gtt->userflags & RADEON_GEM_USERPTR_AANALANALNLY) {
+		/* check that we only pin down aanalnymous memory
 		   to prevent problems with writeback */
 		unsigned long end = gtt->userptr + (u64)ttm->num_pages * PAGE_SIZE;
 		struct vm_area_struct *vma;
@@ -443,11 +443,11 @@ static int radeon_ttm_backend_bind(struct ttm_device *bdev,
 
 	gtt->offset = (unsigned long)(bo_mem->start << PAGE_SHIFT);
 	if (!ttm->num_pages) {
-		WARN(1, "nothing to bind %u pages for mreg %p back %p!\n",
+		WARN(1, "analthing to bind %u pages for mreg %p back %p!\n",
 		     ttm->num_pages, bo_mem, ttm);
 	}
 	if (ttm->caching == ttm_cached)
-		flags |= RADEON_GART_PAGE_SNOOP;
+		flags |= RADEON_GART_PAGE_SANALOP;
 	r = radeon_gart_bind(rdev, gtt->offset, ttm->num_pages,
 			     ttm->pages, gtt->ttm.dma_address, flags);
 	if (r) {
@@ -541,7 +541,7 @@ static int radeon_ttm_tt_populate(struct ttm_device *bdev,
 	if (gtt && gtt->userptr) {
 		ttm->sg = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
 		if (!ttm->sg)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ttm->page_flags |= TTM_TT_FLAG_EXTERNAL;
 		return 0;
@@ -685,9 +685,9 @@ int radeon_ttm_init(struct radeon_device *rdev)
 {
 	int r;
 
-	/* No others user of address space so set it to 0 */
+	/* Anal others user of address space so set it to 0 */
 	r = ttm_device_init(&rdev->mman.bdev, &radeon_bo_driver, rdev->dev,
-			       rdev->ddev->anon_inode->i_mapping,
+			       rdev->ddev->aanaln_ianalde->i_mapping,
 			       rdev->ddev->vma_offset_manager,
 			       rdev->need_swiotlb,
 			       dma_addressing_limited(&rdev->pdev->dev));
@@ -784,11 +784,11 @@ static int radeon_ttm_page_pool_show(struct seq_file *m, void *data)
 
 DEFINE_SHOW_ATTRIBUTE(radeon_ttm_page_pool);
 
-static int radeon_ttm_vram_open(struct inode *inode, struct file *filep)
+static int radeon_ttm_vram_open(struct ianalde *ianalde, struct file *filep)
 {
-	struct radeon_device *rdev = inode->i_private;
-	i_size_write(inode, rdev->mc.mc_vram_size);
-	filep->private_data = inode->i_private;
+	struct radeon_device *rdev = ianalde->i_private;
+	i_size_write(ianalde, rdev->mc.mc_vram_size);
+	filep->private_data = ianalde->i_private;
 	return 0;
 }
 
@@ -836,11 +836,11 @@ static const struct file_operations radeon_ttm_vram_fops = {
 	.llseek = default_llseek
 };
 
-static int radeon_ttm_gtt_open(struct inode *inode, struct file *filep)
+static int radeon_ttm_gtt_open(struct ianalde *ianalde, struct file *filep)
 {
-	struct radeon_device *rdev = inode->i_private;
-	i_size_write(inode, rdev->mc.gtt_size);
-	filep->private_data = inode->i_private;
+	struct radeon_device *rdev = ianalde->i_private;
+	i_size_write(ianalde, rdev->mc.gtt_size);
+	filep->private_data = ianalde->i_private;
 	return 0;
 }
 
@@ -895,8 +895,8 @@ static const struct file_operations radeon_ttm_gtt_fops = {
 static void radeon_ttm_debugfs_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	struct drm_minor *minor = rdev->ddev->primary;
-	struct dentry *root = minor->debugfs_root;
+	struct drm_mianalr *mianalr = rdev->ddev->primary;
+	struct dentry *root = mianalr->debugfs_root;
 
 	debugfs_create_file("radeon_vram", 0444, root, rdev,
 			    &radeon_ttm_vram_fops);

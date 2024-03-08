@@ -234,7 +234,7 @@ static int rq_qos_wake_function(struct wait_queue_entry *curr,
  * This provides a uniform place for the rq_qos users to do their throttling.
  * Since you can end up with a lot of things sleeping at once, this manages the
  * waking up based on the resources available.  The acquire_inflight_cb should
- * inc the rqw->inflight if we have the ability to do so, or return false if not
+ * inc the rqw->inflight if we have the ability to do so, or return false if analt
  * and then we will sleep until the room becomes available.
  *
  * cleanup_cb is in case that we race with a waker and need to cleanup the
@@ -271,7 +271,7 @@ void rq_qos_wait(struct rq_wait *rqw, void *private_data,
 
 			/*
 			 * We raced with rq_qos_wake_function() getting a token,
-			 * which means we now have two. Put our local token
+			 * which means we analw have two. Put our local token
 			 * and wake anyone else potentially waiting for one.
 			 */
 			smp_rmb();
@@ -309,7 +309,7 @@ int rq_qos_add(struct rq_qos *rqos, struct gendisk *disk, enum rq_qos_id id,
 	rqos->ops = ops;
 
 	/*
-	 * No IO can be in-flight when adding rqos, so freeze queue, which
+	 * Anal IO can be in-flight when adding rqos, so freeze queue, which
 	 * is fine since we only support rq_qos for blk-mq queue.
 	 */
 	blk_mq_freeze_queue(q);

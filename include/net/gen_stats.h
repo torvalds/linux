@@ -10,7 +10,7 @@
 /* Throughput stats.
  * Must be initialized beforehand with gnet_stats_basic_sync_init().
  *
- * If no reads can ever occur parallel to writes (e.g. stack-allocated
+ * If anal reads can ever occur parallel to writes (e.g. stack-allocated
  * bstats), then the internal stat values can be written to and read
  * from directly. Otherwise, use _bstats_set/update() for writes and
  * gnet_stats_add_basic() for reads.

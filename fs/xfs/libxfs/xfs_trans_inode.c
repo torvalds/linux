@@ -10,30 +10,30 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
-#include "xfs_inode_item.h"
+#include "xfs_ianalde_item.h"
 
 #include <linux/iversion.h>
 
 /*
- * Add a locked inode to the transaction.
+ * Add a locked ianalde to the transaction.
  *
- * The inode must be locked, and it cannot be associated with any transaction.
- * If lock_flags is non-zero the inode will be unlocked on transaction commit.
+ * The ianalde must be locked, and it cananalt be associated with any transaction.
+ * If lock_flags is analn-zero the ianalde will be unlocked on transaction commit.
  */
 void
 xfs_trans_ijoin(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	uint			lock_flags)
 {
-	struct xfs_inode_log_item *iip;
+	struct xfs_ianalde_log_item *iip;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	if (ip->i_itemp == NULL)
-		xfs_inode_item_init(ip, ip->i_mount);
+		xfs_ianalde_item_init(ip, ip->i_mount);
 	iip = ip->i_itemp;
 
 	ASSERT(iip->ili_lock_flags == 0);
@@ -46,48 +46,48 @@ xfs_trans_ijoin(
 }
 
 /*
- * Transactional inode timestamp update. Requires the inode to be locked and
+ * Transactional ianalde timestamp update. Requires the ianalde to be locked and
  * joined to the transaction supplied. Relies on the transaction subsystem to
- * track dirty state and update/writeback the inode accordingly.
+ * track dirty state and update/writeback the ianalde accordingly.
  */
 void
 xfs_trans_ichgtime(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	int			flags)
 {
-	struct inode		*inode = VFS_I(ip);
+	struct ianalde		*ianalde = VFS_I(ip);
 	struct timespec64	tv;
 
 	ASSERT(tp);
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
-	tv = current_time(inode);
+	tv = current_time(ianalde);
 
 	if (flags & XFS_ICHGTIME_MOD)
-		inode_set_mtime_to_ts(inode, tv);
+		ianalde_set_mtime_to_ts(ianalde, tv);
 	if (flags & XFS_ICHGTIME_CHG)
-		inode_set_ctime_to_ts(inode, tv);
+		ianalde_set_ctime_to_ts(ianalde, tv);
 	if (flags & XFS_ICHGTIME_CREATE)
 		ip->i_crtime = tv;
 }
 
 /*
  * This is called to mark the fields indicated in fieldmask as needing to be
- * logged when the transaction is committed.  The inode must already be
+ * logged when the transaction is committed.  The ianalde must already be
  * associated with the given transaction. All we do here is record where the
- * inode was dirtied and mark the transaction and inode log item dirty;
+ * ianalde was dirtied and mark the transaction and ianalde log item dirty;
  * everything else is done in the ->precommit log item operation after the
  * changes in the transaction have been completed.
  */
 void
-xfs_trans_log_inode(
+xfs_trans_log_ianalde(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	uint			flags)
 {
-	struct xfs_inode_log_item *iip = ip->i_itemp;
-	struct inode		*inode = VFS_I(ip);
+	struct xfs_ianalde_log_item *iip = ip->i_itemp;
+	struct ianalde		*ianalde = VFS_I(ip);
 
 	ASSERT(iip);
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
@@ -96,17 +96,17 @@ xfs_trans_log_inode(
 	tp->t_flags |= XFS_TRANS_DIRTY;
 
 	/*
-	 * First time we log the inode in a transaction, bump the inode change
+	 * First time we log the ianalde in a transaction, bump the ianalde change
 	 * counter if it is configured for this to occur. While we have the
-	 * inode locked exclusively for metadata modification, we can usually
-	 * avoid setting XFS_ILOG_CORE if no one has queried the value since
+	 * ianalde locked exclusively for metadata modification, we can usually
+	 * avoid setting XFS_ILOG_CORE if anal one has queried the value since
 	 * the last time it was incremented. If we have XFS_ILOG_CORE already
 	 * set however, then go ahead and bump the i_version counter
 	 * unconditionally.
 	 */
 	if (!test_and_set_bit(XFS_LI_DIRTY, &iip->ili_item.li_flags)) {
-		if (IS_I_VERSION(inode) &&
-		    inode_maybe_inc_iversion(inode, flags & XFS_ILOG_CORE))
+		if (IS_I_VERSION(ianalde) &&
+		    ianalde_maybe_inc_iversion(ianalde, flags & XFS_ILOG_CORE))
 			flags |= XFS_ILOG_IVERSION;
 	}
 
@@ -114,13 +114,13 @@ xfs_trans_log_inode(
 }
 
 int
-xfs_trans_roll_inode(
+xfs_trans_roll_ianalde(
 	struct xfs_trans	**tpp,
-	struct xfs_inode	*ip)
+	struct xfs_ianalde	*ip)
 {
 	int			error;
 
-	xfs_trans_log_inode(*tpp, ip, XFS_ILOG_CORE);
+	xfs_trans_log_ianalde(*tpp, ip, XFS_ILOG_CORE);
 	error = xfs_trans_roll(tpp);
 	if (!error)
 		xfs_trans_ijoin(*tpp, ip, 0);

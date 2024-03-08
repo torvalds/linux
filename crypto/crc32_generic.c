@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright 2012 Xyratex Technology Limited
+ * Copyright 2012 Xyratex Techanallogy Limited
  */
 
 /*
@@ -18,7 +18,7 @@
 #define CHKSUM_BLOCK_SIZE	1
 #define CHKSUM_DIGEST_SIZE	4
 
-/** No default init with ~0 */
+/** Anal default init with ~0 */
 static int crc32_cra_init(struct crypto_tfm *tfm)
 {
 	u32 *key = crypto_tfm_ctx(tfm);
@@ -63,7 +63,7 @@ static int crc32_update(struct shash_desc *desc, const u8 *data,
 	return 0;
 }
 
-/* No final XOR 0xFFFFFFFF, like crc32_le */
+/* Anal final XOR 0xFFFFFFFF, like crc32_le */
 static int __crc32_finup(u32 *crcp, const u8 *data, unsigned int len,
 			 u8 *out)
 {

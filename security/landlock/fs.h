@@ -17,21 +17,21 @@
 #include "setup.h"
 
 /**
- * struct landlock_inode_security - Inode security blob
+ * struct landlock_ianalde_security - Ianalde security blob
  *
- * Enable to reference a &struct landlock_object tied to an inode (i.e.
+ * Enable to reference a &struct landlock_object tied to an ianalde (i.e.
  * underlying object).
  */
-struct landlock_inode_security {
+struct landlock_ianalde_security {
 	/**
 	 * @object: Weak pointer to an allocated object.  All assignments of a
-	 * new object are protected by the underlying inode->i_lock.  However,
-	 * atomically disassociating @object from the inode is only protected
+	 * new object are protected by the underlying ianalde->i_lock.  However,
+	 * atomically disassociating @object from the ianalde is only protected
 	 * by @object->lock, from the time @object's usage refcount drops to
-	 * zero to the time this pointer is nulled out (cf. release_inode() and
+	 * zero to the time this pointer is nulled out (cf. release_ianalde() and
 	 * hook_sb_delete()).  Indeed, such disassociation doesn't require
-	 * inode->i_lock thanks to the careful rcu_access_pointer() check
-	 * performed by get_inode_object().
+	 * ianalde->i_lock thanks to the careful rcu_access_pointer() check
+	 * performed by get_ianalde_object().
 	 */
 	struct landlock_object __rcu *object;
 };
@@ -47,7 +47,7 @@ struct landlock_inode_security {
 struct landlock_file_security {
 	/**
 	 * @allowed_access: Access rights that were available at the time of
-	 * opening the file. This is not necessarily the full set of access
+	 * opening the file. This is analt necessarily the full set of access
 	 * rights available at that time, but it's the necessary subset as
 	 * needed to authorize later operations on the open file.
 	 */
@@ -57,15 +57,15 @@ struct landlock_file_security {
 /**
  * struct landlock_superblock_security - Superblock security blob
  *
- * Enable hook_sb_delete() to wait for concurrent calls to release_inode().
+ * Enable hook_sb_delete() to wait for concurrent calls to release_ianalde().
  */
 struct landlock_superblock_security {
 	/**
-	 * @inode_refs: Number of pending inodes (from this superblock) that
-	 * are being released by release_inode().
-	 * Cf. struct super_block->s_fsnotify_inode_refs .
+	 * @ianalde_refs: Number of pending ianaldes (from this superblock) that
+	 * are being released by release_ianalde().
+	 * Cf. struct super_block->s_fsanaltify_ianalde_refs .
 	 */
-	atomic_long_t inode_refs;
+	atomic_long_t ianalde_refs;
 };
 
 static inline struct landlock_file_security *
@@ -74,10 +74,10 @@ landlock_file(const struct file *const file)
 	return file->f_security + landlock_blob_sizes.lbs_file;
 }
 
-static inline struct landlock_inode_security *
-landlock_inode(const struct inode *const inode)
+static inline struct landlock_ianalde_security *
+landlock_ianalde(const struct ianalde *const ianalde)
 {
-	return inode->i_security + landlock_blob_sizes.lbs_inode;
+	return ianalde->i_security + landlock_blob_sizes.lbs_ianalde;
 }
 
 static inline struct landlock_superblock_security *

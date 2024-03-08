@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /******************************************************************************
 *******************************************************************************
 **
@@ -26,7 +26,7 @@
 
 /* Version of the device interface */
 #define DLM_DEVICE_VERSION_MAJOR 6
-#define DLM_DEVICE_VERSION_MINOR 0
+#define DLM_DEVICE_VERSION_MIANALR 0
 #define DLM_DEVICE_VERSION_PATCH 2
 
 /* struct passed to the lock write */
@@ -50,12 +50,12 @@ struct dlm_lock_params {
 
 struct dlm_lspace_params {
 	__u32 flags;
-	__u32 minor;
+	__u32 mianalr;
 	char name[];
 };
 
 struct dlm_purge_params {
-	__u32 nodeid;
+	__u32 analdeid;
 	__u32 pid;
 };
 
@@ -88,7 +88,7 @@ struct dlm_lock_result {
 	struct dlm_lksb lksb;
 	__u8 bast_mode;
 	__u8 unused[3];
-	/* Offsets may be zero if no data is present */
+	/* Offsets may be zero if anal data is present */
 	__u32 lvb_offset;
 };
 

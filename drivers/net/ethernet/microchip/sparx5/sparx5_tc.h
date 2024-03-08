@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2022 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #ifndef __SPARX5_TC_H__
@@ -23,7 +23,7 @@ enum SPX5_PORT_MASK_MODE {
 
 /* Controls ES0 forwarding  */
 enum SPX5_FORWARDING_SEL {
-	SPX5_FWSEL_NO_ACTION,
+	SPX5_FWSEL_ANAL_ACTION,
 	SPX5_FWSEL_COPY_TO_LOOPBACK,
 	SPX5_FWSEL_REDIRECT_TO_LOOPBACK,
 	SPX5_FWSEL_DISCARD,
@@ -81,7 +81,7 @@ enum SPX5_DEI_A_SEL {
 
 /* Controls tag B (inner tagging) */
 enum SPX5_INNER_TAG_SEL {
-	SPX5_ITAG_NO_PUSH,
+	SPX5_ITAG_ANAL_PUSH,
 	SPX5_ITAG_PUSH_B_TAG,
 };
 

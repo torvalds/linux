@@ -93,12 +93,12 @@ properties:
       - const: core
       - const: pipe
       - const: sticky
-      - const: non-sticky
+      - const: analn-sticky
 
   baikal,bt1-syscon:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Phandle to the Baikal-T1 System Controller DT node. It's required to
+      Phandle to the Baikal-T1 System Controller DT analde. It's required to
       access some additional PM, Reset-related and LTSSM signals.
 
   num-lanes:
@@ -158,7 +158,7 @@ examples:
                <&ccu_sys 4>, <&ccu_sys 6>, <&ccu_sys 5>, <&ccu_sys 8>,
                <&ccu_sys 9>;
       reset-names = "mstr", "slv", "pwr", "hot", "phy", "core", "pipe",
-                    "sticky", "non-sticky";
+                    "sticky", "analn-sticky";
 
       reset-gpios = <&port0 0 GPIO_ACTIVE_LOW>;
 

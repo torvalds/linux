@@ -8,7 +8,7 @@
 // Confidence: High
 // Copyright: (C) 2020 Denis Efremov ISPRAS.
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual context
 virtual report

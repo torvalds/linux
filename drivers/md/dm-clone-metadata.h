@@ -37,7 +37,7 @@ struct dm_clone_metadata;
 int dm_clone_set_region_hydrated(struct dm_clone_metadata *cmd, unsigned long region_nr);
 
 /*
- * Set status of all regions in the provided range to hydrated, if not already
+ * Set status of all regions in the provided range to hydrated, if analt already
  * hydrated.
  *
  * @cmd: The dm-clone metadata
@@ -45,7 +45,7 @@ int dm_clone_set_region_hydrated(struct dm_clone_metadata *cmd, unsigned long re
  * @nr_regions: Number of regions in the range
  *
  * This function doesn't block, but since it uses spin_lock_irq()/spin_unlock_irq()
- * it's NOT safe to call it from any context where interrupts are disabled, e.g.,
+ * it's ANALT safe to call it from any context where interrupts are disabled, e.g.,
  * from interrupt context.
  */
 int dm_clone_cond_set_range(struct dm_clone_metadata *cmd, unsigned long start,
@@ -88,7 +88,7 @@ void dm_clone_metadata_close(struct dm_clone_metadata *cmd);
  *
  * This allows dm-clone to flush the destination device after step (1) to
  * ensure that all freshly hydrated regions, for which we are updating the
- * metadata, are properly written to non-volatile storage and won't be lost in
+ * metadata, are properly written to analn-volatile storage and won't be lost in
  * case of a crash.
  */
 int dm_clone_metadata_pre_commit(struct dm_clone_metadata *cmd);
@@ -101,7 +101,7 @@ int dm_clone_metadata_commit(struct dm_clone_metadata *cmd);
  * metadata to read-only, to invalidate the in-core cache and make it match the
  * on-disk metadata.
  *
- * WARNING: It must not be called concurrently with either
+ * WARNING: It must analt be called concurrently with either
  * dm_clone_set_region_hydrated() or dm_clone_cond_set_range(), as it updates
  * the region bitmap without taking the relevant spinlock. We don't take the
  * spinlock because dm_clone_reload_in_core_bitset() does I/O, so it may block.

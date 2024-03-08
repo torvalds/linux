@@ -7,10 +7,10 @@ comment "USB Miscellaneous drivers"
 config USB_USS720
 	tristate "USS720 parport driver"
 	depends on PARPORT
-	select PARPORT_NOT_PC
+	select PARPORT_ANALT_PC
 	help
 	  This driver is for USB parallel port adapters that use the Lucent
-	  Technologies USS-720 chip. These cables are plugged into your USB
+	  Techanallogies USS-720 chip. These cables are plugged into your USB
 	  port and provide USB compatibility to peripherals designed with
 	  parallel port interfaces.
 
@@ -21,11 +21,11 @@ config USB_USS720
 	  that mode, and you can say N here if you want to use the chip only
 	  in this mode.
 
-	  Manual mode is not limited to printers, any parallel port
+	  Manual mode is analt limited to printers, any parallel port
 	  device should work. This driver utilizes manual mode.
-	  Note however that some operations are three orders of magnitude
+	  Analte however that some operations are three orders of magnitude
 	  slower than on a PCI/ISA Parallel Port, so timing critical
-	  applications might not work.
+	  applications might analt work.
 
 	  Say Y here if you own an USS-720 USB->Parport cable and intend to
 	  connect anything other than a printer to it.
@@ -116,7 +116,7 @@ config USB_CYTHERM
 	tristate "Cypress USB thermometer driver support"
 	help
 	  Say Y here if you want to connect a Cypress USB thermometer
-	  device to your computer's USB port. This device is also known
+	  device to your computer's USB port. This device is also kanalwn
 	  as the Cypress USB Starter kit or demo board. The Elektor
 	  magazine published a modified version of this device in issue 
 	  #291.
@@ -129,7 +129,7 @@ config USB_IDMOUSE
 	help
 	  Say Y here if you want to use the fingerprint sensor on
 	  the Siemens ID Mouse. There is also a Siemens ID Mouse
-	  _Professional_, which has not been tested with this driver,
+	  _Professional_, which has analt been tested with this driver,
 	  but uses the same sensor and may therefore work.
 
 	  This driver creates an entry "/dev/idmouseX" or "/dev/usb/idmouseX",
@@ -149,7 +149,7 @@ config USB_QCOM_EUD
 	depends on ARCH_QCOM || COMPILE_TEST
 	select USB_ROLE_SWITCH
 	help
-	  This module enables support for Qualcomm Technologies, Inc.
+	  This module enables support for Qualcomm Techanallogies, Inc.
 	  Embedded USB Debugger (EUD). The EUD is a control peripheral
 	  which reports VBUS attach/detach events and has USB-based
 	  debug and trace capabilities. On selecting m, the module name
@@ -322,7 +322,7 @@ config USB_ONBOARD_HUB
 	help
 	  Say Y here if you want to support discrete onboard USB hubs that
 	  don't require an additional control bus for initialization, but
-	  need some non-trivial form of initialization, such as enabling a
+	  need some analn-trivial form of initialization, such as enabling a
 	  power regulator. An example for such a hub is the Realtek
 	  RTS5411.
 

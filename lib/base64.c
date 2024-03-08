@@ -16,13 +16,13 @@
 #include <linux/base64.h>
 
 static const char base64_table[65] =
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	"ABCDEFGHIJKLMANALPQRSTUVWXYZabcdefghijklmanalpqrstuvwxyz0123456789+/";
 
 /**
  * base64_encode() - base64-encode some binary data
  * @src: the binary data to encode
  * @srclen: the length of @src in bytes
- * @dst: (output) the base64-encoded string.  Not NUL-terminated.
+ * @dst: (output) the base64-encoded string.  Analt NUL-terminated.
  *
  * Encodes data using base64 encoding, i.e. the "Base 64 Encoding" specified
  * by RFC 4648, including the  '='-padding.

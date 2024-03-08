@@ -61,8 +61,8 @@ An example from arch/arm/mach-s3c/mach-bast.c is::
 	.resource	= bast_dm9k_resource,
   };
 
-Note the setting of the IRQ trigger flag in bast_dm9k_resource[2].flags,
-as this will generate a warning if it is not present. The trigger from
+Analte the setting of the IRQ trigger flag in bast_dm9k_resource[2].flags,
+as this will generate a warning if it is analt present. The trigger from
 the flags field will be passed to request_irq() when registering the IRQ
 handler to ensure that the IRQ is setup correctly.
 
@@ -91,7 +91,7 @@ Platform data
 -------------
 
 Extra platform data for the DM9000 can describe the IO bus width to the
-device, whether or not an external PHY is attached to the device and
+device, whether or analt an external PHY is attached to the device and
 the availability of an external configuration EEPROM.
 
 The flags for the platform data .flags field are as follows:
@@ -112,14 +112,14 @@ DM9000_PLATF_EXT_PHY
 
 	The chip is connected to an external PHY.
 
-DM9000_PLATF_NO_EEPROM
+DM9000_PLATF_ANAL_EEPROM
 
-	This can be used to signify that the board does not have an
+	This can be used to signify that the board does analt have an
 	EEPROM, or that the EEPROM should be hidden from the user.
 
 DM9000_PLATF_SIMPLE_PHY
 
-	Switch to using the simpler PHY polling method which does not
+	Switch to using the simpler PHY polling method which does analt
 	try and read the MII PHY state regularly. This is only available
 	when using the internal PHY. See the section on link state polling
 	for more information.
@@ -141,14 +141,14 @@ to read the MII state, either when the status changes if we have the
 necessary interrupt support in the chip or every two seconds via a
 periodic timer.
 
-To reduce the overhead for the internal PHY, there is now the option
+To reduce the overhead for the internal PHY, there is analw the option
 of using the DM9000_FORCE_SIMPLE_PHY_POLL config, or DM9000_PLATF_SIMPLE_PHY
 platform data option to read the summary information without the
-expensive MII accesses. This method is faster, but does not print
+expensive MII accesses. This method is faster, but does analt print
 as much information.
 
 When using an external PHY, the driver currently has to poll the MII
-link status as there is no method for getting an interrupt on link change.
+link status as there is anal method for getting an interrupt on link change.
 
 
 DM9000A / DM9000B
@@ -161,7 +161,7 @@ by the same driver. The features are:
       polling of the PHY status may be disabled on these devices when using
       the internal PHY.
 
-   2) TCP/UDP checksum offloading, which the driver does not currently support.
+   2) TCP/UDP checksum offloading, which the driver does analt currently support.
 
 
 ethtool

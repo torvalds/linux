@@ -41,11 +41,11 @@ static void handle_rpc_func_cmd_i2c_transfer(struct tee_context *ctx,
 	struct i2c_adapter *adapter;
 	struct i2c_msg msg = { };
 	size_t i;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 	u8 attr[] = {
 		TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT,
 		TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT,
-		TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT,
+		TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_IANALUT,
 		TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT,
 	};
 
@@ -123,7 +123,7 @@ bad:
 static void handle_rpc_func_cmd_i2c_transfer(struct tee_context *ctx,
 					     struct optee_msg_arg *arg)
 {
-	arg->ret = TEEC_ERROR_NOT_SUPPORTED;
+	arg->ret = TEEC_ERROR_ANALT_SUPPORTED;
 }
 #endif
 
@@ -138,12 +138,12 @@ static void handle_rpc_func_cmd_wq(struct optee *optee,
 		goto bad;
 
 	switch (arg->params[0].u.value.a) {
-	case OPTEE_RPC_NOTIFICATION_WAIT:
-		if (optee_notif_wait(optee, arg->params[0].u.value.b))
+	case OPTEE_RPC_ANALTIFICATION_WAIT:
+		if (optee_analtif_wait(optee, arg->params[0].u.value.b))
 			goto bad;
 		break;
-	case OPTEE_RPC_NOTIFICATION_SEND:
-		if (optee_notif_send(optee, arg->params[0].u.value.b))
+	case OPTEE_RPC_ANALTIFICATION_SEND:
+		if (optee_analtif_send(optee, arg->params[0].u.value.b))
 			goto bad;
 		break;
 	default:
@@ -214,14 +214,14 @@ struct tee_shm *optee_rpc_cmd_alloc_suppl(struct tee_context *ctx, size_t sz)
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct tee_shm *shm;
 
-	param.attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT;
+	param.attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_IANALUT;
 	param.u.value.a = OPTEE_RPC_SHM_TYPE_APPL;
 	param.u.value.b = sz;
 	param.u.value.c = 0;
 
 	ret = optee_supp_thrd_req(ctx, OPTEE_RPC_CMD_SHM_ALLOC, 1, &param);
 	if (ret)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_lock(&optee->supp.mutex);
 	/* Increases count as secure world doesn't have a reference */
@@ -234,7 +234,7 @@ void optee_rpc_cmd_free_suppl(struct tee_context *ctx, struct tee_shm *shm)
 {
 	struct tee_param param;
 
-	param.attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT;
+	param.attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_IANALUT;
 	param.u.value.a = OPTEE_RPC_SHM_TYPE_APPL;
 	param.u.value.b = tee_shm_get_id(shm);
 	param.u.value.c = 0;
@@ -262,7 +262,7 @@ void optee_rpc_cmd(struct tee_context *ctx, struct optee *optee,
 	case OPTEE_RPC_CMD_GET_TIME:
 		handle_rpc_func_cmd_get_time(arg);
 		break;
-	case OPTEE_RPC_CMD_NOTIFICATION:
+	case OPTEE_RPC_CMD_ANALTIFICATION:
 		handle_rpc_func_cmd_wq(optee, arg);
 		break;
 	case OPTEE_RPC_CMD_SUSPEND:

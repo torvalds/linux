@@ -10,7 +10,7 @@
 
 /*
  * switch_to(n) should switch tasks to task ptr, first checking that
- * ptr isn't the current task, in which case it does nothing.  This
+ * ptr isn't the current task, in which case it does analthing.  This
  * also clears the TS-flag if the task we switched to has used the
  * math co-processor latest.
  */

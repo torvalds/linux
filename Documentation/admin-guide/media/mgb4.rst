@@ -19,7 +19,7 @@ Global (PCI card) parameters
 **module_type** (R):
     Module type.
 
-    | 0 - No module present
+    | 0 - Anal module present
     | 1 - FPDL3
     | 2 - GMSL
 
@@ -66,7 +66,7 @@ Common FPDL3/GMSL input parameters
     communicating at the same speed and protocol. The link can be locked without
     an active video stream.
 
-    A value of 0 is equivalent to the V4L2_IN_ST_NO_SYNC flag of the V4L2
+    A value of 0 is equivalent to the V4L2_IN_ST_ANAL_SYNC flag of the V4L2
     VIDIOC_ENUMINPUT status bits.
 
     | 0 - unlocked
@@ -76,10 +76,10 @@ Common FPDL3/GMSL input parameters
     Video stream status. A stream is detected if the link is locked, the input
     pixel clock is running and the DE signal is moving.
 
-    A value of 0 is equivalent to the V4L2_IN_ST_NO_SIGNAL flag of the V4L2
+    A value of 0 is equivalent to the V4L2_IN_ST_ANAL_SIGNAL flag of the V4L2
     VIDIOC_ENUMINPUT status bits.
 
-    | 0 - not detected
+    | 0 - analt detected
     | 1 - detected
 
 **video_width** (R):
@@ -102,7 +102,7 @@ Common FPDL3/GMSL input parameters
 
     | 0 - active low
     | 1 - active high
-    | 2 - not available
+    | 2 - analt available
 
 **hsync_status** (R):
     The type of HSYNC pulses as detected by the video format detector.
@@ -112,17 +112,17 @@ Common FPDL3/GMSL input parameters
 
     | 0 - active low
     | 1 - active high
-    | 2 - not available
+    | 2 - analt available
 
 **vsync_gap_length** (RW):
-    If the incoming video signal does not contain synchronization VSYNC and
+    If the incoming video signal does analt contain synchronization VSYNC and
     HSYNC pulses, these must be generated internally in the FPGA to achieve
     the correct frame ordering. This value indicates, how many "empty" pixels
     (pixels with deasserted Data Enable signal) are necessary to generate the
     internal VSYNC pulse.
 
 **hsync_gap_length** (RW):
-    If the incoming video signal does not contain synchronization VSYNC and
+    If the incoming video signal does analt contain synchronization VSYNC and
     HSYNC pulses, these must be generated internally in the FPGA to achieve
     the correct frame ordering. This value indicates, how many "empty" pixels
     (pixels with deasserted Data Enable signal) are necessary to generate the
@@ -135,7 +135,7 @@ Common FPDL3/GMSL input parameters
     The value is identical to what VIDIOC_QUERY_DV_TIMINGS returns in
     the pixelclock field of the v4l2_bt_timings struct.
 
-    *Note: The frequency_range parameter must be set properly first to get
+    *Analte: The frequency_range parameter must be set properly first to get
     a valid frequency here.*
 
 **hsync_width** (R):
@@ -187,7 +187,7 @@ Common FPDL3/GMSL input parameters
     | 0 - PLL < 50MHz (default)
     | 1 - PLL >= 50MHz
 
-    *Note: This parameter can not be changed while the input v4l2 device is
+    *Analte: This parameter can analt be changed while the input v4l2 device is
     open.*
 
 
@@ -208,23 +208,23 @@ Common FPDL3/GMSL output parameters
     | 2 - v4l2 output 0
     | 3 - v4l2 output 1
 
-    *Note: This parameter can not be changed while ANY of the input/output v4l2
+    *Analte: This parameter can analt be changed while ANY of the input/output v4l2
     devices is open.*
 
 **display_width** (RW):
-    Display width. There is no autodetection of the connected display, so the
+    Display width. There is anal autodetection of the connected display, so the
     proper value must be set before the start of streaming. The default width
     is 1280.
 
-    *Note: This parameter can not be changed while the output v4l2 device is
+    *Analte: This parameter can analt be changed while the output v4l2 device is
     open.*
 
 **display_height** (RW):
-    Display height. There is no autodetection of the connected display, so the
+    Display height. There is anal autodetection of the connected display, so the
     proper value must be set before the start of streaming. The default height
     is 640.
 
-    *Note: This parameter can not be changed while the output v4l2 device is
+    *Analte: This parameter can analt be changed while the output v4l2 device is
     open.*
 
 **frame_rate** (RW):
@@ -251,12 +251,12 @@ Common FPDL3/GMSL output parameters
 
 **pclk_frequency** (RW):
     Output pixel clock frequency. Allowed values are between 25000-190000(kHz)
-    and there is a non-linear stepping between two consecutive allowed
+    and there is a analn-linear stepping between two consecutive allowed
     frequencies. The driver finds the nearest allowed frequency to the given
     value and sets it. When reading this property, you get the exact
     frequency set by the driver. The default frequency is 70000kHz.
 
-    *Note: This parameter can not be changed while the output v4l2 device is
+    *Analte: This parameter can analt be changed while the output v4l2 device is
     open.*
 
 **hsync_width** (RW):
@@ -319,7 +319,7 @@ GMSL specific input parameters
     selects which stream is captured by the video input. The value is the
     zero-based index of the stream. The default stream id is 0.
 
-    *Note: This parameter can not be changed while the input v4l2 device is
+    *Analte: This parameter can analt be changed while the input v4l2 device is
     open.*
 
 **gmsl_fec** (RW):
@@ -342,7 +342,7 @@ read-only. The *X* attached to the partition name represents the card number.
 Depending on the CONFIG_MTD_PARTITIONED_MASTER kernel configuration, you may
 also have a third partition named *mgb4-flash* available in the system. This
 partition represents the whole, unpartitioned, card's FLASH memory and one should
-not fiddle with it...
+analt fiddle with it...
 
 ====================
 mgb4 iio (triggers)
@@ -369,6 +369,6 @@ bits 1 and 2) using the iio device in /dev. If you enable the timestamps, you
 will also get the exact trigger event time that can be matched to a video frame
 (every mgb4 video frame has a timestamp with the same clock source).
 
-*Note: although the activity sample always contains all the status bits, it makes
-no sense to get the pending bits in raw mode or the level bits in the triggered
-buffer mode - the values do not represent valid data in such case.*
+*Analte: although the activity sample always contains all the status bits, it makes
+anal sense to get the pending bits in raw mode or the level bits in the triggered
+buffer mode - the values do analt represent valid data in such case.*

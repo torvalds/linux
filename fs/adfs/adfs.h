@@ -9,13 +9,13 @@
 #define ADFS_BAD_FRAG		 1
 #define ADFS_ROOT_FRAG		 2
 
-#define ADFS_FILETYPE_NONE	((u16)~0)
+#define ADFS_FILETYPE_ANALNE	((u16)~0)
 
 /* RISC OS 12-bit filetype is stored in load_address[19:8] */
 static inline u16 adfs_filetype(u32 loadaddr)
 {
 	return (loadaddr & 0xfff00000) == 0xfff00000 ?
-	       (loadaddr >> 8) & 0xfff : ADFS_FILETYPE_NONE;
+	       (loadaddr >> 8) & 0xfff : ADFS_FILETYPE_ANALNE;
 }
 
 #define ADFS_NDA_OWNER_READ	(1 << 0)
@@ -27,26 +27,26 @@ static inline u16 adfs_filetype(u32 loadaddr)
 #define ADFS_NDA_PUBLIC_WRITE	(1 << 6)
 
 /*
- * adfs file system inode data in memory
+ * adfs file system ianalde data in memory
  */
-struct adfs_inode_info {
+struct adfs_ianalde_info {
 	loff_t		mmu_private;
 	__u32		parent_id;	/* parent indirect disc address	*/
 	__u32		indaddr;	/* object indirect disc address	*/
 	__u32		loadaddr;	/* RISC OS load address		*/
 	__u32		execaddr;	/* RISC OS exec address		*/
 	unsigned int	attr;		/* RISC OS permissions		*/
-	struct inode vfs_inode;
+	struct ianalde vfs_ianalde;
 };
 
-static inline struct adfs_inode_info *ADFS_I(struct inode *inode)
+static inline struct adfs_ianalde_info *ADFS_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct adfs_inode_info, vfs_inode);
+	return container_of(ianalde, struct adfs_ianalde_info, vfs_ianalde);
 }
 
-static inline bool adfs_inode_is_stamped(struct inode *inode)
+static inline bool adfs_ianalde_is_stamped(struct ianalde *ianalde)
 {
-	return (ADFS_I(inode)->loadaddr & 0xfff00000) == 0xfff00000;
+	return (ADFS_I(ianalde)->loadaddr & 0xfff00000) == 0xfff00000;
 }
 
 /*
@@ -71,7 +71,7 @@ struct adfs_sb_info {
 	umode_t		s_other_mask;	/* ADFS other perm -> unix perm	*/
 	int		s_ftsuffix;	/* ,xyz hex filetype suffix option */
 
-	__u32		s_ids_per_zone;	/* max. no ids in one zone */
+	__u32		s_ids_per_zone;	/* max. anal ids in one zone */
 	__u32		s_idlen;	/* length of ID in map */
 	__u32		s_map_size;	/* sector size of a map	*/
 	signed int	s_map2blk;	/* shift left by this for map->sector*/
@@ -141,10 +141,10 @@ struct adfs_discmap {
 	unsigned int		dm_endbit;
 };
 
-/* Inode stuff */
-struct inode *adfs_iget(struct super_block *sb, struct object_info *obj);
-int adfs_write_inode(struct inode *inode, struct writeback_control *wbc);
-int adfs_notify_change(struct mnt_idmap *idmap, struct dentry *dentry,
+/* Ianalde stuff */
+struct ianalde *adfs_iget(struct super_block *sb, struct object_info *obj);
+int adfs_write_ianalde(struct ianalde *ianalde, struct writeback_control *wbc);
+int adfs_analtify_change(struct mnt_idmap *idmap, struct dentry *dentry,
 		       struct iattr *attr);
 
 /* map.c */
@@ -163,11 +163,11 @@ void adfs_msg(struct super_block *sb, const char *pfx, const char *fmt, ...);
 /* super.c */
 
 /*
- * Inodes and file operations
+ * Ianaldes and file operations
  */
 
 /* dir_*.c */
-extern const struct inode_operations adfs_dir_inode_operations;
+extern const struct ianalde_operations adfs_dir_ianalde_operations;
 extern const struct file_operations adfs_dir_operations;
 extern const struct dentry_operations adfs_dentry_operations;
 extern const struct adfs_dir_ops adfs_f_dir_ops;
@@ -185,7 +185,7 @@ extern int adfs_dir_update(struct super_block *sb, struct object_info *obj,
 			   int wait);
 
 /* file.c */
-extern const struct inode_operations adfs_file_inode_operations;
+extern const struct ianalde_operations adfs_file_ianalde_operations;
 extern const struct file_operations adfs_file_operations;
 
 static inline __u32 signed_asl(__u32 val, signed int shift)

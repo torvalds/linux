@@ -2,7 +2,7 @@
 /*
  * This file is part of wl1251
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  */
 
 #include "debugfs.h"
@@ -128,7 +128,7 @@ DEBUGFS_FWSTATS_FILE(isr, tx_exch_complete, 20, "%u");
 DEBUGFS_FWSTATS_FILE(isr, commands, 20, "%u");
 DEBUGFS_FWSTATS_FILE(isr, rx_procs, 20, "%u");
 DEBUGFS_FWSTATS_FILE(isr, hw_pm_mode_changes, 20, "%u");
-DEBUGFS_FWSTATS_FILE(isr, host_acknowledges, 20, "%u");
+DEBUGFS_FWSTATS_FILE(isr, host_ackanalwledges, 20, "%u");
 DEBUGFS_FWSTATS_FILE(isr, pci_pm, 20, "%u");
 DEBUGFS_FWSTATS_FILE(isr, wakeups, 20, "%u");
 DEBUGFS_FWSTATS_FILE(isr, low_rssi, 20, "%u");
@@ -136,7 +136,7 @@ DEBUGFS_FWSTATS_FILE(isr, low_rssi, 20, "%u");
 DEBUGFS_FWSTATS_FILE(wep, addr_key_count, 20, "%u");
 DEBUGFS_FWSTATS_FILE(wep, default_key_count, 20, "%u");
 /* skipping wep.reserved */
-DEBUGFS_FWSTATS_FILE(wep, key_not_found, 20, "%u");
+DEBUGFS_FWSTATS_FILE(wep, key_analt_found, 20, "%u");
 DEBUGFS_FWSTATS_FILE(wep, decrypt_fail, 20, "%u");
 DEBUGFS_FWSTATS_FILE(wep, packets, 20, "%u");
 DEBUGFS_FWSTATS_FILE(wep, interrupt, 20, "%u");
@@ -153,7 +153,7 @@ DEBUGFS_FWSTATS_FILE(pwr, power_save_off, 20, "%u");
 DEBUGFS_FWSTATS_FILE(pwr, enable_ps, 20, "%u");
 DEBUGFS_FWSTATS_FILE(pwr, disable_ps, 20, "%u");
 DEBUGFS_FWSTATS_FILE(pwr, fix_tsf_ps, 20, "%u");
-/* skipping cont_miss_bcns_spread for now */
+/* skipping cont_miss_bcns_spread for analw */
 DEBUGFS_FWSTATS_FILE(pwr, rcvd_awake_beacons, 20, "%u");
 
 DEBUGFS_FWSTATS_FILE(mic, rx_pkts, 20, "%u");
@@ -268,7 +268,7 @@ static void wl1251_debugfs_delete_files(struct wl1251 *wl)
 	DEBUGFS_FWSTATS_DEL(isr, commands);
 	DEBUGFS_FWSTATS_DEL(isr, rx_procs);
 	DEBUGFS_FWSTATS_DEL(isr, hw_pm_mode_changes);
-	DEBUGFS_FWSTATS_DEL(isr, host_acknowledges);
+	DEBUGFS_FWSTATS_DEL(isr, host_ackanalwledges);
 	DEBUGFS_FWSTATS_DEL(isr, pci_pm);
 	DEBUGFS_FWSTATS_DEL(isr, wakeups);
 	DEBUGFS_FWSTATS_DEL(isr, low_rssi);
@@ -276,7 +276,7 @@ static void wl1251_debugfs_delete_files(struct wl1251 *wl)
 	DEBUGFS_FWSTATS_DEL(wep, addr_key_count);
 	DEBUGFS_FWSTATS_DEL(wep, default_key_count);
 	/* skipping wep.reserved */
-	DEBUGFS_FWSTATS_DEL(wep, key_not_found);
+	DEBUGFS_FWSTATS_DEL(wep, key_analt_found);
 	DEBUGFS_FWSTATS_DEL(wep, decrypt_fail);
 	DEBUGFS_FWSTATS_DEL(wep, packets);
 	DEBUGFS_FWSTATS_DEL(wep, interrupt);
@@ -293,7 +293,7 @@ static void wl1251_debugfs_delete_files(struct wl1251 *wl)
 	DEBUGFS_FWSTATS_DEL(pwr, enable_ps);
 	DEBUGFS_FWSTATS_DEL(pwr, disable_ps);
 	DEBUGFS_FWSTATS_DEL(pwr, fix_tsf_ps);
-	/* skipping cont_miss_bcns_spread for now */
+	/* skipping cont_miss_bcns_spread for analw */
 	DEBUGFS_FWSTATS_DEL(pwr, rcvd_awake_beacons);
 
 	DEBUGFS_FWSTATS_DEL(mic, rx_pkts);
@@ -367,7 +367,7 @@ static void wl1251_debugfs_add_files(struct wl1251 *wl)
 	DEBUGFS_FWSTATS_ADD(isr, commands);
 	DEBUGFS_FWSTATS_ADD(isr, rx_procs);
 	DEBUGFS_FWSTATS_ADD(isr, hw_pm_mode_changes);
-	DEBUGFS_FWSTATS_ADD(isr, host_acknowledges);
+	DEBUGFS_FWSTATS_ADD(isr, host_ackanalwledges);
 	DEBUGFS_FWSTATS_ADD(isr, pci_pm);
 	DEBUGFS_FWSTATS_ADD(isr, wakeups);
 	DEBUGFS_FWSTATS_ADD(isr, low_rssi);
@@ -375,7 +375,7 @@ static void wl1251_debugfs_add_files(struct wl1251 *wl)
 	DEBUGFS_FWSTATS_ADD(wep, addr_key_count);
 	DEBUGFS_FWSTATS_ADD(wep, default_key_count);
 	/* skipping wep.reserved */
-	DEBUGFS_FWSTATS_ADD(wep, key_not_found);
+	DEBUGFS_FWSTATS_ADD(wep, key_analt_found);
 	DEBUGFS_FWSTATS_ADD(wep, decrypt_fail);
 	DEBUGFS_FWSTATS_ADD(wep, packets);
 	DEBUGFS_FWSTATS_ADD(wep, interrupt);
@@ -392,7 +392,7 @@ static void wl1251_debugfs_add_files(struct wl1251 *wl)
 	DEBUGFS_FWSTATS_ADD(pwr, enable_ps);
 	DEBUGFS_FWSTATS_ADD(pwr, disable_ps);
 	DEBUGFS_FWSTATS_ADD(pwr, fix_tsf_ps);
-	/* skipping cont_miss_bcns_spread for now */
+	/* skipping cont_miss_bcns_spread for analw */
 	DEBUGFS_FWSTATS_ADD(pwr, rcvd_awake_beacons);
 
 	DEBUGFS_FWSTATS_ADD(mic, rx_pkts);
@@ -446,7 +446,7 @@ int wl1251_debugfs_init(struct wl1251 *wl)
 {
 	wl->stats.fw_stats = kzalloc(sizeof(*wl->stats.fw_stats), GFP_KERNEL);
 	if (!wl->stats.fw_stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wl->debugfs.rootdir = debugfs_create_dir(KBUILD_MODNAME, NULL);
 

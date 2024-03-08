@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -81,7 +81,7 @@ static uint8_t *psp_get_srm(struct psp_context *psp, uint32_t *srm_version, uint
 	struct ta_hdcp_shared_memory *hdcp_cmd;
 
 	if (!psp->hdcp_context.context.initialized) {
-		DRM_WARN("Failed to get hdcp srm. HDCP TA is not initialized.");
+		DRM_WARN("Failed to get hdcp srm. HDCP TA is analt initialized.");
 		return NULL;
 	}
 
@@ -106,7 +106,7 @@ static int psp_set_srm(struct psp_context *psp,
 	struct ta_hdcp_shared_memory *hdcp_cmd;
 
 	if (!psp->hdcp_context.context.initialized) {
-		DRM_WARN("Failed to get hdcp srm. HDCP TA is not initialized.");
+		DRM_WARN("Failed to get hdcp srm. HDCP TA is analt initialized.");
 		return -EINVAL;
 	}
 
@@ -187,7 +187,7 @@ void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
 				    hdcp_work->srm_size,
 				    &hdcp_work->srm_version);
 
-		display_adjust.disable = MOD_HDCP_DISPLAY_NOT_DISABLE;
+		display_adjust.disable = MOD_HDCP_DISPLAY_ANALT_DISABLE;
 
 		link_adjust.auth_delay = 2;
 
@@ -329,7 +329,7 @@ static void event_property_update(struct work_struct *work)
 			ret = wait_for_completion_interruptible_timeout(&conn_state->commit->hw_done,
 									10 * HZ);
 			if (ret == 0) {
-				DRM_ERROR("HDCP state unknown! Setting it to DESIRED\n");
+				DRM_ERROR("HDCP state unkanalwn! Setting it to DESIRED\n");
 				hdcp_work->encryption_status[conn_index] =
 					MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
 			}
@@ -472,7 +472,7 @@ static bool enable_assr(void *handle, struct dc_link *link)
 	bool res = true;
 
 	if (!psp->dtm_context.context.initialized) {
-		DRM_INFO("Failed to enable ASSR, DTM TA is not initialized.");
+		DRM_INFO("Failed to enable ASSR, DTM TA is analt initialized.");
 		return false;
 	}
 
@@ -568,10 +568,10 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 /**
  * DOC: Add sysfs interface for set/get srm
  *
- * NOTE: From the usermodes prospective you only need to call write *ONCE*, the kernel
+ * ANALTE: From the usermodes prospective you only need to call write *ONCE*, the kernel
  *      will automatically call once or twice depending on the size
  *
- * call: "cat file > /sys/class/drm/card0/device/hdcp_srm" from usermode no matter what the size is
+ * call: "cat file > /sys/class/drm/card0/device/hdcp_srm" from usermode anal matter what the size is
  *
  * The kernel can only send PAGE_SIZE at once and since MAX_SRM_FILE(5120) > PAGE_SIZE(4096),
  * srm_data_write can be called multiple times.
@@ -579,8 +579,8 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
  * sysfs interface doesn't tell us the size we will get so we are sending partial SRMs to psp and on
  * the last call we will send the full SRM. PSP will fail on every call before the last.
  *
- * This means we don't know if the SRM is good until the last call. And because of this
- * limitation we cannot throw errors early as it will stop the kernel from writing to sysfs
+ * This means we don't kanalw if the SRM is good until the last call. And because of this
+ * limitation we cananalt throw errors early as it will stop the kernel from writing to sysfs
  *
  * Example 1:
  *	Good SRM size = 5096
@@ -589,12 +589,12 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
  *
  * Example 2:
  *	Bad SRM size = 4096
- *	first call to write 4096 -> PSP fails (This is the same as above, but we don't know if this
+ *	first call to write 4096 -> PSP fails (This is the same as above, but we don't kanalw if this
  *	is the last call)
  *
  * Solution?:
- *	1: Parse the SRM? -> It is signed so we don't know the EOF
- *	2: We can have another sysfs that passes the size before calling set. -> simpler solution
+ *	1: Parse the SRM? -> It is signed so we don't kanalw the EOF
+ *	2: We can have aanalther sysfs that passes the size before calling set. -> simpler solution
  *	below
  *
  * Easy Solution:
@@ -674,7 +674,7 @@ ret:
 	return ret;
 }
 
-/* From the hdcp spec (5.Renewability) SRM needs to be stored in a non-volatile memory.
+/* From the hdcp spec (5.Renewability) SRM needs to be stored in a analn-volatile memory.
  *
  * For example,
  *	if Application "A" sets the SRM (ver 2) and we reboot/suspend and later when Application "B"
@@ -684,8 +684,8 @@ ret:
  * Currently when the system goes down (suspend/shutdown) the SRM is cleared from PSP. For HDCP
  * we need to make the SRM persistent.
  *
- * -PSP owns the checking of SRM but doesn't have the ability to store it in a non-volatile memory.
- * -The kernel cannot write to the file systems.
+ * -PSP owns the checking of SRM but doesn't have the ability to store it in a analn-volatile memory.
+ * -The kernel cananalt write to the file systems.
  * -So we need usermode to do this for us, which is why an interface for usermode is needed
  *
  *

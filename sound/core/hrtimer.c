@@ -18,7 +18,7 @@ MODULE_LICENSE("GPL");
 
 MODULE_ALIAS("snd-timer-" __stringify(SNDRV_TIMER_GLOBAL_HRTIMER));
 
-#define NANO_SEC	1000000000UL	/* 10^9 in sec */
+#define NAANAL_SEC	1000000000UL	/* 10^9 in sec */
 static unsigned int resolution;
 
 struct snd_hrtimer {
@@ -33,7 +33,7 @@ static enum hrtimer_restart snd_hrtimer_callback(struct hrtimer *hrt)
 	struct snd_timer *t = stime->timer;
 	ktime_t delta;
 	unsigned long ticks;
-	enum hrtimer_restart ret = HRTIMER_NORESTART;
+	enum hrtimer_restart ret = HRTIMER_ANALRESTART;
 
 	spin_lock(&t->lock);
 	if (!t->running)
@@ -67,8 +67,8 @@ static int snd_hrtimer_open(struct snd_timer *t)
 
 	stime = kzalloc(sizeof(*stime), GFP_KERNEL);
 	if (!stime)
-		return -ENOMEM;
-	hrtimer_init(&stime->hrt, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		return -EANALMEM;
+	hrtimer_init(&stime->hrt, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	stime->timer = t;
 	stime->hrt.function = snd_hrtimer_callback;
 	t->private_data = stime;
@@ -144,7 +144,7 @@ static int __init snd_hrtimer_init(void)
 	strcpy(timer->name, "HR timer");
 	timer->hw = hrtimer_hw;
 	timer->hw.resolution = resolution;
-	timer->hw.ticks = NANO_SEC / resolution;
+	timer->hw.ticks = NAANAL_SEC / resolution;
 	timer->max_instances = 100; /* lower the limit */
 
 	err = snd_timer_global_register(timer);

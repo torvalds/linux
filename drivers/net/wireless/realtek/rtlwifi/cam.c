@@ -10,14 +10,14 @@ void rtl_cam_reset_sec_info(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtlpriv->sec.use_defaultkey = false;
-	rtlpriv->sec.pairwise_enc_algorithm = NO_ENCRYPTION;
-	rtlpriv->sec.group_enc_algorithm = NO_ENCRYPTION;
+	rtlpriv->sec.pairwise_enc_algorithm = ANAL_ENCRYPTION;
+	rtlpriv->sec.group_enc_algorithm = ANAL_ENCRYPTION;
 	memset(rtlpriv->sec.key_buf, 0, KEY_BUF_SIZE * MAX_KEY_LEN);
 	memset(rtlpriv->sec.key_len, 0, KEY_BUF_SIZE);
 	rtlpriv->sec.pairwise_key = NULL;
 }
 
-static void rtl_cam_program_entry(struct ieee80211_hw *hw, u32 entry_no,
+static void rtl_cam_program_entry(struct ieee80211_hw *hw, u32 entry_anal,
 			   u8 *mac_addr, u8 *key_cont_128, u16 us_config)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -31,7 +31,7 @@ static void rtl_cam_program_entry(struct ieee80211_hw *hw, u32 entry_no,
 
 	/* 0-1 config + mac, 2-5 fill 128key,6-7 are reserved */
 	for (entry_i = CAM_CONTENT_COUNT - 1; entry_i >= 0; entry_i--) {
-		target_command = entry_i + CAM_CONTENT_COUNT * entry_no;
+		target_command = entry_i + CAM_CONTENT_COUNT * entry_anal;
 		target_command = target_command | BIT(31) | BIT(16);
 
 		if (entry_i == 0) {
@@ -47,7 +47,7 @@ static void rtl_cam_program_entry(struct ieee80211_hw *hw, u32 entry_no,
 				"WRITE %x: %x\n",
 				rtlpriv->cfg->maps[WCAMI], target_content);
 			rtl_dbg(rtlpriv, COMP_SEC, DBG_LOUD,
-				"The Key ID is %d\n", entry_no);
+				"The Key ID is %d\n", entry_anal);
 			rtl_dbg(rtlpriv, COMP_SEC, DBG_LOUD,
 				"WRITE %x: %x\n",
 				rtlpriv->cfg->maps[RWCAM], target_command);
@@ -102,7 +102,7 @@ u8 rtl_cam_add_one_entry(struct ieee80211_hw *hw, u8 *mac_addr,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtl_dbg(rtlpriv, COMP_SEC, DBG_DMESG,
-		"EntryNo:%x, ulKeyId=%x, ulEncAlg=%x, ulUseDK=%x MacAddr %pM\n",
+		"EntryAnal:%x, ulKeyId=%x, ulEncAlg=%x, ulUseDK=%x MacAddr %pM\n",
 		ul_entry_idx, ul_key_id, ul_enc_alg,
 		ul_default_key, mac_addr);
 

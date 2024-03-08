@@ -15,7 +15,7 @@ union net_bridge_eht_addr {
 
 /* single host's list of set entries and filter_mode */
 struct net_bridge_group_eht_host {
-	struct rb_node			rb_node;
+	struct rb_analde			rb_analde;
 
 	union net_bridge_eht_addr	h_addr;
 	struct hlist_head		set_entries;
@@ -26,8 +26,8 @@ struct net_bridge_group_eht_host {
 
 /* (host, src entry) added to a per-src set and host's list */
 struct net_bridge_group_eht_set_entry {
-	struct rb_node			rb_node;
-	struct hlist_node		host_list;
+	struct rb_analde			rb_analde;
+	struct hlist_analde		host_list;
 
 	union net_bridge_eht_addr	h_addr;
 	struct timer_list		timer;
@@ -39,7 +39,7 @@ struct net_bridge_group_eht_set_entry {
 
 /* per-src set */
 struct net_bridge_group_eht_set {
-	struct rb_node			rb_node;
+	struct rb_analde			rb_analde;
 
 	union net_bridge_eht_addr	src_addr;
 	struct rb_root			entry_tree;
@@ -49,7 +49,7 @@ struct net_bridge_group_eht_set {
 	struct net_bridge_mcast_gc	mcast_gc;
 };
 
-#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+#ifdef CONFIG_BRIDGE_IGMP_SANALOPING
 void br_multicast_eht_clean_sets(struct net_bridge_port_group *pg);
 bool br_multicast_eht_handle(const struct net_bridge_mcast *brmctx,
 			     struct net_bridge_port_group *pg,
@@ -89,6 +89,6 @@ static inline void br_multicast_eht_hosts_dec(struct net_bridge_port_group *pg)
 
 	p->multicast_eht_hosts_cnt--;
 }
-#endif /* CONFIG_BRIDGE_IGMP_SNOOPING */
+#endif /* CONFIG_BRIDGE_IGMP_SANALOPING */
 
 #endif /* _BR_PRIVATE_MCAST_EHT_H_ */

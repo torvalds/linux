@@ -23,7 +23,7 @@ struct {
 	__uint(max_entries, 256);
 } array2 SEC(".maps");
 
-static __noinline int randmap(int v, const struct net_device *dev)
+static __analinline int randmap(int v, const struct net_device *dev)
 {
 	struct bpf_map *map = (struct bpf_map *)&array1;
 	int key = bpf_get_prandom_u32() & 0xff;
@@ -63,7 +63,7 @@ int BPF_PROG(fexit_eth_type_trans, struct sk_buff *skb,
 
 volatile const int never;
 
-struct __sk_bUfF /* it will not exist in vmlinux */ {
+struct __sk_bUfF /* it will analt exist in vmlinux */ {
 	int len;
 } __attribute__((preserve_access_index));
 
@@ -90,7 +90,7 @@ int balancer_ingress(struct __sk_buff *ctx)
 	if (never) { \
 		/* below is a dead code with unresolvable CO-RE relo */ \
 		i += ((struct __sk_bUfF *)ctx)->len; \
-		/* this CO-RE relo may or may not resolve
+		/* this CO-RE relo may or may analt resolve
 		 * depending on whether bpf_testmod is loaded.
 		 */ \
 		i += ((struct bpf_testmod_test_read_ctx *)ctx)->len; \

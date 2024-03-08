@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright 2020 Cerno
+// Copyright 2020 Ceranal
 
 #include <linux/clk-provider.h>
 #include <linux/module.h>
@@ -31,14 +31,14 @@ static int clk_dvp_probe(struct platform_device *pdev)
 
 	dvp = devm_kzalloc(&pdev->dev, sizeof(*dvp), GFP_KERNEL);
 	if (!dvp)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, dvp);
 
 	dvp->data = devm_kzalloc(&pdev->dev,
 				 struct_size(dvp->data, hws, NR_CLOCKS),
 				 GFP_KERNEL);
 	if (!dvp->data)
-		return -ENOMEM;
+		return -EANALMEM;
 	data = dvp->data;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -48,7 +48,7 @@ static int clk_dvp_probe(struct platform_device *pdev)
 	dvp->reset.rcdev.owner = THIS_MODULE;
 	dvp->reset.rcdev.nr_resets = NR_RESETS;
 	dvp->reset.rcdev.ops = &reset_simple_ops;
-	dvp->reset.rcdev.of_node = pdev->dev.of_node;
+	dvp->reset.rcdev.of_analde = pdev->dev.of_analde;
 	dvp->reset.membase = base + DVP_HT_RPI_SW_INIT;
 	spin_lock_init(&dvp->reset.lock);
 
@@ -77,7 +77,7 @@ static int clk_dvp_probe(struct platform_device *pdev)
 	}
 
 	data->num = NR_CLOCKS;
-	ret = of_clk_add_hw_provider(pdev->dev.of_node, of_clk_hw_onecell_get,
+	ret = of_clk_add_hw_provider(pdev->dev.of_analde, of_clk_hw_onecell_get,
 				     data);
 	if (ret)
 		goto unregister_clk1;
@@ -117,6 +117,6 @@ static struct platform_driver clk_dvp_driver = {
 };
 module_platform_driver(clk_dvp_driver);
 
-MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
+MODULE_AUTHOR("Maxime Ripard <maxime@ceranal.tech>");
 MODULE_DESCRIPTION("BCM2711 DVP clock driver");
 MODULE_LICENSE("GPL");

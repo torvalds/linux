@@ -68,7 +68,7 @@ struct mtd_info *do_map_probe(const char *name, struct map_info *map)
 	ret = drv->probe(map);
 
 	/* We decrease the use count here. It may have been a
-	   probe-only module, which is no longer required from this
+	   probe-only module, which is anal longer required from this
 	   point, having given us a handle on (and increased the use
 	   count of) the actual driver code.
 	*/

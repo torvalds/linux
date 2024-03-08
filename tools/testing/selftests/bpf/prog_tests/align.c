@@ -24,8 +24,8 @@ struct bpf_align_test {
 };
 
 static struct bpf_align_test tests[] = {
-	/* Four tests of known constants.  These aren't staggeringly
-	 * interesting since we track exact values now.
+	/* Four tests of kanalwn constants.  These aren't staggeringly
+	 * interesting since we track exact values analw.
 	 */
 	{
 		.descr = "mov",
@@ -128,14 +128,14 @@ static struct bpf_align_test tests[] = {
 		},
 	},
 
-	/* Tests using unknown values */
+	/* Tests using unkanalwn values */
 #define PREP_PKT_POINTERS \
 	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, \
 		    offsetof(struct __sk_buff, data)), \
 	BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_1, \
 		    offsetof(struct __sk_buff, data_end))
 
-#define LOAD_UNKNOWN(DST_REG) \
+#define LOAD_UNKANALWN(DST_REG) \
 	PREP_PKT_POINTERS, \
 	BPF_MOV64_REG(BPF_REG_0, BPF_REG_2), \
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 8), \
@@ -144,14 +144,14 @@ static struct bpf_align_test tests[] = {
 	BPF_LDX_MEM(BPF_B, DST_REG, BPF_REG_2, 0)
 
 	{
-		.descr = "unknown shift",
+		.descr = "unkanalwn shift",
 		.insns = {
-			LOAD_UNKNOWN(BPF_REG_3),
+			LOAD_UNKANALWN(BPF_REG_3),
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_3, 1),
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_3, 1),
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_3, 1),
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_3, 1),
-			LOAD_UNKNOWN(BPF_REG_4),
+			LOAD_UNKANALWN(BPF_REG_4),
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_4, 5),
 			BPF_ALU64_IMM(BPF_RSH, BPF_REG_4, 1),
 			BPF_ALU64_IMM(BPF_RSH, BPF_REG_4, 1),
@@ -178,9 +178,9 @@ static struct bpf_align_test tests[] = {
 		},
 	},
 	{
-		.descr = "unknown mul",
+		.descr = "unkanalwn mul",
 		.insns = {
-			LOAD_UNKNOWN(BPF_REG_3),
+			LOAD_UNKANALWN(BPF_REG_3),
 			BPF_MOV64_REG(BPF_REG_4, BPF_REG_3),
 			BPF_ALU64_IMM(BPF_MUL, BPF_REG_4, 1),
 			BPF_MOV64_REG(BPF_REG_4, BPF_REG_3),
@@ -248,11 +248,11 @@ static struct bpf_align_test tests[] = {
 	{
 		.descr = "packet variable offset",
 		.insns = {
-			LOAD_UNKNOWN(BPF_REG_6),
+			LOAD_UNKANALWN(BPF_REG_6),
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_6, 2),
 
 			/* First, add a constant to the R5 packet pointer,
-			 * then a variable with a known alignment.
+			 * then a variable with a kanalwn alignment.
 			 */
 			BPF_MOV64_REG(BPF_REG_5, BPF_REG_2),
 			BPF_ALU64_IMM(BPF_ADD, BPF_REG_5, 14),
@@ -263,7 +263,7 @@ static struct bpf_align_test tests[] = {
 			BPF_EXIT_INSN(),
 			BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_5, 0),
 
-			/* Now, test in the other direction.  Adding first
+			/* Analw, test in the other direction.  Adding first
 			 * the variable offset to R5, then the constant.
 			 */
 			BPF_MOV64_REG(BPF_REG_5, BPF_REG_2),
@@ -276,7 +276,7 @@ static struct bpf_align_test tests[] = {
 			BPF_EXIT_INSN(),
 			BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_5, 0),
 
-			/* Test multiple accumulations of unknown values
+			/* Test multiple accumulations of unkanalwn values
 			 * into a packet pointer.
 			 */
 			BPF_MOV64_REG(BPF_REG_5, BPF_REG_2),
@@ -296,13 +296,13 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			/* Calculated offset in R6 has unknown value, but known
+			/* Calculated offset in R6 has unkanalwn value, but kanalwn
 			 * alignment of 4.
 			 */
 			{6, "R2_w", "pkt(r=8)"},
 			{7, "R6_w", "var_off=(0x0; 0x3fc)"},
 			/* Offset is added to packet pointer R5, resulting in
-			 * known fixed offset, and variable offset from R6.
+			 * kanalwn fixed offset, and variable offset from R6.
 			 */
 			{11, "R5_w", "pkt(id=1,off=14,"},
 			/* At the time the word size load is performed from R5,
@@ -316,7 +316,7 @@ static struct bpf_align_test tests[] = {
 			/* Variable offset is added to R5 packet pointer,
 			 * resulting in auxiliary alignment of 4. To avoid BPF
 			 * verifier's precision backtracking logging
-			 * interfering we also have a no-op R4 = R5
+			 * interfering we also have a anal-op R4 = R5
 			 * instruction to validate R5 state. We also check
 			 * that R4 is what it should be in such case.
 			 */
@@ -347,7 +347,7 @@ static struct bpf_align_test tests[] = {
 			/* Constant is added to R5 again, setting reg->off to 18. */
 			{29, "R5_w", "pkt(id=3,off=18,"},
 			/* And once more we add a variable; resulting var_off
-			 * is still (4n), fixed offset is not changed.
+			 * is still (4n), fixed offset is analt changed.
 			 * Also, we create a new reg->id.
 			 */
 			{31, "R4_w", "var_off=(0x0; 0x7fc)"},
@@ -365,8 +365,8 @@ static struct bpf_align_test tests[] = {
 	{
 		.descr = "packet variable offset 2",
 		.insns = {
-			/* Create an unknown offset, (4n+2)-aligned */
-			LOAD_UNKNOWN(BPF_REG_6),
+			/* Create an unkanalwn offset, (4n+2)-aligned */
+			LOAD_UNKANALWN(BPF_REG_6),
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_6, 2),
 			BPF_ALU64_IMM(BPF_ADD, BPF_REG_6, 14),
 			/* Add it to the packet pointer */
@@ -394,7 +394,7 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			/* Calculated offset in R6 has unknown value, but known
+			/* Calculated offset in R6 has unkanalwn value, but kanalwn
 			 * alignment of 4.
 			 */
 			{6, "R2_w", "pkt(r=8)"},
@@ -412,11 +412,11 @@ static struct bpf_align_test tests[] = {
 			 */
 			{15, "R5", "var_off=(0x2; 0x7fc)"},
 			/* Newly read value in R6 was shifted left by 2, so has
-			 * known alignment of 4.
+			 * kanalwn alignment of 4.
 			 */
 			{17, "R6_w", "var_off=(0x0; 0x3fc)"},
 			/* Added (4n) to packet pointer's (4n+2) var_off, giving
-			 * another (4n+2).
+			 * aanalther (4n+2).
 			 */
 			{19, "R5_w", "var_off=(0x2; 0xffc)"},
 			{20, "R4", "var_off=(0x2; 0xffc)"},
@@ -442,7 +442,7 @@ static struct bpf_align_test tests[] = {
 			 * out of it.  First add 14, to make it a (4n+2)
 			 */
 			BPF_ALU64_IMM(BPF_ADD, BPF_REG_5, 14),
-			/* Then make sure it's nonnegative */
+			/* Then make sure it's analnnegative */
 			BPF_JMP_IMM(BPF_JSGE, BPF_REG_5, 0, 1),
 			BPF_EXIT_INSN(),
 			/* Add it to packet pointer */
@@ -460,7 +460,7 @@ static struct bpf_align_test tests[] = {
 		.result = REJECT,
 		.matches = {
 			{3, "R5_w", "pkt_end()"},
-			/* (ptr - ptr) << 2 == unknown, (4n) */
+			/* (ptr - ptr) << 2 == unkanalwn, (4n) */
 			{5, "R5_w", "var_off=(0x0; 0xfffffffffffffffc)"},
 			/* (4n) + 14 == (4n+2).  We blow our bounds, because
 			 * the add could overflow.
@@ -468,14 +468,14 @@ static struct bpf_align_test tests[] = {
 			{6, "R5_w", "var_off=(0x2; 0xfffffffffffffffc)"},
 			/* Checked s>=0 */
 			{9, "R5", "var_off=(0x2; 0x7ffffffffffffffc)"},
-			/* packet pointer + nonnegative (4n+2) */
+			/* packet pointer + analnnegative (4n+2) */
 			{11, "R6_w", "var_off=(0x2; 0x7ffffffffffffffc)"},
 			{12, "R4_w", "var_off=(0x2; 0x7ffffffffffffffc)"},
 			/* NET_IP_ALIGN + (4n+2) == (4n), alignment is fine.
 			 * We checked the bounds, but it might have been able
 			 * to overflow if the packet pointer started in the
 			 * upper half of the address space.
-			 * So we did not get a 'range' on R6, and the access
+			 * So we did analt get a 'range' on R6, and the access
 			 * attempt will fail.
 			 */
 			{15, "R6_w", "var_off=(0x2; 0x7ffffffffffffffc)"},
@@ -484,12 +484,12 @@ static struct bpf_align_test tests[] = {
 	{
 		.descr = "variable subtraction",
 		.insns = {
-			/* Create an unknown offset, (4n+2)-aligned */
-			LOAD_UNKNOWN(BPF_REG_6),
+			/* Create an unkanalwn offset, (4n+2)-aligned */
+			LOAD_UNKANALWN(BPF_REG_6),
 			BPF_MOV64_REG(BPF_REG_7, BPF_REG_6),
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_6, 2),
 			BPF_ALU64_IMM(BPF_ADD, BPF_REG_6, 14),
-			/* Create another unknown, (4n)-aligned, and subtract
+			/* Create aanalther unkanalwn, (4n)-aligned, and subtract
 			 * it from the first one
 			 */
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_7, 2),
@@ -510,14 +510,14 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			/* Calculated offset in R6 has unknown value, but known
+			/* Calculated offset in R6 has unkanalwn value, but kanalwn
 			 * alignment of 4.
 			 */
 			{6, "R2_w", "pkt(r=8)"},
 			{8, "R6_w", "var_off=(0x0; 0x3fc)"},
 			/* Adding 14 makes R6 be (4n+2) */
 			{9, "R6_w", "var_off=(0x2; 0x7fc)"},
-			/* New unknown value in R7 is (4n) */
+			/* New unkanalwn value in R7 is (4n) */
 			{10, "R7_w", "var_off=(0x0; 0x3fc)"},
 			/* Subtracting it from R6 blows our unsigned bounds */
 			{11, "R6", "var_off=(0x2; 0xfffffffffffffffc)"},
@@ -535,10 +535,10 @@ static struct bpf_align_test tests[] = {
 	{
 		.descr = "pointer variable subtraction",
 		.insns = {
-			/* Create an unknown offset, (4n+2)-aligned and bounded
+			/* Create an unkanalwn offset, (4n+2)-aligned and bounded
 			 * to [14,74]
 			 */
-			LOAD_UNKNOWN(BPF_REG_6),
+			LOAD_UNKANALWN(BPF_REG_6),
 			BPF_MOV64_REG(BPF_REG_7, BPF_REG_6),
 			BPF_ALU64_IMM(BPF_AND, BPF_REG_6, 0xf),
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_6, 2),
@@ -546,7 +546,7 @@ static struct bpf_align_test tests[] = {
 			/* Subtract it from the packet pointer */
 			BPF_MOV64_REG(BPF_REG_5, BPF_REG_2),
 			BPF_ALU64_REG(BPF_SUB, BPF_REG_5, BPF_REG_6),
-			/* Create another unknown, (4n)-aligned and >= 74.
+			/* Create aanalther unkanalwn, (4n)-aligned and >= 74.
 			 * That in fact means >= 76, since 74 % 4 == 2
 			 */
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_7, 2),
@@ -563,7 +563,7 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			/* Calculated offset in R6 has unknown value, but known
+			/* Calculated offset in R6 has unkanalwn value, but kanalwn
 			 * alignment of 4.
 			 */
 			{6, "R2_w", "pkt(r=8)"},
@@ -572,7 +572,7 @@ static struct bpf_align_test tests[] = {
 			{10, "R6_w", "var_off=(0x2; 0x7c)"},
 			/* Subtracting from packet pointer overflows ubounds */
 			{13, "R5_w", "var_off=(0xffffffffffffff82; 0x7c)"},
-			/* New unknown value in R7 is (4n), >= 76 */
+			/* New unkanalwn value in R7 is (4n), >= 76 */
 			{14, "R7_w", "var_off=(0x0; 0x7fc)"},
 			/* Adding it to packet pointer gives nice bounds again */
 			{16, "R5_w", "var_off=(0x2; 0x7fc)"},
@@ -657,7 +657,7 @@ static int do_test_single(struct bpf_align_test *test)
 				break;
 			}
 			/* Check the next line as well in case the previous line
-			 * did not have a corresponding bpf insn. Example:
+			 * did analt have a corresponding bpf insn. Example:
 			 * func#0 @0
 			 * 0: R1=ctx() R10=fp0
 			 * 0: (b7) r3 = 2                 ; R3_w=2

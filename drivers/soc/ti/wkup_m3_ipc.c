@@ -36,7 +36,7 @@
 #define IPC_CMD_IDLE			0x10
 #define IPC_CMD_RESET			0xe
 #define DS_IPC_DEFAULT			0xffffffff
-#define M3_VERSION_UNKNOWN		0x0000ffff
+#define M3_VERSION_UNKANALWN		0x0000ffff
 #define M3_BASELINE_VERSION		0x191
 #define M3_STATUS_RESP_MASK		(0xffff << 16)
 #define M3_FW_VERSION_MASK		0xffff
@@ -54,7 +54,7 @@
 #define IPC_DBG_HALT_SHIFT		(11)
 #define IPC_DBG_HALT_MASK		(0x1 << 11)
 
-#define M3_STATE_UNKNOWN		0
+#define M3_STATE_UNKANALWN		0
 #define M3_STATE_RESET			1
 #define M3_STATE_INITED			2
 #define M3_STATE_MSG_FOR_LP		3
@@ -83,7 +83,7 @@ static const struct wkup_m3_wakeup_src wakeups[] = {
 	{.irq_nr = 49,	.src = "WDT0"},
 	{.irq_nr = 50,	.src = "WDT1"},
 	{.irq_nr = 51,	.src = "ADC_TSC"},
-	{.irq_nr = 0,	.src = "Unknown"},
+	{.irq_nr = 0,	.src = "Unkanalwn"},
 };
 
 /**
@@ -125,7 +125,7 @@ static void wkup_m3_scale_data_fw_cb(const struct firmware *fw, void *context)
 	memcpy(&hdr, fw->data, sizeof(hdr));
 
 	if (hdr.magic != WKUP_M3_SD_FW_MAGIC) {
-		dev_err(dev, "PM: Voltage Scale Data binary does not appear valid.\n");
+		dev_err(dev, "PM: Voltage Scale Data binary does analt appear valid.\n");
 		goto release_sd_fw;
 	}
 
@@ -147,14 +147,14 @@ static int wkup_m3_init_scale_data(struct wkup_m3_ipc *m3_ipc,
 	int ret = 0;
 
 	/*
-	 * If no name is provided, user has already been warned, pm will
+	 * If anal name is provided, user has already been warned, pm will
 	 * still work so return 0
 	 */
 
 	if (!m3_ipc->sd_fw_name)
 		return ret;
 
-	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
+	ret = request_firmware_analwait(THIS_MODULE, FW_ACTION_UEVENT,
 				      m3_ipc->sd_fw_name, dev, GFP_ATOMIC,
 				      m3_ipc, wkup_m3_scale_data_fw_cb);
 
@@ -283,9 +283,9 @@ static irqreturn_t wkup_m3_txev_handler(int irq, void *ipc_data)
 	case M3_STATE_RESET:
 		ver = wkup_m3_fw_version_read(m3_ipc);
 
-		if (ver == M3_VERSION_UNKNOWN ||
+		if (ver == M3_VERSION_UNKANALWN ||
 		    ver < M3_BASELINE_VERSION) {
-			dev_warn(dev, "CM3 Firmware Version %x not supported\n",
+			dev_warn(dev, "CM3 Firmware Version %x analt supported\n",
 				 ver);
 		} else {
 			dev_info(dev, "CM3 Firmware Version = 0x%x\n", ver);
@@ -302,8 +302,8 @@ static irqreturn_t wkup_m3_txev_handler(int irq, void *ipc_data)
 	case M3_STATE_MSG_FOR_LP:
 		complete(&m3_ipc->sync_complete);
 		break;
-	case M3_STATE_UNKNOWN:
-		dev_warn(dev, "Unknown CM3 State\n");
+	case M3_STATE_UNKANALWN:
+		dev_warn(dev, "Unkanalwn CM3 State\n");
 	}
 
 	am33xx_txev_enable(m3_ipc);
@@ -319,7 +319,7 @@ static int wkup_m3_ping(struct wkup_m3_ipc *m3_ipc)
 
 	if (!m3_ipc->mbox) {
 		dev_err(dev,
-			"No IPC channel to communicate with wkup_m3!\n");
+			"Anal IPC channel to communicate with wkup_m3!\n");
 		return -EIO;
 	}
 
@@ -341,7 +341,7 @@ static int wkup_m3_ping(struct wkup_m3_ipc *m3_ipc)
 					  msecs_to_jiffies(500));
 	if (!ret) {
 		dev_err(dev, "MPU<->CM3 sync failure\n");
-		m3_ipc->state = M3_STATE_UNKNOWN;
+		m3_ipc->state = M3_STATE_UNKANALWN;
 		return -EIO;
 	}
 
@@ -349,7 +349,7 @@ static int wkup_m3_ping(struct wkup_m3_ipc *m3_ipc)
 	return 0;
 }
 
-static int wkup_m3_ping_noirq(struct wkup_m3_ipc *m3_ipc)
+static int wkup_m3_ping_analirq(struct wkup_m3_ipc *m3_ipc)
 {
 	struct device *dev = m3_ipc->dev;
 	mbox_msg_t dummy_msg = 0;
@@ -357,7 +357,7 @@ static int wkup_m3_ping_noirq(struct wkup_m3_ipc *m3_ipc)
 
 	if (!m3_ipc->mbox) {
 		dev_err(dev,
-			"No IPC channel to communicate with wkup_m3!\n");
+			"Anal IPC channel to communicate with wkup_m3!\n");
 		return -EIO;
 	}
 
@@ -375,7 +375,7 @@ static int wkup_m3_ping_noirq(struct wkup_m3_ipc *m3_ipc)
 static int wkup_m3_is_available(struct wkup_m3_ipc *m3_ipc)
 {
 	return ((m3_ipc->state != M3_STATE_RESET) &&
-		(m3_ipc->state != M3_STATE_UNKNOWN));
+		(m3_ipc->state != M3_STATE_UNKANALWN));
 }
 
 static void wkup_m3_set_vtt_gpio(struct wkup_m3_ipc *m3_ipc, int gpio)
@@ -395,7 +395,7 @@ static void wkup_m3_set_io_isolation(struct wkup_m3_ipc *m3_ipc)
  * @m3_ipc: Pointer to wkup_m3_ipc context
  * @mem_type: memory type value read directly from emif
  *
- * wkup_m3 must know what memory type is in use to properly suspend
+ * wkup_m3 must kanalw what memory type is in use to properly suspend
  * and resume.
  */
 static void wkup_m3_set_mem_type(struct wkup_m3_ipc *m3_ipc, int mem_type)
@@ -449,7 +449,7 @@ static int wkup_m3_prepare_low_power(struct wkup_m3_ipc *m3_ipc, int state)
 	int ret = 0;
 
 	if (!wkup_m3_is_available(m3_ipc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (state) {
 	case WKUP_M3_DEEPSLEEP:
@@ -484,7 +484,7 @@ static int wkup_m3_prepare_low_power(struct wkup_m3_ipc *m3_ipc, int state)
 	m3_ipc->state = M3_STATE_MSG_FOR_LP;
 
 	if (state == WKUP_M3_IDLE)
-		ret = wkup_m3_ping_noirq(m3_ipc);
+		ret = wkup_m3_ping_analirq(m3_ipc);
 	else
 		ret = wkup_m3_ping(m3_ipc);
 
@@ -508,7 +508,7 @@ static int wkup_m3_finish_low_power(struct wkup_m3_ipc *m3_ipc)
 	int ret = 0;
 
 	if (!wkup_m3_is_available(m3_ipc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	wkup_m3_ctrl_ipc_write(m3_ipc, IPC_CMD_RESET, 1);
 	wkup_m3_ctrl_ipc_write(m3_ipc, DS_IPC_DEFAULT, 2);
@@ -567,7 +567,7 @@ static struct wkup_m3_ipc_ops ipc_ops = {
 /**
  * wkup_m3_ipc_get - Return handle to wkup_m3_ipc
  *
- * Returns NULL if the wkup_m3 is not yet available, otherwise returns
+ * Returns NULL if the wkup_m3 is analt yet available, otherwise returns
  * pointer to wkup_m3_ipc struct.
  */
 struct wkup_m3_ipc *wkup_m3_ipc_get(void)
@@ -617,11 +617,11 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 	struct rproc *m3_rproc;
 	struct task_struct *task;
 	struct wkup_m3_ipc *m3_ipc;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	m3_ipc = devm_kzalloc(dev, sizeof(*m3_ipc), GFP_KERNEL);
 	if (!m3_ipc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	m3_ipc->ipc_mem_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(m3_ipc->ipc_mem_base))
@@ -643,7 +643,7 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 	m3_ipc->mbox_client.tx_prepare = NULL;
 	m3_ipc->mbox_client.rx_callback = NULL;
 	m3_ipc->mbox_client.tx_block = false;
-	m3_ipc->mbox_client.knows_txdone = false;
+	m3_ipc->mbox_client.kanalws_txdone = false;
 
 	m3_ipc->mbox = mbox_request_channel(&m3_ipc->mbox_client, 0);
 
@@ -653,15 +653,15 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 		return PTR_ERR(m3_ipc->mbox);
 	}
 
-	if (of_property_read_u32(dev->of_node, "ti,rproc", &rproc_phandle)) {
-		dev_err(&pdev->dev, "could not get rproc phandle\n");
-		ret = -ENODEV;
+	if (of_property_read_u32(dev->of_analde, "ti,rproc", &rproc_phandle)) {
+		dev_err(&pdev->dev, "could analt get rproc phandle\n");
+		ret = -EANALDEV;
 		goto err_free_mbox;
 	}
 
 	m3_rproc = rproc_get_by_phandle(rproc_phandle);
 	if (!m3_rproc) {
-		dev_err(&pdev->dev, "could not get rproc handle\n");
+		dev_err(&pdev->dev, "could analt get rproc handle\n");
 		ret = -EPROBE_DEFER;
 		goto err_free_mbox;
 	}
@@ -685,7 +685,7 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 	ret = of_property_read_string(np, "firmware-name",
 				      &m3_ipc->sd_fw_name);
 	if (ret) {
-		dev_dbg(dev, "Voltage scaling data blob not provided from DT.\n");
+		dev_dbg(dev, "Voltage scaling data blob analt provided from DT.\n");
 	}
 
 	/*
@@ -728,7 +728,7 @@ static void wkup_m3_ipc_remove(struct platform_device *pdev)
 static int __maybe_unused wkup_m3_ipc_suspend(struct device *dev)
 {
 	/*
-	 * Nothing needs to be done on suspend even with rtc_only flag set
+	 * Analthing needs to be done on suspend even with rtc_only flag set
 	 */
 	return 0;
 }

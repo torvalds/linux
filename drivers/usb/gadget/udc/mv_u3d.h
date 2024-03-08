@@ -210,7 +210,7 @@ struct mv_u3d_trb_ctrl {
 	u32	ioc:1;		/* interrupt on complete */
 	u32	rsvd2:4;
 	u32	type:6;		/* TRB type */
-#define TYPE_NORMAL	1
+#define TYPE_ANALRMAL	1
 #define TYPE_DATA	3
 #define TYPE_LINK	6
 	u32	dir:1;		/* Working at data stage of control endpoint
@@ -271,10 +271,10 @@ struct mv_u3d {
 	unsigned int		errors;
 
 	unsigned		softconnect:1;
-	unsigned		vbus_active:1;	/* vbus is active or not */
+	unsigned		vbus_active:1;	/* vbus is active or analt */
 	unsigned		remote_wakeup:1; /* support remote wakeup */
-	unsigned		clock_gating:1;	/* clock gating or not */
-	unsigned		active:1;	/* udc is active or not */
+	unsigned		clock_gating:1;	/* clock gating or analt */
+	unsigned		active:1;	/* udc is active or analt */
 	unsigned		vbus_valid_detect:1; /* udc vbus detection */
 
 	struct mv_usb_addon_irq *vbus;
@@ -311,7 +311,7 @@ struct mv_u3d_req {
 
 	struct mv_u3d_trb	*trb_head; /* point to first trb of a request */
 	unsigned		trb_count; /* TRB number in the chain */
-	unsigned		chain;	   /* TRB chain or not */
+	unsigned		chain;	   /* TRB chain or analt */
 };
 
 #endif

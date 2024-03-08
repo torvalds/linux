@@ -49,7 +49,7 @@ void tcx_dec(void);
 static inline void tcx_entry_sync(void)
 {
 	/* bpf_mprog_entry got a/b swapped, therefore ensure that
-	 * there are no inflight users on the old one anymore.
+	 * there are anal inflight users on the old one anymore.
 	 */
 	synchronize_rcu();
 }

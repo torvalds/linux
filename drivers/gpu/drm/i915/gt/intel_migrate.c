@@ -46,7 +46,7 @@ static void xehpsdv_toggle_pdes(struct i915_address_space *vm,
 	 * we have a correctly setup PDE structure for later use.
 	 */
 	vm->insert_page(vm, 0, d->offset,
-			i915_gem_get_pat_index(vm->i915, I915_CACHE_NONE),
+			i915_gem_get_pat_index(vm->i915, I915_CACHE_ANALNE),
 			PTE_LM);
 	GEM_BUG_ON(!pt->is_compact);
 	d->offset += SZ_2M;
@@ -63,10 +63,10 @@ static void xehpsdv_insert_pte(struct i915_address_space *vm,
 	 * pov, is only 256bytes with 32 entries, or 4096bytes with 512
 	 * entries, but we are still guaranteed that the physical
 	 * alignment is 64K underneath for the pt, and we are careful
-	 * not to access the space in the void.
+	 * analt to access the space in the void.
 	 */
 	vm->insert_page(vm, px_dma(pt), d->offset,
-			i915_gem_get_pat_index(vm->i915, I915_CACHE_NONE),
+			i915_gem_get_pat_index(vm->i915, I915_CACHE_ANALNE),
 			PTE_LM);
 	d->offset += SZ_64K;
 }
@@ -78,7 +78,7 @@ static void insert_pte(struct i915_address_space *vm,
 	struct insert_pte_data *d = data;
 
 	vm->insert_page(vm, px_dma(pt), d->offset,
-			i915_gem_get_pat_index(vm->i915, I915_CACHE_NONE),
+			i915_gem_get_pat_index(vm->i915, I915_CACHE_ANALNE),
 			i915_gem_object_is_lmem(pt->base) ? PTE_LM : 0);
 	d->offset += PAGE_SIZE;
 }
@@ -111,8 +111,8 @@ static struct i915_address_space *migrate_vm(struct intel_gt *gt)
 	 * By exposing the dma addresses of the page directories themselves
 	 * within the ppGTT, we are then able to rewrite the PTE prior to use.
 	 * But the PTE update and subsequent migration operation must be atomic,
-	 * i.e. within the same non-preemptible window so that we do not switch
-	 * to another migration context that overwrites the PTE.
+	 * i.e. within the same analn-preemptible window so that we do analt switch
+	 * to aanalther migration context that overwrites the PTE.
 	 *
 	 * This changes quite a bit on platforms with HAS_64K_PAGES support,
 	 * where we instead have three windows, each CHUNK_SIZE in size. The
@@ -136,7 +136,7 @@ static struct i915_address_space *migrate_vm(struct intel_gt *gt)
 	 * each is only <= 4096bytes, but since the unused space within that PTE
 	 * range is never touched, this should be fine.
 	 *
-	 * So basically each PT now needs 64K of virtual memory, instead of 4K,
+	 * So basically each PT analw needs 64K of virtual memory, instead of 4K,
 	 * which looks like:
 	 *
 	 * [3 * CHUNK_SZ, 3 * CHUNK_SZ + ((3 * CHUNK_SZ / SZ_2M) * SZ_64K)] -> PTE
@@ -147,7 +147,7 @@ static struct i915_address_space *migrate_vm(struct intel_gt *gt)
 		return ERR_CAST(vm);
 
 	if (!vm->vm.allocate_va_range || !vm->vm.foreach) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_vm;
 	}
 
@@ -180,7 +180,7 @@ static struct i915_address_space *migrate_vm(struct intel_gt *gt)
 		d.offset = base + sz;
 
 		/*
-		 * We need another page directory setup so that we can write
+		 * We need aanalther page directory setup so that we can write
 		 * the 8x512 PTE in each chunk.
 		 */
 		if (HAS_64K_PAGES(gt->i915))
@@ -206,7 +206,7 @@ static struct i915_address_space *migrate_vm(struct intel_gt *gt)
 		if (err)
 			goto err_vm;
 
-		/* Now allow the GPU to rewrite the PTE via its own ppGTT */
+		/* Analw allow the GPU to rewrite the PTE via its own ppGTT */
 		if (HAS_64K_PAGES(gt->i915)) {
 			vm->vm.foreach(&vm->vm, base, d.offset - base,
 				       xehpsdv_insert_pte, &d);
@@ -251,7 +251,7 @@ static struct intel_context *pinned_context(struct intel_gt *gt)
 
 	engine = first_copy_engine(gt);
 	if (!engine)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	vm = migrate_vm(gt);
 	if (IS_ERR(vm))
@@ -308,7 +308,7 @@ struct intel_context *intel_migrate_create_context(struct intel_migrate *m)
 	 * as they all share the same pinned vm, and so in order to allow
 	 * multiple blits to run in parallel, we must construct each blit
 	 * to use a different range of the vm for its GTT. This has to be
-	 * known at construction, so we can not use the late greedy load
+	 * kanalwn at construction, so we can analt use the late greedy load
 	 * balancing of the virtual-engine.
 	 */
 	ce = __migrate_engines(m->context->engine->gt);
@@ -331,7 +331,7 @@ static inline struct sgt_dma sg_sgt(struct scatterlist *sg)
 	return (struct sgt_dma){ sg, addr, addr + sg_dma_len(sg) };
 }
 
-static int emit_no_arbitration(struct i915_request *rq)
+static int emit_anal_arbitration(struct i915_request *rq)
 {
 	u32 *cs;
 
@@ -341,7 +341,7 @@ static int emit_no_arbitration(struct i915_request *rq)
 
 	/* Explicitly disable preemption for this request. */
 	*cs++ = MI_ARB_ON_OFF;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 	intel_ring_advance(rq, cs);
 
 	return 0;
@@ -417,7 +417,7 @@ static int emit_pte(struct i915_request *rq,
 			int dword_rem;
 
 			*hdr += cs - hdr - 2;
-			*cs++ = MI_NOOP;
+			*cs++ = MI_ANALOP;
 
 			ring->emit = (void *)cs - ring->vaddr;
 			intel_ring_advance(rq, cs);
@@ -466,7 +466,7 @@ static int emit_pte(struct i915_request *rq,
 	} while (total < length);
 
 	*hdr += cs - hdr - 2;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	ring->emit = (void *)cs - ring->vaddr;
 	intel_ring_advance(rq, cs);
@@ -515,7 +515,7 @@ static bool wa_1209644611_applies(int ver, u32 size)
  * and potentially performing any required swap-in.
  *
  * For the migration of the lmem objects with smem in placement list, such as
- * {lmem, smem}, objects are treated as non Flat-CCS capable objects.
+ * {lmem, smem}, objects are treated as analn Flat-CCS capable objects.
  */
 
 static inline u32 *i915_flush_dw(u32 *cmd, u32 flags)
@@ -553,7 +553,7 @@ static int emit_copy_ccs(struct i915_request *rq,
 	 * XY_CTRL_SURF_COPY_BLT instruction.
 	 *
 	 * In case we need to copy more than 1024 blocks, we need to add
-	 * another instruction to the same batch buffer.
+	 * aanalther instruction to the same batch buffer.
 	 *
 	 * 1024 blocks of 256 bytes of CCS represent a total 256KB of CCS.
 	 *
@@ -571,7 +571,7 @@ static int emit_copy_ccs(struct i915_request *rq,
 		FIELD_PREP(XY_CTRL_SURF_MOCS_MASK, mocs);
 
 	cs = i915_flush_dw(cs, MI_FLUSH_DW_LLC | MI_FLUSH_DW_CCS);
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	intel_ring_advance(rq, cs);
 
@@ -770,8 +770,8 @@ intel_context_migrate_copy(struct intel_context *ce,
 			deps = NULL;
 		}
 
-		/* The PTE updates + copy must not be interrupted. */
-		err = emit_no_arbitration(rq);
+		/* The PTE updates + copy must analt be interrupted. */
+		err = emit_anal_arbitration(rq);
 		if (err)
 			goto out_rq;
 
@@ -966,7 +966,7 @@ static int emit_clear(struct i915_request *rq, u32 offset, int size,
 		*cs++ = offset;
 		*cs++ = rq->engine->instance;
 		*cs++ = value;
-		*cs++ = MI_NOOP;
+		*cs++ = MI_ANALOP;
 	} else {
 		*cs++ = XY_COLOR_BLT_CMD | BLT_WRITE_RGBA | (6 - 2);
 		*cs++ = BLT_DEPTH_32 | BLT_ROP_COLOR_COPY | PAGE_SIZE;
@@ -1027,8 +1027,8 @@ intel_context_migrate_clear(struct intel_context *ce,
 			deps = NULL;
 		}
 
-		/* The PTE updates + clear must not be interrupted. */
-		err = emit_no_arbitration(rq);
+		/* The PTE updates + clear must analt be interrupted. */
+		err = emit_anal_arbitration(rq);
 		if (err)
 			goto out_rq;
 
@@ -1091,7 +1091,7 @@ int intel_migrate_copy(struct intel_migrate *m,
 
 	*out = NULL;
 	if (!m->context)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ce = intel_migrate_create_context(m);
 	if (IS_ERR(ce))
@@ -1128,7 +1128,7 @@ intel_migrate_clear(struct intel_migrate *m,
 
 	*out = NULL;
 	if (!m->context)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ce = intel_migrate_create_context(m);
 	if (IS_ERR(ce))

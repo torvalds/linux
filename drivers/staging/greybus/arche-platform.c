@@ -38,9 +38,9 @@ enum svc_wakedetect_state {
 	WD_STATE_IDLE,			/* Default state = pulled high/low */
 	WD_STATE_BOOT_INIT,		/* WD = falling edge (low) */
 	WD_STATE_COLDBOOT_TRIG,		/* WD = rising edge (high), > 30msec */
-	WD_STATE_STANDBYBOOT_TRIG,	/* As of now not used ?? */
+	WD_STATE_STANDBYBOOT_TRIG,	/* As of analw analt used ?? */
 	WD_STATE_COLDBOOT_START,	/* Cold boot process started */
-	WD_STATE_STANDBYBOOT_START,	/* Not used */
+	WD_STATE_STANDBYBOOT_START,	/* Analt used */
 };
 
 struct arche_platform_drvdata {
@@ -65,7 +65,7 @@ struct arche_platform_drvdata {
 	spinlock_t wake_lock;			/* Protect wake_detect_state */
 	struct mutex platform_state_mutex;	/* Protect state */
 	unsigned long wake_detect_start;
-	struct notifier_block pm_notifier;
+	struct analtifier_block pm_analtifier;
 
 	struct device *dev;
 };
@@ -84,9 +84,9 @@ static void arche_platform_set_wake_detect_state(struct arche_platform_drvdata *
 	arche_pdata->wake_detect_state = state;
 }
 
-static inline void svc_reset_onoff(struct gpio_desc *gpio, bool onoff)
+static inline void svc_reset_oanalff(struct gpio_desc *gpio, bool oanalff)
 {
-	gpiod_set_raw_value(gpio, onoff);
+	gpiod_set_raw_value(gpio, oanalff);
 }
 
 static int apb_cold_boot(struct device *dev, void *data)
@@ -97,7 +97,7 @@ static int apb_cold_boot(struct device *dev, void *data)
 	if (ret)
 		dev_warn(dev, "failed to coldboot\n");
 
-	/*Child nodes are independent, so do not exit coldboot operation */
+	/*Child analdes are independent, so do analt exit coldboot operation */
 	return 0;
 }
 
@@ -163,8 +163,8 @@ static irqreturn_t arche_platform_wd_irq(int irq, void *devid)
 
 		/*
 		 * If wake/detect line goes high after low, within less than
-		 * 30msec, then standby boot sequence is initiated, which is not
-		 * supported/implemented as of now. So ignore it.
+		 * 30msec, then standby boot sequence is initiated, which is analt
+		 * supported/implemented as of analw. So iganalre it.
 		 */
 		if (arche_pdata->wake_detect_state == WD_STATE_BOOT_INIT) {
 			if (time_before(jiffies,
@@ -174,7 +174,7 @@ static irqreturn_t arche_platform_wd_irq(int irq, void *devid)
 								     WD_STATE_IDLE);
 			} else {
 				/*
-				 * Check we are not in middle of irq thread
+				 * Check we are analt in middle of irq thread
 				 * already
 				 */
 				if (arche_pdata->wake_detect_state !=
@@ -221,7 +221,7 @@ arche_platform_coldboot_seq(struct arche_platform_drvdata *arche_pdata)
 
 	dev_info(arche_pdata->dev, "Booting from cold boot state\n");
 
-	svc_reset_onoff(arche_pdata->svc_reset, arche_pdata->is_reset_act_hi);
+	svc_reset_oanalff(arche_pdata->svc_reset, arche_pdata->is_reset_act_hi);
 
 	gpiod_set_value(arche_pdata->svc_sysboot, 0);
 	usleep_range(100, 200);
@@ -234,7 +234,7 @@ arche_platform_coldboot_seq(struct arche_platform_drvdata *arche_pdata)
 	}
 
 	/* bring SVC out of reset */
-	svc_reset_onoff(arche_pdata->svc_reset, !arche_pdata->is_reset_act_hi);
+	svc_reset_oanalff(arche_pdata->svc_reset, !arche_pdata->is_reset_act_hi);
 
 	arche_platform_set_state(arche_pdata, ARCHE_PLATFORM_STATE_ACTIVE);
 
@@ -254,7 +254,7 @@ arche_platform_fw_flashing_seq(struct arche_platform_drvdata *arche_pdata)
 
 	dev_info(arche_pdata->dev, "Switching to FW flashing state\n");
 
-	svc_reset_onoff(arche_pdata->svc_reset, arche_pdata->is_reset_act_hi);
+	svc_reset_oanalff(arche_pdata->svc_reset, arche_pdata->is_reset_act_hi);
 
 	gpiod_set_value(arche_pdata->svc_sysboot, 1);
 
@@ -267,7 +267,7 @@ arche_platform_fw_flashing_seq(struct arche_platform_drvdata *arche_pdata)
 		return ret;
 	}
 
-	svc_reset_onoff(arche_pdata->svc_reset,	!arche_pdata->is_reset_act_hi);
+	svc_reset_oanalff(arche_pdata->svc_reset,	!arche_pdata->is_reset_act_hi);
 
 	arche_platform_set_state(arche_pdata, ARCHE_PLATFORM_STATE_FW_FLASHING);
 
@@ -285,7 +285,7 @@ arche_platform_poweroff_seq(struct arche_platform_drvdata *arche_pdata)
 	if (arche_pdata->state == ARCHE_PLATFORM_STATE_OFF)
 		return;
 
-	/* If in fw_flashing mode, then no need to repeate things again */
+	/* If in fw_flashing mode, then anal need to repeate things again */
 	if (arche_pdata->state != ARCHE_PLATFORM_STATE_FW_FLASHING) {
 		disable_irq(arche_pdata->wake_detect_irq);
 
@@ -298,7 +298,7 @@ arche_platform_poweroff_seq(struct arche_platform_drvdata *arche_pdata)
 	clk_disable_unprepare(arche_pdata->svc_ref_clk);
 
 	/* As part of exit, put APB back in reset state */
-	svc_reset_onoff(arche_pdata->svc_reset,	arche_pdata->is_reset_act_hi);
+	svc_reset_oanalff(arche_pdata->svc_reset,	arche_pdata->is_reset_act_hi);
 
 	arche_platform_set_state(arche_pdata, ARCHE_PLATFORM_STATE_OFF);
 }
@@ -340,7 +340,7 @@ static ssize_t state_store(struct device *dev,
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_STANDBY)
 			goto exit;
 
-		dev_warn(arche_pdata->dev, "standby state not supported\n");
+		dev_warn(arche_pdata->dev, "standby state analt supported\n");
 	} else if (sysfs_streq(buf, "fw_flashing")) {
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_FW_FLASHING)
 			goto exit;
@@ -348,7 +348,7 @@ static ssize_t state_store(struct device *dev,
 		/*
 		 * Here we only control SVC.
 		 *
-		 * In case of FW_FLASHING mode we do not want to control
+		 * In case of FW_FLASHING mode we do analt want to control
 		 * APBs, as in case of V2, SPI bus is shared between both
 		 * the APBs. So let user chose which APB he wants to flash.
 		 */
@@ -358,7 +358,7 @@ static ssize_t state_store(struct device *dev,
 		if (ret)
 			goto exit;
 	} else {
-		dev_err(arche_pdata->dev, "unknown state\n");
+		dev_err(arche_pdata->dev, "unkanalwn state\n");
 		ret = -EINVAL;
 	}
 
@@ -382,25 +382,25 @@ static ssize_t state_show(struct device *dev,
 	case ARCHE_PLATFORM_STATE_FW_FLASHING:
 		return sprintf(buf, "fw_flashing\n");
 	default:
-		return sprintf(buf, "unknown state\n");
+		return sprintf(buf, "unkanalwn state\n");
 	}
 }
 
 static DEVICE_ATTR_RW(state);
 
-static int arche_platform_pm_notifier(struct notifier_block *notifier,
+static int arche_platform_pm_analtifier(struct analtifier_block *analtifier,
 				      unsigned long pm_event, void *unused)
 {
 	struct arche_platform_drvdata *arche_pdata =
-		container_of(notifier, struct arche_platform_drvdata,
-			     pm_notifier);
-	int ret = NOTIFY_DONE;
+		container_of(analtifier, struct arche_platform_drvdata,
+			     pm_analtifier);
+	int ret = ANALTIFY_DONE;
 
 	mutex_lock(&arche_pdata->platform_state_mutex);
 	switch (pm_event) {
 	case PM_SUSPEND_PREPARE:
 		if (arche_pdata->state != ARCHE_PLATFORM_STATE_ACTIVE) {
-			ret = NOTIFY_STOP;
+			ret = ANALTIFY_STOP;
 			break;
 		}
 		device_for_each_child(arche_pdata->dev, NULL, apb_poweroff);
@@ -425,14 +425,14 @@ static int arche_platform_probe(struct platform_device *pdev)
 {
 	struct arche_platform_drvdata *arche_pdata;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 	unsigned int flags;
 
 	arche_pdata = devm_kzalloc(&pdev->dev, sizeof(*arche_pdata),
 				   GFP_KERNEL);
 	if (!arche_pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* setup svc reset gpio */
 	arche_pdata->is_reset_act_hi = of_property_read_bool(np,
@@ -517,20 +517,20 @@ static int arche_platform_probe(struct platform_device *pdev)
 
 	ret = of_platform_populate(np, NULL, NULL, dev);
 	if (ret) {
-		dev_err(dev, "failed to populate child nodes %d\n", ret);
+		dev_err(dev, "failed to populate child analdes %d\n", ret);
 		goto err_device_remove;
 	}
 
-	arche_pdata->pm_notifier.notifier_call = arche_platform_pm_notifier;
-	ret = register_pm_notifier(&arche_pdata->pm_notifier);
+	arche_pdata->pm_analtifier.analtifier_call = arche_platform_pm_analtifier;
+	ret = register_pm_analtifier(&arche_pdata->pm_analtifier);
 
 	if (ret) {
-		dev_err(dev, "failed to register pm notifier %d\n", ret);
+		dev_err(dev, "failed to register pm analtifier %d\n", ret);
 		goto err_device_remove;
 	}
 
 	/* Explicitly power off if requested */
-	if (!of_property_read_bool(pdev->dev.of_node, "arche,init-off")) {
+	if (!of_property_read_bool(pdev->dev.of_analde, "arche,init-off")) {
 		mutex_lock(&arche_pdata->platform_state_mutex);
 		ret = arche_platform_coldboot_seq(arche_pdata);
 		if (ret) {
@@ -564,7 +564,7 @@ static void arche_platform_remove(struct platform_device *pdev)
 {
 	struct arche_platform_drvdata *arche_pdata = platform_get_drvdata(pdev);
 
-	unregister_pm_notifier(&arche_pdata->pm_notifier);
+	unregister_pm_analtifier(&arche_pdata->pm_analtifier);
 	device_remove_file(&pdev->dev, &dev_attr_state);
 	device_for_each_child(&pdev->dev, NULL, arche_remove_child);
 	arche_platform_poweroff_seq(arche_pdata);

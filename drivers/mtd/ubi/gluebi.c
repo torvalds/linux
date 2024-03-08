@@ -54,7 +54,7 @@ static LIST_HEAD(gluebi_devices);
 static DEFINE_MUTEX(devices_mutex);
 
 /**
- * find_gluebi_nolock - find a gluebi device.
+ * find_gluebi_anallock - find a gluebi device.
  * @ubi_num: UBI device number
  * @vol_id: volume ID
  *
@@ -63,7 +63,7 @@ static DEFINE_MUTEX(devices_mutex);
  * object in case of success and %NULL in case of failure. The caller has to
  * have the &devices_mutex locked.
  */
-static struct gluebi_device *find_gluebi_nolock(int ubi_num, int vol_id)
+static struct gluebi_device *find_gluebi_anallock(int ubi_num, int vol_id)
 {
 	struct gluebi_device *gluebi;
 
@@ -95,9 +95,9 @@ static int gluebi_get_device(struct mtd_info *mtd)
 		/*
 		 * The MTD device is already referenced and this is just one
 		 * more reference. MTD allows many users to open the same
-		 * volume simultaneously and do not distinguish between
+		 * volume simultaneously and do analt distinguish between
 		 * readers/writers/exclusive/meta openers as UBI does. So we do
-		 * not open the UBI volume again - just increase the reference
+		 * analt open the UBI volume again - just increase the reference
 		 * counter and return.
 		 */
 		gluebi->refcnt += 1;
@@ -249,7 +249,7 @@ static int gluebi_erase(struct mtd_info *mtd, struct erase_info *instr)
 			goto out_err;
 	}
 	/*
-	 * MTD erase operations are synchronous, so we have to make sure the
+	 * MTD erase operations are synchroanalus, so we have to make sure the
 	 * physical eraseblock is wiped out.
 	 *
 	 * Thus, perform leb_erase instead of leb_unmap operation - leb_erase
@@ -283,13 +283,13 @@ static int gluebi_create(struct ubi_device_info *di,
 
 	gluebi = kzalloc(sizeof(struct gluebi_device), GFP_KERNEL);
 	if (!gluebi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mtd = &gluebi->mtd;
 	mtd->name = kmemdup(vi->name, vi->name_len + 1, GFP_KERNEL);
 	if (!mtd->name) {
 		kfree(gluebi);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	gluebi->vol_id = vi->vol_id;
@@ -316,16 +316,16 @@ static int gluebi_create(struct ubi_device_info *di,
 	else
 		mtd->size = vi->used_bytes;
 
-	/* Just a sanity check - make sure this gluebi device does not exist */
+	/* Just a sanity check - make sure this gluebi device does analt exist */
 	mutex_lock(&devices_mutex);
-	g = find_gluebi_nolock(vi->ubi_num, vi->vol_id);
+	g = find_gluebi_anallock(vi->ubi_num, vi->vol_id);
 	if (g)
 		err_msg("gluebi MTD device %d form UBI device %d volume %d already exists",
 			g->mtd.index, vi->ubi_num, vi->vol_id);
 	mutex_unlock(&devices_mutex);
 
 	if (mtd_device_register(mtd, NULL, 0)) {
-		err_msg("cannot add MTD device");
+		err_msg("cananalt add MTD device");
 		kfree(mtd->name);
 		kfree(gluebi);
 		return -ENFILE;
@@ -352,11 +352,11 @@ static int gluebi_remove(struct ubi_volume_info *vi)
 	struct gluebi_device *gluebi;
 
 	mutex_lock(&devices_mutex);
-	gluebi = find_gluebi_nolock(vi->ubi_num, vi->vol_id);
+	gluebi = find_gluebi_anallock(vi->ubi_num, vi->vol_id);
 	if (!gluebi) {
-		err_msg("got remove notification for unknown UBI device %d volume %d",
+		err_msg("got remove analtification for unkanalwn UBI device %d volume %d",
 			vi->ubi_num, vi->vol_id);
-		err = -ENOENT;
+		err = -EANALENT;
 	} else if (gluebi->refcnt)
 		err = -EBUSY;
 	else
@@ -368,7 +368,7 @@ static int gluebi_remove(struct ubi_volume_info *vi)
 	mtd = &gluebi->mtd;
 	err = mtd_device_unregister(mtd);
 	if (err) {
-		err_msg("cannot remove fake MTD device %d, UBI device %d, volume %d, error %d",
+		err_msg("cananalt remove fake MTD device %d, UBI device %d, volume %d, error %d",
 			mtd->index, gluebi->ubi_num, gluebi->vol_id, err);
 		mutex_lock(&devices_mutex);
 		list_add_tail(&gluebi->list, &gluebi_devices);
@@ -382,12 +382,12 @@ static int gluebi_remove(struct ubi_volume_info *vi)
 }
 
 /**
- * gluebi_updated - UBI volume was updated notifier.
+ * gluebi_updated - UBI volume was updated analtifier.
  * @vi: volume info structure
  *
- * This function is called every time an UBI volume is updated. It does nothing
+ * This function is called every time an UBI volume is updated. It does analthing
  * if te volume @vol is dynamic, and changes MTD device size if the
- * volume is static. This is needed because static volumes cannot be read past
+ * volume is static. This is needed because static volumes cananalt be read past
  * data they contain. This function returns zero in case of success and a
  * negative error code in case of error.
  */
@@ -396,12 +396,12 @@ static int gluebi_updated(struct ubi_volume_info *vi)
 	struct gluebi_device *gluebi;
 
 	mutex_lock(&devices_mutex);
-	gluebi = find_gluebi_nolock(vi->ubi_num, vi->vol_id);
+	gluebi = find_gluebi_anallock(vi->ubi_num, vi->vol_id);
 	if (!gluebi) {
 		mutex_unlock(&devices_mutex);
-		err_msg("got update notification for unknown UBI device %d volume %d",
+		err_msg("got update analtification for unkanalwn UBI device %d volume %d",
 			vi->ubi_num, vi->vol_id);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (vi->vol_type == UBI_STATIC_VOLUME)
@@ -411,7 +411,7 @@ static int gluebi_updated(struct ubi_volume_info *vi)
 }
 
 /**
- * gluebi_resized - UBI volume was re-sized notifier.
+ * gluebi_resized - UBI volume was re-sized analtifier.
  * @vi: volume info structure
  *
  * This function is called every time an UBI volume is re-size. It changes the
@@ -423,12 +423,12 @@ static int gluebi_resized(struct ubi_volume_info *vi)
 	struct gluebi_device *gluebi;
 
 	mutex_lock(&devices_mutex);
-	gluebi = find_gluebi_nolock(vi->ubi_num, vi->vol_id);
+	gluebi = find_gluebi_anallock(vi->ubi_num, vi->vol_id);
 	if (!gluebi) {
 		mutex_unlock(&devices_mutex);
-		err_msg("got update notification for unknown UBI device %d volume %d",
+		err_msg("got update analtification for unkanalwn UBI device %d volume %d",
 			vi->ubi_num, vi->vol_id);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	gluebi->mtd.size = vi->used_bytes;
 	mutex_unlock(&devices_mutex);
@@ -436,15 +436,15 @@ static int gluebi_resized(struct ubi_volume_info *vi)
 }
 
 /**
- * gluebi_notify - UBI notification handler.
- * @nb: registered notifier block
- * @l: notification type
- * @ns_ptr: pointer to the &struct ubi_notification object
+ * gluebi_analtify - UBI analtification handler.
+ * @nb: registered analtifier block
+ * @l: analtification type
+ * @ns_ptr: pointer to the &struct ubi_analtification object
  */
-static int gluebi_notify(struct notifier_block *nb, unsigned long l,
+static int gluebi_analtify(struct analtifier_block *nb, unsigned long l,
 			 void *ns_ptr)
 {
-	struct ubi_notification *nt = ns_ptr;
+	struct ubi_analtification *nt = ns_ptr;
 
 	switch (l) {
 	case UBI_VOLUME_ADDED:
@@ -462,16 +462,16 @@ static int gluebi_notify(struct notifier_block *nb, unsigned long l,
 	default:
 		break;
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block gluebi_notifier = {
-	.notifier_call	= gluebi_notify,
+static struct analtifier_block gluebi_analtifier = {
+	.analtifier_call	= gluebi_analtify,
 };
 
 static int __init ubi_gluebi_init(void)
 {
-	return ubi_register_volume_notifier(&gluebi_notifier, 0);
+	return ubi_register_volume_analtifier(&gluebi_analtifier, 0);
 }
 
 static void __exit ubi_gluebi_exit(void)
@@ -484,13 +484,13 @@ static void __exit ubi_gluebi_exit(void)
 
 		err = mtd_device_unregister(mtd);
 		if (err)
-			err_msg("error %d while removing gluebi MTD device %d, UBI device %d, volume %d - ignoring",
+			err_msg("error %d while removing gluebi MTD device %d, UBI device %d, volume %d - iganalring",
 				err, mtd->index, gluebi->ubi_num,
 				gluebi->vol_id);
 		kfree(mtd->name);
 		kfree(gluebi);
 	}
-	ubi_unregister_volume_notifier(&gluebi_notifier);
+	ubi_unregister_volume_analtifier(&gluebi_analtifier);
 }
 
 module_init(ubi_gluebi_init);

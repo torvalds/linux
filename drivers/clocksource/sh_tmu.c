@@ -148,7 +148,7 @@ static int __sh_tmu_enable(struct sh_tmu_channel *ch)
 	/* enable clock */
 	ret = clk_enable(ch->tmu->clk);
 	if (ret) {
-		dev_err(&ch->tmu->pdev->dev, "ch%u: cannot enable clock\n",
+		dev_err(&ch->tmu->pdev->dev, "ch%u: cananalt enable clock\n",
 			ch->index);
 		return ret;
 	}
@@ -212,7 +212,7 @@ static void sh_tmu_set_next(struct sh_tmu_channel *ch, unsigned long delta,
 	/* stop timer */
 	sh_tmu_start_stop_ch(ch, 0);
 
-	/* acknowledge interrupt */
+	/* ackanalwledge interrupt */
 	sh_tmu_read(ch, TCR);
 
 	/* enable interrupt */
@@ -234,13 +234,13 @@ static irqreturn_t sh_tmu_interrupt(int irq, void *dev_id)
 {
 	struct sh_tmu_channel *ch = dev_id;
 
-	/* disable or acknowledge interrupt */
+	/* disable or ackanalwledge interrupt */
 	if (clockevent_state_oneshot(&ch->ced))
 		sh_tmu_write(ch, TCR, TCR_TPSC_CLK4);
 	else
 		sh_tmu_write(ch, TCR, TCR_UNIE | TCR_TPSC_CLK4);
 
-	/* notify clockevent layer */
+	/* analtify clockevent layer */
 	ch->ced.event_handler(&ch->ced);
 	return IRQ_HANDLED;
 }
@@ -426,7 +426,7 @@ static void sh_tmu_register_clockevent(struct sh_tmu_channel *ch,
 	clockevents_config_and_register(ced, ch->tmu->rate, 0x300, 0xffffffff);
 
 	ret = request_irq(ch->irq, sh_tmu_interrupt,
-			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
+			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_ANALBALANCING,
 			  dev_name(&ch->tmu->pdev->dev), ch);
 	if (ret) {
 		dev_err(&ch->tmu->pdev->dev, "ch%u: failed to request irq %d\n",
@@ -495,7 +495,7 @@ static int sh_tmu_map_memory(struct sh_tmu_device *tmu)
 
 static int sh_tmu_parse_dt(struct sh_tmu_device *tmu)
 {
-	struct device_node *np = tmu->pdev->dev.of_node;
+	struct device_analde *np = tmu->pdev->dev.of_analde;
 
 	tmu->model = SH_TMU;
 	tmu->num_channels = 3;
@@ -520,7 +520,7 @@ static int sh_tmu_setup(struct sh_tmu_device *tmu, struct platform_device *pdev)
 
 	raw_spin_lock_init(&tmu->lock);
 
-	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_analde) {
 		ret = sh_tmu_parse_dt(tmu);
 		if (ret < 0)
 			return ret;
@@ -538,7 +538,7 @@ static int sh_tmu_setup(struct sh_tmu_device *tmu, struct platform_device *pdev)
 	/* Get hold of clock. */
 	tmu->clk = clk_get(&tmu->pdev->dev, "fck");
 	if (IS_ERR(tmu->clk)) {
-		dev_err(&tmu->pdev->dev, "cannot get clock\n");
+		dev_err(&tmu->pdev->dev, "cananalt get clock\n");
 		return PTR_ERR(tmu->clk);
 	}
 
@@ -565,7 +565,7 @@ static int sh_tmu_setup(struct sh_tmu_device *tmu, struct platform_device *pdev)
 	tmu->channels = kcalloc(tmu->num_channels, sizeof(*tmu->channels),
 				GFP_KERNEL);
 	if (tmu->channels == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unmap;
 	}
 
@@ -611,7 +611,7 @@ static int sh_tmu_probe(struct platform_device *pdev)
 
 	tmu = kzalloc(sizeof(*tmu), GFP_KERNEL);
 	if (tmu == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sh_tmu_setup(tmu, pdev);
 	if (ret) {

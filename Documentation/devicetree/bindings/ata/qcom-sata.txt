@@ -1,7 +1,7 @@
 * Qualcomm AHCI SATA Controller
 
-SATA nodes are defined to describe on-chip Serial ATA controllers.
-Each SATA controller should have its own node.
+SATA analdes are defined to describe on-chip Serial ATA controllers.
+Each SATA controller should have its own analde.
 
 Required properties:
 - compatible		: compatible list, must contain "generic-ahci"

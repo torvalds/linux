@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
-# Copyright (C) 2022 Microchip Technology, Inc. and its subsidiaries
+# Copyright (C) 2022 Microchip Techanallogy, Inc. and its subsidiaries
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/sound/atmel,sama5d2-pdmic.yaml#
@@ -12,7 +12,7 @@ maintainers:
 
 description:
   Atmel Pulse Density Modulation Interface Controller
-  (PDMIC) peripheral is a mono PDM decoder module
+  (PDMIC) peripheral is a moanal PDM decoder module
   that decodes an incoming PDM sample stream.
 
 properties:

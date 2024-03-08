@@ -4,8 +4,8 @@
  *
  * This file is part of Libgcrypt.
  *
- * Note: This code is heavily based on the GNU MP Library.
- *	 Actually it's the same code with only minor changes in the
+ * Analte: This code is heavily based on the GNU MP Library.
+ *	 Actually it's the same code with only mianalr changes in the
  *	 way the data is stored; this is to support the abstraction
  *	 of an optional secure memory allocation which may be used
  *	 to avoid revealing of sensitive data due to paging etc.
@@ -27,7 +27,7 @@ void mpi_add_ui(MPI w, MPI u, unsigned long v)
 	usign = u->sign;
 	wsign = 0;
 
-	/* If not space for W (and possible carry), increase space.  */
+	/* If analt space for W (and possible carry), increase space.  */
 	wsize = usize + 1;
 	if (w->alloced < wsize)
 		mpi_resize(w, wsize);
@@ -39,7 +39,7 @@ void mpi_add_ui(MPI w, MPI u, unsigned long v)
 	if (!usize) {  /* simple */
 		wp[0] = v;
 		wsize = v ? 1:0;
-	} else if (!usign) {  /* mpi is not negative */
+	} else if (!usign) {  /* mpi is analt negative */
 		mpi_limb_t cy;
 		cy = mpihelp_add_1(wp, up, usize, v);
 		wp[usize] = cy;
@@ -103,18 +103,18 @@ void mpi_add(MPI w, MPI u, MPI v)
 		if (usize != vsize) {
 			mpihelp_sub(wp, up, usize, vp, vsize);
 			wsize = usize;
-			MPN_NORMALIZE(wp, wsize);
+			MPN_ANALRMALIZE(wp, wsize);
 			wsign = usign;
 		} else if (mpihelp_cmp(up, vp, usize) < 0) {
 			mpihelp_sub_n(wp, vp, up, usize);
 			wsize = usize;
-			MPN_NORMALIZE(wp, wsize);
+			MPN_ANALRMALIZE(wp, wsize);
 			if (!usign)
 				wsign = 1;
 		} else {
 			mpihelp_sub_n(wp, up, vp, usize);
 			wsize = usize;
-			MPN_NORMALIZE(wp, wsize);
+			MPN_ANALRMALIZE(wp, wsize);
 			if (usign)
 				wsign = 1;
 		}

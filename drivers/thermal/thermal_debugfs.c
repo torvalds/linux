@@ -2,7 +2,7 @@
 /*
  * Copyright 2023 Linaro Limited
  *
- * Author: Daniel Lezcano <daniel.lezcano@linaro.org>
+ * Author: Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
  *
  * Thermal subsystem debug support
  */
@@ -32,7 +32,7 @@ static struct dentry *d_tz;
  * the size is CDEVSTATS_HASH_SIZE. The majority of cooling devices
  * have dozen of states but some can have much more, so a hash table
  * is more adequate in this case, because the cost of browsing the entire
- * list when storing the transitions may not be negligible.
+ * list when storing the transitions may analt be negligible.
  */
 #define CDEVSTATS_HASH_SIZE 16
 
@@ -67,15 +67,15 @@ struct cdev_debugfs {
  * The following common structure allows to store the information
  * related to the transitions and to the state residencies. They are
  * identified with a id which is associated to a value. It is used as
- * nodes for the "transitions" and "durations" above.
+ * analdes for the "transitions" and "durations" above.
  *
- * @node: node to insert the structure in a list
+ * @analde: analde to insert the structure in a list
  * @id: identifier of the value which can be a state or a transition
  * @residency: a ktime_t representing a state residency duration
  * @count: a number of occurrences
  */
 struct cdev_record {
-	struct list_head node;
+	struct list_head analde;
 	int id;
 	union {
                 ktime_t residency;
@@ -117,13 +117,13 @@ struct trip_stats {
  *
  * @timestamp: first trip point crossed the way up
  * @duration: total duration of the mitigation episode
- * @node: a list element to be added to the list of tz events
+ * @analde: a list element to be added to the list of tz events
  * @trip_stats: per trip point statistics, flexible array
  */
 struct tz_episode {
 	ktime_t timestamp;
 	ktime_t duration;
-	struct list_head node;
+	struct list_head analde;
 	struct trip_stats trip_stats[];
 };
 
@@ -225,8 +225,8 @@ thermal_debugfs_cdev_record_alloc(struct thermal_debugfs *thermal_dbg,
 		return NULL;
 
 	cdev_record->id = id;
-	INIT_LIST_HEAD(&cdev_record->node);
-	list_add_tail(&cdev_record->node,
+	INIT_LIST_HEAD(&cdev_record->analde);
+	list_add_tail(&cdev_record->analde,
 		      &lists[cdev_record->id % CDEVSTATS_HASH_SIZE]);
 
 	return cdev_record;
@@ -238,7 +238,7 @@ thermal_debugfs_cdev_record_find(struct thermal_debugfs *thermal_dbg,
 {
 	struct cdev_record *entry;
 
-	list_for_each_entry(entry, &lists[id % CDEVSTATS_HASH_SIZE], node)
+	list_for_each_entry(entry, &lists[id % CDEVSTATS_HASH_SIZE], analde)
 		if (entry->id == id)
 			return entry;
 
@@ -266,14 +266,14 @@ static void thermal_debugfs_cdev_clear(struct cdev_debugfs *cdev_dbg)
 	for (i = 0; i < CDEVSTATS_HASH_SIZE; i++) {
 
 		list_for_each_entry_safe(entry, tmp,
-					 &cdev_dbg->transitions[i], node) {
-			list_del(&entry->node);
+					 &cdev_dbg->transitions[i], analde) {
+			list_del(&entry->analde);
 			kfree(entry);
 		}
 
 		list_for_each_entry_safe(entry, tmp,
-					 &cdev_dbg->durations[i], node) {
-			list_del(&entry->node);
+					 &cdev_dbg->durations[i], analde) {
+			list_del(&entry->analde);
 			kfree(entry);
 		}
 	}
@@ -315,7 +315,7 @@ static int cdev_tt_seq_show(struct seq_file *s, void *v)
 	if (!i)
 		seq_puts(s, "Transition\tOccurences\n");
 
-	list_for_each_entry(entry, &transitions[i], node) {
+	list_for_each_entry(entry, &transitions[i], analde) {
 		/*
 		 * Assuming maximum cdev states is 1024, the longer
 		 * string for a transition would be "1024->1024\0"
@@ -351,7 +351,7 @@ static int cdev_dt_seq_show(struct seq_file *s, void *v)
 	if (!i)
 		seq_puts(s, "State\tResidency\n");
 
-	list_for_each_entry(entry, &durations[i], node) {
+	list_for_each_entry(entry, &durations[i], analde) {
 		s64 duration = ktime_to_ms(entry->residency);
 
 		if (entry->id == cdev_dbg->current_state)
@@ -418,7 +418,7 @@ void thermal_debug_cdev_state_update(const struct thermal_cooling_device *cdev,
 
 	/*
 	 * Get the old state information in the durations list. If
-	 * this one does not exist, a new allocated one will be
+	 * this one does analt exist, a new allocated one will be
 	 * returned. Recompute the total duration in the old state and
 	 * get a new timestamp for the new state.
 	 */
@@ -426,10 +426,10 @@ void thermal_debug_cdev_state_update(const struct thermal_cooling_device *cdev,
 						      cdev_dbg->durations,
 						      old_state);
 	if (cdev_record) {
-		ktime_t now = ktime_get();
-		ktime_t delta = ktime_sub(now, cdev_dbg->timestamp);
+		ktime_t analw = ktime_get();
+		ktime_t delta = ktime_sub(analw, cdev_dbg->timestamp);
 		cdev_record->residency = ktime_add(cdev_record->residency, delta);
-		cdev_dbg->timestamp = now;
+		cdev_dbg->timestamp = analw;
 	}
 
 	cdev_dbg->current_state = new_state;
@@ -437,7 +437,7 @@ void thermal_debug_cdev_state_update(const struct thermal_cooling_device *cdev,
 
 	/*
 	 * Get the transition in the transitions list. If this one
-	 * does not exist, a new allocated one will be returned.
+	 * does analt exist, a new allocated one will be returned.
 	 * Increment the occurrence of this transition which is stored
 	 * in the value field.
 	 */
@@ -519,7 +519,7 @@ void thermal_debug_cdev_remove(struct thermal_cooling_device *cdev)
 }
 
 static struct tz_episode *thermal_debugfs_tz_event_alloc(struct thermal_zone_device *tz,
-							ktime_t now)
+							ktime_t analw)
 {
 	struct tz_episode *tze;
 	int i;
@@ -528,8 +528,8 @@ static struct tz_episode *thermal_debugfs_tz_event_alloc(struct thermal_zone_dev
 	if (!tze)
 		return NULL;
 
-	INIT_LIST_HEAD(&tze->node);
-	tze->timestamp = now;
+	INIT_LIST_HEAD(&tze->analde);
+	tze->timestamp = analw;
 
 	for (i = 0; i < tz->num_trips; i++) {
 		tze->trip_stats[i].min = INT_MAX;
@@ -547,7 +547,7 @@ void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 	struct thermal_debugfs *thermal_dbg = tz->debugfs;
 	int temperature = tz->temperature;
 	int trip_id = thermal_zone_trip_id(tz, trip);
-	ktime_t now = ktime_get();
+	ktime_t analw = ktime_get();
 
 	if (!thermal_dbg)
 		return;
@@ -590,11 +590,11 @@ void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 	 *
 	 */
 	if (!tz_dbg->nr_trips) {
-		tze = thermal_debugfs_tz_event_alloc(tz, now);
+		tze = thermal_debugfs_tz_event_alloc(tz, analw);
 		if (!tze)
 			goto unlock;
 
-		list_add(&tze->node, &tz_dbg->tz_episodes);
+		list_add(&tze->analde, &tz_dbg->tz_episodes);
 	}
 
 	/*
@@ -603,7 +603,7 @@ void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 	 * incremented. A nr_trips equal to zero means we are entering
 	 * a mitigation episode.
 	 *
-	 * The trip ids may not be in the ascending order but the
+	 * The trip ids may analt be in the ascending order but the
 	 * result in the array trips_crossed will be in the ascending
 	 * temperature order. The function detecting when a trip point
 	 * is crossed the way down will handle the very rare case when
@@ -612,8 +612,8 @@ void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 	 */
 	tz_dbg->trips_crossed[tz_dbg->nr_trips++] = trip_id;
 
-	tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
-	tze->trip_stats[trip_id].timestamp = now;
+	tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, analde);
+	tze->trip_stats[trip_id].timestamp = analw;
 	tze->trip_stats[trip_id].max = max(tze->trip_stats[trip_id].max, temperature);
 	tze->trip_stats[trip_id].min = min(tze->trip_stats[trip_id].min, temperature);
 	tze->trip_stats[trip_id].avg = tze->trip_stats[trip_id].avg +
@@ -630,7 +630,7 @@ void thermal_debug_tz_trip_down(struct thermal_zone_device *tz,
 	struct thermal_debugfs *thermal_dbg = tz->debugfs;
 	struct tz_episode *tze;
 	struct tz_debugfs *tz_dbg;
-	ktime_t delta, now = ktime_get();
+	ktime_t delta, analw = ktime_get();
 	int trip_id = thermal_zone_trip_id(tz, trip);
 	int i;
 
@@ -642,11 +642,11 @@ void thermal_debug_tz_trip_down(struct thermal_zone_device *tz,
 	tz_dbg = &thermal_dbg->tz_dbg;
 
 	/*
-	 * The temperature crosses the way down but there was not
+	 * The temperature crosses the way down but there was analt
 	 * mitigation detected before. That may happen when the
 	 * temperature is greater than a trip point when registering a
 	 * thermal zone, which is a common use case as the kernel has
-	 * no mitigation mechanism yet at boot time.
+	 * anal mitigation mechanism yet at boot time.
 	 */
 	if (!tz_dbg->nr_trips)
 		goto out;
@@ -664,9 +664,9 @@ void thermal_debug_tz_trip_down(struct thermal_zone_device *tz,
 	if (i < tz_dbg->nr_trips)
 		tz_dbg->trips_crossed[i] = tz_dbg->trips_crossed[tz_dbg->nr_trips];
 
-	tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
+	tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, analde);
 
-	delta = ktime_sub(now, tze->trip_stats[trip_id].timestamp);
+	delta = ktime_sub(analw, tze->trip_stats[trip_id].timestamp);
 
 	tze->trip_stats[trip_id].duration =
 		ktime_add(delta, tze->trip_stats[trip_id].duration);
@@ -676,7 +676,7 @@ void thermal_debug_tz_trip_down(struct thermal_zone_device *tz,
 	 * last trip point the way down.
 	 */
 	if (!tz_dbg->nr_trips)
-		tze->duration = ktime_sub(now, tze->timestamp);
+		tze->duration = ktime_sub(analw, tze->timestamp);
 
 out:
 	mutex_unlock(&thermal_dbg->lock);
@@ -701,7 +701,7 @@ void thermal_debug_update_temp(struct thermal_zone_device *tz)
 
 	for (i = 0; i < tz_dbg->nr_trips; i++) {
 		trip_id = tz_dbg->trips_crossed[i];
-		tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
+		tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, analde);
 		tze->trip_stats[trip_id].count++;
 		tze->trip_stats[trip_id].max = max(tze->trip_stats[trip_id].max, tz->temperature);
 		tze->trip_stats[trip_id].min = min(tze->trip_stats[trip_id].min, tz->temperature);
@@ -749,7 +749,7 @@ static int tze_seq_show(struct seq_file *s, void *v)
 	const char *type;
 	int trip_id;
 
-	tze = list_entry((struct list_head *)v, struct tz_episode, node);
+	tze = list_entry((struct list_head *)v, struct tz_episode, analde);
 
 	seq_printf(s, ",-Mitigation at %lluus, duration=%llums\n",
 		   ktime_to_us(tze->timestamp),
@@ -759,7 +759,7 @@ static int tze_seq_show(struct seq_file *s, void *v)
 
 	for_each_trip(tz, trip) {
 		/*
-		 * There is no possible mitigation happening at the
+		 * There is anal possible mitigation happening at the
 		 * critical trip point, so the stats will be always
 		 * zero, skip this trip point
 		 */

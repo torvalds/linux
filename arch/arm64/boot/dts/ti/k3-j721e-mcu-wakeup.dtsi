@@ -76,7 +76,7 @@
 		#pinctrl-cells = <1>;
 		pinctrl-single,register-width = <32>;
 		pinctrl-single,function-mask = <0x0000000f>;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -87,7 +87,7 @@
 		#pinctrl-cells = <1>;
 		pinctrl-single,register-width = <32>;
 		pinctrl-single,function-mask = <0x0000000f>;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -109,7 +109,7 @@
 		assigned-clock-parents = <&k3_clks 35 2>;
 		power-domains = <&k3_pds 35 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -123,7 +123,7 @@
 		assigned-clock-parents = <&k3_clks 71 2>, <&k3_clks 322 1>;
 		power-domains = <&k3_pds 71 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -137,7 +137,7 @@
 		assigned-clock-parents = <&k3_clks 72 2>;
 		power-domains = <&k3_pds 72 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -151,7 +151,7 @@
 		assigned-clock-parents = <&k3_clks 73 2>, <&k3_clks 323 1>;
 		power-domains = <&k3_pds 73 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -165,7 +165,7 @@
 		assigned-clock-parents = <&k3_clks 74 2>;
 		power-domains = <&k3_pds 74 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -179,7 +179,7 @@
 		assigned-clock-parents = <&k3_clks 75 2>, <&k3_clks 324 1>;
 		power-domains = <&k3_pds 75 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -193,7 +193,7 @@
 		assigned-clock-parents = <&k3_clks 76 2>;
 		power-domains = <&k3_pds 76 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -207,7 +207,7 @@
 		assigned-clock-parents = <&k3_clks 77 2>, <&k3_clks 325 1>;
 		power-domains = <&k3_pds 77 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -221,7 +221,7 @@
 		assigned-clock-parents = <&k3_clks 78 2>;
 		power-domains = <&k3_pds 78 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -235,7 +235,7 @@
 		assigned-clock-parents = <&k3_clks 79 2>, <&k3_clks 326 1>;
 		power-domains = <&k3_pds 79 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 	wkup_uart0: serial@42300000 {
@@ -373,7 +373,7 @@
 		};
 
 		ospi0: spi@47040000 {
-			compatible = "ti,am654-ospi", "cdns,qspi-nor";
+			compatible = "ti,am654-ospi", "cdns,qspi-analr";
 			reg = <0x0 0x47040000 0x0 0x100>,
 				<0x5 0x00000000 0x1 0x0000000>;
 			interrupts = <GIC_SPI 840 IRQ_TYPE_LEVEL_HIGH>;
@@ -391,7 +391,7 @@
 		};
 
 		ospi1: spi@47050000 {
-			compatible = "ti,am654-ospi", "cdns,qspi-nor";
+			compatible = "ti,am654-ospi", "cdns,qspi-analr";
 			reg = <0x0 0x47050000 0x0 0x100>,
 				<0x7 0x00000000 0x1 0x00000000>;
 			interrupts = <GIC_SPI 841 IRQ_TYPE_LEVEL_HIGH>;
@@ -505,8 +505,8 @@
 		      <0x0 0x2a400000 0x0 0x80000>;
 		/*
 		 * Marked Disabled:
-		 * Node is incomplete as it is meant for bootloaders and
-		 * firmware on non-MPU processors
+		 * Analde is incomplete as it is meant for bootloaders and
+		 * firmware on analn-MPU processors
 		 */
 		status = "disabled";
 	};

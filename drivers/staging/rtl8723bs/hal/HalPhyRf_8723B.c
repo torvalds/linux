@@ -158,11 +158,11 @@ void DoIQK_8723B(
  * Overview:	88E change all channel tx power according to flag.
  *			OFDM & CCK are all different.
  *
- * Input:		NONE
+ * Input:		ANALNE
  *
- * Output:		NONE
+ * Output:		ANALNE
  *
- * Return:		NONE
+ * Return:		ANALNE
  *
  * Revised History:
  *When		Who	Remark
@@ -306,7 +306,7 @@ void ODM_TxPwrTrackSetPwr_8723B(
 			}
 		}
 	} else
-		return; /*  This method is not supported. */
+		return; /*  This method is analt supported. */
 }
 
 static void GetDeltaSwingTable_8723B(
@@ -457,7 +457,7 @@ static u8 phy_PathA_IQK_8723B(
 		(tmp < 0xf)
 	)
 		result |= 0x01;
-	else					/* if Tx not OK, ignore Rx */
+	else					/* if Tx analt OK, iganalre Rx */
 		return result;
 
 	return result;
@@ -556,7 +556,7 @@ static u8 phy_PathA_RxIQK8723B(
 		(tmp < 0xf)
 	)
 		result |= 0x01;
-	else				/* if Tx not OK, ignore Rx */
+	else				/* if Tx analt OK, iganalre Rx */
 		return result;
 
 	u4tmp = 0x80007C00 | (regE94&0x3FF0000) | ((regE9C&0x3FF0000) >> 16);
@@ -835,7 +835,7 @@ static u8 phy_PathB_RxIQK8723B(struct adapter *padapter, bool configPathB)
 		(tmp < 0xf)
 	)
 			result |= 0x01;
-	else	/* if Tx not OK, ignore Rx */
+	else	/* if Tx analt OK, iganalre Rx */
 		return result;
 
 	u4tmp = 0x80007C00 | (regE94&0x3FF0000)  | ((regE9C&0x3FF0000) >> 16);
@@ -979,7 +979,7 @@ static void _PHY_PathAFillIQKMatrix8723B(
 		pRFCalibrateInfo->TxIQC_8723B[PATH_S1][IDX_0xC4C][VAL] = PHY_QueryBBReg(pDM_Odm->Adapter, rOFDM0_ECCAThreshold, bMaskDWord);
 
 		if (bTxOnly) {
-			/*  <20130226, Kordan> Saving RxIQC, otherwise not initialized. */
+			/*  <20130226, Kordan> Saving RxIQC, otherwise analt initialized. */
 			pRFCalibrateInfo->RxIQC_8723B[PATH_S1][IDX_0xCA0][KEY] = rOFDM0_RxIQExtAnta;
 			pRFCalibrateInfo->RxIQC_8723B[PATH_S1][IDX_0xCA0][VAL] = 0xfffffff & PHY_QueryBBReg(pDM_Odm->Adapter, rOFDM0_RxIQExtAnta, bMaskDWord);
 			pRFCalibrateInfo->RxIQC_8723B[PATH_S1][IDX_0xC14][KEY] = rOFDM0_XARxIQImbalance;
@@ -1365,7 +1365,7 @@ static void phy_IQCalibrate_8723B(
 	};
 	const u32 retryCount = 2;
 
-	/*  Note: IQ calibration must be performed after loading */
+	/*  Analte: IQ calibration must be performed after loading */
 	/* 		PHY_REG.txt , and radio_a, radio_b.txt */
 
 	/* u32 bbvalue; */
@@ -1380,7 +1380,7 @@ static void phy_IQCalibrate_8723B(
 
 	_PHY_PathADDAOn8723B(padapter, ADDA_REG, is2T);
 
-/* no serial mode */
+/* anal serial mode */
 
 	/* save RF path for 8723B */
 /* 	Path_SEL_BB = PHY_QueryBBReg(pDM_Odm->Adapter, 0x948, bMaskDWord); */

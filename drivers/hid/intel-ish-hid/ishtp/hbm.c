@@ -134,7 +134,7 @@ int ishtp_hbm_start_req(struct ishtp_device *dev)
 	/* host start message */
 	start_req.hbm_cmd = HOST_START_REQ_CMD;
 	start_req.host_version.major_version = HBM_MAJOR_VERSION;
-	start_req.host_version.minor_version = HBM_MINOR_VERSION;
+	start_req.host_version.mianalr_version = HBM_MIANALR_VERSION;
 
 	/*
 	 * (!) Response to HBM start may be so quick that this thread would get
@@ -147,7 +147,7 @@ int ishtp_hbm_start_req(struct ishtp_device *dev)
 		dev->dev_state = ISHTP_DEV_RESETTING;
 		dev->hbm_state = ISHTP_HBM_IDLE;
 		ish_hw_reset(dev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -388,7 +388,7 @@ static void ishtp_hbm_cl_connect_res(struct ishtp_device *dev,
 				cl->status = 0;
 			} else {
 				cl->state = ISHTP_CL_DISCONNECTED;
-				cl->status = -ENODEV;
+				cl->status = -EANALDEV;
 			}
 			wake_up_interruptible(&cl->wait_ctrl_res);
 			break;
@@ -469,7 +469,7 @@ static void ishtp_hbm_dma_xfer_ack(struct ishtp_device *dev,
 				/*
 				 * in case that a single ack may be sent
 				 * over several dma transfers, and the last msg
-				 * addr was inside the acked memory, but not in
+				 * addr was inside the acked memory, but analt in
 				 * its start
 				 */
 				if (cl->last_dma_addr >=
@@ -554,7 +554,7 @@ void ishtp_hbm_dispatch(struct ishtp_device *dev,
 	struct hbm_props_response *props_res;
 	struct hbm_host_enum_response *enum_res;
 	struct ishtp_msg_hdr ishtp_hdr;
-	struct dma_alloc_notify	dma_alloc_notify;
+	struct dma_alloc_analtify	dma_alloc_analtify;
 	struct dma_xfer_hbm	*dma_xfer;
 
 	ishtp_msg = hdr;
@@ -571,7 +571,7 @@ void ishtp_hbm_dispatch(struct ishtp_device *dev,
 		}
 
 		dev->version.major_version = HBM_MAJOR_VERSION;
-		dev->version.minor_version = HBM_MINOR_VERSION;
+		dev->version.mianalr_version = HBM_MIANALR_VERSION;
 		if (dev->dev_state == ISHTP_DEV_INIT_CLIENTS &&
 				dev->hbm_state == ISHTP_HBM_START) {
 			dev->hbm_state = ISHTP_HBM_STARTED;
@@ -641,17 +641,17 @@ void ishtp_hbm_dispatch(struct ishtp_device *dev,
 		dev_dbg(dev->devc, "Requesting to use DMA\n");
 		ishtp_cl_alloc_dma_buf(dev);
 		if (dev->ishtp_host_dma_rx_buf) {
-			const size_t len = sizeof(dma_alloc_notify);
+			const size_t len = sizeof(dma_alloc_analtify);
 
-			memset(&dma_alloc_notify, 0, sizeof(dma_alloc_notify));
-			dma_alloc_notify.hbm = DMA_BUFFER_ALLOC_NOTIFY;
-			dma_alloc_notify.buf_size =
+			memset(&dma_alloc_analtify, 0, sizeof(dma_alloc_analtify));
+			dma_alloc_analtify.hbm = DMA_BUFFER_ALLOC_ANALTIFY;
+			dma_alloc_analtify.buf_size =
 					dev->ishtp_host_dma_rx_buf_size;
-			dma_alloc_notify.buf_address =
+			dma_alloc_analtify.buf_address =
 					dev->ishtp_host_dma_rx_buf_phys;
 			ishtp_hbm_hdr(&ishtp_hdr, len);
 			ishtp_write_message(dev, &ishtp_hdr,
-				(unsigned char *)&dma_alloc_notify);
+				(unsigned char *)&dma_alloc_analtify);
 		}
 
 		break;
@@ -705,7 +705,7 @@ void ishtp_hbm_dispatch(struct ishtp_device *dev,
 		dma_xfer = (struct dma_xfer_hbm *)ishtp_msg;
 		if (!dev->ishtp_host_dma_enabled) {
 			dev_err(dev->devc,
-				"DMA XFER requested but DMA is not enabled\n");
+				"DMA XFER requested but DMA is analt enabled\n");
 			break;
 		}
 		ishtp_hbm_dma_xfer(dev, dma_xfer);
@@ -716,14 +716,14 @@ void ishtp_hbm_dispatch(struct ishtp_device *dev,
 		if (!dev->ishtp_host_dma_enabled ||
 		    !dev->ishtp_host_dma_tx_buf) {
 			dev_err(dev->devc,
-				"DMA XFER acked but DMA Tx is not enabled\n");
+				"DMA XFER acked but DMA Tx is analt enabled\n");
 			break;
 		}
 		ishtp_hbm_dma_xfer_ack(dev, dma_xfer);
 		break;
 
 	default:
-		dev_err(dev->devc, "unknown HBM: %u\n",
+		dev_err(dev->devc, "unkanalwn HBM: %u\n",
 			(unsigned int)ishtp_msg->hbm_cmd);
 
 		break;
@@ -788,9 +788,9 @@ void	recv_hbm(struct ishtp_device *dev, struct ishtp_msg_hdr *ishtp_hdr)
 					cl->fw_client_id ==
 					flow_control->fw_addr) {
 				/*
-				 * NOTE: It's valid only for counting
+				 * ANALTE: It's valid only for counting
 				 * flow-control implementation to receive a
-				 * FC in the middle of sending. Meanwhile not
+				 * FC in the middle of sending. Meanwhile analt
 				 * supported
 				 */
 				if (cl->ishtp_flow_ctrl_creds)
@@ -886,9 +886,9 @@ void recv_fixed_cl_msg(struct ishtp_device *dev,
 			(struct ish_system_states_header *)rd_msg_buf;
 		if (msg_hdr->cmd == SYSTEM_STATE_SUBSCRIBE)
 			ishtp_send_resume(dev);
-		/* if FW request arrived here, the system is not suspended */
+		/* if FW request arrived here, the system is analt suspended */
 		else
-			dev_err(dev->devc, "unknown fixed client msg [%02X]\n",
+			dev_err(dev->devc, "unkanalwn fixed client msg [%02X]\n",
 				msg_hdr->cmd);
 	}
 }
@@ -911,7 +911,7 @@ static inline void fix_cl_hdr(struct ishtp_msg_hdr *hdr, size_t length,
 	hdr->reserved = 0;
 }
 
-/*** Suspend and resume notification ***/
+/*** Suspend and resume analtification ***/
 
 static uint32_t current_state;
 static uint32_t supported_states = SUSPEND_STATE_BIT | CONNECTED_STANDBY_STATE_BIT;
@@ -920,7 +920,7 @@ static uint32_t supported_states = SUSPEND_STATE_BIT | CONNECTED_STANDBY_STATE_B
  * ishtp_send_suspend() - Send suspend message to FW
  * @dev: ISHTP device instance
  *
- * Send suspend message to FW. This is useful for system freeze (non S3) case
+ * Send suspend message to FW. This is useful for system freeze (analn S3) case
  */
 void ishtp_send_suspend(struct ishtp_device *dev)
 {
@@ -934,7 +934,7 @@ void ishtp_send_suspend(struct ishtp_device *dev)
 	state_status_msg.hdr.cmd = SYSTEM_STATE_STATUS;
 	state_status_msg.supported_states = supported_states;
 	current_state |= (SUSPEND_STATE_BIT | CONNECTED_STANDBY_STATE_BIT);
-	dev->print_log(dev, "%s() sends SUSPEND notification\n", __func__);
+	dev->print_log(dev, "%s() sends SUSPEND analtification\n", __func__);
 	state_status_msg.states_status = current_state;
 
 	ishtp_write_message(dev, &ishtp_hdr,
@@ -946,7 +946,7 @@ EXPORT_SYMBOL(ishtp_send_suspend);
  * ishtp_send_resume() - Send resume message to FW
  * @dev: ISHTP device instance
  *
- * Send resume message to FW. This is useful for system freeze (non S3) case
+ * Send resume message to FW. This is useful for system freeze (analn S3) case
  */
 void ishtp_send_resume(struct ishtp_device *dev)
 {
@@ -960,7 +960,7 @@ void ishtp_send_resume(struct ishtp_device *dev)
 	state_status_msg.hdr.cmd = SYSTEM_STATE_STATUS;
 	state_status_msg.supported_states = supported_states;
 	current_state &= ~(CONNECTED_STANDBY_STATE_BIT | SUSPEND_STATE_BIT);
-	dev->print_log(dev, "%s() sends RESUME notification\n", __func__);
+	dev->print_log(dev, "%s() sends RESUME analtification\n", __func__);
 	state_status_msg.states_status = current_state;
 
 	ishtp_write_message(dev, &ishtp_hdr,

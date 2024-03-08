@@ -39,7 +39,7 @@ static DEFINE_MUTEX(knav_dev_lock);
 #define KNAV_QUEUE_POP_REG_INDEX	5
 
 /* Queue manager register indices in DTS for QMSS in K2G NAVSS.
- * There are no status and vbusm push registers on this version
+ * There are anal status and vbusm push registers on this version
  * of QMSS. Push registers are same as pop, So all indices above 1
  * are to be re-defined
  */
@@ -79,11 +79,11 @@ bool knav_qmss_device_ready(void)
 EXPORT_SYMBOL_GPL(knav_qmss_device_ready);
 
 /**
- * knav_queue_notify: qmss queue notfier call
+ * knav_queue_analtify: qmss queue analtfier call
  *
  * @inst:		- qmss queue instance like accumulator
  */
-void knav_queue_notify(struct knav_queue_inst *inst)
+void knav_queue_analtify(struct knav_queue_inst *inst)
 {
 	struct knav_queue *qh;
 
@@ -92,22 +92,22 @@ void knav_queue_notify(struct knav_queue_inst *inst)
 
 	rcu_read_lock();
 	for_each_handle_rcu(qh, inst) {
-		if (atomic_read(&qh->notifier_enabled) <= 0)
+		if (atomic_read(&qh->analtifier_enabled) <= 0)
 			continue;
-		if (WARN_ON(!qh->notifier_fn))
+		if (WARN_ON(!qh->analtifier_fn))
 			continue;
-		this_cpu_inc(qh->stats->notifies);
-		qh->notifier_fn(qh->notifier_fn_arg);
+		this_cpu_inc(qh->stats->analtifies);
+		qh->analtifier_fn(qh->analtifier_fn_arg);
 	}
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL_GPL(knav_queue_notify);
+EXPORT_SYMBOL_GPL(knav_queue_analtify);
 
 static irqreturn_t knav_queue_int_handler(int irq, void *_instdata)
 {
 	struct knav_queue_inst *inst = _instdata;
 
-	knav_queue_notify(inst);
+	knav_queue_analtify(inst);
 	return IRQ_HANDLED;
 }
 
@@ -223,11 +223,11 @@ static struct knav_queue *__knav_queue_open(struct knav_queue_inst *inst,
 
 	qh = devm_kzalloc(inst->kdev->dev, sizeof(*qh), GFP_KERNEL);
 	if (!qh)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	qh->stats = alloc_percpu(struct knav_queue_stats);
 	if (!qh->stats) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -267,7 +267,7 @@ knav_queue_open_by_id(const char *name, unsigned id, unsigned flags)
 
 	mutex_lock(&knav_dev_lock);
 
-	qh = ERR_PTR(-ENODEV);
+	qh = ERR_PTR(-EANALDEV);
 	inst = knav_queue_find_by_id(id);
 	if (!inst)
 		goto unlock_ret;
@@ -314,75 +314,75 @@ unlock_ret:
 	return qh;
 }
 
-static void knav_queue_set_notify(struct knav_queue_inst *inst, bool enabled)
+static void knav_queue_set_analtify(struct knav_queue_inst *inst, bool enabled)
 {
 	struct knav_range_info *range = inst->range;
 
-	if (range->ops && range->ops->set_notify)
-		range->ops->set_notify(range, inst, enabled);
+	if (range->ops && range->ops->set_analtify)
+		range->ops->set_analtify(range, inst, enabled);
 }
 
-static int knav_queue_enable_notifier(struct knav_queue *qh)
+static int knav_queue_enable_analtifier(struct knav_queue *qh)
 {
 	struct knav_queue_inst *inst = qh->inst;
 	bool first;
 
-	if (WARN_ON(!qh->notifier_fn))
+	if (WARN_ON(!qh->analtifier_fn))
 		return -EINVAL;
 
-	/* Adjust the per handle notifier count */
-	first = (atomic_inc_return(&qh->notifier_enabled) == 1);
+	/* Adjust the per handle analtifier count */
+	first = (atomic_inc_return(&qh->analtifier_enabled) == 1);
 	if (!first)
-		return 0; /* nothing to do */
+		return 0; /* analthing to do */
 
-	/* Now adjust the per instance notifier count */
-	first = (atomic_inc_return(&inst->num_notifiers) == 1);
+	/* Analw adjust the per instance analtifier count */
+	first = (atomic_inc_return(&inst->num_analtifiers) == 1);
 	if (first)
-		knav_queue_set_notify(inst, true);
+		knav_queue_set_analtify(inst, true);
 
 	return 0;
 }
 
-static int knav_queue_disable_notifier(struct knav_queue *qh)
+static int knav_queue_disable_analtifier(struct knav_queue *qh)
 {
 	struct knav_queue_inst *inst = qh->inst;
 	bool last;
 
-	last = (atomic_dec_return(&qh->notifier_enabled) == 0);
+	last = (atomic_dec_return(&qh->analtifier_enabled) == 0);
 	if (!last)
-		return 0; /* nothing to do */
+		return 0; /* analthing to do */
 
-	last = (atomic_dec_return(&inst->num_notifiers) == 0);
+	last = (atomic_dec_return(&inst->num_analtifiers) == 0);
 	if (last)
-		knav_queue_set_notify(inst, false);
+		knav_queue_set_analtify(inst, false);
 
 	return 0;
 }
 
-static int knav_queue_set_notifier(struct knav_queue *qh,
-				struct knav_queue_notify_config *cfg)
+static int knav_queue_set_analtifier(struct knav_queue *qh,
+				struct knav_queue_analtify_config *cfg)
 {
-	knav_queue_notify_fn old_fn = qh->notifier_fn;
+	knav_queue_analtify_fn old_fn = qh->analtifier_fn;
 
 	if (!cfg)
 		return -EINVAL;
 
 	if (!(qh->inst->range->flags & (RANGE_HAS_ACCUMULATOR | RANGE_HAS_IRQ)))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (!cfg->fn && old_fn)
-		knav_queue_disable_notifier(qh);
+		knav_queue_disable_analtifier(qh);
 
-	qh->notifier_fn = cfg->fn;
-	qh->notifier_fn_arg = cfg->fn_arg;
+	qh->analtifier_fn = cfg->fn;
+	qh->analtifier_fn_arg = cfg->fn_arg;
 
 	if (cfg->fn && !old_fn)
-		knav_queue_enable_notifier(qh);
+		knav_queue_enable_analtifier(qh);
 
 	return 0;
 }
 
-static int knav_gp_set_notify(struct knav_range_info *range,
+static int knav_gp_set_analtify(struct knav_range_info *range,
 			       struct knav_queue_inst *inst,
 			       bool enabled)
 {
@@ -393,7 +393,7 @@ static int knav_gp_set_notify(struct knav_range_info *range,
 		if (enabled)
 			enable_irq(range->irqs[queue].irq);
 		else
-			disable_irq_nosync(range->irqs[queue].irq);
+			disable_irq_analsync(range->irqs[queue].irq);
 	}
 	return 0;
 }
@@ -412,7 +412,7 @@ static int knav_gp_close_queue(struct knav_range_info *range,
 }
 
 static struct knav_range_ops knav_gp_range_ops = {
-	.set_notify	= knav_gp_set_notify,
+	.set_analtify	= knav_gp_set_analtify,
 	.open_queue	= knav_gp_open_queue,
 	.close_queue	= knav_gp_close_queue,
 };
@@ -437,7 +437,7 @@ static void knav_queue_debug_show_instance(struct seq_file *s,
 	int pops = 0;
 	int push_errors = 0;
 	int pop_errors = 0;
-	int notifies = 0;
+	int analtifies = 0;
 
 	if (!knav_queue_is_busy(inst))
 		return;
@@ -450,15 +450,15 @@ static void knav_queue_debug_show_instance(struct seq_file *s,
 			pops += per_cpu_ptr(qh->stats, cpu)->pops;
 			push_errors += per_cpu_ptr(qh->stats, cpu)->push_errors;
 			pop_errors += per_cpu_ptr(qh->stats, cpu)->pop_errors;
-			notifies += per_cpu_ptr(qh->stats, cpu)->notifies;
+			analtifies += per_cpu_ptr(qh->stats, cpu)->analtifies;
 		}
 
-		seq_printf(s, "\t\thandle %p: pushes %8d, pops %8d, count %8d, notifies %8d, push errors %8d, pop errors %8d\n",
+		seq_printf(s, "\t\thandle %p: pushes %8d, pops %8d, count %8d, analtifies %8d, push errors %8d, pop errors %8d\n",
 				qh,
 				pushes,
 				pops,
 				knav_queue_get_count(qh),
-				notifies,
+				analtifies,
 				push_errors,
 				pop_errors);
 	}
@@ -554,8 +554,8 @@ void knav_queue_close(void *qhandle)
 	struct knav_queue *qh = qhandle;
 	struct knav_queue_inst *inst = qh->inst;
 
-	while (atomic_read(&qh->notifier_enabled) > 0)
-		knav_queue_disable_notifier(qh);
+	while (atomic_read(&qh->analtifier_enabled) > 0)
+		knav_queue_disable_analtifier(qh);
 
 	mutex_lock(&knav_dev_lock);
 	list_del_rcu(&qh->list);
@@ -578,13 +578,13 @@ EXPORT_SYMBOL_GPL(knav_queue_close);
  * @cmd:			- control commands
  * @arg:			- command argument
  *
- * Returns 0 on success, errno otherwise.
+ * Returns 0 on success, erranal otherwise.
  */
 int knav_queue_device_control(void *qhandle, enum knav_queue_ctrl_cmd cmd,
 				unsigned long arg)
 {
 	struct knav_queue *qh = qhandle;
-	struct knav_queue_notify_config *cfg;
+	struct knav_queue_analtify_config *cfg;
 	int ret;
 
 	switch ((int)cmd) {
@@ -596,17 +596,17 @@ int knav_queue_device_control(void *qhandle, enum knav_queue_ctrl_cmd cmd,
 		ret = knav_queue_flush(qh);
 		break;
 
-	case KNAV_QUEUE_SET_NOTIFIER:
+	case KNAV_QUEUE_SET_ANALTIFIER:
 		cfg = (void *)arg;
-		ret = knav_queue_set_notifier(qh, cfg);
+		ret = knav_queue_set_analtifier(qh, cfg);
 		break;
 
-	case KNAV_QUEUE_ENABLE_NOTIFY:
-		ret = knav_queue_enable_notifier(qh);
+	case KNAV_QUEUE_ENABLE_ANALTIFY:
+		ret = knav_queue_enable_analtifier(qh);
 		break;
 
-	case KNAV_QUEUE_DISABLE_NOTIFY:
-		ret = knav_queue_disable_notifier(qh);
+	case KNAV_QUEUE_DISABLE_ANALTIFY:
+		ret = knav_queue_disable_analtifier(qh);
 		break;
 
 	case KNAV_QUEUE_GET_COUNT:
@@ -614,7 +614,7 @@ int knav_queue_device_control(void *qhandle, enum knav_queue_ctrl_cmd cmd,
 		break;
 
 	default:
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		break;
 	}
 	return ret;
@@ -630,7 +630,7 @@ EXPORT_SYMBOL_GPL(knav_queue_device_control);
  * @size:		- size of data to push
  * @flags:		- can be used to pass additional information
  *
- * Returns 0 on success, errno otherwise.
+ * Returns 0 on success, erranal otherwise.
  */
 int knav_queue_push(void *qhandle, dma_addr_t dma,
 					unsigned size, unsigned flags)
@@ -761,7 +761,7 @@ void *knav_pool_create(const char *name,
 {
 	struct knav_region *reg_itr, *region = NULL;
 	struct knav_pool *pool, *pi = NULL, *iter;
-	struct list_head *node;
+	struct list_head *analde;
 	unsigned last_offset;
 	int ret;
 
@@ -769,12 +769,12 @@ void *knav_pool_create(const char *name,
 		return ERR_PTR(-EPROBE_DEFER);
 
 	if (!kdev->dev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	pool = devm_kzalloc(kdev->dev, sizeof(*pool), GFP_KERNEL);
 	if (!pool) {
 		dev_err(kdev->dev, "out of memory allocating pool\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	for_each_region(kdev, reg_itr) {
@@ -785,7 +785,7 @@ void *knav_pool_create(const char *name,
 	}
 
 	if (!region) {
-		dev_err(kdev->dev, "region-id(%d) not found\n", region_id);
+		dev_err(kdev->dev, "region-id(%d) analt found\n", region_id);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -808,16 +808,16 @@ void *knav_pool_create(const char *name,
 	if (num_desc > (region->num_desc - region->used_desc)) {
 		dev_err(kdev->dev, "out of descs in region(%d) for pool(%s)\n",
 			region_id, name);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unlock;
 	}
 
 	/* Region maintains a sorted (by region offset) list of pools
-	 * use the first free slot which is large enough to accomodate
+	 * use the first free slot which is large eanalugh to accomodate
 	 * the request
 	 */
 	last_offset = 0;
-	node = &region->pools;
+	analde = &region->pools;
 	list_for_each_entry(iter, &region->pools, region_inst) {
 		if ((iter->region_offset - last_offset) >= num_desc) {
 			pi = iter;
@@ -827,17 +827,17 @@ void *knav_pool_create(const char *name,
 	}
 
 	if (pi) {
-		node = &pi->region_inst;
+		analde = &pi->region_inst;
 		pool->region = region;
 		pool->num_desc = num_desc;
 		pool->region_offset = last_offset;
 		region->used_desc += num_desc;
 		list_add_tail(&pool->list, &kdev->pools);
-		list_add_tail(&pool->region_inst, node);
+		list_add_tail(&pool->region_inst, analde);
 	} else {
 		dev_err(kdev->dev, "pool(%s) create failed: fragmented desc pool in region(%d)\n",
 			name, region_id);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unlock;
 	}
 
@@ -897,7 +897,7 @@ void *knav_pool_desc_get(void *ph)
 
 	dma = knav_queue_pop(pool->queue, &size);
 	if (unlikely(!dma))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	data = knav_pool_desc_dma_to_virt(pool, dma);
 	return data;
 }
@@ -925,7 +925,7 @@ EXPORT_SYMBOL_GPL(knav_pool_desc_put);
  * @dma:			- DMA address return pointer
  * @dma_sz:			- adjusted return pointer
  *
- * Returns 0 on success, errno otherwise.
+ * Returns 0 on success, erranal otherwise.
  */
 int knav_pool_desc_map(void *ph, void *desc, unsigned size,
 					dma_addr_t *dma, unsigned *dma_sz)
@@ -998,7 +998,7 @@ static void knav_queue_setup_region(struct knav_device *kdev,
 	/* get hardware descriptor value */
 	hw_num_desc = ilog2(region->num_desc - 1) + 1;
 
-	/* did we force fit ourselves into nothingness? */
+	/* did we force fit ourselves into analthingness? */
 	if (region->num_desc < 32) {
 		region->num_desc = 0;
 		dev_warn(kdev->dev, "too few descriptors in region %s\n",
@@ -1064,32 +1064,32 @@ fail:
 	return;
 }
 
-static const char *knav_queue_find_name(struct device_node *node)
+static const char *knav_queue_find_name(struct device_analde *analde)
 {
 	const char *name;
 
-	if (of_property_read_string(node, "label", &name) < 0)
-		name = node->name;
+	if (of_property_read_string(analde, "label", &name) < 0)
+		name = analde->name;
 	if (!name)
-		name = "unknown";
+		name = "unkanalwn";
 	return name;
 }
 
 static int knav_queue_setup_regions(struct knav_device *kdev,
-					struct device_node *regions)
+					struct device_analde *regions)
 {
 	struct device *dev = kdev->dev;
 	struct knav_region *region;
-	struct device_node *child;
+	struct device_analde *child;
 	u32 temp[2];
 	int ret;
 
-	for_each_child_of_node(regions, child) {
+	for_each_child_of_analde(regions, child) {
 		region = devm_kzalloc(dev, sizeof(*region), GFP_KERNEL);
 		if (!region) {
-			of_node_put(child);
+			of_analde_put(child);
 			dev_err(dev, "out of memory allocating region\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		region->name = knav_queue_find_name(child);
@@ -1105,14 +1105,14 @@ static int knav_queue_setup_regions(struct knav_device *kdev,
 		}
 
 		if (!of_get_property(child, "link-index", NULL)) {
-			dev_err(dev, "No link info for %s\n", region->name);
+			dev_err(dev, "Anal link info for %s\n", region->name);
 			devm_kfree(dev, region);
 			continue;
 		}
 		ret = of_property_read_u32(child, "link-index",
 					   &region->link_index);
 		if (ret) {
-			dev_err(dev, "link index not found for %s\n",
+			dev_err(dev, "link index analt found for %s\n",
 				region->name);
 			devm_kfree(dev, region);
 			continue;
@@ -1122,8 +1122,8 @@ static int knav_queue_setup_regions(struct knav_device *kdev,
 		list_add_tail(&region->list, &kdev->regions);
 	}
 	if (list_empty(&kdev->regions)) {
-		dev_err(dev, "no valid region information found\n");
-		return -ENODEV;
+		dev_err(dev, "anal valid region information found\n");
+		return -EANALDEV;
 	}
 
 	/* Next, we run through the regions and set things up */
@@ -1138,11 +1138,11 @@ static int knav_get_link_ram(struct knav_device *kdev,
 				       struct knav_link_ram_block *block)
 {
 	struct platform_device *pdev = to_platform_device(kdev->dev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	u32 temp[2];
 
 	/*
-	 * Note: link ram resources are specified in "entry" sized units. In
+	 * Analte: link ram resources are specified in "entry" sized units. In
 	 * reality, although entries are ~40bits in hardware, we treat them as
 	 * 64-bit entities here.
 	 *
@@ -1154,28 +1154,28 @@ static int knav_get_link_ram(struct knav_device *kdev,
 	 * in MSMC SRAM), the actual memory used is 0x0c000000-0x0c020000,
 	 * which accounts for 64-bits per entry, for 16K entries.
 	 */
-	if (!of_property_read_u32_array(node, name , temp, 2)) {
+	if (!of_property_read_u32_array(analde, name , temp, 2)) {
 		if (temp[0]) {
 			/*
 			 * queue_base specified => using internal or onchip
-			 * link ram WARNING - we do not "reserve" this block
+			 * link ram WARNING - we do analt "reserve" this block
 			 */
 			block->dma = (dma_addr_t)temp[0];
 			block->virt = NULL;
 			block->size = temp[1];
 		} else {
 			block->size = temp[1];
-			/* queue_base not specific => allocate requested size */
+			/* queue_base analt specific => allocate requested size */
 			block->virt = dmam_alloc_coherent(kdev->dev,
 						  8 * block->size, &block->dma,
 						  GFP_KERNEL);
 			if (!block->virt) {
 				dev_err(kdev->dev, "failed to alloc linkram\n");
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -1209,7 +1209,7 @@ static int knav_queue_setup_link_ram(struct knav_device *kdev)
 }
 
 static int knav_setup_queue_range(struct knav_device *kdev,
-					struct device_node *node)
+					struct device_analde *analde)
 {
 	struct device *dev = kdev->dev;
 	struct knav_range_info *range;
@@ -1220,12 +1220,12 @@ static int knav_setup_queue_range(struct knav_device *kdev,
 	range = devm_kzalloc(dev, sizeof(*range), GFP_KERNEL);
 	if (!range) {
 		dev_err(dev, "out of memory allocating range\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	range->kdev = kdev;
-	range->name = knav_queue_find_name(node);
-	ret = of_property_read_u32_array(node, "qrange", temp, 2);
+	range->name = knav_queue_find_name(analde);
+	ret = of_property_read_u32_array(analde, "qrange", temp, 2);
 	if (!ret) {
 		range->queue_base = temp[0] - kdev->base_id;
 		range->num_queues = temp[1];
@@ -1238,11 +1238,11 @@ static int knav_setup_queue_range(struct knav_device *kdev,
 	for (i = 0; i < RANGE_MAX_IRQS; i++) {
 		struct of_phandle_args oirq;
 
-		if (of_irq_parse_one(node, i, &oirq))
+		if (of_irq_parse_one(analde, i, &oirq))
 			break;
 
 		range->irqs[i].irq = irq_create_of_mapping(&oirq);
-		if (range->irqs[i].irq == IRQ_NONE)
+		if (range->irqs[i].irq == IRQ_ANALNE)
 			break;
 
 		range->num_irqs++;
@@ -1254,7 +1254,7 @@ static int knav_setup_queue_range(struct knav_device *kdev,
 			range->irqs[i].cpu_mask = devm_kzalloc(dev,
 							       cpumask_size(), GFP_KERNEL);
 			if (!range->irqs[i].cpu_mask)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			mask = (oirq.args[2] & 0x0000ff00) >> 8;
 			for_each_set_bit(bit, &mask, BITS_PER_LONG)
@@ -1266,11 +1266,11 @@ static int knav_setup_queue_range(struct knav_device *kdev,
 	if (range->num_irqs)
 		range->flags |= RANGE_HAS_IRQ;
 
-	if (of_property_read_bool(node, "qalloc-by-id"))
+	if (of_property_read_bool(analde, "qalloc-by-id"))
 		range->flags |= RANGE_RESERVED;
 
-	if (of_property_present(node, "accumulator")) {
-		ret = knav_init_acc_range(kdev, node, range);
+	if (of_property_present(analde, "accumulator")) {
+		ret = knav_init_acc_range(kdev, analde, range);
 		if (ret < 0) {
 			devm_kfree(dev, range);
 			return ret;
@@ -1306,21 +1306,21 @@ static int knav_setup_queue_range(struct knav_device *kdev,
 }
 
 static int knav_setup_queue_pools(struct knav_device *kdev,
-				   struct device_node *queue_pools)
+				   struct device_analde *queue_pools)
 {
-	struct device_node *type, *range;
+	struct device_analde *type, *range;
 
-	for_each_child_of_node(queue_pools, type) {
-		for_each_child_of_node(type, range) {
-			/* return value ignored, we init the rest... */
+	for_each_child_of_analde(queue_pools, type) {
+		for_each_child_of_analde(type, range) {
+			/* return value iganalred, we init the rest... */
 			knav_setup_queue_range(kdev, range);
 		}
 	}
 
 	/* ... and barf if they all failed! */
 	if (list_empty(&kdev->queue_ranges)) {
-		dev_err(kdev->dev, "no valid queue range found\n");
-		return -ENODEV;
+		dev_err(kdev->dev, "anal valid queue range found\n");
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -1368,41 +1368,41 @@ static void knav_queue_free_regions(struct knav_device *kdev)
 }
 
 static void __iomem *knav_queue_map_reg(struct knav_device *kdev,
-					struct device_node *node, int index)
+					struct device_analde *analde, int index)
 {
 	struct resource res;
 	void __iomem *regs;
 	int ret;
 
-	ret = of_address_to_resource(node, index, &res);
+	ret = of_address_to_resource(analde, index, &res);
 	if (ret) {
-		dev_err(kdev->dev, "Can't translate of node(%pOFn) address for index(%d)\n",
-			node, index);
+		dev_err(kdev->dev, "Can't translate of analde(%pOFn) address for index(%d)\n",
+			analde, index);
 		return ERR_PTR(ret);
 	}
 
 	regs = devm_ioremap_resource(kdev->dev, &res);
 	if (IS_ERR(regs))
-		dev_err(kdev->dev, "Failed to map register base for index(%d) node(%pOFn)\n",
-			index, node);
+		dev_err(kdev->dev, "Failed to map register base for index(%d) analde(%pOFn)\n",
+			index, analde);
 	return regs;
 }
 
 static int knav_queue_init_qmgrs(struct knav_device *kdev,
-					struct device_node *qmgrs)
+					struct device_analde *qmgrs)
 {
 	struct device *dev = kdev->dev;
 	struct knav_qmgr_info *qmgr;
-	struct device_node *child;
+	struct device_analde *child;
 	u32 temp[2];
 	int ret;
 
-	for_each_child_of_node(qmgrs, child) {
+	for_each_child_of_analde(qmgrs, child) {
 		qmgr = devm_kzalloc(dev, sizeof(*qmgr), GFP_KERNEL);
 		if (!qmgr) {
-			of_node_put(child);
+			of_analde_put(child);
 			dev_err(dev, "out of memory allocating qmgr\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ret = of_property_read_u32_array(child, "managed-queues",
@@ -1491,18 +1491,18 @@ static int knav_queue_init_qmgrs(struct knav_device *kdev,
 }
 
 static int knav_queue_init_pdsps(struct knav_device *kdev,
-					struct device_node *pdsps)
+					struct device_analde *pdsps)
 {
 	struct device *dev = kdev->dev;
 	struct knav_pdsp_info *pdsp;
-	struct device_node *child;
+	struct device_analde *child;
 
-	for_each_child_of_node(pdsps, child) {
+	for_each_child_of_analde(pdsps, child) {
 		pdsp = devm_kzalloc(dev, sizeof(*pdsp), GFP_KERNEL);
 		if (!pdsp) {
-			of_node_put(child);
+			of_analde_put(child);
 			dev_err(dev, "out of memory allocating pdsp\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		pdsp->name = knav_queue_find_name(child);
 		pdsp->iram =
@@ -1583,7 +1583,7 @@ static int knav_queue_load_pdsp(struct knav_device *kdev,
 
 	if (!found) {
 		dev_err(kdev->dev, "failed to get firmware for pdsp\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(kdev->dev, "firmware file %s downloaded for PDSP\n",
@@ -1646,8 +1646,8 @@ static int knav_queue_start_pdsps(struct knav_device *kdev)
 	int ret;
 
 	knav_queue_stop_pdsps(kdev);
-	/* now load them all. We return success even if pdsp
-	 * is not loaded as acc channels are optional on having
+	/* analw load them all. We return success even if pdsp
+	 * is analt loaded as acc channels are optional on having
 	 * firmware availability in the system. We set the loaded
 	 * and stated flag and when initialize the acc range, check
 	 * it and init the range only if pdsp is started.
@@ -1720,7 +1720,7 @@ static int knav_queue_init_queues(struct knav_device *kdev)
 	size = (1 << kdev->inst_shift) * kdev->num_queues_in_use;
 	kdev->instances = devm_kzalloc(kdev->dev, size, GFP_KERNEL);
 	if (!kdev->instances)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_queue_range(kdev, range) {
 		if (range->ops && range->ops->init_range)
@@ -1754,21 +1754,21 @@ MODULE_DEVICE_TABLE(of, keystone_qmss_of_match);
 
 static int knav_queue_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *qmgrs, *queue_pools, *regions, *pdsps;
+	struct device_analde *analde = pdev->dev.of_analde;
+	struct device_analde *qmgrs, *queue_pools, *regions, *pdsps;
 	struct device *dev = &pdev->dev;
 	u32 temp[2];
 	int ret;
 
-	if (!node) {
+	if (!analde) {
 		dev_err(dev, "device tree info unavailable\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	kdev = devm_kzalloc(dev, sizeof(struct knav_device), GFP_KERNEL);
 	if (!kdev) {
 		dev_err(dev, "memory allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (device_get_match_data(dev))
@@ -1790,28 +1790,28 @@ static int knav_queue_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (of_property_read_u32_array(node, "queue-range", temp, 2)) {
-		dev_err(dev, "queue-range not specified\n");
-		ret = -ENODEV;
+	if (of_property_read_u32_array(analde, "queue-range", temp, 2)) {
+		dev_err(dev, "queue-range analt specified\n");
+		ret = -EANALDEV;
 		goto err;
 	}
 	kdev->base_id    = temp[0];
 	kdev->num_queues = temp[1];
 
 	/* Initialize queue managers using device tree configuration */
-	qmgrs =  of_get_child_by_name(node, "qmgrs");
+	qmgrs =  of_get_child_by_name(analde, "qmgrs");
 	if (!qmgrs) {
-		dev_err(dev, "queue manager info not specified\n");
-		ret = -ENODEV;
+		dev_err(dev, "queue manager info analt specified\n");
+		ret = -EANALDEV;
 		goto err;
 	}
 	ret = knav_queue_init_qmgrs(kdev, qmgrs);
-	of_node_put(qmgrs);
+	of_analde_put(qmgrs);
 	if (ret)
 		goto err;
 
 	/* get pdsp configuration values from device tree */
-	pdsps =  of_get_child_by_name(node, "pdsps");
+	pdsps =  of_get_child_by_name(analde, "pdsps");
 	if (pdsps) {
 		ret = knav_queue_init_pdsps(kdev, pdsps);
 		if (ret)
@@ -1821,30 +1821,30 @@ static int knav_queue_probe(struct platform_device *pdev)
 		if (ret)
 			goto err;
 	}
-	of_node_put(pdsps);
+	of_analde_put(pdsps);
 
 	/* get usable queue range values from device tree */
-	queue_pools = of_get_child_by_name(node, "queue-pools");
+	queue_pools = of_get_child_by_name(analde, "queue-pools");
 	if (!queue_pools) {
-		dev_err(dev, "queue-pools not specified\n");
-		ret = -ENODEV;
+		dev_err(dev, "queue-pools analt specified\n");
+		ret = -EANALDEV;
 		goto err;
 	}
 	ret = knav_setup_queue_pools(kdev, queue_pools);
-	of_node_put(queue_pools);
+	of_analde_put(queue_pools);
 	if (ret)
 		goto err;
 
 	ret = knav_get_link_ram(kdev, "linkram0", &kdev->link_rams[0]);
 	if (ret) {
-		dev_err(kdev->dev, "could not setup linking ram\n");
+		dev_err(kdev->dev, "could analt setup linking ram\n");
 		goto err;
 	}
 
 	ret = knav_get_link_ram(kdev, "linkram1", &kdev->link_rams[1]);
 	if (ret) {
 		/*
-		 * nothing really, we have one linking ram already, so we just
+		 * analthing really, we have one linking ram already, so we just
 		 * live within our means
 		 */
 	}
@@ -1853,14 +1853,14 @@ static int knav_queue_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	regions = of_get_child_by_name(node, "descriptor-regions");
+	regions = of_get_child_by_name(analde, "descriptor-regions");
 	if (!regions) {
-		dev_err(dev, "descriptor-regions not specified\n");
-		ret = -ENODEV;
+		dev_err(dev, "descriptor-regions analt specified\n");
+		ret = -EANALDEV;
 		goto err;
 	}
 	ret = knav_queue_setup_regions(kdev, regions);
-	of_node_put(regions);
+	of_analde_put(regions);
 	if (ret)
 		goto err;
 

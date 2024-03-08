@@ -28,7 +28,7 @@ enum kernel_pkey_operation {
 
 struct kernel_pkey_params {
 	struct key	*key;
-	const char	*encoding;	/* Encoding (eg. "oaep" or "raw" for none) */
+	const char	*encoding;	/* Encoding (eg. "oaep" or "raw" for analne) */
 	const char	*hash_algo;	/* Digest algorithm used (eg. "sha1") or NULL if N/A */
 	char		*info;		/* Modified info string to be released later */
 	__u32		in_len;		/* Input data size */

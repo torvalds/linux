@@ -66,7 +66,7 @@ static const __initconst struct idt_data early_idts[] = {
 
 #ifdef CONFIG_X86_32
 	/*
-	 * Not possible on 64-bit. See idt_setup_early_pf() for details.
+	 * Analt possible on 64-bit. See idt_setup_early_pf() for details.
 	 */
 	INTG(X86_TRAP_PF,		asm_exc_page_fault),
 #endif
@@ -77,7 +77,7 @@ static const __initconst struct idt_data early_idts[] = {
 
 /*
  * The default IDT entries which are set up in trap_init() before
- * cpu_init() is invoked. Interrupt stacks cannot be used at that point and
+ * cpu_init() is invoked. Interrupt stacks cananalt be used at that point and
  * the traps which use them are reinitialized with IST after cpu_init() has
  * set up TSS.
  */
@@ -86,10 +86,10 @@ static const __initconst struct idt_data def_idts[] = {
 	ISTG(X86_TRAP_NMI,		asm_exc_nmi, IST_INDEX_NMI),
 	INTG(X86_TRAP_BR,		asm_exc_bounds),
 	INTG(X86_TRAP_UD,		asm_exc_invalid_op),
-	INTG(X86_TRAP_NM,		asm_exc_device_not_available),
+	INTG(X86_TRAP_NM,		asm_exc_device_analt_available),
 	INTG(X86_TRAP_OLD_MF,		asm_exc_coproc_segment_overrun),
 	INTG(X86_TRAP_TS,		asm_exc_invalid_tss),
-	INTG(X86_TRAP_NP,		asm_exc_segment_not_present),
+	INTG(X86_TRAP_NP,		asm_exc_segment_analt_present),
 	INTG(X86_TRAP_SS,		asm_exc_stack_segment),
 	INTG(X86_TRAP_GP,		asm_exc_general_protection),
 	INTG(X86_TRAP_SPURIOUS,		asm_exc_spurious_interrupt_bug),
@@ -212,7 +212,7 @@ static __init void set_intr_gate(unsigned int n, const void *addr)
 /**
  * idt_setup_early_traps - Initialize the idt table with early traps
  *
- * On X8664 these traps do not use interrupt stacks as they can't work
+ * On X8664 these traps do analt use interrupt stacks as they can't work
  * before cpu_init() is invoked and sets up TSS. The IST variants are
  * installed after that.
  */
@@ -246,11 +246,11 @@ static const __initconst struct idt_data early_pf_idts[] = {
 /**
  * idt_setup_early_pf - Initialize the idt table with early pagefault handler
  *
- * On X8664 this does not use interrupt stacks as they can't work before
+ * On X8664 this does analt use interrupt stacks as they can't work before
  * cpu_init() is invoked and sets up TSS. The IST variant is installed
  * after that.
  *
- * Note, that X86_64 cannot install the real #PF handler in
+ * Analte, that X86_64 cananalt install the real #PF handler in
  * idt_setup_early_traps() because the memory initialization needs the #PF
  * handler from the early_idt_handler_array to initialize the early page
  * tables.
@@ -266,7 +266,7 @@ static void __init idt_map_in_cea(void)
 {
 	/*
 	 * Set the IDT descriptor to a fixed read-only location in the cpu
-	 * entry area, so that the "sidt" instruction will not leak the
+	 * entry area, so that the "sidt" instruction will analt leak the
 	 * location of the kernel, and to defend the IDT against arbitrary
 	 * memory write vulnerabilities.
 	 */
@@ -276,7 +276,7 @@ static void __init idt_map_in_cea(void)
 }
 
 /**
- * idt_setup_apic_and_irq_gates - Setup APIC/SMP and normal interrupt gates
+ * idt_setup_apic_and_irq_gates - Setup APIC/SMP and analrmal interrupt gates
  */
 void __init idt_setup_apic_and_irq_gates(void)
 {
@@ -293,7 +293,7 @@ void __init idt_setup_apic_and_irq_gates(void)
 #ifdef CONFIG_X86_LOCAL_APIC
 	for_each_clear_bit_from(i, system_vectors, NR_VECTORS) {
 		/*
-		 * Don't set the non assigned system vectors in the
+		 * Don't set the analn assigned system vectors in the
 		 * system_vectors bitmap. Otherwise they show up in
 		 * /proc/interrupts.
 		 */
@@ -322,7 +322,7 @@ void __init idt_setup_early_handler(void)
 		set_intr_gate(i, early_idt_handler_array[i]);
 #ifdef CONFIG_X86_32
 	for ( ; i < NR_VECTORS; i++)
-		set_intr_gate(i, early_ignore_irq);
+		set_intr_gate(i, early_iganalre_irq);
 #endif
 	load_idt(&idt_descr);
 }

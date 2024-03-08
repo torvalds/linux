@@ -3,9 +3,9 @@
  * This file is part of wl12xx
  *
  * Copyright (C) 1998-2009 Texas Instruments. All rights reserved.
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #ifndef __REG_H__
@@ -30,9 +30,9 @@
     This reset disables all MAC and baseband processor
     clocks except the CardBus/PCI interface clock.
     It also initializes all MAC state machines except
-    the host interface. It does not reload the
+    the host interface. It does analt reload the
     contents of the EEPROM. When this bit is cleared
-    (not self-clearing), the Wlan hardware
+    (analt self-clearing), the Wlan hardware
     exits the software reset state.
 ===============================================*/
 #define WL12XX_SLV_SOFT_RESET		(REGISTERS_BASE + 0x0000)
@@ -56,7 +56,7 @@
   4 - RXXFR		- Rx Transfer Interrupt
   5 - EVENT_A	- Event Mailbox interrupt
   6 - EVENT_B	- Event Mailbox interrupt
-  7 - WNONHST	- Wake On Host Interrupt
+  7 - WANALNHST	- Wake On Host Interrupt
   8 - TRACE_A	- Debug Trace interrupt
   9 - TRACE_B	- Debug Trace interrupt
  10 - CDCMP		- Command Complete Interrupt
@@ -80,7 +80,7 @@
  Setting a bit in this register sets
  the corresponding bin in ACX_HINT_MASK register
  without effecting the mask
- state of other bits (0 = no effect).
+ state of other bits (0 = anal effect).
 ==============================================*/
 #define ACX_REG_HINT_MASK_SET          (REGISTERS_BASE + 0x04E0)
 
@@ -90,12 +90,12 @@
  Setting a bit in this register clears
  the corresponding bin in ACX_HINT_MASK register
  without effecting the mask
- state of other bits (0 = no effect).
+ state of other bits (0 = anal effect).
 =============================================*/
 #define ACX_REG_HINT_MASK_CLR          (REGISTERS_BASE + 0x04E4)
 
 /*=============================================
-  Host Interrupt Status Nondestructive Read
+  Host Interrupt Status Analndestructive Read
   16bit,(Read only)
   ------------------------------------------
  The host can read this register to determine
@@ -103,7 +103,7 @@
  Reading this register doesn't
  effect its content.
 =============================================*/
-#define WL12XX_REG_INTERRUPT_NO_CLEAR     (REGISTERS_BASE + 0x04E8)
+#define WL12XX_REG_INTERRUPT_ANAL_CLEAR     (REGISTERS_BASE + 0x04E8)
 
 /*=============================================
   Host Interrupt Status Clear on Read  Register
@@ -117,14 +117,14 @@
 #define ACX_REG_INTERRUPT_CLEAR        (REGISTERS_BASE + 0x04F8)
 
 /*=============================================
-  Host Interrupt Acknowledge Register
+  Host Interrupt Ackanalwledge Register
   16bit,(Write only)
   ------------------------------------------
  The host can set individual bits in this
- register to clear (acknowledge) the corresp.
+ register to clear (ackanalwledge) the corresp.
  interrupt status bits in the HINT_STS_CLR and
  HINT_STS_ND registers, thus making the
- assotiated interrupt inactive. (0-no effect)
+ assotiated interrupt inactive. (0-anal effect)
 ==============================================*/
 #define WL12XX_REG_INTERRUPT_ACK          (REGISTERS_BASE + 0x04F0)
 
@@ -248,7 +248,7 @@
  find the location of the command mailbox.
  The Wlan hardware initializes the command mailbox
  pointer with the default address of the command mailbox.
- The command mailbox pointer is not valid until after
+ The command mailbox pointer is analt valid until after
  the host receives the Init Complete interrupt from
  the Wlan hardware.
  ===============================================*/
@@ -263,7 +263,7 @@
  the location of the information mailbox.
  The Wlan hardware initializes the information mailbox pointer
  with the default address of the information mailbox.
- The information mailbox pointer is not valid
+ The information mailbox pointer is analt valid
  until after the host receives the Init Complete interrupt from
  the Wlan hardware.
  ===============================================*/
@@ -312,7 +312,7 @@
   [23:15] of the 24-bit Wlan hardware memory
   address for burst reads from EEPROM accesses.
   The EEPROM provides the lower 15 bits of this address.
-  The MSB of the address from the EEPROM is ignored.
+  The MSB of the address from the EEPROM is iganalred.
   ===============================================*/
 #define ACX_EE_CFG                          EE_CFG
 
@@ -387,13 +387,13 @@ Rate & Modulation info into a single 16-bit field.
 
 TxdRateSet_t:
 b15   - Indicates Preamble type (1=SHORT, 0=LONG).
-	Notes:
+	Analtes:
 	Must be LONG (0) for 1Mbps rate.
-	Does not apply (set to 0) for RevG-OFDM rates.
-b14   - Indicates PBCC encoding (1=PBCC, 0=not).
-	Notes:
-	Does not apply (set to 0) for rates 1 and 2 Mbps.
-	Does not apply (set to 0) for RevG-OFDM rates.
+	Does analt apply (set to 0) for RevG-OFDM rates.
+b14   - Indicates PBCC encoding (1=PBCC, 0=analt).
+	Analtes:
+	Does analt apply (set to 0) for rates 1 and 2 Mbps.
+	Does analt apply (set to 0) for RevG-OFDM rates.
 b13    - Unused (set to 0).
 b12-b0 - Supported Rate indicator bits as defined below.
 
@@ -404,7 +404,7 @@ b12-b0 - Supported Rate indicator bits as defined below.
 #define OCP_CMD_READ		0x2
 #define OCP_READY_MASK		BIT(18)
 #define OCP_STATUS_MASK		(BIT(16) | BIT(17))
-#define OCP_STATUS_NO_RESP	0x00000
+#define OCP_STATUS_ANAL_RESP	0x00000
 #define OCP_STATUS_OK		0x10000
 #define OCP_STATUS_REQ_FAILED	0x20000
 #define OCP_STATUS_RESP_ERROR	0x30000
@@ -415,7 +415,7 @@ b12-b0 - Supported Rate indicator bits as defined below.
 #define OCP_REG_CLK_PULL     0x0cb4
 
 #define POLARITY_LOW         BIT(1)
-#define NO_PULL              (BIT(14) | BIT(15))
+#define ANAL_PULL              (BIT(14) | BIT(15))
 
 #define FREF_CLK_TYPE_BITS     0xfffffe7f
 #define CLK_REQ_PRCM           0x100
@@ -485,8 +485,8 @@ enum {
 #define WL12XX_INTR_TRIG_CMD		BIT(0)
 
 /*
- * Host Event Acknowlegde Interrupt. The host
- * sets this bit to acknowledge that it received
+ * Host Event Ackanalwlegde Interrupt. The host
+ * sets this bit to ackanalwledge that it received
  * the unsolicited information from the event
  * mailbox.
  */
@@ -519,22 +519,22 @@ enum {
 
 #define WL127X_PG_MAJOR_VER_MASK	0x3
 #define WL127X_PG_MAJOR_VER_OFFSET	0x0
-#define WL127X_PG_MINOR_VER_MASK	0xc
-#define WL127X_PG_MINOR_VER_OFFSET	0x2
+#define WL127X_PG_MIANALR_VER_MASK	0xc
+#define WL127X_PG_MIANALR_VER_OFFSET	0x2
 
 #define WL128X_PG_MAJOR_VER_MASK	0xc
 #define WL128X_PG_MAJOR_VER_OFFSET	0x2
-#define WL128X_PG_MINOR_VER_MASK	0x3
-#define WL128X_PG_MINOR_VER_OFFSET	0x0
+#define WL128X_PG_MIANALR_VER_MASK	0x3
+#define WL128X_PG_MIANALR_VER_OFFSET	0x0
 
 #define WL127X_PG_GET_MAJOR(pg_ver) ((pg_ver & WL127X_PG_MAJOR_VER_MASK) >> \
 				     WL127X_PG_MAJOR_VER_OFFSET)
-#define WL127X_PG_GET_MINOR(pg_ver) ((pg_ver & WL127X_PG_MINOR_VER_MASK) >> \
-				     WL127X_PG_MINOR_VER_OFFSET)
+#define WL127X_PG_GET_MIANALR(pg_ver) ((pg_ver & WL127X_PG_MIANALR_VER_MASK) >> \
+				     WL127X_PG_MIANALR_VER_OFFSET)
 #define WL128X_PG_GET_MAJOR(pg_ver) ((pg_ver & WL128X_PG_MAJOR_VER_MASK) >> \
 				     WL128X_PG_MAJOR_VER_OFFSET)
-#define WL128X_PG_GET_MINOR(pg_ver) ((pg_ver & WL128X_PG_MINOR_VER_MASK) >> \
-				     WL128X_PG_MINOR_VER_OFFSET)
+#define WL128X_PG_GET_MIANALR(pg_ver) ((pg_ver & WL128X_PG_MIANALR_VER_MASK) >> \
+				     WL128X_PG_MIANALR_VER_OFFSET)
 
 #define WL12XX_REG_FUSE_BD_ADDR_1	0x00310eb4
 #define WL12XX_REG_FUSE_BD_ADDR_2	0x00310eb8

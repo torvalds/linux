@@ -14,8 +14,8 @@
  * all execute successfully, then the event is finally executed.
  *
  * These event functions must return 0 for success, to show a matched
- * event, of 1 if the event does not match. Event qualifier functions
- * must return a 0 for success or a non-zero for failure. Each function
+ * event, of 1 if the event does analt match. Event qualifier functions
+ * must return a 0 for success or a analn-zero for failure. Each function
  * is simply responsible for verifying one single thing and returning
  * either a success or failure.
  *
@@ -23,7 +23,7 @@
  * standard document except two functions that we added that will explain
  * in their comments, at below.
  *
- * Copyright (c) 1997 by Procom Technology, Inc.
+ * Copyright (c) 1997 by Procom Techanallogy, Inc.
  * 		 2001-2003 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the
@@ -68,7 +68,7 @@ static u16 llc_util_ns_inside_rx_window(u8 ns, u8 vr, u8 rw)
  *	@nr: N(R) of received PDU.
  *
  *	This routine checks if N(R) of received PDU is in range of transmit
- *	window; on the other hand checks if received PDU acknowledges some
+ *	window; on the other hand checks if received PDU ackanalwledges some
  *	outstanding PDUs that are in transmit window. Returns 0 for success, 1
  *	otherwise.
  */
@@ -584,8 +584,8 @@ int llc_conn_ev_tx_buffer_full(struct sock *sk, struct sk_buff *skb)
 /* Event qualifier functions
  *
  * these functions simply verify the value of a state flag associated with
- * the connection and return either a 0 for success or a non-zero value
- * for not-success; verify the event is the type we expect
+ * the connection and return either a 0 for success or a analn-zero value
+ * for analt-success; verify the event is the type we expect
  */
 int llc_conn_ev_qlfy_data_flag_eq_1(struct sock *sk, struct sk_buff *skb)
 {

@@ -14,22 +14,22 @@ description: |
   The reference binding doc is from:
   http://www.devicetree.org/open-firmware/bindings/usb/usb-1_0.ps
 
-  Four types of device-tree nodes are defined: "host-controller nodes"
-  representing USB host controllers, "device nodes" representing USB devices,
-  "interface nodes" representing USB interfaces and "combined nodes"
+  Four types of device-tree analdes are defined: "host-controller analdes"
+  representing USB host controllers, "device analdes" representing USB devices,
+  "interface analdes" representing USB interfaces and "combined analdes"
   representing simple USB devices.
 
-  A combined node shall be used instead of a device node and an interface node
+  A combined analde shall be used instead of a device analde and an interface analde
   for devices of class 0 or 9 (hub) with a single configuration and a single
   interface.
 
-  A "hub node" is a combined node or an interface node that represents a USB
+  A "hub analde" is a combined analde or an interface analde that represents a USB
   hub.
 
 properties:
   compatible:
     pattern: "^usb[0-9a-f]{1,4},[0-9a-f]{1,4}$"
-    description: Device nodes or combined nodes.
+    description: Device analdes or combined analdes.
       "usbVID,PID", where VID is the vendor id and PID the product id.
       The textual representation of VID and PID shall be in lower case
       hexadecimal with leading zeroes suppressed. The other compatible
@@ -43,8 +43,8 @@ properties:
     maxItems: 1
 
   "#address-cells":
-    description: should be 1 for hub nodes with device nodes,
-      should be 2 for device nodes with interface nodes.
+    description: should be 1 for hub analdes with device analdes,
+      should be 2 for device analdes with interface analdes.
     enum: [1, 2]
 
   "#size-cells":
@@ -53,14 +53,14 @@ properties:
 patternProperties:
   "^interface@[0-9a-f]{1,2}(,[0-9a-f]{1,2})$":
     type: object
-    description: USB interface nodes.
-      The configuration component is not included in the textual
-      representation of an interface-node unit address for configuration 1.
+    description: USB interface analdes.
+      The configuration component is analt included in the textual
+      representation of an interface-analde unit address for configuration 1.
 
     properties:
       compatible:
         pattern: "^usbif[0-9a-f]{1,4},[0-9a-f]{1,4}.config[0-9a-f]{1,2}.[0-9a-f]{1,2}$"
-        description: Interface nodes.
+        description: Interface analdes.
           "usbifVID,PID.configCN.IN", where VID is the vendor id, PID is
           the product id, CN is the configuration value and IN is the interface
           number. The textual representation of VID, PID, CN and IN shall be

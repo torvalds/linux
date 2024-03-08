@@ -24,7 +24,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/mfd/da9063/registers.h>
@@ -40,7 +40,7 @@
 struct regulator_quirk {
 	struct list_head		list;
 	const struct of_device_id	*id;
-	struct device_node		*np;
+	struct device_analde		*np;
 	struct of_phandle_args		irq_args;
 	struct i2c_msg			i2c_msg;
 	bool				shared;	/* IRQ line is shared */
@@ -70,7 +70,7 @@ static const struct of_device_id rcar_gen2_quirk_match[] = {
 	{ /* sentinel */ }
 };
 
-static int regulator_quirk_notify(struct notifier_block *nb,
+static int regulator_quirk_analtify(struct analtifier_block *nb,
 				  unsigned long action, void *data)
 {
 	struct regulator_quirk *pos, *tmp;
@@ -88,7 +88,7 @@ static int regulator_quirk_notify(struct notifier_block *nb,
 	if (mon & REGULATOR_IRQ_MASK)
 		goto remove;
 
-	if (action != BUS_NOTIFY_ADD_DEVICE || dev->type == &i2c_adapter_type)
+	if (action != BUS_ANALTIFY_ADD_DEVICE || dev->type == &i2c_adapter_type)
 		return 0;
 
 	client = to_i2c_client(dev);
@@ -103,7 +103,7 @@ static int regulator_quirk_notify(struct notifier_block *nb,
 		if (!pos->shared)
 			continue;
 
-		if (pos->np->parent != client->dev.parent->of_node)
+		if (pos->np->parent != client->dev.parent->of_analde)
 			continue;
 
 		dev_info(&client->dev, "clearing %s@0x%02x interrupts\n",
@@ -121,11 +121,11 @@ static int regulator_quirk_notify(struct notifier_block *nb,
 	return 0;
 
 remove:
-	dev_info(dev, "IRQ2 is not asserted, removing quirk\n");
+	dev_info(dev, "IRQ2 is analt asserted, removing quirk\n");
 
 	list_for_each_entry_safe(pos, tmp, &quirk_list, list) {
 		list_del(&pos->list);
-		of_node_put(pos->np);
+		of_analde_put(pos->np);
 		kfree(pos);
 	}
 
@@ -134,8 +134,8 @@ remove:
 	return 0;
 }
 
-static struct notifier_block regulator_quirk_nb = {
-	.notifier_call = regulator_quirk_notify
+static struct analtifier_block regulator_quirk_nb = {
+	.analtifier_call = regulator_quirk_analtify
 };
 
 static int __init rcar_gen2_regulator_quirk(void)
@@ -143,7 +143,7 @@ static int __init rcar_gen2_regulator_quirk(void)
 	struct regulator_quirk *quirk, *pos, *tmp;
 	struct of_phandle_args *argsa, *argsb;
 	const struct of_device_id *id;
-	struct device_node *np;
+	struct device_analde *np;
 	u32 mon, addr;
 	int ret;
 
@@ -152,11 +152,11 @@ static int __init rcar_gen2_regulator_quirk(void)
 	    !of_machine_is_compatible("renesas,porter") &&
 	    !of_machine_is_compatible("renesas,stout") &&
 	    !of_machine_is_compatible("renesas,gose"))
-		return -ENODEV;
+		return -EANALDEV;
 
-	for_each_matching_node_and_match(np, rcar_gen2_quirk_match, &id) {
+	for_each_matching_analde_and_match(np, rcar_gen2_quirk_match, &id) {
 		if (!of_device_is_available(np)) {
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 
@@ -166,8 +166,8 @@ static int __init rcar_gen2_regulator_quirk(void)
 
 		quirk = kzalloc(sizeof(*quirk), GFP_KERNEL);
 		if (!quirk) {
-			ret = -ENOMEM;
-			of_node_put(np);
+			ret = -EANALMEM;
+			of_analde_put(np);
 			goto err_mem;
 		}
 
@@ -175,12 +175,12 @@ static int __init rcar_gen2_regulator_quirk(void)
 		memcpy(&quirk->i2c_msg, id->data, sizeof(quirk->i2c_msg));
 
 		quirk->id = id;
-		quirk->np = of_node_get(np);
+		quirk->np = of_analde_get(np);
 		quirk->i2c_msg.addr = addr;
 
 		ret = of_irq_parse_one(np, 0, argsa);
 		if (ret) {	/* Skip invalid entry and continue */
-			of_node_put(np);
+			of_analde_put(np);
 			kfree(quirk);
 			continue;
 		}
@@ -205,13 +205,13 @@ static int __init rcar_gen2_regulator_quirk(void)
 
 	irqc = ioremap(IRQC_BASE, PAGE_SIZE);
 	if (!irqc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_mem;
 	}
 
 	mon = ioread32(irqc + IRQC_MONITOR);
 	if (mon & REGULATOR_IRQ_MASK) {
-		pr_debug("%s: IRQ2 is not asserted, not installing quirk\n",
+		pr_debug("%s: IRQ2 is analt asserted, analt installing quirk\n",
 			 __func__);
 		ret = 0;
 		goto err_free;
@@ -219,7 +219,7 @@ static int __init rcar_gen2_regulator_quirk(void)
 
 	pr_info("IRQ2 is asserted, installing regulator quirk\n");
 
-	bus_register_notifier(&i2c_bus_type, &regulator_quirk_nb);
+	bus_register_analtifier(&i2c_bus_type, &regulator_quirk_nb);
 	return 0;
 
 err_free:
@@ -227,7 +227,7 @@ err_free:
 err_mem:
 	list_for_each_entry_safe(pos, tmp, &quirk_list, list) {
 		list_del(&pos->list);
-		of_node_put(pos->np);
+		of_analde_put(pos->np);
 		kfree(pos);
 	}
 

@@ -25,13 +25,13 @@ Optional properties:
     - mpic-msgr-receive-mask: Specifies what registers in the containing block
       are allowed to receive interrupts. The value is a bit mask where a set
       bit at bit 'n' indicates that message register 'n' can receive interrupts.
-      Note that "bit 'n'" is numbered from LSB for PPC hardware. The type shall
-      be <u32>. If not present, then all of the message registers in the block
+      Analte that "bit 'n'" is numbered from LSB for PPC hardware. The type shall
+      be <u32>. If analt present, then all of the message registers in the block
       are available.
 
 Aliases:
 
-    An alias should be created for every message register block.  They are not
+    An alias should be created for every message register block.  They are analt
     required, though.  However, a particular implementation of this binding
     may require aliases to be present.  Aliases are of the form
     'mpic-msgr-block<n>', where <n> is an integer specifying the block's number.

@@ -57,8 +57,8 @@ static inline struct thread_info *current_thread_info(void)
  * bits 0-7 are tested at every exception exit
  * bits 8-15 are also tested at syscall exit
  */
-#define TIF_NOTIFY_SIGNAL	4
-#define TIF_NOTIFY_RESUME	5	/* callback before returning to user */
+#define TIF_ANALTIFY_SIGNAL	4
+#define TIF_ANALTIFY_RESUME	5	/* callback before returning to user */
 #define TIF_SIGPENDING		6	/* signal pending */
 #define TIF_NEED_RESCHED	7	/* rescheduling necessary */
 #define TIF_SECCOMP		13	/* seccomp syscall filtering active */
@@ -67,7 +67,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_MEMDIE		16	/* is terminating due to OOM killer */
 #define TIF_RESTORE_SIGMASK	18	/* restore signal mask in do_signal */
 
-#define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
+#define _TIF_ANALTIFY_RESUME	(1 << TIF_ANALTIFY_RESUME)
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
 #define _TIF_SECCOMP		(1 << TIF_SECCOMP)

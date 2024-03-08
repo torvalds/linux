@@ -6,8 +6,8 @@ Description:	The /sys/kernel/boot_params directory contains two
 		It is used to export the kernel boot parameters of an x86
 		platform to userspace for kexec and debugging purpose.
 
-		If there's no setup_data in boot_params the subdirectory will
-		not be created.
+		If there's anal setup_data in boot_params the subdirectory will
+		analt be created.
 
 		"data" file is the binary representation of struct boot_params.
 
@@ -17,8 +17,8 @@ Description:	The /sys/kernel/boot_params directory contains two
 		"setup_data" subdirectory contains the setup_data data
 		structure in boot_params. setup_data is maintained in kernel
 		as a link list. In "setup_data" subdirectory there's one
-		subdirectory for each link list node named with the number
-		of the list nodes. The list node subdirectory contains two
+		subdirectory for each link list analde named with the number
+		of the list analdes. The list analde subdirectory contains two
 		files "type" and "data". "type" file is the string
 		representation of setup_data type. "data" file is the binary
 		representation of setup_data payload.

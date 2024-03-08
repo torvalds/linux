@@ -13,7 +13,7 @@
  * tables to map the PCI revision into a standard set of stepping values that
  * can be compared numerically.
  *
- * Also note that some revisions/steppings may have been set aside as
+ * Also analte that some revisions/steppings may have been set aside as
  * placeholders but never materialized in real hardware; in those cases there
  * may be jumps in the revision IDs or stepping values in the tables below.
  */
@@ -240,24 +240,24 @@ void intel_step_init(struct drm_i915_private *i915)
 		size = ARRAY_SIZE(skl_revids);
 	}
 
-	/* Not using the stepping scheme for the platform yet. */
+	/* Analt using the stepping scheme for the platform yet. */
 	if (!revids)
 		return;
 
-	if (revid < size && revids[revid].graphics_step != STEP_NONE) {
+	if (revid < size && revids[revid].graphics_step != STEP_ANALNE) {
 		step = revids[revid];
 	} else {
-		drm_warn(&i915->drm, "Unknown revid 0x%02x\n", revid);
+		drm_warn(&i915->drm, "Unkanalwn revid 0x%02x\n", revid);
 
 		/*
 		 * If we hit a gap in the revid array, use the information for
 		 * the next revid.
 		 *
 		 * This may be wrong in all sorts of ways, especially if the
-		 * steppings in the array are not monotonically increasing, but
+		 * steppings in the array are analt moanaltonically increasing, but
 		 * it's better than defaulting to 0.
 		 */
-		while (revid < size && revids[revid].graphics_step == STEP_NONE)
+		while (revid < size && revids[revid].graphics_step == STEP_ANALNE)
 			revid++;
 
 		if (revid < size) {
@@ -271,7 +271,7 @@ void intel_step_init(struct drm_i915_private *i915)
 		}
 	}
 
-	if (drm_WARN_ON(&i915->drm, step.graphics_step == STEP_NONE))
+	if (drm_WARN_ON(&i915->drm, step.graphics_step == STEP_ANALNE))
 		return;
 
 	RUNTIME_INFO(i915)->step = step;
@@ -298,16 +298,16 @@ static int
 pvc_step_lookup(struct drm_i915_private *i915, const char *type,
 		const int *table, int size, int subid)
 {
-	if (subid < size && table[subid] != STEP_NONE)
+	if (subid < size && table[subid] != STEP_ANALNE)
 		return table[subid];
 
-	drm_warn(&i915->drm, "Unknown %s id 0x%02x\n", type, subid);
+	drm_warn(&i915->drm, "Unkanalwn %s id 0x%02x\n", type, subid);
 
 	/*
 	 * As on other platforms, try to use the next higher ID if we land on a
 	 * gap in the table.
 	 */
-	while (subid < size && table[subid] == STEP_NONE)
+	while (subid < size && table[subid] == STEP_ANALNE)
 		subid++;
 
 	if (subid < size) {

@@ -10,7 +10,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
@@ -82,7 +82,7 @@ static const struct v4l2_mbus_framefmt s5k6a3_formats[] = {
 	{
 		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.field = V4L2_FIELD_NONE,
+		.field = V4L2_FIELD_ANALNE,
 	}
 };
 
@@ -115,7 +115,7 @@ static void s5k6a3_try_format(struct v4l2_mbus_framefmt *mf)
 
 	fmt = find_sensor_format(mf);
 	mf->code = fmt->code;
-	mf->field = V4L2_FIELD_NONE;
+	mf->field = V4L2_FIELD_ANALNE;
 	v4l_bound_align_image(&mf->width, S5K6A3_SENSOR_MIN_WIDTH,
 			      S5K6A3_SENSOR_MAX_WIDTH, 0,
 			      &mf->height, S5K6A3_SENSOR_MIN_HEIGHT,
@@ -287,7 +287,7 @@ static int s5k6a3_probe(struct i2c_client *client)
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&sensor->lock);
 	sensor->dev = dev;
@@ -301,7 +301,7 @@ static int s5k6a3_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	if (of_property_read_u32(dev->of_node, "clock-frequency",
+	if (of_property_read_u32(dev->of_analde, "clock-frequency",
 				 &sensor->clock_frequency)) {
 		sensor->clock_frequency = S5K6A3_DEFAULT_CLK_FREQ;
 		dev_info(dev, "using default %u Hz clock frequency\n",
@@ -318,7 +318,7 @@ static int s5k6a3_probe(struct i2c_client *client)
 
 	sd = &sensor->subdev;
 	v4l2_i2c_subdev_init(sd, client, &s5k6a3_subdev_ops);
-	sensor->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sensor->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	sd->internal_ops = &s5k6a3_sd_internal_ops;
 
 	sensor->format.code = s5k6a3_formats[0].code;
@@ -331,7 +331,7 @@ static int s5k6a3_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
-	pm_runtime_no_callbacks(dev);
+	pm_runtime_anal_callbacks(dev);
 	pm_runtime_enable(dev);
 
 	ret = v4l2_async_register_subdev(sd);

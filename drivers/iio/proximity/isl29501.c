@@ -545,7 +545,7 @@ static int isl29501_reset_registers(struct isl29501_private *isl29501)
 					ISL29501_RESET_ALL_REGISTERS);
 	if (ret < 0) {
 		dev_err(&isl29501->client->dev,
-			"cannot reset registers %d\n", ret);
+			"cananalt reset registers %d\n", ret);
 		return ret;
 	}
 
@@ -554,7 +554,7 @@ static int isl29501_reset_registers(struct isl29501_private *isl29501)
 					ISL29501_RESET_INT_SM);
 	if (ret < 0)
 		dev_err(&isl29501->client->dev,
-			"cannot reset state machine %d\n", ret);
+			"cananalt reset state machine %d\n", ret);
 
 	return ret;
 }
@@ -568,7 +568,7 @@ static int isl29501_begin_acquisition(struct isl29501_private *isl29501)
 					ISL29501_EMUL_SAMPLE_START_PIN);
 	if (ret < 0)
 		dev_err(&isl29501->client->dev,
-			"cannot begin acquisition %d\n", ret);
+			"cananalt begin acquisition %d\n", ret);
 
 	return ret;
 }
@@ -672,7 +672,7 @@ static int isl29501_get_scale(struct isl29501_private *isl29501,
 		*val = 0;
 		*val2 = 95874;
 
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_INTENSITY:
 		/* light = raw_light * 35 / 10000 (mA) */
 		*val = 35;
@@ -922,7 +922,7 @@ static int isl29501_init_chip(struct isl29501_private *isl29501)
 		dev_err(&isl29501->client->dev,
 			"Wrong chip id, got %x expected %x\n",
 			ret, ISL29501_DEVICE_ID);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = isl29501_reset_registers(isl29501);
@@ -944,7 +944,7 @@ static irqreturn_t isl29501_trigger_handler(int irq, void *p)
 		isl29501_register_read(isl29501, REG_DISTANCE, buffer);
 
 	iio_push_to_buffers_with_timestamp(indio_dev, buffer, pf->timestamp);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -957,7 +957,7 @@ static int isl29501_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*isl29501));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	isl29501 = iio_priv(indio_dev);
 

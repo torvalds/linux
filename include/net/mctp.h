@@ -114,7 +114,7 @@ struct mctp_sock {
  *   Updates and lookups in either list are performed under the
  *   netns_mctp->keys lock. Lookup functions will need to lock the key and
  *   take a reference before unlocking the keys_lock. Consequently, the list's
- *   keys_lock *cannot* be acquired with the individual key->lock held.
+ *   keys_lock *cananalt* be acquired with the individual key->lock held.
  *
  * - a key may have a sk_buff attached as part of an in-progress message
  *   reassembly (->reasm_head). The reasm data is protected by the individual
@@ -127,7 +127,7 @@ struct mctp_sock {
  *
  *    - where a key is established to receive a reply message: after receiving
  *      the (complete) reply, or during reassembly errors. Here, we clean up
- *      the reassembly context (marking reasm_dead, to prevent another from
+ *      the reassembly context (marking reasm_dead, to prevent aanalther from
  *      starting), and remove the socket from the netns & socket lists.
  *
  *    - through an expiry timeout, on a per-socket timer
@@ -141,10 +141,10 @@ struct mctp_sk_key {
 	struct sock	*sk;
 
 	/* routing lookup list */
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 
 	/* per-socket list */
-	struct hlist_node sklist;
+	struct hlist_analde sklist;
 
 	/* lock protects against concurrent updates to the reassembly and
 	 * expiry data below.
@@ -172,7 +172,7 @@ struct mctp_sk_key {
 	unsigned long	dev_flow_state;
 	struct mctp_dev	*dev;
 
-	/* a tag allocated with SIOCMCTPALLOCTAG ioctl will not expire
+	/* a tag allocated with SIOCMCTPALLOCTAG ioctl will analt expire
 	 * automatically on timeout or response, instead SIOCMCTPDROPTAG
 	 * is used.
 	 */
@@ -228,8 +228,8 @@ struct mctp_flow {
  * dropped on NETDEV_UNREGISTER events.
  *
  * Updates to the route table are performed under rtnl; all reads under RCU,
- * so routes cannot be referenced over a RCU grace period. Specifically: A
- * caller cannot block between mctp_route_lookup and mctp_route_release()
+ * so routes cananalt be referenced over a RCU grace period. Specifically: A
+ * caller cananalt block between mctp_route_lookup and mctp_route_release()
  */
 struct mctp_route {
 	mctp_eid_t		min, max;

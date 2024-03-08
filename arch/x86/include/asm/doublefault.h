@@ -12,6 +12,6 @@ static inline void doublefault_init_cpu_tss(void)
 }
 #endif
 
-asmlinkage void __noreturn doublefault_shim(void);
+asmlinkage void __analreturn doublefault_shim(void);
 
 #endif /* _ASM_X86_DOUBLEFAULT_H */

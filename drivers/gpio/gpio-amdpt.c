@@ -2,7 +2,7 @@
 /*
  * AMD Promontory GPIO driver
  *
- * Copyright (C) 2015 ASMedia Technology Inc.
+ * Copyright (C) 2015 ASMedia Techanallogy Inc.
  * Author: YD Tseng <yd_tseng@asmedia.com.tw>
  */
 
@@ -77,13 +77,13 @@ static int pt_gpio_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	if (!ACPI_COMPANION(dev)) {
-		dev_err(dev, "PT GPIO device node not found\n");
-		return -ENODEV;
+		dev_err(dev, "PT GPIO device analde analt found\n");
+		return -EANALDEV;
 	}
 
 	pt_gpio = devm_kzalloc(dev, sizeof(struct pt_gpio_chip), GFP_KERNEL);
 	if (!pt_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pt_gpio->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pt_gpio->reg_base)) {

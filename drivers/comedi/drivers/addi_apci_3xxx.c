@@ -365,7 +365,7 @@ static irqreturn_t apci3xxx_irq_handler(int irq, void *d)
 
 		return IRQ_HANDLED;
 	}
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int apci3xxx_ai_started(struct comedi_device *dev)
@@ -516,11 +516,11 @@ static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -545,7 +545,7 @@ static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -675,7 +675,7 @@ static int apci3xxx_dio_insn_config(struct comedi_device *dev,
 	 * Port 2 (channels 16-23) are programmable i/o
 	 */
 	if (data[0] != INSN_CONFIG_DIO_QUERY) {
-		/* ignore all other instructions for ports 0 and 1 */
+		/* iganalre all other instructions for ports 0 and 1 */
 		if (chan < 16)
 			return -EINVAL;
 
@@ -763,13 +763,13 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(apci3xxx_boardtypes))
 		board = &apci3xxx_boardtypes[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -778,7 +778,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	dev->iobase = pci_resource_start(pcidev, 2);
 	dev->mmio = pci_ioremap_bar(pcidev, 3);
 	if (!dev->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, apci3xxx_irq_handler,
@@ -822,7 +822,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 			 *   6) Continuous hardware triggered scan with timer
 			 *      delay
 			 *
-			 * For now, limit the chanlist to a single channel.
+			 * For analw, limit the chanlist to a single channel.
 			 */
 			dev->read_subdev = s;
 			s->subdev_flags	|= SDF_CMD_READ;

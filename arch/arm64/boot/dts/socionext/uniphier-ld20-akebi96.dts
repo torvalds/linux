@@ -59,7 +59,7 @@
 
 		memory@c0000000 {
 			reg = <0 0xc0000000 0 0x02000000>;
-			no-map;
+			anal-map;
 		};
 	};
 

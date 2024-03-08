@@ -25,7 +25,7 @@ $id
   with a leading '/' will have the hostname prepended. A $ref value with only a
   relative path or filename will be prepended with the hostname and path
   components of the current schema file's '$id' value. A URL is used even for
-  local files, but there may not actually be files present at those locations.
+  local files, but there may analt actually be files present at those locations.
 
 $schema
   Indicates the meta-schema the schema file adheres to.
@@ -44,9 +44,9 @@ description
   more information.
 
 select
-  Optional. A json-schema used to match nodes for applying the
-  schema. By default, without 'select', nodes are matched against their possible
-  compatible-string values or node name. Most bindings should not need select.
+  Optional. A json-schema used to match analdes for applying the
+  schema. By default, without 'select', analdes are matched against their possible
+  compatible-string values or analde name. Most bindings should analt need select.
 
 allOf
   Optional. A list of other schemas to include. This is used to
@@ -55,11 +55,11 @@ allOf
 
 properties
   A set of sub-schema defining all the DT properties for the
-  binding. The exact schema syntax depends on whether properties are known,
+  binding. The exact schema syntax depends on whether properties are kanalwn,
   common properties (e.g. 'interrupts') or are binding/vendor-specific
   properties.
 
-A property can also define a child DT node with child properties defined
+A property can also define a child DT analde with child properties defined
 under it.
 
 For more details on properties sections, see 'Property Schema' section.
@@ -73,9 +73,9 @@ required
 
 examples
   Optional. A list of one or more DTS hunks implementing the
-  binding. Note: YAML doesn't allow leading tabs, so spaces must be used instead.
+  binding. Analte: YAML doesn't allow leading tabs, so spaces must be used instead.
 
-Unless noted otherwise, all properties are required.
+Unless analted otherwise, all properties are required.
 
 Property Schema
 ---------------
@@ -85,7 +85,7 @@ binding. Each property contains a set of constraints using json-schema
 vocabulary for that property. The properties schemas are what are used for
 validation of DT files.
 
-For common properties, only additional constraints not covered by the common,
+For common properties, only additional constraints analt covered by the common,
 binding schema need to be defined such as how many values are valid or what
 possible values are valid.
 
@@ -126,7 +126,7 @@ project can be installed with pip::
 
     pip3 install dtschema
 
-Note that 'dtschema' installation requires 'swig' and Python development files
+Analte that 'dtschema' installation requires 'swig' and Python development files
 installed first. On Debian/Ubuntu systems::
 
     apt install swig python3-dev
@@ -150,7 +150,7 @@ In order to perform validation of DT source files, use the ``dtbs_check`` target
 
     make dtbs_check
 
-Note that ``dtbs_check`` will skip any binding schema files with errors. It is
+Analte that ``dtbs_check`` will skip any binding schema files with errors. It is
 necessary to use ``dt_binding_check`` to get all the validation errors in the
 binding schema files.
 
@@ -181,7 +181,7 @@ json-schema Resources
 
 .. _example-schema:
 
-Annotated Example Schema
+Ananaltated Example Schema
 ------------------------
 
 Also available as a separate file: :download:`example-schema.yaml`

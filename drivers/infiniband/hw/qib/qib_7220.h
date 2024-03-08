@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -86,9 +86,9 @@ struct qib_chippport_specific {
 	 * these 5 fields are used to establish deltas for IB symbol
 	 * errors and linkrecovery errors.  They can be reported on
 	 * some chips during link negotiation prior to INIT, and with
-	 * DDR when faking DDR negotiations with non-IBTA switches.
+	 * DDR when faking DDR negotiations with analn-IBTA switches.
 	 * The chip counters are adjusted at driver unload if there is
-	 * a non-zero delta.
+	 * a analn-zero delta.
 	 */
 	u64 ibdeltainprog;
 	u64 ibsymdelta;
@@ -118,27 +118,27 @@ void qib_sd7220_clr_ibpar(struct qib_devdata *);
 #define IB_7220_SERDES 2
 
 static inline u32 qib_read_kreg32(const struct qib_devdata *dd,
-				  const u16 regno)
+				  const u16 reganal)
 {
 	if (!dd->kregbase || !(dd->flags & QIB_PRESENT))
 		return -1;
-	return readl((u32 __iomem *)&dd->kregbase[regno]);
+	return readl((u32 __iomem *)&dd->kregbase[reganal]);
 }
 
 static inline u64 qib_read_kreg64(const struct qib_devdata *dd,
-				  const u16 regno)
+				  const u16 reganal)
 {
 	if (!dd->kregbase || !(dd->flags & QIB_PRESENT))
 		return -1;
 
-	return readq(&dd->kregbase[regno]);
+	return readq(&dd->kregbase[reganal]);
 }
 
 static inline void qib_write_kreg(const struct qib_devdata *dd,
-				  const u16 regno, u64 value)
+				  const u16 reganal, u64 value)
 {
 	if (dd->kregbase)
-		writeq(value, &dd->kregbase[regno]);
+		writeq(value, &dd->kregbase[reganal]);
 }
 
 void set_7220_relock_poll(struct qib_devdata *, int);

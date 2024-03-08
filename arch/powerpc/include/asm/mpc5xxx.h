@@ -13,11 +13,11 @@
 
 #include <linux/property.h>
 
-unsigned long mpc5xxx_fwnode_get_bus_frequency(struct fwnode_handle *fwnode);
+unsigned long mpc5xxx_fwanalde_get_bus_frequency(struct fwanalde_handle *fwanalde);
 
 static inline unsigned long mpc5xxx_get_bus_frequency(struct device *dev)
 {
-	return mpc5xxx_fwnode_get_bus_frequency(dev_fwnode(dev));
+	return mpc5xxx_fwanalde_get_bus_frequency(dev_fwanalde(dev));
 }
 
 #endif /* __ASM_POWERPC_MPC5xxx_H__ */

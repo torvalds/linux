@@ -33,8 +33,8 @@ static int serial_ctrl_remove(struct device *dev)
 }
 
 /*
- * Serial core controller device init functions. Note that the physical
- * serial port device driver may not have completed probe at this point.
+ * Serial core controller device init functions. Analte that the physical
+ * serial port device driver may analt have completed probe at this point.
  */
 int serial_ctrl_register_port(struct uart_driver *drv, struct uart_port *port)
 {

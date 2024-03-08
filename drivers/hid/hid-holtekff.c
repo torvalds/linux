@@ -21,7 +21,7 @@
 #ifdef CONFIG_HOLTEK_FF
 
 /*
- * These commands and parameters are currently known:
+ * These commands and parameters are currently kanalwn:
  *
  * byte 0: command id:
  * 	01  set effect parameters
@@ -29,7 +29,7 @@
  * 	03  stop specified effect
  * 	04  stop all effects
  * 	06  stop all effects
- * 	(the difference between 04 and 06 isn't known; win driver
+ * 	(the difference between 04 and 06 isn't kanalwn; win driver
  * 	 sends 06,04 on application init, and 06 otherwise)
  * 
  * Commands 01 and 02 need to be sent as pairs, i.e. you need to send 01
@@ -51,12 +51,12 @@
  * 		9: very strong rumble
  * 		a: causes an error
  * 		b: very strong periodic rumble, very short intervals
- * 		c-f: nothing
+ * 		c-f: analthing
  *	bit 6: right (weak) motor enabled
  *	bit 7: left (strong) motor enabled
  *
  * bytes 2-3:  time in milliseconds, big-endian
- * bytes 5-6:  unknown (win driver seems to use at least 10e0 with effect 1
+ * bytes 5-6:  unkanalwn (win driver seems to use at least 10e0 with effect 1
  * 		       and 0014 with effect 6)
  * byte 7:
  *	bits 0-3: effect magnitude
@@ -131,27 +131,27 @@ static int holtekff_init(struct hid_device *hid)
 	int error;
 
 	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
-		return -ENODEV;
+		hid_err(hid, "anal inputs found\n");
+		return -EANALDEV;
 	}
 	hidinput = list_entry(hid->inputs.next, struct hid_input, list);
 	dev = hidinput->input;
 
 	if (list_empty(report_list)) {
-		hid_err(hid, "no output report found\n");
-		return -ENODEV;
+		hid_err(hid, "anal output report found\n");
+		return -EANALDEV;
 	}
 
 	report = list_entry(report_list->next, struct hid_report, list);
 
 	if (report->maxfield < 1 || report->field[0]->report_count != 7) {
 		hid_err(hid, "unexpected output report layout\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	holtekff = kzalloc(sizeof(*holtekff), GFP_KERNEL);
 	if (!holtekff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	set_bit(FF_RUMBLE, dev->ffbit);
 

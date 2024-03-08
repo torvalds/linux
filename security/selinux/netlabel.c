@@ -136,7 +136,7 @@ void selinux_netlbl_cache_invalidate(void)
  * When a packet is dropped due to a call to avc_has_perm() pass the error
  * code to the NetLabel subsystem so any protocol specific processing can be
  * done.  This is safe to call even if you are unsure if NetLabel labeling is
- * present on the packet, NetLabel is smart enough to only act when it should.
+ * present on the packet, NetLabel is smart eanalugh to only act when it should.
  *
  */
 void selinux_netlbl_err(struct sk_buff *skb, u16 family, int error, int gateway)
@@ -198,14 +198,14 @@ int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
 	struct netlbl_lsm_secattr secattr;
 
 	if (!netlbl_enabled()) {
-		*type = NETLBL_NLTYPE_NONE;
+		*type = NETLBL_NLTYPE_ANALNE;
 		*sid = SECSID_NULL;
 		return 0;
 	}
 
 	netlbl_secattr_init(&secattr);
 	rc = netlbl_skbuff_getattr(skb, family, &secattr);
-	if (rc == 0 && secattr.flags != NETLBL_SECATTR_NONE)
+	if (rc == 0 && secattr.flags != NETLBL_SECATTR_ANALNE)
 		rc = selinux_netlbl_sidlookup_cached(skb, family,
 						     &secattr, sid);
 	else
@@ -302,7 +302,7 @@ int selinux_netlbl_sctp_assoc_request(struct sctp_association *asoc,
 		addr6.sin6_addr = ipv6_hdr(skb)->saddr;
 		rc = netlbl_conn_setattr(asoc->base.sk, (void *)&addr6, &secattr);
 	} else {
-		rc = -EAFNOSUPPORT;
+		rc = -EAFANALSUPPORT;
 	}
 
 	if (rc == 0)
@@ -351,7 +351,7 @@ inet_conn_request_return:
  * Description:
  * A new connection has been established using @sk, we've already labeled the
  * socket via the request_sock struct in selinux_netlbl_inet_conn_request() but
- * we need to set the NetLabel state here since we now have a sock structure.
+ * we need to set the NetLabel state here since we analw have a sock structure.
  *
  */
 void selinux_netlbl_inet_csk_clone(struct sock *sk, u16 family)
@@ -401,7 +401,7 @@ int selinux_netlbl_socket_post_create(struct sock *sk, u16 family)
 
 	secattr = selinux_netlbl_sock_genattr(sk);
 	if (secattr == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = netlbl_sock_setattr(sk, family, secattr);
 	switch (rc) {
 	case 0:
@@ -444,7 +444,7 @@ int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 
 	netlbl_secattr_init(&secattr);
 	rc = netlbl_skbuff_getattr(skb, family, &secattr);
-	if (rc == 0 && secattr.flags != NETLBL_SECATTR_NONE)
+	if (rc == 0 && secattr.flags != NETLBL_SECATTR_ANALNE)
 		rc = selinux_netlbl_sidlookup_cached(skb, family,
 						     &secattr, &nlbl_sid);
 	else
@@ -489,7 +489,7 @@ static inline int selinux_netlbl_option(int level, int optname)
 }
 
 /**
- * selinux_netlbl_socket_setsockopt - Do not allow users to remove a NetLabel
+ * selinux_netlbl_socket_setsockopt - Do analt allow users to remove a NetLabel
  * @sock: the socket
  * @level: the socket level or protocol
  * @optname: the socket option name
@@ -517,12 +517,12 @@ int selinux_netlbl_socket_setsockopt(struct socket *sock,
 		lock_sock(sk);
 		/* call the netlabel function directly as we want to see the
 		 * on-the-wire label that is assigned via the socket's options
-		 * and not the cached netlabel/lsm attributes */
+		 * and analt the cached netlabel/lsm attributes */
 		rc = netlbl_sock_getattr(sk, &secattr);
 		release_sock(sk);
 		if (rc == 0)
 			rc = -EACCES;
-		else if (rc == -ENOMSG)
+		else if (rc == -EANALMSG)
 			rc = 0;
 		netlbl_secattr_destroy(&secattr);
 	}
@@ -559,7 +559,7 @@ static int selinux_netlbl_socket_connect_helper(struct sock *sk,
 	}
 	secattr = selinux_netlbl_sock_genattr(sk);
 	if (secattr == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		return rc;
 	}
 	rc = netlbl_conn_setattr(sk, addr, secattr);

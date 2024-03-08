@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -58,7 +58,7 @@ nvkm_instobj_save(struct nvkm_instobj *iobj)
 
 	iobj->suspend = kvmalloc(size, GFP_KERNEL);
 	if (!iobj->suspend)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!(map = nvkm_kmap(memory))) {
 		for (i = 0; i < size; i += 4)
@@ -97,7 +97,7 @@ nvkm_instobj_wrap(struct nvkm_device *device,
 	int ret;
 
 	if (!imem->func->memory_wrap)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	ret = imem->func->memory_wrap(imem, memory, pmemory);
 	if (ret)
@@ -163,7 +163,7 @@ nvkm_instmem_wr32(struct nvkm_instmem *imem, u32 addr, u32 data)
 void
 nvkm_instmem_boot(struct nvkm_instmem *imem)
 {
-	/* Separate bootstrapped objects from normal list, as we need
+	/* Separate bootstrapped objects from analrmal list, as we need
 	 * to make sure they're accessed with the slowpath on suspend
 	 * and resume.
 	 */

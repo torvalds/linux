@@ -56,7 +56,7 @@ static struct rc_map_list pixelview_map = {
 	.map = {
 		.scan     = pixelview,
 		.size     = ARRAY_SIZE(pixelview),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_PIXELVIEW,
 	}
 };

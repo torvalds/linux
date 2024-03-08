@@ -35,11 +35,11 @@
  * A new feature which old metadata will still be compatible with should
  * define a DM_CACHE_FEATURE_COMPAT_* flag (rarely useful).
  *
- * A new feature that is not compatible with old code should define a
+ * A new feature that is analt compatible with old code should define a
  * DM_CACHE_FEATURE_INCOMPAT_* flag and guard the relevant code with
  * that flag.
  *
- * A new feature that is not compatible with old code accessing the
+ * A new feature that is analt compatible with old code accessing the
  * metadata RDWR should define a DM_CACHE_FEATURE_RO_COMPAT_* flag and
  * guard the relevant code with that flag.
  *
@@ -66,7 +66,7 @@ struct dm_cache_metadata *dm_cache_metadata_open(struct block_device *bdev,
 void dm_cache_metadata_close(struct dm_cache_metadata *cmd);
 
 /*
- * The metadata needs to know how many cache blocks there are.  We don't
+ * The metadata needs to kanalw how many cache blocks there are.  We don't
  * care about the origin, assuming the core target is giving us valid
  * origin blocks to map to.
  */
@@ -110,7 +110,7 @@ void dm_cache_metadata_get_stats(struct dm_cache_metadata *cmd,
 				 struct dm_cache_statistics *stats);
 
 /*
- * 'void' because it's no big deal if it fails.
+ * 'void' because it's anal big deal if it fails.
  */
 void dm_cache_metadata_set_stats(struct dm_cache_metadata *cmd,
 				 struct dm_cache_statistics *stats);
@@ -131,7 +131,7 @@ void dm_cache_dump(struct dm_cache_metadata *cmd);
  * policies are changed, then hints will be lost.  If the machine crashes,
  * hints will be lost.
  *
- * The hints are indexed by the cblock, but many policies will not
+ * The hints are indexed by the cblock, but many policies will analt
  * necessarily have a fast way of accessing efficiently via cblock.  So
  * rather than querying the policy for each cblock, we let it walk its data
  * structures and fill in the hints in whatever order it wishes.

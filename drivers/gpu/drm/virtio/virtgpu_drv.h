@@ -10,14 +10,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -48,7 +48,7 @@
 #define DRIVER_DATE "0"
 
 #define DRIVER_MAJOR 0
-#define DRIVER_MINOR 1
+#define DRIVER_MIANALR 1
 #define DRIVER_PATCHLEVEL 0
 
 #define STATE_INITIALIZING 0
@@ -109,7 +109,7 @@ struct virtio_gpu_object_vram {
 	struct virtio_gpu_object base;
 	uint32_t map_state;
 	uint32_t map_info;
-	struct drm_mm_node vram_node;
+	struct drm_mm_analde vram_analde;
 };
 
 #define to_virtio_gpu_shmem(virtio_gpu_object) \
@@ -151,7 +151,7 @@ struct virtio_gpu_fence {
 	bool emit_fence_info;
 	struct virtio_gpu_fence_event *e;
 	struct virtio_gpu_fence_driver *drv;
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct virtio_gpu_vbuffer {
@@ -169,7 +169,7 @@ struct virtio_gpu_vbuffer {
 	struct virtio_gpu_object_array *objs;
 	struct list_head list;
 
-	uint32_t seqno;
+	uint32_t seqanal;
 };
 
 struct virtio_gpu_output {
@@ -199,7 +199,7 @@ struct virtio_gpu_queue {
 	spinlock_t qlock;
 	wait_queue_head_t ack_queue;
 	struct work_struct dequeue_work;
-	uint32_t seqno;
+	uint32_t seqanal;
 };
 
 struct virtio_gpu_drv_capset {
@@ -222,8 +222,8 @@ struct virtio_gpu_device {
 
 	struct virtio_device *vdev;
 
-	struct virtio_gpu_output outputs[VIRTIO_GPU_MAX_SCANOUTS];
-	uint32_t num_scanouts;
+	struct virtio_gpu_output outputs[VIRTIO_GPU_MAX_SCAANALUTS];
+	uint32_t num_scaanaluts;
 
 	struct virtio_gpu_queue ctrlq;
 	struct virtio_gpu_queue cursorq;
@@ -341,8 +341,8 @@ void virtio_gpu_cmd_resource_flush(struct virtio_gpu_device *vgdev,
 				   uint32_t width, uint32_t height,
 				   struct virtio_gpu_object_array *objs,
 				   struct virtio_gpu_fence *fence);
-void virtio_gpu_cmd_set_scanout(struct virtio_gpu_device *vgdev,
-				uint32_t scanout_id, uint32_t resource_id,
+void virtio_gpu_cmd_set_scaanalut(struct virtio_gpu_device *vgdev,
+				uint32_t scaanalut_id, uint32_t resource_id,
 				uint32_t width, uint32_t height,
 				uint32_t x, uint32_t y);
 void virtio_gpu_object_attach(struct virtio_gpu_device *vgdev,
@@ -399,7 +399,7 @@ void virtio_gpu_ctrl_ack(struct virtqueue *vq);
 void virtio_gpu_cursor_ack(struct virtqueue *vq);
 void virtio_gpu_dequeue_ctrl_func(struct work_struct *work);
 void virtio_gpu_dequeue_cursor_func(struct work_struct *work);
-void virtio_gpu_notify(struct virtio_gpu_device *vgdev);
+void virtio_gpu_analtify(struct virtio_gpu_device *vgdev);
 
 int
 virtio_gpu_cmd_resource_assign_uuid(struct virtio_gpu_device *vgdev,
@@ -418,8 +418,8 @@ virtio_gpu_cmd_resource_create_blob(struct virtio_gpu_device *vgdev,
 				    struct virtio_gpu_mem_entry *ents,
 				    uint32_t nents);
 void
-virtio_gpu_cmd_set_scanout_blob(struct virtio_gpu_device *vgdev,
-				uint32_t scanout_id,
+virtio_gpu_cmd_set_scaanalut_blob(struct virtio_gpu_device *vgdev,
+				uint32_t scaanalut_id,
 				struct virtio_gpu_object *bo,
 				struct drm_framebuffer *fb,
 				uint32_t width, uint32_t height,
@@ -470,7 +470,7 @@ struct drm_gem_object *virtgpu_gem_prime_import_sg_table(
 	struct sg_table *sgt);
 
 /* virtgpu_debugfs.c */
-void virtio_gpu_debugfs_init(struct drm_minor *minor);
+void virtio_gpu_debugfs_init(struct drm_mianalr *mianalr);
 
 /* virtgpu_vram.c */
 bool virtio_gpu_is_vram(struct virtio_gpu_object *bo);

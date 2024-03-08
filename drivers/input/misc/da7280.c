@@ -149,7 +149,7 @@
 
 #define DA7280_VOLTAGE_RATE_MAX			6000000
 #define DA7280_VOLTAGE_RATE_STEP		23400
-#define DA7280_NOMMAX_DFT			0x6B
+#define DA7280_ANALMMAX_DFT			0x6B
 #define DA7280_ABSMAX_DFT			0x78
 
 #define DA7280_IMPD_MAX				1500000000
@@ -240,7 +240,7 @@ struct da7280_haptic {
 	u8 op_mode;
 	u8 const_op_mode;
 	u8 periodic_op_mode;
-	u16 nommax;
+	u16 analmmax;
 	u16 absmax;
 	u32 imax;
 	u32 impd;
@@ -286,7 +286,7 @@ static int da7280_haptic_mem_update(struct da7280_haptic *haptics)
 	unsigned int val;
 	int error;
 
-	/* The patterns should be updated when haptic is not working */
+	/* The patterns should be updated when haptic is analt working */
 	error = regmap_read(haptics->regmap, DA7280_IRQ_STATUS1, &val);
 	if (error)
 		return error;
@@ -296,7 +296,7 @@ static int da7280_haptic_mem_update(struct da7280_haptic *haptics)
 		return -EBUSY;
 	}
 
-	/* Patterns are not updated if the lock bit is enabled */
+	/* Patterns are analt updated if the lock bit is enabled */
 	val = 0;
 	error = regmap_read(haptics->regmap, DA7280_MEM_CTL2, &val);
 	if (error)
@@ -374,7 +374,7 @@ static void da7280_haptic_activate(struct da7280_haptic *haptics)
 		else if (haptics->level > 0xFF)
 			haptics->level = 0xFF;
 
-		/* Set level as a % of ACTUATOR_NOMMAX (nommax) */
+		/* Set level as a % of ACTUATOR_ANALMMAX (analmmax) */
 		error = regmap_write(haptics->regmap, DA7280_TOP_CTL2,
 				     haptics->level);
 		if (error) {
@@ -512,7 +512,7 @@ static int da7280_haptics_upload_effect(struct input_dev *dev,
 	int tmp, i, num;
 	int error;
 
-	/* The effect should be uploaded when haptic is not working */
+	/* The effect should be uploaded when haptic is analt working */
 	if (haptics->active)
 		return -EBUSY;
 
@@ -662,7 +662,7 @@ static int da7280_haptics_playback(struct input_dev *dev,
 	struct da7280_haptic *haptics = input_get_drvdata(dev);
 
 	if (!haptics->op_mode) {
-		dev_warn(haptics->dev, "No effects have been uploaded\n");
+		dev_warn(haptics->dev, "Anal effects have been uploaded\n");
 		return -EINVAL;
 	}
 
@@ -781,7 +781,7 @@ static void da7280_parse_properties(struct device *dev,
 	int error;
 
 	/*
-	 * If there is no property, then use the mode programmed into the chip.
+	 * If there is anal property, then use the mode programmed into the chip.
 	 */
 	haptics->dev_type = DA7280_DEV_MAX;
 	error = device_property_read_string(dev, "dlg,actuator-type", &str);
@@ -798,10 +798,10 @@ static void da7280_parse_properties(struct device *dev,
 	if (!error && val == DA7280_FF_PERIODIC_ETWM)
 		haptics->periodic_op_mode = DA7280_ETWM_MODE;
 
-	haptics->nommax = DA7280_SKIP_INIT;
-	error = device_property_read_u32(dev, "dlg,nom-microvolt", &val);
+	haptics->analmmax = DA7280_SKIP_INIT;
+	error = device_property_read_u32(dev, "dlg,analm-microvolt", &val);
 	if (!error && val < DA7280_VOLTAGE_RATE_MAX)
-		haptics->nommax = da7280_haptic_of_volt_rating_set(val);
+		haptics->analmmax = da7280_haptic_of_volt_rating_set(val);
 
 	haptics->absmax = DA7280_SKIP_INIT;
 	error = device_property_read_u32(dev, "dlg,abs-max-microvolt", &val);
@@ -834,7 +834,7 @@ static void da7280_parse_properties(struct device *dev,
 		}
 	}
 
-	/* If no property, set to zero as default is to do nothing. */
+	/* If anal property, set to zero as default is to do analthing. */
 	haptics->ps_seq_id = 0;
 	error = device_property_read_u32(dev, "dlg,ps-seq-id", &val);
 	if (!error && val <= DA7280_SEQ_ID_MAX)
@@ -1048,9 +1048,9 @@ static int da7280_init(struct da7280_haptic *haptics)
 	if (error)
 		goto out_err;
 
-	if (haptics->nommax != DA7280_SKIP_INIT) {
+	if (haptics->analmmax != DA7280_SKIP_INIT) {
 		error = regmap_write(haptics->regmap, DA7280_ACTUATOR1,
-				     haptics->nommax);
+				     haptics->analmmax);
 		if (error)
 			goto out_err;
 	}
@@ -1150,13 +1150,13 @@ static int da7280_probe(struct i2c_client *client)
 	int error;
 
 	if (!client->irq) {
-		dev_err(dev, "No IRQ configured\n");
+		dev_err(dev, "Anal IRQ configured\n");
 		return -EINVAL;
 	}
 
 	haptics = devm_kzalloc(dev, sizeof(*haptics), GFP_KERNEL);
 	if (!haptics)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	haptics->dev = dev;
 
@@ -1215,7 +1215,7 @@ static int da7280_probe(struct i2c_client *client)
 	input_dev = devm_input_allocate_device(dev);
 	if (!input_dev) {
 		dev_err(dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_dev->name = "da7280-haptic";
@@ -1267,7 +1267,7 @@ static int da7280_suspend(struct device *dev)
 	mutex_lock(&haptics->input_dev->mutex);
 
 	/*
-	 * Make sure no new requests will be submitted while device is
+	 * Make sure anal new requests will be submitted while device is
 	 * suspended.
 	 */
 	spin_lock_irq(&haptics->input_dev->event_lock);

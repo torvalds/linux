@@ -6,7 +6,7 @@
  * Copyright (C) Joerg Reuter DL1BKE (jreuter@yaina.de)
  * Copyright (C) Frederic Rible F1OAT (frible@teaser.fr)
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -40,7 +40,7 @@ void ax25_clear_queues(ax25_cb *ax25)
 
 /*
  * This routine purges the input queue of those frames that have been
- * acknowledged. This replaces the boxes labelled "V(a) <- N(r)" on the
+ * ackanalwledged. This replaces the boxes labelled "V(a) <- N(r)" on the
  * SDL diagram.
  */
 void ax25_frames_acked(ax25_cb *ax25, unsigned short nr)
@@ -180,9 +180,9 @@ void ax25_send_control(ax25_cb *ax25, int frametype, int poll_bit, int type)
 }
 
 /*
- *	Send a 'DM' to an unknown connection attempt, or an invalid caller.
+ *	Send a 'DM' to an unkanalwn connection attempt, or an invalid caller.
  *
- *	Note: src here is the sender, thus it's the target of the DM
+ *	Analte: src here is the sender, thus it's the target of the DM
  */
 void ax25_return_dm(struct net_device *dev, ax25_address *src, ax25_address *dest, ax25_digi *digi)
 {

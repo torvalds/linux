@@ -97,7 +97,7 @@ static int former_switch_fetching_mode(struct snd_ff *ff, bool enable)
 
 	reg = kcalloc(count, sizeof(__le32), GFP_KERNEL);
 	if (!reg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!enable) {
 		/*
@@ -216,7 +216,7 @@ static void dump_sync_status(struct snd_ff *ff, struct snd_info_buffer *buffer)
 			else
 				state = "lock";
 		} else {
-			state = "none";
+			state = "analne";
 		}
 
 		snd_iprintf(buffer, "%s: %s\n", clk_entry->label, state);
@@ -238,7 +238,7 @@ static void dump_sync_status(struct snd_ff *ff, struct snd_info_buffer *buffer)
 			}
 		}
 		if (i == ARRAY_SIZE(referred_entries))
-			label = "none";
+			label = "analne";
 
 		for (i = 0; i < ARRAY_SIZE(rate_entries); ++i) {
 			rate_entry = rate_entries + i;
@@ -324,9 +324,9 @@ static int allocate_tx_resources(struct snd_ff *ff)
 	if (count >= 10)
 		return -ETIMEDOUT;
 
-	// NOTE: this is a makeshift to start OHCI 1394 IR context in the
+	// ANALTE: this is a makeshift to start OHCI 1394 IR context in the
 	// channel. On the other hand, 'struct fw_iso_resources.allocated' is
-	// not true and it's not deallocated at stop.
+	// analt true and it's analt deallocated at stop.
 	ff->tx_resources.channel = tx_isoc_channel;
 
 	return 0;
@@ -344,21 +344,21 @@ static int ff800_allocate_resources(struct snd_ff *ff, unsigned int rate)
 	if (err < 0)
 		return err;
 
-	// If starting isochronous communication immediately, change of STF has
-	// no effect. In this case, the communication runs based on former STF.
+	// If starting isochroanalus communication immediately, change of STF has
+	// anal effect. In this case, the communication runs based on former STF.
 	// Let's sleep for a bit.
 	msleep(100);
 
-	// Controllers should allocate isochronous resources for rx stream.
+	// Controllers should allocate isochroanalus resources for rx stream.
 	err = fw_iso_resources_allocate(&ff->rx_resources,
 				amdtp_stream_get_max_payload(&ff->rx_stream),
 				fw_parent_device(ff->unit)->max_speed);
 	if (err < 0)
 		return err;
 
-	// Set isochronous channel and the number of quadlets of rx packets.
+	// Set isochroanalus channel and the number of quadlets of rx packets.
 	// This should be done before the allocation of tx resources to avoid
-	// periodical noise.
+	// periodical analise.
 	data = ff->rx_stream.data_block_quadlets << 3;
 	data = (data << 8) | ff->rx_resources.channel;
 	reg = cpu_to_le32(data);
@@ -401,7 +401,7 @@ static void ff800_finish_session(struct snd_ff *ff)
 // Fireface 800 doesn't allow drivers to register lower 4 bytes of destination
 // address.
 // A write transaction to clear registered higher 4 bytes of destination address
-// has an effect to suppress asynchronous transaction from device.
+// has an effect to suppress asynchroanalus transaction from device.
 static void ff800_handle_midi_msg(struct snd_ff *ff, unsigned int offset, const __le32 *buf,
 				  size_t length, u32 tstamp)
 {
@@ -434,7 +434,7 @@ const struct snd_ff_protocol snd_ff_protocol_ff800 = {
 #define FF400_TX_PACKET_FORMAT	0x00008010050cull
 #define FF400_ISOC_COMM_STOP	0x000080100510ull
 
-// Fireface 400 manages isochronous channel number in 3 bit field. Therefore,
+// Fireface 400 manages isochroanalus channel number in 3 bit field. Therefore,
 // we can allocate between 0 and 7 channel.
 static int ff400_allocate_resources(struct snd_ff *ff, unsigned int rate)
 {
@@ -443,7 +443,7 @@ static int ff400_allocate_resources(struct snd_ff *ff, unsigned int rate)
 	int i;
 	int err;
 
-	// Check whether the given value is supported or not.
+	// Check whether the given value is supported or analt.
 	for (i = 0; i < CIP_SFC_COUNT; i++) {
 		if (amdtp_rate_table[i] == rate)
 			break;
@@ -499,7 +499,7 @@ static int ff400_begin_session(struct snd_ff *ff, unsigned int rate)
 			return err;
 	}
 
-	// Set isochronous channel and the number of quadlets of received
+	// Set isochroanalus channel and the number of quadlets of received
 	// packets.
 	reg = cpu_to_le32(((ff->rx_stream.data_block_quadlets << 3) << 8) |
 			  ff->rx_resources.channel);
@@ -508,7 +508,7 @@ static int ff400_begin_session(struct snd_ff *ff, unsigned int rate)
 	if (err < 0)
 		return err;
 
-	// Set isochronous channel and the number of quadlets of transmitted
+	// Set isochroanalus channel and the number of quadlets of transmitted
 	// packet.
 	// TODO: investigate the purpose of this 0x80.
 	reg = cpu_to_le32((0x80 << 24) |
@@ -573,7 +573,7 @@ static bool ff400_has_msg(struct snd_ff *ff)
 //  - 0x10000000: 0x'....'....'0000'0100
 //  - 0x20000000: 0x'....'....'0000'0180
 //
-// Drivers can suppress the device to transfer asynchronous transactions by
+// Drivers can suppress the device to transfer asynchroanalus transactions by
 // using below 2 bits.
 //  - 0x01000000: suppress transmission
 //  - 0x02000000: suppress transmission
@@ -632,7 +632,7 @@ static bool ff400_has_msg(struct snd_ff *ff)
 // - 1: +5.0 dB
 // - 0: +6.0 dB
 //
-// When the message is not for signal level operation, it's for MIDI bytes. When matching to
+// When the message is analt for signal level operation, it's for MIDI bytes. When matching to
 // FF400_MSG_FLAG_IS_MIDI_PORT_0, one MIDI byte can be detected by mask of 0x000000ff. When
 // matching to FF400_MSG_FLAG_IS_MIDI_PORT_1, one MIDI byte can be detected by mask of 0x00ff0000.
 #define FF400_MSG_FLAG_IS_SIGNAL_LEVEL		0x04000000

@@ -5,7 +5,7 @@
 BPF_MAP_TYPE_ARRAY_OF_MAPS and BPF_MAP_TYPE_HASH_OF_MAPS
 ========================================================
 
-.. note::
+.. analte::
    - ``BPF_MAP_TYPE_ARRAY_OF_MAPS`` and ``BPF_MAP_TYPE_HASH_OF_MAPS`` were
      introduced in kernel version 4.12
 
@@ -23,11 +23,11 @@ The outer map supports element lookup, update and delete from user space using
 the syscall API. A BPF program is only allowed to do element lookup in the outer
 map.
 
-.. note::
-   - Multi-level nesting is not supported.
+.. analte::
+   - Multi-level nesting is analt supported.
    - Any BPF map type can be used as an inner map, except for
      ``BPF_MAP_TYPE_PROG_ARRAY``.
-   - A BPF program cannot update or delete outer map entries.
+   - A BPF program cananalt update or delete outer map entries.
 
 For ``BPF_MAP_TYPE_ARRAY_OF_MAPS`` the key is an unsigned 32-bit integer index
 into the array. The array is a fixed size with ``max_entries`` elements that are
@@ -36,7 +36,7 @@ zero initialized when created.
 For ``BPF_MAP_TYPE_HASH_OF_MAPS`` the key type can be chosen when defining the
 map. The kernel is responsible for allocating and freeing key/value pairs, up to
 the max_entries limit that you specify. Hash maps use pre-allocation of hash
-table elements by default. The ``BPF_F_NO_PREALLOC`` flag can be used to disable
+table elements by default. The ``BPF_F_ANAL_PREALLOC`` flag can be used to disable
 pre-allocation when it is too memory expensive.
 
 Usage
@@ -53,7 +53,7 @@ bpf_map_lookup_elem()
    void *bpf_map_lookup_elem(struct bpf_map *map, const void *key)
 
 Inner maps can be retrieved using the ``bpf_map_lookup_elem()`` helper. This
-helper returns a pointer to the inner map, or ``NULL`` if no entry was found.
+helper returns a pointer to the inner map, or ``NULL`` if anal entry was found.
 
 Examples
 ========
@@ -62,7 +62,7 @@ Kernel BPF Example
 ------------------
 
 This snippet shows how to create and initialise an array of devmaps in a BPF
-program. Note that the outer array can only be modified from user space using
+program. Analte that the outer array can only be modified from user space using
 the syscall API.
 
 .. code-block:: c

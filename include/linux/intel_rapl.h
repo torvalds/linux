@@ -76,7 +76,7 @@ enum rapl_primitives {
 	PSYS_PL2_ENABLE,
 	PSYS_TIME_WINDOW1,
 	PSYS_TIME_WINDOW2,
-	/* below are not raw primitive data */
+	/* below are analt raw primitive data */
 	AVERAGE_POWER,
 	NR_RAPL_PRIMITIVES,
 };
@@ -168,7 +168,7 @@ struct rapl_package {
 	struct rapl_domain *domains;	/* array of domains, sized at runtime */
 	struct powercap_zone *power_zone;	/* keep track of parent zone */
 	unsigned long power_limit_irq;	/* keep track of package power limit
-					 * notify interrupt enable status.
+					 * analtify interrupt enable status.
 					 */
 	struct list_head plist;
 	int lead_cpu;		/* one active cpu per package for access */

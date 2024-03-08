@@ -14,15 +14,15 @@
 #include "intel_snps_phy_regs.h"
 
 /**
- * DOC: Synopsis PHY support
+ * DOC: Syanalpsis PHY support
  *
- * Synopsis PHYs are primarily programmed by looking up magic register values
+ * Syanalpsis PHYs are primarily programmed by looking up magic register values
  * in tables rather than calculating the necessary values at runtime.
  *
- * Of special note is that the SNPS PHYs include a dedicated port PLL, known as
+ * Of special analte is that the SNPS PHYs include a dedicated port PLL, kanalwn as
  * an "MPLLB."  The MPLLB replaces the shared DPLL functionality used on other
  * platforms and must be programming directly during the modeset sequence
- * since it is not handled by the shared DPLL framework as on other platforms.
+ * since it is analt handled by the shared DPLL framework as on other platforms.
  */
 
 void intel_snps_phy_wait_for_calibration(struct drm_i915_private *i915)
@@ -34,7 +34,7 @@ void intel_snps_phy_wait_for_calibration(struct drm_i915_private *i915)
 			continue;
 
 		/*
-		 * If calibration does not complete successfully, we'll remember
+		 * If calibration does analt complete successfully, we'll remember
 		 * which phy was affected and skip setup of the corresponding
 		 * output later.
 		 */
@@ -1852,7 +1852,7 @@ void intel_mpllb_enable(struct intel_encoder *encoder,
 	/*
 	 * 9. Software sets SNPS_PHY_MPLLB_DIV dp_mpllb_force_en to "1". This
 	 * will keep the PLL running during the DDI lane programming and any
-	 * typeC DP cable disconnect. Do not set the force before enabling the
+	 * typeC DP cable disconnect. Do analt set the force before enabling the
 	 * PLL because that will start the PLL before it has sampled the
 	 * divider values.
 	 */
@@ -1865,7 +1865,7 @@ void intel_mpllb_enable(struct intel_encoder *encoder,
 	 * dp_mpllb_state interface signal.
 	 */
 	if (intel_de_wait_for_set(dev_priv, enable_reg, PLL_LOCK, 5))
-		drm_dbg_kms(&dev_priv->drm, "Port %c PLL not locked\n", phy_name(phy));
+		drm_dbg_kms(&dev_priv->drm, "Port %c PLL analt locked\n", phy_name(phy));
 
 	/*
 	 * 11. If the frequency will result in a change to the voltage
@@ -1901,11 +1901,11 @@ void intel_mpllb_disable(struct intel_encoder *encoder)
 	intel_de_rmw(i915, SNPS_PHY_MPLLB_DIV(phy), SNPS_PHY_MPLLB_FORCE_EN, 0);
 
 	/*
-	 * 5. Software polls DPLL_ENABLE [PLL Lock] for PHY acknowledgment
+	 * 5. Software polls DPLL_ENABLE [PLL Lock] for PHY ackanalwledgment
 	 * (dp_txX_ack) that the new transmitter setting request is completed.
 	 */
 	if (intel_de_wait_for_clear(i915, enable_reg, PLL_LOCK, 5))
-		drm_err(&i915->drm, "Port %c PLL not locked\n", phy_name(phy));
+		drm_err(&i915->drm, "Port %c PLL analt locked\n", phy_name(phy));
 
 	/*
 	 * 6. If the frequency will result in a change to the voltage

@@ -20,7 +20,7 @@
 #include <asm/sgialib.h>
 #include <asm/bootinfo.h>
 
-VOID __noreturn
+VOID __analreturn
 ArcEnterInteractiveMode(VOID)
 {
 	bc_disable();

@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -325,7 +325,7 @@ struct tp_err_stats {
 	u32 tnl_tx_drops[4];
 	u32 ofld_vlan_drops[4];
 	u32 tcp6_in_errs[4];
-	u32 ofld_no_neigh;
+	u32 ofld_anal_neigh;
 	u32 ofld_cong_defer;
 };
 
@@ -367,9 +367,9 @@ struct tp_params {
 	 * subset of the set of fields which may be present in the Compressed
 	 * Filter Tuple portion of filters and TCP TCB connections.  The
 	 * fields which are present are controlled by the TP_VLAN_PRI_MAP.
-	 * Since a variable number of fields may or may not be present, their
+	 * Since a variable number of fields may or may analt be present, their
 	 * shifted field positions within the Compressed Filter Tuple may
-	 * vary, or not even be present if the field isn't selected in
+	 * vary, or analt even be present if the field isn't selected in
 	 * TP_VLAN_PRI_MAP.  Since some of these fields are needed in various
 	 * places we store their offsets here, or a -1 if the field isn't
 	 * present.
@@ -507,7 +507,7 @@ struct sge_idma_monitor_state {
 struct mbox_cmd {
 	u64 cmd[MBOX_LEN / 8];		/* a Firmware Mailbox Command/Reply */
 	u64 timestamp;			/* OS-dependent timestamp */
-	u32 seqno;			/* sequence number */
+	u32 seqanal;			/* sequence number */
 	s16 access;			/* time (ms) to access mailbox */
 	s16 execute;			/* time (ms) to execute */
 };
@@ -515,7 +515,7 @@ struct mbox_cmd {
 struct mbox_cmd_log {
 	unsigned int size;		/* number of entries in the log */
 	unsigned int cursor;		/* next position in the log to write */
-	u32 seqno;			/* next sequence number */
+	u32 seqanal;			/* next sequence number */
 	/* variable length mailbox command log starts here */
 };
 
@@ -530,7 +530,7 @@ static inline struct mbox_cmd *mbox_cmd_log_entry(struct mbox_cmd_log *log,
 
 #define FW_VERSION(chip) ( \
 		FW_HDR_FW_VER_MAJOR_G(chip##FW_VERSION_MAJOR) | \
-		FW_HDR_FW_VER_MINOR_G(chip##FW_VERSION_MINOR) | \
+		FW_HDR_FW_VER_MIANALR_G(chip##FW_VERSION_MIANALR) | \
 		FW_HDR_FW_VER_MICRO_G(chip##FW_VERSION_MICRO) | \
 		FW_HDR_FW_VER_BUILD_G(chip##FW_VERSION_BUILD))
 #define FW_INTFVER(chip, intf) (FW_HDR_INTFVER_##intf)
@@ -570,7 +570,7 @@ typedef u16 fw_port_cap16_t;	/* 16-bit Port Capabilities integral value */
 typedef u32 fw_port_cap32_t;	/* 32-bit Port Capabilities integral value */
 
 enum fw_caps {
-	FW_CAPS_UNKNOWN	= 0,	/* 0'ed out initial state */
+	FW_CAPS_UNKANALWN	= 0,	/* 0'ed out initial state */
 	FW_CAPS16	= 1,	/* old Firmware: 16-bit Port Capabilities */
 	FW_CAPS32	= 2,	/* new Firmware: 32-bit Port Capabilities */
 };
@@ -710,7 +710,7 @@ enum {                                 /* adapter flags */
 	CXGB4_USING_SOFT_PARAMS		= (1 << 6),
 	CXGB4_MASTER_PF			= (1 << 7),
 	CXGB4_FW_OFLD_CONN		= (1 << 9),
-	CXGB4_ROOT_NO_RELAXED_ORDERING	= (1 << 10),
+	CXGB4_ROOT_ANAL_RELAXED_ORDERING	= (1 << 10),
 	CXGB4_SHUTTING_DOWN		= (1 << 11),
 	CXGB4_SGE_DBQ_TIMER		= (1 << 12),
 };
@@ -804,7 +804,7 @@ struct sge_eth_stats {              /* Ethernet queue statistics */
 	unsigned long lro_merged;   /* # of wire packets merged by LRO */
 	unsigned long rx_cso;       /* # of Rx checksum offloads */
 	unsigned long vlan_ex;      /* # of Rx VLAN extractions */
-	unsigned long rx_drops;     /* # of packets dropped due to no mem */
+	unsigned long rx_drops;     /* # of packets dropped due to anal mem */
 	unsigned long bad_rx_pkts;  /* # of packets with err_vec!=0 */
 };
 
@@ -818,8 +818,8 @@ struct sge_eth_rxq {                /* SW Ethernet Rx queue */
 struct sge_ofld_stats {             /* offload queue statistics */
 	unsigned long pkts;         /* # of packets */
 	unsigned long imm;          /* # of immediate-data packets */
-	unsigned long an;           /* # of asynchronous notifications */
-	unsigned long nomem;        /* # of responses deferred due to no mem */
+	unsigned long an;           /* # of asynchroanalus analtifications */
+	unsigned long analmem;        /* # of responses deferred due to anal mem */
 };
 
 struct sge_ofld_rxq {               /* SW offload Rx queue */
@@ -912,12 +912,12 @@ struct sge_uld_txq_info {
 /* struct to maintain ULD list to reallocate ULD resources on hotplug */
 struct cxgb4_uld_list {
 	struct cxgb4_uld_info uld_info;
-	struct list_head list_node;
+	struct list_head list_analde;
 	enum cxgb4_uld uld_type;
 };
 
 enum sge_eosw_state {
-	CXGB4_EO_STATE_CLOSED = 0, /* Not ready to accept traffic */
+	CXGB4_EO_STATE_CLOSED = 0, /* Analt ready to accept traffic */
 	CXGB4_EO_STATE_FLOWC_OPEN_SEND, /* Send FLOWC open request */
 	CXGB4_EO_STATE_FLOWC_OPEN_REPLY, /* Waiting for FLOWC open reply */
 	CXGB4_EO_STATE_ACTIVE, /* Ready to accept traffic */
@@ -1011,7 +1011,7 @@ struct sge {
 	struct timer_list tx_timer; /* checks Tx queues */
 
 	int fwevtq_msix_idx; /* Index to firmware event queue MSI-X info */
-	int nd_msix_idx; /* Index to non-data interrupts MSI-X info */
+	int nd_msix_idx; /* Index to analn-data interrupts MSI-X info */
 };
 
 #define for_each_ethrxq(sge, i) for (i = 0; i < (sge)->ethqsets; i++)
@@ -1150,8 +1150,8 @@ struct adapter {
 	void *uld_handle[CXGB4_ULD_MAX];
 	unsigned int num_uld;
 	unsigned int num_ofld_uld;
-	struct list_head list_node;
-	struct list_head rcu_node;
+	struct list_head list_analde;
+	struct list_head rcu_analde;
 	struct list_head mac_hlist; /* list of MAC addresses in MPS Hash */
 	struct list_head mps_ref;
 	spinlock_t mps_ref_lock; /* lock for syncing mps ref/def activities */
@@ -1165,7 +1165,7 @@ struct adapter {
 	struct work_struct tid_release_task;
 	struct work_struct db_full_task;
 	struct work_struct db_drop_task;
-	struct work_struct fatal_err_notify_task;
+	struct work_struct fatal_err_analtify_task;
 	bool tid_release_task_busy;
 
 	/* lock for mailbox cmd list */
@@ -1428,14 +1428,14 @@ enum {
 };
 
 enum {
-	VLAN_NOCHANGE = 0,      /* default */
+	VLAN_ANALCHANGE = 0,      /* default */
 	VLAN_REMOVE,
 	VLAN_INSERT,
 	VLAN_REWRITE
 };
 
 enum {
-	NAT_MODE_NONE = 0,	/* No NAT performed */
+	NAT_MODE_ANALNE = 0,	/* Anal NAT performed */
 	NAT_MODE_DIP,		/* NAT on Dst IP */
 	NAT_MODE_DIP_DP,	/* NAT on Dst IP, Dst Port */
 	NAT_MODE_DIP_DP_SIP,	/* NAT on Dst IP, Dst Port and Src IP */
@@ -1592,7 +1592,7 @@ static inline unsigned int mk_adap_vers(struct adapter *ap)
 		(CHELSIO_CHIP_RELEASE(ap->params.chip) << 10) | (1 << 16);
 }
 
-/* Return a queue's interrupt hold-off time in us.  0 means no timer. */
+/* Return a queue's interrupt hold-off time in us.  0 means anal timer. */
 static inline unsigned int qtimer_val(const struct adapter *adap,
 				      const struct sge_rspq *q)
 {
@@ -1770,9 +1770,9 @@ static inline void init_rspq(struct adapter *adap, struct sge_rspq *q,
  */
 static inline bool t4_is_inserted_mod_type(unsigned int fw_mod_type)
 {
-	return (fw_mod_type != FW_PORT_MOD_TYPE_NONE &&
-		fw_mod_type != FW_PORT_MOD_TYPE_NOTSUPPORTED &&
-		fw_mod_type != FW_PORT_MOD_TYPE_UNKNOWN &&
+	return (fw_mod_type != FW_PORT_MOD_TYPE_ANALNE &&
+		fw_mod_type != FW_PORT_MOD_TYPE_ANALTSUPPORTED &&
+		fw_mod_type != FW_PORT_MOD_TYPE_UNKANALWN &&
 		fw_mod_type != FW_PORT_MOD_TYPE_ERROR);
 }
 
@@ -2093,7 +2093,7 @@ void t4_tp_mib_read(struct adapter *adap, u32 *buff, u32 nregs,
 void t4_uld_mem_free(struct adapter *adap);
 int t4_uld_mem_alloc(struct adapter *adap);
 void t4_uld_clean_up(struct adapter *adap);
-void t4_register_netevent_notifier(void);
+void t4_register_netevent_analtifier(void);
 int t4_i2c_rd(struct adapter *adap, unsigned int mbox, int port,
 	      unsigned int devid, unsigned int offset,
 	      unsigned int len, u8 *buf);

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -56,7 +56,7 @@
 #define mmGRBM_UTCL2_INVAL_RANGE_END_DEFAULT                                     0x000028ea
 #define mmGRBM_RSMU_READ_ERROR_DEFAULT                                           0x00000000
 #define mmGRBM_CHICKEN_BITS_DEFAULT                                              0x00000000
-#define mmGRBM_NOWHERE_DEFAULT                                                   0x00000000
+#define mmGRBM_ANALWHERE_DEFAULT                                                   0x00000000
 #define mmGRBM_SCRATCH_REG0_DEFAULT                                              0x00000000
 #define mmGRBM_SCRATCH_REG1_DEFAULT                                              0x00000000
 #define mmGRBM_SCRATCH_REG2_DEFAULT                                              0x00000000
@@ -1149,7 +1149,7 @@
 #define mmCOMPUTE_USER_DATA_13_DEFAULT                                           0x00000000
 #define mmCOMPUTE_USER_DATA_14_DEFAULT                                           0x00000000
 #define mmCOMPUTE_USER_DATA_15_DEFAULT                                           0x00000000
-#define mmCOMPUTE_NOWHERE_DEFAULT                                                0x00000000
+#define mmCOMPUTE_ANALWHERE_DEFAULT                                                0x00000000
 
 
 // addressBlock: gc_cppdec
@@ -2437,7 +2437,7 @@
 #define mmCP_EOP_DONE_CNTX_ID_DEFAULT                                            0x00000000
 #define mmCP_PFP_COMPLETION_STATUS_DEFAULT                                       0x00000000
 #define mmCP_CE_COMPLETION_STATUS_DEFAULT                                        0x00000000
-#define mmCP_PRED_NOT_VISIBLE_DEFAULT                                            0x00000000
+#define mmCP_PRED_ANALT_VISIBLE_DEFAULT                                            0x00000000
 #define mmCP_PFP_METADATA_BASE_ADDR_DEFAULT                                      0x00000000
 #define mmCP_PFP_METADATA_BASE_ADDR_HI_DEFAULT                                   0x00000000
 #define mmCP_CE_METADATA_BASE_ADDR_DEFAULT                                       0x00000000
@@ -3009,8 +3009,8 @@
 #define mmRLC_LB_CNTR_MAX_DEFAULT                                                0xffffffff
 #define mmRLC_GPM_TIMER_STAT_DEFAULT                                             0x00000000
 #define mmRLC_GPM_TIMER_INT_3_DEFAULT                                            0x00000000
-#define mmRLC_SERDES_WR_NONCU_MASTER_MASK_1_DEFAULT                              0x00000000
-#define mmRLC_SERDES_NONCU_MASTER_BUSY_1_DEFAULT                                 0x00000000
+#define mmRLC_SERDES_WR_ANALNCU_MASTER_MASK_1_DEFAULT                              0x00000000
+#define mmRLC_SERDES_ANALNCU_MASTER_BUSY_1_DEFAULT                                 0x00000000
 #define mmRLC_INT_STAT_DEFAULT                                                   0x00000000
 #define mmRLC_LB_CNTL_DEFAULT                                                    0x00000010
 #define mmRLC_MGCG_CTRL_DEFAULT                                                  0x00018800
@@ -3052,11 +3052,11 @@
 #define mmRLC_SERDES_RD_DATA_1_DEFAULT                                           0x00000000
 #define mmRLC_SERDES_RD_DATA_2_DEFAULT                                           0x00000000
 #define mmRLC_SERDES_WR_CU_MASTER_MASK_DEFAULT                                   0x00000000
-#define mmRLC_SERDES_WR_NONCU_MASTER_MASK_DEFAULT                                0x00000000
+#define mmRLC_SERDES_WR_ANALNCU_MASTER_MASK_DEFAULT                                0x00000000
 #define mmRLC_SERDES_WR_CTRL_DEFAULT                                             0x00000000
 #define mmRLC_SERDES_WR_DATA_DEFAULT                                             0x00000000
 #define mmRLC_SERDES_CU_MASTER_BUSY_DEFAULT                                      0x00000000
-#define mmRLC_SERDES_NONCU_MASTER_BUSY_DEFAULT                                   0x00000000
+#define mmRLC_SERDES_ANALNCU_MASTER_BUSY_DEFAULT                                   0x00000000
 #define mmRLC_GPM_GENERAL_0_DEFAULT                                              0x00000000
 #define mmRLC_GPM_GENERAL_1_DEFAULT                                              0x00000000
 #define mmRLC_GPM_GENERAL_2_DEFAULT                                              0x00000000

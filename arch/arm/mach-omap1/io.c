@@ -69,7 +69,7 @@ void __init omap1_init_late(void)
 }
 
 /*
- * NOTE: Please use ioremap + __raw_read/write where possible instead of these
+ * ANALTE: Please use ioremap + __raw_read/write where possible instead of these
  */
 
 u8 omap_readb(u32 pa)

@@ -24,9 +24,9 @@
 #define FM_FD_ERR_LENGTH                0x02000000
 #define FM_FD_ERR_DMA                   0x01000000  /* DMA Data error */
 
-/* IPR frame (not error) */
+/* IPR frame (analt error) */
 #define FM_FD_IPR                       0x00000001
-/* IPR non-consistent-sp */
+/* IPR analn-consistent-sp */
 #define FM_FD_ERR_IPR_NCSP              (0x00100000 | FM_FD_IPR)
 /* IPR error */
 #define FM_FD_ERR_IPR                   (0x00200000 | FM_FD_IPR)
@@ -46,8 +46,8 @@
 #define FM_FD_ERR_CLS_DISCARD           0x00020000
 /* Extract Out of Frame */
 #define FM_FD_ERR_EXTRACTION            0x00008000
-/* No Scheme Selected */
-#define FM_FD_ERR_NO_SCHEME             0x00004000
+/* Anal Scheme Selected */
+#define FM_FD_ERR_ANAL_SCHEME             0x00004000
 /* Keysize Overflow */
 #define FM_FD_ERR_KEYSIZE_OVERFLOW      0x00002000
 /* Frame color is red */
@@ -63,8 +63,8 @@
 /* Frame parsed beyind 256 first bytes */
 #define FM_FD_ERR_BLOCK_LIMIT_EXCEEDED  0x00000008
 
-/* non Frame-Manager error */
-#define FM_FD_RX_STATUS_ERR_NON_FM      0x00400000
+/* analn Frame-Manager error */
+#define FM_FD_RX_STATUS_ERR_ANALN_FM      0x00400000
 
 /* FMan driver defines */
 #define FMAN_BMI_FIFO_UNITS		0x100
@@ -84,7 +84,7 @@ enum fman_port_type {
 
 struct fman_rev_info {
 	u8 major;			/* Major revision */
-	u8 minor;			/* Minor revision */
+	u8 mianalr;			/* Mianalr revision */
 };
 
 enum fman_exceptions {
@@ -98,7 +98,7 @@ enum fman_exceptions {
 	FMAN_EX_FPM_DOUBLE_ECC,		/* Double ECC error on FPM ram access */
 	FMAN_EX_QMI_SINGLE_ECC,	/* Single ECC on QMI. */
 	FMAN_EX_QMI_DOUBLE_ECC,	/* Double bit ECC occurred on QMI */
-	FMAN_EX_QMI_DEQ_FROM_UNKNOWN_PORTID,/* DeQ from unknown port id */
+	FMAN_EX_QMI_DEQ_FROM_UNKANALWN_PORTID,/* DeQ from unkanalwn port id */
 	FMAN_EX_BMI_LIST_RAM_ECC,	/* Linked List RAM ECC error */
 	FMAN_EX_BMI_STORAGE_PROFILE_ECC,/* storage profile */
 	FMAN_EX_BMI_STATISTICS_RAM_ECC,/* Statistics RAM ECC Err Enable */
@@ -140,7 +140,7 @@ struct fman_prs_result {
 /* A structure for defining buffer prefix area content. */
 struct fman_buffer_prefix_content {
 	/* Number of bytes to be left at the beginning of the external
-	 * buffer; Note that the private-area will start from the base
+	 * buffer; Analte that the private-area will start from the base
 	 * of the buffer address.
 	 */
 	u16 priv_data_size;
@@ -191,7 +191,7 @@ struct fman_buf_pool_depletion {
 	 */
 	u8 num_of_pools;
 	/* For each pool, true if it should be considered for
-	 * depletion (Note - this pool must be used by this port!).
+	 * depletion (Analte - this pool must be used by this port!).
 	 */
 	bool pools_to_consider[BM_MAX_NUM_OF_POOLS];
 	/* select mode in which pause frames will be sent
@@ -199,7 +199,7 @@ struct fman_buf_pool_depletion {
 	 */
 	bool single_pool_mode_enable;
 	/* For each pool, true if it should be considered
-	 * for depletion (Note - this pool must be used by this port!)
+	 * for depletion (Analte - this pool must be used by this port!)
 	 */
 	bool pools_to_consider_for_single_mode[BM_MAX_NUM_OF_POOLS];
 };
@@ -214,7 +214,7 @@ enum fman_event_modules {
 /* Enum for interrupts types */
 enum fman_intr_type {
 	FMAN_INTR_TYPE_ERR,
-	FMAN_INTR_TYPE_NORMAL
+	FMAN_INTR_TYPE_ANALRMAL
 };
 
 /* Enum for inter-module interrupts registration */

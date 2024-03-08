@@ -28,7 +28,7 @@ static int __init imx_soc_device_init(void)
 	struct soc_device_attribute *soc_dev_attr;
 	const char *ocotp_compat = NULL;
 	struct soc_device *soc_dev;
-	struct device_node *root;
+	struct device_analde *root;
 	struct regmap *ocotp = NULL;
 	const char *soc_id;
 	u64 soc_uid = 0;
@@ -42,13 +42,13 @@ static int __init imx_soc_device_init(void)
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc_dev_attr->family = "Freescale i.MX";
 
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	ret = of_property_read_string(root, "model", &soc_dev_attr->machine);
-	of_node_put(root);
+	of_analde_put(root);
 	if (ret)
 		goto free_soc;
 
@@ -139,7 +139,7 @@ static int __init imx_soc_device_init(void)
 		soc_id = "VF610";
 		break;
 	default:
-		soc_id = "Unknown";
+		soc_id = "Unkanalwn";
 	}
 	soc_dev_attr->soc_id = soc_id;
 
@@ -182,13 +182,13 @@ static int __init imx_soc_device_init(void)
 					   (imx_get_soc_revision() >> 4) & 0xf,
 					   imx_get_soc_revision() & 0xf);
 	if (!soc_dev_attr->revision) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_soc;
 	}
 
 	soc_dev_attr->serial_number = kasprintf(GFP_KERNEL, "%016llX", soc_uid);
 	if (!soc_dev_attr->serial_number) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_rev;
 	}
 

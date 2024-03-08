@@ -100,7 +100,7 @@ void caif_client_register_refcnt(struct cflayer *adapt_layer,
  * @client_layer: Client layer to be removed.
  *
  * This function must be called from client layer in order to free memory.
- * Caller must guarantee that no packets are in flight upstream when calling
+ * Caller must guarantee that anal packets are in flight upstream when calling
  * this function.
  */
 void caif_free_client(struct cflayer *adap_layer);

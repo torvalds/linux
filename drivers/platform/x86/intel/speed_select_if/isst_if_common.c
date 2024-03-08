@@ -70,7 +70,7 @@ static const struct isst_cmd_set_req_type isst_cmd_set_reqs[] = {
 };
 
 struct isst_cmd {
-	struct hlist_node hnode;
+	struct hlist_analde hanalde;
 	u64 data;
 	u32 cmd;
 	int cpu;
@@ -90,7 +90,7 @@ static int isst_store_new_cmd(int cmd, u32 cpu, int mbox_cmd_type, u32 param,
 
 	sst_cmd = kmalloc(sizeof(*sst_cmd), GFP_KERNEL);
 	if (!sst_cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sst_cmd->cpu = cpu;
 	sst_cmd->cmd = cmd;
@@ -98,7 +98,7 @@ static int isst_store_new_cmd(int cmd, u32 cpu, int mbox_cmd_type, u32 param,
 	sst_cmd->param = param;
 	sst_cmd->data = data;
 
-	hash_add(isst_hash, &sst_cmd->hnode, sst_cmd->cmd);
+	hash_add(isst_hash, &sst_cmd->hanalde, sst_cmd->cmd);
 
 	return 0;
 }
@@ -106,11 +106,11 @@ static int isst_store_new_cmd(int cmd, u32 cpu, int mbox_cmd_type, u32 param,
 static void isst_delete_hash(void)
 {
 	struct isst_cmd *sst_cmd;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int i;
 
-	hash_for_each_safe(isst_hash, i, tmp, sst_cmd, hnode) {
-		hash_del(&sst_cmd->hnode);
+	hash_for_each_safe(isst_hash, i, tmp, sst_cmd, hanalde) {
+		hash_del(&sst_cmd->hanalde);
 		kfree(sst_cmd);
 	}
 }
@@ -124,7 +124,7 @@ static void isst_delete_hash(void)
  * @param: Mailbox parameter.
  * @data: Mailbox request data or MSR data.
  *
- * Stores the command to a hash table if there is no such command already
+ * Stores the command to a hash table if there is anal such command already
  * stored. If already stored update the latest parameter and data for the
  * command.
  *
@@ -140,7 +140,7 @@ int isst_store_cmd(int cmd, int sub_cmd, u32 cpu, int mbox_cmd_type,
 	full_cmd = (cmd & GENMASK_ULL(15, 0)) << 16;
 	full_cmd |= (sub_cmd & GENMASK_ULL(15, 0));
 	mutex_lock(&isst_hash_lock);
-	hash_for_each_possible(isst_hash, sst_cmd, hnode, full_cmd) {
+	hash_for_each_possible(isst_hash, sst_cmd, hanalde, full_cmd) {
 		if (sst_cmd->cmd == full_cmd && sst_cmd->cpu == cpu &&
 		    sst_cmd->mbox_cmd_type == mbox_cmd_type) {
 			sst_cmd->param = param;
@@ -176,14 +176,14 @@ static void isst_mbox_resume_command(struct isst_if_cmd_cb *cb,
  *
  * On resume replay all mailbox commands and MSRs.
  *
- * Return: None.
+ * Return: Analne.
  */
 void isst_resume_common(void)
 {
 	struct isst_cmd *sst_cmd;
 	int i;
 
-	hash_for_each(isst_hash, i, sst_cmd, hnode) {
+	hash_for_each(isst_hash, i, sst_cmd, hanalde) {
 		struct isst_if_cmd_cb *cb;
 
 		if (sst_cmd->mbox_cmd_type) {
@@ -208,7 +208,7 @@ static void isst_restore_msr_local(int cpu)
 		if (!punit_msr_white_list[i])
 			break;
 
-		hash_for_each_possible(isst_hash, sst_cmd, hnode,
+		hash_for_each_possible(isst_hash, sst_cmd, hanalde,
 				       punit_msr_white_list[i]) {
 			if (!sst_cmd->mbox_cmd_type && sst_cmd->cpu == cpu)
 				wrmsrl_safe(sst_cmd->cmd, sst_cmd->data);
@@ -249,7 +249,7 @@ EXPORT_SYMBOL_GPL(isst_if_mbox_cmd_invalid);
  * isst_if_mbox_cmd_set_req() - Check mailbox command is a set request
  * @cmd: Pointer to the command structure to verify.
  *
- * Check if the given mail box level is set request and not a get request.
+ * Check if the given mail box level is set request and analt a get request.
  *
  * Return: Return true if the command is set_req, else false.
  */
@@ -294,7 +294,7 @@ struct isst_if_cpu_info {
 	int bus_info[ISST_MAX_BUS_NUMBER];
 	struct pci_dev *pci_dev[ISST_MAX_BUS_NUMBER];
 	int punit_cpu_id;
-	int numa_node;
+	int numa_analde;
 };
 
 struct isst_if_pkg_info {
@@ -304,44 +304,44 @@ struct isst_if_pkg_info {
 static struct isst_if_cpu_info *isst_cpu_info;
 static struct isst_if_pkg_info *isst_pkg_info;
 
-static struct pci_dev *_isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn)
+static struct pci_dev *_isst_if_get_pci_dev(int cpu, int bus_anal, int dev, int fn)
 {
 	struct pci_dev *matched_pci_dev = NULL;
 	struct pci_dev *pci_dev = NULL;
 	struct pci_dev *_pci_dev = NULL;
-	int no_matches = 0, pkg_id;
+	int anal_matches = 0, pkg_id;
 	int bus_number;
 
-	if (bus_no < 0 || bus_no >= ISST_MAX_BUS_NUMBER || cpu < 0 ||
+	if (bus_anal < 0 || bus_anal >= ISST_MAX_BUS_NUMBER || cpu < 0 ||
 	    cpu >= nr_cpu_ids || cpu >= num_possible_cpus())
 		return NULL;
 
 	pkg_id = topology_physical_package_id(cpu);
 
-	bus_number = isst_cpu_info[cpu].bus_info[bus_no];
+	bus_number = isst_cpu_info[cpu].bus_info[bus_anal];
 	if (bus_number < 0)
 		return NULL;
 
 	for_each_pci_dev(_pci_dev) {
-		int node;
+		int analde;
 
 		if (_pci_dev->bus->number != bus_number ||
 		    _pci_dev->devfn != PCI_DEVFN(dev, fn))
 			continue;
 
-		++no_matches;
+		++anal_matches;
 		if (!matched_pci_dev)
 			matched_pci_dev = _pci_dev;
 
-		node = dev_to_node(&_pci_dev->dev);
-		if (node == NUMA_NO_NODE) {
-			pr_info_once("Fail to get numa node for CPU:%d bus:%d dev:%d fn:%d\n",
-				     cpu, bus_no, dev, fn);
+		analde = dev_to_analde(&_pci_dev->dev);
+		if (analde == NUMA_ANAL_ANALDE) {
+			pr_info_once("Fail to get numa analde for CPU:%d bus:%d dev:%d fn:%d\n",
+				     cpu, bus_anal, dev, fn);
 			continue;
 		}
 
-		if (node == isst_cpu_info[cpu].numa_node) {
-			isst_pkg_info[pkg_id].pci_dev[bus_no] = _pci_dev;
+		if (analde == isst_cpu_info[cpu].numa_analde) {
+			isst_pkg_info[pkg_id].pci_dev[bus_anal] = _pci_dev;
 
 			pci_dev = _pci_dev;
 			break;
@@ -349,21 +349,21 @@ static struct pci_dev *_isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn
 	}
 
 	/*
-	 * If there is no numa matched pci_dev, then there can be following cases:
-	 * 1. CONFIG_NUMA is not defined: In this case if there is only single device
+	 * If there is anal numa matched pci_dev, then there can be following cases:
+	 * 1. CONFIG_NUMA is analt defined: In this case if there is only single device
 	 *    match, then we don't need numa information. Simply return last match.
 	 *    Othewise return NULL.
-	 * 2. NUMA information is not exposed via _SEG method. In this case it is similar
+	 * 2. NUMA information is analt exposed via _SEG method. In this case it is similar
 	 *    to case 1.
-	 * 3. Numa information doesn't match with CPU numa node and more than one match
+	 * 3. Numa information doesn't match with CPU numa analde and more than one match
 	 *    return NULL.
 	 */
-	if (!pci_dev && no_matches == 1)
+	if (!pci_dev && anal_matches == 1)
 		pci_dev = matched_pci_dev;
 
 	/* Return pci_dev pointer for any matched CPU in the package */
 	if (!pci_dev)
-		pci_dev = isst_pkg_info[pkg_id].pci_dev[bus_no];
+		pci_dev = isst_pkg_info[pkg_id].pci_dev[bus_anal];
 
 	return pci_dev;
 }
@@ -371,7 +371,7 @@ static struct pci_dev *_isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn
 /**
  * isst_if_get_pci_dev() - Get the PCI device instance for a CPU
  * @cpu: Logical CPU number.
- * @bus_no: The bus number assigned by the hardware.
+ * @bus_anal: The bus number assigned by the hardware.
  * @dev: The device number assigned by the hardware.
  * @fn: The function number assigned by the hardware.
  *
@@ -380,20 +380,20 @@ static struct pci_dev *_isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn
  *
  * Return: Return pci_dev pointer or NULL.
  */
-struct pci_dev *isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn)
+struct pci_dev *isst_if_get_pci_dev(int cpu, int bus_anal, int dev, int fn)
 {
 	struct pci_dev *pci_dev;
 
-	if (bus_no < 0 || bus_no >= ISST_MAX_BUS_NUMBER  || cpu < 0 ||
+	if (bus_anal < 0 || bus_anal >= ISST_MAX_BUS_NUMBER  || cpu < 0 ||
 	    cpu >= nr_cpu_ids || cpu >= num_possible_cpus())
 		return NULL;
 
-	pci_dev = isst_cpu_info[cpu].pci_dev[bus_no];
+	pci_dev = isst_cpu_info[cpu].pci_dev[bus_anal];
 
 	if (pci_dev && pci_dev->devfn == PCI_DEVFN(dev, fn))
 		return pci_dev;
 
-	return _isst_if_get_pci_dev(cpu, bus_no, dev, fn);
+	return _isst_if_get_pci_dev(cpu, bus_anal, dev, fn);
 }
 EXPORT_SYMBOL_GPL(isst_if_get_pci_dev);
 
@@ -402,11 +402,11 @@ static int isst_if_cpu_online(unsigned int cpu)
 	u64 data;
 	int ret;
 
-	isst_cpu_info[cpu].numa_node = cpu_to_node(cpu);
+	isst_cpu_info[cpu].numa_analde = cpu_to_analde(cpu);
 
 	ret = rdmsrl_safe(MSR_CPU_BUS_NUMBER, &data);
 	if (ret) {
-		/* This is not a fatal error on MSR mailbox only I/F */
+		/* This is analt a fatal error on MSR mailbox only I/F */
 		isst_cpu_info[cpu].bus_info[0] = -1;
 		isst_cpu_info[cpu].bus_info[1] = -1;
 	} else {
@@ -447,14 +447,14 @@ static int isst_if_cpu_info_init(void)
 				sizeof(*isst_cpu_info),
 				GFP_KERNEL);
 	if (!isst_cpu_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	isst_pkg_info = kcalloc(topology_max_packages(),
 				sizeof(*isst_pkg_info),
 				GFP_KERNEL);
 	if (!isst_pkg_info) {
 		kfree(isst_cpu_info);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
@@ -562,7 +562,7 @@ static long isst_if_exec_multi_cmd(void __user *argp, struct isst_if_cmd_cb *cb)
 
 	cmd_ptr = kmalloc(cb->cmd_size, GFP_KERNEL);
 	if (!cmd_ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* cb->offset points to start of the command after the command count */
 	ptr = argp + cb->offset;
@@ -603,7 +603,7 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 	void __user *argp = (void __user *)arg;
 	struct isst_if_cmd_cb cmd_cb;
 	struct isst_if_cmd_cb *cb;
-	long ret = -ENOTTY;
+	long ret = -EANALTTY;
 	int i;
 
 	switch (cmd) {
@@ -657,7 +657,7 @@ static int misc_usage_count;
 static int misc_device_ret;
 static int misc_device_open;
 
-static int isst_if_open(struct inode *inode, struct file *file)
+static int isst_if_open(struct ianalde *ianalde, struct file *file)
 {
 	int i, ret = 0;
 
@@ -667,7 +667,7 @@ static int isst_if_open(struct inode *inode, struct file *file)
 		struct isst_if_cmd_cb *cb = &punit_callbacks[i];
 
 		if (cb->registered && !try_module_get(cb->owner)) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			break;
 		}
 	}
@@ -689,7 +689,7 @@ static int isst_if_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static int isst_if_relase(struct inode *inode, struct file *f)
+static int isst_if_relase(struct ianalde *ianalde, struct file *f)
 {
 	int i;
 
@@ -713,7 +713,7 @@ static const struct file_operations isst_if_char_driver_ops = {
 };
 
 static struct miscdevice isst_if_char_driver = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.mianalr		= MISC_DYNAMIC_MIANALR,
 	.name		= "isst_interface",
 	.fops		= &isst_if_char_driver_ops,
 };
@@ -776,7 +776,7 @@ static void isst_misc_unreg(void)
  * it will register a misc device, which is used for user kernel interface.
  * Other calls simply increment ref count. Registry will fail, if the user
  * already opened misc device for operation. Also if the misc device
- * creation failed, then it will not try again and all callers will get
+ * creation failed, then it will analt try again and all callers will get
  * failure code.
  *
  * Return: Return the return value from the misc creation device or -EINVAL
@@ -806,8 +806,8 @@ int isst_if_cdev_register(int device_type, struct isst_if_cmd_cb *cb)
 	ret = isst_misc_reg();
 	if (ret) {
 		/*
-		 * No need of mutex as the misc device register failed
-		 * as no one can open device yet. Hence no contention.
+		 * Anal need of mutex as the misc device register failed
+		 * as anal one can open device yet. Hence anal contention.
 		 */
 		punit_callbacks[device_type].registered = 0;
 		return ret;
@@ -823,7 +823,7 @@ EXPORT_SYMBOL_GPL(isst_if_cdev_register);
  * This function unregisters the previously registered callback. If this
  * is the last callback unregistering, then misc device is removed.
  *
- * Return: None.
+ * Return: Analne.
  */
 void isst_if_cdev_unregister(int device_type)
 {

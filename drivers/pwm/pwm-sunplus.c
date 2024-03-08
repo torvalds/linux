@@ -10,12 +10,12 @@
  *   https://sunplus.atlassian.net/wiki/spaces/doc/pages/461144198/12.+Pulse+Width+Modulation+PWM
  *
  * Limitations:
- * - Only supports normal polarity.
+ * - Only supports analrmal polarity.
  * - It output low when PWM channel disabled.
- * - When the parameters change, current running period will not be completed
+ * - When the parameters change, current running period will analt be completed
  *     and run new settings immediately.
  * - In .apply() PWM output need to write register FREQ and DUTY. When first write FREQ
- *     done and not yet write DUTY, it has short timing gap use new FREQ and old DUTY.
+ *     done and analt yet write DUTY, it has short timing gap use new FREQ and old DUTY.
  *
  * Author: Hammer Hsieh <hammerh0314@gmail.com>
  */
@@ -87,7 +87,7 @@ static int sunplus_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/*
 	 * With clk_rate limited above we have dd_freq <= state->period,
-	 * so this cannot overflow.
+	 * so this cananalt overflow.
 	 */
 	dd_freq = mul_u64_u64_div_u64(clk_rate, state->period, (u64)SP7021_PWM_FREQ_SCALER
 				* NSEC_PER_SEC);
@@ -155,7 +155,7 @@ static int sunplus_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		state->enabled = false;
 	}
 
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 
 	return 0;
 }
@@ -180,7 +180,7 @@ static int sunplus_pwm_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
@@ -209,7 +209,7 @@ static int sunplus_pwm_probe(struct platform_device *pdev)
 
 	ret = devm_pwmchip_add(dev, &priv->chip);
 	if (ret < 0)
-		return dev_err_probe(dev, ret, "Cannot register sunplus PWM\n");
+		return dev_err_probe(dev, ret, "Cananalt register sunplus PWM\n");
 
 	return 0;
 }

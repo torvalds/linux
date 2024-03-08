@@ -262,7 +262,7 @@ __naked void null_check_ids_in_regsafe(void)
 	/* r6 = ktime_get_ns() */			\
 	call %[bpf_ktime_get_ns];			\
 	r6 = r0;					\
-	/* if r6 > r7 goto +1    ; no new information about the state is derived from\
+	/* if r6 > r7 goto +1    ; anal new information about the state is derived from\
 	 *                       ; this check, thus produced verifier states differ\
 	 *                       ; only in 'insn_idx'	\
 	 * r9 = r8               ; optionally share ID between r9 and r8\
@@ -271,8 +271,8 @@ __naked void null_check_ids_in_regsafe(void)
 	r9 = r8;					\
 l0_%=:	/* if r9 == 0 goto <exit> */			\
 	if r9 == 0 goto l1_%=;				\
-	/* read map value via r8, this is not always	\
-	 * safe because r8 might be not equal to r9.	\
+	/* read map value via r8, this is analt always	\
+	 * safe because r8 might be analt equal to r9.	\
 	 */						\
 	r0 = *(u64*)(r8 + 0);				\
 l1_%=:	/* exit 0 */					\

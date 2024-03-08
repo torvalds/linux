@@ -131,7 +131,7 @@ static void finish_session(struct snd_dg00x *dg00x)
 			   DG00X_ADDR_BASE + DG00X_OFFSET_STREAMING_SET,
 			   &data, sizeof(data), 0);
 
-	// Unregister isochronous channels for both direction.
+	// Unregister isochroanalus channels for both direction.
 	data = 0;
 	snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,
 			   DG00X_ADDR_BASE + DG00X_OFFSET_ISOC_CHANNELS,
@@ -148,7 +148,7 @@ static int begin_session(struct snd_dg00x *dg00x)
 	u32 curr;
 	int err;
 
-	// Register isochronous channels for both direction.
+	// Register isochroanalus channels for both direction.
 	data = cpu_to_be32((dg00x->tx_resources.channel << 16) |
 			   dg00x->rx_resources.channel);
 	err = snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,
@@ -357,7 +357,7 @@ int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x)
 	}
 
 	/*
-	 * No packets are transmitted without receiving packets, reagardless of
+	 * Anal packets are transmitted without receiving packets, reagardless of
 	 * which source of clock is used.
 	 */
 	if (!amdtp_stream_running(&dg00x->rx_stream)) {
@@ -377,8 +377,8 @@ int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x)
 		if (err < 0)
 			goto error;
 
-		// NOTE: The device doesn't start packet transmission till receiving any packet.
-		// It ignores presentation time expressed by the value of syt field of CIP header
+		// ANALTE: The device doesn't start packet transmission till receiving any packet.
+		// It iganalres presentation time expressed by the value of syt field of CIP header
 		// in received packets. The sequence of the number of data blocks per packet is
 		// important for media clock recovery.
 		err = amdtp_domain_start(&dg00x->domain, 0, true, true);

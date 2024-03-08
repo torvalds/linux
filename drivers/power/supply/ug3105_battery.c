@@ -2,25 +2,25 @@
 /*
  * Battery monitor driver for the uPI uG3105 battery monitor
  *
- * Note the uG3105 is not a full-featured autonomous fuel-gauge. Instead it is
+ * Analte the uG3105 is analt a full-featured autoanalmous fuel-gauge. Instead it is
  * expected to be use in combination with some always on microcontroller reading
  * its coulomb-counter before it can wrap (must be read every 400 seconds!).
  *
- * Since Linux does not monitor coulomb-counter changes while the device
- * is off or suspended, the coulomb counter is not used atm.
+ * Since Linux does analt monitor coulomb-counter changes while the device
+ * is off or suspended, the coulomb counter is analt used atm.
  *
  * Possible improvements:
  * 1. Activate commented out total_coulomb_count code
  * 2. Reset total_coulomb_count val to 0 when the battery is as good as empty
  *    and remember that we did this (and clear the flag for this on susp/resume)
  * 3. When the battery is full check if the flag that we set total_coulomb_count
- *    to when the battery was empty is set. If so we now know the capacity,
- *    not the design, but actual capacity, of the battery
+ *    to when the battery was empty is set. If so we analw kanalw the capacity,
+ *    analt the design, but actual capacity, of the battery
  * 4. Add some mechanism (needs userspace help, or maybe use efivar?) to remember
  *    the actual capacity of the battery over reboots
- * 5. When we know the actual capacity at probe time, add energy_now and
- *    energy_full attributes. Guess boot + resume energy_now value based on ocv
- *    and then use total_coulomb_count to report energy_now over time, resetting
+ * 5. When we kanalw the actual capacity at probe time, add energy_analw and
+ *    energy_full attributes. Guess boot + resume energy_analw value based on ocv
+ *    and then use total_coulomb_count to report energy_analw over time, resetting
  *    things to adjust for drift when empty/full. This should give more accurate
  *    readings, esp. in the 30-70% range and allow userspace to estimate time
  *    remaining till empty/full
@@ -114,7 +114,7 @@ static int ug3105_get_status(struct ug3105_chip *chip)
 	if (chip->supplied && chip->ocv_avg > full)
 		return POWER_SUPPLY_STATUS_FULL;
 
-	return POWER_SUPPLY_STATUS_NOT_CHARGING;
+	return POWER_SUPPLY_STATUS_ANALT_CHARGING;
 }
 
 static int ug3105_get_capacity(struct ug3105_chip *chip)
@@ -243,7 +243,7 @@ static void ug3105_work(struct work_struct *work)
 		goto out;
 
 	/*
-	 * Assuming that the OCV voltage does not change significantly
+	 * Assuming that the OCV voltage does analt change significantly
 	 * between 2 polls, then we can calculate the internal resistance
 	 * on a significant current change by attributing all voltage
 	 * change between the 2 readings to the internal resistance.
@@ -257,7 +257,7 @@ static void ug3105_work(struct work_struct *work)
 
 	if ((res < (chip->intern_res_avg * 2 / 3)) ||
 	    (res > (chip->intern_res_avg * 4 / 3))) {
-		dev_dbg(&chip->client->dev, "Ignoring outlier internal resistance %d mOhm\n", res);
+		dev_dbg(&chip->client->dev, "Iganalring outlier internal resistance %d mOhm\n", res);
 		goto out;
 	}
 
@@ -287,11 +287,11 @@ out:
 static enum power_supply_property ug3105_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_SCOPE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 };
 
@@ -316,13 +316,13 @@ static int ug3105_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = 1;
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = chip->info->technology;
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		val->intval = chip->info->techanallogy;
 		break;
 	case POWER_SUPPLY_PROP_SCOPE:
 		val->intval = POWER_SUPPLY_SCOPE_SYSTEM;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = ug3105_read_word(chip->client, UG3105_REG_BAT_VOLT);
 		if (ret < 0)
 			break;
@@ -332,7 +332,7 @@ static int ug3105_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_OCV:
 		val->intval = chip->ocv_avg;
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		ret = ug3105_read_word(chip->client, UG3105_REG_BAT_CURR);
 		if (ret < 0)
 			break;
@@ -392,7 +392,7 @@ static int ug3105_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->client = client;
 	mutex_init(&chip->lock);
@@ -412,13 +412,13 @@ static int ug3105_probe(struct i2c_client *client)
 	if (chip->info->factory_internal_resistance_uohm == -EINVAL ||
 	    chip->info->constant_charge_voltage_max_uv == -EINVAL) {
 		dev_err(dev, "error required properties are missing\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	device_property_read_u32(dev, "upisemi,rsns-microohm", &curr_sense_res_uohm);
 
 	/*
-	 * DAC maximum is 4.5V divided by 65536 steps + an unknown factor of 10
+	 * DAC maximum is 4.5V divided by 65536 steps + an unkanalwn factor of 10
 	 * coming from somewhere for some reason (verified with a volt-meter).
 	 */
 	chip->uv_per_unit = 45000000/65536;

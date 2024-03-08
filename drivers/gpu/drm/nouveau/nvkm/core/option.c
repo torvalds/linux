@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -58,13 +58,13 @@ nvkm_boolopt(const char *optstr, const char *opt, bool value)
 	optstr = nvkm_stropt(optstr, opt, &arglen);
 	if (optstr) {
 		if (!strncasecmpz(optstr, "0", arglen) ||
-		    !strncasecmpz(optstr, "no", arglen) ||
+		    !strncasecmpz(optstr, "anal", arglen) ||
 		    !strncasecmpz(optstr, "off", arglen) ||
 		    !strncasecmpz(optstr, "false", arglen))
 			value = false;
 		else
 		if (!strncasecmpz(optstr, "1", arglen) ||
-		    !strncasecmpz(optstr, "yes", arglen) ||
+		    !strncasecmpz(optstr, "anal", arglen) ||
 		    !strncasecmpz(optstr, "on", arglen) ||
 		    !strncasecmpz(optstr, "true", arglen))
 			value = true;
@@ -94,7 +94,7 @@ nvkm_longopt(const char *optstr, const char *opt, long value)
 int
 nvkm_dbgopt(const char *optstr, const char *sub)
 {
-	int mode = 1, level = CONFIG_NOUVEAU_DEBUG_DEFAULT;
+	int mode = 1, level = CONFIG_ANALUVEAU_DEBUG_DEFAULT;
 
 	while (optstr) {
 		int len = strcspn(optstr, ",=");
@@ -118,8 +118,8 @@ nvkm_dbgopt(const char *optstr, const char *sub)
 					level = NV_DBG_DEBUG;
 				else if (!strncasecmpz(optstr, "trace", len))
 					level = NV_DBG_TRACE;
-				else if (!strncasecmpz(optstr, "paranoia", len))
-					level = NV_DBG_PARANOIA;
+				else if (!strncasecmpz(optstr, "paraanalia", len))
+					level = NV_DBG_PARAANALIA;
 				else if (!strncasecmpz(optstr, "spam", len))
 					level = NV_DBG_SPAM;
 			}

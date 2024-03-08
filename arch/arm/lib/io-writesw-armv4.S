@@ -20,7 +20,7 @@
 		.endm
 
 .Loutsw_align:	movs	ip, r1, lsl #31
-		bne	.Loutsw_noalign
+		bne	.Loutsw_analalign
 
 		ldrh	r3, [r1], #2
 		sub	r2, r2, #1
@@ -35,7 +35,7 @@ ENTRY(__raw_writesw)
 		stmfd	sp!, {r4, r5, lr}
 
 		subs	r2, r2, #8
-		bmi	.Lno_outsw_8
+		bmi	.Lanal_outsw_8
 
 .Loutsw_8_lp:	ldmia	r1!, {r3, r4, r5, ip}
 		subs	r2, r2, #8
@@ -45,20 +45,20 @@ ENTRY(__raw_writesw)
 		outword	ip
 		bpl	.Loutsw_8_lp
 
-.Lno_outsw_8:	tst	r2, #4
-		beq	.Lno_outsw_4
+.Lanal_outsw_8:	tst	r2, #4
+		beq	.Lanal_outsw_4
 
 		ldmia	r1!, {r3, ip}
 		outword	r3
 		outword	ip
 
-.Lno_outsw_4:	movs	r2, r2, lsl #31
-		bcc	.Lno_outsw_2
+.Lanal_outsw_4:	movs	r2, r2, lsl #31
+		bcc	.Lanal_outsw_2
 
 		ldr	r3, [r1], #4
 		outword	r3
 
-.Lno_outsw_2:	ldrhne	r3, [r1]
+.Lanal_outsw_2:	ldrhne	r3, [r1]
 		strhne	r3, [r0]
 
 		ldmfd	sp!, {r4, r5, pc}
@@ -71,7 +71,7 @@ ENTRY(__raw_writesw)
 #define push_hbyte1	lsl #8
 #endif
 
-.Loutsw_noalign:
+.Loutsw_analalign:
  ARM(		ldr	r3, [r1, -r3]!	)
  THUMB(		rsb	r3, r3, #0	)
  THUMB(		ldr	r3, [r1, r3]	)

@@ -12,7 +12,7 @@ maintainers:
 description:
   This is a system control registers block, providing multiple low level
   platform functions like board detection and identification, software
-  interrupt generation, MMC and NOR Flash control, etc.
+  interrupt generation, MMC and ANALR Flash control, etc.
 
 properties:
   compatible:

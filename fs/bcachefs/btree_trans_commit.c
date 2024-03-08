@@ -26,7 +26,7 @@ static void verify_update_old_key(struct btree_trans *trans, struct btree_insert
 	struct bkey u;
 	struct bkey_s_c k = bch2_btree_path_peek_slot_exact(trans->paths + i->path, &u);
 
-	if (unlikely(trans->journal_replay_not_finished)) {
+	if (unlikely(trans->journal_replay_analt_finished)) {
 		struct bkey_i *j_k =
 			bch2_journal_keys_peek_slot(c, i->btree_id, i->level, i->k->k.p);
 
@@ -61,15 +61,15 @@ static inline bool same_leaf_as_next(struct btree_trans *trans,
 		insert_l(trans, &i[0])->b == insert_l(trans, &i[1])->b;
 }
 
-inline void bch2_btree_node_prep_for_write(struct btree_trans *trans,
+inline void bch2_btree_analde_prep_for_write(struct btree_trans *trans,
 					   struct btree_path *path,
 					   struct btree *b)
 {
 	struct bch_fs *c = trans->c;
 
-	if (unlikely(btree_node_just_written(b)) &&
+	if (unlikely(btree_analde_just_written(b)) &&
 	    bch2_btree_post_write_cleanup(c, b))
-		bch2_trans_node_reinit_iter(trans, b);
+		bch2_trans_analde_reinit_iter(trans, b);
 
 	/*
 	 * If the last bset has been written, or if it's gotten too big - start
@@ -79,13 +79,13 @@ inline void bch2_btree_node_prep_for_write(struct btree_trans *trans,
 		bch2_btree_init_next(trans, b);
 }
 
-static noinline int trans_lock_write_fail(struct btree_trans *trans, struct btree_insert_entry *i)
+static analinline int trans_lock_write_fail(struct btree_trans *trans, struct btree_insert_entry *i)
 {
 	while (--i >= trans->updates) {
 		if (same_leaf_as_prev(trans, i))
 			continue;
 
-		bch2_btree_node_unlock_write(trans, trans->paths + i->path, insert_l(trans, i)->b);
+		bch2_btree_analde_unlock_write(trans, trans->paths + i->path, insert_l(trans, i)->b);
 	}
 
 	trace_and_count(trans->c, trans_restart_would_deadlock_write, trans);
@@ -100,11 +100,11 @@ static inline int bch2_trans_lock_write(struct btree_trans *trans)
 		if (same_leaf_as_prev(trans, i))
 			continue;
 
-		if (bch2_btree_node_lock_write(trans, trans->paths + i->path, &insert_l(trans, i)->b->c))
+		if (bch2_btree_analde_lock_write(trans, trans->paths + i->path, &insert_l(trans, i)->b->c))
 			return trans_lock_write_fail(trans, i);
 
 		if (!i->cached)
-			bch2_btree_node_prep_for_write(trans, trans->paths + i->path, insert_l(trans, i)->b);
+			bch2_btree_analde_prep_for_write(trans, trans->paths + i->path, insert_l(trans, i)->b);
 	}
 
 	trans->write_locked = true;
@@ -116,25 +116,25 @@ static inline void bch2_trans_unlock_write(struct btree_trans *trans)
 	if (likely(trans->write_locked)) {
 		trans_for_each_update(trans, i)
 			if (!same_leaf_as_prev(trans, i))
-				bch2_btree_node_unlock_write_inlined(trans,
+				bch2_btree_analde_unlock_write_inlined(trans,
 						trans->paths + i->path, insert_l(trans, i)->b);
 		trans->write_locked = false;
 	}
 }
 
-/* Inserting into a given leaf node (last stage of insert): */
+/* Inserting into a given leaf analde (last stage of insert): */
 
-/* Handle overwrites and do insert, for non extents: */
+/* Handle overwrites and do insert, for analn extents: */
 bool bch2_btree_bset_insert_key(struct btree_trans *trans,
 				struct btree_path *path,
 				struct btree *b,
-				struct btree_node_iter *node_iter,
+				struct btree_analde_iter *analde_iter,
 				struct bkey_i *insert)
 {
 	struct bkey_packed *k;
 	unsigned clobber_u64s = 0, new_u64s = 0;
 
-	EBUG_ON(btree_node_just_written(b));
+	EBUG_ON(btree_analde_just_written(b));
 	EBUG_ON(bset_written(b, btree_bset_last(b)));
 	EBUG_ON(bkey_deleted(&insert->k) && bkey_val_u64s(&insert->k));
 	EBUG_ON(bpos_lt(insert->k.p, b->data->min_key));
@@ -142,14 +142,14 @@ bool bch2_btree_bset_insert_key(struct btree_trans *trans,
 	EBUG_ON(insert->k.u64s > bch2_btree_keys_u64s_remaining(b));
 	EBUG_ON(!b->c.level && !bpos_eq(insert->k.p, path->pos));
 
-	k = bch2_btree_node_iter_peek_all(node_iter, b);
+	k = bch2_btree_analde_iter_peek_all(analde_iter, b);
 	if (k && bkey_cmp_left_packed(b, k, &insert->k.p))
 		k = NULL;
 
 	/* @k is the key being overwritten/deleted, if any: */
 	EBUG_ON(k && bkey_deleted(k));
 
-	/* Deleting, but not found? nothing to do: */
+	/* Deleting, but analt found? analthing to do: */
 	if (bkey_deleted(&insert->k) && !k)
 		return false;
 
@@ -189,18 +189,18 @@ bool bch2_btree_bset_insert_key(struct btree_trans *trans,
 		}
 	}
 
-	k = bch2_btree_node_iter_bset_pos(node_iter, b, bset_tree_last(b));
+	k = bch2_btree_analde_iter_bset_pos(analde_iter, b, bset_tree_last(b));
 overwrite:
-	bch2_bset_insert(b, node_iter, k, insert, clobber_u64s);
+	bch2_bset_insert(b, analde_iter, k, insert, clobber_u64s);
 	new_u64s = k->u64s;
 fix_iter:
 	if (clobber_u64s != new_u64s)
-		bch2_btree_node_iter_fix(trans, path, b, node_iter, k,
+		bch2_btree_analde_iter_fix(trans, path, b, analde_iter, k,
 					 clobber_u64s, new_u64s);
 	return true;
 }
 
-static int __btree_node_flush(struct journal *j, struct journal_entry_pin *pin,
+static int __btree_analde_flush(struct journal *j, struct journal_entry_pin *pin,
 			       unsigned i, u64 seq)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
@@ -210,37 +210,37 @@ static int __btree_node_flush(struct journal *j, struct journal_entry_pin *pin,
 	unsigned long old, new, v;
 	unsigned idx = w - b->writes;
 
-	btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_read);
+	btree_analde_lock_analpath_analfail(trans, &b->c, SIX_LOCK_read);
 	v = READ_ONCE(b->flags);
 
 	do {
 		old = new = v;
 
-		if (!(old & (1 << BTREE_NODE_dirty)) ||
-		    !!(old & (1 << BTREE_NODE_write_idx)) != idx ||
+		if (!(old & (1 << BTREE_ANALDE_dirty)) ||
+		    !!(old & (1 << BTREE_ANALDE_write_idx)) != idx ||
 		    w->journal.seq != seq)
 			break;
 
 		new &= ~BTREE_WRITE_TYPE_MASK;
 		new |= BTREE_WRITE_journal_reclaim;
-		new |= 1 << BTREE_NODE_need_write;
+		new |= 1 << BTREE_ANALDE_need_write;
 	} while ((v = cmpxchg(&b->flags, old, new)) != old);
 
-	btree_node_write_if_need(c, b, SIX_LOCK_read);
+	btree_analde_write_if_need(c, b, SIX_LOCK_read);
 	six_unlock_read(&b->c.lock);
 
 	bch2_trans_put(trans);
 	return 0;
 }
 
-int bch2_btree_node_flush0(struct journal *j, struct journal_entry_pin *pin, u64 seq)
+int bch2_btree_analde_flush0(struct journal *j, struct journal_entry_pin *pin, u64 seq)
 {
-	return __btree_node_flush(j, pin, 0, seq);
+	return __btree_analde_flush(j, pin, 0, seq);
 }
 
-int bch2_btree_node_flush1(struct journal *j, struct journal_entry_pin *pin, u64 seq)
+int bch2_btree_analde_flush1(struct journal *j, struct journal_entry_pin *pin, u64 seq)
 {
-	return __btree_node_flush(j, pin, 1, seq);
+	return __btree_analde_flush(j, pin, 1, seq);
 }
 
 inline void bch2_btree_add_journal_pin(struct bch_fs *c,
@@ -249,13 +249,13 @@ inline void bch2_btree_add_journal_pin(struct bch_fs *c,
 	struct btree_write *w = btree_current_write(b);
 
 	bch2_journal_pin_add(&c->journal, seq, &w->journal,
-			     btree_node_write_idx(b) == 0
-			     ? bch2_btree_node_flush0
-			     : bch2_btree_node_flush1);
+			     btree_analde_write_idx(b) == 0
+			     ? bch2_btree_analde_flush0
+			     : bch2_btree_analde_flush1);
 }
 
 /**
- * bch2_btree_insert_key_leaf() - insert a key one key into a leaf node
+ * bch2_btree_insert_key_leaf() - insert a key one key into a leaf analde
  * @trans:		btree transaction object
  * @path:		path pointing to @insert's pos
  * @insert:		key to insert
@@ -282,9 +282,9 @@ inline void bch2_btree_insert_key_leaf(struct btree_trans *trans,
 
 	bch2_btree_add_journal_pin(c, b, journal_seq);
 
-	if (unlikely(!btree_node_dirty(b))) {
+	if (unlikely(!btree_analde_dirty(b))) {
 		EBUG_ON(test_bit(BCH_FS_clean_shutdown, &c->flags));
-		set_btree_node_dirty_acct(c, b);
+		set_btree_analde_dirty_acct(c, b);
 	}
 
 	live_u64s_added = (int) b->nr.live_u64s - old_live_u64s;
@@ -297,12 +297,12 @@ inline void bch2_btree_insert_key_leaf(struct btree_trans *trans,
 
 	if (u64s_added > live_u64s_added &&
 	    bch2_maybe_compact_whiteouts(c, b))
-		bch2_trans_node_reinit_iter(trans, b);
+		bch2_trans_analde_reinit_iter(trans, b);
 }
 
 /* Cached btree updates: */
 
-/* Normal update interface: */
+/* Analrmal update interface: */
 
 static inline void btree_insert_entry_checks(struct btree_trans *trans,
 					     struct btree_insert_entry *i)
@@ -315,10 +315,10 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 	BUG_ON(i->btree_id	!= path->btree_id);
 	EBUG_ON(!i->level &&
 		btree_type_has_snapshots(i->btree_id) &&
-		!(i->flags & BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) &&
+		!(i->flags & BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE) &&
 		test_bit(JOURNAL_REPLAY_DONE, &trans->c->journal.flags) &&
 		i->k->k.p.snapshot &&
-		bch2_snapshot_is_internal_node(trans->c, i->k->k.p.snapshot));
+		bch2_snapshot_is_internal_analde(trans->c, i->k->k.p.snapshot));
 }
 
 static __always_inline int bch2_trans_journal_res_get(struct btree_trans *trans,
@@ -330,7 +330,7 @@ static __always_inline int bch2_trans_journal_res_get(struct btree_trans *trans,
 
 #define JSET_ENTRY_LOG_U64s		4
 
-static noinline void journal_transaction_name(struct btree_trans *trans)
+static analinline void journal_transaction_name(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
 	struct journal *j = &c->journal;
@@ -347,13 +347,13 @@ static noinline void journal_transaction_name(struct btree_trans *trans)
 static inline int btree_key_can_insert(struct btree_trans *trans,
 				       struct btree *b, unsigned u64s)
 {
-	if (!bch2_btree_node_insert_fits(b, u64s))
-		return -BCH_ERR_btree_insert_btree_node_full;
+	if (!bch2_btree_analde_insert_fits(b, u64s))
+		return -BCH_ERR_btree_insert_btree_analde_full;
 
 	return 0;
 }
 
-noinline static int
+analinline static int
 btree_key_can_insert_cached_slowpath(struct btree_trans *trans, unsigned flags,
 				     struct btree_path *path, unsigned new_u64s)
 {
@@ -368,7 +368,7 @@ btree_key_can_insert_cached_slowpath(struct btree_trans *trans, unsigned flags,
 	if (!new_k) {
 		bch_err(trans->c, "error allocating memory for key cache key, btree %s u64s %u",
 			bch2_btree_id_str(path->btree_id), new_u64s);
-		return -BCH_ERR_ENOMEM_btree_key_cache_insert;
+		return -BCH_ERR_EANALMEM_btree_key_cache_insert;
 	}
 
 	ret =   bch2_trans_relock(trans) ?:
@@ -415,7 +415,7 @@ static int btree_key_can_insert_cached(struct btree_trans *trans, unsigned flags
 		return 0;
 
 	new_u64s	= roundup_pow_of_two(u64s);
-	new_k		= krealloc(ck->k, new_u64s * sizeof(u64), GFP_NOWAIT|__GFP_NOWARN);
+	new_k		= krealloc(ck->k, new_u64s * sizeof(u64), GFP_ANALWAIT|__GFP_ANALWARN);
 	if (unlikely(!new_k))
 		return btree_key_can_insert_cached_slowpath(trans, flags, path, new_u64s);
 
@@ -442,7 +442,7 @@ static int run_one_mem_trigger(struct btree_trans *trans,
 
 	verify_update_old_key(trans, i);
 
-	if (unlikely(flags & BTREE_TRIGGER_NORUN))
+	if (unlikely(flags & BTREE_TRIGGER_ANALRUN))
 		return 0;
 
 	if (old_ops->trigger == new_ops->trigger) {
@@ -475,8 +475,8 @@ static int run_one_trans_trigger(struct btree_trans *trans, struct btree_insert_
 
 	verify_update_old_key(trans, i);
 
-	if ((i->flags & BTREE_TRIGGER_NORUN) ||
-	    !(BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->bkey_type)))
+	if ((i->flags & BTREE_TRIGGER_ANALRUN) ||
+	    !(BTREE_ANALDE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->bkey_type)))
 		return 0;
 
 	if (!i->insert_trigger_run &&
@@ -571,24 +571,24 @@ static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 
 #ifdef CONFIG_BCACHEFS_DEBUG
 	trans_for_each_update(trans, i)
-		BUG_ON(!(i->flags & BTREE_TRIGGER_NORUN) &&
-		       (BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->bkey_type)) &&
+		BUG_ON(!(i->flags & BTREE_TRIGGER_ANALRUN) &&
+		       (BTREE_ANALDE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->bkey_type)) &&
 		       (!i->insert_trigger_run || !i->overwrite_trigger_run));
 #endif
 	return 0;
 }
 
-static noinline int bch2_trans_commit_run_gc_triggers(struct btree_trans *trans)
+static analinline int bch2_trans_commit_run_gc_triggers(struct btree_trans *trans)
 {
 	trans_for_each_update(trans, i) {
 		/*
 		 * XXX: synchronization of cached update triggers with gc
-		 * XXX: synchronization of interior node updates with gc
+		 * XXX: synchronization of interior analde updates with gc
 		 */
 		BUG_ON(i->cached || i->level);
 
-		if (btree_node_type_needs_gc(__btree_node_type(i->level, i->btree_id)) &&
-		    gc_visited(trans->c, gc_pos_btree_node(insert_l(trans, i)->b))) {
+		if (btree_analde_type_needs_gc(__btree_analde_type(i->level, i->btree_id)) &&
+		    gc_visited(trans->c, gc_pos_btree_analde(insert_l(trans, i)->b))) {
 			int ret = run_one_mem_trigger(trans, i, i->flags|BTREE_TRIGGER_GC);
 			if (ret)
 				return ret;
@@ -610,12 +610,12 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 
 	if (race_fault()) {
 		trace_and_count(c, trans_restart_fault_inject, trans, trace_ip);
-		return btree_trans_restart_nounlock(trans, BCH_ERR_transaction_restart_fault_inject);
+		return btree_trans_restart_analunlock(trans, BCH_ERR_transaction_restart_fault_inject);
 	}
 
 	/*
-	 * Check if the insert will fit in the leaf node with the write lock
-	 * held, otherwise another thread could write the node changing the
+	 * Check if the insert will fit in the leaf analde with the write lock
+	 * held, otherwise aanalther thread could write the analde changing the
 	 * amount of space available:
 	 */
 
@@ -639,13 +639,13 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	}
 
 	/*
-	 * Don't get journal reservation until after we know insert will
+	 * Don't get journal reservation until after we kanalw insert will
 	 * succeed:
 	 */
-	if (likely(!(flags & BCH_TRANS_COMMIT_no_journal_res))) {
+	if (likely(!(flags & BCH_TRANS_COMMIT_anal_journal_res))) {
 		ret = bch2_trans_journal_res_get(trans,
 				(flags & BCH_WATERMARK_MASK)|
-				JOURNAL_RES_GET_NONBLOCK);
+				JOURNAL_RES_GET_ANALNBLOCK);
 		if (ret)
 			return ret;
 
@@ -654,12 +654,12 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	}
 
 	/*
-	 * Not allowed to fail after we've gotten our journal reservation - we
+	 * Analt allowed to fail after we've gotten our journal reservation - we
 	 * have to use it:
 	 */
 
 	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) &&
-	    !(flags & BCH_TRANS_COMMIT_no_journal_res)) {
+	    !(flags & BCH_TRANS_COMMIT_anal_journal_res)) {
 		if (bch2_journal_seq_verify)
 			trans_for_each_update(trans, i)
 				i->k->k.version.lo = trans->journal_res.seq;
@@ -672,7 +672,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	    bch2_trans_fs_usage_apply(trans, trans->fs_usage_deltas))
 		return -BCH_ERR_btree_insert_need_mark_replicas;
 
-	/* XXX: we only want to run this if deltas are nonzero */
+	/* XXX: we only want to run this if deltas are analnzero */
 	bch2_trans_account_disk_usage_change(trans);
 
 	h = trans->hooks;
@@ -684,7 +684,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	}
 
 	trans_for_each_update(trans, i)
-		if (BTREE_NODE_TYPE_HAS_ATOMIC_TRIGGERS & (1U << i->bkey_type)) {
+		if (BTREE_ANALDE_TYPE_HAS_ATOMIC_TRIGGERS & (1U << i->bkey_type)) {
 			ret = run_one_mem_trigger(trans, i, BTREE_TRIGGER_ATOMIC|i->flags);
 			if (ret)
 				goto fatal_err;
@@ -696,7 +696,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 			goto fatal_err;
 	}
 
-	if (likely(!(flags & BCH_TRANS_COMMIT_no_journal_res))) {
+	if (likely(!(flags & BCH_TRANS_COMMIT_anal_journal_res))) {
 		struct journal *j = &c->journal;
 		struct jset_entry *entry;
 
@@ -704,7 +704,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 			if (i->key_cache_already_flushed)
 				continue;
 
-			if (i->flags & BTREE_UPDATE_NOJOURNAL)
+			if (i->flags & BTREE_UPDATE_ANALJOURNAL)
 				continue;
 
 			verify_update_old_key(trans, i);
@@ -758,13 +758,13 @@ revert_fs_usage:
 	return ret;
 }
 
-static noinline void bch2_drop_overwrites_from_journal(struct btree_trans *trans)
+static analinline void bch2_drop_overwrites_from_journal(struct btree_trans *trans)
 {
 	trans_for_each_update(trans, i)
 		bch2_journal_key_overwritten(trans->c, i->btree_id, i->level, i->k->k.p);
 }
 
-static noinline int bch2_trans_commit_bkey_invalid(struct btree_trans *trans,
+static analinline int bch2_trans_commit_bkey_invalid(struct btree_trans *trans,
 						   enum bkey_invalid_flags flags,
 						   struct btree_insert_entry *i,
 						   struct printbuf *err)
@@ -789,7 +789,7 @@ static noinline int bch2_trans_commit_bkey_invalid(struct btree_trans *trans,
 	return -EINVAL;
 }
 
-static noinline int bch2_trans_commit_journal_entry_invalid(struct btree_trans *trans,
+static analinline int bch2_trans_commit_journal_entry_invalid(struct btree_trans *trans,
 						   struct jset_entry *i)
 {
 	struct bch_fs *c = trans->c;
@@ -851,7 +851,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 
 	ret = bch2_trans_commit_write_locked(trans, flags, stopped_at, trace_ip);
 
-	if (!ret && unlikely(trans->journal_replay_not_finished))
+	if (!ret && unlikely(trans->journal_replay_analt_finished))
 		bch2_drop_overwrites_from_journal(trans);
 
 	bch2_trans_unlock_write(trans);
@@ -865,7 +865,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 	 * Drop journal reservation after dropping write locks, since dropping
 	 * the journal reservation may kick off a journal write:
 	 */
-	if (likely(!(flags & BCH_TRANS_COMMIT_no_journal_res)))
+	if (likely(!(flags & BCH_TRANS_COMMIT_anal_journal_res)))
 		bch2_journal_res_put(&c->journal, &trans->journal_res);
 
 	return ret;
@@ -881,7 +881,7 @@ static int journal_reclaim_wait_done(struct bch_fs *c)
 	return ret;
 }
 
-static noinline
+static analinline
 int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 			    struct btree_insert_entry *i,
 			    int ret, unsigned long trace_ip)
@@ -889,10 +889,10 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 	struct bch_fs *c = trans->c;
 
 	switch (ret) {
-	case -BCH_ERR_btree_insert_btree_node_full:
+	case -BCH_ERR_btree_insert_btree_analde_full:
 		ret = bch2_btree_split_leaf(trans, i->path, flags);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-			trace_and_count(c, trans_restart_btree_node_split, trans,
+			trace_and_count(c, trans_restart_btree_analde_split, trans,
 					trace_ip, trans->paths + i->path);
 		break;
 	case -BCH_ERR_btree_insert_need_mark_replicas:
@@ -901,7 +901,7 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 		break;
 	case -BCH_ERR_journal_res_get_blocked:
 		/*
-		 * XXX: this should probably be a separate BTREE_INSERT_NONBLOCK
+		 * XXX: this should probably be a separate BTREE_INSERT_ANALNBLOCK
 		 * flag
 		 */
 		if ((flags & BCH_TRANS_COMMIT_journal_reclaim) &&
@@ -934,14 +934,14 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 
 	BUG_ON(bch2_err_matches(ret, BCH_ERR_transaction_restart) != !!trans->restarted);
 
-	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOSPC) &&
-				(flags & BCH_TRANS_COMMIT_no_enospc), c,
+	bch2_fs_inconsistent_on(bch2_err_matches(ret, EANALSPC) &&
+				(flags & BCH_TRANS_COMMIT_anal_eanalspc), c,
 		"%s: incorrectly got %s\n", __func__, bch2_err_str(ret));
 
 	return ret;
 }
 
-static noinline int
+static analinline int
 bch2_trans_commit_get_rw_cold(struct btree_trans *trans, unsigned flags)
 {
 	struct bch_fs *c = trans->c;
@@ -964,7 +964,7 @@ bch2_trans_commit_get_rw_cold(struct btree_trans *trans, unsigned flags)
  * gone RW. we only add the new key to the list of keys for journal replay to
  * do.
  */
-static noinline int
+static analinline int
 do_bch2_trans_commit_to_journal_replay(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
@@ -999,7 +999,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 		struct printbuf buf = PRINTBUF;
 		enum bkey_invalid_flags invalid_flags = 0;
 
-		if (!(flags & BCH_TRANS_COMMIT_no_journal_res))
+		if (!(flags & BCH_TRANS_COMMIT_anal_journal_res))
 			invalid_flags |= BKEY_INVALID_WRITE|BKEY_INVALID_COMMIT;
 
 		if (unlikely(bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
@@ -1017,7 +1017,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 	     i = vstruct_next(i)) {
 		enum bkey_invalid_flags invalid_flags = 0;
 
-		if (!(flags & BCH_TRANS_COMMIT_no_journal_res))
+		if (!(flags & BCH_TRANS_COMMIT_anal_journal_res))
 			invalid_flags |= BKEY_INVALID_WRITE|BKEY_INVALID_COMMIT;
 
 		if (unlikely(bch2_journal_entry_validate(c, NULL, i,
@@ -1034,7 +1034,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 		goto out_reset;
 	}
 
-	if (!(flags & BCH_TRANS_COMMIT_no_check_rw) &&
+	if (!(flags & BCH_TRANS_COMMIT_anal_check_rw) &&
 	    unlikely(!bch2_write_ref_tryget(c, BCH_WRITE_REF_trans))) {
 		ret = bch2_trans_commit_get_rw_cold(trans, flags);
 		if (ret)
@@ -1057,12 +1057,12 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 		if (unlikely(ret))
 			goto out;
 
-		EBUG_ON(!btree_node_intent_locked(path, i->level));
+		EBUG_ON(!btree_analde_intent_locked(path, i->level));
 
 		if (i->key_cache_already_flushed)
 			continue;
 
-		if (i->flags & BTREE_UPDATE_NOJOURNAL)
+		if (i->flags & BTREE_UPDATE_ANALJOURNAL)
 			continue;
 
 		/* we're going to journal the key being updated: */
@@ -1076,15 +1076,15 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 	if (trans->extra_disk_res) {
 		ret = bch2_disk_reservation_add(c, trans->disk_res,
 				trans->extra_disk_res,
-				(flags & BCH_TRANS_COMMIT_no_enospc)
-				? BCH_DISK_RESERVATION_NOFAIL : 0);
+				(flags & BCH_TRANS_COMMIT_anal_eanalspc)
+				? BCH_DISK_RESERVATION_ANALFAIL : 0);
 		if (ret)
 			goto err;
 	}
 retry:
 	errored_at = NULL;
-	bch2_trans_verify_not_in_restart(trans);
-	if (likely(!(flags & BCH_TRANS_COMMIT_no_journal_res)))
+	bch2_trans_verify_analt_in_restart(trans);
+	if (likely(!(flags & BCH_TRANS_COMMIT_anal_journal_res)))
 		memset(&trans->journal_res, 0, sizeof(trans->journal_res));
 
 	ret = do_bch2_trans_commit(trans, flags, &errored_at, _RET_IP_);
@@ -1097,7 +1097,7 @@ retry:
 
 	trace_and_count(c, transaction_commit, trans, _RET_IP_);
 out:
-	if (likely(!(flags & BCH_TRANS_COMMIT_no_check_rw)))
+	if (likely(!(flags & BCH_TRANS_COMMIT_anal_check_rw)))
 		bch2_write_ref_put(c, BCH_WRITE_REF_trans);
 out_reset:
 	if (!ret)
@@ -1111,13 +1111,13 @@ err:
 		goto out;
 
 	/*
-	 * We might have done another transaction commit in the error path -
+	 * We might have done aanalther transaction commit in the error path -
 	 * i.e. btree write buffer flush - which will have made use of
-	 * trans->journal_res, but with BCH_TRANS_COMMIT_no_journal_res that is
+	 * trans->journal_res, but with BCH_TRANS_COMMIT_anal_journal_res that is
 	 * how the journal sequence number to pin is passed in - so we must
 	 * restart:
 	 */
-	if (flags & BCH_TRANS_COMMIT_no_journal_res) {
+	if (flags & BCH_TRANS_COMMIT_anal_journal_res) {
 		ret = -BCH_ERR_transaction_restart_nested;
 		goto out;
 	}

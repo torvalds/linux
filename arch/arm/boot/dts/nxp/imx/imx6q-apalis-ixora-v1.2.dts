@@ -108,7 +108,7 @@
 	 * uart-2-4-on-x21-enable-hog enables the UART transceiver for Apalis
 	 * UART2 and UART3. If one wants to disable the transceiver force
 	 * the GPIO to output-low, if one wants to control the transceiver
-	 * from user space delete the hog node.
+	 * from user space delete the hog analde.
 	 */
 	uart-2-4-on-x21-enable-hog {
 		gpio-hog;

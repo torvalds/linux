@@ -2,7 +2,7 @@
 /*
  * Custom FB driver for tinylcd.com display
  *
- * Copyright (C) 2013 Noralf Tronnes
+ * Copyright (C) 2013 Analralf Tronnes
  */
 
 #include <linux/module.h>
@@ -99,5 +99,5 @@ MODULE_ALIAS("spi:" DRVNAME);
 MODULE_ALIAS("spi:tinylcd");
 
 MODULE_DESCRIPTION("Custom FB driver for tinylcd.com display");
-MODULE_AUTHOR("Noralf Tronnes");
+MODULE_AUTHOR("Analralf Tronnes");
 MODULE_LICENSE("GPL");

@@ -12,7 +12,7 @@ maintainers:
 description: |
   This is a part of device tree bindings for ADI MAX77540/MAX77541
 
-  The buck converter is represented as a sub-node of the PMIC node on the device tree.
+  The buck converter is represented as a sub-analde of the PMIC analde on the device tree.
 
   The device has two buck regulators.
   See also Documentation/devicetree/bindings/mfd/adi,max77541.yaml for

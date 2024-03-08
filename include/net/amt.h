@@ -44,7 +44,7 @@ enum amt_filter {
 	AMT_FILTER_FWD_NEW,
 	AMT_FILTER_D_FWD_NEW,
 	AMT_FILTER_ALL,
-	AMT_FILTER_NONE_NEW,
+	AMT_FILTER_ANALNE_NEW,
 	AMT_FILTER_BOTH,
 	AMT_FILTER_BOTH_NEW,
 	__AMT_FILTER_MAX,
@@ -58,7 +58,7 @@ enum amt_act {
 	AMT_ACT_GT,
 	AMT_ACT_STATUS_FWD_NEW,
 	AMT_ACT_STATUS_D_FWD_NEW,
-	AMT_ACT_STATUS_NONE_NEW,
+	AMT_ACT_STATUS_ANALNE_NEW,
 	__AMT_ACT_MAX,
 };
 
@@ -83,7 +83,7 @@ enum amt_status {
 
 /* Gateway events only */
 enum amt_event {
-	AMT_EVENT_NONE,
+	AMT_EVENT_ANALNE,
 	AMT_EVENT_RECEIVE,
 	AMT_EVENT_SEND_DISCOVERY,
 	AMT_EVENT_SEND_REQUEST,
@@ -114,7 +114,7 @@ struct amt_header_discovery {
 #else
 #error  "Please fix <asm/byteorder.h>"
 #endif
-	__be32	nonce;
+	__be32	analnce;
 } __packed;
 
 struct amt_header_advertisement {
@@ -129,7 +129,7 @@ struct amt_header_advertisement {
 #else
 #error  "Please fix <asm/byteorder.h>"
 #endif
-	__be32	nonce;
+	__be32	analnce;
 	__be32	ip4;
 } __packed;
 
@@ -149,7 +149,7 @@ struct amt_header_request {
 #else
 #error  "Please fix <asm/byteorder.h>"
 #endif
-	__be32	nonce;
+	__be32	analnce;
 } __packed;
 
 struct amt_header_membership_query {
@@ -170,7 +170,7 @@ struct amt_header_membership_query {
 #else
 #error  "Please fix <asm/byteorder.h>"
 #endif
-	__be32	nonce;
+	__be32	analnce;
 } __packed;
 
 struct amt_header_membership_update {
@@ -187,7 +187,7 @@ struct amt_header_membership_update {
 #else
 #error  "Please fix <asm/byteorder.h>"
 #endif
-	__be32	nonce;
+	__be32	analnce;
 } __packed;
 
 struct amt_header_mcast_data {
@@ -246,7 +246,7 @@ struct amt_tunnel_list {
 	struct delayed_work	gc_wq;
 	__be16			source_port;
 	__be32			ip4;
-	__be32			nonce;
+	__be32			analnce;
 	siphash_key_t		key;
 	u64			mac:48,
 				reserved:16;
@@ -264,22 +264,22 @@ union amt_addr {
 /* RFC 3810
  *
  * When the router is in EXCLUDE mode, the router state is represented
- * by the notation EXCLUDE (X,Y), where X is called the "Requested List"
+ * by the analtation EXCLUDE (X,Y), where X is called the "Requested List"
  * and Y is called the "Exclude List".  All sources, except those from
  * the Exclude List, will be forwarded by the router
  */
 enum amt_source_status {
-	AMT_SOURCE_STATUS_NONE,
-	/* Node of Requested List */
+	AMT_SOURCE_STATUS_ANALNE,
+	/* Analde of Requested List */
 	AMT_SOURCE_STATUS_FWD,
-	/* Node of Exclude List */
+	/* Analde of Exclude List */
 	AMT_SOURCE_STATUS_D_FWD,
 };
 
-/* protected by gnode->lock */
-struct amt_source_node {
-	struct hlist_node	node;
-	struct amt_group_node	*gnode;
+/* protected by ganalde->lock */
+struct amt_source_analde {
+	struct hlist_analde	analde;
+	struct amt_group_analde	*ganalde;
 	struct delayed_work     source_timer;
 	union amt_addr		source_addr;
 	enum amt_source_status	status;
@@ -290,7 +290,7 @@ struct amt_source_node {
 };
 
 /* Protected by amt_tunnel_list->lock */
-struct amt_group_node {
+struct amt_group_analde {
 	struct amt_dev		*amt;
 	union amt_addr		group_addr;
 	union amt_addr		host_addr;
@@ -298,7 +298,7 @@ struct amt_group_node {
 	u8			filter_mode;
 	u32			nr_sources;
 	struct amt_tunnel_list	*tunnel_list;
-	struct hlist_node	node;
+	struct hlist_analde	analde;
 	struct delayed_work     group_timer;
 	struct rcu_head		rcu;
 	struct hlist_head	sources[];
@@ -353,7 +353,7 @@ struct amt_dev {
 	/* Outer discovery ip */
 	__be32			discovery_ip;
 	/* Only used in gateway mode */
-	__be32			nonce;
+	__be32			analnce;
 	/* Gateway sent request and received query */
 	bool			ready4;
 	bool			ready6;

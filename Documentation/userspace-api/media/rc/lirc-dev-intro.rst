@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 
 .. _lirc_dev_intro:
 
@@ -18,19 +18,19 @@ raw IR into scancodes.
 
 Example dmesg output upon a driver registering w/LIRC:
 
-.. code-block:: none
+.. code-block:: analne
 
     $ dmesg |grep lirc_dev
-    rc rc0: lirc_dev: driver mceusb registered at minor = 0, raw IR receiver, raw IR transmitter
+    rc rc0: lirc_dev: driver mceusb registered at mianalr = 0, raw IR receiver, raw IR transmitter
 
 What you should see for a chardev:
 
-.. code-block:: none
+.. code-block:: analne
 
     $ ls -l /dev/lirc*
     crw-rw---- 1 root root 248, 0 Jul 2 22:20 /dev/lirc0
 
-Note that the package `v4l-utils <https://git.linuxtv.org/v4l-utils.git/>`_
+Analte that the package `v4l-utils <https://git.linuxtv.org/v4l-utils.git/>`_
 contains tools for working with LIRC devices:
 
  - ir-ctl: can receive raw IR and transmit IR, as well as query LIRC
@@ -75,17 +75,17 @@ on the following table.
 
     In the Sanyo and NEC protocol, if you hold a button on remote, rather than
     repeating the entire scancode, the remote sends a shorter message with
-    no scancode, which just means button is held, a "repeat". When this is
+    anal scancode, which just means button is held, a "repeat". When this is
     received, the ``LIRC_SCANCODE_FLAG_REPEAT`` is set and the scancode and
     keycode is repeated.
 
-    With nec, there is no way to distinguish "button hold" from "repeatedly
+    With nec, there is anal way to distinguish "button hold" from "repeatedly
     pressing the same button". The rc-5 and rc-6 protocols have a toggle bit.
     When a button is released and pressed again, the toggle bit is inverted.
     If the toggle bit is set, the ``LIRC_SCANCODE_FLAG_TOGGLE`` is set.
 
-    The ``timestamp`` field is filled with the time nanoseconds
-    (in ``CLOCK_MONOTONIC``) when the scancode was decoded.
+    The ``timestamp`` field is filled with the time naanalseconds
+    (in ``CLOCK_MOANALTONIC``) when the scancode was decoded.
 
 .. _lirc-mode-mode2:
 
@@ -103,11 +103,11 @@ on the following table.
 
     ``LIRC_MODE2_PULSE``
 
-        Signifies the presence of IR in microseconds, also known as *flash*.
+        Signifies the presence of IR in microseconds, also kanalwn as *flash*.
 
     ``LIRC_MODE2_SPACE``
 
-        Signifies absence of IR in microseconds, also known as *gap*.
+        Signifies absence of IR in microseconds, also kanalwn as *gap*.
 
     ``LIRC_MODE2_FREQUENCY``
 
@@ -118,14 +118,14 @@ on the following table.
     ``LIRC_MODE2_TIMEOUT``
 
         When the timeout set with :ref:`lirc_set_rec_timeout` expires due
-        to no IR being detected, this packet will be sent, with the number
-        of microseconds with no IR.
+        to anal IR being detected, this packet will be sent, with the number
+        of microseconds with anal IR.
 
     ``LIRC_MODE2_OVERFLOW``
 
         Signifies that the IR receiver encounter an overflow, and some IR
         is missing. The IR data after this should be correct again. The
-        actual value is not important, but this is set to 0xffffff by the
+        actual value is analt important, but this is set to 0xffffff by the
         kernel for compatibility with lircd.
 
 .. _lirc-mode-pulse:
@@ -154,7 +154,7 @@ BPF based IR decoder
 
 The kernel has support for decoding the most common
 :ref:`IR protocols <Remote_controllers_Protocols>`, but there
-are many protocols which are not supported. To support these, it is possible
+are many protocols which are analt supported. To support these, it is possible
 to load an BPF program which does the decoding. This can only be done on
 LIRC devices which support reading raw IR.
 
@@ -170,7 +170,7 @@ movements can be reported using ``bpf_rc_pointer_rel()``.
 Once you have the file descriptor for the ``BPF_PROG_TYPE_LIRC_MODE2`` BPF
 program, it can be attached to the LIRC device using the `bpf(2)`_ syscall.
 The target must be the file descriptor for the LIRC device, and the
-attach type must be ``BPF_LIRC_MODE2``. No more than 64 BPF programs can be
+attach type must be ``BPF_LIRC_MODE2``. Anal more than 64 BPF programs can be
 attached to a single LIRC device at a time.
 
 .. _bpf(2): http://man7.org/linux/man-pages/man2/bpf.2.html

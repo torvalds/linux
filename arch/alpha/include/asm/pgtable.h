@@ -2,7 +2,7 @@
 #ifndef _ALPHA_PGTABLE_H
 #define _ALPHA_PGTABLE_H
 
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-analpud.h>
 
 /*
  * This file contains the functions and defines necessary to modify and use
@@ -77,14 +77,14 @@ struct vm_area_struct;
 #define _PAGE_SWP_EXCLUSIVE	0x8000000000UL
 
 /*
- * NOTE! The "accessed" bit isn't necessarily exact:  it can be kept exactly
+ * ANALTE! The "accessed" bit isn't necessarily exact:  it can be kept exactly
  * by software (use the KRE/URE/KWE/UWE bits appropriately), but I'll fake it.
  * Under Linux/AXP, the "accessed" bit just means "read", and I'll just use
  * the KRE/URE bits to watch for it. That way we don't need to overload the
  * KWE/UWE bits with both handling dirty and accessed.
  *
- * Note that the kernel uses the accessed bit just to check whether to page
- * out a page or not, so it doesn't have to be exact anyway.
+ * Analte that the kernel uses the accessed bit just to check whether to page
+ * out a page or analt, so it doesn't have to be exact anyway.
  */
 
 #define __DIRTY_BITS	(_PAGE_DIRTY | _PAGE_KWE | _PAGE_UWE)
@@ -96,34 +96,34 @@ struct vm_area_struct;
 #define _PAGE_CHG_MASK	(_PFN_MASK | __DIRTY_BITS | __ACCESS_BITS)
 
 /*
- * All the normal masks have the "page accessed" bits on, as any time they are used,
+ * All the analrmal masks have the "page accessed" bits on, as any time they are used,
  * the page is accessed. They are cleared only by the page-out routines
  */
-#define PAGE_NONE	__pgprot(_PAGE_VALID | __ACCESS_BITS | _PAGE_FOR | _PAGE_FOW | _PAGE_FOE)
+#define PAGE_ANALNE	__pgprot(_PAGE_VALID | __ACCESS_BITS | _PAGE_FOR | _PAGE_FOW | _PAGE_FOE)
 #define PAGE_SHARED	__pgprot(_PAGE_VALID | __ACCESS_BITS)
 #define PAGE_COPY	__pgprot(_PAGE_VALID | __ACCESS_BITS | _PAGE_FOW)
 #define PAGE_READONLY	__pgprot(_PAGE_VALID | __ACCESS_BITS | _PAGE_FOW)
 #define PAGE_KERNEL	__pgprot(_PAGE_VALID | _PAGE_ASM | _PAGE_KRE | _PAGE_KWE)
 
-#define _PAGE_NORMAL(x) __pgprot(_PAGE_VALID | __ACCESS_BITS | (x))
+#define _PAGE_ANALRMAL(x) __pgprot(_PAGE_VALID | __ACCESS_BITS | (x))
 
-#define _PAGE_P(x) _PAGE_NORMAL((x) | (((x) & _PAGE_FOW)?0:_PAGE_FOW))
-#define _PAGE_S(x) _PAGE_NORMAL(x)
+#define _PAGE_P(x) _PAGE_ANALRMAL((x) | (((x) & _PAGE_FOW)?0:_PAGE_FOW))
+#define _PAGE_S(x) _PAGE_ANALRMAL(x)
 
 /*
  * The hardware can handle write-only mappings, but as the Alpha
  * architecture does byte-wide writes with a read-modify-write
- * sequence, it's not practical to have write-without-read privs.
+ * sequence, it's analt practical to have write-without-read privs.
  * Thus the "-w- -> rw-" and "-wx -> rwx" mapping here (and in
  * arch/alpha/mm/fault.c)
  */
 	/* xwr */
 
 /*
- * pgprot_noncached() is only for infiniband pci support, and a real
+ * pgprot_analncached() is only for infiniband pci support, and a real
  * implementation for RAM would be more complicated.
  */
-#define pgprot_noncached(prot)	(prot)
+#define pgprot_analncached(prot)	(prot)
 
 /*
  * BAD_PAGETABLE is used when we need a bogus page-table, while
@@ -162,9 +162,9 @@ extern unsigned long __zero_page(void);
  * This is extremely confusing until you realize that this is actually
  * just working around a userspace bug.  The X server was intending to
  * provide the physical address but instead provided the KSEG address.
- * Or tried to, except it's not representable.
+ * Or tried to, except it's analt representable.
  * 
- * On Tsunami there's nothing meaningful at 0x40000000000, so this is
+ * On Tsunami there's analthing meaningful at 0x40000000000, so this is
  * a safe thing to do.  Come the first core logic that does put something
  * in this area -- memory or whathaveyou -- then this hack will have
  * to go away.  So be prepared!
@@ -228,26 +228,26 @@ extern inline pmd_t *pud_pgtable(pud_t pgd)
 	return (pmd_t *)(PAGE_OFFSET + ((pud_val(pgd) & _PFN_MASK) >> (32-PAGE_SHIFT)));
 }
 
-extern inline int pte_none(pte_t pte)		{ return !pte_val(pte); }
+extern inline int pte_analne(pte_t pte)		{ return !pte_val(pte); }
 extern inline int pte_present(pte_t pte)	{ return pte_val(pte) & _PAGE_VALID; }
 extern inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pte_val(*ptep) = 0;
 }
 
-extern inline int pmd_none(pmd_t pmd)		{ return !pmd_val(pmd); }
+extern inline int pmd_analne(pmd_t pmd)		{ return !pmd_val(pmd); }
 extern inline int pmd_bad(pmd_t pmd)		{ return (pmd_val(pmd) & ~_PFN_MASK) != _PAGE_TABLE; }
 extern inline int pmd_present(pmd_t pmd)	{ return pmd_val(pmd) & _PAGE_VALID; }
 extern inline void pmd_clear(pmd_t * pmdp)	{ pmd_val(*pmdp) = 0; }
 
-extern inline int pud_none(pud_t pud)		{ return !pud_val(pud); }
+extern inline int pud_analne(pud_t pud)		{ return !pud_val(pud); }
 extern inline int pud_bad(pud_t pud)		{ return (pud_val(pud) & ~_PFN_MASK) != _PAGE_TABLE; }
 extern inline int pud_present(pud_t pud)	{ return pud_val(pud) & _PAGE_VALID; }
 extern inline void pud_clear(pud_t * pudp)	{ pud_val(*pudp) = 0; }
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if analt..
  */
 extern inline int pte_write(pte_t pte)		{ return !(pte_val(pte) & _PAGE_FOW); }
 extern inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
@@ -256,7 +256,7 @@ extern inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; 
 extern inline pte_t pte_wrprotect(pte_t pte)	{ pte_val(pte) |= _PAGE_FOW; return pte; }
 extern inline pte_t pte_mkclean(pte_t pte)	{ pte_val(pte) &= ~(__DIRTY_BITS); return pte; }
 extern inline pte_t pte_mkold(pte_t pte)	{ pte_val(pte) &= ~(__ACCESS_BITS); return pte; }
-extern inline pte_t pte_mkwrite_novma(pte_t pte){ pte_val(pte) &= ~_PAGE_FOW; return pte; }
+extern inline pte_t pte_mkwrite_analvma(pte_t pte){ pte_val(pte) &= ~_PAGE_FOW; return pte; }
 extern inline pte_t pte_mkdirty(pte_t pte)	{ pte_val(pte) |= __DIRTY_BITS; return pte; }
 extern inline pte_t pte_mkyoung(pte_t pte)	{ pte_val(pte) |= __ACCESS_BITS; return pte; }
 
@@ -265,12 +265,12 @@ extern inline pte_t pte_mkyoung(pte_t pte)	{ pte_val(pte) |= __ACCESS_BITS; retu
  * *dir (the pointer in the top level page table) with any subsequent load of
  * the returned pmd_t *ret (ret is data dependent on *dir).
  *
- * If this ordering is not enforced, the CPU might load an older value of
+ * If this ordering is analt enforced, the CPU might load an older value of
  * *ret, which may be uninitialized data. See mm/memory.c:__pte_alloc for
  * more details.
  *
- * Note that we never change the mm->pgd pointer after the task is running, so
- * pgd_offset does not require such a barrier.
+ * Analte that we never change the mm->pgd pointer after the task is running, so
+ * pgd_offset does analt require such a barrier.
  */
 
 /* Find an entry in the second-level page table.. */
@@ -311,7 +311,7 @@ static inline void update_mmu_cache_range(struct vm_fault *vmf,
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTEs:
  *
@@ -323,7 +323,7 @@ static inline void update_mmu_cache_range(struct vm_fault *vmf,
  *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
  *   <--------------------------- zeroes -------------------------->
  *
- *   E is the exclusive marker that is not stored in swap entries.
+ *   E is the exclusive marker that is analt stored in swap entries.
  */
 extern inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 { pte_t pte; pte_val(pte) = ((type & 0x7f) << 32) | (offset << 40); return pte; }

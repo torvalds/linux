@@ -33,7 +33,7 @@ int __init init_umount(const char *name, int flags)
 	struct path path;
 	int ret;
 
-	if (!(flags & UMOUNT_NOFOLLOW))
+	if (!(flags & UMOUNT_ANALFOLLOW))
 		lookup_flags |= LOOKUP_FOLLOW;
 	ret = kern_path(name, lookup_flags, &path);
 	if (ret)
@@ -81,7 +81,7 @@ dput_and_out:
 
 int __init init_chown(const char *filename, uid_t user, gid_t group, int flags)
 {
-	int lookup_flags = (flags & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
+	int lookup_flags = (flags & AT_SYMLINK_ANALFOLLOW) ? 0 : LOOKUP_FOLLOW;
 	struct path path;
 	int error;
 
@@ -125,7 +125,7 @@ int __init init_eaccess(const char *filename)
 
 int __init init_stat(const char *filename, struct kstat *stat, int flags)
 {
-	int lookup_flags = (flags & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
+	int lookup_flags = (flags & AT_SYMLINK_ANALFOLLOW) ? 0 : LOOKUP_FOLLOW;
 	struct path path;
 	int error;
 
@@ -133,12 +133,12 @@ int __init init_stat(const char *filename, struct kstat *stat, int flags)
 	if (error)
 		return error;
 	error = vfs_getattr(&path, stat, STATX_BASIC_STATS,
-			    flags | AT_NO_AUTOMOUNT);
+			    flags | AT_ANAL_AUTOMOUNT);
 	path_put(&path);
 	return error;
 }
 
-int __init init_mknod(const char *filename, umode_t mode, unsigned int dev)
+int __init init_mkanald(const char *filename, umode_t mode, unsigned int dev)
 {
 	struct dentry *dentry;
 	struct path path;
@@ -153,10 +153,10 @@ int __init init_mknod(const char *filename, umode_t mode, unsigned int dev)
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	mode = mode_strip_umask(d_inode(path.dentry), mode);
-	error = security_path_mknod(&path, dentry, mode, dev);
+	mode = mode_strip_umask(d_ianalde(path.dentry), mode);
+	error = security_path_mkanald(&path, dentry, mode, dev);
 	if (!error)
-		error = vfs_mknod(mnt_idmap(path.mnt), path.dentry->d_inode,
+		error = vfs_mkanald(mnt_idmap(path.mnt), path.dentry->d_ianalde,
 				  dentry, mode, new_decode_dev(dev));
 	done_path_create(&path, dentry);
 	return error;
@@ -188,7 +188,7 @@ int __init init_link(const char *oldname, const char *newname)
 	error = security_path_link(old_path.dentry, &new_path, new_dentry);
 	if (error)
 		goto out_dput;
-	error = vfs_link(old_path.dentry, idmap, new_path.dentry->d_inode,
+	error = vfs_link(old_path.dentry, idmap, new_path.dentry->d_ianalde,
 			 new_dentry, NULL);
 out_dput:
 	done_path_create(&new_path, new_dentry);
@@ -208,7 +208,7 @@ int __init init_symlink(const char *oldname, const char *newname)
 		return PTR_ERR(dentry);
 	error = security_path_symlink(&path, dentry, oldname);
 	if (!error)
-		error = vfs_symlink(mnt_idmap(path.mnt), path.dentry->d_inode,
+		error = vfs_symlink(mnt_idmap(path.mnt), path.dentry->d_ianalde,
 				    dentry, oldname);
 	done_path_create(&path, dentry);
 	return error;
@@ -228,10 +228,10 @@ int __init init_mkdir(const char *pathname, umode_t mode)
 	dentry = kern_path_create(AT_FDCWD, pathname, &path, LOOKUP_DIRECTORY);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
-	mode = mode_strip_umask(d_inode(path.dentry), mode);
+	mode = mode_strip_umask(d_ianalde(path.dentry), mode);
 	error = security_path_mkdir(&path, dentry, mode);
 	if (!error)
-		error = vfs_mkdir(mnt_idmap(path.mnt), path.dentry->d_inode,
+		error = vfs_mkdir(mnt_idmap(path.mnt), path.dentry->d_ianalde,
 				  dentry, mode);
 	done_path_create(&path, dentry);
 	return error;

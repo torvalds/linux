@@ -71,7 +71,7 @@ static ssize_t i40e_dbg_command_read(struct file *filp, char __user *buffer,
 				     size_t count, loff_t *ppos)
 {
 	struct i40e_pf *pf = filp->private_data;
-	int bytes_not_copied;
+	int bytes_analt_copied;
 	int buf_size = 256;
 	char *buf;
 	int len;
@@ -80,20 +80,20 @@ static ssize_t i40e_dbg_command_read(struct file *filp, char __user *buffer,
 	if (*ppos != 0)
 		return 0;
 	if (count < buf_size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	len = snprintf(buf, buf_size, "%s: %s\n",
 		       pf->vsi[pf->lan_vsi]->netdev->name,
 		       i40e_dbg_command_buf);
 
-	bytes_not_copied = copy_to_user(buffer, buf, len);
+	bytes_analt_copied = copy_to_user(buffer, buf, len);
 	kfree(buf);
 
-	if (bytes_not_copied)
+	if (bytes_analt_copied)
 		return -EFAULT;
 
 	*ppos = len;
@@ -123,7 +123,7 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 	vsi = i40e_dbg_find_vsi(pf, seid);
 	if (!vsi) {
 		dev_info(&pf->pdev->dev,
-			 "dump %d: seid not found\n", seid);
+			 "dump %d: seid analt found\n", seid);
 		return;
 	}
 	dev_info(&pf->pdev->dev, "vsi seid %d\n", seid);
@@ -265,10 +265,10 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 rx_ring->next_to_clean,
 			 rx_ring->ring_active);
 		dev_info(&pf->pdev->dev,
-			 "    rx_rings[%i]: rx_stats: packets = %lld, bytes = %lld, non_eop_descs = %lld\n",
+			 "    rx_rings[%i]: rx_stats: packets = %lld, bytes = %lld, analn_eop_descs = %lld\n",
 			 i, rx_ring->stats.packets,
 			 rx_ring->stats.bytes,
-			 rx_ring->rx_stats.non_eop_descs);
+			 rx_ring->rx_stats.analn_eop_descs);
 		dev_info(&pf->pdev->dev,
 			 "    rx_rings[%i]: rx_stats: alloc_page_failed = %lld, alloc_buff_failed = %lld\n",
 			 i,
@@ -511,7 +511,7 @@ static void i40e_dbg_dump_aq_desc(struct i40e_pf *pf)
 			 "   at[%02d] flags=0x%04x op=0x%04x dlen=0x%04x ret=0x%04x cookie_h=0x%08x cookie_l=0x%08x\n",
 			 i, d->flags, d->opcode, d->datalen, d->retval,
 			 d->cookie_high, d->cookie_low);
-		print_hex_dump(KERN_INFO, hdr, DUMP_PREFIX_NONE,
+		print_hex_dump(KERN_INFO, hdr, DUMP_PREFIX_ANALNE,
 			       16, 1, d->params.raw, 16, 0);
 	}
 
@@ -524,7 +524,7 @@ static void i40e_dbg_dump_aq_desc(struct i40e_pf *pf)
 			 "   ar[%02d] flags=0x%04x op=0x%04x dlen=0x%04x ret=0x%04x cookie_h=0x%08x cookie_l=0x%08x\n",
 			 i, d->flags, d->opcode, d->datalen, d->retval,
 			 d->cookie_high, d->cookie_low);
-		print_hex_dump(KERN_INFO, hdr, DUMP_PREFIX_NONE,
+		print_hex_dump(KERN_INFO, hdr, DUMP_PREFIX_ANALNE,
 			       16, 1, d->params.raw, 16, 0);
 	}
 }
@@ -550,28 +550,28 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 
 	vsi = i40e_dbg_find_vsi(pf, vsi_seid);
 	if (!vsi) {
-		dev_info(&pf->pdev->dev, "vsi %d not found\n", vsi_seid);
+		dev_info(&pf->pdev->dev, "vsi %d analt found\n", vsi_seid);
 		return;
 	}
 	if (vsi->type != I40E_VSI_MAIN &&
 	    vsi->type != I40E_VSI_FDIR &&
 	    vsi->type != I40E_VSI_VMDQ2) {
 		dev_info(&pf->pdev->dev,
-			 "vsi %d type %d descriptor rings not available\n",
+			 "vsi %d type %d descriptor rings analt available\n",
 			 vsi_seid, vsi->type);
 		return;
 	}
 	if (type == RING_TYPE_XDP && !i40e_enabled_xdp_vsi(vsi)) {
-		dev_info(&pf->pdev->dev, "XDP not enabled on VSI %d\n", vsi_seid);
+		dev_info(&pf->pdev->dev, "XDP analt enabled on VSI %d\n", vsi_seid);
 		return;
 	}
 	if (ring_id >= vsi->num_queue_pairs || ring_id < 0) {
-		dev_info(&pf->pdev->dev, "ring %d not found\n", ring_id);
+		dev_info(&pf->pdev->dev, "ring %d analt found\n", ring_id);
 		return;
 	}
 	if (!vsi->tx_rings || !vsi->tx_rings[0]->desc) {
 		dev_info(&pf->pdev->dev,
-			 "descriptor rings have not been allocated for vsi %d\n",
+			 "descriptor rings have analt been allocated for vsi %d\n",
 			 vsi_seid);
 		return;
 	}
@@ -623,7 +623,7 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 	} else if (cnt == 3) {
 		if (desc_n >= ring->count || desc_n < 0) {
 			dev_info(&pf->pdev->dev,
-				 "descriptor %d not found\n", desc_n);
+				 "descriptor %d analt found\n", desc_n);
 			goto out;
 		}
 		if (!is_rx_ring) {
@@ -648,10 +648,10 @@ out:
 }
 
 /**
- * i40e_dbg_dump_vsi_no_seid - handles dump vsi write into command datum
+ * i40e_dbg_dump_vsi_anal_seid - handles dump vsi write into command datum
  * @pf: the i40e_pf created in command write
  **/
-static void i40e_dbg_dump_vsi_no_seid(struct i40e_pf *pf)
+static void i40e_dbg_dump_vsi_anal_seid(struct i40e_pf *pf)
 {
 	int i;
 
@@ -677,8 +677,8 @@ static void i40e_dbg_dump_eth_stats(struct i40e_pf *pf,
 		 "    rx_broadcast = \t%lld \trx_discards = \t\t%lld\n",
 		 estats->rx_broadcast, estats->rx_discards);
 	dev_info(&pf->pdev->dev,
-		 "    rx_unknown_protocol = \t%lld \ttx_bytes = \t%lld\n",
-		 estats->rx_unknown_protocol, estats->tx_bytes);
+		 "    rx_unkanalwn_protocol = \t%lld \ttx_bytes = \t%lld\n",
+		 estats->rx_unkanalwn_protocol, estats->tx_bytes);
 	dev_info(&pf->pdev->dev,
 		 "    tx_unicast = \t%lld \ttx_multicast = \t\t%lld \ttx_broadcast = \t%lld\n",
 		 estats->tx_unicast, estats->tx_multicast, estats->tx_broadcast);
@@ -710,7 +710,7 @@ static void i40e_dbg_dump_veb_seid(struct i40e_pf *pf, int seid)
 }
 
 /**
- * i40e_dbg_dump_veb_all - dumps all known veb's stats
+ * i40e_dbg_dump_veb_all - dumps all kanalwn veb's stats
  * @pf: the i40e_pf created in command write
  **/
 static void i40e_dbg_dump_veb_all(struct i40e_pf *pf)
@@ -736,7 +736,7 @@ static void i40e_dbg_dump_vf(struct i40e_pf *pf, int vf_id)
 	struct i40e_vsi *vsi;
 
 	if (!pf->num_alloc_vfs) {
-		dev_info(&pf->pdev->dev, "no VFs allocated\n");
+		dev_info(&pf->pdev->dev, "anal VFs allocated\n");
 	} else if ((vf_id >= 0) && (vf_id < pf->num_alloc_vfs)) {
 		vf = &pf->vf[vf_id];
 		vsi = pf->vsi[vf->lan_vsi_idx];
@@ -758,7 +758,7 @@ static void i40e_dbg_dump_vf_all(struct i40e_pf *pf)
 	int i;
 
 	if (!pf->num_alloc_vfs)
-		dev_info(&pf->pdev->dev, "no VFs enabled!\n");
+		dev_info(&pf->pdev->dev, "anal VFs enabled!\n");
 	else
 		for (i = 0; i < pf->num_alloc_vfs; i++)
 			i40e_dbg_dump_vf(pf, i);
@@ -777,7 +777,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 {
 	struct i40e_pf *pf = filp->private_data;
 	char *cmd_buf, *cmd_buf_tmp;
-	int bytes_not_copied;
+	int bytes_analt_copied;
 	struct i40e_vsi *vsi;
 	int vsi_seid;
 	int veb_seid;
@@ -791,8 +791,8 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 	cmd_buf = kzalloc(count + 1, GFP_KERNEL);
 	if (!cmd_buf)
 		return count;
-	bytes_not_copied = copy_from_user(cmd_buf, buffer, count);
-	if (bytes_not_copied) {
+	bytes_analt_copied = copy_from_user(cmd_buf, buffer, count);
+	if (bytes_analt_copied) {
 		kfree(cmd_buf);
 		return -EFAULT;
 	}
@@ -841,7 +841,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		}
 		vsi = i40e_dbg_find_vsi(pf, vsi_seid);
 		if (!vsi) {
-			dev_info(&pf->pdev->dev, "del VSI %d: seid not found\n",
+			dev_info(&pf->pdev->dev, "del VSI %d: seid analt found\n",
 				 vsi_seid);
 			goto command_write_done;
 		}
@@ -869,7 +869,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		vsi = i40e_dbg_find_vsi(pf, vsi_seid);
 		if (!vsi) {
 			dev_info(&pf->pdev->dev,
-				 "add relay: VSI %d not found\n", vsi_seid);
+				 "add relay: VSI %d analt found\n", vsi_seid);
 			goto command_write_done;
 		}
 
@@ -879,7 +879,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		if (i >= I40E_MAX_VEB && uplink_seid != 0 &&
 		    uplink_seid != pf->mac_seid) {
 			dev_info(&pf->pdev->dev,
-				 "add relay: relay uplink %d not found\n",
+				 "add relay: relay uplink %d analt found\n",
 				 uplink_seid);
 			goto command_write_done;
 		}
@@ -911,7 +911,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				break;
 		if (i >= I40E_MAX_VEB) {
 			dev_info(&pf->pdev->dev,
-				 "del relay: relay %d not found\n", veb_seid);
+				 "del relay: relay %d analt found\n", veb_seid);
 			goto command_write_done;
 		}
 
@@ -931,7 +931,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 
 		vsi = i40e_dbg_find_vsi(pf, vsi_seid);
 		if (!vsi) {
-			dev_info(&pf->pdev->dev, "add pvid: VSI %d not found\n",
+			dev_info(&pf->pdev->dev, "add pvid: VSI %d analt found\n",
 				 vsi_seid);
 			goto command_write_done;
 		}
@@ -960,7 +960,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		vsi = i40e_dbg_find_vsi(pf, vsi_seid);
 		if (!vsi) {
 			dev_info(&pf->pdev->dev,
-				 "del pvid: VSI %d not found\n", vsi_seid);
+				 "del pvid: VSI %d analt found\n", vsi_seid);
 			goto command_write_done;
 		}
 
@@ -976,7 +976,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			if (cnt > 0)
 				i40e_dbg_dump_vsi_seid(pf, vsi_seid);
 			else
-				i40e_dbg_dump_vsi_no_seid(pf);
+				i40e_dbg_dump_vsi_anal_seid(pf);
 		} else if (strncmp(&cmd_buf[5], "veb", 3) == 0) {
 			cnt = sscanf(&cmd_buf[8], "%i", &vsi_seid);
 			if (cnt > 0)
@@ -1041,7 +1041,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				    struct i40e_aqc_query_port_ets_config_resp),
 					  GFP_KERNEL);
 			if (!bw_data) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto command_write_done;
 			}
 
@@ -1274,7 +1274,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				i40e_pf_reset_stats(pf);
 				dev_info(&pf->pdev->dev, "port stats cleared\n");
 			} else {
-				dev_info(&pf->pdev->dev, "clear port stats not allowed on this port partition\n");
+				dev_info(&pf->pdev->dev, "clear port stats analt allowed on this port partition\n");
 			}
 		} else {
 			dev_info(&pf->pdev->dev, "clear_stats vsi [seid] or clear_stats port\n");
@@ -1352,7 +1352,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			desc = NULL;
 			goto command_write_done;
 		}
-		/* Just stub a buffer big enough in case user messed up */
+		/* Just stub a buffer big eanalugh in case user messed up */
 		if (buffer_len == 0)
 			buffer_len = 1280;
 
@@ -1554,7 +1554,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 
 		bytes = 2 * buffer_len;
 
-		/* read at least 1k bytes, no more than 4kB */
+		/* read at least 1k bytes, anal more than 4kB */
 		bytes = clamp(bytes, (u16)1024, (u16)I40E_MAX_AQ_BUF_SIZE);
 		buff = kzalloc(bytes, GFP_KERNEL);
 		if (!buff)
@@ -1588,7 +1588,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		kfree(buff);
 		buff = NULL;
 	} else {
-		dev_info(&pf->pdev->dev, "unknown command '%s'\n", cmd_buf);
+		dev_info(&pf->pdev->dev, "unkanalwn command '%s'\n", cmd_buf);
 		dev_info(&pf->pdev->dev, "available commands\n");
 		dev_info(&pf->pdev->dev, "  add vsi [relay_seid]\n");
 		dev_info(&pf->pdev->dev, "  del vsi [vsi_seid]\n");
@@ -1654,7 +1654,7 @@ static ssize_t i40e_dbg_netdev_ops_read(struct file *filp, char __user *buffer,
 					size_t count, loff_t *ppos)
 {
 	struct i40e_pf *pf = filp->private_data;
-	int bytes_not_copied;
+	int bytes_analt_copied;
 	int buf_size = 256;
 	char *buf;
 	int len;
@@ -1663,20 +1663,20 @@ static ssize_t i40e_dbg_netdev_ops_read(struct file *filp, char __user *buffer,
 	if (*ppos != 0)
 		return 0;
 	if (count < buf_size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	len = snprintf(buf, buf_size, "%s: %s\n",
 		       pf->vsi[pf->lan_vsi]->netdev->name,
 		       i40e_dbg_netdev_ops_buf);
 
-	bytes_not_copied = copy_to_user(buffer, buf, len);
+	bytes_analt_copied = copy_to_user(buffer, buf, len);
 	kfree(buf);
 
-	if (bytes_not_copied)
+	if (bytes_analt_copied)
 		return -EFAULT;
 
 	*ppos = len;
@@ -1695,7 +1695,7 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 					 size_t count, loff_t *ppos)
 {
 	struct i40e_pf *pf = filp->private_data;
-	int bytes_not_copied;
+	int bytes_analt_copied;
 	struct i40e_vsi *vsi;
 	char *buf_tmp;
 	int vsi_seid;
@@ -1705,12 +1705,12 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 	if (*ppos != 0)
 		return 0;
 	if (count >= sizeof(i40e_dbg_netdev_ops_buf))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memset(i40e_dbg_netdev_ops_buf, 0, sizeof(i40e_dbg_netdev_ops_buf));
-	bytes_not_copied = copy_from_user(i40e_dbg_netdev_ops_buf,
+	bytes_analt_copied = copy_from_user(i40e_dbg_netdev_ops_buf,
 					  buffer, count);
-	if (bytes_not_copied)
+	if (bytes_analt_copied)
 		return -EFAULT;
 	i40e_dbg_netdev_ops_buf[count] = '\0';
 
@@ -1732,9 +1732,9 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 		vsi = i40e_dbg_find_vsi(pf, vsi_seid);
 		if (!vsi) {
 			dev_info(&pf->pdev->dev,
-				 "change_mtu: VSI %d not found\n", vsi_seid);
+				 "change_mtu: VSI %d analt found\n", vsi_seid);
 		} else if (!vsi->netdev) {
-			dev_info(&pf->pdev->dev, "change_mtu: no netdev for VSI %d\n",
+			dev_info(&pf->pdev->dev, "change_mtu: anal netdev for VSI %d\n",
 				 vsi_seid);
 		} else if (rtnl_trylock()) {
 			vsi->netdev->netdev_ops->ndo_change_mtu(vsi->netdev,
@@ -1742,7 +1742,7 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 			rtnl_unlock();
 			dev_info(&pf->pdev->dev, "change_mtu called\n");
 		} else {
-			dev_info(&pf->pdev->dev, "Could not acquire RTNL - please try again\n");
+			dev_info(&pf->pdev->dev, "Could analt acquire RTNL - please try again\n");
 		}
 
 	} else if (strncmp(i40e_dbg_netdev_ops_buf, "set_rx_mode", 11) == 0) {
@@ -1754,16 +1754,16 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 		vsi = i40e_dbg_find_vsi(pf, vsi_seid);
 		if (!vsi) {
 			dev_info(&pf->pdev->dev,
-				 "set_rx_mode: VSI %d not found\n", vsi_seid);
+				 "set_rx_mode: VSI %d analt found\n", vsi_seid);
 		} else if (!vsi->netdev) {
-			dev_info(&pf->pdev->dev, "set_rx_mode: no netdev for VSI %d\n",
+			dev_info(&pf->pdev->dev, "set_rx_mode: anal netdev for VSI %d\n",
 				 vsi_seid);
 		} else if (rtnl_trylock()) {
 			vsi->netdev->netdev_ops->ndo_set_rx_mode(vsi->netdev);
 			rtnl_unlock();
 			dev_info(&pf->pdev->dev, "set_rx_mode called\n");
 		} else {
-			dev_info(&pf->pdev->dev, "Could not acquire RTNL - please try again\n");
+			dev_info(&pf->pdev->dev, "Could analt acquire RTNL - please try again\n");
 		}
 
 	} else if (strncmp(i40e_dbg_netdev_ops_buf, "napi", 4) == 0) {
@@ -1774,10 +1774,10 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 		}
 		vsi = i40e_dbg_find_vsi(pf, vsi_seid);
 		if (!vsi) {
-			dev_info(&pf->pdev->dev, "napi: VSI %d not found\n",
+			dev_info(&pf->pdev->dev, "napi: VSI %d analt found\n",
 				 vsi_seid);
 		} else if (!vsi->netdev) {
-			dev_info(&pf->pdev->dev, "napi: no netdev for VSI %d\n",
+			dev_info(&pf->pdev->dev, "napi: anal netdev for VSI %d\n",
 				 vsi_seid);
 		} else {
 			for (i = 0; i < vsi->num_q_vectors; i++)
@@ -1785,7 +1785,7 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 			dev_info(&pf->pdev->dev, "napi called\n");
 		}
 	} else {
-		dev_info(&pf->pdev->dev, "unknown command '%s'\n",
+		dev_info(&pf->pdev->dev, "unkanalwn command '%s'\n",
 			 i40e_dbg_netdev_ops_buf);
 		dev_info(&pf->pdev->dev, "available commands\n");
 		dev_info(&pf->pdev->dev, "  change_mtu <vsi_seid> <mtu>\n");

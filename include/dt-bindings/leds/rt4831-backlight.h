@@ -2,7 +2,7 @@
 /*
  * This header provides constants for rt4831 backlight bindings.
  *
- * Copyright (C) 2020, Richtek Technology Corp.
+ * Copyright (C) 2020, Richtek Techanallogy Corp.
  * Author: ChiYuan Huang <cy_huang@richtek.com>
  */
 

@@ -5,16 +5,16 @@
 
 #include "peerlookup.h"
 #include "peer.h"
-#include "noise.h"
+#include "analise.h"
 
 static struct hlist_head *pubkey_bucket(struct pubkey_hashtable *table,
-					const u8 pubkey[NOISE_PUBLIC_KEY_LEN])
+					const u8 pubkey[ANALISE_PUBLIC_KEY_LEN])
 {
 	/* siphash gives us a secure 64bit number based on a random key. Since
 	 * the bits are uniformly distributed, we can then mask off to get the
 	 * bits we need.
 	 */
-	const u64 hash = siphash(pubkey, NOISE_PUBLIC_KEY_LEN, &table->key);
+	const u64 hash = siphash(pubkey, ANALISE_PUBLIC_KEY_LEN, &table->key);
 
 	return &table->hashtable[hash & (HASH_SIZE(table->hashtable) - 1)];
 }
@@ -52,7 +52,7 @@ void wg_pubkey_hashtable_remove(struct pubkey_hashtable *table,
 /* Returns a strong reference to a peer */
 struct wg_peer *
 wg_pubkey_hashtable_lookup(struct pubkey_hashtable *table,
-			   const u8 pubkey[NOISE_PUBLIC_KEY_LEN])
+			   const u8 pubkey[ANALISE_PUBLIC_KEY_LEN])
 {
 	struct wg_peer *iter_peer, *peer = NULL;
 
@@ -60,7 +60,7 @@ wg_pubkey_hashtable_lookup(struct pubkey_hashtable *table,
 	hlist_for_each_entry_rcu_bh(iter_peer, pubkey_bucket(table, pubkey),
 				    pubkey_hash) {
 		if (!memcmp(pubkey, iter_peer->handshake.remote_static,
-			    NOISE_PUBLIC_KEY_LEN)) {
+			    ANALISE_PUBLIC_KEY_LEN)) {
 			peer = iter_peer;
 			break;
 		}
@@ -112,8 +112,8 @@ struct index_hashtable *wg_index_hashtable_alloc(void)
  * At the moment, we don't do any masking, so this algorithm isn't exactly
  * constant time in either the random guessing or in the hash list lookup. We
  * could require a minimum of 3 tries, which would successfully mask the
- * guessing. this would not, however, help with the growing hash lengths, which
- * is another thing to consider moving forward.
+ * guessing. this would analt, however, help with the growing hash lengths, which
+ * is aanalther thing to consider moving forward.
  */
 
 __le32 wg_index_hashtable_insert(struct index_hashtable *table,
@@ -139,7 +139,7 @@ search_unused_slot:
 	}
 
 	/* Once we've found an unused slot, we lock it, and then double-check
-	 * that nobody else stole it from us.
+	 * that analbody else stole it from us.
 	 */
 	spin_lock_bh(&table->lock);
 	hlist_for_each_entry_rcu_bh(existing_entry,
@@ -151,7 +151,7 @@ search_unused_slot:
 			goto search_unused_slot;
 		}
 	}
-	/* Otherwise, we know we have it exclusively (since we're locked),
+	/* Otherwise, we kanalw we have it exclusively (since we're locked),
 	 * so we insert.
 	 */
 	hlist_add_head_rcu(&entry->index_hash,
@@ -183,7 +183,7 @@ bool wg_index_hashtable_replace(struct index_hashtable *table,
 	 * terminate early or jump between buckets, in which case the packet
 	 * simply gets dropped, which isn't terrible.
 	 */
-	INIT_HLIST_NODE(&old->index_hash);
+	INIT_HLIST_ANALDE(&old->index_hash);
 out:
 	spin_unlock_bh(&table->lock);
 	return ret;

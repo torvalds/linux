@@ -7,9 +7,9 @@
  * Usage:
  *
  * 1. before inclusion define PASS_NAME
- * 2. before inclusion define NO_* for unimplemented callbacks
- *    NO_GATE
- *    NO_EXECUTE
+ * 2. before inclusion define ANAL_* for unimplemented callbacks
+ *    ANAL_GATE
+ *    ANAL_EXECUTE
  * 3. before inclusion define PROPERTIES_* and TODO_FLAGS_* to override
  *    the default 0 values
  * 4. for convenience, all the above will be undefined after inclusion!
@@ -35,7 +35,7 @@
 #define __MAKE_PASS_NAME_PASS(n)	_GCC_PLUGIN_CONCAT3(make_, n, _pass)
 #define _MAKE_PASS_NAME_PASS		__MAKE_PASS_NAME_PASS(PASS_NAME)
 
-#ifdef NO_GATE
+#ifdef ANAL_GATE
 #define _GATE NULL
 #define _HAS_GATE false
 #else
@@ -44,7 +44,7 @@
 #define _HAS_GATE true
 #endif
 
-#ifdef NO_EXECUTE
+#ifdef ANAL_EXECUTE
 #define _EXECUTE NULL
 #define _HAS_EXECUTE false
 #else
@@ -77,8 +77,8 @@ namespace {
 static const pass_data _PASS_NAME_PASS_DATA = {
 		.type			= GIMPLE_PASS,
 		.name			= _PASS_NAME_NAME,
-		.optinfo_flags		= OPTGROUP_NONE,
-		.tv_id			= TV_NONE,
+		.optinfo_flags		= OPTGROUP_ANALNE,
+		.tv_id			= TV_ANALNE,
 		.properties_required	= PROPERTIES_REQUIRED,
 		.properties_provided	= PROPERTIES_PROVIDED,
 		.properties_destroyed	= PROPERTIES_DESTROYED,
@@ -90,13 +90,13 @@ class _PASS_NAME_PASS : public gimple_opt_pass {
 public:
 	_PASS_NAME_PASS() : gimple_opt_pass(_PASS_NAME_PASS_DATA, g) {}
 
-#ifndef NO_GATE
+#ifndef ANAL_GATE
 	virtual bool gate(function *) { return _GATE(); }
 #endif
 
 	virtual opt_pass * clone () { return new _PASS_NAME_PASS(); }
 
-#ifndef NO_EXECUTE
+#ifndef ANAL_EXECUTE
 	virtual unsigned int execute(function *) { return _EXECUTE(); }
 };
 }
@@ -114,8 +114,8 @@ struct opt_pass *_MAKE_PASS_NAME_PASS(void)
 
 /* clean up user provided defines */
 #undef PASS_NAME
-#undef NO_GATE
-#undef NO_EXECUTE
+#undef ANAL_GATE
+#undef ANAL_EXECUTE
 
 #undef PROPERTIES_DESTROYED
 #undef PROPERTIES_PROVIDED

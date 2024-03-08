@@ -2,7 +2,7 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2008-2010 Nokia Corporation
+ * Copyright (C) 2008-2010 Analkia Corporation
  */
 
 #include <linux/module.h>
@@ -363,7 +363,7 @@ static struct wlcore_conf wl12xx_conf = {
 	},
 	.recovery = {
 		.bug_on_recovery	    = 0,
-		.no_recovery		    = 0,
+		.anal_recovery		    = 0,
 	},
 };
 
@@ -567,7 +567,7 @@ static struct wlcore_partition_set wl12xx_ptable[PART_TABLE_LEN] = {
 
 static const int wl12xx_rtable[REG_TABLE_LEN] = {
 	[REG_ECPU_CONTROL]		= WL12XX_REG_ECPU_CONTROL,
-	[REG_INTERRUPT_NO_CLEAR]	= WL12XX_REG_INTERRUPT_NO_CLEAR,
+	[REG_INTERRUPT_ANAL_CLEAR]	= WL12XX_REG_INTERRUPT_ANAL_CLEAR,
 	[REG_INTERRUPT_ACK]		= WL12XX_REG_INTERRUPT_ACK,
 	[REG_COMMAND_MAILBOX_PTR]	= WL12XX_REG_COMMAND_MAILBOX_PTR,
 	[REG_EVENT_MAILBOX_PTR]		= WL12XX_REG_EVENT_MAILBOX_PTR,
@@ -646,9 +646,9 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 
 		wlcore_set_min_fw_ver(wl, WL127X_CHIP_VER,
 			      WL127X_IFTYPE_SR_VER,  WL127X_MAJOR_SR_VER,
-			      WL127X_SUBTYPE_SR_VER, WL127X_MINOR_SR_VER,
+			      WL127X_SUBTYPE_SR_VER, WL127X_MIANALR_SR_VER,
 			      WL127X_IFTYPE_MR_VER,  WL127X_MAJOR_MR_VER,
-			      WL127X_SUBTYPE_MR_VER, WL127X_MINOR_MR_VER);
+			      WL127X_SUBTYPE_MR_VER, WL127X_MIANALR_MR_VER);
 		break;
 
 	case CHIP_ID_127X_PG20:
@@ -670,9 +670,9 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 
 		wlcore_set_min_fw_ver(wl, WL127X_CHIP_VER,
 			      WL127X_IFTYPE_SR_VER,  WL127X_MAJOR_SR_VER,
-			      WL127X_SUBTYPE_SR_VER, WL127X_MINOR_SR_VER,
+			      WL127X_SUBTYPE_SR_VER, WL127X_MIANALR_SR_VER,
 			      WL127X_IFTYPE_MR_VER,  WL127X_MAJOR_MR_VER,
-			      WL127X_SUBTYPE_MR_VER, WL127X_MINOR_MR_VER);
+			      WL127X_SUBTYPE_MR_VER, WL127X_MIANALR_MR_VER);
 		break;
 
 	case CHIP_ID_128X_PG20:
@@ -690,14 +690,14 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 
 		wlcore_set_min_fw_ver(wl, WL128X_CHIP_VER,
 			      WL128X_IFTYPE_SR_VER,  WL128X_MAJOR_SR_VER,
-			      WL128X_SUBTYPE_SR_VER, WL128X_MINOR_SR_VER,
+			      WL128X_SUBTYPE_SR_VER, WL128X_MIANALR_SR_VER,
 			      WL128X_IFTYPE_MR_VER,  WL128X_MAJOR_MR_VER,
-			      WL128X_SUBTYPE_MR_VER, WL128X_MINOR_MR_VER);
+			      WL128X_SUBTYPE_MR_VER, WL128X_MIANALR_MR_VER);
 		break;
 	case CHIP_ID_128X_PG10:
 	default:
 		wl1271_warning("unsupported chip id: 0x%x", wl->chip.id);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -991,12 +991,12 @@ static int wl127x_boot_clk(struct wl1271 *wl)
 		if (ret < 0)
 			goto out;
 
-		/* Set clock pull mode (no pull) */
+		/* Set clock pull mode (anal pull) */
 		ret = wl12xx_top_reg_read(wl, OCP_REG_CLK_PULL, &val);
 		if (ret < 0)
 			goto out;
 
-		val |= NO_PULL;
+		val |= ANAL_PULL;
 		ret = wl12xx_top_reg_write(wl, OCP_REG_CLK_PULL, val);
 		if (ret < 0)
 			goto out;
@@ -1382,7 +1382,7 @@ static int wl12xx_hw_init(struct wl1271 *wl)
 
 		/*
 		 * If we are in calibrator based auto detect then we got the FEM nr
-		 * in wl->fem_manuf. No need to continue further
+		 * in wl->fem_manuf. Anal need to continue further
 		 */
 		if (wl->plt_mode == PLT_FEM_DETECT)
 			goto out;
@@ -1406,7 +1406,7 @@ static int wl12xx_hw_init(struct wl1271 *wl)
 
 		/*
 		 * If we are in calibrator based auto detect then we got the FEM nr
-		 * in wl->fem_manuf. No need to continue further
+		 * in wl->fem_manuf. Anal need to continue further
 		 */
 		if (wl->plt_mode == PLT_FEM_DETECT)
 			goto out;
@@ -1473,27 +1473,27 @@ static void wl12xx_conf_init(struct wl1271 *wl)
 static bool wl12xx_mac_in_fuse(struct wl1271 *wl)
 {
 	bool supported = false;
-	u8 major, minor;
+	u8 major, mianalr;
 
 	if (wl->chip.id == CHIP_ID_128X_PG20) {
 		major = WL128X_PG_GET_MAJOR(wl->hw_pg_ver);
-		minor = WL128X_PG_GET_MINOR(wl->hw_pg_ver);
+		mianalr = WL128X_PG_GET_MIANALR(wl->hw_pg_ver);
 
 		/* in wl128x we have the MAC address if the PG is >= (2, 1) */
-		if (major > 2 || (major == 2 && minor >= 1))
+		if (major > 2 || (major == 2 && mianalr >= 1))
 			supported = true;
 	} else {
 		major = WL127X_PG_GET_MAJOR(wl->hw_pg_ver);
-		minor = WL127X_PG_GET_MINOR(wl->hw_pg_ver);
+		mianalr = WL127X_PG_GET_MIANALR(wl->hw_pg_ver);
 
 		/* in wl127x we have the MAC address if the PG is >= (3, 1) */
-		if (major == 3 && minor >= 1)
+		if (major == 3 && mianalr >= 1)
 			supported = true;
 	}
 
 	wl1271_debug(DEBUG_PROBE,
-		     "PG Ver major = %d minor = %d, MAC %s present",
-		     major, minor, supported ? "is" : "is not");
+		     "PG Ver major = %d mianalr = %d, MAC %s present",
+		     major, mianalr, supported ? "is" : "is analt");
 
 	return supported;
 }
@@ -1580,7 +1580,7 @@ static int wl12xx_plt_init(struct wl1271 *wl)
 
 	/*
 	 * If we are in calibrator based auto detect then we got the FEM nr
-	 * in wl->fem_manuf. No need to continue further
+	 * in wl->fem_manuf. Anal need to continue further
 	 */
 	if (wl->plt_mode == PLT_FEM_DETECT)
 		goto out;
@@ -1620,7 +1620,7 @@ out_irq_disable:
 	   inherently unsafe. In this case we deem it safe to do,
 	   because we need to let any possibly pending IRQ out of
 	   the system (and while we are WL1271_STATE_OFF the IRQ
-	   work function will not do anything.) Also, any other
+	   work function will analt do anything.) Also, any other
 	   possible concurrent operations will fail due to the
 	   current state, hence the wl1271 struct should be safe. */
 	wlcore_disable_interrupts(wl);
@@ -1719,7 +1719,7 @@ static struct wlcore_ops wl12xx_ops = {
 	.convert_hwaddr		= wl12xx_convert_hwaddr,
 	.lnk_high_prio		= wl12xx_lnk_high_prio,
 	.lnk_low_prio		= wl12xx_lnk_low_prio,
-	.interrupt_notify	= NULL,
+	.interrupt_analtify	= NULL,
 	.rx_ba_filter		= NULL,
 	.ap_sleep		= NULL,
 };
@@ -1830,7 +1830,7 @@ static int wl12xx_setup(struct wl1271 *wl)
 			wl1271_error("Invalid ref_clock frequency (%d Hz, %s)",
 				     pdev_data->ref_clock_freq,
 				     pdev_data->ref_clock_xtal ?
-				     "XTAL" : "not XTAL");
+				     "XTAL" : "analt XTAL");
 
 			return priv->ref_clock;
 		}
@@ -1884,7 +1884,7 @@ static int wl12xx_setup(struct wl1271 *wl)
 
 	priv->rx_mem_addr = kmalloc(sizeof(*priv->rx_mem_addr), GFP_KERNEL);
 	if (!priv->rx_mem_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1957,7 +1957,7 @@ MODULE_PARM_DESC(tcxo,
 
 MODULE_DESCRIPTION("TI WL12xx wireless driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
+MODULE_AUTHOR("Luciaanal Coelho <coelho@ti.com>");
 MODULE_FIRMWARE(WL127X_FW_NAME_SINGLE);
 MODULE_FIRMWARE(WL127X_FW_NAME_MULTI);
 MODULE_FIRMWARE(WL127X_PLT_FW_NAME);

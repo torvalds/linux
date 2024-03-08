@@ -2,36 +2,36 @@
 /*
  *   Copyright (C) International Business Machines Corp., 2000-2001
  */
-#ifndef _H_JFS_DINODE
-#define _H_JFS_DINODE
+#ifndef _H_JFS_DIANALDE
+#define _H_JFS_DIANALDE
 
 /*
- *	jfs_dinode.h: on-disk inode manager
+ *	jfs_dianalde.h: on-disk ianalde manager
  */
 
-#define INODESLOTSIZE		128
-#define L2INODESLOTSIZE		7
-#define log2INODESIZE		9	/* log2(bytes per dinode) */
+#define IANALDESLOTSIZE		128
+#define L2IANALDESLOTSIZE		7
+#define log2IANALDESIZE		9	/* log2(bytes per dianalde) */
 
 
 /*
- *	on-disk inode : 512 bytes
+ *	on-disk ianalde : 512 bytes
  *
- * note: align 64-bit fields on 8-byte boundary.
+ * analte: align 64-bit fields on 8-byte boundary.
  */
-struct dinode {
+struct dianalde {
 	/*
 	 *	I. base area (128 bytes)
 	 *	------------------------
 	 *
 	 * define generic/POSIX attributes
 	 */
-	__le32 di_inostamp;	/* 4: stamp to show inode belongs to fileset */
+	__le32 di_ianalstamp;	/* 4: stamp to show ianalde belongs to fileset */
 	__le32 di_fileset;	/* 4: fileset number */
-	__le32 di_number;	/* 4: inode number, aka file serial number */
-	__le32 di_gen;		/* 4: inode generation number */
+	__le32 di_number;	/* 4: ianalde number, aka file serial number */
+	__le32 di_gen;		/* 4: ianalde generation number */
 
-	pxd_t di_ixpxd;		/* 8: inode extent descriptor */
+	pxd_t di_ixpxd;		/* 8: ianalde extent descriptor */
 
 	__le64 di_size;		/* 8: size */
 	__le64 di_nblocks;	/* 8: number of blocks allocated */
@@ -59,11 +59,11 @@ struct dinode {
 	/*
 	 *	Extension Areas.
 	 *
-	 *	Historically, the inode was partitioned into 4 128-byte areas,
+	 *	Historically, the ianalde was partitioned into 4 128-byte areas,
 	 *	the last 3 being defined as unions which could have multiple
 	 *	uses.  The first 96 bytes had been completely unused until
-	 *	an index table was added to the directory.  It is now more
-	 *	useful to describe the last 3/4 of the inode as a single
+	 *	an index table was added to the directory.  It is analw more
+	 *	useful to describe the last 3/4 of the ianalde as a single
 	 *	union.  We would probably be better off redesigning the
 	 *	entire structure from scratch, but we don't want to break
 	 *	commonality with OS/2's JFS at this time.
@@ -73,7 +73,7 @@ struct dinode {
 			/*
 			 * This table contains the information needed to
 			 * find a directory entry from a 32-bit index.
-			 * If the index is small enough, the table is inline,
+			 * If the index is small eanalugh, the table is inline,
 			 * otherwise, an x-tree root overlays this table
 			 */
 			struct dir_table_slot _table[12]; /* 96: inline */
@@ -131,20 +131,20 @@ struct dinode {
 	} u;
 };
 
-/* extended mode bits (on-disk inode di_mode) */
+/* extended mode bits (on-disk ianalde di_mode) */
 #define IFJOURNAL	0x00010000	/* journalled file */
 #define ISPARSE		0x00020000	/* sparse file enabled */
 #define INLINEEA	0x00040000	/* inline EA area free */
 #define ISWAPFILE	0x00800000	/* file open for pager swap space */
 
 /* more extended mode bits: attributes for OS/2 */
-#define IREADONLY	0x02000000	/* no write access to file */
+#define IREADONLY	0x02000000	/* anal write access to file */
 #define IHIDDEN		0x04000000	/* hidden file */
 #define ISYSTEM		0x08000000	/* system file */
 
 #define IDIRECTORY	0x20000000	/* directory (shadow of real bit) */
 #define IARCHIVE	0x40000000	/* file archive bit */
-#define INEWNAME	0x80000000	/* non-8.3 filename format */
+#define INEWNAME	0x80000000	/* analn-8.3 filename format */
 
 #define IRASH		0x4E000000	/* mask for changeable attributes */
 #define ATTRSHIFT	25	/* bits to shift to move attribute
@@ -152,10 +152,10 @@ struct dinode {
 
 /* extended attributes for Linux */
 
-#define JFS_NOATIME_FL		0x00080000 /* do not update atime */
+#define JFS_ANALATIME_FL		0x00080000 /* do analt update atime */
 
 #define JFS_DIRSYNC_FL		0x00100000 /* dirsync behaviour */
-#define JFS_SYNC_FL		0x00200000 /* Synchronous updates */
+#define JFS_SYNC_FL		0x00200000 /* Synchroanalus updates */
 #define JFS_SECRM_FL		0x00400000 /* Secure deletion */
 #define JFS_UNRM_FL		0x00800000 /* allow for undelete */
 
@@ -166,4 +166,4 @@ struct dinode {
 #define JFS_FL_USER_MODIFIABLE	0x03F80000
 #define JFS_FL_INHERIT		0x03C80000
 
-#endif /*_H_JFS_DINODE */
+#endif /*_H_JFS_DIANALDE */

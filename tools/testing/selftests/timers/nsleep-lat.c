@@ -1,4 +1,4 @@
-/* Measure nanosleep timer latency
+/* Measure naanalsleep timer latency
  *              by: john stultz (john.stultz@linaro.org)
  *		(C) Copyright Linaro 2013
  *              Licensed under the GPLv2
@@ -28,16 +28,16 @@
 
 #define NSEC_PER_SEC 1000000000ULL
 
-#define UNRESONABLE_LATENCY 40000000 /* 40ms in nanosecs */
+#define UNRESONABLE_LATENCY 40000000 /* 40ms in naanalsecs */
 
 
 #define CLOCK_REALTIME			0
-#define CLOCK_MONOTONIC			1
+#define CLOCK_MOANALTONIC			1
 #define CLOCK_PROCESS_CPUTIME_ID	2
 #define CLOCK_THREAD_CPUTIME_ID		3
-#define CLOCK_MONOTONIC_RAW		4
+#define CLOCK_MOANALTONIC_RAW		4
 #define CLOCK_REALTIME_COARSE		5
-#define CLOCK_MONOTONIC_COARSE		6
+#define CLOCK_MOANALTONIC_COARSE		6
 #define CLOCK_BOOTTIME			7
 #define CLOCK_REALTIME_ALARM		8
 #define CLOCK_BOOTTIME_ALARM		9
@@ -52,18 +52,18 @@ char *clockstring(int clockid)
 	switch (clockid) {
 	case CLOCK_REALTIME:
 		return "CLOCK_REALTIME";
-	case CLOCK_MONOTONIC:
-		return "CLOCK_MONOTONIC";
+	case CLOCK_MOANALTONIC:
+		return "CLOCK_MOANALTONIC";
 	case CLOCK_PROCESS_CPUTIME_ID:
 		return "CLOCK_PROCESS_CPUTIME_ID";
 	case CLOCK_THREAD_CPUTIME_ID:
 		return "CLOCK_THREAD_CPUTIME_ID";
-	case CLOCK_MONOTONIC_RAW:
-		return "CLOCK_MONOTONIC_RAW";
+	case CLOCK_MOANALTONIC_RAW:
+		return "CLOCK_MOANALTONIC_RAW";
 	case CLOCK_REALTIME_COARSE:
 		return "CLOCK_REALTIME_COARSE";
-	case CLOCK_MONOTONIC_COARSE:
-		return "CLOCK_MONOTONIC_COARSE";
+	case CLOCK_MOANALTONIC_COARSE:
+		return "CLOCK_MOANALTONIC_COARSE";
 	case CLOCK_BOOTTIME:
 		return "CLOCK_BOOTTIME";
 	case CLOCK_REALTIME_ALARM:
@@ -73,7 +73,7 @@ char *clockstring(int clockid)
 	case CLOCK_TAI:
 		return "CLOCK_TAI";
 	};
-	return "UNKNOWN_CLOCKID";
+	return "UNKANALWN_CLOCKID";
 }
 
 struct timespec timespec_add(struct timespec ts, unsigned long long ns)
@@ -95,7 +95,7 @@ long long timespec_sub(struct timespec a, struct timespec b)
 	return ret;
 }
 
-int nanosleep_lat_test(int clockid, long long ns)
+int naanalsleep_lat_test(int clockid, long long ns)
 {
 	struct timespec start, end, target;
 	long long latency = 0;
@@ -106,7 +106,7 @@ int nanosleep_lat_test(int clockid, long long ns)
 
 	if (clock_gettime(clockid, &start))
 		return UNSUPPORTED;
-	if (clock_nanosleep(clockid, 0, &target, NULL))
+	if (clock_naanalsleep(clockid, 0, &target, NULL))
 		return UNSUPPORTED;
 
 	count = 10;
@@ -114,7 +114,7 @@ int nanosleep_lat_test(int clockid, long long ns)
 	/* First check relative latency */
 	clock_gettime(clockid, &start);
 	for (i = 0; i < count; i++)
-		clock_nanosleep(clockid, 0, &target, NULL);
+		clock_naanalsleep(clockid, 0, &target, NULL);
 	clock_gettime(clockid, &end);
 
 	if (((timespec_sub(start, end)/count)-ns) > UNRESONABLE_LATENCY) {
@@ -126,7 +126,7 @@ int nanosleep_lat_test(int clockid, long long ns)
 	for (i = 0; i < count; i++) {
 		clock_gettime(clockid, &start);
 		target = timespec_add(start, ns);
-		clock_nanosleep(clockid, TIMER_ABSTIME, &target, NULL);
+		clock_naanalsleep(clockid, TIMER_ABSTIME, &target, NULL);
 		clock_gettime(clockid, &end);
 		latency += timespec_sub(target, end);
 	}
@@ -151,7 +151,7 @@ int main(int argc, char **argv)
 
 	for (clockid = CLOCK_REALTIME; clockid < NR_CLOCKIDS; clockid++) {
 
-		/* Skip cputime clockids since nanosleep won't increment cputime */
+		/* Skip cputime clockids since naanalsleep won't increment cputime */
 		if (clockid == CLOCK_PROCESS_CPUTIME_ID ||
 				clockid == CLOCK_THREAD_CPUTIME_ID ||
 				clockid == CLOCK_HWSPECIFIC)
@@ -159,7 +159,7 @@ int main(int argc, char **argv)
 
 		length = 10;
 		while (length <= (NSEC_PER_SEC * 10)) {
-			ret = nanosleep_lat_test(clockid, length);
+			ret = naanalsleep_lat_test(clockid, length);
 			if (ret)
 				break;
 			length *= 100;

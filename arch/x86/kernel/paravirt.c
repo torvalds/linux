@@ -6,7 +6,7 @@
     2007 - x86_64 support added by Glauber de Oliveira Costa, Red Hat Inc
 */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/efi.h>
@@ -45,10 +45,10 @@ void __init default_banner(void)
 
 #ifdef CONFIG_PARAVIRT_XXL
 DEFINE_ASM_FUNC(_paravirt_ident_64, "mov %rdi, %rax", .text);
-DEFINE_ASM_FUNC(pv_native_save_fl, "pushf; pop %rax", .noinstr.text);
-DEFINE_ASM_FUNC(pv_native_irq_disable, "cli", .noinstr.text);
-DEFINE_ASM_FUNC(pv_native_irq_enable, "sti", .noinstr.text);
-DEFINE_ASM_FUNC(pv_native_read_cr2, "mov %cr2, %rax", .noinstr.text);
+DEFINE_ASM_FUNC(pv_native_save_fl, "pushf; pop %rax", .analinstr.text);
+DEFINE_ASM_FUNC(pv_native_irq_disable, "cli", .analinstr.text);
+DEFINE_ASM_FUNC(pv_native_irq_enable, "sti", .analinstr.text);
+DEFINE_ASM_FUNC(pv_native_read_cr2, "mov %cr2, %rax", .analinstr.text);
 #endif
 
 DEFINE_STATIC_KEY_TRUE(virt_spin_lock_key);
@@ -92,9 +92,9 @@ static struct resource reserve_ioports = {
 /*
  * Reserve the whole legacy IO space to prevent any legacy drivers
  * from wasting time probing for their hardware.  This is a fairly
- * brute-force approach to disabling all non-virtual drivers.
+ * brute-force approach to disabling all analn-virtual drivers.
  *
- * Note that this must be called very early to have any effect.
+ * Analte that this must be called very early to have any effect.
  */
 int paravirt_disable_iospace(void)
 {
@@ -102,27 +102,27 @@ int paravirt_disable_iospace(void)
 }
 
 #ifdef CONFIG_PARAVIRT_XXL
-static noinstr void pv_native_write_cr2(unsigned long val)
+static analinstr void pv_native_write_cr2(unsigned long val)
 {
 	native_write_cr2(val);
 }
 
-static noinstr unsigned long pv_native_get_debugreg(int regno)
+static analinstr unsigned long pv_native_get_debugreg(int reganal)
 {
-	return native_get_debugreg(regno);
+	return native_get_debugreg(reganal);
 }
 
-static noinstr void pv_native_set_debugreg(int regno, unsigned long val)
+static analinstr void pv_native_set_debugreg(int reganal, unsigned long val)
 {
-	native_set_debugreg(regno, val);
+	native_set_debugreg(reganal, val);
 }
 
-noinstr void pv_native_wbinvd(void)
+analinstr void pv_native_wbinvd(void)
 {
 	native_wbinvd();
 }
 
-static noinstr void pv_native_safe_halt(void)
+static analinstr void pv_native_safe_halt(void)
 {
 	native_safe_halt();
 }
@@ -166,8 +166,8 @@ struct paravirt_patch_template pv_ops = {
 	.cpu.write_gdt_entry	= native_write_gdt_entry,
 	.cpu.write_idt_entry	= native_write_idt_entry,
 
-	.cpu.alloc_ldt		= paravirt_nop,
-	.cpu.free_ldt		= paravirt_nop,
+	.cpu.alloc_ldt		= paravirt_analp,
+	.cpu.free_ldt		= paravirt_analp,
 
 	.cpu.load_sp0		= native_load_sp0,
 
@@ -176,8 +176,8 @@ struct paravirt_patch_template pv_ops = {
 	.cpu.update_io_bitmap		= native_tss_update_io_bitmap,
 #endif
 
-	.cpu.start_context_switch	= paravirt_nop,
-	.cpu.end_context_switch		= paravirt_nop,
+	.cpu.start_context_switch	= paravirt_analp,
+	.cpu.end_context_switch		= paravirt_analp,
 
 	/* Irq ops. */
 	.irq.save_fl		= __PV_IS_CALLEE_SAVE(pv_native_save_fl),
@@ -194,8 +194,8 @@ struct paravirt_patch_template pv_ops = {
 	.mmu.flush_tlb_multi	= native_flush_tlb_multi,
 	.mmu.tlb_remove_table	= native_tlb_remove_table,
 
-	.mmu.exit_mmap		= paravirt_nop,
-	.mmu.notify_page_enc_status_changed	= paravirt_nop,
+	.mmu.exit_mmap		= paravirt_analp,
+	.mmu.analtify_page_enc_status_changed	= paravirt_analp,
 
 #ifdef CONFIG_PARAVIRT_XXL
 	.mmu.read_cr2		= __PV_IS_CALLEE_SAVE(pv_native_read_cr2),
@@ -204,16 +204,16 @@ struct paravirt_patch_template pv_ops = {
 	.mmu.write_cr3		= native_write_cr3,
 
 	.mmu.pgd_alloc		= __paravirt_pgd_alloc,
-	.mmu.pgd_free		= paravirt_nop,
+	.mmu.pgd_free		= paravirt_analp,
 
-	.mmu.alloc_pte		= paravirt_nop,
-	.mmu.alloc_pmd		= paravirt_nop,
-	.mmu.alloc_pud		= paravirt_nop,
-	.mmu.alloc_p4d		= paravirt_nop,
-	.mmu.release_pte	= paravirt_nop,
-	.mmu.release_pmd	= paravirt_nop,
-	.mmu.release_pud	= paravirt_nop,
-	.mmu.release_p4d	= paravirt_nop,
+	.mmu.alloc_pte		= paravirt_analp,
+	.mmu.alloc_pmd		= paravirt_analp,
+	.mmu.alloc_pud		= paravirt_analp,
+	.mmu.alloc_p4d		= paravirt_analp,
+	.mmu.release_pte	= paravirt_analp,
+	.mmu.release_pmd	= paravirt_analp,
+	.mmu.release_pud	= paravirt_analp,
+	.mmu.release_p4d	= paravirt_analp,
 
 	.mmu.set_pte		= native_set_pte,
 	.mmu.set_pmd		= native_set_pmd,
@@ -244,12 +244,12 @@ struct paravirt_patch_template pv_ops = {
 	.mmu.make_pte		= PTE_IDENT,
 	.mmu.make_pgd		= PTE_IDENT,
 
-	.mmu.enter_mmap		= paravirt_nop,
+	.mmu.enter_mmap		= paravirt_analp,
 
 	.mmu.lazy_mode = {
-		.enter		= paravirt_nop,
-		.leave		= paravirt_nop,
-		.flush		= paravirt_nop,
+		.enter		= paravirt_analp,
+		.leave		= paravirt_analp,
+		.flush		= paravirt_analp,
 	},
 
 	.mmu.set_fixmap		= native_set_fixmap,
@@ -261,8 +261,8 @@ struct paravirt_patch_template pv_ops = {
 	.lock.queued_spin_lock_slowpath	= native_queued_spin_lock_slowpath,
 	.lock.queued_spin_unlock	=
 				PV_CALLEE_SAVE(__native_queued_spin_unlock),
-	.lock.wait			= paravirt_nop,
-	.lock.kick			= paravirt_nop,
+	.lock.wait			= paravirt_analp,
+	.lock.kick			= paravirt_analp,
 	.lock.vcpu_is_preempted		=
 				PV_CALLEE_SAVE(__native_vcpu_is_preempted),
 #endif /* SMP */
@@ -270,7 +270,7 @@ struct paravirt_patch_template pv_ops = {
 };
 
 #ifdef CONFIG_PARAVIRT_XXL
-NOKPROBE_SYMBOL(native_load_idt);
+ANALKPROBE_SYMBOL(native_load_idt);
 #endif
 
 EXPORT_SYMBOL(pv_ops);

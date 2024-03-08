@@ -16,17 +16,17 @@
  *   Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License along
- *   with this program; if not, one can be found http://www.gnu.org/licenses/.
+ *   with this program; if analt, one can be found http://www.gnu.org/licenses/.
  *
  *   The full GNU General Public License is included in this distribution in
  *   the file called "COPYING".
  *
  *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -76,7 +76,7 @@
 
 /*
  * NT-function Configuration Space registers
- * NOTE 1) The IDT PCIe-switch internal data is little-endian
+ * ANALTE 1) The IDT PCIe-switch internal data is little-endian
  *      so it must be taken into account in the driver
  *      internals.
  *      2) Additionally the registers should be accessed either
@@ -662,7 +662,7 @@
  * NTCTL register fields related constants
  * @IDT_NTCTL_IDPROTDIS:	ID Protection check disable (disable MTBL)
  * @IDT_NTCTL_CPEN:		Completion enable
- * @IDT_NTCTL_RNS:		Request no snoop processing (if MTBL disabled)
+ * @IDT_NTCTL_RNS:		Request anal sanalop processing (if MTBL disabled)
  * @IDT_NTCTL_ATP:		Address type processing (if MTBL disabled)
  */
 #define IDT_NTCTL_IDPROTDIS		0x00000001U
@@ -748,9 +748,9 @@
  * @IDT_NTMTBLDATA_PART_MASK:	Partition field mask
  * @IDT_NTMTBLDATA_PART_FLD:	Partition field offset
  * @IDT_NTMTBLDATA_ATP_TRANS:	Enable AT field translation on request TLPs
- * @IDT_NTMTBLDATA_CNS_INV:	Enable No Snoop attribute inversion of
+ * @IDT_NTMTBLDATA_CNS_INV:	Enable Anal Sanalop attribute inversion of
  *				Completion TLPs
- * @IDT_NTMTBLDATA_RNS_INV:	Enable No Snoop attribute inversion of
+ * @IDT_NTMTBLDATA_RNS_INV:	Enable Anal Sanalop attribute inversion of
  *				Request TLPs
  */
 #define IDT_NTMTBLDATA_VALID		0x00000001U
@@ -986,7 +986,7 @@
  * @IDT_TRANS_ALIGN:	Alignment of translated base address
  * @IDT_DIR_SIZE_ALIGN:	Alignment of size setting for direct translated MWs.
  *			Even though the lower 10 bits are reserved, they are
- *			treated by IDT as one's so basically there is no any
+ *			treated by IDT as one's so basically there is anal any
  *			alignment of size limit for DIR address translation.
  */
 #define IDT_MAX_NR_PORTS	24
@@ -1030,7 +1030,7 @@ enum idt_temp_val {
  * @IDT_MW_LUT12:	12-entry lookup table entry
  * @IDT_MW_LUT24:	24-entry lookup table entry
  *
- * NOTE These values are exactly the same as one of the BARSETUP ATRAN field
+ * ANALTE These values are exactly the same as one of the BARSETUP ATRAN field
  */
 enum idt_mw_type {
 	IDT_MW_DIR = 0x0,
@@ -1119,7 +1119,7 @@ struct idt_ntb_peer {
  *
  * @hwmon_mtx:		Temperature sensor interface update mutex
  *
- * @dbgfs_info:		DebugFS info node
+ * @dbgfs_info:		DebugFS info analde
  */
 struct idt_ntb_dev {
 	struct ntb_dev ntb;

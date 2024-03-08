@@ -21,7 +21,7 @@ static int __init loongson2_cpufreq_init(void)
 	if ((c->processor_id & PRID_REV_MASK) >= PRID_REV_LOONGSON2F)
 		return platform_device_register(&loongson2_cpufreq_device);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 arch_initcall(loongson2_cpufreq_init);

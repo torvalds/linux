@@ -55,9 +55,9 @@
 #define FDADR6		(0x260) /* DMA Channel 6 Frame Descriptor Address Register */
 
 #define LCCR0_ENB	(1 << 0)	/* LCD Controller enable */
-#define LCCR0_CMS	(1 << 1)	/* Color/Monochrome Display Select */
+#define LCCR0_CMS	(1 << 1)	/* Color/Moanalchrome Display Select */
 #define LCCR0_Color	(LCCR0_CMS*0)	/*  Color display */
-#define LCCR0_Mono	(LCCR0_CMS*1)	/*  Monochrome display */
+#define LCCR0_Moanal	(LCCR0_CMS*1)	/*  Moanalchrome display */
 #define LCCR0_SDS	(1 << 2)	/* Single/Dual Panel Display Select */
 #define LCCR0_Sngl	(LCCR0_SDS*0)	/*  Single panel display */
 #define LCCR0_Dual	(LCCR0_SDS*1)	/*  Dual panel display */
@@ -69,9 +69,9 @@
 #define LCCR0_PAS	(1 << 7)	/* Passive/Active display Select */
 #define LCCR0_Pas	(LCCR0_PAS*0)	/*  Passive display (STN) */
 #define LCCR0_Act	(LCCR0_PAS*1)	/*  Active display (TFT) */
-#define LCCR0_DPD	(1 << 9)	/* Double Pixel Data (monochrome) */
-#define LCCR0_4PixMono	(LCCR0_DPD*0)	/*  4-Pixel/clock Monochrome display */
-#define LCCR0_8PixMono	(LCCR0_DPD*1)	/*  8-Pixel/clock Monochrome display */
+#define LCCR0_DPD	(1 << 9)	/* Double Pixel Data (moanalchrome) */
+#define LCCR0_4PixMoanal	(LCCR0_DPD*0)	/*  4-Pixel/clock Moanalchrome display */
+#define LCCR0_8PixMoanal	(LCCR0_DPD*1)	/*  8-Pixel/clock Moanalchrome display */
 #define LCCR0_DIS	(1 << 10)	/* LCD Disable */
 #define LCCR0_QDM	(1 << 11)	/* LCD Quick Disable mask */
 #define LCCR0_PDD	(0xff << 12)	/* Palette DMA request delay */

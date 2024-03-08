@@ -41,8 +41,8 @@ struct dma_heap_attachment {
 };
 
 #define LOW_ORDER_GFP (GFP_HIGHUSER | __GFP_ZERO)
-#define HIGH_ORDER_GFP  (((GFP_HIGHUSER | __GFP_ZERO | __GFP_NOWARN \
-				| __GFP_NORETRY) & ~__GFP_RECLAIM) \
+#define HIGH_ORDER_GFP  (((GFP_HIGHUSER | __GFP_ZERO | __GFP_ANALWARN \
+				| __GFP_ANALRETRY) & ~__GFP_RECLAIM) \
 				| __GFP_COMP)
 static gfp_t order_flags[] = {HIGH_ORDER_GFP, HIGH_ORDER_GFP, LOW_ORDER_GFP};
 /*
@@ -62,12 +62,12 @@ static struct sg_table *dup_sg_table(struct sg_table *table)
 
 	new_table = kzalloc(sizeof(*new_table), GFP_KERNEL);
 	if (!new_table)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = sg_alloc_table(new_table, table->orig_nents, GFP_KERNEL);
 	if (ret) {
 		kfree(new_table);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	new_sg = new_table->sgl;
@@ -88,12 +88,12 @@ static int system_heap_attach(struct dma_buf *dmabuf,
 
 	a = kzalloc(sizeof(*a), GFP_KERNEL);
 	if (!a)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	table = dup_sg_table(&buffer->sg_table);
 	if (IS_ERR(table)) {
 		kfree(a);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	a->table = table;
@@ -224,7 +224,7 @@ static void *system_heap_do_vmap(struct system_heap_buffer *buffer)
 	void *vaddr;
 
 	if (!pages)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for_each_sgtable_page(table, &piter, 0) {
 		WARN_ON(tmp - pages >= npages);
@@ -235,7 +235,7 @@ static void *system_heap_do_vmap(struct system_heap_buffer *buffer)
 	vfree(pages);
 
 	if (!vaddr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return vaddr;
 }
@@ -345,11 +345,11 @@ static struct dma_buf *system_heap_allocate(struct dma_heap *heap,
 	struct scatterlist *sg;
 	struct list_head pages;
 	struct page *page, *tmp_page;
-	int i, ret = -ENOMEM;
+	int i, ret = -EANALMEM;
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&buffer->attachments);
 	mutex_init(&buffer->lock);

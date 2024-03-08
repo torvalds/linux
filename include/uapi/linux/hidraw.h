@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *  Copyright (c) 2007 Jiri Kosina
  */
@@ -8,7 +8,7 @@
  * version 2, as published by the Free Software Foundation.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
+ * this program; if analt, write to the Free Software Foundation, Inc.,
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 #ifndef _UAPI_HIDRAW_H
@@ -47,7 +47,7 @@ struct hidraw_devinfo {
 #define HIDIOCSOUTPUT(len)    _IOC(_IOC_WRITE|_IOC_READ, 'H', 0x0B, len)
 #define HIDIOCGOUTPUT(len)    _IOC(_IOC_WRITE|_IOC_READ, 'H', 0x0C, len)
 
-#define HIDRAW_FIRST_MINOR 0
+#define HIDRAW_FIRST_MIANALR 0
 #define HIDRAW_MAX_DEVICES 64
 /* number of reports to buffer */
 #define HIDRAW_BUFFER_SIZE 64

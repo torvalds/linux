@@ -5,7 +5,7 @@
  *			 <benh@kernel.crashing.org>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -43,7 +43,7 @@ long sys_ni_syscall(void);
 
 /*
  * The vdso data page (aka. systemcfg for old ppc64 fans) is here.
- * Once the early boot kernel code no longer needs to muck around
+ * Once the early boot kernel code anal longer needs to muck around
  * with it, it will become dynamically allocated
  */
 static union {
@@ -188,7 +188,7 @@ static int __arch_setup_additional_pages(struct linux_binprm *bprm, int uses_int
 
 	/*
 	 * Pick a base address for the vDSO in process space.
-	 * Add enough to the size so that the result can be aligned.
+	 * Add eanalugh to the size so that the result can be aligned.
 	 */
 	vdso_base = get_unmapped_area(NULL, 0, mappings_size, 0, 0);
 	if (IS_ERR_VALUE(vdso_base))
@@ -293,19 +293,19 @@ static void __init vdso_setup_syscall_map(void)
 #ifdef CONFIG_PPC64
 int vdso_getcpu_init(void)
 {
-	unsigned long cpu, node, val;
+	unsigned long cpu, analde, val;
 
 	/*
-	 * SPRG_VDSO contains the CPU in the bottom 16 bits and the NUMA node
+	 * SPRG_VDSO contains the CPU in the bottom 16 bits and the NUMA analde
 	 * in the next 16 bits.  The VDSO uses this to implement getcpu().
 	 */
 	cpu = get_cpu();
 	WARN_ON_ONCE(cpu > 0xffff);
 
-	node = cpu_to_node(cpu);
-	WARN_ON_ONCE(node > 0xffff);
+	analde = cpu_to_analde(cpu);
+	WARN_ON_ONCE(analde > 0xffff);
 
-	val = (cpu & 0xffff) | ((node & 0xffff) << 16);
+	val = (cpu & 0xffff) | ((analde & 0xffff) << 16);
 	mtspr(SPRN_SPRG_VDSO_WRITE, val);
 	get_paca()->sprg_vdso = val;
 
@@ -325,7 +325,7 @@ static struct page ** __init vdso_setup_pages(void *start, void *end)
 
 	pagelist = kcalloc(pages + 1, sizeof(struct page *), GFP_KERNEL);
 	if (!pagelist)
-		panic("%s: Cannot allocate page list for VDSO", __func__);
+		panic("%s: Cananalt allocate page list for VDSO", __func__);
 
 	for (i = 0; i < pages; i++)
 		pagelist[i] = virt_to_page(start + i * PAGE_SIZE);
@@ -341,7 +341,7 @@ static int __init vdso_init(void)
 	 */
 	strcpy((char *)vdso_data->eye_catcher, "SYSTEMCFG:PPC64");
 	vdso_data->version.major = SYSTEMCFG_MAJOR;
-	vdso_data->version.minor = SYSTEMCFG_MINOR;
+	vdso_data->version.mianalr = SYSTEMCFG_MIANALR;
 	vdso_data->processor = mfspr(SPRN_PVR);
 	/*
 	 * Fake the old platform number for pSeries and add

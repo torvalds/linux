@@ -50,11 +50,11 @@ struct state {
 	u8 chip_version;
 	u16 chip_type;
 	u8 eeprom[256];
-	bool no_eeprom;
+	bool anal_eeprom;
 	u8 ir_mode;
 	u8 ir_type;
 	u8 dual_mode:1;
-	u8 no_read:1;
+	u8 anal_read:1;
 	u8 af9033_i2c_addr[2];
 	u8 it930x_addresses;
 	struct af9033_config af9033_config[2];
@@ -111,7 +111,7 @@ static const u32 clock_lut_it9135[] = {
 
 /*
  * eeprom is memory mapped as read only. Writing that memory mapped address
- * will not corrupt eeprom.
+ * will analt corrupt eeprom.
  *
  * TS mode:
  * 0  TS

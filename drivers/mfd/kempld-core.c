@@ -50,16 +50,16 @@ static int kempld_get_info_generic(struct kempld_device_data *pld)
 	spec = kempld_read8(pld, KEMPLD_SPEC);
 	pld->info.buildnr = kempld_read16(pld, KEMPLD_BUILDNR);
 
-	pld->info.minor = KEMPLD_VERSION_GET_MINOR(version);
+	pld->info.mianalr = KEMPLD_VERSION_GET_MIANALR(version);
 	pld->info.major = KEMPLD_VERSION_GET_MAJOR(version);
 	pld->info.number = KEMPLD_VERSION_GET_NUMBER(version);
 	pld->info.type = KEMPLD_VERSION_GET_TYPE(version);
 
 	if (spec == 0xff) {
-		pld->info.spec_minor = 0;
+		pld->info.spec_mianalr = 0;
 		pld->info.spec_major = 1;
 	} else {
-		pld->info.spec_minor = KEMPLD_SPEC_GET_MINOR(spec);
+		pld->info.spec_mianalr = KEMPLD_SPEC_GET_MIANALR(spec);
 		pld->info.spec_major = KEMPLD_SPEC_GET_MAJOR(spec);
 	}
 
@@ -133,7 +133,7 @@ static int kempld_create_platform_device(const struct dmi_system_id *id)
 
 	kempld_pdev = platform_device_alloc("kempld", -1);
 	if (!kempld_pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = platform_device_add_data(kempld_pdev, pdata, sizeof(*pdata));
 	if (ret)
@@ -276,7 +276,7 @@ static int kempld_get_info(struct kempld_device_data *pld)
 {
 	int ret;
 	const struct kempld_platform_data *pdata = dev_get_platdata(pld->dev);
-	char major, minor;
+	char major, mianalr;
 
 	ret = pdata->get_info(pld);
 	if (ret)
@@ -287,20 +287,20 @@ static int kempld_get_info(struct kempld_device_data *pld)
 	 *   P:    Fixed
 	 *   w:    PLD number    - 1 hex digit
 	 *   x:    Major version - 1 alphanumerical digit (0-9A-V)
-	 *   y:    Minor version - 1 alphanumerical digit (0-9A-V)
+	 *   y:    Mianalr version - 1 alphanumerical digit (0-9A-V)
 	 *   zzzz: Build number  - 4 zero padded hex digits */
 
 	if (pld->info.major < 10)
 		major = pld->info.major + '0';
 	else
 		major = (pld->info.major - 10) + 'A';
-	if (pld->info.minor < 10)
-		minor = pld->info.minor + '0';
+	if (pld->info.mianalr < 10)
+		mianalr = pld->info.mianalr + '0';
 	else
-		minor = (pld->info.minor - 10) + 'A';
+		mianalr = (pld->info.mianalr - 10) + 'A';
 
 	ret = scnprintf(pld->info.version, sizeof(pld->info.version),
-			"P%X%c%c.%04X", pld->info.number, major, minor,
+			"P%X%c%c.%04X", pld->info.number, major, mianalr,
 			pld->info.buildnr);
 	if (ret < 0)
 		return ret;
@@ -357,7 +357,7 @@ static ssize_t pld_specification_show(struct device *dev,
 {
 	struct kempld_device_data *pld = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%d.%d\n", pld->info.spec_major, pld->info.spec_minor);
+	return sysfs_emit(buf, "%d.%d\n", pld->info.spec_major, pld->info.spec_mianalr);
 }
 
 static ssize_t pld_type_show(struct device *dev,
@@ -394,7 +394,7 @@ static int kempld_detect_device(struct kempld_device_data *pld)
 	index_reg = ioread8(pld->io_index);
 	if (index_reg == 0xff && ioread8(pld->io_data) == 0xff) {
 		mutex_unlock(&pld->lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Release hardware mutex if acquired */
@@ -412,7 +412,7 @@ static int kempld_detect_device(struct kempld_device_data *pld)
 
 	dev_info(pld->dev, "Found Kontron PLD - %s (%s), spec %d.%d\n",
 		 pld->info.version, kempld_get_type_string(pld),
-		 pld->info.spec_major, pld->info.spec_minor);
+		 pld->info.spec_major, pld->info.spec_mianalr);
 
 	ret = sysfs_create_group(&pld->dev->kobj, &pld_attr_group);
 	if (ret)
@@ -458,12 +458,12 @@ static int kempld_get_acpi_data(struct platform_device *pdev)
 	resources = devm_kcalloc(&acpi_dev->dev, count, sizeof(*resources),
 				 GFP_KERNEL);
 	if (!resources) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	count = 0;
-	list_for_each_entry(rentry, &resource_list, node) {
+	list_for_each_entry(rentry, &resource_list, analde) {
 		memcpy(&resources[count], rentry->res,
 		       sizeof(*resources));
 		count++;
@@ -478,7 +478,7 @@ out:
 #else
 static int kempld_get_acpi_data(struct platform_device *pdev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif /* CONFIG_ACPI */
 
@@ -492,7 +492,7 @@ static int kempld_probe(struct platform_device *pdev)
 
 	if (kempld_pdev == NULL) {
 		/*
-		 * No kempld_pdev device has been registered in kempld_init,
+		 * Anal kempld_pdev device has been registered in kempld_init,
 		 * so we seem to be probing an ACPI platform device.
 		 */
 		ret = kempld_get_acpi_data(pdev);
@@ -500,20 +500,20 @@ static int kempld_probe(struct platform_device *pdev)
 			return ret;
 	} else if (kempld_pdev != pdev) {
 		/*
-		 * The platform device we are probing is not the one we
+		 * The platform device we are probing is analt the one we
 		 * registered in kempld_init using the DMI table, so this one
 		 * comes from ACPI.
 		 * As we can only probe one - abort here and use the DMI
 		 * based one instead.
 		 */
-		dev_notice(dev, "platform device exists - not using ACPI\n");
-		return -ENODEV;
+		dev_analtice(dev, "platform device exists - analt using ACPI\n");
+		return -EANALDEV;
 	}
 	pdata = dev_get_platdata(dev);
 
 	pld = devm_kzalloc(dev, sizeof(*pld), GFP_KERNEL);
 	if (!pld)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ioport = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!ioport)
@@ -522,7 +522,7 @@ static int kempld_probe(struct platform_device *pdev)
 	pld->io_base = devm_ioport_map(dev, ioport->start,
 					resource_size(ioport));
 	if (!pld->io_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pld->io_index = pld->io_base;
 	pld->io_data = pld->io_base + 1;
@@ -832,7 +832,7 @@ static const struct dmi_system_id kempld_dmi_table[] __initconst = {
 		.ident = "NTC1",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Kontron"),
-			DMI_MATCH(DMI_BOARD_NAME, "nanoETXexpress-TT"),
+			DMI_MATCH(DMI_BOARD_NAME, "naanalETXexpress-TT"),
 		},
 		.driver_data = (void *)&kempld_platform_data_generic,
 		.callback = kempld_create_platform_device,
@@ -951,12 +951,12 @@ static int __init kempld_init(void)
 
 	if (force_device_id[0]) {
 		for (id = kempld_dmi_table;
-		     id->matches[0].slot != DMI_NONE; id++)
+		     id->matches[0].slot != DMI_ANALNE; id++)
 			if (strstr(id->ident, force_device_id))
 				if (id->callback && !id->callback(id))
 					break;
-		if (id->matches[0].slot == DMI_NONE)
-			return -ENODEV;
+		if (id->matches[0].slot == DMI_ANALNE)
+			return -EANALDEV;
 	} else {
 		dmi_check_system(kempld_dmi_table);
 	}

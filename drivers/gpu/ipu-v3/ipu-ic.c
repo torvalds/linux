@@ -6,7 +6,7 @@
 
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/spinlock.h>
 #include <linux/bitrev.h>
 #include <linux/io.h>
@@ -223,7 +223,7 @@ static int calc_resize_coeffs(struct ipu_ic *ic,
 	u32 temp_size, temp_downsize;
 
 	/*
-	 * Input size cannot be more than 4096, and output size cannot
+	 * Input size cananalt be more than 4096, and output size cananalt
 	 * be more than 1024
 	 */
 	if (in_size > 4096) {
@@ -235,7 +235,7 @@ static int calc_resize_coeffs(struct ipu_ic *ic,
 		return -EINVAL;
 	}
 
-	/* Cannot downsize more than 4:1 */
+	/* Cananalt downsize more than 4:1 */
 	if ((out_size << 2) < in_size) {
 		dev_err(ipu->dev, "Unsupported downsize\n");
 		return -EINVAL;
@@ -702,17 +702,17 @@ int ipu_ic_init(struct ipu_soc *ipu, struct device *dev,
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipu->ic_priv = priv;
 
 	spin_lock_init(&priv->lock);
 	priv->base = devm_ioremap(dev, base, PAGE_SIZE);
 	if (!priv->base)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->tpmem_base = devm_ioremap(dev, tpmem_base, SZ_64K);
 	if (!priv->tpmem_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(dev, "IC base: 0x%08lx remapped to %p\n", base, priv->base);
 

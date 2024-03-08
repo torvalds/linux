@@ -20,7 +20,7 @@ config CRYPTO_DEV_QAT_DH895xCC
 	depends on PCI && (!CPU_BIG_ENDIAN || COMPILE_TEST)
 	select CRYPTO_DEV_QAT
 	help
-	  Support for Intel(R) DH895xcc with Intel(R) QuickAssist Technology
+	  Support for Intel(R) DH895xcc with Intel(R) QuickAssist Techanallogy
 	  for accelerating crypto and compression workloads.
 
 	  To compile this as a module, choose M here: the module
@@ -31,7 +31,7 @@ config CRYPTO_DEV_QAT_C3XXX
 	depends on PCI && (!CPU_BIG_ENDIAN || COMPILE_TEST)
 	select CRYPTO_DEV_QAT
 	help
-	  Support for Intel(R) C3xxx with Intel(R) QuickAssist Technology
+	  Support for Intel(R) C3xxx with Intel(R) QuickAssist Techanallogy
 	  for accelerating crypto and compression workloads.
 
 	  To compile this as a module, choose M here: the module
@@ -42,7 +42,7 @@ config CRYPTO_DEV_QAT_C62X
 	depends on PCI && (!CPU_BIG_ENDIAN || COMPILE_TEST)
 	select CRYPTO_DEV_QAT
 	help
-	  Support for Intel(R) C62x with Intel(R) QuickAssist Technology
+	  Support for Intel(R) C62x with Intel(R) QuickAssist Techanallogy
 	  for accelerating crypto and compression workloads.
 
 	  To compile this as a module, choose M here: the module
@@ -53,7 +53,7 @@ config CRYPTO_DEV_QAT_4XXX
 	depends on PCI && (!CPU_BIG_ENDIAN || COMPILE_TEST)
 	select CRYPTO_DEV_QAT
 	help
-	  Support for Intel(R) QuickAssist Technology QAT_4xxx
+	  Support for Intel(R) QuickAssist Techanallogy QAT_4xxx
 	  for accelerating crypto and compression workloads.
 
 	  To compile this as a module, choose M here: the module
@@ -64,7 +64,7 @@ config CRYPTO_DEV_QAT_420XX
 	depends on PCI && (!CPU_BIG_ENDIAN || COMPILE_TEST)
 	select CRYPTO_DEV_QAT
 	help
-	  Support for Intel(R) QuickAssist Technology QAT_420xx
+	  Support for Intel(R) QuickAssist Techanallogy QAT_420xx
 	  for accelerating crypto and compression workloads.
 
 	  To compile this as a module, choose M here: the module
@@ -77,7 +77,7 @@ config CRYPTO_DEV_QAT_DH895xCCVF
 	select CRYPTO_DEV_QAT
 
 	help
-	  Support for Intel(R) DH895xcc with Intel(R) QuickAssist Technology
+	  Support for Intel(R) DH895xcc with Intel(R) QuickAssist Techanallogy
 	  Virtual Function for accelerating crypto and compression workloads.
 
 	  To compile this as a module, choose M here: the module
@@ -89,7 +89,7 @@ config CRYPTO_DEV_QAT_C3XXXVF
 	select PCI_IOV
 	select CRYPTO_DEV_QAT
 	help
-	  Support for Intel(R) C3xxx with Intel(R) QuickAssist Technology
+	  Support for Intel(R) C3xxx with Intel(R) QuickAssist Techanallogy
 	  Virtual Function for accelerating crypto and compression workloads.
 
 	  To compile this as a module, choose M here: the module
@@ -101,7 +101,7 @@ config CRYPTO_DEV_QAT_C62XVF
 	select PCI_IOV
 	select CRYPTO_DEV_QAT
 	help
-	  Support for Intel(R) C62x with Intel(R) QuickAssist Technology
+	  Support for Intel(R) C62x with Intel(R) QuickAssist Techanallogy
 	  Virtual Function for accelerating crypto and compression workloads.
 
 	  To compile this as a module, choose M here: the module

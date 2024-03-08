@@ -94,11 +94,11 @@ static int init_urbs(struct usb_stream_kernel *sk, unsigned int use_packsize,
 	for (u = 0; u < USB_STREAM_NURBS; ++u) {
 		sk->inurb[u] = usb_alloc_urb(sk->n_o_ps, GFP_KERNEL);
 		if (!sk->inurb[u])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sk->outurb[u] = usb_alloc_urb(sk->n_o_ps, GFP_KERNEL);
 		if (!sk->outurb[u])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (init_pipe_urbs(sk, use_packsize, sk->inurb, indata, dev, in_pipe) ||
@@ -196,7 +196,7 @@ struct usb_stream *usb_stream_new(struct usb_stream_kernel *sk,
 	}
 
 	sk->s = alloc_pages_exact(read_size,
-				  GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN);
+				  GFP_KERNEL | __GFP_ZERO | __GFP_ANALWARN);
 	if (!sk->s) {
 		pr_warn("us122l: couldn't allocate read buffer\n");
 		goto out;
@@ -215,7 +215,7 @@ struct usb_stream *usb_stream_new(struct usb_stream_kernel *sk,
 	sk->s->write_size = write_size;
 
 	sk->write_page = alloc_pages_exact(write_size,
-					   GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN);
+					   GFP_KERNEL | __GFP_ZERO | __GFP_ANALWARN);
 	if (!sk->write_page) {
 		pr_warn("us122l: couldn't allocate write buffer\n");
 		usb_stream_free(sk);
@@ -245,7 +245,7 @@ static bool balance_check(struct usb_stream_kernel *sk, struct urb *urb)
 	bool r;
 
 	if (unlikely(urb->status)) {
-		if (urb->status != -ESHUTDOWN && urb->status != -ENOENT)
+		if (urb->status != -ESHUTDOWN && urb->status != -EANALENT)
 			snd_printk(KERN_WARNING "status=%i\n", urb->status);
 		sk->iso_frame_balance = 0x7FFFFFFF;
 		return false;
@@ -319,7 +319,7 @@ check_ok:
 	s->sync_packet -= inurb->number_of_packets;
 	if (unlikely(s->sync_packet < -2 || s->sync_packet > 0)) {
 		snd_printk(KERN_WARNING "invalid sync_packet = %i;"
-			   " p=%i nop=%i %i %x %x %x > %x\n",
+			   " p=%i analp=%i %i %x %x %x > %x\n",
 			   s->sync_packet, p, inurb->number_of_packets,
 			   s->idle_outsize + lb + l,
 			   s->idle_outsize, lb,  l,
@@ -699,14 +699,14 @@ dotry:
 			inurb->iso_frame_desc[0].length;
 
 		if (u == 0) {
-			int now;
+			int analw;
 			struct usb_device *dev = inurb->dev;
 
 			frame = usb_get_current_frame_number(dev);
 			do {
-				now = usb_get_current_frame_number(dev);
+				analw = usb_get_current_frame_number(dev);
 				++iters;
-			} while (now > -1 && now == frame);
+			} while (analw > -1 && analw == frame);
 		}
 		err = usb_submit_urb(inurb, GFP_ATOMIC);
 		if (err < 0) {

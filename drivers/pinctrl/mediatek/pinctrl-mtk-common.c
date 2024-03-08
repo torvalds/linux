@@ -110,16 +110,16 @@ static int mtk_pconf_set_ies_smt(struct mtk_pinctrl *pctl, unsigned pin,
 	unsigned int bit;
 
 	/**
-	 * Due to some soc are not support ies/smt config, add this special
+	 * Due to some soc are analt support ies/smt config, add this special
 	 * control to handle it.
 	 */
 	if (!pctl->devdata->spec_ies_smt_set &&
-		pctl->devdata->ies_offset == MTK_PINCTRL_NOT_SUPPORT &&
+		pctl->devdata->ies_offset == MTK_PINCTRL_ANALT_SUPPORT &&
 			arg == PIN_CONFIG_INPUT_ENABLE)
 		return -EINVAL;
 
 	if (!pctl->devdata->spec_ies_smt_set &&
-		pctl->devdata->smt_offset == MTK_PINCTRL_NOT_SUPPORT &&
+		pctl->devdata->smt_offset == MTK_PINCTRL_ANALT_SUPPORT &&
 			arg == PIN_CONFIG_INPUT_SCHMITT_ENABLE)
 		return -EINVAL;
 
@@ -493,7 +493,7 @@ static bool mtk_pctrl_is_function_valid(struct mtk_pinctrl *pctl,
 	return false;
 }
 
-static int mtk_pctrl_dt_node_to_map_func(struct mtk_pinctrl *pctl,
+static int mtk_pctrl_dt_analde_to_map_func(struct mtk_pinctrl *pctl,
 		u32 pin, u32 fnum, struct mtk_pinctrl_group *grp,
 		struct pinctrl_map **map, unsigned *reserved_maps,
 		unsigned *num_maps)
@@ -501,7 +501,7 @@ static int mtk_pctrl_dt_node_to_map_func(struct mtk_pinctrl *pctl,
 	bool ret;
 
 	if (*num_maps == *reserved_maps)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	(*map)[*num_maps].type = PIN_MAP_TYPE_MUX_GROUP;
 	(*map)[*num_maps].data.mux.group = grp->name;
@@ -519,8 +519,8 @@ static int mtk_pctrl_dt_node_to_map_func(struct mtk_pinctrl *pctl,
 	return 0;
 }
 
-static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-				      struct device_node *node,
+static int mtk_pctrl_dt_subanalde_to_map(struct pinctrl_dev *pctldev,
+				      struct device_analde *analde,
 				      struct pinctrl_map **map,
 				      unsigned *reserved_maps,
 				      unsigned *num_maps)
@@ -536,14 +536,14 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	struct mtk_pinctrl_group *grp;
 	struct mtk_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 
-	pins = of_find_property(node, "pinmux", NULL);
+	pins = of_find_property(analde, "pinmux", NULL);
 	if (!pins) {
-		dev_err(pctl->dev, "missing pins property in node %pOFn .\n",
-				node);
+		dev_err(pctl->dev, "missing pins property in analde %pOFn .\n",
+				analde);
 		return -EINVAL;
 	}
 
-	err = pinconf_generic_parse_dt_config(node, pctldev, &configs,
+	err = pinconf_generic_parse_dt_config(analde, pctldev, &configs,
 		&num_configs);
 	if (err)
 		return err;
@@ -572,12 +572,12 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		goto exit;
 
 	for (i = 0; i < num_pins; i++) {
-		err = of_property_read_u32_index(node, "pinmux",
+		err = of_property_read_u32_index(analde, "pinmux",
 				i, &pinfunc);
 		if (err)
 			goto exit;
 
-		pin = MTK_GET_PIN_NO(pinfunc);
+		pin = MTK_GET_PIN_ANAL(pinfunc);
 		func = MTK_GET_PIN_FUNC(pinfunc);
 
 		if (pin >= pctl->devdata->npins ||
@@ -595,7 +595,7 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 			goto exit;
 		}
 
-		err = mtk_pctrl_dt_node_to_map_func(pctl, pin, func, grp, map,
+		err = mtk_pctrl_dt_analde_to_map_func(pctl, pin, func, grp, map,
 				reserved_maps, num_maps);
 		if (err < 0)
 			goto exit;
@@ -617,11 +617,11 @@ exit:
 	return err;
 }
 
-static int mtk_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				 struct device_node *np_config,
+static int mtk_pctrl_dt_analde_to_map(struct pinctrl_dev *pctldev,
+				 struct device_analde *np_config,
 				 struct pinctrl_map **map, unsigned *num_maps)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned reserved_maps;
 	int ret;
 
@@ -629,12 +629,12 @@ static int mtk_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*num_maps = 0;
 	reserved_maps = 0;
 
-	for_each_child_of_node(np_config, np) {
-		ret = mtk_pctrl_dt_subnode_to_map(pctldev, np, map,
+	for_each_child_of_analde(np_config, np) {
+		ret = mtk_pctrl_dt_subanalde_to_map(pctldev, np, map,
 				&reserved_maps, num_maps);
 		if (ret < 0) {
 			pinctrl_utils_free_map(pctldev, *map, *num_maps);
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 	}
@@ -671,7 +671,7 @@ static int mtk_pctrl_get_group_pins(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinctrl_ops mtk_pctrl_ops = {
-	.dt_node_to_map		= mtk_pctrl_dt_node_to_map,
+	.dt_analde_to_map		= mtk_pctrl_dt_analde_to_map,
 	.dt_free_map		= pinctrl_utils_free_map,
 	.get_groups_count	= mtk_pctrl_get_groups_count,
 	.get_group_name		= mtk_pctrl_get_group_name,
@@ -858,7 +858,7 @@ static int mtk_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	unsigned long eint_n;
 
 	pin = pctl->devdata->pins + offset;
-	if (pin->eint.eintnum == NO_EINT_SUPPORT)
+	if (pin->eint.eintnum == ANAL_EINT_SUPPORT)
 		return -EINVAL;
 
 	eint_n = pin->eint.eintnum;
@@ -875,10 +875,10 @@ static int mtk_gpio_set_config(struct gpio_chip *chip, unsigned offset,
 	u32 debounce;
 
 	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	pin = pctl->devdata->pins + offset;
-	if (pin->eint.eintnum == NO_EINT_SUPPORT)
+	if (pin->eint.eintnum == ANAL_EINT_SUPPORT)
 		return -EINVAL;
 
 	debounce = pinconf_to_config_argument(config);
@@ -915,7 +915,7 @@ static int mtk_eint_resume(struct device *device)
 }
 
 EXPORT_GPL_DEV_SLEEP_PM_OPS(mtk_eint_pm_ops) = {
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(mtk_eint_suspend, mtk_eint_resume)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(mtk_eint_suspend, mtk_eint_resume)
 };
 
 static int mtk_pctrl_build_state(struct platform_device *pdev)
@@ -929,13 +929,13 @@ static int mtk_pctrl_build_state(struct platform_device *pdev)
 	pctl->groups = devm_kcalloc(&pdev->dev, pctl->ngroups,
 				    sizeof(*pctl->groups), GFP_KERNEL);
 	if (!pctl->groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* We assume that one pin is one group, use pin name as group name. */
 	pctl->grp_names = devm_kcalloc(&pdev->dev, pctl->ngroups,
 				       sizeof(*pctl->grp_names), GFP_KERNEL);
 	if (!pctl->grp_names)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pctl->devdata->npins; i++) {
 		const struct mtk_desc_pin *pin = pctl->devdata->pins + i;
@@ -1008,14 +1008,14 @@ static const struct mtk_eint_xt mtk_eint_xt = {
 
 static int mtk_eint_init(struct mtk_pinctrl *pctl, struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 
 	if (!of_property_read_bool(np, "interrupt-controller"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pctl->eint = devm_kzalloc(pctl->dev, sizeof(*pctl->eint), GFP_KERNEL);
 	if (!pctl->eint)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctl->eint->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctl->eint->base))
@@ -1046,32 +1046,32 @@ int mtk_pctrl_init(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	struct pinctrl_pin_desc *pins;
 	struct mtk_pinctrl *pctl;
-	struct device_node *np = pdev->dev.of_node, *node;
+	struct device_analde *np = pdev->dev.of_analde, *analde;
 	int ret, i;
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
 	if (!pctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, pctl);
 
-	node = of_parse_phandle(np, "mediatek,pctl-regmap", 0);
-	if (node) {
-		pctl->regmap1 = syscon_node_to_regmap(node);
-		of_node_put(node);
+	analde = of_parse_phandle(np, "mediatek,pctl-regmap", 0);
+	if (analde) {
+		pctl->regmap1 = syscon_analde_to_regmap(analde);
+		of_analde_put(analde);
 		if (IS_ERR(pctl->regmap1))
 			return PTR_ERR(pctl->regmap1);
 	} else if (regmap) {
 		pctl->regmap1  = regmap;
 	} else {
-		return dev_err_probe(dev, -EINVAL, "Cannot find pinctrl regmap.\n");
+		return dev_err_probe(dev, -EINVAL, "Cananalt find pinctrl regmap.\n");
 	}
 
 	/* Only 8135 has two base addr, other SoCs have only one. */
-	node = of_parse_phandle(np, "mediatek,pctl-regmap", 1);
-	if (node) {
-		pctl->regmap2 = syscon_node_to_regmap(node);
-		of_node_put(node);
+	analde = of_parse_phandle(np, "mediatek,pctl-regmap", 1);
+	if (analde) {
+		pctl->regmap2 = syscon_analde_to_regmap(analde);
+		of_analde_put(analde);
 		if (IS_ERR(pctl->regmap2))
 			return PTR_ERR(pctl->regmap2);
 	}
@@ -1084,7 +1084,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 	pins = devm_kcalloc(&pdev->dev, pctl->devdata->npins, sizeof(*pins),
 			    GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pctl->devdata->npins; i++)
 		pins[i] = pctl->devdata->pins[i].pin;
@@ -1106,7 +1106,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 
 	pctl->chip = devm_kzalloc(&pdev->dev, sizeof(*pctl->chip), GFP_KERNEL);
 	if (!pctl->chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*pctl->chip = mtk_gpio_chip;
 	pctl->chip->ngpio = pctl->devdata->npins;
@@ -1143,7 +1143,7 @@ int mtk_pctrl_common_probe(struct platform_device *pdev)
 	const struct mtk_pinctrl_devdata *data = device_get_match_data(dev);
 
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return mtk_pctrl_init(pdev, data, NULL);
 }

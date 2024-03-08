@@ -7,7 +7,7 @@
  * of emulating this using 8-bit transfer.
  * This is done by transferring eight 9-bit words in 9 bytes.
  *
- * Copyright (C) 2013 Noralf Tronnes
+ * Copyright (C) 2013 Analralf Tronnes
  */
 
 #include <linux/module.h>
@@ -221,5 +221,5 @@ MODULE_ALIAS("spi:hx8340bn");
 MODULE_ALIAS("platform:hx8340bn");
 
 MODULE_DESCRIPTION("FB driver for the HX8340BN LCD Controller");
-MODULE_AUTHOR("Noralf Tronnes");
+MODULE_AUTHOR("Analralf Tronnes");
 MODULE_LICENSE("GPL");

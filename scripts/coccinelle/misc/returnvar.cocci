@@ -8,7 +8,7 @@
 // Comments: Comments on code can be deleted if near code that is removed.
 //           "when strict" can be removed to get more hits, but adds false
 //           positives
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual patch
 virtual report

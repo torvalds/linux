@@ -40,7 +40,7 @@ static irqreturn_t gvp11_intr(int irq, void *data)
 	unsigned long flags;
 
 	if (!(status & GVP11_DMAC_INT_PENDING))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock_irqsave(instance->host_lock, flags);
 	wd33c93_intr(instance);
@@ -66,7 +66,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 	addr = dma_map_single(hdata->dev, scsi_pointer->ptr,
 			      len, DMA_DIR(dir_in));
 	if (dma_mapping_error(hdata->dev, addr)) {
-		dev_warn(hdata->dev, "cannot map SCSI data block %p\n",
+		dev_warn(hdata->dev, "cananalt map SCSI data block %p\n",
 			 scsi_pointer->ptr);
 		return 1;
 	}
@@ -117,7 +117,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 			/* can't map buffer; use PIO */
 			if (dma_mapping_error(hdata->dev, addr)) {
 				dev_warn(hdata->dev,
-					 "cannot map bounce buffer %p\n",
+					 "cananalt map bounce buffer %p\n",
 					 wh->dma_bounce_buffer);
 				return 1;
 			}
@@ -152,7 +152,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 			}
 			/* chip RAM can be mapped to phys. address directly */
 			addr = virt_to_phys(wh->dma_bounce_buffer);
-			/* no need to flush/invalidate cache */
+			/* anal need to flush/invalidate cache */
 			wh->dma_buffer_pool = BUF_CHIP_ALLOCED;
 		}
 		/* finally, have OK mapping (punted for PIO else) */
@@ -170,7 +170,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 	/* setup DMA *physical* address */
 	regs->ACR = addr;
 
-	/* no more cache flush here - dma_map_single() takes care */
+	/* anal more cache flush here - dma_map_single() takes care */
 
 	bank_mask = (~wh->dma_xfer_mask >> 18) & 0x01c0;
 	if (bank_mask)
@@ -243,8 +243,8 @@ static int check_wd33c93(struct gvp11_scsiregs *regs)
 
 	/*
 	 * These darn GVP boards are a problem - it can be tough to tell
-	 * whether or not they include a SCSI controller. This is the
-	 * ultimate Yet-Another-GVP-Detection-Hack in that it actually
+	 * whether or analt they include a SCSI controller. This is the
+	 * ultimate Yet-Aanalther-GVP-Detection-Hack in that it actually
 	 * probes for a WD33c93 chip: If we find one, it's extremely
 	 * likely that this card supports SCSI, regardless of Product_
 	 * Code, Board_Size, etc.
@@ -260,18 +260,18 @@ static int check_wd33c93(struct gvp11_scsiregs *regs)
 
 	q = *sasr_3393;	/* read it */
 	if (q & 0x08)	/* bit 3 should always be clear */
-		return -ENODEV;
+		return -EANALDEV;
 	*sasr_3393 = WD_AUXILIARY_STATUS;	/* setup indirect address */
 	if (*sasr_3393 == WD_AUXILIARY_STATUS) {	/* shouldn't retain the write */
 		*sasr_3393 = save_sasr;	/* Oops - restore this byte */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (*sasr_3393 != q) {	/* should still read the same */
 		*sasr_3393 = save_sasr;	/* Oops - restore this byte */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (*scmd_3393 != q)	/* and so should the image at 0x1f */
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Ok, we probably have a wd33c93, but let's check a few other places
@@ -288,7 +288,7 @@ static int check_wd33c93(struct gvp11_scsiregs *regs)
 	*sasr_3393 = WD_SCSI_STATUS;
 	*scmd_3393 = q;
 	if (qq != q)	/* should be read only */
-		return -ENODEV;
+		return -EANALDEV;
 	*sasr_3393 = 0x1e;	/* this register is unimplemented */
 	q = *scmd_3393;
 	*sasr_3393 = 0x1e;
@@ -298,7 +298,7 @@ static int check_wd33c93(struct gvp11_scsiregs *regs)
 	*sasr_3393 = 0x1e;
 	*scmd_3393 = q;
 	if (qq != q || qq != 0xff)	/* should be read only, all 1's */
-		return -ENODEV;
+		return -EANALDEV;
 	*sasr_3393 = WD_TIMEOUT_PERIOD;
 	q = *scmd_3393;
 	*sasr_3393 = WD_TIMEOUT_PERIOD;
@@ -308,7 +308,7 @@ static int check_wd33c93(struct gvp11_scsiregs *regs)
 	*sasr_3393 = WD_TIMEOUT_PERIOD;
 	*scmd_3393 = q;
 	if (qq != (~q & 0xff))	/* should be read/write */
-		return -ENODEV;
+		return -EANALDEV;
 #endif /* CHECK_WD33C93 */
 
 	return 0;
@@ -329,18 +329,18 @@ static int gvp11_probe(struct zorro_dev *z, const struct zorro_device_id *ent)
 
 	if (dma_set_mask_and_coherent(&z->dev,
 		TO_DMA_MASK(default_dma_xfer_mask))) {
-		dev_warn(&z->dev, "cannot use DMA mask %llx\n",
+		dev_warn(&z->dev, "cananalt use DMA mask %llx\n",
 			 TO_DMA_MASK(default_dma_xfer_mask));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
 	 * Rumors state that some GVP ram boards use the same product
 	 * code as the SCSI controllers. Therefore if the board-size
-	 * is not 64KB we assume it is a ram board and bail out.
+	 * is analt 64KB we assume it is a ram board and bail out.
 	 */
 	if (zorro_resource_len(z) != 0x10000)
-		return -ENODEV;
+		return -EANALDEV;
 
 	address = z->resource.start;
 	if (!request_mem_region(address, 256, "wd33c93"))
@@ -355,7 +355,7 @@ static int gvp11_probe(struct zorro_dev *z, const struct zorro_device_id *ent)
 	instance = scsi_host_alloc(&gvp11_scsi_template,
 				   sizeof(struct gvp11_hostdata));
 	if (!instance) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail_check_or_alloc;
 	}
 
@@ -378,15 +378,15 @@ static int gvp11_probe(struct zorro_dev *z, const struct zorro_device_id *ent)
 		hdata->wh.dma_xfer_mask = gvp11_xfer_mask;
 		if (dma_set_mask_and_coherent(&z->dev,
 			TO_DMA_MASK(gvp11_xfer_mask))) {
-			dev_warn(&z->dev, "cannot use DMA mask %llx\n",
+			dev_warn(&z->dev, "cananalt use DMA mask %llx\n",
 				 TO_DMA_MASK(gvp11_xfer_mask));
-			error = -ENODEV;
+			error = -EANALDEV;
 			goto fail_check_or_alloc;
 		}
 	} else
 		hdata->wh.dma_xfer_mask = default_dma_xfer_mask;
 
-	hdata->wh.no_sync = 0xff;
+	hdata->wh.anal_sync = 0xff;
 	hdata->wh.fast = 0;
 	hdata->wh.dma_mode = CTRL_DMA;
 	hdata->regs = regs;

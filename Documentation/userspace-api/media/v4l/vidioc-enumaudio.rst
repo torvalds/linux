@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_ENUMAUDIO:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_ENUMAUDIO - Enumerate audio inputs
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_ENUMAUDIO
@@ -45,7 +45,7 @@ See :ref:`VIDIOC_G_AUDIO <VIDIOC_G_AUDIO>` for a description of struct
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

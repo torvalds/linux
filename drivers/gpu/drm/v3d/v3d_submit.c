@@ -58,7 +58,7 @@ fail:
  * the submitted job's BO list.  This does the validation of the job's
  * BO list and reference counting for the lifetime of the job.
  *
- * Note that this function doesn't need to unreference the BOs on
+ * Analte that this function doesn't need to unreference the BOs on
  * failure, because that will happen at v3d_exec_cleanup() time.
  */
 static int
@@ -140,8 +140,8 @@ v3d_job_allocate(void **container, size_t size)
 {
 	*container = kcalloc(1, size, GFP_KERNEL);
 	if (!*container) {
-		DRM_ERROR("Cannot allocate memory for V3D job.\n");
-		return -ENOMEM;
+		DRM_ERROR("Cananalt allocate memory for V3D job.\n");
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -187,7 +187,7 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 				ret = drm_sched_job_add_syncobj_dependency(&job->base, file_priv, in.handle, 0);
 
 				// TODO: Investigate why this was filtered out for the IOCTL.
-				if (ret && ret != -ENOENT)
+				if (ret && ret != -EANALENT)
 					goto fail_deps;
 			}
 		}
@@ -195,7 +195,7 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 		ret = drm_sched_job_add_syncobj_dependency(&job->base, file_priv, in_sync, 0);
 
 		// TODO: Investigate why this was filtered out for the IOCTL.
-		if (ret && ret != -ENOENT)
+		if (ret && ret != -EANALENT)
 			goto fail_deps;
 	}
 
@@ -335,7 +335,7 @@ v3d_get_multisync_post_deps(struct drm_file *file_priv,
 				       sizeof(struct v3d_submit_outsync),
 				       GFP_KERNEL);
 	if (!se->out_syncs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	post_deps = u64_to_user_ptr(handles);
 
@@ -427,7 +427,7 @@ v3d_get_cpu_indirect_csd_params(struct drm_file *file_priv,
 		return -EFAULT;
 
 	if (!v3d_has_csd(v3d)) {
-		DRM_DEBUG("Attempting CSD submit on non-CSD hardware.\n");
+		DRM_DEBUG("Attempting CSD submit on analn-CSD hardware.\n");
 		return -EINVAL;
 	}
 
@@ -475,7 +475,7 @@ v3d_get_cpu_timestamp_query_params(struct drm_file *file_priv,
 						      sizeof(struct v3d_timestamp_query),
 						      GFP_KERNEL);
 	if (!job->timestamp_query.queries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	offsets = u64_to_user_ptr(timestamp.offsets);
 	syncs = u64_to_user_ptr(timestamp.syncs);
@@ -529,7 +529,7 @@ v3d_get_cpu_reset_timestamp_params(struct drm_file *file_priv,
 						      sizeof(struct v3d_timestamp_query),
 						      GFP_KERNEL);
 	if (!job->timestamp_query.queries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	syncs = u64_to_user_ptr(reset.syncs);
 
@@ -582,7 +582,7 @@ v3d_get_cpu_copy_query_results_params(struct drm_file *file_priv,
 						      sizeof(struct v3d_timestamp_query),
 						      GFP_KERNEL);
 	if (!job->timestamp_query.queries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	offsets = u64_to_user_ptr(copy.offsets);
 	syncs = u64_to_user_ptr(copy.syncs);
@@ -643,7 +643,7 @@ v3d_get_cpu_reset_performance_params(struct drm_file *file_priv,
 							sizeof(struct v3d_performance_query),
 							GFP_KERNEL);
 	if (!job->performance_query.queries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	syncs = u64_to_user_ptr(reset.syncs);
 	kperfmon_ids = u64_to_user_ptr(reset.kperfmon_ids);
@@ -714,7 +714,7 @@ v3d_get_cpu_copy_performance_query_params(struct drm_file *file_priv,
 							sizeof(struct v3d_performance_query),
 							GFP_KERNEL);
 	if (!job->performance_query.queries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	syncs = u64_to_user_ptr(copy.syncs);
 	kperfmon_ids = u64_to_user_ptr(copy.kperfmon_ids);
@@ -805,7 +805,7 @@ v3d_get_extensions(struct drm_file *file_priv,
 			ret = v3d_get_cpu_copy_performance_query_params(file_priv, user_ext, job);
 			break;
 		default:
-			DRM_DEBUG_DRIVER("Unknown extension id: %d\n", ext.id);
+			DRM_DEBUG_DRIVER("Unkanalwn extension id: %d\n", ext.id);
 			return -EINVAL;
 		}
 
@@ -931,7 +931,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 							args->perfmon_id);
 
 		if (!render->base.perfmon) {
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto fail_perfmon;
 		}
 	}
@@ -1040,7 +1040,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 	job->base.bo = kcalloc(ARRAY_SIZE(args->bo_handles),
 			       sizeof(*job->base.bo), GFP_KERNEL);
 	if (!job->base.bo) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -1059,7 +1059,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 			DRM_DEBUG("Failed to look up GEM BO %d: %d\n",
 				  job->base.bo_count,
 				  args->bo_handles[job->base.bo_count]);
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto fail;
 		}
 		job->base.bo[job->base.bo_count] = bo;
@@ -1118,7 +1118,7 @@ v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	if (!v3d_has_csd(v3d)) {
-		DRM_DEBUG("Attempting CSD submit on non-CSD hardware\n");
+		DRM_DEBUG("Attempting CSD submit on analn-CSD hardware\n");
 		return -EINVAL;
 	}
 
@@ -1145,7 +1145,7 @@ v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 		job->base.perfmon = v3d_perfmon_find(v3d_priv,
 						     args->perfmon_id);
 		if (!job->base.perfmon) {
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto fail_perfmon;
 		}
 	}
@@ -1243,7 +1243,7 @@ v3d_submit_cpu_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (args->bo_handle_count != cpu_job_bo_handle_count[cpu_job->job_type]) {
-		DRM_DEBUG("This CPU job was not submitted with the proper number of BOs.\n");
+		DRM_DEBUG("This CPU job was analt submitted with the proper number of BOs.\n");
 		ret = -EINVAL;
 		goto fail;
 	}

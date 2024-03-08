@@ -4,7 +4,7 @@
 
 /* Version verification for shared data structures w/ userspace */
 #define ECRYPTFS_VERSION_MAJOR 0x00
-#define ECRYPTFS_VERSION_MINOR 0x04
+#define ECRYPTFS_VERSION_MIANALR 0x04
 #define ECRYPTFS_SUPPORTED_FILE_VERSION 0x03
 /* These flags indicate which features are supported by the kernel
  * module; userspace tools such as the mount helper read the feature
@@ -48,7 +48,7 @@
 /**
  * For convenience, we may need to pass around the encrypted session
  * key between kernel and userspace because the authentication token
- * may not be extractable.  For example, the TPM may not release the
+ * may analt be extractable.  For example, the TPM may analt release the
  * private key, instead requiring the encrypted data and returning the
  * decrypted data.
  */
@@ -91,7 +91,7 @@ struct ecryptfs_private_key {
 
 /* May be a password or a private key */
 struct ecryptfs_auth_tok {
-	u16 version; /* 8-bit major and 8-bit minor */
+	u16 version; /* 8-bit major and 8-bit mianalr */
 	u16 token_type;
 #define ECRYPTFS_ENCRYPT_ONLY 0x00000001
 	u32 flags;

@@ -1,7 +1,7 @@
-Zodiac Inflight Innovations RAVE Supervisory Processor
+Zodiac Inflight Inanalvations RAVE Supervisory Processor
 
 RAVE Supervisory Processor communicates with SoC over UART. It is
-expected that its Device Tree node is specified as a child of a node
+expected that its Device Tree analde is specified as a child of a analde
 corresponding to UART controller used for communication.
 
 Required parent device properties:

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -250,8 +250,8 @@
 #define regSDMA0_GFX_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                      0
 #define regSDMA0_GFX_RB_AQL_CNTL                                                                        0x00b4
 #define regSDMA0_GFX_RB_AQL_CNTL_BASE_IDX                                                               0
-#define regSDMA0_GFX_MINOR_PTR_UPDATE                                                                   0x00b5
-#define regSDMA0_GFX_MINOR_PTR_UPDATE_BASE_IDX                                                          0
+#define regSDMA0_GFX_MIANALR_PTR_UPDATE                                                                   0x00b5
+#define regSDMA0_GFX_MIANALR_PTR_UPDATE_BASE_IDX                                                          0
 #define regSDMA0_GFX_MIDCMD_DATA0                                                                       0x00c0
 #define regSDMA0_GFX_MIDCMD_DATA0_BASE_IDX                                                              0
 #define regSDMA0_GFX_MIDCMD_DATA1                                                                       0x00c1
@@ -338,8 +338,8 @@
 #define regSDMA0_PAGE_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA0_PAGE_RB_AQL_CNTL                                                                       0x010c
 #define regSDMA0_PAGE_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA0_PAGE_MINOR_PTR_UPDATE                                                                  0x010d
-#define regSDMA0_PAGE_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA0_PAGE_MIANALR_PTR_UPDATE                                                                  0x010d
+#define regSDMA0_PAGE_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA0_PAGE_MIDCMD_DATA0                                                                      0x0118
 #define regSDMA0_PAGE_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA0_PAGE_MIDCMD_DATA1                                                                      0x0119
@@ -426,8 +426,8 @@
 #define regSDMA0_RLC0_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA0_RLC0_RB_AQL_CNTL                                                                       0x0164
 #define regSDMA0_RLC0_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA0_RLC0_MINOR_PTR_UPDATE                                                                  0x0165
-#define regSDMA0_RLC0_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA0_RLC0_MIANALR_PTR_UPDATE                                                                  0x0165
+#define regSDMA0_RLC0_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA0_RLC0_MIDCMD_DATA0                                                                      0x0170
 #define regSDMA0_RLC0_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA0_RLC0_MIDCMD_DATA1                                                                      0x0171
@@ -514,8 +514,8 @@
 #define regSDMA0_RLC1_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA0_RLC1_RB_AQL_CNTL                                                                       0x01bc
 #define regSDMA0_RLC1_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA0_RLC1_MINOR_PTR_UPDATE                                                                  0x01bd
-#define regSDMA0_RLC1_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA0_RLC1_MIANALR_PTR_UPDATE                                                                  0x01bd
+#define regSDMA0_RLC1_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA0_RLC1_MIDCMD_DATA0                                                                      0x01c8
 #define regSDMA0_RLC1_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA0_RLC1_MIDCMD_DATA1                                                                      0x01c9
@@ -602,8 +602,8 @@
 #define regSDMA0_RLC2_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA0_RLC2_RB_AQL_CNTL                                                                       0x0214
 #define regSDMA0_RLC2_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA0_RLC2_MINOR_PTR_UPDATE                                                                  0x0215
-#define regSDMA0_RLC2_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA0_RLC2_MIANALR_PTR_UPDATE                                                                  0x0215
+#define regSDMA0_RLC2_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA0_RLC2_MIDCMD_DATA0                                                                      0x0220
 #define regSDMA0_RLC2_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA0_RLC2_MIDCMD_DATA1                                                                      0x0221
@@ -690,8 +690,8 @@
 #define regSDMA0_RLC3_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA0_RLC3_RB_AQL_CNTL                                                                       0x026c
 #define regSDMA0_RLC3_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA0_RLC3_MINOR_PTR_UPDATE                                                                  0x026d
-#define regSDMA0_RLC3_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA0_RLC3_MIANALR_PTR_UPDATE                                                                  0x026d
+#define regSDMA0_RLC3_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA0_RLC3_MIDCMD_DATA0                                                                      0x0278
 #define regSDMA0_RLC3_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA0_RLC3_MIDCMD_DATA1                                                                      0x0279
@@ -778,8 +778,8 @@
 #define regSDMA0_RLC4_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA0_RLC4_RB_AQL_CNTL                                                                       0x02c4
 #define regSDMA0_RLC4_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA0_RLC4_MINOR_PTR_UPDATE                                                                  0x02c5
-#define regSDMA0_RLC4_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA0_RLC4_MIANALR_PTR_UPDATE                                                                  0x02c5
+#define regSDMA0_RLC4_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA0_RLC4_MIDCMD_DATA0                                                                      0x02d0
 #define regSDMA0_RLC4_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA0_RLC4_MIDCMD_DATA1                                                                      0x02d1
@@ -866,8 +866,8 @@
 #define regSDMA0_RLC5_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA0_RLC5_RB_AQL_CNTL                                                                       0x031c
 #define regSDMA0_RLC5_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA0_RLC5_MINOR_PTR_UPDATE                                                                  0x031d
-#define regSDMA0_RLC5_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA0_RLC5_MIANALR_PTR_UPDATE                                                                  0x031d
+#define regSDMA0_RLC5_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA0_RLC5_MIDCMD_DATA0                                                                      0x0328
 #define regSDMA0_RLC5_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA0_RLC5_MIDCMD_DATA1                                                                      0x0329
@@ -954,8 +954,8 @@
 #define regSDMA0_RLC6_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA0_RLC6_RB_AQL_CNTL                                                                       0x0374
 #define regSDMA0_RLC6_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA0_RLC6_MINOR_PTR_UPDATE                                                                  0x0375
-#define regSDMA0_RLC6_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA0_RLC6_MIANALR_PTR_UPDATE                                                                  0x0375
+#define regSDMA0_RLC6_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA0_RLC6_MIDCMD_DATA0                                                                      0x0380
 #define regSDMA0_RLC6_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA0_RLC6_MIDCMD_DATA1                                                                      0x0381
@@ -1042,8 +1042,8 @@
 #define regSDMA0_RLC7_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA0_RLC7_RB_AQL_CNTL                                                                       0x03cc
 #define regSDMA0_RLC7_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA0_RLC7_MINOR_PTR_UPDATE                                                                  0x03cd
-#define regSDMA0_RLC7_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA0_RLC7_MIANALR_PTR_UPDATE                                                                  0x03cd
+#define regSDMA0_RLC7_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA0_RLC7_MIDCMD_DATA0                                                                      0x03d8
 #define regSDMA0_RLC7_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA0_RLC7_MIDCMD_DATA1                                                                      0x03d9
@@ -1288,8 +1288,8 @@
 #define regSDMA1_GFX_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                      0
 #define regSDMA1_GFX_RB_AQL_CNTL                                                                        0x06b4
 #define regSDMA1_GFX_RB_AQL_CNTL_BASE_IDX                                                               0
-#define regSDMA1_GFX_MINOR_PTR_UPDATE                                                                   0x06b5
-#define regSDMA1_GFX_MINOR_PTR_UPDATE_BASE_IDX                                                          0
+#define regSDMA1_GFX_MIANALR_PTR_UPDATE                                                                   0x06b5
+#define regSDMA1_GFX_MIANALR_PTR_UPDATE_BASE_IDX                                                          0
 #define regSDMA1_GFX_MIDCMD_DATA0                                                                       0x06c0
 #define regSDMA1_GFX_MIDCMD_DATA0_BASE_IDX                                                              0
 #define regSDMA1_GFX_MIDCMD_DATA1                                                                       0x06c1
@@ -1376,8 +1376,8 @@
 #define regSDMA1_PAGE_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA1_PAGE_RB_AQL_CNTL                                                                       0x070c
 #define regSDMA1_PAGE_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA1_PAGE_MINOR_PTR_UPDATE                                                                  0x070d
-#define regSDMA1_PAGE_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA1_PAGE_MIANALR_PTR_UPDATE                                                                  0x070d
+#define regSDMA1_PAGE_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA1_PAGE_MIDCMD_DATA0                                                                      0x0718
 #define regSDMA1_PAGE_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA1_PAGE_MIDCMD_DATA1                                                                      0x0719
@@ -1464,8 +1464,8 @@
 #define regSDMA1_RLC0_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA1_RLC0_RB_AQL_CNTL                                                                       0x0764
 #define regSDMA1_RLC0_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA1_RLC0_MINOR_PTR_UPDATE                                                                  0x0765
-#define regSDMA1_RLC0_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA1_RLC0_MIANALR_PTR_UPDATE                                                                  0x0765
+#define regSDMA1_RLC0_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA1_RLC0_MIDCMD_DATA0                                                                      0x0770
 #define regSDMA1_RLC0_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA1_RLC0_MIDCMD_DATA1                                                                      0x0771
@@ -1552,8 +1552,8 @@
 #define regSDMA1_RLC1_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA1_RLC1_RB_AQL_CNTL                                                                       0x07bc
 #define regSDMA1_RLC1_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA1_RLC1_MINOR_PTR_UPDATE                                                                  0x07bd
-#define regSDMA1_RLC1_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA1_RLC1_MIANALR_PTR_UPDATE                                                                  0x07bd
+#define regSDMA1_RLC1_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA1_RLC1_MIDCMD_DATA0                                                                      0x07c8
 #define regSDMA1_RLC1_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA1_RLC1_MIDCMD_DATA1                                                                      0x07c9
@@ -1640,8 +1640,8 @@
 #define regSDMA1_RLC2_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA1_RLC2_RB_AQL_CNTL                                                                       0x0814
 #define regSDMA1_RLC2_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA1_RLC2_MINOR_PTR_UPDATE                                                                  0x0815
-#define regSDMA1_RLC2_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA1_RLC2_MIANALR_PTR_UPDATE                                                                  0x0815
+#define regSDMA1_RLC2_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA1_RLC2_MIDCMD_DATA0                                                                      0x0820
 #define regSDMA1_RLC2_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA1_RLC2_MIDCMD_DATA1                                                                      0x0821
@@ -1728,8 +1728,8 @@
 #define regSDMA1_RLC3_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA1_RLC3_RB_AQL_CNTL                                                                       0x086c
 #define regSDMA1_RLC3_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA1_RLC3_MINOR_PTR_UPDATE                                                                  0x086d
-#define regSDMA1_RLC3_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA1_RLC3_MIANALR_PTR_UPDATE                                                                  0x086d
+#define regSDMA1_RLC3_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA1_RLC3_MIDCMD_DATA0                                                                      0x0878
 #define regSDMA1_RLC3_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA1_RLC3_MIDCMD_DATA1                                                                      0x0879
@@ -1816,8 +1816,8 @@
 #define regSDMA1_RLC4_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA1_RLC4_RB_AQL_CNTL                                                                       0x08c4
 #define regSDMA1_RLC4_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA1_RLC4_MINOR_PTR_UPDATE                                                                  0x08c5
-#define regSDMA1_RLC4_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA1_RLC4_MIANALR_PTR_UPDATE                                                                  0x08c5
+#define regSDMA1_RLC4_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA1_RLC4_MIDCMD_DATA0                                                                      0x08d0
 #define regSDMA1_RLC4_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA1_RLC4_MIDCMD_DATA1                                                                      0x08d1
@@ -1904,8 +1904,8 @@
 #define regSDMA1_RLC5_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA1_RLC5_RB_AQL_CNTL                                                                       0x091c
 #define regSDMA1_RLC5_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA1_RLC5_MINOR_PTR_UPDATE                                                                  0x091d
-#define regSDMA1_RLC5_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA1_RLC5_MIANALR_PTR_UPDATE                                                                  0x091d
+#define regSDMA1_RLC5_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA1_RLC5_MIDCMD_DATA0                                                                      0x0928
 #define regSDMA1_RLC5_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA1_RLC5_MIDCMD_DATA1                                                                      0x0929
@@ -1992,8 +1992,8 @@
 #define regSDMA1_RLC6_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA1_RLC6_RB_AQL_CNTL                                                                       0x0974
 #define regSDMA1_RLC6_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA1_RLC6_MINOR_PTR_UPDATE                                                                  0x0975
-#define regSDMA1_RLC6_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA1_RLC6_MIANALR_PTR_UPDATE                                                                  0x0975
+#define regSDMA1_RLC6_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA1_RLC6_MIDCMD_DATA0                                                                      0x0980
 #define regSDMA1_RLC6_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA1_RLC6_MIDCMD_DATA1                                                                      0x0981
@@ -2080,8 +2080,8 @@
 #define regSDMA1_RLC7_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA1_RLC7_RB_AQL_CNTL                                                                       0x09cc
 #define regSDMA1_RLC7_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA1_RLC7_MINOR_PTR_UPDATE                                                                  0x09cd
-#define regSDMA1_RLC7_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA1_RLC7_MIANALR_PTR_UPDATE                                                                  0x09cd
+#define regSDMA1_RLC7_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA1_RLC7_MIDCMD_DATA0                                                                      0x09d8
 #define regSDMA1_RLC7_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA1_RLC7_MIDCMD_DATA1                                                                      0x09d9
@@ -2326,8 +2326,8 @@
 #define regSDMA2_GFX_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                      0
 #define regSDMA2_GFX_RB_AQL_CNTL                                                                        0x1ce54
 #define regSDMA2_GFX_RB_AQL_CNTL_BASE_IDX                                                               0
-#define regSDMA2_GFX_MINOR_PTR_UPDATE                                                                   0x1ce55
-#define regSDMA2_GFX_MINOR_PTR_UPDATE_BASE_IDX                                                          0
+#define regSDMA2_GFX_MIANALR_PTR_UPDATE                                                                   0x1ce55
+#define regSDMA2_GFX_MIANALR_PTR_UPDATE_BASE_IDX                                                          0
 #define regSDMA2_GFX_MIDCMD_DATA0                                                                       0x1ce60
 #define regSDMA2_GFX_MIDCMD_DATA0_BASE_IDX                                                              0
 #define regSDMA2_GFX_MIDCMD_DATA1                                                                       0x1ce61
@@ -2414,8 +2414,8 @@
 #define regSDMA2_PAGE_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA2_PAGE_RB_AQL_CNTL                                                                       0x1ceac
 #define regSDMA2_PAGE_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA2_PAGE_MINOR_PTR_UPDATE                                                                  0x1cead
-#define regSDMA2_PAGE_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA2_PAGE_MIANALR_PTR_UPDATE                                                                  0x1cead
+#define regSDMA2_PAGE_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA2_PAGE_MIDCMD_DATA0                                                                      0x1ceb8
 #define regSDMA2_PAGE_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA2_PAGE_MIDCMD_DATA1                                                                      0x1ceb9
@@ -2502,8 +2502,8 @@
 #define regSDMA2_RLC0_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA2_RLC0_RB_AQL_CNTL                                                                       0x1cf04
 #define regSDMA2_RLC0_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA2_RLC0_MINOR_PTR_UPDATE                                                                  0x1cf05
-#define regSDMA2_RLC0_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA2_RLC0_MIANALR_PTR_UPDATE                                                                  0x1cf05
+#define regSDMA2_RLC0_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA2_RLC0_MIDCMD_DATA0                                                                      0x1cf10
 #define regSDMA2_RLC0_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA2_RLC0_MIDCMD_DATA1                                                                      0x1cf11
@@ -2590,8 +2590,8 @@
 #define regSDMA2_RLC1_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA2_RLC1_RB_AQL_CNTL                                                                       0x1cf5c
 #define regSDMA2_RLC1_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA2_RLC1_MINOR_PTR_UPDATE                                                                  0x1cf5d
-#define regSDMA2_RLC1_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA2_RLC1_MIANALR_PTR_UPDATE                                                                  0x1cf5d
+#define regSDMA2_RLC1_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA2_RLC1_MIDCMD_DATA0                                                                      0x1cf68
 #define regSDMA2_RLC1_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA2_RLC1_MIDCMD_DATA1                                                                      0x1cf69
@@ -2678,8 +2678,8 @@
 #define regSDMA2_RLC2_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA2_RLC2_RB_AQL_CNTL                                                                       0x1cfb4
 #define regSDMA2_RLC2_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA2_RLC2_MINOR_PTR_UPDATE                                                                  0x1cfb5
-#define regSDMA2_RLC2_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA2_RLC2_MIANALR_PTR_UPDATE                                                                  0x1cfb5
+#define regSDMA2_RLC2_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA2_RLC2_MIDCMD_DATA0                                                                      0x1cfc0
 #define regSDMA2_RLC2_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA2_RLC2_MIDCMD_DATA1                                                                      0x1cfc1
@@ -2766,8 +2766,8 @@
 #define regSDMA2_RLC3_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA2_RLC3_RB_AQL_CNTL                                                                       0x1d00c
 #define regSDMA2_RLC3_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA2_RLC3_MINOR_PTR_UPDATE                                                                  0x1d00d
-#define regSDMA2_RLC3_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA2_RLC3_MIANALR_PTR_UPDATE                                                                  0x1d00d
+#define regSDMA2_RLC3_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA2_RLC3_MIDCMD_DATA0                                                                      0x1d018
 #define regSDMA2_RLC3_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA2_RLC3_MIDCMD_DATA1                                                                      0x1d019
@@ -2854,8 +2854,8 @@
 #define regSDMA2_RLC4_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA2_RLC4_RB_AQL_CNTL                                                                       0x1d064
 #define regSDMA2_RLC4_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA2_RLC4_MINOR_PTR_UPDATE                                                                  0x1d065
-#define regSDMA2_RLC4_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA2_RLC4_MIANALR_PTR_UPDATE                                                                  0x1d065
+#define regSDMA2_RLC4_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA2_RLC4_MIDCMD_DATA0                                                                      0x1d070
 #define regSDMA2_RLC4_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA2_RLC4_MIDCMD_DATA1                                                                      0x1d071
@@ -2942,8 +2942,8 @@
 #define regSDMA2_RLC5_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA2_RLC5_RB_AQL_CNTL                                                                       0x1d0bc
 #define regSDMA2_RLC5_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA2_RLC5_MINOR_PTR_UPDATE                                                                  0x1d0bd
-#define regSDMA2_RLC5_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA2_RLC5_MIANALR_PTR_UPDATE                                                                  0x1d0bd
+#define regSDMA2_RLC5_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA2_RLC5_MIDCMD_DATA0                                                                      0x1d0c8
 #define regSDMA2_RLC5_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA2_RLC5_MIDCMD_DATA1                                                                      0x1d0c9
@@ -3030,8 +3030,8 @@
 #define regSDMA2_RLC6_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA2_RLC6_RB_AQL_CNTL                                                                       0x1d114
 #define regSDMA2_RLC6_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA2_RLC6_MINOR_PTR_UPDATE                                                                  0x1d115
-#define regSDMA2_RLC6_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA2_RLC6_MIANALR_PTR_UPDATE                                                                  0x1d115
+#define regSDMA2_RLC6_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA2_RLC6_MIDCMD_DATA0                                                                      0x1d120
 #define regSDMA2_RLC6_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA2_RLC6_MIDCMD_DATA1                                                                      0x1d121
@@ -3118,8 +3118,8 @@
 #define regSDMA2_RLC7_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA2_RLC7_RB_AQL_CNTL                                                                       0x1d16c
 #define regSDMA2_RLC7_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA2_RLC7_MINOR_PTR_UPDATE                                                                  0x1d16d
-#define regSDMA2_RLC7_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA2_RLC7_MIANALR_PTR_UPDATE                                                                  0x1d16d
+#define regSDMA2_RLC7_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA2_RLC7_MIDCMD_DATA0                                                                      0x1d178
 #define regSDMA2_RLC7_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA2_RLC7_MIDCMD_DATA1                                                                      0x1d179
@@ -3364,8 +3364,8 @@
 #define regSDMA3_GFX_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                      0
 #define regSDMA3_GFX_RB_AQL_CNTL                                                                        0x1d254
 #define regSDMA3_GFX_RB_AQL_CNTL_BASE_IDX                                                               0
-#define regSDMA3_GFX_MINOR_PTR_UPDATE                                                                   0x1d255
-#define regSDMA3_GFX_MINOR_PTR_UPDATE_BASE_IDX                                                          0
+#define regSDMA3_GFX_MIANALR_PTR_UPDATE                                                                   0x1d255
+#define regSDMA3_GFX_MIANALR_PTR_UPDATE_BASE_IDX                                                          0
 #define regSDMA3_GFX_MIDCMD_DATA0                                                                       0x1d260
 #define regSDMA3_GFX_MIDCMD_DATA0_BASE_IDX                                                              0
 #define regSDMA3_GFX_MIDCMD_DATA1                                                                       0x1d261
@@ -3452,8 +3452,8 @@
 #define regSDMA3_PAGE_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA3_PAGE_RB_AQL_CNTL                                                                       0x1d2ac
 #define regSDMA3_PAGE_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA3_PAGE_MINOR_PTR_UPDATE                                                                  0x1d2ad
-#define regSDMA3_PAGE_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA3_PAGE_MIANALR_PTR_UPDATE                                                                  0x1d2ad
+#define regSDMA3_PAGE_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA3_PAGE_MIDCMD_DATA0                                                                      0x1d2b8
 #define regSDMA3_PAGE_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA3_PAGE_MIDCMD_DATA1                                                                      0x1d2b9
@@ -3540,8 +3540,8 @@
 #define regSDMA3_RLC0_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA3_RLC0_RB_AQL_CNTL                                                                       0x1d304
 #define regSDMA3_RLC0_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA3_RLC0_MINOR_PTR_UPDATE                                                                  0x1d305
-#define regSDMA3_RLC0_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA3_RLC0_MIANALR_PTR_UPDATE                                                                  0x1d305
+#define regSDMA3_RLC0_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA3_RLC0_MIDCMD_DATA0                                                                      0x1d310
 #define regSDMA3_RLC0_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA3_RLC0_MIDCMD_DATA1                                                                      0x1d311
@@ -3628,8 +3628,8 @@
 #define regSDMA3_RLC1_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA3_RLC1_RB_AQL_CNTL                                                                       0x1d35c
 #define regSDMA3_RLC1_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA3_RLC1_MINOR_PTR_UPDATE                                                                  0x1d35d
-#define regSDMA3_RLC1_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA3_RLC1_MIANALR_PTR_UPDATE                                                                  0x1d35d
+#define regSDMA3_RLC1_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA3_RLC1_MIDCMD_DATA0                                                                      0x1d368
 #define regSDMA3_RLC1_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA3_RLC1_MIDCMD_DATA1                                                                      0x1d369
@@ -3716,8 +3716,8 @@
 #define regSDMA3_RLC2_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA3_RLC2_RB_AQL_CNTL                                                                       0x1d3b4
 #define regSDMA3_RLC2_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA3_RLC2_MINOR_PTR_UPDATE                                                                  0x1d3b5
-#define regSDMA3_RLC2_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA3_RLC2_MIANALR_PTR_UPDATE                                                                  0x1d3b5
+#define regSDMA3_RLC2_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA3_RLC2_MIDCMD_DATA0                                                                      0x1d3c0
 #define regSDMA3_RLC2_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA3_RLC2_MIDCMD_DATA1                                                                      0x1d3c1
@@ -3804,8 +3804,8 @@
 #define regSDMA3_RLC3_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA3_RLC3_RB_AQL_CNTL                                                                       0x1d40c
 #define regSDMA3_RLC3_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA3_RLC3_MINOR_PTR_UPDATE                                                                  0x1d40d
-#define regSDMA3_RLC3_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA3_RLC3_MIANALR_PTR_UPDATE                                                                  0x1d40d
+#define regSDMA3_RLC3_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA3_RLC3_MIDCMD_DATA0                                                                      0x1d418
 #define regSDMA3_RLC3_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA3_RLC3_MIDCMD_DATA1                                                                      0x1d419
@@ -3892,8 +3892,8 @@
 #define regSDMA3_RLC4_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA3_RLC4_RB_AQL_CNTL                                                                       0x1d464
 #define regSDMA3_RLC4_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA3_RLC4_MINOR_PTR_UPDATE                                                                  0x1d465
-#define regSDMA3_RLC4_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA3_RLC4_MIANALR_PTR_UPDATE                                                                  0x1d465
+#define regSDMA3_RLC4_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA3_RLC4_MIDCMD_DATA0                                                                      0x1d470
 #define regSDMA3_RLC4_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA3_RLC4_MIDCMD_DATA1                                                                      0x1d471
@@ -3980,8 +3980,8 @@
 #define regSDMA3_RLC5_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA3_RLC5_RB_AQL_CNTL                                                                       0x1d4bc
 #define regSDMA3_RLC5_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA3_RLC5_MINOR_PTR_UPDATE                                                                  0x1d4bd
-#define regSDMA3_RLC5_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA3_RLC5_MIANALR_PTR_UPDATE                                                                  0x1d4bd
+#define regSDMA3_RLC5_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA3_RLC5_MIDCMD_DATA0                                                                      0x1d4c8
 #define regSDMA3_RLC5_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA3_RLC5_MIDCMD_DATA1                                                                      0x1d4c9
@@ -4068,8 +4068,8 @@
 #define regSDMA3_RLC6_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA3_RLC6_RB_AQL_CNTL                                                                       0x1d514
 #define regSDMA3_RLC6_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA3_RLC6_MINOR_PTR_UPDATE                                                                  0x1d515
-#define regSDMA3_RLC6_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA3_RLC6_MIANALR_PTR_UPDATE                                                                  0x1d515
+#define regSDMA3_RLC6_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA3_RLC6_MIDCMD_DATA0                                                                      0x1d520
 #define regSDMA3_RLC6_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA3_RLC6_MIDCMD_DATA1                                                                      0x1d521
@@ -4156,8 +4156,8 @@
 #define regSDMA3_RLC7_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA3_RLC7_RB_AQL_CNTL                                                                       0x1d56c
 #define regSDMA3_RLC7_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA3_RLC7_MINOR_PTR_UPDATE                                                                  0x1d56d
-#define regSDMA3_RLC7_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA3_RLC7_MIANALR_PTR_UPDATE                                                                  0x1d56d
+#define regSDMA3_RLC7_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA3_RLC7_MIDCMD_DATA0                                                                      0x1d578
 #define regSDMA3_RLC7_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA3_RLC7_MIDCMD_DATA1                                                                      0x1d579
@@ -4402,8 +4402,8 @@
 #define regSDMA4_GFX_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                      0
 #define regSDMA4_GFX_RB_AQL_CNTL                                                                        0x1d654
 #define regSDMA4_GFX_RB_AQL_CNTL_BASE_IDX                                                               0
-#define regSDMA4_GFX_MINOR_PTR_UPDATE                                                                   0x1d655
-#define regSDMA4_GFX_MINOR_PTR_UPDATE_BASE_IDX                                                          0
+#define regSDMA4_GFX_MIANALR_PTR_UPDATE                                                                   0x1d655
+#define regSDMA4_GFX_MIANALR_PTR_UPDATE_BASE_IDX                                                          0
 #define regSDMA4_GFX_MIDCMD_DATA0                                                                       0x1d660
 #define regSDMA4_GFX_MIDCMD_DATA0_BASE_IDX                                                              0
 #define regSDMA4_GFX_MIDCMD_DATA1                                                                       0x1d661
@@ -4490,8 +4490,8 @@
 #define regSDMA4_PAGE_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA4_PAGE_RB_AQL_CNTL                                                                       0x1d6ac
 #define regSDMA4_PAGE_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA4_PAGE_MINOR_PTR_UPDATE                                                                  0x1d6ad
-#define regSDMA4_PAGE_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA4_PAGE_MIANALR_PTR_UPDATE                                                                  0x1d6ad
+#define regSDMA4_PAGE_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA4_PAGE_MIDCMD_DATA0                                                                      0x1d6b8
 #define regSDMA4_PAGE_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA4_PAGE_MIDCMD_DATA1                                                                      0x1d6b9
@@ -4578,8 +4578,8 @@
 #define regSDMA4_RLC0_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA4_RLC0_RB_AQL_CNTL                                                                       0x1d704
 #define regSDMA4_RLC0_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA4_RLC0_MINOR_PTR_UPDATE                                                                  0x1d705
-#define regSDMA4_RLC0_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA4_RLC0_MIANALR_PTR_UPDATE                                                                  0x1d705
+#define regSDMA4_RLC0_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA4_RLC0_MIDCMD_DATA0                                                                      0x1d710
 #define regSDMA4_RLC0_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA4_RLC0_MIDCMD_DATA1                                                                      0x1d711
@@ -4666,8 +4666,8 @@
 #define regSDMA4_RLC1_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA4_RLC1_RB_AQL_CNTL                                                                       0x1d75c
 #define regSDMA4_RLC1_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA4_RLC1_MINOR_PTR_UPDATE                                                                  0x1d75d
-#define regSDMA4_RLC1_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA4_RLC1_MIANALR_PTR_UPDATE                                                                  0x1d75d
+#define regSDMA4_RLC1_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA4_RLC1_MIDCMD_DATA0                                                                      0x1d768
 #define regSDMA4_RLC1_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA4_RLC1_MIDCMD_DATA1                                                                      0x1d769
@@ -4754,8 +4754,8 @@
 #define regSDMA4_RLC2_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA4_RLC2_RB_AQL_CNTL                                                                       0x1d7b4
 #define regSDMA4_RLC2_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA4_RLC2_MINOR_PTR_UPDATE                                                                  0x1d7b5
-#define regSDMA4_RLC2_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA4_RLC2_MIANALR_PTR_UPDATE                                                                  0x1d7b5
+#define regSDMA4_RLC2_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA4_RLC2_MIDCMD_DATA0                                                                      0x1d7c0
 #define regSDMA4_RLC2_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA4_RLC2_MIDCMD_DATA1                                                                      0x1d7c1
@@ -4842,8 +4842,8 @@
 #define regSDMA4_RLC3_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA4_RLC3_RB_AQL_CNTL                                                                       0x1d80c
 #define regSDMA4_RLC3_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA4_RLC3_MINOR_PTR_UPDATE                                                                  0x1d80d
-#define regSDMA4_RLC3_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA4_RLC3_MIANALR_PTR_UPDATE                                                                  0x1d80d
+#define regSDMA4_RLC3_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA4_RLC3_MIDCMD_DATA0                                                                      0x1d818
 #define regSDMA4_RLC3_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA4_RLC3_MIDCMD_DATA1                                                                      0x1d819
@@ -4930,8 +4930,8 @@
 #define regSDMA4_RLC4_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA4_RLC4_RB_AQL_CNTL                                                                       0x1d864
 #define regSDMA4_RLC4_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA4_RLC4_MINOR_PTR_UPDATE                                                                  0x1d865
-#define regSDMA4_RLC4_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA4_RLC4_MIANALR_PTR_UPDATE                                                                  0x1d865
+#define regSDMA4_RLC4_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA4_RLC4_MIDCMD_DATA0                                                                      0x1d870
 #define regSDMA4_RLC4_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA4_RLC4_MIDCMD_DATA1                                                                      0x1d871
@@ -5018,8 +5018,8 @@
 #define regSDMA4_RLC5_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA4_RLC5_RB_AQL_CNTL                                                                       0x1d8bc
 #define regSDMA4_RLC5_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA4_RLC5_MINOR_PTR_UPDATE                                                                  0x1d8bd
-#define regSDMA4_RLC5_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA4_RLC5_MIANALR_PTR_UPDATE                                                                  0x1d8bd
+#define regSDMA4_RLC5_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA4_RLC5_MIDCMD_DATA0                                                                      0x1d8c8
 #define regSDMA4_RLC5_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA4_RLC5_MIDCMD_DATA1                                                                      0x1d8c9
@@ -5106,8 +5106,8 @@
 #define regSDMA4_RLC6_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA4_RLC6_RB_AQL_CNTL                                                                       0x1d914
 #define regSDMA4_RLC6_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA4_RLC6_MINOR_PTR_UPDATE                                                                  0x1d915
-#define regSDMA4_RLC6_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA4_RLC6_MIANALR_PTR_UPDATE                                                                  0x1d915
+#define regSDMA4_RLC6_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA4_RLC6_MIDCMD_DATA0                                                                      0x1d920
 #define regSDMA4_RLC6_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA4_RLC6_MIDCMD_DATA1                                                                      0x1d921
@@ -5194,8 +5194,8 @@
 #define regSDMA4_RLC7_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                     0
 #define regSDMA4_RLC7_RB_AQL_CNTL                                                                       0x1d96c
 #define regSDMA4_RLC7_RB_AQL_CNTL_BASE_IDX                                                              0
-#define regSDMA4_RLC7_MINOR_PTR_UPDATE                                                                  0x1d96d
-#define regSDMA4_RLC7_MINOR_PTR_UPDATE_BASE_IDX                                                         0
+#define regSDMA4_RLC7_MIANALR_PTR_UPDATE                                                                  0x1d96d
+#define regSDMA4_RLC7_MIANALR_PTR_UPDATE_BASE_IDX                                                         0
 #define regSDMA4_RLC7_MIDCMD_DATA0                                                                      0x1d978
 #define regSDMA4_RLC7_MIDCMD_DATA0_BASE_IDX                                                             0
 #define regSDMA4_RLC7_MIDCMD_DATA1                                                                      0x1d979

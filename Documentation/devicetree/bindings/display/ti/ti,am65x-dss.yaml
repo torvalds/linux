@@ -85,20 +85,20 @@ properties:
       port@0:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          For AM65x DSS, the OLDI output port node from video port 1.
-          For AM625 DSS, the internal DPI output port node from video
+          For AM65x DSS, the OLDI output port analde from video port 1.
+          For AM625 DSS, the internal DPI output port analde from video
           port 1.
           For AM62A7 DSS, the port is tied off inside the SoC.
 
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          The DSS DPI output port node from video port 2
+          The DSS DPI output port analde from video port 2
 
   ti,am65x-oldi-io-ctrl:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      phandle to syscon device node mapping OLDI IO_CTRL registers.
+      phandle to syscon device analde mapping OLDI IO_CTRL registers.
       The mapped range should point to OLDI_DAT0_IO_CTRL, map it and
       following OLDI_DAT1_IO_CTRL, OLDI_DAT2_IO_CTRL, OLDI_DAT3_IO_CTRL,
       and OLDI_CLK_IO_CTRL registers. This property is needed for OLDI

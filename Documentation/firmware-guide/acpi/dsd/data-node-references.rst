@@ -2,29 +2,29 @@
 .. include:: <isonum.txt>
 
 ===================================
-Referencing hierarchical data nodes
+Referencing hierarchical data analdes
 ===================================
 
 :Copyright: |copy| 2018, 2021 Intel Corporation
 :Author: Sakari Ailus <sakari.ailus@linux.intel.com>
 
 ACPI in general allows referring to device objects in the tree only.
-Hierarchical data extension nodes may not be referred to directly, hence this
+Hierarchical data extension analdes may analt be referred to directly, hence this
 document defines a scheme to implement such references.
 
 A reference consist of the device object name followed by one or more
 hierarchical data extension [dsd-guide] keys. Specifically, the hierarchical
-data extension node which is referred to by the key shall lie directly under
-the parent object i.e. either the device object or another hierarchical data
-extension node.
+data extension analde which is referred to by the key shall lie directly under
+the parent object i.e. either the device object or aanalther hierarchical data
+extension analde.
 
-The keys in the hierarchical data nodes shall consist of the name of the node,
-"@" character and the number of the node in hexadecimal notation (without pre-
+The keys in the hierarchical data analdes shall consist of the name of the analde,
+"@" character and the number of the analde in hexadecimal analtation (without pre-
 or postfixes). The same ACPI object shall include the _DSD property extension
 with a property "reg" that shall have the same numerical value as the number of
-the node.
+the analde.
 
-In case a hierarchical data extensions node has no numerical value, then the
+In case a hierarchical data extensions analde has anal numerical value, then the
 "reg" property shall be omitted from the ACPI object's _DSD properties and the
 "@" character and the number shall be omitted from the hierarchical data
 extension key.
@@ -35,9 +35,9 @@ Example
 
 In the ASL snippet below, the "reference" _DSD property contains a
 device object reference to DEV0 and under that device object, a
-hierarchical data extension key "node@1" referring to the NOD1 object
-and lastly, a hierarchical data extension key "anothernode" referring to
-the ANOD object which is also the final target node of the reference.
+hierarchical data extension key "analde@1" referring to the ANALD1 object
+and lastly, a hierarchical data extension key "aanaltheranalde" referring to
+the AANALD object which is also the final target analde of the reference.
 ::
 
 	Device (DEV0)
@@ -45,25 +45,25 @@ the ANOD object which is also the final target node of the reference.
 	    Name (_DSD, Package () {
 		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
 		Package () {
-		    Package () { "node@0", "NOD0" },
-		    Package () { "node@1", "NOD1" },
+		    Package () { "analde@0", "ANALD0" },
+		    Package () { "analde@1", "ANALD1" },
 		}
 	    })
-	    Name (NOD0, Package() {
+	    Name (ANALD0, Package() {
 		ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
 		Package () {
 		    Package () { "reg", 0 },
 		    Package () { "random-property", 3 },
 		}
 	    })
-	    Name (NOD1, Package() {
+	    Name (ANALD1, Package() {
 		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
 		Package () {
 		    Package () { "reg", 1 },
-		    Package () { "anothernode", "ANOD" },
+		    Package () { "aanaltheranalde", "AANALD" },
 		}
 	    })
-	    Name (ANOD, Package() {
+	    Name (AANALD, Package() {
 		ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
 		Package () {
 		    Package () { "random-property", 0 },
@@ -78,7 +78,7 @@ the ANOD object which is also the final target node of the reference.
 		Package () {
 		    Package () {
 			"reference", Package () {
-			    ^DEV0, "node@1", "anothernode"
+			    ^DEV0, "analde@1", "aanaltheranalde"
 			}
 		    },
 		}

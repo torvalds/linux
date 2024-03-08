@@ -14,17 +14,17 @@
 #include "mds_client.h"
 #include "super.h"
 
-#define CEPH_MDS_IS_READY(i, ignore_laggy) \
-	(m->m_info[i].state > 0 && ignore_laggy ? true : !m->m_info[i].laggy)
+#define CEPH_MDS_IS_READY(i, iganalre_laggy) \
+	(m->m_info[i].state > 0 && iganalre_laggy ? true : !m->m_info[i].laggy)
 
-static int __mdsmap_get_random_mds(struct ceph_mdsmap *m, bool ignore_laggy)
+static int __mdsmap_get_random_mds(struct ceph_mdsmap *m, bool iganalre_laggy)
 {
 	int n = 0;
 	int i, j;
 
 	/* count */
 	for (i = 0; i < m->possible_max_rank; i++)
-		if (CEPH_MDS_IS_READY(i, ignore_laggy))
+		if (CEPH_MDS_IS_READY(i, iganalre_laggy))
 			n++;
 	if (n == 0)
 		return -1;
@@ -32,7 +32,7 @@ static int __mdsmap_get_random_mds(struct ceph_mdsmap *m, bool ignore_laggy)
 	/* pick */
 	n = get_random_u32_below(n);
 	for (j = 0, i = 0; i < m->possible_max_rank; i++) {
-		if (CEPH_MDS_IS_READY(i, ignore_laggy))
+		if (CEPH_MDS_IS_READY(i, iganalre_laggy))
 			j++;
 		if (j > n)
 			break;
@@ -112,7 +112,7 @@ bad:
 /*
  * Decode an MDS map
  *
- * Ignore any fields we don't care about (there are quite a few of
+ * Iganalre any fields we don't care about (there are quite a few of
  * them).
  */
 struct ceph_mdsmap *ceph_mdsmap_decode(struct ceph_mds_client *mdsc, void **p,
@@ -127,9 +127,9 @@ struct ceph_mdsmap *ceph_mdsmap_decode(struct ceph_mds_client *mdsc, void **p,
 	u16 mdsmap_ev;
 	u32 target;
 
-	m = kzalloc(sizeof(*m), GFP_NOFS);
+	m = kzalloc(sizeof(*m), GFP_ANALFS);
 	if (!m)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ceph_decode_need(p, end, 1 + 1, bad);
 	mdsmap_v = ceph_decode_8(p);
@@ -153,7 +153,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(struct ceph_mds_client *mdsc, void **p,
 	m->m_max_mds = ceph_decode_32(p);
 
 	/*
-	 * pick out the active nodes as the m_num_active_mds, the
+	 * pick out the active analdes as the m_num_active_mds, the
 	 * m_num_active_mds maybe larger than m_max_mds when decreasing
 	 * the max_mds in cluster side, in other case it should less
 	 * than or equal to m_max_mds.
@@ -169,11 +169,11 @@ struct ceph_mdsmap *ceph_mdsmap_decode(struct ceph_mds_client *mdsc, void **p,
 	 */
 	m->possible_max_rank = max(m->m_num_active_mds, m->m_max_mds);
 
-	m->m_info = kcalloc(m->possible_max_rank, sizeof(*m->m_info), GFP_NOFS);
+	m->m_info = kcalloc(m->possible_max_rank, sizeof(*m->m_info), GFP_ANALFS);
 	if (!m->m_info)
-		goto nomem;
+		goto analmem;
 
-	/* pick out active nodes from mds_info (state > 0) */
+	/* pick out active analdes from mds_info (state > 0) */
 	for (i = 0; i < n; i++) {
 		u64 global_id;
 		u32 namelen;
@@ -259,9 +259,9 @@ struct ceph_mdsmap *ceph_mdsmap_decode(struct ceph_mds_client *mdsc, void **p,
 		info->num_export_targets = num_export_targets;
 		if (num_export_targets) {
 			info->export_targets = kcalloc(num_export_targets,
-						       sizeof(u32), GFP_NOFS);
+						       sizeof(u32), GFP_ANALFS);
 			if (!info->export_targets)
-				goto nomem;
+				goto analmem;
 			for (j = 0; j < num_export_targets; j++) {
 				target = ceph_decode_32(&pexport_targets);
 				info->export_targets[j] = target;
@@ -274,9 +274,9 @@ struct ceph_mdsmap *ceph_mdsmap_decode(struct ceph_mds_client *mdsc, void **p,
 	/* pg_pools */
 	ceph_decode_32_safe(p, end, n, bad);
 	m->m_num_data_pg_pools = n;
-	m->m_data_pg_pools = kcalloc(n, sizeof(u64), GFP_NOFS);
+	m->m_data_pg_pools = kcalloc(n, sizeof(u64), GFP_ANALFS);
 	if (!m->m_data_pg_pools)
-		goto nomem;
+		goto analmem;
 	ceph_decode_need(p, end, sizeof(u64)*(n+1), bad);
 	for (i = 0; i < n; i++)
 		m->m_data_pg_pools[i] = ceph_decode_64(p);
@@ -321,9 +321,9 @@ struct ceph_mdsmap *ceph_mdsmap_decode(struct ceph_mds_client *mdsc, void **p,
 		if (n > m->possible_max_rank) {
 			void *new_m_info = krealloc(m->m_info,
 						    n * sizeof(*m->m_info),
-						    GFP_NOFS | __GFP_ZERO);
+						    GFP_ANALFS | __GFP_ZERO);
 			if (!new_m_info)
-				goto nomem;
+				goto analmem;
 			m->m_info = new_m_info;
 		}
 		m->possible_max_rank = n;
@@ -392,8 +392,8 @@ bad_ext:
 	*p = end;
 	doutc(cl, "success epoch %u\n", m->m_epoch);
 	return m;
-nomem:
-	err = -ENOMEM;
+analmem:
+	err = -EANALMEM;
 	goto out_err;
 corrupt:
 	pr_err_client(cl, "corrupt mdsmap\n");

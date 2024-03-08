@@ -96,7 +96,7 @@ static int random_size_align_alloc_test(void)
 		 */
 		size = ((rnd % 10) + 1) * PAGE_SIZE;
 
-		ptr = __vmalloc_node(size, align, GFP_KERNEL | __GFP_ZERO, 0,
+		ptr = __vmalloc_analde(size, align, GFP_KERNEL | __GFP_ZERO, 0,
 				__builtin_return_address(0));
 		if (!ptr)
 			return -1;
@@ -119,7 +119,7 @@ static int align_shift_alloc_test(void)
 	for (i = 0; i < BITS_PER_LONG; i++) {
 		align = ((unsigned long) 1) << i;
 
-		ptr = __vmalloc_node(PAGE_SIZE, align, GFP_KERNEL|__GFP_ZERO, 0,
+		ptr = __vmalloc_analde(PAGE_SIZE, align, GFP_KERNEL|__GFP_ZERO, 0,
 				__builtin_return_address(0));
 		if (!ptr)
 			return -1;
@@ -136,7 +136,7 @@ static int fix_align_alloc_test(void)
 	int i;
 
 	for (i = 0; i < test_loop_count; i++) {
-		ptr = __vmalloc_node(5 * PAGE_SIZE, THREAD_ALIGN << 1,
+		ptr = __vmalloc_analde(5 * PAGE_SIZE, THREAD_ALIGN << 1,
 				GFP_KERNEL | __GFP_ZERO, 0,
 				__builtin_return_address(0));
 		if (!ptr)
@@ -379,7 +379,7 @@ vm_map_ram_test(void)
 
 	/* Run the test loop. */
 	for (i = 0; i < test_loop_count; i++) {
-		v_ptr = vm_map_ram(pages, map_nr_pages, NUMA_NO_NODE);
+		v_ptr = vm_map_ram(pages, map_nr_pages, NUMA_ANAL_ANALDE);
 		*v_ptr = 'a';
 		vm_unmap_ram(v_ptr, map_nr_pages);
 	}
@@ -553,7 +553,7 @@ static void do_concurrent_test(void)
 	}
 
 	/*
-	 * Now let the workers do their job.
+	 * Analw let the workers do their job.
 	 */
 	up_write(&prepare_for_test_rwsem);
 

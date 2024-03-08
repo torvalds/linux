@@ -21,7 +21,7 @@
 #include "skl-sst-dsp.h"
 #include "skl-sst-ipc.h"
 
-#define HDA_MONO 1
+#define HDA_MOANAL 1
 #define HDA_STEREO 2
 #define HDA_QUAD 4
 #define HDA_MAX 8
@@ -36,7 +36,7 @@ static const struct snd_pcm_hardware azx_pcm_hw = {
 				 SNDRV_PCM_INFO_SYNC_START |
 				 SNDRV_PCM_INFO_HAS_WALL_CLOCK | /* legacy */
 				 SNDRV_PCM_INFO_HAS_LINK_ATIME |
-				 SNDRV_PCM_INFO_NO_PERIOD_WAKEUP),
+				 SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE |
 				SNDRV_PCM_FMTBIT_S32_LE |
 				SNDRV_PCM_FMTBIT_S24_LE,
@@ -100,10 +100,10 @@ static enum hdac_ext_stream_type skl_get_host_stream_type(struct hdac_bus *bus)
 }
 
 /*
- * check if the stream opened is marked as ignore_suspend by machine, if so
+ * check if the stream opened is marked as iganalre_suspend by machine, if so
  * then enable suspend_active refcount
  *
- * The count supend_active does not need lock as it is used in open/close
+ * The count supend_active does analt need lock as it is used in open/close
  * and suspend context
  */
 static void skl_set_suspend_active(struct snd_pcm_substream *substream,
@@ -115,9 +115,9 @@ static void skl_set_suspend_active(struct snd_pcm_substream *substream,
 
 	w = snd_soc_dai_get_widget(dai, substream->stream);
 
-	if (w->ignore_suspend && enable)
+	if (w->iganalre_suspend && enable)
 		skl->supend_active++;
-	else if (w->ignore_suspend && !enable)
+	else if (w->iganalre_suspend && !enable)
 		skl->supend_active--;
 }
 
@@ -234,7 +234,7 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 
 	dma_params = kzalloc(sizeof(*dma_params), GFP_KERNEL);
 	if (!dma_params)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_params->stream_tag = hdac_stream(stream)->stream_tag;
 	snd_soc_dai_set_dma_data(dai, substream, dma_params);
@@ -268,7 +268,7 @@ static int skl_pcm_prepare(struct snd_pcm_substream *substream,
 
 	/*
 	 * In case of XRUN recovery or in the case when the application
-	 * calls prepare another time, reset the FW pipe to clean state
+	 * calls prepare aanalther time, reset the FW pipe to clean state
 	 */
 	if (mconfig &&
 		(substream->runtime->state == SNDRV_PCM_STATE_XRUN ||
@@ -347,7 +347,7 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 
 	dma_params = snd_soc_dai_get_dma_data(dai, substream);
 	/*
-	 * now we should set this to NULL as we are freeing by the
+	 * analw we should set this to NULL as we are freeing by the
 	 * dma_params
 	 */
 	snd_soc_dai_set_dma_data(dai, substream, NULL);
@@ -475,7 +475,7 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
-		if (!w->ignore_suspend) {
+		if (!w->iganalre_suspend) {
 			/*
 			 * enable DMA Resume enable bit for the stream, set the
 			 * dpib & lpib position to resume before starting the
@@ -491,7 +491,7 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		/*
 		 * Start HOST DMA and Start FE Pipe.This is to make sure that
-		 * there are no underrun/overrun in the case when the FE
+		 * there are anal underrun/overrun in the case when the FE
 		 * pipeline is started but there is a delay in starting the
 		 * DMA channel on the host.
 		 */
@@ -505,7 +505,7 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_STOP:
 		/*
 		 * Stop FE Pipe first and stop DMA. This is to make sure that
-		 * there are no underrun/overrun in the case if there is a delay
+		 * there are anal underrun/overrun in the case if there is a delay
 		 * between the two operations.
 		 */
 		ret = skl_stop_pipe(skl, mconfig->pipe);
@@ -516,7 +516,7 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (ret < 0)
 			return ret;
 
-		if ((cmd == SNDRV_PCM_TRIGGER_SUSPEND) && !w->ignore_suspend) {
+		if ((cmd == SNDRV_PCM_TRIGGER_SUSPEND) && !w->iganalre_suspend) {
 			/* save the dpib and lpib positions */
 			hstream->dpib = readl(bus->remap_addr +
 					AZX_REG_VS_SDXDPIB_XBASE +
@@ -684,7 +684,7 @@ static struct snd_soc_dai_driver skl_fe_dai[] = {
 	.ops = &skl_pcm_dai_ops,
 	.playback = {
 		.stream_name = "System Playback",
-		.channels_min = HDA_MONO,
+		.channels_min = HDA_MOANAL,
 		.channels_max = HDA_STEREO,
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_8000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE |
@@ -693,7 +693,7 @@ static struct snd_soc_dai_driver skl_fe_dai[] = {
 	},
 	.capture = {
 		.stream_name = "System Capture",
-		.channels_min = HDA_MONO,
+		.channels_min = HDA_MOANAL,
 		.channels_max = HDA_STEREO,
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
@@ -705,7 +705,7 @@ static struct snd_soc_dai_driver skl_fe_dai[] = {
 	.ops = &skl_pcm_dai_ops,
 	.playback = {
 		.stream_name = "Headset Playback",
-		.channels_min = HDA_MONO,
+		.channels_min = HDA_MOANAL,
 		.channels_max = HDA_STEREO,
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000 |
 			SNDRV_PCM_RATE_8000,
@@ -731,7 +731,7 @@ static struct snd_soc_dai_driver skl_fe_dai[] = {
 	.ops = &skl_pcm_dai_ops,
 	.capture = {
 		.stream_name = "Reference Capture",
-		.channels_min = HDA_MONO,
+		.channels_min = HDA_MOANAL,
 		.channels_max = HDA_QUAD,
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
@@ -767,7 +767,7 @@ static struct snd_soc_dai_driver skl_fe_dai[] = {
 	.ops = &skl_pcm_dai_ops,
 	.capture = {
 		.stream_name = "DMIC Capture",
-		.channels_min = HDA_MONO,
+		.channels_min = HDA_MOANAL,
 		.channels_max = HDA_QUAD,
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
@@ -977,7 +977,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	.ops = &skl_dmic_dai_ops,
 	.capture = {
 		.stream_name = "DMIC01 Rx",
-		.channels_min = HDA_MONO,
+		.channels_min = HDA_MOANAL,
 		.channels_max = HDA_QUAD,
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
@@ -988,7 +988,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	.ops = &skl_dmic_dai_ops,
 	.capture = {
 		.stream_name = "DMIC16k Rx",
-		.channels_min = HDA_MONO,
+		.channels_min = HDA_MOANAL,
 		.channels_max = HDA_QUAD,
 		.rates = SNDRV_PCM_RATE_16000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
@@ -999,7 +999,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	.ops = &skl_link_dai_ops,
 	.playback = {
 		.stream_name = "Analog CPU Playback",
-		.channels_min = HDA_MONO,
+		.channels_min = HDA_MOANAL,
 		.channels_max = HDA_MAX,
 		.rates = SNDRV_PCM_RATE_8000_192000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
@@ -1007,7 +1007,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	},
 	.capture = {
 		.stream_name = "Analog CPU Capture",
-		.channels_min = HDA_MONO,
+		.channels_min = HDA_MOANAL,
 		.channels_max = HDA_MAX,
 		.rates = SNDRV_PCM_RATE_8000_192000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
@@ -1019,7 +1019,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	.ops = &skl_link_dai_ops,
 	.playback = {
 		.stream_name = "Alt Analog CPU Playback",
-		.channels_min = HDA_MONO,
+		.channels_min = HDA_MOANAL,
 		.channels_max = HDA_MAX,
 		.rates = SNDRV_PCM_RATE_8000_192000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
@@ -1027,7 +1027,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	},
 	.capture = {
 		.stream_name = "Alt Analog CPU Capture",
-		.channels_min = HDA_MONO,
+		.channels_min = HDA_MOANAL,
 		.channels_max = HDA_MAX,
 		.rates = SNDRV_PCM_RATE_8000_192000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
@@ -1039,7 +1039,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	.ops = &skl_link_dai_ops,
 	.playback = {
 		.stream_name = "Digital CPU Playback",
-		.channels_min = HDA_MONO,
+		.channels_min = HDA_MOANAL,
 		.channels_max = HDA_MAX,
 		.rates = SNDRV_PCM_RATE_8000_192000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
@@ -1047,7 +1047,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	},
 	.capture = {
 		.stream_name = "Digital CPU Capture",
-		.channels_min = HDA_MONO,
+		.channels_min = HDA_MOANAL,
 		.channels_max = HDA_MAX,
 		.rates = SNDRV_PCM_RATE_8000_192000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
@@ -1175,7 +1175,7 @@ static snd_pcm_uframes_t skl_platform_soc_pointer(
 	/*
 	 * Use DPIB for Playback stream as the periodic DMA Position-in-
 	 * Buffer Writes may be scheduled at the same time or later than
-	 * the MSI and does not guarantee to reflect the Position of the
+	 * the MSI and does analt guarantee to reflect the Position of the
 	 * last buffer that was transferred. Whereas DPIB register in
 	 * HAD space reflects the actual data that is transferred.
 	 * Use the position buffer for capture, as DPIB write gets
@@ -1189,7 +1189,7 @@ static snd_pcm_uframes_t skl_platform_soc_pointer(
 	 * on the HDA frame boundary i.e. 20.833uSec.
 	 * 2. Read DPIB register to flush the DMA position value. This dummy
 	 * read is required to flush DMA position value.
-	 * 3. Read the DMA Position-in-Buffer. This value now will be equal to
+	 * 3. Read the DMA Position-in-Buffer. This value analw will be equal to
 	 * or greater than period boundary.
 	 */
 
@@ -1352,8 +1352,8 @@ static int skl_populate_modules(struct skl_dev *skl)
 	struct skl_module_cfg *mconfig;
 	int ret = 0;
 
-	list_for_each_entry(p, &skl->ppl_list, node) {
-		list_for_each_entry(m, &p->pipe->w_list, node) {
+	list_for_each_entry(p, &skl->ppl_list, analde) {
+		list_for_each_entry(m, &p->pipe->w_list, analde) {
 			w = m->w;
 			mconfig = w->priv;
 
@@ -1461,7 +1461,7 @@ int skl_platform_register(struct device *dev)
 	skl->dais = kmemdup(skl_platform_dai, sizeof(skl_platform_dai),
 			    GFP_KERNEL);
 	if (!skl->dais) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1470,7 +1470,7 @@ int skl_platform_register(struct device *dev)
 				sizeof(skl_platform_dai), GFP_KERNEL);
 		if (!dais) {
 			kfree(skl->dais);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -1496,8 +1496,8 @@ int skl_platform_unregister(struct device *dev)
 	struct skl_dev *skl = bus_to_skl(bus);
 	struct skl_module_deferred_bind *modules, *tmp;
 
-	list_for_each_entry_safe(modules, tmp, &skl->bind_list, node) {
-		list_del(&modules->node);
+	list_for_each_entry_safe(modules, tmp, &skl->bind_list, analde) {
+		list_del(&modules->analde);
 		kfree(modules);
 	}
 

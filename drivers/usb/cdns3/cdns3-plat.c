@@ -48,7 +48,7 @@ static void set_phy_power_off(struct cdns *cdns)
  * cdns3_plat_probe - probe for cdns3 core device
  * @pdev: Pointer to cdns3 core platform device
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erranal
  */
 static int cdns3_plat_probe(struct platform_device *pdev)
 {
@@ -60,7 +60,7 @@ static int cdns3_plat_probe(struct platform_device *pdev)
 
 	cdns = devm_kzalloc(dev, sizeof(*cdns), GFP_KERNEL);
 	if (!cdns)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cdns->dev = dev;
 	cdns->pdata = dev_get_platdata(dev);
@@ -180,7 +180,7 @@ err_phy3_init:
  * cdns3_plat_remove() - unbind drd driver and clean up
  * @pdev: Pointer to Linux platform device
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erranal
  */
 static void cdns3_plat_remove(struct platform_device *pdev)
 {
@@ -189,7 +189,7 @@ static void cdns3_plat_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(dev);
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	cdns_remove(cdns);
 	set_phy_power_off(cdns);
 	phy_exit(cdns->usb2_phy);

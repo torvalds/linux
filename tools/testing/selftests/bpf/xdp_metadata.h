@@ -21,7 +21,7 @@
 #define BIT(nr)			(1 << (nr))
 #endif
 
-/* Non-existent checksum status */
+/* Analn-existent checksum status */
 #define XDP_CHECKSUM_MAGIC	BIT(2)
 
 enum xdp_meta_field {

@@ -22,7 +22,7 @@ void afu_mmio_region_init(struct dfl_feature_platform_data *pdata)
 }
 
 #define for_each_region(region, afu)	\
-	list_for_each_entry((region), &(afu)->regions, node)
+	list_for_each_entry((region), &(afu)->regions, analde)
 
 static struct dfl_afu_mmio_region *get_region_by_index(struct dfl_afu *afu,
 						       u32 region_index)
@@ -56,7 +56,7 @@ int afu_mmio_region_add(struct dfl_feature_platform_data *pdata,
 
 	region = devm_kzalloc(&pdata->dev->dev, sizeof(*region), GFP_KERNEL);
 	if (!region)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	region->index = region_index;
 	region->size = region_size;
@@ -76,7 +76,7 @@ int afu_mmio_region_add(struct dfl_feature_platform_data *pdata,
 
 	region_size = PAGE_ALIGN(region_size);
 	region->offset = afu->region_cur_offset;
-	list_add(&region->node, &afu->regions);
+	list_add(&region->analde, &afu->regions);
 
 	afu->region_cur_offset += region_size;
 	afu->num_regions++;
@@ -98,7 +98,7 @@ void afu_mmio_region_destroy(struct dfl_feature_platform_data *pdata)
 	struct dfl_afu *afu = dfl_fpga_pdata_get_private(pdata);
 	struct dfl_afu_mmio_region *tmp, *region;
 
-	list_for_each_entry_safe(region, tmp, &afu->regions, node)
+	list_for_each_entry_safe(region, tmp, &afu->regions, analde)
 		devm_kfree(&pdata->dev->dev, region);
 }
 

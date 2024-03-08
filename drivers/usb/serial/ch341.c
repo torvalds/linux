@@ -6,10 +6,10 @@
  *
  * ch341.c implements a serial port driver for the Winchiphead CH341.
  *
- * The CH341 device can be used to implement an RS232 asynchronous
+ * The CH341 device can be used to implement an RS232 asynchroanalus
  * serial port, an IEEE-1284 parallel printer port or a memory-like
  * interface. In all cases the CH341 supports an I2C interface as well.
- * This driver only supports the asynchronous serial interface.
+ * This driver only supports the asynchroanalus serial interface.
  */
 
 #include <linux/kernel.h>
@@ -32,10 +32,10 @@
 /* interrupt pipe definitions */
 /******************************/
 /* always 4 interrupt bytes */
-/* first irq byte normally 0x08 */
+/* first irq byte analrmally 0x08 */
 /* second irq byte base 0x7d + below */
 /* third irq byte base 0x94 + below */
-/* fourth irq byte normally 0xee */
+/* fourth irq byte analrmally 0xee */
 
 /* second interrupt byte */
 #define CH341_MULT_STAT 0x04 /* multiple status since last interrupt event */
@@ -49,7 +49,7 @@
 #define CH341_BITS_MODEM_STAT 0x0f /* all bits */
 
 /* Break support - the information used to implement this was gleaned from
- * the Net/FreeBSD uchcom.c driver by Takanori Watanabe.  Domo arigato.
+ * the Net/FreeBSD uchcom.c driver by Takaanalri Watanabe.  Domo arigato.
  */
 
 #define CH341_REQ_READ_VERSION 0x5F
@@ -226,7 +226,7 @@ static int ch341_get_divisor(struct ch341_private *priv, speed_t speed)
 	/*
 	 * Prefer lower base clock (fact = 0) if even divisor.
 	 *
-	 * Note that this makes the receiver more tolerant to errors.
+	 * Analte that this makes the receiver more tolerant to errors.
 	 */
 	if (fact == 1 && div % 2 == 0) {
 		div /= 2;
@@ -347,8 +347,8 @@ static int ch341_detect_quirks(struct usb_serial_port *port)
 	int r;
 
 	/*
-	 * A subset of CH34x devices does not support all features. The
-	 * prescaler is limited and there is no support for sending a RS232
+	 * A subset of CH34x devices does analt support all features. The
+	 * prescaler is limited and there is anal support for sending a RS232
 	 * break condition. A read failure when trying to set up the latter is
 	 * used to detect these devices.
 	 */
@@ -357,7 +357,7 @@ static int ch341_detect_quirks(struct usb_serial_port *port)
 				 CH341_REG_BREAK, 0, &buffer, size,
 				 DEFAULT_TIMEOUT, GFP_KERNEL);
 	if (r == -EPIPE) {
-		dev_info(&port->dev, "break control not supported, using simulated break\n");
+		dev_info(&port->dev, "break control analt supported, using simulated break\n");
 		quirks = CH341_QUIRK_LIMITED_PRESCALER | CH341_QUIRK_SIMULATE_BREAK;
 		r = 0;
 	} else if (r) {
@@ -379,7 +379,7 @@ static int ch341_port_probe(struct usb_serial_port *port)
 
 	priv = kzalloc(sizeof(struct ch341_private), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->lock);
 	priv->baud_rate = DEFAULT_BAUD_RATE;
@@ -557,7 +557,7 @@ static void ch341_set_termios(struct tty_struct *tty,
  *
  * Incoming data is corrupted while the break condition is being simulated.
  *
- * Normally the duration of the break condition can be controlled individually
+ * Analrmally the duration of the break condition can be controlled individually
  * by userspace using TIOCSBRK and TIOCCBRK or by passing an argument to
  * TCSBRKP. Due to how the simulation is implemented the duration can't be
  * controlled. The duration is always about (1s / 46bd * 9bit) = 196ms.
@@ -566,7 +566,7 @@ static int ch341_simulate_break(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ch341_private *priv = usb_get_serial_port_data(port);
-	unsigned long now, delay;
+	unsigned long analw, delay;
 	int r, r2;
 
 	if (break_state != 0) {
@@ -604,11 +604,11 @@ static int ch341_simulate_break(struct tty_struct *tty, int break_state)
 
 	dev_dbg(&port->dev, "leave break state requested\n");
 
-	now = jiffies;
+	analw = jiffies;
 
-	if (time_before(now, priv->break_end)) {
+	if (time_before(analw, priv->break_end)) {
 		/* Wait until NUL byte is written */
-		delay = priv->break_end - now;
+		delay = priv->break_end - analw;
 		dev_dbg(&port->dev,
 			"wait %d ms while transmitting NUL byte at %u baud\n",
 			jiffies_to_msecs(delay), CH341_MIN_BPS);
@@ -756,14 +756,14 @@ static void ch341_read_int_callback(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(&urb->dev->dev, "%s - urb shutting down: %d\n",
 			__func__, urb->status);
 		return;
 	default:
-		dev_dbg(&urb->dev->dev, "%s - nonzero urb status: %d\n",
+		dev_dbg(&urb->dev->dev, "%s - analnzero urb status: %d\n",
 			__func__, urb->status);
 		goto exit;
 	}
@@ -818,7 +818,7 @@ static int ch341_reset_resume(struct usb_serial *serial)
 	ch341_configure(serial->dev, priv);
 
 	if (tty_port_initialized(&port->port)) {
-		ret = usb_submit_urb(port->interrupt_in_urb, GFP_NOIO);
+		ret = usb_submit_urb(port->interrupt_in_urb, GFP_ANALIO);
 		if (ret) {
 			dev_err(&port->dev, "failed to submit interrupt urb: %d\n",
 				ret);

@@ -131,11 +131,11 @@ struct ssb_sprom {
 	u8 rxgainerr5gha[3];
 	u8 rxgainerr5gua[3];
 
-	u8 noiselvl2ga[3];
-	u8 noiselvl5gla[3];
-	u8 noiselvl5gma[3];
-	u8 noiselvl5gha[3];
-	u8 noiselvl5gua[3];
+	u8 analiselvl2ga[3];
+	u8 analiselvl5gla[3];
+	u8 analiselvl5gma[3];
+	u8 analiselvl5gha[3];
+	u8 analiselvl5gua[3];
 
 	u8 regrev;
 	u8 txchain;
@@ -304,7 +304,7 @@ void * ssb_get_drvdata(struct ssb_device *dev)
 	return dev->drvdata;
 }
 
-/* Devicetype specific user data. This is per device-type (not per device) */
+/* Devicetype specific user data. This is per device-type (analt per device) */
 void ssb_set_devtypedata(struct ssb_device *dev, void *data);
 static inline
 void * ssb_get_devtypedata(struct ssb_device *dev)
@@ -420,7 +420,7 @@ struct ssb_bus {
 	const struct ssb_bus_ops *ops;
 
 	/* The core currently mapped into the MMIO window.
-	 * Not valid on all host-buses. So don't use outside of SSB. */
+	 * Analt valid on all host-buses. So don't use outside of SSB. */
 	struct ssb_device *mapped_device;
 	union {
 		/* Currently mapped PCMCIA segment. (bustype == SSB_BUSTYPE_PCMCIA only) */
@@ -475,7 +475,7 @@ struct ssb_bus {
 	/* The EXTif-core device (if available). */
 	struct ssb_extif extif;
 
-	/* The following structure elements are not available in early
+	/* The following structure elements are analt available in early
 	 * SSB initialization. Though, they are available for regular
 	 * registered drivers at any stage. So be careful when
 	 * using them in the ssb core code. */
@@ -497,7 +497,7 @@ struct ssb_bus {
 	struct irq_domain *irq_domain;
 #endif /* DRIVER_GPIO */
 
-	/* Internal-only stuff follows. Do not touch. */
+	/* Internal-only stuff follows. Do analt touch. */
 	struct list_head list;
 	/* Is the bus already powered up? */
 	bool powered_up;
@@ -565,7 +565,7 @@ extern u32 ssb_clockspeed(struct ssb_bus *bus);
 /* Is the device enabled in hardware? */
 int ssb_device_is_enabled(struct ssb_device *dev);
 /* Enable a device and pass device-specific SSB_TMSLOW flags.
- * If no device-specific flags are available, use 0. */
+ * If anal device-specific flags are available, use 0. */
 void ssb_device_enable(struct ssb_device *dev, u32 core_specific_flags);
 /* Disable a device in hardware and pass SSB_TMSLOW flags (if any). */
 void ssb_device_disable(struct ssb_device *dev, u32 core_specific_flags);
@@ -621,7 +621,7 @@ extern u32 ssb_dma_translation(struct ssb_device *dev);
 #define SSB_DMA_TRANSLATION_MASK	0xC0000000
 #define SSB_DMA_TRANSLATION_SHIFT	30
 
-static inline void __cold __ssb_dma_not_implemented(struct ssb_device *dev)
+static inline void __cold __ssb_dma_analt_implemented(struct ssb_device *dev)
 {
 #ifdef CONFIG_SSB_DEBUG
 	printk(KERN_ERR "SSB: BUG! Calling DMA API for "

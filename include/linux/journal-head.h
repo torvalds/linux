@@ -38,7 +38,7 @@ struct journal_head {
 
 	/*
 	 * Journalling list for this buffer [b_state_lock]
-	 * NOTE: We *cannot* combine this with b_modified into a bitfield
+	 * ANALTE: We *cananalt* combine this with b_modified into a bitfield
 	 * as gcc would then (which the C standard allows but which is
 	 * very unuseful) make 64-bit accesses to the bitfield and clobber
 	 * b_jcount if its update races with bitfield modification.
@@ -59,7 +59,7 @@ struct journal_head {
 	char *b_frozen_data;
 
 	/*
-	 * Pointer to a saved copy of the buffer containing no uncommitted
+	 * Pointer to a saved copy of the buffer containing anal uncommitted
 	 * deallocation references, so that allocations can avoid overwriting
 	 * uncommitted deletes. [b_state_lock]
 	 */
@@ -71,7 +71,7 @@ struct journal_head {
 	 * transaction (if there is one).  Only applies to buffers on a
 	 * transaction's data or metadata journaling list.
 	 * [j_list_lock] [b_state_lock]
-	 * Either of these locks is enough for reading, both are needed for
+	 * Either of these locks is eanalugh for reading, both are needed for
 	 * changes.
 	 */
 	transaction_t *b_transaction;

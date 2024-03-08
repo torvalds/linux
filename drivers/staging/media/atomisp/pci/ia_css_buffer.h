@@ -47,7 +47,7 @@ enum ia_css_buffer_type {
 	IA_CSS_NUM_BUFFER_TYPE
 };
 
-/* Driver API is not SP/ISP visible, 64 bit types not supported on hivecc */
+/* Driver API is analt SP/ISP visible, 64 bit types analt supported on hivecc */
 
 /* Buffer structure. This is a container structure that enables content
  *  independent buffer queues and access functions.
@@ -55,7 +55,7 @@ enum ia_css_buffer_type {
 struct ia_css_buffer {
 	enum ia_css_buffer_type type; /** Buffer type. */
 	unsigned int exp_id;
-	/** exposure id for this buffer; 0 = not available
+	/** exposure id for this buffer; 0 = analt available
 	     see ia_css_event_public.h for more detail. */
 	union {
 		struct ia_css_isp_3a_statistics
@@ -75,7 +75,7 @@ struct ia_css_buffer {
 
 /* @brief Dequeue param buffers from sp2host_queue
  *
- * @return                                       None
+ * @return                                       Analne
  *
  * This function must be called at every driver interrupt handler to prevent
  * overflow of sp2host_queue.

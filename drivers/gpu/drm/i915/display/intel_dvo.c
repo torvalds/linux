@@ -9,13 +9,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -42,11 +42,11 @@
 #include "intel_gmbus.h"
 #include "intel_panel.h"
 
-#define INTEL_DVO_CHIP_NONE	0
+#define INTEL_DVO_CHIP_ANALNE	0
 #define INTEL_DVO_CHIP_LVDS	1
 #define INTEL_DVO_CHIP_TMDS	2
 #define INTEL_DVO_CHIP_TVOUT	4
-#define INTEL_DVO_CHIP_LVDS_NO_FIXED	5
+#define INTEL_DVO_CHIP_LVDS_ANAL_FIXED	5
 
 #define SIL164_ADDR	0x38
 #define CH7xxx_ADDR	0x76
@@ -98,7 +98,7 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 		.dev_ops = &ch7017_ops,
 	},
 	{
-		.type = INTEL_DVO_CHIP_LVDS_NO_FIXED,
+		.type = INTEL_DVO_CHIP_LVDS_ANAL_FIXED,
 		.name = "ns2501",
 		.port = PORT_B,
 		.slave_addr = NS2501_ADDR,
@@ -230,7 +230,7 @@ intel_dvo_mode_valid(struct drm_connector *_connector,
 		return status;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
+		return MODE_ANAL_DBLESCAN;
 
 	/* XXX: Validate clock range */
 
@@ -295,7 +295,7 @@ static void intel_dvo_pre_enable(struct intel_atomic_state *state,
 	enum pipe pipe = crtc->pipe;
 	u32 dvo_val;
 
-	/* Save the active data order, since I don't know what it should be set to. */
+	/* Save the active data order, since I don't kanalw what it should be set to. */
 	dvo_val = intel_de_read(i915, DVO(port)) &
 		  (DVO_DEDICATED_INT_ENABLE |
 		   DVO_PRESERVE_MASK | DVO_ACT_DATA_ORDER_MASK);
@@ -339,8 +339,8 @@ static int intel_dvo_get_modes(struct drm_connector *_connector)
 	/*
 	 * We should probably have an i2c driver get_modes function for those
 	 * devices which will have a fixed set of modes determined by the chip
-	 * (TV-out, for example), but for now with just TMDS and LVDS,
-	 * that's not the case.
+	 * (TV-out, for example), but for analw with just TMDS and LVDS,
+	 * that's analt the case.
 	 */
 	num_modes = intel_ddc_get_modes(&connector->base, connector->base.ddc);
 	if (num_modes)
@@ -383,12 +383,12 @@ static int intel_dvo_encoder_type(const struct intel_dvo_device *dvo)
 	switch (dvo->type) {
 	case INTEL_DVO_CHIP_TMDS:
 		return DRM_MODE_ENCODER_TMDS;
-	case INTEL_DVO_CHIP_LVDS_NO_FIXED:
+	case INTEL_DVO_CHIP_LVDS_ANAL_FIXED:
 	case INTEL_DVO_CHIP_LVDS:
 		return DRM_MODE_ENCODER_LVDS;
 	default:
 		MISSING_CASE(dvo->type);
-		return DRM_MODE_ENCODER_NONE;
+		return DRM_MODE_ENCODER_ANALNE;
 	}
 }
 
@@ -397,12 +397,12 @@ static int intel_dvo_connector_type(const struct intel_dvo_device *dvo)
 	switch (dvo->type) {
 	case INTEL_DVO_CHIP_TMDS:
 		return DRM_MODE_CONNECTOR_DVII;
-	case INTEL_DVO_CHIP_LVDS_NO_FIXED:
+	case INTEL_DVO_CHIP_LVDS_ANAL_FIXED:
 	case INTEL_DVO_CHIP_LVDS:
 		return DRM_MODE_CONNECTOR_LVDS;
 	default:
 		MISSING_CASE(dvo->type);
-		return DRM_MODE_CONNECTOR_Unknown;
+		return DRM_MODE_CONNECTOR_Unkanalwn;
 	}
 }
 
@@ -439,7 +439,7 @@ static bool intel_dvo_init_dev(struct drm_i915_private *dev_priv,
 
 	/*
 	 * GMBUS NAK handling seems to be unstable, hence let the
-	 * transmitter detection run in bit banging mode for now.
+	 * transmitter detection run in bit banging mode for analw.
 	 */
 	intel_gmbus_force_bit(i2c, true);
 
@@ -469,7 +469,7 @@ static bool intel_dvo_probe(struct drm_i915_private *i915,
 {
 	int i;
 
-	/* Now, try to find a controller */
+	/* Analw, try to find a controller */
 	for (i = 0; i < ARRAY_SIZE(intel_dvo_devices); i++) {
 		if (intel_dvo_init_dev(i915, intel_dvo,
 				       &intel_dvo_devices[i]))
@@ -554,7 +554,7 @@ void intel_dvo_init(struct drm_i915_private *i915)
 		 * to dig the fixed panel mode out of the BIOS data.
 		 * However, it's in a different format from the BIOS
 		 * data on chipsets with integrated LVDS (stored in AIM
-		 * headers, likely), so for now, just get the current
+		 * headers, likely), so for analw, just get the current
 		 * mode being output through DVO.
 		 */
 		intel_panel_add_encoder_fixed_mode(connector, encoder);

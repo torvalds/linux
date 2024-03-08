@@ -55,11 +55,11 @@
  * CE: Cache consistency Error
  * PEW: Parity Error during a Write operation
  * PEE: Parity Error involving the External cache
- * ASE: ASynchronous Error
+ * ASE: ASynchroanalus Error
  * EIV: This register is toast
  * MOPC: MXCC Operation Code for instance causing error
  * ECODE: The Error CODE
- * PRIV: A privileged mode error? 0=no 1=yes
+ * PRIV: A privileged mode error? 0=anal 1=anal
  * HPADDR: High PhysicalADDRess bits (35-32)
  */
 

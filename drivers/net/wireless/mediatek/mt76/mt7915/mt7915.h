@@ -209,7 +209,7 @@ struct mt7915_phy {
 	u32 rxfilter;
 	u64 omac_mask;
 
-	u16 noise;
+	u16 analise;
 
 	s16 coverage_class;
 	u8 slottime;
@@ -340,7 +340,7 @@ enum mt7915_rdd_cmd {
 	RDD_SET_WF_ANT = 30,
 	RDD_CAC_START = 50,
 	RDD_CAC_END,
-	RDD_NORMAL_START,
+	RDD_ANALRMAL_START,
 	RDD_DISABLE_DFS_CAL,
 	RDD_PULSE_DBG,
 	RDD_READ_PULSE,

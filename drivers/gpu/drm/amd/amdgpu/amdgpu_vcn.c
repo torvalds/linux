@@ -11,14 +11,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -41,7 +41,7 @@
 #define FIRMWARE_PICASSO		"amdgpu/picasso_vcn.bin"
 #define FIRMWARE_RAVEN2			"amdgpu/raven2_vcn.bin"
 #define FIRMWARE_ARCTURUS		"amdgpu/arcturus_vcn.bin"
-#define FIRMWARE_RENOIR			"amdgpu/renoir_vcn.bin"
+#define FIRMWARE_REANALIR			"amdgpu/reanalir_vcn.bin"
 #define FIRMWARE_GREEN_SARDINE		"amdgpu/green_sardine_vcn.bin"
 #define FIRMWARE_NAVI10			"amdgpu/navi10_vcn.bin"
 #define FIRMWARE_NAVI14			"amdgpu/navi14_vcn.bin"
@@ -64,7 +64,7 @@ MODULE_FIRMWARE(FIRMWARE_RAVEN);
 MODULE_FIRMWARE(FIRMWARE_PICASSO);
 MODULE_FIRMWARE(FIRMWARE_RAVEN2);
 MODULE_FIRMWARE(FIRMWARE_ARCTURUS);
-MODULE_FIRMWARE(FIRMWARE_RENOIR);
+MODULE_FIRMWARE(FIRMWARE_REANALIR);
 MODULE_FIRMWARE(FIRMWARE_GREEN_SARDINE);
 MODULE_FIRMWARE(FIRMWARE_ALDEBARAN);
 MODULE_FIRMWARE(FIRMWARE_NAVI10);
@@ -123,7 +123,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	 * Some Steam Deck's BIOS versions are incompatible with the
 	 * indirect SRAM mode, leading to amdgpu being unable to get
 	 * properly probed (and even potentially crashing the kernel).
-	 * Hence, check for these versions here - notice this is
+	 * Hence, check for these versions here - analtice this is
 	 * restricted to Vangogh (Deck's APU).
 	 */
 	if (amdgpu_ip_version(adev, UVD_HWIP, 0) == IP_VERSION(3, 0, 2)) {
@@ -140,31 +140,31 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
 	adev->vcn.fw_version = le32_to_cpu(hdr->ucode_version);
 
-	/* Bit 20-23, it is encode major and non-zero for new naming convention.
-	 * This field is part of version minor and DRM_DISABLED_FLAG in old naming
-	 * convention. Since the l:wq!atest version minor is 0x5B and DRM_DISABLED_FLAG
+	/* Bit 20-23, it is encode major and analn-zero for new naming convention.
+	 * This field is part of version mianalr and DRM_DISABLED_FLAG in old naming
+	 * convention. Since the l:wq!atest version mianalr is 0x5B and DRM_DISABLED_FLAG
 	 * is zero in old naming convention, this field is always zero so far.
 	 * These four bits are used to tell which naming convention is present.
 	 */
 	fw_check = (le32_to_cpu(hdr->ucode_version) >> 20) & 0xf;
 	if (fw_check) {
-		unsigned int dec_ver, enc_major, enc_minor, vep, fw_rev;
+		unsigned int dec_ver, enc_major, enc_mianalr, vep, fw_rev;
 
 		fw_rev = le32_to_cpu(hdr->ucode_version) & 0xfff;
-		enc_minor = (le32_to_cpu(hdr->ucode_version) >> 12) & 0xff;
+		enc_mianalr = (le32_to_cpu(hdr->ucode_version) >> 12) & 0xff;
 		enc_major = fw_check;
 		dec_ver = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xf;
 		vep = (le32_to_cpu(hdr->ucode_version) >> 28) & 0xf;
 		DRM_INFO("Found VCN firmware Version ENC: %u.%u DEC: %u VEP: %u Revision: %u\n",
-			enc_major, enc_minor, dec_ver, vep, fw_rev);
+			enc_major, enc_mianalr, dec_ver, vep, fw_rev);
 	} else {
-		unsigned int version_major, version_minor, family_id;
+		unsigned int version_major, version_mianalr, family_id;
 
 		family_id = le32_to_cpu(hdr->ucode_version) & 0xff;
 		version_major = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xff;
-		version_minor = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
+		version_mianalr = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
 		DRM_INFO("Found VCN firmware Version: %u.%u Family ID: %u\n",
-			version_major, version_minor, family_id);
+			version_major, version_mianalr, family_id);
 	}
 
 	bo_size = AMDGPU_VCN_STACK_SIZE + AMDGPU_VCN_CONTEXT_SIZE;
@@ -314,7 +314,7 @@ int amdgpu_vcn_suspend(struct amdgpu_device *adev)
 
 		adev->vcn.inst[i].saved_bo = kvmalloc(size, GFP_KERNEL);
 		if (!adev->vcn.inst[i].saved_bo)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (drm_dev_enter(adev_to_drm(adev), &idx)) {
 			memcpy_fromio(adev->vcn.inst[i].saved_bo, ptr, size);
@@ -470,7 +470,7 @@ int amdgpu_vcn_dec_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned int i;
 	int r;
 
-	/* VCN in SRIOV does not support direct register read/write */
+	/* VCN in SRIOV does analt support direct register read/write */
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
@@ -550,7 +550,7 @@ static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring,
 	ib->ptr[4] = PACKET0(adev->vcn.internal.cmd, 0);
 	ib->ptr[5] = 0;
 	for (i = 6; i < 16; i += 2) {
-		ib->ptr[i] = PACKET0(adev->vcn.internal.nop, 0);
+		ib->ptr[i] = PACKET0(adev->vcn.internal.analp, 0);
 		ib->ptr[i+1] = 0;
 	}
 	ib->length_dw = 16;
@@ -1076,9 +1076,9 @@ static ssize_t amdgpu_debugfs_vcn_fwlog_read(struct file *f, char __user *buf,
 	unsigned int read_pos, write_pos, available, i, read_bytes = 0;
 	unsigned int read_num[2] = {0};
 
-	vcn = file_inode(f)->i_private;
+	vcn = file_ianalde(f)->i_private;
 	if (!vcn)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!vcn->fw_shared.cpu_addr || !amdgpu_vcnfw_log)
 		return -EFAULT;
@@ -1138,8 +1138,8 @@ void amdgpu_debugfs_vcn_fwlog_init(struct amdgpu_device *adev, uint8_t i,
 				   struct amdgpu_vcn_inst *vcn)
 {
 #if defined(CONFIG_DEBUG_FS)
-	struct drm_minor *minor = adev_to_drm(adev)->primary;
-	struct dentry *root = minor->debugfs_root;
+	struct drm_mianalr *mianalr = adev_to_drm(adev)->primary;
+	struct dentry *root = mianalr->debugfs_root;
 	char name[32];
 
 	sprintf(name, "amdgpu_vcn_%d_fwlog", i);
@@ -1192,7 +1192,7 @@ int amdgpu_vcn_process_poison_irq(struct amdgpu_device *adev,
 			adev->virt.ops->ras_poison_handler(adev);
 		else
 			dev_warn(adev->dev,
-				"No ras_poison_handler interface in SRIOV for VCN!\n");
+				"Anal ras_poison_handler interface in SRIOV for VCN!\n");
 	}
 
 	return 0;

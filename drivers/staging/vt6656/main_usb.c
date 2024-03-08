@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: driver entry for initial, open, close, tx and rx.
@@ -17,7 +17,7 @@
  *
  * Revision History:
  */
-#undef __NO_VERSION__
+#undef __ANAL_VERSION__
 
 #include <linux/bits.h>
 #include <linux/etherdevice.h>
@@ -40,7 +40,7 @@
 
 /* version information */
 #define DRIVER_AUTHOR \
-	"VIA Networking Technologies, Inc., <lyndonchen@vntek.com.tw>"
+	"VIA Networking Techanallogies, Inc., <lyndonchen@vntek.com.tw>"
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DEVICE_FULL_DRV_NAM);
@@ -146,7 +146,7 @@ static int vnt_check_firmware_version(struct vnt_private *priv)
 			     (u8 *)&priv->firmware_version);
 	if (ret) {
 		dev_dbg(&priv->usb->dev,
-			"Could not get firmware version: %d.\n", ret);
+			"Could analt get firmware version: %d.\n", ret);
 		goto end;
 	}
 
@@ -164,7 +164,7 @@ static int vnt_check_firmware_version(struct vnt_private *priv)
 		ret = vnt_firmware_branch_to_sram(priv);
 		if (ret) {
 			dev_dbg(&priv->usb->dev,
-				"Could not branch to SRAM: %d.\n", ret);
+				"Could analt branch to SRAM: %d.\n", ret);
 		} else {
 			ret = -EINVAL;
 		}
@@ -195,14 +195,14 @@ static int vnt_init_registers(struct vnt_private *priv)
 		ret = vnt_download_firmware(priv);
 		if (ret) {
 			dev_dbg(&priv->usb->dev,
-				"Could not download firmware: %d.\n", ret);
+				"Could analt download firmware: %d.\n", ret);
 			goto end;
 		}
 
 		ret = vnt_firmware_branch_to_sram(priv);
 		if (ret) {
 			dev_dbg(&priv->usb->dev,
-				"Could not branch to SRAM: %d.\n", ret);
+				"Could analt branch to SRAM: %d.\n", ret);
 			goto end;
 		}
 	}
@@ -295,7 +295,7 @@ static int vnt_init_registers(struct vnt_private *priv)
 
 	antenna &= (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
-	if (antenna == 0) /* if not set default is both */
+	if (antenna == 0) /* if analt set default is both */
 		antenna = (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
 	if (antenna == (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN)) {
@@ -340,7 +340,7 @@ static int vnt_init_registers(struct vnt_private *priv)
 	/* load vt3266 calibration parameters in EEPROM */
 	if (priv->rf_type == RF_VT3226D0) {
 		if ((priv->eeprom[EEP_OFS_MAJOR_VER] == 0x1) &&
-		    (priv->eeprom[EEP_OFS_MINOR_VER] >= 0x4)) {
+		    (priv->eeprom[EEP_OFS_MIANALR_VER] >= 0x4)) {
 			calib_tx_iq = priv->eeprom[EEP_OFS_CALIB_TX_IQ];
 			calib_tx_dc = priv->eeprom[EEP_OFS_CALIB_TX_DC];
 			calib_rx_iq = priv->eeprom[EEP_OFS_CALIB_RX_IQ];
@@ -495,20 +495,20 @@ static int vnt_alloc_bufs(struct vnt_private *priv)
 	for (ii = 0; ii < priv->num_tx_context; ii++) {
 		tx_context = kmalloc(sizeof(*tx_context), GFP_KERNEL);
 		if (!tx_context) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_tx;
 		}
 
 		priv->tx_context[ii] = tx_context;
 		tx_context->priv = priv;
-		tx_context->pkt_no = ii;
+		tx_context->pkt_anal = ii;
 		tx_context->in_use = false;
 	}
 
 	for (ii = 0; ii < priv->num_rcb; ii++) {
 		priv->rcb[ii] = kzalloc(sizeof(*priv->rcb[ii]), GFP_KERNEL);
 		if (!priv->rcb[ii]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_rx_tx;
 		}
 
@@ -519,13 +519,13 @@ static int vnt_alloc_bufs(struct vnt_private *priv)
 		/* allocate URBs */
 		rcb->urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!rcb->urb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_rx_tx;
 		}
 
 		rcb->skb = dev_alloc_skb(priv->rx_buf_sz);
 		if (!rcb->skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_rx_tx;
 		}
 		/* submit rx urb */
@@ -536,13 +536,13 @@ static int vnt_alloc_bufs(struct vnt_private *priv)
 
 	priv->interrupt_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!priv->interrupt_urb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_rx_tx;
 	}
 
 	priv->int_buf.data_buf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
 	if (!priv->int_buf.data_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_rx_tx_urb;
 	}
 
@@ -668,7 +668,7 @@ static int vnt_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	priv->op_mode = vif->type;
@@ -983,7 +983,7 @@ int vnt_init(struct vnt_private *priv)
 	vnt_init_bands(priv);
 
 	if (ieee80211_register_hw(priv->hw))
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv->mac_hw = true;
 
@@ -1003,16 +1003,16 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	udev = usb_get_dev(interface_to_usbdev(intf));
 
-	dev_notice(&udev->dev, "%s Ver. %s\n",
+	dev_analtice(&udev->dev, "%s Ver. %s\n",
 		   DEVICE_FULL_DRV_NAM, DEVICE_VERSION);
-	dev_notice(&udev->dev,
-		   "Copyright (c) 2004 VIA Networking Technologies, Inc.\n");
+	dev_analtice(&udev->dev,
+		   "Copyright (c) 2004 VIA Networking Techanallogies, Inc.\n");
 
 	hw = ieee80211_alloc_hw(sizeof(struct vnt_private), &vnt_mac_ops);
 	if (!hw) {
-		dev_err(&udev->dev, "could not register ieee80211_hw\n");
-		rc = -ENOMEM;
-		goto err_nomem;
+		dev_err(&udev->dev, "could analt register ieee80211_hw\n");
+		rc = -EANALMEM;
+		goto err_analmem;
 	}
 
 	priv = hw->priv;
@@ -1061,7 +1061,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	return 0;
 
-err_nomem:
+err_analmem:
 	usb_put_dev(udev);
 
 	return rc;

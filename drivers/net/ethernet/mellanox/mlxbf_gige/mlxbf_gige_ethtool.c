@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
 
-/* Ethtool support for Mellanox Gigabit Ethernet driver
+/* Ethtool support for Mellaanalx Gigabit Ethernet driver
  *
  * Copyright (C) 2020-2021 NVIDIA CORPORATION & AFFILIATES
  */
@@ -26,7 +26,7 @@ static void mlxbf_gige_get_regs(struct net_device *netdev,
 	/* Read entire MMIO register space and store results
 	 * into the provided buffer. By design, a read to an
 	 * offset without an existing register will be
-	 * acknowledged and return zero.
+	 * ackanalwledged and return zero.
 	 */
 	memcpy_fromio(p, priv->base, MLXBF_GIGE_MMIO_REG_SZ);
 }
@@ -65,7 +65,7 @@ static const struct {
 static int mlxbf_gige_get_sset_count(struct net_device *netdev, int stringset)
 {
 	if (stringset != ETH_SS_STATS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return ARRAY_SIZE(mlxbf_gige_ethtool_stats_keys);
 }
 
@@ -86,11 +86,11 @@ static void mlxbf_gige_get_ethtool_stats(struct net_device *netdev,
 
 	/* Fill data array with interface statistics
 	 *
-	 * NOTE: the data writes must be in
+	 * ANALTE: the data writes must be in
 	 *       sync with the strings shown in
 	 *       the mlxbf_gige_ethtool_stats_keys[] array
 	 *
-	 * NOTE2: certain statistics below are zeroed upon
+	 * ANALTE2: certain statistics below are zeroed upon
 	 *        port disable, so the calculation below
 	 *        must include the "cached" value of the stat
 	 *        plus the value read directly from hardware.

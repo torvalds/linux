@@ -41,7 +41,7 @@ static inline bool __must_check rdseed_long(unsigned long *v)
 }
 
 /*
- * These are the generic interfaces; they must not be declared if the
+ * These are the generic interfaces; they must analt be declared if the
  * stubs in <linux/random.h> are to be invoked.
  */
 

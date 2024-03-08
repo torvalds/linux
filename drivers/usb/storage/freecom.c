@@ -171,7 +171,7 @@ freecom_readdata (struct scsi_cmnd *srb, struct us_data *us,
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
-	/* Now transfer all of our blocks. */
+	/* Analw transfer all of our blocks. */
 	usb_stor_dbg(us, "Start of read\n");
 	result = usb_stor_bulk_srb(us, ipipe, srb);
 	usb_stor_dbg(us, "freecom_readdata done!\n");
@@ -204,7 +204,7 @@ freecom_writedata (struct scsi_cmnd *srb, struct us_data *us,
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
-	/* Now transfer all of our blocks. */
+	/* Analw transfer all of our blocks. */
 	usb_stor_dbg(us, "Start of write\n");
 	result = usb_stor_bulk_srb(us, opipe, srb);
 
@@ -260,7 +260,7 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	/*
 	 * There are times we can optimize out this status read, but it
-	 * doesn't hurt us to always do it now.
+	 * doesn't hurt us to always do it analw.
 	 */
 	result = usb_stor_bulk_transfer_buf (us, ipipe, fst,
 			FCM_STATUS_PACKET_LENGTH, &partial);
@@ -276,8 +276,8 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 	 * command that only waits for the interrupt and then sends status,
 	 * without having to send a new ATAPI command to the device.
 	 *
-	 * NOTE: There is some indication that a data transfer after a timeout
-	 * may not work, but that is a condition that should never happen.
+	 * ANALTE: There is some indication that a data transfer after a timeout
+	 * may analt work, but that is a condition that should never happen.
 	 */
 	while (fst->Status & FCM_STATUS_BUSY) {
 		usb_stor_dbg(us, "20 second USB/ATAPI bridge TIMEOUT occurred!\n");
@@ -322,7 +322,7 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 	}
 
 	/*
-	 * The device might not have as much data available as we
+	 * The device might analt have as much data available as we
 	 * requested.  If you ask for more than the device has, this reads
 	 * and such will hang.
 	 */
@@ -350,7 +350,7 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 	}
 
 	/*
-	 * What we do now depends on what direction the data is supposed to
+	 * What we do analw depends on what direction the data is supposed to
 	 * move in.
 	 */
 
@@ -421,8 +421,8 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 		break;
 
 
-	case DMA_NONE:
-		/* Easy, do nothing. */
+	case DMA_ANALNE:
+		/* Easy, do analthing. */
 		break;
 
 	default:
@@ -443,7 +443,7 @@ static int init_freecom(struct us_data *us)
 
 	/*
 	 * The DMA-mapped I/O buffer is 64 bytes long, just right for
-	 * all our packets.  No need to allocate any extra buffer space.
+	 * all our packets.  Anal need to allocate any extra buffer space.
 	 */
 
 	result = usb_stor_control_msg(us, us->recv_ctrl_pipe,
@@ -572,7 +572,7 @@ static struct usb_driver freecom_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	freecom_usb_ids,
 	.soft_unbind =	1,
-	.no_dynamic_id = 1,
+	.anal_dynamic_id = 1,
 };
 
 module_usb_stor_driver(freecom_driver, freecom_host_template, DRV_NAME);

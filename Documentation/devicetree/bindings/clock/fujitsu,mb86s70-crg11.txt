@@ -18,8 +18,8 @@ Example:
 		#mbox-cells = <1>;
 		compatible = "arm,mhu";
 		reg = <0 0x2B1F0000 0x1000>;
-		interrupts = <0 36 4>, /* LP Non-Sec */
-			     <0 35 4>, /* HP Non-Sec */
+		interrupts = <0 36 4>, /* LP Analn-Sec */
+			     <0 35 4>, /* HP Analn-Sec */
 			     <0 37 4>; /* Secure */
 		clocks = <&clock 0 2 1>; /* Cntrlr:0 Domain:2 Port:1 */
 		clock-names = "clk";

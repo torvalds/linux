@@ -271,8 +271,8 @@
  * The board type and revision information, used by Qualcomm bootloaders and
  * DTS for older chipsets (qcom,board-id):
  */
-#define QCOM_BOARD_ID(a, major, minor) \
-	(((major & 0xff) << 16) | ((minor & 0xff) << 8) | QCOM_BOARD_ID_##a)
+#define QCOM_BOARD_ID(a, major, mianalr) \
+	(((major & 0xff) << 16) | ((mianalr & 0xff) << 8) | QCOM_BOARD_ID_##a)
 
 #define QCOM_BOARD_ID_MTP			8
 #define QCOM_BOARD_ID_DRAGONBOARD		10

@@ -3,7 +3,7 @@
  *      High performance SCSI + LAN / Fibre Channel device drivers.
  *      For use with PCI chip/adapter(s):
  *          LSIFC9xx/LSI409xx Fibre Channel
- *      running LSI Fusion MPT (Message Passing Technology) firmware.
+ *      running LSI Fusion MPT (Message Passing Techanallogy) firmware.
  *
  *  Copyright (c) 1999-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
@@ -20,19 +20,19 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    NO WARRANTY
+    ANAL WARRANTY
     THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
     CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
-    LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+    LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
     MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
     solely responsible for determining the appropriateness of using and
     distributing the Program and assumes all risks associated with its
-    exercise of rights under this Agreement, including but not limited to
+    exercise of rights under this Agreement, including but analt limited to
     the risks and costs of program errors, damage to or loss of data,
     programs or equipment, and unavailability or interruption of operations.
 
     DISCLAIMER OF LIABILITY
-    NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+    NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
     DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
     ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -41,7 +41,7 @@
     HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if analt, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
@@ -90,7 +90,7 @@
 #define MPT_MAX_ADAPTERS		18
 #define MPT_MAX_PROTOCOL_DRIVERS	16
 #define MPT_MAX_CALLBACKNAME_LEN	49
-#define MPT_MAX_BUS			1	/* Do not change */
+#define MPT_MAX_BUS			1	/* Do analt change */
 #define MPT_MAX_FC_DEVICES		255
 #define MPT_MAX_SCSI_DEVICES		16
 #define MPT_LAST_LUN			255
@@ -109,8 +109,8 @@
 
 #define MPT_PROCFS_MPTBASEDIR		"mpt"
 						/* chg it to "driver/fusion" ? */
-#define MPT_PROCFS_SUMMARY_ALL_NODE		MPT_PROCFS_MPTBASEDIR "/summary"
-#define MPT_PROCFS_SUMMARY_ALL_PATHNAME		"/proc/" MPT_PROCFS_SUMMARY_ALL_NODE
+#define MPT_PROCFS_SUMMARY_ALL_ANALDE		MPT_PROCFS_MPTBASEDIR "/summary"
+#define MPT_PROCFS_SUMMARY_ALL_PATHNAME		"/proc/" MPT_PROCFS_SUMMARY_ALL_ANALDE
 #define MPT_FW_REV_MAGIC_ID_STRING		"FwRev="
 
 #define  MPT_MAX_REQ_DEPTH		1023
@@ -132,7 +132,7 @@
 #define  MPT_SG_REQ_64_SCALE		4
 
 #define	 CAN_SLEEP			1
-#define  NO_SLEEP			0
+#define  ANAL_SLEEP			0
 
 #define MPT_COALESCING_TIMEOUT		0x10
 
@@ -202,13 +202,13 @@
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
  * Attempt semi-consistent error & warning msgs across
- * MPT drivers.  NOTE: Users of these macro defs must
+ * MPT drivers.  ANALTE: Users of these macro defs must
  * themselves define their own MYNAM.
  */
 #define MYIOC_s_FMT			MYNAM ": %s: "
 #define MYIOC_s_DEBUG_FMT		KERN_DEBUG MYNAM ": %s: "
 #define MYIOC_s_INFO_FMT		KERN_INFO MYNAM ": %s: "
-#define MYIOC_s_NOTE_FMT		KERN_NOTICE MYNAM ": %s: "
+#define MYIOC_s_ANALTE_FMT		KERN_ANALTICE MYNAM ": %s: "
 #define MYIOC_s_WARN_FMT		KERN_WARNING MYNAM ": %s: WARNING - "
 #define MYIOC_s_ERR_FMT			KERN_ERR MYNAM ": %s: ERROR - "
 
@@ -253,7 +253,7 @@ typedef enum {
 	MPTSAS_DRIVER,		/* MPT SAS host class */
 	MPTLAN_DRIVER,		/* MPT LAN class */
 	MPTSTM_DRIVER,		/* MPT SCSI target mode class */
-	MPTUNKNOWN_DRIVER
+	MPTUNKANALWN_DRIVER
 } MPT_DRIVER_CLASS;
 
 struct mpt_pci_driver{
@@ -273,17 +273,17 @@ typedef union _MPT_FRAME_TRACKER {
 		void			*argp1;
 	} linkage;
 	/*
-	 * NOTE: When request frames are free, on the linkage structure
+	 * ANALTE: When request frames are free, on the linkage structure
 	 * contents are valid.  All other values are invalid.
-	 * In particular, do NOT reply on offset [2]
+	 * In particular, do ANALT reply on offset [2]
 	 * (in words) being the * message context.
 	 * The message context must be reset (computed via base address
 	 * + an offset) prior to issuing any command.
 	 *
-	 * NOTE2: On non-32-bit systems, where pointers are LARGE,
+	 * ANALTE2: On analn-32-bit systems, where pointers are LARGE,
 	 * using the linkage pointers destroys our sacred MsgContext
 	 * field contents.  But we don't care anymore because these
-	 * are now reset in mpt_put_msg_frame() just prior to sending
+	 * are analw reset in mpt_put_msg_frame() just prior to sending
 	 * a request off to the IOC.
 	 */
 	struct {
@@ -346,7 +346,7 @@ typedef struct _SYSIF_REGS
 {
 	u32	Doorbell;	/* 00     System<->IOC Doorbell reg  */
 	u32	WriteSequence;	/* 04     Write Sequence register    */
-	u32	Diagnostic;	/* 08     Diagnostic register        */
+	u32	Diaganalstic;	/* 08     Diaganalstic register        */
 	u32	TestBase;	/* 0C     Test Base Address          */
 	u32	DiagRwData;	/* 10     Read Write Data (fw download)   */
 	u32	DiagRwAddress;	/* 14     Read Write Address (fw download)*/
@@ -366,7 +366,7 @@ typedef struct _SYSIF_REGS
 } SYSIF_REGS;
 
 /*
- * NOTE: Use MPI_{DOORBELL,WRITESEQ,DIAG}_xxx defs in lsi/mpi.h
+ * ANALTE: Use MPI_{DOORBELL,WRITESEQ,DIAG}_xxx defs in lsi/mpi.h
  * in conjunction with SYSIF_REGS accesses!
  */
 
@@ -376,9 +376,9 @@ typedef struct _SYSIF_REGS
  */
 
 /* VirtTarget negoFlags field */
-#define MPT_TARGET_NO_NEGO_WIDE		0x01
-#define MPT_TARGET_NO_NEGO_SYNC		0x02
-#define MPT_TARGET_NO_NEGO_QAS		0x04
+#define MPT_TARGET_ANAL_NEGO_WIDE		0x01
+#define MPT_TARGET_ANAL_NEGO_SYNC		0x02
+#define MPT_TARGET_ANAL_NEGO_QAS		0x04
 #define MPT_TAPE_NEGO_IDP     		0x08
 
 /*
@@ -414,7 +414,7 @@ typedef struct _VirtDevice {
 #define MPT_TARGET_DEFAULT_DV_STATUS	0x00
 #define MPT_TARGET_FLAGS_VALID_NEGO	0x01
 #define MPT_TARGET_FLAGS_VALID_INQUIRY	0x02
-#define MPT_TARGET_FLAGS_Q_YES		0x08
+#define MPT_TARGET_FLAGS_Q_ANAL		0x08
 #define MPT_TARGET_FLAGS_VALID_56	0x10
 #define MPT_TARGET_FLAGS_SAF_TE_ISSUED	0x20
 #define MPT_TARGET_FLAGS_RAID_COMPONENT	0x40
@@ -494,7 +494,7 @@ typedef	struct _SpiCfgData {
 	u8		 sdp0version;		/* SDP0 version */
 	u8		 sdp0length;		/* SDP0 length  */
 	u8		 dvScheduled;		/* 1 if scheduled */
-	u8		 noQas;			/* Disable QAS for this adapter */
+	u8		 analQas;			/* Disable QAS for this adapter */
 	u8		 Saf_Te;		/* 1 to force all Processors as
 						 * SAF-TE if Inquiry data length
 						 * is too short to check for SAF-TE
@@ -562,10 +562,10 @@ struct mptfc_rport_info
  * Private to the driver.
  */
 
-#define MPT_HOST_BUS_UNKNOWN		(0xFF)
+#define MPT_HOST_BUS_UNKANALWN		(0xFF)
 #define MPT_HOST_TOO_MANY_TM		(0x05)
 #define MPT_HOST_NVRAM_INVALID		(0xFFFFFFFF)
-#define MPT_HOST_NO_CHAIN		(0xFFFFFFFF)
+#define MPT_HOST_ANAL_CHAIN		(0xFFFFFFFF)
 #define MPT_NVRAM_MASK_TIMEOUT		(0x000000FF)
 #define MPT_NVRAM_SYNC_MASK		(0x0000FF00)
 #define MPT_NVRAM_SYNC_SHIFT		(8)
@@ -728,12 +728,12 @@ typedef struct _MPT_ADAPTER
 	struct workqueue_struct	*fw_event_q;
 	struct list_head	 fw_event_list;
 	spinlock_t		 fw_event_lock;
-	u8			 fw_events_off; /* if '1', then ignore events */
+	u8			 fw_events_off; /* if '1', then iganalre events */
 	char 			 fw_event_q_name[MPT_KOBJ_NAME_LEN];
 
 	struct mutex		 sas_discovery_mutex;
 	u8			 sas_discovery_runtime;
-	u8			 sas_discovery_ignore_events;
+	u8			 sas_discovery_iganalre_events;
 
 	/* port_info object for the host */
 	struct mptsas_portinfo	*hba_port_info;
@@ -749,7 +749,7 @@ typedef struct _MPT_ADAPTER
 	MPT_MGMT		 internal_cmds;
 	MPT_MGMT		 taskmgmt_cmds;
 	MPT_MGMT		 ioctl_cmds;
-	spinlock_t		 taskmgmt_lock; /* diagnostic reset lock */
+	spinlock_t		 taskmgmt_lock; /* diaganalstic reset lock */
 	int			 taskmgmt_in_progress;
 	u8			 taskmgmt_quiesce_io;
 	u8			 ioc_reset_in_progress;
@@ -791,10 +791,10 @@ typedef struct _MPT_ADAPTER
 /*
  *  New return value convention:
  *    1 = Ok to free associated request frame
- *    0 = not Ok ...
+ *    0 = analt Ok ...
  */
 typedef int (*MPT_CALLBACK)(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply);
-typedef int (*MPT_EVHANDLER)(MPT_ADAPTER *ioc, EventNotificationReply_t *evReply);
+typedef int (*MPT_EVHANDLER)(MPT_ADAPTER *ioc, EventAnaltificationReply_t *evReply);
 typedef int (*MPT_RESETHANDLER)(MPT_ADAPTER *ioc, int reset_phase);
 /* reset_phase defs */
 #define MPT_IOC_PRE_RESET		0
@@ -806,7 +806,7 @@ typedef int (*MPT_RESETHANDLER)(MPT_ADAPTER *ioc, int reset_phase);
  * Fitted to 1030's 64-byte [max] request frame size
  */
 typedef struct _MPT_HOST_EVENT {
-	EventNotificationReply_t	 MpiEvent;	/* 8 32-bit words! */
+	EventAnaltificationReply_t	 MpiEvent;	/* 8 32-bit words! */
 	u32				 pad[6];
 	void				*next;
 } MPT_HOST_EVENT;
@@ -873,7 +873,7 @@ typedef struct _MPT_LOCAL_REPLY {
 /* The TM_STATE variable is used to provide strict single threading of TM
  * requests as well as communicate TM error conditions.
  */
-#define TM_STATE_NONE          (0)
+#define TM_STATE_ANALNE          (0)
 #define	TM_STATE_IN_PROGRESS   (1)
 #define	TM_STATE_ERROR	       (2)
 
@@ -944,7 +944,7 @@ extern int	mpt_raid_phys_disk_get_num_paths(MPT_ADAPTER *ioc,
 		u8 phys_disk_num);
 extern int	 mpt_set_taskmgmt_in_progress_flag(MPT_ADAPTER *ioc);
 extern void	 mpt_clear_taskmgmt_in_progress_flag(MPT_ADAPTER *ioc);
-extern void __noreturn mpt_halt_firmware(MPT_ADAPTER *ioc);
+extern void __analreturn mpt_halt_firmware(MPT_ADAPTER *ioc);
 
 
 /*

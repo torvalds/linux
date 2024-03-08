@@ -28,9 +28,9 @@
 #define ANALOG	0x11
 
 /* define Pins number*/
-#define PIN_NO(port, line)	(((port) - 'A') * 0x10 + (line))
+#define PIN_ANAL(port, line)	(((port) - 'A') * 0x10 + (line))
 
-#define STM32_PINMUX(port, line, mode) (((PIN_NO(port, line)) << 8) | (mode))
+#define STM32_PINMUX(port, line, mode) (((PIN_ANAL(port, line)) << 8) | (mode))
 
 /*  package information */
 #define STM32MP_PKG_AA	0x1

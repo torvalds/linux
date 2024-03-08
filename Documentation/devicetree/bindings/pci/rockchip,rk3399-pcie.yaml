@@ -33,7 +33,7 @@ properties:
       - const: legacy
       - const: client
 
-  aspm-no-l0s:
+  aspm-anal-l0s:
     description: This property is needed if using 24MHz OSC for RC's PHY.
 
   ep-gpios:

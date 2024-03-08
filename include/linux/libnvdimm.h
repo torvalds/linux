@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * libnvdimm - Non-volatile-memory Devices Subsystem
+ * libnvdimm - Analn-volatile-memory Devices Subsystem
  *
  * Copyright(c) 2013-2015 Intel Corporation. All rights reserved.
  */
@@ -25,13 +25,13 @@ struct badrange {
 };
 
 enum {
-	/* unarmed memory devices may not persist writes */
+	/* unarmed memory devices may analt persist writes */
 	NDD_UNARMED = 1,
-	/* locked memory devices should not be accessed */
+	/* locked memory devices should analt be accessed */
 	NDD_LOCKED = 2,
-	/* memory under security wipes should not be accessed */
+	/* memory under security wipes should analt be accessed */
 	NDD_SECURITY_OVERWRITE = 3,
-	/*  tracking whether or not there is a pending device reference */
+	/*  tracking whether or analt there is a pending device reference */
 	NDD_WORK_PENDING = 4,
 	/* dimm supports namespace labels */
 	NDD_LABELING = 6,
@@ -41,10 +41,10 @@ enum {
 	 */
 	NDD_INCOHERENT = 7,
 
-	/* dimm provider wants synchronous registration by __nvdimm_create() */
+	/* dimm provider wants synchroanalus registration by __nvdimm_create() */
 	NDD_REGISTER_SYNC = 8,
 
-	/* need to set a limit somewhere, but yes, this is likely overkill */
+	/* need to set a limit somewhere, but anal, this is likely overkill */
 	ND_IOCTL_MAX_BUFLEN = SZ_4M,
 	ND_CMD_MAX_ELEM = 5,
 	ND_CMD_MAX_ENVELOPE = 256,
@@ -64,7 +64,7 @@ enum {
 	 */
 	ND_REGION_PERSIST_MEMCTRL = 2,
 
-	/* Platform provides asynchronous flush mechanism */
+	/* Platform provides asynchroanalus flush mechanism */
 	ND_REGION_ASYNC = 3,
 
 	/* Region was created by CXL subsystem */
@@ -80,7 +80,7 @@ typedef int (*ndctl_fn)(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
 		unsigned int buf_len, int *cmd_rc);
 
-struct device_node;
+struct device_analde;
 struct nvdimm_bus_descriptor {
 	const struct attribute_group **attr_groups;
 	unsigned long cmd_mask;
@@ -88,7 +88,7 @@ struct nvdimm_bus_descriptor {
 	unsigned long bus_family_mask;
 	struct module *module;
 	char *provider_name;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	ndctl_fn ndctl;
 	int (*flush_probe)(struct nvdimm_bus_descriptor *nd_desc);
 	int (*clear_to_send)(struct nvdimm_bus_descriptor *nd_desc,
@@ -130,11 +130,11 @@ struct nd_region_desc {
 	struct nd_interleave_set *nd_set;
 	void *provider_data;
 	int num_lanes;
-	int numa_node;
-	int target_node;
+	int numa_analde;
+	int target_analde;
 	unsigned long flags;
 	int memregion;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	int (*flush)(struct nd_region *nd_region, struct bio *bio);
 };
 
@@ -150,8 +150,8 @@ static inline void __iomem *devm_nvdimm_ioremap(struct device *dev,
 struct nvdimm_bus;
 
 /*
- * Note that separate bits for locked + unlocked are defined so that
- * 'flags == 0' corresponds to an error / not-supported state.
+ * Analte that separate bits for locked + unlocked are defined so that
+ * 'flags == 0' corresponds to an error / analt-supported state.
  */
 enum nvdimm_security_bits {
 	NVDIMM_SECURITY_DISABLED,
@@ -210,16 +210,16 @@ enum nvdimm_fwa_trigger {
 
 enum nvdimm_fwa_capability {
 	NVDIMM_FWA_CAP_INVALID,
-	NVDIMM_FWA_CAP_NONE,
+	NVDIMM_FWA_CAP_ANALNE,
 	NVDIMM_FWA_CAP_QUIESCE,
 	NVDIMM_FWA_CAP_LIVE,
 };
 
 enum nvdimm_fwa_result {
 	NVDIMM_FWA_RESULT_INVALID,
-	NVDIMM_FWA_RESULT_NONE,
+	NVDIMM_FWA_RESULT_ANALNE,
 	NVDIMM_FWA_RESULT_SUCCESS,
-	NVDIMM_FWA_RESULT_NOTSTAGED,
+	NVDIMM_FWA_RESULT_ANALTSTAGED,
 	NVDIMM_FWA_RESULT_NEEDRESET,
 	NVDIMM_FWA_RESULT_FAIL,
 };

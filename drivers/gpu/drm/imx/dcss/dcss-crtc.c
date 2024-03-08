@@ -33,7 +33,7 @@ static void dcss_disable_vblank(struct drm_crtc *crtc)
 						   base);
 	struct dcss_dev *dcss = dcss_crtc->base.dev->dev_private;
 
-	disable_irq_nosync(dcss_crtc->irq);
+	disable_irq_analsync(dcss_crtc->irq);
 
 	dcss_dtg_vblank_irq_enable(dcss->dtg, false);
 
@@ -147,7 +147,7 @@ static void dcss_crtc_atomic_disable(struct drm_crtc *crtc,
 			dev_err(dcss->dev, "Shutting off DTG timed out.\n");
 
 	/*
-	 * Do not shut off CTXLD kick interrupt when shutting VBLANK off. It
+	 * Do analt shut off CTXLD kick interrupt when shutting VBLANK off. It
 	 * will be needed to commit the last changes, before going to suspend.
 	 */
 	dcss_crtc->disable_ctxld_kick_irq = false;
@@ -171,7 +171,7 @@ static irqreturn_t dcss_crtc_irq_handler(int irq, void *dev_id)
 	struct dcss_dev *dcss = dcss_crtc->base.dev->dev_private;
 
 	if (!dcss_dtg_vblank_irq_valid(dcss->dtg))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (dcss_ctxld_is_flushed(dcss->ctxld))
 		drm_crtc_handle_vblank(&dcss_crtc->base);

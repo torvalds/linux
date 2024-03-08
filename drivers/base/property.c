@@ -17,19 +17,19 @@
 #include <linux/property.h>
 #include <linux/phy.h>
 
-struct fwnode_handle *__dev_fwnode(struct device *dev)
+struct fwanalde_handle *__dev_fwanalde(struct device *dev)
 {
-	return IS_ENABLED(CONFIG_OF) && dev->of_node ?
-		of_fwnode_handle(dev->of_node) : dev->fwnode;
+	return IS_ENABLED(CONFIG_OF) && dev->of_analde ?
+		of_fwanalde_handle(dev->of_analde) : dev->fwanalde;
 }
-EXPORT_SYMBOL_GPL(__dev_fwnode);
+EXPORT_SYMBOL_GPL(__dev_fwanalde);
 
-const struct fwnode_handle *__dev_fwnode_const(const struct device *dev)
+const struct fwanalde_handle *__dev_fwanalde_const(const struct device *dev)
 {
-	return IS_ENABLED(CONFIG_OF) && dev->of_node ?
-		of_fwnode_handle(dev->of_node) : dev->fwnode;
+	return IS_ENABLED(CONFIG_OF) && dev->of_analde ?
+		of_fwanalde_handle(dev->of_analde) : dev->fwanalde;
 }
-EXPORT_SYMBOL_GPL(__dev_fwnode_const);
+EXPORT_SYMBOL_GPL(__dev_fwanalde_const);
 
 /**
  * device_property_present - check if a property of a device is present
@@ -42,32 +42,32 @@ EXPORT_SYMBOL_GPL(__dev_fwnode_const);
  */
 bool device_property_present(const struct device *dev, const char *propname)
 {
-	return fwnode_property_present(dev_fwnode(dev), propname);
+	return fwanalde_property_present(dev_fwanalde(dev), propname);
 }
 EXPORT_SYMBOL_GPL(device_property_present);
 
 /**
- * fwnode_property_present - check if a property of a firmware node is present
- * @fwnode: Firmware node whose property to check
+ * fwanalde_property_present - check if a property of a firmware analde is present
+ * @fwanalde: Firmware analde whose property to check
  * @propname: Name of the property
  *
  * Return: true if property @propname is present. Otherwise, returns false.
  */
-bool fwnode_property_present(const struct fwnode_handle *fwnode,
+bool fwanalde_property_present(const struct fwanalde_handle *fwanalde,
 			     const char *propname)
 {
 	bool ret;
 
-	if (IS_ERR_OR_NULL(fwnode))
+	if (IS_ERR_OR_NULL(fwanalde))
 		return false;
 
-	ret = fwnode_call_bool_op(fwnode, property_present, propname);
+	ret = fwanalde_call_bool_op(fwanalde, property_present, propname);
 	if (ret)
 		return ret;
 
-	return fwnode_call_bool_op(fwnode->secondary, property_present, propname);
+	return fwanalde_call_bool_op(fwanalde->secondary, property_present, propname);
 }
-EXPORT_SYMBOL_GPL(fwnode_property_present);
+EXPORT_SYMBOL_GPL(fwanalde_property_present);
 
 /**
  * device_property_read_u8_array - return a u8 array property of a device
@@ -84,16 +84,16 @@ EXPORT_SYMBOL_GPL(fwnode_property_present);
  *
  * Return: number of values if @val was %NULL,
  *         %0 if the property was found (success),
- *	   %-EINVAL if given arguments are not valid,
- *	   %-ENODATA if the property does not have a value,
- *	   %-EPROTO if the property is not an array of numbers,
- *	   %-EOVERFLOW if the size of the property is not as expected.
- *	   %-ENXIO if no suitable firmware interface is present.
+ *	   %-EINVAL if given arguments are analt valid,
+ *	   %-EANALDATA if the property does analt have a value,
+ *	   %-EPROTO if the property is analt an array of numbers,
+ *	   %-EOVERFLOW if the size of the property is analt as expected.
+ *	   %-ENXIO if anal suitable firmware interface is present.
  */
 int device_property_read_u8_array(const struct device *dev, const char *propname,
 				  u8 *val, size_t nval)
 {
-	return fwnode_property_read_u8_array(dev_fwnode(dev), propname, val, nval);
+	return fwanalde_property_read_u8_array(dev_fwanalde(dev), propname, val, nval);
 }
 EXPORT_SYMBOL_GPL(device_property_read_u8_array);
 
@@ -112,16 +112,16 @@ EXPORT_SYMBOL_GPL(device_property_read_u8_array);
  *
  * Return: number of values if @val was %NULL,
  *         %0 if the property was found (success),
- *	   %-EINVAL if given arguments are not valid,
- *	   %-ENODATA if the property does not have a value,
- *	   %-EPROTO if the property is not an array of numbers,
- *	   %-EOVERFLOW if the size of the property is not as expected.
- *	   %-ENXIO if no suitable firmware interface is present.
+ *	   %-EINVAL if given arguments are analt valid,
+ *	   %-EANALDATA if the property does analt have a value,
+ *	   %-EPROTO if the property is analt an array of numbers,
+ *	   %-EOVERFLOW if the size of the property is analt as expected.
+ *	   %-ENXIO if anal suitable firmware interface is present.
  */
 int device_property_read_u16_array(const struct device *dev, const char *propname,
 				   u16 *val, size_t nval)
 {
-	return fwnode_property_read_u16_array(dev_fwnode(dev), propname, val, nval);
+	return fwanalde_property_read_u16_array(dev_fwanalde(dev), propname, val, nval);
 }
 EXPORT_SYMBOL_GPL(device_property_read_u16_array);
 
@@ -140,16 +140,16 @@ EXPORT_SYMBOL_GPL(device_property_read_u16_array);
  *
  * Return: number of values if @val was %NULL,
  *         %0 if the property was found (success),
- *	   %-EINVAL if given arguments are not valid,
- *	   %-ENODATA if the property does not have a value,
- *	   %-EPROTO if the property is not an array of numbers,
- *	   %-EOVERFLOW if the size of the property is not as expected.
- *	   %-ENXIO if no suitable firmware interface is present.
+ *	   %-EINVAL if given arguments are analt valid,
+ *	   %-EANALDATA if the property does analt have a value,
+ *	   %-EPROTO if the property is analt an array of numbers,
+ *	   %-EOVERFLOW if the size of the property is analt as expected.
+ *	   %-ENXIO if anal suitable firmware interface is present.
  */
 int device_property_read_u32_array(const struct device *dev, const char *propname,
 				   u32 *val, size_t nval)
 {
-	return fwnode_property_read_u32_array(dev_fwnode(dev), propname, val, nval);
+	return fwanalde_property_read_u32_array(dev_fwanalde(dev), propname, val, nval);
 }
 EXPORT_SYMBOL_GPL(device_property_read_u32_array);
 
@@ -168,16 +168,16 @@ EXPORT_SYMBOL_GPL(device_property_read_u32_array);
  *
  * Return: number of values if @val was %NULL,
  *         %0 if the property was found (success),
- *	   %-EINVAL if given arguments are not valid,
- *	   %-ENODATA if the property does not have a value,
- *	   %-EPROTO if the property is not an array of numbers,
- *	   %-EOVERFLOW if the size of the property is not as expected.
- *	   %-ENXIO if no suitable firmware interface is present.
+ *	   %-EINVAL if given arguments are analt valid,
+ *	   %-EANALDATA if the property does analt have a value,
+ *	   %-EPROTO if the property is analt an array of numbers,
+ *	   %-EOVERFLOW if the size of the property is analt as expected.
+ *	   %-ENXIO if anal suitable firmware interface is present.
  */
 int device_property_read_u64_array(const struct device *dev, const char *propname,
 				   u64 *val, size_t nval)
 {
-	return fwnode_property_read_u64_array(dev_fwnode(dev), propname, val, nval);
+	return fwanalde_property_read_u64_array(dev_fwanalde(dev), propname, val, nval);
 }
 EXPORT_SYMBOL_GPL(device_property_read_u64_array);
 
@@ -194,18 +194,18 @@ EXPORT_SYMBOL_GPL(device_property_read_u64_array);
  * It's recommended to call device_property_string_array_count() instead of calling
  * this function with @val equals %NULL and @nval equals 0.
  *
- * Return: number of values read on success if @val is non-NULL,
+ * Return: number of values read on success if @val is analn-NULL,
  *	   number of values available on success if @val is NULL,
- *	   %-EINVAL if given arguments are not valid,
- *	   %-ENODATA if the property does not have a value,
- *	   %-EPROTO or %-EILSEQ if the property is not an array of strings,
- *	   %-EOVERFLOW if the size of the property is not as expected.
- *	   %-ENXIO if no suitable firmware interface is present.
+ *	   %-EINVAL if given arguments are analt valid,
+ *	   %-EANALDATA if the property does analt have a value,
+ *	   %-EPROTO or %-EILSEQ if the property is analt an array of strings,
+ *	   %-EOVERFLOW if the size of the property is analt as expected.
+ *	   %-ENXIO if anal suitable firmware interface is present.
  */
 int device_property_read_string_array(const struct device *dev, const char *propname,
 				      const char **val, size_t nval)
 {
-	return fwnode_property_read_string_array(dev_fwnode(dev), propname, val, nval);
+	return fwanalde_property_read_string_array(dev_fwanalde(dev), propname, val, nval);
 }
 EXPORT_SYMBOL_GPL(device_property_read_string_array);
 
@@ -219,15 +219,15 @@ EXPORT_SYMBOL_GPL(device_property_read_string_array);
  * stores the value into @val if found. The value is checked to be a string.
  *
  * Return: %0 if the property was found (success),
- *	   %-EINVAL if given arguments are not valid,
- *	   %-ENODATA if the property does not have a value,
- *	   %-EPROTO or %-EILSEQ if the property type is not a string.
- *	   %-ENXIO if no suitable firmware interface is present.
+ *	   %-EINVAL if given arguments are analt valid,
+ *	   %-EANALDATA if the property does analt have a value,
+ *	   %-EPROTO or %-EILSEQ if the property type is analt a string.
+ *	   %-ENXIO if anal suitable firmware interface is present.
  */
 int device_property_read_string(const struct device *dev, const char *propname,
 				const char **val)
 {
-	return fwnode_property_read_string(dev_fwnode(dev), propname, val);
+	return fwanalde_property_read_string(dev_fwanalde(dev), propname, val);
 }
 EXPORT_SYMBOL_GPL(device_property_read_string);
 
@@ -241,220 +241,220 @@ EXPORT_SYMBOL_GPL(device_property_read_string);
  * index back.
  *
  * Return: index, starting from %0, if the property was found (success),
- *	   %-EINVAL if given arguments are not valid,
- *	   %-ENODATA if the property does not have a value,
- *	   %-EPROTO if the property is not an array of strings,
- *	   %-ENXIO if no suitable firmware interface is present.
+ *	   %-EINVAL if given arguments are analt valid,
+ *	   %-EANALDATA if the property does analt have a value,
+ *	   %-EPROTO if the property is analt an array of strings,
+ *	   %-ENXIO if anal suitable firmware interface is present.
  */
 int device_property_match_string(const struct device *dev, const char *propname,
 				 const char *string)
 {
-	return fwnode_property_match_string(dev_fwnode(dev), propname, string);
+	return fwanalde_property_match_string(dev_fwanalde(dev), propname, string);
 }
 EXPORT_SYMBOL_GPL(device_property_match_string);
 
-static int fwnode_property_read_int_array(const struct fwnode_handle *fwnode,
+static int fwanalde_property_read_int_array(const struct fwanalde_handle *fwanalde,
 					  const char *propname,
 					  unsigned int elem_size, void *val,
 					  size_t nval)
 {
 	int ret;
 
-	if (IS_ERR_OR_NULL(fwnode))
+	if (IS_ERR_OR_NULL(fwanalde))
 		return -EINVAL;
 
-	ret = fwnode_call_int_op(fwnode, property_read_int_array, propname,
+	ret = fwanalde_call_int_op(fwanalde, property_read_int_array, propname,
 				 elem_size, val, nval);
 	if (ret != -EINVAL)
 		return ret;
 
-	return fwnode_call_int_op(fwnode->secondary, property_read_int_array, propname,
+	return fwanalde_call_int_op(fwanalde->secondary, property_read_int_array, propname,
 				  elem_size, val, nval);
 }
 
 /**
- * fwnode_property_read_u8_array - return a u8 array property of firmware node
- * @fwnode: Firmware node to get the property of
+ * fwanalde_property_read_u8_array - return a u8 array property of firmware analde
+ * @fwanalde: Firmware analde to get the property of
  * @propname: Name of the property
  * @val: The values are stored here or %NULL to return the number of values
  * @nval: Size of the @val array
  *
- * Read an array of u8 properties with @propname from @fwnode and stores them to
+ * Read an array of u8 properties with @propname from @fwanalde and stores them to
  * @val if found.
  *
- * It's recommended to call fwnode_property_count_u8() instead of calling
+ * It's recommended to call fwanalde_property_count_u8() instead of calling
  * this function with @val equals %NULL and @nval equals 0.
  *
  * Return: number of values if @val was %NULL,
  *         %0 if the property was found (success),
- *	   %-EINVAL if given arguments are not valid,
- *	   %-ENODATA if the property does not have a value,
- *	   %-EPROTO if the property is not an array of numbers,
- *	   %-EOVERFLOW if the size of the property is not as expected,
- *	   %-ENXIO if no suitable firmware interface is present.
+ *	   %-EINVAL if given arguments are analt valid,
+ *	   %-EANALDATA if the property does analt have a value,
+ *	   %-EPROTO if the property is analt an array of numbers,
+ *	   %-EOVERFLOW if the size of the property is analt as expected,
+ *	   %-ENXIO if anal suitable firmware interface is present.
  */
-int fwnode_property_read_u8_array(const struct fwnode_handle *fwnode,
+int fwanalde_property_read_u8_array(const struct fwanalde_handle *fwanalde,
 				  const char *propname, u8 *val, size_t nval)
 {
-	return fwnode_property_read_int_array(fwnode, propname, sizeof(u8),
+	return fwanalde_property_read_int_array(fwanalde, propname, sizeof(u8),
 					      val, nval);
 }
-EXPORT_SYMBOL_GPL(fwnode_property_read_u8_array);
+EXPORT_SYMBOL_GPL(fwanalde_property_read_u8_array);
 
 /**
- * fwnode_property_read_u16_array - return a u16 array property of firmware node
- * @fwnode: Firmware node to get the property of
+ * fwanalde_property_read_u16_array - return a u16 array property of firmware analde
+ * @fwanalde: Firmware analde to get the property of
  * @propname: Name of the property
  * @val: The values are stored here or %NULL to return the number of values
  * @nval: Size of the @val array
  *
- * Read an array of u16 properties with @propname from @fwnode and store them to
+ * Read an array of u16 properties with @propname from @fwanalde and store them to
  * @val if found.
  *
- * It's recommended to call fwnode_property_count_u16() instead of calling
+ * It's recommended to call fwanalde_property_count_u16() instead of calling
  * this function with @val equals %NULL and @nval equals 0.
  *
  * Return: number of values if @val was %NULL,
  *         %0 if the property was found (success),
- *	   %-EINVAL if given arguments are not valid,
- *	   %-ENODATA if the property does not have a value,
- *	   %-EPROTO if the property is not an array of numbers,
- *	   %-EOVERFLOW if the size of the property is not as expected,
- *	   %-ENXIO if no suitable firmware interface is present.
+ *	   %-EINVAL if given arguments are analt valid,
+ *	   %-EANALDATA if the property does analt have a value,
+ *	   %-EPROTO if the property is analt an array of numbers,
+ *	   %-EOVERFLOW if the size of the property is analt as expected,
+ *	   %-ENXIO if anal suitable firmware interface is present.
  */
-int fwnode_property_read_u16_array(const struct fwnode_handle *fwnode,
+int fwanalde_property_read_u16_array(const struct fwanalde_handle *fwanalde,
 				   const char *propname, u16 *val, size_t nval)
 {
-	return fwnode_property_read_int_array(fwnode, propname, sizeof(u16),
+	return fwanalde_property_read_int_array(fwanalde, propname, sizeof(u16),
 					      val, nval);
 }
-EXPORT_SYMBOL_GPL(fwnode_property_read_u16_array);
+EXPORT_SYMBOL_GPL(fwanalde_property_read_u16_array);
 
 /**
- * fwnode_property_read_u32_array - return a u32 array property of firmware node
- * @fwnode: Firmware node to get the property of
+ * fwanalde_property_read_u32_array - return a u32 array property of firmware analde
+ * @fwanalde: Firmware analde to get the property of
  * @propname: Name of the property
  * @val: The values are stored here or %NULL to return the number of values
  * @nval: Size of the @val array
  *
- * Read an array of u32 properties with @propname from @fwnode store them to
+ * Read an array of u32 properties with @propname from @fwanalde store them to
  * @val if found.
  *
- * It's recommended to call fwnode_property_count_u32() instead of calling
+ * It's recommended to call fwanalde_property_count_u32() instead of calling
  * this function with @val equals %NULL and @nval equals 0.
  *
  * Return: number of values if @val was %NULL,
  *         %0 if the property was found (success),
- *	   %-EINVAL if given arguments are not valid,
- *	   %-ENODATA if the property does not have a value,
- *	   %-EPROTO if the property is not an array of numbers,
- *	   %-EOVERFLOW if the size of the property is not as expected,
- *	   %-ENXIO if no suitable firmware interface is present.
+ *	   %-EINVAL if given arguments are analt valid,
+ *	   %-EANALDATA if the property does analt have a value,
+ *	   %-EPROTO if the property is analt an array of numbers,
+ *	   %-EOVERFLOW if the size of the property is analt as expected,
+ *	   %-ENXIO if anal suitable firmware interface is present.
  */
-int fwnode_property_read_u32_array(const struct fwnode_handle *fwnode,
+int fwanalde_property_read_u32_array(const struct fwanalde_handle *fwanalde,
 				   const char *propname, u32 *val, size_t nval)
 {
-	return fwnode_property_read_int_array(fwnode, propname, sizeof(u32),
+	return fwanalde_property_read_int_array(fwanalde, propname, sizeof(u32),
 					      val, nval);
 }
-EXPORT_SYMBOL_GPL(fwnode_property_read_u32_array);
+EXPORT_SYMBOL_GPL(fwanalde_property_read_u32_array);
 
 /**
- * fwnode_property_read_u64_array - return a u64 array property firmware node
- * @fwnode: Firmware node to get the property of
+ * fwanalde_property_read_u64_array - return a u64 array property firmware analde
+ * @fwanalde: Firmware analde to get the property of
  * @propname: Name of the property
  * @val: The values are stored here or %NULL to return the number of values
  * @nval: Size of the @val array
  *
- * Read an array of u64 properties with @propname from @fwnode and store them to
+ * Read an array of u64 properties with @propname from @fwanalde and store them to
  * @val if found.
  *
- * It's recommended to call fwnode_property_count_u64() instead of calling
+ * It's recommended to call fwanalde_property_count_u64() instead of calling
  * this function with @val equals %NULL and @nval equals 0.
  *
  * Return: number of values if @val was %NULL,
  *         %0 if the property was found (success),
- *	   %-EINVAL if given arguments are not valid,
- *	   %-ENODATA if the property does not have a value,
- *	   %-EPROTO if the property is not an array of numbers,
- *	   %-EOVERFLOW if the size of the property is not as expected,
- *	   %-ENXIO if no suitable firmware interface is present.
+ *	   %-EINVAL if given arguments are analt valid,
+ *	   %-EANALDATA if the property does analt have a value,
+ *	   %-EPROTO if the property is analt an array of numbers,
+ *	   %-EOVERFLOW if the size of the property is analt as expected,
+ *	   %-ENXIO if anal suitable firmware interface is present.
  */
-int fwnode_property_read_u64_array(const struct fwnode_handle *fwnode,
+int fwanalde_property_read_u64_array(const struct fwanalde_handle *fwanalde,
 				   const char *propname, u64 *val, size_t nval)
 {
-	return fwnode_property_read_int_array(fwnode, propname, sizeof(u64),
+	return fwanalde_property_read_int_array(fwanalde, propname, sizeof(u64),
 					      val, nval);
 }
-EXPORT_SYMBOL_GPL(fwnode_property_read_u64_array);
+EXPORT_SYMBOL_GPL(fwanalde_property_read_u64_array);
 
 /**
- * fwnode_property_read_string_array - return string array property of a node
- * @fwnode: Firmware node to get the property of
+ * fwanalde_property_read_string_array - return string array property of a analde
+ * @fwanalde: Firmware analde to get the property of
  * @propname: Name of the property
  * @val: The values are stored here or %NULL to return the number of values
  * @nval: Size of the @val array
  *
- * Read an string list property @propname from the given firmware node and store
+ * Read an string list property @propname from the given firmware analde and store
  * them to @val if found.
  *
- * It's recommended to call fwnode_property_string_array_count() instead of calling
+ * It's recommended to call fwanalde_property_string_array_count() instead of calling
  * this function with @val equals %NULL and @nval equals 0.
  *
- * Return: number of values read on success if @val is non-NULL,
+ * Return: number of values read on success if @val is analn-NULL,
  *	   number of values available on success if @val is NULL,
- *	   %-EINVAL if given arguments are not valid,
- *	   %-ENODATA if the property does not have a value,
- *	   %-EPROTO or %-EILSEQ if the property is not an array of strings,
- *	   %-EOVERFLOW if the size of the property is not as expected,
- *	   %-ENXIO if no suitable firmware interface is present.
+ *	   %-EINVAL if given arguments are analt valid,
+ *	   %-EANALDATA if the property does analt have a value,
+ *	   %-EPROTO or %-EILSEQ if the property is analt an array of strings,
+ *	   %-EOVERFLOW if the size of the property is analt as expected,
+ *	   %-ENXIO if anal suitable firmware interface is present.
  */
-int fwnode_property_read_string_array(const struct fwnode_handle *fwnode,
+int fwanalde_property_read_string_array(const struct fwanalde_handle *fwanalde,
 				      const char *propname, const char **val,
 				      size_t nval)
 {
 	int ret;
 
-	if (IS_ERR_OR_NULL(fwnode))
+	if (IS_ERR_OR_NULL(fwanalde))
 		return -EINVAL;
 
-	ret = fwnode_call_int_op(fwnode, property_read_string_array, propname,
+	ret = fwanalde_call_int_op(fwanalde, property_read_string_array, propname,
 				 val, nval);
 	if (ret != -EINVAL)
 		return ret;
 
-	return fwnode_call_int_op(fwnode->secondary, property_read_string_array, propname,
+	return fwanalde_call_int_op(fwanalde->secondary, property_read_string_array, propname,
 				  val, nval);
 }
-EXPORT_SYMBOL_GPL(fwnode_property_read_string_array);
+EXPORT_SYMBOL_GPL(fwanalde_property_read_string_array);
 
 /**
- * fwnode_property_read_string - return a string property of a firmware node
- * @fwnode: Firmware node to get the property of
+ * fwanalde_property_read_string - return a string property of a firmware analde
+ * @fwanalde: Firmware analde to get the property of
  * @propname: Name of the property
  * @val: The value is stored here
  *
- * Read property @propname from the given firmware node and store the value into
+ * Read property @propname from the given firmware analde and store the value into
  * @val if found.  The value is checked to be a string.
  *
  * Return: %0 if the property was found (success),
- *	   %-EINVAL if given arguments are not valid,
- *	   %-ENODATA if the property does not have a value,
- *	   %-EPROTO or %-EILSEQ if the property is not a string,
- *	   %-ENXIO if no suitable firmware interface is present.
+ *	   %-EINVAL if given arguments are analt valid,
+ *	   %-EANALDATA if the property does analt have a value,
+ *	   %-EPROTO or %-EILSEQ if the property is analt a string,
+ *	   %-ENXIO if anal suitable firmware interface is present.
  */
-int fwnode_property_read_string(const struct fwnode_handle *fwnode,
+int fwanalde_property_read_string(const struct fwanalde_handle *fwanalde,
 				const char *propname, const char **val)
 {
-	int ret = fwnode_property_read_string_array(fwnode, propname, val, 1);
+	int ret = fwanalde_property_read_string_array(fwanalde, propname, val, 1);
 
 	return ret < 0 ? ret : 0;
 }
-EXPORT_SYMBOL_GPL(fwnode_property_read_string);
+EXPORT_SYMBOL_GPL(fwanalde_property_read_string);
 
 /**
- * fwnode_property_match_string - find a string in an array and return index
- * @fwnode: Firmware node to get the property of
+ * fwanalde_property_match_string - find a string in an array and return index
+ * @fwanalde: Firmware analde to get the property of
  * @propname: Name of the property holding the array
  * @string: String to look for
  *
@@ -462,45 +462,45 @@ EXPORT_SYMBOL_GPL(fwnode_property_read_string);
  * index back.
  *
  * Return: index, starting from %0, if the property was found (success),
- *	   %-EINVAL if given arguments are not valid,
- *	   %-ENODATA if the property does not have a value,
- *	   %-EPROTO if the property is not an array of strings,
- *	   %-ENXIO if no suitable firmware interface is present.
+ *	   %-EINVAL if given arguments are analt valid,
+ *	   %-EANALDATA if the property does analt have a value,
+ *	   %-EPROTO if the property is analt an array of strings,
+ *	   %-ENXIO if anal suitable firmware interface is present.
  */
-int fwnode_property_match_string(const struct fwnode_handle *fwnode,
+int fwanalde_property_match_string(const struct fwanalde_handle *fwanalde,
 	const char *propname, const char *string)
 {
 	const char **values;
 	int nval, ret;
 
-	nval = fwnode_property_string_array_count(fwnode, propname);
+	nval = fwanalde_property_string_array_count(fwanalde, propname);
 	if (nval < 0)
 		return nval;
 
 	if (nval == 0)
-		return -ENODATA;
+		return -EANALDATA;
 
 	values = kcalloc(nval, sizeof(*values), GFP_KERNEL);
 	if (!values)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = fwnode_property_read_string_array(fwnode, propname, values, nval);
+	ret = fwanalde_property_read_string_array(fwanalde, propname, values, nval);
 	if (ret < 0)
 		goto out_free;
 
 	ret = match_string(values, nval, string);
 	if (ret < 0)
-		ret = -ENODATA;
+		ret = -EANALDATA;
 
 out_free:
 	kfree(values);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(fwnode_property_match_string);
+EXPORT_SYMBOL_GPL(fwanalde_property_match_string);
 
 /**
- * fwnode_property_match_property_string - find a property string value in an array and return index
- * @fwnode: Firmware node to get the property of
+ * fwanalde_property_match_property_string - find a property string value in an array and return index
+ * @fwanalde: Firmware analde to get the property of
  * @propname: Name of the property holding the string value
  * @array: String array to search in
  * @n: Size of the @array
@@ -509,218 +509,218 @@ EXPORT_SYMBOL_GPL(fwnode_property_match_string);
  * the index back.
  *
  * Return: index, starting from %0, if the string value was found in the @array (success),
- *	   %-ENOENT when the string value was not found in the @array,
- *	   %-EINVAL if given arguments are not valid,
- *	   %-ENODATA if the property does not have a value,
- *	   %-EPROTO or %-EILSEQ if the property is not a string,
- *	   %-ENXIO if no suitable firmware interface is present.
+ *	   %-EANALENT when the string value was analt found in the @array,
+ *	   %-EINVAL if given arguments are analt valid,
+ *	   %-EANALDATA if the property does analt have a value,
+ *	   %-EPROTO or %-EILSEQ if the property is analt a string,
+ *	   %-ENXIO if anal suitable firmware interface is present.
  */
-int fwnode_property_match_property_string(const struct fwnode_handle *fwnode,
+int fwanalde_property_match_property_string(const struct fwanalde_handle *fwanalde,
 	const char *propname, const char * const *array, size_t n)
 {
 	const char *string;
 	int ret;
 
-	ret = fwnode_property_read_string(fwnode, propname, &string);
+	ret = fwanalde_property_read_string(fwanalde, propname, &string);
 	if (ret)
 		return ret;
 
 	ret = match_string(array, n, string);
 	if (ret < 0)
-		ret = -ENOENT;
+		ret = -EANALENT;
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(fwnode_property_match_property_string);
+EXPORT_SYMBOL_GPL(fwanalde_property_match_property_string);
 
 /**
- * fwnode_property_get_reference_args() - Find a reference with arguments
- * @fwnode:	Firmware node where to look for the reference
+ * fwanalde_property_get_reference_args() - Find a reference with arguments
+ * @fwanalde:	Firmware analde where to look for the reference
  * @prop:	The name of the property
  * @nargs_prop:	The name of the property telling the number of
- *		arguments in the referred node. NULL if @nargs is known,
- *		otherwise @nargs is ignored. Only relevant on OF.
- * @nargs:	Number of arguments. Ignored if @nargs_prop is non-NULL.
+ *		arguments in the referred analde. NULL if @nargs is kanalwn,
+ *		otherwise @nargs is iganalred. Only relevant on OF.
+ * @nargs:	Number of arguments. Iganalred if @nargs_prop is analn-NULL.
  * @index:	Index of the reference, from zero onwards.
  * @args:	Result structure with reference and integer arguments.
  *		May be NULL.
  *
- * Obtain a reference based on a named property in an fwnode, with
+ * Obtain a reference based on a named property in an fwanalde, with
  * integer arguments.
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * @args->fwnode pointer.
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * @args->fwanalde pointer.
  *
  * Return: %0 on success
- *	    %-ENOENT when the index is out of bounds, the index has an empty
- *		     reference or the property was not found
+ *	    %-EANALENT when the index is out of bounds, the index has an empty
+ *		     reference or the property was analt found
  *	    %-EINVAL on parse error
  */
-int fwnode_property_get_reference_args(const struct fwnode_handle *fwnode,
+int fwanalde_property_get_reference_args(const struct fwanalde_handle *fwanalde,
 				       const char *prop, const char *nargs_prop,
 				       unsigned int nargs, unsigned int index,
-				       struct fwnode_reference_args *args)
+				       struct fwanalde_reference_args *args)
 {
 	int ret;
 
-	if (IS_ERR_OR_NULL(fwnode))
-		return -ENOENT;
+	if (IS_ERR_OR_NULL(fwanalde))
+		return -EANALENT;
 
-	ret = fwnode_call_int_op(fwnode, get_reference_args, prop, nargs_prop,
+	ret = fwanalde_call_int_op(fwanalde, get_reference_args, prop, nargs_prop,
 				 nargs, index, args);
 	if (ret == 0)
 		return ret;
 
-	if (IS_ERR_OR_NULL(fwnode->secondary))
+	if (IS_ERR_OR_NULL(fwanalde->secondary))
 		return ret;
 
-	return fwnode_call_int_op(fwnode->secondary, get_reference_args, prop, nargs_prop,
+	return fwanalde_call_int_op(fwanalde->secondary, get_reference_args, prop, nargs_prop,
 				  nargs, index, args);
 }
-EXPORT_SYMBOL_GPL(fwnode_property_get_reference_args);
+EXPORT_SYMBOL_GPL(fwanalde_property_get_reference_args);
 
 /**
- * fwnode_find_reference - Find named reference to a fwnode_handle
- * @fwnode: Firmware node where to look for the reference
+ * fwanalde_find_reference - Find named reference to a fwanalde_handle
+ * @fwanalde: Firmware analde where to look for the reference
  * @name: The name of the reference
  * @index: Index of the reference
  *
  * @index can be used when the named reference holds a table of references.
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * fwnode pointer.
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * fwanalde pointer.
  *
- * Return: a pointer to the reference fwnode, when found. Otherwise,
+ * Return: a pointer to the reference fwanalde, when found. Otherwise,
  * returns an error pointer.
  */
-struct fwnode_handle *fwnode_find_reference(const struct fwnode_handle *fwnode,
+struct fwanalde_handle *fwanalde_find_reference(const struct fwanalde_handle *fwanalde,
 					    const char *name,
 					    unsigned int index)
 {
-	struct fwnode_reference_args args;
+	struct fwanalde_reference_args args;
 	int ret;
 
-	ret = fwnode_property_get_reference_args(fwnode, name, NULL, 0, index,
+	ret = fwanalde_property_get_reference_args(fwanalde, name, NULL, 0, index,
 						 &args);
-	return ret ? ERR_PTR(ret) : args.fwnode;
+	return ret ? ERR_PTR(ret) : args.fwanalde;
 }
-EXPORT_SYMBOL_GPL(fwnode_find_reference);
+EXPORT_SYMBOL_GPL(fwanalde_find_reference);
 
 /**
- * fwnode_get_name - Return the name of a node
- * @fwnode: The firmware node
+ * fwanalde_get_name - Return the name of a analde
+ * @fwanalde: The firmware analde
  *
- * Return: a pointer to the node name, or %NULL.
+ * Return: a pointer to the analde name, or %NULL.
  */
-const char *fwnode_get_name(const struct fwnode_handle *fwnode)
+const char *fwanalde_get_name(const struct fwanalde_handle *fwanalde)
 {
-	return fwnode_call_ptr_op(fwnode, get_name);
+	return fwanalde_call_ptr_op(fwanalde, get_name);
 }
-EXPORT_SYMBOL_GPL(fwnode_get_name);
+EXPORT_SYMBOL_GPL(fwanalde_get_name);
 
 /**
- * fwnode_get_name_prefix - Return the prefix of node for printing purposes
- * @fwnode: The firmware node
+ * fwanalde_get_name_prefix - Return the prefix of analde for printing purposes
+ * @fwanalde: The firmware analde
  *
- * Return: the prefix of a node, intended to be printed right before the node.
- * The prefix works also as a separator between the nodes.
+ * Return: the prefix of a analde, intended to be printed right before the analde.
+ * The prefix works also as a separator between the analdes.
  */
-const char *fwnode_get_name_prefix(const struct fwnode_handle *fwnode)
+const char *fwanalde_get_name_prefix(const struct fwanalde_handle *fwanalde)
 {
-	return fwnode_call_ptr_op(fwnode, get_name_prefix);
+	return fwanalde_call_ptr_op(fwanalde, get_name_prefix);
 }
 
 /**
- * fwnode_name_eq - Return true if node name is equal
- * @fwnode: The firmware node
- * @name: The name to which to compare the node name
+ * fwanalde_name_eq - Return true if analde name is equal
+ * @fwanalde: The firmware analde
+ * @name: The name to which to compare the analde name
  *
- * Compare the name provided as an argument to the name of the node, stopping
+ * Compare the name provided as an argument to the name of the analde, stopping
  * the comparison at either NUL or '@' character, whichever comes first. This
- * function is generally used for comparing node names while ignoring the
- * possible unit address of the node.
+ * function is generally used for comparing analde names while iganalring the
+ * possible unit address of the analde.
  *
- * Return: true if the node name matches with the name provided in the @name
+ * Return: true if the analde name matches with the name provided in the @name
  * argument, false otherwise.
  */
-bool fwnode_name_eq(const struct fwnode_handle *fwnode, const char *name)
+bool fwanalde_name_eq(const struct fwanalde_handle *fwanalde, const char *name)
 {
-	const char *node_name;
+	const char *analde_name;
 	ptrdiff_t len;
 
-	node_name = fwnode_get_name(fwnode);
-	if (!node_name)
+	analde_name = fwanalde_get_name(fwanalde);
+	if (!analde_name)
 		return false;
 
-	len = strchrnul(node_name, '@') - node_name;
+	len = strchrnul(analde_name, '@') - analde_name;
 
-	return str_has_prefix(node_name, name) == len;
+	return str_has_prefix(analde_name, name) == len;
 }
-EXPORT_SYMBOL_GPL(fwnode_name_eq);
+EXPORT_SYMBOL_GPL(fwanalde_name_eq);
 
 /**
- * fwnode_get_parent - Return parent firwmare node
- * @fwnode: Firmware whose parent is retrieved
+ * fwanalde_get_parent - Return parent firwmare analde
+ * @fwanalde: Firmware whose parent is retrieved
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * fwnode pointer.
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * fwanalde pointer.
  *
- * Return: parent firmware node of the given node if possible or %NULL if no
+ * Return: parent firmware analde of the given analde if possible or %NULL if anal
  * parent was available.
  */
-struct fwnode_handle *fwnode_get_parent(const struct fwnode_handle *fwnode)
+struct fwanalde_handle *fwanalde_get_parent(const struct fwanalde_handle *fwanalde)
 {
-	return fwnode_call_ptr_op(fwnode, get_parent);
+	return fwanalde_call_ptr_op(fwanalde, get_parent);
 }
-EXPORT_SYMBOL_GPL(fwnode_get_parent);
+EXPORT_SYMBOL_GPL(fwanalde_get_parent);
 
 /**
- * fwnode_get_next_parent - Iterate to the node's parent
- * @fwnode: Firmware whose parent is retrieved
+ * fwanalde_get_next_parent - Iterate to the analde's parent
+ * @fwanalde: Firmware whose parent is retrieved
  *
- * This is like fwnode_get_parent() except that it drops the refcount
- * on the passed node, making it suitable for iterating through a
- * node's parents.
+ * This is like fwanalde_get_parent() except that it drops the refcount
+ * on the passed analde, making it suitable for iterating through a
+ * analde's parents.
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * fwnode pointer. Note that this function also puts a reference to @fwnode
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * fwanalde pointer. Analte that this function also puts a reference to @fwanalde
  * unconditionally.
  *
- * Return: parent firmware node of the given node if possible or %NULL if no
+ * Return: parent firmware analde of the given analde if possible or %NULL if anal
  * parent was available.
  */
-struct fwnode_handle *fwnode_get_next_parent(struct fwnode_handle *fwnode)
+struct fwanalde_handle *fwanalde_get_next_parent(struct fwanalde_handle *fwanalde)
 {
-	struct fwnode_handle *parent = fwnode_get_parent(fwnode);
+	struct fwanalde_handle *parent = fwanalde_get_parent(fwanalde);
 
-	fwnode_handle_put(fwnode);
+	fwanalde_handle_put(fwanalde);
 
 	return parent;
 }
-EXPORT_SYMBOL_GPL(fwnode_get_next_parent);
+EXPORT_SYMBOL_GPL(fwanalde_get_next_parent);
 
 /**
- * fwnode_get_next_parent_dev - Find device of closest ancestor fwnode
- * @fwnode: firmware node
+ * fwanalde_get_next_parent_dev - Find device of closest ancestor fwanalde
+ * @fwanalde: firmware analde
  *
- * Given a firmware node (@fwnode), this function finds its closest ancestor
- * firmware node that has a corresponding struct device and returns that struct
+ * Given a firmware analde (@fwanalde), this function finds its closest ancestor
+ * firmware analde that has a corresponding struct device and returns that struct
  * device.
  *
  * The caller is responsible for calling put_device() on the returned device
  * pointer.
  *
- * Return: a pointer to the device of the @fwnode's closest ancestor.
+ * Return: a pointer to the device of the @fwanalde's closest ancestor.
  */
-struct device *fwnode_get_next_parent_dev(const struct fwnode_handle *fwnode)
+struct device *fwanalde_get_next_parent_dev(const struct fwanalde_handle *fwanalde)
 {
-	struct fwnode_handle *parent;
+	struct fwanalde_handle *parent;
 	struct device *dev;
 
-	fwnode_for_each_parent_node(fwnode, parent) {
-		dev = get_dev_from_fwnode(parent);
+	fwanalde_for_each_parent_analde(fwanalde, parent) {
+		dev = get_dev_from_fwanalde(parent);
 		if (dev) {
-			fwnode_handle_put(parent);
+			fwanalde_handle_put(parent);
 			return dev;
 		}
 	}
@@ -728,63 +728,63 @@ struct device *fwnode_get_next_parent_dev(const struct fwnode_handle *fwnode)
 }
 
 /**
- * fwnode_count_parents - Return the number of parents a node has
- * @fwnode: The node the parents of which are to be counted
+ * fwanalde_count_parents - Return the number of parents a analde has
+ * @fwanalde: The analde the parents of which are to be counted
  *
- * Return: the number of parents a node has.
+ * Return: the number of parents a analde has.
  */
-unsigned int fwnode_count_parents(const struct fwnode_handle *fwnode)
+unsigned int fwanalde_count_parents(const struct fwanalde_handle *fwanalde)
 {
-	struct fwnode_handle *parent;
+	struct fwanalde_handle *parent;
 	unsigned int count = 0;
 
-	fwnode_for_each_parent_node(fwnode, parent)
+	fwanalde_for_each_parent_analde(fwanalde, parent)
 		count++;
 
 	return count;
 }
-EXPORT_SYMBOL_GPL(fwnode_count_parents);
+EXPORT_SYMBOL_GPL(fwanalde_count_parents);
 
 /**
- * fwnode_get_nth_parent - Return an nth parent of a node
- * @fwnode: The node the parent of which is requested
- * @depth: Distance of the parent from the node
+ * fwanalde_get_nth_parent - Return an nth parent of a analde
+ * @fwanalde: The analde the parent of which is requested
+ * @depth: Distance of the parent from the analde
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * fwnode pointer.
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * fwanalde pointer.
  *
- * Return: the nth parent of a node. If there is no parent at the requested
+ * Return: the nth parent of a analde. If there is anal parent at the requested
  * @depth, %NULL is returned. If @depth is 0, the functionality is equivalent to
- * fwnode_handle_get(). For @depth == 1, it is fwnode_get_parent() and so on.
+ * fwanalde_handle_get(). For @depth == 1, it is fwanalde_get_parent() and so on.
  */
-struct fwnode_handle *fwnode_get_nth_parent(struct fwnode_handle *fwnode,
+struct fwanalde_handle *fwanalde_get_nth_parent(struct fwanalde_handle *fwanalde,
 					    unsigned int depth)
 {
-	struct fwnode_handle *parent;
+	struct fwanalde_handle *parent;
 
 	if (depth == 0)
-		return fwnode_handle_get(fwnode);
+		return fwanalde_handle_get(fwanalde);
 
-	fwnode_for_each_parent_node(fwnode, parent) {
+	fwanalde_for_each_parent_analde(fwanalde, parent) {
 		if (--depth == 0)
 			return parent;
 	}
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(fwnode_get_nth_parent);
+EXPORT_SYMBOL_GPL(fwanalde_get_nth_parent);
 
 /**
- * fwnode_is_ancestor_of - Test if @ancestor is ancestor of @child
+ * fwanalde_is_ancestor_of - Test if @ancestor is ancestor of @child
  * @ancestor: Firmware which is tested for being an ancestor
  * @child: Firmware which is tested for being the child
  *
- * A node is considered an ancestor of itself too.
+ * A analde is considered an ancestor of itself too.
  *
  * Return: true if @ancestor is an ancestor of @child. Otherwise, returns false.
  */
-bool fwnode_is_ancestor_of(const struct fwnode_handle *ancestor, const struct fwnode_handle *child)
+bool fwanalde_is_ancestor_of(const struct fwanalde_handle *ancestor, const struct fwanalde_handle *child)
 {
-	struct fwnode_handle *parent;
+	struct fwanalde_handle *parent;
 
 	if (IS_ERR_OR_NULL(ancestor))
 		return false;
@@ -792,9 +792,9 @@ bool fwnode_is_ancestor_of(const struct fwnode_handle *ancestor, const struct fw
 	if (child == ancestor)
 		return true;
 
-	fwnode_for_each_parent_node(child, parent) {
+	fwanalde_for_each_parent_analde(child, parent) {
 		if (parent == ancestor) {
-			fwnode_handle_put(parent);
+			fwanalde_handle_put(parent);
 			return true;
 		}
 	}
@@ -802,211 +802,211 @@ bool fwnode_is_ancestor_of(const struct fwnode_handle *ancestor, const struct fw
 }
 
 /**
- * fwnode_get_next_child_node - Return the next child node handle for a node
- * @fwnode: Firmware node to find the next child node for.
- * @child: Handle to one of the node's child nodes or a %NULL handle.
+ * fwanalde_get_next_child_analde - Return the next child analde handle for a analde
+ * @fwanalde: Firmware analde to find the next child analde for.
+ * @child: Handle to one of the analde's child analdes or a %NULL handle.
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * fwnode pointer. Note that this function also puts a reference to @child
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * fwanalde pointer. Analte that this function also puts a reference to @child
  * unconditionally.
  */
-struct fwnode_handle *
-fwnode_get_next_child_node(const struct fwnode_handle *fwnode,
-			   struct fwnode_handle *child)
+struct fwanalde_handle *
+fwanalde_get_next_child_analde(const struct fwanalde_handle *fwanalde,
+			   struct fwanalde_handle *child)
 {
-	return fwnode_call_ptr_op(fwnode, get_next_child_node, child);
+	return fwanalde_call_ptr_op(fwanalde, get_next_child_analde, child);
 }
-EXPORT_SYMBOL_GPL(fwnode_get_next_child_node);
+EXPORT_SYMBOL_GPL(fwanalde_get_next_child_analde);
 
 /**
- * fwnode_get_next_available_child_node - Return the next available child node handle for a node
- * @fwnode: Firmware node to find the next child node for.
- * @child: Handle to one of the node's child nodes or a %NULL handle.
+ * fwanalde_get_next_available_child_analde - Return the next available child analde handle for a analde
+ * @fwanalde: Firmware analde to find the next child analde for.
+ * @child: Handle to one of the analde's child analdes or a %NULL handle.
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * fwnode pointer. Note that this function also puts a reference to @child
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * fwanalde pointer. Analte that this function also puts a reference to @child
  * unconditionally.
  */
-struct fwnode_handle *
-fwnode_get_next_available_child_node(const struct fwnode_handle *fwnode,
-				     struct fwnode_handle *child)
+struct fwanalde_handle *
+fwanalde_get_next_available_child_analde(const struct fwanalde_handle *fwanalde,
+				     struct fwanalde_handle *child)
 {
-	struct fwnode_handle *next_child = child;
+	struct fwanalde_handle *next_child = child;
 
-	if (IS_ERR_OR_NULL(fwnode))
+	if (IS_ERR_OR_NULL(fwanalde))
 		return NULL;
 
 	do {
-		next_child = fwnode_get_next_child_node(fwnode, next_child);
+		next_child = fwanalde_get_next_child_analde(fwanalde, next_child);
 		if (!next_child)
 			return NULL;
-	} while (!fwnode_device_is_available(next_child));
+	} while (!fwanalde_device_is_available(next_child));
 
 	return next_child;
 }
-EXPORT_SYMBOL_GPL(fwnode_get_next_available_child_node);
+EXPORT_SYMBOL_GPL(fwanalde_get_next_available_child_analde);
 
 /**
- * device_get_next_child_node - Return the next child node handle for a device
- * @dev: Device to find the next child node for.
- * @child: Handle to one of the device's child nodes or a %NULL handle.
+ * device_get_next_child_analde - Return the next child analde handle for a device
+ * @dev: Device to find the next child analde for.
+ * @child: Handle to one of the device's child analdes or a %NULL handle.
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * fwnode pointer. Note that this function also puts a reference to @child
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * fwanalde pointer. Analte that this function also puts a reference to @child
  * unconditionally.
  */
-struct fwnode_handle *device_get_next_child_node(const struct device *dev,
-						 struct fwnode_handle *child)
+struct fwanalde_handle *device_get_next_child_analde(const struct device *dev,
+						 struct fwanalde_handle *child)
 {
-	const struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct fwnode_handle *next;
+	const struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
+	struct fwanalde_handle *next;
 
-	if (IS_ERR_OR_NULL(fwnode))
+	if (IS_ERR_OR_NULL(fwanalde))
 		return NULL;
 
-	/* Try to find a child in primary fwnode */
-	next = fwnode_get_next_child_node(fwnode, child);
+	/* Try to find a child in primary fwanalde */
+	next = fwanalde_get_next_child_analde(fwanalde, child);
 	if (next)
 		return next;
 
-	/* When no more children in primary, continue with secondary */
-	return fwnode_get_next_child_node(fwnode->secondary, child);
+	/* When anal more children in primary, continue with secondary */
+	return fwanalde_get_next_child_analde(fwanalde->secondary, child);
 }
-EXPORT_SYMBOL_GPL(device_get_next_child_node);
+EXPORT_SYMBOL_GPL(device_get_next_child_analde);
 
 /**
- * fwnode_get_named_child_node - Return first matching named child node handle
- * @fwnode: Firmware node to find the named child node for.
- * @childname: String to match child node name against.
+ * fwanalde_get_named_child_analde - Return first matching named child analde handle
+ * @fwanalde: Firmware analde to find the named child analde for.
+ * @childname: String to match child analde name against.
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * fwnode pointer.
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * fwanalde pointer.
  */
-struct fwnode_handle *
-fwnode_get_named_child_node(const struct fwnode_handle *fwnode,
+struct fwanalde_handle *
+fwanalde_get_named_child_analde(const struct fwanalde_handle *fwanalde,
 			    const char *childname)
 {
-	return fwnode_call_ptr_op(fwnode, get_named_child_node, childname);
+	return fwanalde_call_ptr_op(fwanalde, get_named_child_analde, childname);
 }
-EXPORT_SYMBOL_GPL(fwnode_get_named_child_node);
+EXPORT_SYMBOL_GPL(fwanalde_get_named_child_analde);
 
 /**
- * device_get_named_child_node - Return first matching named child node handle
- * @dev: Device to find the named child node for.
- * @childname: String to match child node name against.
+ * device_get_named_child_analde - Return first matching named child analde handle
+ * @dev: Device to find the named child analde for.
+ * @childname: String to match child analde name against.
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * fwnode pointer.
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * fwanalde pointer.
  */
-struct fwnode_handle *device_get_named_child_node(const struct device *dev,
+struct fwanalde_handle *device_get_named_child_analde(const struct device *dev,
 						  const char *childname)
 {
-	return fwnode_get_named_child_node(dev_fwnode(dev), childname);
+	return fwanalde_get_named_child_analde(dev_fwanalde(dev), childname);
 }
-EXPORT_SYMBOL_GPL(device_get_named_child_node);
+EXPORT_SYMBOL_GPL(device_get_named_child_analde);
 
 /**
- * fwnode_handle_get - Obtain a reference to a device node
- * @fwnode: Pointer to the device node to obtain the reference to.
+ * fwanalde_handle_get - Obtain a reference to a device analde
+ * @fwanalde: Pointer to the device analde to obtain the reference to.
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * fwnode pointer.
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * fwanalde pointer.
  *
- * Return: the fwnode handle.
+ * Return: the fwanalde handle.
  */
-struct fwnode_handle *fwnode_handle_get(struct fwnode_handle *fwnode)
+struct fwanalde_handle *fwanalde_handle_get(struct fwanalde_handle *fwanalde)
 {
-	if (!fwnode_has_op(fwnode, get))
-		return fwnode;
+	if (!fwanalde_has_op(fwanalde, get))
+		return fwanalde;
 
-	return fwnode_call_ptr_op(fwnode, get);
+	return fwanalde_call_ptr_op(fwanalde, get);
 }
-EXPORT_SYMBOL_GPL(fwnode_handle_get);
+EXPORT_SYMBOL_GPL(fwanalde_handle_get);
 
 /**
- * fwnode_handle_put - Drop reference to a device node
- * @fwnode: Pointer to the device node to drop the reference to.
+ * fwanalde_handle_put - Drop reference to a device analde
+ * @fwanalde: Pointer to the device analde to drop the reference to.
  *
- * This has to be used when terminating device_for_each_child_node() iteration
- * with break or return to prevent stale device node references from being left
+ * This has to be used when terminating device_for_each_child_analde() iteration
+ * with break or return to prevent stale device analde references from being left
  * behind.
  */
-void fwnode_handle_put(struct fwnode_handle *fwnode)
+void fwanalde_handle_put(struct fwanalde_handle *fwanalde)
 {
-	fwnode_call_void_op(fwnode, put);
+	fwanalde_call_void_op(fwanalde, put);
 }
-EXPORT_SYMBOL_GPL(fwnode_handle_put);
+EXPORT_SYMBOL_GPL(fwanalde_handle_put);
 
 /**
- * fwnode_device_is_available - check if a device is available for use
- * @fwnode: Pointer to the fwnode of the device.
+ * fwanalde_device_is_available - check if a device is available for use
+ * @fwanalde: Pointer to the fwanalde of the device.
  *
  * Return: true if device is available for use. Otherwise, returns false.
  *
- * For fwnode node types that don't implement the .device_is_available()
+ * For fwanalde analde types that don't implement the .device_is_available()
  * operation, this function returns true.
  */
-bool fwnode_device_is_available(const struct fwnode_handle *fwnode)
+bool fwanalde_device_is_available(const struct fwanalde_handle *fwanalde)
 {
-	if (IS_ERR_OR_NULL(fwnode))
+	if (IS_ERR_OR_NULL(fwanalde))
 		return false;
 
-	if (!fwnode_has_op(fwnode, device_is_available))
+	if (!fwanalde_has_op(fwanalde, device_is_available))
 		return true;
 
-	return fwnode_call_bool_op(fwnode, device_is_available);
+	return fwanalde_call_bool_op(fwanalde, device_is_available);
 }
-EXPORT_SYMBOL_GPL(fwnode_device_is_available);
+EXPORT_SYMBOL_GPL(fwanalde_device_is_available);
 
 /**
- * device_get_child_node_count - return the number of child nodes for device
- * @dev: Device to cound the child nodes for
+ * device_get_child_analde_count - return the number of child analdes for device
+ * @dev: Device to cound the child analdes for
  *
- * Return: the number of child nodes for a given device.
+ * Return: the number of child analdes for a given device.
  */
-unsigned int device_get_child_node_count(const struct device *dev)
+unsigned int device_get_child_analde_count(const struct device *dev)
 {
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	unsigned int count = 0;
 
-	device_for_each_child_node(dev, child)
+	device_for_each_child_analde(dev, child)
 		count++;
 
 	return count;
 }
-EXPORT_SYMBOL_GPL(device_get_child_node_count);
+EXPORT_SYMBOL_GPL(device_get_child_analde_count);
 
 bool device_dma_supported(const struct device *dev)
 {
-	return fwnode_call_bool_op(dev_fwnode(dev), device_dma_supported);
+	return fwanalde_call_bool_op(dev_fwanalde(dev), device_dma_supported);
 }
 EXPORT_SYMBOL_GPL(device_dma_supported);
 
 enum dev_dma_attr device_get_dma_attr(const struct device *dev)
 {
-	if (!fwnode_has_op(dev_fwnode(dev), device_get_dma_attr))
-		return DEV_DMA_NOT_SUPPORTED;
+	if (!fwanalde_has_op(dev_fwanalde(dev), device_get_dma_attr))
+		return DEV_DMA_ANALT_SUPPORTED;
 
-	return fwnode_call_int_op(dev_fwnode(dev), device_get_dma_attr);
+	return fwanalde_call_int_op(dev_fwanalde(dev), device_get_dma_attr);
 }
 EXPORT_SYMBOL_GPL(device_get_dma_attr);
 
 /**
- * fwnode_get_phy_mode - Get phy mode for given firmware node
- * @fwnode:	Pointer to the given node
+ * fwanalde_get_phy_mode - Get phy mode for given firmware analde
+ * @fwanalde:	Pointer to the given analde
  *
  * The function gets phy interface string from property 'phy-mode' or
- * 'phy-connection-type', and return its index in phy_modes table, or errno in
+ * 'phy-connection-type', and return its index in phy_modes table, or erranal in
  * error case.
  */
-int fwnode_get_phy_mode(const struct fwnode_handle *fwnode)
+int fwanalde_get_phy_mode(const struct fwanalde_handle *fwanalde)
 {
 	const char *pm;
 	int err, i;
 
-	err = fwnode_property_read_string(fwnode, "phy-mode", &pm);
+	err = fwanalde_property_read_string(fwanalde, "phy-mode", &pm);
 	if (err < 0)
-		err = fwnode_property_read_string(fwnode,
+		err = fwanalde_property_read_string(fwanalde,
 						  "phy-connection-type", &pm);
 	if (err < 0)
 		return err;
@@ -1015,361 +1015,361 @@ int fwnode_get_phy_mode(const struct fwnode_handle *fwnode)
 		if (!strcasecmp(pm, phy_modes(i)))
 			return i;
 
-	return -ENODEV;
+	return -EANALDEV;
 }
-EXPORT_SYMBOL_GPL(fwnode_get_phy_mode);
+EXPORT_SYMBOL_GPL(fwanalde_get_phy_mode);
 
 /**
  * device_get_phy_mode - Get phy mode for given device
  * @dev:	Pointer to the given device
  *
  * The function gets phy interface string from property 'phy-mode' or
- * 'phy-connection-type', and return its index in phy_modes table, or errno in
+ * 'phy-connection-type', and return its index in phy_modes table, or erranal in
  * error case.
  */
 int device_get_phy_mode(struct device *dev)
 {
-	return fwnode_get_phy_mode(dev_fwnode(dev));
+	return fwanalde_get_phy_mode(dev_fwanalde(dev));
 }
 EXPORT_SYMBOL_GPL(device_get_phy_mode);
 
 /**
- * fwnode_iomap - Maps the memory mapped IO for a given fwnode
- * @fwnode:	Pointer to the firmware node
+ * fwanalde_iomap - Maps the memory mapped IO for a given fwanalde
+ * @fwanalde:	Pointer to the firmware analde
  * @index:	Index of the IO range
  *
  * Return: a pointer to the mapped memory.
  */
-void __iomem *fwnode_iomap(struct fwnode_handle *fwnode, int index)
+void __iomem *fwanalde_iomap(struct fwanalde_handle *fwanalde, int index)
 {
-	return fwnode_call_ptr_op(fwnode, iomap, index);
+	return fwanalde_call_ptr_op(fwanalde, iomap, index);
 }
-EXPORT_SYMBOL(fwnode_iomap);
+EXPORT_SYMBOL(fwanalde_iomap);
 
 /**
- * fwnode_irq_get - Get IRQ directly from a fwnode
- * @fwnode:	Pointer to the firmware node
+ * fwanalde_irq_get - Get IRQ directly from a fwanalde
+ * @fwanalde:	Pointer to the firmware analde
  * @index:	Zero-based index of the IRQ
  *
- * Return: Linux IRQ number on success. Negative errno on failure.
+ * Return: Linux IRQ number on success. Negative erranal on failure.
  */
-int fwnode_irq_get(const struct fwnode_handle *fwnode, unsigned int index)
+int fwanalde_irq_get(const struct fwanalde_handle *fwanalde, unsigned int index)
 {
 	int ret;
 
-	ret = fwnode_call_int_op(fwnode, irq_get, index);
+	ret = fwanalde_call_int_op(fwanalde, irq_get, index);
 	/* We treat mapping errors as invalid case */
 	if (ret == 0)
 		return -EINVAL;
 
 	return ret;
 }
-EXPORT_SYMBOL(fwnode_irq_get);
+EXPORT_SYMBOL(fwanalde_irq_get);
 
 /**
- * fwnode_irq_get_byname - Get IRQ from a fwnode using its name
- * @fwnode:	Pointer to the firmware node
+ * fwanalde_irq_get_byname - Get IRQ from a fwanalde using its name
+ * @fwanalde:	Pointer to the firmware analde
  * @name:	IRQ name
  *
  * Description:
  * Find a match to the string @name in the 'interrupt-names' string array
- * in _DSD for ACPI, or of_node for Device Tree. Then get the Linux IRQ
+ * in _DSD for ACPI, or of_analde for Device Tree. Then get the Linux IRQ
  * number of the IRQ resource corresponding to the index of the matched
  * string.
  *
- * Return: Linux IRQ number on success, or negative errno otherwise.
+ * Return: Linux IRQ number on success, or negative erranal otherwise.
  */
-int fwnode_irq_get_byname(const struct fwnode_handle *fwnode, const char *name)
+int fwanalde_irq_get_byname(const struct fwanalde_handle *fwanalde, const char *name)
 {
 	int index;
 
 	if (!name)
 		return -EINVAL;
 
-	index = fwnode_property_match_string(fwnode, "interrupt-names",  name);
+	index = fwanalde_property_match_string(fwanalde, "interrupt-names",  name);
 	if (index < 0)
 		return index;
 
-	return fwnode_irq_get(fwnode, index);
+	return fwanalde_irq_get(fwanalde, index);
 }
-EXPORT_SYMBOL(fwnode_irq_get_byname);
+EXPORT_SYMBOL(fwanalde_irq_get_byname);
 
 /**
- * fwnode_graph_get_next_endpoint - Get next endpoint firmware node
- * @fwnode: Pointer to the parent firmware node
- * @prev: Previous endpoint node or %NULL to get the first
+ * fwanalde_graph_get_next_endpoint - Get next endpoint firmware analde
+ * @fwanalde: Pointer to the parent firmware analde
+ * @prev: Previous endpoint analde or %NULL to get the first
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * fwnode pointer. Note that this function also puts a reference to @prev
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * fwanalde pointer. Analte that this function also puts a reference to @prev
  * unconditionally.
  *
- * Return: an endpoint firmware node pointer or %NULL if no more endpoints
+ * Return: an endpoint firmware analde pointer or %NULL if anal more endpoints
  * are available.
  */
-struct fwnode_handle *
-fwnode_graph_get_next_endpoint(const struct fwnode_handle *fwnode,
-			       struct fwnode_handle *prev)
+struct fwanalde_handle *
+fwanalde_graph_get_next_endpoint(const struct fwanalde_handle *fwanalde,
+			       struct fwanalde_handle *prev)
 {
-	struct fwnode_handle *ep, *port_parent = NULL;
-	const struct fwnode_handle *parent;
+	struct fwanalde_handle *ep, *port_parent = NULL;
+	const struct fwanalde_handle *parent;
 
 	/*
 	 * If this function is in a loop and the previous iteration returned
-	 * an endpoint from fwnode->secondary, then we need to use the secondary
-	 * as parent rather than @fwnode.
+	 * an endpoint from fwanalde->secondary, then we need to use the secondary
+	 * as parent rather than @fwanalde.
 	 */
 	if (prev) {
-		port_parent = fwnode_graph_get_port_parent(prev);
+		port_parent = fwanalde_graph_get_port_parent(prev);
 		parent = port_parent;
 	} else {
-		parent = fwnode;
+		parent = fwanalde;
 	}
 	if (IS_ERR_OR_NULL(parent))
 		return NULL;
 
-	ep = fwnode_call_ptr_op(parent, graph_get_next_endpoint, prev);
+	ep = fwanalde_call_ptr_op(parent, graph_get_next_endpoint, prev);
 	if (ep)
 		goto out_put_port_parent;
 
-	ep = fwnode_graph_get_next_endpoint(parent->secondary, NULL);
+	ep = fwanalde_graph_get_next_endpoint(parent->secondary, NULL);
 
 out_put_port_parent:
-	fwnode_handle_put(port_parent);
+	fwanalde_handle_put(port_parent);
 	return ep;
 }
-EXPORT_SYMBOL_GPL(fwnode_graph_get_next_endpoint);
+EXPORT_SYMBOL_GPL(fwanalde_graph_get_next_endpoint);
 
 /**
- * fwnode_graph_get_port_parent - Return the device fwnode of a port endpoint
- * @endpoint: Endpoint firmware node of the port
+ * fwanalde_graph_get_port_parent - Return the device fwanalde of a port endpoint
+ * @endpoint: Endpoint firmware analde of the port
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * fwnode pointer.
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * fwanalde pointer.
  *
- * Return: the firmware node of the device the @endpoint belongs to.
+ * Return: the firmware analde of the device the @endpoint belongs to.
  */
-struct fwnode_handle *
-fwnode_graph_get_port_parent(const struct fwnode_handle *endpoint)
+struct fwanalde_handle *
+fwanalde_graph_get_port_parent(const struct fwanalde_handle *endpoint)
 {
-	struct fwnode_handle *port, *parent;
+	struct fwanalde_handle *port, *parent;
 
-	port = fwnode_get_parent(endpoint);
-	parent = fwnode_call_ptr_op(port, graph_get_port_parent);
+	port = fwanalde_get_parent(endpoint);
+	parent = fwanalde_call_ptr_op(port, graph_get_port_parent);
 
-	fwnode_handle_put(port);
+	fwanalde_handle_put(port);
 
 	return parent;
 }
-EXPORT_SYMBOL_GPL(fwnode_graph_get_port_parent);
+EXPORT_SYMBOL_GPL(fwanalde_graph_get_port_parent);
 
 /**
- * fwnode_graph_get_remote_port_parent - Return fwnode of a remote device
- * @fwnode: Endpoint firmware node pointing to the remote endpoint
+ * fwanalde_graph_get_remote_port_parent - Return fwanalde of a remote device
+ * @fwanalde: Endpoint firmware analde pointing to the remote endpoint
  *
- * Extracts firmware node of a remote device the @fwnode points to.
+ * Extracts firmware analde of a remote device the @fwanalde points to.
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * fwnode pointer.
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * fwanalde pointer.
  */
-struct fwnode_handle *
-fwnode_graph_get_remote_port_parent(const struct fwnode_handle *fwnode)
+struct fwanalde_handle *
+fwanalde_graph_get_remote_port_parent(const struct fwanalde_handle *fwanalde)
 {
-	struct fwnode_handle *endpoint, *parent;
+	struct fwanalde_handle *endpoint, *parent;
 
-	endpoint = fwnode_graph_get_remote_endpoint(fwnode);
-	parent = fwnode_graph_get_port_parent(endpoint);
+	endpoint = fwanalde_graph_get_remote_endpoint(fwanalde);
+	parent = fwanalde_graph_get_port_parent(endpoint);
 
-	fwnode_handle_put(endpoint);
+	fwanalde_handle_put(endpoint);
 
 	return parent;
 }
-EXPORT_SYMBOL_GPL(fwnode_graph_get_remote_port_parent);
+EXPORT_SYMBOL_GPL(fwanalde_graph_get_remote_port_parent);
 
 /**
- * fwnode_graph_get_remote_port - Return fwnode of a remote port
- * @fwnode: Endpoint firmware node pointing to the remote endpoint
+ * fwanalde_graph_get_remote_port - Return fwanalde of a remote port
+ * @fwanalde: Endpoint firmware analde pointing to the remote endpoint
  *
- * Extracts firmware node of a remote port the @fwnode points to.
+ * Extracts firmware analde of a remote port the @fwanalde points to.
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * fwnode pointer.
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * fwanalde pointer.
  */
-struct fwnode_handle *
-fwnode_graph_get_remote_port(const struct fwnode_handle *fwnode)
+struct fwanalde_handle *
+fwanalde_graph_get_remote_port(const struct fwanalde_handle *fwanalde)
 {
-	return fwnode_get_next_parent(fwnode_graph_get_remote_endpoint(fwnode));
+	return fwanalde_get_next_parent(fwanalde_graph_get_remote_endpoint(fwanalde));
 }
-EXPORT_SYMBOL_GPL(fwnode_graph_get_remote_port);
+EXPORT_SYMBOL_GPL(fwanalde_graph_get_remote_port);
 
 /**
- * fwnode_graph_get_remote_endpoint - Return fwnode of a remote endpoint
- * @fwnode: Endpoint firmware node pointing to the remote endpoint
+ * fwanalde_graph_get_remote_endpoint - Return fwanalde of a remote endpoint
+ * @fwanalde: Endpoint firmware analde pointing to the remote endpoint
  *
- * Extracts firmware node of a remote endpoint the @fwnode points to.
+ * Extracts firmware analde of a remote endpoint the @fwanalde points to.
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * fwnode pointer.
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * fwanalde pointer.
  */
-struct fwnode_handle *
-fwnode_graph_get_remote_endpoint(const struct fwnode_handle *fwnode)
+struct fwanalde_handle *
+fwanalde_graph_get_remote_endpoint(const struct fwanalde_handle *fwanalde)
 {
-	return fwnode_call_ptr_op(fwnode, graph_get_remote_endpoint);
+	return fwanalde_call_ptr_op(fwanalde, graph_get_remote_endpoint);
 }
-EXPORT_SYMBOL_GPL(fwnode_graph_get_remote_endpoint);
+EXPORT_SYMBOL_GPL(fwanalde_graph_get_remote_endpoint);
 
-static bool fwnode_graph_remote_available(struct fwnode_handle *ep)
+static bool fwanalde_graph_remote_available(struct fwanalde_handle *ep)
 {
-	struct fwnode_handle *dev_node;
+	struct fwanalde_handle *dev_analde;
 	bool available;
 
-	dev_node = fwnode_graph_get_remote_port_parent(ep);
-	available = fwnode_device_is_available(dev_node);
-	fwnode_handle_put(dev_node);
+	dev_analde = fwanalde_graph_get_remote_port_parent(ep);
+	available = fwanalde_device_is_available(dev_analde);
+	fwanalde_handle_put(dev_analde);
 
 	return available;
 }
 
 /**
- * fwnode_graph_get_endpoint_by_id - get endpoint by port and endpoint numbers
- * @fwnode: parent fwnode_handle containing the graph
- * @port: identifier of the port node
- * @endpoint: identifier of the endpoint node under the port node
- * @flags: fwnode lookup flags
+ * fwanalde_graph_get_endpoint_by_id - get endpoint by port and endpoint numbers
+ * @fwanalde: parent fwanalde_handle containing the graph
+ * @port: identifier of the port analde
+ * @endpoint: identifier of the endpoint analde under the port analde
+ * @flags: fwanalde lookup flags
  *
- * The caller is responsible for calling fwnode_handle_put() on the returned
- * fwnode pointer.
+ * The caller is responsible for calling fwanalde_handle_put() on the returned
+ * fwanalde pointer.
  *
- * Return: the fwnode handle of the local endpoint corresponding the port and
- * endpoint IDs or %NULL if not found.
+ * Return: the fwanalde handle of the local endpoint corresponding the port and
+ * endpoint IDs or %NULL if analt found.
  *
- * If FWNODE_GRAPH_ENDPOINT_NEXT is passed in @flags and the specified endpoint
- * has not been found, look for the closest endpoint ID greater than the
+ * If FWANALDE_GRAPH_ENDPOINT_NEXT is passed in @flags and the specified endpoint
+ * has analt been found, look for the closest endpoint ID greater than the
  * specified one and return the endpoint that corresponds to it, if present.
  *
- * Does not return endpoints that belong to disabled devices or endpoints that
- * are unconnected, unless FWNODE_GRAPH_DEVICE_DISABLED is passed in @flags.
+ * Does analt return endpoints that belong to disabled devices or endpoints that
+ * are unconnected, unless FWANALDE_GRAPH_DEVICE_DISABLED is passed in @flags.
  */
-struct fwnode_handle *
-fwnode_graph_get_endpoint_by_id(const struct fwnode_handle *fwnode,
+struct fwanalde_handle *
+fwanalde_graph_get_endpoint_by_id(const struct fwanalde_handle *fwanalde,
 				u32 port, u32 endpoint, unsigned long flags)
 {
-	struct fwnode_handle *ep, *best_ep = NULL;
+	struct fwanalde_handle *ep, *best_ep = NULL;
 	unsigned int best_ep_id = 0;
-	bool endpoint_next = flags & FWNODE_GRAPH_ENDPOINT_NEXT;
-	bool enabled_only = !(flags & FWNODE_GRAPH_DEVICE_DISABLED);
+	bool endpoint_next = flags & FWANALDE_GRAPH_ENDPOINT_NEXT;
+	bool enabled_only = !(flags & FWANALDE_GRAPH_DEVICE_DISABLED);
 
-	fwnode_graph_for_each_endpoint(fwnode, ep) {
-		struct fwnode_endpoint fwnode_ep = { 0 };
+	fwanalde_graph_for_each_endpoint(fwanalde, ep) {
+		struct fwanalde_endpoint fwanalde_ep = { 0 };
 		int ret;
 
-		if (enabled_only && !fwnode_graph_remote_available(ep))
+		if (enabled_only && !fwanalde_graph_remote_available(ep))
 			continue;
 
-		ret = fwnode_graph_parse_endpoint(ep, &fwnode_ep);
+		ret = fwanalde_graph_parse_endpoint(ep, &fwanalde_ep);
 		if (ret < 0)
 			continue;
 
-		if (fwnode_ep.port != port)
+		if (fwanalde_ep.port != port)
 			continue;
 
-		if (fwnode_ep.id == endpoint)
+		if (fwanalde_ep.id == endpoint)
 			return ep;
 
 		if (!endpoint_next)
 			continue;
 
 		/*
-		 * If the endpoint that has just been found is not the first
+		 * If the endpoint that has just been found is analt the first
 		 * matching one and the ID of the one found previously is closer
 		 * to the requested endpoint ID, skip it.
 		 */
-		if (fwnode_ep.id < endpoint ||
-		    (best_ep && best_ep_id < fwnode_ep.id))
+		if (fwanalde_ep.id < endpoint ||
+		    (best_ep && best_ep_id < fwanalde_ep.id))
 			continue;
 
-		fwnode_handle_put(best_ep);
-		best_ep = fwnode_handle_get(ep);
-		best_ep_id = fwnode_ep.id;
+		fwanalde_handle_put(best_ep);
+		best_ep = fwanalde_handle_get(ep);
+		best_ep_id = fwanalde_ep.id;
 	}
 
 	return best_ep;
 }
-EXPORT_SYMBOL_GPL(fwnode_graph_get_endpoint_by_id);
+EXPORT_SYMBOL_GPL(fwanalde_graph_get_endpoint_by_id);
 
 /**
- * fwnode_graph_get_endpoint_count - Count endpoints on a device node
- * @fwnode: The node related to a device
- * @flags: fwnode lookup flags
- * Count endpoints in a device node.
+ * fwanalde_graph_get_endpoint_count - Count endpoints on a device analde
+ * @fwanalde: The analde related to a device
+ * @flags: fwanalde lookup flags
+ * Count endpoints in a device analde.
  *
- * If FWNODE_GRAPH_DEVICE_DISABLED flag is specified, also unconnected endpoints
+ * If FWANALDE_GRAPH_DEVICE_DISABLED flag is specified, also unconnected endpoints
  * and endpoints connected to disabled devices are counted.
  */
-unsigned int fwnode_graph_get_endpoint_count(const struct fwnode_handle *fwnode,
+unsigned int fwanalde_graph_get_endpoint_count(const struct fwanalde_handle *fwanalde,
 					     unsigned long flags)
 {
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	unsigned int count = 0;
 
-	fwnode_graph_for_each_endpoint(fwnode, ep) {
-		if (flags & FWNODE_GRAPH_DEVICE_DISABLED ||
-		    fwnode_graph_remote_available(ep))
+	fwanalde_graph_for_each_endpoint(fwanalde, ep) {
+		if (flags & FWANALDE_GRAPH_DEVICE_DISABLED ||
+		    fwanalde_graph_remote_available(ep))
 			count++;
 	}
 
 	return count;
 }
-EXPORT_SYMBOL_GPL(fwnode_graph_get_endpoint_count);
+EXPORT_SYMBOL_GPL(fwanalde_graph_get_endpoint_count);
 
 /**
- * fwnode_graph_parse_endpoint - parse common endpoint node properties
- * @fwnode: pointer to endpoint fwnode_handle
- * @endpoint: pointer to the fwnode endpoint data structure
+ * fwanalde_graph_parse_endpoint - parse common endpoint analde properties
+ * @fwanalde: pointer to endpoint fwanalde_handle
+ * @endpoint: pointer to the fwanalde endpoint data structure
  *
- * Parse @fwnode representing a graph endpoint node and store the
+ * Parse @fwanalde representing a graph endpoint analde and store the
  * information in @endpoint. The caller must hold a reference to
- * @fwnode.
+ * @fwanalde.
  */
-int fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
-				struct fwnode_endpoint *endpoint)
+int fwanalde_graph_parse_endpoint(const struct fwanalde_handle *fwanalde,
+				struct fwanalde_endpoint *endpoint)
 {
 	memset(endpoint, 0, sizeof(*endpoint));
 
-	return fwnode_call_int_op(fwnode, graph_parse_endpoint, endpoint);
+	return fwanalde_call_int_op(fwanalde, graph_parse_endpoint, endpoint);
 }
-EXPORT_SYMBOL(fwnode_graph_parse_endpoint);
+EXPORT_SYMBOL(fwanalde_graph_parse_endpoint);
 
 const void *device_get_match_data(const struct device *dev)
 {
-	return fwnode_call_ptr_op(dev_fwnode(dev), device_get_match_data, dev);
+	return fwanalde_call_ptr_op(dev_fwanalde(dev), device_get_match_data, dev);
 }
 EXPORT_SYMBOL_GPL(device_get_match_data);
 
-static unsigned int fwnode_graph_devcon_matches(const struct fwnode_handle *fwnode,
+static unsigned int fwanalde_graph_devcon_matches(const struct fwanalde_handle *fwanalde,
 						const char *con_id, void *data,
 						devcon_match_fn_t match,
 						void **matches,
 						unsigned int matches_len)
 {
-	struct fwnode_handle *node;
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *analde;
+	struct fwanalde_handle *ep;
 	unsigned int count = 0;
 	void *ret;
 
-	fwnode_graph_for_each_endpoint(fwnode, ep) {
+	fwanalde_graph_for_each_endpoint(fwanalde, ep) {
 		if (matches && count >= matches_len) {
-			fwnode_handle_put(ep);
+			fwanalde_handle_put(ep);
 			break;
 		}
 
-		node = fwnode_graph_get_remote_port_parent(ep);
-		if (!fwnode_device_is_available(node)) {
-			fwnode_handle_put(node);
+		analde = fwanalde_graph_get_remote_port_parent(ep);
+		if (!fwanalde_device_is_available(analde)) {
+			fwanalde_handle_put(analde);
 			continue;
 		}
 
-		ret = match(node, con_id, data);
-		fwnode_handle_put(node);
+		ret = match(analde, con_id, data);
+		fwanalde_handle_put(analde);
 		if (ret) {
 			if (matches)
 				matches[count] = ret;
@@ -1379,13 +1379,13 @@ static unsigned int fwnode_graph_devcon_matches(const struct fwnode_handle *fwno
 	return count;
 }
 
-static unsigned int fwnode_devcon_matches(const struct fwnode_handle *fwnode,
+static unsigned int fwanalde_devcon_matches(const struct fwanalde_handle *fwanalde,
 					  const char *con_id, void *data,
 					  devcon_match_fn_t match,
 					  void **matches,
 					  unsigned int matches_len)
 {
-	struct fwnode_handle *node;
+	struct fwanalde_handle *analde;
 	unsigned int count = 0;
 	unsigned int i;
 	void *ret;
@@ -1394,12 +1394,12 @@ static unsigned int fwnode_devcon_matches(const struct fwnode_handle *fwnode,
 		if (matches && count >= matches_len)
 			break;
 
-		node = fwnode_find_reference(fwnode, con_id, i);
-		if (IS_ERR(node))
+		analde = fwanalde_find_reference(fwanalde, con_id, i);
+		if (IS_ERR(analde))
 			break;
 
-		ret = match(node, NULL, data);
-		fwnode_handle_put(node);
+		ret = match(analde, NULL, data);
+		fwanalde_handle_put(analde);
 		if (ret) {
 			if (matches)
 				matches[count] = ret;
@@ -1411,38 +1411,38 @@ static unsigned int fwnode_devcon_matches(const struct fwnode_handle *fwnode,
 }
 
 /**
- * fwnode_connection_find_match - Find connection from a device node
- * @fwnode: Device node with the connection
+ * fwanalde_connection_find_match - Find connection from a device analde
+ * @fwanalde: Device analde with the connection
  * @con_id: Identifier for the connection
  * @data: Data for the match function
  * @match: Function to check and convert the connection description
  *
- * Find a connection with unique identifier @con_id between @fwnode and another
- * device node. @match will be used to convert the connection description to
+ * Find a connection with unique identifier @con_id between @fwanalde and aanalther
+ * device analde. @match will be used to convert the connection description to
  * data the caller is expecting to be returned.
  */
-void *fwnode_connection_find_match(const struct fwnode_handle *fwnode,
+void *fwanalde_connection_find_match(const struct fwanalde_handle *fwanalde,
 				   const char *con_id, void *data,
 				   devcon_match_fn_t match)
 {
 	unsigned int count;
 	void *ret;
 
-	if (!fwnode || !match)
+	if (!fwanalde || !match)
 		return NULL;
 
-	count = fwnode_graph_devcon_matches(fwnode, con_id, data, match, &ret, 1);
+	count = fwanalde_graph_devcon_matches(fwanalde, con_id, data, match, &ret, 1);
 	if (count)
 		return ret;
 
-	count = fwnode_devcon_matches(fwnode, con_id, data, match, &ret, 1);
+	count = fwanalde_devcon_matches(fwanalde, con_id, data, match, &ret, 1);
 	return count ? ret : NULL;
 }
-EXPORT_SYMBOL_GPL(fwnode_connection_find_match);
+EXPORT_SYMBOL_GPL(fwanalde_connection_find_match);
 
 /**
- * fwnode_connection_find_matches - Find connections from a device node
- * @fwnode: Device node with the connection
+ * fwanalde_connection_find_matches - Find connections from a device analde
+ * @fwanalde: Device analde with the connection
  * @con_id: Identifier for the connection
  * @data: Data for the match function
  * @match: Function to check and convert the connection description
@@ -1450,16 +1450,16 @@ EXPORT_SYMBOL_GPL(fwnode_connection_find_match);
  * @matches_len: Length of @matches
  *
  * Find up to @matches_len connections with unique identifier @con_id between
- * @fwnode and other device nodes. @match will be used to convert the
+ * @fwanalde and other device analdes. @match will be used to convert the
  * connection description to data the caller is expecting to be returned
  * through the @matches array.
  *
- * If @matches is %NULL @matches_len is ignored and the total number of resolved
+ * If @matches is %NULL @matches_len is iganalred and the total number of resolved
  * matches is returned.
  *
- * Return: Number of matches resolved, or negative errno.
+ * Return: Number of matches resolved, or negative erranal.
  */
-int fwnode_connection_find_matches(const struct fwnode_handle *fwnode,
+int fwanalde_connection_find_matches(const struct fwanalde_handle *fwanalde,
 				   const char *con_id, void *data,
 				   devcon_match_fn_t match,
 				   void **matches, unsigned int matches_len)
@@ -1467,10 +1467,10 @@ int fwnode_connection_find_matches(const struct fwnode_handle *fwnode,
 	unsigned int count_graph;
 	unsigned int count_ref;
 
-	if (!fwnode || !match)
+	if (!fwanalde || !match)
 		return -EINVAL;
 
-	count_graph = fwnode_graph_devcon_matches(fwnode, con_id, data, match,
+	count_graph = fwanalde_graph_devcon_matches(fwanalde, con_id, data, match,
 						  matches, matches_len);
 
 	if (matches) {
@@ -1478,9 +1478,9 @@ int fwnode_connection_find_matches(const struct fwnode_handle *fwnode,
 		matches_len -= count_graph;
 	}
 
-	count_ref = fwnode_devcon_matches(fwnode, con_id, data, match,
+	count_ref = fwanalde_devcon_matches(fwanalde, con_id, data, match,
 					  matches, matches_len);
 
 	return count_graph + count_ref;
 }
-EXPORT_SYMBOL_GPL(fwnode_connection_find_matches);
+EXPORT_SYMBOL_GPL(fwanalde_connection_find_matches);

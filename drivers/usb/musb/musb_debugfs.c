@@ -2,8 +2,8 @@
 /*
  * MUSB OTG driver debugfs support
  *
- * Copyright 2010 Nokia Corporation
- * Contact: Felipe Balbi <felipe.balbi@nokia.com>
+ * Copyright 2010 Analkia Corporation
+ * Contact: Felipe Balbi <felipe.balbi@analkia.com>
  */
 
 #include <linux/module.h>
@@ -155,9 +155,9 @@ static int musb_test_mode_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int musb_test_mode_open(struct inode *inode, struct file *file)
+static int musb_test_mode_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, musb_test_mode_show, inode->i_private);
+	return single_open(file, musb_test_mode_show, ianalde->i_private);
 }
 
 static ssize_t musb_test_mode_write(struct file *file,
@@ -255,9 +255,9 @@ static int musb_softconnect_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int musb_softconnect_open(struct inode *inode, struct file *file)
+static int musb_softconnect_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, musb_softconnect_show, inode->i_private);
+	return single_open(file, musb_softconnect_show, ianalde->i_private);
 }
 
 static ssize_t musb_softconnect_write(struct file *file,

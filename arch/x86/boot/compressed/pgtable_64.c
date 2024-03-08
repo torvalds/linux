@@ -43,10 +43,10 @@ static unsigned long find_trampoline_placement(void)
 	 */
 
 	/*
-	 * EFI systems may not provide legacy ROM. The memory may not be mapped
+	 * EFI systems may analt provide legacy ROM. The memory may analt be mapped
 	 * at all.
 	 *
-	 * Only look for values in the legacy ROM for non-EFI system.
+	 * Only look for values in the legacy ROM for analn-EFI system.
 	 */
 	signature = (char *)&boot_params_ptr->efi_info.efi_loader_signature;
 	if (strncmp(signature, EFI32_LOADER_SIGNATURE, 4) &&
@@ -73,7 +73,7 @@ static unsigned long find_trampoline_placement(void)
 		if (bios_start <= entry->addr)
 			continue;
 
-		/* Skip non-RAM entries. */
+		/* Skip analn-RAM entries. */
 		if (entry->type != E820_TYPE_RAM)
 			continue;
 
@@ -113,7 +113,7 @@ asmlinkage void configure_5level_paging(struct boot_params *bp, void *pgtable)
 	 *
 	 * There are several parts to the check:
 	 *   - if the kernel supports 5-level paging: CONFIG_X86_5LEVEL=y
-	 *   - if user asked to disable 5-level paging: no5lvl in cmdline
+	 *   - if user asked to disable 5-level paging: anal5lvl in cmdline
 	 *   - if the machine supports 5-level paging:
 	 *     + CPUID leaf 7 is supported
 	 *     + the leaf has the feature bit set
@@ -121,7 +121,7 @@ asmlinkage void configure_5level_paging(struct boot_params *bp, void *pgtable)
 	 * That's substitute for boot_cpu_has() in early boot code.
 	 */
 	if (IS_ENABLED(CONFIG_X86_5LEVEL) &&
-			!cmdline_find_option_bool("no5lvl") &&
+			!cmdline_find_option_bool("anal5lvl") &&
 			native_cpuid_eax(0) >= 7 &&
 			(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31)))) {
 		l5_required = true;
@@ -133,7 +133,7 @@ asmlinkage void configure_5level_paging(struct boot_params *bp, void *pgtable)
 	}
 
 	/*
-	 * The trampoline will not be used if the paging mode is already set to
+	 * The trampoline will analt be used if the paging mode is already set to
 	 * the desired one.
 	 */
 	if (l5_required == !!(native_read_cr4() & X86_CR4_LA57))
@@ -173,7 +173,7 @@ asmlinkage void configure_5level_paging(struct boot_params *bp, void *pgtable)
 		 * For 4- to 5-level paging transition, set up current CR3 as
 		 * the first and the only entry in a new top-level page table.
 		 */
-		*trampoline_32bit = __native_read_cr3() | _PAGE_TABLE_NOENC;
+		*trampoline_32bit = __native_read_cr3() | _PAGE_TABLE_ANALENC;
 	} else {
 		unsigned long src;
 
@@ -182,7 +182,7 @@ asmlinkage void configure_5level_paging(struct boot_params *bp, void *pgtable)
 		 * by first entry in the current top-level page table as our
 		 * new top-level page table.
 		 *
-		 * We cannot just point to the page table from trampoline as it
+		 * We cananalt just point to the page table from trampoline as it
 		 * may be above 4G.
 		 */
 		src = *(unsigned long *)__native_read_cr3() & PAGE_MASK;

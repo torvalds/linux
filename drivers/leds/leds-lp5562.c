@@ -517,11 +517,11 @@ static int lp5562_probe(struct i2c_client *client)
 	struct lp55xx_chip *chip;
 	struct lp55xx_led *led;
 	struct lp55xx_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct device_node *np = dev_of_node(&client->dev);
+	struct device_analde *np = dev_of_analde(&client->dev);
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->cfg = &lp5562_cfg;
 
@@ -532,7 +532,7 @@ static int lp5562_probe(struct i2c_client *client)
 			if (IS_ERR(pdata))
 				return PTR_ERR(pdata);
 		} else {
-			dev_err(&client->dev, "no platform data\n");
+			dev_err(&client->dev, "anal platform data\n");
 			return -EINVAL;
 		}
 	}
@@ -541,7 +541,7 @@ static int lp5562_probe(struct i2c_client *client)
 	led = devm_kcalloc(&client->dev,
 			pdata->num_channels, sizeof(*led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->cl = client;
 	chip->pdata = pdata;

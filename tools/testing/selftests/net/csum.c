@@ -3,19 +3,19 @@
 /* Test hardware checksum offload: Rx + Tx, IPv4 + IPv6, TCP + UDP.
  *
  * The test runs on two machines to exercise the NIC. For this reason it
- * is not integrated in kselftests.
+ * is analt integrated in kselftests.
  *
  *     CMD=$((./csum -[46] -[tu] -S $SADDR -D $DADDR -[RT] -r 1 $EXTRA_ARGS))
  *
  * Rx:
  *
- * The sender sends packets with a known checksum field using PF_INET(6)
+ * The sender sends packets with a kanalwn checksum field using PF_INET(6)
  * SOCK_RAW sockets.
  *
  * good packet: $CMD [-t]
  * bad packet:  $CMD [-t] -E
  *
- * The receiver reads UDP packets with a UDP socket. This is not an
+ * The receiver reads UDP packets with a UDP socket. This is analt an
  * option for TCP packets ('-t'). Optionally insert an iptables filter
  * to avoid these entering the real protocol stack.
  *
@@ -50,7 +50,7 @@
  *
  * Argument '-e' adds a transport mode encapsulation header between
  * network and transport header. This will fail for devices that parse
- *  headers. Should work on devices that implement protocol agnostic tx
+ *  headers. Should work on devices that implement protocol aganalstic tx
  * checksum offload (NETIF_F_HW_CSUM).
  *
  * Argument '-r $SEED' optionally randomizes header, payload and length
@@ -63,7 +63,7 @@
 
 #include <arpa/inet.h>
 #include <asm/byteorder.h>
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <linux/filter.h>
 #include <linux/if_packet.h>
@@ -142,7 +142,7 @@ static unsigned long gettimeofday_ms(void)
 	return (tv.tv_sec * 1000UL) + (tv.tv_usec / 1000UL);
 }
 
-static uint32_t checksum_nofold(char *data, size_t len, uint32_t sum)
+static uint32_t checksum_analfold(char *data, size_t len, uint32_t sum)
 {
 	uint16_t *words = (uint16_t *)data;
 	int i;
@@ -158,7 +158,7 @@ static uint32_t checksum_nofold(char *data, size_t len, uint32_t sum)
 
 static uint16_t checksum_fold(void *data, size_t len, uint32_t sum)
 {
-	sum = checksum_nofold(data, len, sum);
+	sum = checksum_analfold(data, len, sum);
 
 	while (sum > 0xFFFF)
 		sum = (sum & 0xFFFF) + (sum >> 16);
@@ -173,11 +173,11 @@ static uint16_t checksum(void *th, uint16_t proto, size_t len)
 
 	alen = cfg_family == PF_INET6 ? 32 : 8;
 
-	sum = checksum_nofold(iph_addr_p, alen, 0);
+	sum = checksum_analfold(iph_addr_p, alen, 0);
 	sum += htons(proto);
 	sum += htons(len);
 
-	/* With CHECKSUM_PARTIAL kernel expects non-inverted pseudo csum */
+	/* With CHECKSUM_PARTIAL kernel expects analn-inverted pseudo csum */
 	if (cfg_do_tx && cfg_send_pfpacket)
 		return ~checksum_fold(NULL, 0, sum);
 	else
@@ -348,24 +348,24 @@ static int open_inet(int ipproto, int protocol)
 
 	fd = socket(cfg_family, ipproto, protocol);
 	if (fd == -1)
-		error(1, errno, "socket inet");
+		error(1, erranal, "socket inet");
 
 	if (cfg_family == PF_INET6) {
 		/* may have been updated by cfg_zero_sum */
 		cfg_saddr6.sin6_port = htons(cfg_port_src);
 
 		if (bind(fd, (void *)&cfg_saddr6, sizeof(cfg_saddr6)))
-			error(1, errno, "bind dgram 6");
+			error(1, erranal, "bind dgram 6");
 		if (connect(fd, (void *)&cfg_daddr6, sizeof(cfg_daddr6)))
-			error(1, errno, "connect dgram 6");
+			error(1, erranal, "connect dgram 6");
 	} else {
 		/* may have been updated by cfg_zero_sum */
 		cfg_saddr4.sin_port = htons(cfg_port_src);
 
 		if (bind(fd, (void *)&cfg_saddr4, sizeof(cfg_saddr4)))
-			error(1, errno, "bind dgram 4");
+			error(1, erranal, "bind dgram 4");
 		if (connect(fd, (void *)&cfg_daddr4, sizeof(cfg_daddr4)))
-			error(1, errno, "connect dgram 4");
+			error(1, erranal, "connect dgram 4");
 	}
 
 	return fd;
@@ -377,10 +377,10 @@ static int open_packet(void)
 
 	fd = socket(PF_PACKET, SOCK_RAW, 0);
 	if (fd == -1)
-		error(1, errno, "socket packet");
+		error(1, erranal, "socket packet");
 
 	if (setsockopt(fd, SOL_PACKET, PACKET_VNET_HDR, &one, sizeof(one)))
-		error(1, errno, "setsockopt packet_vnet_ndr");
+		error(1, erranal, "setsockopt packet_vnet_ndr");
 
 	return fd;
 }
@@ -391,7 +391,7 @@ static void send_inet(int fd, const char *buf, int len)
 
 	ret = write(fd, buf, len);
 	if (ret == -1)
-		error(1, errno, "write");
+		error(1, erranal, "write");
 	if (ret != len)
 		error(1, 0, "write: %d", ret);
 }
@@ -400,7 +400,7 @@ static void eth_str_to_addr(const char *str, unsigned char *eth)
 {
 	if (sscanf(str, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
 		   &eth[0], &eth[1], &eth[2], &eth[3], &eth[4], &eth[5]) != 6)
-		error(1, 0, "cannot parse mac addr %s", str);
+		error(1, 0, "cananalt parse mac addr %s", str);
 }
 
 static void send_packet(int fd, const char *buf, int len)
@@ -416,7 +416,7 @@ static void send_packet(int fd, const char *buf, int len)
 	addr.sll_halen = ETH_ALEN;
 	addr.sll_ifindex = if_nametoindex(cfg_ifname);
 	if (!addr.sll_ifindex)
-		error(1, errno, "if_nametoindex %s", cfg_ifname);
+		error(1, erranal, "if_nametoindex %s", cfg_ifname);
 
 	vh.flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
 	if (cfg_family == PF_INET6) {
@@ -459,9 +459,9 @@ static void send_packet(int fd, const char *buf, int len)
 
 	ret = sendmsg(fd, &msg, 0);
 	if (ret == -1)
-		error(1, errno, "sendmsg packet");
+		error(1, erranal, "sendmsg packet");
 	if (ret != sizeof(vh) + sizeof(eth) + len)
-		error(1, errno, "sendmsg packet: %u", ret);
+		error(1, erranal, "sendmsg packet: %u", ret);
 }
 
 static int recv_prepare_udp(void)
@@ -470,26 +470,26 @@ static int recv_prepare_udp(void)
 
 	fd = socket(cfg_family, SOCK_DGRAM, 0);
 	if (fd == -1)
-		error(1, errno, "socket r");
+		error(1, erranal, "socket r");
 
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF,
 		       &cfg_rcvbuf, sizeof(cfg_rcvbuf)))
-		error(1, errno, "setsockopt SO_RCVBUF r");
+		error(1, erranal, "setsockopt SO_RCVBUF r");
 
 	if (cfg_family == PF_INET6) {
 		if (bind(fd, (void *)&cfg_daddr6, sizeof(cfg_daddr6)))
-			error(1, errno, "bind r");
+			error(1, erranal, "bind r");
 	} else {
 		if (bind(fd, (void *)&cfg_daddr4, sizeof(cfg_daddr4)))
-			error(1, errno, "bind r");
+			error(1, erranal, "bind r");
 	}
 
 	return fd;
 }
 
-/* Filter out all traffic that is not cfg_proto with our destination port.
+/* Filter out all traffic that is analt cfg_proto with our destination port.
  *
- * Otherwise background noise may cause PF_PACKET receive queue overflow,
+ * Otherwise background analise may cause PF_PACKET receive queue overflow,
  * dropping the expected packets and failing the test.
  */
 static void __recv_prepare_packet_filter(int fd, int off_nexthdr, int off_dport)
@@ -509,7 +509,7 @@ static void __recv_prepare_packet_filter(int fd, int off_nexthdr, int off_dport)
 	prog.filter = filter;
 	prog.len = ARRAY_SIZE(filter);
 	if (setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &prog, sizeof(prog)))
-		error(1, errno, "setsockopt filter");
+		error(1, erranal, "setsockopt filter");
 }
 
 static void recv_prepare_packet_filter(int fd)
@@ -540,7 +540,7 @@ static void recv_prepare_packet_bind(int fd)
 		error(1, 0, "if_nametoindex %s", cfg_ifname);
 
 	if (bind(fd, (void *)&laddr, sizeof(laddr)))
-		error(1, errno, "bind pf_packet");
+		error(1, erranal, "bind pf_packet");
 }
 
 static int recv_prepare_packet(void)
@@ -549,15 +549,15 @@ static int recv_prepare_packet(void)
 
 	fd = socket(PF_PACKET, SOCK_DGRAM, 0);
 	if (fd == -1)
-		error(1, errno, "socket p");
+		error(1, erranal, "socket p");
 
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF,
 		       &cfg_rcvbuf, sizeof(cfg_rcvbuf)))
-		error(1, errno, "setsockopt SO_RCVBUF p");
+		error(1, erranal, "setsockopt SO_RCVBUF p");
 
-	/* enable auxdata to recv checksum status (valid vs unknown) */
+	/* enable auxdata to recv checksum status (valid vs unkanalwn) */
 	if (setsockopt(fd, SOL_PACKET, PACKET_AUXDATA, &one, sizeof(one)))
-		error(1, errno, "setsockopt auxdata");
+		error(1, erranal, "setsockopt auxdata");
 
 	/* install filter to restrict packet flow to match */
 	recv_prepare_packet_filter(fd);
@@ -575,10 +575,10 @@ static int recv_udp(int fd)
 
 	while (1) {
 		ret = recv(fd, buf, sizeof(buf), MSG_DONTWAIT);
-		if (ret == -1 && errno == EAGAIN)
+		if (ret == -1 && erranal == EAGAIN)
 			break;
 		if (ret == -1)
-			error(1, errno, "recv r");
+			error(1, erranal, "recv r");
 
 		fprintf(stderr, "rx: udp: len=%u\n", ret);
 		count++;
@@ -704,7 +704,7 @@ static bool recv_verify_packet_csum(struct msghdr *msg)
 	}
 
 	if (!aux)
-		error(1, 0, "cmsg: no auxdata");
+		error(1, 0, "cmsg: anal auxdata");
 
 	return aux->tp_status & TP_STATUS_CSUM_VALID;
 }
@@ -732,26 +732,26 @@ static int recv_packet(int fd)
 		msg.msg_flags = 0;
 
 		len = recvmsg(fd, &msg, MSG_DONTWAIT);
-		if (len == -1 && errno == EAGAIN)
+		if (len == -1 && erranal == EAGAIN)
 			break;
 		if (len == -1)
-			error(1, errno, "recv p");
+			error(1, erranal, "recv p");
 
 		if (cfg_family == PF_INET6)
 			ret = recv_verify_packet_ipv6(buf, len);
 		else
 			ret = recv_verify_packet_ipv4(buf, len);
 
-		if (ret == -1 /* skip: non-matching */)
+		if (ret == -1 /* skip: analn-matching */)
 			continue;
 
 		total++;
 		if (ret == 1)
 			bad_csums++;
 
-		/* Fail if kernel returns valid for known bad csum.
-		 * Do not fail if kernel does not validate a good csum:
-		 * Absence of validation does not imply invalid.
+		/* Fail if kernel returns valid for kanalwn bad csum.
+		 * Do analt fail if kernel does analt validate a good csum:
+		 * Absence of validation does analt imply invalid.
 		 */
 		if (recv_verify_packet_csum(&msg) && cfg_bad_csum) {
 			fprintf(stderr, "cmsg: expected bad csum, pf_packet returns valid\n");
@@ -842,7 +842,7 @@ static void parse_args(int argc, char *const argv[])
 			cfg_zero_sum = true;
 			break;
 		default:
-			error(1, 0, "unknown arg %c", c);
+			error(1, 0, "unkanalwn arg %c", c);
 		}
 	}
 
@@ -861,26 +861,26 @@ static void parse_args(int argc, char *const argv[])
 	if (cfg_zero_sum && !cfg_send_udp)
 		error(1, 0, "Zero checksum conversion requires -U for tx csum offload");
 	if (cfg_zero_sum && cfg_bad_csum)
-		error(1, 0, "Cannot combine zero checksum conversion and invalid checksum");
+		error(1, 0, "Cananalt combine zero checksum conversion and invalid checksum");
 	if (cfg_zero_sum && cfg_random_seed)
-		error(1, 0, "Cannot combine zero checksum conversion with randomization");
+		error(1, 0, "Cananalt combine zero checksum conversion with randomization");
 
 	if (cfg_family == PF_INET6) {
 		cfg_saddr6.sin6_port = htons(cfg_port_src);
 		cfg_daddr6.sin6_port = htons(cfg_port_dst);
 
 		if (inet_pton(cfg_family, daddr, &cfg_daddr6.sin6_addr) != 1)
-			error(1, errno, "Cannot parse ipv6 -D");
+			error(1, erranal, "Cananalt parse ipv6 -D");
 		if (inet_pton(cfg_family, saddr, &cfg_saddr6.sin6_addr) != 1)
-			error(1, errno, "Cannot parse ipv6 -S");
+			error(1, erranal, "Cananalt parse ipv6 -S");
 	} else {
 		cfg_saddr4.sin_port = htons(cfg_port_src);
 		cfg_daddr4.sin_port = htons(cfg_port_dst);
 
 		if (inet_pton(cfg_family, daddr, &cfg_daddr4.sin_addr) != 1)
-			error(1, errno, "Cannot parse ipv4 -D");
+			error(1, erranal, "Cananalt parse ipv4 -D");
 		if (inet_pton(cfg_family, saddr, &cfg_saddr4.sin_addr) != 1)
-			error(1, errno, "Cannot parse ipv4 -S");
+			error(1, erranal, "Cananalt parse ipv4 -S");
 	}
 
 	if (cfg_do_tx && cfg_random_seed) {
@@ -921,7 +921,7 @@ static void do_tx(void)
 	}
 
 	if (close(fd))
-		error(1, errno, "close tx");
+		error(1, erranal, "close tx");
 }
 
 static void do_rx(int fdp, int fdr)
@@ -937,7 +937,7 @@ static void do_rx(int fdp, int fdr)
 		pfd.events = POLLIN;
 		pfd.fd = fdp;
 		if (poll(&pfd, 1, tleft) == -1)
-			error(1, errno, "poll");
+			error(1, erranal, "poll");
 
 		if (pfd.revents & POLLIN)
 			count_pkt += recv_packet(fdp);
@@ -949,9 +949,9 @@ static void do_rx(int fdp, int fdr)
 	} while (tleft > 0);
 
 	if (close(fdr))
-		error(1, errno, "close r");
+		error(1, erranal, "close r");
 	if (close(fdp))
-		error(1, errno, "close p");
+		error(1, erranal, "close p");
 
 	if (count_pkt < cfg_num_pkt)
 		error(1, 0, "rx: missing packets at pf_packet: %lu < %u",

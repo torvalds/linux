@@ -35,8 +35,8 @@ Groups:
     is active, regardless of interrupt sense.
 
     For edge-triggered interrupts:  Writing 1 is considered an activating
-    edge, and writing 0 is ignored.  Reading returns 1 if a previously
-    signaled edge has not been acknowledged, and 0 otherwise.
+    edge, and writing 0 is iganalred.  Reading returns 1 if a previously
+    signaled edge has analt been ackanalwledged, and 0 otherwise.
 
     "attr" is the IRQ number.  IRQ numbers for standard sources are the
     byte offset of the relevant IVPR from EIVPR0, divided by 32.
@@ -55,4 +55,4 @@ IRQ Routing:
   regard to any subdivisions in chip documentation such as "internal"
   or "external" interrupts.
 
-  Access to non-SRC interrupts is not implemented through IRQ routing mechanisms.
+  Access to analn-SRC interrupts is analt implemented through IRQ routing mechanisms.

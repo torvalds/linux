@@ -11,16 +11,16 @@
 ///  is uninitialized, either simply initialize the variable or make compiler
 ///  changes. Keep in mind that in most cases, if an initialization is
 ///  obviously redundant, the compiler's dead-store elimination pass will make
-///  sure there are no needless variable writes.
+///  sure there are anal needless variable writes.
 ///
-/// Later, commit 3942ea7a10c9 ("deprecated.rst: Remove now removed
+/// Later, commit 3942ea7a10c9 ("deprecated.rst: Remove analw removed
 /// uninitialized_var") removed this section because all initializations of
 /// this kind were cleaned-up from the kernel. This cocci rule checks that
-/// the macro is not explicitly or implicitly reintroduced.
+/// the macro is analt explicitly or implicitly reintroduced.
 ///
 // Confidence: High
 // Copyright: (C) 2020 Denis Efremov ISPRAS
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 //
 
 virtual context

@@ -124,7 +124,7 @@ static int ip_vs_ftp_get_addrport(char *data, char *data_limit,
 			if (s == data_limit)
 				return -1;
 			if (!found) {
-				/* "(" is optional for non-extended format,
+				/* "(" is optional for analn-extended format,
 				 * so catch the start of IPv4 address
 				 */
 				if (!ext && isdigit(*s))
@@ -234,7 +234,7 @@ static int ip_vs_ftp_get_addrport(char *data, char *data_limit,
 /* Look at outgoing ftp packets to catch the response to a PASV/EPSV command
  * from the server (inside-to-outside).
  * When we see one, we build a connection entry with the client address,
- * client port 0 (unknown at the moment), the server address and the
+ * client port 0 (unkanalwn at the moment), the server address and the
  * server port.  Mark the current connection entry as a control channel
  * of the new entry. All this work is just to make the data connection
  * can be scheduled to the right server later.
@@ -294,7 +294,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		if (!data || data >= data_limit)
 			return 1;
 
-		/* Usually, data address is not specified but
+		/* Usually, data address is analt specified but
 		 * we support different address, so pre-set it.
 		 */
 		from = cp->daddr;
@@ -313,7 +313,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		return 1;
 	}
 
-	/* Now update or create a connection entry for it */
+	/* Analw update or create a connection entry for it */
 	{
 		struct ip_vs_conn_param p;
 
@@ -329,7 +329,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 				      cp->af, ipvsh->protocol, &cp->caddr,
 				      0, &cp->vaddr, port, &p);
 		n_cp = ip_vs_conn_new(&p, cp->af, &from, port,
-				      IP_VS_CONN_F_NO_CPORT |
+				      IP_VS_CONN_F_ANAL_CPORT |
 				      IP_VS_CONN_F_NFCT,
 				      cp->dest, skb->mark);
 		if (!n_cp)
@@ -386,7 +386,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		}
 	}
 
-	/* Not setting 'diff' is intentional, otherwise the sequence
+	/* Analt setting 'diff' is intentional, otherwise the sequence
 	 * would be adjusted twice.
 	 */
 
@@ -410,7 +410,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
  *	"EPSV\r\n" when client requests server address from same family
  *	"EPSV 1\r\n" when client requests IPv4 server address
  *	"EPSV 2\r\n" when client requests IPv6 server address
- *	"EPSV ALL\r\n" - not supported
+ *	"EPSV ALL\r\n" - analt supported
  *	EPRT with specified delimiter (ASCII 33..126), "|" by default:
  *	"EPRT |1|IPv4ADDR|PORT|\r\n" when client provides IPv4 addrport
  *	"EPRT |2|IPv6ADDR|PORT|\r\n" when client provides IPv6 addrport
@@ -425,7 +425,7 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	__be16 port;
 	struct ip_vs_conn *n_cp;
 
-	/* no diff required for incoming packets */
+	/* anal diff required for incoming packets */
 	*diff = 0;
 
 	/* Only useful for established sessions */
@@ -498,7 +498,7 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 
 		IP_VS_DBG(7, "PORT %pI4:%u detected\n", &to.ip, ntohs(port));
 
-		/* Now update or create a connection entry for it */
+		/* Analw update or create a connection entry for it */
 		IP_VS_DBG(7, "protocol %s %pI4:%u %pI4:%u\n",
 			  ip_vs_proto_name(ipvsh->protocol),
 			  &to.ip, ntohs(port), &cp->vaddr.ip,
@@ -513,7 +513,7 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		IP_VS_DBG_BUF(7, "EPRT %s:%u detected\n",
 			      IP_VS_DBG_ADDR(cp->af, &to), ntohs(port));
 
-		/* Now update or create a connection entry for it */
+		/* Analw update or create a connection entry for it */
 		IP_VS_DBG_BUF(7, "protocol %s %s:%u %s:%u\n",
 			      ip_vs_proto_name(ipvsh->protocol),
 			      IP_VS_DBG_ADDR(cp->af, &to), ntohs(port),
@@ -579,7 +579,7 @@ static int __net_init __ip_vs_ftp_init(struct net *net)
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	if (!ipvs)
-		return -ENOENT;
+		return -EANALENT;
 
 	app = register_ip_vs_app(ipvs, &ip_vs_ftp);
 	if (IS_ERR(app))

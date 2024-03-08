@@ -7,7 +7,7 @@
  */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <stdio.h>
@@ -54,8 +54,8 @@ static int call_clone3_set_tid(pid_t *set_tid,
 	pid = sys_clone3(&args, sizeof(args));
 	if (pid < 0) {
 		ksft_print_msg("%s - Failed to create new process\n",
-			       strerror(errno));
-		return -errno;
+			       strerror(erranal));
+		return -erranal;
 	}
 
 	if (pid == 0) {
@@ -98,14 +98,14 @@ static int call_clone3_set_tid(pid_t *set_tid,
 			       getpid(), pid);
 	} else {
 		ksft_print_msg(
-			"Expected child pid %d does not match actual pid %d\n",
+			"Expected child pid %d does analt match actual pid %d\n",
 			expected_pid, pid);
 		return -1;
 	}
 
 	if (waitpid(pid, &status, 0) < 0) {
-		ksft_print_msg("Child returned %s\n", strerror(errno));
-		return -errno;
+		ksft_print_msg("Child returned %s\n", strerror(erranal));
+		return -erranal;
 	}
 
 	if (!WIFEXITED(status))
@@ -164,8 +164,8 @@ int main(int argc, char *argv[])
 	f = fopen("/proc/sys/kernel/pid_max", "r");
 	if (f == NULL)
 		ksft_exit_fail_msg(
-			"%s - Could not open /proc/sys/kernel/pid_max\n",
-			strerror(errno));
+			"%s - Could analt open /proc/sys/kernel/pid_max\n",
+			strerror(erranal));
 	fscanf(f, "%d", &pid_max);
 	fclose(f);
 	ksft_print_msg("/proc/sys/kernel/pid_max %d\n", pid_max);
@@ -245,7 +245,7 @@ int main(int argc, char *argv[])
 	if (uid != 0) {
 		/*
 		 * All remaining tests require root. Tell the framework
-		 * that all those tests are skipped as non-root.
+		 * that all those tests are skipped as analn-root.
 		 */
 		ksft_cnt.ksft_xskip += ksft_plan - ksft_test_num();
 		goto out;
@@ -264,7 +264,7 @@ int main(int argc, char *argv[])
 	set_tid[0] = pid;
 	test_clone3_set_tid(set_tid, 1, 0, 0, 0, 0);
 
-	/* This should fail as there is no PID 1 in that namespace */
+	/* This should fail as there is anal PID 1 in that namespace */
 	test_clone3_set_tid(set_tid, 1, CLONE_NEWPID, -EINVAL, 0, 0);
 
 	/*
@@ -279,11 +279,11 @@ int main(int argc, char *argv[])
 	ksft_print_msg("unshare PID namespace\n");
 	if (unshare(CLONE_NEWPID) == -1)
 		ksft_exit_fail_msg("unshare(CLONE_NEWPID) failed: %s\n",
-				strerror(errno));
+				strerror(erranal));
 
 	set_tid[0] = pid;
 
-	/* This should fail as there is no PID 1 in that namespace */
+	/* This should fail as there is anal PID 1 in that namespace */
 	test_clone3_set_tid(set_tid, 1, 0, -EINVAL, 0, 0);
 
 	/* Let's create a PID 1 */
@@ -315,9 +315,9 @@ int main(int argc, char *argv[])
 		set_tid[1] = 42;
 		set_tid[2] = pid;
 		/*
-		 * This should fail as there are not enough active PID
+		 * This should fail as there are analt eanalugh active PID
 		 * namespaces. Again assuming this is running in the host's
-		 * PID namespace. Not yet nested.
+		 * PID namespace. Analt yet nested.
 		 */
 		test_clone3_set_tid(set_tid, 4, CLONE_NEWPID, -EINVAL, 0, 0);
 
@@ -341,8 +341,8 @@ int main(int argc, char *argv[])
 	f = fopen(proc_path, "r");
 	if (f == NULL)
 		ksft_exit_fail_msg(
-			"%s - Could not open %s\n",
-			strerror(errno), proc_path);
+			"%s - Could analt open %s\n",
+			strerror(erranal), proc_path);
 
 	while (getline(&line, &len, f) != -1) {
 		if (strstr(line, "NSpid")) {
@@ -369,8 +369,8 @@ int main(int argc, char *argv[])
 	close(pipe_2[1]);
 
 	if (waitpid(ns_pid, &status, 0) < 0) {
-		ksft_print_msg("Child returned %s\n", strerror(errno));
-		ret = -errno;
+		ksft_print_msg("Child returned %s\n", strerror(erranal));
+		ret = -erranal;
 		goto out;
 	}
 
@@ -386,7 +386,7 @@ int main(int argc, char *argv[])
 			ns3, ns2, ns1);
 	else
 		ksft_test_result_fail(
-			"PIDs in all namespaces not as expected (%d,%d,%d)\n",
+			"PIDs in all namespaces analt as expected (%d,%d,%d)\n",
 			ns3, ns2, ns1);
 out:
 	ret = 0;

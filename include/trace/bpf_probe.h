@@ -43,7 +43,7 @@
 #define CAST_TO_U64(...) CONCATENATE(__CAST, COUNT_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
 #define __BPF_DECLARE_TRACE(call, proto, args)				\
-static notrace void							\
+static analtrace void							\
 __bpf_trace_##call(void *__data, proto)					\
 {									\
 	struct bpf_prog *prog = __data;					\
@@ -83,8 +83,8 @@ __section("__bpf_raw_tp_map") = {					\
 #define __CHECK_WRITABLE_BUF_SIZE(call, proto, args, size)		\
 static inline void bpf_test_buffer_##call(void)				\
 {									\
-	/* BUILD_BUG_ON() is ignored if the code is completely eliminated, but \
-	 * BUILD_BUG_ON_ZERO() uses a different mechanism that is not	\
+	/* BUILD_BUG_ON() is iganalred if the code is completely eliminated, but \
+	 * BUILD_BUG_ON_ZERO() uses a different mechanism that is analt	\
 	 * dead-code-eliminated.					\
 	 */								\
 	FIRST(proto);							\

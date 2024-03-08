@@ -43,37 +43,37 @@
 		secure_ddr: secure-ddr@9e800000 {
 			reg = <0 0x9e800000 0 0x01800000>; /* for OP-TEE */
 			alignment = <0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		mcu_r5fss0_core0_dma_memory_region: r5f-dma-memory@a0000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0xa0000000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		mcu_r5fss0_core0_memory_region: r5f-memory@a0100000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0xa0100000 0 0xf00000>;
-			no-map;
+			anal-map;
 		};
 
 		mcu_r5fss0_core1_dma_memory_region: r5f-dma-memory@a1000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0xa1000000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		mcu_r5fss0_core1_memory_region: r5f-memory@a1100000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0xa1100000 0 0xf00000>;
-			no-map;
+			anal-map;
 		};
 
 		rtos_ipc_memory_region: ipc-memories@a2000000 {
 			reg = <0x00 0xa2000000 0x00 0x00200000>;
 			alignment = <0x1000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -114,7 +114,7 @@
 		clock-frequency = <19200000>;
 	};
 
-	/* Dual Ethernet application node on PRU-ICSSG0 */
+	/* Dual Ethernet application analde on PRU-ICSSG0 */
 	icssg0_eth: icssg0-eth {
 		compatible = "ti,am654-icssg-prueth";
 		pinctrl-names = "default";
@@ -623,7 +623,7 @@
 		>;
 	};
 
-	arduino_i2c_aio_switch_pins_default: arduino-i2c-aio-switch-default-pins {
+	arduianal_i2c_aio_switch_pins_default: arduianal-i2c-aio-switch-default-pins {
 		pinctrl-single,pins = <
 			/* (R2) WKUP_GPIO0_21 */
 			AM65X_WKUP_IOPAD(0x0024, PIN_OUTPUT, 7)
@@ -638,7 +638,7 @@
 	};
 
 
-	arduino_io_oe_pins_default: arduino-io-oe-default-pins {
+	arduianal_io_oe_pins_default: arduianal-io-oe-default-pins {
 		pinctrl-single,pins = <
 			/* (N4) WKUP_GPIO0_34 */
 			AM65X_WKUP_IOPAD(0x0058, PIN_OUTPUT, 7)
@@ -1104,8 +1104,8 @@
 &wkup_gpio0 {
 	pinctrl-names = "default";
 	pinctrl-0 =
-		<&arduino_i2c_aio_switch_pins_default>,
-		<&arduino_io_oe_pins_default>,
+		<&arduianal_i2c_aio_switch_pins_default>,
+		<&arduianal_io_oe_pins_default>,
 		<&push_button_pins_default>,
 		<&db9_com_mode_pins_default>;
 	gpio-line-names =
@@ -1305,7 +1305,7 @@
 	pinctrl-0 = <&mcu_fss0_ospi0_pins_default>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0x0>;
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <1>;

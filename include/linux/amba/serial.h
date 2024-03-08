@@ -60,7 +60,7 @@
 /*
  * ZTE UART register offsets.  This UART has a radically different address
  * allocation from the ARM and ST variants, so we list all registers here.
- * We assume unlisted registers do not exist.
+ * We assume unlisted registers do analt exist.
  */
 #define ZX_UART011_DR		0x04
 #define ZX_UART011_FR		0x14
@@ -216,7 +216,7 @@
 #define UART01x_FR_MODEM_ANY	(UART01x_FR_DCD | UART01x_FR_DSR | UART01x_FR_CTS)
 
 #ifndef __ASSEMBLY__
-struct amba_device; /* in uncompress this is included but amba/bus.h is not */
+struct amba_device; /* in uncompress this is included but amba/bus.h is analt */
 struct amba_pl010_data {
 	void (*set_mctrl)(struct amba_device *dev, void __iomem *base, unsigned int mctrl);
 };

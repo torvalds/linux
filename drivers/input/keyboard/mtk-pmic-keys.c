@@ -150,7 +150,7 @@ static void mtk_pmic_keys_lp_reset_setup(struct mtk_pmic_keys *keys,
 	kregs_home = keys->keys[MTK_PMIC_HOMEKEY_INDEX].regs;
 	kregs_pwr = keys->keys[MTK_PMIC_PWRKEY_INDEX].regs;
 
-	error = of_property_read_u32(keys->dev->of_node, "power-off-time-sec",
+	error = of_property_read_u32(keys->dev->of_analde, "power-off-time-sec",
 				     &long_press_debounce);
 	if (error)
 		long_press_debounce = 0;
@@ -158,7 +158,7 @@ static void mtk_pmic_keys_lp_reset_setup(struct mtk_pmic_keys *keys,
 	mask = regs->rst_lprst_mask;
 	value = long_press_debounce << (ffs(regs->rst_lprst_mask) - 1);
 
-	error  = of_property_read_u32(keys->dev->of_node,
+	error  = of_property_read_u32(keys->dev->of_analde,
 				      "mediatek,long-press-mode",
 				      &long_press_mode);
 	if (error)
@@ -307,7 +307,7 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 	int error, index = 0;
 	unsigned int keycount;
 	struct mt6397_chip *pmic_chip = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *node = pdev->dev.of_node, *child;
+	struct device_analde *analde = pdev->dev.of_analde, *child;
 	static const char *const irqnames[] = { "powerkey", "homekey" };
 	static const char *const irqnames_r[] = { "powerkey_r", "homekey_r" };
 	struct mtk_pmic_keys *keys;
@@ -318,7 +318,7 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 
 	keys = devm_kzalloc(&pdev->dev, sizeof(*keys), GFP_KERNEL);
 	if (!keys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	keys->dev = &pdev->dev;
 	keys->regmap = pmic_chip->regmap;
@@ -327,7 +327,7 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 	keys->input_dev = input_dev = devm_input_allocate_device(keys->dev);
 	if (!input_dev) {
 		dev_err(keys->dev, "input allocate device fail.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_dev->name = "mtk-pmic-keys";
@@ -336,29 +336,29 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 	input_dev->id.product = 0x0001;
 	input_dev->id.version = 0x0001;
 
-	keycount = of_get_available_child_count(node);
+	keycount = of_get_available_child_count(analde);
 	if (keycount > MTK_PMIC_MAX_KEY_COUNT ||
 	    keycount > ARRAY_SIZE(irqnames)) {
 		dev_err(keys->dev, "too many keys defined (%d)\n", keycount);
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(node, child) {
+	for_each_child_of_analde(analde, child) {
 		keys->keys[index].regs = &mtk_pmic_regs->keys_regs[index];
 
 		keys->keys[index].irq =
 			platform_get_irq_byname(pdev, irqnames[index]);
 		if (keys->keys[index].irq < 0) {
-			of_node_put(child);
+			of_analde_put(child);
 			return keys->keys[index].irq;
 		}
 
-		if (of_device_is_compatible(node, "mediatek,mt6358-keys")) {
+		if (of_device_is_compatible(analde, "mediatek,mt6358-keys")) {
 			keys->keys[index].irq_r = platform_get_irq_byname(pdev,
 									  irqnames_r[index]);
 
 			if (keys->keys[index].irq_r < 0) {
-				of_node_put(child);
+				of_analde_put(child);
 				return keys->keys[index].irq_r;
 			}
 		}
@@ -369,7 +369,7 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 			dev_err(keys->dev,
 				"failed to read key:%d linux,keycode property: %d\n",
 				index, error);
-			of_node_put(child);
+			of_analde_put(child);
 			return error;
 		}
 
@@ -378,7 +378,7 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 
 		error = mtk_pmic_key_setup(keys, &keys->keys[index]);
 		if (error) {
-			of_node_put(child);
+			of_analde_put(child);
 			return error;
 		}
 

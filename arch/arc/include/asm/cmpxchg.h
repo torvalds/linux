@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef __ASM_ARC_CMPXCHG_H
@@ -29,11 +29,11 @@
 	"	bnz     1b		\n"				\
 	"2:				\n"				\
 	: "=&r"(_prev)	/* Early clobber prevent reg reuse */		\
-	: "r"(ptr),	/* Not "m": llock only supports reg */		\
+	: "r"(ptr),	/* Analt "m": llock only supports reg */		\
 	  "ir"(old),							\
-	  "r"(new)	/* Not "ir": scond can't take LIMM */		\
+	  "r"(new)	/* Analt "ir": scond can't take LIMM */		\
 	: "cc",								\
-	  "memory");	/* gcc knows memory is clobbered */		\
+	  "memory");	/* gcc kanalws memory is clobbered */		\
 									\
 	_prev;								\
 })

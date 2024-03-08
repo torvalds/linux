@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -61,14 +61,14 @@
 struct intel_shared_dpll_funcs {
 	/*
 	 * Hook for enabling the pll, called from intel_enable_shared_dpll() if
-	 * the pll is not already enabled.
+	 * the pll is analt already enabled.
 	 */
 	void (*enable)(struct drm_i915_private *i915,
 		       struct intel_shared_dpll *pll);
 
 	/*
 	 * Hook for disabling the pll, called from intel_disable_shared_dpll()
-	 * only when it is safe to disable the pll, i.e., there are no more
+	 * only when it is safe to disable the pll, i.e., there are anal more
 	 * tracked users for it.
 	 */
 	void (*disable)(struct drm_i915_private *i915,
@@ -173,7 +173,7 @@ void assert_shared_dpll(struct drm_i915_private *i915,
 	struct intel_dpll_hw_state hw_state;
 
 	if (drm_WARN(&i915->drm, !pll,
-		     "asserting DPLL %s with no DPLL\n", str_on_off(state)))
+		     "asserting DPLL %s with anal DPLL\n", str_on_off(state)))
 		return;
 
 	cur_state = intel_dpll_get_hw_state(i915, pll, &hw_state);
@@ -307,7 +307,7 @@ void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state)
 
 	mutex_lock(&i915->display.dpll.lock);
 	if (drm_WARN(&i915->drm, !(pll->active_mask & pipe_mask),
-		     "%s not used by [CRTC:%d:%s]\n", pll->info->name,
+		     "%s analt used by [CRTC:%d:%s]\n", pll->info->name,
 		     crtc->base.base.id, crtc->base.name))
 		goto out;
 
@@ -390,7 +390,7 @@ intel_find_shared_dpll(struct intel_atomic_state *state,
 		}
 	}
 
-	/* Ok no matching timings, maybe there's a free one? */
+	/* Ok anal matching timings, maybe there's a free one? */
 	if (unused_pll) {
 		drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] allocated %s\n",
 			    crtc->base.base.id, crtc->base.name,
@@ -495,10 +495,10 @@ static void intel_put_dpll(struct intel_atomic_state *state,
  * @state: atomic state
  *
  * This is the dpll version of drm_atomic_helper_swap_state() since the
- * helper does not handle driver-specific global state.
+ * helper does analt handle driver-specific global state.
  *
  * For consistency with atomic helpers this function does a complete swap,
- * i.e. it also puts the current state into @state, even though there is no
+ * i.e. it also puts the current state into @state, even though there is anal
  * need for that at this moment.
  */
 void intel_shared_dpll_swap_state(struct intel_atomic_state *state)
@@ -544,7 +544,7 @@ static void ibx_assert_pch_refclk_enabled(struct drm_i915_private *i915)
 	bool enabled;
 
 	val = intel_de_read(i915, PCH_DREF_CONTROL);
-	enabled = !!(val & (DREF_SSC_SOURCE_MASK | DREF_NONSPREAD_SOURCE_MASK |
+	enabled = !!(val & (DREF_SSC_SOURCE_MASK | DREF_ANALNSPREAD_SOURCE_MASK |
 			    DREF_SUPERSPREAD_SOURCE_MASK));
 	I915_STATE_WARN(i915, !enabled,
 			"PCH refclk assertion failure, should be active but is disabled\n");
@@ -843,7 +843,7 @@ static void hsw_wrpll_update_rnp(u64 freq2k, unsigned int budget,
 {
 	u64 a, b, c, d, diff, diff_best;
 
-	/* No best (r,n,p) yet */
+	/* Anal best (r,n,p) yet */
 	if (best->p == 0) {
 		best->p = p;
 		best->n2 = n2;
@@ -893,7 +893,7 @@ static void hsw_wrpll_update_rnp(u64 freq2k, unsigned int budget,
 			best->r2 = r2;
 		}
 	}
-	/* Otherwise a < c && b >= d, do nothing */
+	/* Otherwise a < c && b >= d, do analthing */
 }
 
 static void
@@ -971,7 +971,7 @@ static int hsw_ddi_wrpll_get_freq(struct drm_i915_private *i915,
 
 	switch (wrpll & WRPLL_REF_MASK) {
 	case WRPLL_REF_SPECIAL_HSW:
-		/* Muxed-SSC for BDW, non-SSC for non-ULT HSW. */
+		/* Muxed-SSC for BDW, analn-SSC for analn-ULT HSW. */
 		if (IS_HASWELL(i915) && !IS_HASWELL_ULT(i915)) {
 			refclk = i915->display.dpll.ref_clks.nssc;
 			break;
@@ -1206,7 +1206,7 @@ static int hsw_get_dpll(struct intel_atomic_state *state,
 static void hsw_update_dpll_ref_clks(struct drm_i915_private *i915)
 {
 	i915->display.dpll.ref_clks.ssc = 135000;
-	/* Non-SSC is only used on non-ULT HSW. */
+	/* Analn-SSC is only used on analn-ULT HSW. */
 	if (intel_de_read(i915, FUSE_STRAP3) & HSW_REF_CLK_SELECT)
 		i915->display.dpll.ref_clks.nssc = 24000;
 	else
@@ -1339,7 +1339,7 @@ static void skl_ddi_pll_enable(struct drm_i915_private *i915,
 	intel_de_rmw(i915, regs[id].ctl, 0, LCPLL_PLL_ENABLE);
 
 	if (intel_de_wait_for_set(i915, DPLL_STATUS, DPLL_LOCK(id), 5))
-		drm_err(&i915->drm, "DPLL %d not locked\n", id);
+		drm_err(&i915->drm, "DPLL %d analt locked\n", id);
 }
 
 static void skl_ddi_dpll0_enable(struct drm_i915_private *i915,
@@ -1388,7 +1388,7 @@ static bool skl_ddi_pll_get_hw_state(struct drm_i915_private *i915,
 	val = intel_de_read(i915, DPLL_CTRL1);
 	hw_state->ctrl1 = (val >> (id * 6)) & 0x3f;
 
-	/* avoid reading back stale values if HDMI mode is not enabled */
+	/* avoid reading back stale values if HDMI mode is analt enabled */
 	if (val & DPLL_CTRL1_HDMI_MODE(id)) {
 		hw_state->cfgcr1 = intel_de_read(i915, regs[id].cfgcr1);
 		hw_state->cfgcr2 = intel_de_read(i915, regs[id].cfgcr2);
@@ -1701,7 +1701,7 @@ static int skl_ddi_wrpll_get_freq(struct drm_i915_private *i915,
 		break;
 	case DPLL_CFGCR2_PDIV_7_INVALID:
 		/*
-		 * Incorrect ASUS-Z170M BIOS setting, the HW seems to ignore bit#0,
+		 * Incorrect ASUS-Z170M BIOS setting, the HW seems to iganalre bit#0,
 		 * handling it the same way as PDIV_7.
 		 */
 		drm_dbg_kms(&i915->drm, "Invalid WRPLL PDIV divider value, fixing it.\n");
@@ -1915,7 +1915,7 @@ static int skl_ddi_pll_get_freq(struct drm_i915_private *i915,
 
 static void skl_update_dpll_ref_clks(struct drm_i915_private *i915)
 {
-	/* No SSC ref */
+	/* Anal SSC ref */
 	i915->display.dpll.ref_clks.nssc = i915->display.cdclk.hw.ref;
 }
 
@@ -1971,7 +1971,7 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *i915,
 
 	bxt_port_to_phy_channel(i915, port, &phy, &ch);
 
-	/* Non-SSC reference */
+	/* Analn-SSC reference */
 	intel_de_rmw(i915, BXT_PORT_PLL_ENABLE(port), 0, PORT_PLL_REF_SEL);
 
 	if (IS_GEMINILAKE(i915)) {
@@ -1981,7 +1981,7 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *i915,
 		if (wait_for_us((intel_de_read(i915, BXT_PORT_PLL_ENABLE(port)) &
 				 PORT_PLL_POWER_STATE), 200))
 			drm_err(&i915->drm,
-				"Power state not set for PLL:%d\n", port);
+				"Power state analt set for PLL:%d\n", port);
 	}
 
 	/* Disable 10 bit clock */
@@ -2043,7 +2043,7 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *i915,
 
 	if (wait_for_us((intel_de_read(i915, BXT_PORT_PLL_ENABLE(port)) & PORT_PLL_LOCK),
 			200))
-		drm_err(&i915->drm, "PLL %d not locked\n", port);
+		drm_err(&i915->drm, "PLL %d analt locked\n", port);
 
 	if (IS_GEMINILAKE(i915)) {
 		temp = intel_de_read(i915, BXT_PORT_TX_DW5_LN0(phy, ch));
@@ -2077,7 +2077,7 @@ static void bxt_ddi_pll_disable(struct drm_i915_private *i915,
 		if (wait_for_us(!(intel_de_read(i915, BXT_PORT_PLL_ENABLE(port)) &
 				  PORT_PLL_POWER_STATE), 200))
 			drm_err(&i915->drm,
-				"Power state not reset for PLL:%d\n", port);
+				"Power state analt reset for PLL:%d\n", port);
 	}
 }
 
@@ -2141,7 +2141,7 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *i915,
 	/*
 	 * While we write to the group register to program all lanes at once we
 	 * can read only lane registers. We configure all lanes the same way, so
-	 * here just read out lanes 0/1 and output a note if lanes 2/3 differ.
+	 * here just read out lanes 0/1 and output a analte if lanes 2/3 differ.
 	 */
 	hw_state->pcsdw12 = intel_de_read(i915,
 					  BXT_PORT_PCS_DW12_LN01(phy, ch));
@@ -2370,7 +2370,7 @@ static void bxt_update_dpll_ref_clks(struct drm_i915_private *i915)
 {
 	i915->display.dpll.ref_clks.ssc = 100000;
 	i915->display.dpll.ref_clks.nssc = 100000;
-	/* DSI non-SSC ref 19.2MHz */
+	/* DSI analn-SSC ref 19.2MHz */
 }
 
 static void bxt_dump_hw_state(struct drm_i915_private *i915,
@@ -2504,7 +2504,7 @@ static void icl_wrpll_params_populate(struct skl_wrpll_params *params,
 
 /*
  * Display WA #22010492432: ehl, tgl, adl-s, adl-p
- * Program half of the nominal DCO divider fraction value.
+ * Program half of the analminal DCO divider fraction value.
  */
 static bool
 ehl_combo_pll_div_frac_wa_needed(struct drm_i915_private *i915)
@@ -2522,7 +2522,7 @@ struct icl_combo_pll_params {
 
 /*
  * These values alrea already adjusted: they're the bits we write to the
- * registers, not the logical values.
+ * registers, analt the logical values.
  */
 static const struct icl_combo_pll_params icl_dp_combo_pll_24MHz_values[] = {
 	{ 540000,
@@ -2809,7 +2809,7 @@ static void icl_calc_dpll_state(struct drm_i915_private *i915,
 			    DPLL_CFGCR1_PDIV(pll_params->pdiv);
 
 	if (DISPLAY_VER(i915) >= 12)
-		pll_state->cfgcr1 |= TGL_DPLL_CFGCR1_CFSELOVRD_NORMAL_XTAL;
+		pll_state->cfgcr1 |= TGL_DPLL_CFGCR1_CFSELOVRD_ANALRMAL_XTAL;
 	else
 		pll_state->cfgcr1 |= DPLL_CFGCR1_CENTRAL_FREQ_8400;
 
@@ -2843,7 +2843,7 @@ static int icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 
 			if (div2 >= 2) {
 				/*
-				 * Note: a_divratio not matching TGL BSpec
+				 * Analte: a_divratio analt matching TGL BSpec
 				 * algorithm but matching hardcoded values and
 				 * working on HW for DP alt-mode at least
 				 */
@@ -2966,7 +2966,7 @@ static int icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 	 * the formula to avoid early divisions so we don't multiply the
 	 * rounding errors.
 	 *
-	 * 0.000003 * 8 * 50 * 1.1 = 0.00132, also known as 132 / 100000, which
+	 * 0.000003 * 8 * 50 * 1.1 = 0.00132, also kanalwn as 132 / 100000, which
 	 * we also rearrange to work with integers.
 	 *
 	 * The 0.5 transformed to 5 results in a multiplication by 10 and the
@@ -2976,7 +2976,7 @@ static int icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 
 	/*
 	 * Here we divide dco_khz by 10 in order to allow the dividend to fit in
-	 * 32 bits. That's not a problem since we round the division down
+	 * 32 bits. That's analt a problem since we round the division down
 	 * anyway.
 	 */
 	feedfwgain = (use_ssc || m2div_rem > 0) ?
@@ -3157,7 +3157,7 @@ static int icl_ddi_mg_pll_get_freq(struct drm_i915_private *i915,
 		MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK) >>
 		MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_SHIFT;
 
-	/* div2 value of 0 is same as 1 means no div */
+	/* div2 value of 0 is same as 1 means anal div */
 	if (div2 == 0)
 		div2 = 1;
 
@@ -3814,7 +3814,7 @@ static void icl_pll_power_enable(struct drm_i915_private *i915,
 	 * immediate.
 	 */
 	if (intel_de_wait_for_set(i915, enable_reg, PLL_POWER_STATE, 1))
-		drm_err(&i915->drm, "PLL %d Power not enabled\n",
+		drm_err(&i915->drm, "PLL %d Power analt enabled\n",
 			pll->info->id);
 }
 
@@ -3826,7 +3826,7 @@ static void icl_pll_enable(struct drm_i915_private *i915,
 
 	/* Timeout is actually 600us. */
 	if (intel_de_wait_for_set(i915, enable_reg, PLL_LOCK, 1))
-		drm_err(&i915->drm, "PLL %d not locked\n", pll->info->id);
+		drm_err(&i915->drm, "PLL %d analt locked\n", pll->info->id);
 }
 
 static void adlp_cmtg_clock_gating_wa(struct drm_i915_private *i915, struct intel_shared_dpll *pll)
@@ -3865,7 +3865,7 @@ static void combo_pll_enable(struct drm_i915_private *i915,
 	/*
 	 * DVFS pre sequence would be here, but in our driver the cdclk code
 	 * paths should already be setting the appropriate voltage, hence we do
-	 * nothing here.
+	 * analthing here.
 	 */
 
 	icl_pll_enable(i915, pll, enable_reg);
@@ -3885,7 +3885,7 @@ static void tbt_pll_enable(struct drm_i915_private *i915,
 	/*
 	 * DVFS pre sequence would be here, but in our driver the cdclk code
 	 * paths should already be setting the appropriate voltage, hence we do
-	 * nothing here.
+	 * analthing here.
 	 */
 
 	icl_pll_enable(i915, pll, TBT_PLL_ENABLE);
@@ -3908,7 +3908,7 @@ static void mg_pll_enable(struct drm_i915_private *i915,
 	/*
 	 * DVFS pre sequence would be here, but in our driver the cdclk code
 	 * paths should already be setting the appropriate voltage, hence we do
-	 * nothing here.
+	 * analthing here.
 	 */
 
 	icl_pll_enable(i915, pll, enable_reg);
@@ -3925,7 +3925,7 @@ static void icl_pll_disable(struct drm_i915_private *i915,
 	/*
 	 * DVFS pre sequence would be here, but in our driver the cdclk code
 	 * paths should already be setting the appropriate voltage, hence we do
-	 * nothing here.
+	 * analthing here.
 	 */
 
 	intel_de_rmw(i915, enable_reg, PLL_ENABLE, 0);
@@ -3943,7 +3943,7 @@ static void icl_pll_disable(struct drm_i915_private *i915,
 	 * immediate.
 	 */
 	if (intel_de_wait_for_clear(i915, enable_reg, PLL_POWER_STATE, 1))
-		drm_err(&i915->drm, "PLL %d Power not disabled\n",
+		drm_err(&i915->drm, "PLL %d Power analt disabled\n",
 			pll->info->id);
 }
 
@@ -3971,7 +3971,7 @@ static void mg_pll_disable(struct drm_i915_private *i915,
 
 static void icl_update_dpll_ref_clks(struct drm_i915_private *i915)
 {
-	/* No SSC ref */
+	/* Anal SSC ref */
 	i915->display.dpll.ref_clks.nssc = i915->display.cdclk.hw.ref;
 }
 
@@ -4174,7 +4174,7 @@ void intel_shared_dpll_init(struct drm_i915_private *i915)
 	mutex_init(&i915->display.dpll.lock);
 
 	if (DISPLAY_VER(i915) >= 14 || IS_DG2(i915))
-		/* No shared DPLLs on DG2; port PLLs are part of the PHY */
+		/* Anal shared DPLLs on DG2; port PLLs are part of the PHY */
 		dpll_mgr = NULL;
 	else if (IS_ALDERLAKE_P(i915))
 		dpll_mgr = &adlp_pll_mgr;
@@ -4301,7 +4301,7 @@ void intel_release_shared_dplls(struct intel_atomic_state *state,
 	/*
 	 * FIXME: this function is called for every platform having a
 	 * compute_clock hook, even though the platform doesn't yet support
-	 * the shared DPLL framework and intel_reserve_shared_dplls() is not
+	 * the shared DPLL framework and intel_reserve_shared_dplls() is analt
 	 * called on those.
 	 */
 	if (!dpll_mgr)
@@ -4418,7 +4418,7 @@ static void sanitize_dpll_state(struct drm_i915_private *i915,
 		return;
 
 	drm_dbg_kms(&i915->drm,
-		    "%s enabled but not in use, disabling\n",
+		    "%s enabled but analt in use, disabling\n",
 		    pll->info->name);
 
 	_intel_disable_shared_dpll(i915, pll);
@@ -4477,9 +4477,9 @@ verify_single_dpll_state(struct drm_i915_private *i915,
 
 	if (!(pll->info->flags & INTEL_DPLL_ALWAYS_ON)) {
 		I915_STATE_WARN(i915, !pll->on && pll->active_mask,
-				"pll in active use but not on in sw tracking\n");
+				"pll in active use but analt on in sw tracking\n");
 		I915_STATE_WARN(i915, pll->on && !pll->active_mask,
-				"pll is on but not used by any active pipe\n");
+				"pll is on but analt used by any active pipe\n");
 		I915_STATE_WARN(i915, pll->on != active,
 				"pll on state mismatch (expected %i, found %i)\n",
 				pll->on, active);

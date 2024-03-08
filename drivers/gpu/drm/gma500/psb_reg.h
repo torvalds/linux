@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /**************************************************************************
  *
- * Copyright (c) (2005-2007) Imagination Technologies Limited.
+ * Copyright (c) (2005-2007) Imagination Techanallogies Limited.
  * Copyright (c) 2007, Intel Corporation.
  * All Rights Reserved.
  *
@@ -39,8 +39,8 @@
 #define _PSB_CC_REVISION_DESIGNER_MASK		(0xFF << 24)
 #define _PSB_CC_REVISION_MAJOR_SHIFT		(16)
 #define _PSB_CC_REVISION_MAJOR_MASK		(0xFF << 16)
-#define _PSB_CC_REVISION_MINOR_SHIFT		(8)
-#define _PSB_CC_REVISION_MINOR_MASK		(0xFF << 8)
+#define _PSB_CC_REVISION_MIANALR_SHIFT		(8)
+#define _PSB_CC_REVISION_MIANALR_MASK		(0xFF << 8)
 #define _PSB_CC_REVISION_MAINTENANCE_SHIFT	(0)
 #define _PSB_CC_REVISION_MAINTENANCE_MASK	(0xFF << 0)
 
@@ -121,7 +121,7 @@
 #define _PSB_CE_KICKER_ADDRESS_SHIFT		(4)	/* 128-bit aligned address */
 
 #define PSB_CR_EVENT_KICK		0x0AC8
-#define _PSB_CE_KICK_NOW			(1 << 0)
+#define _PSB_CE_KICK_ANALW			(1 << 0)
 
 #define PSB_CR_BIF_DIR_LIST_BASE1	0x0C38
 
@@ -287,7 +287,7 @@
 #define PSB_2D_MASKOFF_YSTART_SHIFT	(0)
 
 /*
- * 2D Fence (see PSB_2D_FENCE_BH): bits 0:27 are ignored
+ * 2D Fence (see PSB_2D_FENCE_BH): bits 0:27 are iganalred
  */
 
 /*
@@ -296,7 +296,7 @@
 
 #define PSB_2D_ROT_MASK			(3 << 25)
 #define PSB_2D_ROT_CLRMASK		(~PSB_2D_ROT_MASK)
-#define PSB_2D_ROT_NONE			(0 << 25)
+#define PSB_2D_ROT_ANALNE			(0 << 25)
 #define PSB_2D_ROT_90DEGS		(1 << 25)
 #define PSB_2D_ROT_180DEGS		(2 << 25)
 #define PSB_2D_ROT_270DEGS		(3 << 25)
@@ -327,8 +327,8 @@
 #define PSB_2D_USE_PAT			(0x00010000)
 #define PSB_2D_USE_FILL			(0x00000000)
 /*
- * Tungsten Graphics note on rop codes: If rop A and rop B are
- * identical, the mask surface will not be read and need not be
+ * Tungsten Graphics analte on rop codes: If rop A and rop B are
+ * identical, the mask surface will analt be read and need analt be
  * set up.
  */
 

@@ -3,7 +3,7 @@
  *  linux/arch/arm/mach-omap2/clock.c
  *
  *  Copyright (C) 2005-2008 Texas Instruments, Inc.
- *  Copyright (C) 2004-2010 Nokia Corporation
+ *  Copyright (C) 2004-2010 Analkia Corporation
  *
  *  Contacts:
  *  Richard Woodruff <r-woodruff2@ti.com>
@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
@@ -118,7 +118,7 @@ void __init ti_clk_init_features(void)
 		features.flags |= TI_CLK_DEVICE_TYPE_GP;
 
 	/* Idlest value for interface clocks.
-	 * 24xx uses 0 to indicate not ready, and 1 to indicate ready.
+	 * 24xx uses 0 to indicate analt ready, and 1 to indicate ready.
 	 * 34xx reverses this, just to keep us on our toes
 	 * AM35xx uses both, depending on the module.
 	 */

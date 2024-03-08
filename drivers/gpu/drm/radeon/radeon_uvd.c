@@ -11,14 +11,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -144,7 +144,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 				fw_name);
 		} else {
 			struct common_firmware_header *hdr = (void *)rdev->uvd_fw->data;
-			unsigned version_major, version_minor, family_id;
+			unsigned version_major, version_mianalr, family_id;
 
 			r = radeon_ucode_validate(rdev->uvd_fw);
 			if (r)
@@ -155,16 +155,16 @@ int radeon_uvd_init(struct radeon_device *rdev)
 			family_id = (__force u32)(hdr->ucode_version) & 0xff;
 			version_major = (le32_to_cpu((__force __le32)(hdr->ucode_version))
 							 >> 24) & 0xff;
-			version_minor = (le32_to_cpu((__force __le32)(hdr->ucode_version))
+			version_mianalr = (le32_to_cpu((__force __le32)(hdr->ucode_version))
 							 >> 8) & 0xff;
 			DRM_INFO("Found UVD firmware Version: %u.%u Family ID: %u\n",
-				 version_major, version_minor, family_id);
+				 version_major, version_mianalr, family_id);
 
 			/*
 			 * Limit the number of UVD handles depending on
-			 * microcode major and minor versions.
+			 * microcode major and mianalr versions.
 			 */
-			if ((version_major >= 0x01) && (version_minor >= 0x37))
+			if ((version_major >= 0x01) && (version_mianalr >= 0x37))
 				rdev->uvd.max_handles = RADEON_MAX_UVD_HANDLES;
 		}
 	}
@@ -172,7 +172,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	/*
 	 * In case there is only legacy firmware, or we encounter an error
 	 * while loading the new firmware, we fall back to loading the legacy
-	 * firmware now.
+	 * firmware analw.
 	 */
 	if (!fw_name || r) {
 		r = request_firmware(&rdev->uvd_fw, legacy_fw_name, rdev->dev);
@@ -260,7 +260,7 @@ int radeon_uvd_suspend(struct radeon_device *rdev)
 		if (handle != 0) {
 			struct radeon_fence *fence;
 
-			radeon_uvd_note_usage(rdev);
+			radeon_uvd_analte_usage(rdev);
 
 			r = radeon_uvd_get_destroy_msg(rdev,
 				R600_RING_TYPE_UVD_INDEX, handle, &fence);
@@ -319,7 +319,7 @@ void radeon_uvd_force_into_uvd_segment(struct radeon_bo *rbo,
 	if (rbo->placement.num_placement > 1)
 		return;
 
-	/* add another 256MB segment */
+	/* add aanalther 256MB segment */
 	rbo->placements[1] = rbo->placements[0];
 	rbo->placements[1].fpfn += (256 * 1024 * 1024) >> PAGE_SHIFT;
 	rbo->placements[1].lpfn += (256 * 1024 * 1024) >> PAGE_SHIFT;
@@ -335,7 +335,7 @@ void radeon_uvd_free_handles(struct radeon_device *rdev, struct drm_file *filp)
 		if (handle != 0 && rdev->uvd.filp[i] == filp) {
 			struct radeon_fence *fence;
 
-			radeon_uvd_note_usage(rdev);
+			radeon_uvd_analte_usage(rdev);
 
 			r = radeon_uvd_get_destroy_msg(rdev,
 				R600_RING_TYPE_UVD_INDEX, handle, &fence);
@@ -421,7 +421,7 @@ static int radeon_uvd_cs_msg_decode(uint32_t *msg, unsigned buf_sizes[])
 		break;
 
 	default:
-		DRM_ERROR("UVD codec not handled %d!\n", stream_type);
+		DRM_ERROR("UVD codec analt handled %d!\n", stream_type);
 		return -EINVAL;
 	}
 
@@ -458,7 +458,7 @@ static int radeon_uvd_validate_codec(struct radeon_cs_parser *p,
 
 		fallthrough;
 	default:
-		DRM_ERROR("UVD codec not supported by hardware %d!\n",
+		DRM_ERROR("UVD codec analt supported by hardware %d!\n",
 			  stream_type);
 		return -EINVAL;
 	}
@@ -518,7 +518,7 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 			}
 		}
 
-		DRM_ERROR("No more free UVD handles!\n");
+		DRM_ERROR("Anal more free UVD handles!\n");
 		return -EINVAL;
 
 	case 1:
@@ -542,7 +542,7 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 		}
 
 		DRM_ERROR("Invalid UVD handle 0x%x!\n", handle);
-		return -ENOENT;
+		return -EANALENT;
 
 	case 2:
 		/* it's a destroy msg, free the handle */
@@ -659,7 +659,7 @@ static int radeon_uvd_cs_reg(struct radeon_cs_parser *p,
 				return r;
 			break;
 		case UVD_ENGINE_CNTL:
-		case UVD_NO_OP:
+		case UVD_ANAL_OP:
 			break;
 		default:
 			DRM_ERROR("Invalid reg 0x%X!\n",
@@ -688,13 +688,13 @@ int radeon_uvd_cs_parse(struct radeon_cs_parser *p)
 	};
 
 	if (p->chunk_ib->length_dw % 16) {
-		DRM_ERROR("UVD IB length (%d) not 16 dwords aligned!\n",
+		DRM_ERROR("UVD IB length (%d) analt 16 dwords aligned!\n",
 			  p->chunk_ib->length_dw);
 		return -EINVAL;
 	}
 
 	if (p->chunk_relocs == NULL) {
-		DRM_ERROR("No relocation chunk !\n");
+		DRM_ERROR("Anal relocation chunk !\n");
 		return -EINVAL;
 	}
 
@@ -714,7 +714,7 @@ int radeon_uvd_cs_parse(struct radeon_cs_parser *p)
 			p->idx += pkt.count + 2;
 			break;
 		default:
-			DRM_ERROR("Unknown packet type %d !\n", pkt.type);
+			DRM_ERROR("Unkanalwn packet type %d !\n", pkt.type);
 			return -EINVAL;
 		}
 	} while (p->idx < p->chunk_ib->length_dw);
@@ -745,7 +745,7 @@ static int radeon_uvd_send_msg(struct radeon_device *rdev,
 	ib.ptr[4] = PACKET0(UVD_GPCOM_VCPU_CMD, 0);
 	ib.ptr[5] = 0;
 	for (i = 6; i < 16; i += 2) {
-		ib.ptr[i] = PACKET0(UVD_NO_OP, 0);
+		ib.ptr[i] = PACKET0(UVD_ANAL_OP, 0);
 		ib.ptr[i+1] = 0;
 	}
 	ib.length_dw = 16;
@@ -876,7 +876,7 @@ static void radeon_uvd_idle_work_handler(struct work_struct *work)
 	}
 }
 
-void radeon_uvd_note_usage(struct radeon_device *rdev)
+void radeon_uvd_analte_usage(struct radeon_device *rdev)
 {
 	bool streams_changed = false;
 	bool set_clocks = !cancel_delayed_work_sync(&rdev->uvd.idle_work);
@@ -890,7 +890,7 @@ void radeon_uvd_note_usage(struct radeon_device *rdev)
 		    (rdev->pm.dpm.hd != hd)) {
 			rdev->pm.dpm.sd = sd;
 			rdev->pm.dpm.hd = hd;
-			/* disable this for now */
+			/* disable this for analw */
 			/*streams_changed = true;*/
 		}
 	}

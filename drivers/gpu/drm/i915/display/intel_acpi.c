@@ -2,7 +2,7 @@
 /*
  * Intel ACPI functions
  *
- * _DSM related code stolen from nouveau_acpi.c.
+ * _DSM related code stolen from analuveau_acpi.c.
  */
 
 #include <linux/pci.h>
@@ -14,13 +14,13 @@
 #include "intel_display_types.h"
 
 #define INTEL_DSM_REVISION_ID 1 /* For Calpella anyway... */
-#define INTEL_DSM_FN_PLATFORM_MUX_INFO 1 /* No args */
+#define INTEL_DSM_FN_PLATFORM_MUX_INFO 1 /* Anal args */
 
 static const guid_t intel_dsm_guid =
 	GUID_INIT(0x7ed873d3, 0xc2d0, 0x4e4f,
 		  0xa8, 0x54, 0x0f, 0x13, 0x17, 0xb0, 0x1c, 0x2c);
 
-#define INTEL_DSM_FN_GET_BIOS_DATA_FUNCS_SUPPORTED 0 /* No args */
+#define INTEL_DSM_FN_GET_BIOS_DATA_FUNCS_SUPPORTED 0 /* Anal args */
 
 static const guid_t intel_dsm_guid2 =
 	GUID_INIT(0x3e5b41c6, 0xeb1d, 0x4260,
@@ -66,11 +66,11 @@ static char *intel_dsm_mux_type(u8 type)
 {
 	switch (type) {
 	case 0:
-		return "unknown";
+		return "unkanalwn";
 	case 1:
-		return "No MUX, iGPU only";
+		return "Anal MUX, iGPU only";
 	case 2:
-		return "No MUX, dGPU only";
+		return "Anal MUX, dGPU only";
 	case 3:
 		return "MUXed between iGPU and dGPU";
 	default:
@@ -92,7 +92,7 @@ static void intel_dsm_platform_mux_info(acpi_handle dhandle)
 	}
 
 	if (!pkg->package.count) {
-		DRM_DEBUG_DRIVER("no connection in _DSM\n");
+		DRM_DEBUG_DRIVER("anal connection in _DSM\n");
 		return;
 	}
 
@@ -141,7 +141,7 @@ static acpi_handle intel_dsm_pci_probe(struct pci_dev *pdev)
 
 	if (!acpi_check_dsm(dhandle, &intel_dsm_guid, INTEL_DSM_REVISION_ID,
 			    1 << INTEL_DSM_FN_PLATFORM_MUX_INFO)) {
-		DRM_DEBUG_KMS("no _DSM method for intel device\n");
+		DRM_DEBUG_KMS("anal _DSM method for intel device\n");
 		return NULL;
 	}
 
@@ -250,7 +250,7 @@ static u32 acpi_display_type(struct intel_connector *connector)
 	case DRM_MODE_CONNECTOR_DSI:
 		display_type = ACPI_DISPLAY_TYPE_INTERNAL_DIGITAL;
 		break;
-	case DRM_MODE_CONNECTOR_Unknown:
+	case DRM_MODE_CONNECTOR_Unkanalwn:
 	case DRM_MODE_CONNECTOR_VIRTUAL:
 		display_type = ACPI_DISPLAY_TYPE_OTHER;
 		break;
@@ -287,20 +287,20 @@ void intel_acpi_device_id_update(struct drm_i915_private *dev_priv)
 	drm_connector_list_iter_end(&conn_iter);
 }
 
-/* NOTE: The connector order must be final before this is called. */
-void intel_acpi_assign_connector_fwnodes(struct drm_i915_private *i915)
+/* ANALTE: The connector order must be final before this is called. */
+void intel_acpi_assign_connector_fwanaldes(struct drm_i915_private *i915)
 {
 	struct drm_connector_list_iter conn_iter;
 	struct drm_device *drm_dev = &i915->drm;
-	struct fwnode_handle *fwnode = NULL;
+	struct fwanalde_handle *fwanalde = NULL;
 	struct drm_connector *connector;
 	struct acpi_device *adev;
 
 	drm_connector_list_iter_begin(drm_dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
-		/* Always getting the next, even when the last was not used. */
-		fwnode = device_get_next_child_node(drm_dev->dev, fwnode);
-		if (!fwnode)
+		/* Always getting the next, even when the last was analt used. */
+		fwanalde = device_get_next_child_analde(drm_dev->dev, fwanalde);
+		if (!fwanalde)
 			break;
 
 		switch (connector->connector_type) {
@@ -309,28 +309,28 @@ void intel_acpi_assign_connector_fwnodes(struct drm_i915_private *i915)
 		case DRM_MODE_CONNECTOR_DSI:
 			/*
 			 * Integrated displays have a specific address 0x1f on
-			 * most Intel platforms, but not on all of them.
+			 * most Intel platforms, but analt on all of them.
 			 */
 			adev = acpi_find_child_device(ACPI_COMPANION(drm_dev->dev),
 						      0x1f, 0);
 			if (adev) {
-				connector->fwnode =
-					fwnode_handle_get(acpi_fwnode_handle(adev));
+				connector->fwanalde =
+					fwanalde_handle_get(acpi_fwanalde_handle(adev));
 				break;
 			}
 			fallthrough;
 		default:
-			connector->fwnode = fwnode_handle_get(fwnode);
+			connector->fwanalde = fwanalde_handle_get(fwanalde);
 			break;
 		}
 	}
 	drm_connector_list_iter_end(&conn_iter);
 	/*
-	 * device_get_next_child_node() takes a reference on the fwnode, if
+	 * device_get_next_child_analde() takes a reference on the fwanalde, if
 	 * we stopped iterating because we are out of connectors we need to
-	 * put this, otherwise fwnode is NULL and the put is a no-op.
+	 * put this, otherwise fwanalde is NULL and the put is a anal-op.
 	 */
-	fwnode_handle_put(fwnode);
+	fwanalde_handle_put(fwanalde);
 }
 
 void intel_acpi_video_register(struct drm_i915_private *i915)
@@ -343,7 +343,7 @@ void intel_acpi_video_register(struct drm_i915_private *i915)
 	/*
 	 * If i915 is driving an internal panel without registering its native
 	 * backlight handler try to register the acpi_video backlight.
-	 * For panels not driven by i915 another GPU driver may still register
+	 * For panels analt driven by i915 aanalther GPU driver may still register
 	 * a native backlight later and acpi_video_register_backlight() should
 	 * only be called after any native backlights have been registered.
 	 */

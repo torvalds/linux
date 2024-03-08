@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/if_ether.h>
 #include <net/netlink.h>
 
@@ -28,7 +28,7 @@ MODULE_ALIAS("ip_set_hash:mac");
 
 /* Member elements */
 struct hash_mac4_elem {
-	/* Zero valued IP addresses cannot be stored */
+	/* Zero valued IP addresses cananalt be stored */
 	union {
 		unsigned char ether[ETH_ALEN];
 		__be32 foo[2];
@@ -93,15 +93,15 @@ hash_mac4_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_mac4_uadt(struct ip_set *set, struct nlattr *tb[],
-	       enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+	       enum ipset_adt adt, u32 *lineanal, u32 flags, bool retried)
 {
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_mac4_elem e = { { .foo[0] = 0, .foo[1] = 0 } };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	int ret;
 
-	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+	if (tb[IPSET_ATTR_LINEANAL])
+		*lineanal = nla_get_u32(tb[IPSET_ATTR_LINEANAL]);
 
 	if (unlikely(!tb[IPSET_ATTR_ETHER] ||
 		     nla_len(tb[IPSET_ATTR_ETHER]) != ETH_ALEN))
@@ -140,7 +140,7 @@ static struct ip_set_type hash_mac_type __read_mostly = {
 		[IPSET_ATTR_ETHER]	= { .type = NLA_BINARY,
 					    .len  = ETH_ALEN },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
-		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
+		[IPSET_ATTR_LINEANAL]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
 		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
 		[IPSET_ATTR_COMMENT]	= { .type = NLA_NUL_STRING,

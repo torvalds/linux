@@ -100,7 +100,7 @@ enum CPL_opcode {
 #define NUM_CPL_CMDS 256
 
 enum CPL_error {
-	CPL_ERR_NONE               = 0,
+	CPL_ERR_ANALNE               = 0,
 	CPL_ERR_TCAM_PARITY        = 1,
 	CPL_ERR_TCAM_FULL          = 3,
 	CPL_ERR_CONN_RESET         = 20,
@@ -123,7 +123,7 @@ enum {
 };
 
 enum {
-	ULP_MODE_NONE   = 0,
+	ULP_MODE_ANALNE   = 0,
 	ULP_MODE_TCPDDP = 1,
 	ULP_MODE_ISCSI  = 2,
 	ULP_MODE_IWARP  = 3,
@@ -137,7 +137,7 @@ enum {
 
 enum {
 	CPL_ABORT_SEND_RST = 0,
-	CPL_ABORT_NO_RST,
+	CPL_ABORT_ANAL_RST,
 	CPL_ABORT_POST_CLOSE_REQ = 2
 };
 
@@ -230,7 +230,7 @@ struct cpl_pass_accept_req {
 	u8  src_mac[6];
 	u8  rsvd[2];
 	u32 rcv_isn;
-	u32 unknown_tcp_options;
+	u32 unkanalwn_tcp_options;
 };
 
 struct cpl_pass_accept_rpl {
@@ -419,8 +419,8 @@ struct cpl_rx_data_ddp {
 };
 
 /*
- * We want this header's alignment to be no more stringent than 2-byte aligned.
- * All fields are u8 or u16 except for the length.  However that field is not
+ * We want this header's alignment to be anal more stringent than 2-byte aligned.
+ * All fields are u8 or u16 except for the length.  However that field is analt
  * used so we break it into 2 16-bit parts to easily meet our alignment needs.
  */
 struct cpl_tx_pkt {

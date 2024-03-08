@@ -52,8 +52,8 @@ static void test_hash_map(void)
 
 	err = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_pkt_access), &topts);
 	duration = topts.duration;
-	if (CHECK(err || topts.retval, "ipv4", "err %d errno %d retval %d\n",
-		  err, errno, topts.retval))
+	if (CHECK(err || topts.retval, "ipv4", "err %d erranal %d retval %d\n",
+		  err, erranal, topts.retval))
 		goto out;
 
 	ASSERT_EQ(skel->bss->hashmap_output, 4, "hashmap_output");
@@ -122,8 +122,8 @@ static void test_array_map(void)
 
 	err = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_pkt_access), &topts);
 	duration = topts.duration;
-	if (CHECK(err || topts.retval, "ipv4", "err %d errno %d retval %d\n",
-		  err, errno, topts.retval))
+	if (CHECK(err || topts.retval, "ipv4", "err %d erranal %d retval %d\n",
+		  err, erranal, topts.retval))
 		goto out;
 
 	ASSERT_EQ(skel->bss->arraymap_output, expected_total, "array_output");

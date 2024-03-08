@@ -2,7 +2,7 @@
 
 Refer to mmc.txt for standard MMC bindings.
 
-For UHS devices which require tuning, the device tree should have a "cpu_thermal" node which maps to the appropriate thermal zone. This is used to get the temperature of the zone during tuning.
+For UHS devices which require tuning, the device tree should have a "cpu_thermal" analde which maps to the appropriate thermal zone. This is used to get the temperature of the zone during tuning.
 
 Required properties:
 - compatible: Should be "ti,omap2430-sdhci" for omap2430 controllers
@@ -14,7 +14,7 @@ Required properties:
 	      Should be "ti,am335-sdhci" for am335x controllers
 	      Should be "ti,am437-sdhci" for am437x controllers
 - ti,hwmods: Must be "mmc<n>", <n> is controller instance starting 1
-	     (Not required for K2G).
+	     (Analt required for K2G).
 - pinctrl-names: Should be subset of "default", "hs", "sdr12", "sdr25", "sdr50",
 		 "ddr50-rev11", "sdr104-rev11", "ddr50", "sdr104",
 		 "ddr_1_8v-rev11", "ddr_1_8v" or "ddr_3_3v", "hs200_1_8v-rev11",
@@ -29,7 +29,7 @@ Optional properties:
 		and "rx" for TX and RX DMA requests, respectively.
 
 Deprecated properties:
-- ti,non-removable: Compatible with the generic non-removable property
+- ti,analn-removable: Compatible with the generic analn-removable property
 
 Example:
 	mmc1: mmc@4809c000 {
@@ -37,7 +37,7 @@ Example:
 		reg = <0x4809c000 0x400>;
 		ti,hwmods = "mmc1";
 		bus-width = <4>;
-		vmmc-supply = <&vmmc>; /* phandle to regulator node */
+		vmmc-supply = <&vmmc>; /* phandle to regulator analde */
 		dmas = <&sdma 61 &sdma 62>;
 		dma-names = "tx", "rx";
 	};

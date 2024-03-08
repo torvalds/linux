@@ -23,7 +23,7 @@
 #define    CB_16BITCARD		0x00000010	/* 16-bit card detected */
 #define    CB_CBCARD		0x00000020	/* CardBus card detected */
 #define    CB_IREQCINT		0x00000040	/* READY(xIRQ)/xCINT high */
-#define    CB_NOTACARD		0x00000080	/* Unrecognizable PC card detected */
+#define    CB_ANALTACARD		0x00000080	/* Unrecognizable PC card detected */
 #define    CB_DATALOST		0x00000100	/* Potential data loss due to card removal */
 #define    CB_BADVCCREQ		0x00000200	/* Invalid Vcc request by host software */
 #define    CB_5VCARD		0x00000400	/* Card Vcc at 5.0 volts? */
@@ -42,7 +42,7 @@
 #define    CB_FPWRCYCLE		0x00000008	/* Force PWREVENT */
 #define    CB_F16BITCARD	0x00000010	/* Force 16-bit PCMCIA card */
 #define    CB_FCBCARD		0x00000020	/* Force CardBus line */
-#define    CB_FNOTACARD		0x00000080	/* Force NOTACARD */
+#define    CB_FANALTACARD		0x00000080	/* Force ANALTACARD */
 #define    CB_FDATALOST		0x00000100	/* Force data lost */
 #define    CB_FBADVCCREQ	0x00000200	/* Force bad Vcc request */
 #define    CB_F5VCARD		0x00000400	/* Force 5.0 volt card */

@@ -5,7 +5,7 @@
  * Author: Mattias Wallin <mattias.wallin@stericsson.com> for ST-Ericsson
  * Author: Sundar Iyer for ST-Ericsson
  * sched_clock implementation is based on:
- * plat-nomadik/timer.c Linus Walleij <linus.walleij@stericsson.com>
+ * plat-analmadik/timer.c Linus Walleij <linus.walleij@stericsson.com>
  *
  * DBx500-PRCMU Timer
  * The PRCMU has 5 timers which are available in a always-on
@@ -27,7 +27,7 @@
 
 static void __iomem *clksrc_dbx500_timer_base;
 
-static u64 notrace clksrc_dbx500_prcmu_read(struct clocksource *cs)
+static u64 analtrace clksrc_dbx500_prcmu_read(struct clocksource *cs)
 {
 	void __iomem *base = clksrc_dbx500_timer_base;
 	u32 count, count2;
@@ -46,12 +46,12 @@ static struct clocksource clocksource_dbx500_prcmu = {
 	.rating		= 100,
 	.read		= clksrc_dbx500_prcmu_read,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS | CLOCK_SOURCE_SUSPEND_NONSTOP,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS | CLOCK_SOURCE_SUSPEND_ANALNSTOP,
 };
 
-static int __init clksrc_dbx500_prcmu_init(struct device_node *node)
+static int __init clksrc_dbx500_prcmu_init(struct device_analde *analde)
 {
-	clksrc_dbx500_timer_base = of_iomap(node, 0);
+	clksrc_dbx500_timer_base = of_iomap(analde, 0);
 
 	/*
 	 * The A9 sub system expects the timer to be configured as

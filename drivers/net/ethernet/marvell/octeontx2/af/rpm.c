@@ -17,7 +17,7 @@ static struct mac_ops		rpm_mac_ops   = {
 	.irq_offset     =       1,
 	.int_ena_bit    =       BIT_ULL(0),
 	.lmac_fwi	=	RPM_LMAC_FWI,
-	.non_contiguous_serdes_lane = true,
+	.analn_contiguous_serdes_lane = true,
 	.rx_stats_cnt   =       43,
 	.tx_stats_cnt   =       34,
 	.dmac_filter_count =	32,
@@ -49,7 +49,7 @@ static struct mac_ops		rpm2_mac_ops   = {
 	.irq_offset     =       1,
 	.int_ena_bit    =       BIT_ULL(0),
 	.lmac_fwi	=	RPM2_LMAC_FWI,
-	.non_contiguous_serdes_lane = true,
+	.analn_contiguous_serdes_lane = true,
 	.rx_stats_cnt   =       43,
 	.tx_stats_cnt   =       34,
 	.dmac_filter_count =	64,
@@ -127,7 +127,7 @@ int rpm_lmac_tx_enable(void *rpmd, int lmac_id, bool enable)
 	u64 cfg, last;
 
 	if (!is_lmac_valid(rpm, lmac_id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
 	last = cfg;
@@ -147,7 +147,7 @@ int rpm_lmac_rx_tx_enable(void *rpmd, int lmac_id, bool enable)
 	u64 cfg;
 
 	if (!is_lmac_valid(rpm, lmac_id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
 	if (enable)
@@ -171,17 +171,17 @@ void rpm_lmac_enadis_rx_pause_fwding(void *rpmd, int lmac_id, bool enable)
 	if (!lmac)
 		return;
 
-	/* Pause frames are not enabled just return */
+	/* Pause frames are analt enabled just return */
 	if (!bitmap_weight(lmac->rx_fc_pfvf_bmap.bmap, lmac->rx_fc_pfvf_bmap.max))
 		return;
 
 	if (enable) {
 		cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
-		cfg &= ~RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGNORE;
+		cfg &= ~RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGANALRE;
 		rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG, cfg);
 	} else {
 		cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
-		cfg |= RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGNORE;
+		cfg |= RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGANALRE;
 		rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG, cfg);
 	}
 }
@@ -193,7 +193,7 @@ int rpm_lmac_get_pause_frm_status(void *rpmd, int lmac_id,
 	u64 cfg;
 
 	if (!is_lmac_valid(rpm, lmac_id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
 	if (!(cfg & RPMX_MTI_MAC100X_COMMAND_CONFIG_PFC_MODE)) {
@@ -331,13 +331,13 @@ int rpm_lmac_enadis_pause_frm(void *rpmd, int lmac_id, u8 tx_pause,
 	u64 cfg;
 
 	if (!is_lmac_valid(rpm, lmac_id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
 	cfg &= ~RPMX_MTI_MAC100X_COMMAND_CONFIG_RX_P_DISABLE;
 	cfg |= rx_pause ? 0x0 : RPMX_MTI_MAC100X_COMMAND_CONFIG_RX_P_DISABLE;
-	cfg &= ~RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGNORE;
-	cfg |= rx_pause ? 0x0 : RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGNORE;
+	cfg &= ~RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGANALRE;
+	cfg |= rx_pause ? 0x0 : RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGANALRE;
 	rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG, cfg);
 
 	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
@@ -358,14 +358,14 @@ void rpm_lmac_pause_frm_config(void *rpmd, int lmac_id, bool enable)
 	u64 cfg, pfc_class_mask_cfg;
 	rpm_t *rpm = rpmd;
 
-	/* ALL pause frames received are completely ignored */
+	/* ALL pause frames received are completely iganalred */
 	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
 	cfg |= RPMX_MTI_MAC100X_COMMAND_CONFIG_RX_P_DISABLE;
 	rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG, cfg);
 
 	/* Disable forward pause to TX block */
 	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
-	cfg |= RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGNORE;
+	cfg |= RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGANALRE;
 	rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG, cfg);
 
 	/* Disable pause frames transmission */
@@ -398,7 +398,7 @@ int rpm_get_rx_stats(void *rpmd, int lmac_id, int idx, u64 *rx_stat)
 	u64 val_lo, val_hi;
 
 	if (!is_lmac_valid(rpm, lmac_id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&rpm->lock);
 
@@ -426,7 +426,7 @@ int rpm_get_tx_stats(void *rpmd, int lmac_id, int idx, u64 *tx_stat)
 	u64 val_lo, val_hi;
 
 	if (!is_lmac_valid(rpm, lmac_id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&rpm->lock);
 
@@ -555,12 +555,12 @@ int rpm_lmac_internal_loopback(void *rpmd, int lmac_id, bool enable)
 	u64 cfg;
 
 	if (!is_lmac_valid(rpm, lmac_id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	lmac = lmac_pdata(lmac_id, rpm);
 	if (lmac->lmac_type == LMAC_MODE_QSGMII ||
 	    lmac->lmac_type == LMAC_MODE_SGMII) {
-		dev_err(&rpm->pdev->dev, "loopback not supported for LPC mode\n");
+		dev_err(&rpm->pdev->dev, "loopback analt supported for LPC mode\n");
 		return 0;
 	}
 
@@ -615,7 +615,7 @@ int rpm_lmac_pfc_config(void *rpmd, int lmac_id, u8 tx_pause, u8 rx_pause, u16 p
 	rpm_t *rpm = rpmd;
 
 	if (!is_lmac_valid(rpm, lmac_id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pfc_class_mask_cfg = is_dev_rpm2(rpm) ? RPM2_CMRX_PRT_CBFC_CTL :
 						RPMX_CMRX_PRT_CBFC_CTL;
@@ -626,10 +626,10 @@ int rpm_lmac_pfc_config(void *rpmd, int lmac_id, u8 tx_pause, u8 rx_pause, u16 p
 
 	if (rx_pause) {
 		cfg &= ~(RPMX_MTI_MAC100X_COMMAND_CONFIG_RX_P_DISABLE |
-			 RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGNORE);
+			 RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGANALRE);
 	} else {
 		cfg |= (RPMX_MTI_MAC100X_COMMAND_CONFIG_RX_P_DISABLE |
-			RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGNORE);
+			RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGANALRE);
 	}
 
 	if (tx_pause) {
@@ -659,7 +659,7 @@ int  rpm_lmac_get_pfc_frm_cfg(void *rpmd, int lmac_id, u8 *tx_pause, u8 *rx_paus
 	u64 cfg;
 
 	if (!is_lmac_valid(rpm, lmac_id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
 	if (cfg & RPMX_MTI_MAC100X_COMMAND_CONFIG_PFC_MODE) {
@@ -677,9 +677,9 @@ int rpm_get_fec_stats(void *rpmd, int lmac_id, struct cgx_fec_stats_rsp *rsp)
 	u64 cfg;
 
 	if (!is_lmac_valid(rpm, lmac_id))
-		return -ENODEV;
+		return -EANALDEV;
 
-	if (rpm->lmac_idmap[lmac_id]->link_info.fec == OTX2_FEC_NONE)
+	if (rpm->lmac_idmap[lmac_id]->link_info.fec == OTX2_FEC_ANALNE)
 		return 0;
 
 	if (rpm->lmac_idmap[lmac_id]->link_info.fec == OTX2_FEC_BASER) {
@@ -732,7 +732,7 @@ int rpm_lmac_reset(void *rpmd, int lmac_id, u8 pf_req_flr)
 	rpm_t *rpm = rpmd;
 
 	if (!is_lmac_valid(rpm, lmac_id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Resetting PFC related CSRs */
 	rx_logl_xon = is_dev_rpm2(rpm) ? RPM2_CMRX_RX_LOGL_XON :

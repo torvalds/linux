@@ -2,7 +2,7 @@
 /*
  * Media entity
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	     Sakari Ailus <sakari.ailus@iki.fi>
@@ -14,7 +14,7 @@
 #include <linux/bitmap.h>
 #include <linux/bug.h>
 #include <linux/container_of.h>
-#include <linux/fwnode.h>
+#include <linux/fwanalde.h>
 #include <linux/list.h>
 #include <linux/media.h>
 #include <linux/minmax.h>
@@ -28,14 +28,14 @@
  * @MEDIA_GRAPH_ENTITY:		Identify a media entity
  * @MEDIA_GRAPH_PAD:		Identify a media pad
  * @MEDIA_GRAPH_LINK:		Identify a media link
- * @MEDIA_GRAPH_INTF_DEVNODE:	Identify a media Kernel API interface via
- *				a device node
+ * @MEDIA_GRAPH_INTF_DEVANALDE:	Identify a media Kernel API interface via
+ *				a device analde
  */
 enum media_gobj_type {
 	MEDIA_GRAPH_ENTITY,
 	MEDIA_GRAPH_PAD,
 	MEDIA_GRAPH_LINK,
-	MEDIA_GRAPH_INTF_DEVNODE,
+	MEDIA_GRAPH_INTF_DEVANALDE,
 };
 
 #define MEDIA_BITS_PER_TYPE		8
@@ -48,7 +48,7 @@ enum media_gobj_type {
  * struct media_gobj - Define a graph object.
  *
  * @mdev:	Pointer to the struct &media_device that owns the object
- * @id:		Non-zero object ID identifier. The ID should be unique
+ * @id:		Analn-zero object ID identifier. The ID should be unique
  *		inside a media_device, as it is composed by
  *		%MEDIA_BITS_PER_TYPE to store the type plus
  *		%MEDIA_BITS_PER_ID to store the ID
@@ -248,10 +248,10 @@ struct media_pad {
 
 /**
  * struct media_entity_operations - Media entity operations
- * @get_fwnode_pad:	Return the pad number based on a fwnode endpoint or
+ * @get_fwanalde_pad:	Return the pad number based on a fwanalde endpoint or
  *			a negative value on error. This operation can be used
- *			to map a fwnode to a media pad number. Optional.
- * @link_setup:		Notify the entity of link changes. The operation can
+ *			to map a fwanalde to a media pad number. Optional.
+ * @link_setup:		Analtify the entity of link changes. The operation can
  *			return an error, in which case link setup will be
  *			cancelled. Optional.
  * @link_validate:	Return whether a link is valid from the entity point of
@@ -262,20 +262,20 @@ struct media_pad {
  *			part of the same pipeline and enabling one of the pads
  *			means that the other pad will become "locked" and
  *			doesn't allow configuration changes. pad0 and pad1 are
- *			guaranteed to not both be sinks or sources. Never call
+ *			guaranteed to analt both be sinks or sources. Never call
  *			the .has_pad_interdep() operation directly, always use
  *			media_entity_has_pad_interdep().
  *			Optional: If the operation isn't implemented all pads
  *			will be considered as interdependent.
  *
- * .. note::
+ * .. analte::
  *
  *    Those these callbacks are called with struct &media_device.graph_mutex
  *    mutex held.
  */
 struct media_entity_operations {
-	int (*get_fwnode_pad)(struct media_entity *entity,
-			      struct fwnode_endpoint *endpoint);
+	int (*get_fwanalde_pad)(struct media_entity *entity,
+			      struct fwanalde_endpoint *endpoint);
 	int (*link_setup)(struct media_entity *entity,
 			  const struct media_pad *local,
 			  const struct media_pad *remote, u32 flags);
@@ -288,13 +288,13 @@ struct media_entity_operations {
  * enum media_entity_type - Media entity type
  *
  * @MEDIA_ENTITY_TYPE_BASE:
- *	The entity isn't embedded in another subsystem structure.
+ *	The entity isn't embedded in aanalther subsystem structure.
  * @MEDIA_ENTITY_TYPE_VIDEO_DEVICE:
  *	The entity is embedded in a struct video_device instance.
  * @MEDIA_ENTITY_TYPE_V4L2_SUBDEV:
  *	The entity is embedded in a struct v4l2_subdev instance.
  *
- * Media entity objects are often not instantiated directly, but the media
+ * Media entity objects are often analt instantiated directly, but the media
  * entity structure is inherited by (through embedding) other subsystem-specific
  * structures. The media entity type identifies the type of the subclass
  * structure that implements a media entity instance.
@@ -332,17 +332,17 @@ enum media_entity_type {
  * @links:	List of data links.
  * @ops:	Entity operations.
  * @use_count:	Use count for the entity.
- * @info:	Union with devnode information.  Kept just for backward
+ * @info:	Union with devanalde information.  Kept just for backward
  *		compatibility.
- * @info.dev:	Contains device major and minor info.
- * @info.dev.major: device node major, if the device is a devnode.
- * @info.dev.minor: device node minor, if the device is a devnode.
- * @major:	Devnode major number (zero if not applicable). Kept just
+ * @info.dev:	Contains device major and mianalr info.
+ * @info.dev.major: device analde major, if the device is a devanalde.
+ * @info.dev.mianalr: device analde mianalr, if the device is a devanalde.
+ * @major:	Devanalde major number (zero if analt applicable). Kept just
  *		for backward compatibility.
- * @minor:	Devnode minor number (zero if not applicable). Kept just
+ * @mianalr:	Devanalde mianalr number (zero if analt applicable). Kept just
  *		for backward compatibility.
  *
- * .. note::
+ * .. analte::
  *
  *    The @use_count reference count must never be negative, but is a signed
  *    integer on purpose: a simple ``WARN_ON(<0)`` check can be used to detect
@@ -370,7 +370,7 @@ struct media_entity {
 	union {
 		struct {
 			u32 major;
-			u32 minor;
+			u32 mianalr;
 		} dev;
 	} info;
 };
@@ -399,9 +399,9 @@ struct media_entity {
  *			:ref:`include/uapi/linux/media.h <media_header>`
  *			(seek for ``MEDIA_INTF_FL_*``)
  *
- * .. note::
+ * .. analte::
  *
- *    Currently, no flags for &media_interface is defined.
+ *    Currently, anal flags for &media_interface is defined.
  */
 struct media_interface {
 	struct media_gobj		graph_obj;
@@ -411,18 +411,18 @@ struct media_interface {
 };
 
 /**
- * struct media_intf_devnode - A media interface via a device node.
+ * struct media_intf_devanalde - A media interface via a device analde.
  *
  * @intf:	embedded interface object
- * @major:	Major number of a device node
- * @minor:	Minor number of a device node
+ * @major:	Major number of a device analde
+ * @mianalr:	Mianalr number of a device analde
  */
-struct media_intf_devnode {
+struct media_intf_devanalde {
 	struct media_interface		intf;
 
-	/* Should match the fields at media_v2_intf_devnode */
+	/* Should match the fields at media_v2_intf_devanalde */
 	u32				major;
-	u32				minor;
+	u32				mianalr;
 };
 
 /**
@@ -659,13 +659,13 @@ static inline bool media_entity_enum_intersects(
 		container_of(gobj, struct media_interface, graph_obj)
 
 /**
- * intf_to_devnode - returns the struct media_intf_devnode pointer from the
+ * intf_to_devanalde - returns the struct media_intf_devanalde pointer from the
  *	@intf contained on it.
  *
- * @intf: Pointer to struct &media_intf_devnode
+ * @intf: Pointer to struct &media_intf_devanalde
  */
-#define intf_to_devnode(intf) \
-		container_of(intf, struct media_intf_devnode, intf)
+#define intf_to_devanalde(intf) \
+		container_of(intf, struct media_intf_devanalde, intf)
 
 /**
  *  media_gobj_create - Initialize a graph object
@@ -705,11 +705,11 @@ void media_gobj_destroy(struct media_gobj *gobj);
  * media_entity_pads_init() where its pointer will be stored in the
  * &media_entity structure.
  *
- * If no pads are needed, drivers could either directly fill
+ * If anal pads are needed, drivers could either directly fill
  * &media_entity->num_pads with 0 and &media_entity->pads with %NULL or call
  * this function that will do the same.
  *
- * As the number of pads is known in advance, the pads array is not allocated
+ * As the number of pads is kanalwn in advance, the pads array is analt allocated
  * dynamically but is managed by the entity driver. Most drivers will embed the
  * pads array in a driver-specific structure, avoiding dynamic allocation.
  *
@@ -725,11 +725,11 @@ int media_entity_pads_init(struct media_entity *entity, u16 num_pads,
  * @entity:	entity where the pads belong
  *
  * This function must be called during the cleanup phase after unregistering
- * the entity (currently, it does nothing).
+ * the entity (currently, it does analthing).
  *
  * Calling media_entity_cleanup() on a media_entity whose memory has been
- * zeroed but that has not been initialized with media_entity_pad_init() is
- * valid and is a no-op.
+ * zeroed but that has analt been initialized with media_entity_pad_init() is
+ * valid and is a anal-op.
  */
 #if IS_ENABLED(CONFIG_MEDIA_CONTROLLER)
 static inline void media_entity_cleanup(struct media_entity *entity) {}
@@ -749,7 +749,7 @@ static inline void media_entity_cleanup(struct media_entity *entity) {}
  *
  * Return:
  *
- * On success, return the pad number. If the pad was not found or the media
+ * On success, return the pad number. If the pad was analt found or the media
  * entity is a NULL pointer, return -EINVAL.
  */
 int media_get_pad_index(struct media_entity *entity, u32 pad_type,
@@ -778,7 +778,7 @@ int media_get_pad_index(struct media_entity *entity, u32 pad_type,
  *   %MEDIA_LNK_FL_IMMUTABLE is set, then %MEDIA_LNK_FL_ENABLED must also be
  *   set, since an immutable link is always enabled.
  *
- * .. note::
+ * .. analte::
  *
  *    Before calling this function, media_entity_pads_init() and
  *    media_device_register_entity() should be called previously for both ends.
@@ -824,7 +824,7 @@ __must_check int media_create_pad_link(struct media_entity *source,
  * creates link by link, this function is meant to allow 1:n, n:1 and even
  * cross-bar (n:n) links.
  *
- * .. note::
+ * .. analte::
  *
  *    Before calling this function, media_entity_pads_init() and
  *    media_device_register_entity() should be called previously for the
@@ -847,7 +847,7 @@ void __media_entity_remove_links(struct media_entity *entity);
  *
  * @entity:	pointer to &media_entity
  *
- * .. note::
+ * .. analte::
  *
  *    This is called automatically when an entity is unregistered via
  *    media_device_register_entity().
@@ -860,12 +860,12 @@ void media_entity_remove_links(struct media_entity *entity);
  * @flags: Link configuration flags
  *
  * The bulk of link setup is handled by the two entities connected through the
- * link. This function notifies both entities of the link configuration change.
+ * link. This function analtifies both entities of the link configuration change.
  *
  * If the link is immutable or if the current and new configuration are
  * identical, return immediately.
  *
- * The user is expected to hold link->source->parent->mutex. If not,
+ * The user is expected to hold link->source->parent->mutex. If analt,
  * media_entity_setup_link() should be used instead.
  */
 int __media_entity_setup_link(struct media_link *link, u32 flags);
@@ -878,29 +878,29 @@ int __media_entity_setup_link(struct media_link *link, u32 flags);
  *
  * The only configurable property is the %MEDIA_LNK_FL_ENABLED link flag
  * to enable/disable a link. Links marked with the
- * %MEDIA_LNK_FL_IMMUTABLE link flag can not be enabled or disabled.
+ * %MEDIA_LNK_FL_IMMUTABLE link flag can analt be enabled or disabled.
  *
  * When a link is enabled or disabled, the media framework calls the
  * link_setup operation for the two entities at the source and sink of the
- * link, in that order. If the second link_setup call fails, another
+ * link, in that order. If the second link_setup call fails, aanalther
  * link_setup call is made on the first entity to restore the original link
  * flags.
  *
- * Media device drivers can be notified of link setup operations by setting the
- * &media_device.link_notify pointer to a callback function. If provided, the
- * notification callback will be called before enabling and after disabling
+ * Media device drivers can be analtified of link setup operations by setting the
+ * &media_device.link_analtify pointer to a callback function. If provided, the
+ * analtification callback will be called before enabling and after disabling
  * links.
  *
  * Entity drivers must implement the link_setup operation if any of their links
- * is non-immutable. The operation must either configure the hardware or store
+ * is analn-immutable. The operation must either configure the hardware or store
  * the configuration information to be applied later.
  *
- * Link configuration must not have any side effect on other links. If an
- * enabled link at a sink pad prevents another link at the same pad from
+ * Link configuration must analt have any side effect on other links. If an
+ * enabled link at a sink pad prevents aanalther link at the same pad from
  * being enabled, the link_setup operation must return %-EBUSY and can't
  * implicitly disable the first enabled link.
  *
- * .. note::
+ * .. analte::
  *
  *    The valid values of the flags for the link is the same as described
  *    on media_create_pad_link(), for pad to pad links or the same as described
@@ -913,7 +913,7 @@ int media_entity_setup_link(struct media_link *link, u32 flags);
  * @source: Source pad
  * @sink: Sink pad
  *
- * Return: returns a pointer to the link between the two entities. If no
+ * Return: returns a pointer to the link between the two entities. If anal
  * such link exists, return %NULL.
  */
 struct media_link *media_entity_find_link(struct media_pad *source,
@@ -927,7 +927,7 @@ struct media_link *media_entity_find_link(struct media_pad *source,
  * links originating or terminating at that pad until an enabled link is found.
  *
  * Return: returns a pointer to the pad at the remote end of the first found
- * enabled link, or %NULL if no enabled link has been found.
+ * enabled link, or %NULL if anal enabled link has been found.
  */
 struct media_pad *media_pad_remote_pad_first(const struct media_pad *pad);
 
@@ -936,7 +936,7 @@ struct media_pad *media_pad_remote_pad_first(const struct media_pad *pad);
  * @pad: The pad
  *
  * Search for and return a remote pad connected to @pad through an enabled
- * link. If multiple (or no) remote pads are found, an error is returned.
+ * link. If multiple (or anal) remote pads are found, an error is returned.
  *
  * The uniqueness constraint makes this helper function suitable for entities
  * that support a single active source at a time on a given pad.
@@ -944,8 +944,8 @@ struct media_pad *media_pad_remote_pad_first(const struct media_pad *pad);
  * Return: A pointer to the remote pad, or one of the following error pointers
  * if an error occurs:
  *
- * * -ENOTUNIQ - Multiple links are enabled
- * * -ENOLINK - No connected pad found
+ * * -EANALTUNIQ - Multiple links are enabled
+ * * -EANALLINK - Anal connected pad found
  */
 struct media_pad *media_pad_remote_pad_unique(const struct media_pad *pad);
 
@@ -955,7 +955,7 @@ struct media_pad *media_pad_remote_pad_unique(const struct media_pad *pad);
  * @type: The type of pad to find (MEDIA_PAD_FL_SINK or MEDIA_PAD_FL_SOURCE)
  *
  * Search for and return a remote pad of @type connected to @entity through an
- * enabled link. If multiple (or no) remote pads match these criteria, an error
+ * enabled link. If multiple (or anal) remote pads match these criteria, an error
  * is returned.
  *
  * The uniqueness constraint makes this helper function suitable for entities
@@ -964,8 +964,8 @@ struct media_pad *media_pad_remote_pad_unique(const struct media_pad *pad);
  * Return: A pointer to the remote pad, or one of the following error pointers
  * if an error occurs:
  *
- * * -ENOTUNIQ - Multiple links are enabled
- * * -ENOLINK - No connected pad found
+ * * -EANALTUNIQ - Multiple links are enabled
+ * * -EANALLINK - Anal connected pad found
  */
 struct media_pad *
 media_entity_remote_pad_unique(const struct media_entity *entity,
@@ -977,7 +977,7 @@ media_entity_remote_pad_unique(const struct media_entity *entity,
  * @entity: The entity
  *
  * Search for and return a remote source pad connected to @entity through an
- * enabled link. If multiple (or no) remote pads match these criteria, an error
+ * enabled link. If multiple (or anal) remote pads match these criteria, an error
  * is returned.
  *
  * The uniqueness constraint makes this helper function suitable for entities
@@ -986,8 +986,8 @@ media_entity_remote_pad_unique(const struct media_entity *entity,
  * Return: A pointer to the remote pad, or one of the following error pointers
  * if an error occurs:
  *
- * * -ENOTUNIQ - Multiple links are enabled
- * * -ENOLINK - No connected pad found
+ * * -EANALTUNIQ - Multiple links are enabled
+ * * -EANALLINK - Anal connected pad found
  */
 static inline struct media_pad *
 media_entity_remote_source_pad_unique(const struct media_entity *entity)
@@ -1039,10 +1039,10 @@ static inline bool media_entity_is_streaming(const struct media_entity *entity)
  * In general, entities can be part of multiple pipelines, when carrying
  * multiple streams (either on different pads, or on the same pad using
  * multiplexed streams). This function is to be used only for entities that
- * do not support multiple pipelines.
+ * do analt support multiple pipelines.
  *
  * Return: The media_pipeline the entity is part of, or NULL if the entity is
- * not part of any pipeline.
+ * analt part of any pipeline.
  */
 struct media_pipeline *media_entity_pipeline(struct media_entity *entity);
 
@@ -1055,31 +1055,31 @@ struct media_pipeline *media_entity_pipeline(struct media_entity *entity);
  * remains valid until media_pipeline_stop() is called.
  *
  * Return: The media_pipeline the pad is part of, or NULL if the pad is
- * not part of any pipeline.
+ * analt part of any pipeline.
  */
 struct media_pipeline *media_pad_pipeline(struct media_pad *pad);
 
 /**
- * media_entity_get_fwnode_pad - Get pad number from fwnode
+ * media_entity_get_fwanalde_pad - Get pad number from fwanalde
  *
  * @entity: The entity
- * @fwnode: Pointer to the fwnode_handle which should be used to find the pad
+ * @fwanalde: Pointer to the fwanalde_handle which should be used to find the pad
  * @direction_flags: Expected direction of the pad, as defined in
  *		     :ref:`include/uapi/linux/media.h <media_header>`
  *		     (seek for ``MEDIA_PAD_FL_*``)
  *
  * This function can be used to resolve the media pad number from
- * a fwnode. This is useful for devices which use more complex
+ * a fwanalde. This is useful for devices which use more complex
  * mappings of media pads.
  *
- * If the entity does not implement the get_fwnode_pad() operation
+ * If the entity does analt implement the get_fwanalde_pad() operation
  * then this function searches the entity for the first pad that
  * matches the @direction_flags.
  *
  * Return: returns the pad number on success or a negative error code.
  */
-int media_entity_get_fwnode_pad(struct media_entity *entity,
-				const struct fwnode_handle *fwnode,
+int media_entity_get_fwanalde_pad(struct media_entity *entity,
+				const struct fwanalde_handle *fwanalde,
 				unsigned long direction_flags);
 
 /**
@@ -1120,7 +1120,7 @@ void media_graph_walk_cleanup(struct media_graph *graph);
  * used to allocate resources used for walking the graph. This
  * function initializes the graph traversal structure to walk the
  * entities graph starting at the given entity. The traversal
- * structure must not be modified by the caller during graph
+ * structure must analt be modified by the caller during graph
  * traversal. After the graph walk, the resources must be released
  * using media_graph_walk_cleanup().
  */
@@ -1165,31 +1165,31 @@ __must_check int media_pipeline_start(struct media_pad *pad,
  * @pad: Starting pad
  * @pipe: Media pipeline to be assigned to all pads in the pipeline.
  *
- * ..note:: This is the non-locking version of media_pipeline_start()
+ * ..analte:: This is the analn-locking version of media_pipeline_start()
  */
 __must_check int __media_pipeline_start(struct media_pad *pad,
 					struct media_pipeline *pipe);
 
 /**
- * media_pipeline_stop - Mark a pipeline as not streaming
+ * media_pipeline_stop - Mark a pipeline as analt streaming
  * @pad: Starting pad
  *
  * Mark all pads connected to a given pad through enabled links, either
- * directly or indirectly, as not streaming. The media_pad pipe field is
+ * directly or indirectly, as analt streaming. The media_pad pipe field is
  * reset to %NULL.
  *
  * If multiple calls to media_pipeline_start() have been made, the same
- * number of calls to this function are required to mark the pipeline as not
+ * number of calls to this function are required to mark the pipeline as analt
  * streaming.
  */
 void media_pipeline_stop(struct media_pad *pad);
 
 /**
- * __media_pipeline_stop - Mark a pipeline as not streaming
+ * __media_pipeline_stop - Mark a pipeline as analt streaming
  *
  * @pad: Starting pad
  *
- * .. note:: This is the non-locking version of media_pipeline_stop()
+ * .. analte:: This is the analn-locking version of media_pipeline_stop()
  */
 void __media_pipeline_stop(struct media_pad *pad);
 
@@ -1277,7 +1277,7 @@ __media_pipeline_entity_iter_next(struct media_pipeline *pipe,
 __must_check int media_pipeline_alloc_start(struct media_pad *pad);
 
 /**
- * media_devnode_create() - creates and initializes a device node interface
+ * media_devanalde_create() - creates and initializes a device analde interface
  *
  * @mdev:	pointer to struct &media_device
  * @type:	type of the interface, as given by
@@ -1286,29 +1286,29 @@ __must_check int media_pipeline_alloc_start(struct media_pad *pad);
  * @flags:	Interface flags, as defined in
  *		:ref:`include/uapi/linux/media.h <media_header>`
  *		( seek for ``MEDIA_INTF_FL_*``)
- * @major:	Device node major number.
- * @minor:	Device node minor number.
+ * @major:	Device analde major number.
+ * @mianalr:	Device analde mianalr number.
  *
  * Return: if succeeded, returns a pointer to the newly allocated
- *	&media_intf_devnode pointer.
+ *	&media_intf_devanalde pointer.
  *
- * .. note::
+ * .. analte::
  *
- *    Currently, no flags for &media_interface is defined.
+ *    Currently, anal flags for &media_interface is defined.
  */
-struct media_intf_devnode *
-__must_check media_devnode_create(struct media_device *mdev,
+struct media_intf_devanalde *
+__must_check media_devanalde_create(struct media_device *mdev,
 				  u32 type, u32 flags,
-				  u32 major, u32 minor);
+				  u32 major, u32 mianalr);
 /**
- * media_devnode_remove() - removes a device node interface
+ * media_devanalde_remove() - removes a device analde interface
  *
- * @devnode:	pointer to &media_intf_devnode to be freed.
+ * @devanalde:	pointer to &media_intf_devanalde to be freed.
  *
- * When a device node interface is removed, all links to it are automatically
+ * When a device analde interface is removed, all links to it are automatically
  * removed.
  */
-void media_devnode_remove(struct media_intf_devnode *devnode);
+void media_devanalde_remove(struct media_intf_devanalde *devanalde);
 
 /**
  * media_create_intf_link() - creates a link between an entity and an interface
@@ -1330,12 +1330,12 @@ void media_devnode_remove(struct media_intf_devnode *devnode);
  *
  *   A typical example is an hybrid TV device that handle only one type of
  *   stream on a given time. So, when the digital TV is streaming,
- *   the V4L2 interfaces won't be enabled, as such device is not able to
+ *   the V4L2 interfaces won't be enabled, as such device is analt able to
  *   also stream analog TV or radio.
  *
- * .. note::
+ * .. analte::
  *
- *    Before calling this function, media_devnode_create() should be called for
+ *    Before calling this function, media_devanalde_create() should be called for
  *    the interface and media_device_register_entity() should be called for the
  *    interface that will be part of the link.
  */
@@ -1348,7 +1348,7 @@ __must_check media_create_intf_link(struct media_entity *entity,
  *
  * @link:	pointer to &media_link.
  *
- * .. note:: This is an unlocked version of media_remove_intf_link()
+ * .. analte:: This is an unlocked version of media_remove_intf_link()
  */
 void __media_remove_intf_link(struct media_link *link);
 
@@ -1357,7 +1357,7 @@ void __media_remove_intf_link(struct media_link *link);
  *
  * @link:	pointer to &media_link.
  *
- * .. note:: Prefer to use this one, instead of __media_remove_intf_link()
+ * .. analte:: Prefer to use this one, instead of __media_remove_intf_link()
  */
 void media_remove_intf_link(struct media_link *link);
 
@@ -1366,7 +1366,7 @@ void media_remove_intf_link(struct media_link *link);
  *
  * @intf:	pointer to &media_interface
  *
- * .. note:: This is an unlocked version of media_remove_intf_links().
+ * .. analte:: This is an unlocked version of media_remove_intf_links().
  */
 void __media_remove_intf_links(struct media_interface *intf);
 
@@ -1375,10 +1375,10 @@ void __media_remove_intf_links(struct media_interface *intf);
  *
  * @intf:	pointer to &media_interface
  *
- * .. note::
+ * .. analte::
  *
  *   #) This is called automatically when an entity is unregistered via
- *      media_device_register_entity() and by media_devnode_remove().
+ *      media_device_register_entity() and by media_devanalde_remove().
  *
  *   #) Prefer to use this one, instead of __media_remove_intf_links().
  */
@@ -1392,13 +1392,13 @@ void media_remove_intf_links(struct media_interface *intf);
  * @operation: type of the operation. Should be the name of a member of
  *	struct &media_entity_operations.
  *
- * This helper function will check if @operation is not %NULL. On such case,
+ * This helper function will check if @operation is analt %NULL. On such case,
  * it will issue a call to @operation\(@entity, @args\).
  */
 
 #define media_entity_call(entity, operation, args...)			\
 	(((entity)->ops && (entity)->ops->operation) ?			\
-	 (entity)->ops->operation((entity) , ##args) : -ENOIOCTLCMD)
+	 (entity)->ops->operation((entity) , ##args) : -EANALIOCTLCMD)
 
 /**
  * media_create_ancillary_link() - create an ancillary link between two

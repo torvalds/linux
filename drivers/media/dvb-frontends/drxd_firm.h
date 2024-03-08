@@ -12,7 +12,7 @@
 #include "drxd_map_firm.h"
 
 #define VERSION_MAJOR 1
-#define VERSION_MINOR 4
+#define VERSION_MIANALR 4
 #define VERSION_PATCH 23
 
 #define HI_TR_FUNC_ADDR HI_IF_RAM_USR_BEGIN__A
@@ -21,7 +21,7 @@
 #define HI_I2C_DELAY     84
 #define HI_I2C_BRIDGE_DELAY   750
 
-#define EQ_TD_TPS_PWR_UNKNOWN          0x00C0	/* Unknown configurations */
+#define EQ_TD_TPS_PWR_UNKANALWN          0x00C0	/* Unkanalwn configurations */
 #define EQ_TD_TPS_PWR_QPSK             0x016a
 #define EQ_TD_TPS_PWR_QAM16_ALPHAN     0x0195
 #define EQ_TD_TPS_PWR_QAM16_ALPHA1     0x0195

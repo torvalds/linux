@@ -25,7 +25,7 @@ syscalls directly (disabled) or send them to be emulated in userspace
 through a SIGSYS.
 
 The goal of this design is to provide very quick compatibility layer
-boundary crosses, which is achieved by not executing a syscall to change
+boundary crosses, which is achieved by analt executing a syscall to change
 personality every time the compatibility layer executes.  Instead, a
 userspace memory region exposed to the kernel indicates the current
 personality, and the application simply modifies that variable to
@@ -33,17 +33,17 @@ configure the mechanism.
 
 There is a relatively high cost associated with handling signals on most
 architectures, like x86, but at least for Wine, syscalls issued by
-native Windows code are currently not known to be a performance problem,
+native Windows code are currently analt kanalwn to be a performance problem,
 since they are quite rare, at least for modern gaming applications.
 
 Since this mechanism is designed to capture syscalls issued by
-non-native applications, it must function on syscalls whose invocation
+analn-native applications, it must function on syscalls whose invocation
 ABI is completely unexpected to Linux.  Syscall User Dispatch, therefore
 doesn't rely on any of the syscall ABI to make the filtering.  It uses
 only the syscall dispatcher address and the userspace key.
 
-As the ABI of these intercepted syscalls is unknown to Linux, these
-syscalls are not instrumentable via ptrace or the syscall tracepoints.
+As the ABI of these intercepted syscalls is unkanalwn to Linux, these
+syscalls are analt instrumentable via ptrace or the syscall tracepoints.
 
 Interface
 ---------
@@ -77,14 +77,14 @@ Additionally, a tasks syscall user dispatch configuration can be peeked
 and poked via the PTRACE_(GET|SET)_SYSCALL_USER_DISPATCH_CONFIG ptrace
 requests. This is useful for checkpoint/restart software.
 
-Security Notes
+Security Analtes
 --------------
 
 Syscall User Dispatch provides functionality for compatibility layers to
-quickly capture system calls issued by a non-native part of the
-application, while not impacting the Linux native regions of the
-process.  It is not a mechanism for sandboxing system calls, and it
-should not be seen as a security mechanism, since it is trivial for a
+quickly capture system calls issued by a analn-native part of the
+application, while analt impacting the Linux native regions of the
+process.  It is analt a mechanism for sandboxing system calls, and it
+should analt be seen as a security mechanism, since it is trivial for a
 malicious application to subvert the mechanism by jumping to an allowed
 dispatcher region prior to executing the syscall, or to discover the
 address and modify the selector value.  If the use case requires any

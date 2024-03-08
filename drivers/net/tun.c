@@ -19,7 +19,7 @@
  *    Fixes in packet dropping, queue length setting and queue wakeup.
  *    Increased default tx queue length.
  *    Added ethtool API.
- *    Minor cleanups
+ *    Mianalr cleanups
  *
  *  Daniel Podlejski <underley@underley.eu.org>
  *    Modifications for 2.3.99-pre5 kernel.
@@ -33,7 +33,7 @@
 #define DRV_COPYRIGHT	"(C) 1999-2004 Max Krasnyansky <maxk@qualcomm.com>"
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
 #include <linux/major.h>
@@ -96,7 +96,7 @@ static void tun_default_link_ksettings(struct net_device *dev,
 #define TUN_VNET_LE     0x80000000
 #define TUN_VNET_BE     0x40000000
 
-#define TUN_FEATURES (IFF_NO_PI | IFF_ONE_QUEUE | IFF_VNET_HDR | \
+#define TUN_FEATURES (IFF_ANAL_PI | IFF_ONE_QUEUE | IFF_VNET_HDR | \
 		      IFF_MULTI_QUEUE | IFF_NAPI | IFF_NAPI_FRAGS)
 
 #define GOODCOPY_LEN 128
@@ -119,7 +119,7 @@ struct tap_filter {
  * also contains all socket related structures (except sock_fprog and tap_filter)
  * to serve as one transmit queue for tuntap device. The sock_fprog and
  * tap_filter were kept in tun_struct since they were used for filtering for the
- * netdevice not for a specific queue (at least I didn't see the requirement for
+ * netdevice analt for a specific queue (at least I didn't see the requirement for
  * this).
  *
  * RCU usage:
@@ -153,7 +153,7 @@ struct tun_page {
 };
 
 struct tun_flow_entry {
-	struct hlist_node hash_link;
+	struct hlist_analde hash_link;
 	struct rcu_head rcu;
 	struct tun_struct *tun;
 
@@ -413,7 +413,7 @@ static void tun_flow_flush(struct tun_struct *tun)
 	spin_lock_bh(&tun->lock);
 	for (i = 0; i < TUN_NUM_FLOW_ENTRIES; i++) {
 		struct tun_flow_entry *e;
-		struct hlist_node *n;
+		struct hlist_analde *n;
 
 		hlist_for_each_entry_safe(e, n, &tun->flows[i], hash_link)
 			tun_flow_delete(tun, e);
@@ -428,7 +428,7 @@ static void tun_flow_delete_by_queue(struct tun_struct *tun, u16 queue_index)
 	spin_lock_bh(&tun->lock);
 	for (i = 0; i < TUN_NUM_FLOW_ENTRIES; i++) {
 		struct tun_flow_entry *e;
-		struct hlist_node *n;
+		struct hlist_analde *n;
 
 		hlist_for_each_entry_safe(e, n, &tun->flows[i], hash_link) {
 			if (e->queue_index == queue_index)
@@ -449,7 +449,7 @@ static void tun_flow_cleanup(struct timer_list *t)
 	spin_lock(&tun->lock);
 	for (i = 0; i < TUN_NUM_FLOW_ENTRIES; i++) {
 		struct tun_flow_entry *e;
-		struct hlist_node *n;
+		struct hlist_analde *n;
 
 		hlist_for_each_entry_safe(e, n, &tun->flows[i], hash_link) {
 			unsigned long this_timer;
@@ -515,10 +515,10 @@ static inline void tun_flow_save_rps_rxhash(struct tun_flow_entry *e, u32 hash)
 }
 
 /* We try to identify a flow through its rxhash. The reason that
- * we do not check rxq no. is because some cards(e.g 82599), chooses
+ * we do analt check rxq anal. is because some cards(e.g 82599), chooses
  * the rxq based on the txq where the last packet of the flow comes. As
  * the userspace application move between processors, we may get a
- * different rxq no. here.
+ * different rxq anal. here.
  */
 static u16 tun_automq_select_queue(struct tun_struct *tun, struct sk_buff *skb)
 {
@@ -574,7 +574,7 @@ static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb,
 	return ret;
 }
 
-static inline bool tun_not_capable(struct tun_struct *tun)
+static inline bool tun_analt_capable(struct tun_struct *tun)
 {
 	const struct cred *cred = current_cred();
 	struct net *net = dev_net(tun->dev);
@@ -790,7 +790,7 @@ static int tun_attach(struct tun_struct *tun, struct file *file,
 	if (!tfile->detached &&
 	    ptr_ring_resize(&tfile->tx_ring, dev->tx_queue_len,
 			    GFP_KERNEL, tun_ptr_free)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -829,7 +829,7 @@ static int tun_attach(struct tun_struct *tun, struct file *file,
 	if (rtnl_dereference(tun->xdp_prog))
 		sock_set_flag(&tfile->sk, SOCK_XDP);
 
-	/* device is allowed to go away first, so no need to hold extra
+	/* device is allowed to go away first, so anal need to hold extra
 	 * refcnt.
 	 */
 
@@ -914,7 +914,7 @@ static int update_filter(struct tap_filter *filter, void __user *arg)
 	memset(filter->mask, 0, sizeof(filter->mask));
 	for (; n < uf.count; n++) {
 		if (!is_multicast_ether_addr(addr[n].u)) {
-			err = 0; /* no filter */
+			err = 0; /* anal filter */
 			goto free_addr;
 		}
 		addr_hash_set(filter->mask, addr[n].u);
@@ -925,7 +925,7 @@ static int update_filter(struct tap_filter *filter, void __user *arg)
 	if ((uf.flags & TUN_FLT_ALLMULTI))
 		memset(filter->mask, ~0, sizeof(filter->mask));
 
-	/* Now enable the filter */
+	/* Analw enable the filter */
 	wmb();
 	filter->count = nexact;
 
@@ -939,7 +939,7 @@ free_addr:
 /* Returns: 0 - drop, !=0 - accept */
 static int run_filter(struct tap_filter *filter, const struct sk_buff *skb)
 {
-	/* Cannot use eth_hdr(skb) here because skb_mac_hdr() is incorrect
+	/* Cananalt use eth_hdr(skb) here because skb_mac_hdr() is incorrect
 	 * at this point. */
 	struct ethhdr *eh = (struct ethhdr *) skb->data;
 	int i;
@@ -957,7 +957,7 @@ static int run_filter(struct tap_filter *filter, const struct sk_buff *skb)
 }
 
 /*
- * Checks whether the packet is accepted or not.
+ * Checks whether the packet is accepted or analt.
  * Returns: 0 - drop, !=0 - accept
  */
 static int check_filter(struct tap_filter *filter, const struct sk_buff *skb)
@@ -980,7 +980,7 @@ static int tun_net_init(struct net_device *dev)
 
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&tun->lock);
 
@@ -1041,7 +1041,7 @@ static void tun_automq_xmit(struct tun_struct *tun, struct sk_buff *skb)
 {
 #ifdef CONFIG_RPS
 	if (tun->numqueues == 1 && static_branch_unlikely(&rps_needed)) {
-		/* Select queue was not called for the skbuff, so we extract the
+		/* Select queue was analt called for the skbuff, so we extract the
 		 * RPS hash and save it into the flow_table here.
 		 */
 		struct tun_flow_entry *e;
@@ -1080,7 +1080,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	rcu_read_lock();
 	tfile = rcu_dereference(tun->tfiles[txq]);
 
-	/* Drop packet if interface is not attached */
+	/* Drop packet if interface is analt attached */
 	if (!tfile) {
 		drop_reason = SKB_DROP_REASON_DEV_READY;
 		goto drop;
@@ -1091,8 +1091,8 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	netif_info(tun, tx_queued, tun->dev, "%s %d\n", __func__, skb->len);
 
-	/* Drop if the filter does not like it.
-	 * This is a noop if the filter is disabled.
+	/* Drop if the filter does analt like it.
+	 * This is a analop if the filter is disabled.
 	 * Filter can be enabled only for the TAP devices. */
 	if (!check_filter(&tun->txflt, skb)) {
 		drop_reason = SKB_DROP_REASON_TAP_TXFILTER;
@@ -1112,7 +1112,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (pskb_trim(skb, len)) {
-		drop_reason = SKB_DROP_REASON_NOMEM;
+		drop_reason = SKB_DROP_REASON_ANALMEM;
 		goto drop;
 	}
 
@@ -1139,7 +1139,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	queue = netdev_get_tx_queue(dev, txq);
 	txq_trans_cond_update(queue);
 
-	/* Notify and wake up reader process */
+	/* Analtify and wake up reader process */
 	if (tfile->flags & TUN_FASYNC)
 		kill_fasync(&tfile->fasync, SIGIO, POLL_IN);
 	tfile->socket.sk->sk_data_ready(tfile->socket.sk);
@@ -1159,7 +1159,7 @@ static void tun_net_mclist(struct net_device *dev)
 {
 	/*
 	 * This callback is supposed to deal with mc filter in
-	 * _rx_ path and has nothing to do with the _tx_ path.
+	 * _rx_ path and has analthing to do with the _tx_ path.
 	 * In rx path we always accept everything userspace gives us.
 	 */
 }
@@ -1263,7 +1263,7 @@ static const struct net_device_ops tun_netdev_ops = {
 
 static void __tun_xdp_flush_tfile(struct tun_file *tfile)
 {
-	/* Notify and wake up reader process */
+	/* Analtify and wake up reader process */
 	if (tfile->flags & TUN_FASYNC)
 		kill_fasync(&tfile->fasync, SIGIO, POLL_IN);
 	tfile->socket.sk->sk_data_ready(tfile->socket.sk);
@@ -1389,8 +1389,8 @@ static void tun_net_initialize(struct net_device *dev)
 		dev->mtu = 1500;
 
 		/* Zero header length */
-		dev->type = ARPHRD_NONE;
-		dev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
+		dev->type = ARPHRD_ANALNE;
+		dev->flags = IFF_POINTOPOINT | IFF_ANALARP | IFF_MULTICAST;
 		break;
 
 	case IFF_TAP:
@@ -1402,7 +1402,7 @@ static void tun_net_initialize(struct net_device *dev)
 
 		eth_hw_addr_random(dev);
 
-		/* Currently tun does not support XDP, only tap does. */
+		/* Currently tun does analt support XDP, only tap does. */
 		dev->xdp_features = NETDEV_XDP_ACT_BASIC |
 				    NETDEV_XDP_ACT_REDIRECT |
 				    NETDEV_XDP_ACT_NDO_XMIT;
@@ -1439,17 +1439,17 @@ static __poll_t tun_chr_poll(struct file *file, poll_table *wait)
 	poll_wait(file, sk_sleep(sk), wait);
 
 	if (!ptr_ring_empty(&tfile->tx_ring))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
-	/* Make sure SOCKWQ_ASYNC_NOSPACE is set if not writable to
+	/* Make sure SOCKWQ_ASYNC_ANALSPACE is set if analt writable to
 	 * guarantee EPOLLOUT to be raised by either here or
-	 * tun_sock_write_space(). Then process could get notification
+	 * tun_sock_write_space(). Then process could get analtification
 	 * after it writes to a down device and meets -EIO.
 	 */
 	if (tun_sock_writeable(tun, tfile) ||
-	    (!test_and_set_bit(SOCKWQ_ASYNC_NOSPACE, &sk->sk_socket->flags) &&
+	    (!test_and_set_bit(SOCKWQ_ASYNC_ANALSPACE, &sk->sk_socket->flags) &&
 	     tun_sock_writeable(tun, tfile)))
-		mask |= EPOLLOUT | EPOLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRANALRM;
 
 	if (tun->dev->reg_state != NETREG_REGISTERED)
 		mask = EPOLLERR;
@@ -1475,7 +1475,7 @@ static struct sk_buff *tun_napi_alloc_frags(struct tun_file *tfile,
 	skb = napi_get_frags(&tfile->napi);
 	local_bh_enable();
 	if (!skb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	linear = iov_iter_single_seg_count(it);
 	err = __skb_grow(skb, linear);
@@ -1498,7 +1498,7 @@ static struct sk_buff *tun_napi_alloc_frags(struct tun_file *tfile,
 		}
 		frag = netdev_alloc_frag(fragsz);
 		if (!frag) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free;
 		}
 		page = virt_to_head_page(frag);
@@ -1517,7 +1517,7 @@ free:
  * linear is a hint as to how much to copy (usually headers). */
 static struct sk_buff *tun_alloc_skb(struct tun_file *tfile,
 				     size_t prepad, size_t len,
-				     size_t linear, int noblock)
+				     size_t linear, int analblock)
 {
 	struct sock *sk = tfile->socket.sk;
 	struct sk_buff *skb;
@@ -1529,7 +1529,7 @@ static struct sk_buff *tun_alloc_skb(struct tun_file *tfile,
 
 	if (len - linear > MAX_SKB_FRAGS * (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
 		linear = len - MAX_SKB_FRAGS * (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER);
-	skb = sock_alloc_send_pskb(sk, prepad + linear, len - linear, noblock,
+	skb = sock_alloc_send_pskb(sk, prepad + linear, len - linear, analblock,
 				   &err, PAGE_ALLOC_COSTLY_ORDER);
 	if (!skb)
 		return ERR_PTR(err);
@@ -1583,7 +1583,7 @@ static void tun_rx_batched(struct tun_struct *tun, struct tun_file *tfile,
 }
 
 static bool tun_can_build_skb(struct tun_struct *tun, struct tun_file *tfile,
-			      int len, int noblock, bool zerocopy)
+			      int len, int analblock, bool zerocopy)
 {
 	if ((tun->flags & TUN_TYPE_MASK) != IFF_TAP)
 		return false;
@@ -1591,7 +1591,7 @@ static bool tun_can_build_skb(struct tun_struct *tun, struct tun_file *tfile,
 	if (tfile->socket.sk->sk_sndbuf != INT_MAX)
 		return false;
 
-	if (!noblock)
+	if (!analblock)
 		return false;
 
 	if (zerocopy)
@@ -1611,7 +1611,7 @@ static struct sk_buff *__tun_build_skb(struct tun_file *tfile,
 	struct sk_buff *skb = build_skb(buf, buflen);
 
 	if (!skb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	skb_reserve(skb, pad);
 	skb_put(skb, len);
@@ -1684,7 +1684,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 
 	alloc_frag->offset = ALIGN((u64)alloc_frag->offset, SMP_CACHE_BYTES);
 	if (unlikely(!skb_page_frag_refill(buflen, alloc_frag, GFP_KERNEL)))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	buf = (char *)page_address(alloc_frag->page) + alloc_frag->offset;
 	copied = copy_page_from_iter(alloc_frag->page,
@@ -1695,7 +1695,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 
 	/* There's a small window that XDP may be set after the check
 	 * of xdp_prog above, this should be rare and for simplicity
-	 * we do XDP on skb in case the headroom is not enough.
+	 * we do XDP on skb in case the headroom is analt eanalugh.
 	 */
 	if (hdr->gso_type || !xdp_prog) {
 		*skb_xdp = 1;
@@ -1749,7 +1749,7 @@ out:
 /* Get packet from user space buffer */
 static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 			    void *msg_control, struct iov_iter *from,
-			    int noblock, bool more)
+			    int analblock, bool more)
 {
 	struct tun_pi pi = { 0, cpu_to_be16(ETH_P_IP) };
 	struct sk_buff *skb;
@@ -1763,9 +1763,9 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	u32 rxhash = 0;
 	int skb_xdp = 1;
 	bool frags = tun_napi_frags_enabled(tfile);
-	enum skb_drop_reason drop_reason = SKB_DROP_REASON_NOT_SPECIFIED;
+	enum skb_drop_reason drop_reason = SKB_DROP_REASON_ANALT_SPECIFIED;
 
-	if (!(tun->flags & IFF_NO_PI)) {
+	if (!(tun->flags & IFF_ANAL_PI)) {
 		if (len < sizeof(pi))
 			return -EINVAL;
 		len -= sizeof(pi);
@@ -1806,7 +1806,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		struct iov_iter i = *from;
 
 		/* There are 256 bytes to be copied in skb, so there is
-		 * enough room for skb expand head in case it is used.
+		 * eanalugh room for skb expand head in case it is used.
 		 * The rest of the buffer is mapped from userspace.
 		 */
 		copylen = gso.hdr_len ? tun16_to_cpu(tun, gso.hdr_len) : GOODCOPY_LEN;
@@ -1818,8 +1818,8 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 			zerocopy = true;
 	}
 
-	if (!frags && tun_can_build_skb(tun, tfile, len, noblock, zerocopy)) {
-		/* For the packet that is not easy to be processed
+	if (!frags && tun_can_build_skb(tun, tfile, len, analblock, zerocopy)) {
+		/* For the packet that is analt easy to be processed
 		 * (e.g gso or jumbo packet), we will do it at after
 		 * skb was created with generic XDP routine.
 		 */
@@ -1851,7 +1851,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 				linear = min_t(size_t, good_linear, copylen);
 
 			skb = tun_alloc_skb(tfile, align, copylen, linear,
-					    noblock);
+					    analblock);
 		}
 
 		err = PTR_ERR_OR_ZERO(skb);
@@ -1878,7 +1878,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case IFF_TUN:
-		if (tun->flags & IFF_NO_PI) {
+		if (tun->flags & IFF_ANAL_PI) {
 			u8 ip_version = skb->len ? (skb->data[0] >> 4) : 0;
 
 			switch (ip_version) {
@@ -1900,7 +1900,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		break;
 	case IFF_TAP:
 		if (frags && !pskb_may_pull(skb, ETH_HLEN)) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			drop_reason = SKB_DROP_REASON_HDR_TRUNC;
 			goto drop;
 		}
@@ -1908,7 +1908,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		break;
 	}
 
-	/* copy skb_ubuf_info for callback when skb has no error */
+	/* copy skb_ubuf_info for callback when skb has anal error */
 	if (zerocopy) {
 		skb_zcopy_init(skb, msg_control);
 	} else if (msg_control) {
@@ -1940,7 +1940,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	}
 
 	/* Compute the costly rx hash only if needed for flow updates.
-	 * We may get a very small possibility of OOO during switching, not
+	 * We may get a very small possibility of OOO during switching, analt
 	 * worth to optimize.
 	 */
 	if (!rcu_access_pointer(tun->steering_prog) && tun->numqueues > 1 &&
@@ -1965,7 +1965,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 
 		if (unlikely(headlen > skb_headlen(skb))) {
 			WARN_ON_ONCE(1);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			dev_core_stats_rx_dropped_inc(tun->dev);
 napi_busy:
 			napi_free_frags(&tfile->napi);
@@ -2044,15 +2044,15 @@ static ssize_t tun_chr_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct tun_file *tfile = file->private_data;
 	struct tun_struct *tun = tun_get(tfile);
 	ssize_t result;
-	int noblock = 0;
+	int analblock = 0;
 
 	if (!tun)
 		return -EBADFD;
 
-	if ((file->f_flags & O_NONBLOCK) || (iocb->ki_flags & IOCB_NOWAIT))
-		noblock = 1;
+	if ((file->f_flags & O_ANALNBLOCK) || (iocb->ki_flags & IOCB_ANALWAIT))
+		analblock = 1;
 
-	result = tun_get_user(tun, tfile, NULL, from, noblock, false);
+	result = tun_get_user(tun, tfile, NULL, from, analblock, false);
 
 	tun_put(tun);
 	return result;
@@ -2108,7 +2108,7 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 
 	total = skb->len + vlan_hlen + vnet_hdr_sz;
 
-	if (!(tun->flags & IFF_NO_PI)) {
+	if (!(tun->flags & IFF_ANAL_PI)) {
 		if (iov_iter_count(iter) < sizeof(pi))
 			return -EINVAL;
 
@@ -2137,7 +2137,7 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 			       sinfo->gso_type, tun16_to_cpu(tun, gso.gso_size),
 			       tun16_to_cpu(tun, gso.hdr_len));
 			print_hex_dump(KERN_ERR, "tun: ",
-				       DUMP_PREFIX_NONE,
+				       DUMP_PREFIX_ANALNE,
 				       16, 1, skb->head,
 				       min((int)tun16_to_cpu(tun, gso.hdr_len), 64), true);
 			WARN_ON_ONCE(1);
@@ -2179,7 +2179,7 @@ done:
 	return total;
 }
 
-static void *tun_ring_recv(struct tun_file *tfile, int noblock, int *err)
+static void *tun_ring_recv(struct tun_file *tfile, int analblock, int *err)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	void *ptr = NULL;
@@ -2188,7 +2188,7 @@ static void *tun_ring_recv(struct tun_file *tfile, int noblock, int *err)
 	ptr = ptr_ring_consume(&tfile->tx_ring);
 	if (ptr)
 		goto out;
-	if (noblock) {
+	if (analblock) {
 		error = -EAGAIN;
 		goto out;
 	}
@@ -2222,7 +2222,7 @@ out:
 
 static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 			   struct iov_iter *to,
-			   int noblock, void *ptr)
+			   int analblock, void *ptr)
 {
 	ssize_t ret;
 	int err;
@@ -2234,7 +2234,7 @@ static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 
 	if (!ptr) {
 		/* Read frames from ring */
-		ptr = tun_ring_recv(tfile, noblock, &err);
+		ptr = tun_ring_recv(tfile, analblock, &err);
 		if (!ptr)
 			return err;
 	}
@@ -2263,15 +2263,15 @@ static ssize_t tun_chr_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	struct tun_file *tfile = file->private_data;
 	struct tun_struct *tun = tun_get(tfile);
 	ssize_t len = iov_iter_count(to), ret;
-	int noblock = 0;
+	int analblock = 0;
 
 	if (!tun)
 		return -EBADFD;
 
-	if ((file->f_flags & O_NONBLOCK) || (iocb->ki_flags & IOCB_NOWAIT))
-		noblock = 1;
+	if ((file->f_flags & O_ANALNBLOCK) || (iocb->ki_flags & IOCB_ANALWAIT))
+		analblock = 1;
 
-	ret = tun_do_read(tun, tfile, to, noblock, NULL);
+	ret = tun_do_read(tun, tfile, to, analblock, NULL);
 	ret = min_t(ssize_t, ret, len);
 	if (ret > 0)
 		iocb->ki_pos = ret;
@@ -2296,7 +2296,7 @@ static int __tun_set_ebpf(struct tun_struct *tun,
 	if (prog) {
 		new = kmalloc(sizeof(*new), GFP_KERNEL);
 		if (!new)
-			return -ENOMEM;
+			return -EANALMEM;
 		new->prog = prog;
 	}
 
@@ -2347,8 +2347,8 @@ static int tun_validate(struct nlattr *tb[], struct nlattr *data[],
 			struct netlink_ext_ack *extack)
 {
 	NL_SET_ERR_MSG(extack,
-		       "tun/tap creation via rtnetlink is not supported.");
-	return -EOPNOTSUPP;
+		       "tun/tap creation via rtnetlink is analt supported.");
+	return -EOPANALTSUPP;
 }
 
 static size_t tun_get_size(const struct net_device *dev)
@@ -2382,7 +2382,7 @@ static int tun_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_u32(skb, IFLA_TUN_GROUP,
 			from_kgid_munged(current_user_ns(), tun->group)))
 		goto nla_put_failure;
-	if (nla_put_u8(skb, IFLA_TUN_PI, !(tun->flags & IFF_NO_PI)))
+	if (nla_put_u8(skb, IFLA_TUN_PI, !(tun->flags & IFF_ANAL_PI)))
 		goto nla_put_failure;
 	if (nla_put_u8(skb, IFLA_TUN_VNET_HDR, !!(tun->flags & IFF_VNET_HDR)))
 		goto nla_put_failure;
@@ -2422,13 +2422,13 @@ static void tun_sock_write_space(struct sock *sk)
 	if (!sock_writeable(sk))
 		return;
 
-	if (!test_and_clear_bit(SOCKWQ_ASYNC_NOSPACE, &sk->sk_socket->flags))
+	if (!test_and_clear_bit(SOCKWQ_ASYNC_ANALSPACE, &sk->sk_socket->flags))
 		return;
 
 	wqueue = sk_sleep(sk);
 	if (wqueue && waitqueue_active(wqueue))
 		wake_up_interruptible_sync_poll(wqueue, EPOLLOUT |
-						EPOLLWRNORM | EPOLLWRBAND);
+						EPOLLWRANALRM | EPOLLWRBAND);
 
 	tfile = container_of(sk, struct tun_file, sk);
 	kill_fasync(&tfile->fasync, SIGIO, POLL_OUT);
@@ -2498,7 +2498,7 @@ static int tun_xdp_one(struct tun_struct *tun,
 build:
 	skb = build_skb(xdp->data_hard_start, buflen);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -2547,7 +2547,7 @@ build:
 		ret = 0;
 	}
 
-	/* No need to disable preemption here since this function is
+	/* Anal need to disable preemption here since this function is
 	 * always called with bh disabled
 	 */
 	dev_sw_netstats_rx_add(tun->dev, datasize);
@@ -2773,13 +2773,13 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		    !!(tun->flags & IFF_MULTI_QUEUE))
 			return -EINVAL;
 
-		if (tun_not_capable(tun))
+		if (tun_analt_capable(tun))
 			return -EPERM;
 		err = security_tun_dev_open(tun->security);
 		if (err < 0)
 			return err;
 
-		err = tun_attach(tun, file, ifr->ifr_flags & IFF_NOFILTER,
+		err = tun_attach(tun, file, ifr->ifr_flags & IFF_ANALFILTER,
 				 ifr->ifr_flags & IFF_NAPI,
 				 ifr->ifr_flags & IFF_NAPI_FRAGS, true);
 		if (err < 0)
@@ -2787,7 +2787,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		if (tun->flags & IFF_MULTI_QUEUE &&
 		    (tun->numqueues + tun->numdisabled > 1)) {
-			/* One or more queue has already been attached, no need
+			/* One or more queue has already been attached, anal need
 			 * to initialize the device again.
 			 */
 			netdev_state_change(dev);
@@ -2826,11 +2826,11 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 			name = ifr->ifr_name;
 
 		dev = alloc_netdev_mqs(sizeof(struct tun_struct), name,
-				       NET_NAME_UNKNOWN, tun_setup, queues,
+				       NET_NAME_UNKANALWN, tun_setup, queues,
 				       queues);
 
 		if (!dev)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dev_net_set(dev, net);
 		dev->rtnl_link_ops = &tun_link_ops;
@@ -2865,12 +2865,12 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		rcu_assign_pointer(tfile->tun, tun);
 	}
 
-	if (ifr->ifr_flags & IFF_NO_CARRIER)
+	if (ifr->ifr_flags & IFF_ANAL_CARRIER)
 		netif_carrier_off(tun->dev);
 	else
 		netif_carrier_on(tun->dev);
 
-	/* Make sure persistent devices do not get stuck in
+	/* Make sure persistent devices do analt get stuck in
 	 * xoff state.
 	 */
 	if (netif_running(tun->dev))
@@ -2888,7 +2888,7 @@ static void tun_get_iff(struct tun_struct *tun, struct ifreq *ifr)
 
 }
 
-/* This is like a cut-down ethtool ops, except done via tun fd so no
+/* This is like a cut-down ethtool ops, except done via tun fd so anal
  * privs required. */
 static int set_offload(struct tun_struct *tun, unsigned long arg)
 {
@@ -2912,7 +2912,7 @@ static int set_offload(struct tun_struct *tun, unsigned long arg)
 
 		arg &= ~TUN_F_UFO;
 
-		/* TODO: for now USO4 and USO6 should work simultaneously */
+		/* TODO: for analw USO4 and USO6 should work simultaneously */
 		if (arg & TUN_F_USO4 && arg & TUN_F_USO6) {
 			features |= NETIF_F_GSO_UDP_L4;
 			arg &= ~(TUN_F_USO4 | TUN_F_USO6);
@@ -3052,7 +3052,7 @@ static unsigned char tun_get_addr_len(unsigned short type)
 		return IEEE802154_EXTENDED_ADDR_LEN;
 	case ARPHRD_PHONET_PIPE:
 	case ARPHRD_PPP:
-	case ARPHRD_NONE:
+	case ARPHRD_ANALNE:
 		return 0;
 	case ARPHRD_6LOWPAN:
 		return EUI64_ADDR_LEN;
@@ -3089,7 +3089,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 	int vnet_hdr_sz;
 	int le;
 	int ret;
-	bool do_notify = false;
+	bool do_analtify = false;
 
 	if (cmd == TUNSETIFF || cmd == TUNSETQUEUE ||
 	    (_IOC_TYPE(cmd) == SOCK_IOC_TYPE && cmd != SIOCGSKNS)) {
@@ -3103,7 +3103,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 		 * This is needed because we never checked for invalid flags on
 		 * TUNSETIFF.
 		 */
-		return put_user(IFF_TUN | IFF_TAP | IFF_NO_CARRIER |
+		return put_user(IFF_TUN | IFF_TAP | IFF_ANAL_CARRIER |
 				TUN_FEATURES, (unsigned int __user*)argp);
 	} else if (cmd == TUNSETQUEUE) {
 		return tun_set_queue(file, &ifr);
@@ -3163,17 +3163,17 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 		if (tfile->detached)
 			ifr.ifr_flags |= IFF_DETACH_QUEUE;
 		if (!tfile->socket.sk->sk_filter)
-			ifr.ifr_flags |= IFF_NOFILTER;
+			ifr.ifr_flags |= IFF_ANALFILTER;
 
 		if (copy_to_user(argp, &ifr, ifreq_len))
 			ret = -EFAULT;
 		break;
 
-	case TUNSETNOCSUM:
+	case TUNSETANALCSUM:
 		/* Disable/Enable checksum */
 
 		/* [unimplemented] */
-		netif_info(tun, drv, tun->dev, "ignored: set checksum %s\n",
+		netif_info(tun, drv, tun->dev, "iganalred: set checksum %s\n",
 			   arg ? "disabled" : "enabled");
 		break;
 
@@ -3184,12 +3184,12 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 		if (arg && !(tun->flags & IFF_PERSIST)) {
 			tun->flags |= IFF_PERSIST;
 			__module_get(THIS_MODULE);
-			do_notify = true;
+			do_analtify = true;
 		}
 		if (!arg && (tun->flags & IFF_PERSIST)) {
 			tun->flags &= ~IFF_PERSIST;
 			module_put(THIS_MODULE);
-			do_notify = true;
+			do_analtify = true;
 		}
 
 		netif_info(tun, drv, tun->dev, "persist %s\n",
@@ -3204,7 +3204,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 		tun->owner = owner;
-		do_notify = true;
+		do_analtify = true;
 		netif_info(tun, drv, tun->dev, "owner set to %u\n",
 			   from_kuid(&init_user_ns, tun->owner));
 		break;
@@ -3217,7 +3217,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 		tun->group = group;
-		do_notify = true;
+		do_analtify = true;
 		netif_info(tun, drv, tun->dev, "group set to %u\n",
 			   from_kgid(&init_user_ns, tun->group));
 		break;
@@ -3229,9 +3229,9 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 				   "Linktype set failed because interface is up\n");
 			ret = -EBUSY;
 		} else {
-			ret = call_netdevice_notifiers(NETDEV_PRE_TYPE_CHANGE,
+			ret = call_netdevice_analtifiers(NETDEV_PRE_TYPE_CHANGE,
 						       tun->dev);
-			ret = notifier_to_errno(ret);
+			ret = analtifier_to_erranal(ret);
 			if (ret) {
 				netif_info(tun, drv, tun->dev,
 					   "Refused to change device type\n");
@@ -3241,7 +3241,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 			tun->dev->addr_len = tun_get_addr_len(tun->dev->type);
 			netif_info(tun, drv, tun->dev, "linktype set to %d\n",
 				   tun->dev->type);
-			call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE,
+			call_netdevice_analtifiers(NETDEV_POST_TYPE_CHANGE,
 						 tun->dev);
 		}
 		break;
@@ -3397,7 +3397,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 		break;
 	}
 
-	if (do_notify)
+	if (do_analtify)
 		netdev_state_change(tun->dev);
 
 unlock:
@@ -3433,7 +3433,7 @@ static long tun_chr_compat_ioctl(struct file *file,
 	}
 
 	/*
-	 * compat_ifreq is shorter than ifreq, so we must not access beyond
+	 * compat_ifreq is shorter than ifreq, so we must analt access beyond
 	 * the end of that structure. All fields that are used in this
 	 * driver are compatible though, we don't need to convert the
 	 * contents.
@@ -3460,7 +3460,7 @@ out:
 	return ret;
 }
 
-static int tun_chr_open(struct inode *inode, struct file * file)
+static int tun_chr_open(struct ianalde *ianalde, struct file * file)
 {
 	struct net *net = current->nsproxy->net_ns;
 	struct tun_file *tfile;
@@ -3468,10 +3468,10 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 	tfile = (struct tun_file *)sk_alloc(net, AF_UNSPEC, GFP_KERNEL,
 					    &tun_proto, 0);
 	if (!tfile)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (ptr_ring_init(&tfile->tx_ring, 0, GFP_KERNEL)) {
 		sk_free(&tfile->sk);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_init(&tfile->napi_mutex);
@@ -3494,12 +3494,12 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 
 	sock_set_flag(&tfile->sk, SOCK_ZEROCOPY);
 
-	/* tun groks IOCB_NOWAIT just fine, mark it as such */
-	file->f_mode |= FMODE_NOWAIT;
+	/* tun groks IOCB_ANALWAIT just fine, mark it as such */
+	file->f_mode |= FMODE_ANALWAIT;
 	return 0;
 }
 
-static int tun_chr_close(struct inode *inode, struct file *file)
+static int tun_chr_close(struct ianalde *ianalde, struct file *file)
 {
 	struct tun_file *tfile = file->private_data;
 
@@ -3532,7 +3532,7 @@ static void tun_chr_show_fdinfo(struct seq_file *m, struct file *file)
 
 static const struct file_operations tun_fops = {
 	.owner	= THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.read_iter  = tun_chr_read_iter,
 	.write_iter = tun_chr_write_iter,
 	.poll	= tun_chr_poll,
@@ -3549,9 +3549,9 @@ static const struct file_operations tun_fops = {
 };
 
 static struct miscdevice tun_miscdev = {
-	.minor = TUN_MINOR,
+	.mianalr = TUN_MIANALR,
 	.name = "tun",
-	.nodename = "net/tun",
+	.analdename = "net/tun",
 	.fops = &tun_fops,
 };
 
@@ -3668,7 +3668,7 @@ static int tun_queue_resize(struct tun_struct *tun)
 
 	rings = kmalloc_array(n, sizeof(*rings), GFP_KERNEL);
 	if (!rings)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < tun->numqueues; i++) {
 		tfile = rtnl_dereference(tun->tfiles[i]);
@@ -3685,20 +3685,20 @@ static int tun_queue_resize(struct tun_struct *tun)
 	return ret;
 }
 
-static int tun_device_event(struct notifier_block *unused,
+static int tun_device_event(struct analtifier_block *unused,
 			    unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct tun_struct *tun = netdev_priv(dev);
 	int i;
 
 	if (dev->rtnl_link_ops != &tun_link_ops)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_CHANGE_TX_QUEUE_LEN:
 		if (tun_queue_resize(tun))
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 		break;
 	case NETDEV_UP:
 		for (i = 0; i < tun->numqueues; i++) {
@@ -3712,11 +3712,11 @@ static int tun_device_event(struct notifier_block *unused,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block tun_notifier_block __read_mostly = {
-	.notifier_call	= tun_device_event,
+static struct analtifier_block tun_analtifier_block __read_mostly = {
+	.analtifier_call	= tun_device_event,
 };
 
 static int __init tun_init(void)
@@ -3733,19 +3733,19 @@ static int __init tun_init(void)
 
 	ret = misc_register(&tun_miscdev);
 	if (ret) {
-		pr_err("Can't register misc device %d\n", TUN_MINOR);
+		pr_err("Can't register misc device %d\n", TUN_MIANALR);
 		goto err_misc;
 	}
 
-	ret = register_netdevice_notifier(&tun_notifier_block);
+	ret = register_netdevice_analtifier(&tun_analtifier_block);
 	if (ret) {
-		pr_err("Can't register netdevice notifier\n");
-		goto err_notifier;
+		pr_err("Can't register netdevice analtifier\n");
+		goto err_analtifier;
 	}
 
 	return  0;
 
-err_notifier:
+err_analtifier:
 	misc_deregister(&tun_miscdev);
 err_misc:
 	rtnl_link_unregister(&tun_link_ops);
@@ -3757,7 +3757,7 @@ static void __exit tun_cleanup(void)
 {
 	misc_deregister(&tun_miscdev);
 	rtnl_link_unregister(&tun_link_ops);
-	unregister_netdevice_notifier(&tun_notifier_block);
+	unregister_netdevice_analtifier(&tun_analtifier_block);
 }
 
 /* Get an underlying socket object from tun file.  Returns error unless file is
@@ -3794,5 +3794,5 @@ module_exit(tun_cleanup);
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(TUN_MINOR);
+MODULE_ALIAS_MISCDEV(TUN_MIANALR);
 MODULE_ALIAS("devname:net/tun");

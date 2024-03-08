@@ -313,11 +313,11 @@
 #define FB_I2SPCTL_BCLKSTAT                                 7
 #define FM_I2SPCTL_BCLKSTAT                                 0x80
 #define FV_BCLKSTAT_LOST                                    0x80
-#define FV_BCLKSTAT_NOT_LOST                                0x0
+#define FV_BCLKSTAT_ANALT_LOST                                0x0
 
 #define FB_I2SPCTL_BCLKP                                    6
 #define FM_I2SPCTL_BCLKP                                    0x40
-#define FV_BCLKP_NOT_INVERTED                               0x0
+#define FV_BCLKP_ANALT_INVERTED                               0x0
 #define FV_BCLKP_INVERTED                                   0x40
 
 #define FB_I2SPCTL_PORTMS                                   5
@@ -327,7 +327,7 @@
 
 #define FB_I2SPCTL_LRCLKP                                   4
 #define FM_I2SPCTL_LRCLKP                                   0x10
-#define FV_LRCLKP_NOT_INVERTED                              0x0
+#define FV_LRCLKP_ANALT_INVERTED                              0x0
 #define FV_LRCLKP_INVERTED                                  0x10
 
 #define FB_I2SPCTL_WL                                       2
@@ -384,7 +384,7 @@
 
 #define FB_PCMPCTL0_BDELAYP                                 0
 #define FM_PCMPCTL0_BDELAYP                                 0x1
-#define FV_BDELAYP_NO_DELAY                                 0x0
+#define FV_BDELAYP_ANAL_DELAY                                 0x0
 #define FV_BDELAYP_1BCLK_DELAY                              0x1
 
 // *** PCMPCTL1 ***
@@ -565,69 +565,69 @@
 #define FB_IRQMASK_THRMIM                                   6
 #define FM_IRQMASK_THRMIM                                   0x40
 #define FV_THRMIM_MASKED                                    0x0
-#define FV_THRMIM_NOT_MASKED                                0x40
+#define FV_THRMIM_ANALT_MASKED                                0x40
 
 #define FB_IRQMASK_HBPIM                                    5
 #define FM_IRQMASK_HBPIM                                    0x20
 #define FV_HBPIM_MASKED                                     0x0
-#define FV_HBPIM_NOT_MASKED                                 0x20
+#define FV_HBPIM_ANALT_MASKED                                 0x20
 
 #define FB_IRQMASK_HSDIM                                    4
 #define FM_IRQMASK_HSDIM                                    0x10
 #define FV_HSDIM_MASKED                                     0x0
-#define FV_HSDIM_NOT_MASKED                                 0x10
+#define FV_HSDIM_ANALT_MASKED                                 0x10
 
 #define FB_IRQMASK_HPDIM                                    3
 #define FM_IRQMASK_HPDIM                                    0x8
 #define FV_HPDIM_MASKED                                     0x0
-#define FV_HPDIM_NOT_MASKED                                 0x8
+#define FV_HPDIM_ANALT_MASKED                                 0x8
 
 #define FB_IRQMASK_GPIO3M                                   1
 #define FM_IRQMASK_GPIO3M                                   0x2
 #define FV_GPIO3M_MASKED                                    0x0
-#define FV_GPIO3M_NOT_MASKED                                0x2
+#define FV_GPIO3M_ANALT_MASKED                                0x2
 
 #define FB_IRQMASK_GPIO2M                                   0
 #define FM_IRQMASK_GPIO2M                                   0x1
 #define FV_GPIO2M_MASKED                                    0x0
-#define FV_GPIO2M_NOT_MASKED                                0x1
+#define FV_GPIO2M_ANALT_MASKED                                0x1
 
 #define IRQMASK_GPIOM_MASKED                                0x0
-#define IRQMASK_GPIOM_NOT_MASKED                            0x1
+#define IRQMASK_GPIOM_ANALT_MASKED                            0x1
 
 // *** IRQSTAT ***
 #define FB_IRQSTAT_THRMINT                                  6
 #define FM_IRQSTAT_THRMINT                                  0x40
 #define FV_THRMINT_INTERRUPTED                              0x40
-#define FV_THRMINT_NOT_INTERRUPTED                          0x0
+#define FV_THRMINT_ANALT_INTERRUPTED                          0x0
 
 #define FB_IRQSTAT_HBPINT                                   5
 #define FM_IRQSTAT_HBPINT                                   0x20
 #define FV_HBPINT_INTERRUPTED                               0x20
-#define FV_HBPINT_NOT_INTERRUPTED                           0x0
+#define FV_HBPINT_ANALT_INTERRUPTED                           0x0
 
 #define FB_IRQSTAT_HSDINT                                   4
 #define FM_IRQSTAT_HSDINT                                   0x10
 #define FV_HSDINT_INTERRUPTED                               0x10
-#define FV_HSDINT_NOT_INTERRUPTED                           0x0
+#define FV_HSDINT_ANALT_INTERRUPTED                           0x0
 
 #define FB_IRQSTAT_HPDINT                                   3
 #define FM_IRQSTAT_HPDINT                                   0x8
 #define FV_HPDINT_INTERRUPTED                               0x8
-#define FV_HPDINT_NOT_INTERRUPTED                           0x0
+#define FV_HPDINT_ANALT_INTERRUPTED                           0x0
 
 #define FB_IRQSTAT_GPIO3INT                                 1
 #define FM_IRQSTAT_GPIO3INT                                 0x2
 #define FV_GPIO3INT_INTERRUPTED                             0x2
-#define FV_GPIO3INT_NOT_INTERRUPTED                         0x0
+#define FV_GPIO3INT_ANALT_INTERRUPTED                         0x0
 
 #define FB_IRQSTAT_GPIO2INT                                 0
 #define FM_IRQSTAT_GPIO2INT                                 0x1
 #define FV_GPIO2INT_INTERRUPTED                             0x1
-#define FV_GPIO2INT_NOT_INTERRUPTED                         0x0
+#define FV_GPIO2INT_ANALT_INTERRUPTED                         0x0
 
 #define IRQSTAT_GPIOINT_INTERRUPTED                         0x1
-#define IRQSTAT_GPIOINT_NOT_INTERRUPTED                     0x0
+#define IRQSTAT_GPIOINT_ANALT_INTERRUPTED                     0x0
 
 // *** DEVADD0 ***
 #define FB_DEVADD0_DEVADD0                                  1
@@ -907,7 +907,7 @@
 
 #define FB_TDMCTL0_BDELAY                                   0
 #define FM_TDMCTL0_BDELAY                                   0x1
-#define FV_BDELAY_NO_DELAY                                  0x0
+#define FV_BDELAY_ANAL_DELAY                                  0x0
 #define FV_BDELAY_1BCLK_DELAY                               0x1
 
 // *** TDMCTL1 ***
@@ -1068,7 +1068,7 @@
 // *** AUDIOMUX1 ***
 #define FB_AUDIOMUX1_ASRCIMUX                               6
 #define FM_AUDIOMUX1_ASRCIMUX                               0xC0
-#define FV_ASRCIMUX_NONE                                    0x0
+#define FV_ASRCIMUX_ANALNE                                    0x0
 #define FV_ASRCIMUX_I2S1                                    0x40
 #define FV_ASRCIMUX_I2S2                                    0x80
 #define FV_ASRCIMUX_I2S3                                    0xC0
@@ -1107,7 +1107,7 @@
 // *** AUDIOMUX2 ***
 #define FB_AUDIOMUX2_ASRCOMUX                               6
 #define FM_AUDIOMUX2_ASRCOMUX                               0xC0
-#define FV_ASRCOMUX_NONE                                    0x0
+#define FV_ASRCOMUX_ANALNE                                    0x0
 #define FV_ASRCOMUX_I2S1                                    0x40
 #define FV_ASRCOMUX_I2S2                                    0x80
 #define FV_ASRCOMUX_I2S3                                    0xC0
@@ -1428,8 +1428,8 @@
 #define FB_DMICCTL_DMIC1EN                                  6
 #define FM_DMICCTL_DMIC1EN                                  0x40
 
-#define FB_DMICCTL_DMONO                                    4
-#define FM_DMICCTL_DMONO                                    0x10
+#define FB_DMICCTL_DMOANAL                                    4
+#define FM_DMICCTL_DMOANAL                                    0x10
 
 #define FB_DMICCTL_DMDCLK                                   2
 #define FM_DMICCTL_DMDCLK                                   0xC
@@ -1440,12 +1440,12 @@
 // *** DACCTL ***
 #define FB_DACCTL_DACPOLR                                   7
 #define FM_DACCTL_DACPOLR                                   0x80
-#define FV_DACPOLR_NORMAL                                   0x0
+#define FV_DACPOLR_ANALRMAL                                   0x0
 #define FV_DACPOLR_INVERTED                                 0x80
 
 #define FB_DACCTL_DACPOLL                                   6
 #define FM_DACCTL_DACPOLL                                   0x40
-#define FV_DACPOLL_NORMAL                                   0x0
+#define FV_DACPOLL_ANALRMAL                                   0x0
 #define FV_DACPOLL_INVERTED                                 0x40
 
 #define FB_DACCTL_DACDITH                                   4
@@ -1471,12 +1471,12 @@
 // *** SPKCTL ***
 #define FB_SPKCTL_SPKPOLR                                   7
 #define FM_SPKCTL_SPKPOLR                                   0x80
-#define FV_SPKPOLR_NORMAL                                   0x0
+#define FV_SPKPOLR_ANALRMAL                                   0x0
 #define FV_SPKPOLR_INVERTED                                 0x80
 
 #define FB_SPKCTL_SPKPOLL                                   6
 #define FM_SPKCTL_SPKPOLL                                   0x40
-#define FV_SPKPOLL_NORMAL                                   0x0
+#define FV_SPKPOLL_ANALRMAL                                   0x0
 #define FV_SPKPOLL_INVERTED                                 0x40
 
 #define FB_SPKCTL_SPKMUTE                                   3
@@ -1621,8 +1621,8 @@
 #define FB_PWM0_PWMMODE                                     2
 #define FM_PWM0_PWMMODE                                     0x4
 
-#define FB_PWM0_NOOFFSET                                    0
-#define FM_PWM0_NOOFFSET                                    0x1
+#define FB_PWM0_ANALOFFSET                                    0
+#define FM_PWM0_ANALOFFSET                                    0x1
 
 // *** PWM1 ***
 #define FB_PWM1_DITHPOS                                     4

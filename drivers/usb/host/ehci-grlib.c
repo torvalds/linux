@@ -19,7 +19,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 
-#define GRUSBHC_HCIVERSION 0x0100 /* Known value of cap. reg. HCIVERSION */
+#define GRUSBHC_HCIVERSION 0x0100 /* Kanalwn value of cap. reg. HCIVERSION */
 
 static const struct hc_driver ehci_grlib_hc_driver = {
 	.description		= hcd_name,
@@ -71,7 +71,7 @@ static const struct hc_driver ehci_grlib_hc_driver = {
 
 static int ehci_hcd_grlib_probe(struct platform_device *op)
 {
-	struct device_node *dn = op->dev.of_node;
+	struct device_analde *dn = op->dev.of_analde;
 	struct usb_hcd *hcd;
 	struct ehci_hcd	*ehci = NULL;
 	struct resource res;
@@ -80,7 +80,7 @@ static int ehci_hcd_grlib_probe(struct platform_device *op)
 	int rv;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_dbg(&op->dev, "initializing GRUSBHC EHCI USB Controller\n");
 
@@ -93,7 +93,7 @@ static int ehci_hcd_grlib_probe(struct platform_device *op)
 	hcd = usb_create_hcd(&ehci_grlib_hc_driver, &op->dev,
 			"GRUSBHC EHCI USB");
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hcd->rsrc_start = res.start;
 	hcd->rsrc_len = resource_size(&res);

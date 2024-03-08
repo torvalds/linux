@@ -57,7 +57,7 @@ static struct net_bridge_port *br_mep_get_port(struct net_bridge *br,
 static u32 interval_to_us(enum br_cfm_ccm_interval interval)
 {
 	switch (interval) {
-	case BR_CFM_CCM_INTERVAL_NONE:
+	case BR_CFM_CCM_INTERVAL_ANALNE:
 		return 0;
 	case BR_CFM_CCM_INTERVAL_3_3_MS:
 		return 3300;
@@ -81,7 +81,7 @@ static u32 interval_to_us(enum br_cfm_ccm_interval interval)
 static u32 interval_to_pdu(enum br_cfm_ccm_interval interval)
 {
 	switch (interval) {
-	case BR_CFM_CCM_INTERVAL_NONE:
+	case BR_CFM_CCM_INTERVAL_ANALNE:
 		return 0;
 	case BR_CFM_CCM_INTERVAL_3_3_MS:
 		return 1;
@@ -106,7 +106,7 @@ static u32 pdu_to_interval(u32 value)
 {
 	switch (value) {
 	case 0:
-		return BR_CFM_CCM_INTERVAL_NONE;
+		return BR_CFM_CCM_INTERVAL_ANALNE;
 	case 1:
 		return BR_CFM_CCM_INTERVAL_3_3_MS;
 	case 2:
@@ -122,7 +122,7 @@ static u32 pdu_to_interval(u32 value)
 	case 7:
 		return BR_CFM_CCM_INTERVAL_10_MIN;
 	}
-	return BR_CFM_CCM_INTERVAL_NONE;
+	return BR_CFM_CCM_INTERVAL_ANALNE;
 }
 
 static void ccm_rx_timer_start(struct br_cfm_peer_mep *peer_mep)
@@ -138,11 +138,11 @@ static void ccm_rx_timer_start(struct br_cfm_peer_mep *peer_mep)
 			   usecs_to_jiffies(interval_us / 4));
 }
 
-static void br_cfm_notify(int event, const struct net_bridge_port *port)
+static void br_cfm_analtify(int event, const struct net_bridge_port *port)
 {
 	u32 filter = RTEXT_FILTER_CFM_STATUS;
 
-	br_info_notify(event, port->br, NULL, filter);
+	br_info_analtify(event, port->br, NULL, filter);
 }
 
 static void cc_peer_enable(struct br_cfm_peer_mep *peer_mep)
@@ -185,7 +185,7 @@ static struct sk_buff *ccm_frame_build(struct br_cfm_mep *mep,
 	}
 	skb->dev = b_port->dev;
 	rcu_read_unlock();
-	/* The device cannot be deleted until the work_queue functions has
+	/* The device cananalt be deleted until the work_queue functions has
 	 * completed. This function is called from ccm_tx_work_expired()
 	 * that is a work_queue functions.
 	 */
@@ -209,7 +209,7 @@ static struct sk_buff *ccm_frame_build(struct br_cfm_mep *mep,
 
 	/* Sequence number */
 	snumber = skb_put(skb, sizeof(*snumber));
-	if (tx_info->seq_no_update) {
+	if (tx_info->seq_anal_update) {
 		*snumber = cpu_to_be32(mep->ccm_tx_snumber);
 		mep->ccm_tx_snumber += 1;
 	} else {
@@ -303,7 +303,7 @@ static void ccm_rx_work_expired(struct work_struct *work)
 
 	/* After 13 counts (4 * 3,25) then 3.25 intervals are expired */
 	if (peer_mep->ccm_rx_count_miss < 13) {
-		/* 3.25 intervals are NOT expired without CCM reception */
+		/* 3.25 intervals are ANALT expired without CCM reception */
 		peer_mep->ccm_rx_count_miss++;
 
 		/* Start timer again */
@@ -314,11 +314,11 @@ static void ccm_rx_work_expired(struct work_struct *work)
 		 */
 		peer_mep->cc_status.ccm_defect = true;
 
-		/* Change in CCM defect status - notify */
+		/* Change in CCM defect status - analtify */
 		rcu_read_lock();
 		b_port = rcu_dereference(peer_mep->mep->b_port);
 		if (b_port)
-			br_cfm_notify(RTM_NEWLINK, b_port);
+			br_cfm_analtify(RTM_NEWLINK, b_port);
 		rcu_read_unlock();
 	}
 }
@@ -356,8 +356,8 @@ static u32 ccm_tlv_extract(struct sk_buff *skb, u32 index,
 		peer_mep->cc_status.port_tlv_value = (h_s_tlv & 0xFF);
 	}
 
-	/* The Sender ID TLV is not handled */
-	/* The Organization-Specific TLV is not handled */
+	/* The Sender ID TLV is analt handled */
+	/* The Organization-Specific TLV is analt handled */
 
 	/* Return the length of this tlv.
 	 * This is the length of the value field plus 3 bytes for size of type
@@ -366,7 +366,7 @@ static u32 ccm_tlv_extract(struct sk_buff *skb, u32 index,
 	return ((h_s_tlv >> 8) & 0xFFFF) + 3;
 }
 
-/* note: already called with rcu_read_lock */
+/* analte: already called with rcu_read_lock */
 static int br_cfm_frame_rx(struct net_bridge_port *port, struct sk_buff *skb)
 {
 	u32 mdlevel, interval, size, index, max;
@@ -392,7 +392,7 @@ static int br_cfm_frame_rx(struct net_bridge_port *port, struct sk_buff *skb)
 	br = port->br;
 	mep = br_mep_find_ifindex(br, port->dev->ifindex);
 	if (unlikely(!mep))
-		/* No MEP on this port - must be forwarded */
+		/* Anal MEP on this port - must be forwarded */
 		return 0;
 
 	mdlevel = hdr->mdlevel_version >> 5;
@@ -422,7 +422,7 @@ static int br_cfm_frame_rx(struct net_bridge_port *port, struct sk_buff *skb)
 			return 1;
 		if (memcmp(maid->data, mep->cc_config.exp_maid.data,
 			   sizeof(maid->data)))
-			/* MA ID not as expected */
+			/* MA ID analt as expected */
 			return 1;
 
 		/* MEP ID is after common header + sequence number */
@@ -438,15 +438,15 @@ static int br_cfm_frame_rx(struct net_bridge_port *port, struct sk_buff *skb)
 		/* Interval is in common header flags */
 		interval = hdr->flags & 0x07;
 		if (mep->cc_config.exp_interval != pdu_to_interval(interval))
-			/* Interval not as expected */
+			/* Interval analt as expected */
 			return 1;
 
 		/* A valid CCM frame is received */
 		if (peer_mep->cc_status.ccm_defect) {
 			peer_mep->cc_status.ccm_defect = false;
 
-			/* Change in CCM defect status - notify */
-			br_cfm_notify(RTM_NEWLINK, port);
+			/* Change in CCM defect status - analtify */
+			br_cfm_analtify(RTM_NEWLINK, port);
 
 			/* Start CCM RX timer */
 			ccm_rx_timer_start(peer_mep);
@@ -506,7 +506,7 @@ int br_cfm_mep_create(struct net_bridge *br,
 
 	if (create->domain == BR_CFM_VLAN) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "VLAN domain not supported");
+				   "VLAN domain analt supported");
 		return -EINVAL;
 	}
 	if (create->domain != BR_CFM_PORT) {
@@ -516,7 +516,7 @@ int br_cfm_mep_create(struct net_bridge *br,
 	}
 	if (create->direction == BR_CFM_MEP_DIRECTION_UP) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Up-MEP not supported");
+				   "Up-MEP analt supported");
 		return -EINVAL;
 	}
 	if (create->direction != BR_CFM_MEP_DIRECTION_DOWN) {
@@ -527,7 +527,7 @@ int br_cfm_mep_create(struct net_bridge *br,
 	p = br_mep_get_port(br, create->ifindex);
 	if (!p) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Port is not related to bridge");
+				   "Port is analt related to bridge");
 		return -EINVAL;
 	}
 	mep = br_mep_find(br, instance);
@@ -549,7 +549,7 @@ int br_cfm_mep_create(struct net_bridge *br,
 
 	mep = kzalloc(sizeof(*mep), GFP_KERNEL);
 	if (!mep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mep->create = *create;
 	mep->instance = instance;
@@ -570,7 +570,7 @@ static void mep_delete_implementation(struct net_bridge *br,
 				      struct br_cfm_mep *mep)
 {
 	struct br_cfm_peer_mep *peer_mep;
-	struct hlist_node *n_store;
+	struct hlist_analde *n_store;
 
 	ASSERT_RTNL();
 
@@ -602,8 +602,8 @@ int br_cfm_mep_delete(struct net_bridge *br,
 	mep = br_mep_find(br, instance);
 	if (!mep) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "MEP instance does not exists");
-		return -ENOENT;
+				   "MEP instance does analt exists");
+		return -EANALENT;
 	}
 
 	mep_delete_implementation(br, mep);
@@ -623,8 +623,8 @@ int br_cfm_mep_config_set(struct net_bridge *br,
 	mep = br_mep_find(br, instance);
 	if (!mep) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "MEP instance does not exists");
-		return -ENOENT;
+				   "MEP instance does analt exists");
+		return -EANALENT;
 	}
 
 	mep->config = *config;
@@ -645,11 +645,11 @@ int br_cfm_cc_config_set(struct net_bridge *br,
 	mep = br_mep_find(br, instance);
 	if (!mep) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "MEP instance does not exists");
-		return -ENOENT;
+				   "MEP instance does analt exists");
+		return -EANALENT;
 	}
 
-	/* Check for no change in configuration */
+	/* Check for anal change in configuration */
 	if (memcmp(config, &mep->cc_config, sizeof(*config)) == 0)
 		return 0;
 
@@ -682,8 +682,8 @@ int br_cfm_cc_peer_mep_add(struct net_bridge *br, const u32 instance,
 	mep = br_mep_find(br, instance);
 	if (!mep) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "MEP instance does not exists");
-		return -ENOENT;
+				   "MEP instance does analt exists");
+		return -EANALENT;
 	}
 
 	peer_mep = br_peer_mep_find(mep, mepid);
@@ -695,7 +695,7 @@ int br_cfm_cc_peer_mep_add(struct net_bridge *br, const u32 instance,
 
 	peer_mep = kzalloc(sizeof(*peer_mep), GFP_KERNEL);
 	if (!peer_mep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	peer_mep->mepid = mepid;
 	peer_mep->mep = mep;
@@ -721,15 +721,15 @@ int br_cfm_cc_peer_mep_remove(struct net_bridge *br, const u32 instance,
 	mep = br_mep_find(br, instance);
 	if (!mep) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "MEP instance does not exists");
-		return -ENOENT;
+				   "MEP instance does analt exists");
+		return -EANALENT;
 	}
 
 	peer_mep = br_peer_mep_find(mep, mepid);
 	if (!peer_mep) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Peer MEP-ID does not exists");
-		return -ENOENT;
+				   "Peer MEP-ID does analt exists");
+		return -EANALENT;
 	}
 
 	cc_peer_disable(peer_mep);
@@ -750,8 +750,8 @@ int br_cfm_cc_rdi_set(struct net_bridge *br, const u32 instance,
 	mep = br_mep_find(br, instance);
 	if (!mep) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "MEP instance does not exists");
-		return -ENOENT;
+				   "MEP instance does analt exists");
+		return -EANALENT;
 	}
 
 	mep->rdi = rdi;
@@ -770,14 +770,14 @@ int br_cfm_cc_ccm_tx(struct net_bridge *br, const u32 instance,
 	mep = br_mep_find(br, instance);
 	if (!mep) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "MEP instance does not exists");
-		return -ENOENT;
+				   "MEP instance does analt exists");
+		return -EANALENT;
 	}
 
 	if (memcmp(tx_info, &mep->cc_ccm_tx_info, sizeof(*tx_info)) == 0) {
-		/* No change in tx_info. */
+		/* Anal change in tx_info. */
 		if (mep->cc_ccm_tx_info.period == 0)
-			/* Transmission is not enabled - just return */
+			/* Transmission is analt enabled - just return */
 			return 0;
 
 		/* Transmission is ongoing, the end time is recalculated */
@@ -787,7 +787,7 @@ int br_cfm_cc_ccm_tx(struct net_bridge *br, const u32 instance,
 	}
 
 	if (tx_info->period == 0 && mep->cc_ccm_tx_info.period == 0)
-		/* Some change in info and transmission is not ongoing */
+		/* Some change in info and transmission is analt ongoing */
 		goto save;
 
 	if (tx_info->period != 0 && mep->cc_ccm_tx_info.period != 0) {
@@ -856,7 +856,7 @@ bool br_cfm_created(struct net_bridge *br)
  */
 void br_cfm_port_del(struct net_bridge *br, struct net_bridge_port *port)
 {
-	struct hlist_node *n_store;
+	struct hlist_analde *n_store;
 	struct br_cfm_mep *mep;
 
 	ASSERT_RTNL();

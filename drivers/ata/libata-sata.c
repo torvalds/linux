@@ -19,8 +19,8 @@
 #include "libata-transport.h"
 
 /* debounce timing parameters in msecs { interval, duration, timeout } */
-const unsigned int sata_deb_timing_normal[]		= {   5,  100, 2000 };
-EXPORT_SYMBOL_GPL(sata_deb_timing_normal);
+const unsigned int sata_deb_timing_analrmal[]		= {   5,  100, 2000 };
+EXPORT_SYMBOL_GPL(sata_deb_timing_analrmal);
 const unsigned int sata_deb_timing_hotplug[]		= {  25,  500, 2000 };
 EXPORT_SYMBOL_GPL(sata_deb_timing_hotplug);
 const unsigned int sata_deb_timing_long[]		= { 100, 2000, 5000 };
@@ -33,7 +33,7 @@ EXPORT_SYMBOL_GPL(sata_deb_timing_long);
  *	Test whether SCRs are accessible for @link.
  *
  *	LOCKING:
- *	None.
+ *	Analne.
  *
  *	RETURNS:
  *	1 if SCRs are accessible, 0 otherwise.
@@ -57,17 +57,17 @@ EXPORT_SYMBOL_GPL(sata_scr_valid);
  *	the port is SATA and the port implements ->scr_read.
  *
  *	LOCKING:
- *	None if @link is ap->link.  Kernel thread context otherwise.
+ *	Analne if @link is ap->link.  Kernel thread context otherwise.
  *
  *	RETURNS:
- *	0 on success, negative errno on failure.
+ *	0 on success, negative erranal on failure.
  */
 int sata_scr_read(struct ata_link *link, int reg, u32 *val)
 {
 	if (ata_is_host_link(link)) {
 		if (sata_scr_valid(link))
 			return link->ap->ops->scr_read(link, reg, val);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return sata_pmp_scr_read(link, reg, val);
@@ -85,17 +85,17 @@ EXPORT_SYMBOL_GPL(sata_scr_read);
  *	the port is SATA and the port implements ->scr_read.
  *
  *	LOCKING:
- *	None if @link is ap->link.  Kernel thread context otherwise.
+ *	Analne if @link is ap->link.  Kernel thread context otherwise.
  *
  *	RETURNS:
- *	0 on success, negative errno on failure.
+ *	0 on success, negative erranal on failure.
  */
 int sata_scr_write(struct ata_link *link, int reg, u32 val)
 {
 	if (ata_is_host_link(link)) {
 		if (sata_scr_valid(link))
 			return link->ap->ops->scr_write(link, reg, val);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return sata_pmp_scr_write(link, reg, val);
@@ -112,10 +112,10 @@ EXPORT_SYMBOL_GPL(sata_scr_write);
  *	function performs flush after writing to the register.
  *
  *	LOCKING:
- *	None if @link is ap->link.  Kernel thread context otherwise.
+ *	Analne if @link is ap->link.  Kernel thread context otherwise.
  *
  *	RETURNS:
- *	0 on success, negative errno on failure.
+ *	0 on success, negative erranal on failure.
  */
 int sata_scr_write_flush(struct ata_link *link, int reg, u32 val)
 {
@@ -128,7 +128,7 @@ int sata_scr_write_flush(struct ata_link *link, int reg, u32 val)
 				rc = link->ap->ops->scr_read(link, reg, &val);
 			return rc;
 		}
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return sata_pmp_scr_write(link, reg, val);
@@ -217,7 +217,7 @@ EXPORT_SYMBOL_GPL(ata_tf_from_fis);
  *	@deadline: deadline jiffies for the operation
  *
  *	Make sure SStatus of @link reaches stable state, determined by
- *	holding the same value where DET is not 1 for @duration polled
+ *	holding the same value where DET is analt 1 for @duration polled
  *	every @interval, before @timeout.  Timeout constraints the
  *	beginning of the stable state.  Because DET gets stuck at 1 on
  *	some controllers after hot unplugging, this functions waits
@@ -230,7 +230,7 @@ EXPORT_SYMBOL_GPL(ata_tf_from_fis);
  *	Kernel thread context (may sleep)
  *
  *	RETURNS:
- *	0 on success, -errno on failure.
+ *	0 on success, -erranal on failure.
  */
 int sata_link_debounce(struct ata_link *link, const unsigned int *params,
 		       unsigned long deadline)
@@ -293,7 +293,7 @@ EXPORT_SYMBOL_GPL(sata_link_debounce);
  *	Kernel thread context (may sleep)
  *
  *	RETURNS:
- *	0 on success, -errno on failure.
+ *	0 on success, -erranal on failure.
  */
 int sata_link_resume(struct ata_link *link, const unsigned int *params,
 		     unsigned long deadline)
@@ -306,7 +306,7 @@ int sata_link_resume(struct ata_link *link, const unsigned int *params,
 		return rc;
 
 	/*
-	 * Writes to SControl sometimes get ignored under certain
+	 * Writes to SControl sometimes get iganalred under certain
 	 * controllers (ata_piix SIDPR).  Make sure DET actually is
 	 * cleared.
 	 */
@@ -319,7 +319,7 @@ int sata_link_resume(struct ata_link *link, const unsigned int *params,
 		 * immediately after resuming.  Delay 200ms before
 		 * debouncing.
 		 */
-		if (!(link->flags & ATA_LFLAG_NO_DEBOUNCE_DELAY))
+		if (!(link->flags & ATA_LFLAG_ANAL_DEBOUNCE_DELAY))
 			ata_msleep(link->ap, 200);
 
 		/* is SControl restored correctly? */
@@ -364,7 +364,7 @@ EXPORT_SYMBOL_GPL(sata_link_resume);
  *	EH context.
  *
  *	RETURNS:
- *	0 on success, -errno otherwise.
+ *	0 on success, -erranal otherwise.
  */
 int sata_link_scr_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 		      bool spm_wakeup)
@@ -397,20 +397,20 @@ int sata_link_scr_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 	case ATA_LPM_MIN_POWER_WITH_PARTIAL:
 	case ATA_LPM_MIN_POWER:
 		if (ata_link_nr_enabled(link) > 0) {
-			/* assume no restrictions on LPM transitions */
+			/* assume anal restrictions on LPM transitions */
 			scontrol &= ~(0x7 << 8);
 
 			/*
-			 * If the controller does not support partial, slumber,
+			 * If the controller does analt support partial, slumber,
 			 * or devsleep, then disallow these transitions.
 			 */
-			if (link->ap->host->flags & ATA_HOST_NO_PART)
+			if (link->ap->host->flags & ATA_HOST_ANAL_PART)
 				scontrol |= (0x1 << 8);
 
-			if (link->ap->host->flags & ATA_HOST_NO_SSC)
+			if (link->ap->host->flags & ATA_HOST_ANAL_SSC)
 				scontrol |= (0x2 << 8);
 
-			if (link->ap->host->flags & ATA_HOST_NO_DEVSLP)
+			if (link->ap->host->flags & ATA_HOST_ANAL_DEVSLP)
 				scontrol |= (0x4 << 8);
 		} else {
 			/* empty port, power off */
@@ -497,7 +497,7 @@ static int sata_set_spd_needed(struct ata_link *link)
  *
  *	RETURNS:
  *	0 if spd doesn't need to be changed, 1 if spd has been
- *	changed.  Negative errno if SCR registers are inaccessible.
+ *	changed.  Negative erranal if SCR registers are inaccessible.
  */
 int sata_set_spd(struct ata_link *link)
 {
@@ -528,7 +528,7 @@ EXPORT_SYMBOL_GPL(sata_set_spd);
  *	SATA phy-reset @link using DET bits of SControl register.
  *	After hardreset, link readiness is waited upon using
  *	ata_wait_ready() if @check_ready is specified.  LLDs are
- *	allowed to not specify @check_ready and wait itself after this
+ *	allowed to analt specify @check_ready and wait itself after this
  *	function returns.  Device classification is LLD's
  *	responsibility.
  *
@@ -539,7 +539,7 @@ EXPORT_SYMBOL_GPL(sata_set_spd);
  *	Kernel thread context (may sleep)
  *
  *	RETURNS:
- *	0 on success, -errno otherwise.
+ *	0 on success, -erranal otherwise.
  */
 int sata_link_hardreset(struct ata_link *link, const unsigned int *timing,
 			unsigned long deadline,
@@ -552,7 +552,7 @@ int sata_link_hardreset(struct ata_link *link, const unsigned int *timing,
 		*online = false;
 
 	if (sata_set_spd_needed(link)) {
-		/* SATA spec says nothing about how to reconfigure
+		/* SATA spec says analthing about how to reconfigure
 		 * spd.  To be on the safe side, turn off phy during
 		 * reconfiguration.  This works for at least ICH7 AHCI
 		 * and Sil3124.
@@ -586,11 +586,11 @@ int sata_link_hardreset(struct ata_link *link, const unsigned int *timing,
 	rc = sata_link_resume(link, timing, deadline);
 	if (rc)
 		goto out;
-	/* if link is offline nothing more to do */
+	/* if link is offline analthing more to do */
 	if (ata_phys_link_offline(link))
 		goto out;
 
-	/* Link is online.  From this point, -ENODEV too is an error. */
+	/* Link is online.  From this point, -EANALDEV too is an error. */
 	if (online)
 		*online = true;
 
@@ -633,7 +633,7 @@ EXPORT_SYMBOL_GPL(sata_link_hardreset);
  *
  *	Complete in-flight commands.  This functions is meant to be
  *	called from low-level driver's interrupt routine to complete
- *	requests normally.  ap->qc_active and @qc_active is compared
+ *	requests analrmally.  ap->qc_active and @qc_active is compared
  *	and commands are completed accordingly.
  *
  *	Always use this function when completing multiple NCQ commands
@@ -644,7 +644,7 @@ EXPORT_SYMBOL_GPL(sata_link_hardreset);
  *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
- *	Number of completed commands on success, -errno otherwise.
+ *	Number of completed commands on success, -erranal otherwise.
  */
 int ata_qc_complete_multiple(struct ata_port *ap, u64 qc_active)
 {
@@ -724,7 +724,7 @@ EXPORT_SYMBOL_GPL(ata_qc_complete_multiple);
  *	prereset(M) -> prereset(S) -> hardreset(M) -> hardreset(S) ->
  *	softreset(M) -> postreset(M) -> postreset(S)
  *
- *	Note that softreset is called only for the master.  Softreset
+ *	Analte that softreset is called only for the master.  Softreset
  *	resets both M/S by definition, so SRST on master should handle
  *	both (the standard method will work just fine).
  *
@@ -732,7 +732,7 @@ EXPORT_SYMBOL_GPL(ata_qc_complete_multiple);
  *	Should be called before host is registered.
  *
  *	RETURNS:
- *	0 on success, -errno on failure.
+ *	0 on success, -erranal on failure.
  */
 int ata_slave_link_init(struct ata_port *ap)
 {
@@ -743,7 +743,7 @@ int ata_slave_link_init(struct ata_port *ap)
 
 	link = kzalloc(sizeof(*link), GFP_KERNEL);
 	if (!link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ata_link_init(ap, link, 1);
 	ap->slave_link = link;
@@ -752,18 +752,18 @@ int ata_slave_link_init(struct ata_port *ap)
 EXPORT_SYMBOL_GPL(ata_slave_link_init);
 
 /**
- *	sata_lpm_ignore_phy_events - test if PHY event should be ignored
+ *	sata_lpm_iganalre_phy_events - test if PHY event should be iganalred
  *	@link: Link receiving the event
  *
- *	Test whether the received PHY event has to be ignored or not.
+ *	Test whether the received PHY event has to be iganalred or analt.
  *
  *	LOCKING:
- *	None:
+ *	Analne:
  *
  *	RETURNS:
- *	True if the event has to be ignored.
+ *	True if the event has to be iganalred.
  */
-bool sata_lpm_ignore_phy_events(struct ata_link *link)
+bool sata_lpm_iganalre_phy_events(struct ata_link *link)
 {
 	unsigned long lpm_timeout = link->last_lpm_change +
 				    msecs_to_jiffies(ATA_TMOUT_SPURIOUS_PHY);
@@ -772,7 +772,7 @@ bool sata_lpm_ignore_phy_events(struct ata_link *link)
 	if (link->lpm_policy > ATA_LPM_MAX_POWER)
 		return true;
 
-	/* ignore the first PHY event after the LPM policy changed
+	/* iganalre the first PHY event after the LPM policy changed
 	 * as it is might be spurious
 	 */
 	if ((link->flags & ATA_LFLAG_CHANGED) &&
@@ -781,10 +781,10 @@ bool sata_lpm_ignore_phy_events(struct ata_link *link)
 
 	return false;
 }
-EXPORT_SYMBOL_GPL(sata_lpm_ignore_phy_events);
+EXPORT_SYMBOL_GPL(sata_lpm_iganalre_phy_events);
 
 static const char *ata_lpm_policy_names[] = {
-	[ATA_LPM_UNKNOWN]		= "keep_firmware_settings",
+	[ATA_LPM_UNKANALWN]		= "keep_firmware_settings",
 	[ATA_LPM_MAX_POWER]		= "max_performance",
 	[ATA_LPM_MED_POWER]		= "medium_power",
 	[ATA_LPM_MED_POWER_WITH_DIPM]	= "med_power_with_dipm",
@@ -803,7 +803,7 @@ static ssize_t ata_scsi_lpm_store(struct device *device,
 	enum ata_lpm_policy policy;
 	unsigned long flags;
 
-	/* UNKNOWN is internal state, iterate from MAX_POWER */
+	/* UNKANALWN is internal state, iterate from MAX_POWER */
 	for (policy = ATA_LPM_MAX_POWER;
 	     policy < ARRAY_SIZE(ata_lpm_policy_names); policy++) {
 		const char *name = ata_lpm_policy_names[policy];
@@ -818,8 +818,8 @@ static ssize_t ata_scsi_lpm_store(struct device *device,
 
 	ata_for_each_link(link, ap, EDGE) {
 		ata_for_each_dev(dev, &ap->link, ENABLED) {
-			if (dev->horkage & ATA_HORKAGE_NOLPM) {
-				count = -EOPNOTSUPP;
+			if (dev->horkage & ATA_HORKAGE_ANALLPM) {
+				count = -EOPANALTSUPP;
 				goto out_unlock;
 			}
 		}
@@ -861,7 +861,7 @@ static ssize_t ata_ncq_prio_supported_show(struct device *device,
 	spin_lock_irq(ap->lock);
 	dev = ata_scsi_find_dev(ap, sdev);
 	if (!dev)
-		rc = -ENODEV;
+		rc = -EANALDEV;
 	else
 		ncq_prio_supported = dev->flags & ATA_DFLAG_NCQ_PRIO;
 	spin_unlock_irq(ap->lock);
@@ -885,7 +885,7 @@ static ssize_t ata_ncq_prio_enable_show(struct device *device,
 	spin_lock_irq(ap->lock);
 	dev = ata_scsi_find_dev(ap, sdev);
 	if (!dev)
-		rc = -ENODEV;
+		rc = -EANALDEV;
 	else
 		ncq_prio_enable = dev->flags & ATA_DFLAG_NCQ_PRIO_ENABLED;
 	spin_unlock_irq(ap->lock);
@@ -912,7 +912,7 @@ static ssize_t ata_ncq_prio_enable_store(struct device *device,
 	ap = ata_shost_to_port(sdev->host);
 	dev = ata_scsi_find_dev(ap, sdev);
 	if (unlikely(!dev))
-		return  -ENODEV;
+		return  -EANALDEV;
 
 	spin_lock_irq(ap->lock);
 
@@ -1067,7 +1067,7 @@ int ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
 	}
 
 	/*
-	 * Make sure that the queue depth requested does not exceed the device
+	 * Make sure that the queue depth requested does analt exceed the device
 	 * capabilities.
 	 */
 	max_queue_depth = min(ATA_MAX_QUEUE, sdev->host->can_queue);
@@ -1078,7 +1078,7 @@ int ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
 	}
 
 	/*
-	 * If NCQ is not supported by the device or if the target queue depth
+	 * If NCQ is analt supported by the device or if the target queue depth
 	 * is 1 (to disable drive side command queueing), turn off NCQ.
 	 */
 	if (queue_depth == 1 || !ata_ncq_supported(dev)) {
@@ -1143,7 +1143,7 @@ struct ata_port *ata_sas_port_alloc(struct ata_host *host,
 	if (!ap)
 		return NULL;
 
-	ap->port_no = 0;
+	ap->port_anal = 0;
 	ap->lock = &host->lock;
 	ap->pio_mask = port_info->pio_mask;
 	ap->mwdma_mask = port_info->mwdma_mask;
@@ -1211,10 +1211,10 @@ int ata_sas_queuecmd(struct scsi_cmnd *cmd, struct ata_port *ap)
 EXPORT_SYMBOL_GPL(ata_sas_queuecmd);
 
 /**
- *	sata_async_notification - SATA async notification handler
- *	@ap: ATA port where async notification is received
+ *	sata_async_analtification - SATA async analtification handler
+ *	@ap: ATA port where async analtification is received
  *
- *	Handler to be called when async notification via SDB FIS is
+ *	Handler to be called when async analtification via SDB FIS is
  *	received.  This function schedules EH if necessary.
  *
  *	LOCKING:
@@ -1223,7 +1223,7 @@ EXPORT_SYMBOL_GPL(ata_sas_queuecmd);
  *	RETURNS:
  *	1 if EH is scheduled, 0 otherwise.
  */
-int sata_async_notification(struct ata_port *ap)
+int sata_async_analtification(struct ata_port *ap)
 {
 	u32 sntf;
 	int rc;
@@ -1231,27 +1231,27 @@ int sata_async_notification(struct ata_port *ap)
 	if (!(ap->flags & ATA_FLAG_AN))
 		return 0;
 
-	rc = sata_scr_read(&ap->link, SCR_NOTIFICATION, &sntf);
+	rc = sata_scr_read(&ap->link, SCR_ANALTIFICATION, &sntf);
 	if (rc == 0)
-		sata_scr_write(&ap->link, SCR_NOTIFICATION, sntf);
+		sata_scr_write(&ap->link, SCR_ANALTIFICATION, sntf);
 
 	if (!sata_pmp_attached(ap) || rc) {
-		/* PMP is not attached or SNTF is not available */
+		/* PMP is analt attached or SNTF is analt available */
 		if (!sata_pmp_attached(ap)) {
-			/* PMP is not attached.  Check whether ATAPI
-			 * AN is configured.  If so, notify media
+			/* PMP is analt attached.  Check whether ATAPI
+			 * AN is configured.  If so, analtify media
 			 * change.
 			 */
 			struct ata_device *dev = ap->link.device;
 
 			if ((dev->class == ATA_DEV_ATAPI) &&
 			    (dev->flags & ATA_DFLAG_AN))
-				ata_scsi_media_change_notify(dev);
+				ata_scsi_media_change_analtify(dev);
 			return 0;
 		} else {
-			/* PMP is attached but SNTF is not available.
-			 * ATAPI async media change notification is
-			 * not used.  The PMP must be reporting PHY
+			/* PMP is attached but SNTF is analt available.
+			 * ATAPI async media change analtification is
+			 * analt used.  The PMP must be reporting PHY
 			 * status change, schedule EH.
 			 */
 			ata_port_schedule_eh(ap);
@@ -1261,14 +1261,14 @@ int sata_async_notification(struct ata_port *ap)
 		/* PMP is attached and SNTF is available */
 		struct ata_link *link;
 
-		/* check and notify ATAPI AN */
+		/* check and analtify ATAPI AN */
 		ata_for_each_link(link, ap, EDGE) {
 			if (!(sntf & (1 << link->pmp)))
 				continue;
 
 			if ((link->device->class == ATA_DEV_ATAPI) &&
 			    (link->device->flags & ATA_DFLAG_AN))
-				ata_scsi_media_change_notify(link->device);
+				ata_scsi_media_change_analtify(link->device);
 		}
 
 		/* If PMP is reporting that PHY status of some
@@ -1282,7 +1282,7 @@ int sata_async_notification(struct ata_port *ap)
 		return 0;
 	}
 }
-EXPORT_SYMBOL_GPL(sata_async_notification);
+EXPORT_SYMBOL_GPL(sata_async_analtification);
 
 /**
  *	ata_eh_read_log_10h - Read log page 10h for NCQ error details
@@ -1297,7 +1297,7 @@ EXPORT_SYMBOL_GPL(sata_async_notification);
  *	Kernel thread context (may sleep).
  *
  *	RETURNS:
- *	0 on success, -errno otherwise.
+ *	0 on success, -erranal otherwise.
  */
 static int ata_eh_read_log_10h(struct ata_device *dev,
 			       int *tag, struct ata_taskfile *tf)
@@ -1319,7 +1319,7 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
 			     csum);
 
 	if (buf[0] & 0x80)
-		return -ENOENT;
+		return -EANALENT;
 
 	*tag = buf[0] & 0x1f;
 
@@ -1353,7 +1353,7 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
  *	Kernel thread context (may sleep).
  *
  *	RETURNS:
- *	0 on success, -errno otherwise.
+ *	0 on success, -erranal otherwise.
  */
 int ata_eh_read_sense_success_ncq_log(struct ata_link *link)
 {
@@ -1392,7 +1392,7 @@ int ata_eh_read_sense_success_ncq_log(struct ata_link *link)
 			continue;
 
 		/*
-		 * If the command does not have any sense data, clear ATA_SENSE.
+		 * If the command does analt have any sense data, clear ATA_SENSE.
 		 * Keep ATA_QCFLAG_EH_SUCCESS_CMD so that command is finished.
 		 */
 		if (!(sense_valid & (1ULL << tag))) {
@@ -1418,7 +1418,7 @@ int ata_eh_read_sense_success_ncq_log(struct ata_link *link)
 
 		/*
 		 * If we have sense data, call scsi_check_sense() in order to
-		 * set the correct SCSI ML byte (if any). No point in checking
+		 * set the correct SCSI ML byte (if any). Anal point in checking
 		 * the return value, since the command has already completed
 		 * successfully.
 		 */
@@ -1471,7 +1471,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 	memset(&tf, 0, sizeof(tf));
 	rc = ata_eh_read_log_10h(dev, &tag, &tf);
 	if (rc) {
-		ata_link_err(link, "failed to read log page 10h (errno=%d)\n",
+		ata_link_err(link, "failed to read log page 10h (erranal=%d)\n",
 			     rc);
 		return;
 	}
@@ -1529,7 +1529,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 		/*
 		 * If we get a NCQ error, that means that a single command was
 		 * aborted. All other failed commands for our link should be
-		 * retried and has no business of going though further scrutiny
+		 * retried and has anal business of going though further scrutiny
 		 * by ata_eh_link_autopsy().
 		 */
 		qc->flags |= ATA_QCFLAG_RETRY;

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -310,10 +310,10 @@
 //RCC_DWN_DEV0_0_DN_PCIE_CNTL
 #define RCC_DWN_DEV0_0_DN_PCIE_CNTL__HWINIT_WR_LOCK__SHIFT                                                    0x0
 #define RCC_DWN_DEV0_0_DN_PCIE_CNTL__UR_ERR_REPORT_DIS_DN__SHIFT                                              0x7
-#define RCC_DWN_DEV0_0_DN_PCIE_CNTL__RX_IGNORE_LTR_MSG_UR__SHIFT                                              0x1e
+#define RCC_DWN_DEV0_0_DN_PCIE_CNTL__RX_IGANALRE_LTR_MSG_UR__SHIFT                                              0x1e
 #define RCC_DWN_DEV0_0_DN_PCIE_CNTL__HWINIT_WR_LOCK_MASK                                                      0x00000001L
 #define RCC_DWN_DEV0_0_DN_PCIE_CNTL__UR_ERR_REPORT_DIS_DN_MASK                                                0x00000080L
-#define RCC_DWN_DEV0_0_DN_PCIE_CNTL__RX_IGNORE_LTR_MSG_UR_MASK                                                0x40000000L
+#define RCC_DWN_DEV0_0_DN_PCIE_CNTL__RX_IGANALRE_LTR_MSG_UR_MASK                                                0x40000000L
 //RCC_DWN_DEV0_0_DN_PCIE_CONFIG_CNTL
 #define RCC_DWN_DEV0_0_DN_PCIE_CONFIG_CNTL__CI_EXTENDED_TAG_EN_OVERRIDE__SHIFT                                0x19
 #define RCC_DWN_DEV0_0_DN_PCIE_CONFIG_CNTL__CI_EXTENDED_TAG_EN_OVERRIDE_MASK                                  0x06000000L
@@ -360,25 +360,25 @@
 #define RCC_DWNP_DEV0_0_PCIE_ERR_CNTL__AER_HDR_LOG_F0_TIMER_EXPIRED__SHIFT                                    0xb
 #define RCC_DWNP_DEV0_0_PCIE_ERR_CNTL__SEND_ERR_MSG_IMMEDIATELY__SHIFT                                        0x11
 #define RCC_DWNP_DEV0_0_PCIE_ERR_CNTL__ERR_CORR_RCVD_CLR__SHIFT                                               0x12
-#define RCC_DWNP_DEV0_0_PCIE_ERR_CNTL__NONFATAL_ERR_RCVD_CLR__SHIFT                                           0x13
+#define RCC_DWNP_DEV0_0_PCIE_ERR_CNTL__ANALNFATAL_ERR_RCVD_CLR__SHIFT                                           0x13
 #define RCC_DWNP_DEV0_0_PCIE_ERR_CNTL__FATAL_ERR_RCVD_CLR__SHIFT                                              0x14
 #define RCC_DWNP_DEV0_0_PCIE_ERR_CNTL__ERR_REPORTING_DIS_MASK                                                 0x00000001L
 #define RCC_DWNP_DEV0_0_PCIE_ERR_CNTL__AER_HDR_LOG_TIMEOUT_MASK                                               0x00000700L
 #define RCC_DWNP_DEV0_0_PCIE_ERR_CNTL__AER_HDR_LOG_F0_TIMER_EXPIRED_MASK                                      0x00000800L
 #define RCC_DWNP_DEV0_0_PCIE_ERR_CNTL__SEND_ERR_MSG_IMMEDIATELY_MASK                                          0x00020000L
 #define RCC_DWNP_DEV0_0_PCIE_ERR_CNTL__ERR_CORR_RCVD_CLR_MASK                                                 0x00040000L
-#define RCC_DWNP_DEV0_0_PCIE_ERR_CNTL__NONFATAL_ERR_RCVD_CLR_MASK                                             0x00080000L
+#define RCC_DWNP_DEV0_0_PCIE_ERR_CNTL__ANALNFATAL_ERR_RCVD_CLR_MASK                                             0x00080000L
 #define RCC_DWNP_DEV0_0_PCIE_ERR_CNTL__FATAL_ERR_RCVD_CLR_MASK                                                0x00100000L
 //RCC_DWNP_DEV0_0_PCIE_RX_CNTL
-#define RCC_DWNP_DEV0_0_PCIE_RX_CNTL__RX_IGNORE_MAX_PAYLOAD_ERR__SHIFT                                        0x8
-#define RCC_DWNP_DEV0_0_PCIE_RX_CNTL__RX_IGNORE_TC_ERR_DN__SHIFT                                              0x9
+#define RCC_DWNP_DEV0_0_PCIE_RX_CNTL__RX_IGANALRE_MAX_PAYLOAD_ERR__SHIFT                                        0x8
+#define RCC_DWNP_DEV0_0_PCIE_RX_CNTL__RX_IGANALRE_TC_ERR_DN__SHIFT                                              0x9
 #define RCC_DWNP_DEV0_0_PCIE_RX_CNTL__RX_PCIE_CPL_TIMEOUT_DIS__SHIFT                                          0x14
-#define RCC_DWNP_DEV0_0_PCIE_RX_CNTL__RX_IGNORE_SHORTPREFIX_ERR_DN__SHIFT                                     0x15
+#define RCC_DWNP_DEV0_0_PCIE_RX_CNTL__RX_IGANALRE_SHORTPREFIX_ERR_DN__SHIFT                                     0x15
 #define RCC_DWNP_DEV0_0_PCIE_RX_CNTL__RX_RCB_FLR_TIMEOUT_DIS__SHIFT                                           0x1b
-#define RCC_DWNP_DEV0_0_PCIE_RX_CNTL__RX_IGNORE_MAX_PAYLOAD_ERR_MASK                                          0x00000100L
-#define RCC_DWNP_DEV0_0_PCIE_RX_CNTL__RX_IGNORE_TC_ERR_DN_MASK                                                0x00000200L
+#define RCC_DWNP_DEV0_0_PCIE_RX_CNTL__RX_IGANALRE_MAX_PAYLOAD_ERR_MASK                                          0x00000100L
+#define RCC_DWNP_DEV0_0_PCIE_RX_CNTL__RX_IGANALRE_TC_ERR_DN_MASK                                                0x00000200L
 #define RCC_DWNP_DEV0_0_PCIE_RX_CNTL__RX_PCIE_CPL_TIMEOUT_DIS_MASK                                            0x00100000L
-#define RCC_DWNP_DEV0_0_PCIE_RX_CNTL__RX_IGNORE_SHORTPREFIX_ERR_DN_MASK                                       0x00200000L
+#define RCC_DWNP_DEV0_0_PCIE_RX_CNTL__RX_IGANALRE_SHORTPREFIX_ERR_DN_MASK                                       0x00200000L
 #define RCC_DWNP_DEV0_0_PCIE_RX_CNTL__RX_RCB_FLR_TIMEOUT_DIS_MASK                                             0x08000000L
 //RCC_DWNP_DEV0_0_PCIE_LC_SPEED_CNTL
 #define RCC_DWNP_DEV0_0_PCIE_LC_SPEED_CNTL__LC_GEN2_EN_STRAP__SHIFT                                           0x0
@@ -390,10 +390,10 @@
 #define RCC_DWNP_DEV0_0_PCIE_LC_SPEED_CNTL__LC_GEN4_EN_STRAP_MASK                                             0x00000004L
 #define RCC_DWNP_DEV0_0_PCIE_LC_SPEED_CNTL__LC_GEN5_EN_STRAP_MASK                                             0x00000008L
 //RCC_DWNP_DEV0_0_PCIE_LC_CNTL2
-#define RCC_DWNP_DEV0_0_PCIE_LC_CNTL2__DL_STATE_CHANGED_NOTIFICATION_DIS__SHIFT                               0x0
-#define RCC_DWNP_DEV0_0_PCIE_LC_CNTL2__LC_LINK_BW_NOTIFICATION_DIS__SHIFT                                     0x1b
-#define RCC_DWNP_DEV0_0_PCIE_LC_CNTL2__DL_STATE_CHANGED_NOTIFICATION_DIS_MASK                                 0x00000001L
-#define RCC_DWNP_DEV0_0_PCIE_LC_CNTL2__LC_LINK_BW_NOTIFICATION_DIS_MASK                                       0x08000000L
+#define RCC_DWNP_DEV0_0_PCIE_LC_CNTL2__DL_STATE_CHANGED_ANALTIFICATION_DIS__SHIFT                               0x0
+#define RCC_DWNP_DEV0_0_PCIE_LC_CNTL2__LC_LINK_BW_ANALTIFICATION_DIS__SHIFT                                     0x1b
+#define RCC_DWNP_DEV0_0_PCIE_LC_CNTL2__DL_STATE_CHANGED_ANALTIFICATION_DIS_MASK                                 0x00000001L
+#define RCC_DWNP_DEV0_0_PCIE_LC_CNTL2__LC_LINK_BW_ANALTIFICATION_DIS_MASK                                       0x08000000L
 //RCC_DWNP_DEV0_0_PCIEP_STRAP_MISC
 #define RCC_DWNP_DEV0_0_PCIEP_STRAP_MISC__STRAP_MULTI_FUNC_EN__SHIFT                                          0xa
 #define RCC_DWNP_DEV0_0_PCIEP_STRAP_MISC__STRAP_MULTI_FUNC_EN_MASK                                            0x00000400L
@@ -409,41 +409,41 @@
 //RCC_EP_DEV0_0_EP_PCIE_CNTL
 #define RCC_EP_DEV0_0_EP_PCIE_CNTL__UR_ERR_REPORT_DIS__SHIFT                                                  0x7
 #define RCC_EP_DEV0_0_EP_PCIE_CNTL__PCIE_MALFORM_ATOMIC_OPS__SHIFT                                            0x8
-#define RCC_EP_DEV0_0_EP_PCIE_CNTL__RX_IGNORE_LTR_MSG_UR__SHIFT                                               0x1e
+#define RCC_EP_DEV0_0_EP_PCIE_CNTL__RX_IGANALRE_LTR_MSG_UR__SHIFT                                               0x1e
 #define RCC_EP_DEV0_0_EP_PCIE_CNTL__UR_ERR_REPORT_DIS_MASK                                                    0x00000080L
 #define RCC_EP_DEV0_0_EP_PCIE_CNTL__PCIE_MALFORM_ATOMIC_OPS_MASK                                              0x00000100L
-#define RCC_EP_DEV0_0_EP_PCIE_CNTL__RX_IGNORE_LTR_MSG_UR_MASK                                                 0x40000000L
+#define RCC_EP_DEV0_0_EP_PCIE_CNTL__RX_IGANALRE_LTR_MSG_UR_MASK                                                 0x40000000L
 //RCC_EP_DEV0_0_EP_PCIE_INT_CNTL
 #define RCC_EP_DEV0_0_EP_PCIE_INT_CNTL__CORR_ERR_INT_EN__SHIFT                                                0x0
-#define RCC_EP_DEV0_0_EP_PCIE_INT_CNTL__NON_FATAL_ERR_INT_EN__SHIFT                                           0x1
+#define RCC_EP_DEV0_0_EP_PCIE_INT_CNTL__ANALN_FATAL_ERR_INT_EN__SHIFT                                           0x1
 #define RCC_EP_DEV0_0_EP_PCIE_INT_CNTL__FATAL_ERR_INT_EN__SHIFT                                               0x2
 #define RCC_EP_DEV0_0_EP_PCIE_INT_CNTL__USR_DETECTED_INT_EN__SHIFT                                            0x3
 #define RCC_EP_DEV0_0_EP_PCIE_INT_CNTL__MISC_ERR_INT_EN__SHIFT                                                0x4
 #define RCC_EP_DEV0_0_EP_PCIE_INT_CNTL__POWER_STATE_CHG_INT_EN__SHIFT                                         0x6
 #define RCC_EP_DEV0_0_EP_PCIE_INT_CNTL__CORR_ERR_INT_EN_MASK                                                  0x00000001L
-#define RCC_EP_DEV0_0_EP_PCIE_INT_CNTL__NON_FATAL_ERR_INT_EN_MASK                                             0x00000002L
+#define RCC_EP_DEV0_0_EP_PCIE_INT_CNTL__ANALN_FATAL_ERR_INT_EN_MASK                                             0x00000002L
 #define RCC_EP_DEV0_0_EP_PCIE_INT_CNTL__FATAL_ERR_INT_EN_MASK                                                 0x00000004L
 #define RCC_EP_DEV0_0_EP_PCIE_INT_CNTL__USR_DETECTED_INT_EN_MASK                                              0x00000008L
 #define RCC_EP_DEV0_0_EP_PCIE_INT_CNTL__MISC_ERR_INT_EN_MASK                                                  0x00000010L
 #define RCC_EP_DEV0_0_EP_PCIE_INT_CNTL__POWER_STATE_CHG_INT_EN_MASK                                           0x00000040L
 //RCC_EP_DEV0_0_EP_PCIE_INT_STATUS
 #define RCC_EP_DEV0_0_EP_PCIE_INT_STATUS__CORR_ERR_INT_STATUS__SHIFT                                          0x0
-#define RCC_EP_DEV0_0_EP_PCIE_INT_STATUS__NON_FATAL_ERR_INT_STATUS__SHIFT                                     0x1
+#define RCC_EP_DEV0_0_EP_PCIE_INT_STATUS__ANALN_FATAL_ERR_INT_STATUS__SHIFT                                     0x1
 #define RCC_EP_DEV0_0_EP_PCIE_INT_STATUS__FATAL_ERR_INT_STATUS__SHIFT                                         0x2
 #define RCC_EP_DEV0_0_EP_PCIE_INT_STATUS__USR_DETECTED_INT_STATUS__SHIFT                                      0x3
 #define RCC_EP_DEV0_0_EP_PCIE_INT_STATUS__MISC_ERR_INT_STATUS__SHIFT                                          0x4
 #define RCC_EP_DEV0_0_EP_PCIE_INT_STATUS__POWER_STATE_CHG_INT_STATUS__SHIFT                                   0x6
 #define RCC_EP_DEV0_0_EP_PCIE_INT_STATUS__POWER_STATE_CHG_INT_STATUS_F0__SHIFT                                0x7
 #define RCC_EP_DEV0_0_EP_PCIE_INT_STATUS__CORR_ERR_INT_STATUS_MASK                                            0x00000001L
-#define RCC_EP_DEV0_0_EP_PCIE_INT_STATUS__NON_FATAL_ERR_INT_STATUS_MASK                                       0x00000002L
+#define RCC_EP_DEV0_0_EP_PCIE_INT_STATUS__ANALN_FATAL_ERR_INT_STATUS_MASK                                       0x00000002L
 #define RCC_EP_DEV0_0_EP_PCIE_INT_STATUS__FATAL_ERR_INT_STATUS_MASK                                           0x00000004L
 #define RCC_EP_DEV0_0_EP_PCIE_INT_STATUS__USR_DETECTED_INT_STATUS_MASK                                        0x00000008L
 #define RCC_EP_DEV0_0_EP_PCIE_INT_STATUS__MISC_ERR_INT_STATUS_MASK                                            0x00000010L
 #define RCC_EP_DEV0_0_EP_PCIE_INT_STATUS__POWER_STATE_CHG_INT_STATUS_MASK                                     0x00000040L
 #define RCC_EP_DEV0_0_EP_PCIE_INT_STATUS__POWER_STATE_CHG_INT_STATUS_F0_MASK                                  0x00000080L
 //RCC_EP_DEV0_0_EP_PCIE_RX_CNTL2
-#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL2__RX_IGNORE_EP_INVALIDPASID_UR__SHIFT                                   0x0
-#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL2__RX_IGNORE_EP_INVALIDPASID_UR_MASK                                     0x00000001L
+#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL2__RX_IGANALRE_EP_INVALIDPASID_UR__SHIFT                                   0x0
+#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL2__RX_IGANALRE_EP_INVALIDPASID_UR_MASK                                     0x00000001L
 //RCC_EP_DEV0_0_EP_PCIE_BUS_CNTL
 #define RCC_EP_DEV0_0_EP_PCIE_BUS_CNTL__IMMEDIATE_PMI_DIS__SHIFT                                              0x7
 #define RCC_EP_DEV0_0_EP_PCIE_BUS_CNTL__IMMEDIATE_PMI_DIS_MASK                                                0x00000080L
@@ -465,7 +465,7 @@
 #define RCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_SHORT_VALUE__SHIFT                                     0x7
 #define RCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_LONG_VALUE__SHIFT                                      0xa
 #define RCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_REQUIREMENT__SHIFT                                     0xd
-#define RCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_NON_D0__SHIFT                               0xe
+#define RCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_ANALN_D0__SHIFT                               0xe
 #define RCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_RST_LTR_IN_DL_DOWN__SHIFT                                 0xf
 #define RCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL__TX_CHK_FC_FOR_L1__SHIFT                                            0x10
 #define RCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL__LTR_DSTATE_USING_WDATA_EN__SHIFT                                   0x11
@@ -475,7 +475,7 @@
 #define RCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_SHORT_VALUE_MASK                                       0x00000380L
 #define RCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_LONG_VALUE_MASK                                        0x00001C00L
 #define RCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_REQUIREMENT_MASK                                       0x00002000L
-#define RCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_NON_D0_MASK                                 0x00004000L
+#define RCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_ANALN_D0_MASK                                 0x00004000L
 #define RCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_RST_LTR_IN_DL_DOWN_MASK                                   0x00008000L
 #define RCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL__TX_CHK_FC_FOR_L1_MASK                                              0x00010000L
 #define RCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL__LTR_DSTATE_USING_WDATA_EN_MASK                                     0x00020000L
@@ -578,7 +578,7 @@
 #define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__ERR_REPORTING_DIS__SHIFT                                              0x0
 #define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__AER_HDR_LOG_TIMEOUT__SHIFT                                            0x8
 #define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__SEND_ERR_MSG_IMMEDIATELY__SHIFT                                       0x11
-#define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__STRAP_POISONED_ADVISORY_NONFATAL__SHIFT                               0x12
+#define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__STRAP_POISONED_ADVISORY_ANALNFATAL__SHIFT                               0x12
 #define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F0_TIMER_EXPIRED__SHIFT                                   0x18
 #define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F1_TIMER_EXPIRED__SHIFT                                   0x19
 #define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F2_TIMER_EXPIRED__SHIFT                                   0x1a
@@ -590,7 +590,7 @@
 #define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__ERR_REPORTING_DIS_MASK                                                0x00000001L
 #define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__AER_HDR_LOG_TIMEOUT_MASK                                              0x00000700L
 #define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__SEND_ERR_MSG_IMMEDIATELY_MASK                                         0x00020000L
-#define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__STRAP_POISONED_ADVISORY_NONFATAL_MASK                                 0x00040000L
+#define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__STRAP_POISONED_ADVISORY_ANALNFATAL_MASK                                 0x00040000L
 #define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F0_TIMER_EXPIRED_MASK                                     0x01000000L
 #define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F1_TIMER_EXPIRED_MASK                                     0x02000000L
 #define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F2_TIMER_EXPIRED_MASK                                     0x04000000L
@@ -600,21 +600,21 @@
 #define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F6_TIMER_EXPIRED_MASK                                     0x40000000L
 #define RCC_EP_DEV0_0_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F7_TIMER_EXPIRED_MASK                                     0x80000000L
 //RCC_EP_DEV0_0_EP_PCIE_RX_CNTL
-#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGNORE_MAX_PAYLOAD_ERR__SHIFT                                       0x8
-#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGNORE_TC_ERR__SHIFT                                                0x9
+#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGANALRE_MAX_PAYLOAD_ERR__SHIFT                                       0x8
+#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGANALRE_TC_ERR__SHIFT                                                0x9
 #define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_PCIE_CPL_TIMEOUT_DIS__SHIFT                                         0x14
-#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGNORE_SHORTPREFIX_ERR__SHIFT                                       0x15
-#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGNORE_MAXPREFIX_ERR__SHIFT                                         0x16
-#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGNORE_INVALIDPASID_ERR__SHIFT                                      0x18
-#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGNORE_NOT_PASID_UR__SHIFT                                          0x19
+#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGANALRE_SHORTPREFIX_ERR__SHIFT                                       0x15
+#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGANALRE_MAXPREFIX_ERR__SHIFT                                         0x16
+#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGANALRE_INVALIDPASID_ERR__SHIFT                                      0x18
+#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGANALRE_ANALT_PASID_UR__SHIFT                                          0x19
 #define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_TPH_DIS__SHIFT                                                      0x1a
-#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGNORE_MAX_PAYLOAD_ERR_MASK                                         0x00000100L
-#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGNORE_TC_ERR_MASK                                                  0x00000200L
+#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGANALRE_MAX_PAYLOAD_ERR_MASK                                         0x00000100L
+#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGANALRE_TC_ERR_MASK                                                  0x00000200L
 #define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_PCIE_CPL_TIMEOUT_DIS_MASK                                           0x00100000L
-#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGNORE_SHORTPREFIX_ERR_MASK                                         0x00200000L
-#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGNORE_MAXPREFIX_ERR_MASK                                           0x00400000L
-#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGNORE_INVALIDPASID_ERR_MASK                                        0x01000000L
-#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGNORE_NOT_PASID_UR_MASK                                            0x02000000L
+#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGANALRE_SHORTPREFIX_ERR_MASK                                         0x00200000L
+#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGANALRE_MAXPREFIX_ERR_MASK                                           0x00400000L
+#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGANALRE_INVALIDPASID_ERR_MASK                                        0x01000000L
+#define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_IGANALRE_ANALT_PASID_UR_MASK                                            0x02000000L
 #define RCC_EP_DEV0_0_EP_PCIE_RX_CNTL__RX_TPH_DIS_MASK                                                        0x04000000L
 //RCC_EP_DEV0_0_EP_PCIE_LC_SPEED_CNTL
 #define RCC_EP_DEV0_0_EP_PCIE_LC_SPEED_CNTL__LC_GEN2_EN_STRAP__SHIFT                                          0x0
@@ -713,19 +713,19 @@
 //BIF_BX0_INTERRUPT_CNTL
 #define BIF_BX0_INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE__SHIFT                                                   0x0
 #define BIF_BX0_INTERRUPT_CNTL__IH_DUMMY_RD_EN__SHIFT                                                         0x1
-#define BIF_BX0_INTERRUPT_CNTL__IH_REQ_NONSNOOP_EN__SHIFT                                                     0x3
+#define BIF_BX0_INTERRUPT_CNTL__IH_REQ_ANALNSANALOP_EN__SHIFT                                                     0x3
 #define BIF_BX0_INTERRUPT_CNTL__IH_INTR_DLY_CNTR__SHIFT                                                       0x4
 #define BIF_BX0_INTERRUPT_CNTL__GEN_IH_INT_EN__SHIFT                                                          0x8
-#define BIF_BX0_INTERRUPT_CNTL__BIF_RB_REQ_NONSNOOP_EN__SHIFT                                                 0xf
+#define BIF_BX0_INTERRUPT_CNTL__BIF_RB_REQ_ANALNSANALOP_EN__SHIFT                                                 0xf
 #define BIF_BX0_INTERRUPT_CNTL__DUMMYRD_BYPASS_IN_MSI_EN__SHIFT                                               0x10
 #define BIF_BX0_INTERRUPT_CNTL__ALWAYS_SEND_INTPKT_AFTER_DUMMYRD_DIS__SHIFT                                   0x11
 #define BIF_BX0_INTERRUPT_CNTL__BIF_RB_REQ_RELAX_ORDER_EN__SHIFT                                              0x12
 #define BIF_BX0_INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK                                                     0x00000001L
 #define BIF_BX0_INTERRUPT_CNTL__IH_DUMMY_RD_EN_MASK                                                           0x00000002L
-#define BIF_BX0_INTERRUPT_CNTL__IH_REQ_NONSNOOP_EN_MASK                                                       0x00000008L
+#define BIF_BX0_INTERRUPT_CNTL__IH_REQ_ANALNSANALOP_EN_MASK                                                       0x00000008L
 #define BIF_BX0_INTERRUPT_CNTL__IH_INTR_DLY_CNTR_MASK                                                         0x000000F0L
 #define BIF_BX0_INTERRUPT_CNTL__GEN_IH_INT_EN_MASK                                                            0x00000100L
-#define BIF_BX0_INTERRUPT_CNTL__BIF_RB_REQ_NONSNOOP_EN_MASK                                                   0x00008000L
+#define BIF_BX0_INTERRUPT_CNTL__BIF_RB_REQ_ANALNSANALOP_EN_MASK                                                   0x00008000L
 #define BIF_BX0_INTERRUPT_CNTL__DUMMYRD_BYPASS_IN_MSI_EN_MASK                                                 0x00010000L
 #define BIF_BX0_INTERRUPT_CNTL__ALWAYS_SEND_INTPKT_AFTER_DUMMYRD_DIS_MASK                                     0x00020000L
 #define BIF_BX0_INTERRUPT_CNTL__BIF_RB_REQ_RELAX_ORDER_EN_MASK                                                0x00040000L
@@ -764,22 +764,22 @@
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__SLV_BIF_CPL_EP_DIS__SHIFT                                          0x1
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__BIF_SLV_REQ_EP_DIS__SHIFT                                          0x2
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__BIF_MST_CPL_EP_DIS__SHIFT                                          0x3
-#define BIF_BX0_BIF_FEATURES_CONTROL_MISC__BIF_RB_MSI_VEC_NOT_ENABLED_MODE__SHIFT                             0xb
+#define BIF_BX0_BIF_FEATURES_CONTROL_MISC__BIF_RB_MSI_VEC_ANALT_ENABLED_MODE__SHIFT                             0xb
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__BIF_RB_SET_OVERFLOW_EN__SHIFT                                      0xc
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__ATOMIC_ERR_INT_DIS__SHIFT                                          0xd
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__ATOMIC_ONLY_WRITE_DIS__SHIFT                                       0xe
-#define BIF_BX0_BIF_FEATURES_CONTROL_MISC__BME_HDL_NONVIR_EN__SHIFT                                           0xf
+#define BIF_BX0_BIF_FEATURES_CONTROL_MISC__BME_HDL_ANALNVIR_EN__SHIFT                                           0xf
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__HDP_NP_OSTD_LIMIT__SHIFT                                           0x10
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__DOORBELL_SELFRING_GPA_APER_CHK_48BIT_ADDR__SHIFT                   0x19
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__MST_BIF_REQ_EP_DIS_MASK                                            0x00000001L
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__SLV_BIF_CPL_EP_DIS_MASK                                            0x00000002L
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__BIF_SLV_REQ_EP_DIS_MASK                                            0x00000004L
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__BIF_MST_CPL_EP_DIS_MASK                                            0x00000008L
-#define BIF_BX0_BIF_FEATURES_CONTROL_MISC__BIF_RB_MSI_VEC_NOT_ENABLED_MODE_MASK                               0x00000800L
+#define BIF_BX0_BIF_FEATURES_CONTROL_MISC__BIF_RB_MSI_VEC_ANALT_ENABLED_MODE_MASK                               0x00000800L
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__BIF_RB_SET_OVERFLOW_EN_MASK                                        0x00001000L
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__ATOMIC_ERR_INT_DIS_MASK                                            0x00002000L
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__ATOMIC_ONLY_WRITE_DIS_MASK                                         0x00004000L
-#define BIF_BX0_BIF_FEATURES_CONTROL_MISC__BME_HDL_NONVIR_EN_MASK                                             0x00008000L
+#define BIF_BX0_BIF_FEATURES_CONTROL_MISC__BME_HDL_ANALNVIR_EN_MASK                                             0x00008000L
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__HDP_NP_OSTD_LIMIT_MASK                                             0x01FF0000L
 #define BIF_BX0_BIF_FEATURES_CONTROL_MISC__DOORBELL_SELFRING_GPA_APER_CHK_48BIT_ADDR_MASK                     0x02000000L
 //BIF_BX0_HDP_ATOMIC_CONTROL_MISC
@@ -789,7 +789,7 @@
 #define BIF_BX0_BIF_DOORBELL_CNTL__SELF_RING_DIS__SHIFT                                                       0x0
 #define BIF_BX0_BIF_DOORBELL_CNTL__TRANS_CHECK_DIS__SHIFT                                                     0x1
 #define BIF_BX0_BIF_DOORBELL_CNTL__UNTRANS_LBACK_EN__SHIFT                                                    0x2
-#define BIF_BX0_BIF_DOORBELL_CNTL__NON_CONSECUTIVE_BE_ZERO_DIS__SHIFT                                         0x3
+#define BIF_BX0_BIF_DOORBELL_CNTL__ANALN_CONSECUTIVE_BE_ZERO_DIS__SHIFT                                         0x3
 #define BIF_BX0_BIF_DOORBELL_CNTL__DOORBELL_MONITOR_EN__SHIFT                                                 0x4
 #define BIF_BX0_BIF_DOORBELL_CNTL__DB_MNTR_INTGEN_DIS__SHIFT                                                  0x18
 #define BIF_BX0_BIF_DOORBELL_CNTL__DB_MNTR_INTGEN_MODE_0__SHIFT                                               0x19
@@ -798,7 +798,7 @@
 #define BIF_BX0_BIF_DOORBELL_CNTL__SELF_RING_DIS_MASK                                                         0x00000001L
 #define BIF_BX0_BIF_DOORBELL_CNTL__TRANS_CHECK_DIS_MASK                                                       0x00000002L
 #define BIF_BX0_BIF_DOORBELL_CNTL__UNTRANS_LBACK_EN_MASK                                                      0x00000004L
-#define BIF_BX0_BIF_DOORBELL_CNTL__NON_CONSECUTIVE_BE_ZERO_DIS_MASK                                           0x00000008L
+#define BIF_BX0_BIF_DOORBELL_CNTL__ANALN_CONSECUTIVE_BE_ZERO_DIS_MASK                                           0x00000008L
 #define BIF_BX0_BIF_DOORBELL_CNTL__DOORBELL_MONITOR_EN_MASK                                                   0x00000010L
 #define BIF_BX0_BIF_DOORBELL_CNTL__DB_MNTR_INTGEN_DIS_MASK                                                    0x01000000L
 #define BIF_BX0_BIF_DOORBELL_CNTL__DB_MNTR_INTGEN_MODE_0_MASK                                                 0x02000000L
@@ -1139,10 +1139,10 @@
 #define RCC_DEV0_0_RCC_BUS_CNTL__PRIV_MAX_READ_REQUEST_SIZE_MASK                                              0xE0000000L
 //RCC_DEV0_0_RCC_CONFIG_CNTL
 #define RCC_DEV0_0_RCC_CONFIG_CNTL__CFG_VGA_RAM_EN__SHIFT                                                     0x0
-#define RCC_DEV0_0_RCC_CONFIG_CNTL__GENMO_MONO_ADDRESS_B__SHIFT                                               0x2
+#define RCC_DEV0_0_RCC_CONFIG_CNTL__GENMO_MOANAL_ADDRESS_B__SHIFT                                               0x2
 #define RCC_DEV0_0_RCC_CONFIG_CNTL__GRPH_ADRSEL__SHIFT                                                        0x3
 #define RCC_DEV0_0_RCC_CONFIG_CNTL__CFG_VGA_RAM_EN_MASK                                                       0x00000001L
-#define RCC_DEV0_0_RCC_CONFIG_CNTL__GENMO_MONO_ADDRESS_B_MASK                                                 0x00000004L
+#define RCC_DEV0_0_RCC_CONFIG_CNTL__GENMO_MOANAL_ADDRESS_B_MASK                                                 0x00000004L
 #define RCC_DEV0_0_RCC_CONFIG_CNTL__GRPH_ADRSEL_MASK                                                          0x00000018L
 //RCC_DEV0_0_RCC_CONFIG_F0_BASE
 #define RCC_DEV0_0_RCC_CONFIG_F0_BASE__F0_BASE__SHIFT                                                         0x0
@@ -1164,11 +1164,11 @@
 //RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC
 #define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__INIT_PFFLR_CRS_RET_DIS__SHIFT                                   0x7
 #define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__ATC_PRG_RESP_PASID_UR_EN__SHIFT                                 0x8
-#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_TRANSMRD_UR__SHIFT                                    0x9
-#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_TRANSMWR_UR__SHIFT                                    0xa
-#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_ATSTRANSREQ_UR__SHIFT                                 0xb
-#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_PAGEREQMSG_UR__SHIFT                                  0xc
-#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_INVCPL_UR__SHIFT                                      0xd
+#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_TRANSMRD_UR__SHIFT                                    0x9
+#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_TRANSMWR_UR__SHIFT                                    0xa
+#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_ATSTRANSREQ_UR__SHIFT                                 0xb
+#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_PAGEREQMSG_UR__SHIFT                                  0xc
+#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_INVCPL_UR__SHIFT                                      0xd
 #define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__CLR_MSI_X_PENDING_WHEN_DISABLED_DIS__SHIFT                      0xe
 #define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__CHECK_BME_ON_PENDING_PKT_GEN_DIS__SHIFT                         0xf
 #define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__PSN_CHECK_ON_PAYLOAD_DIS__SHIFT                                 0x10
@@ -1177,11 +1177,11 @@
 #define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__HOST_POISON_FLAG_CHECK_FOR_CHAIN_DIS__SHIFT                     0x13
 #define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__INIT_PFFLR_CRS_RET_DIS_MASK                                     0x00000080L
 #define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__ATC_PRG_RESP_PASID_UR_EN_MASK                                   0x00000100L
-#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_TRANSMRD_UR_MASK                                      0x00000200L
-#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_TRANSMWR_UR_MASK                                      0x00000400L
-#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_ATSTRANSREQ_UR_MASK                                   0x00000800L
-#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_PAGEREQMSG_UR_MASK                                    0x00001000L
-#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_INVCPL_UR_MASK                                        0x00002000L
+#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_TRANSMRD_UR_MASK                                      0x00000200L
+#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_TRANSMWR_UR_MASK                                      0x00000400L
+#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_ATSTRANSREQ_UR_MASK                                   0x00000800L
+#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_PAGEREQMSG_UR_MASK                                    0x00001000L
+#define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_INVCPL_UR_MASK                                        0x00002000L
 #define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__CLR_MSI_X_PENDING_WHEN_DISABLED_DIS_MASK                        0x00004000L
 #define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__CHECK_BME_ON_PENDING_PKT_GEN_DIS_MASK                           0x00008000L
 #define RCC_DEV0_0_RCC_FEATURES_CONTROL_MISC__PSN_CHECK_ON_PAYLOAD_DIS_MASK                                   0x00010000L
@@ -1379,20 +1379,20 @@
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_PX_CAPABLE__SHIFT                                                    0x7
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_BIF_KILL_GEN3__SHIFT                                                 0x8
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_MSI_FIRST_BE_FULL_PAYLOAD_EN__SHIFT                                  0x9
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_NBIF_IGNORE_ERR_INFLR__SHIFT                                         0xa
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_NBIF_IGANALRE_ERR_INFLR__SHIFT                                         0xa
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_PME_SUPPORT_COMPLIANCE_EN__SHIFT                                     0xb
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGNORE_EP_ERR__SHIFT                                              0xc
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGNORE_MSG_ERR__SHIFT                                             0xd
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGNORE_MAX_PAYLOAD_ERR__SHIFT                                     0xe
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGNORE_SHORTPREFIX_ERR_DN__SHIFT                                  0xf
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGNORE_TC_ERR__SHIFT                                              0x10
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGNORE_TC_ERR_DN__SHIFT                                           0x11
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_EP_ERR__SHIFT                                              0xc
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_MSG_ERR__SHIFT                                             0xd
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_MAX_PAYLOAD_ERR__SHIFT                                     0xe
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_SHORTPREFIX_ERR_DN__SHIFT                                  0xf
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_TC_ERR__SHIFT                                              0x10
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_TC_ERR_DN__SHIFT                                           0x11
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_AUD_PIN__SHIFT                                                       0x12
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_GEN3_DIS__SHIFT                                                      0x18
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_BIF_KILL_GEN4__SHIFT                                                 0x19
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_QUICKSIM_START__SHIFT                                                0x1a
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_NO_RO_ENABLED_P2P_PASSING__SHIFT                                     0x1b
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_IGNORE_LOCAL_PREFIX_UR_SWUS__SHIFT                                   0x1c
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                     0x1b
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_IGANALRE_LOCAL_PREFIX_UR_SWUS__SHIFT                                   0x1c
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_CFG0_RD_VF_BUSNUM_CHK_EN__SHIFT                                      0x1d
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_BIGAPU_MODE__SHIFT                                                   0x1e
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_LINK_DOWN_RESET_EN__SHIFT                                            0x1f
@@ -1404,20 +1404,20 @@
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK                                                      0x00000080L
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_BIF_KILL_GEN3_MASK                                                   0x00000100L
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_MSI_FIRST_BE_FULL_PAYLOAD_EN_MASK                                    0x00000200L
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_NBIF_IGNORE_ERR_INFLR_MASK                                           0x00000400L
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_NBIF_IGANALRE_ERR_INFLR_MASK                                           0x00000400L
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_PME_SUPPORT_COMPLIANCE_EN_MASK                                       0x00000800L
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGNORE_EP_ERR_MASK                                                0x00001000L
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGNORE_MSG_ERR_MASK                                               0x00002000L
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGNORE_MAX_PAYLOAD_ERR_MASK                                       0x00004000L
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGNORE_SHORTPREFIX_ERR_DN_MASK                                    0x00008000L
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGNORE_TC_ERR_MASK                                                0x00010000L
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGNORE_TC_ERR_DN_MASK                                             0x00020000L
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_EP_ERR_MASK                                                0x00001000L
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_MSG_ERR_MASK                                               0x00002000L
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_MAX_PAYLOAD_ERR_MASK                                       0x00004000L
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_SHORTPREFIX_ERR_DN_MASK                                    0x00008000L
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_TC_ERR_MASK                                                0x00010000L
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_TC_ERR_DN_MASK                                             0x00020000L
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_AUD_PIN_MASK                                                         0x000C0000L
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_GEN3_DIS_MASK                                                        0x01000000L
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_BIF_KILL_GEN4_MASK                                                   0x02000000L
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_QUICKSIM_START_MASK                                                  0x04000000L
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_NO_RO_ENABLED_P2P_PASSING_MASK                                       0x08000000L
-#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_IGNORE_LOCAL_PREFIX_UR_SWUS_MASK                                     0x10000000L
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_ANAL_RO_ENABLED_P2P_PASSING_MASK                                       0x08000000L
+#define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_IGANALRE_LOCAL_PREFIX_UR_SWUS_MASK                                     0x10000000L
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_CFG0_RD_VF_BUSNUM_CHK_EN_MASK                                        0x20000000L
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_BIGAPU_MODE_MASK                                                     0x40000000L
 #define RCC_STRAP0_RCC_BIF_STRAP0__STRAP_LINK_DOWN_RESET_EN_MASK                                              0x80000000L
@@ -1426,7 +1426,7 @@
 #define RCC_STRAP0_RCC_BIF_STRAP1__ROMSTRAP_VALID__SHIFT                                                      0x1
 #define RCC_STRAP0_RCC_BIF_STRAP1__WRITE_DISABLE__SHIFT                                                       0x2
 #define RCC_STRAP0_RCC_BIF_STRAP1__STRAP_ECRC_INTERMEDIATE_CHK_EN__SHIFT                                      0x3
-#define RCC_STRAP0_RCC_BIF_STRAP1__STRAP_IGNORE_E2E_PREFIX_UR_SWUS__SHIFT                                     0x5
+#define RCC_STRAP0_RCC_BIF_STRAP1__STRAP_IGANALRE_E2E_PREFIX_UR_SWUS__SHIFT                                     0x5
 #define RCC_STRAP0_RCC_BIF_STRAP1__STRAP_MARGINING_USES_SOFTWARE__SHIFT                                       0x6
 #define RCC_STRAP0_RCC_BIF_STRAP1__STRAP_MARGINING_READY__SHIFT                                               0x7
 #define RCC_STRAP0_RCC_BIF_STRAP1__STRAP_SWUS_APER_EN__SHIFT                                                  0x8
@@ -1453,7 +1453,7 @@
 #define RCC_STRAP0_RCC_BIF_STRAP1__ROMSTRAP_VALID_MASK                                                        0x00000002L
 #define RCC_STRAP0_RCC_BIF_STRAP1__WRITE_DISABLE_MASK                                                         0x00000004L
 #define RCC_STRAP0_RCC_BIF_STRAP1__STRAP_ECRC_INTERMEDIATE_CHK_EN_MASK                                        0x00000008L
-#define RCC_STRAP0_RCC_BIF_STRAP1__STRAP_IGNORE_E2E_PREFIX_UR_SWUS_MASK                                       0x00000020L
+#define RCC_STRAP0_RCC_BIF_STRAP1__STRAP_IGANALRE_E2E_PREFIX_UR_SWUS_MASK                                       0x00000020L
 #define RCC_STRAP0_RCC_BIF_STRAP1__STRAP_MARGINING_USES_SOFTWARE_MASK                                         0x00000040L
 #define RCC_STRAP0_RCC_BIF_STRAP1__STRAP_MARGINING_READY_MASK                                                 0x00000080L
 #define RCC_STRAP0_RCC_BIF_STRAP1__STRAP_SWUS_APER_EN_MASK                                                    0x00000100L
@@ -1522,7 +1522,7 @@
 #define RCC_STRAP0_RCC_BIF_STRAP5__STRAP_VLINK_LDN_ON_SWUS_LDN_EN__SHIFT                                      0x10
 #define RCC_STRAP0_RCC_BIF_STRAP5__STRAP_VLINK_LDN_ON_SWUS_SECRST_EN__SHIFT                                   0x11
 #define RCC_STRAP0_RCC_BIF_STRAP5__STRAP_VLINK_ENTER_COMPLIANCE_DIS__SHIFT                                    0x12
-#define RCC_STRAP0_RCC_BIF_STRAP5__STRAP_IGNORE_PSN_ON_VDM1_DIS__SHIFT                                        0x13
+#define RCC_STRAP0_RCC_BIF_STRAP5__STRAP_IGANALRE_PSN_ON_VDM1_DIS__SHIFT                                        0x13
 #define RCC_STRAP0_RCC_BIF_STRAP5__STRAP_SMN_ERR_STATUS_MASK_EN_UPS__SHIFT                                    0x14
 #define RCC_STRAP0_RCC_BIF_STRAP5__STRAP_REG_PROTECTION_DIS__SHIFT                                            0x15
 #define RCC_STRAP0_RCC_BIF_STRAP5__STRAP_SMN_ERRRSP_DATA_FORCE__SHIFT                                         0x16
@@ -1534,7 +1534,7 @@
 #define RCC_STRAP0_RCC_BIF_STRAP5__STRAP_VLINK_LDN_ON_SWUS_LDN_EN_MASK                                        0x00010000L
 #define RCC_STRAP0_RCC_BIF_STRAP5__STRAP_VLINK_LDN_ON_SWUS_SECRST_EN_MASK                                     0x00020000L
 #define RCC_STRAP0_RCC_BIF_STRAP5__STRAP_VLINK_ENTER_COMPLIANCE_DIS_MASK                                      0x00040000L
-#define RCC_STRAP0_RCC_BIF_STRAP5__STRAP_IGNORE_PSN_ON_VDM1_DIS_MASK                                          0x00080000L
+#define RCC_STRAP0_RCC_BIF_STRAP5__STRAP_IGANALRE_PSN_ON_VDM1_DIS_MASK                                          0x00080000L
 #define RCC_STRAP0_RCC_BIF_STRAP5__STRAP_SMN_ERR_STATUS_MASK_EN_UPS_MASK                                      0x00100000L
 #define RCC_STRAP0_RCC_BIF_STRAP5__STRAP_REG_PROTECTION_DIS_MASK                                              0x00200000L
 #define RCC_STRAP0_RCC_BIF_STRAP5__STRAP_SMN_ERRRSP_DATA_FORCE_MASK                                           0x00C00000L
@@ -1556,7 +1556,7 @@
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP0__STRAP_AER_EN_DN_DEV0__SHIFT                                          0x12
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP0__STRAP_CPL_ABORT_ERR_EN_DN_DEV0__SHIFT                                0x13
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP0__STRAP_INTERRUPT_PIN_DN_DEV0__SHIFT                                   0x15
-#define RCC_STRAP0_RCC_DEV0_PORT_STRAP0__STRAP_IGNORE_E2E_PREFIX_UR_DN_DEV0__SHIFT                            0x18
+#define RCC_STRAP0_RCC_DEV0_PORT_STRAP0__STRAP_IGANALRE_E2E_PREFIX_UR_DN_DEV0__SHIFT                            0x18
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP0__STRAP_MAX_PAYLOAD_SUPPORT_DN_DEV0__SHIFT                             0x19
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP0__STRAP_MAX_LINK_WIDTH_SUPPORT_DEV0__SHIFT                             0x1c
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP0__STRAP_EPF0_DUMMY_EN_DEV0__SHIFT                                      0x1f
@@ -1566,7 +1566,7 @@
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP0__STRAP_AER_EN_DN_DEV0_MASK                                            0x00040000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP0__STRAP_CPL_ABORT_ERR_EN_DN_DEV0_MASK                                  0x00080000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP0__STRAP_INTERRUPT_PIN_DN_DEV0_MASK                                     0x00E00000L
-#define RCC_STRAP0_RCC_DEV0_PORT_STRAP0__STRAP_IGNORE_E2E_PREFIX_UR_DN_DEV0_MASK                              0x01000000L
+#define RCC_STRAP0_RCC_DEV0_PORT_STRAP0__STRAP_IGANALRE_E2E_PREFIX_UR_DN_DEV0_MASK                              0x01000000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP0__STRAP_MAX_PAYLOAD_SUPPORT_DN_DEV0_MASK                               0x0E000000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP0__STRAP_MAX_LINK_WIDTH_SUPPORT_DEV0_MASK                               0x70000000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP0__STRAP_EPF0_DUMMY_EN_DEV0_MASK                                        0x80000000L
@@ -1576,15 +1576,15 @@
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP1__STRAP_SUBSYS_ID_DN_DEV0_MASK                                         0x0000FFFFL
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP1__STRAP_SUBSYS_VEN_ID_DN_DEV0_MASK                                     0xFFFF0000L
 //RCC_STRAP0_RCC_DEV0_PORT_STRAP10
-#define RCC_STRAP0_RCC_DEV0_PORT_STRAP10__STRAP_NO_EQ_NEED_SUPPORTED_DEV0__SHIFT                              0x0
-#define RCC_STRAP0_RCC_DEV0_PORT_STRAP10__STRAP_NO_EQ_NEED_SUPPORTED_DN_DEV0__SHIFT                           0x1
+#define RCC_STRAP0_RCC_DEV0_PORT_STRAP10__STRAP_ANAL_EQ_NEED_SUPPORTED_DEV0__SHIFT                              0x0
+#define RCC_STRAP0_RCC_DEV0_PORT_STRAP10__STRAP_ANAL_EQ_NEED_SUPPORTED_DN_DEV0__SHIFT                           0x1
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP10__STRAP_MODIFID_TS_USAGE_MODE1_SUPPORTED_DEV0__SHIFT                  0x2
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP10__STRAP_MODIFID_TS_USAGE_MODE2_SUPPORTED_DEV0__SHIFT                  0x3
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP10__STRAP_TRANSMITTER_PRECODEING_ON_DEV0__SHIFT                         0x4
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP10__STRAP_TRANSMITTER_PRECODE_REQUEST_DEV0__SHIFT                       0x5
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP10__STRAP_MODIFIED_TS_INFOR1_DEV0__SHIFT                                0x6
-#define RCC_STRAP0_RCC_DEV0_PORT_STRAP10__STRAP_NO_EQ_NEED_SUPPORTED_DEV0_MASK                                0x00000001L
-#define RCC_STRAP0_RCC_DEV0_PORT_STRAP10__STRAP_NO_EQ_NEED_SUPPORTED_DN_DEV0_MASK                             0x00000002L
+#define RCC_STRAP0_RCC_DEV0_PORT_STRAP10__STRAP_ANAL_EQ_NEED_SUPPORTED_DEV0_MASK                                0x00000001L
+#define RCC_STRAP0_RCC_DEV0_PORT_STRAP10__STRAP_ANAL_EQ_NEED_SUPPORTED_DN_DEV0_MASK                             0x00000002L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP10__STRAP_MODIFID_TS_USAGE_MODE1_SUPPORTED_DEV0_MASK                    0x00000004L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP10__STRAP_MODIFID_TS_USAGE_MODE2_SUPPORTED_DEV0_MASK                    0x00000008L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP10__STRAP_TRANSMITTER_PRECODEING_ON_DEV0_MASK                           0x00000010L
@@ -1636,7 +1636,7 @@
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_EXTENDED_TAG_ECN_EN_DEV0__SHIFT                                0x8
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_EXT_VC_COUNT_DN_DEV0__SHIFT                                    0x9
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_FIRST_RCVD_ERR_LOG_DN_DEV0__SHIFT                              0xc
-#define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_NONFATAL_DN_DEV0__SHIFT                      0xd
+#define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_ANALNFATAL_DN_DEV0__SHIFT                      0xd
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_GEN2_COMPLIANCE_DEV0__SHIFT                                    0xe
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_GEN2_EN_DEV0__SHIFT                                            0xf
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_GEN3_COMPLIANCE_DEV0__SHIFT                                    0x10
@@ -1656,7 +1656,7 @@
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_EXTENDED_TAG_ECN_EN_DEV0_MASK                                  0x00000100L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_EXT_VC_COUNT_DN_DEV0_MASK                                      0x00000E00L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_FIRST_RCVD_ERR_LOG_DN_DEV0_MASK                                0x00001000L
-#define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_NONFATAL_DN_DEV0_MASK                        0x00002000L
+#define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_ANALNFATAL_DN_DEV0_MASK                        0x00002000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_GEN2_COMPLIANCE_DEV0_MASK                                      0x00004000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_GEN2_EN_DEV0_MASK                                              0x00008000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_GEN3_COMPLIANCE_DEV0_MASK                                      0x00010000L
@@ -1666,13 +1666,13 @@
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_L1_ACCEPTABLE_LATENCY_DEV0_MASK                                0x1C000000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP2__STRAP_L1_EXIT_LATENCY_DEV0_MASK                                      0xE0000000L
 //RCC_STRAP0_RCC_DEV0_PORT_STRAP3
-#define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_NOTIFICATION_CAP_DN_EN_DEV0__SHIFT                     0x0
+#define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_ANALTIFICATION_CAP_DN_EN_DEV0__SHIFT                     0x0
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DEV0__SHIFT                                             0x1
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DN_DEV0__SHIFT                                          0x2
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_MAX_PAYLOAD_SUPPORT_DEV0__SHIFT                                0x3
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_MSI_EN_DN_DEV0__SHIFT                                          0x6
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_MSTCPL_TIMEOUT_EN_DEV0__SHIFT                                  0x7
-#define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_NO_SOFT_RESET_DN_DEV0__SHIFT                                   0x8
+#define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_ANAL_SOFT_RESET_DN_DEV0__SHIFT                                   0x8
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_OBFF_SUPPORTED_DEV0__SHIFT                                     0x9
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_RX_PRESET_HINT_DEV0__SHIFT  0xb
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_TX_PRESET_DEV0__SHIFT  0xe
@@ -1682,13 +1682,13 @@
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_PM_SUPPORT_DN_DEV0__SHIFT                                      0x1b
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_ATOMIC_EN_DN_DEV0__SHIFT                                       0x1d
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_PMC_DSI_DN_DEV0__SHIFT                                         0x1f
-#define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_NOTIFICATION_CAP_DN_EN_DEV0_MASK                       0x00000001L
+#define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_ANALTIFICATION_CAP_DN_EN_DEV0_MASK                       0x00000001L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DEV0_MASK                                               0x00000002L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DN_DEV0_MASK                                            0x00000004L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_MAX_PAYLOAD_SUPPORT_DEV0_MASK                                  0x00000038L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_MSI_EN_DN_DEV0_MASK                                            0x00000040L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_MSTCPL_TIMEOUT_EN_DEV0_MASK                                    0x00000080L
-#define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_NO_SOFT_RESET_DN_DEV0_MASK                                     0x00000100L
+#define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_ANAL_SOFT_RESET_DN_DEV0_MASK                                     0x00000100L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_OBFF_SUPPORTED_DEV0_MASK                                       0x00000600L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_RX_PRESET_HINT_DEV0_MASK  0x00003800L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_TX_PRESET_DEV0_MASK  0x0003C000L
@@ -1755,7 +1755,7 @@
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP6__STRAP_PCIE_16GT_LANE_EQUALIZATION_CNTL_USP_TX_PRESET_DEV0__SHIFT     0xc
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP6__STRAP_TPH_CPLR_SUPPORTED_DN_DEV0__SHIFT                              0x10
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP6__STRAP_MSI_EXT_MSG_DATA_CAP_DN_DEV0__SHIFT                            0x12
-#define RCC_STRAP0_RCC_DEV0_PORT_STRAP6__STRAP_NO_COMMAND_COMPLETED_SUPPORTED_DEV0__SHIFT                     0x13
+#define RCC_STRAP0_RCC_DEV0_PORT_STRAP6__STRAP_ANAL_COMMAND_COMPLETED_SUPPORTED_DEV0__SHIFT                     0x13
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP6__STRAP_GEN5_COMPLIANCE_DEV0__SHIFT                                    0x14
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP6__STRAP_TARGET_LINK_SPEED_DEV0__SHIFT                                  0x15
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP6__STRAP_PCIE_32GT_LANE_EQUALIZATION_CNTL_DSP_TX_PRESET_DEV0__SHIFT     0x18
@@ -1772,7 +1772,7 @@
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP6__STRAP_PCIE_16GT_LANE_EQUALIZATION_CNTL_USP_TX_PRESET_DEV0_MASK       0x0000F000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP6__STRAP_TPH_CPLR_SUPPORTED_DN_DEV0_MASK                                0x00030000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP6__STRAP_MSI_EXT_MSG_DATA_CAP_DN_DEV0_MASK                              0x00040000L
-#define RCC_STRAP0_RCC_DEV0_PORT_STRAP6__STRAP_NO_COMMAND_COMPLETED_SUPPORTED_DEV0_MASK                       0x00080000L
+#define RCC_STRAP0_RCC_DEV0_PORT_STRAP6__STRAP_ANAL_COMMAND_COMPLETED_SUPPORTED_DEV0_MASK                       0x00080000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP6__STRAP_GEN5_COMPLIANCE_DEV0_MASK                                      0x00100000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP6__STRAP_TARGET_LINK_SPEED_DEV0_MASK                                    0x00E00000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP6__STRAP_PCIE_32GT_LANE_EQUALIZATION_CNTL_DSP_TX_PRESET_DEV0_MASK       0x0F000000L
@@ -1780,13 +1780,13 @@
 //RCC_STRAP0_RCC_DEV0_PORT_STRAP7
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP7__STRAP_PORT_NUMBER_DEV0__SHIFT                                        0x0
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP7__STRAP_MAJOR_REV_ID_DN_DEV0__SHIFT                                    0x8
-#define RCC_STRAP0_RCC_DEV0_PORT_STRAP7__STRAP_MINOR_REV_ID_DN_DEV0__SHIFT                                    0xc
+#define RCC_STRAP0_RCC_DEV0_PORT_STRAP7__STRAP_MIANALR_REV_ID_DN_DEV0__SHIFT                                    0xc
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP7__STRAP_RP_BUSNUM_DEV0__SHIFT                                          0x10
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP7__STRAP_DN_DEVNUM_DEV0__SHIFT                                          0x18
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP7__STRAP_DN_FUNCID_DEV0__SHIFT                                          0x1d
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP7__STRAP_PORT_NUMBER_DEV0_MASK                                          0x000000FFL
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP7__STRAP_MAJOR_REV_ID_DN_DEV0_MASK                                      0x00000F00L
-#define RCC_STRAP0_RCC_DEV0_PORT_STRAP7__STRAP_MINOR_REV_ID_DN_DEV0_MASK                                      0x0000F000L
+#define RCC_STRAP0_RCC_DEV0_PORT_STRAP7__STRAP_MIANALR_REV_ID_DN_DEV0_MASK                                      0x0000F000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP7__STRAP_RP_BUSNUM_DEV0_MASK                                            0x00FF0000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP7__STRAP_DN_DEVNUM_DEV0_MASK                                            0x1F000000L
 #define RCC_STRAP0_RCC_DEV0_PORT_STRAP7__STRAP_DN_FUNCID_DEV0_MASK                                            0xE0000000L
@@ -1809,7 +1809,7 @@
 //RCC_STRAP0_RCC_DEV0_EPF0_STRAP0
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP0__STRAP_DEVICE_ID_DEV0_F0__SHIFT                                       0x0
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F0__SHIFT                                    0x10
-#define RCC_STRAP0_RCC_DEV0_EPF0_STRAP0__STRAP_MINOR_REV_ID_DEV0_F0__SHIFT                                    0x14
+#define RCC_STRAP0_RCC_DEV0_EPF0_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F0__SHIFT                                    0x14
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0__SHIFT                                      0x18
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP0__STRAP_FUNC_EN_DEV0_F0__SHIFT                                         0x1c
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F0__SHIFT                           0x1d
@@ -1817,7 +1817,7 @@
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP0__STRAP_D2_SUPPORT_DEV0_F0__SHIFT                                      0x1f
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP0__STRAP_DEVICE_ID_DEV0_F0_MASK                                         0x0000FFFFL
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F0_MASK                                      0x000F0000L
-#define RCC_STRAP0_RCC_DEV0_EPF0_STRAP0__STRAP_MINOR_REV_ID_DEV0_F0_MASK                                      0x00F00000L
+#define RCC_STRAP0_RCC_DEV0_EPF0_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F0_MASK                                      0x00F00000L
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0_MASK                                        0x0F000000L
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP0__STRAP_FUNC_EN_DEV0_F0_MASK                                           0x10000000L
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F0_MASK                             0x20000000L
@@ -1869,7 +1869,7 @@
 //RCC_STRAP0_RCC_DEV0_EPF0_STRAP2
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP2__STRAP_SRIOV_EN_DEV0_F0__SHIFT                                        0x0
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP2__STRAP_64BAR_DIS_DEV0_F0__SHIFT                                       0x6
-#define RCC_STRAP0_RCC_DEV0_EPF0_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F0__SHIFT                                   0x7
+#define RCC_STRAP0_RCC_DEV0_EPF0_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F0__SHIFT                                   0x7
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F0__SHIFT                                   0x8
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP2__STRAP_MAX_PASID_WIDTH_DEV0_F0__SHIFT                                 0x9
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F0__SHIFT                          0xe
@@ -1889,7 +1889,7 @@
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP2__STRAP_PASID_PRIV_MODE_SUPPORTED_DEV0_F0__SHIFT                       0x1f
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP2__STRAP_SRIOV_EN_DEV0_F0_MASK                                          0x00000001L
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP2__STRAP_64BAR_DIS_DEV0_F0_MASK                                         0x00000040L
-#define RCC_STRAP0_RCC_DEV0_EPF0_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F0_MASK                                     0x00000080L
+#define RCC_STRAP0_RCC_DEV0_EPF0_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F0_MASK                                     0x00000080L
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F0_MASK                                     0x00000100L
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP2__STRAP_MAX_PASID_WIDTH_DEV0_F0_MASK                                   0x00003E00L
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F0_MASK                            0x00004000L
@@ -1912,7 +1912,7 @@
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP26__STRAP_GPUIOV_VSEC_LENGTH_DEV0_F0_MASK                               0x00000FFFL
 //RCC_STRAP0_RCC_DEV0_EPF0_STRAP3
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP3__STRAP_SUBSYS_ID_DEV0_F0__SHIFT                                       0x0
-#define RCC_STRAP0_RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F0__SHIFT                      0x10
+#define RCC_STRAP0_RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F0__SHIFT                      0x10
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP3__STRAP_PWR_EN_DEV0_F0__SHIFT                                          0x11
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP3__STRAP_MSI_EN_DEV0_F0__SHIFT                                          0x12
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP3__STRAP_MSI_CLR_PENDING_EN_DEV0_F0__SHIFT                              0x13
@@ -1926,7 +1926,7 @@
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP3__STRAP_TRUE_PM_STATUS_EN_DEV0_F0__SHIFT                               0x1e
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP3__STRAP_RTR_EN_DEV0_F0__SHIFT                                          0x1f
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP3__STRAP_SUBSYS_ID_DEV0_F0_MASK                                         0x0000FFFFL
-#define RCC_STRAP0_RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F0_MASK                        0x00010000L
+#define RCC_STRAP0_RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F0_MASK                        0x00010000L
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP3__STRAP_PWR_EN_DEV0_F0_MASK                                            0x00020000L
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP3__STRAP_MSI_EN_DEV0_F0_MASK                                            0x00040000L
 #define RCC_STRAP0_RCC_DEV0_EPF0_STRAP3__STRAP_MSI_CLR_PENDING_EN_DEV0_F0_MASK                                0x00080000L
@@ -2004,20 +2004,20 @@
 //RCC_STRAP0_RCC_DEV0_EPF1_STRAP0
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP0__STRAP_DEVICE_ID_DEV0_F1__SHIFT                                       0x0
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F1__SHIFT                                    0x10
-#define RCC_STRAP0_RCC_DEV0_EPF1_STRAP0__STRAP_MINOR_REV_ID_DEV0_F1__SHIFT                                    0x14
+#define RCC_STRAP0_RCC_DEV0_EPF1_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F1__SHIFT                                    0x14
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP0__STRAP_FUNC_EN_DEV0_F1__SHIFT                                         0x1c
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F1__SHIFT                           0x1d
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP0__STRAP_D1_SUPPORT_DEV0_F1__SHIFT                                      0x1e
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP0__STRAP_D2_SUPPORT_DEV0_F1__SHIFT                                      0x1f
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP0__STRAP_DEVICE_ID_DEV0_F1_MASK                                         0x0000FFFFL
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F1_MASK                                      0x000F0000L
-#define RCC_STRAP0_RCC_DEV0_EPF1_STRAP0__STRAP_MINOR_REV_ID_DEV0_F1_MASK                                      0x00F00000L
+#define RCC_STRAP0_RCC_DEV0_EPF1_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F1_MASK                                      0x00F00000L
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP0__STRAP_FUNC_EN_DEV0_F1_MASK                                           0x10000000L
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F1_MASK                             0x20000000L
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP0__STRAP_D1_SUPPORT_DEV0_F1_MASK                                        0x40000000L
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP0__STRAP_D2_SUPPORT_DEV0_F1_MASK                                        0x80000000L
 //RCC_STRAP0_RCC_DEV0_EPF1_STRAP2
-#define RCC_STRAP0_RCC_DEV0_EPF1_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F1__SHIFT                                   0x7
+#define RCC_STRAP0_RCC_DEV0_EPF1_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F1__SHIFT                                   0x7
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F1__SHIFT                                   0x8
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP2__STRAP_MAX_PASID_WIDTH_DEV0_F1__SHIFT                                 0x9
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F1__SHIFT                          0xe
@@ -2031,7 +2031,7 @@
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP2__STRAP_PASID_EXE_PERMISSION_SUPPORTED_DEV0_F1__SHIFT                  0x1d
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP2__STRAP_PASID_GLOBAL_INVALIDATE_SUPPORTED_DEV0_F1__SHIFT               0x1e
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP2__STRAP_PASID_PRIV_MODE_SUPPORTED_DEV0_F1__SHIFT                       0x1f
-#define RCC_STRAP0_RCC_DEV0_EPF1_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F1_MASK                                     0x00000080L
+#define RCC_STRAP0_RCC_DEV0_EPF1_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F1_MASK                                     0x00000080L
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F1_MASK                                     0x00000100L
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP2__STRAP_MAX_PASID_WIDTH_DEV0_F1_MASK                                   0x00003E00L
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F1_MASK                            0x00004000L
@@ -2053,7 +2053,7 @@
 //RCC_STRAP0_RCC_DEV0_EPF1_STRAP25
 //RCC_STRAP0_RCC_DEV0_EPF1_STRAP3
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP3__STRAP_SUBSYS_ID_DEV0_F1__SHIFT                                       0x0
-#define RCC_STRAP0_RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F1__SHIFT                      0x10
+#define RCC_STRAP0_RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F1__SHIFT                      0x10
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP3__STRAP_PWR_EN_DEV0_F1__SHIFT                                          0x11
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP3__STRAP_MSI_EN_DEV0_F1__SHIFT                                          0x12
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP3__STRAP_MSI_CLR_PENDING_EN_DEV0_F1__SHIFT                              0x13
@@ -2065,7 +2065,7 @@
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP3__STRAP_TRUE_PM_STATUS_EN_DEV0_F1__SHIFT                               0x1e
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP3__STRAP_RTR_EN_DEV0_F1__SHIFT                                          0x1f
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP3__STRAP_SUBSYS_ID_DEV0_F1_MASK                                         0x0000FFFFL
-#define RCC_STRAP0_RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F1_MASK                        0x00010000L
+#define RCC_STRAP0_RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F1_MASK                        0x00010000L
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP3__STRAP_PWR_EN_DEV0_F1_MASK                                            0x00020000L
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP3__STRAP_MSI_EN_DEV0_F1_MASK                                            0x00040000L
 #define RCC_STRAP0_RCC_DEV0_EPF1_STRAP3__STRAP_MSI_CLR_PENDING_EN_DEV0_F1_MASK                                0x00080000L
@@ -2403,7 +2403,7 @@
 
 // addressBlock: aid_nbio_nbif0_gdc_GDCDEC
 //GDC0_A2S_CNTL_CL0
-#define GDC0_A2S_CNTL_CL0__NSNOOP_MAP__SHIFT                                                                  0x0
+#define GDC0_A2S_CNTL_CL0__NSANALOP_MAP__SHIFT                                                                  0x0
 #define GDC0_A2S_CNTL_CL0__REQPASSPW_VC0_MAP__SHIFT                                                           0x2
 #define GDC0_A2S_CNTL_CL0__REQPASSPW_NVC0_MAP__SHIFT                                                          0x4
 #define GDC0_A2S_CNTL_CL0__REQRSPPASSPW_VC0_MAP__SHIFT                                                        0x6
@@ -2418,7 +2418,7 @@
 #define GDC0_A2S_CNTL_CL0__RDRSP_SEL_MODE__SHIFT                                                              0x18
 #define GDC0_A2S_CNTL_CL0__STATIC_VC_ENABLE__SHIFT                                                            0x1b
 #define GDC0_A2S_CNTL_CL0__STATIC_VC_VALUE__SHIFT                                                             0x1c
-#define GDC0_A2S_CNTL_CL0__NSNOOP_MAP_MASK                                                                    0x00000003L
+#define GDC0_A2S_CNTL_CL0__NSANALOP_MAP_MASK                                                                    0x00000003L
 #define GDC0_A2S_CNTL_CL0__REQPASSPW_VC0_MAP_MASK                                                             0x0000000CL
 #define GDC0_A2S_CNTL_CL0__REQPASSPW_NVC0_MAP_MASK                                                            0x00000030L
 #define GDC0_A2S_CNTL_CL0__REQRSPPASSPW_VC0_MAP_MASK                                                          0x000000C0L
@@ -2434,7 +2434,7 @@
 #define GDC0_A2S_CNTL_CL0__STATIC_VC_ENABLE_MASK                                                              0x08000000L
 #define GDC0_A2S_CNTL_CL0__STATIC_VC_VALUE_MASK                                                               0x70000000L
 //GDC0_A2S_CNTL_CL1
-#define GDC0_A2S_CNTL_CL1__NSNOOP_MAP__SHIFT                                                                  0x0
+#define GDC0_A2S_CNTL_CL1__NSANALOP_MAP__SHIFT                                                                  0x0
 #define GDC0_A2S_CNTL_CL1__REQPASSPW_VC0_MAP__SHIFT                                                           0x2
 #define GDC0_A2S_CNTL_CL1__REQPASSPW_NVC0_MAP__SHIFT                                                          0x4
 #define GDC0_A2S_CNTL_CL1__REQRSPPASSPW_VC0_MAP__SHIFT                                                        0x6
@@ -2449,7 +2449,7 @@
 #define GDC0_A2S_CNTL_CL1__RDRSP_SEL_MODE__SHIFT                                                              0x18
 #define GDC0_A2S_CNTL_CL1__STATIC_VC_ENABLE__SHIFT                                                            0x1b
 #define GDC0_A2S_CNTL_CL1__STATIC_VC_VALUE__SHIFT                                                             0x1c
-#define GDC0_A2S_CNTL_CL1__NSNOOP_MAP_MASK                                                                    0x00000003L
+#define GDC0_A2S_CNTL_CL1__NSANALOP_MAP_MASK                                                                    0x00000003L
 #define GDC0_A2S_CNTL_CL1__REQPASSPW_VC0_MAP_MASK                                                             0x0000000CL
 #define GDC0_A2S_CNTL_CL1__REQPASSPW_NVC0_MAP_MASK                                                            0x00000030L
 #define GDC0_A2S_CNTL_CL1__REQRSPPASSPW_VC0_MAP_MASK                                                          0x000000C0L
@@ -2488,7 +2488,7 @@
 #define GDC0_A2S_CNTL_SW0__FORCE_RSP_REORDER_EN__SHIFT                                                        0x6
 #define GDC0_A2S_CNTL_SW0__SDP_WR_CHAIN_DIS__SHIFT                                                            0x9
 #define GDC0_A2S_CNTL_SW0__WR_TAG_FOR_CHAIN_ENABLE__SHIFT                                                     0xa
-#define GDC0_A2S_CNTL_SW0__WR_TAG_FOR_NONCHAIN_ENABLE__SHIFT                                                  0xb
+#define GDC0_A2S_CNTL_SW0__WR_TAG_FOR_ANALNCHAIN_ENABLE__SHIFT                                                  0xb
 #define GDC0_A2S_CNTL_SW0__SDP_DYNAMIC_VC_WR_CHAIN_DIS__SHIFT                                                 0xc
 #define GDC0_A2S_CNTL_SW0__WRR_RD_WEIGHT__SHIFT                                                               0x10
 #define GDC0_A2S_CNTL_SW0__WRR_WR_WEIGHT__SHIFT                                                               0x18
@@ -2497,7 +2497,7 @@
 #define GDC0_A2S_CNTL_SW0__FORCE_RSP_REORDER_EN_MASK                                                          0x00000040L
 #define GDC0_A2S_CNTL_SW0__SDP_WR_CHAIN_DIS_MASK                                                              0x00000200L
 #define GDC0_A2S_CNTL_SW0__WR_TAG_FOR_CHAIN_ENABLE_MASK                                                       0x00000400L
-#define GDC0_A2S_CNTL_SW0__WR_TAG_FOR_NONCHAIN_ENABLE_MASK                                                    0x00000800L
+#define GDC0_A2S_CNTL_SW0__WR_TAG_FOR_ANALNCHAIN_ENABLE_MASK                                                    0x00000800L
 #define GDC0_A2S_CNTL_SW0__SDP_DYNAMIC_VC_WR_CHAIN_DIS_MASK                                                   0x00001000L
 #define GDC0_A2S_CNTL_SW0__WRR_RD_WEIGHT_MASK                                                                 0x00FF0000L
 #define GDC0_A2S_CNTL_SW0__WRR_WR_WEIGHT_MASK                                                                 0xFF000000L
@@ -2507,7 +2507,7 @@
 #define GDC0_A2S_CNTL_SW1__FORCE_RSP_REORDER_EN__SHIFT                                                        0x6
 #define GDC0_A2S_CNTL_SW1__SDP_WR_CHAIN_DIS__SHIFT                                                            0x9
 #define GDC0_A2S_CNTL_SW1__WR_TAG_FOR_CHAIN_ENABLE__SHIFT                                                     0xa
-#define GDC0_A2S_CNTL_SW1__WR_TAG_FOR_NONCHAIN_ENABLE__SHIFT                                                  0xb
+#define GDC0_A2S_CNTL_SW1__WR_TAG_FOR_ANALNCHAIN_ENABLE__SHIFT                                                  0xb
 #define GDC0_A2S_CNTL_SW1__SDP_DYNAMIC_VC_WR_CHAIN_DIS__SHIFT                                                 0xc
 #define GDC0_A2S_CNTL_SW1__WRR_RD_WEIGHT__SHIFT                                                               0x10
 #define GDC0_A2S_CNTL_SW1__WRR_WR_WEIGHT__SHIFT                                                               0x18
@@ -2516,7 +2516,7 @@
 #define GDC0_A2S_CNTL_SW1__FORCE_RSP_REORDER_EN_MASK                                                          0x00000040L
 #define GDC0_A2S_CNTL_SW1__SDP_WR_CHAIN_DIS_MASK                                                              0x00000200L
 #define GDC0_A2S_CNTL_SW1__WR_TAG_FOR_CHAIN_ENABLE_MASK                                                       0x00000400L
-#define GDC0_A2S_CNTL_SW1__WR_TAG_FOR_NONCHAIN_ENABLE_MASK                                                    0x00000800L
+#define GDC0_A2S_CNTL_SW1__WR_TAG_FOR_ANALNCHAIN_ENABLE_MASK                                                    0x00000800L
 #define GDC0_A2S_CNTL_SW1__SDP_DYNAMIC_VC_WR_CHAIN_DIS_MASK                                                   0x00001000L
 #define GDC0_A2S_CNTL_SW1__WRR_RD_WEIGHT_MASK                                                                 0x00FF0000L
 #define GDC0_A2S_CNTL_SW1__WRR_WR_WEIGHT_MASK                                                                 0xFF000000L
@@ -2526,7 +2526,7 @@
 #define GDC0_A2S_CNTL_SW2__FORCE_RSP_REORDER_EN__SHIFT                                                        0x6
 #define GDC0_A2S_CNTL_SW2__SDP_WR_CHAIN_DIS__SHIFT                                                            0x9
 #define GDC0_A2S_CNTL_SW2__WR_TAG_FOR_CHAIN_ENABLE__SHIFT                                                     0xa
-#define GDC0_A2S_CNTL_SW2__WR_TAG_FOR_NONCHAIN_ENABLE__SHIFT                                                  0xb
+#define GDC0_A2S_CNTL_SW2__WR_TAG_FOR_ANALNCHAIN_ENABLE__SHIFT                                                  0xb
 #define GDC0_A2S_CNTL_SW2__SDP_DYNAMIC_VC_WR_CHAIN_DIS__SHIFT                                                 0xc
 #define GDC0_A2S_CNTL_SW2__WRR_RD_WEIGHT__SHIFT                                                               0x10
 #define GDC0_A2S_CNTL_SW2__WRR_WR_WEIGHT__SHIFT                                                               0x18
@@ -2535,7 +2535,7 @@
 #define GDC0_A2S_CNTL_SW2__FORCE_RSP_REORDER_EN_MASK                                                          0x00000040L
 #define GDC0_A2S_CNTL_SW2__SDP_WR_CHAIN_DIS_MASK                                                              0x00000200L
 #define GDC0_A2S_CNTL_SW2__WR_TAG_FOR_CHAIN_ENABLE_MASK                                                       0x00000400L
-#define GDC0_A2S_CNTL_SW2__WR_TAG_FOR_NONCHAIN_ENABLE_MASK                                                    0x00000800L
+#define GDC0_A2S_CNTL_SW2__WR_TAG_FOR_ANALNCHAIN_ENABLE_MASK                                                    0x00000800L
 #define GDC0_A2S_CNTL_SW2__SDP_DYNAMIC_VC_WR_CHAIN_DIS_MASK                                                   0x00001000L
 #define GDC0_A2S_CNTL_SW2__WRR_RD_WEIGHT_MASK                                                                 0x00FF0000L
 #define GDC0_A2S_CNTL_SW2__WRR_WR_WEIGHT_MASK                                                                 0xFF000000L
@@ -2583,9 +2583,9 @@
 #define GDC0_A2S_MISC_CNTL__WRR_LRG_MODE_MASK                                                                 0x04000000L
 #define GDC0_A2S_MISC_CNTL__WRR_LRG_COUNTER_MODE_MASK                                                         0x08000000L
 //GDC0_SHUB_REGS_IF_CTL
-#define GDC0_SHUB_REGS_IF_CTL__SHUB_REGS_DROP_NONPF_MMREGREQ_SETERR_DIS__SHIFT                                0x0
+#define GDC0_SHUB_REGS_IF_CTL__SHUB_REGS_DROP_ANALNPF_MMREGREQ_SETERR_DIS__SHIFT                                0x0
 #define GDC0_SHUB_REGS_IF_CTL__SHUB_REGS_VF_PROTECTION_DIS__SHIFT                                             0x1
-#define GDC0_SHUB_REGS_IF_CTL__SHUB_REGS_DROP_NONPF_MMREGREQ_SETERR_DIS_MASK                                  0x00000001L
+#define GDC0_SHUB_REGS_IF_CTL__SHUB_REGS_DROP_ANALNPF_MMREGREQ_SETERR_DIS_MASK                                  0x00000001L
 #define GDC0_SHUB_REGS_IF_CTL__SHUB_REGS_VF_PROTECTION_DIS_MASK                                               0x00000002L
 //GDC0_NGDC_MGCG_CTRL
 #define GDC0_NGDC_MGCG_CTRL__NGDC_MGCG_EN__SHIFT                                                              0x0
@@ -2683,7 +2683,7 @@
 #define BIF_CFG_DEV0_EPF0_COMMAND__BUS_MASTER_EN__SHIFT                                                       0x2
 #define BIF_CFG_DEV0_EPF0_COMMAND__SPECIAL_CYCLE_EN__SHIFT                                                    0x3
 #define BIF_CFG_DEV0_EPF0_COMMAND__MEM_WRITE_INVALIDATE_EN__SHIFT                                             0x4
-#define BIF_CFG_DEV0_EPF0_COMMAND__PAL_SNOOP_EN__SHIFT                                                        0x5
+#define BIF_CFG_DEV0_EPF0_COMMAND__PAL_SANALOP_EN__SHIFT                                                        0x5
 #define BIF_CFG_DEV0_EPF0_COMMAND__PARITY_ERROR_RESPONSE__SHIFT                                               0x6
 #define BIF_CFG_DEV0_EPF0_COMMAND__AD_STEPPING__SHIFT                                                         0x7
 #define BIF_CFG_DEV0_EPF0_COMMAND__SERR_EN__SHIFT                                                             0x8
@@ -2694,7 +2694,7 @@
 #define BIF_CFG_DEV0_EPF0_COMMAND__BUS_MASTER_EN_MASK                                                         0x0004L
 #define BIF_CFG_DEV0_EPF0_COMMAND__SPECIAL_CYCLE_EN_MASK                                                      0x0008L
 #define BIF_CFG_DEV0_EPF0_COMMAND__MEM_WRITE_INVALIDATE_EN_MASK                                               0x0010L
-#define BIF_CFG_DEV0_EPF0_COMMAND__PAL_SNOOP_EN_MASK                                                          0x0020L
+#define BIF_CFG_DEV0_EPF0_COMMAND__PAL_SANALOP_EN_MASK                                                          0x0020L
 #define BIF_CFG_DEV0_EPF0_COMMAND__PARITY_ERROR_RESPONSE_MASK                                                 0x0040L
 #define BIF_CFG_DEV0_EPF0_COMMAND__AD_STEPPING_MASK                                                           0x0080L
 #define BIF_CFG_DEV0_EPF0_COMMAND__SERR_EN_MASK                                                               0x0100L
@@ -2726,9 +2726,9 @@
 #define BIF_CFG_DEV0_EPF0_STATUS__SIGNALED_SYSTEM_ERROR_MASK                                                  0x4000L
 #define BIF_CFG_DEV0_EPF0_STATUS__PARITY_ERROR_DETECTED_MASK                                                  0x8000L
 //BIF_CFG_DEV0_EPF0_REVISION_ID
-#define BIF_CFG_DEV0_EPF0_REVISION_ID__MINOR_REV_ID__SHIFT                                                    0x0
+#define BIF_CFG_DEV0_EPF0_REVISION_ID__MIANALR_REV_ID__SHIFT                                                    0x0
 #define BIF_CFG_DEV0_EPF0_REVISION_ID__MAJOR_REV_ID__SHIFT                                                    0x4
-#define BIF_CFG_DEV0_EPF0_REVISION_ID__MINOR_REV_ID_MASK                                                      0x0FL
+#define BIF_CFG_DEV0_EPF0_REVISION_ID__MIANALR_REV_ID_MASK                                                      0x0FL
 #define BIF_CFG_DEV0_EPF0_REVISION_ID__MAJOR_REV_ID_MASK                                                      0xF0L
 //BIF_CFG_DEV0_EPF0_PROG_INTERFACE
 #define BIF_CFG_DEV0_EPF0_PROG_INTERFACE__PROG_INTERFACE__SHIFT                                               0x0
@@ -2843,7 +2843,7 @@
 #define BIF_CFG_DEV0_EPF0_PMI_CAP__PME_SUPPORT_MASK                                                           0xF800L
 //BIF_CFG_DEV0_EPF0_PMI_STATUS_CNTL
 #define BIF_CFG_DEV0_EPF0_PMI_STATUS_CNTL__POWER_STATE__SHIFT                                                 0x0
-#define BIF_CFG_DEV0_EPF0_PMI_STATUS_CNTL__NO_SOFT_RESET__SHIFT                                               0x3
+#define BIF_CFG_DEV0_EPF0_PMI_STATUS_CNTL__ANAL_SOFT_RESET__SHIFT                                               0x3
 #define BIF_CFG_DEV0_EPF0_PMI_STATUS_CNTL__PME_EN__SHIFT                                                      0x8
 #define BIF_CFG_DEV0_EPF0_PMI_STATUS_CNTL__DATA_SELECT__SHIFT                                                 0x9
 #define BIF_CFG_DEV0_EPF0_PMI_STATUS_CNTL__DATA_SCALE__SHIFT                                                  0xd
@@ -2852,7 +2852,7 @@
 #define BIF_CFG_DEV0_EPF0_PMI_STATUS_CNTL__BUS_PWR_EN__SHIFT                                                  0x17
 #define BIF_CFG_DEV0_EPF0_PMI_STATUS_CNTL__PMI_DATA__SHIFT                                                    0x18
 #define BIF_CFG_DEV0_EPF0_PMI_STATUS_CNTL__POWER_STATE_MASK                                                   0x00000003L
-#define BIF_CFG_DEV0_EPF0_PMI_STATUS_CNTL__NO_SOFT_RESET_MASK                                                 0x00000008L
+#define BIF_CFG_DEV0_EPF0_PMI_STATUS_CNTL__ANAL_SOFT_RESET_MASK                                                 0x00000008L
 #define BIF_CFG_DEV0_EPF0_PMI_STATUS_CNTL__PME_EN_MASK                                                        0x00000100L
 #define BIF_CFG_DEV0_EPF0_PMI_STATUS_CNTL__DATA_SELECT_MASK                                                   0x00001E00L
 #define BIF_CFG_DEV0_EPF0_PMI_STATUS_CNTL__DATA_SCALE_MASK                                                    0x00006000L
@@ -2897,7 +2897,7 @@
 #define BIF_CFG_DEV0_EPF0_DEVICE_CAP__FLR_CAPABLE_MASK                                                        0x10000000L
 //BIF_CFG_DEV0_EPF0_DEVICE_CNTL
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__CORR_ERR_EN__SHIFT                                                     0x0
-#define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__NON_FATAL_ERR_EN__SHIFT                                                0x1
+#define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__ANALN_FATAL_ERR_EN__SHIFT                                                0x1
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__FATAL_ERR_EN__SHIFT                                                    0x2
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__USR_REPORT_EN__SHIFT                                                   0x3
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__RELAXED_ORD_EN__SHIFT                                                  0x4
@@ -2905,11 +2905,11 @@
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__EXTENDED_TAG_EN__SHIFT                                                 0x8
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__PHANTOM_FUNC_EN__SHIFT                                                 0x9
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__AUX_POWER_PM_EN__SHIFT                                                 0xa
-#define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__NO_SNOOP_EN__SHIFT                                                     0xb
+#define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__ANAL_SANALOP_EN__SHIFT                                                     0xb
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__MAX_READ_REQUEST_SIZE__SHIFT                                           0xc
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__INITIATE_FLR__SHIFT                                                    0xf
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__CORR_ERR_EN_MASK                                                       0x0001L
-#define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__NON_FATAL_ERR_EN_MASK                                                  0x0002L
+#define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__ANALN_FATAL_ERR_EN_MASK                                                  0x0002L
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__FATAL_ERR_EN_MASK                                                      0x0004L
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__USR_REPORT_EN_MASK                                                     0x0008L
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__RELAXED_ORD_EN_MASK                                                    0x0010L
@@ -2917,19 +2917,19 @@
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__EXTENDED_TAG_EN_MASK                                                   0x0100L
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__PHANTOM_FUNC_EN_MASK                                                   0x0200L
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__AUX_POWER_PM_EN_MASK                                                   0x0400L
-#define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__NO_SNOOP_EN_MASK                                                       0x0800L
+#define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__ANAL_SANALOP_EN_MASK                                                       0x0800L
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__MAX_READ_REQUEST_SIZE_MASK                                             0x7000L
 #define BIF_CFG_DEV0_EPF0_DEVICE_CNTL__INITIATE_FLR_MASK                                                      0x8000L
 //BIF_CFG_DEV0_EPF0_DEVICE_STATUS
 #define BIF_CFG_DEV0_EPF0_DEVICE_STATUS__CORR_ERR__SHIFT                                                      0x0
-#define BIF_CFG_DEV0_EPF0_DEVICE_STATUS__NON_FATAL_ERR__SHIFT                                                 0x1
+#define BIF_CFG_DEV0_EPF0_DEVICE_STATUS__ANALN_FATAL_ERR__SHIFT                                                 0x1
 #define BIF_CFG_DEV0_EPF0_DEVICE_STATUS__FATAL_ERR__SHIFT                                                     0x2
 #define BIF_CFG_DEV0_EPF0_DEVICE_STATUS__USR_DETECTED__SHIFT                                                  0x3
 #define BIF_CFG_DEV0_EPF0_DEVICE_STATUS__AUX_PWR__SHIFT                                                       0x4
 #define BIF_CFG_DEV0_EPF0_DEVICE_STATUS__TRANSACTIONS_PEND__SHIFT                                             0x5
 #define BIF_CFG_DEV0_EPF0_DEVICE_STATUS__EMER_POWER_REDUCTION_DETECTED__SHIFT                                 0x6
 #define BIF_CFG_DEV0_EPF0_DEVICE_STATUS__CORR_ERR_MASK                                                        0x0001L
-#define BIF_CFG_DEV0_EPF0_DEVICE_STATUS__NON_FATAL_ERR_MASK                                                   0x0002L
+#define BIF_CFG_DEV0_EPF0_DEVICE_STATUS__ANALN_FATAL_ERR_MASK                                                   0x0002L
 #define BIF_CFG_DEV0_EPF0_DEVICE_STATUS__FATAL_ERR_MASK                                                       0x0004L
 #define BIF_CFG_DEV0_EPF0_DEVICE_STATUS__USR_DETECTED_MASK                                                    0x0008L
 #define BIF_CFG_DEV0_EPF0_DEVICE_STATUS__AUX_PWR_MASK                                                         0x0010L
@@ -2944,7 +2944,7 @@
 #define BIF_CFG_DEV0_EPF0_LINK_CAP__CLOCK_POWER_MANAGEMENT__SHIFT                                             0x12
 #define BIF_CFG_DEV0_EPF0_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING__SHIFT                                        0x13
 #define BIF_CFG_DEV0_EPF0_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE__SHIFT                                        0x14
-#define BIF_CFG_DEV0_EPF0_LINK_CAP__LINK_BW_NOTIFICATION_CAP__SHIFT                                           0x15
+#define BIF_CFG_DEV0_EPF0_LINK_CAP__LINK_BW_ANALTIFICATION_CAP__SHIFT                                           0x15
 #define BIF_CFG_DEV0_EPF0_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE__SHIFT                                        0x16
 #define BIF_CFG_DEV0_EPF0_LINK_CAP__PORT_NUMBER__SHIFT                                                        0x18
 #define BIF_CFG_DEV0_EPF0_LINK_CAP__LINK_SPEED_MASK                                                           0x0000000FL
@@ -2955,7 +2955,7 @@
 #define BIF_CFG_DEV0_EPF0_LINK_CAP__CLOCK_POWER_MANAGEMENT_MASK                                               0x00040000L
 #define BIF_CFG_DEV0_EPF0_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING_MASK                                          0x00080000L
 #define BIF_CFG_DEV0_EPF0_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE_MASK                                          0x00100000L
-#define BIF_CFG_DEV0_EPF0_LINK_CAP__LINK_BW_NOTIFICATION_CAP_MASK                                             0x00200000L
+#define BIF_CFG_DEV0_EPF0_LINK_CAP__LINK_BW_ANALTIFICATION_CAP_MASK                                             0x00200000L
 #define BIF_CFG_DEV0_EPF0_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE_MASK                                          0x00400000L
 #define BIF_CFG_DEV0_EPF0_LINK_CAP__PORT_NUMBER_MASK                                                          0xFF000000L
 //BIF_CFG_DEV0_EPF0_LINK_CNTL
@@ -2967,9 +2967,9 @@
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL__COMMON_CLOCK_CFG__SHIFT                                                  0x6
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL__EXTENDED_SYNC__SHIFT                                                     0x7
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN__SHIFT                                         0x8
-#define BIF_CFG_DEV0_EPF0_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE__SHIFT                                       0x9
+#define BIF_CFG_DEV0_EPF0_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE__SHIFT                                       0x9
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN__SHIFT                                         0xa
-#define BIF_CFG_DEV0_EPF0_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN__SHIFT                                         0xb
+#define BIF_CFG_DEV0_EPF0_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN__SHIFT                                         0xb
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL__DRS_SIGNALING_CONTROL__SHIFT                                             0xe
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL__PM_CONTROL_MASK                                                          0x0003L
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL__PTM_PROP_DELAY_ADAPT_INTER_B_MASK                                        0x0004L
@@ -2979,9 +2979,9 @@
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL__COMMON_CLOCK_CFG_MASK                                                    0x0040L
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL__EXTENDED_SYNC_MASK                                                       0x0080L
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN_MASK                                           0x0100L
-#define BIF_CFG_DEV0_EPF0_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE_MASK                                         0x0200L
+#define BIF_CFG_DEV0_EPF0_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE_MASK                                         0x0200L
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN_MASK                                           0x0400L
-#define BIF_CFG_DEV0_EPF0_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN_MASK                                           0x0800L
+#define BIF_CFG_DEV0_EPF0_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN_MASK                                           0x0800L
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL__DRS_SIGNALING_CONTROL_MASK                                               0xC000L
 //BIF_CFG_DEV0_EPF0_LINK_STATUS
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS__CURRENT_LINK_SPEED__SHIFT                                              0x0
@@ -2990,14 +2990,14 @@
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS__SLOT_CLOCK_CFG__SHIFT                                                  0xc
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS__DL_ACTIVE__SHIFT                                                       0xd
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS__SHIFT                                       0xe
-#define BIF_CFG_DEV0_EPF0_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS__SHIFT                                       0xf
+#define BIF_CFG_DEV0_EPF0_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS__SHIFT                                       0xf
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS__CURRENT_LINK_SPEED_MASK                                                0x000FL
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS__NEGOTIATED_LINK_WIDTH_MASK                                             0x03F0L
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS__LINK_TRAINING_MASK                                                     0x0800L
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS__SLOT_CLOCK_CFG_MASK                                                    0x1000L
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS__DL_ACTIVE_MASK                                                         0x2000L
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS_MASK                                         0x4000L
-#define BIF_CFG_DEV0_EPF0_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS_MASK                                         0x8000L
+#define BIF_CFG_DEV0_EPF0_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS_MASK                                         0x8000L
 //BIF_CFG_DEV0_EPF0_DEVICE_CAP2
 #define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__CPL_TIMEOUT_RANGE_SUPPORTED__SHIFT                                     0x0
 #define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__CPL_TIMEOUT_DIS_SUPPORTED__SHIFT                                       0x4
@@ -3006,7 +3006,7 @@
 #define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED__SHIFT                                      0x7
 #define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED__SHIFT                                      0x8
 #define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED__SHIFT                                          0x9
-#define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING__SHIFT                                       0xa
+#define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                       0xa
 #define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__LTR_SUPPORTED__SHIFT                                                   0xb
 #define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__TPH_CPLR_SUPPORTED__SHIFT                                              0xc
 #define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__LN_SYSTEM_CLS__SHIFT                                                   0xe
@@ -3026,7 +3026,7 @@
 #define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED_MASK                                        0x00000080L
 #define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED_MASK                                        0x00000100L
 #define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED_MASK                                            0x00000200L
-#define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING_MASK                                         0x00000400L
+#define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING_MASK                                         0x00000400L
 #define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__LTR_SUPPORTED_MASK                                                     0x00000800L
 #define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__TPH_CPLR_SUPPORTED_MASK                                                0x00003000L
 #define BIF_CFG_DEV0_EPF0_DEVICE_CAP2__LN_SYSTEM_CLS_MASK                                                     0x0000C000L
@@ -3085,7 +3085,7 @@
 //BIF_CFG_DEV0_EPF0_LINK_CNTL2
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL2__TARGET_LINK_SPEED__SHIFT                                                0x0
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL2__ENTER_COMPLIANCE__SHIFT                                                 0x4
-#define BIF_CFG_DEV0_EPF0_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE__SHIFT                                      0x5
+#define BIF_CFG_DEV0_EPF0_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE__SHIFT                                      0x5
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL2__SELECTABLE_DEEMPHASIS__SHIFT                                            0x6
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL2__XMIT_MARGIN__SHIFT                                                      0x7
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL2__ENTER_MOD_COMPLIANCE__SHIFT                                             0xa
@@ -3093,7 +3093,7 @@
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL2__COMPLIANCE_DEEMPHASIS__SHIFT                                            0xc
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL2__TARGET_LINK_SPEED_MASK                                                  0x000FL
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL2__ENTER_COMPLIANCE_MASK                                                   0x0010L
-#define BIF_CFG_DEV0_EPF0_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE_MASK                                        0x0020L
+#define BIF_CFG_DEV0_EPF0_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE_MASK                                        0x0020L
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL2__SELECTABLE_DEEMPHASIS_MASK                                              0x0040L
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL2__XMIT_MARGIN_MASK                                                        0x0380L
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL2__ENTER_MOD_COMPLIANCE_MASK                                               0x0400L
@@ -3245,11 +3245,11 @@
 #define BIF_CFG_DEV0_EPF0_PCIE_PORT_VC_STATUS__VC_ARB_TABLE_STATUS_MASK                                       0x0001L
 //BIF_CFG_DEV0_EPF0_PCIE_VC0_RESOURCE_CAP
 #define BIF_CFG_DEV0_EPF0_PCIE_VC0_RESOURCE_CAP__PORT_ARB_CAP__SHIFT                                          0x0
-#define BIF_CFG_DEV0_EPF0_PCIE_VC0_RESOURCE_CAP__REJECT_SNOOP_TRANS__SHIFT                                    0xf
+#define BIF_CFG_DEV0_EPF0_PCIE_VC0_RESOURCE_CAP__REJECT_SANALOP_TRANS__SHIFT                                    0xf
 #define BIF_CFG_DEV0_EPF0_PCIE_VC0_RESOURCE_CAP__MAX_TIME_SLOTS__SHIFT                                        0x10
 #define BIF_CFG_DEV0_EPF0_PCIE_VC0_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET__SHIFT                                 0x18
 #define BIF_CFG_DEV0_EPF0_PCIE_VC0_RESOURCE_CAP__PORT_ARB_CAP_MASK                                            0x000000FFL
-#define BIF_CFG_DEV0_EPF0_PCIE_VC0_RESOURCE_CAP__REJECT_SNOOP_TRANS_MASK                                      0x00008000L
+#define BIF_CFG_DEV0_EPF0_PCIE_VC0_RESOURCE_CAP__REJECT_SANALOP_TRANS_MASK                                      0x00008000L
 #define BIF_CFG_DEV0_EPF0_PCIE_VC0_RESOURCE_CAP__MAX_TIME_SLOTS_MASK                                          0x007F0000L
 #define BIF_CFG_DEV0_EPF0_PCIE_VC0_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET_MASK                                   0xFF000000L
 //BIF_CFG_DEV0_EPF0_PCIE_VC0_RESOURCE_CNTL
@@ -3272,11 +3272,11 @@
 #define BIF_CFG_DEV0_EPF0_PCIE_VC0_RESOURCE_STATUS__VC_NEGOTIATION_PENDING_MASK                               0x0002L
 //BIF_CFG_DEV0_EPF0_PCIE_VC1_RESOURCE_CAP
 #define BIF_CFG_DEV0_EPF0_PCIE_VC1_RESOURCE_CAP__PORT_ARB_CAP__SHIFT                                          0x0
-#define BIF_CFG_DEV0_EPF0_PCIE_VC1_RESOURCE_CAP__REJECT_SNOOP_TRANS__SHIFT                                    0xf
+#define BIF_CFG_DEV0_EPF0_PCIE_VC1_RESOURCE_CAP__REJECT_SANALOP_TRANS__SHIFT                                    0xf
 #define BIF_CFG_DEV0_EPF0_PCIE_VC1_RESOURCE_CAP__MAX_TIME_SLOTS__SHIFT                                        0x10
 #define BIF_CFG_DEV0_EPF0_PCIE_VC1_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET__SHIFT                                 0x18
 #define BIF_CFG_DEV0_EPF0_PCIE_VC1_RESOURCE_CAP__PORT_ARB_CAP_MASK                                            0x000000FFL
-#define BIF_CFG_DEV0_EPF0_PCIE_VC1_RESOURCE_CAP__REJECT_SNOOP_TRANS_MASK                                      0x00008000L
+#define BIF_CFG_DEV0_EPF0_PCIE_VC1_RESOURCE_CAP__REJECT_SANALOP_TRANS_MASK                                      0x00008000L
 #define BIF_CFG_DEV0_EPF0_PCIE_VC1_RESOURCE_CAP__MAX_TIME_SLOTS_MASK                                          0x003F0000L
 #define BIF_CFG_DEV0_EPF0_PCIE_VC1_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET_MASK                                   0xFF000000L
 //BIF_CFG_DEV0_EPF0_PCIE_VC1_RESOURCE_CNTL
@@ -3428,7 +3428,7 @@
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS__SHIFT                                        0x7
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS__SHIFT                             0x8
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS__SHIFT                            0xc
-#define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS__SHIFT                           0xd
+#define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                           0xd
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS__SHIFT                                    0xe
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS__SHIFT                                    0xf
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_STATUS__RCV_ERR_STATUS_MASK                                           0x00000001L
@@ -3436,7 +3436,7 @@
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS_MASK                                          0x00000080L
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS_MASK                               0x00000100L
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS_MASK                              0x00001000L
-#define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS_MASK                             0x00002000L
+#define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS_MASK                             0x00002000L
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS_MASK                                      0x00004000L
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS_MASK                                      0x00008000L
 //BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_MASK
@@ -3445,7 +3445,7 @@
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK__SHIFT                                            0x7
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK__SHIFT                                 0x8
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK__SHIFT                                0xc
-#define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK__SHIFT                               0xd
+#define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK__SHIFT                               0xd
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK__SHIFT                                        0xe
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK__SHIFT                                        0xf
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_MASK__RCV_ERR_MASK_MASK                                               0x00000001L
@@ -3453,7 +3453,7 @@
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK_MASK                                              0x00000080L
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK_MASK                                   0x00000100L
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK_MASK                                  0x00001000L
-#define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK_MASK                                 0x00002000L
+#define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK_MASK                                 0x00002000L
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK_MASK                                          0x00004000L
 #define BIF_CFG_DEV0_EPF0_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK_MASK                                          0x00008000L
 //BIF_CFG_DEV0_EPF0_PCIE_ADV_ERR_CAP_CNTL
@@ -4535,23 +4535,23 @@
 #define BIF_CFG_DEV0_EPF0_LANE_15_MARGINING_LANE_STATUS__LANE_15_MARGIN_PAYLOAD_STATUS_MASK                   0xFF00L
 //BIF_CFG_DEV0_EPF0_LINK_CAP_32GT
 #define BIF_CFG_DEV0_EPF0_LINK_CAP_32GT__EQ_BYPASS_TO_HIGHEST_RATE_SUPPORTED__SHIFT                           0x0
-#define BIF_CFG_DEV0_EPF0_LINK_CAP_32GT__NO_EQ_NEEDED_SUPPORTED__SHIFT                                        0x1
+#define BIF_CFG_DEV0_EPF0_LINK_CAP_32GT__ANAL_EQ_NEEDED_SUPPORTED__SHIFT                                        0x1
 #define BIF_CFG_DEV0_EPF0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE0_SUPPORTED__SHIFT                             0x8
 #define BIF_CFG_DEV0_EPF0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE1_SUPPORTED__SHIFT                             0x9
 #define BIF_CFG_DEV0_EPF0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE2_SUPPORTED__SHIFT                             0xa
 #define BIF_CFG_DEV0_EPF0_LINK_CAP_32GT__MODIFIED_TS_RESERVED_USAGE_MODES__SHIFT                              0xb
 #define BIF_CFG_DEV0_EPF0_LINK_CAP_32GT__EQ_BYPASS_TO_HIGHEST_RATE_SUPPORTED_MASK                             0x00000001L
-#define BIF_CFG_DEV0_EPF0_LINK_CAP_32GT__NO_EQ_NEEDED_SUPPORTED_MASK                                          0x00000002L
+#define BIF_CFG_DEV0_EPF0_LINK_CAP_32GT__ANAL_EQ_NEEDED_SUPPORTED_MASK                                          0x00000002L
 #define BIF_CFG_DEV0_EPF0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE0_SUPPORTED_MASK                               0x00000100L
 #define BIF_CFG_DEV0_EPF0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE1_SUPPORTED_MASK                               0x00000200L
 #define BIF_CFG_DEV0_EPF0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE2_SUPPORTED_MASK                               0x00000400L
 #define BIF_CFG_DEV0_EPF0_LINK_CAP_32GT__MODIFIED_TS_RESERVED_USAGE_MODES_MASK                                0x0000F800L
 //BIF_CFG_DEV0_EPF0_LINK_CNTL_32GT
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL_32GT__EQ_BYPASS_TO_HIGHEST_RATE_DIS__SHIFT                                0x0
-#define BIF_CFG_DEV0_EPF0_LINK_CNTL_32GT__NO_EQ_NEEDED_DIS__SHIFT                                             0x1
+#define BIF_CFG_DEV0_EPF0_LINK_CNTL_32GT__ANAL_EQ_NEEDED_DIS__SHIFT                                             0x1
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL_32GT__MODIFIED_TS_USAGE_MODE_SEL__SHIFT                                   0x8
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL_32GT__EQ_BYPASS_TO_HIGHEST_RATE_DIS_MASK                                  0x00000001L
-#define BIF_CFG_DEV0_EPF0_LINK_CNTL_32GT__NO_EQ_NEEDED_DIS_MASK                                               0x00000002L
+#define BIF_CFG_DEV0_EPF0_LINK_CNTL_32GT__ANAL_EQ_NEEDED_DIS_MASK                                               0x00000002L
 #define BIF_CFG_DEV0_EPF0_LINK_CNTL_32GT__MODIFIED_TS_USAGE_MODE_SEL_MASK                                     0x00000700L
 //BIF_CFG_DEV0_EPF0_LINK_STATUS_32GT
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS_32GT__EQUALIZATION_COMPLETE_32GT__SHIFT                                 0x0
@@ -4563,7 +4563,7 @@
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS_32GT__RECEIVED_ENHANCED_LINK_BEHAVIOR_CNTL__SHIFT                       0x6
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS_32GT__TRANSMITTER_PRECODING_ON__SHIFT                                   0x8
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS_32GT__TRANSMITTER_PRECODE_REQUEST__SHIFT                                0x9
-#define BIF_CFG_DEV0_EPF0_LINK_STATUS_32GT__NO_EQ_NEEDED_RECEIVED__SHIFT                                      0xa
+#define BIF_CFG_DEV0_EPF0_LINK_STATUS_32GT__ANAL_EQ_NEEDED_RECEIVED__SHIFT                                      0xa
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS_32GT__EQUALIZATION_COMPLETE_32GT_MASK                                   0x00000001L
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS_32GT__EQUALIZATION_PHASE1_SUCCESS_32GT_MASK                             0x00000002L
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS_32GT__EQUALIZATION_PHASE2_SUCCESS_32GT_MASK                             0x00000004L
@@ -4573,7 +4573,7 @@
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS_32GT__RECEIVED_ENHANCED_LINK_BEHAVIOR_CNTL_MASK                         0x000000C0L
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS_32GT__TRANSMITTER_PRECODING_ON_MASK                                     0x00000100L
 #define BIF_CFG_DEV0_EPF0_LINK_STATUS_32GT__TRANSMITTER_PRECODE_REQUEST_MASK                                  0x00000200L
-#define BIF_CFG_DEV0_EPF0_LINK_STATUS_32GT__NO_EQ_NEEDED_RECEIVED_MASK                                        0x00000400L
+#define BIF_CFG_DEV0_EPF0_LINK_STATUS_32GT__ANAL_EQ_NEEDED_RECEIVED_MASK                                        0x00000400L
 //PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_GPUIOV
 #define PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_GPUIOV__CAP_ID__SHIFT                                               0x0
 #define PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_GPUIOV__CAP_VER__SHIFT                                              0x10
@@ -5848,7 +5848,7 @@
 #define BIF_CFG_DEV0_EPF1_COMMAND__BUS_MASTER_EN__SHIFT                                                       0x2
 #define BIF_CFG_DEV0_EPF1_COMMAND__SPECIAL_CYCLE_EN__SHIFT                                                    0x3
 #define BIF_CFG_DEV0_EPF1_COMMAND__MEM_WRITE_INVALIDATE_EN__SHIFT                                             0x4
-#define BIF_CFG_DEV0_EPF1_COMMAND__PAL_SNOOP_EN__SHIFT                                                        0x5
+#define BIF_CFG_DEV0_EPF1_COMMAND__PAL_SANALOP_EN__SHIFT                                                        0x5
 #define BIF_CFG_DEV0_EPF1_COMMAND__PARITY_ERROR_RESPONSE__SHIFT                                               0x6
 #define BIF_CFG_DEV0_EPF1_COMMAND__AD_STEPPING__SHIFT                                                         0x7
 #define BIF_CFG_DEV0_EPF1_COMMAND__SERR_EN__SHIFT                                                             0x8
@@ -5859,7 +5859,7 @@
 #define BIF_CFG_DEV0_EPF1_COMMAND__BUS_MASTER_EN_MASK                                                         0x0004L
 #define BIF_CFG_DEV0_EPF1_COMMAND__SPECIAL_CYCLE_EN_MASK                                                      0x0008L
 #define BIF_CFG_DEV0_EPF1_COMMAND__MEM_WRITE_INVALIDATE_EN_MASK                                               0x0010L
-#define BIF_CFG_DEV0_EPF1_COMMAND__PAL_SNOOP_EN_MASK                                                          0x0020L
+#define BIF_CFG_DEV0_EPF1_COMMAND__PAL_SANALOP_EN_MASK                                                          0x0020L
 #define BIF_CFG_DEV0_EPF1_COMMAND__PARITY_ERROR_RESPONSE_MASK                                                 0x0040L
 #define BIF_CFG_DEV0_EPF1_COMMAND__AD_STEPPING_MASK                                                           0x0080L
 #define BIF_CFG_DEV0_EPF1_COMMAND__SERR_EN_MASK                                                               0x0100L
@@ -5891,9 +5891,9 @@
 #define BIF_CFG_DEV0_EPF1_STATUS__SIGNALED_SYSTEM_ERROR_MASK                                                  0x4000L
 #define BIF_CFG_DEV0_EPF1_STATUS__PARITY_ERROR_DETECTED_MASK                                                  0x8000L
 //BIF_CFG_DEV0_EPF1_REVISION_ID
-#define BIF_CFG_DEV0_EPF1_REVISION_ID__MINOR_REV_ID__SHIFT                                                    0x0
+#define BIF_CFG_DEV0_EPF1_REVISION_ID__MIANALR_REV_ID__SHIFT                                                    0x0
 #define BIF_CFG_DEV0_EPF1_REVISION_ID__MAJOR_REV_ID__SHIFT                                                    0x4
-#define BIF_CFG_DEV0_EPF1_REVISION_ID__MINOR_REV_ID_MASK                                                      0x0FL
+#define BIF_CFG_DEV0_EPF1_REVISION_ID__MIANALR_REV_ID_MASK                                                      0x0FL
 #define BIF_CFG_DEV0_EPF1_REVISION_ID__MAJOR_REV_ID_MASK                                                      0xF0L
 //BIF_CFG_DEV0_EPF1_PROG_INTERFACE
 #define BIF_CFG_DEV0_EPF1_PROG_INTERFACE__PROG_INTERFACE__SHIFT                                               0x0
@@ -6008,7 +6008,7 @@
 #define BIF_CFG_DEV0_EPF1_PMI_CAP__PME_SUPPORT_MASK                                                           0xF800L
 //BIF_CFG_DEV0_EPF1_PMI_STATUS_CNTL
 #define BIF_CFG_DEV0_EPF1_PMI_STATUS_CNTL__POWER_STATE__SHIFT                                                 0x0
-#define BIF_CFG_DEV0_EPF1_PMI_STATUS_CNTL__NO_SOFT_RESET__SHIFT                                               0x3
+#define BIF_CFG_DEV0_EPF1_PMI_STATUS_CNTL__ANAL_SOFT_RESET__SHIFT                                               0x3
 #define BIF_CFG_DEV0_EPF1_PMI_STATUS_CNTL__PME_EN__SHIFT                                                      0x8
 #define BIF_CFG_DEV0_EPF1_PMI_STATUS_CNTL__DATA_SELECT__SHIFT                                                 0x9
 #define BIF_CFG_DEV0_EPF1_PMI_STATUS_CNTL__DATA_SCALE__SHIFT                                                  0xd
@@ -6017,7 +6017,7 @@
 #define BIF_CFG_DEV0_EPF1_PMI_STATUS_CNTL__BUS_PWR_EN__SHIFT                                                  0x17
 #define BIF_CFG_DEV0_EPF1_PMI_STATUS_CNTL__PMI_DATA__SHIFT                                                    0x18
 #define BIF_CFG_DEV0_EPF1_PMI_STATUS_CNTL__POWER_STATE_MASK                                                   0x00000003L
-#define BIF_CFG_DEV0_EPF1_PMI_STATUS_CNTL__NO_SOFT_RESET_MASK                                                 0x00000008L
+#define BIF_CFG_DEV0_EPF1_PMI_STATUS_CNTL__ANAL_SOFT_RESET_MASK                                                 0x00000008L
 #define BIF_CFG_DEV0_EPF1_PMI_STATUS_CNTL__PME_EN_MASK                                                        0x00000100L
 #define BIF_CFG_DEV0_EPF1_PMI_STATUS_CNTL__DATA_SELECT_MASK                                                   0x00001E00L
 #define BIF_CFG_DEV0_EPF1_PMI_STATUS_CNTL__DATA_SCALE_MASK                                                    0x00006000L
@@ -6062,7 +6062,7 @@
 #define BIF_CFG_DEV0_EPF1_DEVICE_CAP__FLR_CAPABLE_MASK                                                        0x10000000L
 //BIF_CFG_DEV0_EPF1_DEVICE_CNTL
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__CORR_ERR_EN__SHIFT                                                     0x0
-#define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__NON_FATAL_ERR_EN__SHIFT                                                0x1
+#define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__ANALN_FATAL_ERR_EN__SHIFT                                                0x1
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__FATAL_ERR_EN__SHIFT                                                    0x2
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__USR_REPORT_EN__SHIFT                                                   0x3
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__RELAXED_ORD_EN__SHIFT                                                  0x4
@@ -6070,11 +6070,11 @@
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__EXTENDED_TAG_EN__SHIFT                                                 0x8
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__PHANTOM_FUNC_EN__SHIFT                                                 0x9
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__AUX_POWER_PM_EN__SHIFT                                                 0xa
-#define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__NO_SNOOP_EN__SHIFT                                                     0xb
+#define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__ANAL_SANALOP_EN__SHIFT                                                     0xb
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__MAX_READ_REQUEST_SIZE__SHIFT                                           0xc
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__INITIATE_FLR__SHIFT                                                    0xf
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__CORR_ERR_EN_MASK                                                       0x0001L
-#define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__NON_FATAL_ERR_EN_MASK                                                  0x0002L
+#define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__ANALN_FATAL_ERR_EN_MASK                                                  0x0002L
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__FATAL_ERR_EN_MASK                                                      0x0004L
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__USR_REPORT_EN_MASK                                                     0x0008L
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__RELAXED_ORD_EN_MASK                                                    0x0010L
@@ -6082,19 +6082,19 @@
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__EXTENDED_TAG_EN_MASK                                                   0x0100L
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__PHANTOM_FUNC_EN_MASK                                                   0x0200L
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__AUX_POWER_PM_EN_MASK                                                   0x0400L
-#define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__NO_SNOOP_EN_MASK                                                       0x0800L
+#define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__ANAL_SANALOP_EN_MASK                                                       0x0800L
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__MAX_READ_REQUEST_SIZE_MASK                                             0x7000L
 #define BIF_CFG_DEV0_EPF1_DEVICE_CNTL__INITIATE_FLR_MASK                                                      0x8000L
 //BIF_CFG_DEV0_EPF1_DEVICE_STATUS
 #define BIF_CFG_DEV0_EPF1_DEVICE_STATUS__CORR_ERR__SHIFT                                                      0x0
-#define BIF_CFG_DEV0_EPF1_DEVICE_STATUS__NON_FATAL_ERR__SHIFT                                                 0x1
+#define BIF_CFG_DEV0_EPF1_DEVICE_STATUS__ANALN_FATAL_ERR__SHIFT                                                 0x1
 #define BIF_CFG_DEV0_EPF1_DEVICE_STATUS__FATAL_ERR__SHIFT                                                     0x2
 #define BIF_CFG_DEV0_EPF1_DEVICE_STATUS__USR_DETECTED__SHIFT                                                  0x3
 #define BIF_CFG_DEV0_EPF1_DEVICE_STATUS__AUX_PWR__SHIFT                                                       0x4
 #define BIF_CFG_DEV0_EPF1_DEVICE_STATUS__TRANSACTIONS_PEND__SHIFT                                             0x5
 #define BIF_CFG_DEV0_EPF1_DEVICE_STATUS__EMER_POWER_REDUCTION_DETECTED__SHIFT                                 0x6
 #define BIF_CFG_DEV0_EPF1_DEVICE_STATUS__CORR_ERR_MASK                                                        0x0001L
-#define BIF_CFG_DEV0_EPF1_DEVICE_STATUS__NON_FATAL_ERR_MASK                                                   0x0002L
+#define BIF_CFG_DEV0_EPF1_DEVICE_STATUS__ANALN_FATAL_ERR_MASK                                                   0x0002L
 #define BIF_CFG_DEV0_EPF1_DEVICE_STATUS__FATAL_ERR_MASK                                                       0x0004L
 #define BIF_CFG_DEV0_EPF1_DEVICE_STATUS__USR_DETECTED_MASK                                                    0x0008L
 #define BIF_CFG_DEV0_EPF1_DEVICE_STATUS__AUX_PWR_MASK                                                         0x0010L
@@ -6109,7 +6109,7 @@
 #define BIF_CFG_DEV0_EPF1_LINK_CAP__CLOCK_POWER_MANAGEMENT__SHIFT                                             0x12
 #define BIF_CFG_DEV0_EPF1_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING__SHIFT                                        0x13
 #define BIF_CFG_DEV0_EPF1_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE__SHIFT                                        0x14
-#define BIF_CFG_DEV0_EPF1_LINK_CAP__LINK_BW_NOTIFICATION_CAP__SHIFT                                           0x15
+#define BIF_CFG_DEV0_EPF1_LINK_CAP__LINK_BW_ANALTIFICATION_CAP__SHIFT                                           0x15
 #define BIF_CFG_DEV0_EPF1_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE__SHIFT                                        0x16
 #define BIF_CFG_DEV0_EPF1_LINK_CAP__PORT_NUMBER__SHIFT                                                        0x18
 #define BIF_CFG_DEV0_EPF1_LINK_CAP__LINK_SPEED_MASK                                                           0x0000000FL
@@ -6120,7 +6120,7 @@
 #define BIF_CFG_DEV0_EPF1_LINK_CAP__CLOCK_POWER_MANAGEMENT_MASK                                               0x00040000L
 #define BIF_CFG_DEV0_EPF1_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING_MASK                                          0x00080000L
 #define BIF_CFG_DEV0_EPF1_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE_MASK                                          0x00100000L
-#define BIF_CFG_DEV0_EPF1_LINK_CAP__LINK_BW_NOTIFICATION_CAP_MASK                                             0x00200000L
+#define BIF_CFG_DEV0_EPF1_LINK_CAP__LINK_BW_ANALTIFICATION_CAP_MASK                                             0x00200000L
 #define BIF_CFG_DEV0_EPF1_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE_MASK                                          0x00400000L
 #define BIF_CFG_DEV0_EPF1_LINK_CAP__PORT_NUMBER_MASK                                                          0xFF000000L
 //BIF_CFG_DEV0_EPF1_LINK_CNTL
@@ -6132,9 +6132,9 @@
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL__COMMON_CLOCK_CFG__SHIFT                                                  0x6
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL__EXTENDED_SYNC__SHIFT                                                     0x7
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN__SHIFT                                         0x8
-#define BIF_CFG_DEV0_EPF1_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE__SHIFT                                       0x9
+#define BIF_CFG_DEV0_EPF1_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE__SHIFT                                       0x9
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN__SHIFT                                         0xa
-#define BIF_CFG_DEV0_EPF1_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN__SHIFT                                         0xb
+#define BIF_CFG_DEV0_EPF1_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN__SHIFT                                         0xb
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL__DRS_SIGNALING_CONTROL__SHIFT                                             0xe
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL__PM_CONTROL_MASK                                                          0x0003L
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL__PTM_PROP_DELAY_ADAPT_INTER_B_MASK                                        0x0004L
@@ -6144,9 +6144,9 @@
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL__COMMON_CLOCK_CFG_MASK                                                    0x0040L
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL__EXTENDED_SYNC_MASK                                                       0x0080L
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN_MASK                                           0x0100L
-#define BIF_CFG_DEV0_EPF1_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE_MASK                                         0x0200L
+#define BIF_CFG_DEV0_EPF1_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE_MASK                                         0x0200L
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN_MASK                                           0x0400L
-#define BIF_CFG_DEV0_EPF1_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN_MASK                                           0x0800L
+#define BIF_CFG_DEV0_EPF1_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN_MASK                                           0x0800L
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL__DRS_SIGNALING_CONTROL_MASK                                               0xC000L
 //BIF_CFG_DEV0_EPF1_LINK_STATUS
 #define BIF_CFG_DEV0_EPF1_LINK_STATUS__CURRENT_LINK_SPEED__SHIFT                                              0x0
@@ -6155,14 +6155,14 @@
 #define BIF_CFG_DEV0_EPF1_LINK_STATUS__SLOT_CLOCK_CFG__SHIFT                                                  0xc
 #define BIF_CFG_DEV0_EPF1_LINK_STATUS__DL_ACTIVE__SHIFT                                                       0xd
 #define BIF_CFG_DEV0_EPF1_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS__SHIFT                                       0xe
-#define BIF_CFG_DEV0_EPF1_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS__SHIFT                                       0xf
+#define BIF_CFG_DEV0_EPF1_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS__SHIFT                                       0xf
 #define BIF_CFG_DEV0_EPF1_LINK_STATUS__CURRENT_LINK_SPEED_MASK                                                0x000FL
 #define BIF_CFG_DEV0_EPF1_LINK_STATUS__NEGOTIATED_LINK_WIDTH_MASK                                             0x03F0L
 #define BIF_CFG_DEV0_EPF1_LINK_STATUS__LINK_TRAINING_MASK                                                     0x0800L
 #define BIF_CFG_DEV0_EPF1_LINK_STATUS__SLOT_CLOCK_CFG_MASK                                                    0x1000L
 #define BIF_CFG_DEV0_EPF1_LINK_STATUS__DL_ACTIVE_MASK                                                         0x2000L
 #define BIF_CFG_DEV0_EPF1_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS_MASK                                         0x4000L
-#define BIF_CFG_DEV0_EPF1_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS_MASK                                         0x8000L
+#define BIF_CFG_DEV0_EPF1_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS_MASK                                         0x8000L
 //BIF_CFG_DEV0_EPF1_DEVICE_CAP2
 #define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__CPL_TIMEOUT_RANGE_SUPPORTED__SHIFT                                     0x0
 #define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__CPL_TIMEOUT_DIS_SUPPORTED__SHIFT                                       0x4
@@ -6171,7 +6171,7 @@
 #define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED__SHIFT                                      0x7
 #define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED__SHIFT                                      0x8
 #define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED__SHIFT                                          0x9
-#define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING__SHIFT                                       0xa
+#define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                       0xa
 #define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__LTR_SUPPORTED__SHIFT                                                   0xb
 #define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__TPH_CPLR_SUPPORTED__SHIFT                                              0xc
 #define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__LN_SYSTEM_CLS__SHIFT                                                   0xe
@@ -6191,7 +6191,7 @@
 #define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED_MASK                                        0x00000080L
 #define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED_MASK                                        0x00000100L
 #define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED_MASK                                            0x00000200L
-#define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING_MASK                                         0x00000400L
+#define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING_MASK                                         0x00000400L
 #define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__LTR_SUPPORTED_MASK                                                     0x00000800L
 #define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__TPH_CPLR_SUPPORTED_MASK                                                0x00003000L
 #define BIF_CFG_DEV0_EPF1_DEVICE_CAP2__LN_SYSTEM_CLS_MASK                                                     0x0000C000L
@@ -6250,7 +6250,7 @@
 //BIF_CFG_DEV0_EPF1_LINK_CNTL2
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL2__TARGET_LINK_SPEED__SHIFT                                                0x0
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL2__ENTER_COMPLIANCE__SHIFT                                                 0x4
-#define BIF_CFG_DEV0_EPF1_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE__SHIFT                                      0x5
+#define BIF_CFG_DEV0_EPF1_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE__SHIFT                                      0x5
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL2__SELECTABLE_DEEMPHASIS__SHIFT                                            0x6
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL2__XMIT_MARGIN__SHIFT                                                      0x7
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL2__ENTER_MOD_COMPLIANCE__SHIFT                                             0xa
@@ -6258,7 +6258,7 @@
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL2__COMPLIANCE_DEEMPHASIS__SHIFT                                            0xc
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL2__TARGET_LINK_SPEED_MASK                                                  0x000FL
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL2__ENTER_COMPLIANCE_MASK                                                   0x0010L
-#define BIF_CFG_DEV0_EPF1_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE_MASK                                        0x0020L
+#define BIF_CFG_DEV0_EPF1_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE_MASK                                        0x0020L
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL2__SELECTABLE_DEEMPHASIS_MASK                                              0x0040L
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL2__XMIT_MARGIN_MASK                                                        0x0380L
 #define BIF_CFG_DEV0_EPF1_LINK_CNTL2__ENTER_MOD_COMPLIANCE_MASK                                               0x0400L
@@ -6497,7 +6497,7 @@
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS__SHIFT                                        0x7
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS__SHIFT                             0x8
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS__SHIFT                            0xc
-#define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS__SHIFT                           0xd
+#define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                           0xd
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS__SHIFT                                    0xe
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS__SHIFT                                    0xf
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_STATUS__RCV_ERR_STATUS_MASK                                           0x00000001L
@@ -6505,7 +6505,7 @@
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS_MASK                                          0x00000080L
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS_MASK                               0x00000100L
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS_MASK                              0x00001000L
-#define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS_MASK                             0x00002000L
+#define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS_MASK                             0x00002000L
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS_MASK                                      0x00004000L
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS_MASK                                      0x00008000L
 //BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_MASK
@@ -6514,7 +6514,7 @@
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK__SHIFT                                            0x7
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK__SHIFT                                 0x8
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK__SHIFT                                0xc
-#define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK__SHIFT                               0xd
+#define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK__SHIFT                               0xd
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK__SHIFT                                        0xe
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK__SHIFT                                        0xf
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_MASK__RCV_ERR_MASK_MASK                                               0x00000001L
@@ -6522,7 +6522,7 @@
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK_MASK                                              0x00000080L
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK_MASK                                   0x00000100L
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK_MASK                                  0x00001000L
-#define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK_MASK                                 0x00002000L
+#define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK_MASK                                 0x00002000L
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK_MASK                                          0x00004000L
 #define BIF_CFG_DEV0_EPF1_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK_MASK                                          0x00008000L
 //BIF_CFG_DEV0_EPF1_PCIE_ADV_ERR_CAP_CNTL
@@ -6832,7 +6832,7 @@
 #define BIF_CFG_DEV0_RC0_COMMAND__BUS_MASTER_EN__SHIFT                                                        0x2
 #define BIF_CFG_DEV0_RC0_COMMAND__SPECIAL_CYCLE_EN__SHIFT                                                     0x3
 #define BIF_CFG_DEV0_RC0_COMMAND__MEM_WRITE_INVALIDATE_EN__SHIFT                                              0x4
-#define BIF_CFG_DEV0_RC0_COMMAND__PAL_SNOOP_EN__SHIFT                                                         0x5
+#define BIF_CFG_DEV0_RC0_COMMAND__PAL_SANALOP_EN__SHIFT                                                         0x5
 #define BIF_CFG_DEV0_RC0_COMMAND__PARITY_ERROR_RESPONSE__SHIFT                                                0x6
 #define BIF_CFG_DEV0_RC0_COMMAND__AD_STEPPING__SHIFT                                                          0x7
 #define BIF_CFG_DEV0_RC0_COMMAND__SERR_EN__SHIFT                                                              0x8
@@ -6843,7 +6843,7 @@
 #define BIF_CFG_DEV0_RC0_COMMAND__BUS_MASTER_EN_MASK                                                          0x0004L
 #define BIF_CFG_DEV0_RC0_COMMAND__SPECIAL_CYCLE_EN_MASK                                                       0x0008L
 #define BIF_CFG_DEV0_RC0_COMMAND__MEM_WRITE_INVALIDATE_EN_MASK                                                0x0010L
-#define BIF_CFG_DEV0_RC0_COMMAND__PAL_SNOOP_EN_MASK                                                           0x0020L
+#define BIF_CFG_DEV0_RC0_COMMAND__PAL_SANALOP_EN_MASK                                                           0x0020L
 #define BIF_CFG_DEV0_RC0_COMMAND__PARITY_ERROR_RESPONSE_MASK                                                  0x0040L
 #define BIF_CFG_DEV0_RC0_COMMAND__AD_STEPPING_MASK                                                            0x0080L
 #define BIF_CFG_DEV0_RC0_COMMAND__SERR_EN_MASK                                                                0x0100L
@@ -6875,9 +6875,9 @@
 #define BIF_CFG_DEV0_RC0_STATUS__SIGNALED_SYSTEM_ERROR_MASK                                                   0x4000L
 #define BIF_CFG_DEV0_RC0_STATUS__PARITY_ERROR_DETECTED_MASK                                                   0x8000L
 //BIF_CFG_DEV0_RC0_REVISION_ID
-#define BIF_CFG_DEV0_RC0_REVISION_ID__MINOR_REV_ID__SHIFT                                                     0x0
+#define BIF_CFG_DEV0_RC0_REVISION_ID__MIANALR_REV_ID__SHIFT                                                     0x0
 #define BIF_CFG_DEV0_RC0_REVISION_ID__MAJOR_REV_ID__SHIFT                                                     0x4
-#define BIF_CFG_DEV0_RC0_REVISION_ID__MINOR_REV_ID_MASK                                                       0x0FL
+#define BIF_CFG_DEV0_RC0_REVISION_ID__MIANALR_REV_ID_MASK                                                       0x0FL
 #define BIF_CFG_DEV0_RC0_REVISION_ID__MAJOR_REV_ID_MASK                                                       0xF0L
 //BIF_CFG_DEV0_RC0_PROG_INTERFACE
 #define BIF_CFG_DEV0_RC0_PROG_INTERFACE__PROG_INTERFACE__SHIFT                                                0x0
@@ -7048,7 +7048,7 @@
 #define BIF_CFG_DEV0_RC0_PMI_CAP__PME_SUPPORT_MASK                                                            0xF800L
 //BIF_CFG_DEV0_RC0_PMI_STATUS_CNTL
 #define BIF_CFG_DEV0_RC0_PMI_STATUS_CNTL__POWER_STATE__SHIFT                                                  0x0
-#define BIF_CFG_DEV0_RC0_PMI_STATUS_CNTL__NO_SOFT_RESET__SHIFT                                                0x3
+#define BIF_CFG_DEV0_RC0_PMI_STATUS_CNTL__ANAL_SOFT_RESET__SHIFT                                                0x3
 #define BIF_CFG_DEV0_RC0_PMI_STATUS_CNTL__PME_EN__SHIFT                                                       0x8
 #define BIF_CFG_DEV0_RC0_PMI_STATUS_CNTL__DATA_SELECT__SHIFT                                                  0x9
 #define BIF_CFG_DEV0_RC0_PMI_STATUS_CNTL__DATA_SCALE__SHIFT                                                   0xd
@@ -7057,7 +7057,7 @@
 #define BIF_CFG_DEV0_RC0_PMI_STATUS_CNTL__BUS_PWR_EN__SHIFT                                                   0x17
 #define BIF_CFG_DEV0_RC0_PMI_STATUS_CNTL__PMI_DATA__SHIFT                                                     0x18
 #define BIF_CFG_DEV0_RC0_PMI_STATUS_CNTL__POWER_STATE_MASK                                                    0x00000003L
-#define BIF_CFG_DEV0_RC0_PMI_STATUS_CNTL__NO_SOFT_RESET_MASK                                                  0x00000008L
+#define BIF_CFG_DEV0_RC0_PMI_STATUS_CNTL__ANAL_SOFT_RESET_MASK                                                  0x00000008L
 #define BIF_CFG_DEV0_RC0_PMI_STATUS_CNTL__PME_EN_MASK                                                         0x00000100L
 #define BIF_CFG_DEV0_RC0_PMI_STATUS_CNTL__DATA_SELECT_MASK                                                    0x00001E00L
 #define BIF_CFG_DEV0_RC0_PMI_STATUS_CNTL__DATA_SCALE_MASK                                                     0x00006000L
@@ -7102,7 +7102,7 @@
 #define BIF_CFG_DEV0_RC0_DEVICE_CAP__FLR_CAPABLE_MASK                                                         0x10000000L
 //BIF_CFG_DEV0_RC0_DEVICE_CNTL
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__CORR_ERR_EN__SHIFT                                                      0x0
-#define BIF_CFG_DEV0_RC0_DEVICE_CNTL__NON_FATAL_ERR_EN__SHIFT                                                 0x1
+#define BIF_CFG_DEV0_RC0_DEVICE_CNTL__ANALN_FATAL_ERR_EN__SHIFT                                                 0x1
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__FATAL_ERR_EN__SHIFT                                                     0x2
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__USR_REPORT_EN__SHIFT                                                    0x3
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__RELAXED_ORD_EN__SHIFT                                                   0x4
@@ -7110,11 +7110,11 @@
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__EXTENDED_TAG_EN__SHIFT                                                  0x8
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__PHANTOM_FUNC_EN__SHIFT                                                  0x9
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__AUX_POWER_PM_EN__SHIFT                                                  0xa
-#define BIF_CFG_DEV0_RC0_DEVICE_CNTL__NO_SNOOP_EN__SHIFT                                                      0xb
+#define BIF_CFG_DEV0_RC0_DEVICE_CNTL__ANAL_SANALOP_EN__SHIFT                                                      0xb
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__MAX_READ_REQUEST_SIZE__SHIFT                                            0xc
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__BRIDGE_CFG_RETRY_EN__SHIFT                                              0xf
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__CORR_ERR_EN_MASK                                                        0x0001L
-#define BIF_CFG_DEV0_RC0_DEVICE_CNTL__NON_FATAL_ERR_EN_MASK                                                   0x0002L
+#define BIF_CFG_DEV0_RC0_DEVICE_CNTL__ANALN_FATAL_ERR_EN_MASK                                                   0x0002L
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__FATAL_ERR_EN_MASK                                                       0x0004L
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__USR_REPORT_EN_MASK                                                      0x0008L
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__RELAXED_ORD_EN_MASK                                                     0x0010L
@@ -7122,19 +7122,19 @@
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__EXTENDED_TAG_EN_MASK                                                    0x0100L
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__PHANTOM_FUNC_EN_MASK                                                    0x0200L
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__AUX_POWER_PM_EN_MASK                                                    0x0400L
-#define BIF_CFG_DEV0_RC0_DEVICE_CNTL__NO_SNOOP_EN_MASK                                                        0x0800L
+#define BIF_CFG_DEV0_RC0_DEVICE_CNTL__ANAL_SANALOP_EN_MASK                                                        0x0800L
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__MAX_READ_REQUEST_SIZE_MASK                                              0x7000L
 #define BIF_CFG_DEV0_RC0_DEVICE_CNTL__BRIDGE_CFG_RETRY_EN_MASK                                                0x8000L
 //BIF_CFG_DEV0_RC0_DEVICE_STATUS
 #define BIF_CFG_DEV0_RC0_DEVICE_STATUS__CORR_ERR__SHIFT                                                       0x0
-#define BIF_CFG_DEV0_RC0_DEVICE_STATUS__NON_FATAL_ERR__SHIFT                                                  0x1
+#define BIF_CFG_DEV0_RC0_DEVICE_STATUS__ANALN_FATAL_ERR__SHIFT                                                  0x1
 #define BIF_CFG_DEV0_RC0_DEVICE_STATUS__FATAL_ERR__SHIFT                                                      0x2
 #define BIF_CFG_DEV0_RC0_DEVICE_STATUS__USR_DETECTED__SHIFT                                                   0x3
 #define BIF_CFG_DEV0_RC0_DEVICE_STATUS__AUX_PWR__SHIFT                                                        0x4
 #define BIF_CFG_DEV0_RC0_DEVICE_STATUS__TRANSACTIONS_PEND__SHIFT                                              0x5
 #define BIF_CFG_DEV0_RC0_DEVICE_STATUS__EMER_POWER_REDUCTION_DETECTED__SHIFT                                  0x6
 #define BIF_CFG_DEV0_RC0_DEVICE_STATUS__CORR_ERR_MASK                                                         0x0001L
-#define BIF_CFG_DEV0_RC0_DEVICE_STATUS__NON_FATAL_ERR_MASK                                                    0x0002L
+#define BIF_CFG_DEV0_RC0_DEVICE_STATUS__ANALN_FATAL_ERR_MASK                                                    0x0002L
 #define BIF_CFG_DEV0_RC0_DEVICE_STATUS__FATAL_ERR_MASK                                                        0x0004L
 #define BIF_CFG_DEV0_RC0_DEVICE_STATUS__USR_DETECTED_MASK                                                     0x0008L
 #define BIF_CFG_DEV0_RC0_DEVICE_STATUS__AUX_PWR_MASK                                                          0x0010L
@@ -7149,7 +7149,7 @@
 #define BIF_CFG_DEV0_RC0_LINK_CAP__CLOCK_POWER_MANAGEMENT__SHIFT                                              0x12
 #define BIF_CFG_DEV0_RC0_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING__SHIFT                                         0x13
 #define BIF_CFG_DEV0_RC0_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE__SHIFT                                         0x14
-#define BIF_CFG_DEV0_RC0_LINK_CAP__LINK_BW_NOTIFICATION_CAP__SHIFT                                            0x15
+#define BIF_CFG_DEV0_RC0_LINK_CAP__LINK_BW_ANALTIFICATION_CAP__SHIFT                                            0x15
 #define BIF_CFG_DEV0_RC0_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE__SHIFT                                         0x16
 #define BIF_CFG_DEV0_RC0_LINK_CAP__PORT_NUMBER__SHIFT                                                         0x18
 #define BIF_CFG_DEV0_RC0_LINK_CAP__LINK_SPEED_MASK                                                            0x0000000FL
@@ -7160,7 +7160,7 @@
 #define BIF_CFG_DEV0_RC0_LINK_CAP__CLOCK_POWER_MANAGEMENT_MASK                                                0x00040000L
 #define BIF_CFG_DEV0_RC0_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING_MASK                                           0x00080000L
 #define BIF_CFG_DEV0_RC0_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE_MASK                                           0x00100000L
-#define BIF_CFG_DEV0_RC0_LINK_CAP__LINK_BW_NOTIFICATION_CAP_MASK                                              0x00200000L
+#define BIF_CFG_DEV0_RC0_LINK_CAP__LINK_BW_ANALTIFICATION_CAP_MASK                                              0x00200000L
 #define BIF_CFG_DEV0_RC0_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE_MASK                                           0x00400000L
 #define BIF_CFG_DEV0_RC0_LINK_CAP__PORT_NUMBER_MASK                                                           0xFF000000L
 //BIF_CFG_DEV0_RC0_LINK_CNTL
@@ -7172,9 +7172,9 @@
 #define BIF_CFG_DEV0_RC0_LINK_CNTL__COMMON_CLOCK_CFG__SHIFT                                                   0x6
 #define BIF_CFG_DEV0_RC0_LINK_CNTL__EXTENDED_SYNC__SHIFT                                                      0x7
 #define BIF_CFG_DEV0_RC0_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN__SHIFT                                          0x8
-#define BIF_CFG_DEV0_RC0_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE__SHIFT                                        0x9
+#define BIF_CFG_DEV0_RC0_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE__SHIFT                                        0x9
 #define BIF_CFG_DEV0_RC0_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN__SHIFT                                          0xa
-#define BIF_CFG_DEV0_RC0_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN__SHIFT                                          0xb
+#define BIF_CFG_DEV0_RC0_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN__SHIFT                                          0xb
 #define BIF_CFG_DEV0_RC0_LINK_CNTL__DRS_SIGNALING_CONTROL__SHIFT                                              0xe
 #define BIF_CFG_DEV0_RC0_LINK_CNTL__PM_CONTROL_MASK                                                           0x0003L
 #define BIF_CFG_DEV0_RC0_LINK_CNTL__PTM_PROP_DELAY_ADAPT_INTER_B_MASK                                         0x0004L
@@ -7184,9 +7184,9 @@
 #define BIF_CFG_DEV0_RC0_LINK_CNTL__COMMON_CLOCK_CFG_MASK                                                     0x0040L
 #define BIF_CFG_DEV0_RC0_LINK_CNTL__EXTENDED_SYNC_MASK                                                        0x0080L
 #define BIF_CFG_DEV0_RC0_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN_MASK                                            0x0100L
-#define BIF_CFG_DEV0_RC0_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE_MASK                                          0x0200L
+#define BIF_CFG_DEV0_RC0_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE_MASK                                          0x0200L
 #define BIF_CFG_DEV0_RC0_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN_MASK                                            0x0400L
-#define BIF_CFG_DEV0_RC0_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN_MASK                                            0x0800L
+#define BIF_CFG_DEV0_RC0_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN_MASK                                            0x0800L
 #define BIF_CFG_DEV0_RC0_LINK_CNTL__DRS_SIGNALING_CONTROL_MASK                                                0xC000L
 //BIF_CFG_DEV0_RC0_LINK_STATUS
 #define BIF_CFG_DEV0_RC0_LINK_STATUS__CURRENT_LINK_SPEED__SHIFT                                               0x0
@@ -7195,14 +7195,14 @@
 #define BIF_CFG_DEV0_RC0_LINK_STATUS__SLOT_CLOCK_CFG__SHIFT                                                   0xc
 #define BIF_CFG_DEV0_RC0_LINK_STATUS__DL_ACTIVE__SHIFT                                                        0xd
 #define BIF_CFG_DEV0_RC0_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS__SHIFT                                        0xe
-#define BIF_CFG_DEV0_RC0_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS__SHIFT                                        0xf
+#define BIF_CFG_DEV0_RC0_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS__SHIFT                                        0xf
 #define BIF_CFG_DEV0_RC0_LINK_STATUS__CURRENT_LINK_SPEED_MASK                                                 0x000FL
 #define BIF_CFG_DEV0_RC0_LINK_STATUS__NEGOTIATED_LINK_WIDTH_MASK                                              0x03F0L
 #define BIF_CFG_DEV0_RC0_LINK_STATUS__LINK_TRAINING_MASK                                                      0x0800L
 #define BIF_CFG_DEV0_RC0_LINK_STATUS__SLOT_CLOCK_CFG_MASK                                                     0x1000L
 #define BIF_CFG_DEV0_RC0_LINK_STATUS__DL_ACTIVE_MASK                                                          0x2000L
 #define BIF_CFG_DEV0_RC0_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS_MASK                                          0x4000L
-#define BIF_CFG_DEV0_RC0_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS_MASK                                          0x8000L
+#define BIF_CFG_DEV0_RC0_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS_MASK                                          0x8000L
 //BIF_CFG_DEV0_RC0_SLOT_CAP
 #define BIF_CFG_DEV0_RC0_SLOT_CAP__ATTN_BUTTON_PRESENT__SHIFT                                                 0x0
 #define BIF_CFG_DEV0_RC0_SLOT_CAP__PWR_CONTROLLER_PRESENT__SHIFT                                              0x1
@@ -7214,7 +7214,7 @@
 #define BIF_CFG_DEV0_RC0_SLOT_CAP__SLOT_PWR_LIMIT_VALUE__SHIFT                                                0x7
 #define BIF_CFG_DEV0_RC0_SLOT_CAP__SLOT_PWR_LIMIT_SCALE__SHIFT                                                0xf
 #define BIF_CFG_DEV0_RC0_SLOT_CAP__ELECTROMECH_INTERLOCK_PRESENT__SHIFT                                       0x11
-#define BIF_CFG_DEV0_RC0_SLOT_CAP__NO_COMMAND_COMPLETED_SUPPORTED__SHIFT                                      0x12
+#define BIF_CFG_DEV0_RC0_SLOT_CAP__ANAL_COMMAND_COMPLETED_SUPPORTED__SHIFT                                      0x12
 #define BIF_CFG_DEV0_RC0_SLOT_CAP__PHYSICAL_SLOT_NUM__SHIFT                                                   0x13
 #define BIF_CFG_DEV0_RC0_SLOT_CAP__ATTN_BUTTON_PRESENT_MASK                                                   0x00000001L
 #define BIF_CFG_DEV0_RC0_SLOT_CAP__PWR_CONTROLLER_PRESENT_MASK                                                0x00000002L
@@ -7226,7 +7226,7 @@
 #define BIF_CFG_DEV0_RC0_SLOT_CAP__SLOT_PWR_LIMIT_VALUE_MASK                                                  0x00007F80L
 #define BIF_CFG_DEV0_RC0_SLOT_CAP__SLOT_PWR_LIMIT_SCALE_MASK                                                  0x00018000L
 #define BIF_CFG_DEV0_RC0_SLOT_CAP__ELECTROMECH_INTERLOCK_PRESENT_MASK                                         0x00020000L
-#define BIF_CFG_DEV0_RC0_SLOT_CAP__NO_COMMAND_COMPLETED_SUPPORTED_MASK                                        0x00040000L
+#define BIF_CFG_DEV0_RC0_SLOT_CAP__ANAL_COMMAND_COMPLETED_SUPPORTED_MASK                                        0x00040000L
 #define BIF_CFG_DEV0_RC0_SLOT_CAP__PHYSICAL_SLOT_NUM_MASK                                                     0xFFF80000L
 //BIF_CFG_DEV0_RC0_SLOT_CNTL
 #define BIF_CFG_DEV0_RC0_SLOT_CNTL__ATTN_BUTTON_PRESSED_EN__SHIFT                                             0x0
@@ -7276,12 +7276,12 @@
 #define BIF_CFG_DEV0_RC0_SLOT_STATUS__DL_STATE_CHANGED_MASK                                                   0x0100L
 //BIF_CFG_DEV0_RC0_ROOT_CNTL
 #define BIF_CFG_DEV0_RC0_ROOT_CNTL__SERR_ON_CORR_ERR_EN__SHIFT                                                0x0
-#define BIF_CFG_DEV0_RC0_ROOT_CNTL__SERR_ON_NONFATAL_ERR_EN__SHIFT                                            0x1
+#define BIF_CFG_DEV0_RC0_ROOT_CNTL__SERR_ON_ANALNFATAL_ERR_EN__SHIFT                                            0x1
 #define BIF_CFG_DEV0_RC0_ROOT_CNTL__SERR_ON_FATAL_ERR_EN__SHIFT                                               0x2
 #define BIF_CFG_DEV0_RC0_ROOT_CNTL__PM_INTERRUPT_EN__SHIFT                                                    0x3
 #define BIF_CFG_DEV0_RC0_ROOT_CNTL__CRS_SOFTWARE_VISIBILITY_EN__SHIFT                                         0x4
 #define BIF_CFG_DEV0_RC0_ROOT_CNTL__SERR_ON_CORR_ERR_EN_MASK                                                  0x0001L
-#define BIF_CFG_DEV0_RC0_ROOT_CNTL__SERR_ON_NONFATAL_ERR_EN_MASK                                              0x0002L
+#define BIF_CFG_DEV0_RC0_ROOT_CNTL__SERR_ON_ANALNFATAL_ERR_EN_MASK                                              0x0002L
 #define BIF_CFG_DEV0_RC0_ROOT_CNTL__SERR_ON_FATAL_ERR_EN_MASK                                                 0x0004L
 #define BIF_CFG_DEV0_RC0_ROOT_CNTL__PM_INTERRUPT_EN_MASK                                                      0x0008L
 #define BIF_CFG_DEV0_RC0_ROOT_CNTL__CRS_SOFTWARE_VISIBILITY_EN_MASK                                           0x0010L
@@ -7303,7 +7303,7 @@
 #define BIF_CFG_DEV0_RC0_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED__SHIFT                                       0x7
 #define BIF_CFG_DEV0_RC0_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED__SHIFT                                       0x8
 #define BIF_CFG_DEV0_RC0_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED__SHIFT                                           0x9
-#define BIF_CFG_DEV0_RC0_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING__SHIFT                                        0xa
+#define BIF_CFG_DEV0_RC0_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                        0xa
 #define BIF_CFG_DEV0_RC0_DEVICE_CAP2__LTR_SUPPORTED__SHIFT                                                    0xb
 #define BIF_CFG_DEV0_RC0_DEVICE_CAP2__TPH_CPLR_SUPPORTED__SHIFT                                               0xc
 #define BIF_CFG_DEV0_RC0_DEVICE_CAP2__LN_SYSTEM_CLS__SHIFT                                                    0xe
@@ -7323,7 +7323,7 @@
 #define BIF_CFG_DEV0_RC0_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED_MASK                                         0x00000080L
 #define BIF_CFG_DEV0_RC0_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED_MASK                                         0x00000100L
 #define BIF_CFG_DEV0_RC0_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED_MASK                                             0x00000200L
-#define BIF_CFG_DEV0_RC0_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING_MASK                                          0x00000400L
+#define BIF_CFG_DEV0_RC0_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING_MASK                                          0x00000400L
 #define BIF_CFG_DEV0_RC0_DEVICE_CAP2__LTR_SUPPORTED_MASK                                                      0x00000800L
 #define BIF_CFG_DEV0_RC0_DEVICE_CAP2__TPH_CPLR_SUPPORTED_MASK                                                 0x00003000L
 #define BIF_CFG_DEV0_RC0_DEVICE_CAP2__LN_SYSTEM_CLS_MASK                                                      0x0000C000L
@@ -7382,7 +7382,7 @@
 //BIF_CFG_DEV0_RC0_LINK_CNTL2
 #define BIF_CFG_DEV0_RC0_LINK_CNTL2__TARGET_LINK_SPEED__SHIFT                                                 0x0
 #define BIF_CFG_DEV0_RC0_LINK_CNTL2__ENTER_COMPLIANCE__SHIFT                                                  0x4
-#define BIF_CFG_DEV0_RC0_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE__SHIFT                                       0x5
+#define BIF_CFG_DEV0_RC0_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE__SHIFT                                       0x5
 #define BIF_CFG_DEV0_RC0_LINK_CNTL2__SELECTABLE_DEEMPHASIS__SHIFT                                             0x6
 #define BIF_CFG_DEV0_RC0_LINK_CNTL2__XMIT_MARGIN__SHIFT                                                       0x7
 #define BIF_CFG_DEV0_RC0_LINK_CNTL2__ENTER_MOD_COMPLIANCE__SHIFT                                              0xa
@@ -7390,7 +7390,7 @@
 #define BIF_CFG_DEV0_RC0_LINK_CNTL2__COMPLIANCE_DEEMPHASIS__SHIFT                                             0xc
 #define BIF_CFG_DEV0_RC0_LINK_CNTL2__TARGET_LINK_SPEED_MASK                                                   0x000FL
 #define BIF_CFG_DEV0_RC0_LINK_CNTL2__ENTER_COMPLIANCE_MASK                                                    0x0010L
-#define BIF_CFG_DEV0_RC0_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE_MASK                                         0x0020L
+#define BIF_CFG_DEV0_RC0_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE_MASK                                         0x0020L
 #define BIF_CFG_DEV0_RC0_LINK_CNTL2__SELECTABLE_DEEMPHASIS_MASK                                               0x0040L
 #define BIF_CFG_DEV0_RC0_LINK_CNTL2__XMIT_MARGIN_MASK                                                         0x0380L
 #define BIF_CFG_DEV0_RC0_LINK_CNTL2__ENTER_MOD_COMPLIANCE_MASK                                                0x0400L
@@ -7527,11 +7527,11 @@
 #define BIF_CFG_DEV0_RC0_PCIE_PORT_VC_STATUS__VC_ARB_TABLE_STATUS_MASK                                        0x0001L
 //BIF_CFG_DEV0_RC0_PCIE_VC0_RESOURCE_CAP
 #define BIF_CFG_DEV0_RC0_PCIE_VC0_RESOURCE_CAP__PORT_ARB_CAP__SHIFT                                           0x0
-#define BIF_CFG_DEV0_RC0_PCIE_VC0_RESOURCE_CAP__REJECT_SNOOP_TRANS__SHIFT                                     0xf
+#define BIF_CFG_DEV0_RC0_PCIE_VC0_RESOURCE_CAP__REJECT_SANALOP_TRANS__SHIFT                                     0xf
 #define BIF_CFG_DEV0_RC0_PCIE_VC0_RESOURCE_CAP__MAX_TIME_SLOTS__SHIFT                                         0x10
 #define BIF_CFG_DEV0_RC0_PCIE_VC0_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET__SHIFT                                  0x18
 #define BIF_CFG_DEV0_RC0_PCIE_VC0_RESOURCE_CAP__PORT_ARB_CAP_MASK                                             0x000000FFL
-#define BIF_CFG_DEV0_RC0_PCIE_VC0_RESOURCE_CAP__REJECT_SNOOP_TRANS_MASK                                       0x00008000L
+#define BIF_CFG_DEV0_RC0_PCIE_VC0_RESOURCE_CAP__REJECT_SANALOP_TRANS_MASK                                       0x00008000L
 #define BIF_CFG_DEV0_RC0_PCIE_VC0_RESOURCE_CAP__MAX_TIME_SLOTS_MASK                                           0x007F0000L
 #define BIF_CFG_DEV0_RC0_PCIE_VC0_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET_MASK                                    0xFF000000L
 //BIF_CFG_DEV0_RC0_PCIE_VC0_RESOURCE_CNTL
@@ -7554,11 +7554,11 @@
 #define BIF_CFG_DEV0_RC0_PCIE_VC0_RESOURCE_STATUS__VC_NEGOTIATION_PENDING_MASK                                0x0002L
 //BIF_CFG_DEV0_RC0_PCIE_VC1_RESOURCE_CAP
 #define BIF_CFG_DEV0_RC0_PCIE_VC1_RESOURCE_CAP__PORT_ARB_CAP__SHIFT                                           0x0
-#define BIF_CFG_DEV0_RC0_PCIE_VC1_RESOURCE_CAP__REJECT_SNOOP_TRANS__SHIFT                                     0xf
+#define BIF_CFG_DEV0_RC0_PCIE_VC1_RESOURCE_CAP__REJECT_SANALOP_TRANS__SHIFT                                     0xf
 #define BIF_CFG_DEV0_RC0_PCIE_VC1_RESOURCE_CAP__MAX_TIME_SLOTS__SHIFT                                         0x10
 #define BIF_CFG_DEV0_RC0_PCIE_VC1_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET__SHIFT                                  0x18
 #define BIF_CFG_DEV0_RC0_PCIE_VC1_RESOURCE_CAP__PORT_ARB_CAP_MASK                                             0x000000FFL
-#define BIF_CFG_DEV0_RC0_PCIE_VC1_RESOURCE_CAP__REJECT_SNOOP_TRANS_MASK                                       0x00008000L
+#define BIF_CFG_DEV0_RC0_PCIE_VC1_RESOURCE_CAP__REJECT_SANALOP_TRANS_MASK                                       0x00008000L
 #define BIF_CFG_DEV0_RC0_PCIE_VC1_RESOURCE_CAP__MAX_TIME_SLOTS_MASK                                           0x003F0000L
 #define BIF_CFG_DEV0_RC0_PCIE_VC1_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET_MASK                                    0xFF000000L
 //BIF_CFG_DEV0_RC0_PCIE_VC1_RESOURCE_CNTL
@@ -7710,7 +7710,7 @@
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS__SHIFT                                         0x7
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS__SHIFT                              0x8
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS__SHIFT                             0xc
-#define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS__SHIFT                            0xd
+#define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                            0xd
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS__SHIFT                                     0xe
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS__SHIFT                                     0xf
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_STATUS__RCV_ERR_STATUS_MASK                                            0x00000001L
@@ -7718,7 +7718,7 @@
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS_MASK                                           0x00000080L
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS_MASK                                0x00000100L
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS_MASK                               0x00001000L
-#define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS_MASK                              0x00002000L
+#define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS_MASK                              0x00002000L
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS_MASK                                       0x00004000L
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS_MASK                                       0x00008000L
 //BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_MASK
@@ -7727,7 +7727,7 @@
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK__SHIFT                                             0x7
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK__SHIFT                                  0x8
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK__SHIFT                                 0xc
-#define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK__SHIFT                                0xd
+#define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK__SHIFT                                0xd
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK__SHIFT                                         0xe
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK__SHIFT                                         0xf
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_MASK__RCV_ERR_MASK_MASK                                                0x00000001L
@@ -7735,7 +7735,7 @@
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK_MASK                                               0x00000080L
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK_MASK                                    0x00000100L
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK_MASK                                   0x00001000L
-#define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK_MASK                                  0x00002000L
+#define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK_MASK                                  0x00002000L
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK_MASK                                           0x00004000L
 #define BIF_CFG_DEV0_RC0_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK_MASK                                           0x00008000L
 //BIF_CFG_DEV0_RC0_PCIE_ADV_ERR_CAP_CNTL
@@ -7771,35 +7771,35 @@
 #define BIF_CFG_DEV0_RC0_PCIE_HDR_LOG3__TLP_HDR_MASK                                                          0xFFFFFFFFL
 //BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_CMD
 #define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_CMD__CORR_ERR_REP_EN__SHIFT                                            0x0
-#define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_CMD__NONFATAL_ERR_REP_EN__SHIFT                                        0x1
+#define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_CMD__ANALNFATAL_ERR_REP_EN__SHIFT                                        0x1
 #define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_CMD__FATAL_ERR_REP_EN__SHIFT                                           0x2
 #define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_CMD__CORR_ERR_REP_EN_MASK                                              0x00000001L
-#define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_CMD__NONFATAL_ERR_REP_EN_MASK                                          0x00000002L
+#define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_CMD__ANALNFATAL_ERR_REP_EN_MASK                                          0x00000002L
 #define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_CMD__FATAL_ERR_REP_EN_MASK                                             0x00000004L
 //BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS
 #define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__ERR_CORR_RCVD__SHIFT                                           0x0
 #define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__MULT_ERR_CORR_RCVD__SHIFT                                      0x1
-#define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__ERR_FATAL_NONFATAL_RCVD__SHIFT                                 0x2
-#define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__MULT_ERR_FATAL_NONFATAL_RCVD__SHIFT                            0x3
+#define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__ERR_FATAL_ANALNFATAL_RCVD__SHIFT                                 0x2
+#define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__MULT_ERR_FATAL_ANALNFATAL_RCVD__SHIFT                            0x3
 #define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__FIRST_UNCORRECTABLE_FATAL__SHIFT                               0x4
-#define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__NONFATAL_ERROR_MSG_RCVD__SHIFT                                 0x5
+#define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__ANALNFATAL_ERROR_MSG_RCVD__SHIFT                                 0x5
 #define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__FATAL_ERROR_MSG_RCVD__SHIFT                                    0x6
 #define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__ERR_COR_SUBCLASS__SHIFT                                        0x7
 #define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__ADV_ERR_INT_MSG_NUM__SHIFT                                     0x1b
 #define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__ERR_CORR_RCVD_MASK                                             0x00000001L
 #define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__MULT_ERR_CORR_RCVD_MASK                                        0x00000002L
-#define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__ERR_FATAL_NONFATAL_RCVD_MASK                                   0x00000004L
-#define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__MULT_ERR_FATAL_NONFATAL_RCVD_MASK                              0x00000008L
+#define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__ERR_FATAL_ANALNFATAL_RCVD_MASK                                   0x00000004L
+#define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__MULT_ERR_FATAL_ANALNFATAL_RCVD_MASK                              0x00000008L
 #define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__FIRST_UNCORRECTABLE_FATAL_MASK                                 0x00000010L
-#define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__NONFATAL_ERROR_MSG_RCVD_MASK                                   0x00000020L
+#define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__ANALNFATAL_ERROR_MSG_RCVD_MASK                                   0x00000020L
 #define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__FATAL_ERROR_MSG_RCVD_MASK                                      0x00000040L
 #define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__ERR_COR_SUBCLASS_MASK                                          0x00000180L
 #define BIF_CFG_DEV0_RC0_PCIE_ROOT_ERR_STATUS__ADV_ERR_INT_MSG_NUM_MASK                                       0xF8000000L
 //BIF_CFG_DEV0_RC0_PCIE_ERR_SRC_ID
 #define BIF_CFG_DEV0_RC0_PCIE_ERR_SRC_ID__ERR_CORR_SRC_ID__SHIFT                                              0x0
-#define BIF_CFG_DEV0_RC0_PCIE_ERR_SRC_ID__ERR_FATAL_NONFATAL_SRC_ID__SHIFT                                    0x10
+#define BIF_CFG_DEV0_RC0_PCIE_ERR_SRC_ID__ERR_FATAL_ANALNFATAL_SRC_ID__SHIFT                                    0x10
 #define BIF_CFG_DEV0_RC0_PCIE_ERR_SRC_ID__ERR_CORR_SRC_ID_MASK                                                0x0000FFFFL
-#define BIF_CFG_DEV0_RC0_PCIE_ERR_SRC_ID__ERR_FATAL_NONFATAL_SRC_ID_MASK                                      0xFFFF0000L
+#define BIF_CFG_DEV0_RC0_PCIE_ERR_SRC_ID__ERR_FATAL_ANALNFATAL_SRC_ID_MASK                                      0xFFFF0000L
 //BIF_CFG_DEV0_RC0_PCIE_TLP_PREFIX_LOG0
 #define BIF_CFG_DEV0_RC0_PCIE_TLP_PREFIX_LOG0__TLP_PREFIX__SHIFT                                              0x0
 #define BIF_CFG_DEV0_RC0_PCIE_TLP_PREFIX_LOG0__TLP_PREFIX_MASK                                                0xFFFFFFFFL
@@ -8457,23 +8457,23 @@
 #define BIF_CFG_DEV0_RC0_LANE_15_MARGINING_LANE_STATUS__LANE_15_MARGIN_PAYLOAD_STATUS_MASK                    0xFF00L
 //BIF_CFG_DEV0_RC0_LINK_CAP_32GT
 #define BIF_CFG_DEV0_RC0_LINK_CAP_32GT__EQ_BYPASS_TO_HIGHEST_RATE_SUPPORTED__SHIFT                            0x0
-#define BIF_CFG_DEV0_RC0_LINK_CAP_32GT__NO_EQ_NEEDED_SUPPORTED__SHIFT                                         0x1
+#define BIF_CFG_DEV0_RC0_LINK_CAP_32GT__ANAL_EQ_NEEDED_SUPPORTED__SHIFT                                         0x1
 #define BIF_CFG_DEV0_RC0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE0_SUPPORTED__SHIFT                              0x8
 #define BIF_CFG_DEV0_RC0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE1_SUPPORTED__SHIFT                              0x9
 #define BIF_CFG_DEV0_RC0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE2_SUPPORTED__SHIFT                              0xa
 #define BIF_CFG_DEV0_RC0_LINK_CAP_32GT__MODIFIED_TS_RESERVED_USAGE_MODES__SHIFT                               0xb
 #define BIF_CFG_DEV0_RC0_LINK_CAP_32GT__EQ_BYPASS_TO_HIGHEST_RATE_SUPPORTED_MASK                              0x00000001L
-#define BIF_CFG_DEV0_RC0_LINK_CAP_32GT__NO_EQ_NEEDED_SUPPORTED_MASK                                           0x00000002L
+#define BIF_CFG_DEV0_RC0_LINK_CAP_32GT__ANAL_EQ_NEEDED_SUPPORTED_MASK                                           0x00000002L
 #define BIF_CFG_DEV0_RC0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE0_SUPPORTED_MASK                                0x00000100L
 #define BIF_CFG_DEV0_RC0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE1_SUPPORTED_MASK                                0x00000200L
 #define BIF_CFG_DEV0_RC0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE2_SUPPORTED_MASK                                0x00000400L
 #define BIF_CFG_DEV0_RC0_LINK_CAP_32GT__MODIFIED_TS_RESERVED_USAGE_MODES_MASK                                 0x0000F800L
 //BIF_CFG_DEV0_RC0_LINK_CNTL_32GT
 #define BIF_CFG_DEV0_RC0_LINK_CNTL_32GT__EQ_BYPASS_TO_HIGHEST_RATE_DIS__SHIFT                                 0x0
-#define BIF_CFG_DEV0_RC0_LINK_CNTL_32GT__NO_EQ_NEEDED_DIS__SHIFT                                              0x1
+#define BIF_CFG_DEV0_RC0_LINK_CNTL_32GT__ANAL_EQ_NEEDED_DIS__SHIFT                                              0x1
 #define BIF_CFG_DEV0_RC0_LINK_CNTL_32GT__MODIFIED_TS_USAGE_MODE_SEL__SHIFT                                    0x8
 #define BIF_CFG_DEV0_RC0_LINK_CNTL_32GT__EQ_BYPASS_TO_HIGHEST_RATE_DIS_MASK                                   0x00000001L
-#define BIF_CFG_DEV0_RC0_LINK_CNTL_32GT__NO_EQ_NEEDED_DIS_MASK                                                0x00000002L
+#define BIF_CFG_DEV0_RC0_LINK_CNTL_32GT__ANAL_EQ_NEEDED_DIS_MASK                                                0x00000002L
 #define BIF_CFG_DEV0_RC0_LINK_CNTL_32GT__MODIFIED_TS_USAGE_MODE_SEL_MASK                                      0x00000700L
 //BIF_CFG_DEV0_RC0_LINK_STATUS_32GT
 #define BIF_CFG_DEV0_RC0_LINK_STATUS_32GT__EQUALIZATION_COMPLETE_32GT__SHIFT                                  0x0
@@ -8485,7 +8485,7 @@
 #define BIF_CFG_DEV0_RC0_LINK_STATUS_32GT__RECEIVED_ENHANCED_LINK_BEHAVIOR_CNTL__SHIFT                        0x6
 #define BIF_CFG_DEV0_RC0_LINK_STATUS_32GT__TRANSMITTER_PRECODING_ON__SHIFT                                    0x8
 #define BIF_CFG_DEV0_RC0_LINK_STATUS_32GT__TRANSMITTER_PRECODE_REQUEST__SHIFT                                 0x9
-#define BIF_CFG_DEV0_RC0_LINK_STATUS_32GT__NO_EQ_NEEDED_RECEIVED__SHIFT                                       0xa
+#define BIF_CFG_DEV0_RC0_LINK_STATUS_32GT__ANAL_EQ_NEEDED_RECEIVED__SHIFT                                       0xa
 #define BIF_CFG_DEV0_RC0_LINK_STATUS_32GT__EQUALIZATION_COMPLETE_32GT_MASK                                    0x00000001L
 #define BIF_CFG_DEV0_RC0_LINK_STATUS_32GT__EQUALIZATION_PHASE1_SUCCESS_32GT_MASK                              0x00000002L
 #define BIF_CFG_DEV0_RC0_LINK_STATUS_32GT__EQUALIZATION_PHASE2_SUCCESS_32GT_MASK                              0x00000004L
@@ -8495,7 +8495,7 @@
 #define BIF_CFG_DEV0_RC0_LINK_STATUS_32GT__RECEIVED_ENHANCED_LINK_BEHAVIOR_CNTL_MASK                          0x000000C0L
 #define BIF_CFG_DEV0_RC0_LINK_STATUS_32GT__TRANSMITTER_PRECODING_ON_MASK                                      0x00000100L
 #define BIF_CFG_DEV0_RC0_LINK_STATUS_32GT__TRANSMITTER_PRECODE_REQUEST_MASK                                   0x00000200L
-#define BIF_CFG_DEV0_RC0_LINK_STATUS_32GT__NO_EQ_NEEDED_RECEIVED_MASK                                         0x00000400L
+#define BIF_CFG_DEV0_RC0_LINK_STATUS_32GT__ANAL_EQ_NEEDED_RECEIVED_MASK                                         0x00000400L
 
 
 // addressBlock: aid_nbio_nbif0_bif_cfg_dev0_epf0_bifcfgdecp
@@ -8511,7 +8511,7 @@
 #define BIF_CFG_DEV0_EPF0_0_COMMAND__BUS_MASTER_EN__SHIFT                                                     0x2
 #define BIF_CFG_DEV0_EPF0_0_COMMAND__SPECIAL_CYCLE_EN__SHIFT                                                  0x3
 #define BIF_CFG_DEV0_EPF0_0_COMMAND__MEM_WRITE_INVALIDATE_EN__SHIFT                                           0x4
-#define BIF_CFG_DEV0_EPF0_0_COMMAND__PAL_SNOOP_EN__SHIFT                                                      0x5
+#define BIF_CFG_DEV0_EPF0_0_COMMAND__PAL_SANALOP_EN__SHIFT                                                      0x5
 #define BIF_CFG_DEV0_EPF0_0_COMMAND__PARITY_ERROR_RESPONSE__SHIFT                                             0x6
 #define BIF_CFG_DEV0_EPF0_0_COMMAND__AD_STEPPING__SHIFT                                                       0x7
 #define BIF_CFG_DEV0_EPF0_0_COMMAND__SERR_EN__SHIFT                                                           0x8
@@ -8522,7 +8522,7 @@
 #define BIF_CFG_DEV0_EPF0_0_COMMAND__BUS_MASTER_EN_MASK                                                       0x0004L
 #define BIF_CFG_DEV0_EPF0_0_COMMAND__SPECIAL_CYCLE_EN_MASK                                                    0x0008L
 #define BIF_CFG_DEV0_EPF0_0_COMMAND__MEM_WRITE_INVALIDATE_EN_MASK                                             0x0010L
-#define BIF_CFG_DEV0_EPF0_0_COMMAND__PAL_SNOOP_EN_MASK                                                        0x0020L
+#define BIF_CFG_DEV0_EPF0_0_COMMAND__PAL_SANALOP_EN_MASK                                                        0x0020L
 #define BIF_CFG_DEV0_EPF0_0_COMMAND__PARITY_ERROR_RESPONSE_MASK                                               0x0040L
 #define BIF_CFG_DEV0_EPF0_0_COMMAND__AD_STEPPING_MASK                                                         0x0080L
 #define BIF_CFG_DEV0_EPF0_0_COMMAND__SERR_EN_MASK                                                             0x0100L
@@ -8554,9 +8554,9 @@
 #define BIF_CFG_DEV0_EPF0_0_STATUS__SIGNALED_SYSTEM_ERROR_MASK                                                0x4000L
 #define BIF_CFG_DEV0_EPF0_0_STATUS__PARITY_ERROR_DETECTED_MASK                                                0x8000L
 //BIF_CFG_DEV0_EPF0_0_REVISION_ID
-#define BIF_CFG_DEV0_EPF0_0_REVISION_ID__MINOR_REV_ID__SHIFT                                                  0x0
+#define BIF_CFG_DEV0_EPF0_0_REVISION_ID__MIANALR_REV_ID__SHIFT                                                  0x0
 #define BIF_CFG_DEV0_EPF0_0_REVISION_ID__MAJOR_REV_ID__SHIFT                                                  0x4
-#define BIF_CFG_DEV0_EPF0_0_REVISION_ID__MINOR_REV_ID_MASK                                                    0x0FL
+#define BIF_CFG_DEV0_EPF0_0_REVISION_ID__MIANALR_REV_ID_MASK                                                    0x0FL
 #define BIF_CFG_DEV0_EPF0_0_REVISION_ID__MAJOR_REV_ID_MASK                                                    0xF0L
 //BIF_CFG_DEV0_EPF0_0_PROG_INTERFACE
 #define BIF_CFG_DEV0_EPF0_0_PROG_INTERFACE__PROG_INTERFACE__SHIFT                                             0x0
@@ -8671,7 +8671,7 @@
 #define BIF_CFG_DEV0_EPF0_0_PMI_CAP__PME_SUPPORT_MASK                                                         0xF800L
 //BIF_CFG_DEV0_EPF0_0_PMI_STATUS_CNTL
 #define BIF_CFG_DEV0_EPF0_0_PMI_STATUS_CNTL__POWER_STATE__SHIFT                                               0x0
-#define BIF_CFG_DEV0_EPF0_0_PMI_STATUS_CNTL__NO_SOFT_RESET__SHIFT                                             0x3
+#define BIF_CFG_DEV0_EPF0_0_PMI_STATUS_CNTL__ANAL_SOFT_RESET__SHIFT                                             0x3
 #define BIF_CFG_DEV0_EPF0_0_PMI_STATUS_CNTL__PME_EN__SHIFT                                                    0x8
 #define BIF_CFG_DEV0_EPF0_0_PMI_STATUS_CNTL__DATA_SELECT__SHIFT                                               0x9
 #define BIF_CFG_DEV0_EPF0_0_PMI_STATUS_CNTL__DATA_SCALE__SHIFT                                                0xd
@@ -8680,7 +8680,7 @@
 #define BIF_CFG_DEV0_EPF0_0_PMI_STATUS_CNTL__BUS_PWR_EN__SHIFT                                                0x17
 #define BIF_CFG_DEV0_EPF0_0_PMI_STATUS_CNTL__PMI_DATA__SHIFT                                                  0x18
 #define BIF_CFG_DEV0_EPF0_0_PMI_STATUS_CNTL__POWER_STATE_MASK                                                 0x00000003L
-#define BIF_CFG_DEV0_EPF0_0_PMI_STATUS_CNTL__NO_SOFT_RESET_MASK                                               0x00000008L
+#define BIF_CFG_DEV0_EPF0_0_PMI_STATUS_CNTL__ANAL_SOFT_RESET_MASK                                               0x00000008L
 #define BIF_CFG_DEV0_EPF0_0_PMI_STATUS_CNTL__PME_EN_MASK                                                      0x00000100L
 #define BIF_CFG_DEV0_EPF0_0_PMI_STATUS_CNTL__DATA_SELECT_MASK                                                 0x00001E00L
 #define BIF_CFG_DEV0_EPF0_0_PMI_STATUS_CNTL__DATA_SCALE_MASK                                                  0x00006000L
@@ -8725,7 +8725,7 @@
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP__FLR_CAPABLE_MASK                                                      0x10000000L
 //BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__CORR_ERR_EN__SHIFT                                                   0x0
-#define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__NON_FATAL_ERR_EN__SHIFT                                              0x1
+#define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__ANALN_FATAL_ERR_EN__SHIFT                                              0x1
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__FATAL_ERR_EN__SHIFT                                                  0x2
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__USR_REPORT_EN__SHIFT                                                 0x3
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__RELAXED_ORD_EN__SHIFT                                                0x4
@@ -8733,11 +8733,11 @@
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__EXTENDED_TAG_EN__SHIFT                                               0x8
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__PHANTOM_FUNC_EN__SHIFT                                               0x9
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__AUX_POWER_PM_EN__SHIFT                                               0xa
-#define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__NO_SNOOP_EN__SHIFT                                                   0xb
+#define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__ANAL_SANALOP_EN__SHIFT                                                   0xb
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__MAX_READ_REQUEST_SIZE__SHIFT                                         0xc
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__INITIATE_FLR__SHIFT                                                  0xf
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__CORR_ERR_EN_MASK                                                     0x0001L
-#define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__NON_FATAL_ERR_EN_MASK                                                0x0002L
+#define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__ANALN_FATAL_ERR_EN_MASK                                                0x0002L
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__FATAL_ERR_EN_MASK                                                    0x0004L
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__USR_REPORT_EN_MASK                                                   0x0008L
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__RELAXED_ORD_EN_MASK                                                  0x0010L
@@ -8745,19 +8745,19 @@
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__EXTENDED_TAG_EN_MASK                                                 0x0100L
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__PHANTOM_FUNC_EN_MASK                                                 0x0200L
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__AUX_POWER_PM_EN_MASK                                                 0x0400L
-#define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__NO_SNOOP_EN_MASK                                                     0x0800L
+#define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__ANAL_SANALOP_EN_MASK                                                     0x0800L
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__MAX_READ_REQUEST_SIZE_MASK                                           0x7000L
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CNTL__INITIATE_FLR_MASK                                                    0x8000L
 //BIF_CFG_DEV0_EPF0_0_DEVICE_STATUS
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_STATUS__CORR_ERR__SHIFT                                                    0x0
-#define BIF_CFG_DEV0_EPF0_0_DEVICE_STATUS__NON_FATAL_ERR__SHIFT                                               0x1
+#define BIF_CFG_DEV0_EPF0_0_DEVICE_STATUS__ANALN_FATAL_ERR__SHIFT                                               0x1
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_STATUS__FATAL_ERR__SHIFT                                                   0x2
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_STATUS__USR_DETECTED__SHIFT                                                0x3
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_STATUS__AUX_PWR__SHIFT                                                     0x4
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_STATUS__TRANSACTIONS_PEND__SHIFT                                           0x5
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_STATUS__EMER_POWER_REDUCTION_DETECTED__SHIFT                               0x6
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_STATUS__CORR_ERR_MASK                                                      0x0001L
-#define BIF_CFG_DEV0_EPF0_0_DEVICE_STATUS__NON_FATAL_ERR_MASK                                                 0x0002L
+#define BIF_CFG_DEV0_EPF0_0_DEVICE_STATUS__ANALN_FATAL_ERR_MASK                                                 0x0002L
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_STATUS__FATAL_ERR_MASK                                                     0x0004L
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_STATUS__USR_DETECTED_MASK                                                  0x0008L
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_STATUS__AUX_PWR_MASK                                                       0x0010L
@@ -8772,7 +8772,7 @@
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP__CLOCK_POWER_MANAGEMENT__SHIFT                                           0x12
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING__SHIFT                                      0x13
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE__SHIFT                                      0x14
-#define BIF_CFG_DEV0_EPF0_0_LINK_CAP__LINK_BW_NOTIFICATION_CAP__SHIFT                                         0x15
+#define BIF_CFG_DEV0_EPF0_0_LINK_CAP__LINK_BW_ANALTIFICATION_CAP__SHIFT                                         0x15
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE__SHIFT                                      0x16
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP__PORT_NUMBER__SHIFT                                                      0x18
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP__LINK_SPEED_MASK                                                         0x0000000FL
@@ -8783,7 +8783,7 @@
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP__CLOCK_POWER_MANAGEMENT_MASK                                             0x00040000L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING_MASK                                        0x00080000L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE_MASK                                        0x00100000L
-#define BIF_CFG_DEV0_EPF0_0_LINK_CAP__LINK_BW_NOTIFICATION_CAP_MASK                                           0x00200000L
+#define BIF_CFG_DEV0_EPF0_0_LINK_CAP__LINK_BW_ANALTIFICATION_CAP_MASK                                           0x00200000L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE_MASK                                        0x00400000L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP__PORT_NUMBER_MASK                                                        0xFF000000L
 //BIF_CFG_DEV0_EPF0_0_LINK_CNTL
@@ -8795,9 +8795,9 @@
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__COMMON_CLOCK_CFG__SHIFT                                                0x6
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__EXTENDED_SYNC__SHIFT                                                   0x7
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN__SHIFT                                       0x8
-#define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE__SHIFT                                     0x9
+#define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE__SHIFT                                     0x9
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN__SHIFT                                       0xa
-#define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN__SHIFT                                       0xb
+#define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN__SHIFT                                       0xb
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__DRS_SIGNALING_CONTROL__SHIFT                                           0xe
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__PM_CONTROL_MASK                                                        0x0003L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__PTM_PROP_DELAY_ADAPT_INTER_B_MASK                                      0x0004L
@@ -8807,9 +8807,9 @@
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__COMMON_CLOCK_CFG_MASK                                                  0x0040L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__EXTENDED_SYNC_MASK                                                     0x0080L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN_MASK                                         0x0100L
-#define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE_MASK                                       0x0200L
+#define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE_MASK                                       0x0200L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN_MASK                                         0x0400L
-#define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN_MASK                                         0x0800L
+#define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN_MASK                                         0x0800L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL__DRS_SIGNALING_CONTROL_MASK                                             0xC000L
 //BIF_CFG_DEV0_EPF0_0_LINK_STATUS
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS__CURRENT_LINK_SPEED__SHIFT                                            0x0
@@ -8818,14 +8818,14 @@
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS__SLOT_CLOCK_CFG__SHIFT                                                0xc
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS__DL_ACTIVE__SHIFT                                                     0xd
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS__SHIFT                                     0xe
-#define BIF_CFG_DEV0_EPF0_0_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS__SHIFT                                     0xf
+#define BIF_CFG_DEV0_EPF0_0_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS__SHIFT                                     0xf
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS__CURRENT_LINK_SPEED_MASK                                              0x000FL
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS__NEGOTIATED_LINK_WIDTH_MASK                                           0x03F0L
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS__LINK_TRAINING_MASK                                                   0x0800L
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS__SLOT_CLOCK_CFG_MASK                                                  0x1000L
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS__DL_ACTIVE_MASK                                                       0x2000L
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS_MASK                                       0x4000L
-#define BIF_CFG_DEV0_EPF0_0_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS_MASK                                       0x8000L
+#define BIF_CFG_DEV0_EPF0_0_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS_MASK                                       0x8000L
 //BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__CPL_TIMEOUT_RANGE_SUPPORTED__SHIFT                                   0x0
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__CPL_TIMEOUT_DIS_SUPPORTED__SHIFT                                     0x4
@@ -8834,7 +8834,7 @@
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED__SHIFT                                    0x7
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED__SHIFT                                    0x8
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED__SHIFT                                        0x9
-#define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING__SHIFT                                     0xa
+#define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                     0xa
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__LTR_SUPPORTED__SHIFT                                                 0xb
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__TPH_CPLR_SUPPORTED__SHIFT                                            0xc
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__LN_SYSTEM_CLS__SHIFT                                                 0xe
@@ -8854,7 +8854,7 @@
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED_MASK                                      0x00000080L
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED_MASK                                      0x00000100L
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED_MASK                                          0x00000200L
-#define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING_MASK                                       0x00000400L
+#define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING_MASK                                       0x00000400L
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__LTR_SUPPORTED_MASK                                                   0x00000800L
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__TPH_CPLR_SUPPORTED_MASK                                              0x00003000L
 #define BIF_CFG_DEV0_EPF0_0_DEVICE_CAP2__LN_SYSTEM_CLS_MASK                                                   0x0000C000L
@@ -8913,7 +8913,7 @@
 //BIF_CFG_DEV0_EPF0_0_LINK_CNTL2
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL2__TARGET_LINK_SPEED__SHIFT                                              0x0
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL2__ENTER_COMPLIANCE__SHIFT                                               0x4
-#define BIF_CFG_DEV0_EPF0_0_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE__SHIFT                                    0x5
+#define BIF_CFG_DEV0_EPF0_0_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE__SHIFT                                    0x5
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL2__SELECTABLE_DEEMPHASIS__SHIFT                                          0x6
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL2__XMIT_MARGIN__SHIFT                                                    0x7
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL2__ENTER_MOD_COMPLIANCE__SHIFT                                           0xa
@@ -8921,7 +8921,7 @@
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL2__COMPLIANCE_DEEMPHASIS__SHIFT                                          0xc
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL2__TARGET_LINK_SPEED_MASK                                                0x000FL
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL2__ENTER_COMPLIANCE_MASK                                                 0x0010L
-#define BIF_CFG_DEV0_EPF0_0_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE_MASK                                      0x0020L
+#define BIF_CFG_DEV0_EPF0_0_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE_MASK                                      0x0020L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL2__SELECTABLE_DEEMPHASIS_MASK                                            0x0040L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL2__XMIT_MARGIN_MASK                                                      0x0380L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL2__ENTER_MOD_COMPLIANCE_MASK                                             0x0400L
@@ -9073,11 +9073,11 @@
 #define BIF_CFG_DEV0_EPF0_0_PCIE_PORT_VC_STATUS__VC_ARB_TABLE_STATUS_MASK                                     0x0001L
 //BIF_CFG_DEV0_EPF0_0_PCIE_VC0_RESOURCE_CAP
 #define BIF_CFG_DEV0_EPF0_0_PCIE_VC0_RESOURCE_CAP__PORT_ARB_CAP__SHIFT                                        0x0
-#define BIF_CFG_DEV0_EPF0_0_PCIE_VC0_RESOURCE_CAP__REJECT_SNOOP_TRANS__SHIFT                                  0xf
+#define BIF_CFG_DEV0_EPF0_0_PCIE_VC0_RESOURCE_CAP__REJECT_SANALOP_TRANS__SHIFT                                  0xf
 #define BIF_CFG_DEV0_EPF0_0_PCIE_VC0_RESOURCE_CAP__MAX_TIME_SLOTS__SHIFT                                      0x10
 #define BIF_CFG_DEV0_EPF0_0_PCIE_VC0_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET__SHIFT                               0x18
 #define BIF_CFG_DEV0_EPF0_0_PCIE_VC0_RESOURCE_CAP__PORT_ARB_CAP_MASK                                          0x000000FFL
-#define BIF_CFG_DEV0_EPF0_0_PCIE_VC0_RESOURCE_CAP__REJECT_SNOOP_TRANS_MASK                                    0x00008000L
+#define BIF_CFG_DEV0_EPF0_0_PCIE_VC0_RESOURCE_CAP__REJECT_SANALOP_TRANS_MASK                                    0x00008000L
 #define BIF_CFG_DEV0_EPF0_0_PCIE_VC0_RESOURCE_CAP__MAX_TIME_SLOTS_MASK                                        0x007F0000L
 #define BIF_CFG_DEV0_EPF0_0_PCIE_VC0_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET_MASK                                 0xFF000000L
 //BIF_CFG_DEV0_EPF0_0_PCIE_VC0_RESOURCE_CNTL
@@ -9100,11 +9100,11 @@
 #define BIF_CFG_DEV0_EPF0_0_PCIE_VC0_RESOURCE_STATUS__VC_NEGOTIATION_PENDING_MASK                             0x0002L
 //BIF_CFG_DEV0_EPF0_0_PCIE_VC1_RESOURCE_CAP
 #define BIF_CFG_DEV0_EPF0_0_PCIE_VC1_RESOURCE_CAP__PORT_ARB_CAP__SHIFT                                        0x0
-#define BIF_CFG_DEV0_EPF0_0_PCIE_VC1_RESOURCE_CAP__REJECT_SNOOP_TRANS__SHIFT                                  0xf
+#define BIF_CFG_DEV0_EPF0_0_PCIE_VC1_RESOURCE_CAP__REJECT_SANALOP_TRANS__SHIFT                                  0xf
 #define BIF_CFG_DEV0_EPF0_0_PCIE_VC1_RESOURCE_CAP__MAX_TIME_SLOTS__SHIFT                                      0x10
 #define BIF_CFG_DEV0_EPF0_0_PCIE_VC1_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET__SHIFT                               0x18
 #define BIF_CFG_DEV0_EPF0_0_PCIE_VC1_RESOURCE_CAP__PORT_ARB_CAP_MASK                                          0x000000FFL
-#define BIF_CFG_DEV0_EPF0_0_PCIE_VC1_RESOURCE_CAP__REJECT_SNOOP_TRANS_MASK                                    0x00008000L
+#define BIF_CFG_DEV0_EPF0_0_PCIE_VC1_RESOURCE_CAP__REJECT_SANALOP_TRANS_MASK                                    0x00008000L
 #define BIF_CFG_DEV0_EPF0_0_PCIE_VC1_RESOURCE_CAP__MAX_TIME_SLOTS_MASK                                        0x003F0000L
 #define BIF_CFG_DEV0_EPF0_0_PCIE_VC1_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET_MASK                                 0xFF000000L
 //BIF_CFG_DEV0_EPF0_0_PCIE_VC1_RESOURCE_CNTL
@@ -9256,7 +9256,7 @@
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS__SHIFT                                      0x7
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS__SHIFT                           0x8
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS__SHIFT                          0xc
-#define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS__SHIFT                         0xd
+#define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                         0xd
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS__SHIFT                                  0xe
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS__SHIFT                                  0xf
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_STATUS__RCV_ERR_STATUS_MASK                                         0x00000001L
@@ -9264,7 +9264,7 @@
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS_MASK                                        0x00000080L
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS_MASK                             0x00000100L
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS_MASK                            0x00001000L
-#define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS_MASK                           0x00002000L
+#define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS_MASK                           0x00002000L
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS_MASK                                    0x00004000L
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS_MASK                                    0x00008000L
 //BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_MASK
@@ -9273,7 +9273,7 @@
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK__SHIFT                                          0x7
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK__SHIFT                               0x8
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK__SHIFT                              0xc
-#define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK__SHIFT                             0xd
+#define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK__SHIFT                             0xd
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK__SHIFT                                      0xe
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK__SHIFT                                      0xf
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_MASK__RCV_ERR_MASK_MASK                                             0x00000001L
@@ -9281,7 +9281,7 @@
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK_MASK                                            0x00000080L
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK_MASK                                 0x00000100L
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK_MASK                                0x00001000L
-#define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK_MASK                               0x00002000L
+#define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK_MASK                               0x00002000L
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK_MASK                                        0x00004000L
 #define BIF_CFG_DEV0_EPF0_0_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK_MASK                                        0x00008000L
 //BIF_CFG_DEV0_EPF0_0_PCIE_ADV_ERR_CAP_CNTL
@@ -10363,23 +10363,23 @@
 #define BIF_CFG_DEV0_EPF0_0_LANE_15_MARGINING_LANE_STATUS__LANE_15_MARGIN_PAYLOAD_STATUS_MASK                 0xFF00L
 //BIF_CFG_DEV0_EPF0_0_LINK_CAP_32GT
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP_32GT__EQ_BYPASS_TO_HIGHEST_RATE_SUPPORTED__SHIFT                         0x0
-#define BIF_CFG_DEV0_EPF0_0_LINK_CAP_32GT__NO_EQ_NEEDED_SUPPORTED__SHIFT                                      0x1
+#define BIF_CFG_DEV0_EPF0_0_LINK_CAP_32GT__ANAL_EQ_NEEDED_SUPPORTED__SHIFT                                      0x1
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE0_SUPPORTED__SHIFT                           0x8
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE1_SUPPORTED__SHIFT                           0x9
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE2_SUPPORTED__SHIFT                           0xa
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP_32GT__MODIFIED_TS_RESERVED_USAGE_MODES__SHIFT                            0xb
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP_32GT__EQ_BYPASS_TO_HIGHEST_RATE_SUPPORTED_MASK                           0x00000001L
-#define BIF_CFG_DEV0_EPF0_0_LINK_CAP_32GT__NO_EQ_NEEDED_SUPPORTED_MASK                                        0x00000002L
+#define BIF_CFG_DEV0_EPF0_0_LINK_CAP_32GT__ANAL_EQ_NEEDED_SUPPORTED_MASK                                        0x00000002L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE0_SUPPORTED_MASK                             0x00000100L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE1_SUPPORTED_MASK                             0x00000200L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE2_SUPPORTED_MASK                             0x00000400L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CAP_32GT__MODIFIED_TS_RESERVED_USAGE_MODES_MASK                              0x0000F800L
 //BIF_CFG_DEV0_EPF0_0_LINK_CNTL_32GT
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL_32GT__EQ_BYPASS_TO_HIGHEST_RATE_DIS__SHIFT                              0x0
-#define BIF_CFG_DEV0_EPF0_0_LINK_CNTL_32GT__NO_EQ_NEEDED_DIS__SHIFT                                           0x1
+#define BIF_CFG_DEV0_EPF0_0_LINK_CNTL_32GT__ANAL_EQ_NEEDED_DIS__SHIFT                                           0x1
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL_32GT__MODIFIED_TS_USAGE_MODE_SEL__SHIFT                                 0x8
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL_32GT__EQ_BYPASS_TO_HIGHEST_RATE_DIS_MASK                                0x00000001L
-#define BIF_CFG_DEV0_EPF0_0_LINK_CNTL_32GT__NO_EQ_NEEDED_DIS_MASK                                             0x00000002L
+#define BIF_CFG_DEV0_EPF0_0_LINK_CNTL_32GT__ANAL_EQ_NEEDED_DIS_MASK                                             0x00000002L
 #define BIF_CFG_DEV0_EPF0_0_LINK_CNTL_32GT__MODIFIED_TS_USAGE_MODE_SEL_MASK                                   0x00000700L
 //BIF_CFG_DEV0_EPF0_0_LINK_STATUS_32GT
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS_32GT__EQUALIZATION_COMPLETE_32GT__SHIFT                               0x0
@@ -10391,7 +10391,7 @@
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS_32GT__RECEIVED_ENHANCED_LINK_BEHAVIOR_CNTL__SHIFT                     0x6
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS_32GT__TRANSMITTER_PRECODING_ON__SHIFT                                 0x8
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS_32GT__TRANSMITTER_PRECODE_REQUEST__SHIFT                              0x9
-#define BIF_CFG_DEV0_EPF0_0_LINK_STATUS_32GT__NO_EQ_NEEDED_RECEIVED__SHIFT                                    0xa
+#define BIF_CFG_DEV0_EPF0_0_LINK_STATUS_32GT__ANAL_EQ_NEEDED_RECEIVED__SHIFT                                    0xa
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS_32GT__EQUALIZATION_COMPLETE_32GT_MASK                                 0x00000001L
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS_32GT__EQUALIZATION_PHASE1_SUCCESS_32GT_MASK                           0x00000002L
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS_32GT__EQUALIZATION_PHASE2_SUCCESS_32GT_MASK                           0x00000004L
@@ -10401,7 +10401,7 @@
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS_32GT__RECEIVED_ENHANCED_LINK_BEHAVIOR_CNTL_MASK                       0x000000C0L
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS_32GT__TRANSMITTER_PRECODING_ON_MASK                                   0x00000100L
 #define BIF_CFG_DEV0_EPF0_0_LINK_STATUS_32GT__TRANSMITTER_PRECODE_REQUEST_MASK                                0x00000200L
-#define BIF_CFG_DEV0_EPF0_0_LINK_STATUS_32GT__NO_EQ_NEEDED_RECEIVED_MASK                                      0x00000400L
+#define BIF_CFG_DEV0_EPF0_0_LINK_STATUS_32GT__ANAL_EQ_NEEDED_RECEIVED_MASK                                      0x00000400L
 //BIF_CFG_DEV0_EPF0_0_PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_GPUIOV
 #define BIF_CFG_DEV0_EPF0_0_PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_GPUIOV__CAP_ID__SHIFT                           0x0
 #define BIF_CFG_DEV0_EPF0_0_PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_GPUIOV__CAP_VER__SHIFT                          0x10
@@ -11676,7 +11676,7 @@
 #define BIF_CFG_DEV0_EPF1_0_COMMAND__BUS_MASTER_EN__SHIFT                                                     0x2
 #define BIF_CFG_DEV0_EPF1_0_COMMAND__SPECIAL_CYCLE_EN__SHIFT                                                  0x3
 #define BIF_CFG_DEV0_EPF1_0_COMMAND__MEM_WRITE_INVALIDATE_EN__SHIFT                                           0x4
-#define BIF_CFG_DEV0_EPF1_0_COMMAND__PAL_SNOOP_EN__SHIFT                                                      0x5
+#define BIF_CFG_DEV0_EPF1_0_COMMAND__PAL_SANALOP_EN__SHIFT                                                      0x5
 #define BIF_CFG_DEV0_EPF1_0_COMMAND__PARITY_ERROR_RESPONSE__SHIFT                                             0x6
 #define BIF_CFG_DEV0_EPF1_0_COMMAND__AD_STEPPING__SHIFT                                                       0x7
 #define BIF_CFG_DEV0_EPF1_0_COMMAND__SERR_EN__SHIFT                                                           0x8
@@ -11687,7 +11687,7 @@
 #define BIF_CFG_DEV0_EPF1_0_COMMAND__BUS_MASTER_EN_MASK                                                       0x0004L
 #define BIF_CFG_DEV0_EPF1_0_COMMAND__SPECIAL_CYCLE_EN_MASK                                                    0x0008L
 #define BIF_CFG_DEV0_EPF1_0_COMMAND__MEM_WRITE_INVALIDATE_EN_MASK                                             0x0010L
-#define BIF_CFG_DEV0_EPF1_0_COMMAND__PAL_SNOOP_EN_MASK                                                        0x0020L
+#define BIF_CFG_DEV0_EPF1_0_COMMAND__PAL_SANALOP_EN_MASK                                                        0x0020L
 #define BIF_CFG_DEV0_EPF1_0_COMMAND__PARITY_ERROR_RESPONSE_MASK                                               0x0040L
 #define BIF_CFG_DEV0_EPF1_0_COMMAND__AD_STEPPING_MASK                                                         0x0080L
 #define BIF_CFG_DEV0_EPF1_0_COMMAND__SERR_EN_MASK                                                             0x0100L
@@ -11719,9 +11719,9 @@
 #define BIF_CFG_DEV0_EPF1_0_STATUS__SIGNALED_SYSTEM_ERROR_MASK                                                0x4000L
 #define BIF_CFG_DEV0_EPF1_0_STATUS__PARITY_ERROR_DETECTED_MASK                                                0x8000L
 //BIF_CFG_DEV0_EPF1_0_REVISION_ID
-#define BIF_CFG_DEV0_EPF1_0_REVISION_ID__MINOR_REV_ID__SHIFT                                                  0x0
+#define BIF_CFG_DEV0_EPF1_0_REVISION_ID__MIANALR_REV_ID__SHIFT                                                  0x0
 #define BIF_CFG_DEV0_EPF1_0_REVISION_ID__MAJOR_REV_ID__SHIFT                                                  0x4
-#define BIF_CFG_DEV0_EPF1_0_REVISION_ID__MINOR_REV_ID_MASK                                                    0x0FL
+#define BIF_CFG_DEV0_EPF1_0_REVISION_ID__MIANALR_REV_ID_MASK                                                    0x0FL
 #define BIF_CFG_DEV0_EPF1_0_REVISION_ID__MAJOR_REV_ID_MASK                                                    0xF0L
 //BIF_CFG_DEV0_EPF1_0_PROG_INTERFACE
 #define BIF_CFG_DEV0_EPF1_0_PROG_INTERFACE__PROG_INTERFACE__SHIFT                                             0x0
@@ -11836,7 +11836,7 @@
 #define BIF_CFG_DEV0_EPF1_0_PMI_CAP__PME_SUPPORT_MASK                                                         0xF800L
 //BIF_CFG_DEV0_EPF1_0_PMI_STATUS_CNTL
 #define BIF_CFG_DEV0_EPF1_0_PMI_STATUS_CNTL__POWER_STATE__SHIFT                                               0x0
-#define BIF_CFG_DEV0_EPF1_0_PMI_STATUS_CNTL__NO_SOFT_RESET__SHIFT                                             0x3
+#define BIF_CFG_DEV0_EPF1_0_PMI_STATUS_CNTL__ANAL_SOFT_RESET__SHIFT                                             0x3
 #define BIF_CFG_DEV0_EPF1_0_PMI_STATUS_CNTL__PME_EN__SHIFT                                                    0x8
 #define BIF_CFG_DEV0_EPF1_0_PMI_STATUS_CNTL__DATA_SELECT__SHIFT                                               0x9
 #define BIF_CFG_DEV0_EPF1_0_PMI_STATUS_CNTL__DATA_SCALE__SHIFT                                                0xd
@@ -11845,7 +11845,7 @@
 #define BIF_CFG_DEV0_EPF1_0_PMI_STATUS_CNTL__BUS_PWR_EN__SHIFT                                                0x17
 #define BIF_CFG_DEV0_EPF1_0_PMI_STATUS_CNTL__PMI_DATA__SHIFT                                                  0x18
 #define BIF_CFG_DEV0_EPF1_0_PMI_STATUS_CNTL__POWER_STATE_MASK                                                 0x00000003L
-#define BIF_CFG_DEV0_EPF1_0_PMI_STATUS_CNTL__NO_SOFT_RESET_MASK                                               0x00000008L
+#define BIF_CFG_DEV0_EPF1_0_PMI_STATUS_CNTL__ANAL_SOFT_RESET_MASK                                               0x00000008L
 #define BIF_CFG_DEV0_EPF1_0_PMI_STATUS_CNTL__PME_EN_MASK                                                      0x00000100L
 #define BIF_CFG_DEV0_EPF1_0_PMI_STATUS_CNTL__DATA_SELECT_MASK                                                 0x00001E00L
 #define BIF_CFG_DEV0_EPF1_0_PMI_STATUS_CNTL__DATA_SCALE_MASK                                                  0x00006000L
@@ -11890,7 +11890,7 @@
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP__FLR_CAPABLE_MASK                                                      0x10000000L
 //BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__CORR_ERR_EN__SHIFT                                                   0x0
-#define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__NON_FATAL_ERR_EN__SHIFT                                              0x1
+#define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__ANALN_FATAL_ERR_EN__SHIFT                                              0x1
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__FATAL_ERR_EN__SHIFT                                                  0x2
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__USR_REPORT_EN__SHIFT                                                 0x3
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__RELAXED_ORD_EN__SHIFT                                                0x4
@@ -11898,11 +11898,11 @@
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__EXTENDED_TAG_EN__SHIFT                                               0x8
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__PHANTOM_FUNC_EN__SHIFT                                               0x9
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__AUX_POWER_PM_EN__SHIFT                                               0xa
-#define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__NO_SNOOP_EN__SHIFT                                                   0xb
+#define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__ANAL_SANALOP_EN__SHIFT                                                   0xb
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__MAX_READ_REQUEST_SIZE__SHIFT                                         0xc
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__INITIATE_FLR__SHIFT                                                  0xf
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__CORR_ERR_EN_MASK                                                     0x0001L
-#define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__NON_FATAL_ERR_EN_MASK                                                0x0002L
+#define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__ANALN_FATAL_ERR_EN_MASK                                                0x0002L
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__FATAL_ERR_EN_MASK                                                    0x0004L
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__USR_REPORT_EN_MASK                                                   0x0008L
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__RELAXED_ORD_EN_MASK                                                  0x0010L
@@ -11910,19 +11910,19 @@
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__EXTENDED_TAG_EN_MASK                                                 0x0100L
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__PHANTOM_FUNC_EN_MASK                                                 0x0200L
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__AUX_POWER_PM_EN_MASK                                                 0x0400L
-#define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__NO_SNOOP_EN_MASK                                                     0x0800L
+#define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__ANAL_SANALOP_EN_MASK                                                     0x0800L
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__MAX_READ_REQUEST_SIZE_MASK                                           0x7000L
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CNTL__INITIATE_FLR_MASK                                                    0x8000L
 //BIF_CFG_DEV0_EPF1_0_DEVICE_STATUS
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_STATUS__CORR_ERR__SHIFT                                                    0x0
-#define BIF_CFG_DEV0_EPF1_0_DEVICE_STATUS__NON_FATAL_ERR__SHIFT                                               0x1
+#define BIF_CFG_DEV0_EPF1_0_DEVICE_STATUS__ANALN_FATAL_ERR__SHIFT                                               0x1
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_STATUS__FATAL_ERR__SHIFT                                                   0x2
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_STATUS__USR_DETECTED__SHIFT                                                0x3
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_STATUS__AUX_PWR__SHIFT                                                     0x4
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_STATUS__TRANSACTIONS_PEND__SHIFT                                           0x5
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_STATUS__EMER_POWER_REDUCTION_DETECTED__SHIFT                               0x6
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_STATUS__CORR_ERR_MASK                                                      0x0001L
-#define BIF_CFG_DEV0_EPF1_0_DEVICE_STATUS__NON_FATAL_ERR_MASK                                                 0x0002L
+#define BIF_CFG_DEV0_EPF1_0_DEVICE_STATUS__ANALN_FATAL_ERR_MASK                                                 0x0002L
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_STATUS__FATAL_ERR_MASK                                                     0x0004L
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_STATUS__USR_DETECTED_MASK                                                  0x0008L
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_STATUS__AUX_PWR_MASK                                                       0x0010L
@@ -11937,7 +11937,7 @@
 #define BIF_CFG_DEV0_EPF1_0_LINK_CAP__CLOCK_POWER_MANAGEMENT__SHIFT                                           0x12
 #define BIF_CFG_DEV0_EPF1_0_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING__SHIFT                                      0x13
 #define BIF_CFG_DEV0_EPF1_0_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE__SHIFT                                      0x14
-#define BIF_CFG_DEV0_EPF1_0_LINK_CAP__LINK_BW_NOTIFICATION_CAP__SHIFT                                         0x15
+#define BIF_CFG_DEV0_EPF1_0_LINK_CAP__LINK_BW_ANALTIFICATION_CAP__SHIFT                                         0x15
 #define BIF_CFG_DEV0_EPF1_0_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE__SHIFT                                      0x16
 #define BIF_CFG_DEV0_EPF1_0_LINK_CAP__PORT_NUMBER__SHIFT                                                      0x18
 #define BIF_CFG_DEV0_EPF1_0_LINK_CAP__LINK_SPEED_MASK                                                         0x0000000FL
@@ -11948,7 +11948,7 @@
 #define BIF_CFG_DEV0_EPF1_0_LINK_CAP__CLOCK_POWER_MANAGEMENT_MASK                                             0x00040000L
 #define BIF_CFG_DEV0_EPF1_0_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING_MASK                                        0x00080000L
 #define BIF_CFG_DEV0_EPF1_0_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE_MASK                                        0x00100000L
-#define BIF_CFG_DEV0_EPF1_0_LINK_CAP__LINK_BW_NOTIFICATION_CAP_MASK                                           0x00200000L
+#define BIF_CFG_DEV0_EPF1_0_LINK_CAP__LINK_BW_ANALTIFICATION_CAP_MASK                                           0x00200000L
 #define BIF_CFG_DEV0_EPF1_0_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE_MASK                                        0x00400000L
 #define BIF_CFG_DEV0_EPF1_0_LINK_CAP__PORT_NUMBER_MASK                                                        0xFF000000L
 //BIF_CFG_DEV0_EPF1_0_LINK_CNTL
@@ -11960,9 +11960,9 @@
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__COMMON_CLOCK_CFG__SHIFT                                                0x6
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__EXTENDED_SYNC__SHIFT                                                   0x7
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN__SHIFT                                       0x8
-#define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE__SHIFT                                     0x9
+#define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE__SHIFT                                     0x9
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN__SHIFT                                       0xa
-#define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN__SHIFT                                       0xb
+#define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN__SHIFT                                       0xb
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__DRS_SIGNALING_CONTROL__SHIFT                                           0xe
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__PM_CONTROL_MASK                                                        0x0003L
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__PTM_PROP_DELAY_ADAPT_INTER_B_MASK                                      0x0004L
@@ -11972,9 +11972,9 @@
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__COMMON_CLOCK_CFG_MASK                                                  0x0040L
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__EXTENDED_SYNC_MASK                                                     0x0080L
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN_MASK                                         0x0100L
-#define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE_MASK                                       0x0200L
+#define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE_MASK                                       0x0200L
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN_MASK                                         0x0400L
-#define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN_MASK                                         0x0800L
+#define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN_MASK                                         0x0800L
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL__DRS_SIGNALING_CONTROL_MASK                                             0xC000L
 //BIF_CFG_DEV0_EPF1_0_LINK_STATUS
 #define BIF_CFG_DEV0_EPF1_0_LINK_STATUS__CURRENT_LINK_SPEED__SHIFT                                            0x0
@@ -11983,14 +11983,14 @@
 #define BIF_CFG_DEV0_EPF1_0_LINK_STATUS__SLOT_CLOCK_CFG__SHIFT                                                0xc
 #define BIF_CFG_DEV0_EPF1_0_LINK_STATUS__DL_ACTIVE__SHIFT                                                     0xd
 #define BIF_CFG_DEV0_EPF1_0_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS__SHIFT                                     0xe
-#define BIF_CFG_DEV0_EPF1_0_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS__SHIFT                                     0xf
+#define BIF_CFG_DEV0_EPF1_0_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS__SHIFT                                     0xf
 #define BIF_CFG_DEV0_EPF1_0_LINK_STATUS__CURRENT_LINK_SPEED_MASK                                              0x000FL
 #define BIF_CFG_DEV0_EPF1_0_LINK_STATUS__NEGOTIATED_LINK_WIDTH_MASK                                           0x03F0L
 #define BIF_CFG_DEV0_EPF1_0_LINK_STATUS__LINK_TRAINING_MASK                                                   0x0800L
 #define BIF_CFG_DEV0_EPF1_0_LINK_STATUS__SLOT_CLOCK_CFG_MASK                                                  0x1000L
 #define BIF_CFG_DEV0_EPF1_0_LINK_STATUS__DL_ACTIVE_MASK                                                       0x2000L
 #define BIF_CFG_DEV0_EPF1_0_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS_MASK                                       0x4000L
-#define BIF_CFG_DEV0_EPF1_0_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS_MASK                                       0x8000L
+#define BIF_CFG_DEV0_EPF1_0_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS_MASK                                       0x8000L
 //BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__CPL_TIMEOUT_RANGE_SUPPORTED__SHIFT                                   0x0
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__CPL_TIMEOUT_DIS_SUPPORTED__SHIFT                                     0x4
@@ -11999,7 +11999,7 @@
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED__SHIFT                                    0x7
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED__SHIFT                                    0x8
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED__SHIFT                                        0x9
-#define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING__SHIFT                                     0xa
+#define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                     0xa
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__LTR_SUPPORTED__SHIFT                                                 0xb
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__TPH_CPLR_SUPPORTED__SHIFT                                            0xc
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__LN_SYSTEM_CLS__SHIFT                                                 0xe
@@ -12019,7 +12019,7 @@
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED_MASK                                      0x00000080L
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED_MASK                                      0x00000100L
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED_MASK                                          0x00000200L
-#define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING_MASK                                       0x00000400L
+#define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING_MASK                                       0x00000400L
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__LTR_SUPPORTED_MASK                                                   0x00000800L
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__TPH_CPLR_SUPPORTED_MASK                                              0x00003000L
 #define BIF_CFG_DEV0_EPF1_0_DEVICE_CAP2__LN_SYSTEM_CLS_MASK                                                   0x0000C000L
@@ -12078,7 +12078,7 @@
 //BIF_CFG_DEV0_EPF1_0_LINK_CNTL2
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL2__TARGET_LINK_SPEED__SHIFT                                              0x0
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL2__ENTER_COMPLIANCE__SHIFT                                               0x4
-#define BIF_CFG_DEV0_EPF1_0_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE__SHIFT                                    0x5
+#define BIF_CFG_DEV0_EPF1_0_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE__SHIFT                                    0x5
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL2__SELECTABLE_DEEMPHASIS__SHIFT                                          0x6
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL2__XMIT_MARGIN__SHIFT                                                    0x7
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL2__ENTER_MOD_COMPLIANCE__SHIFT                                           0xa
@@ -12086,7 +12086,7 @@
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL2__COMPLIANCE_DEEMPHASIS__SHIFT                                          0xc
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL2__TARGET_LINK_SPEED_MASK                                                0x000FL
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL2__ENTER_COMPLIANCE_MASK                                                 0x0010L
-#define BIF_CFG_DEV0_EPF1_0_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE_MASK                                      0x0020L
+#define BIF_CFG_DEV0_EPF1_0_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE_MASK                                      0x0020L
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL2__SELECTABLE_DEEMPHASIS_MASK                                            0x0040L
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL2__XMIT_MARGIN_MASK                                                      0x0380L
 #define BIF_CFG_DEV0_EPF1_0_LINK_CNTL2__ENTER_MOD_COMPLIANCE_MASK                                             0x0400L
@@ -12325,7 +12325,7 @@
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS__SHIFT                                      0x7
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS__SHIFT                           0x8
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS__SHIFT                          0xc
-#define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS__SHIFT                         0xd
+#define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                         0xd
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS__SHIFT                                  0xe
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS__SHIFT                                  0xf
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_STATUS__RCV_ERR_STATUS_MASK                                         0x00000001L
@@ -12333,7 +12333,7 @@
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS_MASK                                        0x00000080L
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS_MASK                             0x00000100L
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS_MASK                            0x00001000L
-#define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS_MASK                           0x00002000L
+#define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS_MASK                           0x00002000L
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS_MASK                                    0x00004000L
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS_MASK                                    0x00008000L
 //BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_MASK
@@ -12342,7 +12342,7 @@
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK__SHIFT                                          0x7
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK__SHIFT                               0x8
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK__SHIFT                              0xc
-#define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK__SHIFT                             0xd
+#define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK__SHIFT                             0xd
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK__SHIFT                                      0xe
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK__SHIFT                                      0xf
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_MASK__RCV_ERR_MASK_MASK                                             0x00000001L
@@ -12350,7 +12350,7 @@
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK_MASK                                            0x00000080L
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK_MASK                                 0x00000100L
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK_MASK                                0x00001000L
-#define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK_MASK                               0x00002000L
+#define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK_MASK                               0x00002000L
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK_MASK                                        0x00004000L
 #define BIF_CFG_DEV0_EPF1_0_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK_MASK                                        0x00008000L
 //BIF_CFG_DEV0_EPF1_0_PCIE_ADV_ERR_CAP_CNTL
@@ -12701,11 +12701,11 @@
 //RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC
 #define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__INIT_PFFLR_CRS_RET_DIS__SHIFT                                   0x7
 #define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__ATC_PRG_RESP_PASID_UR_EN__SHIFT                                 0x8
-#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_TRANSMRD_UR__SHIFT                                    0x9
-#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_TRANSMWR_UR__SHIFT                                    0xa
-#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_ATSTRANSREQ_UR__SHIFT                                 0xb
-#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_PAGEREQMSG_UR__SHIFT                                  0xc
-#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_INVCPL_UR__SHIFT                                      0xd
+#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_TRANSMRD_UR__SHIFT                                    0x9
+#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_TRANSMWR_UR__SHIFT                                    0xa
+#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_ATSTRANSREQ_UR__SHIFT                                 0xb
+#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_PAGEREQMSG_UR__SHIFT                                  0xc
+#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_INVCPL_UR__SHIFT                                      0xd
 #define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__CLR_MSI_X_PENDING_WHEN_DISABLED_DIS__SHIFT                      0xe
 #define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__CHECK_BME_ON_PENDING_PKT_GEN_DIS__SHIFT                         0xf
 #define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__PSN_CHECK_ON_PAYLOAD_DIS__SHIFT                                 0x10
@@ -12714,11 +12714,11 @@
 #define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__HOST_POISON_FLAG_CHECK_FOR_CHAIN_DIS__SHIFT                     0x13
 #define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__INIT_PFFLR_CRS_RET_DIS_MASK                                     0x00000080L
 #define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__ATC_PRG_RESP_PASID_UR_EN_MASK                                   0x00000100L
-#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_TRANSMRD_UR_MASK                                      0x00000200L
-#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_TRANSMWR_UR_MASK                                      0x00000400L
-#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_ATSTRANSREQ_UR_MASK                                   0x00000800L
-#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_PAGEREQMSG_UR_MASK                                    0x00001000L
-#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_INVCPL_UR_MASK                                        0x00002000L
+#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_TRANSMRD_UR_MASK                                      0x00000200L
+#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_TRANSMWR_UR_MASK                                      0x00000400L
+#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_ATSTRANSREQ_UR_MASK                                   0x00000800L
+#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_PAGEREQMSG_UR_MASK                                    0x00001000L
+#define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_INVCPL_UR_MASK                                        0x00002000L
 #define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__CLR_MSI_X_PENDING_WHEN_DISABLED_DIS_MASK                        0x00004000L
 #define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__CHECK_BME_ON_PENDING_PKT_GEN_DIS_MASK                           0x00008000L
 #define RCC_DEV0_1_RCC_FEATURES_CONTROL_MISC__PSN_CHECK_ON_PAYLOAD_DIS_MASK                                   0x00010000L
@@ -12795,41 +12795,41 @@
 //RCC_EP_DEV0_1_EP_PCIE_CNTL
 #define RCC_EP_DEV0_1_EP_PCIE_CNTL__UR_ERR_REPORT_DIS__SHIFT                                                  0x7
 #define RCC_EP_DEV0_1_EP_PCIE_CNTL__PCIE_MALFORM_ATOMIC_OPS__SHIFT                                            0x8
-#define RCC_EP_DEV0_1_EP_PCIE_CNTL__RX_IGNORE_LTR_MSG_UR__SHIFT                                               0x1e
+#define RCC_EP_DEV0_1_EP_PCIE_CNTL__RX_IGANALRE_LTR_MSG_UR__SHIFT                                               0x1e
 #define RCC_EP_DEV0_1_EP_PCIE_CNTL__UR_ERR_REPORT_DIS_MASK                                                    0x00000080L
 #define RCC_EP_DEV0_1_EP_PCIE_CNTL__PCIE_MALFORM_ATOMIC_OPS_MASK                                              0x00000100L
-#define RCC_EP_DEV0_1_EP_PCIE_CNTL__RX_IGNORE_LTR_MSG_UR_MASK                                                 0x40000000L
+#define RCC_EP_DEV0_1_EP_PCIE_CNTL__RX_IGANALRE_LTR_MSG_UR_MASK                                                 0x40000000L
 //RCC_EP_DEV0_1_EP_PCIE_INT_CNTL
 #define RCC_EP_DEV0_1_EP_PCIE_INT_CNTL__CORR_ERR_INT_EN__SHIFT                                                0x0
-#define RCC_EP_DEV0_1_EP_PCIE_INT_CNTL__NON_FATAL_ERR_INT_EN__SHIFT                                           0x1
+#define RCC_EP_DEV0_1_EP_PCIE_INT_CNTL__ANALN_FATAL_ERR_INT_EN__SHIFT                                           0x1
 #define RCC_EP_DEV0_1_EP_PCIE_INT_CNTL__FATAL_ERR_INT_EN__SHIFT                                               0x2
 #define RCC_EP_DEV0_1_EP_PCIE_INT_CNTL__USR_DETECTED_INT_EN__SHIFT                                            0x3
 #define RCC_EP_DEV0_1_EP_PCIE_INT_CNTL__MISC_ERR_INT_EN__SHIFT                                                0x4
 #define RCC_EP_DEV0_1_EP_PCIE_INT_CNTL__POWER_STATE_CHG_INT_EN__SHIFT                                         0x6
 #define RCC_EP_DEV0_1_EP_PCIE_INT_CNTL__CORR_ERR_INT_EN_MASK                                                  0x00000001L
-#define RCC_EP_DEV0_1_EP_PCIE_INT_CNTL__NON_FATAL_ERR_INT_EN_MASK                                             0x00000002L
+#define RCC_EP_DEV0_1_EP_PCIE_INT_CNTL__ANALN_FATAL_ERR_INT_EN_MASK                                             0x00000002L
 #define RCC_EP_DEV0_1_EP_PCIE_INT_CNTL__FATAL_ERR_INT_EN_MASK                                                 0x00000004L
 #define RCC_EP_DEV0_1_EP_PCIE_INT_CNTL__USR_DETECTED_INT_EN_MASK                                              0x00000008L
 #define RCC_EP_DEV0_1_EP_PCIE_INT_CNTL__MISC_ERR_INT_EN_MASK                                                  0x00000010L
 #define RCC_EP_DEV0_1_EP_PCIE_INT_CNTL__POWER_STATE_CHG_INT_EN_MASK                                           0x00000040L
 //RCC_EP_DEV0_1_EP_PCIE_INT_STATUS
 #define RCC_EP_DEV0_1_EP_PCIE_INT_STATUS__CORR_ERR_INT_STATUS__SHIFT                                          0x0
-#define RCC_EP_DEV0_1_EP_PCIE_INT_STATUS__NON_FATAL_ERR_INT_STATUS__SHIFT                                     0x1
+#define RCC_EP_DEV0_1_EP_PCIE_INT_STATUS__ANALN_FATAL_ERR_INT_STATUS__SHIFT                                     0x1
 #define RCC_EP_DEV0_1_EP_PCIE_INT_STATUS__FATAL_ERR_INT_STATUS__SHIFT                                         0x2
 #define RCC_EP_DEV0_1_EP_PCIE_INT_STATUS__USR_DETECTED_INT_STATUS__SHIFT                                      0x3
 #define RCC_EP_DEV0_1_EP_PCIE_INT_STATUS__MISC_ERR_INT_STATUS__SHIFT                                          0x4
 #define RCC_EP_DEV0_1_EP_PCIE_INT_STATUS__POWER_STATE_CHG_INT_STATUS__SHIFT                                   0x6
 #define RCC_EP_DEV0_1_EP_PCIE_INT_STATUS__POWER_STATE_CHG_INT_STATUS_F0__SHIFT                                0x7
 #define RCC_EP_DEV0_1_EP_PCIE_INT_STATUS__CORR_ERR_INT_STATUS_MASK                                            0x00000001L
-#define RCC_EP_DEV0_1_EP_PCIE_INT_STATUS__NON_FATAL_ERR_INT_STATUS_MASK                                       0x00000002L
+#define RCC_EP_DEV0_1_EP_PCIE_INT_STATUS__ANALN_FATAL_ERR_INT_STATUS_MASK                                       0x00000002L
 #define RCC_EP_DEV0_1_EP_PCIE_INT_STATUS__FATAL_ERR_INT_STATUS_MASK                                           0x00000004L
 #define RCC_EP_DEV0_1_EP_PCIE_INT_STATUS__USR_DETECTED_INT_STATUS_MASK                                        0x00000008L
 #define RCC_EP_DEV0_1_EP_PCIE_INT_STATUS__MISC_ERR_INT_STATUS_MASK                                            0x00000010L
 #define RCC_EP_DEV0_1_EP_PCIE_INT_STATUS__POWER_STATE_CHG_INT_STATUS_MASK                                     0x00000040L
 #define RCC_EP_DEV0_1_EP_PCIE_INT_STATUS__POWER_STATE_CHG_INT_STATUS_F0_MASK                                  0x00000080L
 //RCC_EP_DEV0_1_EP_PCIE_RX_CNTL2
-#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL2__RX_IGNORE_EP_INVALIDPASID_UR__SHIFT                                   0x0
-#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL2__RX_IGNORE_EP_INVALIDPASID_UR_MASK                                     0x00000001L
+#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL2__RX_IGANALRE_EP_INVALIDPASID_UR__SHIFT                                   0x0
+#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL2__RX_IGANALRE_EP_INVALIDPASID_UR_MASK                                     0x00000001L
 //RCC_EP_DEV0_1_EP_PCIE_BUS_CNTL
 #define RCC_EP_DEV0_1_EP_PCIE_BUS_CNTL__IMMEDIATE_PMI_DIS__SHIFT                                              0x7
 #define RCC_EP_DEV0_1_EP_PCIE_BUS_CNTL__IMMEDIATE_PMI_DIS_MASK                                                0x00000080L
@@ -12851,7 +12851,7 @@
 #define RCC_EP_DEV0_1_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_SHORT_VALUE__SHIFT                                     0x7
 #define RCC_EP_DEV0_1_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_LONG_VALUE__SHIFT                                      0xa
 #define RCC_EP_DEV0_1_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_REQUIREMENT__SHIFT                                     0xd
-#define RCC_EP_DEV0_1_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_NON_D0__SHIFT                               0xe
+#define RCC_EP_DEV0_1_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_ANALN_D0__SHIFT                               0xe
 #define RCC_EP_DEV0_1_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_RST_LTR_IN_DL_DOWN__SHIFT                                 0xf
 #define RCC_EP_DEV0_1_EP_PCIE_TX_LTR_CNTL__TX_CHK_FC_FOR_L1__SHIFT                                            0x10
 #define RCC_EP_DEV0_1_EP_PCIE_TX_LTR_CNTL__LTR_DSTATE_USING_WDATA_EN__SHIFT                                   0x11
@@ -12861,7 +12861,7 @@
 #define RCC_EP_DEV0_1_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_SHORT_VALUE_MASK                                       0x00000380L
 #define RCC_EP_DEV0_1_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_LONG_VALUE_MASK                                        0x00001C00L
 #define RCC_EP_DEV0_1_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_REQUIREMENT_MASK                                       0x00002000L
-#define RCC_EP_DEV0_1_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_NON_D0_MASK                                 0x00004000L
+#define RCC_EP_DEV0_1_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_ANALN_D0_MASK                                 0x00004000L
 #define RCC_EP_DEV0_1_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_RST_LTR_IN_DL_DOWN_MASK                                   0x00008000L
 #define RCC_EP_DEV0_1_EP_PCIE_TX_LTR_CNTL__TX_CHK_FC_FOR_L1_MASK                                              0x00010000L
 #define RCC_EP_DEV0_1_EP_PCIE_TX_LTR_CNTL__LTR_DSTATE_USING_WDATA_EN_MASK                                     0x00020000L
@@ -12940,7 +12940,7 @@
 #define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__ERR_REPORTING_DIS__SHIFT                                              0x0
 #define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__AER_HDR_LOG_TIMEOUT__SHIFT                                            0x8
 #define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__SEND_ERR_MSG_IMMEDIATELY__SHIFT                                       0x11
-#define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__STRAP_POISONED_ADVISORY_NONFATAL__SHIFT                               0x12
+#define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__STRAP_POISONED_ADVISORY_ANALNFATAL__SHIFT                               0x12
 #define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F0_TIMER_EXPIRED__SHIFT                                   0x18
 #define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F1_TIMER_EXPIRED__SHIFT                                   0x19
 #define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F2_TIMER_EXPIRED__SHIFT                                   0x1a
@@ -12952,7 +12952,7 @@
 #define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__ERR_REPORTING_DIS_MASK                                                0x00000001L
 #define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__AER_HDR_LOG_TIMEOUT_MASK                                              0x00000700L
 #define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__SEND_ERR_MSG_IMMEDIATELY_MASK                                         0x00020000L
-#define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__STRAP_POISONED_ADVISORY_NONFATAL_MASK                                 0x00040000L
+#define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__STRAP_POISONED_ADVISORY_ANALNFATAL_MASK                                 0x00040000L
 #define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F0_TIMER_EXPIRED_MASK                                     0x01000000L
 #define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F1_TIMER_EXPIRED_MASK                                     0x02000000L
 #define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F2_TIMER_EXPIRED_MASK                                     0x04000000L
@@ -12962,21 +12962,21 @@
 #define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F6_TIMER_EXPIRED_MASK                                     0x40000000L
 #define RCC_EP_DEV0_1_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F7_TIMER_EXPIRED_MASK                                     0x80000000L
 //RCC_EP_DEV0_1_EP_PCIE_RX_CNTL
-#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGNORE_MAX_PAYLOAD_ERR__SHIFT                                       0x8
-#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGNORE_TC_ERR__SHIFT                                                0x9
+#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGANALRE_MAX_PAYLOAD_ERR__SHIFT                                       0x8
+#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGANALRE_TC_ERR__SHIFT                                                0x9
 #define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_PCIE_CPL_TIMEOUT_DIS__SHIFT                                         0x14
-#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGNORE_SHORTPREFIX_ERR__SHIFT                                       0x15
-#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGNORE_MAXPREFIX_ERR__SHIFT                                         0x16
-#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGNORE_INVALIDPASID_ERR__SHIFT                                      0x18
-#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGNORE_NOT_PASID_UR__SHIFT                                          0x19
+#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGANALRE_SHORTPREFIX_ERR__SHIFT                                       0x15
+#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGANALRE_MAXPREFIX_ERR__SHIFT                                         0x16
+#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGANALRE_INVALIDPASID_ERR__SHIFT                                      0x18
+#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGANALRE_ANALT_PASID_UR__SHIFT                                          0x19
 #define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_TPH_DIS__SHIFT                                                      0x1a
-#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGNORE_MAX_PAYLOAD_ERR_MASK                                         0x00000100L
-#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGNORE_TC_ERR_MASK                                                  0x00000200L
+#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGANALRE_MAX_PAYLOAD_ERR_MASK                                         0x00000100L
+#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGANALRE_TC_ERR_MASK                                                  0x00000200L
 #define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_PCIE_CPL_TIMEOUT_DIS_MASK                                           0x00100000L
-#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGNORE_SHORTPREFIX_ERR_MASK                                         0x00200000L
-#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGNORE_MAXPREFIX_ERR_MASK                                           0x00400000L
-#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGNORE_INVALIDPASID_ERR_MASK                                        0x01000000L
-#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGNORE_NOT_PASID_UR_MASK                                            0x02000000L
+#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGANALRE_SHORTPREFIX_ERR_MASK                                         0x00200000L
+#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGANALRE_MAXPREFIX_ERR_MASK                                           0x00400000L
+#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGANALRE_INVALIDPASID_ERR_MASK                                        0x01000000L
+#define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_IGANALRE_ANALT_PASID_UR_MASK                                            0x02000000L
 #define RCC_EP_DEV0_1_EP_PCIE_RX_CNTL__RX_TPH_DIS_MASK                                                        0x04000000L
 //RCC_EP_DEV0_1_EP_PCIE_LC_SPEED_CNTL
 #define RCC_EP_DEV0_1_EP_PCIE_LC_SPEED_CNTL__LC_GEN2_EN_STRAP__SHIFT                                          0x0
@@ -12999,10 +12999,10 @@
 //RCC_DWN_DEV0_1_DN_PCIE_CNTL
 #define RCC_DWN_DEV0_1_DN_PCIE_CNTL__HWINIT_WR_LOCK__SHIFT                                                    0x0
 #define RCC_DWN_DEV0_1_DN_PCIE_CNTL__UR_ERR_REPORT_DIS_DN__SHIFT                                              0x7
-#define RCC_DWN_DEV0_1_DN_PCIE_CNTL__RX_IGNORE_LTR_MSG_UR__SHIFT                                              0x1e
+#define RCC_DWN_DEV0_1_DN_PCIE_CNTL__RX_IGANALRE_LTR_MSG_UR__SHIFT                                              0x1e
 #define RCC_DWN_DEV0_1_DN_PCIE_CNTL__HWINIT_WR_LOCK_MASK                                                      0x00000001L
 #define RCC_DWN_DEV0_1_DN_PCIE_CNTL__UR_ERR_REPORT_DIS_DN_MASK                                                0x00000080L
-#define RCC_DWN_DEV0_1_DN_PCIE_CNTL__RX_IGNORE_LTR_MSG_UR_MASK                                                0x40000000L
+#define RCC_DWN_DEV0_1_DN_PCIE_CNTL__RX_IGANALRE_LTR_MSG_UR_MASK                                                0x40000000L
 //RCC_DWN_DEV0_1_DN_PCIE_CONFIG_CNTL
 #define RCC_DWN_DEV0_1_DN_PCIE_CONFIG_CNTL__CI_EXTENDED_TAG_EN_OVERRIDE__SHIFT                                0x19
 #define RCC_DWN_DEV0_1_DN_PCIE_CONFIG_CNTL__CI_EXTENDED_TAG_EN_OVERRIDE_MASK                                  0x06000000L
@@ -13049,25 +13049,25 @@
 #define RCC_DWNP_DEV0_1_PCIE_ERR_CNTL__AER_HDR_LOG_F0_TIMER_EXPIRED__SHIFT                                    0xb
 #define RCC_DWNP_DEV0_1_PCIE_ERR_CNTL__SEND_ERR_MSG_IMMEDIATELY__SHIFT                                        0x11
 #define RCC_DWNP_DEV0_1_PCIE_ERR_CNTL__ERR_CORR_RCVD_CLR__SHIFT                                               0x12
-#define RCC_DWNP_DEV0_1_PCIE_ERR_CNTL__NONFATAL_ERR_RCVD_CLR__SHIFT                                           0x13
+#define RCC_DWNP_DEV0_1_PCIE_ERR_CNTL__ANALNFATAL_ERR_RCVD_CLR__SHIFT                                           0x13
 #define RCC_DWNP_DEV0_1_PCIE_ERR_CNTL__FATAL_ERR_RCVD_CLR__SHIFT                                              0x14
 #define RCC_DWNP_DEV0_1_PCIE_ERR_CNTL__ERR_REPORTING_DIS_MASK                                                 0x00000001L
 #define RCC_DWNP_DEV0_1_PCIE_ERR_CNTL__AER_HDR_LOG_TIMEOUT_MASK                                               0x00000700L
 #define RCC_DWNP_DEV0_1_PCIE_ERR_CNTL__AER_HDR_LOG_F0_TIMER_EXPIRED_MASK                                      0x00000800L
 #define RCC_DWNP_DEV0_1_PCIE_ERR_CNTL__SEND_ERR_MSG_IMMEDIATELY_MASK                                          0x00020000L
 #define RCC_DWNP_DEV0_1_PCIE_ERR_CNTL__ERR_CORR_RCVD_CLR_MASK                                                 0x00040000L
-#define RCC_DWNP_DEV0_1_PCIE_ERR_CNTL__NONFATAL_ERR_RCVD_CLR_MASK                                             0x00080000L
+#define RCC_DWNP_DEV0_1_PCIE_ERR_CNTL__ANALNFATAL_ERR_RCVD_CLR_MASK                                             0x00080000L
 #define RCC_DWNP_DEV0_1_PCIE_ERR_CNTL__FATAL_ERR_RCVD_CLR_MASK                                                0x00100000L
 //RCC_DWNP_DEV0_1_PCIE_RX_CNTL
-#define RCC_DWNP_DEV0_1_PCIE_RX_CNTL__RX_IGNORE_MAX_PAYLOAD_ERR__SHIFT                                        0x8
-#define RCC_DWNP_DEV0_1_PCIE_RX_CNTL__RX_IGNORE_TC_ERR_DN__SHIFT                                              0x9
+#define RCC_DWNP_DEV0_1_PCIE_RX_CNTL__RX_IGANALRE_MAX_PAYLOAD_ERR__SHIFT                                        0x8
+#define RCC_DWNP_DEV0_1_PCIE_RX_CNTL__RX_IGANALRE_TC_ERR_DN__SHIFT                                              0x9
 #define RCC_DWNP_DEV0_1_PCIE_RX_CNTL__RX_PCIE_CPL_TIMEOUT_DIS__SHIFT                                          0x14
-#define RCC_DWNP_DEV0_1_PCIE_RX_CNTL__RX_IGNORE_SHORTPREFIX_ERR_DN__SHIFT                                     0x15
+#define RCC_DWNP_DEV0_1_PCIE_RX_CNTL__RX_IGANALRE_SHORTPREFIX_ERR_DN__SHIFT                                     0x15
 #define RCC_DWNP_DEV0_1_PCIE_RX_CNTL__RX_RCB_FLR_TIMEOUT_DIS__SHIFT                                           0x1b
-#define RCC_DWNP_DEV0_1_PCIE_RX_CNTL__RX_IGNORE_MAX_PAYLOAD_ERR_MASK                                          0x00000100L
-#define RCC_DWNP_DEV0_1_PCIE_RX_CNTL__RX_IGNORE_TC_ERR_DN_MASK                                                0x00000200L
+#define RCC_DWNP_DEV0_1_PCIE_RX_CNTL__RX_IGANALRE_MAX_PAYLOAD_ERR_MASK                                          0x00000100L
+#define RCC_DWNP_DEV0_1_PCIE_RX_CNTL__RX_IGANALRE_TC_ERR_DN_MASK                                                0x00000200L
 #define RCC_DWNP_DEV0_1_PCIE_RX_CNTL__RX_PCIE_CPL_TIMEOUT_DIS_MASK                                            0x00100000L
-#define RCC_DWNP_DEV0_1_PCIE_RX_CNTL__RX_IGNORE_SHORTPREFIX_ERR_DN_MASK                                       0x00200000L
+#define RCC_DWNP_DEV0_1_PCIE_RX_CNTL__RX_IGANALRE_SHORTPREFIX_ERR_DN_MASK                                       0x00200000L
 #define RCC_DWNP_DEV0_1_PCIE_RX_CNTL__RX_RCB_FLR_TIMEOUT_DIS_MASK                                             0x08000000L
 //RCC_DWNP_DEV0_1_PCIE_LC_SPEED_CNTL
 #define RCC_DWNP_DEV0_1_PCIE_LC_SPEED_CNTL__LC_GEN2_EN_STRAP__SHIFT                                           0x0
@@ -13079,10 +13079,10 @@
 #define RCC_DWNP_DEV0_1_PCIE_LC_SPEED_CNTL__LC_GEN4_EN_STRAP_MASK                                             0x00000004L
 #define RCC_DWNP_DEV0_1_PCIE_LC_SPEED_CNTL__LC_GEN5_EN_STRAP_MASK                                             0x00000008L
 //RCC_DWNP_DEV0_1_PCIE_LC_CNTL2
-#define RCC_DWNP_DEV0_1_PCIE_LC_CNTL2__DL_STATE_CHANGED_NOTIFICATION_DIS__SHIFT                               0x0
-#define RCC_DWNP_DEV0_1_PCIE_LC_CNTL2__LC_LINK_BW_NOTIFICATION_DIS__SHIFT                                     0x1b
-#define RCC_DWNP_DEV0_1_PCIE_LC_CNTL2__DL_STATE_CHANGED_NOTIFICATION_DIS_MASK                                 0x00000001L
-#define RCC_DWNP_DEV0_1_PCIE_LC_CNTL2__LC_LINK_BW_NOTIFICATION_DIS_MASK                                       0x08000000L
+#define RCC_DWNP_DEV0_1_PCIE_LC_CNTL2__DL_STATE_CHANGED_ANALTIFICATION_DIS__SHIFT                               0x0
+#define RCC_DWNP_DEV0_1_PCIE_LC_CNTL2__LC_LINK_BW_ANALTIFICATION_DIS__SHIFT                                     0x1b
+#define RCC_DWNP_DEV0_1_PCIE_LC_CNTL2__DL_STATE_CHANGED_ANALTIFICATION_DIS_MASK                                 0x00000001L
+#define RCC_DWNP_DEV0_1_PCIE_LC_CNTL2__LC_LINK_BW_ANALTIFICATION_DIS_MASK                                       0x08000000L
 //RCC_DWNP_DEV0_1_PCIEP_STRAP_MISC
 #define RCC_DWNP_DEV0_1_PCIEP_STRAP_MISC__STRAP_MULTI_FUNC_EN__SHIFT                                          0xa
 #define RCC_DWNP_DEV0_1_PCIEP_STRAP_MISC__STRAP_MULTI_FUNC_EN_MASK                                            0x00000400L
@@ -13093,18 +13093,18 @@
 
 // addressBlock: aid_nbio_nbif0_rcc_pfc_amdgfx_RCCPFCDEC
 //RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL
-#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__SNOOP_LATENCY_VALUE__SHIFT                                           0x0
-#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__SNOOP_LATENCY_SCALE__SHIFT                                           0xa
-#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__SNOOP_REQUIREMENT__SHIFT                                             0xf
-#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__NONSNOOP_LATENCY_VALUE__SHIFT                                        0x10
-#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__NONSNOOP_LATENCY_SCALE__SHIFT                                        0x1a
-#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__NONSNOOP_REQUIREMENT__SHIFT                                          0x1f
-#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__SNOOP_LATENCY_VALUE_MASK                                             0x000003FFL
-#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__SNOOP_LATENCY_SCALE_MASK                                             0x00001C00L
-#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__SNOOP_REQUIREMENT_MASK                                               0x00008000L
-#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__NONSNOOP_LATENCY_VALUE_MASK                                          0x03FF0000L
-#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__NONSNOOP_LATENCY_SCALE_MASK                                          0x1C000000L
-#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__NONSNOOP_REQUIREMENT_MASK                                            0x80000000L
+#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__SANALOP_LATENCY_VALUE__SHIFT                                           0x0
+#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__SANALOP_LATENCY_SCALE__SHIFT                                           0xa
+#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__SANALOP_REQUIREMENT__SHIFT                                             0xf
+#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__ANALNSANALOP_LATENCY_VALUE__SHIFT                                        0x10
+#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__ANALNSANALOP_LATENCY_SCALE__SHIFT                                        0x1a
+#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__ANALNSANALOP_REQUIREMENT__SHIFT                                          0x1f
+#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__SANALOP_LATENCY_VALUE_MASK                                             0x000003FFL
+#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__SANALOP_LATENCY_SCALE_MASK                                             0x00001C00L
+#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__SANALOP_REQUIREMENT_MASK                                               0x00008000L
+#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__ANALNSANALOP_LATENCY_VALUE_MASK                                          0x03FF0000L
+#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__ANALNSANALOP_LATENCY_SCALE_MASK                                          0x1C000000L
+#define RCC_PFC_AMDGFX_RCC_PFC_LTR_CNTL__ANALNSANALOP_REQUIREMENT_MASK                                            0x80000000L
 //RCC_PFC_AMDGFX_RCC_PFC_PME_RESTORE
 #define RCC_PFC_AMDGFX_RCC_PFC_PME_RESTORE__PME_RESTORE_PME_EN__SHIFT                                         0x0
 #define RCC_PFC_AMDGFX_RCC_PFC_PME_RESTORE__PME_RESTORE_PME_STATUS__SHIFT                                     0x8
@@ -13118,7 +13118,7 @@
 #define RCC_PFC_AMDGFX_RCC_PFC_STICKY_RESTORE_0__RESTORE_MAL_TLP_STATUS__SHIFT                                0x4
 #define RCC_PFC_AMDGFX_RCC_PFC_STICKY_RESTORE_0__RESTORE_ECRC_ERR_STATUS__SHIFT                               0x5
 #define RCC_PFC_AMDGFX_RCC_PFC_STICKY_RESTORE_0__RESTORE_UNSUPP_REQ_ERR_STATUS__SHIFT                         0x6
-#define RCC_PFC_AMDGFX_RCC_PFC_STICKY_RESTORE_0__RESTORE_ADVISORY_NONFATAL_ERR_STATUS__SHIFT                  0x7
+#define RCC_PFC_AMDGFX_RCC_PFC_STICKY_RESTORE_0__RESTORE_ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                  0x7
 #define RCC_PFC_AMDGFX_RCC_PFC_STICKY_RESTORE_0__RESTORE_PSN_ERR_STATUS_MASK                                  0x00000001L
 #define RCC_PFC_AMDGFX_RCC_PFC_STICKY_RESTORE_0__RESTORE_CPL_TIMEOUT_STATUS_MASK                              0x00000002L
 #define RCC_PFC_AMDGFX_RCC_PFC_STICKY_RESTORE_0__RESTORE_CPL_ABORT_ERR_STATUS_MASK                            0x00000004L
@@ -13126,7 +13126,7 @@
 #define RCC_PFC_AMDGFX_RCC_PFC_STICKY_RESTORE_0__RESTORE_MAL_TLP_STATUS_MASK                                  0x00000010L
 #define RCC_PFC_AMDGFX_RCC_PFC_STICKY_RESTORE_0__RESTORE_ECRC_ERR_STATUS_MASK                                 0x00000020L
 #define RCC_PFC_AMDGFX_RCC_PFC_STICKY_RESTORE_0__RESTORE_UNSUPP_REQ_ERR_STATUS_MASK                           0x00000040L
-#define RCC_PFC_AMDGFX_RCC_PFC_STICKY_RESTORE_0__RESTORE_ADVISORY_NONFATAL_ERR_STATUS_MASK                    0x00000080L
+#define RCC_PFC_AMDGFX_RCC_PFC_STICKY_RESTORE_0__RESTORE_ADVISORY_ANALNFATAL_ERR_STATUS_MASK                    0x00000080L
 //RCC_PFC_AMDGFX_RCC_PFC_STICKY_RESTORE_1
 #define RCC_PFC_AMDGFX_RCC_PFC_STICKY_RESTORE_1__RESTORE_TLP_HDR_0__SHIFT                                     0x0
 #define RCC_PFC_AMDGFX_RCC_PFC_STICKY_RESTORE_1__RESTORE_TLP_HDR_0_MASK                                       0xFFFFFFFFL
@@ -16271,7 +16271,7 @@
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP0__STRAP_AER_EN_DN_DEV0__SHIFT                                          0x12
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP0__STRAP_CPL_ABORT_ERR_EN_DN_DEV0__SHIFT                                0x13
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP0__STRAP_INTERRUPT_PIN_DN_DEV0__SHIFT                                   0x15
-#define RCC_STRAP1_RCC_DEV0_PORT_STRAP0__STRAP_IGNORE_E2E_PREFIX_UR_DN_DEV0__SHIFT                            0x18
+#define RCC_STRAP1_RCC_DEV0_PORT_STRAP0__STRAP_IGANALRE_E2E_PREFIX_UR_DN_DEV0__SHIFT                            0x18
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP0__STRAP_MAX_PAYLOAD_SUPPORT_DN_DEV0__SHIFT                             0x19
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP0__STRAP_MAX_LINK_WIDTH_SUPPORT_DEV0__SHIFT                             0x1c
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP0__STRAP_EPF0_DUMMY_EN_DEV0__SHIFT                                      0x1f
@@ -16281,7 +16281,7 @@
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP0__STRAP_AER_EN_DN_DEV0_MASK                                            0x00040000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP0__STRAP_CPL_ABORT_ERR_EN_DN_DEV0_MASK                                  0x00080000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP0__STRAP_INTERRUPT_PIN_DN_DEV0_MASK                                     0x00E00000L
-#define RCC_STRAP1_RCC_DEV0_PORT_STRAP0__STRAP_IGNORE_E2E_PREFIX_UR_DN_DEV0_MASK                              0x01000000L
+#define RCC_STRAP1_RCC_DEV0_PORT_STRAP0__STRAP_IGANALRE_E2E_PREFIX_UR_DN_DEV0_MASK                              0x01000000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP0__STRAP_MAX_PAYLOAD_SUPPORT_DN_DEV0_MASK                               0x0E000000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP0__STRAP_MAX_LINK_WIDTH_SUPPORT_DEV0_MASK                               0x70000000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP0__STRAP_EPF0_DUMMY_EN_DEV0_MASK                                        0x80000000L
@@ -16302,7 +16302,7 @@
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_EXTENDED_TAG_ECN_EN_DEV0__SHIFT                                0x8
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_EXT_VC_COUNT_DN_DEV0__SHIFT                                    0x9
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_FIRST_RCVD_ERR_LOG_DN_DEV0__SHIFT                              0xc
-#define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_NONFATAL_DN_DEV0__SHIFT                      0xd
+#define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_ANALNFATAL_DN_DEV0__SHIFT                      0xd
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_GEN2_COMPLIANCE_DEV0__SHIFT                                    0xe
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_GEN2_EN_DEV0__SHIFT                                            0xf
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_GEN3_COMPLIANCE_DEV0__SHIFT                                    0x10
@@ -16322,7 +16322,7 @@
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_EXTENDED_TAG_ECN_EN_DEV0_MASK                                  0x00000100L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_EXT_VC_COUNT_DN_DEV0_MASK                                      0x00000E00L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_FIRST_RCVD_ERR_LOG_DN_DEV0_MASK                                0x00001000L
-#define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_NONFATAL_DN_DEV0_MASK                        0x00002000L
+#define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_ANALNFATAL_DN_DEV0_MASK                        0x00002000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_GEN2_COMPLIANCE_DEV0_MASK                                      0x00004000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_GEN2_EN_DEV0_MASK                                              0x00008000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_GEN3_COMPLIANCE_DEV0_MASK                                      0x00010000L
@@ -16332,13 +16332,13 @@
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_L1_ACCEPTABLE_LATENCY_DEV0_MASK                                0x1C000000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP2__STRAP_L1_EXIT_LATENCY_DEV0_MASK                                      0xE0000000L
 //RCC_STRAP1_RCC_DEV0_PORT_STRAP3
-#define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_NOTIFICATION_CAP_DN_EN_DEV0__SHIFT                     0x0
+#define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_ANALTIFICATION_CAP_DN_EN_DEV0__SHIFT                     0x0
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DEV0__SHIFT                                             0x1
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DN_DEV0__SHIFT                                          0x2
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_MAX_PAYLOAD_SUPPORT_DEV0__SHIFT                                0x3
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_MSI_EN_DN_DEV0__SHIFT                                          0x6
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_MSTCPL_TIMEOUT_EN_DEV0__SHIFT                                  0x7
-#define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_NO_SOFT_RESET_DN_DEV0__SHIFT                                   0x8
+#define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_ANAL_SOFT_RESET_DN_DEV0__SHIFT                                   0x8
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_OBFF_SUPPORTED_DEV0__SHIFT                                     0x9
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_RX_PRESET_HINT_DEV0__SHIFT  0xb
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_TX_PRESET_DEV0__SHIFT  0xe
@@ -16348,13 +16348,13 @@
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_PM_SUPPORT_DN_DEV0__SHIFT                                      0x1b
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_ATOMIC_EN_DN_DEV0__SHIFT                                       0x1d
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_PMC_DSI_DN_DEV0__SHIFT                                         0x1f
-#define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_NOTIFICATION_CAP_DN_EN_DEV0_MASK                       0x00000001L
+#define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_ANALTIFICATION_CAP_DN_EN_DEV0_MASK                       0x00000001L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DEV0_MASK                                               0x00000002L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DN_DEV0_MASK                                            0x00000004L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_MAX_PAYLOAD_SUPPORT_DEV0_MASK                                  0x00000038L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_MSI_EN_DN_DEV0_MASK                                            0x00000040L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_MSTCPL_TIMEOUT_EN_DEV0_MASK                                    0x00000080L
-#define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_NO_SOFT_RESET_DN_DEV0_MASK                                     0x00000100L
+#define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_ANAL_SOFT_RESET_DN_DEV0_MASK                                     0x00000100L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_OBFF_SUPPORTED_DEV0_MASK                                       0x00000600L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_RX_PRESET_HINT_DEV0_MASK  0x00003800L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_TX_PRESET_DEV0_MASK  0x0003C000L
@@ -16421,7 +16421,7 @@
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP6__STRAP_PCIE_16GT_LANE_EQUALIZATION_CNTL_USP_TX_PRESET_DEV0__SHIFT     0xc
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP6__STRAP_TPH_CPLR_SUPPORTED_DN_DEV0__SHIFT                              0x10
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP6__STRAP_MSI_EXT_MSG_DATA_CAP_DN_DEV0__SHIFT                            0x12
-#define RCC_STRAP1_RCC_DEV0_PORT_STRAP6__STRAP_NO_COMMAND_COMPLETED_SUPPORTED_DEV0__SHIFT                     0x13
+#define RCC_STRAP1_RCC_DEV0_PORT_STRAP6__STRAP_ANAL_COMMAND_COMPLETED_SUPPORTED_DEV0__SHIFT                     0x13
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP6__STRAP_GEN5_COMPLIANCE_DEV0__SHIFT                                    0x14
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP6__STRAP_TARGET_LINK_SPEED_DEV0__SHIFT                                  0x15
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP6__STRAP_PCIE_32GT_LANE_EQUALIZATION_CNTL_DSP_TX_PRESET_DEV0__SHIFT     0x18
@@ -16438,7 +16438,7 @@
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP6__STRAP_PCIE_16GT_LANE_EQUALIZATION_CNTL_USP_TX_PRESET_DEV0_MASK       0x0000F000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP6__STRAP_TPH_CPLR_SUPPORTED_DN_DEV0_MASK                                0x00030000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP6__STRAP_MSI_EXT_MSG_DATA_CAP_DN_DEV0_MASK                              0x00040000L
-#define RCC_STRAP1_RCC_DEV0_PORT_STRAP6__STRAP_NO_COMMAND_COMPLETED_SUPPORTED_DEV0_MASK                       0x00080000L
+#define RCC_STRAP1_RCC_DEV0_PORT_STRAP6__STRAP_ANAL_COMMAND_COMPLETED_SUPPORTED_DEV0_MASK                       0x00080000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP6__STRAP_GEN5_COMPLIANCE_DEV0_MASK                                      0x00100000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP6__STRAP_TARGET_LINK_SPEED_DEV0_MASK                                    0x00E00000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP6__STRAP_PCIE_32GT_LANE_EQUALIZATION_CNTL_DSP_TX_PRESET_DEV0_MASK       0x0F000000L
@@ -16446,13 +16446,13 @@
 //RCC_STRAP1_RCC_DEV0_PORT_STRAP7
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP7__STRAP_PORT_NUMBER_DEV0__SHIFT                                        0x0
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP7__STRAP_MAJOR_REV_ID_DN_DEV0__SHIFT                                    0x8
-#define RCC_STRAP1_RCC_DEV0_PORT_STRAP7__STRAP_MINOR_REV_ID_DN_DEV0__SHIFT                                    0xc
+#define RCC_STRAP1_RCC_DEV0_PORT_STRAP7__STRAP_MIANALR_REV_ID_DN_DEV0__SHIFT                                    0xc
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP7__STRAP_RP_BUSNUM_DEV0__SHIFT                                          0x10
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP7__STRAP_DN_DEVNUM_DEV0__SHIFT                                          0x18
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP7__STRAP_DN_FUNCID_DEV0__SHIFT                                          0x1d
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP7__STRAP_PORT_NUMBER_DEV0_MASK                                          0x000000FFL
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP7__STRAP_MAJOR_REV_ID_DN_DEV0_MASK                                      0x00000F00L
-#define RCC_STRAP1_RCC_DEV0_PORT_STRAP7__STRAP_MINOR_REV_ID_DN_DEV0_MASK                                      0x0000F000L
+#define RCC_STRAP1_RCC_DEV0_PORT_STRAP7__STRAP_MIANALR_REV_ID_DN_DEV0_MASK                                      0x0000F000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP7__STRAP_RP_BUSNUM_DEV0_MASK                                            0x00FF0000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP7__STRAP_DN_DEVNUM_DEV0_MASK                                            0x1F000000L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP7__STRAP_DN_FUNCID_DEV0_MASK                                            0xE0000000L
@@ -16473,15 +16473,15 @@
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP9__STRAP_PWR_BUDGET_DATA_8T0_b_DEV0_MASK                                0x0000FF00L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP9__STRAP_VENDOR_ID_DN_DEV0_MASK                                         0xFFFF0000L
 //RCC_STRAP1_RCC_DEV0_PORT_STRAP10
-#define RCC_STRAP1_RCC_DEV0_PORT_STRAP10__STRAP_NO_EQ_NEED_SUPPORTED_DEV0__SHIFT                              0x0
-#define RCC_STRAP1_RCC_DEV0_PORT_STRAP10__STRAP_NO_EQ_NEED_SUPPORTED_DN_DEV0__SHIFT                           0x1
+#define RCC_STRAP1_RCC_DEV0_PORT_STRAP10__STRAP_ANAL_EQ_NEED_SUPPORTED_DEV0__SHIFT                              0x0
+#define RCC_STRAP1_RCC_DEV0_PORT_STRAP10__STRAP_ANAL_EQ_NEED_SUPPORTED_DN_DEV0__SHIFT                           0x1
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP10__STRAP_MODIFID_TS_USAGE_MODE1_SUPPORTED_DEV0__SHIFT                  0x2
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP10__STRAP_MODIFID_TS_USAGE_MODE2_SUPPORTED_DEV0__SHIFT                  0x3
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP10__STRAP_TRANSMITTER_PRECODEING_ON_DEV0__SHIFT                         0x4
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP10__STRAP_TRANSMITTER_PRECODE_REQUEST_DEV0__SHIFT                       0x5
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP10__STRAP_MODIFIED_TS_INFOR1_DEV0__SHIFT                                0x6
-#define RCC_STRAP1_RCC_DEV0_PORT_STRAP10__STRAP_NO_EQ_NEED_SUPPORTED_DEV0_MASK                                0x00000001L
-#define RCC_STRAP1_RCC_DEV0_PORT_STRAP10__STRAP_NO_EQ_NEED_SUPPORTED_DN_DEV0_MASK                             0x00000002L
+#define RCC_STRAP1_RCC_DEV0_PORT_STRAP10__STRAP_ANAL_EQ_NEED_SUPPORTED_DEV0_MASK                                0x00000001L
+#define RCC_STRAP1_RCC_DEV0_PORT_STRAP10__STRAP_ANAL_EQ_NEED_SUPPORTED_DN_DEV0_MASK                             0x00000002L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP10__STRAP_MODIFID_TS_USAGE_MODE1_SUPPORTED_DEV0_MASK                    0x00000004L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP10__STRAP_MODIFID_TS_USAGE_MODE2_SUPPORTED_DEV0_MASK                    0x00000008L
 #define RCC_STRAP1_RCC_DEV0_PORT_STRAP10__STRAP_TRANSMITTER_PRECODEING_ON_DEV0_MASK                           0x00000010L
@@ -16560,20 +16560,20 @@
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_PX_CAPABLE__SHIFT                                                    0x7
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_BIF_KILL_GEN3__SHIFT                                                 0x8
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_MSI_FIRST_BE_FULL_PAYLOAD_EN__SHIFT                                  0x9
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_NBIF_IGNORE_ERR_INFLR__SHIFT                                         0xa
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_NBIF_IGANALRE_ERR_INFLR__SHIFT                                         0xa
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_PME_SUPPORT_COMPLIANCE_EN__SHIFT                                     0xb
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGNORE_EP_ERR__SHIFT                                              0xc
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGNORE_MSG_ERR__SHIFT                                             0xd
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGNORE_MAX_PAYLOAD_ERR__SHIFT                                     0xe
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGNORE_SHORTPREFIX_ERR_DN__SHIFT                                  0xf
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGNORE_TC_ERR__SHIFT                                              0x10
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGNORE_TC_ERR_DN__SHIFT                                           0x11
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_EP_ERR__SHIFT                                              0xc
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_MSG_ERR__SHIFT                                             0xd
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_MAX_PAYLOAD_ERR__SHIFT                                     0xe
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_SHORTPREFIX_ERR_DN__SHIFT                                  0xf
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_TC_ERR__SHIFT                                              0x10
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_TC_ERR_DN__SHIFT                                           0x11
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_AUD_PIN__SHIFT                                                       0x12
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_GEN3_DIS__SHIFT                                                      0x18
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_BIF_KILL_GEN4__SHIFT                                                 0x19
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_QUICKSIM_START__SHIFT                                                0x1a
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_NO_RO_ENABLED_P2P_PASSING__SHIFT                                     0x1b
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_IGNORE_LOCAL_PREFIX_UR_SWUS__SHIFT                                   0x1c
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                     0x1b
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_IGANALRE_LOCAL_PREFIX_UR_SWUS__SHIFT                                   0x1c
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_CFG0_RD_VF_BUSNUM_CHK_EN__SHIFT                                      0x1d
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_BIGAPU_MODE__SHIFT                                                   0x1e
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_LINK_DOWN_RESET_EN__SHIFT                                            0x1f
@@ -16585,20 +16585,20 @@
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK                                                      0x00000080L
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_BIF_KILL_GEN3_MASK                                                   0x00000100L
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_MSI_FIRST_BE_FULL_PAYLOAD_EN_MASK                                    0x00000200L
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_NBIF_IGNORE_ERR_INFLR_MASK                                           0x00000400L
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_NBIF_IGANALRE_ERR_INFLR_MASK                                           0x00000400L
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_PME_SUPPORT_COMPLIANCE_EN_MASK                                       0x00000800L
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGNORE_EP_ERR_MASK                                                0x00001000L
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGNORE_MSG_ERR_MASK                                               0x00002000L
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGNORE_MAX_PAYLOAD_ERR_MASK                                       0x00004000L
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGNORE_SHORTPREFIX_ERR_DN_MASK                                    0x00008000L
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGNORE_TC_ERR_MASK                                                0x00010000L
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGNORE_TC_ERR_DN_MASK                                             0x00020000L
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_EP_ERR_MASK                                                0x00001000L
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_MSG_ERR_MASK                                               0x00002000L
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_MAX_PAYLOAD_ERR_MASK                                       0x00004000L
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_SHORTPREFIX_ERR_DN_MASK                                    0x00008000L
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_TC_ERR_MASK                                                0x00010000L
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_TC_ERR_DN_MASK                                             0x00020000L
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_AUD_PIN_MASK                                                         0x000C0000L
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_GEN3_DIS_MASK                                                        0x01000000L
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_BIF_KILL_GEN4_MASK                                                   0x02000000L
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_QUICKSIM_START_MASK                                                  0x04000000L
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_NO_RO_ENABLED_P2P_PASSING_MASK                                       0x08000000L
-#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_IGNORE_LOCAL_PREFIX_UR_SWUS_MASK                                     0x10000000L
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_ANAL_RO_ENABLED_P2P_PASSING_MASK                                       0x08000000L
+#define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_IGANALRE_LOCAL_PREFIX_UR_SWUS_MASK                                     0x10000000L
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_CFG0_RD_VF_BUSNUM_CHK_EN_MASK                                        0x20000000L
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_BIGAPU_MODE_MASK                                                     0x40000000L
 #define RCC_STRAP1_RCC_BIF_STRAP0__STRAP_LINK_DOWN_RESET_EN_MASK                                              0x80000000L
@@ -16607,7 +16607,7 @@
 #define RCC_STRAP1_RCC_BIF_STRAP1__ROMSTRAP_VALID__SHIFT                                                      0x1
 #define RCC_STRAP1_RCC_BIF_STRAP1__WRITE_DISABLE__SHIFT                                                       0x2
 #define RCC_STRAP1_RCC_BIF_STRAP1__STRAP_ECRC_INTERMEDIATE_CHK_EN__SHIFT                                      0x3
-#define RCC_STRAP1_RCC_BIF_STRAP1__STRAP_IGNORE_E2E_PREFIX_UR_SWUS__SHIFT                                     0x5
+#define RCC_STRAP1_RCC_BIF_STRAP1__STRAP_IGANALRE_E2E_PREFIX_UR_SWUS__SHIFT                                     0x5
 #define RCC_STRAP1_RCC_BIF_STRAP1__STRAP_MARGINING_USES_SOFTWARE__SHIFT                                       0x6
 #define RCC_STRAP1_RCC_BIF_STRAP1__STRAP_MARGINING_READY__SHIFT                                               0x7
 #define RCC_STRAP1_RCC_BIF_STRAP1__STRAP_SWUS_APER_EN__SHIFT                                                  0x8
@@ -16634,7 +16634,7 @@
 #define RCC_STRAP1_RCC_BIF_STRAP1__ROMSTRAP_VALID_MASK                                                        0x00000002L
 #define RCC_STRAP1_RCC_BIF_STRAP1__WRITE_DISABLE_MASK                                                         0x00000004L
 #define RCC_STRAP1_RCC_BIF_STRAP1__STRAP_ECRC_INTERMEDIATE_CHK_EN_MASK                                        0x00000008L
-#define RCC_STRAP1_RCC_BIF_STRAP1__STRAP_IGNORE_E2E_PREFIX_UR_SWUS_MASK                                       0x00000020L
+#define RCC_STRAP1_RCC_BIF_STRAP1__STRAP_IGANALRE_E2E_PREFIX_UR_SWUS_MASK                                       0x00000020L
 #define RCC_STRAP1_RCC_BIF_STRAP1__STRAP_MARGINING_USES_SOFTWARE_MASK                                         0x00000040L
 #define RCC_STRAP1_RCC_BIF_STRAP1__STRAP_MARGINING_READY_MASK                                                 0x00000080L
 #define RCC_STRAP1_RCC_BIF_STRAP1__STRAP_SWUS_APER_EN_MASK                                                    0x00000100L
@@ -16703,7 +16703,7 @@
 #define RCC_STRAP1_RCC_BIF_STRAP5__STRAP_VLINK_LDN_ON_SWUS_LDN_EN__SHIFT                                      0x10
 #define RCC_STRAP1_RCC_BIF_STRAP5__STRAP_VLINK_LDN_ON_SWUS_SECRST_EN__SHIFT                                   0x11
 #define RCC_STRAP1_RCC_BIF_STRAP5__STRAP_VLINK_ENTER_COMPLIANCE_DIS__SHIFT                                    0x12
-#define RCC_STRAP1_RCC_BIF_STRAP5__STRAP_IGNORE_PSN_ON_VDM1_DIS__SHIFT                                        0x13
+#define RCC_STRAP1_RCC_BIF_STRAP5__STRAP_IGANALRE_PSN_ON_VDM1_DIS__SHIFT                                        0x13
 #define RCC_STRAP1_RCC_BIF_STRAP5__STRAP_SMN_ERR_STATUS_MASK_EN_UPS__SHIFT                                    0x14
 #define RCC_STRAP1_RCC_BIF_STRAP5__STRAP_REG_PROTECTION_DIS__SHIFT                                            0x15
 #define RCC_STRAP1_RCC_BIF_STRAP5__STRAP_SMN_ERRRSP_DATA_FORCE__SHIFT                                         0x16
@@ -16715,7 +16715,7 @@
 #define RCC_STRAP1_RCC_BIF_STRAP5__STRAP_VLINK_LDN_ON_SWUS_LDN_EN_MASK                                        0x00010000L
 #define RCC_STRAP1_RCC_BIF_STRAP5__STRAP_VLINK_LDN_ON_SWUS_SECRST_EN_MASK                                     0x00020000L
 #define RCC_STRAP1_RCC_BIF_STRAP5__STRAP_VLINK_ENTER_COMPLIANCE_DIS_MASK                                      0x00040000L
-#define RCC_STRAP1_RCC_BIF_STRAP5__STRAP_IGNORE_PSN_ON_VDM1_DIS_MASK                                          0x00080000L
+#define RCC_STRAP1_RCC_BIF_STRAP5__STRAP_IGANALRE_PSN_ON_VDM1_DIS_MASK                                          0x00080000L
 #define RCC_STRAP1_RCC_BIF_STRAP5__STRAP_SMN_ERR_STATUS_MASK_EN_UPS_MASK                                      0x00100000L
 #define RCC_STRAP1_RCC_BIF_STRAP5__STRAP_REG_PROTECTION_DIS_MASK                                              0x00200000L
 #define RCC_STRAP1_RCC_BIF_STRAP5__STRAP_SMN_ERRRSP_DATA_FORCE_MASK                                           0x00C00000L
@@ -16733,7 +16733,7 @@
 //RCC_STRAP1_RCC_DEV0_EPF0_STRAP0
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP0__STRAP_DEVICE_ID_DEV0_F0__SHIFT                                       0x0
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F0__SHIFT                                    0x10
-#define RCC_STRAP1_RCC_DEV0_EPF0_STRAP0__STRAP_MINOR_REV_ID_DEV0_F0__SHIFT                                    0x14
+#define RCC_STRAP1_RCC_DEV0_EPF0_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F0__SHIFT                                    0x14
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0__SHIFT                                      0x18
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP0__STRAP_FUNC_EN_DEV0_F0__SHIFT                                         0x1c
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F0__SHIFT                           0x1d
@@ -16741,7 +16741,7 @@
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP0__STRAP_D2_SUPPORT_DEV0_F0__SHIFT                                      0x1f
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP0__STRAP_DEVICE_ID_DEV0_F0_MASK                                         0x0000FFFFL
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F0_MASK                                      0x000F0000L
-#define RCC_STRAP1_RCC_DEV0_EPF0_STRAP0__STRAP_MINOR_REV_ID_DEV0_F0_MASK                                      0x00F00000L
+#define RCC_STRAP1_RCC_DEV0_EPF0_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F0_MASK                                      0x00F00000L
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0_MASK                                        0x0F000000L
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP0__STRAP_FUNC_EN_DEV0_F0_MASK                                           0x10000000L
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F0_MASK                             0x20000000L
@@ -16755,7 +16755,7 @@
 //RCC_STRAP1_RCC_DEV0_EPF0_STRAP2
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP2__STRAP_SRIOV_EN_DEV0_F0__SHIFT                                        0x0
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP2__STRAP_64BAR_DIS_DEV0_F0__SHIFT                                       0x6
-#define RCC_STRAP1_RCC_DEV0_EPF0_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F0__SHIFT                                   0x7
+#define RCC_STRAP1_RCC_DEV0_EPF0_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F0__SHIFT                                   0x7
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F0__SHIFT                                   0x8
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP2__STRAP_MAX_PASID_WIDTH_DEV0_F0__SHIFT                                 0x9
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F0__SHIFT                          0xe
@@ -16775,7 +16775,7 @@
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP2__STRAP_PASID_PRIV_MODE_SUPPORTED_DEV0_F0__SHIFT                       0x1f
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP2__STRAP_SRIOV_EN_DEV0_F0_MASK                                          0x00000001L
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP2__STRAP_64BAR_DIS_DEV0_F0_MASK                                         0x00000040L
-#define RCC_STRAP1_RCC_DEV0_EPF0_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F0_MASK                                     0x00000080L
+#define RCC_STRAP1_RCC_DEV0_EPF0_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F0_MASK                                     0x00000080L
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F0_MASK                                     0x00000100L
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP2__STRAP_MAX_PASID_WIDTH_DEV0_F0_MASK                                   0x00003E00L
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F0_MASK                            0x00004000L
@@ -16795,7 +16795,7 @@
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP2__STRAP_PASID_PRIV_MODE_SUPPORTED_DEV0_F0_MASK                         0x80000000L
 //RCC_STRAP1_RCC_DEV0_EPF0_STRAP3
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP3__STRAP_SUBSYS_ID_DEV0_F0__SHIFT                                       0x0
-#define RCC_STRAP1_RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F0__SHIFT                      0x10
+#define RCC_STRAP1_RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F0__SHIFT                      0x10
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP3__STRAP_PWR_EN_DEV0_F0__SHIFT                                          0x11
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP3__STRAP_MSI_EN_DEV0_F0__SHIFT                                          0x12
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP3__STRAP_MSI_CLR_PENDING_EN_DEV0_F0__SHIFT                              0x13
@@ -16809,7 +16809,7 @@
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP3__STRAP_TRUE_PM_STATUS_EN_DEV0_F0__SHIFT                               0x1e
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP3__STRAP_RTR_EN_DEV0_F0__SHIFT                                          0x1f
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP3__STRAP_SUBSYS_ID_DEV0_F0_MASK                                         0x0000FFFFL
-#define RCC_STRAP1_RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F0_MASK                        0x00010000L
+#define RCC_STRAP1_RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F0_MASK                        0x00010000L
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP3__STRAP_PWR_EN_DEV0_F0_MASK                                            0x00020000L
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP3__STRAP_MSI_EN_DEV0_F0_MASK                                            0x00040000L
 #define RCC_STRAP1_RCC_DEV0_EPF0_STRAP3__STRAP_MSI_CLR_PENDING_EN_DEV0_F0_MASK                                0x00080000L
@@ -16928,20 +16928,20 @@
 //RCC_STRAP1_RCC_DEV0_EPF1_STRAP0
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP0__STRAP_DEVICE_ID_DEV0_F1__SHIFT                                       0x0
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F1__SHIFT                                    0x10
-#define RCC_STRAP1_RCC_DEV0_EPF1_STRAP0__STRAP_MINOR_REV_ID_DEV0_F1__SHIFT                                    0x14
+#define RCC_STRAP1_RCC_DEV0_EPF1_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F1__SHIFT                                    0x14
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP0__STRAP_FUNC_EN_DEV0_F1__SHIFT                                         0x1c
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F1__SHIFT                           0x1d
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP0__STRAP_D1_SUPPORT_DEV0_F1__SHIFT                                      0x1e
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP0__STRAP_D2_SUPPORT_DEV0_F1__SHIFT                                      0x1f
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP0__STRAP_DEVICE_ID_DEV0_F1_MASK                                         0x0000FFFFL
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F1_MASK                                      0x000F0000L
-#define RCC_STRAP1_RCC_DEV0_EPF1_STRAP0__STRAP_MINOR_REV_ID_DEV0_F1_MASK                                      0x00F00000L
+#define RCC_STRAP1_RCC_DEV0_EPF1_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F1_MASK                                      0x00F00000L
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP0__STRAP_FUNC_EN_DEV0_F1_MASK                                           0x10000000L
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F1_MASK                             0x20000000L
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP0__STRAP_D1_SUPPORT_DEV0_F1_MASK                                        0x40000000L
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP0__STRAP_D2_SUPPORT_DEV0_F1_MASK                                        0x80000000L
 //RCC_STRAP1_RCC_DEV0_EPF1_STRAP2
-#define RCC_STRAP1_RCC_DEV0_EPF1_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F1__SHIFT                                   0x7
+#define RCC_STRAP1_RCC_DEV0_EPF1_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F1__SHIFT                                   0x7
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F1__SHIFT                                   0x8
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP2__STRAP_MAX_PASID_WIDTH_DEV0_F1__SHIFT                                 0x9
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F1__SHIFT                          0xe
@@ -16955,7 +16955,7 @@
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP2__STRAP_PASID_EXE_PERMISSION_SUPPORTED_DEV0_F1__SHIFT                  0x1d
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP2__STRAP_PASID_GLOBAL_INVALIDATE_SUPPORTED_DEV0_F1__SHIFT               0x1e
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP2__STRAP_PASID_PRIV_MODE_SUPPORTED_DEV0_F1__SHIFT                       0x1f
-#define RCC_STRAP1_RCC_DEV0_EPF1_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F1_MASK                                     0x00000080L
+#define RCC_STRAP1_RCC_DEV0_EPF1_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F1_MASK                                     0x00000080L
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F1_MASK                                     0x00000100L
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP2__STRAP_MAX_PASID_WIDTH_DEV0_F1_MASK                                   0x00003E00L
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F1_MASK                            0x00004000L
@@ -16971,7 +16971,7 @@
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP2__STRAP_PASID_PRIV_MODE_SUPPORTED_DEV0_F1_MASK                         0x80000000L
 //RCC_STRAP1_RCC_DEV0_EPF1_STRAP3
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP3__STRAP_SUBSYS_ID_DEV0_F1__SHIFT                                       0x0
-#define RCC_STRAP1_RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F1__SHIFT                      0x10
+#define RCC_STRAP1_RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F1__SHIFT                      0x10
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP3__STRAP_PWR_EN_DEV0_F1__SHIFT                                          0x11
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP3__STRAP_MSI_EN_DEV0_F1__SHIFT                                          0x12
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP3__STRAP_MSI_CLR_PENDING_EN_DEV0_F1__SHIFT                              0x13
@@ -16983,7 +16983,7 @@
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP3__STRAP_TRUE_PM_STATUS_EN_DEV0_F1__SHIFT                               0x1e
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP3__STRAP_RTR_EN_DEV0_F1__SHIFT                                          0x1f
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP3__STRAP_SUBSYS_ID_DEV0_F1_MASK                                         0x0000FFFFL
-#define RCC_STRAP1_RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F1_MASK                        0x00010000L
+#define RCC_STRAP1_RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F1_MASK                        0x00010000L
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP3__STRAP_PWR_EN_DEV0_F1_MASK                                            0x00020000L
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP3__STRAP_MSI_EN_DEV0_F1_MASK                                            0x00040000L
 #define RCC_STRAP1_RCC_DEV0_EPF1_STRAP3__STRAP_MSI_CLR_PENDING_EN_DEV0_F1_MASK                                0x00080000L
@@ -17145,14 +17145,14 @@
 #define BIF_RST_MISC_CTRL2__ALL_RST_TRANS_IDLE_MASK                                                           0x80000000L
 //BIF_RST_MISC_CTRL3
 #define BIF_RST_MISC_CTRL3__TIMER_SCALE__SHIFT                                                                0x0
-#define BIF_RST_MISC_CTRL3__PME_TURNOFF_TIMEOUT__SHIFT                                                        0x4
-#define BIF_RST_MISC_CTRL3__PME_TURNOFF_MODE__SHIFT                                                           0x6
+#define BIF_RST_MISC_CTRL3__PME_TURANALFF_TIMEOUT__SHIFT                                                        0x4
+#define BIF_RST_MISC_CTRL3__PME_TURANALFF_MODE__SHIFT                                                           0x6
 #define BIF_RST_MISC_CTRL3__RELOAD_STRAP_DELAY_HARD__SHIFT                                                    0x7
 #define BIF_RST_MISC_CTRL3__RELOAD_STRAP_DELAY_SOFT__SHIFT                                                    0xa
 #define BIF_RST_MISC_CTRL3__RELOAD_STRAP_DELAY_SELF__SHIFT                                                    0xd
 #define BIF_RST_MISC_CTRL3__TIMER_SCALE_MASK                                                                  0x0000000FL
-#define BIF_RST_MISC_CTRL3__PME_TURNOFF_TIMEOUT_MASK                                                          0x00000030L
-#define BIF_RST_MISC_CTRL3__PME_TURNOFF_MODE_MASK                                                             0x00000040L
+#define BIF_RST_MISC_CTRL3__PME_TURANALFF_TIMEOUT_MASK                                                          0x00000030L
+#define BIF_RST_MISC_CTRL3__PME_TURANALFF_MODE_MASK                                                             0x00000040L
 #define BIF_RST_MISC_CTRL3__RELOAD_STRAP_DELAY_HARD_MASK                                                      0x00000380L
 #define BIF_RST_MISC_CTRL3__RELOAD_STRAP_DELAY_SOFT_MASK                                                      0x00001C00L
 #define BIF_RST_MISC_CTRL3__RELOAD_STRAP_DELAY_SELF_MASK                                                      0x0000E000L
@@ -18024,7 +18024,7 @@
 //BIFC_MISC_CTRL0
 #define BIFC_MISC_CTRL0__VWIRE_TARG_UNITID_CHECK_EN__SHIFT                                                    0x0
 #define BIFC_MISC_CTRL0__VWIRE_SRC_UNITID_CHECK_EN__SHIFT                                                     0x1
-#define BIFC_MISC_CTRL0__DMA_VC4_NON_DVM_STS__SHIFT                                                           0x4
+#define BIFC_MISC_CTRL0__DMA_VC4_ANALN_DVM_STS__SHIFT                                                           0x4
 #define BIFC_MISC_CTRL0__DMA_CHAIN_BREAK_IN_RCMODE__SHIFT                                                     0x8
 #define BIFC_MISC_CTRL0__HST_ARB_CHAIN_LOCK_P__SHIFT                                                          0x9
 #define BIFC_MISC_CTRL0__GSI_RD_SPLIT_STALL_FLUSH_EN__SHIFT                                                   0xb
@@ -18044,13 +18044,13 @@
 #define BIFC_MISC_CTRL0__ATS_MSG_BLOCK_IN_RST__SHIFT                                                          0x19
 #define BIFC_MISC_CTRL0__DMA_2ND_REQ_DIS__SHIFT                                                               0x1a
 #define BIFC_MISC_CTRL0__PORT_DSTATE_BYPASS_MODE__SHIFT                                                       0x1b
-#define BIFC_MISC_CTRL0__PME_TURNOFF_MODE__SHIFT                                                              0x1c
+#define BIFC_MISC_CTRL0__PME_TURANALFF_MODE__SHIFT                                                              0x1c
 #define BIFC_MISC_CTRL0__DMA_ALL_RST_PROTECT_STS_SEL__SHIFT                                                   0x1d
 #define BIFC_MISC_CTRL0__HDP_P2P_DIRECT_ADD_ADJUST__SHIFT                                                     0x1e
 #define BIFC_MISC_CTRL0__PCIESWUS_SELECTION__SHIFT                                                            0x1f
 #define BIFC_MISC_CTRL0__VWIRE_TARG_UNITID_CHECK_EN_MASK                                                      0x00000001L
 #define BIFC_MISC_CTRL0__VWIRE_SRC_UNITID_CHECK_EN_MASK                                                       0x00000006L
-#define BIFC_MISC_CTRL0__DMA_VC4_NON_DVM_STS_MASK                                                             0x000000F0L
+#define BIFC_MISC_CTRL0__DMA_VC4_ANALN_DVM_STS_MASK                                                             0x000000F0L
 #define BIFC_MISC_CTRL0__DMA_CHAIN_BREAK_IN_RCMODE_MASK                                                       0x00000100L
 #define BIFC_MISC_CTRL0__HST_ARB_CHAIN_LOCK_P_MASK                                                            0x00000200L
 #define BIFC_MISC_CTRL0__GSI_RD_SPLIT_STALL_FLUSH_EN_MASK                                                     0x00000800L
@@ -18070,7 +18070,7 @@
 #define BIFC_MISC_CTRL0__ATS_MSG_BLOCK_IN_RST_MASK                                                            0x02000000L
 #define BIFC_MISC_CTRL0__DMA_2ND_REQ_DIS_MASK                                                                 0x04000000L
 #define BIFC_MISC_CTRL0__PORT_DSTATE_BYPASS_MODE_MASK                                                         0x08000000L
-#define BIFC_MISC_CTRL0__PME_TURNOFF_MODE_MASK                                                                0x10000000L
+#define BIFC_MISC_CTRL0__PME_TURANALFF_MODE_MASK                                                                0x10000000L
 #define BIFC_MISC_CTRL0__DMA_ALL_RST_PROTECT_STS_SEL_MASK                                                     0x20000000L
 #define BIFC_MISC_CTRL0__HDP_P2P_DIRECT_ADD_ADJUST_MASK                                                       0x40000000L
 #define BIFC_MISC_CTRL0__PCIESWUS_SELECTION_MASK                                                              0x80000000L
@@ -18101,7 +18101,7 @@
 #define BIFC_MISC_CTRL1__GMI_RDSIZEDDW_REQATTR_MASK__SHIFT                                                    0x19
 #define BIFC_MISC_CTRL1__GMI_WRSIZED_REQATTR_MASK__SHIFT                                                      0x1a
 #define BIFC_MISC_CTRL1__GMI_WRSIZEDFL_REQATTR_MASK__SHIFT                                                    0x1b
-#define BIFC_MISC_CTRL1__GMI_FORCE_NOT_SEND_NON_BASEVC_RSPCREDIT__SHIFT                                       0x1c
+#define BIFC_MISC_CTRL1__GMI_FORCE_ANALT_SEND_ANALN_BASEVC_RSPCREDIT__SHIFT                                       0x1c
 #define BIFC_MISC_CTRL1__GMI_CPLBUF_EN__SHIFT                                                                 0x1d
 #define BIFC_MISC_CTRL1__GMI_MSG_BLOCKLVL_SEL__SHIFT                                                          0x1e
 #define BIFC_MISC_CTRL1__THT_HST_CPLD_POISON_REPORT_MASK                                                      0x00000001L
@@ -18130,7 +18130,7 @@
 #define BIFC_MISC_CTRL1__GMI_RDSIZEDDW_REQATTR_MASK_MASK                                                      0x02000000L
 #define BIFC_MISC_CTRL1__GMI_WRSIZED_REQATTR_MASK_MASK                                                        0x04000000L
 #define BIFC_MISC_CTRL1__GMI_WRSIZEDFL_REQATTR_MASK_MASK                                                      0x08000000L
-#define BIFC_MISC_CTRL1__GMI_FORCE_NOT_SEND_NON_BASEVC_RSPCREDIT_MASK                                         0x10000000L
+#define BIFC_MISC_CTRL1__GMI_FORCE_ANALT_SEND_ANALN_BASEVC_RSPCREDIT_MASK                                         0x10000000L
 #define BIFC_MISC_CTRL1__GMI_CPLBUF_EN_MASK                                                                   0x20000000L
 #define BIFC_MISC_CTRL1__GMI_MSG_BLOCKLVL_SEL_MASK                                                            0xC0000000L
 //BIFC_BME_ERR_LOG_LB
@@ -18164,7 +18164,7 @@
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_RO_OVERIDE_NP_DEV0_F0__SHIFT                                    0x8
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_SNR_OVERIDE_P_DEV0_F0__SHIFT                                    0xa
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_SNR_OVERIDE_NP_DEV0_F0__SHIFT                                   0xc
-#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__BLKLVL_FOR_NONIDO_DEV0_F0__SHIFT                                   0xe
+#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__BLKLVL_FOR_ANALNIDO_DEV0_F0__SHIFT                                   0xe
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_IDO_OVERIDE_P_DEV0_F1__SHIFT                                    0x10
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_IDO_OVERIDE_NP_DEV0_F1__SHIFT                                   0x12
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__BLKLVL_FOR_IDO_DEV0_F1__SHIFT                                      0x14
@@ -18172,7 +18172,7 @@
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_RO_OVERIDE_NP_DEV0_F1__SHIFT                                    0x18
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_SNR_OVERIDE_P_DEV0_F1__SHIFT                                    0x1a
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_SNR_OVERIDE_NP_DEV0_F1__SHIFT                                   0x1c
-#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__BLKLVL_FOR_NONIDO_DEV0_F1__SHIFT                                   0x1e
+#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__BLKLVL_FOR_ANALNIDO_DEV0_F1__SHIFT                                   0x1e
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_IDO_OVERIDE_P_DEV0_F0_MASK                                      0x00000003L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_IDO_OVERIDE_NP_DEV0_F0_MASK                                     0x0000000CL
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__BLKLVL_FOR_IDO_DEV0_F0_MASK                                        0x00000030L
@@ -18180,7 +18180,7 @@
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_RO_OVERIDE_NP_DEV0_F0_MASK                                      0x00000300L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_SNR_OVERIDE_P_DEV0_F0_MASK                                      0x00000C00L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_SNR_OVERIDE_NP_DEV0_F0_MASK                                     0x00003000L
-#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__BLKLVL_FOR_NONIDO_DEV0_F0_MASK                                     0x0000C000L
+#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__BLKLVL_FOR_ANALNIDO_DEV0_F0_MASK                                     0x0000C000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_IDO_OVERIDE_P_DEV0_F1_MASK                                      0x00030000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_IDO_OVERIDE_NP_DEV0_F1_MASK                                     0x000C0000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__BLKLVL_FOR_IDO_DEV0_F1_MASK                                        0x00300000L
@@ -18188,7 +18188,7 @@
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_RO_OVERIDE_NP_DEV0_F1_MASK                                      0x03000000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_SNR_OVERIDE_P_DEV0_F1_MASK                                      0x0C000000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__TX_SNR_OVERIDE_NP_DEV0_F1_MASK                                     0x30000000L
-#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__BLKLVL_FOR_NONIDO_DEV0_F1_MASK                                     0xC0000000L
+#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1__BLKLVL_FOR_ANALNIDO_DEV0_F1_MASK                                     0xC0000000L
 //BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_IDO_OVERIDE_P_DEV0_F2__SHIFT                                    0x0
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_IDO_OVERIDE_NP_DEV0_F2__SHIFT                                   0x2
@@ -18197,7 +18197,7 @@
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_RO_OVERIDE_NP_DEV0_F2__SHIFT                                    0x8
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_SNR_OVERIDE_P_DEV0_F2__SHIFT                                    0xa
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_SNR_OVERIDE_NP_DEV0_F2__SHIFT                                   0xc
-#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__BLKLVL_FOR_NONIDO_DEV0_F2__SHIFT                                   0xe
+#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__BLKLVL_FOR_ANALNIDO_DEV0_F2__SHIFT                                   0xe
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_IDO_OVERIDE_P_DEV0_F3__SHIFT                                    0x10
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_IDO_OVERIDE_NP_DEV0_F3__SHIFT                                   0x12
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__BLKLVL_FOR_IDO_DEV0_F3__SHIFT                                      0x14
@@ -18205,7 +18205,7 @@
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_RO_OVERIDE_NP_DEV0_F3__SHIFT                                    0x18
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_SNR_OVERIDE_P_DEV0_F3__SHIFT                                    0x1a
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_SNR_OVERIDE_NP_DEV0_F3__SHIFT                                   0x1c
-#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__BLKLVL_FOR_NONIDO_DEV0_F3__SHIFT                                   0x1e
+#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__BLKLVL_FOR_ANALNIDO_DEV0_F3__SHIFT                                   0x1e
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_IDO_OVERIDE_P_DEV0_F2_MASK                                      0x00000003L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_IDO_OVERIDE_NP_DEV0_F2_MASK                                     0x0000000CL
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__BLKLVL_FOR_IDO_DEV0_F2_MASK                                        0x00000030L
@@ -18213,7 +18213,7 @@
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_RO_OVERIDE_NP_DEV0_F2_MASK                                      0x00000300L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_SNR_OVERIDE_P_DEV0_F2_MASK                                      0x00000C00L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_SNR_OVERIDE_NP_DEV0_F2_MASK                                     0x00003000L
-#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__BLKLVL_FOR_NONIDO_DEV0_F2_MASK                                     0x0000C000L
+#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__BLKLVL_FOR_ANALNIDO_DEV0_F2_MASK                                     0x0000C000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_IDO_OVERIDE_P_DEV0_F3_MASK                                      0x00030000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_IDO_OVERIDE_NP_DEV0_F3_MASK                                     0x000C0000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__BLKLVL_FOR_IDO_DEV0_F3_MASK                                        0x00300000L
@@ -18221,7 +18221,7 @@
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_RO_OVERIDE_NP_DEV0_F3_MASK                                      0x03000000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_SNR_OVERIDE_P_DEV0_F3_MASK                                      0x0C000000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__TX_SNR_OVERIDE_NP_DEV0_F3_MASK                                     0x30000000L
-#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__BLKLVL_FOR_NONIDO_DEV0_F3_MASK                                     0xC0000000L
+#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3__BLKLVL_FOR_ANALNIDO_DEV0_F3_MASK                                     0xC0000000L
 //BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_IDO_OVERIDE_P_DEV0_F4__SHIFT                                    0x0
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_IDO_OVERIDE_NP_DEV0_F4__SHIFT                                   0x2
@@ -18230,7 +18230,7 @@
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_RO_OVERIDE_NP_DEV0_F4__SHIFT                                    0x8
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_SNR_OVERIDE_P_DEV0_F4__SHIFT                                    0xa
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_SNR_OVERIDE_NP_DEV0_F4__SHIFT                                   0xc
-#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__BLKLVL_FOR_NONIDO_DEV0_F4__SHIFT                                   0xe
+#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__BLKLVL_FOR_ANALNIDO_DEV0_F4__SHIFT                                   0xe
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_IDO_OVERIDE_P_DEV0_F5__SHIFT                                    0x10
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_IDO_OVERIDE_NP_DEV0_F5__SHIFT                                   0x12
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__BLKLVL_FOR_IDO_DEV0_F5__SHIFT                                      0x14
@@ -18238,7 +18238,7 @@
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_RO_OVERIDE_NP_DEV0_F5__SHIFT                                    0x18
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_SNR_OVERIDE_P_DEV0_F5__SHIFT                                    0x1a
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_SNR_OVERIDE_NP_DEV0_F5__SHIFT                                   0x1c
-#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__BLKLVL_FOR_NONIDO_DEV0_F5__SHIFT                                   0x1e
+#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__BLKLVL_FOR_ANALNIDO_DEV0_F5__SHIFT                                   0x1e
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_IDO_OVERIDE_P_DEV0_F4_MASK                                      0x00000003L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_IDO_OVERIDE_NP_DEV0_F4_MASK                                     0x0000000CL
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__BLKLVL_FOR_IDO_DEV0_F4_MASK                                        0x00000030L
@@ -18246,7 +18246,7 @@
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_RO_OVERIDE_NP_DEV0_F4_MASK                                      0x00000300L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_SNR_OVERIDE_P_DEV0_F4_MASK                                      0x00000C00L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_SNR_OVERIDE_NP_DEV0_F4_MASK                                     0x00003000L
-#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__BLKLVL_FOR_NONIDO_DEV0_F4_MASK                                     0x0000C000L
+#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__BLKLVL_FOR_ANALNIDO_DEV0_F4_MASK                                     0x0000C000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_IDO_OVERIDE_P_DEV0_F5_MASK                                      0x00030000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_IDO_OVERIDE_NP_DEV0_F5_MASK                                     0x000C0000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__BLKLVL_FOR_IDO_DEV0_F5_MASK                                        0x00300000L
@@ -18254,7 +18254,7 @@
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_RO_OVERIDE_NP_DEV0_F5_MASK                                      0x03000000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_SNR_OVERIDE_P_DEV0_F5_MASK                                      0x0C000000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__TX_SNR_OVERIDE_NP_DEV0_F5_MASK                                     0x30000000L
-#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__BLKLVL_FOR_NONIDO_DEV0_F5_MASK                                     0xC0000000L
+#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5__BLKLVL_FOR_ANALNIDO_DEV0_F5_MASK                                     0xC0000000L
 //BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_IDO_OVERIDE_P_DEV0_F6__SHIFT                                    0x0
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_IDO_OVERIDE_NP_DEV0_F6__SHIFT                                   0x2
@@ -18263,7 +18263,7 @@
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_RO_OVERIDE_NP_DEV0_F6__SHIFT                                    0x8
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_SNR_OVERIDE_P_DEV0_F6__SHIFT                                    0xa
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_SNR_OVERIDE_NP_DEV0_F6__SHIFT                                   0xc
-#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__BLKLVL_FOR_NONIDO_DEV0_F6__SHIFT                                   0xe
+#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__BLKLVL_FOR_ANALNIDO_DEV0_F6__SHIFT                                   0xe
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_IDO_OVERIDE_P_DEV0_F7__SHIFT                                    0x10
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_IDO_OVERIDE_NP_DEV0_F7__SHIFT                                   0x12
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__BLKLVL_FOR_IDO_DEV0_F7__SHIFT                                      0x14
@@ -18271,7 +18271,7 @@
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_RO_OVERIDE_NP_DEV0_F7__SHIFT                                    0x18
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_SNR_OVERIDE_P_DEV0_F7__SHIFT                                    0x1a
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_SNR_OVERIDE_NP_DEV0_F7__SHIFT                                   0x1c
-#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__BLKLVL_FOR_NONIDO_DEV0_F7__SHIFT                                   0x1e
+#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__BLKLVL_FOR_ANALNIDO_DEV0_F7__SHIFT                                   0x1e
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_IDO_OVERIDE_P_DEV0_F6_MASK                                      0x00000003L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_IDO_OVERIDE_NP_DEV0_F6_MASK                                     0x0000000CL
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__BLKLVL_FOR_IDO_DEV0_F6_MASK                                        0x00000030L
@@ -18279,7 +18279,7 @@
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_RO_OVERIDE_NP_DEV0_F6_MASK                                      0x00000300L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_SNR_OVERIDE_P_DEV0_F6_MASK                                      0x00000C00L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_SNR_OVERIDE_NP_DEV0_F6_MASK                                     0x00003000L
-#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__BLKLVL_FOR_NONIDO_DEV0_F6_MASK                                     0x0000C000L
+#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__BLKLVL_FOR_ANALNIDO_DEV0_F6_MASK                                     0x0000C000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_IDO_OVERIDE_P_DEV0_F7_MASK                                      0x00030000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_IDO_OVERIDE_NP_DEV0_F7_MASK                                     0x000C0000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__BLKLVL_FOR_IDO_DEV0_F7_MASK                                        0x00300000L
@@ -18287,7 +18287,7 @@
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_RO_OVERIDE_NP_DEV0_F7_MASK                                      0x03000000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_SNR_OVERIDE_P_DEV0_F7_MASK                                      0x0C000000L
 #define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__TX_SNR_OVERIDE_NP_DEV0_F7_MASK                                     0x30000000L
-#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__BLKLVL_FOR_NONIDO_DEV0_F7_MASK                                     0xC0000000L
+#define BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7__BLKLVL_FOR_ANALNIDO_DEV0_F7_MASK                                     0xC0000000L
 //BIFC_DMA_ATTR_CNTL2_DEV0
 #define BIFC_DMA_ATTR_CNTL2_DEV0__BLKLVL_BYPASS_PCIE_IDO_CONTROL_DEV0_F0__SHIFT                               0x0
 #define BIFC_DMA_ATTR_CNTL2_DEV0__BLKLVL_BYPASS_PCIE_IDO_CONTROL_DEV0_F1__SHIFT                               0x4
@@ -18378,8 +18378,8 @@
 #define BIFC_GSI_CNTL__HDP_FB_UPLIMIT_COUNT_HDPRD_MASK                                                        0x40000000L
 #define BIFC_GSI_CNTL__HDP_FB_UPLIMIT_COUNT_ALL_MASK                                                          0x80000000L
 //BIFC_PCIEFUNC_CNTL
-#define BIFC_PCIEFUNC_CNTL__DMA_NON_PCIEFUNC_BUSDEVFUNC__SHIFT                                                0x0
-#define BIFC_PCIEFUNC_CNTL__DMA_NON_PCIEFUNC_BUSDEVFUNC_MASK                                                  0x0000FFFFL
+#define BIFC_PCIEFUNC_CNTL__DMA_ANALN_PCIEFUNC_BUSDEVFUNC__SHIFT                                                0x0
+#define BIFC_PCIEFUNC_CNTL__DMA_ANALN_PCIEFUNC_BUSDEVFUNC_MASK                                                  0x0000FFFFL
 //BIFC_PASID_CHECK_DIS
 #define BIFC_PASID_CHECK_DIS__PASID_CHECK_DIS_DEV0_F0__SHIFT                                                  0x0
 #define BIFC_PASID_CHECK_DIS__PASID_CHECK_DIS_DEV0_F1__SHIFT                                                  0x1
@@ -18399,18 +18399,18 @@
 #define BIFC_SDP_CNTL_1__GSI_SDP_DISCON_DIS__SHIFT                                                            0x1
 #define BIFC_SDP_CNTL_1__GMI_DNS_SDP_DISCON_DIS__SHIFT                                                        0x2
 #define BIFC_SDP_CNTL_1__GMI_UPS_SDP_DISCON_DIS__SHIFT                                                        0x3
-#define BIFC_SDP_CNTL_1__HRP_SDP_DISCON_VLINK_NONL0_ONLY__SHIFT                                               0x4
+#define BIFC_SDP_CNTL_1__HRP_SDP_DISCON_VLINK_ANALNL0_ONLY__SHIFT                                               0x4
 #define BIFC_SDP_CNTL_1__NP_KEEP_GOING_STALL_P__SHIFT                                                         0x5
-#define BIFC_SDP_CNTL_1__GMI_UPS_SDP_DISCON_VLINK_NONL0_ONLY__SHIFT                                           0x7
+#define BIFC_SDP_CNTL_1__GMI_UPS_SDP_DISCON_VLINK_ANALNL0_ONLY__SHIFT                                           0x7
 #define BIFC_SDP_CNTL_1__ATOMIC_STALL_BY_RDWR_EN__SHIFT                                                       0x8
 #define BIFC_SDP_CNTL_1__POOL_CREDIT_ALLOC_OVERRIDE_DYNAMIC__SHIFT                                            0x9
 #define BIFC_SDP_CNTL_1__HRP_SDP_DISCON_DIS_MASK                                                              0x00000001L
 #define BIFC_SDP_CNTL_1__GSI_SDP_DISCON_DIS_MASK                                                              0x00000002L
 #define BIFC_SDP_CNTL_1__GMI_DNS_SDP_DISCON_DIS_MASK                                                          0x00000004L
 #define BIFC_SDP_CNTL_1__GMI_UPS_SDP_DISCON_DIS_MASK                                                          0x00000008L
-#define BIFC_SDP_CNTL_1__HRP_SDP_DISCON_VLINK_NONL0_ONLY_MASK                                                 0x00000010L
+#define BIFC_SDP_CNTL_1__HRP_SDP_DISCON_VLINK_ANALNL0_ONLY_MASK                                                 0x00000010L
 #define BIFC_SDP_CNTL_1__NP_KEEP_GOING_STALL_P_MASK                                                           0x00000020L
-#define BIFC_SDP_CNTL_1__GMI_UPS_SDP_DISCON_VLINK_NONL0_ONLY_MASK                                             0x00000080L
+#define BIFC_SDP_CNTL_1__GMI_UPS_SDP_DISCON_VLINK_ANALNL0_ONLY_MASK                                             0x00000080L
 #define BIFC_SDP_CNTL_1__ATOMIC_STALL_BY_RDWR_EN_MASK                                                         0x00000100L
 #define BIFC_SDP_CNTL_1__POOL_CREDIT_ALLOC_OVERRIDE_DYNAMIC_MASK                                              0x00000200L
 //BIFC_PASID_STS
@@ -18466,8 +18466,8 @@
 #define BIFC_PERF_CNT_DMA_WR_L32BIT__PERF_CNT_DMA_WR_VALUE_L32BIT__SHIFT                                      0x0
 #define BIFC_PERF_CNT_DMA_WR_L32BIT__PERF_CNT_DMA_WR_VALUE_L32BIT_MASK                                        0xFFFFFFFFL
 //NBIF_REGIF_ERRSET_CTRL
-#define NBIF_REGIF_ERRSET_CTRL__DROP_NONPF_MMREGREQ_SETERR_DIS__SHIFT                                         0x0
-#define NBIF_REGIF_ERRSET_CTRL__DROP_NONPF_MMREGREQ_SETERR_DIS_MASK                                           0x00000001L
+#define NBIF_REGIF_ERRSET_CTRL__DROP_ANALNPF_MMREGREQ_SETERR_DIS__SHIFT                                         0x0
+#define NBIF_REGIF_ERRSET_CTRL__DROP_ANALNPF_MMREGREQ_SETERR_DIS_MASK                                           0x00000001L
 //BIFC_SDP_CNTL_2
 #define BIFC_SDP_CNTL_2__SDP_SION_DISCON_HYSTERESIS__SHIFT                                                    0x0
 #define BIFC_SDP_CNTL_2__SDP_SION_DISCON_HYSTERESIS_H__SHIFT                                                  0x8
@@ -18583,16 +18583,16 @@
 #define NBIF_INTX_DSTATE_MISC_CNTL__DEASRT_INTX_DSTATE_CHK_DIS_EP__SHIFT                                      0x0
 #define NBIF_INTX_DSTATE_MISC_CNTL__DEASRT_INTX_DSTATE_CHK_DIS_DN__SHIFT                                      0x1
 #define NBIF_INTX_DSTATE_MISC_CNTL__DEASRT_INTX_DSTATE_CHK_DIS_SWUS__SHIFT                                    0x2
-#define NBIF_INTX_DSTATE_MISC_CNTL__DEASRT_INTX_IN_NOND0_EN_EP__SHIFT                                         0x3
-#define NBIF_INTX_DSTATE_MISC_CNTL__DEASRT_INTX_IN_NOND0_EN_DN__SHIFT                                         0x4
+#define NBIF_INTX_DSTATE_MISC_CNTL__DEASRT_INTX_IN_ANALND0_EN_EP__SHIFT                                         0x3
+#define NBIF_INTX_DSTATE_MISC_CNTL__DEASRT_INTX_IN_ANALND0_EN_DN__SHIFT                                         0x4
 #define NBIF_INTX_DSTATE_MISC_CNTL__PMI_INT_DIS_EP__SHIFT                                                     0x5
 #define NBIF_INTX_DSTATE_MISC_CNTL__PMI_INT_DIS_DN__SHIFT                                                     0x6
 #define NBIF_INTX_DSTATE_MISC_CNTL__PMI_INT_DIS_SWUS__SHIFT                                                   0x7
 #define NBIF_INTX_DSTATE_MISC_CNTL__DEASRT_INTX_DSTATE_CHK_DIS_EP_MASK                                        0x00000001L
 #define NBIF_INTX_DSTATE_MISC_CNTL__DEASRT_INTX_DSTATE_CHK_DIS_DN_MASK                                        0x00000002L
 #define NBIF_INTX_DSTATE_MISC_CNTL__DEASRT_INTX_DSTATE_CHK_DIS_SWUS_MASK                                      0x00000004L
-#define NBIF_INTX_DSTATE_MISC_CNTL__DEASRT_INTX_IN_NOND0_EN_EP_MASK                                           0x00000008L
-#define NBIF_INTX_DSTATE_MISC_CNTL__DEASRT_INTX_IN_NOND0_EN_DN_MASK                                           0x00000010L
+#define NBIF_INTX_DSTATE_MISC_CNTL__DEASRT_INTX_IN_ANALND0_EN_EP_MASK                                           0x00000008L
+#define NBIF_INTX_DSTATE_MISC_CNTL__DEASRT_INTX_IN_ANALND0_EN_DN_MASK                                           0x00000010L
 #define NBIF_INTX_DSTATE_MISC_CNTL__PMI_INT_DIS_EP_MASK                                                       0x00000020L
 #define NBIF_INTX_DSTATE_MISC_CNTL__PMI_INT_DIS_DN_MASK                                                       0x00000040L
 #define NBIF_INTX_DSTATE_MISC_CNTL__PMI_INT_DIS_SWUS_MASK                                                     0x00000080L
@@ -18664,13 +18664,13 @@
 #define BIF_ATOMIC_ERR_LOG_DEV0_F1__CLEAR_UR_ATOMIC_LENGTH_DEV0_F1_MASK                                       0x00040000L
 #define BIF_ATOMIC_ERR_LOG_DEV0_F1__CLEAR_UR_ATOMIC_NR_DEV0_F1_MASK                                           0x00080000L
 //BIF_DMA_MP4_ERR_LOG
-#define BIF_DMA_MP4_ERR_LOG__MP4SDP_VC4_NON_DVM_ERR__SHIFT                                                    0x0
+#define BIF_DMA_MP4_ERR_LOG__MP4SDP_VC4_ANALN_DVM_ERR__SHIFT                                                    0x0
 #define BIF_DMA_MP4_ERR_LOG__MP4SDP_ATOMIC_REQEN_LOW_ERR__SHIFT                                               0x1
-#define BIF_DMA_MP4_ERR_LOG__CLEAR_MP4SDP_VC4_NON_DVM_ERR__SHIFT                                              0x10
+#define BIF_DMA_MP4_ERR_LOG__CLEAR_MP4SDP_VC4_ANALN_DVM_ERR__SHIFT                                              0x10
 #define BIF_DMA_MP4_ERR_LOG__CLEAR_MP4SDP_ATOMIC_REQEN_LOW_ERR__SHIFT                                         0x11
-#define BIF_DMA_MP4_ERR_LOG__MP4SDP_VC4_NON_DVM_ERR_MASK                                                      0x00000001L
+#define BIF_DMA_MP4_ERR_LOG__MP4SDP_VC4_ANALN_DVM_ERR_MASK                                                      0x00000001L
 #define BIF_DMA_MP4_ERR_LOG__MP4SDP_ATOMIC_REQEN_LOW_ERR_MASK                                                 0x00000002L
-#define BIF_DMA_MP4_ERR_LOG__CLEAR_MP4SDP_VC4_NON_DVM_ERR_MASK                                                0x00010000L
+#define BIF_DMA_MP4_ERR_LOG__CLEAR_MP4SDP_VC4_ANALN_DVM_ERR_MASK                                                0x00010000L
 #define BIF_DMA_MP4_ERR_LOG__CLEAR_MP4SDP_ATOMIC_REQEN_LOW_ERR_MASK                                           0x00020000L
 //BIF_PASID_ERR_LOG
 #define BIF_PASID_ERR_LOG__PASID_ERR_DEV0_F0__SHIFT                                                           0x0
@@ -19033,7 +19033,7 @@
 #define BIFC_A2S_CNTL_SW0__STATIC_VC_VALUE__SHIFT                                                             0x6
 #define BIFC_A2S_CNTL_SW0__SDP_WR_CHAIN_DIS__SHIFT                                                            0x9
 #define BIFC_A2S_CNTL_SW0__WR_TAG_FOR_CHAIN_ENABLE__SHIFT                                                     0xa
-#define BIFC_A2S_CNTL_SW0__WR_TAG_FOR_NONCHAIN_ENABLE__SHIFT                                                  0xb
+#define BIFC_A2S_CNTL_SW0__WR_TAG_FOR_ANALNCHAIN_ENABLE__SHIFT                                                  0xb
 #define BIFC_A2S_CNTL_SW0__SDP_DYNAMIC_VC_WR_CHAIN_DIS__SHIFT                                                 0xc
 #define BIFC_A2S_CNTL_SW0__WRR_RD_WEIGHT__SHIFT                                                               0x10
 #define BIFC_A2S_CNTL_SW0__WRR_WR_WEIGHT__SHIFT                                                               0x18
@@ -19043,7 +19043,7 @@
 #define BIFC_A2S_CNTL_SW0__STATIC_VC_VALUE_MASK                                                               0x000001C0L
 #define BIFC_A2S_CNTL_SW0__SDP_WR_CHAIN_DIS_MASK                                                              0x00000200L
 #define BIFC_A2S_CNTL_SW0__WR_TAG_FOR_CHAIN_ENABLE_MASK                                                       0x00000400L
-#define BIFC_A2S_CNTL_SW0__WR_TAG_FOR_NONCHAIN_ENABLE_MASK                                                    0x00000800L
+#define BIFC_A2S_CNTL_SW0__WR_TAG_FOR_ANALNCHAIN_ENABLE_MASK                                                    0x00000800L
 #define BIFC_A2S_CNTL_SW0__SDP_DYNAMIC_VC_WR_CHAIN_DIS_MASK                                                   0x00001000L
 #define BIFC_A2S_CNTL_SW0__WRR_RD_WEIGHT_MASK                                                                 0x00FF0000L
 #define BIFC_A2S_CNTL_SW0__WRR_WR_WEIGHT_MASK                                                                 0xFF000000L
@@ -19095,7 +19095,7 @@
 #define BIFC_A2S_TAG_ALLOC_1__TAG_ALLOC_FOR_VC7_WR_MASK                                                       0x00FF0000L
 #define BIFC_A2S_TAG_ALLOC_1__TAG_ALLOC_FOR_VC7_RD_MASK                                                       0xFF000000L
 //BIFC_A2S_CNTL_CL0
-#define BIFC_A2S_CNTL_CL0__NSNOOP_MAP__SHIFT                                                                  0x0
+#define BIFC_A2S_CNTL_CL0__NSANALOP_MAP__SHIFT                                                                  0x0
 #define BIFC_A2S_CNTL_CL0__REQPASSPW_VC0_MAP__SHIFT                                                           0x2
 #define BIFC_A2S_CNTL_CL0__REQPASSPW_NVC0_MAP__SHIFT                                                          0x4
 #define BIFC_A2S_CNTL_CL0__REQRSPPASSPW_VC0_MAP__SHIFT                                                        0x6
@@ -19106,7 +19106,7 @@
 #define BIFC_A2S_CNTL_CL0__EXOKAY_RD_MAP__SHIFT                                                               0x10
 #define BIFC_A2S_CNTL_CL0__RESP_WR_MAP__SHIFT                                                                 0x12
 #define BIFC_A2S_CNTL_CL0__RESP_RD_MAP__SHIFT                                                                 0x14
-#define BIFC_A2S_CNTL_CL0__NSNOOP_MAP_MASK                                                                    0x00000003L
+#define BIFC_A2S_CNTL_CL0__NSANALOP_MAP_MASK                                                                    0x00000003L
 #define BIFC_A2S_CNTL_CL0__REQPASSPW_VC0_MAP_MASK                                                             0x0000000CL
 #define BIFC_A2S_CNTL_CL0__REQPASSPW_NVC0_MAP_MASK                                                            0x00000030L
 #define BIFC_A2S_CNTL_CL0__REQRSPPASSPW_VC0_MAP_MASK                                                          0x000000C0L
@@ -19129,10 +19129,10 @@
 //RCC_DWN_DEV0_2_DN_PCIE_CNTL
 #define RCC_DWN_DEV0_2_DN_PCIE_CNTL__HWINIT_WR_LOCK__SHIFT                                                    0x0
 #define RCC_DWN_DEV0_2_DN_PCIE_CNTL__UR_ERR_REPORT_DIS_DN__SHIFT                                              0x7
-#define RCC_DWN_DEV0_2_DN_PCIE_CNTL__RX_IGNORE_LTR_MSG_UR__SHIFT                                              0x1e
+#define RCC_DWN_DEV0_2_DN_PCIE_CNTL__RX_IGANALRE_LTR_MSG_UR__SHIFT                                              0x1e
 #define RCC_DWN_DEV0_2_DN_PCIE_CNTL__HWINIT_WR_LOCK_MASK                                                      0x00000001L
 #define RCC_DWN_DEV0_2_DN_PCIE_CNTL__UR_ERR_REPORT_DIS_DN_MASK                                                0x00000080L
-#define RCC_DWN_DEV0_2_DN_PCIE_CNTL__RX_IGNORE_LTR_MSG_UR_MASK                                                0x40000000L
+#define RCC_DWN_DEV0_2_DN_PCIE_CNTL__RX_IGANALRE_LTR_MSG_UR_MASK                                                0x40000000L
 //RCC_DWN_DEV0_2_DN_PCIE_CONFIG_CNTL
 #define RCC_DWN_DEV0_2_DN_PCIE_CONFIG_CNTL__CI_EXTENDED_TAG_EN_OVERRIDE__SHIFT                                0x19
 #define RCC_DWN_DEV0_2_DN_PCIE_CONFIG_CNTL__CI_EXTENDED_TAG_EN_OVERRIDE_MASK                                  0x06000000L
@@ -19179,25 +19179,25 @@
 #define RCC_DWNP_DEV0_2_PCIE_ERR_CNTL__AER_HDR_LOG_F0_TIMER_EXPIRED__SHIFT                                    0xb
 #define RCC_DWNP_DEV0_2_PCIE_ERR_CNTL__SEND_ERR_MSG_IMMEDIATELY__SHIFT                                        0x11
 #define RCC_DWNP_DEV0_2_PCIE_ERR_CNTL__ERR_CORR_RCVD_CLR__SHIFT                                               0x12
-#define RCC_DWNP_DEV0_2_PCIE_ERR_CNTL__NONFATAL_ERR_RCVD_CLR__SHIFT                                           0x13
+#define RCC_DWNP_DEV0_2_PCIE_ERR_CNTL__ANALNFATAL_ERR_RCVD_CLR__SHIFT                                           0x13
 #define RCC_DWNP_DEV0_2_PCIE_ERR_CNTL__FATAL_ERR_RCVD_CLR__SHIFT                                              0x14
 #define RCC_DWNP_DEV0_2_PCIE_ERR_CNTL__ERR_REPORTING_DIS_MASK                                                 0x00000001L
 #define RCC_DWNP_DEV0_2_PCIE_ERR_CNTL__AER_HDR_LOG_TIMEOUT_MASK                                               0x00000700L
 #define RCC_DWNP_DEV0_2_PCIE_ERR_CNTL__AER_HDR_LOG_F0_TIMER_EXPIRED_MASK                                      0x00000800L
 #define RCC_DWNP_DEV0_2_PCIE_ERR_CNTL__SEND_ERR_MSG_IMMEDIATELY_MASK                                          0x00020000L
 #define RCC_DWNP_DEV0_2_PCIE_ERR_CNTL__ERR_CORR_RCVD_CLR_MASK                                                 0x00040000L
-#define RCC_DWNP_DEV0_2_PCIE_ERR_CNTL__NONFATAL_ERR_RCVD_CLR_MASK                                             0x00080000L
+#define RCC_DWNP_DEV0_2_PCIE_ERR_CNTL__ANALNFATAL_ERR_RCVD_CLR_MASK                                             0x00080000L
 #define RCC_DWNP_DEV0_2_PCIE_ERR_CNTL__FATAL_ERR_RCVD_CLR_MASK                                                0x00100000L
 //RCC_DWNP_DEV0_2_PCIE_RX_CNTL
-#define RCC_DWNP_DEV0_2_PCIE_RX_CNTL__RX_IGNORE_MAX_PAYLOAD_ERR__SHIFT                                        0x8
-#define RCC_DWNP_DEV0_2_PCIE_RX_CNTL__RX_IGNORE_TC_ERR_DN__SHIFT                                              0x9
+#define RCC_DWNP_DEV0_2_PCIE_RX_CNTL__RX_IGANALRE_MAX_PAYLOAD_ERR__SHIFT                                        0x8
+#define RCC_DWNP_DEV0_2_PCIE_RX_CNTL__RX_IGANALRE_TC_ERR_DN__SHIFT                                              0x9
 #define RCC_DWNP_DEV0_2_PCIE_RX_CNTL__RX_PCIE_CPL_TIMEOUT_DIS__SHIFT                                          0x14
-#define RCC_DWNP_DEV0_2_PCIE_RX_CNTL__RX_IGNORE_SHORTPREFIX_ERR_DN__SHIFT                                     0x15
+#define RCC_DWNP_DEV0_2_PCIE_RX_CNTL__RX_IGANALRE_SHORTPREFIX_ERR_DN__SHIFT                                     0x15
 #define RCC_DWNP_DEV0_2_PCIE_RX_CNTL__RX_RCB_FLR_TIMEOUT_DIS__SHIFT                                           0x1b
-#define RCC_DWNP_DEV0_2_PCIE_RX_CNTL__RX_IGNORE_MAX_PAYLOAD_ERR_MASK                                          0x00000100L
-#define RCC_DWNP_DEV0_2_PCIE_RX_CNTL__RX_IGNORE_TC_ERR_DN_MASK                                                0x00000200L
+#define RCC_DWNP_DEV0_2_PCIE_RX_CNTL__RX_IGANALRE_MAX_PAYLOAD_ERR_MASK                                          0x00000100L
+#define RCC_DWNP_DEV0_2_PCIE_RX_CNTL__RX_IGANALRE_TC_ERR_DN_MASK                                                0x00000200L
 #define RCC_DWNP_DEV0_2_PCIE_RX_CNTL__RX_PCIE_CPL_TIMEOUT_DIS_MASK                                            0x00100000L
-#define RCC_DWNP_DEV0_2_PCIE_RX_CNTL__RX_IGNORE_SHORTPREFIX_ERR_DN_MASK                                       0x00200000L
+#define RCC_DWNP_DEV0_2_PCIE_RX_CNTL__RX_IGANALRE_SHORTPREFIX_ERR_DN_MASK                                       0x00200000L
 #define RCC_DWNP_DEV0_2_PCIE_RX_CNTL__RX_RCB_FLR_TIMEOUT_DIS_MASK                                             0x08000000L
 //RCC_DWNP_DEV0_2_PCIE_LC_SPEED_CNTL
 #define RCC_DWNP_DEV0_2_PCIE_LC_SPEED_CNTL__LC_GEN2_EN_STRAP__SHIFT                                           0x0
@@ -19209,10 +19209,10 @@
 #define RCC_DWNP_DEV0_2_PCIE_LC_SPEED_CNTL__LC_GEN4_EN_STRAP_MASK                                             0x00000004L
 #define RCC_DWNP_DEV0_2_PCIE_LC_SPEED_CNTL__LC_GEN5_EN_STRAP_MASK                                             0x00000008L
 //RCC_DWNP_DEV0_2_PCIE_LC_CNTL2
-#define RCC_DWNP_DEV0_2_PCIE_LC_CNTL2__DL_STATE_CHANGED_NOTIFICATION_DIS__SHIFT                               0x0
-#define RCC_DWNP_DEV0_2_PCIE_LC_CNTL2__LC_LINK_BW_NOTIFICATION_DIS__SHIFT                                     0x1b
-#define RCC_DWNP_DEV0_2_PCIE_LC_CNTL2__DL_STATE_CHANGED_NOTIFICATION_DIS_MASK                                 0x00000001L
-#define RCC_DWNP_DEV0_2_PCIE_LC_CNTL2__LC_LINK_BW_NOTIFICATION_DIS_MASK                                       0x08000000L
+#define RCC_DWNP_DEV0_2_PCIE_LC_CNTL2__DL_STATE_CHANGED_ANALTIFICATION_DIS__SHIFT                               0x0
+#define RCC_DWNP_DEV0_2_PCIE_LC_CNTL2__LC_LINK_BW_ANALTIFICATION_DIS__SHIFT                                     0x1b
+#define RCC_DWNP_DEV0_2_PCIE_LC_CNTL2__DL_STATE_CHANGED_ANALTIFICATION_DIS_MASK                                 0x00000001L
+#define RCC_DWNP_DEV0_2_PCIE_LC_CNTL2__LC_LINK_BW_ANALTIFICATION_DIS_MASK                                       0x08000000L
 //RCC_DWNP_DEV0_2_PCIEP_STRAP_MISC
 #define RCC_DWNP_DEV0_2_PCIEP_STRAP_MISC__STRAP_MULTI_FUNC_EN__SHIFT                                          0xa
 #define RCC_DWNP_DEV0_2_PCIEP_STRAP_MISC__STRAP_MULTI_FUNC_EN_MASK                                            0x00000400L
@@ -19228,41 +19228,41 @@
 //RCC_EP_DEV0_2_EP_PCIE_CNTL
 #define RCC_EP_DEV0_2_EP_PCIE_CNTL__UR_ERR_REPORT_DIS__SHIFT                                                  0x7
 #define RCC_EP_DEV0_2_EP_PCIE_CNTL__PCIE_MALFORM_ATOMIC_OPS__SHIFT                                            0x8
-#define RCC_EP_DEV0_2_EP_PCIE_CNTL__RX_IGNORE_LTR_MSG_UR__SHIFT                                               0x1e
+#define RCC_EP_DEV0_2_EP_PCIE_CNTL__RX_IGANALRE_LTR_MSG_UR__SHIFT                                               0x1e
 #define RCC_EP_DEV0_2_EP_PCIE_CNTL__UR_ERR_REPORT_DIS_MASK                                                    0x00000080L
 #define RCC_EP_DEV0_2_EP_PCIE_CNTL__PCIE_MALFORM_ATOMIC_OPS_MASK                                              0x00000100L
-#define RCC_EP_DEV0_2_EP_PCIE_CNTL__RX_IGNORE_LTR_MSG_UR_MASK                                                 0x40000000L
+#define RCC_EP_DEV0_2_EP_PCIE_CNTL__RX_IGANALRE_LTR_MSG_UR_MASK                                                 0x40000000L
 //RCC_EP_DEV0_2_EP_PCIE_INT_CNTL
 #define RCC_EP_DEV0_2_EP_PCIE_INT_CNTL__CORR_ERR_INT_EN__SHIFT                                                0x0
-#define RCC_EP_DEV0_2_EP_PCIE_INT_CNTL__NON_FATAL_ERR_INT_EN__SHIFT                                           0x1
+#define RCC_EP_DEV0_2_EP_PCIE_INT_CNTL__ANALN_FATAL_ERR_INT_EN__SHIFT                                           0x1
 #define RCC_EP_DEV0_2_EP_PCIE_INT_CNTL__FATAL_ERR_INT_EN__SHIFT                                               0x2
 #define RCC_EP_DEV0_2_EP_PCIE_INT_CNTL__USR_DETECTED_INT_EN__SHIFT                                            0x3
 #define RCC_EP_DEV0_2_EP_PCIE_INT_CNTL__MISC_ERR_INT_EN__SHIFT                                                0x4
 #define RCC_EP_DEV0_2_EP_PCIE_INT_CNTL__POWER_STATE_CHG_INT_EN__SHIFT                                         0x6
 #define RCC_EP_DEV0_2_EP_PCIE_INT_CNTL__CORR_ERR_INT_EN_MASK                                                  0x00000001L
-#define RCC_EP_DEV0_2_EP_PCIE_INT_CNTL__NON_FATAL_ERR_INT_EN_MASK                                             0x00000002L
+#define RCC_EP_DEV0_2_EP_PCIE_INT_CNTL__ANALN_FATAL_ERR_INT_EN_MASK                                             0x00000002L
 #define RCC_EP_DEV0_2_EP_PCIE_INT_CNTL__FATAL_ERR_INT_EN_MASK                                                 0x00000004L
 #define RCC_EP_DEV0_2_EP_PCIE_INT_CNTL__USR_DETECTED_INT_EN_MASK                                              0x00000008L
 #define RCC_EP_DEV0_2_EP_PCIE_INT_CNTL__MISC_ERR_INT_EN_MASK                                                  0x00000010L
 #define RCC_EP_DEV0_2_EP_PCIE_INT_CNTL__POWER_STATE_CHG_INT_EN_MASK                                           0x00000040L
 //RCC_EP_DEV0_2_EP_PCIE_INT_STATUS
 #define RCC_EP_DEV0_2_EP_PCIE_INT_STATUS__CORR_ERR_INT_STATUS__SHIFT                                          0x0
-#define RCC_EP_DEV0_2_EP_PCIE_INT_STATUS__NON_FATAL_ERR_INT_STATUS__SHIFT                                     0x1
+#define RCC_EP_DEV0_2_EP_PCIE_INT_STATUS__ANALN_FATAL_ERR_INT_STATUS__SHIFT                                     0x1
 #define RCC_EP_DEV0_2_EP_PCIE_INT_STATUS__FATAL_ERR_INT_STATUS__SHIFT                                         0x2
 #define RCC_EP_DEV0_2_EP_PCIE_INT_STATUS__USR_DETECTED_INT_STATUS__SHIFT                                      0x3
 #define RCC_EP_DEV0_2_EP_PCIE_INT_STATUS__MISC_ERR_INT_STATUS__SHIFT                                          0x4
 #define RCC_EP_DEV0_2_EP_PCIE_INT_STATUS__POWER_STATE_CHG_INT_STATUS__SHIFT                                   0x6
 #define RCC_EP_DEV0_2_EP_PCIE_INT_STATUS__POWER_STATE_CHG_INT_STATUS_F0__SHIFT                                0x7
 #define RCC_EP_DEV0_2_EP_PCIE_INT_STATUS__CORR_ERR_INT_STATUS_MASK                                            0x00000001L
-#define RCC_EP_DEV0_2_EP_PCIE_INT_STATUS__NON_FATAL_ERR_INT_STATUS_MASK                                       0x00000002L
+#define RCC_EP_DEV0_2_EP_PCIE_INT_STATUS__ANALN_FATAL_ERR_INT_STATUS_MASK                                       0x00000002L
 #define RCC_EP_DEV0_2_EP_PCIE_INT_STATUS__FATAL_ERR_INT_STATUS_MASK                                           0x00000004L
 #define RCC_EP_DEV0_2_EP_PCIE_INT_STATUS__USR_DETECTED_INT_STATUS_MASK                                        0x00000008L
 #define RCC_EP_DEV0_2_EP_PCIE_INT_STATUS__MISC_ERR_INT_STATUS_MASK                                            0x00000010L
 #define RCC_EP_DEV0_2_EP_PCIE_INT_STATUS__POWER_STATE_CHG_INT_STATUS_MASK                                     0x00000040L
 #define RCC_EP_DEV0_2_EP_PCIE_INT_STATUS__POWER_STATE_CHG_INT_STATUS_F0_MASK                                  0x00000080L
 //RCC_EP_DEV0_2_EP_PCIE_RX_CNTL2
-#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL2__RX_IGNORE_EP_INVALIDPASID_UR__SHIFT                                   0x0
-#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL2__RX_IGNORE_EP_INVALIDPASID_UR_MASK                                     0x00000001L
+#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL2__RX_IGANALRE_EP_INVALIDPASID_UR__SHIFT                                   0x0
+#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL2__RX_IGANALRE_EP_INVALIDPASID_UR_MASK                                     0x00000001L
 //RCC_EP_DEV0_2_EP_PCIE_BUS_CNTL
 #define RCC_EP_DEV0_2_EP_PCIE_BUS_CNTL__IMMEDIATE_PMI_DIS__SHIFT                                              0x7
 #define RCC_EP_DEV0_2_EP_PCIE_BUS_CNTL__IMMEDIATE_PMI_DIS_MASK                                                0x00000080L
@@ -19284,7 +19284,7 @@
 #define RCC_EP_DEV0_2_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_SHORT_VALUE__SHIFT                                     0x7
 #define RCC_EP_DEV0_2_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_LONG_VALUE__SHIFT                                      0xa
 #define RCC_EP_DEV0_2_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_REQUIREMENT__SHIFT                                     0xd
-#define RCC_EP_DEV0_2_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_NON_D0__SHIFT                               0xe
+#define RCC_EP_DEV0_2_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_ANALN_D0__SHIFT                               0xe
 #define RCC_EP_DEV0_2_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_RST_LTR_IN_DL_DOWN__SHIFT                                 0xf
 #define RCC_EP_DEV0_2_EP_PCIE_TX_LTR_CNTL__TX_CHK_FC_FOR_L1__SHIFT                                            0x10
 #define RCC_EP_DEV0_2_EP_PCIE_TX_LTR_CNTL__LTR_DSTATE_USING_WDATA_EN__SHIFT                                   0x11
@@ -19294,7 +19294,7 @@
 #define RCC_EP_DEV0_2_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_SHORT_VALUE_MASK                                       0x00000380L
 #define RCC_EP_DEV0_2_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_LONG_VALUE_MASK                                        0x00001C00L
 #define RCC_EP_DEV0_2_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_REQUIREMENT_MASK                                       0x00002000L
-#define RCC_EP_DEV0_2_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_NON_D0_MASK                                 0x00004000L
+#define RCC_EP_DEV0_2_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_ANALN_D0_MASK                                 0x00004000L
 #define RCC_EP_DEV0_2_EP_PCIE_TX_LTR_CNTL__LTR_PRIV_RST_LTR_IN_DL_DOWN_MASK                                   0x00008000L
 #define RCC_EP_DEV0_2_EP_PCIE_TX_LTR_CNTL__TX_CHK_FC_FOR_L1_MASK                                              0x00010000L
 #define RCC_EP_DEV0_2_EP_PCIE_TX_LTR_CNTL__LTR_DSTATE_USING_WDATA_EN_MASK                                     0x00020000L
@@ -19397,7 +19397,7 @@
 #define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__ERR_REPORTING_DIS__SHIFT                                              0x0
 #define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__AER_HDR_LOG_TIMEOUT__SHIFT                                            0x8
 #define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__SEND_ERR_MSG_IMMEDIATELY__SHIFT                                       0x11
-#define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__STRAP_POISONED_ADVISORY_NONFATAL__SHIFT                               0x12
+#define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__STRAP_POISONED_ADVISORY_ANALNFATAL__SHIFT                               0x12
 #define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F0_TIMER_EXPIRED__SHIFT                                   0x18
 #define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F1_TIMER_EXPIRED__SHIFT                                   0x19
 #define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F2_TIMER_EXPIRED__SHIFT                                   0x1a
@@ -19409,7 +19409,7 @@
 #define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__ERR_REPORTING_DIS_MASK                                                0x00000001L
 #define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__AER_HDR_LOG_TIMEOUT_MASK                                              0x00000700L
 #define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__SEND_ERR_MSG_IMMEDIATELY_MASK                                         0x00020000L
-#define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__STRAP_POISONED_ADVISORY_NONFATAL_MASK                                 0x00040000L
+#define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__STRAP_POISONED_ADVISORY_ANALNFATAL_MASK                                 0x00040000L
 #define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F0_TIMER_EXPIRED_MASK                                     0x01000000L
 #define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F1_TIMER_EXPIRED_MASK                                     0x02000000L
 #define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F2_TIMER_EXPIRED_MASK                                     0x04000000L
@@ -19419,21 +19419,21 @@
 #define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F6_TIMER_EXPIRED_MASK                                     0x40000000L
 #define RCC_EP_DEV0_2_EP_PCIE_ERR_CNTL__AER_HDR_LOG_F7_TIMER_EXPIRED_MASK                                     0x80000000L
 //RCC_EP_DEV0_2_EP_PCIE_RX_CNTL
-#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGNORE_MAX_PAYLOAD_ERR__SHIFT                                       0x8
-#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGNORE_TC_ERR__SHIFT                                                0x9
+#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGANALRE_MAX_PAYLOAD_ERR__SHIFT                                       0x8
+#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGANALRE_TC_ERR__SHIFT                                                0x9
 #define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_PCIE_CPL_TIMEOUT_DIS__SHIFT                                         0x14
-#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGNORE_SHORTPREFIX_ERR__SHIFT                                       0x15
-#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGNORE_MAXPREFIX_ERR__SHIFT                                         0x16
-#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGNORE_INVALIDPASID_ERR__SHIFT                                      0x18
-#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGNORE_NOT_PASID_UR__SHIFT                                          0x19
+#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGANALRE_SHORTPREFIX_ERR__SHIFT                                       0x15
+#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGANALRE_MAXPREFIX_ERR__SHIFT                                         0x16
+#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGANALRE_INVALIDPASID_ERR__SHIFT                                      0x18
+#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGANALRE_ANALT_PASID_UR__SHIFT                                          0x19
 #define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_TPH_DIS__SHIFT                                                      0x1a
-#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGNORE_MAX_PAYLOAD_ERR_MASK                                         0x00000100L
-#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGNORE_TC_ERR_MASK                                                  0x00000200L
+#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGANALRE_MAX_PAYLOAD_ERR_MASK                                         0x00000100L
+#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGANALRE_TC_ERR_MASK                                                  0x00000200L
 #define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_PCIE_CPL_TIMEOUT_DIS_MASK                                           0x00100000L
-#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGNORE_SHORTPREFIX_ERR_MASK                                         0x00200000L
-#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGNORE_MAXPREFIX_ERR_MASK                                           0x00400000L
-#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGNORE_INVALIDPASID_ERR_MASK                                        0x01000000L
-#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGNORE_NOT_PASID_UR_MASK                                            0x02000000L
+#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGANALRE_SHORTPREFIX_ERR_MASK                                         0x00200000L
+#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGANALRE_MAXPREFIX_ERR_MASK                                           0x00400000L
+#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGANALRE_INVALIDPASID_ERR_MASK                                        0x01000000L
+#define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_IGANALRE_ANALT_PASID_UR_MASK                                            0x02000000L
 #define RCC_EP_DEV0_2_EP_PCIE_RX_CNTL__RX_TPH_DIS_MASK                                                        0x04000000L
 //RCC_EP_DEV0_2_EP_PCIE_LC_SPEED_CNTL
 #define RCC_EP_DEV0_2_EP_PCIE_LC_SPEED_CNTL__LC_GEN2_EN_STRAP__SHIFT                                          0x0
@@ -19567,10 +19567,10 @@
 #define RCC_DEV0_2_RCC_BUS_CNTL__PRIV_MAX_READ_REQUEST_SIZE_MASK                                              0xE0000000L
 //RCC_DEV0_1_RCC_CONFIG_CNTL
 #define RCC_DEV0_1_RCC_CONFIG_CNTL__CFG_VGA_RAM_EN__SHIFT                                                     0x0
-#define RCC_DEV0_1_RCC_CONFIG_CNTL__GENMO_MONO_ADDRESS_B__SHIFT                                               0x2
+#define RCC_DEV0_1_RCC_CONFIG_CNTL__GENMO_MOANAL_ADDRESS_B__SHIFT                                               0x2
 #define RCC_DEV0_1_RCC_CONFIG_CNTL__GRPH_ADRSEL__SHIFT                                                        0x3
 #define RCC_DEV0_1_RCC_CONFIG_CNTL__CFG_VGA_RAM_EN_MASK                                                       0x00000001L
-#define RCC_DEV0_1_RCC_CONFIG_CNTL__GENMO_MONO_ADDRESS_B_MASK                                                 0x00000004L
+#define RCC_DEV0_1_RCC_CONFIG_CNTL__GENMO_MOANAL_ADDRESS_B_MASK                                                 0x00000004L
 #define RCC_DEV0_1_RCC_CONFIG_CNTL__GRPH_ADRSEL_MASK                                                          0x00000018L
 //RCC_DEV0_1_RCC_CONFIG_F0_BASE
 #define RCC_DEV0_1_RCC_CONFIG_F0_BASE__F0_BASE__SHIFT                                                         0x0
@@ -19592,11 +19592,11 @@
 //RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC
 #define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__INIT_PFFLR_CRS_RET_DIS__SHIFT                                   0x7
 #define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__ATC_PRG_RESP_PASID_UR_EN__SHIFT                                 0x8
-#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_TRANSMRD_UR__SHIFT                                    0x9
-#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_TRANSMWR_UR__SHIFT                                    0xa
-#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_ATSTRANSREQ_UR__SHIFT                                 0xb
-#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_PAGEREQMSG_UR__SHIFT                                  0xc
-#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_INVCPL_UR__SHIFT                                      0xd
+#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_TRANSMRD_UR__SHIFT                                    0x9
+#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_TRANSMWR_UR__SHIFT                                    0xa
+#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_ATSTRANSREQ_UR__SHIFT                                 0xb
+#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_PAGEREQMSG_UR__SHIFT                                  0xc
+#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_INVCPL_UR__SHIFT                                      0xd
 #define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__CLR_MSI_X_PENDING_WHEN_DISABLED_DIS__SHIFT                      0xe
 #define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__CHECK_BME_ON_PENDING_PKT_GEN_DIS__SHIFT                         0xf
 #define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__PSN_CHECK_ON_PAYLOAD_DIS__SHIFT                                 0x10
@@ -19605,11 +19605,11 @@
 #define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__HOST_POISON_FLAG_CHECK_FOR_CHAIN_DIS__SHIFT                     0x13
 #define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__INIT_PFFLR_CRS_RET_DIS_MASK                                     0x00000080L
 #define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__ATC_PRG_RESP_PASID_UR_EN_MASK                                   0x00000100L
-#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_TRANSMRD_UR_MASK                                      0x00000200L
-#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_TRANSMWR_UR_MASK                                      0x00000400L
-#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_ATSTRANSREQ_UR_MASK                                   0x00000800L
-#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_PAGEREQMSG_UR_MASK                                    0x00001000L
-#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGNORE_INVCPL_UR_MASK                                        0x00002000L
+#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_TRANSMRD_UR_MASK                                      0x00000200L
+#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_TRANSMWR_UR_MASK                                      0x00000400L
+#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_ATSTRANSREQ_UR_MASK                                   0x00000800L
+#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_PAGEREQMSG_UR_MASK                                    0x00001000L
+#define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_INVCPL_UR_MASK                                        0x00002000L
 #define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__CLR_MSI_X_PENDING_WHEN_DISABLED_DIS_MASK                        0x00004000L
 #define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__CHECK_BME_ON_PENDING_PKT_GEN_DIS_MASK                           0x00008000L
 #define RCC_DEV0_2_RCC_FEATURES_CONTROL_MISC__PSN_CHECK_ON_PAYLOAD_DIS_MASK                                   0x00010000L
@@ -20090,19 +20090,19 @@
 //BIF_BX1_INTERRUPT_CNTL
 #define BIF_BX1_INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE__SHIFT                                                   0x0
 #define BIF_BX1_INTERRUPT_CNTL__IH_DUMMY_RD_EN__SHIFT                                                         0x1
-#define BIF_BX1_INTERRUPT_CNTL__IH_REQ_NONSNOOP_EN__SHIFT                                                     0x3
+#define BIF_BX1_INTERRUPT_CNTL__IH_REQ_ANALNSANALOP_EN__SHIFT                                                     0x3
 #define BIF_BX1_INTERRUPT_CNTL__IH_INTR_DLY_CNTR__SHIFT                                                       0x4
 #define BIF_BX1_INTERRUPT_CNTL__GEN_IH_INT_EN__SHIFT                                                          0x8
-#define BIF_BX1_INTERRUPT_CNTL__BIF_RB_REQ_NONSNOOP_EN__SHIFT                                                 0xf
+#define BIF_BX1_INTERRUPT_CNTL__BIF_RB_REQ_ANALNSANALOP_EN__SHIFT                                                 0xf
 #define BIF_BX1_INTERRUPT_CNTL__DUMMYRD_BYPASS_IN_MSI_EN__SHIFT                                               0x10
 #define BIF_BX1_INTERRUPT_CNTL__ALWAYS_SEND_INTPKT_AFTER_DUMMYRD_DIS__SHIFT                                   0x11
 #define BIF_BX1_INTERRUPT_CNTL__BIF_RB_REQ_RELAX_ORDER_EN__SHIFT                                              0x12
 #define BIF_BX1_INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK                                                     0x00000001L
 #define BIF_BX1_INTERRUPT_CNTL__IH_DUMMY_RD_EN_MASK                                                           0x00000002L
-#define BIF_BX1_INTERRUPT_CNTL__IH_REQ_NONSNOOP_EN_MASK                                                       0x00000008L
+#define BIF_BX1_INTERRUPT_CNTL__IH_REQ_ANALNSANALOP_EN_MASK                                                       0x00000008L
 #define BIF_BX1_INTERRUPT_CNTL__IH_INTR_DLY_CNTR_MASK                                                         0x000000F0L
 #define BIF_BX1_INTERRUPT_CNTL__GEN_IH_INT_EN_MASK                                                            0x00000100L
-#define BIF_BX1_INTERRUPT_CNTL__BIF_RB_REQ_NONSNOOP_EN_MASK                                                   0x00008000L
+#define BIF_BX1_INTERRUPT_CNTL__BIF_RB_REQ_ANALNSANALOP_EN_MASK                                                   0x00008000L
 #define BIF_BX1_INTERRUPT_CNTL__DUMMYRD_BYPASS_IN_MSI_EN_MASK                                                 0x00010000L
 #define BIF_BX1_INTERRUPT_CNTL__ALWAYS_SEND_INTPKT_AFTER_DUMMYRD_DIS_MASK                                     0x00020000L
 #define BIF_BX1_INTERRUPT_CNTL__BIF_RB_REQ_RELAX_ORDER_EN_MASK                                                0x00040000L
@@ -20141,22 +20141,22 @@
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__SLV_BIF_CPL_EP_DIS__SHIFT                                          0x1
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__BIF_SLV_REQ_EP_DIS__SHIFT                                          0x2
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__BIF_MST_CPL_EP_DIS__SHIFT                                          0x3
-#define BIF_BX1_BIF_FEATURES_CONTROL_MISC__BIF_RB_MSI_VEC_NOT_ENABLED_MODE__SHIFT                             0xb
+#define BIF_BX1_BIF_FEATURES_CONTROL_MISC__BIF_RB_MSI_VEC_ANALT_ENABLED_MODE__SHIFT                             0xb
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__BIF_RB_SET_OVERFLOW_EN__SHIFT                                      0xc
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__ATOMIC_ERR_INT_DIS__SHIFT                                          0xd
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__ATOMIC_ONLY_WRITE_DIS__SHIFT                                       0xe
-#define BIF_BX1_BIF_FEATURES_CONTROL_MISC__BME_HDL_NONVIR_EN__SHIFT                                           0xf
+#define BIF_BX1_BIF_FEATURES_CONTROL_MISC__BME_HDL_ANALNVIR_EN__SHIFT                                           0xf
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__HDP_NP_OSTD_LIMIT__SHIFT                                           0x10
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__DOORBELL_SELFRING_GPA_APER_CHK_48BIT_ADDR__SHIFT                   0x19
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__MST_BIF_REQ_EP_DIS_MASK                                            0x00000001L
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__SLV_BIF_CPL_EP_DIS_MASK                                            0x00000002L
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__BIF_SLV_REQ_EP_DIS_MASK                                            0x00000004L
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__BIF_MST_CPL_EP_DIS_MASK                                            0x00000008L
-#define BIF_BX1_BIF_FEATURES_CONTROL_MISC__BIF_RB_MSI_VEC_NOT_ENABLED_MODE_MASK                               0x00000800L
+#define BIF_BX1_BIF_FEATURES_CONTROL_MISC__BIF_RB_MSI_VEC_ANALT_ENABLED_MODE_MASK                               0x00000800L
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__BIF_RB_SET_OVERFLOW_EN_MASK                                        0x00001000L
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__ATOMIC_ERR_INT_DIS_MASK                                            0x00002000L
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__ATOMIC_ONLY_WRITE_DIS_MASK                                         0x00004000L
-#define BIF_BX1_BIF_FEATURES_CONTROL_MISC__BME_HDL_NONVIR_EN_MASK                                             0x00008000L
+#define BIF_BX1_BIF_FEATURES_CONTROL_MISC__BME_HDL_ANALNVIR_EN_MASK                                             0x00008000L
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__HDP_NP_OSTD_LIMIT_MASK                                             0x01FF0000L
 #define BIF_BX1_BIF_FEATURES_CONTROL_MISC__DOORBELL_SELFRING_GPA_APER_CHK_48BIT_ADDR_MASK                     0x02000000L
 //BIF_BX1_HDP_ATOMIC_CONTROL_MISC
@@ -20166,7 +20166,7 @@
 #define BIF_BX1_BIF_DOORBELL_CNTL__SELF_RING_DIS__SHIFT                                                       0x0
 #define BIF_BX1_BIF_DOORBELL_CNTL__TRANS_CHECK_DIS__SHIFT                                                     0x1
 #define BIF_BX1_BIF_DOORBELL_CNTL__UNTRANS_LBACK_EN__SHIFT                                                    0x2
-#define BIF_BX1_BIF_DOORBELL_CNTL__NON_CONSECUTIVE_BE_ZERO_DIS__SHIFT                                         0x3
+#define BIF_BX1_BIF_DOORBELL_CNTL__ANALN_CONSECUTIVE_BE_ZERO_DIS__SHIFT                                         0x3
 #define BIF_BX1_BIF_DOORBELL_CNTL__DOORBELL_MONITOR_EN__SHIFT                                                 0x4
 #define BIF_BX1_BIF_DOORBELL_CNTL__DB_MNTR_INTGEN_DIS__SHIFT                                                  0x18
 #define BIF_BX1_BIF_DOORBELL_CNTL__DB_MNTR_INTGEN_MODE_0__SHIFT                                               0x19
@@ -20175,7 +20175,7 @@
 #define BIF_BX1_BIF_DOORBELL_CNTL__SELF_RING_DIS_MASK                                                         0x00000001L
 #define BIF_BX1_BIF_DOORBELL_CNTL__TRANS_CHECK_DIS_MASK                                                       0x00000002L
 #define BIF_BX1_BIF_DOORBELL_CNTL__UNTRANS_LBACK_EN_MASK                                                      0x00000004L
-#define BIF_BX1_BIF_DOORBELL_CNTL__NON_CONSECUTIVE_BE_ZERO_DIS_MASK                                           0x00000008L
+#define BIF_BX1_BIF_DOORBELL_CNTL__ANALN_CONSECUTIVE_BE_ZERO_DIS_MASK                                           0x00000008L
 #define BIF_BX1_BIF_DOORBELL_CNTL__DOORBELL_MONITOR_EN_MASK                                                   0x00000010L
 #define BIF_BX1_BIF_DOORBELL_CNTL__DB_MNTR_INTGEN_DIS_MASK                                                    0x01000000L
 #define BIF_BX1_BIF_DOORBELL_CNTL__DB_MNTR_INTGEN_MODE_0_MASK                                                 0x02000000L
@@ -21068,20 +21068,20 @@
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_PX_CAPABLE__SHIFT                                                    0x7
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_BIF_KILL_GEN3__SHIFT                                                 0x8
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_MSI_FIRST_BE_FULL_PAYLOAD_EN__SHIFT                                  0x9
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_NBIF_IGNORE_ERR_INFLR__SHIFT                                         0xa
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_NBIF_IGANALRE_ERR_INFLR__SHIFT                                         0xa
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_PME_SUPPORT_COMPLIANCE_EN__SHIFT                                     0xb
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGNORE_EP_ERR__SHIFT                                              0xc
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGNORE_MSG_ERR__SHIFT                                             0xd
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGNORE_MAX_PAYLOAD_ERR__SHIFT                                     0xe
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGNORE_SHORTPREFIX_ERR_DN__SHIFT                                  0xf
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGNORE_TC_ERR__SHIFT                                              0x10
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGNORE_TC_ERR_DN__SHIFT                                           0x11
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_EP_ERR__SHIFT                                              0xc
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_MSG_ERR__SHIFT                                             0xd
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_MAX_PAYLOAD_ERR__SHIFT                                     0xe
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_SHORTPREFIX_ERR_DN__SHIFT                                  0xf
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_TC_ERR__SHIFT                                              0x10
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_TC_ERR_DN__SHIFT                                           0x11
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_AUD_PIN__SHIFT                                                       0x12
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_GEN3_DIS__SHIFT                                                      0x18
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_BIF_KILL_GEN4__SHIFT                                                 0x19
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_QUICKSIM_START__SHIFT                                                0x1a
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_NO_RO_ENABLED_P2P_PASSING__SHIFT                                     0x1b
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_IGNORE_LOCAL_PREFIX_UR_SWUS__SHIFT                                   0x1c
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                     0x1b
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_IGANALRE_LOCAL_PREFIX_UR_SWUS__SHIFT                                   0x1c
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_CFG0_RD_VF_BUSNUM_CHK_EN__SHIFT                                      0x1d
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_BIGAPU_MODE__SHIFT                                                   0x1e
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_LINK_DOWN_RESET_EN__SHIFT                                            0x1f
@@ -21093,20 +21093,20 @@
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK                                                      0x00000080L
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_BIF_KILL_GEN3_MASK                                                   0x00000100L
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_MSI_FIRST_BE_FULL_PAYLOAD_EN_MASK                                    0x00000200L
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_NBIF_IGNORE_ERR_INFLR_MASK                                           0x00000400L
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_NBIF_IGANALRE_ERR_INFLR_MASK                                           0x00000400L
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_PME_SUPPORT_COMPLIANCE_EN_MASK                                       0x00000800L
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGNORE_EP_ERR_MASK                                                0x00001000L
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGNORE_MSG_ERR_MASK                                               0x00002000L
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGNORE_MAX_PAYLOAD_ERR_MASK                                       0x00004000L
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGNORE_SHORTPREFIX_ERR_DN_MASK                                    0x00008000L
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGNORE_TC_ERR_MASK                                                0x00010000L
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGNORE_TC_ERR_DN_MASK                                             0x00020000L
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_EP_ERR_MASK                                                0x00001000L
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_MSG_ERR_MASK                                               0x00002000L
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_MAX_PAYLOAD_ERR_MASK                                       0x00004000L
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_SHORTPREFIX_ERR_DN_MASK                                    0x00008000L
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_TC_ERR_MASK                                                0x00010000L
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_RX_IGANALRE_TC_ERR_DN_MASK                                             0x00020000L
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_AUD_PIN_MASK                                                         0x000C0000L
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_GEN3_DIS_MASK                                                        0x01000000L
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_BIF_KILL_GEN4_MASK                                                   0x02000000L
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_QUICKSIM_START_MASK                                                  0x04000000L
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_NO_RO_ENABLED_P2P_PASSING_MASK                                       0x08000000L
-#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_IGNORE_LOCAL_PREFIX_UR_SWUS_MASK                                     0x10000000L
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_ANAL_RO_ENABLED_P2P_PASSING_MASK                                       0x08000000L
+#define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_IGANALRE_LOCAL_PREFIX_UR_SWUS_MASK                                     0x10000000L
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_CFG0_RD_VF_BUSNUM_CHK_EN_MASK                                        0x20000000L
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_BIGAPU_MODE_MASK                                                     0x40000000L
 #define RCC_STRAP2_RCC_BIF_STRAP0__STRAP_LINK_DOWN_RESET_EN_MASK                                              0x80000000L
@@ -21115,7 +21115,7 @@
 #define RCC_STRAP2_RCC_BIF_STRAP1__ROMSTRAP_VALID__SHIFT                                                      0x1
 #define RCC_STRAP2_RCC_BIF_STRAP1__WRITE_DISABLE__SHIFT                                                       0x2
 #define RCC_STRAP2_RCC_BIF_STRAP1__STRAP_ECRC_INTERMEDIATE_CHK_EN__SHIFT                                      0x3
-#define RCC_STRAP2_RCC_BIF_STRAP1__STRAP_IGNORE_E2E_PREFIX_UR_SWUS__SHIFT                                     0x5
+#define RCC_STRAP2_RCC_BIF_STRAP1__STRAP_IGANALRE_E2E_PREFIX_UR_SWUS__SHIFT                                     0x5
 #define RCC_STRAP2_RCC_BIF_STRAP1__STRAP_MARGINING_USES_SOFTWARE__SHIFT                                       0x6
 #define RCC_STRAP2_RCC_BIF_STRAP1__STRAP_MARGINING_READY__SHIFT                                               0x7
 #define RCC_STRAP2_RCC_BIF_STRAP1__STRAP_SWUS_APER_EN__SHIFT                                                  0x8
@@ -21142,7 +21142,7 @@
 #define RCC_STRAP2_RCC_BIF_STRAP1__ROMSTRAP_VALID_MASK                                                        0x00000002L
 #define RCC_STRAP2_RCC_BIF_STRAP1__WRITE_DISABLE_MASK                                                         0x00000004L
 #define RCC_STRAP2_RCC_BIF_STRAP1__STRAP_ECRC_INTERMEDIATE_CHK_EN_MASK                                        0x00000008L
-#define RCC_STRAP2_RCC_BIF_STRAP1__STRAP_IGNORE_E2E_PREFIX_UR_SWUS_MASK                                       0x00000020L
+#define RCC_STRAP2_RCC_BIF_STRAP1__STRAP_IGANALRE_E2E_PREFIX_UR_SWUS_MASK                                       0x00000020L
 #define RCC_STRAP2_RCC_BIF_STRAP1__STRAP_MARGINING_USES_SOFTWARE_MASK                                         0x00000040L
 #define RCC_STRAP2_RCC_BIF_STRAP1__STRAP_MARGINING_READY_MASK                                                 0x00000080L
 #define RCC_STRAP2_RCC_BIF_STRAP1__STRAP_SWUS_APER_EN_MASK                                                    0x00000100L
@@ -21211,7 +21211,7 @@
 #define RCC_STRAP2_RCC_BIF_STRAP5__STRAP_VLINK_LDN_ON_SWUS_LDN_EN__SHIFT                                      0x10
 #define RCC_STRAP2_RCC_BIF_STRAP5__STRAP_VLINK_LDN_ON_SWUS_SECRST_EN__SHIFT                                   0x11
 #define RCC_STRAP2_RCC_BIF_STRAP5__STRAP_VLINK_ENTER_COMPLIANCE_DIS__SHIFT                                    0x12
-#define RCC_STRAP2_RCC_BIF_STRAP5__STRAP_IGNORE_PSN_ON_VDM1_DIS__SHIFT                                        0x13
+#define RCC_STRAP2_RCC_BIF_STRAP5__STRAP_IGANALRE_PSN_ON_VDM1_DIS__SHIFT                                        0x13
 #define RCC_STRAP2_RCC_BIF_STRAP5__STRAP_SMN_ERR_STATUS_MASK_EN_UPS__SHIFT                                    0x14
 #define RCC_STRAP2_RCC_BIF_STRAP5__STRAP_REG_PROTECTION_DIS__SHIFT                                            0x15
 #define RCC_STRAP2_RCC_BIF_STRAP5__STRAP_SMN_ERRRSP_DATA_FORCE__SHIFT                                         0x16
@@ -21223,7 +21223,7 @@
 #define RCC_STRAP2_RCC_BIF_STRAP5__STRAP_VLINK_LDN_ON_SWUS_LDN_EN_MASK                                        0x00010000L
 #define RCC_STRAP2_RCC_BIF_STRAP5__STRAP_VLINK_LDN_ON_SWUS_SECRST_EN_MASK                                     0x00020000L
 #define RCC_STRAP2_RCC_BIF_STRAP5__STRAP_VLINK_ENTER_COMPLIANCE_DIS_MASK                                      0x00040000L
-#define RCC_STRAP2_RCC_BIF_STRAP5__STRAP_IGNORE_PSN_ON_VDM1_DIS_MASK                                          0x00080000L
+#define RCC_STRAP2_RCC_BIF_STRAP5__STRAP_IGANALRE_PSN_ON_VDM1_DIS_MASK                                          0x00080000L
 #define RCC_STRAP2_RCC_BIF_STRAP5__STRAP_SMN_ERR_STATUS_MASK_EN_UPS_MASK                                      0x00100000L
 #define RCC_STRAP2_RCC_BIF_STRAP5__STRAP_REG_PROTECTION_DIS_MASK                                              0x00200000L
 #define RCC_STRAP2_RCC_BIF_STRAP5__STRAP_SMN_ERRRSP_DATA_FORCE_MASK                                           0x00C00000L
@@ -21245,7 +21245,7 @@
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP0__STRAP_AER_EN_DN_DEV0__SHIFT                                          0x12
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP0__STRAP_CPL_ABORT_ERR_EN_DN_DEV0__SHIFT                                0x13
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP0__STRAP_INTERRUPT_PIN_DN_DEV0__SHIFT                                   0x15
-#define RCC_STRAP2_RCC_DEV0_PORT_STRAP0__STRAP_IGNORE_E2E_PREFIX_UR_DN_DEV0__SHIFT                            0x18
+#define RCC_STRAP2_RCC_DEV0_PORT_STRAP0__STRAP_IGANALRE_E2E_PREFIX_UR_DN_DEV0__SHIFT                            0x18
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP0__STRAP_MAX_PAYLOAD_SUPPORT_DN_DEV0__SHIFT                             0x19
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP0__STRAP_MAX_LINK_WIDTH_SUPPORT_DEV0__SHIFT                             0x1c
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP0__STRAP_EPF0_DUMMY_EN_DEV0__SHIFT                                      0x1f
@@ -21255,7 +21255,7 @@
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP0__STRAP_AER_EN_DN_DEV0_MASK                                            0x00040000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP0__STRAP_CPL_ABORT_ERR_EN_DN_DEV0_MASK                                  0x00080000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP0__STRAP_INTERRUPT_PIN_DN_DEV0_MASK                                     0x00E00000L
-#define RCC_STRAP2_RCC_DEV0_PORT_STRAP0__STRAP_IGNORE_E2E_PREFIX_UR_DN_DEV0_MASK                              0x01000000L
+#define RCC_STRAP2_RCC_DEV0_PORT_STRAP0__STRAP_IGANALRE_E2E_PREFIX_UR_DN_DEV0_MASK                              0x01000000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP0__STRAP_MAX_PAYLOAD_SUPPORT_DN_DEV0_MASK                               0x0E000000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP0__STRAP_MAX_LINK_WIDTH_SUPPORT_DEV0_MASK                               0x70000000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP0__STRAP_EPF0_DUMMY_EN_DEV0_MASK                                        0x80000000L
@@ -21265,15 +21265,15 @@
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP1__STRAP_SUBSYS_ID_DN_DEV0_MASK                                         0x0000FFFFL
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP1__STRAP_SUBSYS_VEN_ID_DN_DEV0_MASK                                     0xFFFF0000L
 //RCC_STRAP2_RCC_DEV0_PORT_STRAP10
-#define RCC_STRAP2_RCC_DEV0_PORT_STRAP10__STRAP_NO_EQ_NEED_SUPPORTED_DEV0__SHIFT                              0x0
-#define RCC_STRAP2_RCC_DEV0_PORT_STRAP10__STRAP_NO_EQ_NEED_SUPPORTED_DN_DEV0__SHIFT                           0x1
+#define RCC_STRAP2_RCC_DEV0_PORT_STRAP10__STRAP_ANAL_EQ_NEED_SUPPORTED_DEV0__SHIFT                              0x0
+#define RCC_STRAP2_RCC_DEV0_PORT_STRAP10__STRAP_ANAL_EQ_NEED_SUPPORTED_DN_DEV0__SHIFT                           0x1
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP10__STRAP_MODIFID_TS_USAGE_MODE1_SUPPORTED_DEV0__SHIFT                  0x2
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP10__STRAP_MODIFID_TS_USAGE_MODE2_SUPPORTED_DEV0__SHIFT                  0x3
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP10__STRAP_TRANSMITTER_PRECODEING_ON_DEV0__SHIFT                         0x4
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP10__STRAP_TRANSMITTER_PRECODE_REQUEST_DEV0__SHIFT                       0x5
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP10__STRAP_MODIFIED_TS_INFOR1_DEV0__SHIFT                                0x6
-#define RCC_STRAP2_RCC_DEV0_PORT_STRAP10__STRAP_NO_EQ_NEED_SUPPORTED_DEV0_MASK                                0x00000001L
-#define RCC_STRAP2_RCC_DEV0_PORT_STRAP10__STRAP_NO_EQ_NEED_SUPPORTED_DN_DEV0_MASK                             0x00000002L
+#define RCC_STRAP2_RCC_DEV0_PORT_STRAP10__STRAP_ANAL_EQ_NEED_SUPPORTED_DEV0_MASK                                0x00000001L
+#define RCC_STRAP2_RCC_DEV0_PORT_STRAP10__STRAP_ANAL_EQ_NEED_SUPPORTED_DN_DEV0_MASK                             0x00000002L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP10__STRAP_MODIFID_TS_USAGE_MODE1_SUPPORTED_DEV0_MASK                    0x00000004L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP10__STRAP_MODIFID_TS_USAGE_MODE2_SUPPORTED_DEV0_MASK                    0x00000008L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP10__STRAP_TRANSMITTER_PRECODEING_ON_DEV0_MASK                           0x00000010L
@@ -21325,7 +21325,7 @@
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_EXTENDED_TAG_ECN_EN_DEV0__SHIFT                                0x8
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_EXT_VC_COUNT_DN_DEV0__SHIFT                                    0x9
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_FIRST_RCVD_ERR_LOG_DN_DEV0__SHIFT                              0xc
-#define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_NONFATAL_DN_DEV0__SHIFT                      0xd
+#define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_ANALNFATAL_DN_DEV0__SHIFT                      0xd
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_GEN2_COMPLIANCE_DEV0__SHIFT                                    0xe
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_GEN2_EN_DEV0__SHIFT                                            0xf
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_GEN3_COMPLIANCE_DEV0__SHIFT                                    0x10
@@ -21345,7 +21345,7 @@
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_EXTENDED_TAG_ECN_EN_DEV0_MASK                                  0x00000100L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_EXT_VC_COUNT_DN_DEV0_MASK                                      0x00000E00L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_FIRST_RCVD_ERR_LOG_DN_DEV0_MASK                                0x00001000L
-#define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_NONFATAL_DN_DEV0_MASK                        0x00002000L
+#define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_ANALNFATAL_DN_DEV0_MASK                        0x00002000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_GEN2_COMPLIANCE_DEV0_MASK                                      0x00004000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_GEN2_EN_DEV0_MASK                                              0x00008000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_GEN3_COMPLIANCE_DEV0_MASK                                      0x00010000L
@@ -21355,13 +21355,13 @@
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_L1_ACCEPTABLE_LATENCY_DEV0_MASK                                0x1C000000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP2__STRAP_L1_EXIT_LATENCY_DEV0_MASK                                      0xE0000000L
 //RCC_STRAP2_RCC_DEV0_PORT_STRAP3
-#define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_NOTIFICATION_CAP_DN_EN_DEV0__SHIFT                     0x0
+#define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_ANALTIFICATION_CAP_DN_EN_DEV0__SHIFT                     0x0
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DEV0__SHIFT                                             0x1
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DN_DEV0__SHIFT                                          0x2
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_MAX_PAYLOAD_SUPPORT_DEV0__SHIFT                                0x3
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_MSI_EN_DN_DEV0__SHIFT                                          0x6
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_MSTCPL_TIMEOUT_EN_DEV0__SHIFT                                  0x7
-#define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_NO_SOFT_RESET_DN_DEV0__SHIFT                                   0x8
+#define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_ANAL_SOFT_RESET_DN_DEV0__SHIFT                                   0x8
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_OBFF_SUPPORTED_DEV0__SHIFT                                     0x9
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_RX_PRESET_HINT_DEV0__SHIFT  0xb
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_TX_PRESET_DEV0__SHIFT  0xe
@@ -21371,13 +21371,13 @@
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_PM_SUPPORT_DN_DEV0__SHIFT                                      0x1b
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_ATOMIC_EN_DN_DEV0__SHIFT                                       0x1d
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_PMC_DSI_DN_DEV0__SHIFT                                         0x1f
-#define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_NOTIFICATION_CAP_DN_EN_DEV0_MASK                       0x00000001L
+#define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_ANALTIFICATION_CAP_DN_EN_DEV0_MASK                       0x00000001L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DEV0_MASK                                               0x00000002L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DN_DEV0_MASK                                            0x00000004L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_MAX_PAYLOAD_SUPPORT_DEV0_MASK                                  0x00000038L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_MSI_EN_DN_DEV0_MASK                                            0x00000040L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_MSTCPL_TIMEOUT_EN_DEV0_MASK                                    0x00000080L
-#define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_NO_SOFT_RESET_DN_DEV0_MASK                                     0x00000100L
+#define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_ANAL_SOFT_RESET_DN_DEV0_MASK                                     0x00000100L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_OBFF_SUPPORTED_DEV0_MASK                                       0x00000600L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_RX_PRESET_HINT_DEV0_MASK  0x00003800L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_TX_PRESET_DEV0_MASK  0x0003C000L
@@ -21444,7 +21444,7 @@
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP6__STRAP_PCIE_16GT_LANE_EQUALIZATION_CNTL_USP_TX_PRESET_DEV0__SHIFT     0xc
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP6__STRAP_TPH_CPLR_SUPPORTED_DN_DEV0__SHIFT                              0x10
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP6__STRAP_MSI_EXT_MSG_DATA_CAP_DN_DEV0__SHIFT                            0x12
-#define RCC_STRAP2_RCC_DEV0_PORT_STRAP6__STRAP_NO_COMMAND_COMPLETED_SUPPORTED_DEV0__SHIFT                     0x13
+#define RCC_STRAP2_RCC_DEV0_PORT_STRAP6__STRAP_ANAL_COMMAND_COMPLETED_SUPPORTED_DEV0__SHIFT                     0x13
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP6__STRAP_GEN5_COMPLIANCE_DEV0__SHIFT                                    0x14
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP6__STRAP_TARGET_LINK_SPEED_DEV0__SHIFT                                  0x15
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP6__STRAP_PCIE_32GT_LANE_EQUALIZATION_CNTL_DSP_TX_PRESET_DEV0__SHIFT     0x18
@@ -21461,7 +21461,7 @@
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP6__STRAP_PCIE_16GT_LANE_EQUALIZATION_CNTL_USP_TX_PRESET_DEV0_MASK       0x0000F000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP6__STRAP_TPH_CPLR_SUPPORTED_DN_DEV0_MASK                                0x00030000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP6__STRAP_MSI_EXT_MSG_DATA_CAP_DN_DEV0_MASK                              0x00040000L
-#define RCC_STRAP2_RCC_DEV0_PORT_STRAP6__STRAP_NO_COMMAND_COMPLETED_SUPPORTED_DEV0_MASK                       0x00080000L
+#define RCC_STRAP2_RCC_DEV0_PORT_STRAP6__STRAP_ANAL_COMMAND_COMPLETED_SUPPORTED_DEV0_MASK                       0x00080000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP6__STRAP_GEN5_COMPLIANCE_DEV0_MASK                                      0x00100000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP6__STRAP_TARGET_LINK_SPEED_DEV0_MASK                                    0x00E00000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP6__STRAP_PCIE_32GT_LANE_EQUALIZATION_CNTL_DSP_TX_PRESET_DEV0_MASK       0x0F000000L
@@ -21469,13 +21469,13 @@
 //RCC_STRAP2_RCC_DEV0_PORT_STRAP7
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP7__STRAP_PORT_NUMBER_DEV0__SHIFT                                        0x0
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP7__STRAP_MAJOR_REV_ID_DN_DEV0__SHIFT                                    0x8
-#define RCC_STRAP2_RCC_DEV0_PORT_STRAP7__STRAP_MINOR_REV_ID_DN_DEV0__SHIFT                                    0xc
+#define RCC_STRAP2_RCC_DEV0_PORT_STRAP7__STRAP_MIANALR_REV_ID_DN_DEV0__SHIFT                                    0xc
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP7__STRAP_RP_BUSNUM_DEV0__SHIFT                                          0x10
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP7__STRAP_DN_DEVNUM_DEV0__SHIFT                                          0x18
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP7__STRAP_DN_FUNCID_DEV0__SHIFT                                          0x1d
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP7__STRAP_PORT_NUMBER_DEV0_MASK                                          0x000000FFL
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP7__STRAP_MAJOR_REV_ID_DN_DEV0_MASK                                      0x00000F00L
-#define RCC_STRAP2_RCC_DEV0_PORT_STRAP7__STRAP_MINOR_REV_ID_DN_DEV0_MASK                                      0x0000F000L
+#define RCC_STRAP2_RCC_DEV0_PORT_STRAP7__STRAP_MIANALR_REV_ID_DN_DEV0_MASK                                      0x0000F000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP7__STRAP_RP_BUSNUM_DEV0_MASK                                            0x00FF0000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP7__STRAP_DN_DEVNUM_DEV0_MASK                                            0x1F000000L
 #define RCC_STRAP2_RCC_DEV0_PORT_STRAP7__STRAP_DN_FUNCID_DEV0_MASK                                            0xE0000000L
@@ -21498,7 +21498,7 @@
 //RCC_STRAP2_RCC_DEV0_EPF0_STRAP0
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP0__STRAP_DEVICE_ID_DEV0_F0__SHIFT                                       0x0
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F0__SHIFT                                    0x10
-#define RCC_STRAP2_RCC_DEV0_EPF0_STRAP0__STRAP_MINOR_REV_ID_DEV0_F0__SHIFT                                    0x14
+#define RCC_STRAP2_RCC_DEV0_EPF0_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F0__SHIFT                                    0x14
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0__SHIFT                                      0x18
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP0__STRAP_FUNC_EN_DEV0_F0__SHIFT                                         0x1c
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F0__SHIFT                           0x1d
@@ -21506,7 +21506,7 @@
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP0__STRAP_D2_SUPPORT_DEV0_F0__SHIFT                                      0x1f
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP0__STRAP_DEVICE_ID_DEV0_F0_MASK                                         0x0000FFFFL
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F0_MASK                                      0x000F0000L
-#define RCC_STRAP2_RCC_DEV0_EPF0_STRAP0__STRAP_MINOR_REV_ID_DEV0_F0_MASK                                      0x00F00000L
+#define RCC_STRAP2_RCC_DEV0_EPF0_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F0_MASK                                      0x00F00000L
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0_MASK                                        0x0F000000L
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP0__STRAP_FUNC_EN_DEV0_F0_MASK                                           0x10000000L
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F0_MASK                             0x20000000L
@@ -21558,7 +21558,7 @@
 //RCC_STRAP2_RCC_DEV0_EPF0_STRAP2
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP2__STRAP_SRIOV_EN_DEV0_F0__SHIFT                                        0x0
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP2__STRAP_64BAR_DIS_DEV0_F0__SHIFT                                       0x6
-#define RCC_STRAP2_RCC_DEV0_EPF0_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F0__SHIFT                                   0x7
+#define RCC_STRAP2_RCC_DEV0_EPF0_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F0__SHIFT                                   0x7
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F0__SHIFT                                   0x8
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP2__STRAP_MAX_PASID_WIDTH_DEV0_F0__SHIFT                                 0x9
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F0__SHIFT                          0xe
@@ -21578,7 +21578,7 @@
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP2__STRAP_PASID_PRIV_MODE_SUPPORTED_DEV0_F0__SHIFT                       0x1f
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP2__STRAP_SRIOV_EN_DEV0_F0_MASK                                          0x00000001L
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP2__STRAP_64BAR_DIS_DEV0_F0_MASK                                         0x00000040L
-#define RCC_STRAP2_RCC_DEV0_EPF0_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F0_MASK                                     0x00000080L
+#define RCC_STRAP2_RCC_DEV0_EPF0_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F0_MASK                                     0x00000080L
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F0_MASK                                     0x00000100L
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP2__STRAP_MAX_PASID_WIDTH_DEV0_F0_MASK                                   0x00003E00L
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F0_MASK                            0x00004000L
@@ -21601,7 +21601,7 @@
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP26__STRAP_GPUIOV_VSEC_LENGTH_DEV0_F0_MASK                               0x00000FFFL
 //RCC_STRAP2_RCC_DEV0_EPF0_STRAP3
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP3__STRAP_SUBSYS_ID_DEV0_F0__SHIFT                                       0x0
-#define RCC_STRAP2_RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F0__SHIFT                      0x10
+#define RCC_STRAP2_RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F0__SHIFT                      0x10
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP3__STRAP_PWR_EN_DEV0_F0__SHIFT                                          0x11
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP3__STRAP_MSI_EN_DEV0_F0__SHIFT                                          0x12
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP3__STRAP_MSI_CLR_PENDING_EN_DEV0_F0__SHIFT                              0x13
@@ -21615,7 +21615,7 @@
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP3__STRAP_TRUE_PM_STATUS_EN_DEV0_F0__SHIFT                               0x1e
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP3__STRAP_RTR_EN_DEV0_F0__SHIFT                                          0x1f
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP3__STRAP_SUBSYS_ID_DEV0_F0_MASK                                         0x0000FFFFL
-#define RCC_STRAP2_RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F0_MASK                        0x00010000L
+#define RCC_STRAP2_RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F0_MASK                        0x00010000L
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP3__STRAP_PWR_EN_DEV0_F0_MASK                                            0x00020000L
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP3__STRAP_MSI_EN_DEV0_F0_MASK                                            0x00040000L
 #define RCC_STRAP2_RCC_DEV0_EPF0_STRAP3__STRAP_MSI_CLR_PENDING_EN_DEV0_F0_MASK                                0x00080000L
@@ -21693,20 +21693,20 @@
 //RCC_STRAP2_RCC_DEV0_EPF1_STRAP0
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP0__STRAP_DEVICE_ID_DEV0_F1__SHIFT                                       0x0
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F1__SHIFT                                    0x10
-#define RCC_STRAP2_RCC_DEV0_EPF1_STRAP0__STRAP_MINOR_REV_ID_DEV0_F1__SHIFT                                    0x14
+#define RCC_STRAP2_RCC_DEV0_EPF1_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F1__SHIFT                                    0x14
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP0__STRAP_FUNC_EN_DEV0_F1__SHIFT                                         0x1c
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F1__SHIFT                           0x1d
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP0__STRAP_D1_SUPPORT_DEV0_F1__SHIFT                                      0x1e
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP0__STRAP_D2_SUPPORT_DEV0_F1__SHIFT                                      0x1f
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP0__STRAP_DEVICE_ID_DEV0_F1_MASK                                         0x0000FFFFL
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F1_MASK                                      0x000F0000L
-#define RCC_STRAP2_RCC_DEV0_EPF1_STRAP0__STRAP_MINOR_REV_ID_DEV0_F1_MASK                                      0x00F00000L
+#define RCC_STRAP2_RCC_DEV0_EPF1_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F1_MASK                                      0x00F00000L
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP0__STRAP_FUNC_EN_DEV0_F1_MASK                                           0x10000000L
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F1_MASK                             0x20000000L
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP0__STRAP_D1_SUPPORT_DEV0_F1_MASK                                        0x40000000L
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP0__STRAP_D2_SUPPORT_DEV0_F1_MASK                                        0x80000000L
 //RCC_STRAP2_RCC_DEV0_EPF1_STRAP2
-#define RCC_STRAP2_RCC_DEV0_EPF1_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F1__SHIFT                                   0x7
+#define RCC_STRAP2_RCC_DEV0_EPF1_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F1__SHIFT                                   0x7
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F1__SHIFT                                   0x8
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP2__STRAP_MAX_PASID_WIDTH_DEV0_F1__SHIFT                                 0x9
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F1__SHIFT                          0xe
@@ -21720,7 +21720,7 @@
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP2__STRAP_PASID_EXE_PERMISSION_SUPPORTED_DEV0_F1__SHIFT                  0x1d
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP2__STRAP_PASID_GLOBAL_INVALIDATE_SUPPORTED_DEV0_F1__SHIFT               0x1e
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP2__STRAP_PASID_PRIV_MODE_SUPPORTED_DEV0_F1__SHIFT                       0x1f
-#define RCC_STRAP2_RCC_DEV0_EPF1_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F1_MASK                                     0x00000080L
+#define RCC_STRAP2_RCC_DEV0_EPF1_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F1_MASK                                     0x00000080L
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F1_MASK                                     0x00000100L
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP2__STRAP_MAX_PASID_WIDTH_DEV0_F1_MASK                                   0x00003E00L
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F1_MASK                            0x00004000L
@@ -21742,7 +21742,7 @@
 //RCC_STRAP2_RCC_DEV0_EPF1_STRAP25
 //RCC_STRAP2_RCC_DEV0_EPF1_STRAP3
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP3__STRAP_SUBSYS_ID_DEV0_F1__SHIFT                                       0x0
-#define RCC_STRAP2_RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F1__SHIFT                      0x10
+#define RCC_STRAP2_RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F1__SHIFT                      0x10
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP3__STRAP_PWR_EN_DEV0_F1__SHIFT                                          0x11
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP3__STRAP_MSI_EN_DEV0_F1__SHIFT                                          0x12
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP3__STRAP_MSI_CLR_PENDING_EN_DEV0_F1__SHIFT                              0x13
@@ -21754,7 +21754,7 @@
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP3__STRAP_TRUE_PM_STATUS_EN_DEV0_F1__SHIFT                               0x1e
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP3__STRAP_RTR_EN_DEV0_F1__SHIFT                                          0x1f
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP3__STRAP_SUBSYS_ID_DEV0_F1_MASK                                         0x0000FFFFL
-#define RCC_STRAP2_RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F1_MASK                        0x00010000L
+#define RCC_STRAP2_RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F1_MASK                        0x00010000L
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP3__STRAP_PWR_EN_DEV0_F1_MASK                                            0x00020000L
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP3__STRAP_MSI_EN_DEV0_F1_MASK                                            0x00040000L
 #define RCC_STRAP2_RCC_DEV0_EPF1_STRAP3__STRAP_MSI_CLR_PENDING_EN_DEV0_F1_MASK                                0x00080000L
@@ -22071,7 +22071,7 @@
 
 // addressBlock: aid_nbio_nbif0_gdc_GDCDEC
 //GDC1_A2S_CNTL_CL0
-#define GDC1_A2S_CNTL_CL0__NSNOOP_MAP__SHIFT                                                                  0x0
+#define GDC1_A2S_CNTL_CL0__NSANALOP_MAP__SHIFT                                                                  0x0
 #define GDC1_A2S_CNTL_CL0__REQPASSPW_VC0_MAP__SHIFT                                                           0x2
 #define GDC1_A2S_CNTL_CL0__REQPASSPW_NVC0_MAP__SHIFT                                                          0x4
 #define GDC1_A2S_CNTL_CL0__REQRSPPASSPW_VC0_MAP__SHIFT                                                        0x6
@@ -22086,7 +22086,7 @@
 #define GDC1_A2S_CNTL_CL0__RDRSP_SEL_MODE__SHIFT                                                              0x18
 #define GDC1_A2S_CNTL_CL0__STATIC_VC_ENABLE__SHIFT                                                            0x1b
 #define GDC1_A2S_CNTL_CL0__STATIC_VC_VALUE__SHIFT                                                             0x1c
-#define GDC1_A2S_CNTL_CL0__NSNOOP_MAP_MASK                                                                    0x00000003L
+#define GDC1_A2S_CNTL_CL0__NSANALOP_MAP_MASK                                                                    0x00000003L
 #define GDC1_A2S_CNTL_CL0__REQPASSPW_VC0_MAP_MASK                                                             0x0000000CL
 #define GDC1_A2S_CNTL_CL0__REQPASSPW_NVC0_MAP_MASK                                                            0x00000030L
 #define GDC1_A2S_CNTL_CL0__REQRSPPASSPW_VC0_MAP_MASK                                                          0x000000C0L
@@ -22102,7 +22102,7 @@
 #define GDC1_A2S_CNTL_CL0__STATIC_VC_ENABLE_MASK                                                              0x08000000L
 #define GDC1_A2S_CNTL_CL0__STATIC_VC_VALUE_MASK                                                               0x70000000L
 //GDC1_A2S_CNTL_CL1
-#define GDC1_A2S_CNTL_CL1__NSNOOP_MAP__SHIFT                                                                  0x0
+#define GDC1_A2S_CNTL_CL1__NSANALOP_MAP__SHIFT                                                                  0x0
 #define GDC1_A2S_CNTL_CL1__REQPASSPW_VC0_MAP__SHIFT                                                           0x2
 #define GDC1_A2S_CNTL_CL1__REQPASSPW_NVC0_MAP__SHIFT                                                          0x4
 #define GDC1_A2S_CNTL_CL1__REQRSPPASSPW_VC0_MAP__SHIFT                                                        0x6
@@ -22117,7 +22117,7 @@
 #define GDC1_A2S_CNTL_CL1__RDRSP_SEL_MODE__SHIFT                                                              0x18
 #define GDC1_A2S_CNTL_CL1__STATIC_VC_ENABLE__SHIFT                                                            0x1b
 #define GDC1_A2S_CNTL_CL1__STATIC_VC_VALUE__SHIFT                                                             0x1c
-#define GDC1_A2S_CNTL_CL1__NSNOOP_MAP_MASK                                                                    0x00000003L
+#define GDC1_A2S_CNTL_CL1__NSANALOP_MAP_MASK                                                                    0x00000003L
 #define GDC1_A2S_CNTL_CL1__REQPASSPW_VC0_MAP_MASK                                                             0x0000000CL
 #define GDC1_A2S_CNTL_CL1__REQPASSPW_NVC0_MAP_MASK                                                            0x00000030L
 #define GDC1_A2S_CNTL_CL1__REQRSPPASSPW_VC0_MAP_MASK                                                          0x000000C0L
@@ -22156,7 +22156,7 @@
 #define GDC1_A2S_CNTL_SW0__FORCE_RSP_REORDER_EN__SHIFT                                                        0x6
 #define GDC1_A2S_CNTL_SW0__SDP_WR_CHAIN_DIS__SHIFT                                                            0x9
 #define GDC1_A2S_CNTL_SW0__WR_TAG_FOR_CHAIN_ENABLE__SHIFT                                                     0xa
-#define GDC1_A2S_CNTL_SW0__WR_TAG_FOR_NONCHAIN_ENABLE__SHIFT                                                  0xb
+#define GDC1_A2S_CNTL_SW0__WR_TAG_FOR_ANALNCHAIN_ENABLE__SHIFT                                                  0xb
 #define GDC1_A2S_CNTL_SW0__SDP_DYNAMIC_VC_WR_CHAIN_DIS__SHIFT                                                 0xc
 #define GDC1_A2S_CNTL_SW0__WRR_RD_WEIGHT__SHIFT                                                               0x10
 #define GDC1_A2S_CNTL_SW0__WRR_WR_WEIGHT__SHIFT                                                               0x18
@@ -22165,7 +22165,7 @@
 #define GDC1_A2S_CNTL_SW0__FORCE_RSP_REORDER_EN_MASK                                                          0x00000040L
 #define GDC1_A2S_CNTL_SW0__SDP_WR_CHAIN_DIS_MASK                                                              0x00000200L
 #define GDC1_A2S_CNTL_SW0__WR_TAG_FOR_CHAIN_ENABLE_MASK                                                       0x00000400L
-#define GDC1_A2S_CNTL_SW0__WR_TAG_FOR_NONCHAIN_ENABLE_MASK                                                    0x00000800L
+#define GDC1_A2S_CNTL_SW0__WR_TAG_FOR_ANALNCHAIN_ENABLE_MASK                                                    0x00000800L
 #define GDC1_A2S_CNTL_SW0__SDP_DYNAMIC_VC_WR_CHAIN_DIS_MASK                                                   0x00001000L
 #define GDC1_A2S_CNTL_SW0__WRR_RD_WEIGHT_MASK                                                                 0x00FF0000L
 #define GDC1_A2S_CNTL_SW0__WRR_WR_WEIGHT_MASK                                                                 0xFF000000L
@@ -22175,7 +22175,7 @@
 #define GDC1_A2S_CNTL_SW1__FORCE_RSP_REORDER_EN__SHIFT                                                        0x6
 #define GDC1_A2S_CNTL_SW1__SDP_WR_CHAIN_DIS__SHIFT                                                            0x9
 #define GDC1_A2S_CNTL_SW1__WR_TAG_FOR_CHAIN_ENABLE__SHIFT                                                     0xa
-#define GDC1_A2S_CNTL_SW1__WR_TAG_FOR_NONCHAIN_ENABLE__SHIFT                                                  0xb
+#define GDC1_A2S_CNTL_SW1__WR_TAG_FOR_ANALNCHAIN_ENABLE__SHIFT                                                  0xb
 #define GDC1_A2S_CNTL_SW1__SDP_DYNAMIC_VC_WR_CHAIN_DIS__SHIFT                                                 0xc
 #define GDC1_A2S_CNTL_SW1__WRR_RD_WEIGHT__SHIFT                                                               0x10
 #define GDC1_A2S_CNTL_SW1__WRR_WR_WEIGHT__SHIFT                                                               0x18
@@ -22184,7 +22184,7 @@
 #define GDC1_A2S_CNTL_SW1__FORCE_RSP_REORDER_EN_MASK                                                          0x00000040L
 #define GDC1_A2S_CNTL_SW1__SDP_WR_CHAIN_DIS_MASK                                                              0x00000200L
 #define GDC1_A2S_CNTL_SW1__WR_TAG_FOR_CHAIN_ENABLE_MASK                                                       0x00000400L
-#define GDC1_A2S_CNTL_SW1__WR_TAG_FOR_NONCHAIN_ENABLE_MASK                                                    0x00000800L
+#define GDC1_A2S_CNTL_SW1__WR_TAG_FOR_ANALNCHAIN_ENABLE_MASK                                                    0x00000800L
 #define GDC1_A2S_CNTL_SW1__SDP_DYNAMIC_VC_WR_CHAIN_DIS_MASK                                                   0x00001000L
 #define GDC1_A2S_CNTL_SW1__WRR_RD_WEIGHT_MASK                                                                 0x00FF0000L
 #define GDC1_A2S_CNTL_SW1__WRR_WR_WEIGHT_MASK                                                                 0xFF000000L
@@ -22194,7 +22194,7 @@
 #define GDC1_A2S_CNTL_SW2__FORCE_RSP_REORDER_EN__SHIFT                                                        0x6
 #define GDC1_A2S_CNTL_SW2__SDP_WR_CHAIN_DIS__SHIFT                                                            0x9
 #define GDC1_A2S_CNTL_SW2__WR_TAG_FOR_CHAIN_ENABLE__SHIFT                                                     0xa
-#define GDC1_A2S_CNTL_SW2__WR_TAG_FOR_NONCHAIN_ENABLE__SHIFT                                                  0xb
+#define GDC1_A2S_CNTL_SW2__WR_TAG_FOR_ANALNCHAIN_ENABLE__SHIFT                                                  0xb
 #define GDC1_A2S_CNTL_SW2__SDP_DYNAMIC_VC_WR_CHAIN_DIS__SHIFT                                                 0xc
 #define GDC1_A2S_CNTL_SW2__WRR_RD_WEIGHT__SHIFT                                                               0x10
 #define GDC1_A2S_CNTL_SW2__WRR_WR_WEIGHT__SHIFT                                                               0x18
@@ -22203,7 +22203,7 @@
 #define GDC1_A2S_CNTL_SW2__FORCE_RSP_REORDER_EN_MASK                                                          0x00000040L
 #define GDC1_A2S_CNTL_SW2__SDP_WR_CHAIN_DIS_MASK                                                              0x00000200L
 #define GDC1_A2S_CNTL_SW2__WR_TAG_FOR_CHAIN_ENABLE_MASK                                                       0x00000400L
-#define GDC1_A2S_CNTL_SW2__WR_TAG_FOR_NONCHAIN_ENABLE_MASK                                                    0x00000800L
+#define GDC1_A2S_CNTL_SW2__WR_TAG_FOR_ANALNCHAIN_ENABLE_MASK                                                    0x00000800L
 #define GDC1_A2S_CNTL_SW2__SDP_DYNAMIC_VC_WR_CHAIN_DIS_MASK                                                   0x00001000L
 #define GDC1_A2S_CNTL_SW2__WRR_RD_WEIGHT_MASK                                                                 0x00FF0000L
 #define GDC1_A2S_CNTL_SW2__WRR_WR_WEIGHT_MASK                                                                 0xFF000000L
@@ -22251,9 +22251,9 @@
 #define GDC1_A2S_MISC_CNTL__WRR_LRG_MODE_MASK                                                                 0x04000000L
 #define GDC1_A2S_MISC_CNTL__WRR_LRG_COUNTER_MODE_MASK                                                         0x08000000L
 //GDC1_SHUB_REGS_IF_CTL
-#define GDC1_SHUB_REGS_IF_CTL__SHUB_REGS_DROP_NONPF_MMREGREQ_SETERR_DIS__SHIFT                                0x0
+#define GDC1_SHUB_REGS_IF_CTL__SHUB_REGS_DROP_ANALNPF_MMREGREQ_SETERR_DIS__SHIFT                                0x0
 #define GDC1_SHUB_REGS_IF_CTL__SHUB_REGS_VF_PROTECTION_DIS__SHIFT                                             0x1
-#define GDC1_SHUB_REGS_IF_CTL__SHUB_REGS_DROP_NONPF_MMREGREQ_SETERR_DIS_MASK                                  0x00000001L
+#define GDC1_SHUB_REGS_IF_CTL__SHUB_REGS_DROP_ANALNPF_MMREGREQ_SETERR_DIS_MASK                                  0x00000001L
 #define GDC1_SHUB_REGS_IF_CTL__SHUB_REGS_VF_PROTECTION_DIS_MASK                                               0x00000002L
 //GDC1_NGDC_MGCG_CTRL
 #define GDC1_NGDC_MGCG_CTRL__NGDC_MGCG_EN__SHIFT                                                              0x0
@@ -23166,13 +23166,13 @@
 #define NP_DMA_DROPPED_LOG_UPPER__NP_DMA_DROPPED_LOG_UPPER_29_MASK                                            0x20000000L
 #define NP_DMA_DROPPED_LOG_UPPER__NP_DMA_DROPPED_LOG_UPPER_30_MASK                                            0x40000000L
 #define NP_DMA_DROPPED_LOG_UPPER__NP_DMA_DROPPED_LOG_UPPER_31_MASK                                            0x80000000L
-//PCIE_VDM_NODE0_CTRL4
-#define PCIE_VDM_NODE0_CTRL4__BUS_RANGE_BASE__SHIFT                                                           0x0
-#define PCIE_VDM_NODE0_CTRL4__BUS_RANGE_LIMIT__SHIFT                                                          0x8
-#define PCIE_VDM_NODE0_CTRL4__NODE0_PRESENT__SHIFT                                                            0x1f
-#define PCIE_VDM_NODE0_CTRL4__BUS_RANGE_BASE_MASK                                                             0x000000FFL
-#define PCIE_VDM_NODE0_CTRL4__BUS_RANGE_LIMIT_MASK                                                            0x0000FF00L
-#define PCIE_VDM_NODE0_CTRL4__NODE0_PRESENT_MASK                                                              0x80000000L
+//PCIE_VDM_ANALDE0_CTRL4
+#define PCIE_VDM_ANALDE0_CTRL4__BUS_RANGE_BASE__SHIFT                                                           0x0
+#define PCIE_VDM_ANALDE0_CTRL4__BUS_RANGE_LIMIT__SHIFT                                                          0x8
+#define PCIE_VDM_ANALDE0_CTRL4__ANALDE0_PRESENT__SHIFT                                                            0x1f
+#define PCIE_VDM_ANALDE0_CTRL4__BUS_RANGE_BASE_MASK                                                             0x000000FFL
+#define PCIE_VDM_ANALDE0_CTRL4__BUS_RANGE_LIMIT_MASK                                                            0x0000FF00L
+#define PCIE_VDM_ANALDE0_CTRL4__ANALDE0_PRESENT_MASK                                                              0x80000000L
 //PCIE_VDM_CNTL2
 #define PCIE_VDM_CNTL2__VdmP2pMode__SHIFT                                                                     0x0
 #define PCIE_VDM_CNTL2__MCTPEndpointEn__SHIFT                                                                 0x2
@@ -24291,7 +24291,7 @@
 #define PARITY_SEVERITY_CONTROL_UCP_0__ParityErrSevUCPGrp12_MASK                                              0x03000000L
 //RAS_GLOBAL_STATUS_LO
 #define RAS_GLOBAL_STATUS_LO__ParityErrCorr__SHIFT                                                            0x0
-#define RAS_GLOBAL_STATUS_LO__ParityErrNonFatal__SHIFT                                                        0x1
+#define RAS_GLOBAL_STATUS_LO__ParityErrAnalnFatal__SHIFT                                                        0x1
 #define RAS_GLOBAL_STATUS_LO__ParityErrFatal__SHIFT                                                           0x2
 #define RAS_GLOBAL_STATUS_LO__ParityErrSerr__SHIFT                                                            0x3
 #define RAS_GLOBAL_STATUS_LO__HPLGWA_NMI__SHIFT                                                               0x6
@@ -24305,7 +24305,7 @@
 #define RAS_GLOBAL_STATUS_LO__PIN_SyncFld_NMI__SHIFT                                                          0xe
 #define RAS_GLOBAL_STATUS_LO__APML_SyncFld_Private__SHIFT                                                     0xf
 #define RAS_GLOBAL_STATUS_LO__ParityErrCorr_MASK                                                              0x00000001L
-#define RAS_GLOBAL_STATUS_LO__ParityErrNonFatal_MASK                                                          0x00000002L
+#define RAS_GLOBAL_STATUS_LO__ParityErrAnalnFatal_MASK                                                          0x00000002L
 #define RAS_GLOBAL_STATUS_LO__ParityErrFatal_MASK                                                             0x00000004L
 #define RAS_GLOBAL_STATUS_LO__ParityErrSerr_MASK                                                              0x00000008L
 #define RAS_GLOBAL_STATUS_LO__HPLGWA_NMI_MASK                                                                 0x00000040L
@@ -27273,15 +27273,15 @@
 #define ParityFatal_ACTION_CONTROL__IntrGenSel_MASK                                                           0x00000006L
 #define ParityFatal_ACTION_CONTROL__LinkDis_En_MASK                                                           0x00000008L
 #define ParityFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                         0x00000010L
-//ParityNonFatal_ACTION_CONTROL
-#define ParityNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                                     0x0
-#define ParityNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                                      0x1
-#define ParityNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                                      0x3
-#define ParityNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                                    0x4
-#define ParityNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                       0x00000001L
-#define ParityNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                        0x00000006L
-#define ParityNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                        0x00000008L
-#define ParityNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                      0x00000010L
+//ParityAnalnFatal_ACTION_CONTROL
+#define ParityAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                                     0x0
+#define ParityAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                                      0x1
+#define ParityAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                                      0x3
+#define ParityAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                                    0x4
+#define ParityAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                       0x00000001L
+#define ParityAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                        0x00000006L
+#define ParityAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                        0x00000008L
+#define ParityAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                      0x00000010L
 //ParityCorr_ACTION_CONTROL
 #define ParityCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                         0x0
 #define ParityCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                          0x1
@@ -27309,15 +27309,15 @@
 #define PCIE0PortAIntFatal_ACTION_CONTROL__IntrGenSel_MASK                                                    0x00000006L
 #define PCIE0PortAIntFatal_ACTION_CONTROL__LinkDis_En_MASK                                                    0x00000008L
 #define PCIE0PortAIntFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                  0x00000010L
-//PCIE0PortAIntNonFatal_ACTION_CONTROL
-#define PCIE0PortAIntNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
-#define PCIE0PortAIntNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
-#define PCIE0PortAIntNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
-#define PCIE0PortAIntNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
-#define PCIE0PortAIntNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
-#define PCIE0PortAIntNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
-#define PCIE0PortAIntNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
-#define PCIE0PortAIntNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
+//PCIE0PortAIntAnalnFatal_ACTION_CONTROL
+#define PCIE0PortAIntAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
+#define PCIE0PortAIntAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
+#define PCIE0PortAIntAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
+#define PCIE0PortAIntAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
+#define PCIE0PortAIntAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
+#define PCIE0PortAIntAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
+#define PCIE0PortAIntAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
+#define PCIE0PortAIntAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
 //PCIE0PortAIntCorr_ACTION_CONTROL
 #define PCIE0PortAIntCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                  0x0
 #define PCIE0PortAIntCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                   0x1
@@ -27336,15 +27336,15 @@
 #define PCIE0PortAExtFatal_ACTION_CONTROL__IntrGenSel_MASK                                                    0x00000006L
 #define PCIE0PortAExtFatal_ACTION_CONTROL__LinkDis_En_MASK                                                    0x00000008L
 #define PCIE0PortAExtFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                  0x00000010L
-//PCIE0PortAExtNonFatal_ACTION_CONTROL
-#define PCIE0PortAExtNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
-#define PCIE0PortAExtNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
-#define PCIE0PortAExtNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
-#define PCIE0PortAExtNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
-#define PCIE0PortAExtNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
-#define PCIE0PortAExtNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
-#define PCIE0PortAExtNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
-#define PCIE0PortAExtNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
+//PCIE0PortAExtAnalnFatal_ACTION_CONTROL
+#define PCIE0PortAExtAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
+#define PCIE0PortAExtAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
+#define PCIE0PortAExtAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
+#define PCIE0PortAExtAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
+#define PCIE0PortAExtAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
+#define PCIE0PortAExtAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
+#define PCIE0PortAExtAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
+#define PCIE0PortAExtAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
 //PCIE0PortAExtCorr_ACTION_CONTROL
 #define PCIE0PortAExtCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                  0x0
 #define PCIE0PortAExtCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                   0x1
@@ -27381,15 +27381,15 @@
 #define PCIE0PortBIntFatal_ACTION_CONTROL__IntrGenSel_MASK                                                    0x00000006L
 #define PCIE0PortBIntFatal_ACTION_CONTROL__LinkDis_En_MASK                                                    0x00000008L
 #define PCIE0PortBIntFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                  0x00000010L
-//PCIE0PortBIntNonFatal_ACTION_CONTROL
-#define PCIE0PortBIntNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
-#define PCIE0PortBIntNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
-#define PCIE0PortBIntNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
-#define PCIE0PortBIntNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
-#define PCIE0PortBIntNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
-#define PCIE0PortBIntNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
-#define PCIE0PortBIntNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
-#define PCIE0PortBIntNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
+//PCIE0PortBIntAnalnFatal_ACTION_CONTROL
+#define PCIE0PortBIntAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
+#define PCIE0PortBIntAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
+#define PCIE0PortBIntAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
+#define PCIE0PortBIntAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
+#define PCIE0PortBIntAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
+#define PCIE0PortBIntAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
+#define PCIE0PortBIntAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
+#define PCIE0PortBIntAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
 //PCIE0PortBIntCorr_ACTION_CONTROL
 #define PCIE0PortBIntCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                  0x0
 #define PCIE0PortBIntCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                   0x1
@@ -27408,15 +27408,15 @@
 #define PCIE0PortBExtFatal_ACTION_CONTROL__IntrGenSel_MASK                                                    0x00000006L
 #define PCIE0PortBExtFatal_ACTION_CONTROL__LinkDis_En_MASK                                                    0x00000008L
 #define PCIE0PortBExtFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                  0x00000010L
-//PCIE0PortBExtNonFatal_ACTION_CONTROL
-#define PCIE0PortBExtNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
-#define PCIE0PortBExtNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
-#define PCIE0PortBExtNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
-#define PCIE0PortBExtNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
-#define PCIE0PortBExtNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
-#define PCIE0PortBExtNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
-#define PCIE0PortBExtNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
-#define PCIE0PortBExtNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
+//PCIE0PortBExtAnalnFatal_ACTION_CONTROL
+#define PCIE0PortBExtAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
+#define PCIE0PortBExtAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
+#define PCIE0PortBExtAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
+#define PCIE0PortBExtAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
+#define PCIE0PortBExtAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
+#define PCIE0PortBExtAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
+#define PCIE0PortBExtAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
+#define PCIE0PortBExtAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
 //PCIE0PortBExtCorr_ACTION_CONTROL
 #define PCIE0PortBExtCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                  0x0
 #define PCIE0PortBExtCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                   0x1
@@ -27453,15 +27453,15 @@
 #define PCIE0PortCIntFatal_ACTION_CONTROL__IntrGenSel_MASK                                                    0x00000006L
 #define PCIE0PortCIntFatal_ACTION_CONTROL__LinkDis_En_MASK                                                    0x00000008L
 #define PCIE0PortCIntFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                  0x00000010L
-//PCIE0PortCIntNonFatal_ACTION_CONTROL
-#define PCIE0PortCIntNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
-#define PCIE0PortCIntNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
-#define PCIE0PortCIntNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
-#define PCIE0PortCIntNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
-#define PCIE0PortCIntNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
-#define PCIE0PortCIntNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
-#define PCIE0PortCIntNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
-#define PCIE0PortCIntNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
+//PCIE0PortCIntAnalnFatal_ACTION_CONTROL
+#define PCIE0PortCIntAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
+#define PCIE0PortCIntAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
+#define PCIE0PortCIntAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
+#define PCIE0PortCIntAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
+#define PCIE0PortCIntAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
+#define PCIE0PortCIntAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
+#define PCIE0PortCIntAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
+#define PCIE0PortCIntAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
 //PCIE0PortCIntCorr_ACTION_CONTROL
 #define PCIE0PortCIntCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                  0x0
 #define PCIE0PortCIntCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                   0x1
@@ -27480,15 +27480,15 @@
 #define PCIE0PortCExtFatal_ACTION_CONTROL__IntrGenSel_MASK                                                    0x00000006L
 #define PCIE0PortCExtFatal_ACTION_CONTROL__LinkDis_En_MASK                                                    0x00000008L
 #define PCIE0PortCExtFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                  0x00000010L
-//PCIE0PortCExtNonFatal_ACTION_CONTROL
-#define PCIE0PortCExtNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
-#define PCIE0PortCExtNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
-#define PCIE0PortCExtNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
-#define PCIE0PortCExtNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
-#define PCIE0PortCExtNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
-#define PCIE0PortCExtNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
-#define PCIE0PortCExtNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
-#define PCIE0PortCExtNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
+//PCIE0PortCExtAnalnFatal_ACTION_CONTROL
+#define PCIE0PortCExtAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
+#define PCIE0PortCExtAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
+#define PCIE0PortCExtAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
+#define PCIE0PortCExtAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
+#define PCIE0PortCExtAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
+#define PCIE0PortCExtAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
+#define PCIE0PortCExtAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
+#define PCIE0PortCExtAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
 //PCIE0PortCExtCorr_ACTION_CONTROL
 #define PCIE0PortCExtCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                  0x0
 #define PCIE0PortCExtCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                   0x1
@@ -27525,15 +27525,15 @@
 #define PCIE0PortDIntFatal_ACTION_CONTROL__IntrGenSel_MASK                                                    0x00000006L
 #define PCIE0PortDIntFatal_ACTION_CONTROL__LinkDis_En_MASK                                                    0x00000008L
 #define PCIE0PortDIntFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                  0x00000010L
-//PCIE0PortDIntNonFatal_ACTION_CONTROL
-#define PCIE0PortDIntNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
-#define PCIE0PortDIntNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
-#define PCIE0PortDIntNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
-#define PCIE0PortDIntNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
-#define PCIE0PortDIntNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
-#define PCIE0PortDIntNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
-#define PCIE0PortDIntNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
-#define PCIE0PortDIntNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
+//PCIE0PortDIntAnalnFatal_ACTION_CONTROL
+#define PCIE0PortDIntAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
+#define PCIE0PortDIntAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
+#define PCIE0PortDIntAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
+#define PCIE0PortDIntAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
+#define PCIE0PortDIntAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
+#define PCIE0PortDIntAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
+#define PCIE0PortDIntAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
+#define PCIE0PortDIntAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
 //PCIE0PortDIntCorr_ACTION_CONTROL
 #define PCIE0PortDIntCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                  0x0
 #define PCIE0PortDIntCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                   0x1
@@ -27552,15 +27552,15 @@
 #define PCIE0PortDExtFatal_ACTION_CONTROL__IntrGenSel_MASK                                                    0x00000006L
 #define PCIE0PortDExtFatal_ACTION_CONTROL__LinkDis_En_MASK                                                    0x00000008L
 #define PCIE0PortDExtFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                  0x00000010L
-//PCIE0PortDExtNonFatal_ACTION_CONTROL
-#define PCIE0PortDExtNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
-#define PCIE0PortDExtNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
-#define PCIE0PortDExtNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
-#define PCIE0PortDExtNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
-#define PCIE0PortDExtNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
-#define PCIE0PortDExtNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
-#define PCIE0PortDExtNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
-#define PCIE0PortDExtNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
+//PCIE0PortDExtAnalnFatal_ACTION_CONTROL
+#define PCIE0PortDExtAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
+#define PCIE0PortDExtAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
+#define PCIE0PortDExtAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
+#define PCIE0PortDExtAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
+#define PCIE0PortDExtAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
+#define PCIE0PortDExtAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
+#define PCIE0PortDExtAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
+#define PCIE0PortDExtAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
 //PCIE0PortDExtCorr_ACTION_CONTROL
 #define PCIE0PortDExtCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                  0x0
 #define PCIE0PortDExtCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                   0x1
@@ -27597,15 +27597,15 @@
 #define PCIE0PortEIntFatal_ACTION_CONTROL__IntrGenSel_MASK                                                    0x00000006L
 #define PCIE0PortEIntFatal_ACTION_CONTROL__LinkDis_En_MASK                                                    0x00000008L
 #define PCIE0PortEIntFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                  0x00000010L
-//PCIE0PortEIntNonFatal_ACTION_CONTROL
-#define PCIE0PortEIntNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
-#define PCIE0PortEIntNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
-#define PCIE0PortEIntNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
-#define PCIE0PortEIntNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
-#define PCIE0PortEIntNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
-#define PCIE0PortEIntNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
-#define PCIE0PortEIntNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
-#define PCIE0PortEIntNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
+//PCIE0PortEIntAnalnFatal_ACTION_CONTROL
+#define PCIE0PortEIntAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
+#define PCIE0PortEIntAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
+#define PCIE0PortEIntAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
+#define PCIE0PortEIntAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
+#define PCIE0PortEIntAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
+#define PCIE0PortEIntAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
+#define PCIE0PortEIntAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
+#define PCIE0PortEIntAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
 //PCIE0PortEIntCorr_ACTION_CONTROL
 #define PCIE0PortEIntCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                  0x0
 #define PCIE0PortEIntCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                   0x1
@@ -27624,15 +27624,15 @@
 #define PCIE0PortEExtFatal_ACTION_CONTROL__IntrGenSel_MASK                                                    0x00000006L
 #define PCIE0PortEExtFatal_ACTION_CONTROL__LinkDis_En_MASK                                                    0x00000008L
 #define PCIE0PortEExtFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                  0x00000010L
-//PCIE0PortEExtNonFatal_ACTION_CONTROL
-#define PCIE0PortEExtNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
-#define PCIE0PortEExtNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
-#define PCIE0PortEExtNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
-#define PCIE0PortEExtNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
-#define PCIE0PortEExtNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
-#define PCIE0PortEExtNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
-#define PCIE0PortEExtNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
-#define PCIE0PortEExtNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
+//PCIE0PortEExtAnalnFatal_ACTION_CONTROL
+#define PCIE0PortEExtAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
+#define PCIE0PortEExtAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
+#define PCIE0PortEExtAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
+#define PCIE0PortEExtAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
+#define PCIE0PortEExtAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
+#define PCIE0PortEExtAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
+#define PCIE0PortEExtAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
+#define PCIE0PortEExtAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
 //PCIE0PortEExtCorr_ACTION_CONTROL
 #define PCIE0PortEExtCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                  0x0
 #define PCIE0PortEExtCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                   0x1
@@ -27669,15 +27669,15 @@
 #define PCIE0PortFIntFatal_ACTION_CONTROL__IntrGenSel_MASK                                                    0x00000006L
 #define PCIE0PortFIntFatal_ACTION_CONTROL__LinkDis_En_MASK                                                    0x00000008L
 #define PCIE0PortFIntFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                  0x00000010L
-//PCIE0PortFIntNonFatal_ACTION_CONTROL
-#define PCIE0PortFIntNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
-#define PCIE0PortFIntNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
-#define PCIE0PortFIntNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
-#define PCIE0PortFIntNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
-#define PCIE0PortFIntNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
-#define PCIE0PortFIntNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
-#define PCIE0PortFIntNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
-#define PCIE0PortFIntNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
+//PCIE0PortFIntAnalnFatal_ACTION_CONTROL
+#define PCIE0PortFIntAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
+#define PCIE0PortFIntAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
+#define PCIE0PortFIntAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
+#define PCIE0PortFIntAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
+#define PCIE0PortFIntAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
+#define PCIE0PortFIntAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
+#define PCIE0PortFIntAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
+#define PCIE0PortFIntAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
 //PCIE0PortFIntCorr_ACTION_CONTROL
 #define PCIE0PortFIntCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                  0x0
 #define PCIE0PortFIntCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                   0x1
@@ -27696,15 +27696,15 @@
 #define PCIE0PortFExtFatal_ACTION_CONTROL__IntrGenSel_MASK                                                    0x00000006L
 #define PCIE0PortFExtFatal_ACTION_CONTROL__LinkDis_En_MASK                                                    0x00000008L
 #define PCIE0PortFExtFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                  0x00000010L
-//PCIE0PortFExtNonFatal_ACTION_CONTROL
-#define PCIE0PortFExtNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
-#define PCIE0PortFExtNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
-#define PCIE0PortFExtNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
-#define PCIE0PortFExtNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
-#define PCIE0PortFExtNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
-#define PCIE0PortFExtNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
-#define PCIE0PortFExtNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
-#define PCIE0PortFExtNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
+//PCIE0PortFExtAnalnFatal_ACTION_CONTROL
+#define PCIE0PortFExtAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
+#define PCIE0PortFExtAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
+#define PCIE0PortFExtAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
+#define PCIE0PortFExtAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
+#define PCIE0PortFExtAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
+#define PCIE0PortFExtAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
+#define PCIE0PortFExtAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
+#define PCIE0PortFExtAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
 //PCIE0PortFExtCorr_ACTION_CONTROL
 #define PCIE0PortFExtCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                  0x0
 #define PCIE0PortFExtCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                   0x1
@@ -27741,15 +27741,15 @@
 #define PCIE0PortGIntFatal_ACTION_CONTROL__IntrGenSel_MASK                                                    0x00000006L
 #define PCIE0PortGIntFatal_ACTION_CONTROL__LinkDis_En_MASK                                                    0x00000008L
 #define PCIE0PortGIntFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                  0x00000010L
-//PCIE0PortGIntNonFatal_ACTION_CONTROL
-#define PCIE0PortGIntNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
-#define PCIE0PortGIntNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
-#define PCIE0PortGIntNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
-#define PCIE0PortGIntNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
-#define PCIE0PortGIntNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
-#define PCIE0PortGIntNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
-#define PCIE0PortGIntNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
-#define PCIE0PortGIntNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
+//PCIE0PortGIntAnalnFatal_ACTION_CONTROL
+#define PCIE0PortGIntAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
+#define PCIE0PortGIntAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
+#define PCIE0PortGIntAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
+#define PCIE0PortGIntAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
+#define PCIE0PortGIntAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
+#define PCIE0PortGIntAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
+#define PCIE0PortGIntAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
+#define PCIE0PortGIntAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
 //PCIE0PortGIntCorr_ACTION_CONTROL
 #define PCIE0PortGIntCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                  0x0
 #define PCIE0PortGIntCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                   0x1
@@ -27768,15 +27768,15 @@
 #define PCIE0PortGExtFatal_ACTION_CONTROL__IntrGenSel_MASK                                                    0x00000006L
 #define PCIE0PortGExtFatal_ACTION_CONTROL__LinkDis_En_MASK                                                    0x00000008L
 #define PCIE0PortGExtFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                  0x00000010L
-//PCIE0PortGExtNonFatal_ACTION_CONTROL
-#define PCIE0PortGExtNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
-#define PCIE0PortGExtNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
-#define PCIE0PortGExtNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
-#define PCIE0PortGExtNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
-#define PCIE0PortGExtNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
-#define PCIE0PortGExtNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
-#define PCIE0PortGExtNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
-#define PCIE0PortGExtNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
+//PCIE0PortGExtAnalnFatal_ACTION_CONTROL
+#define PCIE0PortGExtAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
+#define PCIE0PortGExtAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
+#define PCIE0PortGExtAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
+#define PCIE0PortGExtAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
+#define PCIE0PortGExtAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
+#define PCIE0PortGExtAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
+#define PCIE0PortGExtAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
+#define PCIE0PortGExtAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
 //PCIE0PortGExtCorr_ACTION_CONTROL
 #define PCIE0PortGExtCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                  0x0
 #define PCIE0PortGExtCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                   0x1
@@ -27813,15 +27813,15 @@
 #define NBIF1PortAIntFatal_ACTION_CONTROL__IntrGenSel_MASK                                                    0x00000006L
 #define NBIF1PortAIntFatal_ACTION_CONTROL__LinkDis_En_MASK                                                    0x00000008L
 #define NBIF1PortAIntFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                  0x00000010L
-//NBIF1PortAIntNonFatal_ACTION_CONTROL
-#define NBIF1PortAIntNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
-#define NBIF1PortAIntNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
-#define NBIF1PortAIntNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
-#define NBIF1PortAIntNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
-#define NBIF1PortAIntNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
-#define NBIF1PortAIntNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
-#define NBIF1PortAIntNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
-#define NBIF1PortAIntNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
+//NBIF1PortAIntAnalnFatal_ACTION_CONTROL
+#define NBIF1PortAIntAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
+#define NBIF1PortAIntAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
+#define NBIF1PortAIntAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
+#define NBIF1PortAIntAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
+#define NBIF1PortAIntAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
+#define NBIF1PortAIntAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
+#define NBIF1PortAIntAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
+#define NBIF1PortAIntAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
 //NBIF1PortAIntCorr_ACTION_CONTROL
 #define NBIF1PortAIntCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                  0x0
 #define NBIF1PortAIntCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                   0x1
@@ -27840,15 +27840,15 @@
 #define NBIF1PortAExtFatal_ACTION_CONTROL__IntrGenSel_MASK                                                    0x00000006L
 #define NBIF1PortAExtFatal_ACTION_CONTROL__LinkDis_En_MASK                                                    0x00000008L
 #define NBIF1PortAExtFatal_ACTION_CONTROL__SyncFlood_En_MASK                                                  0x00000010L
-//NBIF1PortAExtNonFatal_ACTION_CONTROL
-#define NBIF1PortAExtNonFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
-#define NBIF1PortAExtNonFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
-#define NBIF1PortAExtNonFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
-#define NBIF1PortAExtNonFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
-#define NBIF1PortAExtNonFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
-#define NBIF1PortAExtNonFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
-#define NBIF1PortAExtNonFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
-#define NBIF1PortAExtNonFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
+//NBIF1PortAExtAnalnFatal_ACTION_CONTROL
+#define NBIF1PortAExtAnalnFatal_ACTION_CONTROL__APML_ERR_En__SHIFT                                              0x0
+#define NBIF1PortAExtAnalnFatal_ACTION_CONTROL__IntrGenSel__SHIFT                                               0x1
+#define NBIF1PortAExtAnalnFatal_ACTION_CONTROL__LinkDis_En__SHIFT                                               0x3
+#define NBIF1PortAExtAnalnFatal_ACTION_CONTROL__SyncFlood_En__SHIFT                                             0x4
+#define NBIF1PortAExtAnalnFatal_ACTION_CONTROL__APML_ERR_En_MASK                                                0x00000001L
+#define NBIF1PortAExtAnalnFatal_ACTION_CONTROL__IntrGenSel_MASK                                                 0x00000006L
+#define NBIF1PortAExtAnalnFatal_ACTION_CONTROL__LinkDis_En_MASK                                                 0x00000008L
+#define NBIF1PortAExtAnalnFatal_ACTION_CONTROL__SyncFlood_En_MASK                                               0x00000010L
 //NBIF1PortAExtCorr_ACTION_CONTROL
 #define NBIF1PortAExtCorr_ACTION_CONTROL__APML_ERR_En__SHIFT                                                  0x0
 #define NBIF1PortAExtCorr_ACTION_CONTROL__IntrGenSel__SHIFT                                                   0x1
@@ -28070,14 +28070,14 @@
 #define EGRESS_POISON_SEVERITY_UPPER__EgressPoisonSeverityUpper_MASK                                          0xFFFFFFFFL
 //APML_STATUS
 #define APML_STATUS__APML_Corr__SHIFT                                                                         0x0
-#define APML_STATUS__APML_NonFatal__SHIFT                                                                     0x1
+#define APML_STATUS__APML_AnalnFatal__SHIFT                                                                     0x1
 #define APML_STATUS__APML_Fatal__SHIFT                                                                        0x2
 #define APML_STATUS__APML_Serr__SHIFT                                                                         0x3
 #define APML_STATUS__APML_IntPoisonErr__SHIFT                                                                 0x4
 #define APML_STATUS__APML_EgressPoisonErrLo__SHIFT                                                            0x5
 #define APML_STATUS__APML_EgressPoisonErrHi__SHIFT                                                            0x6
 #define APML_STATUS__APML_Corr_MASK                                                                           0x00000001L
-#define APML_STATUS__APML_NonFatal_MASK                                                                       0x00000002L
+#define APML_STATUS__APML_AnalnFatal_MASK                                                                       0x00000002L
 #define APML_STATUS__APML_Fatal_MASK                                                                          0x00000004L
 #define APML_STATUS__APML_Serr_MASK                                                                           0x00000008L
 #define APML_STATUS__APML_IntPoisonErr_MASK                                                                   0x00000010L
@@ -28591,11 +28591,11 @@
 #define L2_CP_CONTROL_1__Reserved_MASK                                                                        0xFFFF0000L
 //L2_TW_CONTROL_1
 #define L2_TW_CONTROL_1__TWTraceEn__SHIFT                                                                     0x0
-#define L2_TW_CONTROL_1__TWTraceNoWrap__SHIFT                                                                 0x1
+#define L2_TW_CONTROL_1__TWTraceAnalWrap__SHIFT                                                                 0x1
 #define L2_TW_CONTROL_1__TWTraceForceDisable__SHIFT                                                           0x2
 #define L2_TW_CONTROL_1__TWTraceMask__SHIFT                                                                   0xf
 #define L2_TW_CONTROL_1__TWTraceEn_MASK                                                                       0x00000001L
-#define L2_TW_CONTROL_1__TWTraceNoWrap_MASK                                                                   0x00000002L
+#define L2_TW_CONTROL_1__TWTraceAnalWrap_MASK                                                                   0x00000002L
 #define L2_TW_CONTROL_1__TWTraceForceDisable_MASK                                                             0x00000004L
 #define L2_TW_CONTROL_1__TWTraceMask_MASK                                                                     0xFFFF8000L
 //L2_TW_CONTROL_2
@@ -28759,7 +28759,7 @@
 #define BIF_CFG_DEV0_RC_COMMAND__BUS_MASTER_EN__SHIFT                                                         0x2
 #define BIF_CFG_DEV0_RC_COMMAND__SPECIAL_CYCLE_EN__SHIFT                                                      0x3
 #define BIF_CFG_DEV0_RC_COMMAND__MEM_WRITE_INVALIDATE_EN__SHIFT                                               0x4
-#define BIF_CFG_DEV0_RC_COMMAND__PAL_SNOOP_EN__SHIFT                                                          0x5
+#define BIF_CFG_DEV0_RC_COMMAND__PAL_SANALOP_EN__SHIFT                                                          0x5
 #define BIF_CFG_DEV0_RC_COMMAND__PARITY_ERROR_RESPONSE__SHIFT                                                 0x6
 #define BIF_CFG_DEV0_RC_COMMAND__AD_STEPPING__SHIFT                                                           0x7
 #define BIF_CFG_DEV0_RC_COMMAND__SERR_EN__SHIFT                                                               0x8
@@ -28770,7 +28770,7 @@
 #define BIF_CFG_DEV0_RC_COMMAND__BUS_MASTER_EN_MASK                                                           0x0004L
 #define BIF_CFG_DEV0_RC_COMMAND__SPECIAL_CYCLE_EN_MASK                                                        0x0008L
 #define BIF_CFG_DEV0_RC_COMMAND__MEM_WRITE_INVALIDATE_EN_MASK                                                 0x0010L
-#define BIF_CFG_DEV0_RC_COMMAND__PAL_SNOOP_EN_MASK                                                            0x0020L
+#define BIF_CFG_DEV0_RC_COMMAND__PAL_SANALOP_EN_MASK                                                            0x0020L
 #define BIF_CFG_DEV0_RC_COMMAND__PARITY_ERROR_RESPONSE_MASK                                                   0x0040L
 #define BIF_CFG_DEV0_RC_COMMAND__AD_STEPPING_MASK                                                             0x0080L
 #define BIF_CFG_DEV0_RC_COMMAND__SERR_EN_MASK                                                                 0x0100L
@@ -28802,9 +28802,9 @@
 #define BIF_CFG_DEV0_RC_STATUS__SIGNALED_SYSTEM_ERROR_MASK                                                    0x4000L
 #define BIF_CFG_DEV0_RC_STATUS__PARITY_ERROR_DETECTED_MASK                                                    0x8000L
 //BIF_CFG_DEV0_RC_REVISION_ID
-#define BIF_CFG_DEV0_RC_REVISION_ID__MINOR_REV_ID__SHIFT                                                      0x0
+#define BIF_CFG_DEV0_RC_REVISION_ID__MIANALR_REV_ID__SHIFT                                                      0x0
 #define BIF_CFG_DEV0_RC_REVISION_ID__MAJOR_REV_ID__SHIFT                                                      0x4
-#define BIF_CFG_DEV0_RC_REVISION_ID__MINOR_REV_ID_MASK                                                        0x0FL
+#define BIF_CFG_DEV0_RC_REVISION_ID__MIANALR_REV_ID_MASK                                                        0x0FL
 #define BIF_CFG_DEV0_RC_REVISION_ID__MAJOR_REV_ID_MASK                                                        0xF0L
 //BIF_CFG_DEV0_RC_PROG_INTERFACE
 #define BIF_CFG_DEV0_RC_PROG_INTERFACE__PROG_INTERFACE__SHIFT                                                 0x0
@@ -28975,7 +28975,7 @@
 #define BIF_CFG_DEV0_RC_PMI_CAP__PME_SUPPORT_MASK                                                             0xF800L
 //BIF_CFG_DEV0_RC_PMI_STATUS_CNTL
 #define BIF_CFG_DEV0_RC_PMI_STATUS_CNTL__POWER_STATE__SHIFT                                                   0x0
-#define BIF_CFG_DEV0_RC_PMI_STATUS_CNTL__NO_SOFT_RESET__SHIFT                                                 0x3
+#define BIF_CFG_DEV0_RC_PMI_STATUS_CNTL__ANAL_SOFT_RESET__SHIFT                                                 0x3
 #define BIF_CFG_DEV0_RC_PMI_STATUS_CNTL__PME_EN__SHIFT                                                        0x8
 #define BIF_CFG_DEV0_RC_PMI_STATUS_CNTL__DATA_SELECT__SHIFT                                                   0x9
 #define BIF_CFG_DEV0_RC_PMI_STATUS_CNTL__DATA_SCALE__SHIFT                                                    0xd
@@ -28984,7 +28984,7 @@
 #define BIF_CFG_DEV0_RC_PMI_STATUS_CNTL__BUS_PWR_EN__SHIFT                                                    0x17
 #define BIF_CFG_DEV0_RC_PMI_STATUS_CNTL__PMI_DATA__SHIFT                                                      0x18
 #define BIF_CFG_DEV0_RC_PMI_STATUS_CNTL__POWER_STATE_MASK                                                     0x00000003L
-#define BIF_CFG_DEV0_RC_PMI_STATUS_CNTL__NO_SOFT_RESET_MASK                                                   0x00000008L
+#define BIF_CFG_DEV0_RC_PMI_STATUS_CNTL__ANAL_SOFT_RESET_MASK                                                   0x00000008L
 #define BIF_CFG_DEV0_RC_PMI_STATUS_CNTL__PME_EN_MASK                                                          0x00000100L
 #define BIF_CFG_DEV0_RC_PMI_STATUS_CNTL__DATA_SELECT_MASK                                                     0x00001E00L
 #define BIF_CFG_DEV0_RC_PMI_STATUS_CNTL__DATA_SCALE_MASK                                                      0x00006000L
@@ -29029,7 +29029,7 @@
 #define BIF_CFG_DEV0_RC_DEVICE_CAP__FLR_CAPABLE_MASK                                                          0x10000000L
 //BIF_CFG_DEV0_RC_DEVICE_CNTL
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__CORR_ERR_EN__SHIFT                                                       0x0
-#define BIF_CFG_DEV0_RC_DEVICE_CNTL__NON_FATAL_ERR_EN__SHIFT                                                  0x1
+#define BIF_CFG_DEV0_RC_DEVICE_CNTL__ANALN_FATAL_ERR_EN__SHIFT                                                  0x1
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__FATAL_ERR_EN__SHIFT                                                      0x2
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__USR_REPORT_EN__SHIFT                                                     0x3
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__RELAXED_ORD_EN__SHIFT                                                    0x4
@@ -29037,11 +29037,11 @@
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__EXTENDED_TAG_EN__SHIFT                                                   0x8
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__PHANTOM_FUNC_EN__SHIFT                                                   0x9
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__AUX_POWER_PM_EN__SHIFT                                                   0xa
-#define BIF_CFG_DEV0_RC_DEVICE_CNTL__NO_SNOOP_EN__SHIFT                                                       0xb
+#define BIF_CFG_DEV0_RC_DEVICE_CNTL__ANAL_SANALOP_EN__SHIFT                                                       0xb
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__MAX_READ_REQUEST_SIZE__SHIFT                                             0xc
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__BRIDGE_CFG_RETRY_EN__SHIFT                                               0xf
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__CORR_ERR_EN_MASK                                                         0x0001L
-#define BIF_CFG_DEV0_RC_DEVICE_CNTL__NON_FATAL_ERR_EN_MASK                                                    0x0002L
+#define BIF_CFG_DEV0_RC_DEVICE_CNTL__ANALN_FATAL_ERR_EN_MASK                                                    0x0002L
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__FATAL_ERR_EN_MASK                                                        0x0004L
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__USR_REPORT_EN_MASK                                                       0x0008L
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__RELAXED_ORD_EN_MASK                                                      0x0010L
@@ -29049,19 +29049,19 @@
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__EXTENDED_TAG_EN_MASK                                                     0x0100L
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__PHANTOM_FUNC_EN_MASK                                                     0x0200L
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__AUX_POWER_PM_EN_MASK                                                     0x0400L
-#define BIF_CFG_DEV0_RC_DEVICE_CNTL__NO_SNOOP_EN_MASK                                                         0x0800L
+#define BIF_CFG_DEV0_RC_DEVICE_CNTL__ANAL_SANALOP_EN_MASK                                                         0x0800L
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__MAX_READ_REQUEST_SIZE_MASK                                               0x7000L
 #define BIF_CFG_DEV0_RC_DEVICE_CNTL__BRIDGE_CFG_RETRY_EN_MASK                                                 0x8000L
 //BIF_CFG_DEV0_RC_DEVICE_STATUS
 #define BIF_CFG_DEV0_RC_DEVICE_STATUS__CORR_ERR__SHIFT                                                        0x0
-#define BIF_CFG_DEV0_RC_DEVICE_STATUS__NON_FATAL_ERR__SHIFT                                                   0x1
+#define BIF_CFG_DEV0_RC_DEVICE_STATUS__ANALN_FATAL_ERR__SHIFT                                                   0x1
 #define BIF_CFG_DEV0_RC_DEVICE_STATUS__FATAL_ERR__SHIFT                                                       0x2
 #define BIF_CFG_DEV0_RC_DEVICE_STATUS__USR_DETECTED__SHIFT                                                    0x3
 #define BIF_CFG_DEV0_RC_DEVICE_STATUS__AUX_PWR__SHIFT                                                         0x4
 #define BIF_CFG_DEV0_RC_DEVICE_STATUS__TRANSACTIONS_PEND__SHIFT                                               0x5
 #define BIF_CFG_DEV0_RC_DEVICE_STATUS__EMER_POWER_REDUCTION_DETECTED__SHIFT                                   0x6
 #define BIF_CFG_DEV0_RC_DEVICE_STATUS__CORR_ERR_MASK                                                          0x0001L
-#define BIF_CFG_DEV0_RC_DEVICE_STATUS__NON_FATAL_ERR_MASK                                                     0x0002L
+#define BIF_CFG_DEV0_RC_DEVICE_STATUS__ANALN_FATAL_ERR_MASK                                                     0x0002L
 #define BIF_CFG_DEV0_RC_DEVICE_STATUS__FATAL_ERR_MASK                                                         0x0004L
 #define BIF_CFG_DEV0_RC_DEVICE_STATUS__USR_DETECTED_MASK                                                      0x0008L
 #define BIF_CFG_DEV0_RC_DEVICE_STATUS__AUX_PWR_MASK                                                           0x0010L
@@ -29076,7 +29076,7 @@
 #define BIF_CFG_DEV0_RC_LINK_CAP__CLOCK_POWER_MANAGEMENT__SHIFT                                               0x12
 #define BIF_CFG_DEV0_RC_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING__SHIFT                                          0x13
 #define BIF_CFG_DEV0_RC_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE__SHIFT                                          0x14
-#define BIF_CFG_DEV0_RC_LINK_CAP__LINK_BW_NOTIFICATION_CAP__SHIFT                                             0x15
+#define BIF_CFG_DEV0_RC_LINK_CAP__LINK_BW_ANALTIFICATION_CAP__SHIFT                                             0x15
 #define BIF_CFG_DEV0_RC_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE__SHIFT                                          0x16
 #define BIF_CFG_DEV0_RC_LINK_CAP__PORT_NUMBER__SHIFT                                                          0x18
 #define BIF_CFG_DEV0_RC_LINK_CAP__LINK_SPEED_MASK                                                             0x0000000FL
@@ -29087,7 +29087,7 @@
 #define BIF_CFG_DEV0_RC_LINK_CAP__CLOCK_POWER_MANAGEMENT_MASK                                                 0x00040000L
 #define BIF_CFG_DEV0_RC_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING_MASK                                            0x00080000L
 #define BIF_CFG_DEV0_RC_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE_MASK                                            0x00100000L
-#define BIF_CFG_DEV0_RC_LINK_CAP__LINK_BW_NOTIFICATION_CAP_MASK                                               0x00200000L
+#define BIF_CFG_DEV0_RC_LINK_CAP__LINK_BW_ANALTIFICATION_CAP_MASK                                               0x00200000L
 #define BIF_CFG_DEV0_RC_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE_MASK                                            0x00400000L
 #define BIF_CFG_DEV0_RC_LINK_CAP__PORT_NUMBER_MASK                                                            0xFF000000L
 //BIF_CFG_DEV0_RC_LINK_CNTL
@@ -29099,9 +29099,9 @@
 #define BIF_CFG_DEV0_RC_LINK_CNTL__COMMON_CLOCK_CFG__SHIFT                                                    0x6
 #define BIF_CFG_DEV0_RC_LINK_CNTL__EXTENDED_SYNC__SHIFT                                                       0x7
 #define BIF_CFG_DEV0_RC_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN__SHIFT                                           0x8
-#define BIF_CFG_DEV0_RC_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE__SHIFT                                         0x9
+#define BIF_CFG_DEV0_RC_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE__SHIFT                                         0x9
 #define BIF_CFG_DEV0_RC_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN__SHIFT                                           0xa
-#define BIF_CFG_DEV0_RC_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN__SHIFT                                           0xb
+#define BIF_CFG_DEV0_RC_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN__SHIFT                                           0xb
 #define BIF_CFG_DEV0_RC_LINK_CNTL__DRS_SIGNALING_CONTROL__SHIFT                                               0xe
 #define BIF_CFG_DEV0_RC_LINK_CNTL__PM_CONTROL_MASK                                                            0x0003L
 #define BIF_CFG_DEV0_RC_LINK_CNTL__PTM_PROP_DELAY_ADAPT_INTER_B_MASK                                          0x0004L
@@ -29111,9 +29111,9 @@
 #define BIF_CFG_DEV0_RC_LINK_CNTL__COMMON_CLOCK_CFG_MASK                                                      0x0040L
 #define BIF_CFG_DEV0_RC_LINK_CNTL__EXTENDED_SYNC_MASK                                                         0x0080L
 #define BIF_CFG_DEV0_RC_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN_MASK                                             0x0100L
-#define BIF_CFG_DEV0_RC_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE_MASK                                           0x0200L
+#define BIF_CFG_DEV0_RC_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE_MASK                                           0x0200L
 #define BIF_CFG_DEV0_RC_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN_MASK                                             0x0400L
-#define BIF_CFG_DEV0_RC_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN_MASK                                             0x0800L
+#define BIF_CFG_DEV0_RC_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN_MASK                                             0x0800L
 #define BIF_CFG_DEV0_RC_LINK_CNTL__DRS_SIGNALING_CONTROL_MASK                                                 0xC000L
 //BIF_CFG_DEV0_RC_LINK_STATUS
 #define BIF_CFG_DEV0_RC_LINK_STATUS__CURRENT_LINK_SPEED__SHIFT                                                0x0
@@ -29122,14 +29122,14 @@
 #define BIF_CFG_DEV0_RC_LINK_STATUS__SLOT_CLOCK_CFG__SHIFT                                                    0xc
 #define BIF_CFG_DEV0_RC_LINK_STATUS__DL_ACTIVE__SHIFT                                                         0xd
 #define BIF_CFG_DEV0_RC_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS__SHIFT                                         0xe
-#define BIF_CFG_DEV0_RC_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS__SHIFT                                         0xf
+#define BIF_CFG_DEV0_RC_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS__SHIFT                                         0xf
 #define BIF_CFG_DEV0_RC_LINK_STATUS__CURRENT_LINK_SPEED_MASK                                                  0x000FL
 #define BIF_CFG_DEV0_RC_LINK_STATUS__NEGOTIATED_LINK_WIDTH_MASK                                               0x03F0L
 #define BIF_CFG_DEV0_RC_LINK_STATUS__LINK_TRAINING_MASK                                                       0x0800L
 #define BIF_CFG_DEV0_RC_LINK_STATUS__SLOT_CLOCK_CFG_MASK                                                      0x1000L
 #define BIF_CFG_DEV0_RC_LINK_STATUS__DL_ACTIVE_MASK                                                           0x2000L
 #define BIF_CFG_DEV0_RC_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS_MASK                                           0x4000L
-#define BIF_CFG_DEV0_RC_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS_MASK                                           0x8000L
+#define BIF_CFG_DEV0_RC_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS_MASK                                           0x8000L
 //BIF_CFG_DEV0_RC_SLOT_CAP
 #define BIF_CFG_DEV0_RC_SLOT_CAP__ATTN_BUTTON_PRESENT__SHIFT                                                  0x0
 #define BIF_CFG_DEV0_RC_SLOT_CAP__PWR_CONTROLLER_PRESENT__SHIFT                                               0x1
@@ -29141,7 +29141,7 @@
 #define BIF_CFG_DEV0_RC_SLOT_CAP__SLOT_PWR_LIMIT_VALUE__SHIFT                                                 0x7
 #define BIF_CFG_DEV0_RC_SLOT_CAP__SLOT_PWR_LIMIT_SCALE__SHIFT                                                 0xf
 #define BIF_CFG_DEV0_RC_SLOT_CAP__ELECTROMECH_INTERLOCK_PRESENT__SHIFT                                        0x11
-#define BIF_CFG_DEV0_RC_SLOT_CAP__NO_COMMAND_COMPLETED_SUPPORTED__SHIFT                                       0x12
+#define BIF_CFG_DEV0_RC_SLOT_CAP__ANAL_COMMAND_COMPLETED_SUPPORTED__SHIFT                                       0x12
 #define BIF_CFG_DEV0_RC_SLOT_CAP__PHYSICAL_SLOT_NUM__SHIFT                                                    0x13
 #define BIF_CFG_DEV0_RC_SLOT_CAP__ATTN_BUTTON_PRESENT_MASK                                                    0x00000001L
 #define BIF_CFG_DEV0_RC_SLOT_CAP__PWR_CONTROLLER_PRESENT_MASK                                                 0x00000002L
@@ -29153,7 +29153,7 @@
 #define BIF_CFG_DEV0_RC_SLOT_CAP__SLOT_PWR_LIMIT_VALUE_MASK                                                   0x00007F80L
 #define BIF_CFG_DEV0_RC_SLOT_CAP__SLOT_PWR_LIMIT_SCALE_MASK                                                   0x00018000L
 #define BIF_CFG_DEV0_RC_SLOT_CAP__ELECTROMECH_INTERLOCK_PRESENT_MASK                                          0x00020000L
-#define BIF_CFG_DEV0_RC_SLOT_CAP__NO_COMMAND_COMPLETED_SUPPORTED_MASK                                         0x00040000L
+#define BIF_CFG_DEV0_RC_SLOT_CAP__ANAL_COMMAND_COMPLETED_SUPPORTED_MASK                                         0x00040000L
 #define BIF_CFG_DEV0_RC_SLOT_CAP__PHYSICAL_SLOT_NUM_MASK                                                      0xFFF80000L
 //BIF_CFG_DEV0_RC_SLOT_CNTL
 #define BIF_CFG_DEV0_RC_SLOT_CNTL__ATTN_BUTTON_PRESSED_EN__SHIFT                                              0x0
@@ -29203,12 +29203,12 @@
 #define BIF_CFG_DEV0_RC_SLOT_STATUS__DL_STATE_CHANGED_MASK                                                    0x0100L
 //BIF_CFG_DEV0_RC_ROOT_CNTL
 #define BIF_CFG_DEV0_RC_ROOT_CNTL__SERR_ON_CORR_ERR_EN__SHIFT                                                 0x0
-#define BIF_CFG_DEV0_RC_ROOT_CNTL__SERR_ON_NONFATAL_ERR_EN__SHIFT                                             0x1
+#define BIF_CFG_DEV0_RC_ROOT_CNTL__SERR_ON_ANALNFATAL_ERR_EN__SHIFT                                             0x1
 #define BIF_CFG_DEV0_RC_ROOT_CNTL__SERR_ON_FATAL_ERR_EN__SHIFT                                                0x2
 #define BIF_CFG_DEV0_RC_ROOT_CNTL__PM_INTERRUPT_EN__SHIFT                                                     0x3
 #define BIF_CFG_DEV0_RC_ROOT_CNTL__CRS_SOFTWARE_VISIBILITY_EN__SHIFT                                          0x4
 #define BIF_CFG_DEV0_RC_ROOT_CNTL__SERR_ON_CORR_ERR_EN_MASK                                                   0x0001L
-#define BIF_CFG_DEV0_RC_ROOT_CNTL__SERR_ON_NONFATAL_ERR_EN_MASK                                               0x0002L
+#define BIF_CFG_DEV0_RC_ROOT_CNTL__SERR_ON_ANALNFATAL_ERR_EN_MASK                                               0x0002L
 #define BIF_CFG_DEV0_RC_ROOT_CNTL__SERR_ON_FATAL_ERR_EN_MASK                                                  0x0004L
 #define BIF_CFG_DEV0_RC_ROOT_CNTL__PM_INTERRUPT_EN_MASK                                                       0x0008L
 #define BIF_CFG_DEV0_RC_ROOT_CNTL__CRS_SOFTWARE_VISIBILITY_EN_MASK                                            0x0010L
@@ -29230,7 +29230,7 @@
 #define BIF_CFG_DEV0_RC_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED__SHIFT                                        0x7
 #define BIF_CFG_DEV0_RC_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED__SHIFT                                        0x8
 #define BIF_CFG_DEV0_RC_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED__SHIFT                                            0x9
-#define BIF_CFG_DEV0_RC_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING__SHIFT                                         0xa
+#define BIF_CFG_DEV0_RC_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                         0xa
 #define BIF_CFG_DEV0_RC_DEVICE_CAP2__LTR_SUPPORTED__SHIFT                                                     0xb
 #define BIF_CFG_DEV0_RC_DEVICE_CAP2__TPH_CPLR_SUPPORTED__SHIFT                                                0xc
 #define BIF_CFG_DEV0_RC_DEVICE_CAP2__LN_SYSTEM_CLS__SHIFT                                                     0xe
@@ -29250,7 +29250,7 @@
 #define BIF_CFG_DEV0_RC_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED_MASK                                          0x00000080L
 #define BIF_CFG_DEV0_RC_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED_MASK                                          0x00000100L
 #define BIF_CFG_DEV0_RC_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED_MASK                                              0x00000200L
-#define BIF_CFG_DEV0_RC_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING_MASK                                           0x00000400L
+#define BIF_CFG_DEV0_RC_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING_MASK                                           0x00000400L
 #define BIF_CFG_DEV0_RC_DEVICE_CAP2__LTR_SUPPORTED_MASK                                                       0x00000800L
 #define BIF_CFG_DEV0_RC_DEVICE_CAP2__TPH_CPLR_SUPPORTED_MASK                                                  0x00003000L
 #define BIF_CFG_DEV0_RC_DEVICE_CAP2__LN_SYSTEM_CLS_MASK                                                       0x0000C000L
@@ -29309,7 +29309,7 @@
 //BIF_CFG_DEV0_RC_LINK_CNTL2
 #define BIF_CFG_DEV0_RC_LINK_CNTL2__TARGET_LINK_SPEED__SHIFT                                                  0x0
 #define BIF_CFG_DEV0_RC_LINK_CNTL2__ENTER_COMPLIANCE__SHIFT                                                   0x4
-#define BIF_CFG_DEV0_RC_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE__SHIFT                                        0x5
+#define BIF_CFG_DEV0_RC_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE__SHIFT                                        0x5
 #define BIF_CFG_DEV0_RC_LINK_CNTL2__SELECTABLE_DEEMPHASIS__SHIFT                                              0x6
 #define BIF_CFG_DEV0_RC_LINK_CNTL2__XMIT_MARGIN__SHIFT                                                        0x7
 #define BIF_CFG_DEV0_RC_LINK_CNTL2__ENTER_MOD_COMPLIANCE__SHIFT                                               0xa
@@ -29317,7 +29317,7 @@
 #define BIF_CFG_DEV0_RC_LINK_CNTL2__COMPLIANCE_DEEMPHASIS__SHIFT                                              0xc
 #define BIF_CFG_DEV0_RC_LINK_CNTL2__TARGET_LINK_SPEED_MASK                                                    0x000FL
 #define BIF_CFG_DEV0_RC_LINK_CNTL2__ENTER_COMPLIANCE_MASK                                                     0x0010L
-#define BIF_CFG_DEV0_RC_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE_MASK                                          0x0020L
+#define BIF_CFG_DEV0_RC_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE_MASK                                          0x0020L
 #define BIF_CFG_DEV0_RC_LINK_CNTL2__SELECTABLE_DEEMPHASIS_MASK                                                0x0040L
 #define BIF_CFG_DEV0_RC_LINK_CNTL2__XMIT_MARGIN_MASK                                                          0x0380L
 #define BIF_CFG_DEV0_RC_LINK_CNTL2__ENTER_MOD_COMPLIANCE_MASK                                                 0x0400L
@@ -29454,11 +29454,11 @@
 #define BIF_CFG_DEV0_RC_PCIE_PORT_VC_STATUS__VC_ARB_TABLE_STATUS_MASK                                         0x0001L
 //BIF_CFG_DEV0_RC_PCIE_VC0_RESOURCE_CAP
 #define BIF_CFG_DEV0_RC_PCIE_VC0_RESOURCE_CAP__PORT_ARB_CAP__SHIFT                                            0x0
-#define BIF_CFG_DEV0_RC_PCIE_VC0_RESOURCE_CAP__REJECT_SNOOP_TRANS__SHIFT                                      0xf
+#define BIF_CFG_DEV0_RC_PCIE_VC0_RESOURCE_CAP__REJECT_SANALOP_TRANS__SHIFT                                      0xf
 #define BIF_CFG_DEV0_RC_PCIE_VC0_RESOURCE_CAP__MAX_TIME_SLOTS__SHIFT                                          0x10
 #define BIF_CFG_DEV0_RC_PCIE_VC0_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET__SHIFT                                   0x18
 #define BIF_CFG_DEV0_RC_PCIE_VC0_RESOURCE_CAP__PORT_ARB_CAP_MASK                                              0x000000FFL
-#define BIF_CFG_DEV0_RC_PCIE_VC0_RESOURCE_CAP__REJECT_SNOOP_TRANS_MASK                                        0x00008000L
+#define BIF_CFG_DEV0_RC_PCIE_VC0_RESOURCE_CAP__REJECT_SANALOP_TRANS_MASK                                        0x00008000L
 #define BIF_CFG_DEV0_RC_PCIE_VC0_RESOURCE_CAP__MAX_TIME_SLOTS_MASK                                            0x007F0000L
 #define BIF_CFG_DEV0_RC_PCIE_VC0_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET_MASK                                     0xFF000000L
 //BIF_CFG_DEV0_RC_PCIE_VC0_RESOURCE_CNTL
@@ -29481,11 +29481,11 @@
 #define BIF_CFG_DEV0_RC_PCIE_VC0_RESOURCE_STATUS__VC_NEGOTIATION_PENDING_MASK                                 0x0002L
 //BIF_CFG_DEV0_RC_PCIE_VC1_RESOURCE_CAP
 #define BIF_CFG_DEV0_RC_PCIE_VC1_RESOURCE_CAP__PORT_ARB_CAP__SHIFT                                            0x0
-#define BIF_CFG_DEV0_RC_PCIE_VC1_RESOURCE_CAP__REJECT_SNOOP_TRANS__SHIFT                                      0xf
+#define BIF_CFG_DEV0_RC_PCIE_VC1_RESOURCE_CAP__REJECT_SANALOP_TRANS__SHIFT                                      0xf
 #define BIF_CFG_DEV0_RC_PCIE_VC1_RESOURCE_CAP__MAX_TIME_SLOTS__SHIFT                                          0x10
 #define BIF_CFG_DEV0_RC_PCIE_VC1_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET__SHIFT                                   0x18
 #define BIF_CFG_DEV0_RC_PCIE_VC1_RESOURCE_CAP__PORT_ARB_CAP_MASK                                              0x000000FFL
-#define BIF_CFG_DEV0_RC_PCIE_VC1_RESOURCE_CAP__REJECT_SNOOP_TRANS_MASK                                        0x00008000L
+#define BIF_CFG_DEV0_RC_PCIE_VC1_RESOURCE_CAP__REJECT_SANALOP_TRANS_MASK                                        0x00008000L
 #define BIF_CFG_DEV0_RC_PCIE_VC1_RESOURCE_CAP__MAX_TIME_SLOTS_MASK                                            0x003F0000L
 #define BIF_CFG_DEV0_RC_PCIE_VC1_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET_MASK                                     0xFF000000L
 //BIF_CFG_DEV0_RC_PCIE_VC1_RESOURCE_CNTL
@@ -29637,7 +29637,7 @@
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS__SHIFT                                          0x7
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS__SHIFT                               0x8
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS__SHIFT                              0xc
-#define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS__SHIFT                             0xd
+#define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                             0xd
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS__SHIFT                                      0xe
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS__SHIFT                                      0xf
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_STATUS__RCV_ERR_STATUS_MASK                                             0x00000001L
@@ -29645,7 +29645,7 @@
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS_MASK                                            0x00000080L
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS_MASK                                 0x00000100L
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS_MASK                                0x00001000L
-#define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS_MASK                               0x00002000L
+#define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS_MASK                               0x00002000L
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS_MASK                                        0x00004000L
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS_MASK                                        0x00008000L
 //BIF_CFG_DEV0_RC_PCIE_CORR_ERR_MASK
@@ -29654,7 +29654,7 @@
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK__SHIFT                                              0x7
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK__SHIFT                                   0x8
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK__SHIFT                                  0xc
-#define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK__SHIFT                                 0xd
+#define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK__SHIFT                                 0xd
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK__SHIFT                                          0xe
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK__SHIFT                                          0xf
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_MASK__RCV_ERR_MASK_MASK                                                 0x00000001L
@@ -29662,7 +29662,7 @@
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK_MASK                                                0x00000080L
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK_MASK                                     0x00000100L
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK_MASK                                    0x00001000L
-#define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK_MASK                                   0x00002000L
+#define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK_MASK                                   0x00002000L
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK_MASK                                            0x00004000L
 #define BIF_CFG_DEV0_RC_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK_MASK                                            0x00008000L
 //BIF_CFG_DEV0_RC_PCIE_ADV_ERR_CAP_CNTL
@@ -29698,35 +29698,35 @@
 #define BIF_CFG_DEV0_RC_PCIE_HDR_LOG3__TLP_HDR_MASK                                                           0xFFFFFFFFL
 //BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_CMD
 #define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_CMD__CORR_ERR_REP_EN__SHIFT                                             0x0
-#define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_CMD__NONFATAL_ERR_REP_EN__SHIFT                                         0x1
+#define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_CMD__ANALNFATAL_ERR_REP_EN__SHIFT                                         0x1
 #define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_CMD__FATAL_ERR_REP_EN__SHIFT                                            0x2
 #define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_CMD__CORR_ERR_REP_EN_MASK                                               0x00000001L
-#define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_CMD__NONFATAL_ERR_REP_EN_MASK                                           0x00000002L
+#define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_CMD__ANALNFATAL_ERR_REP_EN_MASK                                           0x00000002L
 #define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_CMD__FATAL_ERR_REP_EN_MASK                                              0x00000004L
 //BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS
 #define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__ERR_CORR_RCVD__SHIFT                                            0x0
 #define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__MULT_ERR_CORR_RCVD__SHIFT                                       0x1
-#define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__ERR_FATAL_NONFATAL_RCVD__SHIFT                                  0x2
-#define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__MULT_ERR_FATAL_NONFATAL_RCVD__SHIFT                             0x3
+#define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__ERR_FATAL_ANALNFATAL_RCVD__SHIFT                                  0x2
+#define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__MULT_ERR_FATAL_ANALNFATAL_RCVD__SHIFT                             0x3
 #define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__FIRST_UNCORRECTABLE_FATAL__SHIFT                                0x4
-#define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__NONFATAL_ERROR_MSG_RCVD__SHIFT                                  0x5
+#define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__ANALNFATAL_ERROR_MSG_RCVD__SHIFT                                  0x5
 #define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__FATAL_ERROR_MSG_RCVD__SHIFT                                     0x6
 #define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__ERR_COR_SUBCLASS__SHIFT                                         0x7
 #define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__ADV_ERR_INT_MSG_NUM__SHIFT                                      0x1b
 #define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__ERR_CORR_RCVD_MASK                                              0x00000001L
 #define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__MULT_ERR_CORR_RCVD_MASK                                         0x00000002L
-#define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__ERR_FATAL_NONFATAL_RCVD_MASK                                    0x00000004L
-#define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__MULT_ERR_FATAL_NONFATAL_RCVD_MASK                               0x00000008L
+#define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__ERR_FATAL_ANALNFATAL_RCVD_MASK                                    0x00000004L
+#define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__MULT_ERR_FATAL_ANALNFATAL_RCVD_MASK                               0x00000008L
 #define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__FIRST_UNCORRECTABLE_FATAL_MASK                                  0x00000010L
-#define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__NONFATAL_ERROR_MSG_RCVD_MASK                                    0x00000020L
+#define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__ANALNFATAL_ERROR_MSG_RCVD_MASK                                    0x00000020L
 #define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__FATAL_ERROR_MSG_RCVD_MASK                                       0x00000040L
 #define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__ERR_COR_SUBCLASS_MASK                                           0x00000180L
 #define BIF_CFG_DEV0_RC_PCIE_ROOT_ERR_STATUS__ADV_ERR_INT_MSG_NUM_MASK                                        0xF8000000L
 //BIF_CFG_DEV0_RC_PCIE_ERR_SRC_ID
 #define BIF_CFG_DEV0_RC_PCIE_ERR_SRC_ID__ERR_CORR_SRC_ID__SHIFT                                               0x0
-#define BIF_CFG_DEV0_RC_PCIE_ERR_SRC_ID__ERR_FATAL_NONFATAL_SRC_ID__SHIFT                                     0x10
+#define BIF_CFG_DEV0_RC_PCIE_ERR_SRC_ID__ERR_FATAL_ANALNFATAL_SRC_ID__SHIFT                                     0x10
 #define BIF_CFG_DEV0_RC_PCIE_ERR_SRC_ID__ERR_CORR_SRC_ID_MASK                                                 0x0000FFFFL
-#define BIF_CFG_DEV0_RC_PCIE_ERR_SRC_ID__ERR_FATAL_NONFATAL_SRC_ID_MASK                                       0xFFFF0000L
+#define BIF_CFG_DEV0_RC_PCIE_ERR_SRC_ID__ERR_FATAL_ANALNFATAL_SRC_ID_MASK                                       0xFFFF0000L
 //BIF_CFG_DEV0_RC_PCIE_TLP_PREFIX_LOG0
 #define BIF_CFG_DEV0_RC_PCIE_TLP_PREFIX_LOG0__TLP_PREFIX__SHIFT                                               0x0
 #define BIF_CFG_DEV0_RC_PCIE_TLP_PREFIX_LOG0__TLP_PREFIX_MASK                                                 0xFFFFFFFFL
@@ -30384,23 +30384,23 @@
 #define BIF_CFG_DEV0_RC_LANE_15_MARGINING_LANE_STATUS__LANE_15_MARGIN_PAYLOAD_STATUS_MASK                     0xFF00L
 //BIF_CFG_DEV0_RC_LINK_CAP_32GT
 #define BIF_CFG_DEV0_RC_LINK_CAP_32GT__EQ_BYPASS_TO_HIGHEST_RATE_SUPPORTED__SHIFT                             0x0
-#define BIF_CFG_DEV0_RC_LINK_CAP_32GT__NO_EQ_NEEDED_SUPPORTED__SHIFT                                          0x1
+#define BIF_CFG_DEV0_RC_LINK_CAP_32GT__ANAL_EQ_NEEDED_SUPPORTED__SHIFT                                          0x1
 #define BIF_CFG_DEV0_RC_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE0_SUPPORTED__SHIFT                               0x8
 #define BIF_CFG_DEV0_RC_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE1_SUPPORTED__SHIFT                               0x9
 #define BIF_CFG_DEV0_RC_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE2_SUPPORTED__SHIFT                               0xa
 #define BIF_CFG_DEV0_RC_LINK_CAP_32GT__MODIFIED_TS_RESERVED_USAGE_MODES__SHIFT                                0xb
 #define BIF_CFG_DEV0_RC_LINK_CAP_32GT__EQ_BYPASS_TO_HIGHEST_RATE_SUPPORTED_MASK                               0x00000001L
-#define BIF_CFG_DEV0_RC_LINK_CAP_32GT__NO_EQ_NEEDED_SUPPORTED_MASK                                            0x00000002L
+#define BIF_CFG_DEV0_RC_LINK_CAP_32GT__ANAL_EQ_NEEDED_SUPPORTED_MASK                                            0x00000002L
 #define BIF_CFG_DEV0_RC_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE0_SUPPORTED_MASK                                 0x00000100L
 #define BIF_CFG_DEV0_RC_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE1_SUPPORTED_MASK                                 0x00000200L
 #define BIF_CFG_DEV0_RC_LINK_CAP_32GT__MODIFIED_TS_USAGE_MODE2_SUPPORTED_MASK                                 0x00000400L
 #define BIF_CFG_DEV0_RC_LINK_CAP_32GT__MODIFIED_TS_RESERVED_USAGE_MODES_MASK                                  0x0000F800L
 //BIF_CFG_DEV0_RC_LINK_CNTL_32GT
 #define BIF_CFG_DEV0_RC_LINK_CNTL_32GT__EQ_BYPASS_TO_HIGHEST_RATE_DIS__SHIFT                                  0x0
-#define BIF_CFG_DEV0_RC_LINK_CNTL_32GT__NO_EQ_NEEDED_DIS__SHIFT                                               0x1
+#define BIF_CFG_DEV0_RC_LINK_CNTL_32GT__ANAL_EQ_NEEDED_DIS__SHIFT                                               0x1
 #define BIF_CFG_DEV0_RC_LINK_CNTL_32GT__MODIFIED_TS_USAGE_MODE_SEL__SHIFT                                     0x8
 #define BIF_CFG_DEV0_RC_LINK_CNTL_32GT__EQ_BYPASS_TO_HIGHEST_RATE_DIS_MASK                                    0x00000001L
-#define BIF_CFG_DEV0_RC_LINK_CNTL_32GT__NO_EQ_NEEDED_DIS_MASK                                                 0x00000002L
+#define BIF_CFG_DEV0_RC_LINK_CNTL_32GT__ANAL_EQ_NEEDED_DIS_MASK                                                 0x00000002L
 #define BIF_CFG_DEV0_RC_LINK_CNTL_32GT__MODIFIED_TS_USAGE_MODE_SEL_MASK                                       0x00000700L
 //BIF_CFG_DEV0_RC_LINK_STATUS_32GT
 #define BIF_CFG_DEV0_RC_LINK_STATUS_32GT__EQUALIZATION_COMPLETE_32GT__SHIFT                                   0x0
@@ -30412,7 +30412,7 @@
 #define BIF_CFG_DEV0_RC_LINK_STATUS_32GT__RECEIVED_ENHANCED_LINK_BEHAVIOR_CNTL__SHIFT                         0x6
 #define BIF_CFG_DEV0_RC_LINK_STATUS_32GT__TRANSMITTER_PRECODING_ON__SHIFT                                     0x8
 #define BIF_CFG_DEV0_RC_LINK_STATUS_32GT__TRANSMITTER_PRECODE_REQUEST__SHIFT                                  0x9
-#define BIF_CFG_DEV0_RC_LINK_STATUS_32GT__NO_EQ_NEEDED_RECEIVED__SHIFT                                        0xa
+#define BIF_CFG_DEV0_RC_LINK_STATUS_32GT__ANAL_EQ_NEEDED_RECEIVED__SHIFT                                        0xa
 #define BIF_CFG_DEV0_RC_LINK_STATUS_32GT__EQUALIZATION_COMPLETE_32GT_MASK                                     0x00000001L
 #define BIF_CFG_DEV0_RC_LINK_STATUS_32GT__EQUALIZATION_PHASE1_SUCCESS_32GT_MASK                               0x00000002L
 #define BIF_CFG_DEV0_RC_LINK_STATUS_32GT__EQUALIZATION_PHASE2_SUCCESS_32GT_MASK                               0x00000004L
@@ -30422,7 +30422,7 @@
 #define BIF_CFG_DEV0_RC_LINK_STATUS_32GT__RECEIVED_ENHANCED_LINK_BEHAVIOR_CNTL_MASK                           0x000000C0L
 #define BIF_CFG_DEV0_RC_LINK_STATUS_32GT__TRANSMITTER_PRECODING_ON_MASK                                       0x00000100L
 #define BIF_CFG_DEV0_RC_LINK_STATUS_32GT__TRANSMITTER_PRECODE_REQUEST_MASK                                    0x00000200L
-#define BIF_CFG_DEV0_RC_LINK_STATUS_32GT__NO_EQ_NEEDED_RECEIVED_MASK                                          0x00000400L
+#define BIF_CFG_DEV0_RC_LINK_STATUS_32GT__ANAL_EQ_NEEDED_RECEIVED_MASK                                          0x00000400L
 
 
 // addressBlock: aid_nbio_nbif0_bif_cfg_dev0_epf0_vf0_bifcfgdecp
@@ -30438,7 +30438,7 @@
 #define BIF_CFG_DEV0_EPF0_VF0_COMMAND__BUS_MASTER_EN__SHIFT                                                   0x2
 #define BIF_CFG_DEV0_EPF0_VF0_COMMAND__SPECIAL_CYCLE_EN__SHIFT                                                0x3
 #define BIF_CFG_DEV0_EPF0_VF0_COMMAND__MEM_WRITE_INVALIDATE_EN__SHIFT                                         0x4
-#define BIF_CFG_DEV0_EPF0_VF0_COMMAND__PAL_SNOOP_EN__SHIFT                                                    0x5
+#define BIF_CFG_DEV0_EPF0_VF0_COMMAND__PAL_SANALOP_EN__SHIFT                                                    0x5
 #define BIF_CFG_DEV0_EPF0_VF0_COMMAND__PARITY_ERROR_RESPONSE__SHIFT                                           0x6
 #define BIF_CFG_DEV0_EPF0_VF0_COMMAND__AD_STEPPING__SHIFT                                                     0x7
 #define BIF_CFG_DEV0_EPF0_VF0_COMMAND__SERR_EN__SHIFT                                                         0x8
@@ -30449,7 +30449,7 @@
 #define BIF_CFG_DEV0_EPF0_VF0_COMMAND__BUS_MASTER_EN_MASK                                                     0x0004L
 #define BIF_CFG_DEV0_EPF0_VF0_COMMAND__SPECIAL_CYCLE_EN_MASK                                                  0x0008L
 #define BIF_CFG_DEV0_EPF0_VF0_COMMAND__MEM_WRITE_INVALIDATE_EN_MASK                                           0x0010L
-#define BIF_CFG_DEV0_EPF0_VF0_COMMAND__PAL_SNOOP_EN_MASK                                                      0x0020L
+#define BIF_CFG_DEV0_EPF0_VF0_COMMAND__PAL_SANALOP_EN_MASK                                                      0x0020L
 #define BIF_CFG_DEV0_EPF0_VF0_COMMAND__PARITY_ERROR_RESPONSE_MASK                                             0x0040L
 #define BIF_CFG_DEV0_EPF0_VF0_COMMAND__AD_STEPPING_MASK                                                       0x0080L
 #define BIF_CFG_DEV0_EPF0_VF0_COMMAND__SERR_EN_MASK                                                           0x0100L
@@ -30481,9 +30481,9 @@
 #define BIF_CFG_DEV0_EPF0_VF0_STATUS__SIGNALED_SYSTEM_ERROR_MASK                                              0x4000L
 #define BIF_CFG_DEV0_EPF0_VF0_STATUS__PARITY_ERROR_DETECTED_MASK                                              0x8000L
 //BIF_CFG_DEV0_EPF0_VF0_REVISION_ID
-#define BIF_CFG_DEV0_EPF0_VF0_REVISION_ID__MINOR_REV_ID__SHIFT                                                0x0
+#define BIF_CFG_DEV0_EPF0_VF0_REVISION_ID__MIANALR_REV_ID__SHIFT                                                0x0
 #define BIF_CFG_DEV0_EPF0_VF0_REVISION_ID__MAJOR_REV_ID__SHIFT                                                0x4
-#define BIF_CFG_DEV0_EPF0_VF0_REVISION_ID__MINOR_REV_ID_MASK                                                  0x0FL
+#define BIF_CFG_DEV0_EPF0_VF0_REVISION_ID__MIANALR_REV_ID_MASK                                                  0x0FL
 #define BIF_CFG_DEV0_EPF0_VF0_REVISION_ID__MAJOR_REV_ID_MASK                                                  0xF0L
 //BIF_CFG_DEV0_EPF0_VF0_PROG_INTERFACE
 #define BIF_CFG_DEV0_EPF0_VF0_PROG_INTERFACE__PROG_INTERFACE__SHIFT                                           0x0
@@ -30599,7 +30599,7 @@
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP__FLR_CAPABLE_MASK                                                    0x10000000L
 //BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__CORR_ERR_EN__SHIFT                                                 0x0
-#define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__NON_FATAL_ERR_EN__SHIFT                                            0x1
+#define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__ANALN_FATAL_ERR_EN__SHIFT                                            0x1
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__FATAL_ERR_EN__SHIFT                                                0x2
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__USR_REPORT_EN__SHIFT                                               0x3
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__RELAXED_ORD_EN__SHIFT                                              0x4
@@ -30607,11 +30607,11 @@
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__EXTENDED_TAG_EN__SHIFT                                             0x8
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__PHANTOM_FUNC_EN__SHIFT                                             0x9
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__AUX_POWER_PM_EN__SHIFT                                             0xa
-#define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__NO_SNOOP_EN__SHIFT                                                 0xb
+#define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__ANAL_SANALOP_EN__SHIFT                                                 0xb
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__MAX_READ_REQUEST_SIZE__SHIFT                                       0xc
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__INITIATE_FLR__SHIFT                                                0xf
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__CORR_ERR_EN_MASK                                                   0x0001L
-#define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__NON_FATAL_ERR_EN_MASK                                              0x0002L
+#define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__ANALN_FATAL_ERR_EN_MASK                                              0x0002L
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__FATAL_ERR_EN_MASK                                                  0x0004L
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__USR_REPORT_EN_MASK                                                 0x0008L
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__RELAXED_ORD_EN_MASK                                                0x0010L
@@ -30619,19 +30619,19 @@
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__EXTENDED_TAG_EN_MASK                                               0x0100L
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__PHANTOM_FUNC_EN_MASK                                               0x0200L
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__AUX_POWER_PM_EN_MASK                                               0x0400L
-#define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__NO_SNOOP_EN_MASK                                                   0x0800L
+#define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__ANAL_SANALOP_EN_MASK                                                   0x0800L
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__MAX_READ_REQUEST_SIZE_MASK                                         0x7000L
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CNTL__INITIATE_FLR_MASK                                                  0x8000L
 //BIF_CFG_DEV0_EPF0_VF0_DEVICE_STATUS
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_STATUS__CORR_ERR__SHIFT                                                  0x0
-#define BIF_CFG_DEV0_EPF0_VF0_DEVICE_STATUS__NON_FATAL_ERR__SHIFT                                             0x1
+#define BIF_CFG_DEV0_EPF0_VF0_DEVICE_STATUS__ANALN_FATAL_ERR__SHIFT                                             0x1
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_STATUS__FATAL_ERR__SHIFT                                                 0x2
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_STATUS__USR_DETECTED__SHIFT                                              0x3
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_STATUS__AUX_PWR__SHIFT                                                   0x4
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_STATUS__TRANSACTIONS_PEND__SHIFT                                         0x5
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_STATUS__EMER_POWER_REDUCTION_DETECTED__SHIFT                             0x6
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_STATUS__CORR_ERR_MASK                                                    0x0001L
-#define BIF_CFG_DEV0_EPF0_VF0_DEVICE_STATUS__NON_FATAL_ERR_MASK                                               0x0002L
+#define BIF_CFG_DEV0_EPF0_VF0_DEVICE_STATUS__ANALN_FATAL_ERR_MASK                                               0x0002L
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_STATUS__FATAL_ERR_MASK                                                   0x0004L
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_STATUS__USR_DETECTED_MASK                                                0x0008L
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_STATUS__AUX_PWR_MASK                                                     0x0010L
@@ -30646,7 +30646,7 @@
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CAP__CLOCK_POWER_MANAGEMENT__SHIFT                                         0x12
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING__SHIFT                                    0x13
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE__SHIFT                                    0x14
-#define BIF_CFG_DEV0_EPF0_VF0_LINK_CAP__LINK_BW_NOTIFICATION_CAP__SHIFT                                       0x15
+#define BIF_CFG_DEV0_EPF0_VF0_LINK_CAP__LINK_BW_ANALTIFICATION_CAP__SHIFT                                       0x15
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE__SHIFT                                    0x16
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CAP__PORT_NUMBER__SHIFT                                                    0x18
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CAP__LINK_SPEED_MASK                                                       0x0000000FL
@@ -30657,7 +30657,7 @@
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CAP__CLOCK_POWER_MANAGEMENT_MASK                                           0x00040000L
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING_MASK                                      0x00080000L
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE_MASK                                      0x00100000L
-#define BIF_CFG_DEV0_EPF0_VF0_LINK_CAP__LINK_BW_NOTIFICATION_CAP_MASK                                         0x00200000L
+#define BIF_CFG_DEV0_EPF0_VF0_LINK_CAP__LINK_BW_ANALTIFICATION_CAP_MASK                                         0x00200000L
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE_MASK                                      0x00400000L
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CAP__PORT_NUMBER_MASK                                                      0xFF000000L
 //BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL
@@ -30669,9 +30669,9 @@
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__COMMON_CLOCK_CFG__SHIFT                                              0x6
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__EXTENDED_SYNC__SHIFT                                                 0x7
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN__SHIFT                                     0x8
-#define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE__SHIFT                                   0x9
+#define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE__SHIFT                                   0x9
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN__SHIFT                                     0xa
-#define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN__SHIFT                                     0xb
+#define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN__SHIFT                                     0xb
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__DRS_SIGNALING_CONTROL__SHIFT                                         0xe
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__PM_CONTROL_MASK                                                      0x0003L
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__PTM_PROP_DELAY_ADAPT_INTER_B_MASK                                    0x0004L
@@ -30681,9 +30681,9 @@
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__COMMON_CLOCK_CFG_MASK                                                0x0040L
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__EXTENDED_SYNC_MASK                                                   0x0080L
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN_MASK                                       0x0100L
-#define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE_MASK                                     0x0200L
+#define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE_MASK                                     0x0200L
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN_MASK                                       0x0400L
-#define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN_MASK                                       0x0800L
+#define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN_MASK                                       0x0800L
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL__DRS_SIGNALING_CONTROL_MASK                                           0xC000L
 //BIF_CFG_DEV0_EPF0_VF0_LINK_STATUS
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_STATUS__CURRENT_LINK_SPEED__SHIFT                                          0x0
@@ -30692,14 +30692,14 @@
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_STATUS__SLOT_CLOCK_CFG__SHIFT                                              0xc
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_STATUS__DL_ACTIVE__SHIFT                                                   0xd
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS__SHIFT                                   0xe
-#define BIF_CFG_DEV0_EPF0_VF0_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS__SHIFT                                   0xf
+#define BIF_CFG_DEV0_EPF0_VF0_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS__SHIFT                                   0xf
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_STATUS__CURRENT_LINK_SPEED_MASK                                            0x000FL
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_STATUS__NEGOTIATED_LINK_WIDTH_MASK                                         0x03F0L
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_STATUS__LINK_TRAINING_MASK                                                 0x0800L
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_STATUS__SLOT_CLOCK_CFG_MASK                                                0x1000L
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_STATUS__DL_ACTIVE_MASK                                                     0x2000L
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS_MASK                                     0x4000L
-#define BIF_CFG_DEV0_EPF0_VF0_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS_MASK                                     0x8000L
+#define BIF_CFG_DEV0_EPF0_VF0_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS_MASK                                     0x8000L
 //BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__CPL_TIMEOUT_RANGE_SUPPORTED__SHIFT                                 0x0
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__CPL_TIMEOUT_DIS_SUPPORTED__SHIFT                                   0x4
@@ -30708,7 +30708,7 @@
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED__SHIFT                                  0x7
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED__SHIFT                                  0x8
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED__SHIFT                                      0x9
-#define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING__SHIFT                                   0xa
+#define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                   0xa
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__LTR_SUPPORTED__SHIFT                                               0xb
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__TPH_CPLR_SUPPORTED__SHIFT                                          0xc
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__LN_SYSTEM_CLS__SHIFT                                               0xe
@@ -30728,7 +30728,7 @@
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED_MASK                                    0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED_MASK                                    0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED_MASK                                        0x00000200L
-#define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING_MASK                                     0x00000400L
+#define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING_MASK                                     0x00000400L
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__LTR_SUPPORTED_MASK                                                 0x00000800L
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__TPH_CPLR_SUPPORTED_MASK                                            0x00003000L
 #define BIF_CFG_DEV0_EPF0_VF0_DEVICE_CAP2__LN_SYSTEM_CLS_MASK                                                 0x0000C000L
@@ -30787,7 +30787,7 @@
 //BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL2
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL2__TARGET_LINK_SPEED__SHIFT                                            0x0
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL2__ENTER_COMPLIANCE__SHIFT                                             0x4
-#define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE__SHIFT                                  0x5
+#define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE__SHIFT                                  0x5
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL2__SELECTABLE_DEEMPHASIS__SHIFT                                        0x6
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL2__XMIT_MARGIN__SHIFT                                                  0x7
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL2__ENTER_MOD_COMPLIANCE__SHIFT                                         0xa
@@ -30795,7 +30795,7 @@
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL2__COMPLIANCE_DEEMPHASIS__SHIFT                                        0xc
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL2__TARGET_LINK_SPEED_MASK                                              0x000FL
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL2__ENTER_COMPLIANCE_MASK                                               0x0010L
-#define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE_MASK                                    0x0020L
+#define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE_MASK                                    0x0020L
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL2__SELECTABLE_DEEMPHASIS_MASK                                          0x0040L
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL2__XMIT_MARGIN_MASK                                                    0x0380L
 #define BIF_CFG_DEV0_EPF0_VF0_LINK_CNTL2__ENTER_MOD_COMPLIANCE_MASK                                           0x0400L
@@ -31034,7 +31034,7 @@
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS__SHIFT                                    0x7
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS__SHIFT                         0x8
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS__SHIFT                        0xc
-#define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS__SHIFT                       0xd
+#define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                       0xd
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS__SHIFT                                0xe
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS__SHIFT                                0xf
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_STATUS__RCV_ERR_STATUS_MASK                                       0x00000001L
@@ -31042,7 +31042,7 @@
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS_MASK                                      0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS_MASK                           0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS_MASK                          0x00001000L
-#define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS_MASK                         0x00002000L
+#define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS_MASK                         0x00002000L
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS_MASK                                  0x00004000L
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS_MASK                                  0x00008000L
 //BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_MASK
@@ -31051,7 +31051,7 @@
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK__SHIFT                                        0x7
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK__SHIFT                             0x8
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK__SHIFT                            0xc
-#define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK__SHIFT                           0xd
+#define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK__SHIFT                           0xd
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK__SHIFT                                    0xe
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK__SHIFT                                    0xf
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_MASK__RCV_ERR_MASK_MASK                                           0x00000001L
@@ -31059,7 +31059,7 @@
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK_MASK                                          0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK_MASK                               0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK_MASK                              0x00001000L
-#define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK_MASK                             0x00002000L
+#define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK_MASK                             0x00002000L
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK_MASK                                      0x00004000L
 #define BIF_CFG_DEV0_EPF0_VF0_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK_MASK                                      0x00008000L
 //BIF_CFG_DEV0_EPF0_VF0_PCIE_ADV_ERR_CAP_CNTL
@@ -31162,7 +31162,7 @@
 #define BIF_CFG_DEV0_EPF0_VF1_COMMAND__BUS_MASTER_EN__SHIFT                                                   0x2
 #define BIF_CFG_DEV0_EPF0_VF1_COMMAND__SPECIAL_CYCLE_EN__SHIFT                                                0x3
 #define BIF_CFG_DEV0_EPF0_VF1_COMMAND__MEM_WRITE_INVALIDATE_EN__SHIFT                                         0x4
-#define BIF_CFG_DEV0_EPF0_VF1_COMMAND__PAL_SNOOP_EN__SHIFT                                                    0x5
+#define BIF_CFG_DEV0_EPF0_VF1_COMMAND__PAL_SANALOP_EN__SHIFT                                                    0x5
 #define BIF_CFG_DEV0_EPF0_VF1_COMMAND__PARITY_ERROR_RESPONSE__SHIFT                                           0x6
 #define BIF_CFG_DEV0_EPF0_VF1_COMMAND__AD_STEPPING__SHIFT                                                     0x7
 #define BIF_CFG_DEV0_EPF0_VF1_COMMAND__SERR_EN__SHIFT                                                         0x8
@@ -31173,7 +31173,7 @@
 #define BIF_CFG_DEV0_EPF0_VF1_COMMAND__BUS_MASTER_EN_MASK                                                     0x0004L
 #define BIF_CFG_DEV0_EPF0_VF1_COMMAND__SPECIAL_CYCLE_EN_MASK                                                  0x0008L
 #define BIF_CFG_DEV0_EPF0_VF1_COMMAND__MEM_WRITE_INVALIDATE_EN_MASK                                           0x0010L
-#define BIF_CFG_DEV0_EPF0_VF1_COMMAND__PAL_SNOOP_EN_MASK                                                      0x0020L
+#define BIF_CFG_DEV0_EPF0_VF1_COMMAND__PAL_SANALOP_EN_MASK                                                      0x0020L
 #define BIF_CFG_DEV0_EPF0_VF1_COMMAND__PARITY_ERROR_RESPONSE_MASK                                             0x0040L
 #define BIF_CFG_DEV0_EPF0_VF1_COMMAND__AD_STEPPING_MASK                                                       0x0080L
 #define BIF_CFG_DEV0_EPF0_VF1_COMMAND__SERR_EN_MASK                                                           0x0100L
@@ -31205,9 +31205,9 @@
 #define BIF_CFG_DEV0_EPF0_VF1_STATUS__SIGNALED_SYSTEM_ERROR_MASK                                              0x4000L
 #define BIF_CFG_DEV0_EPF0_VF1_STATUS__PARITY_ERROR_DETECTED_MASK                                              0x8000L
 //BIF_CFG_DEV0_EPF0_VF1_REVISION_ID
-#define BIF_CFG_DEV0_EPF0_VF1_REVISION_ID__MINOR_REV_ID__SHIFT                                                0x0
+#define BIF_CFG_DEV0_EPF0_VF1_REVISION_ID__MIANALR_REV_ID__SHIFT                                                0x0
 #define BIF_CFG_DEV0_EPF0_VF1_REVISION_ID__MAJOR_REV_ID__SHIFT                                                0x4
-#define BIF_CFG_DEV0_EPF0_VF1_REVISION_ID__MINOR_REV_ID_MASK                                                  0x0FL
+#define BIF_CFG_DEV0_EPF0_VF1_REVISION_ID__MIANALR_REV_ID_MASK                                                  0x0FL
 #define BIF_CFG_DEV0_EPF0_VF1_REVISION_ID__MAJOR_REV_ID_MASK                                                  0xF0L
 //BIF_CFG_DEV0_EPF0_VF1_PROG_INTERFACE
 #define BIF_CFG_DEV0_EPF0_VF1_PROG_INTERFACE__PROG_INTERFACE__SHIFT                                           0x0
@@ -31323,7 +31323,7 @@
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP__FLR_CAPABLE_MASK                                                    0x10000000L
 //BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__CORR_ERR_EN__SHIFT                                                 0x0
-#define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__NON_FATAL_ERR_EN__SHIFT                                            0x1
+#define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__ANALN_FATAL_ERR_EN__SHIFT                                            0x1
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__FATAL_ERR_EN__SHIFT                                                0x2
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__USR_REPORT_EN__SHIFT                                               0x3
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__RELAXED_ORD_EN__SHIFT                                              0x4
@@ -31331,11 +31331,11 @@
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__EXTENDED_TAG_EN__SHIFT                                             0x8
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__PHANTOM_FUNC_EN__SHIFT                                             0x9
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__AUX_POWER_PM_EN__SHIFT                                             0xa
-#define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__NO_SNOOP_EN__SHIFT                                                 0xb
+#define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__ANAL_SANALOP_EN__SHIFT                                                 0xb
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__MAX_READ_REQUEST_SIZE__SHIFT                                       0xc
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__INITIATE_FLR__SHIFT                                                0xf
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__CORR_ERR_EN_MASK                                                   0x0001L
-#define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__NON_FATAL_ERR_EN_MASK                                              0x0002L
+#define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__ANALN_FATAL_ERR_EN_MASK                                              0x0002L
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__FATAL_ERR_EN_MASK                                                  0x0004L
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__USR_REPORT_EN_MASK                                                 0x0008L
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__RELAXED_ORD_EN_MASK                                                0x0010L
@@ -31343,19 +31343,19 @@
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__EXTENDED_TAG_EN_MASK                                               0x0100L
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__PHANTOM_FUNC_EN_MASK                                               0x0200L
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__AUX_POWER_PM_EN_MASK                                               0x0400L
-#define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__NO_SNOOP_EN_MASK                                                   0x0800L
+#define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__ANAL_SANALOP_EN_MASK                                                   0x0800L
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__MAX_READ_REQUEST_SIZE_MASK                                         0x7000L
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CNTL__INITIATE_FLR_MASK                                                  0x8000L
 //BIF_CFG_DEV0_EPF0_VF1_DEVICE_STATUS
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_STATUS__CORR_ERR__SHIFT                                                  0x0
-#define BIF_CFG_DEV0_EPF0_VF1_DEVICE_STATUS__NON_FATAL_ERR__SHIFT                                             0x1
+#define BIF_CFG_DEV0_EPF0_VF1_DEVICE_STATUS__ANALN_FATAL_ERR__SHIFT                                             0x1
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_STATUS__FATAL_ERR__SHIFT                                                 0x2
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_STATUS__USR_DETECTED__SHIFT                                              0x3
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_STATUS__AUX_PWR__SHIFT                                                   0x4
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_STATUS__TRANSACTIONS_PEND__SHIFT                                         0x5
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_STATUS__EMER_POWER_REDUCTION_DETECTED__SHIFT                             0x6
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_STATUS__CORR_ERR_MASK                                                    0x0001L
-#define BIF_CFG_DEV0_EPF0_VF1_DEVICE_STATUS__NON_FATAL_ERR_MASK                                               0x0002L
+#define BIF_CFG_DEV0_EPF0_VF1_DEVICE_STATUS__ANALN_FATAL_ERR_MASK                                               0x0002L
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_STATUS__FATAL_ERR_MASK                                                   0x0004L
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_STATUS__USR_DETECTED_MASK                                                0x0008L
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_STATUS__AUX_PWR_MASK                                                     0x0010L
@@ -31370,7 +31370,7 @@
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CAP__CLOCK_POWER_MANAGEMENT__SHIFT                                         0x12
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING__SHIFT                                    0x13
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE__SHIFT                                    0x14
-#define BIF_CFG_DEV0_EPF0_VF1_LINK_CAP__LINK_BW_NOTIFICATION_CAP__SHIFT                                       0x15
+#define BIF_CFG_DEV0_EPF0_VF1_LINK_CAP__LINK_BW_ANALTIFICATION_CAP__SHIFT                                       0x15
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE__SHIFT                                    0x16
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CAP__PORT_NUMBER__SHIFT                                                    0x18
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CAP__LINK_SPEED_MASK                                                       0x0000000FL
@@ -31381,7 +31381,7 @@
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CAP__CLOCK_POWER_MANAGEMENT_MASK                                           0x00040000L
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING_MASK                                      0x00080000L
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE_MASK                                      0x00100000L
-#define BIF_CFG_DEV0_EPF0_VF1_LINK_CAP__LINK_BW_NOTIFICATION_CAP_MASK                                         0x00200000L
+#define BIF_CFG_DEV0_EPF0_VF1_LINK_CAP__LINK_BW_ANALTIFICATION_CAP_MASK                                         0x00200000L
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE_MASK                                      0x00400000L
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CAP__PORT_NUMBER_MASK                                                      0xFF000000L
 //BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL
@@ -31393,9 +31393,9 @@
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__COMMON_CLOCK_CFG__SHIFT                                              0x6
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__EXTENDED_SYNC__SHIFT                                                 0x7
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN__SHIFT                                     0x8
-#define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE__SHIFT                                   0x9
+#define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE__SHIFT                                   0x9
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN__SHIFT                                     0xa
-#define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN__SHIFT                                     0xb
+#define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN__SHIFT                                     0xb
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__DRS_SIGNALING_CONTROL__SHIFT                                         0xe
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__PM_CONTROL_MASK                                                      0x0003L
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__PTM_PROP_DELAY_ADAPT_INTER_B_MASK                                    0x0004L
@@ -31405,9 +31405,9 @@
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__COMMON_CLOCK_CFG_MASK                                                0x0040L
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__EXTENDED_SYNC_MASK                                                   0x0080L
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN_MASK                                       0x0100L
-#define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE_MASK                                     0x0200L
+#define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE_MASK                                     0x0200L
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN_MASK                                       0x0400L
-#define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN_MASK                                       0x0800L
+#define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN_MASK                                       0x0800L
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL__DRS_SIGNALING_CONTROL_MASK                                           0xC000L
 //BIF_CFG_DEV0_EPF0_VF1_LINK_STATUS
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_STATUS__CURRENT_LINK_SPEED__SHIFT                                          0x0
@@ -31416,14 +31416,14 @@
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_STATUS__SLOT_CLOCK_CFG__SHIFT                                              0xc
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_STATUS__DL_ACTIVE__SHIFT                                                   0xd
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS__SHIFT                                   0xe
-#define BIF_CFG_DEV0_EPF0_VF1_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS__SHIFT                                   0xf
+#define BIF_CFG_DEV0_EPF0_VF1_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS__SHIFT                                   0xf
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_STATUS__CURRENT_LINK_SPEED_MASK                                            0x000FL
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_STATUS__NEGOTIATED_LINK_WIDTH_MASK                                         0x03F0L
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_STATUS__LINK_TRAINING_MASK                                                 0x0800L
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_STATUS__SLOT_CLOCK_CFG_MASK                                                0x1000L
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_STATUS__DL_ACTIVE_MASK                                                     0x2000L
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS_MASK                                     0x4000L
-#define BIF_CFG_DEV0_EPF0_VF1_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS_MASK                                     0x8000L
+#define BIF_CFG_DEV0_EPF0_VF1_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS_MASK                                     0x8000L
 //BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__CPL_TIMEOUT_RANGE_SUPPORTED__SHIFT                                 0x0
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__CPL_TIMEOUT_DIS_SUPPORTED__SHIFT                                   0x4
@@ -31432,7 +31432,7 @@
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED__SHIFT                                  0x7
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED__SHIFT                                  0x8
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED__SHIFT                                      0x9
-#define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING__SHIFT                                   0xa
+#define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                   0xa
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__LTR_SUPPORTED__SHIFT                                               0xb
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__TPH_CPLR_SUPPORTED__SHIFT                                          0xc
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__LN_SYSTEM_CLS__SHIFT                                               0xe
@@ -31452,7 +31452,7 @@
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED_MASK                                    0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED_MASK                                    0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED_MASK                                        0x00000200L
-#define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING_MASK                                     0x00000400L
+#define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING_MASK                                     0x00000400L
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__LTR_SUPPORTED_MASK                                                 0x00000800L
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__TPH_CPLR_SUPPORTED_MASK                                            0x00003000L
 #define BIF_CFG_DEV0_EPF0_VF1_DEVICE_CAP2__LN_SYSTEM_CLS_MASK                                                 0x0000C000L
@@ -31511,7 +31511,7 @@
 //BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL2
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL2__TARGET_LINK_SPEED__SHIFT                                            0x0
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL2__ENTER_COMPLIANCE__SHIFT                                             0x4
-#define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE__SHIFT                                  0x5
+#define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE__SHIFT                                  0x5
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL2__SELECTABLE_DEEMPHASIS__SHIFT                                        0x6
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL2__XMIT_MARGIN__SHIFT                                                  0x7
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL2__ENTER_MOD_COMPLIANCE__SHIFT                                         0xa
@@ -31519,7 +31519,7 @@
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL2__COMPLIANCE_DEEMPHASIS__SHIFT                                        0xc
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL2__TARGET_LINK_SPEED_MASK                                              0x000FL
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL2__ENTER_COMPLIANCE_MASK                                               0x0010L
-#define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE_MASK                                    0x0020L
+#define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE_MASK                                    0x0020L
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL2__SELECTABLE_DEEMPHASIS_MASK                                          0x0040L
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL2__XMIT_MARGIN_MASK                                                    0x0380L
 #define BIF_CFG_DEV0_EPF0_VF1_LINK_CNTL2__ENTER_MOD_COMPLIANCE_MASK                                           0x0400L
@@ -31758,7 +31758,7 @@
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS__SHIFT                                    0x7
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS__SHIFT                         0x8
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS__SHIFT                        0xc
-#define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS__SHIFT                       0xd
+#define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                       0xd
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS__SHIFT                                0xe
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS__SHIFT                                0xf
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_STATUS__RCV_ERR_STATUS_MASK                                       0x00000001L
@@ -31766,7 +31766,7 @@
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS_MASK                                      0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS_MASK                           0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS_MASK                          0x00001000L
-#define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS_MASK                         0x00002000L
+#define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS_MASK                         0x00002000L
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS_MASK                                  0x00004000L
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS_MASK                                  0x00008000L
 //BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_MASK
@@ -31775,7 +31775,7 @@
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK__SHIFT                                        0x7
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK__SHIFT                             0x8
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK__SHIFT                            0xc
-#define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK__SHIFT                           0xd
+#define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK__SHIFT                           0xd
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK__SHIFT                                    0xe
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK__SHIFT                                    0xf
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_MASK__RCV_ERR_MASK_MASK                                           0x00000001L
@@ -31783,7 +31783,7 @@
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK_MASK                                          0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK_MASK                               0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK_MASK                              0x00001000L
-#define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK_MASK                             0x00002000L
+#define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK_MASK                             0x00002000L
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK_MASK                                      0x00004000L
 #define BIF_CFG_DEV0_EPF0_VF1_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK_MASK                                      0x00008000L
 //BIF_CFG_DEV0_EPF0_VF1_PCIE_ADV_ERR_CAP_CNTL
@@ -31886,7 +31886,7 @@
 #define BIF_CFG_DEV0_EPF0_VF2_COMMAND__BUS_MASTER_EN__SHIFT                                                   0x2
 #define BIF_CFG_DEV0_EPF0_VF2_COMMAND__SPECIAL_CYCLE_EN__SHIFT                                                0x3
 #define BIF_CFG_DEV0_EPF0_VF2_COMMAND__MEM_WRITE_INVALIDATE_EN__SHIFT                                         0x4
-#define BIF_CFG_DEV0_EPF0_VF2_COMMAND__PAL_SNOOP_EN__SHIFT                                                    0x5
+#define BIF_CFG_DEV0_EPF0_VF2_COMMAND__PAL_SANALOP_EN__SHIFT                                                    0x5
 #define BIF_CFG_DEV0_EPF0_VF2_COMMAND__PARITY_ERROR_RESPONSE__SHIFT                                           0x6
 #define BIF_CFG_DEV0_EPF0_VF2_COMMAND__AD_STEPPING__SHIFT                                                     0x7
 #define BIF_CFG_DEV0_EPF0_VF2_COMMAND__SERR_EN__SHIFT                                                         0x8
@@ -31897,7 +31897,7 @@
 #define BIF_CFG_DEV0_EPF0_VF2_COMMAND__BUS_MASTER_EN_MASK                                                     0x0004L
 #define BIF_CFG_DEV0_EPF0_VF2_COMMAND__SPECIAL_CYCLE_EN_MASK                                                  0x0008L
 #define BIF_CFG_DEV0_EPF0_VF2_COMMAND__MEM_WRITE_INVALIDATE_EN_MASK                                           0x0010L
-#define BIF_CFG_DEV0_EPF0_VF2_COMMAND__PAL_SNOOP_EN_MASK                                                      0x0020L
+#define BIF_CFG_DEV0_EPF0_VF2_COMMAND__PAL_SANALOP_EN_MASK                                                      0x0020L
 #define BIF_CFG_DEV0_EPF0_VF2_COMMAND__PARITY_ERROR_RESPONSE_MASK                                             0x0040L
 #define BIF_CFG_DEV0_EPF0_VF2_COMMAND__AD_STEPPING_MASK                                                       0x0080L
 #define BIF_CFG_DEV0_EPF0_VF2_COMMAND__SERR_EN_MASK                                                           0x0100L
@@ -31929,9 +31929,9 @@
 #define BIF_CFG_DEV0_EPF0_VF2_STATUS__SIGNALED_SYSTEM_ERROR_MASK                                              0x4000L
 #define BIF_CFG_DEV0_EPF0_VF2_STATUS__PARITY_ERROR_DETECTED_MASK                                              0x8000L
 //BIF_CFG_DEV0_EPF0_VF2_REVISION_ID
-#define BIF_CFG_DEV0_EPF0_VF2_REVISION_ID__MINOR_REV_ID__SHIFT                                                0x0
+#define BIF_CFG_DEV0_EPF0_VF2_REVISION_ID__MIANALR_REV_ID__SHIFT                                                0x0
 #define BIF_CFG_DEV0_EPF0_VF2_REVISION_ID__MAJOR_REV_ID__SHIFT                                                0x4
-#define BIF_CFG_DEV0_EPF0_VF2_REVISION_ID__MINOR_REV_ID_MASK                                                  0x0FL
+#define BIF_CFG_DEV0_EPF0_VF2_REVISION_ID__MIANALR_REV_ID_MASK                                                  0x0FL
 #define BIF_CFG_DEV0_EPF0_VF2_REVISION_ID__MAJOR_REV_ID_MASK                                                  0xF0L
 //BIF_CFG_DEV0_EPF0_VF2_PROG_INTERFACE
 #define BIF_CFG_DEV0_EPF0_VF2_PROG_INTERFACE__PROG_INTERFACE__SHIFT                                           0x0
@@ -32047,7 +32047,7 @@
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP__FLR_CAPABLE_MASK                                                    0x10000000L
 //BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__CORR_ERR_EN__SHIFT                                                 0x0
-#define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__NON_FATAL_ERR_EN__SHIFT                                            0x1
+#define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__ANALN_FATAL_ERR_EN__SHIFT                                            0x1
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__FATAL_ERR_EN__SHIFT                                                0x2
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__USR_REPORT_EN__SHIFT                                               0x3
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__RELAXED_ORD_EN__SHIFT                                              0x4
@@ -32055,11 +32055,11 @@
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__EXTENDED_TAG_EN__SHIFT                                             0x8
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__PHANTOM_FUNC_EN__SHIFT                                             0x9
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__AUX_POWER_PM_EN__SHIFT                                             0xa
-#define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__NO_SNOOP_EN__SHIFT                                                 0xb
+#define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__ANAL_SANALOP_EN__SHIFT                                                 0xb
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__MAX_READ_REQUEST_SIZE__SHIFT                                       0xc
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__INITIATE_FLR__SHIFT                                                0xf
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__CORR_ERR_EN_MASK                                                   0x0001L
-#define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__NON_FATAL_ERR_EN_MASK                                              0x0002L
+#define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__ANALN_FATAL_ERR_EN_MASK                                              0x0002L
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__FATAL_ERR_EN_MASK                                                  0x0004L
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__USR_REPORT_EN_MASK                                                 0x0008L
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__RELAXED_ORD_EN_MASK                                                0x0010L
@@ -32067,19 +32067,19 @@
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__EXTENDED_TAG_EN_MASK                                               0x0100L
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__PHANTOM_FUNC_EN_MASK                                               0x0200L
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__AUX_POWER_PM_EN_MASK                                               0x0400L
-#define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__NO_SNOOP_EN_MASK                                                   0x0800L
+#define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__ANAL_SANALOP_EN_MASK                                                   0x0800L
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__MAX_READ_REQUEST_SIZE_MASK                                         0x7000L
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CNTL__INITIATE_FLR_MASK                                                  0x8000L
 //BIF_CFG_DEV0_EPF0_VF2_DEVICE_STATUS
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_STATUS__CORR_ERR__SHIFT                                                  0x0
-#define BIF_CFG_DEV0_EPF0_VF2_DEVICE_STATUS__NON_FATAL_ERR__SHIFT                                             0x1
+#define BIF_CFG_DEV0_EPF0_VF2_DEVICE_STATUS__ANALN_FATAL_ERR__SHIFT                                             0x1
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_STATUS__FATAL_ERR__SHIFT                                                 0x2
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_STATUS__USR_DETECTED__SHIFT                                              0x3
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_STATUS__AUX_PWR__SHIFT                                                   0x4
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_STATUS__TRANSACTIONS_PEND__SHIFT                                         0x5
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_STATUS__EMER_POWER_REDUCTION_DETECTED__SHIFT                             0x6
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_STATUS__CORR_ERR_MASK                                                    0x0001L
-#define BIF_CFG_DEV0_EPF0_VF2_DEVICE_STATUS__NON_FATAL_ERR_MASK                                               0x0002L
+#define BIF_CFG_DEV0_EPF0_VF2_DEVICE_STATUS__ANALN_FATAL_ERR_MASK                                               0x0002L
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_STATUS__FATAL_ERR_MASK                                                   0x0004L
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_STATUS__USR_DETECTED_MASK                                                0x0008L
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_STATUS__AUX_PWR_MASK                                                     0x0010L
@@ -32094,7 +32094,7 @@
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CAP__CLOCK_POWER_MANAGEMENT__SHIFT                                         0x12
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING__SHIFT                                    0x13
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE__SHIFT                                    0x14
-#define BIF_CFG_DEV0_EPF0_VF2_LINK_CAP__LINK_BW_NOTIFICATION_CAP__SHIFT                                       0x15
+#define BIF_CFG_DEV0_EPF0_VF2_LINK_CAP__LINK_BW_ANALTIFICATION_CAP__SHIFT                                       0x15
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE__SHIFT                                    0x16
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CAP__PORT_NUMBER__SHIFT                                                    0x18
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CAP__LINK_SPEED_MASK                                                       0x0000000FL
@@ -32105,7 +32105,7 @@
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CAP__CLOCK_POWER_MANAGEMENT_MASK                                           0x00040000L
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING_MASK                                      0x00080000L
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE_MASK                                      0x00100000L
-#define BIF_CFG_DEV0_EPF0_VF2_LINK_CAP__LINK_BW_NOTIFICATION_CAP_MASK                                         0x00200000L
+#define BIF_CFG_DEV0_EPF0_VF2_LINK_CAP__LINK_BW_ANALTIFICATION_CAP_MASK                                         0x00200000L
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE_MASK                                      0x00400000L
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CAP__PORT_NUMBER_MASK                                                      0xFF000000L
 //BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL
@@ -32117,9 +32117,9 @@
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__COMMON_CLOCK_CFG__SHIFT                                              0x6
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__EXTENDED_SYNC__SHIFT                                                 0x7
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN__SHIFT                                     0x8
-#define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE__SHIFT                                   0x9
+#define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE__SHIFT                                   0x9
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN__SHIFT                                     0xa
-#define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN__SHIFT                                     0xb
+#define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN__SHIFT                                     0xb
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__DRS_SIGNALING_CONTROL__SHIFT                                         0xe
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__PM_CONTROL_MASK                                                      0x0003L
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__PTM_PROP_DELAY_ADAPT_INTER_B_MASK                                    0x0004L
@@ -32129,9 +32129,9 @@
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__COMMON_CLOCK_CFG_MASK                                                0x0040L
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__EXTENDED_SYNC_MASK                                                   0x0080L
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN_MASK                                       0x0100L
-#define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE_MASK                                     0x0200L
+#define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE_MASK                                     0x0200L
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN_MASK                                       0x0400L
-#define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN_MASK                                       0x0800L
+#define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN_MASK                                       0x0800L
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL__DRS_SIGNALING_CONTROL_MASK                                           0xC000L
 //BIF_CFG_DEV0_EPF0_VF2_LINK_STATUS
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_STATUS__CURRENT_LINK_SPEED__SHIFT                                          0x0
@@ -32140,14 +32140,14 @@
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_STATUS__SLOT_CLOCK_CFG__SHIFT                                              0xc
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_STATUS__DL_ACTIVE__SHIFT                                                   0xd
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS__SHIFT                                   0xe
-#define BIF_CFG_DEV0_EPF0_VF2_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS__SHIFT                                   0xf
+#define BIF_CFG_DEV0_EPF0_VF2_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS__SHIFT                                   0xf
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_STATUS__CURRENT_LINK_SPEED_MASK                                            0x000FL
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_STATUS__NEGOTIATED_LINK_WIDTH_MASK                                         0x03F0L
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_STATUS__LINK_TRAINING_MASK                                                 0x0800L
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_STATUS__SLOT_CLOCK_CFG_MASK                                                0x1000L
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_STATUS__DL_ACTIVE_MASK                                                     0x2000L
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS_MASK                                     0x4000L
-#define BIF_CFG_DEV0_EPF0_VF2_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS_MASK                                     0x8000L
+#define BIF_CFG_DEV0_EPF0_VF2_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS_MASK                                     0x8000L
 //BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__CPL_TIMEOUT_RANGE_SUPPORTED__SHIFT                                 0x0
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__CPL_TIMEOUT_DIS_SUPPORTED__SHIFT                                   0x4
@@ -32156,7 +32156,7 @@
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED__SHIFT                                  0x7
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED__SHIFT                                  0x8
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED__SHIFT                                      0x9
-#define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING__SHIFT                                   0xa
+#define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                   0xa
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__LTR_SUPPORTED__SHIFT                                               0xb
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__TPH_CPLR_SUPPORTED__SHIFT                                          0xc
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__LN_SYSTEM_CLS__SHIFT                                               0xe
@@ -32176,7 +32176,7 @@
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED_MASK                                    0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED_MASK                                    0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED_MASK                                        0x00000200L
-#define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING_MASK                                     0x00000400L
+#define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING_MASK                                     0x00000400L
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__LTR_SUPPORTED_MASK                                                 0x00000800L
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__TPH_CPLR_SUPPORTED_MASK                                            0x00003000L
 #define BIF_CFG_DEV0_EPF0_VF2_DEVICE_CAP2__LN_SYSTEM_CLS_MASK                                                 0x0000C000L
@@ -32235,7 +32235,7 @@
 //BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL2
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL2__TARGET_LINK_SPEED__SHIFT                                            0x0
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL2__ENTER_COMPLIANCE__SHIFT                                             0x4
-#define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE__SHIFT                                  0x5
+#define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE__SHIFT                                  0x5
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL2__SELECTABLE_DEEMPHASIS__SHIFT                                        0x6
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL2__XMIT_MARGIN__SHIFT                                                  0x7
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL2__ENTER_MOD_COMPLIANCE__SHIFT                                         0xa
@@ -32243,7 +32243,7 @@
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL2__COMPLIANCE_DEEMPHASIS__SHIFT                                        0xc
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL2__TARGET_LINK_SPEED_MASK                                              0x000FL
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL2__ENTER_COMPLIANCE_MASK                                               0x0010L
-#define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE_MASK                                    0x0020L
+#define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE_MASK                                    0x0020L
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL2__SELECTABLE_DEEMPHASIS_MASK                                          0x0040L
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL2__XMIT_MARGIN_MASK                                                    0x0380L
 #define BIF_CFG_DEV0_EPF0_VF2_LINK_CNTL2__ENTER_MOD_COMPLIANCE_MASK                                           0x0400L
@@ -32482,7 +32482,7 @@
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS__SHIFT                                    0x7
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS__SHIFT                         0x8
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS__SHIFT                        0xc
-#define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS__SHIFT                       0xd
+#define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                       0xd
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS__SHIFT                                0xe
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS__SHIFT                                0xf
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_STATUS__RCV_ERR_STATUS_MASK                                       0x00000001L
@@ -32490,7 +32490,7 @@
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS_MASK                                      0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS_MASK                           0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS_MASK                          0x00001000L
-#define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS_MASK                         0x00002000L
+#define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS_MASK                         0x00002000L
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS_MASK                                  0x00004000L
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS_MASK                                  0x00008000L
 //BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_MASK
@@ -32499,7 +32499,7 @@
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK__SHIFT                                        0x7
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK__SHIFT                             0x8
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK__SHIFT                            0xc
-#define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK__SHIFT                           0xd
+#define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK__SHIFT                           0xd
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK__SHIFT                                    0xe
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK__SHIFT                                    0xf
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_MASK__RCV_ERR_MASK_MASK                                           0x00000001L
@@ -32507,7 +32507,7 @@
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK_MASK                                          0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK_MASK                               0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK_MASK                              0x00001000L
-#define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK_MASK                             0x00002000L
+#define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK_MASK                             0x00002000L
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK_MASK                                      0x00004000L
 #define BIF_CFG_DEV0_EPF0_VF2_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK_MASK                                      0x00008000L
 //BIF_CFG_DEV0_EPF0_VF2_PCIE_ADV_ERR_CAP_CNTL
@@ -32610,7 +32610,7 @@
 #define BIF_CFG_DEV0_EPF0_VF3_COMMAND__BUS_MASTER_EN__SHIFT                                                   0x2
 #define BIF_CFG_DEV0_EPF0_VF3_COMMAND__SPECIAL_CYCLE_EN__SHIFT                                                0x3
 #define BIF_CFG_DEV0_EPF0_VF3_COMMAND__MEM_WRITE_INVALIDATE_EN__SHIFT                                         0x4
-#define BIF_CFG_DEV0_EPF0_VF3_COMMAND__PAL_SNOOP_EN__SHIFT                                                    0x5
+#define BIF_CFG_DEV0_EPF0_VF3_COMMAND__PAL_SANALOP_EN__SHIFT                                                    0x5
 #define BIF_CFG_DEV0_EPF0_VF3_COMMAND__PARITY_ERROR_RESPONSE__SHIFT                                           0x6
 #define BIF_CFG_DEV0_EPF0_VF3_COMMAND__AD_STEPPING__SHIFT                                                     0x7
 #define BIF_CFG_DEV0_EPF0_VF3_COMMAND__SERR_EN__SHIFT                                                         0x8
@@ -32621,7 +32621,7 @@
 #define BIF_CFG_DEV0_EPF0_VF3_COMMAND__BUS_MASTER_EN_MASK                                                     0x0004L
 #define BIF_CFG_DEV0_EPF0_VF3_COMMAND__SPECIAL_CYCLE_EN_MASK                                                  0x0008L
 #define BIF_CFG_DEV0_EPF0_VF3_COMMAND__MEM_WRITE_INVALIDATE_EN_MASK                                           0x0010L
-#define BIF_CFG_DEV0_EPF0_VF3_COMMAND__PAL_SNOOP_EN_MASK                                                      0x0020L
+#define BIF_CFG_DEV0_EPF0_VF3_COMMAND__PAL_SANALOP_EN_MASK                                                      0x0020L
 #define BIF_CFG_DEV0_EPF0_VF3_COMMAND__PARITY_ERROR_RESPONSE_MASK                                             0x0040L
 #define BIF_CFG_DEV0_EPF0_VF3_COMMAND__AD_STEPPING_MASK                                                       0x0080L
 #define BIF_CFG_DEV0_EPF0_VF3_COMMAND__SERR_EN_MASK                                                           0x0100L
@@ -32653,9 +32653,9 @@
 #define BIF_CFG_DEV0_EPF0_VF3_STATUS__SIGNALED_SYSTEM_ERROR_MASK                                              0x4000L
 #define BIF_CFG_DEV0_EPF0_VF3_STATUS__PARITY_ERROR_DETECTED_MASK                                              0x8000L
 //BIF_CFG_DEV0_EPF0_VF3_REVISION_ID
-#define BIF_CFG_DEV0_EPF0_VF3_REVISION_ID__MINOR_REV_ID__SHIFT                                                0x0
+#define BIF_CFG_DEV0_EPF0_VF3_REVISION_ID__MIANALR_REV_ID__SHIFT                                                0x0
 #define BIF_CFG_DEV0_EPF0_VF3_REVISION_ID__MAJOR_REV_ID__SHIFT                                                0x4
-#define BIF_CFG_DEV0_EPF0_VF3_REVISION_ID__MINOR_REV_ID_MASK                                                  0x0FL
+#define BIF_CFG_DEV0_EPF0_VF3_REVISION_ID__MIANALR_REV_ID_MASK                                                  0x0FL
 #define BIF_CFG_DEV0_EPF0_VF3_REVISION_ID__MAJOR_REV_ID_MASK                                                  0xF0L
 //BIF_CFG_DEV0_EPF0_VF3_PROG_INTERFACE
 #define BIF_CFG_DEV0_EPF0_VF3_PROG_INTERFACE__PROG_INTERFACE__SHIFT                                           0x0
@@ -32771,7 +32771,7 @@
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP__FLR_CAPABLE_MASK                                                    0x10000000L
 //BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__CORR_ERR_EN__SHIFT                                                 0x0
-#define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__NON_FATAL_ERR_EN__SHIFT                                            0x1
+#define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__ANALN_FATAL_ERR_EN__SHIFT                                            0x1
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__FATAL_ERR_EN__SHIFT                                                0x2
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__USR_REPORT_EN__SHIFT                                               0x3
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__RELAXED_ORD_EN__SHIFT                                              0x4
@@ -32779,11 +32779,11 @@
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__EXTENDED_TAG_EN__SHIFT                                             0x8
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__PHANTOM_FUNC_EN__SHIFT                                             0x9
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__AUX_POWER_PM_EN__SHIFT                                             0xa
-#define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__NO_SNOOP_EN__SHIFT                                                 0xb
+#define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__ANAL_SANALOP_EN__SHIFT                                                 0xb
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__MAX_READ_REQUEST_SIZE__SHIFT                                       0xc
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__INITIATE_FLR__SHIFT                                                0xf
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__CORR_ERR_EN_MASK                                                   0x0001L
-#define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__NON_FATAL_ERR_EN_MASK                                              0x0002L
+#define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__ANALN_FATAL_ERR_EN_MASK                                              0x0002L
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__FATAL_ERR_EN_MASK                                                  0x0004L
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__USR_REPORT_EN_MASK                                                 0x0008L
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__RELAXED_ORD_EN_MASK                                                0x0010L
@@ -32791,19 +32791,19 @@
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__EXTENDED_TAG_EN_MASK                                               0x0100L
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__PHANTOM_FUNC_EN_MASK                                               0x0200L
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__AUX_POWER_PM_EN_MASK                                               0x0400L
-#define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__NO_SNOOP_EN_MASK                                                   0x0800L
+#define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__ANAL_SANALOP_EN_MASK                                                   0x0800L
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__MAX_READ_REQUEST_SIZE_MASK                                         0x7000L
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CNTL__INITIATE_FLR_MASK                                                  0x8000L
 //BIF_CFG_DEV0_EPF0_VF3_DEVICE_STATUS
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_STATUS__CORR_ERR__SHIFT                                                  0x0
-#define BIF_CFG_DEV0_EPF0_VF3_DEVICE_STATUS__NON_FATAL_ERR__SHIFT                                             0x1
+#define BIF_CFG_DEV0_EPF0_VF3_DEVICE_STATUS__ANALN_FATAL_ERR__SHIFT                                             0x1
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_STATUS__FATAL_ERR__SHIFT                                                 0x2
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_STATUS__USR_DETECTED__SHIFT                                              0x3
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_STATUS__AUX_PWR__SHIFT                                                   0x4
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_STATUS__TRANSACTIONS_PEND__SHIFT                                         0x5
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_STATUS__EMER_POWER_REDUCTION_DETECTED__SHIFT                             0x6
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_STATUS__CORR_ERR_MASK                                                    0x0001L
-#define BIF_CFG_DEV0_EPF0_VF3_DEVICE_STATUS__NON_FATAL_ERR_MASK                                               0x0002L
+#define BIF_CFG_DEV0_EPF0_VF3_DEVICE_STATUS__ANALN_FATAL_ERR_MASK                                               0x0002L
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_STATUS__FATAL_ERR_MASK                                                   0x0004L
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_STATUS__USR_DETECTED_MASK                                                0x0008L
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_STATUS__AUX_PWR_MASK                                                     0x0010L
@@ -32818,7 +32818,7 @@
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CAP__CLOCK_POWER_MANAGEMENT__SHIFT                                         0x12
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING__SHIFT                                    0x13
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE__SHIFT                                    0x14
-#define BIF_CFG_DEV0_EPF0_VF3_LINK_CAP__LINK_BW_NOTIFICATION_CAP__SHIFT                                       0x15
+#define BIF_CFG_DEV0_EPF0_VF3_LINK_CAP__LINK_BW_ANALTIFICATION_CAP__SHIFT                                       0x15
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE__SHIFT                                    0x16
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CAP__PORT_NUMBER__SHIFT                                                    0x18
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CAP__LINK_SPEED_MASK                                                       0x0000000FL
@@ -32829,7 +32829,7 @@
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CAP__CLOCK_POWER_MANAGEMENT_MASK                                           0x00040000L
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING_MASK                                      0x00080000L
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE_MASK                                      0x00100000L
-#define BIF_CFG_DEV0_EPF0_VF3_LINK_CAP__LINK_BW_NOTIFICATION_CAP_MASK                                         0x00200000L
+#define BIF_CFG_DEV0_EPF0_VF3_LINK_CAP__LINK_BW_ANALTIFICATION_CAP_MASK                                         0x00200000L
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE_MASK                                      0x00400000L
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CAP__PORT_NUMBER_MASK                                                      0xFF000000L
 //BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL
@@ -32841,9 +32841,9 @@
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__COMMON_CLOCK_CFG__SHIFT                                              0x6
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__EXTENDED_SYNC__SHIFT                                                 0x7
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN__SHIFT                                     0x8
-#define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE__SHIFT                                   0x9
+#define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE__SHIFT                                   0x9
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN__SHIFT                                     0xa
-#define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN__SHIFT                                     0xb
+#define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN__SHIFT                                     0xb
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__DRS_SIGNALING_CONTROL__SHIFT                                         0xe
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__PM_CONTROL_MASK                                                      0x0003L
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__PTM_PROP_DELAY_ADAPT_INTER_B_MASK                                    0x0004L
@@ -32853,9 +32853,9 @@
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__COMMON_CLOCK_CFG_MASK                                                0x0040L
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__EXTENDED_SYNC_MASK                                                   0x0080L
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN_MASK                                       0x0100L
-#define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE_MASK                                     0x0200L
+#define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE_MASK                                     0x0200L
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN_MASK                                       0x0400L
-#define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN_MASK                                       0x0800L
+#define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN_MASK                                       0x0800L
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL__DRS_SIGNALING_CONTROL_MASK                                           0xC000L
 //BIF_CFG_DEV0_EPF0_VF3_LINK_STATUS
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_STATUS__CURRENT_LINK_SPEED__SHIFT                                          0x0
@@ -32864,14 +32864,14 @@
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_STATUS__SLOT_CLOCK_CFG__SHIFT                                              0xc
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_STATUS__DL_ACTIVE__SHIFT                                                   0xd
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS__SHIFT                                   0xe
-#define BIF_CFG_DEV0_EPF0_VF3_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS__SHIFT                                   0xf
+#define BIF_CFG_DEV0_EPF0_VF3_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS__SHIFT                                   0xf
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_STATUS__CURRENT_LINK_SPEED_MASK                                            0x000FL
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_STATUS__NEGOTIATED_LINK_WIDTH_MASK                                         0x03F0L
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_STATUS__LINK_TRAINING_MASK                                                 0x0800L
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_STATUS__SLOT_CLOCK_CFG_MASK                                                0x1000L
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_STATUS__DL_ACTIVE_MASK                                                     0x2000L
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS_MASK                                     0x4000L
-#define BIF_CFG_DEV0_EPF0_VF3_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS_MASK                                     0x8000L
+#define BIF_CFG_DEV0_EPF0_VF3_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS_MASK                                     0x8000L
 //BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__CPL_TIMEOUT_RANGE_SUPPORTED__SHIFT                                 0x0
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__CPL_TIMEOUT_DIS_SUPPORTED__SHIFT                                   0x4
@@ -32880,7 +32880,7 @@
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED__SHIFT                                  0x7
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED__SHIFT                                  0x8
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED__SHIFT                                      0x9
-#define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING__SHIFT                                   0xa
+#define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                   0xa
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__LTR_SUPPORTED__SHIFT                                               0xb
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__TPH_CPLR_SUPPORTED__SHIFT                                          0xc
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__LN_SYSTEM_CLS__SHIFT                                               0xe
@@ -32900,7 +32900,7 @@
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED_MASK                                    0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED_MASK                                    0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED_MASK                                        0x00000200L
-#define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING_MASK                                     0x00000400L
+#define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING_MASK                                     0x00000400L
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__LTR_SUPPORTED_MASK                                                 0x00000800L
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__TPH_CPLR_SUPPORTED_MASK                                            0x00003000L
 #define BIF_CFG_DEV0_EPF0_VF3_DEVICE_CAP2__LN_SYSTEM_CLS_MASK                                                 0x0000C000L
@@ -32959,7 +32959,7 @@
 //BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL2
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL2__TARGET_LINK_SPEED__SHIFT                                            0x0
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL2__ENTER_COMPLIANCE__SHIFT                                             0x4
-#define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE__SHIFT                                  0x5
+#define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE__SHIFT                                  0x5
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL2__SELECTABLE_DEEMPHASIS__SHIFT                                        0x6
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL2__XMIT_MARGIN__SHIFT                                                  0x7
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL2__ENTER_MOD_COMPLIANCE__SHIFT                                         0xa
@@ -32967,7 +32967,7 @@
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL2__COMPLIANCE_DEEMPHASIS__SHIFT                                        0xc
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL2__TARGET_LINK_SPEED_MASK                                              0x000FL
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL2__ENTER_COMPLIANCE_MASK                                               0x0010L
-#define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE_MASK                                    0x0020L
+#define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE_MASK                                    0x0020L
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL2__SELECTABLE_DEEMPHASIS_MASK                                          0x0040L
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL2__XMIT_MARGIN_MASK                                                    0x0380L
 #define BIF_CFG_DEV0_EPF0_VF3_LINK_CNTL2__ENTER_MOD_COMPLIANCE_MASK                                           0x0400L
@@ -33206,7 +33206,7 @@
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS__SHIFT                                    0x7
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS__SHIFT                         0x8
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS__SHIFT                        0xc
-#define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS__SHIFT                       0xd
+#define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                       0xd
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS__SHIFT                                0xe
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS__SHIFT                                0xf
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_STATUS__RCV_ERR_STATUS_MASK                                       0x00000001L
@@ -33214,7 +33214,7 @@
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS_MASK                                      0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS_MASK                           0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS_MASK                          0x00001000L
-#define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS_MASK                         0x00002000L
+#define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS_MASK                         0x00002000L
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS_MASK                                  0x00004000L
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS_MASK                                  0x00008000L
 //BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_MASK
@@ -33223,7 +33223,7 @@
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK__SHIFT                                        0x7
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK__SHIFT                             0x8
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK__SHIFT                            0xc
-#define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK__SHIFT                           0xd
+#define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK__SHIFT                           0xd
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK__SHIFT                                    0xe
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK__SHIFT                                    0xf
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_MASK__RCV_ERR_MASK_MASK                                           0x00000001L
@@ -33231,7 +33231,7 @@
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK_MASK                                          0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK_MASK                               0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK_MASK                              0x00001000L
-#define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK_MASK                             0x00002000L
+#define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK_MASK                             0x00002000L
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK_MASK                                      0x00004000L
 #define BIF_CFG_DEV0_EPF0_VF3_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK_MASK                                      0x00008000L
 //BIF_CFG_DEV0_EPF0_VF3_PCIE_ADV_ERR_CAP_CNTL
@@ -33334,7 +33334,7 @@
 #define BIF_CFG_DEV0_EPF0_VF4_COMMAND__BUS_MASTER_EN__SHIFT                                                   0x2
 #define BIF_CFG_DEV0_EPF0_VF4_COMMAND__SPECIAL_CYCLE_EN__SHIFT                                                0x3
 #define BIF_CFG_DEV0_EPF0_VF4_COMMAND__MEM_WRITE_INVALIDATE_EN__SHIFT                                         0x4
-#define BIF_CFG_DEV0_EPF0_VF4_COMMAND__PAL_SNOOP_EN__SHIFT                                                    0x5
+#define BIF_CFG_DEV0_EPF0_VF4_COMMAND__PAL_SANALOP_EN__SHIFT                                                    0x5
 #define BIF_CFG_DEV0_EPF0_VF4_COMMAND__PARITY_ERROR_RESPONSE__SHIFT                                           0x6
 #define BIF_CFG_DEV0_EPF0_VF4_COMMAND__AD_STEPPING__SHIFT                                                     0x7
 #define BIF_CFG_DEV0_EPF0_VF4_COMMAND__SERR_EN__SHIFT                                                         0x8
@@ -33345,7 +33345,7 @@
 #define BIF_CFG_DEV0_EPF0_VF4_COMMAND__BUS_MASTER_EN_MASK                                                     0x0004L
 #define BIF_CFG_DEV0_EPF0_VF4_COMMAND__SPECIAL_CYCLE_EN_MASK                                                  0x0008L
 #define BIF_CFG_DEV0_EPF0_VF4_COMMAND__MEM_WRITE_INVALIDATE_EN_MASK                                           0x0010L
-#define BIF_CFG_DEV0_EPF0_VF4_COMMAND__PAL_SNOOP_EN_MASK                                                      0x0020L
+#define BIF_CFG_DEV0_EPF0_VF4_COMMAND__PAL_SANALOP_EN_MASK                                                      0x0020L
 #define BIF_CFG_DEV0_EPF0_VF4_COMMAND__PARITY_ERROR_RESPONSE_MASK                                             0x0040L
 #define BIF_CFG_DEV0_EPF0_VF4_COMMAND__AD_STEPPING_MASK                                                       0x0080L
 #define BIF_CFG_DEV0_EPF0_VF4_COMMAND__SERR_EN_MASK                                                           0x0100L
@@ -33377,9 +33377,9 @@
 #define BIF_CFG_DEV0_EPF0_VF4_STATUS__SIGNALED_SYSTEM_ERROR_MASK                                              0x4000L
 #define BIF_CFG_DEV0_EPF0_VF4_STATUS__PARITY_ERROR_DETECTED_MASK                                              0x8000L
 //BIF_CFG_DEV0_EPF0_VF4_REVISION_ID
-#define BIF_CFG_DEV0_EPF0_VF4_REVISION_ID__MINOR_REV_ID__SHIFT                                                0x0
+#define BIF_CFG_DEV0_EPF0_VF4_REVISION_ID__MIANALR_REV_ID__SHIFT                                                0x0
 #define BIF_CFG_DEV0_EPF0_VF4_REVISION_ID__MAJOR_REV_ID__SHIFT                                                0x4
-#define BIF_CFG_DEV0_EPF0_VF4_REVISION_ID__MINOR_REV_ID_MASK                                                  0x0FL
+#define BIF_CFG_DEV0_EPF0_VF4_REVISION_ID__MIANALR_REV_ID_MASK                                                  0x0FL
 #define BIF_CFG_DEV0_EPF0_VF4_REVISION_ID__MAJOR_REV_ID_MASK                                                  0xF0L
 //BIF_CFG_DEV0_EPF0_VF4_PROG_INTERFACE
 #define BIF_CFG_DEV0_EPF0_VF4_PROG_INTERFACE__PROG_INTERFACE__SHIFT                                           0x0
@@ -33495,7 +33495,7 @@
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP__FLR_CAPABLE_MASK                                                    0x10000000L
 //BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__CORR_ERR_EN__SHIFT                                                 0x0
-#define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__NON_FATAL_ERR_EN__SHIFT                                            0x1
+#define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__ANALN_FATAL_ERR_EN__SHIFT                                            0x1
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__FATAL_ERR_EN__SHIFT                                                0x2
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__USR_REPORT_EN__SHIFT                                               0x3
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__RELAXED_ORD_EN__SHIFT                                              0x4
@@ -33503,11 +33503,11 @@
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__EXTENDED_TAG_EN__SHIFT                                             0x8
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__PHANTOM_FUNC_EN__SHIFT                                             0x9
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__AUX_POWER_PM_EN__SHIFT                                             0xa
-#define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__NO_SNOOP_EN__SHIFT                                                 0xb
+#define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__ANAL_SANALOP_EN__SHIFT                                                 0xb
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__MAX_READ_REQUEST_SIZE__SHIFT                                       0xc
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__INITIATE_FLR__SHIFT                                                0xf
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__CORR_ERR_EN_MASK                                                   0x0001L
-#define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__NON_FATAL_ERR_EN_MASK                                              0x0002L
+#define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__ANALN_FATAL_ERR_EN_MASK                                              0x0002L
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__FATAL_ERR_EN_MASK                                                  0x0004L
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__USR_REPORT_EN_MASK                                                 0x0008L
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__RELAXED_ORD_EN_MASK                                                0x0010L
@@ -33515,19 +33515,19 @@
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__EXTENDED_TAG_EN_MASK                                               0x0100L
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__PHANTOM_FUNC_EN_MASK                                               0x0200L
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__AUX_POWER_PM_EN_MASK                                               0x0400L
-#define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__NO_SNOOP_EN_MASK                                                   0x0800L
+#define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__ANAL_SANALOP_EN_MASK                                                   0x0800L
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__MAX_READ_REQUEST_SIZE_MASK                                         0x7000L
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CNTL__INITIATE_FLR_MASK                                                  0x8000L
 //BIF_CFG_DEV0_EPF0_VF4_DEVICE_STATUS
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_STATUS__CORR_ERR__SHIFT                                                  0x0
-#define BIF_CFG_DEV0_EPF0_VF4_DEVICE_STATUS__NON_FATAL_ERR__SHIFT                                             0x1
+#define BIF_CFG_DEV0_EPF0_VF4_DEVICE_STATUS__ANALN_FATAL_ERR__SHIFT                                             0x1
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_STATUS__FATAL_ERR__SHIFT                                                 0x2
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_STATUS__USR_DETECTED__SHIFT                                              0x3
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_STATUS__AUX_PWR__SHIFT                                                   0x4
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_STATUS__TRANSACTIONS_PEND__SHIFT                                         0x5
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_STATUS__EMER_POWER_REDUCTION_DETECTED__SHIFT                             0x6
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_STATUS__CORR_ERR_MASK                                                    0x0001L
-#define BIF_CFG_DEV0_EPF0_VF4_DEVICE_STATUS__NON_FATAL_ERR_MASK                                               0x0002L
+#define BIF_CFG_DEV0_EPF0_VF4_DEVICE_STATUS__ANALN_FATAL_ERR_MASK                                               0x0002L
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_STATUS__FATAL_ERR_MASK                                                   0x0004L
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_STATUS__USR_DETECTED_MASK                                                0x0008L
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_STATUS__AUX_PWR_MASK                                                     0x0010L
@@ -33542,7 +33542,7 @@
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CAP__CLOCK_POWER_MANAGEMENT__SHIFT                                         0x12
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING__SHIFT                                    0x13
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE__SHIFT                                    0x14
-#define BIF_CFG_DEV0_EPF0_VF4_LINK_CAP__LINK_BW_NOTIFICATION_CAP__SHIFT                                       0x15
+#define BIF_CFG_DEV0_EPF0_VF4_LINK_CAP__LINK_BW_ANALTIFICATION_CAP__SHIFT                                       0x15
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE__SHIFT                                    0x16
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CAP__PORT_NUMBER__SHIFT                                                    0x18
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CAP__LINK_SPEED_MASK                                                       0x0000000FL
@@ -33553,7 +33553,7 @@
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CAP__CLOCK_POWER_MANAGEMENT_MASK                                           0x00040000L
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING_MASK                                      0x00080000L
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE_MASK                                      0x00100000L
-#define BIF_CFG_DEV0_EPF0_VF4_LINK_CAP__LINK_BW_NOTIFICATION_CAP_MASK                                         0x00200000L
+#define BIF_CFG_DEV0_EPF0_VF4_LINK_CAP__LINK_BW_ANALTIFICATION_CAP_MASK                                         0x00200000L
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE_MASK                                      0x00400000L
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CAP__PORT_NUMBER_MASK                                                      0xFF000000L
 //BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL
@@ -33565,9 +33565,9 @@
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__COMMON_CLOCK_CFG__SHIFT                                              0x6
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__EXTENDED_SYNC__SHIFT                                                 0x7
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN__SHIFT                                     0x8
-#define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE__SHIFT                                   0x9
+#define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE__SHIFT                                   0x9
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN__SHIFT                                     0xa
-#define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN__SHIFT                                     0xb
+#define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN__SHIFT                                     0xb
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__DRS_SIGNALING_CONTROL__SHIFT                                         0xe
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__PM_CONTROL_MASK                                                      0x0003L
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__PTM_PROP_DELAY_ADAPT_INTER_B_MASK                                    0x0004L
@@ -33577,9 +33577,9 @@
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__COMMON_CLOCK_CFG_MASK                                                0x0040L
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__EXTENDED_SYNC_MASK                                                   0x0080L
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN_MASK                                       0x0100L
-#define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE_MASK                                     0x0200L
+#define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE_MASK                                     0x0200L
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN_MASK                                       0x0400L
-#define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN_MASK                                       0x0800L
+#define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN_MASK                                       0x0800L
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL__DRS_SIGNALING_CONTROL_MASK                                           0xC000L
 //BIF_CFG_DEV0_EPF0_VF4_LINK_STATUS
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_STATUS__CURRENT_LINK_SPEED__SHIFT                                          0x0
@@ -33588,14 +33588,14 @@
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_STATUS__SLOT_CLOCK_CFG__SHIFT                                              0xc
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_STATUS__DL_ACTIVE__SHIFT                                                   0xd
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS__SHIFT                                   0xe
-#define BIF_CFG_DEV0_EPF0_VF4_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS__SHIFT                                   0xf
+#define BIF_CFG_DEV0_EPF0_VF4_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS__SHIFT                                   0xf
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_STATUS__CURRENT_LINK_SPEED_MASK                                            0x000FL
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_STATUS__NEGOTIATED_LINK_WIDTH_MASK                                         0x03F0L
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_STATUS__LINK_TRAINING_MASK                                                 0x0800L
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_STATUS__SLOT_CLOCK_CFG_MASK                                                0x1000L
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_STATUS__DL_ACTIVE_MASK                                                     0x2000L
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS_MASK                                     0x4000L
-#define BIF_CFG_DEV0_EPF0_VF4_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS_MASK                                     0x8000L
+#define BIF_CFG_DEV0_EPF0_VF4_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS_MASK                                     0x8000L
 //BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__CPL_TIMEOUT_RANGE_SUPPORTED__SHIFT                                 0x0
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__CPL_TIMEOUT_DIS_SUPPORTED__SHIFT                                   0x4
@@ -33604,7 +33604,7 @@
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED__SHIFT                                  0x7
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED__SHIFT                                  0x8
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED__SHIFT                                      0x9
-#define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING__SHIFT                                   0xa
+#define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                   0xa
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__LTR_SUPPORTED__SHIFT                                               0xb
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__TPH_CPLR_SUPPORTED__SHIFT                                          0xc
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__LN_SYSTEM_CLS__SHIFT                                               0xe
@@ -33624,7 +33624,7 @@
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED_MASK                                    0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED_MASK                                    0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED_MASK                                        0x00000200L
-#define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING_MASK                                     0x00000400L
+#define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING_MASK                                     0x00000400L
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__LTR_SUPPORTED_MASK                                                 0x00000800L
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__TPH_CPLR_SUPPORTED_MASK                                            0x00003000L
 #define BIF_CFG_DEV0_EPF0_VF4_DEVICE_CAP2__LN_SYSTEM_CLS_MASK                                                 0x0000C000L
@@ -33683,7 +33683,7 @@
 //BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL2
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL2__TARGET_LINK_SPEED__SHIFT                                            0x0
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL2__ENTER_COMPLIANCE__SHIFT                                             0x4
-#define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE__SHIFT                                  0x5
+#define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE__SHIFT                                  0x5
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL2__SELECTABLE_DEEMPHASIS__SHIFT                                        0x6
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL2__XMIT_MARGIN__SHIFT                                                  0x7
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL2__ENTER_MOD_COMPLIANCE__SHIFT                                         0xa
@@ -33691,7 +33691,7 @@
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL2__COMPLIANCE_DEEMPHASIS__SHIFT                                        0xc
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL2__TARGET_LINK_SPEED_MASK                                              0x000FL
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL2__ENTER_COMPLIANCE_MASK                                               0x0010L
-#define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE_MASK                                    0x0020L
+#define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE_MASK                                    0x0020L
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL2__SELECTABLE_DEEMPHASIS_MASK                                          0x0040L
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL2__XMIT_MARGIN_MASK                                                    0x0380L
 #define BIF_CFG_DEV0_EPF0_VF4_LINK_CNTL2__ENTER_MOD_COMPLIANCE_MASK                                           0x0400L
@@ -33930,7 +33930,7 @@
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS__SHIFT                                    0x7
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS__SHIFT                         0x8
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS__SHIFT                        0xc
-#define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS__SHIFT                       0xd
+#define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                       0xd
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS__SHIFT                                0xe
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS__SHIFT                                0xf
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_STATUS__RCV_ERR_STATUS_MASK                                       0x00000001L
@@ -33938,7 +33938,7 @@
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS_MASK                                      0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS_MASK                           0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS_MASK                          0x00001000L
-#define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS_MASK                         0x00002000L
+#define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS_MASK                         0x00002000L
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS_MASK                                  0x00004000L
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS_MASK                                  0x00008000L
 //BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_MASK
@@ -33947,7 +33947,7 @@
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK__SHIFT                                        0x7
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK__SHIFT                             0x8
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK__SHIFT                            0xc
-#define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK__SHIFT                           0xd
+#define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK__SHIFT                           0xd
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK__SHIFT                                    0xe
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK__SHIFT                                    0xf
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_MASK__RCV_ERR_MASK_MASK                                           0x00000001L
@@ -33955,7 +33955,7 @@
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK_MASK                                          0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK_MASK                               0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK_MASK                              0x00001000L
-#define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK_MASK                             0x00002000L
+#define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK_MASK                             0x00002000L
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK_MASK                                      0x00004000L
 #define BIF_CFG_DEV0_EPF0_VF4_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK_MASK                                      0x00008000L
 //BIF_CFG_DEV0_EPF0_VF4_PCIE_ADV_ERR_CAP_CNTL
@@ -34058,7 +34058,7 @@
 #define BIF_CFG_DEV0_EPF0_VF5_COMMAND__BUS_MASTER_EN__SHIFT                                                   0x2
 #define BIF_CFG_DEV0_EPF0_VF5_COMMAND__SPECIAL_CYCLE_EN__SHIFT                                                0x3
 #define BIF_CFG_DEV0_EPF0_VF5_COMMAND__MEM_WRITE_INVALIDATE_EN__SHIFT                                         0x4
-#define BIF_CFG_DEV0_EPF0_VF5_COMMAND__PAL_SNOOP_EN__SHIFT                                                    0x5
+#define BIF_CFG_DEV0_EPF0_VF5_COMMAND__PAL_SANALOP_EN__SHIFT                                                    0x5
 #define BIF_CFG_DEV0_EPF0_VF5_COMMAND__PARITY_ERROR_RESPONSE__SHIFT                                           0x6
 #define BIF_CFG_DEV0_EPF0_VF5_COMMAND__AD_STEPPING__SHIFT                                                     0x7
 #define BIF_CFG_DEV0_EPF0_VF5_COMMAND__SERR_EN__SHIFT                                                         0x8
@@ -34069,7 +34069,7 @@
 #define BIF_CFG_DEV0_EPF0_VF5_COMMAND__BUS_MASTER_EN_MASK                                                     0x0004L
 #define BIF_CFG_DEV0_EPF0_VF5_COMMAND__SPECIAL_CYCLE_EN_MASK                                                  0x0008L
 #define BIF_CFG_DEV0_EPF0_VF5_COMMAND__MEM_WRITE_INVALIDATE_EN_MASK                                           0x0010L
-#define BIF_CFG_DEV0_EPF0_VF5_COMMAND__PAL_SNOOP_EN_MASK                                                      0x0020L
+#define BIF_CFG_DEV0_EPF0_VF5_COMMAND__PAL_SANALOP_EN_MASK                                                      0x0020L
 #define BIF_CFG_DEV0_EPF0_VF5_COMMAND__PARITY_ERROR_RESPONSE_MASK                                             0x0040L
 #define BIF_CFG_DEV0_EPF0_VF5_COMMAND__AD_STEPPING_MASK                                                       0x0080L
 #define BIF_CFG_DEV0_EPF0_VF5_COMMAND__SERR_EN_MASK                                                           0x0100L
@@ -34101,9 +34101,9 @@
 #define BIF_CFG_DEV0_EPF0_VF5_STATUS__SIGNALED_SYSTEM_ERROR_MASK                                              0x4000L
 #define BIF_CFG_DEV0_EPF0_VF5_STATUS__PARITY_ERROR_DETECTED_MASK                                              0x8000L
 //BIF_CFG_DEV0_EPF0_VF5_REVISION_ID
-#define BIF_CFG_DEV0_EPF0_VF5_REVISION_ID__MINOR_REV_ID__SHIFT                                                0x0
+#define BIF_CFG_DEV0_EPF0_VF5_REVISION_ID__MIANALR_REV_ID__SHIFT                                                0x0
 #define BIF_CFG_DEV0_EPF0_VF5_REVISION_ID__MAJOR_REV_ID__SHIFT                                                0x4
-#define BIF_CFG_DEV0_EPF0_VF5_REVISION_ID__MINOR_REV_ID_MASK                                                  0x0FL
+#define BIF_CFG_DEV0_EPF0_VF5_REVISION_ID__MIANALR_REV_ID_MASK                                                  0x0FL
 #define BIF_CFG_DEV0_EPF0_VF5_REVISION_ID__MAJOR_REV_ID_MASK                                                  0xF0L
 //BIF_CFG_DEV0_EPF0_VF5_PROG_INTERFACE
 #define BIF_CFG_DEV0_EPF0_VF5_PROG_INTERFACE__PROG_INTERFACE__SHIFT                                           0x0
@@ -34219,7 +34219,7 @@
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP__FLR_CAPABLE_MASK                                                    0x10000000L
 //BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__CORR_ERR_EN__SHIFT                                                 0x0
-#define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__NON_FATAL_ERR_EN__SHIFT                                            0x1
+#define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__ANALN_FATAL_ERR_EN__SHIFT                                            0x1
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__FATAL_ERR_EN__SHIFT                                                0x2
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__USR_REPORT_EN__SHIFT                                               0x3
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__RELAXED_ORD_EN__SHIFT                                              0x4
@@ -34227,11 +34227,11 @@
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__EXTENDED_TAG_EN__SHIFT                                             0x8
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__PHANTOM_FUNC_EN__SHIFT                                             0x9
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__AUX_POWER_PM_EN__SHIFT                                             0xa
-#define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__NO_SNOOP_EN__SHIFT                                                 0xb
+#define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__ANAL_SANALOP_EN__SHIFT                                                 0xb
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__MAX_READ_REQUEST_SIZE__SHIFT                                       0xc
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__INITIATE_FLR__SHIFT                                                0xf
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__CORR_ERR_EN_MASK                                                   0x0001L
-#define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__NON_FATAL_ERR_EN_MASK                                              0x0002L
+#define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__ANALN_FATAL_ERR_EN_MASK                                              0x0002L
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__FATAL_ERR_EN_MASK                                                  0x0004L
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__USR_REPORT_EN_MASK                                                 0x0008L
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__RELAXED_ORD_EN_MASK                                                0x0010L
@@ -34239,19 +34239,19 @@
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__EXTENDED_TAG_EN_MASK                                               0x0100L
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__PHANTOM_FUNC_EN_MASK                                               0x0200L
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__AUX_POWER_PM_EN_MASK                                               0x0400L
-#define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__NO_SNOOP_EN_MASK                                                   0x0800L
+#define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__ANAL_SANALOP_EN_MASK                                                   0x0800L
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__MAX_READ_REQUEST_SIZE_MASK                                         0x7000L
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CNTL__INITIATE_FLR_MASK                                                  0x8000L
 //BIF_CFG_DEV0_EPF0_VF5_DEVICE_STATUS
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_STATUS__CORR_ERR__SHIFT                                                  0x0
-#define BIF_CFG_DEV0_EPF0_VF5_DEVICE_STATUS__NON_FATAL_ERR__SHIFT                                             0x1
+#define BIF_CFG_DEV0_EPF0_VF5_DEVICE_STATUS__ANALN_FATAL_ERR__SHIFT                                             0x1
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_STATUS__FATAL_ERR__SHIFT                                                 0x2
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_STATUS__USR_DETECTED__SHIFT                                              0x3
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_STATUS__AUX_PWR__SHIFT                                                   0x4
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_STATUS__TRANSACTIONS_PEND__SHIFT                                         0x5
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_STATUS__EMER_POWER_REDUCTION_DETECTED__SHIFT                             0x6
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_STATUS__CORR_ERR_MASK                                                    0x0001L
-#define BIF_CFG_DEV0_EPF0_VF5_DEVICE_STATUS__NON_FATAL_ERR_MASK                                               0x0002L
+#define BIF_CFG_DEV0_EPF0_VF5_DEVICE_STATUS__ANALN_FATAL_ERR_MASK                                               0x0002L
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_STATUS__FATAL_ERR_MASK                                                   0x0004L
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_STATUS__USR_DETECTED_MASK                                                0x0008L
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_STATUS__AUX_PWR_MASK                                                     0x0010L
@@ -34266,7 +34266,7 @@
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CAP__CLOCK_POWER_MANAGEMENT__SHIFT                                         0x12
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING__SHIFT                                    0x13
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE__SHIFT                                    0x14
-#define BIF_CFG_DEV0_EPF0_VF5_LINK_CAP__LINK_BW_NOTIFICATION_CAP__SHIFT                                       0x15
+#define BIF_CFG_DEV0_EPF0_VF5_LINK_CAP__LINK_BW_ANALTIFICATION_CAP__SHIFT                                       0x15
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE__SHIFT                                    0x16
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CAP__PORT_NUMBER__SHIFT                                                    0x18
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CAP__LINK_SPEED_MASK                                                       0x0000000FL
@@ -34277,7 +34277,7 @@
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CAP__CLOCK_POWER_MANAGEMENT_MASK                                           0x00040000L
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING_MASK                                      0x00080000L
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE_MASK                                      0x00100000L
-#define BIF_CFG_DEV0_EPF0_VF5_LINK_CAP__LINK_BW_NOTIFICATION_CAP_MASK                                         0x00200000L
+#define BIF_CFG_DEV0_EPF0_VF5_LINK_CAP__LINK_BW_ANALTIFICATION_CAP_MASK                                         0x00200000L
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE_MASK                                      0x00400000L
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CAP__PORT_NUMBER_MASK                                                      0xFF000000L
 //BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL
@@ -34289,9 +34289,9 @@
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__COMMON_CLOCK_CFG__SHIFT                                              0x6
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__EXTENDED_SYNC__SHIFT                                                 0x7
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN__SHIFT                                     0x8
-#define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE__SHIFT                                   0x9
+#define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE__SHIFT                                   0x9
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN__SHIFT                                     0xa
-#define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN__SHIFT                                     0xb
+#define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN__SHIFT                                     0xb
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__DRS_SIGNALING_CONTROL__SHIFT                                         0xe
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__PM_CONTROL_MASK                                                      0x0003L
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__PTM_PROP_DELAY_ADAPT_INTER_B_MASK                                    0x0004L
@@ -34301,9 +34301,9 @@
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__COMMON_CLOCK_CFG_MASK                                                0x0040L
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__EXTENDED_SYNC_MASK                                                   0x0080L
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN_MASK                                       0x0100L
-#define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE_MASK                                     0x0200L
+#define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE_MASK                                     0x0200L
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN_MASK                                       0x0400L
-#define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN_MASK                                       0x0800L
+#define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN_MASK                                       0x0800L
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL__DRS_SIGNALING_CONTROL_MASK                                           0xC000L
 //BIF_CFG_DEV0_EPF0_VF5_LINK_STATUS
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_STATUS__CURRENT_LINK_SPEED__SHIFT                                          0x0
@@ -34312,14 +34312,14 @@
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_STATUS__SLOT_CLOCK_CFG__SHIFT                                              0xc
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_STATUS__DL_ACTIVE__SHIFT                                                   0xd
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS__SHIFT                                   0xe
-#define BIF_CFG_DEV0_EPF0_VF5_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS__SHIFT                                   0xf
+#define BIF_CFG_DEV0_EPF0_VF5_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS__SHIFT                                   0xf
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_STATUS__CURRENT_LINK_SPEED_MASK                                            0x000FL
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_STATUS__NEGOTIATED_LINK_WIDTH_MASK                                         0x03F0L
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_STATUS__LINK_TRAINING_MASK                                                 0x0800L
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_STATUS__SLOT_CLOCK_CFG_MASK                                                0x1000L
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_STATUS__DL_ACTIVE_MASK                                                     0x2000L
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS_MASK                                     0x4000L
-#define BIF_CFG_DEV0_EPF0_VF5_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS_MASK                                     0x8000L
+#define BIF_CFG_DEV0_EPF0_VF5_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS_MASK                                     0x8000L
 //BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__CPL_TIMEOUT_RANGE_SUPPORTED__SHIFT                                 0x0
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__CPL_TIMEOUT_DIS_SUPPORTED__SHIFT                                   0x4
@@ -34328,7 +34328,7 @@
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED__SHIFT                                  0x7
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED__SHIFT                                  0x8
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED__SHIFT                                      0x9
-#define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING__SHIFT                                   0xa
+#define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                   0xa
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__LTR_SUPPORTED__SHIFT                                               0xb
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__TPH_CPLR_SUPPORTED__SHIFT                                          0xc
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__LN_SYSTEM_CLS__SHIFT                                               0xe
@@ -34348,7 +34348,7 @@
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED_MASK                                    0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED_MASK                                    0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED_MASK                                        0x00000200L
-#define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING_MASK                                     0x00000400L
+#define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING_MASK                                     0x00000400L
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__LTR_SUPPORTED_MASK                                                 0x00000800L
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__TPH_CPLR_SUPPORTED_MASK                                            0x00003000L
 #define BIF_CFG_DEV0_EPF0_VF5_DEVICE_CAP2__LN_SYSTEM_CLS_MASK                                                 0x0000C000L
@@ -34407,7 +34407,7 @@
 //BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL2
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL2__TARGET_LINK_SPEED__SHIFT                                            0x0
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL2__ENTER_COMPLIANCE__SHIFT                                             0x4
-#define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE__SHIFT                                  0x5
+#define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE__SHIFT                                  0x5
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL2__SELECTABLE_DEEMPHASIS__SHIFT                                        0x6
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL2__XMIT_MARGIN__SHIFT                                                  0x7
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL2__ENTER_MOD_COMPLIANCE__SHIFT                                         0xa
@@ -34415,7 +34415,7 @@
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL2__COMPLIANCE_DEEMPHASIS__SHIFT                                        0xc
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL2__TARGET_LINK_SPEED_MASK                                              0x000FL
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL2__ENTER_COMPLIANCE_MASK                                               0x0010L
-#define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE_MASK                                    0x0020L
+#define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE_MASK                                    0x0020L
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL2__SELECTABLE_DEEMPHASIS_MASK                                          0x0040L
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL2__XMIT_MARGIN_MASK                                                    0x0380L
 #define BIF_CFG_DEV0_EPF0_VF5_LINK_CNTL2__ENTER_MOD_COMPLIANCE_MASK                                           0x0400L
@@ -34654,7 +34654,7 @@
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS__SHIFT                                    0x7
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS__SHIFT                         0x8
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS__SHIFT                        0xc
-#define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS__SHIFT                       0xd
+#define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                       0xd
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS__SHIFT                                0xe
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS__SHIFT                                0xf
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_STATUS__RCV_ERR_STATUS_MASK                                       0x00000001L
@@ -34662,7 +34662,7 @@
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS_MASK                                      0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS_MASK                           0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS_MASK                          0x00001000L
-#define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS_MASK                         0x00002000L
+#define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS_MASK                         0x00002000L
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS_MASK                                  0x00004000L
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS_MASK                                  0x00008000L
 //BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_MASK
@@ -34671,7 +34671,7 @@
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK__SHIFT                                        0x7
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK__SHIFT                             0x8
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK__SHIFT                            0xc
-#define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK__SHIFT                           0xd
+#define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK__SHIFT                           0xd
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK__SHIFT                                    0xe
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK__SHIFT                                    0xf
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_MASK__RCV_ERR_MASK_MASK                                           0x00000001L
@@ -34679,7 +34679,7 @@
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK_MASK                                          0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK_MASK                               0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK_MASK                              0x00001000L
-#define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK_MASK                             0x00002000L
+#define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK_MASK                             0x00002000L
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK_MASK                                      0x00004000L
 #define BIF_CFG_DEV0_EPF0_VF5_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK_MASK                                      0x00008000L
 //BIF_CFG_DEV0_EPF0_VF5_PCIE_ADV_ERR_CAP_CNTL
@@ -34782,7 +34782,7 @@
 #define BIF_CFG_DEV0_EPF0_VF6_COMMAND__BUS_MASTER_EN__SHIFT                                                   0x2
 #define BIF_CFG_DEV0_EPF0_VF6_COMMAND__SPECIAL_CYCLE_EN__SHIFT                                                0x3
 #define BIF_CFG_DEV0_EPF0_VF6_COMMAND__MEM_WRITE_INVALIDATE_EN__SHIFT                                         0x4
-#define BIF_CFG_DEV0_EPF0_VF6_COMMAND__PAL_SNOOP_EN__SHIFT                                                    0x5
+#define BIF_CFG_DEV0_EPF0_VF6_COMMAND__PAL_SANALOP_EN__SHIFT                                                    0x5
 #define BIF_CFG_DEV0_EPF0_VF6_COMMAND__PARITY_ERROR_RESPONSE__SHIFT                                           0x6
 #define BIF_CFG_DEV0_EPF0_VF6_COMMAND__AD_STEPPING__SHIFT                                                     0x7
 #define BIF_CFG_DEV0_EPF0_VF6_COMMAND__SERR_EN__SHIFT                                                         0x8
@@ -34793,7 +34793,7 @@
 #define BIF_CFG_DEV0_EPF0_VF6_COMMAND__BUS_MASTER_EN_MASK                                                     0x0004L
 #define BIF_CFG_DEV0_EPF0_VF6_COMMAND__SPECIAL_CYCLE_EN_MASK                                                  0x0008L
 #define BIF_CFG_DEV0_EPF0_VF6_COMMAND__MEM_WRITE_INVALIDATE_EN_MASK                                           0x0010L
-#define BIF_CFG_DEV0_EPF0_VF6_COMMAND__PAL_SNOOP_EN_MASK                                                      0x0020L
+#define BIF_CFG_DEV0_EPF0_VF6_COMMAND__PAL_SANALOP_EN_MASK                                                      0x0020L
 #define BIF_CFG_DEV0_EPF0_VF6_COMMAND__PARITY_ERROR_RESPONSE_MASK                                             0x0040L
 #define BIF_CFG_DEV0_EPF0_VF6_COMMAND__AD_STEPPING_MASK                                                       0x0080L
 #define BIF_CFG_DEV0_EPF0_VF6_COMMAND__SERR_EN_MASK                                                           0x0100L
@@ -34825,9 +34825,9 @@
 #define BIF_CFG_DEV0_EPF0_VF6_STATUS__SIGNALED_SYSTEM_ERROR_MASK                                              0x4000L
 #define BIF_CFG_DEV0_EPF0_VF6_STATUS__PARITY_ERROR_DETECTED_MASK                                              0x8000L
 //BIF_CFG_DEV0_EPF0_VF6_REVISION_ID
-#define BIF_CFG_DEV0_EPF0_VF6_REVISION_ID__MINOR_REV_ID__SHIFT                                                0x0
+#define BIF_CFG_DEV0_EPF0_VF6_REVISION_ID__MIANALR_REV_ID__SHIFT                                                0x0
 #define BIF_CFG_DEV0_EPF0_VF6_REVISION_ID__MAJOR_REV_ID__SHIFT                                                0x4
-#define BIF_CFG_DEV0_EPF0_VF6_REVISION_ID__MINOR_REV_ID_MASK                                                  0x0FL
+#define BIF_CFG_DEV0_EPF0_VF6_REVISION_ID__MIANALR_REV_ID_MASK                                                  0x0FL
 #define BIF_CFG_DEV0_EPF0_VF6_REVISION_ID__MAJOR_REV_ID_MASK                                                  0xF0L
 //BIF_CFG_DEV0_EPF0_VF6_PROG_INTERFACE
 #define BIF_CFG_DEV0_EPF0_VF6_PROG_INTERFACE__PROG_INTERFACE__SHIFT                                           0x0
@@ -34943,7 +34943,7 @@
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP__FLR_CAPABLE_MASK                                                    0x10000000L
 //BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__CORR_ERR_EN__SHIFT                                                 0x0
-#define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__NON_FATAL_ERR_EN__SHIFT                                            0x1
+#define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__ANALN_FATAL_ERR_EN__SHIFT                                            0x1
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__FATAL_ERR_EN__SHIFT                                                0x2
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__USR_REPORT_EN__SHIFT                                               0x3
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__RELAXED_ORD_EN__SHIFT                                              0x4
@@ -34951,11 +34951,11 @@
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__EXTENDED_TAG_EN__SHIFT                                             0x8
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__PHANTOM_FUNC_EN__SHIFT                                             0x9
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__AUX_POWER_PM_EN__SHIFT                                             0xa
-#define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__NO_SNOOP_EN__SHIFT                                                 0xb
+#define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__ANAL_SANALOP_EN__SHIFT                                                 0xb
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__MAX_READ_REQUEST_SIZE__SHIFT                                       0xc
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__INITIATE_FLR__SHIFT                                                0xf
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__CORR_ERR_EN_MASK                                                   0x0001L
-#define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__NON_FATAL_ERR_EN_MASK                                              0x0002L
+#define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__ANALN_FATAL_ERR_EN_MASK                                              0x0002L
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__FATAL_ERR_EN_MASK                                                  0x0004L
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__USR_REPORT_EN_MASK                                                 0x0008L
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__RELAXED_ORD_EN_MASK                                                0x0010L
@@ -34963,19 +34963,19 @@
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__EXTENDED_TAG_EN_MASK                                               0x0100L
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__PHANTOM_FUNC_EN_MASK                                               0x0200L
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__AUX_POWER_PM_EN_MASK                                               0x0400L
-#define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__NO_SNOOP_EN_MASK                                                   0x0800L
+#define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__ANAL_SANALOP_EN_MASK                                                   0x0800L
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__MAX_READ_REQUEST_SIZE_MASK                                         0x7000L
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CNTL__INITIATE_FLR_MASK                                                  0x8000L
 //BIF_CFG_DEV0_EPF0_VF6_DEVICE_STATUS
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_STATUS__CORR_ERR__SHIFT                                                  0x0
-#define BIF_CFG_DEV0_EPF0_VF6_DEVICE_STATUS__NON_FATAL_ERR__SHIFT                                             0x1
+#define BIF_CFG_DEV0_EPF0_VF6_DEVICE_STATUS__ANALN_FATAL_ERR__SHIFT                                             0x1
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_STATUS__FATAL_ERR__SHIFT                                                 0x2
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_STATUS__USR_DETECTED__SHIFT                                              0x3
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_STATUS__AUX_PWR__SHIFT                                                   0x4
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_STATUS__TRANSACTIONS_PEND__SHIFT                                         0x5
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_STATUS__EMER_POWER_REDUCTION_DETECTED__SHIFT                             0x6
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_STATUS__CORR_ERR_MASK                                                    0x0001L
-#define BIF_CFG_DEV0_EPF0_VF6_DEVICE_STATUS__NON_FATAL_ERR_MASK                                               0x0002L
+#define BIF_CFG_DEV0_EPF0_VF6_DEVICE_STATUS__ANALN_FATAL_ERR_MASK                                               0x0002L
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_STATUS__FATAL_ERR_MASK                                                   0x0004L
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_STATUS__USR_DETECTED_MASK                                                0x0008L
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_STATUS__AUX_PWR_MASK                                                     0x0010L
@@ -34990,7 +34990,7 @@
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CAP__CLOCK_POWER_MANAGEMENT__SHIFT                                         0x12
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING__SHIFT                                    0x13
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE__SHIFT                                    0x14
-#define BIF_CFG_DEV0_EPF0_VF6_LINK_CAP__LINK_BW_NOTIFICATION_CAP__SHIFT                                       0x15
+#define BIF_CFG_DEV0_EPF0_VF6_LINK_CAP__LINK_BW_ANALTIFICATION_CAP__SHIFT                                       0x15
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE__SHIFT                                    0x16
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CAP__PORT_NUMBER__SHIFT                                                    0x18
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CAP__LINK_SPEED_MASK                                                       0x0000000FL
@@ -35001,7 +35001,7 @@
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CAP__CLOCK_POWER_MANAGEMENT_MASK                                           0x00040000L
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING_MASK                                      0x00080000L
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE_MASK                                      0x00100000L
-#define BIF_CFG_DEV0_EPF0_VF6_LINK_CAP__LINK_BW_NOTIFICATION_CAP_MASK                                         0x00200000L
+#define BIF_CFG_DEV0_EPF0_VF6_LINK_CAP__LINK_BW_ANALTIFICATION_CAP_MASK                                         0x00200000L
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE_MASK                                      0x00400000L
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CAP__PORT_NUMBER_MASK                                                      0xFF000000L
 //BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL
@@ -35013,9 +35013,9 @@
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__COMMON_CLOCK_CFG__SHIFT                                              0x6
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__EXTENDED_SYNC__SHIFT                                                 0x7
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN__SHIFT                                     0x8
-#define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE__SHIFT                                   0x9
+#define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE__SHIFT                                   0x9
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN__SHIFT                                     0xa
-#define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN__SHIFT                                     0xb
+#define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN__SHIFT                                     0xb
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__DRS_SIGNALING_CONTROL__SHIFT                                         0xe
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__PM_CONTROL_MASK                                                      0x0003L
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__PTM_PROP_DELAY_ADAPT_INTER_B_MASK                                    0x0004L
@@ -35025,9 +35025,9 @@
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__COMMON_CLOCK_CFG_MASK                                                0x0040L
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__EXTENDED_SYNC_MASK                                                   0x0080L
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN_MASK                                       0x0100L
-#define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE_MASK                                     0x0200L
+#define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE_MASK                                     0x0200L
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN_MASK                                       0x0400L
-#define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN_MASK                                       0x0800L
+#define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN_MASK                                       0x0800L
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL__DRS_SIGNALING_CONTROL_MASK                                           0xC000L
 //BIF_CFG_DEV0_EPF0_VF6_LINK_STATUS
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_STATUS__CURRENT_LINK_SPEED__SHIFT                                          0x0
@@ -35036,14 +35036,14 @@
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_STATUS__SLOT_CLOCK_CFG__SHIFT                                              0xc
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_STATUS__DL_ACTIVE__SHIFT                                                   0xd
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS__SHIFT                                   0xe
-#define BIF_CFG_DEV0_EPF0_VF6_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS__SHIFT                                   0xf
+#define BIF_CFG_DEV0_EPF0_VF6_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS__SHIFT                                   0xf
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_STATUS__CURRENT_LINK_SPEED_MASK                                            0x000FL
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_STATUS__NEGOTIATED_LINK_WIDTH_MASK                                         0x03F0L
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_STATUS__LINK_TRAINING_MASK                                                 0x0800L
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_STATUS__SLOT_CLOCK_CFG_MASK                                                0x1000L
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_STATUS__DL_ACTIVE_MASK                                                     0x2000L
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS_MASK                                     0x4000L
-#define BIF_CFG_DEV0_EPF0_VF6_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS_MASK                                     0x8000L
+#define BIF_CFG_DEV0_EPF0_VF6_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS_MASK                                     0x8000L
 //BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__CPL_TIMEOUT_RANGE_SUPPORTED__SHIFT                                 0x0
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__CPL_TIMEOUT_DIS_SUPPORTED__SHIFT                                   0x4
@@ -35052,7 +35052,7 @@
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED__SHIFT                                  0x7
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED__SHIFT                                  0x8
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED__SHIFT                                      0x9
-#define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING__SHIFT                                   0xa
+#define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                   0xa
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__LTR_SUPPORTED__SHIFT                                               0xb
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__TPH_CPLR_SUPPORTED__SHIFT                                          0xc
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__LN_SYSTEM_CLS__SHIFT                                               0xe
@@ -35072,7 +35072,7 @@
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED_MASK                                    0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED_MASK                                    0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED_MASK                                        0x00000200L
-#define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING_MASK                                     0x00000400L
+#define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING_MASK                                     0x00000400L
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__LTR_SUPPORTED_MASK                                                 0x00000800L
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__TPH_CPLR_SUPPORTED_MASK                                            0x00003000L
 #define BIF_CFG_DEV0_EPF0_VF6_DEVICE_CAP2__LN_SYSTEM_CLS_MASK                                                 0x0000C000L
@@ -35131,7 +35131,7 @@
 //BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL2
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL2__TARGET_LINK_SPEED__SHIFT                                            0x0
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL2__ENTER_COMPLIANCE__SHIFT                                             0x4
-#define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE__SHIFT                                  0x5
+#define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE__SHIFT                                  0x5
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL2__SELECTABLE_DEEMPHASIS__SHIFT                                        0x6
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL2__XMIT_MARGIN__SHIFT                                                  0x7
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL2__ENTER_MOD_COMPLIANCE__SHIFT                                         0xa
@@ -35139,7 +35139,7 @@
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL2__COMPLIANCE_DEEMPHASIS__SHIFT                                        0xc
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL2__TARGET_LINK_SPEED_MASK                                              0x000FL
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL2__ENTER_COMPLIANCE_MASK                                               0x0010L
-#define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE_MASK                                    0x0020L
+#define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE_MASK                                    0x0020L
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL2__SELECTABLE_DEEMPHASIS_MASK                                          0x0040L
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL2__XMIT_MARGIN_MASK                                                    0x0380L
 #define BIF_CFG_DEV0_EPF0_VF6_LINK_CNTL2__ENTER_MOD_COMPLIANCE_MASK                                           0x0400L
@@ -35378,7 +35378,7 @@
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS__SHIFT                                    0x7
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS__SHIFT                         0x8
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS__SHIFT                        0xc
-#define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS__SHIFT                       0xd
+#define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                       0xd
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS__SHIFT                                0xe
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS__SHIFT                                0xf
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_STATUS__RCV_ERR_STATUS_MASK                                       0x00000001L
@@ -35386,7 +35386,7 @@
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS_MASK                                      0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS_MASK                           0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS_MASK                          0x00001000L
-#define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS_MASK                         0x00002000L
+#define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS_MASK                         0x00002000L
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS_MASK                                  0x00004000L
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS_MASK                                  0x00008000L
 //BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_MASK
@@ -35395,7 +35395,7 @@
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK__SHIFT                                        0x7
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK__SHIFT                             0x8
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK__SHIFT                            0xc
-#define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK__SHIFT                           0xd
+#define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK__SHIFT                           0xd
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK__SHIFT                                    0xe
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK__SHIFT                                    0xf
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_MASK__RCV_ERR_MASK_MASK                                           0x00000001L
@@ -35403,7 +35403,7 @@
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK_MASK                                          0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK_MASK                               0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK_MASK                              0x00001000L
-#define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK_MASK                             0x00002000L
+#define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK_MASK                             0x00002000L
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK_MASK                                      0x00004000L
 #define BIF_CFG_DEV0_EPF0_VF6_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK_MASK                                      0x00008000L
 //BIF_CFG_DEV0_EPF0_VF6_PCIE_ADV_ERR_CAP_CNTL
@@ -35506,7 +35506,7 @@
 #define BIF_CFG_DEV0_EPF0_VF7_COMMAND__BUS_MASTER_EN__SHIFT                                                   0x2
 #define BIF_CFG_DEV0_EPF0_VF7_COMMAND__SPECIAL_CYCLE_EN__SHIFT                                                0x3
 #define BIF_CFG_DEV0_EPF0_VF7_COMMAND__MEM_WRITE_INVALIDATE_EN__SHIFT                                         0x4
-#define BIF_CFG_DEV0_EPF0_VF7_COMMAND__PAL_SNOOP_EN__SHIFT                                                    0x5
+#define BIF_CFG_DEV0_EPF0_VF7_COMMAND__PAL_SANALOP_EN__SHIFT                                                    0x5
 #define BIF_CFG_DEV0_EPF0_VF7_COMMAND__PARITY_ERROR_RESPONSE__SHIFT                                           0x6
 #define BIF_CFG_DEV0_EPF0_VF7_COMMAND__AD_STEPPING__SHIFT                                                     0x7
 #define BIF_CFG_DEV0_EPF0_VF7_COMMAND__SERR_EN__SHIFT                                                         0x8
@@ -35517,7 +35517,7 @@
 #define BIF_CFG_DEV0_EPF0_VF7_COMMAND__BUS_MASTER_EN_MASK                                                     0x0004L
 #define BIF_CFG_DEV0_EPF0_VF7_COMMAND__SPECIAL_CYCLE_EN_MASK                                                  0x0008L
 #define BIF_CFG_DEV0_EPF0_VF7_COMMAND__MEM_WRITE_INVALIDATE_EN_MASK                                           0x0010L
-#define BIF_CFG_DEV0_EPF0_VF7_COMMAND__PAL_SNOOP_EN_MASK                                                      0x0020L
+#define BIF_CFG_DEV0_EPF0_VF7_COMMAND__PAL_SANALOP_EN_MASK                                                      0x0020L
 #define BIF_CFG_DEV0_EPF0_VF7_COMMAND__PARITY_ERROR_RESPONSE_MASK                                             0x0040L
 #define BIF_CFG_DEV0_EPF0_VF7_COMMAND__AD_STEPPING_MASK                                                       0x0080L
 #define BIF_CFG_DEV0_EPF0_VF7_COMMAND__SERR_EN_MASK                                                           0x0100L
@@ -35549,9 +35549,9 @@
 #define BIF_CFG_DEV0_EPF0_VF7_STATUS__SIGNALED_SYSTEM_ERROR_MASK                                              0x4000L
 #define BIF_CFG_DEV0_EPF0_VF7_STATUS__PARITY_ERROR_DETECTED_MASK                                              0x8000L
 //BIF_CFG_DEV0_EPF0_VF7_REVISION_ID
-#define BIF_CFG_DEV0_EPF0_VF7_REVISION_ID__MINOR_REV_ID__SHIFT                                                0x0
+#define BIF_CFG_DEV0_EPF0_VF7_REVISION_ID__MIANALR_REV_ID__SHIFT                                                0x0
 #define BIF_CFG_DEV0_EPF0_VF7_REVISION_ID__MAJOR_REV_ID__SHIFT                                                0x4
-#define BIF_CFG_DEV0_EPF0_VF7_REVISION_ID__MINOR_REV_ID_MASK                                                  0x0FL
+#define BIF_CFG_DEV0_EPF0_VF7_REVISION_ID__MIANALR_REV_ID_MASK                                                  0x0FL
 #define BIF_CFG_DEV0_EPF0_VF7_REVISION_ID__MAJOR_REV_ID_MASK                                                  0xF0L
 //BIF_CFG_DEV0_EPF0_VF7_PROG_INTERFACE
 #define BIF_CFG_DEV0_EPF0_VF7_PROG_INTERFACE__PROG_INTERFACE__SHIFT                                           0x0
@@ -35667,7 +35667,7 @@
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP__FLR_CAPABLE_MASK                                                    0x10000000L
 //BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__CORR_ERR_EN__SHIFT                                                 0x0
-#define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__NON_FATAL_ERR_EN__SHIFT                                            0x1
+#define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__ANALN_FATAL_ERR_EN__SHIFT                                            0x1
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__FATAL_ERR_EN__SHIFT                                                0x2
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__USR_REPORT_EN__SHIFT                                               0x3
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__RELAXED_ORD_EN__SHIFT                                              0x4
@@ -35675,11 +35675,11 @@
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__EXTENDED_TAG_EN__SHIFT                                             0x8
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__PHANTOM_FUNC_EN__SHIFT                                             0x9
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__AUX_POWER_PM_EN__SHIFT                                             0xa
-#define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__NO_SNOOP_EN__SHIFT                                                 0xb
+#define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__ANAL_SANALOP_EN__SHIFT                                                 0xb
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__MAX_READ_REQUEST_SIZE__SHIFT                                       0xc
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__INITIATE_FLR__SHIFT                                                0xf
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__CORR_ERR_EN_MASK                                                   0x0001L
-#define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__NON_FATAL_ERR_EN_MASK                                              0x0002L
+#define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__ANALN_FATAL_ERR_EN_MASK                                              0x0002L
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__FATAL_ERR_EN_MASK                                                  0x0004L
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__USR_REPORT_EN_MASK                                                 0x0008L
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__RELAXED_ORD_EN_MASK                                                0x0010L
@@ -35687,19 +35687,19 @@
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__EXTENDED_TAG_EN_MASK                                               0x0100L
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__PHANTOM_FUNC_EN_MASK                                               0x0200L
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__AUX_POWER_PM_EN_MASK                                               0x0400L
-#define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__NO_SNOOP_EN_MASK                                                   0x0800L
+#define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__ANAL_SANALOP_EN_MASK                                                   0x0800L
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__MAX_READ_REQUEST_SIZE_MASK                                         0x7000L
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CNTL__INITIATE_FLR_MASK                                                  0x8000L
 //BIF_CFG_DEV0_EPF0_VF7_DEVICE_STATUS
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_STATUS__CORR_ERR__SHIFT                                                  0x0
-#define BIF_CFG_DEV0_EPF0_VF7_DEVICE_STATUS__NON_FATAL_ERR__SHIFT                                             0x1
+#define BIF_CFG_DEV0_EPF0_VF7_DEVICE_STATUS__ANALN_FATAL_ERR__SHIFT                                             0x1
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_STATUS__FATAL_ERR__SHIFT                                                 0x2
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_STATUS__USR_DETECTED__SHIFT                                              0x3
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_STATUS__AUX_PWR__SHIFT                                                   0x4
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_STATUS__TRANSACTIONS_PEND__SHIFT                                         0x5
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_STATUS__EMER_POWER_REDUCTION_DETECTED__SHIFT                             0x6
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_STATUS__CORR_ERR_MASK                                                    0x0001L
-#define BIF_CFG_DEV0_EPF0_VF7_DEVICE_STATUS__NON_FATAL_ERR_MASK                                               0x0002L
+#define BIF_CFG_DEV0_EPF0_VF7_DEVICE_STATUS__ANALN_FATAL_ERR_MASK                                               0x0002L
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_STATUS__FATAL_ERR_MASK                                                   0x0004L
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_STATUS__USR_DETECTED_MASK                                                0x0008L
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_STATUS__AUX_PWR_MASK                                                     0x0010L
@@ -35714,7 +35714,7 @@
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CAP__CLOCK_POWER_MANAGEMENT__SHIFT                                         0x12
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING__SHIFT                                    0x13
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE__SHIFT                                    0x14
-#define BIF_CFG_DEV0_EPF0_VF7_LINK_CAP__LINK_BW_NOTIFICATION_CAP__SHIFT                                       0x15
+#define BIF_CFG_DEV0_EPF0_VF7_LINK_CAP__LINK_BW_ANALTIFICATION_CAP__SHIFT                                       0x15
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE__SHIFT                                    0x16
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CAP__PORT_NUMBER__SHIFT                                                    0x18
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CAP__LINK_SPEED_MASK                                                       0x0000000FL
@@ -35725,7 +35725,7 @@
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CAP__CLOCK_POWER_MANAGEMENT_MASK                                           0x00040000L
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CAP__SURPRISE_DOWN_ERR_REPORTING_MASK                                      0x00080000L
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE_MASK                                      0x00100000L
-#define BIF_CFG_DEV0_EPF0_VF7_LINK_CAP__LINK_BW_NOTIFICATION_CAP_MASK                                         0x00200000L
+#define BIF_CFG_DEV0_EPF0_VF7_LINK_CAP__LINK_BW_ANALTIFICATION_CAP_MASK                                         0x00200000L
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE_MASK                                      0x00400000L
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CAP__PORT_NUMBER_MASK                                                      0xFF000000L
 //BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL
@@ -35737,9 +35737,9 @@
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__COMMON_CLOCK_CFG__SHIFT                                              0x6
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__EXTENDED_SYNC__SHIFT                                                 0x7
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN__SHIFT                                     0x8
-#define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE__SHIFT                                   0x9
+#define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE__SHIFT                                   0x9
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN__SHIFT                                     0xa
-#define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN__SHIFT                                     0xb
+#define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN__SHIFT                                     0xb
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__DRS_SIGNALING_CONTROL__SHIFT                                         0xe
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__PM_CONTROL_MASK                                                      0x0003L
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__PTM_PROP_DELAY_ADAPT_INTER_B_MASK                                    0x0004L
@@ -35749,9 +35749,9 @@
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__COMMON_CLOCK_CFG_MASK                                                0x0040L
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__EXTENDED_SYNC_MASK                                                   0x0080L
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN_MASK                                       0x0100L
-#define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE_MASK                                     0x0200L
+#define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE_MASK                                     0x0200L
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN_MASK                                       0x0400L
-#define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN_MASK                                       0x0800L
+#define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN_MASK                                       0x0800L
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL__DRS_SIGNALING_CONTROL_MASK                                           0xC000L
 //BIF_CFG_DEV0_EPF0_VF7_LINK_STATUS
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_STATUS__CURRENT_LINK_SPEED__SHIFT                                          0x0
@@ -35760,14 +35760,14 @@
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_STATUS__SLOT_CLOCK_CFG__SHIFT                                              0xc
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_STATUS__DL_ACTIVE__SHIFT                                                   0xd
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS__SHIFT                                   0xe
-#define BIF_CFG_DEV0_EPF0_VF7_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS__SHIFT                                   0xf
+#define BIF_CFG_DEV0_EPF0_VF7_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS__SHIFT                                   0xf
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_STATUS__CURRENT_LINK_SPEED_MASK                                            0x000FL
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_STATUS__NEGOTIATED_LINK_WIDTH_MASK                                         0x03F0L
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_STATUS__LINK_TRAINING_MASK                                                 0x0800L
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_STATUS__SLOT_CLOCK_CFG_MASK                                                0x1000L
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_STATUS__DL_ACTIVE_MASK                                                     0x2000L
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_STATUS__LINK_BW_MANAGEMENT_STATUS_MASK                                     0x4000L
-#define BIF_CFG_DEV0_EPF0_VF7_LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS_MASK                                     0x8000L
+#define BIF_CFG_DEV0_EPF0_VF7_LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS_MASK                                     0x8000L
 //BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__CPL_TIMEOUT_RANGE_SUPPORTED__SHIFT                                 0x0
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__CPL_TIMEOUT_DIS_SUPPORTED__SHIFT                                   0x4
@@ -35776,7 +35776,7 @@
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED__SHIFT                                  0x7
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED__SHIFT                                  0x8
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED__SHIFT                                      0x9
-#define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING__SHIFT                                   0xa
+#define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                   0xa
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__LTR_SUPPORTED__SHIFT                                               0xb
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__TPH_CPLR_SUPPORTED__SHIFT                                          0xc
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__LN_SYSTEM_CLS__SHIFT                                               0xe
@@ -35796,7 +35796,7 @@
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED_MASK                                    0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED_MASK                                    0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__CAS128_CMPLT_SUPPORTED_MASK                                        0x00000200L
-#define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING_MASK                                     0x00000400L
+#define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING_MASK                                     0x00000400L
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__LTR_SUPPORTED_MASK                                                 0x00000800L
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__TPH_CPLR_SUPPORTED_MASK                                            0x00003000L
 #define BIF_CFG_DEV0_EPF0_VF7_DEVICE_CAP2__LN_SYSTEM_CLS_MASK                                                 0x0000C000L
@@ -35855,7 +35855,7 @@
 //BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL2
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL2__TARGET_LINK_SPEED__SHIFT                                            0x0
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL2__ENTER_COMPLIANCE__SHIFT                                             0x4
-#define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE__SHIFT                                  0x5
+#define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE__SHIFT                                  0x5
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL2__SELECTABLE_DEEMPHASIS__SHIFT                                        0x6
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL2__XMIT_MARGIN__SHIFT                                                  0x7
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL2__ENTER_MOD_COMPLIANCE__SHIFT                                         0xa
@@ -35863,7 +35863,7 @@
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL2__COMPLIANCE_DEEMPHASIS__SHIFT                                        0xc
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL2__TARGET_LINK_SPEED_MASK                                              0x000FL
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL2__ENTER_COMPLIANCE_MASK                                               0x0010L
-#define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE_MASK                                    0x0020L
+#define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE_MASK                                    0x0020L
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL2__SELECTABLE_DEEMPHASIS_MASK                                          0x0040L
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL2__XMIT_MARGIN_MASK                                                    0x0380L
 #define BIF_CFG_DEV0_EPF0_VF7_LINK_CNTL2__ENTER_MOD_COMPLIANCE_MASK                                           0x0400L
@@ -36102,7 +36102,7 @@
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS__SHIFT                                    0x7
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS__SHIFT                         0x8
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS__SHIFT                        0xc
-#define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS__SHIFT                       0xd
+#define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                       0xd
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS__SHIFT                                0xe
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS__SHIFT                                0xf
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_STATUS__RCV_ERR_STATUS_MASK                                       0x00000001L
@@ -36110,7 +36110,7 @@
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS_MASK                                      0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS_MASK                           0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS_MASK                          0x00001000L
-#define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS_MASK                         0x00002000L
+#define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS_MASK                         0x00002000L
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS_MASK                                  0x00004000L
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS_MASK                                  0x00008000L
 //BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_MASK
@@ -36119,7 +36119,7 @@
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK__SHIFT                                        0x7
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK__SHIFT                             0x8
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK__SHIFT                            0xc
-#define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK__SHIFT                           0xd
+#define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK__SHIFT                           0xd
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK__SHIFT                                    0xe
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK__SHIFT                                    0xf
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_MASK__RCV_ERR_MASK_MASK                                           0x00000001L
@@ -36127,7 +36127,7 @@
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_MASK__BAD_DLLP_MASK_MASK                                          0x00000080L
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK_MASK                               0x00000100L
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK_MASK                              0x00001000L
-#define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK_MASK                             0x00002000L
+#define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK_MASK                             0x00002000L
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK_MASK                                      0x00004000L
 #define BIF_CFG_DEV0_EPF0_VF7_PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK_MASK                                      0x00008000L
 //BIF_CFG_DEV0_EPF0_VF7_PCIE_ADV_ERR_CAP_CNTL

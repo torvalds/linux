@@ -3,11 +3,11 @@
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Header for Exynos PMU Driver support
+ * Header for Exyanals PMU Driver support
  */
 
-#ifndef __LINUX_SOC_EXYNOS_PMU_H
-#define __LINUX_SOC_EXYNOS_PMU_H
+#ifndef __LINUX_SOC_EXYANALS_PMU_H
+#define __LINUX_SOC_EXYANALS_PMU_H
 
 struct regmap;
 
@@ -18,14 +18,14 @@ enum sys_powerdown {
 	NUM_SYS_POWERDOWN,
 };
 
-extern void exynos_sys_powerdown_conf(enum sys_powerdown mode);
-#ifdef CONFIG_EXYNOS_PMU
-extern struct regmap *exynos_get_pmu_regmap(void);
+extern void exyanals_sys_powerdown_conf(enum sys_powerdown mode);
+#ifdef CONFIG_EXYANALS_PMU
+extern struct regmap *exyanals_get_pmu_regmap(void);
 #else
-static inline struct regmap *exynos_get_pmu_regmap(void)
+static inline struct regmap *exyanals_get_pmu_regmap(void)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 #endif
 
-#endif /* __LINUX_SOC_EXYNOS_PMU_H */
+#endif /* __LINUX_SOC_EXYANALS_PMU_H */

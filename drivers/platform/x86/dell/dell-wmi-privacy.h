@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Dell privacy notification driver
+ * Dell privacy analtification driver
  *
  * Copyright (C) 2021 Dell Inc. All Rights Reserved.
  */

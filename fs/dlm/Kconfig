@@ -14,4 +14,4 @@ config DLM_DEBUG
 	help
 	Under the debugfs mount point, the name of each lockspace will
 	appear as a file in the "dlm" directory.  The output is the
-	list of resource and locks the local node knows about.
+	list of resource and locks the local analde kanalws about.

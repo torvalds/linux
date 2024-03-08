@@ -25,7 +25,7 @@ struct davinci_gpio_controller;
 /*
  * SoC info passed into common davinci modules.
  *
- * Base addresses in this structure should be physical and not virtual.
+ * Base addresses in this structure should be physical and analt virtual.
  * Modules that take such base addresses, should internally ioremap() them to
  * use.
  */

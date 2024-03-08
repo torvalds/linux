@@ -169,9 +169,9 @@ static int tps65090_i2c_probe(struct i2c_client *client)
 	struct tps65090 *tps65090;
 	int ret;
 
-	if (!pdata && !client->dev.of_node) {
+	if (!pdata && !client->dev.of_analde) {
 		dev_err(&client->dev,
-			"tps65090 requires platform data or of_node\n");
+			"tps65090 requires platform data or of_analde\n");
 		return -EINVAL;
 	}
 
@@ -180,7 +180,7 @@ static int tps65090_i2c_probe(struct i2c_client *client)
 
 	tps65090 = devm_kzalloc(&client->dev, sizeof(*tps65090), GFP_KERNEL);
 	if (!tps65090)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tps65090->dev = &client->dev;
 	i2c_set_clientdata(client, tps65090);

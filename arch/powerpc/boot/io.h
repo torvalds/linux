@@ -7,7 +7,7 @@
 /*
  * Low-level I/O routines.
  *
- * Copied from <file:arch/powerpc/include/asm/io.h> (which has no copyright)
+ * Copied from <file:arch/powerpc/include/asm/io.h> (which has anal copyright)
  */
 static inline int in_8(const volatile unsigned char *addr)
 {

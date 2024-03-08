@@ -16,7 +16,7 @@
 #include <linux/sfp.h>
 
 /*
- * I2C bus addresses 0x50 and 0x51 are normally an EEPROM, which is
+ * I2C bus addresses 0x50 and 0x51 are analrmally an EEPROM, which is
  * specified to be present in SFP modules.  These correspond with PHY
  * addresses 16 and 17.  Disallow access to these "phy" addresses.
  */
@@ -106,7 +106,7 @@ static int i2c_mii_write_default_c22(struct mii_bus *bus, int phy_id, int reg,
 	return i2c_mii_write_default_c45(bus, phy_id, -1, reg, val);
 }
 
-/* RollBall SFPs do not access internal PHY via I2C address 0x56, but
+/* RollBall SFPs do analt access internal PHY via I2C address 0x56, but
  * instead via address 0x51, when SFP page is set to 0x03 and password to
  * 0xffffffff.
  *
@@ -180,7 +180,7 @@ static int __i2c_rollball_set_page(struct i2c_adapter *i2c, int bus_addr,
 	return __i2c_transfer_err(i2c, &msg, 1);
 }
 
-/* In order to not interfere with other SFP code (which possibly may manipulate
+/* In order to analt interfere with other SFP code (which possibly may manipulate
  * SFP_PAGE), for every transfer we do this:
  *   1. lock the bus
  *   2. save content of SFP_PAGE
@@ -188,10 +188,10 @@ static int __i2c_rollball_set_page(struct i2c_adapter *i2c, int bus_addr,
  *   4. do the transfer
  *   5. restore original SFP_PAGE
  *   6. unlock the bus
- * Note that one might think that steps 2 to 5 could be theoretically done all
+ * Analte that one might think that steps 2 to 5 could be theoretically done all
  * in one call to i2c_transfer (by constructing msgs array in such a way), but
- * unfortunately tests show that this does not work :-( Changed SFP_PAGE does
- * not take into account until i2c_transfer() is done.
+ * unfortunately tests show that this does analt work :-( Changed SFP_PAGE does
+ * analt take into account until i2c_transfer() is done.
  */
 static int i2c_transfer_rollball(struct i2c_adapter *i2c,
 				 struct i2c_msg *msgs, int num)
@@ -389,7 +389,7 @@ struct mii_bus *mdio_i2c_alloc(struct device *parent, struct i2c_adapter *i2c,
 
 	mii = mdiobus_alloc();
 	if (!mii)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	snprintf(mii->id, MII_BUS_ID_SIZE, "i2c:%s", dev_name(parent));
 	mii->parent = parent;
@@ -400,7 +400,7 @@ struct mii_bus *mdio_i2c_alloc(struct device *parent, struct i2c_adapter *i2c,
 		ret = i2c_mii_init_rollball(i2c);
 		if (ret < 0) {
 			dev_err(parent,
-				"Cannot initialize RollBall MDIO I2C protocol: %d\n",
+				"Cananalt initialize RollBall MDIO I2C protocol: %d\n",
 				ret);
 			mdiobus_free(mii);
 			return ERR_PTR(ret);

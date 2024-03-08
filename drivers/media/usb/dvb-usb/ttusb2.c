@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* DVB USB compliant linux driver for Technotrend DVB USB boxes and clones
+/* DVB USB compliant linux driver for Techanaltrend DVB USB boxes and clones
  * (e.g. Pinnacle 400e DVB-S USB2.0).
  *
- * The Pinnacle 400e uses the same protocol as the Technotrend USB1.1 boxes.
+ * The Pinnacle 400e uses the same protocol as the Techanaltrend USB1.1 boxes.
  *
  * TDA8263 + TDA10086
  *
@@ -80,12 +80,12 @@ static int ttusb2_msg(struct dvb_usb_device *d, u8 cmd,
 
 	s = kzalloc(wlen+4, GFP_KERNEL);
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = kzalloc(64, GFP_KERNEL);
 	if (!r) {
 		kfree(s);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	s[0] = 0xaa;
@@ -230,7 +230,7 @@ static int tt3650_ci_set_video_port(struct dvb_ca_en50221 *ca, int slot, int ena
 		return ret;
 
 	if (enable != buf[0]) {
-		err("CI not %sabled.", enable ? "en" : "dis");
+		err("CI analt %sabled.", enable ? "en" : "dis");
 		return -EIO;
 	}
 
@@ -355,7 +355,7 @@ static int tt3650_ci_init(struct dvb_usb_adapter *a)
 				  /* flags */ 0,
 				  /* n_slots */ 1);
 	if (ret) {
-		err("Cannot initialize CI: Error %d.", ret);
+		err("Cananalt initialize CI: Error %d.", ret);
 		memset(&state->ca, 0, sizeof(state->ca));
 		return ret;
 	}
@@ -375,7 +375,7 @@ static int ttusb2_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num
 		return -EAGAIN;
 
 	if (num > 2)
-		warn("more than 2 i2c messages at a time is not handled yet. TODO.");
+		warn("more than 2 i2c messages at a time is analt handled yet. TODO.");
 
 	for (i = 0; i < num; i++) {
 		write_read = i+1 < num && (msg[i+1].flags & I2C_M_RD);
@@ -476,9 +476,9 @@ static int ttusb2_identify_state(struct usb_device *udev,
 	return 0;
 }
 
-static int ttusb2_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int ttusb2_power_ctrl(struct dvb_usb_device *d, int oanalff)
 {
-	u8 b = onoff;
+	u8 b = oanalff;
 	ttusb2_msg(d, CMD_POWER, &b, 0, NULL, 0);
 	return ttusb2_msg(d, CMD_POWER, &b, 1, NULL, 0);
 }
@@ -509,7 +509,7 @@ static struct tda10048_config tda10048_config = {
 	.dtv7_if_freq_khz = TDA10048_IF_4500,
 	.dtv8_if_freq_khz = TDA10048_IF_5000,
 	.clk_freq_khz     = TDA10048_CLK_16000,
-	.no_firmware      = 1,
+	.anal_firmware      = 1,
 	.set_pll          = true ,
 	.pll_m            = 5,
 	.pll_n            = 3,
@@ -527,7 +527,7 @@ static int ttusb2_frontend_tda10086_attach(struct dvb_usb_adapter *adap)
 
 	if ((adap->fe_adap[0].fe = dvb_attach(tda10086_attach, &tda10086_config, &adap->dev->i2c_adap)) == NULL) {
 		deb_info("TDA10086 attach failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -552,7 +552,7 @@ static int ttusb2_frontend_tda10023_attach(struct dvb_usb_adapter *adap)
 
 		if (adap->fe_adap[0].fe == NULL) {
 			deb_info("TDA10023 attach failed\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		tt3650_ci_init(adap);
 	} else {
@@ -561,7 +561,7 @@ static int ttusb2_frontend_tda10023_attach(struct dvb_usb_adapter *adap)
 
 		if (adap->fe_adap[1].fe == NULL) {
 			deb_info("TDA10048 attach failed\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		/* tuner is behind TDA10023 I2C-gate */
@@ -584,8 +584,8 @@ static int ttusb2_tuner_tda827x_attach(struct dvb_usb_adapter *adap)
 
 	/* attach tuner */
 	if (dvb_attach(tda827x_attach, fe, 0x61, &adap->dev->i2c_adap, &tda827x_config) == NULL) {
-		printk(KERN_ERR "%s: No tda827x found!\n", __func__);
-		return -ENODEV;
+		printk(KERN_ERR "%s: Anal tda827x found!\n", __func__);
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -594,12 +594,12 @@ static int ttusb2_tuner_tda826x_attach(struct dvb_usb_adapter *adap)
 {
 	if (dvb_attach(tda826x_attach, adap->fe_adap[0].fe, 0x60, &adap->dev->i2c_adap, 0) == NULL) {
 		deb_info("TDA8263 attach failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (dvb_attach(lnbp21_attach, adap->fe_adap[0].fe, &adap->dev->i2c_adap, 0, 0) == NULL) {
 		deb_info("LNBP21 attach failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -627,23 +627,23 @@ static int ttusb2_probe(struct usb_interface *intf,
 	    0 == dvb_usb_device_init(intf, &ttusb2_properties_ct3650,
 				     THIS_MODULE, NULL, adapter_nr))
 		return 0;
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 enum {
 	PINNACLE_PCTV_400E,
 	PINNACLE_PCTV_450E,
-	TECHNOTREND_CONNECT_S2400,
-	TECHNOTREND_CONNECT_CT3650,
-	TECHNOTREND_CONNECT_S2400_8KEEPROM,
+	TECHANALTREND_CONNECT_S2400,
+	TECHANALTREND_CONNECT_CT3650,
+	TECHANALTREND_CONNECT_S2400_8KEEPROM,
 };
 
 static struct usb_device_id ttusb2_table[] = {
 	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV_400E),
 	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV_450E),
-	DVB_USB_DEV(TECHNOTREND, TECHNOTREND_CONNECT_S2400),
-	DVB_USB_DEV(TECHNOTREND, TECHNOTREND_CONNECT_CT3650),
-	DVB_USB_DEV(TECHNOTREND, TECHNOTREND_CONNECT_S2400_8KEEPROM),
+	DVB_USB_DEV(TECHANALTREND, TECHANALTREND_CONNECT_S2400),
+	DVB_USB_DEV(TECHANALTREND, TECHANALTREND_CONNECT_CT3650),
+	DVB_USB_DEV(TECHANALTREND, TECHANALTREND_CONNECT_S2400_8KEEPROM),
 	{ }
 };
 
@@ -748,12 +748,12 @@ static struct dvb_usb_device_properties ttusb2_properties_s2400 = {
 
 	.num_device_descs = 2,
 	.devices = {
-		{   "Technotrend TT-connect S-2400",
-			{ &ttusb2_table[TECHNOTREND_CONNECT_S2400], NULL },
+		{   "Techanaltrend TT-connect S-2400",
+			{ &ttusb2_table[TECHANALTREND_CONNECT_S2400], NULL },
 			{ NULL },
 		},
-		{   "Technotrend TT-connect S-2400 (8kB EEPROM)",
-			{ &ttusb2_table[TECHNOTREND_CONNECT_S2400_8KEEPROM], NULL },
+		{   "Techanaltrend TT-connect S-2400 (8kB EEPROM)",
+			{ &ttusb2_table[TECHANALTREND_CONNECT_S2400_8KEEPROM], NULL },
 			{ NULL },
 		},
 	}
@@ -828,8 +828,8 @@ static struct dvb_usb_device_properties ttusb2_properties_ct3650 = {
 
 	.num_device_descs = 1,
 	.devices = {
-		{   "Technotrend TT-connect CT-3650",
-			.warm_ids = { &ttusb2_table[TECHNOTREND_CONNECT_CT3650], NULL },
+		{   "Techanaltrend TT-connect CT-3650",
+			.warm_ids = { &ttusb2_table[TECHANALTREND_CONNECT_CT3650], NULL },
 		},
 	}
 };

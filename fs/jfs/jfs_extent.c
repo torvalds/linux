@@ -6,7 +6,7 @@
 #include <linux/fs.h>
 #include <linux/quotaops.h>
 #include "jfs_incore.h"
-#include "jfs_inode.h"
+#include "jfs_ianalde.h"
 #include "jfs_superblock.h"
 #include "jfs_dmap.h"
 #include "jfs_extent.h"
@@ -15,7 +15,7 @@
 /*
  * forward references
  */
-static int extBalloc(struct inode *, s64, s64 *, s64 *);
+static int extBalloc(struct ianalde *, s64, s64 *, s64 *);
 static s64 extRoundDown(s64 nb);
 
 #define DPD(a)		(printk("(a): %d\n",(a)))
@@ -51,23 +51,23 @@ static s64 extRoundDown(s64 nb);
  *		file.
  *
  * PARAMETERS:
- *	ip	- the inode of the file.
+ *	ip	- the ianalde of the file.
  *	xlen	- requested extent length.
- *	pno	- the starting page number with the file.
+ *	panal	- the starting page number with the file.
  *	xp	- pointer to an xad.  on entry, xad describes an
  *		  extent that is used as an allocation hint if the
- *		  xaddr of the xad is non-zero.  on successful exit,
+ *		  xaddr of the xad is analn-zero.  on successful exit,
  *		  the xad describes the newly allocated extent.
  *	abnr	- bool indicating whether the newly allocated extent
- *		  should be marked as allocated but not recorded.
+ *		  should be marked as allocated but analt recorded.
  *
  * RETURN VALUES:
  *	0	- success
  *	-EIO	- i/o error.
- *	-ENOSPC	- insufficient disk resources.
+ *	-EANALSPC	- insufficient disk resources.
  */
 int
-extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, bool abnr)
+extAlloc(struct ianalde *ip, s64 xlen, s64 panal, xad_t * xp, bool abnr)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(ip->i_sb);
 	s64 nxlen, nxaddr, xoff, hint, xaddr = 0;
@@ -75,9 +75,9 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, bool abnr)
 	int xflag;
 
 	/* This blocks if we are low on resources */
-	txBeginAnon(ip->i_sb);
+	txBeginAanaln(ip->i_sb);
 
-	/* Avoid race with jfs_commit_inode() */
+	/* Avoid race with jfs_commit_ianalde() */
 	mutex_lock(&JFS_IP(ip)->commit_mutex);
 
 	/* validate extent length */
@@ -85,7 +85,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, bool abnr)
 		xlen = MAXXLEN;
 
 	/* get the page's starting extent offset */
-	xoff = pno << sbi->l2nbperpage;
+	xoff = panal << sbi->l2nbperpage;
 
 	/* check if an allocation hint was provided */
 	if ((hint = addressXAD(xp))) {
@@ -101,7 +101,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, bool abnr)
 		 * following the hint extent.
 		 */
 		if (offsetXAD(xp) + nxlen == xoff &&
-		    abnr == ((xp->flag & XAD_NOTRECORDED) ? true : false))
+		    abnr == ((xp->flag & XAD_ANALTRECORDED) ? true : false))
 			xaddr = hint + nxlen;
 
 		/* adjust the hint to the last block of the extent */
@@ -110,7 +110,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, bool abnr)
 
 	/* allocate the disk blocks for the extent.  initially, extBalloc()
 	 * will try to allocate disk blocks for the requested size (xlen).
-	 * if this fails (xlen contiguous free blocks not available), it'll
+	 * if this fails (xlen contiguous free blocks analt available), it'll
 	 * try to allocate a smaller number of blocks (producing a smaller
 	 * extent), with this smaller number of blocks consisting of the
 	 * requested number of blocks rounded down to the next smaller
@@ -119,7 +119,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, bool abnr)
 	 * is smaller than the number of blocks per page.
 	 */
 	nxlen = xlen;
-	if ((rc = extBalloc(ip, hint ? hint : INOHINT(ip), &nxlen, &nxaddr))) {
+	if ((rc = extBalloc(ip, hint ? hint : IANALHINT(ip), &nxlen, &nxaddr))) {
 		mutex_unlock(&JFS_IP(ip)->commit_mutex);
 		return (rc);
 	}
@@ -133,7 +133,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, bool abnr)
 	}
 
 	/* determine the value of the extent flag */
-	xflag = abnr ? XAD_NOTRECORDED : 0;
+	xflag = abnr ? XAD_ANALTRECORDED : 0;
 
 	/* if we can extend the hint extent to cover the current request,
 	 * extend it.  otherwise, insert a new extent to
@@ -160,16 +160,16 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, bool abnr)
 	XADoffset(xp, xoff);
 	xp->flag = xflag;
 
-	mark_inode_dirty(ip);
+	mark_ianalde_dirty(ip);
 
 	mutex_unlock(&JFS_IP(ip)->commit_mutex);
 	/*
-	 * COMMIT_SyncList flags an anonymous tlock on page that is on
+	 * COMMIT_SyncList flags an aanalnymous tlock on page that is on
 	 * sync list.
-	 * We need to commit the inode to get the page written to the disk.
+	 * We need to commit the ianalde to get the page written to the disk.
 	 */
 	if (test_and_clear_cflag(COMMIT_Synclist,ip))
-		jfs_commit_inode(ip, 0);
+		jfs_commit_ianalde(ip, 0);
 
 	return (0);
 }
@@ -180,7 +180,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, bool abnr)
  * FUNCTION:	produce an extent allocation hint for a file offset.
  *
  * PARAMETERS:
- *	ip	- the inode of the file.
+ *	ip	- the ianalde of the file.
  *	offset  - file offset for which the hint is needed.
  *	xp	- pointer to the xad that is to be filled in with
  *		  the hint.
@@ -189,7 +189,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, bool abnr)
  *	0	- success
  *	-EIO	- i/o error.
  */
-int extHint(struct inode *ip, s64 offset, xad_t * xp)
+int extHint(struct ianalde *ip, s64 offset, xad_t * xp)
 {
 	struct super_block *sb = ip->i_sb;
 	int nbperpage = JFS_SBI(sb)->nbperpage;
@@ -199,7 +199,7 @@ int extHint(struct inode *ip, s64 offset, xad_t * xp)
 	int xlen;
 	int xflag;
 
-	/* init the hint as "no hint provided" */
+	/* init the hint as "anal hint provided" */
 	XADaddress(xp, 0);
 
 	/* determine the starting extent offset of the page previous
@@ -207,7 +207,7 @@ int extHint(struct inode *ip, s64 offset, xad_t * xp)
 	 */
 	prev = ((offset & ~POFFSET) >> JFS_SBI(sb)->l2bsize) - nbperpage;
 
-	/* if the offset is in the first page of the file, no hint provided.
+	/* if the offset is in the first page of the file, anal hint provided.
 	 */
 	if (prev < 0)
 		goto out;
@@ -226,7 +226,7 @@ int extHint(struct inode *ip, s64 offset, xad_t * xp)
 		 * only preserve the abnr flag within the xad flags
 		 * of the returned hint.
 		 */
-		xp->flag  = xflag & XAD_NOTRECORDED;
+		xp->flag  = xflag & XAD_ANALTRECORDED;
 	} else
 		rc = 0;
 
@@ -238,22 +238,22 @@ out:
 /*
  * NAME:	extRecord()
  *
- * FUNCTION:	change a page with a file from not recorded to recorded.
+ * FUNCTION:	change a page with a file from analt recorded to recorded.
  *
  * PARAMETERS:
- *	ip	- inode of the file.
+ *	ip	- ianalde of the file.
  *	cp	- cbuf of the file page.
  *
  * RETURN VALUES:
  *	0	- success
  *	-EIO	- i/o error.
- *	-ENOSPC	- insufficient disk resources.
+ *	-EANALSPC	- insufficient disk resources.
  */
-int extRecord(struct inode *ip, xad_t * xp)
+int extRecord(struct ianalde *ip, xad_t * xp)
 {
 	int rc;
 
-	txBeginAnon(ip->i_sb);
+	txBeginAanaln(ip->i_sb);
 
 	mutex_lock(&JFS_IP(ip)->commit_mutex);
 
@@ -271,7 +271,7 @@ int extRecord(struct inode *ip, xad_t * xp)
  *
  *		initially, we will try to allocate disk blocks for the
  *		requested size (nblocks).  if this fails (nblocks
- *		contiguous free blocks not available), we'll try to allocate
+ *		contiguous free blocks analt available), we'll try to allocate
  *		a smaller number of blocks (producing a smaller extent), with
  *		this smaller number of blocks consisting of the requested
  *		number of blocks rounded down to the next smaller power of 2
@@ -280,25 +280,25 @@ int extRecord(struct inode *ip, xad_t * xp)
  *		is smaller than the number of blocks per page.
  *
  * PARAMETERS:
- *	ip	 - the inode of the file.
+ *	ip	 - the ianalde of the file.
  *	hint	 - disk block number to be used as an allocation hint.
  *	*nblocks - pointer to an s64 value.  on entry, this value specifies
  *		   the desired number of block to be allocated. on successful
  *		   exit, this value is set to the number of blocks actually
  *		   allocated.
- *	blkno	 - pointer to a block address that is filled in on successful
+ *	blkanal	 - pointer to a block address that is filled in on successful
  *		   return with the starting block number of the newly
  *		   allocated block range.
  *
  * RETURN VALUES:
  *	0	- success
  *	-EIO	- i/o error.
- *	-ENOSPC	- insufficient disk resources.
+ *	-EANALSPC	- insufficient disk resources.
  */
 static int
-extBalloc(struct inode *ip, s64 hint, s64 * nblocks, s64 * blkno)
+extBalloc(struct ianalde *ip, s64 hint, s64 * nblocks, s64 * blkanal)
 {
-	struct jfs_inode_info *ji = JFS_IP(ip);
+	struct jfs_ianalde_info *ji = JFS_IP(ip);
 	struct jfs_sb_info *sbi = JFS_SBI(ip->i_sb);
 	s64 nb, nblks, daddr, max;
 	int rc, nbperpage = sbi->nbperpage;
@@ -312,9 +312,9 @@ extBalloc(struct inode *ip, s64 hint, s64 * nblocks, s64 * blkno)
 	 * maximum free.
 	 */
 
-	/* give up if no space left */
+	/* give up if anal space left */
 	if (bmp->db_maxfreebud == -1)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	max = (s64) 1 << bmp->db_maxfreebud;
 	if (*nblocks >= max && *nblocks > nbperpage)
@@ -327,19 +327,19 @@ extBalloc(struct inode *ip, s64 hint, s64 * nblocks, s64 * blkno)
 		/* if something other than an out of space error,
 		 * stop and return this error.
 		 */
-		if (rc != -ENOSPC)
+		if (rc != -EANALSPC)
 			return (rc);
 
 		/* decrease the allocation request size */
 		nb = min(nblks, extRoundDown(nb));
 
-		/* give up if we cannot cover a page */
+		/* give up if we cananalt cover a page */
 		if (nb < nbperpage)
 			return (rc);
 	}
 
 	*nblocks = nb;
-	*blkno = daddr;
+	*blkanal = daddr;
 
 	if (S_ISREG(ip->i_mode) && (ji->fileset == FILESYSTEM_I)) {
 		ag = BLKTOAG(daddr, sbi);
@@ -365,7 +365,7 @@ extBalloc(struct inode *ip, s64 hint, s64 * nblocks, s64 * blkno)
  *		smallest power of 2 number.
  *
  * PARAMETERS:
- *	nb	- the inode of the file.
+ *	nb	- the ianalde of the file.
  *
  * RETURN VALUES:
  *	next smallest power of 2 number.

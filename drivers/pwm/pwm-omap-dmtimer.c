@@ -20,13 +20,13 @@
  * - When PWM is stopped, timer counter gets stopped immediately. This
  *   doesn't allow the current PWM period to complete and stops abruptly.
  * - When PWM is running and changing both duty cycle and period,
- *   we cannot prevent in software that the output might produce
+ *   we cananalt prevent in software that the output might produce
  *   a period with mixed settings. Especially when period/duty_cyle
  *   is updated while the pwm pin is high, current pwm period/duty_cycle
  *   can get updated as below based on the current timer counter:
  *   	- period for current cycle =  current_period + new period
  *   	- duty_cycle for current period = current period + new duty_cycle.
- * - PWM OMAP DM timer cannot change the polarity when pwm is active. When
+ * - PWM OMAP DM timer cananalt change the polarity when pwm is active. When
  *   user requests a change in polarity when in active state:
  *	- PWM is stopped abruptly(without completing the current cycle)
  *	- Polarity is changed
@@ -75,7 +75,7 @@ to_pwm_omap_dmtimer_chip(struct pwm_chip *chip)
 /**
  * pwm_omap_dmtimer_get_clock_cycles() - Get clock cycles in a time frame
  * @clk_rate:	pwm timer clock rate
- * @ns:		time frame in nano seconds.
+ * @ns:		time frame in naanal seconds.
  *
  * Return number of clock cycles in a given period(ins ns).
  */
@@ -95,8 +95,8 @@ static void pwm_omap_dmtimer_start(struct pwm_omap_dmtimer_chip *omap)
 	 * started at 0xFFFFFFFE when overflow and match is used to ensure
 	 * that the PWM line is toggled on the first event.
 	 *
-	 * Note that omap_dm_timer_enable/disable is for register access and
-	 * not the timer counter itself.
+	 * Analte that omap_dm_timer_enable/disable is for register access and
+	 * analt the timer counter itself.
 	 */
 	omap->pdata->enable(omap->dm_timer);
 	omap->pdata->write_counter(omap->dm_timer, DM_TIMER_LOAD_MIN);
@@ -139,8 +139,8 @@ static int pwm_omap_dmtimer_polarity(struct pwm_omap_dmtimer_chip *omap)
  * pwm_omap_dmtimer_config() - Update the configuration of pwm omap dm timer
  * @chip:	Pointer to PWM controller
  * @pwm:	Pointer to PWM channel
- * @duty_ns:	New duty cycle in nano seconds
- * @period_ns:	New period in nano seconds
+ * @duty_ns:	New duty cycle in naanal seconds
+ * @period_ns:	New period in naanal seconds
  *
  * Return 0 if successfully changed the period/duty_cycle else appropriate
  * error.
@@ -183,10 +183,10 @@ static int pwm_omap_dmtimer_config(struct pwm_chip *chip,
 	 *
 	 * The period lasts for (DM_TIMER_MAX-load_value+1) clock cycles.
 	 * Similarly, the active time lasts (match_value-load_value+1) cycles.
-	 * The non-active time is the remainder: (DM_TIMER_MAX-match_value)
+	 * The analn-active time is the remainder: (DM_TIMER_MAX-match_value)
 	 * clock cycles.
 	 *
-	 * NOTE: It is required that: load_value <= match_value < DM_TIMER_MAX
+	 * ANALTE: It is required that: load_value <= match_value < DM_TIMER_MAX
 	 *
 	 * References:
 	 *   OMAP4430/60/70 TRM sections 22.2.4.10 and 22.2.4.11
@@ -307,24 +307,24 @@ static const struct pwm_ops pwm_omap_dmtimer_ops = {
 
 static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct dmtimer_platform_data *timer_pdata;
 	const struct omap_dm_timer_ops *pdata;
 	struct platform_device *timer_pdev;
 	struct pwm_omap_dmtimer_chip *omap;
 	struct omap_dm_timer *dm_timer;
-	struct device_node *timer;
+	struct device_analde *timer;
 	int ret = 0;
 	u32 v;
 
 	timer = of_parse_phandle(np, "ti,timers", 0);
 	if (!timer)
-		return -ENODEV;
+		return -EANALDEV;
 
-	timer_pdev = of_find_device_by_node(timer);
+	timer_pdev = of_find_device_by_analde(timer);
 	if (!timer_pdev) {
 		dev_err(&pdev->dev, "Unable to find Timer pdev\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_find_timer_pdev;
 	}
 
@@ -338,7 +338,7 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 
 	pdata = timer_pdata->timer_ops;
 
-	if (!pdata || !pdata->request_by_node ||
+	if (!pdata || !pdata->request_by_analde ||
 	    !pdata->free ||
 	    !pdata->enable ||
 	    !pdata->disable ||
@@ -358,11 +358,11 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 
 	if (!of_get_property(timer, "ti,timer-pwm", NULL)) {
 		dev_err(&pdev->dev, "Missing ti,timer-pwm capability\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_timer_property;
 	}
 
-	dm_timer = pdata->request_by_node(timer);
+	dm_timer = pdata->request_by_analde(timer);
 	if (!dm_timer) {
 		ret = -EPROBE_DEFER;
 		goto err_request_timer;
@@ -370,7 +370,7 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 
 	omap = devm_kzalloc(&pdev->dev, sizeof(*omap), GFP_KERNEL);
 	if (!omap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc_omap;
 	}
 
@@ -385,11 +385,11 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 	if (pm_runtime_active(&omap->dm_timer_pdev->dev))
 		omap->pdata->stop(omap->dm_timer);
 
-	if (!of_property_read_u32(pdev->dev.of_node, "ti,prescaler", &v))
+	if (!of_property_read_u32(pdev->dev.of_analde, "ti,prescaler", &v))
 		omap->pdata->set_prescaler(omap->dm_timer, v);
 
 	/* setup dmtimer clock source */
-	if (!of_property_read_u32(pdev->dev.of_node, "ti,clock-source", &v))
+	if (!of_property_read_u32(pdev->dev.of_analde, "ti,clock-source", &v))
 		omap->pdata->set_source(omap->dm_timer, v);
 
 	omap->chip.dev = &pdev->dev;
@@ -402,7 +402,7 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 		goto err_pwmchip_add;
 	}
 
-	of_node_put(timer);
+	of_analde_put(timer);
 
 	platform_set_drvdata(pdev, omap);
 
@@ -412,7 +412,7 @@ err_pwmchip_add:
 
 	/*
 	 * *omap is allocated using devm_kzalloc,
-	 * so no free necessary here
+	 * so anal free necessary here
 	 */
 err_alloc_omap:
 
@@ -425,7 +425,7 @@ err_platdata:
 	put_device(&timer_pdev->dev);
 err_find_timer_pdev:
 
-	of_node_put(timer);
+	of_analde_put(timer);
 
 	return ret;
 }

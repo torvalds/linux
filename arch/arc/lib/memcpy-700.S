@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/linkage.h>
@@ -13,11 +13,11 @@ ENTRY_CFI(memcpy)
 	sub.f	r3,r2,1
 	ld_s	r12,[r1,0]
 	asr.f	lp_count,r3,3
-	bbit0.d	r3,2,.Lnox4
+	bbit0.d	r3,2,.Lanalx4
 	bmsk_s	r2,r2,1
 	st.ab	r12,[r5,4]
 	ld.a	r12,[r1,4]
-.Lnox4:
+.Lanalx4:
 	lppnz	.Lendloop
 	ld_s	r3,[r1,4]
 	st.ab	r12,[r5,4]
@@ -48,10 +48,10 @@ ENTRY_CFI(memcpy)
 	jcs	[blink]
 	ldb_s	r12,[r1,0]
 	lsr.f	lp_count,r3
-	bhs_s	.Lnox1
+	bhs_s	.Lanalx1
 	stb.ab	r12,[r5,1]
 	ldb.a	r12,[r1,1]
-.Lnox1:
+.Lanalx1:
 	lppnz	.Lendbloop
 	ldb_s	r3,[r1,1]
 	stb.ab	r12,[r5,1]

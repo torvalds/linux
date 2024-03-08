@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2021 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2021 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include <linux/module.h>
@@ -39,7 +39,7 @@ static void sparx5_phylink_mac_config(struct phylink_config *config,
 				      unsigned int mode,
 				      const struct phylink_link_state *state)
 {
-	/* Currently not used */
+	/* Currently analt used */
 }
 
 static void sparx5_phylink_mac_link_up(struct phylink_config *config,
@@ -69,7 +69,7 @@ static void sparx5_phylink_mac_link_down(struct phylink_config *config,
 					 unsigned int mode,
 					 phy_interface_t interface)
 {
-	/* Currently not used */
+	/* Currently analt used */
 }
 
 static struct sparx5_port *sparx5_pcs_to_port(struct phylink_pcs *pcs)
@@ -128,7 +128,7 @@ static int sparx5_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 
 static void sparx5_pcs_aneg_restart(struct phylink_pcs *pcs)
 {
-	/* Currently not used */
+	/* Currently analt used */
 }
 
 const struct phylink_pcs_ops sparx5_phylink_pcs_ops = {

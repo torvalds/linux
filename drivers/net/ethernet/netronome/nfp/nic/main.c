@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017 Netronome Systems, Inc. */
+/* Copyright (C) 2017 Netroanalme Systems, Inc. */
 
 #include "../nfpcore/nfp_cpp.h"
 #include "../nfpcore/nfp_nsp.h"
@@ -53,7 +53,7 @@ static int nfp_nic_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
 	if (sizeof(*app_pri)) {
 		nn->app_priv = kzalloc(sizeof(*app_pri), GFP_KERNEL);
 		if (!nn->app_priv)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;

@@ -247,22 +247,22 @@ static int ingenic_mac_probe(struct platform_device *pdev)
 
 	mac = devm_kzalloc(&pdev->dev, sizeof(*mac), GFP_KERNEL);
 	if (!mac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data) {
-		dev_err(&pdev->dev, "No of match data provided\n");
+		dev_err(&pdev->dev, "Anal of match data provided\n");
 		return -EINVAL;
 	}
 
 	/* Get MAC PHY control register */
-	mac->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node, "mode-reg");
+	mac->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde, "mode-reg");
 	if (IS_ERR(mac->regmap)) {
 		dev_err(&pdev->dev, "%s: Failed to get syscon regmap\n", __func__);
 		return PTR_ERR(mac->regmap);
 	}
 
-	if (!of_property_read_u32(pdev->dev.of_node, "tx-clk-delay-ps", &tx_delay_ps)) {
+	if (!of_property_read_u32(pdev->dev.of_analde, "tx-clk-delay-ps", &tx_delay_ps)) {
 		if (tx_delay_ps >= MACPHYC_TX_DELAY_PS_MIN &&
 			tx_delay_ps <= MACPHYC_TX_DELAY_PS_MAX) {
 			mac->tx_delay = tx_delay_ps * 1000;
@@ -272,7 +272,7 @@ static int ingenic_mac_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (!of_property_read_u32(pdev->dev.of_node, "rx-clk-delay-ps", &rx_delay_ps)) {
+	if (!of_property_read_u32(pdev->dev.of_analde, "rx-clk-delay-ps", &rx_delay_ps)) {
 		if (rx_delay_ps >= MACPHYC_RX_DELAY_PS_MIN &&
 			rx_delay_ps <= MACPHYC_RX_DELAY_PS_MAX) {
 			mac->rx_delay = rx_delay_ps * 1000;

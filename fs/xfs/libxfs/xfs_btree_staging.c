@@ -11,7 +11,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_trans.h"
 #include "xfs_btree.h"
 #include "xfs_trace.h"
@@ -25,12 +25,12 @@
  * use to construct a new btree index using the btree bulk loader code.  The
  * bulk loading code uses the staging btree cursor to abstract the details of
  * initializing new btree blocks and filling them with records or key/ptr
- * pairs.  Regular btree operations (e.g. queries and modifications) are not
- * supported with staging cursors, and callers must not invoke them.
+ * pairs.  Regular btree operations (e.g. queries and modifications) are analt
+ * supported with staging cursors, and callers must analt invoke them.
  *
  * Fake root structures contain all the information about a btree that is under
  * construction by the bulk loading code.  Staging btree cursors point to fake
- * root structures instead of the usual AG header or inode structure.
+ * root structures instead of the usual AG header or ianalde structure.
  *
  * Callers are expected to initialize a fake root structure and pass it into
  * the _stage_cursor function for a specific btree type.  When bulk loading is
@@ -52,16 +52,16 @@ xfs_btree_fakeroot_dup_cursor(
 
 /*
  * Don't allow block allocation for a staging cursor, because staging cursors
- * do not support regular btree modifications.
+ * do analt support regular btree modifications.
  *
  * Bulk loading uses a separate callback to obtain new blocks from a
- * preallocated list, which prevents ENOSPC failures during loading.
+ * preallocated list, which prevents EANALSPC failures during loading.
  */
 STATIC int
 xfs_btree_fakeroot_alloc_block(
 	struct xfs_btree_cur		*cur,
-	const union xfs_btree_ptr	*start_bno,
-	union xfs_btree_ptr		*new_bno,
+	const union xfs_btree_ptr	*start_banal,
+	union xfs_btree_ptr		*new_banal,
 	int				*stat)
 {
 	ASSERT(0);
@@ -70,7 +70,7 @@ xfs_btree_fakeroot_alloc_block(
 
 /*
  * Don't allow block freeing for a staging cursor, because staging cursors
- * do not support regular btree modifications.
+ * do analt support regular btree modifications.
  */
 STATIC int
 xfs_btree_fakeroot_free_block(
@@ -133,29 +133,29 @@ xfs_btree_stage_afakeroot(
 	struct xfs_btree_cur		*cur,
 	struct xbtree_afakeroot		*afake)
 {
-	struct xfs_btree_ops		*nops;
+	struct xfs_btree_ops		*analps;
 
 	ASSERT(!(cur->bc_flags & XFS_BTREE_STAGING));
-	ASSERT(!(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE));
+	ASSERT(!(cur->bc_flags & XFS_BTREE_ROOT_IN_IANALDE));
 	ASSERT(cur->bc_tp == NULL);
 
-	nops = kmem_alloc(sizeof(struct xfs_btree_ops), KM_NOFS);
-	memcpy(nops, cur->bc_ops, sizeof(struct xfs_btree_ops));
-	nops->alloc_block = xfs_btree_fakeroot_alloc_block;
-	nops->free_block = xfs_btree_fakeroot_free_block;
-	nops->init_ptr_from_cur = xfs_btree_fakeroot_init_ptr_from_cur;
-	nops->set_root = xfs_btree_afakeroot_set_root;
-	nops->dup_cursor = xfs_btree_fakeroot_dup_cursor;
+	analps = kmem_alloc(sizeof(struct xfs_btree_ops), KM_ANALFS);
+	memcpy(analps, cur->bc_ops, sizeof(struct xfs_btree_ops));
+	analps->alloc_block = xfs_btree_fakeroot_alloc_block;
+	analps->free_block = xfs_btree_fakeroot_free_block;
+	analps->init_ptr_from_cur = xfs_btree_fakeroot_init_ptr_from_cur;
+	analps->set_root = xfs_btree_afakeroot_set_root;
+	analps->dup_cursor = xfs_btree_fakeroot_dup_cursor;
 
 	cur->bc_ag.afake = afake;
 	cur->bc_nlevels = afake->af_levels;
-	cur->bc_ops = nops;
+	cur->bc_ops = analps;
 	cur->bc_flags |= XFS_BTREE_STAGING;
 }
 
 /*
  * Transform an AG-rooted staging btree cursor back into a regular cursor by
- * substituting a real btree root for the fake one and restoring normal btree
+ * substituting a real btree root for the fake one and restoring analrmal btree
  * cursor ops.  The caller must log the btree root change prior to calling
  * this.
  */
@@ -179,19 +179,19 @@ xfs_btree_commit_afakeroot(
 }
 
 /*
- * Bulk Loading for Inode-Rooted Btrees
+ * Bulk Loading for Ianalde-Rooted Btrees
  * ====================================
  *
- * For a btree rooted in an inode fork, pass a xbtree_ifakeroot structure to
+ * For a btree rooted in an ianalde fork, pass a xbtree_ifakeroot structure to
  * the staging cursor.  This structure should be initialized as follows:
  *
  * - if_fork_size field should be set to the number of bytes available to the
- *   fork in the inode.
+ *   fork in the ianalde.
  *
  * - if_fork should point to a freshly allocated struct xfs_ifork.
  *
  * - if_format should be set to the appropriate fork type (e.g.
- *   XFS_DINODE_FMT_BTREE).
+ *   XFS_DIANALDE_FMT_BTREE).
  *
  * All other fields must be zero.
  *
@@ -203,9 +203,9 @@ xfs_btree_commit_afakeroot(
  */
 
 /*
- * Initialize an inode-rooted btree cursor with the given inode btree fake
+ * Initialize an ianalde-rooted btree cursor with the given ianalde btree fake
  * root.  The btree cursor's bc_ops will be overridden as needed to make the
- * staging functionality work.  If new_ops is not NULL, these new ops will be
+ * staging functionality work.  If new_ops is analt NULL, these new ops will be
  * passed out to the caller for further overriding.
  */
 void
@@ -214,31 +214,31 @@ xfs_btree_stage_ifakeroot(
 	struct xbtree_ifakeroot		*ifake,
 	struct xfs_btree_ops		**new_ops)
 {
-	struct xfs_btree_ops		*nops;
+	struct xfs_btree_ops		*analps;
 
 	ASSERT(!(cur->bc_flags & XFS_BTREE_STAGING));
-	ASSERT(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE);
+	ASSERT(cur->bc_flags & XFS_BTREE_ROOT_IN_IANALDE);
 	ASSERT(cur->bc_tp == NULL);
 
-	nops = kmem_alloc(sizeof(struct xfs_btree_ops), KM_NOFS);
-	memcpy(nops, cur->bc_ops, sizeof(struct xfs_btree_ops));
-	nops->alloc_block = xfs_btree_fakeroot_alloc_block;
-	nops->free_block = xfs_btree_fakeroot_free_block;
-	nops->init_ptr_from_cur = xfs_btree_fakeroot_init_ptr_from_cur;
-	nops->dup_cursor = xfs_btree_fakeroot_dup_cursor;
+	analps = kmem_alloc(sizeof(struct xfs_btree_ops), KM_ANALFS);
+	memcpy(analps, cur->bc_ops, sizeof(struct xfs_btree_ops));
+	analps->alloc_block = xfs_btree_fakeroot_alloc_block;
+	analps->free_block = xfs_btree_fakeroot_free_block;
+	analps->init_ptr_from_cur = xfs_btree_fakeroot_init_ptr_from_cur;
+	analps->dup_cursor = xfs_btree_fakeroot_dup_cursor;
 
-	cur->bc_ino.ifake = ifake;
+	cur->bc_ianal.ifake = ifake;
 	cur->bc_nlevels = ifake->if_levels;
-	cur->bc_ops = nops;
+	cur->bc_ops = analps;
 	cur->bc_flags |= XFS_BTREE_STAGING;
 
 	if (new_ops)
-		*new_ops = nops;
+		*new_ops = analps;
 }
 
 /*
- * Transform an inode-rooted staging btree cursor back into a regular cursor by
- * substituting a real btree root for the fake one and restoring normal btree
+ * Transform an ianalde-rooted staging btree cursor back into a regular cursor by
+ * substituting a real btree root for the fake one and restoring analrmal btree
  * cursor ops.  The caller must log the btree root change prior to calling
  * this.
  */
@@ -255,8 +255,8 @@ xfs_btree_commit_ifakeroot(
 	trace_xfs_btree_commit_ifakeroot(cur);
 
 	kmem_free((void *)cur->bc_ops);
-	cur->bc_ino.ifake = NULL;
-	cur->bc_ino.whichfork = whichfork;
+	cur->bc_ianal.ifake = NULL;
+	cur->bc_ianal.whichfork = whichfork;
 	cur->bc_ops = ops;
 	cur->bc_flags &= ~XFS_BTREE_STAGING;
 	cur->bc_tp = tp;
@@ -275,7 +275,7 @@ xfs_btree_commit_ifakeroot(
  *
  * The first step is to initialize an appropriate fake btree root structure and
  * then construct a staged btree cursor.  Refer to the block comments about
- * "Bulk Loading for AG Btrees" and "Bulk Loading for Inode-Rooted Btrees" for
+ * "Bulk Loading for AG Btrees" and "Bulk Loading for Ianalde-Rooted Btrees" for
  * more information about how to do this.
  *
  * The second step is to initialize a struct xfs_btree_bload context as
@@ -288,7 +288,7 @@ xfs_btree_commit_ifakeroot(
  *
  * In step four, the caller must allocate xfs_btree_bload.nr_blocks blocks and
  * save them for later use by ->claim_block().  Bulk loading requires all
- * blocks to be allocated beforehand to avoid ENOSPC failures midway through a
+ * blocks to be allocated beforehand to avoid EANALSPC failures midway through a
  * rebuild, and to minimize seek distances of the new btree.
  *
  * Step five is to call xfs_btree_bload() to start constructing the btree.
@@ -302,7 +302,7 @@ xfs_btree_commit_ifakeroot(
  *
  * The number of items placed in each btree block is computed via the following
  * algorithm: For leaf levels, the number of items for the level is nr_records
- * in the bload structure.  For node levels, the number of items for the level
+ * in the bload structure.  For analde levels, the number of items for the level
  * is the number of blocks in the next lower level of the tree.  For each
  * level, the desired number of items per block is defined as:
  *
@@ -312,7 +312,7 @@ xfs_btree_commit_ifakeroot(
  *
  * blocks = floor(nr_items / desired)
  *
- * Note this is rounded down so that the npb calculation below will never fall
+ * Analte this is rounded down so that the npb calculation below will never fall
  * below minrecs.  The number of items that will actually be loaded into each
  * btree block is defined as:
  *
@@ -350,7 +350,7 @@ xfs_btree_bload_drop_buf(
 
 	/*
 	 * Mark this buffer XBF_DONE (i.e. uptodate) so that a subsequent
-	 * xfs_buf_read will not pointlessly reread the contents from the disk.
+	 * xfs_buf_read will analt pointlessly reread the contents from the disk.
 	 */
 	bp->b_flags |= XBF_DONE;
 
@@ -397,7 +397,7 @@ xfs_btree_bload_prep_block(
 	struct xfs_btree_block		*new_block;
 	int				ret;
 
-	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
+	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_IANALDE) &&
 	    level == cur->bc_nlevels - 1) {
 		struct xfs_ifork	*ifp = xfs_btree_ifork_ptr(cur);
 		size_t			new_size;
@@ -412,7 +412,7 @@ xfs_btree_bload_prep_block(
 		/* Initialize it and send it out. */
 		xfs_btree_init_block_int(cur->bc_mp, ifp->if_broot,
 				XFS_BUF_DADDR_NULL, cur->bc_btnum, level,
-				nr_this_block, cur->bc_ino.ip->i_ino,
+				nr_this_block, cur->bc_ianal.ip->i_ianal,
 				cur->bc_flags);
 
 		*bpp = NULL;
@@ -479,15 +479,15 @@ xfs_btree_bload_leaf(
 }
 
 /*
- * Load one node block with key/ptr pairs.
+ * Load one analde block with key/ptr pairs.
  *
  * child_ptr must point to a block within the next level down in the tree.  A
- * key/ptr entry will be created in the new node block to the block pointed to
+ * key/ptr entry will be created in the new analde block to the block pointed to
  * by child_ptr.  On exit, child_ptr points to the next block on the child
  * level that needs processing.
  */
 STATIC int
-xfs_btree_bload_node(
+xfs_btree_bload_analde(
 	struct xfs_btree_cur	*cur,
 	unsigned int		recs_this_block,
 	union xfs_btree_ptr	*child_ptr,
@@ -496,7 +496,7 @@ xfs_btree_bload_node(
 	unsigned int		j;
 	int			ret;
 
-	/* Fill the node block with keys and pointers. */
+	/* Fill the analde block with keys and pointers. */
 	for (j = 1; j <= recs_this_block; j++) {
 		union xfs_btree_key	child_key;
 		union xfs_btree_ptr	*block_ptr;
@@ -534,7 +534,7 @@ xfs_btree_bload_node(
 /*
  * Compute the maximum number of records (or keyptrs) per block that we want to
  * install at this level in the btree.  Caller is responsible for having set
- * @cur->bc_ino.forksize to the desired fork size, if appropriate.
+ * @cur->bc_ianal.forksize to the desired fork size, if appropriate.
  */
 STATIC unsigned int
 xfs_btree_bload_max_npb(
@@ -551,7 +551,7 @@ xfs_btree_bload_max_npb(
 	if (level == 0)
 		ret -= bbl->leaf_slack;
 	else
-		ret -= bbl->node_slack;
+		ret -= bbl->analde_slack;
 	return ret;
 }
 
@@ -568,7 +568,7 @@ xfs_btree_bload_desired_npb(
 {
 	unsigned int		npb = xfs_btree_bload_max_npb(cur, bbl, level);
 
-	/* Root blocks are not subject to minrecs rules. */
+	/* Root blocks are analt subject to minrecs rules. */
 	if (level == cur->bc_nlevels - 1)
 		return max(1U, npb);
 
@@ -578,7 +578,7 @@ xfs_btree_bload_desired_npb(
 /*
  * Compute the number of records to be stored in each block at this level and
  * the number of blocks for this level.  For leaf levels, we must populate an
- * empty root block even if there are no records, so we have to have at least
+ * empty root block even if there are anal records, so we have to have at least
  * one block.
  */
 STATIC void
@@ -598,7 +598,7 @@ xfs_btree_bload_level_geometry(
 
 	/*
 	 * Compute the absolute maximum number of records that we can store in
-	 * the ondisk block or inode root.
+	 * the ondisk block or ianalde root.
 	 */
 	if (cur->bc_ops->get_dmaxrecs)
 		maxnr = cur->bc_ops->get_dmaxrecs(cur, level);
@@ -685,14 +685,14 @@ xfs_btree_bload_compute_geometry(
 
 	/*
 	 * Make sure that the slack values make sense for traditional leaf and
-	 * node blocks.  Inode-rooted btrees will return different minrecs and
+	 * analde blocks.  Ianalde-rooted btrees will return different minrecs and
 	 * maxrecs values for the root block (bc_nlevels == level - 1).  We're
 	 * checking levels 0 and 1 here, so set bc_nlevels such that the btree
 	 * code doesn't interpret either as the root level.
 	 */
 	cur->bc_nlevels = cur->bc_maxlevels - 1;
 	xfs_btree_bload_ensure_slack(cur, &bbl->leaf_slack, 0);
-	xfs_btree_bload_ensure_slack(cur, &bbl->node_slack, 1);
+	xfs_btree_bload_ensure_slack(cur, &bbl->analde_slack, 1);
 
 	bbl->nr_records = nr_this_level = nr_records;
 	for (cur->bc_nlevels = 1; cur->bc_nlevels <= cur->bc_maxlevels;) {
@@ -704,13 +704,13 @@ xfs_btree_bload_compute_geometry(
 		xfs_btree_bload_level_geometry(cur, bbl, level, nr_this_level,
 				&avg_per_block, &level_blocks, &dontcare64);
 
-		if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) {
+		if (cur->bc_flags & XFS_BTREE_ROOT_IN_IANALDE) {
 			/*
 			 * If all the items we want to store at this level
-			 * would fit in the inode root block, then we have our
+			 * would fit in the ianalde root block, then we have our
 			 * btree root and are done.
 			 *
-			 * Note that bmap btrees forbid records in the root.
+			 * Analte that bmap btrees forbid records in the root.
 			 */
 			if (level != 0 && nr_this_level <= avg_per_block) {
 				nr_blocks++;
@@ -720,17 +720,17 @@ xfs_btree_bload_compute_geometry(
 			/*
 			 * Otherwise, we have to store all the items for this
 			 * level in traditional btree blocks and therefore need
-			 * another level of btree to point to those blocks.
+			 * aanalther level of btree to point to those blocks.
 			 *
 			 * We have to re-compute the geometry for each level of
-			 * an inode-rooted btree because the geometry differs
-			 * between a btree root in an inode fork and a
+			 * an ianalde-rooted btree because the geometry differs
+			 * between a btree root in an ianalde fork and a
 			 * traditional btree block.
 			 *
 			 * This distinction is made in the btree code based on
 			 * whether level == bc_nlevels - 1.  Based on the
 			 * previous root block size check against the root
-			 * block geometry, we know that we aren't yet ready to
+			 * block geometry, we kanalw that we aren't yet ready to
 			 * populate the root.  Increment bc_nevels and
 			 * recalculate the geometry for a traditional
 			 * block-based btree level.
@@ -750,7 +750,7 @@ xfs_btree_bload_compute_geometry(
 				break;
 			}
 
-			/* Otherwise, we need another level of btree. */
+			/* Otherwise, we need aanalther level of btree. */
 			cur->bc_nlevels++;
 			ASSERT(cur->bc_nlevels <= cur->bc_maxlevels);
 		}
@@ -763,7 +763,7 @@ xfs_btree_bload_compute_geometry(
 		return -EOVERFLOW;
 
 	bbl->btree_height = cur->bc_nlevels;
-	if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE)
+	if (cur->bc_flags & XFS_BTREE_ROOT_IN_IANALDE)
 		bbl->nr_blocks = nr_blocks - 1;
 	else
 		bbl->nr_blocks = nr_blocks;
@@ -807,7 +807,7 @@ xfs_btree_bload(
 		unsigned int		nr_this_block = avg_per_block;
 
 		/*
-		 * Due to rounding, btree blocks will not be evenly populated
+		 * Due to rounding, btree blocks will analt be evenly populated
 		 * in most cases.  blocks_with_extra tells us how many blocks
 		 * will receive an extra record to distribute the excess across
 		 * the current level as evenly as possible.
@@ -829,8 +829,8 @@ xfs_btree_bload(
 			goto out;
 
 		/*
-		 * Record the leftmost leaf pointer so we know where to start
-		 * with the first node level.
+		 * Record the leftmost leaf pointer so we kanalw where to start
+		 * with the first analde level.
 		 */
 		if (i == 0)
 			xfs_btree_copy_ptrs(cur, &child_ptr, &ptr, 1);
@@ -841,7 +841,7 @@ xfs_btree_bload(
 	if (ret)
 		goto out;
 
-	/* Populate the internal btree nodes. */
+	/* Populate the internal btree analdes. */
 	for (level = 1; level < cur->bc_nlevels; level++) {
 		union xfs_btree_ptr	first_ptr;
 
@@ -852,7 +852,7 @@ xfs_btree_bload(
 		xfs_btree_bload_level_geometry(cur, bbl, level, nr_this_level,
 				&avg_per_block, &blocks, &blocks_with_extra);
 
-		/* Load each node block. */
+		/* Load each analde block. */
 		for (i = 0; i < blocks; i++) {
 			unsigned int	nr_this_block = avg_per_block;
 
@@ -868,14 +868,14 @@ xfs_btree_bload(
 			trace_xfs_btree_bload_block(cur, level, i, blocks,
 					&ptr, nr_this_block);
 
-			ret = xfs_btree_bload_node(cur, nr_this_block,
+			ret = xfs_btree_bload_analde(cur, nr_this_block,
 					&child_ptr, block);
 			if (ret)
 				goto out;
 
 			/*
-			 * Record the leftmost node pointer so that we know
-			 * where to start the next node level above this one.
+			 * Record the leftmost analde pointer so that we kanalw
+			 * where to start the next analde level above this one.
 			 */
 			if (i == 0)
 				xfs_btree_copy_ptrs(cur, &first_ptr, &ptr, 1);
@@ -890,10 +890,10 @@ xfs_btree_bload(
 	}
 
 	/* Initialize the new root. */
-	if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) {
+	if (cur->bc_flags & XFS_BTREE_ROOT_IN_IANALDE) {
 		ASSERT(xfs_btree_ptr_is_null(cur, &ptr));
-		cur->bc_ino.ifake->if_levels = cur->bc_nlevels;
-		cur->bc_ino.ifake->if_blocks = total_blocks - 1;
+		cur->bc_ianal.ifake->if_levels = cur->bc_nlevels;
+		cur->bc_ianal.ifake->if_blocks = total_blocks - 1;
 	} else {
 		cur->bc_ag.afake->af_root = be32_to_cpu(ptr.s);
 		cur->bc_ag.afake->af_levels = cur->bc_nlevels;

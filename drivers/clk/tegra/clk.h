@@ -56,7 +56,7 @@
 #define RST_DEVICES_CLR_Y		0x2ac
 
 /*
- * Tegra CLK_OUT_ENB registers have some undefined bits which are not used and
+ * Tegra CLK_OUT_ENB registers have some undefined bits which are analt used and
  * any accidental write of 1 to these bits can cause PSLVERR.
  * So below are the valid mask defines for each CLK_OUT_ENB register used to
  * turn ON only the valid clocks.
@@ -106,11 +106,11 @@ struct clk *tegra_clk_register_sync_source(const char *name,
  * TEGRA_DIVIDER_ROUND_UP - This flags indicates to round up the divider value.
  * TEGRA_DIVIDER_FIXED - Fixed rate PLL dividers has addition override bit, this
  *      flag indicates that this divider is for fixed rate PLL.
- * TEGRA_DIVIDER_INT - Some modules can not cope with the duty cycle when
+ * TEGRA_DIVIDER_INT - Some modules can analt cope with the duty cycle when
  *      fraction bit is set. This flags indicates to calculate divider for which
  *      fracton bit will be zero.
  * TEGRA_DIVIDER_UART - UART module divider has additional enable bit which is
- *      set when divider value is not 0. This flags indicates that the divider
+ *      set when divider value is analt 0. This flags indicates that the divider
  *      is for UART module.
  */
 struct tegra_clk_frac_div {
@@ -243,7 +243,7 @@ struct tegra_clk_pll;
  * @flags:			PLL flags
  * @stepa_shift:		Dynamic ramp step A field shift
  * @stepb_shift:		Dynamic ramp step B field shift
- * @lock_delay:			Delay in us if PLL lock is not used
+ * @lock_delay:			Delay in us if PLL lock is analt used
  * @max_p:			maximum value for the p divider
  * @defaults_set:		Boolean signaling all reg defaults for PLL set.
  * @pdiv_tohw:			mapping of p divider to register values
@@ -273,7 +273,7 @@ struct tegra_clk_pll;
  *
  * Flags:
  * TEGRA_PLL_USE_LOCK - This flag indicated to use lock bits for
- *     PLL locking. If not set it will use lock_delay value to wait.
+ *     PLL locking. If analt set it will use lock_delay value to wait.
  * TEGRA_PLL_HAS_CPCON - This flag indicates that CPCON value needs
  *     to be programmed to change output frequency of the PLL.
  * TEGRA_PLL_SET_LFCON - This flag indicates that LFCON value needs
@@ -284,7 +284,7 @@ struct tegra_clk_pll;
  *     that it is PLLU and invert post divider value.
  * TEGRA_PLLM - PLLM has additional override settings in PMC. This
  *     flag indicates that it is PLLM and use override settings.
- * TEGRA_PLL_FIXED - We are not supposed to change output frequency
+ * TEGRA_PLL_FIXED - We are analt supposed to change output frequency
  *     of some plls.
  * TEGRA_PLLE_CONFIGURE - Configure PLLE when enabling.
  * TEGRA_PLL_LOCK_MISC - Lock bit is in the misc register instead of the
@@ -551,7 +551,7 @@ struct tegra_clk_periph_regs {
  * @enable_refcnt:	array to maintain reference count of the clock
  *
  * Flags:
- * TEGRA_PERIPH_NO_RESET - This flag indicates that reset is not allowed
+ * TEGRA_PERIPH_ANAL_RESET - This flag indicates that reset is analt allowed
  *     for this module.
  * TEGRA_PERIPH_ON_APB - If peripheral is in the APB bus then read the
  *     bus to flush the write operation in apb bus. This flag indicates
@@ -573,11 +573,11 @@ struct tegra_clk_periph_gate {
 
 #define TEGRA_CLK_PERIPH_GATE_MAGIC 0x17760309
 
-#define TEGRA_PERIPH_NO_RESET BIT(0)
+#define TEGRA_PERIPH_ANAL_RESET BIT(0)
 #define TEGRA_PERIPH_ON_APB BIT(2)
 #define TEGRA_PERIPH_WAR_1005168 BIT(3)
-#define TEGRA_PERIPH_NO_DIV BIT(4)
-#define TEGRA_PERIPH_NO_GATE BIT(5)
+#define TEGRA_PERIPH_ANAL_DIV BIT(4)
+#define TEGRA_PERIPH_ANAL_GATE BIT(5)
 
 extern const struct clk_ops tegra_clk_periph_gate_ops;
 struct clk *tegra_clk_register_periph_gate(const char *name,
@@ -634,7 +634,7 @@ struct clk *tegra_clk_register_periph(const char *name,
 		const char * const *parent_names, int num_parents,
 		struct tegra_clk_periph *periph, void __iomem *clk_base,
 		u32 offset, unsigned long flags);
-struct clk *tegra_clk_register_periph_nodiv(const char *name,
+struct clk *tegra_clk_register_periph_analdiv(const char *name,
 		const char * const *parent_names, int num_parents,
 		struct tegra_clk_periph *periph, void __iomem *clk_base,
 		u32 offset);
@@ -853,7 +853,7 @@ struct clk **tegra_clk_init(void __iomem *clk_base, int num, int periph_banks);
 
 struct clk **tegra_lookup_dt_id(int clk_id, struct tegra_clk *tegra_clk);
 
-void tegra_add_of_provider(struct device_node *np, void *clk_src_onecell_get);
+void tegra_add_of_provider(struct device_analde *np, void *clk_src_onecell_get);
 void tegra_register_devclks(struct tegra_devclk *dev_clks, int num);
 
 void tegra_audio_clk_init(void __iomem *clk_base,
@@ -878,12 +878,12 @@ void tegra_super_clk_gen5_init(void __iomem *clk_base,
 			struct tegra_clk_pll_params *pll_params);
 
 #ifdef CONFIG_TEGRA124_CLK_EMC
-struct clk *tegra124_clk_register_emc(void __iomem *base, struct device_node *np,
+struct clk *tegra124_clk_register_emc(void __iomem *base, struct device_analde *np,
 				      spinlock_t *lock);
 bool tegra124_clk_emc_driver_available(struct clk_hw *emc_hw);
 #else
 static inline struct clk *
-tegra124_clk_register_emc(void __iomem *base, struct device_node *np,
+tegra124_clk_register_emc(void __iomem *base, struct device_analde *np,
 			  spinlock_t *lock)
 {
 	return NULL;
@@ -924,7 +924,7 @@ void tegra_clk_periph_resume(void);
 bool tegra20_clk_emc_driver_available(struct clk_hw *emc_hw);
 struct clk *tegra20_clk_register_emc(void __iomem *ioaddr, bool low_jitter);
 
-struct clk *tegra210_clk_register_emc(struct device_node *np,
+struct clk *tegra210_clk_register_emc(struct device_analde *np,
 				      void __iomem *regs);
 
 struct clk *tegra_clk_dev_register(struct clk_hw *hw);

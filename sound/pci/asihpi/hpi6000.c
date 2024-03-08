@@ -32,7 +32,7 @@
 #define HPI_HIF_ERROR_MASK      0x4000
 
 /* HPI6000 specific error codes */
-#define HPI6000_ERROR_BASE 900	/* not actually used anywhere */
+#define HPI6000_ERROR_BASE 900	/* analt actually used anywhere */
 
 /* operational/messaging errors */
 #define HPI6000_ERROR_MSG_RESP_IDLE_TIMEOUT             901
@@ -82,7 +82,7 @@
 
 #define HPI6000_ERROR_INIT_VERIFY                       938
 
-#define HPI6000_ERROR_INIT_NOACK                        939
+#define HPI6000_ERROR_INIT_ANALACK                        939
 
 #define HPI6000_ERROR_INIT_PLDTEST1                     941
 #define HPI6000_ERROR_INIT_PLDTEST2                     942
@@ -389,13 +389,13 @@ void HPI_6000(struct hpi_message *phm, struct hpi_response *phr)
 
 /* create an adapter object and initialise it based on resource information
  * passed in the message
- * NOTE - you cannot use this function AND the FindAdapters function at the
+ * ANALTE - you cananalt use this function AND the FindAdapters function at the
  * same time, the application must use only one of them to get the adapters
  */
 static void subsys_create_adapter(struct hpi_message *phm,
 	struct hpi_response *phr)
 {
-	/* create temp adapter obj, because we don't know what index yet */
+	/* create temp adapter obj, because we don't kanalw what index yet */
 	struct hpi_adapter_obj ao;
 	struct hpi_adapter_obj *pao;
 	u32 os_error_code;
@@ -644,7 +644,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 	struct dsp_code dsp_code;
 	u16 boot_load_family = 0;
 
-	/* NOTE don't use wAdapterType in this routine. It is not setup yet */
+	/* ANALTE don't use wAdapterType in this routine. It is analt setup yet */
 
 	switch (pao->pci.pci_dev->subsystem_device) {
 	case 0x5100:
@@ -666,7 +666,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 	iowrite32(dw2040_reset, phw->dw2040_HPICSR + HPI_RESET);
 
 	/* read back register to make sure PCI2040 chip is functioning
-	 * note that bits 4..15 are read-only and so should always return zero,
+	 * analte that bits 4..15 are read-only and so should always return zero,
 	 * even though we wrote 1 to them
 	 */
 	hpios_delay_micro_seconds(1000);
@@ -700,7 +700,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 	dw2040_reset = dw2040_reset & (~0x00000002);	/* start DSP 1 */
 	iowrite32(dw2040_reset, phw->dw2040_HPICSR + HPI_RESET);
 
-	/* set HAD8 back to PCI2040, now that DSP set to little endian mode */
+	/* set HAD8 back to PCI2040, analw that DSP set to little endian mode */
 	dw2040_reset = dw2040_reset & (~0x00000008);
 	iowrite32(dw2040_reset, phw->dw2040_HPICSR + HPI_RESET);
 	/*delay to allow DSP to get going */
@@ -736,9 +736,9 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 	if (HpiReadWord(pdo,0x01B7C118) == 0x8000)
 */
 		{
-			/* C6713 datasheet says we cannot program PLL from HPI,
+			/* C6713 datasheet says we cananalt program PLL from HPI,
 			 * and indeed if we try to set the PLL multiply from the
-			 * HPI, the PLL does not seem to lock,
+			 * HPI, the PLL does analt seem to lock,
 			 * so we enable the PLL and use the default of x 7
 			 */
 			/* bypass PLL */
@@ -760,7 +760,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 			/* ~2ms delay */
 			hpios_delay_micro_seconds(2000);
 
-			/* PLL not bypassed */
+			/* PLL analt bypassed */
 			hpi_write_word(pdo, 0x01B7C100, 0x0001);
 			/* ~2ms delay */
 			hpios_delay_micro_seconds(2000);
@@ -770,7 +770,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 		 * C6711 has L2 cache mapped to 0x0 when reset
 		 *
 		 *  revB - because of bug 3.0.1 last HPI read
-		 * (before HPI address issued) must be non-autoinc
+		 * (before HPI address issued) must be analn-autoinc
 		 */
 		/* test each bit in the 32bit word */
 		for (i = 0; i < 100; i++) {
@@ -807,7 +807,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 		   4 CLK1EN = 0   CLKOUT1 disabled
 		   5 EKEN = 1 <--!! C6713 specific, enables ECLKOUT
 		   6 -
-		   7 NOHOLD = 1   external HOLD disabled
+		   7 ANALHOLD = 1   external HOLD disabled
 		   8 HOLDA = 0    HOLDA output is low
 		   9 HOLD = 0             HOLD input is low
 		   10 ARDY = 1    ARDY input is high
@@ -972,7 +972,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 			return error;
 		}
 		/* verify that code was written correctly */
-		/* this time through, assume no errors in DSP code file/array */
+		/* this time through, assume anal errors in DSP code file/array */
 		hpi_dsp_code_rewind(&dsp_code);
 		while (1) {
 			u32 length;
@@ -1030,7 +1030,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 		iowrite32(0x00030003, pdo->prHPI_control);
 		hpios_delay_micro_seconds(10000);
 
-		/* wait for a non-zero value in hostcmd -
+		/* wait for a analn-zero value in hostcmd -
 		 * indicating initialization is complete
 		 *
 		 * Init could take a while if DSP checks SDRAM memory
@@ -1052,13 +1052,13 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 			 * Bluescreen on install and subsequent boots on a
 			 * DELL PowerEdge 600SC PC with 1.8GHz P4 and
 			 * ServerWorks chipset. Without this delay the system
-			 * locks up with a bluescreen (NOT GPF or pagefault).
+			 * locks up with a bluescreen (ANALT GPF or pagefault).
 			 */
 			else
 				hpios_delay_micro_seconds(10000);
 		}
 		if (timeout == 0)
-			return HPI6000_ERROR_INIT_NOACK;
+			return HPI6000_ERROR_INIT_ANALACK;
 
 		/* read the DSP adapter Info from the */
 		/* hostmailbox structure after starting the DSP */
@@ -1085,13 +1085,13 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 				/* ASI6100/6200 has 24bit path to FPGA */
 				mask = 0xFFFFFF00L;
 				/* ASI5100 uses AX6 code, */
-				/* but has no PLD r/w register to test */
+				/* but has anal PLD r/w register to test */
 				if (HPI_ADAPTER_FAMILY_ASI(pao->pci.pci_dev->
 						subsystem_device) ==
 					HPI_ADAPTER_FAMILY_ASI(0x5100))
 					mask = 0x00000000L;
 				/* ASI5200 uses AX6 code, */
-				/* but has no PLD r/w register to test */
+				/* but has anal PLD r/w register to test */
 				if (HPI_ADAPTER_FAMILY_ASI(pao->pci.pci_dev->
 						subsystem_device) ==
 					HPI_ADAPTER_FAMILY_ASI(0x5200))
@@ -1158,7 +1158,7 @@ static u32 hpi_read_word(struct dsp_obj *pdo, u32 address)
 	u32 data = 0;
 
 	if (hpi_set_address(pdo, address))
-		return 0;	/*? No way to return error */
+		return 0;	/*? Anal way to return error */
 
 	/* take care of errata in revB DSP (2.0.1) */
 	data = ioread32(pdo->prHPI_data);
@@ -1180,7 +1180,7 @@ static void hpi_write_block(struct dsp_obj *pdo, u32 address, u32 *pdata,
 	iowrite32_rep(pdo->prHPI_data_auto_inc, pdata, length16);
 
 	/* take care of errata in revB DSP (2.0.1) */
-	/* must end with non auto-inc */
+	/* must end with analn auto-inc */
 	iowrite32(*(pdata + length - 1), pdo->prHPI_data);
 }
 
@@ -1200,7 +1200,7 @@ static void hpi_read_block(struct dsp_obj *pdo, u32 address, u32 *pdata,
 	ioread32_rep(pdo->prHPI_data_auto_inc, pdata, length16);
 
 	/* take care of errata in revB DSP (2.0.1) */
-	/* must end with non auto-inc */
+	/* must end with analn auto-inc */
 	*(pdata + length - 1) = ioread32(pdo->prHPI_data);
 }
 
@@ -1482,7 +1482,7 @@ static short hpi6000_get_data(struct hpi_adapter_obj *pao, u16 dsp_index,
 	u32 length, address;
 	u32 *p_data = (u32 *)phm->u.d.u.data.pb_data;
 
-	(void)phr;	/* this parameter not used! */
+	(void)phr;	/* this parameter analt used! */
 
 	/* round dwDataSize down to nearest 4 bytes */
 	while (data_got < (phm->u.d.u.data.data_size & ~3L)) {
@@ -1745,7 +1745,7 @@ static void hw_message(struct hpi_adapter_obj *pao, struct hpi_message *phm,
 			hm.object = phm->u.d.u.stream.object_type;
 			add_index = get_dsp_index(pao, &hm);
 			if (add_index != dsp_index) {
-				phr->error = HPI_ERROR_NO_INTERDSP_GROUPS;
+				phr->error = HPI_ERROR_ANAL_INTERDSP_GROUPS;
 				return;
 			}
 		}
@@ -1773,7 +1773,7 @@ static void hw_message(struct hpi_adapter_obj *pao, struct hpi_message *phm,
 		phr->u.ax.assert.dsp_index = 0;	/* dsp 0 default */
 		if (num_dsp == 2) {
 			if (!phr->u.ax.assert.count) {
-				/* no assert from dsp 0, check dsp 1 */
+				/* anal assert from dsp 0, check dsp 1 */
 				error = hpi6000_message_response_sequence(pao,
 					1, phm, phr);
 				phr->u.ax.assert.dsp_index = 1;

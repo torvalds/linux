@@ -4,7 +4,7 @@
  *
  *  Written 1992,1993 by Werner Almesberger
  *  22/11/2000 - Fixed fat_date_unix2dos for dates earlier than 01/01/1980
- *		 and date_dos2unix for date==0 by Igor Zhbanov(bsg@uniyar.ac.ru)
+ *		 and date_dos2unix for date==0 by Igor Zhbaanalv(bsg@uniyar.ac.ru)
  */
 
 #include "fat.h"
@@ -13,7 +13,7 @@
 /*
  * fat_fs_error reports a file system problem that might indicate fa data
  * corruption/inconsistency. Depending on 'errors' mount option the
- * panic() is called, or error message is printed FAT and nothing is done,
+ * panic() is called, or error message is printed FAT and analthing is done,
  * or filesystem is remounted read-only (default behavior).
  * In case the file system is remounted read-only, it can be made writable
  * again by remounting it.
@@ -47,7 +47,7 @@ EXPORT_SYMBOL_GPL(__fat_fs_error);
  * @level: A Kernel printk level constant
  * @fmt: The printf-style format string to print.
  *
- * Everything that is not fat_fs_error() should be fat_msg().
+ * Everything that is analt fat_fs_error() should be fat_msg().
  *
  * fat_msg() wraps _fat_msg() for printk indexing.
  */
@@ -102,11 +102,11 @@ int fat_clusters_flush(struct super_block *sb)
 
 /*
  * fat_chain_add() adds a new cluster to the chain of clusters represented
- * by inode.
+ * by ianalde.
  */
-int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster)
+int fat_chain_add(struct ianalde *ianalde, int new_dclus, int nr_cluster)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	int ret, new_fclus, last;
 
@@ -115,10 +115,10 @@ int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster)
 	 * one (new_dclus) to the end of the link list (the FAT).
 	 */
 	last = new_fclus = 0;
-	if (MSDOS_I(inode)->i_start) {
+	if (MSDOS_I(ianalde)->i_start) {
 		int fclus, dclus;
 
-		ret = fat_get_cluster(inode, FAT_ENT_EOF, &fclus, &dclus);
+		ret = fat_get_cluster(ianalde, FAT_ENT_EOF, &fclus, &dclus);
 		if (ret < 0)
 			return ret;
 		new_fclus = fclus + 1;
@@ -130,10 +130,10 @@ int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster)
 		struct fat_entry fatent;
 
 		fatent_init(&fatent);
-		ret = fat_ent_read(inode, &fatent, last);
+		ret = fat_ent_read(ianalde, &fatent, last);
 		if (ret >= 0) {
-			int wait = inode_needs_sync(inode);
-			ret = fat_ent_write(inode, &fatent, new_dclus, wait);
+			int wait = ianalde_needs_sync(ianalde);
+			ret = fat_ent_write(ianalde, &fatent, new_dclus, wait);
 			fatent_brelse(&fatent);
 		}
 		if (ret < 0)
@@ -142,28 +142,28 @@ int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster)
 		 * FIXME:Although we can add this cache, fat_cache_add() is
 		 * assuming to be called after linear search with fat_cache_id.
 		 */
-//		fat_cache_add(inode, new_fclus, new_dclus);
+//		fat_cache_add(ianalde, new_fclus, new_dclus);
 	} else {
-		MSDOS_I(inode)->i_start = new_dclus;
-		MSDOS_I(inode)->i_logstart = new_dclus;
+		MSDOS_I(ianalde)->i_start = new_dclus;
+		MSDOS_I(ianalde)->i_logstart = new_dclus;
 		/*
 		 * Since generic_write_sync() synchronizes regular files later,
 		 * we sync here only directories.
 		 */
-		if (S_ISDIR(inode->i_mode) && IS_DIRSYNC(inode)) {
-			ret = fat_sync_inode(inode);
+		if (S_ISDIR(ianalde->i_mode) && IS_DIRSYNC(ianalde)) {
+			ret = fat_sync_ianalde(ianalde);
 			if (ret)
 				return ret;
 		} else
-			mark_inode_dirty(inode);
+			mark_ianalde_dirty(ianalde);
 	}
-	if (new_fclus != (inode->i_blocks >> (sbi->cluster_bits - 9))) {
+	if (new_fclus != (ianalde->i_blocks >> (sbi->cluster_bits - 9))) {
 		fat_fs_error(sb, "clusters badly computed (%d != %llu)",
 			     new_fclus,
-			     (llu)(inode->i_blocks >> (sbi->cluster_bits - 9)));
-		fat_cache_inval_inode(inode);
+			     (llu)(ianalde->i_blocks >> (sbi->cluster_bits - 9)));
+		fat_cache_inval_ianalde(ianalde);
 	}
-	inode->i_blocks += nr_cluster << (sbi->cluster_bits - 9);
+	ianalde->i_blocks += nr_cluster << (sbi->cluster_bits - 9);
 
 	return 0;
 }
@@ -187,9 +187,9 @@ int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster)
 #define YEAR_2100	120
 #define IS_LEAP_YEAR(y)	(!((y) & 3) && (y) != YEAR_2100)
 
-/* Linear day numbers of the respective 1sts in non-leap years. */
+/* Linear day numbers of the respective 1sts in analn-leap years. */
 static long days_in_year[] = {
-	/* Jan  Feb  Mar  Apr  May  Jun  Jul  Aug  Sep  Oct  Nov  Dec */
+	/* Jan  Feb  Mar  Apr  May  Jun  Jul  Aug  Sep  Oct  Analv  Dec */
 	0,   0,  31,  59,  90, 120, 151, 181, 212, 243, 273, 304, 334, 0, 0, 0,
 };
 
@@ -309,52 +309,52 @@ struct timespec64 fat_truncate_mtime(const struct msdos_sb_info *sbi,
 
 /*
  * truncate the various times with appropriate granularity:
- *   all times in root node are always 0
+ *   all times in root analde are always 0
  */
-int fat_truncate_time(struct inode *inode, struct timespec64 *now, int flags)
+int fat_truncate_time(struct ianalde *ianalde, struct timespec64 *analw, int flags)
 {
-	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	struct msdos_sb_info *sbi = MSDOS_SB(ianalde->i_sb);
 	struct timespec64 ts;
 
-	if (inode->i_ino == MSDOS_ROOT_INO)
+	if (ianalde->i_ianal == MSDOS_ROOT_IANAL)
 		return 0;
 
-	if (now == NULL) {
-		now = &ts;
-		ts = current_time(inode);
+	if (analw == NULL) {
+		analw = &ts;
+		ts = current_time(ianalde);
 	}
 
 	if (flags & S_ATIME)
-		inode_set_atime_to_ts(inode, fat_truncate_atime(sbi, now));
+		ianalde_set_atime_to_ts(ianalde, fat_truncate_atime(sbi, analw));
 	/*
 	 * ctime and mtime share the same on-disk field, and should be
 	 * identical in memory. all mtime updates will be applied to ctime,
-	 * but ctime updates are ignored.
+	 * but ctime updates are iganalred.
 	 */
 	if (flags & S_MTIME)
-		inode_set_mtime_to_ts(inode,
-				      inode_set_ctime_to_ts(inode, fat_truncate_mtime(sbi, now)));
+		ianalde_set_mtime_to_ts(ianalde,
+				      ianalde_set_ctime_to_ts(ianalde, fat_truncate_mtime(sbi, analw)));
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fat_truncate_time);
 
-int fat_update_time(struct inode *inode, int flags)
+int fat_update_time(struct ianalde *ianalde, int flags)
 {
 	int dirty_flags = 0;
 
-	if (inode->i_ino == MSDOS_ROOT_INO)
+	if (ianalde->i_ianal == MSDOS_ROOT_IANAL)
 		return 0;
 
 	if (flags & (S_ATIME | S_CTIME | S_MTIME)) {
-		fat_truncate_time(inode, NULL, flags);
-		if (inode->i_sb->s_flags & SB_LAZYTIME)
+		fat_truncate_time(ianalde, NULL, flags);
+		if (ianalde->i_sb->s_flags & SB_LAZYTIME)
 			dirty_flags |= I_DIRTY_TIME;
 		else
 			dirty_flags |= I_DIRTY_SYNC;
 	}
 
-	__mark_inode_dirty(inode, dirty_flags);
+	__mark_ianalde_dirty(ianalde, dirty_flags);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fat_update_time);

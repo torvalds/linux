@@ -6,7 +6,7 @@
  * Written by Philip Blundell <philb@gnu.org>, 1998
  * Re-written by Russell King
  *
- * NOTE: The FIQ mode registers are not magically preserved across
+ * ANALTE: The FIQ mode registers are analt magically preserved across
  * suspend/resume.
  *
  * Drivers which require these registers to be preserved across power
@@ -26,7 +26,7 @@ struct fiq_handler {
 	const char *name;
 	/* Called to ask driver to relinquish/
 	 * reacquire FIQ
-	 * return zero to accept, or -<errno>
+	 * return zero to accept, or -<erranal>
 	 */
 	int (*fiq_op)(void *, int relinquish);
 	/* data for the relinquish/reacquire functions

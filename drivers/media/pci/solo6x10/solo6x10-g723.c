@@ -141,7 +141,7 @@ static int snd_solo_pcm_open(struct snd_pcm_substream *ss)
 
 oom:
 	kfree(solo_pcm);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int snd_solo_pcm_close(struct snd_pcm_substream *ss)

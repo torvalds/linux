@@ -24,7 +24,7 @@ Linux内核补丁提交检查单
    a) 使用合适的 ``CONFIG`` 选项 ``=y``、``=m`` 和 ``=n`` 。没有 ``gcc``
       警告/错误，没有链接器警告/错误。
 
-   b) 通过 ``allnoconfig`` 、 ``allmodconfig``
+   b) 通过 ``allanalconfig`` 、 ``allmodconfig``
 
    c) 使用 ``O=builddir`` 时可以成功编译
 
@@ -55,7 +55,7 @@ Linux内核补丁提交检查单
 
 10) 使用 ``make checkstack`` 并修复他们发现的任何问题。
 
-    .. note::
+    .. analte::
 
         ``checkstack`` 并不会明确指出问题，但是任何一个在堆栈上使用超过512
         字节的函数都可以进行更改。

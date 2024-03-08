@@ -28,7 +28,7 @@ static int pingpong_tearcheck_setup(struct drm_encoder *encoder,
 	int pp_id = mixer->pp;
 
 	if (IS_ERR_OR_NULL(mdp5_kms->vsync_clk)) {
-		DRM_DEV_ERROR(dev, "vsync_clk is not initialized\n");
+		DRM_DEV_ERROR(dev, "vsync_clk is analt initialized\n");
 		return -EINVAL;
 	}
 
@@ -55,8 +55,8 @@ static int pingpong_tearcheck_setup(struct drm_encoder *encoder,
 	 * Tearcheck emits a blanking signal every vclks_line * vtotal * 2 ticks on
 	 * the vsync_clk equating to roughly half the desired panel refresh rate.
 	 * This is only necessary as stability fallback if interrupts from the
-	 * panel arrive too late or not at all, but is currently used by default
-	 * because these panel interrupts are not wired up yet.
+	 * panel arrive too late or analt at all, but is currently used by default
+	 * because these panel interrupts are analt wired up yet.
 	 */
 	mdp5_write(mdp5_kms, REG_MDP5_PP_SYNC_CONFIG_VSYNC(pp_id), cfg);
 	mdp5_write(mdp5_kms,

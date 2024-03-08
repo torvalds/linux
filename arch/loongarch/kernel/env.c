@@ -2,7 +2,7 @@
 /*
  * Author: Huacai Chen <chenhuacai@loongson.cn>
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/acpi.h>
 #include <linux/clk.h>
@@ -39,14 +39,14 @@ void __init init_environ(void)
 
 static int __init init_cpu_fullname(void)
 {
-	struct device_node *root;
+	struct device_analde *root;
 	int cpu, ret;
 	char *model;
 
 	/* Parsing cpuname from DTS model property */
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	ret = of_property_read_string(root, "model", (const char **)&model);
-	of_node_put(root);
+	of_analde_put(root);
 	if (ret == 0)
 		loongson_sysconf.cpuname = strsep(&model, " ");
 
@@ -61,15 +61,15 @@ arch_initcall(init_cpu_fullname);
 static int __init fdt_cpu_clk_init(void)
 {
 	struct clk *clk;
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_get_cpu_node(0, NULL);
+	np = of_get_cpu_analde(0, NULL);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	clk = of_clk_get(np, 0);
 	if (IS_ERR(clk))
-		return -ENODEV;
+		return -EANALDEV;
 
 	cpu_clock_freq = clk_get_rate(clk);
 	clk_put(clk);

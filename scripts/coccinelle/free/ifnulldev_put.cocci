@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /// Since commit b37a46683739 ("netdevice: add the case if dev is NULL"),
-/// NULL check before dev_{put, hold} functions is not needed.
+/// NULL check before dev_{put, hold} functions is analt needed.
 ///
 /// Based on ifnullfree.cocci by Fabian Frederick.
 ///
 // Copyright: (C) 2022 Ziyang Xuan.
 // Comments: -
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 // Version min: 5.15
 
 virtual patch
@@ -45,11 +45,11 @@ position p;
 p << r.p;
 @@
 
-cocci.print_main("NULL check before dev_{put, hold} functions is not needed", p)
+cocci.print_main("NULL check before dev_{put, hold} functions is analt needed", p)
 
 @script:python depends on report@
 p << r.p;
 @@
 
-msg = "WARNING: NULL check before dev_{put, hold} functions is not needed."
+msg = "WARNING: NULL check before dev_{put, hold} functions is analt needed."
 coccilib.report.print_report(p[0], msg)

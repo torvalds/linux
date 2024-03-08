@@ -5,7 +5,7 @@
  *  Copyright (C) 2012 Tony Prisk <linux@prisktech.co.nz>
  *
  *  Derived from GPLv2+ licensed source:
- *  - Copyright (C) 2008 WonderMedia Technologies, Inc.
+ *  - Copyright (C) 2008 WonderMedia Techanallogies, Inc.
  */
 
 #include <linux/clk.h>
@@ -38,7 +38,7 @@
 /* REG_CR Bit fields */
 #define CR_TX_NEXT_ACK		0x0000
 #define CR_ENABLE		0x0001
-#define CR_TX_NEXT_NO_ACK	0x0002
+#define CR_TX_NEXT_ANAL_ACK	0x0002
 #define CR_TX_END		0x0004
 #define CR_CPU_RDY		0x0008
 #define SLAV_MODE_SEL		0x8000
@@ -61,7 +61,7 @@
 #define IMR_ENABLE_ALL		0x0007
 
 /* REG_CSR Bit fields */
-#define CSR_RCV_NOT_ACK		0x0001
+#define CSR_RCV_ANALT_ACK		0x0001
 #define CSR_RCV_ACK_MASK	0x0001
 #define CSR_READY_MASK		0x0002
 
@@ -87,7 +87,7 @@ struct wmt_i2c_dev {
 	u16			cmd_status;
 };
 
-static int wmt_i2c_wait_bus_not_busy(struct wmt_i2c_dev *i2c_dev)
+static int wmt_i2c_wait_bus_analt_busy(struct wmt_i2c_dev *i2c_dev)
 {
 	unsigned long timeout;
 
@@ -140,7 +140,7 @@ static int wmt_i2c_write(struct wmt_i2c_dev *i2c_dev, struct i2c_msg *pmsg,
 		writew(pmsg->buf[0] & 0xFF, i2c_dev->base + REG_CDR);
 	}
 
-	if (!(pmsg->flags & I2C_M_NOSTART)) {
+	if (!(pmsg->flags & I2C_M_ANALSTART)) {
 		val = readw(i2c_dev->base + REG_CR);
 		val &= ~CR_TX_END;
 		val |= CR_CPU_RDY;
@@ -153,7 +153,7 @@ static int wmt_i2c_write(struct wmt_i2c_dev *i2c_dev, struct i2c_msg *pmsg,
 
 	writew(tcr_val, i2c_dev->base + REG_TCR);
 
-	if (pmsg->flags & I2C_M_NOSTART) {
+	if (pmsg->flags & I2C_M_ANALSTART) {
 		val = readw(i2c_dev->base + REG_CR);
 		val |= CR_CPU_RDY;
 		writew(val, i2c_dev->base + REG_CR);
@@ -167,7 +167,7 @@ static int wmt_i2c_write(struct wmt_i2c_dev *i2c_dev, struct i2c_msg *pmsg,
 		xfer_len++;
 
 		val = readw(i2c_dev->base + REG_CSR);
-		if ((val & CSR_RCV_ACK_MASK) == CSR_RCV_NOT_ACK) {
+		if ((val & CSR_RCV_ACK_MASK) == CSR_RCV_ANALT_ACK) {
 			dev_dbg(i2c_dev->dev, "write RCV NACK error\n");
 			return -EIO;
 		}
@@ -198,13 +198,13 @@ static int wmt_i2c_read(struct wmt_i2c_dev *i2c_dev, struct i2c_msg *pmsg)
 	u32 xfer_len = 0;
 
 	val = readw(i2c_dev->base + REG_CR);
-	val &= ~(CR_TX_END | CR_TX_NEXT_NO_ACK);
+	val &= ~(CR_TX_END | CR_TX_NEXT_ANAL_ACK);
 
-	if (!(pmsg->flags & I2C_M_NOSTART))
+	if (!(pmsg->flags & I2C_M_ANALSTART))
 		val |= CR_CPU_RDY;
 
 	if (pmsg->len == 1)
-		val |= CR_TX_NEXT_NO_ACK;
+		val |= CR_TX_NEXT_ANAL_ACK;
 
 	writew(val, i2c_dev->base + REG_CR);
 
@@ -214,7 +214,7 @@ static int wmt_i2c_read(struct wmt_i2c_dev *i2c_dev, struct i2c_msg *pmsg)
 
 	writew(tcr_val, i2c_dev->base + REG_TCR);
 
-	if (pmsg->flags & I2C_M_NOSTART) {
+	if (pmsg->flags & I2C_M_ANALSTART) {
 		val = readw(i2c_dev->base + REG_CR);
 		val |= CR_CPU_RDY;
 		writew(val, i2c_dev->base + REG_CR);
@@ -230,7 +230,7 @@ static int wmt_i2c_read(struct wmt_i2c_dev *i2c_dev, struct i2c_msg *pmsg)
 
 		val = readw(i2c_dev->base + REG_CR) | CR_CPU_RDY;
 		if (xfer_len == pmsg->len - 1)
-			val |= CR_TX_NEXT_NO_ACK;
+			val |= CR_TX_NEXT_ANAL_ACK;
 		writew(val, i2c_dev->base + REG_CR);
 	}
 
@@ -248,8 +248,8 @@ static int wmt_i2c_xfer(struct i2c_adapter *adap,
 
 	for (i = 0; ret >= 0 && i < num; i++) {
 		pmsg = &msgs[i];
-		if (!(pmsg->flags & I2C_M_NOSTART)) {
-			ret = wmt_i2c_wait_bus_not_busy(i2c_dev);
+		if (!(pmsg->flags & I2C_M_ANALSTART)) {
+			ret = wmt_i2c_wait_bus_analt_busy(i2c_dev);
 			if (ret < 0)
 				return ret;
 		}
@@ -265,7 +265,7 @@ static int wmt_i2c_xfer(struct i2c_adapter *adap,
 
 static u32 wmt_i2c_func(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_NOSTART;
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_ANALSTART;
 }
 
 static const struct i2c_algorithm wmt_i2c_algo = {
@@ -321,7 +321,7 @@ static int wmt_i2c_reset_hardware(struct wmt_i2c_dev *i2c_dev)
 
 static int wmt_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct wmt_i2c_dev *i2c_dev;
 	struct i2c_adapter *adap;
 	int err;
@@ -329,7 +329,7 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 
 	i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*i2c_dev), GFP_KERNEL);
 	if (!i2c_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_dev->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(i2c_dev->base))
@@ -366,7 +366,7 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	adap->owner = THIS_MODULE;
 	adap->algo = &wmt_i2c_algo;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_analde = pdev->dev.of_analde;
 
 	init_completion(&i2c_dev->complete);
 

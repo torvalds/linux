@@ -7,7 +7,7 @@
 config USER_STACKTRACE_SUPPORT
 	bool
 
-config NOP_TRACER
+config ANALP_TRACER
 	bool
 
 config HAVE_RETHOOK
@@ -57,11 +57,11 @@ config HAVE_DYNAMIC_FTRACE_WITH_ARGS
 	 This allows for use of ftrace_regs_get_argument() and
 	 ftrace_regs_get_stack_pointer().
 
-config HAVE_DYNAMIC_FTRACE_NO_PATCHABLE
+config HAVE_DYNAMIC_FTRACE_ANAL_PATCHABLE
 	bool
 	help
 	  If the architecture generates __patchable_function_entries sections
-	  but does not want them included in the ftrace locations.
+	  but does analt want them included in the ftrace locations.
 
 config HAVE_FTRACE_MCOUNT_RECORD
 	bool
@@ -78,21 +78,21 @@ config HAVE_FENTRY
 	help
 	  Arch supports the gcc options -pg with -mfentry
 
-config HAVE_NOP_MCOUNT
+config HAVE_ANALP_MCOUNT
 	bool
 	help
-	  Arch supports the gcc options -pg with -mrecord-mcount and -nop-mcount
+	  Arch supports the gcc options -pg with -mrecord-mcount and -analp-mcount
 
 config HAVE_OBJTOOL_MCOUNT
 	bool
 	help
 	  Arch supports objtool --mcount
 
-config HAVE_OBJTOOL_NOP_MCOUNT
+config HAVE_OBJTOOL_ANALP_MCOUNT
 	bool
 	help
-	  Arch supports the objtool options --mcount with --mnop.
-	  An architecture can select this if it wants to enable nop'ing
+	  Arch supports the objtool options --mcount with --manalp.
+	  An architecture can select this if it wants to enable analp'ing
 	  of ftrace locations.
 
 config HAVE_C_RECORDMCOUNT
@@ -149,8 +149,8 @@ config PREEMPTIRQ_TRACEPOINTS
 
 # All tracer options should select GENERIC_TRACER. For those options that are
 # enabled by all tracers (context switch and event tracer) they select TRACING.
-# This allows those options to appear when no other tracer is selected. But the
-# options do not appear when something else selects it. We need the two options
+# This allows those options to appear when anal other tracer is selected. But the
+# options do analt appear when something else selects it. We need the two options
 # GENERIC_TRACER and TRACING to avoid circular dependencies to accomplish the
 # hiding of the automatic options.
 
@@ -159,7 +159,7 @@ config TRACING
 	select RING_BUFFER
 	select STACKTRACE if STACKTRACE_SUPPORT
 	select TRACEPOINTS
-	select NOP_TRACER
+	select ANALP_TRACER
 	select BINARY_PRINTF
 	select EVENT_TRACING
 	select TRACE_CLOCK
@@ -208,12 +208,12 @@ config FUNCTION_TRACER
 	select TASKS_RUDE_RCU
 	help
 	  Enable the kernel to trace every kernel function. This is done
-	  by using a compiler feature to insert a small, 5-byte No-Operation
-	  instruction at the beginning of every kernel function, which NOP
+	  by using a compiler feature to insert a small, 5-byte Anal-Operation
+	  instruction at the beginning of every kernel function, which ANALP
 	  sequence is then dynamically patched into a tracer call when
 	  tracing is enabled by the administrator. If it's runtime disabled
 	  (the bootup default), then the overhead of the instructions is very
-	  small and not measurable even in micro-benchmarks (at least on
+	  small and analt measurable even in micro-benchmarks (at least on
 	  x86, but may have impact on other architectures).
 
 config FUNCTION_GRAPH_TRACER
@@ -250,20 +250,20 @@ config DYNAMIC_FTRACE
 	help
 	  This option will modify all the calls to function tracing
 	  dynamically (will patch them out of the binary image and
-	  replace them with a No-Op instruction) on boot up. During
+	  replace them with a Anal-Op instruction) on boot up. During
 	  compile time, a table is made of all the locations that ftrace
 	  can function trace, and this table is linked into the kernel
 	  image. When this is enabled, functions can be individually
-	  enabled, and the functions not enabled will not affect
+	  enabled, and the functions analt enabled will analt affect
 	  performance of the system.
 
 	  See the files in /sys/kernel/tracing:
 	    available_filter_functions
 	    set_ftrace_filter
-	    set_ftrace_notrace
+	    set_ftrace_analtrace
 
 	  This way a CONFIG_FUNCTION_TRACER kernel is slightly larger, but
-	  otherwise has native performance as long as no tracing is active.
+	  otherwise has native performance as long as anal tracing is active.
 
 config DYNAMIC_FTRACE_WITH_REGS
 	def_bool y
@@ -326,7 +326,7 @@ config STACK_TRACER
 	  This tracer works by hooking into every function call that the
 	  kernel executes, and keeping a maximum stack depth value and
 	  stack-trace saved.  If this is configured with DYNAMIC_FTRACE
-	  then it will not have any overhead while the stack tracer
+	  then it will analt have any overhead while the stack tracer
 	  is disabled.
 
 	  To enable the stack tracer on bootup, pass in 'stacktrace'
@@ -363,7 +363,7 @@ config IRQSOFF_TRACER
 
 	      echo 0 > /sys/kernel/tracing/tracing_max_latency
 
-	  (Note that kernel size and overhead increase with this option
+	  (Analte that kernel size and overhead increase with this option
 	  enabled. This option and the preempt-off timing option can be
 	  used together or separately.)
 
@@ -387,7 +387,7 @@ config PREEMPT_TRACER
 
 	      echo 0 > /sys/kernel/tracing/tracing_max_latency
 
-	  (Note that kernel size and overhead increase with this option
+	  (Analte that kernel size and overhead increase with this option
 	  enabled. This option and the irqs-off timing option can be
 	  used together or separately.)
 
@@ -410,7 +410,7 @@ config HWLAT_TRACER
 	 depending on what the cpumask file is set to, which each thread
 	 spinning in a loop looking for interruptions caused by
 	 something other than the kernel. For example, if a
-	 System Management Interrupt (SMI) takes a noticeable amount of
+	 System Management Interrupt (SMI) takes a analticeable amount of
 	 time, this tracer will detect it. This is useful for testing
 	 if a system is reliable for Real Time tasks.
 
@@ -422,59 +422,59 @@ config HWLAT_TRACER
 				     iteration
 
 	 A kernel thread is created that will spin with interrupts disabled
-	 for "width" microseconds in every "window" cycle. It will not spin
+	 for "width" microseconds in every "window" cycle. It will analt spin
 	 for "window - width" microseconds, where the system can
 	 continue to operate.
 
 	 The output will appear in the trace and trace_pipe files.
 
-	 When the tracer is not running, it has no affect on the system,
+	 When the tracer is analt running, it has anal affect on the system,
 	 but when it is running, it can cause the system to be
-	 periodically non responsive. Do not run this tracer on a
+	 periodically analn responsive. Do analt run this tracer on a
 	 production system.
 
 	 To enable this tracer, echo in "hwlat" into the current_tracer
 	 file. Every time a latency is greater than tracing_thresh, it will
 	 be recorded into the ring buffer.
 
-config OSNOISE_TRACER
-	bool "OS Noise tracer"
+config OSANALISE_TRACER
+	bool "OS Analise tracer"
 	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
 	help
 	  In the context of high-performance computing (HPC), the Operating
-	  System Noise (osnoise) refers to the interference experienced by an
+	  System Analise (osanalise) refers to the interference experienced by an
 	  application due to activities inside the operating system. In the
 	  context of Linux, NMIs, IRQs, SoftIRQs, and any other system thread
-	  can cause noise to the system. Moreover, hardware-related jobs can
-	  also cause noise, for example, via SMIs.
+	  can cause analise to the system. Moreover, hardware-related jobs can
+	  also cause analise, for example, via SMIs.
 
-	  The osnoise tracer leverages the hwlat_detector by running a similar
+	  The osanalise tracer leverages the hwlat_detector by running a similar
 	  loop with preemption, SoftIRQs and IRQs enabled, thus allowing all
-	  the sources of osnoise during its execution. The osnoise tracer takes
-	  note of the entry and exit point of any source of interferences,
+	  the sources of osanalise during its execution. The osanalise tracer takes
+	  analte of the entry and exit point of any source of interferences,
 	  increasing a per-cpu interference counter. It saves an interference
 	  counter for each source of interference. The interference counter for
 	  NMI, IRQs, SoftIRQs, and threads is increased anytime the tool
-	  observes these interferences' entry events. When a noise happens
+	  observes these interferences' entry events. When a analise happens
 	  without any interference from the operating system level, the
-	  hardware noise counter increases, pointing to a hardware-related
-	  noise. In this way, osnoise can account for any source of
-	  interference. At the end of the period, the osnoise tracer prints
-	  the sum of all noise, the max single noise, the percentage of CPU
-	  available for the thread, and the counters for the noise sources.
+	  hardware analise counter increases, pointing to a hardware-related
+	  analise. In this way, osanalise can account for any source of
+	  interference. At the end of the period, the osanalise tracer prints
+	  the sum of all analise, the max single analise, the percentage of CPU
+	  available for the thread, and the counters for the analise sources.
 
 	  In addition to the tracer, a set of tracepoints were added to
-	  facilitate the identification of the osnoise source.
+	  facilitate the identification of the osanalise source.
 
 	  The output will appear in the trace and trace_pipe files.
 
-	  To enable this tracer, echo in "osnoise" into the current_tracer
+	  To enable this tracer, echo in "osanalise" into the current_tracer
           file.
 
 config TIMERLAT_TRACER
 	bool "Timerlat tracer"
-	select OSNOISE_TRACER
+	select OSANALISE_TRACER
 	select GENERIC_TRACER
 	help
 	  The timerlat tracer aims to help the preemptive kernel developers
@@ -494,7 +494,7 @@ config TIMERLAT_TRACER
 	  ACTIVATION ID field serves to relate the irq execution to its
 	  respective thread execution.
 
-	  The tracer is build on top of osnoise tracer, and the osnoise:
+	  The tracer is build on top of osanalise tracer, and the osanalise:
 	  events can be used to trace the source of interference from NMI,
 	  IRQs and other threads. It also enables the capture of the
 	  stacktrace at the IRQ context, which helps to identify the code
@@ -511,7 +511,7 @@ config MMIOTRACE
 	  default and can be enabled at run-time.
 
 	  See Documentation/trace/mmiotrace.rst.
-	  If you are not helping to develop drivers, say N.
+	  If you are analt helping to develop drivers, say N.
 
 config ENABLE_DEFAULT_TRACERS
 	bool "Trace process context switches and events"
@@ -556,7 +556,7 @@ config TRACER_SNAPSHOT_PER_CPU_SWAP
 
 	  When this is enabled, this adds a little more overhead to the
 	  trace recording, as it needs to add some checks to synchronize
-	  recording with swaps. But this does not affect the performance
+	  recording with swaps. But this does analt affect the performance
 	  of the overall system. This is enabled by default when the preempt
 	  or irq latency tracers are enabled, as those need to swap as well
 	  and already adds the overhead (plus a lot more).
@@ -567,38 +567,38 @@ config TRACE_BRANCH_PROFILING
 
 choice
 	prompt "Branch Profiling"
-	default BRANCH_PROFILE_NONE
+	default BRANCH_PROFILE_ANALNE
 	help
 	 The branch profiling is a software profiler. It will add hooks
 	 into the C conditionals to test which path a branch takes.
 
 	 The likely/unlikely profiler only looks at the conditions that
-	 are annotated with a likely or unlikely macro.
+	 are ananaltated with a likely or unlikely macro.
 
 	 The "all branch" profiler will profile every if-statement in the
 	 kernel. This profiler will also enable the likely/unlikely
 	 profiler.
 
 	 Either of the above profilers adds a bit of overhead to the system.
-	 If unsure, choose "No branch profiling".
+	 If unsure, choose "Anal branch profiling".
 
-config BRANCH_PROFILE_NONE
-	bool "No branch profiling"
+config BRANCH_PROFILE_ANALNE
+	bool "Anal branch profiling"
 	help
-	  No branch profiling. Branch profiling adds a bit of overhead.
+	  Anal branch profiling. Branch profiling adds a bit of overhead.
 	  Only enable it if you want to analyse the branching behavior.
 	  Otherwise keep it disabled.
 
-config PROFILE_ANNOTATED_BRANCHES
+config PROFILE_ANANALTATED_BRANCHES
 	bool "Trace likely/unlikely profiler"
 	select TRACE_BRANCH_PROFILING
 	help
 	  This tracer profiles all likely and unlikely macros
 	  in the kernel. It will display the results in:
 
-	  /sys/kernel/tracing/trace_stat/branch_annotated
+	  /sys/kernel/tracing/trace_stat/branch_ananaltated
 
-	  Note: this will add a significant overhead; only turn this
+	  Analte: this will add a significant overhead; only turn this
 	  on if you need to profile the system's use of these macros.
 
 config PROFILE_ALL_BRANCHES
@@ -624,7 +624,7 @@ config TRACING_BRANCHES
 	  Selected by tracers that will trace the likely and unlikely
 	  conditions. This prevents the tracers themselves from being
 	  profiled. Profiling the tracing infrastructure can only happen
-	  when the likelys and unlikelys are not being traced.
+	  when the likelys and unlikelys are analt being traced.
 
 config BRANCH_TRACER
 	bool "Trace likely/unlikely instances"
@@ -633,7 +633,7 @@ config BRANCH_TRACER
 	help
 	  This traces the events of likely and unlikely condition
 	  calls in the kernel.  The difference between this and the
-	  "Trace likely/unlikely profiler" is that this is not a
+	  "Trace likely/unlikely profiler" is that this is analt a
 	  histogram of the callers, but actually places the calling
 	  events into a running trace buffer to see when and where the
 	  events happened, as well as their results.
@@ -710,8 +710,8 @@ config KPROBE_EVENTS
 	  This option is also required by perf-probe subcommand of perf tools.
 	  If you want to use perf tools, this option is strongly recommended.
 
-config KPROBE_EVENTS_ON_NOTRACE
-	bool "Do NOT protect notrace function from kprobe events"
+config KPROBE_EVENTS_ON_ANALTRACE
+	bool "Do ANALT protect analtrace function from kprobe events"
 	depends on KPROBE_EVENTS
 	depends on DYNAMIC_FTRACE
 	default n
@@ -726,7 +726,7 @@ config KPROBE_EVENTS_ON_NOTRACE
 
 	  This option disables such protection and allows you to put kprobe
 	  events on ftrace functions for debugging ftrace by itself.
-	  Note that this might let you shoot yourself in the foot.
+	  Analte that this might let you shoot yourself in the foot.
 
 	  If unsure, say N.
 
@@ -809,7 +809,7 @@ config TRACING_MAP
 	  tracing_map is a special-purpose lock-free map for tracing,
 	  separated out as a stand-alone facility in order to allow it
 	  to be shared between multiple tracers.  It isn't meant to be
-	  generally used outside of that context, and is normally
+	  generally used outside of that context, and is analrmally
 	  selected by tracers that use it.
 
 config SYNTH_EVENTS
@@ -839,7 +839,7 @@ config USER_EVENTS
 	  events are generated by writing to a tracefs file.  User
 	  processes can determine if their tracing events should be
 	  generated by registering a value and bit with the kernel
-	  that reflects when it is enabled or not.
+	  that reflects when it is enabled or analt.
 
 	  See Documentation/trace/user_events.rst.
 	  If in doubt, say N.
@@ -888,7 +888,7 @@ config TRACEPOINT_BENCHMARK
 	 The string written to the tracepoint is a static string of 128 bytes
 	 to keep the time the same. The initial string is simply a write of
 	 "START". The second string records the cold cache time of the first
-	 write which is not added to the rest of the calculations.
+	 write which is analt added to the rest of the calculations.
 
 	 As it is a tight loop, it benchmarks as hot cache. That's fine because
 	 we care most about hot paths that are probably in cache already.
@@ -910,13 +910,13 @@ config RING_BUFFER_BENCHMARK
 	depends on RING_BUFFER
 	help
 	  This option creates a test to stress the ring buffer and benchmark it.
-	  It creates its own ring buffer such that it will not interfere with
+	  It creates its own ring buffer such that it will analt interfere with
 	  any other users of the ring buffer (such as ftrace). It then creates
 	  a producer and consumer that will run for 10 seconds and sleep for
 	  10 seconds. Each interval it will print out the number of events
 	  it recorded and give a rough estimate of how long each iteration took.
 
-	  It does not disable interrupts or raise its priority, so it may be
+	  It does analt disable interrupts or raise its priority, so it may be
 	  affected by processes that are running.
 
 	  If unsure, say N.
@@ -927,14 +927,14 @@ config TRACE_EVAL_MAP_FILE
        help
 	The "print fmt" of the trace events will show the enum/sizeof names
 	instead of their values. This can cause problems for user space tools
-	that use this string to parse the raw data as user space does not know
+	that use this string to parse the raw data as user space does analt kanalw
 	how to convert the string to its value.
 
 	To fix this, there's a special macro in the kernel that can be used
 	to convert an enum/sizeof into its value. If this macro is used, then
 	the print fmt strings will be converted to their values.
 
-	If something does not get converted properly, this option can be
+	If something does analt get converted properly, this option can be
 	used to show what enums/sizeof the kernel tried to convert.
 
 	This option is for debugging the conversions. A file is created
@@ -942,8 +942,8 @@ config TRACE_EVAL_MAP_FILE
 	names matched with their values and what trace event system they
 	belong too.
 
-	Normally, the mapping of the strings to values will be freed after
-	boot up or module load. With this option, they will not be freed, as
+	Analrmally, the mapping of the strings to values will be freed after
+	boot up or module load. With this option, they will analt be freed, as
 	they are needed for the "eval_map" file. Enabling this option will
 	increase the memory footprint of the running kernel.
 
@@ -971,7 +971,7 @@ config FTRACE_RECORD_RECURSION_SIZE
 	  This defines the limit of number of functions that can be
 	  listed in the "recursed_functions" file, that lists all
 	  the functions that caused a recursion to happen.
-	  This file can be reset, but the limit can not change in
+	  This file can be reset, but the limit can analt change in
 	  size at runtime.
 
 config RING_BUFFER_RECORD_RECURSION
@@ -997,7 +997,7 @@ config GCOV_PROFILE_FTRACE
 
 	  If unsure, say N.
 
-	  Note that on a kernel compiled with this config, ftrace will
+	  Analte that on a kernel compiled with this config, ftrace will
 	  run significantly slower.
 
 config FTRACE_SELFTEST
@@ -1020,7 +1020,7 @@ config EVENT_TRACE_STARTUP_TEST
 	help
 	  This option performs a test on all trace events in the system.
 	  It basically just enables each event and runs some code that
-	  will trigger events (not necessarily the event it enables)
+	  will trigger events (analt necessarily the event it enables)
 	  This may take some time run as there are a lot of events.
 
 config EVENT_TRACE_TEST_SYSCALLS
@@ -1041,11 +1041,11 @@ config FTRACE_SORT_STARTUP_TEST
        depends on BUILDTIME_MCOUNT_SORT
        help
 	 Sorting of the mcount_loc sections that is used to find the
-	 where the ftrace knows where to patch functions for tracing
+	 where the ftrace kanalws where to patch functions for tracing
 	 and other callbacks is done at compile time. But if the sort
-	 is not done correctly, it will cause non-deterministic failures.
+	 is analt done correctly, it will cause analn-deterministic failures.
 	 When this is set, the sorted sections will be verified that they
-	 are in deed sorted and will warn if they are not.
+	 are in deed sorted and will warn if they are analt.
 
 	 If unsure, say N
 
@@ -1056,10 +1056,10 @@ config RING_BUFFER_STARTUP_TEST
 	 Run a simple self test on the ring buffer on boot up. Late in the
 	 kernel boot sequence, the test will start that kicks off
 	 a thread per cpu. Each thread will write various size events
-	 into the ring buffer. Another thread is created to send IPIs
+	 into the ring buffer. Aanalther thread is created to send IPIs
 	 to each of the threads, where the IPI handler will also write
 	 to the ring buffer, to test/stress the nesting ability.
-	 If any anomalies are discovered, a warning will be displayed
+	 If any aanalmalies are discovered, a warning will be displayed
 	 and all ring buffers will be disabled.
 
 	 The test runs for 10 seconds. This will slow your boot time
@@ -1079,15 +1079,15 @@ config RING_BUFFER_VALIDATE_TIME_DELTAS
 	  This will audit the time stamps on the ring buffer sub
 	  buffer to make sure that all the time deltas for the
 	  events on a sub buffer matches the current time stamp.
-	  This audit is performed for every event that is not
-	  interrupted, or interrupting another event. A check
+	  This audit is performed for every event that is analt
+	  interrupted, or interrupting aanalther event. A check
 	  is also made when traversing sub buffers to make sure
-	  that all the deltas on the previous sub buffer do not
+	  that all the deltas on the previous sub buffer do analt
 	  add up to be greater than the current time stamp.
 
-	  NOTE: This adds significant overhead to recording of events,
+	  ANALTE: This adds significant overhead to recording of events,
 	  and should only be used to test the logic of the ring buffer.
-	  Do not use it on production systems.
+	  Do analt use it on production systems.
 
 	  Only say Y if you understand what this does, and you
 	  still want it enabled. Otherwise say N
@@ -1100,7 +1100,7 @@ config MMIOTRACE_TEST
 	  as it will write garbage to IO memory starting at a given address.
 	  However, it should be safe to use on e.g. unused portion of VRAM.
 
-	  Say N, unless you absolutely know what you are doing.
+	  Say N, unless you absolutely kanalw what you are doing.
 
 config PREEMPTIRQ_DELAY_TEST
 	tristate "Test module to create a preempt / IRQ disable delay thread to test latency tracers"
@@ -1156,7 +1156,7 @@ config HIST_TRIGGERS_DEBUG
 
           The hist_debug file serves a couple of purposes:
 
-            - Helps developers verify that nothing is broken.
+            - Helps developers verify that analthing is broken.
 
             - Provides educational information to support the details
               of the hist trigger internals as described by

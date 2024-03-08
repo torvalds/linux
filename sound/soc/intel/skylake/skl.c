@@ -121,7 +121,7 @@ static void skl_clock_power_gating(struct device *dev, bool enable)
 }
 
 /*
- * While performing reset, controller may not come back properly causing
+ * While performing reset, controller may analt come back properly causing
  * issues, so recommendation is to set CGCTL.MISCBDCGE to 0 then do reset
  * (init chip) and then again set CGCTL.MISCBDCGE to 1
  */
@@ -152,7 +152,7 @@ void skl_update_d0i3c(struct device *dev, bool enable)
 	int timeout = 50;
 
 	reg = snd_hdac_chip_readb(bus, VS_D0I3C);
-	/* Do not write to D0I3C until command in progress bit is cleared */
+	/* Do analt write to D0I3C until command in progress bit is cleared */
 	while ((reg & AZX_REG_VS_D0I3C_CIP) && --timeout) {
 		udelay(10);
 		reg = snd_hdac_chip_readb(bus, VS_D0I3C);
@@ -220,14 +220,14 @@ static irqreturn_t skl_interrupt(int irq, void *dev_id)
 	u32 status;
 
 	if (!pm_runtime_active(bus->dev))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&bus->reg_lock);
 
 	status = snd_hdac_chip_readl(bus, INTSTS);
 	if (status == 0 || status == 0xffffffff) {
 		spin_unlock(&bus->reg_lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* clear rirb int */
@@ -334,7 +334,7 @@ static int skl_suspend(struct device *dev)
 	int ret;
 
 	/*
-	 * Do not suspend if streams which are marked ignore suspend are
+	 * Do analt suspend if streams which are marked iganalre suspend are
 	 * running, we need to save the state for these and continue
 	 */
 	if (skl->supend_active) {
@@ -365,7 +365,7 @@ static int skl_resume(struct device *dev)
 	int ret;
 
 	/*
-	 * resume only when we are not in suspend active, otherwise need to
+	 * resume only when we are analt in suspend active, otherwise need to
 	 * restore the device
 	 */
 	if (skl->supend_active) {
@@ -493,11 +493,11 @@ static int skl_find_machine(struct skl_dev *skl, void *driver_data)
 
 	mach = snd_soc_acpi_find_machine(mach);
 	if (!mach) {
-		dev_dbg(bus->dev, "No matching I2S machine driver found\n");
+		dev_dbg(bus->dev, "Anal matching I2S machine driver found\n");
 		mach = skl_find_hda_machine(skl, driver_data);
 		if (!mach) {
-			dev_err(bus->dev, "No matching machine driver found\n");
-			return -ENODEV;
+			dev_err(bus->dev, "Anal matching machine driver found\n");
+			return -EANALDEV;
 		}
 	}
 
@@ -567,7 +567,7 @@ static int skl_dmic_device_register(struct skl_dev *skl)
 	pdev = platform_device_alloc("dmic-codec", -1);
 	if (!pdev) {
 		dev_err(bus->dev, "failed to allocate dmic device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = platform_device_add(pdev);
@@ -630,7 +630,7 @@ static int skl_clock_device_register(struct skl_dev *skl)
 	clk_pdata = devm_kzalloc(&skl->pci->dev, sizeof(*clk_pdata),
 							GFP_KERNEL);
 	if (!clk_pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_skl_xtal_rate(skl->pci->device);
 
@@ -708,7 +708,7 @@ static struct hda_codec *skl_codec_device_init(struct hdac_bus *bus, int addr)
  */
 static int probe_codec(struct hdac_bus *bus, int addr)
 {
-	unsigned int cmd = (addr << 28) | (AC_NODE_ROOT << 20) |
+	unsigned int cmd = (addr << 28) | (AC_ANALDE_ROOT << 20) |
 		(AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
 	unsigned int res = -1;
 #if IS_ENABLED(CONFIG_SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC)
@@ -729,7 +729,7 @@ static int probe_codec(struct hdac_bus *bus, int addr)
 	hda_codec = devm_kzalloc(&skl->pci->dev, sizeof(*hda_codec),
 				 GFP_KERNEL);
 	if (!hda_codec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	codec = skl_codec_device_init(bus, addr);
 	if (IS_ERR(codec))
@@ -770,7 +770,7 @@ static void skl_codec_create(struct hdac_bus *bus)
 					 "Codec #%d probe error; disabling it...\n", c);
 				bus->codec_mask &= ~(1 << c);
 				/*
-				 * More badly, accessing to a non-existing
+				 * More badly, accessing to a analn-existing
 				 * codec often screws up the controller bus,
 				 * and disturbs the further communications.
 				 * Thus if an error occurs during probing,
@@ -805,7 +805,7 @@ static void skl_probe_work(struct work_struct *work)
 
 	/* codec detection */
 	if (!bus->codec_mask)
-		dev_info(bus->dev, "no hda codecs found!\n");
+		dev_info(bus->dev, "anal hda codecs found!\n");
 
 	/* create codec instances */
 	skl_codec_create(bus);
@@ -833,7 +833,7 @@ static void skl_probe_work(struct work_struct *work)
 		snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, false);
 
 	/* configure PM */
-	pm_runtime_put_noidle(bus->dev);
+	pm_runtime_put_analidle(bus->dev);
 	pm_runtime_allow(bus->dev);
 	skl->init_done = 1;
 
@@ -865,7 +865,7 @@ static int skl_create(struct pci_dev *pci,
 	skl = devm_kzalloc(&pci->dev, sizeof(*skl), GFP_KERNEL);
 	if (!skl) {
 		pci_disable_device(pci);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hbus = skl_to_hbus(skl);
@@ -916,8 +916,8 @@ static int skl_first_init(struct hdac_bus *bus)
 
 	/* check if PPCAP exists */
 	if (!bus->ppcap) {
-		dev_err(bus->dev, "bus ppcap not set, HDAudio or DSP not present?\n");
-		return -ENODEV;
+		dev_err(bus->dev, "bus ppcap analt set, HDAudio or DSP analt present?\n");
+		return -EANALDEV;
 	}
 
 	if (skl_acquire_irq(bus, 0) < 0)
@@ -934,7 +934,7 @@ static int skl_first_init(struct hdac_bus *bus)
 	pb_streams = (gcap >> 12) & 0x0f;
 
 	if (!pb_streams && !cp_streams) {
-		dev_err(bus->dev, "no streams found in GCAP definitions?\n");
+		dev_err(bus->dev, "anal streams found in GCAP definitions?\n");
 		return -EIO;
 	}
 
@@ -971,16 +971,16 @@ static int skl_probe(struct pci_dev *pci,
 		err = snd_intel_dsp_driver_probe(pci);
 		if (err != SND_INTEL_DSP_DRIVER_ANY &&
 		    err != SND_INTEL_DSP_DRIVER_SST)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	case SND_SKL_PCI_BIND_LEGACY:
 		dev_info(&pci->dev, "Module parameter forced binding with HDAudio legacy, aborting probe\n");
-		return -ENODEV;
+		return -EANALDEV;
 	case SND_SKL_PCI_BIND_ASOC:
 		dev_info(&pci->dev, "Module parameter forced binding with SKL driver, bypassed detection logic\n");
 		break;
 	default:
-		dev_err(&pci->dev, "invalid value for skl_pci_binding module parameter, ignored\n");
+		dev_err(&pci->dev, "invalid value for skl_pci_binding module parameter, iganalred\n");
 		break;
 	}
 
@@ -1005,11 +1005,11 @@ static int skl_probe(struct pci_dev *pci,
 
 	if (skl->nhlt == NULL) {
 #if !IS_ENABLED(CONFIG_SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC)
-		dev_err(bus->dev, "no nhlt info found\n");
-		err = -ENODEV;
+		dev_err(bus->dev, "anal nhlt info found\n");
+		err = -EANALDEV;
 		goto out_free;
 #else
-		dev_warn(bus->dev, "no nhlt info found, continuing to try to enable HDAudio codec\n");
+		dev_warn(bus->dev, "anal nhlt info found, continuing to try to enable HDAudio codec\n");
 #endif
 	} else {
 
@@ -1114,7 +1114,7 @@ static void skl_remove(struct pci_dev *pci)
 
 	cancel_work_sync(&skl->probe_work);
 
-	pm_runtime_get_noresume(&pci->dev);
+	pm_runtime_get_analresume(&pci->dev);
 
 	/* codec removal, invoke bus_device_remove */
 	snd_hdac_ext_bus_device_remove(bus);

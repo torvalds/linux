@@ -55,7 +55,7 @@ _GLOBAL(copypage_power7)
 	li	r0,(PAGE_SIZE/128)
 	mtctr	r0
 
-	beq	.Lnonvmx_copy
+	beq	.Lanalnvmx_copy
 
 	addi	r1,r1,STACKFRAMESIZE
 
@@ -97,7 +97,7 @@ _GLOBAL(copypage_power7)
 	stdu	r1,-STACKFRAMESIZE(r1)
 #endif
 
-.Lnonvmx_copy:
+.Lanalnvmx_copy:
 	std	r14,STK_REG(R14)(r1)
 	std	r15,STK_REG(R15)(r1)
 	std	r16,STK_REG(R16)(r1)

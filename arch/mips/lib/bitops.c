@@ -14,7 +14,7 @@
 
 /**
  * __mips_set_bit - Atomically set a bit in memory.  This is called by
- * set_bit() if it cannot find a faster solution.
+ * set_bit() if it cananalt find a faster solution.
  * @nr: the bit to set
  * @addr: the address to start counting from
  */
@@ -35,7 +35,7 @@ EXPORT_SYMBOL(__mips_set_bit);
 
 /**
  * __mips_clear_bit - Clears a bit in memory.  This is called by clear_bit() if
- * it cannot find a faster solution.
+ * it cananalt find a faster solution.
  * @nr: Bit to clear
  * @addr: Address to start counting from
  */
@@ -56,7 +56,7 @@ EXPORT_SYMBOL(__mips_clear_bit);
 
 /**
  * __mips_change_bit - Toggle a bit in memory.	This is called by change_bit()
- * if it cannot find a faster solution.
+ * if it cananalt find a faster solution.
  * @nr: Bit to change
  * @addr: Address to start counting from
  */
@@ -77,7 +77,7 @@ EXPORT_SYMBOL(__mips_change_bit);
 
 /**
  * __mips_test_and_set_bit_lock - Set a bit and return its old value.  This is
- * called by test_and_set_bit_lock() if it cannot find a faster solution.
+ * called by test_and_set_bit_lock() if it cananalt find a faster solution.
  * @nr: Bit to set
  * @addr: Address to count from
  */
@@ -102,7 +102,7 @@ EXPORT_SYMBOL(__mips_test_and_set_bit_lock);
 
 /**
  * __mips_test_and_clear_bit - Clear a bit and return its old value.  This is
- * called by test_and_clear_bit() if it cannot find a faster solution.
+ * called by test_and_clear_bit() if it cananalt find a faster solution.
  * @nr: Bit to clear
  * @addr: Address to count from
  */
@@ -126,7 +126,7 @@ EXPORT_SYMBOL(__mips_test_and_clear_bit);
 
 /**
  * __mips_test_and_change_bit - Change a bit and return its old value.	This is
- * called by test_and_change_bit() if it cannot find a faster solution.
+ * called by test_and_change_bit() if it cananalt find a faster solution.
  * @nr: Bit to change
  * @addr: Address to count from
  */

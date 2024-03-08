@@ -74,7 +74,7 @@ static const char * const sta_flag_names[] = {
 	FLAG(4ADDR_EVENT),
 	FLAG(INSERTED),
 	FLAG(RATE_CONTROL),
-	FLAG(TOFFSET_KNOWN),
+	FLAG(TOFFSET_KANALWN),
 	FLAG(MPSP_OWNER),
 	FLAG(MPSP_RECIPIENT),
 	FLAG(PS_DELIVER),
@@ -147,7 +147,7 @@ static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
 	int i;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_bh(&local->fq.lock);
 	rcu_read_lock();
@@ -157,7 +157,7 @@ static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
 		       "target %uus interval %uus ecn %s\n",
 		       codel_time_to_us(sta->cparams.target),
 		       codel_time_to_us(sta->cparams.interval),
-		       sta->cparams.ecn ? "yes" : "no");
+		       sta->cparams.ecn ? "anal" : "anal");
 	p += scnprintf(p,
 		       bufsz + buf - p,
 		       "tid ac backlog-bytes backlog-packets new-flows drops marks overlimit collisions tx-bytes tx-packets flags\n");
@@ -182,7 +182,7 @@ static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
 			       txqi->flags,
 			       test_bit(IEEE80211_TXQ_STOP, &txqi->flags) ? "STOP" : "RUN",
 			       test_bit(IEEE80211_TXQ_AMPDU, &txqi->flags) ? " AMPDU" : "",
-			       test_bit(IEEE80211_TXQ_NO_AMSDU, &txqi->flags) ? " NO-AMSDU" : "",
+			       test_bit(IEEE80211_TXQ_ANAL_AMSDU, &txqi->flags) ? " ANAL-AMSDU" : "",
 			       test_bit(IEEE80211_TXQ_DIRTY, &txqi->flags) ? " DIRTY" : "");
 	}
 
@@ -208,7 +208,7 @@ static ssize_t sta_airtime_read(struct file *file, char __user *userbuf,
 	int ac;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		spin_lock_bh(&local->active_txq_lock[ac]);
@@ -261,7 +261,7 @@ static ssize_t sta_aql_read(struct file *file, char __user *userbuf,
 	int ac;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		spin_lock_bh(&local->active_txq_lock[ac]);
@@ -363,7 +363,7 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 	ssize_t ret;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = wiphy_locked_debugfs_read(wiphy, file, buf, bufsz,
 					userbuf, count, ppos,
@@ -486,11 +486,11 @@ static ssize_t link_sta_ht_capa_read(struct file *file, char __user *userbuf,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	p = buf;
 
 	p += scnprintf(p, bufsz + buf - p, "ht %ssupported\n",
-			htc->ht_supported ? "" : "not ");
+			htc->ht_supported ? "" : "analt ");
 	if (htc->ht_supported) {
 		p += scnprintf(p, bufsz + buf - p, "cap: %#.4x\n", htc->cap);
 
@@ -507,7 +507,7 @@ static ssize_t link_sta_ht_capa_read(struct file *file, char __user *userbuf,
 		PRINT_HT_CAP((htc->cap & BIT(6)), "RX HT40 SGI");
 		PRINT_HT_CAP((htc->cap & BIT(7)), "TX STBC");
 
-		PRINT_HT_CAP(((htc->cap >> 8) & 0x3) == 0, "No RX STBC");
+		PRINT_HT_CAP(((htc->cap >> 8) & 0x3) == 0, "Anal RX STBC");
 		PRINT_HT_CAP(((htc->cap >> 8) & 0x3) == 1, "RX STBC 1-stream");
 		PRINT_HT_CAP(((htc->cap >> 8) & 0x3) == 2, "RX STBC 2-streams");
 		PRINT_HT_CAP(((htc->cap >> 8) & 0x3) == 3, "RX STBC 3-streams");
@@ -521,12 +521,12 @@ static ssize_t link_sta_ht_capa_read(struct file *file, char __user *userbuf,
 
 		/*
 		 * For beacons and probe response this would mean the BSS
-		 * does or does not allow the usage of DSSS/CCK HT40.
-		 * Otherwise it means the STA does or does not use
+		 * does or does analt allow the usage of DSSS/CCK HT40.
+		 * Otherwise it means the STA does or does analt use
 		 * DSSS/CCK HT40.
 		 */
 		PRINT_HT_CAP((htc->cap & BIT(12)), "DSSS/CCK HT40");
-		PRINT_HT_CAP(!(htc->cap & BIT(12)), "No DSSS/CCK HT40");
+		PRINT_HT_CAP(!(htc->cap & BIT(12)), "Anal DSSS/CCK HT40");
 
 		/* BIT(13) is reserved */
 
@@ -543,7 +543,7 @@ static ssize_t link_sta_ht_capa_read(struct file *file, char __user *userbuf,
 					htc->mcs.rx_mask[i]);
 		p += scnprintf(p, bufsz + buf - p, "\n");
 
-		/* If not set this is meaningless */
+		/* If analt set this is meaningless */
 		if (le16_to_cpu(htc->mcs.rx_highest)) {
 			p += scnprintf(p, bufsz + buf - p,
 				       "MCS rx highest: %d Mbps\n",
@@ -571,11 +571,11 @@ static ssize_t link_sta_vht_capa_read(struct file *file, char __user *userbuf,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	p = buf;
 
 	p += scnprintf(p, bufsz + buf - p, "VHT %ssupported\n",
-			vhtc->vht_supported ? "" : "not ");
+			vhtc->vht_supported ? "" : "analt ");
 	if (vhtc->vht_supported) {
 		p += scnprintf(p, bufsz + buf - p, "cap: %#.8x\n",
 			       vhtc->cap);
@@ -601,7 +601,7 @@ static ssize_t link_sta_vht_capa_read(struct file *file, char __user *userbuf,
 			break;
 		default:
 			p += scnprintf(p, bufsz + buf - p,
-				       "\t\tMAX-MPDU-UNKNOWN\n");
+				       "\t\tMAX-MPDU-UNKANALWN\n");
 		}
 		switch (vhtc->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) {
 		case 0:
@@ -618,7 +618,7 @@ static ssize_t link_sta_vht_capa_read(struct file *file, char __user *userbuf,
 			break;
 		default:
 			p += scnprintf(p, bufsz + buf - p,
-				       "\t\tUNKNOWN-MHZ: 0x%x\n",
+				       "\t\tUNKANALWN-MHZ: 0x%x\n",
 				       (vhtc->cap >> 2) & 0x3);
 		}
 		PFLAG(RXLDPC, "RXLDPC");
@@ -689,11 +689,11 @@ static ssize_t link_sta_he_capa_read(struct file *file, char __user *userbuf,
 
 	buf = kmalloc(buf_sz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	p = buf;
 
 	p += scnprintf(p, buf_sz + buf - p, "HE %ssupported\n",
-		       hec->has_he ? "" : "not ");
+		       hec->has_he ? "" : "analt ");
 	if (!hec->has_he)
 		goto out;
 
@@ -732,21 +732,21 @@ static ssize_t link_sta_he_capa_read(struct file *file, char __user *userbuf,
 	PFLAG(MAC, 0, TWT_REQ, "TWT-REQ");
 	PFLAG(MAC, 0, TWT_RES, "TWT-RES");
 	PFLAG_RANGE_DEFAULT(MAC, 0, DYNAMIC_FRAG, 0, 1, 0,
-			    "DYNAMIC-FRAG-LEVEL-%d", NOT_SUPP, "NOT-SUPP");
+			    "DYNAMIC-FRAG-LEVEL-%d", ANALT_SUPP, "ANALT-SUPP");
 	PFLAG_RANGE_DEFAULT(MAC, 0, MAX_NUM_FRAG_MSDU, 1, 0, 0,
 			    "MAX-NUM-FRAG-MSDU-%d", UNLIMITED, "UNLIMITED");
 
 	PFLAG_RANGE_DEFAULT(MAC, 1, MIN_FRAG_SIZE, 128, 0, -1,
 			    "MIN-FRAG-SIZE-%d", UNLIMITED, "UNLIMITED");
 	PFLAG_RANGE_DEFAULT(MAC, 1, TF_MAC_PAD_DUR, 0, 8, 0,
-			    "TF-MAC-PAD-DUR-%dUS", MASK, "UNKNOWN");
+			    "TF-MAC-PAD-DUR-%dUS", MASK, "UNKANALWN");
 	PFLAG_RANGE(MAC, 1, MULTI_TID_AGG_RX_QOS, 0, 1, 1,
 		    "MULTI-TID-AGG-RX-QOS-%d");
 
 	if (cap[0] & IEEE80211_HE_MAC_CAP0_HTC_HE) {
 		switch (((cap[2] << 1) | (cap[1] >> 7)) & 0x3) {
 		case 0:
-			PRINT("LINK-ADAPTATION-NO-FEEDBACK");
+			PRINT("LINK-ADAPTATION-ANAL-FEEDBACK");
 			break;
 		case 1:
 			PRINT("LINK-ADAPTATION-RESERVED");
@@ -859,8 +859,8 @@ static ssize_t link_sta_he_capa_read(struct file *file, char __user *userbuf,
 	PFLAG(PHY, 2, UL_MU_PARTIAL_MU_MIMO, "UL-MU-PARTIAL-MU-MIMO");
 
 	switch (cap[3] & IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_MASK) {
-	case IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_NO_DCM:
-		PRINT("DCM-MAX-CONST-TX-NO-DCM");
+	case IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_ANAL_DCM:
+		PRINT("DCM-MAX-CONST-TX-ANAL-DCM");
 		break;
 	case IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_BPSK:
 		PRINT("DCM-MAX-CONST-TX-BPSK");
@@ -877,8 +877,8 @@ static ssize_t link_sta_he_capa_read(struct file *file, char __user *userbuf,
 	PFLAG(PHY, 3, DCM_MAX_TX_NSS_2, "DCM-MAX-TX-NSS-2");
 
 	switch (cap[3] & IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_MASK) {
-	case IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_NO_DCM:
-		PRINT("DCM-MAX-CONST-RX-NO-DCM");
+	case IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_ANAL_DCM:
+		PRINT("DCM-MAX-CONST-RX-ANAL-DCM");
 		break;
 	case IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_BPSK:
 		PRINT("DCM-MAX-CONST-RX-BPSK");
@@ -959,27 +959,27 @@ static ssize_t link_sta_he_capa_read(struct file *file, char __user *userbuf,
 
 	PFLAG(PHY, 9, LONGER_THAN_16_SIGB_OFDM_SYM,
 	      "LONGER-THAN-16-SIGB-OFDM-SYM");
-	PFLAG(PHY, 9, NON_TRIGGERED_CQI_FEEDBACK,
-	      "NON-TRIGGERED-CQI-FEEDBACK");
+	PFLAG(PHY, 9, ANALN_TRIGGERED_CQI_FEEDBACK,
+	      "ANALN-TRIGGERED-CQI-FEEDBACK");
 	PFLAG(PHY, 9, TX_1024_QAM_LESS_THAN_242_TONE_RU,
 	      "TX-1024-QAM-LESS-THAN-242-TONE-RU");
 	PFLAG(PHY, 9, RX_1024_QAM_LESS_THAN_242_TONE_RU,
 	      "RX-1024-QAM-LESS-THAN-242-TONE-RU");
 	PFLAG(PHY, 9, RX_FULL_BW_SU_USING_MU_WITH_COMP_SIGB,
 	      "RX-FULL-BW-SU-USING-MU-WITH-COMP-SIGB");
-	PFLAG(PHY, 9, RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB,
-	      "RX-FULL-BW-SU-USING-MU-WITH-NON-COMP-SIGB");
+	PFLAG(PHY, 9, RX_FULL_BW_SU_USING_MU_WITH_ANALN_COMP_SIGB,
+	      "RX-FULL-BW-SU-USING-MU-WITH-ANALN-COMP-SIGB");
 
 	switch (u8_get_bits(cap[9],
-			    IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK)) {
-	case IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_0US:
-		PRINT("NOMINAL-PACKET-PADDING-0US");
+			    IEEE80211_HE_PHY_CAP9_ANALMINAL_PKT_PADDING_MASK)) {
+	case IEEE80211_HE_PHY_CAP9_ANALMINAL_PKT_PADDING_0US:
+		PRINT("ANALMINAL-PACKET-PADDING-0US");
 		break;
-	case IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_8US:
-		PRINT("NOMINAL-PACKET-PADDING-8US");
+	case IEEE80211_HE_PHY_CAP9_ANALMINAL_PKT_PADDING_8US:
+		PRINT("ANALMINAL-PACKET-PADDING-8US");
 		break;
-	case IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_16US:
-		PRINT("NOMINAL-PACKET-PADDING-16US");
+	case IEEE80211_HE_PHY_CAP9_ANALMINAL_PKT_PADDING_16US:
+		PRINT("ANALMINAL-PACKET-PADDING-16US");
 		break;
 	}
 
@@ -1004,7 +1004,7 @@ static ssize_t link_sta_he_capa_read(struct file *file, char __user *userbuf,
 				PRINT(n "-%d-SUPPORT-0-11", _i / 2);	\
 				break;					\
 			case 3:						\
-				PRINT(n "-%d-NOT-SUPPORTED", _i / 2);	\
+				PRINT(n "-%d-ANALT-SUPPORTED", _i / 2);	\
 				break;					\
 			}						\
 		}							\
@@ -1063,11 +1063,11 @@ static ssize_t link_sta_eht_capa_read(struct file *file, char __user *userbuf,
 
 	buf = kmalloc(buf_sz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	p = buf;
 
 	p += scnprintf(p, buf_sz + buf - p, "EHT %ssupported\n",
-		       bec->has_eht ? "" : "not ");
+		       bec->has_eht ? "" : "analt ");
 	if (!bec->has_eht)
 		goto out;
 
@@ -1143,22 +1143,22 @@ static ssize_t link_sta_eht_capa_read(struct file *file, char __user *userbuf,
 	PFLAG(PHY, 4, EHT_MU_PPDU_4_EHT_LTF_08_GI, "EHT-MU-PPDU-4-EHT-LTF-08-GI");
 	PRINT("MAX_NC: %i", cap[4] >> 4);
 
-	PFLAG(PHY, 5, NON_TRIG_CQI_FEEDBACK, "NON-TRIG-CQI-FEEDBACK");
+	PFLAG(PHY, 5, ANALN_TRIG_CQI_FEEDBACK, "ANALN-TRIG-CQI-FEEDBACK");
 	PFLAG(PHY, 5, TX_LESS_242_TONE_RU_SUPP, "TX-LESS-242-TONE-RU-SUPP");
 	PFLAG(PHY, 5, RX_LESS_242_TONE_RU_SUPP, "RX-LESS-242-TONE-RU-SUPP");
 	PFLAG(PHY, 5, PPE_THRESHOLD_PRESENT, "PPE_THRESHOLD_PRESENT");
 	switch (cap[5] >> 4 & 0x3) {
-	case IEEE80211_EHT_PHY_CAP5_COMMON_NOMINAL_PKT_PAD_0US:
-		PRINT("NOMINAL_PKT_PAD: 0us");
+	case IEEE80211_EHT_PHY_CAP5_COMMON_ANALMINAL_PKT_PAD_0US:
+		PRINT("ANALMINAL_PKT_PAD: 0us");
 		break;
-	case IEEE80211_EHT_PHY_CAP5_COMMON_NOMINAL_PKT_PAD_8US:
-		PRINT("NOMINAL_PKT_PAD: 8us");
+	case IEEE80211_EHT_PHY_CAP5_COMMON_ANALMINAL_PKT_PAD_8US:
+		PRINT("ANALMINAL_PKT_PAD: 8us");
 		break;
-	case IEEE80211_EHT_PHY_CAP5_COMMON_NOMINAL_PKT_PAD_16US:
-		PRINT("NOMINAL_PKT_PAD: 16us");
+	case IEEE80211_EHT_PHY_CAP5_COMMON_ANALMINAL_PKT_PAD_16US:
+		PRINT("ANALMINAL_PKT_PAD: 16us");
 		break;
-	case IEEE80211_EHT_PHY_CAP5_COMMON_NOMINAL_PKT_PAD_20US:
-		PRINT("NOMINAL_PKT_PAD: 20us");
+	case IEEE80211_EHT_PHY_CAP5_COMMON_ANALMINAL_PKT_PAD_20US:
+		PRINT("ANALMINAL_PKT_PAD: 20us");
 		break;
 	}
 	i = cap[5] >> 6;
@@ -1171,9 +1171,9 @@ static ssize_t link_sta_eht_capa_read(struct file *file, char __user *userbuf,
 	PFLAG(PHY, 6, EHT_DUP_6GHZ_SUPP, "EHT-DUP-6GHZ-SUPP");
 
 	PFLAG(PHY, 7, 20MHZ_STA_RX_NDP_WIDER_BW, "20MHZ-STA-RX-NDP-WIDER-BW");
-	PFLAG(PHY, 7, NON_OFDMA_UL_MU_MIMO_80MHZ, "NON-OFDMA-UL-MU-MIMO-80MHZ");
-	PFLAG(PHY, 7, NON_OFDMA_UL_MU_MIMO_160MHZ, "NON-OFDMA-UL-MU-MIMO-160MHZ");
-	PFLAG(PHY, 7, NON_OFDMA_UL_MU_MIMO_320MHZ, "NON-OFDMA-UL-MU-MIMO-320MHZ");
+	PFLAG(PHY, 7, ANALN_OFDMA_UL_MU_MIMO_80MHZ, "ANALN-OFDMA-UL-MU-MIMO-80MHZ");
+	PFLAG(PHY, 7, ANALN_OFDMA_UL_MU_MIMO_160MHZ, "ANALN-OFDMA-UL-MU-MIMO-160MHZ");
+	PFLAG(PHY, 7, ANALN_OFDMA_UL_MU_MIMO_320MHZ, "ANALN-OFDMA-UL-MU-MIMO-320MHZ");
 	PFLAG(PHY, 7, MU_BEAMFORMER_80MHZ, "MU-BEAMFORMER-80MHZ");
 	PFLAG(PHY, 7, MU_BEAMFORMER_160MHZ, "MU-BEAMFORMER-160MHZ");
 	PFLAG(PHY, 7, MU_BEAMFORMER_320MHZ, "MU-BEAMFORMER-320MHZ");
@@ -1256,7 +1256,7 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	 * remain, but it is already possible to link a new
 	 * station with the same address which triggers adding
 	 * it to debugfs; therefore, if the old station isn't
-	 * destroyed quickly enough the old station's debugfs
+	 * destroyed quickly eanalugh the old station's debugfs
 	 * dir might still be around.
 	 */
 	sta->debugfs_dir = debugfs_create_dir(mac, stations_dir);
@@ -1302,7 +1302,7 @@ void ieee80211_link_sta_debugfs_add(struct link_sta_info *link_sta)
 	if (WARN_ON(!link_sta->sta->debugfs_dir))
 		return;
 
-	/* For non-MLO, leave the files in the main directory. */
+	/* For analn-MLO, leave the files in the main directory. */
 	if (link_sta->sta->sta.valid_links) {
 		char link_dir_name[10];
 

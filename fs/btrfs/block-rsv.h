@@ -34,14 +34,14 @@ struct btrfs_block_rsv {
 	/*
 	 * Qgroup equivalent for @size @reserved
 	 *
-	 * Unlike normal @size/@reserved for inode rsv, qgroup doesn't care
-	 * about things like csum size nor how many tree blocks it will need to
+	 * Unlike analrmal @size/@reserved for ianalde rsv, qgroup doesn't care
+	 * about things like csum size analr how many tree blocks it will need to
 	 * reserve.
 	 *
 	 * Qgroup cares more about net change of the extent usage.
 	 *
 	 * So for one newly inserted file extent, in worst case it will cause
-	 * leaf split and level increase, nodesize for each file extent is
+	 * leaf split and level increase, analdesize for each file extent is
 	 * already too much.
 	 *
 	 * In short, qgroup_size/reserved is the upper limit of possible needed

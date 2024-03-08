@@ -17,9 +17,9 @@
  * @cmd: passed from the userspace program rebooting the system (if provided)
  *
  * Resets the SoC.  For @cmd, see the 'reboot' syscall in
- * kernel/sys.c.  No return value.
+ * kernel/sys.c.  Anal return value.
  *
- * NOTE: Warm reset does not seem to work, may require resetting
+ * ANALTE: Warm reset does analt seem to work, may require resetting
  * clocks to bypass mode.
  */
 void ti81xx_restart(enum reboot_mode mode, const char *cmd)

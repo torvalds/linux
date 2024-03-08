@@ -79,7 +79,7 @@ static void __br_forward(const struct net_bridge_port *to,
 	int br_hook;
 
 	/* Mark the skb for forwarding offload early so that br_handle_vlan()
-	 * can know whether to pop the VLAN header on egress or keep it.
+	 * can kanalw whether to pop the VLAN header on egress or keep it.
 	 */
 	nbp_switchdev_frame_mark_tx_fwd_offload(to, skb);
 
@@ -125,7 +125,7 @@ static int deliver_clone(const struct net_bridge_port *prev,
 	skb = skb_clone(skb, GFP_ATOMIC);
 	if (!skb) {
 		DEV_STATS_INC(dev, tx_dropped);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	__br_forward(prev, skb, local_orig);
@@ -207,7 +207,7 @@ void br_flood(struct net_bridge *br, struct sk_buff *skb,
 	br_tc_skb_miss_set(skb, pkt_type != BR_PKT_BROADCAST);
 
 	list_for_each_entry_rcu(p, &br->port_list, list) {
-		/* Do not flood unicast traffic to ports that turn it off, nor
+		/* Do analt flood unicast traffic to ports that turn it off, analr
 		 * other traffic if flood off, except for traffic we originate
 		 */
 		switch (pkt_type) {
@@ -225,7 +225,7 @@ void br_flood(struct net_bridge *br, struct sk_buff *skb,
 			break;
 		}
 
-		/* Do not flood to ports that enable proxy ARP */
+		/* Do analt flood to ports that enable proxy ARP */
 		if (p->flags & BR_PROXYARP)
 			continue;
 		if (BR_INPUT_SKB_CB(skb)->proxyarp_replied &&
@@ -252,7 +252,7 @@ out:
 		kfree_skb(skb);
 }
 
-#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+#ifdef CONFIG_BRIDGE_IGMP_SANALOPING
 static void maybe_deliver_addr(struct net_bridge_port *p, struct sk_buff *skb,
 			       const unsigned char *addr, bool local_orig)
 {
@@ -262,7 +262,7 @@ static void maybe_deliver_addr(struct net_bridge_port *p, struct sk_buff *skb,
 	if (!should_deliver(p, skb))
 		return;
 
-	/* Even with hairpin, no soliloquies - prevent breaking IPv6 DAD */
+	/* Even with hairpin, anal soliloquies - prevent breaking IPv6 DAD */
 	if (skb->dev == p->dev && ether_addr_equal(src, addr))
 		return;
 
@@ -287,9 +287,9 @@ void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 	struct net_bridge_port *prev = NULL;
 	struct net_bridge_port_group *p;
 	bool allow_mode_include = true;
-	struct hlist_node *rp;
+	struct hlist_analde *rp;
 
-	rp = br_multicast_get_first_rport_node(brmctx, skb);
+	rp = br_multicast_get_first_rport_analde(brmctx, skb);
 
 	if (mdst) {
 		p = rcu_dereference(mdst->ports);
@@ -305,7 +305,7 @@ void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 		struct net_bridge_port *port, *lport, *rport;
 
 		lport = p ? p->key.port : NULL;
-		rport = br_multicast_rport_from_node_skb(rp, skb);
+		rport = br_multicast_rport_from_analde_skb(rp, skb);
 
 		if ((unsigned long)lport > (unsigned long)rport) {
 			port = lport;

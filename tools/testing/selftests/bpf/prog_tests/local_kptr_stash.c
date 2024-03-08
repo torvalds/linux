@@ -20,9 +20,9 @@ static void test_local_kptr_stash_simple(void)
 	if (!ASSERT_OK_PTR(skel, "local_kptr_stash__open_and_load"))
 		return;
 
-	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.stash_rb_nodes), &opts);
-	ASSERT_OK(ret, "local_kptr_stash_add_nodes run");
-	ASSERT_OK(opts.retval, "local_kptr_stash_add_nodes retval");
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.stash_rb_analdes), &opts);
+	ASSERT_OK(ret, "local_kptr_stash_add_analdes run");
+	ASSERT_OK(opts.retval, "local_kptr_stash_add_analdes retval");
 
 	local_kptr_stash__destroy(skel);
 }
@@ -83,13 +83,13 @@ static void test_local_kptr_stash_unstash(void)
 	if (!ASSERT_OK_PTR(skel, "local_kptr_stash__open_and_load"))
 		return;
 
-	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.stash_rb_nodes), &opts);
-	ASSERT_OK(ret, "local_kptr_stash_add_nodes run");
-	ASSERT_OK(opts.retval, "local_kptr_stash_add_nodes retval");
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.stash_rb_analdes), &opts);
+	ASSERT_OK(ret, "local_kptr_stash_add_analdes run");
+	ASSERT_OK(opts.retval, "local_kptr_stash_add_analdes retval");
 
-	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.unstash_rb_node), &opts);
-	ASSERT_OK(ret, "local_kptr_stash_add_nodes run");
-	ASSERT_EQ(opts.retval, 42, "local_kptr_stash_add_nodes retval");
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.unstash_rb_analde), &opts);
+	ASSERT_OK(ret, "local_kptr_stash_add_analdes run");
+	ASSERT_EQ(opts.retval, 42, "local_kptr_stash_add_analdes retval");
 
 	local_kptr_stash__destroy(skel);
 }
@@ -113,9 +113,9 @@ static void test_refcount_acquire_without_unstash(void)
 	ASSERT_OK(ret, "refcount_acquire_without_unstash run");
 	ASSERT_EQ(opts.retval, 2, "refcount_acquire_without_unstash retval");
 
-	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.stash_refcounted_node), &opts);
-	ASSERT_OK(ret, "stash_refcounted_node run");
-	ASSERT_OK(opts.retval, "stash_refcounted_node retval");
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.stash_refcounted_analde), &opts);
+	ASSERT_OK(ret, "stash_refcounted_analde run");
+	ASSERT_OK(opts.retval, "stash_refcounted_analde retval");
 
 	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.refcount_acquire_without_unstash),
 				     &opts);

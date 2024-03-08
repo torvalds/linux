@@ -17,21 +17,21 @@ KernelVersion:	3.1
 Contact:	Kirill Smelkov <kirr@mns.spb.ru>
 Description:	Maximum time allowed for periodic transfers per microframe (μs)
 
-		Note:
+		Analte:
 		  USB 2.0 sets maximum allowed time for periodic transfers per
 		  microframe to be 80%, that is 100 microseconds out of 125
 		  microseconds (full microframe).
 
-		  However there are cases, when 80% max isochronous bandwidth is
+		  However there are cases, when 80% max isochroanalus bandwidth is
 		  too limiting. For example two video streams could require 110
-		  microseconds of isochronous bandwidth per microframe to work
+		  microseconds of isochroanalus bandwidth per microframe to work
 		  together.
 
 		Through this setting it is possible to raise the limit so that
 		the host controller would allow allocating more than 100
 		microseconds of periodic bandwidth per microframe.
 
-		Beware, non-standard modes are usually not thoroughly tested by
+		Beware, analn-standard modes are usually analt thoroughly tested by
 		hardware designers, and the hardware can malfunction when this
 		setting differ from default 100.
 
@@ -42,7 +42,7 @@ Contact:	Kay Sievers <kay.sievers@vrfy.org>
 Description:	Module size in bytes.
 
 What:		/sys/module/*/initstate
-Date:		Nov 2006
+Date:		Analv 2006
 KernelVersion:	2.6.19
 Contact:	Kay Sievers <kay.sievers@vrfy.org>
 Description:	Show the initialization state(live, coming, going) of
@@ -67,7 +67,7 @@ KernelVersion:	6.5 but backported to all supported stable branches
 Contact:	Xen developer discussion <xen-devel@lists.xenproject.org>
 Description:	Read and write number of grant entries to attempt to free per iteration.
 
-		Note: Future versions of Xen and Linux may provide a better
+		Analte: Future versions of Xen and Linux may provide a better
 		interface for controlling the rate of deferred grant reclaim
-		or may not need it at all.
+		or may analt need it at all.
 Users:		Qubes OS (https://www.qubes-os.org)

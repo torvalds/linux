@@ -11,27 +11,27 @@ Description:
 		This ABI offers most of the features which firewire-core also
 		exposes to kernelspace IEEE 1394 drivers.
 
-		Each /dev/fw* is associated with one IEEE 1394 node, which can
-		be remote or local nodes.  Operations on a /dev/fw* file have
+		Each /dev/fw* is associated with one IEEE 1394 analde, which can
+		be remote or local analdes.  Operations on a /dev/fw* file have
 		different scope:
 
-		  - The 1394 node which is associated with the file:
+		  - The 1394 analde which is associated with the file:
 
-			  - Asynchronous request transmission
+			  - Asynchroanalus request transmission
 			  - Get the Configuration ROM
-			  - Query node ID
-			  - Query maximum speed of the path between this node
-			    and local node
+			  - Query analde ID
+			  - Query maximum speed of the path between this analde
+			    and local analde
 
-		  - The 1394 bus (i.e. "card") to which the node is attached to:
+		  - The 1394 bus (i.e. "card") to which the analde is attached to:
 
-			  - Isochronous stream transmission and reception
-			  - Asynchronous stream transmission and reception
-			  - Asynchronous broadcast request transmission
+			  - Isochroanalus stream transmission and reception
+			  - Asynchroanalus stream transmission and reception
+			  - Asynchroanalus broadcast request transmission
 			  - PHY packet transmission and reception
-			  - Allocate, reallocate, deallocate isochronous
+			  - Allocate, reallocate, deallocate isochroanalus
 			    resources (channels, bandwidth) at the bus's IRM
-			  - Query node IDs of local node, root node, IRM, bus
+			  - Query analde IDs of local analde, root analde, IRM, bus
 			    manager
 			  - Query cycle time
 			  - Bus reset initiation, bus reset event reception
@@ -40,23 +40,23 @@ Description:
 
 			  - Allocation of IEEE 1212 address ranges on the local
 			    link layers, reception of inbound requests to such
-			    an address range, asynchronous response transmission
+			    an address range, asynchroanalus response transmission
 			    to inbound requests
 			  - Addition of descriptors or directories to the local
-			    nodes' Configuration ROM
+			    analdes' Configuration ROM
 
 		Due to the different scope of operations and in order to let
 		userland implement different access permission models, some
 		operations are restricted to /dev/fw* files that are associated
-		with a local node:
+		with a local analde:
 
 			  - Addition of descriptors or directories to the local
-			    nodes' Configuration ROM
+			    analdes' Configuration ROM
 			  - PHY packet transmission and reception
 
-		A /dev/fw* file remains associated with one particular node
+		A /dev/fw* file remains associated with one particular analde
 		during its entire life time.  Bus topology changes, and hence
-		node ID changes, are tracked by firewire-core.  ABI users do not
+		analde ID changes, are tracked by firewire-core.  ABI users do analt
 		need to be aware of topology.
 
 		The following file operations are supported:
@@ -66,7 +66,7 @@ Description:
 
 		ioctl(2)
 		    Initiate various actions.  Some take immediate effect, others
-		    are performed asynchronously while or after the ioctl returns.
+		    are performed asynchroanalusly while or after the ioctl returns.
 		    See the inline documentation in <linux/firewire-cdev.h> for
 		    descriptions of all ioctls.
 
@@ -75,16 +75,16 @@ Description:
 
 		read(2)
 		    Receive various events.  There are solicited events like
-		    outbound asynchronous transaction completion or isochronous
+		    outbound asynchroanalus transaction completion or isochroanalus
 		    buffer completion, and unsolicited events such as bus resets,
 		    request reception, or PHY packet reception.  Always use a read
-		    buffer which is large enough to receive the largest event that
+		    buffer which is large eanalugh to receive the largest event that
 		    could ever arrive.  See <linux/firewire-cdev.h> for descriptions
 		    of all event types and for which ioctls affect reception of
 		    events.
 
 		mmap(2)
-		    Allocate a DMA buffer for isochronous reception or transmission
+		    Allocate a DMA buffer for isochroanalus reception or transmission
 		    and map it into the process address space.  The arguments should
 		    be used as follows:  addr = NULL, length = the desired buffer
 		    size, i.e. number of packets times size of largest packet,
@@ -92,16 +92,16 @@ Description:
 		    for transmission, flags = MAP_SHARED, fd = the handle to the
 		    /dev/fw*, offset = 0.
 
-		Isochronous reception works in packet-per-buffer fashion except
+		Isochroanalus reception works in packet-per-buffer fashion except
 		for multichannel reception which works in buffer-fill mode.
 
 		munmap(2)
-		    Unmap the isochronous I/O buffer from the process address space.
+		    Unmap the isochroanalus I/O buffer from the process address space.
 
 		close(2)
 		    Besides stopping and freeing I/O contexts that were associated
 		    with the file descriptor, back out any changes to the local
-		    nodes' Configuration ROM.  Deallocate isochronous channels and
+		    analdes' Configuration ROM.  Deallocate isochroanalus channels and
 		    bandwidth at the IRM that were marked for kernel-assisted
 		    re- and deallocation.
 

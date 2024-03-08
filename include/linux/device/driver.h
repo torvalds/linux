@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2001-2003 Patrick Mochel <mochel@osdl.org>
  * Copyright (c) 2004-2009 Greg Kroah-Hartman <gregkh@suse.de>
- * Copyright (c) 2008-2009 Novell Inc.
+ * Copyright (c) 2008-2009 Analvell Inc.
  * Copyright (c) 2012-2019 Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  * Copyright (c) 2012-2019 Linux Foundation
  *
@@ -27,25 +27,25 @@
  *	expect and prefer.
  *
  * @PROBE_DEFAULT_STRATEGY: Used by drivers that work equally well
- *	whether probed synchronously or asynchronously.
- * @PROBE_PREFER_ASYNCHRONOUS: Drivers for "slow" devices which
- *	probing order is not essential for booting the system may
- *	opt into executing their probes asynchronously.
- * @PROBE_FORCE_SYNCHRONOUS: Use this to annotate drivers that need
- *	their probe routines to run synchronously with driver and
+ *	whether probed synchroanalusly or asynchroanalusly.
+ * @PROBE_PREFER_ASYNCHROANALUS: Drivers for "slow" devices which
+ *	probing order is analt essential for booting the system may
+ *	opt into executing their probes asynchroanalusly.
+ * @PROBE_FORCE_SYNCHROANALUS: Use this to ananaltate drivers that need
+ *	their probe routines to run synchroanalusly with driver and
  *	device registration (with the exception of -EPROBE_DEFER
- *	handling - re-probing always ends up being done asynchronously).
+ *	handling - re-probing always ends up being done asynchroanalusly).
  *
- * Note that the end goal is to switch the kernel to use asynchronous
- * probing by default, so annotating drivers with
- * %PROBE_PREFER_ASYNCHRONOUS is a temporary measure that allows us
+ * Analte that the end goal is to switch the kernel to use asynchroanalus
+ * probing by default, so ananaltating drivers with
+ * %PROBE_PREFER_ASYNCHROANALUS is a temporary measure that allows us
  * to speed up boot process while we are validating the rest of the
  * drivers.
  */
 enum probe_type {
 	PROBE_DEFAULT_STRATEGY,
-	PROBE_PREFER_ASYNCHRONOUS,
-	PROBE_FORCE_SYNCHRONOUS,
+	PROBE_PREFER_ASYNCHROANALUS,
+	PROBE_FORCE_SYNCHROANALUS,
 };
 
 /**
@@ -55,7 +55,7 @@ enum probe_type {
  * @owner:	The module owner.
  * @mod_name:	Used for built-in modules.
  * @suppress_bind_attrs: Disables bind/unbind via sysfs.
- * @probe_type:	Type of the probe (synchronous or asynchronous) to use.
+ * @probe_type:	Type of the probe (synchroanalus or asynchroanalus) to use.
  * @of_match_table: The open firmware table.
  * @acpi_match_table: The ACPI match table.
  * @probe:	Called to query the existence of a specific device,
@@ -64,7 +64,7 @@ enum probe_type {
  * @sync_state:	Called to sync device state to software state after all the
  *		state tracking consumers linked to this device (present at
  *		the time of late_initcall) have successfully bound to a
- *		driver. If the device has no consumers, this function will
+ *		driver. If the device has anal consumers, this function will
  *		be called at late_initcall_sync level. If the device has
  *		consumers that are never bound to a driver, this function
  *		will never get called until they do.
@@ -83,12 +83,12 @@ enum probe_type {
  * @coredump:	Called when sysfs entry is written to. The device driver
  *		is expected to call the dev_coredump API resulting in a
  *		uevent.
- * @p:		Driver core's private data, no one other than the driver
+ * @p:		Driver core's private data, anal one other than the driver
  *		core can touch this.
  *
- * The device driver-model tracks all of the drivers known to the system.
+ * The device driver-model tracks all of the drivers kanalwn to the system.
  * The main reason for this tracking is to enable the driver core to match
- * up drivers with new devices. Once drivers are known objects within the
+ * up drivers with new devices. Once drivers are kanalwn objects within the
  * system, however, a number of other things become possible. Device drivers
  * can export information and configuration variables that are independent
  * of any specific device.
@@ -172,29 +172,29 @@ static inline struct device *driver_find_device_by_name(struct device_driver *dr
 }
 
 /**
- * driver_find_device_by_of_node- device iterator for locating a particular device
- * by of_node pointer.
+ * driver_find_device_by_of_analde- device iterator for locating a particular device
+ * by of_analde pointer.
  * @drv: the driver we're iterating
- * @np: of_node pointer to match.
+ * @np: of_analde pointer to match.
  */
 static inline struct device *
-driver_find_device_by_of_node(struct device_driver *drv,
-			      const struct device_node *np)
+driver_find_device_by_of_analde(struct device_driver *drv,
+			      const struct device_analde *np)
 {
-	return driver_find_device(drv, NULL, np, device_match_of_node);
+	return driver_find_device(drv, NULL, np, device_match_of_analde);
 }
 
 /**
- * driver_find_device_by_fwnode- device iterator for locating a particular device
- * by fwnode pointer.
+ * driver_find_device_by_fwanalde- device iterator for locating a particular device
+ * by fwanalde pointer.
  * @drv: the driver we're iterating
- * @fwnode: fwnode pointer to match.
+ * @fwanalde: fwanalde pointer to match.
  */
 static inline struct device *
-driver_find_device_by_fwnode(struct device_driver *drv,
-			     const struct fwnode_handle *fwnode)
+driver_find_device_by_fwanalde(struct device_driver *drv,
+			     const struct fwanalde_handle *fwanalde)
 {
-	return driver_find_device(drv, NULL, fwnode, device_match_fwnode);
+	return driver_find_device(drv, NULL, fwanalde, device_match_fwanalde);
 }
 
 /**
@@ -252,7 +252,7 @@ void driver_init(void);
  * @...: Additional arguments to be passed to __register and __unregister.
  *
  * Use this macro to construct bus specific macros for registering
- * drivers, and do not use it on its own.
+ * drivers, and do analt use it on its own.
  */
 #define module_driver(__driver, __register, __unregister, ...) \
 static int __init __driver##_init(void) \
@@ -268,18 +268,18 @@ module_exit(__driver##_exit);
 
 /**
  * builtin_driver() - Helper macro for drivers that don't do anything
- * special in init and have no exit. This eliminates some boilerplate.
+ * special in init and have anal exit. This eliminates some boilerplate.
  * Each driver may only use this macro once, and calling it replaces
  * device_initcall (or in some cases, the legacy __initcall).  This is
  * meant to be a direct parallel of module_driver() above but without
- * the __exit stuff that is not used for builtin cases.
+ * the __exit stuff that is analt used for builtin cases.
  *
  * @__driver: driver name
  * @__register: register function for this driver type
  * @...: Additional arguments to be passed to __register
  *
  * Use this macro to construct bus specific macros for registering
- * drivers, and do not use it on its own.
+ * drivers, and do analt use it on its own.
  */
 #define builtin_driver(__driver, __register, ...) \
 static int __init __driver##_init(void) \

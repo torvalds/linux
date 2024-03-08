@@ -2,33 +2,33 @@
 #ifndef _BCACHEFS_FS_IOCTL_H
 #define _BCACHEFS_FS_IOCTL_H
 
-/* Inode flags: */
+/* Ianalde flags: */
 
-/* bcachefs inode flags -> vfs inode flags: */
+/* bcachefs ianalde flags -> vfs ianalde flags: */
 static const __maybe_unused unsigned bch_flags_to_vfs[] = {
-	[__BCH_INODE_sync]	= S_SYNC,
-	[__BCH_INODE_immutable]	= S_IMMUTABLE,
-	[__BCH_INODE_append]	= S_APPEND,
-	[__BCH_INODE_noatime]	= S_NOATIME,
+	[__BCH_IANALDE_sync]	= S_SYNC,
+	[__BCH_IANALDE_immutable]	= S_IMMUTABLE,
+	[__BCH_IANALDE_append]	= S_APPEND,
+	[__BCH_IANALDE_analatime]	= S_ANALATIME,
 };
 
-/* bcachefs inode flags -> FS_IOC_GETFLAGS: */
+/* bcachefs ianalde flags -> FS_IOC_GETFLAGS: */
 static const __maybe_unused unsigned bch_flags_to_uflags[] = {
-	[__BCH_INODE_sync]	= FS_SYNC_FL,
-	[__BCH_INODE_immutable]	= FS_IMMUTABLE_FL,
-	[__BCH_INODE_append]	= FS_APPEND_FL,
-	[__BCH_INODE_nodump]	= FS_NODUMP_FL,
-	[__BCH_INODE_noatime]	= FS_NOATIME_FL,
+	[__BCH_IANALDE_sync]	= FS_SYNC_FL,
+	[__BCH_IANALDE_immutable]	= FS_IMMUTABLE_FL,
+	[__BCH_IANALDE_append]	= FS_APPEND_FL,
+	[__BCH_IANALDE_analdump]	= FS_ANALDUMP_FL,
+	[__BCH_IANALDE_analatime]	= FS_ANALATIME_FL,
 };
 
-/* bcachefs inode flags -> FS_IOC_FSGETXATTR: */
+/* bcachefs ianalde flags -> FS_IOC_FSGETXATTR: */
 static const __maybe_unused unsigned bch_flags_to_xflags[] = {
-	[__BCH_INODE_sync]	= FS_XFLAG_SYNC,
-	[__BCH_INODE_immutable]	= FS_XFLAG_IMMUTABLE,
-	[__BCH_INODE_append]	= FS_XFLAG_APPEND,
-	[__BCH_INODE_nodump]	= FS_XFLAG_NODUMP,
-	[__BCH_INODE_noatime]	= FS_XFLAG_NOATIME,
-	//[__BCH_INODE_PROJINHERIT] = FS_XFLAG_PROJINHERIT;
+	[__BCH_IANALDE_sync]	= FS_XFLAG_SYNC,
+	[__BCH_IANALDE_immutable]	= FS_XFLAG_IMMUTABLE,
+	[__BCH_IANALDE_append]	= FS_XFLAG_APPEND,
+	[__BCH_IANALDE_analdump]	= FS_XFLAG_ANALDUMP,
+	[__BCH_IANALDE_analatime]	= FS_XFLAG_ANALATIME,
+	//[__BCH_IANALDE_PROJINHERIT] = FS_XFLAG_PROJINHERIT;
 };
 
 #define set_flags(_map, _in, _out)					\
@@ -69,10 +69,10 @@ do {									\
 	map_flags_rev(_map, _in);					\
 })
 
-/* Set VFS inode flags from bcachefs inode: */
-static inline void bch2_inode_flags_to_vfs(struct bch_inode_info *inode)
+/* Set VFS ianalde flags from bcachefs ianalde: */
+static inline void bch2_ianalde_flags_to_vfs(struct bch_ianalde_info *ianalde)
 {
-	set_flags(bch_flags_to_vfs, inode->ei_inode.bi_flags, inode->v.i_flags);
+	set_flags(bch_flags_to_vfs, ianalde->ei_ianalde.bi_flags, ianalde->v.i_flags);
 }
 
 long bch2_fs_file_ioctl(struct file *, unsigned, unsigned long);

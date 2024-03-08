@@ -217,14 +217,14 @@ static ssize_t show_mode(struct device *dev,
 	switch (data->mode) {
 	case REGULATOR_MODE_FAST:
 		return sprintf(buf, "fast\n");
-	case REGULATOR_MODE_NORMAL:
-		return sprintf(buf, "normal\n");
+	case REGULATOR_MODE_ANALRMAL:
+		return sprintf(buf, "analrmal\n");
 	case REGULATOR_MODE_IDLE:
 		return sprintf(buf, "idle\n");
 	case REGULATOR_MODE_STANDBY:
 		return sprintf(buf, "standby\n");
 	default:
-		return sprintf(buf, "unknown\n");
+		return sprintf(buf, "unkanalwn\n");
 	}
 }
 
@@ -241,8 +241,8 @@ static ssize_t set_mode(struct device *dev, struct device_attribute *attr,
 	 */
 	if (sysfs_streq(buf, "fast\n"))
 		mode = REGULATOR_MODE_FAST;
-	else if (sysfs_streq(buf, "normal\n"))
-		mode = REGULATOR_MODE_NORMAL;
+	else if (sysfs_streq(buf, "analrmal\n"))
+		mode = REGULATOR_MODE_ANALRMAL;
 	else if (sysfs_streq(buf, "idle\n"))
 		mode = REGULATOR_MODE_IDLE;
 	else if (sysfs_streq(buf, "standby\n"))
@@ -300,26 +300,26 @@ static int regulator_virtual_probe(struct platform_device *pdev)
 	if (!warned) {
 		warned = true;
 		pr_warn("**********************************************************\n");
-		pr_warn("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
+		pr_warn("**   ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE   **\n");
 		pr_warn("**                                                      **\n");
 		pr_warn("** regulator-virtual-consumer is only for testing and   **\n");
-		pr_warn("** debugging.  Do not use it in a production kernel.    **\n");
+		pr_warn("** debugging.  Do analt use it in a production kernel.    **\n");
 		pr_warn("**                                                      **\n");
-		pr_warn("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
+		pr_warn("**   ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE   **\n");
 		pr_warn("**********************************************************\n");
 	}
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct virtual_consumer_data),
 			       GFP_KERNEL);
 	if (drvdata == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * This virtual consumer does not have any hardware-defined supply
+	 * This virtual consumer does analt have any hardware-defined supply
 	 * name, so just allow the regulator to be specified in a property
 	 * named "default-supply" when we're being probed from devicetree.
 	 */
-	if (!reg_id && pdev->dev.of_node)
+	if (!reg_id && pdev->dev.of_analde)
 		reg_id = "default";
 
 	mutex_init(&drvdata->lock);
@@ -360,7 +360,7 @@ static struct platform_driver regulator_virtual_consumer_driver = {
 	.remove_new	= regulator_virtual_remove,
 	.driver		= {
 		.name		= "reg-virt-consumer",
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(regulator_virtual_consumer_of_match),
 	},
 };

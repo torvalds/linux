@@ -9,9 +9,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -51,19 +51,19 @@ void baswap(bdaddr_t *dst, const bdaddr_t *src)
 EXPORT_SYMBOL(baswap);
 
 /**
- * bt_to_errno() - Bluetooth error codes to standard errno
+ * bt_to_erranal() - Bluetooth error codes to standard erranal
  * @code: Bluetooth error code to be converted
  *
  * This function takes a Bluetooth error code as input and convets
- * it to an equivalent Unix/standard errno value.
+ * it to an equivalent Unix/standard erranal value.
  *
  * Return:
  *
- * If the bt error code is known, an equivalent Unix errno value
+ * If the bt error code is kanalwn, an equivalent Unix erranal value
  * is returned.
- * If the given bt error code is not known, ENOSYS is returned.
+ * If the given bt error code is analt kanalwn, EANALSYS is returned.
  */
-int bt_to_errno(__u16 code)
+int bt_to_erranal(__u16 code)
 {
 	switch (code) {
 	case 0:
@@ -73,7 +73,7 @@ int bt_to_errno(__u16 code)
 		return EBADRQC;
 
 	case 0x02:
-		return ENOTCONN;
+		return EANALTCONN;
 
 	case 0x03:
 		return EIO;
@@ -89,7 +89,7 @@ int bt_to_errno(__u16 code)
 		return EBADE;
 
 	case 0x07:
-		return ENOMEM;
+		return EANALMEM;
 
 	case 0x08:
 		return ETIMEDOUT;
@@ -118,7 +118,7 @@ int bt_to_errno(__u16 code)
 	case 0x27:
 	case 0x29:
 	case 0x20:
-		return EOPNOTSUPP;
+		return EOPANALTSUPP;
 
 	case 0x12:
 		return EINVAL;
@@ -138,7 +138,7 @@ int bt_to_errno(__u16 code)
 		return EACCES;
 
 	case 0x1a:
-		return EPROTONOSUPPORT;
+		return EPROTOANALSUPPORT;
 
 	case 0x1b:
 		return ECONNREFUSED;
@@ -151,23 +151,23 @@ int bt_to_errno(__u16 code)
 		return EPROTO;
 
 	default:
-		return ENOSYS;
+		return EANALSYS;
 	}
 }
-EXPORT_SYMBOL(bt_to_errno);
+EXPORT_SYMBOL(bt_to_erranal);
 
 /**
- * bt_status() - Standard errno value to Bluetooth error code
- * @err: Unix/standard errno value to be converted
+ * bt_status() - Standard erranal value to Bluetooth error code
+ * @err: Unix/standard erranal value to be converted
  *
- * This function converts a standard/Unix errno value to an
+ * This function converts a standard/Unix erranal value to an
  * equivalent Bluetooth error code.
  *
  * Return: Bluetooth error code.
  *
- * If the given errno is not found, 0x1f is returned by default
+ * If the given erranal is analt found, 0x1f is returned by default
  * which indicates an unspecified error.
- * For err >= 0, no conversion is performed, and the same value
+ * For err >= 0, anal conversion is performed, and the same value
  * is immediately returned.
  */
 __u8 bt_status(int err)
@@ -179,7 +179,7 @@ __u8 bt_status(int err)
 	case -EBADRQC:
 		return 0x01;
 
-	case -ENOTCONN:
+	case -EANALTCONN:
 		return 0x02;
 
 	case -EIO:
@@ -194,7 +194,7 @@ __u8 bt_status(int err)
 	case -EBADE:
 		return 0x06;
 
-	case -ENOMEM:
+	case -EANALMEM:
 		return 0x07;
 
 	case -ETIMEDOUT:
@@ -212,7 +212,7 @@ __u8 bt_status(int err)
 	case -ECONNREFUSED:
 		return 0x0d;
 
-	case -EOPNOTSUPP:
+	case -EOPANALTSUPP:
 		return 0x11;
 
 	case -EINVAL:
@@ -227,7 +227,7 @@ __u8 bt_status(int err)
 	case -ELOOP:
 		return 0x17;
 
-	case -EPROTONOSUPPORT:
+	case -EPROTOANALSUPPORT:
 		return 0x1a;
 
 	case -EPROTO:

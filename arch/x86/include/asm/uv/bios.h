@@ -49,7 +49,7 @@ enum uv_bios_cmd {
 enum {
 	BIOS_STATUS_MORE_PASSES		=  1,
 	BIOS_STATUS_SUCCESS		=  0,
-	BIOS_STATUS_UNIMPLEMENTED	= -ENOSYS,
+	BIOS_STATUS_UNIMPLEMENTED	= -EANALSYS,
 	BIOS_STATUS_EINVAL		= -EINVAL,
 	BIOS_STATUS_UNAVAIL		= -EBUSY,
 	BIOS_STATUS_ABORT		= -EINTR,
@@ -59,16 +59,16 @@ enum {
 struct uv_gam_parameters {
 	u64	mmr_base;
 	u64	gru_base;
-	u8	mmr_shift;	/* Convert PNode to MMR space offset */
-	u8	gru_shift;	/* Convert PNode to GRU space offset */
+	u8	mmr_shift;	/* Convert PAnalde to MMR space offset */
+	u8	gru_shift;	/* Convert PAnalde to GRU space offset */
 	u8	gpa_shift;	/* Size of offset field in GRU phys addr */
 	u8	unused1;
 };
 
 /* UV_TABLE_GAM_RANGE_ENTRY values */
 #define UV_GAM_RANGE_TYPE_UNUSED	0 /* End of table */
-#define UV_GAM_RANGE_TYPE_RAM		1 /* Normal RAM */
-#define UV_GAM_RANGE_TYPE_NVRAM		2 /* Non-volatile memory */
+#define UV_GAM_RANGE_TYPE_RAM		1 /* Analrmal RAM */
+#define UV_GAM_RANGE_TYPE_NVRAM		2 /* Analn-volatile memory */
 #define UV_GAM_RANGE_TYPE_NV_WINDOW	3 /* NVMDIMM block window */
 #define UV_GAM_RANGE_TYPE_NV_MAILBOX	4 /* NVMDIMM mailbox */
 #define UV_GAM_RANGE_TYPE_HOLE		5 /* Unused address range */
@@ -82,7 +82,7 @@ struct uv_gam_range_entry {
 	char	unused1;
 	u16	nasid;		/* HNasid */
 	u16	sockid;		/* Socket ID, high bits of APIC ID */
-	u16	pnode;		/* Index to MMR and GRU spaces */
+	u16	panalde;		/* Index to MMR and GRU spaces */
 	u32	unused2;
 	u32	limit;		/* PA bits 56:26 (UV_GAM_RANGE_SHFT) */
 };

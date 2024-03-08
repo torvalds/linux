@@ -4,7 +4,7 @@
  *
  * Copyright 2008-12 Wolfson Microelectronics PLC.
  *
- * Notes:
+ * Analtes:
  *  The WM8580 is a multichannel codec with S/PDIF support, featuring six
  *  DAC channels and two ADC channels.
  *
@@ -12,7 +12,7 @@
  *  DAC channels and two ADC channels.
  *
  *  Currently only the primary audio interface is supported - S/PDIF and
- *  the secondary audio interfaces are not.
+ *  the secondary audio interfaces are analt.
  */
 
 #include <linux/mod_devicetable.h>
@@ -274,7 +274,7 @@ static int wm8580_out_vu(struct snd_kcontrol *kcontrol,
 	if (ret < 0)
 		return ret;
 
-	/* Now write again with the volume update bit set */
+	/* Analw write again with the volume update bit set */
 	snd_soc_component_update_bits(component, reg, 0x100, 0x100);
 	snd_soc_component_update_bits(component, reg2, 0x100, 0x100);
 
@@ -486,7 +486,7 @@ static int wm8580_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 		pwr_mask = WM8580_PWRDN2_PLLBPD;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (freq_in && freq_out) {
@@ -498,7 +498,7 @@ static int wm8580_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	state->in = freq_in;
 	state->out = freq_out;
 
-	/* Always disable the PLL - it is not safe to leave it running
+	/* Always disable the PLL - it is analt safe to leave it running
 	 * while reprogramming it.
 	 */
 	snd_soc_component_update_bits(component, WM8580_PWRDN2, pwr_mask, pwr_mask);
@@ -719,7 +719,7 @@ static int wm8580_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 		reg &= ~WM8580_PLLB4_CLKOUTSRC_MASK;
 
 		switch (div) {
-		case WM8580_CLKSRC_NONE:
+		case WM8580_CLKSRC_ANALNE:
 			break;
 
 		case WM8580_CLKSRC_PLLA:
@@ -766,7 +766,7 @@ static int wm8580_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		break;
 
 	default:
-		WARN(1, "Unknown DAI driver ID\n");
+		WARN(1, "Unkanalwn DAI driver ID\n");
 		return -EINVAL;
 	}
 
@@ -786,11 +786,11 @@ static int wm8580_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		sel = 3 << sel_shift;
 		break;
 	default:
-		dev_err(component->dev, "Unknown clock %d\n", clk_id);
+		dev_err(component->dev, "Unkanalwn clock %d\n", clk_id);
 		return -EINVAL;
 	}
 
-	/* We really should validate PLL settings but not yet */
+	/* We really should validate PLL settings but analt yet */
 	wm8580->sysclk[dai->driver->id] = freq;
 
 	ret = snd_soc_component_update_bits(component, WM8580_CLKSEL, sel_mask, sel);
@@ -867,7 +867,7 @@ static const struct snd_soc_dai_ops wm8580_dai_ops_playback = {
 	.set_clkdiv	= wm8580_set_dai_clkdiv,
 	.set_pll	= wm8580_set_dai_pll,
 	.mute_stream	= wm8580_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops wm8580_dai_ops_capture = {
@@ -930,7 +930,7 @@ static int wm8580_probe(struct snd_soc_component *component)
 		goto err_regulator_get;
 	}
 
-	/* Get the codec into a known state */
+	/* Get the codec into a kanalwn state */
 	ret = snd_soc_component_write(component, WM8580_RESET, 0);
 	if (ret != 0) {
 		dev_err(component->dev, "Failed to reset component: %d\n", ret);
@@ -996,7 +996,7 @@ static int wm8580_i2c_probe(struct i2c_client *i2c)
 	wm8580 = devm_kzalloc(&i2c->dev, sizeof(struct wm8580_priv),
 			      GFP_KERNEL);
 	if (wm8580 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8580->regmap = devm_regmap_init_i2c(i2c, &wm8580_regmap);
 	if (IS_ERR(wm8580->regmap))

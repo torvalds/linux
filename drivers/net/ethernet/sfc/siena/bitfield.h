@@ -12,7 +12,7 @@
  * Efx bitfield access
  *
  * Efx NICs make extensive use of bitfields up to 128 bits
- * wide.  Since there is no native 128-bit datatype on most systems,
+ * wide.  Since there is anal native 128-bit datatype on most systems,
  * and since 64-bit datatypes are inefficient on 32-bit systems and
  * vice versa, we wrap accesses in a way that uses the most efficient
  * datatype.

@@ -3,7 +3,7 @@
  * Copyright 2009 Freescale Semiconductor, Inc.
  *
  * provides masks and opcode images for use by code generation, emulation
- * and for instructions that older assemblers might not know about
+ * and for instructions that older assemblers might analt kanalw about
  */
 #ifndef _ASM_POWERPC_PPC_OPCODE_H
 #define _ASM_POWERPC_PPC_OPCODE_H
@@ -118,7 +118,7 @@
 
 /*
  * 16-bit immediate helper macros: HA() is for use with sign-extending instrs
- * (e.g. LD, ADDI).  If the bottom 16 bits is "-ve", add another bit into the
+ * (e.g. LD, ADDI).  If the bottom 16 bits is "-ve", add aanalther bit into the
  * top half to negate the effect (i.e. 0xffff + 1 = 0x(1)0000).
  *
  * XXX: should these mask out possible sign bits?
@@ -488,7 +488,7 @@
 #define PPC_RAW_ADD_DOT(t, a, b)	(0x7c000214 | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b) | 0x1)
 #define PPC_RAW_ADDC(t, a, b)		(0x7c000014 | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b))
 #define PPC_RAW_ADDC_DOT(t, a, b)	(0x7c000014 | ___PPC_RT(t) | ___PPC_RA(a) | ___PPC_RB(b) | 0x1)
-#define PPC_RAW_NOP()			PPC_RAW_ORI(0, 0, 0)
+#define PPC_RAW_ANALP()			PPC_RAW_ORI(0, 0, 0)
 #define PPC_RAW_BLR()			(0x4e800020)
 #define PPC_RAW_BLRL()			(0x4e800021)
 #define PPC_RAW_MTLR(r)			(0x7c0803a6 | ___PPC_RT(r))
@@ -546,7 +546,7 @@
 #define PPC_RAW_MR(d, a)		PPC_RAW_OR(d, a, a)
 #define PPC_RAW_ORI(d, a, i)		(0x60000000 | ___PPC_RA(d) | ___PPC_RS(a) | IMM_L(i))
 #define PPC_RAW_ORIS(d, a, i)		(0x64000000 | ___PPC_RA(d) | ___PPC_RS(a) | IMM_L(i))
-#define PPC_RAW_NOR(d, a, b)		(0x7c0000f8 | ___PPC_RA(d) | ___PPC_RS(a) | ___PPC_RB(b))
+#define PPC_RAW_ANALR(d, a, b)		(0x7c0000f8 | ___PPC_RA(d) | ___PPC_RS(a) | ___PPC_RB(b))
 #define PPC_RAW_XOR(d, a, b)		(0x7c000278 | ___PPC_RA(d) | ___PPC_RS(a) | ___PPC_RB(b))
 #define PPC_RAW_XORI(d, a, i)		(0x68000000 | ___PPC_RA(d) | ___PPC_RS(a) | IMM_L(i))
 #define PPC_RAW_XORIS(d, a, i)		(0x6c000000 | ___PPC_RA(d) | ___PPC_RS(a) | IMM_L(i))
@@ -687,7 +687,7 @@
 /*
  * These may only be used on ISA v3.0 or later (aka. CPU_FTR_ARCH_300, radix
  * implies CPU_FTR_ARCH_300). USER/GUEST invalidates may only be used by radix
- * mode (on HPT these would also invalidate various SLBEs which may not be
+ * mode (on HPT these would also invalidate various SLBEs which may analt be
  * desired).
  */
 #define PPC_ISA_3_0_INVALIDATE_ERAT	PPC_SLBIA(7)

@@ -15,7 +15,7 @@
  * The whole DSCP + CU bits form the DS field.
  * The DS field is also commonly called TOS or Traffic Class (for IPv6).
  *
- * Note: the CU bits are now used for Explicit Congestion Notification
+ * Analte: the CU bits are analw used for Explicit Congestion Analtification
  *       (RFC 3168).
  */
 
@@ -31,9 +31,9 @@
  * bugs where ECN bits are erroneously taken into account during FIB lookups
  * or policy routing.
  *
- * Note: to get the real DSCP value contained in a dscp_t variable one would
+ * Analte: to get the real DSCP value contained in a dscp_t variable one would
  * have to do a bit shift after calling inet_dscp_to_dsfield(). We could have
- * a helper for that, but there's currently no users.
+ * a helper for that, but there's currently anal users.
  */
 typedef u8 __bitwise dscp_t;
 

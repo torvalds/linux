@@ -51,9 +51,9 @@ static void __p_branch_sample_type(char *buf, size_t size, u64 value)
 	struct bit_names bits[] = {
 		bit_name(USER), bit_name(KERNEL), bit_name(HV), bit_name(ANY),
 		bit_name(ANY_CALL), bit_name(ANY_RETURN), bit_name(IND_CALL),
-		bit_name(ABORT_TX), bit_name(IN_TX), bit_name(NO_TX),
+		bit_name(ABORT_TX), bit_name(IN_TX), bit_name(ANAL_TX),
 		bit_name(COND), bit_name(CALL_STACK), bit_name(IND_JUMP),
-		bit_name(CALL), bit_name(NO_FLAGS), bit_name(NO_CYCLES),
+		bit_name(CALL), bit_name(ANAL_FLAGS), bit_name(ANAL_CYCLES),
 		bit_name(TYPE_SAVE), bit_name(HW_INDEX), bit_name(PRIV_SAVE),
 		bit_name(COUNTERS),
 		{ .name = NULL, }
@@ -116,7 +116,7 @@ static const char *stringify_perf_hw_cache_id(u64 value)
 	ENUM_ID_TO_STR_CASE(PERF_COUNT_HW_CACHE_DTLB)
 	ENUM_ID_TO_STR_CASE(PERF_COUNT_HW_CACHE_ITLB)
 	ENUM_ID_TO_STR_CASE(PERF_COUNT_HW_CACHE_BPU)
-	ENUM_ID_TO_STR_CASE(PERF_COUNT_HW_CACHE_NODE)
+	ENUM_ID_TO_STR_CASE(PERF_COUNT_HW_CACHE_ANALDE)
 	default:
 		return NULL;
 	}

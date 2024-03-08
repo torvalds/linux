@@ -53,11 +53,11 @@ static struct platform_device bcm63xx_uart_devices[] = {
 int __init bcm63xx_uart_register(unsigned int id)
 {
 	if (id >= ARRAY_SIZE(bcm63xx_uart_devices))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (id == 1 && (!BCMCPU_IS_3368() && !BCMCPU_IS_6358() &&
 		!BCMCPU_IS_6368()))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (id == 0) {
 		uart0_resources[0].start = bcm63xx_regset_address(RSET_UART0);

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ASM_X86_UCONTEXT_H
 #define _ASM_X86_UCONTEXT_H
 
@@ -22,7 +22,7 @@
  * Sigreturn restores SS as follows:
  *
  * if (saved SS is valid || UC_STRICT_RESTORE_SS is set ||
- *     saved CS is not 64-bit)
+ *     saved CS is analt 64-bit)
  *         new SS = saved SS  (will fail IRET and signal if invalid)
  * else
  *         new SS = a flat 32-bit data segment
@@ -38,7 +38,7 @@
  *   the saved CS to a 64-bit segment.  These DOSEMU versions expect
  *   sigreturn to send them back to 64-bit mode without killing them,
  *   despite the fact that the SS selector when the signal was raised is
- *   no longer valid.  UC_STRICT_RESTORE_SS will be clear, so the kernel
+ *   anal longer valid.  UC_STRICT_RESTORE_SS will be clear, so the kernel
  *   will fix up SS for these DOSEMU versions.
  *
  * - Old and new programs that catch a signal and return without

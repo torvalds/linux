@@ -26,19 +26,19 @@ int kvm_arch_ptp_init(void)
 	long ret;
 
 	if (!kvm_para_available())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT)) {
 		p = alloc_page(GFP_KERNEL | __GFP_ZERO);
 		if (!p)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		clock_pair = page_address(p);
 		ret = set_memory_decrypted((unsigned long)clock_pair, 1);
 		if (ret) {
 			__free_page(p);
 			clock_pair = NULL;
-			goto nofree;
+			goto analfree;
 		}
 	} else {
 		clock_pair = &clock_pair_glbl;
@@ -46,14 +46,14 @@ int kvm_arch_ptp_init(void)
 
 	clock_pair_gpa = slow_virt_to_phys(clock_pair);
 	if (!pvclock_get_pvti_cpu0_va()) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
 	ret = kvm_hypercall2(KVM_HC_CLOCK_PAIRING, clock_pair_gpa,
 			     KVM_CLOCK_PAIRING_WALLCLOCK);
-	if (ret == -KVM_ENOSYS) {
-		ret = -ENODEV;
+	if (ret == -KVM_EANALSYS) {
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -61,7 +61,7 @@ int kvm_arch_ptp_init(void)
 
 err:
 	kvm_arch_ptp_exit();
-nofree:
+analfree:
 	return ret;
 }
 
@@ -83,7 +83,7 @@ int kvm_arch_ptp_get_clock(struct timespec64 *ts)
 			     KVM_CLOCK_PAIRING_WALLCLOCK);
 	if (ret != 0) {
 		pr_err_ratelimited("clock offset hypercall ret %lu\n", ret);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ts->tv_sec = clock_pair->sec;
@@ -116,7 +116,7 @@ int kvm_arch_ptp_get_crosststamp(u64 *cycle, struct timespec64 *tspec,
 				     KVM_CLOCK_PAIRING_WALLCLOCK);
 		if (ret != 0) {
 			pr_err_ratelimited("clock pairing hypercall ret %lu\n", ret);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		tspec->tv_sec = clock_pair->sec;
 		tspec->tv_nsec = clock_pair->nsec;

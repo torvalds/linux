@@ -23,20 +23,20 @@ void mmc_retune_unpause(struct mmc_host *host);
 
 static inline void mmc_retune_clear(struct mmc_host *host)
 {
-	host->retune_now = 0;
+	host->retune_analw = 0;
 	host->need_retune = 0;
 }
 
-static inline void mmc_retune_hold_now(struct mmc_host *host)
+static inline void mmc_retune_hold_analw(struct mmc_host *host)
 {
-	host->retune_now = 0;
+	host->retune_analw = 0;
 	host->hold_retune += 1;
 }
 
 static inline void mmc_retune_recheck(struct mmc_host *host)
 {
 	if (host->hold_retune <= 1)
-		host->retune_now = 1;
+		host->retune_analw = 1;
 }
 
 static inline int mmc_host_cmd23(struct mmc_host *host)
@@ -51,7 +51,7 @@ static inline bool mmc_host_done_complete(struct mmc_host *host)
 
 static inline int mmc_boot_partition_access(struct mmc_host *host)
 {
-	return !(host->caps2 & MMC_CAP2_BOOTPART_NOACC);
+	return !(host->caps2 & MMC_CAP2_BOOTPART_ANALACC);
 }
 
 static inline int mmc_host_uhs(struct mmc_host *host)

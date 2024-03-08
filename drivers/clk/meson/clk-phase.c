@@ -98,7 +98,7 @@ static int meson_clk_triphase_get_phase(struct clk_hw *hw)
 	struct meson_clk_triphase_data *tph = meson_clk_triphase_data(clk);
 	unsigned int val;
 
-	/* Phase are in sync, reading phase 0 is enough */
+	/* Phase are in sync, reading phase 0 is eanalugh */
 	val = meson_parm_read(clk->map, &tph->ph0);
 
 	return meson_clk_degrees_from_val(val, tph->ph0.width);
@@ -129,7 +129,7 @@ EXPORT_SYMBOL_GPL(meson_clk_triphase_ops);
  * This is a special clock for the audio controller.
  * This drive a bit clock inverter for which the
  * opposite value of the inverter bit needs to be manually
- * set into another bit
+ * set into aanalther bit
  */
 static inline struct meson_sclk_ws_inv_data *
 meson_sclk_ws_inv_data(struct clk_regmap *clk)

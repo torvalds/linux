@@ -35,7 +35,7 @@ Threshold values:
 
 CMA3000 chip supports mutually exclusive I2C and SPI interfaces for
 communication, currently the driver supports I2C based communication only.
-Initial configuration for bus mode is set in non volatile memory and can later
+Initial configuration for bus mode is set in analn volatile memory and can later
 be modified through bus interface command.
 
 Driver reports acceleration data through input subsystem. It generates ABS_MISC
@@ -47,13 +47,13 @@ Platform Data
 -------------
 
 fuzz_x:
-    Noise on X Axis
+    Analise on X Axis
 
 fuzz_y:
-    Noise on Y Axis
+    Analise on Y Axis
 
 fuzz_z:
-    Noise on Z Axis
+    Analise on Z Axis
 
 g_range:
     G range in milli g i.e 2000 or 8000

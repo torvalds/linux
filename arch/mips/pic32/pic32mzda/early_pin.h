@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Joshua Henderson <joshua.henderson@microchip.com>
- * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2015 Microchip Techanallogy Inc.  All rights reserved.
  */
 #ifndef _PIC32MZDA_EARLY_PIN_H
 #define _PIC32MZDA_EARLY_PIN_H
 
 /*
- * This is a complete, yet overly simplistic and unoptimized, PIC32MZDA PPS
+ * This is a complete, yet overly simplistic and uanalptimized, PIC32MZDA PPS
  * configuration only useful before we have full pinctrl initialized.
  */
 

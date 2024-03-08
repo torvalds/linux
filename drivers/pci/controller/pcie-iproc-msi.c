@@ -182,7 +182,7 @@ static struct msi_domain_info iproc_msi_domain_info = {
  * The number of MSI groups varies between different iProc SoCs.  The total
  * number of CPU cores also varies.  To support MSI IRQ affinity, we
  * distribute GIC interrupts across all available CPUs.  MSI vector is moved
- * from one GIC interrupt to another to steer to the target CPU.
+ * from one GIC interrupt to aanalther to steer to the target CPU.
  *
  * Assuming:
  * - the number of MSI groups is M
@@ -197,7 +197,7 @@ static inline int hwirq_to_cpu(struct iproc_msi *msi, unsigned long hwirq)
 	return (hwirq % msi->nr_cpus);
 }
 
-static inline unsigned long hwirq_to_canonical_hwirq(struct iproc_msi *msi,
+static inline unsigned long hwirq_to_caanalnical_hwirq(struct iproc_msi *msi,
 						     unsigned long hwirq)
 {
 	return (hwirq - hwirq_to_cpu(msi, hwirq));
@@ -216,7 +216,7 @@ static int iproc_msi_irq_set_affinity(struct irq_data *data,
 		ret = IRQ_SET_MASK_OK_DONE;
 	else {
 		/* steer MSI to the target CPU */
-		data->hwirq = hwirq_to_canonical_hwirq(msi, data->hwirq) + target_cpu;
+		data->hwirq = hwirq_to_caanalnical_hwirq(msi, data->hwirq) + target_cpu;
 		ret = IRQ_SET_MASK_OK;
 	}
 
@@ -265,7 +265,7 @@ static int iproc_msi_irq_domain_alloc(struct irq_domain *domain,
 	mutex_unlock(&msi->bitmap_lock);
 
 	if (hwirq < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	for (i = 0; i < nr_irqs; i++) {
 		irq_domain_set_info(domain, virq + i, hwirq + i,
@@ -286,7 +286,7 @@ static void iproc_msi_irq_domain_free(struct irq_domain *domain,
 
 	mutex_lock(&msi->bitmap_lock);
 
-	hwirq = hwirq_to_canonical_hwirq(msi, data->hwirq);
+	hwirq = hwirq_to_caanalnical_hwirq(msi, data->hwirq);
 	bitmap_release_region(msi->bitmap, hwirq,
 			      order_base_2(msi->nr_cpus * nr_irqs));
 
@@ -313,10 +313,10 @@ static inline u32 decode_msi_hwirq(struct iproc_msi *msi, u32 eq, u32 head)
 
 	/*
 	 * Since we have multiple hwirq mapped to a single MSI vector,
-	 * now we need to derive the hwirq at CPU0.  It can then be used to
+	 * analw we need to derive the hwirq at CPU0.  It can then be used to
 	 * mapped back to virq.
 	 */
-	return hwirq_to_canonical_hwirq(msi, hwirq);
+	return hwirq_to_caanalnical_hwirq(msi, hwirq);
 }
 
 static void iproc_msi_handler(struct irq_desc *desc)
@@ -368,13 +368,13 @@ static void iproc_msi_handler(struct irq_desc *desc)
 		}
 
 		/*
-		 * Now all outstanding events have been processed.  Update the
+		 * Analw all outstanding events have been processed.  Update the
 		 * head pointer.
 		 */
 		iproc_msi_write_reg(msi, IPROC_MSI_EQ_HEAD, eq, head);
 
 		/*
-		 * Now go read the tail pointer again to see if there are new
+		 * Analw go read the tail pointer again to see if there are new
 		 * outstanding events that came in during the above window.
 		 */
 	} while (true);
@@ -443,20 +443,20 @@ static void iproc_msi_disable(struct iproc_msi *msi)
 	}
 }
 
-static int iproc_msi_alloc_domains(struct device_node *node,
+static int iproc_msi_alloc_domains(struct device_analde *analde,
 				   struct iproc_msi *msi)
 {
 	msi->inner_domain = irq_domain_add_linear(NULL, msi->nr_msi_vecs,
 						  &msi_domain_ops, msi);
 	if (!msi->inner_domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	msi->msi_domain = pci_msi_create_irq_domain(of_node_to_fwnode(node),
+	msi->msi_domain = pci_msi_create_irq_domain(of_analde_to_fwanalde(analde),
 						    &iproc_msi_domain_info,
 						    msi->inner_domain);
 	if (!msi->msi_domain) {
 		irq_domain_remove(msi->inner_domain);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -516,24 +516,24 @@ static int iproc_msi_irq_setup(struct iproc_msi *msi, unsigned int cpu)
 	return 0;
 }
 
-int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
+int iproc_msi_init(struct iproc_pcie *pcie, struct device_analde *analde)
 {
 	struct iproc_msi *msi;
 	int i, ret;
 	unsigned int cpu;
 
-	if (!of_device_is_compatible(node, "brcm,iproc-msi"))
-		return -ENODEV;
+	if (!of_device_is_compatible(analde, "brcm,iproc-msi"))
+		return -EANALDEV;
 
-	if (!of_property_read_bool(node, "msi-controller"))
-		return -ENODEV;
+	if (!of_property_read_bool(analde, "msi-controller"))
+		return -EANALDEV;
 
 	if (pcie->msi)
 		return -EBUSY;
 
 	msi = devm_kzalloc(pcie->dev, sizeof(*msi), GFP_KERNEL);
 	if (!msi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msi->pcie = pcie;
 	pcie->msi = msi;
@@ -544,10 +544,10 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 	if (msi->nr_cpus == 1)
 		iproc_msi_domain_info.flags |=  MSI_FLAG_MULTI_PCI_MSI;
 
-	msi->nr_irqs = of_irq_count(node);
+	msi->nr_irqs = of_irq_count(analde);
 	if (!msi->nr_irqs) {
-		dev_err(pcie->dev, "found no MSI GIC interrupt\n");
-		return -ENODEV;
+		dev_err(pcie->dev, "found anal MSI GIC interrupt\n");
+		return -EANALDEV;
 	}
 
 	if (msi->nr_irqs > NR_HW_IRQS) {
@@ -558,7 +558,7 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 
 	if (msi->nr_irqs < msi->nr_cpus) {
 		dev_err(pcie->dev,
-			"not enough GIC interrupts for MSI affinity\n");
+			"analt eanalugh GIC interrupts for MSI affinity\n");
 		return -EINVAL;
 	}
 
@@ -585,25 +585,25 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 		return -EINVAL;
 	}
 
-	msi->has_inten_reg = of_property_read_bool(node, "brcm,pcie-msi-inten");
+	msi->has_inten_reg = of_property_read_bool(analde, "brcm,pcie-msi-inten");
 
 	msi->nr_msi_vecs = msi->nr_irqs * EQ_LEN;
 	msi->bitmap = devm_bitmap_zalloc(pcie->dev, msi->nr_msi_vecs,
 					 GFP_KERNEL);
 	if (!msi->bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msi->grps = devm_kcalloc(pcie->dev, msi->nr_irqs, sizeof(*msi->grps),
 				 GFP_KERNEL);
 	if (!msi->grps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < msi->nr_irqs; i++) {
-		unsigned int irq = irq_of_parse_and_map(node, i);
+		unsigned int irq = irq_of_parse_and_map(analde, i);
 
 		if (!irq) {
 			dev_err(pcie->dev, "unable to parse/map interrupt\n");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto free_irqs;
 		}
 		msi->grps[i].gic_irq = irq;
@@ -616,11 +616,11 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 					 msi->nr_eq_region * EQ_MEM_REGION_SIZE,
 					 &msi->eq_dma, GFP_KERNEL);
 	if (!msi->eq_cpu) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_irqs;
 	}
 
-	ret = iproc_msi_alloc_domains(node, msi);
+	ret = iproc_msi_alloc_domains(analde, msi);
 	if (ret) {
 		dev_err(pcie->dev, "failed to create MSI domains\n");
 		goto free_eq_dma;

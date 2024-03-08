@@ -51,7 +51,7 @@ struct pse_controller_ops {
 };
 
 struct module;
-struct device_node;
+struct device_analde;
 struct of_phandle_args;
 struct pse_control;
 
@@ -89,7 +89,7 @@ struct device;
 int devm_pse_controller_register(struct device *dev,
 				 struct pse_controller_dev *pcdev);
 
-struct pse_control *of_pse_control_get(struct device_node *node);
+struct pse_control *of_pse_control_get(struct device_analde *analde);
 void pse_control_put(struct pse_control *psec);
 
 int pse_ethtool_get_status(struct pse_control *psec,
@@ -101,9 +101,9 @@ int pse_ethtool_set_config(struct pse_control *psec,
 
 #else
 
-static inline struct pse_control *of_pse_control_get(struct device_node *node)
+static inline struct pse_control *of_pse_control_get(struct device_analde *analde)
 {
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 static inline void pse_control_put(struct pse_control *psec)
@@ -114,14 +114,14 @@ static inline int pse_ethtool_get_status(struct pse_control *psec,
 					 struct netlink_ext_ack *extack,
 					 struct pse_control_status *status)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int pse_ethtool_set_config(struct pse_control *psec,
 					 struct netlink_ext_ack *extack,
 					 const struct pse_control_config *config)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 #endif

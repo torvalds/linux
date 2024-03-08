@@ -153,7 +153,7 @@ a Linux Ethernet driver. The support for advanced features will be added
 gradually.
 
 The driver has Rx and Tx checksum offloading for UDP and TCP. Currently the Rx
-checksum offload feature is enabled by default and cannot be controlled through
+checksum offload feature is enabled by default and cananalt be controlled through
 ethtool. Also, rx-flow-hash and rx-hashing was added. The addition of RSS
 provides a big performance boost for the forwarding scenarios, allowing
 different traffic flows received by one interface to be processed by different
@@ -198,13 +198,13 @@ The default frame queues have the HOLDACTIVE option set, ensuring that
 traffic bursts from a certain queue are serviced by the same CPU.
 This ensures a very low rate of frame reordering. A drawback of this
 is that only one CPU at a time can service the traffic received by a
-certain interface when RSS is not enabled.
+certain interface when RSS is analt enabled.
 
 To implement RSS, the DPAA Ethernet driver allocates an extra set of
 128 Rx frame queues that are configured to dedicated channels, in a
-round-robin manner. The mapping of the frame queues to CPUs is now
-hardcoded, there is no indirection table to move traffic for a certain
-FQ (hash result) to another CPU. The ingress traffic arriving on one
+round-robin manner. The mapping of the frame queues to CPUs is analw
+hardcoded, there is anal indirection table to move traffic for a certain
+FQ (hash result) to aanalther CPU. The ingress traffic arriving on one
 of these frame queues will arrive at the same portal and will always
 be processed by the same CPU. This ensures intra-flow order preservation
 and workload distribution for multiple traffic flows.
@@ -217,7 +217,7 @@ To turn it back on, one needs to set rx-flow-hash for tcp4/6 or udp4/6::
 
 	# ethtool -N fm1-mac9 rx-flow-hash udp4 sfdn
 
-There is no independent control for individual protocols, any command
+There is anal independent control for individual protocols, any command
 run for one of tcp4|udp4|ah4|esp4|sctp4|tcp6|udp6|ah6|esp6|sctp6 is
 going to control the rx-flow-hashing for all protocols on that interface.
 
@@ -235,7 +235,7 @@ on or off through ethtool, i.e.::
 	# ethtool -k fm1-mac9 | grep hash
 	receive-hashing: on
 
-Please note that Rx hashing depends upon the rx-flow-hashing being on
+Please analte that Rx hashing depends upon the rx-flow-hashing being on
 for that interface - turning off rx-flow-hashing will also disable the
 rx-hashing (without ethtool reporting it as off as that depends on the
 NETIF_F_RXHASH feature flag).

@@ -11,7 +11,7 @@
 		BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0x111, 2),
 		BPF_MOV64_IMM(BPF_REG_0, 2),
 		BPF_EXIT_INSN(),
-		/* r1 should not be clobbered, no BPF_FETCH flag */
+		/* r1 should analt be clobbered, anal BPF_FETCH flag */
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0x011, 1),
 		BPF_MOV64_IMM(BPF_REG_0, 1),

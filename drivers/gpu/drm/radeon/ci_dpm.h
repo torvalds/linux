@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -266,7 +266,7 @@ struct ci_power_info {
 	bool caps_samu_dpm;
 	bool caps_acp_dpm;
 	bool caps_automatic_dc_transition;
-	bool caps_sclk_throttle_low_notification;
+	bool caps_sclk_throttle_low_analtification;
 	bool caps_dynamic_ac_timing;
 	bool caps_od_fuzzy_fan_control_support;
 	/* flags */
@@ -277,7 +277,7 @@ struct ci_power_info {
 	bool cac_enabled;
 	bool uvd_enabled;
 	bool battery_state;
-	bool pspp_notify_required;
+	bool pspp_analtify_required;
 	bool mem_gddr5;
 	bool enable_bapm_feature;
 	bool enable_tdc_limit_feature;
@@ -297,7 +297,7 @@ struct ci_power_info {
 	u32 fan_ctrl_default_mode;
 };
 
-#define CISLANDS_VOLTAGE_CONTROL_NONE                   0x0
+#define CISLANDS_VOLTAGE_CONTROL_ANALNE                   0x0
 #define CISLANDS_VOLTAGE_CONTROL_BY_GPIO                0x1
 #define CISLANDS_VOLTAGE_CONTROL_BY_SVID2               0x2
 

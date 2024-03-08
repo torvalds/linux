@@ -76,8 +76,8 @@ static int igbvf_get_link_ksettings(struct net_device *netdev,
 		else
 			cmd->base.duplex = DUPLEX_HALF;
 	} else {
-		cmd->base.speed = SPEED_UNKNOWN;
-		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKANALWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
 	}
 
 	cmd->base.autoneg = AUTONEG_DISABLE;
@@ -88,7 +88,7 @@ static int igbvf_get_link_ksettings(struct net_device *netdev,
 static int igbvf_set_link_ksettings(struct net_device *netdev,
 				    const struct ethtool_link_ksettings *cmd)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void igbvf_get_pauseparam(struct net_device *netdev,
@@ -99,7 +99,7 @@ static void igbvf_get_pauseparam(struct net_device *netdev,
 static int igbvf_set_pauseparam(struct net_device *netdev,
 				struct ethtool_pauseparam *pause)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static u32 igbvf_get_msglevel(struct net_device *netdev)
@@ -155,13 +155,13 @@ static int igbvf_get_eeprom_len(struct net_device *netdev)
 static int igbvf_get_eeprom(struct net_device *netdev,
 			    struct ethtool_eeprom *eeprom, u8 *bytes)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int igbvf_set_eeprom(struct net_device *netdev,
 			    struct ethtool_eeprom *eeprom, u8 *bytes)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void igbvf_get_drvinfo(struct net_device *netdev,
@@ -212,7 +212,7 @@ static int igbvf_set_ringparam(struct net_device *netdev,
 
 	if ((new_tx_count == adapter->tx_ring->count) &&
 	    (new_rx_count == adapter->rx_ring->count)) {
-		/* nothing to do */
+		/* analthing to do */
 		return 0;
 	}
 
@@ -227,7 +227,7 @@ static int igbvf_set_ringparam(struct net_device *netdev,
 
 	temp_ring = vmalloc(sizeof(struct igbvf_ring));
 	if (!temp_ring) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto clear_reset;
 	}
 
@@ -314,7 +314,7 @@ static void igbvf_get_wol(struct net_device *netdev,
 static int igbvf_set_wol(struct net_device *netdev,
 			 struct ethtool_wolinfo *wol)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int igbvf_get_coalesce(struct net_device *netdev,

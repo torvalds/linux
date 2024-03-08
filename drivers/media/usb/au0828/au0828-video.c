@@ -6,7 +6,7 @@
  * Copyright (C) 2005-2008 Auvitek International, Ltd.
  */
 
-/* Developer Notes:
+/* Developer Analtes:
  *
  * The hardware scaler supported is unimplemented
  * AC97 audio support is unimplemented (only i2s audio mode)
@@ -54,20 +54,20 @@ static inline void i2c_gate_ctrl(struct au0828_dev *dev, int val)
 static inline void print_err_status(struct au0828_dev *dev,
 				    int packet, int status)
 {
-	char *errmsg = "Unknown";
+	char *errmsg = "Unkanalwn";
 
 	switch (status) {
-	case -ENOENT:
-		errmsg = "unlinked synchronously";
+	case -EANALENT:
+		errmsg = "unlinked synchroanalusly";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronously";
+		errmsg = "unlinked asynchroanalusly";
 		break;
-	case -ENOSR:
+	case -EANALSR:
 		errmsg = "Buffer error (overrun)";
 		break;
 	case -EPIPE:
-		errmsg = "Stalled (device not responding)";
+		errmsg = "Stalled (device analt responding)";
 		break;
 	case -EOVERFLOW:
 		errmsg = "Babble (bad cable?)";
@@ -79,7 +79,7 @@ static inline void print_err_status(struct au0828_dev *dev,
 		errmsg = "CRC/Timeout (could be anything)";
 		break;
 	case -ETIME:
-		errmsg = "Device does not respond";
+		errmsg = "Device does analt respond";
 		break;
 	}
 	if (packet < 0) {
@@ -93,8 +93,8 @@ static inline void print_err_status(struct au0828_dev *dev,
 static int check_dev(struct au0828_dev *dev)
 {
 	if (test_bit(DEV_DISCONNECTED, &dev->dev_state)) {
-		pr_info("v4l2 ioctl: device not present\n");
-		return -ENODEV;
+		pr_info("v4l2 ioctl: device analt present\n");
+		return -EANALDEV;
 	}
 
 	if (test_bit(DEV_MISCONFIGURED, &dev->dev_state)) {
@@ -119,11 +119,11 @@ static void au0828_irq_callback(struct urb *urb)
 	case -ETIMEDOUT:    /* NAK */
 		break;
 	case -ECONNRESET:   /* kill */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		au0828_isocdbg("au0828_irq_callback called: status kill\n");
 		return;
-	default:            /* unknown error */
+	default:            /* unkanalwn error */
 		au0828_isocdbg("urb completion error %d.\n", urb->status);
 		break;
 	}
@@ -210,16 +210,16 @@ static int au0828_init_isoc(struct au0828_dev *dev, int max_packets,
 
 	dev->isoc_ctl.urb = kcalloc(num_bufs, sizeof(void *),  GFP_KERNEL);
 	if (!dev->isoc_ctl.urb) {
-		au0828_isocdbg("cannot alloc memory for usb buffers\n");
-		return -ENOMEM;
+		au0828_isocdbg("cananalt alloc memory for usb buffers\n");
+		return -EANALMEM;
 	}
 
 	dev->isoc_ctl.transfer_buffer = kcalloc(num_bufs, sizeof(void *),
 						GFP_KERNEL);
 	if (!dev->isoc_ctl.transfer_buffer) {
-		au0828_isocdbg("cannot allocate memory for usb transfer\n");
+		au0828_isocdbg("cananalt allocate memory for usb transfer\n");
 		kfree(dev->isoc_ctl.urb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev->isoc_ctl.max_pkt_size = max_pkt_size;
@@ -231,18 +231,18 @@ static int au0828_init_isoc(struct au0828_dev *dev, int max_packets,
 	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
 		urb = usb_alloc_urb(max_packets, GFP_KERNEL);
 		if (!urb) {
-			au0828_isocdbg("cannot allocate URB\n");
+			au0828_isocdbg("cananalt allocate URB\n");
 			au0828_uninit_isoc(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		dev->isoc_ctl.urb[i] = urb;
 
 		dev->isoc_ctl.transfer_buffer[i] = usb_alloc_coherent(dev->usbdev,
 			sb_size, GFP_KERNEL, &urb->transfer_dma);
 		if (!dev->isoc_ctl.transfer_buffer[i]) {
-			au0828_isocdbg("cannot allocate transfer buffer\n");
+			au0828_isocdbg("cananalt allocate transfer buffer\n");
 			au0828_uninit_isoc(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		memset(dev->isoc_ctl.transfer_buffer[i], 0, sb_size);
 
@@ -254,7 +254,7 @@ static int au0828_init_isoc(struct au0828_dev *dev, int max_packets,
 				 au0828_irq_callback, dma_q, 1);
 
 		urb->number_of_packets = max_packets;
-		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_ANAL_TRANSFER_DMA_MAP;
 
 		k = 0;
 		for (j = 0; j < max_packets; j++) {
@@ -280,7 +280,7 @@ static int au0828_init_isoc(struct au0828_dev *dev, int max_packets,
 }
 
 /*
- * Announces that a buffer were filled and request the next
+ * Ananalunces that a buffer were filled and request the next
  */
 static inline void buffer_filled(struct au0828_dev *dev,
 				 struct au0828_dmaqueue *dma_q,
@@ -375,7 +375,7 @@ static void au0828_copy_video(struct au0828_dev *dev,
 	}
 
 	if (offset > 1440) {
-		/* We have enough data to check for greenscreen */
+		/* We have eanalugh data to check for greenscreen */
 		if (outp[0] < 0x60 && outp[1440] < 0x60)
 			dev->greenscreen_detected = 1;
 	}
@@ -392,7 +392,7 @@ static inline void get_next_buf(struct au0828_dmaqueue *dma_q,
 	struct au0828_dev *dev = container_of(dma_q, struct au0828_dev, vidq);
 
 	if (list_empty(&dma_q->active)) {
-		au0828_isocdbg("No active queue to serve\n");
+		au0828_isocdbg("Anal active queue to serve\n");
 		dev->isoc_ctl.buf = NULL;
 		*buf = NULL;
 		return;
@@ -467,7 +467,7 @@ static inline void vbi_get_next_buf(struct au0828_dmaqueue *dma_q,
 	struct au0828_dev *dev = container_of(dma_q, struct au0828_dev, vbiq);
 
 	if (list_empty(&dma_q->active)) {
-		au0828_isocdbg("No active queue to serve\n");
+		au0828_isocdbg("Anal active queue to serve\n");
 		dev->isoc_ctl.vbi_buf = NULL;
 		*buf = NULL;
 		return;
@@ -509,7 +509,7 @@ static inline int au0828_isoc_copy(struct au0828_dev *dev, struct urb *urb)
 
 	if (urb->status < 0) {
 		print_err_status(dev, -1, urb->status);
-		if (urb->status == -ENOENT)
+		if (urb->status == -EANALENT)
 			return 0;
 	}
 
@@ -704,7 +704,7 @@ buffer_prepare(struct vb2_buffer *vb)
 	buf->length = dev->height * dev->bytesperline;
 
 	if (vb2_plane_size(vb, 0) < buf->length) {
-		pr_err("%s data will not fit into plane (%lu < %lu)\n",
+		pr_err("%s data will analt fit into plane (%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0), buf->length);
 		return -EINVAL;
 	}
@@ -749,7 +749,7 @@ static int au0828_analog_stream_enable(struct au0828_dev *d)
 	dprintk(1, "au0828_analog_stream_enable called\n");
 
 	if (test_bit(DEV_DISCONNECTED, &d->dev_state))
-		return -ENODEV;
+		return -EANALDEV;
 
 	iface = usb_ifnum_to_if(d->usbdev, 0);
 	if (iface && iface->cur_altsetting->desc.bAlternateSetting != 5) {
@@ -804,7 +804,7 @@ static int au0828_stream_interrupt(struct au0828_dev *dev)
 {
 	dev->stream_state = STREAM_INTERRUPT;
 	if (test_bit(DEV_DISCONNECTED, &dev->dev_state))
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -933,7 +933,7 @@ int au0828_analog_unregister(struct au0828_dev *dev)
 {
 	dprintk(1, "au0828_analog_unregister called\n");
 
-	/* No analog TV */
+	/* Anal analog TV */
 	if (AUVI_INPUT(0).type == AU0828_VMUX_UNDEFINED)
 		return 0;
 
@@ -1068,7 +1068,7 @@ static int au0828_v4l2_close(struct file *filp)
 		 * a separate audio output jack. The devices that have
 		 * a separate audio output jack have analog tuners,
 		 * like Philips FM1236. Those devices are always on,
-		 * so the s_power callback are silently ignored.
+		 * so the s_power callback are silently iganalred.
 		 * So, the current logic here does the following:
 		 * Disable (put tuner to sleep) when
 		 * - ALSA and DVB aren't streaming.
@@ -1120,7 +1120,7 @@ static void au0828_init_tuner(struct au0828_dev *dev)
 		return;
 	dev->std_set_in_tuner_core = 1;
 	i2c_gate_ctrl(dev, 1);
-	/* If we've never sent the standard in tuner core, do so now.
+	/* If we've never sent the standard in tuner core, do so analw.
 	   We don't do this at device probe because we don't want to
 	   incur the cost of a firmware load */
 	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std, dev->std);
@@ -1264,20 +1264,20 @@ out:
 	return rc;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id analrm)
 {
 	struct au0828_dev *dev = video_drvdata(file);
 
 	dprintk(1, "%s called std_set %d dev_state %ld\n", __func__,
 		dev->std_set_in_tuner_core, dev->dev_state);
 
-	if (norm == dev->std)
+	if (analrm == dev->std)
 		return 0;
 
 	if (dev->streaming_users > 0)
 		return -EBUSY;
 
-	dev->std = norm;
+	dev->std = analrm;
 
 	au0828_init_tuner(dev);
 
@@ -1289,21 +1289,21 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	 * of its capture buffer, which is currently hardcoded at 720x480
 	 */
 
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std, norm);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std, analrm);
 
 	i2c_gate_ctrl(dev, 0);
 
 	return 0;
 }
 
-static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *analrm)
 {
 	struct au0828_dev *dev = video_drvdata(file);
 
 	dprintk(1, "%s called std_set %d dev_state %ld\n", __func__,
 		dev->std_set_in_tuner_core, dev->dev_state);
 
-	*norm = dev->std;
+	*analrm = dev->std;
 	return 0;
 }
 
@@ -1343,7 +1343,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		input->audioset = 2;
 	}
 
-	input->std = dev->vdev.tvnorms;
+	input->std = dev->vdev.tvanalrms;
 
 	return 0;
 }
@@ -1380,7 +1380,7 @@ static void au0828_s_input(struct au0828_dev *dev, int index)
 		dev->ctrl_ainput = 0;
 		break;
 	default:
-		dprintk(1, "unknown input type set [%d]\n",
+		dprintk(1, "unkanalwn input type set [%d]\n",
 			AUVI_INPUT(index).type);
 		return;
 	}
@@ -1612,7 +1612,7 @@ static int vidioc_g_pixelaspect(struct file *file, void *priv,
 		dev->std_set_in_tuner_core, dev->dev_state);
 
 	f->numerator = 54;
-	f->denominator = 59;
+	f->deanalminator = 59;
 
 	return 0;
 }
@@ -1798,7 +1798,7 @@ static const struct video_device au0828_video_template = {
 	.fops                       = &au0828_v4l_fops,
 	.release                    = video_device_release_empty,
 	.ioctl_ops		    = &video_ioctl_ops,
-	.tvnorms                    = V4L2_STD_NTSC_M | V4L2_STD_PAL_M,
+	.tvanalrms                    = V4L2_STD_NTSC_M | V4L2_STD_PAL_M,
 };
 
 static int au0828_vb2_setup(struct au0828_dev *dev)
@@ -1810,7 +1810,7 @@ static int au0828_vb2_setup(struct au0828_dev *dev)
 	q = &dev->vb_vidq;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	q->io_modes = VB2_READ | VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->drv_priv = dev;
 	q->buf_struct_size = sizeof(struct au0828_buffer);
 	q->ops = &au0828_video_qops;
@@ -1824,7 +1824,7 @@ static int au0828_vb2_setup(struct au0828_dev *dev)
 	q = &dev->vb_vbiq;
 	q->type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	q->io_modes = VB2_READ | VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->drv_priv = dev;
 	q->buf_struct_size = sizeof(struct au0828_buffer);
 	q->ops = &au0828_vbi_qops;
@@ -1902,7 +1902,7 @@ static void au0828_analog_create_entities(struct au0828_dev *dev)
 int au0828_analog_register(struct au0828_dev *dev,
 			   struct usb_interface *interface)
 {
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
 	int i, ret;
@@ -1910,7 +1910,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	dprintk(1, "au0828_analog_register called for intf#%d!\n",
 		interface->cur_altsetting->desc.bInterfaceNumber);
 
-	/* No analog TV */
+	/* Anal analog TV */
 	if (AUVI_INPUT(0).type == AU0828_VMUX_UNDEFINED)
 		return 0;
 
@@ -1942,8 +1942,8 @@ int au0828_analog_register(struct au0828_dev *dev,
 		}
 	}
 	if (!(dev->isoc_in_endpointaddr)) {
-		pr_info("Could not locate isoc endpoint\n");
-		return -ENODEV;
+		pr_info("Could analt locate isoc endpoint\n");
+		return -EANALDEV;
 	}
 
 	init_waitqueue_head(&dev->open);
@@ -2002,7 +2002,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	if (retval != 0) {
 		dprintk(1, "unable to setup videobuf2 queues (error = %d).\n",
 			retval);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Register the v4l2 device */
@@ -2011,7 +2011,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	if (retval != 0) {
 		dprintk(1, "unable to register video device (error = %d).\n",
 			retval);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Register the vbi device */
@@ -2020,7 +2020,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	if (retval != 0) {
 		dprintk(1, "unable to register vbi device (error = %d).\n",
 			retval);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_reg_vbi_dev;
 	}
 
@@ -2029,7 +2029,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	if (retval) {
 		pr_err("%s() au0282_dev_register failed to create graph\n",
 			__func__);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_reg_vbi_dev;
 	}
 #endif

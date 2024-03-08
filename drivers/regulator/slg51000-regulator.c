@@ -155,18 +155,18 @@ static const struct regmap_range slg51000_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table slg51000_writeable_table = {
-	.yes_ranges	= slg51000_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(slg51000_writeable_ranges),
+	.anal_ranges	= slg51000_writeable_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(slg51000_writeable_ranges),
 };
 
 static const struct regmap_access_table slg51000_readable_table = {
-	.yes_ranges	= slg51000_readable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(slg51000_readable_ranges),
+	.anal_ranges	= slg51000_readable_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(slg51000_readable_ranges),
 };
 
 static const struct regmap_access_table slg51000_volatile_table = {
-	.yes_ranges	= slg51000_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(slg51000_volatile_ranges),
+	.anal_ranges	= slg51000_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(slg51000_volatile_ranges),
 };
 
 static const struct regmap_config slg51000_regmap_config = {
@@ -194,15 +194,15 @@ static const struct regulator_ops slg51000_switch_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 };
 
-static int slg51000_of_parse_cb(struct device_node *np,
+static int slg51000_of_parse_cb(struct device_analde *np,
 				const struct regulator_desc *desc,
 				struct regulator_config *config)
 {
 	struct gpio_desc *ena_gpiod;
 
-	ena_gpiod = fwnode_gpiod_get_index(of_fwnode_handle(np), "enable", 0,
+	ena_gpiod = fwanalde_gpiod_get_index(of_fwanalde_handle(np), "enable", 0,
 					   GPIOD_OUT_LOW |
-						GPIOD_FLAGS_BIT_NONEXCLUSIVE,
+						GPIOD_FLAGS_BIT_ANALNEXCLUSIVE,
 					   "gpio-en-ldo");
 	if (!IS_ERR(ena_gpiod))
 		config->ena_gpiod = ena_gpiod;
@@ -218,7 +218,7 @@ static int slg51000_of_parse_cb(struct device_node *np,
 		.of_match = of_match_ptr(#_name),                  \
 		.of_parse_cb = slg51000_of_parse_cb,               \
 		.ops = &slg51000_regl_ops,                         \
-		.regulators_node = of_match_ptr("regulators"),     \
+		.regulators_analde = of_match_ptr("regulators"),     \
 		.n_voltages = 256,                                 \
 		.min_uV = _min,                                    \
 		.uV_step = _step,                                  \
@@ -349,7 +349,7 @@ static irqreturn_t slg51000_irq_handler(int irq, void *data)
 	struct regmap *regmap = chip->regmap;
 	enum { R0 = 0, R1, R2, REG_MAX };
 	u8 evt[SLG51000_MAX_EVT_REGISTER][REG_MAX];
-	int ret, i, handled = IRQ_NONE;
+	int ret, i, handled = IRQ_ANALNE;
 	unsigned int evt_otp, mask_otp;
 
 	/* Read event[R0], status[R1] and mask[R2] register */
@@ -358,7 +358,7 @@ static irqreturn_t slg51000_irq_handler(int irq, void *data)
 		if (ret < 0) {
 			dev_err(chip->dev,
 				"Failed to read event registers(%d)\n", ret);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 	}
 
@@ -366,27 +366,27 @@ static irqreturn_t slg51000_irq_handler(int irq, void *data)
 	if (ret < 0) {
 		dev_err(chip->dev,
 			"Failed to read otp event registers(%d)\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	ret = regmap_read(regmap, SLG51000_OTP_IRQ_MASK, &mask_otp);
 	if (ret < 0) {
 		dev_err(chip->dev,
 			"Failed to read otp mask register(%d)\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if ((evt_otp & SLG51000_EVT_CRC_MASK) &&
 	    !(mask_otp & SLG51000_IRQ_CRC_MASK)) {
 		dev_info(chip->dev,
-			 "OTP has been read or OTP crc is not zero\n");
+			 "OTP has been read or OTP crc is analt zero\n");
 		handled = IRQ_HANDLED;
 	}
 
 	for (i = 0; i < SLG51000_MAX_REGULATORS; i++) {
 		if (!(evt[i][R2] & SLG51000_IRQ_ILIM_FLAG_MASK) &&
 		    (evt[i][R0] & SLG51000_EVT_ILIM_FLAG_MASK)) {
-			regulator_notifier_call_chain(chip->rdev[i],
+			regulator_analtifier_call_chain(chip->rdev[i],
 					    REGULATOR_EVENT_OVER_CURRENT, NULL);
 
 			if (evt[i][R1] & SLG51000_STA_ILIM_FLAG_MASK)
@@ -401,7 +401,7 @@ static irqreturn_t slg51000_irq_handler(int irq, void *data)
 		for (i = 0; i < SLG51000_MAX_REGULATORS; i++) {
 			if (!(evt[i][R1] & SLG51000_STA_ILIM_FLAG_MASK) &&
 			    (evt[i][R1] & SLG51000_STA_VOUT_OK_FLAG_MASK)) {
-				regulator_notifier_call_chain(chip->rdev[i],
+				regulator_analtifier_call_chain(chip->rdev[i],
 					       REGULATOR_EVENT_OVER_TEMP, NULL);
 			}
 		}
@@ -444,11 +444,11 @@ static int slg51000_i2c_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(dev, sizeof(struct slg51000), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cs_gpiod = devm_gpiod_get_optional(dev, "dlg,cs",
 					   GPIOD_OUT_HIGH |
-						GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+						GPIOD_FLAGS_BIT_ANALNEXCLUSIVE);
 	if (IS_ERR(cs_gpiod))
 		return PTR_ERR(cs_gpiod);
 
@@ -490,7 +490,7 @@ static int slg51000_i2c_probe(struct i2c_client *client)
 			return ret;
 		}
 	} else {
-		dev_info(dev, "No IRQ configured\n");
+		dev_info(dev, "Anal IRQ configured\n");
 	}
 
 	return ret;
@@ -505,7 +505,7 @@ MODULE_DEVICE_TABLE(i2c, slg51000_i2c_id);
 static struct i2c_driver slg51000_regulator_driver = {
 	.driver = {
 		.name = "slg51000-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = slg51000_i2c_probe,
 	.id_table = slg51000_i2c_id,

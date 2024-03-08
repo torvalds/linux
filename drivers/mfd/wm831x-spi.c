@@ -27,12 +27,12 @@ static int wm831x_spi_probe(struct spi_device *spi)
 	type = (uintptr_t)spi_get_device_match_data(spi);
 	if (!type) {
 		dev_err(&spi->dev, "Failed to match device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	wm831x = devm_kzalloc(&spi->dev, sizeof(struct wm831x), GFP_KERNEL);
 	if (wm831x == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi->mode = SPI_MODE_0;
 

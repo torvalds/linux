@@ -15,7 +15,7 @@
 					* DMA-synced-for-device according to
 					* the length provided by the device
 					* driver.
-					* Please note DMA-sync-for-CPU is still
+					* Please analte DMA-sync-for-CPU is still
 					* device driver responsibility
 					*/
 #define PP_FLAG_ALL		(PP_FLAG_DMA_MAP |\
@@ -47,9 +47,9 @@ struct pp_alloc_cache {
  * @flags:	PP_FLAG_DMA_MAP, PP_FLAG_DMA_SYNC_DEV
  * @order:	2^order pages on allocation
  * @pool_size:	size of the ptr_ring
- * @nid:	NUMA node id to allocate from pages from
+ * @nid:	NUMA analde id to allocate from pages from
  * @dev:	device, for DMA pre-mapping purposes
- * @netdev:	netdev this pool will serve (leave as NULL if none or multiple)
+ * @netdev:	netdev this pool will serve (leave as NULL if analne or multiple)
  * @napi:	NAPI which is the sole consumer of pages, otherwise NULL
  * @dma_dir:	DMA mapping direction
  * @max_len:	max DMA sync memory size for PP_FLAG_DMA_SYNC_DEV
@@ -83,7 +83,7 @@ struct page_pool_params {
  * @slow_high_order: slow path high order allocations
  * @empty:	ptr ring is empty, so a slow path allocation was forced
  * @refill:	an allocation which triggered a refill of the cache
- * @waive:	pages obtained from the ptr ring that cannot be added to
+ * @waive:	pages obtained from the ptr ring that cananalt be added to
  *		the cache due to a NUMA mismatch
  */
 struct page_pool_alloc_stats {
@@ -101,7 +101,7 @@ struct page_pool_alloc_stats {
  * @cache_full:	page pool cache was full
  * @ring:	page placed into the ptr ring
  * @ring_full:	page released from page pool because the ptr ring was full
- * @released_refcnt:	page released (and not recycled) because refcnt > 1
+ * @released_refcnt:	page released (and analt recycled) because refcnt > 1
  */
 struct page_pool_recycle_stats {
 	u64 cached;
@@ -164,7 +164,7 @@ struct page_pool {
 	/* Data structure for storing recycled pages.
 	 *
 	 * Returning/freeing pages is more complicated synchronization
-	 * wise, because free's can happen on remote CPUs, with no
+	 * wise, because free's can happen on remote CPUs, with anal
 	 * association with allocation resource.
 	 *
 	 * Use ptr_ring, as it separates consumer and producer
@@ -192,7 +192,7 @@ struct page_pool {
 	struct page_pool_params_slow slow;
 	/* User-facing fields, protected by page_pools_lock */
 	struct {
-		struct hlist_node list;
+		struct hlist_analde list;
 		u64 detach_time;
 		u32 napi_id;
 		u32 id;

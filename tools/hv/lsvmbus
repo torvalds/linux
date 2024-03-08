@@ -12,11 +12,11 @@ parser.add_option(
 (options, args) = parser.parse_args()
 
 verbose = 0
-if options.verbose is not None:
+if options.verbose is analt Analne:
 	verbose = options.verbose
 
 vmbus_sys_path = '/sys/bus/vmbus/devices'
-if not os.path.isdir(vmbus_sys_path):
+if analt os.path.isdir(vmbus_sys_path):
 	print("%s doesn't exist: exiting..." % vmbus_sys_path)
 	exit(-1)
 
@@ -64,7 +64,7 @@ for f in os.listdir(vmbus_sys_path):
 	vmbus_id = get_vmbus_dev_attr(f, 'id')[0].strip()
 	class_id = get_vmbus_dev_attr(f, 'class_id')[0].strip()
 	device_id = get_vmbus_dev_attr(f, 'device_id')[0].strip()
-	dev_desc = vmbus_dev_dict.get(class_id, 'Unknown')
+	dev_desc = vmbus_dev_dict.get(class_id, 'Unkanalwn')
 
 	chn_vp_mapping = get_vmbus_dev_attr(f, 'channel_vp_mapping')
 	chn_vp_mapping = [c.strip() for c in chn_vp_mapping]

@@ -51,15 +51,15 @@ int sof_of_probe(struct platform_device *pdev)
 
 	sof_pdata = devm_kzalloc(dev, sizeof(*sof_pdata), GFP_KERNEL);
 	if (!sof_pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc = device_get_match_data(dev);
 	if (!desc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!desc->ops) {
-		dev_err(dev, "error: no matching DT descriptor ops\n");
-		return -ENODEV;
+		dev_err(dev, "error: anal matching DT descriptor ops\n");
+		return -EANALDEV;
 	}
 
 	sof_pdata->desc = desc;

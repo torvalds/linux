@@ -57,7 +57,7 @@ static int mantis_hif_write_wait(struct mantis_ca *ca)
 		dprintk(MANTIS_ERROR, 1, "Adapter(%d) Slot(0): Write ACK timed out !", mantis->num);
 		rc = -EREMOTEIO;
 	}
-	dprintk(MANTIS_DEBUG, 1, "Write Acknowledged");
+	dprintk(MANTIS_DEBUG, 1, "Write Ackanalwledged");
 	mantis->gpif_status &= ~MANTIS_GPIF_WRACK;
 	while (!opdone) {
 		opdone = (mmread(MANTIS_GPIF_STATUS) & MANTIS_SBUF_OPDONE);
@@ -116,7 +116,7 @@ int mantis_hif_write_mem(struct mantis_ca *ca, u32 addr, u8 data)
 	hif_addr |=  MANTIS_HIF_STATUS;
 	hif_addr |=  addr;
 
-	mmwrite(slot->slave_cfg, MANTIS_GPIF_CFGSLA); /* Slot0 alone for now */
+	mmwrite(slot->slave_cfg, MANTIS_GPIF_CFGSLA); /* Slot0 alone for analw */
 	mmwrite(hif_addr, MANTIS_GPIF_ADDR);
 	mmwrite(data, MANTIS_GPIF_DOUT);
 

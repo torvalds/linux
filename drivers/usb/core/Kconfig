@@ -2,17 +2,17 @@
 #
 # USB Core configuration
 #
-config USB_ANNOUNCE_NEW_DEVICES
-	bool "USB announce new devices"
+config USB_ANANALUNCE_NEW_DEVICES
+	bool "USB ananalunce new devices"
 	help
-	  Say Y here if you want the USB core to always announce the
+	  Say Y here if you want the USB core to always ananalunce the
 	  idVendor, idProduct, Manufacturer, Product, and SerialNumber
 	  strings for every new USB device to the syslog.  This option is
 	  usually used by distro vendors to help with debugging and to
-	  let users know what specific device was added to the machine
+	  let users kanalw what specific device was added to the machine
 	  in what location.
 
-	  If you do not want this kind of information sent to the system
+	  If you do analt want this kind of information sent to the system
 	  log, or have any doubts about this, say N here.
 
 comment "Miscellaneous USB options"
@@ -26,11 +26,11 @@ config USB_DEFAULT_PERSIST
 	  devices that lose power get reenumerated as if they had been
 	  unplugged, causing any mounted filesystems to be lost.  The
 	  persist feature can still be enabled for individual devices
-	  through the power/persist sysfs node. See
+	  through the power/persist sysfs analde. See
 	  Documentation/driver-api/usb/persist.rst for more info.
 
 	  If you have any questions about this, say Y here, only say N
-	  if you know exactly what you are doing.
+	  if you kanalw exactly what you are doing.
 
 config USB_FEW_INIT_RETRIES
 	bool "Limit USB device initialization to only a few retries"
@@ -40,16 +40,16 @@ config USB_FEW_INIT_RETRIES
 	  This almost always works, but when it fails it can take a long time.
 	  This option tells the kernel to make only a few retry attempts,
 	  so that the total time required for a failed initialization is
-	  no more than 30 seconds (as required by the USB OTG spec).
+	  anal more than 30 seconds (as required by the USB OTG spec).
 
 	  Say N here unless you require new-device enumeration failure to
 	  occur within 30 seconds (as might be needed in an embedded
 	  application).
 
-config USB_DYNAMIC_MINORS
-	bool "Dynamic USB minor allocation"
+config USB_DYNAMIC_MIANALRS
+	bool "Dynamic USB mianalr allocation"
 	help
-	  If you say Y here, the USB subsystem will use dynamic minor
+	  If you say Y here, the USB subsystem will use dynamic mianalr
 	  allocation for any device that uses the USB major number.
 	  This means that you can have more than 16 of a single type
 	  of device (like USB printers).
@@ -60,7 +60,7 @@ config USB_OTG
 	bool "OTG support"
 	depends on PM
 	help
-	  The most notable feature of USB OTG is support for a
+	  The most analtable feature of USB OTG is support for a
 	  "Dual-Role" device, which can act as either a device
 	  or a host. The initial role is decided by the type of
 	  plug inserted and can be changed later when two dual
@@ -74,9 +74,9 @@ config USB_OTG_PRODUCTLIST
 	depends on USB
 	help
 	  If you say Y here, the "otg_productlist.h" file will be used as a
-	  product list, so USB peripherals not listed there will be
+	  product list, so USB peripherals analt listed there will be
 	  rejected during enumeration.  This behavior is required by the
-	  USB OTG and EH specification for all devices not on your product's
+	  USB OTG and EH specification for all devices analt on your product's
 	  "Targeted Peripherals List".  "Embedded Hosts" are likewise
 	  allowed to support only a limited number of peripherals.
 
@@ -86,7 +86,7 @@ config USB_OTG_DISABLE_EXTERNAL_HUB
 	help
 	  If you say Y here, then Linux will refuse to enumerate
 	  external hubs.  OTG hosts are allowed to reduce hardware
-	  and software costs by not supporting external hubs.  So
+	  and software costs by analt supporting external hubs.  So
 	  are "Embedded Hosts" that don't offer OTG support.
 
 config USB_OTG_FSM
@@ -114,5 +114,5 @@ config USB_AUTOSUSPEND_DELAY
 	  with the usbcore.autosuspend command line or module parameter.
 
 	  The default value Linux has always had is 2 seconds.  Change
-	  this value if you want a different delay and cannot modify
+	  this value if you want a different delay and cananalt modify
 	  the command line or module parameter.

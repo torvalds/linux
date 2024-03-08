@@ -7,7 +7,7 @@
  *  Copyright (C) 2007 Kieran Bingham (MPC-Data Ltd)
  *
  * Based on clock-sh7263.c
- *  Copyright (C) 2006  Yoshinori Sato
+ *  Copyright (C) 2006  Yoshianalri Sato
  *
  * Based on clock-sh4.c
  *  Copyright (C) 2005  Paul Mundt

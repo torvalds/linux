@@ -3,7 +3,7 @@
  * OMAP2XXX powerdomain definitions
  *
  * Copyright (C) 2007-2008, 2011 Texas Instruments, Inc.
- * Copyright (C) 2007-2011 Nokia Corporation
+ * Copyright (C) 2007-2011 Analkia Corporation
  *
  * Paul Walmsley, Jouni Högander
  */
@@ -77,7 +77,7 @@ static struct powerdomain core_24xx_pwrdm = {
  * 2430-specific powerdomains
  */
 
-/* XXX 2430 KILLDOMAINWKUP bit?  No current users apparently */
+/* XXX 2430 KILLDOMAINWKUP bit?  Anal current users apparently */
 
 static struct powerdomain mdm_pwrdm = {
 	.name		  = "mdm_pwrdm",

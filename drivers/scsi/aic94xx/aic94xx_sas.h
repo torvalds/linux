@@ -100,7 +100,7 @@ struct asd_ddb_stp_sata_target_port {
 
 	u8     _r_b;
 	u8     flags2;		  /* STP close policy:0 */
-#define STP_CL_POL_NO_TX    0x00
+#define STP_CL_POL_ANAL_TX    0x00
 #define STP_CL_POL_BTW_CMDS 0x01
 
 	__le16 exec_queue_tail;
@@ -220,7 +220,7 @@ struct asd_ddb_seq_shared {
 	u32    _r_a;
 	u8     settable_max_contexts;
 	u8     _r_b[23];
-	u8     conn_not_active;
+	u8     conn_analt_active;
 	u8     phy_is_up;
 	u8     _r_c[8];
 	u8     port_map_by_links[8];
@@ -258,7 +258,7 @@ struct sg_el {
 
 /* An SCB (sequencer control block) is comprised of a common header
  * and a task part, for a total of 128 bytes.  All fields are in LE
- * order, unless otherwise noted.
+ * order, unless otherwise analted.
  */
 
 /* This struct scb_header, defines the SCB header format.
@@ -324,7 +324,7 @@ struct initiate_ssp_task {
 	__le16 sister_scb;	  /* 0xFFFF */
 	__le16 conn_handle;	  /* index to DDB for the intended target */
 	u8     data_dir;	  /* :1,0 */
-#define DATA_DIR_NONE   0x00
+#define DATA_DIR_ANALNE   0x00
 #define DATA_DIR_IN     0x01
 #define DATA_DIR_OUT    0x02
 #define DATA_DIR_BYRECIPIENT 0x03
@@ -385,9 +385,9 @@ struct control_phy {
 #define DISABLE_PHY            0x00
 #define ENABLE_PHY             0x01
 #define RELEASE_SPINUP_HOLD    0x02
-#define ENABLE_PHY_NO_SAS_OOB  0x03
-#define ENABLE_PHY_NO_SATA_OOB 0x04
-#define PHY_NO_OP              0x05
+#define ENABLE_PHY_ANAL_SAS_OOB  0x03
+#define ENABLE_PHY_ANAL_SATA_OOB 0x04
+#define PHY_ANAL_OP              0x05
 #define EXECUTE_HARD_RESET     0x81
 
 	u8     func_mask;
@@ -423,7 +423,7 @@ struct empty_scb {
 /* header+data+CRC+DMA suffix data */
 #define ASD_EDB_SIZE (24+1024+4+16)
 	struct sg_el eb[ASD_EDBS_PER_SCB];
-#define ELEMENT_NOT_VALID  0xC0
+#define ELEMENT_ANALT_VALID  0xC0
 } __attribute__ ((packed));
 
 struct initiate_link_adm {
@@ -431,7 +431,7 @@ struct initiate_link_adm {
 	u8     sub_func;
 #define GET_LINK_ERROR_COUNT      0x00
 #define RESET_LINK_ERROR_COUNT    0x01
-#define ENABLE_NOTIFY_SPINUP_INTS 0x02
+#define ENABLE_ANALTIFY_SPINUP_INTS 0x02
 
 	u8     _r_a[57];
 	__le16 conn_handle;
@@ -489,7 +489,7 @@ struct clear_nexus {
 #define RESUME_TX      0x40
 #define SEND_Q         0x04
 #define EXEC_Q         0x02
-#define NOTINQ         0x01
+#define ANALTINQ         0x01
 
 	u8     _r_b[3];
 	u8     conn_mask;
@@ -522,7 +522,7 @@ struct initiate_ssp_tmf {
 } __attribute__ ((packed));
 
 /* Transmits an arbitrary primitive on the link.
- * Used for NOTIFY and BROADCAST.
+ * Used for ANALTIFY and BROADCAST.
  */
 struct send_prim {
 	u8     phy_id;
@@ -589,18 +589,18 @@ struct scb {
 /* ---------- Done List ---------- */
 /* The done list entry opcode field is defined below.
  * The mnemonic encoding and meaning is as follows:
- * TC - Task Complete, status was received and acknowledged
- * TF - Task Failed, indicates an error prior to receiving acknowledgment
+ * TC - Task Complete, status was received and ackanalwledged
+ * TF - Task Failed, indicates an error prior to receiving ackanalwledgment
  *   for the command:
- *   - no conn,
+ *   - anal conn,
  *   - NACK or R_ERR received in response to this command,
- *   - credit blocked or not available, or in the case of SMP request,
- *   - no SMP response was received.
- *   In these four cases it is known that the target didn't receive the
+ *   - credit blocked or analt available, or in the case of SMP request,
+ *   - anal SMP response was received.
+ *   In these four cases it is kanalwn that the target didn't receive the
  *   command.
- * TI - Task Interrupted, error after the command was acknowledged.  It is
- *   known that the command was received by the target.
- * TU - Task Unacked, command was transmitted but neither ACK (R_OK) nor NAK
+ * TI - Task Interrupted, error after the command was ackanalwledged.  It is
+ *   kanalwn that the command was received by the target.
+ * TU - Task Unacked, command was transmitted but neither ACK (R_OK) analr NAK
  *   (R_ERR) was received due to loss of signal, broken connection, loss of
  *   dword sync or other reason.  The application client should send the
  *   appropriate task query.
@@ -608,7 +608,7 @@ struct scb {
  * _RESP - The completion includes an empty buffer containing status.
  * TO - Timeout.
  */
-#define TC_NO_ERROR             0x00
+#define TC_ANAL_ERROR             0x00
 #define TC_UNDERRUN             0x01
 #define TC_OVERRUN              0x02
 #define TF_OPEN_TO              0x03
@@ -637,17 +637,17 @@ struct scb {
 #define TF_NAK_RECV             0x1a
 #define TA_I_T_NEXUS_LOSS       0x1b
 #define TC_ATA_R_ERR_RECV       0x1c
-#define TF_TMF_NO_CTX           0x1d
+#define TF_TMF_ANAL_CTX           0x1d
 #define TA_ON_REQ               0x1e
-#define TF_TMF_NO_TAG           0x1f
+#define TF_TMF_ANAL_TAG           0x1f
 #define TF_TMF_TAG_FREE         0x20
 #define TF_TMF_TASK_DONE        0x21
-#define TF_TMF_NO_CONN_HANDLE   0x22
+#define TF_TMF_ANAL_CONN_HANDLE   0x22
 #define TC_TASK_CLEARED         0x23
 #define TI_SYNCS_RECV           0x24
 #define TU_SYNCS_RECV           0x25
 #define TF_IRTT_TO              0x26
-#define TF_NO_SMP_CONN          0x27
+#define TF_ANAL_SMP_CONN          0x27
 #define TF_IU_SHORT             0x28
 #define TF_DATA_OFFS_ERR        0x29
 #define TF_INV_CONN_HANDLE      0x2a
@@ -688,20 +688,20 @@ struct asd_phy {
 #define ASD_SCB_SIZE sizeof(struct scb)
 #define ASD_DDB_SIZE sizeof(struct asd_ddb_ssp_smp_target_port)
 
-/* Define this to 0 if you do not want NOTIFY (ENABLE SPINIP) sent.
+/* Define this to 0 if you do analt want ANALTIFY (ENABLE SPINIP) sent.
  * Default: 0x10 (it's a mask)
  */
-#define ASD_NOTIFY_ENABLE_SPINUP  0x10
+#define ASD_ANALTIFY_ENABLE_SPINUP  0x10
 
 /* If enabled, set this to the interval between transmission
- * of NOTIFY (ENABLE SPINUP). In units of 200 us.
+ * of ANALTIFY (ENABLE SPINUP). In units of 200 us.
  */
-#define ASD_NOTIFY_TIMEOUT        2500
+#define ASD_ANALTIFY_TIMEOUT        2500
 
-/* Initial delay after OOB, before we transmit NOTIFY (ENABLE SPINUP).
+/* Initial delay after OOB, before we transmit ANALTIFY (ENABLE SPINUP).
  * If 0, transmit immediately. In milliseconds.
  */
-#define ASD_NOTIFY_DOWN_COUNT     0
+#define ASD_ANALTIFY_DOWN_COUNT     0
 
 /* Device present timer timeout constant, 10 ms. */
 #define ASD_DEV_PRESENT_TIMEOUT   0x2710
@@ -710,7 +710,7 @@ struct asd_phy {
 
 /* How long to wait before shutting down an STP connection, unless
  * an STP target sent frame(s). 50 usec.
- * IGNORED by the sequencer (i.e. value 0 always).
+ * IGANALRED by the sequencer (i.e. value 0 always).
  */
 #define ASD_STP_SHUTDOWN_TIMEOUT  0x0
 

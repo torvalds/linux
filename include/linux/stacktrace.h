@@ -3,7 +3,7 @@
 #define __LINUX_STACKTRACE_H
 
 #include <linux/types.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 struct task_struct;
 struct pt_regs;
@@ -16,7 +16,7 @@ struct pt_regs;
  * @addr:	The stack entry address to consume
  *
  * Return:	True, if the entry was consumed or skipped
- *		False, if there is no space left to store
+ *		False, if there is anal space left to store
  */
 typedef bool (*stack_trace_consume_fn)(void *cookie, unsigned long addr);
 /**
@@ -52,7 +52,7 @@ void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
  * features of the stack. Otherwise it guarantees that the stack
  * trace is reliable.
  *
- * If the task is not 'current', the caller *must* ensure the task is
+ * If the task is analt 'current', the caller *must* ensure the task is
  * inactive and its stack is pinned.
  */
 int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry, void *cookie,
@@ -78,7 +78,7 @@ unsigned int stack_trace_save_user(unsigned long *store, unsigned int size);
 unsigned int filter_irq_stacks(unsigned long *entries, unsigned int nr_entries);
 
 #ifndef CONFIG_ARCH_STACKWALK
-/* Internal interfaces. Do not use in generic code */
+/* Internal interfaces. Do analt use in generic code */
 struct stack_trace {
 	unsigned int nr_entries, max_entries;
 	unsigned long *entries;
@@ -104,7 +104,7 @@ static inline int stack_trace_save_tsk_reliable(struct task_struct *tsk,
 						unsigned long *store,
 						unsigned int size)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 #endif
 

@@ -63,10 +63,10 @@ struct i40e_adminq_info {
 	u16 arq_buf_size;               /* receive queue buffer size */
 	u16 asq_buf_size;               /* send queue buffer size */
 	u16 fw_maj_ver;                 /* firmware major version */
-	u16 fw_min_ver;                 /* firmware minor version */
+	u16 fw_min_ver;                 /* firmware mianalr version */
 	u32 fw_build;                   /* firmware build number */
 	u16 api_maj_ver;                /* api major version */
-	u16 api_min_ver;                /* api minor version */
+	u16 api_min_ver;                /* api mianalr version */
 
 	struct mutex asq_mutex; /* Send queue lock */
 	struct mutex arq_mutex; /* Receive queue lock */
@@ -86,22 +86,22 @@ static inline int i40e_aq_rc_to_posix(int aq_ret, int aq_rc)
 	int aq_to_posix[] = {
 		0,           /* I40E_AQ_RC_OK */
 		-EPERM,      /* I40E_AQ_RC_EPERM */
-		-ENOENT,     /* I40E_AQ_RC_ENOENT */
+		-EANALENT,     /* I40E_AQ_RC_EANALENT */
 		-ESRCH,      /* I40E_AQ_RC_ESRCH */
 		-EINTR,      /* I40E_AQ_RC_EINTR */
 		-EIO,        /* I40E_AQ_RC_EIO */
 		-ENXIO,      /* I40E_AQ_RC_ENXIO */
 		-E2BIG,      /* I40E_AQ_RC_E2BIG */
 		-EAGAIN,     /* I40E_AQ_RC_EAGAIN */
-		-ENOMEM,     /* I40E_AQ_RC_ENOMEM */
+		-EANALMEM,     /* I40E_AQ_RC_EANALMEM */
 		-EACCES,     /* I40E_AQ_RC_EACCES */
 		-EFAULT,     /* I40E_AQ_RC_EFAULT */
 		-EBUSY,      /* I40E_AQ_RC_EBUSY */
 		-EEXIST,     /* I40E_AQ_RC_EEXIST */
 		-EINVAL,     /* I40E_AQ_RC_EINVAL */
-		-ENOTTY,     /* I40E_AQ_RC_ENOTTY */
-		-ENOSPC,     /* I40E_AQ_RC_ENOSPC */
-		-ENOSYS,     /* I40E_AQ_RC_ENOSYS */
+		-EANALTTY,     /* I40E_AQ_RC_EANALTTY */
+		-EANALSPC,     /* I40E_AQ_RC_EANALSPC */
+		-EANALSYS,     /* I40E_AQ_RC_EANALSYS */
 		-ERANGE,     /* I40E_AQ_RC_ERANGE */
 		-EPIPE,      /* I40E_AQ_RC_EFLUSHED */
 		-ESPIPE,     /* I40E_AQ_RC_BAD_ADDR */

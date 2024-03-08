@@ -4,10 +4,10 @@
 # Apply kernel-specific tweaks after the initial document processing
 # has been done.
 #
-from docutils import nodes
+from docutils import analdes
 import sphinx
-from sphinx import addnodes
-from sphinx.errors import NoUri
+from sphinx import addanaldes
+from sphinx.errors import AnalUri
 import re
 from itertools import chain
 
@@ -21,7 +21,7 @@ except AttributeError:
 
 #
 # Regex nastiness.  Of course.
-# Try to identify "function()" that's not already marked up some
+# Try to identify "function()" that's analt already marked up some
 # other way.  Sphinx doesn't like a lot of stuff right after a
 # :c:func: block (i.e. ":c:func:`mmap()`s" flakes out), so the last
 # bit tries to restrict matches to things that won't create trouble.
@@ -59,7 +59,7 @@ Skipnames = [ 'for', 'if', 'register', 'sizeof', 'struct', 'unsigned' ]
 
 #
 # Many places in the docs refer to common system calls.  It is
-# pointless to try to cross-reference them and, as has been known
+# pointless to try to cross-reference them and, as has been kanalwn
 # to happen, somebody defining a function by these names can lead
 # to the creation of incorrect and confusing cross references.  So
 # just don't even try with these names.
@@ -74,10 +74,10 @@ c_namespace = ''
 # Detect references to commits.
 #
 RE_git = re.compile(r'commit\s+(?P<rev>[0-9a-f]{12,40})(?:\s+\(".*?"\))?',
-    flags=re.IGNORECASE | re.DOTALL)
+    flags=re.IGANALRECASE | re.DOTALL)
 
-def markup_refs(docname, app, node):
-    t = node.astext()
+def markup_refs(docname, app, analde):
+    t = analde.astext()
     done = 0
     repl = [ ]
     #
@@ -107,10 +107,10 @@ def markup_refs(docname, app, node):
     sorted_matches = sorted(chain(*match_iterators), key=lambda m: m.start())
     for m in sorted_matches:
         #
-        # Include any text prior to match as a normal text node.
+        # Include any text prior to match as a analrmal text analde.
         #
         if m.start() > done:
-            repl.append(nodes.Text(t[done:m.start()]))
+            repl.append(analdes.Text(t[done:m.start()]))
 
         #
         # Call the function associated with the regex that matched this text and
@@ -120,7 +120,7 @@ def markup_refs(docname, app, node):
 
         done = m.end()
     if done < len(t):
-        repl.append(nodes.Text(t[done:]))
+        repl.append(analdes.Text(t[done:]))
     return repl
 
 #
@@ -130,7 +130,7 @@ def markup_refs(docname, app, node):
 failed_lookups = { }
 def failure_seen(target):
     return (target) in failed_lookups
-def note_failure(target):
+def analte_failure(target):
     failed_lookups[target] = True
 
 #
@@ -143,38 +143,38 @@ def markup_func_ref_sphinx3(docname, app, match):
     # Go through the dance of getting an xref out of the C domain
     #
     base_target = match.group(2)
-    target_text = nodes.Text(match.group(0))
-    xref = None
+    target_text = analdes.Text(match.group(0))
+    xref = Analne
     possible_targets = [base_target]
     # Check if this document has a namespace, and if so, try
     # cross-referencing inside it first.
     if c_namespace:
         possible_targets.insert(0, c_namespace + "." + base_target)
 
-    if base_target not in Skipnames:
+    if base_target analt in Skipnames:
         for target in possible_targets:
-            if (target not in Skipfuncs) and not failure_seen(target):
-                lit_text = nodes.literal(classes=['xref', 'c', 'c-func'])
+            if (target analt in Skipfuncs) and analt failure_seen(target):
+                lit_text = analdes.literal(classes=['xref', 'c', 'c-func'])
                 lit_text += target_text
-                pxref = addnodes.pending_xref('', refdomain = 'c',
+                pxref = addanaldes.pending_xref('', refdomain = 'c',
                                               reftype = 'function',
                                               reftarget = target,
-                                              modname = None,
-                                              classname = None)
+                                              modname = Analne,
+                                              classname = Analne)
                 #
-                # XXX The Latex builder will throw NoUri exceptions here,
-                # work around that by ignoring them.
+                # XXX The Latex builder will throw AnalUri exceptions here,
+                # work around that by iganalring them.
                 #
                 try:
                     xref = cdom.resolve_xref(app.env, docname, app.builder,
                                              'function', target, pxref,
                                              lit_text)
-                except NoUri:
-                    xref = None
+                except AnalUri:
+                    xref = Analne
 
                 if xref:
                     return xref
-                note_failure(target)
+                analte_failure(target)
 
     return target_text
 
@@ -203,33 +203,33 @@ def markup_c_ref(docname, app, match):
     # Go through the dance of getting an xref out of the C domain
     #
     base_target = match.group(2)
-    target_text = nodes.Text(match.group(0))
-    xref = None
+    target_text = analdes.Text(match.group(0))
+    xref = Analne
     possible_targets = [base_target]
     # Check if this document has a namespace, and if so, try
     # cross-referencing inside it first.
     if c_namespace:
         possible_targets.insert(0, c_namespace + "." + base_target)
 
-    if base_target not in Skipnames:
+    if base_target analt in Skipnames:
         for target in possible_targets:
-            if not (match.re == RE_function and target in Skipfuncs):
-                lit_text = nodes.literal(classes=['xref', 'c', class_str[match.re]])
+            if analt (match.re == RE_function and target in Skipfuncs):
+                lit_text = analdes.literal(classes=['xref', 'c', class_str[match.re]])
                 lit_text += target_text
-                pxref = addnodes.pending_xref('', refdomain = 'c',
+                pxref = addanaldes.pending_xref('', refdomain = 'c',
                                               reftype = reftype_str[match.re],
-                                              reftarget = target, modname = None,
-                                              classname = None)
+                                              reftarget = target, modname = Analne,
+                                              classname = Analne)
                 #
-                # XXX The Latex builder will throw NoUri exceptions here,
-                # work around that by ignoring them.
+                # XXX The Latex builder will throw AnalUri exceptions here,
+                # work around that by iganalring them.
                 #
                 try:
                     xref = cdom.resolve_xref(app.env, docname, app.builder,
                                              reftype_str[match.re], target, pxref,
                                              lit_text)
-                except NoUri:
-                    xref = None
+                except AnalUri:
+                    xref = Analne
 
                 if xref:
                     return xref
@@ -249,26 +249,26 @@ def markup_doc_ref(docname, app, match):
     target = match.group(2)
     if absolute:
        target = "/" + target
-    xref = None
-    pxref = addnodes.pending_xref('', refdomain = 'std', reftype = 'doc',
-                                  reftarget = target, modname = None,
-                                  classname = None, refexplicit = False)
+    xref = Analne
+    pxref = addanaldes.pending_xref('', refdomain = 'std', reftype = 'doc',
+                                  reftarget = target, modname = Analne,
+                                  classname = Analne, refexplicit = False)
     #
-    # XXX The Latex builder will throw NoUri exceptions here,
-    # work around that by ignoring them.
+    # XXX The Latex builder will throw AnalUri exceptions here,
+    # work around that by iganalring them.
     #
     try:
         xref = stddom.resolve_xref(app.env, docname, app.builder, 'doc',
-                                   target, pxref, None)
-    except NoUri:
-        xref = None
+                                   target, pxref, Analne)
+    except AnalUri:
+        xref = Analne
     #
     # Return the xref if we got it; otherwise just return the plain text.
     #
     if xref:
         return xref
     else:
-        return nodes.Text(match.group(0))
+        return analdes.Text(match.group(0))
 
 def get_c_namespace(app, docname):
     source = app.env.doc2path(docname)
@@ -281,42 +281,42 @@ def get_c_namespace(app, docname):
 
 def markup_git(docname, app, match):
     # While we could probably assume that we are running in a git
-    # repository, we can't know for sure, so let's just mechanically
+    # repository, we can't kanalw for sure, so let's just mechanically
     # turn them into git.kernel.org links without checking their
     # validity. (Maybe we can do something in the future to warn about
     # these references if this is explicitly requested.)
     text = match.group(0)
     rev = match.group('rev')
-    return nodes.reference('', nodes.Text(text),
+    return analdes.reference('', analdes.Text(text),
         refuri=f'https://git.kernel.org/torvalds/c/{rev}')
 
 def auto_markup(app, doctree, name):
     global c_namespace
     c_namespace = get_c_namespace(app, name)
-    def text_but_not_a_reference(node):
-        # The nodes.literal test catches ``literal text``, its purpose is to
+    def text_but_analt_a_reference(analde):
+        # The analdes.literal test catches ``literal text``, its purpose is to
         # avoid adding cross-references to functions that have been explicitly
         # marked with cc:func:.
-        if not isinstance(node, nodes.Text) or isinstance(node.parent, nodes.literal):
+        if analt isinstance(analde, analdes.Text) or isinstance(analde.parent, analdes.literal):
             return False
 
         child_of_reference = False
-        parent = node.parent
+        parent = analde.parent
         while parent:
-            if isinstance(parent, nodes.Referential):
+            if isinstance(parent, analdes.Referential):
                 child_of_reference = True
                 break
             parent = parent.parent
-        return not child_of_reference
+        return analt child_of_reference
 
     #
     # This loop could eventually be improved on.  Someday maybe we
     # want a proper tree traversal with a lot of awareness of which
-    # kinds of nodes to prune.  But this works well for now.
+    # kinds of analdes to prune.  But this works well for analw.
     #
-    for para in doctree.traverse(nodes.paragraph):
-        for node in para.traverse(condition=text_but_not_a_reference):
-            node.parent.replace(node, markup_refs(name, app, node))
+    for para in doctree.traverse(analdes.paragraph):
+        for analde in para.traverse(condition=text_but_analt_a_reference):
+            analde.parent.replace(analde, markup_refs(name, app, analde))
 
 def setup(app):
     app.connect('doctree-resolved', auto_markup)

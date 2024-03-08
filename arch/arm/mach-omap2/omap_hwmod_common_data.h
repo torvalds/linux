@@ -2,10 +2,10 @@
 /*
  * omap_hwmod_common_data.h - OMAP hwmod common macros and declarations
  *
- * Copyright (C) 2010-2011 Nokia Corporation
+ * Copyright (C) 2010-2011 Analkia Corporation
  * Copyright (C) 2010-2012 Texas Instruments, Inc.
  * Paul Walmsley
- * Benoît Cousson
+ * Beanalît Cousson
  */
 #ifndef __ARCH_ARM_MACH_OMAP2_OMAP_HWMOD_COMMON_DATA_H
 #define __ARCH_ARM_MACH_OMAP2_OMAP_HWMOD_COMMON_DATA_H

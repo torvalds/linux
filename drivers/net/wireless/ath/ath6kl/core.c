@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -78,12 +78,12 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 		break;
 	default:
 		WARN_ON(1);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ar->ath6kl_wq = create_singlethread_workqueue("ath6kl");
 	if (!ar->ath6kl_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ath6kl_bmi_init(ar);
 	if (ret)
@@ -113,7 +113,7 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 	ar->htc_target = ath6kl_htc_create(ar);
 
 	if (!ar->htc_target) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_power_off;
 	}
 
@@ -127,7 +127,7 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 
 	/*
 	 * Backwards compatibility support for older ar6004 firmware images
-	 * which do not set these feature flags.
+	 * which do analt set these feature flags.
 	 */
 	if (ar->target_type == TARGET_TYPE_AR6004 &&
 	    ar->fw_api <= 4) {
@@ -141,7 +141,7 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 				  ar->fw_capabilities);
 	}
 
-	/* Indicate that WMI is enabled (although not ready yet) */
+	/* Indicate that WMI is enabled (although analt ready yet) */
 	set_bit(WMI_ENABLED, &ar->flag);
 	ar->wmi = ath6kl_wmi_init(ar);
 	if (!ar->wmi) {
@@ -163,7 +163,7 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 
 	ath6kl_cookie_init(ar);
 
-	ar->conf_flags = ATH6KL_CONF_IGNORE_ERP_BARKER |
+	ar->conf_flags = ATH6KL_CONF_IGANALRE_ERP_BARKER |
 			 ATH6KL_CONF_ENABLE_11N | ATH6KL_CONF_ENABLE_TX_BURST;
 
 	if (suspend_mode &&
@@ -223,7 +223,7 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 
 	if (!wdev) {
 		ath6kl_err("Failed to instantiate a network device\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		wiphy_unregister(ar->wiphy);
 		goto err_rxbuf_cleanup;
 	}
@@ -278,7 +278,7 @@ struct ath6kl *ath6kl_core_create(struct device *dev)
 
 	ar->vif_max = 1;
 
-	ar->max_norm_iface = 1;
+	ar->max_analrm_iface = 1;
 
 	spin_lock_init(&ar->lock);
 	spin_lock_init(&ar->mcastpsq_lock);

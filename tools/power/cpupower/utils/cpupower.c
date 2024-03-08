@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  (C) 2010,2011       Thomas Renninger <trenn@suse.de>, Novell Inc.
+ *  (C) 2010,2011       Thomas Renninger <trenn@suse.de>, Analvell Inc.
  *
  *  Ideas taken over from the perf userspace tool (included in the Linus
  *  kernel git repo): subcommand builtins and param parsing.
@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sched.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -27,7 +27,7 @@ static int cmd_help(int argc, const char **argv);
 /* Global cpu_info object available for all binaries
  * Info only retrieved from CPU 0
  *
- * Values will be zero/unknown on non X86 archs
+ * Values will be zero/unkanalwn on analn X86 archs
  */
 struct cpupower_cpu_info cpupower_cpu_info;
 int run_as_root;
@@ -74,7 +74,7 @@ static void print_help(void)
 	printf(_("Supported commands are:\n"));
 	for (i = 0; i < ARRAY_SIZE(commands); i++)
 		printf("\t%s\n", commands[i].cmd);
-	printf(_("\nNot all commands can make use of the -c cpulist option.\n"));
+	printf(_("\nAnalt all commands can make use of the -c cpulist option.\n"));
 	printf(_("\nUse 'cpupower help <command>' for getting help for above commands.\n"));
 }
 
@@ -83,13 +83,13 @@ static int print_man_page(const char *subpage)
 	int len;
 	char *page;
 
-	len = 10; /* enough for "cpupower-" */
+	len = 10; /* eanalugh for "cpupower-" */
 	if (subpage != NULL)
 		len += strlen(subpage);
 
 	page = malloc(len);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sprintf(page, "cpupower");
 	if ((subpage != NULL) && strcmp(subpage, "help")) {
@@ -99,7 +99,7 @@ static int print_man_page(const char *subpage)
 
 	execlp("man", "man", page, NULL);
 
-	/* should not be reached */
+	/* should analt be reached */
 	return -EINVAL;
 }
 
@@ -163,7 +163,7 @@ static void handle_options(int *argc, const char ***argv)
 			continue;
 #endif
 		} else {
-			fprintf(stderr, "Unknown option: %s\n", param);
+			fprintf(stderr, "Unkanalwn option: %s\n", param);
 			print_help();
 			exit(EXIT_FAILURE);
 		}
@@ -207,7 +207,7 @@ int main(int argc, const char *argv[])
 
 	base_cpu = sched_getcpu();
 	if (base_cpu < 0) {
-		fprintf(stderr, _("No valid cpus found.\n"));
+		fprintf(stderr, _("Anal valid cpus found.\n"));
 		return EXIT_FAILURE;
 	}
 
@@ -219,7 +219,7 @@ int main(int argc, const char *argv[])
 		if (!ret && !strcmp(uts.machine, "x86_64") &&
 		    stat(pathname, &statbuf) != 0) {
 			if (system("modprobe msr") == -1)
-	fprintf(stderr, _("MSR access not available.\n"));
+	fprintf(stderr, _("MSR access analt available.\n"));
 		}
 	}
 

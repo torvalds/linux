@@ -77,7 +77,7 @@ static struct sk_buff *a5psw_tag_rcv(struct sk_buff *skb,
 
 	if (unlikely(!pskb_may_pull(skb, A5PSW_TAG_LEN))) {
 		dev_warn_ratelimited(&dev->dev,
-				     "Dropping packet, cannot pull\n");
+				     "Dropping packet, cananalt pull\n");
 		return NULL;
 	}
 

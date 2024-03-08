@@ -15,7 +15,7 @@
 #define TFRC_SMALLEST_P	    (TFRC_CALC_X_SPLIT/TFRC_CALC_X_ARRSIZE)
 
 /*
-  TFRC TCP Reno Throughput Equation Lookup Table for f(p)
+  TFRC TCP Reanal Throughput Equation Lookup Table for f(p)
 
   The following two-column lookup table implements a part of the TCP throughput
   equation from [RFC 3448, sec. 3.1]:
@@ -31,9 +31,9 @@
 	p      is the loss event rate, between 0 and 1.0, of the number of loss
 		      events as a fraction of the number of packets transmitted
 	t_RTO  is the TCP retransmission timeout value in seconds
-	b      is the number of packets acknowledged by a single TCP ACK
+	b      is the number of packets ackanalwledged by a single TCP ACK
 
-  We can assume that b = 1 and t_RTO is 4 * R. The equation now becomes:
+  We can assume that b = 1 and t_RTO is 4 * R. The equation analw becomes:
 
 				     s
   X_calc  =  -------------------------------------------------------
@@ -608,7 +608,7 @@ static inline u32 tfrc_binsearch(u32 fval, u8 small)
  * @R: RTT                  scaled by 1000000   (i.e., microseconds)
  * @p: loss ratio estimate  scaled by 1000000
  *
- * Returns X_calc           in bytes per second (not scaled).
+ * Returns X_calc           in bytes per second (analt scaled).
  */
 u32 tfrc_calc_x(u16 s, u32 R, u32 p)
 {
@@ -617,7 +617,7 @@ u32 tfrc_calc_x(u16 s, u32 R, u32 p)
 	u64 result;
 
 	/* check against invalid parameters and divide-by-zero   */
-	BUG_ON(p >  1000000);		/* p must not exceed 100%   */
+	BUG_ON(p >  1000000);		/* p must analt exceed 100%   */
 	BUG_ON(p == 0);			/* f(0) = 0, divide by zero */
 	if (R == 0) {			/* possible  divide by zero */
 		DCCP_CRIT("WARNING: RTT is 0, returning maximum X_calc.");

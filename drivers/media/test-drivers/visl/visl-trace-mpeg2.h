@@ -43,7 +43,7 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_mpeg2_pic_tmpl,
 		  {V4L2_MPEG2_PIC_FLAG_ALT_SCAN, "ALT_SCAN"},
 		  {V4L2_MPEG2_PIC_FLAG_REPEAT_FIRST, "REPEAT_FIRST"},
 		  {V4L2_MPEG2_PIC_FLAG_PROGRESSIVE, "PROGRESSIVE"}),
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->p.f_code,
 				   sizeof(__entry->p.f_code),
 				   false),
@@ -58,20 +58,20 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_mpeg2_quant_tmpl,
 	TP_ARGS(q),
 	TP_STRUCT__entry(__field_struct(struct v4l2_ctrl_mpeg2_quantisation, q)),
 	TP_fast_assign(__entry->q = *q;),
-	TP_printk("\nintra_quantiser_matrix %s\nnon_intra_quantiser_matrix %s\n"
-		  "chroma_intra_quantiser_matrix %s\nchroma_non_intra_quantiser_matrix %s\n",
+	TP_printk("\nintra_quantiser_matrix %s\nanaln_intra_quantiser_matrix %s\n"
+		  "chroma_intra_quantiser_matrix %s\nchroma_analn_intra_quantiser_matrix %s\n",
 		  __print_array(__entry->q.intra_quantiser_matrix,
 				ARRAY_SIZE(__entry->q.intra_quantiser_matrix),
 				sizeof(__entry->q.intra_quantiser_matrix[0])),
-		  __print_array(__entry->q.non_intra_quantiser_matrix,
-				ARRAY_SIZE(__entry->q.non_intra_quantiser_matrix),
-				sizeof(__entry->q.non_intra_quantiser_matrix[0])),
+		  __print_array(__entry->q.analn_intra_quantiser_matrix,
+				ARRAY_SIZE(__entry->q.analn_intra_quantiser_matrix),
+				sizeof(__entry->q.analn_intra_quantiser_matrix[0])),
 		  __print_array(__entry->q.chroma_intra_quantiser_matrix,
 				ARRAY_SIZE(__entry->q.chroma_intra_quantiser_matrix),
 				sizeof(__entry->q.chroma_intra_quantiser_matrix[0])),
-		  __print_array(__entry->q.chroma_non_intra_quantiser_matrix,
-				ARRAY_SIZE(__entry->q.chroma_non_intra_quantiser_matrix),
-				sizeof(__entry->q.chroma_non_intra_quantiser_matrix[0]))
+		  __print_array(__entry->q.chroma_analn_intra_quantiser_matrix,
+				ARRAY_SIZE(__entry->q.chroma_analn_intra_quantiser_matrix),
+				sizeof(__entry->q.chroma_analn_intra_quantiser_matrix[0]))
 		  )
 )
 

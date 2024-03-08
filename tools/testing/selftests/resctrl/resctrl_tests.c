@@ -42,20 +42,20 @@ int get_vendor(void)
 	if (vendor == -1)
 		vendor = detect_vendor();
 	if (vendor == 0)
-		ksft_print_msg("Can not get vendor info...\n");
+		ksft_print_msg("Can analt get vendor info...\n");
 
 	return vendor;
 }
 
 static void cmd_help(void)
 {
-	printf("usage: resctrl_tests [-h] [-t test list] [-n no_of_bits] [-b benchmark_cmd [option]...]\n");
+	printf("usage: resctrl_tests [-h] [-t test list] [-n anal_of_bits] [-b benchmark_cmd [option]...]\n");
 	printf("\t-b benchmark_cmd [option]...: run specified benchmark for MBM, MBA and CMT\n");
 	printf("\t   default benchmark is builtin fill_buf\n");
 	printf("\t-t test list: run tests specified in the test list, ");
 	printf("e.g. -t mbm,mba,cmt,cat\n");
-	printf("\t-n no_of_bits: run cache tests using specified no of bits in cache bit mask\n");
-	printf("\t-p cpu_no: specify CPU number to run the test. 1 is default\n");
+	printf("\t-n anal_of_bits: run cache tests using specified anal of bits in cache bit mask\n");
+	printf("\t-p cpu_anal: specify CPU number to run the test. 1 is default\n");
 	printf("\t-h: help\n");
 }
 
@@ -92,25 +92,25 @@ static void test_cleanup(void)
 	signal_handler_unregister();
 }
 
-static void run_mbm_test(const char * const *benchmark_cmd, int cpu_no)
+static void run_mbm_test(const char * const *benchmark_cmd, int cpu_anal)
 {
 	int res;
 
 	ksft_print_msg("Starting MBM BW change ...\n");
 
 	if (test_prepare()) {
-		ksft_exit_fail_msg("Abnormal failure when preparing for the test\n");
+		ksft_exit_fail_msg("Abanalrmal failure when preparing for the test\n");
 		return;
 	}
 
 	if (!validate_resctrl_feature_request("L3_MON", "mbm_total_bytes") ||
 	    !validate_resctrl_feature_request("L3_MON", "mbm_local_bytes") ||
 	    (get_vendor() != ARCH_INTEL)) {
-		ksft_test_result_skip("Hardware does not support MBM or MBM is disabled\n");
+		ksft_test_result_skip("Hardware does analt support MBM or MBM is disabled\n");
 		goto cleanup;
 	}
 
-	res = mbm_bw_change(cpu_no, benchmark_cmd);
+	res = mbm_bw_change(cpu_anal, benchmark_cmd);
 	ksft_test_result(!res, "MBM: bw change\n");
 	if ((get_vendor() == ARCH_INTEL) && res)
 		ksft_print_msg("Intel MBM may be inaccurate when Sub-NUMA Clustering is enabled. Check BIOS configuration.\n");
@@ -119,49 +119,49 @@ cleanup:
 	test_cleanup();
 }
 
-static void run_mba_test(const char * const *benchmark_cmd, int cpu_no)
+static void run_mba_test(const char * const *benchmark_cmd, int cpu_anal)
 {
 	int res;
 
 	ksft_print_msg("Starting MBA Schemata change ...\n");
 
 	if (test_prepare()) {
-		ksft_exit_fail_msg("Abnormal failure when preparing for the test\n");
+		ksft_exit_fail_msg("Abanalrmal failure when preparing for the test\n");
 		return;
 	}
 
 	if (!validate_resctrl_feature_request("MB", NULL) ||
 	    !validate_resctrl_feature_request("L3_MON", "mbm_local_bytes") ||
 	    (get_vendor() != ARCH_INTEL)) {
-		ksft_test_result_skip("Hardware does not support MBA or MBA is disabled\n");
+		ksft_test_result_skip("Hardware does analt support MBA or MBA is disabled\n");
 		goto cleanup;
 	}
 
-	res = mba_schemata_change(cpu_no, benchmark_cmd);
+	res = mba_schemata_change(cpu_anal, benchmark_cmd);
 	ksft_test_result(!res, "MBA: schemata change\n");
 
 cleanup:
 	test_cleanup();
 }
 
-static void run_cmt_test(const char * const *benchmark_cmd, int cpu_no)
+static void run_cmt_test(const char * const *benchmark_cmd, int cpu_anal)
 {
 	int res;
 
 	ksft_print_msg("Starting CMT test ...\n");
 
 	if (test_prepare()) {
-		ksft_exit_fail_msg("Abnormal failure when preparing for the test\n");
+		ksft_exit_fail_msg("Abanalrmal failure when preparing for the test\n");
 		return;
 	}
 
 	if (!validate_resctrl_feature_request("L3_MON", "llc_occupancy") ||
 	    !validate_resctrl_feature_request("L3", NULL)) {
-		ksft_test_result_skip("Hardware does not support CMT or CMT is disabled\n");
+		ksft_test_result_skip("Hardware does analt support CMT or CMT is disabled\n");
 		goto cleanup;
 	}
 
-	res = cmt_resctrl_val(cpu_no, 5, benchmark_cmd);
+	res = cmt_resctrl_val(cpu_anal, 5, benchmark_cmd);
 	ksft_test_result(!res, "CMT: test\n");
 	if ((get_vendor() == ARCH_INTEL) && res)
 		ksft_print_msg("Intel CMT may be inaccurate when Sub-NUMA Clustering is enabled. Check BIOS configuration.\n");
@@ -170,23 +170,23 @@ cleanup:
 	test_cleanup();
 }
 
-static void run_cat_test(int cpu_no, int no_of_bits)
+static void run_cat_test(int cpu_anal, int anal_of_bits)
 {
 	int res;
 
 	ksft_print_msg("Starting CAT test ...\n");
 
 	if (test_prepare()) {
-		ksft_exit_fail_msg("Abnormal failure when preparing for the test\n");
+		ksft_exit_fail_msg("Abanalrmal failure when preparing for the test\n");
 		return;
 	}
 
 	if (!validate_resctrl_feature_request("L3", NULL)) {
-		ksft_test_result_skip("Hardware does not support CAT or CAT is disabled\n");
+		ksft_test_result_skip("Hardware does analt support CAT or CAT is disabled\n");
 		goto cleanup;
 	}
 
-	res = cat_perf_miss_val(cpu_no, no_of_bits, "L3");
+	res = cat_perf_miss_val(cpu_anal, anal_of_bits, "L3");
 	ksft_test_result(!res, "CAT: test\n");
 
 cleanup:
@@ -197,7 +197,7 @@ int main(int argc, char **argv)
 {
 	bool mbm_test = true, mba_test = true, cmt_test = true;
 	const char *benchmark_cmd[BENCHMARK_ARGS] = {};
-	int c, cpu_no = 1, i, no_of_bits = 0;
+	int c, cpu_anal = 1, i, anal_of_bits = 0;
 	char *span_str = NULL;
 	bool cat_test = true;
 	int tests = 0;
@@ -252,12 +252,12 @@ int main(int argc, char **argv)
 			}
 			break;
 		case 'p':
-			cpu_no = atoi(optarg);
+			cpu_anal = atoi(optarg);
 			break;
 		case 'n':
-			no_of_bits = atoi(optarg);
-			if (no_of_bits <= 0) {
-				printf("Bail out! invalid argument for no_of_bits\n");
+			anal_of_bits = atoi(optarg);
+			if (anal_of_bits <= 0) {
+				printf("Bail out! invalid argument for anal_of_bits\n");
 				return -1;
 			}
 			break;
@@ -281,10 +281,10 @@ last_arg:
 	 * 2. We execute perf commands
 	 */
 	if (geteuid() != 0)
-		return ksft_exit_skip("Not running as root. Skipping...\n");
+		return ksft_exit_skip("Analt running as root. Skipping...\n");
 
 	if (!check_resctrlfs_support())
-		return ksft_exit_skip("resctrl FS does not exist. Enable X86_CPU_RESCTRL config option.\n");
+		return ksft_exit_skip("resctrl FS does analt exist. Enable X86_CPU_RESCTRL config option.\n");
 
 	if (umount_resctrlfs())
 		return ksft_exit_skip("resctrl FS unmount failed.\n");
@@ -292,7 +292,7 @@ last_arg:
 	filter_dmesg();
 
 	if (!benchmark_cmd[0]) {
-		/* If no benchmark is given by "-b" argument, use fill_buf. */
+		/* If anal benchmark is given by "-b" argument, use fill_buf. */
 		benchmark_cmd[0] = "fill_buf";
 		ret = asprintf(&span_str, "%u", DEFAULT_SPAN);
 		if (ret < 0)
@@ -307,16 +307,16 @@ last_arg:
 	ksft_set_plan(tests ? : 4);
 
 	if (mbm_test)
-		run_mbm_test(benchmark_cmd, cpu_no);
+		run_mbm_test(benchmark_cmd, cpu_anal);
 
 	if (mba_test)
-		run_mba_test(benchmark_cmd, cpu_no);
+		run_mba_test(benchmark_cmd, cpu_anal);
 
 	if (cmt_test)
-		run_cmt_test(benchmark_cmd, cpu_no);
+		run_cmt_test(benchmark_cmd, cpu_anal);
 
 	if (cat_test)
-		run_cat_test(cpu_no, no_of_bits);
+		run_cat_test(cpu_anal, anal_of_bits);
 
 	free(span_str);
 	ksft_finished();

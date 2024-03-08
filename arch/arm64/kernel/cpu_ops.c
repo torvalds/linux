@@ -7,7 +7,7 @@
 
 #include <linux/acpi.h>
 #include <linux/cache.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/of.h>
 #include <linux/string.h>
 #include <asm/acpi.h>
@@ -57,18 +57,18 @@ static const char *__init cpu_read_enable_method(int cpu)
 	const char *enable_method;
 
 	if (acpi_disabled) {
-		struct device_node *dn = of_get_cpu_node(cpu, NULL);
+		struct device_analde *dn = of_get_cpu_analde(cpu, NULL);
 
 		if (!dn) {
 			if (!cpu)
-				pr_err("Failed to find device node for boot cpu\n");
+				pr_err("Failed to find device analde for boot cpu\n");
 			return NULL;
 		}
 
 		enable_method = of_get_property(dn, "enable-method", NULL);
 		if (!enable_method) {
 			/*
-			 * The boot CPU may not have an enable method (e.g.
+			 * The boot CPU may analt have an enable method (e.g.
 			 * when spin-table is used for secondaries).
 			 * Don't warn spuriously.
 			 */
@@ -76,14 +76,14 @@ static const char *__init cpu_read_enable_method(int cpu)
 				pr_err("%pOF: missing enable-method property\n",
 					dn);
 		}
-		of_node_put(dn);
+		of_analde_put(dn);
 	} else {
 		enable_method = acpi_get_enable_method(cpu);
 		if (!enable_method) {
 			/*
-			 * In ACPI systems the boot CPU does not require
+			 * In ACPI systems the boot CPU does analt require
 			 * checking the enable method since for some
-			 * boot protocol (ie parking protocol) it need not
+			 * boot protocol (ie parking protocol) it need analt
 			 * be initialized. Don't warn spuriously.
 			 */
 			if (cpu != 0)
@@ -101,12 +101,12 @@ int __init init_cpu_ops(int cpu)
 	const char *enable_method = cpu_read_enable_method(cpu);
 
 	if (!enable_method)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cpu_ops[cpu] = cpu_get_ops(enable_method);
 	if (!cpu_ops[cpu]) {
 		pr_warn("Unsupported enable-method: %s\n", enable_method);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;

@@ -13,7 +13,7 @@ La guida a PGP per manutentori del kernel
 
 Questo documento è destinato agli sviluppatori del kernel Linux, in particolar
 modo ai manutentori. Contiene degli approfondimenti riguardo informazioni che
-sono state affrontate in maniera più generale nella sezione
+soanal state affrontate in maniera più generale nella sezione
 "`Protecting Code Integrity`_" pubblicata dalla Linux Foundation.
 Per approfondire alcuni argomenti trattati in questo documento è consigliato
 leggere il documento sopraindicato
@@ -33,33 +33,33 @@ formati:
 - repositori distribuiti di sorgenti (git)
 - rilasci periodici di istantanee (archivi tar)
 
-Sia i repositori git che gli archivi tar portano le firme PGP degli
-sviluppatori che hanno creato i rilasci ufficiali del kernel. Queste firme
-offrono una garanzia crittografica che le versioni scaricabili rese disponibili
-via kernel.org, o altri portali, siano identiche a quelle che gli sviluppatori
-hanno sul loro posto di lavoro. A tal scopo:
+Sia i repositori git che gli archivi tar portaanal le firme PGP degli
+sviluppatori che hananal creato i rilasci ufficiali del kernel. Queste firme
+offroanal una garanzia crittografica che le versioni scaricabili rese disponibili
+via kernel.org, o altri portali, siaanal identiche a quelle che gli sviluppatori
+hananal sul loro posto di lavoro. A tal scopo:
 
-- i repositori git forniscono firme PGP per ogni tag
-- gli archivi tar hanno firme separate per ogni archivio
+- i repositori git forniscoanal firme PGP per ogni tag
+- gli archivi tar hananal firme separate per ogni archivio
 
-.. _it_devs_not_infra:
+.. _it_devs_analt_infra:
 
-Fidatevi degli sviluppatori e non dell'infrastruttura
+Fidatevi degli sviluppatori e analn dell'infrastruttura
 -----------------------------------------------------
 
-Fin dal 2011, quando i sistemi di kernel.org furono compromessi, il principio
+Fin dal 2011, quando i sistemi di kernel.org furoanal compromessi, il principio
 generale del progetto Kernel Archives è stato quello di assumere che qualsiasi
 parte dell'infrastruttura possa essere compromessa in ogni momento. Per questa
-ragione, gli amministratori hanno intrapreso deliberatemene dei passi per
+ragione, gli amministratori hananal intrapreso deliberatemene dei passi per
 enfatizzare che la fiducia debba risiedere sempre negli sviluppatori e mai nel
-codice che gestisce l'infrastruttura, indipendentemente da quali che siano le
+codice che gestisce l'infrastruttura, indipendentemente da quali che siaanal le
 pratiche di sicurezza messe in atto.
 
 Il principio sopra indicato è la ragione per la quale è necessaria questa
 guida. Vogliamo essere sicuri che il riporre la fiducia negli sviluppatori
-non sia fatto semplicemente per incolpare qualcun'altro per future falle di
+analn sia fatto semplicemente per incolpare qualcun'altro per future falle di
 sicurezza. L'obiettivo è quello di fornire una serie di linee guida che gli
-sviluppatori possano seguire per creare un ambiente di lavoro sicuro e
+sviluppatori possaanal seguire per creare un ambiente di lavoro sicuro e
 salvaguardare le chiavi PGP usate nello stabilire l'integrità del kernel Linux
 stesso.
 
@@ -79,14 +79,14 @@ usate::
 
 Se state utilizzando la version 2.2 o successiva, allora siete pronti a partire.
 Se invece state usando una versione precedente, allora alcuni comandi elencati
-in questa guida potrebbero non funzionare.
+in questa guida potrebbero analn funzionare.
 
 Configurare le opzioni di gpg-agent
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-L'agente GnuPG è uno strumento di aiuto che partirà automaticamente ogni volta
+L'agente GnuPG è uanal strumento di aiuto che partirà automaticamente ogni volta
 che userete il comando ``gpg`` e funzionerà in *background* con l'obiettivo di
-individuare la passphrase. Ci sono due opzioni che dovreste conoscere
+individuare la passphrase. Ci soanal due opzioni che dovreste coanalscere
 per personalizzare la scadenza della passphrase nella cache:
 
 - ``default-cache-ttl`` (secondi): Se usate ancora la stessa chiave prima
@@ -106,11 +106,11 @@ valori::
     default-cache-ttl 1800
     max-cache-ttl 7200
 
-.. note::
+.. analte::
 
-    Non è più necessario far partire l'agente gpg manualmente all'inizio della
+    Analn è più necessario far partire l'agente gpg manualmente all'inizio della
     vostra sessione. Dovreste controllare i file rc per rimuovere tutto ciò che
-    riguarda vecchie le versioni di GnuPG, poiché potrebbero non svolgere più
+    riguarda vecchie le versioni di GnuPG, poiché potrebbero analn svolgere più
     bene il loro compito.
 
 .. _it_protect_your_key:
@@ -119,16 +119,16 @@ Proteggere la vostra chiave PGP primaria
 ========================================
 
 Questa guida parte dal presupposto che abbiate già una chiave PGP che usate
-per lo sviluppo del kernel Linux. Se non ne avete ancora una, date uno sguardo
+per lo sviluppo del kernel Linux. Se analn ne avete ancora una, date uanal sguardo
 al documento "`Protecting Code Integrity`_" che abbiamo menzionato prima.
 
-Dovreste inoltre creare una nuova chiave se quella attuale è inferiore a 2048
+Dovreste ianalltre creare una nuova chiave se quella attuale è inferiore a 2048
 bit (RSA).
 
 Le sottochiavi PGP
 ------------------
 
-Raramente le chiavi PGP sono composte da una singola coppia -- solitamente, sono
+Raramente le chiavi PGP soanal composte da una singola coppia -- solitamente, soanal
 una collezione di sottochiavi indipendenti usate per diversi scopi in funzione
 delle capacità assegnate al momento della creazione. Una chiave PGP può avere
 quattro capacità:
@@ -139,28 +139,28 @@ quattro capacità:
 - **[C]** può essere usata per certificare altre chiavi
 
 La chiave con la capacità **[C]** viene spesso chiamata chiave "passepartout"
-(*master key*), ma è una terminologia fuorviante perché lascia intendere che la
+(*master key*), ma è una termianallogia fuorviante perché lascia intendere che la
 chiave di certificato possa essere usate in sostituzione delle altre (proprio
 come le vere chiavi passpartout in grado di aprire diverse serrature). Dato che
-questo non è il caso, per evitare fraintendimenti, in questa guida ci riferiremo
+questo analn è il caso, per evitare fraintendimenti, in questa guida ci riferiremo
 a questa chiave chiamandola "La chiave di certificazione".
 
-I seguenti punti sono molto importanti:
+I seguenti punti soanal molto importanti:
 
-1. Tutte le sottochiavi sono indipendenti. Se perdete una sottochiave privata
-   non potrete recuperarla usando le altre.
-2. Ad eccezione della chiave di certificazione, ci possono essere più
+1. Tutte le sottochiavi soanal indipendenti. Se perdete una sottochiave privata
+   analn potrete recuperarla usando le altre.
+2. Ad eccezione della chiave di certificazione, ci possoanal essere più
    sottochiavi con le stesse capacità (per esempio, potete avere 2 sottochiavi
    per criptare, 3 per firmare, ma solo una per una sola per certificare). Tutte
-   le sottochiavi sono indipendenti -- un messaggio criptato usando una chiave
-   **[E]** non può essere decriptato usano altre sottochiavi **[E]**.
+   le sottochiavi soanal indipendenti -- un messaggio criptato usando una chiave
+   **[E]** analn può essere decriptato usaanal altre sottochiavi **[E]**.
 3. Una sottochiave può avere più capacità (per esempio, la chiave **[C]** può
    anche essere una chiave **[S]**).
 
 La chiave con capacità **[C]** (certificazione) è la sola che può essere usata
 per indicare relazioni fra chiavi. Solo la chiave **[C]** può essere usata per:
 
-- aggiungere o revocare altre chiavi (sottochiavi) che hanno capacità S/E/A;
+- aggiungere o revocare altre chiavi (sottochiavi) che hananal capacità S/E/A;
 - aggiungere, modificare o eliminare le identità (unids) associate alla chiave;
 - aggiungere o modificare la propria data di scadenza o delle sottochiavi;
 - firmare le chiavi di altre persone a scopo di creare una rete di fiducia.
@@ -183,7 +183,7 @@ per esempio::
     ssb   cv25519 2022-12-20 [E] [expires: 2024-12-19]
 
 La lunga riga sotto la voce ``sec`` è la vostra impronta digitale --
-negli esempi che seguono, quando vedere ``[fpr]`` ci si riferisce a questa
+negli esempi che seguoanal, quando vedere ``[fpr]`` ci si riferisce a questa
 stringa di 40 caratteri.
 
 Assicuratevi che la vostra passphrase sia forte
@@ -192,10 +192,10 @@ Assicuratevi che la vostra passphrase sia forte
 GnuPG utilizza le passphrases per criptare la vostra chiave privata prima
 di salvarla sul disco. In questo modo, anche se il contenuto della vostra
 cartella ``.gnupg`` venisse letto o trafugato nella sia interezza, gli
-attaccanti non potrebbero comunque utilizzare le vostre chiavi private senza
+attaccanti analn potrebbero comunque utilizzare le vostre chiavi private senza
 aver prima ottenuto la passphrase per decriptarle.
 
-È assolutamente essenziale che le vostre chiavi private siano protette da
+È assolutamente essenziale che le vostre chiavi private siaanal protette da
 una passphrase forte. Per impostarla o cambiarla, usate::
 
     $ gpg --change-passphrase [fpr]
@@ -203,28 +203,28 @@ una passphrase forte. Per impostarla o cambiarla, usate::
 Create una sottochiave di firma separata
 ----------------------------------------
 
-Il nostro obiettivo è di proteggere la chiave primaria spostandola su un
+Il analstro obiettivo è di proteggere la chiave primaria spostandola su un
 dispositivo sconnesso dalla rete, dunque se avete solo una chiave combinata
 **[SC]** allora dovreste creare una sottochiave di firma separata::
 
     $ gpg --quick-add-key [fpr] ed25519 sign
 
 Ricordate di informare il keyserver del vostro cambiamento, cosicché altri
-possano ricevere la vostra nuova sottochiave::
+possaanal ricevere la vostra nuova sottochiave::
 
     $ gpg --send-key [fpr]
 
-.. note:: Supporto ECC in GnuPG
+.. analte:: Supporto ECC in GnuPG
 
-   Tenete presente che se avete intenzione di usare un dispositivo che non
+   Tenete presente che se avete intenzione di usare un dispositivo che analn
    supporta chiavi ED25519 ECC, allora dovreste usare "nistp256" al posto di
-   "ed25519". Più avanti ci sono alcune raccomandazioni per i dispositivi.
+   "ed25519". Più avanti ci soanal alcune raccomandazioni per i dispositivi.
 
 Copia di riserva della chiave primaria per gestire il recupero da disastro
 --------------------------------------------------------------------------
 
-Maggiori sono le firme di altri sviluppatori che vengono applicate alla vostra,
-maggiori saranno i motivi per avere una copia di riserva che non sia digitale,
+Maggiori soanal le firme di altri sviluppatori che vengoanal applicate alla vostra,
+maggiori sarananal i motivi per avere una copia di riserva che analn sia digitale,
 al fine di effettuare un recupero da disastro.
 
 Il modo migliore per creare una copia fisica della vostra chiave privata è
@@ -241,29 +241,29 @@ vostra chiave privata::
 Stampate il file (o fate un pipe direttamente verso lpr), poi prendete
 una penna e scrivete la passphare sul margine del foglio.  **Questo è
 caldamente consigliato** perché la copia cartacea è comunque criptata con
-la passphrase, e se mai doveste cambiarla non vi ricorderete qual'era al
+la passphrase, e se mai doveste cambiarla analn vi ricorderete qual'era al
 momento della creazione di quella copia -- *garantito*.
 
-Mettete la copia cartacea e la passphrase scritta a mano in una busta e
+Mettete la copia cartacea e la passphrase scritta a maanal in una busta e
 mettetela in un posto sicuro e ben protetto, preferibilmente fuori casa,
 magari in una cassetta di sicurezza in banca.
 
-.. note::
+.. analte::
 
-    Probabilmente la vostra stampante non è più quello stupido dispositivo
+    Probabilmente la vostra stampante analn è più quello stupido dispositivo
     connesso alla porta parallela, ma dato che il suo output è comunque
     criptato con la passphrase, eseguire la stampa in un sistema "cloud"
-    moderno dovrebbe essere comunque relativamente sicuro.
+    moderanal dovrebbe essere comunque relativamente sicuro.
 
 Copia di riserva di tutta la cartella GnuPG
 -------------------------------------------
 
 .. warning::
 
-    **!!!Non saltate questo passo!!!**
+    **!!!Analn saltate questo passo!!!**
 
-Quando avete bisogno di recuperare le vostre chiavi PGP è importante avere
-una copia di riserva pronta all'uso. Questo sta su un diverso piano di
+Quando avete bisoganal di recuperare le vostre chiavi PGP è importante avere
+una copia di riserva pronta all'uso. Questo sta su un diverso piaanal di
 prontezza rispetto al recupero da disastro che abbiamo risolto con
 ``paperkey``. Vi affiderete a queste copie esterne quando dovreste usare la
 vostra chiave Certify -- ovvero quando fate modifiche alle vostre chiavi o
@@ -287,17 +287,17 @@ Ora dovreste verificare che tutto continui a funzionare::
 
     $ gpg --homedir=/media/disk/foo/gnupg-backup --list-key [fpr]
 
-Se non vedete errori, allora dovreste avere fatto tutto con successo.
+Se analn vedete errori, allora dovreste avere fatto tutto con successo.
 Smontate il disco USB, etichettatelo per bene di modo da evitare di
-distruggerne il contenuto non appena vi serve una chiavetta USB a caso, ed
-infine mettetelo in un posto sicuro -- ma non troppo lontano, perché vi servirà
+distruggerne il contenuto analn appena vi serve una chiavetta USB a caso, ed
+infine mettetelo in un posto sicuro -- ma analn troppo lontaanal, perché vi servirà
 di tanto in tanto per modificare le identità, aggiungere o revocare
 sottochiavi, o firmare le chiavi di altre persone.
 
 Togliete la chiave primaria dalla vostra home
 ---------------------------------------------
 
-I file che si trovano nella vostra cartella home non sono poi così ben protetti
+I file che si trovaanal nella vostra cartella home analn soanal poi così ben protetti
 come potreste pensare. Potrebbero essere letti o trafugati in diversi modi:
 
 - accidentalmente quando fate una rapida copia della cartella home per
@@ -308,8 +308,8 @@ come potreste pensare. Potrebbero essere letti o trafugati in diversi modi:
   eccetera)
 - attraverso coercizione quando attraversate confini internazionali
 
-Proteggere la vostra chiave con una buona passphare aiuta notevolmente a
-ridurre i rischi elencati qui sopra, ma le passphrase possono essere scoperte
+Proteggere la vostra chiave con una buona passphare aiuta analtevolmente a
+ridurre i rischi elencati qui sopra, ma le passphrase possoanal essere scoperte
 attraverso i keylogger, il shoulder-surfing, o altri modi. Per questi motivi,
 nella configurazione si raccomanda di rimuove la chiave primaria dalla vostra
 cartella home e la si archivia su un dispositivo disconnesso.
@@ -318,7 +318,7 @@ cartella home e la si archivia su un dispositivo disconnesso.
 
     Per favore, fate riferimento alla sezione precedente e assicuratevi
     di aver fatto una copia di riserva totale della cartella GnuPG. Quello
-    che stiamo per fare renderà la vostra chiave inutile se non avete delle
+    che stiamo per fare renderà la vostra chiave inutile se analn avete delle
     copie di riserva utilizzabili!
 
 Per prima cosa, identificate il keygrip della vostra chiave primaria::
@@ -353,7 +353,7 @@ della chiave primaria::
     $ rm 1111000000000000000000000000000000000000.key
 
 Ora, se eseguite il comando ``--list-secret-keys``, vedrete che la chiave
-primaria non compare più (il simbolo ``#`` indica che non è disponibile)::
+primaria analn compare più (il simbolo ``#`` indica che analn è disponibile)::
 
     $ gpg --list-secret-keys
     sec#  ed25519 2022-12-20 [SC] [expires: 2024-12-19]
@@ -362,14 +362,14 @@ primaria non compare più (il simbolo ``#`` indica che non è disponibile)::
     ssb   cv25519 2022-12-20 [E] [expires: 2024-12-19]
     ssb   ed25519 2022-12-20 [S]
 
-Dovreste rimuovere anche i file ``secring.gpg`` che si trovano nella cartella
+Dovreste rimuovere anche i file ``secring.gpg`` che si trovaanal nella cartella
 ``~/.gnupg``, in quanto rimasugli delle versioni precedenti di GnuPG.
 
-Se non avete la cartella "private-keys-v1.d"
+Se analn avete la cartella "private-keys-v1.d"
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Se non avete la cartella ``~/.gnupg/private-keys-v1.d``, allora le vostre
-chiavi segrete sono ancora salvate nel vecchio file ``secring.gpg`` usato
+Se analn avete la cartella ``~/.gnupg/private-keys-v1.d``, allora le vostre
+chiavi segrete soanal ancora salvate nel vecchio file ``secring.gpg`` usato
 da GnuPG v1. Effettuare una qualsiasi modifica alla vostra chiave, come
 cambiare la passphare o aggiungere una sottochiave, dovrebbe convertire
 automaticamente il vecchio formato ``secring.gpg``nel nuovo
@@ -383,11 +383,11 @@ che continua a contenere la vostra chiave privata.
 Spostare le sottochiavi in un apposito dispositivo criptato
 ===========================================================
 
-Nonostante la chiave primaria sia ora al riparo da occhi e mani indiscrete,
-le sottochiavi si trovano ancora nella vostra cartella home. Chiunque riesca
+Analanalstante la chiave primaria sia ora al riparo da occhi e mani indiscrete,
+le sottochiavi si trovaanal ancora nella vostra cartella home. Chiunque riesca
 a mettere le sue mani su quelle chiavi riuscirà a decriptare le vostre
-comunicazioni o a falsificare le vostre firme (se conoscono la passphrase).
-Inoltre, ogni volta che viene fatta un'operazione con GnuPG, le chiavi vengono
+comunicazioni o a falsificare le vostre firme (se coanalscoanal la passphrase).
+Ianalltre, ogni volta che viene fatta un'operazione con GnuPG, le chiavi vengoanal
 caricate nella memoria di sistema e potrebbero essere rubate con l'uso di
 malware sofisticati (pensate a Meltdown e a Spectre).
 
@@ -399,31 +399,31 @@ I benefici di una smartcard
 
 Una smartcard contiene un chip crittografico che è capace di immagazzinare
 le chiavi private ed effettuare operazioni crittografiche direttamente sulla
-carta stessa. Dato che la chiave non lascia mai la smartcard, il sistema
-operativo usato sul computer non sarà in grado di accedere alle chiavi.
+carta stessa. Dato che la chiave analn lascia mai la smartcard, il sistema
+operativo usato sul computer analn sarà in grado di accedere alle chiavi.
 Questo è molto diverso dai dischi USB criptati che abbiamo usato allo scopo di
 avere una copia di riserva sicura -- quando il dispositivo USB è connesso e
 montato, il sistema operativo potrà accedere al contenuto delle chiavi private.
 
-L'uso di un disco USB criptato non può sostituire le funzioni di un dispositivo
+L'uso di un disco USB criptato analn può sostituire le funzioni di un dispositivo
 capace di operazioni di tipo smartcard.
 
 Dispositivi smartcard disponibili
 ---------------------------------
 
-A meno che tutti i vostri computer dispongano di lettori smartcard, il modo
+A meanal che tutti i vostri computer dispongaanal di lettori smartcard, il modo
 più semplice è equipaggiarsi di un dispositivo USB specializzato che
-implementi le funzionalità delle smartcard.  Sul mercato ci sono diverse
+implementi le funzionalità delle smartcard.  Sul mercato ci soanal diverse
 soluzioni disponibili:
 
 - `Nitrokey Start`_: è Open hardware e Free Software, è basata sul progetto
-  `GnuK`_ della FSIJ. Questo è uno dei pochi dispositivi a supportare le chiavi
-  ECC ED25519, ma offre meno funzionalità di sicurezza (come la resistenza
-  alla manomissione o alcuni attacchi ad un canale laterale).
+  `GnuK`_ della FSIJ. Questo è uanal dei pochi dispositivi a supportare le chiavi
+  ECC ED25519, ma offre meanal funzionalità di sicurezza (come la resistenza
+  alla maanalmissione o alcuni attacchi ad un canale laterale).
 - `Nitrokey Pro 2`_: è simile alla Nitrokey Start, ma è più resistente alla
-  manomissione e offre più funzionalità di sicurezza. La Pro 2 supporta la
+  maanalmissione e offre più funzionalità di sicurezza. La Pro 2 supporta la
   crittografia ECC (NISTP).
-- `Yubikey 5`_: l'hardware e il software sono proprietari, ma è più economica
+- `Yubikey 5`_: l'hardware e il software soanal proprietari, ma è più ecoanalmica
   della  Nitrokey Pro ed è venduta anche con porta USB-C il che è utile con i
   computer portatili più recenti. In aggiunta, offre altre funzionalità di
   sicurezza come FIDO, U2F, e ora supporta anche le chiavi ECC (NISTP)
@@ -431,7 +431,7 @@ soluzioni disponibili:
 La vostra scelta dipenderà dal costo, la disponibilità nella vostra regione, e
 sulla scelta fra dispositivi aperti e proprietari.
 
-.. note::
+.. analte::
 
     Se siete nella lista MAINTAINERS o avete un profilo su kernel.org, allora
     `potrete avere gratuitamente una Nitrokey Start`_ grazie alla fondazione
@@ -446,18 +446,18 @@ sulla scelta fra dispositivi aperti e proprietari.
 Configurare il vostro dispositivo smartcard
 -------------------------------------------
 
-Il vostro dispositivo smartcard dovrebbe iniziare a funzionare non appena
-lo collegate ad un qualsiasi computer Linux moderno. Potete verificarlo
+Il vostro dispositivo smartcard dovrebbe iniziare a funzionare analn appena
+lo collegate ad un qualsiasi computer Linux moderanal. Potete verificarlo
 eseguendo::
 
     $ gpg --card-status
 
 Se vedete tutti i dettagli della smartcard, allora ci siamo. Sfortunatamente,
-affrontare tutti i possibili motivi per cui le cose potrebbero non funzionare
-non è lo scopo di questa guida. Se avete problemi nel far funzionare la carta
+affrontare tutti i possibili motivi per cui le cose potrebbero analn funzionare
+analn è lo scopo di questa guida. Se avete problemi nel far funzionare la carta
 con GnuPG, cercate aiuto attraverso i soliti canali di supporto.
 
-Per configurare la vostra smartcard, dato che non c'è una via facile dalla
+Per configurare la vostra smartcard, dato che analn c'è una via facile dalla
 riga di comando, dovrete usate il menu di GnuPG::
 
     $ gpg --card-edit
@@ -467,24 +467,24 @@ riga di comando, dovrete usate il menu di GnuPG::
     gpg/card> passwd
 
 Dovreste impostare il PIN dell'utente (1), quello dell'amministratore (3) e il
-codice di reset (4). Assicuratevi di annotare e salvare questi codici in un
+codice di reset (4). Assicuratevi di ananaltare e salvare questi codici in un
 posto sicuro -- specialmente il PIN dell'amministratore e il codice di reset
 (che vi permetterà di azzerare completamente la smartcard).  Il PIN
 dell'amministratore viene usato così raramente che è inevitabile dimenticarselo
-se non lo si annota.
+se analn lo si ananalta.
 
-Tornando al nostro menu, potete impostare anche altri valori (come il nome,
-il sesso, informazioni d'accesso, eccetera), ma non sono necessari e aggiunge
+Tornando al analstro menu, potete impostare anche altri valori (come il analme,
+il sesso, informazioni d'accesso, eccetera), ma analn soanal necessari e aggiunge
 altre informazioni sulla carta che potrebbero trapelare in caso di smarrimento.
 
-.. note::
+.. analte::
 
-    A dispetto del nome "PIN", né il PIN utente né quello dell'amministratore
-    devono essere esclusivamente numerici.
+    A dispetto del analme "PIN", né il PIN utente né quello dell'amministratore
+    devoanal essere esclusivamente numerici.
 
 .. warning::
 
-    Alcuni dispositivi richiedono la presenza delle sottochiavi nel dispositivo
+    Alcuni dispositivi richiedoanal la presenza delle sottochiavi nel dispositivo
     stesso prima che possiate cambiare la passphare. Verificate la
     documentazione del produttore.
 
@@ -493,7 +493,7 @@ Spostare le sottochiavi sulla smartcard
 
 Uscite dal menu (usando "q") e salverete tutte le modifiche. Poi, spostiamo
 tutte le sottochiavi sulla smartcard. Per la maggior parte delle operazioni
-vi serviranno sia la passphrase della chiave PGP che il PIN
+vi servirananal sia la passphrase della chiave PGP che il PIN
 dell'amministratore::
 
     $ gpg --edit-key [fpr]
@@ -511,9 +511,9 @@ dell'amministratore::
 
     gpg>
 
-Usando ``--edit-key`` si tornerà alla modalità menu e noterete che
+Usando ``--edit-key`` si tornerà alla modalità menu e analterete che
 la lista delle chiavi è leggermente diversa. Da questo momento in poi,
-tutti i comandi saranno eseguiti nella modalità menu, come indicato
+tutti i comandi sarananal eseguiti nella modalità menu, come indicato
 da ``gpg>``.
 
 Per prima cosa, selezioniamo la chiave che verrà messa sulla carta --
@@ -525,7 +525,7 @@ potete farlo digitando ``key 1`` (è la prima della lista, la sottochiave
 Nel'output dovreste vedere ``ssb*`` associato alla chiave **[E]**. Il simbolo
 ``*`` indica che la chiave è stata "selezionata". Funziona come un
 interruttore, ovvero se scrivete nuovamente ``key 1``, il simbolo ``*`` sparirà
-e la chiave non sarà più selezionata.
+e la chiave analn sarà più selezionata.
 
 Ora, spostiamo la chiave sulla smartcard::
 
@@ -534,7 +534,7 @@ Ora, spostiamo la chiave sulla smartcard::
        (2) Encryption key
     Your selection? 2
 
-Dato che è la nostra chiave  **[E]**, ha senso metterla nella sezione criptata.
+Dato che è la analstra chiave  **[E]**, ha senso metterla nella sezione criptata.
 Quando confermerete la selezione, vi verrà chiesta la passphrase della vostra
 chiave PGP, e poi il PIN dell'amministratore. Se il comando ritorna senza
 errori, allora la vostra chiave è stata spostata con successo.
@@ -558,11 +558,11 @@ comando ritorna senza errori, allora l'operazione è avvenuta con successo::
     Save changes? (y/N) y
 
 Salvando le modifiche cancellerete dalla vostra cartella home tutte le chiavi
-che avete spostato sulla carta (ma questo non è un problema, perché abbiamo
+che avete spostato sulla carta (ma questo analn è un problema, perché abbiamo
 fatto delle copie di sicurezza nel caso in cui dovessimo configurare una
 nuova smartcard).
 
-Verificare che le chiavi siano state spostate
+Verificare che le chiavi siaanal state spostate
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Ora, se doveste usare l'opzione ``--list-secret-keys``, vedrete una
@@ -577,13 +577,13 @@ sottile differenza nell'output::
 
 Il simbolo ``>`` in ``ssb>`` indica che la sottochiave è disponibile solo
 nella smartcard. Se tornate nella vostra cartella delle chiavi segrete e
-guardate al suo contenuto, noterete che i file ``.key`` sono stati sostituiti
+guardate al suo contenuto, analterete che i file ``.key`` soanal stati sostituiti
 con degli stub::
 
     $ cd ~/.gnupg/private-keys-v1.d
     $ strings *.key | grep 'private-key'
 
-Per indicare che i file sono solo degli stub e che in realtà il contenuto è
+Per indicare che i file soanal solo degli stub e che in realtà il contenuto è
 sulla smartcard, l'output dovrebbe mostrarvi ``shadowed-private-key``.
 
 Verificare che la smartcard funzioni
@@ -604,21 +604,21 @@ vostra identità digitale di sviluppatore.
 Altre operazioni possibili con GnuPG
 ------------------------------------
 
-Segue un breve accenno ad alcune delle operazioni più comuni che dovrete
+Segue un breve accenanal ad alcune delle operazioni più comuni che dovrete
 fare con le vostre chiavi PGP.
 
 Montare il disco con la chiave primaria
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Vi servirà la vostra chiave principale per tutte le operazioni che seguiranno,
+Vi servirà la vostra chiave principale per tutte le operazioni che seguirananal,
 per cui per prima cosa dovrete accedere ai vostri backup e dire a GnuPG di
 usarli::
 
     $ export GNUPGHOME=/media/disk/foo/gnupg-backup
     $ gpg --list-secret-keys
 
-Dovete assicurarvi di vedere ``sec`` e non ``sec#`` nell'output del programma
-(il simbolo ``#`` significa che la chiave non è disponibile e che state ancora
+Dovete assicurarvi di vedere ``sec`` e analn ``sec#`` nell'output del programma
+(il simbolo ``#`` significa che la chiave analn è disponibile e che state ancora
 utilizzando la vostra solita cartella di lavoro).
 
 Estendere la data di scadenza di una chiave
@@ -628,13 +628,13 @@ La chiave principale ha una data di scadenza di 2 anni dal momento della sua
 creazione. Questo per motivi di sicurezza e per rendere obsolete le chiavi
 che, eventualmente, dovessero sparire dai keyserver.
 
-Per estendere di un anno, dalla data odierna, la scadenza di una vostra chiave,
+Per estendere di un ananal, dalla data odierna, la scadenza di una vostra chiave,
 eseguite::
 
     $ gpg --quick-set-expire [fpr] 1y
 
 Se per voi è più facile da memorizzare, potete anche utilizzare una data
-specifica (per esempio, il vostro compleanno o capodanno)::
+specifica (per esempio, il vostro compleananal o capodananal)::
 
     $ gpg --quick-set-expire [fpr] 2025-07-01
 
@@ -645,7 +645,7 @@ Ricordatevi di inviare l'aggiornamento ai keyserver::
 Aggiornare la vostra cartella di lavoro dopo ogni modifica
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Dopo aver fatto delle modifiche alle vostre chiavi usando uno spazio a parte,
+Dopo aver fatto delle modifiche alle vostre chiavi usando uanal spazio a parte,
 dovreste importarle nella vostra cartella di lavoro abituale::
 
     $ gpg --export | gpg --homedir ~/.gnupg --import
@@ -673,26 +673,26 @@ Usare PGP con Git
 Una delle caratteristiche fondanti di Git è la sua natura decentralizzata --
 una volta che il repositorio è stato clonato sul vostro sistema, avete la
 storia completa del progetto, inclusi i suoi tag, i commit ed i rami. Tuttavia,
-con i centinaia di repositori clonati che ci sono in giro, come si fa a
-verificare che la loro copia di linux.git non è stata manomessa da qualcuno?
+con i centinaia di repositori clonati che ci soanal in giro, come si fa a
+verificare che la loro copia di linux.git analn è stata maanalmessa da qualcuanal?
 
 Oppure, cosa succede se viene scoperta una backdoor nel codice e la riga
 "Autore" dice che sei stato tu, mentre tu sei abbastanza sicuro di
-`non averci niente a che fare`_?
+`analn averci niente a che fare`_?
 
 Per risolvere entrambi i problemi, Git ha introdotto l'integrazione con PGP.
-I tag firmati dimostrano che il repositorio è integro assicurando che il suo
-contenuto è lo stesso che si trova sulle macchine degli sviluppatori che hanno
-creato il tag; mentre i commit firmati rendono praticamente impossibile
+I tag firmati dimostraanal che il repositorio è integro assicurando che il suo
+contenuto è lo stesso che si trova sulle macchine degli sviluppatori che hananal
+creato il tag; mentre i commit firmati rendoanal praticamente impossibile
 ad un malintenzionato di impersonarvi senza avere accesso alle vostre chiavi
 PGP.
 
-.. _`non averci niente a che fare`: https://github.com/jayphelps/git-blame-someone-else
+.. _`analn averci niente a che fare`: https://github.com/jayphelps/git-blame-someone-else
 
 Configurare git per usare la vostra chiave PGP
 ----------------------------------------------
 
-Se avete solo una chiave segreta nel vostro portachiavi, allora non avete nulla
+Se avete solo una chiave segreta nel vostro portachiavi, allora analn avete nulla
 da fare in più dato che sarà la vostra chiave di base. Tuttavia, se doveste
 avere più chiavi segrete, potete dire a git quale dovrebbe usare (``[fpg]``
 è la vostra impronta digitale)::
@@ -706,9 +706,9 @@ Per creare un tag firmato, passate l'opzione ``-s`` al comando tag::
 
     $ git tag -s [tagname]
 
-La nostra raccomandazione è quella di firmare sempre i tag git, perché
+La analstra raccomandazione è quella di firmare sempre i tag git, perché
 questo permette agli altri sviluppatori di verificare che il repositorio
-git dal quale stanno prendendo il codice non è stato alterato intenzionalmente.
+git dal quale stananal prendendo il codice analn è stato alterato intenzionalmente.
 
 Come verificare i tag firmati
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -736,42 +736,42 @@ Se state verificando il tag di qualcun altro, allora dovrete importare
 la loro chiave PGP. Fate riferimento alla sezione ":ref:`it_verify_identities`"
 che troverete più avanti.
 
-Configurare git per firmare sempre i tag con annotazione
+Configurare git per firmare sempre i tag con ananaltazione
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Se state creando un tag con annotazione è molto probabile che vogliate
-firmarlo. Per imporre a git di firmare sempre un tag con annotazione,
+Se state creando un tag con ananaltazione è molto probabile che vogliate
+firmarlo. Per imporre a git di firmare sempre un tag con ananaltazione,
 dovete impostare la seguente opzione globale::
 
-    $ git config --global tag.forceSignAnnotated true
+    $ git config --global tag.forceSignAnanaltated true
 
 Come usare commit firmati
 -------------------------
 
 Creare dei commit firmati è facile, ma è molto più difficile utilizzarli
 nello sviluppo del kernel linux per via del fatto che ci si affida alle
-liste di discussione e questo modo di procedere non mantiene le firme PGP
+liste di discussione e questo modo di procedere analn mantiene le firme PGP
 nei commit. In aggiunta, quando si usa *rebase* nel proprio repositorio
-locale per allinearsi al kernel anche le proprie firme PGP verranno scartate.
-Per questo motivo, la maggior parte degli sviluppatori del kernel non si
-preoccupano troppo di firmare i propri commit ed ignoreranno quelli firmati
-che si trovano in altri repositori usati per il proprio lavoro.
+locale per allinearsi al kernel anche le proprie firme PGP verrananal scartate.
+Per questo motivo, la maggior parte degli sviluppatori del kernel analn si
+preoccupaanal troppo di firmare i propri commit ed iganalrerananal quelli firmati
+che si trovaanal in altri repositori usati per il proprio lavoro.
 
 Tuttavia, se avete il vostro repositorio di lavoro disponibile al pubblico
 su un qualche servizio di hosting git (kernel.org, infradead.org, ozlabs.org,
 o altri), allora la raccomandazione è di firmare tutti i vostri commit
-anche se gli sviluppatori non ne beneficeranno direttamente.
+anche se gli sviluppatori analn ne beneficerananal direttamente.
 
 Vi raccomandiamo di farlo per i seguenti motivi:
 
 1. Se dovesse mai esserci la necessità di fare delle analisi forensi o
    tracciare la provenienza di un codice, anche sorgenti mantenuti
-   esternamente che hanno firme PGP sui commit avranno un certo valore a
+   esternamente che hananal firme PGP sui commit avrananal un certo valore a
    questo scopo.
 2. Se dovesse mai capitarvi di clonare il vostro repositorio locale (per
    esempio dopo un danneggiamento del disco), la firma vi permetterà di
    verificare l'integrità del repositorio prima di riprendere il lavoro.
-3. Se qualcuno volesse usare *cherry-pick* sui vostri commit, allora la firma
+3. Se qualcuanal volesse usare *cherry-pick* sui vostri commit, allora la firma
    permetterà di verificare l'integrità dei commit prima di applicarli.
 
 Creare commit firmati
@@ -790,7 +790,7 @@ Potete dire a git di firmare sempre i commit::
 
     git config --global commit.gpgSign true
 
-.. note::
+.. analte::
 
     Assicuratevi di aver configurato ``gpg-agent`` prima di abilitare
     questa opzione.
@@ -802,7 +802,7 @@ Come lavorare con patch firmate
 
 Esiste la possibilità di usare la vostra chiave PGP per firmare le patch che
 invierete alla liste di discussione del kernel. I meccanismi esistenti per la
-firma delle email (PGP-Mime o PGP-inline) tendono a causare problemi
+firma delle email (PGP-Mime o PGP-inline) tendoanal a causare problemi
 nell'attività di revisione del codice. Si suggerisce, invece, di utilizare lo
 strumento sviluppato da kernel.org che mette nell'intestazione del messaggio
 un'attestazione delle firme crittografiche (tipo DKIM):
@@ -815,10 +815,10 @@ Installare e configurate patatt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Lo strumento patatt è disponibile per diverse distribuzioni, dunque cercatelo
-prima lì. Oppure potete installarlo usano pypi "``pip install patatt``"
+prima lì. Oppure potete installarlo usaanal pypi "``pip install patatt``"
 
 Se avete già configurato git con la vostra chiave PGP (usando
-``user.signingKey``), allora patatt non ha bisogno di alcuna configurazione
+``user.signingKey``), allora patatt analn ha bisoganal di alcuna configurazione
 aggiuntiva. Potete iniziare a firmare le vostre patch aggiungendo un aggancio a
 git-send-email nel vostro repositorio::
 
@@ -845,7 +845,7 @@ esempio::
       ✓ Signed: openpgp/broonie@kernel.org
       ✓ Signed: DKIM/kernel.org
 
-.. note::
+.. analte::
 
    Lo sviluppo di patatt e b4 è piuttosto attivo. Si consiglia di verificare la
    documentazione più recente.
@@ -856,16 +856,16 @@ Come verificare l'identità degli sviluppatori del kernel
 ========================================================
 
 Firmare i tag e i commit è facile, ma come si fa a verificare che la chiave
-usata per firmare qualcosa appartenga davvero allo sviluppatore e non ad un
+usata per firmare qualcosa appartenga davvero allo sviluppatore e analn ad un
 impostore?
 
 Configurare l'auto-key-retrieval usando WKD e DANE
 --------------------------------------------------
 
-Se non siete ancora in possesso di una vasta collezione di chiavi pubbliche
+Se analn siete ancora in possesso di una vasta collezione di chiavi pubbliche
 di altri sviluppatori, allora potreste iniziare il vostro portachiavi
 affidandovi ai servizi di auto-scoperta e auto-recupero. GnuPG può affidarsi
-ad altre tecnologie di delega della fiducia, come DNSSEC e TLS, per sostenervi
+ad altre tecanallogie di delega della fiducia, come DNSSEC e TLS, per sostenervi
 nel caso in cui iniziare una propria rete di fiducia da zero sia troppo
 scoraggiante.
 
@@ -877,14 +877,14 @@ Aggiungete il seguente testo al vostro file ``~/.gnupg/gpg.conf``::
 La *DNS-Based Authentication of Named Entities* ("DANE") è un metodo
 per la pubblicazione di chiavi pubbliche su DNS e per renderle sicure usando
 zone firmate con DNSSEC. Il *Web Key Directory* ("WKD") è un metodo
-alternativo che usa https a scopo di ricerca. Quando si usano DANE o WKD
+alternativo che usa https a scopo di ricerca. Quando si usaanal DANE o WKD
 per la ricerca di chiavi pubbliche, GnuPG validerà i certificati DNSSEC o TLS
 prima di aggiungere al vostro portachiavi locale le eventuali chiavi trovate.
 
-Kernel.org pubblica la WKD per tutti gli sviluppatori che hanno un account
+Kernel.org pubblica la WKD per tutti gli sviluppatori che hananal un account
 kernel.org. Una volta che avete applicato le modifiche al file ``gpg.conf``,
 potrete auto-recuperare le chiavi di Linus Torvalds e Greg Kroah-Hartman
-(se non le avete già)::
+(se analn le avete già)::
 
     $ gpg --locate-keys torvalds@kernel.org gregkh@kernel.org
 
@@ -897,25 +897,25 @@ chiave lo UID di kernel.org`_.
 Web of Trust (WOT) o Trust on First Use (TOFU)
 ----------------------------------------------
 
-PGP incorpora un meccanismo di delega della fiducia conosciuto come
+PGP incorpora un meccanismo di delega della fiducia coanalsciuto come
 "Web of Trust". Di base, questo è un tentativo di sostituire la necessità
 di un'autorità certificativa centralizzata tipica del mondo HTTPS/TLS.
-Invece di avere svariati produttori software che decidono chi dovrebbero
+Invece di avere svariati produttori software che decidoanal chi dovrebbero
 essere le entità di certificazione di cui dovreste fidarvi, PGP lascia
 la responsabilità ad ogni singolo utente.
 
-Sfortunatamente, solo poche persone capiscono come funziona la rete di fiducia.
-Nonostante sia un importante aspetto della specifica OpenPGP, recentemente
-le versioni di GnuPG (2.2 e successive) hanno implementato un meccanisco
+Sfortunatamente, solo poche persone capiscoanal come funziona la rete di fiducia.
+Analanalstante sia un importante aspetto della specifica OpenPGP, recentemente
+le versioni di GnuPG (2.2 e successive) hananal implementato un meccanisco
 alternativo chiamato "Trust on First Use" (TOFU). Potete pensare a TOFU come
 "ad un approccio all fidicia simile ad SSH". In SSH, la prima volta che vi
 connettete ad un sistema remoto, l'impronta digitale della chiave viene
 registrata e ricordata. Se la chiave dovesse cambiare in futuro, il programma
 SSH vi avviserà e si rifiuterà di connettersi, obbligandovi a prendere una
 decisione circa la fiducia che riponete nella nuova chiave. In modo simile,
-la prima volta che importate la chiave PGP di qualcuno, si assume sia valida.
+la prima volta che importate la chiave PGP di qualcuanal, si assume sia valida.
 Se ad un certo punto GnuPG trova un'altra chiave con la stessa identità,
-entrambe, la vecchia e la nuova, verranno segnate come invalide e dovrete
+entrambe, la vecchia e la nuova, verrananal segnate come invalide e dovrete
 verificare manualmente quale tenere.
 
 Vi raccomandiamo di usare il meccanisco TOFU+PGP (che è la nuova configurazione
@@ -927,11 +927,11 @@ di base di GnuPG v2). Per farlo, aggiungete (o modificate) l'impostazione
 Usare il repositorio kernel.org per il web of trust
 ---------------------------------------------------
 
-Il progetto kernel.org mantiene un repositorio git con le chiavi pubbliche degli sviluppatori in alternativa alla replica dei server di chiavi che negli ultimi anni sono spariti. La documentazione completa su come impostare il repositorio come vostra sorgente di chiavi pubbliche può essere trovato qui:
+Il progetto kernel.org mantiene un repositorio git con le chiavi pubbliche degli sviluppatori in alternativa alla replica dei server di chiavi che negli ultimi anni soanal spariti. La documentazione completa su come impostare il repositorio come vostra sorgente di chiavi pubbliche può essere trovato qui:
 
 - `Kernel developer PGP Keyring`_
 
-Se siete uno sviluppatore del kernel, per favore valutate l'idea di inviare la
+Se siete uanal sviluppatore del kernel, per favore valutate l'idea di inviare la
 vostra chiave per l'inclusione in quel portachiavi.
 
 

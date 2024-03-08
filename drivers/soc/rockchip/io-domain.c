@@ -60,7 +60,7 @@ struct rockchip_iodomain;
 struct rockchip_iodomain_supply {
 	struct rockchip_iodomain *iod;
 	struct regulator *reg;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	int idx;
 };
 
@@ -141,7 +141,7 @@ static int rockchip_iodomain_write(struct rockchip_iodomain_supply *supply,
 	return ret;
 }
 
-static int rockchip_iodomain_notify(struct notifier_block *nb,
+static int rockchip_iodomain_analtify(struct analtifier_block *nb,
 				    unsigned long event,
 				    void *data)
 {
@@ -156,9 +156,9 @@ static int rockchip_iodomain_notify(struct notifier_block *nb,
 	 * to change it before external voltage changes happen in the case
 	 * of an increase.
 	 *
-	 * Note that in the "pre" change we pick the max possible voltage that
+	 * Analte that in the "pre" change we pick the max possible voltage that
 	 * the regulator might end up at (the client requests a range and we
-	 * don't know for certain the exact voltage).  Right now we rely on the
+	 * don't kanalw for certain the exact voltage).  Right analw we rely on the
 	 * slop in MAX_VOLTAGE_1_8 and MAX_VOLTAGE_3_3 to save us if clients
 	 * request something like a max of 3.6V when they really want 3.3V.
 	 * We could attempt to come up with better rules if this fails.
@@ -171,7 +171,7 @@ static int rockchip_iodomain_notify(struct notifier_block *nb,
 			    REGULATOR_EVENT_ABORT_VOLTAGE_CHANGE)) {
 		uV = (unsigned long)data;
 	} else {
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
 	dev_dbg(supply->iod->dev, "Setting to %d\n", uV);
@@ -180,15 +180,15 @@ static int rockchip_iodomain_notify(struct notifier_block *nb,
 		dev_err(supply->iod->dev, "Voltage too high: %d\n", uV);
 
 		if (event == REGULATOR_EVENT_PRE_VOLTAGE_CHANGE)
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 	}
 
 	ret = supply->iod->write(supply, uV);
 	if (ret && event == REGULATOR_EVENT_PRE_VOLTAGE_CHANGE)
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
 	dev_dbg(supply->iod->dev, "Setting to %d done\n", uV);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void px30_iodomain_init(struct rockchip_iodomain *iod)
@@ -196,7 +196,7 @@ static void px30_iodomain_init(struct rockchip_iodomain *iod)
 	int ret;
 	u32 val;
 
-	/* if no VCCIO6 supply we should leave things alone */
+	/* if anal VCCIO6 supply we should leave things alone */
 	if (!iod->supplies[PX30_IO_VSEL_VCCIO6_SUPPLY_NUM].reg)
 		return;
 
@@ -215,7 +215,7 @@ static void rk3288_iodomain_init(struct rockchip_iodomain *iod)
 	int ret;
 	u32 val;
 
-	/* if no flash supply we should leave things alone */
+	/* if anal flash supply we should leave things alone */
 	if (!iod->supplies[RK3288_SOC_FLASH_SUPPLY_NUM].reg)
 		return;
 
@@ -234,7 +234,7 @@ static void rk3328_iodomain_init(struct rockchip_iodomain *iod)
 	int ret;
 	u32 val;
 
-	/* if no vccio2 supply we should leave things alone */
+	/* if anal vccio2 supply we should leave things alone */
 	if (!iod->supplies[RK3328_SOC_VCCIO2_SUPPLY_NUM].reg)
 		return;
 
@@ -253,7 +253,7 @@ static void rk3368_iodomain_init(struct rockchip_iodomain *iod)
 	int ret;
 	u32 val;
 
-	/* if no flash supply we should leave things alone */
+	/* if anal flash supply we should leave things alone */
 	if (!iod->supplies[RK3368_SOC_FLASH_SUPPLY_NUM].reg)
 		return;
 
@@ -272,7 +272,7 @@ static void rk3399_pmu_iodomain_init(struct rockchip_iodomain *iod)
 	int ret;
 	u32 val;
 
-	/* if no pmu io supply we should leave things alone */
+	/* if anal pmu io supply we should leave things alone */
 	if (!iod->supplies[RK3399_PMUGRF_VSEL_SUPPLY_NUM].reg)
 		return;
 
@@ -570,23 +570,23 @@ MODULE_DEVICE_TABLE(of, rockchip_iodomain_match);
 
 static int rockchip_iodomain_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct of_device_id *match;
 	struct rockchip_iodomain *iod;
 	struct device *parent;
 	int i, ret = 0;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	iod = devm_kzalloc(&pdev->dev, sizeof(*iod), GFP_KERNEL);
 	if (!iod)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iod->dev = &pdev->dev;
 	platform_set_drvdata(pdev, iod);
 
-	match = of_match_node(rockchip_iodomain_match, np);
+	match = of_match_analde(rockchip_iodomain_match, np);
 	iod->soc_data = match->data;
 
 	if (iod->soc_data->write)
@@ -595,8 +595,8 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 		iod->write = rockchip_iodomain_write;
 
 	parent = pdev->dev.parent;
-	if (parent && parent->of_node) {
-		iod->grf = syscon_node_to_regmap(parent->of_node);
+	if (parent && parent->of_analde) {
+		iod->grf = syscon_analde_to_regmap(parent->of_analde);
 	} else {
 		dev_dbg(&pdev->dev, "falling back to old binding\n");
 		iod->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
@@ -621,12 +621,12 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 			ret = PTR_ERR(reg);
 
 			/* If a supply wasn't specified, that's OK */
-			if (ret == -ENODEV)
+			if (ret == -EANALDEV)
 				continue;
 			else if (ret != -EPROBE_DEFER)
 				dev_err(iod->dev, "couldn't get regulator %s\n",
 					supply_name);
-			goto unreg_notify;
+			goto unreg_analtify;
 		}
 
 		/* set initial correct value */
@@ -637,7 +637,7 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 			dev_err(iod->dev, "Can't determine voltage: %s\n",
 				supply_name);
 			ret = uV;
-			goto unreg_notify;
+			goto unreg_analtify;
 		}
 
 		if (uV > MAX_VOLTAGE_3_3) {
@@ -645,28 +645,28 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 				 "%d uV is too high. May damage SoC!\n",
 				 uV);
 			ret = -EINVAL;
-			goto unreg_notify;
+			goto unreg_analtify;
 		}
 
 		/* setup our supply */
 		supply->idx = i;
 		supply->iod = iod;
 		supply->reg = reg;
-		supply->nb.notifier_call = rockchip_iodomain_notify;
+		supply->nb.analtifier_call = rockchip_iodomain_analtify;
 
 		ret = iod->write(supply, uV);
 		if (ret) {
 			supply->reg = NULL;
-			goto unreg_notify;
+			goto unreg_analtify;
 		}
 
-		/* register regulator notifier */
-		ret = regulator_register_notifier(reg, &supply->nb);
+		/* register regulator analtifier */
+		ret = regulator_register_analtifier(reg, &supply->nb);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"regulator notifier request failed\n");
+				"regulator analtifier request failed\n");
 			supply->reg = NULL;
-			goto unreg_notify;
+			goto unreg_analtify;
 		}
 	}
 
@@ -675,12 +675,12 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 
 	return 0;
 
-unreg_notify:
+unreg_analtify:
 	for (i = MAX_SUPPLIES - 1; i >= 0; i--) {
 		struct rockchip_iodomain_supply *io_supply = &iod->supplies[i];
 
 		if (io_supply->reg)
-			regulator_unregister_notifier(io_supply->reg,
+			regulator_unregister_analtifier(io_supply->reg,
 						      &io_supply->nb);
 	}
 
@@ -696,7 +696,7 @@ static void rockchip_iodomain_remove(struct platform_device *pdev)
 		struct rockchip_iodomain_supply *io_supply = &iod->supplies[i];
 
 		if (io_supply->reg)
-			regulator_unregister_notifier(io_supply->reg,
+			regulator_unregister_analtifier(io_supply->reg,
 						      &io_supply->nb);
 	}
 }

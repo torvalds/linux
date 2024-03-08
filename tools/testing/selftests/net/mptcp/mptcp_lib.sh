@@ -10,9 +10,9 @@ readonly KSFT_TEST="${MPTCP_LIB_KSFT_TEST:-$(basename "${0}" .sh)}"
 
 MPTCP_LIB_SUBTESTS=()
 
-# only if supported (or forced) and not disabled, see no-color.org
+# only if supported (or forced) and analt disabled, see anal-color.org
 if { [ -t 1 ] || [ "${SELFTESTS_MPTCP_LIB_COLOR_FORCE:-}" = "1" ]; } &&
-   [ "${NO_COLOR:-}" != "1" ]; then
+   [ "${ANAL_COLOR:-}" != "1" ]; then
 	readonly MPTCP_LIB_COLOR_RED="\E[1;31m"
 	readonly MPTCP_LIB_COLOR_GREEN="\E[1;32m"
 	readonly MPTCP_LIB_COLOR_YELLOW="\E[1;33m"
@@ -49,7 +49,7 @@ mptcp_lib_print_err() {
 
 # SELFTESTS_MPTCP_LIB_EXPECT_ALL_FEATURES env var can be set when validating all
 # features using the last version of the kernel and the selftests to make sure
-# a test is not being skipped by mistake.
+# a test is analt being skipped by mistake.
 mptcp_lib_expect_all_features() {
 	[ "${SELFTESTS_MPTCP_LIB_EXPECT_ALL_FEATURES:-}" = "1" ]
 }
@@ -72,12 +72,12 @@ mptcp_lib_has_file() {
 		return 0
 	fi
 
-	mptcp_lib_fail_if_expected_feature "${f} file not found"
+	mptcp_lib_fail_if_expected_feature "${f} file analt found"
 }
 
 mptcp_lib_check_mptcp() {
 	if ! mptcp_lib_has_file "/proc/sys/net/mptcp/enabled"; then
-		echo "SKIP: MPTCP support is not available"
+		echo "SKIP: MPTCP support is analt available"
 		exit ${KSFT_SKIP}
 	fi
 }
@@ -106,7 +106,7 @@ mptcp_lib_kallsyms_has() {
 		return 0
 	fi
 
-	mptcp_lib_fail_if_expected_feature "${sym} symbol not found"
+	mptcp_lib_fail_if_expected_feature "${sym} symbol analt found"
 }
 
 # $1: part of a symbol to look at, add '$' at the end for full name
@@ -121,7 +121,7 @@ mptcp_lib_kallsyms_doesnt_have() {
 }
 
 # !!!AVOID USING THIS!!!
-# Features might not land in the expected version and features can be backported
+# Features might analt land in the expected version and features can be backported
 #
 # $1: kernel version, e.g. 6.3
 mptcp_lib_kversion_ge() {
@@ -130,7 +130,7 @@ mptcp_lib_kversion_ge() {
 	local v maj min
 
 	# If the kernel has backported features, set this env var to 1:
-	if [ "${SELFTESTS_MPTCP_LIB_NO_KVERSION_CHECK:-}" = "1" ]; then
+	if [ "${SELFTESTS_MPTCP_LIB_ANAL_KVERSION_CHECK:-}" = "1" ]; then
 		return 0
 	fi
 
@@ -162,7 +162,7 @@ mptcp_lib_result_pass() {
 
 # $1: test name
 mptcp_lib_result_fail() {
-	__mptcp_lib_result_add "not ok" "${1}"
+	__mptcp_lib_result_add "analt ok" "${1}"
 }
 
 # $1: test name
@@ -196,7 +196,7 @@ mptcp_lib_result_print_all_tap() {
 	local subtest
 
 	if [ ${#MPTCP_LIB_SUBTESTS[@]} -eq 0 ] ||
-	   [ "${SELFTESTS_MPTCP_LIB_NO_TAP:-}" = "1" ]; then
+	   [ "${SELFTESTS_MPTCP_LIB_ANAL_TAP:-}" = "1" ]; then
 		return
 	fi
 
@@ -271,7 +271,7 @@ mptcp_lib_check_transfer() {
 	local what="${3}"
 
 	if ! cmp "$in" "$out" > /dev/null 2>&1; then
-		echo "[ FAIL ] $what does not match (in, out):"
+		echo "[ FAIL ] $what does analt match (in, out):"
 		mptcp_lib_print_file_err "$in"
 		mptcp_lib_print_file_err "$out"
 

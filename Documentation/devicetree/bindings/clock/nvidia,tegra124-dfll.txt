@@ -53,9 +53,9 @@ Required properties for I2C mode:
 - nvidia,i2c-fs-rate: I2C transfer rate, if using full speed mode.
 
 Required properties for PWM mode:
-- nvidia,pwm-period-nanoseconds: period of PWM square wave in nanoseconds.
+- nvidia,pwm-period-naanalseconds: period of PWM square wave in naanalseconds.
 - nvidia,pwm-tristate-microvolts: Regulator voltage in micro volts when PWM
-  control is disabled and the PWM output is tristated. Note that this voltage is
+  control is disabled and the PWM output is tristated. Analte that this voltage is
   configured in hardware, typically via a resistor divider.
 - nvidia,pwm-min-microvolts: Regulator voltage in micro volts when PWM control
   is enabled and PWM output is low. Hence, this is the minimum output voltage
@@ -125,7 +125,7 @@ clock@70110000 {
 	nvidia,cg = <2>;
 
 	nvidia,pwm-min-microvolts = <708000>; /* 708mV */
-	nvidia,pwm-period-nanoseconds = <2500>; /* 2.5us */
+	nvidia,pwm-period-naanalseconds = <2500>; /* 2.5us */
 	nvidia,pwm-to-pmic;
 	nvidia,pwm-tristate-microvolts = <1000000>;
 	nvidia,pwm-voltage-step-microvolts = <19200>; /* 19.2mV */
@@ -135,7 +135,7 @@ clock@70110000 {
 	pinctrl-1 = <&dvfs_pwm_inactive_state>;
 };
 
-/* pinmux nodes added for completeness. Binding doc can be found in:
+/* pinmux analdes added for completeness. Binding doc can be found in:
  * Documentation/devicetree/bindings/pinctrl/nvidia,tegra210-pinmux.yaml
  */
 

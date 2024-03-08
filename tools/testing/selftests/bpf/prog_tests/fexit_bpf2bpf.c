@@ -19,14 +19,14 @@ static int check_data_map(struct bpf_object *obj, int prog_cnt, bool reset)
 
 	result = malloc((prog_cnt + 32 /* spare */) * sizeof(__u64));
 	if (CHECK(!result, "alloc_memory", "failed to alloc memory"))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bpf_object__for_each_map(map, obj)
 		if (bpf_map__is_internal(map)) {
 			data_map = map;
 			break;
 		}
-	if (CHECK(!data_map, "find_data_map", "data map not found\n"))
+	if (CHECK(!data_map, "find_data_map", "data map analt found\n"))
 		goto out;
 
 	ret = bpf_map_lookup_elem(bpf_map__fd(data_map), &zero, result);
@@ -171,7 +171,7 @@ close_prog:
 	free(prog);
 }
 
-static void test_target_no_callees(void)
+static void test_target_anal_callees(void)
 {
 	const char *prog_name[] = {
 		"fexit/test_pkt_md_access",
@@ -182,7 +182,7 @@ static void test_target_no_callees(void)
 				  prog_name, true, NULL);
 }
 
-static void test_target_yes_callees(void)
+static void test_target_anal_callees(void)
 {
 	const char *prog_name[] = {
 		"fexit/test_pkt_access",
@@ -242,7 +242,7 @@ static int test_second_attach(struct bpf_object *obj)
 
 	prog = bpf_object__find_program_by_name(obj, prog_name);
 	if (!ASSERT_OK_PTR(prog, "find_prog"))
-		return -ENOENT;
+		return -EANALENT;
 
 	err = bpf_prog_test_load(tgt_obj_file, BPF_PROG_TYPE_UNSPEC,
 			    &tgt_obj, &tgt_fd);
@@ -295,8 +295,8 @@ static void test_fmod_ret_freplace(void)
 	err = bpf_prog_test_load(tgt_name, BPF_PROG_TYPE_UNSPEC,
 			    &pkt_obj, &pkt_fd);
 	/* the target prog should load fine */
-	if (CHECK(err, "tgt_prog_load", "file %s err %d errno %d\n",
-		  tgt_name, err, errno))
+	if (CHECK(err, "tgt_prog_load", "file %s err %d erranal %d\n",
+		  tgt_name, err, erranal))
 		return;
 
 	freplace_obj = bpf_object__open_file(freplace_name, NULL);
@@ -364,8 +364,8 @@ static void test_obj_load_failure_common(const char *obj_file,
 	err = bpf_prog_test_load(target_obj_file, BPF_PROG_TYPE_UNSPEC,
 			    &pkt_obj, &pkt_fd);
 	/* the target prog should load fine */
-	if (CHECK(err, "tgt_prog_load", "file %s err %d errno %d\n",
-		  target_obj_file, err, errno))
+	if (CHECK(err, "tgt_prog_load", "file %s err %d erranal %d\n",
+		  target_obj_file, err, erranal))
 		return;
 
 	obj = bpf_object__open_file(obj_file, NULL);
@@ -379,12 +379,12 @@ static void test_obj_load_failure_common(const char *obj_file,
 	log_buf[0] = '\0';
 	if (exp_msg)
 		bpf_program__set_log_buf(prog, log_buf, sizeof(log_buf));
-	if (env.verbosity > VERBOSE_NONE)
+	if (env.verbosity > VERBOSE_ANALNE)
 		bpf_program__set_log_level(prog, 2);
 
 	/* It should fail to load the program */
 	err = bpf_object__load(obj);
-	if (env.verbosity > VERBOSE_NONE && exp_msg) /* we overtook log */
+	if (env.verbosity > VERBOSE_ANALNE && exp_msg) /* we overtook log */
 		printf("VERIFIER LOG:\n================\n%s\n================\n", log_buf);
 	if (CHECK(!err, "bpf_obj_load should fail", "err %d\n", err))
 		goto close_prog;
@@ -413,11 +413,11 @@ static void test_func_map_prog_compatibility(void)
 static void test_func_replace_unreliable(void)
 {
 	/* freplace'ing unreliable main prog should fail with error
-	 * "Cannot replace static functions"
+	 * "Cananalt replace static functions"
 	 */
 	test_obj_load_failure_common("freplace_unreliable_prog.bpf.o",
 				     "./verifier_btf_unreliable_prog.bpf.o",
-				     "Cannot replace static functions");
+				     "Cananalt replace static functions");
 }
 
 static void test_func_replace_global_func(void)
@@ -506,7 +506,7 @@ static void test_fentry_to_cgroup_bpf(void)
 		goto cleanup;
 
 	/* Make sure bpf_prog_get_info_by_fd works correctly when attaching
-	 * to another BPF program.
+	 * to aanalther BPF program.
 	 */
 
 	ASSERT_OK(bpf_prog_get_info_by_fd(fentry_fd, &info, &info_len),
@@ -568,13 +568,13 @@ out:
 	freplace_progmap__destroy(skel);
 }
 
-/* NOTE: affect other tests, must run in serial mode */
+/* ANALTE: affect other tests, must run in serial mode */
 void serial_test_fexit_bpf2bpf(void)
 {
-	if (test__start_subtest("target_no_callees"))
-		test_target_no_callees();
-	if (test__start_subtest("target_yes_callees"))
-		test_target_yes_callees();
+	if (test__start_subtest("target_anal_callees"))
+		test_target_anal_callees();
+	if (test__start_subtest("target_anal_callees"))
+		test_target_anal_callees();
 	if (test__start_subtest("func_replace"))
 		test_func_replace();
 	if (test__start_subtest("func_replace_verify"))

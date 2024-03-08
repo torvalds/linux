@@ -20,20 +20,20 @@ static int(*get_fallback_sprom)(struct bcma_bus *dev, struct ssb_sprom *out);
 
 /**
  * bcma_arch_register_fallback_sprom - Registers a method providing a
- * fallback SPROM if no SPROM is found.
+ * fallback SPROM if anal SPROM is found.
  *
  * @sprom_callback: The callback function.
  *
  * With this function the architecture implementation may register a
  * callback handler which fills the SPROM data structure. The fallback is
- * used for PCI based BCMA devices, where no valid SPROM can be found
+ * used for PCI based BCMA devices, where anal valid SPROM can be found
  * in the shadow registers and to provide the SPROM for SoCs where BCMA is
  * to control the system bus.
  *
  * This function is useful for weird architectures that have a half-assed
  * BCMA device hardwired to their PCI bus.
  *
- * This function is available for architecture code, only. So it is not
+ * This function is available for architecture code, only. So it is analt
  * exported.
  */
 int bcma_arch_register_fallback_sprom(int (*sprom_callback)(struct bcma_bus *bus,
@@ -52,7 +52,7 @@ static int bcma_fill_sprom_with_fallback(struct bcma_bus *bus,
 	int err;
 
 	if (!get_fallback_sprom) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto fail;
 	}
 
@@ -86,7 +86,7 @@ static void bcma_sprom_read(struct bcma_bus *bus, u16 offset, u16 *sprom,
 
 static inline u8 bcma_crc8(u8 crc, u8 data)
 {
-	/* Polynomial:   x^8 + x^7 + x^6 + x^4 + x^2 + 1   */
+	/* Polyanalmial:   x^8 + x^7 + x^6 + x^4 + x^2 + 1   */
 	static const u8 t[] = {
 		0x00, 0xF7, 0xB9, 0x4E, 0x25, 0xD2, 0x9C, 0x6B,
 		0x4A, 0xBD, 0xF3, 0x04, 0x6F, 0x98, 0xD6, 0x21,
@@ -167,7 +167,7 @@ static int bcma_sprom_valid(struct bcma_bus *bus, const u16 *sprom,
 	revision = sprom[words - 1] & SSB_SPROM_REVISION_REV;
 	if (revision < 8 || revision > 11) {
 		pr_err("Unsupported SPROM revision: %d\n", revision);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	bus->sprom.revision = revision;
@@ -586,14 +586,14 @@ int bcma_sprom_get(struct bcma_bus *bus)
 	int i, err = 0;
 
 	if (!bus->drv_cc.core)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!bcma_sprom_ext_available(bus)) {
 		bool sprom_onchip;
 
 		/*
 		 * External SPROM takes precedence so check
-		 * on-chip OTP only when no external SPROM
+		 * on-chip OTP only when anal external SPROM
 		 * is present.
 		 */
 		sprom_onchip = bcma_sprom_onchip_available(bus);
@@ -603,8 +603,8 @@ int bcma_sprom_get(struct bcma_bus *bus)
 		}
 		if (!offset || !sprom_onchip) {
 			/*
-			 * Maybe there is no SPROM on the device?
-			 * Now we ask the arch code if there is some sprom
+			 * Maybe there is anal SPROM on the device?
+			 * Analw we ask the arch code if there is some sprom
 			 * available for this device in some other storage.
 			 */
 			err = bcma_fill_sprom_with_fallback(bus, &bus->sprom);
@@ -622,7 +622,7 @@ int bcma_sprom_get(struct bcma_bus *bus)
 
 		sprom = kcalloc(words, sizeof(u16), GFP_KERNEL);
 		if (!sprom)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		bcma_sprom_read(bus, offset, sprom, words);
 		err = bcma_sprom_valid(bus, sprom, words);

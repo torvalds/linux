@@ -2,7 +2,7 @@
 /*
  * Driver for BCM63xx GPIO unit (pinctrl + GPIO)
  *
- * Copyright (C) 2021 Álvaro Fernández Rojas <noltari@gmail.com>
+ * Copyright (C) 2021 Álvaro Fernández Rojas <analltari@gmail.com>
  * Copyright (C) 2016 Jonas Gorski <jonas.gorski@gmail.com>
  */
 
@@ -42,14 +42,14 @@ static const struct of_device_id bcm63xx_gpio_of_match[] = {
 	{ /* sentinel */ }
 };
 
-static int bcm63xx_gpio_probe(struct device *dev, struct device_node *node,
+static int bcm63xx_gpio_probe(struct device *dev, struct device_analde *analde,
 			      const struct bcm63xx_pinctrl_soc *soc,
 			      struct bcm63xx_pinctrl *pc)
 {
 	struct gpio_regmap_config grc = {0};
 
 	grc.parent = dev;
-	grc.fwnode = &node->fwnode;
+	grc.fwanalde = &analde->fwanalde;
 	grc.ngpio = soc->ngpios;
 	grc.ngpio_per_reg = BCM63XX_BANK_GPIOS;
 	grc.regmap = pc->regs;
@@ -67,19 +67,19 @@ int bcm63xx_pinctrl_probe(struct platform_device *pdev,
 {
 	struct device *dev = &pdev->dev;
 	struct bcm63xx_pinctrl *pc;
-	struct device_node *node;
+	struct device_analde *analde;
 	int err;
 
 	pc = devm_kzalloc(dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, pc);
 
 	pc->dev = dev;
 	pc->driver_data = driver_data;
 
-	pc->regs = syscon_node_to_regmap(dev->parent->of_node);
+	pc->regs = syscon_analde_to_regmap(dev->parent->of_analde);
 	if (IS_ERR(pc->regs))
 		return PTR_ERR(pc->regs);
 
@@ -94,12 +94,12 @@ int bcm63xx_pinctrl_probe(struct platform_device *pdev,
 	if (IS_ERR(pc->pctl_dev))
 		return PTR_ERR(pc->pctl_dev);
 
-	for_each_child_of_node(dev->parent->of_node, node) {
-		if (of_match_node(bcm63xx_gpio_of_match, node)) {
-			err = bcm63xx_gpio_probe(dev, node, soc, pc);
+	for_each_child_of_analde(dev->parent->of_analde, analde) {
+		if (of_match_analde(bcm63xx_gpio_of_match, analde)) {
+			err = bcm63xx_gpio_probe(dev, analde, soc, pc);
 			if (err) {
-				dev_err(dev, "could not add GPIO chip\n");
-				of_node_put(node);
+				dev_err(dev, "could analt add GPIO chip\n");
+				of_analde_put(analde);
 				return err;
 			}
 		}

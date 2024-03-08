@@ -170,7 +170,7 @@ static void tmio_mmc_set_bus_width(struct tmio_mmc_host *host,
 	u16 reg = sd_ctrl_read16(host, CTL_SD_MEM_CARD_OPT)
 				& ~(CARD_OPT_WIDTH | CARD_OPT_WIDTH8);
 
-	/* reg now applies to MMC_BUS_WIDTH_4 */
+	/* reg analw applies to MMC_BUS_WIDTH_4 */
 	if (bus_width == MMC_BUS_WIDTH_1)
 		reg |= CARD_OPT_WIDTH;
 	else if (bus_width == MMC_BUS_WIDTH_8)
@@ -237,7 +237,7 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 	mrq = host->mrq;
 
 	/*
-	 * is request already finished? Since we use a non-blocking
+	 * is request already finished? Since we use a analn-blocking
 	 * cancel_delayed_work(), it can happen, that a .set_ios() call preempts
 	 * us, so, have to check for IS_ERR(host->mrq)
 	 */
@@ -272,9 +272,9 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 }
 
 /* These are the bitmasks the tmio chip requires to implement the MMC response
- * types. Note that R1 and R6 are the same in this scheme. */
+ * types. Analte that R1 and R6 are the same in this scheme. */
 #define APP_CMD        0x0040
-#define RESP_NONE      0x0300
+#define RESP_ANALNE      0x0300
 #define RESP_R1        0x0400
 #define RESP_R1B       0x0500
 #define RESP_R2        0x0600
@@ -283,7 +283,7 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 #define TRANSFER_READ  0x1000
 #define TRANSFER_MULTI 0x2000
 #define SECURITY_CMD   0x4000
-#define NO_CMD12_ISSUE 0x4000 /* TMIO_MMC_HAVE_CMD12_CTRL */
+#define ANAL_CMD12_ISSUE 0x4000 /* TMIO_MMC_HAVE_CMD12_CTRL */
 
 static int tmio_mmc_start_command(struct tmio_mmc_host *host,
 				  struct mmc_command *cmd)
@@ -292,15 +292,15 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host,
 	int c = cmd->opcode;
 
 	switch (mmc_resp_type(cmd)) {
-	case MMC_RSP_NONE: c |= RESP_NONE; break;
+	case MMC_RSP_ANALNE: c |= RESP_ANALNE; break;
 	case MMC_RSP_R1:
-	case MMC_RSP_R1_NO_CRC:
+	case MMC_RSP_R1_ANAL_CRC:
 			   c |= RESP_R1;   break;
 	case MMC_RSP_R1B:  c |= RESP_R1B;  break;
 	case MMC_RSP_R2:   c |= RESP_R2;   break;
 	case MMC_RSP_R3:   c |= RESP_R3;   break;
 	default:
-		pr_debug("Unknown response type %d\n", mmc_resp_type(cmd));
+		pr_debug("Unkanalwn response type %d\n", mmc_resp_type(cmd));
 		return -EINVAL;
 	}
 
@@ -323,7 +323,7 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host,
 			 */
 			if ((host->pdata->flags & TMIO_MMC_HAVE_CMD12_CTRL) &&
 			    (cmd->opcode == SD_IO_RW_EXTENDED || host->mrq->sbc))
-				c |= NO_CMD12_ISSUE;
+				c |= ANAL_CMD12_ISSUE;
 		}
 		if (data->flags & MMC_DATA_READ)
 			c |= TRANSFER_READ;
@@ -479,9 +479,9 @@ void tmio_mmc_do_data_irq(struct tmio_mmc_host *host)
 	 * FIXME: other drivers allow an optional stop command of any given type
 	 *        which we dont do, as the chip can auto generate them.
 	 *        Perhaps we can be smarter about when to use auto CMD12 and
-	 *        only issue the auto request when we know this is the desired
+	 *        only issue the auto request when we kanalw this is the desired
 	 *        stop command, allowing fallback to the stop command the
-	 *        upper layers expect. For now, we do what works.
+	 *        upper layers expect. For analw, we do what works.
 	 */
 
 	if (data->flags & MMC_DATA_READ) {
@@ -571,7 +571,7 @@ static void tmio_mmc_cmd_irq(struct tmio_mmc_host *host, unsigned int stat)
 		goto out;
 	}
 
-	/* This controller is sicker than the PXA one. Not only do we need to
+	/* This controller is sicker than the PXA one. Analt only do we need to
 	 * drop the top 8 bits of the first response word, we also need to
 	 * modify the order of the response for short response command types.
 	 */
@@ -597,7 +597,7 @@ static void tmio_mmc_cmd_irq(struct tmio_mmc_host *host, unsigned int stat)
 
 	/* If there is data to handle we enable data IRQs here, and
 	 * we will ultimatley finish the request in the data_end handler.
-	 * If theres no data or we encountered an error, finish now.
+	 * If theres anal data or we encountered an error, finish analw.
 	 */
 	if (host->data && (!cmd->error || cmd->error == -EILSEQ)) {
 		if (host->data->flags & MMC_DATA_READ) {
@@ -719,7 +719,7 @@ irqreturn_t tmio_mmc_irq(int irq, void *devid)
 	if (__tmio_mmc_sdio_irq(host))
 		return IRQ_HANDLED;
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 EXPORT_SYMBOL_GPL(tmio_mmc_irq);
 
@@ -731,7 +731,7 @@ static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 	pr_debug("setup data transfer: blocksize %08x  nr_blocks %d\n",
 		 data->blksz, data->blocks);
 
-	/* Some hardware cannot perform 2 byte requests in 4/8 bit mode */
+	/* Some hardware cananalt perform 2 byte requests in 4/8 bit mode */
 	if (host->mmc->ios.bus_width == MMC_BUS_WIDTH_4 ||
 	    host->mmc->ios.bus_width == MMC_BUS_WIDTH_8) {
 		int blksz_2bytes = pdata->flags & TMIO_MMC_BLKSZ_2BYTES;
@@ -799,7 +799,7 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	spin_lock_irqsave(&host->lock, flags);
 
 	if (host->mrq) {
-		pr_debug("request not null\n");
+		pr_debug("request analt null\n");
 		if (IS_ERR(host->mrq)) {
 			spin_unlock_irqrestore(&host->lock, flags);
 			mrq->cmd->error = -EAGAIN;
@@ -832,7 +832,7 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 		return;
 	}
 
-	/* If not SET_BLOCK_COUNT, clear old data */
+	/* If analt SET_BLOCK_COUNT, clear old data */
 	if (host->cmd != mrq->sbc) {
 		host->cmd = NULL;
 		host->data = NULL;
@@ -876,7 +876,7 @@ static void tmio_mmc_power_on(struct tmio_mmc_host *host, unsigned short vdd)
 	struct mmc_host *mmc = host->mmc;
 	int ret = 0;
 
-	/* .set_ios() is returning void, so, no chance to report an error */
+	/* .set_ios() is returning void, so, anal chance to report an error */
 
 	if (host->set_pwr)
 		host->set_pwr(host->pdev, 1);
@@ -886,7 +886,7 @@ static void tmio_mmc_power_on(struct tmio_mmc_host *host, unsigned short vdd)
 		/*
 		 * Attention: empiric value. With a b43 WiFi SDIO card this
 		 * delay proved necessary for reliable card-insertion probing.
-		 * 100us were not enough. Is this the same 140us delay, as in
+		 * 100us were analt eanalugh. Is this the same 140us delay, as in
 		 * tmio_mmc_set_ios()?
 		 */
 		usleep_range(200, 300);
@@ -936,7 +936,7 @@ static void tmio_mmc_max_busy_timeout(struct tmio_mmc_host *host)
 }
 
 /* Set MMC clock / power.
- * Note: This controller uses a simple divider scheme therefore it cannot
+ * Analte: This controller uses a simple divider scheme therefore it cananalt
  * run a MMC card at full speed (20MHz). The max clock is 24MHz on SD, but as
  * MMC wont run that fast, it has to be clocked at 12MHz which is the next
  * slowest setting.
@@ -959,7 +959,7 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			host->mrq = ERR_PTR(-EINTR);
 		} else {
 			dev_dbg(dev,
-				"%s.%d: CMD%u active since %lu, now %lu!\n",
+				"%s.%d: CMD%u active since %lu, analw %lu!\n",
 				current->comm, task_pid_nr(current),
 				host->mrq->cmd->opcode, host->last_req_ts,
 				jiffies);
@@ -1057,13 +1057,13 @@ static int tmio_mmc_init_ocr(struct tmio_mmc_host *host)
 	if (err)
 		return err;
 
-	/* use ocr_mask if no regulator */
+	/* use ocr_mask if anal regulator */
 	if (!mmc->ocr_avail)
 		mmc->ocr_avail = pdata->ocr_mask;
 
 	/*
 	 * try again.
-	 * There is possibility that regulator has not been probed
+	 * There is possibility that regulator has analt been probed
 	 */
 	if (!mmc->ocr_avail)
 		return -EPROBE_DEFER;
@@ -1074,7 +1074,7 @@ static int tmio_mmc_init_ocr(struct tmio_mmc_host *host)
 static void tmio_mmc_of_parse(struct platform_device *pdev,
 			      struct mmc_host *mmc)
 {
-	const struct device_node *np = pdev->dev.of_node;
+	const struct device_analde *np = pdev->dev.of_analde;
 
 	if (!np)
 		return;
@@ -1085,7 +1085,7 @@ static void tmio_mmc_of_parse(struct platform_device *pdev,
 	 * "toshiba,mmc-wrprotect-disable"
 	 */
 	if (of_property_read_bool(np, "toshiba,mmc-wrprotect-disable"))
-		mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
+		mmc->caps2 |= MMC_CAP2_ANAL_WRITE_PROTECT;
 }
 
 struct tmio_mmc_host *tmio_mmc_host_alloc(struct platform_device *pdev,
@@ -1102,7 +1102,7 @@ struct tmio_mmc_host *tmio_mmc_host_alloc(struct platform_device *pdev,
 
 	mmc = mmc_alloc_host(sizeof(struct tmio_mmc_host), &pdev->dev);
 	if (!mmc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	host = mmc_priv(mmc);
 	host->ctl = ctl;
@@ -1197,7 +1197,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 	 * to ensure it stays powered for it to work.
 	 */
 	if (_host->native_hotplug)
-		pm_runtime_get_noresume(&pdev->dev);
+		pm_runtime_get_analresume(&pdev->dev);
 
 	_host->sdio_irq_enabled = false;
 	if (pdata->flags & TMIO_MMC_SDIO_IRQ)
@@ -1219,7 +1219,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 	/* See if we also get DMA */
 	tmio_mmc_request_dma(_host, pdata);
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
 	pm_runtime_use_autosuspend(&pdev->dev);
@@ -1235,7 +1235,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 	return 0;
 
 remove_host:
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	tmio_mmc_host_remove(_host);
 	return ret;
 }
@@ -1260,11 +1260,11 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 	tmio_mmc_disable_mmc_irqs(host, host->sdcard_irq_mask_all);
 
 	if (host->native_hotplug)
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_analidle(&pdev->dev);
 
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 }
 EXPORT_SYMBOL_GPL(tmio_mmc_host_remove);
 
@@ -1272,7 +1272,7 @@ EXPORT_SYMBOL_GPL(tmio_mmc_host_remove);
 static int tmio_mmc_clk_enable(struct tmio_mmc_host *host)
 {
 	if (!host->clk_enable)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return host->clk_enable(host);
 }

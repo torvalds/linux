@@ -37,8 +37,8 @@ struct max31785_data {
  * MAX31785 Driver Workaround
  *
  * The MAX31785 fan controller occasionally exhibits communication issues.
- * These issues are not indicated by the device itself, except for occasional
- * NACK responses during master transactions. No error bits are set in STATUS_BYTE.
+ * These issues are analt indicated by the device itself, except for occasional
+ * NACK responses during master transactions. Anal error bits are set in STATUS_BYTE.
  *
  * To address this, we introduce a delay of 250us between consecutive accesses
  * to the fan controller. This delay helps mitigate communication problems by
@@ -132,22 +132,22 @@ static int max31785_read_byte_data(struct i2c_client *client, int page, int reg)
 
 	switch (reg) {
 	case PMBUS_VOUT_MODE:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	case PMBUS_FAN_CONFIG_12:
 		return _max31785_read_byte_data(client, driver_data,
 						page - MAX31785_NR_PAGES,
 						reg);
 	}
 
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 static int max31785_write_byte(struct i2c_client *client, int page, u8 value)
 {
 	if (page < MAX31785_NR_PAGES)
-		return -ENODATA;
+		return -EANALDATA;
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int max31785_read_long_data(struct i2c_client *client, int page,
@@ -241,7 +241,7 @@ static int max31785_read_word_data(struct i2c_client *client, int page,
 	switch (reg) {
 	case PMBUS_READ_FAN_SPEED_1:
 		if (page < MAX31785_NR_PAGES)
-			return -ENODATA;
+			return -EANALDATA;
 
 		rv = max31785_read_long_data(client, page - MAX31785_NR_PAGES,
 					     reg, &val);
@@ -252,12 +252,12 @@ static int max31785_read_word_data(struct i2c_client *client, int page,
 		break;
 	case PMBUS_FAN_COMMAND_1:
 		/*
-		 * PMBUS_FAN_COMMAND_x is probed to judge whether or not to
+		 * PMBUS_FAN_COMMAND_x is probed to judge whether or analt to
 		 * expose fan control registers.
 		 *
 		 * Don't expose fan_target attribute for virtual pages.
 		 */
-		rv = (page >= MAX31785_NR_PAGES) ? -ENOTSUPP : -ENODATA;
+		rv = (page >= MAX31785_NR_PAGES) ? -EANALTSUPP : -EANALDATA;
 		break;
 	case PMBUS_VIRT_PWM_1:
 		rv = max31785_get_pwm(client, page);
@@ -266,7 +266,7 @@ static int max31785_read_word_data(struct i2c_client *client, int page,
 		rv = max31785_get_pwm_mode(client, driver_data, page);
 		break;
 	default:
-		rv = -ENODATA;
+		rv = -EANALDATA;
 		break;
 	}
 
@@ -284,7 +284,7 @@ static inline u32 max31785_scale_pwm(u32 sensor_val)
 	 *
 	 * R=2 (== 10^2 == 100) accounts for scaling the value provided at the
 	 * sysfs interface into the required hardware resolution, but it does
-	 * not yet yield a value that we can write to the device (this initial
+	 * analt yet yield a value that we can write to the device (this initial
 	 * scaling is handled by pmbus_data2reg()). Multiplying by 100 below
 	 * translates the parameter value into the percentage units required by
 	 * PMBus, and then we scale back by 255 as required by the hwmon pwmX
@@ -372,7 +372,7 @@ static int max31785_write_word_data(struct i2c_client *client, int page,
 		break;
 	}
 
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 #define MAX31785_FAN_FUNCS \
@@ -478,11 +478,11 @@ static int max31785_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	driver_data = devm_kzalloc(dev, sizeof(struct max31785_data), GFP_KERNEL);
 	if (!driver_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = &driver_data->info;
 	driver_data->access = ktime_get();
@@ -502,10 +502,10 @@ static int max31785_probe(struct i2c_client *client)
 	} else if (ret == MAX31785) {
 		if (!strcmp("max31785a", client->name) ||
 		    !strcmp("max31785b", client->name))
-			dev_warn(dev, "Expected max31785a/b, found max31785: cannot provide secondary tachometer readings\n");
+			dev_warn(dev, "Expected max31785a/b, found max31785: cananalt provide secondary tachometer readings\n");
 	} else {
 		dev_err(dev, "Unrecognized MAX31785 revision: %x\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (dual_tach) {

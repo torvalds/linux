@@ -22,11 +22,11 @@ enum {
 	NETIF_F_HW_VLAN_CTAG_TX_BIT,	/* Transmit VLAN CTAG HW acceleration */
 	NETIF_F_HW_VLAN_CTAG_RX_BIT,	/* Receive VLAN CTAG HW acceleration */
 	NETIF_F_HW_VLAN_CTAG_FILTER_BIT,/* Receive filtering on VLAN CTAGs */
-	NETIF_F_VLAN_CHALLENGED_BIT,	/* Device cannot handle VLAN packets */
+	NETIF_F_VLAN_CHALLENGED_BIT,	/* Device cananalt handle VLAN packets */
 	NETIF_F_GSO_BIT,		/* Enable software GSO. */
 	NETIF_F_LLTX_BIT,		/* LockLess TX - deprecated. Please */
-					/* do not use LLTX in new drivers */
-	NETIF_F_NETNS_LOCAL_BIT,	/* Does not change network namespaces */
+					/* do analt use LLTX in new drivers */
+	NETIF_F_NETNS_LOCAL_BIT,	/* Does analt change network namespaces */
 	NETIF_F_GRO_BIT,		/* Generic receive offload */
 	NETIF_F_LRO_BIT,		/* large receive offload */
 
@@ -52,7 +52,7 @@ enum {
 	NETIF_F_GSO_SCTP_BIT,		/* ... SCTP fragmentation */
 	NETIF_F_GSO_ESP_BIT,		/* ... ESP with TSO */
 	NETIF_F_GSO_UDP_BIT,		/* ... UFO, deprecated except tuntap */
-	NETIF_F_GSO_UDP_L4_BIT,		/* ... UDP payload GSO (not UFO) */
+	NETIF_F_GSO_UDP_L4_BIT,		/* ... UDP payload GSO (analt UFO) */
 	NETIF_F_GSO_FRAGLIST_BIT,		/* ... Fraglist GSO */
 	/**/NETIF_F_GSO_LAST =		/* last bit, see GSO_MASK */
 		NETIF_F_GSO_FRAGLIST_BIT,
@@ -63,7 +63,7 @@ enum {
 	NETIF_F_NTUPLE_BIT,		/* N-tuple filters supported */
 	NETIF_F_RXHASH_BIT,		/* Receive hashing offload */
 	NETIF_F_RXCSUM_BIT,		/* Receive checksumming offload */
-	NETIF_F_NOCACHE_COPY_BIT,	/* Use no-cache copyfromuser */
+	NETIF_F_ANALCACHE_COPY_BIT,	/* Use anal-cache copyfromuser */
 	NETIF_F_LOOPBACK_BIT,		/* Enable loopback */
 	NETIF_F_RXFCS_BIT,		/* Append FCS to skb pkt data */
 	NETIF_F_RXALL_BIT,		/* Receive errored frames too */
@@ -124,7 +124,7 @@ enum {
 #define NETIF_F_LOOPBACK	__NETIF_F(LOOPBACK)
 #define NETIF_F_LRO		__NETIF_F(LRO)
 #define NETIF_F_NETNS_LOCAL	__NETIF_F(NETNS_LOCAL)
-#define NETIF_F_NOCACHE_COPY	__NETIF_F(NOCACHE_COPY)
+#define NETIF_F_ANALCACHE_COPY	__NETIF_F(ANALCACHE_COPY)
 #define NETIF_F_NTUPLE		__NETIF_F(NTUPLE)
 #define NETIF_F_RXCSUM		__NETIF_F(RXCSUM)
 #define NETIF_F_RXHASH		__NETIF_F(RXHASH)
@@ -204,7 +204,7 @@ static inline int find_next_netdev_feature(u64 feature, unsigned long start)
 #define NETIF_F_GSO_MASK	(__NETIF_F_BIT(NETIF_F_GSO_LAST + 1) - \
 		__NETIF_F_BIT(NETIF_F_GSO_SHIFT))
 
-/* List of IP checksum features. Note that NETIF_F_HW_CSUM should not be
+/* List of IP checksum features. Analte that NETIF_F_HW_CSUM should analt be
  * set in features when NETIF_F_IP_CSUM or NETIF_F_IPV6_CSUM are set--
  * this would be contradictory
  */
@@ -233,7 +233,7 @@ static inline int find_next_netdev_feature(u64 feature, unsigned long start)
  * If one device doesn't support one of these features, then disable it
  * for all in netdev_increment_features.
  */
-#define NETIF_F_ALL_FOR_ALL	(NETIF_F_NOCACHE_COPY | NETIF_F_FSO)
+#define NETIF_F_ALL_FOR_ALL	(NETIF_F_ANALCACHE_COPY | NETIF_F_FSO)
 
 /*
  * If upper/master device has these features disabled, they must be disabled
@@ -241,10 +241,10 @@ static inline int find_next_netdev_feature(u64 feature, unsigned long start)
  */
 #define NETIF_F_UPPER_DISABLES	NETIF_F_LRO
 
-/* changeable features with no special hardware requirements */
+/* changeable features with anal special hardware requirements */
 #define NETIF_F_SOFT_FEATURES	(NETIF_F_GSO | NETIF_F_GRO)
 
-/* Changeable features with no special hardware requirements that defaults to off. */
+/* Changeable features with anal special hardware requirements that defaults to off. */
 #define NETIF_F_SOFT_FEATURES_OFF	(NETIF_F_GRO_FRAGLIST | NETIF_F_GRO_UDP_FWD)
 
 #define NETIF_F_VLAN_FEATURES	(NETIF_F_HW_VLAN_CTAG_FILTER | \

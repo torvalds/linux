@@ -13,7 +13,7 @@
 #include "cxl.h"
 
 
-static const __be32 *read_prop_string(const struct device_node *np,
+static const __be32 *read_prop_string(const struct device_analde *np,
 				const char *prop_name)
 {
 	const __be32 *prop;
@@ -24,7 +24,7 @@ static const __be32 *read_prop_string(const struct device_node *np,
 	return prop;
 }
 
-static const __be32 *read_prop_dword(const struct device_node *np,
+static const __be32 *read_prop_dword(const struct device_analde *np,
 				const char *prop_name, u32 *val)
 {
 	const __be32 *prop;
@@ -37,7 +37,7 @@ static const __be32 *read_prop_dword(const struct device_node *np,
 	return prop;
 }
 
-static const __be64 *read_prop64_dword(const struct device_node *np,
+static const __be64 *read_prop64_dword(const struct device_analde *np,
 				const char *prop_name, u64 *val)
 {
 	const __be64 *prop;
@@ -51,22 +51,22 @@ static const __be64 *read_prop64_dword(const struct device_node *np,
 }
 
 
-static int read_handle(struct device_node *np, u64 *handle)
+static int read_handle(struct device_analde *np, u64 *handle)
 {
 	const __be32 *prop;
 	u64 size;
 
-	/* Get address and size of the node */
+	/* Get address and size of the analde */
 	prop = of_get_address(np, 0, &size, NULL);
 	if (size)
 		return -EINVAL;
 
-	/* Helper to read a big number; size is in cells (not bytes) */
+	/* Helper to read a big number; size is in cells (analt bytes) */
 	*handle = of_read_number(prop, of_n_addr_cells(np));
 	return 0;
 }
 
-static int read_phys_addr(struct device_node *np, char *prop_name,
+static int read_phys_addr(struct device_analde *np, char *prop_name,
 			struct cxl_afu *afu)
 {
 	int i, len, entry_size, naddr, nsize, type;
@@ -128,7 +128,7 @@ static int read_vpd(struct cxl *adapter, struct cxl_afu *afu)
 	return rc;
 }
 
-int cxl_of_read_afu_handle(struct cxl_afu *afu, struct device_node *afu_np)
+int cxl_of_read_afu_handle(struct cxl_afu *afu, struct device_analde *afu_np)
 {
 	if (read_handle(afu_np, &afu->guest->handle))
 		return -EINVAL;
@@ -137,7 +137,7 @@ int cxl_of_read_afu_handle(struct cxl_afu *afu, struct device_node *afu_np)
 	return 0;
 }
 
-int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_node *np)
+int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_analde *np)
 {
 	int i, len, rc;
 	char *p;
@@ -148,7 +148,7 @@ int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_node *np)
 	/* Properties are read in the same order as listed in PAPR */
 
 	if (cxl_verbose) {
-		pr_info("Dump of the 'ibm,coherent-platform-function' node properties:\n");
+		pr_info("Dump of the 'ibm,coherent-platform-function' analde properties:\n");
 
 		prop = of_get_property(np, "compatible", &len);
 		i = 0;
@@ -193,7 +193,7 @@ int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_node *np)
 	prop = read_prop_dword(np, "ibm,min-ints-per-process", &afu->pp_irqs);
 	if (prop) {
 		/* One extra interrupt for the PSL interrupt is already
-		 * included. Remove it now to keep only AFU interrupts and
+		 * included. Remove it analw to keep only AFU interrupts and
 		 * match the native case.
 		 */
 		afu->pp_irqs--;
@@ -247,7 +247,7 @@ int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_node *np)
 	}
 	/*
 	 * if "ibm,process-mmio" doesn't exist then per-process mmio is
-	 * not supported
+	 * analt supported
 	 */
 	val = 0;
 	prop = read_prop_dword(np, "ibm,process-mmio", &val);
@@ -280,7 +280,7 @@ int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_node *np)
 	return 0;
 }
 
-static int read_adapter_irq_config(struct cxl *adapter, struct device_node *np)
+static int read_adapter_irq_config(struct cxl *adapter, struct device_analde *np)
 {
 	const __be32 *ranges;
 	int len, nranges, i;
@@ -301,7 +301,7 @@ static int read_adapter_irq_config(struct cxl *adapter, struct device_node *np)
 	adapter->guest->irq_avail = kcalloc(nranges, sizeof(struct irq_avail),
 					    GFP_KERNEL);
 	if (adapter->guest->irq_avail == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->guest->irq_base_offset = be32_to_cpu(ranges[0]);
 	for (i = 0; i < nranges; i++) {
@@ -329,10 +329,10 @@ err:
 	}
 	kfree(adapter->guest->irq_avail);
 	adapter->guest->irq_avail = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
-int cxl_of_read_adapter_handle(struct cxl *adapter, struct device_node *np)
+int cxl_of_read_adapter_handle(struct cxl *adapter, struct device_analde *np)
 {
 	if (read_handle(np, &adapter->guest->handle))
 		return -EINVAL;
@@ -341,7 +341,7 @@ int cxl_of_read_adapter_handle(struct cxl *adapter, struct device_node *np)
 	return 0;
 }
 
-int cxl_of_read_adapter_properties(struct cxl *adapter, struct device_node *np)
+int cxl_of_read_adapter_properties(struct cxl *adapter, struct device_analde *np)
 {
 	int rc, len, naddr, i;
 	char *p;
@@ -353,7 +353,7 @@ int cxl_of_read_adapter_properties(struct cxl *adapter, struct device_node *np)
 	naddr = of_n_addr_cells(np);
 
 	if (cxl_verbose) {
-		pr_info("Dump of the 'ibm,coherent-platform-facility' node properties:\n");
+		pr_info("Dump of the 'ibm,coherent-platform-facility' analde properties:\n");
 
 		read_prop_dword(np, "#address-cells", &val);
 		read_prop_dword(np, "#size-cells", &val);
@@ -389,7 +389,7 @@ int cxl_of_read_adapter_properties(struct cxl *adapter, struct device_node *np)
 	prop = read_prop_dword(np, "ibm,caia-version", &val);
 	if (prop) {
 		adapter->caia_major = (val & 0xFF00) >> 8;
-		adapter->caia_minor = val & 0xFF;
+		adapter->caia_mianalr = val & 0xFF;
 	}
 
 	prop = read_prop_dword(np, "ibm,psl-revision", &val);
@@ -400,7 +400,7 @@ int cxl_of_read_adapter_properties(struct cxl *adapter, struct device_node *np)
 	if (prop) {
 		adapter->guest->status = kasprintf(GFP_KERNEL, "%s", (char *) prop);
 		if (adapter->guest->status == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	prop = read_prop_dword(np, "vendor-id", &val);
@@ -451,17 +451,17 @@ static void cxl_of_shutdown(struct platform_device *pdev)
 
 int cxl_of_probe(struct platform_device *pdev)
 {
-	struct device_node *np = NULL;
-	struct device_node *afu_np = NULL;
+	struct device_analde *np = NULL;
+	struct device_analde *afu_np = NULL;
 	struct cxl *adapter = NULL;
 	int ret;
 	int slice = 0, slice_ok = 0;
 
 	pr_devel("in %s\n", __func__);
 
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_analde;
 	if (np == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* init adapter */
 	adapter = cxl_guest_init_adapter(np, pdev);
@@ -471,7 +471,7 @@ int cxl_of_probe(struct platform_device *pdev)
 	}
 
 	/* init afu */
-	for_each_child_of_node(np, afu_np) {
+	for_each_child_of_analde(np, afu_np) {
 		if ((ret = cxl_guest_init_afu(adapter, slice, afu_np)))
 			dev_err(&pdev->dev, "AFU %i failed to initialise: %i\n",
 				slice, ret);
@@ -481,7 +481,7 @@ int cxl_of_probe(struct platform_device *pdev)
 	}
 
 	if (slice_ok == 0) {
-		dev_info(&pdev->dev, "No active AFU");
+		dev_info(&pdev->dev, "Anal active AFU");
 		adapter->slices = 0;
 	}
 

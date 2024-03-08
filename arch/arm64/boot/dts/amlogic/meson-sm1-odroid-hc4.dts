@@ -85,7 +85,7 @@
 	cooling-maps {
 		map {
 			trip = <&cpu_active>;
-			cooling-device = <&fan0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+			cooling-device = <&fan0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 		};
 	};
 };
@@ -124,13 +124,13 @@
 
 &spifc {
 	status = "okay";
-	pinctrl-0 = <&nor_pins>;
+	pinctrl-0 = <&analr_pins>;
 	pinctrl-names = "default";
 
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <104000000>;
 	};

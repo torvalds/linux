@@ -54,16 +54,16 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
 	if (pgtable_l5_enabled()) {
 		p4d = (p4d_t *)get_safe_page(GFP_ATOMIC);
 		if (!p4d)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	pud = (pud_t *)get_safe_page(GFP_ATOMIC);
 	if (!pud)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmd = (pmd_t *)get_safe_page(GFP_ATOMIC);
 	if (!pmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	set_pmd(pmd + pmd_index(restore_jump_address),
 		__pmd((jump_address_phys & PMD_MASK) | pgprot_val(pmd_text_prot)));
@@ -76,7 +76,7 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
 		set_p4d(p4d + p4d_index(restore_jump_address), new_p4d);
 		set_pgd(pgd + pgd_index(restore_jump_address), new_pgd);
 	} else {
-		/* No p4d for 4-level paging: point the pgd to the pud page table */
+		/* Anal p4d for 4-level paging: point the pgd to the pud page table */
 		pgd_t new_pgd = __pgd(__pa(pud) | pgprot_val(pgtable_prot));
 		set_pgd(pgd + pgd_index(restore_jump_address), new_pgd);
 	}
@@ -103,7 +103,7 @@ static int set_up_temporary_mappings(void)
 
 	pgd = (pgd_t *)get_safe_page(GFP_ATOMIC);
 	if (!pgd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Prepare a temporary mapping for the kernel text */
 	result = set_up_temporary_text_mapping(pgd);
@@ -128,7 +128,7 @@ asmlinkage int swsusp_arch_resume(void)
 {
 	int error;
 
-	/* We have got enough memory and from now on we cannot recover */
+	/* We have got eanalugh memory and from analw on we cananalt recover */
 	error = set_up_temporary_mappings();
 	if (error)
 		return error;

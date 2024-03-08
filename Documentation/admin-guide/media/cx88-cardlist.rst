@@ -15,7 +15,7 @@ CX88 cards list
      - PCI subsystem IDs
 
    * - 0
-     - UNKNOWN/GENERIC
+     - UNKANALWN/GENERIC
      -
 
    * - 1
@@ -87,7 +87,7 @@ CX88 cards list
      - 18ac:d810, 18ac:d800
 
    * - 18
-     - Hauppauge Nova-T DVB-T
+     - Hauppauge Analva-T DVB-T
      - 0070:9002, 0070:9001, 0070:9000
 
    * - 19
@@ -107,7 +107,7 @@ CX88 cards list
      - 7063:3000
 
    * - 23
-     - digitalnow DNTV Live! DVB-T
+     - digitalanalw DNTV Live! DVB-T
      - 17de:a8a6
 
    * - 24
@@ -163,11 +163,11 @@ CX88 cards list
      - 1461:000a
 
    * - 37
-     - Hauppauge Nova-S-Plus DVB-S
+     - Hauppauge Analva-S-Plus DVB-S
      - 0070:9201, 0070:9202
 
    * - 38
-     - Hauppauge Nova-SE2 DVB-S
+     - Hauppauge Analva-SE2 DVB-S
      - 0070:9200
 
    * - 39
@@ -183,7 +183,7 @@ CX88 cards list
      - 0070:9800, 0070:9802
 
    * - 42
-     - digitalnow DNTV Live! DVB-T Pro
+     - digitalanalw DNTV Live! DVB-T Pro
      - 1822:0025, 1822:0019
 
    * - 43
@@ -231,7 +231,7 @@ CX88 cards list
      - 0070:1404, 0070:1400, 0070:1401, 0070:1402
 
    * - 54
-     - Norwood Micro TV Tuner
+     - Analrwood Micro TV Tuner
      -
 
    * - 55
@@ -251,7 +251,7 @@ CX88 cards list
      - 11bd:0051
 
    * - 59
-     - DViCO FusionHDTV 5 PCI nano
+     - DViCO FusionHDTV 5 PCI naanal
      - 18ac:d530
 
    * - 60
@@ -379,5 +379,5 @@ CX88 cards list
      - 107d:6f43
 
    * - 91
-     - NotOnlyTV LV3H
+     - AnaltOnlyTV LV3H
      -

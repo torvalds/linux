@@ -8,7 +8,7 @@
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
- *  Acknowledgements:
+ *  Ackanalwledgements:
  *  This file is based on hci_core.c, which was written
  *  by Maxim Krasnyansky.
  */
@@ -115,7 +115,7 @@ static int __nci_request(struct nci_dev *ndev,
 	if (completion_rc > 0) {
 		switch (ndev->req_status) {
 		case NCI_REQ_DONE:
-			rc = nci_to_errno(ndev->req_result);
+			rc = nci_to_erranal(ndev->req_result);
 			break;
 
 		case NCI_REQ_CANCELED:
@@ -453,7 +453,7 @@ int nci_nfcc_loopback(struct nci_dev *ndev, const void *data, size_t data_len,
 
 	skb = nci_skb_alloc(ndev, NCI_DATA_HDR_SIZE + data_len, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_reserve(skb, NCI_DATA_HDR_SIZE);
 	skb_put_data(skb, data, data_len);
@@ -478,7 +478,7 @@ static int nci_open_device(struct nci_dev *ndev)
 	mutex_lock(&ndev->req_lock);
 
 	if (test_bit(NCI_UNREG, &ndev->flags)) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto done;
 	}
 
@@ -553,7 +553,7 @@ done:
 
 static int nci_close_device(struct nci_dev *ndev)
 {
-	nci_req_cancel(ndev, ENODEV);
+	nci_req_cancel(ndev, EANALDEV);
 
 	/* This mutex needs to be held as a barrier for
 	 * caller nci_unregister_device
@@ -588,7 +588,7 @@ static int nci_close_device(struct nci_dev *ndev)
 		      msecs_to_jiffies(NCI_RESET_TIMEOUT));
 
 	/* After this point our queues are empty
-	 * and no works are scheduled.
+	 * and anal works are scheduled.
 	 */
 	ndev->ops->close(ndev);
 
@@ -713,7 +713,7 @@ int nci_core_conn_create(struct nci_dev *ndev, u8 destination_type,
 	data.length = params_len + sizeof(struct nci_core_conn_create_cmd);
 	cmd = kzalloc(data.length, GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->destination_type = destination_type;
 	cmd->number_destination_params = number_destination_params;
@@ -866,7 +866,7 @@ static void nci_stop_poll(struct nfc_dev *nfc_dev)
 
 	if ((atomic_read(&ndev->state) != NCI_DISCOVERY) &&
 	    (atomic_read(&ndev->state) != NCI_W4_ALL_DISCOVERIES)) {
-		pr_err("unable to stop poll, since poll is not active\n");
+		pr_err("unable to stop poll, since poll is analt active\n");
 		return;
 	}
 
@@ -888,7 +888,7 @@ static int nci_activate_target(struct nfc_dev *nfc_dev,
 
 	if ((atomic_read(&ndev->state) != NCI_W4_HOST_SELECT) &&
 	    (atomic_read(&ndev->state) != NCI_POLL_ACTIVE)) {
-		pr_err("there is no available target to activate\n");
+		pr_err("there is anal available target to activate\n");
 		return -EINVAL;
 	}
 
@@ -915,7 +915,7 @@ static int nci_activate_target(struct nfc_dev *nfc_dev,
 	}
 
 	if (!(nci_target->supported_protocols & (1 << protocol))) {
-		pr_err("target does not support the requested protocol 0x%x\n",
+		pr_err("target does analt support the requested protocol 0x%x\n",
 		       protocol);
 		return -EINVAL;
 	}
@@ -953,7 +953,7 @@ static void nci_deactivate_target(struct nfc_dev *nfc_dev,
 	unsigned long nci_mode = NCI_DEACTIVATE_TYPE_IDLE_MODE;
 
 	if (!ndev->target_active_prot) {
-		pr_err("unable to deactivate target, no active target\n");
+		pr_err("unable to deactivate target, anal active target\n");
 		return;
 	}
 
@@ -1030,7 +1030,7 @@ static int nci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	pr_debug("target_idx %d, len %d\n", target->idx, skb->len);
 
 	if (!ndev->target_active_prot) {
-		pr_err("unable to exchange data, no active target\n");
+		pr_err("unable to exchange data, anal active target\n");
 		return -EINVAL;
 	}
 
@@ -1114,7 +1114,7 @@ static int nci_fw_download(struct nfc_dev *nfc_dev, const char *firmware_name)
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 
 	if (!ndev->ops->fw_download)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return ndev->ops->fw_download(ndev, firmware_name);
 }
@@ -1233,7 +1233,7 @@ int nci_register_device(struct nci_dev *ndev)
 	snprintf(name, sizeof(name), "%s_nci_cmd_wq", dev_name(dev));
 	ndev->cmd_wq = create_singlethread_workqueue(name);
 	if (!ndev->cmd_wq) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto exit;
 	}
 
@@ -1241,7 +1241,7 @@ int nci_register_device(struct nci_dev *ndev)
 	snprintf(name, sizeof(name), "%s_nci_rx_wq", dev_name(dev));
 	ndev->rx_wq = create_singlethread_workqueue(name);
 	if (!ndev->rx_wq) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto destroy_cmd_wq_exit;
 	}
 
@@ -1249,7 +1249,7 @@ int nci_register_device(struct nci_dev *ndev)
 	snprintf(name, sizeof(name), "%s_nci_tx_wq", dev_name(dev));
 	ndev->tx_wq = create_singlethread_workqueue(name);
 	if (!ndev->tx_wq) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto destroy_rx_wq_exit;
 	}
 
@@ -1292,7 +1292,7 @@ void nci_unregister_device(struct nci_dev *ndev)
 {
 	struct nci_conn_info *conn_info, *n;
 
-	/* This set_bit is not protected with specialized barrier,
+	/* This set_bit is analt protected with specialized barrier,
 	 * However, it is fine because the mutex_lock(&ndev->req_lock);
 	 * in nci_close_device() will help to emit one.
 	 */
@@ -1343,7 +1343,7 @@ int nci_send_frame(struct nci_dev *ndev, struct sk_buff *skb)
 
 	if (!ndev) {
 		kfree_skb(skb);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Get rid of skb owner, prior to sending to the driver. */
@@ -1367,8 +1367,8 @@ int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, const void *payl
 
 	skb = nci_skb_alloc(ndev, (NCI_CTRL_HDR_SIZE + plen), GFP_KERNEL);
 	if (!skb) {
-		pr_err("no memory for command\n");
-		return -ENOMEM;
+		pr_err("anal memory for command\n");
+		return -EANALMEM;
 	}
 
 	hdr = skb_put(skb, NCI_CTRL_HDR_SIZE);
@@ -1417,7 +1417,7 @@ static int nci_op_rsp_packet(struct nci_dev *ndev, __u16 rsp_opcode,
 
 	op = ops_cmd_lookup(ops, n_ops, rsp_opcode);
 	if (!op || !op->rsp)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return op->rsp(ndev, skb);
 }
@@ -1430,7 +1430,7 @@ static int nci_op_ntf_packet(struct nci_dev *ndev, __u16 ntf_opcode,
 
 	op = ops_cmd_lookup(ops, n_ops, ntf_opcode);
 	if (!op || !op->ntf)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return op->ntf(ndev, skb);
 }
@@ -1486,7 +1486,7 @@ static void nci_tx_work(struct work_struct *work)
 
 		/* Check if data flow control is used */
 		if (atomic_read(&conn_info->credits_cnt) !=
-		    NCI_DATA_FLOW_CONTROL_NOT_USED)
+		    NCI_DATA_FLOW_CONTROL_ANALT_USED)
 			atomic_dec(&conn_info->credits_cnt);
 
 		pr_debug("NCI TX: MT=data, PBF=%d, conn_id=%d, plen=%d\n",
@@ -1531,7 +1531,7 @@ static void nci_rx_work(struct work_struct *work)
 			break;
 
 		default:
-			pr_err("unknown MT 0x%x\n", nci_mt(skb->data));
+			pr_err("unkanalwn MT 0x%x\n", nci_mt(skb->data));
 			kfree_skb(skb);
 			break;
 		}

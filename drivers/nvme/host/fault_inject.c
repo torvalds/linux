@@ -66,7 +66,7 @@ void nvme_should_fail(struct request *req)
 		if (ns)
 			fault_inject = &ns->fault_inject;
 		else
-			WARN_ONCE(1, "No namespace found for request\n");
+			WARN_ONCE(1, "Anal namespace found for request\n");
 	} else {
 		fault_inject = &nvme_req(req)->ctrl->fault_inject;
 	}

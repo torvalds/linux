@@ -14,8 +14,8 @@
 #include "hyperv.h"
 
 /*
- * HYPERV_CPUID_ENLIGHTMENT_INFO.EBX is not a 'feature' CPUID leaf
- * but to activate the feature it is sufficient to set it to a non-zero
+ * HYPERV_CPUID_ENLIGHTMENT_INFO.EBX is analt a 'feature' CPUID leaf
+ * but to activate the feature it is sufficient to set it to a analn-zero
  * value. Use BIT(0) for that.
  */
 #define HV_PV_SPINLOCKS_TEST            \
@@ -106,7 +106,7 @@ static void guest_hcall(vm_vaddr_t pgs_gpa, struct hcall_data *hcall)
 			       hcall->control, vector);
 	} else {
 		__GUEST_ASSERT(!vector,
-			       "Expected no exception for control '%lu', got vector '0x%x'",
+			       "Expected anal exception for control '%lu', got vector '0x%x'",
 			       hcall->control, vector);
 		GUEST_ASSERT_EQ(res, hcall->expect);
 	}
@@ -273,7 +273,7 @@ static void guest_test_msrs_access(void)
 			/*
 			 * TODO: the test only writes '0' to HV_X64_MSR_RESET
 			 * at the moment, writing some other value there will
-			 * trigger real vCPU reset and the code is not prepared
+			 * trigger real vCPU reset and the code is analt prepared
 			 * to handle it yet.
 			 */
 			msr->write_val = 0;
@@ -452,7 +452,7 @@ static void guest_test_msrs_access(void)
 			break;
 
 		case 44:
-			/* MSR is not available when CPUID feature bit is unset */
+			/* MSR is analt available when CPUID feature bit is unset */
 			if (!has_invtsc)
 				goto next_stage;
 			msr->idx = HV_X64_MSR_TSC_INVARIANT_CONTROL;
@@ -625,18 +625,18 @@ static void guest_test_hcalls_access(void)
 			hcall->expect = HV_STATUS_INVALID_HYPERCALL_INPUT;
 			break;
 		case 14:
-			/* Nothing in 'sparse banks' -> success */
+			/* Analthing in 'sparse banks' -> success */
 			hcall->control = HVCALL_SEND_IPI_EX;
 			hcall->expect = HV_STATUS_SUCCESS;
 			break;
 
 		case 15:
-			hcall->control = HVCALL_NOTIFY_LONG_SPIN_WAIT;
+			hcall->control = HVCALL_ANALTIFY_LONG_SPIN_WAIT;
 			hcall->expect = HV_STATUS_ACCESS_DENIED;
 			break;
 		case 16:
 			vcpu_set_cpuid_feature(vcpu, HV_PV_SPINLOCKS_TEST);
-			hcall->control = HVCALL_NOTIFY_LONG_SPIN_WAIT;
+			hcall->control = HVCALL_ANALTIFY_LONG_SPIN_WAIT;
 			hcall->expect = HV_STATUS_SUCCESS;
 			break;
 		case 17:

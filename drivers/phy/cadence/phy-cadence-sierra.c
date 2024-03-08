@@ -167,7 +167,7 @@
 #define SIERRA_DEQ_DFETAP2				0x12D
 #define SIERRA_DEQ_DFETAP3				0x12F
 #define SIERRA_DEQ_DFETAP4				0x131
-#define SIERRA_DFE_EN_1010_IGNORE_PREG			0x134
+#define SIERRA_DFE_EN_1010_IGANALRE_PREG			0x134
 #define SIERRA_DEQ_PRECUR_PREG				0x138
 #define SIERRA_DEQ_POSTCUR_PREG				0x140
 #define SIERRA_DEQ_POSTCUR_DECR_PREG			0x142
@@ -326,7 +326,7 @@ struct cdns_sierra_derived_refclk {
 			container_of(_hw, struct cdns_sierra_derived_refclk, hw)
 
 enum cdns_sierra_phy_type {
-	TYPE_NONE,
+	TYPE_ANALNE,
 	TYPE_PCIE,
 	TYPE_USB,
 	TYPE_SGMII,
@@ -334,7 +334,7 @@ enum cdns_sierra_phy_type {
 };
 
 enum cdns_sierra_ssc_mode {
-	NO_SSC,
+	ANAL_SSC,
 	EXTERNAL_SSC,
 	INTERNAL_SSC
 };
@@ -399,7 +399,7 @@ struct cdns_sierra_phy {
 	struct regmap_field *cmn_refrcv_refclk_termen_preg[SIERRA_NUM_CMN_PLLC];
 	struct regmap_field *cmn_plllc_pfdclk1_sel_preg[SIERRA_NUM_CMN_PLLC];
 	struct clk *input_clks[CDNS_SIERRA_INPUT_CLOCKS];
-	int nsubnodes;
+	int nsubanaldes;
 	u32 num_lanes;
 	bool autoconf;
 	int already_configured;
@@ -550,14 +550,14 @@ static int cdns_sierra_phy_init(struct phy *gphy)
 	int i, j;
 
 	/* Initialise the PHY registers, unless auto configured */
-	if (phy->autoconf || phy->already_configured || phy->nsubnodes > 1)
+	if (phy->autoconf || phy->already_configured || phy->nsubanaldes > 1)
 		return 0;
 
 	clk_set_rate(phy->input_clks[CMN_REFCLK_DIG_DIV], 25000000);
 	clk_set_rate(phy->input_clks[CMN_REFCLK1_DIG_DIV], 25000000);
 
 	/* PHY PCS common registers configurations */
-	pcs_cmn_vals = init_data->pcs_cmn_vals[phy_type][TYPE_NONE][ssc];
+	pcs_cmn_vals = init_data->pcs_cmn_vals[phy_type][TYPE_ANALNE][ssc];
 	if (pcs_cmn_vals) {
 		reg_pairs = pcs_cmn_vals->reg_pairs;
 		num_regs = pcs_cmn_vals->num_regs;
@@ -567,7 +567,7 @@ static int cdns_sierra_phy_init(struct phy *gphy)
 	}
 
 	/* PHY PMA lane registers configurations */
-	phy_pma_ln_vals = init_data->phy_pma_ln_vals[phy_type][TYPE_NONE][ssc];
+	phy_pma_ln_vals = init_data->phy_pma_ln_vals[phy_type][TYPE_ANALNE][ssc];
 	if (phy_pma_ln_vals) {
 		reg_pairs = phy_pma_ln_vals->reg_pairs;
 		num_regs = phy_pma_ln_vals->num_regs;
@@ -579,7 +579,7 @@ static int cdns_sierra_phy_init(struct phy *gphy)
 	}
 
 	/* PMA common registers configurations */
-	pma_cmn_vals = init_data->pma_cmn_vals[phy_type][TYPE_NONE][ssc];
+	pma_cmn_vals = init_data->pma_cmn_vals[phy_type][TYPE_ANALNE][ssc];
 	if (pma_cmn_vals) {
 		reg_pairs = pma_cmn_vals->reg_pairs;
 		num_regs = pma_cmn_vals->num_regs;
@@ -589,7 +589,7 @@ static int cdns_sierra_phy_init(struct phy *gphy)
 	}
 
 	/* PMA lane registers configurations */
-	pma_ln_vals = init_data->pma_ln_vals[phy_type][TYPE_NONE][ssc];
+	pma_ln_vals = init_data->pma_ln_vals[phy_type][TYPE_ANALNE][ssc];
 	if (pma_ln_vals) {
 		reg_pairs = pma_ln_vals->reg_pairs;
 		num_regs = pma_ln_vals->num_regs;
@@ -611,7 +611,7 @@ static int cdns_sierra_phy_on(struct phy *gphy)
 	u32 val;
 	int ret;
 
-	if (sp->nsubnodes == 1) {
+	if (sp->nsubanaldes == 1) {
 		/* Take the PHY out of reset */
 		ret = reset_control_deassert(sp->phy_rst);
 		if (ret) {
@@ -679,15 +679,15 @@ static const struct phy_ops ops = {
 	.owner		= THIS_MODULE,
 };
 
-static int cdns_sierra_noop_phy_on(struct phy *gphy)
+static int cdns_sierra_analop_phy_on(struct phy *gphy)
 {
 	usleep_range(5000, 10000);
 
 	return 0;
 }
 
-static const struct phy_ops noop_ops = {
-	.power_on	= cdns_sierra_noop_phy_on,
+static const struct phy_ops analop_ops = {
+	.power_on	= cdns_sierra_analop_phy_on,
 	.owner		= THIS_MODULE,
 };
 
@@ -760,14 +760,14 @@ static int cdns_sierra_pll_mux_register(struct cdns_sierra_phy *sp,
 
 	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(clk_name, sizeof(clk_name), "%s_%s", dev_name(dev), clk_names[clk_index]);
 
 	init = &mux->clk_data;
 
 	init->ops = &cdns_sierra_pll_mux_ops;
-	init->flags = CLK_SET_RATE_NO_REPARENT;
+	init->flags = CLK_SET_RATE_ANAL_REPARENT;
 	init->parent_data = pll_mux_parent_data[clk_index];
 	init->num_parents = SIERRA_NUM_CMN_PLLC_PARENTS;
 	init->name = clk_name;
@@ -861,7 +861,7 @@ static int cdns_sierra_derived_refclk_register(struct cdns_sierra_phy *sp)
 
 	derived_refclk = devm_kzalloc(dev, sizeof(*derived_refclk), GFP_KERNEL);
 	if (!derived_refclk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(clk_name, sizeof(clk_name), "%s_%s", dev_name(dev),
 		 clk_names[CDNS_SIERRA_DERIVED_REFCLK]);
@@ -902,15 +902,15 @@ static int cdns_sierra_derived_refclk_register(struct cdns_sierra_phy *sp)
 static void cdns_sierra_clk_unregister(struct cdns_sierra_phy *sp)
 {
 	struct device *dev = sp->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 
-	of_clk_del_provider(node);
+	of_clk_del_provider(analde);
 }
 
 static int cdns_sierra_clk_register(struct cdns_sierra_phy *sp)
 {
 	struct device *dev = sp->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	int ret;
 
 	ret = cdns_sierra_phy_register_pll_mux(sp);
@@ -926,16 +926,16 @@ static int cdns_sierra_clk_register(struct cdns_sierra_phy *sp)
 	}
 
 	sp->clk_data.num = CDNS_SIERRA_OUTPUT_CLOCKS;
-	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get,
+	ret = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get,
 				     &sp->clk_data);
 	if (ret)
-		dev_err(dev, "Failed to add clock provider: %s\n", node->name);
+		dev_err(dev, "Failed to add clock provider: %s\n", analde->name);
 
 	return ret;
 }
 
 static int cdns_sierra_get_optional(struct cdns_sierra_inst *inst,
-				    struct device_node *child)
+				    struct device_analde *child)
 {
 	u32 phy_type;
 
@@ -979,7 +979,7 @@ static struct regmap *cdns_regmap_init(struct device *dev, void __iomem *base,
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ctx->dev = dev;
 	ctx->base = base + block_offset;
@@ -1155,7 +1155,7 @@ static int cdns_sierra_phy_get_clocks(struct cdns_sierra_phy *sp,
 
 	clk = devm_clk_get_optional(dev, "cmn_refclk_dig_div");
 	if (IS_ERR(clk)) {
-		dev_err(dev, "cmn_refclk_dig_div clock not found\n");
+		dev_err(dev, "cmn_refclk_dig_div clock analt found\n");
 		ret = PTR_ERR(clk);
 		return ret;
 	}
@@ -1163,7 +1163,7 @@ static int cdns_sierra_phy_get_clocks(struct cdns_sierra_phy *sp,
 
 	clk = devm_clk_get_optional(dev, "cmn_refclk1_dig_div");
 	if (IS_ERR(clk)) {
-		dev_err(dev, "cmn_refclk1_dig_div clock not found\n");
+		dev_err(dev, "cmn_refclk1_dig_div clock analt found\n");
 		ret = PTR_ERR(clk);
 		return ret;
 	}
@@ -1250,13 +1250,13 @@ static int cdns_sierra_phy_configure_multilink(struct cdns_sierra_phy *sp)
 	struct cdns_sierra_vals *phy_pma_ln_vals;
 	const struct cdns_reg_pairs *reg_pairs;
 	struct cdns_sierra_vals *pcs_cmn_vals;
-	int i, j, node, mlane, num_lanes, ret;
+	int i, j, analde, mlane, num_lanes, ret;
 	enum cdns_sierra_ssc_mode ssc;
 	struct regmap *regmap;
 	u32 num_regs;
 
-	/* Maximum 2 links (subnodes) are supported */
-	if (sp->nsubnodes != 2)
+	/* Maximum 2 links (subanaldes) are supported */
+	if (sp->nsubanaldes != 2)
 		return -EINVAL;
 
 	clk_set_rate(sp->input_clks[CMN_REFCLK_DIG_DIV], 25000000);
@@ -1278,7 +1278,7 @@ static int cdns_sierra_phy_configure_multilink(struct cdns_sierra_phy *sp)
 	 *     So the register values are selected as [TYPE_PCIE][TYPE_QSGMII][ssc].
 	 *     This will configure PHY registers associated for PCIe (i.e. first protocol)
 	 *     involving PLLLC registers and registers for first 2 lanes of PHY.
-	 * [2] In second step, the variables phy_t1 and phy_t2 are swapped. So now,
+	 * [2] In second step, the variables phy_t1 and phy_t2 are swapped. So analw,
 	 *     phy_t1 = TYPE_QSGMII and phy_t2 = TYPE_PCIE. And the register values are selected as
 	 *     [TYPE_QSGMII][TYPE_PCIE][ssc].
 	 *     This will configure PHY registers associated for QSGMII (i.e. second protocol)
@@ -1288,8 +1288,8 @@ static int cdns_sierra_phy_configure_multilink(struct cdns_sierra_phy *sp)
 	 * dividing the large number of PHY register configurations into protocol specific
 	 * smaller groups.
 	 */
-	for (node = 0; node < sp->nsubnodes; node++) {
-		if (node == 1) {
+	for (analde = 0; analde < sp->nsubanaldes; analde++) {
+		if (analde == 1) {
 			/*
 			 * If first link with phy_t1 is configured, then configure the PHY for
 			 * second link with phy_t2. Get the array values as [phy_t2][phy_t1][ssc].
@@ -1297,9 +1297,9 @@ static int cdns_sierra_phy_configure_multilink(struct cdns_sierra_phy *sp)
 			swap(phy_t1, phy_t2);
 		}
 
-		mlane = sp->phys[node].mlane;
-		ssc = sp->phys[node].ssc_mode;
-		num_lanes = sp->phys[node].num_lanes;
+		mlane = sp->phys[analde].mlane;
+		ssc = sp->phys[analde].ssc_mode;
+		num_lanes = sp->phys[analde].num_lanes;
 
 		/* PHY PCS common registers configurations */
 		pcs_cmn_vals = init_data->pcs_cmn_vals[phy_t1][phy_t2][ssc];
@@ -1346,7 +1346,7 @@ static int cdns_sierra_phy_configure_multilink(struct cdns_sierra_phy *sp)
 		}
 
 		if (phy_t1 == TYPE_SGMII || phy_t1 == TYPE_QSGMII)
-			reset_control_deassert(sp->phys[node].lnk_rst);
+			reset_control_deassert(sp->phys[analde].lnk_rst);
 	}
 
 	/* Take the PHY out of reset */
@@ -1364,12 +1364,12 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct cdns_sierra_data *data;
 	unsigned int id_value;
-	int ret, node = 0;
+	int ret, analde = 0;
 	void __iomem *base;
-	struct device_node *dn = dev->of_node, *child;
+	struct device_analde *dn = dev->of_analde, *child;
 
 	if (of_get_child_count(dn) == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Get init data for this PHY */
 	data = of_device_get_match_data(dev);
@@ -1380,7 +1380,7 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 					   CDNS_SIERRA_OUTPUT_CLOCKS),
 			  GFP_KERNEL);
 	if (!sp)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, sp);
 	sp->dev = dev;
 	sp->init_data = data;
@@ -1438,53 +1438,53 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 
 	sp->autoconf = of_property_read_bool(dn, "cdns,autoconf");
 
-	for_each_available_child_of_node(dn, child) {
+	for_each_available_child_of_analde(dn, child) {
 		struct phy *gphy;
 
-		if (!(of_node_name_eq(child, "phy") ||
-		      of_node_name_eq(child, "link")))
+		if (!(of_analde_name_eq(child, "phy") ||
+		      of_analde_name_eq(child, "link")))
 			continue;
 
-		sp->phys[node].lnk_rst =
+		sp->phys[analde].lnk_rst =
 			of_reset_control_array_get_exclusive(child);
 
-		if (IS_ERR(sp->phys[node].lnk_rst)) {
+		if (IS_ERR(sp->phys[analde].lnk_rst)) {
 			dev_err(dev, "failed to get reset %s\n",
 				child->full_name);
-			ret = PTR_ERR(sp->phys[node].lnk_rst);
-			of_node_put(child);
+			ret = PTR_ERR(sp->phys[analde].lnk_rst);
+			of_analde_put(child);
 			goto put_control;
 		}
 
 		if (!sp->autoconf) {
-			ret = cdns_sierra_get_optional(&sp->phys[node], child);
+			ret = cdns_sierra_get_optional(&sp->phys[analde], child);
 			if (ret) {
-				dev_err(dev, "missing property in node %s\n",
+				dev_err(dev, "missing property in analde %s\n",
 					child->name);
-				of_node_put(child);
-				reset_control_put(sp->phys[node].lnk_rst);
+				of_analde_put(child);
+				reset_control_put(sp->phys[analde].lnk_rst);
 				goto put_control;
 			}
 		}
 
-		sp->num_lanes += sp->phys[node].num_lanes;
+		sp->num_lanes += sp->phys[analde].num_lanes;
 
 		if (!sp->already_configured)
 			gphy = devm_phy_create(dev, child, &ops);
 		else
-			gphy = devm_phy_create(dev, child, &noop_ops);
+			gphy = devm_phy_create(dev, child, &analop_ops);
 		if (IS_ERR(gphy)) {
 			ret = PTR_ERR(gphy);
-			of_node_put(child);
-			reset_control_put(sp->phys[node].lnk_rst);
+			of_analde_put(child);
+			reset_control_put(sp->phys[analde].lnk_rst);
 			goto put_control;
 		}
-		sp->phys[node].phy = gphy;
-		phy_set_drvdata(gphy, &sp->phys[node]);
+		sp->phys[analde].phy = gphy;
+		phy_set_drvdata(gphy, &sp->phys[analde]);
 
-		node++;
+		analde++;
 	}
-	sp->nsubnodes = node;
+	sp->nsubanaldes = analde;
 
 	if (sp->num_lanes > SIERRA_MAX_LANES) {
 		ret = -EINVAL;
@@ -1492,8 +1492,8 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 		goto put_control;
 	}
 
-	/* If more than one subnode, configure the PHY as multilink */
-	if (!sp->already_configured && !sp->autoconf && sp->nsubnodes > 1) {
+	/* If more than one subanalde, configure the PHY as multilink */
+	if (!sp->already_configured && !sp->autoconf && sp->nsubanaldes > 1) {
 		ret = cdns_sierra_phy_configure_multilink(sp);
 		if (ret)
 			goto put_control;
@@ -1509,8 +1509,8 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 	return 0;
 
 put_control:
-	while (--node >= 0)
-		reset_control_put(sp->phys[node].lnk_rst);
+	while (--analde >= 0)
+		reset_control_put(sp->phys[analde].lnk_rst);
 ctrl_assert:
 	if (!sp->already_configured)
 		reset_control_assert(sp->apb_rst);
@@ -1533,9 +1533,9 @@ static void cdns_sierra_phy_remove(struct platform_device *pdev)
 	cdns_sierra_phy_disable_clocks(phy);
 	/*
 	 * The device level resets will be put automatically.
-	 * Need to put the subnode resets here though.
+	 * Need to put the subanalde resets here though.
 	 */
-	for (i = 0; i < phy->nsubnodes; i++) {
+	for (i = 0; i < phy->nsubanaldes; i++) {
 		reset_control_assert(phy->phys[i].lnk_rst);
 		reset_control_put(phy->phys[i].lnk_rst);
 	}
@@ -1553,8 +1553,8 @@ static struct cdns_sierra_vals sgmii_phy_pma_ln_vals = {
 	.num_regs = ARRAY_SIZE(sgmii_phy_pma_ln_regs),
 };
 
-/* SGMII refclk 100MHz, no ssc, opt3 and GE1 links using PLL LC1 */
-static const struct cdns_reg_pairs sgmii_100_no_ssc_plllc1_opt3_cmn_regs[] = {
+/* SGMII refclk 100MHz, anal ssc, opt3 and GE1 links using PLL LC1 */
+static const struct cdns_reg_pairs sgmii_100_anal_ssc_plllc1_opt3_cmn_regs[] = {
 	{0x002D, SIERRA_CMN_PLLLC1_FBDIV_INT_PREG},
 	{0x2085, SIERRA_CMN_PLLLC1_LF_COEFF_MODE0_PREG},
 	{0x1005, SIERRA_CMN_PLLLC1_CLK0_PREG},
@@ -1562,7 +1562,7 @@ static const struct cdns_reg_pairs sgmii_100_no_ssc_plllc1_opt3_cmn_regs[] = {
 	{0x0800, SIERRA_CMN_PLLLC1_SS_TIME_STEPSIZE_MODE_PREG}
 };
 
-static const struct cdns_reg_pairs sgmii_100_no_ssc_plllc1_opt3_ln_regs[] = {
+static const struct cdns_reg_pairs sgmii_100_anal_ssc_plllc1_opt3_ln_regs[] = {
 	{0x688E, SIERRA_DET_STANDEC_D_PREG},
 	{0x0004, SIERRA_PSC_LN_IDLE_PREG},
 	{0x0FFE, SIERRA_PSC_RX_A0_PREG},
@@ -1598,14 +1598,14 @@ static const struct cdns_reg_pairs sgmii_100_no_ssc_plllc1_opt3_ln_regs[] = {
 	{0x0002, SIERRA_RXBUFFER_RCDFECTRL_PREG}
 };
 
-static struct cdns_sierra_vals sgmii_100_no_ssc_plllc1_opt3_cmn_vals = {
-	.reg_pairs = sgmii_100_no_ssc_plllc1_opt3_cmn_regs,
-	.num_regs = ARRAY_SIZE(sgmii_100_no_ssc_plllc1_opt3_cmn_regs),
+static struct cdns_sierra_vals sgmii_100_anal_ssc_plllc1_opt3_cmn_vals = {
+	.reg_pairs = sgmii_100_anal_ssc_plllc1_opt3_cmn_regs,
+	.num_regs = ARRAY_SIZE(sgmii_100_anal_ssc_plllc1_opt3_cmn_regs),
 };
 
-static struct cdns_sierra_vals sgmii_100_no_ssc_plllc1_opt3_ln_vals = {
-	.reg_pairs = sgmii_100_no_ssc_plllc1_opt3_ln_regs,
-	.num_regs = ARRAY_SIZE(sgmii_100_no_ssc_plllc1_opt3_ln_regs),
+static struct cdns_sierra_vals sgmii_100_anal_ssc_plllc1_opt3_ln_vals = {
+	.reg_pairs = sgmii_100_anal_ssc_plllc1_opt3_ln_regs,
+	.num_regs = ARRAY_SIZE(sgmii_100_anal_ssc_plllc1_opt3_ln_regs),
 };
 
 /* QSGMII PHY PMA lane configuration */
@@ -1618,14 +1618,14 @@ static struct cdns_sierra_vals qsgmii_phy_pma_ln_vals = {
 	.num_regs = ARRAY_SIZE(qsgmii_phy_pma_ln_regs),
 };
 
-/* QSGMII refclk 100MHz, 20b, opt1, No BW cal, no ssc, PLL LC1 */
-static const struct cdns_reg_pairs qsgmii_100_no_ssc_plllc1_cmn_regs[] = {
+/* QSGMII refclk 100MHz, 20b, opt1, Anal BW cal, anal ssc, PLL LC1 */
+static const struct cdns_reg_pairs qsgmii_100_anal_ssc_plllc1_cmn_regs[] = {
 	{0x2085, SIERRA_CMN_PLLLC1_LF_COEFF_MODE0_PREG},
 	{0x0000, SIERRA_CMN_PLLLC1_BWCAL_MODE0_PREG},
 	{0x0000, SIERRA_CMN_PLLLC1_SS_TIME_STEPSIZE_MODE_PREG}
 };
 
-static const struct cdns_reg_pairs qsgmii_100_no_ssc_plllc1_ln_regs[] = {
+static const struct cdns_reg_pairs qsgmii_100_anal_ssc_plllc1_ln_regs[] = {
 	{0xFC08, SIERRA_DET_STANDEC_A_PREG},
 	{0x0252, SIERRA_DET_STANDEC_E_PREG},
 	{0x0004, SIERRA_PSC_LN_IDLE_PREG},
@@ -1664,14 +1664,14 @@ static const struct cdns_reg_pairs qsgmii_100_no_ssc_plllc1_ln_regs[] = {
 	{0x0002, SIERRA_RXBUFFER_RCDFECTRL_PREG}
 };
 
-static struct cdns_sierra_vals qsgmii_100_no_ssc_plllc1_cmn_vals = {
-	.reg_pairs = qsgmii_100_no_ssc_plllc1_cmn_regs,
-	.num_regs = ARRAY_SIZE(qsgmii_100_no_ssc_plllc1_cmn_regs),
+static struct cdns_sierra_vals qsgmii_100_anal_ssc_plllc1_cmn_vals = {
+	.reg_pairs = qsgmii_100_anal_ssc_plllc1_cmn_regs,
+	.num_regs = ARRAY_SIZE(qsgmii_100_anal_ssc_plllc1_cmn_regs),
 };
 
-static struct cdns_sierra_vals qsgmii_100_no_ssc_plllc1_ln_vals = {
-	.reg_pairs = qsgmii_100_no_ssc_plllc1_ln_regs,
-	.num_regs = ARRAY_SIZE(qsgmii_100_no_ssc_plllc1_ln_regs),
+static struct cdns_sierra_vals qsgmii_100_anal_ssc_plllc1_ln_vals = {
+	.reg_pairs = qsgmii_100_anal_ssc_plllc1_ln_regs,
+	.num_regs = ARRAY_SIZE(qsgmii_100_anal_ssc_plllc1_ln_regs),
 };
 
 /* PCIE PHY PCS common configuration */
@@ -1684,8 +1684,8 @@ static struct cdns_sierra_vals pcie_phy_pcs_cmn_vals = {
 	.num_regs = ARRAY_SIZE(pcie_phy_pcs_cmn_regs),
 };
 
-/* refclk100MHz_32b_PCIe_cmn_pll_no_ssc, pcie_links_using_plllc, pipe_bw_3 */
-static const struct cdns_reg_pairs pcie_100_no_ssc_plllc_cmn_regs[] = {
+/* refclk100MHz_32b_PCIe_cmn_pll_anal_ssc, pcie_links_using_plllc, pipe_bw_3 */
+static const struct cdns_reg_pairs pcie_100_anal_ssc_plllc_cmn_regs[] = {
 	{0x2105, SIERRA_CMN_PLLLC_LF_COEFF_MODE1_PREG},
 	{0x2105, SIERRA_CMN_PLLLC_LF_COEFF_MODE0_PREG},
 	{0x8A06, SIERRA_CMN_PLLLC_BWCAL_MODE1_PREG},
@@ -1693,10 +1693,10 @@ static const struct cdns_reg_pairs pcie_100_no_ssc_plllc_cmn_regs[] = {
 };
 
 /*
- * refclk100MHz_32b_PCIe_ln_no_ssc, multilink, using_plllc,
+ * refclk100MHz_32b_PCIe_ln_anal_ssc, multilink, using_plllc,
  * cmn_pllcy_anaclk0_1Ghz, xcvr_pllclk_fullrt_500mhz
  */
-static const struct cdns_reg_pairs ml_pcie_100_no_ssc_ln_regs[] = {
+static const struct cdns_reg_pairs ml_pcie_100_anal_ssc_ln_regs[] = {
 	{0xFC08, SIERRA_DET_STANDEC_A_PREG},
 	{0x001D, SIERRA_PSM_A3IN_TMR_PREG},
 	{0x0004, SIERRA_PSC_LN_A3_PREG},
@@ -1745,22 +1745,22 @@ static const struct cdns_reg_pairs ml_pcie_100_no_ssc_ln_regs[] = {
 	{0x4432, SIERRA_RXBUFFER_DFECTRL_PREG}
 };
 
-static struct cdns_sierra_vals pcie_100_no_ssc_plllc_cmn_vals = {
-	.reg_pairs = pcie_100_no_ssc_plllc_cmn_regs,
-	.num_regs = ARRAY_SIZE(pcie_100_no_ssc_plllc_cmn_regs),
+static struct cdns_sierra_vals pcie_100_anal_ssc_plllc_cmn_vals = {
+	.reg_pairs = pcie_100_anal_ssc_plllc_cmn_regs,
+	.num_regs = ARRAY_SIZE(pcie_100_anal_ssc_plllc_cmn_regs),
 };
 
-static struct cdns_sierra_vals ml_pcie_100_no_ssc_ln_vals = {
-	.reg_pairs = ml_pcie_100_no_ssc_ln_regs,
-	.num_regs = ARRAY_SIZE(ml_pcie_100_no_ssc_ln_regs),
+static struct cdns_sierra_vals ml_pcie_100_anal_ssc_ln_vals = {
+	.reg_pairs = ml_pcie_100_anal_ssc_ln_regs,
+	.num_regs = ARRAY_SIZE(ml_pcie_100_anal_ssc_ln_regs),
 };
 
 /*
  * TI J721E:
- * refclk100MHz_32b_PCIe_ln_no_ssc, multilink, using_plllc,
+ * refclk100MHz_32b_PCIe_ln_anal_ssc, multilink, using_plllc,
  * cmn_pllcy_anaclk0_1Ghz, xcvr_pllclk_fullrt_500mhz
  */
-static const struct cdns_reg_pairs ti_ml_pcie_100_no_ssc_ln_regs[] = {
+static const struct cdns_reg_pairs ti_ml_pcie_100_anal_ssc_ln_regs[] = {
 	{0xFC08, SIERRA_DET_STANDEC_A_PREG},
 	{0x001D, SIERRA_PSM_A3IN_TMR_PREG},
 	{0x0004, SIERRA_PSC_LN_A3_PREG},
@@ -1810,9 +1810,9 @@ static const struct cdns_reg_pairs ti_ml_pcie_100_no_ssc_ln_regs[] = {
 	{0x0002, SIERRA_TX_RCVDET_OVRD_PREG}
 };
 
-static struct cdns_sierra_vals ti_ml_pcie_100_no_ssc_ln_vals = {
-	.reg_pairs = ti_ml_pcie_100_no_ssc_ln_regs,
-	.num_regs = ARRAY_SIZE(ti_ml_pcie_100_no_ssc_ln_regs),
+static struct cdns_sierra_vals ti_ml_pcie_100_anal_ssc_ln_vals = {
+	.reg_pairs = ti_ml_pcie_100_anal_ssc_ln_regs,
+	.num_regs = ARRAY_SIZE(ti_ml_pcie_100_anal_ssc_ln_regs),
 };
 
 /* refclk100MHz_32b_PCIe_cmn_pll_int_ssc, pcie_links_using_plllc, pipe_bw_3 */
@@ -2097,16 +2097,16 @@ static struct cdns_sierra_vals ti_ml_pcie_100_ext_ssc_ln_vals = {
 	.num_regs = ARRAY_SIZE(ti_ml_pcie_100_ext_ssc_ln_regs),
 };
 
-/* refclk100MHz_32b_PCIe_cmn_pll_no_ssc */
-static const struct cdns_reg_pairs cdns_pcie_cmn_regs_no_ssc[] = {
+/* refclk100MHz_32b_PCIe_cmn_pll_anal_ssc */
+static const struct cdns_reg_pairs cdns_pcie_cmn_regs_anal_ssc[] = {
 	{0x2105, SIERRA_CMN_PLLLC_LF_COEFF_MODE1_PREG},
 	{0x2105, SIERRA_CMN_PLLLC_LF_COEFF_MODE0_PREG},
 	{0x8A06, SIERRA_CMN_PLLLC_BWCAL_MODE1_PREG},
 	{0x8A06, SIERRA_CMN_PLLLC_BWCAL_MODE0_PREG}
 };
 
-/* refclk100MHz_32b_PCIe_ln_no_ssc */
-static const struct cdns_reg_pairs cdns_pcie_ln_regs_no_ssc[] = {
+/* refclk100MHz_32b_PCIe_ln_anal_ssc */
+static const struct cdns_reg_pairs cdns_pcie_ln_regs_anal_ssc[] = {
 	{0xFC08, SIERRA_DET_STANDEC_A_PREG},
 	{0x001D, SIERRA_PSM_A3IN_TMR_PREG},
 	{0x1555, SIERRA_DFE_BIASTRIM_PREG},
@@ -2152,14 +2152,14 @@ static const struct cdns_reg_pairs cdns_pcie_ln_regs_no_ssc[] = {
 	{0x4432, SIERRA_RXBUFFER_DFECTRL_PREG}
 };
 
-static struct cdns_sierra_vals pcie_100_no_ssc_cmn_vals = {
-	.reg_pairs = cdns_pcie_cmn_regs_no_ssc,
-	.num_regs = ARRAY_SIZE(cdns_pcie_cmn_regs_no_ssc),
+static struct cdns_sierra_vals pcie_100_anal_ssc_cmn_vals = {
+	.reg_pairs = cdns_pcie_cmn_regs_anal_ssc,
+	.num_regs = ARRAY_SIZE(cdns_pcie_cmn_regs_anal_ssc),
 };
 
-static struct cdns_sierra_vals pcie_100_no_ssc_ln_vals = {
-	.reg_pairs = cdns_pcie_ln_regs_no_ssc,
-	.num_regs = ARRAY_SIZE(cdns_pcie_ln_regs_no_ssc),
+static struct cdns_sierra_vals pcie_100_anal_ssc_ln_vals = {
+	.reg_pairs = cdns_pcie_ln_regs_anal_ssc,
+	.num_regs = ARRAY_SIZE(cdns_pcie_ln_regs_anal_ssc),
 };
 
 /* refclk100MHz_32b_PCIe_cmn_pll_int_ssc */
@@ -2391,7 +2391,7 @@ static const struct cdns_reg_pairs cdns_usb_ln_regs_ext_ssc[] = {
 	{0x038E, SIERRA_DEQ_ALUT12},
 	{0x030C, SIERRA_DEQ_ALUT13},
 	{0x03F4, SIERRA_DEQ_DFETAP_CTRL_PREG},
-	{0x0001, SIERRA_DFE_EN_1010_IGNORE_PREG},
+	{0x0001, SIERRA_DFE_EN_1010_IGANALRE_PREG},
 	{0x3C01, SIERRA_DEQ_TAU_CTRL1_FAST_MAINT_PREG},
 	{0x3C40, SIERRA_DEQ_TAU_CTRL1_SLOW_MAINT_PREG},
 	{0x1C08, SIERRA_DEQ_TAU_CTRL2_PREG},
@@ -2500,18 +2500,18 @@ static const struct cdns_sierra_data cdns_map_sierra = {
 	.reg_offset_shift = 0x2,
 	.pcs_cmn_vals = {
 		[TYPE_PCIE] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &pcie_phy_pcs_cmn_vals,
+			[TYPE_ANALNE] = {
+				[ANAL_SSC] = &pcie_phy_pcs_cmn_vals,
 				[EXTERNAL_SSC] = &pcie_phy_pcs_cmn_vals,
 				[INTERNAL_SSC] = &pcie_phy_pcs_cmn_vals,
 			},
 			[TYPE_SGMII] = {
-				[NO_SSC] = &pcie_phy_pcs_cmn_vals,
+				[ANAL_SSC] = &pcie_phy_pcs_cmn_vals,
 				[EXTERNAL_SSC] = &pcie_phy_pcs_cmn_vals,
 				[INTERNAL_SSC] = &pcie_phy_pcs_cmn_vals,
 			},
 			[TYPE_QSGMII] = {
-				[NO_SSC] = &pcie_phy_pcs_cmn_vals,
+				[ANAL_SSC] = &pcie_phy_pcs_cmn_vals,
 				[EXTERNAL_SSC] = &pcie_phy_pcs_cmn_vals,
 				[INTERNAL_SSC] = &pcie_phy_pcs_cmn_vals,
 			},
@@ -2519,83 +2519,83 @@ static const struct cdns_sierra_data cdns_map_sierra = {
 	},
 	.pma_cmn_vals = {
 		[TYPE_PCIE] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &pcie_100_no_ssc_cmn_vals,
+			[TYPE_ANALNE] = {
+				[ANAL_SSC] = &pcie_100_anal_ssc_cmn_vals,
 				[EXTERNAL_SSC] = &pcie_100_ext_ssc_cmn_vals,
 				[INTERNAL_SSC] = &pcie_100_int_ssc_cmn_vals,
 			},
 			[TYPE_SGMII] = {
-				[NO_SSC] = &pcie_100_no_ssc_plllc_cmn_vals,
+				[ANAL_SSC] = &pcie_100_anal_ssc_plllc_cmn_vals,
 				[EXTERNAL_SSC] = &pcie_100_ext_ssc_plllc_cmn_vals,
 				[INTERNAL_SSC] = &pcie_100_int_ssc_plllc_cmn_vals,
 			},
 			[TYPE_QSGMII] = {
-				[NO_SSC] = &pcie_100_no_ssc_plllc_cmn_vals,
+				[ANAL_SSC] = &pcie_100_anal_ssc_plllc_cmn_vals,
 				[EXTERNAL_SSC] = &pcie_100_ext_ssc_plllc_cmn_vals,
 				[INTERNAL_SSC] = &pcie_100_int_ssc_plllc_cmn_vals,
 			},
 		},
 		[TYPE_USB] = {
-			[TYPE_NONE] = {
+			[TYPE_ANALNE] = {
 				[EXTERNAL_SSC] = &usb_100_ext_ssc_cmn_vals,
 			},
 		},
 		[TYPE_SGMII] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sgmii_cmn_vals,
+			[TYPE_ANALNE] = {
+				[ANAL_SSC] = &sgmii_cmn_vals,
 			},
 			[TYPE_PCIE] = {
-				[NO_SSC] = &sgmii_100_no_ssc_plllc1_opt3_cmn_vals,
-				[EXTERNAL_SSC] = &sgmii_100_no_ssc_plllc1_opt3_cmn_vals,
-				[INTERNAL_SSC] = &sgmii_100_no_ssc_plllc1_opt3_cmn_vals,
+				[ANAL_SSC] = &sgmii_100_anal_ssc_plllc1_opt3_cmn_vals,
+				[EXTERNAL_SSC] = &sgmii_100_anal_ssc_plllc1_opt3_cmn_vals,
+				[INTERNAL_SSC] = &sgmii_100_anal_ssc_plllc1_opt3_cmn_vals,
 			},
 		},
 		[TYPE_QSGMII] = {
 			[TYPE_PCIE] = {
-				[NO_SSC] = &qsgmii_100_no_ssc_plllc1_cmn_vals,
-				[EXTERNAL_SSC] = &qsgmii_100_no_ssc_plllc1_cmn_vals,
-				[INTERNAL_SSC] = &qsgmii_100_no_ssc_plllc1_cmn_vals,
+				[ANAL_SSC] = &qsgmii_100_anal_ssc_plllc1_cmn_vals,
+				[EXTERNAL_SSC] = &qsgmii_100_anal_ssc_plllc1_cmn_vals,
+				[INTERNAL_SSC] = &qsgmii_100_anal_ssc_plllc1_cmn_vals,
 			},
 		},
 	},
 	.pma_ln_vals = {
 		[TYPE_PCIE] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &pcie_100_no_ssc_ln_vals,
+			[TYPE_ANALNE] = {
+				[ANAL_SSC] = &pcie_100_anal_ssc_ln_vals,
 				[EXTERNAL_SSC] = &pcie_100_ext_ssc_ln_vals,
 				[INTERNAL_SSC] = &pcie_100_int_ssc_ln_vals,
 			},
 			[TYPE_SGMII] = {
-				[NO_SSC] = &ml_pcie_100_no_ssc_ln_vals,
+				[ANAL_SSC] = &ml_pcie_100_anal_ssc_ln_vals,
 				[EXTERNAL_SSC] = &ml_pcie_100_ext_ssc_ln_vals,
 				[INTERNAL_SSC] = &ml_pcie_100_int_ssc_ln_vals,
 			},
 			[TYPE_QSGMII] = {
-				[NO_SSC] = &ml_pcie_100_no_ssc_ln_vals,
+				[ANAL_SSC] = &ml_pcie_100_anal_ssc_ln_vals,
 				[EXTERNAL_SSC] = &ml_pcie_100_ext_ssc_ln_vals,
 				[INTERNAL_SSC] = &ml_pcie_100_int_ssc_ln_vals,
 			},
 		},
 		[TYPE_USB] = {
-			[TYPE_NONE] = {
+			[TYPE_ANALNE] = {
 				[EXTERNAL_SSC] = &usb_100_ext_ssc_ln_vals,
 			},
 		},
 		[TYPE_SGMII] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sgmii_pma_ln_vals,
+			[TYPE_ANALNE] = {
+				[ANAL_SSC] = &sgmii_pma_ln_vals,
 			},
 			[TYPE_PCIE] = {
-				[NO_SSC] = &sgmii_100_no_ssc_plllc1_opt3_ln_vals,
-				[EXTERNAL_SSC] = &sgmii_100_no_ssc_plllc1_opt3_ln_vals,
-				[INTERNAL_SSC] = &sgmii_100_no_ssc_plllc1_opt3_ln_vals,
+				[ANAL_SSC] = &sgmii_100_anal_ssc_plllc1_opt3_ln_vals,
+				[EXTERNAL_SSC] = &sgmii_100_anal_ssc_plllc1_opt3_ln_vals,
+				[INTERNAL_SSC] = &sgmii_100_anal_ssc_plllc1_opt3_ln_vals,
 			},
 		},
 		[TYPE_QSGMII] = {
 			[TYPE_PCIE] = {
-				[NO_SSC] = &qsgmii_100_no_ssc_plllc1_ln_vals,
-				[EXTERNAL_SSC] = &qsgmii_100_no_ssc_plllc1_ln_vals,
-				[INTERNAL_SSC] = &qsgmii_100_no_ssc_plllc1_ln_vals,
+				[ANAL_SSC] = &qsgmii_100_anal_ssc_plllc1_ln_vals,
+				[EXTERNAL_SSC] = &qsgmii_100_anal_ssc_plllc1_ln_vals,
+				[INTERNAL_SSC] = &qsgmii_100_anal_ssc_plllc1_ln_vals,
 			},
 		},
 	},
@@ -2607,18 +2607,18 @@ static const struct cdns_sierra_data cdns_ti_map_sierra = {
 	.reg_offset_shift = 0x1,
 	.pcs_cmn_vals = {
 		[TYPE_PCIE] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &pcie_phy_pcs_cmn_vals,
+			[TYPE_ANALNE] = {
+				[ANAL_SSC] = &pcie_phy_pcs_cmn_vals,
 				[EXTERNAL_SSC] = &pcie_phy_pcs_cmn_vals,
 				[INTERNAL_SSC] = &pcie_phy_pcs_cmn_vals,
 			},
 			[TYPE_SGMII] = {
-				[NO_SSC] = &pcie_phy_pcs_cmn_vals,
+				[ANAL_SSC] = &pcie_phy_pcs_cmn_vals,
 				[EXTERNAL_SSC] = &pcie_phy_pcs_cmn_vals,
 				[INTERNAL_SSC] = &pcie_phy_pcs_cmn_vals,
 			},
 			[TYPE_QSGMII] = {
-				[NO_SSC] = &pcie_phy_pcs_cmn_vals,
+				[ANAL_SSC] = &pcie_phy_pcs_cmn_vals,
 				[EXTERNAL_SSC] = &pcie_phy_pcs_cmn_vals,
 				[INTERNAL_SSC] = &pcie_phy_pcs_cmn_vals,
 			},
@@ -2627,14 +2627,14 @@ static const struct cdns_sierra_data cdns_ti_map_sierra = {
 	.phy_pma_ln_vals = {
 		[TYPE_SGMII] = {
 			[TYPE_PCIE] = {
-				[NO_SSC] = &sgmii_phy_pma_ln_vals,
+				[ANAL_SSC] = &sgmii_phy_pma_ln_vals,
 				[EXTERNAL_SSC] = &sgmii_phy_pma_ln_vals,
 				[INTERNAL_SSC] = &sgmii_phy_pma_ln_vals,
 			},
 		},
 		[TYPE_QSGMII] = {
 			[TYPE_PCIE] = {
-				[NO_SSC] = &qsgmii_phy_pma_ln_vals,
+				[ANAL_SSC] = &qsgmii_phy_pma_ln_vals,
 				[EXTERNAL_SSC] = &qsgmii_phy_pma_ln_vals,
 				[INTERNAL_SSC] = &qsgmii_phy_pma_ln_vals,
 			},
@@ -2642,77 +2642,77 @@ static const struct cdns_sierra_data cdns_ti_map_sierra = {
 	},
 	.pma_cmn_vals = {
 		[TYPE_PCIE] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &pcie_100_no_ssc_cmn_vals,
+			[TYPE_ANALNE] = {
+				[ANAL_SSC] = &pcie_100_anal_ssc_cmn_vals,
 				[EXTERNAL_SSC] = &pcie_100_ext_ssc_cmn_vals,
 				[INTERNAL_SSC] = &pcie_100_int_ssc_cmn_vals,
 			},
 			[TYPE_SGMII] = {
-				[NO_SSC] = &pcie_100_no_ssc_plllc_cmn_vals,
+				[ANAL_SSC] = &pcie_100_anal_ssc_plllc_cmn_vals,
 				[EXTERNAL_SSC] = &pcie_100_ext_ssc_plllc_cmn_vals,
 				[INTERNAL_SSC] = &pcie_100_int_ssc_plllc_cmn_vals,
 			},
 			[TYPE_QSGMII] = {
-				[NO_SSC] = &pcie_100_no_ssc_plllc_cmn_vals,
+				[ANAL_SSC] = &pcie_100_anal_ssc_plllc_cmn_vals,
 				[EXTERNAL_SSC] = &pcie_100_ext_ssc_plllc_cmn_vals,
 				[INTERNAL_SSC] = &pcie_100_int_ssc_plllc_cmn_vals,
 			},
 		},
 		[TYPE_USB] = {
-			[TYPE_NONE] = {
+			[TYPE_ANALNE] = {
 				[EXTERNAL_SSC] = &usb_100_ext_ssc_cmn_vals,
 			},
 		},
 		[TYPE_SGMII] = {
 			[TYPE_PCIE] = {
-				[NO_SSC] = &sgmii_100_no_ssc_plllc1_opt3_cmn_vals,
-				[EXTERNAL_SSC] = &sgmii_100_no_ssc_plllc1_opt3_cmn_vals,
-				[INTERNAL_SSC] = &sgmii_100_no_ssc_plllc1_opt3_cmn_vals,
+				[ANAL_SSC] = &sgmii_100_anal_ssc_plllc1_opt3_cmn_vals,
+				[EXTERNAL_SSC] = &sgmii_100_anal_ssc_plllc1_opt3_cmn_vals,
+				[INTERNAL_SSC] = &sgmii_100_anal_ssc_plllc1_opt3_cmn_vals,
 			},
 		},
 		[TYPE_QSGMII] = {
 			[TYPE_PCIE] = {
-				[NO_SSC] = &qsgmii_100_no_ssc_plllc1_cmn_vals,
-				[EXTERNAL_SSC] = &qsgmii_100_no_ssc_plllc1_cmn_vals,
-				[INTERNAL_SSC] = &qsgmii_100_no_ssc_plllc1_cmn_vals,
+				[ANAL_SSC] = &qsgmii_100_anal_ssc_plllc1_cmn_vals,
+				[EXTERNAL_SSC] = &qsgmii_100_anal_ssc_plllc1_cmn_vals,
+				[INTERNAL_SSC] = &qsgmii_100_anal_ssc_plllc1_cmn_vals,
 			},
 		},
 	},
 	.pma_ln_vals = {
 		[TYPE_PCIE] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &pcie_100_no_ssc_ln_vals,
+			[TYPE_ANALNE] = {
+				[ANAL_SSC] = &pcie_100_anal_ssc_ln_vals,
 				[EXTERNAL_SSC] = &pcie_100_ext_ssc_ln_vals,
 				[INTERNAL_SSC] = &pcie_100_int_ssc_ln_vals,
 			},
 			[TYPE_SGMII] = {
-				[NO_SSC] = &ti_ml_pcie_100_no_ssc_ln_vals,
+				[ANAL_SSC] = &ti_ml_pcie_100_anal_ssc_ln_vals,
 				[EXTERNAL_SSC] = &ti_ml_pcie_100_ext_ssc_ln_vals,
 				[INTERNAL_SSC] = &ti_ml_pcie_100_int_ssc_ln_vals,
 			},
 			[TYPE_QSGMII] = {
-				[NO_SSC] = &ti_ml_pcie_100_no_ssc_ln_vals,
+				[ANAL_SSC] = &ti_ml_pcie_100_anal_ssc_ln_vals,
 				[EXTERNAL_SSC] = &ti_ml_pcie_100_ext_ssc_ln_vals,
 				[INTERNAL_SSC] = &ti_ml_pcie_100_int_ssc_ln_vals,
 			},
 		},
 		[TYPE_USB] = {
-			[TYPE_NONE] = {
+			[TYPE_ANALNE] = {
 				[EXTERNAL_SSC] = &usb_100_ext_ssc_ln_vals,
 			},
 		},
 		[TYPE_SGMII] = {
 			[TYPE_PCIE] = {
-				[NO_SSC] = &sgmii_100_no_ssc_plllc1_opt3_ln_vals,
-				[EXTERNAL_SSC] = &sgmii_100_no_ssc_plllc1_opt3_ln_vals,
-				[INTERNAL_SSC] = &sgmii_100_no_ssc_plllc1_opt3_ln_vals,
+				[ANAL_SSC] = &sgmii_100_anal_ssc_plllc1_opt3_ln_vals,
+				[EXTERNAL_SSC] = &sgmii_100_anal_ssc_plllc1_opt3_ln_vals,
+				[INTERNAL_SSC] = &sgmii_100_anal_ssc_plllc1_opt3_ln_vals,
 			},
 		},
 		[TYPE_QSGMII] = {
 			[TYPE_PCIE] = {
-				[NO_SSC] = &qsgmii_100_no_ssc_plllc1_ln_vals,
-				[EXTERNAL_SSC] = &qsgmii_100_no_ssc_plllc1_ln_vals,
-				[INTERNAL_SSC] = &qsgmii_100_no_ssc_plllc1_ln_vals,
+				[ANAL_SSC] = &qsgmii_100_anal_ssc_plllc1_ln_vals,
+				[EXTERNAL_SSC] = &qsgmii_100_anal_ssc_plllc1_ln_vals,
+				[INTERNAL_SSC] = &qsgmii_100_anal_ssc_plllc1_ln_vals,
 			},
 		},
 	},

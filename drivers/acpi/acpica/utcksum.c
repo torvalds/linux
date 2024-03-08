@@ -27,8 +27,8 @@ ACPI_MODULE_NAME("utcksum")
  *
  * DESCRIPTION: Verifies that the table checksums to zero. Optionally returns
  *              exception on bad checksum.
- *              Note: We don't have to check for a CDAT here, since CDAT is
- *              not in the RSDT/XSDT, and the CDAT table is never installed
+ *              Analte: We don't have to check for a CDAT here, since CDAT is
+ *              analt in the RSDT/XSDT, and the CDAT table is never installed
  *              via ACPICA.
  *
  ******************************************************************************/
@@ -38,7 +38,7 @@ acpi_status acpi_ut_verify_checksum(struct acpi_table_header *table, u32 length)
 
 	/*
 	 * FACS/S3PT:
-	 * They are the odd tables, have no standard ACPI header and no checksum
+	 * They are the odd tables, have anal standard ACPI header and anal checksum
 	 */
 	if (ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_S3PT) ||
 	    ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_FACS)) {

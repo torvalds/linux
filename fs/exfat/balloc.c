@@ -20,7 +20,7 @@
 #define lel_to_cpu(A) le64_to_cpu(A)
 #define cpu_to_lel(A) cpu_to_le64(A)
 #else
-#error "BITS_PER_LONG not 32 or 64"
+#error "BITS_PER_LONG analt 32 or 64"
 #endif
 
 /*
@@ -53,7 +53,7 @@ static int exfat_allocate_bitmap(struct super_block *sb,
 	sbi->vol_amap = kvmalloc_array(sbi->map_sectors,
 				sizeof(struct buffer_head *), GFP_KERNEL);
 	if (!sbi->vol_amap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sector = exfat_cluster_to_sector(sbi, sbi->map_clu);
 	for (i = 0; i < sbi->map_sectors; i++) {
@@ -122,11 +122,11 @@ void exfat_free_bitmap(struct exfat_sb_info *sbi)
 	kvfree(sbi->vol_amap);
 }
 
-int exfat_set_bitmap(struct inode *inode, unsigned int clu, bool sync)
+int exfat_set_bitmap(struct ianalde *ianalde, unsigned int clu, bool sync)
 {
 	int i, b;
 	unsigned int ent_idx;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 
 	if (!is_valid_cluster(sbi, clu))
@@ -141,11 +141,11 @@ int exfat_set_bitmap(struct inode *inode, unsigned int clu, bool sync)
 	return 0;
 }
 
-void exfat_clear_bitmap(struct inode *inode, unsigned int clu, bool sync)
+void exfat_clear_bitmap(struct ianalde *ianalde, unsigned int clu, bool sync)
 {
 	int i, b;
 	unsigned int ent_idx;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_mount_options *opts = &sbi->options;
 
@@ -164,10 +164,10 @@ void exfat_clear_bitmap(struct inode *inode, unsigned int clu, bool sync)
 
 		ret_discard = sb_issue_discard(sb,
 			exfat_cluster_to_sector(sbi, clu),
-			(1 << sbi->sect_per_clus_bits), GFP_NOFS, 0);
+			(1 << sbi->sect_per_clus_bits), GFP_ANALFS, 0);
 
-		if (ret_discard == -EOPNOTSUPP) {
-			exfat_err(sb, "discard not supported by device, disabling");
+		if (ret_discard == -EOPANALTSUPP) {
+			exfat_err(sb, "discard analt supported by device, disabling");
 			opts->discard = 0;
 		}
 	}
@@ -188,7 +188,7 @@ unsigned int exfat_find_free_bitmap(struct super_block *sb, unsigned int clu)
 	WARN_ON(clu < EXFAT_FIRST_CLUSTER);
 	ent_idx = ALIGN_DOWN(CLUSTER_TO_BITMAP_ENT(clu), BITS_PER_LONG);
 	clu_base = BITMAP_ENT_TO_CLUSTER(ent_idx);
-	clu_mask = IGNORED_BITS_REMAINED(clu, clu_base);
+	clu_mask = IGANALRED_BITS_REMAINED(clu, clu_base);
 
 	map_i = BITMAP_OFFSET_SECTOR_INDEX(sb, ent_idx);
 	map_b = BITMAP_OFFSET_BYTE_IN_SECTOR(sb, ent_idx);
@@ -252,11 +252,11 @@ int exfat_count_used_clusters(struct super_block *sb, unsigned int *ret_count)
 	return 0;
 }
 
-int exfat_trim_fs(struct inode *inode, struct fstrim_range *range)
+int exfat_trim_fs(struct ianalde *ianalde, struct fstrim_range *range)
 {
 	unsigned int trim_begin, trim_end, count, next_free_clu;
 	u64 clu_start, clu_end, trim_minlen, trimmed_total = 0;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	int err = 0;
 
@@ -291,7 +291,7 @@ int exfat_trim_fs(struct inode *inode, struct fstrim_range *range)
 			if (count >= trim_minlen) {
 				err = sb_issue_discard(sb,
 					exfat_cluster_to_sector(sbi, trim_begin),
-					count * sbi->sect_per_clus, GFP_NOFS, 0);
+					count * sbi->sect_per_clus, GFP_ANALFS, 0);
 				if (err)
 					goto unlock;
 
@@ -318,7 +318,7 @@ int exfat_trim_fs(struct inode *inode, struct fstrim_range *range)
 	count = trim_end - trim_begin + 1;
 	if (count >= trim_minlen) {
 		err = sb_issue_discard(sb, exfat_cluster_to_sector(sbi, trim_begin),
-			count * sbi->sect_per_clus, GFP_NOFS, 0);
+			count * sbi->sect_per_clus, GFP_ANALFS, 0);
 		if (err)
 			goto unlock;
 

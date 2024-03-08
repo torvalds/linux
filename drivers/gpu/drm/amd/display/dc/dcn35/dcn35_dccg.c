@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -72,7 +72,7 @@ static void dccg35_update_dpp_dto(struct dccg *dccg, int dpp_inst,
 
 	if (dccg->dpp_clock_gated[dpp_inst]) {
 		/*
-		 * Do not update the DPPCLK DTO if the clock is stopped.
+		 * Do analt update the DPPCLK DTO if the clock is stopped.
 		 */
 		return;
 	}
@@ -151,7 +151,7 @@ static void dccg35_set_pixel_rate_div(
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 	enum pixel_rate_div cur_k1 = PIXEL_RATE_DIV_NA, cur_k2 = PIXEL_RATE_DIV_NA;
 
-	// Don't program 0xF into the register field. Not valid since
+	// Don't program 0xF into the register field. Analt valid since
 	// K1 / K2 field is only 1 / 2 bits wide
 	if (k1 == PIXEL_RATE_DIV_NA || k2 == PIXEL_RATE_DIV_NA) {
 		BREAK_TO_DEBUGGER();
@@ -384,7 +384,7 @@ static void dccg35_set_physymclk_root_clock_gating(
 		break;
 	case 4:
 		REG_UPDATE(DCCG_GATE_DISABLE_CNTL2,
-				PHYESYMCLK_ROOT_GATE_DISABLE, enable ? 1 : 0);
+				PHANALYMCLK_ROOT_GATE_DISABLE, enable ? 1 : 0);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
@@ -448,13 +448,13 @@ static void dccg35_set_physymclk(
 		break;
 	case 4:
 		if (force_enable) {
-			REG_UPDATE_2(PHYESYMCLK_CLOCK_CNTL,
-					PHYESYMCLK_EN, 1,
-					PHYESYMCLK_SRC_SEL, clk_src);
+			REG_UPDATE_2(PHANALYMCLK_CLOCK_CNTL,
+					PHANALYMCLK_EN, 1,
+					PHANALYMCLK_SRC_SEL, clk_src);
 		} else {
-			REG_UPDATE_2(PHYESYMCLK_CLOCK_CNTL,
-					PHYESYMCLK_EN, 0,
-					PHYESYMCLK_SRC_SEL, 0);
+			REG_UPDATE_2(PHANALYMCLK_CLOCK_CNTL,
+					PHANALYMCLK_EN, 0,
+					PHANALYMCLK_SRC_SEL, 0);
 		}
 		break;
 	default:

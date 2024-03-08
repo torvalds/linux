@@ -115,7 +115,7 @@ static int ipwireless_probe(struct pcmcia_device *p_dev, void *priv_data)
 	ipw->common_memory = ioremap(p_dev->resource[2]->start,
 				resource_size(p_dev->resource[2]));
 	if (!ipw->common_memory) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit1;
 	}
 	if (!request_mem_region(p_dev->resource[2]->start,
@@ -139,7 +139,7 @@ static int ipwireless_probe(struct pcmcia_device *p_dev, void *priv_data)
 	ipw->attr_memory = ioremap(p_dev->resource[3]->start,
 				resource_size(p_dev->resource[3]));
 	if (!ipw->attr_memory) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit3;
 	}
 	if (!request_mem_region(p_dev->resource[3]->start,
@@ -269,7 +269,7 @@ static int ipwireless_attach(struct pcmcia_device *link)
 
 	ipw = kzalloc(sizeof(struct ipw_dev), GFP_KERNEL);
 	if (!ipw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipw->link = link;
 	link->priv = ipw;
@@ -277,7 +277,7 @@ static int ipwireless_attach(struct pcmcia_device *link)
 	ipw->hardware = ipwireless_hardware_create();
 	if (!ipw->hardware) {
 		kfree(ipw);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* RegisterClient will call config_ipwireless */
 

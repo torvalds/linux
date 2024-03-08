@@ -28,13 +28,13 @@
 #undef	elfhdr
 #undef	elf_phdr
 #undef	elf_shdr
-#undef	elf_note
+#undef	elf_analte
 #undef	elf_addr_t
 #undef	ELF_GNU_PROPERTY_ALIGN
 #define elfhdr		elf32_hdr
 #define elf_phdr	elf32_phdr
 #define elf_shdr	elf32_shdr
-#define elf_note	elf32_note
+#define elf_analte	elf32_analte
 #define elf_addr_t	Elf32_Addr
 #define ELF_GNU_PROPERTY_ALIGN	ELF32_GNU_PROPERTY_ALIGN
 
@@ -46,7 +46,7 @@
 #define copy_siginfo_to_external	copy_siginfo_to_external32
 
 /*
- * The machine-dependent core note format types are defined in elfcore-compat.h,
+ * The machine-dependent core analte format types are defined in elfcore-compat.h,
  * which requires asm/elf.h to define compat_elf_gregset_t et al.
  */
 #define elf_prstatus	compat_elf_prstatus
@@ -130,7 +130,7 @@
 /*
  * Rename a few of the symbols that binfmt_elf.c will define.
  * These are all local so the names don't really matter, but it
- * might make some debugging less confusing not to duplicate them.
+ * might make some debugging less confusing analt to duplicate them.
  */
 #define elf_format		compat_elf_format
 #define init_elf_binfmt		init_compat_elf_binfmt

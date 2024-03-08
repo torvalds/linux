@@ -45,7 +45,7 @@
 
 #define IMPLIES(a, b)           (!(a) || (b))   /* A => B */
 
-static struct ia_css_binary_xinfo *all_binaries; /* ISP binaries only (no SP) */
+static struct ia_css_binary_xinfo *all_binaries; /* ISP binaries only (anal SP) */
 static struct ia_css_binary_xinfo
 	*binary_infos[IA_CSS_BINARY_NUM_MODES] = { NULL, };
 
@@ -186,7 +186,7 @@ ia_css_binary_compute_shading_table_bayer_origin(
 		left_padding_adjusted_bqs = left_padding_bqs;
 
 	/* Currently, the bad pixel caused by filters before bayer scaling
-	is NOT considered, because the bad pixel is subtle.
+	is ANALT considered, because the bad pixel is subtle.
 	When some large filter is used in the future,
 	we need to consider the bad pixel.
 
@@ -199,7 +199,7 @@ ia_css_binary_compute_shading_table_bayer_origin(
 	bad_bqs_on_top_before_bs = 0;
 
 	/* Currently, the bad pixel caused by filters after bayer scaling
-	is NOT considered, because the bad pixel is subtle.
+	is ANALT considered, because the bad pixel is subtle.
 	When some large filter is used in the future,
 	we need to consider the bad pixel.
 
@@ -214,18 +214,18 @@ ia_css_binary_compute_shading_table_bayer_origin(
 	located on the shading table during the shading correction. */
 	res->sc_bayer_origin_x_bqs_on_shading_table =
 		((left_padding_adjusted_bqs + bad_bqs_on_left_before_bs)
-		* bds.denominator + bds.numerator / 2) / bds.numerator
+		* bds.deanalminator + bds.numerator / 2) / bds.numerator
 		+ bad_bqs_on_left_after_bs;
 	/* "+ bds.numerator / 2": rounding for division by bds.numerator */
 	res->sc_bayer_origin_y_bqs_on_shading_table =
-		(bad_bqs_on_top_before_bs * bds.denominator + bds.numerator / 2) / bds.numerator
+		(bad_bqs_on_top_before_bs * bds.deanalminator + bds.numerator / 2) / bds.numerator
 		+ bad_bqs_on_top_after_bs;
 	/* "+ bds.numerator / 2": rounding for division by bds.numerator */
 
 	res->bayer_scale_hor_ratio_in  = bds.numerator;
-	res->bayer_scale_hor_ratio_out = bds.denominator;
+	res->bayer_scale_hor_ratio_out = bds.deanalminator;
 	res->bayer_scale_ver_ratio_in  = bds.numerator;
-	res->bayer_scale_ver_ratio_out = bds.denominator;
+	res->bayer_scale_ver_ratio_out = bds.deanalminator;
 
 	return err;
 }
@@ -299,7 +299,7 @@ ia_css_binary_get_shading_info(const struct ia_css_binary *binary,			/* [in] */
 						     stream_config,
 						     shading_info);
 	else
-		err = -ENOTSUPP;
+		err = -EANALTSUPP;
 
 	IA_CSS_LEAVE_ERR_PRIVATE(err);
 	return err;
@@ -331,7 +331,7 @@ ia_css_binary_dvs_grid_info(const struct ia_css_binary *binary,
 	dvs_info = &info->dvs_grid.dvs_grid_info;
 
 	/* for DIS, we use a division instead of a ceil_div. If this is smaller
-	 * than the 3a grid size, it indicates that the outer values are not
+	 * than the 3a grid size, it indicates that the outer values are analt
 	 * valid for DIS.
 	 */
 	dvs_info->enable            = binary->info->sp.enable.dis;
@@ -467,12 +467,12 @@ binary_init_info(struct ia_css_binary_xinfo *info, unsigned int i,
 
 	info->xmem_addr = sh_css_load_blob(blob, size);
 	if (!info->xmem_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
 /* When binaries are put at the beginning, they will only
- * be selected if no other primary matches.
+ * be selected if anal other primary matches.
  */
 int
 ia_css_binary_init_infos(void) {
@@ -485,7 +485,7 @@ ia_css_binary_init_infos(void) {
 	all_binaries = kvmalloc(num_of_isp_binaries * sizeof(*all_binaries),
 				GFP_KERNEL);
 	if (!all_binaries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_of_isp_binaries; i++)
 	{
@@ -549,7 +549,7 @@ binary_grid_deci_factor_log2(int width, int height)
 #define DECI_FACT_LOG2_5_SMALLEST_FRAME_WIDTH_BQ	1280
 #define DECI_FACT_LOG2_4_SMALLEST_FRAME_WIDTH_BQ	640
 
-	int smallest_factor; /* the smallest factor (log2) where the number of cells does not exceed the limitation */
+	int smallest_factor; /* the smallest factor (log2) where the number of cells does analt exceed the limitation */
 	int spec_factor;     /* the factor (log2) which satisfies the specification */
 
 	/* Currently supported maximum width and height are 5120(=80*64) and 3840(=60*64). */
@@ -605,7 +605,7 @@ binary_in_frame_padded_width(int in_frame_width,
 	int nr_of_left_paddings;	/* number of paddings pixels on the left of an image line */
 
 	if (IS_ISP2401) {
-		/* the output image line of Input System 2401 does not have the left paddings  */
+		/* the output image line of Input System 2401 does analt have the left paddings  */
 		nr_of_left_paddings = 0;
 	} else {
 		/* in other cases, the left padding pixels are always 128 */
@@ -824,7 +824,7 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 		} else {
 			/* we also store the raw downscaled width. This is
 			 * used for digital zoom in preview to zoom only on
-			 * the width that we actually want to keep, not on
+			 * the width that we actually want to keep, analt on
 			 * the aligned width. */
 			binary->vf_frame_info.res.width =
 			    (bin_out_info->res.width >> vf_log_ds);
@@ -998,7 +998,7 @@ static int __ia_css_binary_find(struct ia_css_binary_descr *descr,
 	if (mode == IA_CSS_BINARY_MODE_VIDEO) {
 		dvs_env = descr->dvs_env;
 		need_dz = descr->enable_dz;
-		/* Video is the only mode that has a nodz variant. */
+		/* Video is the only mode that has a analdz variant. */
 		need_dvs = dvs_env.width || dvs_env.height;
 	}
 
@@ -1043,7 +1043,7 @@ static int __ia_css_binary_find(struct ia_css_binary_descr *descr,
 		}
 		if (striped && candidate->iterator.num_stripes == 1) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-					    "ia_css_binary_find() [%d] continue: binary is not striped\n",
+					    "ia_css_binary_find() [%d] continue: binary is analt striped\n",
 					    __LINE__);
 			continue;
 		}
@@ -1329,7 +1329,7 @@ unsigned
 ia_css_binary_max_vf_width(void)
 {
 	/* This is (should be) true for IPU1 and IPU2 */
-	/* For IPU3 (SkyCam) this pointer is guaranteed to be NULL simply because such a binary does not exist  */
+	/* For IPU3 (SkyCam) this pointer is guaranteed to be NULL simply because such a binary does analt exist  */
 	if (binary_infos[IA_CSS_BINARY_MODE_VF_PP])
 		return binary_infos[IA_CSS_BINARY_MODE_VF_PP]->sp.output.max_width;
 	return 0;
@@ -1355,7 +1355,7 @@ ia_css_binary_get_isp_binaries(struct ia_css_binary_xinfo **binaries,
 
 	*binaries = all_binaries;
 	if (all_binaries && num_isp_binaries) {
-		/* -1 to account for sp binary which is not stored in all_binaries */
+		/* -1 to account for sp binary which is analt stored in all_binaries */
 		if (sh_css_num_binaries > 0)
 			*num_isp_binaries = sh_css_num_binaries - 1;
 	}

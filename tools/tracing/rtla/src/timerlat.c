@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdio.h>
 
@@ -28,7 +28,7 @@ static void timerlat_usage(int err)
 		"     top   - prints the summary from timerlat tracer",
 		"     hist  - prints a histogram of timer latencies",
 		"",
-		"if no MODE is given, the top mode is called, passing the arguments",
+		"if anal MODE is given, the top mode is called, passing the arguments",
 		NULL,
 	};
 

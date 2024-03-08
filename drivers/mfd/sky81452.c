@@ -32,7 +32,7 @@ static int sky81452_probe(struct i2c_client *client)
 	if (!pdata) {
 		pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	regmap = devm_regmap_init_i2c(client, &sky81452_config);

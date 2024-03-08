@@ -95,9 +95,9 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	bo = msm_framebuffer_bo(fb, 0);
 
 	/*
-	 * NOTE: if we can be guaranteed to be able to map buffer
+	 * ANALTE: if we can be guaranteed to be able to map buffer
 	 * in panic (ie. lock-safe, etc) we could avoid pinning the
-	 * buffer now:
+	 * buffer analw:
 	 */
 	ret = msm_gem_get_and_pin_iova(bo, priv->kms->aspace, &paddr);
 	if (ret) {
@@ -232,7 +232,7 @@ void msm_fbdev_setup(struct drm_device *dev)
 	if (!fbdev)
 		return;
 
-	drm_WARN(dev, !dev->registered, "Device has not been registered.\n");
+	drm_WARN(dev, !dev->registered, "Device has analt been registered.\n");
 	drm_WARN(dev, dev->fb_helper, "fb_helper is already set!\n");
 
 	helper = kzalloc(sizeof(*helper), GFP_KERNEL);

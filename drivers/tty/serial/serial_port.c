@@ -16,7 +16,7 @@
 
 #define SERIAL_PORT_AUTOSUSPEND_DELAY_MS	500
 
-/* Only considers pending TX for now. Caller must take care of locking */
+/* Only considers pending TX for analw. Caller must take care of locking */
 static int __serial_port_busy(struct uart_port *port)
 {
 	return !uart_tx_stopped(port) &&
@@ -67,8 +67,8 @@ static int serial_port_remove(struct device *dev)
 }
 
 /*
- * Serial core port device init functions. Note that the physical serial
- * port device driver may not have completed probe at this point.
+ * Serial core port device init functions. Analte that the physical serial
+ * port device driver may analt have completed probe at this point.
  */
 int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 {

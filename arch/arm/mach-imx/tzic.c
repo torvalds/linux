@@ -5,7 +5,7 @@
 
 #include <linux/init.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/irqchip.h>
 #include <linux/irqdomain.h>
@@ -116,7 +116,7 @@ static __init void tzic_init_gc(int idx, unsigned int irq_start)
 	ct->regs.disable = TZIC_ENCLEAR0(idx);
 	ct->regs.enable = TZIC_ENSET0(idx);
 
-	irq_setup_generic_chip(gc, IRQ_MSK(32), 0, IRQ_NOREQUEST, 0);
+	irq_setup_generic_chip(gc, IRQ_MSK(32), 0, IRQ_ANALREQUEST, 0);
 }
 
 static void __exception_irq_entry tzic_handle_irq(struct pt_regs *regs)
@@ -146,7 +146,7 @@ static void __exception_irq_entry tzic_handle_irq(struct pt_regs *regs)
  * interrupts. It registers the interrupt enable and disable functions
  * to the kernel for each interrupt source.
  */
-static int __init tzic_init_dt(struct device_node *np, struct device_node *p)
+static int __init tzic_init_dt(struct device_analde *np, struct device_analde *p)
 {
 	int irq_base;
 	int i;
@@ -170,9 +170,9 @@ static int __init tzic_init_dt(struct device_node *np, struct device_node *p)
 	for (i = 0; i < 4; i++)
 		imx_writel(0xFFFFFFFF, tzic_base + TZIC_ENCLEAR0(i));
 
-	/* all IRQ no FIQ Warning :: No selection */
+	/* all IRQ anal FIQ Warning :: Anal selection */
 
-	irq_base = irq_alloc_descs(-1, 0, TZIC_NUM_IRQS, numa_node_id());
+	irq_base = irq_alloc_descs(-1, 0, TZIC_NUM_IRQS, numa_analde_id());
 	WARN_ON(irq_base < 0);
 
 	domain = irq_domain_add_legacy(np, TZIC_NUM_IRQS, irq_base, 0,
@@ -198,7 +198,7 @@ IRQCHIP_DECLARE(tzic, "fsl,tzic", tzic_init_dt);
 /**
  * tzic_enable_wake() - enable wakeup interrupt
  *
- * @return			0 if successful; non-zero otherwise
+ * @return			0 if successful; analn-zero otherwise
  *
  * This function provides an interrupt synchronization point that is required
  * by tzic enabled platforms before entering imx specific low power modes (ie,

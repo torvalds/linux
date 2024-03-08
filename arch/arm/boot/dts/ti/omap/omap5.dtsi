@@ -92,7 +92,7 @@
 
 	timer {
 		compatible = "arm,armv7-timer";
-		/* PPI secure/nonsecure IRQ */
+		/* PPI secure/analnsecure IRQ */
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_RAW(3) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 14 (GIC_CPU_MASK_RAW(3) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 11 (GIC_CPU_MASK_RAW(3) | IRQ_TYPE_LEVEL_LOW)>,
@@ -107,7 +107,7 @@
 	};
 
 	/*
-	 * Needed early by omap4_sram_init() for barrier, do not move to l3
+	 * Needed early by omap4_sram_init() for barrier, do analt move to l3
 	 * interconnect as simple-pm-bus probes at module_init() time.
 	 */
 	ocmcram: sram@40300000 {
@@ -137,7 +137,7 @@
 	/*
 	 * XXX: Use a flat representation of the OMAP3 interconnect.
 	 * The real OMAP interconnect network is quite complex.
-	 * Since it will not bring real advantage to represent that in DT for
+	 * Since it will analt bring real advantage to represent that in DT for
 	 * the moment, just use a fake OCP bus entry to represent the whole bus
 	 * hierarchy.
 	 */
@@ -152,8 +152,8 @@
 		ranges = <0 0 0 0xc0000000>;
 		dma-ranges = <0x80000000 0x0 0x80000000 0x80000000>;
 
-		l3-noc@44000000 {
-			compatible = "ti,omap5-l3-noc";
+		l3-analc@44000000 {
+			compatible = "ti,omap5-l3-analc";
 			reg = <0x44000000 0x2000>,
 			      <0x44800000 0x3000>,
 			      <0x45000000 0x4000>;
@@ -195,10 +195,10 @@
 			      <0x50000014 4>;
 			reg-names = "rev", "sysc", "syss";
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
-			ti,no-idle-on-init;
+			ti,anal-idle-on-init;
 			clocks = <&l3main2_clkctrl OMAP5_L3_MAIN_2_GPMC_CLKCTRL 0>;
 			clock-names = "fck";
 			#address-cells = <1>;
@@ -231,7 +231,7 @@
 			      <0x55082014 0x4>;
 			reg-names = "rev", "sysc", "syss";
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
 					 SYSC_OMAP2_SOFTRESET |
@@ -282,7 +282,7 @@
 			      <0x4e000010 0x4>;
 			reg-names = "rev", "sysc";
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ranges = <0x0 0x4e000000 0x2000000>;
 			#size-cells = <1>;
@@ -301,7 +301,7 @@
 			reg-names = "rev";
 			clocks = <&emif_clkctrl OMAP5_EMIF1_CLKCTRL 0>;
 			clock-names = "fck";
-			ti,no-idle;
+			ti,anal-idle;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x4c000000 0x1000000>;
@@ -323,7 +323,7 @@
 			reg-names = "rev";
 			clocks = <&emif_clkctrl OMAP5_EMIF2_CLKCTRL 0>;
 			clock-names = "fck";
-			ti,no-idle;
+			ti,anal-idle;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x4d000000 0x1000000>;
@@ -348,7 +348,7 @@
 			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			ti,syss-mask = <1>;
@@ -377,7 +377,7 @@
 			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			ti,syss-mask = <1>;
@@ -406,7 +406,7 @@
 			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			/* Domains (P, C): l4per_pwrdm, l4sec_clkdm */
@@ -442,10 +442,10 @@
 			      <0x5600fe10 0x4>;
 			reg-names = "rev", "sysc";
 			ti,sysc-midle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			clocks = <&gpu_clkctrl OMAP5_GPU_CLKCTRL 0>;
 			clock-names = "fck";
@@ -454,7 +454,7 @@
 			ranges = <0 0x56000000 0x2000000>;
 
 			/*
-			 * Closed source PowerVR driver, no child device
+			 * Closed source PowerVR driver, anal child device
 			 * binding or driver in mainline
 			 */
 		};
@@ -492,10 +492,10 @@
 					      <0x1014 0x4>;
 					reg-names = "rev", "sysc", "syss";
 					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_ANAL>,
 							<SYSC_IDLE_SMART>;
 					ti,sysc-midle = <SYSC_IDLE_FORCE>,
-							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_ANAL>,
 							<SYSC_IDLE_SMART>;
 					ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
 							 SYSC_OMAP2_ENAWAKEUP |
@@ -524,7 +524,7 @@
 					      <0x2014 0x4>;
 					reg-names = "rev", "sysc", "syss";
 					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_ANAL>,
 							<SYSC_IDLE_SMART>;
 					ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
 							 SYSC_OMAP2_AUTOIDLE)>;
@@ -551,7 +551,7 @@
 					      <0x4014 0x4>;
 					reg-names = "rev", "sysc", "syss";
 					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_ANAL>,
 							<SYSC_IDLE_SMART>;
 					ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
 							 SYSC_OMAP2_ENAWAKEUP |
@@ -586,7 +586,7 @@
 					      <0x9014 0x4>;
 					reg-names = "rev", "sysc", "syss";
 					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_ANAL>,
 							<SYSC_IDLE_SMART>;
 					ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
 							 SYSC_OMAP2_ENAWAKEUP |
@@ -620,7 +620,7 @@
 					      <0x40010 0x4>;
 					reg-names = "rev", "sysc";
 					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-							<SYSC_IDLE_NO>,
+							<SYSC_IDLE_ANAL>,
 							<SYSC_IDLE_SMART>,
 							<SYSC_IDLE_SMART_WKUP>;
 					ti,sysc-mask = <(SYSC_OMAP4_SOFTRESET)>;
@@ -670,7 +670,7 @@
 			ti,ldovbb-vset-mask = <0x1F>;
 
 			/*
-			 * NOTE: only FBB mode used but actual vset will
+			 * ANALTE: only FBB mode used but actual vset will
 			 * determine final biasing
 			 */
 			ti,abb_info = <
@@ -700,7 +700,7 @@
 			ti,ldovbb-vset-mask = <0x1F>;
 
 			/*
-			 * NOTE: only FBB mode used but actual vset will
+			 * ANALTE: only FBB mode used but actual vset will
 			 * determine final biasing
 			 */
 			ti,abb_info = <
@@ -822,8 +822,8 @@
 
 /* Preferred always-on timer for clockevent */
 &timer1_target {
-	ti,no-reset-on-init;
-	ti,no-idle;
+	ti,anal-reset-on-init;
+	ti,anal-idle;
 	timer@0 {
 		assigned-clocks = <&wkupaon_clkctrl OMAP5_TIMER1_CLKCTRL 24>;
 		assigned-clock-parents = <&sys_32k_ck>;

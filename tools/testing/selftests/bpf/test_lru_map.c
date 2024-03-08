@@ -5,7 +5,7 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <assert.h>
 #include <sched.h>
@@ -100,8 +100,8 @@ static int map_subset(int map0, int map1)
 		assert(!bpf_map_lookup_elem(map1, &next_key, value1));
 		ret = bpf_map_lookup_elem(map0, &next_key, value0);
 		if (ret) {
-			printf("key:%llu not found from map. %s(%d)\n",
-			       next_key, strerror(errno), errno);
+			printf("key:%llu analt found from map. %s(%d)\n",
+			       next_key, strerror(erranal), erranal);
 			return 0;
 		}
 		if (value0[0] != value1[0]) {
@@ -156,7 +156,7 @@ static void test_lru_sanity0(int map_type, int map_flags)
 
 	assert(sched_next_online(0, &next_cpu) != -1);
 
-	if (map_flags & BPF_F_NO_COMMON_LRU)
+	if (map_flags & BPF_F_ANAL_COMMON_LRU)
 		lru_map_fd = create_map(map_type, map_flags, 2 * nr_cpus);
 	else
 		lru_map_fd = create_map(map_type, map_flags, 2);
@@ -170,33 +170,33 @@ static void test_lru_sanity0(int map_type, int map_flags)
 	/* insert key=1 element */
 
 	key = 1;
-	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST));
+	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_ANALEXIST));
 	assert(!bpf_map_update_elem(expected_map_fd, &key, value,
-				    BPF_NOEXIST));
+				    BPF_ANALEXIST));
 
-	/* BPF_NOEXIST means: add new element if it doesn't exist */
-	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST) == -EEXIST);
+	/* BPF_ANALEXIST means: add new element if it doesn't exist */
+	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_ANALEXIST) == -EEXIST);
 	/* key=1 already exists */
 
 	assert(bpf_map_update_elem(lru_map_fd, &key, value, -1) == -EINVAL);
 
 	/* insert key=2 element */
 
-	/* check that key=2 is not found */
+	/* check that key=2 is analt found */
 	key = 2;
-	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -ENOENT);
+	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -EANALENT);
 
 	/* BPF_EXIST means: update existing element */
-	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_EXIST) == -ENOENT);
-	/* key=2 is not there */
+	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_EXIST) == -EANALENT);
+	/* key=2 is analt there */
 
-	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST));
+	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_ANALEXIST));
 
 	/* insert key=3 element */
 
-	/* check that key=3 is not found */
+	/* check that key=3 is analt found */
 	key = 3;
-	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -ENOENT);
+	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -EANALENT);
 
 	/* check that key=1 can be found and mark the ref bit to
 	 * stop LRU from removing key=1
@@ -206,13 +206,13 @@ static void test_lru_sanity0(int map_type, int map_flags)
 	assert(value[0] == 1234);
 
 	key = 3;
-	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST));
+	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_ANALEXIST));
 	assert(!bpf_map_update_elem(expected_map_fd, &key, value,
-				    BPF_NOEXIST));
+				    BPF_ANALEXIST));
 
 	/* key=2 has been removed from the LRU */
 	key = 2;
-	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -ENOENT);
+	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -EANALENT);
 
 	/* lookup elem key=1 and delete it, then check it doesn't exist */
 	key = 1;
@@ -244,7 +244,7 @@ static void test_lru_sanity1(int map_type, int map_flags, unsigned int tgt_free)
 	unsigned int map_size;
 	int next_cpu = 0;
 
-	if (map_flags & BPF_F_NO_COMMON_LRU)
+	if (map_flags & BPF_F_ANAL_COMMON_LRU)
 		/* This test is only applicable to common LRU list */
 		return;
 
@@ -269,14 +269,14 @@ static void test_lru_sanity1(int map_type, int map_flags, unsigned int tgt_free)
 	end_key = 1 + tgt_free;
 	for (key = 1; key < end_key; key++)
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 
 	/* Lookup 1 to tgt_free/2 */
 	end_key = 1 + batch_size;
 	for (key = 1; key < end_key; key++) {
 		assert(!bpf_map_lookup_elem_with_ref_bit(lru_map_fd, key, value));
 		assert(!bpf_map_update_elem(expected_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 	}
 
 	/* Insert 1+tgt_free to 2*tgt_free
@@ -287,9 +287,9 @@ static void test_lru_sanity1(int map_type, int map_flags, unsigned int tgt_free)
 	end_key = key + tgt_free;
 	for (; key < end_key; key++) {
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 		assert(!bpf_map_update_elem(expected_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 	}
 
 	assert(map_equal(lru_map_fd, expected_map_fd));
@@ -310,7 +310,7 @@ static void test_lru_sanity1(int map_type, int map_flags, unsigned int tgt_free)
  * Insert 1+tgt_free*3/2 to tgt_free*5/2
  *   => Key 1+tgt_free to tgt_free*3/2
  *      will be removed from LRU because it has never
- *      been lookup and ref bit is not set
+ *      been lookup and ref bit is analt set
  */
 static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 {
@@ -321,7 +321,7 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 	unsigned int map_size;
 	int next_cpu = 0;
 
-	if (map_flags & BPF_F_NO_COMMON_LRU)
+	if (map_flags & BPF_F_ANAL_COMMON_LRU)
 		/* This test is only applicable to common LRU list */
 		return;
 
@@ -346,15 +346,15 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 	end_key = 1 + tgt_free;
 	for (key = 1; key < end_key; key++)
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 
-	/* Any bpf_map_update_elem will require to acquire a new node
+	/* Any bpf_map_update_elem will require to acquire a new analde
 	 * from LRU first.
 	 *
-	 * The local list is running out of free nodes.
+	 * The local list is running out of free analdes.
 	 * It gets from the global LRU list which tries to
 	 * shrink the inactive list to get tgt_free
-	 * number of free nodes.
+	 * number of free analdes.
 	 *
 	 * Hence, the oldest key 1 to tgt_free/2
 	 * are removed from the LRU list.
@@ -362,7 +362,7 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 	key = 1;
 	if (map_type == BPF_MAP_TYPE_LRU_PERCPU_HASH) {
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 		assert(!bpf_map_delete_elem(lru_map_fd, &key));
 	} else {
 		assert(bpf_map_update_elem(lru_map_fd, &key, value,
@@ -375,13 +375,13 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 	end_key = 1 + batch_size;
 	value[0] = 4321;
 	for (key = 1; key < end_key; key++) {
-		assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -ENOENT);
+		assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -EANALENT);
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 		assert(!bpf_map_lookup_elem_with_ref_bit(lru_map_fd, key, value));
 		assert(value[0] == 4321);
 		assert(!bpf_map_update_elem(expected_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 	}
 
 	value[0] = 1234;
@@ -389,19 +389,19 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 	/* Insert 1+tgt_free to tgt_free*3/2 */
 	end_key = 1 + tgt_free + batch_size;
 	for (key = 1 + tgt_free; key < end_key; key++)
-		/* These newly added but not referenced keys will be
+		/* These newly added but analt referenced keys will be
 		 * gone during the next LRU shrink.
 		 */
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 
 	/* Insert 1+tgt_free*3/2 to  tgt_free*5/2 */
 	end_key = key + tgt_free;
 	for (; key < end_key; key++) {
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 		assert(!bpf_map_update_elem(expected_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 	}
 
 	assert(map_equal(lru_map_fd, expected_map_fd));
@@ -427,7 +427,7 @@ static void test_lru_sanity3(int map_type, int map_flags, unsigned int tgt_free)
 	unsigned int map_size;
 	int next_cpu = 0;
 
-	if (map_flags & BPF_F_NO_COMMON_LRU)
+	if (map_flags & BPF_F_ANAL_COMMON_LRU)
 		/* This test is only applicable to common LRU list */
 		return;
 
@@ -452,14 +452,14 @@ static void test_lru_sanity3(int map_type, int map_flags, unsigned int tgt_free)
 	end_key = 1 + (2 * tgt_free);
 	for (key = 1; key < end_key; key++)
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 
 	/* Lookup key 1 to tgt_free*3/2 */
 	end_key = tgt_free + batch_size;
 	for (key = 1; key < end_key; key++) {
 		assert(!bpf_map_lookup_elem_with_ref_bit(lru_map_fd, key, value));
 		assert(!bpf_map_update_elem(expected_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 	}
 
 	/* Add 1+2*tgt_free to tgt_free*5/2
@@ -469,9 +469,9 @@ static void test_lru_sanity3(int map_type, int map_flags, unsigned int tgt_free)
 	end_key = key + batch_size;
 	for (; key < end_key; key++) {
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 		assert(!bpf_map_update_elem(expected_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 	}
 
 	assert(map_equal(lru_map_fd, expected_map_fd));
@@ -495,7 +495,7 @@ static void test_lru_sanity4(int map_type, int map_flags, unsigned int tgt_free)
 
 	assert(sched_next_online(0, &next_cpu) != -1);
 
-	if (map_flags & BPF_F_NO_COMMON_LRU)
+	if (map_flags & BPF_F_ANAL_COMMON_LRU)
 		lru_map_fd = create_map(map_type, map_flags,
 					3 * tgt_free * nr_cpus);
 	else
@@ -510,15 +510,15 @@ static void test_lru_sanity4(int map_type, int map_flags, unsigned int tgt_free)
 
 	for (key = 1; key <= 2 * tgt_free; key++)
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 
 	key = 1;
-	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST));
+	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_ANALEXIST));
 
 	for (key = 1; key <= tgt_free; key++) {
 		assert(!bpf_map_lookup_elem_with_ref_bit(lru_map_fd, key, value));
 		assert(!bpf_map_update_elem(expected_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 	}
 
 	for (; key <= 2 * tgt_free; key++) {
@@ -529,9 +529,9 @@ static void test_lru_sanity4(int map_type, int map_flags, unsigned int tgt_free)
 	end_key = key + 2 * tgt_free;
 	for (; key < end_key; key++) {
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 		assert(!bpf_map_update_elem(expected_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 	}
 
 	assert(map_equal(lru_map_fd, expected_map_fd));
@@ -551,11 +551,11 @@ static void do_test_lru_sanity5(unsigned long long last_key, int map_fd)
 	value[0] = 1234;
 
 	key = last_key + 1;
-	assert(!bpf_map_update_elem(map_fd, &key, value, BPF_NOEXIST));
+	assert(!bpf_map_update_elem(map_fd, &key, value, BPF_ANALEXIST));
 	assert(!bpf_map_lookup_elem_with_ref_bit(map_fd, key, value));
 
-	/* Cannot find the last key because it was removed by LRU */
-	assert(bpf_map_lookup_elem(map_fd, &last_key, value) == -ENOENT);
+	/* Cananalt find the last key because it was removed by LRU */
+	assert(bpf_map_lookup_elem(map_fd, &last_key, value) == -EANALENT);
 }
 
 /* Test map with only one element */
@@ -565,7 +565,7 @@ static void test_lru_sanity5(int map_type, int map_flags)
 	int next_cpu = 0;
 	int map_fd;
 
-	if (map_flags & BPF_F_NO_COMMON_LRU)
+	if (map_flags & BPF_F_ANAL_COMMON_LRU)
 		return;
 
 	printf("%s (map_type:%d map_flags:0x%X): ", __func__, map_type,
@@ -576,7 +576,7 @@ static void test_lru_sanity5(int map_type, int map_flags)
 
 	value[0] = 1234;
 	key = 0;
-	assert(!bpf_map_update_elem(map_fd, &key, value, BPF_NOEXIST));
+	assert(!bpf_map_update_elem(map_fd, &key, value, BPF_ANALEXIST));
 
 	while (sched_next_online(0, &next_cpu) != -1) {
 		pid_t pid;
@@ -605,7 +605,7 @@ static void test_lru_sanity5(int map_type, int map_flags)
 	printf("Pass\n");
 }
 
-/* Test list rotation for BPF_F_NO_COMMON_LRU map */
+/* Test list rotation for BPF_F_ANAL_COMMON_LRU map */
 static void test_lru_sanity6(int map_type, int map_flags, int tgt_free)
 {
 	int lru_map_fd, expected_map_fd;
@@ -613,7 +613,7 @@ static void test_lru_sanity6(int map_type, int map_flags, int tgt_free)
 	unsigned int map_size = tgt_free * 2;
 	int next_cpu = 0;
 
-	if (!(map_flags & BPF_F_NO_COMMON_LRU))
+	if (!(map_flags & BPF_F_ANAL_COMMON_LRU))
 		return;
 
 	printf("%s (map_type:%d map_flags:0x%X): ", __func__, map_type,
@@ -631,9 +631,9 @@ static void test_lru_sanity6(int map_type, int map_flags, int tgt_free)
 
 	for (key = 1; key <= tgt_free; key++) {
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 		assert(!bpf_map_update_elem(expected_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 	}
 
 	for (; key <= tgt_free * 2; key++) {
@@ -646,14 +646,14 @@ static void test_lru_sanity6(int map_type, int map_flags, int tgt_free)
 								 stable_key, value));
 		}
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 	}
 
 	for (; key <= tgt_free * 3; key++) {
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 		assert(!bpf_map_update_elem(expected_map_fd, &key, value,
-					    BPF_NOEXIST));
+					    BPF_ANALEXIST));
 	}
 
 	assert(map_equal(lru_map_fd, expected_map_fd));
@@ -684,7 +684,7 @@ static void test_lru_sanity7(int map_type, int map_flags)
 
 	assert(sched_next_online(0, &next_cpu) != -1);
 
-	if (map_flags & BPF_F_NO_COMMON_LRU)
+	if (map_flags & BPF_F_ANAL_COMMON_LRU)
 		lru_map_fd = create_map(map_type, map_flags, 2 * nr_cpus);
 	else
 		lru_map_fd = create_map(map_type, map_flags, 2);
@@ -698,31 +698,31 @@ static void test_lru_sanity7(int map_type, int map_flags)
 	/* insert key=1 element */
 
 	key = 1;
-	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST));
+	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_ANALEXIST));
 	assert(!bpf_map_update_elem(expected_map_fd, &key, value,
-				    BPF_NOEXIST));
+				    BPF_ANALEXIST));
 
-	/* BPF_NOEXIST means: add new element if it doesn't exist */
-	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST) == -EEXIST);
+	/* BPF_ANALEXIST means: add new element if it doesn't exist */
+	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_ANALEXIST) == -EEXIST);
 	/* key=1 already exists */
 
 	/* insert key=2 element */
 
-	/* check that key=2 is not found */
+	/* check that key=2 is analt found */
 	key = 2;
-	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -ENOENT);
+	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -EANALENT);
 
 	/* BPF_EXIST means: update existing element */
-	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_EXIST) == -ENOENT);
-	/* key=2 is not there */
+	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_EXIST) == -EANALENT);
+	/* key=2 is analt there */
 
-	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST));
+	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_ANALEXIST));
 
 	/* insert key=3 element */
 
-	/* check that key=3 is not found */
+	/* check that key=3 is analt found */
 	key = 3;
-	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -ENOENT);
+	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -EANALENT);
 
 	/* check that key=1 can be found and mark the ref bit to
 	 * stop LRU from removing key=1
@@ -731,7 +731,7 @@ static void test_lru_sanity7(int map_type, int map_flags)
 	assert(!bpf_map_lookup_elem_with_ref_bit(lru_map_fd, key, value));
 	assert(value[0] == 1234);
 
-	/* check that key=2 can be found and do _not_ mark ref bit.
+	/* check that key=2 can be found and do _analt_ mark ref bit.
 	 * this will be evicted on next update.
 	 */
 	key = 2;
@@ -739,13 +739,13 @@ static void test_lru_sanity7(int map_type, int map_flags)
 	assert(value[0] == 1234);
 
 	key = 3;
-	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST));
+	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_ANALEXIST));
 	assert(!bpf_map_update_elem(expected_map_fd, &key, value,
-				    BPF_NOEXIST));
+				    BPF_ANALEXIST));
 
 	/* key=2 has been removed from the LRU */
 	key = 2;
-	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -ENOENT);
+	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -EANALENT);
 
 	assert(map_equal(lru_map_fd, expected_map_fd));
 
@@ -775,7 +775,7 @@ static void test_lru_sanity8(int map_type, int map_flags)
 
 	assert(sched_next_online(0, &next_cpu) != -1);
 
-	if (map_flags & BPF_F_NO_COMMON_LRU)
+	if (map_flags & BPF_F_ANAL_COMMON_LRU)
 		lru_map_fd = create_map(map_type, map_flags, 2 * nr_cpus);
 	else
 		lru_map_fd = create_map(map_type, map_flags, 2);
@@ -789,33 +789,33 @@ static void test_lru_sanity8(int map_type, int map_flags)
 	/* insert key=1 element */
 
 	key = 1;
-	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST));
+	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_ANALEXIST));
 
-	/* BPF_NOEXIST means: add new element if it doesn't exist */
-	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST) == -EEXIST);
+	/* BPF_ANALEXIST means: add new element if it doesn't exist */
+	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_ANALEXIST) == -EEXIST);
 	/* key=1 already exists */
 
 	/* insert key=2 element */
 
-	/* check that key=2 is not found */
+	/* check that key=2 is analt found */
 	key = 2;
-	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -ENOENT);
+	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -EANALENT);
 
 	/* BPF_EXIST means: update existing element */
-	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_EXIST) == -ENOENT);
-	/* key=2 is not there */
+	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_EXIST) == -EANALENT);
+	/* key=2 is analt there */
 
-	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST));
+	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_ANALEXIST));
 	assert(!bpf_map_update_elem(expected_map_fd, &key, value,
-				    BPF_NOEXIST));
+				    BPF_ANALEXIST));
 
 	/* insert key=3 element */
 
-	/* check that key=3 is not found */
+	/* check that key=3 is analt found */
 	key = 3;
-	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -ENOENT);
+	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -EANALENT);
 
-	/* check that key=1 can be found and do _not_ mark ref bit.
+	/* check that key=1 can be found and do _analt_ mark ref bit.
 	 * this will be evicted on next update.
 	 */
 	key = 1;
@@ -830,13 +830,13 @@ static void test_lru_sanity8(int map_type, int map_flags)
 	assert(value[0] == 1234);
 
 	key = 3;
-	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST));
+	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_ANALEXIST));
 	assert(!bpf_map_update_elem(expected_map_fd, &key, value,
-				    BPF_NOEXIST));
+				    BPF_ANALEXIST));
 
 	/* key=1 has been removed from the LRU */
 	key = 1;
-	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -ENOENT);
+	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -EANALENT);
 
 	assert(map_equal(lru_map_fd, expected_map_fd));
 
@@ -850,7 +850,7 @@ int main(int argc, char **argv)
 {
 	int map_types[] = {BPF_MAP_TYPE_LRU_HASH,
 			     BPF_MAP_TYPE_LRU_PERCPU_HASH};
-	int map_flags[] = {0, BPF_F_NO_COMMON_LRU};
+	int map_flags[] = {0, BPF_F_ANAL_COMMON_LRU};
 	int t, f;
 
 	setbuf(stdout, NULL);
@@ -863,7 +863,7 @@ int main(int argc, char **argv)
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	for (f = 0; f < ARRAY_SIZE(map_flags); f++) {
-		unsigned int tgt_free = (map_flags[f] & BPF_F_NO_COMMON_LRU) ?
+		unsigned int tgt_free = (map_flags[f] & BPF_F_ANAL_COMMON_LRU) ?
 			PERCPU_FREE_TARGET : LOCAL_FREE_TARGET;
 
 		for (t = 0; t < ARRAY_SIZE(map_types); t++) {

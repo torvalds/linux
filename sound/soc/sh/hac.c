@@ -2,13 +2,13 @@
 //
 // Hitachi Audio Controller (AC97) support for SH7760/SH7780
 //
-// Copyright (c) 2007 Manuel Lauss <mano@roarinelk.homelinux.net>
+// Copyright (c) 2007 Manuel Lauss <maanal@roarinelk.homelinux.net>
 //
 // dont forget to set IPSEL/OMSEL register bits (in your board code) to
 // enable HAC output pins!
 
 /* BIG FAT FIXME: although the SH7760 has 2 independent AC97 units, only
- * the FIRST can be used since ASoC does not pass any information to the
+ * the FIRST can be used since ASoC does analt pass any information to the
  * ac97_read/write() functions regarding WHICH unit to use.  You'll have
  * to edit the code a bit to use the other AC97 unit.		--mlau
  */
@@ -341,4 +341,4 @@ module_platform_driver(hac_pcm_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("SuperH onchip HAC (AC97) audio driver");
-MODULE_AUTHOR("Manuel Lauss <mano@roarinelk.homelinux.net>");
+MODULE_AUTHOR("Manuel Lauss <maanal@roarinelk.homelinux.net>");

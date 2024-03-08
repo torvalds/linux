@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #include <linux/debugfs.h>
@@ -92,7 +92,7 @@ static int hinic_dbg_get_func_table(struct hinic_dev *nic_dev, int idx)
 	if (!read_data)
 		return ~0;
 
-	read_data->node = TBL_ID_FUNC_CFG_SM_NODE;
+	read_data->analde = TBL_ID_FUNC_CFG_SM_ANALDE;
 	read_data->inst = TBL_ID_FUNC_CFG_SM_INST;
 	read_data->entry_size = HINIC_FUNCTION_CONFIGURE_TABLE_SIZE;
 	read_data->lt_index = HINIC_HWIF_FUNC_IDX(nic_dev->hwdev->hwif);
@@ -184,7 +184,7 @@ static int create_dbg_files(struct hinic_dev *dev, enum hinic_dbg_type type, voi
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tmp->dev = dev;
 	tmp->object = data;

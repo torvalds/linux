@@ -15,7 +15,7 @@ tdc.py will find them and use them.
 
 
 rootPlugin
-    Check if the uid is root.  If not, bail out.
+    Check if the uid is root.  If analt, bail out.
 
 valgrindPlugin
     Run the command under test with valgrind, and produce an extra set of TAP results for the memory tests.

@@ -10,10 +10,10 @@ maintainers:
 
 description: |
   Thermistors with negative temperature coefficient (NTC) are resistors that
-  vary in resistance in an often non-linear way in relation to temperature.
+  vary in resistance in an often analn-linear way in relation to temperature.
   The negative temperature coefficient means that the resistance decreases
   as the temperature rises. Since the relationship between resistance and
-  temperature is non-linear, software drivers most often need to use a look
+  temperature is analn-linear, software drivers most often need to use a look
   up table and interpolation to get from resistance to temperature.
 
   When used in practice, a thermistor is often connected between ground, a
@@ -61,7 +61,7 @@ description: |
   ground" and "connected positive" cases.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^thermistor(.*)?$"
 
   compatible:
@@ -110,7 +110,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description: Indicates how the thermistor is connected in series with
       a pull-up and/or a pull-down resistor. See the description above for
-      an illustration. If this flag is NOT specified, the thermistor is assumed
+      an illustration. If this flag is ANALT specified, the thermistor is assumed
       to be connected-ground, which usually means a pull-down resistance of
       zero but complex arrangements are possible.
 

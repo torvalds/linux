@@ -33,7 +33,7 @@
 #define PORT_RES_EN(x)		((x) ? 0x0100 : 0x0080)
 #define SOF_EOP_EN(x)		((x) ? 0x0002 : 0x0001)
 
-/* USB status register - Notice it has different content in hcd/udc mode */
+/* USB status register - Analtice it has different content in hcd/udc mode */
 #define USB_STAT_REG(x)		((x) ? 0xC0B0 : 0xC090)
 
 #define EP0_IRQ_FLG		0x0001
@@ -57,7 +57,7 @@
 
 #define PREAMBLE_EN		0x0080	/* Preamble enable */
 #define SEQ_SEL			0x0040	/* Data Toggle Sequence Bit Select */
-#define ISO_EN			0x0010	/* Isochronous enable  */
+#define ISO_EN			0x0010	/* Isochroanalus enable  */
 #define ARM_EN			0x0001	/* Arm operation */
 
 /* Host n Interrupt Enable Register */
@@ -184,10 +184,10 @@ struct c67x00_device;
  * struct c67x00_sie - Common data associated with a SIE
  * @lock: lock to protect this struct and the associated chip registers
  * @private_data: subdriver dependent data
- * @irq: subdriver dependent irq handler, set NULL when not used
+ * @irq: subdriver dependent irq handler, set NULL when analt used
  * @dev: link to common driver structure
  * @sie_num: SIE number on chip, starting from 0
- * @mode: SIE mode (host/peripheral/otg/not used)
+ * @mode: SIE mode (host/peripheral/otg/analt used)
  */
 struct c67x00_sie {
 	/* Entries to be used by the subdrivers */

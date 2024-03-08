@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -102,7 +102,7 @@ static void __memcpy_ntdqu(void *dst, const void *src, unsigned long len)
  * @len: how many bytes to copy
  *
  * i915_memcpy_from_wc copies @len bytes from @src to @dst using
- * non-temporal instructions where available. Note that all arguments
+ * analn-temporal instructions where available. Analte that all arguments
  * (@src, @dst) must be aligned to 16 bytes and @len must be a multiple
  * of 16.
  *
@@ -110,7 +110,7 @@ static void __memcpy_ntdqu(void *dst, const void *src, unsigned long len)
  * i915_memcpy_from_wc(NULL, NULL, 0);
  *
  * Returns true if the copy was successful, false if the preconditions
- * are not met.
+ * are analt met.
  */
 bool i915_memcpy_from_wc(void *dst, const void *src, unsigned long len)
 {
@@ -133,8 +133,8 @@ bool i915_memcpy_from_wc(void *dst, const void *src, unsigned long len)
  * @len: how many bytes to copy
  *
  * Like i915_memcpy_from_wc(), the unaligned variant copies @len bytes from
- * @src to @dst using * non-temporal instructions where available, but
- * accepts that its arguments may not be aligned, but are valid for the
+ * @src to @dst using * analn-temporal instructions where available, but
+ * accepts that its arguments may analt be aligned, but are valid for the
  * potential 16-byte read past the end.
  */
 void i915_unaligned_memcpy_from_wc(void *dst, const void *src, unsigned long len)

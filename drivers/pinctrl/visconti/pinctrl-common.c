@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2020 TOSHIBA CORPORATION
  * Copyright (c) 2020 Toshiba Electronic Devices & Storage Corporation
- * Copyright (c) 2020 Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+ * Copyright (c) 2020 Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp>
  */
 
 #include <linux/init.h>
@@ -110,7 +110,7 @@ static int visconti_pin_config_set(struct pinctrl_dev *pctldev,
 			break;
 
 		default:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto err;
 		}
 	}
@@ -184,7 +184,7 @@ static const struct pinctrl_ops visconti_pinctrl_ops = {
 	.get_groups_count	= visconti_get_groups_count,
 	.get_group_name		= visconti_get_group_name,
 	.get_group_pins		= visconti_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_group,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -286,7 +286,7 @@ int visconti_pinctrl_probe(struct platform_device *pdev,
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	priv->devdata = devdata;
@@ -301,7 +301,7 @@ int visconti_pinctrl_probe(struct platform_device *pdev,
 	pins = devm_kcalloc(dev, devdata->nr_pins,
 			    sizeof(*pins), GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < devdata->nr_pins; i++)
 		pins[i] = devdata->pins[i].pin;

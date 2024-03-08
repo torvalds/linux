@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: CEC
 
 .. _CEC_ADAP_PHYS_ADDR:
@@ -14,7 +14,7 @@ Name
 
 CEC_ADAP_G_PHYS_ADDR, CEC_ADAP_S_PHYS_ADDR - Get or set the physical address
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: CEC_ADAP_G_PHYS_ADDR
@@ -44,9 +44,9 @@ driver stores the physical address.
 To set a new physical address applications store the physical address in
 a __u16 and call :ref:`ioctl CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>` with a pointer to
 this integer. The :ref:`ioctl CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>` is only available if
-``CEC_CAP_PHYS_ADDR`` is set (the ``ENOTTY`` error code will be returned
+``CEC_CAP_PHYS_ADDR`` is set (the ``EANALTTY`` error code will be returned
 otherwise). The :ref:`ioctl CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>` can only be called
-by a file descriptor in initiator mode (see :ref:`CEC_S_MODE`), if not
+by a file descriptor in initiator mode (see :ref:`CEC_S_MODE`), if analt
 the ``EBUSY`` error code will be returned.
 
 To clear an existing physical address use ``CEC_PHYS_ADDR_INVALID``.
@@ -54,8 +54,8 @@ The adapter will go to the unconfigured state.
 
 If logical address types have been defined (see :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`),
 then this ioctl will block until all
-requested logical addresses have been claimed. If the file descriptor is in non-blocking mode
-then it will not wait for the logical addresses to be claimed, instead it just returns 0.
+requested logical addresses have been claimed. If the file descriptor is in analn-blocking mode
+then it will analt wait for the logical addresses to be claimed, instead it just returns 0.
 
 A :ref:`CEC_EVENT_STATE_CHANGE <CEC-EVENT-STATE-CHANGE>` event is sent when the physical address
 changes.
@@ -76,19 +76,19 @@ read out and use as their physical address.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 The :ref:`ioctl CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>` can return the following
 error codes:
 
-ENOTTY
-    The ``CEC_CAP_PHYS_ADDR`` capability wasn't set, so this ioctl is not supported.
+EANALTTY
+    The ``CEC_CAP_PHYS_ADDR`` capability wasn't set, so this ioctl is analt supported.
 
 EBUSY
-    Another filehandle is in exclusive follower or initiator mode, or the filehandle
-    is in mode ``CEC_MODE_NO_INITIATOR``.
+    Aanalther filehandle is in exclusive follower or initiator mode, or the filehandle
+    is in mode ``CEC_MODE_ANAL_INITIATOR``.
 
 EINVAL
     The physical address is malformed.

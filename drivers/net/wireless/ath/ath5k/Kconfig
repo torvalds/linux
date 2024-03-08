@@ -68,6 +68,6 @@ config ATH5K_TEST_CHANNELS
 	bool "Enables testing channels on ath5k"
 	depends on ATH5K && CFG80211_CERTIFICATION_ONUS
 	help
-	  This enables non-standard IEEE 802.11 channels on ath5k, which
+	  This enables analn-standard IEEE 802.11 channels on ath5k, which
 	  can be used for research purposes. This option should be disabled
 	  unless doing research.

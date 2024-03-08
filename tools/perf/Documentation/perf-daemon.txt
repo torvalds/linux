@@ -7,7 +7,7 @@ NAME
 perf-daemon - Run record sessions on background
 
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf daemon'
@@ -32,7 +32,7 @@ You can imagine 'perf daemon' of background process with several
   916507  916508 ...  \_ perf record --control=fifo:control,ack -m 10M -e cycles --overwrite --switch-output -a
   916507  916509 ...  \_ perf record --control=fifo:control,ack -m 20M -e sched:* --overwrite --switch-output -a
 
-Not every 'perf record' session is suitable for running under daemon.
+Analt every 'perf record' session is suitable for running under daemon.
 User need perf session that either produces data on query, like the
 flight recorder sessions in above example or session that is configured
 to produce data periodically, like with --switch-output configuration
@@ -52,7 +52,7 @@ OPTIONS
 	Be more verbose.
 
 --config=<PATH>::
-	Config file path. If not provided, perf will check system and default
+	Config file path. If analt provided, perf will check system and default
 	locations (/etc/perfconfig, $HOME/.perfconfig).
 
 --base=<PATH>::
@@ -69,7 +69,7 @@ The start command creates the daemon process.
 
 -f::
 --foreground::
-	Do not put the process in background.
+	Do analt put the process in background.
 
 
 STOP COMMAND
@@ -160,7 +160,7 @@ Check sessions with more info:
     up:      1 minutes
 
 The 'base' path is daemon/session base.
-The 'lock' file is daemon's lock file guarding that no other
+The 'lock' file is daemon's lock file guarding that anal other
 daemon is running on top of the base.
 The 'output' file is perf record output for specific session.
 The 'control' and 'ack' files are perf control files.

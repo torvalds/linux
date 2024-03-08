@@ -129,24 +129,24 @@ static int mt6660_codec_classd_event(struct snd_soc_dapm_widget *w,
 				"disable voltage sensing fail\n");
 			return ret;
 		}
-		/* pop-noise improvement 1 */
+		/* pop-analise improvement 1 */
 		ret = snd_soc_component_update_bits(component,
 			MT6660_REG_RESV10, 0x10, 0x10);
 		if (ret < 0) {
 			dev_err(component->dev,
-				"pop-noise improvement 1 fail\n");
+				"pop-analise improvement 1 fail\n");
 			return ret;
 		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		dev_dbg(component->dev,
 			"%s: after classd turn off\n", __func__);
-		/* pop-noise improvement 2 */
+		/* pop-analise improvement 2 */
 		ret = snd_soc_component_update_bits(component,
 			MT6660_REG_RESV10, 0x10, 0x00);
 		if (ret < 0) {
 			dev_err(component->dev,
-				"pop-noise improvement 2 fail\n");
+				"pop-analise improvement 2 fail\n");
 			return ret;
 		}
 		/* config to off mode */
@@ -164,8 +164,8 @@ static int mt6660_codec_classd_event(struct snd_soc_dapm_widget *w,
 static const struct snd_soc_dapm_widget mt6660_component_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC_E("DAC", NULL, MT6660_REG_PLL_CFG1,
 		0, 1, mt6660_codec_dac_event, SND_SOC_DAPM_POST_PMU),
-	SND_SOC_DAPM_ADC("VI ADC", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_PGA("PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_ADC("VI ADC", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_PGA("PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_OUT_DRV_E("ClassD", MT6660_REG_SYSTEM_CTRL, 2, 0,
 			       NULL, 0, mt6660_codec_classd_event,
 			       SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
@@ -339,8 +339,8 @@ static int mt6660_component_aif_hw_params(struct snd_pcm_substream *substream,
 	dev_dbg(dai->dev, "rate: 0x%08x\n", params_rate(hw_params));
 	dev_dbg(dai->dev, "word_len: %d, aud_bit: %d\n", word_len, aud_bit);
 	if (word_len > 32 || word_len < 16) {
-		dev_err(dai->dev, "not supported word length\n");
-		return -ENOTSUPP;
+		dev_err(dai->dev, "analt supported word length\n");
+		return -EANALTSUPP;
 	}
 	switch (aud_bit) {
 	case 16:
@@ -357,7 +357,7 @@ static int mt6660_component_aif_hw_params(struct snd_pcm_substream *substream,
 		reg_data = 0;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 	ret = snd_soc_component_update_bits(dai->component,
 		MT6660_REG_SERIAL_CFG1, 0xc0, (reg_data << 6));
@@ -421,8 +421,8 @@ static int _mt6660_chip_id_check(struct mt6660_chip *chip)
 		return ret;
 	val &= 0x0ff0;
 	if (val != 0x00e0 && val != 0x01e0) {
-		dev_err(chip->dev, "%s id(%x) not match\n", __func__, val);
-		return -ENODEV;
+		dev_err(chip->dev, "%s id(%x) analt match\n", __func__, val);
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -465,7 +465,7 @@ static int mt6660_i2c_probe(struct i2c_client *client)
 	dev_dbg(&client->dev, "%s\n", __func__);
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 	chip->i2c = client;
 	chip->dev = &client->dev;
 	mutex_init(&chip->io_lock);

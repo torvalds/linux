@@ -34,8 +34,8 @@
 				spi2_idle_mode: spi_idle {
 					/*
 					 * The idle mode is basically sleep mode sans wakeups. Also
-					 * note that we have muxes the pins off the function here
-					 * as we do not state any muxing.
+					 * analte that we have muxes the pins off the function here
+					 * as we do analt state any muxing.
 					 */
 					idle_cfg1 {
 						pins = "GPIO218_AH11"; /* RXD */

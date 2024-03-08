@@ -77,15 +77,15 @@ static int efx_ef10_vport_alloc(struct efx_nic *efx,
 	size_t outlen;
 	int rc;
 
-	EFX_WARN_ON_PARANOID(!port_id_out);
+	EFX_WARN_ON_PARAANALID(!port_id_out);
 
 	MCDI_SET_DWORD(inbuf, VPORT_ALLOC_IN_UPSTREAM_PORT_ID, port_id_in);
 	MCDI_SET_DWORD(inbuf, VPORT_ALLOC_IN_TYPE, vport_type);
 	MCDI_SET_DWORD(inbuf, VPORT_ALLOC_IN_NUM_VLAN_TAGS,
-		       (vlan != EFX_EF10_NO_VLAN));
+		       (vlan != EFX_EF10_ANAL_VLAN));
 	MCDI_POPULATE_DWORD_1(inbuf, VPORT_ALLOC_IN_FLAGS,
 			      VPORT_ALLOC_IN_FLAG_AUTO_PORT, 0);
-	if (vlan != EFX_EF10_NO_VLAN)
+	if (vlan != EFX_EF10_ANAL_VLAN)
 		MCDI_POPULATE_DWORD_1(inbuf, VPORT_ALLOC_IN_VLAN_TAGS,
 				      VPORT_ALLOC_IN_VLAN_TAG_0, vlan);
 
@@ -121,7 +121,7 @@ static void efx_ef10_sriov_free_vf_vports(struct efx_nic *efx)
 	for (i = 0; i < efx->vf_count; i++) {
 		struct ef10_vf *vf = nic_data->vf + i;
 
-		/* If VF is assigned, do not free the vport  */
+		/* If VF is assigned, do analt free the vport  */
 		if (vf->pci_dev && pci_is_dev_assigned(vf->pci_dev))
 			continue;
 
@@ -161,10 +161,10 @@ static int efx_ef10_sriov_assign_vf_vport(struct efx_nic *efx,
 	int rc;
 
 	if (WARN_ON_ONCE(!nic_data->vf))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = efx_ef10_vport_alloc(efx, EVB_PORT_ID_ASSIGNED,
-				  MC_CMD_VPORT_ALLOC_IN_VPORT_TYPE_NORMAL,
+				  MC_CMD_VPORT_ALLOC_IN_VPORT_TYPE_ANALRMAL,
 				  vf->vlan, &vf->vport_id);
 	if (rc)
 		return rc;
@@ -192,12 +192,12 @@ static int efx_ef10_sriov_alloc_vf_vswitching(struct efx_nic *efx)
 	nic_data->vf = kcalloc(efx->vf_count, sizeof(struct ef10_vf),
 			       GFP_KERNEL);
 	if (!nic_data->vf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < efx->vf_count; i++) {
 		eth_random_addr(nic_data->vf[i].mac);
 		nic_data->vf[i].efx = NULL;
-		nic_data->vf[i].vlan = EFX_EF10_NO_VLAN;
+		nic_data->vf[i].vlan = EFX_EF10_ANAL_VLAN;
 
 		rc = efx_ef10_sriov_assign_vf_vport(efx, i);
 		if (rc)
@@ -265,7 +265,7 @@ int efx_ef10_vswitching_probe_pf(struct efx_nic *efx)
 	int rc;
 
 	if (pci_sriov_get_totalvfs(efx->pci_dev) <= 0) {
-		/* vswitch not needed as we have no VFs */
+		/* vswitch analt needed as we have anal VFs */
 		efx_ef10_vadaptor_alloc_set_features(efx);
 		return 0;
 	}
@@ -276,8 +276,8 @@ int efx_ef10_vswitching_probe_pf(struct efx_nic *efx)
 		goto fail1;
 
 	rc = efx_ef10_vport_alloc(efx, EVB_PORT_ID_ASSIGNED,
-				  MC_CMD_VPORT_ALLOC_IN_VPORT_TYPE_NORMAL,
-				  EFX_EF10_NO_VLAN, &efx->vport_id);
+				  MC_CMD_VPORT_ALLOC_IN_VPORT_TYPE_ANALRMAL,
+				  EFX_EF10_ANAL_VLAN, &efx->vport_id);
 	if (rc)
 		goto fail2;
 
@@ -354,7 +354,7 @@ void efx_ef10_vswitching_remove_pf(struct efx_nic *efx)
 	efx_ef10_vadaptor_free(efx, efx->vport_id);
 
 	if (efx->vport_id == EVB_PORT_ID_ASSIGNED)
-		return; /* No vswitch was ever created */
+		return; /* Anal vswitch was ever created */
 
 	if (!is_zero_ether_addr(nic_data->vport_mac)) {
 		efx_ef10_vport_del_mac(efx, efx->vport_id,
@@ -364,7 +364,7 @@ void efx_ef10_vswitching_remove_pf(struct efx_nic *efx)
 	efx_ef10_vport_free(efx, efx->vport_id);
 	efx->vport_id = EVB_PORT_ID_ASSIGNED;
 
-	/* Only free the vswitch if no VFs are assigned */
+	/* Only free the vswitch if anal VFs are assigned */
 	if (!pci_vfs_assigned(efx->pci_dev))
 		efx_ef10_vswitch_free(efx, efx->vport_id);
 }
@@ -400,9 +400,9 @@ fail1:
 }
 
 /* Disable SRIOV and remove VFs
- * If some VFs are attached to a guest (using Xen, only) nothing is
- * done if force=false, and vports are freed if force=true (for the non
- * attachedc ones, only) but SRIOV is not disabled and VFs are not
+ * If some VFs are attached to a guest (using Xen, only) analthing is
+ * done if force=false, and vports are freed if force=true (for the analn
+ * attachedc ones, only) but SRIOV is analt disabled and VFs are analt
  * removed in either case.
  */
 static int efx_ef10_pci_sriov_disable(struct efx_nic *efx, bool force)
@@ -462,7 +462,7 @@ void efx_ef10_sriov_fini(struct efx_nic *efx)
 	rc = efx_ef10_pci_sriov_disable(efx, true);
 	if (rc)
 		netif_dbg(efx, drv, efx->net_dev,
-			  "Disabling SRIOV was not successful rc=%d\n", rc);
+			  "Disabling SRIOV was analt successful rc=%d\n", rc);
 	else
 		netif_dbg(efx, drv, efx->net_dev, "SRIOV disabled\n");
 }
@@ -491,7 +491,7 @@ int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf_i, const u8 *mac)
 	int rc;
 
 	if (!nic_data->vf)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (vf_i >= efx->vf_count)
 		return -EINVAL;
@@ -534,13 +534,13 @@ int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf_i, const u8 *mac)
 		goto fail;
 
 	if (vf->efx) {
-		/* VF cannot use the vport_id that the PF created */
+		/* VF cananalt use the vport_id that the PF created */
 		rc = efx_ef10_vadaptor_alloc(vf->efx, EVB_PORT_ID_ASSIGNED);
 		if (rc)
 			return rc;
 		vf->efx->type->filter_table_probe(vf->efx);
 		efx_net_open(vf->efx->net_dev);
-		efx_device_attach_if_not_resetting(vf->efx);
+		efx_device_attach_if_analt_resetting(vf->efx);
 	}
 
 	return 0;
@@ -565,7 +565,7 @@ int efx_ef10_sriov_set_vf_vlan(struct efx_nic *efx, int vf_i, u16 vlan,
 
 	vf = nic_data->vf + vf_i;
 
-	new_vlan = (vlan == 0) ? EFX_EF10_NO_VLAN : vlan;
+	new_vlan = (vlan == 0) ? EFX_EF10_ANAL_VLAN : vlan;
 	if (new_vlan == vf->vlan)
 		return 0;
 
@@ -613,7 +613,7 @@ int efx_ef10_sriov_set_vf_vlan(struct efx_nic *efx, int vf_i, u16 vlan,
 
 	/* Restore everything in reverse order */
 	rc = efx_ef10_vport_alloc(efx, EVB_PORT_ID_ASSIGNED,
-				  MC_CMD_VPORT_ALLOC_IN_VPORT_TYPE_NORMAL,
+				  MC_CMD_VPORT_ALLOC_IN_VPORT_TYPE_ANALRMAL,
 				  vf->vlan, &vf->vport_id);
 	if (rc)
 		goto reset_nic_up_write;
@@ -653,7 +653,7 @@ restore_filters:
 		if (rc2)
 			goto reset_nic;
 
-		efx_device_attach_if_not_resetting(vf->efx);
+		efx_device_attach_if_analt_resetting(vf->efx);
 	}
 	return rc;
 
@@ -667,8 +667,8 @@ reset_nic:
 		efx_schedule_reset(vf->efx, RESET_TYPE_DATAPATH);
 	} else {
 		netif_err(efx, drv, efx->net_dev,
-			  "Failed to restore the VF and cannot reset the VF "
-			  "- VF is not functional.\n");
+			  "Failed to restore the VF and cananalt reset the VF "
+			  "- VF is analt functional.\n");
 		netif_err(efx, drv, efx->net_dev,
 			  "Please reload the driver attached to the VF.\n");
 	}
@@ -686,7 +686,7 @@ static int efx_ef10_sriov_set_privilege_mask(struct efx_nic *efx, int vf_i,
 	size_t outlen;
 	int rc;
 
-	EFX_WARN_ON_PARANOID((value & ~mask) != 0);
+	EFX_WARN_ON_PARAANALID((value & ~mask) != 0);
 
 	/* Get privilege mask */
 	MCDI_POPULATE_DWORD_2(pm_inbuf, PRIVILEGE_MASK_IN_FUNCTION,
@@ -735,7 +735,7 @@ int efx_ef10_sriov_set_vf_spoofchk(struct efx_nic *efx, int vf_i, bool spoofchk)
 	if (!(nic_data->datapath_caps &
 	      BIT(MC_CMD_GET_CAPABILITIES_OUT_TX_MAC_SECURITY_FILTERING_LBN)) &&
 	    spoofchk)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return efx_ef10_sriov_set_privilege_mask(efx, vf_i,
 		MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING_TX,
@@ -778,7 +778,7 @@ int efx_ef10_sriov_get_vf_config(struct efx_nic *efx, int vf_i,
 		return -EINVAL;
 
 	if (!nic_data->vf)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	vf = nic_data->vf + vf_i;
 
@@ -786,7 +786,7 @@ int efx_ef10_sriov_get_vf_config(struct efx_nic *efx, int vf_i,
 	ivf->min_tx_rate = 0;
 	ivf->max_tx_rate = 0;
 	ether_addr_copy(ivf->mac, vf->mac);
-	ivf->vlan = (vf->vlan == EFX_EF10_NO_VLAN) ? 0 : vf->vlan;
+	ivf->vlan = (vf->vlan == EFX_EF10_ANAL_VLAN) ? 0 : vf->vlan;
 	ivf->qos = 0;
 
 	MCDI_POPULATE_DWORD_2(inbuf, LINK_STATE_MODE_IN_FUNCTION,
@@ -794,7 +794,7 @@ int efx_ef10_sriov_get_vf_config(struct efx_nic *efx, int vf_i,
 			      nic_data->pf_index,
 			      LINK_STATE_MODE_IN_FUNCTION_VF, vf_i);
 	MCDI_SET_DWORD(inbuf, LINK_STATE_MODE_IN_NEW_MODE,
-		       MC_CMD_LINK_STATE_MODE_IN_DO_NOT_CHANGE);
+		       MC_CMD_LINK_STATE_MODE_IN_DO_ANALT_CHANGE);
 	rc = efx_mcdi_rpc(efx, MC_CMD_LINK_STATE_MODE, inbuf, sizeof(inbuf),
 			  outbuf, sizeof(outbuf), &outlen);
 	if (rc)

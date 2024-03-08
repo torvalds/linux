@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2012 Linutronix GmbH
  * Copyright (c) 2014 sigma star gmbh
- * Author: Richard Weinberger <richard@nod.at>
+ * Author: Richard Weinberger <richard@anald.at>
  */
 
 #include <linux/crc32.h>
@@ -20,9 +20,9 @@ static inline unsigned long *init_seen(struct ubi_device *ubi)
 	if (!ubi_dbg_chk_fastmap(ubi))
 		return NULL;
 
-	ret = bitmap_zalloc(ubi->peb_count, GFP_NOFS);
+	ret = bitmap_zalloc(ubi->peb_count, GFP_ANALFS);
 	if (!ret)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return ret;
 }
@@ -105,7 +105,7 @@ static struct ubi_vid_io_buf *new_fm_vbuf(struct ubi_device *ubi, int vol_id)
 	struct ubi_vid_io_buf *new;
 	struct ubi_vid_hdr *vh;
 
-	new = ubi_alloc_vid_buf(ubi, GFP_NOFS);
+	new = ubi_alloc_vid_buf(ubi, GFP_ANALFS);
 	if (!new)
 		goto out;
 
@@ -139,7 +139,7 @@ static int add_aeb(struct ubi_attach_info *ai, struct list_head *list,
 
 	aeb = ubi_alloc_aeb(ai, pnum, ec);
 	if (!aeb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aeb->lnum = -1;
 	aeb->scrub = scrub;
@@ -204,7 +204,7 @@ static void assign_aeb_to_av(struct ubi_attach_info *ai,
 			     struct ubi_ainf_volume *av)
 {
 	struct ubi_ainf_peb *tmp_aeb;
-	struct rb_node **p = &av->root.rb_node, *parent = NULL;
+	struct rb_analde **p = &av->root.rb_analde, *parent = NULL;
 
 	while (*p) {
 		parent = *p;
@@ -224,7 +224,7 @@ static void assign_aeb_to_av(struct ubi_attach_info *ai,
 	list_del(&aeb->u.list);
 	av->leb_count++;
 
-	rb_link_node(&aeb->u.rb, parent, p);
+	rb_link_analde(&aeb->u.rb, parent, p);
 	rb_insert_color(&aeb->u.rb, &av->root);
 }
 
@@ -242,7 +242,7 @@ static int update_vol(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		      struct ubi_ainf_volume *av, struct ubi_vid_hdr *new_vh,
 		      struct ubi_ainf_peb *new_aeb)
 {
-	struct rb_node **p = &av->root.rb_node, *parent = NULL;
+	struct rb_analde **p = &av->root.rb_analde, *parent = NULL;
 	struct ubi_ainf_peb *aeb, *victim;
 	int cmp_res;
 
@@ -278,7 +278,7 @@ static int update_vol(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		if (cmp_res & 1) {
 			victim = ubi_alloc_aeb(ai, aeb->pnum, aeb->ec);
 			if (!victim)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			list_add_tail(&victim->u.list, &ai->erase);
 
@@ -317,14 +317,14 @@ static int update_vol(struct ubi_device *ubi, struct ubi_attach_info *ai,
 
 	av->leb_count++;
 
-	rb_link_node(&new_aeb->u.rb, parent, p);
+	rb_link_analde(&new_aeb->u.rb, parent, p);
 	rb_insert_color(&new_aeb->u.rb, &av->root);
 
 	return 0;
 }
 
 /**
- * process_pool_aeb - we found a non-empty PEB in a pool.
+ * process_pool_aeb - we found a analn-empty PEB in a pool.
  * @ubi: UBI device object
  * @ai: attach info object
  * @new_vh: the volume header derived from new_aeb
@@ -369,11 +369,11 @@ static int process_pool_aeb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 static void unmap_peb(struct ubi_attach_info *ai, int pnum)
 {
 	struct ubi_ainf_volume *av;
-	struct rb_node *node, *node2;
+	struct rb_analde *analde, *analde2;
 	struct ubi_ainf_peb *aeb;
 
-	ubi_rb_for_each_entry(node, av, &ai->volumes, rb) {
-		ubi_rb_for_each_entry(node2, aeb, &av->root, u.rb) {
+	ubi_rb_for_each_entry(analde, av, &ai->volumes, rb) {
+		ubi_rb_for_each_entry(analde2, aeb, &av->root, u.rb) {
 			if (aeb->pnum == pnum) {
 				rb_erase(&aeb->u.rb, &av->root);
 				av->leb_count--;
@@ -385,7 +385,7 @@ static void unmap_peb(struct ubi_attach_info *ai, int pnum)
 }
 
 /**
- * scan_pool - scans a pool for changed (no longer empty PEBs).
+ * scan_pool - scans a pool for changed (anal longer empty PEBs).
  * @ubi: UBI device object
  * @ai: attach info object
  * @pebs: an array of all PEB numbers in the to be scanned pool
@@ -408,12 +408,12 @@ static int scan_pool(struct ubi_device *ubi, struct ubi_attach_info *ai,
 
 	ech = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
 	if (!ech)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vb = ubi_alloc_vid_buf(ubi, GFP_KERNEL);
 	if (!vb) {
 		kfree(ech);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	vh = ubi_get_vid_hdr(vb);
@@ -421,7 +421,7 @@ static int scan_pool(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	dbg_bld("scanning fastmap pool: size = %i", pool_size);
 
 	/*
-	 * Now scan all PEBs in the pool to find changes which have been made
+	 * Analw scan all PEBs in the pool to find changes which have been made
 	 * after the creation of the fastmap
 	 */
 	for (i = 0; i < pool_size; i++) {
@@ -472,14 +472,14 @@ static int scan_pool(struct ubi_device *ubi, struct ubi_attach_info *ai,
 				goto out;
 			continue;
 		} else if (err == 0 || err == UBI_IO_BITFLIPS) {
-			dbg_bld("Found non empty PEB:%i in pool", pnum);
+			dbg_bld("Found analn empty PEB:%i in pool", pnum);
 
 			if (err == UBI_IO_BITFLIPS)
 				scrub = 1;
 
 			new_aeb = ubi_alloc_aeb(ai, pnum, be64_to_cpu(ech->ec));
 			if (!new_aeb) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 
@@ -497,7 +497,7 @@ static int scan_pool(struct ubi_device *ubi, struct ubi_attach_info *ai,
 				goto out;
 			}
 		} else {
-			/* We are paranoid and fall back to scanning mode */
+			/* We are paraanalid and fall back to scanning mode */
 			ubi_err(ubi, "fastmap pool PEBs contains damaged PEBs!");
 			ret = err > 0 ? UBI_BAD_FASTMAP : err;
 			goto out;
@@ -519,7 +519,7 @@ static int count_fastmap_pebs(struct ubi_attach_info *ai)
 {
 	struct ubi_ainf_peb *aeb;
 	struct ubi_ainf_volume *av;
-	struct rb_node *rb1, *rb2;
+	struct rb_analde *rb1, *rb2;
 	int n = 0;
 
 	list_for_each_entry(aeb, &ai->erase, u.list)
@@ -745,7 +745,7 @@ static int ubi_attach_fastmap(struct ubi_device *ubi,
 			}
 
 			if (!aeb) {
-				ubi_err(ubi, "PEB %i is in EBA but not in used list", pnum);
+				ubi_err(ubi, "PEB %i is in EBA but analt in used list", pnum);
 				goto fail_bad;
 			}
 
@@ -781,10 +781,10 @@ static int ubi_attach_fastmap(struct ubi_device *ubi,
 	ubi_assert(list_empty(&free));
 
 	/*
-	 * If fastmap is leaking PEBs (must not happen), raise a
+	 * If fastmap is leaking PEBs (must analt happen), raise a
 	 * fat warning and fall back to scanning mode.
 	 * We do this here because in ubi_wl_init() it's too late
-	 * and we cannot fall back to scanning.
+	 * and we cananalt fall back to scanning.
 	 */
 	if (WARN_ON(count_fastmap_pebs(ai) != ubi->peb_count -
 		    ai->bad_peb_count - fm->used_blocks))
@@ -852,8 +852,8 @@ static struct ubi_ainf_peb *clone_aeb(struct ubi_attach_info *ai,
  * @scan_ai: UBI attach info from the first 64 PEBs,
  *           used to find the most recent Fastmap data structure
  *
- * Returns 0 on success, UBI_NO_FASTMAP if no fastmap was found,
- * UBI_BAD_FASTMAP if one was found but is not usable.
+ * Returns 0 on success, UBI_ANAL_FASTMAP if anal fastmap was found,
+ * UBI_BAD_FASTMAP if one was found but is analt usable.
  * < 0 indicates an internal error.
  */
 int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
@@ -872,7 +872,7 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 
 	fm_anchor = find_fm_anchor(scan_ai);
 	if (fm_anchor < 0)
-		return UBI_NO_FASTMAP;
+		return UBI_ANAL_FASTMAP;
 
 	/* Copy all (possible) fastmap blocks into our new attach structure. */
 	list_for_each_entry(aeb, &scan_ai->fastmap, u.list) {
@@ -880,7 +880,7 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 
 		new = clone_aeb(ai, aeb);
 		if (!new)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		list_add(&new->u.list, &ai->fastmap);
 	}
@@ -890,13 +890,13 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 
 	fmsb = kmalloc(sizeof(*fmsb), GFP_KERNEL);
 	if (!fmsb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	fm = kzalloc(sizeof(*fm), GFP_KERNEL);
 	if (!fm) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		kfree(fmsb);
 		goto out;
 	}
@@ -939,13 +939,13 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 
 	ech = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
 	if (!ech) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_fm_sb;
 	}
 
 	vb = ubi_alloc_vid_buf(ubi, GFP_KERNEL);
 	if (!vb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_hdr;
 	}
 
@@ -1064,7 +1064,7 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			while (i--)
 				kmem_cache_free(ubi_wl_entry_slab, fm->e[i]);
 
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_hdr;
 		}
 
@@ -1109,7 +1109,7 @@ int ubi_fastmap_init_checkmap(struct ubi_volume *vol, int leb_count)
 
 	vol->checkmap = bitmap_zalloc(leb_count, GFP_KERNEL);
 	if (!vol->checkmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1142,7 +1142,7 @@ static int ubi_write_fastmap(struct ubi_device *ubi,
 	struct ubi_vid_io_buf *avbuf, *dvbuf;
 	struct ubi_vid_hdr *avhdr, *dvhdr;
 	struct ubi_work *ubi_wrk;
-	struct rb_node *tmp_rb;
+	struct rb_analde *tmp_rb;
 	int ret, i, j, free_peb_count, used_peb_count, vol_count;
 	int scrub_peb_count, erase_peb_count;
 	unsigned long *seen_pebs;
@@ -1152,13 +1152,13 @@ static int ubi_write_fastmap(struct ubi_device *ubi,
 
 	avbuf = new_fm_vbuf(ubi, UBI_FM_SB_VOLUME_ID);
 	if (!avbuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	dvbuf = new_fm_vbuf(ubi, UBI_FM_DATA_VOLUME_ID);
 	if (!dvbuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_avbuf;
 	}
 
@@ -1396,7 +1396,7 @@ out:
  * This function ensures that upon next UBI attach a full scan
  * is issued. We need this if UBI is about to write a new fastmap
  * but is unable to do so. In this case we have two options:
- * a) Make sure that the current fastmap will not be usued upon
+ * a) Make sure that the current fastmap will analt be usued upon
  * attach time and contine or b) fall back to RO mode to have the
  * current fastmap in a valid state.
  * Returns 0 on success, < 0 indicates an internal error.
@@ -1414,8 +1414,8 @@ static int invalidate_fastmap(struct ubi_device *ubi)
 
 	ubi->fm = NULL;
 
-	ret = -ENOMEM;
-	fm = kzalloc(sizeof(*fm), GFP_NOFS);
+	ret = -EANALMEM;
+	fm = kzalloc(sizeof(*fm), GFP_ANALFS);
 	if (!fm)
 		goto out;
 
@@ -1425,7 +1425,7 @@ static int invalidate_fastmap(struct ubi_device *ubi)
 
 	vh = ubi_get_vid_hdr(vb);
 
-	ret = -ENOSPC;
+	ret = -EANALSPC;
 	e = ubi_wl_get_fm_peb(ubi, 1);
 	if (!e)
 		goto out_free_fm;
@@ -1500,12 +1500,12 @@ int ubi_update_fastmap(struct ubi_device *ubi)
 		return 0;
 	}
 
-	new_fm = kzalloc(sizeof(*new_fm), GFP_NOFS);
+	new_fm = kzalloc(sizeof(*new_fm), GFP_ANALFS);
 	if (!new_fm) {
 		up_write(&ubi->fm_eba_sem);
 		up_write(&ubi->work_sem);
 		up_write(&ubi->fm_protect);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	new_fm->used_blocks = ubi->fm_size / ubi->leb_size;
@@ -1514,7 +1514,7 @@ int ubi_update_fastmap(struct ubi_device *ubi)
 
 	if (new_fm->used_blocks > UBI_FM_MAX_BLOCKS) {
 		ubi_err(ubi, "fastmap too large");
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto err;
 	}
 
@@ -1527,7 +1527,7 @@ int ubi_update_fastmap(struct ubi_device *ubi)
 			if (old_fm && old_fm->e[i]) {
 				ret = ubi_sync_erase(ubi, old_fm->e[i], 0);
 				if (ret < 0) {
-					ubi_err(ubi, "could not erase old fastmap PEB");
+					ubi_err(ubi, "could analt erase old fastmap PEB");
 
 					for (j = 1; j < i; j++) {
 						ubi_wl_put_fm_peb(ubi, new_fm->e[j],
@@ -1539,14 +1539,14 @@ int ubi_update_fastmap(struct ubi_device *ubi)
 				new_fm->e[i] = old_fm->e[i];
 				old_fm->e[i] = NULL;
 			} else {
-				ubi_err(ubi, "could not get any free erase block");
+				ubi_err(ubi, "could analt get any free erase block");
 
 				for (j = 1; j < i; j++) {
 					ubi_wl_put_fm_peb(ubi, new_fm->e[j], j, 0);
 					new_fm->e[j] = NULL;
 				}
 
-				ret = -ENOSPC;
+				ret = -EANALSPC;
 				goto err;
 			}
 		} else {
@@ -1575,11 +1575,11 @@ int ubi_update_fastmap(struct ubi_device *ubi)
 	spin_unlock(&ubi->wl_lock);
 
 	if (old_fm) {
-		/* no fresh anchor PEB was found, reuse the old one */
+		/* anal fresh anchor PEB was found, reuse the old one */
 		if (!tmp_e) {
 			ret = ubi_sync_erase(ubi, old_fm->e[0], 0);
 			if (ret < 0) {
-				ubi_err(ubi, "could not erase old anchor PEB");
+				ubi_err(ubi, "could analt erase old anchor PEB");
 
 				for (i = 1; i < new_fm->used_blocks; i++) {
 					ubi_wl_put_fm_peb(ubi, new_fm->e[i],
@@ -1599,14 +1599,14 @@ int ubi_update_fastmap(struct ubi_device *ubi)
 		}
 	} else {
 		if (!tmp_e) {
-			ubi_err(ubi, "could not find any anchor PEB");
+			ubi_err(ubi, "could analt find any anchor PEB");
 
 			for (i = 1; i < new_fm->used_blocks; i++) {
 				ubi_wl_put_fm_peb(ubi, new_fm->e[i], i, 0);
 				new_fm->e[i] = NULL;
 			}
 
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 			goto err;
 		}
 		new_fm->e[0] = tmp_e;

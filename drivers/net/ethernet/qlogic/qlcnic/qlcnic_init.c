@@ -199,7 +199,7 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
 		switch (ring) {
-		case RCV_RING_NORMAL:
+		case RCV_RING_ANALRMAL:
 			rds_ring->num_desc = adapter->num_rxd;
 			rds_ring->dma_size = QLCNIC_P3P_RX_BUF_MAX_LEN;
 			rds_ring->skb_size = rds_ring->dma_size + NET_IP_ALIGN;
@@ -224,7 +224,7 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 
 		INIT_LIST_HEAD(&rds_ring->free_list);
 		/*
-		 * Now go through all of them, set reference handles
+		 * Analw go through all of them, set reference handles
 		 * and put them in the queues.
 		 */
 		rx_buf = rds_ring->rx_buf_arr;
@@ -257,7 +257,7 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 
 err_out:
 	qlcnic_free_sw_resources(adapter);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -450,13 +450,13 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 	n = (n >> 16) & 0xffffU;
 
 	if (n >= 1024) {
-		dev_err(&pdev->dev, "QLOGIC card flash not initialized.\n");
+		dev_err(&pdev->dev, "QLOGIC card flash analt initialized.\n");
 		return -EIO;
 	}
 
 	buf = kcalloc(n, sizeof(struct crb_addr_pair), GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < n; i++) {
 		if (qlcnic_rom_fast_read(adapter, 8*i + 4*offset, &val) != 0 ||
@@ -487,7 +487,7 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 			continue;
 		if (off == (QLCNIC_CRB_I2C0 + 0x1c))
 			continue;
-		if (off == (ROMUSB_GLB + 0xbc)) /* do not reset PCI */
+		if (off == (ROMUSB_GLB + 0xbc)) /* do analt reset PCI */
 			continue;
 		if (off == (ROMUSB_GLB + 0xa8))
 			continue;
@@ -567,7 +567,7 @@ static int qlcnic_cmd_peg_ready(struct qlcnic_adapter *adapter)
 			    PHAN_INITIALIZE_FAILED);
 
 out_err:
-	dev_err(&adapter->pdev->dev, "Command Peg initialization not "
+	dev_err(&adapter->pdev->dev, "Command Peg initialization analt "
 		      "complete, state: 0x%x.\n", val);
 	return -EIO;
 }
@@ -588,7 +588,7 @@ qlcnic_receive_peg_ready(struct qlcnic_adapter *adapter)
 
 	} while (--retries);
 
-	dev_err(&adapter->pdev->dev, "Receive Peg initialization not complete, state: 0x%x.\n",
+	dev_err(&adapter->pdev->dev, "Receive Peg initialization analt complete, state: 0x%x.\n",
 		val);
 	return -EIO;
 }
@@ -621,7 +621,7 @@ qlcnic_setup_idc_param(struct qlcnic_adapter *adapter) {
 	val = QLC_DEV_GET_DRV(val, adapter->portnum);
 	if ((val & 0x3) != QLCNIC_TYPE_NIC) {
 		dev_err(&adapter->pdev->dev,
-			"Not an Ethernet NIC func=%u\n", val);
+			"Analt an Ethernet NIC func=%u\n", val);
 		return -EIO;
 	}
 	adapter->ahw->physical_port = (val >> 2);
@@ -677,7 +677,7 @@ static int qlcnic_get_flt_entry(struct qlcnic_adapter *adapter, u8 region,
 	}
 	if (i >= (entry_size/sizeof(struct qlcnic_flt_entry))) {
 		dev_warn(&adapter->pdev->dev,
-			 "region=%x not found in %d regions\n", region, i);
+			 "region=%x analt found in %d regions\n", region, i);
 		ret = -EIO;
 		goto err_out;
 	}
@@ -717,8 +717,8 @@ qlcnic_check_flash_fw_ver(struct qlcnic_adapter *adapter)
 		dev_err(&adapter->pdev->dev,
 			"firmware version %d.%d.%d unsupported."
 			"Min supported version %d.%d.%d\n",
-			_major(ver), _minor(ver), _build(ver),
-			_major(min_ver), _minor(min_ver), _build(min_ver));
+			_major(ver), _mianalr(ver), _build(ver),
+			_major(min_ver), _mianalr(min_ver), _build(min_ver));
 		return -EINVAL;
 	}
 
@@ -874,7 +874,7 @@ qlcnic_validate_product_offs(struct qlcnic_adapter *adapter)
 	if (adapter->fw->size < tab_size)
 		return -EINVAL;
 
-nomn:
+analmn:
 	for (i = 0; i < entries; i++) {
 
 		u32 flags, file_chiprev, offs;
@@ -898,7 +898,7 @@ nomn:
 	}
 	if (mn_present) {
 		mn_present = 0;
-		goto nomn;
+		goto analmn;
 	}
 	return -EINVAL;
 }
@@ -1003,7 +1003,7 @@ static u32 qlcnic_get_fw_version(struct qlcnic_adapter *adapter)
 {
 	struct uni_data_desc *fw_data_desc;
 	const struct firmware *fw = adapter->fw;
-	u32 major, minor, sub;
+	u32 major, mianalr, sub;
 	__le32 version_offset;
 	const u8 *ver_str;
 	int i, ret;
@@ -1021,11 +1021,11 @@ static u32 qlcnic_get_fw_version(struct qlcnic_adapter *adapter)
 	for (i = 0; i < 12; i++) {
 		if (!strncmp(&ver_str[i], "REV=", 4)) {
 			ret = sscanf(&ver_str[i+4], "%u.%u.%u ",
-					&major, &minor, &sub);
+					&major, &mianalr, &sub);
 			if (ret != 3)
 				return 0;
 			else
-				return major + (minor << 8) + (sub << 16);
+				return major + (mianalr << 8) + (sub << 16);
 		}
 	}
 
@@ -1228,7 +1228,7 @@ qlcnic_validate_firmware(struct qlcnic_adapter *adapter)
 	if (ver < QLCNIC_MIN_FW_VERSION) {
 		dev_err(&pdev->dev,
 				"%s: firmware version %d.%d.%d unsupported\n",
-		fw_name[fw_type], _major(ver), _minor(ver), _build(ver));
+		fw_name[fw_type], _major(ver), _mianalr(ver), _build(ver));
 		return -EINVAL;
 	}
 
@@ -1250,7 +1250,7 @@ qlcnic_get_next_fwtype(struct qlcnic_adapter *adapter)
 	u8 fw_type;
 
 	switch (adapter->ahw->fw_type) {
-	case QLCNIC_UNKNOWN_ROMIMAGE:
+	case QLCNIC_UNKANALWN_ROMIMAGE:
 		fw_type = QLCNIC_UNIFIED_ROMIMAGE;
 		break;
 
@@ -1270,7 +1270,7 @@ void qlcnic_request_firmware(struct qlcnic_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	int rc;
 
-	adapter->ahw->fw_type = QLCNIC_UNKNOWN_ROMIMAGE;
+	adapter->ahw->fw_type = QLCNIC_UNKANALWN_ROMIMAGE;
 
 next:
 	qlcnic_get_next_fwtype(adapter);

@@ -18,7 +18,7 @@ extern int omap_usb2_set_comparator(struct phy_companion *comparator);
 #else
 static inline int omap_usb2_set_comparator(struct phy_companion *comparator)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

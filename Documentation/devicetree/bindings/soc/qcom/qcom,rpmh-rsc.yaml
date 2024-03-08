@@ -40,7 +40,7 @@ description: |
   addition to the active mode requests.
 
   Drivers that want to use the RSC to communicate with RPMH must specify their
-  bindings as child nodes of the RSC controllers they wish to communicate with.
+  bindings as child analdes of the RSC controllers they wish to communicate with.
 
 properties:
   compatible:
@@ -241,16 +241,16 @@ examples:
                     opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
                 };
 
-                rpmhpd_opp_nom: opp6 {
-                    opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+                rpmhpd_opp_analm: opp6 {
+                    opp-level = <RPMH_REGULATOR_LEVEL_ANALM>;
                 };
 
-                rpmhpd_opp_nom_l1: opp7 {
-                    opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+                rpmhpd_opp_analm_l1: opp7 {
+                    opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L1>;
                 };
 
-                rpmhpd_opp_nom_l2: opp8 {
-                    opp-level = <RPMH_REGULATOR_LEVEL_NOM_L2>;
+                rpmhpd_opp_analm_l2: opp8 {
+                    opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L2>;
                 };
 
                 rpmhpd_opp_turbo: opp9 {

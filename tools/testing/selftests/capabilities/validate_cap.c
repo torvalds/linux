@@ -9,7 +9,7 @@
 
 #include "../kselftest.h"
 
-#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 19)
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MIANALR__ >= 19)
 # define HAVE_GETAUXVAL
 #endif
 
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
 	if (getauxval(AT_SECURE))
 		atsec = " (AT_SECURE is set)";
 	else
-		atsec = " (AT_SECURE is not set)";
+		atsec = " (AT_SECURE is analt set)";
 #endif
 
 	capng_get_caps_process();

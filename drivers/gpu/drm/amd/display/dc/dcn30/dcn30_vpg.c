@@ -8,12 +8,12 @@
  *  and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -53,14 +53,14 @@ void vpg3_update_generic_info_packet(
 	uint32_t i;
 
 	/* TODOFPGA Figure out a proper number for max_retries polling for lock
-	 * use 50 for now.
+	 * use 50 for analw.
 	 */
 	uint32_t max_retries = 50;
 
 	if (packet_index > 14)
 		ASSERT(0);
 
-	/* poll dig_update_lock is not locked -> asic internal signal
+	/* poll dig_update_lock is analt locked -> asic internal signal
 	 * assume otg master lock will unlock it
 	 */
 	/* REG_WAIT(AFMT_VBI_PACKET_CONTROL, AFMT_GENERIC_LOCK_STATUS,
@@ -72,8 +72,8 @@ void vpg3_update_generic_info_packet(
 	REG_WAIT(VPG_GENERIC_STATUS, VPG_GENERIC_CONFLICT_OCCURED,
 			0, 10, max_retries);
 
-	/* HW does is not reading GSP memory not reading too long ->
-	 * something wrong. clear GPS memory access and notify?
+	/* HW does is analt reading GSP memory analt reading too long ->
+	 * something wrong. clear GPS memory access and analtify?
 	 * hw SW is writing to GSP memory
 	 */
 	REG_UPDATE(VPG_GENERIC_STATUS, VPG_GENERIC_CONFLICT_CLR, 1);

@@ -15,19 +15,19 @@
 
 #include <video/mipi_display.h>
 
-struct visionox_vtdr6130 {
+struct visioanalx_vtdr6130 {
 	struct drm_panel panel;
 	struct mipi_dsi_device *dsi;
 	struct gpio_desc *reset_gpio;
 	struct regulator_bulk_data supplies[3];
 };
 
-static inline struct visionox_vtdr6130 *to_visionox_vtdr6130(struct drm_panel *panel)
+static inline struct visioanalx_vtdr6130 *to_visioanalx_vtdr6130(struct drm_panel *panel)
 {
-	return container_of(panel, struct visionox_vtdr6130, panel);
+	return container_of(panel, struct visioanalx_vtdr6130, panel);
 }
 
-static void visionox_vtdr6130_reset(struct visionox_vtdr6130 *ctx)
+static void visioanalx_vtdr6130_reset(struct visioanalx_vtdr6130 *ctx)
 {
 	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
 	usleep_range(10000, 11000);
@@ -37,7 +37,7 @@ static void visionox_vtdr6130_reset(struct visionox_vtdr6130 *ctx)
 	usleep_range(10000, 11000);
 }
 
-static int visionox_vtdr6130_on(struct visionox_vtdr6130 *ctx)
+static int visioanalx_vtdr6130_on(struct visioanalx_vtdr6130 *ctx)
 {
 	struct mipi_dsi_device *dsi = ctx->dsi;
 	struct device *dev = &dsi->dev;
@@ -125,7 +125,7 @@ static int visionox_vtdr6130_on(struct visionox_vtdr6130 *ctx)
 	return 0;
 }
 
-static int visionox_vtdr6130_off(struct visionox_vtdr6130 *ctx)
+static int visioanalx_vtdr6130_off(struct visioanalx_vtdr6130 *ctx)
 {
 	struct mipi_dsi_device *dsi = ctx->dsi;
 	struct device *dev = &dsi->dev;
@@ -150,9 +150,9 @@ static int visionox_vtdr6130_off(struct visionox_vtdr6130 *ctx)
 	return 0;
 }
 
-static int visionox_vtdr6130_prepare(struct drm_panel *panel)
+static int visioanalx_vtdr6130_prepare(struct drm_panel *panel)
 {
-	struct visionox_vtdr6130 *ctx = to_visionox_vtdr6130(panel);
+	struct visioanalx_vtdr6130 *ctx = to_visioanalx_vtdr6130(panel);
 	struct device *dev = &ctx->dsi->dev;
 	int ret;
 
@@ -161,9 +161,9 @@ static int visionox_vtdr6130_prepare(struct drm_panel *panel)
 	if (ret < 0)
 		return ret;
 
-	visionox_vtdr6130_reset(ctx);
+	visioanalx_vtdr6130_reset(ctx);
 
-	ret = visionox_vtdr6130_on(ctx);
+	ret = visioanalx_vtdr6130_on(ctx);
 	if (ret < 0) {
 		dev_err(dev, "Failed to initialize panel: %d\n", ret);
 		gpiod_set_value_cansleep(ctx->reset_gpio, 1);
@@ -174,13 +174,13 @@ static int visionox_vtdr6130_prepare(struct drm_panel *panel)
 	return 0;
 }
 
-static int visionox_vtdr6130_unprepare(struct drm_panel *panel)
+static int visioanalx_vtdr6130_unprepare(struct drm_panel *panel)
 {
-	struct visionox_vtdr6130 *ctx = to_visionox_vtdr6130(panel);
+	struct visioanalx_vtdr6130 *ctx = to_visioanalx_vtdr6130(panel);
 	struct device *dev = &ctx->dsi->dev;
 	int ret;
 
-	ret = visionox_vtdr6130_off(ctx);
+	ret = visioanalx_vtdr6130_off(ctx);
 	if (ret < 0)
 		dev_err(dev, "Failed to un-initialize panel: %d\n", ret);
 
@@ -191,7 +191,7 @@ static int visionox_vtdr6130_unprepare(struct drm_panel *panel)
 	return 0;
 }
 
-static const struct drm_display_mode visionox_vtdr6130_mode = {
+static const struct drm_display_mode visioanalx_vtdr6130_mode = {
 	.clock = (1080 + 20 + 2 + 20) * (2400 + 20 + 2 + 18) * 144 / 1000,
 	.hdisplay = 1080,
 	.hsync_start = 1080 + 20,
@@ -205,14 +205,14 @@ static const struct drm_display_mode visionox_vtdr6130_mode = {
 	.height_mm = 157,
 };
 
-static int visionox_vtdr6130_get_modes(struct drm_panel *panel,
+static int visioanalx_vtdr6130_get_modes(struct drm_panel *panel,
 				       struct drm_connector *connector)
 {
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(connector->dev, &visionox_vtdr6130_mode);
+	mode = drm_mode_duplicate(connector->dev, &visioanalx_vtdr6130_mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_set_name(mode);
 
@@ -224,13 +224,13 @@ static int visionox_vtdr6130_get_modes(struct drm_panel *panel,
 	return 1;
 }
 
-static const struct drm_panel_funcs visionox_vtdr6130_panel_funcs = {
-	.prepare = visionox_vtdr6130_prepare,
-	.unprepare = visionox_vtdr6130_unprepare,
-	.get_modes = visionox_vtdr6130_get_modes,
+static const struct drm_panel_funcs visioanalx_vtdr6130_panel_funcs = {
+	.prepare = visioanalx_vtdr6130_prepare,
+	.unprepare = visioanalx_vtdr6130_unprepare,
+	.get_modes = visioanalx_vtdr6130_get_modes,
 };
 
-static int visionox_vtdr6130_bl_update_status(struct backlight_device *bl)
+static int visioanalx_vtdr6130_bl_update_status(struct backlight_device *bl)
 {
 	struct mipi_dsi_device *dsi = bl_get_data(bl);
 	u16 brightness = backlight_get_brightness(bl);
@@ -238,12 +238,12 @@ static int visionox_vtdr6130_bl_update_status(struct backlight_device *bl)
 	return mipi_dsi_dcs_set_display_brightness_large(dsi, brightness);
 }
 
-static const struct backlight_ops visionox_vtdr6130_bl_ops = {
-	.update_status = visionox_vtdr6130_bl_update_status,
+static const struct backlight_ops visioanalx_vtdr6130_bl_ops = {
+	.update_status = visioanalx_vtdr6130_bl_update_status,
 };
 
 static struct backlight_device *
-visionox_vtdr6130_create_backlight(struct mipi_dsi_device *dsi)
+visioanalx_vtdr6130_create_backlight(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
 	const struct backlight_properties props = {
@@ -253,18 +253,18 @@ visionox_vtdr6130_create_backlight(struct mipi_dsi_device *dsi)
 	};
 
 	return devm_backlight_device_register(dev, dev_name(dev), dev, dsi,
-					      &visionox_vtdr6130_bl_ops, &props);
+					      &visioanalx_vtdr6130_bl_ops, &props);
 }
 
-static int visionox_vtdr6130_probe(struct mipi_dsi_device *dsi)
+static int visioanalx_vtdr6130_probe(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
-	struct visionox_vtdr6130 *ctx;
+	struct visioanalx_vtdr6130 *ctx;
 	int ret;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->supplies[0].supply = "vddio";
 	ctx->supplies[1].supply = "vci";
@@ -285,13 +285,13 @@ static int visionox_vtdr6130_probe(struct mipi_dsi_device *dsi)
 
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_NO_EOT_PACKET |
-			  MIPI_DSI_CLOCK_NON_CONTINUOUS;
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_ANAL_EOT_PACKET |
+			  MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 
-	drm_panel_init(&ctx->panel, dev, &visionox_vtdr6130_panel_funcs,
+	drm_panel_init(&ctx->panel, dev, &visioanalx_vtdr6130_panel_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
 
-	ctx->panel.backlight = visionox_vtdr6130_create_backlight(dsi);
+	ctx->panel.backlight = visioanalx_vtdr6130_create_backlight(dsi);
 	if (IS_ERR(ctx->panel.backlight))
 		return dev_err_probe(dev, PTR_ERR(ctx->panel.backlight),
 				     "Failed to create backlight\n");
@@ -308,9 +308,9 @@ static int visionox_vtdr6130_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static void visionox_vtdr6130_remove(struct mipi_dsi_device *dsi)
+static void visioanalx_vtdr6130_remove(struct mipi_dsi_device *dsi)
 {
-	struct visionox_vtdr6130 *ctx = mipi_dsi_get_drvdata(dsi);
+	struct visioanalx_vtdr6130 *ctx = mipi_dsi_get_drvdata(dsi);
 	int ret;
 
 	ret = mipi_dsi_detach(dsi);
@@ -320,22 +320,22 @@ static void visionox_vtdr6130_remove(struct mipi_dsi_device *dsi)
 	drm_panel_remove(&ctx->panel);
 }
 
-static const struct of_device_id visionox_vtdr6130_of_match[] = {
-	{ .compatible = "visionox,vtdr6130" },
+static const struct of_device_id visioanalx_vtdr6130_of_match[] = {
+	{ .compatible = "visioanalx,vtdr6130" },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, visionox_vtdr6130_of_match);
+MODULE_DEVICE_TABLE(of, visioanalx_vtdr6130_of_match);
 
-static struct mipi_dsi_driver visionox_vtdr6130_driver = {
-	.probe = visionox_vtdr6130_probe,
-	.remove = visionox_vtdr6130_remove,
+static struct mipi_dsi_driver visioanalx_vtdr6130_driver = {
+	.probe = visioanalx_vtdr6130_probe,
+	.remove = visioanalx_vtdr6130_remove,
 	.driver = {
-		.name = "panel-visionox-vtdr6130",
-		.of_match_table = visionox_vtdr6130_of_match,
+		.name = "panel-visioanalx-vtdr6130",
+		.of_match_table = visioanalx_vtdr6130_of_match,
 	},
 };
-module_mipi_dsi_driver(visionox_vtdr6130_driver);
+module_mipi_dsi_driver(visioanalx_vtdr6130_driver);
 
 MODULE_AUTHOR("Neil Armstrong <neil.armstrong@linaro.org>");
-MODULE_DESCRIPTION("Panel driver for the Visionox VTDR6130 AMOLED DSI panel");
+MODULE_DESCRIPTION("Panel driver for the Visioanalx VTDR6130 AMOLED DSI panel");
 MODULE_LICENSE("GPL");

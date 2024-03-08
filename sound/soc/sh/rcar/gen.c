@@ -3,7 +3,7 @@
 // Renesas R-Car Gen1 SRU/SSI support
 //
 // Copyright (C) 2013 Renesas Solutions Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 
 /*
  * #define DEBUG
@@ -180,7 +180,7 @@ static int _rsnd_gen_regmap_init(struct rsnd_priv *priv,
 	if (!res)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, reg_id);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(base))
@@ -542,11 +542,11 @@ int rsnd_gen_probe(struct rsnd_priv *priv)
 
 	gen = devm_kzalloc(dev, sizeof(*gen), GFP_KERNEL);
 	if (!gen)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->gen = gen;
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 	if (rsnd_is_gen1(priv))
 		ret = rsnd_gen1_probe(priv);
 	else if (rsnd_is_gen2(priv) ||
@@ -556,7 +556,7 @@ int rsnd_gen_probe(struct rsnd_priv *priv)
 		ret = rsnd_gen4_probe(priv);
 
 	if (ret < 0)
-		dev_err(dev, "unknown generation R-Car sound device\n");
+		dev_err(dev, "unkanalwn generation R-Car sound device\n");
 
 	return ret;
 }

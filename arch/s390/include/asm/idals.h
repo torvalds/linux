@@ -13,7 +13,7 @@
 #ifndef _S390_IDALS_H
 #define _S390_IDALS_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -80,7 +80,7 @@ static inline unsigned long *idal_create_words(unsigned long *idaws,
  * If necessary it allocates an IDAL and sets the appropriate flags.
  */
 static inline int
-set_normalized_cda(struct ccw1 * ccw, void *vaddr)
+set_analrmalized_cda(struct ccw1 * ccw, void *vaddr)
 {
 	unsigned int nridaws;
 	unsigned long *idal;
@@ -92,7 +92,7 @@ set_normalized_cda(struct ccw1 * ccw, void *vaddr)
 		idal = kmalloc(nridaws * sizeof(unsigned long),
 			       GFP_ATOMIC | GFP_DMA );
 		if (idal == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 		idal_create_words(idal, vaddr, ccw->count);
 		ccw->flags |= CCW_FLAG_IDA;
 		vaddr = idal;
@@ -105,7 +105,7 @@ set_normalized_cda(struct ccw1 * ccw, void *vaddr)
  * Releases any allocated IDAL related to the CCW.
  */
 static inline void
-clear_normalized_cda(struct ccw1 * ccw)
+clear_analrmalized_cda(struct ccw1 * ccw)
 {
 	if (ccw->flags & CCW_FLAG_IDA) {
 		kfree((void *)(unsigned long) ccw->cda);
@@ -136,7 +136,7 @@ idal_buffer_alloc(size_t size, int page_order)
 	nr_chunks = (4096 << page_order) >> IDA_SIZE_LOG;
 	ib = kmalloc(struct_size(ib, data, nr_ptrs), GFP_DMA | GFP_KERNEL);
 	if (ib == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ib->size = size;
 	ib->page_order = page_order;
 	for (i = 0; i < nr_ptrs; i++) {
@@ -148,14 +148,14 @@ idal_buffer_alloc(size_t size, int page_order)
 			__get_free_pages(GFP_KERNEL, page_order);
 		if (ib->data[i] != NULL)
 			continue;
-		// Not enough memory
+		// Analt eanalugh memory
 		while (i >= nr_chunks) {
 			i -= nr_chunks;
 			free_pages((unsigned long) ib->data[i],
 				   ib->page_order);
 		}
 		kfree(ib);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	return ib;
 }
@@ -196,7 +196,7 @@ idal_buffer_set_cda(struct idal_buffer *ib, struct ccw1 *ccw)
 		ccw->cda = (u32)(addr_t) ib->data;
 		ccw->flags |= CCW_FLAG_IDA;
 	} else
-		// we do not need idals - use direct addressing
+		// we do analt need idals - use direct addressing
 		ccw->cda = (u32)(addr_t) ib->data[0];
 	ccw->count = ib->size;
 }

@@ -108,7 +108,7 @@ struct snd_tscm {
 #define TSCM_OFFSET_FIRMWARE_HW		0x000c
 
 #define TSCM_OFFSET_ISOC_TX_CH		0x0200
-#define TSCM_OFFSET_UNKNOWN		0x0204
+#define TSCM_OFFSET_UNKANALWN		0x0204
 #define TSCM_OFFSET_START_STREAMING	0x0208
 #define TSCM_OFFSET_ISOC_RX_CH		0x020c
 #define TSCM_OFFSET_ISOC_RX_ON		0x0210	/* Little conviction. */
@@ -116,7 +116,7 @@ struct snd_tscm {
 #define TSCM_OFFSET_RX_PCM_CHANNELS	0x0218
 #define TSCM_OFFSET_MULTIPLEX_MODE	0x021c
 #define TSCM_OFFSET_ISOC_TX_ON		0x0220
-/* Unknown				0x0224 */
+/* Unkanalwn				0x0224 */
 #define TSCM_OFFSET_CLOCK_STATUS	0x0228
 #define TSCM_OFFSET_SET_OPTION		0x022c
 
@@ -128,19 +128,19 @@ struct snd_tscm {
 
 #define TSCM_OFFSET_MIDI_RX_QUAD	0x4000
 
-// Although FE-8 supports the above registers, it has no I/O interfaces for
-// audio samples and music messages. Otherwise it supports another notification
+// Although FE-8 supports the above registers, it has anal I/O interfaces for
+// audio samples and music messages. Otherwise it supports aanalther analtification
 // for status and control message as well as LED brightening. The message
 // consists of quadlet-aligned data up to 32 quadlets. The first byte of message
 // is fixed to 0x40. The second byte is between 0x00 to 0x1f and represent each
 // control:
 //   fader:	0x00-0x07
 //   button:	0x0d, 0x0e
-//   knob:	0x14-0x1b
+//   kanalb:	0x14-0x1b
 //   sensing:	0x0b
 //
 // The rest two bytes represent state of the controls; e.g. current value for
-// fader and knob, bitmasks for button and sensing.
+// fader and kanalb, bitmasks for button and sensing.
 // Just after turning on, 32 quadlets messages with 0x00-0x1f are immediately
 // sent in one transaction. After, several quadlets are sent in one transaction.
 //

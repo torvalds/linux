@@ -15,7 +15,7 @@ int main(int argc, char **argv)
 	cpus = -1;
 
 	/*
-	 * Just run a basic test: pass enough pairs to get up to the base
+	 * Just run a basic test: pass eanalugh pairs to get up to the base
 	 * behavior, and then check to make sure it's sane.
 	 */
 	for (long i = 0; i < 8; i++)
@@ -26,7 +26,7 @@ int main(int argc, char **argv)
 		ksft_exit_fail_msg("hwprobe() failed with %ld\n", out);
 
 	for (long i = 0; i < 4; ++i) {
-		/* Fail if the kernel claims not to recognize a base key. */
+		/* Fail if the kernel claims analt to recognize a base key. */
 		if ((i < 4) && (pairs[i].key != i))
 			ksft_exit_fail_msg("Failed to recognize base key: key != i, "
 					   "key=%lld, i=%ld\n", pairs[i].key, i);
@@ -47,7 +47,7 @@ int main(int argc, char **argv)
 	ksft_test_result(out != 0, "Bad CPU set\n");
 
 	out = riscv_hwprobe(pairs, 8, 1, 0, 0);
-	ksft_test_result(out != 0, "NULL CPU set with non-zero size\n");
+	ksft_test_result(out != 0, "NULL CPU set with analn-zero size\n");
 
 	pairs[0].key = RISCV_HWPROBE_KEY_BASE_BEHAVIOR;
 	out = riscv_hwprobe(pairs, 1, 1, &cpus, 0);
@@ -60,7 +60,7 @@ int main(int argc, char **argv)
 	out = riscv_hwprobe(pairs, 2, 0, 0, 0);
 	ksft_test_result(out == 0 && pairs[0].key == -1 &&
 			 pairs[1].key == 1 && pairs[1].value != 0xAAAA,
-			 "Unknown key overwritten with -1 and doesn't block other elements\n");
+			 "Unkanalwn key overwritten with -1 and doesn't block other elements\n");
 
 	ksft_finished();
 }

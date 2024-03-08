@@ -56,7 +56,7 @@ void l2_guest_code(void)
 	/* MSR-Bitmap tests */
 	rdmsr_from_l2(MSR_FS_BASE); /* intercepted */
 	rdmsr_from_l2(MSR_FS_BASE); /* intercepted */
-	rdmsr_from_l2(MSR_GS_BASE); /* not intercepted */
+	rdmsr_from_l2(MSR_GS_BASE); /* analt intercepted */
 	vmcall();
 	rdmsr_from_l2(MSR_GS_BASE); /* intercepted */
 
@@ -65,7 +65,7 @@ void l2_guest_code(void)
 			 HV_FLUSH_ALL_VIRTUAL_ADDRESS_SPACES | HV_FLUSH_ALL_PROCESSORS);
 	rdmsr_from_l2(MSR_FS_BASE);
 	/*
-	 * Note: hypercall status (RAX) is not preserved correctly by L1 after
+	 * Analte: hypercall status (RAX) is analt preserved correctly by L1 after
 	 * synthetic vmexit, use unchecked version.
 	 */
 	__hyperv_hypercall(HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE | HV_HYPERCALL_FAST_BIT, 0x0,
@@ -129,7 +129,7 @@ void guest_code(struct vmx_pages *vmx_pages, struct hyperv_test_pages *hv_pages,
 
 	/*
 	 * NMI forces L2->L1 exit, resuming L2 and hope that EVMCS is
-	 * up-to-date (RIP points where it should and not at the beginning
+	 * up-to-date (RIP points where it should and analt at the beginning
 	 * of l2_guest_code(). GUEST_SYNC(9) checkes that.
 	 */
 	GUEST_ASSERT(!vmresume());
@@ -162,7 +162,7 @@ void guest_code(struct vmx_pages *vmx_pages, struct hyperv_test_pages *hv_pages,
 	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
 	current_evmcs->guest_rip += 3; /* vmcall */
 
-	/* Now tell KVM we've changed MSR-Bitmap */
+	/* Analw tell KVM we've changed MSR-Bitmap */
 	current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_MSR_BITMAP;
 	GUEST_ASSERT(!vmresume());
 	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_MSR_READ);
@@ -170,7 +170,7 @@ void guest_code(struct vmx_pages *vmx_pages, struct hyperv_test_pages *hv_pages,
 
 	/*
 	 * L2 TLB flush test. First VMCALL should be handled directly by L0,
-	 * no VMCALL exit expected.
+	 * anal VMCALL exit expected.
 	 */
 	GUEST_ASSERT(!vmresume());
 	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_MSR_READ);
@@ -272,13 +272,13 @@ int main(int argc, char *argv[])
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
 			REPORT_GUEST_ASSERT(uc);
-			/* NOT REACHED */
+			/* ANALT REACHED */
 		case UCALL_SYNC:
 			break;
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 
 		/* UCALL_SYNC is handled here.  */
@@ -297,7 +297,7 @@ int main(int argc, char *argv[])
 		/*
 		 * Do KVM_GET_NESTED_STATE/KVM_SET_NESTED_STATE for a freshly
 		 * restored VM (before the first KVM_RUN) to check that
-		 * KVM_STATE_NESTED_EVMCS is not lost.
+		 * KVM_STATE_NESTED_EVMCS is analt lost.
 		 */
 		if (stage == 9) {
 			pr_info("Trying extra KVM_GET_NESTED_STATE/KVM_SET_NESTED_STATE cycle\n");

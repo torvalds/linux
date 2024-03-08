@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DCORE1_SYNC_MNGR_GLBL_REGS_H_
@@ -44,7 +44,7 @@
 
 #define mmDCORE1_SYNC_MNGR_GLBL_CQ_INTR 0x431E044
 
-#define mmDCORE1_SYNC_MNGR_GLBL_ASID_NONE_SEC_PRIV 0x431E048
+#define mmDCORE1_SYNC_MNGR_GLBL_ASID_ANALNE_SEC_PRIV 0x431E048
 
 #define mmDCORE1_SYNC_MNGR_GLBL_PI_INC_MODE_SIZE 0x431E04C
 

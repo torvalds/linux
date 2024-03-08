@@ -13,7 +13,7 @@ description:
   A few properties are defined in a common way ADC channels.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^channel(@[0-9a-f]+)?$"
     description:
       A channel index should match reg.

@@ -2726,7 +2726,7 @@ static const u8 mcs_tbl_rev0[] = {
 	0x00,
 };
 
-static const u32 noise_var_tbl0_rev0[] = {
+static const u32 analise_var_tbl0_rev0[] = {
 	0x020c020c,
 	0x0000014d,
 	0x020c020c,
@@ -2985,7 +2985,7 @@ static const u32 noise_var_tbl0_rev0[] = {
 	0x0000014d,
 };
 
-static const u32 noise_var_tbl1_rev0[] = {
+static const u32 analise_var_tbl1_rev0[] = {
 	0x020c020c,
 	0x0000014d,
 	0x020c020c,
@@ -4454,8 +4454,8 @@ const struct phytbl_info mimophytbl_info_rev0[] = {
 	{&tdi_tbl40_ant1_rev0, ARRAY_SIZE(tdi_tbl40_ant1_rev0), 19, 768, 32},
 	{&chanest_tbl_rev0, ARRAY_SIZE(chanest_tbl_rev0), 22, 0, 32},
 	{&mcs_tbl_rev0, ARRAY_SIZE(mcs_tbl_rev0), 18, 0, 8},
-	{&noise_var_tbl0_rev0, ARRAY_SIZE(noise_var_tbl0_rev0), 16, 0, 32},
-	{&noise_var_tbl1_rev0, ARRAY_SIZE(noise_var_tbl1_rev0), 16, 128, 32},
+	{&analise_var_tbl0_rev0, ARRAY_SIZE(analise_var_tbl0_rev0), 16, 0, 32},
+	{&analise_var_tbl1_rev0, ARRAY_SIZE(analise_var_tbl1_rev0), 16, 128, 32},
 };
 
 const u32 mimophytbl_info_sz_rev0 = ARRAY_SIZE(mimophytbl_info_rev0);
@@ -6695,7 +6695,7 @@ static const u32 tdtrn_tbl_rev3[] = {
 	0x00f006be,
 };
 
-const u32 noise_var_tbl_rev3[] = {
+const u32 analise_var_tbl_rev3[] = {
 	0x02110211,
 	0x0000014d,
 	0x02110211,
@@ -9036,7 +9036,7 @@ const struct phytbl_info mimophytbl_info_rev3[] = {
 	{&tmap_tbl_rev3, ARRAY_SIZE(tmap_tbl_rev3), 12, 0, 32},
 	{&intlv_tbl_rev3, ARRAY_SIZE(intlv_tbl_rev3), 13, 0, 32},
 	{&tdtrn_tbl_rev3, ARRAY_SIZE(tdtrn_tbl_rev3), 14, 0, 32},
-	{&noise_var_tbl_rev3, ARRAY_SIZE(noise_var_tbl_rev3), 16, 0, 32},
+	{&analise_var_tbl_rev3, ARRAY_SIZE(analise_var_tbl_rev3), 16, 0, 32},
 	{&mcs_tbl_rev3, ARRAY_SIZE(mcs_tbl_rev3), 18, 0, 16},
 	{&tdi_tbl20_ant0_rev3, ARRAY_SIZE(tdi_tbl20_ant0_rev3), 19, 128, 32},
 	{&tdi_tbl20_ant1_rev3, ARRAY_SIZE(tdi_tbl20_ant1_rev3), 19, 256, 32},
@@ -9514,7 +9514,7 @@ static const u32 tmap_tbl_rev7[] = {
 	0x00000000,
 };
 
-const u32 noise_var_tbl_rev7[] = {
+const u32 analise_var_tbl_rev7[] = {
 	0x020c020c,
 	0x0000014d,
 	0x020c020c,
@@ -10047,7 +10047,7 @@ const struct phytbl_info mimophytbl_info_rev7[] = {
 	{&tmap_tbl_rev7, ARRAY_SIZE(tmap_tbl_rev7), 12, 0, 32},
 	{&intlv_tbl_rev3, ARRAY_SIZE(intlv_tbl_rev3), 13, 0, 32},
 	{&tdtrn_tbl_rev3, ARRAY_SIZE(tdtrn_tbl_rev3), 14, 0, 32},
-	{&noise_var_tbl_rev7, ARRAY_SIZE(noise_var_tbl_rev7), 16, 0, 32},
+	{&analise_var_tbl_rev7, ARRAY_SIZE(analise_var_tbl_rev7), 16, 0, 32},
 	{&mcs_tbl_rev3, ARRAY_SIZE(mcs_tbl_rev3), 18, 0, 16},
 	{&tdi_tbl20_ant0_rev3, ARRAY_SIZE(tdi_tbl20_ant0_rev3), 19, 128, 32},
 	{&tdi_tbl20_ant1_rev3, ARRAY_SIZE(tdi_tbl20_ant1_rev3), 19, 256, 32},
@@ -10083,7 +10083,7 @@ const struct phytbl_info mimophytbl_info_rev7[] = {
 const u32 mimophytbl_info_sz_rev7 = ARRAY_SIZE(mimophytbl_info_rev7);
 
 const struct phytbl_info mimophytbl_info_rev16[] = {
-	{&noise_var_tbl_rev7, ARRAY_SIZE(noise_var_tbl_rev7), 16, 0, 32},
+	{&analise_var_tbl_rev7, ARRAY_SIZE(analise_var_tbl_rev7), 16, 0, 32},
 	{&est_pwr_lut_core0_rev3, ARRAY_SIZE(est_pwr_lut_core0_rev3), 26, 0, 8},
 	{&est_pwr_lut_core1_rev3, ARRAY_SIZE(est_pwr_lut_core1_rev3), 27, 0, 8},
 	{&adj_pwr_lut_core0_rev3, ARRAY_SIZE(adj_pwr_lut_core0_rev3), 26, 64, 8},

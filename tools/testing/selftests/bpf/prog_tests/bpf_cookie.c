@@ -14,7 +14,7 @@
 #include "uprobe_multi.skel.h"
 
 /* uprobe attach point */
-static noinline void trigger_func(void)
+static analinline void trigger_func(void)
 {
 	asm volatile ("");
 }
@@ -29,14 +29,14 @@ static void kprobe_subtest(struct test_bpf_cookie *skel)
 	opts.bpf_cookie = 0x1;
 	opts.retprobe = false;
 	link1 = bpf_program__attach_kprobe_opts(skel->progs.handle_kprobe,
-						 SYS_NANOSLEEP_KPROBE_NAME, &opts);
+						 SYS_NAANALSLEEP_KPROBE_NAME, &opts);
 	if (!ASSERT_OK_PTR(link1, "link1"))
 		goto cleanup;
 
 	opts.bpf_cookie = 0x2;
 	opts.retprobe = false;
 	link2 = bpf_program__attach_kprobe_opts(skel->progs.handle_kprobe,
-						 SYS_NANOSLEEP_KPROBE_NAME, &opts);
+						 SYS_NAANALSLEEP_KPROBE_NAME, &opts);
 	if (!ASSERT_OK_PTR(link2, "link2"))
 		goto cleanup;
 
@@ -44,14 +44,14 @@ static void kprobe_subtest(struct test_bpf_cookie *skel)
 	opts.bpf_cookie = 0x10;
 	opts.retprobe = true;
 	retlink1 = bpf_program__attach_kprobe_opts(skel->progs.handle_kretprobe,
-						    SYS_NANOSLEEP_KPROBE_NAME, &opts);
+						    SYS_NAANALSLEEP_KPROBE_NAME, &opts);
 	if (!ASSERT_OK_PTR(retlink1, "retlink1"))
 		goto cleanup;
 
 	opts.bpf_cookie = 0x20;
 	opts.retprobe = true;
 	retlink2 = bpf_program__attach_kprobe_opts(skel->progs.handle_kretprobe,
-						    SYS_NANOSLEEP_KPROBE_NAME, &opts);
+						    SYS_NAANALSLEEP_KPROBE_NAME, &opts);
 	if (!ASSERT_OK_PTR(retlink2, "retlink2"))
 		goto cleanup;
 
@@ -377,14 +377,14 @@ static void tp_subtest(struct test_bpf_cookie *skel)
 	/* attach first tp prog */
 	opts.bpf_cookie = 0x10000;
 	link1 = bpf_program__attach_tracepoint_opts(skel->progs.handle_tp1,
-						    "syscalls", "sys_enter_nanosleep", &opts);
+						    "syscalls", "sys_enter_naanalsleep", &opts);
 	if (!ASSERT_OK_PTR(link1, "link1"))
 		goto cleanup;
 
 	/* attach second tp prog */
 	opts.bpf_cookie = 0x20000;
 	link2 = bpf_program__attach_tracepoint_opts(skel->progs.handle_tp2,
-						    "syscalls", "sys_enter_nanosleep", &opts);
+						    "syscalls", "sys_enter_naanalsleep", &opts);
 	if (!ASSERT_OK_PTR(link2, "link2"))
 		goto cleanup;
 
@@ -393,7 +393,7 @@ static void tp_subtest(struct test_bpf_cookie *skel)
 
 	ASSERT_EQ(skel->bss->tp_res, 0x10000 | 0x20000, "tp_res1");
 
-	/* now we detach first prog and will attach third one, which causes
+	/* analw we detach first prog and will attach third one, which causes
 	 * two internal calls to bpf_prog_array_copy(), shuffling
 	 * bpf_prog_array_items around. We test here that we don't lose track
 	 * of associated bpf_cookies.
@@ -406,7 +406,7 @@ static void tp_subtest(struct test_bpf_cookie *skel)
 	/* attach third tp prog */
 	opts.bpf_cookie = 0x40000;
 	link3 = bpf_program__attach_tracepoint_opts(skel->progs.handle_tp3,
-						    "syscalls", "sys_enter_nanosleep", &opts);
+						    "syscalls", "sys_enter_naanalsleep", &opts);
 	if (!ASSERT_OK_PTR(link3, "link3"))
 		goto cleanup;
 
@@ -561,7 +561,7 @@ static void lsm_subtest(struct test_bpf_cookie *skel)
 
 	err = stack_mprotect();
 	if (!ASSERT_EQ(err, -1, "stack_mprotect") ||
-	    !ASSERT_EQ(errno, EPERM, "stack_mprotect"))
+	    !ASSERT_EQ(erranal, EPERM, "stack_mprotect"))
 		goto cleanup;
 
 	usleep(1);

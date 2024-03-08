@@ -13,19 +13,19 @@
  * modification, are permitted provided that the following conditions
  * are met:
  *
- * - Redistributions of source code must retain the above copyright notice,
+ * - Redistributions of source code must retain the above copyright analtice,
  *   this list of conditions and the following disclaimer.
  *
  * - Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   analtice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO,THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
@@ -165,7 +165,7 @@ static const struct ib_device_ops ocrdma_dev_ops = {
 	.query_port = ocrdma_query_port,
 	.query_qp = ocrdma_query_qp,
 	.reg_user_mr = ocrdma_reg_user_mr,
-	.req_notify_cq = ocrdma_arm_cq,
+	.req_analtify_cq = ocrdma_arm_cq,
 	.resize_cq = ocrdma_resize_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, ocrdma_ah, ibah),
@@ -189,13 +189,13 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 {
 	int ret;
 
-	addrconf_addr_eui48((u8 *)&dev->ibdev.node_guid,
+	addrconf_addr_eui48((u8 *)&dev->ibdev.analde_guid,
 			    dev->nic_info.mac_addr);
-	BUILD_BUG_ON(sizeof(OCRDMA_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
-	memcpy(dev->ibdev.node_desc, OCRDMA_NODE_DESC,
-	       sizeof(OCRDMA_NODE_DESC));
+	BUILD_BUG_ON(sizeof(OCRDMA_ANALDE_DESC) > IB_DEVICE_ANALDE_DESC_MAX);
+	memcpy(dev->ibdev.analde_desc, OCRDMA_ANALDE_DESC,
+	       sizeof(OCRDMA_ANALDE_DESC));
 
-	dev->ibdev.node_type = RDMA_NODE_IB_CA;
+	dev->ibdev.analde_type = RDMA_ANALDE_IB_CA;
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.num_comp_vectors = dev->eq_cnt;
 
@@ -248,7 +248,7 @@ static int ocrdma_alloc_resources(struct ocrdma_dev *dev)
 	return 0;
 alloc_err:
 	pr_err("%s(%d) error.\n", __func__, dev->id);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void ocrdma_free_resources(struct ocrdma_dev *dev)
@@ -369,7 +369,7 @@ static void ocrdma_shutdown(struct ocrdma_dev *dev)
 }
 
 /* event handling via NIC driver ensures that all the NIC specific
- * initialization done before RoCE driver notifies
+ * initialization done before RoCE driver analtifies
  * event to stack.
  */
 static void ocrdma_event_handler(struct ocrdma_dev *dev, u32 event)

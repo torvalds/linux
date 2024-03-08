@@ -87,7 +87,7 @@ struct isku_roccat_report {
 
 struct isku_device {
 	int roccat_claimed;
-	int chrdev_minor;
+	int chrdev_mianalr;
 
 	struct mutex isku_lock;
 

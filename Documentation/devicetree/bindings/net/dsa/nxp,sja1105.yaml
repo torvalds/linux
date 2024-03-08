@@ -35,9 +35,9 @@ properties:
   spi-cpha: true
   spi-cpol: true
 
-  # Optional container node for the 2 internal MDIO buses of the SJA1110
+  # Optional container analde for the 2 internal MDIO buses of the SJA1110
   # (one for the internal 100base-T1 PHYs and the other for the single
-  # 100base-TX PHY). The "reg" property does not have physical significance.
+  # 100base-TX PHY). The "reg" property does analt have physical significance.
   # The PHY addresses to port correspondence is as follows: for 100base-T1,
   # port 5 has PHY 1, port 6 has PHY 2 etc, while for 100base-TX, port 1 has
   # PHY 1.

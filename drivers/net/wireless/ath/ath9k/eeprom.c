@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -185,7 +185,7 @@ int ath9k_hw_nvram_swap_data(struct ath_hw *ah, bool *swap_needed, int size)
 	} else if (magic != AR5416_EEPROM_MAGIC) {
 		if (ath9k_hw_use_flash(ah)) {
 			ath_dbg(common, EEPROM,
-				"Ignoring invalid EEPROM magic (0x%04x).\n",
+				"Iganalring invalid EEPROM magic (0x%04x).\n",
 				magic);
 		} else {
 			ath_err(common,
@@ -195,9 +195,9 @@ int ath9k_hw_nvram_swap_data(struct ath_hw *ah, bool *swap_needed, int size)
 	}
 
 	if (needs_byteswap) {
-		if (ah->ah_flags & AH_NO_EEP_SWAP) {
+		if (ah->ah_flags & AH_ANAL_EEP_SWAP) {
 			ath_info(common,
-				 "Ignoring endianness difference in EEPROM magic bytes.\n");
+				 "Iganalring endianness difference in EEPROM magic bytes.\n");
 		} else {
 			eepdata = (u16 *)(&ah->eeprom);
 

@@ -1669,7 +1669,7 @@
 		};
 
 		/*
-		 * Break node order to solve dependency probe issue between
+		 * Break analde order to solve dependency probe issue between
 		 * pinctrl and exti.
 		 */
 		pinctrl: pinctrl@50002000 {

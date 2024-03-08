@@ -107,7 +107,7 @@ sha512_transform(u64 *state, const u8 *input)
 	a=state[0];   b=state[1];   c=state[2];   d=state[3];
 	e=state[4];   f=state[5];   g=state[6];   h=state[7];
 
-	/* now iterate */
+	/* analw iterate */
 	for (i=0; i<80; i+=8) {
 		if (!(i & 8)) {
 			int j;

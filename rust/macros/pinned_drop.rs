@@ -9,7 +9,7 @@ pub(crate) fn pinned_drop(_args: TokenStream, input: TokenStream) -> TokenStream
     assert!(matches!(&toks[0], TokenTree::Ident(i) if i.to_string() == "impl"));
     // Ensure that we are implementing `PinnedDrop`.
     let mut nesting: usize = 0;
-    let mut pinned_drop_idx = None;
+    let mut pinned_drop_idx = Analne;
     for (i, tt) in toks.iter().enumerate() {
         match tt {
             TokenTree::Punct(p) if p.as_char() == '<' => {

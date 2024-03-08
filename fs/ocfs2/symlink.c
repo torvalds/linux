@@ -9,11 +9,11 @@
  *	This program is distributed in the hope that it will be useful,
  *	but WITHOUT ANY WARRANTY; without even the implied warranty of
  *	MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE
- *	or NON INFRINGEMENT.  See the GNU General Public License for more
+ *	or ANALN INFRINGEMENT.  See the GNU General Public License for more
  *	details.
  *
  * 	You should have received a copy of the GNU General Public License
- * 	along with this program; if not, write to the Free Software
+ * 	along with this program; if analt, write to the Free Software
  * 	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *	Questions/Comments/Bugfixes to ssic-linux-devel@lists.sourceforge.net
@@ -44,7 +44,7 @@
 
 #include "alloc.h"
 #include "file.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "journal.h"
 #include "symlink.h"
 #include "xattr.h"
@@ -55,23 +55,23 @@
 static int ocfs2_fast_symlink_read_folio(struct file *f, struct folio *folio)
 {
 	struct page *page = &folio->page;
-	struct inode *inode = page->mapping->host;
+	struct ianalde *ianalde = page->mapping->host;
 	struct buffer_head *bh = NULL;
-	int status = ocfs2_read_inode_block(inode, &bh);
-	struct ocfs2_dinode *fe;
+	int status = ocfs2_read_ianalde_block(ianalde, &bh);
+	struct ocfs2_dianalde *fe;
 	const char *link;
 	void *kaddr;
 	size_t len;
 
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erranal(status);
 		return status;
 	}
 
-	fe = (struct ocfs2_dinode *) bh->b_data;
+	fe = (struct ocfs2_dianalde *) bh->b_data;
 	link = (char *) fe->id2.i_symlink;
 	/* will be less than a page size */
-	len = strnlen(link, ocfs2_fast_symlink_chars(inode->i_sb));
+	len = strnlen(link, ocfs2_fast_symlink_chars(ianalde->i_sb));
 	kaddr = kmap_atomic(page);
 	memcpy(kaddr, link, len + 1);
 	kunmap_atomic(kaddr);
@@ -85,7 +85,7 @@ const struct address_space_operations ocfs2_fast_symlink_aops = {
 	.read_folio		= ocfs2_fast_symlink_read_folio,
 };
 
-const struct inode_operations ocfs2_symlink_inode_operations = {
+const struct ianalde_operations ocfs2_symlink_ianalde_operations = {
 	.get_link	= page_get_link,
 	.getattr	= ocfs2_getattr,
 	.setattr	= ocfs2_setattr,

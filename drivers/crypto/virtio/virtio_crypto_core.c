@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
  /* Driver for Virtio crypto device.
   *
-  * Copyright 2016 HUAWEI TECHNOLOGIES CO., LTD.
+  * Copyright 2016 HUAWEI TECHANALLOGIES CO., LTD.
   */
 
 #include <linux/err.h>
@@ -100,7 +100,7 @@ static int virtcrypto_find_vqs(struct virtio_crypto *vi)
 {
 	vq_callback_t **callbacks;
 	struct virtqueue **vqs;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	int i, total_vqs;
 	const char **names;
 	struct device *dev = &vi->vdev->dev;
@@ -148,7 +148,7 @@ static int virtcrypto_find_vqs(struct virtio_crypto *vi)
 		vi->data_vq[i].engine = crypto_engine_alloc_init_and_set(dev, true, NULL, true,
 						virtqueue_get_vring_size(vqs[i]));
 		if (!vi->data_vq[i].engine) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_engine;
 		}
 		tasklet_init(&vi->data_vq[i].done_task, virtcrypto_done_task,
@@ -177,7 +177,7 @@ static int virtcrypto_alloc_queues(struct virtio_crypto *vi)
 	vi->data_vq = kcalloc(vi->max_data_queues, sizeof(*vi->data_vq),
 				GFP_KERNEL);
 	if (!vi->data_vq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -211,7 +211,7 @@ static void virtcrypto_set_affinity(struct virtio_crypto *vcrypto)
 	 * In multiqueue mode, we let the queue to be private to one cpu
 	 * by setting the affinity hint to eliminate the contention.
 	 *
-	 * TODO: adds cpu hotplug support by register cpu notifier.
+	 * TODO: adds cpu hotplug support by register cpu analtifier.
 	 *
 	 */
 	for_each_online_cpu(cpu) {
@@ -262,12 +262,12 @@ static int virtcrypto_update_status(struct virtio_crypto *vcrypto)
 			struct virtio_crypto_config, status, &status);
 
 	/*
-	 * Unknown status bits would be a host error and the driver
+	 * Unkanalwn status bits would be a host error and the driver
 	 * should consider the device to be broken.
 	 */
 	if (status & (~VIRTIO_CRYPTO_S_HW_READY)) {
 		dev_warn(&vcrypto->vdev->dev,
-				"Unknown status bits: 0x%x\n", status);
+				"Unkanalwn status bits: 0x%x\n", status);
 
 		virtio_break_device(vcrypto->vdev);
 		return -EPERM;
@@ -289,7 +289,7 @@ static int virtcrypto_update_status(struct virtio_crypto *vcrypto)
 		dev_info(&vcrypto->vdev->dev, "Accelerator device is ready\n");
 	} else {
 		virtcrypto_dev_stop(vcrypto);
-		dev_info(&vcrypto->vdev->dev, "Accelerator is not ready\n");
+		dev_info(&vcrypto->vdev->dev, "Accelerator is analt ready\n");
 	}
 
 	return 0;
@@ -363,7 +363,7 @@ static int virtcrypto_probe(struct virtio_device *vdev)
 	u32 crypto_services = 0;
 
 	if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!vdev->config->get) {
 		dev_err(&vdev->dev, "%s failure: config access disabled\n",
@@ -371,20 +371,20 @@ static int virtcrypto_probe(struct virtio_device *vdev)
 		return -EINVAL;
 	}
 
-	if (num_possible_nodes() > 1 && dev_to_node(&vdev->dev) < 0) {
+	if (num_possible_analdes() > 1 && dev_to_analde(&vdev->dev) < 0) {
 		/*
-		 * If the accelerator is connected to a node with no memory
-		 * there is no point in using the accelerator since the remote
+		 * If the accelerator is connected to a analde with anal memory
+		 * there is anal point in using the accelerator since the remote
 		 * memory transaction will be very slow.
 		 */
 		dev_err(&vdev->dev, "Invalid NUMA configuration.\n");
 		return -EINVAL;
 	}
 
-	vcrypto = kzalloc_node(sizeof(*vcrypto), GFP_KERNEL,
-					dev_to_node(&vdev->dev));
+	vcrypto = kzalloc_analde(sizeof(*vcrypto), GFP_KERNEL,
+					dev_to_analde(&vdev->dev));
 	if (!vcrypto)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	virtio_cread_le(vdev, struct virtio_crypto_config,
 			max_dataqueues, &max_data_queues);
@@ -573,7 +573,7 @@ free_vqs:
 #endif
 
 static const unsigned int features[] = {
-	/* none */
+	/* analne */
 };
 
 static const struct virtio_device_id id_table[] = {

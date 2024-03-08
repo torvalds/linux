@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2015 Imagination Technologies
+ * Copyright (C) 2015 Imagination Techanallogies
  * Author: Alex Smith <alex.smith@imgtec.com>
  */
 
@@ -24,7 +24,7 @@ static inline bool FUNC(patch_vdso)(const char *path, void *vdso)
 		name = shstrtab + swap_uint32(shdr->sh_name);
 
 		/*
-		 * Ensure there are no relocation sections - ld.so does not
+		 * Ensure there are anal relocation sections - ld.so does analt
 		 * relocate the VDSO so if there are relocations things will
 		 * break.
 		 */
@@ -78,7 +78,7 @@ static inline bool FUNC(get_symbols)(const char *path, void *vdso)
 	}
 
 	if (i == sh_count) {
-		fprintf(stderr, "%s: '%s' has no symbol table\n", program_name,
+		fprintf(stderr, "%s: '%s' has anal symbol table\n", program_name,
 			path);
 		return false;
 	}

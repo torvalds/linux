@@ -24,7 +24,7 @@
 #include "iwl-debug.h"
 #include "iwl-agn-hw.h"
 #include "iwl-op-mode.h"
-#include "fw/notif-wait.h"
+#include "fw/analtif-wait.h"
 #include "iwl-trans.h"
 
 #include "led.h"
@@ -37,23 +37,23 @@
 #define CT_KILL_THRESHOLD	   114 /* in Celsius */
 #define CT_KILL_EXIT_THRESHOLD     95  /* in Celsius */
 
-/* Default noise level to report when noise measurement is not available.
+/* Default analise level to report when analise measurement is analt available.
  *   This may be because we're:
- *   1)  Not associated  no beacon statistics being sent to driver)
- *   2)  Scanning (noise measurement does not apply to associated channel)
- * Use default noise value of -127 ... this is below the range of measurable
+ *   1)  Analt associated  anal beacon statistics being sent to driver)
+ *   2)  Scanning (analise measurement does analt apply to associated channel)
+ * Use default analise value of -127 ... this is below the range of measurable
  *   Rx dBm for all agn devices, so it can indicate "unmeasurable" to user.
  *   Also, -127 works better than 0 when averaging frames with/without
- *   noise info (e.g. averaging might be done in app); measured dBm values are
+ *   analise info (e.g. averaging might be done in app); measured dBm values are
  *   always negative ... using a negative value as the default keeps all
  *   averages within an s8's (used in some apps) range of negative values. */
-#define IWL_NOISE_MEAS_NOT_AVAILABLE (-127)
+#define IWL_ANALISE_MEAS_ANALT_AVAILABLE (-127)
 
 /*
  * RTS threshold here is total size [2347] minus 4 FCS bytes
  * Per spec:
  *   a value of 0 means RTS on all data/management packets
- *   a value > max MSDU size means no RTS
+ *   a value > max MSDU size means anal RTS
  * else RTS for data/management frames where MPDU is larger
  *   than RTS value.
  */
@@ -108,7 +108,7 @@ struct iwl_qos_info {
  * The state machine of the BA agreement establishment / tear down.
  * These states relate to a specific RA / TID.
  *
- * @IWL_AGG_OFF: aggregation is not used
+ * @IWL_AGG_OFF: aggregation is analt used
  * @IWL_AGG_STARTING: aggregation are starting (between start and oper)
  * @IWL_AGG_ON: aggregation session is up
  * @IWL_EMPTYING_HW_QUEUE_ADDBA: establishing a BA session - waiting for the
@@ -132,7 +132,7 @@ enum iwl_agg_state {
  * duplicated for each RA / TID.
  *
  * @rate_n_flags: Rate at which Tx was attempted. Holds the data between the
- *	Tx response (REPLY_TX), and the block ack notification
+ *	Tx response (REPLY_TX), and the block ack analtification
  *	(REPLY_COMPRESSED_BA).
  * @state: state of the BA agreement establishment / tear down.
  * @txq_id: Tx queue used by the BA session
@@ -237,7 +237,7 @@ struct iwl_sensitivity_ranges {
  * Functions implemented in core module which are forward declared here
  * for use by iwl-[4-5].c
  *
- * NOTE:  The implementation of these functions are not hardware specific
+ * ANALTE:  The implementation of these functions are analt hardware specific
  * which is why they are in the core module files.
  *
  * Naming convention --
@@ -255,12 +255,12 @@ extern const u8 iwl_bcast_addr[ETH_ALEN];
 
 #define TX_POWER_IWL_ILLEGAL_VOLTAGE -10000
 
-/* Sensitivity and chain noise calibration */
+/* Sensitivity and chain analise calibration */
 #define INITIALIZATION_VALUE		0xFFFF
 #define IWL_CAL_NUM_BEACONS		16
 #define MAXIMUM_ALLOWED_PATHLOSS	15
 
-#define CHAIN_NOISE_MAX_DELTA_GAIN_CODE 3
+#define CHAIN_ANALISE_MAX_DELTA_GAIN_CODE 3
 
 #define MAX_FA_OFDM  50
 #define MIN_FA_OFDM  5
@@ -275,17 +275,17 @@ extern const u8 iwl_bcast_addr[ETH_ALEN];
 #define NRG_DIFF               2
 #define NRG_STEP_CCK           2
 #define NRG_MARGIN             8
-#define MAX_NUMBER_CCK_NO_FA 100
+#define MAX_NUMBER_CCK_ANAL_FA 100
 
 #define AUTO_CORR_CCK_MIN_VAL_DEF    (125)
 
 #define CHAIN_A             0
 #define CHAIN_B             1
 #define CHAIN_C             2
-#define CHAIN_NOISE_DELTA_GAIN_INIT_VAL 4
+#define CHAIN_ANALISE_DELTA_GAIN_INIT_VAL 4
 #define ALL_BAND_FILTER			0xFF00
 #define IN_BAND_FILTER			0xFF
-#define MIN_AVERAGE_NOISE_MAX_VALUE	0xFFFFFFFF
+#define MIN_AVERAGE_ANALISE_MAX_VALUE	0xFFFFFFFF
 
 #define NRG_NUM_PREV_STAT_L     20
 #define NUM_RX_CHAINS           3
@@ -296,11 +296,11 @@ enum iwlagn_false_alarm_state {
 	IWL_FA_GOOD_RANGE = 2,
 };
 
-enum iwlagn_chain_noise_state {
-	IWL_CHAIN_NOISE_ALIVE = 0,  /* must be 0 */
-	IWL_CHAIN_NOISE_ACCUMULATE,
-	IWL_CHAIN_NOISE_CALIBRATED,
-	IWL_CHAIN_NOISE_DONE,
+enum iwlagn_chain_analise_state {
+	IWL_CHAIN_ANALISE_ALIVE = 0,  /* must be 0 */
+	IWL_CHAIN_ANALISE_ACCUMULATE,
+	IWL_CHAIN_ANALISE_CALIBRATED,
+	IWL_CHAIN_ANALISE_DONE,
 };
 
 /* Sensitivity calib data */
@@ -326,7 +326,7 @@ struct iwl_sensitivity_data {
 	u32 nrg_silence_idx;
 	u32 nrg_th_cck;
 	s32 nrg_auto_corr_silence_diff;
-	u32 num_in_cck_no_fa;
+	u32 num_in_cck_anal_fa;
 	u32 nrg_th_ofdm;
 
 	u16 barker_corr_th_min;
@@ -334,12 +334,12 @@ struct iwl_sensitivity_data {
 	u16 nrg_th_cca;
 };
 
-/* Chain noise (differential Rx gain) calib data */
-struct iwl_chain_noise_data {
+/* Chain analise (differential Rx gain) calib data */
+struct iwl_chain_analise_data {
 	u32 active_chains;
-	u32 chain_noise_a;
-	u32 chain_noise_b;
-	u32 chain_noise_c;
+	u32 chain_analise_a;
+	u32 chain_analise_b;
+	u32 chain_analise_c;
 	u32 chain_signal_a;
 	u32 chain_signal_b;
 	u32 chain_signal_c;
@@ -379,7 +379,7 @@ struct reply_tx_error_statistics {
 	u32 insuff_cf_poll;
 	u32 fail_hw_drop;
 	u32 sta_color_mismatch;
-	u32 unknown;
+	u32 unkanalwn;
 };
 
 /* reply_agg_tx_statistics (for _agn devices) */
@@ -396,7 +396,7 @@ struct reply_agg_tx_error_statistics {
 	u32 response;
 	u32 dump_tx;
 	u32 delay_tx;
-	u32 unknown;
+	u32 unkanalwn;
 };
 
 /*
@@ -411,7 +411,7 @@ struct reply_agg_tx_error_statistics {
  * @ucode_trace: enable/disable ucode continuous trace timer
  * @num_wraps: how many times the event buffer wraps
  * @next_entry:  the entry just before the next one that uCode would fill
- * @non_wraps_count: counter for no wrap detected when dump ucode events
+ * @analn_wraps_count: counter for anal wrap detected when dump ucode events
  * @wraps_once_count: counter for wrap once detected when dump ucode events
  * @wraps_more_count: counter for wrap more than once detected
  *		      when dump ucode events
@@ -420,7 +420,7 @@ struct iwl_event_log {
 	bool ucode_trace;
 	u32 num_wraps;
 	u32 next_entry;
-	int non_wraps_count;
+	int analn_wraps_count;
 	int wraps_once_count;
 	int wraps_more_count;
 };
@@ -505,7 +505,7 @@ struct iwl_rxon_context {
 	int beacon_int;
 
 	struct {
-		bool non_gf_sta_present;
+		bool analn_gf_sta_present;
 		u8 protection;
 		bool enabled, is_40mhz;
 		u8 extension_chan_offset;
@@ -513,7 +513,7 @@ struct iwl_rxon_context {
 };
 
 enum iwl_scan_type {
-	IWL_SCAN_NORMAL,
+	IWL_SCAN_ANALRMAL,
 	IWL_SCAN_RADIO_RESET,
 };
 
@@ -547,7 +547,7 @@ struct iwl_hw_params {
  * @bt_init_traffic_load: specify initial bt traffic load
  * @bt_prio_boost: default bt priority boost value
  * @agg_time_limit: maximum number of uSec in aggregation
- * @bt_sco_disable: uCode should not response to BT in SCO/ESCO mode
+ * @bt_sco_disable: uCode should analt response to BT in SCO/ESCO mode
  * @bt_session_2: indicates version 2 of the BT command is used
  */
 struct iwl_dvm_bt_params {
@@ -569,12 +569,12 @@ struct iwl_dvm_bt_params {
  * @support_ct_kill_exit: support ct kill exit condition
  * @plcp_delta_threshold: plcp error rate threshold used to trigger
  *	radio tuning when there is a high receiving plcp error rate
- * @chain_noise_scale: default chain noise scale used for gain computation
+ * @chain_analise_scale: default chain analise scale used for gain computation
  * @hd_v2: v2 of enhanced sensitivity value, used for 2000 series and up
- * @no_idle_support: do not support idle mode
+ * @anal_idle_support: do analt support idle mode
  * @bt_params: pointer to BT parameters
  * @need_temp_offset_calib: need to perform temperature offset calibration
- * @no_xtal_calib: some devices do not need crystal calibration data,
+ * @anal_xtal_calib: some devices do analt need crystal calibration data,
  *	don't send it to those
  * @temp_offset_v2: support v2 of temperature offset calibration
  * @adv_pm: advanced power management
@@ -587,19 +587,19 @@ struct iwl_dvm_cfg {
 	void (*temperature)(struct iwl_priv *priv);
 
 	const struct iwl_dvm_bt_params *bt_params;
-	s32 chain_noise_scale;
+	s32 chain_analise_scale;
 	u8 plcp_delta_threshold;
 	bool adv_thermal_throttle;
 	bool support_ct_kill_exit;
 	bool hd_v2;
-	bool no_idle_support;
+	bool anal_idle_support;
 	bool need_temp_offset_calib;
-	bool no_xtal_calib;
+	bool anal_xtal_calib;
 	bool temp_offset_v2;
 	bool adv_pm;
 };
 
-struct iwl_wipan_noa_data {
+struct iwl_wipan_anala_data {
 	struct rcu_head rcu_head;
 	u32 length;
 	u8 data[];
@@ -610,7 +610,7 @@ enum {
 	IWL_CALIB_ENABLE_ALL			= 0,
 
 	IWL_SENSITIVITY_CALIB_DISABLED		= BIT(0),
-	IWL_CHAIN_NOISE_CALIB_DISABLED		= BIT(1),
+	IWL_CHAIN_ANALISE_CALIB_DISABLED		= BIT(1),
 	IWL_TX_POWER_CALIB_DISABLED		= BIT(2),
 
 	IWL_CALIB_DISABLE_ALL			= 0xFFFFFFFF,
@@ -636,7 +636,7 @@ struct iwl_priv {
 	struct mutex mutex;
 
 	unsigned long transport_queue_stop;
-	bool passive_no_rx;
+	bool passive_anal_rx;
 #define IWL_INVALID_MAC80211_QUEUE	0xff
 	u8 queue_to_mac80211[IWL_MAX_HW_QUEUES];
 	atomic_t queue_stop_count[IWL_MAX_HW_QUEUES];
@@ -660,10 +660,10 @@ struct iwl_priv {
 	void (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
 				       struct iwl_rx_cmd_buffer *rxb);
 
-	struct iwl_notif_wait_data notif_wait;
+	struct iwl_analtif_wait_data analtif_wait;
 
 	/* spectrum measurement report caching */
-	struct iwl_spectrum_notification measure_report;
+	struct iwl_spectrum_analtification measure_report;
 	u8 measurement_status;
 
 	/* ucode beacon time */
@@ -693,7 +693,7 @@ struct iwl_priv {
 	s32 temperature;	/* Celsius */
 	s32 last_temperature;
 
-	struct iwl_wipan_noa_data __rcu *noa_data;
+	struct iwl_wipan_anala_data __rcu *anala_data;
 
 	/* Scan related variables */
 	unsigned long scan_start;
@@ -723,7 +723,7 @@ struct iwl_priv {
 
 	u8 start_calib;
 	struct iwl_sensitivity_data sensitivity_data;
-	struct iwl_chain_noise_data chain_noise_data;
+	struct iwl_chain_analise_data chain_analise_data;
 	__le16 sensitivity_tbl[HD_TABLE_SIZE];
 	__le16 enhance_sensitivity_tbl[ENHANCE_HD_TABLE_ENTRIES];
 
@@ -757,7 +757,7 @@ struct iwl_priv {
 	struct {
 		__le32 flag;
 		struct statistics_general_common common;
-		struct statistics_rx_non_phy rx_non_phy;
+		struct statistics_rx_analn_phy rx_analn_phy;
 		struct statistics_rx_phy rx_ofdm;
 		struct statistics_rx_ht_phy rx_ofdm_ht;
 		struct statistics_rx_phy rx_cck;
@@ -771,7 +771,7 @@ struct iwl_priv {
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct {
 		struct statistics_general_common common;
-		struct statistics_rx_non_phy rx_non_phy;
+		struct statistics_rx_analn_phy rx_analn_phy;
 		struct statistics_rx_phy rx_ofdm;
 		struct statistics_rx_ht_phy rx_ofdm_ht;
 		struct statistics_rx_phy rx_cck;
@@ -782,7 +782,7 @@ struct iwl_priv {
 
 	/*
 	 * reporting the number of tids has AGG on. 0 means
-	 * no AGGREGATION
+	 * anal AGGREGATION
 	 */
 	u8 agg_tids_count;
 
@@ -791,12 +791,12 @@ struct iwl_priv {
 	bool last_phy_res_valid;
 
 	/*
-	 * chain noise reset and gain commands are the
+	 * chain analise reset and gain commands are the
 	 * two extra calibration commands follows the standard
 	 * phy calibration commands
 	 */
-	u8 phy_calib_chain_noise_reset_cmd;
-	u8 phy_calib_chain_noise_gain_cmd;
+	u8 phy_calib_chain_analise_reset_cmd;
+	u8 phy_calib_chain_analise_gain_cmd;
 
 	/* counts reply_tx error */
 	struct reply_tx_error_statistics reply_tx_stats;
@@ -806,7 +806,7 @@ struct iwl_priv {
 	u8 bt_enable_flag;
 	u8 bt_status;
 	u8 bt_traffic_load, last_bt_traffic_load;
-	bool bt_ch_announce;
+	bool bt_ch_ananalunce;
 	bool bt_full_concurrent;
 	__le32 kill_ack_mask;
 	__le32 kill_cts_mask;

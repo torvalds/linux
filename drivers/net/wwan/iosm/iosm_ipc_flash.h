@@ -107,13 +107,13 @@ enum iosm_out_of_session_type {
 
 /**
  * enum iosm_ebl_caps -	EBL capability settings
- * @IOSM_CAP_NOT_ENHANCED:	If capability not supported
+ * @IOSM_CAP_ANALT_ENHANCED:	If capability analt supported
  * @IOSM_CAP_USE_EXT_CAP:	To be set if extended capability is set
  * @IOSM_EXT_CAP_ERASE_ALL:	Set Erase all capability
  * @IOSM_EXT_CAP_COMMIT_ALL:	Set the commit all capability
  */
 enum iosm_ebl_caps {
-	IOSM_CAP_NOT_ENHANCED = 0x00,
+	IOSM_CAP_ANALT_ENHANCED = 0x00,
 	IOSM_CAP_USE_EXT_CAP = 0x01,
 	IOSM_EXT_CAP_ERASE_ALL = 0x08,
 	IOSM_EXT_CAP_COMMIT_ALL = 0x20,

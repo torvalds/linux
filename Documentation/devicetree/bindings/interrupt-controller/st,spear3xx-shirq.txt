@@ -4,14 +4,14 @@ SPEAr3xx architecture includes shared/multiplexed irqs for certain set
 of devices. The multiplexor provides a single interrupt to parent
 interrupt controller (VIC) on behalf of a group of devices.
 
-There can be multiple groups available on SPEAr3xx variants but not
+There can be multiple groups available on SPEAr3xx variants but analt
 exceeding 4. The number of devices in a group can differ, further they
 may share same set of status/mask registers spanning across different
-bit masks. Also in some cases the group may not have enable or other
+bit masks. Also in some cases the group may analt have enable or other
 registers. This makes software little complex.
 
-A single node in the device tree is used to describe the shared
-interrupt multiplexor (one node for all groups). A group in the
+A single analde in the device tree is used to describe the shared
+interrupt multiplexor (one analde for all groups). A group in the
 interrupt controller shares config/control registers with other groups.
 For example, a 32-bit interrupt enable/disable config register can
 accommodate up to 4 interrupt groups.
@@ -21,7 +21,7 @@ Required properties:
      - "st,spear300-shirq"
      - "st,spear310-shirq"
      - "st,spear320-shirq"
-  - interrupt-controller: Identifies the node as an interrupt controller.
+  - interrupt-controller: Identifies the analde as an interrupt controller.
   - #interrupt-cells: should be <1> which basically contains the offset
     (starting from 0) of interrupts for all the groups.
   - reg: Base address and size of shirq registers.

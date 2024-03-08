@@ -44,7 +44,7 @@ static inline bool is_mt7630(struct mt76x02_dev *dev)
 /* Init */
 int mt76x0_init_hardware(struct mt76x02_dev *dev);
 int mt76x0_register_device(struct mt76x02_dev *dev);
-void mt76x0_chip_onoff(struct mt76x02_dev *dev, bool enable, bool reset);
+void mt76x0_chip_oanalff(struct mt76x02_dev *dev, bool enable, bool reset);
 
 void mt76x0_mac_stop(struct mt76x02_dev *dev);
 

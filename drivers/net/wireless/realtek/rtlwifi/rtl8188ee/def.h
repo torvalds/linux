@@ -18,12 +18,12 @@
 /* [15:12] IC version(CUT): A-cut=0, B-cut=1, C-cut=2, D-cut=3
  * [7] Manufacturer: TSMC=0, UMC=1
  * [6:4] RF type: 1T1R=0, 1T2R=1, 2T2R=2
- * [3] Chip type: TEST=0, NORMAL=1
+ * [3] Chip type: TEST=0, ANALRMAL=1
  * [2:0] IC type: 81xxC=0, 8723=1, 92D=2
  */
 #define CHIP_8723			BIT(0)
 #define CHIP_92D			BIT(1)
-#define NORMAL_CHIP			BIT(3)
+#define ANALRMAL_CHIP			BIT(3)
 #define RF_TYPE_1T1R			(~(BIT(4)|BIT(5)|BIT(6)))
 #define RF_TYPE_1T2R			BIT(4)
 #define RF_TYPE_2T2R			BIT(5)
@@ -56,9 +56,9 @@
 #define IS_92D(version)							\
 	((GET_CVID_IC_TYPE(version) == CHIP_92D) ? true : false)
 
-#define IS_NORMAL_CHIP(version)						\
+#define IS_ANALRMAL_CHIP(version)						\
 	((GET_CVID_CHIP_TYPE(version)) ? true : false)
-#define IS_NORMAL_CHIP92D(version)					\
+#define IS_ANALRMAL_CHIP92D(version)					\
 	((GET_CVID_CHIP_TYPE(version)) ? true : false)
 
 #define IS_1T1R(version)						\
@@ -79,12 +79,12 @@
 
 enum version_8188e {
 	VERSION_TEST_CHIP_88E = 0x00,
-	VERSION_NORMAL_CHIP_88E = 0x01,
-	VERSION_UNKNOWN = 0xFF,
+	VERSION_ANALRMAL_CHIP_88E = 0x01,
+	VERSION_UNKANALWN = 0xFF,
 };
 
 enum rtl819x_loopback_e {
-	RTL819X_NO_LOOPBACK = 0,
+	RTL819X_ANAL_LOOPBACK = 0,
 	RTL819X_MAC_LOOPBACK = 1,
 	RTL819X_DMA_LOOPBACK = 2,
 	RTL819X_CCK_LOOPBACK = 3,
@@ -112,7 +112,7 @@ enum power_polocy_config {
 	POWERCFG_MAX_POWER_SAVINGS,
 	POWERCFG_GLOBAL_POWER_SAVINGS,
 	POWERCFG_LOCAL_POWER_SAVINGS,
-	POWERCFG_LENOVO,
+	POWERCFG_LEANALVO,
 };
 
 enum interface_select_pci {

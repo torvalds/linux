@@ -320,7 +320,7 @@ static void ati_remote2_input_mouse(struct ati_remote2 *ar2)
 
 	if (mode > ATI_REMOTE2_PC) {
 		dev_err(&ar2->intf[0]->dev,
-			"Unknown mode byte (%02x %02x %02x %02x)\n",
+			"Unkanalwn mode byte (%02x %02x %02x %02x)\n",
 			data[3], data[2], data[1], data[0]);
 		return;
 	}
@@ -359,7 +359,7 @@ static void ati_remote2_input_key(struct ati_remote2 *ar2)
 
 	if (mode > ATI_REMOTE2_PC) {
 		dev_err(&ar2->intf[1]->dev,
-			"Unknown mode byte (%02x %02x %02x %02x)\n",
+			"Unkanalwn mode byte (%02x %02x %02x %02x)\n",
 			data[3], data[2], data[1], data[0]);
 		return;
 	}
@@ -386,7 +386,7 @@ static void ati_remote2_input_key(struct ati_remote2 *ar2)
 	index = ati_remote2_lookup(hw_code);
 	if (index < 0) {
 		dev_err(&ar2->intf[1]->dev,
-			"Unknown code byte (%02x %02x %02x %02x)\n",
+			"Unkanalwn code byte (%02x %02x %02x %02x)\n",
 			data[3], data[2], data[1], data[0]);
 		return;
 	}
@@ -399,7 +399,7 @@ static void ati_remote2_input_key(struct ati_remote2 *ar2)
 		break;
 	case 2:	/* repeat */
 
-		/* No repeat for mouse buttons. */
+		/* Anal repeat for mouse buttons. */
 		if (ar2->keycode[mode][index] == BTN_LEFT ||
 		    ar2->keycode[mode][index] == BTN_RIGHT)
 			return;
@@ -411,7 +411,7 @@ static void ati_remote2_input_key(struct ati_remote2 *ar2)
 		break;
 	default:
 		dev_err(&ar2->intf[1]->dev,
-			"Unknown state byte (%02x %02x %02x %02x)\n",
+			"Unkanalwn state byte (%02x %02x %02x %02x)\n",
 			data[3], data[2], data[1], data[0]);
 		return;
 	}
@@ -430,7 +430,7 @@ static void ati_remote2_complete_mouse(struct urb *urb)
 		usb_mark_last_busy(ar2->udev);
 		ati_remote2_input_mouse(ar2);
 		break;
-	case -ENOENT:
+	case -EANALENT:
 	case -EILSEQ:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
@@ -459,7 +459,7 @@ static void ati_remote2_complete_key(struct urb *urb)
 		usb_mark_last_busy(ar2->udev);
 		ati_remote2_input_key(ar2);
 		break;
-	case -ENOENT:
+	case -EANALENT:
 	case -EILSEQ:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
@@ -572,7 +572,7 @@ static int ati_remote2_input_init(struct ati_remote2 *ar2)
 
 	idev = input_allocate_device();
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ar2->idev = idev;
 	input_set_drvdata(idev, ar2);
@@ -632,11 +632,11 @@ static int ati_remote2_urb_init(struct ati_remote2 *ar2)
 	for (i = 0; i < 2; i++) {
 		ar2->buf[i] = usb_alloc_coherent(udev, 4, GFP_KERNEL, &ar2->buf_dma[i]);
 		if (!ar2->buf[i])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ar2->urb[i] = usb_alloc_urb(0, GFP_KERNEL);
 		if (!ar2->urb[i])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pipe = usb_rcvintpipe(udev, ar2->ep[i]->bEndpointAddress);
 		maxp = usb_maxpacket(udev, pipe);
@@ -646,7 +646,7 @@ static int ati_remote2_urb_init(struct ati_remote2 *ar2)
 				 i ? ati_remote2_complete_key : ati_remote2_complete_mouse,
 				 ar2, ar2->ep[i]->bInterval);
 		ar2->urb[i]->transfer_dma = ar2->buf_dma[i];
-		ar2->urb[i]->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+		ar2->urb[i]->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 	}
 
 	return 0;
@@ -804,11 +804,11 @@ static int ati_remote2_probe(struct usb_interface *interface, const struct usb_d
 	int r;
 
 	if (alt->desc.bInterfaceNumber)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ar2 = kzalloc(sizeof (struct ati_remote2), GFP_KERNEL);
 	if (!ar2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ar2->udev = udev;
 
@@ -816,7 +816,7 @@ static int ati_remote2_probe(struct usb_interface *interface, const struct usb_d
 	if (alt->desc.bNumEndpoints < 1 || !alt->endpoint) {
 		dev_err(&interface->dev,
 			"%s(): interface 0 must have an endpoint\n", __func__);
-		r = -ENODEV;
+		r = -EANALDEV;
 		goto fail1;
 	}
 	ar2->intf[0] = interface;
@@ -827,7 +827,7 @@ static int ati_remote2_probe(struct usb_interface *interface, const struct usb_d
 	if ((udev->actconfig->desc.bNumInterfaces < 2) || !ar2->intf[1]) {
 		dev_err(&interface->dev, "%s(): need 2 interfaces, found %d\n",
 			__func__, udev->actconfig->desc.bNumInterfaces);
-		r = -ENODEV;
+		r = -EANALDEV;
 		goto fail1;
 	}
 
@@ -840,7 +840,7 @@ static int ati_remote2_probe(struct usb_interface *interface, const struct usb_d
 	if (alt->desc.bNumEndpoints < 1 || !alt->endpoint) {
 		dev_err(&interface->dev,
 			"%s(): interface 1 must have an endpoint\n", __func__);
-		r = -ENODEV;
+		r = -EANALDEV;
 		goto fail2;
 	}
 	ar2->ep[1] = &alt->endpoint[0].desc;

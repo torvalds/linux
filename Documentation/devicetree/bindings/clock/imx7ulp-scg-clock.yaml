@@ -23,7 +23,7 @@ description: |
   M4 clock management consists of SCG0, PCC0, PCC1, and CMC0 modules.
   A7 clock management consists of SCG1, PCC2, PCC3, and CMC1 modules.
 
-  Note: this binding doc is only for A7 clock domain.
+  Analte: this binding doc is only for A7 clock domain.
 
   The System Clock Generation (SCG) is responsible for clock generation
   and distribution across this device. Functions performed by the SCG

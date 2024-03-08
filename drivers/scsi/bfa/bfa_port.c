@@ -396,7 +396,7 @@ bfa_port_clear_stats(struct bfa_port_s *port, bfa_port_stats_cbfn_t cbfn,
 }
 
 /*
- * bfa_port_notify()
+ * bfa_port_analtify()
  *
  * Port module IOC event handler
  *
@@ -406,7 +406,7 @@ bfa_port_clear_stats(struct bfa_port_s *port, bfa_port_stats_cbfn_t cbfn,
  * @return void
  */
 void
-bfa_port_notify(void *arg, enum bfa_ioc_event_e event)
+bfa_port_analtify(void *arg, enum bfa_ioc_event_e event)
 {
 	struct bfa_port_s *port = (struct bfa_port_s *) arg;
 
@@ -471,9 +471,9 @@ bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 	port->dport_enabled = BFA_FALSE;
 
 	bfa_ioc_mbox_regisr(port->ioc, BFI_MC_PORT, bfa_port_isr, port);
-	bfa_q_qe_init(&port->ioc_notify);
-	bfa_ioc_notify_init(&port->ioc_notify, bfa_port_notify, port);
-	list_add_tail(&port->ioc_notify.qe, &port->ioc->notify_q);
+	bfa_q_qe_init(&port->ioc_analtify);
+	bfa_ioc_analtify_init(&port->ioc_analtify, bfa_port_analtify, port);
+	list_add_tail(&port->ioc_analtify.qe, &port->ioc->analtify_q);
 
 	/*
 	 * initialize time stamp for stats reset
@@ -782,7 +782,7 @@ bfa_cee_isr(void *cbarg, struct bfi_mbmsg_s *m)
 }
 
 /*
- * bfa_cee_notify()
+ * bfa_cee_analtify()
  *
  * @brief CEE module IOC event handler.
  *
@@ -793,7 +793,7 @@ bfa_cee_isr(void *cbarg, struct bfi_mbmsg_s *m)
  */
 
 static void
-bfa_cee_notify(void *arg, enum bfa_ioc_event_e event)
+bfa_cee_analtify(void *arg, enum bfa_ioc_event_e event)
 {
 	struct bfa_cee_s *cee = (struct bfa_cee_s *) arg;
 
@@ -858,7 +858,7 @@ bfa_cee_attach(struct bfa_cee_s *cee, struct bfa_ioc_s *ioc,
 	cee->ioc = ioc;
 
 	bfa_ioc_mbox_regisr(cee->ioc, BFI_MC_CEE, bfa_cee_isr, cee);
-	bfa_q_qe_init(&cee->ioc_notify);
-	bfa_ioc_notify_init(&cee->ioc_notify, bfa_cee_notify, cee);
-	list_add_tail(&cee->ioc_notify.qe, &cee->ioc->notify_q);
+	bfa_q_qe_init(&cee->ioc_analtify);
+	bfa_ioc_analtify_init(&cee->ioc_analtify, bfa_cee_analtify, cee);
+	list_add_tail(&cee->ioc_analtify.qe, &cee->ioc->analtify_q);
 }

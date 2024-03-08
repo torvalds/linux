@@ -16,7 +16,7 @@
 #include <linux/pagemap.h>
 #include <linux/file.h>
 #include <linux/stat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/major.h>
 #include <linux/wait.h>
 #include <linux/blkdev.h>
@@ -46,7 +46,7 @@
 #include <linux/kref.h>
 #include <uapi/linux/ublk_cmd.h>
 
-#define UBLK_MINORS		(1U << MINORBITS)
+#define UBLK_MIANALRS		(1U << MIANALRBITS)
 
 /* All UBLK_F_* have to be included into UBLK_F_ALL */
 #define UBLK_F_ALL (UBLK_F_SUPPORT_ZERO_COPY \
@@ -65,7 +65,7 @@
 	 UBLK_PARAM_TYPE_DEVT | UBLK_PARAM_TYPE_ZONED)
 
 struct ublk_rq_data {
-	struct llist_node node;
+	struct llist_analde analde;
 
 	struct kref ref;
 	__u64 sector;
@@ -91,7 +91,7 @@ struct ublk_uring_cmd_pdu {
 
 /*
  * IO command is completed via cqe, and it is being handled by ublksrv, and
- * not committed yet
+ * analt committed yet
  *
  * Basically exclusively with UBLK_IO_FLAG_ACTIVE, so can be served for
  * cross verification
@@ -279,7 +279,7 @@ static void *ublk_alloc_report_buffer(struct ublk_device *ublk,
 		min_t(size_t, bufsize, queue_max_hw_sectors(q) << SECTOR_SHIFT);
 
 	while (bufsize >= sizeof(struct blk_zone)) {
-		buf = kvmalloc(bufsize, GFP_KERNEL | __GFP_NORETRY);
+		buf = kvmalloc(bufsize, GFP_KERNEL | __GFP_ANALRETRY);
 		if (buf) {
 			*buflen = bufsize;
 			return buf;
@@ -308,7 +308,7 @@ static int ublk_report_zones(struct gendisk *disk, sector_t sector,
 
 	buffer = ublk_alloc_report_buffer(ub, nr_zones, &buffer_length);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	max_zones_per_request = buffer_length / sizeof(struct blk_zone);
 
@@ -341,7 +341,7 @@ static int ublk_report_zones(struct gendisk *disk, sector_t sector,
 		}
 
 		status = blk_execute_rq(req, 0);
-		ret = blk_status_to_errno(status);
+		ret = blk_status_to_erranal(status);
 		blk_mq_free_request(req);
 		if (ret)
 			goto out;
@@ -349,7 +349,7 @@ static int ublk_report_zones(struct gendisk *disk, sector_t sector,
 		for (unsigned int i = 0; i < zones_in_request; i++) {
 			struct blk_zone *zone = buffer + i;
 
-			/* A zero length zone means no more zones in this response */
+			/* A zero length zone means anal more zones in this response */
 			if (!zone->len)
 				break;
 
@@ -409,8 +409,8 @@ static blk_status_t ublk_setup_iod_zoned(struct ublk_queue *ubq,
 			return BLK_STS_IOERR;
 		}
 	case REQ_OP_DRV_OUT:
-		/* We do not support drv_out */
-		return BLK_STS_NOTSUPP;
+		/* We do analt support drv_out */
+		return BLK_STS_ANALTSUPP;
 	default:
 		return BLK_STS_IOERR;
 	}
@@ -429,12 +429,12 @@ static blk_status_t ublk_setup_iod_zoned(struct ublk_queue *ubq,
 
 static int ublk_dev_param_zoned_validate(const struct ublk_device *ub)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ublk_dev_param_zoned_apply(struct ublk_device *ub)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ublk_revalidate_disk_zones(struct ublk_device *ub)
@@ -445,7 +445,7 @@ static int ublk_revalidate_disk_zones(struct ublk_device *ub)
 static blk_status_t ublk_setup_iod_zoned(struct ublk_queue *ubq,
 					 struct request *req)
 {
-	return BLK_STS_NOTSUPP;
+	return BLK_STS_ANALTSUPP;
 }
 
 #endif
@@ -470,7 +470,7 @@ static DEFINE_MUTEX(ublk_ctl_mutex);
  * It can be extended to one per-user limit in future or even controlled
  * by cgroup.
  */
-#define UBLK_MAX_UBLKS UBLK_MINORS
+#define UBLK_MAX_UBLKS UBLK_MIANALRS
 static unsigned int ublks_max = 64;
 static unsigned int ublks_added;	/* protected by ublk_ctl_mutex */
 
@@ -506,9 +506,9 @@ static void ublk_dev_param_basic_apply(struct ublk_device *ub)
 	blk_queue_write_cache(q, p->attrs & UBLK_ATTR_VOLATILE_CACHE,
 			p->attrs & UBLK_ATTR_FUA);
 	if (p->attrs & UBLK_ATTR_ROTATIONAL)
-		blk_queue_flag_clear(QUEUE_FLAG_NONROT, q);
+		blk_queue_flag_clear(QUEUE_FLAG_ANALNROT, q);
 	else
-		blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
+		blk_queue_flag_set(QUEUE_FLAG_ANALNROT, q);
 
 	blk_queue_max_hw_sectors(q, p->max_sectors);
 	blk_queue_chunk_sectors(q, p->chunk_sectors);
@@ -740,7 +740,7 @@ static int ublk_open(struct gendisk *disk, blk_mode_t mode)
 	 * users deliberately.
 	 *
 	 * This way is reasonable too given anyone can create
-	 * unprivileged device, and no need other's grant.
+	 * unprivileged device, and anal need other's grant.
 	 */
 	if (ub->dev_info.flags & UBLK_F_UNPRIVILEGED_DEV) {
 		unsigned int curr_uid, curr_gid;
@@ -887,7 +887,7 @@ static int ublk_map_io(const struct ublk_queue *ubq, const struct request *req,
 		return rq_bytes;
 
 	/*
-	 * no zero copy, we delay copy WRITE request data into ublksrv
+	 * anal zero copy, we delay copy WRITE request data into ublksrv
 	 * context and the big benefit is that pinning pages in current
 	 * context is pretty fast, see ublk_pin_user_pages
 	 */
@@ -941,8 +941,8 @@ static inline unsigned int ublk_req_build_flags(struct request *req)
 	if (req->cmd_flags & REQ_FUA)
 		flags |= UBLK_IO_F_FUA;
 
-	if (req->cmd_flags & REQ_NOUNMAP)
-		flags |= UBLK_IO_F_NOUNMAP;
+	if (req->cmd_flags & REQ_ANALUNMAP)
+		flags |= UBLK_IO_F_ANALUNMAP;
 
 	if (req->cmd_flags & REQ_SWAP)
 		flags |= UBLK_IO_F_SWAP;
@@ -1017,12 +1017,12 @@ static inline void __ublk_complete_rq(struct request *req)
 		goto exit;
 	}
 
-	/* failed read IO if nothing is read */
+	/* failed read IO if analthing is read */
 	if (!io->res && req_op(req) == REQ_OP_READ)
 		io->res = -EIO;
 
 	if (io->res < 0) {
-		res = errno_to_blk_status(io->res);
+		res = erranal_to_blk_status(io->res);
 		goto exit;
 	}
 
@@ -1071,7 +1071,7 @@ static void ublk_complete_rq(struct kref *ref)
  * exiting, __ublk_fail_req() is only called from abort context during
  * exiting. So lock is unnecessary.
  *
- * Also aborting may not be started yet, keep in mind that one failed
+ * Also aborting may analt be started yet, keep in mind that one failed
  * request may be issued by block layer again.
  */
 static void __ublk_fail_req(struct ublk_queue *ubq, struct ublk_io *io,
@@ -1093,7 +1093,7 @@ static void ubq_complete_io_cmd(struct ublk_io *io, int res,
 
 	/*
 	 * clear ACTIVE since we are done with this sqe/cmd slot
-	 * We can only accept io cmd in case of being not active.
+	 * We can only accept io cmd in case of being analt active.
 	 */
 	io->flags &= ~UBLK_IO_FLAG_ACTIVE;
 
@@ -1106,7 +1106,7 @@ static void ubq_complete_io_cmd(struct ublk_io *io, int res,
 static inline void __ublk_abort_rq(struct ublk_queue *ubq,
 		struct request *rq)
 {
-	/* We cannot process this rq so just requeue it. */
+	/* We cananalt process this rq so just requeue it. */
 	if (ublk_queue_can_use_recovery(ubq))
 		blk_mq_requeue_request(rq, false);
 	else
@@ -1141,9 +1141,9 @@ static inline void __ublk_rq_task_work(struct request *req,
 
 	if (ublk_need_get_data(ubq) && ublk_need_map_req(req)) {
 		/*
-		 * We have not handled UBLK_IO_NEED_GET_DATA command yet,
+		 * We have analt handled UBLK_IO_NEED_GET_DATA command yet,
 		 * so immepdately pass UBLK_IO_RES_NEED_GET_DATA to ublksrv
-		 * and notify it.
+		 * and analtify it.
 		 */
 		if (!(io->flags & UBLK_IO_FLAG_NEED_GET_DATA)) {
 			io->flags |= UBLK_IO_FLAG_NEED_GET_DATA;
@@ -1155,7 +1155,7 @@ static inline void __ublk_rq_task_work(struct request *req,
 		}
 		/*
 		 * We have handled UBLK_IO_NEED_GET_DATA command,
-		 * so clear UBLK_IO_FLAG_NEED_GET_DATA now and just
+		 * so clear UBLK_IO_FLAG_NEED_GET_DATA analw and just
 		 * do the copy work.
 		 */
 		io->flags &= ~UBLK_IO_FLAG_NEED_GET_DATA;
@@ -1171,7 +1171,7 @@ static inline void __ublk_rq_task_work(struct request *req,
 	/* partially mapped, update io descriptor */
 	if (unlikely(mapped_bytes != blk_rq_bytes(req))) {
 		/*
-		 * Nothing mapped, retry until we succeed.
+		 * Analthing mapped, retry until we succeed.
 		 *
 		 * We may never succeed in mapping any bytes here because
 		 * of OOM. TODO: reserve one buffer with single page pinned
@@ -1195,11 +1195,11 @@ static inline void __ublk_rq_task_work(struct request *req,
 static inline void ublk_forward_io_cmds(struct ublk_queue *ubq,
 					unsigned issue_flags)
 {
-	struct llist_node *io_cmds = llist_del_all(&ubq->io_cmds);
+	struct llist_analde *io_cmds = llist_del_all(&ubq->io_cmds);
 	struct ublk_rq_data *data, *tmp;
 
 	io_cmds = llist_reverse_order(io_cmds);
-	llist_for_each_entry_safe(data, tmp, io_cmds, node)
+	llist_for_each_entry_safe(data, tmp, io_cmds, analde)
 		__ublk_rq_task_work(blk_mq_rq_from_pdu(data), issue_flags);
 }
 
@@ -1215,7 +1215,7 @@ static void ublk_queue_cmd(struct ublk_queue *ubq, struct request *rq)
 {
 	struct ublk_rq_data *data = blk_mq_rq_to_pdu(rq);
 
-	if (llist_add(&data->node, &ubq->io_cmds)) {
+	if (llist_add(&data->analde, &ubq->io_cmds)) {
 		struct ublk_io *io = &ubq->ios[rq->tag];
 
 		io_uring_cmd_complete_in_task(io->cmd, ublk_rq_task_work_cb);
@@ -1278,10 +1278,10 @@ static blk_status_t ublk_queue_rq(struct blk_mq_hw_ctx *hctx,
 	/* With recovery feature enabled, force_abort is set in
 	 * ublk_stop_dev() before calling del_gendisk(). We have to
 	 * abort all requeued and new rqs here to let del_gendisk()
-	 * move on. Besides, we cannot not call io_uring_cmd_complete_in_task()
+	 * move on. Besides, we cananalt analt call io_uring_cmd_complete_in_task()
 	 * to avoid UAF on io_uring ctx.
 	 *
-	 * Note: force_abort is guaranteed to be seen because it is set
+	 * Analte: force_abort is guaranteed to be seen because it is set
 	 * before request queue is unqiuesced.
 	 */
 	if (ublk_queue_can_use_recovery(ubq) && unlikely(ubq->force_abort))
@@ -1314,9 +1314,9 @@ static const struct blk_mq_ops ublk_mq_ops = {
 	.timeout	= ublk_timeout,
 };
 
-static int ublk_ch_open(struct inode *inode, struct file *filp)
+static int ublk_ch_open(struct ianalde *ianalde, struct file *filp)
 {
-	struct ublk_device *ub = container_of(inode->i_cdev,
+	struct ublk_device *ub = container_of(ianalde->i_cdev,
 			struct ublk_device, cdev);
 
 	if (test_and_set_bit(UB_STATE_OPEN, &ub->state))
@@ -1325,7 +1325,7 @@ static int ublk_ch_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int ublk_ch_release(struct inode *inode, struct file *filp)
+static int ublk_ch_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct ublk_device *ub = filp->private_data;
 
@@ -1379,7 +1379,7 @@ static void ublk_commit_completion(struct ublk_device *ub,
 	struct ublk_io *io = &ubq->ios[tag];
 	struct request *req;
 
-	/* now this cmd slot is owned by nbd driver */
+	/* analw this cmd slot is owned by nbd driver */
 	io->flags &= ~UBLK_IO_FLAG_OWNED_BY_SRV;
 	io->res = ub_cmd->result;
 
@@ -1445,7 +1445,7 @@ static bool ublk_abort_requests(struct ublk_device *ub, struct ublk_queue *ubq)
 	if (!disk)
 		return false;
 
-	/* Now we are serialized with ublk_queue_rq() */
+	/* Analw we are serialized with ublk_queue_rq() */
 	blk_mq_quiesce_queue(disk->queue);
 	/* abort queue is for making forward progress */
 	ublk_abort_queue(ub, ubq);
@@ -1665,10 +1665,10 @@ static inline int ublk_check_cmd_op(u32 cmd_op)
 	u32 ioc_type = _IOC_TYPE(cmd_op);
 
 	if (!IS_ENABLED(CONFIG_BLKDEV_UBLK_LEGACY_OPCODES) && ioc_type != 'u')
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ioc_type != 'u' && ioc_type != 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -1763,7 +1763,7 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		if (!ublk_support_user_copy(ubq)) {
 			/*
 			 * FETCH_RQ has to provide IO buffer if NEED GET
-			 * DATA is not enabled
+			 * DATA is analt enabled
 			 */
 			if (!ub_cmd->addr && !ublk_need_get_data(ubq))
 				goto out;
@@ -1785,7 +1785,7 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		if (!ublk_support_user_copy(ubq)) {
 			/*
 			 * COMMIT_AND_FETCH_REQ has to provide IO buffer if
-			 * NEED GET DATA is not enabled or it is Read IO.
+			 * NEED GET DATA is analt enabled or it is Read IO.
 			 */
 			if (!ub_cmd->addr && (!ublk_need_get_data(ubq) ||
 						req_op(req) == REQ_OP_READ))
@@ -1793,7 +1793,7 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		} else if (req_op(req) != REQ_OP_ZONE_APPEND && ub_cmd->addr) {
 			/*
 			 * User copy requires addr to be unset when command is
-			 * not zone append
+			 * analt zone append
 			 */
 			ret = -EINVAL;
 			goto out;
@@ -1855,7 +1855,7 @@ static inline int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 		unsigned int issue_flags)
 {
 	/*
-	 * Not necessary for async retry, but let's keep it simple and always
+	 * Analt necessary for async retry, but let's keep it simple and always
 	 * copy the values to avoid any potential reuse.
 	 */
 	const struct ublksrv_io_cmd *ub_src = io_uring_sqe_cmd(cmd->sqe);
@@ -1999,7 +1999,7 @@ static const struct file_operations ublk_ch_fops = {
 	.owner = THIS_MODULE,
 	.open = ublk_ch_open,
 	.release = ublk_ch_release,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.read_iter = ublk_ch_read_iter,
 	.write_iter = ublk_ch_write_iter,
 	.uring_cmd = ublk_ch_uring_cmd,
@@ -2032,7 +2032,7 @@ static int ublk_init_queue(struct ublk_device *ub, int q_id)
 
 	ptr = (void *) __get_free_pages(gfp_flags, get_order(size));
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ubq->io_cmd_buf = ptr;
 	ubq->dev = ub;
@@ -2057,7 +2057,7 @@ static int ublk_init_queues(struct ublk_device *ub)
 	int nr_queues = ub->dev_info.nr_hw_queues;
 	int depth = ub->dev_info.queue_depth;
 	int ubq_size = sizeof(struct ublk_queue) + depth * sizeof(struct ublk_io);
-	int i, ret = -ENOMEM;
+	int i, ret = -EANALMEM;
 
 	ub->queue_size = ubq_size;
 	ub->__queues = kcalloc(nr_queues, ubq_size, GFP_KERNEL);
@@ -2085,12 +2085,12 @@ static int ublk_alloc_dev_number(struct ublk_device *ub, int idx)
 	spin_lock(&ublk_idr_lock);
 	/* allocate id, if @id >= 0, we're requesting that specific id */
 	if (i >= 0) {
-		err = idr_alloc(&ublk_index_idr, ub, i, i + 1, GFP_NOWAIT);
-		if (err == -ENOSPC)
+		err = idr_alloc(&ublk_index_idr, ub, i, i + 1, GFP_ANALWAIT);
+		if (err == -EANALSPC)
 			err = -EEXIST;
 	} else {
 		err = idr_alloc(&ublk_index_idr, ub, 0, UBLK_MAX_UBLKS,
-				GFP_NOWAIT);
+				GFP_ANALWAIT);
 	}
 	spin_unlock(&ublk_idr_lock);
 
@@ -2122,16 +2122,16 @@ static void ublk_cdev_rel(struct device *dev)
 static int ublk_add_chdev(struct ublk_device *ub)
 {
 	struct device *dev = &ub->cdev_dev;
-	int minor = ub->ub_number;
+	int mianalr = ub->ub_number;
 	int ret;
 
 	dev->parent = ublk_misc.this_device;
-	dev->devt = MKDEV(MAJOR(ublk_chr_devt), minor);
+	dev->devt = MKDEV(MAJOR(ublk_chr_devt), mianalr);
 	dev->class = &ublk_chr_class;
 	dev->release = ublk_cdev_rel;
 	device_initialize(dev);
 
-	ret = dev_set_name(dev, "ublkc%d", minor);
+	ret = dev_set_name(dev, "ublkc%d", mianalr);
 	if (ret)
 		goto fail;
 
@@ -2169,7 +2169,7 @@ static int ublk_add_tag_set(struct ublk_device *ub)
 	ub->tag_set.ops = &ublk_mq_ops;
 	ub->tag_set.nr_hw_queues = ub->dev_info.nr_hw_queues;
 	ub->tag_set.queue_depth = ub->dev_info.queue_depth;
-	ub->tag_set.numa_node = NUMA_NO_NODE;
+	ub->tag_set.numa_analde = NUMA_ANAL_ANALDE;
 	ub->tag_set.cmd_size = sizeof(struct ublk_rq_data);
 	ub->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	ub->tag_set.driver_data = ub;
@@ -2293,7 +2293,7 @@ static int ublk_ctrl_get_queue_affinity(struct ublk_device *ub,
 		return -EINVAL;
 
 	if (!zalloc_cpumask_var(&cpumask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_possible_cpu(i) {
 		if (ub->tag_set.map[HCTX_TYPE_DEFAULT].mq_map[i] == queue)
@@ -2349,7 +2349,7 @@ static int ublk_ctrl_add_dev(struct io_uring_cmd *cmd)
 	/*
 	 * unprivileged device can't be trusted, but RECOVERY and
 	 * RECOVERY_REISSUE still may hang error handling, so can't
-	 * support recovery features for unprivileged ublk now
+	 * support recovery features for unprivileged ublk analw
 	 *
 	 * TODO: provide forward progress for RECOVERY handler, so that
 	 * unprivileged device can benefit from it
@@ -2362,7 +2362,7 @@ static int ublk_ctrl_add_dev(struct io_uring_cmd *cmd)
 	ublk_store_owner_uid_gid(&info.owner_uid, &info.owner_gid);
 
 	if (header->dev_id != info.dev_id) {
-		pr_warn("%s: dev id not match %u %u\n",
+		pr_warn("%s: dev id analt match %u %u\n",
 			__func__, header->dev_id, info.dev_id);
 		return -EINVAL;
 	}
@@ -2383,7 +2383,7 @@ static int ublk_ctrl_add_dev(struct io_uring_cmd *cmd)
 	if (ublks_added >= ublks_max)
 		goto out_unlock;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	ub = kzalloc(sizeof(*ub), GFP_KERNEL);
 	if (!ub)
 		goto out_unlock;
@@ -2423,7 +2423,7 @@ static int ublk_ctrl_add_dev(struct io_uring_cmd *cmd)
 		goto out_free_dev_number;
 	}
 
-	/* We are not ready to support zero copy */
+	/* We are analt ready to support zero copy */
 	ub->dev_info.flags &= ~UBLK_F_SUPPORT_ZERO_COPY;
 
 	ub->dev_info.nr_hw_queues = min_t(unsigned int,
@@ -2505,7 +2505,7 @@ static int ublk_ctrl_del_dev(struct ublk_device **p_ub)
 	 *   be deleted again, since UB_STATE_DELETED is set, and device
 	 *   will be released after the last reference is dropped
 	 *
-	 * - the device number is freed already, we will not find this
+	 * - the device number is freed already, we will analt find this
 	 *   device via ublk_get_device_from_id()
 	 */
 	if (wait_event_interruptible(ublk_idr_wq, ublk_idr_freed(idx)))
@@ -2550,14 +2550,14 @@ static int ublk_ctrl_get_dev_info(struct ublk_device *ub,
 static void ublk_ctrl_fill_params_devt(struct ublk_device *ub)
 {
 	ub->params.devt.char_major = MAJOR(ub->cdev_dev.devt);
-	ub->params.devt.char_minor = MINOR(ub->cdev_dev.devt);
+	ub->params.devt.char_mianalr = MIANALR(ub->cdev_dev.devt);
 
 	if (ub->ub_disk) {
 		ub->params.devt.disk_major = MAJOR(disk_devt(ub->ub_disk));
-		ub->params.devt.disk_minor = MINOR(disk_devt(ub->ub_disk));
+		ub->params.devt.disk_mianalr = MIANALR(disk_devt(ub->ub_disk));
 	} else {
 		ub->params.devt.disk_major = 0;
-		ub->params.devt.disk_minor = 0;
+		ub->params.devt.disk_mianalr = 0;
 	}
 	ub->params.types |= UBLK_PARAM_TYPE_DEVT;
 }
@@ -2639,7 +2639,7 @@ static void ublk_queue_reinit(struct ublk_device *ub, struct ublk_queue *ubq)
 
 	/* All old ioucmds have to be completed */
 	ubq->nr_io_ready = 0;
-	/* old daemon is PF_EXITING, put it now */
+	/* old daemon is PF_EXITING, put it analw */
 	put_task_struct(ubq->ubq_daemon);
 	/* We have to reset it to NULL, otherwise ub won't accept new FETCH_REQ */
 	ubq->ubq_daemon = NULL;
@@ -2649,7 +2649,7 @@ static void ublk_queue_reinit(struct ublk_device *ub, struct ublk_queue *ubq)
 	for (i = 0; i < ubq->q_depth; i++) {
 		struct ublk_io *io = &ubq->ios[i];
 
-		/* forget everything now and be ready for new FETCH_REQ */
+		/* forget everything analw and be ready for new FETCH_REQ */
 		io->flags = 0;
 		io->cmd = NULL;
 		io->addr = 0;
@@ -2669,14 +2669,14 @@ static int ublk_ctrl_start_recovery(struct ublk_device *ub,
 	/*
 	 * START_RECOVERY is only allowd after:
 	 *
-	 * (1) UB_STATE_OPEN is not set, which means the dying process is exited
+	 * (1) UB_STATE_OPEN is analt set, which means the dying process is exited
 	 *     and related io_uring ctx is freed so file struct of /dev/ublkcX is
 	 *     released.
 	 *
 	 * (2) UBLK_S_DEV_QUIESCED is set, which means the quiesce_work:
 	 *     (a)has quiesced request queue
 	 *     (b)has requeued every inflight rqs whose io_flags is ACTIVE
-	 *     (c)has requeued/aborted every inflight rqs whose io_flags is NOT ACTIVE
+	 *     (c)has requeued/aborted every inflight rqs whose io_flags is ANALT ACTIVE
 	 *     (d)has completed/camceled all ioucmds owned by ther dying process
 	 */
 	if (test_bit(UB_STATE_OPEN, &ub->state) ||
@@ -2687,7 +2687,7 @@ static int ublk_ctrl_start_recovery(struct ublk_device *ub,
 	pr_devel("%s: start recovery for dev id %d.\n", __func__, header->dev_id);
 	for (i = 0; i < ub->dev_info.nr_hw_queues; i++)
 		ublk_queue_reinit(ub, ublk_get_queue(ub, i));
-	/* set to NULL, otherwise new ubq_daemon cannot mmap the io_cmd_buf */
+	/* set to NULL, otherwise new ubq_daemon cananalt mmap the io_cmd_buf */
 	ub->mm = NULL;
 	ub->nr_queues_ready = 0;
 	ub->nr_privileged_daemon = 0;
@@ -2774,8 +2774,8 @@ static int ublk_char_dev_permission(struct ublk_device *ub,
 	if (stat.rdev != ub->cdev_dev.devt || !S_ISCHR(stat.mode))
 		goto exit;
 
-	err = inode_permission(&nop_mnt_idmap,
-			d_backing_inode(path.dentry), mask);
+	err = ianalde_permission(&analp_mnt_idmap,
+			d_backing_ianalde(path.dentry), mask);
 exit:
 	path_put(&path);
 	return err;
@@ -2796,8 +2796,8 @@ static int ublk_ctrl_uring_cmd_permission(struct ublk_device *ub,
 			return -EPERM;
 		/*
 		 * The new added command of UBLK_CMD_GET_DEV_INFO2 includes
-		 * char_dev_path in payload too, since userspace may not
-		 * know if the specified device is created as unprivileged
+		 * char_dev_path in payload too, since userspace may analt
+		 * kanalw if the specified device is created as unprivileged
 		 * mode.
 		 */
 		if (_IOC_NR(cmd->cmd_op) != UBLK_CMD_GET_DEV_INFO2)
@@ -2864,7 +2864,7 @@ static int ublk_ctrl_uring_cmd(struct io_uring_cmd *cmd,
 	u32 cmd_op = cmd->cmd_op;
 	int ret = -EINVAL;
 
-	if (issue_flags & IO_URING_F_NONBLOCK)
+	if (issue_flags & IO_URING_F_ANALNBLOCK)
 		return -EAGAIN;
 
 	ublk_ctrl_cmd_dump(cmd);
@@ -2882,7 +2882,7 @@ static int ublk_ctrl_uring_cmd(struct io_uring_cmd *cmd,
 	}
 
 	if (_IOC_NR(cmd_op) != UBLK_CMD_ADD_DEV) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		ub = ublk_get_device_from_id(header->dev_id);
 		if (!ub)
 			goto out;
@@ -2925,7 +2925,7 @@ static int ublk_ctrl_uring_cmd(struct io_uring_cmd *cmd,
 		ret = ublk_ctrl_end_recovery(ub, cmd);
 		break;
 	default:
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		break;
 	}
 
@@ -2940,14 +2940,14 @@ static int ublk_ctrl_uring_cmd(struct io_uring_cmd *cmd,
 }
 
 static const struct file_operations ublk_ctl_fops = {
-	.open		= nonseekable_open,
+	.open		= analnseekable_open,
 	.uring_cmd      = ublk_ctrl_uring_cmd,
 	.owner		= THIS_MODULE,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static struct miscdevice ublk_misc = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.mianalr		= MISC_DYNAMIC_MIANALR,
 	.name		= "ublk-control",
 	.fops		= &ublk_ctl_fops,
 };
@@ -2965,7 +2965,7 @@ static int __init ublk_init(void)
 	if (ret)
 		return ret;
 
-	ret = alloc_chrdev_region(&ublk_chr_devt, 0, UBLK_MINORS, "ublk-char");
+	ret = alloc_chrdev_region(&ublk_chr_devt, 0, UBLK_MIANALRS, "ublk-char");
 	if (ret)
 		goto unregister_mis;
 
@@ -2976,7 +2976,7 @@ static int __init ublk_init(void)
 	return 0;
 
 free_chrdev_region:
-	unregister_chrdev_region(ublk_chr_devt, UBLK_MINORS);
+	unregister_chrdev_region(ublk_chr_devt, UBLK_MIANALRS);
 unregister_mis:
 	misc_deregister(&ublk_misc);
 	return ret;
@@ -2994,7 +2994,7 @@ static void __exit ublk_exit(void)
 	misc_deregister(&ublk_misc);
 
 	idr_destroy(&ublk_index_idr);
-	unregister_chrdev_region(ublk_chr_devt, UBLK_MINORS);
+	unregister_chrdev_region(ublk_chr_devt, UBLK_MIANALRS);
 }
 
 module_init(ublk_init);

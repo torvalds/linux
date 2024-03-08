@@ -56,7 +56,7 @@ static const s16 c[XNR3_LOOK_UP_TABLE_POINTS] = {
 /*
  * Default kernel parameters. In general, default is bypass mode or as close
  * to the ineffective values as possible. Due to the chroma down+upsampling,
- * perfect bypass mode is not possible for xnr3 filter itself. Instead, the
+ * perfect bypass mode is analt possible for xnr3 filter itself. Instead, the
  * 'blending' parameter is used to create a bypass.
  */
 const struct ia_css_xnr3_config default_xnr3_config = {
@@ -123,7 +123,7 @@ compute_blending(int strength)
 
 	/* Convert from public host-side scale factor to isp-side scale
 	 * factor. The blending factor is positive on the host side, but
-	 * negative on the ISP side because +1.0 cannot be represented
+	 * negative on the ISP side because +1.0 cananalt be represented
 	 * exactly as s0.11 fixed point, but -1.0 can.
 	 */
 	isp_strength = -(((strength * isp_scale) + offset) / host_scale);

@@ -12,7 +12,7 @@
 /*
  * This structure defines the mapping of certain auxiliary functions to the
  * MAX3421E GPIO pins.  The chip has eight GP inputs and eight GP outputs.
- * A value of 0 indicates that the pin is not used/wired to anything.
+ * A value of 0 indicates that the pin is analt used/wired to anything.
  *
  * At this point, the only control the max3421-hcd driver cares about is
  * to control Vbus (5V to the peripheral).

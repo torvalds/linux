@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -234,7 +234,7 @@ static unsigned int find_preferred_pipe_candidates(const struct dc_state *existi
 	 * of the stream we are trying to achieve MPC/ODM combine for. This allows
 	 * us to minimize the changes in pipe topology during the transition.
 	 *
-	 * However this condition comes with a caveat. We need to ignore pipes that will
+	 * However this condition comes with a caveat. We need to iganalre pipes that will
 	 * require a change in OPP but still have the same stream id. For example during
 	 * an MPC to ODM transiton.
 	 */
@@ -331,7 +331,7 @@ static bool find_more_pipes_for_stream(struct dml2_context *ctx,
 
 	// We like to pair pipes starting from the higher order indicies for combining
 	for (i = ctx->config.dcn_pipe_count - 1; pipes_needed > 0 && i >= 0; i--) {
-		// Ignore any pipes that are the preferred or last resort candidate
+		// Iganalre any pipes that are the preferred or last resort candidate
 		if (is_pipe_in_candidate_array(i, preferred_pipe_candidates, num_preferred_candidates) ||
 			is_pipe_in_candidate_array(i, last_resort_pipe_candidates, num_last_resort_candidates))
 			continue;
@@ -397,7 +397,7 @@ static bool find_more_free_pipes(struct dml2_context *ctx,
 
 	// We like to pair pipes starting from the higher order indicies for combining
 	for (i = ctx->config.dcn_pipe_count - 1; pipes_needed > 0 && i >= 0; i--) {
-		// Ignore any pipes that are the preferred or last resort candidate
+		// Iganalre any pipes that are the preferred or last resort candidate
 		if (is_pipe_in_candidate_array(i, preferred_pipe_candidates, num_preferred_candidates) ||
 			is_pipe_in_candidate_array(i, last_resort_pipe_candidates, num_last_resort_candidates))
 			continue;
@@ -518,7 +518,7 @@ static void add_odm_slice_to_odm_tree(struct dml2_context *ctx,
 	struct pipe_ctx *pipe = NULL;
 	int i;
 
-	// MPCC Combine + ODM Combine is not supported, so there should never be a case where the current plane
+	// MPCC Combine + ODM Combine is analt supported, so there should never be a case where the current plane
 	// has more than 1 pipe mapped to it for a given slice.
 	ASSERT(scratch->pipe_pool.num_pipes_assigned_to_plane_for_mpcc_combine == 1 || scratch->pipe_pool.num_pipes_assigned_to_plane_for_odm_combine == 1);
 
@@ -749,7 +749,7 @@ static void map_pipes_for_plane(struct dml2_context *ctx, struct dc_state *state
 			continue;
 		}
 
-		// Now we have a list of all pipes to be used for this plane/stream, now setup the tree.
+		// Analw we have a list of all pipes to be used for this plane/stream, analw setup the tree.
 		scratch->odm_info.next_higher_pipe_for_odm_slice[odm_slice_index] = add_plane_to_blend_tree(ctx, state,
 				plane,
 				&scratch->pipe_pool,
@@ -959,7 +959,7 @@ bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const s
 
 		calculate_odm_slices(state->streams[stream_index], scratch.odm_info.odm_factor, scratch.odm_info.odm_slice_end_x);
 
-		// If there are no planes, you still want to setup ODM...
+		// If there are anal planes, you still want to setup ODM...
 		if (state->stream_status[stream_index].plane_count == 0) {
 			map_pipes_for_stream(ctx, state, state->streams[stream_index], &scratch, existing_state);
 		}
@@ -973,7 +973,7 @@ bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const s
 				// Setup mpc_info for this plane
 				scratch.mpc_info.prev_odm_pipe = NULL;
 				if (scratch.odm_info.odm_factor == 1) {
-					// If ODM combine is not inuse, then the number of pipes
+					// If ODM combine is analt inuse, then the number of pipes
 					// per plane is determined by MPC combine factor
 					scratch.mpc_info.mpc_factor = DPPPerSurface[plane_disp_cfg_index];
 
@@ -994,7 +994,7 @@ bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const s
 				map_pipes_for_plane(ctx, state, state->streams[stream_index],
 					state->stream_status[stream_index].plane_states[plane_index], plane_index, &scratch, existing_state);
 			} else {
-				// Plane ID cannot be generated, therefore no DML mapping can be performed.
+				// Plane ID cananalt be generated, therefore anal DML mapping can be performed.
 				ASSERT(false);
 			}
 		}

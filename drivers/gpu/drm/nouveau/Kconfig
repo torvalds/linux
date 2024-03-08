@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config DRM_NOUVEAU
-	tristate "Nouveau (NVIDIA) cards"
+config DRM_ANALUVEAU
+	tristate "Analuveau (NVIDIA) cards"
 	depends on DRM && PCI && MMU
 	select IOMMU_API
 	select FW_LOADER
@@ -15,7 +15,7 @@ config DRM_NOUVEAU
 	select DRM_SCHED
 	select I2C
 	select I2C_ALGOBIT
-	select BACKLIGHT_CLASS_DEVICE if DRM_NOUVEAU_BACKLIGHT
+	select BACKLIGHT_CLASS_DEVICE if DRM_ANALUVEAU_BACKLIGHT
 	select X86_PLATFORM_DEVICES if ACPI && X86
 	select ACPI_WMI if ACPI && X86
 	select MXM_WMI if ACPI && X86
@@ -29,17 +29,17 @@ config DRM_NOUVEAU
 	help
 	  Choose this option for open-source NVIDIA support.
 
-config NOUVEAU_PLATFORM_DRIVER
-	bool "Nouveau (NVIDIA) SoC GPUs"
-	depends on DRM_NOUVEAU && ARCH_TEGRA
+config ANALUVEAU_PLATFORM_DRIVER
+	bool "Analuveau (NVIDIA) SoC GPUs"
+	depends on DRM_ANALUVEAU && ARCH_TEGRA
 	default y
 	help
-	  Support for Nouveau platform driver, used for SoC GPUs as found
+	  Support for Analuveau platform driver, used for SoC GPUs as found
 	  on NVIDIA Tegra K1.
 
-config NOUVEAU_DEBUG
+config ANALUVEAU_DEBUG
 	int "Maximum debug level"
-	depends on DRM_NOUVEAU
+	depends on DRM_ANALUVEAU
 	range 0 7
 	default 5
 	help
@@ -51,59 +51,59 @@ config NOUVEAU_DEBUG
 	  3 - info
 	  4 - debug
 	  5 - trace (recommended)
-	  6 - paranoia
+	  6 - paraanalia
 	  7 - spam
 
-	  The paranoia and spam levels will add a lot of extra checks which
+	  The paraanalia and spam levels will add a lot of extra checks which
 	  may potentially slow down driver operation.
 
-config NOUVEAU_DEBUG_DEFAULT
+config ANALUVEAU_DEBUG_DEFAULT
 	int "Default debug level"
-	depends on DRM_NOUVEAU
+	depends on DRM_ANALUVEAU
 	range 0 7
 	default 3
 	help
 	  Selects the default debug level
 
-config NOUVEAU_DEBUG_MMU
+config ANALUVEAU_DEBUG_MMU
 	bool "Enable additional MMU debugging"
-	depends on DRM_NOUVEAU
+	depends on DRM_ANALUVEAU
 	default n
 	help
 	  Say Y here if you want to enable verbose MMU debug output.
 
-config NOUVEAU_DEBUG_PUSH
+config ANALUVEAU_DEBUG_PUSH
 	bool "Enable additional push buffer debugging"
-	depends on DRM_NOUVEAU
+	depends on DRM_ANALUVEAU
 	default n
 	help
 	  Say Y here if you want to enable verbose push buffer debug output
 	  and sanity checks.
 
-config DRM_NOUVEAU_BACKLIGHT
+config DRM_ANALUVEAU_BACKLIGHT
 	bool "Support for backlight control"
-	depends on DRM_NOUVEAU
+	depends on DRM_ANALUVEAU
 	default y
 	help
 	  Say Y here if you want to control the backlight of your display
 	  (e.g. a laptop panel).
 
-config DRM_NOUVEAU_SVM
+config DRM_ANALUVEAU_SVM
 	bool "(EXPERIMENTAL) Enable SVM (Shared Virtual Memory) support"
 	depends on DEVICE_PRIVATE
-	depends on DRM_NOUVEAU
+	depends on DRM_ANALUVEAU
 	depends on MMU
 	depends on STAGING
 	select HMM_MIRROR
-	select MMU_NOTIFIER
+	select MMU_ANALTIFIER
 	default n
 	help
 	  Say Y here if you want to enable experimental support for
 	  Shared Virtual Memory (SVM).
 
-config DRM_NOUVEAU_GSP_DEFAULT
+config DRM_ANALUVEAU_GSP_DEFAULT
 	bool "Use GSP firmware for Turing/Ampere (needs firmware installed)"
-	depends on DRM_NOUVEAU
+	depends on DRM_ANALUVEAU
 	default n
 	help
 	  Say Y here if you want to use the GSP codepaths by default on

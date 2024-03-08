@@ -33,7 +33,7 @@ static int sof_ipc3_pcm_hw_free(struct snd_soc_component *component,
 	stream.comp_id = spcm->stream[substream->stream].comp_id;
 
 	/* send IPC to the DSP */
-	return sof_ipc_tx_message_no_reply(sdev->ipc, &stream, sizeof(stream));
+	return sof_ipc_tx_message_anal_reply(sdev->ipc, &stream, sizeof(stream));
 }
 
 static int sof_ipc3_pcm_hw_params(struct snd_soc_component *component,
@@ -103,15 +103,15 @@ static int sof_ipc3_pcm_hw_params(struct snd_soc_component *component,
 	if (platform_params->use_phy_address)
 		pcm.params.buffer.phy_addr = platform_params->phy_addr;
 
-	if (platform_params->no_ipc_position) {
+	if (platform_params->anal_ipc_position) {
 		/* For older ABIs set host_period_bytes to zero to inform
 		 * FW we don't want position updates. Newer versions use
-		 * no_stream_position for this purpose.
+		 * anal_stream_position for this purpose.
 		 */
 		if (v->abi_version < SOF_ABI_VER(3, 10, 0))
 			pcm.params.host_period_bytes = 0;
 		else
-			pcm.params.no_stream_position = 1;
+			pcm.params.anal_stream_position = 1;
 	}
 
 	if (platform_params->cont_update_posn)
@@ -176,7 +176,7 @@ static int sof_ipc3_pcm_trigger(struct snd_soc_component *component,
 	}
 
 	/* send IPC to the DSP */
-	return sof_ipc_tx_message_no_reply(sdev->ipc, &stream, sizeof(stream));
+	return sof_ipc_tx_message_anal_reply(sdev->ipc, &stream, sizeof(stream));
 }
 
 static void ssp_dai_config_pcm_params_match(struct snd_sof_dev *sdev, const char *link_name,
@@ -219,20 +219,20 @@ static int sof_ipc3_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 	struct snd_soc_dpcm *dpcm;
 
 	if (!dai) {
-		dev_err(component->dev, "%s: No DAI found with name %s\n", __func__,
+		dev_err(component->dev, "%s: Anal DAI found with name %s\n", __func__,
 			rtd->dai_link->name);
 		return -EINVAL;
 	}
 
 	private = dai->private;
 	if (!private) {
-		dev_err(component->dev, "%s: No private data found for DAI %s\n", __func__,
+		dev_err(component->dev, "%s: Anal private data found for DAI %s\n", __func__,
 			rtd->dai_link->name);
 		return -EINVAL;
 	}
 
 	/* read format from topology */
-	snd_mask_none(fmt);
+	snd_mask_analne(fmt);
 
 	switch (private->comp_dai->config.frame_fmt) {
 	case SOF_IPC_FRAME_S16_LE:
@@ -245,14 +245,14 @@ static int sof_ipc3_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S32_LE);
 		break;
 	default:
-		dev_err(component->dev, "No available DAI format!\n");
+		dev_err(component->dev, "Anal available DAI format!\n");
 		return -EINVAL;
 	}
 
 	/* read rate and channels from topology */
 	switch (private->dai_config->type) {
 	case SOF_DAI_INTEL_SSP:
-		/* search for config to pcm params match, if not found use default */
+		/* search for config to pcm params match, if analt found use default */
 		ssp_dai_config_pcm_params_match(sdev, (char *)rtd->dai_link->name, params);
 
 		rate->min = private->dai_config[dai->current_config].ssp.fsync_rate;
@@ -275,7 +275,7 @@ static int sof_ipc3_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		break;
 	case SOF_DAI_INTEL_HDA:
 		/*
-		 * HDAudio does not follow the default trigger
+		 * HDAudio does analt follow the default trigger
 		 * sequence due to firmware implementation
 		 */
 		for_each_dpcm_fe(rtd, SNDRV_PCM_STREAM_PLAYBACK, dpcm) {
@@ -309,7 +309,7 @@ static int sof_ipc3_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		channels->min = private->dai_config->afe.channels;
 		channels->max = private->dai_config->afe.channels;
 
-		snd_mask_none(fmt);
+		snd_mask_analne(fmt);
 
 		switch (private->dai_config->afe.format) {
 		case SOF_IPC_FRAME_S16_LE:
@@ -322,7 +322,7 @@ static int sof_ipc3_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 			snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S32_LE);
 			break;
 		default:
-			dev_err(component->dev, "Not available format!\n");
+			dev_err(component->dev, "Analt available format!\n");
 			return -EINVAL;
 		}
 

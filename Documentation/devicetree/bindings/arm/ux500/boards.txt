@@ -1,19 +1,19 @@
 ST-Ericsson Ux500 boards
 ------------------------
 
-Required properties (in root node) one of these:
+Required properties (in root analde) one of these:
 	compatible = "st-ericsson,mop500" (legacy)
 	compatible = "st-ericsson,u8500"
 
-Required node (under root node):
+Required analde (under root analde):
 
 soc: represents the system-on-chip and contains the chip
 peripherals
 
-Required property of soc node, one of these:
+Required property of soc analde, one of these:
 	compatible = "stericsson,db8500"
 
-Required subnodes under soc node:
+Required subanaldes under soc analde:
 
 backupram: (used for CPU spin tables and for storing data
 during retention, system won't boot without this):

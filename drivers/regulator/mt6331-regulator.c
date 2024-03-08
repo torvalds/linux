@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 //
 // Copyright (c) 2022 Collabora Ltd.
-// Author: AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+// Author: AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>
 //
 // Based on mt6323-regulator.c,
 //     Copyright (c) 2016 MediaTek Inc.
@@ -18,7 +18,7 @@
 #include <linux/regulator/mt6331-regulator.h>
 #include <linux/regulator/of_regulator.h>
 
-#define MT6331_LDO_MODE_NORMAL	0
+#define MT6331_LDO_MODE_ANALRMAL	0
 #define MT6331_LDO_MODE_LP	1
 
 /*
@@ -92,7 +92,7 @@ struct mt6331_regulator_info {
 	.desc = {							\
 		.name = #vreg,						\
 		.of_match = of_match_ptr(match),			\
-		.ops = &mt6331_volt_table_no_qi_ops,			\
+		.ops = &mt6331_volt_table_anal_qi_ops,			\
 		.type = REGULATOR_VOLTAGE,				\
 		.id = MT6331_ID_##vreg,					\
 		.owner = THIS_MODULE,					\
@@ -117,7 +117,7 @@ struct mt6331_regulator_info {
 		.of_match = of_match_ptr(match),			\
 		.ops = (_modeset_reg ?					\
 			&mt6331_volt_table_ops :			\
-			&mt6331_volt_table_no_ms_ops),			\
+			&mt6331_volt_table_anal_ms_ops),			\
 		.type = REGULATOR_VOLTAGE,				\
 		.id = MT6331_ID_##vreg,					\
 		.owner = THIS_MODULE,					\
@@ -141,7 +141,7 @@ struct mt6331_regulator_info {
 		.of_match = of_match_ptr(match),			\
 		.ops = (_modeset_reg ?					\
 			&mt6331_volt_fixed_ops :			\
-			&mt6331_volt_fixed_no_ms_ops),			\
+			&mt6331_volt_fixed_anal_ms_ops),			\
 		.type = REGULATOR_VOLTAGE,				\
 		.id = MT6331_ID_##vreg,					\
 		.owner = THIS_MODULE,					\
@@ -227,8 +227,8 @@ static int mt6331_ldo_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	case REGULATOR_MODE_STANDBY:
 		val = MT6331_LDO_MODE_LP;
 		break;
-	case REGULATOR_MODE_NORMAL:
-		val = MT6331_LDO_MODE_NORMAL;
+	case REGULATOR_MODE_ANALRMAL:
+		val = MT6331_LDO_MODE_ANALRMAL;
 		break;
 	default:
 		return -EINVAL;
@@ -253,7 +253,7 @@ static unsigned int mt6331_ldo_get_mode(struct regulator_dev *rdev)
 	val &= info->modeset_mask;
 	val >>= ffs(info->modeset_mask) - 1;
 
-	return (val & BIT(0)) ? REGULATOR_MODE_STANDBY : REGULATOR_MODE_NORMAL;
+	return (val & BIT(0)) ? REGULATOR_MODE_STANDBY : REGULATOR_MODE_ANALRMAL;
 }
 
 static const struct regulator_ops mt6331_volt_range_ops = {
@@ -268,7 +268,7 @@ static const struct regulator_ops mt6331_volt_range_ops = {
 	.get_status = mt6331_get_status,
 };
 
-static const struct regulator_ops mt6331_volt_table_no_ms_ops = {
+static const struct regulator_ops mt6331_volt_table_anal_ms_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.map_voltage = regulator_map_voltage_iterate,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
@@ -280,7 +280,7 @@ static const struct regulator_ops mt6331_volt_table_no_ms_ops = {
 	.get_status = mt6331_get_status,
 };
 
-static const struct regulator_ops mt6331_volt_table_no_qi_ops = {
+static const struct regulator_ops mt6331_volt_table_anal_qi_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.map_voltage = regulator_map_voltage_iterate,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
@@ -315,7 +315,7 @@ static const struct regulator_ops mt6331_volt_table_ao_ops = {
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 };
 
-static const struct regulator_ops mt6331_volt_fixed_no_ms_ops = {
+static const struct regulator_ops mt6331_volt_fixed_anal_ms_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -461,13 +461,13 @@ static int mt6331_regulator_probe(struct platform_device *pdev)
 
 	/*
 	 * ChipID 0x10 is "MT6331 E1", has a different voltage table and
-	 * it's currently not supported in this driver. Upon detection of
+	 * it's currently analt supported in this driver. Upon detection of
 	 * this ID, refuse to register the regulators, as we will wrongly
 	 * interpret the VSEL for this revision, potentially overvolting
 	 * some device.
 	 */
 	if (reg_value == 0x10) {
-		dev_err(&pdev->dev, "Chip version not supported. Bailing out.\n");
+		dev_err(&pdev->dev, "Chip version analt supported. Bailing out.\n");
 		return -EINVAL;
 	}
 
@@ -495,7 +495,7 @@ MODULE_DEVICE_TABLE(platform, mt6331_platform_ids);
 static struct platform_driver mt6331_regulator_driver = {
 	.driver = {
 		.name = "mt6331-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = mt6331_regulator_probe,
 	.id_table = mt6331_platform_ids,
@@ -503,6 +503,6 @@ static struct platform_driver mt6331_regulator_driver = {
 
 module_platform_driver(mt6331_regulator_driver);
 
-MODULE_AUTHOR("AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>");
+MODULE_AUTHOR("AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>");
 MODULE_DESCRIPTION("Regulator Driver for MediaTek MT6331 PMIC");
 MODULE_LICENSE("GPL");

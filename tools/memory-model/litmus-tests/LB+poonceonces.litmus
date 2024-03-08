@@ -4,7 +4,7 @@ C LB+poonceonces
  * Result: Sometimes
  *
  * Can the counter-intuitive outcome for the load-buffering pattern
- * be prevented even with no explicit ordering?
+ * be prevented even with anal explicit ordering?
  *)
 
 {}

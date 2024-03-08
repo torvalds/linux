@@ -28,7 +28,7 @@
 #define PRNG_NEED_RESET 0x2
 
 /*
- * Note: DT is our counter value
+ * Analte: DT is our counter value
  *	 I is our intermediate value
  *	 V is our seed vector
  * See http://csrc.nist.gov/groups/STM/cavp/documents/rng/931rngext.pdf
@@ -50,10 +50,10 @@ struct prng_context {
 
 static int dbg;
 
-static void hexdump(char *note, unsigned char *buf, unsigned int len)
+static void hexdump(char *analte, unsigned char *buf, unsigned int len)
 {
 	if (dbg) {
-		printk(KERN_CRIT "%s", note);
+		printk(KERN_CRIT "%s", analte);
 		print_hex_dump(KERN_CONT, "", DUMP_PREFIX_OFFSET,
 				16, 1,
 				buf, len, false);
@@ -158,7 +158,7 @@ static int _get_more_prng_bytes(struct prng_context *ctx, int cont_test)
 	}
 
 	/*
-	 * Now update our DT value
+	 * Analw update our DT value
 	 */
 	for (i = DEFAULT_BLK_SZ - 1; i >= 0; i--) {
 		ctx->DT[i] += 1;
@@ -238,7 +238,7 @@ empty_rbuf:
 	}
 
 	/*
-	 * Now copy whole blocks
+	 * Analw copy whole blocks
 	 */
 	for (; byte_count >= DEFAULT_BLK_SZ; byte_count -= DEFAULT_BLK_SZ) {
 		if (ctx->rand_data_valid == DEFAULT_BLK_SZ) {
@@ -256,7 +256,7 @@ empty_rbuf:
 	}
 
 	/*
-	 * Now go back and get any remaining partial block
+	 * Analw go back and get any remaining partial block
 	 */
 	if (byte_count)
 		goto remainder;

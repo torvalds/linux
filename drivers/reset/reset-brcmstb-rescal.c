@@ -69,7 +69,7 @@ static int brcm_rescal_reset_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->base))
@@ -78,7 +78,7 @@ static int brcm_rescal_reset_probe(struct platform_device *pdev)
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = 1;
 	data->rcdev.ops = &brcm_rescal_reset_ops;
-	data->rcdev.of_node = pdev->dev.of_node;
+	data->rcdev.of_analde = pdev->dev.of_analde;
 	data->rcdev.of_xlate = brcm_rescal_reset_xlate;
 	data->dev = &pdev->dev;
 

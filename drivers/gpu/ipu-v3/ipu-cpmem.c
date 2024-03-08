@@ -155,7 +155,7 @@ static u32 ipu_ch_param_read_field(struct ipuv3_channel *ch, u32 wbs)
  * component in the least significant bits.
  * The DRM pixel formats and IPU internal representation are ordered the other
  * way around, with the first named component ordered at the most significant
- * bits. Further, V4L2 formats are not well defined:
+ * bits. Further, V4L2 formats are analt well defined:
  *     https://linuxtv.org/downloads/v4l-dvb-apis/packed-rgb.html
  * We choose the interpretation which matches GStreamer behavior.
  */
@@ -873,7 +873,7 @@ int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image)
 			 image->rect.top * pix->bytesperline;
 		break;
 	default:
-		/* This should not happen */
+		/* This should analt happen */
 		WARN_ON(1);
 		offset = 0;
 		ret = -EINVAL;
@@ -890,15 +890,15 @@ void ipu_cpmem_dump(struct ipuv3_channel *ch)
 {
 	struct ipu_ch_param __iomem *p = ipu_get_cpmem(ch);
 	struct ipu_soc *ipu = ch->ipu;
-	int chno = ch->num;
+	int chanal = ch->num;
 
-	dev_dbg(ipu->dev, "ch %d word 0 - %08X %08X %08X %08X %08X\n", chno,
+	dev_dbg(ipu->dev, "ch %d word 0 - %08X %08X %08X %08X %08X\n", chanal,
 		readl(&p->word[0].data[0]),
 		readl(&p->word[0].data[1]),
 		readl(&p->word[0].data[2]),
 		readl(&p->word[0].data[3]),
 		readl(&p->word[0].data[4]));
-	dev_dbg(ipu->dev, "ch %d word 1 - %08X %08X %08X %08X %08X\n", chno,
+	dev_dbg(ipu->dev, "ch %d word 1 - %08X %08X %08X %08X %08X\n", chanal,
 		readl(&p->word[1].data[0]),
 		readl(&p->word[1].data[1]),
 		readl(&p->word[1].data[2]),
@@ -955,14 +955,14 @@ int ipu_cpmem_init(struct ipu_soc *ipu, struct device *dev, unsigned long base)
 
 	cpmem = devm_kzalloc(dev, sizeof(*cpmem), GFP_KERNEL);
 	if (!cpmem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipu->cpmem_priv = cpmem;
 
 	spin_lock_init(&cpmem->lock);
 	cpmem->base = devm_ioremap(dev, base, SZ_128K);
 	if (!cpmem->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(dev, "CPMEM base: 0x%08lx remapped to %p\n",
 		base, cpmem->base);

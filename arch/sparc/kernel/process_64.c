@@ -9,7 +9,7 @@
 /*
  * This file handles the architecture-dependent parts of process handling..
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
@@ -95,9 +95,9 @@ void arch_cpu_idle(void)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-void __noreturn arch_cpu_idle_dead(void)
+void __analreturn arch_cpu_idle_dead(void)
 {
-	sched_preempt_enable_no_resched();
+	sched_preempt_enable_anal_resched();
 	cpu_play_dead();
 }
 #endif
@@ -221,10 +221,10 @@ static void __global_reg_self(struct thread_info *tp, struct pt_regs *regs,
 	rp->thread = tp;
 }
 
-/* In order to avoid hangs we do not try to synchronize with the
+/* In order to avoid hangs we do analt try to synchronize with the
  * global register dump client cpus.  The last store they make is to
  * the thread pointer, so do a short poll waiting for that to become
- * non-NULL.
+ * analn-NULL.
  */
 static void __global_reg_poll(struct global_reg_snapshot *gp)
 {
@@ -438,7 +438,7 @@ static unsigned long clone_stackframe(unsigned long csp, unsigned long psp)
 	} else
 		__get_user(fp, &(((struct reg_window32 __user *)psp)->ins[6]));
 
-	/* Now align the stack as this is mandatory in the Sparc ABI
+	/* Analw align the stack as this is mandatory in the Sparc ABI
 	 * due to how register windows work.  This hides the
 	 * restriction from thread libraries etc.
 	 */
@@ -561,7 +561,7 @@ barf:
 }
 
 /* Copy a Sparc thread.  The fork() return value conventions
- * under SunOS are nothing short of bletcherous:
+ * under SunOS are analthing short of bletcherous:
  * Parent -->  %o0 == childs  pid, %o1 == 0
  * Child  -->  %o0 == parents pid, %o1 == 1
  */

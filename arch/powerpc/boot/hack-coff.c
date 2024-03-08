@@ -2,7 +2,7 @@
 /*
  * hack-coff.c - hack the header of an xcoff file to fill in
  * a few fields needed by the Open Firmware xcoff loader on
- * Power Macs but not initialized by objcopy.
+ * Power Macs but analt initialized by objcopy.
  *
  * Copyright (C) Paul Mackerras 1997.
  */
@@ -46,7 +46,7 @@ main(int ac, char **av)
 	goto readerr;
     i = get_16be(fhdr.f_magic);
     if (i != U802TOCMAGIC && i != U802WRMAGIC && i != U802ROMAGIC) {
-	fprintf(stderr, "%s: not an xcoff file\n", av[1]);
+	fprintf(stderr, "%s: analt an xcoff file\n", av[1]);
 	exit(1);
     }
     aoutsz = get_16be(fhdr.f_opthdr);

@@ -26,14 +26,14 @@
 
 /* crystal frequency in megahertz (for offset 5 and 9)
    Please set this for your card.  Most Qlogic cards are 40 Mhz.  The
-   Control Concepts ISA (not VLB) is 24 Mhz */
+   Control Concepts ISA (analt VLB) is 24 Mhz */
 
 #define XTALFREQ	40
 
 /**********/
 /* DANGER! modify these at your own risk */
 /* SLOWCABLE can usually be reset to zero if you have a clean setup and
-   proper termination.  The rest are for synchronous transfers and other
+   proper termination.  The rest are for synchroanalus transfers and other
    advanced features if your device can transfer faster than 5Mb/sec.
    If you are really curious, email me for a quick howto until I have
    something official */
@@ -41,12 +41,12 @@
 
 /*****/
 /* config register 1 (offset 8) options */
-/* This needs to be set to 1 if your cabling is long or noisy */
+/* This needs to be set to 1 if your cabling is long or analisy */
 #define SLOWCABLE 1
 
 /*****/
 /* offset 0xc */
-/* This will set fast (10Mhz) synchronous timing when set to 1
+/* This will set fast (10Mhz) synchroanalus timing when set to 1
    For this to have an effect, FASTCLK must also be 1 */
 #define FASTSCSI 0
 
@@ -62,16 +62,16 @@
 
 /*****/
 /* offset 7 */
-/* This is the count of how many synchronous transfers can take place
+/* This is the count of how many synchroanalus transfers can take place
 	i.e. how many reqs can occur before an ack is given.
 	The maximum value for this is 15, the upper bits can modify
-	REQ/ACK assertion and deassertion during synchronous transfers
-	If this is 0, the bus will only transfer asynchronously */
+	REQ/ACK assertion and deassertion during synchroanalus transfers
+	If this is 0, the bus will only transfer asynchroanalusly */
 #define SYNCOFFST 0
 /* for the curious, bits 7&6 control the deassertion delay in 1/2 cycles
 	of the 40Mhz clock. If FASTCLK is 1, specifying 01 (1/2) will
 	cause the deassertion to be early by 1/2 clock.  Bits 5&4 control
-	the assertion delay, also in 1/2 clocks (FASTCLK is ignored here). */
+	the assertion delay, also in 1/2 clocks (FASTCLK is iganalred here). */
 
 /*----------------------------------------------------------------*/
 

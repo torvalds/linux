@@ -2,7 +2,7 @@
 /*
  * at91-sama5d2_icp.dts - Device Tree file for SAMA5D2-ICP board
  *
- *  Copyright (C) 2019 Microchip Technology Inc. and its subsidiaries
+ *  Copyright (C) 2019 Microchip Techanallogy Inc. and its subsidiaries
  *
  *	Author: Radu Pirea & Razvan Stefanescu,
  *		Codrin Ciubotariu <codrin.ciubotariu@microchip.com>,
@@ -667,7 +667,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <104000000>;
 		spi-cs-setup-ns = <7>;
@@ -708,7 +708,7 @@
 };
 
 &sdmmc0 {
-	no-1-8-v;
+	anal-1-8-v;
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdmmc0_default>;

@@ -28,8 +28,8 @@ struct slim_eaddr {
 
 /**
  * enum slim_device_status - slim device status
- * @SLIM_DEVICE_STATUS_DOWN: Slim device is absent or not reported yet.
- * @SLIM_DEVICE_STATUS_UP: Slim device is announced on the bus.
+ * @SLIM_DEVICE_STATUS_DOWN: Slim device is absent or analt reported yet.
+ * @SLIM_DEVICE_STATUS_UP: Slim device is ananalunced on the bus.
  * @SLIM_DEVICE_STATUS_RESERVED: Reserved for future use.
  */
 enum slim_device_status {
@@ -47,7 +47,7 @@ struct slim_controller;
  * @status: slim device status
  * @ctrl: slim controller instance.
  * @laddr: 1-byte Logical address of this device.
- * @is_laddr_valid: indicates if the laddr is valid or not
+ * @is_laddr_valid: indicates if the laddr is valid or analt
  * @stream_list: List of streams on this device
  * @stream_list_lock: lock to protect the stream list
  *
@@ -100,9 +100,9 @@ struct slim_driver {
  * @wbuf: buffer to write
  * @num_bytes: upto 16. This ensures that the message will fit the slicesize
  *		per SLIMbus spec
- * @comp: completion for asynchronous operations, valid only if TID is
+ * @comp: completion for asynchroanalus operations, valid only if TID is
  *	  required for transaction, like REQUEST operations.
- *	  Rest of the transactions are synchronous anyway.
+ *	  Rest of the transactions are synchroanalus anyway.
  */
 struct slim_val_inf {
 	u16			start_offset;
@@ -154,7 +154,7 @@ void slim_driver_unregister(struct slim_driver *drv);
  * module_slim_driver() - Helper macro for registering a SLIMbus driver
  * @__slim_driver: slimbus_driver struct
  *
- * Helper macro for SLIMbus drivers which do not do anything special in module
+ * Helper macro for SLIMbus drivers which do analt do anything special in module
  * init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */
@@ -173,7 +173,7 @@ static inline void slim_set_devicedata(struct slim_device *dev, void *data)
 }
 
 struct slim_device *of_slim_get_device(struct slim_controller *ctrl,
-				       struct device_node *np);
+				       struct device_analde *np);
 struct slim_device *slim_get_device(struct slim_controller *ctrl,
 				    struct slim_eaddr *e_addr);
 int slim_get_logical_addr(struct slim_device *sbdev);

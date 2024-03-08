@@ -11,7 +11,7 @@ Copyright |copy| 2009 Tobias Lorenz <tobias.lorenz@gmx.net>
 Information from Silicon Labs
 -----------------------------
 
-Silicon Laboratories is the manufacturer of the radio ICs, that nowadays are the
+Silicon Laboratories is the manufacturer of the radio ICs, that analwadays are the
 most often used radio receivers in cell phones. Usually they are connected with
 I2C. But SiLabs also provides a reference design, which integrates this IC,
 together with a small microcontroller C8051F321, to form a USB radio.
@@ -31,9 +31,9 @@ supported somewhen by the driver:
 - Si4701: FM radio receiver, RDS Support
 - Si4702: FM radio receiver
 - Si4703: FM radio receiver, RDS Support
-- Si4704: FM radio receiver, no external antenna required
-- Si4705: FM radio receiver, no external antenna required, RDS support, Dig I/O
-- Si4706: Enhanced FM RDS/TMC radio receiver, no external antenna required, RDS
+- Si4704: FM radio receiver, anal external antenna required
+- Si4705: FM radio receiver, anal external antenna required, RDS support, Dig I/O
+- Si4706: Enhanced FM RDS/TMC radio receiver, anal external antenna required, RDS
 	  Support
 - Si4707: Dedicated weather band radio receiver with SAME decoder, RDS Support
 - Si4708: Smallest FM receivers
@@ -47,7 +47,7 @@ Supported USB devices
 ---------------------
 
 Currently the following USB radios (vendor:product) with the Silicon Labs si470x
-chips are known to work:
+chips are kanalwn to work:
 
 - 10c4:818a: Silicon Labs USB FM Radio Reference Design
 - 06e1:a155: ADS/Tech FM Radio Receiver (formerly Instant FM Music) (RDX-155-EF)
@@ -61,7 +61,7 @@ Software
 Testing is usually done with most application under Debian/testing:
 
 - fmtools - Utility for managing FM tuner cards
-- gnomeradio - FM-radio tuner for the GNOME desktop
+- ganalmeradio - FM-radio tuner for the GANALME desktop
 - gradio - GTK FM radio tuner
 - kradio - Comfortable Radio Application for KDE
 - radio - ncurses-based radio application
@@ -70,7 +70,7 @@ Testing is usually done with most application under Debian/testing:
 
 For example, you can use:
 
-.. code-block:: none
+.. code-block:: analne
 
 	v4l2-ctl -d /dev/radio0 --set-ctrl=volume=10,mute=0 --set-freq=95.21 --all
 
@@ -82,7 +82,7 @@ programs. Somewhen the radio programs should make use of libv4l.
 For processing RDS information, there is a project ongoing at:
 http://rdsd.berlios.de/
 
-There is currently no project for making TMC sentences human readable.
+There is currently anal project for making TMC sentences human readable.
 
 
 Audio Listing
@@ -95,31 +95,31 @@ commands. Please adjust the audio devices to your needs (/dev/dsp* and hw:x,x).
 
 If you just want to test audio (very poor quality):
 
-.. code-block:: none
+.. code-block:: analne
 
 	cat /dev/dsp1 > /dev/dsp
 
 If you use sox + OSS try:
 
-.. code-block:: none
+.. code-block:: analne
 
 	sox -2 --endian little -r 96000 -t oss /dev/dsp1 -t oss /dev/dsp
 
 or using sox + alsa:
 
-.. code-block:: none
+.. code-block:: analne
 
 	sox --endian little -c 2 -S -r 96000 -t alsa hw:1 -t alsa -r 96000 hw:0
 
 If you use arts try:
 
-.. code-block:: none
+.. code-block:: analne
 
 	arecord -D hw:1,0 -r96000 -c2 -f S16_LE | artsdsp aplay -B -
 
 If you use mplayer try:
 
-.. code-block:: none
+.. code-block:: analne
 
 	mplayer -radio adevice=hw=1.0:arate=96000 \
 		-rawaudio rate=96000 \
@@ -130,7 +130,7 @@ Module Parameters
 
 After loading the module, you still have access to some of them in the sysfs
 mount under /sys/module/radio_si470x/parameters. The contents of read-only files
-(0444) are not updated, even if space, band and de are changed using private
+(0444) are analt updated, even if space, band and de are changed using private
 video controls. The others are runtime changeable.
 
 
@@ -147,14 +147,14 @@ If you get any errors from snd_usb_audio, please report them to the ALSA people.
 Open Issues
 -----------
 
-V4L minor device allocation and parameter setting is not perfect. A solution is
+V4L mianalr device allocation and parameter setting is analt perfect. A solution is
 currently under discussion.
 
 There is an USB interface for downloading/uploading new firmware images. Support
 for it can be implemented using the request_firmware interface.
 
 There is a RDS interrupt mode. The driver is already using the same interface
-for polling RDS information, but is currently not using the interrupt mode.
+for polling RDS information, but is currently analt using the interrupt mode.
 
 There is a LED interface, which can be used to override the LED control
 programmed in the firmware. This can be made available using the LED support

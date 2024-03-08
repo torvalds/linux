@@ -14,7 +14,7 @@ description: |
   The RK3188/RK3066 clock controller generates and supplies clocks to various
   controllers within the SoC and also implements a reset controller for SoC
   peripherals.
-  Each clock is assigned an identifier and client nodes can use this identifier
+  Each clock is assigned an identifier and client analdes can use this identifier
   to specify the clock which they consume. All available clocks are defined as
   preprocessor macros in the dt-bindings/clock/rk3188-cru.h and
   dt-bindings/clock/rk3066-cru.h headers and can be used in device tree sources.
@@ -56,7 +56,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Phandle to the syscon managing the "general register files" (GRF),
-      if missing pll rates are not changeable, due to the missing pll
+      if missing pll rates are analt changeable, due to the missing pll
       lock status.
 
 required:

@@ -13,8 +13,8 @@ description: |
   These panels are connected to the daughterboards found on the
   ARM Versatile reference designs.
 
-  This device node must appear as a child to a "syscon"-compatible
-  node.
+  This device analde must appear as a child to a "syscon"-compatible
+  analde.
 
 allOf:
   - $ref: panel-common.yaml#

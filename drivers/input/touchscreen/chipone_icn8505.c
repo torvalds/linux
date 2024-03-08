@@ -20,7 +20,7 @@
 #include <linux/input/touchscreen.h>
 #include <linux/module.h>
 
-/* Normal operation mode defines */
+/* Analrmal operation mode defines */
 #define ICN8505_REG_ADDR_WIDTH		16
 
 #define ICN8505_REG_POWER		0x0004
@@ -53,7 +53,7 @@ struct icn8505_touch {
 	u8 pressure;	/* Seems more like finger width then pressure really */
 	u8 event;
 /* The difference between 2 and 3 is unclear */
-#define ICN8505_EVENT_NO_DATA	1 /* No finger seen yet since wakeup */
+#define ICN8505_EVENT_ANAL_DATA	1 /* Anal finger seen yet since wakeup */
 #define ICN8505_EVENT_UPDATE1	2 /* New or updated coordinates */
 #define ICN8505_EVENT_UPDATE2	3 /* New or updated coordinates */
 #define ICN8505_EVENT_END	4 /* Finger lifted */
@@ -191,9 +191,9 @@ static int icn8505_write_prog_reg(struct icn8505_data *icn8505, int reg, u8 val)
 }
 
 /*
- * Note this function uses a number of magic register addresses and values,
- * there are deliberately no defines for these because the algorithm is taken
- * from the icn85xx Android driver and I do not want to make up possibly wrong
+ * Analte this function uses a number of magic register addresses and values,
+ * there are deliberately anal defines for these because the algorithm is taken
+ * from the icn85xx Android driver and I do analt want to make up possibly wrong
  * names for the addresses and/or values.
  */
 static int icn8505_try_fw_upload(struct icn8505_data *icn8505,
@@ -224,7 +224,7 @@ static int icn8505_try_fw_upload(struct icn8505_data *icn8505,
 
 	if (buf[0] != 0x85) {
 		dev_err(dev, "Failed to enter programming mode\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	usleep_range(1000, 5000);
@@ -294,7 +294,7 @@ static int icn8505_upload_fw(struct icn8505_data *icn8505)
 		return error;
 	}
 
-	/* Check if the controller is not already up and running */
+	/* Check if the controller is analt already up and running */
 	if (icn8505_read_reg_silent(icn8505, 0x000a) == 0x85)
 		goto success;
 
@@ -369,8 +369,8 @@ static int icn8505_probe_acpi(struct icn8505_data *icn8505, struct device *dev)
 
 	subsys = acpi_get_subsystem_id(ACPI_HANDLE(dev));
 	error = PTR_ERR_OR_ZERO(subsys);
-	if (error == -ENODATA)
-		subsys = "unknown";
+	if (error == -EANALDATA)
+		subsys = "unkanalwn";
 	else if (error)
 		return error;
 
@@ -390,17 +390,17 @@ static int icn8505_probe(struct i2c_client *client)
 	int error;
 
 	if (!client->irq) {
-		dev_err(dev, "No irq specified\n");
+		dev_err(dev, "Anal irq specified\n");
 		return -EINVAL;
 	}
 
 	icn8505 = devm_kzalloc(dev, sizeof(*icn8505), GFP_KERNEL);
 	if (!icn8505)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->name = client->name;
 	input->id.bustype = BUS_I2C;

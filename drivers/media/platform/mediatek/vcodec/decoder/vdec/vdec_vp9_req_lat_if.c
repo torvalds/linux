@@ -16,8 +16,8 @@
 #include "../vdec_vpu_if.h"
 
 /* reset_frame_context defined in VP9 spec */
-#define VP9_RESET_FRAME_CONTEXT_NONE0 0
-#define VP9_RESET_FRAME_CONTEXT_NONE1 1
+#define VP9_RESET_FRAME_CONTEXT_ANALNE0 0
+#define VP9_RESET_FRAME_CONTEXT_ANALNE1 1
 #define VP9_RESET_FRAME_CONTEXT_SPEC 2
 #define VP9_RESET_FRAME_CONTEXT_ALL 3
 
@@ -41,7 +41,7 @@ struct vdec_vp9_slice_frame_ctx {
 
 	u8 y_mode_prob[4][16];
 	u8 switch_interp_prob[4][16];
-	u8 seg[32];  /* ignore */
+	u8 seg[32];  /* iganalre */
 	u8 comp_inter_prob[16];
 	u8 comp_ref_prob[16];
 	u8 single_ref_prob[5][2];
@@ -399,7 +399,7 @@ struct vdec_vp9_slice_pfc {
  * enum vdec_vp9_slice_resolution_level
  */
 enum vdec_vp9_slice_resolution_level {
-	VP9_RES_NONE,
+	VP9_RES_ANALNE,
 	VP9_RES_FHD,
 	VP9_RES_4K,
 	VP9_RES_8K,
@@ -465,7 +465,7 @@ struct vdec_vp9_slice_instance {
 	struct vdec_vp9_slice_ref dpb[VB2_MAX_FRAME];
 
 	/*
-	 * normal working buffers
+	 * analrmal working buffers
 	 * mv[0]/seg[0]/tile/prob/counts is used for LAT
 	 * mv[1]/seg[1] is used for CORE
 	 */
@@ -527,7 +527,7 @@ static int vdec_vp9_slice_init_default_frame_ctx(struct vdec_vp9_slice_instance 
 
 	frame_ctx = kmemdup(remote_frame_ctx, sizeof(*frame_ctx), GFP_KERNEL);
 	if (!frame_ctx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -581,7 +581,7 @@ static int vdec_vp9_slice_alloc_working_buffer(struct vdec_vp9_slice_instance *i
 
 	max_sb_w = DIV_ROUND_UP(max_w, 64);
 	max_sb_h = DIV_ROUND_UP(max_h, 64);
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	/*
 	 * Lat-flush must wait core idle, otherwise core will
@@ -628,7 +628,7 @@ static int vdec_vp9_slice_alloc_working_buffer(struct vdec_vp9_slice_instance *i
 	return 0;
 
 err:
-	instance->level = VP9_RES_NONE;
+	instance->level = VP9_RES_ANALNE;
 	return ret;
 }
 
@@ -652,7 +652,7 @@ static void vdec_vp9_slice_free_working_buffer(struct vdec_vp9_slice_instance *i
 	if (instance->counts.va)
 		mtk_vcodec_mem_free(ctx, &instance->counts);
 
-	instance->level = VP9_RES_NONE;
+	instance->level = VP9_RES_ANALNE;
 }
 
 static void vdec_vp9_slice_vsi_from_remote(struct vdec_vp9_slice_vsi *vsi,
@@ -749,8 +749,8 @@ static void vdec_vp9_slice_setup_hdr(struct vdec_vp9_slice_instance *instance,
 	uh->intra_only = HDR_FLAG(INTRA_ONLY);
 	/* map v4l2 enum to values defined in VP9 spec for firmware */
 	switch (hdr->reset_frame_context) {
-	case V4L2_VP9_RESET_FRAME_CTX_NONE:
-		uh->reset_frame_context = VP9_RESET_FRAME_CONTEXT_NONE0;
+	case V4L2_VP9_RESET_FRAME_CTX_ANALNE:
+		uh->reset_frame_context = VP9_RESET_FRAME_CONTEXT_ANALNE0;
 		break;
 	case V4L2_VP9_RESET_FRAME_CTX_SPEC:
 		uh->reset_frame_context = VP9_RESET_FRAME_CONTEXT_SPEC;
@@ -759,7 +759,7 @@ static void vdec_vp9_slice_setup_hdr(struct vdec_vp9_slice_instance *instance,
 		uh->reset_frame_context = VP9_RESET_FRAME_CONTEXT_ALL;
 		break;
 	default:
-		uh->reset_frame_context = VP9_RESET_FRAME_CONTEXT_NONE0;
+		uh->reset_frame_context = VP9_RESET_FRAME_CONTEXT_ANALNE0;
 		break;
 	}
 	/*
@@ -770,7 +770,7 @@ static void vdec_vp9_slice_setup_hdr(struct vdec_vp9_slice_instance *instance,
 	 * - GOLDEN_FRAME = 2,
 	 * - ALTREF_FRAME = 3,
 	 * ref_frame_sign_bias[INTRA_FRAME] is always 0
-	 * and VDA only passes another 3 directions
+	 * and VDA only passes aanalther 3 directions
 	 */
 	uh->ref_frame_sign_bias[0] = 0;
 	for (i = 0; i < 3; i++)
@@ -815,7 +815,7 @@ static void vdec_vp9_slice_setup_frame_ctx(struct vdec_vp9_slice_instance *insta
 		 * @reset_frame_context specifies
 		 * whether the frame context should be
 		 * reset to default values:
-		 * 0 or 1 means do not reset any frame context
+		 * 0 or 1 means do analt reset any frame context
 		 * 2 resets just the context specified in the frame header
 		 * 3 resets all contexts
 		 */
@@ -1352,7 +1352,7 @@ void vdec_vp9_slice_framectx_map_helper(bool frame_is_intra,
 							   frame_ctx_helper);
 
 	/*
-	 * use previous prob when frame is not intra or
+	 * use previous prob when frame is analt intra or
 	 * we should use the prob updated by the compressed header parse
 	 */
 	if (!frame_is_intra)
@@ -1568,7 +1568,7 @@ static int vdec_vp9_slice_update_prob(struct vdec_vp9_slice_instance *instance,
 					  use_128,
 					  frame_is_intra);
 		if (!frame_is_intra)
-			v4l2_vp9_adapt_noncoef_probs(pre_frame_ctx_helper,
+			v4l2_vp9_adapt_analncoef_probs(pre_frame_ctx_helper,
 						     counts_helper,
 						     V4L2_VP9_REFERENCE_MODE_SINGLE_REFERENCE,
 						     vsi->frame.uh.interpolation_filter,
@@ -1626,10 +1626,10 @@ static int vdec_vp9_slice_update_lat(struct vdec_vp9_slice_instance *instance,
 
 	/* buffer full, need to re-decode */
 	if (vsi->state.full) {
-		/* buffer not enough */
+		/* buffer analt eanalugh */
 		if (vsi->trans.dma_addr_end - vsi->trans.dma_addr ==
 			vsi->ube.size)
-			return -ENOMEM;
+			return -EANALMEM;
 		return -EAGAIN;
 	}
 
@@ -1852,7 +1852,7 @@ static int vdec_vp9_slice_init(struct mtk_vcodec_dec_ctx *ctx)
 
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 	if (!instance)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	instance->ctx = ctx;
 	instance->vpu.id = SCP_IPI_VDEC_LAT;
@@ -1962,7 +1962,7 @@ static int vdec_vp9_slice_get_param(void *h_vdec, enum vdec_get_param_type type,
 		vdec_vp9_slice_get_dpb_size(instance, out);
 		break;
 	case GET_PARAM_CROP_INFO:
-		mtk_vdec_debug(instance->ctx, "No need to get vp9 crop information.");
+		mtk_vdec_debug(instance->ctx, "Anal need to get vp9 crop information.");
 		break;
 	default:
 		mtk_vdec_err(instance->ctx, "invalid get parameter type=%d\n", type);
@@ -2047,7 +2047,7 @@ static int vdec_vp9_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 	if (vdec_msg_queue_init(&ctx->msg_queue, ctx,
 				vdec_vp9_slice_core_decode,
 				sizeof(*pfc)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* bs NULL means flush decoder */
 	if (!bs)
@@ -2092,7 +2092,7 @@ static int vdec_vp9_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 	vdec_vp9_slice_vsi_from_remote(vsi, instance->vsi, 0);
 	ret = vdec_vp9_slice_update_lat(instance, lat_buf, pfc);
 
-	/* LAT trans full, no more UBE or decode timeout */
+	/* LAT trans full, anal more UBE or decode timeout */
 	if (ret) {
 		mtk_vdec_err(ctx, "VP9 decode error: %d\n", ret);
 		goto err_free_fb_out;

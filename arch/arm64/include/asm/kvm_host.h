@@ -43,7 +43,7 @@
 #define KVM_VCPU_VALID_FEATURES	(BIT(KVM_VCPU_MAX_FEATURES) - 1)
 
 #define KVM_REQ_SLEEP \
-	KVM_ARCH_REQ_FLAGS(0, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
+	KVM_ARCH_REQ_FLAGS(0, KVM_REQUEST_WAIT | KVM_REQUEST_ANAL_WAKEUP)
 #define KVM_REQ_IRQ_PENDING	KVM_ARCH_REQ(1)
 #define KVM_REQ_VCPU_RESET	KVM_ARCH_REQ(2)
 #define KVM_REQ_RECORD_STEAL	KVM_ARCH_REQ(3)
@@ -65,12 +65,12 @@ enum kvm_mode {
 	KVM_MODE_DEFAULT,
 	KVM_MODE_PROTECTED,
 	KVM_MODE_NV,
-	KVM_MODE_NONE,
+	KVM_MODE_ANALNE,
 };
 #ifdef CONFIG_KVM
 enum kvm_mode kvm_get_mode(void);
 #else
-static inline enum kvm_mode kvm_get_mode(void) { return KVM_MODE_NONE; };
+static inline enum kvm_mode kvm_get_mode(void) { return KVM_MODE_ANALNE; };
 #endif
 
 DECLARE_STATIC_KEY_FALSE(userspace_irqchip_in_use);
@@ -120,7 +120,7 @@ static inline int __topup_hyp_memcache(struct kvm_hyp_memcache *mc,
 		phys_addr_t *p = alloc_fn(arg);
 
 		if (!p)
-			return -ENOMEM;
+			return -EANALMEM;
 		push_hyp_memcache(mc, p, to_pa);
 	}
 
@@ -152,15 +152,15 @@ struct kvm_s2_mmu {
 	 * Two kvm_s2_mmu structures in the same VM can point to the same
 	 * pgd here.  This happens when running a guest using a
 	 * translation regime that isn't affected by its own stage-2
-	 * translation, such as a non-VHE hypervisor running at vEL2, or
+	 * translation, such as a analn-VHE hypervisor running at vEL2, or
 	 * for vEL1/EL0 with vHCR_EL2.VM == 0.  In that case, we use the
-	 * canonical stage-2 page tables.
+	 * caanalnical stage-2 page tables.
 	 */
 	phys_addr_t	pgd_phys;
 	struct kvm_pgtable *pgt;
 
 	/*
-	 * VTCR value used on the host. For a non-NV guest (or a NV
+	 * VTCR value used on the host. For a analn-NV guest (or a NV
 	 * guest that runs in a context where its own S2 doesn't
 	 * apply), its T0SZ value reflects that of the IPA size.
 	 *
@@ -283,7 +283,7 @@ struct kvm_arch {
 	struct kvm_mpidr_data *mpidr_data;
 
 	/*
-	 * VM-wide PMU filter, implemented as a bitmap and big enough for
+	 * VM-wide PMU filter, implemented as a bitmap and big eanalugh for
 	 * up to 2^10 events (ARMv8.0) or 2^16 events (ARMv8.1+).
 	 */
 	unsigned long *pmu_filter;
@@ -331,7 +331,7 @@ struct kvm_vcpu_fault_info {
  * __VNCR_START__, and the value (after correction) to be an 8-byte offset
  * from the VNCR base. As we don't require the enum to be otherwise ordered,
  * we need the terrible hack below to ensure that we correctly size the
- * sys_regs array, no matter what.
+ * sys_regs array, anal matter what.
  *
  * The __MAX__ macro has been lifted from Sean Eron Anderson's wonderful
  * treasure trove of bit hacks:
@@ -471,7 +471,7 @@ enum vcpu_sysreg {
 	VNCR(CNTP_CVAL_EL0),
 	VNCR(CNTP_CTL_EL0),
 
-	NR_SYS_REGS	/* Nothing after this line! */
+	NR_SYS_REGS	/* Analthing after this line! */
 };
 
 struct kvm_cpu_context {
@@ -578,7 +578,7 @@ struct kvm_vcpu_arch {
 	 * Don't run the guest (internal implementation need).
 	 *
 	 * Contrary to the flags above, this is set/cleared outside of
-	 * a vcpu context, and thus cannot be mixed with the flags
+	 * a vcpu context, and thus cananalt be mixed with the flags
 	 * themselves (or the flag accesses need to be made atomic).
 	 */
 	bool pause;
@@ -686,11 +686,11 @@ struct kvm_vcpu_arch {
 	})
 
 /*
- * Note that the set/clear accessors must be preempt-safe in order to
+ * Analte that the set/clear accessors must be preempt-safe in order to
  * avoid nesting them with load/put which also manipulate flags...
  */
 #ifdef __KVM_NVHE_HYPERVISOR__
-/* the nVHE hypervisor is always non-preemptible */
+/* the nVHE hypervisor is always analn-preemptible */
 #define __vcpu_flags_preempt_disable()
 #define __vcpu_flags_preempt_enable()
 #else
@@ -744,7 +744,7 @@ struct kvm_vcpu_arch {
  * be set together with an exception...
  */
 #define INCREMENT_PC		__vcpu_single_flag(iflags, BIT(1))
-/* Target EL/MODE (not a single flag, but let's abuse the macro) */
+/* Target EL/MODE (analt a single flag, but let's abuse the macro) */
 #define EXCEPT_MASK		__vcpu_single_flag(iflags, GENMASK(3, 1))
 
 /* Helpers to encode exceptions with minimum fuss */
@@ -784,7 +784,7 @@ struct kvm_vcpu_arch {
 #define HOST_SVE_ENABLED	__vcpu_single_flag(sflags, BIT(0))
 /* SME enabled for EL0 */
 #define HOST_SME_ENABLED	__vcpu_single_flag(sflags, BIT(1))
-/* Physical CPU not in supported_cpus */
+/* Physical CPU analt in supported_cpus */
 #define ON_UNSUPPORTED_CPU	__vcpu_single_flag(sflags, BIT(2))
 /* WFIT instruction trapped */
 #define IN_WFIT			__vcpu_single_flag(sflags, BIT(3))
@@ -847,13 +847,13 @@ struct kvm_vcpu_arch {
 #define vcpu_gp_regs(v)		(&(v)->arch.ctxt.regs)
 
 /*
- * Only use __vcpu_sys_reg/ctxt_sys_reg if you know you want the
- * memory backed version of a register, and not the one most recently
+ * Only use __vcpu_sys_reg/ctxt_sys_reg if you kanalw you want the
+ * memory backed version of a register, and analt the one most recently
  * accessed by a running VCPU.  For example, for userspace access or
  * for system registers that are never context switched, but only
  * emulated.
  *
- * Don't bother with VNCR-based accesses in the nVHE code, it has no
+ * Don't bother with VNCR-based accesses in the nVHE code, it has anal
  * business dealing with NV.
  */
 static inline u64 *__ctxt_sys_reg(const struct kvm_cpu_context *ctxt, int r)
@@ -878,11 +878,11 @@ static inline bool __vcpu_read_sys_reg_from_cpu(int reg, u64 *val)
 	/*
 	 * *** VHE ONLY ***
 	 *
-	 * System registers listed in the switch are not saved on every
+	 * System registers listed in the switch are analt saved on every
 	 * exit from the guest but are only saved on vcpu_put.
 	 *
-	 * Note that MPIDR_EL1 for the guest is set by KVM via VMPIDR_EL2 but
-	 * should never be listed below, because the guest cannot modify its
+	 * Analte that MPIDR_EL1 for the guest is set by KVM via VMPIDR_EL2 but
+	 * should never be listed below, because the guest cananalt modify its
 	 * own MPIDR_EL1 and MPIDR_EL1 is accessed for VCPU A from VCPU B's
 	 * thread when emulating cross-VCPU communication.
 	 */
@@ -924,10 +924,10 @@ static inline bool __vcpu_write_sys_reg_to_cpu(u64 val, int reg)
 	/*
 	 * *** VHE ONLY ***
 	 *
-	 * System registers listed in the switch are not restored on every
+	 * System registers listed in the switch are analt restored on every
 	 * entry to the guest but are only restored on vcpu_load.
 	 *
-	 * Note that MPIDR_EL1 for the guest is set by KVM via VMPIDR_EL2 but
+	 * Analte that MPIDR_EL1 for the guest is set by KVM via VMPIDR_EL2 but
 	 * should never be listed below, because the MPIDR should only be set
 	 * once, before running the VCPU, and never changed later.
 	 */

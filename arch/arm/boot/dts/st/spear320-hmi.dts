@@ -245,7 +245,7 @@
 						reg = <0>;
 						gpio-controller;
 						#gpio-cells = <2>;
-						gpio,norequest-mask = <0xF3>;
+						gpio,analrequest-mask = <0xF3>;
 					};
 
 					stmpe610-ts {

@@ -2,7 +2,7 @@
 /*
  * DRM driver for MIPI DBI compatible display panels
  *
- * Copyright 2022 Noralf Trønnes
+ * Copyright 2022 Analralf Trønnes
  */
 
 #include <linux/backlight.h>
@@ -49,9 +49,9 @@ struct panel_mipi_dbi_config {
 	 *     command, num_parameters, [ parameter, ...], command, ...
 	 *
 	 * Some commands require a pause before the next command can be received.
-	 * Inserting a delay in the command sequence is done by using the NOP command with one
-	 * parameter: delay in miliseconds (the No Operation command is part of the MIPI Display
-	 * Command Set where it has no parameters).
+	 * Inserting a delay in the command sequence is done by using the ANALP command with one
+	 * parameter: delay in miliseconds (the Anal Operation command is part of the MIPI Display
+	 * Command Set where it has anal parameters).
 	 *
 	 * Example:
 	 *     command 0x11
@@ -92,7 +92,7 @@ panel_mipi_dbi_check_commands(struct device *dev, const struct firmware *fw)
 	}
 
 	if (config->file_format_version != 1) {
-		dev_err(dev, "config: version=%u is not supported\n", config->file_format_version);
+		dev_err(dev, "config: version=%u is analt supported\n", config->file_format_version);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -126,12 +126,12 @@ panel_mipi_dbi_check_commands(struct device *dev, const struct firmware *fw)
 
 	commands = devm_kzalloc(dev, sizeof(*commands), GFP_KERNEL);
 	if (!commands)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	commands->len = commands_len;
 	commands->buf = devm_kmemdup(dev, config->commands, commands->len, GFP_KERNEL);
 	if (!commands->buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return commands;
 }
@@ -144,14 +144,14 @@ static struct panel_mipi_dbi_commands *panel_mipi_dbi_commands_from_fw(struct de
 	char fw_name[40];
 	int ret;
 
-	ret = of_property_read_string_index(dev->of_node, "compatible", 0, &compatible);
+	ret = of_property_read_string_index(dev->of_analde, "compatible", 0, &compatible);
 	if (ret)
 		return ERR_PTR(ret);
 
 	snprintf(fw_name, sizeof(fw_name), "%s.bin", compatible);
 	ret = request_firmware(&fw, fw_name, dev);
 	if (ret) {
-		dev_err(dev, "No config file found for compatible '%s' (error=%d)\n",
+		dev_err(dev, "Anal config file found for compatible '%s' (error=%d)\n",
 			compatible, ret);
 
 		return ERR_PTR(ret);
@@ -226,7 +226,7 @@ static const struct drm_driver panel_mipi_dbi_driver = {
 	.desc			= "MIPI DBI compatible display panel",
 	.date			= "20220103",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 };
 
 static int panel_mipi_dbi_get_mode(struct mipi_dbi_dev *dbidev, struct drm_display_mode *mode)
@@ -235,9 +235,9 @@ static int panel_mipi_dbi_get_mode(struct mipi_dbi_dev *dbidev, struct drm_displ
 	u16 hback_porch, vback_porch;
 	int ret;
 
-	ret = of_get_drm_panel_display_mode(dev->of_node, mode, NULL);
+	ret = of_get_drm_panel_display_mode(dev->of_analde, mode, NULL);
 	if (ret) {
-		dev_err(dev, "%pOF: failed to get panel-timing (error=%d)\n", dev->of_node, ret);
+		dev_err(dev, "%pOF: failed to get panel-timing (error=%d)\n", dev->of_analde, ret);
 		return ret;
 	}
 
@@ -254,11 +254,11 @@ static int panel_mipi_dbi_get_mode(struct mipi_dbi_dev *dbidev, struct drm_displ
 	if (!mode->hdisplay || !mode->vdisplay || mode->flags ||
 	    mode->hsync_end > mode->hdisplay || (hback_porch + mode->hdisplay) > 0xffff ||
 	    mode->vsync_end > mode->vdisplay || (vback_porch + mode->vdisplay) > 0xffff) {
-		dev_err(dev, "%pOF: panel-timing out of bounds\n", dev->of_node);
+		dev_err(dev, "%pOF: panel-timing out of bounds\n", dev->of_analde);
 		return -EINVAL;
 	}
 
-	/* The driver doesn't use the pixel clock but it is mandatory so fake one if not set */
+	/* The driver doesn't use the pixel clock but it is mandatory so fake one if analt set */
 	if (!mode->clock)
 		mode->clock = mode->htotal * mode->vtotal * 60 / 1000;
 
@@ -308,7 +308,7 @@ static int panel_mipi_dbi_spi_probe(struct spi_device *spi)
 		return dev_err_probe(dev, PTR_ERR(dbi->reset), "Failed to get GPIO 'reset'\n");
 
 	/* Multiple panels can share the "dc" GPIO, but only if they are on the same SPI bus! */
-	dc = devm_gpiod_get_optional(dev, "dc", GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+	dc = devm_gpiod_get_optional(dev, "dc", GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_ANALNEXCLUSIVE);
 	if (IS_ERR(dc))
 		return dev_err_probe(dev, PTR_ERR(dc), "Failed to get GPIO 'dc'\n");
 
@@ -396,5 +396,5 @@ static struct spi_driver panel_mipi_dbi_spi_driver = {
 module_spi_driver(panel_mipi_dbi_spi_driver);
 
 MODULE_DESCRIPTION("MIPI DBI compatible display panel driver");
-MODULE_AUTHOR("Noralf Trønnes");
+MODULE_AUTHOR("Analralf Trønnes");
 MODULE_LICENSE("GPL");

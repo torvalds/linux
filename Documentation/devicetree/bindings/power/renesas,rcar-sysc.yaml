@@ -61,7 +61,7 @@ additionalProperties: false
 
 examples:
   - |
-    // System Controller node
+    // System Controller analde
     sysc: system-controller@e6180000 {
             compatible = "renesas,r8a7791-sysc";
             reg = <0xe6180000 0x0200>;

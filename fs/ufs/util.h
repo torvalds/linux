@@ -33,7 +33,7 @@ ufs_get_fs_state(struct super_block *sb, struct ufs_super_block_first *usb1,
 		 struct ufs_super_block_third *usb3)
 {
 	switch (UFS_SB(sb)->s_flags & UFS_ST_MASK) {
-	case UFS_ST_SUNOS:
+	case UFS_ST_SUANALS:
 		if (fs32_to_cpu(sb, usb3->fs_postblformat) == UFS_42POSTBLFMT)
 			return fs32_to_cpu(sb, usb1->fs_u0.fs_sun.fs_state);
 		fallthrough;	/* to UFS_ST_SUN */
@@ -52,7 +52,7 @@ ufs_set_fs_state(struct super_block *sb, struct ufs_super_block_first *usb1,
 		 struct ufs_super_block_third *usb3, s32 value)
 {
 	switch (UFS_SB(sb)->s_flags & UFS_ST_MASK) {
-	case UFS_ST_SUNOS:
+	case UFS_ST_SUANALS:
 		if (fs32_to_cpu(sb, usb3->fs_postblformat) == UFS_42POSTBLFMT) {
 			usb1->fs_u0.fs_sun.fs_state = cpu_to_fs32(sb, value);
 			break;
@@ -86,7 +86,7 @@ ufs_get_fs_qbmask(struct super_block *sb, struct ufs_super_block_third *usb3)
 	__fs64 tmp;
 
 	switch (UFS_SB(sb)->s_flags & UFS_ST_MASK) {
-	case UFS_ST_SUNOS:
+	case UFS_ST_SUANALS:
 	case UFS_ST_SUN:
 		((__fs32 *)&tmp)[0] = usb3->fs_un2.fs_sun.fs_qbmask[0];
 		((__fs32 *)&tmp)[1] = usb3->fs_un2.fs_sun.fs_qbmask[1];
@@ -110,7 +110,7 @@ ufs_get_fs_qfmask(struct super_block *sb, struct ufs_super_block_third *usb3)
 	__fs64 tmp;
 
 	switch (UFS_SB(sb)->s_flags & UFS_ST_MASK) {
-	case UFS_ST_SUNOS:
+	case UFS_ST_SUANALS:
 	case UFS_ST_SUN:
 		((__fs32 *)&tmp)[0] = usb3->fs_un2.fs_sun.fs_qfmask[0];
 		((__fs32 *)&tmp)[1] = usb3->fs_un2.fs_sun.fs_qfmask[1];
@@ -178,80 +178,80 @@ ufs_set_de_type(struct super_block *sb, struct ufs_dir_entry *de, int mode)
 		de->d_u.d_44.d_type = DT_FIFO;
 		break;
 	default:
-		de->d_u.d_44.d_type = DT_UNKNOWN;
+		de->d_u.d_44.d_type = DT_UNKANALWN;
 	}
 }
 
 static inline u32
-ufs_get_inode_uid(struct super_block *sb, struct ufs_inode *inode)
+ufs_get_ianalde_uid(struct super_block *sb, struct ufs_ianalde *ianalde)
 {
 	switch (UFS_SB(sb)->s_flags & UFS_UID_MASK) {
 	case UFS_UID_44BSD:
-		return fs32_to_cpu(sb, inode->ui_u3.ui_44.ui_uid);
+		return fs32_to_cpu(sb, ianalde->ui_u3.ui_44.ui_uid);
 	case UFS_UID_EFT:
-		if (inode->ui_u1.oldids.ui_suid == 0xFFFF)
-			return fs32_to_cpu(sb, inode->ui_u3.ui_sun.ui_uid);
+		if (ianalde->ui_u1.oldids.ui_suid == 0xFFFF)
+			return fs32_to_cpu(sb, ianalde->ui_u3.ui_sun.ui_uid);
 		fallthrough;
 	default:
-		return fs16_to_cpu(sb, inode->ui_u1.oldids.ui_suid);
+		return fs16_to_cpu(sb, ianalde->ui_u1.oldids.ui_suid);
 	}
 }
 
 static inline void
-ufs_set_inode_uid(struct super_block *sb, struct ufs_inode *inode, u32 value)
+ufs_set_ianalde_uid(struct super_block *sb, struct ufs_ianalde *ianalde, u32 value)
 {
 	switch (UFS_SB(sb)->s_flags & UFS_UID_MASK) {
 	case UFS_UID_44BSD:
-		inode->ui_u3.ui_44.ui_uid = cpu_to_fs32(sb, value);
-		inode->ui_u1.oldids.ui_suid = cpu_to_fs16(sb, value);
+		ianalde->ui_u3.ui_44.ui_uid = cpu_to_fs32(sb, value);
+		ianalde->ui_u1.oldids.ui_suid = cpu_to_fs16(sb, value);
 		break;
 	case UFS_UID_EFT:
-		inode->ui_u3.ui_sun.ui_uid = cpu_to_fs32(sb, value);
+		ianalde->ui_u3.ui_sun.ui_uid = cpu_to_fs32(sb, value);
 		if (value > 0xFFFF)
 			value = 0xFFFF;
 		fallthrough;
 	default:
-		inode->ui_u1.oldids.ui_suid = cpu_to_fs16(sb, value);
+		ianalde->ui_u1.oldids.ui_suid = cpu_to_fs16(sb, value);
 		break;
 	}
 }
 
 static inline u32
-ufs_get_inode_gid(struct super_block *sb, struct ufs_inode *inode)
+ufs_get_ianalde_gid(struct super_block *sb, struct ufs_ianalde *ianalde)
 {
 	switch (UFS_SB(sb)->s_flags & UFS_UID_MASK) {
 	case UFS_UID_44BSD:
-		return fs32_to_cpu(sb, inode->ui_u3.ui_44.ui_gid);
+		return fs32_to_cpu(sb, ianalde->ui_u3.ui_44.ui_gid);
 	case UFS_UID_EFT:
-		if (inode->ui_u1.oldids.ui_sgid == 0xFFFF)
-			return fs32_to_cpu(sb, inode->ui_u3.ui_sun.ui_gid);
+		if (ianalde->ui_u1.oldids.ui_sgid == 0xFFFF)
+			return fs32_to_cpu(sb, ianalde->ui_u3.ui_sun.ui_gid);
 		fallthrough;
 	default:
-		return fs16_to_cpu(sb, inode->ui_u1.oldids.ui_sgid);
+		return fs16_to_cpu(sb, ianalde->ui_u1.oldids.ui_sgid);
 	}
 }
 
 static inline void
-ufs_set_inode_gid(struct super_block *sb, struct ufs_inode *inode, u32 value)
+ufs_set_ianalde_gid(struct super_block *sb, struct ufs_ianalde *ianalde, u32 value)
 {
 	switch (UFS_SB(sb)->s_flags & UFS_UID_MASK) {
 	case UFS_UID_44BSD:
-		inode->ui_u3.ui_44.ui_gid = cpu_to_fs32(sb, value);
-		inode->ui_u1.oldids.ui_sgid =  cpu_to_fs16(sb, value);
+		ianalde->ui_u3.ui_44.ui_gid = cpu_to_fs32(sb, value);
+		ianalde->ui_u1.oldids.ui_sgid =  cpu_to_fs16(sb, value);
 		break;
 	case UFS_UID_EFT:
-		inode->ui_u3.ui_sun.ui_gid = cpu_to_fs32(sb, value);
+		ianalde->ui_u3.ui_sun.ui_gid = cpu_to_fs32(sb, value);
 		if (value > 0xFFFF)
 			value = 0xFFFF;
 		fallthrough;
 	default:
-		inode->ui_u1.oldids.ui_sgid =  cpu_to_fs16(sb, value);
+		ianalde->ui_u1.oldids.ui_sgid =  cpu_to_fs16(sb, value);
 		break;
 	}
 }
 
-extern dev_t ufs_get_inode_dev(struct super_block *, struct ufs_inode_info *);
-extern void ufs_set_inode_dev(struct super_block *, struct ufs_inode_info *, dev_t);
+extern dev_t ufs_get_ianalde_dev(struct super_block *, struct ufs_ianalde_info *);
+extern void ufs_set_ianalde_dev(struct super_block *, struct ufs_ianalde_info *, dev_t);
 extern int ufs_prepare_chunk(struct page *page, loff_t pos, unsigned len);
 
 /*
@@ -353,12 +353,12 @@ ufs_freefrags(struct ufs_sb_private_info *uspi)
 /*
  * Macros to access cylinder group array structures
  */
-#define ubh_cg_blktot(ucpi,cylno) \
-	(*((__fs32*)ubh_get_addr(UCPI_UBH(ucpi), (ucpi)->c_btotoff + ((cylno) << 2))))
+#define ubh_cg_blktot(ucpi,cylanal) \
+	(*((__fs32*)ubh_get_addr(UCPI_UBH(ucpi), (ucpi)->c_btotoff + ((cylanal) << 2))))
 
-#define ubh_cg_blks(ucpi,cylno,rpos) \
+#define ubh_cg_blks(ucpi,cylanal,rpos) \
 	(*((__fs16*)ubh_get_addr(UCPI_UBH(ucpi), \
-	(ucpi)->c_boff + (((cylno) * uspi->s_nrpos + (rpos)) << 1 ))))
+	(ucpi)->c_boff + (((cylanal) * uspi->s_nrpos + (rpos)) << 1 ))))
 
 /*
  * Bitmap operations
@@ -541,7 +541,7 @@ static inline void ufs_fragacct (struct super_block * sb, unsigned blockmap,
 }
 
 static inline void *ufs_get_direct_data_ptr(struct ufs_sb_private_info *uspi,
-					    struct ufs_inode_info *ufsi,
+					    struct ufs_ianalde_info *ufsi,
 					    unsigned blk)
 {
 	BUG_ON(blk > UFS_TIND_BLOCK);
@@ -585,14 +585,14 @@ static inline int ufs_is_data_ptr_zero(struct ufs_sb_private_info *uspi,
 
 static inline __fs32 ufs_get_seconds(struct super_block *sbp)
 {
-	time64_t now = ktime_get_real_seconds();
+	time64_t analw = ktime_get_real_seconds();
 
 	/* Signed 32-bit interpretation wraps around in 2038, which
-	 * happens in ufs1 inode stamps but not ufs2 using 64-bits
+	 * happens in ufs1 ianalde stamps but analt ufs2 using 64-bits
 	 * stamps. For superblock and blockgroup, let's assume
 	 * unsigned 32-bit stamps, which are good until y2106.
 	 * Wrap around rather than clamp here to make the dirty
 	 * file system detection work in the superblock stamp.
 	 */
-	return cpu_to_fs32(sbp, lower_32_bits(now));
+	return cpu_to_fs32(sbp, lower_32_bits(analw));
 }

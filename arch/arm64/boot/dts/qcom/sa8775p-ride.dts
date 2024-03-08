@@ -480,7 +480,7 @@
 
 	usb2_en_state: usb2-en-state {
 		pins = "gpio9";
-		function = "normal";
+		function = "analrmal";
 		output-high;
 		power-source = <0>;
 	};
@@ -502,14 +502,14 @@
 
 	usb0_en_state: usb0-en-state {
 		pins = "gpio3";
-		function = "normal";
+		function = "analrmal";
 		output-high;
 		power-source = <0>;
 	};
 
 	usb1_en_state: usb1-en-state {
 		pins = "gpio10";
-		function = "normal";
+		function = "analrmal";
 		output-high;
 		power-source = <0>;
 	};

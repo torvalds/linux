@@ -3,7 +3,7 @@
  * uartlite.c: Serial driver for Xilinx uartlite serial controller
  *
  * Copyright (C) 2006 Peter Korsgaard <jacmet@sunsite.dk>
- * Copyright (C) 2007 Secret Lab Technologies Ltd.
+ * Copyright (C) 2007 Secret Lab Techanallogies Ltd.
  */
 
 #include <linux/platform_device.h>
@@ -25,11 +25,11 @@
 
 #define ULITE_NAME		"ttyUL"
 #if CONFIG_SERIAL_UARTLITE_NR_UARTS > 4
-#define ULITE_MAJOR             0       /* use dynamic node allocation */
-#define ULITE_MINOR             0
+#define ULITE_MAJOR             0       /* use dynamic analde allocation */
+#define ULITE_MIANALR             0
 #else
 #define ULITE_MAJOR		204
-#define ULITE_MINOR		187
+#define ULITE_MIANALR		187
 #endif
 #define ULITE_NR_UARTS		CONFIG_SERIAL_UARTLITE_NR_UARTS
 
@@ -141,7 +141,7 @@ static int ulite_receive(struct uart_port *port, int stat)
 {
 	struct tty_port *tport = &port->state->port;
 	unsigned char ch = 0;
-	char flag = TTY_NORMAL;
+	char flag = TTY_ANALRMAL;
 
 	if ((stat & (ULITE_STATUS_RXVALID | ULITE_STATUS_OVERRUN
 		     | ULITE_STATUS_FRAME)) == 0)
@@ -164,7 +164,7 @@ static int ulite_receive(struct uart_port *port, int stat)
 
 
 	/* drop byte with parity error if IGNPAR specificed */
-	if (stat & port->ignore_status_mask & ULITE_STATUS_PARITY)
+	if (stat & port->iganalre_status_mask & ULITE_STATUS_PARITY)
 		stat &= ~ULITE_STATUS_RXVALID;
 
 	stat &= port->read_status_mask;
@@ -173,7 +173,7 @@ static int ulite_receive(struct uart_port *port, int stat)
 		flag = TTY_PARITY;
 
 
-	stat &= ~port->ignore_status_mask;
+	stat &= ~port->iganalre_status_mask;
 
 	if (stat & ULITE_STATUS_RXVALID)
 		tty_insert_flip_char(tport, ch, flag);
@@ -234,7 +234,7 @@ static irqreturn_t ulite_isr(int irq, void *dev_id)
 		tty_flip_buffer_push(&port->state->port);
 		return IRQ_HANDLED;
 	} else {
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 }
 
@@ -273,7 +273,7 @@ static void ulite_start_tx(struct uart_port *port)
 static void ulite_stop_rx(struct uart_port *port)
 {
 	/* don't forward any more data (like !CREAD) */
-	port->ignore_status_mask = ULITE_STATUS_RXVALID | ULITE_STATUS_PARITY
+	port->iganalre_status_mask = ULITE_STATUS_RXVALID | ULITE_STATUS_PARITY
 		| ULITE_STATUS_FRAME | ULITE_STATUS_OVERRUN;
 }
 
@@ -337,14 +337,14 @@ static void ulite_set_termios(struct uart_port *port,
 		port->read_status_mask |=
 			ULITE_STATUS_PARITY | ULITE_STATUS_FRAME;
 
-	port->ignore_status_mask = 0;
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= ULITE_STATUS_PARITY
+		port->iganalre_status_mask |= ULITE_STATUS_PARITY
 			| ULITE_STATUS_FRAME | ULITE_STATUS_OVERRUN;
 
-	/* ignore all characters if CREAD is not set */
+	/* iganalre all characters if CREAD is analt set */
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |=
+		port->iganalre_status_mask |=
 			ULITE_STATUS_RXVALID | ULITE_STATUS_PARITY
 			| ULITE_STATUS_FRAME | ULITE_STATUS_OVERRUN;
 
@@ -428,7 +428,7 @@ static void ulite_pm(struct uart_port *port, unsigned int state,
 static int ulite_get_poll_char(struct uart_port *port)
 {
 	if (!(uart_in32(ULITE_STATUS, port) & ULITE_STATUS_RXVALID))
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 	return uart_in32(ULITE_RX, port);
 }
@@ -533,16 +533,16 @@ static int ulite_console_setup(struct console *co, char *options)
 
 	/* Has the device been initialized yet? */
 	if (!port || !port->mapbase) {
-		pr_debug("console on ttyUL%i not present\n", co->index);
-		return -ENODEV;
+		pr_debug("console on ttyUL%i analt present\n", co->index);
+		return -EANALDEV;
 	}
 
 	console_port = port;
 
-	/* not initialized yet? */
+	/* analt initialized yet? */
 	if (!port->membase) {
 		if (ulite_request_port(port))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	if (options)
@@ -592,7 +592,7 @@ static int __init early_uartlite_setup(struct earlycon_device *device,
 				       const char *options)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = early_uartlite_write;
 	return 0;
@@ -608,7 +608,7 @@ static struct uart_driver ulite_uart_driver = {
 	.driver_name	= "uartlite",
 	.dev_name	= ULITE_NAME,
 	.major		= ULITE_MAJOR,
-	.minor		= ULITE_MINOR,
+	.mianalr		= ULITE_MIANALR,
 	.nr		= ULITE_NR_UARTS,
 #ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
 	.cons		= &ulite_console,
@@ -647,7 +647,7 @@ static int ulite_assign(struct device *dev, int id, phys_addr_t base, int irq,
 	}
 
 	if ((ulite_ports[id].mapbase) && (ulite_ports[id].mapbase != base)) {
-		dev_err(dev, "cannot assign to %s%i; it is already in use\n",
+		dev_err(dev, "cananalt assign to %s%i; it is already in use\n",
 			ULITE_NAME, id);
 		return -EBUSY;
 	}
@@ -665,7 +665,7 @@ static int ulite_assign(struct device *dev, int id, phys_addr_t base, int irq,
 	port->irq = irq;
 	port->flags = UPF_BOOT_AUTOCONF;
 	port->dev = dev;
-	port->type = PORT_UNKNOWN;
+	port->type = PORT_UNKANALWN;
 	port->line = id;
 	port->private_data = pdata;
 
@@ -718,7 +718,7 @@ static int __maybe_unused ulite_suspend(struct device *dev)
  * ulite_resume - Resume the device.
  *
  * @dev: handle to the device structure.
- * Return: 0 on success, errno otherwise.
+ * Return: 0 on success, erranal otherwise.
  */
 static int __maybe_unused ulite_resume(struct device *dev)
 {
@@ -747,7 +747,7 @@ static int __maybe_unused ulite_runtime_resume(struct device *dev)
 
 	ret = clk_enable(pdata->clk);
 	if (ret) {
-		dev_err(dev, "Cannot enable clock.\n");
+		dev_err(dev, "Cananalt enable clock.\n");
 		return ret;
 	}
 	return 0;
@@ -783,11 +783,11 @@ static int ulite_probe(struct platform_device *pdev)
 	pdata = devm_kzalloc(&pdev->dev, sizeof(struct uartlite_data),
 			     GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (IS_ENABLED(CONFIG_OF)) {
 		const char *prop;
-		struct device_node *np = pdev->dev.of_node;
+		struct device_analde *np = pdev->dev.of_analde;
 		u32 val = 0;
 
 		prop = "port-number";
@@ -795,7 +795,7 @@ static int ulite_probe(struct platform_device *pdev)
 		if (ret && ret != -EINVAL)
 of_err:
 			return dev_err_probe(&pdev->dev, ret,
-					     "could not read %s\n", prop);
+					     "could analt read %s\n", prop);
 
 		prop = "current-speed";
 		ret = of_property_read_u32(np, prop, &pdata->baud);
@@ -848,7 +848,7 @@ of_err:
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -856,7 +856,7 @@ of_err:
 
 	pdata->clk = devm_clk_get(&pdev->dev, "s_axi_aclk");
 	if (IS_ERR(pdata->clk)) {
-		if (PTR_ERR(pdata->clk) != -ENOENT)
+		if (PTR_ERR(pdata->clk) != -EANALENT)
 			return PTR_ERR(pdata->clk);
 
 		/*

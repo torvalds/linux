@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /* keyctl.h: keyctl command IDs
  *
  * Copyright (C) 2004, 2008 Red Hat, Inc. All Rights Reserved.
@@ -26,7 +26,7 @@
 #define KEY_SPEC_REQUESTOR_KEYRING	-8	/* - key ID for request_key() dest keyring */
 
 /* request-key default keyrings */
-#define KEY_REQKEY_DEFL_NO_CHANGE		-1
+#define KEY_REQKEY_DEFL_ANAL_CHANGE		-1
 #define KEY_REQKEY_DEFL_DEFAULT			0
 #define KEY_REQKEY_DEFL_THREAD_KEYRING		1
 #define KEY_REQKEY_DEFL_PROCESS_KEYRING		2
@@ -106,7 +106,7 @@ struct keyctl_pkey_query {
 };
 
 struct keyctl_pkey_params {
-	__s32		key_id;		/* Serial no. of public key to use */
+	__s32		key_id;		/* Serial anal. of public key to use */
 	__u32		in_len;		/* Input data size */
 	union {
 		__u32		out_len;	/* Output buffer size (encrypt/decrypt/sign) */
@@ -115,7 +115,7 @@ struct keyctl_pkey_params {
 	__u32		__spare[7];
 };
 
-#define KEYCTL_MOVE_EXCL	0x00000001 /* Do not displace from the to-keyring */
+#define KEYCTL_MOVE_EXCL	0x00000001 /* Do analt displace from the to-keyring */
 
 /*
  * Capabilities flags.  The capabilities list is an array of 8-bit integers;
@@ -131,6 +131,6 @@ struct keyctl_pkey_params {
 #define KEYCTL_CAPS0_MOVE		0x80 /* KEYCTL_MOVE supported */
 #define KEYCTL_CAPS1_NS_KEYRING_NAME	0x01 /* Keyring names are per-user_namespace */
 #define KEYCTL_CAPS1_NS_KEY_TAG		0x02 /* Key indexing can include a namespace tag */
-#define KEYCTL_CAPS1_NOTIFICATIONS	0x04 /* Keys generate watchable notifications */
+#define KEYCTL_CAPS1_ANALTIFICATIONS	0x04 /* Keys generate watchable analtifications */
 
 #endif /*  _LINUX_KEYCTL_H */

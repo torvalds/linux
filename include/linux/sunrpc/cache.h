@@ -25,7 +25,7 @@
  *  - A lookup function defined using DefineCacheLookup
  *  - A 'put' function that can release a cache item. It will only
  *    be called after cache_put has succeed, so there are guarantee
- *    to be no references.
+ *    to be anal references.
  *  - A function to calculate a hash of an item's key.
  *
  * as well as assorted code fragments (e.g. compare keys) and numbers
@@ -45,7 +45,7 @@
  * 
  */
 struct cache_head {
-	struct hlist_node	cache_list;
+	struct hlist_analde	cache_list;
 	time64_t	expiry_time;	/* After time expiry_time, don't use
 					 * the data */
 	time64_t	last_refresh;   /* If CACHE_PENDING, this is when upcall was
@@ -60,8 +60,8 @@ struct cache_head {
 /* cache_head.flags */
 enum {
 	CACHE_VALID,		/* Entry contains valid data */
-	CACHE_NEGATIVE,		/* Negative entry - there is no match for the key */
-	CACHE_PENDING,		/* An upcall has been sent but no reply received yet*/
+	CACHE_NEGATIVE,		/* Negative entry - there is anal match for the key */
+	CACHE_PENDING,		/* An upcall has been sent but anal reply received yet*/
 	CACHE_CLEANED,		/* Entry has been cleaned from cache */
 };
 
@@ -89,7 +89,7 @@ struct cache_detail {
 	int			(*cache_show)(struct seq_file *m,
 					      struct cache_detail *cd,
 					      struct cache_head *h);
-	void			(*warn_no_listener)(struct cache_detail *cd,
+	void			(*warn_anal_listener)(struct cache_detail *cd,
 					      int has_died);
 
 	struct cache_head *	(*alloc)(void);
@@ -99,7 +99,7 @@ struct cache_detail {
 	void			(*update)(struct cache_head *orig, struct cache_head *new);
 
 	/* fields below this comment are for internal use
-	 * and should not be touched by cache owners
+	 * and should analt be touched by cache owners
 	 */
 	time64_t		flush_time;		/* flush all cache items with
 							 * last_refresh at or earlier
@@ -115,8 +115,8 @@ struct cache_detail {
 	struct list_head	queue;
 
 	atomic_t		writers;		/* how many time is /channel open */
-	time64_t		last_close;		/* if no writers, when did last close */
-	time64_t		last_warn;		/* when we last warned about no writers */
+	time64_t		last_close;		/* if anal writers, when did last close */
+	time64_t		last_warn;		/* when we last warned about anal writers */
 
 	union {
 		struct proc_dir_entry	*procfs;
@@ -140,7 +140,7 @@ struct cache_req {
  * delayed awaiting cache-fill
  */
 struct cache_deferred_req {
-	struct hlist_node	hash;	/* on hash chain */
+	struct hlist_analde	hash;	/* on hash chain */
 	struct list_head	recent; /* on fifo */
 	struct cache_head	*item;  /* cache item we wait on */
 	void			*owner; /* we might need to discard all defered requests
@@ -260,7 +260,7 @@ static inline int get_int(char **bpp, int *anint)
 	if (len < 0)
 		return -EINVAL;
 	if (len == 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	rv = simple_strtol(buf, &ep, 0);
 	if (*ep)
@@ -278,7 +278,7 @@ static inline int get_uint(char **bpp, unsigned int *anint)
 	if (len < 0)
 		return -EINVAL;
 	if (len == 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (kstrtouint(buf, 0, anint))
 		return -EINVAL;
@@ -295,7 +295,7 @@ static inline int get_time(char **bpp, time64_t *time)
 	if (len < 0)
 		return -EINVAL;
 	if (len == 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (kstrtoll(buf, 0, &ll))
 		return -EINVAL;

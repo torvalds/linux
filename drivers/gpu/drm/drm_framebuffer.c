@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -42,7 +42,7 @@
  * DOC: overview
  *
  * Frame buffers are abstract memory objects that provide a source of pixels to
- * scanout to a CRTC. Applications explicitly request the creation of frame
+ * scaanalut to a CRTC. Applications explicitly request the creation of frame
  * buffers through the DRM_IOCTL_MODE_ADDFB(2) ioctls and receive an opaque
  * handle that can be passed to the KMS CRTC control, plane configuration and
  * page flip functions.
@@ -54,7 +54,7 @@
  * buffer management interface this would be a GEM handle.  Drivers are however
  * free to use their own backing storage object handles, e.g. vmwgfx directly
  * exposes special TTM handles to userspace and so expects TTM handles in the
- * create ioctl and not GEM handles.
+ * create ioctl and analt GEM handles.
  *
  * Framebuffers are tracked with &struct drm_framebuffer. They are published
  * using drm_framebuffer_init() - after calling that function userspace can use
@@ -68,8 +68,8 @@
  * which the last reference is never dropped (e.g. for the fbdev framebuffer
  * when the struct &struct drm_framebuffer is embedded into the fbdev helper
  * struct) drivers can manually clean up a framebuffer at module unload time
- * with drm_framebuffer_unregister_private(). But doing this is not
- * recommended, and it's better to have a normal free-standing &struct
+ * with drm_framebuffer_unregister_private(). But doing this is analt
+ * recommended, and it's better to have a analrmal free-standing &struct
  * drm_framebuffer.
  */
 
@@ -94,7 +94,7 @@ int drm_framebuffer_check_src_coords(uint32_t src_x, uint32_t src_y,
 			    src_x >> 16, ((src_x & 0xffff) * 15625) >> 10,
 			    src_y >> 16, ((src_y & 0xffff) * 15625) >> 10,
 			    fb->width, fb->height);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	return 0;
@@ -112,7 +112,7 @@ int drm_framebuffer_check_src_coords(uint32_t src_x, uint32_t src_y,
  * Called by the user via ioctl, or by an in-kernel client.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int drm_mode_addfb(struct drm_device *dev, struct drm_mode_fb_cmd *or,
 		   struct drm_file *file_priv)
@@ -121,7 +121,7 @@ int drm_mode_addfb(struct drm_device *dev, struct drm_mode_fb_cmd *or,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	r.pixel_format = drm_driver_legacy_fb_format(dev, or->bpp, or->depth);
 	if (r.pixel_format == DRM_FORMAT_INVALID) {
@@ -174,7 +174,7 @@ static int framebuffer_check(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	/* now let the driver pick its own format info */
+	/* analw let the driver pick its own format info */
 	info = drm_get_format_info(dev, r);
 
 	for (i = 0; i < info->num_planes; i++) {
@@ -184,12 +184,12 @@ static int framebuffer_check(struct drm_device *dev,
 		u64 min_pitch = drm_format_info_min_pitch(info, i, width);
 
 		if (!block_size && (r->modifier[i] == DRM_FORMAT_MOD_LINEAR)) {
-			drm_dbg_kms(dev, "Format requires non-linear modifier for plane %d\n", i);
+			drm_dbg_kms(dev, "Format requires analn-linear modifier for plane %d\n", i);
 			return -EINVAL;
 		}
 
 		if (!r->handles[i]) {
-			drm_dbg_kms(dev, "no buffer object handle for plane %d\n", i);
+			drm_dbg_kms(dev, "anal buffer object handle for plane %d\n", i);
 			return -EINVAL;
 		}
 
@@ -220,8 +220,8 @@ static int framebuffer_check(struct drm_device *dev,
 		/* modifier specific checks: */
 		switch (r->modifier[i]) {
 		case DRM_FORMAT_MOD_SAMSUNG_64_32_TILE:
-			/* NOTE: the pitch restriction may be lifted later if it turns
-			 * out that no hw has this restriction:
+			/* ANALTE: the pitch restriction may be lifted later if it turns
+			 * out that anal hw has this restriction:
 			 */
 			if (r->pixel_format != DRM_FORMAT_NV12 ||
 					width % 128 || height % 32 ||
@@ -238,7 +238,7 @@ static int framebuffer_check(struct drm_device *dev,
 
 	for (i = info->num_planes; i < 4; i++) {
 		if (r->modifier[i]) {
-			drm_dbg_kms(dev, "non-zero modifier for unused plane %d\n", i);
+			drm_dbg_kms(dev, "analn-zero modifier for unused plane %d\n", i);
 			return -EINVAL;
 		}
 
@@ -252,12 +252,12 @@ static int framebuffer_check(struct drm_device *dev,
 		}
 
 		if (r->pitches[i]) {
-			drm_dbg_kms(dev, "non-zero pitch for unused plane %d\n", i);
+			drm_dbg_kms(dev, "analn-zero pitch for unused plane %d\n", i);
 			return -EINVAL;
 		}
 
 		if (r->offsets[i]) {
-			drm_dbg_kms(dev, "non-zero offset for unused plane %d\n", i);
+			drm_dbg_kms(dev, "analn-zero offset for unused plane %d\n", i);
 			return -EINVAL;
 		}
 	}
@@ -291,8 +291,8 @@ drm_internal_framebuffer_create(struct drm_device *dev,
 	}
 
 	if (r->flags & DRM_MODE_FB_MODIFIERS &&
-	    dev->mode_config.fb_modifiers_not_supported) {
-		drm_dbg_kms(dev, "driver does not support fb modifiers\n");
+	    dev->mode_config.fb_modifiers_analt_supported) {
+		drm_dbg_kms(dev, "driver does analt support fb modifiers\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -302,7 +302,7 @@ drm_internal_framebuffer_create(struct drm_device *dev,
 
 	fb = dev->mode_config.funcs->fb_create(dev, file_priv, r);
 	if (IS_ERR(fb)) {
-		drm_dbg_kms(dev, "could not create framebuffer\n");
+		drm_dbg_kms(dev, "could analt create framebuffer\n");
 		return fb;
 	}
 
@@ -323,7 +323,7 @@ EXPORT_SYMBOL_FOR_TESTS_ONLY(drm_internal_framebuffer_create);
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int drm_mode_addfb2(struct drm_device *dev,
 		    void *data, struct drm_file *file_priv)
@@ -332,7 +332,7 @@ int drm_mode_addfb2(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	fb = drm_internal_framebuffer_create(dev, r, file_priv);
 	if (IS_ERR(fb))
@@ -362,12 +362,12 @@ int drm_mode_addfb2_ioctl(struct drm_device *dev,
 		 *
 		 * If they don't they interpret pixel_format values
 		 * incorrectly for bug compatibility, which in turn
-		 * implies the ADDFB2 ioctl does not work correctly
+		 * implies the ADDFB2 ioctl does analt work correctly
 		 * then.  So block it to make userspace fallback to
 		 * ADDFB.
 		 */
 		drm_dbg_kms(dev, "addfb2 broken on bigendian");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 #endif
 	return drm_mode_addfb2(dev, data, file_priv);
@@ -407,7 +407,7 @@ static int drm_mode_closefb(struct drm_framebuffer *fb,
 
 	if (!found) {
 		mutex_unlock(&file_priv->fbs_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	list_del_init(&fb->filp_head);
@@ -430,7 +430,7 @@ static int drm_mode_closefb(struct drm_framebuffer *fb,
  * Called by the user via ioctl, or by an in-kernel client.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int drm_mode_rmfb(struct drm_device *dev, u32 fb_id,
 		  struct drm_file *file_priv)
@@ -439,11 +439,11 @@ int drm_mode_rmfb(struct drm_device *dev, u32 fb_id,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	fb = drm_framebuffer_lookup(dev, file_priv, fb_id);
 	if (!fb)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = drm_mode_closefb(fb, file_priv);
 	if (ret != 0) {
@@ -453,7 +453,7 @@ int drm_mode_rmfb(struct drm_device *dev, u32 fb_id,
 
 	/*
 	 * drm_framebuffer_remove may fail with -EINTR on pending signals,
-	 * so run this in a separate stack as there's no way to correctly
+	 * so run this in a separate stack as there's anal way to correctly
 	 * handle this after the fb is already removed from the lookup table.
 	 */
 	if (drm_framebuffer_read_refcount(fb) > 1) {
@@ -489,14 +489,14 @@ int drm_mode_closefb_ioctl(struct drm_device *dev,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (r->pad)
 		return -EINVAL;
 
 	fb = drm_framebuffer_lookup(dev, file_priv, r->fb_id);
 	if (!fb)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = drm_mode_closefb(fb, file_priv);
 	drm_framebuffer_put(fb);
@@ -514,7 +514,7 @@ int drm_mode_closefb_ioctl(struct drm_device *dev,
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int drm_mode_getfb(struct drm_device *dev,
 		   void *data, struct drm_file *file_priv)
@@ -524,11 +524,11 @@ int drm_mode_getfb(struct drm_device *dev,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	fb = drm_framebuffer_lookup(dev, file_priv, r->fb_id);
 	if (!fb)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Multi-planar framebuffers need getfb2. */
 	if (fb->format->num_planes > 1) {
@@ -537,7 +537,7 @@ int drm_mode_getfb(struct drm_device *dev,
 	}
 
 	if (!fb->funcs->create_handle) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -547,10 +547,10 @@ int drm_mode_getfb(struct drm_device *dev,
 	r->bpp = drm_format_info_bpp(fb->format, 0);
 	r->pitch = fb->pitches[0];
 
-	/* GET_FB() is an unprivileged ioctl so we must not return a
-	 * buffer-handle to non-master processes! For
-	 * backwards-compatibility reasons, we cannot make GET_FB() privileged,
-	 * so just return an invalid handle for non-masters.
+	/* GET_FB() is an unprivileged ioctl so we must analt return a
+	 * buffer-handle to analn-master processes! For
+	 * backwards-compatibility reasons, we cananalt make GET_FB() privileged,
+	 * so just return an invalid handle for analn-masters.
 	 */
 	if (!drm_is_current_master(file_priv) && !capable(CAP_SYS_ADMIN)) {
 		r->handle = 0;
@@ -576,7 +576,7 @@ out:
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int drm_mode_getfb2_ioctl(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv)
@@ -591,7 +591,7 @@ int drm_mode_getfb2_ioctl(struct drm_device *dev,
 
 	fb = drm_framebuffer_lookup(dev, file_priv, r->fb_id);
 	if (!fb)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* For multi-plane framebuffers, we require the driver to place the
 	 * GEM objects directly in the drm_framebuffer. For single-plane
@@ -599,7 +599,7 @@ int drm_mode_getfb2_ioctl(struct drm_device *dev,
 	 */
 	if (!fb->obj[0] &&
 	    (fb->format->num_planes > 1 || !fb->funcs->create_handle)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -608,7 +608,7 @@ int drm_mode_getfb2_ioctl(struct drm_device *dev,
 	r->pixel_format = fb->format->format;
 
 	r->flags = 0;
-	if (!dev->mode_config.fb_modifiers_not_supported)
+	if (!dev->mode_config.fb_modifiers_analt_supported)
 		r->flags |= DRM_MODE_FB_MODIFIERS;
 
 	for (i = 0; i < ARRAY_SIZE(r->handles); i++) {
@@ -621,13 +621,13 @@ int drm_mode_getfb2_ioctl(struct drm_device *dev,
 	for (i = 0; i < fb->format->num_planes; i++) {
 		r->pitches[i] = fb->pitches[i];
 		r->offsets[i] = fb->offsets[i];
-		if (!dev->mode_config.fb_modifiers_not_supported)
+		if (!dev->mode_config.fb_modifiers_analt_supported)
 			r->modifier[i] = fb->modifier;
 	}
 
-	/* GET_FB2() is an unprivileged ioctl so we must not return a
-	 * buffer-handle to non master/root processes! To match GET_FB()
-	 * just return invalid handles (0) for non masters/root
+	/* GET_FB2() is an unprivileged ioctl so we must analt return a
+	 * buffer-handle to analn master/root processes! To match GET_FB()
+	 * just return invalid handles (0) for analn masters/root
 	 * rather than making GET_FB2() privileged.
 	 */
 	if (!drm_is_current_master(file_priv) && !capable(CAP_SYS_ADMIN)) {
@@ -698,13 +698,13 @@ out:
  * this ioctl to flush out the changes on manual-update display outputs, e.g.
  * usb display-link, mipi manual update panels or edp panel self refresh modes.
  *
- * Modesetting drivers which always update the frontbuffer do not need to
+ * Modesetting drivers which always update the frontbuffer do analt need to
  * implement the corresponding &drm_framebuffer_funcs.dirty callback.
  *
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 			   void *data, struct drm_file *file_priv)
@@ -718,11 +718,11 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	fb = drm_framebuffer_lookup(dev, file_priv, r->fb_id);
 	if (!fb)
-		return -ENOENT;
+		return -EANALENT;
 
 	num_clips = r->num_clips;
 	clips_ptr = (struct drm_clip_rect __user *)(unsigned long)r->clips_ptr;
@@ -734,8 +734,8 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 
 	flags = DRM_MODE_FB_DIRTY_FLAGS & r->flags;
 
-	/* If userspace annotates copy, clips must come in pairs */
-	if (flags & DRM_MODE_FB_DIRTY_ANNOTATE_COPY && (num_clips % 2)) {
+	/* If userspace ananaltates copy, clips must come in pairs */
+	if (flags & DRM_MODE_FB_DIRTY_ANANALTATE_COPY && (num_clips % 2)) {
 		ret = -EINVAL;
 		goto out_err1;
 	}
@@ -747,7 +747,7 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 		}
 		clips = kcalloc(num_clips, sizeof(*clips), GFP_KERNEL);
 		if (!clips) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_err1;
 		}
 
@@ -763,7 +763,7 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 		ret = fb->funcs->dirty(fb, file_priv, flags, r->color,
 				       clips, num_clips);
 	} else {
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 	}
 
 out_err2:
@@ -783,7 +783,7 @@ out_err1:
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 void drm_fb_release(struct drm_file *priv)
 {
@@ -793,13 +793,13 @@ void drm_fb_release(struct drm_file *priv)
 	INIT_LIST_HEAD(&arg.fbs);
 
 	/*
-	 * When the file gets released that means no one else can access the fb
-	 * list any more, so no need to grab fpriv->fbs_lock. And we need to
+	 * When the file gets released that means anal one else can access the fb
+	 * list any more, so anal need to grab fpriv->fbs_lock. And we need to
 	 * avoid upsetting lockdep since the universal cursor code adds a
 	 * framebuffer while holding mutex locks.
 	 *
-	 * Note that a real deadlock between fpriv->fbs_lock and the modeset
-	 * locks is impossible here since no one else but this function can get
+	 * Analte that a real deadlock between fpriv->fbs_lock and the modeset
+	 * locks is impossible here since anal one else but this function can get
 	 * at it any more.
 	 */
 	list_for_each_entry_safe(fb, tfb, &priv->fbs, filp_head) {
@@ -831,7 +831,7 @@ void drm_framebuffer_free(struct kref *kref)
 	drm_WARN_ON(dev, !list_empty(&fb->filp_head));
 
 	/*
-	 * The lookup idr holds a weak reference, which has not necessarily been
+	 * The lookup idr holds a weak reference, which has analt necessarily been
 	 * removed at this point. Check for that.
 	 */
 	drm_mode_object_unregister(dev, &fb->base);
@@ -851,7 +851,7 @@ void drm_framebuffer_free(struct kref *kref)
  * IMPORTANT:
  * This functions publishes the fb and makes it available for concurrent access
  * by other users. Which means by this point the fb _must_ be fully set up -
- * since all the fb attributes are invariant over its lifetime, no further
+ * since all the fb attributes are invariant over its lifetime, anal further
  * locking but only correct reference counting is required.
  *
  * Returns:
@@ -915,11 +915,11 @@ EXPORT_SYMBOL(drm_framebuffer_lookup);
  * @fb: fb to unregister
  *
  * Drivers need to call this when cleaning up driver-private framebuffers, e.g.
- * those used for fbdev. Note that the caller must hold a reference of its own,
- * i.e. the object may not be destroyed through this call (since it'll lead to a
+ * those used for fbdev. Analte that the caller must hold a reference of its own,
+ * i.e. the object may analt be destroyed through this call (since it'll lead to a
  * locking inversion).
  *
- * NOTE: This function is deprecated. For driver-private framebuffers it is not
+ * ANALTE: This function is deprecated. For driver-private framebuffers it is analt
  * recommended to embed a framebuffer struct info fbdev struct, instead, a
  * framebuffer pointer is preferred and drm_framebuffer_put() should be called
  * when the framebuffer is to be cleaned up.
@@ -946,11 +946,11 @@ EXPORT_SYMBOL(drm_framebuffer_unregister_private);
  * &drm_framebuffer_funcs.destroy callback. It can also be used to clean up
  * driver private framebuffers embedded into a larger structure.
  *
- * Note that this function does not remove the fb from active usage - if it is
+ * Analte that this function does analt remove the fb from active usage - if it is
  * still used anywhere, hilarity can ensue since userspace could call getfb on
- * the id and get back -EINVAL. Obviously no concern at driver unload time.
+ * the id and get back -EINVAL. Obviously anal concern at driver unload time.
  *
- * Also, the framebuffer will not be removed from the lookup idr - for
+ * Also, the framebuffer will analt be removed from the lookup idr - for
  * user-created framebuffers this will happen in the rmfb ioctl. For
  * driver-private objects (e.g. for fbdev) drivers need to explicitly call
  * drm_framebuffer_unregister_private.
@@ -983,7 +983,7 @@ retry_disable:
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	state->acquire_ctx = &ctx;
@@ -1109,8 +1109,8 @@ static void legacy_remove_fb(struct drm_framebuffer *fb)
  * using @fb, removes it, setting it to NULL. Then drops the reference to the
  * passed-in framebuffer. Might take the modeset locks.
  *
- * Note that this function optimizes the cleanup away if the caller holds the
- * last reference to the framebuffer. It is also guaranteed to not take the
+ * Analte that this function optimizes the cleanup away if the caller holds the
+ * last reference to the framebuffer. It is also guaranteed to analt take the
  * modeset locks in this case.
  */
 void drm_framebuffer_remove(struct drm_framebuffer *fb)
@@ -1126,7 +1126,7 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 
 	/*
 	 * drm ABI mandates that we remove any deleted framebuffers from active
-	 * usage. But since most sane clients only remove framebuffers they no
+	 * usage. But since most sane clients only remove framebuffers they anal
 	 * longer need, try to optimize this away.
 	 *
 	 * Since we're holding a reference ourselves, observing a refcount of 1
@@ -1134,7 +1134,7 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	 * can never increase from 1 again, so we don't need any barriers or
 	 * locks.
 	 *
-	 * Note that userspace could try to race with use and instate a new
+	 * Analte that userspace could try to race with use and instate a new
 	 * usage _after_ we've cleared all current ones. End result will be an
 	 * in-use fb with fb-id == 0. Userspace is allowed to shoot its own foot
 	 * in this manner.

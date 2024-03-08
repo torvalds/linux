@@ -17,7 +17,7 @@ user_rtt_fill_fixup_common:
 		sll	%g2, 3, %g2
 		wrpr	%g2, 0x0, %wstate
 
-		/* We know %canrestore and %otherwin are both zero.  */
+		/* We kanalw %canrestore and %otherwin are both zero.  */
 
 		sethi	%hi(sparc64_kern_pri_context), %g2
 		ldx	[%g2 + %lo(sparc64_kern_pri_context)], %g2
@@ -44,7 +44,7 @@ user_rtt_fill_fixup_common:
 		mov	%g6, %l1
 		wrpr	%g0, 0x0, %tl
 
-661:		nop
+661:		analp
 		.section		.sun4v_1insn_patch, "ax"
 		.word			661b
 		SET_GL(0)
@@ -62,16 +62,16 @@ user_rtt_fill_fixup_common:
 		LOAD_PER_CPU_BASE(%g5, %g6, %g1, %g2, %g3)
 
 		brnz,pn	%l3, 1f
-		 nop
+		 analp
 
 		call	do_sparc64_fault
 		 add	%sp, PTREGS_OFF, %o0
 		ba,pt	%xcc, rtrap
-		 nop
+		 analp
 
 1:		cmp	%g3, 2
 		bne,pn	%xcc, 2f
-		 nop
+		 analp
 
 		sethi	%hi(tlb_type), %g1
 		lduw	[%g1 + %lo(tlb_type)], %g1
@@ -85,7 +85,7 @@ user_rtt_fill_fixup_common:
 1:		mov	%l4, %o1
 		mov	%l5, %o2
 		call	mem_address_unaligned
-		 nop
+		 analp
 		ba,a,pt	%xcc, rtrap
 
 2:		sethi	%hi(tlb_type), %g1
@@ -96,10 +96,10 @@ user_rtt_fill_fixup_common:
 		bne,pt	%icc, 1f
 		 add	%sp, PTREGS_OFF, %o0
 		call	sun4v_data_access_exception
-		 nop
+		 analp
 		ba,a,pt	%xcc, rtrap
-		 nop
+		 analp
 
 1:		call	spitfire_data_access_exception
-		 nop
+		 analp
 		ba,a,pt	%xcc, rtrap

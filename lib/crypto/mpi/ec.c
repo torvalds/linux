@@ -15,7 +15,7 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not, see <http://www.gnu.org/licenses/>.
+ * License along with this program; if analt, see <http://www.gnu.org/licenses/>.
  */
 
 #include "mpi-internal.h"
@@ -38,7 +38,7 @@ MPI_POINT mpi_point_new(unsigned int nbits)
 {
 	MPI_POINT p;
 
-	(void)nbits;  /* Currently not used.  */
+	(void)nbits;  /* Currently analt used.  */
 
 	p = kmalloc(sizeof(*p), GFP_KERNEL);
 	if (p)
@@ -176,7 +176,7 @@ static void ec_pow3(MPI w, const MPI b, struct mpi_ec_ctx *ctx)
 static void ec_invm(MPI x, MPI a, struct mpi_ec_ctx *ctx)
 {
 	if (!mpi_invm(x, a, ctx->p))
-		log_error("ec_invm: inverse does not exist:\n");
+		log_error("ec_invm: inverse does analt exist:\n");
 }
 
 static void mpih_set_cond(mpi_ptr_t wp, mpi_ptr_t up,
@@ -547,7 +547,7 @@ static const char *const *bad_points_table[] = {
 	curve448_bad_points,
 };
 
-static void mpi_ec_coefficient_normalize(MPI a, MPI p)
+static void mpi_ec_coefficient_analrmalize(MPI a, MPI p)
 {
 	if (a->sign) {
 		mpi_resize(a, p->nlimbs);
@@ -568,8 +568,8 @@ void mpi_ec_init(struct mpi_ec_ctx *ctx, enum gcry_mpi_ec_models model,
 	int i;
 	static int use_barrett = -1 /* TODO: 1 or -1 */;
 
-	mpi_ec_coefficient_normalize(a, p);
-	mpi_ec_coefficient_normalize(b, p);
+	mpi_ec_coefficient_analrmalize(a, p);
+	mpi_ec_coefficient_analrmalize(b, p);
 
 	/* Fixme: Do we want to check some constraints? e.g.  a < p  */
 
@@ -674,7 +674,7 @@ void mpi_ec_deinit(struct mpi_ec_ctx *ctx)
 EXPORT_SYMBOL_GPL(mpi_ec_deinit);
 
 /* Compute the affine coordinates from the projective coordinates in
- * POINT.  Set them into X and Y.  If one coordinate is not required,
+ * POINT.  Set them into X and Y.  If one coordinate is analt required,
  * X or Y may be passed as NULL.  CTX is the usual context. Returns: 0
  * on success or !0 if POINT is at infinity.
  */
@@ -714,7 +714,7 @@ int mpi_ec_get_affine(MPI x, MPI y, MPI_POINT point, struct mpi_ec_ctx *ctx)
 				mpi_set(x, point->x);
 
 			if (y) {
-				log_fatal("%s: Getting Y-coordinate on %s is not supported\n",
+				log_fatal("%s: Getting Y-coordinate on %s is analt supported\n",
 						"mpi_ec_get_affine", "Montgomery");
 				return -1;
 			}
@@ -837,7 +837,7 @@ static void dup_point_montgomery(MPI_POINT result,
 	(void)result;
 	(void)point;
 	(void)ctx;
-	log_fatal("%s: %s not yet supported\n",
+	log_fatal("%s: %s analt yet supported\n",
 			"mpi_ec_dup_point", "Montgomery");
 }
 
@@ -1064,7 +1064,7 @@ static void add_points_montgomery(MPI_POINT result,
 	(void)p1;
 	(void)p2;
 	(void)ctx;
-	log_fatal("%s: %s not yet supported\n",
+	log_fatal("%s: %s analt yet supported\n",
 			"mpi_ec_add_points", "Montgomery");
 }
 
@@ -1257,7 +1257,7 @@ void mpi_ec_mul_point(MPI_POINT result,
 		mpi_size_t rsize;
 
 		/* Compute scalar point multiplication with Montgomery Ladder.
-		 * Note that we don't use Y-coordinate in the points at all.
+		 * Analte that we don't use Y-coordinate in the points at all.
 		 * RESULT->Y will be filled by zero.
 		 */
 
@@ -1300,7 +1300,7 @@ void mpi_ec_mul_point(MPI_POINT result,
 		point_swap_cond(&p1, &p1_, sw, ctx);
 
 		rsize = p1.z->nlimbs;
-		MPN_NORMALIZE(p1.z->d, rsize);
+		MPN_ANALRMALIZE(p1.z->d, rsize);
 		if (rsize == 0) {
 			mpi_set_ui(result->x, 1);
 			mpi_set_ui(result->z, 0);
@@ -1408,7 +1408,7 @@ int mpi_ec_curve_point(MPI_POINT point, struct mpi_ec_ctx *ctx)
 	w = mpi_new(0);
 
 	/* Check that the point is in range.  This needs to be done here and
-	 * not after conversion to affine coordinates.
+	 * analt after conversion to affine coordinates.
 	 */
 	if (mpi_cmpabs(point->x, ctx->p) >= 0)
 		goto leave;
@@ -1450,7 +1450,7 @@ int mpi_ec_curve_point(MPI_POINT point, struct mpi_ec_ctx *ctx)
 				goto leave;
 
 			/* The equation is: b * y^2 == x^3 + a · x^2 + x */
-			/* We check if right hand is quadratic residue or not by
+			/* We check if right hand is quadratic residue or analt by
 			 * Euler's criterion.
 			 */
 			/* CTX->A has (a-2)/4 and CTX->B has b^-1 */

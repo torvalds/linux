@@ -755,7 +755,7 @@ static int cz_probe(struct platform_device *pdev)
 
 	card = (struct snd_soc_card *)acp_soc_is_rltk_max(dev);
 	if (!card)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!strcmp(card->name, "acpd7219m98357")) {
 		acp_da7219_cfg.dev = &pdev->dev;
 		rdev = devm_regulator_register(&pdev->dev, &acp_da7219_desc,
@@ -770,7 +770,7 @@ static int cz_probe(struct platform_device *pdev)
 	machine = devm_kzalloc(&pdev->dev, sizeof(struct acp_platform_info),
 			       GFP_KERNEL);
 	if (!machine)
-		return -ENOMEM;
+		return -EANALMEM;
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);

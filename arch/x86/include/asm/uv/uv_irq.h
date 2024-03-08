@@ -27,7 +27,7 @@ struct uv_IO_APIC_route_entry {
 
 enum {
 	UV_AFFINITY_ALL,
-	UV_AFFINITY_NODE,
+	UV_AFFINITY_ANALDE,
 	UV_AFFINITY_CPU
 };
 

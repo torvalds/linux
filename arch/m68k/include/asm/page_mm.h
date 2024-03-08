@@ -115,8 +115,8 @@ static inline void *__va(unsigned long x)
 #endif	/* CONFIG_SUN3 */
 
 /*
- * NOTE: virtual isn't really correct, actually it should be the offset into the
- * memory node, but we have no highmem, so that works for now.
+ * ANALTE: virtual isn't really correct, actually it should be the offset into the
+ * memory analde, but we have anal highmem, so that works for analw.
  * TODO: implement (fast) pfn<->pgdat_idx conversion functions, this makes lots
  * of the shifts unnecessary.
  */
@@ -130,7 +130,7 @@ static inline void *pfn_to_virt(unsigned long pfn)
 	return __va(pfn << PAGE_SHIFT);
 }
 
-extern int m68k_virt_to_node_shift;
+extern int m68k_virt_to_analde_shift;
 
 #define virt_to_page(addr) ({						\
 	pfn_to_page(virt_to_pfn(addr));					\

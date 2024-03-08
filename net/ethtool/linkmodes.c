@@ -166,7 +166,7 @@ const struct nla_policy ethnl_linkmodes_set_policy[] = {
 
 /* Set advertised link modes to all supported modes matching requested speed,
  * lanes and duplex values. Called when autonegotiation is on, speed, lanes or
- * duplex is requested but no link mode change. This is done in userspace with
+ * duplex is requested but anal link mode change. This is done in userspace with
  * ioctl() interface, move it into kernel for netlink.
  * Returns true if advertised modes bitmap was modified.
  */
@@ -183,7 +183,7 @@ static bool ethnl_auto_linkmodes(struct ethtool_link_ksettings *ksettings,
 	for (i = 0; i < __ETHTOOL_LINK_MODE_MASK_NBITS; i++) {
 		const struct link_mode_info *info = &link_mode_params[i];
 
-		if (info->speed == SPEED_UNKNOWN)
+		if (info->speed == SPEED_UNKANALWN)
 			continue;
 		if (test_bit(i, supported) &&
 		    (!req_speed || info->speed == ksettings->base.speed) &&
@@ -220,7 +220,7 @@ static int ethnl_check_linkmodes(struct genl_info *info, struct nlattr **tb)
 	    !ethnl_validate_master_slave_cfg(nla_get_u8(master_slave_cfg))) {
 		NL_SET_ERR_MSG_ATTR(info->extack, master_slave_cfg,
 				    "master/slave value is invalid");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	lanes_cfg = tb[ETHTOOL_A_LINKMODES_LANES];
@@ -246,8 +246,8 @@ static int ethnl_update_linkmodes(struct genl_info *info, struct nlattr **tb,
 	if (master_slave_cfg) {
 		if (lsettings->master_slave_cfg == MASTER_SLAVE_CFG_UNSUPPORTED) {
 			NL_SET_ERR_MSG_ATTR(info->extack, master_slave_cfg,
-					    "master/slave configuration not supported by device");
-			return -EOPNOTSUPP;
+					    "master/slave configuration analt supported by device");
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -261,17 +261,17 @@ static int ethnl_update_linkmodes(struct genl_info *info, struct nlattr **tb,
 
 	lanes_cfg = tb[ETHTOOL_A_LINKMODES_LANES];
 	if (lanes_cfg) {
-		/* If autoneg is off and lanes parameter is not supported by the
+		/* If autoneg is off and lanes parameter is analt supported by the
 		 * driver, return an error.
 		 */
 		if (!lsettings->autoneg &&
 		    !dev->ethtool_ops->cap_link_lanes_supported) {
 			NL_SET_ERR_MSG_ATTR(info->extack, lanes_cfg,
-					    "lanes configuration not supported by device");
-			return -EOPNOTSUPP;
+					    "lanes configuration analt supported by device");
+			return -EOPANALTSUPP;
 		}
 	} else if (!lsettings->autoneg && ksettings->lanes) {
-		/* If autoneg is off and lanes parameter is not passed from user but
+		/* If autoneg is off and lanes parameter is analt passed from user but
 		 * it was defined previously then set the lanes parameter to 0.
 		 */
 		ksettings->lanes = 0;
@@ -311,7 +311,7 @@ ethnl_set_linkmodes_validate(struct ethnl_req_info *req_info,
 		return ret;
 
 	if (!ops->get_link_ksettings || !ops->set_link_ksettings)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return 1;
 }
 

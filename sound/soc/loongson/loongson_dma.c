@@ -2,12 +2,12 @@
 //
 // Loongson ALSA SoC Platform (DMA) driver
 //
-// Copyright (C) 2023 Loongson Technology Corporation Limited
+// Copyright (C) 2023 Loongson Techanallogy Corporation Limited
 // Author: Yingkun Meng <mengyingkun@loongson.cn>
 //
 
 #include <linux/module.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
 #include <linux/dma-mapping.h>
@@ -147,7 +147,7 @@ static int loongson_pcm_hw_params(struct snd_soc_component *component,
 	int i;
 
 	if (buf_len % period_len) {
-		dev_err(dev, "buf len not multiply of period len\n");
+		dev_err(dev, "buf len analt multiply of period len\n");
 		return -EINVAL;
 	}
 
@@ -234,7 +234,7 @@ static int loongson_pcm_open(struct snd_soc_component *component,
 
 	/*
 	 * For mysterious reasons (and despite what the manual says)
-	 * playback samples are lost if the DMA count is not a multiple
+	 * playback samples are lost if the DMA count is analt a multiple
 	 * of the DMA burst size.  Let's add a rule to enforce that.
 	 */
 	snd_pcm_hw_constraint_step(runtime, 0,
@@ -247,13 +247,13 @@ static int loongson_pcm_open(struct snd_soc_component *component,
 
 	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
 	if (!prtd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	prtd->dma_desc_arr = dma_alloc_coherent(card->dev, PAGE_SIZE,
 						&prtd->dma_desc_arr_phy,
 						GFP_KERNEL);
 	if (!prtd->dma_desc_arr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto desc_err;
 	}
 	prtd->dma_desc_arr_size = PAGE_SIZE / sizeof(*prtd->dma_desc_arr);
@@ -263,7 +263,7 @@ static int loongson_pcm_open(struct snd_soc_component *component,
 						&prtd->dma_pos_desc_phy,
 						GFP_KERNEL);
 	if (!prtd->dma_pos_desc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto pos_err;
 	}
 

@@ -51,7 +51,7 @@ struct hvs_recv_buf {
  * guest and the host processing as one VMBUS packet is the smallest processing
  * unit.
  *
- * Note: the buffer can be eliminated in the future when we add new VMBus
+ * Analte: the buffer can be eliminated in the future when we add new VMBus
  * ringbuffer APIs that allow us to directly copy data from userspace buffer
  * to VMBus ringbuffer.
  */
@@ -100,7 +100,7 @@ struct hvsock {
 	struct vmbus_channel *chan;
 	struct vmpacket_descriptor *recv_desc;
 
-	/* The length of the payload not delivered to userland yet */
+	/* The length of the payload analt delivered to userland yet */
 	u32 recv_data_len;
 	/* The offset of the payload */
 	u32 recv_data_off;
@@ -110,7 +110,7 @@ struct hvsock {
 };
 
 /* In the VM, we support Hyper-V Sockets with AF_VSOCK, and the endpoint is
- * <cid, port> (see struct sockaddr_vm). Note: cid is not really used here:
+ * <cid, port> (see struct sockaddr_vm). Analte: cid is analt really used here:
  * when we write apps to connect to the host, we can only use VMADDR_CID_ANY
  * or VMADDR_CID_HOST (both are equivalent) as the remote cid, and when we
  * write apps to bind() & listen() in the VM, we can only use VMADDR_CID_ANY
@@ -128,7 +128,7 @@ struct hvsock {
  *    GUID VmId;
  *    GUID ServiceId;
  * };
- * Note: VmID is not used by Linux VM and actually it isn't transmitted via
+ * Analte: VmID is analt used by Linux VM and actually it isn't transmitted via
  * VMBus, because here it's obvious the host and the VM can easily identify
  * each other. Though the VmID is useful on the host, especially in the case
  * of Windows container, Linux VM doesn't need it at all.
@@ -207,7 +207,7 @@ static int hvs_channel_readable_payload(struct vmbus_channel *chan)
 		return 0;
 	}
 
-	/* No payload or FIN */
+	/* Anal payload or FIN */
 	return -1;
 }
 
@@ -365,7 +365,7 @@ static void hvs_open_connection(struct vmbus_channel *chan)
 	 * size that can be set by the user, but, since currently, the hv_sock
 	 * VMBUS ring buffer is physically contiguous allocation, restrict it
 	 * further.
-	 * Older versions of hv_sock host side code cannot handle bigger VMBUS
+	 * Older versions of hv_sock host side code cananalt handle bigger VMBUS
 	 * ring buffer size. Use the version number to limit the change to newer
 	 * versions.
 	 */
@@ -402,9 +402,9 @@ static void hvs_open_connection(struct vmbus_channel *chan)
 	vmbus_set_chn_rescind_callback(chan, hvs_close_connection);
 
 	/* Set the pending send size to max packet size to always get
-	 * notifications from the host when there is enough writable space.
-	 * The host is optimized to send notifications only when the pending
-	 * size boundary is crossed, and not always.
+	 * analtifications from the host when there is eanalugh writable space.
+	 * The host is optimized to send analtifications only when the pending
+	 * size boundary is crossed, and analt always.
 	 */
 	hvs_set_channel_pending_send_size(chan);
 
@@ -446,7 +446,7 @@ static int hvs_sock_init(struct vsock_sock *vsk, struct vsock_sock *psk)
 
 	hvs = kzalloc(sizeof(*hvs), GFP_KERNEL);
 	if (!hvs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vsk->trans = hvs;
 	hvs->vsk = vsk;
@@ -553,20 +553,20 @@ static void hvs_destruct(struct vsock_sock *vsk)
 
 static int hvs_dgram_bind(struct vsock_sock *vsk, struct sockaddr_vm *addr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int hvs_dgram_dequeue(struct vsock_sock *vsk, struct msghdr *msg,
 			     size_t len, int flags)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int hvs_dgram_enqueue(struct vsock_sock *vsk,
 			     struct sockaddr_vm *remote, struct msghdr *msg,
 			     size_t dgram_len)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static bool hvs_dgram_allow(u32 cid, u32 port)
@@ -610,12 +610,12 @@ static ssize_t hvs_stream_dequeue(struct vsock_sock *vsk, struct msghdr *msg,
 	int ret;
 
 	if (flags & MSG_PEEK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (need_refill) {
 		hvs->recv_desc = hv_pkt_iter_first(hvs->chan);
 		if (!hvs->recv_desc)
-			return -ENOBUFS;
+			return -EANALBUFS;
 		ret = hvs_update_recv_data(hvs);
 		if (ret)
 			return ret;
@@ -656,7 +656,7 @@ static ssize_t hvs_stream_enqueue(struct vsock_sock *vsk, struct msghdr *msg,
 
 	send_buf = kmalloc(sizeof(*send_buf), GFP_KERNEL);
 	if (!send_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Reader(s) could be draining data from the channel as we write.
 	 * Maximize bandwidth, by iterating until the channel is found to be
@@ -742,7 +742,7 @@ static bool hvs_stream_allow(u32 cid, u32 port)
 }
 
 static
-int hvs_notify_poll_in(struct vsock_sock *vsk, size_t target, bool *readable)
+int hvs_analtify_poll_in(struct vsock_sock *vsk, size_t target, bool *readable)
 {
 	struct hvsock *hvs = vsk->trans;
 
@@ -751,7 +751,7 @@ int hvs_notify_poll_in(struct vsock_sock *vsk, size_t target, bool *readable)
 }
 
 static
-int hvs_notify_poll_out(struct vsock_sock *vsk, size_t target, bool *writable)
+int hvs_analtify_poll_out(struct vsock_sock *vsk, size_t target, bool *writable)
 {
 	*writable = hvs_stream_has_space(vsk) > 0;
 
@@ -759,66 +759,66 @@ int hvs_notify_poll_out(struct vsock_sock *vsk, size_t target, bool *writable)
 }
 
 static
-int hvs_notify_recv_init(struct vsock_sock *vsk, size_t target,
-			 struct vsock_transport_recv_notify_data *d)
+int hvs_analtify_recv_init(struct vsock_sock *vsk, size_t target,
+			 struct vsock_transport_recv_analtify_data *d)
 {
 	return 0;
 }
 
 static
-int hvs_notify_recv_pre_block(struct vsock_sock *vsk, size_t target,
-			      struct vsock_transport_recv_notify_data *d)
+int hvs_analtify_recv_pre_block(struct vsock_sock *vsk, size_t target,
+			      struct vsock_transport_recv_analtify_data *d)
 {
 	return 0;
 }
 
 static
-int hvs_notify_recv_pre_dequeue(struct vsock_sock *vsk, size_t target,
-				struct vsock_transport_recv_notify_data *d)
+int hvs_analtify_recv_pre_dequeue(struct vsock_sock *vsk, size_t target,
+				struct vsock_transport_recv_analtify_data *d)
 {
 	return 0;
 }
 
 static
-int hvs_notify_recv_post_dequeue(struct vsock_sock *vsk, size_t target,
+int hvs_analtify_recv_post_dequeue(struct vsock_sock *vsk, size_t target,
 				 ssize_t copied, bool data_read,
-				 struct vsock_transport_recv_notify_data *d)
+				 struct vsock_transport_recv_analtify_data *d)
 {
 	return 0;
 }
 
 static
-int hvs_notify_send_init(struct vsock_sock *vsk,
-			 struct vsock_transport_send_notify_data *d)
+int hvs_analtify_send_init(struct vsock_sock *vsk,
+			 struct vsock_transport_send_analtify_data *d)
 {
 	return 0;
 }
 
 static
-int hvs_notify_send_pre_block(struct vsock_sock *vsk,
-			      struct vsock_transport_send_notify_data *d)
+int hvs_analtify_send_pre_block(struct vsock_sock *vsk,
+			      struct vsock_transport_send_analtify_data *d)
 {
 	return 0;
 }
 
 static
-int hvs_notify_send_pre_enqueue(struct vsock_sock *vsk,
-				struct vsock_transport_send_notify_data *d)
+int hvs_analtify_send_pre_enqueue(struct vsock_sock *vsk,
+				struct vsock_transport_send_analtify_data *d)
 {
 	return 0;
 }
 
 static
-int hvs_notify_send_post_enqueue(struct vsock_sock *vsk, ssize_t written,
-				 struct vsock_transport_send_notify_data *d)
+int hvs_analtify_send_post_enqueue(struct vsock_sock *vsk, ssize_t written,
+				 struct vsock_transport_send_analtify_data *d)
 {
 	return 0;
 }
 
 static
-int hvs_notify_set_rcvlowat(struct vsock_sock *vsk, int val)
+int hvs_analtify_set_rcvlowat(struct vsock_sock *vsk, int val)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static struct vsock_transport hvs_transport = {
@@ -845,18 +845,18 @@ static struct vsock_transport hvs_transport = {
 	.stream_is_active         = hvs_stream_is_active,
 	.stream_allow             = hvs_stream_allow,
 
-	.notify_poll_in           = hvs_notify_poll_in,
-	.notify_poll_out          = hvs_notify_poll_out,
-	.notify_recv_init         = hvs_notify_recv_init,
-	.notify_recv_pre_block    = hvs_notify_recv_pre_block,
-	.notify_recv_pre_dequeue  = hvs_notify_recv_pre_dequeue,
-	.notify_recv_post_dequeue = hvs_notify_recv_post_dequeue,
-	.notify_send_init         = hvs_notify_send_init,
-	.notify_send_pre_block    = hvs_notify_send_pre_block,
-	.notify_send_pre_enqueue  = hvs_notify_send_pre_enqueue,
-	.notify_send_post_enqueue = hvs_notify_send_post_enqueue,
+	.analtify_poll_in           = hvs_analtify_poll_in,
+	.analtify_poll_out          = hvs_analtify_poll_out,
+	.analtify_recv_init         = hvs_analtify_recv_init,
+	.analtify_recv_pre_block    = hvs_analtify_recv_pre_block,
+	.analtify_recv_pre_dequeue  = hvs_analtify_recv_pre_dequeue,
+	.analtify_recv_post_dequeue = hvs_analtify_recv_post_dequeue,
+	.analtify_send_init         = hvs_analtify_send_init,
+	.analtify_send_pre_block    = hvs_analtify_send_pre_block,
+	.analtify_send_pre_enqueue  = hvs_analtify_send_pre_enqueue,
+	.analtify_send_post_enqueue = hvs_analtify_send_post_enqueue,
 
-	.notify_set_rcvlowat      = hvs_notify_set_rcvlowat
+	.analtify_set_rcvlowat      = hvs_analtify_set_rcvlowat
 };
 
 static bool hvs_check_transport(struct vsock_sock *vsk)
@@ -874,7 +874,7 @@ static int hvs_probe(struct hv_device *hdev,
 	/* Always return success to suppress the unnecessary error message
 	 * in vmbus_probe(): on error the host will rescind the device in
 	 * 30 seconds and we can do cleanup at that time in
-	 * vmbus_onoffer_rescind().
+	 * vmbus_oanalffer_rescind().
 	 */
 	return 0;
 }
@@ -886,7 +886,7 @@ static void hvs_remove(struct hv_device *hdev)
 	vmbus_close(chan);
 }
 
-/* hv_sock connections can not persist across hibernation, and all the hv_sock
+/* hv_sock connections can analt persist across hibernation, and all the hv_sock
  * channels are forced to be rescinded before hibernation: see
  * vmbus_bus_suspend(). Here the dummy hvs_suspend() and hvs_resume()
  * are only needed because hibernation requires that every vmbus device's
@@ -924,7 +924,7 @@ static int __init hvs_init(void)
 	int ret;
 
 	if (vmbus_proto_version < VERSION_WIN10)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = vmbus_driver_register(&hvs_drv);
 	if (ret != 0)

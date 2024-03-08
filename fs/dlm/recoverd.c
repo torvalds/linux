@@ -69,10 +69,10 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	dlm_create_root_list(ls);
 
 	/*
-	 * Add or remove nodes from the lockspace's ls_nodes list.
+	 * Add or remove analdes from the lockspace's ls_analdes list.
 	 *
 	 * Due to the fact that we must report all membership changes to lsops
-	 * or midcomms layer, it is not permitted to abort ls_recover() until
+	 * or midcomms layer, it is analt permitted to abort ls_recover() until
 	 * this is done.
 	 */
 
@@ -82,13 +82,13 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		goto fail;
 	}
 
-	dlm_recover_dir_nodeid(ls);
+	dlm_recover_dir_analdeid(ls);
 
 	ls->ls_recover_dir_sent_res = 0;
 	ls->ls_recover_dir_sent_msg = 0;
 	ls->ls_recover_locks_in = 0;
 
-	dlm_set_recover_status(ls, DLM_RS_NODES);
+	dlm_set_recover_status(ls, DLM_RS_ANALDES);
 
 	error = dlm_recover_members_wait(ls, rv->seq);
 	if (error) {
@@ -100,7 +100,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	/*
 	 * Rebuild our own share of the directory by collecting from all other
-	 * nodes their master rsb names that hash to us.
+	 * analdes their master rsb names that hash to us.
 	 */
 
 	error = dlm_recover_directory(ls, rv->seq);
@@ -122,7 +122,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	/*
 	 * We may have outstanding operations that are waiting for a reply from
-	 * a failed node.  Mark these to be resent after recovery.  Unlock and
+	 * a failed analde.  Mark these to be resent after recovery.  Unlock and
 	 * cancel ops can just be completed.
 	 */
 
@@ -133,16 +133,16 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		goto fail;
 	}
 
-	if (neg || dlm_no_directory(ls)) {
+	if (neg || dlm_anal_directory(ls)) {
 		/*
-		 * Clear lkb's for departed nodes.
+		 * Clear lkb's for departed analdes.
 		 */
 
 		dlm_recover_purge(ls);
 
 		/*
-		 * Get new master nodeid's for rsb's that were mastered on
-		 * departed nodes.
+		 * Get new master analdeid's for rsb's that were mastered on
+		 * departed analdes.
 		 */
 
 		error = dlm_recover_masters(ls, rv->seq);
@@ -173,7 +173,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 			  ls->ls_recover_locks_in);
 
 		/*
-		 * Finalize state in master rsb's now that all locks can be
+		 * Finalize state in master rsb's analw that all locks can be
 		 * checked.  This includes conversion resolution and lvb
 		 * settings.
 		 */
@@ -198,8 +198,8 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	/*
 	 * Purge directory-related requests that are saved in requestqueue.
-	 * All dir requests from before recovery are invalid now due to the dir
-	 * rebuild and will be resent by the requesting nodes.
+	 * All dir requests from before recovery are invalid analw due to the dir
+	 * rebuild and will be resent by the requesting analdes.
 	 */
 
 	dlm_purge_requestqueue(ls);
@@ -292,7 +292,7 @@ static void do_ls_recovery(struct dlm_ls *ls)
 			break;
 		}
 
-		kfree(rv->nodes);
+		kfree(rv->analdes);
 		kfree(rv);
 	}
 }
@@ -303,7 +303,7 @@ static int dlm_recoverd(void *arg)
 
 	ls = dlm_find_lockspace_local(arg);
 	if (!ls) {
-		log_print("dlm_recoverd: no lockspace %p", arg);
+		log_print("dlm_recoverd: anal lockspace %p", arg);
 		return -1;
 	}
 

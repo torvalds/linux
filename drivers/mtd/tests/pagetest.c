@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2006-2008 Nokia Corporation
+ * Copyright (C) 2006-2008 Analkia Corporation
  *
  * Test page read and write on MTD device.
  *
- * Author: Adrian Hunter <ext-adrian.hunter@nokia.com>
+ * Author: Adrian Hunter <ext-adrian.hunter@analkia.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -117,7 +117,7 @@ static int crosstest(void)
 	pr_info("crosstest\n");
 	pp1 = kcalloc(pgsize, 4, GFP_KERNEL);
 	if (!pp1)
-		return -ENOMEM;
+		return -EANALMEM;
 	pp2 = pp1 + pgsize;
 	pp3 = pp2 + pgsize;
 	pp4 = pp3 + pgsize;
@@ -211,7 +211,7 @@ static int erasecrosstest(void)
 
 	pr_info("writing 1st page of block %d\n", ebnum);
 	prandom_bytes_state(&rnd_state, writebuf, pgsize);
-	strcpy(writebuf, "There is no data like this!");
+	strcpy(writebuf, "There is anal data like this!");
 	err = mtdtest_write(mtd, addr0, pgsize, writebuf);
 	if (err)
 		return err;
@@ -236,7 +236,7 @@ static int erasecrosstest(void)
 
 	pr_info("writing 1st page of block %d\n", ebnum);
 	prandom_bytes_state(&rnd_state, writebuf, pgsize);
-	strcpy(writebuf, "There is no data like this!");
+	strcpy(writebuf, "There is anal data like this!");
 	err = mtdtest_write(mtd, addr0, pgsize, writebuf);
 	if (err)
 		return err;
@@ -336,7 +336,7 @@ static int __init mtd_pagetest_init(void)
 	mtd = get_mtd_device(NULL, dev);
 	if (IS_ERR(mtd)) {
 		err = PTR_ERR(mtd);
-		pr_err("error: cannot get MTD device\n");
+		pr_err("error: cananalt get MTD device\n");
 		return err;
 	}
 
@@ -357,7 +357,7 @@ static int __init mtd_pagetest_init(void)
 	       (unsigned long long)mtd->size, mtd->erasesize,
 	       pgsize, ebcnt, pgcnt, mtd->oobsize);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	bufsize = pgsize * 2;
 	writebuf = kmalloc(mtd->erasesize, GFP_KERNEL);
 	if (!writebuf)

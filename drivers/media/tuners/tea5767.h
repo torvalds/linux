@@ -19,7 +19,7 @@ struct tea5767_ctrl {
 	unsigned int		port1:1;
 	unsigned int		port2:1;
 	unsigned int		high_cut:1;
-	unsigned int		st_noise:1;
+	unsigned int		st_analise:1;
 	unsigned int		soft_mute:1;
 	unsigned int		japan_band:1;
 	unsigned int		deemph_75:1;
@@ -37,7 +37,7 @@ extern struct dvb_frontend *tea5767_attach(struct dvb_frontend *fe,
 static inline int tea5767_autodetection(struct i2c_adapter* i2c_adap,
 					u8 i2c_addr)
 {
-	printk(KERN_INFO "%s: not probed - driver disabled by Kconfig\n",
+	printk(KERN_INFO "%s: analt probed - driver disabled by Kconfig\n",
 	       __func__);
 	return -EINVAL;
 }

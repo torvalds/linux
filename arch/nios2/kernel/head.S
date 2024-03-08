@@ -39,7 +39,7 @@ empty_zero_page:
  */
 	.data
 	.align	2
-	.set noat
+	.set analat
 
 	.global _current_thread
 _current_thread:

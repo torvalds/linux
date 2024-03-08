@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -569,14 +569,14 @@
 #define mmHUBPREQ0_FLIP_PARAMETERS_0_BASE_IDX                                                          2
 #define mmHUBPREQ0_FLIP_PARAMETERS_2                                                                   0x0653
 #define mmHUBPREQ0_FLIP_PARAMETERS_2_BASE_IDX                                                          2
-#define mmHUBPREQ0_NOM_PARAMETERS_4                                                                    0x0658
-#define mmHUBPREQ0_NOM_PARAMETERS_4_BASE_IDX                                                           2
-#define mmHUBPREQ0_NOM_PARAMETERS_5                                                                    0x0659
-#define mmHUBPREQ0_NOM_PARAMETERS_5_BASE_IDX                                                           2
-#define mmHUBPREQ0_NOM_PARAMETERS_6                                                                    0x065a
-#define mmHUBPREQ0_NOM_PARAMETERS_6_BASE_IDX                                                           2
-#define mmHUBPREQ0_NOM_PARAMETERS_7                                                                    0x065b
-#define mmHUBPREQ0_NOM_PARAMETERS_7_BASE_IDX                                                           2
+#define mmHUBPREQ0_ANALM_PARAMETERS_4                                                                    0x0658
+#define mmHUBPREQ0_ANALM_PARAMETERS_4_BASE_IDX                                                           2
+#define mmHUBPREQ0_ANALM_PARAMETERS_5                                                                    0x0659
+#define mmHUBPREQ0_ANALM_PARAMETERS_5_BASE_IDX                                                           2
+#define mmHUBPREQ0_ANALM_PARAMETERS_6                                                                    0x065a
+#define mmHUBPREQ0_ANALM_PARAMETERS_6_BASE_IDX                                                           2
+#define mmHUBPREQ0_ANALM_PARAMETERS_7                                                                    0x065b
+#define mmHUBPREQ0_ANALM_PARAMETERS_7_BASE_IDX                                                           2
 #define mmHUBPREQ0_PER_LINE_DELIVERY_PRE                                                               0x065c
 #define mmHUBPREQ0_PER_LINE_DELIVERY_PRE_BASE_IDX                                                      2
 #define mmHUBPREQ0_PER_LINE_DELIVERY                                                                   0x065d
@@ -808,14 +808,14 @@
 #define mmHUBPREQ1_FLIP_PARAMETERS_0_BASE_IDX                                                          2
 #define mmHUBPREQ1_FLIP_PARAMETERS_2                                                                   0x072f
 #define mmHUBPREQ1_FLIP_PARAMETERS_2_BASE_IDX                                                          2
-#define mmHUBPREQ1_NOM_PARAMETERS_4                                                                    0x0734
-#define mmHUBPREQ1_NOM_PARAMETERS_4_BASE_IDX                                                           2
-#define mmHUBPREQ1_NOM_PARAMETERS_5                                                                    0x0735
-#define mmHUBPREQ1_NOM_PARAMETERS_5_BASE_IDX                                                           2
-#define mmHUBPREQ1_NOM_PARAMETERS_6                                                                    0x0736
-#define mmHUBPREQ1_NOM_PARAMETERS_6_BASE_IDX                                                           2
-#define mmHUBPREQ1_NOM_PARAMETERS_7                                                                    0x0737
-#define mmHUBPREQ1_NOM_PARAMETERS_7_BASE_IDX                                                           2
+#define mmHUBPREQ1_ANALM_PARAMETERS_4                                                                    0x0734
+#define mmHUBPREQ1_ANALM_PARAMETERS_4_BASE_IDX                                                           2
+#define mmHUBPREQ1_ANALM_PARAMETERS_5                                                                    0x0735
+#define mmHUBPREQ1_ANALM_PARAMETERS_5_BASE_IDX                                                           2
+#define mmHUBPREQ1_ANALM_PARAMETERS_6                                                                    0x0736
+#define mmHUBPREQ1_ANALM_PARAMETERS_6_BASE_IDX                                                           2
+#define mmHUBPREQ1_ANALM_PARAMETERS_7                                                                    0x0737
+#define mmHUBPREQ1_ANALM_PARAMETERS_7_BASE_IDX                                                           2
 #define mmHUBPREQ1_PER_LINE_DELIVERY_PRE                                                               0x0738
 #define mmHUBPREQ1_PER_LINE_DELIVERY_PRE_BASE_IDX                                                      2
 #define mmHUBPREQ1_PER_LINE_DELIVERY                                                                   0x0739
@@ -1047,14 +1047,14 @@
 #define mmHUBPREQ2_FLIP_PARAMETERS_0_BASE_IDX                                                          2
 #define mmHUBPREQ2_FLIP_PARAMETERS_2                                                                   0x080b
 #define mmHUBPREQ2_FLIP_PARAMETERS_2_BASE_IDX                                                          2
-#define mmHUBPREQ2_NOM_PARAMETERS_4                                                                    0x0810
-#define mmHUBPREQ2_NOM_PARAMETERS_4_BASE_IDX                                                           2
-#define mmHUBPREQ2_NOM_PARAMETERS_5                                                                    0x0811
-#define mmHUBPREQ2_NOM_PARAMETERS_5_BASE_IDX                                                           2
-#define mmHUBPREQ2_NOM_PARAMETERS_6                                                                    0x0812
-#define mmHUBPREQ2_NOM_PARAMETERS_6_BASE_IDX                                                           2
-#define mmHUBPREQ2_NOM_PARAMETERS_7                                                                    0x0813
-#define mmHUBPREQ2_NOM_PARAMETERS_7_BASE_IDX                                                           2
+#define mmHUBPREQ2_ANALM_PARAMETERS_4                                                                    0x0810
+#define mmHUBPREQ2_ANALM_PARAMETERS_4_BASE_IDX                                                           2
+#define mmHUBPREQ2_ANALM_PARAMETERS_5                                                                    0x0811
+#define mmHUBPREQ2_ANALM_PARAMETERS_5_BASE_IDX                                                           2
+#define mmHUBPREQ2_ANALM_PARAMETERS_6                                                                    0x0812
+#define mmHUBPREQ2_ANALM_PARAMETERS_6_BASE_IDX                                                           2
+#define mmHUBPREQ2_ANALM_PARAMETERS_7                                                                    0x0813
+#define mmHUBPREQ2_ANALM_PARAMETERS_7_BASE_IDX                                                           2
 #define mmHUBPREQ2_PER_LINE_DELIVERY_PRE                                                               0x0814
 #define mmHUBPREQ2_PER_LINE_DELIVERY_PRE_BASE_IDX                                                      2
 #define mmHUBPREQ2_PER_LINE_DELIVERY                                                                   0x0815
@@ -1281,14 +1281,14 @@
 #define mmHUBPREQ3_FLIP_PARAMETERS_0_BASE_IDX                                                          2
 #define mmHUBPREQ3_FLIP_PARAMETERS_2                                                                   0x08e7
 #define mmHUBPREQ3_FLIP_PARAMETERS_2_BASE_IDX                                                          2
-#define mmHUBPREQ3_NOM_PARAMETERS_4                                                                    0x08ec
-#define mmHUBPREQ3_NOM_PARAMETERS_4_BASE_IDX                                                           2
-#define mmHUBPREQ3_NOM_PARAMETERS_5                                                                    0x08ed
-#define mmHUBPREQ3_NOM_PARAMETERS_5_BASE_IDX                                                           2
-#define mmHUBPREQ3_NOM_PARAMETERS_6                                                                    0x08ee
-#define mmHUBPREQ3_NOM_PARAMETERS_6_BASE_IDX                                                           2
-#define mmHUBPREQ3_NOM_PARAMETERS_7                                                                    0x08ef
-#define mmHUBPREQ3_NOM_PARAMETERS_7_BASE_IDX                                                           2
+#define mmHUBPREQ3_ANALM_PARAMETERS_4                                                                    0x08ec
+#define mmHUBPREQ3_ANALM_PARAMETERS_4_BASE_IDX                                                           2
+#define mmHUBPREQ3_ANALM_PARAMETERS_5                                                                    0x08ed
+#define mmHUBPREQ3_ANALM_PARAMETERS_5_BASE_IDX                                                           2
+#define mmHUBPREQ3_ANALM_PARAMETERS_6                                                                    0x08ee
+#define mmHUBPREQ3_ANALM_PARAMETERS_6_BASE_IDX                                                           2
+#define mmHUBPREQ3_ANALM_PARAMETERS_7                                                                    0x08ef
+#define mmHUBPREQ3_ANALM_PARAMETERS_7_BASE_IDX                                                           2
 #define mmHUBPREQ3_PER_LINE_DELIVERY_PRE                                                               0x08f0
 #define mmHUBPREQ3_PER_LINE_DELIVERY_PRE_BASE_IDX                                                      2
 #define mmHUBPREQ3_PER_LINE_DELIVERY                                                                   0x08f1
@@ -1904,8 +1904,8 @@
 #define mmCM0_CM_3DLUT_DATA_30BIT_BASE_IDX                                                             2
 #define mmCM0_CM_3DLUT_READ_WRITE_CONTROL                                                              0x0de4
 #define mmCM0_CM_3DLUT_READ_WRITE_CONTROL_BASE_IDX                                                     2
-#define mmCM0_CM_3DLUT_OUT_NORM_FACTOR                                                                 0x0de5
-#define mmCM0_CM_3DLUT_OUT_NORM_FACTOR_BASE_IDX                                                        2
+#define mmCM0_CM_3DLUT_OUT_ANALRM_FACTOR                                                                 0x0de5
+#define mmCM0_CM_3DLUT_OUT_ANALRM_FACTOR_BASE_IDX                                                        2
 #define mmCM0_CM_3DLUT_OUT_OFFSET_R                                                                    0x0de6
 #define mmCM0_CM_3DLUT_OUT_OFFSET_R_BASE_IDX                                                           2
 #define mmCM0_CM_3DLUT_OUT_OFFSET_G                                                                    0x0de7
@@ -2454,8 +2454,8 @@
 #define mmCM1_CM_3DLUT_DATA_30BIT_BASE_IDX                                                             2
 #define mmCM1_CM_3DLUT_READ_WRITE_CONTROL                                                              0x0f4f
 #define mmCM1_CM_3DLUT_READ_WRITE_CONTROL_BASE_IDX                                                     2
-#define mmCM1_CM_3DLUT_OUT_NORM_FACTOR                                                                 0x0f50
-#define mmCM1_CM_3DLUT_OUT_NORM_FACTOR_BASE_IDX                                                        2
+#define mmCM1_CM_3DLUT_OUT_ANALRM_FACTOR                                                                 0x0f50
+#define mmCM1_CM_3DLUT_OUT_ANALRM_FACTOR_BASE_IDX                                                        2
 #define mmCM1_CM_3DLUT_OUT_OFFSET_R                                                                    0x0f51
 #define mmCM1_CM_3DLUT_OUT_OFFSET_R_BASE_IDX                                                           2
 #define mmCM1_CM_3DLUT_OUT_OFFSET_G                                                                    0x0f52
@@ -3003,8 +3003,8 @@
 #define mmCM2_CM_3DLUT_DATA_30BIT_BASE_IDX                                                             2
 #define mmCM2_CM_3DLUT_READ_WRITE_CONTROL                                                              0x10ba
 #define mmCM2_CM_3DLUT_READ_WRITE_CONTROL_BASE_IDX                                                     2
-#define mmCM2_CM_3DLUT_OUT_NORM_FACTOR                                                                 0x10bb
-#define mmCM2_CM_3DLUT_OUT_NORM_FACTOR_BASE_IDX                                                        2
+#define mmCM2_CM_3DLUT_OUT_ANALRM_FACTOR                                                                 0x10bb
+#define mmCM2_CM_3DLUT_OUT_ANALRM_FACTOR_BASE_IDX                                                        2
 #define mmCM2_CM_3DLUT_OUT_OFFSET_R                                                                    0x10bc
 #define mmCM2_CM_3DLUT_OUT_OFFSET_R_BASE_IDX                                                           2
 #define mmCM2_CM_3DLUT_OUT_OFFSET_G                                                                    0x10bd
@@ -3552,8 +3552,8 @@
 #define mmCM3_CM_3DLUT_DATA_30BIT_BASE_IDX                                                             2
 #define mmCM3_CM_3DLUT_READ_WRITE_CONTROL                                                              0x1225
 #define mmCM3_CM_3DLUT_READ_WRITE_CONTROL_BASE_IDX                                                     2
-#define mmCM3_CM_3DLUT_OUT_NORM_FACTOR                                                                 0x1226
-#define mmCM3_CM_3DLUT_OUT_NORM_FACTOR_BASE_IDX                                                        2
+#define mmCM3_CM_3DLUT_OUT_ANALRM_FACTOR                                                                 0x1226
+#define mmCM3_CM_3DLUT_OUT_ANALRM_FACTOR_BASE_IDX                                                        2
 #define mmCM3_CM_3DLUT_OUT_OFFSET_R                                                                    0x1227
 #define mmCM3_CM_3DLUT_OUT_OFFSET_R_BASE_IDX                                                           2
 #define mmCM3_CM_3DLUT_OUT_OFFSET_G                                                                    0x1228
@@ -3803,20 +3803,20 @@
 #define mmCUR_VUPDATE_LOCK_SET3_BASE_IDX                                                               2
 #define mmMPC_OUT0_MUX                                                                                 0x1385
 #define mmMPC_OUT0_MUX_BASE_IDX                                                                        2
-#define mmMPC_OUT0_DENORM_CONTROL                                                                      0x1386
-#define mmMPC_OUT0_DENORM_CONTROL_BASE_IDX                                                             2
-#define mmMPC_OUT0_DENORM_CLAMP_G_Y                                                                    0x1387
-#define mmMPC_OUT0_DENORM_CLAMP_G_Y_BASE_IDX                                                           2
-#define mmMPC_OUT0_DENORM_CLAMP_B_CB                                                                   0x1388
-#define mmMPC_OUT0_DENORM_CLAMP_B_CB_BASE_IDX                                                          2
+#define mmMPC_OUT0_DEANALRM_CONTROL                                                                      0x1386
+#define mmMPC_OUT0_DEANALRM_CONTROL_BASE_IDX                                                             2
+#define mmMPC_OUT0_DEANALRM_CLAMP_G_Y                                                                    0x1387
+#define mmMPC_OUT0_DEANALRM_CLAMP_G_Y_BASE_IDX                                                           2
+#define mmMPC_OUT0_DEANALRM_CLAMP_B_CB                                                                   0x1388
+#define mmMPC_OUT0_DEANALRM_CLAMP_B_CB_BASE_IDX                                                          2
 #define mmMPC_OUT1_MUX                                                                                 0x1389
 #define mmMPC_OUT1_MUX_BASE_IDX                                                                        2
-#define mmMPC_OUT1_DENORM_CONTROL                                                                      0x138a
-#define mmMPC_OUT1_DENORM_CONTROL_BASE_IDX                                                             2
-#define mmMPC_OUT1_DENORM_CLAMP_G_Y                                                                    0x138b
-#define mmMPC_OUT1_DENORM_CLAMP_G_Y_BASE_IDX                                                           2
-#define mmMPC_OUT1_DENORM_CLAMP_B_CB                                                                   0x138c
-#define mmMPC_OUT1_DENORM_CLAMP_B_CB_BASE_IDX                                                          2
+#define mmMPC_OUT1_DEANALRM_CONTROL                                                                      0x138a
+#define mmMPC_OUT1_DEANALRM_CONTROL_BASE_IDX                                                             2
+#define mmMPC_OUT1_DEANALRM_CLAMP_G_Y                                                                    0x138b
+#define mmMPC_OUT1_DEANALRM_CLAMP_G_Y_BASE_IDX                                                           2
+#define mmMPC_OUT1_DEANALRM_CLAMP_B_CB                                                                   0x138c
+#define mmMPC_OUT1_DEANALRM_CLAMP_B_CB_BASE_IDX                                                          2
 
 
 // addressBlock: dce_dc_mpc_mpcc_ogam0_dispdec
@@ -4737,8 +4737,8 @@
 #define mmOTG0_OTG_V_TOTAL_CONTROL_BASE_IDX                                                            2
 #define mmOTG0_OTG_V_TOTAL_INT_STATUS                                                                  0x1b34
 #define mmOTG0_OTG_V_TOTAL_INT_STATUS_BASE_IDX                                                         2
-#define mmOTG0_OTG_VSYNC_NOM_INT_STATUS                                                                0x1b35
-#define mmOTG0_OTG_VSYNC_NOM_INT_STATUS_BASE_IDX                                                       2
+#define mmOTG0_OTG_VSYNC_ANALM_INT_STATUS                                                                0x1b35
+#define mmOTG0_OTG_VSYNC_ANALM_INT_STATUS_BASE_IDX                                                       2
 #define mmOTG0_OTG_V_BLANK_START_END                                                                   0x1b36
 #define mmOTG0_OTG_V_BLANK_START_END_BASE_IDX                                                          2
 #define mmOTG0_OTG_V_SYNC_A                                                                            0x1b37
@@ -4753,8 +4753,8 @@
 #define mmOTG0_OTG_TRIGB_CNTL_BASE_IDX                                                                 2
 #define mmOTG0_OTG_TRIGB_MANUAL_TRIG                                                                   0x1b3c
 #define mmOTG0_OTG_TRIGB_MANUAL_TRIG_BASE_IDX                                                          2
-#define mmOTG0_OTG_FORCE_COUNT_NOW_CNTL                                                                0x1b3d
-#define mmOTG0_OTG_FORCE_COUNT_NOW_CNTL_BASE_IDX                                                       2
+#define mmOTG0_OTG_FORCE_COUNT_ANALW_CNTL                                                                0x1b3d
+#define mmOTG0_OTG_FORCE_COUNT_ANALW_CNTL_BASE_IDX                                                       2
 #define mmOTG0_OTG_STEREO_FORCE_NEXT_EYE                                                               0x1b3f
 #define mmOTG0_OTG_STEREO_FORCE_NEXT_EYE_BASE_IDX                                                      2
 #define mmOTG0_OTG_CONTROL                                                                             0x1b41
@@ -4773,8 +4773,8 @@
 #define mmOTG0_OTG_STATUS_BASE_IDX                                                                     2
 #define mmOTG0_OTG_STATUS_POSITION                                                                     0x1b4a
 #define mmOTG0_OTG_STATUS_POSITION_BASE_IDX                                                            2
-#define mmOTG0_OTG_NOM_VERT_POSITION                                                                   0x1b4b
-#define mmOTG0_OTG_NOM_VERT_POSITION_BASE_IDX                                                          2
+#define mmOTG0_OTG_ANALM_VERT_POSITION                                                                   0x1b4b
+#define mmOTG0_OTG_ANALM_VERT_POSITION_BASE_IDX                                                          2
 #define mmOTG0_OTG_STATUS_FRAME_COUNT                                                                  0x1b4c
 #define mmOTG0_OTG_STATUS_FRAME_COUNT_BASE_IDX                                                         2
 #define mmOTG0_OTG_STATUS_VF_COUNT                                                                     0x1b4d
@@ -4928,8 +4928,8 @@
 #define mmOTG1_OTG_V_TOTAL_CONTROL_BASE_IDX                                                            2
 #define mmOTG1_OTG_V_TOTAL_INT_STATUS                                                                  0x1bb4
 #define mmOTG1_OTG_V_TOTAL_INT_STATUS_BASE_IDX                                                         2
-#define mmOTG1_OTG_VSYNC_NOM_INT_STATUS                                                                0x1bb5
-#define mmOTG1_OTG_VSYNC_NOM_INT_STATUS_BASE_IDX                                                       2
+#define mmOTG1_OTG_VSYNC_ANALM_INT_STATUS                                                                0x1bb5
+#define mmOTG1_OTG_VSYNC_ANALM_INT_STATUS_BASE_IDX                                                       2
 #define mmOTG1_OTG_V_BLANK_START_END                                                                   0x1bb6
 #define mmOTG1_OTG_V_BLANK_START_END_BASE_IDX                                                          2
 #define mmOTG1_OTG_V_SYNC_A                                                                            0x1bb7
@@ -4944,8 +4944,8 @@
 #define mmOTG1_OTG_TRIGB_CNTL_BASE_IDX                                                                 2
 #define mmOTG1_OTG_TRIGB_MANUAL_TRIG                                                                   0x1bbc
 #define mmOTG1_OTG_TRIGB_MANUAL_TRIG_BASE_IDX                                                          2
-#define mmOTG1_OTG_FORCE_COUNT_NOW_CNTL                                                                0x1bbd
-#define mmOTG1_OTG_FORCE_COUNT_NOW_CNTL_BASE_IDX                                                       2
+#define mmOTG1_OTG_FORCE_COUNT_ANALW_CNTL                                                                0x1bbd
+#define mmOTG1_OTG_FORCE_COUNT_ANALW_CNTL_BASE_IDX                                                       2
 #define mmOTG1_OTG_STEREO_FORCE_NEXT_EYE                                                               0x1bbf
 #define mmOTG1_OTG_STEREO_FORCE_NEXT_EYE_BASE_IDX                                                      2
 #define mmOTG1_OTG_CONTROL                                                                             0x1bc1
@@ -4964,8 +4964,8 @@
 #define mmOTG1_OTG_STATUS_BASE_IDX                                                                     2
 #define mmOTG1_OTG_STATUS_POSITION                                                                     0x1bca
 #define mmOTG1_OTG_STATUS_POSITION_BASE_IDX                                                            2
-#define mmOTG1_OTG_NOM_VERT_POSITION                                                                   0x1bcb
-#define mmOTG1_OTG_NOM_VERT_POSITION_BASE_IDX                                                          2
+#define mmOTG1_OTG_ANALM_VERT_POSITION                                                                   0x1bcb
+#define mmOTG1_OTG_ANALM_VERT_POSITION_BASE_IDX                                                          2
 #define mmOTG1_OTG_STATUS_FRAME_COUNT                                                                  0x1bcc
 #define mmOTG1_OTG_STATUS_FRAME_COUNT_BASE_IDX                                                         2
 #define mmOTG1_OTG_STATUS_VF_COUNT                                                                     0x1bcd

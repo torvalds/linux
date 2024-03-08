@@ -119,7 +119,7 @@
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>;
 		clock-frequency = <24000000>;
-		arm,no-tick-in-suspend;
+		arm,anal-tick-in-suspend;
 		interrupt-parent = <&gic>;
 	};
 
@@ -158,8 +158,8 @@
 				map0 {
 					trip = <&cpu_alert>;
 					cooling-device =
-						<&A55_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A55_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&A55_0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A55_1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -257,7 +257,7 @@
 				interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&osc_24m>;
 				clock-names = "per";
-				nxp,no-divider;
+				nxp,anal-divider;
 			};
 
 			wdog1: watchdog@442d0000 {

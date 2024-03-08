@@ -129,7 +129,7 @@ static int dpaa_get_sset_count(struct net_device *net_dev, int type)
 	case ETH_SS_STATS:
 		return total_stats;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -316,7 +316,7 @@ static int dpaa_get_hash_opts(struct net_device *dev,
 static int dpaa_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 			  u32 *unused)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXFH:
@@ -380,7 +380,7 @@ static int dpaa_set_hash_opts(struct net_device *dev,
 
 static int dpaa_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXFH:
@@ -397,22 +397,22 @@ static int dpaa_get_ts_info(struct net_device *net_dev,
 			    struct ethtool_ts_info *info)
 {
 	struct device *dev = net_dev->dev.parent;
-	struct device_node *mac_node = dev->of_node;
-	struct device_node *fman_node = NULL, *ptp_node = NULL;
+	struct device_analde *mac_analde = dev->of_analde;
+	struct device_analde *fman_analde = NULL, *ptp_analde = NULL;
 	struct platform_device *ptp_dev = NULL;
 	struct ptp_qoriq *ptp = NULL;
 
 	info->phc_index = -1;
 
-	fman_node = of_get_parent(mac_node);
-	if (fman_node) {
-		ptp_node = of_parse_phandle(fman_node, "ptimer-handle", 0);
-		of_node_put(fman_node);
+	fman_analde = of_get_parent(mac_analde);
+	if (fman_analde) {
+		ptp_analde = of_parse_phandle(fman_analde, "ptimer-handle", 0);
+		of_analde_put(fman_analde);
 	}
 
-	if (ptp_node) {
-		ptp_dev = of_find_device_by_node(ptp_node);
-		of_node_put(ptp_node);
+	if (ptp_analde) {
+		ptp_dev = of_find_device_by_analde(ptp_analde);
+		of_analde_put(ptp_analde);
 	}
 
 	if (ptp_dev)
@@ -426,7 +426,7 @@ static int dpaa_get_ts_info(struct net_device *net_dev,
 				SOF_TIMESTAMPING_RAW_HARDWARE;
 	info->tx_types = (1 << HWTSTAMP_TX_OFF) |
 			 (1 << HWTSTAMP_TX_ON);
-	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+	info->rx_filters = (1 << HWTSTAMP_FILTER_ANALNE) |
 			   (1 << HWTSTAMP_FILTER_ALL);
 
 	return 0;
@@ -493,7 +493,7 @@ revert_values:
 		if (!needs_revert[cpu])
 			continue;
 		portal = qman_get_affine_portal(cpu);
-		/* previous values will not fail, ignore return value */
+		/* previous values will analt fail, iganalre return value */
 		qman_portal_set_iperiod(portal, prev_period);
 		qman_dqrr_set_ithresh(portal, prev_thresh);
 	}

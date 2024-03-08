@@ -19,7 +19,7 @@ description: |
   The l3bridge region contains registers that allow such a flush
   to be triggered.
 
-  This node is used by the platform code to find where the registers
+  This analde is used by the platform code to find where the registers
   are and install a barrier that triggers the required pipeline flush.
 
 properties:

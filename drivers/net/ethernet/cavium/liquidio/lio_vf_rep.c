@@ -13,7 +13,7 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
 #include <linux/pci.h>
 #include <linux/if_vlan.h>
@@ -66,7 +66,7 @@ lio_vf_rep_send_soft_command(struct octeon_device *oct,
 		octeon_alloc_soft_command(oct, req_size,
 					  tot_resp_size, 0);
 	if (!sc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_completion(&sc->complete);
 	sc->sc_status = OCTEON_REQUEST_PENDING;
@@ -78,7 +78,7 @@ lio_vf_rep_send_soft_command(struct octeon_device *oct,
 	memset(rep_resp, 0, tot_resp_size);
 	WRITE_ONCE(rep_resp->status, 1);
 
-	sc->iq_no = 0;
+	sc->iq_anal = 0;
 	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
 				    OPCODE_NIC_VF_REP_CMD, 0, 0, 0);
 
@@ -234,7 +234,7 @@ lio_vf_rep_phys_port_name(struct net_device *dev,
 	ret = snprintf(buf, len, "pf%dvf%d", oct->pf_num,
 		       vf_rep->ifidx - oct->pf_num * 64 - 1);
 	if (ret >= len)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -320,14 +320,14 @@ lio_vf_rep_pkt_recv(struct octeon_recv_info *recv_info, void *buf)
 
 	skb->dev = vf_ndev;
 
-	/* Multiple buffers are not used for vf_rep packets.
+	/* Multiple buffers are analt used for vf_rep packets.
 	 * So just buffer_size[0] is valid.
 	 */
 	lio_vf_rep_copy_packet(oct, skb, recv_pkt->buffer_size[0]);
 
 	skb_pull(skb, rh->r_dh.len * BYTES_PER_DHLEN_UNIT);
 	skb->protocol = eth_type_trans(skb, skb->dev);
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	netif_rx(skb);
 
@@ -351,15 +351,15 @@ lio_vf_rep_packet_sent_callback(struct octeon_device *oct,
 	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
 	struct sk_buff *skb = sc->ctxptr;
 	struct net_device *ndev = skb->dev;
-	u32 iq_no;
+	u32 iq_anal;
 
 	dma_unmap_single(&oct->pci_dev->dev, sc->dmadptr,
 			 sc->datasize, DMA_TO_DEVICE);
 	dev_kfree_skb_any(skb);
-	iq_no = sc->iq_no;
+	iq_anal = sc->iq_anal;
 	octeon_free_soft_command(oct, sc);
 
-	if (octnet_iq_is_full(oct, iq_no))
+	if (octnet_iq_is_full(oct, iq_anal))
 		return;
 
 	if (netif_queue_stopped(ndev))
@@ -396,7 +396,7 @@ lio_vf_rep_pkt_xmit(struct sk_buff *skb, struct net_device *ndev)
 		goto xmit_failed;
 	}
 
-	/* Multiple buffers are not used for vf_rep packets. */
+	/* Multiple buffers are analt used for vf_rep packets. */
 	if (skb_shinfo(skb)->nr_frags != 0) {
 		dev_err(&oct->pci_dev->dev, "VF rep: nr_frags != 0. Dropping packet\n");
 		octeon_free_soft_command(oct, sc);
@@ -414,7 +414,7 @@ lio_vf_rep_pkt_xmit(struct sk_buff *skb, struct net_device *ndev)
 	sc->virtdptr = skb->data;
 	sc->datasize = skb->len;
 	sc->ctxptr = skb;
-	sc->iq_no = parent_lio->txq;
+	sc->iq_anal = parent_lio->txq;
 
 	octeon_prepare_soft_command(oct, sc, OPCODE_NIC, OPCODE_NIC_VF_REP_PKT,
 				    vf_rep->ifidx, 0, 0);
@@ -604,10 +604,10 @@ lio_vf_rep_destroy(struct octeon_device *oct)
 }
 
 static int
-lio_vf_rep_netdev_event(struct notifier_block *nb,
+lio_vf_rep_netdev_event(struct analtifier_block *nb,
 			unsigned long event, void *ptr)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *ndev = netdev_analtifier_info_to_dev(ptr);
 	struct lio_vf_rep_desc *vf_rep;
 	struct lio_vf_rep_req rep_cfg;
 	struct octeon_device *oct;
@@ -619,11 +619,11 @@ lio_vf_rep_netdev_event(struct notifier_block *nb,
 		break;
 
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	if (ndev->netdev_ops != &lio_vf_rep_ndev_ops)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	vf_rep = netdev_priv(ndev);
 	oct = vf_rep->oct;
@@ -632,7 +632,7 @@ lio_vf_rep_netdev_event(struct notifier_block *nb,
 		dev_err(&oct->pci_dev->dev,
 			"Device name change sync failed as the size is > %d\n",
 			LIO_IF_NAME_SIZE);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	memset(&rep_cfg, 0, sizeof(rep_cfg));
@@ -647,18 +647,18 @@ lio_vf_rep_netdev_event(struct notifier_block *nb,
 		dev_err(&oct->pci_dev->dev,
 			"vf_rep netdev name change failed with err %d\n", ret);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block lio_vf_rep_netdev_notifier = {
-	.notifier_call = lio_vf_rep_netdev_event,
+static struct analtifier_block lio_vf_rep_netdev_analtifier = {
+	.analtifier_call = lio_vf_rep_netdev_event,
 };
 
 int
 lio_vf_rep_modinit(void)
 {
-	if (register_netdevice_notifier(&lio_vf_rep_netdev_notifier)) {
-		pr_err("netdev notifier registration failed\n");
+	if (register_netdevice_analtifier(&lio_vf_rep_netdev_analtifier)) {
+		pr_err("netdev analtifier registration failed\n");
 		return -EFAULT;
 	}
 
@@ -668,6 +668,6 @@ lio_vf_rep_modinit(void)
 void
 lio_vf_rep_modexit(void)
 {
-	if (unregister_netdevice_notifier(&lio_vf_rep_netdev_notifier))
-		pr_err("netdev notifier unregister failed\n");
+	if (unregister_netdevice_analtifier(&lio_vf_rep_netdev_analtifier))
+		pr_err("netdev analtifier unregister failed\n");
 }

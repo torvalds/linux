@@ -6,12 +6,12 @@
 #include <asm/ip32/crime.h>
 
 /*
- * Few notes.
+ * Few analtes.
  * 1. CPU sees memory as two chunks: 0-256M@0x0, and the rest @0x40000000+256M
  * 2. PCI sees memory as one big chunk @0x0 (or we could use 0x40000000 for
  *    native-endian)
  * 3. All other devices see memory as one big chunk at 0x40000000
- * 4. Non-PCI devices will pass NULL as struct device*
+ * 4. Analn-PCI devices will pass NULL as struct device*
  *
  * Thus we translate differently, depending on device.
  */

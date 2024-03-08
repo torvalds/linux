@@ -247,7 +247,7 @@ void __init pxa_set_hwuart_info(void *info)
 	if (cpu_is_pxa255())
 		pxa_register_device(&pxa_device_hwuart, info);
 	else
-		pr_info("UART: Ignoring attempt to register HWUART on non-PXA255 hardware");
+		pr_info("UART: Iganalring attempt to register HWUART on analn-PXA255 hardware");
 }
 
 static struct resource pxai2c_resources[] = {

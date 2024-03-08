@@ -452,7 +452,7 @@
 	pinctrl-0 = <&spifi_pins>;
 
 	flash {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-rx-bus-width = <4>;
 		#address-cells = <1>;
 		#size-cells = <1>;

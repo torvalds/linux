@@ -110,7 +110,7 @@ static const struct clk_ops clk_sysctrl_gate_fixed_rate_ops = {
 };
 
 static const struct clk_ops clk_sysctrl_set_parent_ops = {
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.set_parent = clk_sysctrl_set_parent,
 	.get_parent = clk_sysctrl_get_parent,
 };
@@ -142,7 +142,7 @@ static struct clk *clk_reg_sysctrl(struct device *dev,
 
 	clk = devm_kzalloc(dev, sizeof(*clk), GFP_KERNEL);
 	if (!clk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* set main clock registers */
 	clk->reg_sel[0] = reg_sel[0];

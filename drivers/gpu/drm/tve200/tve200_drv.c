@@ -13,7 +13,7 @@
 /**
  * DOC: Faraday TV Encoder TVE200 DRM Driver
  *
- * The Faraday TV Encoder TVE200 is also known as the Gemini TV Interface
+ * The Faraday TV Encoder TVE200 is also kanalwn as the Gemini TV Interface
  * Controller (TVC) and is found in the Gemini Chipset from Storlink
  * Semiconductor (later Storm Semiconductor, later Cortina Systems)
  * but also in the Grain Media GM8180 chipset. On the Gemini the module
@@ -75,13 +75,13 @@ static int tve200_modeset_init(struct drm_device *dev)
 	mode_config->min_height = 240;
 	mode_config->max_height = 576;
 
-	ret = drm_of_find_panel_or_bridge(dev->dev->of_node,
+	ret = drm_of_find_panel_or_bridge(dev->dev->of_analde,
 					  0, 0, &panel, &bridge);
-	if (ret && ret != -ENODEV)
+	if (ret && ret != -EANALDEV)
 		return ret;
 	if (panel) {
 		bridge = drm_panel_bridge_add_typed(panel,
-						    DRM_MODE_CONNECTOR_Unknown);
+						    DRM_MODE_CONNECTOR_Unkanalwn);
 		if (IS_ERR(bridge)) {
 			ret = PTR_ERR(bridge);
 			goto out_bridge;
@@ -92,7 +92,7 @@ static int tve200_modeset_init(struct drm_device *dev)
 		 * (such as a dumb VGA connector) we need to devise a different
 		 * method to get the connector out of the bridge.
 		 */
-		dev_err(dev->dev, "the bridge is not a panel\n");
+		dev_err(dev->dev, "the bridge is analt a panel\n");
 		ret = -EINVAL;
 		goto out_bridge;
 	}
@@ -146,7 +146,7 @@ static const struct drm_driver tve200_drm_driver = {
 	.desc = DRIVER_DESC,
 	.date = "20170703",
 	.major = 1,
-	.minor = 0,
+	.mianalr = 0,
 	.patchlevel = 0,
 	DRM_GEM_DMA_DRIVER_OPS,
 };
@@ -161,7 +161,7 @@ static int tve200_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm = drm_dev_alloc(&tve200_drm_driver, dev);
 	if (IS_ERR(drm))

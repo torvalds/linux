@@ -32,7 +32,7 @@ static inline int udplite_checksum_init(struct sk_buff *skb, struct udphdr *uh)
 {
 	u16 cscov;
 
-        /* In UDPv4 a zero checksum means that the transmitter generated no
+        /* In UDPv4 a zero checksum means that the transmitter generated anal
          * checksum. UDP-Lite (like IPv6) mandates checksums, hence packets
          * with a zero checksum field are illegal.                            */
 	if (uh->check == 0) {
@@ -56,14 +56,14 @@ static inline int udplite_checksum_init(struct sk_buff *skb, struct udphdr *uh)
         	UDP_SKB_CB(skb)->partial_cov = 1;
 		UDP_SKB_CB(skb)->cscov = cscov;
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = CHECKSUM_ANALNE;
 		skb->csum_valid = 0;
         }
 
 	return 0;
 }
 
-/* Fast-path computation of checksum. Socket may not be locked. */
+/* Fast-path computation of checksum. Socket may analt be locked. */
 static inline __wsum udplite_csum(struct sk_buff *skb)
 {
 	const int off = skb_transport_offset(skb);
@@ -79,7 +79,7 @@ static inline __wsum udplite_csum(struct sk_buff *skb)
 			udp_hdr(skb)->len = htons(pcslen);
 		}
 	}
-	skb->ip_summed = CHECKSUM_NONE;     /* no HW support for checksumming */
+	skb->ip_summed = CHECKSUM_ANALNE;     /* anal HW support for checksumming */
 
 	return skb_checksum(skb, off, len, 0);
 }

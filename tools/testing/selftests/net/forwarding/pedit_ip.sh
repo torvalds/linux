@@ -71,9 +71,9 @@ switch_destroy()
 	tc qdisc del dev $swp1 clsact
 
 	ip link set dev $swp2 down
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp2 analmaster
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 	ip link del dev br1
 }
 

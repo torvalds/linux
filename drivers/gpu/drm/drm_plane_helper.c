@@ -10,13 +10,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -41,14 +41,14 @@
  * DOC: overview
  *
  * This helper library contains helpers to implement primary plane support on
- * top of the normal CRTC configuration interface.
+ * top of the analrmal CRTC configuration interface.
  * Since the legacy &drm_mode_config_funcs.set_config interface ties the primary
- * plane together with the CRTC state this does not allow userspace to disable
+ * plane together with the CRTC state this does analt allow userspace to disable
  * the primary plane itself. The default primary plane only expose XRBG8888 and
  * ARGB8888 as valid pixel formats for the attached framebuffer.
  *
  * Drivers are highly recommended to implement proper support for primary
- * planes, and newly merged drivers must not rely upon these transitional
+ * planes, and newly merged drivers must analt rely upon these transitional
  * helpers.
  *
  * The plane helpers share the function table structures with other helpers,
@@ -71,7 +71,7 @@ static int get_connectors_for_crtc(struct drm_crtc *crtc,
 	int count = 0;
 
 	/*
-	 * Note: Once we change the plane hooks to more fine-grained locking we
+	 * Analte: Once we change the plane hooks to more fine-grained locking we
 	 * need to grab the connection_mutex here to be able to make these
 	 * checks.
 	 */
@@ -155,11 +155,11 @@ static int drm_plane_helper_check_update(struct drm_plane *plane,
  *
  * This helper validates the given parameters and updates the primary plane.
  *
- * This function is only useful for non-atomic modesetting. Don't use
+ * This function is only useful for analn-atomic modesetting. Don't use
  * it in new drivers.
  *
  * Returns:
- * Zero on success, or an errno code otherwise.
+ * Zero on success, or an erranal code otherwise.
  */
 int drm_plane_helper_update_primary(struct drm_plane *plane, struct drm_crtc *crtc,
 				    struct drm_framebuffer *fb,
@@ -199,15 +199,15 @@ int drm_plane_helper_update_primary(struct drm_plane *plane, struct drm_crtc *cr
 	ret = drm_plane_helper_check_update(plane, crtc, fb,
 					    &src, &dest,
 					    DRM_MODE_ROTATE_0,
-					    DRM_PLANE_NO_SCALING,
-					    DRM_PLANE_NO_SCALING,
+					    DRM_PLANE_ANAL_SCALING,
+					    DRM_PLANE_ANAL_SCALING,
 					    false, false, &visible);
 	if (ret)
 		return ret;
 
 	if (!visible)
 		/*
-		 * Primary plane isn't visible.  Note that unless a driver
+		 * Primary plane isn't visible.  Analte that unless a driver
 		 * provides their own disable function, this will just
 		 * wind up returning -EINVAL to userspace.
 		 */
@@ -219,7 +219,7 @@ int drm_plane_helper_update_primary(struct drm_plane *plane, struct drm_crtc *cr
 	connector_list = kcalloc(num_connectors, sizeof(*connector_list),
 				 GFP_KERNEL);
 	if (!connector_list)
-		return -ENOMEM;
+		return -EANALMEM;
 	get_connectors_for_crtc(crtc, connector_list, num_connectors);
 
 	set.connectors = connector_list;
@@ -248,11 +248,11 @@ EXPORT_SYMBOL(drm_plane_helper_update_primary);
  * This helper returns an error when trying to disable the primary
  * plane.
  *
- * This function is only useful for non-atomic modesetting. Don't use
+ * This function is only useful for analn-atomic modesetting. Don't use
  * it in new drivers.
  *
  * Returns:
- * An errno code.
+ * An erranal code.
  */
 int drm_plane_helper_disable_primary(struct drm_plane *plane,
 				     struct drm_modeset_acquire_ctx *ctx)

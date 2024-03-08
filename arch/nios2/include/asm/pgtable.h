@@ -22,7 +22,7 @@
 #include <asm/tlbflush.h>
 
 #include <asm/pgtable-bits.h>
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-analpmd.h>
 
 #define VMALLOC_START		CONFIG_NIOS2_KERNEL_MMU_REGION_BASE
 #define VMALLOC_END		(CONFIG_NIOS2_KERNEL_REGION_BASE - 1)
@@ -88,9 +88,9 @@ static inline int pte_dirty(pte_t pte)		\
 static inline int pte_young(pte_t pte)		\
 	{ return pte_val(pte) & _PAGE_ACCESSED; }
 
-#define pgprot_noncached pgprot_noncached
+#define pgprot_analncached pgprot_analncached
 
-static inline pgprot_t pgprot_noncached(pgprot_t _prot)
+static inline pgprot_t pgprot_analncached(pgprot_t _prot)
 {
 	unsigned long prot = pgprot_val(_prot);
 
@@ -99,7 +99,7 @@ static inline pgprot_t pgprot_noncached(pgprot_t _prot)
 	return __pgprot(prot);
 }
 
-static inline int pte_none(pte_t pte)
+static inline int pte_analne(pte_t pte)
 {
 	return !(pte_val(pte) & ~(_PAGE_GLOBAL|0xf));
 }
@@ -109,7 +109,7 @@ static inline int pte_present(pte_t pte)	\
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if analt..
  */
 static inline pte_t pte_wrprotect(pte_t pte)
 {
@@ -129,7 +129,7 @@ static inline pte_t pte_mkold(pte_t pte)
 	return pte;
 }
 
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_WRITE;
 	return pte;
@@ -194,7 +194,7 @@ static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
 }
 #define set_ptes set_ptes
 
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_analne(pmd_t pmd)
 {
 	return (pmd_val(pmd) ==
 		(unsigned long) invalid_pte_table) || (pmd_val(pmd) == 0UL);
@@ -240,7 +240,7 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTEs:
  *
@@ -248,10 +248,10 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
  *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
  *   E < type -> 0 0 0 0 0 0 <-------------- offset --------------->
  *
- *   E is the exclusive marker that is not stored in swap entries.
+ *   E is the exclusive marker that is analt stored in swap entries.
  *
- * Note that the offset field is always non-zero if the swap type is 0, thus
- * !pte_none() is always true.
+ * Analte that the offset field is always analn-zero if the swap type is 0, thus
+ * !pte_analne() is always true.
  */
 #define __swp_type(swp)		(((swp).val >> 26) & 0x1f)
 #define __swp_offset(swp)	((swp).val & 0xfffff)

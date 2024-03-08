@@ -25,7 +25,7 @@
  * system in the SoC. The entry belonging to the local system is considered
  * read-write, while the rest should be considered read-only.
  *
- * The subscription matrix consists of N bitmaps per entry, denoting interest
+ * The subscription matrix consists of N bitmaps per entry, deanalting interest
  * in updates of the entry for each of the N hosts. Upon updating a state bit
  * each host's subscription bitmap should be queried and the remote system
  * should be interrupted if they request so.
@@ -50,7 +50,7 @@
 #define SMEM_SMSM_SIZE_INFO		419
 
 /*
- * Default sizes, in case SMEM_SMSM_SIZE_INFO is not found.
+ * Default sizes, in case SMEM_SMSM_SIZE_INFO is analt found.
  */
 #define SMSM_DEFAULT_NUM_ENTRIES	8
 #define SMSM_DEFAULT_NUM_HOSTS		3
@@ -362,31 +362,31 @@ static const struct irq_domain_ops smsm_irq_ops = {
  */
 static int smsm_parse_ipc(struct qcom_smsm *smsm, unsigned host_id)
 {
-	struct device_node *syscon;
-	struct device_node *node = smsm->dev->of_node;
+	struct device_analde *syscon;
+	struct device_analde *analde = smsm->dev->of_analde;
 	struct smsm_host *host = &smsm->hosts[host_id];
 	char key[16];
 	int ret;
 
 	snprintf(key, sizeof(key), "qcom,ipc-%d", host_id);
-	syscon = of_parse_phandle(node, key, 0);
+	syscon = of_parse_phandle(analde, key, 0);
 	if (!syscon)
 		return 0;
 
-	host->ipc_regmap = syscon_node_to_regmap(syscon);
-	of_node_put(syscon);
+	host->ipc_regmap = syscon_analde_to_regmap(syscon);
+	of_analde_put(syscon);
 	if (IS_ERR(host->ipc_regmap))
 		return PTR_ERR(host->ipc_regmap);
 
-	ret = of_property_read_u32_index(node, key, 1, &host->ipc_offset);
+	ret = of_property_read_u32_index(analde, key, 1, &host->ipc_offset);
 	if (ret < 0) {
-		dev_err(smsm->dev, "no offset in %s\n", key);
+		dev_err(smsm->dev, "anal offset in %s\n", key);
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32_index(node, key, 2, &host->ipc_bit);
+	ret = of_property_read_u32_index(analde, key, 2, &host->ipc_bit);
 	if (ret < 0) {
-		dev_err(smsm->dev, "no bit in %s\n", key);
+		dev_err(smsm->dev, "anal bit in %s\n", key);
 		return -EINVAL;
 	}
 
@@ -397,16 +397,16 @@ static int smsm_parse_ipc(struct qcom_smsm *smsm, unsigned host_id)
  * smsm_inbound_entry() - parse DT and set up an entry representing a remote system
  * @smsm:	smsm driver context
  * @entry:	entry context to be set up
- * @node:	dt node containing the entry's properties
+ * @analde:	dt analde containing the entry's properties
  */
 static int smsm_inbound_entry(struct qcom_smsm *smsm,
 			      struct smsm_entry *entry,
-			      struct device_node *node)
+			      struct device_analde *analde)
 {
 	int ret;
 	int irq;
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(analde, 0);
 	if (!irq) {
 		dev_err(smsm->dev, "failed to parse smsm interrupt\n");
 		return -EINVAL;
@@ -421,10 +421,10 @@ static int smsm_inbound_entry(struct qcom_smsm *smsm,
 		return ret;
 	}
 
-	entry->domain = irq_domain_add_linear(node, 32, &smsm_irq_ops, entry);
+	entry->domain = irq_domain_add_linear(analde, 32, &smsm_irq_ops, entry);
 	if (!entry->domain) {
 		dev_err(smsm->dev, "failed to add irq_domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -435,11 +435,11 @@ static int smsm_inbound_entry(struct qcom_smsm *smsm,
  * @smsm:	smsm driver context
  *
  * Attempt to acquire the number of hosts and entries from the optional shared
- * memory location. Not being able to find this segment should indicate that
+ * memory location. Analt being able to find this segment should indicate that
  * we're on a older system where these values was hard coded to
  * SMSM_DEFAULT_NUM_ENTRIES and SMSM_DEFAULT_NUM_HOSTS.
  *
- * Returns 0 on success, negative errno on failure.
+ * Returns 0 on success, negative erranal on failure.
  */
 static int smsm_get_size_info(struct qcom_smsm *smsm)
 {
@@ -452,11 +452,11 @@ static int smsm_get_size_info(struct qcom_smsm *smsm)
 	} *info;
 
 	info = qcom_smem_get(QCOM_SMEM_HOST_ANY, SMEM_SMSM_SIZE_INFO, &size);
-	if (IS_ERR(info) && PTR_ERR(info) != -ENOENT)
+	if (IS_ERR(info) && PTR_ERR(info) != -EANALENT)
 		return dev_err_probe(smsm->dev, PTR_ERR(info),
 				     "unable to retrieve smsm size info\n");
 	else if (IS_ERR(info) || size != sizeof(*info)) {
-		dev_warn(smsm->dev, "no smsm size info, using defaults\n");
+		dev_warn(smsm->dev, "anal smsm size info, using defaults\n");
 		smsm->num_entries = SMSM_DEFAULT_NUM_ENTRIES;
 		smsm->num_hosts = SMSM_DEFAULT_NUM_HOSTS;
 		return 0;
@@ -474,8 +474,8 @@ static int smsm_get_size_info(struct qcom_smsm *smsm)
 
 static int qcom_smsm_probe(struct platform_device *pdev)
 {
-	struct device_node *local_node;
-	struct device_node *node;
+	struct device_analde *local_analde;
+	struct device_analde *analde;
 	struct smsm_entry *entry;
 	struct qcom_smsm *smsm;
 	u32 *intr_mask;
@@ -486,7 +486,7 @@ static int qcom_smsm_probe(struct platform_device *pdev)
 
 	smsm = devm_kzalloc(&pdev->dev, sizeof(*smsm), GFP_KERNEL);
 	if (!smsm)
-		return -ENOMEM;
+		return -EANALMEM;
 	smsm->dev = &pdev->dev;
 	spin_lock_init(&smsm->lock);
 
@@ -499,25 +499,25 @@ static int qcom_smsm_probe(struct platform_device *pdev)
 				     sizeof(struct smsm_entry),
 				     GFP_KERNEL);
 	if (!smsm->entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	smsm->hosts = devm_kcalloc(&pdev->dev,
 				   smsm->num_hosts,
 				   sizeof(struct smsm_host),
 				   GFP_KERNEL);
 	if (!smsm->hosts)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	for_each_child_of_node(pdev->dev.of_node, local_node) {
-		if (of_property_present(local_node, "#qcom,smem-state-cells"))
+	for_each_child_of_analde(pdev->dev.of_analde, local_analde) {
+		if (of_property_present(local_analde, "#qcom,smem-state-cells"))
 			break;
 	}
-	if (!local_node) {
-		dev_err(&pdev->dev, "no state entry\n");
+	if (!local_analde) {
+		dev_err(&pdev->dev, "anal state entry\n");
 		return -EINVAL;
 	}
 
-	of_property_read_u32(pdev->dev.of_node,
+	of_property_read_u32(pdev->dev.of_analde,
 			     "qcom,local-host",
 			     &smsm->local_host);
 
@@ -563,7 +563,7 @@ static int qcom_smsm_probe(struct platform_device *pdev)
 	smsm->subscription = intr_mask + smsm->local_host * smsm->num_hosts;
 
 	/* Register the outgoing state */
-	smsm->state = qcom_smem_state_register(local_node, &smsm_state_ops, smsm);
+	smsm->state = qcom_smem_state_register(local_analde, &smsm_state_ops, smsm);
 	if (IS_ERR(smsm->state)) {
 		dev_err(smsm->dev, "failed to register qcom_smem_state\n");
 		ret = PTR_ERR(smsm->state);
@@ -571,11 +571,11 @@ static int qcom_smsm_probe(struct platform_device *pdev)
 	}
 
 	/* Register handlers for remote processor entries of interest. */
-	for_each_available_child_of_node(pdev->dev.of_node, node) {
-		if (!of_property_read_bool(node, "interrupt-controller"))
+	for_each_available_child_of_analde(pdev->dev.of_analde, analde) {
+		if (!of_property_read_bool(analde, "interrupt-controller"))
 			continue;
 
-		ret = of_property_read_u32(node, "reg", &id);
+		ret = of_property_read_u32(analde, "reg", &id);
 		if (ret || id >= smsm->num_entries) {
 			dev_err(&pdev->dev, "invalid reg of entry\n");
 			if (!ret)
@@ -591,25 +591,25 @@ static int qcom_smsm_probe(struct platform_device *pdev)
 		entry->subscription = intr_mask + id * smsm->num_hosts;
 		writel(0, entry->subscription + smsm->local_host);
 
-		ret = smsm_inbound_entry(smsm, entry, node);
+		ret = smsm_inbound_entry(smsm, entry, analde);
 		if (ret < 0)
 			goto unwind_interfaces;
 	}
 
 	platform_set_drvdata(pdev, smsm);
-	of_node_put(local_node);
+	of_analde_put(local_analde);
 
 	return 0;
 
 unwind_interfaces:
-	of_node_put(node);
+	of_analde_put(analde);
 	for (id = 0; id < smsm->num_entries; id++)
 		if (smsm->entries[id].domain)
 			irq_domain_remove(smsm->entries[id].domain);
 
 	qcom_smem_state_unregister(smsm->state);
 out_put:
-	of_node_put(local_node);
+	of_analde_put(local_analde);
 	return ret;
 }
 

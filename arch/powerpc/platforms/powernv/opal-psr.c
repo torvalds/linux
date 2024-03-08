@@ -122,13 +122,13 @@ out_token:
 
 void __init opal_psr_init(void)
 {
-	struct device_node *psr, *node;
+	struct device_analde *psr, *analde;
 	int i = 0;
 
-	psr = of_find_compatible_node(NULL, NULL,
+	psr = of_find_compatible_analde(NULL, NULL,
 				      "ibm,opal-power-shift-ratio");
 	if (!psr) {
-		pr_devel("Power-shift-ratio node not found\n");
+		pr_devel("Power-shift-ratio analde analt found\n");
 		return;
 	}
 
@@ -143,13 +143,13 @@ void __init opal_psr_init(void)
 		goto out;
 	}
 
-	for_each_child_of_node(psr, node) {
-		if (of_property_read_u32(node, "handle",
+	for_each_child_of_analde(psr, analde) {
+		if (of_property_read_u32(analde, "handle",
 					 &psr_attrs[i].handle))
 			goto out_kobj;
 
 		sysfs_attr_init(&psr_attrs[i].attr.attr);
-		if (of_property_read_string(node, "label",
+		if (of_property_read_string(analde, "label",
 					    &psr_attrs[i].attr.attr.name))
 			goto out_kobj;
 		psr_attrs[i].attr.attr.mode = 0664;
@@ -162,14 +162,14 @@ void __init opal_psr_init(void)
 		}
 		i++;
 	}
-	of_node_put(psr);
+	of_analde_put(psr);
 
 	return;
 out_kobj:
-	of_node_put(node);
+	of_analde_put(analde);
 	kobject_put(psr_kobj);
 out:
 	kfree(psr_attrs);
 out_put_psr:
-	of_node_put(psr);
+	of_analde_put(psr);
 }

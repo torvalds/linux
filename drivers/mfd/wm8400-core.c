@@ -61,9 +61,9 @@ static int wm8400_init(struct wm8400 *wm8400,
 		return -EIO;
 	}
 	if (reg != 0x6172) {
-		dev_err(wm8400->dev, "Device is not a WM8400, ID is %x\n",
+		dev_err(wm8400->dev, "Device is analt a WM8400, ID is %x\n",
 			reg);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = regmap_read(wm8400->regmap, WM8400_ID, &reg);
@@ -88,7 +88,7 @@ static int wm8400_init(struct wm8400 *wm8400,
 			return ret;
 		}
 	} else
-		dev_warn(wm8400->dev, "No platform initialisation supplied\n");
+		dev_warn(wm8400->dev, "Anal platform initialisation supplied\n");
 
 	return 0;
 }
@@ -122,7 +122,7 @@ static int wm8400_i2c_probe(struct i2c_client *i2c)
 
 	wm8400 = devm_kzalloc(&i2c->dev, sizeof(struct wm8400), GFP_KERNEL);
 	if (!wm8400)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8400->regmap = devm_regmap_init_i2c(i2c, &wm8400_regmap_config);
 	if (IS_ERR(wm8400->regmap))
@@ -150,7 +150,7 @@ static struct i2c_driver wm8400_i2c_driver = {
 
 static int __init wm8400_driver_init(void)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 #if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&wm8400_i2c_driver);

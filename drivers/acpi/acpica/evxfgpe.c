@@ -22,18 +22,18 @@ ACPI_MODULE_NAME("evxfgpe")
  *
  * FUNCTION:    acpi_update_all_gpes
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Complete GPE initialization and enable all GPEs that have
- *              associated _Lxx or _Exx methods and are not pointed to by any
+ *              associated _Lxx or _Exx methods and are analt pointed to by any
  *              device _PRW methods (this indicates that these GPEs are
  *              generally intended for system or device wakeup. Such GPEs
  *              have to be enabled directly when the devices whose _PRW
  *              methods point to them are set up for wakeup signaling.)
  *
- * NOTE: Should be called after any GPEs are added to the system. Primarily,
+ * ANALTE: Should be called after any GPEs are added to the system. Primarily,
  * after the system _PRW methods have been run, but also after a GPE Block
  * Device has been added or if any new GPE methods have been added via a
  * dynamic table load.
@@ -102,12 +102,12 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number)
 	/*
 	 * Ensure that we have a valid GPE number and that there is some way
 	 * of handling the GPE (handler or a GPE method). In other words, we
-	 * won't allow a valid GPE to be enabled if there is no way to handle it.
+	 * won't allow a valid GPE to be enabled if there is anal way to handle it.
 	 */
 	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
 	if (gpe_event_info) {
 		if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) !=
-		    ACPI_GPE_DISPATCH_NONE) {
+		    ACPI_GPE_DISPATCH_ANALNE) {
 			status = acpi_ev_add_gpe_reference(gpe_event_info, TRUE);
 			if (ACPI_SUCCESS(status) &&
 			    ACPI_GPE_IS_POLLING_NEEDED(gpe_event_info)) {
@@ -121,7 +121,7 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number)
 				flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 			}
 		} else {
-			status = AE_NO_HANDLER;
+			status = AE_ANAL_HANDLER;
 		}
 	}
 
@@ -190,7 +190,7 @@ ACPI_EXPORT_SYMBOL(acpi_disable_gpe)
  *               acpi_set_gpe(ACPI_GPE_ENABLE) <- Leave polling mode
  *               acpi_disable_gpe()           <- Decrease the reference count
  *
- * Note: If a GPE is shared by 2 silicon components, then both the drivers
+ * Analte: If a GPE is shared by 2 silicon components, then both the drivers
  *       should support GPE polling mode or disabling the GPE for long period
  *       for one driver may break the other. So use it with care since all
  *       firmware _Lxx/_Exx handlers currently rely on the GPE interrupt mode.
@@ -248,7 +248,7 @@ ACPI_EXPORT_SYMBOL(acpi_set_gpe)
  *
  * PARAMETERS:  gpe_device          - Parent GPE Device. NULL for GPE0/GPE1
  *              gpe_number          - GPE level within the GPE block
- *              is_masked           - Whether the GPE is masked or not
+ *              is_masked           - Whether the GPE is masked or analt
  *
  * RETURN:      Status
  *
@@ -295,12 +295,12 @@ ACPI_EXPORT_SYMBOL(acpi_mask_gpe)
  * DESCRIPTION: Mark a GPE as having the ability to wake the system. Simply
  *              sets the ACPI_GPE_CAN_WAKE flag.
  *
- * Some potential callers of acpi_setup_gpe_for_wake may know in advance that
- * there won't be any notify handlers installed for device wake notifications
+ * Some potential callers of acpi_setup_gpe_for_wake may kanalw in advance that
+ * there won't be any analtify handlers installed for device wake analtifications
  * from the given GPE (one example is a button GPE in Linux). For these cases,
  * acpi_mark_gpe_for_wake should be used instead of acpi_setup_gpe_for_wake.
  * This will set the ACPI_GPE_CAN_WAKE flag for the GPE without trying to
- * setup implicit wake notification for it (since there's no handler method).
+ * setup implicit wake analtification for it (since there's anal handler method).
  *
  ******************************************************************************/
 acpi_status acpi_mark_gpe_for_wake(acpi_handle gpe_device, u32 gpe_number)
@@ -354,9 +354,9 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 {
 	acpi_status status;
 	struct acpi_gpe_event_info *gpe_event_info;
-	struct acpi_namespace_node *device_node;
-	struct acpi_gpe_notify_info *notify;
-	struct acpi_gpe_notify_info *new_notify;
+	struct acpi_namespace_analde *device_analde;
+	struct acpi_gpe_analtify_info *analtify;
+	struct acpi_gpe_analtify_info *new_analtify;
 	acpi_cpu_flags flags;
 
 	ACPI_FUNCTION_TRACE(acpi_setup_gpe_for_wake);
@@ -366,7 +366,7 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 	if (!wake_device) {
 		/*
 		 * By forcing wake_device to be valid, we automatically enable the
-		 * implicit notify feature on all hosts.
+		 * implicit analtify feature on all hosts.
 		 */
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
@@ -374,26 +374,26 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 	/* Handle root object case */
 
 	if (wake_device == ACPI_ROOT_OBJECT) {
-		device_node = acpi_gbl_root_node;
+		device_analde = acpi_gbl_root_analde;
 	} else {
-		device_node =
-		    ACPI_CAST_PTR(struct acpi_namespace_node, wake_device);
+		device_analde =
+		    ACPI_CAST_PTR(struct acpi_namespace_analde, wake_device);
 	}
 
 	/* Validate wake_device is of type Device */
 
-	if (device_node->type != ACPI_TYPE_DEVICE) {
+	if (device_analde->type != ACPI_TYPE_DEVICE) {
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
 	/*
-	 * Allocate a new notify object up front, in case it is needed.
-	 * Memory allocation while holding a spinlock is a big no-no
+	 * Allocate a new analtify object up front, in case it is needed.
+	 * Memory allocation while holding a spinlock is a big anal-anal
 	 * on some hosts.
 	 */
-	new_notify = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_gpe_notify_info));
-	if (!new_notify) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+	new_analtify = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_gpe_analtify_info));
+	if (!new_analtify) {
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
@@ -407,23 +407,23 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 	}
 
 	/*
-	 * If there is no method or handler for this GPE, then the
-	 * wake_device will be notified whenever this GPE fires. This is
-	 * known as an "implicit notify". Note: The GPE is assumed to be
+	 * If there is anal method or handler for this GPE, then the
+	 * wake_device will be analtified whenever this GPE fires. This is
+	 * kanalwn as an "implicit analtify". Analte: The GPE is assumed to be
 	 * level-triggered (for windows compatibility).
 	 */
 	if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
-	    ACPI_GPE_DISPATCH_NONE) {
+	    ACPI_GPE_DISPATCH_ANALNE) {
 		/*
-		 * This is the first device for implicit notify on this GPE.
-		 * Just set the flags here, and enter the NOTIFY block below.
+		 * This is the first device for implicit analtify on this GPE.
+		 * Just set the flags here, and enter the ANALTIFY block below.
 		 */
 		gpe_event_info->flags =
-		    (ACPI_GPE_DISPATCH_NOTIFY | ACPI_GPE_LEVEL_TRIGGERED);
+		    (ACPI_GPE_DISPATCH_ANALTIFY | ACPI_GPE_LEVEL_TRIGGERED);
 	} else if (gpe_event_info->flags & ACPI_GPE_AUTO_ENABLED) {
 		/*
 		 * A reference to this GPE has been added during the GPE block
-		 * initialization, so drop it now to prevent the GPE from being
+		 * initialization, so drop it analw to prevent the GPE from being
 		 * permanently enabled and clear its ACPI_GPE_AUTO_ENABLED flag.
 		 */
 		(void)acpi_ev_remove_gpe_reference(gpe_event_info);
@@ -431,29 +431,29 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 	}
 
 	/*
-	 * If we already have an implicit notify on this GPE, add
-	 * this device to the notify list.
+	 * If we already have an implicit analtify on this GPE, add
+	 * this device to the analtify list.
 	 */
 	if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
-	    ACPI_GPE_DISPATCH_NOTIFY) {
+	    ACPI_GPE_DISPATCH_ANALTIFY) {
 
-		/* Ensure that the device is not already in the list */
+		/* Ensure that the device is analt already in the list */
 
-		notify = gpe_event_info->dispatch.notify_list;
-		while (notify) {
-			if (notify->device_node == device_node) {
+		analtify = gpe_event_info->dispatch.analtify_list;
+		while (analtify) {
+			if (analtify->device_analde == device_analde) {
 				status = AE_ALREADY_EXISTS;
 				goto unlock_and_exit;
 			}
-			notify = notify->next;
+			analtify = analtify->next;
 		}
 
-		/* Add this device to the notify list for this GPE */
+		/* Add this device to the analtify list for this GPE */
 
-		new_notify->device_node = device_node;
-		new_notify->next = gpe_event_info->dispatch.notify_list;
-		gpe_event_info->dispatch.notify_list = new_notify;
-		new_notify = NULL;
+		new_analtify->device_analde = device_analde;
+		new_analtify->next = gpe_event_info->dispatch.analtify_list;
+		gpe_event_info->dispatch.analtify_list = new_analtify;
+		new_analtify = NULL;
 	}
 
 	/* Mark the GPE as a possible wake event */
@@ -464,10 +464,10 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 unlock_and_exit:
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 
-	/* Delete the notify object if it was not used above */
+	/* Delete the analtify object if it was analt used above */
 
-	if (new_notify) {
-		ACPI_FREE(new_notify);
+	if (new_analtify) {
+		ACPI_FREE(new_analtify);
 	}
 	return_ACPI_STATUS(status);
 }
@@ -518,7 +518,7 @@ acpi_set_gpe_wake_mask(acpi_handle gpe_device, u32 gpe_number, u8 action)
 
 	gpe_register_info = gpe_event_info->register_info;
 	if (!gpe_register_info) {
-		status = AE_NOT_EXIST;
+		status = AE_ANALT_EXIST;
 		goto unlock_and_exit;
 	}
 
@@ -603,7 +603,7 @@ ACPI_EXPORT_SYMBOL(acpi_clear_gpe)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Get the current status of a GPE (signalled/not_signalled)
+ * DESCRIPTION: Get the current status of a GPE (signalled/analt_signalled)
  *
  ******************************************************************************/
 acpi_status
@@ -644,7 +644,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_gpe_status)
  * PARAMETERS:  gpe_device          - Parent GPE Device. NULL for GPE0/GPE1
  *              gpe_number          - GPE level within the GPE block
  *
- * RETURN:      INTERRUPT_HANDLED or INTERRUPT_NOT_HANDLED
+ * RETURN:      INTERRUPT_HANDLED or INTERRUPT_ANALT_HANDLED
  *
  * DESCRIPTION: Detect and dispatch a General Purpose Event to either a function
  *              (e.g. EC) or method (e.g. _Lxx/_Exx) handler.
@@ -663,14 +663,14 @@ ACPI_EXPORT_SYMBOL(acpi_dispatch_gpe)
  *
  * FUNCTION:    acpi_finish_gpe
  *
- * PARAMETERS:  gpe_device          - Namespace node for the GPE Block
+ * PARAMETERS:  gpe_device          - Namespace analde for the GPE Block
  *                                    (NULL for FADT defined GPEs)
  *              gpe_number          - GPE level within the GPE block
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Clear and conditionally re-enable a GPE. This completes the GPE
- *              processing. Intended for use by asynchronous host-installed
+ *              processing. Intended for use by asynchroanalus host-installed
  *              GPE handlers. The GPE is only re-enabled if the enable_for_run bit
  *              is set in the GPE info.
  *
@@ -706,7 +706,7 @@ ACPI_EXPORT_SYMBOL(acpi_finish_gpe)
  *
  * FUNCTION:    acpi_disable_all_gpes
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -737,7 +737,7 @@ ACPI_EXPORT_SYMBOL(acpi_disable_all_gpes)
  *
  * FUNCTION:    acpi_enable_all_runtime_gpes
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -768,7 +768,7 @@ ACPI_EXPORT_SYMBOL(acpi_enable_all_runtime_gpes)
  *
  * FUNCTION:    acpi_enable_all_wakeup_gpes
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -801,7 +801,7 @@ ACPI_EXPORT_SYMBOL(acpi_enable_all_wakeup_gpes)
  *
  * PARAMETERS:  gpe_skip_number      - Number of the GPE to skip
  *
- * RETURN:      Whether or not the status bit is set for any GPE
+ * RETURN:      Whether or analt the status bit is set for any GPE
  *
  * DESCRIPTION: Check the status bits of all enabled GPEs, except for the one
  *              represented by the "skip" argument, and return TRUE if any of
@@ -845,7 +845,7 @@ ACPI_EXPORT_SYMBOL(acpi_any_gpe_status_set)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Create and Install a block of GPE registers. The GPEs are not
+ * DESCRIPTION: Create and Install a block of GPE registers. The GPEs are analt
  *              enabled here.
  *
  ******************************************************************************/
@@ -856,7 +856,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 {
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	struct acpi_gpe_block_info *gpe_block;
 
 	ACPI_FUNCTION_TRACE(acpi_install_gpe_block);
@@ -870,20 +870,20 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 		return_ACPI_STATUS(status);
 	}
 
-	node = acpi_ns_validate_handle(gpe_device);
-	if (!node) {
+	analde = acpi_ns_validate_handle(gpe_device);
+	if (!analde) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
 	}
 
 	/* Validate the parent device */
 
-	if (node->type != ACPI_TYPE_DEVICE) {
+	if (analde->type != ACPI_TYPE_DEVICE) {
 		status = AE_TYPE;
 		goto unlock_and_exit;
 	}
 
-	if (node->object) {
+	if (analde->object) {
 		status = AE_ALREADY_EXISTS;
 		goto unlock_and_exit;
 	}
@@ -892,7 +892,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 	 * For user-installed GPE Block Devices, the gpe_block_base_number
 	 * is always zero
 	 */
-	status = acpi_ev_create_gpe_block(node, gpe_block_address->address,
+	status = acpi_ev_create_gpe_block(analde, gpe_block_address->address,
 					  gpe_block_address->space_id,
 					  register_count, 0, interrupt_number,
 					  &gpe_block);
@@ -900,23 +900,23 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 		goto unlock_and_exit;
 	}
 
-	/* Install block in the device_object attached to the node */
+	/* Install block in the device_object attached to the analde */
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(analde);
 	if (!obj_desc) {
 
 		/*
-		 * No object, create a new one (Device nodes do not always have
+		 * Anal object, create a new one (Device analdes do analt always have
 		 * an attached object)
 		 */
 		obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_DEVICE);
 		if (!obj_desc) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto unlock_and_exit;
 		}
 
 		status =
-		    acpi_ns_attach_object(node, obj_desc, ACPI_TYPE_DEVICE);
+		    acpi_ns_attach_object(analde, obj_desc, ACPI_TYPE_DEVICE);
 
 		/* Remove local reference to the object */
 
@@ -927,7 +927,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 		}
 	}
 
-	/* Now install the GPE block in the device_object */
+	/* Analw install the GPE block in the device_object */
 
 	obj_desc->device.gpe_block = gpe_block;
 
@@ -953,7 +953,7 @@ acpi_status acpi_remove_gpe_block(acpi_handle gpe_device)
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 
 	ACPI_FUNCTION_TRACE(acpi_remove_gpe_block);
 
@@ -966,27 +966,27 @@ acpi_status acpi_remove_gpe_block(acpi_handle gpe_device)
 		return_ACPI_STATUS(status);
 	}
 
-	node = acpi_ns_validate_handle(gpe_device);
-	if (!node) {
+	analde = acpi_ns_validate_handle(gpe_device);
+	if (!analde) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
 	}
 
 	/* Validate the parent device */
 
-	if (node->type != ACPI_TYPE_DEVICE) {
+	if (analde->type != ACPI_TYPE_DEVICE) {
 		status = AE_TYPE;
 		goto unlock_and_exit;
 	}
 
-	/* Get the device_object attached to the node */
+	/* Get the device_object attached to the analde */
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(analde);
 	if (!obj_desc || !obj_desc->device.gpe_block) {
 		return_ACPI_STATUS(AE_NULL_OBJECT);
 	}
 
-	/* Delete the GPE block (but not the device_object) */
+	/* Delete the GPE block (but analt the device_object) */
 
 	status = acpi_ev_delete_gpe_block(obj_desc->device.gpe_block);
 	if (ACPI_SUCCESS(status)) {
@@ -1026,13 +1026,13 @@ acpi_status acpi_get_gpe_device(u32 index, acpi_handle *gpe_device)
 	}
 
 	if (index >= acpi_current_gpe_count) {
-		return_ACPI_STATUS(AE_NOT_EXIST);
+		return_ACPI_STATUS(AE_ANALT_EXIST);
 	}
 
 	/* Setup and walk the GPE list */
 
 	info.index = index;
-	info.status = AE_NOT_EXIST;
+	info.status = AE_ANALT_EXIST;
 	info.gpe_device = NULL;
 	info.next_block_base_index = 0;
 

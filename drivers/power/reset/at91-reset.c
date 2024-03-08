@@ -39,7 +39,7 @@
 
 #define AT91_RSTC_MR	0x08		/* Reset Controller Mode Register */
 #define AT91_RSTC_URSTEN	BIT(0)		/* User Reset Enable */
-#define AT91_RSTC_URSTASYNC	BIT(2)		/* User Reset Asynchronous Control */
+#define AT91_RSTC_URSTASYNC	BIT(2)		/* User Reset Asynchroanalus Control */
 #define AT91_RSTC_URSTIEN	BIT(4)		/* User Reset Interrupt Enable */
 #define AT91_RSTC_ERSTL		GENMASK(11, 8)	/* External Reset Length */
 
@@ -74,7 +74,7 @@ enum reset_type {
  * @data:		platform specific reset data
  * @rcdev:		reset controller device
  * @lock:		lock for devices reset register access
- * @nb:			reset notifier block
+ * @nb:			reset analtifier block
  * @args:		SoC specific system reset arguments
  * @ramc_lpr:		SDRAM Controller Low Power Register
  */
@@ -86,7 +86,7 @@ struct at91_reset {
 	const struct at91_reset_data *data;
 	struct reset_controller_dev rcdev;
 	spinlock_t lock;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	u32 args;
 	u32 ramc_lpr;
 };
@@ -112,7 +112,7 @@ struct at91_reset_data {
 * reset register it can be left driving the data bus and
 * killing the chance of a subsequent boot from NAND
 */
-static int at91_reset(struct notifier_block *this, unsigned long mode,
+static int at91_reset(struct analtifier_block *this, unsigned long mode,
 		      void *cmd)
 {
 	struct at91_reset *reset = container_of(this, struct at91_reset, nb);
@@ -147,7 +147,7 @@ static int at91_reset(struct notifier_block *this, unsigned long mode,
 		  "r" (reset->ramc_lpr)
 		: "r4");
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static const char *at91_reset_reason(struct at91_reset *reset)
@@ -181,7 +181,7 @@ static const char *at91_reset_reason(struct at91_reset *reset)
 		reason = POWER_ON_REASON_BROWN_OUT;
 		break;
 	default:
-		reason = POWER_ON_REASON_UNKNOWN;
+		reason = POWER_ON_REASON_UNKANALWN;
 		break;
 	}
 
@@ -321,15 +321,15 @@ static int at91_rcdev_init(struct at91_reset *reset,
 	if (!reset->data->n_device_reset)
 		return 0;
 
-	reset->dev_base = devm_of_iomap(&pdev->dev, pdev->dev.of_node, 1,
+	reset->dev_base = devm_of_iomap(&pdev->dev, pdev->dev.of_analde, 1,
 					NULL);
 	if (IS_ERR(reset->dev_base))
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_init(&reset->lock);
 	reset->rcdev.ops = &at91_reset_ops;
 	reset->rcdev.owner = THIS_MODULE;
-	reset->rcdev.of_node = pdev->dev.of_node;
+	reset->rcdev.of_analde = pdev->dev.of_analde;
 	reset->rcdev.nr_resets = reset->data->n_device_reset;
 	reset->rcdev.of_reset_n_cells = 1;
 	reset->rcdev.of_xlate = at91_reset_of_xlate;
@@ -341,28 +341,28 @@ static int at91_reset_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct at91_reset *reset;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret, idx = 0;
 
 	reset = devm_kzalloc(&pdev->dev, sizeof(*reset), GFP_KERNEL);
 	if (!reset)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	reset->rstc_base = devm_of_iomap(&pdev->dev, pdev->dev.of_node, 0, NULL);
+	reset->rstc_base = devm_of_iomap(&pdev->dev, pdev->dev.of_analde, 0, NULL);
 	if (IS_ERR(reset->rstc_base)) {
-		dev_err(&pdev->dev, "Could not map reset controller address\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Could analt map reset controller address\n");
+		return -EANALDEV;
 	}
 
-	if (!of_device_is_compatible(pdev->dev.of_node, "atmel,sama5d3-rstc")) {
+	if (!of_device_is_compatible(pdev->dev.of_analde, "atmel,sama5d3-rstc")) {
 		/* we need to shutdown the ddr controller, so get ramc base */
-		for_each_matching_node_and_match(np, at91_ramc_of_match, &match) {
+		for_each_matching_analde_and_match(np, at91_ramc_of_match, &match) {
 			reset->ramc_lpr = (u32)match->data;
 			reset->ramc_base[idx] = devm_of_iomap(&pdev->dev, np, 0, NULL);
 			if (IS_ERR(reset->ramc_base[idx])) {
-				dev_err(&pdev->dev, "Could not map ram controller address\n");
-				of_node_put(np);
-				return -ENODEV;
+				dev_err(&pdev->dev, "Could analt map ram controller address\n");
+				of_analde_put(np);
+				return -EANALDEV;
 			}
 			idx++;
 		}
@@ -370,9 +370,9 @@ static int at91_reset_probe(struct platform_device *pdev)
 
 	reset->data = device_get_match_data(&pdev->dev);
 	if (!reset->data)
-		return -ENODEV;
+		return -EANALDEV;
 
-	reset->nb.notifier_call = at91_reset;
+	reset->nb.analtifier_call = at91_reset;
 	reset->nb.priority = 192;
 
 	reset->sclk = devm_clk_get(&pdev->dev, NULL);
@@ -381,7 +381,7 @@ static int at91_reset_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(reset->sclk);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not enable slow clock\n");
+		dev_err(&pdev->dev, "Could analt enable slow clock\n");
 		return ret;
 	}
 
@@ -391,7 +391,7 @@ static int at91_reset_probe(struct platform_device *pdev)
 	if (ret)
 		goto disable_clk;
 
-	if (of_device_is_compatible(pdev->dev.of_node, "microchip,sam9x60-rstc")) {
+	if (of_device_is_compatible(pdev->dev.of_analde, "microchip,sam9x60-rstc")) {
 		u32 val = readl(reset->rstc_base + AT91_RSTC_MR);
 
 		writel(AT91_RSTC_KEY | AT91_RSTC_URSTASYNC | val,
@@ -404,7 +404,7 @@ static int at91_reset_probe(struct platform_device *pdev)
 
 	ret = device_create_file(&pdev->dev, &dev_attr_power_on_reason);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not create sysfs entry\n");
+		dev_err(&pdev->dev, "Could analt create sysfs entry\n");
 		return ret;
 	}
 

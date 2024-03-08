@@ -17,8 +17,8 @@ struct {
 	__uint(max_entries, 1024);
 } my_map SEC(".maps");
 
-/* kprobe is NOT a stable ABI. If kernel internals change this bpf+kprobe
- * example will no longer be meaningful
+/* kprobe is ANALT a stable ABI. If kernel internals change this bpf+kprobe
+ * example will anal longer be meaningful
  */
 SEC("kprobe/kfree_skb_reason")
 int bpf_prog2(struct pt_regs *ctx)
@@ -28,7 +28,7 @@ int bpf_prog2(struct pt_regs *ctx)
 	long *value;
 
 	/* read ip of kfree_skb_reason caller.
-	 * non-portable version of __builtin_return_address(0)
+	 * analn-portable version of __builtin_return_address(0)
 	 */
 	BPF_KPROBE_READ_RET_IP(loc, ctx);
 

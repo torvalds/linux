@@ -19,7 +19,7 @@
 static volatile unsigned long long sigreturn_addr;
 static volatile unsigned long long sigreturn_msr_mask;
 
-static void sigusr1_handler(int signo, siginfo_t *si, void *uc_ptr)
+static void sigusr1_handler(int siganal, siginfo_t *si, void *uc_ptr)
 {
 	ucontext_t *uc = (ucontext_t *)uc_ptr;
 
@@ -83,12 +83,12 @@ int test_sigreturn_kernel(void)
 		pid = fork_child();
 		expect_segv(pid);
 
-		// Return to no-man's land, just below PAGE_OFFSET
+		// Return to anal-man's land, just below PAGE_OFFSET
 		sigreturn_addr = (0xcull << 60) - (64 * 1024);
 		pid = fork_child();
 		expect_segv(pid);
 
-		// Return to no-man's land, above TASK_SIZE_4PB
+		// Return to anal-man's land, above TASK_SIZE_4PB
 		sigreturn_addr = 0x1ull << 52;
 		pid = fork_child();
 		expect_segv(pid);
@@ -114,7 +114,7 @@ int test_sigreturn_kernel(void)
 
 	printf("All children killed as expected\n");
 
-	// Don't change address, just MSR, should return to user as normal
+	// Don't change address, just MSR, should return to user as analrmal
 	sigreturn_addr = 0;
 	sigreturn_msr_mask = ~MSR_PR;
 	pid = fork_child();

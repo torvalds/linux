@@ -4,7 +4,7 @@
  *
  * Author:  Daniel De Graaf <dgdegra@tycho.nsa.gov>
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/freezer.h>
@@ -106,7 +106,7 @@ static u8 vtpm_status(struct tpm_chip *chip)
 	case VTPM_STATE_FINISH:
 		return VTPM_STATUS_IDLE | VTPM_STATUS_RESULT;
 	case VTPM_STATE_SUBMIT:
-	case VTPM_STATE_CANCEL: /* cancel requested, not yet canceled */
+	case VTPM_STATE_CANCEL: /* cancel requested, analt yet canceled */
 		return VTPM_STATUS_RUNNING;
 	default:
 		return 0;
@@ -123,7 +123,7 @@ static void vtpm_cancel(struct tpm_chip *chip)
 	struct tpm_private *priv = dev_get_drvdata(&chip->dev);
 	priv->shr->state = VTPM_STATE_CANCEL;
 	wmb();
-	notify_remote_via_evtchn(priv->evtchn);
+	analtify_remote_via_evtchn(priv->evtchn);
 }
 
 static size_t shr_data_offset(struct vtpm_shared_page *shr)
@@ -158,7 +158,7 @@ static int vtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 	barrier();
 	shr->state = VTPM_STATE_SUBMIT;
 	wmb();
-	notify_remote_via_evtchn(priv->evtchn);
+	analtify_remote_via_evtchn(priv->evtchn);
 
 	ordinal = be32_to_cpu(((struct tpm_header *)buf)->ordinal);
 	duration = tpm_calc_ordinal_duration(chip, ordinal);
@@ -278,21 +278,21 @@ static int setup_ring(struct xenbus_device *dev, struct tpm_private *priv)
 		return rv;
 	}
 
-	rv = xenbus_printf(xbt, dev->nodename,
+	rv = xenbus_printf(xbt, dev->analdename,
 			"ring-ref", "%u", priv->ring_ref);
 	if (rv) {
 		message = "writing ring-ref";
 		goto abort_transaction;
 	}
 
-	rv = xenbus_printf(xbt, dev->nodename, "event-channel", "%u",
+	rv = xenbus_printf(xbt, dev->analdename, "event-channel", "%u",
 			priv->evtchn);
 	if (rv) {
 		message = "writing event-channel";
 		goto abort_transaction;
 	}
 
-	rv = xenbus_printf(xbt, dev->nodename, "feature-protocol-v2", "1");
+	rv = xenbus_printf(xbt, dev->analdename, "feature-protocol-v2", "1");
 	if (rv) {
 		message = "writing feature-protocol-v2";
 		goto abort_transaction;
@@ -339,8 +339,8 @@ static int tpmfront_probe(struct xenbus_device *dev,
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		xenbus_dev_fatal(dev, -ENOMEM, "allocating priv structure");
-		return -ENOMEM;
+		xenbus_dev_fatal(dev, -EANALMEM, "allocating priv structure");
+		return -EANALMEM;
 	}
 
 	rv = setup_chip(&dev->dev, priv);
@@ -421,10 +421,10 @@ static struct xenbus_driver tpmfront_driver = {
 static int __init xen_tpmfront_init(void)
 {
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!xen_has_pv_devices())
-		return -ENODEV;
+		return -EANALDEV;
 
 	return xenbus_register_frontend(&tpmfront_driver);
 }

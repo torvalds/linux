@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * ST M48T86 / Dallas DS12887 RTC driver
- * Copyright (c) 2006 Tower Technologies
+ * Copyright (c) 2006 Tower Techanallogies
  *
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  * This drivers only supports the clock running in BCD and 24H mode.
  * If it will be ever adapted to binary and 12H mode, care must be taken
- * to not introduce bugs.
+ * to analt introduce bugs.
  */
 
 #include <linux/module.h>
@@ -186,7 +186,7 @@ static int m48t86_nvram_write(void *priv, unsigned int off, void *buf,
 }
 
 /*
- * The RTC is an optional feature at purchase time on some Technologic Systems
+ * The RTC is an optional feature at purchase time on some Techanallogic Systems
  * boards. Verify that it actually exists by checking if the last two bytes
  * of the NVRAM can be changed.
  *
@@ -233,7 +233,7 @@ static int m48t86_rtc_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->index_reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(info->index_reg))
@@ -246,8 +246,8 @@ static int m48t86_rtc_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, info);
 
 	if (!m48t86_verify_chip(pdev)) {
-		dev_info(&pdev->dev, "RTC not present\n");
-		return -ENODEV;
+		dev_info(&pdev->dev, "RTC analt present\n");
+		return -EANALDEV;
 	}
 
 	info->rtc = devm_rtc_allocate_device(&pdev->dev);

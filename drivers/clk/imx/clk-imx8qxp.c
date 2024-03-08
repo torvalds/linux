@@ -106,19 +106,19 @@ static const char * const pi_pll0_sels[] = {
 	"clk_dummy",
 };
 
-static inline bool clk_on_imx8dxl(struct device_node *node)
+static inline bool clk_on_imx8dxl(struct device_analde *analde)
 {
-	return of_device_is_compatible(node, "fsl,imx8dxl-clk");
+	return of_device_is_compatible(analde, "fsl,imx8dxl-clk");
 }
 
 static int imx8qxp_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *ccm_node = pdev->dev.of_node;
+	struct device_analde *ccm_analde = pdev->dev.of_analde;
 	const struct imx_clk_scu_rsrc_table *rsrc_table;
 	int ret;
 
 	rsrc_table = of_device_get_match_data(&pdev->dev);
-	ret = imx_clk_scu_init(ccm_node, rsrc_table);
+	ret = imx_clk_scu_init(ccm_analde, rsrc_table);
 	if (ret)
 		return ret;
 
@@ -190,7 +190,7 @@ static int imx8qxp_clk_probe(struct platform_device *pdev)
 	imx_clk_mux_gpr_scu("enet0_rgmii_txc_sel", enet0_rgmii_txc_sels, ARRAY_SIZE(enet0_rgmii_txc_sels), IMX_SC_R_ENET_0, IMX_SC_C_TXCLK);
 	imx_clk_scu("enet0_bypass_clk", IMX_SC_R_ENET_0, IMX_SC_PM_CLK_BYPASS);
 	imx_clk_gate_gpr_scu("enet0_ref_50_clk", "clk_dummy", IMX_SC_R_ENET_0, IMX_SC_C_DISABLE_50, true);
-	if (!clk_on_imx8dxl(ccm_node)) {
+	if (!clk_on_imx8dxl(ccm_analde)) {
 		imx_clk_scu("enet0_rgmii_rx_clk", IMX_SC_R_ENET_0, IMX_SC_PM_CLK_MISC0);
 		imx_clk_scu("enet1_rgmii_rx_clk", IMX_SC_R_ENET_1, IMX_SC_PM_CLK_MISC0);
 	}
@@ -308,7 +308,7 @@ static int imx8qxp_clk_probe(struct platform_device *pdev)
 	imx_clk_scu2("hdmi_rx_pxl_clk", hdmi_rx_sels, ARRAY_SIZE(hdmi_rx_sels), IMX_SC_R_HDMI_RX, IMX_SC_PM_CLK_MISC3);
 	imx_clk_scu("hdmi_rx_i2s_clk", IMX_SC_R_HDMI_RX, IMX_SC_PM_CLK_MISC4);
 
-	ret = of_clk_add_hw_provider(ccm_node, imx_scu_of_clk_src_get, imx_scu_clks);
+	ret = of_clk_add_hw_provider(ccm_analde, imx_scu_of_clk_src_get, imx_scu_clks);
 	if (ret)
 		imx_clk_scu_unregister();
 

@@ -62,7 +62,7 @@ struct pps_pin {
 
 #define BNXT_PPS_PIN_DISABLE	0
 #define BNXT_PPS_PIN_ENABLE	1
-#define BNXT_PPS_PIN_NONE	0
+#define BNXT_PPS_PIN_ANALNE	0
 #define BNXT_PPS_PIN_PPS_IN	1
 #define BNXT_PPS_PIN_PPS_OUT	2
 #define BNXT_PPS_PIN_SYNC_IN	3
@@ -107,7 +107,7 @@ struct bnxt_ptp_cfg {
 #define BNXT_PTP_MSG_FOLLOW_UP			(1 << 8)
 #define BNXT_PTP_MSG_DELAY_RESP			(1 << 9)
 #define BNXT_PTP_MSG_PDELAY_RESP_FOLLOW_UP	(1 << 10)
-#define BNXT_PTP_MSG_ANNOUNCE			(1 << 11)
+#define BNXT_PTP_MSG_ANANALUNCE			(1 << 11)
 #define BNXT_PTP_MSG_SIGNALING			(1 << 12)
 #define BNXT_PTP_MSG_MANAGEMENT			(1 << 13)
 #define BNXT_PTP_MSG_EVENTS		(BNXT_PTP_MSG_SYNC |		\

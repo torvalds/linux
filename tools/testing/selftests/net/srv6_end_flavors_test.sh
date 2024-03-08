@@ -20,7 +20,7 @@
 # behavior. However, it is possible to extend the script as soon as other
 # flavors will be supported in the kernel.
 #
-# The purpose of the PSP flavor consists in instructing the penultimate node
+# The purpose of the PSP flavor consists in instructing the penultimate analde
 # listed in the SRv6 policy to remove (i.e. pop) the outermost SRH from the IPv6
 # header.
 # A PSP enabled SRv6 End behavior instance processes the SRH by:
@@ -34,7 +34,7 @@
 # to the last SID carried by the removed SRH).
 #
 # Although the PSP flavor can be set for any SRv6 End behavior instance on any
-# SR node, it will be active only on such behaviors bound to a penultimate SID
+# SR analde, it will be active only on such behaviors bound to a penultimate SID
 # for a given SRv6 policy.
 #                                                SL=2 SL=1 SL=0
 #                                                  |    |    |
@@ -42,9 +42,9 @@
 #  - a PSP enabled SRv6 End behavior bound to SID Y will apply the PSP operation
 #    as Segment Left (SL) is 1, corresponding to the Penultimate Segment of the
 #    SID List;
-#  - a PSP enabled SRv6 End behavior bound to SID X will *NOT* apply the PSP
+#  - a PSP enabled SRv6 End behavior bound to SID X will *ANALT* apply the PSP
 #    operation as the Segment Left is 2. This behavior instance will apply the
-#    "standard" End packet processing, ignoring the configured PSP flavor at
+#    "standard" End packet processing, iganalring the configured PSP flavor at
 #    all.
 #
 # [1] RFC8986: https://datatracker.ietf.org/doc/html/rfc8986
@@ -58,7 +58,7 @@
 # allowing them to communicate with each other.
 # Traffic exchanged between hs-1 and hs-2 can follow different network paths.
 # The network operator, through specific SRv6 Policies can steer traffic to one
-# path rather than another. In this selftest this is implemented as follows:
+# path rather than aanalther. In this selftest this is implemented as follows:
 #
 #   i) The SRv6 H.Insert behavior applies SRv6 Policies on traffic received by
 #      connected hosts. It pushes the Segment Routing Header (SRH) after the
@@ -69,7 +69,7 @@
 #      the SRH;
 #
 # iii) The PSP enabled SRv6 End behavior is used to remove the SRH when such
-#      behavior is configured on a node bound to the Penultimate Segment carried
+#      behavior is configured on a analde bound to the Penultimate Segment carried
 #      by the SID List.
 #
 #                cafe::1                      cafe::2
@@ -129,7 +129,7 @@
 # from connected hosts on the basis of the destination addresses.
 # In case of SRv6 H.Insert behavior, the SRv6 Policy enforcement consists of
 # pushing the SRH (carrying a given SID List) after the existing IPv6 header.
-# Note that in the inserting mode, there is no encapsulation at all.
+# Analte that in the inserting mode, there is anal encapsulation at all.
 #
 #   Before applying an SRv6 Policy using the SRv6 H.Insert behavior
 #   +------+---------+
@@ -160,7 +160,7 @@
 # next router on the path, i.e. rt-4.
 #
 # When router rt-4 receives the packet, the PSP enabled SRv6 End behavior bound
-# to SID fcff:4::ef1 is executed. Since the SL=2, the PSP operation is *NOT*
+# to SID fcff:4::ef1 is executed. Since the SL=2, the PSP operation is *ANALT*
 # kicked in and the behavior applies the default End processing: the Segment
 # Left is decreased (from SL=2 to SL=1), the IPv6 DA is updated with the SID
 # fcff:2::ef1 and the packet is forwarded to router rt-2.
@@ -209,7 +209,7 @@ readonly END_FUNC=000e
 readonly END_PSP_FUNC=0ef1
 
 PING_TIMEOUT_SEC=4
-PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
+PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=anal}
 
 # IDs of routers and hosts are initialized during the setup of the testing
 # network
@@ -235,7 +235,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "\n    TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -270,12 +270,12 @@ test_command_or_ksft_skip()
 	local cmd="$1"
 
 	if [ ! -x "$(command -v "${cmd}")" ]; then
-		echo "SKIP: Could not run test without \"${cmd}\" tool";
+		echo "SKIP: Could analt run test without \"${cmd}\" tool";
 		exit "${ksft_skip}"
 	fi
 }
 
-get_nodename()
+get_analdename()
 {
 	local name="$1"
 
@@ -286,14 +286,14 @@ get_rtname()
 {
 	local rtid="$1"
 
-	get_nodename "rt-${rtid}"
+	get_analdename "rt-${rtid}"
 }
 
 get_hsname()
 {
 	local hsid="$1"
 
-	get_nodename "hs-${hsid}"
+	get_analdename "hs-${hsid}"
 }
 
 __create_namespace()
@@ -342,7 +342,7 @@ cleanup()
 		ip netns del "${nsname}" &>/dev/null || true
 	done
 
-	# check whether the setup phase was completed successfully or not. In
+	# check whether the setup phase was completed successfully or analt. In
 	# case of an error during the setup phase of the testing environment,
 	# the selftest is considered as "skipped".
 	if [ "${SETUP_ERR}" -ne 0 ]; then
@@ -399,9 +399,9 @@ __get_srv6_rtcfg_id()
 
 # Given the description of a router <id:op> as an input, the function returns
 # the <op> token which represents the operation (e.g. End behavior with or
-# withouth flavors) configured for the node.
+# withouth flavors) configured for the analde.
 
-# Note that when the operation represents an End behavior with a list of
+# Analte that when the operation represents an End behavior with a list of
 # flavors, the output is the ordered version of that list.
 # i.e. input: "5:usp,psp,usd"
 #      output: "psp,usd,usp"
@@ -432,7 +432,7 @@ setup_rt_networking()
 		net_prefix="$(get_network_prefix "${rt}" "${neigh}")"
 
 		ip -netns "${nsname}" addr \
-			add "${net_prefix}::${rt}/64" dev "${devname}" nodad
+			add "${net_prefix}::${rt}/64" dev "${devname}" analdad
 
 		ip -netns "${nsname}" link set "${devname}" up
 	done
@@ -471,7 +471,7 @@ setup_rt_local_sids()
 			via "${net_prefix}::${neigh}" dev "${devname}"
 	done
 
-	# Local End behavior (note that "dev" is a dummy interface chosen for
+	# Local End behavior (analte that "dev" is a dummy interface chosen for
 	# the sake of simplicity).
 	ip -netns "${nsname}" -6 route \
 		add "${LOCATOR_SERVICE}:${rt}::${END_FUNC}" \
@@ -492,16 +492,16 @@ setup_rt_local_sids()
 }
 
 # This helper function builds and installs the SID List (i.e. SRv6 Policy)
-# to be applied on incoming packets at the ingress node. Moreover, it
-# configures the SRv6 nodes specified in the SID List to process the traffic
+# to be applied on incoming packets at the ingress analde. Moreover, it
+# configures the SRv6 analdes specified in the SID List to process the traffic
 # according to the operations required by the Policy itself.
 # args:
 #  $1 - destination host (i.e. cafe::x host)
 #  $2 - SRv6 router configured for enforcing the SRv6 Policy
 #  $3 - compact way to represent a list of SRv6 routers with their operations
-#       (i.e. behaviors) that each of them needs to perform. Every <nodeid:op>
+#       (i.e. behaviors) that each of them needs to perform. Every <analdeid:op>
 #       element constructs a SID that is associated with the behavior <op> on
-#       the <nodeid> node. The list of such elements forms an SRv6 Policy.
+#       the <analdeid> analde. The list of such elements forms an SRv6 Policy.
 __setup_rt_policy()
 {
 	local dst="$1"
@@ -514,25 +514,25 @@ __setup_rt_policy()
 	local function
 	local fullsid
 	local op_type
-	local node
+	local analde
 	local n
 
 	in_nsname="$(get_rtname "${encap_rt}")"
 
 	for n in ${policy_rts}; do
-		node="$(__get_srv6_rtcfg_id "${n}")"
+		analde="$(__get_srv6_rtcfg_id "${n}")"
 		op_type="$(__get_srv6_rtcfg_op "${n}")"
-		rt_nsname="$(get_rtname "${node}")"
+		rt_nsname="$(get_rtname "${analde}")"
 
 		case "${op_type}" in
-		"noflv")
-			policy="${policy}${LOCATOR_SERVICE}:${node}::${END_FUNC},"
+		"analflv")
+			policy="${policy}${LOCATOR_SERVICE}:${analde}::${END_FUNC},"
 			function="${END_FUNC}"
 			behavior_cfg="End"
 			;;
 
 		"psp")
-			policy="${policy}${LOCATOR_SERVICE}:${node}::${END_PSP_FUNC},"
+			policy="${policy}${LOCATOR_SERVICE}:${analde}::${END_PSP_FUNC},"
 			function="${END_PSP_FUNC}"
 			behavior_cfg="End flavors psp"
 			;;
@@ -542,7 +542,7 @@ __setup_rt_policy()
 			;;
 		esac
 
-		fullsid="${LOCATOR_SERVICE}:${node}::${function}"
+		fullsid="${LOCATOR_SERVICE}:${analde}::${function}"
 
 		# add SRv6 Endpoint behavior to the selected router
 		if ! ip -netns "${rt_nsname}" -6 route get "${fullsid}" \
@@ -593,13 +593,13 @@ setup_hs()
 		peer name "${RT2HS_DEVNAME}" netns "${rtname}"
 
 	ip -netns "${hsname}" addr \
-		add "${IPv6_HS_NETWORK}::${hs}/64" dev veth0 nodad
+		add "${IPv6_HS_NETWORK}::${hs}/64" dev veth0 analdad
 
 	ip -netns "${hsname}" link set veth0 up
 	ip -netns "${hsname}" link set lo up
 
 	ip -netns "${rtname}" addr \
-		add "${IPv6_HS_NETWORK}::254/64" dev "${RT2HS_DEVNAME}" nodad
+		add "${IPv6_HS_NETWORK}::254/64" dev "${RT2HS_DEVNAME}" analdad
 
 	ip -netns "${rtname}" link set "${RT2HS_DEVNAME}" up
 
@@ -659,7 +659,7 @@ setup()
 	# Direction hs-2 -> hs-1 (PSP flavor)
 	#  - rt-2 (SRv6 H.Insert policy)
 	#  - rt-1 (SRv6 End flavor PSP with SL=1)
-	setup_rt_policy_ipv6 2 1 "3:noflv 4:psp 2:psp"
+	setup_rt_policy_ipv6 2 1 "3:analflv 4:psp 2:psp"
 	setup_rt_policy_ipv6 1 2 "1:psp"
 
 	# testing environment was set up successfully
@@ -782,13 +782,13 @@ test_kernel_supp_or_ksft_skip()
 	test_netns="kflv-$(mktemp -u XXXXXXXX)"
 
 	if ! ip netns add "${test_netns}"; then
-		echo "SKIP: Cannot set up netns to test kernel support for flavors"
+		echo "SKIP: Cananalt set up netns to test kernel support for flavors"
 		exit "${ksft_skip}"
 	fi
 
 	if ! ip -netns "${test_netns}" link \
 		add "${DUMMY_DEVNAME}" type dummy; then
-		echo "SKIP: Cannot set up dummy dev to test kernel support for flavors"
+		echo "SKIP: Cananalt set up dummy dev to test kernel support for flavors"
 
 		ip netns del "${test_netns}"
 		exit "${ksft_skip}"
@@ -796,7 +796,7 @@ test_kernel_supp_or_ksft_skip()
 
 	if ! ip -netns "${test_netns}" link \
 		set "${DUMMY_DEVNAME}" up; then
-		echo "SKIP: Cannot activate dummy dev to test kernel support for flavors"
+		echo "SKIP: Cananalt activate dummy dev to test kernel support for flavors"
 
 		ip netns del "${test_netns}"
 		exit "${ksft_skip}"
@@ -805,7 +805,7 @@ test_kernel_supp_or_ksft_skip()
 	if ! ip -netns "${test_netns}" -6 route \
 		add "${IPv6_TESTS_ADDR}" encap seg6local \
 		action End flavors "${flavor}" dev "${DUMMY_DEVNAME}"; then
-		echo "SKIP: ${flavor} flavor not supported in kernel"
+		echo "SKIP: ${flavor} flavor analt supported in kernel"
 
 		ip netns del "${test_netns}"
 		exit "${ksft_skip}"
@@ -821,14 +821,14 @@ test_dummy_dev_or_ksft_skip()
 	test_netns="dummy-$(mktemp -u XXXXXXXX)"
 
 	if ! ip netns add "${test_netns}"; then
-		echo "SKIP: Cannot set up netns for testing dummy dev support"
+		echo "SKIP: Cananalt set up netns for testing dummy dev support"
 		exit "${ksft_skip}"
 	fi
 
 	modprobe dummy &>/dev/null || true
 	if ! ip -netns "${test_netns}" link \
 		add "${DUMMY_DEVNAME}" type dummy; then
-		echo "SKIP: dummy dev not supported"
+		echo "SKIP: dummy dev analt supported"
 
 		ip netns del "${test_netns}"
 		exit "${ksft_skip}"

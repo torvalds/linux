@@ -14,7 +14,7 @@ Required properties:
     (See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
     for further information relating to interrupt properties)
 
- - cirrus,boost-ind-nanohenry: Inductor value for boost converter. The value is
+ - cirrus,boost-ind-naanalhenry: Inductor value for boost converter. The value is
     in nH and they can be values of 1000nH, 1200nH, 1500nH, and 2200nH.
 
 Optional properties:
@@ -35,7 +35,7 @@ Optional properties:
   if 2 Devices share Boost BST_CTL
 
   - cirrus,external-boost : Boolean to specify the device is using an external
-  boost supply, note that sharing a boost from another cs35l35 would constitute
+  boost supply, analte that sharing a boost from aanalther cs35l35 would constitute
   using an external supply for the slave device
 
   - cirrus,sp-drv-strength : Value for setting the Serial Port drive strength
@@ -66,20 +66,20 @@ Optional properties:
   - cirrus,amp-gain-zc : Boolean to determine if to use Amplifier gain-change
   zero-cross
 
-Optional H/G Algorithm sub-node:
+Optional H/G Algorithm sub-analde:
 
-  The cs35l35 node can have a single "cirrus,classh-internal-algo" sub-node
+  The cs35l35 analde can have a single "cirrus,classh-internal-algo" sub-analde
   that will disable automatic control of the internal H/G Algorithm.
 
   It is strongly recommended that the Datasheet be referenced when adjusting
   or using these Class H Algorithm controls over the internal Algorithm.
   Serious damage can occur to the Device and surrounding components.
 
-  - cirrus,classh-internal-algo : Sub-node for the Internal Class H Algorithm
+  - cirrus,classh-internal-algo : Sub-analde for the Internal Class H Algorithm
   See Section 4.3 Internal Class H Algorithm in the Datasheet.
-  If not used, the device manages the ClassH Algorithm internally.
+  If analt used, the device manages the ClassH Algorithm internally.
 
-Optional properties for the "cirrus,classh-internal-algo" Sub-node
+Optional properties for the "cirrus,classh-internal-algo" Sub-analde
 
   Section 7.29 Class H Control
   - cirrus,classh-bst-overide : Boolean
@@ -102,19 +102,19 @@ Optional properties for the "cirrus,classh-internal-algo" Sub-node
   - cirrus,classh-vpch-rate
   - cirrus,classh-vpch-man
 
-Optional Monitor Signal Format sub-node:
+Optional Monitor Signal Format sub-analde:
 
-  The cs35l35 node can have a single "cirrus,monitor-signal-format" sub-node
+  The cs35l35 analde can have a single "cirrus,monitor-signal-format" sub-analde
   for adjusting the Depth, Location and Frame of the Monitoring Signals
   for Algorithms.
 
   See Sections 4.8.2 through 4.8.4 Serial-Port Control in the Datasheet
 
-  -cirrus,monitor-signal-format : Sub-node for the Monitor Signaling Formatting
+  -cirrus,monitor-signal-format : Sub-analde for the Monitor Signaling Formatting
   on the I2S Port. Each of the 3 8 bit values in the array contain the settings
   for depth, location, and frame.
 
-  If not used, the defaults for the 6 monitor signals is used.
+  If analt used, the defaults for the 6 monitor signals is used.
 
   Sections 7.44 - 7.53 lists values for the depth, location, and frame
   for each monitoring signal.

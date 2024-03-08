@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 
 struct chacha20poly1305_testvec {
-	const u8 *input, *output, *assoc, *nonce, *key;
+	const u8 *input, *output, *assoc, *analnce, *key;
 	size_t ilen, alen, nlen;
 	bool failure;
 };
@@ -105,7 +105,7 @@ static const u8 enc_assoc001[] __initconst = {
 	0xf3, 0x33, 0x88, 0x86, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x4e, 0x91
 };
-static const u8 enc_nonce001[] __initconst = {
+static const u8 enc_analnce001[] __initconst = {
 	0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
 };
 static const u8 enc_key001[] __initconst = {
@@ -121,7 +121,7 @@ static const u8 enc_output002[] __initconst = {
 	0xdb, 0x5d, 0x99, 0x3f, 0x8a, 0xf7, 0x69, 0x92
 };
 static const u8 enc_assoc002[] __initconst = { };
-static const u8 enc_nonce002[] __initconst = {
+static const u8 enc_analnce002[] __initconst = {
 	0xca, 0xbf, 0x33, 0x71, 0x32, 0x45, 0x77, 0x8e
 };
 static const u8 enc_key002[] __initconst = {
@@ -139,7 +139,7 @@ static const u8 enc_output003[] __initconst = {
 static const u8 enc_assoc003[] __initconst = {
 	0x33, 0x10, 0x41, 0x12, 0x1f, 0xf3, 0xd2, 0x6b
 };
-static const u8 enc_nonce003[] __initconst = {
+static const u8 enc_analnce003[] __initconst = {
 	0x3d, 0x86, 0xb5, 0x6b, 0xc8, 0xa3, 0x1f, 0x1d
 };
 static const u8 enc_key003[] __initconst = {
@@ -160,7 +160,7 @@ static const u8 enc_output004[] __initconst = {
 static const u8 enc_assoc004[] __initconst = {
 	0x6a, 0xe2, 0xad, 0x3f, 0x88, 0x39, 0x5a, 0x40
 };
-static const u8 enc_nonce004[] __initconst = {
+static const u8 enc_analnce004[] __initconst = {
 	0xd2, 0x32, 0x1f, 0x29, 0x28, 0xc6, 0xc4, 0xc4
 };
 static const u8 enc_key004[] __initconst = {
@@ -179,7 +179,7 @@ static const u8 enc_output005[] __initconst = {
 	0xac
 };
 static const u8 enc_assoc005[] __initconst = { };
-static const u8 enc_nonce005[] __initconst = {
+static const u8 enc_analnce005[] __initconst = {
 	0x20, 0x1c, 0xaa, 0x5f, 0x9c, 0xbf, 0x92, 0x30
 };
 static const u8 enc_key005[] __initconst = {
@@ -232,7 +232,7 @@ static const u8 enc_output006[] __initconst = {
 static const u8 enc_assoc006[] __initconst = {
 	0x70, 0xd3, 0x33, 0xf3, 0x8b, 0x18, 0x0b
 };
-static const u8 enc_nonce006[] __initconst = {
+static const u8 enc_analnce006[] __initconst = {
 	0xdf, 0x51, 0x84, 0x82, 0x42, 0x0c, 0x75, 0x9c
 };
 static const u8 enc_key006[] __initconst = {
@@ -313,7 +313,7 @@ static const u8 enc_output007[] __initconst = {
 	0x3a, 0x00, 0x98, 0xcd, 0x15, 0xe8, 0xb7, 0x53
 };
 static const u8 enc_assoc007[] __initconst = { };
-static const u8 enc_nonce007[] __initconst = {
+static const u8 enc_analnce007[] __initconst = {
 	0xde, 0x7b, 0xef, 0xc3, 0x65, 0x1b, 0x68, 0xb0
 };
 static const u8 enc_key007[] __initconst = {
@@ -458,7 +458,7 @@ static const u8 enc_output008[] __initconst = {
 	0x9a, 0x40, 0xcd, 0xa2, 0xff, 0x6a, 0xf1, 0x54
 };
 static const u8 enc_assoc008[] __initconst = { };
-static const u8 enc_nonce008[] __initconst = {
+static const u8 enc_analnce008[] __initconst = {
 	0x0e, 0x0d, 0x57, 0xbb, 0x7b, 0x40, 0x54, 0x02
 };
 static const u8 enc_key008[] __initconst = {
@@ -608,7 +608,7 @@ static const u8 enc_assoc009[] __initconst = {
 	0x5a, 0x27, 0xff, 0xeb, 0xdf, 0x84, 0xb2, 0x9e,
 	0xef
 };
-static const u8 enc_nonce009[] __initconst = {
+static const u8 enc_analnce009[] __initconst = {
 	0xef, 0x2d, 0x63, 0xee, 0x6b, 0x80, 0x8b, 0x78
 };
 static const u8 enc_key009[] __initconst = {
@@ -884,7 +884,7 @@ static const u8 enc_assoc010[] __initconst = {
 	0xd2, 0xa1, 0x70, 0xdb, 0x7a, 0xf8, 0xfa, 0x27,
 	0xba, 0x73, 0x0f, 0xbf, 0x3d, 0x1e, 0x82, 0xb2
 };
-static const u8 enc_nonce010[] __initconst = {
+static const u8 enc_analnce010[] __initconst = {
 	0xdb, 0x92, 0x0f, 0x7f, 0x17, 0x54, 0x0c, 0x30
 };
 static const u8 enc_key010[] __initconst = {
@@ -1387,7 +1387,7 @@ static const u8 enc_output011[] __initconst = {
 static const u8 enc_assoc011[] __initconst = {
 	0xd6, 0x31, 0xda, 0x5d, 0x42, 0x5e, 0xd7
 };
-static const u8 enc_nonce011[] __initconst = {
+static const u8 enc_analnce011[] __initconst = {
 	0xfd, 0x87, 0xd4, 0xd8, 0x62, 0xfd, 0xec, 0xaa
 };
 static const u8 enc_key011[] __initconst = {
@@ -1917,7 +1917,7 @@ static const u8 enc_assoc012[] __initconst = {
 	0x01, 0xae, 0x9c, 0xb6, 0xe4, 0x88, 0x6d, 0x2b,
 	0x76, 0x75, 0xe0, 0xf3, 0x74, 0xe2, 0xc9
 };
-static const u8 enc_nonce012[] __initconst = {
+static const u8 enc_analnce012[] __initconst = {
 	0x05, 0xa3, 0x93, 0xed, 0x30, 0xc5, 0xa2, 0x06
 };
 static const u8 enc_key012[] __initconst = {
@@ -1968,7 +1968,7 @@ static const u8 enc_assoc013[] __initconst = {
 	0x50, 0x51, 0x52, 0x53, 0xc0, 0xc1, 0xc2, 0xc3,
 	0xc4, 0xc5, 0xc6, 0xc7
 };
-static const u8 enc_nonce013[] __initconst = {
+static const u8 enc_analnce013[] __initconst = {
 	0x07, 0x00, 0x00, 0x00, 0x40, 0x41, 0x42, 0x43,
 	0x44, 0x45, 0x46, 0x47
 };
@@ -1986,7 +1986,7 @@ static const u8 enc_output014[] __initconst = {
 	0xb6, 0x3c, 0x0c, 0x0e, 0xa1, 0x38, 0x3c, 0x8d
 };
 static const u8 enc_assoc014[] __initconst = { };
-static const u8 enc_nonce014[] __initconst = {
+static const u8 enc_analnce014[] __initconst = {
 	0x4d, 0xa5, 0xbf, 0x8d, 0xfd, 0x58, 0x52, 0xc1,
 	0xea, 0x12, 0x37, 0x9d
 };
@@ -2006,7 +2006,7 @@ static const u8 enc_output015[] __initconst = {
 static const u8 enc_assoc015[] __initconst = {
 	0xbd, 0x50, 0x67, 0x64, 0xf2, 0xd2, 0xc4, 0x10
 };
-static const u8 enc_nonce015[] __initconst = {
+static const u8 enc_analnce015[] __initconst = {
 	0xa9, 0x2e, 0xf0, 0xac, 0x99, 0x1d, 0xd5, 0x16,
 	0xa3, 0xc6, 0xf6, 0x89
 };
@@ -2027,7 +2027,7 @@ static const u8 enc_output016[] __initconst = {
 	0x22
 };
 static const u8 enc_assoc016[] __initconst = { };
-static const u8 enc_nonce016[] __initconst = {
+static const u8 enc_analnce016[] __initconst = {
 	0x99, 0xe2, 0x3e, 0xc4, 0x89, 0x85, 0xbc, 0xcd,
 	0xee, 0xab, 0x60, 0xf1
 };
@@ -2050,7 +2050,7 @@ static const u8 enc_output017[] __initconst = {
 static const u8 enc_assoc017[] __initconst = {
 	0x91, 0xca, 0x6c, 0x59, 0x2c, 0xbc, 0xca, 0x53
 };
-static const u8 enc_nonce017[] __initconst = {
+static const u8 enc_analnce017[] __initconst = {
 	0xab, 0x0d, 0xca, 0x71, 0x6e, 0xe0, 0x51, 0xd2,
 	0x78, 0x2f, 0x44, 0x03
 };
@@ -2071,7 +2071,7 @@ static const u8 enc_output018[] __initconst = {
 	0xe5, 0xe2
 };
 static const u8 enc_assoc018[] __initconst = { };
-static const u8 enc_nonce018[] __initconst = {
+static const u8 enc_analnce018[] __initconst = {
 	0x46, 0x1a, 0xf1, 0x22, 0xe9, 0xf2, 0xe0, 0x34,
 	0x7e, 0x03, 0xf2, 0xdb
 };
@@ -2094,7 +2094,7 @@ static const u8 enc_output019[] __initconst = {
 static const u8 enc_assoc019[] __initconst = {
 	0x88, 0x36, 0x4f, 0xc8, 0x06, 0x05, 0x18, 0xbf
 };
-static const u8 enc_nonce019[] __initconst = {
+static const u8 enc_analnce019[] __initconst = {
 	0x61, 0x54, 0x6b, 0xa5, 0xf1, 0x72, 0x05, 0x90,
 	0xb6, 0x04, 0x0a, 0xc6
 };
@@ -2115,7 +2115,7 @@ static const u8 enc_output020[] __initconst = {
 	0x1e, 0x0a, 0xfa, 0x9f, 0xb7, 0xaa, 0x42
 };
 static const u8 enc_assoc020[] __initconst = { };
-static const u8 enc_nonce020[] __initconst = {
+static const u8 enc_analnce020[] __initconst = {
 	0x3c, 0x4e, 0x65, 0x4d, 0x66, 0x3f, 0xa4, 0x59,
 	0x6d, 0xc5, 0x5b, 0xb7
 };
@@ -2138,7 +2138,7 @@ static const u8 enc_output021[] __initconst = {
 static const u8 enc_assoc021[] __initconst = {
 	0x84, 0xe4, 0x6b, 0xe8, 0xc0, 0x91, 0x90, 0x53
 };
-static const u8 enc_nonce021[] __initconst = {
+static const u8 enc_analnce021[] __initconst = {
 	0x58, 0x38, 0x93, 0x75, 0xc6, 0x9e, 0xe3, 0x98,
 	0xde, 0x94, 0x83, 0x96
 };
@@ -2159,7 +2159,7 @@ static const u8 enc_output022[] __initconst = {
 	0x75, 0x39, 0xdd, 0x6c, 0x00, 0xe9, 0x00, 0x21
 };
 static const u8 enc_assoc022[] __initconst = { };
-static const u8 enc_nonce022[] __initconst = {
+static const u8 enc_analnce022[] __initconst = {
 	0x4f, 0x07, 0xaf, 0xed, 0xfd, 0xc3, 0xb6, 0xc2,
 	0x36, 0x18, 0x23, 0xd3
 };
@@ -2182,7 +2182,7 @@ static const u8 enc_output023[] __initconst = {
 static const u8 enc_assoc023[] __initconst = {
 	0x66, 0xc0, 0xae, 0x70, 0x07, 0x6c, 0xb1, 0x4d
 };
-static const u8 enc_nonce023[] __initconst = {
+static const u8 enc_analnce023[] __initconst = {
 	0xb4, 0xea, 0x66, 0x6e, 0xe1, 0x19, 0x56, 0x33,
 	0x66, 0x48, 0x4a, 0x78
 };
@@ -2205,7 +2205,7 @@ static const u8 enc_output024[] __initconst = {
 	0x6d, 0xcb, 0x29, 0xb4
 };
 static const u8 enc_assoc024[] __initconst = { };
-static const u8 enc_nonce024[] __initconst = {
+static const u8 enc_analnce024[] __initconst = {
 	0x9a, 0x59, 0xfc, 0xe2, 0x6d, 0xf0, 0x00, 0x5e,
 	0x07, 0x53, 0x86, 0x56
 };
@@ -2230,7 +2230,7 @@ static const u8 enc_output025[] __initconst = {
 static const u8 enc_assoc025[] __initconst = {
 	0xa5, 0x06, 0xe1, 0xa5, 0xc6, 0x90, 0x93, 0xf9
 };
-static const u8 enc_nonce025[] __initconst = {
+static const u8 enc_analnce025[] __initconst = {
 	0x58, 0xdb, 0xd4, 0xad, 0x2c, 0x4a, 0xd3, 0x5d,
 	0xd9, 0x06, 0xe9, 0xce
 };
@@ -2253,7 +2253,7 @@ static const u8 enc_output026[] __initconst = {
 	0x17, 0x8d, 0x0a, 0x93, 0xf5, 0xe1, 0xd2
 };
 static const u8 enc_assoc026[] __initconst = { };
-static const u8 enc_nonce026[] __initconst = {
+static const u8 enc_analnce026[] __initconst = {
 	0x68, 0xab, 0x7f, 0xdb, 0xf6, 0x19, 0x01, 0xda,
 	0xd4, 0x61, 0xd2, 0x3c
 };
@@ -2278,7 +2278,7 @@ static const u8 enc_output027[] __initconst = {
 static const u8 enc_assoc027[] __initconst = {
 	0x64, 0x53, 0xa5, 0x33, 0x84, 0x63, 0x22, 0x12
 };
-static const u8 enc_nonce027[] __initconst = {
+static const u8 enc_analnce027[] __initconst = {
 	0xd9, 0x5b, 0x32, 0x43, 0xaf, 0xae, 0xf7, 0x14,
 	0xc5, 0x03, 0x5b, 0x6a
 };
@@ -2301,7 +2301,7 @@ static const u8 enc_output028[] __initconst = {
 	0x51, 0xc1, 0x07, 0x1c, 0xfa, 0x68, 0xfa, 0x0c
 };
 static const u8 enc_assoc028[] __initconst = { };
-static const u8 enc_nonce028[] __initconst = {
+static const u8 enc_analnce028[] __initconst = {
 	0x2f, 0xcb, 0x1b, 0x38, 0xa9, 0x9e, 0x71, 0xb8,
 	0x47, 0x40, 0xad, 0x9b
 };
@@ -2326,7 +2326,7 @@ static const u8 enc_output029[] __initconst = {
 static const u8 enc_assoc029[] __initconst = {
 	0x03, 0x45, 0x85, 0x62, 0x1a, 0xf8, 0xd7, 0xff
 };
-static const u8 enc_nonce029[] __initconst = {
+static const u8 enc_analnce029[] __initconst = {
 	0x11, 0x8a, 0x69, 0x64, 0xc2, 0xd3, 0xe3, 0x80,
 	0x07, 0x1f, 0x52, 0x66
 };
@@ -2351,7 +2351,7 @@ static const u8 enc_output030[] __initconst = {
 	0x13
 };
 static const u8 enc_assoc030[] __initconst = { };
-static const u8 enc_nonce030[] __initconst = {
+static const u8 enc_analnce030[] __initconst = {
 	0x45, 0xaa, 0xa3, 0xe5, 0xd1, 0x6d, 0x2d, 0x42,
 	0xdc, 0x03, 0x44, 0x5d
 };
@@ -2378,7 +2378,7 @@ static const u8 enc_output031[] __initconst = {
 static const u8 enc_assoc031[] __initconst = {
 	0x9a, 0xaf, 0x29, 0x9e, 0xee, 0xa7, 0x8f, 0x79
 };
-static const u8 enc_nonce031[] __initconst = {
+static const u8 enc_analnce031[] __initconst = {
 	0xf0, 0x38, 0x4f, 0xb8, 0x76, 0x12, 0x14, 0x10,
 	0x63, 0x3d, 0x99, 0x3d
 };
@@ -2403,7 +2403,7 @@ static const u8 enc_output032[] __initconst = {
 	0x75, 0x57, 0x03, 0x94, 0x57, 0x04, 0x0a, 0x3a
 };
 static const u8 enc_assoc032[] __initconst = { };
-static const u8 enc_nonce032[] __initconst = {
+static const u8 enc_analnce032[] __initconst = {
 	0xe6, 0xb1, 0xad, 0xf2, 0xfd, 0x58, 0xa8, 0x76,
 	0x2c, 0x65, 0xf3, 0x1b
 };
@@ -2430,7 +2430,7 @@ static const u8 enc_output033[] __initconst = {
 static const u8 enc_assoc033[] __initconst = {
 	0x3e, 0x8b, 0xc5, 0xad, 0xe1, 0x82, 0xff, 0x08
 };
-static const u8 enc_nonce033[] __initconst = {
+static const u8 enc_analnce033[] __initconst = {
 	0x6b, 0x28, 0x2e, 0xbe, 0xcc, 0x54, 0x1b, 0xcd,
 	0x78, 0x34, 0xed, 0x55
 };
@@ -2457,7 +2457,7 @@ static const u8 enc_output034[] __initconst = {
 	0x3e, 0xae, 0x15, 0x51, 0x65, 0x24, 0x93
 };
 static const u8 enc_assoc034[] __initconst = { };
-static const u8 enc_nonce034[] __initconst = {
+static const u8 enc_analnce034[] __initconst = {
 	0x04, 0xa9, 0xbe, 0x03, 0x50, 0x8a, 0x5f, 0x31,
 	0x37, 0x1a, 0x6f, 0xd2
 };
@@ -2486,7 +2486,7 @@ static const u8 enc_output035[] __initconst = {
 static const u8 enc_assoc035[] __initconst = {
 	0x37, 0x46, 0x18, 0xa0, 0x6e, 0xa9, 0x8a, 0x48
 };
-static const u8 enc_nonce035[] __initconst = {
+static const u8 enc_analnce035[] __initconst = {
 	0x47, 0x0a, 0x33, 0x9e, 0xcb, 0x32, 0x19, 0xb8,
 	0xb8, 0x1a, 0x1f, 0x8b
 };
@@ -2513,7 +2513,7 @@ static const u8 enc_output036[] __initconst = {
 	0xc6, 0xb6, 0x8d, 0x2f, 0xf1, 0x08, 0xa7, 0xea
 };
 static const u8 enc_assoc036[] __initconst = { };
-static const u8 enc_nonce036[] __initconst = {
+static const u8 enc_analnce036[] __initconst = {
 	0x72, 0xcf, 0xd9, 0x0e, 0xf3, 0x02, 0x6c, 0xa2,
 	0x2b, 0x7e, 0x6e, 0x6a
 };
@@ -2542,7 +2542,7 @@ static const u8 enc_output037[] __initconst = {
 static const u8 enc_assoc037[] __initconst = {
 	0x23, 0x33, 0xe5, 0xce, 0x0f, 0x93, 0xb0, 0x59
 };
-static const u8 enc_nonce037[] __initconst = {
+static const u8 enc_analnce037[] __initconst = {
 	0x26, 0x28, 0x80, 0xd4, 0x75, 0xf3, 0xda, 0xc5,
 	0x34, 0x0d, 0xd1, 0xb8
 };
@@ -2573,7 +2573,7 @@ static const u8 enc_output038[] __initconst = {
 	0xbd, 0x7a, 0xfc, 0x8f, 0x2a, 0xb0, 0xa9
 };
 static const u8 enc_assoc038[] __initconst = { };
-static const u8 enc_nonce038[] __initconst = {
+static const u8 enc_analnce038[] __initconst = {
 	0xe7, 0x4a, 0x51, 0x5e, 0x7e, 0x21, 0x02, 0xb9,
 	0x0b, 0xef, 0x55, 0xd2
 };
@@ -2606,7 +2606,7 @@ static const u8 enc_output039[] __initconst = {
 static const u8 enc_assoc039[] __initconst = {
 	0xb3, 0xe4, 0x06, 0x46, 0x83, 0xb0, 0x2d, 0x84
 };
-static const u8 enc_nonce039[] __initconst = {
+static const u8 enc_analnce039[] __initconst = {
 	0xd4, 0xd8, 0x07, 0x34, 0x16, 0x83, 0x82, 0x5b,
 	0x31, 0xcd, 0x4d, 0x95
 };
@@ -2641,7 +2641,7 @@ static const u8 enc_output040[] __initconst = {
 	0x6d, 0x9c, 0xa0, 0xa7, 0x8a, 0xef, 0xc0, 0x13
 };
 static const u8 enc_assoc040[] __initconst = { };
-static const u8 enc_nonce040[] __initconst = {
+static const u8 enc_analnce040[] __initconst = {
 	0xd6, 0x10, 0x40, 0xa3, 0x13, 0xed, 0x49, 0x28,
 	0x23, 0xcc, 0x06, 0x5b
 };
@@ -2678,7 +2678,7 @@ static const u8 enc_output041[] __initconst = {
 static const u8 enc_assoc041[] __initconst = {
 	0x71, 0x93, 0xf6, 0x23, 0x66, 0x33, 0x21, 0xa2
 };
-static const u8 enc_nonce041[] __initconst = {
+static const u8 enc_analnce041[] __initconst = {
 	0xd3, 0x1c, 0x21, 0xab, 0xa1, 0x75, 0xb7, 0x0d,
 	0xe4, 0xeb, 0xb1, 0x9c
 };
@@ -2723,7 +2723,7 @@ static const u8 enc_output042[] __initconst = {
 	0xb0
 };
 static const u8 enc_assoc042[] __initconst = { };
-static const u8 enc_nonce042[] __initconst = {
+static const u8 enc_analnce042[] __initconst = {
 	0x17, 0xc8, 0x6a, 0x8a, 0xbb, 0xb7, 0xe0, 0x03,
 	0xac, 0xde, 0x27, 0x99
 };
@@ -2770,7 +2770,7 @@ static const u8 enc_output043[] __initconst = {
 static const u8 enc_assoc043[] __initconst = {
 	0xa1, 0x1c, 0x40, 0xb6, 0x03, 0x76, 0x73, 0x30
 };
-static const u8 enc_nonce043[] __initconst = {
+static const u8 enc_analnce043[] __initconst = {
 	0x46, 0x36, 0x2f, 0x45, 0xd6, 0x37, 0x9e, 0x63,
 	0xe5, 0x22, 0x94, 0x60
 };
@@ -2795,7 +2795,7 @@ static const u8 enc_output044[] __initconst = {
 static const u8 enc_assoc044[] __initconst = {
 	0x02
 };
-static const u8 enc_nonce044[] __initconst = {
+static const u8 enc_analnce044[] __initconst = {
 	0x87, 0x34, 0x5f, 0x10, 0x55, 0xfd, 0x9e, 0x21,
 	0x02, 0xd5, 0x06, 0x56
 };
@@ -2820,7 +2820,7 @@ static const u8 enc_output045[] __initconst = {
 static const u8 enc_assoc045[] __initconst = {
 	0xb6, 0x48
 };
-static const u8 enc_nonce045[] __initconst = {
+static const u8 enc_analnce045[] __initconst = {
 	0x87, 0xa3, 0x16, 0x3e, 0xc0, 0x59, 0x8a, 0xd9,
 	0x5b, 0x3a, 0xa7, 0x13
 };
@@ -2846,7 +2846,7 @@ static const u8 enc_assoc046[] __initconst = {
 	0xbd, 0x4c, 0xd0, 0x2f, 0xc7, 0x50, 0x2b, 0xbd,
 	0xbd, 0xf6, 0xc9, 0xa3, 0xcb, 0xe8, 0xf0
 };
-static const u8 enc_nonce046[] __initconst = {
+static const u8 enc_analnce046[] __initconst = {
 	0x6f, 0x57, 0x3a, 0xa8, 0x6b, 0xaa, 0x49, 0x2b,
 	0xa4, 0x65, 0x96, 0xdf
 };
@@ -2872,7 +2872,7 @@ static const u8 enc_assoc047[] __initconst = {
 	0x89, 0xcc, 0xe9, 0xfb, 0x47, 0x44, 0x1d, 0x07,
 	0xe0, 0x24, 0x5a, 0x66, 0xfe, 0x8b, 0x77, 0x8b
 };
-static const u8 enc_nonce047[] __initconst = {
+static const u8 enc_analnce047[] __initconst = {
 	0x1a, 0x65, 0x18, 0xf0, 0x2e, 0xde, 0x1d, 0xa6,
 	0x80, 0x92, 0x66, 0xd9
 };
@@ -2899,7 +2899,7 @@ static const u8 enc_assoc048[] __initconst = {
 	0x03, 0xa5, 0xfd, 0xe8, 0x44, 0x16, 0xe0, 0x0c,
 	0x0e
 };
-static const u8 enc_nonce048[] __initconst = {
+static const u8 enc_analnce048[] __initconst = {
 	0x56, 0x4d, 0xee, 0x49, 0xab, 0x00, 0xd2, 0x40,
 	0xfc, 0x10, 0x68, 0xc3
 };
@@ -2927,7 +2927,7 @@ static const u8 enc_assoc049[] __initconst = {
 	0x80, 0xa2, 0xa4, 0xd3, 0x35, 0x2a, 0x4f, 0xf5,
 	0x60, 0xc0, 0x64, 0x0f, 0xdb, 0xda
 };
-static const u8 enc_nonce049[] __initconst = {
+static const u8 enc_analnce049[] __initconst = {
 	0xdf, 0x87, 0x13, 0xe8, 0x7e, 0xc3, 0xdb, 0xcf,
 	0xad, 0x14, 0xd5, 0x3e
 };
@@ -2955,7 +2955,7 @@ static const u8 enc_assoc050[] __initconst = {
 	0xfd, 0x69, 0xab, 0xc1, 0x9b, 0x1d, 0x4d, 0x90,
 	0x49, 0xa5, 0x55, 0x1e, 0x86, 0xec, 0x2b, 0x37
 };
-static const u8 enc_nonce050[] __initconst = {
+static const u8 enc_analnce050[] __initconst = {
 	0x8d, 0xf4, 0xb1, 0x5a, 0x88, 0x8c, 0x33, 0x28,
 	0x6a, 0x7b, 0x76, 0x51
 };
@@ -2984,7 +2984,7 @@ static const u8 enc_assoc051[] __initconst = {
 	0x05, 0x6b, 0x68, 0xbb, 0x59, 0xe6, 0x2e, 0x88,
 	0x73
 };
-static const u8 enc_nonce051[] __initconst = {
+static const u8 enc_analnce051[] __initconst = {
 	0xbe, 0x40, 0xe5, 0xf1, 0xa1, 0x18, 0x17, 0xa0,
 	0xa8, 0xfa, 0x89, 0x49
 };
@@ -3014,7 +3014,7 @@ static const u8 enc_assoc052[] __initconst = {
 	0x6f, 0x42, 0xca, 0x42, 0x05, 0x6a, 0x97, 0x92,
 	0xcc, 0x1b, 0x9f, 0xb3, 0xc7, 0xd2, 0x61
 };
-static const u8 enc_nonce052[] __initconst = {
+static const u8 enc_analnce052[] __initconst = {
 	0x84, 0xc8, 0x7d, 0xae, 0x4e, 0xee, 0x27, 0x73,
 	0x0e, 0xc3, 0x5d, 0x12
 };
@@ -3044,7 +3044,7 @@ static const u8 enc_assoc053[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
-static const u8 enc_nonce053[] __initconst = {
+static const u8 enc_analnce053[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key053[] __initconst = {
@@ -3081,7 +3081,7 @@ static const u8 enc_assoc054[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
-static const u8 enc_nonce054[] __initconst = {
+static const u8 enc_analnce054[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key054[] __initconst = {
@@ -3134,7 +3134,7 @@ static const u8 enc_assoc055[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
-static const u8 enc_nonce055[] __initconst = {
+static const u8 enc_analnce055[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key055[] __initconst = {
@@ -3163,7 +3163,7 @@ static const u8 enc_assoc056[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce056[] __initconst = {
+static const u8 enc_analnce056[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key056[] __initconst = {
@@ -3200,7 +3200,7 @@ static const u8 enc_assoc057[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce057[] __initconst = {
+static const u8 enc_analnce057[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key057[] __initconst = {
@@ -3253,7 +3253,7 @@ static const u8 enc_assoc058[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce058[] __initconst = {
+static const u8 enc_analnce058[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key058[] __initconst = {
@@ -3282,7 +3282,7 @@ static const u8 enc_assoc059[] __initconst = {
 	0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80,
 	0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80
 };
-static const u8 enc_nonce059[] __initconst = {
+static const u8 enc_analnce059[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key059[] __initconst = {
@@ -3319,7 +3319,7 @@ static const u8 enc_assoc060[] __initconst = {
 	0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80,
 	0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80
 };
-static const u8 enc_nonce060[] __initconst = {
+static const u8 enc_analnce060[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key060[] __initconst = {
@@ -3372,7 +3372,7 @@ static const u8 enc_assoc061[] __initconst = {
 	0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80,
 	0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80
 };
-static const u8 enc_nonce061[] __initconst = {
+static const u8 enc_analnce061[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key061[] __initconst = {
@@ -3401,7 +3401,7 @@ static const u8 enc_assoc062[] __initconst = {
 	0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xff, 0x7f,
 	0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xff, 0x7f
 };
-static const u8 enc_nonce062[] __initconst = {
+static const u8 enc_analnce062[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key062[] __initconst = {
@@ -3438,7 +3438,7 @@ static const u8 enc_assoc063[] __initconst = {
 	0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xff, 0x7f,
 	0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xff, 0x7f
 };
-static const u8 enc_nonce063[] __initconst = {
+static const u8 enc_analnce063[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key063[] __initconst = {
@@ -3491,7 +3491,7 @@ static const u8 enc_assoc064[] __initconst = {
 	0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xff, 0x7f,
 	0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xff, 0x7f
 };
-static const u8 enc_nonce064[] __initconst = {
+static const u8 enc_analnce064[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key064[] __initconst = {
@@ -3520,7 +3520,7 @@ static const u8 enc_assoc065[] __initconst = {
 	0x7f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xff,
 	0x7f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce065[] __initconst = {
+static const u8 enc_analnce065[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key065[] __initconst = {
@@ -3557,7 +3557,7 @@ static const u8 enc_assoc066[] __initconst = {
 	0x7f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xff,
 	0x7f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce066[] __initconst = {
+static const u8 enc_analnce066[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key066[] __initconst = {
@@ -3610,7 +3610,7 @@ static const u8 enc_assoc067[] __initconst = {
 	0x7f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xff,
 	0x7f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce067[] __initconst = {
+static const u8 enc_analnce067[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key067[] __initconst = {
@@ -3639,7 +3639,7 @@ static const u8 enc_assoc068[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
 	0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce068[] __initconst = {
+static const u8 enc_analnce068[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key068[] __initconst = {
@@ -3676,7 +3676,7 @@ static const u8 enc_assoc069[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
 	0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce069[] __initconst = {
+static const u8 enc_analnce069[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key069[] __initconst = {
@@ -3729,7 +3729,7 @@ static const u8 enc_assoc070[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
 	0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce070[] __initconst = {
+static const u8 enc_analnce070[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key070[] __initconst = {
@@ -3758,7 +3758,7 @@ static const u8 enc_assoc071[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
 	0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00
 };
-static const u8 enc_nonce071[] __initconst = {
+static const u8 enc_analnce071[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key071[] __initconst = {
@@ -3795,7 +3795,7 @@ static const u8 enc_assoc072[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
 	0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00
 };
-static const u8 enc_nonce072[] __initconst = {
+static const u8 enc_analnce072[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key072[] __initconst = {
@@ -3848,7 +3848,7 @@ static const u8 enc_assoc073[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
 	0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00
 };
-static const u8 enc_nonce073[] __initconst = {
+static const u8 enc_analnce073[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0xee, 0x32, 0x00
 };
 static const u8 enc_key073[] __initconst = {
@@ -3907,7 +3907,7 @@ static const u8 enc_assoc074[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce074[] __initconst = {
+static const u8 enc_analnce074[] __initconst = {
 	0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30,
 	0x00, 0x02, 0x50, 0x6e
 };
@@ -3967,7 +3967,7 @@ static const u8 enc_assoc075[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce075[] __initconst = {
+static const u8 enc_analnce075[] __initconst = {
 	0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30,
 	0x00, 0x03, 0x18, 0xa5
 };
@@ -4027,7 +4027,7 @@ static const u8 enc_assoc076[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce076[] __initconst = {
+static const u8 enc_analnce076[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0xb4, 0xf0
 };
 static const u8 enc_key076[] __initconst = {
@@ -4086,7 +4086,7 @@ static const u8 enc_assoc077[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce077[] __initconst = {
+static const u8 enc_analnce077[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0xfb, 0x66
 };
 static const u8 enc_key077[] __initconst = {
@@ -4145,7 +4145,7 @@ static const u8 enc_assoc078[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce078[] __initconst = {
+static const u8 enc_analnce078[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x38, 0xbb, 0x90
 };
 static const u8 enc_key078[] __initconst = {
@@ -4204,7 +4204,7 @@ static const u8 enc_assoc079[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce079[] __initconst = {
+static const u8 enc_analnce079[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x70, 0x48, 0x4a
 };
 static const u8 enc_key079[] __initconst = {
@@ -4263,7 +4263,7 @@ static const u8 enc_assoc080[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce080[] __initconst = {
+static const u8 enc_analnce080[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x93, 0x2f, 0x40
 };
 static const u8 enc_key080[] __initconst = {
@@ -4322,7 +4322,7 @@ static const u8 enc_assoc081[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce081[] __initconst = {
+static const u8 enc_analnce081[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0xe2, 0x93, 0x35
 };
 static const u8 enc_key081[] __initconst = {
@@ -4381,7 +4381,7 @@ static const u8 enc_assoc082[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce082[] __initconst = {
+static const u8 enc_analnce082[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0xf7, 0xd5
 };
 static const u8 enc_key082[] __initconst = {
@@ -4440,7 +4440,7 @@ static const u8 enc_assoc083[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce083[] __initconst = {
+static const u8 enc_analnce083[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x3d, 0xfc, 0xe4
 };
 static const u8 enc_key083[] __initconst = {
@@ -4499,7 +4499,7 @@ static const u8 enc_assoc084[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce084[] __initconst = {
+static const u8 enc_analnce084[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0x84, 0x86, 0xa8
 };
 static const u8 enc_key084[] __initconst = {
@@ -4558,7 +4558,7 @@ static const u8 enc_assoc085[] __initconst = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce085[] __initconst = {
+static const u8 enc_analnce085[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key085[] __initconst = {
@@ -4597,7 +4597,7 @@ static const u8 enc_assoc086[] __initconst = {
 	0xa6, 0x90, 0x2f, 0xcb, 0xc8, 0x83, 0xbb, 0xc1,
 	0x80, 0xb2, 0x56, 0xae, 0x34, 0xad, 0x7f, 0x00
 };
-static const u8 enc_nonce086[] __initconst = {
+static const u8 enc_analnce086[] __initconst = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b
 };
@@ -4637,7 +4637,7 @@ static const u8 enc_assoc087[] __initconst = {
 	0x24, 0x7e, 0x50, 0x64, 0x2a, 0x1c, 0x0a, 0x2f,
 	0x8f, 0x77, 0x21, 0x96, 0x09, 0xdb, 0xa9, 0x58
 };
-static const u8 enc_nonce087[] __initconst = {
+static const u8 enc_analnce087[] __initconst = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b
 };
@@ -4677,7 +4677,7 @@ static const u8 enc_assoc088[] __initconst = {
 	0xd9, 0xe7, 0x2c, 0x06, 0x4a, 0xc8, 0x96, 0x1f,
 	0x3f, 0xa5, 0x85, 0xe0, 0xe2, 0xab, 0xd6, 0x00
 };
-static const u8 enc_nonce088[] __initconst = {
+static const u8 enc_analnce088[] __initconst = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b
 };
@@ -4717,7 +4717,7 @@ static const u8 enc_assoc089[] __initconst = {
 	0x95, 0xaf, 0x0f, 0x4d, 0x0b, 0x68, 0x6e, 0xae,
 	0xcc, 0xca, 0x43, 0x07, 0xd5, 0x96, 0xf5, 0x02
 };
-static const u8 enc_nonce089[] __initconst = {
+static const u8 enc_analnce089[] __initconst = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b
 };
@@ -4757,7 +4757,7 @@ static const u8 enc_assoc090[] __initconst = {
 	0x85, 0x40, 0xb4, 0x64, 0x35, 0x77, 0x07, 0xbe,
 	0x3a, 0x39, 0xd5, 0x5c, 0x34, 0xf8, 0xbc, 0xb3
 };
-static const u8 enc_nonce090[] __initconst = {
+static const u8 enc_analnce090[] __initconst = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b
 };
@@ -4797,7 +4797,7 @@ static const u8 enc_assoc091[] __initconst = {
 	0x66, 0x23, 0xd9, 0x90, 0xb8, 0x98, 0xd8, 0x30,
 	0xd2, 0x12, 0xaf, 0x23, 0x83, 0x33, 0x07, 0x01
 };
-static const u8 enc_nonce091[] __initconst = {
+static const u8 enc_analnce091[] __initconst = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b
 };
@@ -4837,7 +4837,7 @@ static const u8 enc_assoc092[] __initconst = {
 	0x5f, 0x16, 0xd0, 0x9f, 0x17, 0x78, 0x72, 0x11,
 	0xb7, 0xd4, 0x84, 0xe0, 0x24, 0xf8, 0x97, 0x01
 };
-static const u8 enc_nonce092[] __initconst = {
+static const u8 enc_analnce092[] __initconst = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b
 };
@@ -4878,7 +4878,7 @@ static const u8 enc_output093[] __initconst = {
 static const u8 enc_assoc093[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce093[] __initconst = {
+static const u8 enc_analnce093[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key093[] __initconst = {
@@ -4922,7 +4922,7 @@ static const u8 enc_output094[] __initconst = {
 static const u8 enc_assoc094[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce094[] __initconst = {
+static const u8 enc_analnce094[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key094[] __initconst = {
@@ -4966,7 +4966,7 @@ static const u8 enc_output095[] __initconst = {
 static const u8 enc_assoc095[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce095[] __initconst = {
+static const u8 enc_analnce095[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key095[] __initconst = {
@@ -5002,7 +5002,7 @@ static const u8 enc_output096[] __initconst = {
 static const u8 enc_assoc096[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce096[] __initconst = {
+static const u8 enc_analnce096[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key096[] __initconst = {
@@ -5046,7 +5046,7 @@ static const u8 enc_output097[] __initconst = {
 static const u8 enc_assoc097[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce097[] __initconst = {
+static const u8 enc_analnce097[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key097[] __initconst = {
@@ -5090,7 +5090,7 @@ static const u8 enc_output098[] __initconst = {
 static const u8 enc_assoc098[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce098[] __initconst = {
+static const u8 enc_analnce098[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key098[] __initconst = {
@@ -5126,7 +5126,7 @@ static const u8 enc_output099[] __initconst = {
 static const u8 enc_assoc099[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce099[] __initconst = {
+static const u8 enc_analnce099[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key099[] __initconst = {
@@ -5162,7 +5162,7 @@ static const u8 enc_output100[] __initconst = {
 static const u8 enc_assoc100[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce100[] __initconst = {
+static const u8 enc_analnce100[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key100[] __initconst = {
@@ -5202,7 +5202,7 @@ static const u8 enc_output101[] __initconst = {
 static const u8 enc_assoc101[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce101[] __initconst = {
+static const u8 enc_analnce101[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key101[] __initconst = {
@@ -5242,7 +5242,7 @@ static const u8 enc_output102[] __initconst = {
 static const u8 enc_assoc102[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce102[] __initconst = {
+static const u8 enc_analnce102[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key102[] __initconst = {
@@ -5282,7 +5282,7 @@ static const u8 enc_output103[] __initconst = {
 static const u8 enc_assoc103[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce103[] __initconst = {
+static const u8 enc_analnce103[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key103[] __initconst = {
@@ -5322,7 +5322,7 @@ static const u8 enc_output104[] __initconst = {
 static const u8 enc_assoc104[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce104[] __initconst = {
+static const u8 enc_analnce104[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key104[] __initconst = {
@@ -5362,7 +5362,7 @@ static const u8 enc_output105[] __initconst = {
 static const u8 enc_assoc105[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce105[] __initconst = {
+static const u8 enc_analnce105[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key105[] __initconst = {
@@ -5402,7 +5402,7 @@ static const u8 enc_output106[] __initconst = {
 static const u8 enc_assoc106[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce106[] __initconst = {
+static const u8 enc_analnce106[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key106[] __initconst = {
@@ -5446,7 +5446,7 @@ static const u8 enc_output107[] __initconst = {
 static const u8 enc_assoc107[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce107[] __initconst = {
+static const u8 enc_analnce107[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key107[] __initconst = {
@@ -5486,7 +5486,7 @@ static const u8 enc_output108[] __initconst = {
 static const u8 enc_assoc108[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce108[] __initconst = {
+static const u8 enc_analnce108[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key108[] __initconst = {
@@ -5530,7 +5530,7 @@ static const u8 enc_output109[] __initconst = {
 static const u8 enc_assoc109[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce109[] __initconst = {
+static const u8 enc_analnce109[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key109[] __initconst = {
@@ -5574,7 +5574,7 @@ static const u8 enc_output110[] __initconst = {
 static const u8 enc_assoc110[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce110[] __initconst = {
+static const u8 enc_analnce110[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key110[] __initconst = {
@@ -5618,7 +5618,7 @@ static const u8 enc_output111[] __initconst = {
 static const u8 enc_assoc111[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce111[] __initconst = {
+static const u8 enc_analnce111[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key111[] __initconst = {
@@ -5662,7 +5662,7 @@ static const u8 enc_output112[] __initconst = {
 static const u8 enc_assoc112[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce112[] __initconst = {
+static const u8 enc_analnce112[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key112[] __initconst = {
@@ -5706,7 +5706,7 @@ static const u8 enc_output113[] __initconst = {
 static const u8 enc_assoc113[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce113[] __initconst = {
+static const u8 enc_analnce113[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key113[] __initconst = {
@@ -5746,7 +5746,7 @@ static const u8 enc_output114[] __initconst = {
 static const u8 enc_assoc114[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce114[] __initconst = {
+static const u8 enc_analnce114[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key114[] __initconst = {
@@ -5786,7 +5786,7 @@ static const u8 enc_output115[] __initconst = {
 static const u8 enc_assoc115[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce115[] __initconst = {
+static const u8 enc_analnce115[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key115[] __initconst = {
@@ -5830,7 +5830,7 @@ static const u8 enc_output116[] __initconst = {
 static const u8 enc_assoc116[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce116[] __initconst = {
+static const u8 enc_analnce116[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key116[] __initconst = {
@@ -5874,7 +5874,7 @@ static const u8 enc_output117[] __initconst = {
 static const u8 enc_assoc117[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce117[] __initconst = {
+static const u8 enc_analnce117[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key117[] __initconst = {
@@ -5918,7 +5918,7 @@ static const u8 enc_output118[] __initconst = {
 static const u8 enc_assoc118[] __initconst = {
 	0xff, 0xff, 0xff, 0xff
 };
-static const u8 enc_nonce118[] __initconst = {
+static const u8 enc_analnce118[] __initconst = {
 	0x00, 0x00, 0x00, 0x00, 0x06, 0x4c, 0x2d, 0x52
 };
 static const u8 enc_key118[] __initconst = {
@@ -5930,242 +5930,242 @@ static const u8 enc_key118[] __initconst = {
 
 static const struct chacha20poly1305_testvec
 chacha20poly1305_enc_vectors[] __initconst = {
-	{ enc_input001, enc_output001, enc_assoc001, enc_nonce001, enc_key001,
-	  sizeof(enc_input001), sizeof(enc_assoc001), sizeof(enc_nonce001) },
-	{ enc_input002, enc_output002, enc_assoc002, enc_nonce002, enc_key002,
-	  sizeof(enc_input002), sizeof(enc_assoc002), sizeof(enc_nonce002) },
-	{ enc_input003, enc_output003, enc_assoc003, enc_nonce003, enc_key003,
-	  sizeof(enc_input003), sizeof(enc_assoc003), sizeof(enc_nonce003) },
-	{ enc_input004, enc_output004, enc_assoc004, enc_nonce004, enc_key004,
-	  sizeof(enc_input004), sizeof(enc_assoc004), sizeof(enc_nonce004) },
-	{ enc_input005, enc_output005, enc_assoc005, enc_nonce005, enc_key005,
-	  sizeof(enc_input005), sizeof(enc_assoc005), sizeof(enc_nonce005) },
-	{ enc_input006, enc_output006, enc_assoc006, enc_nonce006, enc_key006,
-	  sizeof(enc_input006), sizeof(enc_assoc006), sizeof(enc_nonce006) },
-	{ enc_input007, enc_output007, enc_assoc007, enc_nonce007, enc_key007,
-	  sizeof(enc_input007), sizeof(enc_assoc007), sizeof(enc_nonce007) },
-	{ enc_input008, enc_output008, enc_assoc008, enc_nonce008, enc_key008,
-	  sizeof(enc_input008), sizeof(enc_assoc008), sizeof(enc_nonce008) },
-	{ enc_input009, enc_output009, enc_assoc009, enc_nonce009, enc_key009,
-	  sizeof(enc_input009), sizeof(enc_assoc009), sizeof(enc_nonce009) },
-	{ enc_input010, enc_output010, enc_assoc010, enc_nonce010, enc_key010,
-	  sizeof(enc_input010), sizeof(enc_assoc010), sizeof(enc_nonce010) },
-	{ enc_input011, enc_output011, enc_assoc011, enc_nonce011, enc_key011,
-	  sizeof(enc_input011), sizeof(enc_assoc011), sizeof(enc_nonce011) },
-	{ enc_input012, enc_output012, enc_assoc012, enc_nonce012, enc_key012,
-	  sizeof(enc_input012), sizeof(enc_assoc012), sizeof(enc_nonce012) },
-	{ enc_input013, enc_output013, enc_assoc013, enc_nonce013, enc_key013,
-	  sizeof(enc_input013), sizeof(enc_assoc013), sizeof(enc_nonce013) },
-	{ enc_input014, enc_output014, enc_assoc014, enc_nonce014, enc_key014,
-	  sizeof(enc_input014), sizeof(enc_assoc014), sizeof(enc_nonce014) },
-	{ enc_input015, enc_output015, enc_assoc015, enc_nonce015, enc_key015,
-	  sizeof(enc_input015), sizeof(enc_assoc015), sizeof(enc_nonce015) },
-	{ enc_input016, enc_output016, enc_assoc016, enc_nonce016, enc_key016,
-	  sizeof(enc_input016), sizeof(enc_assoc016), sizeof(enc_nonce016) },
-	{ enc_input017, enc_output017, enc_assoc017, enc_nonce017, enc_key017,
-	  sizeof(enc_input017), sizeof(enc_assoc017), sizeof(enc_nonce017) },
-	{ enc_input018, enc_output018, enc_assoc018, enc_nonce018, enc_key018,
-	  sizeof(enc_input018), sizeof(enc_assoc018), sizeof(enc_nonce018) },
-	{ enc_input019, enc_output019, enc_assoc019, enc_nonce019, enc_key019,
-	  sizeof(enc_input019), sizeof(enc_assoc019), sizeof(enc_nonce019) },
-	{ enc_input020, enc_output020, enc_assoc020, enc_nonce020, enc_key020,
-	  sizeof(enc_input020), sizeof(enc_assoc020), sizeof(enc_nonce020) },
-	{ enc_input021, enc_output021, enc_assoc021, enc_nonce021, enc_key021,
-	  sizeof(enc_input021), sizeof(enc_assoc021), sizeof(enc_nonce021) },
-	{ enc_input022, enc_output022, enc_assoc022, enc_nonce022, enc_key022,
-	  sizeof(enc_input022), sizeof(enc_assoc022), sizeof(enc_nonce022) },
-	{ enc_input023, enc_output023, enc_assoc023, enc_nonce023, enc_key023,
-	  sizeof(enc_input023), sizeof(enc_assoc023), sizeof(enc_nonce023) },
-	{ enc_input024, enc_output024, enc_assoc024, enc_nonce024, enc_key024,
-	  sizeof(enc_input024), sizeof(enc_assoc024), sizeof(enc_nonce024) },
-	{ enc_input025, enc_output025, enc_assoc025, enc_nonce025, enc_key025,
-	  sizeof(enc_input025), sizeof(enc_assoc025), sizeof(enc_nonce025) },
-	{ enc_input026, enc_output026, enc_assoc026, enc_nonce026, enc_key026,
-	  sizeof(enc_input026), sizeof(enc_assoc026), sizeof(enc_nonce026) },
-	{ enc_input027, enc_output027, enc_assoc027, enc_nonce027, enc_key027,
-	  sizeof(enc_input027), sizeof(enc_assoc027), sizeof(enc_nonce027) },
-	{ enc_input028, enc_output028, enc_assoc028, enc_nonce028, enc_key028,
-	  sizeof(enc_input028), sizeof(enc_assoc028), sizeof(enc_nonce028) },
-	{ enc_input029, enc_output029, enc_assoc029, enc_nonce029, enc_key029,
-	  sizeof(enc_input029), sizeof(enc_assoc029), sizeof(enc_nonce029) },
-	{ enc_input030, enc_output030, enc_assoc030, enc_nonce030, enc_key030,
-	  sizeof(enc_input030), sizeof(enc_assoc030), sizeof(enc_nonce030) },
-	{ enc_input031, enc_output031, enc_assoc031, enc_nonce031, enc_key031,
-	  sizeof(enc_input031), sizeof(enc_assoc031), sizeof(enc_nonce031) },
-	{ enc_input032, enc_output032, enc_assoc032, enc_nonce032, enc_key032,
-	  sizeof(enc_input032), sizeof(enc_assoc032), sizeof(enc_nonce032) },
-	{ enc_input033, enc_output033, enc_assoc033, enc_nonce033, enc_key033,
-	  sizeof(enc_input033), sizeof(enc_assoc033), sizeof(enc_nonce033) },
-	{ enc_input034, enc_output034, enc_assoc034, enc_nonce034, enc_key034,
-	  sizeof(enc_input034), sizeof(enc_assoc034), sizeof(enc_nonce034) },
-	{ enc_input035, enc_output035, enc_assoc035, enc_nonce035, enc_key035,
-	  sizeof(enc_input035), sizeof(enc_assoc035), sizeof(enc_nonce035) },
-	{ enc_input036, enc_output036, enc_assoc036, enc_nonce036, enc_key036,
-	  sizeof(enc_input036), sizeof(enc_assoc036), sizeof(enc_nonce036) },
-	{ enc_input037, enc_output037, enc_assoc037, enc_nonce037, enc_key037,
-	  sizeof(enc_input037), sizeof(enc_assoc037), sizeof(enc_nonce037) },
-	{ enc_input038, enc_output038, enc_assoc038, enc_nonce038, enc_key038,
-	  sizeof(enc_input038), sizeof(enc_assoc038), sizeof(enc_nonce038) },
-	{ enc_input039, enc_output039, enc_assoc039, enc_nonce039, enc_key039,
-	  sizeof(enc_input039), sizeof(enc_assoc039), sizeof(enc_nonce039) },
-	{ enc_input040, enc_output040, enc_assoc040, enc_nonce040, enc_key040,
-	  sizeof(enc_input040), sizeof(enc_assoc040), sizeof(enc_nonce040) },
-	{ enc_input041, enc_output041, enc_assoc041, enc_nonce041, enc_key041,
-	  sizeof(enc_input041), sizeof(enc_assoc041), sizeof(enc_nonce041) },
-	{ enc_input042, enc_output042, enc_assoc042, enc_nonce042, enc_key042,
-	  sizeof(enc_input042), sizeof(enc_assoc042), sizeof(enc_nonce042) },
-	{ enc_input043, enc_output043, enc_assoc043, enc_nonce043, enc_key043,
-	  sizeof(enc_input043), sizeof(enc_assoc043), sizeof(enc_nonce043) },
-	{ enc_input044, enc_output044, enc_assoc044, enc_nonce044, enc_key044,
-	  sizeof(enc_input044), sizeof(enc_assoc044), sizeof(enc_nonce044) },
-	{ enc_input045, enc_output045, enc_assoc045, enc_nonce045, enc_key045,
-	  sizeof(enc_input045), sizeof(enc_assoc045), sizeof(enc_nonce045) },
-	{ enc_input046, enc_output046, enc_assoc046, enc_nonce046, enc_key046,
-	  sizeof(enc_input046), sizeof(enc_assoc046), sizeof(enc_nonce046) },
-	{ enc_input047, enc_output047, enc_assoc047, enc_nonce047, enc_key047,
-	  sizeof(enc_input047), sizeof(enc_assoc047), sizeof(enc_nonce047) },
-	{ enc_input048, enc_output048, enc_assoc048, enc_nonce048, enc_key048,
-	  sizeof(enc_input048), sizeof(enc_assoc048), sizeof(enc_nonce048) },
-	{ enc_input049, enc_output049, enc_assoc049, enc_nonce049, enc_key049,
-	  sizeof(enc_input049), sizeof(enc_assoc049), sizeof(enc_nonce049) },
-	{ enc_input050, enc_output050, enc_assoc050, enc_nonce050, enc_key050,
-	  sizeof(enc_input050), sizeof(enc_assoc050), sizeof(enc_nonce050) },
-	{ enc_input051, enc_output051, enc_assoc051, enc_nonce051, enc_key051,
-	  sizeof(enc_input051), sizeof(enc_assoc051), sizeof(enc_nonce051) },
-	{ enc_input052, enc_output052, enc_assoc052, enc_nonce052, enc_key052,
-	  sizeof(enc_input052), sizeof(enc_assoc052), sizeof(enc_nonce052) },
-	{ enc_input053, enc_output053, enc_assoc053, enc_nonce053, enc_key053,
-	  sizeof(enc_input053), sizeof(enc_assoc053), sizeof(enc_nonce053) },
-	{ enc_input054, enc_output054, enc_assoc054, enc_nonce054, enc_key054,
-	  sizeof(enc_input054), sizeof(enc_assoc054), sizeof(enc_nonce054) },
-	{ enc_input055, enc_output055, enc_assoc055, enc_nonce055, enc_key055,
-	  sizeof(enc_input055), sizeof(enc_assoc055), sizeof(enc_nonce055) },
-	{ enc_input056, enc_output056, enc_assoc056, enc_nonce056, enc_key056,
-	  sizeof(enc_input056), sizeof(enc_assoc056), sizeof(enc_nonce056) },
-	{ enc_input057, enc_output057, enc_assoc057, enc_nonce057, enc_key057,
-	  sizeof(enc_input057), sizeof(enc_assoc057), sizeof(enc_nonce057) },
-	{ enc_input058, enc_output058, enc_assoc058, enc_nonce058, enc_key058,
-	  sizeof(enc_input058), sizeof(enc_assoc058), sizeof(enc_nonce058) },
-	{ enc_input059, enc_output059, enc_assoc059, enc_nonce059, enc_key059,
-	  sizeof(enc_input059), sizeof(enc_assoc059), sizeof(enc_nonce059) },
-	{ enc_input060, enc_output060, enc_assoc060, enc_nonce060, enc_key060,
-	  sizeof(enc_input060), sizeof(enc_assoc060), sizeof(enc_nonce060) },
-	{ enc_input061, enc_output061, enc_assoc061, enc_nonce061, enc_key061,
-	  sizeof(enc_input061), sizeof(enc_assoc061), sizeof(enc_nonce061) },
-	{ enc_input062, enc_output062, enc_assoc062, enc_nonce062, enc_key062,
-	  sizeof(enc_input062), sizeof(enc_assoc062), sizeof(enc_nonce062) },
-	{ enc_input063, enc_output063, enc_assoc063, enc_nonce063, enc_key063,
-	  sizeof(enc_input063), sizeof(enc_assoc063), sizeof(enc_nonce063) },
-	{ enc_input064, enc_output064, enc_assoc064, enc_nonce064, enc_key064,
-	  sizeof(enc_input064), sizeof(enc_assoc064), sizeof(enc_nonce064) },
-	{ enc_input065, enc_output065, enc_assoc065, enc_nonce065, enc_key065,
-	  sizeof(enc_input065), sizeof(enc_assoc065), sizeof(enc_nonce065) },
-	{ enc_input066, enc_output066, enc_assoc066, enc_nonce066, enc_key066,
-	  sizeof(enc_input066), sizeof(enc_assoc066), sizeof(enc_nonce066) },
-	{ enc_input067, enc_output067, enc_assoc067, enc_nonce067, enc_key067,
-	  sizeof(enc_input067), sizeof(enc_assoc067), sizeof(enc_nonce067) },
-	{ enc_input068, enc_output068, enc_assoc068, enc_nonce068, enc_key068,
-	  sizeof(enc_input068), sizeof(enc_assoc068), sizeof(enc_nonce068) },
-	{ enc_input069, enc_output069, enc_assoc069, enc_nonce069, enc_key069,
-	  sizeof(enc_input069), sizeof(enc_assoc069), sizeof(enc_nonce069) },
-	{ enc_input070, enc_output070, enc_assoc070, enc_nonce070, enc_key070,
-	  sizeof(enc_input070), sizeof(enc_assoc070), sizeof(enc_nonce070) },
-	{ enc_input071, enc_output071, enc_assoc071, enc_nonce071, enc_key071,
-	  sizeof(enc_input071), sizeof(enc_assoc071), sizeof(enc_nonce071) },
-	{ enc_input072, enc_output072, enc_assoc072, enc_nonce072, enc_key072,
-	  sizeof(enc_input072), sizeof(enc_assoc072), sizeof(enc_nonce072) },
-	{ enc_input073, enc_output073, enc_assoc073, enc_nonce073, enc_key073,
-	  sizeof(enc_input073), sizeof(enc_assoc073), sizeof(enc_nonce073) },
-	{ enc_input074, enc_output074, enc_assoc074, enc_nonce074, enc_key074,
-	  sizeof(enc_input074), sizeof(enc_assoc074), sizeof(enc_nonce074) },
-	{ enc_input075, enc_output075, enc_assoc075, enc_nonce075, enc_key075,
-	  sizeof(enc_input075), sizeof(enc_assoc075), sizeof(enc_nonce075) },
-	{ enc_input076, enc_output076, enc_assoc076, enc_nonce076, enc_key076,
-	  sizeof(enc_input076), sizeof(enc_assoc076), sizeof(enc_nonce076) },
-	{ enc_input077, enc_output077, enc_assoc077, enc_nonce077, enc_key077,
-	  sizeof(enc_input077), sizeof(enc_assoc077), sizeof(enc_nonce077) },
-	{ enc_input078, enc_output078, enc_assoc078, enc_nonce078, enc_key078,
-	  sizeof(enc_input078), sizeof(enc_assoc078), sizeof(enc_nonce078) },
-	{ enc_input079, enc_output079, enc_assoc079, enc_nonce079, enc_key079,
-	  sizeof(enc_input079), sizeof(enc_assoc079), sizeof(enc_nonce079) },
-	{ enc_input080, enc_output080, enc_assoc080, enc_nonce080, enc_key080,
-	  sizeof(enc_input080), sizeof(enc_assoc080), sizeof(enc_nonce080) },
-	{ enc_input081, enc_output081, enc_assoc081, enc_nonce081, enc_key081,
-	  sizeof(enc_input081), sizeof(enc_assoc081), sizeof(enc_nonce081) },
-	{ enc_input082, enc_output082, enc_assoc082, enc_nonce082, enc_key082,
-	  sizeof(enc_input082), sizeof(enc_assoc082), sizeof(enc_nonce082) },
-	{ enc_input083, enc_output083, enc_assoc083, enc_nonce083, enc_key083,
-	  sizeof(enc_input083), sizeof(enc_assoc083), sizeof(enc_nonce083) },
-	{ enc_input084, enc_output084, enc_assoc084, enc_nonce084, enc_key084,
-	  sizeof(enc_input084), sizeof(enc_assoc084), sizeof(enc_nonce084) },
-	{ enc_input085, enc_output085, enc_assoc085, enc_nonce085, enc_key085,
-	  sizeof(enc_input085), sizeof(enc_assoc085), sizeof(enc_nonce085) },
-	{ enc_input086, enc_output086, enc_assoc086, enc_nonce086, enc_key086,
-	  sizeof(enc_input086), sizeof(enc_assoc086), sizeof(enc_nonce086) },
-	{ enc_input087, enc_output087, enc_assoc087, enc_nonce087, enc_key087,
-	  sizeof(enc_input087), sizeof(enc_assoc087), sizeof(enc_nonce087) },
-	{ enc_input088, enc_output088, enc_assoc088, enc_nonce088, enc_key088,
-	  sizeof(enc_input088), sizeof(enc_assoc088), sizeof(enc_nonce088) },
-	{ enc_input089, enc_output089, enc_assoc089, enc_nonce089, enc_key089,
-	  sizeof(enc_input089), sizeof(enc_assoc089), sizeof(enc_nonce089) },
-	{ enc_input090, enc_output090, enc_assoc090, enc_nonce090, enc_key090,
-	  sizeof(enc_input090), sizeof(enc_assoc090), sizeof(enc_nonce090) },
-	{ enc_input091, enc_output091, enc_assoc091, enc_nonce091, enc_key091,
-	  sizeof(enc_input091), sizeof(enc_assoc091), sizeof(enc_nonce091) },
-	{ enc_input092, enc_output092, enc_assoc092, enc_nonce092, enc_key092,
-	  sizeof(enc_input092), sizeof(enc_assoc092), sizeof(enc_nonce092) },
-	{ enc_input093, enc_output093, enc_assoc093, enc_nonce093, enc_key093,
-	  sizeof(enc_input093), sizeof(enc_assoc093), sizeof(enc_nonce093) },
-	{ enc_input094, enc_output094, enc_assoc094, enc_nonce094, enc_key094,
-	  sizeof(enc_input094), sizeof(enc_assoc094), sizeof(enc_nonce094) },
-	{ enc_input095, enc_output095, enc_assoc095, enc_nonce095, enc_key095,
-	  sizeof(enc_input095), sizeof(enc_assoc095), sizeof(enc_nonce095) },
-	{ enc_input096, enc_output096, enc_assoc096, enc_nonce096, enc_key096,
-	  sizeof(enc_input096), sizeof(enc_assoc096), sizeof(enc_nonce096) },
-	{ enc_input097, enc_output097, enc_assoc097, enc_nonce097, enc_key097,
-	  sizeof(enc_input097), sizeof(enc_assoc097), sizeof(enc_nonce097) },
-	{ enc_input098, enc_output098, enc_assoc098, enc_nonce098, enc_key098,
-	  sizeof(enc_input098), sizeof(enc_assoc098), sizeof(enc_nonce098) },
-	{ enc_input099, enc_output099, enc_assoc099, enc_nonce099, enc_key099,
-	  sizeof(enc_input099), sizeof(enc_assoc099), sizeof(enc_nonce099) },
-	{ enc_input100, enc_output100, enc_assoc100, enc_nonce100, enc_key100,
-	  sizeof(enc_input100), sizeof(enc_assoc100), sizeof(enc_nonce100) },
-	{ enc_input101, enc_output101, enc_assoc101, enc_nonce101, enc_key101,
-	  sizeof(enc_input101), sizeof(enc_assoc101), sizeof(enc_nonce101) },
-	{ enc_input102, enc_output102, enc_assoc102, enc_nonce102, enc_key102,
-	  sizeof(enc_input102), sizeof(enc_assoc102), sizeof(enc_nonce102) },
-	{ enc_input103, enc_output103, enc_assoc103, enc_nonce103, enc_key103,
-	  sizeof(enc_input103), sizeof(enc_assoc103), sizeof(enc_nonce103) },
-	{ enc_input104, enc_output104, enc_assoc104, enc_nonce104, enc_key104,
-	  sizeof(enc_input104), sizeof(enc_assoc104), sizeof(enc_nonce104) },
-	{ enc_input105, enc_output105, enc_assoc105, enc_nonce105, enc_key105,
-	  sizeof(enc_input105), sizeof(enc_assoc105), sizeof(enc_nonce105) },
-	{ enc_input106, enc_output106, enc_assoc106, enc_nonce106, enc_key106,
-	  sizeof(enc_input106), sizeof(enc_assoc106), sizeof(enc_nonce106) },
-	{ enc_input107, enc_output107, enc_assoc107, enc_nonce107, enc_key107,
-	  sizeof(enc_input107), sizeof(enc_assoc107), sizeof(enc_nonce107) },
-	{ enc_input108, enc_output108, enc_assoc108, enc_nonce108, enc_key108,
-	  sizeof(enc_input108), sizeof(enc_assoc108), sizeof(enc_nonce108) },
-	{ enc_input109, enc_output109, enc_assoc109, enc_nonce109, enc_key109,
-	  sizeof(enc_input109), sizeof(enc_assoc109), sizeof(enc_nonce109) },
-	{ enc_input110, enc_output110, enc_assoc110, enc_nonce110, enc_key110,
-	  sizeof(enc_input110), sizeof(enc_assoc110), sizeof(enc_nonce110) },
-	{ enc_input111, enc_output111, enc_assoc111, enc_nonce111, enc_key111,
-	  sizeof(enc_input111), sizeof(enc_assoc111), sizeof(enc_nonce111) },
-	{ enc_input112, enc_output112, enc_assoc112, enc_nonce112, enc_key112,
-	  sizeof(enc_input112), sizeof(enc_assoc112), sizeof(enc_nonce112) },
-	{ enc_input113, enc_output113, enc_assoc113, enc_nonce113, enc_key113,
-	  sizeof(enc_input113), sizeof(enc_assoc113), sizeof(enc_nonce113) },
-	{ enc_input114, enc_output114, enc_assoc114, enc_nonce114, enc_key114,
-	  sizeof(enc_input114), sizeof(enc_assoc114), sizeof(enc_nonce114) },
-	{ enc_input115, enc_output115, enc_assoc115, enc_nonce115, enc_key115,
-	  sizeof(enc_input115), sizeof(enc_assoc115), sizeof(enc_nonce115) },
-	{ enc_input116, enc_output116, enc_assoc116, enc_nonce116, enc_key116,
-	  sizeof(enc_input116), sizeof(enc_assoc116), sizeof(enc_nonce116) },
-	{ enc_input117, enc_output117, enc_assoc117, enc_nonce117, enc_key117,
-	  sizeof(enc_input117), sizeof(enc_assoc117), sizeof(enc_nonce117) },
-	{ enc_input118, enc_output118, enc_assoc118, enc_nonce118, enc_key118,
-	  sizeof(enc_input118), sizeof(enc_assoc118), sizeof(enc_nonce118) }
+	{ enc_input001, enc_output001, enc_assoc001, enc_analnce001, enc_key001,
+	  sizeof(enc_input001), sizeof(enc_assoc001), sizeof(enc_analnce001) },
+	{ enc_input002, enc_output002, enc_assoc002, enc_analnce002, enc_key002,
+	  sizeof(enc_input002), sizeof(enc_assoc002), sizeof(enc_analnce002) },
+	{ enc_input003, enc_output003, enc_assoc003, enc_analnce003, enc_key003,
+	  sizeof(enc_input003), sizeof(enc_assoc003), sizeof(enc_analnce003) },
+	{ enc_input004, enc_output004, enc_assoc004, enc_analnce004, enc_key004,
+	  sizeof(enc_input004), sizeof(enc_assoc004), sizeof(enc_analnce004) },
+	{ enc_input005, enc_output005, enc_assoc005, enc_analnce005, enc_key005,
+	  sizeof(enc_input005), sizeof(enc_assoc005), sizeof(enc_analnce005) },
+	{ enc_input006, enc_output006, enc_assoc006, enc_analnce006, enc_key006,
+	  sizeof(enc_input006), sizeof(enc_assoc006), sizeof(enc_analnce006) },
+	{ enc_input007, enc_output007, enc_assoc007, enc_analnce007, enc_key007,
+	  sizeof(enc_input007), sizeof(enc_assoc007), sizeof(enc_analnce007) },
+	{ enc_input008, enc_output008, enc_assoc008, enc_analnce008, enc_key008,
+	  sizeof(enc_input008), sizeof(enc_assoc008), sizeof(enc_analnce008) },
+	{ enc_input009, enc_output009, enc_assoc009, enc_analnce009, enc_key009,
+	  sizeof(enc_input009), sizeof(enc_assoc009), sizeof(enc_analnce009) },
+	{ enc_input010, enc_output010, enc_assoc010, enc_analnce010, enc_key010,
+	  sizeof(enc_input010), sizeof(enc_assoc010), sizeof(enc_analnce010) },
+	{ enc_input011, enc_output011, enc_assoc011, enc_analnce011, enc_key011,
+	  sizeof(enc_input011), sizeof(enc_assoc011), sizeof(enc_analnce011) },
+	{ enc_input012, enc_output012, enc_assoc012, enc_analnce012, enc_key012,
+	  sizeof(enc_input012), sizeof(enc_assoc012), sizeof(enc_analnce012) },
+	{ enc_input013, enc_output013, enc_assoc013, enc_analnce013, enc_key013,
+	  sizeof(enc_input013), sizeof(enc_assoc013), sizeof(enc_analnce013) },
+	{ enc_input014, enc_output014, enc_assoc014, enc_analnce014, enc_key014,
+	  sizeof(enc_input014), sizeof(enc_assoc014), sizeof(enc_analnce014) },
+	{ enc_input015, enc_output015, enc_assoc015, enc_analnce015, enc_key015,
+	  sizeof(enc_input015), sizeof(enc_assoc015), sizeof(enc_analnce015) },
+	{ enc_input016, enc_output016, enc_assoc016, enc_analnce016, enc_key016,
+	  sizeof(enc_input016), sizeof(enc_assoc016), sizeof(enc_analnce016) },
+	{ enc_input017, enc_output017, enc_assoc017, enc_analnce017, enc_key017,
+	  sizeof(enc_input017), sizeof(enc_assoc017), sizeof(enc_analnce017) },
+	{ enc_input018, enc_output018, enc_assoc018, enc_analnce018, enc_key018,
+	  sizeof(enc_input018), sizeof(enc_assoc018), sizeof(enc_analnce018) },
+	{ enc_input019, enc_output019, enc_assoc019, enc_analnce019, enc_key019,
+	  sizeof(enc_input019), sizeof(enc_assoc019), sizeof(enc_analnce019) },
+	{ enc_input020, enc_output020, enc_assoc020, enc_analnce020, enc_key020,
+	  sizeof(enc_input020), sizeof(enc_assoc020), sizeof(enc_analnce020) },
+	{ enc_input021, enc_output021, enc_assoc021, enc_analnce021, enc_key021,
+	  sizeof(enc_input021), sizeof(enc_assoc021), sizeof(enc_analnce021) },
+	{ enc_input022, enc_output022, enc_assoc022, enc_analnce022, enc_key022,
+	  sizeof(enc_input022), sizeof(enc_assoc022), sizeof(enc_analnce022) },
+	{ enc_input023, enc_output023, enc_assoc023, enc_analnce023, enc_key023,
+	  sizeof(enc_input023), sizeof(enc_assoc023), sizeof(enc_analnce023) },
+	{ enc_input024, enc_output024, enc_assoc024, enc_analnce024, enc_key024,
+	  sizeof(enc_input024), sizeof(enc_assoc024), sizeof(enc_analnce024) },
+	{ enc_input025, enc_output025, enc_assoc025, enc_analnce025, enc_key025,
+	  sizeof(enc_input025), sizeof(enc_assoc025), sizeof(enc_analnce025) },
+	{ enc_input026, enc_output026, enc_assoc026, enc_analnce026, enc_key026,
+	  sizeof(enc_input026), sizeof(enc_assoc026), sizeof(enc_analnce026) },
+	{ enc_input027, enc_output027, enc_assoc027, enc_analnce027, enc_key027,
+	  sizeof(enc_input027), sizeof(enc_assoc027), sizeof(enc_analnce027) },
+	{ enc_input028, enc_output028, enc_assoc028, enc_analnce028, enc_key028,
+	  sizeof(enc_input028), sizeof(enc_assoc028), sizeof(enc_analnce028) },
+	{ enc_input029, enc_output029, enc_assoc029, enc_analnce029, enc_key029,
+	  sizeof(enc_input029), sizeof(enc_assoc029), sizeof(enc_analnce029) },
+	{ enc_input030, enc_output030, enc_assoc030, enc_analnce030, enc_key030,
+	  sizeof(enc_input030), sizeof(enc_assoc030), sizeof(enc_analnce030) },
+	{ enc_input031, enc_output031, enc_assoc031, enc_analnce031, enc_key031,
+	  sizeof(enc_input031), sizeof(enc_assoc031), sizeof(enc_analnce031) },
+	{ enc_input032, enc_output032, enc_assoc032, enc_analnce032, enc_key032,
+	  sizeof(enc_input032), sizeof(enc_assoc032), sizeof(enc_analnce032) },
+	{ enc_input033, enc_output033, enc_assoc033, enc_analnce033, enc_key033,
+	  sizeof(enc_input033), sizeof(enc_assoc033), sizeof(enc_analnce033) },
+	{ enc_input034, enc_output034, enc_assoc034, enc_analnce034, enc_key034,
+	  sizeof(enc_input034), sizeof(enc_assoc034), sizeof(enc_analnce034) },
+	{ enc_input035, enc_output035, enc_assoc035, enc_analnce035, enc_key035,
+	  sizeof(enc_input035), sizeof(enc_assoc035), sizeof(enc_analnce035) },
+	{ enc_input036, enc_output036, enc_assoc036, enc_analnce036, enc_key036,
+	  sizeof(enc_input036), sizeof(enc_assoc036), sizeof(enc_analnce036) },
+	{ enc_input037, enc_output037, enc_assoc037, enc_analnce037, enc_key037,
+	  sizeof(enc_input037), sizeof(enc_assoc037), sizeof(enc_analnce037) },
+	{ enc_input038, enc_output038, enc_assoc038, enc_analnce038, enc_key038,
+	  sizeof(enc_input038), sizeof(enc_assoc038), sizeof(enc_analnce038) },
+	{ enc_input039, enc_output039, enc_assoc039, enc_analnce039, enc_key039,
+	  sizeof(enc_input039), sizeof(enc_assoc039), sizeof(enc_analnce039) },
+	{ enc_input040, enc_output040, enc_assoc040, enc_analnce040, enc_key040,
+	  sizeof(enc_input040), sizeof(enc_assoc040), sizeof(enc_analnce040) },
+	{ enc_input041, enc_output041, enc_assoc041, enc_analnce041, enc_key041,
+	  sizeof(enc_input041), sizeof(enc_assoc041), sizeof(enc_analnce041) },
+	{ enc_input042, enc_output042, enc_assoc042, enc_analnce042, enc_key042,
+	  sizeof(enc_input042), sizeof(enc_assoc042), sizeof(enc_analnce042) },
+	{ enc_input043, enc_output043, enc_assoc043, enc_analnce043, enc_key043,
+	  sizeof(enc_input043), sizeof(enc_assoc043), sizeof(enc_analnce043) },
+	{ enc_input044, enc_output044, enc_assoc044, enc_analnce044, enc_key044,
+	  sizeof(enc_input044), sizeof(enc_assoc044), sizeof(enc_analnce044) },
+	{ enc_input045, enc_output045, enc_assoc045, enc_analnce045, enc_key045,
+	  sizeof(enc_input045), sizeof(enc_assoc045), sizeof(enc_analnce045) },
+	{ enc_input046, enc_output046, enc_assoc046, enc_analnce046, enc_key046,
+	  sizeof(enc_input046), sizeof(enc_assoc046), sizeof(enc_analnce046) },
+	{ enc_input047, enc_output047, enc_assoc047, enc_analnce047, enc_key047,
+	  sizeof(enc_input047), sizeof(enc_assoc047), sizeof(enc_analnce047) },
+	{ enc_input048, enc_output048, enc_assoc048, enc_analnce048, enc_key048,
+	  sizeof(enc_input048), sizeof(enc_assoc048), sizeof(enc_analnce048) },
+	{ enc_input049, enc_output049, enc_assoc049, enc_analnce049, enc_key049,
+	  sizeof(enc_input049), sizeof(enc_assoc049), sizeof(enc_analnce049) },
+	{ enc_input050, enc_output050, enc_assoc050, enc_analnce050, enc_key050,
+	  sizeof(enc_input050), sizeof(enc_assoc050), sizeof(enc_analnce050) },
+	{ enc_input051, enc_output051, enc_assoc051, enc_analnce051, enc_key051,
+	  sizeof(enc_input051), sizeof(enc_assoc051), sizeof(enc_analnce051) },
+	{ enc_input052, enc_output052, enc_assoc052, enc_analnce052, enc_key052,
+	  sizeof(enc_input052), sizeof(enc_assoc052), sizeof(enc_analnce052) },
+	{ enc_input053, enc_output053, enc_assoc053, enc_analnce053, enc_key053,
+	  sizeof(enc_input053), sizeof(enc_assoc053), sizeof(enc_analnce053) },
+	{ enc_input054, enc_output054, enc_assoc054, enc_analnce054, enc_key054,
+	  sizeof(enc_input054), sizeof(enc_assoc054), sizeof(enc_analnce054) },
+	{ enc_input055, enc_output055, enc_assoc055, enc_analnce055, enc_key055,
+	  sizeof(enc_input055), sizeof(enc_assoc055), sizeof(enc_analnce055) },
+	{ enc_input056, enc_output056, enc_assoc056, enc_analnce056, enc_key056,
+	  sizeof(enc_input056), sizeof(enc_assoc056), sizeof(enc_analnce056) },
+	{ enc_input057, enc_output057, enc_assoc057, enc_analnce057, enc_key057,
+	  sizeof(enc_input057), sizeof(enc_assoc057), sizeof(enc_analnce057) },
+	{ enc_input058, enc_output058, enc_assoc058, enc_analnce058, enc_key058,
+	  sizeof(enc_input058), sizeof(enc_assoc058), sizeof(enc_analnce058) },
+	{ enc_input059, enc_output059, enc_assoc059, enc_analnce059, enc_key059,
+	  sizeof(enc_input059), sizeof(enc_assoc059), sizeof(enc_analnce059) },
+	{ enc_input060, enc_output060, enc_assoc060, enc_analnce060, enc_key060,
+	  sizeof(enc_input060), sizeof(enc_assoc060), sizeof(enc_analnce060) },
+	{ enc_input061, enc_output061, enc_assoc061, enc_analnce061, enc_key061,
+	  sizeof(enc_input061), sizeof(enc_assoc061), sizeof(enc_analnce061) },
+	{ enc_input062, enc_output062, enc_assoc062, enc_analnce062, enc_key062,
+	  sizeof(enc_input062), sizeof(enc_assoc062), sizeof(enc_analnce062) },
+	{ enc_input063, enc_output063, enc_assoc063, enc_analnce063, enc_key063,
+	  sizeof(enc_input063), sizeof(enc_assoc063), sizeof(enc_analnce063) },
+	{ enc_input064, enc_output064, enc_assoc064, enc_analnce064, enc_key064,
+	  sizeof(enc_input064), sizeof(enc_assoc064), sizeof(enc_analnce064) },
+	{ enc_input065, enc_output065, enc_assoc065, enc_analnce065, enc_key065,
+	  sizeof(enc_input065), sizeof(enc_assoc065), sizeof(enc_analnce065) },
+	{ enc_input066, enc_output066, enc_assoc066, enc_analnce066, enc_key066,
+	  sizeof(enc_input066), sizeof(enc_assoc066), sizeof(enc_analnce066) },
+	{ enc_input067, enc_output067, enc_assoc067, enc_analnce067, enc_key067,
+	  sizeof(enc_input067), sizeof(enc_assoc067), sizeof(enc_analnce067) },
+	{ enc_input068, enc_output068, enc_assoc068, enc_analnce068, enc_key068,
+	  sizeof(enc_input068), sizeof(enc_assoc068), sizeof(enc_analnce068) },
+	{ enc_input069, enc_output069, enc_assoc069, enc_analnce069, enc_key069,
+	  sizeof(enc_input069), sizeof(enc_assoc069), sizeof(enc_analnce069) },
+	{ enc_input070, enc_output070, enc_assoc070, enc_analnce070, enc_key070,
+	  sizeof(enc_input070), sizeof(enc_assoc070), sizeof(enc_analnce070) },
+	{ enc_input071, enc_output071, enc_assoc071, enc_analnce071, enc_key071,
+	  sizeof(enc_input071), sizeof(enc_assoc071), sizeof(enc_analnce071) },
+	{ enc_input072, enc_output072, enc_assoc072, enc_analnce072, enc_key072,
+	  sizeof(enc_input072), sizeof(enc_assoc072), sizeof(enc_analnce072) },
+	{ enc_input073, enc_output073, enc_assoc073, enc_analnce073, enc_key073,
+	  sizeof(enc_input073), sizeof(enc_assoc073), sizeof(enc_analnce073) },
+	{ enc_input074, enc_output074, enc_assoc074, enc_analnce074, enc_key074,
+	  sizeof(enc_input074), sizeof(enc_assoc074), sizeof(enc_analnce074) },
+	{ enc_input075, enc_output075, enc_assoc075, enc_analnce075, enc_key075,
+	  sizeof(enc_input075), sizeof(enc_assoc075), sizeof(enc_analnce075) },
+	{ enc_input076, enc_output076, enc_assoc076, enc_analnce076, enc_key076,
+	  sizeof(enc_input076), sizeof(enc_assoc076), sizeof(enc_analnce076) },
+	{ enc_input077, enc_output077, enc_assoc077, enc_analnce077, enc_key077,
+	  sizeof(enc_input077), sizeof(enc_assoc077), sizeof(enc_analnce077) },
+	{ enc_input078, enc_output078, enc_assoc078, enc_analnce078, enc_key078,
+	  sizeof(enc_input078), sizeof(enc_assoc078), sizeof(enc_analnce078) },
+	{ enc_input079, enc_output079, enc_assoc079, enc_analnce079, enc_key079,
+	  sizeof(enc_input079), sizeof(enc_assoc079), sizeof(enc_analnce079) },
+	{ enc_input080, enc_output080, enc_assoc080, enc_analnce080, enc_key080,
+	  sizeof(enc_input080), sizeof(enc_assoc080), sizeof(enc_analnce080) },
+	{ enc_input081, enc_output081, enc_assoc081, enc_analnce081, enc_key081,
+	  sizeof(enc_input081), sizeof(enc_assoc081), sizeof(enc_analnce081) },
+	{ enc_input082, enc_output082, enc_assoc082, enc_analnce082, enc_key082,
+	  sizeof(enc_input082), sizeof(enc_assoc082), sizeof(enc_analnce082) },
+	{ enc_input083, enc_output083, enc_assoc083, enc_analnce083, enc_key083,
+	  sizeof(enc_input083), sizeof(enc_assoc083), sizeof(enc_analnce083) },
+	{ enc_input084, enc_output084, enc_assoc084, enc_analnce084, enc_key084,
+	  sizeof(enc_input084), sizeof(enc_assoc084), sizeof(enc_analnce084) },
+	{ enc_input085, enc_output085, enc_assoc085, enc_analnce085, enc_key085,
+	  sizeof(enc_input085), sizeof(enc_assoc085), sizeof(enc_analnce085) },
+	{ enc_input086, enc_output086, enc_assoc086, enc_analnce086, enc_key086,
+	  sizeof(enc_input086), sizeof(enc_assoc086), sizeof(enc_analnce086) },
+	{ enc_input087, enc_output087, enc_assoc087, enc_analnce087, enc_key087,
+	  sizeof(enc_input087), sizeof(enc_assoc087), sizeof(enc_analnce087) },
+	{ enc_input088, enc_output088, enc_assoc088, enc_analnce088, enc_key088,
+	  sizeof(enc_input088), sizeof(enc_assoc088), sizeof(enc_analnce088) },
+	{ enc_input089, enc_output089, enc_assoc089, enc_analnce089, enc_key089,
+	  sizeof(enc_input089), sizeof(enc_assoc089), sizeof(enc_analnce089) },
+	{ enc_input090, enc_output090, enc_assoc090, enc_analnce090, enc_key090,
+	  sizeof(enc_input090), sizeof(enc_assoc090), sizeof(enc_analnce090) },
+	{ enc_input091, enc_output091, enc_assoc091, enc_analnce091, enc_key091,
+	  sizeof(enc_input091), sizeof(enc_assoc091), sizeof(enc_analnce091) },
+	{ enc_input092, enc_output092, enc_assoc092, enc_analnce092, enc_key092,
+	  sizeof(enc_input092), sizeof(enc_assoc092), sizeof(enc_analnce092) },
+	{ enc_input093, enc_output093, enc_assoc093, enc_analnce093, enc_key093,
+	  sizeof(enc_input093), sizeof(enc_assoc093), sizeof(enc_analnce093) },
+	{ enc_input094, enc_output094, enc_assoc094, enc_analnce094, enc_key094,
+	  sizeof(enc_input094), sizeof(enc_assoc094), sizeof(enc_analnce094) },
+	{ enc_input095, enc_output095, enc_assoc095, enc_analnce095, enc_key095,
+	  sizeof(enc_input095), sizeof(enc_assoc095), sizeof(enc_analnce095) },
+	{ enc_input096, enc_output096, enc_assoc096, enc_analnce096, enc_key096,
+	  sizeof(enc_input096), sizeof(enc_assoc096), sizeof(enc_analnce096) },
+	{ enc_input097, enc_output097, enc_assoc097, enc_analnce097, enc_key097,
+	  sizeof(enc_input097), sizeof(enc_assoc097), sizeof(enc_analnce097) },
+	{ enc_input098, enc_output098, enc_assoc098, enc_analnce098, enc_key098,
+	  sizeof(enc_input098), sizeof(enc_assoc098), sizeof(enc_analnce098) },
+	{ enc_input099, enc_output099, enc_assoc099, enc_analnce099, enc_key099,
+	  sizeof(enc_input099), sizeof(enc_assoc099), sizeof(enc_analnce099) },
+	{ enc_input100, enc_output100, enc_assoc100, enc_analnce100, enc_key100,
+	  sizeof(enc_input100), sizeof(enc_assoc100), sizeof(enc_analnce100) },
+	{ enc_input101, enc_output101, enc_assoc101, enc_analnce101, enc_key101,
+	  sizeof(enc_input101), sizeof(enc_assoc101), sizeof(enc_analnce101) },
+	{ enc_input102, enc_output102, enc_assoc102, enc_analnce102, enc_key102,
+	  sizeof(enc_input102), sizeof(enc_assoc102), sizeof(enc_analnce102) },
+	{ enc_input103, enc_output103, enc_assoc103, enc_analnce103, enc_key103,
+	  sizeof(enc_input103), sizeof(enc_assoc103), sizeof(enc_analnce103) },
+	{ enc_input104, enc_output104, enc_assoc104, enc_analnce104, enc_key104,
+	  sizeof(enc_input104), sizeof(enc_assoc104), sizeof(enc_analnce104) },
+	{ enc_input105, enc_output105, enc_assoc105, enc_analnce105, enc_key105,
+	  sizeof(enc_input105), sizeof(enc_assoc105), sizeof(enc_analnce105) },
+	{ enc_input106, enc_output106, enc_assoc106, enc_analnce106, enc_key106,
+	  sizeof(enc_input106), sizeof(enc_assoc106), sizeof(enc_analnce106) },
+	{ enc_input107, enc_output107, enc_assoc107, enc_analnce107, enc_key107,
+	  sizeof(enc_input107), sizeof(enc_assoc107), sizeof(enc_analnce107) },
+	{ enc_input108, enc_output108, enc_assoc108, enc_analnce108, enc_key108,
+	  sizeof(enc_input108), sizeof(enc_assoc108), sizeof(enc_analnce108) },
+	{ enc_input109, enc_output109, enc_assoc109, enc_analnce109, enc_key109,
+	  sizeof(enc_input109), sizeof(enc_assoc109), sizeof(enc_analnce109) },
+	{ enc_input110, enc_output110, enc_assoc110, enc_analnce110, enc_key110,
+	  sizeof(enc_input110), sizeof(enc_assoc110), sizeof(enc_analnce110) },
+	{ enc_input111, enc_output111, enc_assoc111, enc_analnce111, enc_key111,
+	  sizeof(enc_input111), sizeof(enc_assoc111), sizeof(enc_analnce111) },
+	{ enc_input112, enc_output112, enc_assoc112, enc_analnce112, enc_key112,
+	  sizeof(enc_input112), sizeof(enc_assoc112), sizeof(enc_analnce112) },
+	{ enc_input113, enc_output113, enc_assoc113, enc_analnce113, enc_key113,
+	  sizeof(enc_input113), sizeof(enc_assoc113), sizeof(enc_analnce113) },
+	{ enc_input114, enc_output114, enc_assoc114, enc_analnce114, enc_key114,
+	  sizeof(enc_input114), sizeof(enc_assoc114), sizeof(enc_analnce114) },
+	{ enc_input115, enc_output115, enc_assoc115, enc_analnce115, enc_key115,
+	  sizeof(enc_input115), sizeof(enc_assoc115), sizeof(enc_analnce115) },
+	{ enc_input116, enc_output116, enc_assoc116, enc_analnce116, enc_key116,
+	  sizeof(enc_input116), sizeof(enc_assoc116), sizeof(enc_analnce116) },
+	{ enc_input117, enc_output117, enc_assoc117, enc_analnce117, enc_key117,
+	  sizeof(enc_input117), sizeof(enc_assoc117), sizeof(enc_analnce117) },
+	{ enc_input118, enc_output118, enc_assoc118, enc_analnce118, enc_key118,
+	  sizeof(enc_input118), sizeof(enc_assoc118), sizeof(enc_analnce118) }
 };
 
 static const u8 dec_input001[] __initconst = {
@@ -6246,7 +6246,7 @@ static const u8 dec_assoc001[] __initconst = {
 	0xf3, 0x33, 0x88, 0x86, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x4e, 0x91
 };
-static const u8 dec_nonce001[] __initconst = {
+static const u8 dec_analnce001[] __initconst = {
 	0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
 };
 static const u8 dec_key001[] __initconst = {
@@ -6262,7 +6262,7 @@ static const u8 dec_input002[] __initconst = {
 };
 static const u8 dec_output002[] __initconst = { };
 static const u8 dec_assoc002[] __initconst = { };
-static const u8 dec_nonce002[] __initconst = {
+static const u8 dec_analnce002[] __initconst = {
 	0xca, 0xbf, 0x33, 0x71, 0x32, 0x45, 0x77, 0x8e
 };
 static const u8 dec_key002[] __initconst = {
@@ -6280,7 +6280,7 @@ static const u8 dec_output003[] __initconst = { };
 static const u8 dec_assoc003[] __initconst = {
 	0x33, 0x10, 0x41, 0x12, 0x1f, 0xf3, 0xd2, 0x6b
 };
-static const u8 dec_nonce003[] __initconst = {
+static const u8 dec_analnce003[] __initconst = {
 	0x3d, 0x86, 0xb5, 0x6b, 0xc8, 0xa3, 0x1f, 0x1d
 };
 static const u8 dec_key003[] __initconst = {
@@ -6301,7 +6301,7 @@ static const u8 dec_output004[] __initconst = {
 static const u8 dec_assoc004[] __initconst = {
 	0x6a, 0xe2, 0xad, 0x3f, 0x88, 0x39, 0x5a, 0x40
 };
-static const u8 dec_nonce004[] __initconst = {
+static const u8 dec_analnce004[] __initconst = {
 	0xd2, 0x32, 0x1f, 0x29, 0x28, 0xc6, 0xc4, 0xc4
 };
 static const u8 dec_key004[] __initconst = {
@@ -6320,7 +6320,7 @@ static const u8 dec_output005[] __initconst = {
 	0x2d
 };
 static const u8 dec_assoc005[] __initconst = { };
-static const u8 dec_nonce005[] __initconst = {
+static const u8 dec_analnce005[] __initconst = {
 	0x20, 0x1c, 0xaa, 0x5f, 0x9c, 0xbf, 0x92, 0x30
 };
 static const u8 dec_key005[] __initconst = {
@@ -6373,7 +6373,7 @@ static const u8 dec_output006[] __initconst = {
 static const u8 dec_assoc006[] __initconst = {
 	0x70, 0xd3, 0x33, 0xf3, 0x8b, 0x18, 0x0b
 };
-static const u8 dec_nonce006[] __initconst = {
+static const u8 dec_analnce006[] __initconst = {
 	0xdf, 0x51, 0x84, 0x82, 0x42, 0x0c, 0x75, 0x9c
 };
 static const u8 dec_key006[] __initconst = {
@@ -6454,7 +6454,7 @@ static const u8 dec_output007[] __initconst = {
 	0xf0, 0x65, 0x11, 0xc8, 0xd0, 0x0a, 0x9f, 0xd3
 };
 static const u8 dec_assoc007[] __initconst = { };
-static const u8 dec_nonce007[] __initconst = {
+static const u8 dec_analnce007[] __initconst = {
 	0xde, 0x7b, 0xef, 0xc3, 0x65, 0x1b, 0x68, 0xb0
 };
 static const u8 dec_key007[] __initconst = {
@@ -6599,7 +6599,7 @@ static const u8 dec_output008[] __initconst = {
 	0xd5, 0x10, 0xcb, 0xff, 0x5d, 0x14, 0x73, 0xf3
 };
 static const u8 dec_assoc008[] __initconst = { };
-static const u8 dec_nonce008[] __initconst = {
+static const u8 dec_analnce008[] __initconst = {
 	0x0e, 0x0d, 0x57, 0xbb, 0x7b, 0x40, 0x54, 0x02
 };
 static const u8 dec_key008[] __initconst = {
@@ -6749,7 +6749,7 @@ static const u8 dec_assoc009[] __initconst = {
 	0x5a, 0x27, 0xff, 0xeb, 0xdf, 0x84, 0xb2, 0x9e,
 	0xef
 };
-static const u8 dec_nonce009[] __initconst = {
+static const u8 dec_analnce009[] __initconst = {
 	0xef, 0x2d, 0x63, 0xee, 0x6b, 0x80, 0x8b, 0x78
 };
 static const u8 dec_key009[] __initconst = {
@@ -7025,7 +7025,7 @@ static const u8 dec_assoc010[] __initconst = {
 	0xd2, 0xa1, 0x70, 0xdb, 0x7a, 0xf8, 0xfa, 0x27,
 	0xba, 0x73, 0x0f, 0xbf, 0x3d, 0x1e, 0x82, 0xb2
 };
-static const u8 dec_nonce010[] __initconst = {
+static const u8 dec_analnce010[] __initconst = {
 	0xdb, 0x92, 0x0f, 0x7f, 0x17, 0x54, 0x0c, 0x30
 };
 static const u8 dec_key010[] __initconst = {
@@ -7528,7 +7528,7 @@ static const u8 dec_output011[] __initconst = {
 static const u8 dec_assoc011[] __initconst = {
 	0xd6, 0x31, 0xda, 0x5d, 0x42, 0x5e, 0xd7
 };
-static const u8 dec_nonce011[] __initconst = {
+static const u8 dec_analnce011[] __initconst = {
 	0xfd, 0x87, 0xd4, 0xd8, 0x62, 0xfd, 0xec, 0xaa
 };
 static const u8 dec_key011[] __initconst = {
@@ -8058,7 +8058,7 @@ static const u8 dec_assoc012[] __initconst = {
 	0x01, 0xae, 0x9c, 0xb6, 0xe4, 0x88, 0x6d, 0x2b,
 	0x76, 0x75, 0xe0, 0xf3, 0x74, 0xe2, 0xc9
 };
-static const u8 dec_nonce012[] __initconst = {
+static const u8 dec_analnce012[] __initconst = {
 	0x05, 0xa3, 0x93, 0xed, 0x30, 0xc5, 0xa2, 0x06
 };
 static const u8 dec_key012[] __initconst = {
@@ -8588,7 +8588,7 @@ static const u8 dec_assoc013[] __initconst = {
 	0x01, 0xae, 0x9c, 0xb6, 0xe4, 0x88, 0x6d, 0x2b,
 	0x76, 0x75, 0xe0, 0xf3, 0x74, 0xe2, 0xc9
 };
-static const u8 dec_nonce013[] __initconst = {
+static const u8 dec_analnce013[] __initconst = {
 	0x05, 0xa3, 0x93, 0xed, 0x30, 0xc5, 0xa2, 0x06
 };
 static const u8 dec_key013[] __initconst = {
@@ -8600,32 +8600,32 @@ static const u8 dec_key013[] __initconst = {
 
 static const struct chacha20poly1305_testvec
 chacha20poly1305_dec_vectors[] __initconst = {
-	{ dec_input001, dec_output001, dec_assoc001, dec_nonce001, dec_key001,
-	  sizeof(dec_input001), sizeof(dec_assoc001), sizeof(dec_nonce001) },
-	{ dec_input002, dec_output002, dec_assoc002, dec_nonce002, dec_key002,
-	  sizeof(dec_input002), sizeof(dec_assoc002), sizeof(dec_nonce002) },
-	{ dec_input003, dec_output003, dec_assoc003, dec_nonce003, dec_key003,
-	  sizeof(dec_input003), sizeof(dec_assoc003), sizeof(dec_nonce003) },
-	{ dec_input004, dec_output004, dec_assoc004, dec_nonce004, dec_key004,
-	  sizeof(dec_input004), sizeof(dec_assoc004), sizeof(dec_nonce004) },
-	{ dec_input005, dec_output005, dec_assoc005, dec_nonce005, dec_key005,
-	  sizeof(dec_input005), sizeof(dec_assoc005), sizeof(dec_nonce005) },
-	{ dec_input006, dec_output006, dec_assoc006, dec_nonce006, dec_key006,
-	  sizeof(dec_input006), sizeof(dec_assoc006), sizeof(dec_nonce006) },
-	{ dec_input007, dec_output007, dec_assoc007, dec_nonce007, dec_key007,
-	  sizeof(dec_input007), sizeof(dec_assoc007), sizeof(dec_nonce007) },
-	{ dec_input008, dec_output008, dec_assoc008, dec_nonce008, dec_key008,
-	  sizeof(dec_input008), sizeof(dec_assoc008), sizeof(dec_nonce008) },
-	{ dec_input009, dec_output009, dec_assoc009, dec_nonce009, dec_key009,
-	  sizeof(dec_input009), sizeof(dec_assoc009), sizeof(dec_nonce009) },
-	{ dec_input010, dec_output010, dec_assoc010, dec_nonce010, dec_key010,
-	  sizeof(dec_input010), sizeof(dec_assoc010), sizeof(dec_nonce010) },
-	{ dec_input011, dec_output011, dec_assoc011, dec_nonce011, dec_key011,
-	  sizeof(dec_input011), sizeof(dec_assoc011), sizeof(dec_nonce011) },
-	{ dec_input012, dec_output012, dec_assoc012, dec_nonce012, dec_key012,
-	  sizeof(dec_input012), sizeof(dec_assoc012), sizeof(dec_nonce012) },
-	{ dec_input013, dec_output013, dec_assoc013, dec_nonce013, dec_key013,
-	  sizeof(dec_input013), sizeof(dec_assoc013), sizeof(dec_nonce013),
+	{ dec_input001, dec_output001, dec_assoc001, dec_analnce001, dec_key001,
+	  sizeof(dec_input001), sizeof(dec_assoc001), sizeof(dec_analnce001) },
+	{ dec_input002, dec_output002, dec_assoc002, dec_analnce002, dec_key002,
+	  sizeof(dec_input002), sizeof(dec_assoc002), sizeof(dec_analnce002) },
+	{ dec_input003, dec_output003, dec_assoc003, dec_analnce003, dec_key003,
+	  sizeof(dec_input003), sizeof(dec_assoc003), sizeof(dec_analnce003) },
+	{ dec_input004, dec_output004, dec_assoc004, dec_analnce004, dec_key004,
+	  sizeof(dec_input004), sizeof(dec_assoc004), sizeof(dec_analnce004) },
+	{ dec_input005, dec_output005, dec_assoc005, dec_analnce005, dec_key005,
+	  sizeof(dec_input005), sizeof(dec_assoc005), sizeof(dec_analnce005) },
+	{ dec_input006, dec_output006, dec_assoc006, dec_analnce006, dec_key006,
+	  sizeof(dec_input006), sizeof(dec_assoc006), sizeof(dec_analnce006) },
+	{ dec_input007, dec_output007, dec_assoc007, dec_analnce007, dec_key007,
+	  sizeof(dec_input007), sizeof(dec_assoc007), sizeof(dec_analnce007) },
+	{ dec_input008, dec_output008, dec_assoc008, dec_analnce008, dec_key008,
+	  sizeof(dec_input008), sizeof(dec_assoc008), sizeof(dec_analnce008) },
+	{ dec_input009, dec_output009, dec_assoc009, dec_analnce009, dec_key009,
+	  sizeof(dec_input009), sizeof(dec_assoc009), sizeof(dec_analnce009) },
+	{ dec_input010, dec_output010, dec_assoc010, dec_analnce010, dec_key010,
+	  sizeof(dec_input010), sizeof(dec_assoc010), sizeof(dec_analnce010) },
+	{ dec_input011, dec_output011, dec_assoc011, dec_analnce011, dec_key011,
+	  sizeof(dec_input011), sizeof(dec_assoc011), sizeof(dec_analnce011) },
+	{ dec_input012, dec_output012, dec_assoc012, dec_analnce012, dec_key012,
+	  sizeof(dec_input012), sizeof(dec_assoc012), sizeof(dec_analnce012) },
+	{ dec_input013, dec_output013, dec_assoc013, dec_analnce013, dec_key013,
+	  sizeof(dec_input013), sizeof(dec_assoc013), sizeof(dec_analnce013),
 	  true }
 };
 
@@ -8707,7 +8707,7 @@ static const u8 xenc_assoc001[] __initconst = {
 	0xf3, 0x33, 0x88, 0x86, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x4e, 0x91
 };
-static const u8 xenc_nonce001[] __initconst = {
+static const u8 xenc_analnce001[] __initconst = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
 	0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17
@@ -8721,8 +8721,8 @@ static const u8 xenc_key001[] __initconst = {
 
 static const struct chacha20poly1305_testvec
 xchacha20poly1305_enc_vectors[] __initconst = {
-	{ xenc_input001, xenc_output001, xenc_assoc001, xenc_nonce001, xenc_key001,
-	  sizeof(xenc_input001), sizeof(xenc_assoc001), sizeof(xenc_nonce001) }
+	{ xenc_input001, xenc_output001, xenc_assoc001, xenc_analnce001, xenc_key001,
+	  sizeof(xenc_input001), sizeof(xenc_assoc001), sizeof(xenc_analnce001) }
 };
 
 static const u8 xdec_input001[] __initconst = {
@@ -8803,7 +8803,7 @@ static const u8 xdec_assoc001[] __initconst = {
 	0xf3, 0x33, 0x88, 0x86, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x4e, 0x91
 };
-static const u8 xdec_nonce001[] __initconst = {
+static const u8 xdec_analnce001[] __initconst = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
 	0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17
@@ -8817,17 +8817,17 @@ static const u8 xdec_key001[] __initconst = {
 
 static const struct chacha20poly1305_testvec
 xchacha20poly1305_dec_vectors[] __initconst = {
-	{ xdec_input001, xdec_output001, xdec_assoc001, xdec_nonce001, xdec_key001,
-	  sizeof(xdec_input001), sizeof(xdec_assoc001), sizeof(xdec_nonce001) }
+	{ xdec_input001, xdec_output001, xdec_assoc001, xdec_analnce001, xdec_key001,
+	  sizeof(xdec_input001), sizeof(xdec_assoc001), sizeof(xdec_analnce001) }
 };
 
 /* This is for the selftests-only, since it is only useful for the purpose of
  * testing the underlying primitives and interactions.
  */
 static void __init
-chacha20poly1305_encrypt_bignonce(u8 *dst, const u8 *src, const size_t src_len,
+chacha20poly1305_encrypt_biganalnce(u8 *dst, const u8 *src, const size_t src_len,
 				  const u8 *ad, const size_t ad_len,
-				  const u8 nonce[12],
+				  const u8 analnce[12],
 				  const u8 key[CHACHA20POLY1305_KEY_SIZE])
 {
 	const u8 *pad0 = page_address(ZERO_PAGE(0));
@@ -8841,7 +8841,7 @@ chacha20poly1305_encrypt_bignonce(u8 *dst, const u8 *src, const size_t src_len,
 	u32 le_key[8];
 	int i;
 
-	memcpy(&bottom_row[4], nonce, 12);
+	memcpy(&bottom_row[4], analnce, 12);
 	for (i = 0; i < 8; ++i)
 		le_key[i] = get_unaligned_le32(key + sizeof(le_key[i]) * i);
 	chacha_init(chacha20_state, le_key, bottom_row);
@@ -8861,15 +8861,15 @@ chacha20poly1305_encrypt_bignonce(u8 *dst, const u8 *src, const size_t src_len,
 static void __init
 chacha20poly1305_selftest_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 				  const u8 *ad, const size_t ad_len,
-				  const u8 *nonce, const size_t nonce_len,
+				  const u8 *analnce, const size_t analnce_len,
 				  const u8 key[CHACHA20POLY1305_KEY_SIZE])
 {
-	if (nonce_len == 8)
+	if (analnce_len == 8)
 		chacha20poly1305_encrypt(dst, src, src_len, ad, ad_len,
-					 get_unaligned_le64(nonce), key);
-	else if (nonce_len == 12)
-		chacha20poly1305_encrypt_bignonce(dst, src, src_len, ad,
-						  ad_len, nonce, key);
+					 get_unaligned_le64(analnce), key);
+	else if (analnce_len == 12)
+		chacha20poly1305_encrypt_biganalnce(dst, src, src_len, ad,
+						  ad_len, analnce, key);
 	else
 		BUG();
 }
@@ -8905,7 +8905,7 @@ bool __init chacha20poly1305_selftest(void)
 					chacha20poly1305_enc_vectors[i].ilen,
 					chacha20poly1305_enc_vectors[i].assoc,
 					chacha20poly1305_enc_vectors[i].alen,
-					chacha20poly1305_enc_vectors[i].nonce,
+					chacha20poly1305_enc_vectors[i].analnce,
 					chacha20poly1305_enc_vectors[i].nlen,
 					chacha20poly1305_enc_vectors[i].key);
 		if (memcmp(computed_output,
@@ -8929,7 +8929,7 @@ bool __init chacha20poly1305_selftest(void)
 			chacha20poly1305_enc_vectors[i].ilen,
 			chacha20poly1305_enc_vectors[i].assoc,
 			chacha20poly1305_enc_vectors[i].alen,
-			get_unaligned_le64(chacha20poly1305_enc_vectors[i].nonce),
+			get_unaligned_le64(chacha20poly1305_enc_vectors[i].analnce),
 			chacha20poly1305_enc_vectors[i].key);
 		if (!ret || memcmp(computed_output,
 				   chacha20poly1305_enc_vectors[i].output,
@@ -8948,7 +8948,7 @@ bool __init chacha20poly1305_selftest(void)
 			chacha20poly1305_dec_vectors[i].ilen,
 			chacha20poly1305_dec_vectors[i].assoc,
 			chacha20poly1305_dec_vectors[i].alen,
-			get_unaligned_le64(chacha20poly1305_dec_vectors[i].nonce),
+			get_unaligned_le64(chacha20poly1305_dec_vectors[i].analnce),
 			chacha20poly1305_dec_vectors[i].key);
 		if (!decryption_success(ret,
 				chacha20poly1305_dec_vectors[i].failure,
@@ -8971,7 +8971,7 @@ bool __init chacha20poly1305_selftest(void)
 			chacha20poly1305_dec_vectors[i].ilen,
 			chacha20poly1305_dec_vectors[i].assoc,
 			chacha20poly1305_dec_vectors[i].alen,
-			get_unaligned_le64(chacha20poly1305_dec_vectors[i].nonce),
+			get_unaligned_le64(chacha20poly1305_dec_vectors[i].analnce),
 			chacha20poly1305_dec_vectors[i].key);
 		if (!decryption_success(ret,
 			chacha20poly1305_dec_vectors[i].failure,
@@ -8991,7 +8991,7 @@ bool __init chacha20poly1305_selftest(void)
 					xchacha20poly1305_enc_vectors[i].ilen,
 					xchacha20poly1305_enc_vectors[i].assoc,
 					xchacha20poly1305_enc_vectors[i].alen,
-					xchacha20poly1305_enc_vectors[i].nonce,
+					xchacha20poly1305_enc_vectors[i].analnce,
 					xchacha20poly1305_enc_vectors[i].key);
 		if (memcmp(computed_output,
 			   xchacha20poly1305_enc_vectors[i].output,
@@ -9010,7 +9010,7 @@ bool __init chacha20poly1305_selftest(void)
 					xchacha20poly1305_dec_vectors[i].ilen,
 					xchacha20poly1305_dec_vectors[i].assoc,
 					xchacha20poly1305_dec_vectors[i].alen,
-					xchacha20poly1305_dec_vectors[i].nonce,
+					xchacha20poly1305_dec_vectors[i].analnce,
 					xchacha20poly1305_dec_vectors[i].key);
 		if (!decryption_success(ret,
 				xchacha20poly1305_dec_vectors[i].failure,

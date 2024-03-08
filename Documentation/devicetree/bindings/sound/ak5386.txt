@@ -1,6 +1,6 @@
 AK5386 Single-ended 24-Bit 192kHz delta-sigma ADC
 
-This device has no control interface.
+This device has anal control interface.
 
 Required properties:
 

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 #ifndef ATH12K_DP_RX_H
 #define ATH12K_DP_RX_H
@@ -22,7 +22,7 @@ struct ath12k_dp_rx_tid {
 
 	/* Info related to rx fragments */
 	u32 cur_sn;
-	u16 last_frag_no;
+	u16 last_frag_anal;
 	u16 rx_frag_bitmap;
 
 	struct sk_buff_head rx_frags;

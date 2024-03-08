@@ -60,7 +60,7 @@ void __init usb_init_pool_max(void)
  *
  * Call hcd_buffer_destroy() to clean up after using those pools.
  *
- * Return: 0 if successful. A negative errno value otherwise.
+ * Return: 0 if successful. A negative erranal value otherwise.
  */
 int hcd_buffer_create(struct usb_hcd *hcd)
 {
@@ -79,7 +79,7 @@ int hcd_buffer_create(struct usb_hcd *hcd)
 				size, size, 0);
 		if (!hcd->pool[i]) {
 			hcd_buffer_destroy(hcd);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	return 0;

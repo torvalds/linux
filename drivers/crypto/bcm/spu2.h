@@ -11,7 +11,7 @@
 #define _SPU2_H
 
 enum spu2_cipher_type {
-	SPU2_CIPHER_TYPE_NONE = 0x0,
+	SPU2_CIPHER_TYPE_ANALNE = 0x0,
 	SPU2_CIPHER_TYPE_AES128 = 0x1,
 	SPU2_CIPHER_TYPE_AES192 = 0x2,
 	SPU2_CIPHER_TYPE_AES256 = 0x3,
@@ -33,7 +33,7 @@ enum spu2_cipher_mode {
 };
 
 enum spu2_hash_type {
-	SPU2_HASH_TYPE_NONE = 0x0,
+	SPU2_HASH_TYPE_ANALNE = 0x0,
 	SPU2_HASH_TYPE_AES128 = 0x1,
 	SPU2_HASH_TYPE_AES192 = 0x2,
 	SPU2_HASH_TYPE_AES256 = 0x3,
@@ -65,7 +65,7 @@ enum spu2_hash_mode {
 };
 
 enum spu2_ret_md_opts {
-	SPU2_RET_NO_MD = 0,	/* return no metadata */
+	SPU2_RET_ANAL_MD = 0,	/* return anal metadata */
 	SPU2_RET_FMD_OMD = 1,	/* return both FMD and OMD */
 	SPU2_RET_FMD_ONLY = 2,	/* return only FMD */
 	SPU2_RET_FMD_OMD_IV = 3,	/* return FMD and OMD with just IVs */

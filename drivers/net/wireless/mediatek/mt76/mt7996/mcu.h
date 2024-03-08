@@ -52,7 +52,7 @@ struct mt7996_mcu_thermal_enable {
 	u8 rsv[2];
 } __packed;
 
-struct mt7996_mcu_csa_notify {
+struct mt7996_mcu_csa_analtify {
 	struct mt7996_mcu_rxd rxd;
 
 	u8 omac_idx;
@@ -258,7 +258,7 @@ enum  {
 	UNI_WED_RRO_BA_SESSION_DELETE,
 };
 
-struct mt7996_mcu_thermal_notify {
+struct mt7996_mcu_thermal_analtify {
 	struct mt7996_mcu_rxd rxd;
 
 	u8 __rsv1[4];
@@ -276,7 +276,7 @@ struct mt7996_mcu_thermal_notify {
 
 enum mt7996_chan_mib_offs {
 	UNI_MIB_OBSS_AIRTIME = 26,
-	UNI_MIB_NON_WIFI_TIME = 27,
+	UNI_MIB_ANALN_WIFI_TIME = 27,
 	UNI_MIB_TX_TIME = 28,
 	UNI_MIB_RX_TIME = 29
 };
@@ -753,7 +753,7 @@ enum {
 };
 
 enum {
-	CMD_BAND_NONE,
+	CMD_BAND_ANALNE,
 	CMD_BAND_24G,
 	CMD_BAND_5G,
 	CMD_BAND_6G,

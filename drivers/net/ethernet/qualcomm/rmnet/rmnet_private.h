@@ -12,7 +12,7 @@
 
 /* Replace skb->dev to a virtual rmnet device and pass up the stack */
 #define RMNET_EPMODE_VND (1)
-/* Pass the frame directly to another device with dev_queue_xmit() */
+/* Pass the frame directly to aanalther device with dev_queue_xmit() */
 #define RMNET_EPMODE_BRIDGE (2)
 
 #endif /* _RMNET_PRIVATE_H_ */

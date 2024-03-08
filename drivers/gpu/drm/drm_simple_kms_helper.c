@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2016 Noralf Trønnes
+ * Copyright (C) 2016 Analralf Trønnes
  */
 
 #include <linux/module.h>
@@ -22,7 +22,7 @@
  * hardware.
  *
  * drm_simple_display_pipe_init() initializes a simple display pipeline
- * which has only one full-screen scanout buffer feeding one output. The
+ * which has only one full-screen scaanalut buffer feeding one output. The
  * pipeline is represented by &struct drm_simple_display_pipe and binds
  * together &drm_plane, &drm_crtc and &drm_encoder structures into one fixed
  * entity. Some flexibility for code reuse is provided through a separately
@@ -30,7 +30,7 @@
  * encoder drivers.
  *
  * Many drivers require only a very simple encoder that fulfills the minimum
- * requirements of the display pipeline and does not add additional
+ * requirements of the display pipeline and does analt add additional
  * functionality. The function drm_simple_encoder_init() provides an
  * implementation of such an encoder.
  */
@@ -46,7 +46,7 @@ static const struct drm_encoder_funcs drm_simple_encoder_funcs_cleanup = {
  * @encoder: the encoder to initialize
  * @encoder_type: user visible type of the encoder
  *
- * Initialises a preallocated encoder that has no further functionality.
+ * Initialises a preallocated encoder that has anal further functionality.
  * Settings for possible CRTC and clones are left to their initial values.
  * The encoder will be cleaned up automatically as part of the mode-setting
  * cleanup.
@@ -57,7 +57,7 @@ static const struct drm_encoder_funcs drm_simple_encoder_funcs_cleanup = {
  * stored in the device structure. Free the encoder's memory as part of
  * the device release function.
  *
- * Note: consider using drmm_simple_encoder_alloc() instead of
+ * Analte: consider using drmm_simple_encoder_alloc() instead of
  * drm_simple_encoder_init() to let the DRM managed resource infrastructure
  * take care of cleanup and deallocation.
  *
@@ -226,8 +226,8 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 						   &pipe->crtc);
 
 	ret = drm_atomic_helper_check_plane_state(plane_state, crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  false, false);
 	if (ret)
 		return ret;
@@ -377,7 +377,7 @@ static const struct drm_plane_funcs drm_simple_kms_plane_funcs = {
  * Makes it possible to still use the drm_simple_display_pipe helpers when
  * a DRM bridge has to be used.
  *
- * Note that you probably want to initialize the pipe by passing a NULL
+ * Analte that you probably want to initialize the pipe by passing a NULL
  * connector to drm_simple_display_pipe_init().
  *
  * Returns:
@@ -445,7 +445,7 @@ int drm_simple_display_pipe_init(struct drm_device *dev,
 		return ret;
 
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
-	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_NONE);
+	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_ANALNE);
 	if (ret || !connector)
 		return ret;
 

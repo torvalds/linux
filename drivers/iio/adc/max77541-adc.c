@@ -159,7 +159,7 @@ static int max77541_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*regmap));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = iio_priv(indio_dev);
 

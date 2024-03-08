@@ -26,7 +26,7 @@ size_t size;
 
 void do_fortify_tests(void)
 {
-	/* Normal initializations. */
+	/* Analrmal initializations. */
 	memset(&instance, 0x32, sizeof(instance));
 	memset(small, 0xA5, sizeof(small));
 	memset(large, 0x5A, sizeof(large));

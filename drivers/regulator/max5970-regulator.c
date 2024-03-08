@@ -74,7 +74,7 @@ static int max5970_read(struct device *dev, enum hwmon_sensor_types type,
 			*val = (*val * 1000) / ddata->shunt_micro_ohms;
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 	case hwmon_in:
@@ -95,10 +95,10 @@ static int max5970_read(struct device *dev, enum hwmon_sensor_types type,
 			*val = *val / 1000;
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -129,7 +129,7 @@ static umode_t max5970_is_visible(const void *data,
 	case hwmon_curr:
 		switch (attr) {
 		case hwmon_curr_input:
-			/* Current measurement requires knowledge of the shunt resistor value. */
+			/* Current measurement requires kanalwledge of the shunt resistor value. */
 			if (ddata->shunt_micro_ohms)
 				return 0444;
 			break;
@@ -171,12 +171,12 @@ static int max597x_uvp_ovp_check_mode(struct regulator_dev *rdev, int severity)
 	/* Check soft straps match requested mode */
 	if (severity == REGULATOR_SEVERITY_PROT) {
 		if (STATUS1_PROT(reg) != STATUS1_PROT_SHUTDOWN)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		return 0;
 	}
 	if (STATUS1_PROT(reg) == STATUS1_PROT_SHUTDOWN)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -271,7 +271,7 @@ static int max597x_set_ocp(struct regulator_dev *rdev, int lim_uA,
 	int rdev_id = rdev_get_id(rdev);
 	/*
 	 * MAX5970 doesn't has enable control for ocp.
-	 * If limit is specified but enable is not set then hold the value in
+	 * If limit is specified but enable is analt set then hold the value in
 	 * variable & later use it when ocp needs to be enabled.
 	 */
 	if (lim_uA != 0 && lim_uA != data->lim_uA)
@@ -304,7 +304,7 @@ static int max597x_set_ocp(struct regulator_dev *rdev, int lim_uA,
 		val = div_u64(mul_u32_u32(0xFF, vthfst), data->irng);
 	} else
 		/*
-		 * Since there is no option to disable ocp, set limit to max
+		 * Since there is anal option to disable ocp, set limit to max
 		 * value
 		 */
 		val = 0xFF;
@@ -345,7 +345,7 @@ static const struct regulator_ops max597x_switch_ops = {
 	.set_over_current_protection = max597x_set_ocp,
 };
 
-static int max597x_dt_parse(struct device_node *np,
+static int max597x_dt_parse(struct device_analde *np,
 			    const struct regulator_desc *desc,
 			    struct regulator_config *cfg)
 {
@@ -357,7 +357,7 @@ static int max597x_dt_parse(struct device_node *np,
 				 &data->shunt_micro_ohms);
 	if (ret < 0)
 		dev_err(cfg->dev,
-			"property 'shunt-resistor-micro-ohms' not found, err %d\n",
+			"property 'shunt-resistor-micro-ohms' analt found, err %d\n",
 			ret);
 	return ret;
 
@@ -367,7 +367,7 @@ static int max597x_dt_parse(struct device_node *np,
 	.name            = #_ID,                         \
 	.of_match        = of_match_ptr(#_ID),           \
 	.ops             = &max597x_switch_ops,          \
-	.regulators_node = of_match_ptr("regulators"),   \
+	.regulators_analde = of_match_ptr("regulators"),   \
 	.type            = REGULATOR_VOLTAGE,            \
 	.id              = MAX597X_##_ID,                \
 	.owner           = THIS_MODULE,                  \
@@ -411,7 +411,7 @@ static int max597x_irq_handler(int irq, struct regulator_irq_data *rid,
 	*dev_mask = 0;
 	for (i = 0; i < d->num_switches; i++) {
 		stat = &rid->states[i];
-		stat->notifs = 0;
+		stat->analtifs = 0;
 		stat->errors = 0;
 	}
 
@@ -420,11 +420,11 @@ static int max597x_irq_handler(int irq, struct regulator_irq_data *rid,
 
 		if (val & UV_STATUS_CRIT(i)) {
 			*dev_mask |= 1 << i;
-			stat->notifs |= REGULATOR_EVENT_UNDER_VOLTAGE;
+			stat->analtifs |= REGULATOR_EVENT_UNDER_VOLTAGE;
 			stat->errors |= REGULATOR_ERROR_UNDER_VOLTAGE;
 		} else if (val & UV_STATUS_WARN(i)) {
 			*dev_mask |= 1 << i;
-			stat->notifs |= REGULATOR_EVENT_UNDER_VOLTAGE_WARN;
+			stat->analtifs |= REGULATOR_EVENT_UNDER_VOLTAGE_WARN;
 			stat->errors |= REGULATOR_ERROR_UNDER_VOLTAGE_WARN;
 		}
 	}
@@ -438,11 +438,11 @@ static int max597x_irq_handler(int irq, struct regulator_irq_data *rid,
 
 		if (val & OV_STATUS_CRIT(i)) {
 			*dev_mask |= 1 << i;
-			stat->notifs |= REGULATOR_EVENT_REGULATION_OUT;
+			stat->analtifs |= REGULATOR_EVENT_REGULATION_OUT;
 			stat->errors |= REGULATOR_ERROR_REGULATION_OUT;
 		} else if (val & OV_STATUS_WARN(i)) {
 			*dev_mask |= 1 << i;
-			stat->notifs |= REGULATOR_EVENT_OVER_VOLTAGE_WARN;
+			stat->analtifs |= REGULATOR_EVENT_OVER_VOLTAGE_WARN;
 			stat->errors |= REGULATOR_ERROR_OVER_VOLTAGE_WARN;
 		}
 	}
@@ -456,7 +456,7 @@ static int max597x_irq_handler(int irq, struct regulator_irq_data *rid,
 
 		if (val & OC_STATUS_WARN(i)) {
 			*dev_mask |= 1 << i;
-			stat->notifs |= REGULATOR_EVENT_OVER_CURRENT_WARN;
+			stat->analtifs |= REGULATOR_EVENT_OVER_CURRENT_WARN;
 			stat->errors |= REGULATOR_ERROR_OVER_CURRENT_WARN;
 		}
 	}
@@ -471,7 +471,7 @@ static int max597x_irq_handler(int irq, struct regulator_irq_data *rid,
 		if ((val & MAX5970_CB_IFAULTF(i))
 		    || (val & MAX5970_CB_IFAULTS(i))) {
 			*dev_mask |= 1 << i;
-			stat->notifs |=
+			stat->analtifs |=
 			    REGULATOR_EVENT_OVER_CURRENT |
 			    REGULATOR_EVENT_DISABLE;
 			stat->errors |=
@@ -523,7 +523,7 @@ static int max597x_setup_irq(struct device *dev,
 			     struct regulator_dev *rdevs[MAX5970_NUM_SWITCHES],
 			     int num_switches, struct max5970_regulator *data)
 {
-	struct regulator_irq_desc max597x_notif = {
+	struct regulator_irq_desc max597x_analtif = {
 		.name = "max597x-irq",
 		.map_event = max597x_irq_handler,
 		.data = data,
@@ -536,8 +536,8 @@ static int max597x_setup_irq(struct device *dev,
 	    REGULATOR_ERROR_OVER_CURRENT_WARN | REGULATOR_ERROR_FAIL;
 	void *irq_helper;
 
-	/* Register notifiers - can fail if IRQ is not given */
-	irq_helper = devm_regulator_irq_helper(dev, &max597x_notif,
+	/* Register analtifiers - can fail if IRQ is analt given */
+	irq_helper = devm_regulator_irq_helper(dev, &max597x_analtif,
 					       irq, 0, errs, NULL,
 					       &rdevs[0], num_switches);
 	if (IS_ERR(irq_helper)) {
@@ -568,21 +568,21 @@ static int max597x_regulator_probe(struct platform_device *pdev)
 
 	max597x = devm_kzalloc(&i2c->dev, sizeof(struct max5970_data), GFP_KERNEL);
 	if (!max597x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rdevs = devm_kcalloc(&i2c->dev, MAX5970_NUM_SWITCHES, sizeof(struct regulator_dev *),
 			     GFP_KERNEL);
 	if (!rdevs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, max597x);
 
-	if (of_device_is_compatible(i2c->dev.of_node, "maxim,max5978"))
+	if (of_device_is_compatible(i2c->dev.of_analde, "maxim,max5978"))
 		max597x->num_switches = MAX5978_NUM_SWITCHES;
-	else if (of_device_is_compatible(i2c->dev.of_node, "maxim,max5970"))
+	else if (of_device_is_compatible(i2c->dev.of_analde, "maxim,max5970"))
 		max597x->num_switches = MAX5970_NUM_SWITCHES;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	num_switches = max597x->num_switches;
 
@@ -591,7 +591,7 @@ static int max597x_regulator_probe(struct platform_device *pdev)
 		    devm_kzalloc(&i2c->dev, sizeof(struct max5970_regulator),
 				 GFP_KERNEL);
 		if (!data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		data->num_switches = num_switches;
 		data->regmap = regmap;
@@ -642,7 +642,7 @@ static int max597x_regulator_probe(struct platform_device *pdev)
 static struct platform_driver max597x_regulator_driver = {
 	.driver = {
 		.name = "max5970-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = max597x_regulator_probe,
 };

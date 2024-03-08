@@ -151,7 +151,7 @@ static void vdpa_release_dev(struct device *d)
  * Driver should use vdpa_alloc_device() wrapper macro instead of
  * using this directly.
  *
- * Return: Returns an error when parent/config/dma_dev is not set or fail to get
+ * Return: Returns an error when parent/config/dma_dev is analt set or fail to get
  *	   ida.
  */
 struct vdpa_device *__vdpa_alloc_device(struct device *parent,
@@ -173,7 +173,7 @@ struct vdpa_device *__vdpa_alloc_device(struct device *parent,
 	if (use_va && !(config->dma_map || config->set_map))
 		goto err;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	vdev = kzalloc(size, GFP_KERNEL);
 	if (!vdev)
 		goto err;
@@ -331,7 +331,7 @@ EXPORT_SYMBOL_GPL(vdpa_unregister_driver);
  * @mdev: Pointer to vdpa management device
  * vdpa_mgmtdev_register() register a vdpa management device which supports
  * vdpa device management.
- * Return: Returns 0 on success or failure when required callback ops are not
+ * Return: Returns 0 on success or failure when required callback ops are analt
  *         initialized.
  */
 int vdpa_mgmtdev_register(struct vdpa_mgmt_dev *mdev)
@@ -420,7 +420,7 @@ EXPORT_SYMBOL_GPL(vdpa_set_config);
 static bool mgmtdev_handle_match(const struct vdpa_mgmt_dev *mdev,
 				 const char *busname, const char *devname)
 {
-	/* Bus name is optional for simulated management device, so ignore the
+	/* Bus name is optional for simulated management device, so iganalre the
 	 * device with bus if bus attribute is provided.
 	 */
 	if ((busname && !mdev->device->bus) || (!busname && mdev->device->bus))
@@ -452,7 +452,7 @@ static struct vdpa_mgmt_dev *vdpa_mgmtdev_get_from_attr(struct nlattr **attrs)
 		if (mgmtdev_handle_match(mdev, busname, devname))
 			return mdev;
 	}
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static int vdpa_nl_mgmtdev_handle_fill(struct sk_buff *msg, const struct vdpa_mgmt_dev *mdev)
@@ -529,7 +529,7 @@ static int vdpa_nl_cmd_mgmtdev_get_doit(struct sk_buff *skb, struct genl_info *i
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	down_read(&vdpa_dev_lock);
 	mdev = vdpa_mgmtdev_get_from_attr(info->attrs);
@@ -671,9 +671,9 @@ static int vdpa_nl_cmd_dev_add_set_doit(struct sk_buff *skb, struct genl_info *i
 
 	if ((config.mask & mdev->config_attr_mask) != config.mask) {
 		NL_SET_ERR_MSG_FMT_MOD(info->extack,
-				       "Some provided attributes are not supported: 0x%llx",
+				       "Some provided attributes are analt supported: 0x%llx",
 				       config.mask & ~mdev->config_attr_mask);
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto err;
 	}
 
@@ -716,8 +716,8 @@ static int vdpa_nl_cmd_dev_del_set_doit(struct sk_buff *skb, struct genl_info *i
 	down_write(&vdpa_dev_lock);
 	dev = bus_find_device(&vdpa_bus, NULL, name, vdpa_name_match);
 	if (!dev) {
-		NL_SET_ERR_MSG_MOD(info->extack, "device not found");
-		err = -ENODEV;
+		NL_SET_ERR_MSG_MOD(info->extack, "device analt found");
+		err = -EANALDEV;
 		goto dev_err;
 	}
 	vdev = container_of(dev, struct vdpa_device, dev);
@@ -795,13 +795,13 @@ static int vdpa_nl_cmd_dev_get_doit(struct sk_buff *skb, struct genl_info *info)
 	devname = nla_data(info->attrs[VDPA_ATTR_DEV_NAME]);
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	down_read(&vdpa_dev_lock);
 	dev = bus_find_device(&vdpa_bus, NULL, devname, vdpa_name_match);
 	if (!dev) {
-		NL_SET_ERR_MSG_MOD(info->extack, "device not found");
-		err = -ENODEV;
+		NL_SET_ERR_MSG_MOD(info->extack, "device analt found");
+		err = -EANALDEV;
 		goto err;
 	}
 	vdev = container_of(dev, struct vdpa_device, dev);
@@ -989,7 +989,7 @@ vdpa_dev_config_fill(struct vdpa_device *vdev, struct sk_buff *msg, u32 portid, 
 		err = vdpa_dev_net_config_fill(vdev, msg);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 	if (err)
@@ -1016,7 +1016,7 @@ static int vdpa_fill_stats_rec(struct vdpa_device *vdev, struct sk_buff *msg,
 
 	status = vdev->config->get_status(vdev);
 	if (!(status & VIRTIO_CONFIG_S_FEATURES_OK)) {
-		NL_SET_ERR_MSG_MOD(info->extack, "feature negotiation not complete");
+		NL_SET_ERR_MSG_MOD(info->extack, "feature negotiation analt complete");
 		return -EAGAIN;
 	}
 	vdpa_get_config_unlocked(vdev, 0, &config, sizeof(config));
@@ -1047,7 +1047,7 @@ static int vendor_stats_fill(struct vdpa_device *vdev, struct sk_buff *msg,
 
 	down_read(&vdev->cf_lock);
 	if (!vdev->config->get_vendor_vq_stats) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -1095,7 +1095,7 @@ static int vdpa_dev_vendor_stats_fill(struct vdpa_device *vdev,
 		err = vendor_stats_fill(vdev, msg, info, index);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 	genlmsg_end(msg, hdr);
@@ -1120,13 +1120,13 @@ static int vdpa_nl_cmd_dev_config_get_doit(struct sk_buff *skb, struct genl_info
 	devname = nla_data(info->attrs[VDPA_ATTR_DEV_NAME]);
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	down_read(&vdpa_dev_lock);
 	dev = bus_find_device(&vdpa_bus, NULL, devname, vdpa_name_match);
 	if (!dev) {
-		NL_SET_ERR_MSG_MOD(info->extack, "device not found");
-		err = -ENODEV;
+		NL_SET_ERR_MSG_MOD(info->extack, "device analt found");
+		err = -EANALDEV;
 		goto dev_err;
 	}
 	vdev = container_of(dev, struct vdpa_device, dev);
@@ -1207,14 +1207,14 @@ static int vdpa_nl_cmd_dev_stats_get_doit(struct sk_buff *skb,
 	devname = nla_data(info->attrs[VDPA_ATTR_DEV_NAME]);
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	index = nla_get_u32(info->attrs[VDPA_ATTR_DEV_QUEUE_INDEX]);
 	down_read(&vdpa_dev_lock);
 	dev = bus_find_device(&vdpa_bus, NULL, devname, vdpa_name_match);
 	if (!dev) {
-		NL_SET_ERR_MSG_MOD(info->extack, "device not found");
-		err = -ENODEV;
+		NL_SET_ERR_MSG_MOD(info->extack, "device analt found");
+		err = -EANALDEV;
 		goto dev_err;
 	}
 	vdev = container_of(dev, struct vdpa_device, dev);

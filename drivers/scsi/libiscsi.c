@@ -124,7 +124,7 @@ static void __iscsi_update_cmdsn(struct iscsi_session *session,
 		session->max_cmdsn = max_cmdsn;
 }
 
-void iscsi_update_cmdsn(struct iscsi_session *session, struct iscsi_nopin *hdr)
+void iscsi_update_cmdsn(struct iscsi_session *session, struct iscsi_analpin *hdr)
 {
 	__iscsi_update_cmdsn(session, be32_to_cpu(hdr->exp_cmdsn),
 			     be32_to_cpu(hdr->max_cmdsn));
@@ -137,7 +137,7 @@ EXPORT_SYMBOL_GPL(iscsi_update_cmdsn);
  * @r2t: R2T info
  * @hdr: iscsi data in pdu
  *
- * Notes:
+ * Analtes:
  *	Initialize Data-Out within this R2T sequence and finds
  *	proper data_offset within this SCSI command.
  *
@@ -360,7 +360,7 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_task *task)
 	memcpy(hdr->cdb, sc->cmnd, cmd_len);
 
 	task->imm_count = 0;
-	if (scsi_get_prot_op(sc) != SCSI_PROT_NORMAL)
+	if (scsi_get_prot_op(sc) != SCSI_PROT_ANALRMAL)
 		task->protected = true;
 
 	transfer_length = scsi_transfer_length(sc);
@@ -406,7 +406,7 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_task *task)
 		}
 
 		if (!task->unsol_r2t.data_length)
-			/* No unsolicit Data-Out's */
+			/* Anal unsolicit Data-Out's */
 			hdr->flags |= ISCSI_FLAG_CMD_FINAL;
 	} else {
 		hdr->flags |= ISCSI_FLAG_CMD_FINAL;
@@ -465,7 +465,7 @@ static void iscsi_free_task(struct iscsi_task *task)
 	task->state = ISCSI_TASK_FREE;
 	task->sc = NULL;
 	/*
-	 * login task is preallocated so do not free
+	 * login task is preallocated so do analt free
 	 */
 	if (conn->login_task == task)
 		return;
@@ -486,7 +486,7 @@ static void iscsi_free_task(struct iscsi_task *task)
 
 bool iscsi_get_task(struct iscsi_task *task)
 {
-	return refcount_inc_not_zero(&task->refcount);
+	return refcount_inc_analt_zero(&task->refcount);
 }
 EXPORT_SYMBOL_GPL(iscsi_get_task);
 
@@ -545,12 +545,12 @@ static void iscsi_complete_task(struct iscsi_task *task, int state)
 }
 
 /**
- * iscsi_complete_scsi_task - finish scsi task normally
+ * iscsi_complete_scsi_task - finish scsi task analrmally
  * @task: iscsi task for scsi cmd
  * @exp_cmdsn: expected cmd sn in cpu format
  * @max_cmdsn: max cmd sn in cpu format
  *
- * This is used when drivers do not need or cannot perform
+ * This is used when drivers do analt need or cananalt perform
  * lower level pdu processing.
  *
  * Called with session back_lock
@@ -578,7 +578,7 @@ static bool cleanup_queued_task(struct iscsi_task *task)
 
 	/*
 	 * We might have raced where we handled a R2T early and got a response
-	 * but have not yet taken the task off the requeue list, then a TMF or
+	 * but have analt yet taken the task off the requeue list, then a TMF or
 	 * recovery happened and so we can still see it here.
 	 */
 	if (task->state == ISCSI_TASK_COMPLETED)
@@ -609,7 +609,7 @@ static bool cleanup_queued_task(struct iscsi_task *task)
 }
 
 /*
- * session back and frwd lock must be held and if not called for a task that
+ * session back and frwd lock must be held and if analt called for a task that
  * is still pending or from the xmit thread, then xmit thread must be suspended
  */
 static void __fail_scsi_task(struct iscsi_task *task, int err)
@@ -623,11 +623,11 @@ static void __fail_scsi_task(struct iscsi_task *task, int err)
 
 	if (task->state == ISCSI_TASK_PENDING) {
 		/*
-		 * cmd never made it to the xmit thread, so we should not count
+		 * cmd never made it to the xmit thread, so we should analt count
 		 * the cmd in the sequencing
 		 */
 		conn->session->queued_cmdsn--;
-		/* it was never sent so just complete like normal */
+		/* it was never sent so just complete like analrmal */
 		state = ISCSI_TASK_COMPLETED;
 	} else if (err == DID_TRANSPORT_DISRUPTED)
 		state = ISCSI_TASK_ABRT_SESS_RECOV;
@@ -654,25 +654,25 @@ static int iscsi_prep_mgmt_task(struct iscsi_conn *conn,
 {
 	struct iscsi_session *session = conn->session;
 	struct iscsi_hdr *hdr = task->hdr;
-	struct iscsi_nopout *nop = (struct iscsi_nopout *)hdr;
+	struct iscsi_analpout *analp = (struct iscsi_analpout *)hdr;
 	uint8_t opcode = hdr->opcode & ISCSI_OPCODE_MASK;
 
 	if (conn->session->state == ISCSI_STATE_LOGGING_OUT)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if (opcode != ISCSI_OP_LOGIN && opcode != ISCSI_OP_TEXT)
-		nop->exp_statsn = cpu_to_be32(conn->exp_statsn);
+		analp->exp_statsn = cpu_to_be32(conn->exp_statsn);
 	/*
 	 * pre-format CmdSN for outgoing PDU.
 	 */
-	nop->cmdsn = cpu_to_be32(session->cmdsn);
+	analp->cmdsn = cpu_to_be32(session->cmdsn);
 	if (hdr->itt != RESERVED_ITT) {
 		/*
-		 * TODO: We always use immediate for normal session pdus.
-		 * If we start to send tmfs or nops as non-immediate then
+		 * TODO: We always use immediate for analrmal session pdus.
+		 * If we start to send tmfs or analps as analn-immediate then
 		 * we should start checking the cmdsn numbers for mgmt tasks.
 		 *
-		 * During discovery sessions iscsid sends TEXT as non immediate,
+		 * During discovery sessions iscsid sends TEXT as analn immediate,
 		 * but we always only send one PDU at a time.
 		 */
 		if (conn->c_stage == ISCSI_CONN_STARTED &&
@@ -720,11 +720,11 @@ iscsi_alloc_mgmt_task(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		 * Login and Text are sent serially, in
 		 * request-followed-by-response sequence.
 		 * Same task can be used. Same ITT must be used.
-		 * Note that login_task is preallocated at conn_create().
+		 * Analte that login_task is preallocated at conn_create().
 		 */
 		if (conn->login_task->state != ISCSI_TASK_FREE) {
 			iscsi_conn_printk(KERN_ERR, conn, "Login/Text in "
-					  "progress. Cannot start new task.\n");
+					  "progress. Cananalt start new task.\n");
 			return NULL;
 		}
 
@@ -739,7 +739,7 @@ iscsi_alloc_mgmt_task(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			return NULL;
 
 		if (data_size != 0) {
-			iscsi_conn_printk(KERN_ERR, conn, "Can not send data buffer of len %u for op 0x%x\n", data_size, opcode);
+			iscsi_conn_printk(KERN_ERR, conn, "Can analt send data buffer of len %u for op 0x%x\n", data_size, opcode);
 			return NULL;
 		}
 
@@ -753,7 +753,7 @@ iscsi_alloc_mgmt_task(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	/*
 	 * released in complete pdu for task we expect a response for, and
 	 * released by the lld when it has transmitted the task for
-	 * pdus we do not expect a response for.
+	 * pdus we do analt expect a response for.
 	 */
 	refcount_set(&task->refcount, 1);
 	task->conn = conn;
@@ -769,7 +769,7 @@ iscsi_alloc_mgmt_task(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 
 	if (conn->session->tt->alloc_pdu) {
 		if (conn->session->tt->alloc_pdu(task, hdr->opcode)) {
-			iscsi_conn_printk(KERN_ERR, conn, "Could not allocate "
+			iscsi_conn_printk(KERN_ERR, conn, "Could analt allocate "
 					 "pdu for mgmt task.\n");
 			goto free_task;
 		}
@@ -798,7 +798,7 @@ free_task:
  * iscsi_send_mgmt_task - Send task created with iscsi_alloc_mgmt_task.
  * @task: iscsi task to send.
  *
- * On failure this returns a non-zero error code, and the driver must free
+ * On failure this returns a analn-zero error code, and the driver must free
  * the task with iscsi_put_task;
  */
 static int iscsi_send_mgmt_task(struct iscsi_task *task)
@@ -832,7 +832,7 @@ static int __iscsi_conn_send_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 
 	task = iscsi_alloc_mgmt_task(conn, hdr, data, data_size);
 	if (!task)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = iscsi_send_mgmt_task(task);
 	if (rc)
@@ -874,7 +874,7 @@ static void iscsi_scsi_cmd_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	struct iscsi_session *session = conn->session;
 	struct scsi_cmnd *sc = task->sc;
 
-	iscsi_update_cmdsn(session, (struct iscsi_nopin*)rhdr);
+	iscsi_update_cmdsn(session, (struct iscsi_analpin*)rhdr);
 	conn->exp_statsn = be32_to_cpu(rhdr->statsn) + 1;
 
 	sc->result = (DID_OK << 16) | rhdr->cmd_status;
@@ -971,7 +971,7 @@ iscsi_data_in_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	if (!(rhdr->flags & ISCSI_FLAG_DATA_STATUS))
 		return;
 
-	iscsi_update_cmdsn(conn->session, (struct iscsi_nopin *)hdr);
+	iscsi_update_cmdsn(conn->session, (struct iscsi_analpin *)hdr);
 	sc->result = (DID_OK << 16) | rhdr->cmd_status;
 	conn->exp_statsn = be32_to_cpu(rhdr->statsn) + 1;
 	if (rhdr->flags & (ISCSI_FLAG_DATA_UNDERFLOW |
@@ -1006,16 +1006,16 @@ static void iscsi_tmf_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 
 	if (tmf->response == ISCSI_TMF_RSP_COMPLETE)
 		session->tmf_state = TMF_SUCCESS;
-	else if (tmf->response == ISCSI_TMF_RSP_NO_TASK)
-		session->tmf_state = TMF_NOT_FOUND;
+	else if (tmf->response == ISCSI_TMF_RSP_ANAL_TASK)
+		session->tmf_state = TMF_ANALT_FOUND;
 	else
 		session->tmf_state = TMF_FAILED;
 	wake_up(&session->ehwait);
 }
 
-static int iscsi_send_nopout(struct iscsi_conn *conn, struct iscsi_nopin *rhdr)
+static int iscsi_send_analpout(struct iscsi_conn *conn, struct iscsi_analpin *rhdr)
 {
-        struct iscsi_nopout hdr;
+        struct iscsi_analpout hdr;
 	struct iscsi_task *task;
 
 	if (!rhdr) {
@@ -1023,8 +1023,8 @@ static int iscsi_send_nopout(struct iscsi_conn *conn, struct iscsi_nopin *rhdr)
 			return -EINVAL;
 	}
 
-	memset(&hdr, 0, sizeof(struct iscsi_nopout));
-	hdr.opcode = ISCSI_OP_NOOP_OUT | ISCSI_OP_IMMEDIATE;
+	memset(&hdr, 0, sizeof(struct iscsi_analpout));
+	hdr.opcode = ISCSI_OP_ANALOP_OUT | ISCSI_OP_IMMEDIATE;
 	hdr.flags = ISCSI_FLAG_CMD_FINAL;
 
 	if (rhdr) {
@@ -1036,7 +1036,7 @@ static int iscsi_send_nopout(struct iscsi_conn *conn, struct iscsi_nopin *rhdr)
 
 	task = iscsi_alloc_mgmt_task(conn, (struct iscsi_hdr *)&hdr, NULL, 0);
 	if (!task)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!rhdr)
 		WRITE_ONCE(conn->ping_task, task);
@@ -1046,10 +1046,10 @@ static int iscsi_send_nopout(struct iscsi_conn *conn, struct iscsi_nopin *rhdr)
 			WRITE_ONCE(conn->ping_task, NULL);
 		iscsi_put_task(task);
 
-		iscsi_conn_printk(KERN_ERR, conn, "Could not send nopout\n");
+		iscsi_conn_printk(KERN_ERR, conn, "Could analt send analpout\n");
 		return -EIO;
 	} else if (!rhdr) {
-		/* only track our nops */
+		/* only track our analps */
 		conn->last_ping = jiffies;
 	}
 
@@ -1057,27 +1057,27 @@ static int iscsi_send_nopout(struct iscsi_conn *conn, struct iscsi_nopin *rhdr)
 }
 
 /**
- * iscsi_nop_out_rsp - SCSI NOP Response processing
+ * iscsi_analp_out_rsp - SCSI ANALP Response processing
  * @task: scsi command task
- * @nop: the nop structure
+ * @analp: the analp structure
  * @data: where to put the data
  * @datalen: length of data
  *
- * iscsi_nop_out_rsp handles nop response from use or
+ * iscsi_analp_out_rsp handles analp response from use or
  * from user space. called under back_lock
  **/
-static int iscsi_nop_out_rsp(struct iscsi_task *task,
-			     struct iscsi_nopin *nop, char *data, int datalen)
+static int iscsi_analp_out_rsp(struct iscsi_task *task,
+			     struct iscsi_analpin *analp, char *data, int datalen)
 {
 	struct iscsi_conn *conn = task->conn;
 	int rc = 0;
 
 	if (READ_ONCE(conn->ping_task) != task) {
 		/*
-		 * If this is not in response to one of our
-		 * nops then it must be from userspace.
+		 * If this is analt in response to one of our
+		 * analps then it must be from userspace.
 		 */
-		if (iscsi_recv_pdu(conn->cls_conn, (struct iscsi_hdr *)nop,
+		if (iscsi_recv_pdu(conn->cls_conn, (struct iscsi_hdr *)analp,
 				   data, datalen))
 			rc = ISCSI_ERR_CONN_FAILED;
 	} else
@@ -1097,7 +1097,7 @@ static int iscsi_handle_reject(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 
 	if (ntoh24(reject->dlength) > datalen ||
 	    ntoh24(reject->dlength) < sizeof(struct iscsi_hdr)) {
-		iscsi_conn_printk(KERN_ERR, conn, "Cannot handle rejected "
+		iscsi_conn_printk(KERN_ERR, conn, "Cananalt handle rejected "
 				  "pdu. Invalid data length (pdu dlength "
 				  "%u, datalen %d\n", ntoh24(reject->dlength),
 				  datalen);
@@ -1119,43 +1119,43 @@ static int iscsi_handle_reject(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 				  "immediate commands.\n",
 				  opcode, rejected_pdu.itt);
 		/*
-		 * We only send one TMF at a time so if the target could not
+		 * We only send one TMF at a time so if the target could analt
 		 * handle it, then it should get fixed (RFC mandates that
 		 * a target can handle one immediate TMF per conn).
 		 *
-		 * For nops-outs, we could have sent more than one if
-		 * the target is sending us lots of nop-ins
+		 * For analps-outs, we could have sent more than one if
+		 * the target is sending us lots of analp-ins
 		 */
-		if (opcode != ISCSI_OP_NOOP_OUT)
+		if (opcode != ISCSI_OP_ANALOP_OUT)
 			return 0;
 
 		if (rejected_pdu.itt == cpu_to_be32(ISCSI_RESERVED_TAG)) {
 			/*
-			 * nop-out in response to target's nop-out rejected.
+			 * analp-out in response to target's analp-out rejected.
 			 * Just resend.
 			 */
 			/* In RX path we are under back lock */
 			spin_unlock(&conn->session->back_lock);
 			spin_lock(&conn->session->frwd_lock);
-			iscsi_send_nopout(conn,
-					  (struct iscsi_nopin*)&rejected_pdu);
+			iscsi_send_analpout(conn,
+					  (struct iscsi_analpin*)&rejected_pdu);
 			spin_unlock(&conn->session->frwd_lock);
 			spin_lock(&conn->session->back_lock);
 		} else {
 			struct iscsi_task *task;
 			/*
-			 * Our nop as ping got dropped. We know the target
+			 * Our analp as ping got dropped. We kanalw the target
 			 * and transport are ok so just clean up
 			 */
 			task = iscsi_itt_to_task(conn, rejected_pdu.itt);
 			if (!task) {
 				iscsi_conn_printk(KERN_ERR, conn,
 						 "Invalid pdu reject. Could "
-						 "not lookup rejected task.\n");
+						 "analt lookup rejected task.\n");
 				rc = ISCSI_ERR_BAD_ITT;
 			} else
-				rc = iscsi_nop_out_rsp(task,
-					(struct iscsi_nopin*)&rejected_pdu,
+				rc = iscsi_analp_out_rsp(task,
+					(struct iscsi_analpin*)&rejected_pdu,
 					NULL, 0);
 		}
 		break;
@@ -1174,8 +1174,8 @@ static int iscsi_handle_reject(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
  * @conn: iscsi connection
  * @itt: itt
  *
- * This should be used for mgmt tasks like login and nops, or if
- * the LDD's itt space does not include the session age.
+ * This should be used for mgmt tasks like login and analps, or if
+ * the LDD's itt space does analt include the session age.
  *
  * The session back_lock must be held.
  */
@@ -1231,10 +1231,10 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			  opcode, conn->id, itt, datalen);
 
 	if (itt == ~0U) {
-		iscsi_update_cmdsn(session, (struct iscsi_nopin*)hdr);
+		iscsi_update_cmdsn(session, (struct iscsi_analpin*)hdr);
 
 		switch(opcode) {
-		case ISCSI_OP_NOOP_IN:
+		case ISCSI_OP_ANALOP_IN:
 			if (datalen) {
 				rc = ISCSI_ERR_PROTO;
 				break;
@@ -1246,7 +1246,7 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			/* In RX path we are under back lock */
 			spin_unlock(&session->back_lock);
 			spin_lock(&session->frwd_lock);
-			iscsi_send_nopout(conn, (struct iscsi_nopin*)hdr);
+			iscsi_send_analpout(conn, (struct iscsi_analpin*)hdr);
 			spin_unlock(&session->frwd_lock);
 			spin_lock(&session->back_lock);
 			break;
@@ -1282,7 +1282,7 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	case ISCSI_OP_LOGIN_RSP:
 	case ISCSI_OP_TEXT_RSP:
 	case ISCSI_OP_SCSI_TMFUNC_RSP:
-	case ISCSI_OP_NOOP_IN:
+	case ISCSI_OP_ANALOP_IN:
 		task = iscsi_itt_to_task(conn, hdr->itt);
 		if (!task)
 			return ISCSI_ERR_BAD_ITT;
@@ -1299,7 +1299,7 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		iscsi_data_in_rsp(conn, hdr, task);
 		break;
 	case ISCSI_OP_LOGOUT_RSP:
-		iscsi_update_cmdsn(session, (struct iscsi_nopin*)hdr);
+		iscsi_update_cmdsn(session, (struct iscsi_analpin*)hdr);
 		if (datalen) {
 			rc = ISCSI_ERR_PROTO;
 			break;
@@ -1308,14 +1308,14 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		goto recv_pdu;
 	case ISCSI_OP_LOGIN_RSP:
 	case ISCSI_OP_TEXT_RSP:
-		iscsi_update_cmdsn(session, (struct iscsi_nopin*)hdr);
+		iscsi_update_cmdsn(session, (struct iscsi_analpin*)hdr);
 		/*
 		 * login related PDU's exp_statsn is handled in
 		 * userspace
 		 */
 		goto recv_pdu;
 	case ISCSI_OP_SCSI_TMFUNC_RSP:
-		iscsi_update_cmdsn(session, (struct iscsi_nopin*)hdr);
+		iscsi_update_cmdsn(session, (struct iscsi_analpin*)hdr);
 		if (datalen) {
 			rc = ISCSI_ERR_PROTO;
 			break;
@@ -1324,15 +1324,15 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		iscsi_tmf_rsp(conn, hdr);
 		iscsi_complete_task(task, ISCSI_TASK_COMPLETED);
 		break;
-	case ISCSI_OP_NOOP_IN:
-		iscsi_update_cmdsn(session, (struct iscsi_nopin*)hdr);
+	case ISCSI_OP_ANALOP_IN:
+		iscsi_update_cmdsn(session, (struct iscsi_analpin*)hdr);
 		if (hdr->ttt != cpu_to_be32(ISCSI_RESERVED_TAG) || datalen) {
 			rc = ISCSI_ERR_PROTO;
 			break;
 		}
 		conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
 
-		rc = iscsi_nop_out_rsp(task, (struct iscsi_nopin*)hdr,
+		rc = iscsi_analp_out_rsp(task, (struct iscsi_analpin*)hdr,
 				       data, datalen);
 		break;
 	default:
@@ -1493,7 +1493,7 @@ static int iscsi_check_cmdsn_window_closed(struct iscsi_conn *conn)
 				  "%u MaxCmdSN %u CmdSN %u/%u\n",
 				  session->exp_cmdsn, session->max_cmdsn,
 				  session->cmdsn, session->queued_cmdsn);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	return 0;
 }
@@ -1536,7 +1536,7 @@ static int iscsi_xmit_task(struct iscsi_conn *conn, struct iscsi_task *task,
 		 * task and get woken up again.
 		 */
 		conn->task = task;
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	spin_unlock_bh(&conn->session->frwd_lock);
@@ -1591,7 +1591,7 @@ EXPORT_SYMBOL_GPL(iscsi_requeue_task);
  * iscsi_data_xmit - xmit any command into the scheduled connection
  * @conn: iscsi connection
  *
- * Notes:
+ * Analtes:
  *	The function can return -EAGAIN in which case the caller must
  *	re-schedule it again later or recover. '0' return code means
  *	successful xmit.
@@ -1605,7 +1605,7 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 	if (test_bit(ISCSI_CONN_FLAG_SUSPEND_TX, &conn->flags)) {
 		ISCSI_DBG_SESSION(conn->session, "Tx suspended!\n");
 		spin_unlock_bh(&conn->session->frwd_lock);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	if (conn->task) {
@@ -1615,9 +1615,9 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 	}
 
 	/*
-	 * process mgmt pdus like nops before commands since we should
-	 * only have one nop-out as a ping from us and targets should not
-	 * overflow us with nop-ins
+	 * process mgmt pdus like analps before commands since we should
+	 * only have one analp-out as a ping from us and targets should analt
+	 * overflow us with analp-ins
 	 */
 check_mgmt:
 	while (!list_empty(&conn->mgmtqueue)) {
@@ -1669,7 +1669,7 @@ check_requeue:
 		}
 		rc = iscsi_prep_scsi_cmd_pdu(task);
 		if (rc) {
-			if (rc == -ENOMEM || rc == -EACCES)
+			if (rc == -EANALMEM || rc == -EACCES)
 				fail_scsi_task(task, DID_IMM_RETRY);
 			else
 				fail_scsi_task(task, DID_ABORT);
@@ -1680,7 +1680,7 @@ check_requeue:
 			goto done;
 		/*
 		 * we could continuously get new task requests so
-		 * we need to check the mgmt queue for nops that need to
+		 * we need to check the mgmt queue for analps that need to
 		 * be sent to aviod starvation
 		 */
 		if (!list_empty(&conn->mgmtqueue))
@@ -1690,7 +1690,7 @@ check_requeue:
 	}
 
 	spin_unlock_bh(&conn->session->frwd_lock);
-	return -ENODATA;
+	return -EANALDATA;
 
 done:
 	spin_unlock_bh(&conn->session->frwd_lock);
@@ -1744,7 +1744,7 @@ enum {
 	FAILURE_SESSION_IN_RECOVERY,
 	FAILURE_SESSION_RECOVERY_TIMEOUT,
 	FAILURE_SESSION_LOGGING_OUT,
-	FAILURE_SESSION_NOT_READY,
+	FAILURE_SESSION_ANALT_READY,
 };
 
 int iscsi_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc)
@@ -1776,7 +1776,7 @@ int iscsi_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc)
 		 * to handle the race between when we set the recovery state
 		 * and block the session we requeue here (commands could
 		 * be entering our queuecommand while a block is starting
-		 * up because the block code is not locked)
+		 * up because the block code is analt locked)
 		 */
 		switch (session->state) {
 		case ISCSI_STATE_FAILED:
@@ -1786,7 +1786,7 @@ int iscsi_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc)
 			 */
 			if (unlikely(system_state != SYSTEM_RUNNING)) {
 				reason = FAILURE_SESSION_FAILED;
-				sc->result = DID_NO_CONNECT << 16;
+				sc->result = DID_ANAL_CONNECT << 16;
 				break;
 			}
 			fallthrough;
@@ -1804,11 +1804,11 @@ int iscsi_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc)
 			break;
 		case ISCSI_STATE_TERMINATE:
 			reason = FAILURE_SESSION_TERMINATE;
-			sc->result = DID_NO_CONNECT << 16;
+			sc->result = DID_ANAL_CONNECT << 16;
 			break;
 		default:
 			reason = FAILURE_SESSION_FREED;
-			sc->result = DID_NO_CONNECT << 16;
+			sc->result = DID_ANAL_CONNECT << 16;
 		}
 		goto fault;
 	}
@@ -1816,7 +1816,7 @@ int iscsi_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc)
 	conn = session->leadconn;
 	if (!conn) {
 		reason = FAILURE_SESSION_FREED;
-		sc->result = DID_NO_CONNECT << 16;
+		sc->result = DID_ANAL_CONNECT << 16;
 		goto fault;
 	}
 
@@ -1840,7 +1840,7 @@ int iscsi_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc)
 	if (!ihost->workq) {
 		reason = iscsi_prep_scsi_cmd_pdu(task);
 		if (reason) {
-			if (reason == -ENOMEM ||  reason == -EACCES) {
+			if (reason == -EANALMEM ||  reason == -EACCES) {
 				reason = FAILURE_OOM;
 				goto prepd_reject;
 			} else {
@@ -1850,7 +1850,7 @@ int iscsi_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc)
 		}
 		if (session->tt->xmit_task(task)) {
 			session->cmdsn--;
-			reason = FAILURE_SESSION_NOT_READY;
+			reason = FAILURE_SESSION_ANALT_READY;
 			goto prepd_reject;
 		}
 	} else {
@@ -1878,7 +1878,7 @@ prepd_fault:
 	spin_unlock_bh(&session->back_lock);
 fault:
 	spin_unlock_bh(&session->frwd_lock);
-	ISCSI_DBG_SESSION(session, "iscsi: cmd 0x%x is not queued (%d)\n",
+	ISCSI_DBG_SESSION(session, "iscsi: cmd 0x%x is analt queued (%d)\n",
 			  sc->cmnd[0], reason);
 	scsi_set_resid(sc, scsi_bufflen(sc));
 	scsi_done(sc);
@@ -1919,7 +1919,7 @@ static int iscsi_exec_task_mgmt_fn(struct iscsi_conn *conn,
 
 	if (__iscsi_conn_send_pdu(conn, (struct iscsi_hdr *)hdr, NULL, 0)) {
 		spin_unlock_bh(&session->frwd_lock);
-		iscsi_conn_printk(KERN_ERR, conn, "Could not send TMF.\n");
+		iscsi_conn_printk(KERN_ERR, conn, "Could analt send TMF.\n");
 		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
 		spin_lock_bh(&session->frwd_lock);
 		return -EPERM;
@@ -1952,7 +1952,7 @@ static int iscsi_exec_task_mgmt_fn(struct iscsi_conn *conn,
 	/* if the session drops it will clean up the task */
 	if (age != session->age ||
 	    session->state != ISCSI_STATE_LOGGED_IN)
-		return -ENOTCONN;
+		return -EANALTCONN;
 	return 0;
 }
 
@@ -2000,7 +2000,7 @@ restart_cmd_loop:
  * iscsi_suspend_queue - suspend iscsi_queuecommand
  * @conn: iscsi conn to stop queueing IO on
  *
- * This grabs the session frwd_lock to make sure no one is in
+ * This grabs the session frwd_lock to make sure anal one is in
  * xmit_task/queuecommand, and then sets suspend to prevent
  * new commands from being queued. This only needs to be called
  * by offload drivers that need to sync a path like ep disconnect
@@ -2057,7 +2057,7 @@ EXPORT_SYMBOL_GPL(iscsi_suspend_rx);
 
 /*
  * We want to make sure a ping is in flight. It has timed out.
- * And we are not busy processing a pdu that is making
+ * And we are analt busy processing a pdu that is making
  * progress but got started before the ping and is taking a while
  * to complete so the ping is just stuck behind it in a queue.
  */
@@ -2073,7 +2073,7 @@ static int iscsi_has_ping_timed_out(struct iscsi_conn *conn)
 
 enum scsi_timeout_action iscsi_eh_cmd_timed_out(struct scsi_cmnd *sc)
 {
-	enum scsi_timeout_action rc = SCSI_EH_NOT_HANDLED;
+	enum scsi_timeout_action rc = SCSI_EH_ANALT_HANDLED;
 	struct iscsi_task *task = NULL, *running_task;
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
@@ -2091,16 +2091,16 @@ enum scsi_timeout_action iscsi_eh_cmd_timed_out(struct scsi_cmnd *sc)
 	if (!task) {
 		/*
 		 * Raced with completion. Blk layer has taken ownership
-		 * so let timeout code complete it now.
+		 * so let timeout code complete it analw.
 		 */
-		rc = SCSI_EH_NOT_HANDLED;
+		rc = SCSI_EH_ANALT_HANDLED;
 		spin_unlock(&session->back_lock);
 		goto done;
 	}
 	if (!iscsi_get_task(task)) {
 		/*
-		 * Racing with the completion path right now, so give it more
-		 * time so that path can complete it like normal.
+		 * Racing with the completion path right analw, so give it more
+		 * time so that path can complete it like analrmal.
 		 */
 		rc = SCSI_EH_RESET_TIMER;
 		task = NULL;
@@ -2112,15 +2112,15 @@ enum scsi_timeout_action iscsi_eh_cmd_timed_out(struct scsi_cmnd *sc)
 	if (session->state != ISCSI_STATE_LOGGED_IN) {
 		/*
 		 * During shutdown, if session is prematurely disconnected,
-		 * recovery won't happen and there will be hung cmds. Not
+		 * recovery won't happen and there will be hung cmds. Analt
 		 * handling cmds would trigger EH, also bad in this case.
 		 * Instead, handle cmd, allow completion to happen and let
 		 * upper layer to deal with the result.
 		 */
 		if (unlikely(system_state != SYSTEM_RUNNING)) {
-			sc->result = DID_NO_CONNECT << 16;
+			sc->result = DID_ANAL_CONNECT << 16;
 			ISCSI_DBG_EH(session, "sc on shutdown, handled\n");
-			rc = SCSI_EH_NOT_HANDLED;
+			rc = SCSI_EH_ANALT_HANDLED;
 			goto done;
 		}
 		/*
@@ -2141,9 +2141,9 @@ enum scsi_timeout_action iscsi_eh_cmd_timed_out(struct scsi_cmnd *sc)
 	/*
 	 * If we have sent (at least queued to the network layer) a pdu or
 	 * recvd one for the task since the last timeout ask for
-	 * more time. If on the next timeout we have not made progress
+	 * more time. If on the next timeout we have analt made progress
 	 * we can check if it is the task or connection when we send the
-	 * nop as a ping.
+	 * analp as a ping.
 	 */
 	if (time_after(task->last_xfer, task->last_timeout)) {
 		ISCSI_DBG_EH(session, "Command making progress. Asking "
@@ -2183,7 +2183,7 @@ enum scsi_timeout_action iscsi_eh_cmd_timed_out(struct scsi_cmnd *sc)
 
 		if (time_after(running_task->last_xfer, task->last_timeout)) {
 			/*
-			 * This task has not made progress, but a task
+			 * This task has analt made progress, but a task
 			 * started before us has transferred data since
 			 * we started/last-checked. We could be queueing
 			 * too many tasks or the LU is bad.
@@ -2192,7 +2192,7 @@ enum scsi_timeout_action iscsi_eh_cmd_timed_out(struct scsi_cmnd *sc)
 			 * other devs will complete, and this loop will
 			 * eventually fail starting the scsi eh.
 			 */
-			ISCSI_DBG_EH(session, "Command has not made progress "
+			ISCSI_DBG_EH(session, "Command has analt made progress "
 				     "but commands ahead of it have. "
 				     "Asking scsi-ml for more time to "
 				     "complete. Our last xfer vs running task "
@@ -2206,12 +2206,12 @@ enum scsi_timeout_action iscsi_eh_cmd_timed_out(struct scsi_cmnd *sc)
 	}
 	spin_unlock(&session->back_lock);
 
-	/* Assumes nop timeout is shorter than scsi cmd timeout */
+	/* Assumes analp timeout is shorter than scsi cmd timeout */
 	if (task->have_checked_conn)
 		goto done;
 
 	/*
-	 * Checking the transport already or nop from a cmd timeout still
+	 * Checking the transport already or analp from a cmd timeout still
 	 * running
 	 */
 	if (READ_ONCE(conn->ping_task)) {
@@ -2221,7 +2221,7 @@ enum scsi_timeout_action iscsi_eh_cmd_timed_out(struct scsi_cmnd *sc)
 	}
 
 	/* Make sure there is a transport check done */
-	iscsi_send_nopout(conn, NULL);
+	iscsi_send_analpout(conn, NULL);
 	task->have_checked_conn = true;
 	rc = SCSI_EH_RESET_TIMER;
 
@@ -2258,18 +2258,18 @@ static void iscsi_check_transport_timeouts(struct timer_list *t)
 	if (iscsi_has_ping_timed_out(conn)) {
 		iscsi_conn_printk(KERN_ERR, conn, "ping timeout of %d secs "
 				  "expired, recv timeout %d, last rx %lu, "
-				  "last ping %lu, now %lu\n",
+				  "last ping %lu, analw %lu\n",
 				  conn->ping_timeout, conn->recv_timeout,
 				  last_recv, conn->last_ping, jiffies);
 		spin_unlock(&session->frwd_lock);
-		iscsi_conn_failure(conn, ISCSI_ERR_NOP_TIMEDOUT);
+		iscsi_conn_failure(conn, ISCSI_ERR_ANALP_TIMEDOUT);
 		return;
 	}
 
 	if (time_before_eq(last_recv + recv_timeout, jiffies)) {
 		/* send a ping to try to provoke some traffic */
-		ISCSI_DBG_CONN(conn, "Sending nopout as ping\n");
-		if (iscsi_send_nopout(conn, NULL))
+		ISCSI_DBG_CONN(conn, "Sending analpout as ping\n");
+		if (iscsi_send_analpout(conn, NULL))
 			next_timeout = jiffies + (1 * HZ);
 		else
 			next_timeout = conn->last_ping + (conn->ping_timeout * HZ);
@@ -2303,8 +2303,8 @@ void iscsi_conn_unbind(struct iscsi_cls_conn *cls_conn, bool is_active)
 	session = conn->session;
 	/*
 	 * Wait for iscsi_eh calls to exit. We don't wait for the tmf to
-	 * complete or timeout. The caller just wants to know what's running
-	 * is everything that needs to be cleaned up, and no cmds will be
+	 * complete or timeout. The caller just wants to kanalw what's running
+	 * is everything that needs to be cleaned up, and anal cmds will be
 	 * queued.
 	 */
 	mutex_lock(&session->eh_mutex);
@@ -2359,7 +2359,7 @@ completion_check:
 	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->frwd_lock);
 	/*
-	 * if session was ISCSI_STATE_IN_RECOVERY then we may not have
+	 * if session was ISCSI_STATE_IN_RECOVERY then we may analt have
 	 * got the command.
 	 */
 	if (!iscsi_cmd(sc)->task) {
@@ -2371,7 +2371,7 @@ completion_check:
 	}
 
 	/*
-	 * If we are not logged in or we have started a new session
+	 * If we are analt logged in or we have started a new session
 	 * then let the host reset code handle this
 	 */
 	if (!session->leadconn || session->state != ISCSI_STATE_LOGGED_IN ||
@@ -2436,7 +2436,7 @@ completion_check:
 		 */
 		iscsi_suspend_tx(conn);
 		/*
-		 * we do not stop the recv side because targets have been
+		 * we do analt stop the recv side because targets have been
 		 * good and have never sent us a successful tmf response
 		 * then sent more data for the cmd.
 		 */
@@ -2452,7 +2452,7 @@ completion_check:
 		spin_unlock_bh(&session->frwd_lock);
 		iscsi_conn_failure(conn, ISCSI_ERR_SCSI_EH_SESSION_RST);
 		goto failed_unlocked;
-	case TMF_NOT_FOUND:
+	case TMF_ANALT_FOUND:
 		if (iscsi_task_is_completed(task)) {
 			session->tmf_state = TMF_INITIAL;
 			memset(hdr, 0, sizeof(*hdr));
@@ -2484,8 +2484,8 @@ failed_unlocked:
 		     task ? task->itt : 0);
 	/*
 	 * The driver might be accessing the task so hold the ref. The conn
-	 * stop cleanup will drop the ref after ep_disconnect so we know the
-	 * driver's no longer touching the task.
+	 * stop cleanup will drop the ref after ep_disconnect so we kanalw the
+	 * driver's anal longer touching the task.
 	 */
 	if (!session->running_aborted_task)
 		iscsi_put_task(task);
@@ -2523,7 +2523,7 @@ int iscsi_eh_device_reset(struct scsi_cmnd *sc)
 	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->frwd_lock);
 	/*
-	 * Just check if we are not logged in. We cannot check for
+	 * Just check if we are analt logged in. We cananalt check for
 	 * the phase because the reset could come from a ioctl.
 	 */
 	if (!session->leadconn || session->state != ISCSI_STATE_LOGGED_IN)
@@ -2614,7 +2614,7 @@ int iscsi_eh_session_reset(struct scsi_cmnd *sc)
 	if (session->state == ISCSI_STATE_TERMINATE) {
 failed:
 		ISCSI_DBG_EH(session,
-			     "failing session reset: Could not log back into "
+			     "failing session reset: Could analt log back into "
 			     "%s [age %d]\n", session->targetname,
 			     session->age);
 		spin_unlock_bh(&session->frwd_lock);
@@ -2685,7 +2685,7 @@ static int iscsi_eh_target_reset(struct scsi_cmnd *sc)
 	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->frwd_lock);
 	/*
-	 * Just check if we are not logged in. We cannot check for
+	 * Just check if we are analt logged in. We cananalt check for
 	 * the phase because the reset could come from a ioctl.
 	 */
 	if (!session->leadconn || session->state != ISCSI_STATE_LOGGED_IN)
@@ -2763,7 +2763,7 @@ EXPORT_SYMBOL_GPL(iscsi_eh_recover_target);
  * Pre-allocate a pool of @max items of @item_size. By default, the pool
  * should be accessed via kfifo_{get,put} on q->queue.
  * Optionally, the caller can obtain the array of object pointers
- * by passing in a non-NULL @items pointer
+ * by passing in a analn-NULL @items pointer
  */
 int
 iscsi_pool_init(struct iscsi_pool *q, int max, void ***items, int item_size)
@@ -2780,7 +2780,7 @@ iscsi_pool_init(struct iscsi_pool *q, int max, void ***items, int item_size)
 		num_arrays++;
 	q->pool = kvcalloc(num_arrays * max, sizeof(void *), GFP_KERNEL);
 	if (q->pool == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kfifo_init(&q->queue, (void*)q->pool, max * sizeof(void*));
 
@@ -2788,7 +2788,7 @@ iscsi_pool_init(struct iscsi_pool *q, int max, void ***items, int item_size)
 		q->pool[i] = kzalloc(item_size, GFP_KERNEL);
 		if (q->pool[i] == NULL) {
 			q->max = i;
-			goto enomem;
+			goto eanalmem;
 		}
 		kfifo_in(&q->queue, (void*)&q->pool[i], sizeof(void*));
 	}
@@ -2800,9 +2800,9 @@ iscsi_pool_init(struct iscsi_pool *q, int max, void ***items, int item_size)
 
 	return 0;
 
-enomem:
+eanalmem:
 	iscsi_pool_free(q);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL_GPL(iscsi_pool_init);
 
@@ -2825,7 +2825,7 @@ check:
 	if (!total_cmds)
 		total_cmds = ISCSI_DEF_XMIT_CMDS_MAX;
 	/*
-	 * The iscsi layer needs some tasks for nop handling and tmfs,
+	 * The iscsi layer needs some tasks for analp handling and tmfs,
 	 * so the cmds_max must at least be greater than ISCSI_MGMT_CMDS_MAX
 	 * + 1 command for scsi IO.
 	 */
@@ -2909,7 +2909,7 @@ struct Scsi_Host *iscsi_host_alloc(const struct scsi_host_template *sht,
 	if (xmit_can_sleep) {
 		ihost->workq = alloc_workqueue("iscsi_q_%d",
 			WQ_SYSFS | __WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-			1, shost->host_no);
+			1, shost->host_anal);
 		if (!ihost->workq)
 			goto free_host;
 	}
@@ -2926,7 +2926,7 @@ free_host:
 }
 EXPORT_SYMBOL_GPL(iscsi_host_alloc);
 
-static void iscsi_notify_host_removed(struct iscsi_cls_session *cls_session)
+static void iscsi_analtify_host_removed(struct iscsi_cls_session *cls_session)
 {
 	iscsi_session_failure(cls_session->dd_data, ISCSI_ERR_INVALID_HOST);
 }
@@ -2949,7 +2949,7 @@ void iscsi_host_remove(struct Scsi_Host *shost, bool is_shutdown)
 	spin_unlock_irqrestore(&ihost->lock, flags);
 
 	if (!is_shutdown)
-		iscsi_host_for_each_session(shost, iscsi_notify_host_removed);
+		iscsi_host_for_each_session(shost, iscsi_analtify_host_removed);
 	else
 		iscsi_host_for_each_session(shost, iscsi_force_destroy_session);
 
@@ -2983,7 +2983,7 @@ static void iscsi_host_dec_session_cnt(struct Scsi_Host *shost)
 
 	shost = scsi_host_get(shost);
 	if (!shost) {
-		printk(KERN_ERR "Invalid state. Cannot notify host removal "
+		printk(KERN_ERR "Invalid state. Cananalt analtify host removal "
 		      "of session teardown event because host already "
 		      "removed.\n");
 		return;
@@ -3012,7 +3012,7 @@ static void iscsi_host_dec_session_cnt(struct Scsi_Host *shost)
  *
  * Callers should set cmds_max to the largest total numer (mgmt + scsi) of
  * tasks they support. The iscsi layer reserves ISCSI_MGMT_CMDS_MAX tasks
- * for nop handling and login/logout requests.
+ * for analp handling and login/logout requests.
  */
 struct iscsi_cls_session *
 iscsi_session_setup(struct iscsi_transport *iscsit, struct Scsi_Host *shost,
@@ -3399,7 +3399,7 @@ void iscsi_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 
 	/*
 	 * When this is called for the in_login state, we only want to clean
-	 * up the login task and connection. We do not need to block and set
+	 * up the login task and connection. We do analt need to block and set
 	 * the recovery state again
 	 */
 	if (flag == STOP_CONN_TERM)
@@ -3419,7 +3419,7 @@ void iscsi_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	spin_unlock_bh(&session->frwd_lock);
 
 	/*
-	 * for connection level recovery we should not calculate
+	 * for connection level recovery we should analt calculate
 	 * header digest. conn->hdr_size used for optimization
 	 * in hdr_extract() and will be re-negotiated at
 	 * set_param() time.
@@ -3484,9 +3484,9 @@ int iscsi_switch_str_param(char **param, char *new_val_buf)
 			return 0;
 	}
 
-	new_val = kstrdup(new_val_buf, GFP_NOIO);
+	new_val = kstrdup(new_val_buf, GFP_ANALIO);
 	if (!new_val)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kfree(*param);
 	*param = new_val;
@@ -3547,11 +3547,11 @@ int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
 	case ISCSI_PARAM_MAX_BURST:
 		sscanf(buf, "%d", &session->max_burst);
 		break;
-	case ISCSI_PARAM_PDU_INORDER_EN:
-		sscanf(buf, "%d", &session->pdu_inorder_en);
+	case ISCSI_PARAM_PDU_IANALRDER_EN:
+		sscanf(buf, "%d", &session->pdu_ianalrder_en);
 		break;
-	case ISCSI_PARAM_DATASEQ_INORDER_EN:
-		sscanf(buf, "%d", &session->dataseq_inorder_en);
+	case ISCSI_PARAM_DATASEQ_IANALRDER_EN:
+		sscanf(buf, "%d", &session->dataseq_ianalrder_en);
 		break;
 	case ISCSI_PARAM_ERL:
 		sscanf(buf, "%d", &session->erl);
@@ -3601,7 +3601,7 @@ int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
 	case ISCSI_PARAM_LOCAL_IPADDR:
 		return iscsi_switch_str_param(&conn->local_ipaddr, buf);
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return 0;
@@ -3642,11 +3642,11 @@ int iscsi_session_get_param(struct iscsi_cls_session *cls_session,
 	case ISCSI_PARAM_MAX_BURST:
 		len = sysfs_emit(buf, "%u\n", session->max_burst);
 		break;
-	case ISCSI_PARAM_PDU_INORDER_EN:
-		len = sysfs_emit(buf, "%d\n", session->pdu_inorder_en);
+	case ISCSI_PARAM_PDU_IANALRDER_EN:
+		len = sysfs_emit(buf, "%d\n", session->pdu_ianalrder_en);
 		break;
-	case ISCSI_PARAM_DATASEQ_INORDER_EN:
-		len = sysfs_emit(buf, "%d\n", session->dataseq_inorder_en);
+	case ISCSI_PARAM_DATASEQ_IANALRDER_EN:
+		len = sysfs_emit(buf, "%d\n", session->dataseq_ianalrder_en);
 		break;
 	case ISCSI_PARAM_DEF_TASKMGMT_TMO:
 		len = sysfs_emit(buf, "%d\n", session->def_taskmgmt_tmo);
@@ -3737,7 +3737,7 @@ int iscsi_session_get_param(struct iscsi_cls_session *cls_session,
 			len = sysfs_emit(buf, "\n");
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return len;
@@ -3878,7 +3878,7 @@ int iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 		len = sysfs_emit(buf, "%s\n", conn->local_ipaddr);
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return len;
@@ -3902,7 +3902,7 @@ int iscsi_host_get_param(struct Scsi_Host *shost, enum iscsi_host_param param,
 		len = sysfs_emit(buf, "%s\n", ihost->initiatorname);
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return len;
@@ -3922,7 +3922,7 @@ int iscsi_host_set_param(struct Scsi_Host *shost, enum iscsi_host_param param,
 	case ISCSI_HOST_PARAM_INITIATOR_NAME:
 		return iscsi_switch_str_param(&ihost->initiatorname, buf);
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return 0;

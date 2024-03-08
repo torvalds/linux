@@ -106,7 +106,7 @@ static irqreturn_t bma220_trigger_handler(int irq, void *p)
 					   pf->timestamp);
 err:
 	mutex_unlock(&data->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -204,7 +204,7 @@ static int bma220_init(struct spi_device *spi)
 
 	ret = bma220_read_reg(spi, BMA220_REG_ID);
 	if (ret != BMA220_CHIP_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Make sure the chip is powered on */
 	ret = bma220_read_reg(spi, BMA220_REG_SUSPEND);
@@ -256,7 +256,7 @@ static int bma220_probe(struct spi_device *spi)
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*data));
 	if (!indio_dev) {
 		dev_err(&spi->dev, "iio allocation failed!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data = iio_priv(indio_dev);

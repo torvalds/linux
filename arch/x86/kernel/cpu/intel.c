@@ -49,7 +49,7 @@ enum split_lock_detect_state {
 };
 
 /*
- * Default to sld_off because most systems do not support split lock detection.
+ * Default to sld_off because most systems do analt support split lock detection.
  * sld_state_setup() will switch this to sld_warn on systems that support
  * split lock/bus lock detect, unless there is a command line override.
  */
@@ -59,18 +59,18 @@ static u64 msr_test_ctrl_cache __ro_after_init;
 /*
  * With a name like MSR_TEST_CTL it should go without saying, but don't touch
  * MSR_TEST_CTL unless the CPU is one of the whitelisted models.  Writing it
- * on CPUs that do not support SLD can cause fireworks, even when writing '0'.
+ * on CPUs that do analt support SLD can cause fireworks, even when writing '0'.
  */
 static bool cpu_model_supports_sld __ro_after_init;
 
 /*
- * Processors which have self-snooping capability can handle conflicting
- * memory type across CPUs by snooping its own cache. However, there exists
+ * Processors which have self-sanaloping capability can handle conflicting
+ * memory type across CPUs by sanaloping its own cache. However, there exists
  * CPU models in which having conflicting memory types still leads to
  * unpredictable behavior, machine check errors, or hangs. Clear this
- * feature to prevent its use on machines with known erratas.
+ * feature to prevent its use on machines with kanalwn erratas.
  */
-static void check_memory_type_self_snoop_errata(struct cpuinfo_x86 *c)
+static void check_memory_type_self_sanalop_errata(struct cpuinfo_x86 *c)
 {
 	switch (c->x86_model) {
 	case INTEL_FAM6_CORE_YONAH:
@@ -85,7 +85,7 @@ static void check_memory_type_self_snoop_errata(struct cpuinfo_x86 *c)
 	case INTEL_FAM6_WESTMERE:
 	case INTEL_FAM6_WESTMERE_EP:
 	case INTEL_FAM6_SANDYBRIDGE:
-		setup_clear_cpu_cap(X86_FEATURE_SELFSNOOP);
+		setup_clear_cpu_cap(X86_FEATURE_SELFSANALOP);
 	}
 }
 
@@ -101,7 +101,7 @@ __setup("ring3mwait=disable", ring3mwait_disable);
 static void probe_xeon_phi_r3mwait(struct cpuinfo_x86 *c)
 {
 	/*
-	 * Ring 3 MONITOR/MWAIT feature cannot be detected without
+	 * Ring 3 MONITOR/MWAIT feature cananalt be detected without
 	 * cpu model and family comparison.
 	 */
 	if (c->x86 != 6)
@@ -131,7 +131,7 @@ static void probe_xeon_phi_r3mwait(struct cpuinfo_x86 *c)
  * - https://newsroom.intel.com/wp-content/uploads/sites/11/2018/03/microcode-update-guidance.pdf
  * - https://kb.vmware.com/s/article/52345
  * - Microcode revisions observed in the wild
- * - Release note from 20180108 microcode release
+ * - Release analte from 20180108 microcode release
  */
 struct sku_microcode {
 	u8 model;
@@ -167,7 +167,7 @@ static bool bad_spectre_microcode(struct cpuinfo_x86 *c)
 	int i;
 
 	/*
-	 * We know that the hypervisor lie to us on the microcode version so
+	 * We kanalw that the hypervisor lie to us on the microcode version so
 	 * we may as well hope that it is running the correct version.
 	 */
 	if (cpu_has(c, X86_FEATURE_HYPERVISOR))
@@ -216,7 +216,7 @@ static void detect_tme_early(struct cpuinfo_x86 *c)
 		if (tme_activate != tme_activate_cpu0) {
 			/* Broken BIOS? */
 			pr_err_once("x86/tme: configuration is inconsistent between CPUs\n");
-			pr_err_once("x86/tme: MKTME is not usable\n");
+			pr_err_once("x86/tme: MKTME is analt usable\n");
 			mktme_status = MKTME_DISABLED;
 
 			/* Proceed. We may need to exclude bits from x86_phys_bits. */
@@ -226,7 +226,7 @@ static void detect_tme_early(struct cpuinfo_x86 *c)
 	}
 
 	if (!TME_ACTIVATE_LOCKED(tme_activate) || !TME_ACTIVATE_ENABLED(tme_activate)) {
-		pr_info_once("x86/tme: not enabled by BIOS\n");
+		pr_info_once("x86/tme: analt enabled by BIOS\n");
 		mktme_status = MKTME_DISABLED;
 		return;
 	}
@@ -238,11 +238,11 @@ static void detect_tme_early(struct cpuinfo_x86 *c)
 
 	tme_policy = TME_ACTIVATE_POLICY(tme_activate);
 	if (tme_policy != TME_ACTIVATE_POLICY_AES_XTS_128)
-		pr_warn("x86/tme: Unknown policy is active: %#llx\n", tme_policy);
+		pr_warn("x86/tme: Unkanalwn policy is active: %#llx\n", tme_policy);
 
 	tme_crypto_algs = TME_ACTIVATE_CRYPTO_ALGS(tme_activate);
 	if (!(tme_crypto_algs & TME_ACTIVATE_CRYPTO_AES_XTS_128)) {
-		pr_err("x86/mktme: No known encryption algorithm is supported: %#llx\n",
+		pr_err("x86/mktme: Anal kanalwn encryption algorithm is supported: %#llx\n",
 				tme_crypto_algs);
 		mktme_status = MKTME_DISABLED;
 	}
@@ -288,7 +288,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 	if (c->x86 >= 6 && !cpu_has(c, X86_FEATURE_IA64))
 		c->microcode = intel_get_microcode_revision();
 
-	/* Now if any of them are set, check the blacklist and clear the lot */
+	/* Analw if any of them are set, check the blacklist and clear the lot */
 	if ((cpu_has(c, X86_FEATURE_SPEC_CTRL) ||
 	     cpu_has(c, X86_FEATURE_INTEL_STIBP) ||
 	     cpu_has(c, X86_FEATURE_IBRS) || cpu_has(c, X86_FEATURE_IBPB) ||
@@ -310,7 +310,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 	 * A race condition between speculative fetches and invalidating
 	 * a large page.  This is worked around in microcode, but we
 	 * need the microcode to have already been loaded... so if it is
-	 * not, recommend a BIOS update and disable large pages.
+	 * analt, recommend a BIOS update and disable large pages.
 	 */
 	if (c->x86 == 6 && c->x86_model == 0x1c && c->x86_stepping <= 2 &&
 	    c->microcode < 0x20e) {
@@ -333,14 +333,14 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 
 	/*
 	 * c->x86_power is 8000_0007 edx. Bit 8 is TSC runs at constant rate
-	 * with P/T states and does not stop in deep C-states.
+	 * with P/T states and does analt stop in deep C-states.
 	 *
-	 * It is also reliable across cores and sockets. (but not across
+	 * It is also reliable across cores and sockets. (but analt across
 	 * cabinets - we turn it off in that case explicitly.)
 	 */
 	if (c->x86_power & (1 << 8)) {
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
-		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
+		set_cpu_cap(c, X86_FEATURE_ANALNSTOP_TSC);
 	}
 
 	/* Penwell and Cloverview have the TSC which doesn't sleep on S3 */
@@ -350,7 +350,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 		case INTEL_FAM6_ATOM_SALTWELL_TABLET:
 		case INTEL_FAM6_ATOM_SILVERMONT_MID:
 		case INTEL_FAM6_ATOM_AIRMONT_NP:
-			set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC_S3);
+			set_cpu_cap(c, X86_FEATURE_ANALNSTOP_TSC_S3);
 			break;
 		default:
 			break;
@@ -358,7 +358,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 	}
 
 	/*
-	 * There is a known erratum on Pentium III and Core Solo
+	 * There is a kanalwn erratum on Pentium III and Core Solo
 	 * and Core Duo CPUs.
 	 * " Page with PAT set to WC while associated MTRR is UC
 	 *   may consolidate to UC "
@@ -371,7 +371,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 		clear_cpu_cap(c, X86_FEATURE_PAT);
 
 	/*
-	 * If fast string is not enabled in IA32_MISC_ENABLE for any reason,
+	 * If fast string is analt enabled in IA32_MISC_ENABLE for any reason,
 	 * clear the fast string and enhanced fast string CPU capabilities.
 	 */
 	if (c->x86 > 6 || (c->x86 == 6 && c->x86_model >= 0xd)) {
@@ -398,7 +398,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 		setup_clear_cpu_cap(X86_FEATURE_PGE);
 	}
 
-	check_memory_type_self_snoop_errata(c);
+	check_memory_type_self_sanalop_errata(c);
 
 	/*
 	 * Get the number of SMT siblings early from the extended topology
@@ -429,7 +429,7 @@ static void bsp_init_intel(struct cpuinfo_x86 *c)
 
 int ppro_with_ram_bug(void)
 {
-	/* Uses data from early_cpu_detect now */
+	/* Uses data from early_cpu_detect analw */
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
 	    boot_cpu_data.x86 == 6 &&
 	    boot_cpu_data.x86_model == 1 &&
@@ -447,7 +447,7 @@ static void intel_smp_check(struct cpuinfo_x86 *c)
 		return;
 
 	/*
-	 * Mask B, Pentium, but not Pentium MMX
+	 * Mask B, Pentium, but analt Pentium MMX
 	 */
 	if (c->x86 == 5 &&
 	    c->x86_stepping >= 1 && c->x86_stepping <= 4 &&
@@ -472,10 +472,10 @@ static void intel_workarounds(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_X86_F00F_BUG
 	/*
-	 * All models of Pentium and Pentium with MMX technology CPUs
-	 * have the F0 0F bug, which lets nonprivileged users lock up the
-	 * system. Announce that the fault handler will be checking for it.
-	 * The Quark is also family 5, but does not have the same bug.
+	 * All models of Pentium and Pentium with MMX techanallogy CPUs
+	 * have the F0 0F bug, which lets analnprivileged users lock up the
+	 * system. Ananalunce that the fault handler will be checking for it.
+	 * The Quark is also family 5, but does analt have the same bug.
 	 */
 	clear_cpu_bug(c, X86_BUG_F00F);
 	if (c->x86 == 5 && c->x86_model < 9) {
@@ -483,7 +483,7 @@ static void intel_workarounds(struct cpuinfo_x86 *c)
 
 		set_cpu_bug(c, X86_BUG_F00F);
 		if (!f00f_workaround_enabled) {
-			pr_notice("Intel Pentium with F0 0F bug - workaround enabled.\n");
+			pr_analtice("Intel Pentium with F0 0F bug - workaround enabled.\n");
 			f00f_workaround_enabled = 1;
 		}
 	}
@@ -497,14 +497,14 @@ static void intel_workarounds(struct cpuinfo_x86 *c)
 		clear_cpu_cap(c, X86_FEATURE_SEP);
 
 	/*
-	 * PAE CPUID issue: many Pentium M report no PAE but may have a
+	 * PAE CPUID issue: many Pentium M report anal PAE but may have a
 	 * functionally usable PAE implementation.
 	 * Forcefully enable PAE if kernel parameter "forcepae" is present.
 	 */
 	if (forcepae) {
 		pr_warn("PAE forced!\n");
 		set_cpu_cap(c, X86_FEATURE_PAE);
-		add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_NOW_UNRELIABLE);
+		add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_ANALW_UNRELIABLE);
 	}
 
 	/*
@@ -556,20 +556,20 @@ static void intel_workarounds(struct cpuinfo_x86 *c)
 }
 #endif
 
-static void srat_detect_node(struct cpuinfo_x86 *c)
+static void srat_detect_analde(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_NUMA
-	unsigned node;
+	unsigned analde;
 	int cpu = smp_processor_id();
 
 	/* Don't do the funky fallback heuristics the AMD version employs
-	   for now. */
-	node = numa_cpu_node(cpu);
-	if (node == NUMA_NO_NODE || !node_online(node)) {
-		/* reuse the value from init_cpu_to_node() */
-		node = cpu_to_node(cpu);
+	   for analw. */
+	analde = numa_cpu_analde(cpu);
+	if (analde == NUMA_ANAL_ANALDE || !analde_online(analde)) {
+		/* reuse the value from init_cpu_to_analde() */
+		analde = cpu_to_analde(cpu);
 	}
-	numa_set_node(cpu, node);
+	numa_set_analde(cpu, analde);
 #endif
 }
 
@@ -667,7 +667,7 @@ static void init_intel(struct cpuinfo_x86 *c)
 	/*
 	 * Names for the Pentium II/Celeron processors
 	 * detectable only by also checking the cache size.
-	 * Dixon is NOT a Celeron.
+	 * Dixon is ANALT a Celeron.
 	 */
 	if (c->x86 == 6) {
 		unsigned int l2 = c->x86_cache_size;
@@ -683,7 +683,7 @@ static void init_intel(struct cpuinfo_x86 *c)
 
 		case 6:
 			if (l2 == 128)
-				p = "Celeron (Mendocino)";
+				p = "Celeron (Mendocianal)";
 			else if (c->x86_stepping == 0 || c->x86_stepping == 5)
 				p = "Celeron-A";
 			break;
@@ -705,7 +705,7 @@ static void init_intel(struct cpuinfo_x86 *c)
 #endif
 
 	/* Work around errata */
-	srat_detect_node(c);
+	srat_detect_analde(c);
 
 	init_ia32_feat_ctl(c);
 
@@ -722,7 +722,7 @@ static unsigned int intel_size_cache(struct cpuinfo_x86 *c, unsigned int size)
 {
 	/*
 	 * Intel PIII Tualatin. This comes in two flavours.
-	 * One has 256kb of cache, the other 512. We have no way
+	 * One has 256kb of cache, the other 512. We have anal way
 	 * to determine which, so we use a boottime override
 	 * for the 512kb model, and assume 256 otherwise.
 	 */
@@ -902,12 +902,12 @@ static void intel_detect_tlb(struct cpuinfo_x86 *c)
 	for (i = 0 ; i < n ; i++) {
 		cpuid(2, &regs[0], &regs[1], &regs[2], &regs[3]);
 
-		/* If bit 31 is set, this is an unknown format */
+		/* If bit 31 is set, this is an unkanalwn format */
 		for (j = 0 ; j < 3 ; j++)
 			if (regs[j] & (1 << 31))
 				regs[j] = 0;
 
-		/* Byte 0 is level count, not a descriptor */
+		/* Byte 0 is level count, analt a descriptor */
 		for (j = 1 ; j < 16 ; j++)
 			intel_tlb_lookup(desc[j]);
 	}
@@ -959,9 +959,9 @@ static const struct cpu_dev intel_cpu_dev = {
 		},
 		{ .family = 15, .model_names =
 		  {
-			  [0] = "Pentium 4 (Unknown)",
+			  [0] = "Pentium 4 (Unkanalwn)",
 			  [1] = "Pentium 4 (Willamette)",
-			  [2] = "Pentium 4 (Northwood)",
+			  [2] = "Pentium 4 (Analrthwood)",
 			  [4] = "Pentium 4 (Foster)",
 			  [5] = "Pentium 4 (Foster)",
 		  }
@@ -1100,7 +1100,7 @@ static void __init __split_lock_setup(void)
 
 /*
  * MSR_TEST_CTRL is per core, but we treat it like a per CPU MSR. Locking
- * is not implemented as one thread could undo the setting of the other
+ * is analt implemented as one thread could undo the setting of the other
  * thread immediately after dropping the lock anyway.
  */
 static void sld_update_msr(bool on)
@@ -1251,7 +1251,7 @@ void handle_bus_lock(struct pt_regs *regs)
 	case sld_off:
 		break;
 	case sld_ratelimit:
-		/* Enforce no more than bld_ratelimit bus locks/sec. */
+		/* Enforce anal more than bld_ratelimit bus locks/sec. */
 		while (!__ratelimit(&bld_ratelimit))
 			msleep(20);
 		/* Warn on the bus lock. */
@@ -1267,8 +1267,8 @@ void handle_bus_lock(struct pt_regs *regs)
 }
 
 /*
- * CPU models that are known to have the per-core split-lock detection
- * feature even though they do not enumerate IA32_CORE_CAPABILITIES.
+ * CPU models that are kanalwn to have the per-core split-lock detection
+ * feature even though they do analt enumerate IA32_CORE_CAPABILITIES.
  */
 static const struct x86_cpu_id split_lock_cpu_ids[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_X,	0),
@@ -1285,7 +1285,7 @@ static void __init split_lock_setup(struct cpuinfo_x86 *c)
 	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
 		return;
 
-	/* Check for CPUs that have support but do not enumerate it: */
+	/* Check for CPUs that have support but do analt enumerate it: */
 	m = x86_match_cpu(split_lock_cpu_ids);
 	if (m)
 		goto supported;
@@ -1294,7 +1294,7 @@ static void __init split_lock_setup(struct cpuinfo_x86 *c)
 		return;
 
 	/*
-	 * Not all bits in MSR_IA32_CORE_CAPS are architectural, but
+	 * Analt all bits in MSR_IA32_CORE_CAPS are architectural, but
 	 * MSR_IA32_CORE_CAPS_SPLIT_LOCK_DETECT is.  All CPUs that set
 	 * it have split lock detection.
 	 */
@@ -1302,7 +1302,7 @@ static void __init split_lock_setup(struct cpuinfo_x86 *c)
 	if (ia32_core_caps & MSR_IA32_CORE_CAPS_SPLIT_LOCK_DETECT)
 		goto supported;
 
-	/* CPU is not in the model list and does not have the MSR bit: */
+	/* CPU is analt in the model list and does analt have the MSR bit: */
 	return;
 
 supported:
@@ -1325,7 +1325,7 @@ static void sld_state_show(void)
 			pr_info("#AC: crashing the kernel on kernel split_locks and warning on user-space split_locks\n");
 			if (cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
 					      "x86/splitlock", NULL, splitlock_cpu_offline) < 0)
-				pr_warn("No splitlock CPU offline handler\n");
+				pr_warn("Anal splitlock CPU offline handler\n");
 		} else if (boot_cpu_has(X86_FEATURE_BUS_LOCK_DETECT)) {
 			pr_info("#DB: warning on user-space bus_locks\n");
 		}
@@ -1336,7 +1336,7 @@ static void sld_state_show(void)
 		} else if (boot_cpu_has(X86_FEATURE_BUS_LOCK_DETECT)) {
 			pr_info("#DB: sending SIGBUS on user-space bus_locks%s\n",
 				boot_cpu_has(X86_FEATURE_SPLIT_LOCK_DETECT) ?
-				" from non-WB" : "");
+				" from analn-WB" : "");
 		}
 		break;
 	case sld_ratelimit:
@@ -1359,7 +1359,7 @@ void __init sld_setup(struct cpuinfo_x86 *c)
  * get_this_hybrid_cpu_type() - Get the type of this hybrid CPU
  *
  * Returns the CPU type [31:24] (i.e., Atom or Core) of a CPU in
- * a hybrid processor. If the processor is not hybrid, returns 0.
+ * a hybrid processor. If the processor is analt hybrid, returns 0.
  */
 u8 get_this_hybrid_cpu_type(void)
 {

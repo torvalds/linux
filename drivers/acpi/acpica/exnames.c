@@ -25,14 +25,14 @@ static acpi_status acpi_ex_name_segment(u8 **in_aml_address, char *name_string);
  * FUNCTION:    acpi_ex_allocate_name_string
  *
  * PARAMETERS:  prefix_count        - Count of parent levels. Special cases:
- *                                    (-1)==root,  0==none
+ *                                    (-1)==root,  0==analne
  *              num_name_segs       - count of 4-character name segments
  *
  * RETURN:      A pointer to the allocated string segment. This segment must
  *              be deleted by the caller.
  *
  * DESCRIPTION: Allocate a buffer for a name string. Ensure allocated name
- *              string is long enough, and set up prefix if any.
+ *              string is long eanalugh, and set up prefix if any.
  *
  ******************************************************************************/
 
@@ -66,7 +66,7 @@ static char *acpi_ex_allocate_name_string(u32 prefix_count, u32 num_name_segs)
 	name_string = ACPI_ALLOCATE(size_needed);
 	if (!name_string) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not allocate size %u", size_needed));
+			    "Could analt allocate size %u", size_needed));
 		return_PTR(NULL);
 	}
 
@@ -130,7 +130,7 @@ static acpi_status acpi_ex_name_segment(u8 ** in_aml_address, char *name_string)
 	ACPI_FUNCTION_TRACE(ex_name_segment);
 
 	/*
-	 * If first character is a digit, then we know that we aren't looking
+	 * If first character is a digit, then we kanalw that we aren't looking
 	 * at a valid name segment
 	 */
 	char_buf[0] = *aml_address;
@@ -160,15 +160,15 @@ static acpi_status acpi_ex_name_segment(u8 ** in_aml_address, char *name_string)
 			strcat(name_string, char_buf);
 		} else {
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
-					  "No Name string - %s\n", char_buf));
+					  "Anal Name string - %s\n", char_buf));
 		}
 	} else if (index == 0) {
 		/*
-		 * First character was not a valid name character,
+		 * First character was analt a valid name character,
 		 * so we are looking at something other than a name.
 		 */
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Leading character is not alpha: %02Xh (not a name)\n",
+				  "Leading character is analt alpha: %02Xh (analt a name)\n",
 				  char_buf[0]));
 		status = AE_CTRL_PENDING;
 	} else {
@@ -225,14 +225,14 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 
 		name_string = acpi_ex_allocate_name_string(0, 1);
 		if (!name_string) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 		} else {
 			status =
 			    acpi_ex_name_segment(&aml_address, name_string);
 		}
 	} else {
 		/*
-		 * data_type is not a field name.
+		 * data_type is analt a field name.
 		 * Examine first character of name for root or parent prefix operators
 		 */
 		switch (*aml_address) {
@@ -270,7 +270,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 
 		default:
 
-			/* Not a prefix character */
+			/* Analt a prefix character */
 
 			break;
 		}
@@ -288,7 +288,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 			name_string =
 			    acpi_ex_allocate_name_string(prefix_count, 2);
 			if (!name_string) {
-				status = AE_NO_MEMORY;
+				status = AE_ANAL_MEMORY;
 				break;
 			}
 
@@ -320,7 +320,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 			    acpi_ex_allocate_name_string(prefix_count,
 							 num_segments);
 			if (!name_string) {
-				status = AE_NO_MEMORY;
+				status = AE_ANAL_MEMORY;
 				break;
 			}
 
@@ -353,7 +353,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 			name_string =
 			    acpi_ex_allocate_name_string(prefix_count, 0);
 			if (!name_string) {
-				status = AE_NO_MEMORY;
+				status = AE_ANAL_MEMORY;
 				break;
 			}
 
@@ -366,7 +366,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 			name_string =
 			    acpi_ex_allocate_name_string(prefix_count, 1);
 			if (!name_string) {
-				status = AE_NO_MEMORY;
+				status = AE_ANAL_MEMORY;
 				break;
 			}
 

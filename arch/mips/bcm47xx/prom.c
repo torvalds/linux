@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 2004 Florian Schirmer <jolt@tuxbox.org>
- *  Copyright (C) 2007 Aurelien Jarno <aurelien@aurel32.net>
+ *  Copyright (C) 2007 Aurelien Jaranal <aurelien@aurel32.net>
  *  Copyright (C) 2010-2012 Hauke Mehrtens <hauke@hauke-m.de>
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -9,18 +9,18 @@
  *  option) any later version.
  *
  *  THIS  SOFTWARE  IS PROVIDED   ``AS  IS'' AND   ANY  EXPRESS OR IMPLIED
- *  WARRANTIES,   INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES,   INCLUDING, BUT ANALT  LIMITED  TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- *  NO  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
+ *  ANAL  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
  *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *  NOT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
+ *  ANALT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
  *  USE, DATA,  OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  *  ANY THEORY OF LIABILITY, WHETHER IN  CONTRACT, STRICT LIABILITY, OR TORT
  *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if analt, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -80,7 +80,7 @@ static __init void prom_init_mem(void)
 	max = 128 << 20;
 
 	for (mem = 1 << 20; mem < max; mem += 1 << 20) {
-		/* Loop condition may be not enough, off may be over 1 MiB */
+		/* Loop condition may be analt eanalugh, off may be over 1 MiB */
 		if (off + mem >= max) {
 			mem = max;
 			pr_debug("Assume 128MB RAM\n");
@@ -91,7 +91,7 @@ static __init void prom_init_mem(void)
 	}
 	lowmem = mem;
 
-	/* Ignoring the last page when ddr size is 128M. Cached
+	/* Iganalring the last page when ddr size is 128M. Cached
 	 * accesses to last page is causing the processor to prefetch
 	 * using address above 128M stepping out of the ddr address
 	 * space.

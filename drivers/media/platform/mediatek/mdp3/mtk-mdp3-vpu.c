@@ -55,7 +55,7 @@ err_free_param:
 	dma_free_wc(dev, vpu->param_size, vpu->param, vpu->param_addr);
 	vpu->param = NULL;
 err_return:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void mdp_vpu_shared_mem_free(struct mdp_vpu_dev *vpu)
@@ -238,8 +238,8 @@ err_work_size:
 	case -MDP_IPI_EBUSY:
 		err = -EBUSY;
 		break;
-	case -MDP_IPI_ENOMEM:
-		err = -ENOSPC;	/* -ENOMEM */
+	case -MDP_IPI_EANALMEM:
+		err = -EANALSPC;	/* -EANALMEM */
 		break;
 	}
 	return err;
@@ -266,7 +266,7 @@ int mdp_vpu_process(struct mdp_vpu_dev *vpu, struct img_ipi_frameparam *param)
 	if (mdp_vpu_shared_mem_alloc(vpu)) {
 		dev_err(&mdp->pdev->dev, "VPU memory alloc fail!");
 		mutex_unlock(vpu->lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(vpu->param, 0, vpu->param_size);

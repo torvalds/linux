@@ -250,7 +250,7 @@ static int hid_press_probe(struct platform_device *pdev)
 	indio_dev = devm_iio_device_alloc(&pdev->dev,
 				sizeof(struct press_state));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, indio_dev);
 
 	press_state = iio_priv(indio_dev);
@@ -271,7 +271,7 @@ static int hid_press_probe(struct platform_device *pdev)
 					   sizeof(press_channels), GFP_KERNEL);
 	if (!indio_dev->channels) {
 		dev_err(&pdev->dev, "failed to duplicate channels\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = press_parse_report(pdev, hsdev,

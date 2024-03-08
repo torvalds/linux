@@ -62,7 +62,7 @@
 #define MAC_CMDCFG_PAD_EN			BIT(5)
 #define MAC_CMDCFG_CRC_FWD			BIT(6)
 #define MAC_CMDCFG_PAUSE_FWD			BIT(7)
-#define MAC_CMDCFG_PAUSE_IGNORE			BIT(8)
+#define MAC_CMDCFG_PAUSE_IGANALRE			BIT(8)
 #define MAC_CMDCFG_TX_ADDR_INS			BIT(9)
 #define MAC_CMDCFG_HD_ENA			BIT(10)
 #define MAC_CMDCFG_EXCESS_COL			BIT(11)
@@ -76,7 +76,7 @@
 #define MAC_CMDCFG_WAKEUP			BIT(21)
 #define MAC_CMDCFG_XOFF_GEN			BIT(22)
 #define MAC_CMDCFG_CNTL_FRM_ENA			BIT(23)
-#define MAC_CMDCFG_NO_LGTH_CHECK		BIT(24)
+#define MAC_CMDCFG_ANAL_LGTH_CHECK		BIT(24)
 #define MAC_CMDCFG_ENA_10			BIT(25)
 #define MAC_CMDCFG_RX_ERR_DISC			BIT(26)
 #define MAC_CMDCFG_DISABLE_READ_TIMEOUT		BIT(27)
@@ -90,7 +90,7 @@
 #define MAC_CMDCFG_PAD_EN_GET(v)		GET_BIT_VALUE(v, 5)
 #define MAC_CMDCFG_CRC_FWD_GET(v)		GET_BIT_VALUE(v, 6)
 #define MAC_CMDCFG_PAUSE_FWD_GET(v)		GET_BIT_VALUE(v, 7)
-#define MAC_CMDCFG_PAUSE_IGNORE_GET(v)		GET_BIT_VALUE(v, 8)
+#define MAC_CMDCFG_PAUSE_IGANALRE_GET(v)		GET_BIT_VALUE(v, 8)
 #define MAC_CMDCFG_TX_ADDR_INS_GET(v)		GET_BIT_VALUE(v, 9)
 #define MAC_CMDCFG_HD_ENA_GET(v)		GET_BIT_VALUE(v, 10)
 #define MAC_CMDCFG_EXCESS_COL_GET(v)		GET_BIT_VALUE(v, 11)
@@ -104,7 +104,7 @@
 #define MAC_CMDCFG_WAKEUP_GET(v)		GET_BIT_VALUE(v, 21)
 #define MAC_CMDCFG_XOFF_GEN_GET(v)		GET_BIT_VALUE(v, 22)
 #define MAC_CMDCFG_CNTL_FRM_ENA_GET(v)		GET_BIT_VALUE(v, 23)
-#define MAC_CMDCFG_NO_LGTH_CHECK_GET(v)		GET_BIT_VALUE(v, 24)
+#define MAC_CMDCFG_ANAL_LGTH_CHECK_GET(v)		GET_BIT_VALUE(v, 24)
 #define MAC_CMDCFG_ENA_10_GET(v)		GET_BIT_VALUE(v, 25)
 #define MAC_CMDCFG_RX_ERR_DISC_GET(v)		GET_BIT_VALUE(v, 26)
 #define MAC_CMDCFG_DISABLE_READ_TIMEOUT_GET(v)	GET_BIT_VALUE(v, 27)
@@ -151,7 +151,7 @@ struct altera_tse_mdio {
 	u32 reg1f;
 };
 
-/* MAC register Space. Note that some of these registers may or may not be
+/* MAC register Space. Analte that some of these registers may or may analt be
  * present depending upon options chosen by the user when the core was
  * configured and built. Please consult the Altera Triple Speed Ethernet User
  * Guide for details.

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Carsten Langgaard, carstenl@mips.com
-# Copyright (C) 1999,2000 MIPS Technologies, Inc.  All rights reserved.
+# Copyright (C) 1999,2000 MIPS Techanallogies, Inc.  All rights reserved.
 #
 # Copyright (C) 2008 Wind River Systems, Inc.
 #   written by Ralf Baechle <ralf@linux-mips.org>

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 #ifndef _ASM_POWERPC_STAT_H
 #define _ASM_POWERPC_STAT_H
 /*
@@ -14,7 +14,7 @@
 #ifndef __powerpc64__
 struct __old_kernel_stat {
 	unsigned short st_dev;
-	unsigned short st_ino;
+	unsigned short st_ianal;
 	unsigned short st_mode;
 	unsigned short st_nlink;
 	unsigned short st_uid;
@@ -29,7 +29,7 @@ struct __old_kernel_stat {
 
 struct stat {
 	unsigned long	st_dev;
-	__kernel_ino_t	st_ino;
+	__kernel_ianal_t	st_ianal;
 #ifdef __powerpc64__
 	unsigned long	st_nlink;
 	__kernel_mode_t	st_mode;
@@ -59,7 +59,7 @@ struct stat {
 /* This matches struct stat64 in glibc2.1. Only used for 32 bit. */
 struct stat64 {
 	unsigned long long st_dev;		/* Device.  */
-	unsigned long long st_ino;		/* File serial number.  */
+	unsigned long long st_ianal;		/* File serial number.  */
 	unsigned int	st_mode;	/* File mode.  */
 	unsigned int	st_nlink;	/* Link count.  */
 	unsigned int	st_uid;		/* User ID of the file's owner.  */

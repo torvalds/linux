@@ -87,7 +87,7 @@ struct mptcp_out_options {
 			u64 fail_seq;
 		};
 		struct {
-			u32 nonce;
+			u32 analnce;
 			u32 token;
 			u64 thmac;
 			u8 hmac[MPTCPOPT_HMAC_LEN];
@@ -184,7 +184,7 @@ static inline bool mptcp_ext_matches(const struct mptcp_ext *to_ext,
 				     const struct mptcp_ext *from_ext)
 {
 	/* MPTCP always clears the ext when adding it to the skb, so
-	 * holes do not bother us here
+	 * holes do analt bother us here
 	 */
 	return !from_ext ||
 	       (to_ext && from_ext &&
@@ -194,7 +194,7 @@ static inline bool mptcp_ext_matches(const struct mptcp_ext *to_ext,
 /* check if skbs can be collapsed.
  * MPTCP collapse is allowed if neither @to or @from carry an mptcp data
  * mapping, or if the extension of @to is the same as @from.
- * Collapsing is not possible if @to lacks an extension, but @from carries one.
+ * Collapsing is analt possible if @to lacks an extension, but @from carries one.
  */
 static inline bool mptcp_skb_can_collapse(const struct sk_buff *to,
 					  const struct sk_buff *from)

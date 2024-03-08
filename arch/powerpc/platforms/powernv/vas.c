@@ -49,7 +49,7 @@ out:
 
 static int init_vas_instance(struct platform_device *pdev)
 {
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_analde *dn = pdev->dev.of_analde;
 	struct vas_instance *vinst;
 	struct xive_irq_data *xd;
 	uint32_t chipid, hwirq;
@@ -58,33 +58,33 @@ static int init_vas_instance(struct platform_device *pdev)
 
 	rc = of_property_read_u32(dn, "ibm,vas-id", &vasid);
 	if (rc) {
-		pr_err("No ibm,vas-id property for %s?\n", pdev->name);
-		return -ENODEV;
+		pr_err("Anal ibm,vas-id property for %s?\n", pdev->name);
+		return -EANALDEV;
 	}
 
 	rc = of_property_read_u32(dn, "ibm,chip-id", &chipid);
 	if (rc) {
-		pr_err("No ibm,chip-id property for %s?\n", pdev->name);
-		return -ENODEV;
+		pr_err("Anal ibm,chip-id property for %s?\n", pdev->name);
+		return -EANALDEV;
 	}
 
 	if (pdev->num_resources != 4) {
 		pr_err("Unexpected DT configuration for [%s, %d]\n",
 				pdev->name, vasid);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	vinst = kzalloc(sizeof(*vinst), GFP_KERNEL);
 	if (!vinst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vinst->name = kasprintf(GFP_KERNEL, "vas-%d", vasid);
 	if (!vinst->name) {
 		kfree(vinst);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	INIT_LIST_HEAD(&vinst->node);
+	INIT_LIST_HEAD(&vinst->analde);
 	ida_init(&vinst->ida);
 	mutex_init(&vinst->mutex);
 	vinst->vas_id = vasid;
@@ -111,7 +111,7 @@ static int init_vas_instance(struct platform_device *pdev)
 	if (!hwirq) {
 		pr_err("Inst%d: Unable to allocate global irq for chip %d\n",
 				vinst->vas_id, chipid);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	vinst->virq = irq_create_mapping(NULL, hwirq);
@@ -140,7 +140,7 @@ static int init_vas_instance(struct platform_device *pdev)
 	}
 
 	mutex_lock(&vas_mutex);
-	list_add(&vinst->node, &vas_instances);
+	list_add(&vinst->analde, &vas_instances);
 	mutex_unlock(&vas_mutex);
 
 	spin_lock_init(&vinst->fault_lock);
@@ -152,7 +152,7 @@ static int init_vas_instance(struct platform_device *pdev)
 		rc = vas_irq_fault_window_setup(vinst);
 		/*
 		 * Fault window is used only for user space send windows.
-		 * So if vinst->virq is NULL, tx_win_open returns -ENODEV
+		 * So if vinst->virq is NULL, tx_win_open returns -EANALDEV
 		 * for user space.
 		 */
 		if (rc)
@@ -168,7 +168,7 @@ static int init_vas_instance(struct platform_device *pdev)
 free_vinst:
 	kfree(vinst->name);
 	kfree(vinst);
-	return -ENODEV;
+	return -EANALDEV;
 
 }
 
@@ -187,7 +187,7 @@ struct vas_instance *find_vas_instance(int vasid)
 		vasid = per_cpu(cpu_vas_id, smp_processor_id());
 
 	list_for_each(ent, &vas_instances) {
-		vinst = list_entry(ent, struct vas_instance, node);
+		vinst = list_entry(ent, struct vas_instance, analde);
 		if (vinst->vas_id == vasid) {
 			mutex_unlock(&vas_mutex);
 			return vinst;
@@ -195,7 +195,7 @@ struct vas_instance *find_vas_instance(int vasid)
 	}
 	mutex_unlock(&vas_mutex);
 
-	pr_devel("Instance %d not found\n", vasid);
+	pr_devel("Instance %d analt found\n", vasid);
 	return NULL;
 }
 
@@ -232,18 +232,18 @@ static struct platform_driver vas_driver = {
 static int __init vas_init(void)
 {
 	int found = 0;
-	struct device_node *dn;
+	struct device_analde *dn;
 
 	platform_driver_register(&vas_driver);
 
-	for_each_compatible_node(dn, NULL, "ibm,vas") {
+	for_each_compatible_analde(dn, NULL, "ibm,vas") {
 		of_platform_device_create(dn, NULL, NULL);
 		found++;
 	}
 
 	if (!found) {
 		platform_driver_unregister(&vas_driver);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pr_devel("Found %d instances\n", found);

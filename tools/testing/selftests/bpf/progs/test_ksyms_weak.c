@@ -12,8 +12,8 @@
 int out__existing_typed = -1;
 __u64 out__existing_typeless = -1;
 
-__u64 out__non_existent_typeless = -1;
-__u64 out__non_existent_typed = -1;
+__u64 out__analn_existent_typeless = -1;
+__u64 out__analn_existent_typed = -1;
 
 /* existing weak symbols */
 
@@ -24,7 +24,7 @@ struct task_struct *bpf_task_acquire(struct task_struct *p) __ksym __weak;
 void bpf_testmod_test_mod_kfunc(int i) __ksym __weak;
 
 
-/* non-existent weak symbols. */
+/* analn-existent weak symbols. */
 
 /* typeless symbols, default to zero. */
 extern const void bpf_link_fops1 __ksym __weak;
@@ -44,14 +44,14 @@ int pass_handler(const void *ctx)
 		out__existing_typed = rq->cpu;
 	out__existing_typeless = (__u64)&bpf_prog_active;
 
-	/* tests non-existent symbols. */
-	out__non_existent_typeless = (__u64)&bpf_link_fops1;
+	/* tests analn-existent symbols. */
+	out__analn_existent_typeless = (__u64)&bpf_link_fops1;
 
-	/* tests non-existent symbols. */
-	out__non_existent_typed = (__u64)&bpf_link_fops2;
+	/* tests analn-existent symbols. */
+	out__analn_existent_typed = (__u64)&bpf_link_fops2;
 
 	if (&bpf_link_fops2) /* can't happen */
-		out__non_existent_typed = (__u64)bpf_per_cpu_ptr(&bpf_link_fops2, 0);
+		out__analn_existent_typed = (__u64)bpf_per_cpu_ptr(&bpf_link_fops2, 0);
 
 	if (!bpf_ksym_exists(bpf_task_acquire))
 		/* dead code won't be seen by the verifier */

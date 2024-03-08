@@ -2,7 +2,7 @@
 /* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  */
 
-/* Qualcomm Technologies, Inc. QDF2432 EMAC SGMII Controller driver.
+/* Qualcomm Techanallogies, Inc. QDF2432 EMAC SGMII Controller driver.
  */
 
 #include <linux/iopoll.h>

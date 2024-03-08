@@ -13,11 +13,11 @@
  * NetBurst has performance MSRs shared between
  * threads if HT is turned on, ie for both logical
  * processors (mem: in turn in Atom with HT support
- * perf-MSRs are not shared and every thread has its
+ * perf-MSRs are analt shared and every thread has its
  * own perf-MSRs set)
  */
 #define ARCH_P4_TOTAL_ESCR	(46)
-#define ARCH_P4_RESERVED_ESCR	(2) /* IQ_ESCR(0,1) not always present */
+#define ARCH_P4_RESERVED_ESCR	(2) /* IQ_ESCR(0,1) analt always present */
 #define ARCH_P4_MAX_ESCR	(ARCH_P4_TOTAL_ESCR - ARCH_P4_RESERVED_ESCR)
 #define ARCH_P4_MAX_CCCR	(18)
 
@@ -72,7 +72,7 @@
  * where HT is HyperThreading bit (since ESCR
  * has it reserved we may use it for own purpose)
  *
- * note that this is NOT the addresses of respective
+ * analte that this is ANALT the addresses of respective
  * ESCR and CCCR but rather an only packed value should
  * be unpacked and written to a proper addresses
  *
@@ -203,8 +203,8 @@ static inline int p4_should_swap_ts(u64 config, int cpu)
 static inline u32 p4_default_cccr_conf(int cpu)
 {
 	/*
-	 * Note that P4_CCCR_THREAD_ANY is "required" on
-	 * non-HT machines (on HT machines we count TS events
+	 * Analte that P4_CCCR_THREAD_ANY is "required" on
+	 * analn-HT machines (on HT machines we count TS events
 	 * regardless the state of second logical processor
 	 */
 	u32 cccr = P4_CCCR_THREAD_ANY;
@@ -276,7 +276,7 @@ enum P4_EVENTS {
 	P4_EVENT_WC_BUFFER,
 	P4_EVENT_B2B_CYCLES,
 	P4_EVENT_BNR,
-	P4_EVENT_SNOOP,
+	P4_EVENT_SANALOP,
 	P4_EVENT_RESPONSE,
 	P4_EVENT_FRONT_END_EVENT,
 	P4_EVENT_EXECUTION_EVENT,
@@ -302,11 +302,11 @@ enum P4_EVENTS {
  *
  * MSR_P4_IQ_ESCR0 and MSR_P4_IQ_ESCR1 are available only on early
  * processor builds (family 0FH, models 01H-02H). These MSRs
- * are not available on later versions, so that we don't use
+ * are analt available on later versions, so that we don't use
  * them completely
  *
- * Also note that CCCR1 do not have P4_CCCR_ENABLE bit properly
- * working so that we should not use this CCCR and respective
+ * Also analte that CCCR1 do analt have P4_CCCR_ENABLE bit properly
+ * working so that we should analt use this CCCR and respective
  * counter as result
  */
 enum P4_EVENT_OPCODES {
@@ -394,7 +394,7 @@ enum P4_EVENT_OPCODES {
 
 	P4_OPCODE(P4_EVENT_BSQ_ACTIVE_ENTRIES)		= P4_OPCODE_PACK(0x06, 0x07),
 	/*
-	 * NOTE: no ESCR name in docs, it's guessed
+	 * ANALTE: anal ESCR name in docs, it's guessed
 	 * MSR_P4_BSU_ESCR1:	2, 3
 	 */
 
@@ -506,7 +506,7 @@ enum P4_EVENT_OPCODES {
 	 * MSR_P4_FSB_ESCR1:	2, 3
 	 */
 
-	P4_OPCODE(P4_EVENT_SNOOP)			= P4_OPCODE_PACK(0x06, 0x03),
+	P4_OPCODE(P4_EVENT_SANALOP)			= P4_OPCODE_PACK(0x06, 0x03),
 	/*
 	 * MSR_P4_FSB_ESCR0:	0, 1
 	 * MSR_P4_FSB_ESCR1:	2, 3
@@ -616,8 +616,8 @@ enum P4_ESCR_EMASKS {
 
 	P4_GEN_ESCR_EMASK(P4_EVENT_STORE_PORT_REPLAY, SPLIT_ST, 1),
 
-	P4_GEN_ESCR_EMASK(P4_EVENT_MOB_LOAD_REPLAY, NO_STA, 1),
-	P4_GEN_ESCR_EMASK(P4_EVENT_MOB_LOAD_REPLAY, NO_STD, 3),
+	P4_GEN_ESCR_EMASK(P4_EVENT_MOB_LOAD_REPLAY, ANAL_STA, 1),
+	P4_GEN_ESCR_EMASK(P4_EVENT_MOB_LOAD_REPLAY, ANAL_STD, 3),
 	P4_GEN_ESCR_EMASK(P4_EVENT_MOB_LOAD_REPLAY, PARTIAL_DATA, 4),
 	P4_GEN_ESCR_EMASK(P4_EVENT_MOB_LOAD_REPLAY, UNALGN_ADDR, 5),
 
@@ -782,7 +782,7 @@ enum P4_ESCR_EMASKS {
 };
 
 /*
- * Note we have UOP and PEBS bits reserved for now
+ * Analte we have UOP and PEBS bits reserved for analw
  * just in case if we will need them once
  */
 #define P4_PEBS_CONFIG_ENABLE		(1ULL << 7)
@@ -803,7 +803,7 @@ enum P4_ESCR_EMASKS {
 #define p4_config_pebs_has(v, mask)	(p4_config_unpack_pebs(v) & (mask))
 
 enum P4_PEBS_METRIC {
-	P4_PEBS_METRIC__none,
+	P4_PEBS_METRIC__analne,
 
 	P4_PEBS_METRIC__1stl_cache_load_miss_retired,
 	P4_PEBS_METRIC__2ndl_cache_load_miss_retired,
@@ -819,7 +819,7 @@ enum P4_PEBS_METRIC {
 };
 
 /*
- * Notes on internal configuration of ESCR+CCCR tuples
+ * Analtes on internal configuration of ESCR+CCCR tuples
  *
  * Since P4 has quite the different architecture of
  * performance registers in compare with "architectural"
@@ -833,7 +833,7 @@ enum P4_PEBS_METRIC {
  *    correspond to low 32 bits of ESCR register.
  *
  * 2) The meaning of every bit of such config field can
- *    be found in Intel SDM but it should be noted that
+ *    be found in Intel SDM but it should be analted that
  *    we "borrow" some reserved bits for own usage and
  *    clean them or set to a proper value when we do
  *    a real write to hardware registers.

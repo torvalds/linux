@@ -32,7 +32,7 @@ void kvm_page_track_delete_slot(struct kvm *kvm, struct kvm_memory_slot *slot);
 
 static inline bool kvm_page_track_has_external_user(struct kvm *kvm)
 {
-	return !hlist_empty(&kvm->arch.track_notifier_head.track_notifier_list);
+	return !hlist_empty(&kvm->arch.track_analtifier_head.track_analtifier_list);
 }
 #else
 static inline int kvm_page_track_init(struct kvm *kvm) { return 0; }

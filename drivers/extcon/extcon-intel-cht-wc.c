@@ -3,7 +3,7 @@
  * Extcon charger detection driver for Intel Cherrytrail Whiskey Cove PMIC
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
  *
- * Based on various non upstream patches to support the CHT Whiskey Cove PMIC:
+ * Based on various analn upstream patches to support the CHT Whiskey Cove PMIC:
  * Copyright (C) 2013-2015 Intel Corporation. All rights reserved.
  */
 
@@ -33,7 +33,7 @@
 #define CHT_WC_CHGRCTRL0_TTLCK		BIT(4)
 #define CHT_WC_CHGRCTRL0_CCSM_OFF	BIT(5)
 #define CHT_WC_CHGRCTRL0_DBPOFF		BIT(6)
-#define CHT_WC_CHGRCTRL0_CHR_WDT_NOKICK	BIT(7)
+#define CHT_WC_CHGRCTRL0_CHR_WDT_ANALKICK	BIT(7)
 
 #define CHT_WC_CHGRCTRL1			0x5e17
 #define CHT_WC_CHGRCTRL1_FUSB_INLMT_100		BIT(0)
@@ -51,7 +51,7 @@
 #define CHT_WC_USBSRC_STS_FAIL		3
 #define CHT_WC_USBSRC_TYPE_SHIFT	2
 #define CHT_WC_USBSRC_TYPE_MASK		GENMASK(5, 2)
-#define CHT_WC_USBSRC_TYPE_NONE		0
+#define CHT_WC_USBSRC_TYPE_ANALNE		0
 #define CHT_WC_USBSRC_TYPE_SDP		1
 #define CHT_WC_USBSRC_TYPE_DCP		2
 #define CHT_WC_USBSRC_TYPE_CDP		3
@@ -98,7 +98,7 @@ static const unsigned int cht_wc_extcon_cables[] = {
 	EXTCON_CHG_USB_CDP,
 	EXTCON_CHG_USB_DCP,
 	EXTCON_CHG_USB_ACA,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 struct cht_wc_extcon_data {
@@ -141,7 +141,7 @@ static int cht_wc_extcon_get_id(struct cht_wc_extcon_data *ext, int pwrsrc_sts)
 }
 
 static int cht_wc_extcon_get_charger(struct cht_wc_extcon_data *ext,
-				     bool ignore_errors)
+				     bool iganalre_errors)
 {
 	int ret, usbsrc, status;
 	unsigned long timeout;
@@ -164,9 +164,9 @@ static int cht_wc_extcon_get_charger(struct cht_wc_extcon_data *ext,
 	} while (time_before(jiffies, timeout));
 
 	if (status != CHT_WC_USBSRC_STS_SUCCESS) {
-		if (!ignore_errors) {
+		if (!iganalre_errors) {
 			if (status == CHT_WC_USBSRC_STS_FAIL)
-				dev_warn(ext->dev, "Could not detect charger type\n");
+				dev_warn(ext->dev, "Could analt detect charger type\n");
 			else
 				dev_warn(ext->dev, "Timeout detecting charger type\n");
 		}
@@ -218,7 +218,7 @@ static void cht_wc_extcon_set_5v_boost(struct cht_wc_extcon_data *ext,
 
 	/*
 	 * The 5V boost converter is enabled through a gpio on the PMIC, since
-	 * there currently is no gpio driver we access the gpio reg directly.
+	 * there currently is anal gpio driver we access the gpio reg directly.
 	 */
 	val = CHT_WC_VBUS_GPIO_CTLO_DRV_OD | CHT_WC_VBUS_GPIO_CTLO_DIR_OUT;
 	if (enable)
@@ -277,12 +277,12 @@ static void cht_wc_extcon_set_state(struct cht_wc_extcon_data *ext,
 static void cht_wc_extcon_pwrsrc_event(struct cht_wc_extcon_data *ext)
 {
 	int ret, pwrsrc_sts, id;
-	unsigned int cable = EXTCON_NONE;
-	/* Ignore errors in host mode, as the 5v boost converter is on then */
-	bool ignore_get_charger_errors = ext->usb_host;
+	unsigned int cable = EXTCON_ANALNE;
+	/* Iganalre errors in host mode, as the 5v boost converter is on then */
+	bool iganalre_get_charger_errors = ext->usb_host;
 	enum usb_role role;
 
-	ext->usb_type = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+	ext->usb_type = POWER_SUPPLY_USB_TYPE_UNKANALWN;
 
 	ret = regmap_read(ext->regmap, CHT_WC_PWRSRC_STS, &pwrsrc_sts);
 	if (ret) {
@@ -302,14 +302,14 @@ static void cht_wc_extcon_pwrsrc_event(struct cht_wc_extcon_data *ext)
 	cht_wc_extcon_set_otgmode(ext, false);
 	cht_wc_extcon_enable_charging(ext, true);
 
-	/* Plugged into a host/charger or not connected? */
+	/* Plugged into a host/charger or analt connected? */
 	if (!(pwrsrc_sts & CHT_WC_PWRSRC_VBUS)) {
 		/* Route D+ and D- to PMIC for future charger detection */
 		cht_wc_extcon_set_phymux(ext, MUX_SEL_PMIC);
 		goto set_state;
 	}
 
-	ret = cht_wc_extcon_get_charger(ext, ignore_get_charger_errors);
+	ret = cht_wc_extcon_get_charger(ext, iganalre_get_charger_errors);
 	if (ret >= 0)
 		cable = ret;
 
@@ -332,9 +332,9 @@ set_state:
 	else if (pwrsrc_sts & CHT_WC_PWRSRC_VBUS)
 		role = USB_ROLE_DEVICE;
 	else
-		role = USB_ROLE_NONE;
+		role = USB_ROLE_ANALNE;
 
-	/* Note: this is a no-op when ext->role_sw is NULL */
+	/* Analte: this is a anal-op when ext->role_sw is NULL */
 	ret = usb_role_switch_set_role(ext->role_sw, role);
 	if (ret)
 		dev_err(ext->dev, "Error setting USB-role: %d\n", ret);
@@ -351,7 +351,7 @@ static irqreturn_t cht_wc_extcon_isr(int irq, void *data)
 	ret = regmap_read(ext->regmap, CHT_WC_PWRSRC_IRQ, &irqs);
 	if (ret) {
 		dev_err(ext->dev, "Error reading irqs: %d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	cht_wc_extcon_pwrsrc_event(ext);
@@ -359,7 +359,7 @@ static irqreturn_t cht_wc_extcon_isr(int irq, void *data)
 	ret = regmap_write(ext->regmap, CHT_WC_PWRSRC_IRQ, irqs);
 	if (ret) {
 		dev_err(ext->dev, "Error writing irqs: %d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	return IRQ_HANDLED;
@@ -388,16 +388,16 @@ static int cht_wc_extcon_sw_control(struct cht_wc_extcon_data *ext, bool enable)
 
 static int cht_wc_extcon_find_role_sw(struct cht_wc_extcon_data *ext)
 {
-	const struct software_node *swnode;
-	struct fwnode_handle *fwnode;
+	const struct software_analde *swanalde;
+	struct fwanalde_handle *fwanalde;
 
-	swnode = software_node_find_by_name(NULL, "intel-xhci-usb-sw");
-	if (!swnode)
+	swanalde = software_analde_find_by_name(NULL, "intel-xhci-usb-sw");
+	if (!swanalde)
 		return -EPROBE_DEFER;
 
-	fwnode = software_node_fwnode(swnode);
-	ext->role_sw = usb_role_switch_find_by_fwnode(fwnode);
-	fwnode_handle_put(fwnode);
+	fwanalde = software_analde_fwanalde(swanalde);
+	ext->role_sw = usb_role_switch_find_by_fwanalde(fwanalde);
+	fwanalde_handle_put(fwanalde);
 
 	return ext->role_sw ? 0 : -EPROBE_DEFER;
 }
@@ -425,14 +425,14 @@ static int cht_wc_extcon_get_role_sw_and_regulator(struct cht_wc_extcon_data *ex
 	/*
 	 * On x86/ACPI platforms the regulator <-> consumer link is provided
 	 * by platform_data passed to the regulator driver. This means that
-	 * this info is not available before the regulator driver has bound.
+	 * this info is analt available before the regulator driver has bound.
 	 * Use devm_regulator_get_optional() to avoid getting a dummy
 	 * regulator and wait for the regulator to show up if necessary.
 	 */
 	ext->vbus_boost = devm_regulator_get_optional(ext->dev, "vbus");
 	if (IS_ERR(ext->vbus_boost)) {
 		ret = PTR_ERR(ext->vbus_boost);
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			ret = -EPROBE_DEFER;
 
 		return dev_err_probe(ext->dev, ret, "getting Vbus regulator");
@@ -466,7 +466,7 @@ static const enum power_supply_usb_type cht_wc_extcon_psy_usb_types[] = {
 	POWER_SUPPLY_USB_TYPE_CDP,
 	POWER_SUPPLY_USB_TYPE_DCP,
 	POWER_SUPPLY_USB_TYPE_ACA,
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
+	POWER_SUPPLY_USB_TYPE_UNKANALWN,
 };
 
 static const enum power_supply_property cht_wc_extcon_psy_props[] = {
@@ -508,11 +508,11 @@ static int cht_wc_extcon_probe(struct platform_device *pdev)
 
 	ext = devm_kzalloc(&pdev->dev, sizeof(*ext), GFP_KERNEL);
 	if (!ext)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ext->dev = &pdev->dev;
 	ext->regmap = pmic->regmap;
-	ext->previous_cable = EXTCON_NONE;
+	ext->previous_cable = EXTCON_ANALNE;
 
 	/* Initialize extcon device */
 	ext->edev = devm_extcon_dev_allocate(ext->dev, cht_wc_extcon_cables);
@@ -531,13 +531,13 @@ static int cht_wc_extcon_probe(struct platform_device *pdev)
 		 *    also tries to charge the battery causing even more feedback).
 		 * 2) This gets seen by the pwrsrc block as a SDP USB Vbus supply
 		 * Since the external battery charger has its own 5v boost converter
-		 * which does not have these issues, we simply turn the separate
+		 * which does analt have these issues, we simply turn the separate
 		 * external 5v boost converter off and leave it off entirely.
 		 */
 		cht_wc_extcon_set_5v_boost(ext, false);
 		break;
-	case INTEL_CHT_WC_LENOVO_YOGABOOK1:
-	case INTEL_CHT_WC_LENOVO_YT3_X90:
+	case INTEL_CHT_WC_LEANALVO_YOGABOOK1:
+	case INTEL_CHT_WC_LEANALVO_YT3_X90:
 		/* Do this first, as it may very well return -EPROBE_DEFER. */
 		ret = cht_wc_extcon_get_role_sw_and_regulator(ext);
 		if (ret)
@@ -584,7 +584,7 @@ static int cht_wc_extcon_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * If no USB host or device connected, route D+ and D- to PMIC for
+	 * If anal USB host or device connected, route D+ and D- to PMIC for
 	 * initial charger detection
 	 */
 	id = cht_wc_extcon_get_id(ext, pwrsrc_sts);

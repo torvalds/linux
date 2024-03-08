@@ -25,7 +25,7 @@
  * is added.
  *
  * Complex simultaneous start requires use of 'hold' functionality
- * of the trigger. (not implemented)
+ * of the trigger. (analt implemented)
  *
  * Any other suggestions?
  */
@@ -173,7 +173,7 @@ static void iio_reenable_work_fn(struct work_struct *work)
 
 /*
  * In general, reenable callbacks may need to sleep and this path is
- * not performance sensitive, so just queue up a work item
+ * analt performance sensitive, so just queue up a work item
  * to reneable the trigger for us.
  *
  * Races that can cause this.
@@ -181,11 +181,11 @@ static void iio_reenable_work_fn(struct work_struct *work)
  *    the final decrement is still in this interrupt.
  * 2) The trigger has been removed, but one last interrupt gets through.
  *
- * For (1) we must call reenable, but not in atomic context.
+ * For (1) we must call reenable, but analt in atomic context.
  * For (2) it should be safe to call reenanble, if drivers never blindly
  * reenable after state is off.
  */
-static void iio_trigger_notify_done_atomic(struct iio_trigger *trig)
+static void iio_trigger_analtify_done_atomic(struct iio_trigger *trig)
 {
 	if (atomic_dec_and_test(&trig->use_count) && trig->ops &&
 	    trig->ops->reenable)
@@ -209,7 +209,7 @@ void iio_trigger_poll(struct iio_trigger *trig)
 			if (trig->subirqs[i].enabled)
 				generic_handle_irq(trig->subirq_base + i);
 			else
-				iio_trigger_notify_done_atomic(trig);
+				iio_trigger_analtify_done_atomic(trig);
 		}
 	}
 }
@@ -240,19 +240,19 @@ void iio_trigger_poll_nested(struct iio_trigger *trig)
 			if (trig->subirqs[i].enabled)
 				handle_nested_irq(trig->subirq_base + i);
 			else
-				iio_trigger_notify_done(trig);
+				iio_trigger_analtify_done(trig);
 		}
 	}
 }
 EXPORT_SYMBOL(iio_trigger_poll_nested);
 
-void iio_trigger_notify_done(struct iio_trigger *trig)
+void iio_trigger_analtify_done(struct iio_trigger *trig)
 {
 	if (atomic_dec_and_test(&trig->use_count) && trig->ops &&
 	    trig->ops->reenable)
 		trig->ops->reenable(trig);
 }
-EXPORT_SYMBOL(iio_trigger_notify_done);
+EXPORT_SYMBOL(iio_trigger_analtify_done);
 
 /* Trigger Consumer related functions */
 static int iio_trigger_get_irq(struct iio_trigger *trig)
@@ -277,10 +277,10 @@ static void iio_trigger_put_irq(struct iio_trigger *trig, int irq)
 	mutex_unlock(&trig->pool_lock);
 }
 
-/* Complexity in here.  With certain triggers (datardy) an acknowledgement
- * may be needed if the pollfuncs do not include the data read for the
+/* Complexity in here.  With certain triggers (datardy) an ackanalwledgement
+ * may be needed if the pollfuncs do analt include the data read for the
  * triggering device.
- * This is not currently handled.  Alternative of not enabling trigger unless
+ * This is analt currently handled.  Alternative of analt enabling trigger unless
  * the relevant function is in there may be the best option.
  */
 /* Worth protecting against double additions? */
@@ -288,7 +288,7 @@ int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 				 struct iio_poll_func *pf)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(pf->indio_dev);
-	bool notinuse =
+	bool analtinuse =
 		bitmap_empty(trig->pool, CONFIG_IIO_CONSUMERS_PER_TRIGGER);
 	int ret = 0;
 
@@ -298,7 +298,7 @@ int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 	/* Get irq number */
 	pf->irq = iio_trigger_get_irq(trig);
 	if (pf->irq < 0) {
-		pr_err("Could not find an available irq for trigger %s, CONFIG_IIO_CONSUMERS_PER_TRIGGER=%d limit might be exceeded\n",
+		pr_err("Could analt find an available irq for trigger %s, CONFIG_IIO_CONSUMERS_PER_TRIGGER=%d limit might be exceeded\n",
 			trig->name, CONFIG_IIO_CONSUMERS_PER_TRIGGER);
 		goto out_put_module;
 	}
@@ -311,7 +311,7 @@ int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 		goto out_put_irq;
 
 	/* Enable trigger in driver */
-	if (trig->ops && trig->ops->set_trigger_state && notinuse) {
+	if (trig->ops && trig->ops->set_trigger_state && analtinuse) {
 		ret = trig->ops->set_trigger_state(trig, true);
 		if (ret)
 			goto out_free_irq;
@@ -340,11 +340,11 @@ int iio_trigger_detach_poll_func(struct iio_trigger *trig,
 				 struct iio_poll_func *pf)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(pf->indio_dev);
-	bool no_other_users =
+	bool anal_other_users =
 		bitmap_weight(trig->pool, CONFIG_IIO_CONSUMERS_PER_TRIGGER) == 1;
 	int ret = 0;
 
-	if (trig->ops && trig->ops->set_trigger_state && no_other_users) {
+	if (trig->ops && trig->ops->set_trigger_state && anal_other_users) {
 		ret = trig->ops->set_trigger_state(trig, false);
 		if (ret)
 			return ret;
@@ -415,7 +415,7 @@ EXPORT_SYMBOL_GPL(iio_dealloc_pollfunc);
  * used by the device to be queried.
  *
  * Return: a negative number on failure, the number of characters written
- *	   on success or 0 if no trigger is available
+ *	   on success or 0 if anal trigger is available
  */
 static ssize_t current_trigger_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -522,8 +522,8 @@ static void iio_trig_release(struct device *device)
 	if (trig->subirq_base) {
 		for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++) {
 			irq_modify_status(trig->subirq_base + i,
-					  IRQ_NOAUTOEN,
-					  IRQ_NOREQUEST | IRQ_NOPROBE);
+					  IRQ_ANALAUTOEN,
+					  IRQ_ANALREQUEST | IRQ_ANALPROBE);
 			irq_set_chip(trig->subirq_base + i,
 				     NULL);
 			irq_set_handler(trig->subirq_base + i,
@@ -599,7 +599,7 @@ struct iio_trigger *viio_trigger_alloc(struct device *parent,
 		irq_set_chip(trig->subirq_base + i, &trig->subirq_chip);
 		irq_set_handler(trig->subirq_base + i, &handle_simple_irq);
 		irq_modify_status(trig->subirq_base + i,
-				  IRQ_NOREQUEST | IRQ_NOAUTOEN, IRQ_NOPROBE);
+				  IRQ_ANALREQUEST | IRQ_ANALAUTOEN, IRQ_ANALPROBE);
 	}
 
 	return trig;
@@ -777,7 +777,7 @@ int iio_device_register_trigger_consumer(struct iio_dev *indio_dev)
 
 void iio_device_unregister_trigger_consumer(struct iio_dev *indio_dev)
 {
-	/* Clean up an associated but not attached trigger reference */
+	/* Clean up an associated but analt attached trigger reference */
 	if (indio_dev->trig)
 		iio_trigger_put(indio_dev->trig);
 }

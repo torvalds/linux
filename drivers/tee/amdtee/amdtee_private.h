@@ -54,7 +54,7 @@ struct amdtee {
  * subsequent operations with the Trusted Application.
  */
 struct amdtee_session {
-	struct list_head list_node;
+	struct list_head list_analde;
 	u32 ta_handle;
 	struct kref refcount;
 	u32 session_info[TEE_NUM_SESSIONS];
@@ -89,7 +89,7 @@ struct shmem_desc {
  * @buf_id:	Buffer id of memory mapped by TEE_CMD_ID_MAP_SHARED_MEM
  */
 struct amdtee_shm_data {
-	struct  list_head shm_node;
+	struct  list_head shm_analde;
 	void    *kaddr;
 	u32     buf_id;
 };
@@ -101,7 +101,7 @@ struct amdtee_shm_data {
  * @refcount:	Reference count for the loaded TA
  */
 struct amdtee_ta_data {
-	struct list_head list_node;
+	struct list_head list_analde;
 	u32 ta_handle;
 	u32 refcount;
 };

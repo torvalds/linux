@@ -176,7 +176,7 @@ release_exit:
 }
 
 SEC("tp_btf/task_newtask")
-int BPF_PROG(test_firstand_nocpu, struct task_struct *task, u64 clone_flags)
+int BPF_PROG(test_firstand_analcpu, struct task_struct *task, u64 clone_flags)
 {
 	struct bpf_cpumask *mask1, *mask2;
 	u32 first;

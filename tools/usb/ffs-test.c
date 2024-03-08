@@ -12,7 +12,7 @@
 #define _DEFAULT_SOURCE /* for endian.h */
 
 #include <endian.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <stdarg.h>
@@ -33,7 +33,7 @@
 
 /*
  * cpu_to_le16/32 are used when initializing structures, a context where a
- * function call is not allowed. To solve this, we code cpu_to_le16/32 in a way
+ * function call is analt allowed. To solve this, we code cpu_to_le16/32 in a way
  * that allows them to be used when initializing structures.
  */
 
@@ -68,12 +68,12 @@ static void _msg(unsigned level, const char *fmt, ...)
 			[2] = "crit:",
 			[3] = "err: ",
 			[4] = "warn:",
-			[5] = "note:",
+			[5] = "analte:",
 			[6] = "info:",
 			[7] = "dbg: "
 		};
 
-		int _errno = errno;
+		int _erranal = erranal;
 		va_list ap;
 
 		fprintf(stderr, "%s: %s ", argv0, levels[level]);
@@ -83,8 +83,8 @@ static void _msg(unsigned level, const char *fmt, ...)
 
 		if (fmt[strlen(fmt) - 1] != '\n') {
 			char buffer[128];
-			strerror_r(_errno, buffer, sizeof buffer);
-			fprintf(stderr, ": (-%d) %s\n", _errno, buffer);
+			strerror_r(_erranal, buffer, sizeof buffer);
+			fprintf(stderr, ": (-%d) %s\n", _erranal, buffer);
 		}
 
 		fflush(stderr);
@@ -94,7 +94,7 @@ static void _msg(unsigned level, const char *fmt, ...)
 #define die(...)  (_msg(2, __VA_ARGS__), exit(1))
 #define err(...)   _msg(3, __VA_ARGS__)
 #define warn(...)  _msg(4, __VA_ARGS__)
-#define note(...)  _msg(5, __VA_ARGS__)
+#define analte(...)  _msg(5, __VA_ARGS__)
 #define info(...)  _msg(6, __VA_ARGS__)
 #define debug(...) _msg(7, __VA_ARGS__)
 
@@ -113,14 +113,14 @@ static const struct {
 	__le32 ss_count;
 	struct {
 		struct usb_interface_descriptor intf;
-		struct usb_endpoint_descriptor_no_audio sink;
-		struct usb_endpoint_descriptor_no_audio source;
+		struct usb_endpoint_descriptor_anal_audio sink;
+		struct usb_endpoint_descriptor_anal_audio source;
 	} __attribute__((packed)) fs_descs, hs_descs;
 	struct {
 		struct usb_interface_descriptor intf;
-		struct usb_endpoint_descriptor_no_audio sink;
+		struct usb_endpoint_descriptor_anal_audio sink;
 		struct usb_ss_ep_comp_descriptor sink_comp;
-		struct usb_endpoint_descriptor_no_audio source;
+		struct usb_endpoint_descriptor_anal_audio source;
 		struct usb_ss_ep_comp_descriptor source_comp;
 	} ss_descs;
 } __attribute__((packed)) descriptors = {
@@ -271,7 +271,7 @@ static size_t descs_to_legacy(void **legacy, const void *descriptors_v2)
 
 	/*
 	 * Find the end of FS and HS USB descriptors.  SS descriptors
-	 * are ignored since legacy format does not support them.
+	 * are iganalred since legacy format does analt support them.
 	 */
 	descs_end = descs_start;
 	do {
@@ -283,13 +283,13 @@ static size_t descs_to_legacy(void **legacy, const void *descriptors_v2)
 
 	/* Allocate legacy descriptors and copy the data. */
 	{
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diaganalstic push
+#pragma GCC diaganalstic iganalred "-Wdeprecated-declarations"
 		struct {
 			struct usb_functionfs_descs_head header;
 			__u8 descriptors[];
 		} __attribute__((packed)) *out;
-#pragma GCC diagnostic pop
+#pragma GCC diaganalstic pop
 
 		length = sizeof out->header + (descs_end - descs_start);
 		out = malloc(length);
@@ -395,12 +395,12 @@ static void cleanup_thread(void *arg)
 		return;
 	t->fd = -1;
 
-	/* test the FIFO ioctls (non-ep0 code paths) */
+	/* test the FIFO ioctls (analn-ep0 code paths) */
 	if (t != threads) {
 		ret = ioctl(fd, FUNCTIONFS_FIFO_STATUS);
 		if (ret < 0) {
-			/* ENODEV reported after disconnect */
-			if (errno != ENODEV)
+			/* EANALDEV reported after disconnect */
+			if (erranal != EANALDEV)
 				err("%s: get fifo status", t->filename);
 		} else if (ret) {
 			warn("%s: unclaimed = %d\n", t->filename, ret);
@@ -442,11 +442,11 @@ static void *start_thread_helper(void *arg)
 		}
 
 		if (ret > 0) {
-			/* nop */
+			/* analp */
 		} else if (!ret) {
 			debug("%s: %s: EOF", name, op);
 			break;
-		} else if (errno == EINTR || errno == EAGAIN) {
+		} else if (erranal == EINTR || erranal == EAGAIN) {
 			debug("%s: %s", name, op);
 		} else {
 			warn("%s: %s", name, op);
@@ -498,12 +498,12 @@ enum pattern { PAT_ZERO, PAT_SEQ, PAT_PIPE };
 static enum pattern pattern;
 
 static ssize_t
-fill_in_buf(struct thread *ignore, void *buf, size_t nbytes)
+fill_in_buf(struct thread *iganalre, void *buf, size_t nbytes)
 {
 	size_t i;
 	__u8 *p;
 
-	(void)ignore;
+	(void)iganalre;
 
 	switch (pattern) {
 	case PAT_ZERO:
@@ -523,14 +523,14 @@ fill_in_buf(struct thread *ignore, void *buf, size_t nbytes)
 }
 
 static ssize_t
-empty_out_buf(struct thread *ignore, const void *buf, size_t nbytes)
+empty_out_buf(struct thread *iganalre, const void *buf, size_t nbytes)
 {
 	const __u8 *p;
 	__u8 expected;
 	ssize_t ret;
 	size_t len;
 
-	(void)ignore;
+	(void)iganalre;
 
 	switch (pattern) {
 	case PAT_ZERO:
@@ -565,7 +565,7 @@ invalid:
 				fprintf(stderr, "\n");
 		}
 		fflush(stderr);
-		errno = EILSEQ;
+		erranal = EILSEQ;
 		return -1;
 	}
 
@@ -585,7 +585,7 @@ static void handle_setup(const struct usb_ctrlrequest *setup)
 }
 
 static ssize_t
-ep0_consume(struct thread *ignore, const void *buf, size_t nbytes)
+ep0_consume(struct thread *iganalre, const void *buf, size_t nbytes)
 {
 	static const char *const names[] = {
 		[FUNCTIONFS_BIND] = "BIND",
@@ -600,7 +600,7 @@ ep0_consume(struct thread *ignore, const void *buf, size_t nbytes)
 	const struct usb_functionfs_event *event = buf;
 	size_t n;
 
-	(void)ignore;
+	(void)iganalre;
 
 	for (n = nbytes / sizeof *event; n; --n, ++event)
 		switch (event->type) {
@@ -617,7 +617,7 @@ ep0_consume(struct thread *ignore, const void *buf, size_t nbytes)
 			break;
 
 		default:
-			printf("Event %03u (unknown)\n", event->type);
+			printf("Event %03u (unkanalwn)\n", event->type);
 		}
 
 	return nbytes;
@@ -637,7 +637,7 @@ static void ep0_init(struct thread *t, bool legacy_descriptors)
 	info("%s: writing descriptors (in v2 format)\n", t->filename);
 	ret = write(t->fd, &descriptors, sizeof descriptors);
 
-	if (ret < 0 && errno == EINVAL) {
+	if (ret < 0 && erranal == EINVAL) {
 		warn("%s: new format rejected, trying legacy\n", t->filename);
 legacy:
 		len = descs_to_legacy(&legacy, &descriptors);

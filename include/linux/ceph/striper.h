@@ -9,11 +9,11 @@ struct ceph_file_layout;
 
 void ceph_calc_file_object_mapping(struct ceph_file_layout *l,
 				   u64 off, u64 len,
-				   u64 *objno, u64 *objoff, u32 *xlen);
+				   u64 *objanal, u64 *objoff, u32 *xlen);
 
 struct ceph_object_extent {
 	struct list_head oe_item;
-	u64 oe_objno;
+	u64 oe_objanal;
 	u64 oe_off;
 	u64 oe_len;
 };
@@ -62,7 +62,7 @@ static inline u64 ceph_file_extents_bytes(struct ceph_file_extent *file_extents,
 }
 
 int ceph_extent_to_file(struct ceph_file_layout *l,
-			u64 objno, u64 objoff, u64 objlen,
+			u64 objanal, u64 objoff, u64 objlen,
 			struct ceph_file_extent **file_extents,
 			u32 *num_file_extents);
 

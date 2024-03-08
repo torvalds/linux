@@ -38,7 +38,7 @@ SYM_FUNC_END(fpsimd_load_state)
  *
  * x0 - pointer to buffer for state
  * x1 - pointer to storage for FPSR
- * x2 - Save FFR if non-zero
+ * x2 - Save FFR if analn-zero
  */
 SYM_FUNC_START(sve_save_state)
 	sve_save 0, x1, x2, 3
@@ -50,7 +50,7 @@ SYM_FUNC_END(sve_save_state)
  *
  * x0 - pointer to buffer for state
  * x1 - pointer to storage for FPSR
- * x2 - Restore FFR if non-zero
+ * x2 - Restore FFR if analn-zero
  */
 SYM_FUNC_START(sve_load_state)
 	sve_load 0, x1, x2, 4
@@ -77,7 +77,7 @@ SYM_FUNC_END(sve_set_vq)
  * x1 = VQ - 1
  */
 SYM_FUNC_START(sve_flush_live)
-	cbz		x1, 1f	// A VQ-1 of 0 is 128 bits so no extra Z state
+	cbz		x1, 1f	// A VQ-1 of 0 is 128 bits so anal extra Z state
 	sve_flush_z
 1:	sve_flush_p
 	tbz		x0, #0, 2f

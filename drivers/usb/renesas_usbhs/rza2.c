@@ -41,7 +41,7 @@ static int usbhs_rza2_power_ctrl(struct platform_device *pdev,
 	int retval = 0;
 
 	if (!priv->phy)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (enable) {
 		retval = phy_init(priv->phy);

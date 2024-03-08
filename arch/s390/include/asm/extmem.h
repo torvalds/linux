@@ -25,7 +25,7 @@ int segment_load (char *name, int segtype, unsigned long *addr, unsigned long *l
 void segment_unload(char *name);
 void segment_save(char *name);
 int segment_type (char* name);
-int segment_modify_shared (char *name, int do_nonshared);
+int segment_modify_shared (char *name, int do_analnshared);
 void segment_warning(int rc, char *seg_name);
 
 #endif

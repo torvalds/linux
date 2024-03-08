@@ -184,7 +184,7 @@
 #define TPS65217_SEQ6_INSTDWN		BIT(0)
 
 #define TPS65217_MAX_REGISTER		0x1E
-#define TPS65217_PROTECT_NONE		0
+#define TPS65217_PROTECT_ANALNE		0
 #define TPS65217_PROTECT_L1		1
 #define TPS65217_PROTECT_L2		2
 
@@ -242,7 +242,7 @@ struct tps65217_bl_pdata {
  */
 struct tps65217_board {
 	struct regulator_init_data *tps65217_init_data[TPS65217_NUM_REGULATOR];
-	struct device_node *of_node[TPS65217_NUM_REGULATOR];
+	struct device_analde *of_analde[TPS65217_NUM_REGULATOR];
 	struct tps65217_bl_pdata *bl_pdata;
 };
 

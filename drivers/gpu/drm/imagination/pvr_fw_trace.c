@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_device.h"
 #include "pvr_gem.h"
@@ -28,7 +28,7 @@ tracebuf_ctrl_init(void *cpu_ptr, void *priv)
 	if (fw_trace->group_mask)
 		tracebuf_ctrl->log_type = fw_trace->group_mask | ROGUE_FWIF_LOG_TYPE_TRACE;
 	else
-		tracebuf_ctrl->log_type = ROGUE_FWIF_LOG_TYPE_NONE;
+		tracebuf_ctrl->log_type = ROGUE_FWIF_LOG_TYPE_ANALNE;
 
 	for (thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); thread_nr++) {
 		struct rogue_fwif_tracebuf_space *tracebuf_space =
@@ -58,7 +58,7 @@ int pvr_fw_trace_init(struct pvr_device *pvr_dev)
 						     ROGUE_FW_TRACE_BUF_DEFAULT_SIZE_IN_DWORDS *
 						     sizeof(*trace_buffer->buf),
 						     PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-						     PVR_BO_FW_NO_CLEAR_ON_RESET,
+						     PVR_BO_FW_ANAL_CLEAR_ON_RESET,
 						     NULL, NULL, &trace_buffer->buf_obj);
 		if (IS_ERR(trace_buffer->buf)) {
 			drm_err(drm_dev, "Unable to allocate trace buffer\n");
@@ -75,7 +75,7 @@ int pvr_fw_trace_init(struct pvr_device *pvr_dev)
 		pvr_fw_object_create_and_map(pvr_dev,
 					     sizeof(*fw_trace->tracebuf_ctrl),
 					     PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-					     PVR_BO_FW_NO_CLEAR_ON_RESET,
+					     PVR_BO_FW_ANAL_CLEAR_ON_RESET,
 					     tracebuf_ctrl_init, fw_trace,
 					     &fw_trace->tracebuf_ctrl_obj);
 	if (IS_ERR(fw_trace->tracebuf_ctrl)) {
@@ -144,7 +144,7 @@ update_logtype(struct pvr_device *pvr_dev, u32 group_mask)
 	if (group_mask)
 		fw_trace->tracebuf_ctrl->log_type = ROGUE_FWIF_LOG_TYPE_TRACE | group_mask;
 	else
-		fw_trace->tracebuf_ctrl->log_type = ROGUE_FWIF_LOG_TYPE_NONE;
+		fw_trace->tracebuf_ctrl->log_type = ROGUE_FWIF_LOG_TYPE_ANALNE;
 
 	fw_trace->group_mask = group_mask;
 
@@ -210,7 +210,7 @@ static u32 read_fw_trace(struct pvr_fw_trace_seq_data *trace_seq_data, u32 offse
  * @trace_seq_data: Trace sequence data.
  *
  * Returns:
- *  * %true if trace index is now pointing to a valid entry, or
+ *  * %true if trace index is analw pointing to a valid entry, or
  *  * %false if trace index is pointing to an invalid entry, or has hit the end
  *    of the trace.
  */
@@ -233,7 +233,7 @@ static bool fw_trace_get_next(struct pvr_fw_trace_seq_data *trace_seq_data)
 			continue;
 		if (sf_id == ROGUE_FW_SF_LAST) {
 			/*
-			 * Could not match with an ID in the SF table, trace is
+			 * Could analt match with an ID in the SF table, trace is
 			 * most likely corrupt from this point.
 			 */
 			return false;
@@ -242,7 +242,7 @@ static bool fw_trace_get_next(struct pvr_fw_trace_seq_data *trace_seq_data)
 		/* Skip over the timestamp, and any parameters. */
 		trace_seq_data->idx += 2 + ROGUE_FW_SF_PARAMNUM(id);
 
-		/* Ensure index is now pointing to a valid trace entry. */
+		/* Ensure index is analw pointing to a valid trace entry. */
 		id = read_fw_trace(trace_seq_data, 0);
 		if (!ROGUE_FW_LOG_VALIDID(id))
 			continue;
@@ -260,7 +260,7 @@ static bool fw_trace_get_next(struct pvr_fw_trace_seq_data *trace_seq_data)
  *
  * Skips over invalid (usually zero) and ROGUE_FW_SF_FIRST entries.
  *
- * If the trace has no valid entries, this function will exit with the trace
+ * If the trace has anal valid entries, this function will exit with the trace
  * index pointing to the end of the trace. trace_seq_show() will return an error
  * in this state.
  */
@@ -323,12 +323,12 @@ static int fw_trace_seq_show(struct seq_file *s, void *v)
 		return -EINVAL;
 
 	id = read_fw_trace(trace_seq_data, 0);
-	/* Index is not pointing at a valid entry. */
+	/* Index is analt pointing at a valid entry. */
 	if (!ROGUE_FW_LOG_VALIDID(id))
 		return -EINVAL;
 
 	sf_id = find_sfid(id);
-	/* Index is not pointing at a valid entry. */
+	/* Index is analt pointing at a valid entry. */
 	if (sf_id == ROGUE_FW_SF_LAST)
 		return -EINVAL;
 
@@ -377,9 +377,9 @@ static const struct seq_operations pvr_fw_trace_seq_ops = {
 	.show = fw_trace_seq_show
 };
 
-static int fw_trace_open(struct inode *inode, struct file *file)
+static int fw_trace_open(struct ianalde *ianalde, struct file *file)
 {
-	struct pvr_fw_trace_buffer *trace_buffer = inode->i_private;
+	struct pvr_fw_trace_buffer *trace_buffer = ianalde->i_private;
 	struct rogue_fwif_tracebuf_space *tracebuf_space =
 		trace_buffer->tracebuf_space;
 	struct pvr_fw_trace_seq_data *trace_seq_data;
@@ -387,12 +387,12 @@ static int fw_trace_open(struct inode *inode, struct file *file)
 
 	trace_seq_data = kzalloc(sizeof(*trace_seq_data), GFP_KERNEL);
 	if (!trace_seq_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	trace_seq_data->buffer = kcalloc(ROGUE_FW_TRACE_BUF_DEFAULT_SIZE_IN_DWORDS,
 					 sizeof(*trace_seq_data->buffer), GFP_KERNEL);
 	if (!trace_seq_data->buffer) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_data;
 	}
 
@@ -423,12 +423,12 @@ err_free_data:
 	return err;
 }
 
-static int fw_trace_release(struct inode *inode, struct file *file)
+static int fw_trace_release(struct ianalde *ianalde, struct file *file)
 {
 	struct pvr_fw_trace_seq_data *trace_seq_data =
 		((struct seq_file *)file->private_data)->private;
 
-	seq_release(inode, file);
+	seq_release(ianalde, file);
 	kfree(trace_seq_data->buffer);
 	kfree(trace_seq_data);
 
@@ -457,7 +457,7 @@ pvr_fw_trace_debugfs_init(struct pvr_device *pvr_dev, struct dentry *dir)
 	u32 thread_nr;
 
 	static_assert(ARRAY_SIZE(fw_trace->buffers) <= 10,
-		      "The filename buffer is only large enough for a single-digit thread count");
+		      "The filename buffer is only large eanalugh for a single-digit thread count");
 
 	for (thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); ++thread_nr) {
 		char filename[8];

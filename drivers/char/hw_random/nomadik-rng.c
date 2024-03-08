@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Nomadik RNG support
+ * Analmadik RNG support
  *  Copyright 2009 Alessandro Rubini
  */
 
@@ -28,7 +28,7 @@ static int nmk_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 
 /* we have at most one RNG per machine, granted */
 static struct hwrng nmk_rng = {
-	.name		= "nomadik",
+	.name		= "analmadik",
 	.read		= nmk_rng_read,
 };
 
@@ -40,12 +40,12 @@ static int nmk_rng_probe(struct amba_device *dev, const struct amba_id *id)
 
 	rng_clk = devm_clk_get_enabled(&dev->dev, NULL);
 	if (IS_ERR(rng_clk))
-		return dev_err_probe(&dev->dev, PTR_ERR(rng_clk), "could not get rng clock\n");
+		return dev_err_probe(&dev->dev, PTR_ERR(rng_clk), "could analt get rng clock\n");
 
 	ret = amba_request_regions(dev, dev->dev.init_name);
 	if (ret)
 		return ret;
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	base = devm_ioremap(&dev->dev, dev->res.start,
 			    resource_size(&dev->res));
 	if (!base)
@@ -88,5 +88,5 @@ static struct amba_driver nmk_rng_driver = {
 
 module_amba_driver(nmk_rng_driver);
 
-MODULE_DESCRIPTION("ST-Ericsson Nomadik Random Number Generator");
+MODULE_DESCRIPTION("ST-Ericsson Analmadik Random Number Generator");
 MODULE_LICENSE("GPL");

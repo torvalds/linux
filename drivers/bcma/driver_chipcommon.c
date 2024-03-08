@@ -40,7 +40,7 @@ static bool bcma_core_cc_has_pmu_watchdog(struct bcma_drv_cc *cc)
 
 	if (cc->capabilities & BCMA_CC_CAP_PMU) {
 		if (bus->chipinfo.id == BCMA_CHIP_ID_BCM53573) {
-			WARN(bus->chipinfo.rev <= 1, "No watchdog available\n");
+			WARN(bus->chipinfo.rev <= 1, "Anal watchdog available\n");
 			/* 53573B0 and 53573B1 have bugged PMU watchdog. It can
 			 * be enabled but timer can't be bumped. Use CC one
 			 * instead.
@@ -118,7 +118,7 @@ int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc)
 
 	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM53573 &&
 	    bus->chipinfo.rev <= 1) {
-		pr_debug("No watchdog on 53573A0 / 53573A1\n");
+		pr_debug("Anal watchdog on 53573A0 / 53573A1\n");
 		return 0;
 	}
 
@@ -154,7 +154,7 @@ static void bcma_core_chipcommon_flash_detect(struct bcma_drv_cc *cc)
 		bcma_pflash_init(cc);
 		break;
 	default:
-		bcma_err(bus, "Flash type not supported\n");
+		bcma_err(bus, "Flash type analt supported\n");
 	}
 
 	if (cc->core->id.rev == 38 ||
@@ -215,7 +215,7 @@ void bcma_core_chipcommon_init(struct bcma_drv_cc *cc)
 	if (cc->capabilities & BCMA_CC_CAP_PMU)
 		bcma_pmu_init(cc);
 	if (cc->capabilities & BCMA_CC_CAP_PCTL)
-		bcma_err(cc->core->bus, "Power control not implemented!\n");
+		bcma_err(cc->core->bus, "Power control analt implemented!\n");
 
 	if (cc->core->id.rev >= 16) {
 		if (cc->core->bus->sprom.leddc_on_time &&
@@ -304,7 +304,7 @@ EXPORT_SYMBOL_GPL(bcma_chipco_gpio_outen);
 
 /*
  * If the bit is set to 0, chipcommon controls this GPIO,
- * if the bit is set to 1, it is used by some part of the chip and not our code.
+ * if the bit is set to 1, it is used by some part of the chip and analt our code.
  */
 u32 bcma_chipco_gpio_control(struct bcma_drv_cc *cc, u32 mask, u32 value)
 {
@@ -401,7 +401,7 @@ void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
 				       | BCMA_CC_CORECTL_UARTCLKEN);
 		}
 	} else {
-		bcma_err(cc->core->bus, "serial not supported on this device ccrev: 0x%x\n",
+		bcma_err(cc->core->bus, "serial analt supported on this device ccrev: 0x%x\n",
 			 ccrev);
 		return;
 	}

@@ -39,7 +39,7 @@
 #define SUN4I_CODEC_DAC_FIFOC_TX_FIFO_MODE		(24)
 #define SUN4I_CODEC_DAC_FIFOC_DRQ_CLR_CNT		(21)
 #define SUN4I_CODEC_DAC_FIFOC_TX_TRIG_LEVEL		(8)
-#define SUN4I_CODEC_DAC_FIFOC_MONO_EN			(6)
+#define SUN4I_CODEC_DAC_FIFOC_MOANAL_EN			(6)
 #define SUN4I_CODEC_DAC_FIFOC_TX_SAMPLE_BITS		(5)
 #define SUN4I_CODEC_DAC_FIFOC_DAC_DRQ_EN		(4)
 #define SUN4I_CODEC_DAC_FIFOC_FIFO_FLUSH		(0)
@@ -78,7 +78,7 @@
 #define SUN4I_CODEC_ADC_FIFOC_EN_AD			(28)
 #define SUN4I_CODEC_ADC_FIFOC_RX_FIFO_MODE		(24)
 #define SUN4I_CODEC_ADC_FIFOC_RX_TRIG_LEVEL		(8)
-#define SUN4I_CODEC_ADC_FIFOC_MONO_EN			(7)
+#define SUN4I_CODEC_ADC_FIFOC_MOANAL_EN			(7)
 #define SUN4I_CODEC_ADC_FIFOC_RX_SAMPLE_BITS		(6)
 #define SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN		(4)
 #define SUN4I_CODEC_ADC_FIFOC_FIFO_FLUSH		(0)
@@ -329,16 +329,16 @@ static int sun4i_codec_prepare_capture(struct snd_pcm_substream *substream,
 	 *        Allwinner's code mentions that it is
 	 *        related to microphone gain
 	 */
-	if (of_device_is_compatible(scodec->dev->of_node,
+	if (of_device_is_compatible(scodec->dev->of_analde,
 				    "allwinner,sun4i-a10-codec") ||
-	    of_device_is_compatible(scodec->dev->of_node,
+	    of_device_is_compatible(scodec->dev->of_analde,
 				    "allwinner,sun7i-a20-codec")) {
 		regmap_update_bits(scodec->regmap, SUN4I_CODEC_ADC_ACTL,
 				   0x3 << 25,
 				   0x1 << 25);
 	}
 
-	if (of_device_is_compatible(scodec->dev->of_node,
+	if (of_device_is_compatible(scodec->dev->of_analde,
 				    "allwinner,sun7i-a20-codec"))
 		/* FIXME: Undocumented bits */
 		regmap_update_bits(scodec->regmap, SUN4I_CODEC_DAC_TUNE,
@@ -475,10 +475,10 @@ static int sun4i_codec_hw_params_capture(struct sun4i_codec *scodec,
 	/* Set the number of channels we want to use */
 	if (params_channels(params) == 1)
 		regmap_field_set_bits(scodec->reg_adc_fifoc,
-					 BIT(SUN4I_CODEC_ADC_FIFOC_MONO_EN));
+					 BIT(SUN4I_CODEC_ADC_FIFOC_MOANAL_EN));
 	else
 		regmap_field_clear_bits(scodec->reg_adc_fifoc,
-					 BIT(SUN4I_CODEC_ADC_FIFOC_MONO_EN));
+					 BIT(SUN4I_CODEC_ADC_FIFOC_MOANAL_EN));
 
 	/* Set the number of sample bits to either 16 or 24 bits */
 	if (hw_param_interval(params, SNDRV_PCM_HW_PARAM_SAMPLE_BITS)->min == 32) {
@@ -516,12 +516,12 @@ static int sun4i_codec_hw_params_playback(struct sun4i_codec *scodec,
 
 	/* Set the number of channels we want to use */
 	if (params_channels(params) == 1)
-		val = BIT(SUN4I_CODEC_DAC_FIFOC_MONO_EN);
+		val = BIT(SUN4I_CODEC_DAC_FIFOC_MOANAL_EN);
 	else
 		val = 0;
 
 	regmap_update_bits(scodec->regmap, SUN4I_CODEC_DAC_FIFOC,
-			   BIT(SUN4I_CODEC_DAC_FIFOC_MONO_EN),
+			   BIT(SUN4I_CODEC_DAC_FIFOC_MOANAL_EN),
 			   val);
 
 	/* Set the number of sample bits to either 16 or 24 bits */
@@ -777,10 +777,10 @@ static const struct snd_soc_dapm_widget sun4i_codec_codec_dapm_widgets[] = {
 			 SUN4I_CODEC_DAC_ACTL_DACAENR, 0),
 
 	/* Mixers */
-	SND_SOC_DAPM_MIXER("Left Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Left Mixer", SND_SOC_ANALPM, 0, 0,
 			   sun4i_codec_mixer_controls,
 			   ARRAY_SIZE(sun4i_codec_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Right Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Right Mixer", SND_SOC_ANALPM, 0, 0,
 			   sun4i_codec_mixer_controls,
 			   ARRAY_SIZE(sun4i_codec_mixer_controls)),
 
@@ -803,7 +803,7 @@ static const struct snd_soc_dapm_widget sun4i_codec_codec_dapm_widgets[] = {
 			   SUN4I_CODEC_ADC_ACTL_PA_EN, 0,
 			   sun4i_codec_pa_mixer_controls,
 			   ARRAY_SIZE(sun4i_codec_pa_mixer_controls)),
-	SND_SOC_DAPM_SWITCH("Power Amplifier Mute", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Power Amplifier Mute", SND_SOC_ANALPM, 0, 0,
 			    &sun4i_codec_pa_mute),
 
 	SND_SOC_DAPM_INPUT("Line Right"),
@@ -974,7 +974,7 @@ static const struct snd_kcontrol_new sun6i_codec_mic2_src[] = {
 
 /* line out controls */
 static const char * const sun6i_codec_lineout_src_enum_text[] = {
-	"Stereo", "Mono Differential",
+	"Stereo", "Moanal Differential",
 };
 
 static SOC_ENUM_DOUBLE_DECL(sun6i_codec_lineout_src_enum,
@@ -1060,7 +1060,7 @@ static const struct snd_soc_dapm_widget sun6i_codec_codec_dapm_widgets[] = {
 
 	/* Mic input path */
 	SND_SOC_DAPM_MUX("Mic2 Amplifier Source Route",
-			 SND_SOC_NOPM, 0, 0, sun6i_codec_mic2_src),
+			 SND_SOC_ANALPM, 0, 0, sun6i_codec_mic2_src),
 	SND_SOC_DAPM_PGA("Mic1 Amplifier", SUN6I_CODEC_MIC_CTRL,
 			 SUN6I_CODEC_MIC_CTRL_MIC1AMPEN, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Mic2 Amplifier", SUN6I_CODEC_MIC_CTRL,
@@ -1081,9 +1081,9 @@ static const struct snd_soc_dapm_widget sun6i_codec_codec_dapm_widgets[] = {
 			 SUN6I_CODEC_ADC_ACTL_ADCREN, 0),
 
 	/* ADC Mixers */
-	SOC_MIXER_ARRAY("Left ADC Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("Left ADC Mixer", SND_SOC_ANALPM, 0, 0,
 			sun6i_codec_adc_mixer_controls),
-	SOC_MIXER_ARRAY("Right ADC Mixer", SND_SOC_NOPM, 0, 0,
+	SOC_MIXER_ARRAY("Right ADC Mixer", SND_SOC_ANALPM, 0, 0,
 			sun6i_codec_adc_mixer_controls),
 
 	/* Digital parts of the DACs */
@@ -1109,7 +1109,7 @@ static const struct snd_soc_dapm_widget sun6i_codec_codec_dapm_widgets[] = {
 
 	/* Headphone output path */
 	SND_SOC_DAPM_MUX("Headphone Source Playback Route",
-			 SND_SOC_NOPM, 0, 0, sun6i_codec_hp_src),
+			 SND_SOC_ANALPM, 0, 0, sun6i_codec_hp_src),
 	SND_SOC_DAPM_OUT_DRV("Headphone Amp", SUN6I_CODEC_OM_PA_CTRL,
 			     SUN6I_CODEC_OM_PA_CTRL_HPPAEN, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("HPCOM Protection", SUN6I_CODEC_OM_PA_CTRL,
@@ -1120,7 +1120,7 @@ static const struct snd_soc_dapm_widget sun6i_codec_codec_dapm_widgets[] = {
 
 	/* Line Out path */
 	SND_SOC_DAPM_MUX("Line Out Source Playback Route",
-			 SND_SOC_NOPM, 0, 0, sun6i_codec_lineout_src),
+			 SND_SOC_ANALPM, 0, 0, sun6i_codec_lineout_src),
 	SND_SOC_DAPM_OUTPUT("LINEOUT"),
 };
 
@@ -1175,8 +1175,8 @@ static const struct snd_soc_dapm_route sun6i_codec_codec_dapm_routes[] = {
 	/* Line Out Routes */
 	{ "Line Out Source Playback Route", "Stereo", "Left Mixer" },
 	{ "Line Out Source Playback Route", "Stereo", "Right Mixer" },
-	{ "Line Out Source Playback Route", "Mono Differential", "Left Mixer" },
-	{ "Line Out Source Playback Route", "Mono Differential", "Right Mixer" },
+	{ "Line Out Source Playback Route", "Moanal Differential", "Left Mixer" },
+	{ "Line Out Source Playback Route", "Moanal Differential", "Right Mixer" },
 	{ "LINEOUT", NULL, "Line Out Source Playback Route" },
 
 	/* ADC Routes */
@@ -1315,7 +1315,7 @@ static int sun4i_codec_spk_event(struct snd_soc_dapm_widget *w,
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		/*
 		 * Need a delay to wait for DAC to push the data. 700ms seems
-		 * to be the best compromise not to feel this delay while
+		 * to be the best compromise analt to feel this delay while
 		 * playing a sound.
 		 */
 		msleep(700);
@@ -1339,11 +1339,11 @@ static struct snd_soc_card *sun4i_codec_create_card(struct device *dev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	card->dai_link = sun4i_codec_create_link(dev, &card->num_links);
 	if (!card->dai_link)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	card->dev		= dev;
 	card->owner		= THIS_MODULE;
@@ -1372,11 +1372,11 @@ static struct snd_soc_card *sun6i_codec_create_card(struct device *dev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	card->dai_link = sun4i_codec_create_link(dev, &card->num_links);
 	if (!card->dai_link)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	card->dev		= dev;
 	card->owner		= THIS_MODULE;
@@ -1418,19 +1418,19 @@ static struct snd_soc_card *sun8i_a23_codec_create_card(struct device *dev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	aux_dev.dlc.of_node = of_parse_phandle(dev->of_node,
+	aux_dev.dlc.of_analde = of_parse_phandle(dev->of_analde,
 						 "allwinner,codec-analog-controls",
 						 0);
-	if (!aux_dev.dlc.of_node) {
+	if (!aux_dev.dlc.of_analde) {
 		dev_err(dev, "Can't find analog controls for codec.\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	card->dai_link = sun4i_codec_create_link(dev, &card->num_links);
 	if (!card->dai_link)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	card->dev		= dev;
 	card->owner		= THIS_MODULE;
@@ -1457,19 +1457,19 @@ static struct snd_soc_card *sun8i_h3_codec_create_card(struct device *dev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	aux_dev.dlc.of_node = of_parse_phandle(dev->of_node,
+	aux_dev.dlc.of_analde = of_parse_phandle(dev->of_analde,
 						 "allwinner,codec-analog-controls",
 						 0);
-	if (!aux_dev.dlc.of_node) {
+	if (!aux_dev.dlc.of_analde) {
 		dev_err(dev, "Can't find analog controls for codec.\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	card->dai_link = sun4i_codec_create_link(dev, &card->num_links);
 	if (!card->dai_link)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	card->dev		= dev;
 	card->owner		= THIS_MODULE;
@@ -1496,19 +1496,19 @@ static struct snd_soc_card *sun8i_v3s_codec_create_card(struct device *dev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	aux_dev.dlc.of_node = of_parse_phandle(dev->of_node,
+	aux_dev.dlc.of_analde = of_parse_phandle(dev->of_analde,
 						 "allwinner,codec-analog-controls",
 						 0);
-	if (!aux_dev.dlc.of_node) {
+	if (!aux_dev.dlc.of_analde) {
 		dev_err(dev, "Can't find analog controls for codec.\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	card->dai_link = sun4i_codec_create_link(dev, &card->num_links);
 	if (!card->dai_link)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	card->dev		= dev;
 	card->owner		= THIS_MODULE;
@@ -1621,7 +1621,7 @@ static const struct sun4i_codec_quirks sun8i_a23_codec_quirks = {
 static const struct sun4i_codec_quirks sun8i_h3_codec_quirks = {
 	.regmap_config	= &sun8i_h3_codec_regmap_config,
 	/*
-	 * TODO Share the codec structure with A23 for now.
+	 * TODO Share the codec structure with A23 for analw.
 	 * This should be split out when adding digital audio
 	 * processing support for the H3.
 	 */
@@ -1687,7 +1687,7 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 
 	scodec = devm_kzalloc(&pdev->dev, sizeof(*scodec), GFP_KERNEL);
 	if (!scodec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scodec->dev = &pdev->dev;
 
@@ -1698,7 +1698,7 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 	quirks = of_device_get_match_data(&pdev->dev);
 	if (quirks == NULL) {
 		dev_err(&pdev->dev, "Failed to determine the quirks to use\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	scodec->regmap = devm_regmap_init_mmio(&pdev->dev, base,

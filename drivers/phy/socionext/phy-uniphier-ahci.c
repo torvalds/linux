@@ -393,7 +393,7 @@ static int uniphier_ahciphy_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	priv->data = of_device_get_match_data(dev);
@@ -444,7 +444,7 @@ static int uniphier_ahciphy_probe(struct platform_device *pdev)
 			return PTR_ERR(priv->rst_rx);
 	}
 
-	phy = devm_phy_create(dev, dev->of_node, &uniphier_ahciphy_ops);
+	phy = devm_phy_create(dev, dev->of_analde, &uniphier_ahciphy_ops);
 	if (IS_ERR(phy)) {
 		dev_err(dev, "failed to create phy\n");
 		return PTR_ERR(phy);

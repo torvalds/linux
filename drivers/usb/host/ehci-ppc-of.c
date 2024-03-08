@@ -76,7 +76,7 @@ static const struct hc_driver ehci_ppc_of_hc_driver = {
  */
 #define PPC440EPX_EHCI0_INSREG_BMT	(0x1 << 0)
 static int
-ppc44x_enable_bmt(struct device_node *dn)
+ppc44x_enable_bmt(struct device_analde *dn)
 {
 	__iomem u32 *insreg_virt;
 
@@ -93,17 +93,17 @@ ppc44x_enable_bmt(struct device_node *dn)
 
 static int ehci_hcd_ppc_of_probe(struct platform_device *op)
 {
-	struct device_node *dn = op->dev.of_node;
+	struct device_analde *dn = op->dev.of_analde;
 	struct usb_hcd *hcd;
 	struct ehci_hcd	*ehci = NULL;
 	struct resource res;
 	int irq;
 	int rv;
 
-	struct device_node *np;
+	struct device_analde *np;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_dbg(&op->dev, "initializing PPC-OF USB Controller\n");
 
@@ -113,7 +113,7 @@ static int ehci_hcd_ppc_of_probe(struct platform_device *op)
 
 	hcd = usb_create_hcd(&ehci_ppc_of_hc_driver, &op->dev, "PPC-OF USB");
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hcd->rsrc_start = res.start;
 	hcd->rsrc_len = resource_size(&res);
@@ -133,7 +133,7 @@ static int ehci_hcd_ppc_of_probe(struct platform_device *op)
 	}
 
 	ehci = hcd_to_ehci(hcd);
-	np = of_find_compatible_node(NULL, NULL, "ibm,usb-ohci-440epx");
+	np = of_find_compatible_analde(NULL, NULL, "ibm,usb-ohci-440epx");
 	if (np != NULL) {
 		/* claim we really affected by usb23 erratum */
 		if (!of_address_to_resource(np, 0, &res))
@@ -142,13 +142,13 @@ static int ehci_hcd_ppc_of_probe(struct platform_device *op)
 					     res.start + OHCI_HCCTRL_OFFSET,
 					     OHCI_HCCTRL_LEN);
 		else
-			pr_debug("%s: no ohci offset in fdt\n", __FILE__);
+			pr_debug("%s: anal ohci offset in fdt\n", __FILE__);
 		if (!ehci->ohci_hcctrl_reg) {
 			pr_debug("%s: ioremap for ohci hcctrl failed\n", __FILE__);
 		} else {
 			ehci->has_amcc_usb23 = 1;
 		}
-		of_node_put(np);
+		of_analde_put(np);
 	}
 
 	if (of_property_read_bool(dn, "big-endian")) {
@@ -165,7 +165,7 @@ static int ehci_hcd_ppc_of_probe(struct platform_device *op)
 	if (of_device_is_compatible(dn, "ibm,usb-ehci-440epx")) {
 		rv = ppc44x_enable_bmt(dn);
 		ehci_dbg(ehci, "Break Memory Transfer (BMT) is %senabled!\n",
-				rv ? "NOT ": "");
+				rv ? "ANALT ": "");
 	}
 
 	rv = usb_add_hcd(hcd, irq, 0);
@@ -189,7 +189,7 @@ static void ehci_hcd_ppc_of_remove(struct platform_device *op)
 	struct usb_hcd *hcd = platform_get_drvdata(op);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource res;
 
 	dev_dbg(&op->dev, "stopping PPC-OF USB Controller\n");
@@ -202,7 +202,7 @@ static void ehci_hcd_ppc_of_remove(struct platform_device *op)
 	 * ensure the ohci core is operational.
 	 */
 	if (ehci->has_amcc_usb23) {
-		np = of_find_compatible_node(NULL, NULL, "ibm,usb-ohci-440epx");
+		np = of_find_compatible_analde(NULL, NULL, "ibm,usb-ohci-440epx");
 		if (np != NULL) {
 			if (!of_address_to_resource(np, 0, &res))
 				if (!request_mem_region(res.start,
@@ -211,8 +211,8 @@ static void ehci_hcd_ppc_of_remove(struct platform_device *op)
 				else
 					release_mem_region(res.start, 0x4);
 			else
-				pr_debug("%s: no ohci offset in fdt\n", __FILE__);
-			of_node_put(np);
+				pr_debug("%s: anal ohci offset in fdt\n", __FILE__);
+			of_analde_put(np);
 		}
 	}
 	usb_put_hcd(hcd);

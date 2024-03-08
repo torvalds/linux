@@ -88,12 +88,12 @@ static bool ioam6_validate_trace_hdr(struct ioam6_trace_hdr *trace)
 	    trace->type.bit21)
 		return false;
 
-	trace->nodelen = 0;
+	trace->analdelen = 0;
 	fields = be32_to_cpu(trace->type_be32);
 
-	trace->nodelen += hweight32(fields & IOAM6_MASK_SHORT_FIELDS)
+	trace->analdelen += hweight32(fields & IOAM6_MASK_SHORT_FIELDS)
 				* (sizeof(__be32) / 4);
-	trace->nodelen += hweight32(fields & IOAM6_MASK_WIDE_FIELDS)
+	trace->analdelen += hweight32(fields & IOAM6_MASK_WIDE_FIELDS)
 				* (sizeof(__be64) / 4);
 
 	return true;
@@ -163,7 +163,7 @@ static int ioam6_build_state(struct net *net, struct nlattr *nla,
 	len_aligned = ALIGN(trace->remlen * 4, 8);
 	lwt = lwtunnel_state_alloc(sizeof(*ilwt) + len_aligned);
 	if (!lwt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ilwt = ioam6_lwt_state(lwt);
 	err = dst_cache_init(&ilwt->cache, GFP_ATOMIC);
@@ -316,7 +316,7 @@ static int ioam6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	switch (ilwt->mode) {
 	case IOAM6_IPTUNNEL_MODE_INLINE:
 do_inline:
-		/* Direct insertion - if there is no Hop-by-Hop yet */
+		/* Direct insertion - if there is anal Hop-by-Hop yet */
 		if (ipv6_hdr(skb)->nexthdr == NEXTHDR_HOP)
 			goto out;
 

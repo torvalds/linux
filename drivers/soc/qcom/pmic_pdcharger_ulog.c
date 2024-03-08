@@ -113,7 +113,7 @@ static int pmic_pdcharger_ulog_rpmsg_callback(struct rpmsg_device *rpdev, void *
 		pmic_pdcharger_ulog_handle_message(pg, data, len);
 		break;
 	default:
-		dev_err(&pg->rpdev->dev, "Unknown opcode %u\n", opcode);
+		dev_err(&pg->rpdev->dev, "Unkanalwn opcode %u\n", opcode);
 		break;
 	}
 
@@ -127,7 +127,7 @@ static int pmic_pdcharger_ulog_rpmsg_probe(struct rpmsg_device *rpdev)
 
 	pg = devm_kzalloc(dev, sizeof(*pg), GFP_KERNEL);
 	if (!pg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pg->rpdev = rpdev;
 	INIT_DELAYED_WORK(&pg->ulog_work, pmic_pdcharger_ulog_work);

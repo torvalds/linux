@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 /*
- * Multifunction core driver for Zodiac Inflight Innovations RAVE
+ * Multifunction core driver for Zodiac Inflight Inanalvations RAVE
  * Supervisory Processor(SP) MCU that is connected via dedicated UART
  * port
  *
- * Copyright (C) 2017 Zodiac Inflight Innovations
+ * Copyright (C) 2017 Zodiac Inflight Inanalvations
  */
 
 #include <linux/atomic.h>
@@ -37,7 +37,7 @@
  * - CHECKSUM - checksum calculated on <DATA>
  *
  * If <DATA> or <CHECKSUM> contain one of control characters, then it is
- * escaped using <DLE> control code. Added <DLE> does not participate in
+ * escaped using <DLE> control code. Added <DLE> does analt participate in
  * checksum calculation.
  */
 #define RAVE_SP_STX			0x02
@@ -120,7 +120,7 @@ struct rave_sp_checksum {
 struct rave_sp_version {
 	u8     hardware;
 	__le16 major;
-	u8     minor;
+	u8     mianalr;
 	u8     letter[2];
 } __packed;
 
@@ -180,7 +180,7 @@ struct rave_sp_variant {
  * @reply:			Pointer to memory to store reply payload
  *
  * @variant:			Device variant specific information
- * @event_notifier_list:	Input event notification chain
+ * @event_analtifier_list:	Input event analtification chain
  *
  * @part_number_firmware:	Firmware version
  * @part_number_bootloader:	Bootloader version
@@ -194,7 +194,7 @@ struct rave_sp {
 	struct rave_sp_reply *reply;
 
 	const struct rave_sp_variant *variant;
-	struct blocking_notifier_head event_notifier_list;
+	struct blocking_analtifier_head event_analtifier_list;
 
 	const char *part_number_firmware;
 	const char *part_number_bootloader;
@@ -205,28 +205,28 @@ static bool rave_sp_id_is_event(u8 code)
 	return (code & 0xF0) == RAVE_SP_EVNT_BASE;
 }
 
-static void rave_sp_unregister_event_notifier(struct device *dev, void *res)
+static void rave_sp_unregister_event_analtifier(struct device *dev, void *res)
 {
 	struct rave_sp *sp = dev_get_drvdata(dev->parent);
-	struct notifier_block *nb = *(struct notifier_block **)res;
-	struct blocking_notifier_head *bnh = &sp->event_notifier_list;
+	struct analtifier_block *nb = *(struct analtifier_block **)res;
+	struct blocking_analtifier_head *bnh = &sp->event_analtifier_list;
 
-	WARN_ON(blocking_notifier_chain_unregister(bnh, nb));
+	WARN_ON(blocking_analtifier_chain_unregister(bnh, nb));
 }
 
-int devm_rave_sp_register_event_notifier(struct device *dev,
-					 struct notifier_block *nb)
+int devm_rave_sp_register_event_analtifier(struct device *dev,
+					 struct analtifier_block *nb)
 {
 	struct rave_sp *sp = dev_get_drvdata(dev->parent);
-	struct notifier_block **rcnb;
+	struct analtifier_block **rcnb;
 	int ret;
 
-	rcnb = devres_alloc(rave_sp_unregister_event_notifier,
+	rcnb = devres_alloc(rave_sp_unregister_event_analtifier,
 			    sizeof(*rcnb), GFP_KERNEL);
 	if (!rcnb)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = blocking_notifier_chain_register(&sp->event_notifier_list, nb);
+	ret = blocking_analtifier_chain_register(&sp->event_analtifier_list, nb);
 	if (!ret) {
 		*rcnb = nb;
 		devres_add(dev, rcnb);
@@ -236,7 +236,7 @@ int devm_rave_sp_register_event_notifier(struct device *dev,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(devm_rave_sp_register_event_notifier);
+EXPORT_SYMBOL_GPL(devm_rave_sp_register_event_analtifier);
 
 static void csum_8b2c(const u8 *buf, size_t size, u8 *crc)
 {
@@ -288,10 +288,10 @@ static int rave_sp_write(struct rave_sp *sp, const u8 *data, u8 data_size)
 	size_t length;
 
 	if (WARN_ON(checksum_length > sizeof(crc)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (WARN_ON(data_size > sizeof(frame)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sp->variant->checksum->subroutine(data, data_size, crc);
 
@@ -302,7 +302,7 @@ static int rave_sp_write(struct rave_sp *sp, const u8 *data, u8 data_size)
 
 	length = dest - frame;
 
-	print_hex_dump_debug("rave-sp tx: ", DUMP_PREFIX_NONE,
+	print_hex_dump_debug("rave-sp tx: ", DUMP_PREFIX_ANALNE,
 			     16, 1, frame, length, false);
 
 	return serdev_device_write(sp->serdev, frame, length, HZ);
@@ -395,7 +395,7 @@ static void rave_sp_receive_event(struct rave_sp *sp,
 
 	rave_sp_write(sp, cmd, sizeof(cmd));
 
-	blocking_notifier_call_chain(&sp->event_notifier_list,
+	blocking_analtifier_call_chain(&sp->event_analtifier_list,
 				     rave_sp_action_pack(data[0], data[2]),
 				     NULL);
 }
@@ -414,14 +414,14 @@ static void rave_sp_receive_reply(struct rave_sp *sp,
 		if (reply->code == data[0] && reply->ackid == data[1] &&
 		    payload_length >= reply->length) {
 			/*
-			 * We are relying on memcpy(dst, src, 0) to be a no-op
-			 * when handling commands that have a no-payload reply
+			 * We are relying on memcpy(dst, src, 0) to be a anal-op
+			 * when handling commands that have a anal-payload reply
 			 */
 			memcpy(reply->data, &data[2], reply->length);
 			complete(&reply->received);
 			sp->reply = NULL;
 		} else {
-			dev_err(dev, "Ignoring incorrect reply\n");
+			dev_err(dev, "Iganalring incorrect reply\n");
 			dev_dbg(dev, "Code:   expected = 0x%08x received = 0x%08x\n",
 				reply->code, data[0]);
 			dev_dbg(dev, "ACK ID: expected = 0x%08x received = 0x%08x\n",
@@ -449,7 +449,7 @@ static void rave_sp_receive_frame(struct rave_sp *sp,
 		return;
 	}
 
-	print_hex_dump_debug("rave-sp rx: ", DUMP_PREFIX_NONE,
+	print_hex_dump_debug("rave-sp rx: ", DUMP_PREFIX_ANALNE,
 			     16, 1, data, length, false);
 
 	if (unlikely(length <= checksum_length)) {
@@ -504,7 +504,7 @@ static ssize_t rave_sp_receive_buf(struct serdev_device *serdev,
 				 * and proceed to bailing out while
 				 * resetting the framer to initial
 				 * state, regardless if we've consumed
-				 * all of the stream or not.
+				 * all of the stream or analt.
 				 */
 				goto reset_framer;
 			case RAVE_SP_STX:
@@ -513,11 +513,11 @@ static ssize_t rave_sp_receive_buf(struct serdev_device *serdev,
 				 * If we encounter second "start of
 				 * the frame" marker before seeing
 				 * corresponding "end of frame", we
-				 * reset the framer and ignore both:
+				 * reset the framer and iganalre both:
 				 * frame started by first SOF and
 				 * frame started by current SOF.
 				 *
-				 * NOTE: The above means that only the
+				 * ANALTE: The above means that only the
 				 * frame started by third SOF, sent
 				 * after this one will have a chance
 				 * to get throught.
@@ -535,8 +535,8 @@ static ssize_t rave_sp_receive_buf(struct serdev_device *serdev,
 				continue;
 			}
 			/*
-			 * For the rest of the bytes, that are not
-			 * speical snoflakes, we do the same thing
+			 * For the rest of the bytes, that are analt
+			 * speical sanalflakes, we do the same thing
 			 * that we do to escaped data - collect it in
 			 * deframer buffer
 			 */
@@ -551,7 +551,7 @@ static ssize_t rave_sp_receive_buf(struct serdev_device *serdev,
 				 * accumulated for current frame so
 				 * far starts to exceed the capacity
 				 * of deframer's buffer, there's
-				 * nothing else we can do but to
+				 * analthing else we can do but to
 				 * discard that data and start
 				 * assemblying a new frame again
 				 */
@@ -561,7 +561,7 @@ static ssize_t rave_sp_receive_buf(struct serdev_device *serdev,
 			deframer->data[deframer->length++] = byte;
 
 			/*
-			 * We've extracted out special byte, now we
+			 * We've extracted out special byte, analw we
 			 * can go back to regular data collecting
 			 */
 			deframer->state = RAVE_SP_EXPECT_DATA;
@@ -578,7 +578,7 @@ static ssize_t rave_sp_receive_buf(struct serdev_device *serdev,
 
 reset_framer:
 	/*
-	 * NOTE: A number of codepaths that will drop us here will do
+	 * ANALTE: A number of codepaths that will drop us here will do
 	 * so before consuming all 'size' bytes of the data passed by
 	 * serdev layer. We rely on the fact that serdev layer will
 	 * re-execute this handler with the remainder of the Rx bytes
@@ -649,14 +649,14 @@ static const char *devm_rave_sp_version(struct device *dev,
 					struct rave_sp_version *version)
 {
 	/*
-	 * NOTE: The format string below uses %02d to display u16
+	 * ANALTE: The format string below uses %02d to display u16
 	 * intentionally for the sake of backwards compatibility with
 	 * legacy software.
 	 */
 	return devm_kasprintf(dev, GFP_KERNEL, "%02d%02d%02d.%c%c\n",
 			      version->hardware,
 			      le16_to_cpu(version->major),
-			      version->minor,
+			      version->mianalr,
 			      version->letter[0],
 			      version->letter[1]);
 }
@@ -704,13 +704,13 @@ static int rave_sp_get_status(struct rave_sp *sp)
 
 	version = devm_rave_sp_version(dev, &status.firmware_version);
 	if (!version)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sp->part_number_firmware = version;
 
 	version = devm_rave_sp_version(dev, &status.bootloader_version);
 	if (!version)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sp->part_number_bootloader = version;
 
@@ -768,31 +768,31 @@ static const struct serdev_device_ops rave_sp_serdev_device_ops = {
 static int rave_sp_probe(struct serdev_device *serdev)
 {
 	struct device *dev = &serdev->dev;
-	const char *unknown = "unknown\n";
+	const char *unkanalwn = "unkanalwn\n";
 	struct rave_sp *sp;
 	u32 baud;
 	int ret;
 
-	if (of_property_read_u32(dev->of_node, "current-speed", &baud)) {
+	if (of_property_read_u32(dev->of_analde, "current-speed", &baud)) {
 		dev_err(dev,
-			"'current-speed' is not specified in device node\n");
+			"'current-speed' is analt specified in device analde\n");
 		return -EINVAL;
 	}
 
 	sp = devm_kzalloc(dev, sizeof(*sp), GFP_KERNEL);
 	if (!sp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sp->serdev = serdev;
 	dev_set_drvdata(dev, sp);
 
 	sp->variant = of_device_get_match_data(dev);
 	if (!sp->variant)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_init(&sp->bus_lock);
 	mutex_init(&sp->reply_lock);
-	BLOCKING_INIT_NOTIFIER_HEAD(&sp->event_notifier_list);
+	BLOCKING_INIT_ANALTIFIER_HEAD(&sp->event_analtifier_list);
 
 	serdev_device_set_client_ops(serdev, &rave_sp_serdev_device_ops);
 	ret = devm_serdev_device_open(dev, serdev);
@@ -802,7 +802,7 @@ static int rave_sp_probe(struct serdev_device *serdev)
 	serdev_device_set_baudrate(serdev, baud);
 	serdev_device_set_flow_control(serdev, false);
 
-	ret = serdev_device_set_parity(serdev, SERDEV_PARITY_NONE);
+	ret = serdev_device_set_parity(serdev, SERDEV_PARITY_ANALNE);
 	if (ret) {
 		dev_err(dev, "Failed to set parity\n");
 		return ret;
@@ -811,12 +811,12 @@ static int rave_sp_probe(struct serdev_device *serdev)
 	ret = rave_sp_get_status(sp);
 	if (ret) {
 		dev_warn(dev, "Failed to get firmware status: %d\n", ret);
-		sp->part_number_firmware   = unknown;
-		sp->part_number_bootloader = unknown;
+		sp->part_number_firmware   = unkanalwn;
+		sp->part_number_bootloader = unkanalwn;
 	}
 
 	/*
-	 * Those strings already have a \n embedded, so there's no
+	 * Those strings already have a \n embedded, so there's anal
 	 * need to have one in format string.
 	 */
 	dev_info(dev, "Firmware version: %s",   sp->part_number_firmware);
@@ -839,5 +839,5 @@ module_serdev_device_driver(rave_sp_drv);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andrey Vostrikov <andrey.vostrikov@cogentembedded.com>");
 MODULE_AUTHOR("Nikita Yushchenko <nikita.yoush@cogentembedded.com>");
-MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
+MODULE_AUTHOR("Andrey Smiranalv <andrew.smiranalv@gmail.com>");
 MODULE_DESCRIPTION("RAVE SP core driver");

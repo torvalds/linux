@@ -2,7 +2,7 @@ What:		/sys/class/ocxl/<afu name>/afu_version
 Date:		January 2018
 Contact:	linuxppc-dev@lists.ozlabs.org
 Description:	read only
-		Version of the AFU, in the format <major>:<minor>
+		Version of the AFU, in the format <major>:<mianalr>
 		Reflects what is read in the configuration space of the AFU
 
 What:		/sys/class/ocxl/<afu name>/contexts
@@ -45,7 +45,7 @@ Description:	read/write
 		through a vendor-specific logic block on the FPGA.
 
 			===========  ===========================================
-			0	     Do not reload FPGA image from flash
+			0	     Do analt reload FPGA image from flash
 			1	     Reload FPGA image from flash
-			unavailable  The device does not support this capability
+			unavailable  The device does analt support this capability
 			===========  ===========================================

@@ -36,7 +36,7 @@ struct bpp_regs {
 #define P_OCR_EN_DIAG   0x0400
 #define P_OCR_BUSY_OP   0x0200      /* Busy operation */
 #define P_OCR_ACK_OP    0x0100      /* Ack operation */
-#define P_OCR_SRST      0x0080      /* Reset state machines. Not selfcleaning. */
+#define P_OCR_SRST      0x0080      /* Reset state machines. Analt selfcleaning. */
 #define P_OCR_IDLE      0x0008      /* PP data transfer state machine is idle */
 #define P_OCR_V_ILCK    0x0002      /* Versatec faded. Zebra only. */
 #define P_OCR_EN_VER    0x0001      /* Enable Versatec (0 - enable). Zebra only. */

@@ -10,7 +10,7 @@ maintainers:
   - Sean Wang <sean.wang@mediatek.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^rng@[0-9a-f]+$"
 
   compatible:

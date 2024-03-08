@@ -6,8 +6,8 @@
 /**
  * DOC: VC4 GEM BO management support
  *
- * The VC4 GPU architecture (both scanout and rendering) has direct
- * access to system memory with no MMU in between.  To support it, we
+ * The VC4 GPU architecture (both scaanalut and rendering) has direct
+ * access to system memory with anal MMU in between.  To support it, we
  * use the GEM DMA helper functions to allocate contiguous ranges of
  * physical memory for our BOs.
  *
@@ -84,8 +84,8 @@ static int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
  *
  * This is inefficient and could use a hash table instead of walking
  * an array and strcmp()ing.  However, the assumption is that user
- * labeling will be infrequent (scanout buffers and other long-lived
- * objects, or debug driver builds), so we can live with it for now.
+ * labeling will be infrequent (scaanalut buffers and other long-lived
+ * objects, or debug driver builds), so we can live with it for analw.
  */
 static int vc4_get_user_label(struct vc4_dev *vc4, const char *name)
 {
@@ -278,7 +278,7 @@ static void vc4_bo_remove_from_purgeable_pool_locked(struct vc4_bo *bo)
 	 * are set to LIST_POISON1/LIST_POISON2 (which is what
 	 * list_del() does).
 	 * Re-initializing the list element guarantees that list_del()
-	 * will work correctly even if it's a NOP.
+	 * will work correctly even if it's a ANALP.
 	 */
 	list_del_init(&bo->size_head);
 	vc4->purgeable.num--;
@@ -302,7 +302,7 @@ static void vc4_bo_purge(struct drm_gem_object *obj)
 	WARN_ON(!mutex_is_locked(&bo->madv_lock));
 	WARN_ON(bo->madv != VC4_MADV_DONTNEED);
 
-	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
+	drm_vma_analde_unmap(&obj->vma_analde, dev->aanaln_ianalde->i_mapping);
 
 	dma_free_wc(dev->dev, obj->size, bo->base.vaddr, bo->base.dma_addr);
 	bo->base.vaddr = NULL;
@@ -335,9 +335,9 @@ static void vc4_bo_userspace_cache_purge(struct drm_device *dev)
 		 * and re-used it in the meantime.
 		 * Before purging the BO we need to make sure
 		 * - it is still marked as DONTNEED
-		 * - it has not been re-inserted in the purgeable list
-		 * - it is not used by HW blocks
-		 * If one of these conditions is not met, just skip the entry.
+		 * - it has analt been re-inserted in the purgeable list
+		 * - it is analt used by HW blocks
+		 * If one of these conditions is analt met, just skip the entry.
 		 */
 		if (bo->madv == VC4_MADV_DONTNEED &&
 		    list_empty(&bo->size_head) &&
@@ -397,11 +397,11 @@ struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size)
 	struct vc4_bo *bo;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
 	if (!bo)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	bo->madv = VC4_MADV_WILLNEED;
 	refcount_set(&bo->usecnt, 0);
@@ -428,7 +428,7 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
 	struct vc4_bo *bo;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (size == 0)
 		return ERR_PTR(-EINVAL);
@@ -453,7 +453,7 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
 
 	if (IS_ERR(dma_obj)) {
 		/*
-		 * Still not enough DMA memory, purge the userspace BO
+		 * Still analt eanalugh DMA memory, purge the userspace BO
 		 * cache and retry.
 		 * This is sub-optimal since we purge the whole userspace
 		 * BO cache which forces user that want to re-use the BO to
@@ -471,15 +471,15 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
 		struct drm_printer p = drm_info_printer(vc4->base.dev);
 		DRM_ERROR("Failed to allocate from GEM DMA helper:\n");
 		vc4_bo_stats_print(&p, vc4);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	bo = to_vc4_bo(&dma_obj->base);
 
-	/* By default, BOs do not support the MADV ioctl. This will be enabled
+	/* By default, BOs do analt support the MADV ioctl. This will be enabled
 	 * only on BOs that are exposed to userspace (V3D, V3D_SHADER and DUMB
 	 * BOs).
 	 */
-	bo->madv = __VC4_MADV_NOTSUPP;
+	bo->madv = __VC4_MADV_ANALTSUPP;
 
 	mutex_lock(&vc4->bo_lock);
 	vc4_bo_set_label(&dma_obj->base, type);
@@ -497,7 +497,7 @@ int vc4_bo_dumb_create(struct drm_file *file_priv,
 	int ret;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = vc4_dumb_fixup_args(args);
 	if (ret)
@@ -590,7 +590,7 @@ static void vc4_free_object(struct drm_gem_object *gem_bo)
 	}
 
 	/* Reset madv and usecnt before adding the BO to the cache. */
-	bo->madv = __VC4_MADV_NOTSUPP;
+	bo->madv = __VC4_MADV_ANALTSUPP;
 	refcount_set(&bo->usecnt, 0);
 
 	bo->t_format = false;
@@ -623,18 +623,18 @@ int vc4_bo_inc_usecnt(struct vc4_bo *bo)
 	int ret;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* Fast path: if the BO is already retained by someone, no need to
+	/* Fast path: if the BO is already retained by someone, anal need to
 	 * check the madv status.
 	 */
-	if (refcount_inc_not_zero(&bo->usecnt))
+	if (refcount_inc_analt_zero(&bo->usecnt))
 		return 0;
 
 	mutex_lock(&bo->madv_lock);
 	switch (bo->madv) {
 	case VC4_MADV_WILLNEED:
-		if (!refcount_inc_not_zero(&bo->usecnt))
+		if (!refcount_inc_analt_zero(&bo->usecnt))
 			refcount_set(&bo->usecnt, 1);
 		ret = 0;
 		break;
@@ -664,10 +664,10 @@ void vc4_bo_dec_usecnt(struct vc4_bo *bo)
 	if (WARN_ON_ONCE(vc4->is_vc5))
 		return;
 
-	/* Fast path: if the BO is still retained by someone, no need to test
+	/* Fast path: if the BO is still retained by someone, anal need to test
 	 * the madv value.
 	 */
-	if (refcount_dec_not_one(&bo->usecnt))
+	if (refcount_dec_analt_one(&bo->usecnt))
 		return;
 
 	mutex_lock(&bo->madv_lock);
@@ -695,8 +695,8 @@ static struct dma_buf *vc4_prime_export(struct drm_gem_object *obj, int flags)
 		return ERR_PTR(-EINVAL);
 	}
 
-	/* Note: as soon as the BO is exported it becomes unpurgeable, because
-	 * noone ever decrements the usecnt even if the reference held by the
+	/* Analte: as soon as the BO is exported it becomes unpurgeable, because
+	 * analone ever decrements the usecnt even if the reference held by the
 	 * exported BO is released. This shouldn't be a problem since we don't
 	 * expect exported BOs to be marked as purgeable.
 	 */
@@ -734,12 +734,12 @@ static int vc4_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct
 	struct vc4_bo *bo = to_vc4_bo(obj);
 
 	if (bo->validated_shader && (vma->vm_flags & VM_WRITE)) {
-		DRM_DEBUG("mmapping of shader BOs for writing not allowed.\n");
+		DRM_DEBUG("mmapping of shader BOs for writing analt allowed.\n");
 		return -EINVAL;
 	}
 
 	if (bo->madv != VC4_MADV_WILLNEED) {
-		DRM_DEBUG("mmapping of %s BO not allowed\n",
+		DRM_DEBUG("mmapping of %s BO analt allowed\n",
 			  bo->madv == VC4_MADV_DONTNEED ?
 			  "purgeable" : "purged");
 		return -EINVAL;
@@ -766,7 +766,7 @@ static const struct drm_gem_object_funcs vc4_gem_object_funcs = {
 static int vc4_grab_bin_bo(struct vc4_dev *vc4, struct vc4_file *vc4file)
 {
 	if (!vc4->v3d)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (vc4file->bin_bo_used)
 		return 0;
@@ -784,7 +784,7 @@ int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = vc4_grab_bin_bo(vc4, vc4file);
 	if (ret)
@@ -814,7 +814,7 @@ int vc4_mmap_bo_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object *gem_obj;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
@@ -823,7 +823,7 @@ int vc4_mmap_bo_ioctl(struct drm_device *dev, void *data,
 	}
 
 	/* The mmap offset was set up at BO allocation time. */
-	args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
+	args->offset = drm_vma_analde_offset_addr(&gem_obj->vma_analde);
 
 	drm_gem_object_put(gem_obj);
 	return 0;
@@ -840,7 +840,7 @@ vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (args->size == 0)
 		return -EINVAL;
@@ -849,7 +849,7 @@ vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	if (args->flags != 0) {
-		DRM_INFO("Unknown flags set: 0x%08x\n", args->flags);
+		DRM_INFO("Unkanalwn flags set: 0x%08x\n", args->flags);
 		return -EINVAL;
 	}
 
@@ -904,7 +904,7 @@ fail:
  * @file_priv: DRM file for this fd
  *
  * The tiling state of the BO decides the default modifier of an fb if
- * no specific modifier was set by userspace, and the return value of
+ * anal specific modifier was set by userspace, and the return value of
  * vc4_get_tiling_ioctl() (so that userspace can treat a BO it
  * received from dmabuf as the same tiling format as the producer
  * used).
@@ -919,13 +919,13 @@ int vc4_set_tiling_ioctl(struct drm_device *dev, void *data,
 	bool t_format;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (args->flags != 0)
 		return -EINVAL;
 
 	switch (args->modifier) {
-	case DRM_FORMAT_MOD_NONE:
+	case DRM_FORMAT_MOD_ANALNE:
 		t_format = false;
 		break;
 	case DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED:
@@ -938,7 +938,7 @@ int vc4_set_tiling_ioctl(struct drm_device *dev, void *data,
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
 		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	bo = to_vc4_bo(gem_obj);
 	bo->t_format = t_format;
@@ -965,7 +965,7 @@ int vc4_get_tiling_ioctl(struct drm_device *dev, void *data,
 	struct vc4_bo *bo;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (args->flags != 0 || args->modifier != 0)
 		return -EINVAL;
@@ -973,27 +973,27 @@ int vc4_get_tiling_ioctl(struct drm_device *dev, void *data,
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
 		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	bo = to_vc4_bo(gem_obj);
 
 	if (bo->t_format)
 		args->modifier = DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED;
 	else
-		args->modifier = DRM_FORMAT_MOD_NONE;
+		args->modifier = DRM_FORMAT_MOD_ANALNE;
 
 	drm_gem_object_put(gem_obj);
 
 	return 0;
 }
 
-int vc4_bo_debugfs_init(struct drm_minor *minor)
+int vc4_bo_debugfs_init(struct drm_mianalr *mianalr)
 {
-	struct drm_device *drm = minor->dev;
+	struct drm_device *drm = mianalr->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 
 	if (!vc4->v3d)
-		return -ENODEV;
+		return -EANALDEV;
 
 	drm_debugfs_add_file(drm, "bo_stats", vc4_bo_stats_debugfs, NULL);
 
@@ -1008,7 +1008,7 @@ int vc4_bo_cache_init(struct drm_device *dev)
 	int i;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Create the initial set of BO labels that the kernel will
 	 * use.  This lets us avoid a bunch of string reallocation in
@@ -1017,7 +1017,7 @@ int vc4_bo_cache_init(struct drm_device *dev)
 	vc4->bo_labels = kcalloc(VC4_BO_TYPE_COUNT, sizeof(*vc4->bo_labels),
 				 GFP_KERNEL);
 	if (!vc4->bo_labels)
-		return -ENOMEM;
+		return -EANALMEM;
 	vc4->num_labels = VC4_BO_TYPE_COUNT;
 
 	BUILD_BUG_ON(ARRAY_SIZE(bo_type_names) != VC4_BO_TYPE_COUNT);
@@ -1072,7 +1072,7 @@ int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 	int ret = 0, label;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!args->len)
 		return -EINVAL;
@@ -1085,7 +1085,7 @@ int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 	if (!gem_obj) {
 		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
 		kfree(name);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	mutex_lock(&vc4->bo_lock);
@@ -1093,7 +1093,7 @@ int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 	if (label != -1)
 		vc4_bo_set_label(gem_obj, label);
 	else
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	mutex_unlock(&vc4->bo_lock);
 
 	drm_gem_object_put(gem_obj);

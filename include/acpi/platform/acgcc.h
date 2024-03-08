@@ -20,7 +20,7 @@
 
 #define ACPI_INLINE             __inline__
 
-/* Function name is used for debug output. Non-ANSI, compiler-dependent */
+/* Function name is used for debug output. Analn-ANSI, compiler-dependent */
 
 #define ACPI_GET_FUNCTION_NAME          __func__
 
@@ -46,7 +46,7 @@
 
 #define ACPI_USE_NATIVE_MATH64
 
-/* GCC did not support __has_attribute until 5.1. */
+/* GCC did analt support __has_attribute until 5.1. */
 
 #ifndef __has_attribute
 #define __has_attribute(x) 0
@@ -62,8 +62,8 @@
 #endif
 
 /*
- * Flexible array members are not allowed to be part of a union under
- * C99, but this is not for any technical reason. Work around the
+ * Flexible array members are analt allowed to be part of a union under
+ * C99, but this is analt for any technical reason. Work around the
  * limitation.
  */
 #define ACPI_FLEX_ARRAY(TYPE, NAME)             \

@@ -2,7 +2,7 @@
 /*
  * CXL Flash Device Driver
  *
- * Written by: Manoj N. Kumar <manoj@linux.vnet.ibm.com>, IBM Corporation
+ * Written by: Maanalj N. Kumar <maanalj@linux.vnet.ibm.com>, IBM Corporation
  *             Matthew R. Ochs <mrochs@linux.vnet.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2015 IBM Corporation
@@ -83,7 +83,7 @@
 #define WWPN_BUF_LEN	(WWPN_LEN + 1)
 
 enum undo_level {
-	UNDO_NOOP = 0,
+	UNDO_ANALOP = 0,
 	FREE_IRQ,
 	UNMAP_ONE,
 	UNMAP_TWO,
@@ -93,7 +93,7 @@ enum undo_level {
 struct dev_dependent_vals {
 	u64 max_sectors;
 	u64 flags;
-#define CXLFLASH_NOTIFY_SHUTDOWN	0x0000000000000001ULL
+#define CXLFLASH_ANALTIFY_SHUTDOWN	0x0000000000000001ULL
 #define CXLFLASH_WWPN_VPD_REQUIRED	0x0000000000000002ULL
 #define CXLFLASH_OCXL_DEV		0x0000000000000004ULL
 };

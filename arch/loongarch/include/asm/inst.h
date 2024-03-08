@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_INST_H
 #define _ASM_INST_H
@@ -10,7 +10,7 @@
 #include <asm/asm.h>
 #include <asm/ptrace.h>
 
-#define INSN_NOP		0x03400000
+#define INSN_ANALP		0x03400000
 #define INSN_BREAK		0x002a0000
 
 #define ADDR_IMMMASK_LU52ID	0xFFF0000000000000
@@ -146,7 +146,7 @@ enum reg3_op {
 	addd_op		= 0x21,
 	subw_op		= 0x22,
 	subd_op		= 0x23,
-	nor_op		= 0x28,
+	analr_op		= 0x28,
 	and_op		= 0x29,
 	or_op		= 0x2a,
 	xor_op		= 0x2b,
@@ -488,7 +488,7 @@ static inline bool is_self_loop_ins(union loongarch_instruction *ip, struct pt_r
 void simu_pc(struct pt_regs *regs, union loongarch_instruction insn);
 void simu_branch(struct pt_regs *regs, union loongarch_instruction insn);
 
-bool insns_not_supported(union loongarch_instruction insn);
+bool insns_analt_supported(union loongarch_instruction insn);
 bool insns_need_simulation(union loongarch_instruction insn);
 void arch_simulate_insn(union loongarch_instruction insn, struct pt_regs *regs);
 
@@ -496,7 +496,7 @@ int larch_insn_read(void *addr, u32 *insnp);
 int larch_insn_write(void *addr, u32 insn);
 int larch_insn_patch_text(void *addr, u32 insn);
 
-u32 larch_insn_gen_nop(void);
+u32 larch_insn_gen_analp(void);
 u32 larch_insn_gen_b(unsigned long pc, unsigned long dest);
 u32 larch_insn_gen_bl(unsigned long pc, unsigned long dest);
 

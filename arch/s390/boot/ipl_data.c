@@ -40,7 +40,7 @@ struct ipl_lowcore {
  * other default psw new locations contain a disabled wait psw where
  * the address indicates which psw was loaded.
  *
- * Note that the 'file' utility can detect s390 kernel images. For
+ * Analte that the 'file' utility can detect s390 kernel images. For
  * that to succeed the two initial CCWs, and the 0x40 fill bytes must
  * be present.
  */

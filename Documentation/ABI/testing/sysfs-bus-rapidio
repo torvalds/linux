@@ -21,16 +21,16 @@ Description:
 		  /sys/bus/rapidio/devices/00:e:0002
 		  /sys/bus/rapidio/devices/00:s:0001
 
-		NOTE:
-		  An enumerating or discovering endpoint does not create a
+		ANALTE:
+		  An enumerating or discovering endpoint does analt create a
 		  sysfs entry for itself, this is why an endpoint with destID=1
-		  is not shown in the list.
+		  is analt shown in the list.
 
 Attributes Common for All RapidIO Devices
 -----------------------------------------
 
 What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/did
-Date:		Nov, 2005
+Date:		Analv, 2005
 KernelVersion:	v2.6.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
 		Alexandre Bounine <alexandre.bounine@idt.com>
@@ -38,7 +38,7 @@ Description:
 		(RO) returns the device identifier
 
 What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/vid
-Date:		Nov, 2005
+Date:		Analv, 2005
 KernelVersion:	v2.6.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
 		Alexandre Bounine <alexandre.bounine@idt.com>
@@ -46,7 +46,7 @@ Description:
 		(RO) returns the device vendor identifier
 
 What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/device_rev
-Date:		Nov, 2005
+Date:		Analv, 2005
 KernelVersion:	v2.6.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
 		Alexandre Bounine <alexandre.bounine@idt.com>
@@ -54,7 +54,7 @@ Description:
 		(RO) returns the device revision level
 
 What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/asm_did
-Date:		Nov, 2005
+Date:		Analv, 2005
 KernelVersion:	v2.6.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
 		Alexandre Bounine <alexandre.bounine@idt.com>
@@ -62,7 +62,7 @@ Description:
 		(RO) returns identifier for the assembly containing the device
 
 What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/asm_rev
-Date:		Nov, 2005
+Date:		Analv, 2005
 KernelVersion:	v2.6.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
 		Alexandre Bounine <alexandre.bounine@idt.com>
@@ -71,7 +71,7 @@ Description:
 		device
 
 What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/asm_vid
-Date:		Nov, 2005
+Date:		Analv, 2005
 KernelVersion:	v2.6.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
 		Alexandre Bounine <alexandre.bounine@idt.com>
@@ -106,7 +106,7 @@ Description:
 		(RO) returns the device modalias
 
 What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/config
-Date:		Nov, 2005
+Date:		Analv, 2005
 KernelVersion:	v2.6.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
 		Alexandre Bounine <alexandre.bounine@idt.com>
@@ -129,7 +129,7 @@ set by the switch initialization routine during enumeration or discovery
 process.
 
 What:		/sys/bus/rapidio/devices/<nn>:<s>:<iiii>/routes
-Date:		Nov, 2005
+Date:		Analv, 2005
 KernelVersion:	v2.6.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
 		Alexandre Bounine <alexandre.bounine@idt.com>
@@ -164,7 +164,7 @@ Description:
 		(RO) returns names of devices linked to the switch except one of
 		a device linked to the ingress port (reported as "lprev"). This
 		is an array names with number of lines equal to number of ports
-		in switch. If a switch port has no attached device, returns
+		in switch. If a switch port has anal attached device, returns
 		"null" instead of a device name.
 
 Device-specific Switch Attributes
@@ -191,7 +191,7 @@ Contact:	Matt Porter <mporter@kernel.crashing.org>,
 Description:
 		(WO) Allows to trigger enumeration discovery process from user
 		space. To initiate an enumeration or discovery process on
-		specific mport device, a user needs to write mport_ID (not
+		specific mport device, a user needs to write mport_ID (analt
 		RapidIO destination ID) into this file. The mport_ID is a
 		sequential number (0 ...  RIO_MAX_MPORTS) assigned to the mport
 		device. For example, for a machine with a single RapidIO

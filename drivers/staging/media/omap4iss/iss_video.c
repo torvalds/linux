@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * TI OMAP4 ISS V4L2 Driver - Generic video node
+ * TI OMAP4 ISS V4L2 Driver - Generic video analde
  *
  * Copyright (C) 2012 Texas Instruments, Inc.
  *
@@ -124,7 +124,7 @@ static unsigned int iss_video_mbus_to_pix(const struct iss_video *video,
 	pix->height = mbus->height;
 
 	/*
-	 * Skip the last format in the loop so that it will be selected if no
+	 * Skip the last format in the loop so that it will be selected if anal
 	 * match is found.
 	 */
 	for (i = 0; i < ARRAY_SIZE(formats) - 1; ++i) {
@@ -170,7 +170,7 @@ static void iss_video_pix_to_mbus(const struct v4l2_pix_format *pix,
 	mbus->height = pix->height;
 
 	/*
-	 * Skip the last format in the loop so that it will be selected if no
+	 * Skip the last format in the loop so that it will be selected if anal
 	 * match is found.
 	 */
 	for (i = 0; i < ARRAY_SIZE(formats) - 1; ++i) {
@@ -210,7 +210,7 @@ iss_video_far_end(struct iss_video *video, struct iss_pipeline *pipe)
 
 	ret = media_pipeline_entity_iter_init(&pipe->pipe, &iter);
 	if (ret)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	media_pipeline_for_each_entity(&pipe->pipe, &iter, entity) {
 		struct iss_video *other;
@@ -328,7 +328,7 @@ static int iss_video_buf_prepare(struct vb2_buffer *vb)
 	dma_addr_t addr;
 
 	if (vb2_plane_size(vb, 0) < size)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	addr = vb2_dma_contig_plane_dma_addr(vb, 0);
 	if (!IS_ALIGNED(addr, 32)) {
@@ -356,7 +356,7 @@ static void iss_video_buf_queue(struct vb2_buffer *vb)
 
 	/*
 	 * Mark the buffer is faulty and give it back to the queue immediately
-	 * if the video node has registered an error. vb2 will perform the same
+	 * if the video analde has registered an error. vb2 will perform the same
 	 * check when preparing the buffer, but that is inherently racy, so we
 	 * need to handle the race condition with an authoritative check here.
 	 */
@@ -410,7 +410,7 @@ static const struct vb2_ops iss_video_vb2ops = {
  * Remove the current video buffer from the DMA queue and fill its timestamp,
  * field count and state fields before waking up its completion handler.
  *
- * For capture video nodes, the buffer state is set to VB2_BUF_STATE_DONE if no
+ * For capture video analdes, the buffer state is set to VB2_BUF_STATE_DONE if anal
  * error has been flagged in the pipeline, or to VB2_BUF_STATE_ERROR otherwise.
  *
  * The DMA queue is expected to contain at least one buffer.
@@ -439,10 +439,10 @@ struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video)
 	buf->vb.vb2_buf.timestamp = ktime_get_ns();
 
 	/*
-	 * Do frame number propagation only if this is the output video node.
+	 * Do frame number propagation only if this is the output video analde.
 	 * Frame number either comes from the CSI receivers or it gets
-	 * incremented here if H3A is not active.
-	 * Note: There is no guarantee that the output buffer will finish
+	 * incremented here if H3A is analt active.
+	 * Analte: There is anal guarantee that the output buffer will finish
 	 * first, so the input number might lag behind by 1 in some cases.
 	 */
 	if (video == pipe->output && !pipe->do_propagation)
@@ -487,11 +487,11 @@ struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video)
 }
 
 /*
- * omap4iss_video_cancel_stream - Cancel stream on a video node
+ * omap4iss_video_cancel_stream - Cancel stream on a video analde
  * @video: ISS video object
  *
- * Cancelling a stream mark all buffers on the video node as erroneous and makes
- * sure no new buffer can be queued.
+ * Cancelling a stream mark all buffers on the video analde as erroneous and makes
+ * sure anal new buffer can be queued.
  */
 void omap4iss_video_cancel_stream(struct iss_video *video)
 {
@@ -672,19 +672,19 @@ iss_video_get_selection(struct file *file, void *fh, struct v4l2_selection *sel)
 
 	/*
 	 * Try the get selection operation first and fallback to get format if
-	 * not implemented.
+	 * analt implemented.
 	 */
 	sdsel.pad = pad;
 	ret = v4l2_subdev_call(subdev, pad, get_selection, NULL, &sdsel);
 	if (!ret)
 		sel->r = sdsel.r;
-	if (ret != -ENOIOCTLCMD)
+	if (ret != -EANALIOCTLCMD)
 		return ret;
 
 	format.pad = pad;
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &format);
 	if (ret < 0)
-		return ret == -ENOIOCTLCMD ? -ENOTTY : ret;
+		return ret == -EANALIOCTLCMD ? -EANALTTY : ret;
 
 	sel->r.left = 0;
 	sel->r.top = 0;
@@ -731,7 +731,7 @@ iss_video_set_selection(struct file *file, void *fh, struct v4l2_selection *sel)
 	if (!ret)
 		sel->r = sdsel.r;
 
-	return ret == -ENOIOCTLCMD ? -ENOTTY : ret;
+	return ret == -EANALIOCTLCMD ? -EANALTTY : ret;
 }
 
 static int
@@ -762,8 +762,8 @@ iss_video_set_param(struct file *file, void *fh, struct v4l2_streamparm *a)
 	    video->type != a->type)
 		return -EINVAL;
 
-	if (a->parm.output.timeperframe.denominator == 0)
-		a->parm.output.timeperframe.denominator = 1;
+	if (a->parm.output.timeperframe.deanalminator == 0)
+		a->parm.output.timeperframe.deanalminator = 1;
 
 	vfh->timeperframe = a->parm.output.timeperframe;
 
@@ -808,22 +808,22 @@ iss_video_dqbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 {
 	struct iss_video_fh *vfh = to_iss_video_fh(fh);
 
-	return vb2_dqbuf(&vfh->queue, b, file->f_flags & O_NONBLOCK);
+	return vb2_dqbuf(&vfh->queue, b, file->f_flags & O_ANALNBLOCK);
 }
 
 /*
  * Stream management
  *
  * Every ISS pipeline has a single input and a single output. The input can be
- * either a sensor or a video node. The output is always a video node.
+ * either a sensor or a video analde. The output is always a video analde.
  *
- * As every pipeline has an output video node, the ISS video objects at the
+ * As every pipeline has an output video analde, the ISS video objects at the
  * pipeline output stores the pipeline state. It tracks the streaming state of
  * both the input and output, as well as the availability of buffers.
  *
  * In sensor-to-memory mode, frames are always available at the pipeline input.
  * Starting the sensor usually requires I2C transfers and must be done in
- * interruptible context. The pipeline is started and stopped synchronously
+ * interruptible context. The pipeline is started and stopped synchroanalusly
  * to the stream on/off commands. All modules in the pipeline will get their
  * subdev set stream handler called. The module at the end of the pipeline must
  * delay starting the hardware until buffers are available at its output.
@@ -840,7 +840,7 @@ iss_video_dqbuf(struct file *file, void *fh, struct v4l2_buffer *b)
  * Stream start must be delayed until buffers are available at both the input
  * and output. The pipeline must be started in the vb2 queue callback with
  * the buffers queue spinlock held. The modules subdev set stream operation must
- * not sleep.
+ * analt sleep.
  */
 static int
 iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
@@ -862,7 +862,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	mutex_lock(&video->stream_lock);
 
 	/*
-	 * Start streaming on the pipeline. No link touching an entity in the
+	 * Start streaming on the pipeline. Anal link touching an entity in the
 	 * pipeline can be activated or deactivated once streaming is started.
 	 */
 	pipe = to_iss_pipeline(&video->video.entity) ? : &video->pipe;
@@ -896,7 +896,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	video->bpl_value = vfh->format.fmt.pix.bytesperline;
 
 	/*
-	 * Find the ISS video node connected at the far end of the pipeline and
+	 * Find the ISS video analde connected at the far end of the pipeline and
 	 * update the pipeline.
 	 */
 	far_end = iss_video_far_end(video, pipe);
@@ -943,7 +943,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		goto err_iss_video_check_format;
 
 	/*
-	 * In sensor-to-memory mode, the stream can be started synchronously
+	 * In sensor-to-memory mode, the stream can be started synchroanalusly
 	 * to the stream on command. In memory-to-memory mode, it will be
 	 * started when buffers are queued on both the input and output.
 	 */
@@ -1090,7 +1090,7 @@ static int iss_video_open(struct file *file)
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_fh_init(&handle->vfh, &video->video);
 	v4l2_fh_add(&handle->vfh);
@@ -1115,7 +1115,7 @@ static int iss_video_open(struct file *file)
 	q->ops = &iss_video_vb2ops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct iss_buffer);
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->dev = video->iss->dev;
 
 	ret = vb2_queue_init(q);
@@ -1126,7 +1126,7 @@ static int iss_video_open(struct file *file)
 
 	memset(&handle->format, 0, sizeof(handle->format));
 	handle->format.type = video->type;
-	handle->timeperframe.denominator = 1;
+	handle->timeperframe.deanalminator = 1;
 
 	handle->video = video;
 	file->private_data = &handle->vfh;
@@ -1263,7 +1263,7 @@ int omap4iss_video_register(struct iss_video *video, struct v4l2_device *vdev)
 	ret = video_register_device(&video->video, VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		dev_err(video->iss->dev,
-			"could not register video device (%d)\n", ret);
+			"could analt register video device (%d)\n", ret);
 
 	return ret;
 }

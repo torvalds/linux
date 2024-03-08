@@ -13,7 +13,7 @@ maintainers:
 description: |
   Mediatek Write Direct Memory Access(WDMA) component used to write
   the data into DMA.
-  WDMA device node must be siblings to the central MMSYS_CONFIG node.
+  WDMA device analde must be siblings to the central MMSYS_CONFIG analde.
   For a description of the MMSYS_CONFIG binding, see
   Documentation/devicetree/bindings/arm/mediatek/mediatek,mmsys.yaml
   for details.

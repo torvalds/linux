@@ -79,7 +79,7 @@ static int xenvif_read_io_ring(struct seq_file *m, void *v)
 
 	seq_printf(m, "NAPI state: %lx NAPI weight: %d TX queue len %u\n"
 		   "Credit timer_pending: %d, credit: %lu, usec: %lu\n"
-		   "remaining: %lu, expires: %lu, now: %lu\n",
+		   "remaining: %lu, expires: %lu, analw: %lu\n",
 		   queue->napi.state, queue->napi.weight,
 		   skb_queue_len(&queue->tx_queue),
 		   timer_pending(&queue->credit_timeout),
@@ -115,7 +115,7 @@ xenvif_write_io_ring(struct file *filp, const char __user *buf, size_t count,
 	if (*ppos != 0)
 		return 0;
 	if (count >= sizeof(write))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	len = simple_write_to_buffer(write,
 				     sizeof(write) - 1,
@@ -130,20 +130,20 @@ xenvif_write_io_ring(struct file *filp, const char __user *buf, size_t count,
 	if (!strncmp(write, XENVIF_KICK_STR, sizeof(XENVIF_KICK_STR) - 1))
 		xenvif_interrupt(0, (void *)queue);
 	else {
-		pr_warn("Unknown command to io_ring_q%d. Available: kick\n",
+		pr_warn("Unkanalwn command to io_ring_q%d. Available: kick\n",
 			queue->id);
 		count = -EINVAL;
 	}
 	return count;
 }
 
-static int xenvif_io_ring_open(struct inode *inode, struct file *filp)
+static int xenvif_io_ring_open(struct ianalde *ianalde, struct file *filp)
 {
 	int ret;
 	void *queue = NULL;
 
-	if (inode->i_private)
-		queue = inode->i_private;
+	if (ianalde->i_private)
+		queue = ianalde->i_private;
 	ret = single_open(filp, xenvif_read_io_ring, queue);
 	filp->f_mode |= FMODE_PWRITE;
 	return ret;
@@ -209,7 +209,7 @@ static int netback_uevent(const struct xenbus_device *xdev,
 		return 0;
 
 	if (add_uevent_var(env, "script=%s", be->hotplug_script))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!be->vif)
 		return 0;
@@ -228,7 +228,7 @@ static int backend_create_xenvif(struct backend_info *be)
 	if (be->vif != NULL)
 		return 0;
 
-	err = xenbus_scanf(XBT_NIL, dev->nodename, "handle", "%li", &handle);
+	err = xenbus_scanf(XBT_NIL, dev->analdename, "handle", "%li", &handle);
 	if (err != 1) {
 		xenbus_dev_fatal(dev, err, "reading handle");
 		return (err < 0) ? err : -EINVAL;
@@ -288,7 +288,7 @@ static inline void backend_switch_state(struct backend_info *be,
 {
 	struct xenbus_device *dev = be->dev;
 
-	pr_debug("%s -> %s\n", dev->nodename, xenbus_strstate(state));
+	pr_debug("%s -> %s\n", dev->analdename, xenbus_strstate(state));
 	be->state = state;
 
 	/* If we are waiting for a hotplug script then defer the
@@ -448,8 +448,8 @@ static void frontend_changed(struct xenbus_device *dev,
 		set_backend_state(be, XenbusStateClosed);
 		if (xenbus_dev_is_online(dev))
 			break;
-		fallthrough;	/* if not online */
-	case XenbusStateUnknown:
+		fallthrough;	/* if analt online */
+	case XenbusStateUnkanalwn:
 		set_backend_state(be, XenbusStateClosed);
 		device_unregister(&dev->dev);
 		break;
@@ -473,7 +473,7 @@ static void xen_net_read_rate(struct xenbus_device *dev,
 	*bytes = ~0UL;
 	*usec = 0;
 
-	ratestr = xenbus_read(XBT_NIL, dev->nodename, "rate", NULL);
+	ratestr = xenbus_read(XBT_NIL, dev->analdename, "rate", NULL);
 	if (IS_ERR(ratestr))
 		return;
 
@@ -503,7 +503,7 @@ static int xen_net_read_mac(struct xenbus_device *dev, u8 mac[])
 	char *s, *e, *macstr;
 	int i;
 
-	macstr = s = xenbus_read(XBT_NIL, dev->nodename, "mac", NULL);
+	macstr = s = xenbus_read(XBT_NIL, dev->analdename, "mac", NULL);
 	if (IS_ERR(macstr))
 		return PTR_ERR(macstr);
 
@@ -511,7 +511,7 @@ static int xen_net_read_mac(struct xenbus_device *dev, u8 mac[])
 		mac[i] = simple_strtoul(s, &e, 16);
 		if ((s == e) || (*e != ((i == ETH_ALEN-1) ? '\0' : ':'))) {
 			kfree(macstr);
-			return -ENOENT;
+			return -EANALENT;
 		}
 		s = e+1;
 	}
@@ -546,24 +546,24 @@ static int xen_register_credit_watch(struct xenbus_device *dev,
 				     struct xenvif *vif)
 {
 	int err = 0;
-	char *node;
-	unsigned maxlen = strlen(dev->nodename) + sizeof("/rate");
+	char *analde;
+	unsigned maxlen = strlen(dev->analdename) + sizeof("/rate");
 
-	if (vif->credit_watch.node)
+	if (vif->credit_watch.analde)
 		return -EADDRINUSE;
 
-	node = kmalloc(maxlen, GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
-	snprintf(node, maxlen, "%s/rate", dev->nodename);
-	vif->credit_watch.node = node;
+	analde = kmalloc(maxlen, GFP_KERNEL);
+	if (!analde)
+		return -EANALMEM;
+	snprintf(analde, maxlen, "%s/rate", dev->analdename);
+	vif->credit_watch.analde = analde;
 	vif->credit_watch.will_handle = NULL;
 	vif->credit_watch.callback = xen_net_rate_changed;
 	err = register_xenbus_watch(&vif->credit_watch);
 	if (err) {
-		pr_err("Failed to set watcher %s\n", vif->credit_watch.node);
-		kfree(node);
-		vif->credit_watch.node = NULL;
+		pr_err("Failed to set watcher %s\n", vif->credit_watch.analde);
+		kfree(analde);
+		vif->credit_watch.analde = NULL;
 		vif->credit_watch.will_handle = NULL;
 		vif->credit_watch.callback = NULL;
 	}
@@ -572,10 +572,10 @@ static int xen_register_credit_watch(struct xenbus_device *dev,
 
 static void xen_unregister_credit_watch(struct xenvif *vif)
 {
-	if (vif->credit_watch.node) {
+	if (vif->credit_watch.analde) {
 		unregister_xenbus_watch(&vif->credit_watch);
-		kfree(vif->credit_watch.node);
-		vif->credit_watch.node = NULL;
+		kfree(vif->credit_watch.analde);
+		vif->credit_watch.analde = NULL;
 	}
 }
 
@@ -594,31 +594,31 @@ static int xen_register_mcast_ctrl_watch(struct xenbus_device *dev,
 					 struct xenvif *vif)
 {
 	int err = 0;
-	char *node;
+	char *analde;
 	unsigned maxlen = strlen(dev->otherend) +
 		sizeof("/request-multicast-control");
 
-	if (vif->mcast_ctrl_watch.node) {
+	if (vif->mcast_ctrl_watch.analde) {
 		pr_err_ratelimited("Watch is already registered\n");
 		return -EADDRINUSE;
 	}
 
-	node = kmalloc(maxlen, GFP_KERNEL);
-	if (!node) {
+	analde = kmalloc(maxlen, GFP_KERNEL);
+	if (!analde) {
 		pr_err("Failed to allocate memory for watch\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
-	snprintf(node, maxlen, "%s/request-multicast-control",
+	snprintf(analde, maxlen, "%s/request-multicast-control",
 		 dev->otherend);
-	vif->mcast_ctrl_watch.node = node;
+	vif->mcast_ctrl_watch.analde = analde;
 	vif->mcast_ctrl_watch.will_handle = NULL;
 	vif->mcast_ctrl_watch.callback = xen_mcast_ctrl_changed;
 	err = register_xenbus_watch(&vif->mcast_ctrl_watch);
 	if (err) {
 		pr_err("Failed to set watcher %s\n",
-		       vif->mcast_ctrl_watch.node);
-		kfree(node);
-		vif->mcast_ctrl_watch.node = NULL;
+		       vif->mcast_ctrl_watch.analde);
+		kfree(analde);
+		vif->mcast_ctrl_watch.analde = NULL;
 		vif->mcast_ctrl_watch.will_handle = NULL;
 		vif->mcast_ctrl_watch.callback = NULL;
 	}
@@ -627,10 +627,10 @@ static int xen_register_mcast_ctrl_watch(struct xenbus_device *dev,
 
 static void xen_unregister_mcast_ctrl_watch(struct xenvif *vif)
 {
-	if (vif->mcast_ctrl_watch.node) {
+	if (vif->mcast_ctrl_watch.analde) {
 		unregister_xenbus_watch(&vif->mcast_ctrl_watch);
-		kfree(vif->mcast_ctrl_watch.node);
-		vif->mcast_ctrl_watch.node = NULL;
+		kfree(vif->mcast_ctrl_watch.analde);
+		vif->mcast_ctrl_watch.analde = NULL;
 	}
 }
 
@@ -651,7 +651,7 @@ static void unregister_hotplug_status_watch(struct backend_info *be)
 {
 	if (be->have_hotplug_status_watch) {
 		unregister_xenbus_watch(&be->hotplug_status_watch);
-		kfree(be->hotplug_status_watch.node);
+		kfree(be->hotplug_status_watch.analde);
 	}
 	be->have_hotplug_status_watch = 0;
 }
@@ -666,14 +666,14 @@ static void hotplug_status_changed(struct xenbus_watch *watch,
 	char *str;
 	unsigned int len;
 
-	str = xenbus_read(XBT_NIL, be->dev->nodename, "hotplug-status", &len);
+	str = xenbus_read(XBT_NIL, be->dev->analdename, "hotplug-status", &len);
 	if (IS_ERR(str))
 		return;
 	if (len == sizeof("connected")-1 && !memcmp(str, "connected", len)) {
 		/* Complete any pending state change */
 		xenbus_switch_state(be->dev, be->state);
 
-		/* Not interested in this watch anymore. */
+		/* Analt interested in this watch anymore. */
 		unregister_hotplug_status_watch(be);
 	}
 	kfree(str);
@@ -691,7 +691,7 @@ static int connect_ctrl_ring(struct backend_info *be)
 	err = xenbus_scanf(XBT_NIL, dev->otherend,
 			   "ctrl-ring-ref", "%u", &val);
 	if (err < 0)
-		goto done; /* The frontend does not have a control ring */
+		goto done; /* The frontend does analt have a control ring */
 
 	ring_ref = val;
 
@@ -745,7 +745,7 @@ static void connect(struct backend_info *be)
 
 	err = xen_net_read_mac(dev, be->vif->fe_dev_addr);
 	if (err) {
-		xenbus_dev_fatal(dev, err, "parsing %s/mac", dev->nodename);
+		xenbus_dev_fatal(dev, err, "parsing %s/mac", dev->analdename);
 		return;
 	}
 
@@ -764,7 +764,7 @@ static void connect(struct backend_info *be)
 	be->vif->queues = vzalloc(array_size(requested_num_queues,
 					     sizeof(struct xenvif_queue)));
 	if (!be->vif->queues) {
-		xenbus_dev_fatal(dev, -ENOMEM,
+		xenbus_dev_fatal(dev, -EANALMEM,
 				 "allocating queues");
 		return;
 	}
@@ -825,7 +825,7 @@ static void connect(struct backend_info *be)
 	unregister_hotplug_status_watch(be);
 	err = xenbus_watch_pathfmt(dev, &be->hotplug_status_watch, NULL,
 				   hotplug_status_changed,
-				   "%s/%s", dev->nodename, "hotplug-status");
+				   "%s/%s", dev->analdename, "hotplug-status");
 	if (!err)
 		be->have_hotplug_status_watch = 1;
 
@@ -867,17 +867,17 @@ static int connect_data_rings(struct backend_info *be,
 	if (num_queues == 1) {
 		xspath = kstrdup(dev->otherend, GFP_KERNEL);
 		if (!xspath) {
-			xenbus_dev_fatal(dev, -ENOMEM,
+			xenbus_dev_fatal(dev, -EANALMEM,
 					 "reading ring references");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} else {
 		xspathsize = strlen(dev->otherend) + xenstore_path_ext_size;
 		xspath = kzalloc(xspathsize, GFP_KERNEL);
 		if (!xspath) {
-			xenbus_dev_fatal(dev, -ENOMEM,
+			xenbus_dev_fatal(dev, -EANALMEM,
 					 "reading ring references");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		snprintf(xspath, xspathsize, "%s/queue-%u", dev->otherend,
 			 queue->id);
@@ -935,7 +935,7 @@ static int read_xenbus_vif_flags(struct backend_info *be)
 
 	err = xenbus_scanf(XBT_NIL, dev->otherend, "request-rx-copy", "%u",
 			   &rx_copy);
-	if (err == -ENOENT) {
+	if (err == -EANALENT) {
 		err = 0;
 		rx_copy = 0;
 	}
@@ -945,9 +945,9 @@ static int read_xenbus_vif_flags(struct backend_info *be)
 		return err;
 	}
 	if (!rx_copy)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	if (!xenbus_read_unsigned(dev->otherend, "feature-rx-notify", 0)) {
+	if (!xenbus_read_unsigned(dev->otherend, "feature-rx-analtify", 0)) {
 		/* - Reduce drain timeout to poll more frequently for
 		 *   Rx requests.
 		 * - Disable Rx stall detection.
@@ -967,7 +967,7 @@ static int read_xenbus_vif_flags(struct backend_info *be)
 		vif->gso_mask |= GSO_BIT(TCPV6);
 
 	vif->ip_csum = !xenbus_read_unsigned(dev->otherend,
-					     "feature-no-csum-offload", 0);
+					     "feature-anal-csum-offload", 0);
 
 	vif->ipv6_csum = !!xenbus_read_unsigned(dev->otherend,
 						"feature-ipv6-csum-offload", 0);
@@ -982,7 +982,7 @@ static void netback_remove(struct xenbus_device *dev)
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
 	unregister_hotplug_status_watch(be);
-	xenbus_rm(XBT_NIL, dev->nodename, "hotplug-status");
+	xenbus_rm(XBT_NIL, dev->analdename, "hotplug-status");
 	if (be->vif) {
 		kobject_uevent(&dev->dev.kobj, KOBJ_OFFLINE);
 		backend_disconnect(be);
@@ -1009,9 +1009,9 @@ static int netback_probe(struct xenbus_device *dev,
 	struct backend_info *be = kzalloc(sizeof(*be), GFP_KERNEL);
 
 	if (!be) {
-		xenbus_dev_fatal(dev, -ENOMEM,
+		xenbus_dev_fatal(dev, -EANALMEM,
 				 "allocating backend structure");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	be->dev = dev;
@@ -1026,20 +1026,20 @@ static int netback_probe(struct xenbus_device *dev,
 			goto fail;
 		}
 
-		err = xenbus_printf(xbt, dev->nodename, "feature-sg", "%d", sg);
+		err = xenbus_printf(xbt, dev->analdename, "feature-sg", "%d", sg);
 		if (err) {
 			message = "writing feature-sg";
 			goto abort_transaction;
 		}
 
-		err = xenbus_printf(xbt, dev->nodename, "feature-gso-tcpv4",
+		err = xenbus_printf(xbt, dev->analdename, "feature-gso-tcpv4",
 				    "%d", sg);
 		if (err) {
 			message = "writing feature-gso-tcpv4";
 			goto abort_transaction;
 		}
 
-		err = xenbus_printf(xbt, dev->nodename, "feature-gso-tcpv6",
+		err = xenbus_printf(xbt, dev->analdename, "feature-gso-tcpv6",
 				    "%d", sg);
 		if (err) {
 			message = "writing feature-gso-tcpv6";
@@ -1047,7 +1047,7 @@ static int netback_probe(struct xenbus_device *dev,
 		}
 
 		/* We support partial checksum setup for IPv6 packets */
-		err = xenbus_printf(xbt, dev->nodename,
+		err = xenbus_printf(xbt, dev->analdename,
 				    "feature-ipv6-csum-offload",
 				    "%d", 1);
 		if (err) {
@@ -1056,7 +1056,7 @@ static int netback_probe(struct xenbus_device *dev,
 		}
 
 		/* We support rx-copy path. */
-		err = xenbus_printf(xbt, dev->nodename,
+		err = xenbus_printf(xbt, dev->analdename,
 				    "feature-rx-copy", "%d", 1);
 		if (err) {
 			message = "writing feature-rx-copy";
@@ -1064,7 +1064,7 @@ static int netback_probe(struct xenbus_device *dev,
 		}
 
 		/* we can adjust a headroom for netfront XDP processing */
-		err = xenbus_printf(xbt, dev->nodename,
+		err = xenbus_printf(xbt, dev->analdename,
 				    "feature-xdp-headroom", "%d",
 				    provides_xdp_headroom);
 		if (err) {
@@ -1075,7 +1075,7 @@ static int netback_probe(struct xenbus_device *dev,
 		/* We don't support rx-flip path (except old guests who
 		 * don't grok this feature flag).
 		 */
-		err = xenbus_printf(xbt, dev->nodename,
+		err = xenbus_printf(xbt, dev->analdename,
 				    "feature-rx-flip", "%d", 0);
 		if (err) {
 			message = "writing feature-rx-flip";
@@ -1083,14 +1083,14 @@ static int netback_probe(struct xenbus_device *dev,
 		}
 
 		/* We support dynamic multicast-control. */
-		err = xenbus_printf(xbt, dev->nodename,
+		err = xenbus_printf(xbt, dev->analdename,
 				    "feature-multicast-control", "%d", 1);
 		if (err) {
 			message = "writing feature-multicast-control";
 			goto abort_transaction;
 		}
 
-		err = xenbus_printf(xbt, dev->nodename,
+		err = xenbus_printf(xbt, dev->analdename,
 				    "feature-dynamic-multicast-control",
 				    "%d", 1);
 		if (err) {
@@ -1106,22 +1106,22 @@ static int netback_probe(struct xenbus_device *dev,
 		goto fail;
 	}
 
-	/* Split event channels support, this is optional so it is not
+	/* Split event channels support, this is optional so it is analt
 	 * put inside the above loop.
 	 */
-	err = xenbus_printf(XBT_NIL, dev->nodename,
+	err = xenbus_printf(XBT_NIL, dev->analdename,
 			    "feature-split-event-channels",
 			    "%u", separate_tx_rx_irq);
 	if (err)
 		pr_debug("Error writing feature-split-event-channels\n");
 
 	/* Multi-queue support: This is an optional feature. */
-	err = xenbus_printf(XBT_NIL, dev->nodename,
+	err = xenbus_printf(XBT_NIL, dev->analdename,
 			    "multi-queue-max-queues", "%u", xenvif_max_queues);
 	if (err)
 		pr_debug("Error writing multi-queue-max-queues\n");
 
-	err = xenbus_printf(XBT_NIL, dev->nodename,
+	err = xenbus_printf(XBT_NIL, dev->analdename,
 			    "feature-ctrl-ring",
 			    "%u", true);
 	if (err)
@@ -1129,7 +1129,7 @@ static int netback_probe(struct xenbus_device *dev,
 
 	backend_switch_state(be, XenbusStateInitWait);
 
-	script = xenbus_read(XBT_NIL, dev->nodename, "script", NULL);
+	script = xenbus_read(XBT_NIL, dev->analdename, "script", NULL);
 	if (IS_ERR(script)) {
 		err = PTR_ERR(script);
 		xenbus_dev_fatal(dev, err, "reading script");

@@ -15,7 +15,7 @@ properties:
     const: rfkill-gpio
 
   label:
-    description: rfkill switch name, defaults to node name
+    description: rfkill switch name, defaults to analde name
 
   radio-type:
     description: rfkill radio type

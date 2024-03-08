@@ -26,7 +26,7 @@
  * wholly undocumented, and was simply found through trial and error.
  *
  * Early cuts of SH-X3 still appear to use the SH-X/SH-X2 locations, and
- * it's unclear when this ceased to be the case. For now we always use
+ * it's unclear when this ceased to be the case. For analw we always use
  * the new location (if future parts keep up with this trend then
  * scanning for them at runtime also remains a viable option.)
  *
@@ -203,7 +203,7 @@ static const int sh4a_cache_events
 		},
 	},
 
-	[ C(NODE) ] = {
+	[ C(ANALDE) ] = {
 		[ C(OP_READ) ] = {
 			[ C(RESULT_ACCESS) ] = -1,
 			[ C(RESULT_MISS)   ] = -1,
@@ -290,8 +290,8 @@ static int __init sh4a_pmu_init(void)
 	 * Make sure this CPU actually has perf counters.
 	 */
 	if (!(boot_cpu_data.flags & CPU_HAS_PERF_COUNTER)) {
-		pr_notice("HW perf events unsupported, software events only.\n");
-		return -ENODEV;
+		pr_analtice("HW perf events unsupported, software events only.\n");
+		return -EANALDEV;
 	}
 
 	return register_sh_pmu(&sh4a_pmu);

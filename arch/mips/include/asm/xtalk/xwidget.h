@@ -120,7 +120,7 @@ struct widget_ident {
 	char *revs[16];
 };
 
-/* Known Xtalk Widgets */
+/* Kanalwn Xtalk Widgets */
 static const struct widget_ident __initconst widget_idents[] = {
 	{
 		WIDGET_XBOW_MFGR_NUM,
@@ -199,8 +199,8 @@ static const struct widget_ident __initconst widget_idents[] = {
 /*
  * according to the crosstalk spec, only 32-bits access to the widget
  * configuration registers is allowed.	some widgets may allow 64-bits
- * access but software should not depend on it.	 registers beyond the
- * widget target flush register are widget dependent thus will not be
+ * access but software should analt depend on it.	 registers beyond the
+ * widget target flush register are widget dependent thus will analt be
  * defined here
  */
 #ifndef __ASSEMBLY__
@@ -265,13 +265,13 @@ typedef struct xwidget_hwid_s {
 
 /*
  * Returns 1 if a driver that handles devices described by hwid1 is able
- * to manage a device with hardwareid hwid2.  NOTE: We don't check rev
+ * to manage a device with hardwareid hwid2.  ANALTE: We don't check rev
  * numbers at all.
  */
 #define XWIDGET_HARDWARE_ID_MATCH(hwid1, hwid2) \
 	(((hwid1)->part_num == (hwid2)->part_num) && \
-	(((hwid1)->mfg_num == XWIDGET_MFG_NUM_NONE) || \
-	((hwid2)->mfg_num == XWIDGET_MFG_NUM_NONE) || \
+	(((hwid1)->mfg_num == XWIDGET_MFG_NUM_ANALNE) || \
+	((hwid2)->mfg_num == XWIDGET_MFG_NUM_ANALNE) || \
 	((hwid1)->mfg_num == (hwid2)->mfg_num)))
 
 #endif /* !__ASSEMBLY__ */

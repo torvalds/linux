@@ -19,7 +19,7 @@ bool vpu_helper_match_format(struct vpu_inst *inst, u32 type, u32 fmta, u32 fmtb
 const struct vpu_format *vpu_helper_enum_format(struct vpu_inst *inst, u32 type, int index);
 u32 vpu_helper_valid_frame_width(struct vpu_inst *inst, u32 width);
 u32 vpu_helper_valid_frame_height(struct vpu_inst *inst, u32 height);
-u32 vpu_helper_get_plane_size(u32 fmt, u32 width, u32 height, int plane_no,
+u32 vpu_helper_get_plane_size(u32 fmt, u32 width, u32 height, int plane_anal,
 			      u32 stride, u32 interlaced, u32 *pbl);
 int vpu_helper_copy_from_stream_buffer(struct vpu_buffer *stream_buffer,
 				       u32 *rptr, u32 size, void *dst);

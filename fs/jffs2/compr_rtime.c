@@ -17,13 +17,13 @@
  * first source-byte, the second byte indicated the "run" length of
  * matches
  *
- * The algorithm is intended to only send "whole bytes", no bit-messing.
+ * The algorithm is intended to only send "whole bytes", anal bit-messing.
  *
  */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/jffs2.h>
 #include "compr.h"

@@ -94,7 +94,7 @@ static void *vgic_debug_start(struct seq_file *s, loff_t *pos)
 
 	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
 	if (!iter) {
-		iter = ERR_PTR(-ENOMEM);
+		iter = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
@@ -126,7 +126,7 @@ static void vgic_debug_stop(struct seq_file *s, void *v)
 	struct vgic_state_iter *iter;
 
 	/*
-	 * If the seq file wasn't properly opened, there's nothing to clearn
+	 * If the seq file wasn't properly opened, there's analthing to clearn
 	 * up.
 	 */
 	if (IS_ERR(v))

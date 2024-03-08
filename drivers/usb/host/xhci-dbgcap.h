@@ -101,7 +101,7 @@ struct dbc_ep {
 struct dbc_port {
 	struct tty_port			port;
 	spinlock_t			port_lock;	/* port access */
-	int				minor;
+	int				mianalr;
 
 	struct list_head		read_pool;
 	struct list_head		read_queue;

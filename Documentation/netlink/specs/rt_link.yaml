@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause)
 
 name: rt-link
 protocol: netlink-raw
@@ -23,11 +23,11 @@ definitions:
       -
         name: point-to-point
       -
-        name: no-trailers
+        name: anal-trailers
       -
         name: running
       -
-        name: no-arp
+        name: anal-arp
       -
         name: promisc
       -
@@ -185,7 +185,7 @@ definitions:
         name: tx-compressed
         type: u32
       -
-        name: rx-nohandler
+        name: rx-analhandler
         type: u32
   -
     name: rtnl-link-stats64
@@ -261,7 +261,7 @@ definitions:
         name: tx-compressed
         type: u64
       -
-        name: rx-nohandler
+        name: rx-analhandler
         type: u64
       -
         name: rx-otherhost-dropped
@@ -335,19 +335,19 @@ definitions:
         name: medium-id
         type: u32
       -
-        name: noxfrm
+        name: analxfrm
         type: u32
       -
-        name: nopolicy
+        name: analpolicy
         type: u32
       -
         name: force-igmp-version
         type: u32
       -
-        name: arp-announce
+        name: arp-ananalunce
         type: u32
       -
-        name: arp-ignore
+        name: arp-iganalre
         type: u32
       -
         name: promote-secondaries
@@ -356,7 +356,7 @@ definitions:
         name: arp-accept
         type: u32
       -
-        name: arp-notify
+        name: arp-analtify
         type: u32
       -
         name: accept-local
@@ -377,7 +377,7 @@ definitions:
         name: igmpv3-unsolicited-report-interval
         type: u32
       -
-        name: ignore-routes-with-linkdown
+        name: iganalre-routes-with-linkdown
         type: u32
       -
         name: drop-unicast-in-l2-multicast
@@ -389,7 +389,7 @@ definitions:
         name: bc-forwarding
         type: u32
       -
-        name: arp-evict-nocarrier
+        name: arp-evict-analcarrier
         type: u32
   -
     name: ipv6-devconf
@@ -483,7 +483,7 @@ definitions:
         name: force-tllao
         type: u32
       -
-        name: ndisc-notify
+        name: ndisc-analtify
         type: u32
       -
         name: mldv1-unsolicited-report-interval
@@ -513,7 +513,7 @@ definitions:
         name: accept-ra-min-hop-limit
         type: u32
       -
-        name: ignore-routes-with-linkdown
+        name: iganalre-routes-with-linkdown
         type: u32
       -
         name: drop-unicast-in-l2-multicast
@@ -564,7 +564,7 @@ definitions:
         name: ioam6-id-wide
         type: u32
       -
-        name: ndisc-evict-nocarrier
+        name: ndisc-evict-analcarrier
         type: u32
       -
         name: accept-untracked-na
@@ -599,7 +599,7 @@ definitions:
         name: inpkts
         type: u64
       -
-        name: inoctets
+        name: ianalctets
         type: u64
       -
         name: indelivers
@@ -620,13 +620,13 @@ definitions:
         name: intoobigerrors
         type: u64
       -
-        name: innoroutes
+        name: inanalroutes
         type: u64
       -
         name: inaddrerrors
         type: u64
       -
-        name: inunknownprotos
+        name: inunkanalwnprotos
         type: u64
       -
         name: intruncatedpkts
@@ -638,7 +638,7 @@ definitions:
         name: outdiscards
         type: u64
       -
-        name: outnoroutes
+        name: outanalroutes
         type: u64
       -
         name: reasmtimeout
@@ -689,7 +689,7 @@ definitions:
         name: csumerrors
         type: u64
       -
-        name: noectpkts
+        name: analectpkts
         type: u64
       -
         name: ect1-pkts
@@ -1069,7 +1069,7 @@ attribute-sets:
         name: mcast-router
         type: u8
       -
-        name: mcast-snooping
+        name: mcast-sanaloping
         type: u8
       -
         name: mcast-query-use-ifaddr
@@ -1202,7 +1202,7 @@ attribute-sets:
         name: id
         type: u16
       -
-        name: "no"
+        name: "anal"
         type: u16
       -
         name: topology-change-ack
@@ -1343,7 +1343,7 @@ attribute-sets:
         name: collect-metadata
         type: flag
       -
-        name: ignore-df
+        name: iganalre-df
         type: u8
       -
         name: fwmark

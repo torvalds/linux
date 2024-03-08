@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -146,7 +146,7 @@ static void program_addr(
 			addr->video_progressive.luma_addr);
 		break;
 	default:
-		/* not supported */
+		/* analt supported */
 		BREAK_TO_DEBUGGER();
 	}
 }
@@ -771,7 +771,7 @@ static void program_stutter_watermark(
 	set_reg_field_value(stutter_cntl,
 		1,
 		DPGV0_PIPE_STUTTER_CONTROL,
-		STUTTER_IGNORE_FBC);
+		STUTTER_IGANALRE_FBC);
 
 	/*Write watermark set A*/
 	set_reg_field_value(stutter_cntl,
@@ -852,7 +852,7 @@ static void program_nbp_watermark(
 		value,
 		1,
 		DPGV0_PIPE_NB_PSTATE_CHANGE_CONTROL,
-		NB_PSTATE_CHANGE_NOT_SELF_REFRESH_DURING_REQUEST);
+		NB_PSTATE_CHANGE_ANALT_SELF_REFRESH_DURING_REQUEST);
 	dm_write_reg(ctx, nbp_pstate_ctrl_addr, value);
 
 	/* Write watermark set A */
@@ -888,7 +888,7 @@ static void program_nbp_watermark(
 		value,
 		1,
 		DPGV0_PIPE_NB_PSTATE_CHANGE_CONTROL,
-		NB_PSTATE_CHANGE_NOT_SELF_REFRESH_DURING_REQUEST);
+		NB_PSTATE_CHANGE_ANALT_SELF_REFRESH_DURING_REQUEST);
 	dm_write_reg(ctx, nbp_pstate_ctrl_addr, value);
 
 	/* Write watermark set B */

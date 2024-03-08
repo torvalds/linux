@@ -2,7 +2,7 @@
 #ifndef __SOC_TI_OMAP1_MUX_H
 #define __SOC_TI_OMAP1_MUX_H
 /*
- * This should not really be a global header, it reflects the
+ * This should analt really be a global header, it reflects the
  * traditional way that omap1 does pin muxing without the
  * pinctrl subsystem.
  */

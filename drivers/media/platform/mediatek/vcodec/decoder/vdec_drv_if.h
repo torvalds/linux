@@ -13,22 +13,22 @@
 
 /**
  * enum vdec_fb_status  - decoder frame buffer status
- * @FB_ST_NORMAL: initial state
+ * @FB_ST_ANALRMAL: initial state
  * @FB_ST_DISPLAY: frame buffer is ready to be displayed
- * @FB_ST_FREE: frame buffer is not used by decoder any more
+ * @FB_ST_FREE: frame buffer is analt used by decoder any more
  */
 enum vdec_fb_status {
-	FB_ST_NORMAL		= 0,
+	FB_ST_ANALRMAL		= 0,
 	FB_ST_DISPLAY		= (1 << 0),
 	FB_ST_FREE		= (1 << 1)
 };
 
 /* For GET_PARAM_DISP_FRAME_BUFFER and GET_PARAM_FREE_FRAME_BUFFER,
- * the caller does not own the returned buffer. The buffer will not be
+ * the caller does analt own the returned buffer. The buffer will analt be
  *				released before vdec_if_deinit.
  * GET_PARAM_DISP_FRAME_BUFFER	: get next displayable frame buffer,
  *				struct vdec_fb**
- * GET_PARAM_FREE_FRAME_BUFFER	: get non-referenced framebuffer, vdec_fb**
+ * GET_PARAM_FREE_FRAME_BUFFER	: get analn-referenced framebuffer, vdec_fb**
  * GET_PARAM_PIC_INFO		: get picture info, struct vdec_pic_info*
  * GET_PARAM_CROP_INFO		: get crop info, struct v4l2_crop*
  * GET_PARAM_DPB_SIZE		: get dpb size, unsigned int*
@@ -42,12 +42,12 @@ enum vdec_get_param_type {
 };
 
 /**
- * struct vdec_fb_node  - decoder frame buffer node
- * @list	: list to hold this node
+ * struct vdec_fb_analde  - decoder frame buffer analde
+ * @list	: list to hold this analde
  * @fb	: point to frame buffer (vdec_fb), fb could point to frame buffer and
  *	working buffer this is for maintain buffers in different state
  */
-struct vdec_fb_node {
+struct vdec_fb_analde {
 	struct list_head list;
 	struct vdec_fb *fb;
 };
@@ -84,7 +84,7 @@ void vdec_if_deinit(struct mtk_vcodec_dec_ctx *ctx);
  *	header only
  * @res_chg	: [out] resolution change happens if current bs have different
  *	picture width/height
- * Note: To flush the decoder when reaching EOF, set input bitstream as NULL.
+ * Analte: To flush the decoder when reaching EOF, set input bitstream as NULL.
  *
  * Return: 0 on success. -EIO on unrecoverable error.
  */

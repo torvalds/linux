@@ -21,21 +21,21 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE
  * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
  * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -71,7 +71,7 @@ enum pvrdma_mtu {
 };
 
 enum pvrdma_port_state {
-	PVRDMA_PORT_NOP			= 0,
+	PVRDMA_PORT_ANALP			= 0,
 	PVRDMA_PORT_DOWN		= 1,
 	PVRDMA_PORT_INIT		= 2,
 	PVRDMA_PORT_ARMED		= 3,
@@ -81,7 +81,7 @@ enum pvrdma_port_state {
 
 enum pvrdma_port_cap_flags {
 	PVRDMA_PORT_SM				= 1 <<  1,
-	PVRDMA_PORT_NOTICE_SUP			= 1 <<  2,
+	PVRDMA_PORT_ANALTICE_SUP			= 1 <<  2,
 	PVRDMA_PORT_TRAP_SUP			= 1 <<  3,
 	PVRDMA_PORT_OPT_IPD_SUP			= 1 <<  4,
 	PVRDMA_PORT_AUTO_MIGR_SUP		= 1 <<  5,
@@ -98,8 +98,8 @@ enum pvrdma_port_cap_flags {
 	PVRDMA_PORT_REINIT_SUP			= 1 << 18,
 	PVRDMA_PORT_DEVICE_MGMT_SUP		= 1 << 19,
 	PVRDMA_PORT_VENDOR_CLASS_SUP		= 1 << 20,
-	PVRDMA_PORT_DR_NOTICE_SUP		= 1 << 21,
-	PVRDMA_PORT_CAP_MASK_NOTICE_SUP		= 1 << 22,
+	PVRDMA_PORT_DR_ANALTICE_SUP		= 1 << 21,
+	PVRDMA_PORT_CAP_MASK_ANALTICE_SUP		= 1 << 22,
 	PVRDMA_PORT_BOOT_MGMT_SUP		= 1 << 23,
 	PVRDMA_PORT_LINK_LATENCY_SUP		= 1 << 24,
 	PVRDMA_PORT_CLIENT_REG_SUP		= 1 << 25,
@@ -202,7 +202,7 @@ struct pvrdma_ah_attr {
 	u8				reserved;
 };
 
-enum pvrdma_cq_notify_flags {
+enum pvrdma_cq_analtify_flags {
 	PVRDMA_CQ_SOLICITED		= 1 << 0,
 	PVRDMA_CQ_NEXT_COMP		= 1 << 1,
 	PVRDMA_CQ_SOLICITED_MASK	= PVRDMA_CQ_SOLICITED |
@@ -246,7 +246,7 @@ enum pvrdma_qp_create_flags {
 enum pvrdma_qp_attr_mask {
 	PVRDMA_QP_STATE			= 1 << 0,
 	PVRDMA_QP_CUR_STATE		= 1 << 1,
-	PVRDMA_QP_EN_SQD_ASYNC_NOTIFY	= 1 << 2,
+	PVRDMA_QP_EN_SQD_ASYNC_ANALTIFY	= 1 << 2,
 	PVRDMA_QP_ACCESS_FLAGS		= 1 << 3,
 	PVRDMA_QP_PKEY_INDEX		= 1 << 4,
 	PVRDMA_QP_PORT			= 1 << 5,
@@ -308,7 +308,7 @@ struct pvrdma_qp_attr {
 	u32			qp_access_flags;
 	u16			pkey_index;
 	u16			alt_pkey_index;
-	u8			en_sqd_async_notify;
+	u8			en_sqd_async_analtify;
 	u8			sq_draining;
 	u8			max_rd_atomic;
 	u8			max_dest_rd_atomic;
@@ -378,7 +378,7 @@ int pvrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		     struct ib_udata *udata);
 int pvrdma_destroy_cq(struct ib_cq *cq, struct ib_udata *udata);
 int pvrdma_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
-int pvrdma_req_notify_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);
+int pvrdma_req_analtify_cq(struct ib_cq *cq, enum ib_cq_analtify_flags flags);
 int pvrdma_create_ah(struct ib_ah *ah, struct rdma_ah_init_attr *init_attr,
 		     struct ib_udata *udata);
 int pvrdma_destroy_ah(struct ib_ah *ah, u32 flags);

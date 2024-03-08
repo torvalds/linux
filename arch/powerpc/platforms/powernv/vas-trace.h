@@ -25,24 +25,24 @@ TRACE_EVENT(	vas_rx_win_open,
 			__field(int, cop)
 			__field(int, vasid)
 			__field(struct vas_rx_win_attr *, rxattr)
-			__field(int, lnotify_lpid)
-			__field(int, lnotify_pid)
-			__field(int, lnotify_tid)
+			__field(int, lanaltify_lpid)
+			__field(int, lanaltify_pid)
+			__field(int, lanaltify_tid)
 		),
 
 		TP_fast_assign(
 			__entry->pid = tsk->pid;
 			__entry->vasid = vasid;
 			__entry->cop = cop;
-			__entry->lnotify_lpid = rxattr->lnotify_lpid;
-			__entry->lnotify_pid = rxattr->lnotify_pid;
-			__entry->lnotify_tid = rxattr->lnotify_tid;
+			__entry->lanaltify_lpid = rxattr->lanaltify_lpid;
+			__entry->lanaltify_pid = rxattr->lanaltify_pid;
+			__entry->lanaltify_tid = rxattr->lanaltify_tid;
 		),
 
 		TP_printk("pid=%d, vasid=%d, cop=%d, lpid=%d, pid=%d, tid=%d",
 			__entry->pid, __entry->vasid, __entry->cop,
-			__entry->lnotify_lpid, __entry->lnotify_pid,
-			__entry->lnotify_tid)
+			__entry->lanaltify_lpid, __entry->lanaltify_pid,
+			__entry->lanaltify_tid)
 );
 
 TRACE_EVENT(	vas_tx_win_open,

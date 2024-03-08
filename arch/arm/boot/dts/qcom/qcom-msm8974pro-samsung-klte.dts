@@ -189,7 +189,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f12@12 {
@@ -386,7 +386,7 @@
 &pma8084_gpios {
 	gpio_keys_pin_a: gpio-keys-active-state {
 		pins = "gpio2", "gpio3", "gpio5";
-		function = "normal";
+		function = "analrmal";
 
 		bias-pull-up;
 		power-source = <PMA8084_GPIO_S4>;
@@ -394,7 +394,7 @@
 
 	touchkey_pin: touchkey-int-state {
 		pins = "gpio6";
-		function = "normal";
+		function = "analrmal";
 		bias-disable;
 		input-enable;
 		power-source = <PMA8084_GPIO_S4>;
@@ -402,7 +402,7 @@
 
 	touch_pin: touchscreen-int-state {
 		pins = "gpio8";
-		function = "normal";
+		function = "analrmal";
 		bias-disable;
 		input-enable;
 		power-source = <PMA8084_GPIO_S4>;
@@ -410,7 +410,7 @@
 
 	panel_en_pin: panel-en-state {
 		pins = "gpio14";
-		function = "normal";
+		function = "analrmal";
 		bias-pull-up;
 		power-source = <PMA8084_GPIO_S4>;
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
@@ -427,7 +427,7 @@
 
 	panel_rst_pin: panel-rst-state {
 		pins = "gpio17";
-		function = "normal";
+		function = "analrmal";
 		bias-disable;
 		power-source = <PMA8084_GPIO_S4>;
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
@@ -435,7 +435,7 @@
 
 	fuelgauge_pin: fuelgauge-int-state {
 		pins = "gpio21";
-		function = "normal";
+		function = "analrmal";
 		bias-disable;
 		input-enable;
 		power-source = <PMA8084_GPIO_S4>;
@@ -655,7 +655,7 @@
 	max-frequency = <100000000>;
 	vmmc-supply = <&vreg_wlan>;
 	vqmmc-supply = <&pma8084_s4>;
-	non-removable;
+	analn-removable;
 
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&sdc2_on>;
@@ -682,7 +682,7 @@
 
 	/*
 	 * cd-gpio is intentionally disabled. If enabled, an SD card
-	 * present during boot is not initialized correctly. Without
+	 * present during boot is analt initialized correctly. Without
 	 * cd-gpios the driver resorts to polling, so hotplug works.
 	 */
 	pinctrl-names = "default";

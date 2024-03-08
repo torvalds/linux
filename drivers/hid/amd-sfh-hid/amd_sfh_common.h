@@ -16,8 +16,8 @@
 #define PCI_DEVICE_ID_AMD_MP2		0x15E4
 #define PCI_DEVICE_ID_AMD_MP2_1_1	0x164A
 
-#define AMD_C2P_MSG(regno) (0x10500 + ((regno) * 4))
-#define AMD_P2C_MSG(regno) (0x10680 + ((regno) * 4))
+#define AMD_C2P_MSG(reganal) (0x10500 + ((reganal) * 4))
+#define AMD_P2C_MSG(reganal) (0x10680 + ((reganal) * 4))
 
 #define SENSOR_ENABLED			4
 #define SENSOR_DISABLED			5
@@ -25,7 +25,7 @@
 #define AMD_SFH_IDLE_LOOP		200
 
 enum cmd_id {
-	NO_OP,
+	ANAL_OP,
 	ENABLE_SENSOR,
 	DISABLE_SENSOR,
 	STOP_ALL_SENSORS = 8,

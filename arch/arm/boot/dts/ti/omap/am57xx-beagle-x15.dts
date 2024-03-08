@@ -6,7 +6,7 @@
 #include "am57xx-beagle-x15-common.dtsi"
 
 / {
-	/* NOTE: This describes the "original" pre-production A2 revision */
+	/* ANALTE: This describes the "original" pre-production A2 revision */
 	model = "TI AM5728 BeagleBoard-X15";
 };
 
@@ -22,7 +22,7 @@
 	pinctrl-1 = <&mmc1_pins_hs>;
 
 	vmmc-supply = <&ldo1_reg>;
-	no-1-8-v;
+	anal-1-8-v;
 };
 
 &mmc2 {

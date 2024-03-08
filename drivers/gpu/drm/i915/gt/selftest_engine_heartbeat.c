@@ -97,7 +97,7 @@ static int __live_idle_pulse(struct intel_engine_cs *engine,
 
 	p = pulse_create();
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = i915_active_acquire(&p->active);
 	if (err)
@@ -124,7 +124,7 @@ static int __live_idle_pulse(struct intel_engine_cs *engine,
 	if (engine_sync_barrier(engine)) {
 		struct drm_printer m = drm_err_printer("pulse");
 
-		pr_err("%s: no heartbeat pulse?\n", engine->name);
+		pr_err("%s: anal heartbeat pulse?\n", engine->name);
 		intel_engine_dump(engine, &m, "%s", engine->name);
 
 		err = -ETIME;
@@ -138,7 +138,7 @@ static int __live_idle_pulse(struct intel_engine_cs *engine,
 	if (!i915_active_is_idle(&p->active)) {
 		struct drm_printer m = drm_err_printer("pulse");
 
-		pr_err("%s: heartbeat pulse did not flush idle tasks\n",
+		pr_err("%s: heartbeat pulse did analt flush idle tasks\n",
 		       engine->name);
 		i915_active_print(&p->active, &m);
 
@@ -184,7 +184,7 @@ static int live_idle_pulse(void *arg)
 		st_engine_heartbeat_disable(engine);
 		err = __live_idle_pulse(engine, intel_engine_pulse);
 		st_engine_heartbeat_enable(engine);
-		if (err && err != -ENODEV)
+		if (err && err != -EANALDEV)
 			break;
 
 		err = 0;
@@ -225,12 +225,12 @@ static int __live_heartbeat_fast(struct intel_engine_cs *engine)
 			/* Manufacture a tick */
 			intel_engine_park_heartbeat(engine);
 			GEM_BUG_ON(engine->heartbeat.systole);
-			engine->serial++; /*  pretend we are not idle! */
+			engine->serial++; /*  pretend we are analt idle! */
 			intel_engine_unpark_heartbeat(engine);
 
 			flush_delayed_work(&engine->heartbeat.work);
 			if (!delayed_work_pending(&engine->heartbeat.work)) {
-				pr_err("%s: heartbeat %d did not start\n",
+				pr_err("%s: heartbeat %d did analt start\n",
 				       engine->name, i);
 				err = -EINVAL;
 				goto err_pm;
@@ -311,7 +311,7 @@ static int __live_heartbeat_off(struct intel_engine_cs *engine)
 	engine->serial++;
 	flush_delayed_work(&engine->heartbeat.work);
 	if (!delayed_work_pending(&engine->heartbeat.work)) {
-		pr_err("%s: heartbeat not running\n",
+		pr_err("%s: heartbeat analt running\n",
 		       engine->name);
 		err = -EINVAL;
 		goto err_pm;
@@ -351,7 +351,7 @@ static int live_heartbeat_off(void *arg)
 	enum intel_engine_id id;
 	int err = 0;
 
-	/* Check that we can turn off heartbeat and not interrupt VIP */
+	/* Check that we can turn off heartbeat and analt interrupt VIP */
 	if (!CONFIG_DRM_I915_HEARTBEAT_INTERVAL)
 		return 0;
 
@@ -406,13 +406,13 @@ void st_engine_heartbeat_enable(struct intel_engine_cs *engine)
 		engine->defaults.heartbeat_interval_ms;
 }
 
-void st_engine_heartbeat_disable_no_pm(struct intel_engine_cs *engine)
+void st_engine_heartbeat_disable_anal_pm(struct intel_engine_cs *engine)
 {
 	engine->props.heartbeat_interval_ms = 0;
 
 	/*
 	 * Park the heartbeat but without holding the PM lock as that
-	 * makes the engines appear not-idle. Note that if/when unpark
+	 * makes the engines appear analt-idle. Analte that if/when unpark
 	 * is called due to the PM lock being acquired later the
 	 * heartbeat still won't be enabled because of the above = 0.
 	 */
@@ -422,7 +422,7 @@ void st_engine_heartbeat_disable_no_pm(struct intel_engine_cs *engine)
 	}
 }
 
-void st_engine_heartbeat_enable_no_pm(struct intel_engine_cs *engine)
+void st_engine_heartbeat_enable_anal_pm(struct intel_engine_cs *engine)
 {
 	engine->props.heartbeat_interval_ms =
 		engine->defaults.heartbeat_interval_ms;

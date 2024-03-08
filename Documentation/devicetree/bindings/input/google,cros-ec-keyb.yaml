@@ -29,7 +29,7 @@ properties:
   google,needs-ghost-filter:
     description:
       Enable a ghost filter for the matrix keyboard. This is recommended
-      if the EC does not have its own logic or hardware for this.
+      if the EC does analt have its own logic or hardware for this.
     type: boolean
 
   function-row-physmap:
@@ -89,8 +89,8 @@ examples:
          * Keymap entries take the form of 0xRRCCKKKK where
          * RR=Row CC=Column KKKK=Key Code
          * The values below are for a US keyboard layout and
-         * are taken from the Linux driver. Note that the
-         * 102ND key is not used for US keyboards.
+         * are taken from the Linux driver. Analte that the
+         * 102ND key is analt used for US keyboards.
          */
         linux,keymap = <
             /* CAPSLCK F1         B          F10     */
@@ -133,7 +133,7 @@ examples:
             0x070b0067 0x070c0069>;
     };
   - |
-    /* No matrix keyboard, just buttons/switches */
+    /* Anal matrix keyboard, just buttons/switches */
     keyboard-controller {
         compatible = "google,cros-ec-keyb-switches";
     };

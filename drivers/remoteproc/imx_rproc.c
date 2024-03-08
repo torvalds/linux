@@ -29,16 +29,16 @@
 #define IMX7D_ENABLE_M4			BIT(3)
 #define IMX7D_SW_M4P_RST		BIT(2)
 #define IMX7D_SW_M4C_RST		BIT(1)
-#define IMX7D_SW_M4C_NON_SCLR_RST	BIT(0)
+#define IMX7D_SW_M4C_ANALN_SCLR_RST	BIT(0)
 
 #define IMX7D_M4_RST_MASK		(IMX7D_ENABLE_M4 | IMX7D_SW_M4P_RST \
 					 | IMX7D_SW_M4C_RST \
-					 | IMX7D_SW_M4C_NON_SCLR_RST)
+					 | IMX7D_SW_M4C_ANALN_SCLR_RST)
 
 #define IMX7D_M4_START			(IMX7D_ENABLE_M4 | IMX7D_SW_M4P_RST \
 					 | IMX7D_SW_M4C_RST)
 #define IMX7D_M4_STOP			(IMX7D_ENABLE_M4 | IMX7D_SW_M4C_RST | \
-					 IMX7D_SW_M4C_NON_SCLR_RST)
+					 IMX7D_SW_M4C_ANALN_SCLR_RST)
 
 #define IMX8M_M7_STOP			(IMX7D_ENABLE_M4 | IMX7D_SW_M4C_RST)
 #define IMX8M_M7_POLL			IMX7D_ENABLE_M4
@@ -50,15 +50,15 @@
 #define IMX6SX_SRC_SCR			0x00
 #define IMX6SX_ENABLE_M4		BIT(22)
 #define IMX6SX_SW_M4P_RST		BIT(12)
-#define IMX6SX_SW_M4C_NON_SCLR_RST	BIT(4)
+#define IMX6SX_SW_M4C_ANALN_SCLR_RST	BIT(4)
 #define IMX6SX_SW_M4C_RST		BIT(3)
 
 #define IMX6SX_M4_START			(IMX6SX_ENABLE_M4 | IMX6SX_SW_M4P_RST \
 					 | IMX6SX_SW_M4C_RST)
 #define IMX6SX_M4_STOP			(IMX6SX_ENABLE_M4 | IMX6SX_SW_M4C_RST | \
-					 IMX6SX_SW_M4C_NON_SCLR_RST)
+					 IMX6SX_SW_M4C_ANALN_SCLR_RST)
 #define IMX6SX_M4_RST_MASK		(IMX6SX_ENABLE_M4 | IMX6SX_SW_M4P_RST \
-					 | IMX6SX_SW_M4C_NON_SCLR_RST \
+					 | IMX6SX_SW_M4C_ANALN_SCLR_RST \
 					 | IMX6SX_SW_M4C_RST)
 
 #define IMX_RPROC_MEM_MAX		32
@@ -109,7 +109,7 @@ struct imx_rproc {
 	struct workqueue_struct		*workqueue;
 	void __iomem			*rsc_table;
 	struct imx_sc_ipc		*ipc_handle;
-	struct notifier_block		rproc_nb;
+	struct analtifier_block		rproc_nb;
 	u32				rproc_pt;	/* partition id */
 	u32				rsrc_id;	/* resource id */
 	u32				entry;		/* cpu start address */
@@ -121,7 +121,7 @@ struct imx_rproc {
 
 static const struct imx_rproc_att imx_rproc_att_imx93[] = {
 	/* dev addr , sys addr  , size	    , flags */
-	/* TCM CODE NON-SECURE */
+	/* TCM CODE ANALN-SECURE */
 	{ 0x0FFC0000, 0x201C0000, 0x00020000, ATT_OWN | ATT_IOMEM },
 	{ 0x0FFE0000, 0x201E0000, 0x00020000, ATT_OWN | ATT_IOMEM },
 
@@ -129,7 +129,7 @@ static const struct imx_rproc_att imx_rproc_att_imx93[] = {
 	{ 0x1FFC0000, 0x201C0000, 0x00020000, ATT_OWN | ATT_IOMEM },
 	{ 0x1FFE0000, 0x201E0000, 0x00020000, ATT_OWN | ATT_IOMEM },
 
-	/* TCM SYS NON-SECURE*/
+	/* TCM SYS ANALN-SECURE*/
 	{ 0x20000000, 0x20200000, 0x00020000, ATT_OWN | ATT_IOMEM },
 	{ 0x20020000, 0x20220000, 0x00020000, ATT_OWN | ATT_IOMEM },
 
@@ -335,13 +335,13 @@ static const struct imx_rproc_dcfg imx_rproc_cfg_imx8qxp = {
 static const struct imx_rproc_dcfg imx_rproc_cfg_imx8ulp = {
 	.att		= imx_rproc_att_imx8ulp,
 	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8ulp),
-	.method		= IMX_RPROC_NONE,
+	.method		= IMX_RPROC_ANALNE,
 };
 
 static const struct imx_rproc_dcfg imx_rproc_cfg_imx7ulp = {
 	.att		= imx_rproc_att_imx7ulp,
 	.att_size	= ARRAY_SIZE(imx_rproc_att_imx7ulp),
-	.method		= IMX_RPROC_NONE,
+	.method		= IMX_RPROC_ANALNE,
 };
 
 static const struct imx_rproc_dcfg imx_rproc_cfg_imx7d = {
@@ -401,7 +401,7 @@ static int imx_rproc_start(struct rproc *rproc)
 		ret = imx_sc_pm_cpu_start(priv->ipc_handle, priv->rsrc_id, true, priv->entry);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (ret)
@@ -437,13 +437,13 @@ static int imx_rproc_stop(struct rproc *rproc)
 		arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_STOP, 0, 0, 0, 0, 0, 0, &res);
 		ret = res.a0;
 		if (res.a1)
-			dev_info(dev, "Not in wfi, force stopped\n");
+			dev_info(dev, "Analt in wfi, force stopped\n");
 		break;
 	case IMX_RPROC_SCU_API:
 		ret = imx_sc_pm_cpu_start(priv->ipc_handle, priv->rsrc_id, false, priv->entry);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (ret)
@@ -465,7 +465,7 @@ static int imx_rproc_da_to_sys(struct imx_rproc *priv, u64 da,
 		const struct imx_rproc_att *att = &dcfg->att[i];
 
 		/*
-		 * Ignore entries not belong to current core:
+		 * Iganalre entries analt belong to current core:
 		 * i.MX8QM has dual general M4_[0,1] cores, M4_0's own entries
 		 * has "ATT_CORE(0) & BIT(0)" true, M4_1's own entries has
 		 * "ATT_CORE(1) & BIT(1)" true.
@@ -487,7 +487,7 @@ static int imx_rproc_da_to_sys(struct imx_rproc *priv, u64 da,
 
 	dev_warn(priv->dev, "Translation failed: da = 0x%llx len = 0x%zx\n",
 		 da, len);
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static void *imx_rproc_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *is_iomem)
@@ -534,7 +534,7 @@ static int imx_rproc_mem_alloc(struct rproc *rproc,
 	if (IS_ERR_OR_NULL(va)) {
 		dev_err(dev, "Unable to map memory region: %p+%zx\n",
 			&mem->dma, mem->len);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Update memory entry va */
@@ -555,7 +555,7 @@ static int imx_rproc_mem_release(struct rproc *rproc,
 static int imx_rproc_prepare(struct rproc *rproc)
 {
 	struct imx_rproc *priv = rproc->priv;
-	struct device_node *np = priv->dev->of_node;
+	struct device_analde *np = priv->dev->of_analde;
 	struct of_phandle_iterator it;
 	struct rproc_mem_entry *mem;
 	struct reserved_mem *rmem;
@@ -565,35 +565,35 @@ static int imx_rproc_prepare(struct rproc *rproc)
 	of_phandle_iterator_init(&it, np, "memory-region", NULL, 0);
 	while (of_phandle_iterator_next(&it) == 0) {
 		/*
-		 * Ignore the first memory region which will be used vdev buffer.
-		 * No need to do extra handlings, rproc_add_virtio_dev will handle it.
+		 * Iganalre the first memory region which will be used vdev buffer.
+		 * Anal need to do extra handlings, rproc_add_virtio_dev will handle it.
 		 */
-		if (!strcmp(it.node->name, "vdev0buffer"))
+		if (!strcmp(it.analde->name, "vdev0buffer"))
 			continue;
 
-		if (!strcmp(it.node->name, "rsc-table"))
+		if (!strcmp(it.analde->name, "rsc-table"))
 			continue;
 
-		rmem = of_reserved_mem_lookup(it.node);
+		rmem = of_reserved_mem_lookup(it.analde);
 		if (!rmem) {
-			of_node_put(it.node);
+			of_analde_put(it.analde);
 			dev_err(priv->dev, "unable to acquire memory-region\n");
 			return -EINVAL;
 		}
 
-		/* No need to translate pa to da, i.MX use same map */
+		/* Anal need to translate pa to da, i.MX use same map */
 		da = rmem->base;
 
 		/* Register memory region */
 		mem = rproc_mem_entry_init(priv->dev, NULL, (dma_addr_t)rmem->base, rmem->size, da,
 					   imx_rproc_mem_alloc, imx_rproc_mem_release,
-					   it.node->name);
+					   it.analde->name);
 
 		if (mem) {
 			rproc_coredump_add_segment(rproc, da, rmem->size);
 		} else {
-			of_node_put(it.node);
-			return -ENOMEM;
+			of_analde_put(it.analde);
+			return -EANALMEM;
 		}
 
 		rproc_add_carveout(rproc, mem);
@@ -608,7 +608,7 @@ static int imx_rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 
 	ret = rproc_elf_load_rsc_table(rproc, fw);
 	if (ret)
-		dev_info(&rproc->dev, "No resource table in elf\n");
+		dev_info(&rproc->dev, "Anal resource table in elf\n");
 
 	return 0;
 }
@@ -620,13 +620,13 @@ static void imx_rproc_kick(struct rproc *rproc, int vqid)
 	__u32 mmsg;
 
 	if (!priv->tx_ch) {
-		dev_err(priv->dev, "No initialized mbox tx channel\n");
+		dev_err(priv->dev, "Anal initialized mbox tx channel\n");
 		return;
 	}
 
 	/*
 	 * Send the index of the triggered virtqueue as the mu payload.
-	 * Let remote processor know which virtqueue is used.
+	 * Let remote processor kanalw which virtqueue is used.
 	 */
 	mmsg = vqid << 16;
 
@@ -647,10 +647,10 @@ static int imx_rproc_detach(struct rproc *rproc)
 	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
 
 	if (dcfg->method != IMX_RPROC_SCU_API)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (imx_sc_rm_is_resource_owned(priv->ipc_handle, priv->rsrc_id))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	imx_rproc_free_mbox(rproc);
 
@@ -690,7 +690,7 @@ static int imx_rproc_addr_init(struct imx_rproc *priv,
 {
 	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int a, b = 0, err, nph;
 
 	/* remap required addresses */
@@ -711,7 +711,7 @@ static int imx_rproc_addr_init(struct imx_rproc *priv,
 								att->sa, att->size);
 		if (!priv->mem[b].cpu_addr) {
 			dev_err(dev, "failed to remap %#x bytes from %#x\n", att->size, att->sa);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		priv->mem[b].sys_addr = att->sa;
 		priv->mem[b].size = att->size;
@@ -725,17 +725,17 @@ static int imx_rproc_addr_init(struct imx_rproc *priv,
 
 	/* remap optional addresses */
 	for (a = 0; a < nph; a++) {
-		struct device_node *node;
+		struct device_analde *analde;
 		struct resource res;
 
-		node = of_parse_phandle(np, "memory-region", a);
-		/* Not map vdevbuffer, vdevring region */
-		if (!strncmp(node->name, "vdev", strlen("vdev"))) {
-			of_node_put(node);
+		analde = of_parse_phandle(np, "memory-region", a);
+		/* Analt map vdevbuffer, vdevring region */
+		if (!strncmp(analde->name, "vdev", strlen("vdev"))) {
+			of_analde_put(analde);
 			continue;
 		}
-		err = of_address_to_resource(node, 0, &res);
-		of_node_put(node);
+		err = of_address_to_resource(analde, 0, &res);
+		of_analde_put(analde);
 		if (err) {
 			dev_err(dev, "unable to resolve memory region\n");
 			return err;
@@ -744,15 +744,15 @@ static int imx_rproc_addr_init(struct imx_rproc *priv,
 		if (b >= IMX_RPROC_MEM_MAX)
 			break;
 
-		/* Not use resource version, because we might share region */
+		/* Analt use resource version, because we might share region */
 		priv->mem[b].cpu_addr = devm_ioremap_wc(&pdev->dev, res.start, resource_size(&res));
 		if (!priv->mem[b].cpu_addr) {
 			dev_err(dev, "failed to remap %pr\n", &res);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		priv->mem[b].sys_addr = res.start;
 		priv->mem[b].size = resource_size(&res);
-		if (!strcmp(node->name, "rsc-table"))
+		if (!strcmp(analde->name, "rsc-table"))
 			priv->rsc_table = priv->mem[b].cpu_addr;
 		b++;
 	}
@@ -760,7 +760,7 @@ static int imx_rproc_addr_init(struct imx_rproc *priv,
 	return 0;
 }
 
-static int imx_rproc_notified_idr_cb(int id, void *ptr, void *data)
+static int imx_rproc_analtified_idr_cb(int id, void *ptr, void *data)
 {
 	struct rproc *rproc = data;
 
@@ -775,7 +775,7 @@ static void imx_rproc_vq_work(struct work_struct *work)
 					      rproc_work);
 	struct rproc *rproc = priv->rproc;
 
-	idr_for_each(&rproc->notifyids, imx_rproc_notified_idr_cb, rproc);
+	idr_for_each(&rproc->analtifyids, imx_rproc_analtified_idr_cb, rproc);
 }
 
 static void imx_rproc_rx_callback(struct mbox_client *cl, void *msg)
@@ -796,7 +796,7 @@ static int imx_rproc_xtr_mbox_init(struct rproc *rproc)
 	 * stop() and detach() will free the mbox channels, so need
 	 * to request mbox channels in start() and attach().
 	 *
-	 * Because start() and attach() not able to handle mbox defer
+	 * Because start() and attach() analt able to handle mbox defer
 	 * probe, imx_rproc_xtr_mbox_init is also called in probe().
 	 * The check is to avoid request mbox again when start() or
 	 * attach() after probe() returns success.
@@ -804,14 +804,14 @@ static int imx_rproc_xtr_mbox_init(struct rproc *rproc)
 	if (priv->tx_ch && priv->rx_ch)
 		return 0;
 
-	if (!of_get_property(dev->of_node, "mbox-names", NULL))
+	if (!of_get_property(dev->of_analde, "mbox-names", NULL))
 		return 0;
 
 	cl = &priv->cl;
 	cl->dev = dev;
 	cl->tx_block = true;
 	cl->tx_tout = 100;
-	cl->knows_txdone = false;
+	cl->kanalws_txdone = false;
 	cl->rx_callback = imx_rproc_rx_callback;
 
 	priv->tx_ch = mbox_request_channel_byname(cl, "tx");
@@ -858,15 +858,15 @@ static void imx_rproc_put_scu(struct rproc *rproc)
 	}
 
 	imx_scu_irq_group_enable(IMX_SC_IRQ_GROUP_REBOOTED, BIT(priv->rproc_pt), false);
-	imx_scu_irq_unregister_notifier(&priv->rproc_nb);
+	imx_scu_irq_unregister_analtifier(&priv->rproc_nb);
 }
 
-static int imx_rproc_partition_notify(struct notifier_block *nb,
+static int imx_rproc_partition_analtify(struct analtifier_block *nb,
 				      unsigned long event, void *group)
 {
 	struct imx_rproc *priv = container_of(nb, struct imx_rproc, rproc_nb);
 
-	/* Ignore other irqs */
+	/* Iganalre other irqs */
 	if (!((event & BIT(priv->rproc_pt)) && (*(u8 *)group == IMX_SC_IRQ_GROUP_REBOOTED)))
 		return 0;
 
@@ -884,22 +884,22 @@ static int imx_rproc_attach_pd(struct imx_rproc *priv)
 
 	/*
 	 * If there is only one power-domain entry, the platform driver framework
-	 * will handle it, no need handle it in this driver.
+	 * will handle it, anal need handle it in this driver.
 	 */
-	priv->num_pd = of_count_phandle_with_args(dev->of_node, "power-domains",
+	priv->num_pd = of_count_phandle_with_args(dev->of_analde, "power-domains",
 						  "#power-domain-cells");
 	if (priv->num_pd <= 1)
 		return 0;
 
 	priv->pd_dev = devm_kmalloc_array(dev, priv->num_pd, sizeof(*priv->pd_dev), GFP_KERNEL);
 	if (!priv->pd_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->pd_dev_link = devm_kmalloc_array(dev, priv->num_pd, sizeof(*priv->pd_dev_link),
 					       GFP_KERNEL);
 
 	if (!priv->pd_dev_link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < priv->num_pd; i++) {
 		priv->pd_dev[i] = dev_pm_domain_attach_by_id(dev, i);
@@ -935,7 +935,7 @@ static int imx_rproc_detach_pd(struct rproc *rproc)
 
 	/*
 	 * If there is only one power-domain entry, the platform driver framework
-	 * will handle it, no need handle it in this driver.
+	 * will handle it, anal need handle it in this driver.
 	 */
 	if (priv->num_pd <= 1)
 		return 0;
@@ -960,7 +960,7 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 	u8 pt;
 
 	switch (dcfg->method) {
-	case IMX_RPROC_NONE:
+	case IMX_RPROC_ANALNE:
 		priv->rproc->state = RPROC_DETACHED;
 		return 0;
 	case IMX_RPROC_SMC:
@@ -972,9 +972,9 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 		ret = imx_scu_get_handle(&priv->ipc_handle);
 		if (ret)
 			return ret;
-		ret = of_property_read_u32(dev->of_node, "fsl,resource-id", &priv->rsrc_id);
+		ret = of_property_read_u32(dev->of_analde, "fsl,resource-id", &priv->rsrc_id);
 		if (ret) {
-			dev_err(dev, "No fsl,resource-id property\n");
+			dev_err(dev, "Anal fsl,resource-id property\n");
 			return ret;
 		}
 
@@ -984,11 +984,11 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 			priv->core_index = 0;
 
 		/*
-		 * If Mcore resource is not owned by Acore partition, It is kicked by ROM,
-		 * and Linux could only do IPC with Mcore and nothing else.
+		 * If Mcore resource is analt owned by Acore partition, It is kicked by ROM,
+		 * and Linux could only do IPC with Mcore and analthing else.
 		 */
 		if (imx_sc_rm_is_resource_owned(priv->ipc_handle, priv->rsrc_id)) {
-			if (of_property_read_u32(dev->of_node, "fsl,entry-address", &priv->entry))
+			if (of_property_read_u32(dev->of_analde, "fsl,entry-address", &priv->entry))
 				return -EINVAL;
 
 			return imx_rproc_attach_pd(priv);
@@ -1001,23 +1001,23 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 		/* Get partition id and enable irq in SCFW */
 		ret = imx_sc_rm_get_resource_owner(priv->ipc_handle, priv->rsrc_id, &pt);
 		if (ret) {
-			dev_err(dev, "not able to get resource owner\n");
+			dev_err(dev, "analt able to get resource owner\n");
 			return ret;
 		}
 
 		priv->rproc_pt = pt;
-		priv->rproc_nb.notifier_call = imx_rproc_partition_notify;
+		priv->rproc_nb.analtifier_call = imx_rproc_partition_analtify;
 
-		ret = imx_scu_irq_register_notifier(&priv->rproc_nb);
+		ret = imx_scu_irq_register_analtifier(&priv->rproc_nb);
 		if (ret) {
-			dev_err(dev, "register scu notifier failed, %d\n", ret);
+			dev_err(dev, "register scu analtifier failed, %d\n", ret);
 			return ret;
 		}
 
 		ret = imx_scu_irq_group_enable(IMX_SC_IRQ_GROUP_REBOOTED, BIT(priv->rproc_pt),
 					       true);
 		if (ret) {
-			imx_scu_irq_unregister_notifier(&priv->rproc_nb);
+			imx_scu_irq_unregister_analtifier(&priv->rproc_nb);
 			dev_err(dev, "Enable irq failed, %d\n", ret);
 			return ret;
 		}
@@ -1027,11 +1027,11 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 		break;
 	}
 
-	priv->gpr = syscon_regmap_lookup_by_phandle(dev->of_node, "fsl,iomuxc-gpr");
+	priv->gpr = syscon_regmap_lookup_by_phandle(dev->of_analde, "fsl,iomuxc-gpr");
 	if (IS_ERR(priv->gpr))
 		priv->gpr = NULL;
 
-	regmap = syscon_regmap_lookup_by_phandle(dev->of_node, "syscon");
+	regmap = syscon_regmap_lookup_by_phandle(dev->of_analde, "syscon");
 	if (IS_ERR(regmap)) {
 		dev_err(dev, "failed to find syscon\n");
 		return PTR_ERR(regmap);
@@ -1045,7 +1045,7 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 		if (val & dcfg->gpr_wait) {
 			/*
 			 * After cold boot, the CM indicates its in wait
-			 * state, but not fully powered off. Power it off
+			 * state, but analt fully powered off. Power it off
 			 * fully so firmware can be loaded into it.
 			 */
 			imx_rproc_stop(priv->rproc);
@@ -1071,8 +1071,8 @@ static int imx_rproc_clk_enable(struct imx_rproc *priv)
 	struct device *dev = priv->dev;
 	int ret;
 
-	/* Remote core is not under control of Linux */
-	if (dcfg->method == IMX_RPROC_NONE)
+	/* Remote core is analt under control of Linux */
+	if (dcfg->method == IMX_RPROC_ANALNE)
 		return 0;
 
 	priv->clk = devm_clk_get(dev, NULL);
@@ -1097,7 +1097,7 @@ static int imx_rproc_clk_enable(struct imx_rproc *priv)
 static int imx_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct imx_rproc *priv;
 	struct rproc *rproc;
 	const struct imx_rproc_dcfg *dcfg;
@@ -1107,7 +1107,7 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	rproc = rproc_alloc(dev, "imx-rproc", &imx_rproc_ops,
 			    NULL, sizeof(*priv));
 	if (!rproc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dcfg = of_device_get_match_data(dev);
 	if (!dcfg) {
@@ -1123,8 +1123,8 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, rproc);
 	priv->workqueue = create_workqueue(dev_name(dev));
 	if (!priv->workqueue) {
-		dev_err(dev, "cannot create workqueue\n");
-		ret = -ENOMEM;
+		dev_err(dev, "cananalt create workqueue\n");
+		ret = -EANALMEM;
 		goto err_put_rproc;
 	}
 

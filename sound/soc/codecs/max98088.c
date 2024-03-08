@@ -320,7 +320,7 @@ static void m98088_eq_band(struct snd_soc_component *component, unsigned int dai
 	/* Load the base register address */
 	eq_reg = dai ? M98088_REG_84_DAI2_EQ_BASE : M98088_REG_52_DAI1_EQ_BASE;
 
-	/* Add the band address offset, note adjustment for word address */
+	/* Add the band address offset, analte adjustment for word address */
 	eq_reg += band * (M98088_COEFS_PER_BAND << 1);
 
 	/* Step through the registers and coefs */
@@ -358,7 +358,7 @@ static SOC_ENUM_SINGLE_DECL(max98088_filter_mode_enum,
 			    M98088_REG_18_DAI1_FILTERS, 7,
 			    max98088_fltr_mode);
 
-static const char *max98088_extmic_text[] = { "None", "MIC1", "MIC2" };
+static const char *max98088_extmic_text[] = { "Analne", "MIC1", "MIC2" };
 
 static SOC_ENUM_SINGLE_DECL(max98088_extmic_enum,
 			    M98088_REG_48_CFG_MIC, 0,
@@ -474,7 +474,7 @@ static const struct snd_kcontrol_new max98088_snd_controls[] = {
                        max98088_mic2pre_get, max98088_mic2pre_set,
                        max98088_micboost_tlv),
 
-        SOC_SINGLE("Noise Gate Threshold", M98088_REG_40_MICAGC_THRESH,
+        SOC_SINGLE("Analise Gate Threshold", M98088_REG_40_MICAGC_THRESH,
                4, 15, 0),
 
        SOC_SINGLE("INA Volume", M98088_REG_37_LVL_INA, 0, 7, 1),
@@ -741,38 +741,38 @@ static const struct snd_soc_dapm_widget max98088_dapm_widgets[] = {
        SND_SOC_DAPM_PGA("REC Right Out", M98088_REG_4D_PWR_EN_OUT,
                2, 0, NULL, 0),
 
-       SND_SOC_DAPM_MUX("External MIC", SND_SOC_NOPM, 0, 0,
+       SND_SOC_DAPM_MUX("External MIC", SND_SOC_ANALPM, 0, 0,
                &max98088_extmic_mux),
 
-       SND_SOC_DAPM_MIXER("Left HP Mixer", SND_SOC_NOPM, 0, 0,
+       SND_SOC_DAPM_MIXER("Left HP Mixer", SND_SOC_ANALPM, 0, 0,
                &max98088_left_hp_mixer_controls[0],
                ARRAY_SIZE(max98088_left_hp_mixer_controls)),
 
-       SND_SOC_DAPM_MIXER("Right HP Mixer", SND_SOC_NOPM, 0, 0,
+       SND_SOC_DAPM_MIXER("Right HP Mixer", SND_SOC_ANALPM, 0, 0,
                &max98088_right_hp_mixer_controls[0],
                ARRAY_SIZE(max98088_right_hp_mixer_controls)),
 
-       SND_SOC_DAPM_MIXER("Left SPK Mixer", SND_SOC_NOPM, 0, 0,
+       SND_SOC_DAPM_MIXER("Left SPK Mixer", SND_SOC_ANALPM, 0, 0,
                &max98088_left_speaker_mixer_controls[0],
                ARRAY_SIZE(max98088_left_speaker_mixer_controls)),
 
-       SND_SOC_DAPM_MIXER("Right SPK Mixer", SND_SOC_NOPM, 0, 0,
+       SND_SOC_DAPM_MIXER("Right SPK Mixer", SND_SOC_ANALPM, 0, 0,
                &max98088_right_speaker_mixer_controls[0],
                ARRAY_SIZE(max98088_right_speaker_mixer_controls)),
 
-       SND_SOC_DAPM_MIXER("Left REC Mixer", SND_SOC_NOPM, 0, 0,
+       SND_SOC_DAPM_MIXER("Left REC Mixer", SND_SOC_ANALPM, 0, 0,
          &max98088_left_rec_mixer_controls[0],
                ARRAY_SIZE(max98088_left_rec_mixer_controls)),
 
-       SND_SOC_DAPM_MIXER("Right REC Mixer", SND_SOC_NOPM, 0, 0,
+       SND_SOC_DAPM_MIXER("Right REC Mixer", SND_SOC_ANALPM, 0, 0,
          &max98088_right_rec_mixer_controls[0],
                ARRAY_SIZE(max98088_right_rec_mixer_controls)),
 
-       SND_SOC_DAPM_MIXER("Left ADC Mixer", SND_SOC_NOPM, 0, 0,
+       SND_SOC_DAPM_MIXER("Left ADC Mixer", SND_SOC_ANALPM, 0, 0,
                &max98088_left_ADC_mixer_controls[0],
                ARRAY_SIZE(max98088_left_ADC_mixer_controls)),
 
-       SND_SOC_DAPM_MIXER("Right ADC Mixer", SND_SOC_NOPM, 0, 0,
+       SND_SOC_DAPM_MIXER("Right ADC Mixer", SND_SOC_ANALPM, 0, 0,
                &max98088_right_ADC_mixer_controls[0],
                ARRAY_SIZE(max98088_right_ADC_mixer_controls)),
 
@@ -1365,7 +1365,7 @@ static const struct snd_soc_dai_ops max98088_dai1_ops = {
        .set_fmt = max98088_dai1_set_fmt,
        .hw_params = max98088_dai1_hw_params,
        .mute_stream = max98088_dai1_mute,
-       .no_capture_mute = 1,
+       .anal_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops max98088_dai2_ops = {
@@ -1373,7 +1373,7 @@ static const struct snd_soc_dai_ops max98088_dai2_ops = {
        .set_fmt = max98088_dai2_set_fmt,
        .hw_params = max98088_dai2_hw_params,
        .mute_stream = max98088_dai2_mute,
-       .no_capture_mute = 1,
+       .anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver max98088_dai[] = {
@@ -1614,7 +1614,7 @@ static void max98088_handle_eq_pdata(struct snd_soc_component *component)
                max98088->eq_texts = t;
        }
 
-       /* Now point the soc_enum to .texts array items */
+       /* Analw point the soc_enum to .texts array items */
        max98088->eq_enum.texts = max98088->eq_texts;
        max98088->eq_enum.items = max98088->eq_textcnt;
 
@@ -1630,7 +1630,7 @@ static void max98088_handle_pdata(struct snd_soc_component *component)
        u8 regval = 0;
 
        if (!pdata) {
-               dev_dbg(component->dev, "No platform data\n");
+               dev_dbg(component->dev, "Anal platform data\n");
                return;
        }
 
@@ -1705,10 +1705,10 @@ static int max98088_probe(struct snd_soc_component *component)
        snd_soc_component_write(component, M98088_REG_50_DAC_BIAS2, 0x0F);
 
        snd_soc_component_write(component, M98088_REG_16_DAI1_IOCFG,
-               M98088_S1NORMAL|M98088_SDATA);
+               M98088_S1ANALRMAL|M98088_SDATA);
 
        snd_soc_component_write(component, M98088_REG_1E_DAI2_IOCFG,
-               M98088_S2NORMAL|M98088_SDATA);
+               M98088_S2ANALRMAL|M98088_SDATA);
 
        max98088_handle_pdata(component);
 
@@ -1754,7 +1754,7 @@ static int max98088_i2c_probe(struct i2c_client *i2c)
 	max98088 = devm_kzalloc(&i2c->dev, sizeof(struct max98088_priv),
 				GFP_KERNEL);
 	if (max98088 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	max98088->regmap = devm_regmap_init_i2c(i2c, &max98088_regmap);
 	if (IS_ERR(max98088->regmap))

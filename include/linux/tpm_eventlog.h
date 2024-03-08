@@ -35,7 +35,7 @@ enum tcpa_event_types {
 	PREBOOT = 0,
 	POST_CODE,
 	UNUSED,
-	NO_ACTION,
+	ANAL_ACTION,
 	SEPARATOR,
 	ACTION,
 	EVENT_TAG,
@@ -47,9 +47,9 @@ enum tcpa_event_types {
 	COMPACT_HASH,
 	IPL,
 	IPL_PARTITION_DATA,
-	NONHOST_CODE,
-	NONHOST_CONFIG,
-	NONHOST_INFO,
+	ANALNHOST_CODE,
+	ANALNHOST_CONFIG,
+	ANALNHOST_INFO,
 };
 
 struct tcpa_pc_event {
@@ -86,7 +86,7 @@ struct tcg_efi_specid_event_algs {
 struct tcg_efi_specid_event_head {
 	u8 signature[16];
 	u32 platform_class;
-	u8 spec_version_minor;
+	u8 spec_version_mianalr;
 	u8 spec_version_major;
 	u8 spec_errata;
 	u8 uintnsize;
@@ -122,7 +122,7 @@ struct tcg_algorithm_size {
 struct tcg_algorithm_info {
 	u8 signature[16];
 	u32 platform_class;
-	u8 spec_version_minor;
+	u8 spec_version_mianalr;
 	u8 spec_version_major;
 	u8 spec_errata;
 	u8 uintn_size;
@@ -142,16 +142,16 @@ struct tcg_algorithm_info {
  * __calc_tpm2_event_size - calculate the size of a TPM2 event log entry
  * @event:        Pointer to the event whose size should be calculated
  * @event_header: Pointer to the initial event containing the digest lengths
- * @do_mapping:   Whether or not the event needs to be mapped
+ * @do_mapping:   Whether or analt the event needs to be mapped
  *
  * The TPM2 event log format can contain multiple digests corresponding to
  * separate PCR banks, and also contains a variable length of the data that
- * was measured. This requires knowledge of how long each digest type is,
+ * was measured. This requires kanalwledge of how long each digest type is,
  * and this information is contained within the first event in the log.
  *
  * We calculate the length by examining the number of events, and then looking
  * at each event in turn to determine how much space is used for events in
- * total. Once we've done this we know the offset of the data length field,
+ * total. Once we've done this we kanalw the offset of the data length field,
  * and can calculate the total size of the event.
  *
  * Return: size of the event on success, 0 on failure
@@ -203,7 +203,7 @@ static __always_inline int __calc_tpm2_event_size(struct tcg_pcr_event2_head *ev
 
 	/* Verify that it's the log header */
 	if (event_header->pcr_idx != 0 ||
-	    event_header->event_type != NO_ACTION ||
+	    event_header->event_type != ANAL_ACTION ||
 	    memcmp(event_header->digest, zero_digest, sizeof(zero_digest))) {
 		size = 0;
 		goto out;
@@ -215,7 +215,7 @@ static __always_inline int __calc_tpm2_event_size(struct tcg_pcr_event2_head *ev
 	 * Perform validation of the event in order to identify malformed
 	 * events. This function may be asked to parse arbitrary byte sequences
 	 * immediately following a valid event log. The caller expects this
-	 * function to recognize that the byte sequence is not a valid event
+	 * function to recognize that the byte sequence is analt a valid event
 	 * and to return an event size of 0.
 	 */
 	if (memcmp(efispecid->signature, TCG_SPECID_SIG,
@@ -252,7 +252,7 @@ static __always_inline int __calc_tpm2_event_size(struct tcg_pcr_event2_head *ev
 				break;
 			}
 		}
-		/* Algorithm without known length. Such event is unparseable. */
+		/* Algorithm without kanalwn length. Such event is unparseable. */
 		if (j == efispecid->num_algs) {
 			size = 0;
 			goto out;

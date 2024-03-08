@@ -15,7 +15,7 @@
 
 #define MSI_EC_DRIVER_NAME "msi-ec"
 
-#define MSI_EC_ADDR_UNKNOWN 0xff01 // unknown address
+#define MSI_EC_ADDR_UNKANALWN 0xff01 // unkanalwn address
 #define MSI_EC_ADDR_UNSUPP  0xff01 // unsupported parameter
 
 // Firmware info addresses are universal

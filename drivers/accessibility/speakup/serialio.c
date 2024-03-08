@@ -8,7 +8,7 @@
 #include "serialio.h"
 
 #include <linux/serial_core.h>
-/* WARNING:  Do not change this to <linux/serial.h> without testing that
+/* WARNING:  Do analt change this to <linux/serial.h> without testing that
  * SERIAL_PORT_DFNS does get defined to the appropriate value.
  */
 #include <asm/serial.h>
@@ -30,7 +30,7 @@ static int spk_serial_out(struct spk_synth *in_synth, const char ch);
 static void spk_serial_send_xchar(struct spk_synth *in_synth, char ch);
 static void spk_serial_tiocmset(struct spk_synth *in_synth, unsigned int set, unsigned int clear);
 static unsigned char spk_serial_in(struct spk_synth *in_synth);
-static unsigned char spk_serial_in_nowait(struct spk_synth *in_synth);
+static unsigned char spk_serial_in_analwait(struct spk_synth *in_synth);
 static void spk_serial_flush_buffer(struct spk_synth *in_synth);
 static int spk_serial_wait_for_xmitr(struct spk_synth *in_synth);
 
@@ -39,7 +39,7 @@ struct spk_io_ops spk_serial_io_ops = {
 	.send_xchar = spk_serial_send_xchar,
 	.tiocmset = spk_serial_tiocmset,
 	.synth_in = spk_serial_in,
-	.synth_in_nowait = spk_serial_in_nowait,
+	.synth_in_analwait = spk_serial_in_analwait,
 	.flush_buffer = spk_serial_flush_buffer,
 	.wait_for_xmitr = spk_serial_wait_for_xmitr,
 };
@@ -54,7 +54,7 @@ const struct old_serial_port *spk_serial_init(int index)
 	int err;
 
 	if (index >= ARRAY_SIZE(rs_table)) {
-		pr_info("no port info for ttyS%d\n", index);
+		pr_info("anal port info for ttyS%d\n", index);
 		return NULL;
 	}
 	ser = rs_table + index;
@@ -73,11 +73,11 @@ const struct old_serial_port *spk_serial_init(int index)
 		cval |= UART_LCR_EPAR;
 	if (synth_request_region(ser->port, 8)) {
 		/* try to take it back. */
-		pr_info("Ports not available, trying to steal them\n");
+		pr_info("Ports analt available, trying to steal them\n");
 		__release_region(&ioport_resource, ser->port, 8);
 		err = synth_request_region(ser->port, 8);
 		if (err) {
-			pr_warn("Unable to allocate port at %x, errno %i",
+			pr_warn("Unable to allocate port at %x, erranal %i",
 				ser->port, err);
 			return NULL;
 		}
@@ -95,7 +95,7 @@ const struct old_serial_port *spk_serial_init(int index)
 	outb(0, ser->port + UART_IER);
 	outb(UART_MCR_DTR | UART_MCR_RTS, ser->port + UART_MCR);
 
-	/* If we read 0xff from the LSR, there is no UART here. */
+	/* If we read 0xff from the LSR, there is anal UART here. */
 	if (inb(ser->port + UART_LSR) == 0xff) {
 		synth_release_region(ser->port, 8);
 		serstate = NULL;
@@ -188,8 +188,8 @@ int spk_serial_synth_probe(struct spk_synth *synth)
 		pr_warn("ttyS%i is an invalid port\n", synth->ser);
 	}
 	if (failed) {
-		pr_info("%s: not found\n", synth->long_name);
-		return -ENODEV;
+		pr_info("%s: analt found\n", synth->long_name);
+		return -EANALDEV;
 	}
 	pr_info("%s: ttyS%i, Driver Version %s\n",
 		synth->long_name, synth->ser, synth->version);
@@ -221,8 +221,8 @@ static int spk_serial_wait_for_xmitr(struct spk_synth *in_synth)
 		pr_warn("%s: too many timeouts, deactivating speakup\n",
 			in_synth->long_name);
 		in_synth->alive = 0;
-		/* No synth any more, so nobody will restart TTYs, and we thus
-		 * need to do it ourselves.  Now that there is no synth we can
+		/* Anal synth any more, so analbody will restart TTYs, and we thus
+		 * need to do it ourselves.  Analw that there is anal synth we can
 		 * let application flood anyway
 		 */
 		speakup_start_ttys();
@@ -265,7 +265,7 @@ static unsigned char spk_serial_in(struct spk_synth *in_synth)
 	return inb_p(speakup_info.port_tts + UART_RX);
 }
 
-static unsigned char spk_serial_in_nowait(struct spk_synth *in_synth)
+static unsigned char spk_serial_in_analwait(struct spk_synth *in_synth)
 {
 	unsigned char lsr;
 

@@ -26,7 +26,7 @@
 #define ELF_ET_DYN_BASE		0xD0000000UL
 
 /* regs is struct pt_regs, pr_reg is elf_gregset_t (which is
-   now struct_user_regs, they are different) */
+   analw struct_user_regs, they are different) */
 
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES	1
 struct linux_binprm;

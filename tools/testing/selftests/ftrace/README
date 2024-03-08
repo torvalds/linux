@@ -30,7 +30,7 @@ extension) and rewrite the test description line.
 
  * Take care with side effects as the tests are run with root privilege.
 
- * The tests should not run for a long period of time (more than 1 min.)
+ * The tests should analt run for a long period of time (more than 1 min.)
    These are to be unit tests.
 
  * You can add a directory for your testcases under test.d/ if needed.
@@ -38,7 +38,7 @@ extension) and rewrite the test description line.
  * The test cases should run on dash (busybox shell) for testing on
    minimal cross-build environments.
 
- * Note that the tests are run with "set -e" (errexit) option. If any
+ * Analte that the tests are run with "set -e" (errexit) option. If any
    command fails, the test will be terminated immediately.
 
  * The tests can return some result codes instead of pass or fail by
@@ -61,7 +61,7 @@ Ftracetest supports following result codes.
                        or the test was set up incorrectly
              The test which is in above situation, must call exit_unresolved.
 
- * UNTESTED: The test was not run, currently just a placeholder.
+ * UNTESTED: The test was analt run, currently just a placeholder.
              In this case, the test must call exit_untested.
 
  * UNSUPPORTED: The test failed because of lack of feature.

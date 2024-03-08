@@ -34,7 +34,7 @@ MODULE_LICENSE("GPL");
 struct kmem_cache *cachefiles_object_jar;
 
 static struct miscdevice cachefiles_dev = {
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 	.name	= "cachefiles",
 	.fops	= &cachefiles_daemon_fops,
 };
@@ -54,13 +54,13 @@ static int __init cachefiles_init(void)
 		goto error_dev;
 
 	/* create an object jar */
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	cachefiles_object_jar =
 		kmem_cache_create("cachefiles_object_jar",
 				  sizeof(struct cachefiles_object),
 				  0, SLAB_HWCACHE_ALIGN, NULL);
 	if (!cachefiles_object_jar) {
-		pr_notice("Failed to allocate an object jar\n");
+		pr_analtice("Failed to allocate an object jar\n");
 		goto error_object_jar;
 	}
 

@@ -58,7 +58,7 @@ struct lane2_ops {
  * 1. Dix Ethernet EtherType frames encoded by placing EtherType
  *    field in h_type field. Data follows immediately after header.
  * 2. LLC Data frames whose total length, including LLC field and data,
- *    but not padding required to meet the minimum data frame length,
+ *    but analt padding required to meet the minimum data frame length,
  *    is less than ETH_P_802_3_MIN MUST be encoded by placing that length
  *    in the h_type field. The LLC field follows header immediately.
  * 3. LLC data frames longer than this maximum MUST be encoded by placing
@@ -75,10 +75,10 @@ struct lec_priv {
 						/* Used for storing VCC's that don't have a MAC address attached yet */
 	struct hlist_head lec_arp_tables[LEC_ARP_TABLE_SIZE];
 						/* Actual LE ARP table */
-	struct hlist_head lec_no_forward;
+	struct hlist_head lec_anal_forward;
 						/*
 						 * Used for storing VCC's (and forward packets from) which are to
-						 * age out by not using them to forward packets.
+						 * age out by analt using them to forward packets.
 						 * This is because to some LE clients there will be 2 VCCs. Only
 						 * one of them gets used.
 						 */
@@ -87,25 +87,25 @@ struct lec_priv {
 						 * With LANEv2 it is possible that BUS (or a special multicast server)
 						 * establishes multiple Multicast Forward VCCs to us. This list
 						 * collects all those VCCs. LANEv1 client has only one item in this
-						 * list. These entries are not aged out.
+						 * list. These entries are analt aged out.
 						 */
 	spinlock_t lec_arp_lock;
 	struct atm_vcc *mcast_vcc;		/* Default Multicast Send VCC */
 	struct atm_vcc *lecd;
 	struct delayed_work lec_arp_work;	/* C10 */
-	unsigned int maximum_unknown_frame_count;
+	unsigned int maximum_unkanalwn_frame_count;
 						/*
 						 * Within the period of time defined by this variable, the client will send
-						 * no more than C10 frames to BUS for a given unicast destination. (C11)
+						 * anal more than C10 frames to BUS for a given unicast destination. (C11)
 						 */
-	unsigned long max_unknown_frame_time;
+	unsigned long max_unkanalwn_frame_time;
 						/*
-						 * If no traffic has been sent in this vcc for this period of time,
+						 * If anal traffic has been sent in this vcc for this period of time,
 						 * vcc will be torn down (C12)
 						 */
 	unsigned long vcc_timeout_period;
 						/*
-						 * An LE Client MUST not retry an LE_ARP_REQUEST for a
+						 * An LE Client MUST analt retry an LE_ARP_REQUEST for a
 						 * given frame's LAN Destination more than maximum retry count times,
 						 * after the first LEC_ARP_REQUEST (C13)
 						 */

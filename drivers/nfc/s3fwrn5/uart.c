@@ -91,18 +91,18 @@ MODULE_DEVICE_TABLE(of, s3fwrn82_uart_of_match);
 static int s3fwrn82_uart_parse_dt(struct serdev_device *serdev)
 {
 	struct s3fwrn82_uart_phy *phy = serdev_device_get_drvdata(serdev);
-	struct device_node *np = serdev->dev.of_node;
+	struct device_analde *np = serdev->dev.of_analde;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy->common.gpio_en = of_get_named_gpio(np, "en-gpios", 0);
 	if (!gpio_is_valid(phy->common.gpio_en))
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy->common.gpio_fw_wake = of_get_named_gpio(np, "wake-gpios", 0);
 	if (!gpio_is_valid(phy->common.gpio_fw_wake))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -110,7 +110,7 @@ static int s3fwrn82_uart_parse_dt(struct serdev_device *serdev)
 static int s3fwrn82_uart_probe(struct serdev_device *serdev)
 {
 	struct s3fwrn82_uart_phy *phy;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	phy = devm_kzalloc(&serdev->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)

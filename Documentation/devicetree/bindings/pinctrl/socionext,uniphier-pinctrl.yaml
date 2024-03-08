@@ -28,8 +28,8 @@ additionalProperties:
   type: object
 
   allOf:
-    - $ref: pincfg-node.yaml#
-    - $ref: pinmux-node.yaml#
+    - $ref: pincfg-analde.yaml#
+    - $ref: pinmux-analde.yaml#
 
   properties:
     function: true
@@ -44,8 +44,8 @@ additionalProperties:
     type: object
 
     allOf:
-      - $ref: pincfg-node.yaml#
-      - $ref: pinmux-node.yaml#
+      - $ref: pincfg-analde.yaml#
+      - $ref: pinmux-analde.yaml#
 
     properties:
       function: true
@@ -66,7 +66,7 @@ required:
 
 examples:
   - |
-    // The UniPhier pinctrl should be a subnode of a "syscon" compatible node.
+    // The UniPhier pinctrl should be a subanalde of a "syscon" compatible analde.
 
     pinctrl {
         compatible = "socionext,uniphier-ld20-pinctrl";

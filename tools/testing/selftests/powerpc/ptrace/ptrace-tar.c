@@ -38,7 +38,7 @@ void tar(void)
 	printf("%-30s TAR: %lu PPR: %lx DSCR: %lu\n",
 			user_read, reg[0], reg[1], reg[2]);
 
-	/* Unblock the parent now */
+	/* Unblock the parent analw */
 	cptr[1] = 1;
 	shmdt((int *)cptr);
 
@@ -106,7 +106,7 @@ int ptrace_tar(void)
 		if (ret)
 			return ret;
 
-		/* Unblock the child now */
+		/* Unblock the child analw */
 		pptr[0] = 1;
 
 		/* Wait on child */
@@ -118,7 +118,7 @@ int ptrace_tar(void)
 		ret = wait(&status);
 		shmctl(shm_id, IPC_RMID, NULL);
 		if (ret != pid) {
-			printf("Child's exit status not captured\n");
+			printf("Child's exit status analt captured\n");
 			return TEST_PASS;
 		}
 

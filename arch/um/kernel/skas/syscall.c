@@ -31,7 +31,7 @@ void handle_syscall(struct uml_pt_regs *r)
 
 	/* Initialize the syscall number and default return value. */
 	UPT_SYSCALL_NR(r) = PT_SYSCALL_NR(r->gp);
-	PT_REGS_SET_SYSCALL_RETURN(regs, -ENOSYS);
+	PT_REGS_SET_SYSCALL_RETURN(regs, -EANALSYS);
 
 	if (syscall_trace_enter(regs))
 		goto out;

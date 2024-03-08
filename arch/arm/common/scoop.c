@@ -18,7 +18,7 @@
 
 /* PCMCIA to Scoop linkage
 
-   There is no easy way to link multiple scoop devices into one
+   There is anal easy way to link multiple scoop devices into one
    single entity for the pxa2xx_pcmcia device so this structure
    is used which is setup by the platform code.
 
@@ -184,7 +184,7 @@ static int scoop_probe(struct platform_device *pdev)
 
 	devptr = kzalloc(sizeof(struct scoop_dev), GFP_KERNEL);
 	if (!devptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&devptr->scoop_lock);
 
@@ -192,7 +192,7 @@ static int scoop_probe(struct platform_device *pdev)
 	devptr->base = ioremap(mem->start, resource_size(mem));
 
 	if (!devptr->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_ioremap;
 	}
 

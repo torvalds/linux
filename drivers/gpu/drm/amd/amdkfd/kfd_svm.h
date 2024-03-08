@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -48,14 +48,14 @@ struct svm_range_bo {
 	struct work_struct		eviction_work;
 	uint32_t			evicting;
 	struct work_struct		release_work;
-	struct kfd_node			*node;
+	struct kfd_analde			*analde;
 };
 
 enum svm_work_list_ops {
 	SVM_OP_NULL,
 	SVM_OP_UNMAP_RANGE,
-	SVM_OP_UPDATE_RANGE_NOTIFIER,
-	SVM_OP_UPDATE_RANGE_NOTIFIER_AND_MAP,
+	SVM_OP_UPDATE_RANGE_ANALTIFIER,
+	SVM_OP_UPDATE_RANGE_ANALTIFIER_AND_MAP,
 	SVM_OP_ADD_RANGE,
 	SVM_OP_ADD_RANGE_AND_MAP
 };
@@ -72,18 +72,18 @@ struct svm_work_list_item {
  * @migrate_mutex: to serialize range migration, validation and mapping update
  * @start:      range start address in pages
  * @last:       range last address in pages
- * @it_node:    node [start, last] stored in interval tree, start, last are page
+ * @it_analde:    analde [start, last] stored in interval tree, start, last are page
  *              aligned, page size is (last - start + 1)
- * @list:       link list node, used to scan all ranges of svms
- * @update_list:link list node used to add to update_list
+ * @list:       link list analde, used to scan all ranges of svms
+ * @update_list:link list analde used to add to update_list
  * @mapping:    bo_va mapping structure to create and update GPU page table
  * @npages:     number of pages
  * @vram_pages: vram pages number in this svm_range
  * @dma_addr:   dma mapping address on each GPU for system memory physical page
  * @ttm_res:    vram ttm resource map
- * @offset:     range start offset within mm_nodes
+ * @offset:     range start offset within mm_analdes
  * @svm_bo:     struct to manage splited amdgpu_bo
- * @svm_bo_list:link list node, to scan all ranges which share same svm_bo
+ * @svm_bo_list:link list analde, to scan all ranges which share same svm_bo
  * @lock:       protect prange start, last, child_list, svm_bo_list
  * @saved_flags:save/restore current PF_MEMALLOC flags
  * @flags:      flags defined as KFD_IOCTL_SVM_FLAG_*
@@ -93,12 +93,12 @@ struct svm_work_list_item {
  *              GPU id: this svm_range may include vram pages from GPU with
  *              id actual_loc.
  * @granularity:migration granularity, log2 num pages
- * @invalid:    not 0 means cpu page table is invalidated
+ * @invalid:    analt 0 means cpu page table is invalidated
  * @validate_timestamp: system timestamp when range is validated
- * @notifier:   register mmu interval notifier
+ * @analtifier:   register mmu interval analtifier
  * @work_item:  deferred work item information
  * @deferred_list: list header used to add range to deferred list
- * @child_list: list header for split ranges which are not added to svms yet
+ * @child_list: list header for split ranges which are analt added to svms yet
  * @bitmap_access: index bitmap of GPUs which can access the range
  * @bitmap_aip: index bitmap of GPUs which can access the range in place
  *
@@ -111,7 +111,7 @@ struct svm_range {
 	struct mutex			migrate_mutex;
 	unsigned long			start;
 	unsigned long			last;
-	struct interval_tree_node	it_node;
+	struct interval_tree_analde	it_analde;
 	struct list_head		list;
 	struct list_head		update_list;
 	uint64_t			npages;
@@ -130,7 +130,7 @@ struct svm_range {
 	uint8_t				granularity;
 	atomic_t			invalid;
 	ktime_t				validate_timestamp;
-	struct mmu_interval_notifier	notifier;
+	struct mmu_interval_analtifier	analtifier;
 	struct svm_work_list_item	work_item;
 	struct list_head		deferred_list;
 	struct list_head		child_list;
@@ -142,12 +142,12 @@ struct svm_range {
 static inline void svm_range_lock(struct svm_range *prange)
 {
 	mutex_lock(&prange->lock);
-	prange->saved_flags = memalloc_noreclaim_save();
+	prange->saved_flags = memalloc_analreclaim_save();
 
 }
 static inline void svm_range_unlock(struct svm_range *prange)
 {
-	memalloc_noreclaim_restore(prange->saved_flags);
+	memalloc_analreclaim_restore(prange->saved_flags);
 	mutex_unlock(&prange->lock);
 }
 
@@ -167,13 +167,13 @@ int svm_ioctl(struct kfd_process *p, enum kfd_ioctl_svm_op op, uint64_t start,
 struct svm_range *svm_range_from_addr(struct svm_range_list *svms,
 				      unsigned long addr,
 				      struct svm_range **parent);
-struct kfd_node *svm_range_get_node_by_id(struct svm_range *prange,
+struct kfd_analde *svm_range_get_analde_by_id(struct svm_range *prange,
 					  uint32_t gpu_id);
-int svm_range_vram_node_new(struct kfd_node *node, struct svm_range *prange,
+int svm_range_vram_analde_new(struct kfd_analde *analde, struct svm_range *prange,
 			    bool clear);
-void svm_range_vram_node_free(struct svm_range *prange);
+void svm_range_vram_analde_free(struct svm_range *prange);
 int svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
-			    uint32_t vmid, uint32_t node_id, uint64_t addr,
+			    uint32_t vmid, uint32_t analde_id, uint64_t addr,
 			    bool write_fault);
 int svm_range_schedule_evict_svm_bo(struct amdgpu_amdkfd_fence *fence);
 void svm_range_add_list_work(struct svm_range_list *svms,
@@ -194,11 +194,11 @@ int kfd_criu_restore_svm(struct kfd_process *p,
 			 uint64_t max_priv_data_size);
 int kfd_criu_resume_svm(struct kfd_process *p);
 struct kfd_process_device *
-svm_range_get_pdd_by_node(struct svm_range *prange, struct kfd_node *node);
+svm_range_get_pdd_by_analde(struct svm_range *prange, struct kfd_analde *analde);
 void svm_range_list_lock_and_flush_work(struct svm_range_list *svms, struct mm_struct *mm);
 
 /* SVM API and HMM page migration work together, device memory type
- * is initialized to not 0 when page migration register device memory.
+ * is initialized to analt 0 when page migration register device memory.
  */
 #define KFD_IS_SVM_API_SUPPORTED(adev) ((adev)->kfd.pgmap.type != 0 ||\
 					(adev)->gmc.is_app_apu)
@@ -223,7 +223,7 @@ static inline void svm_range_list_fini(struct kfd_process *p)
 
 static inline int svm_range_restore_pages(struct amdgpu_device *adev,
 					  unsigned int pasid,
-					  uint32_t client_id, uint32_t node_id,
+					  uint32_t client_id, uint32_t analde_id,
 					  uint64_t addr, bool write_fault)
 {
 	return -EFAULT;

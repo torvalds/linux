@@ -52,8 +52,8 @@ struct ccwchain {
  *
  * Returns:
  *         0 if page array is allocated
- *   -EINVAL if pa->pa_nr is not initially zero, or pa->pa_iova is not NULL
- *   -ENOMEM if alloc failed
+ *   -EINVAL if pa->pa_nr is analt initially zero, or pa->pa_iova is analt NULL
+ *   -EANALMEM if alloc failed
  */
 static int page_array_alloc(struct page_array *pa, unsigned int len)
 {
@@ -67,12 +67,12 @@ static int page_array_alloc(struct page_array *pa, unsigned int len)
 
 	pa->pa_iova = kcalloc(len, sizeof(*pa->pa_iova), GFP_KERNEL);
 	if (!pa->pa_iova)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pa->pa_page = kcalloc(len, sizeof(*pa->pa_page), GFP_KERNEL);
 	if (!pa->pa_page) {
 		kfree(pa->pa_iova);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -125,7 +125,7 @@ static void page_array_unpin(struct page_array *pa,
  * Requests to pin "aligned" pages can be coalesced into a single
  * vfio_pin_pages request for the sake of efficiency, based on the
  * expectation of 4K page requests. Unaligned requests are probably
- * dealing with 2K "pages", and cannot be coalesced without
+ * dealing with 2K "pages", and cananalt be coalesced without
  * reworking this logic to incorporate that math.
  */
 static int page_array_pin(struct page_array *pa, struct vfio_device *vdev, bool unaligned)
@@ -198,7 +198,7 @@ static inline void page_array_idal_create_words(struct page_array *pa,
 	 * Idal words (execept the first one) rely on the memory being 4k
 	 * aligned. If a user virtual address is 4K aligned, then it's
 	 * corresponding kernel physical address will also be 4K aligned. Thus
-	 * there will be no problem here to simply use the phys to create an
+	 * there will be anal problem here to simply use the phys to create an
 	 * idaw.
 	 */
 
@@ -241,7 +241,7 @@ static void convert_ccw0_to_ccw1(struct ccw1 *source, unsigned long len)
 #define ccw_is_read_backward(_ccw) (((_ccw)->cmd_code & 0x0F) == 0x0C)
 #define ccw_is_sense(_ccw) (((_ccw)->cmd_code & 0x0F) == CCW_CMD_BASIC_SENSE)
 
-#define ccw_is_noop(_ccw) ((_ccw)->cmd_code == CCW_CMD_NOOP)
+#define ccw_is_analop(_ccw) ((_ccw)->cmd_code == CCW_CMD_ANALOP)
 
 #define ccw_is_tic(_ccw) ((_ccw)->cmd_code == CCW_CMD_TIC)
 
@@ -256,16 +256,16 @@ static void convert_ccw0_to_ccw1(struct ccw1 *source, unsigned long len)
  * Determine whether a CCW will move any data, such that the guest pages
  * would need to be pinned before performing the I/O.
  *
- * Returns 1 if yes, 0 if no.
+ * Returns 1 if anal, 0 if anal.
  */
 static inline int ccw_does_data_transfer(struct ccw1 *ccw)
 {
-	/* If the count field is zero, then no data will be transferred */
+	/* If the count field is zero, then anal data will be transferred */
 	if (ccw->count == 0)
 		return 0;
 
-	/* If the command is a NOP, then no data will be transferred */
-	if (ccw_is_noop(ccw))
+	/* If the command is a ANALP, then anal data will be transferred */
+	if (ccw_is_analop(ccw))
 		return 0;
 
 	/* If the skip flag is off, then data will be transferred */
@@ -275,7 +275,7 @@ static inline int ccw_does_data_transfer(struct ccw1 *ccw)
 	/*
 	 * If the skip flag is on, it is only meaningful if the command
 	 * code is a read, read backward, sense, or sense ID.  In those
-	 * cases, no data will be transferred.
+	 * cases, anal data will be transferred.
 	 */
 	if (ccw_is_read(ccw) || ccw_is_read_backward(ccw))
 		return 0;
@@ -283,7 +283,7 @@ static inline int ccw_does_data_transfer(struct ccw1 *ccw)
 	if (ccw_is_sense(ccw))
 		return 0;
 
-	/* The skip flag is on, but it is ignored for this command code. */
+	/* The skip flag is on, but it is iganalred for this command code. */
 	return 1;
 }
 
@@ -297,7 +297,7 @@ static inline int ccw_does_data_transfer(struct ccw1 *ccw)
  * Determine whether the address of a CCW (whether a new chain,
  * or the target of a TIC) falls within a range (including the end points).
  *
- * Returns 1 if yes, 0 if no.
+ * Returns 1 if anal, 0 if anal.
  */
 static inline int is_cpa_within_range(u32 cpa, u32 head, int len)
 {
@@ -364,13 +364,13 @@ static void ccwchain_cda_free(struct ccwchain *chain, int idx)
  * @iova: guest physical address of the target ccw chain
  * @cp: channel_program on which to perform the operation
  *
- * This is the chain length not considering any TICs.
+ * This is the chain length analt considering any TICs.
  * You need to do a new round for each TIC target.
  *
- * The program is also validated for absence of not yet supported
+ * The program is also validated for absence of analt yet supported
  * indirect data addressing scenarios.
  *
- * Returns: the length of the ccw chain or -errno.
+ * Returns: the length of the ccw chain or -erranal.
  */
 static int ccwchain_calc_length(u64 iova, struct channel_program *cp)
 {
@@ -441,7 +441,7 @@ static int ccwchain_handle_ccw(u32 cda, struct channel_program *cp)
 	/* Need alloc a new chain for this one. */
 	chain = ccwchain_alloc(cp, len);
 	if (!chain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chain->ch_len = len;
 	chain->ch_iova = cda;
@@ -516,7 +516,7 @@ static unsigned long *get_guest_idal(struct ccw1 *ccw,
 
 	idaws = kcalloc(idaw_nr, sizeof(*idaws), GFP_DMA | GFP_KERNEL);
 	if (!idaws)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (ccw_is_idal(ccw)) {
 		/* Copy IDAL from guest */
@@ -550,8 +550,8 @@ static unsigned long *get_guest_idal(struct ccw1 *ccw,
  * @cp: Channel Program being processed
  *
  * The ORB is examined, since it specifies what IDAWs could actually be
- * used by any CCW in the channel program, regardless of whether or not
- * the CCW actually does. An ORB that does not specify Format-2-IDAW
+ * used by any CCW in the channel program, regardless of whether or analt
+ * the CCW actually does. An ORB that does analt specify Format-2-IDAW
  * Control could still contain a CCW with an IDAL, which would be
  * Format-1 and thus only move 2K with each IDAW. Thus all CCWs within
  * the channel program must follow the same size requirements.
@@ -634,7 +634,7 @@ static int ccwchain_fetch_ccw(struct ccw1 *ccw,
 
 	/*
 	 * Copy guest IDAWs into page_array, in case the memory they
-	 * occupy is not contiguous.
+	 * occupy is analt contiguous.
 	 */
 	idaws_f1 = (unsigned int *)idaws;
 	for (i = 0; i < idaw_nr; i++) {
@@ -716,14 +716,14 @@ int cp_init(struct channel_program *cp, union orb *orb)
 	/*
 	 * We only support prefetching the channel program. We assume all channel
 	 * programs executed by supported guests likewise support prefetching.
-	 * Executing a channel program that does not specify prefetching will
-	 * typically not cause an error, but a warning is issued to help identify
+	 * Executing a channel program that does analt specify prefetching will
+	 * typically analt cause an error, but a warning is issued to help identify
 	 * the problem if something does break.
 	 */
 	if (!orb->cmd.pfch && __ratelimit(&ratelimit_state))
 		dev_warn(
 			vdev->dev,
-			"Prefetching channel program even though prefetch not specified in ORB");
+			"Prefetching channel program even though prefetch analt specified in ORB");
 
 	INIT_LIST_HEAD(&cp->ccwchain_list);
 	memcpy(&cp->orb, orb, sizeof(*orb));
@@ -904,7 +904,7 @@ void cp_update_scsw(struct channel_program *cp, union scsw *scsw)
 
 	/*
 	 * LATER:
-	 * For now, only update the cmd.cpa part. We may need to deal with
+	 * For analw, only update the cmd.cpa part. We may need to deal with
 	 * other portions of the schib as well, even if we don't return them
 	 * in the ioctl directly. Path status changes etc.
 	 */

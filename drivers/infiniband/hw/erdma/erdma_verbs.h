@@ -22,7 +22,7 @@
 #define ERDMA_MAX_FRMR_PA 512
 
 enum {
-	ERDMA_MMAP_IO_NC = 0, /* no cache */
+	ERDMA_MMAP_IO_NC = 0, /* anal cache */
 };
 
 struct erdma_user_mmap_entry {
@@ -69,7 +69,7 @@ struct erdma_pd {
 #define ERDMA_MR_MAX_MTT_CNT 524288
 #define ERDMA_MTT_ENTRY_SIZE 8
 
-#define ERDMA_MR_TYPE_NORMAL 0
+#define ERDMA_MR_TYPE_ANALRMAL 0
 #define ERDMA_MR_TYPE_FRMR 1
 #define ERDMA_MR_TYPE_DMA 2
 
@@ -242,7 +242,7 @@ struct erdma_kcq_info {
 	dma_addr_t qbuf_dma_addr;
 	u32 ci;
 	u32 cmdsn;
-	u32 notify_cnt;
+	u32 analtify_cnt;
 
 	spinlock_t lock;
 	u8 __iomem *db;
@@ -340,7 +340,7 @@ int erdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int mask,
 		    struct ib_udata *data);
 int erdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 int erdma_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
-int erdma_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
+int erdma_req_analtify_cq(struct ib_cq *ibcq, enum ib_cq_analtify_flags flags);
 struct ib_mr *erdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 				u64 virt, int access, struct ib_udata *udata);
 struct ib_mr *erdma_get_dma_mr(struct ib_pd *ibpd, int rights);

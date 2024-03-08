@@ -162,7 +162,7 @@ static int max31856_thermocouple_read(struct max31856_data *data,
 	u8 reg_val[3];
 
 	switch (chan->channel2) {
-	case IIO_NO_MOD:
+	case IIO_ANAL_MOD:
 		/*
 		 * Multibyte Read
 		 * MAX31856_LTCBH_REG, MAX31856_LTCBM_REG, MAX31856_LTCBL_REG
@@ -380,13 +380,13 @@ static ssize_t set_filter(struct device *dev,
 
 static IIO_DEVICE_ATTR(fault_ovuv, 0444, show_fault_ovuv, NULL, 0);
 static IIO_DEVICE_ATTR(fault_oc, 0444, show_fault_oc, NULL, 0);
-static IIO_DEVICE_ATTR(in_temp_filter_notch_center_frequency, 0644,
+static IIO_DEVICE_ATTR(in_temp_filter_analtch_center_frequency, 0644,
 		       show_filter, set_filter, 0);
 
 static struct attribute *max31856_attributes[] = {
 	&iio_dev_attr_fault_ovuv.dev_attr.attr,
 	&iio_dev_attr_fault_oc.dev_attr.attr,
-	&iio_dev_attr_in_temp_filter_notch_center_frequency.dev_attr.attr,
+	&iio_dev_attr_in_temp_filter_analtch_center_frequency.dev_attr.attr,
 	NULL,
 };
 
@@ -410,7 +410,7 @@ static int max31856_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->spi = spi;
@@ -427,12 +427,12 @@ static int max31856_probe(struct spi_device *spi)
 	ret = device_property_read_u32(&spi->dev, "thermocouple-type", &data->thermocouple_type);
 	if (ret) {
 		dev_info(&spi->dev,
-			 "Could not read thermocouple type DT property, configuring as a K-Type\n");
+			 "Could analt read thermocouple type DT property, configuring as a K-Type\n");
 		data->thermocouple_type = THERMOCOUPLE_TYPE_K;
 	}
 
 	/*
-	 * no need to translate values as the supported types
+	 * anal need to translate values as the supported types
 	 * have the same value as the #defines
 	 */
 	switch (data->thermocouple_type) {
@@ -447,7 +447,7 @@ static int max31856_probe(struct spi_device *spi)
 		break;
 	default:
 		dev_err(&spi->dev,
-			"error: thermocouple-type %u not supported by max31856\n"
+			"error: thermocouple-type %u analt supported by max31856\n"
 			, data->thermocouple_type);
 		return -EINVAL;
 	}

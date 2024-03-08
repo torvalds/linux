@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
  *		     Creative Labs, Inc.
@@ -19,7 +19,7 @@
 
 /*
  * Following definition is copied from linux/types.h to support compiling
- * this header file in userspace since they are not generally available for
+ * this header file in userspace since they are analt generally available for
  * uapi headers.
  */
 #define __EMU10K1_DECLARE_BITMAP(name,bits) \
@@ -66,7 +66,7 @@
 #define A_FXBUS(x)	(0x00 + (x))	/* x = 0x00 - 0x3f FX buses */
 #define A_EXTIN(x)	(0x40 + (x))	/* x = 0x00 - 0x0f physical ins */
 #define A_P16VIN(x)	(0x50 + (x))	/* x = 0x00 - 0x0f p16v ins (A2 only) "EMU32 inputs" */
-#define A_EXTOUT(x)	(0x60 + (x))	/* x = 0x00 - 0x1f physical outs -> A_FXWC1 0x79-7f unknown   */
+#define A_EXTOUT(x)	(0x60 + (x))	/* x = 0x00 - 0x1f physical outs -> A_FXWC1 0x79-7f unkanalwn   */
 #define A_FXBUS2(x)	(0x80 + (x))	/* x = 0x00 - 0x1f extra outs used for EFX capture -> A_FXWC2 */
 #define A_EMU32OUTH(x)	(0xa0 + (x))	/* x = 0x00 - 0x0f "EMU32_OUT_10 - _1F" */
 #define A_EMU32OUTL(x)	(0xb0 + (x))	/* x = 0x00 - 0x0f "EMU32_OUT_01 - _0F" */
@@ -97,8 +97,8 @@
 #define C_00100000	0x55		/* ?? */
 #define GPR_ACCU	0x56		/* ACCUM, accumulator */
 #define GPR_COND	0x57		/* CCR, condition register */
-#define GPR_NOISE0	0x58		/* noise source */
-#define GPR_NOISE1	0x59		/* noise source */
+#define GPR_ANALISE0	0x58		/* analise source */
+#define GPR_ANALISE1	0x59		/* analise source */
 #define GPR_IRQ		0x5a		/* IRQ register */
 #define GPR_DBAC	0x5b		/* TRAM Delay Base Address Counter */
 
@@ -127,8 +127,8 @@
 #define A_C_00100000	0xd5
 #define A_GPR_ACCU	0xd6		/* ACCUM, accumulator */
 #define A_GPR_COND	0xd7		/* CCR, condition register */
-#define A_GPR_NOISE0	0xd8		/* noise source */
-#define A_GPR_NOISE1	0xd9		/* noise source */
+#define A_GPR_ANALISE0	0xd8		/* analise source */
+#define A_GPR_ANALISE1	0xd9		/* analise source */
 #define A_GPR_IRQ	0xda		/* IRQ register */
 #define A_GPR_DBAC	0xdb		/* TRAM Delay Base Address Counter - internal */
 #define A_GPR_DBACE	0xde		/* TRAM Delay Base Address Counter - external */
@@ -169,19 +169,19 @@
 #define A_ETRAM_CTL(x)	(A_TANKMEMCTLREGBASE + 0xc0 + (x)) /* x = 0x00 - 0x3f */
 
 /* cc_reg constants */
-#define CC_REG_NORMALIZED C_00000001
+#define CC_REG_ANALRMALIZED C_00000001
 #define CC_REG_BORROW	C_00000002
 #define CC_REG_MINUS	C_00000004
 #define CC_REG_ZERO	C_00000008
 #define CC_REG_SATURATE	C_00000010
-#define CC_REG_NONZERO	C_00000100
+#define CC_REG_ANALNZERO	C_00000100
 
-#define A_CC_REG_NORMALIZED	A_C_00000001
+#define A_CC_REG_ANALRMALIZED	A_C_00000001
 #define A_CC_REG_BORROW		A_C_00000002
 #define A_CC_REG_MINUS		A_C_00000004
 #define A_CC_REG_ZERO		A_C_00000008
 #define A_CC_REG_SATURATE	A_C_00000010
-#define A_CC_REG_NONZERO	A_C_00000100
+#define A_CC_REG_ANALNZERO	A_C_00000100
 
 /* FX buses */
 // These are arbitrary mappings; our DSP code simply expects
@@ -276,7 +276,7 @@
 #define A_EXTOUT_ADC_CAP_R	0x17	/*                    right */
 #define A_EXTOUT_MIC_CAP	0x18	/* Mic capture buffer */
 
-/* Definitions for debug register. Note that these are for emu10k1 ONLY. */
+/* Definitions for debug register. Analte that these are for emu10k1 ONLY. */
 #define EMU10K1_DBG_ZC			0x80000000	/* zero tram counter */
 #define EMU10K1_DBG_SATURATION_OCCURED	0x02000000	/* saturation control */
 #define EMU10K1_DBG_SATURATION_ADDR	0x01ff0000	/* saturation address */
@@ -303,11 +303,11 @@ struct snd_emu10k1_fx8010_info {
 	unsigned int gpr_controls;		/* count of GPR controls */
 };
 
-#define EMU10K1_GPR_TRANSLATION_NONE		0
+#define EMU10K1_GPR_TRANSLATION_ANALNE		0
 #define EMU10K1_GPR_TRANSLATION_TABLE100	1
 #define EMU10K1_GPR_TRANSLATION_BASS		2
 #define EMU10K1_GPR_TRANSLATION_TREBLE		3
-#define EMU10K1_GPR_TRANSLATION_ONOFF		4
+#define EMU10K1_GPR_TRANSLATION_OANALFF		4
 #define EMU10K1_GPR_TRANSLATION_NEGATE		5
 #define EMU10K1_GPR_TRANSLATION_NEG_TABLE100	6
 

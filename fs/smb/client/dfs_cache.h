@@ -40,14 +40,14 @@ extern const struct proc_ops dfscache_proc_ops;
 int dfs_cache_find(const unsigned int xid, struct cifs_ses *ses, const struct nls_table *cp,
 		   int remap, const char *path, struct dfs_info3_param *ref,
 		   struct dfs_cache_tgt_list *tgt_list);
-int dfs_cache_noreq_find(const char *path, struct dfs_info3_param *ref,
+int dfs_cache_analreq_find(const char *path, struct dfs_info3_param *ref,
 			 struct dfs_cache_tgt_list *tgt_list);
-void dfs_cache_noreq_update_tgthint(const char *path, const struct dfs_cache_tgt_iterator *it);
+void dfs_cache_analreq_update_tgthint(const char *path, const struct dfs_cache_tgt_iterator *it);
 int dfs_cache_get_tgt_referral(const char *path, const struct dfs_cache_tgt_iterator *it,
 			       struct dfs_info3_param *ref);
 int dfs_cache_get_tgt_share(char *path, const struct dfs_cache_tgt_iterator *it, char **share,
 			    char **prefix);
-char *dfs_cache_canonical_path(const char *path, const struct nls_table *cp, int remap);
+char *dfs_cache_caanalnical_path(const char *path, const struct nls_table *cp, int remap);
 int dfs_cache_remount_fs(struct cifs_sb_info *cifs_sb);
 void dfs_cache_refresh(struct work_struct *work);
 

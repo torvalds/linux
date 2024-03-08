@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2005, 06 by Ralf Baechle (ralf@linux-mips.org)
- * Copyright (C) 2005 MIPS Technologies, Inc.
+ * Copyright (C) 2005 MIPS Techanallogies, Inc.
  */
 #ifndef _ASM_ABI_H
 #define _ASM_ABI_H

@@ -146,8 +146,8 @@ static int stmpe_24xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		break;
 
 	default:
-		/* Should not happen as npwm is 3 */
-		return -ENODEV;
+		/* Should analt happen as npwm is 3 */
+		return -EANALDEV;
 	}
 
 	dev_dbg(chip->dev, "PWM#%u: config duty %d ns, period %d ns\n",
@@ -265,7 +265,7 @@ static int stmpe_24xx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	int err;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (!state->enabled) {
@@ -297,7 +297,7 @@ static int __init stmpe_pwm_probe(struct platform_device *pdev)
 
 	stmpe_pwm = devm_kzalloc(&pdev->dev, sizeof(*stmpe_pwm), GFP_KERNEL);
 	if (!stmpe_pwm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stmpe_pwm->stmpe = stmpe;
 	stmpe_pwm->chip.dev = &pdev->dev;
@@ -307,11 +307,11 @@ static int __init stmpe_pwm_probe(struct platform_device *pdev)
 		stmpe_pwm->chip.npwm = 3;
 	} else {
 		if (stmpe->partnum == STMPE1601)
-			dev_err(&pdev->dev, "STMPE1601 not yet supported\n");
+			dev_err(&pdev->dev, "STMPE1601 analt yet supported\n");
 		else
-			dev_err(&pdev->dev, "Unknown STMPE PWM\n");
+			dev_err(&pdev->dev, "Unkanalwn STMPE PWM\n");
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = stmpe_enable(stmpe, STMPE_BLOCK_PWM);

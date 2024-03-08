@@ -7,7 +7,7 @@
 #include "i915_utils.h"
 #include "intel_pch.h"
 
-/* Map PCH device id to PCH type, or PCH_NONE if unknown. */
+/* Map PCH device id to PCH type, or PCH_ANALNE if unkanalwn. */
 static enum intel_pch
 intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 {
@@ -80,14 +80,14 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 		/* KBP is SPT compatible */
 		return PCH_SPT;
 	case INTEL_PCH_CNP_DEVICE_ID_TYPE:
-		drm_dbg_kms(&dev_priv->drm, "Found Cannon Lake PCH (CNP)\n");
+		drm_dbg_kms(&dev_priv->drm, "Found Cananaln Lake PCH (CNP)\n");
 		drm_WARN_ON(&dev_priv->drm,
 			    !IS_COFFEELAKE(dev_priv) &&
 			    !IS_COMETLAKE(dev_priv));
 		return PCH_CNP;
 	case INTEL_PCH_CNP_LP_DEVICE_ID_TYPE:
 		drm_dbg_kms(&dev_priv->drm,
-			    "Found Cannon Lake LP PCH (CNP-LP)\n");
+			    "Found Cananaln Lake LP PCH (CNP-LP)\n");
 		drm_WARN_ON(&dev_priv->drm,
 			    !IS_COFFEELAKE(dev_priv) &&
 			    !IS_COMETLAKE(dev_priv));
@@ -146,7 +146,7 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 		drm_WARN_ON(&dev_priv->drm, !IS_METEORLAKE(dev_priv));
 		return PCH_MTP;
 	default:
-		return PCH_NONE;
+		return PCH_ANALNE;
 	}
 }
 
@@ -168,7 +168,7 @@ intel_virt_detect_pch(const struct drm_i915_private *dev_priv,
 
 	/*
 	 * In a virtualized passthrough environment we can be in a
-	 * setup where the ISA bridge is not able to be passed through.
+	 * setup where the ISA bridge is analt able to be passed through.
 	 * In this case, a south bridge can be emulated and we have to
 	 * make an educated guess as to which PCH is really there.
 	 */
@@ -200,13 +200,13 @@ intel_virt_detect_pch(const struct drm_i915_private *dev_priv,
 	if (id)
 		drm_dbg_kms(&dev_priv->drm, "Assuming PCH ID %04x\n", id);
 	else
-		drm_dbg_kms(&dev_priv->drm, "Assuming no PCH\n");
+		drm_dbg_kms(&dev_priv->drm, "Assuming anal PCH\n");
 
 	*pch_type = intel_pch_type(dev_priv, id);
 
 	/* Sanity check virtual PCH id */
 	if (drm_WARN_ON(&dev_priv->drm,
-			id && *pch_type == PCH_NONE))
+			id && *pch_type == PCH_ANALNE))
 		id = 0;
 
 	*pch_id = id;
@@ -236,7 +236,7 @@ void intel_detect_pch(struct drm_i915_private *dev_priv)
 	/*
 	 * The reason to probe ISA bridge instead of Dev31:Fun0 is to
 	 * make graphics device passthrough work easy for VMM, that only
-	 * need to expose ISA bridge to let driver know the real hardware
+	 * need to expose ISA bridge to let driver kanalw the real hardware
 	 * underneath. This is a requirement from virtualization team.
 	 *
 	 * In some virtualized environments (e.g. XEN), there is irrelevant
@@ -251,7 +251,7 @@ void intel_detect_pch(struct drm_i915_private *dev_priv)
 		id = pch->device & INTEL_PCH_DEVICE_ID_MASK;
 
 		pch_type = intel_pch_type(dev_priv, id);
-		if (pch_type != PCH_NONE) {
+		if (pch_type != PCH_ANALNE) {
 			dev_priv->pch_type = pch_type;
 			dev_priv->pch_id = id;
 			break;
@@ -265,13 +265,13 @@ void intel_detect_pch(struct drm_i915_private *dev_priv)
 	}
 
 	/*
-	 * Use PCH_NOP (PCH but no South Display) for PCH platforms without
+	 * Use PCH_ANALP (PCH but anal South Display) for PCH platforms without
 	 * display.
 	 */
 	if (pch && !HAS_DISPLAY(dev_priv)) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "Display disabled, reverting to NOP PCH\n");
-		dev_priv->pch_type = PCH_NOP;
+			    "Display disabled, reverting to ANALP PCH\n");
+		dev_priv->pch_type = PCH_ANALP;
 		dev_priv->pch_id = 0;
 	} else if (!pch) {
 		if (i915_run_as_guest() && HAS_DISPLAY(dev_priv)) {
@@ -279,7 +279,7 @@ void intel_detect_pch(struct drm_i915_private *dev_priv)
 			dev_priv->pch_type = pch_type;
 			dev_priv->pch_id = id;
 		} else {
-			drm_dbg_kms(&dev_priv->drm, "No PCH found.\n");
+			drm_dbg_kms(&dev_priv->drm, "Anal PCH found.\n");
 		}
 	}
 

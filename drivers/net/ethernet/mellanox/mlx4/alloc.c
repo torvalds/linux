@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems, Inc.  All rights reserved.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,25 +13,25 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/export.h>
@@ -187,7 +187,7 @@ int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
 	spin_lock_init(&bitmap->lock);
 	bitmap->table = bitmap_zalloc(bitmap->max, GFP_KERNEL);
 	if (!bitmap->table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bitmap_set(bitmap->table, 0, reserved_bot);
 
@@ -250,7 +250,7 @@ int mlx4_zone_add_one(struct mlx4_zone_allocator *zone_alloc,
 	struct mlx4_zone_entry *zone = kmalloc(sizeof(*zone), GFP_KERNEL);
 
 	if (NULL == zone)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	zone->flags = flags;
 	zone->bitmap = bitmap;
@@ -287,7 +287,7 @@ static void __mlx4_zone_remove_one_entry(struct mlx4_zone_entry *entry)
 	struct mlx4_zone_allocator *zone_alloc = entry->allocator;
 
 	if (!list_empty(&entry->prio_list)) {
-		/* Check if we need to add an alternative node to the prio list */
+		/* Check if we need to add an alternative analde to the prio list */
 		if (!list_is_last(&entry->list, &zone_alloc->entries)) {
 			struct mlx4_zone_entry *next = list_first_entry(&entry->list,
 									typeof(*next),
@@ -302,7 +302,7 @@ static void __mlx4_zone_remove_one_entry(struct mlx4_zone_entry *entry)
 
 	list_del(&entry->list);
 
-	if (zone_alloc->flags & MLX4_ZONE_ALLOC_FLAGS_NO_OVERLAP) {
+	if (zone_alloc->flags & MLX4_ZONE_ALLOC_FLAGS_ANAL_OVERLAP) {
 		u32 mask = 0;
 		struct mlx4_zone_entry *it;
 
@@ -339,7 +339,7 @@ static u32 __mlx4_alloc_from_zone(struct mlx4_zone_entry *zone, int count,
 	u32 uid = 0;
 	u32 res;
 	struct mlx4_zone_allocator *zone_alloc = zone->allocator;
-	struct mlx4_zone_entry *curr_node;
+	struct mlx4_zone_entry *curr_analde;
 
 	res = mlx4_bitmap_alloc_range(zone->bitmap, count,
 				      align, skip_mask);
@@ -350,13 +350,13 @@ static u32 __mlx4_alloc_from_zone(struct mlx4_zone_entry *zone, int count,
 		goto out;
 	}
 
-	list_for_each_entry(curr_node, &zone_alloc->prios, prio_list) {
-		if (unlikely(curr_node->priority == zone->priority))
+	list_for_each_entry(curr_analde, &zone_alloc->prios, prio_list) {
+		if (unlikely(curr_analde->priority == zone->priority))
 			break;
 	}
 
 	if (zone->flags & MLX4_ZONE_ALLOW_ALLOC_FROM_LOWER_PRIO) {
-		struct mlx4_zone_entry *it = curr_node;
+		struct mlx4_zone_entry *it = curr_analde;
 
 		list_for_each_entry_continue_reverse(it, &zone_alloc->entries, list) {
 			res = mlx4_bitmap_alloc_range(it->bitmap, count,
@@ -370,13 +370,13 @@ static u32 __mlx4_alloc_from_zone(struct mlx4_zone_entry *zone, int count,
 	}
 
 	if (zone->flags & MLX4_ZONE_ALLOW_ALLOC_FROM_EQ_PRIO) {
-		struct mlx4_zone_entry *it = curr_node;
+		struct mlx4_zone_entry *it = curr_analde;
 
 		list_for_each_entry_from(it, &zone_alloc->entries, list) {
 			if (unlikely(it == zone))
 				continue;
 
-			if (unlikely(it->priority != curr_node->priority))
+			if (unlikely(it->priority != curr_analde->priority))
 				break;
 
 			res = mlx4_bitmap_alloc_range(it->bitmap, count,
@@ -390,19 +390,19 @@ static u32 __mlx4_alloc_from_zone(struct mlx4_zone_entry *zone, int count,
 	}
 
 	if (zone->flags & MLX4_ZONE_FALLBACK_TO_HIGHER_PRIO) {
-		if (list_is_last(&curr_node->prio_list, &zone_alloc->prios))
+		if (list_is_last(&curr_analde->prio_list, &zone_alloc->prios))
 			goto out;
 
-		curr_node = list_first_entry(&curr_node->prio_list,
-					     typeof(*curr_node),
+		curr_analde = list_first_entry(&curr_analde->prio_list,
+					     typeof(*curr_analde),
 					     prio_list);
 
-		list_for_each_entry_from(curr_node, &zone_alloc->entries, list) {
-			res = mlx4_bitmap_alloc_range(curr_node->bitmap, count,
+		list_for_each_entry_from(curr_analde, &zone_alloc->entries, list) {
+			res = mlx4_bitmap_alloc_range(curr_analde->bitmap, count,
 						      align, skip_mask);
 			if (res != (u32)-1) {
-				res += curr_node->offset;
-				uid = curr_node->uid;
+				res += curr_analde->offset;
+				uid = curr_analde->uid;
 				goto out;
 			}
 		}
@@ -553,7 +553,7 @@ u32 mlx4_zone_free_entries_unique(struct mlx4_zone_allocator *zones, u32 obj, u3
 	struct mlx4_zone_entry *zone;
 	int res;
 
-	if (!(zones->flags & MLX4_ZONE_ALLOC_FLAGS_NO_OVERLAP))
+	if (!(zones->flags & MLX4_ZONE_ALLOC_FLAGS_ANAL_OVERLAP))
 		return -EFAULT;
 
 	spin_lock(&zones->lock);
@@ -586,7 +586,7 @@ static int mlx4_buf_direct_alloc(struct mlx4_dev *dev, int size,
 		dma_alloc_coherent(&dev->persist->pdev->dev, size, &t,
 				   GFP_KERNEL);
 	if (!buf->direct.buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf->direct.map = t;
 
@@ -619,7 +619,7 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 		buf->page_list   = kcalloc(buf->nbufs, sizeof(*buf->page_list),
 					   GFP_KERNEL);
 		if (!buf->page_list)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < buf->nbufs; ++i) {
 			buf->page_list[i].buf =
@@ -637,7 +637,7 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 err_free:
 	mlx4_buf_free(dev, size, buf);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL_GPL(mlx4_buf_alloc);
 
@@ -693,7 +693,7 @@ static int mlx4_alloc_db_from_pgdir(struct mlx4_db_pgdir *pgdir,
 			goto found;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 
 found:
 	clear_bit(i, pgdir->bits[o]);
@@ -726,7 +726,7 @@ int mlx4_db_alloc(struct mlx4_dev *dev, struct mlx4_db *db, int order)
 
 	pgdir = mlx4_alloc_db_pgdir(&dev->persist->pdev->dev);
 	if (!pgdir) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

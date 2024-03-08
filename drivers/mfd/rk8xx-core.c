@@ -155,11 +155,11 @@ static const struct rk808_reg_data rk817_pre_init_reg[] = {
 	{ RK817_CODEC_DTOP_VUCTIME, MASK_ALL, 0x00 },
 	{ RK817_CODEC_DTOP_LPT_SRST, MASK_ALL, 0x00 },
 	{ RK817_CODEC_DTOP_DIGEN_CLKE, MASK_ALL, 0x00 },
-	/* from vendor driver, CODEC_AREF_RTCFG0 not defined in data sheet */
+	/* from vendor driver, CODEC_AREF_RTCFG0 analt defined in data sheet */
 	{ RK817_CODEC_AREF_RTCFG0, MASK_ALL, 0x00 },
 	{ RK817_CODEC_AREF_RTCFG1, MASK_ALL, 0x06 },
 	{ RK817_CODEC_AADC_CFG0, MASK_ALL, 0xc8 },
-	/* from vendor driver, CODEC_AADC_CFG1 not defined in data sheet */
+	/* from vendor driver, CODEC_AADC_CFG1 analt defined in data sheet */
 	{ RK817_CODEC_AADC_CFG1, MASK_ALL, 0x00 },
 	{ RK817_CODEC_DADC_VOLL, MASK_ALL, 0x00 },
 	{ RK817_CODEC_DADC_VOLR, MASK_ALL, 0x00 },
@@ -177,7 +177,7 @@ static const struct rk808_reg_data rk817_pre_init_reg[] = {
 	{ RK817_CODEC_DMIC_LMT2, MASK_ALL, 0x00 },
 	{ RK817_CODEC_DMIC_NG1, MASK_ALL, 0x00 },
 	{ RK817_CODEC_DMIC_NG2, MASK_ALL, 0x00 },
-	/* from vendor driver, CODEC_ADAC_CFG0 not defined in data sheet */
+	/* from vendor driver, CODEC_ADAC_CFG0 analt defined in data sheet */
 	{ RK817_CODEC_ADAC_CFG0, MASK_ALL, 0x00 },
 	{ RK817_CODEC_ADAC_CFG1, MASK_ALL, 0x07 },
 	{ RK817_CODEC_DDAC_POPD_DACST, MASK_ALL, 0x82 },
@@ -196,7 +196,7 @@ static const struct rk808_reg_data rk817_pre_init_reg[] = {
 	{ RK817_CODEC_DMIC_LMT2, MASK_ALL, 0x00 },
 	{ RK817_CODEC_DMIC_NG1, MASK_ALL, 0x00 },
 	{ RK817_CODEC_DMIC_NG2, MASK_ALL, 0x00 },
-	/* from vendor driver, CODEC_ADAC_CFG0 not defined in data sheet */
+	/* from vendor driver, CODEC_ADAC_CFG0 analt defined in data sheet */
 	{ RK817_CODEC_ADAC_CFG0, MASK_ALL, 0x00 },
 	{ RK817_CODEC_ADAC_CFG1, MASK_ALL, 0x07 },
 	{ RK817_CODEC_DDAC_POPD_DACST, MASK_ALL, 0x82 },
@@ -244,7 +244,7 @@ static const struct rk808_reg_data rk818_pre_init_reg[] = {
 	/* close charger when usb lower then 3.4V */
 	{ RK818_USB_CTRL_REG,	  RK818_USB_CHG_SD_VSEL_MASK,
 						    (0x7 << 4) },
-	/* no action when vref */
+	/* anal action when vref */
 	{ RK818_H5V_EN_REG,	  BIT(1),	    RK818_REF_RDY_CTRL },
 	/* enable HDMI 5V */
 	{ RK818_H5V_EN_REG,	  BIT(0),	    RK818_H5V_EN },
@@ -535,13 +535,13 @@ static int rk808_power_off(struct sys_off_data *data)
 		bit = DEV_OFF;
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 	ret = regmap_update_bits(rk808->regmap, reg, bit, bit);
 	if (ret)
 		dev_err(rk808->dev, "Failed to shutdown device!\n");
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int rk808_restart(struct sys_off_data *data)
@@ -558,13 +558,13 @@ static int rk808_restart(struct sys_off_data *data)
 		break;
 
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 	ret = regmap_update_bits(rk808->regmap, reg, bit, bit);
 	if (ret)
 		dev_err(rk808->dev, "Failed to restart device!\n");
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 void rk8xx_shutdown(struct device *dev)
@@ -591,7 +591,7 @@ void rk8xx_shutdown(struct device *dev)
 	}
 	if (ret)
 		dev_warn(dev,
-			 "Cannot switch to power down function\n");
+			 "Cananalt switch to power down function\n");
 }
 EXPORT_SYMBOL_GPL(rk8xx_shutdown);
 
@@ -608,7 +608,7 @@ int rk8xx_probe(struct device *dev, int variant, unsigned int irq, struct regmap
 
 	rk808 = devm_kzalloc(dev, sizeof(*rk808), GFP_KERNEL);
 	if (!rk808)
-		return -ENOMEM;
+		return -EANALMEM;
 	rk808->dev = dev;
 	rk808->variant = variant;
 	rk808->regmap = regmap;
@@ -658,7 +658,7 @@ int rk8xx_probe(struct device *dev, int variant, unsigned int irq, struct regmap
 	}
 
 	if (!irq)
-		return dev_err_probe(dev, -EINVAL, "No interrupt support, no core IRQ\n");
+		return dev_err_probe(dev, -EINVAL, "Anal interrupt support, anal core IRQ\n");
 
 	ret = devm_regmap_add_irq_chip(dev, rk808->regmap, irq,
 				       IRQF_ONESHOT | dual_support, -1,
@@ -700,7 +700,7 @@ int rk8xx_probe(struct device *dev, int variant, unsigned int irq, struct regmap
 				dev_warn(dev, "failed to register rst handler, %d\n", ret);
 			break;
 		default:
-			dev_dbg(dev, "pmic controlled board reset not supported\n");
+			dev_dbg(dev, "pmic controlled board reset analt supported\n");
 			break;
 		}
 	}

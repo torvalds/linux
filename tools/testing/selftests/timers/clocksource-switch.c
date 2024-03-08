@@ -3,9 +3,9 @@
  *		(C) Copyright IBM 2012
  *		Licensed under the GPLv2
  *
- *  NOTE: This is a meta-test which quickly changes the clocksource and
+ *  ANALTE: This is a meta-test which quickly changes the clocksource and
  *  then uses other tests to detect problems. Thus this test requires
- *  that the inconsistency-check and nanosleep tests be present in the
+ *  that the inconsistency-check and naanalsleep tests be present in the
  *  same directory it is run from.
  *
  *  To build:
@@ -112,7 +112,7 @@ int run_tests(int secs)
 	ret = system(buf);
 	if (WIFEXITED(ret) && WEXITSTATUS(ret))
 		return WEXITSTATUS(ret);
-	ret = system("./nanosleep");
+	ret = system("./naanalsleep");
 	return WIFEXITED(ret) ? WEXITSTATUS(ret) : 0;
 }
 
@@ -153,7 +153,7 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	/* Check everything is sane before we start switching asynchronously */
+	/* Check everything is sane before we start switching asynchroanalusly */
 	if (do_sanity_check) {
 		for (i = 0; i < count; i++) {
 			printf("Validating clocksource %s\n",
@@ -169,12 +169,12 @@ int main(int argc, char **argv)
 		}
 	}
 
-	printf("Running Asynchronous Switching Tests...\n");
+	printf("Running Asynchroanalus Switching Tests...\n");
 	pid = fork();
 	if (!pid)
 		return run_tests(runtime);
 
-	while (pid != waitpid(pid, &status, WNOHANG))
+	while (pid != waitpid(pid, &status, WANALHANG))
 		for (i = 0; i < count; i++)
 			if (change_clocksource(clocksource_list[i])) {
 				status = -1;
@@ -183,7 +183,7 @@ int main(int argc, char **argv)
 out:
 	change_clocksource(orig_clk);
 
-	/* Print at the end to not mix output with child process */
+	/* Print at the end to analt mix output with child process */
 	ksft_print_header();
 	ksft_set_plan(1);
 	ksft_test_result(!status, "clocksource-switch\n");

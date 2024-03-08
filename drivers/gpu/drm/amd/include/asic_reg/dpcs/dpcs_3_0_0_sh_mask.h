@@ -86,7 +86,7 @@
 #define RDPCSTX0_RDPCSTX_CNTL__RDPCS_TX_FIFO_RD_START_DELAY__SHIFT                                            0x14
 #define RDPCSTX0_RDPCSTX_CNTL__RDPCS_DPALT_BLOCK_STATUS__SHIFT                                                0x1a
 #define RDPCSTX0_RDPCSTX_CNTL__RDPCS_CR_REGISTER_BLOCK_EN__SHIFT                                              0x1c
-#define RDPCSTX0_RDPCSTX_CNTL__RDPCS_NON_DPALT_REGISTER_BLOCK_EN__SHIFT                                       0x1d
+#define RDPCSTX0_RDPCSTX_CNTL__RDPCS_ANALN_DPALT_REGISTER_BLOCK_EN__SHIFT                                       0x1d
 #define RDPCSTX0_RDPCSTX_CNTL__RDPCS_TX_SOFT_RESET__SHIFT                                                     0x1f
 #define RDPCSTX0_RDPCSTX_CNTL__RDPCS_CBUS_SOFT_RESET_MASK                                                     0x00000001L
 #define RDPCSTX0_RDPCSTX_CNTL__RDPCS_SRAM_SOFT_RESET_MASK                                                     0x00000010L
@@ -100,7 +100,7 @@
 #define RDPCSTX0_RDPCSTX_CNTL__RDPCS_TX_FIFO_RD_START_DELAY_MASK                                              0x01F00000L
 #define RDPCSTX0_RDPCSTX_CNTL__RDPCS_DPALT_BLOCK_STATUS_MASK                                                  0x04000000L
 #define RDPCSTX0_RDPCSTX_CNTL__RDPCS_CR_REGISTER_BLOCK_EN_MASK                                                0x10000000L
-#define RDPCSTX0_RDPCSTX_CNTL__RDPCS_NON_DPALT_REGISTER_BLOCK_EN_MASK                                         0x20000000L
+#define RDPCSTX0_RDPCSTX_CNTL__RDPCS_ANALN_DPALT_REGISTER_BLOCK_EN_MASK                                         0x20000000L
 #define RDPCSTX0_RDPCSTX_CNTL__RDPCS_TX_SOFT_RESET_MASK                                                       0x80000000L
 //RDPCSTX0_RDPCSTX_CLOCK_CNTL
 #define RDPCSTX0_RDPCSTX_CLOCK_CNTL__RDPCS_EXT_REFCLK_EN__SHIFT                                               0x0
@@ -681,7 +681,7 @@
 #define RDPCSTX1_RDPCSTX_CNTL__RDPCS_TX_FIFO_RD_START_DELAY__SHIFT                                            0x14
 #define RDPCSTX1_RDPCSTX_CNTL__RDPCS_DPALT_BLOCK_STATUS__SHIFT                                                0x1a
 #define RDPCSTX1_RDPCSTX_CNTL__RDPCS_CR_REGISTER_BLOCK_EN__SHIFT                                              0x1c
-#define RDPCSTX1_RDPCSTX_CNTL__RDPCS_NON_DPALT_REGISTER_BLOCK_EN__SHIFT                                       0x1d
+#define RDPCSTX1_RDPCSTX_CNTL__RDPCS_ANALN_DPALT_REGISTER_BLOCK_EN__SHIFT                                       0x1d
 #define RDPCSTX1_RDPCSTX_CNTL__RDPCS_TX_SOFT_RESET__SHIFT                                                     0x1f
 #define RDPCSTX1_RDPCSTX_CNTL__RDPCS_CBUS_SOFT_RESET_MASK                                                     0x00000001L
 #define RDPCSTX1_RDPCSTX_CNTL__RDPCS_SRAM_SOFT_RESET_MASK                                                     0x00000010L
@@ -695,7 +695,7 @@
 #define RDPCSTX1_RDPCSTX_CNTL__RDPCS_TX_FIFO_RD_START_DELAY_MASK                                              0x01F00000L
 #define RDPCSTX1_RDPCSTX_CNTL__RDPCS_DPALT_BLOCK_STATUS_MASK                                                  0x04000000L
 #define RDPCSTX1_RDPCSTX_CNTL__RDPCS_CR_REGISTER_BLOCK_EN_MASK                                                0x10000000L
-#define RDPCSTX1_RDPCSTX_CNTL__RDPCS_NON_DPALT_REGISTER_BLOCK_EN_MASK                                         0x20000000L
+#define RDPCSTX1_RDPCSTX_CNTL__RDPCS_ANALN_DPALT_REGISTER_BLOCK_EN_MASK                                         0x20000000L
 #define RDPCSTX1_RDPCSTX_CNTL__RDPCS_TX_SOFT_RESET_MASK                                                       0x80000000L
 //RDPCSTX1_RDPCSTX_CLOCK_CNTL
 #define RDPCSTX1_RDPCSTX_CLOCK_CNTL__RDPCS_EXT_REFCLK_EN__SHIFT                                               0x0
@@ -1276,7 +1276,7 @@
 #define RDPCSTX2_RDPCSTX_CNTL__RDPCS_TX_FIFO_RD_START_DELAY__SHIFT                                            0x14
 #define RDPCSTX2_RDPCSTX_CNTL__RDPCS_DPALT_BLOCK_STATUS__SHIFT                                                0x1a
 #define RDPCSTX2_RDPCSTX_CNTL__RDPCS_CR_REGISTER_BLOCK_EN__SHIFT                                              0x1c
-#define RDPCSTX2_RDPCSTX_CNTL__RDPCS_NON_DPALT_REGISTER_BLOCK_EN__SHIFT                                       0x1d
+#define RDPCSTX2_RDPCSTX_CNTL__RDPCS_ANALN_DPALT_REGISTER_BLOCK_EN__SHIFT                                       0x1d
 #define RDPCSTX2_RDPCSTX_CNTL__RDPCS_TX_SOFT_RESET__SHIFT                                                     0x1f
 #define RDPCSTX2_RDPCSTX_CNTL__RDPCS_CBUS_SOFT_RESET_MASK                                                     0x00000001L
 #define RDPCSTX2_RDPCSTX_CNTL__RDPCS_SRAM_SOFT_RESET_MASK                                                     0x00000010L
@@ -1290,7 +1290,7 @@
 #define RDPCSTX2_RDPCSTX_CNTL__RDPCS_TX_FIFO_RD_START_DELAY_MASK                                              0x01F00000L
 #define RDPCSTX2_RDPCSTX_CNTL__RDPCS_DPALT_BLOCK_STATUS_MASK                                                  0x04000000L
 #define RDPCSTX2_RDPCSTX_CNTL__RDPCS_CR_REGISTER_BLOCK_EN_MASK                                                0x10000000L
-#define RDPCSTX2_RDPCSTX_CNTL__RDPCS_NON_DPALT_REGISTER_BLOCK_EN_MASK                                         0x20000000L
+#define RDPCSTX2_RDPCSTX_CNTL__RDPCS_ANALN_DPALT_REGISTER_BLOCK_EN_MASK                                         0x20000000L
 #define RDPCSTX2_RDPCSTX_CNTL__RDPCS_TX_SOFT_RESET_MASK                                                       0x80000000L
 //RDPCSTX2_RDPCSTX_CLOCK_CNTL
 #define RDPCSTX2_RDPCSTX_CLOCK_CNTL__RDPCS_EXT_REFCLK_EN__SHIFT                                               0x0
@@ -1871,7 +1871,7 @@
 #define RDPCSTX3_RDPCSTX_CNTL__RDPCS_TX_FIFO_RD_START_DELAY__SHIFT                                            0x14
 #define RDPCSTX3_RDPCSTX_CNTL__RDPCS_DPALT_BLOCK_STATUS__SHIFT                                                0x1a
 #define RDPCSTX3_RDPCSTX_CNTL__RDPCS_CR_REGISTER_BLOCK_EN__SHIFT                                              0x1c
-#define RDPCSTX3_RDPCSTX_CNTL__RDPCS_NON_DPALT_REGISTER_BLOCK_EN__SHIFT                                       0x1d
+#define RDPCSTX3_RDPCSTX_CNTL__RDPCS_ANALN_DPALT_REGISTER_BLOCK_EN__SHIFT                                       0x1d
 #define RDPCSTX3_RDPCSTX_CNTL__RDPCS_TX_SOFT_RESET__SHIFT                                                     0x1f
 #define RDPCSTX3_RDPCSTX_CNTL__RDPCS_CBUS_SOFT_RESET_MASK                                                     0x00000001L
 #define RDPCSTX3_RDPCSTX_CNTL__RDPCS_SRAM_SOFT_RESET_MASK                                                     0x00000010L
@@ -1885,7 +1885,7 @@
 #define RDPCSTX3_RDPCSTX_CNTL__RDPCS_TX_FIFO_RD_START_DELAY_MASK                                              0x01F00000L
 #define RDPCSTX3_RDPCSTX_CNTL__RDPCS_DPALT_BLOCK_STATUS_MASK                                                  0x04000000L
 #define RDPCSTX3_RDPCSTX_CNTL__RDPCS_CR_REGISTER_BLOCK_EN_MASK                                                0x10000000L
-#define RDPCSTX3_RDPCSTX_CNTL__RDPCS_NON_DPALT_REGISTER_BLOCK_EN_MASK                                         0x20000000L
+#define RDPCSTX3_RDPCSTX_CNTL__RDPCS_ANALN_DPALT_REGISTER_BLOCK_EN_MASK                                         0x20000000L
 #define RDPCSTX3_RDPCSTX_CNTL__RDPCS_TX_SOFT_RESET_MASK                                                       0x80000000L
 //RDPCSTX3_RDPCSTX_CLOCK_CNTL
 #define RDPCSTX3_RDPCSTX_CLOCK_CNTL__RDPCS_EXT_REFCLK_EN__SHIFT                                               0x0
@@ -2466,7 +2466,7 @@
 #define RDPCSTX4_RDPCSTX_CNTL__RDPCS_TX_FIFO_RD_START_DELAY__SHIFT                                            0x14
 #define RDPCSTX4_RDPCSTX_CNTL__RDPCS_DPALT_BLOCK_STATUS__SHIFT                                                0x1a
 #define RDPCSTX4_RDPCSTX_CNTL__RDPCS_CR_REGISTER_BLOCK_EN__SHIFT                                              0x1c
-#define RDPCSTX4_RDPCSTX_CNTL__RDPCS_NON_DPALT_REGISTER_BLOCK_EN__SHIFT                                       0x1d
+#define RDPCSTX4_RDPCSTX_CNTL__RDPCS_ANALN_DPALT_REGISTER_BLOCK_EN__SHIFT                                       0x1d
 #define RDPCSTX4_RDPCSTX_CNTL__RDPCS_TX_SOFT_RESET__SHIFT                                                     0x1f
 #define RDPCSTX4_RDPCSTX_CNTL__RDPCS_CBUS_SOFT_RESET_MASK                                                     0x00000001L
 #define RDPCSTX4_RDPCSTX_CNTL__RDPCS_SRAM_SOFT_RESET_MASK                                                     0x00000010L
@@ -2480,7 +2480,7 @@
 #define RDPCSTX4_RDPCSTX_CNTL__RDPCS_TX_FIFO_RD_START_DELAY_MASK                                              0x01F00000L
 #define RDPCSTX4_RDPCSTX_CNTL__RDPCS_DPALT_BLOCK_STATUS_MASK                                                  0x04000000L
 #define RDPCSTX4_RDPCSTX_CNTL__RDPCS_CR_REGISTER_BLOCK_EN_MASK                                                0x10000000L
-#define RDPCSTX4_RDPCSTX_CNTL__RDPCS_NON_DPALT_REGISTER_BLOCK_EN_MASK                                         0x20000000L
+#define RDPCSTX4_RDPCSTX_CNTL__RDPCS_ANALN_DPALT_REGISTER_BLOCK_EN_MASK                                         0x20000000L
 #define RDPCSTX4_RDPCSTX_CNTL__RDPCS_TX_SOFT_RESET_MASK                                                       0x80000000L
 //RDPCSTX4_RDPCSTX_CLOCK_CNTL
 #define RDPCSTX4_RDPCSTX_CLOCK_CNTL__RDPCS_EXT_REFCLK_EN__SHIFT                                               0x0
@@ -3061,7 +3061,7 @@
 #define RDPCSTX5_RDPCSTX_CNTL__RDPCS_TX_FIFO_RD_START_DELAY__SHIFT                                            0x14
 #define RDPCSTX5_RDPCSTX_CNTL__RDPCS_DPALT_BLOCK_STATUS__SHIFT                                                0x1a
 #define RDPCSTX5_RDPCSTX_CNTL__RDPCS_CR_REGISTER_BLOCK_EN__SHIFT                                              0x1c
-#define RDPCSTX5_RDPCSTX_CNTL__RDPCS_NON_DPALT_REGISTER_BLOCK_EN__SHIFT                                       0x1d
+#define RDPCSTX5_RDPCSTX_CNTL__RDPCS_ANALN_DPALT_REGISTER_BLOCK_EN__SHIFT                                       0x1d
 #define RDPCSTX5_RDPCSTX_CNTL__RDPCS_TX_SOFT_RESET__SHIFT                                                     0x1f
 #define RDPCSTX5_RDPCSTX_CNTL__RDPCS_CBUS_SOFT_RESET_MASK                                                     0x00000001L
 #define RDPCSTX5_RDPCSTX_CNTL__RDPCS_SRAM_SOFT_RESET_MASK                                                     0x00000010L
@@ -3075,7 +3075,7 @@
 #define RDPCSTX5_RDPCSTX_CNTL__RDPCS_TX_FIFO_RD_START_DELAY_MASK                                              0x01F00000L
 #define RDPCSTX5_RDPCSTX_CNTL__RDPCS_DPALT_BLOCK_STATUS_MASK                                                  0x04000000L
 #define RDPCSTX5_RDPCSTX_CNTL__RDPCS_CR_REGISTER_BLOCK_EN_MASK                                                0x10000000L
-#define RDPCSTX5_RDPCSTX_CNTL__RDPCS_NON_DPALT_REGISTER_BLOCK_EN_MASK                                         0x20000000L
+#define RDPCSTX5_RDPCSTX_CNTL__RDPCS_ANALN_DPALT_REGISTER_BLOCK_EN_MASK                                         0x20000000L
 #define RDPCSTX5_RDPCSTX_CNTL__RDPCS_TX_SOFT_RESET_MASK                                                       0x80000000L
 //RDPCSTX5_RDPCSTX_CLOCK_CNTL
 #define RDPCSTX5_RDPCSTX_CLOCK_CNTL__RDPCS_EXT_REFCLK_EN__SHIFT                                               0x0

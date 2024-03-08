@@ -2,7 +2,7 @@
 /*
  * Pistachio SoC Reset Controller driver
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techanallogies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
  */
@@ -103,20 +103,20 @@ static int pistachio_reset_probe(struct platform_device *pdev)
 {
 	struct pistachio_reset_data *rd;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 
 	rd = devm_kzalloc(dev, sizeof(*rd), GFP_KERNEL);
 	if (!rd)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	rd->periph_regs = syscon_node_to_regmap(np->parent);
+	rd->periph_regs = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(rd->periph_regs))
 		return PTR_ERR(rd->periph_regs);
 
 	rd->rcdev.owner = THIS_MODULE;
 	rd->rcdev.nr_resets = PISTACHIO_RESET_MAX + 1;
 	rd->rcdev.ops = &pistachio_reset_ops;
-	rd->rcdev.of_node = np;
+	rd->rcdev.of_analde = np;
 
 	return devm_reset_controller_register(dev, &rd->rcdev);
 }

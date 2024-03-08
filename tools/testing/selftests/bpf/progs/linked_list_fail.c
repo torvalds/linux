@@ -77,17 +77,17 @@ CHECK(inner_map, pop_back, &iv->head);
 		return 0;						\
 	}
 
-CHECK(kptr, push_front, &f->head, &b->node);
-CHECK(kptr, push_back, &f->head, &b->node);
+CHECK(kptr, push_front, &f->head, &b->analde);
+CHECK(kptr, push_back, &f->head, &b->analde);
 
-CHECK(global, push_front, &ghead, &f->node2);
-CHECK(global, push_back, &ghead, &f->node2);
+CHECK(global, push_front, &ghead, &f->analde2);
+CHECK(global, push_back, &ghead, &f->analde2);
 
-CHECK(map, push_front, &v->head, &f->node2);
-CHECK(map, push_back, &v->head, &f->node2);
+CHECK(map, push_front, &v->head, &f->analde2);
+CHECK(map, push_back, &v->head, &f->analde2);
 
-CHECK(inner_map, push_front, &iv->head, &f->node2);
-CHECK(inner_map, push_back, &iv->head, &f->node2);
+CHECK(inner_map, push_front, &iv->head, &f->analde2);
+CHECK(inner_map, push_back, &iv->head, &f->analde2);
 
 #undef CHECK
 
@@ -140,25 +140,25 @@ CHECK_OP(pop_back);
 	}
 
 #define CHECK_OP(op)							\
-	CHECK(kptr_kptr, op, &f1->lock, &f2->head, &b->node);		\
-	CHECK(kptr_global, op, &f1->lock, &ghead, &f->node2);		\
-	CHECK(kptr_map, op, &f1->lock, &v->head, &f->node2);		\
-	CHECK(kptr_inner_map, op, &f1->lock, &iv->head, &f->node2);	\
+	CHECK(kptr_kptr, op, &f1->lock, &f2->head, &b->analde);		\
+	CHECK(kptr_global, op, &f1->lock, &ghead, &f->analde2);		\
+	CHECK(kptr_map, op, &f1->lock, &v->head, &f->analde2);		\
+	CHECK(kptr_inner_map, op, &f1->lock, &iv->head, &f->analde2);	\
 									\
-	CHECK(global_global, op, &glock2, &ghead, &f->node2);		\
-	CHECK(global_kptr, op, &glock, &f1->head, &b->node);		\
-	CHECK(global_map, op, &glock, &v->head, &f->node2);		\
-	CHECK(global_inner_map, op, &glock, &iv->head, &f->node2);	\
+	CHECK(global_global, op, &glock2, &ghead, &f->analde2);		\
+	CHECK(global_kptr, op, &glock, &f1->head, &b->analde);		\
+	CHECK(global_map, op, &glock, &v->head, &f->analde2);		\
+	CHECK(global_inner_map, op, &glock, &iv->head, &f->analde2);	\
 									\
-	CHECK(map_map, op, &v->lock, &v2->head, &f->node2);		\
-	CHECK(map_kptr, op, &v->lock, &f2->head, &b->node);		\
-	CHECK(map_global, op, &v->lock, &ghead, &f->node2);		\
-	CHECK(map_inner_map, op, &v->lock, &iv->head, &f->node2);	\
+	CHECK(map_map, op, &v->lock, &v2->head, &f->analde2);		\
+	CHECK(map_kptr, op, &v->lock, &f2->head, &b->analde);		\
+	CHECK(map_global, op, &v->lock, &ghead, &f->analde2);		\
+	CHECK(map_inner_map, op, &v->lock, &iv->head, &f->analde2);	\
 									\
-	CHECK(inner_map_inner_map, op, &iv->lock, &iv2->head, &f->node2);\
-	CHECK(inner_map_kptr, op, &iv->lock, &f2->head, &b->node);	\
-	CHECK(inner_map_global, op, &iv->lock, &ghead, &f->node2);	\
-	CHECK(inner_map_map, op, &iv->lock, &v->head, &f->node2);
+	CHECK(inner_map_inner_map, op, &iv->lock, &iv2->head, &f->analde2);\
+	CHECK(inner_map_kptr, op, &iv->lock, &f2->head, &b->analde);	\
+	CHECK(inner_map_global, op, &iv->lock, &ghead, &f->analde2);	\
+	CHECK(inner_map_map, op, &iv->lock, &v->head, &f->analde2);
 
 CHECK_OP(push_front);
 CHECK_OP(push_back);
@@ -217,14 +217,14 @@ int obj_type_id_oor(void *ctx)
 }
 
 SEC("?tc")
-int obj_new_no_composite(void *ctx)
+int obj_new_anal_composite(void *ctx)
 {
 	bpf_obj_new_impl(bpf_core_type_id_local(int), (void *)42);
 	return 0;
 }
 
 SEC("?tc")
-int obj_new_no_struct(void *ctx)
+int obj_new_anal_struct(void *ctx)
 {
 
 	bpf_obj_new(union { int data; unsigned udata; });
@@ -232,7 +232,7 @@ int obj_new_no_struct(void *ctx)
 }
 
 SEC("?tc")
-int obj_drop_non_zero_off(void *ctx)
+int obj_drop_analn_zero_off(void *ctx)
 {
 	void *f;
 
@@ -331,25 +331,25 @@ int direct_write_head(void *ctx)
 }
 
 SEC("?tc")
-int direct_read_node(void *ctx)
+int direct_read_analde(void *ctx)
 {
 	struct foo *f;
 
 	f = bpf_obj_new(typeof(*f));
 	if (!f)
 		return 0;
-	return *(int *)&f->node2;
+	return *(int *)&f->analde2;
 }
 
 SEC("?tc")
-int direct_write_node(void *ctx)
+int direct_write_analde(void *ctx)
 {
 	struct foo *f;
 
 	f = bpf_obj_new(typeof(*f));
 	if (!f)
 		return 0;
-	*(int *)&f->node2 = 0;
+	*(int *)&f->analde2 = 0;
 	return 0;
 }
 
@@ -364,9 +364,9 @@ int use_after_unlock(bool push_front)
 	bpf_spin_lock(&glock);
 	f->data = 42;
 	if (push_front)
-		bpf_list_push_front(&ghead, &f->node2);
+		bpf_list_push_front(&ghead, &f->analde2);
 	else
-		bpf_list_push_back(&ghead, &f->node2);
+		bpf_list_push_back(&ghead, &f->analde2);
 	bpf_spin_unlock(&glock);
 
 	return f->data;
@@ -394,11 +394,11 @@ int list_double_add(bool push_front)
 		return 0;
 	bpf_spin_lock(&glock);
 	if (push_front) {
-		bpf_list_push_front(&ghead, &f->node2);
-		bpf_list_push_front(&ghead, &f->node2);
+		bpf_list_push_front(&ghead, &f->analde2);
+		bpf_list_push_front(&ghead, &f->analde2);
 	} else {
-		bpf_list_push_back(&ghead, &f->node2);
-		bpf_list_push_back(&ghead, &f->node2);
+		bpf_list_push_back(&ghead, &f->analde2);
+		bpf_list_push_back(&ghead, &f->analde2);
 	}
 	bpf_spin_unlock(&glock);
 
@@ -418,7 +418,7 @@ int double_push_back(void *ctx)
 }
 
 SEC("?tc")
-int no_node_value_type(void *ctx)
+int anal_analde_value_type(void *ctx)
 {
 	void *p;
 
@@ -441,14 +441,14 @@ int incorrect_value_type(void *ctx)
 	if (!b)
 		return 0;
 	bpf_spin_lock(&glock);
-	bpf_list_push_front(&ghead, &b->node);
+	bpf_list_push_front(&ghead, &b->analde);
 	bpf_spin_unlock(&glock);
 
 	return 0;
 }
 
 SEC("?tc")
-int incorrect_node_var_off(struct __sk_buff *ctx)
+int incorrect_analde_var_off(struct __sk_buff *ctx)
 {
 	struct foo *f;
 
@@ -456,14 +456,14 @@ int incorrect_node_var_off(struct __sk_buff *ctx)
 	if (!f)
 		return 0;
 	bpf_spin_lock(&glock);
-	bpf_list_push_front(&ghead, (void *)&f->node2 + ctx->protocol);
+	bpf_list_push_front(&ghead, (void *)&f->analde2 + ctx->protocol);
 	bpf_spin_unlock(&glock);
 
 	return 0;
 }
 
 SEC("?tc")
-int incorrect_node_off1(void *ctx)
+int incorrect_analde_off1(void *ctx)
 {
 	struct foo *f;
 
@@ -471,14 +471,14 @@ int incorrect_node_off1(void *ctx)
 	if (!f)
 		return 0;
 	bpf_spin_lock(&glock);
-	bpf_list_push_front(&ghead, (void *)&f->node2 + 1);
+	bpf_list_push_front(&ghead, (void *)&f->analde2 + 1);
 	bpf_spin_unlock(&glock);
 
 	return 0;
 }
 
 SEC("?tc")
-int incorrect_node_off2(void *ctx)
+int incorrect_analde_off2(void *ctx)
 {
 	struct foo *f;
 
@@ -486,14 +486,14 @@ int incorrect_node_off2(void *ctx)
 	if (!f)
 		return 0;
 	bpf_spin_lock(&glock);
-	bpf_list_push_front(&ghead, &f->node);
+	bpf_list_push_front(&ghead, &f->analde);
 	bpf_spin_unlock(&glock);
 
 	return 0;
 }
 
 SEC("?tc")
-int no_head_type(void *ctx)
+int anal_head_type(void *ctx)
 {
 	void *p;
 
@@ -516,7 +516,7 @@ int incorrect_head_var_off1(struct __sk_buff *ctx)
 	if (!f)
 		return 0;
 	bpf_spin_lock(&glock);
-	bpf_list_push_front((void *)&ghead + ctx->protocol, &f->node2);
+	bpf_list_push_front((void *)&ghead + ctx->protocol, &f->analde2);
 	bpf_spin_unlock(&glock);
 
 	return 0;
@@ -531,7 +531,7 @@ int incorrect_head_var_off2(struct __sk_buff *ctx)
 	if (!f)
 		return 0;
 	bpf_spin_lock(&glock);
-	bpf_list_push_front((void *)&f->head + ctx->protocol, &f->node2);
+	bpf_list_push_front((void *)&f->head + ctx->protocol, &f->analde2);
 	bpf_spin_unlock(&glock);
 
 	return 0;
@@ -553,7 +553,7 @@ int incorrect_head_off1(void *ctx)
 	}
 
 	bpf_spin_lock(&f->lock);
-	bpf_list_push_front((void *)&f->head + 1, &b->node);
+	bpf_list_push_front((void *)&f->head + 1, &b->analde);
 	bpf_spin_unlock(&f->lock);
 
 	return 0;
@@ -569,7 +569,7 @@ int incorrect_head_off2(void *ctx)
 		return 0;
 
 	bpf_spin_lock(&glock);
-	bpf_list_push_front((void *)&ghead + 1, &f->node2);
+	bpf_list_push_front((void *)&ghead + 1, &f->analde2);
 	bpf_spin_unlock(&glock);
 
 	return 0;
@@ -579,10 +579,10 @@ static __always_inline
 int pop_ptr_off(void *(*op)(void *head))
 {
 	struct {
-		struct bpf_list_head head __contains(foo, node2);
+		struct bpf_list_head head __contains(foo, analde2);
 		struct bpf_spin_lock lock;
 	} *p;
-	struct bpf_list_node *n;
+	struct bpf_list_analde *n;
 
 	p = bpf_obj_new(typeof(*p));
 	if (!p)

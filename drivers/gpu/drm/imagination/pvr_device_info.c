@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_device.h"
 #include "pvr_device_info.h"
@@ -224,7 +224,7 @@ int pvr_device_info_set_features(struct pvr_device *pvr_dev, const u64 *features
 
 	BUILD_BUG_ON(ARRAY_SIZE(features_mapping) != PVR_FW_HAS_FEATURE_MAX);
 
-	/* Verify no unsupported values in the bitmask. */
+	/* Verify anal unsupported values in the bitmask. */
 	if (features_size > mapping_max_size) {
 		drm_warn(from_pvr_device(pvr_dev), "Unsupported features in firmware image");
 	} else if (features_size == mapping_max_size &&

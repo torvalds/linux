@@ -39,7 +39,7 @@ static void __iomem *mmp_timer_base;
 
 /*
  * Read the timer through the CVWR register. Delay is required after requesting
- * a read. The CR register cannot be directly read due to metastability issues
+ * a read. The CR register cananalt be directly read due to metastability issues
  * documented in the PXA168 software manual.
  */
 static inline uint32_t timer_read(void)
@@ -55,7 +55,7 @@ static inline uint32_t timer_read(void)
 	return val;
 }
 
-static u64 notrace mmp_read_sched_clock(void)
+static u64 analtrace mmp_read_sched_clock(void)
 {
 	return timer_read();
 }
@@ -188,7 +188,7 @@ static void __init mmp_timer_init(int irq, unsigned long rate)
 	clockevents_config_and_register(&ckevt, rate, MIN_DELTA, MAX_DELTA);
 }
 
-static int __init mmp_dt_init_timer(struct device_node *np)
+static int __init mmp_dt_init_timer(struct device_analde *np)
 {
 	struct clk *clk;
 	int irq, ret;
@@ -212,7 +212,7 @@ static int __init mmp_dt_init_timer(struct device_node *np)
 
 	mmp_timer_base = of_iomap(np, 0);
 	if (!mmp_timer_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mmp_timer_init(irq, rate);
 	return 0;

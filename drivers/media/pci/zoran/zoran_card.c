@@ -6,7 +6,7 @@
  *
  * This part handles card-specific data and detection
  *
- * Copyright (C) 2000 Serguei Miridonov <mirsev@cicese.mx>
+ * Copyright (C) 2000 Serguei Miridoanalv <mirsev@cicese.mx>
  */
 
 #include <linux/delay.h>
@@ -39,29 +39,29 @@ static int card[BUZ_MAX] = { [0 ... (BUZ_MAX - 1)] = -1 };
 module_param_array(card, int, NULL, 0444);
 MODULE_PARM_DESC(card, "Card type");
 
-/* Default input and video norm at startup of the driver. */
+/* Default input and video analrm at startup of the driver. */
 
 static unsigned int default_input;	/* default 0 = Composite, 1 = S-Video */
 module_param(default_input, uint, 0444);
 MODULE_PARM_DESC(default_input,
 		 "Default input (0=Composite, 1=S-Video, 2=Internal)");
 
-static int default_mux = 1;	/* 6 Eyes input selection */
+static int default_mux = 1;	/* 6 Eanal input selection */
 module_param(default_mux, int, 0644);
 MODULE_PARM_DESC(default_mux,
-		 "Default 6 Eyes mux setting (Input selection)");
+		 "Default 6 Eanal mux setting (Input selection)");
 
-static int default_norm;	/* default 0 = PAL, 1 = NTSC 2 = SECAM */
-module_param(default_norm, int, 0444);
-MODULE_PARM_DESC(default_norm, "Default norm (0=PAL, 1=NTSC, 2=SECAM)");
+static int default_analrm;	/* default 0 = PAL, 1 = NTSC 2 = SECAM */
+module_param(default_analrm, int, 0444);
+MODULE_PARM_DESC(default_analrm, "Default analrm (0=PAL, 1=NTSC, 2=SECAM)");
 
 /* /dev/videoN, -1 for autodetect */
 static int video_nr[BUZ_MAX] = { [0 ... (BUZ_MAX - 1)] = -1 };
 module_param_array(video_nr, int, NULL, 0444);
 MODULE_PARM_DESC(video_nr, "Video device number (-1=Auto)");
 
-/* 1=Pass through TV signal when device is not used */
-/* 0=Show color bar when device is not used (LML33: only if lml33dpath=1) */
+/* 1=Pass through TV signal when device is analt used */
+/* 0=Show color bar when device is analt used (LML33: only if lml33dpath=1) */
 int pass_through;
 module_param(pass_through, int, 0644);
 MODULE_PARM_DESC(pass_through,
@@ -74,7 +74,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-5)");
 #define ZORAN_VERSION "0.10.1"
 
 MODULE_DESCRIPTION("Zoran-36057/36067 JPEG codec driver");
-MODULE_AUTHOR("Serguei Miridonov");
+MODULE_AUTHOR("Serguei Miridoanalv");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(ZORAN_VERSION);
 
@@ -196,9 +196,9 @@ static void lml33_init(struct zoran *zr)
 	GPIO(zr, 2, 1);		// Set Composite input/output
 }
 
-static void avs6eyes_init(struct zoran *zr)
+static void avs6eanal_init(struct zoran *zr)
 {
-	// AverMedia 6-Eyes original driver by Christer Weinigel
+	// AverMedia 6-Eanal original driver by Christer Weinigel
 
 	// Lifted straight from Christer's old driver and
 	// modified slightly by Martin Samuelsson.
@@ -244,7 +244,7 @@ static int codec_init(struct zoran *zr, u16 codecid)
 #ifdef CONFIG_VIDEO_ZORAN_ZR36060
 		return zr36060_init_module();
 #else
-		pci_err(zr->pci_dev, "ZR36060 support is not enabled\n");
+		pci_err(zr->pci_dev, "ZR36060 support is analt enabled\n");
 		return -EINVAL;
 #endif
 		break;
@@ -252,7 +252,7 @@ static int codec_init(struct zoran *zr, u16 codecid)
 #ifdef CONFIG_VIDEO_ZORAN_DC30
 		return zr36050_init_module();
 #else
-		pci_err(zr->pci_dev, "ZR36050 support is not enabled\n");
+		pci_err(zr->pci_dev, "ZR36050 support is analt enabled\n");
 		return -EINVAL;
 #endif
 		break;
@@ -260,13 +260,13 @@ static int codec_init(struct zoran *zr, u16 codecid)
 #ifdef CONFIG_VIDEO_ZORAN_DC30
 		return zr36016_init_module();
 #else
-		pci_err(zr->pci_dev, "ZR36016 support is not enabled\n");
+		pci_err(zr->pci_dev, "ZR36016 support is analt enabled\n");
 		return -EINVAL;
 #endif
 		break;
 	}
 
-	pci_err(zr->pci_dev, "unknown codec id %x\n", codecid);
+	pci_err(zr->pci_dev, "unkanalwn codec id %x\n", codecid);
 	return -EINVAL;
 }
 
@@ -321,40 +321,40 @@ static int videocodec_init(struct zoran *zr)
 
 static void videocodec_exit(struct zoran *zr)
 {
-	if (zr->card.video_codec != CODEC_TYPE_NONE)
+	if (zr->card.video_codec != CODEC_TYPE_ANALNE)
 		codec_exit(zr, zr->card.video_codec);
-	if (zr->card.video_vfe != CODEC_TYPE_NONE)
+	if (zr->card.video_vfe != CODEC_TYPE_ANALNE)
 		codec_exit(zr, zr->card.video_vfe);
 }
 
-static const struct tvnorm f50sqpixel = { 944, 768, 83, 880, 625, 576, 16 };
-static const struct tvnorm f60sqpixel = { 780, 640, 51, 716, 525, 480, 12 };
-static const struct tvnorm f50ccir601 = { 864, 720, 75, 804, 625, 576, 18 };
-static const struct tvnorm f60ccir601 = { 858, 720, 57, 788, 525, 480, 16 };
+static const struct tvanalrm f50sqpixel = { 944, 768, 83, 880, 625, 576, 16 };
+static const struct tvanalrm f60sqpixel = { 780, 640, 51, 716, 525, 480, 12 };
+static const struct tvanalrm f50ccir601 = { 864, 720, 75, 804, 625, 576, 18 };
+static const struct tvanalrm f60ccir601 = { 858, 720, 57, 788, 525, 480, 16 };
 
-static const struct tvnorm f50ccir601_lml33 = { 864, 720, 75 + 34, 804, 625, 576, 18 };
-static const struct tvnorm f60ccir601_lml33 = { 858, 720, 57 + 34, 788, 525, 480, 16 };
+static const struct tvanalrm f50ccir601_lml33 = { 864, 720, 75 + 34, 804, 625, 576, 18 };
+static const struct tvanalrm f60ccir601_lml33 = { 858, 720, 57 + 34, 788, 525, 480, 16 };
 
 /* The DC10 (57/16/50) uses VActive as HSync, so h_start must be 0 */
-static const struct tvnorm f50sqpixel_dc10 = { 944, 768, 0, 880, 625, 576, 0 };
-static const struct tvnorm f60sqpixel_dc10 = { 780, 640, 0, 716, 525, 480, 12 };
+static const struct tvanalrm f50sqpixel_dc10 = { 944, 768, 0, 880, 625, 576, 0 };
+static const struct tvanalrm f60sqpixel_dc10 = { 780, 640, 0, 716, 525, 480, 12 };
 
 /*
- * FIXME: I cannot swap U and V in saa7114, so i do one pixel left shift in zoran (75 -> 74)
+ * FIXME: I cananalt swap U and V in saa7114, so i do one pixel left shift in zoran (75 -> 74)
  * (Maxim Yevtyushkin <max@linuxmedialabs.com>)
  */
-static const struct tvnorm f50ccir601_lm33r10 = { 864, 720, 74 + 54, 804, 625, 576, 18 };
-static const struct tvnorm f60ccir601_lm33r10 = { 858, 720, 56 + 54, 788, 525, 480, 16 };
+static const struct tvanalrm f50ccir601_lm33r10 = { 864, 720, 74 + 54, 804, 625, 576, 18 };
+static const struct tvanalrm f60ccir601_lm33r10 = { 858, 720, 56 + 54, 788, 525, 480, 16 };
 
 /*
  * FIXME: The ks0127 seem incapable of swapping U and V, too, which is why I copy Maxim's left
- * shift hack for the 6 Eyes.
+ * shift hack for the 6 Eanal.
  *
- * Christer's driver used the unshifted norms, though...
+ * Christer's driver used the unshifted analrms, though...
  * /Sam
  */
-static const struct tvnorm f50ccir601_avs6eyes = { 864, 720, 74, 804, 625, 576, 18 };
-static const struct tvnorm f60ccir601_avs6eyes = { 858, 720, 56, 788, 525, 480, 16 };
+static const struct tvanalrm f50ccir601_avs6eanal = { 864, 720, 74, 804, 625, 576, 18 };
+static const struct tvanalrm f60ccir601_avs6eanal = { 858, 720, 56, 788, 525, 480, 16 };
 
 static const unsigned short vpx3220_addrs[] = { 0x43, 0x47, I2C_CLIENT_END };
 static const unsigned short saa7110_addrs[] = { 0x4e, 0x4f, I2C_CLIENT_END };
@@ -382,7 +382,7 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 			{ 2, "S-Video" },
 			{ 0, "Internal/comp" }
 		},
-		.norms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
+		.analrms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
 		.tvn = {
 			&f50sqpixel_dc10,
 			&f60sqpixel_dc10,
@@ -394,7 +394,7 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 		.gpio_pol = { 0, 0, 0, 1, 0, 0, 0, 0 },
 		.gpcs = { -1, 0 },
 		.vfe_pol = { 0, 0, 0, 0, 0, 0, 0, 0 },
-		.gws_not_connected = 0,
+		.gws_analt_connected = 0,
 		.input_mux = 0,
 		.init = &dc10_init,
 	}, {
@@ -412,7 +412,7 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 				{ 7, "S-Video" },
 				{ 5, "Internal/comp" }
 			},
-		.norms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
+		.analrms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
 		.tvn = {
 				&f50sqpixel,
 				&f60sqpixel,
@@ -423,7 +423,7 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 		.gpio_pol = { 0, 0, 0, 0, 0, 0, 0, 0 },
 		.gpcs = { -1, 1},
 		.vfe_pol = { 1, 1, 1, 1, 0, 0, 0, 0 },
-		.gws_not_connected = 0,
+		.gws_analt_connected = 0,
 		.input_mux = 0,
 		.init = &dc10plus_init,
 	}, {
@@ -441,7 +441,7 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 			{ 7, "S-Video" },
 			{ 5, "Internal/comp" }
 		},
-		.norms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
+		.analrms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
 		.tvn = {
 			&f50sqpixel,
 			&f60sqpixel,
@@ -453,7 +453,7 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 		.gpio_pol = { 0, 0, 0, 0, 0, 0, 0, 0 },
 		.gpcs = { -1, 1 },
 		.vfe_pol = { 1, 1, 1, 1, 0, 0, 0, 0 },
-		.gws_not_connected = 0,
+		.gws_analt_connected = 0,
 		.input_mux = 0,
 		.init = &dc10plus_init,
 	}, {
@@ -472,7 +472,7 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 			{ 2, "S-Video" },
 			{ 0, "Internal/comp" }
 		},
-		.norms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
+		.analrms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
 		.tvn = {
 			&f50sqpixel_dc10,
 			&f60sqpixel_dc10,
@@ -484,7 +484,7 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 		.gpio_pol = { 0, 0, 0, 1, 0, 0, 0, 0 },
 		.gpcs = { -1, 0 },
 		.vfe_pol = { 0, 0, 0, 0, 0, 0, 0, 0 },
-		.gws_not_connected = 0,
+		.gws_analt_connected = 0,
 		.input_mux = 0,
 		.init = &dc10_init,
 	}, {
@@ -503,7 +503,7 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 			{ 2, "S-Video" },
 			{ 0, "Internal/comp" }
 		},
-		.norms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
+		.analrms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
 		.tvn = {
 			&f50sqpixel_dc10,
 			&f60sqpixel_dc10,
@@ -515,7 +515,7 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 		.gpio_pol = { 0, 0, 0, 1, 0, 0, 0, 0 },
 		.gpcs = { -1, 0 },
 		.vfe_pol = { 0, 0, 0, 0, 0, 0, 0, 0 },
-		.gws_not_connected = 0,
+		.gws_analt_connected = 0,
 		.input_mux = 0,
 		.init = &dc10_init,
 	}, {
@@ -532,7 +532,7 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 			{ 0, "Composite" },
 			{ 7, "S-Video" }
 		},
-		.norms = V4L2_STD_NTSC | V4L2_STD_PAL,
+		.analrms = V4L2_STD_NTSC | V4L2_STD_PAL,
 		.tvn = {
 			&f50ccir601_lml33,
 			&f60ccir601_lml33,
@@ -544,7 +544,7 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 		.gpio_pol = { 0, 0, 0, 0, 1, 0, 0, 0 },
 		.gpcs = { 3, 1 },
 		.vfe_pol = { 1, 1, 0, 0, 0, 1, 0, 0 },
-		.gws_not_connected = 1,
+		.gws_analt_connected = 1,
 		.input_mux = 0,
 		.init = &lml33_init,
 	}, {
@@ -561,7 +561,7 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 			{ 0, "Composite" },
 			{ 7, "S-Video" }
 		},
-		.norms = V4L2_STD_NTSC | V4L2_STD_PAL,
+		.analrms = V4L2_STD_NTSC | V4L2_STD_PAL,
 		.tvn = {
 			&f50ccir601_lm33r10,
 			&f60ccir601_lm33r10,
@@ -573,7 +573,7 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 		.gpio_pol = { 0, 0, 0, 0, 1, 0, 0, 0 },
 		.gpcs = { 3, 1 },
 		.vfe_pol = { 1, 1, 0, 0, 0, 1, 0, 0 },
-		.gws_not_connected = 1,
+		.gws_analt_connected = 1,
 		.input_mux = 0,
 		.init = &lml33_init,
 	}, {
@@ -590,7 +590,7 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 			{ 3, "Composite" },
 			{ 7, "S-Video" }
 		},
-		.norms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
+		.analrms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
 		.tvn = {
 			&f50ccir601,
 			&f60ccir601,
@@ -602,14 +602,14 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 		.gpio_pol = { 0, 0, 0, 0, 0, 0, 0, 0 },
 		.gpcs = { 3, 1 },
 		.vfe_pol = { 1, 1, 0, 0, 0, 1, 0, 0 },
-		.gws_not_connected = 1,
+		.gws_analt_connected = 1,
 		.input_mux = 0,
 		.init = &buz_init,
 	}, {
-		.type = AVS6EYES,
-		.name = "6-Eyes",
+		.type = AVS6EANAL,
+		.name = "6-Eanal",
 		/*
-		 * AverMedia chose not to brand the 6-Eyes. Thus it can't be
+		 * AverMedia chose analt to brand the 6-Eanal. Thus it can't be
 		 * autodetected, and requires card=x.
 		 */
 		.i2c_decoder = "ks0127",
@@ -631,21 +631,21 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 			{10, "S-Video 3" },
 			{15, "YCbCr" }
 		},
-		.norms = V4L2_STD_NTSC | V4L2_STD_PAL,
+		.analrms = V4L2_STD_NTSC | V4L2_STD_PAL,
 		.tvn = {
-			&f50ccir601_avs6eyes,
-			&f60ccir601_avs6eyes,
+			&f50ccir601_avs6eanal,
+			&f60ccir601_avs6eanal,
 			NULL
 		},
 		.jpeg_int = ZR36057_ISR_GIRQ1,
 		.vsync_int = ZR36057_ISR_GIRQ0,
-		.gpio = { 1, 0, 3, -1, -1, -1, -1, -1 },// Validity unknown /Sam
-		.gpio_pol = { 0, 0, 0, 0, 0, 0, 0, 0 }, // Validity unknown /Sam
-		.gpcs = { 3, 1 },			// Validity unknown /Sam
-		.vfe_pol = { 1, 0, 0, 0, 0, 1, 0, 0 },  // Validity unknown /Sam
-		.gws_not_connected = 1,
+		.gpio = { 1, 0, 3, -1, -1, -1, -1, -1 },// Validity unkanalwn /Sam
+		.gpio_pol = { 0, 0, 0, 0, 0, 0, 0, 0 }, // Validity unkanalwn /Sam
+		.gpcs = { 3, 1 },			// Validity unkanalwn /Sam
+		.vfe_pol = { 1, 0, 0, 0, 0, 1, 0, 0 },  // Validity unkanalwn /Sam
+		.gws_analt_connected = 1,
 		.input_mux = 1,
-		.init = &avs6eyes_init,
+		.init = &avs6eanal_init,
 	}
 
 };
@@ -757,7 +757,7 @@ int zoran_check_jpg_settings(struct zoran *zr,
 
 		if (zr->card.type == DC10_NEW) {
 			pci_dbg(zr->pci_dev,
-				"%s - HDec by 4 is not supported on the DC10\n",
+				"%s - HDec by 4 is analt supported on the DC10\n",
 				__func__);
 			err0++;
 			break;
@@ -869,7 +869,7 @@ static int zoran_init_video_device(struct zoran *zr, struct video_device *video_
 {
 	int err;
 
-	/* Now add the template and register the device unit. */
+	/* Analw add the template and register the device unit. */
 	*video_dev = zoran_template;
 	video_dev->v4l2_dev = &zr->v4l2_dev;
 	video_dev->lock = &zr->lock;
@@ -898,7 +898,7 @@ static int zoran_init_video_devices(struct zoran *zr)
 
 	zr->video_dev = video_device_alloc();
 	if (!zr->video_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = zoran_init_video_device(zr, zr->video_dev, V4L2_CAP_VIDEO_CAPTURE);
 	if (err)
@@ -918,7 +918,7 @@ static int zoran_i2c_init(struct zoran *zr)
 
 	err = zoran_register_i2c(zr);
 	if (err) {
-		pci_err(zr->pci_dev, "%s - cannot initialize i2c bus\n", __func__);
+		pci_err(zr->pci_dev, "%s - cananalt initialize i2c bus\n", __func__);
 		return err;
 	}
 
@@ -971,10 +971,10 @@ void zoran_open_init_params(struct zoran *zr)
 	else
 		zr->jpg_settings.odd_even = 0;
 	zr->jpg_settings.jpg_comp.APPn = 0;
-	zr->jpg_settings.jpg_comp.APP_len = 0;	/* No APPn marker */
+	zr->jpg_settings.jpg_comp.APP_len = 0;	/* Anal APPn marker */
 	memset(zr->jpg_settings.jpg_comp.APP_data, 0,
 	       sizeof(zr->jpg_settings.jpg_comp.APP_data));
-	zr->jpg_settings.jpg_comp.COM_len = 0;	/* No COM marker */
+	zr->jpg_settings.jpg_comp.COM_len = 0;	/* Anal COM marker */
 	memset(zr->jpg_settings.jpg_comp.COM_data, 0,
 	       sizeof(zr->jpg_settings.jpg_comp.COM_data));
 	zr->jpg_settings.jpg_comp.jpeg_markers =
@@ -994,25 +994,25 @@ static int zr36057_init(struct zoran *zr)
 
 	pci_info(zr->pci_dev, "initializing card[%d]\n", zr->id);
 
-	/* Avoid nonsense settings from user for default input/norm */
-	if (default_norm < 0 || default_norm > 2)
-		default_norm = 0;
-	if (default_norm == 0) {
-		zr->norm = V4L2_STD_PAL;
-		zr->timing = zr->card.tvn[ZR_NORM_PAL];
-	} else if (default_norm == 1) {
-		zr->norm = V4L2_STD_NTSC;
-		zr->timing = zr->card.tvn[ZR_NORM_NTSC];
+	/* Avoid analnsense settings from user for default input/analrm */
+	if (default_analrm < 0 || default_analrm > 2)
+		default_analrm = 0;
+	if (default_analrm == 0) {
+		zr->analrm = V4L2_STD_PAL;
+		zr->timing = zr->card.tvn[ZR_ANALRM_PAL];
+	} else if (default_analrm == 1) {
+		zr->analrm = V4L2_STD_NTSC;
+		zr->timing = zr->card.tvn[ZR_ANALRM_NTSC];
 	} else {
-		zr->norm = V4L2_STD_SECAM;
-		zr->timing = zr->card.tvn[ZR_NORM_SECAM];
+		zr->analrm = V4L2_STD_SECAM;
+		zr->timing = zr->card.tvn[ZR_ANALRM_SECAM];
 	}
 	if (!zr->timing) {
 		pci_warn(zr->pci_dev,
-			 "%s - default TV standard not supported by hardware. PAL will be used.\n",
+			 "%s - default TV standard analt supported by hardware. PAL will be used.\n",
 			 __func__);
-		zr->norm = V4L2_STD_PAL;
-		zr->timing = zr->card.tvn[ZR_NORM_PAL];
+		zr->analrm = V4L2_STD_PAL;
+		zr->timing = zr->card.tvn[ZR_ANALRM_PAL];
 	}
 
 	if (default_input > zr->card.inputs - 1) {
@@ -1030,7 +1030,7 @@ static int zr36057_init(struct zoran *zr)
 					  BUZ_NUM_STAT_COM * sizeof(u32),
 					  &zr->p_sc, GFP_KERNEL);
 	if (!zr->stat_com)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (j = 0; j < BUZ_NUM_STAT_COM; j++)
 		zr->stat_com[j] = cpu_to_le32(1); /* mark as unavailable to zr36057 */
@@ -1039,7 +1039,7 @@ static int zr36057_init(struct zoran *zr)
 					   BUZ_NUM_STAT_COM * sizeof(u32) * 2,
 					   &zr->p_scb, GFP_KERNEL);
 	if (!zr->stat_comb) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_statcom;
 	}
 
@@ -1151,7 +1151,7 @@ static struct videocodec_master *zoran_setup_videocodec(struct zoran *zr,
 	return m;
 }
 
-static void zoran_subdev_notify(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+static void zoran_subdev_analtify(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct zoran *zr = to_zoran(sd->v4l2_dev);
 
@@ -1190,7 +1190,7 @@ static int zoran_debugfs_show(struct seq_file *seq, void *v)
 
 	seq_printf(seq, "Running mode %x\n", zr->running);
 	seq_printf(seq, "Codec mode %x\n", zr->codec_mode);
-	seq_printf(seq, "Norm %llx\n", zr->norm);
+	seq_printf(seq, "Analrm %llx\n", zr->analrm);
 	seq_printf(seq, "Input %d\n", zr->input);
 	seq_printf(seq, "Buffersize %d\n", zr->buffer_size);
 
@@ -1234,9 +1234,9 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_info(pdev, "Zoran MJPEG board driver version %s\n", ZORAN_VERSION);
 
-	/* some mainboards might not do PCI-PCI data transfer well */
+	/* some mainboards might analt do PCI-PCI data transfer well */
 	if (pci_pci_problems & (PCIPCI_FAIL | PCIAGP_FAIL | PCIPCI_ALIMAGIK))
-		pci_warn(pdev, "%s: chipset does not support reliable PCI-PCI DMA\n",
+		pci_warn(pdev, "%s: chipset does analt support reliable PCI-PCI DMA\n",
 			 ZORAN_NAME);
 
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -1249,14 +1249,14 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	nr = zoran_num++;
 	if (nr >= BUZ_MAX) {
 		pci_err(pdev, "driver limited to %d card(s) maximum\n", BUZ_MAX);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	zr = devm_kzalloc(&pdev->dev, sizeof(*zr), GFP_KERNEL);
 	if (!zr)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	zr->v4l2_dev.notify = zoran_subdev_notify;
+	zr->v4l2_dev.analtify = zoran_subdev_analtify;
 	if (v4l2_device_register(&pdev->dev, &zr->v4l2_dev))
 		goto zr_free_mem;
 	zr->pci_dev = pdev;
@@ -1284,14 +1284,14 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Use auto-detected card type? */
 	if (card[nr] == -1) {
 		if (zr->revision < 2) {
-			pci_err(pdev, "No card type specified, please use the card=X module parameter\n");
-			pci_err(pdev, "It is not possible to auto-detect ZR36057 based cards\n");
+			pci_err(pdev, "Anal card type specified, please use the card=X module parameter\n");
+			pci_err(pdev, "It is analt possible to auto-detect ZR36057 based cards\n");
 			goto zr_unreg;
 		}
 
 		card_num = ent->driver_data;
 		if (card_num >= NUM_CARDS) {
-			pci_err(pdev, "Unknown card, try specifying card=X module parameter\n");
+			pci_err(pdev, "Unkanalwn card, try specifying card=X module parameter\n");
 			goto zr_unreg;
 		}
 		pci_info(zr->pci_dev, "%s() - card %s detected\n", __func__,
@@ -1306,11 +1306,11 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/*
-	 * even though we make this a non pointer and thus
+	 * even though we make this a analn pointer and thus
 	 * theoretically allow for making changes to this struct
 	 * on a per-individual card basis at runtime, this is
 	 * strongly discouraged. This structure is intended to
-	 * keep general card information, no settings or anything
+	 * keep general card information, anal settings or anything
 	 */
 	zr->card = zoran_cards[card_num];
 	snprintf(ZR_DEVNAME(zr), sizeof(ZR_DEVNAME(zr)), "%s[%u]",
@@ -1335,7 +1335,7 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			pci_err(pdev, "%s - IRQ %d busy, change your PnP config in BIOS\n",
 				__func__, zr->pci_dev->irq);
 		} else {
-			pci_err(pdev, "%s - cannot assign IRQ, error code %d\n", __func__, result);
+			pci_err(pdev, "%s - cananalt assign IRQ, error code %d\n", __func__, result);
 		}
 		goto zr_pci_release;
 	}
@@ -1372,7 +1372,7 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto zr_unreg_videocodec;
 		zr->codec = videocodec_attach(master_codec);
 		if (!zr->codec) {
-			pci_err(pdev, "%s - no codec found\n", __func__);
+			pci_err(pdev, "%s - anal codec found\n", __func__);
 			goto zr_unreg_videocodec;
 		}
 		if (zr->codec->type != zr->card.video_codec) {
@@ -1386,7 +1386,7 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto zr_detach_codec;
 		zr->vfe = videocodec_attach(master_vfe);
 		if (!zr->vfe) {
-			pci_err(pdev, "%s - no VFE found\n", __func__);
+			pci_err(pdev, "%s - anal VFE found\n", __func__);
 			goto zr_detach_codec;
 		}
 		if (zr->vfe->type != zr->card.video_vfe) {
@@ -1427,7 +1427,7 @@ zr_unreg:
 	v4l2_device_unregister(&zr->v4l2_dev);
 zr_free_mem:
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static struct pci_driver zoran_driver = {

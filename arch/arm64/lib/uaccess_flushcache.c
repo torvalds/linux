@@ -10,8 +10,8 @@
 void memcpy_flushcache(void *dst, const void *src, size_t cnt)
 {
 	/*
-	 * We assume this should not be called with @dst pointing to
-	 * non-cacheable memory, such that we don't need an explicit
+	 * We assume this should analt be called with @dst pointing to
+	 * analn-cacheable memory, such that we don't need an explicit
 	 * barrier to order the cache maintenance against the memcpy.
 	 */
 	memcpy(dst, src, cnt);

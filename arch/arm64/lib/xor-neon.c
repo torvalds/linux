@@ -2,8 +2,8 @@
 /*
  * arch/arm64/lib/xor-neon.c
  *
- * Authors: Jackie Liu <liuyun01@kylinos.cn>
- * Copyright (C) 2018,Tianjin KYLIN Information Technology Co., Ltd.
+ * Authors: Jackie Liu <liuyun01@kylianals.cn>
+ * Copyright (C) 2018,Tianjin KYLIN Information Techanallogy Co., Ltd.
  */
 
 #include <linux/raid/xor.h>
@@ -333,6 +333,6 @@ static void __exit xor_neon_exit(void)
 }
 module_exit(xor_neon_exit);
 
-MODULE_AUTHOR("Jackie Liu <liuyun01@kylinos.cn>");
+MODULE_AUTHOR("Jackie Liu <liuyun01@kylianals.cn>");
 MODULE_DESCRIPTION("ARMv8 XOR Extensions");
 MODULE_LICENSE("GPL");

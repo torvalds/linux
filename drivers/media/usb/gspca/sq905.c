@@ -6,14 +6,14 @@
  */
 
 /*
- * History and Acknowledgments
+ * History and Ackanalwledgments
  *
  * The original Linux driver for SQ905 based cameras was written by
  * Marcell Lengyel and further developed by many other contributors
  * and is available from http://sourceforge.net/projects/sqcam/
  *
  * This driver takes advantage of the reverse engineering work done for
- * that driver and for libgphoto2 but shares no code with them.
+ * that driver and for libgphoto2 but shares anal code with them.
  *
  * This driver has used as a base the finepix driver and other gspca
  * based drivers and may still contain code fragments taken from those
@@ -40,16 +40,16 @@ MODULE_LICENSE("GPL");
 #define SQ905_MAX_TRANSFER 0x8000
 #define FRAME_HEADER_LEN 64
 
-/* The known modes, or registers. These go in the "value" slot. */
+/* The kanalwn modes, or registers. These go in the "value" slot. */
 
-/* 00 is "none" obviously */
+/* 00 is "analne" obviously */
 
 #define SQ905_BULK_READ	0x03	/* precedes any bulk read */
 #define SQ905_COMMAND	0x06	/* precedes the command codes below */
 #define SQ905_PING	0x07	/* when reading an "idling" command */
 #define SQ905_READ_DONE 0xc0    /* ack bulk read completed */
 
-/* Any non-zero value in the bottom 2 bits of the 2nd byte of
+/* Any analn-zero value in the bottom 2 bits of the 2nd byte of
  * the ID appears to indicate the camera can do 640*480. If the
  * LSB of that byte is set the image is just upside down, otherwise
  * it is rotated 180 degrees. */
@@ -59,13 +59,13 @@ MODULE_LICENSE("GPL");
 /* Some command codes. These go in the "index" slot. */
 
 #define SQ905_ID      0xf0	/* asks for model string */
-#define SQ905_CONFIG  0x20	/* gets photo alloc. table, not used here */
-#define SQ905_DATA    0x30	/* accesses photo data, not used here */
+#define SQ905_CONFIG  0x20	/* gets photo alloc. table, analt used here */
+#define SQ905_DATA    0x30	/* accesses photo data, analt used here */
 #define SQ905_CLEAR   0xa0	/* clear everything */
 #define SQ905_CAPTURE_LOW  0x60	/* Starts capture at 160x120 */
 #define SQ905_CAPTURE_MED  0x61	/* Starts capture at 320x240 */
 #define SQ905_CAPTURE_HIGH 0x62	/* Starts capture at 640x480 (some cams only) */
-/* note that the capture command also controls the output dimensions */
+/* analte that the capture command also controls the output dimensions */
 
 /* Structure to hold all of our device specific stuff */
 struct sd {
@@ -79,17 +79,17 @@ struct sd {
 };
 
 static struct v4l2_pix_format sq905_mode[] = {
-	{ 160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{ 160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
-	{ 320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{ 320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
-	{ 640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{ 640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -130,7 +130,7 @@ static int sq905_command(struct gspca_dev *gspca_dev, u16 index)
 }
 
 /*
- * Acknowledge the end of a frame - see warning on sq905_command.
+ * Ackanalwledge the end of a frame - see warning on sq905_command.
  */
 static int sq905_ack_frame(struct gspca_dev *gspca_dev)
 {
@@ -190,7 +190,7 @@ sq905_read_data(struct gspca_dev *gspca_dev, u8 *data, int size, int need_lock)
 /*
  * This function is called as a workqueue function and runs whenever the camera
  * is streaming data. Because it is a workqueue function it is allowed to sleep
- * so we can use synchronous USB calls. To avoid possible collisions with other
+ * so we can use synchroanalus USB calls. To avoid possible collisions with other
  * threads attempting to use gspca_dev->usb_buf we take the usb_lock when
  * performing USB operations using it. In practice we don't really need this
  * as the camera doesn't provide any controls.
@@ -227,7 +227,7 @@ static void sq905_dostream(struct work_struct *work)
 		bytes_left = frame_sz;
 		header_read = 0;
 
-		/* Note we do not check for gspca_dev->streaming here, as
+		/* Analte we do analt check for gspca_dev->streaming here, as
 		   we must finish reading an entire frame, otherwise the
 		   next time we stream we start reading in the middle of a
 		   frame. */
@@ -264,7 +264,7 @@ static void sq905_dostream(struct work_struct *work)
 						NULL, 0);
 		}
 		if (gspca_dev->present) {
-			/* acknowledge the frame */
+			/* ackanalwledge the frame */
 			mutex_lock(&gspca_dev->usb_lock);
 			ret = sq905_ack_frame(gspca_dev);
 			mutex_unlock(&gspca_dev->usb_lock);
@@ -379,7 +379,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* Start the workqueue function to do the streaming */
 	dev->work_thread = create_singlethread_workqueue(MODULE_NAME);
 	if (!dev->work_thread)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	queue_work(dev->work_thread, &dev->work_struct);
 

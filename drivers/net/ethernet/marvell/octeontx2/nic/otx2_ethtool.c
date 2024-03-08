@@ -95,9 +95,9 @@ static void otx2_get_qset_strings(struct otx2_nic *pfvf, u8 **data, int qset)
 
 	for (qidx = 0; qidx < otx2_get_total_tx_queues(pfvf); qidx++) {
 		for (stats = 0; stats < otx2_n_queue_stats; stats++) {
-			if (qidx >= pfvf->hw.non_qos_queues)
+			if (qidx >= pfvf->hw.analn_qos_queues)
 				sprintf(*data, "txq_qos%d: %s",
-					qidx + start_qidx - pfvf->hw.non_qos_queues,
+					qidx + start_qidx - pfvf->hw.analn_qos_queues,
 					otx2_queue_stats[stats].name);
 			else
 				sprintf(*data, "txq%d: %s", qidx + start_qidx,
@@ -180,7 +180,7 @@ static void otx2_get_qset_stats(struct otx2_nic *pfvf,
 static int otx2_get_phy_fec_stats(struct otx2_nic *pfvf)
 {
 	struct msg_req *req;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	mutex_lock(&pfvf->mbox.lock);
 	req = otx2_mbox_alloc_msg_cgx_get_phy_fec_stats(&pfvf->mbox);
@@ -269,7 +269,7 @@ static int otx2_get_sset_count(struct net_device *netdev, int sset)
 	       mac_stats + OTX2_FEC_STATS_CNT + 1;
 }
 
-/* Get no of queues device supports and current queue count */
+/* Get anal of queues device supports and current queue count */
 static void otx2_get_channels(struct net_device *dev,
 			      struct ethtool_channels *channel)
 {
@@ -282,7 +282,7 @@ static void otx2_get_channels(struct net_device *dev,
 	channel->tx_count = pfvf->hw.tx_queues;
 }
 
-/* Set no of Tx, Rx queues to be used */
+/* Set anal of Tx, Rx queues to be used */
 static int otx2_set_channels(struct net_device *dev,
 			     struct ethtool_channels *channel)
 {
@@ -303,7 +303,7 @@ static int otx2_set_channels(struct net_device *dev,
 		dev->netdev_ops->ndo_stop(dev);
 
 	qos_txqs = bitmap_weight(pfvf->qos.qos_sq_bmap,
-				 OTX2_QOS_MAX_LEAF_NODES);
+				 OTX2_QOS_MAX_LEAF_ANALDES);
 
 	err = otx2_set_real_num_queues(dev, channel->tx_count + qos_txqs,
 				       channel->rx_count);
@@ -355,10 +355,10 @@ static int otx2_set_pauseparam(struct net_device *netdev,
 	struct otx2_nic *pfvf = netdev_priv(netdev);
 
 	if (pause->autoneg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (is_otx2_lbkvf(pfvf->pdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (pause->rx_pause)
 		pfvf->flags |= OTX2_FLAG_RX_PAUSE_ENABLED;
@@ -628,7 +628,7 @@ static int otx2_set_rss_hash_opts(struct otx2_nic *pfvf,
 
 	if (!rss->enable) {
 		netdev_err(pfvf->netdev,
-			   "RSS is disabled, cannot change settings\n");
+			   "RSS is disabled, cananalt change settings\n");
 		return -EIO;
 	}
 
@@ -644,7 +644,7 @@ static int otx2_set_rss_hash_opts(struct otx2_nic *pfvf,
 	switch (nfc->flow_type) {
 	case TCP_V4_FLOW:
 	case TCP_V6_FLOW:
-		/* Different config for v4 and v6 is not supported.
+		/* Different config for v4 and v6 is analt supported.
 		 * Both of them have to be either 4-tuple or 2-tuple.
 		 */
 		switch (nfc->data & rxh_l4) {
@@ -694,13 +694,13 @@ static int otx2_set_rss_hash_opts(struct otx2_nic *pfvf,
 				   NIX_FLOW_KEY_TYPE_IPV4_PROTO;
 			break;
 		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			/* If VLAN hashing is also requested for ESP then do not
+			/* If VLAN hashing is also requested for ESP then do analt
 			 * allow because of hardware 40 bytes flow key limit.
 			 */
 			if (rss_cfg & NIX_FLOW_KEY_TYPE_VLAN) {
 				netdev_err(pfvf->netdev,
-					   "RSS hash of ESP or AH with VLAN is not supported\n");
-				return -EOPNOTSUPP;
+					   "RSS hash of ESP or AH with VLAN is analt supported\n");
+				return -EOPANALTSUPP;
 			}
 
 			rss_cfg |= NIX_FLOW_KEY_TYPE_ESP | NIX_FLOW_KEY_TYPE_AH;
@@ -732,7 +732,7 @@ static int otx2_get_rxnfc(struct net_device *dev,
 {
 	bool ntuple = !!(dev->features & NETIF_F_NTUPLE);
 	struct otx2_nic *pfvf = netdev_priv(dev);
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	switch (nfc->cmd) {
 	case ETHTOOL_GRXRINGS:
@@ -765,7 +765,7 @@ static int otx2_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *nfc)
 {
 	bool ntuple = !!(dev->features & NETIF_F_NTUPLE);
 	struct otx2_nic *pfvf = netdev_priv(dev);
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	pfvf->flow_cfg->ntuple = ntuple;
 	switch (nfc->cmd) {
@@ -828,7 +828,7 @@ static int otx2_rss_ctx_create(struct otx2_nic *pfvf,
 
 	rss->rss_ctx[ctx] = kzalloc(sizeof(*rss->rss_ctx[ctx]), GFP_KERNEL);
 	if (!rss->rss_ctx[ctx])
-		return -ENOMEM;
+		return -EANALMEM;
 	*rss_context = ctx;
 
 	return 0;
@@ -845,9 +845,9 @@ static int otx2_set_rxfh(struct net_device *dev,
 	struct otx2_rss_info *rss;
 	int ret, idx;
 
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (rxfh->rss_context)
 		rss_context = rxfh->rss_context;
@@ -859,7 +859,7 @@ static int otx2_set_rxfh(struct net_device *dev,
 	rss = &pfvf->hw.rss_info;
 
 	if (!rss->enable) {
-		netdev_err(dev, "RSS is disabled, cannot change settings\n");
+		netdev_err(dev, "RSS is disabled, cananalt change settings\n");
 		return -EIO;
 	}
 
@@ -913,11 +913,11 @@ static int otx2_get_rxfh(struct net_device *dev,
 		return 0;
 	}
 	if (rss_context >= MAX_RSS_GROUPS)
-		return -ENOENT;
+		return -EANALENT;
 
 	rss_ctx = rss->rss_ctx[rss_context];
 	if (!rss_ctx)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (indir) {
 		for (idx = 0; idx < rss->rss_size; idx++)
@@ -974,7 +974,7 @@ static int otx2_get_ts_info(struct net_device *netdev,
 	if (test_bit(CN10K_PTP_ONESTEP, &pfvf->hw.cap_flag))
 		info->tx_types |= BIT(HWTSTAMP_TX_ONESTEP_SYNC);
 
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+	info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE) |
 			   BIT(HWTSTAMP_FILTER_ALL);
 
 	return 0;
@@ -990,7 +990,7 @@ static struct cgx_fw_data *otx2_get_fwdata(struct otx2_nic *pfvf)
 	req = otx2_mbox_alloc_msg_cgx_get_aux_link_info(&pfvf->mbox);
 	if (!req) {
 		mutex_unlock(&pfvf->mbox.lock);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	err = otx2_sync_mbox_msg(&pfvf->mbox);
@@ -1025,7 +1025,7 @@ static int otx2_get_fecparam(struct net_device *netdev,
 
 	if (rsp->fwdata.supported_fec < FEC_MAX_INDEX) {
 		if (!rsp->fwdata.supported_fec)
-			fecparam->fec = ETHTOOL_FEC_NONE;
+			fecparam->fec = ETHTOOL_FEC_ANALNE;
 		else
 			fecparam->fec = fec[rsp->fwdata.supported_fec];
 	}
@@ -1041,7 +1041,7 @@ static int otx2_set_fecparam(struct net_device *netdev,
 	int err = 0, fec = 0;
 
 	switch (fecparam->fec) {
-	/* Firmware does not support AUTO mode consider it as FEC_OFF */
+	/* Firmware does analt support AUTO mode consider it as FEC_OFF */
 	case ETHTOOL_FEC_OFF:
 	case ETHTOOL_FEC_AUTO:
 		fec = OTX2_FEC_OFF;
@@ -1064,7 +1064,7 @@ static int otx2_set_fecparam(struct net_device *netdev,
 	mutex_lock(&mbox->lock);
 	req = otx2_mbox_alloc_msg_cgx_set_fec_param(&pfvf->mbox);
 	if (!req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto end;
 	}
 	req->fec = fec;
@@ -1089,8 +1089,8 @@ static void otx2_get_fec_info(u64 index, int req_mode,
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(otx2_fec_modes) = { 0, };
 
 	switch (index) {
-	case OTX2_FEC_NONE:
-		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_NONE_BIT,
+	case OTX2_FEC_ANALNE:
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_ANALNE_BIT,
 				 otx2_fec_modes);
 		break;
 	case OTX2_FEC_BASER:
@@ -1219,7 +1219,7 @@ static void otx2_get_advertised_mode(const struct ethtool_link_ksettings *cmd,
 {
 	u32 bit_pos;
 
-	/* Firmware does not support requesting multiple advertised modes
+	/* Firmware does analt support requesting multiple advertised modes
 	 * return first set bit
 	 */
 	bit_pos = find_first_bit(cmd->link_modes.advertising,
@@ -1257,7 +1257,7 @@ static int otx2_set_link_ksettings(struct net_device *netdev,
 	mutex_lock(&mbox->lock);
 	req = otx2_mbox_alloc_msg_cgx_set_link_mode(&pf->mbox);
 	if (!req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto end;
 	}
 

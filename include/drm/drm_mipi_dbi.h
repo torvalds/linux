@@ -2,7 +2,7 @@
 /*
  * MIPI Display Bus Interface (DBI) LCD controller support
  *
- * Copyright 2016 Noralf Trønnes
+ * Copyright 2016 Analralf Trønnes
  */
 
 #ifndef __LINUX_MIPI_DBI_H
@@ -220,9 +220,9 @@ int mipi_dbi_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *
 })
 
 #ifdef CONFIG_DEBUG_FS
-void mipi_dbi_debugfs_init(struct drm_minor *minor);
+void mipi_dbi_debugfs_init(struct drm_mianalr *mianalr);
 #else
-static inline void mipi_dbi_debugfs_init(struct drm_minor *minor) {}
+static inline void mipi_dbi_debugfs_init(struct drm_mianalr *mianalr) {}
 #endif
 
 /**

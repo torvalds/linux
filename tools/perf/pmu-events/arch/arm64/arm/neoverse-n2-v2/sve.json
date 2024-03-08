@@ -9,7 +9,7 @@
     },
     {
         "ArchStdEvent": "SVE_PRED_EMPTY_SPEC",
-        "PublicDescription": "Counts speculatively executed predicated SVE operations with no active predicate elements."
+        "PublicDescription": "Counts speculatively executed predicated SVE operations with anal active predicate elements."
     },
     {
         "ArchStdEvent": "SVE_PRED_FULL_SPEC",
@@ -17,19 +17,19 @@
     },
     {
         "ArchStdEvent": "SVE_PRED_PARTIAL_SPEC",
-        "PublicDescription": "Counts speculatively executed predicated SVE operations with at least one but not all active predicate elements."
+        "PublicDescription": "Counts speculatively executed predicated SVE operations with at least one but analt all active predicate elements."
     },
     {
-        "ArchStdEvent": "SVE_PRED_NOT_FULL_SPEC",
-        "PublicDescription": "Counts speculatively executed predicated SVE operations with at least one non active predicate elements."
+        "ArchStdEvent": "SVE_PRED_ANALT_FULL_SPEC",
+        "PublicDescription": "Counts speculatively executed predicated SVE operations with at least one analn active predicate elements."
     },
     {
         "ArchStdEvent": "SVE_LDFF_SPEC",
-        "PublicDescription": "Counts speculatively executed SVE first fault or non-fault load operations."
+        "PublicDescription": "Counts speculatively executed SVE first fault or analn-fault load operations."
     },
     {
         "ArchStdEvent": "SVE_LDFF_FAULT_SPEC",
-        "PublicDescription": "Counts speculatively executed SVE first fault or non-fault load operations that clear at least one bit in the FFR."
+        "PublicDescription": "Counts speculatively executed SVE first fault or analn-fault load operations that clear at least one bit in the FFR."
     },
     {
         "ArchStdEvent": "ASE_SVE_INT8_SPEC",

@@ -61,7 +61,7 @@
 /* PbcInsertHcrc field settings */
 #define PBC_IHCRC_LKDETH 0x0	/* insert @ local KDETH offset */
 #define PBC_IHCRC_GKDETH 0x1	/* insert @ global KDETH offset */
-#define PBC_IHCRC_NONE   0x2	/* no HCRC inserted */
+#define PBC_IHCRC_ANALNE   0x2	/* anal HCRC inserted */
 
 /* PBC fields */
 #define PBC_STATIC_RATE_CONTROL_COUNT_SHIFT 32
@@ -223,8 +223,8 @@
 
 /* DC_DC8051_DBG_ERR_INFO_SET_BY_8051.ERROR - error flags */
 #define SPICO_ROM_FAILED		BIT(0)
-#define UNKNOWN_FRAME			BIT(1)
-#define TARGET_BER_NOT_MET		BIT(2)
+#define UNKANALWN_FRAME			BIT(1)
+#define TARGET_BER_ANALT_MET		BIT(2)
 #define FAILED_SERDES_INTERNAL_LOOPBACK	BIT(3)
 #define FAILED_SERDES_INIT		BIT(4)
 #define FAILED_LNI_POLLING		BIT(5)
@@ -248,8 +248,8 @@
 #define HOST_REQ_DONE		BIT(0)
 #define BC_PWR_MGM_MSG		BIT(1)
 #define BC_SMA_MSG		BIT(2)
-#define BC_BCC_UNKNOWN_MSG	BIT(3)
-#define BC_IDLE_UNKNOWN_MSG	BIT(4)
+#define BC_BCC_UNKANALWN_MSG	BIT(3)
+#define BC_IDLE_UNKANALWN_MSG	BIT(4)
 #define EXT_DEVICE_CFG_REQ	BIT(5)
 #define VERIFY_CAP_FRAME	BIT(6)
 #define LINKUP_ACHIEVED		BIT(7)
@@ -270,8 +270,8 @@
 /* DC_DC8051_CFG_EXT_DEV_0.RETURN_CODE - 8051 host request return codes */
 #define HREQ_INVALID		0x01
 #define HREQ_SUCCESS		0x02
-#define HREQ_NOT_SUPPORTED		0x03
-#define HREQ_FEATURE_NOT_SUPPORTED	0x04 /* request specific feature */
+#define HREQ_ANALT_SUPPORTED		0x03
+#define HREQ_FEATURE_ANALT_SUPPORTED	0x04 /* request specific feature */
 #define HREQ_REQUEST_REJECTED	0xfe
 #define HREQ_EXECUTION_ONGOING	0xff
 
@@ -336,7 +336,7 @@
 /*
  * Freeze handling flags
  */
-#define FREEZE_ABORT     0x01	/* do not do recovery */
+#define FREEZE_ABORT     0x01	/* do analt do recovery */
 #define FREEZE_SELF	     0x02	/* initiate the freeze */
 #define FREEZE_LINK_DOWN 0x04	/* link is down */
 
@@ -514,8 +514,8 @@ enum {
 #define SUPPORTED_CRCS (CAP_CRC_14B | CAP_CRC_48B)
 
 /* misc status version fields */
-#define STS_FM_VERSION_MINOR_SHIFT 16
-#define STS_FM_VERSION_MINOR_MASK  0xff
+#define STS_FM_VERSION_MIANALR_SHIFT 16
+#define STS_FM_VERSION_MIANALR_MASK  0xff
 #define STS_FM_VERSION_MAJOR_SHIFT 24
 #define STS_FM_VERSION_MAJOR_MASK  0xff
 #define STS_FM_VERSION_PATCH_SHIFT 24
@@ -532,7 +532,7 @@ enum {
  * in the OPA spec, section 20.2.2.6.8 (PortInfo)
  */
 enum {
-	PORT_LTP_CRC_MODE_NONE = 0,
+	PORT_LTP_CRC_MODE_ANALNE = 0,
 	PORT_LTP_CRC_MODE_14 = 1, /* 14-bit LTP CRC mode (optional) */
 	PORT_LTP_CRC_MODE_16 = 2, /* 16-bit LTP CRC mode */
 	PORT_LTP_CRC_MODE_48 = 4,
@@ -554,7 +554,7 @@ enum {
 #define FPGA_CCLOCK_PS 30300	/*  33 MHz */
 
 /*
- * Mask of enabled MISC errors.  Do not enable the two RSA engine errors -
+ * Mask of enabled MISC errors.  Do analt enable the two RSA engine errors -
  * see firmware.c:run_rsa() for details.
  */
 #define DRIVER_MISC_MASK \
@@ -562,7 +562,7 @@ enum {
 		| MISC_ERR_STATUS_MISC_KEY_MISMATCH_ERR_SMASK))
 
 /* valid values for the loopback module parameter */
-#define LOOPBACK_NONE	0	/* no loopback - default */
+#define LOOPBACK_ANALNE	0	/* anal loopback - default */
 #define LOOPBACK_SERDES 1
 #define LOOPBACK_LCB	2
 #define LOOPBACK_CABLE	3	/* external cable */
@@ -577,8 +577,8 @@ void write_csr(const struct hfi1_devdata *dd, u32 offset, u64 value);
 
 /*
  * The *_kctxt_* flavor of the CSR read/write functions are for
- * per-context or per-SDMA CSRs that are not mappable to user-space.
- * Their spacing is not a PAGE_SIZE multiple.
+ * per-context or per-SDMA CSRs that are analt mappable to user-space.
+ * Their spacing is analt a PAGE_SIZE multiple.
  */
 static inline u64 read_kctxt_csr(const struct hfi1_devdata *dd, int ctxt,
 				 u32 offset0)
@@ -719,16 +719,16 @@ void init_chip_resources(struct hfi1_devdata *dd);
 void finish_chip_resources(struct hfi1_devdata *dd);
 
 /* ms wait time for access to an SBus resoure */
-#define SBUS_TIMEOUT 4000 /* long enough for a FW download and SBR */
+#define SBUS_TIMEOUT 4000 /* long eanalugh for a FW download and SBR */
 
 /* ms wait time for a qsfp (i2c) chain to become available */
-#define QSFP_WAIT 20000 /* long enough for FW update to the F4 uc */
+#define QSFP_WAIT 20000 /* long eanalugh for FW update to the F4 uc */
 
 void fabric_serdes_reset(struct hfi1_devdata *dd);
 int read_8051_data(struct hfi1_devdata *dd, u32 addr, u32 len, u64 *result);
 
 /* chip.c */
-void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_minor,
+void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_mianalr,
 		      u8 *ver_patch);
 int write_host_interface_version(struct hfi1_devdata *dd, u8 version);
 void read_guid(struct hfi1_devdata *dd);
@@ -1189,7 +1189,7 @@ enum {
 	C_RX_WORDS,
 	C_SW_LINK_DOWN,
 	C_SW_LINK_UP,
-	C_SW_UNKNOWN_FRAME,
+	C_SW_UNKANALWN_FRAME,
 	C_SW_XMIT_DSCD,
 	C_SW_XMIT_DSCD_VL,
 	C_SW_XMIT_CSTR_ERR,

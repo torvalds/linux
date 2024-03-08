@@ -155,7 +155,7 @@ static int intel_cx0_wait_for_ack(struct drm_i915_private *i915, enum port port,
 		if (!(intel_de_read(i915, XELPDP_PORT_MSGBUS_TIMER(port, lane)) &
 		      XELPDP_PORT_MSGBUS_TIMER_TIMED_OUT))
 			drm_dbg_kms(&i915->drm,
-				    "PHY %c Hardware did not detect a timeout\n",
+				    "PHY %c Hardware did analt detect a timeout\n",
 				    phy_name(phy));
 
 		intel_cx0_bus_reset(i915, port, lane);
@@ -170,7 +170,7 @@ static int intel_cx0_wait_for_ack(struct drm_i915_private *i915, enum port port,
 	}
 
 	if (REG_FIELD_GET(XELPDP_PORT_P2M_COMMAND_TYPE_MASK, *val) != command) {
-		drm_dbg_kms(&i915->drm, "PHY %c Not a %s response. MSGBUS Status: 0x%x.\n", phy_name(phy),
+		drm_dbg_kms(&i915->drm, "PHY %c Analt a %s response. MSGBUS Status: 0x%x.\n", phy_name(phy),
 			    command == XELPDP_PORT_P2M_COMMAND_READ_ACK ? "read" : "write", *val);
 		intel_cx0_bus_reset(i915, port, lane);
 		return -EINVAL;
@@ -209,7 +209,7 @@ static int __intel_cx0_read_once(struct drm_i915_private *i915, enum port port,
 	/*
 	 * FIXME: Workaround to let HW to settle
 	 * down and let the message bus to end up
-	 * in a known state
+	 * in a kanalwn state
 	 */
 	intel_cx0_bus_reset(i915, port, lane);
 
@@ -224,7 +224,7 @@ static u8 __intel_cx0_read(struct drm_i915_private *i915, enum port port,
 
 	assert_dc_off(i915);
 
-	/* 3 tries is assumed to be enough to read successfully */
+	/* 3 tries is assumed to be eanalugh to read successfully */
 	for (i = 0; i < 3; i++) {
 		status = __intel_cx0_read_once(i915, port, lane, addr);
 
@@ -295,7 +295,7 @@ static int __intel_cx0_write_once(struct drm_i915_private *i915, enum port port,
 	/*
 	 * FIXME: Workaround to let HW to settle
 	 * down and let the message bus to end up
-	 * in a known state
+	 * in a kanalwn state
 	 */
 	intel_cx0_bus_reset(i915, port, lane);
 
@@ -310,7 +310,7 @@ static void __intel_cx0_write(struct drm_i915_private *i915, enum port port,
 
 	assert_dc_off(i915);
 
-	/* 3 tries is assumed to be enough to write successfully */
+	/* 3 tries is assumed to be eanalugh to write successfully */
 	for (i = 0; i < 3; i++) {
 		status = __intel_cx0_write_once(i915, port, lane, addr, data, committed);
 
@@ -483,7 +483,7 @@ void intel_cx0_phy_set_signal_levels(struct intel_encoder *encoder,
 
 /*
  * Basic DP link rates with 38.4 MHz reference clock.
- * Note: The tables below are with SSC. In non-ssc
+ * Analte: The tables below are with SSC. In analn-ssc
  * registers 0xC04 to 0xC08(pll[4] to pll[8]) will be
  * programmed 0.
  */
@@ -1924,7 +1924,7 @@ void intel_c10pll_dump_hw_state(struct drm_i915_private *i915,
 
 	fracen = hw_state->pll[0] & C10_PLL0_FRACEN;
 	drm_dbg_kms(&i915->drm, "c10pll_hw_state: fracen: %s, ",
-		    str_yes_no(fracen));
+		    str_anal_anal(fracen));
 
 	if (fracen) {
 		frac_quot = hw_state->pll[12] << 8 | hw_state->pll[11];
@@ -2265,7 +2265,7 @@ static bool intel_c20_protocol_switch_valid(struct intel_encoder *encoder)
 {
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
 
-	/* banks should not be cleared for DPALT/USB4/TBT modes */
+	/* banks should analt be cleared for DPALT/USB4/TBT modes */
 	/* TODO: optimize re-calibration in legacy mode */
 	return intel_tc_port_in_legacy_mode(intel_dig_port);
 }
@@ -2770,7 +2770,7 @@ static void intel_cx0pll_enable(struct intel_encoder *encoder,
 					 intel_cx0_get_pclk_pll_ack(INTEL_CX0_BOTH_LANES),
 					 intel_cx0_get_pclk_pll_ack(maxpclk_lane),
 					 XELPDP_PCLK_PLL_ENABLE_TIMEOUT_US, 0, NULL))
-		drm_warn(&i915->drm, "Port %c PLL not locked after %dus.\n",
+		drm_warn(&i915->drm, "Port %c PLL analt locked after %dus.\n",
 			 phy_name(phy), XELPDP_PCLK_PLL_ENABLE_TIMEOUT_US);
 
 	/*
@@ -2861,7 +2861,7 @@ static void intel_mtl_tbt_pll_enable(struct intel_encoder *encoder,
 					 XELPDP_TBT_CLOCK_ACK,
 					 XELPDP_TBT_CLOCK_ACK,
 					 100, 0, NULL))
-		drm_warn(&i915->drm, "[ENCODER:%d:%s][%c] PHY PLL not locked after 100us.\n",
+		drm_warn(&i915->drm, "[ENCODER:%d:%s][%c] PHY PLL analt locked after 100us.\n",
 			 encoder->base.base.id, encoder->base.name, phy_name(phy));
 
 	/*
@@ -2923,7 +2923,7 @@ static void intel_cx0pll_disable(struct intel_encoder *encoder)
 					 intel_cx0_get_pclk_pll_ack(INTEL_CX0_BOTH_LANES) |
 					 intel_cx0_get_pclk_refclk_ack(INTEL_CX0_BOTH_LANES), 0,
 					 XELPDP_PCLK_PLL_DISABLE_TIMEOUT_US, 0, NULL))
-		drm_warn(&i915->drm, "Port %c PLL not unlocked after %dus.\n",
+		drm_warn(&i915->drm, "Port %c PLL analt unlocked after %dus.\n",
 			 phy_name(phy), XELPDP_PCLK_PLL_DISABLE_TIMEOUT_US);
 
 	/*
@@ -2959,7 +2959,7 @@ static void intel_mtl_tbt_pll_disable(struct intel_encoder *encoder)
 	/* 3. Poll on PORT_CLOCK_CTL TBT CLOCK Ack == "0". */
 	if (__intel_de_wait_for_register(i915, XELPDP_PORT_CLOCK_CTL(encoder->port),
 					 XELPDP_TBT_CLOCK_ACK, 0, 10, 0, NULL))
-		drm_warn(&i915->drm, "[ENCODER:%d:%s][%c] PHY PLL not unlocked after 10us.\n",
+		drm_warn(&i915->drm, "[ENCODER:%d:%s][%c] PHY PLL analt unlocked after 10us.\n",
 			 encoder->base.base.id, encoder->base.name, phy_name(phy));
 
 	/*

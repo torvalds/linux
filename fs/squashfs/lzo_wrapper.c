@@ -46,7 +46,7 @@ failed2:
 failed:
 	ERROR("Failed to allocate lzo workspace\n");
 	kfree(stream);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 

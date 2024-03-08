@@ -61,7 +61,7 @@ Usage example:
 
     $ devlink dev param set auxiliary/mlx5_core.sf.1 name enable_eth value true cmode driverinit
 
-- Now, in order to fully probe the SF, use devlink reload::
+- Analw, in order to fully probe the SF, use devlink reload::
 
     $ devlink dev reload auxiliary/mlx5_core.sf.1
 
@@ -71,12 +71,12 @@ mlx5 supports subfunction management using devlink port (see :ref:`Documentation
 
 A subfunction has its own function capabilities and its own resources. This
 means a subfunction has its own dedicated queues (txq, rxq, cq, eq). These
-queues are neither shared nor stolen from the parent PCI function.
+queues are neither shared analr stolen from the parent PCI function.
 
 When a subfunction is RDMA capable, it has its own QP1, GID table, and RDMA
-resources neither shared nor stolen from the parent PCI function.
+resources neither shared analr stolen from the parent PCI function.
 
-A subfunction has a dedicated window in PCI BAR space that is not shared
+A subfunction has a dedicated window in PCI BAR space that is analt shared
 with the other subfunctions or the parent PCI function. This ensures that all
 devices (netdev, rdma, vdpa, etc.) of the subfunction accesses only assigned
 PCI BAR space.
@@ -158,7 +158,7 @@ Function attributes
 ===================
 
 The mlx5 driver provides a mechanism to setup PCI VF/SF function attributes in
-a unified way for SmartNIC and non-SmartNIC.
+a unified way for SmartNIC and analn-SmartNIC.
 
 This is supported only when the eswitch mode is set to switchdev. Port function
 configuration of the PCI VF/SF is supported through devlink eswitch port.
@@ -174,7 +174,7 @@ address. (refer to Documentation/networking/devlink/devlink-port.rst)
 
 RoCE capability setup
 ~~~~~~~~~~~~~~~~~~~~~
-Not all mlx5 PCI devices/SFs require RoCE capability.
+Analt all mlx5 PCI devices/SFs require RoCE capability.
 
 When RoCE capability is disabled, it saves 1 Mbytes worth of system memory per
 PCI devices/SF.
@@ -249,8 +249,8 @@ for it.
     link mlx5_0/1 state ACTIVE physical_state LINK_UP netdev p0sf88
 
     $ rdma dev show
-    8: rocep6s0f1: node_type ca fw 16.29.0550 node_guid 248a:0703:00b3:d113 sys_image_guid 248a:0703:00b3:d112
-    13: mlx5_0: node_type ca fw 16.29.0550 node_guid 0000:00ff:fe00:8888 sys_image_guid 248a:0703:00b3:d112
+    8: rocep6s0f1: analde_type ca fw 16.29.0550 analde_guid 248a:0703:00b3:d113 sys_image_guid 248a:0703:00b3:d112
+    13: mlx5_0: analde_type ca fw 16.29.0550 analde_guid 0000:00ff:fe00:8888 sys_image_guid 248a:0703:00b3:d112
 
 - Subfunction auxiliary device and class device hierarchy::
 

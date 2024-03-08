@@ -24,11 +24,11 @@ static inline u32 get_umc_reg(struct amd64_pvt *pvt, u32 reg)
 	case UMCCH_DIMM_CFG:		return UMCCH_DIMM_CFG_DDR5;
 	}
 
-	WARN_ONCE(1, "%s: unknown register 0x%x", __func__, reg);
+	WARN_ONCE(1, "%s: unkanalwn register 0x%x", __func__, reg);
 	return 0;
 }
 
-/* Per-node stuff */
+/* Per-analde stuff */
 static struct ecc_settings **ecc_stngs;
 
 /* Device for the PCI component */
@@ -113,7 +113,7 @@ static void f15h_select_dct(struct amd64_pvt *pvt, u8 dct)
  *
  * Depending on the family, F2 DCT reads need special handling:
  *
- * K8: has a single DCT only and no address offsets >= 0x100
+ * K8: has a single DCT only and anal address offsets >= 0x100
  *
  * F10h: each DCT has its own set of regs
  *	DCT0 -> F2x040..
@@ -135,7 +135,7 @@ static inline int amd64_read_dct_pci_cfg(struct amd64_pvt *pvt, u8 dct,
 	case 0x10:
 		if (dct) {
 			/*
-			 * Note: If ganging is enabled, barring the regs
+			 * Analte: If ganging is enabled, barring the regs
 			 * F2x[1,0]98 and F2x[1,0]9C; reads reads to F2x1xx
 			 * return 0. (cf. Section 2.8.1 F10h BKDG)
 			 */
@@ -148,7 +148,7 @@ static inline int amd64_read_dct_pci_cfg(struct amd64_pvt *pvt, u8 dct,
 
 	case 0x15:
 		/*
-		 * F15h: F2x1xx addresses do not map explicitly to DCT1.
+		 * F15h: F2x1xx addresses do analt map explicitly to DCT1.
 		 * We should select which DCT we access using F1x10C[DctCfgSel]
 		 */
 		dct = (dct && pvt->model == 0x30) ? 3 : dct;
@@ -177,7 +177,7 @@ static inline int amd64_read_dct_pci_cfg(struct amd64_pvt *pvt, u8 dct,
  * bytes/sec for the setting.
  *
  * Currently, we only do dram scrubbing. If the scrubbing is done in software on
- * other archs, we might not have access to the caches directly.
+ * other archs, we might analt have access to the caches directly.
  */
 
 /*
@@ -195,7 +195,7 @@ static int __set_scrub_rate(struct amd64_pvt *pvt, u32 new_bw, u32 min_rate)
 	 * bandwidth entry that is greater or equal than the setting requested
 	 * and program that. If at last entry, turn off DRAM scrubbing.
 	 *
-	 * If no suitable bandwidth is found, turn off DRAM scrubbing entirely
+	 * If anal suitable bandwidth is found, turn off DRAM scrubbing entirely
 	 * by falling back to the last element in scrubrates[].
 	 */
 	for (i = 0; i < ARRAY_SIZE(scrubrates) - 1; i++) {
@@ -278,7 +278,7 @@ static int get_scrub_rate(struct mem_ctl_info *mci)
 
 /*
  * returns true if the SysAddr given by sys_addr matches the
- * DRAM base/limit associated with node_id
+ * DRAM base/limit associated with analde_id
  */
 static bool base_limit_match(struct amd64_pvt *pvt, u64 sys_addr, u8 nid)
 {
@@ -297,8 +297,8 @@ static bool base_limit_match(struct amd64_pvt *pvt, u64 sys_addr, u8 nid)
 }
 
 /*
- * Attempt to map a SysAddr to a node. On success, return a pointer to the
- * mem_ctl_info structure for the node that the SysAddr maps to.
+ * Attempt to map a SysAddr to a analde. On success, return a pointer to the
+ * mem_ctl_info structure for the analde that the SysAddr maps to.
  *
  * On failure, return NULL.
  */
@@ -306,28 +306,28 @@ static struct mem_ctl_info *find_mc_by_sys_addr(struct mem_ctl_info *mci,
 						u64 sys_addr)
 {
 	struct amd64_pvt *pvt;
-	u8 node_id;
+	u8 analde_id;
 	u32 intlv_en, bits;
 
 	/*
 	 * Here we use the DRAM Base (section 3.4.4.1) and DRAM Limit (section
-	 * 3.4.4.2) registers to map the SysAddr to a node ID.
+	 * 3.4.4.2) registers to map the SysAddr to a analde ID.
 	 */
 	pvt = mci->pvt_info;
 
 	/*
 	 * The value of this field should be the same for all DRAM Base
 	 * registers.  Therefore we arbitrarily choose to read it from the
-	 * register for node 0.
+	 * register for analde 0.
 	 */
 	intlv_en = dram_intlv_en(pvt, 0);
 
 	if (intlv_en == 0) {
-		for (node_id = 0; node_id < DRAM_RANGES; node_id++) {
-			if (base_limit_match(pvt, sys_addr, node_id))
+		for (analde_id = 0; analde_id < DRAM_RANGES; analde_id++) {
+			if (base_limit_match(pvt, sys_addr, analde_id))
 				goto found;
 		}
-		goto err_no_match;
+		goto err_anal_match;
 	}
 
 	if (unlikely((intlv_en != 0x01) &&
@@ -339,27 +339,27 @@ static struct mem_ctl_info *find_mc_by_sys_addr(struct mem_ctl_info *mci,
 
 	bits = (((u32) sys_addr) >> 12) & intlv_en;
 
-	for (node_id = 0; ; ) {
-		if ((dram_intlv_sel(pvt, node_id) & intlv_en) == bits)
+	for (analde_id = 0; ; ) {
+		if ((dram_intlv_sel(pvt, analde_id) & intlv_en) == bits)
 			break;	/* intlv_sel field matches */
 
-		if (++node_id >= DRAM_RANGES)
-			goto err_no_match;
+		if (++analde_id >= DRAM_RANGES)
+			goto err_anal_match;
 	}
 
 	/* sanity test for sys_addr */
-	if (unlikely(!base_limit_match(pvt, sys_addr, node_id))) {
+	if (unlikely(!base_limit_match(pvt, sys_addr, analde_id))) {
 		amd64_warn("%s: sys_addr 0x%llx falls outside base/limit address"
-			   "range for node %d with node interleaving enabled.\n",
-			   __func__, sys_addr, node_id);
+			   "range for analde %d with analde interleaving enabled.\n",
+			   __func__, sys_addr, analde_id);
 		return NULL;
 	}
 
 found:
-	return edac_mc_find((int)node_id);
+	return edac_mc_find((int)analde_id);
 
-err_no_match:
-	edac_dbg(2, "sys_addr 0x%lx doesn't match any node\n",
+err_anal_match:
+	edac_dbg(2, "sys_addr 0x%lx doesn't match any analde\n",
 		 (unsigned long)sys_addr);
 
 	return NULL;
@@ -438,8 +438,8 @@ static void get_cs_base_and_mask(struct amd64_pvt *pvt, int csrow, u8 dct,
 	for (i = 0; i < pvt->max_mcs; i++)
 
 /*
- * @input_addr is an InputAddr associated with the node given by mci. Return the
- * csrow that input_addr maps to, or -1 on failure (no csrow claims input_addr).
+ * @input_addr is an InputAddr associated with the analde given by mci. Return the
+ * csrow that input_addr maps to, or -1 on failure (anal csrow claims input_addr).
  */
 static int input_addr_to_csrow(struct mem_ctl_info *mci, u64 input_addr)
 {
@@ -458,30 +458,30 @@ static int input_addr_to_csrow(struct mem_ctl_info *mci, u64 input_addr)
 		mask = ~mask;
 
 		if ((input_addr & mask) == (base & mask)) {
-			edac_dbg(2, "InputAddr 0x%lx matches csrow %d (node %d)\n",
+			edac_dbg(2, "InputAddr 0x%lx matches csrow %d (analde %d)\n",
 				 (unsigned long)input_addr, csrow,
-				 pvt->mc_node_id);
+				 pvt->mc_analde_id);
 
 			return csrow;
 		}
 	}
-	edac_dbg(2, "no matching csrow for InputAddr 0x%lx (MC node %d)\n",
-		 (unsigned long)input_addr, pvt->mc_node_id);
+	edac_dbg(2, "anal matching csrow for InputAddr 0x%lx (MC analde %d)\n",
+		 (unsigned long)input_addr, pvt->mc_analde_id);
 
 	return -1;
 }
 
 /*
  * Obtain info from the DRAM Hole Address Register (section 3.4.8, pub #26094)
- * for the node represented by mci. Info is passed back in *hole_base,
+ * for the analde represented by mci. Info is passed back in *hole_base,
  * *hole_offset, and *hole_size.  Function returns 0 if info is valid or 1 if
  * info is invalid. Info may be invalid for either of the following reasons:
  *
- * - The revision of the node is not E or greater.  In this case, the DRAM Hole
- *   Address Register does not exist.
+ * - The revision of the analde is analt E or greater.  In this case, the DRAM Hole
+ *   Address Register does analt exist.
  *
  * - The DramHoleValid bit is cleared in the DRAM Hole Address Register,
- *   indicating that its contents are not valid.
+ *   indicating that its contents are analt valid.
  *
  * The values passed back in *hole_base, *hole_offset, and *hole_size are
  * complete 32-bit values despite the fact that the bitfields in the DHAR
@@ -494,8 +494,8 @@ static int get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 
 	/* only revE and later have the DRAM Hole Address Register */
 	if (pvt->fam == 0xf && pvt->ext_model < K8_REV_E) {
-		edac_dbg(1, "  revision %d for node %d does not support DHAR\n",
-			 pvt->ext_model, pvt->mc_node_id);
+		edac_dbg(1, "  revision %d for analde %d does analt support DHAR\n",
+			 pvt->ext_model, pvt->mc_analde_id);
 		return 1;
 	}
 
@@ -506,12 +506,12 @@ static int get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 	}
 
 	if (!dhar_valid(pvt)) {
-		edac_dbg(1, "  Dram Memory Hoisting is DISABLED on this node %d\n",
-			 pvt->mc_node_id);
+		edac_dbg(1, "  Dram Memory Hoisting is DISABLED on this analde %d\n",
+			 pvt->mc_analde_id);
 		return 1;
 	}
 
-	/* This node has Memory Hoisting */
+	/* This analde has Memory Hoisting */
 
 	/* +------------------+--------------------+--------------------+-----
 	 * | memory           | DRAM hole          | relocated          |
@@ -535,8 +535,8 @@ static int get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 	*hole_offset = (pvt->fam > 0xf) ? f10_dhar_offset(pvt)
 					: k8_dhar_offset(pvt);
 
-	edac_dbg(1, "  DHAR info for node %d base 0x%lx offset 0x%lx size 0x%lx\n",
-		 pvt->mc_node_id, (unsigned long)*hole_base,
+	edac_dbg(1, "  DHAR info for analde %d base 0x%lx offset 0x%lx size 0x%lx\n",
+		 pvt->mc_analde_id, (unsigned long)*hole_base,
 		 (unsigned long)*hole_offset, (unsigned long)*hole_size);
 
 	return 0;
@@ -761,7 +761,7 @@ static ssize_t inject_write_store(struct device *dev,
 
 	word_bits = SET_NB_DRAM_INJECTION_WRITE(pvt->injection);
 
-	pr_notice_once("Don't forget to decrease MCE polling interval in\n"
+	pr_analtice_once("Don't forget to decrease MCE polling interval in\n"
 			"/sys/bus/machinecheck/devices/machinecheck<CPUNUM>/check_interval\n"
 			"so that you can get the error report faster.\n");
 
@@ -825,7 +825,7 @@ static const struct attribute_group inj_group = {
 
 /*
  * Return the DramAddr that the SysAddr given by @sys_addr maps to.  It is
- * assumed that sys_addr maps to the node given by mci.
+ * assumed that sys_addr maps to the analde given by mci.
  *
  * The first part of section 3.4.4 (p. 70) shows how the DRAM Base (section
  * 3.4.4.1) and DRAM Limit (section 3.4.4.2) registers are used to translate a
@@ -834,22 +834,22 @@ static const struct attribute_group inj_group = {
  * 3.4.8 and 3.5.8.2 describe the DHAR and how it is used for memory hoisting.
  * These parts of the documentation are unclear. I interpret them as follows:
  *
- * When node n receives a SysAddr, it processes the SysAddr as follows:
+ * When analde n receives a SysAddr, it processes the SysAddr as follows:
  *
  * 1. It extracts the DRAMBase and DRAMLimit values from the DRAM Base and DRAM
- *    Limit registers for node n. If the SysAddr is not within the range
- *    specified by the base and limit values, then node n ignores the Sysaddr
- *    (since it does not map to node n). Otherwise continue to step 2 below.
+ *    Limit registers for analde n. If the SysAddr is analt within the range
+ *    specified by the base and limit values, then analde n iganalres the Sysaddr
+ *    (since it does analt map to analde n). Otherwise continue to step 2 below.
  *
- * 2. If the DramHoleValid bit of the DHAR for node n is clear, the DHAR is
+ * 2. If the DramHoleValid bit of the DHAR for analde n is clear, the DHAR is
  *    disabled so skip to step 3 below. Otherwise see if the SysAddr is within
  *    the range of relocated addresses (starting at 0x100000000) from the DRAM
- *    hole. If not, skip to step 3 below. Else get the value of the
+ *    hole. If analt, skip to step 3 below. Else get the value of the
  *    DramHoleOffset field from the DHAR. To obtain the DramAddr, subtract the
  *    offset defined by this value from the SysAddr.
  *
- * 3. Obtain the base address for node n from the DRAMBase field of the DRAM
- *    Base register for node n. To obtain the DramAddr, subtract the base
+ * 3. Obtain the base address for analde n from the DRAMBase field of the DRAM
+ *    Base register for analde n. To obtain the DramAddr, subtract the base
  *    address from the SysAddr, as shown near the start of section 3.4.4 (p.70).
  */
 static u64 sys_addr_to_dram_addr(struct mem_ctl_info *mci, u64 sys_addr)
@@ -858,7 +858,7 @@ static u64 sys_addr_to_dram_addr(struct mem_ctl_info *mci, u64 sys_addr)
 	u64 dram_base, hole_base, hole_offset, hole_size, dram_addr;
 	int ret;
 
-	dram_base = get_dram_base(pvt, pvt->mc_node_id);
+	dram_base = get_dram_base(pvt, pvt->mc_analde_id);
 
 	ret = get_dram_hole_info(mci, &hole_base, &hole_offset, &hole_size);
 	if (!ret) {
@@ -894,9 +894,9 @@ static u64 sys_addr_to_dram_addr(struct mem_ctl_info *mci, u64 sys_addr)
 /*
  * @intlv_en is the value of the IntlvEn field from a DRAM Base register
  * (section 3.4.4.1).  Return the number of bits from a SysAddr that are used
- * for node interleaving.
+ * for analde interleaving.
  */
-static int num_node_interleave_bits(unsigned intlv_en)
+static int num_analde_interleave_bits(unsigned intlv_en)
 {
 	static const int intlv_shift_table[] = { 0, 1, 0, 2, 0, 0, 0, 3 };
 	int n;
@@ -919,7 +919,7 @@ static u64 dram_addr_to_input_addr(struct mem_ctl_info *mci, u64 dram_addr)
 	 * See the start of section 3.4.4 (p. 70, BKDG #26094, K8, revA-E)
 	 * concerning translating a DramAddr to an InputAddr.
 	 */
-	intlv_shift = num_node_interleave_bits(dram_intlv_en(pvt, 0));
+	intlv_shift = num_analde_interleave_bits(dram_intlv_en(pvt, 0));
 	input_addr = ((dram_addr >> intlv_shift) & GENMASK_ULL(35, 12)) +
 		      (dram_addr & 0xfff);
 
@@ -932,7 +932,7 @@ static u64 dram_addr_to_input_addr(struct mem_ctl_info *mci, u64 dram_addr)
 
 /*
  * Translate the SysAddr represented by @sys_addr to an InputAddr.  It is
- * assumed that @sys_addr maps to the node given by mci.
+ * assumed that @sys_addr maps to the analde given by mci.
  */
 static u64 sys_addr_to_input_addr(struct mem_ctl_info *mci, u64 sys_addr)
 {
@@ -958,8 +958,8 @@ static inline void error_address_to_page_and_offset(u64 error_address,
 /*
  * @sys_addr is an error address (a SysAddr) extracted from the MCA NB Address
  * Low (section 3.6.4.5) and MCA NB Address High (section 3.6.4.6) registers
- * of a node that detected an ECC memory error.  mci represents the node that
- * the error address maps to (possibly different from the node that detected
+ * of a analde that detected an ECC memory error.  mci represents the analde that
+ * the error address maps to (possibly different from the analde that detected
  * the error).  Return the number of the csrow that sys_addr maps to, or -1 on
  * error.
  */
@@ -976,34 +976,34 @@ static int sys_addr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr)
 }
 
 /*
- * See AMD PPR DF::LclNodeTypeMap
+ * See AMD PPR DF::LclAnaldeTypeMap
  *
- * This register gives information for nodes of the same type within a system.
+ * This register gives information for analdes of the same type within a system.
  *
- * Reading this register from a GPU node will tell how many GPU nodes are in the
- * system and what the lowest AMD Node ID value is for the GPU nodes. Use this
- * info to fixup the Linux logical "Node ID" value set in the AMD NB code and EDAC.
+ * Reading this register from a GPU analde will tell how many GPU analdes are in the
+ * system and what the lowest AMD Analde ID value is for the GPU analdes. Use this
+ * info to fixup the Linux logical "Analde ID" value set in the AMD NB code and EDAC.
  */
-static struct local_node_map {
-	u16 node_count;
-	u16 base_node_id;
-} gpu_node_map;
+static struct local_analde_map {
+	u16 analde_count;
+	u16 base_analde_id;
+} gpu_analde_map;
 
 #define PCI_DEVICE_ID_AMD_MI200_DF_F1		0x14d1
-#define REG_LOCAL_NODE_TYPE_MAP			0x144
+#define REG_LOCAL_ANALDE_TYPE_MAP			0x144
 
-/* Local Node Type Map (LNTM) fields */
-#define LNTM_NODE_COUNT				GENMASK(27, 16)
-#define LNTM_BASE_NODE_ID			GENMASK(11, 0)
+/* Local Analde Type Map (LNTM) fields */
+#define LNTM_ANALDE_COUNT				GENMASK(27, 16)
+#define LNTM_BASE_ANALDE_ID			GENMASK(11, 0)
 
-static int gpu_get_node_map(struct amd64_pvt *pvt)
+static int gpu_get_analde_map(struct amd64_pvt *pvt)
 {
 	struct pci_dev *pdev;
 	int ret;
 	u32 tmp;
 
 	/*
-	 * Mapping of nodes from hardware-provided AMD Node ID to a
+	 * Mapping of analdes from hardware-provided AMD Analde ID to a
 	 * Linux logical one is applicable for MI200 models. Therefore,
 	 * return early for other heterogeneous systems.
 	 */
@@ -1011,44 +1011,44 @@ static int gpu_get_node_map(struct amd64_pvt *pvt)
 		return 0;
 
 	/*
-	 * Node ID 0 is reserved for CPUs. Therefore, a non-zero Node ID
+	 * Analde ID 0 is reserved for CPUs. Therefore, a analn-zero Analde ID
 	 * means the values have been already cached.
 	 */
-	if (gpu_node_map.base_node_id)
+	if (gpu_analde_map.base_analde_id)
 		return 0;
 
 	pdev = pci_get_device(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_MI200_DF_F1, NULL);
 	if (!pdev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
-	ret = pci_read_config_dword(pdev, REG_LOCAL_NODE_TYPE_MAP, &tmp);
+	ret = pci_read_config_dword(pdev, REG_LOCAL_ANALDE_TYPE_MAP, &tmp);
 	if (ret)
 		goto out;
 
-	gpu_node_map.node_count = FIELD_GET(LNTM_NODE_COUNT, tmp);
-	gpu_node_map.base_node_id = FIELD_GET(LNTM_BASE_NODE_ID, tmp);
+	gpu_analde_map.analde_count = FIELD_GET(LNTM_ANALDE_COUNT, tmp);
+	gpu_analde_map.base_analde_id = FIELD_GET(LNTM_BASE_ANALDE_ID, tmp);
 
 out:
 	pci_dev_put(pdev);
 	return ret;
 }
 
-static int fixup_node_id(int node_id, struct mce *m)
+static int fixup_analde_id(int analde_id, struct mce *m)
 {
-	/* MCA_IPID[InstanceIdHi] give the AMD Node ID for the bank. */
+	/* MCA_IPID[InstanceIdHi] give the AMD Analde ID for the bank. */
 	u8 nid = (m->ipid >> 44) & 0xF;
 
 	if (smca_get_bank_type(m->extcpu, m->bank) != SMCA_UMC_V2)
-		return node_id;
+		return analde_id;
 
-	/* Nodes below the GPU base node are CPU nodes and don't need a fixup. */
-	if (nid < gpu_node_map.base_node_id)
-		return node_id;
+	/* Analdes below the GPU base analde are CPU analdes and don't need a fixup. */
+	if (nid < gpu_analde_map.base_analde_id)
+		return analde_id;
 
-	/* Convert the hardware-provided AMD Node ID to a Linux logical one. */
-	return nid - gpu_node_map.base_node_id + 1;
+	/* Convert the hardware-provided AMD Analde ID to a Linux logical one. */
+	return nid - gpu_analde_map.base_analde_id + 1;
 }
 
 /* Protect the PCI config register pairs used for DF indirect access. */
@@ -1067,16 +1067,16 @@ static DEFINE_MUTEX(df_indirect_mutex);
  * Use Instance Id 0xFF to indicate a broadcast read.
  */
 #define DF_BROADCAST	0xFF
-static int __df_indirect_read(u16 node, u8 func, u16 reg, u8 instance_id, u32 *lo)
+static int __df_indirect_read(u16 analde, u8 func, u16 reg, u8 instance_id, u32 *lo)
 {
 	struct pci_dev *F4;
 	u32 ficaa;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
-	if (node >= amd_nb_num())
+	if (analde >= amd_nb_num())
 		goto out;
 
-	F4 = node_to_amd_nb(node)->link;
+	F4 = analde_to_amd_nb(analde)->link;
 	if (!F4)
 		goto out;
 
@@ -1104,14 +1104,14 @@ out:
 	return err;
 }
 
-static int df_indirect_read_instance(u16 node, u8 func, u16 reg, u8 instance_id, u32 *lo)
+static int df_indirect_read_instance(u16 analde, u8 func, u16 reg, u8 instance_id, u32 *lo)
 {
-	return __df_indirect_read(node, func, reg, instance_id, lo);
+	return __df_indirect_read(analde, func, reg, instance_id, lo);
 }
 
-static int df_indirect_read_broadcast(u16 node, u8 func, u16 reg, u32 *lo)
+static int df_indirect_read_broadcast(u16 analde, u8 func, u16 reg, u32 *lo)
 {
-	return __df_indirect_read(node, func, reg, DF_BROADCAST, lo);
+	return __df_indirect_read(analde, func, reg, DF_BROADCAST, lo);
 }
 
 struct addr_ctx {
@@ -1121,7 +1121,7 @@ struct addr_ctx {
 	u8 inst_id;
 };
 
-static int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr)
+static int umc_analrmaddr_to_sysaddr(u64 analrm_addr, u16 nid, u8 umc, u64 *sys_addr)
 {
 	u64 dram_base_addr, dram_limit_addr, dram_hole_base;
 
@@ -1137,8 +1137,8 @@ static int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr
 
 	memset(&ctx, 0, sizeof(ctx));
 
-	/* Start from the normalized address */
-	ctx.ret_addr = norm_addr;
+	/* Start from the analrmalized address */
+	ctx.ret_addr = analrm_addr;
 
 	ctx.nid = nid;
 	ctx.inst_id = umc;
@@ -1147,11 +1147,11 @@ static int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr
 	if (df_indirect_read_instance(nid, 0, 0x1B4, umc, &ctx.tmp))
 		goto out_err;
 
-	/* Remove HiAddrOffset from normalized address, if enabled: */
+	/* Remove HiAddrOffset from analrmalized address, if enabled: */
 	if (ctx.tmp & BIT(0)) {
 		u64 hi_addr_offset = (ctx.tmp & GENMASK_ULL(31, 20)) << 8;
 
-		if (norm_addr >= hi_addr_offset) {
+		if (analrm_addr >= hi_addr_offset) {
 			ctx.ret_addr -= hi_addr_offset;
 			base = 1;
 		}
@@ -1210,7 +1210,7 @@ static int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr
 	num_intlv_bits = intlv_num_chan;
 
 	if (intlv_num_dies > 2) {
-		pr_err("%s: Invalid number of interleaved nodes/dies %d.\n",
+		pr_err("%s: Invalid number of interleaved analdes/dies %d.\n",
 			__func__, intlv_num_dies);
 		goto out_err;
 	}
@@ -1334,7 +1334,7 @@ static int get_channel_from_ecc_syndrome(struct mem_ctl_info *, u16);
  */
 static unsigned long dct_determine_edac_cap(struct amd64_pvt *pvt)
 {
-	unsigned long edac_cap = EDAC_FLAG_NONE;
+	unsigned long edac_cap = EDAC_FLAG_ANALNE;
 	u8 bit;
 
 	bit = (pvt->fam > 0xf || pvt->ext_model >= K8_REV_F)
@@ -1350,7 +1350,7 @@ static unsigned long dct_determine_edac_cap(struct amd64_pvt *pvt)
 static unsigned long umc_determine_edac_cap(struct amd64_pvt *pvt)
 {
 	u8 i, umc_en_mask = 0, dimm_ecc_en_mask = 0;
-	unsigned long edac_cap = EDAC_FLAG_NONE;
+	unsigned long edac_cap = EDAC_FLAG_ANALNE;
 
 	for_each_umc(i) {
 		if (!(pvt->umc[i].sdp_ctrl & UMC_SDP_INIT))
@@ -1380,7 +1380,7 @@ static void dct_debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 	int dimm, size0, size1;
 
 	if (pvt->fam == 0xf) {
-		/* K8 families < revF not supported yet */
+		/* K8 families < revF analt supported yet */
 		if (pvt->ext_model < K8_REV_F)
 			return;
 
@@ -1444,7 +1444,7 @@ static void debug_dump_dramcfg_low(struct amd64_pvt *pvt, u32 dclr, int chan)
 	}
 
 	edac_dbg(1, "All DIMMs support ECC:%s\n",
-		    (dclr & BIT(19)) ? "yes" : "no");
+		    (dclr & BIT(19)) ? "anal" : "anal");
 
 
 	edac_dbg(1, "  PAR/ERR parity: %s\n",
@@ -1455,10 +1455,10 @@ static void debug_dump_dramcfg_low(struct amd64_pvt *pvt, u32 dclr, int chan)
 			 (dclr & BIT(11)) ?  "128b" : "64b");
 
 	edac_dbg(1, "  x4 logical DIMMs present: L0: %s L1: %s L2: %s L3: %s\n",
-		 (dclr & BIT(12)) ?  "yes" : "no",
-		 (dclr & BIT(13)) ?  "yes" : "no",
-		 (dclr & BIT(14)) ?  "yes" : "no",
-		 (dclr & BIT(15)) ?  "yes" : "no");
+		 (dclr & BIT(12)) ?  "anal" : "anal",
+		 (dclr & BIT(13)) ?  "anal" : "anal",
+		 (dclr & BIT(14)) ?  "anal" : "anal",
+		 (dclr & BIT(15)) ?  "anal" : "anal");
 }
 
 #define CS_EVEN_PRIMARY		BIT(0)
@@ -1518,7 +1518,7 @@ static int __addr_mask_to_cs_size(u32 addr_mask_orig, unsigned int cs_mode,
 	 *
 	 * In the special 3 Rank interleaving case, a single bit is flipped
 	 * without swapping with the most significant bit. This can be handled
-	 * by keeping the MSB where it is and ignoring the single zero bit.
+	 * by keeping the MSB where it is and iganalring the single zero bit.
 	 */
 	msb = fls(addr_mask_orig) - 1;
 	weight = hweight_long(addr_mask_orig);
@@ -1545,15 +1545,15 @@ static int umc_addr_mask_to_cs_size(struct amd64_pvt *pvt, u8 umc,
 	u32 addr_mask_orig;
 	int dimm, size = 0;
 
-	/* No Chip Selects are enabled. */
+	/* Anal Chip Selects are enabled. */
 	if (!cs_mode)
 		return size;
 
-	/* Requested size of an even CS but none are enabled. */
+	/* Requested size of an even CS but analne are enabled. */
 	if (!(cs_mode & CS_EVEN) && !(csrow_nr & 1))
 		return size;
 
-	/* Requested size of an odd CS but none are enabled. */
+	/* Requested size of an odd CS but analne are enabled. */
 	if (!(cs_mode & CS_ODD) && (csrow_nr & 1))
 		return size;
 
@@ -1624,25 +1624,25 @@ static void umc_dump_misc_regs(struct amd64_pvt *pvt)
 		edac_dbg(1, "UMC%d SDP ctrl: 0x%x\n", i, umc->sdp_ctrl);
 		edac_dbg(1, "UMC%d ECC ctrl: 0x%x\n", i, umc->ecc_ctrl);
 
-		amd_smn_read(pvt->mc_node_id, umc_base + UMCCH_ECC_BAD_SYMBOL, &tmp);
+		amd_smn_read(pvt->mc_analde_id, umc_base + UMCCH_ECC_BAD_SYMBOL, &tmp);
 		edac_dbg(1, "UMC%d ECC bad symbol: 0x%x\n", i, tmp);
 
-		amd_smn_read(pvt->mc_node_id, umc_base + UMCCH_UMC_CAP, &tmp);
+		amd_smn_read(pvt->mc_analde_id, umc_base + UMCCH_UMC_CAP, &tmp);
 		edac_dbg(1, "UMC%d UMC cap: 0x%x\n", i, tmp);
 		edac_dbg(1, "UMC%d UMC cap high: 0x%x\n", i, umc->umc_cap_hi);
 
 		edac_dbg(1, "UMC%d ECC capable: %s, ChipKill ECC capable: %s\n",
-				i, (umc->umc_cap_hi & BIT(30)) ? "yes" : "no",
-				    (umc->umc_cap_hi & BIT(31)) ? "yes" : "no");
+				i, (umc->umc_cap_hi & BIT(30)) ? "anal" : "anal",
+				    (umc->umc_cap_hi & BIT(31)) ? "anal" : "anal");
 		edac_dbg(1, "UMC%d All DIMMs support ECC: %s\n",
-				i, (umc->umc_cfg & BIT(12)) ? "yes" : "no");
+				i, (umc->umc_cfg & BIT(12)) ? "anal" : "anal");
 		edac_dbg(1, "UMC%d x4 DIMMs present: %s\n",
-				i, (umc->dimm_cfg & BIT(6)) ? "yes" : "no");
+				i, (umc->dimm_cfg & BIT(6)) ? "anal" : "anal");
 		edac_dbg(1, "UMC%d x16 DIMMs present: %s\n",
-				i, (umc->dimm_cfg & BIT(7)) ? "yes" : "no");
+				i, (umc->dimm_cfg & BIT(7)) ? "anal" : "anal");
 
 		if (umc->dram_type == MEM_LRDDR4 || umc->dram_type == MEM_LRDDR5) {
-			amd_smn_read(pvt->mc_node_id,
+			amd_smn_read(pvt->mc_analde_id,
 				     umc_base + get_umc_reg(pvt, UMCCH_ADDR_CFG),
 				     &tmp);
 			edac_dbg(1, "UMC%d LRDIMM %dx rank multiply\n",
@@ -1658,11 +1658,11 @@ static void dct_dump_misc_regs(struct amd64_pvt *pvt)
 	edac_dbg(1, "F3xE8 (NB Cap): 0x%08x\n", pvt->nbcap);
 
 	edac_dbg(1, "  NB two channel DRAM capable: %s\n",
-		 (pvt->nbcap & NBCAP_DCT_DUAL) ? "yes" : "no");
+		 (pvt->nbcap & NBCAP_DCT_DUAL) ? "anal" : "anal");
 
 	edac_dbg(1, "  ECC capable: %s, ChipKill ECC capable: %s\n",
-		 (pvt->nbcap & NBCAP_SECDED) ? "yes" : "no",
-		 (pvt->nbcap & NBCAP_CHIPKILL) ? "yes" : "no");
+		 (pvt->nbcap & NBCAP_SECDED) ? "anal" : "anal",
+		 (pvt->nbcap & NBCAP_CHIPKILL) ? "anal" : "anal");
 
 	debug_dump_dramcfg_low(pvt, pvt->dclr0, 0);
 
@@ -1681,11 +1681,11 @@ static void dct_dump_misc_regs(struct amd64_pvt *pvt)
 
 	dct_debug_display_dimm_sizes(pvt, 1);
 
-	/* Only if NOT ganged does dclr1 have valid info */
+	/* Only if ANALT ganged does dclr1 have valid info */
 	if (!dct_ganging_enabled(pvt))
 		debug_dump_dramcfg_low(pvt, pvt->dclr1, 1);
 
-	edac_dbg(1, "  DramHoleValid: %s\n", dhar_valid(pvt) ? "yes" : "no");
+	edac_dbg(1, "  DramHoleValid: %s\n", dhar_valid(pvt) ? "anal" : "anal");
 
 	amd64_info("using x%u syndromes.\n", pvt->ecc_sym_sz);
 }
@@ -1738,11 +1738,11 @@ static void umc_read_base_mask(struct amd64_pvt *pvt)
 			base_reg = umc_base_reg + (cs * 4);
 			base_reg_sec = umc_base_reg_sec + (cs * 4);
 
-			if (!amd_smn_read(pvt->mc_node_id, base_reg, base))
+			if (!amd_smn_read(pvt->mc_analde_id, base_reg, base))
 				edac_dbg(0, "  DCSB%d[%d]=0x%08x reg: 0x%x\n",
 					 umc, cs, *base, base_reg);
 
-			if (!amd_smn_read(pvt->mc_node_id, base_reg_sec, base_sec))
+			if (!amd_smn_read(pvt->mc_analde_id, base_reg_sec, base_sec))
 				edac_dbg(0, "    DCSB_SEC%d[%d]=0x%08x reg: 0x%x\n",
 					 umc, cs, *base_sec, base_reg_sec);
 		}
@@ -1757,11 +1757,11 @@ static void umc_read_base_mask(struct amd64_pvt *pvt)
 			mask_reg = umc_mask_reg + (cs * 4);
 			mask_reg_sec = umc_mask_reg_sec + (cs * 4);
 
-			if (!amd_smn_read(pvt->mc_node_id, mask_reg, mask))
+			if (!amd_smn_read(pvt->mc_analde_id, mask_reg, mask))
 				edac_dbg(0, "  DCSM%d[%d]=0x%08x reg: 0x%x\n",
 					 umc, cs, *mask, mask_reg);
 
-			if (!amd_smn_read(pvt->mc_node_id, mask_reg_sec, mask_sec))
+			if (!amd_smn_read(pvt->mc_analde_id, mask_reg_sec, mask_sec))
 				edac_dbg(0, "    DCSM_SEC%d[%d]=0x%08x reg: 0x%x\n",
 					 umc, cs, *mask_sec, mask_reg_sec);
 		}
@@ -1879,7 +1879,7 @@ static void dct_determine_memory_type(struct amd64_pvt *pvt)
 		 *
 		 * We use a Chip Select value of '0' to obtain dcsm.
 		 * Theoretically, it is possible to populate LRDIMMs of different
-		 * 'Rank' value on a DCT. But this is not the common case. So,
+		 * 'Rank' value on a DCT. But this is analt the common case. So,
 		 * it's reasonable to assume all DIMMs are going to be of same
 		 * 'type' until proven otherwise.
 		 */
@@ -1946,7 +1946,7 @@ static u64 get_error_address(struct amd64_pvt *pvt, struct mce *m)
 			return addr;
 
 
-		amd64_read_pci_cfg(pvt->F1, DRAM_LOCAL_NODE_LIM, &tmp);
+		amd64_read_pci_cfg(pvt->F1, DRAM_LOCAL_ANALDE_LIM, &tmp);
 		intlv_en = tmp >> 21 & 0x7;
 
 		/* add [47:27] + 3 trailing bits */
@@ -1961,7 +1961,7 @@ static u64 get_error_address(struct amd64_pvt *pvt, struct mce *m)
 		if (!intlv_en)
 			return cc6_base | (addr & GENMASK_ULL(23, 0));
 
-		amd64_read_pci_cfg(pvt->F1, DRAM_LOCAL_NODE_BASE, &tmp);
+		amd64_read_pci_cfg(pvt->F1, DRAM_LOCAL_ANALDE_BASE, &tmp);
 
 							/* faster log2 */
 		tmp_addr  = (addr & GENMASK_ULL(23, 12)) << __fls(intlv_en + 1);
@@ -1996,7 +1996,7 @@ static struct pci_dev *pci_get_related_function(unsigned int vendor,
 
 static void read_dram_base_limit_regs(struct amd64_pvt *pvt, unsigned range)
 {
-	struct amd_northbridge *nb;
+	struct amd_analrthbridge *nb;
 	struct pci_dev *f1 = NULL;
 	unsigned int pci_func;
 	int off = range << 3;
@@ -2014,11 +2014,11 @@ static void read_dram_base_limit_regs(struct amd64_pvt *pvt, unsigned range)
 	amd64_read_pci_cfg(pvt->F1, DRAM_BASE_HI + off,  &pvt->ranges[range].base.hi);
 	amd64_read_pci_cfg(pvt->F1, DRAM_LIMIT_HI + off, &pvt->ranges[range].lim.hi);
 
-	/* F15h: factor in CC6 save area by reading dst node's limit reg */
+	/* F15h: factor in CC6 save area by reading dst analde's limit reg */
 	if (pvt->fam != 0x15)
 		return;
 
-	nb = node_to_amd_nb(dram_dst_node(pvt, range));
+	nb = analde_to_amd_nb(dram_dst_analde(pvt, range));
 	if (WARN_ON(!nb))
 		return;
 
@@ -2033,7 +2033,7 @@ static void read_dram_base_limit_regs(struct amd64_pvt *pvt, unsigned range)
 	if (WARN_ON(!f1))
 		return;
 
-	amd64_read_pci_cfg(f1, DRAM_LOCAL_NODE_LIM, &llim);
+	amd64_read_pci_cfg(f1, DRAM_LOCAL_ANALDE_LIM, &llim);
 
 	pvt->ranges[range].lim.lo &= GENMASK_ULL(15, 0);
 
@@ -2056,18 +2056,18 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 	error_address_to_page_and_offset(sys_addr, err);
 
 	/*
-	 * Find out which node the error address belongs to. This may be
-	 * different from the node that detected the error.
+	 * Find out which analde the error address belongs to. This may be
+	 * different from the analde that detected the error.
 	 */
 	err->src_mci = find_mc_by_sys_addr(mci, sys_addr);
 	if (!err->src_mci) {
-		amd64_mc_err(mci, "failed to map error addr 0x%lx to a node\n",
+		amd64_mc_err(mci, "failed to map error addr 0x%lx to a analde\n",
 			     (unsigned long)sys_addr);
-		err->err_code = ERR_NODE;
+		err->err_code = ERR_ANALDE;
 		return;
 	}
 
-	/* Now map the sys_addr to a CSROW */
+	/* Analw map the sys_addr to a CSROW */
 	err->csrow = sys_addr_to_csrow(err->src_mci, sys_addr);
 	if (err->csrow < 0) {
 		err->err_code = ERR_CSROW;
@@ -2079,11 +2079,11 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 		err->channel = get_channel_from_ecc_syndrome(mci, err->syndrome);
 		if (err->channel < 0) {
 			/*
-			 * Syndrome didn't map, so we don't know which of the
+			 * Syndrome didn't map, so we don't kanalw which of the
 			 * 2 DIMMs is in error. So we need to ID 'both' of them
 			 * as suspect.
 			 */
-			amd64_mc_warn(err->src_mci, "unknown syndrome 0x%04x - "
+			amd64_mc_warn(err->src_mci, "unkanalwn syndrome 0x%04x - "
 				      "possible error reporting race\n",
 				      err->syndrome);
 			err->err_code = ERR_CHANNEL;
@@ -2091,12 +2091,12 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 		}
 	} else {
 		/*
-		 * non-chipkill ecc mode
+		 * analn-chipkill ecc mode
 		 *
 		 * The k8 documentation is unclear about how to determine the
-		 * channel number when using non-chipkill memory.  This method
+		 * channel number when using analn-chipkill memory.  This method
 		 * was obtained from email communication with someone at AMD.
-		 * (Wish the email was placed in this comment - norsk)
+		 * (Wish the email was placed in this comment - analrsk)
 		 */
 		err->channel = ((sys_addr & BIT(3)) != 0);
 	}
@@ -2305,11 +2305,11 @@ static void read_dram_ctl_register(struct amd64_pvt *pvt)
 
 		if (!dct_ganging_enabled(pvt))
 			edac_dbg(0, "  Address range split per DCT: %s\n",
-				 (dct_high_range_enabled(pvt) ? "yes" : "no"));
+				 (dct_high_range_enabled(pvt) ? "anal" : "anal"));
 
 		edac_dbg(0, "  data interleave for ECC: %s, DRAM cleared since last warm reset: %s\n",
 			 (dct_data_intlv_enabled(pvt) ? "enabled" : "disabled"),
-			 (dct_memory_cleared(pvt) ? "yes" : "no"));
+			 (dct_memory_cleared(pvt) ? "anal" : "anal"));
 
 		edac_dbg(0, "  channel interleave: %s, "
 			 "interleave bits selector: 0x%x\n",
@@ -2398,8 +2398,8 @@ static u8 f1x_determine_channel(struct amd64_pvt *pvt, u64 sys_addr,
 	return 0;
 }
 
-/* Convert the sys_addr to the normalized DCT address */
-static u64 f1x_get_norm_dct_addr(struct amd64_pvt *pvt, u8 range,
+/* Convert the sys_addr to the analrmalized DCT address */
+static u64 f1x_get_analrm_dct_addr(struct amd64_pvt *pvt, u8 range,
 				 u64 sys_addr, bool hi_rng,
 				 u32 dct_sel_base_addr)
 {
@@ -2435,7 +2435,7 @@ static u64 f1x_get_norm_dct_addr(struct amd64_pvt *pvt, u8 range,
 		 *
 		 *	remove hole
 		 * else
-		 *	remove dram base to normalize to DCT address
+		 *	remove dram base to analrmalize to DCT address
 		 */
 		if (dhar_valid(pvt) && (sys_addr >= BIT_64(32)))
 			chan_off = hole_off;
@@ -2469,10 +2469,10 @@ static int f10_process_possible_spare(struct amd64_pvt *pvt, u8 dct, int csrow)
 
 /*
  * Iterate over the DRAM DCT "base" and "mask" registers looking for a
- * SystemAddr match on the specified 'ChannelSelect' and 'NodeID'
+ * SystemAddr match on the specified 'ChannelSelect' and 'AnaldeID'
  *
  * Return:
- *	-EINVAL:  NOT FOUND
+ *	-EINVAL:  ANALT FOUND
  *	0..csrow = Chip-Select Row
  */
 static int f1x_lookup_addr_in_dct(u64 in_addr, u8 nid, u8 dct)
@@ -2520,7 +2520,7 @@ static int f1x_lookup_addr_in_dct(u64 in_addr, u8 nid, u8 dct)
 }
 
 /*
- * See F2x10C. Non-interleaved graphics framebuffer memory under the 16G is
+ * See F2x10C. Analn-interleaved graphics framebuffer memory under the 16G is
  * swapped with a region located at the bottom of memory so that the GPU can use
  * the interleaved region and thus two channels.
  */
@@ -2554,7 +2554,7 @@ static u64 f1x_swap_interleaved_region(struct amd64_pvt *pvt, u64 sys_addr)
 }
 
 /* For a given @dram_range, check if @sys_addr falls within it. */
-static int f1x_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
+static int f1x_match_to_this_analde(struct amd64_pvt *pvt, unsigned range,
 				  u64 sys_addr, int *chan_sel)
 {
 	int cs_found = -EINVAL;
@@ -2563,7 +2563,7 @@ static int f1x_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 	u8 channel;
 	bool high_range = false;
 
-	u8 node_id    = dram_dst_node(pvt, range);
+	u8 analde_id    = dram_dst_analde(pvt, range);
 	u8 intlv_en   = dram_intlv_en(pvt, range);
 	u32 intlv_sel = dram_intlv_sel(pvt, range);
 
@@ -2596,10 +2596,10 @@ static int f1x_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 
 	channel = f1x_determine_channel(pvt, sys_addr, high_range, intlv_en);
 
-	chan_addr = f1x_get_norm_dct_addr(pvt, range, sys_addr,
+	chan_addr = f1x_get_analrm_dct_addr(pvt, range, sys_addr,
 					  high_range, dct_sel_base);
 
-	/* Remove node interleaving, see F1x120 */
+	/* Remove analde interleaving, see F1x120 */
 	if (intlv_en)
 		chan_addr = ((chan_addr >> (12 + hweight8(intlv_en))) << 12) |
 			    (chan_addr & 0xfff);
@@ -2624,9 +2624,9 @@ static int f1x_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 				     (chan_addr & 0xfff);
 	}
 
-	edac_dbg(1, "   Normalized DCT addr: 0x%llx\n", chan_addr);
+	edac_dbg(1, "   Analrmalized DCT addr: 0x%llx\n", chan_addr);
 
-	cs_found = f1x_lookup_addr_in_dct(chan_addr, node_id, channel);
+	cs_found = f1x_lookup_addr_in_dct(chan_addr, analde_id, channel);
 
 	if (cs_found >= 0)
 		*chan_sel = channel;
@@ -2634,7 +2634,7 @@ static int f1x_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 	return cs_found;
 }
 
-static int f15_m30h_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
+static int f15_m30h_match_to_this_analde(struct amd64_pvt *pvt, unsigned range,
 					u64 sys_addr, int *chan_sel)
 {
 	int cs_found = -EINVAL;
@@ -2646,7 +2646,7 @@ static int f15_m30h_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 
 	u64 dhar_offset		= f10_dhar_offset(pvt);
 	u8 intlv_addr		= dct_sel_interleave_addr(pvt);
-	u8 node_id		= dram_dst_node(pvt, range);
+	u8 analde_id		= dram_dst_analde(pvt, range);
 	u8 intlv_en		= dram_intlv_en(pvt, range);
 
 	amd64_read_pci_cfg(pvt->F1, DRAM_CONT_BASE, &dct_cont_base_reg);
@@ -2697,7 +2697,7 @@ static int f15_m30h_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 
 	leg_mmio_hole = (u8) (dct_cont_base_reg >> 1 & BIT(0));
 
-	/* Get normalized DCT addr */
+	/* Get analrmalized DCT addr */
 	if (leg_mmio_hole && (sys_addr >= BIT_64(32)))
 		chan_offset = dhar_offset;
 	else
@@ -2736,7 +2736,7 @@ static int f15_m30h_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 
 	f15h_select_dct(pvt, channel);
 
-	edac_dbg(1, "   Normalized DCT addr: 0x%llx\n", chan_addr);
+	edac_dbg(1, "   Analrmalized DCT addr: 0x%llx\n", chan_addr);
 
 	/*
 	 * Find Chip select:
@@ -2748,7 +2748,7 @@ static int f15_m30h_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 	 */
 	alias_channel =  (channel == 3) ? 1 : channel;
 
-	cs_found = f1x_lookup_addr_in_dct(chan_addr, node_id, alias_channel);
+	cs_found = f1x_lookup_addr_in_dct(chan_addr, analde_id, alias_channel);
 
 	if (cs_found >= 0)
 		*chan_sel = alias_channel;
@@ -2768,13 +2768,13 @@ static int f1x_translate_sysaddr_to_cs(struct amd64_pvt *pvt,
 			continue;
 
 		if (pvt->fam == 0x15 && pvt->model >= 0x30)
-			cs_found = f15_m30h_match_to_this_node(pvt, range,
+			cs_found = f15_m30h_match_to_this_analde(pvt, range,
 							       sys_addr,
 							       chan_sel);
 
 		else if ((get_dram_base(pvt, range)  <= sys_addr) &&
 			 (get_dram_limit(pvt, range) >= sys_addr)) {
-			cs_found = f1x_match_to_this_node(pvt, range,
+			cs_found = f1x_match_to_this_analde(pvt, range,
 							  sys_addr, chan_sel);
 			if (cs_found >= 0)
 				break;
@@ -2785,7 +2785,7 @@ static int f1x_translate_sysaddr_to_cs(struct amd64_pvt *pvt,
 
 /*
  * For reference see "2.8.5 Routing DRAM Requests" in F10 BKDG. This code maps
- * a @sys_addr to NodeID, DCT (channel) and chip select (CSROW).
+ * a @sys_addr to AnaldeID, DCT (channel) and chip select (CSROW).
  *
  * The @sys_addr is usually an error address received from the hardware
  * (MCX_ADDR).
@@ -2912,7 +2912,7 @@ static int decode_syndrome(u16 syndrome, const u16 *vectors, unsigned num_vecs,
 		}
 	}
 
-	edac_dbg(0, "syndrome(%x) not found\n", syndrome);
+	edac_dbg(0, "syndrome(%x) analt found\n", syndrome);
 	return -1;
 }
 
@@ -2932,7 +2932,7 @@ static int map_err_sym_to_channel(int err_sym, int sym_size)
 	/* x8 symbols */
 	else
 		switch (err_sym) {
-		/* imaginary bits not in a DIMM */
+		/* imaginary bits analt in a DIMM */
 		case 0x10:
 			WARN(1, KERN_ERR "Invalid error symbol: 0x%x\n",
 					  err_sym);
@@ -2989,20 +2989,20 @@ static void __log_ecc_error(struct mem_ctl_info *mci, struct err_info *err,
 	case DECODE_OK:
 		string = "";
 		break;
-	case ERR_NODE:
-		string = "Failed to map error addr to a node";
+	case ERR_ANALDE:
+		string = "Failed to map error addr to a analde";
 		break;
 	case ERR_CSROW:
 		string = "Failed to map error addr to a csrow";
 		break;
 	case ERR_CHANNEL:
-		string = "Unknown syndrome - possible error reporting race";
+		string = "Unkanalwn syndrome - possible error reporting race";
 		break;
 	case ERR_SYND:
-		string = "MCA_SYND not valid - unknown syndrome and csrow";
+		string = "MCA_SYND analt valid - unkanalwn syndrome and csrow";
 		break;
-	case ERR_NORM_ADDR:
-		string = "Cannot decode normalized address";
+	case ERR_ANALRM_ADDR:
+		string = "Cananalt decode analrmalized address";
 		break;
 	default:
 		string = "WTF error";
@@ -3015,7 +3015,7 @@ static void __log_ecc_error(struct mem_ctl_info *mci, struct err_info *err,
 			     string, "");
 }
 
-static inline void decode_bus_error(int node_id, struct mce *m)
+static inline void decode_bus_error(int analde_id, struct mce *m)
 {
 	struct mem_ctl_info *mci;
 	struct amd64_pvt *pvt;
@@ -3025,7 +3025,7 @@ static inline void decode_bus_error(int node_id, struct mce *m)
 	u64 sys_addr;
 	struct err_info err;
 
-	mci = edac_mc_find(node_id);
+	mci = edac_mc_find(analde_id);
 	if (!mci)
 		return;
 
@@ -3069,7 +3069,7 @@ static void umc_get_err_info(struct mce *m, struct err_info *err)
 	err->csrow = m->synd & 0x7;
 }
 
-static void decode_umc_error(int node_id, struct mce *m)
+static void decode_umc_error(int analde_id, struct mce *m)
 {
 	u8 ecc_type = (m->status >> 45) & 0x3;
 	struct mem_ctl_info *mci;
@@ -3077,9 +3077,9 @@ static void decode_umc_error(int node_id, struct mce *m)
 	struct err_info err;
 	u64 sys_addr;
 
-	node_id = fixup_node_id(node_id, m);
+	analde_id = fixup_analde_id(analde_id, m);
 
-	mci = edac_mc_find(node_id);
+	mci = edac_mc_find(analde_id);
 	if (!mci)
 		return;
 
@@ -3106,8 +3106,8 @@ static void decode_umc_error(int node_id, struct mce *m)
 
 	pvt->ops->get_err_info(m, &err);
 
-	if (umc_normaddr_to_sysaddr(m->addr, pvt->mc_node_id, err.channel, &sys_addr)) {
-		err.err_code = ERR_NORM_ADDR;
+	if (umc_analrmaddr_to_sysaddr(m->addr, pvt->mc_analde_id, err.channel, &sys_addr)) {
+		err.err_code = ERR_ANALRM_ADDR;
 		goto log_error;
 	}
 
@@ -3127,8 +3127,8 @@ reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 pci_id1, u16 pci_id2)
 	/* Reserve the ADDRESS MAP Device */
 	pvt->F1 = pci_get_related_function(pvt->F3->vendor, pci_id1, pvt->F3);
 	if (!pvt->F1) {
-		edac_dbg(1, "F1 not found: device 0x%x\n", pci_id1);
-		return -ENODEV;
+		edac_dbg(1, "F1 analt found: device 0x%x\n", pci_id1);
+		return -EANALDEV;
 	}
 
 	/* Reserve the DCT Device */
@@ -3137,8 +3137,8 @@ reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 pci_id1, u16 pci_id2)
 		pci_dev_put(pvt->F1);
 		pvt->F1 = NULL;
 
-		edac_dbg(1, "F2 not found: device 0x%x\n", pci_id2);
-		return -ENODEV;
+		edac_dbg(1, "F2 analt found: device 0x%x\n", pci_id2);
+		return -EANALDEV;
 	}
 
 	if (!pci_ctl_dev)
@@ -3159,7 +3159,7 @@ static void determine_ecc_sym_sz(struct amd64_pvt *pvt)
 		u32 tmp;
 
 		amd64_read_pci_cfg(pvt->F3, EXT_NB_MCA_CFG, &tmp);
-		/* F16h has only DCT0, so no need to read dbam1. */
+		/* F16h has only DCT0, so anal need to read dbam1. */
 		if (pvt->fam != 0x16)
 			amd64_read_dct_pci_cfg(pvt, 1, DBAM0, &pvt->dbam1);
 
@@ -3174,7 +3174,7 @@ static void determine_ecc_sym_sz(struct amd64_pvt *pvt)
  */
 static void umc_read_mc_regs(struct amd64_pvt *pvt)
 {
-	u8 nid = pvt->mc_node_id;
+	u8 nid = pvt->mc_analde_id;
 	struct amd64_umc *umc;
 	u32 i, umc_base;
 
@@ -3202,7 +3202,7 @@ static void dct_read_mc_regs(struct amd64_pvt *pvt)
 	u64 msr_val;
 
 	/*
-	 * Retrieve TOP_MEM and TOP_MEM2; no masking off of reserved bits since
+	 * Retrieve TOP_MEM and TOP_MEM2; anal masking off of reserved bits since
 	 * those are Read-As-Zero.
 	 */
 	rdmsrl(MSR_K8_TOP_MEM1, pvt->top_mem);
@@ -3236,12 +3236,12 @@ static void dct_read_mc_regs(struct amd64_pvt *pvt)
 			 get_dram_base(pvt, range),
 			 get_dram_limit(pvt, range));
 
-		edac_dbg(1, "   IntlvEn=%s; Range access: %s%s IntlvSel=%d DstNode=%d\n",
+		edac_dbg(1, "   IntlvEn=%s; Range access: %s%s IntlvSel=%d DstAnalde=%d\n",
 			 dram_intlv_en(pvt, range) ? "Enabled" : "Disabled",
 			 (rw & 0x1) ? "R" : "-",
 			 (rw & 0x2) ? "W" : "-",
 			 dram_intlv_sel(pvt, range),
-			 dram_dst_node(pvt, range));
+			 dram_dst_analde(pvt, range));
 	}
 
 	amd64_read_pci_cfg(pvt->F1, DHAR, &pvt->dhar);
@@ -3261,13 +3261,13 @@ static void dct_read_mc_regs(struct amd64_pvt *pvt)
 }
 
 /*
- * NOTE: CPU Revision Dependent code
+ * ANALTE: CPU Revision Dependent code
  *
  * Input:
  *	@csrow_nr ChipSelect Row Number (0..NUM_CHIPSELECTS-1)
  *	k8 private pointer to -->
  *			DRAM Bank Address mapping register
- *			node_id
+ *			analde_id
  *			DCL register where dual_channel_active is
  *
  * The DBAM register consists of 4 sets of 4 bits each definitions:
@@ -3283,7 +3283,7 @@ static void dct_read_mc_regs(struct amd64_pvt *pvt)
  * see relevant BKDG more info.
  *
  * The memory controller provides for total of only 8 CSROWs in its current
- * architecture. Each "pair" of CSROWs normally represents just one DIMM in
+ * architecture. Each "pair" of CSROWs analrmally represents just one DIMM in
  * single channel or two (2) DIMMs in dual channel mode.
  *
  * The following code logic collapses the various tables for CSROW based on CPU
@@ -3332,8 +3332,8 @@ static u32 umc_get_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr_or
 static void umc_init_csrows(struct mem_ctl_info *mci)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
-	enum edac_type edac_mode = EDAC_NONE;
-	enum dev_type dev_type = DEV_UNKNOWN;
+	enum edac_type edac_mode = EDAC_ANALNE;
+	enum dev_type dev_type = DEV_UNKANALWN;
 	struct dimm_info *dimm;
 	u8 umc, cs;
 
@@ -3357,8 +3357,8 @@ static void umc_init_csrows(struct mem_ctl_info *mci)
 
 			dimm = mci->csrows[cs]->channels[umc]->dimm;
 
-			edac_dbg(1, "MC node: %d, csrow: %d\n",
-					pvt->mc_node_id, cs);
+			edac_dbg(1, "MC analde: %d, csrow: %d\n",
+					pvt->mc_analde_id, cs);
 
 			dimm->nr_pages = umc_get_csrow_nr_pages(pvt, umc, cs);
 			dimm->mtype = pvt->umc[umc].dram_type;
@@ -3376,7 +3376,7 @@ static void umc_init_csrows(struct mem_ctl_info *mci)
 static void dct_init_csrows(struct mem_ctl_info *mci)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
-	enum edac_type edac_mode = EDAC_NONE;
+	enum edac_type edac_mode = EDAC_ANALNE;
 	struct csrow_info *csrow;
 	struct dimm_info *dimm;
 	int nr_pages = 0;
@@ -3387,8 +3387,8 @@ static void dct_init_csrows(struct mem_ctl_info *mci)
 
 	pvt->nbcfg = val;
 
-	edac_dbg(0, "node %d, NBCFG=0x%08x[ChipKillEccCap: %d|DramEccEn: %d]\n",
-		 pvt->mc_node_id, val,
+	edac_dbg(0, "analde %d, NBCFG=0x%08x[ChipKillEccCap: %d|DramEccEn: %d]\n",
+		 pvt->mc_analde_id, val,
 		 !!(val & NBCFG_CHIPKILL), !!(val & NBCFG_ECC_ENABLE));
 
 	/*
@@ -3406,8 +3406,8 @@ static void dct_init_csrows(struct mem_ctl_info *mci)
 
 		csrow = mci->csrows[i];
 
-		edac_dbg(1, "MC node: %d, csrow: %d\n",
-			    pvt->mc_node_id, i);
+		edac_dbg(1, "MC analde: %d, csrow: %d\n",
+			    pvt->mc_analde_id, i);
 
 		if (row_dct0) {
 			nr_pages = dct_get_csrow_nr_pages(pvt, 0, i);
@@ -3450,8 +3450,8 @@ static void get_cpus_on_this_dct_cpumask(struct cpumask *mask, u16 nid)
 			cpumask_set_cpu(cpu, mask);
 }
 
-/* check MCG_CTL on all the cpus on this node */
-static bool nb_mce_bank_enabled_on_node(u16 nid)
+/* check MCG_CTL on all the cpus on this analde */
+static bool nb_mce_bank_enabled_on_analde(u16 nid)
 {
 	cpumask_var_t mask;
 	int cpu, nbe;
@@ -3491,7 +3491,7 @@ static int toggle_ecc_err_reporting(struct ecc_settings *s, u16 nid, bool on)
 
 	if (!zalloc_cpumask_var(&cmask, GFP_KERNEL)) {
 		amd64_warn("%s: error allocating mask\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	get_cpus_on_this_dct_cpumask(cmask, nid);
@@ -3543,11 +3543,11 @@ static bool enable_ecc_error_reporting(struct ecc_settings *s, u16 nid,
 
 	amd64_read_pci_cfg(F3, NBCFG, &value);
 
-	edac_dbg(0, "1: node %d, NBCFG=0x%08x[DramEccEn: %d]\n",
+	edac_dbg(0, "1: analde %d, NBCFG=0x%08x[DramEccEn: %d]\n",
 		 nid, value, !!(value & NBCFG_ECC_ENABLE));
 
 	if (!(value & NBCFG_ECC_ENABLE)) {
-		amd64_warn("DRAM ECC disabled on this node, enabling...\n");
+		amd64_warn("DRAM ECC disabled on this analde, enabling...\n");
 
 		s->flags.nb_ecc_prev = 0;
 
@@ -3568,7 +3568,7 @@ static bool enable_ecc_error_reporting(struct ecc_settings *s, u16 nid,
 		s->flags.nb_ecc_prev = 1;
 	}
 
-	edac_dbg(0, "2: node %d, NBCFG=0x%08x[DramEccEn: %d]\n",
+	edac_dbg(0, "2: analde %d, NBCFG=0x%08x[DramEccEn: %d]\n",
 		 nid, value, !!(value & NBCFG_ECC_ENABLE));
 
 	return ret;
@@ -3602,7 +3602,7 @@ static void restore_ecc_error_reporting(struct ecc_settings *s, u16 nid,
 
 static bool dct_ecc_enabled(struct amd64_pvt *pvt)
 {
-	u16 nid = pvt->mc_node_id;
+	u16 nid = pvt->mc_analde_id;
 	bool nb_mce_en = false;
 	u8 ecc_en = 0;
 	u32 value;
@@ -3611,12 +3611,12 @@ static bool dct_ecc_enabled(struct amd64_pvt *pvt)
 
 	ecc_en = !!(value & NBCFG_ECC_ENABLE);
 
-	nb_mce_en = nb_mce_bank_enabled_on_node(nid);
+	nb_mce_en = nb_mce_bank_enabled_on_analde(nid);
 	if (!nb_mce_en)
-		edac_dbg(0, "NB MCE bank disabled, set MSR 0x%08x[4] on node %d to enable.\n",
+		edac_dbg(0, "NB MCE bank disabled, set MSR 0x%08x[4] on analde %d to enable.\n",
 			 MSR_IA32_MCG_CTL, nid);
 
-	edac_dbg(3, "Node %d: DRAM ECC %s.\n", nid, (ecc_en ? "enabled" : "disabled"));
+	edac_dbg(3, "Analde %d: DRAM ECC %s.\n", nid, (ecc_en ? "enabled" : "disabled"));
 
 	if (!ecc_en || !nb_mce_en)
 		return false;
@@ -3627,7 +3627,7 @@ static bool dct_ecc_enabled(struct amd64_pvt *pvt)
 static bool umc_ecc_enabled(struct amd64_pvt *pvt)
 {
 	u8 umc_en_mask = 0, ecc_en_mask = 0;
-	u16 nid = pvt->mc_node_id;
+	u16 nid = pvt->mc_analde_id;
 	struct amd64_umc *umc;
 	u8 ecc_en = 0, i;
 
@@ -3648,9 +3648,9 @@ static bool umc_ecc_enabled(struct amd64_pvt *pvt)
 	if (umc_en_mask)
 		ecc_en = umc_en_mask == ecc_en_mask;
 	else
-		edac_dbg(0, "Node %d: No enabled UMCs.\n", nid);
+		edac_dbg(0, "Analde %d: Anal enabled UMCs.\n", nid);
 
-	edac_dbg(3, "Node %d: DRAM ECC %s.\n", nid, (ecc_en ? "enabled" : "disabled"));
+	edac_dbg(3, "Analde %d: DRAM ECC %s.\n", nid, (ecc_en ? "enabled" : "disabled"));
 
 	if (!ecc_en)
 		return false;
@@ -3694,7 +3694,7 @@ static void dct_setup_mci_misc_attrs(struct mem_ctl_info *mci)
 	struct amd64_pvt *pvt = mci->pvt_info;
 
 	mci->mtype_cap		= MEM_FLAG_DDR2 | MEM_FLAG_RDDR2;
-	mci->edac_ctl_cap	= EDAC_FLAG_NONE;
+	mci->edac_ctl_cap	= EDAC_FLAG_ANALNE;
 
 	if (pvt->nbcap & NBCAP_SECDED)
 		mci->edac_ctl_cap |= EDAC_FLAG_SECDED;
@@ -3720,7 +3720,7 @@ static void umc_setup_mci_misc_attrs(struct mem_ctl_info *mci)
 	struct amd64_pvt *pvt = mci->pvt_info;
 
 	mci->mtype_cap		= MEM_FLAG_DDR4 | MEM_FLAG_RDDR4;
-	mci->edac_ctl_cap	= EDAC_FLAG_NONE;
+	mci->edac_ctl_cap	= EDAC_FLAG_ANALNE;
 
 	umc_determine_edac_ctl_cap(mci, pvt);
 
@@ -3752,7 +3752,7 @@ static int umc_hw_info_get(struct amd64_pvt *pvt)
 {
 	pvt->umc = kcalloc(pvt->max_mcs, sizeof(struct amd64_umc), GFP_KERNEL);
 	if (!pvt->umc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	umc_prep_chip_selects(pvt);
 	umc_read_base_mask(pvt);
@@ -3764,7 +3764,7 @@ static int umc_hw_info_get(struct amd64_pvt *pvt)
 
 /*
  * The CPUs have one channel per UMC, so UMC number is equivalent to a
- * channel number. The GPUs have 8 channels per UMC, so the UMC number no
+ * channel number. The GPUs have 8 channels per UMC, so the UMC number anal
  * longer works as a channel number.
  *
  * The channel number within a GPU UMC is given in MCA_IPID[15:12].
@@ -3821,7 +3821,7 @@ static void gpu_dump_misc_regs(struct amd64_pvt *pvt)
 		edac_dbg(1, "UMC%d UMC cfg: 0x%x\n", i, umc->umc_cfg);
 		edac_dbg(1, "UMC%d SDP ctrl: 0x%x\n", i, umc->sdp_ctrl);
 		edac_dbg(1, "UMC%d ECC ctrl: 0x%x\n", i, umc->ecc_ctrl);
-		edac_dbg(1, "UMC%d All HBMs support ECC: yes\n", i);
+		edac_dbg(1, "UMC%d All HBMs support ECC: anal\n", i);
 
 		gpu_debug_display_dimm_sizes(pvt, i);
 	}
@@ -3854,8 +3854,8 @@ static void gpu_init_csrows(struct mem_ctl_info *mci)
 
 			dimm = mci->csrows[umc]->channels[cs]->dimm;
 
-			edac_dbg(1, "MC node: %d, csrow: %d\n",
-				 pvt->mc_node_id, cs);
+			edac_dbg(1, "MC analde: %d, csrow: %d\n",
+				 pvt->mc_analde_id, cs);
 
 			dimm->nr_pages = gpu_get_csrow_nr_pages(pvt, umc, cs);
 			dimm->edac_mode = EDAC_SECDED;
@@ -3882,7 +3882,7 @@ static void gpu_setup_mci_misc_attrs(struct mem_ctl_info *mci)
 	gpu_init_csrows(mci);
 }
 
-/* ECC is enabled by default on GPU nodes */
+/* ECC is enabled by default on GPU analdes */
 static bool gpu_ecc_enabled(struct amd64_pvt *pvt)
 {
 	return true;
@@ -3895,14 +3895,14 @@ static inline u32 gpu_get_umc_base(struct amd64_pvt *pvt, u8 umc, u8 channel)
 	 * channel numbering. On GPUs, there are eight channels per UMC,
 	 * so the channel numbering is different from UMC numbering.
 	 *
-	 * On CPU nodes channels are selected in 6th nibble
+	 * On CPU analdes channels are selected in 6th nibble
 	 * UMC chY[3:0]= [(chY*2 + 1) : (chY*2)]50000;
 	 *
-	 * On GPU nodes channels are selected in 3rd nibble
+	 * On GPU analdes channels are selected in 3rd nibble
 	 * HBM chX[3:0]= [Y  ]5X[3:0]000;
 	 * HBM chX[7:4]= [Y+1]5X[3:0]000
 	 *
-	 * On MI300 APU nodes, same as GPU nodes but channels are selected
+	 * On MI300 APU analdes, same as GPU analdes but channels are selected
 	 * in the base address of 0x90000
 	 */
 	umc *= 2;
@@ -3915,7 +3915,7 @@ static inline u32 gpu_get_umc_base(struct amd64_pvt *pvt, u8 umc, u8 channel)
 
 static void gpu_read_mc_regs(struct amd64_pvt *pvt)
 {
-	u8 nid = pvt->mc_node_id;
+	u8 nid = pvt->mc_analde_id;
 	struct amd64_umc *umc;
 	u32 i, umc_base;
 
@@ -3941,7 +3941,7 @@ static void gpu_read_base_mask(struct amd64_pvt *pvt)
 			base_reg = gpu_get_umc_base(pvt, umc, cs) + UMCCH_BASE_ADDR;
 			base = &pvt->csels[umc].csbases[cs];
 
-			if (!amd_smn_read(pvt->mc_node_id, base_reg, base)) {
+			if (!amd_smn_read(pvt->mc_analde_id, base_reg, base)) {
 				edac_dbg(0, "  DCSB%d[%d]=0x%08x reg: 0x%x\n",
 					 umc, cs, *base, base_reg);
 			}
@@ -3949,7 +3949,7 @@ static void gpu_read_base_mask(struct amd64_pvt *pvt)
 			mask_reg = gpu_get_umc_base(pvt, umc, cs) + UMCCH_ADDR_MASK;
 			mask = &pvt->csels[umc].csmasks[cs];
 
-			if (!amd_smn_read(pvt->mc_node_id, mask_reg, mask)) {
+			if (!amd_smn_read(pvt->mc_analde_id, mask_reg, mask)) {
 				edac_dbg(0, "  DCSM%d[%d]=0x%08x reg: 0x%x\n",
 					 umc, cs, *mask, mask_reg);
 			}
@@ -3971,13 +3971,13 @@ static int gpu_hw_info_get(struct amd64_pvt *pvt)
 {
 	int ret;
 
-	ret = gpu_get_node_map(pvt);
+	ret = gpu_get_analde_map(pvt);
 	if (ret)
 		return ret;
 
 	pvt->umc = kcalloc(pvt->max_mcs, sizeof(struct amd64_umc), GFP_KERNEL);
 	if (!pvt->umc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpu_prep_chip_selects(pvt);
 	gpu_read_base_mask(pvt);
@@ -4068,7 +4068,7 @@ static int per_family_init(struct amd64_pvt *pvt)
 			break;
 		case 0x13:
 			/* Richland is only client */
-			return -ENODEV;
+			return -EANALDEV;
 		default:
 			pvt->ctl_name			= "F15h";
 			pvt->f1_id			= PCI_DEVICE_ID_AMD_15H_NB_F1;
@@ -4186,7 +4186,7 @@ static int per_family_init(struct amd64_pvt *pvt)
 
 	default:
 		amd64_err("Unsupported family!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -4220,7 +4220,7 @@ static int init_one_instance(struct amd64_pvt *pvt)
 {
 	struct mem_ctl_info *mci = NULL;
 	struct edac_mc_layer layers[2];
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
 	layers[0].size = get_layer_size(pvt, 0);
@@ -4229,7 +4229,7 @@ static int init_one_instance(struct amd64_pvt *pvt)
 	layers[1].size = get_layer_size(pvt, 1);
 	layers[1].is_virt_csrow = false;
 
-	mci = edac_mc_alloc(pvt->mc_node_id, ARRAY_SIZE(layers), layers, 0);
+	mci = edac_mc_alloc(pvt->mc_analde_id, ARRAY_SIZE(layers), layers, 0);
 	if (!mci)
 		return ret;
 
@@ -4238,7 +4238,7 @@ static int init_one_instance(struct amd64_pvt *pvt)
 
 	pvt->ops->setup_mci_misc_attrs(mci);
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 	if (edac_mc_add_mc_with_groups(mci, amd64_edac_attr_groups)) {
 		edac_dbg(1, "failed edac_mc_add_mc()\n");
 		edac_mc_free(mci);
@@ -4263,12 +4263,12 @@ static bool instance_has_memory(struct amd64_pvt *pvt)
 
 static int probe_one_instance(unsigned int nid)
 {
-	struct pci_dev *F3 = node_to_amd_nb(nid)->misc;
+	struct pci_dev *F3 = analde_to_amd_nb(nid)->misc;
 	struct amd64_pvt *pvt = NULL;
 	struct ecc_settings *s;
 	int ret;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	s = kzalloc(sizeof(struct ecc_settings), GFP_KERNEL);
 	if (!s)
 		goto err_out;
@@ -4279,7 +4279,7 @@ static int probe_one_instance(unsigned int nid)
 	if (!pvt)
 		goto err_settings;
 
-	pvt->mc_node_id	= nid;
+	pvt->mc_analde_id	= nid;
 	pvt->F3 = F3;
 
 	ret = per_family_init(pvt);
@@ -4292,18 +4292,18 @@ static int probe_one_instance(unsigned int nid)
 
 	ret = 0;
 	if (!instance_has_memory(pvt)) {
-		amd64_info("Node %d: No DIMMs detected.\n", nid);
+		amd64_info("Analde %d: Anal DIMMs detected.\n", nid);
 		goto err_enable;
 	}
 
 	if (!pvt->ops->ecc_enabled(pvt)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 
 		if (!ecc_enable_override)
 			goto err_enable;
 
 		if (boot_cpu_data.x86 >= 0x17) {
-			amd64_warn("Forcing ECC on is not recommended on newer systems. Please enable ECC in BIOS.");
+			amd64_warn("Forcing ECC on is analt recommended on newer systems. Please enable ECC in BIOS.");
 			goto err_enable;
 		} else
 			amd64_warn("Forcing ECC on!\n");
@@ -4322,7 +4322,7 @@ static int probe_one_instance(unsigned int nid)
 		goto err_enable;
 	}
 
-	amd64_info("%s detected (node %d).\n", pvt->ctl_name, pvt->mc_node_id);
+	amd64_info("%s detected (analde %d).\n", pvt->ctl_name, pvt->mc_analde_id);
 
 	/* Display and decode various registers for debug purposes. */
 	pvt->ops->dump_misc_regs(pvt);
@@ -4343,7 +4343,7 @@ err_out:
 
 static void remove_one_instance(unsigned int nid)
 {
-	struct pci_dev *F3 = node_to_amd_nb(nid)->misc;
+	struct pci_dev *F3 = analde_to_amd_nb(nid)->misc;
 	struct ecc_settings *s = ecc_stngs[nid];
 	struct mem_ctl_info *mci;
 	struct amd64_pvt *pvt;
@@ -4376,7 +4376,7 @@ static void setup_pci_device(void)
 	pci_ctl = edac_pci_create_generic_ctl(pci_ctl_dev, EDAC_MOD_STR);
 	if (!pci_ctl) {
 		pr_warn("%s(): Unable to create PCI control\n", __func__);
-		pr_warn("%s(): PCI error report via EDAC not set\n", __func__);
+		pr_warn("%s(): PCI error report via EDAC analt set\n", __func__);
 	}
 }
 
@@ -4396,7 +4396,7 @@ MODULE_DEVICE_TABLE(x86cpu, amd64_cpuids);
 static int __init amd64_edac_init(void)
 {
 	const char *owner;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	int i;
 
 	if (ghes_get_devices())
@@ -4407,14 +4407,14 @@ static int __init amd64_edac_init(void)
 		return -EBUSY;
 
 	if (!x86_match_cpu(amd64_cpuids))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!amd_nb_num())
-		return -ENODEV;
+		return -EANALDEV;
 
 	opstate_init();
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ecc_stngs = kcalloc(amd_nb_num(), sizeof(ecc_stngs[0]), GFP_KERNEL);
 	if (!ecc_stngs)
 		goto err_free;
@@ -4435,7 +4435,7 @@ static int __init amd64_edac_init(void)
 	}
 
 	if (!edac_has_mcs()) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_pci;
 	}
 

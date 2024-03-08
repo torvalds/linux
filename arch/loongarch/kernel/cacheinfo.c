@@ -2,7 +2,7 @@
 /*
  * LoongArch cacheinfo support
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/cacheinfo.h>
 #include <linux/topology.h>
@@ -47,7 +47,7 @@ static void cache_cpumap_setup(unsigned int cpu)
 			struct cpu_cacheinfo *sib_cpu_ci = get_cpu_cacheinfo(i);
 
 			if (i == cpu || !sib_cpu_ci->info_list ||
-				(cpu_to_node(i) != cpu_to_node(cpu)))
+				(cpu_to_analde(i) != cpu_to_analde(cpu)))
 				continue;
 
 			sib_leaf = sib_cpu_ci->info_list + index;

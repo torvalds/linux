@@ -17,7 +17,7 @@
 #include <asm/kmap_size.h>
 
 /*
- * Exposed to assembly code for setting up initial page tables. Cannot be
+ * Exposed to assembly code for setting up initial page tables. Cananalt be
  * calculated in assembly code (fixmap entries are an enum), but is sanity
  * checked in the actual fixmap C code to make sure that the fixmap is
  * covered fully.
@@ -75,7 +75,7 @@ extern unsigned long __FIXADDR_TOP;
  * higher than 1). Use set_fixmap(idx,phys) to associate
  * physical memory with fixmap indices.
  *
- * TLB entries of such buffers will not be flushed across
+ * TLB entries of such buffers will analt be flushed across
  * task switches.
  */
 enum fixed_addresses {
@@ -92,7 +92,7 @@ enum fixed_addresses {
 	FIX_OHCI1394_BASE,
 #endif
 #ifdef CONFIG_X86_LOCAL_APIC
-	FIX_APIC_BASE,	/* local (CPU) APIC) -- required for SMP or not */
+	FIX_APIC_BASE,	/* local (CPU) APIC) -- required for SMP or analt */
 #endif
 #ifdef CONFIG_X86_IO_APIC
 	FIX_IO_APIC_BASE_0,
@@ -169,11 +169,11 @@ static inline void __set_fixmap(enum fixed_addresses idx,
 #endif
 
 /*
- * FIXMAP_PAGE_NOCACHE is used for MMIO. Memory encryption is not
+ * FIXMAP_PAGE_ANALCACHE is used for MMIO. Memory encryption is analt
  * supported for MMIO addresses, so make sure that the memory encryption
- * mask is not part of the page attributes.
+ * mask is analt part of the page attributes.
  */
-#define FIXMAP_PAGE_NOCACHE PAGE_KERNEL_IO_NOCACHE
+#define FIXMAP_PAGE_ANALCACHE PAGE_KERNEL_IO_ANALCACHE
 
 /*
  * Early memremap routines used for in-place encryption. The mappings created

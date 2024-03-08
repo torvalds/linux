@@ -111,7 +111,7 @@ scsi_trace_rw32(struct trace_seq *p, unsigned char *cdb, int len)
 		cmd = "WRITE_SAME";
 		break;
 	default:
-		trace_seq_puts(p, "UNKNOWN");
+		trace_seq_puts(p, "UNKANALWN");
 		goto out;
 	}
 
@@ -158,7 +158,7 @@ scsi_trace_service_action_in(struct trace_seq *p, unsigned char *cdb, int len)
 		cmd = "GET_LBA_STATUS";
 		break;
 	default:
-		trace_seq_puts(p, "UNKNOWN");
+		trace_seq_puts(p, "UNKANALWN");
 		goto out;
 	}
 
@@ -205,7 +205,7 @@ scsi_trace_maintenance_in(struct trace_seq *p, unsigned char *cdb, int len)
 		cmd = "MANAGEMENT_PROTOCOL_IN";
 		break;
 	default:
-		trace_seq_puts(p, "UNKNOWN");
+		trace_seq_puts(p, "UNKANALWN");
 		goto out;
 	}
 
@@ -245,7 +245,7 @@ scsi_trace_maintenance_out(struct trace_seq *p, unsigned char *cdb, int len)
 		cmd = "MANAGEMENT_PROTOCOL_OUT";
 		break;
 	default:
-		trace_seq_puts(p, "UNKNOWN");
+		trace_seq_puts(p, "UNKANALWN");
 		goto out;
 	}
 
@@ -272,7 +272,7 @@ scsi_trace_zbc_in(struct trace_seq *p, unsigned char *cdb, int len)
 		cmd = "REPORT_ZONES";
 		break;
 	default:
-		trace_seq_puts(p, "UNKNOWN");
+		trace_seq_puts(p, "UNKANALWN");
 		goto out;
 	}
 
@@ -310,7 +310,7 @@ scsi_trace_zbc_out(struct trace_seq *p, unsigned char *cdb, int len)
 		cmd = "RESET_WRITE_POINTER";
 		break;
 	default:
-		trace_seq_puts(p, "UNKNOWN");
+		trace_seq_puts(p, "UNKANALWN");
 		goto out;
 	}
 

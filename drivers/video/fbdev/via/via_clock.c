@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
  * Copyright 2011 Florian Tobias Schandinat <FlorianSchandinat@gmx.de>
  */
@@ -15,7 +15,7 @@
 #include "global.h"
 #include "debug.h"
 
-static const char *via_slap = "Please slap VIA Technologies to motivate them "
+static const char *via_slap = "Please slap VIA Techanallogies to motivate them "
 	"releasing full documentation for your platform!\n";
 
 static inline u32 cle266_encode_pll(struct via_pll_config pll)
@@ -275,7 +275,7 @@ static void dummy_set_pll(struct via_pll_config config)
 	printk(KERN_INFO "Using undocumented set PLL.\n%s", via_slap);
 }
 
-static void noop_set_clock_state(u8 state)
+static void analop_set_clock_state(u8 state)
 {
 }
 
@@ -338,16 +338,16 @@ void via_clock_init(struct via_clock *clock, int gfx_chip)
 	}
 
 	if (machine_is_olpc()) {
-		/* The OLPC XO-1.5 cannot suspend/resume reliably if the
+		/* The OLPC XO-1.5 cananalt suspend/resume reliably if the
 		 * IGA1/IGA2 clocks are set as on or off (memory rot
 		 * occasionally happens during suspend under such
 		 * configurations).
 		 *
-		 * The only known stable scenario is to leave this bits as-is,
+		 * The only kanalwn stable scenario is to leave this bits as-is,
 		 * which in their default states are documented to enable the
 		 * clock only when it is needed.
 		 */
-		clock->set_primary_clock_state = noop_set_clock_state;
-		clock->set_secondary_clock_state = noop_set_clock_state;
+		clock->set_primary_clock_state = analop_set_clock_state;
+		clock->set_secondary_clock_state = analop_set_clock_state;
 	}
 }

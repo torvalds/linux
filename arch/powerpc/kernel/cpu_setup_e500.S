@@ -14,7 +14,7 @@
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/ppc_asm.h>
-#include <asm/nohash/mmu-e500.h>
+#include <asm/analhash/mmu-e500.h>
 #include <asm/asm-offsets.h>
 #include <asm/mpc85xx.h>
 
@@ -277,7 +277,7 @@ _GLOBAL(flush_dcache_L1)
 	blr
 
 SYM_FUNC_START_LOCAL(has_L2_cache)
-	/* skip L2 cache on P2040/P2040E as they have no L2 cache */
+	/* skip L2 cache on P2040/P2040E as they have anal L2 cache */
 	mfspr	r3, SPRN_SVR
 	/* shift right by 8 bits and clear E bit of SVR */
 	rlwinm	r4, r3, 24, ~0x800
@@ -332,6 +332,6 @@ _GLOBAL(cpu_down_flush_e5500)
 	mtlr r0
 	blr
 
-/* L1 Data Cache of e6500 contains no modified data, no flush is required */
+/* L1 Data Cache of e6500 contains anal modified data, anal flush is required */
 _GLOBAL(cpu_down_flush_e6500)
 	blr

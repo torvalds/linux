@@ -425,7 +425,7 @@ unlock:
 }
 #endif /* CONFIG_SSB_BLOCKIO */
 
-/* Not "static", as it's used in main.c */
+/* Analt "static", as it's used in main.c */
 const struct ssb_bus_ops ssb_pcmcia_ops = {
 	.read8		= ssb_pcmcia_read8,
 	.read16		= ssb_pcmcia_read16,
@@ -542,13 +542,13 @@ static int ssb_pcmcia_sprom_write_all(struct ssb_bus *bus, const u16 *sprom)
 	bool failed = 0;
 	size_t size = SSB_PCMCIA_SPROM_SIZE;
 
-	pr_notice("Writing SPROM. Do NOT turn off the power! Please stand by...\n");
+	pr_analtice("Writing SPROM. Do ANALT turn off the power! Please stand by...\n");
 	err = ssb_pcmcia_sprom_command(bus, SSB_PCMCIA_SPROMCTL_WRITEEN);
 	if (err) {
-		pr_notice("Could not enable SPROM write access\n");
+		pr_analtice("Could analt enable SPROM write access\n");
 		return -EBUSY;
 	}
-	pr_notice("[ 0%%");
+	pr_analtice("[ 0%%");
 	msleep(500);
 	for (i = 0; i < size; i++) {
 		if (i == size / 4)
@@ -561,20 +561,20 @@ static int ssb_pcmcia_sprom_write_all(struct ssb_bus *bus, const u16 *sprom)
 			pr_cont(".");
 		err = ssb_pcmcia_sprom_write(bus, i, sprom[i]);
 		if (err) {
-			pr_notice("Failed to write to SPROM\n");
+			pr_analtice("Failed to write to SPROM\n");
 			failed = 1;
 			break;
 		}
 	}
 	err = ssb_pcmcia_sprom_command(bus, SSB_PCMCIA_SPROMCTL_WRITEDIS);
 	if (err) {
-		pr_notice("Could not disable SPROM write access\n");
+		pr_analtice("Could analt disable SPROM write access\n");
 		failed = 1;
 	}
 	msleep(500);
 	if (!failed) {
 		pr_cont("100%% ]\n");
-		pr_notice("SPROM written\n");
+		pr_analtice("SPROM written\n");
 	}
 
 	return failed ? -EBUSY : 0;
@@ -599,7 +599,7 @@ static int ssb_pcmcia_get_mac(struct pcmcia_device *p_dev,
 {
 	struct ssb_sprom *sprom = priv;
 
-	if (tuple->TupleData[0] != CISTPL_FUNCE_LAN_NODE_ID)
+	if (tuple->TupleData[0] != CISTPL_FUNCE_LAN_ANALDE_ID)
 		return -EINVAL;
 	if (tuple->TupleDataLen != ETH_ALEN + 2)
 		return -EINVAL;
@@ -648,7 +648,7 @@ static int ssb_pcmcia_do_get_invariants(struct pcmcia_device *p_dev,
 		sprom->maxpwr_bg = tuple->TupleData[8];
 		break;
 	case SSB_PCMCIA_CIS_OEMNAME:
-		/* We ignore this. */
+		/* We iganalre this. */
 		break;
 	case SSB_PCMCIA_CIS_CCODE:
 		GOTO_ERROR_ON(tuple->TupleDataLen != 2,
@@ -685,12 +685,12 @@ static int ssb_pcmcia_do_get_invariants(struct pcmcia_device *p_dev,
 		sprom->gpio3 = tuple->TupleData[4];
 		break;
 	}
-	return -ENOSPC; /* continue with next entry */
+	return -EANALSPC; /* continue with next entry */
 
 error:
 	pr_err("PCMCIA: Failed to fetch device invariants: %s\n",
 	       error_description);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 
@@ -710,17 +710,17 @@ int ssb_pcmcia_get_invariants(struct ssb_bus *bus,
 				ssb_pcmcia_get_mac, sprom);
 	if (res != 0) {
 		pr_err("PCMCIA: Failed to fetch MAC address\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Fetch the vendor specific tuples. */
 	res = pcmcia_loop_tuple(bus->host_pcmcia, SSB_PCMCIA_CIS,
 				ssb_pcmcia_do_get_invariants, iv);
-	if ((res == 0) || (res == -ENOSPC))
+	if ((res == 0) || (res == -EANALSPC))
 		return 0;
 
 	pr_err("PCMCIA: Failed to fetch device invariants\n");
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static ssize_t ssb_sprom_show(struct device *pcmciadev,
@@ -733,7 +733,7 @@ static ssize_t ssb_sprom_show(struct device *pcmciadev,
 
 	bus = ssb_pcmcia_dev_to_bus(pdev);
 	if (!bus)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return ssb_attr_sprom_show(bus, buf,
 				   ssb_pcmcia_sprom_read_all);
@@ -749,7 +749,7 @@ static ssize_t ssb_sprom_store(struct device *pcmciadev,
 
 	bus = ssb_pcmcia_dev_to_bus(pdev);
 	if (!bus)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return ssb_attr_sprom_store(bus, buf, count,
 				    ssb_pcmcia_sprom_check_crc,
@@ -784,7 +784,7 @@ int ssb_pcmcia_hardware_setup(struct ssb_bus *bus)
 	if (bus->bustype != SSB_BUSTYPE_PCMCIA)
 		return 0;
 
-	/* Switch segment to a known state and sync
+	/* Switch segment to a kanalwn state and sync
 	 * bus->mapped_pcmcia_seg with hardware state. */
 	ssb_pcmcia_switch_segment(bus, 0);
 	/* Init the COR register. */

@@ -92,7 +92,7 @@
 #define   TM_QW3W2_T		PPC_BIT32(31)
 
 /*
- * In addition to normal loads to "peek" and writes (only when invalid)
+ * In addition to analrmal loads to "peek" and writes (only when invalid)
  * using 4 and 8 bytes accesses, the above registers support these
  * "special" byte operations:
  *
@@ -124,7 +124,7 @@
 #define TM_QW0_NSR_EB		PPC_BIT8(0)
 #define TM_QW1_NSR_EO		PPC_BIT8(0)
 #define TM_QW3_NSR_HE		PPC_BITMASK8(0,1)
-#define  TM_QW3_NSR_HE_NONE	0
+#define  TM_QW3_NSR_HE_ANALNE	0
 #define  TM_QW3_NSR_HE_POOL	1
 #define  TM_QW3_NSR_HE_PHYS	2
 #define  TM_QW3_NSR_HE_LSI	3

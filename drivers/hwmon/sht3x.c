@@ -51,7 +51,7 @@ static const unsigned char sht3x_cmd_clear_status_reg[]        = { 0x30, 0x41 };
 #define SHT3X_CMD_LENGTH       2
 #define SHT3X_CRC8_LEN         1
 #define SHT3X_RESPONSE_LENGTH  6
-#define SHT3X_CRC8_POLYNOMIAL  0x31
+#define SHT3X_CRC8_POLYANALMIAL  0x31
 #define SHT3X_CRC8_INIT        0xFF
 #define SHT3X_MIN_TEMPERATURE  -45000
 #define SHT3X_MAX_TEMPERATURE  130000
@@ -438,7 +438,7 @@ static int humidity1_limit_write(struct device *dev, int index, int val)
 static void sht3x_select_command(struct sht3x_data *data)
 {
 	/*
-	 * For single-shot mode, only non blocking mode is support,
+	 * For single-shot mode, only analn blocking mode is support,
 	 * we have to wait ourselves for result.
 	 */
 	if (data->mode > 0) {
@@ -558,7 +558,7 @@ static int update_interval_write(struct device *dev, int val)
 	mode = get_mode_from_update_interval(val);
 
 	mutex_lock(&data->data_lock);
-	/* mode did not change */
+	/* mode did analt change */
 	if (mode == data->mode) {
 		mutex_unlock(&data->data_lock);
 		return 0;
@@ -711,7 +711,7 @@ static int sht3x_read(struct device *dev, enum hwmon_sensor_types type,
 			*val = update_interval_read(dev);
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case hwmon_temp:
@@ -739,7 +739,7 @@ static int sht3x_read(struct device *dev, enum hwmon_sensor_types type,
 			*val = temp1_limit_read(dev, index);
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case hwmon_humidity:
@@ -767,11 +767,11 @@ static int sht3x_read(struct device *dev, enum hwmon_sensor_types type,
 			*val = humidity1_limit_read(dev, index);
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -788,7 +788,7 @@ static int sht3x_write(struct device *dev, enum hwmon_sensor_types type,
 		case hwmon_chip_update_interval:
 			return update_interval_write(dev, val);
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	case hwmon_temp:
 		switch (attr) {
@@ -805,7 +805,7 @@ static int sht3x_write(struct device *dev, enum hwmon_sensor_types type,
 			index = limit_min_hyst;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		return temp1_limit_write(dev, index, val);
 	case hwmon_humidity:
@@ -823,11 +823,11 @@ static int sht3x_write(struct device *dev, enum hwmon_sensor_types type,
 			index = limit_min_hyst;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		return humidity1_limit_write(dev, index, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -861,27 +861,27 @@ static int sht3x_probe(struct i2c_client *client)
 
 	/*
 	 * we require full i2c support since the sht3x uses multi-byte read and
-	 * writes as well as multi-byte commands which are not supported by
+	 * writes as well as multi-byte commands which are analt supported by
 	 * the smbus protocol
 	 */
 	if (!i2c_check_functionality(adap, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = i2c_master_send(client, sht3x_cmd_clear_status_reg,
 			      SHT3X_CMD_LENGTH);
 	if (ret != SHT3X_CMD_LENGTH)
-		return ret < 0 ? ret : -ENODEV;
+		return ret < 0 ? ret : -EANALDEV;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->repeatability = high_repeatability;
 	data->mode = 0;
 	data->last_update = jiffies - msecs_to_jiffies(3000);
 	data->client = client;
 	data->chip_id = i2c_match_id(sht3x_ids, client)->driver_data;
-	crc8_populate_msb(sht3x_crc8_table, SHT3X_CRC8_POLYNOMIAL);
+	crc8_populate_msb(sht3x_crc8_table, SHT3X_CRC8_POLYANALMIAL);
 
 	sht3x_select_command(data);
 

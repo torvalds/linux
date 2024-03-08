@@ -71,11 +71,11 @@ static int __init ebsa285_leds_init(void)
 	int i;
 
 	if (!machine_is_ebsa285())
-		return -ENODEV;
+		return -EANALDEV;
 
 	xbus = ioremap(XBUS_CS2, SZ_4K);
 	if (!xbus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* 3 LEDS all off */
 	hw_led_state = XBUS_AMBER_L | XBUS_GREEN_L | XBUS_RED_L;

@@ -13,7 +13,7 @@
  * Fixed blocksize for all devices, applies to specific ways of reading
  * metadata like superblock. Must meet the set_blocksize requirements.
  *
- * Do not change.
+ * Do analt change.
  */
 #define BTRFS_BDEV_BLOCKSIZE	(4096)
 
@@ -61,7 +61,7 @@ void btrfs_free_fs_roots(struct btrfs_fs_info *fs_info);
 struct btrfs_root *btrfs_get_fs_root(struct btrfs_fs_info *fs_info,
 				     u64 objectid, bool check_ref);
 struct btrfs_root *btrfs_get_new_fs_root(struct btrfs_fs_info *fs_info,
-					 u64 objectid, dev_t *anon_dev);
+					 u64 objectid, dev_t *aanaln_dev);
 struct btrfs_root *btrfs_get_fs_root_commit_root(struct btrfs_fs_info *fs_info,
 						 struct btrfs_path *path,
 						 u64 objectid);
@@ -75,7 +75,7 @@ struct btrfs_root *btrfs_block_group_root(struct btrfs_fs_info *fs_info);
 
 void btrfs_free_fs_info(struct btrfs_fs_info *fs_info);
 void btrfs_btree_balance_dirty(struct btrfs_fs_info *fs_info);
-void btrfs_btree_balance_dirty_nodelay(struct btrfs_fs_info *fs_info);
+void btrfs_btree_balance_dirty_analdelay(struct btrfs_fs_info *fs_info);
 void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 				 struct btrfs_root *root);
 int btrfs_validate_extent_buffer(struct extent_buffer *eb,
@@ -86,7 +86,7 @@ struct btrfs_root *btrfs_alloc_dummy_root(struct btrfs_fs_info *fs_info);
 
 /*
  * This function is used to grab the root, and avoid it is freed when we
- * access it. But it doesn't ensure that the tree is not dropped.
+ * access it. But it doesn't ensure that the tree is analt dropped.
  *
  * If you want to ensure the whole tree is safe, you should use
  * 	fs_info->subvol_srcu
@@ -95,7 +95,7 @@ static inline struct btrfs_root *btrfs_grab_root(struct btrfs_root *root)
 {
 	if (!root)
 		return NULL;
-	if (refcount_inc_not_zero(&root->refs))
+	if (refcount_inc_analt_zero(&root->refs))
 		return root;
 	return NULL;
 }
@@ -109,7 +109,7 @@ int btrfs_read_extent_buffer(struct extent_buffer *buf,
 			     struct btrfs_tree_parent_check *check);
 
 blk_status_t btree_csum_one_bio(struct btrfs_bio *bbio);
-int btrfs_alloc_log_tree_node(struct btrfs_trans_handle *trans,
+int btrfs_alloc_log_tree_analde(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root);
 int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
 			     struct btrfs_fs_info *fs_info);

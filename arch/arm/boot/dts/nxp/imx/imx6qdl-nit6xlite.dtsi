@@ -557,7 +557,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_wlan_vmmc>;
 	cap-power-off-card;

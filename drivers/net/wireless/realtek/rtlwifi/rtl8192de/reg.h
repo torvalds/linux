@@ -59,7 +59,7 @@
 #define REG_PCIE_MIO_INTD		0x00E8
 #define REG_HPON_FSM			0x00EC
 #define REG_SYS_CFG			0x00F0
-#define REG_MAC_PHY_CTRL_NORMAL		0x00f8
+#define REG_MAC_PHY_CTRL_ANALRMAL		0x00f8
 
 #define  REG_MAC0			0x0081
 #define  REG_MAC1			0x0053
@@ -99,7 +99,7 @@
 #define REG_MBIST_START			0x0174
 #define REG_MBIST_DONE			0x0178
 #define REG_MBIST_FAIL			0x017C
-#define REG_C2HEVT_MSG_NORMAL		0x01A0
+#define REG_C2HEVT_MSG_ANALRMAL		0x01A0
 #define REG_C2HEVT_MSG_TEST		0x01B8
 #define REG_C2HEVT_CLEAR		0x01BF
 #define REG_MCUTST_1			0x01c0
@@ -339,7 +339,7 @@
 /* ----------------------------------------------------- */
 /* 8192C (MSR) Media Status Register(Offset 0x4C, 8 bits)*/
 /* ----------------------------------------------------- */
-#define	MSR_NOLINK			0x00
+#define	MSR_ANALLINK			0x00
 #define	MSR_ADHOC			0x01
 #define	MSR_INFRA			0x02
 #define	MSR_AP				0x03
@@ -471,10 +471,10 @@
 /*     8192C CAM Config Setting (offset 0x250, 1 byte)   */
 /* ----------------------------------------------------- */
 #define	CAM_VALID			BIT(15)
-#define	CAM_NOTVALID			0x0000
+#define	CAM_ANALTVALID			0x0000
 #define	CAM_USEDK			BIT(5)
 
-#define	CAM_NONE			0x0
+#define	CAM_ANALNE			0x0
 #define	CAM_WEP40			0x01
 #define	CAM_TKIP			0x02
 #define	CAM_AES				0x04
@@ -538,7 +538,7 @@
 #define	IMR_C2HCMD			BIT(9)
 #define	IMR_CPWM			BIT(8)
 #define	IMR_OCPINT			BIT(1)
-#define	IMR_WLANOFF			BIT(0)
+#define	IMR_WLAANALFF			BIT(0)
 
 /* ----------------------------------------------------- */
 /* 8192C EFUSE */
@@ -656,7 +656,7 @@
 #define EEPROM_CUSTOMER_ID			0xCB
 #define EEPROM_RF_OPT7				0xCC
 
-#define EEPROM_DEF_PART_NO			0x3FD    /* Byte */
+#define EEPROM_DEF_PART_ANAL			0x3FD    /* Byte */
 #define EEPROME_CHIP_VERSION_L			0x3FF
 #define EEPROME_CHIP_VERSION_H			0x3FE
 
@@ -916,7 +916,7 @@
 #define TYPE_ID					BIT(27)
 
 /* LLT_INIT */
-#define _LLT_NO_ACTIVE				0x0
+#define _LLT_ANAL_ACTIVE				0x0
 #define _LLT_WRITE_ACCESS			0x1
 #define _LLT_READ_ACCESS			0x2
 
@@ -968,7 +968,7 @@
 #define	SCR_TXENCENABLE				BIT(2)
 #define	SCR_RXENCENABLE				BIT(3)
 #define	SCR_SKBYA2				BIT(4)
-#define	SCR_NOSKMC				BIT(5)
+#define	SCR_ANALSKMC				BIT(5)
 #define SCR_TXBCUSEDK				BIT(6)
 #define SCR_RXBCUSEDK				BIT(7)
 
@@ -1123,7 +1123,7 @@
 #define	ROFDM0_XDTXAFE				0xc9c
 
 #define	ROFDM0_RXHPPARAMETER			0xce0
-#define	ROFDM0_TXPSEUDONOISEWGT			0xce4
+#define	ROFDM0_TXPSEUDOANALISEWGT			0xce4
 #define	ROFDM0_FRAMESYNC			0xcf0
 #define	ROFDM0_DFSREPORT			0xcf4
 #define	ROFDM0_TXCOEFF1				0xca4
@@ -1144,9 +1144,9 @@
 #define	ROFDM1_CFOTRACKING			0xd2c
 #define	ROFDM1_TRXMESAURE1			0xd34
 #define	ROFDM1_INTFDET				0xd3c
-#define	ROFDM1_PSEUDONOISESTATEAB		0xd50
-#define	ROFDM1_PSEUDONOISESTATECD		0xd54
-#define	ROFDM1_RXPSEUDONOISEWGT			0xd58
+#define	ROFDM1_PSEUDOANALISESTATEAB		0xd50
+#define	ROFDM1_PSEUDOANALISESTATECD		0xd54
+#define	ROFDM1_RXPSEUDOANALISEWGT			0xd58
 
 #define	ROFDM_PHYCOUNTER1			0xda0
 #define	ROFDM_PHYCOUNTER2			0xda4

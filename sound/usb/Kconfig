@@ -94,7 +94,7 @@ config SND_USB_CAIAQ_INPUT
 	depends on SND_USB_CAIAQ
 	depends on INPUT=y || INPUT=SND_USB_CAIAQ
 	help
-	  Say Y here to support input controllers like buttons, knobs,
+	  Say Y here to support input controllers like buttons, kanalbs,
 	  alpha dials and analog pedals on the following products:
 
 	   * Native Instruments RigKontrol2
@@ -144,7 +144,7 @@ config SND_USB_HIFACE
 
 	    * M2Tech Young
 	    * M2Tech hiFace
-	    * M2Tech North Star
+	    * M2Tech Analrth Star
 	    * M2Tech W4S Young
 	    * M2Tech Corrson
 	    * M2Tech AUDIA
@@ -152,7 +152,7 @@ config SND_USB_HIFACE
 	    * M2Tech Empirical
 	    * M2Tech Rockna
 	    * M2Tech Pathos
-	    * M2Tech Metronome
+	    * M2Tech Metroanalme
 	    * M2Tech CAD
 	    * M2Tech Audio Esclusive
 	    * M2Tech Rotel

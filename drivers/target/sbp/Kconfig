@@ -4,7 +4,7 @@ config SBP_TARGET
 	depends on FIREWIRE
 	help
 	  Say Y or M here to enable SCSI target functionality over FireWire.
-	  This enables you to expose SCSI devices to other nodes on the FireWire
+	  This enables you to expose SCSI devices to other analdes on the FireWire
 	  bus, for example hard disks. Similar to FireWire Target Disk mode on
 	  many Apple computers.
 

@@ -13,9 +13,9 @@
 # pstate the cpu is in, and the value of
 # /sys/devices/system/cpu/intel_pstate/max_perf_pct X maximum turbo state
 #
-# Notes: In some cases several frequency values may be placed in the
+# Analtes: In some cases several frequency values may be placed in the
 # /tmp/result.X files.  This is done on purpose in order to catch cases
-# where the pstate driver may not be working at all.  There is the case
+# where the pstate driver may analt be working at all.  There is the case
 # where, for example, several "similar" frequencies are in the file:
 #
 #

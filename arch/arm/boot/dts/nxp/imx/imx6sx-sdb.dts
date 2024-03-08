@@ -111,7 +111,7 @@
 	flash0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q256a", "jedec,spi-nor";
+		compatible = "micron,n25q256a", "jedec,spi-analr";
 		spi-max-frequency = <29000000>;
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <1>;
@@ -121,7 +121,7 @@
 	flash1: flash@2 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q256a", "jedec,spi-nor";
+		compatible = "micron,n25q256a", "jedec,spi-analr";
 		spi-max-frequency = <29000000>;
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <1>;

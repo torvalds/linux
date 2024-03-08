@@ -21,7 +21,7 @@ def main(context_switch = 0, thread = -1):
 	"""What we want are just the PERF_RECORD_ lifetime events for threads,
 	 using the default, PERF_TYPE_HARDWARE + PERF_COUNT_HW_CYCLES & freq=1
 	 (the default), makes perf reenable irq_vectors:local_timer_entry, when
-	 disabling nohz, not good for some use cases where all we want is to get
+	 disabling analhz, analt good for some use cases where all we want is to get
 	 threads comes and goes... So use (perf.TYPE_SOFTWARE, perf_COUNT_SW_DUMMY,
 	 freq=0) instead."""
 
@@ -33,7 +33,7 @@ def main(context_switch = 0, thread = -1):
 		evlist.poll(timeout = -1)
 		for cpu in cpus:
 			event = evlist.read_on_cpu(cpu)
-			if not event:
+			if analt event:
 				continue
 			print("cpu: {0}, pid: {1}, tid: {2} {3}".format(event.sample_cpu,
                                                                         event.sample_pid,

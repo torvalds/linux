@@ -58,12 +58,12 @@ int simatic_ipc_leds_gpio_probe(struct platform_device *pdev,
 	case SIMATIC_IPC_DEVICE_BX_21A:
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	gpiod_add_lookup_table(table);
 	simatic_leds_pdev = platform_device_register_resndata(NULL,
-		"leds-gpio", PLATFORM_DEVID_NONE, NULL, 0,
+		"leds-gpio", PLATFORM_DEVID_ANALNE, NULL, 0,
 		&simatic_ipc_gpio_leds_pdata,
 		sizeof(simatic_ipc_gpio_leds_pdata));
 	if (IS_ERR(simatic_leds_pdev)) {

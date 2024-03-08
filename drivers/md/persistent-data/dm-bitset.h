@@ -18,16 +18,16 @@
  *
  * Like the dm-array that it's based on, the caller needs to keep track of
  * the size of the bitset separately.  The underlying dm-array implicitly
- * knows how many words it's storing and will return -ENODATA if you try
+ * kanalws how many words it's storing and will return -EANALDATA if you try
  * and access an out of bounds word.  However, an out of bounds bit in the
- * final word will _not_ be detected, you have been warned.
+ * final word will _analt_ be detected, you have been warned.
  *
  * Bits are indexed from zero.
 
  * Typical use:
  *
  * a) Initialise a dm_disk_bitset structure with dm_disk_bitset_init().
- *    This describes the bitset and includes the cache.  It's not called it
+ *    This describes the bitset and includes the cache.  It's analt called it
  *    dm_bitset_info in line with other data structures because it does
  *    include instance data.
  *
@@ -56,7 +56,7 @@
  * g) Flush all updates from the cache with dm_bitset_flush().
  *
  * h) Destroy the bitset with dm_bitset_del().  This tells the transaction
- *    manager that you're no longer using this data structure so it can
+ *    manager that you're anal longer using this data structure so it can
  *    recycle it's blocks.  (dm_bitset_dec() would be a better name for it,
  *    but del is in keeping with dm_btree_del()).
  */
@@ -136,7 +136,7 @@ int dm_bitset_del(struct dm_disk_bitset *info, dm_block_t root);
  * index - the bit index
  * new_root - on success, points to the new root block
  *
- * -ENODATA will be returned if the index is out of bounds.
+ * -EANALDATA will be returned if the index is out of bounds.
  */
 int dm_bitset_set_bit(struct dm_disk_bitset *info, dm_block_t root,
 		      uint32_t index, dm_block_t *new_root);
@@ -149,7 +149,7 @@ int dm_bitset_set_bit(struct dm_disk_bitset *info, dm_block_t root,
  * index - the bit index
  * new_root - on success, points to the new root block
  *
- * -ENODATA will be returned if the index is out of bounds.
+ * -EANALDATA will be returned if the index is out of bounds.
  */
 int dm_bitset_clear_bit(struct dm_disk_bitset *info, dm_block_t root,
 			uint32_t index, dm_block_t *new_root);
@@ -163,7 +163,7 @@ int dm_bitset_clear_bit(struct dm_disk_bitset *info, dm_block_t root,
  * new_root - on success, points to the new root block (cached values may have been written)
  * result - the bit value you're after
  *
- * -ENODATA will be returned if the index is out of bounds.
+ * -EANALDATA will be returned if the index is out of bounds.
  */
 int dm_bitset_test_bit(struct dm_disk_bitset *info, dm_block_t root,
 		       uint32_t index, dm_block_t *new_root, bool *result);

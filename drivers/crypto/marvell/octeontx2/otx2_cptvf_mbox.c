@@ -12,7 +12,7 @@ int otx2_cpt_mbox_bbuf_init(struct otx2_cptvf_dev *cptvf, struct pci_dev *pdev)
 
 	cptvf->bbuf_base = devm_kmalloc(&pdev->dev, MBOX_SIZE, GFP_KERNEL);
 	if (!cptvf->bbuf_base)
-		return -ENOMEM;
+		return -EANALMEM;
 	/*
 	 * Overwrite mbox mbase to point to bounce buffer, so that PF/VF
 	 * prepare all mbox messages in bounce buffer instead of directly
@@ -79,7 +79,7 @@ static void process_pfvf_mbox_mbox_msg(struct otx2_cptvf_dev *cptvf,
 
 	if (msg->id >= MBOX_MSG_MAX) {
 		dev_err(&cptvf->pdev->dev,
-			"MBOX msg with unknown ID %d\n", msg->id);
+			"MBOX msg with unkanalwn ID %d\n", msg->id);
 		return;
 	}
 	if (msg->sig != OTX2_MBOX_RSP_SIG) {

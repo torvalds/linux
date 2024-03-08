@@ -111,9 +111,9 @@ static inline u32 create_ctx_hdr(struct skcipher_request *req, u32 enc,
 	req_info->req.opcode.s.major = MAJOR_OP_FC |
 					DMA_MODE_FLAG(DMA_GATHER_SCATTER);
 	if (enc)
-		req_info->req.opcode.s.minor = 2;
+		req_info->req.opcode.s.mianalr = 2;
 	else
-		req_info->req.opcode.s.minor = 3;
+		req_info->req.opcode.s.mianalr = 3;
 
 	req_info->req.param1 = req->cryptlen; /* Encryption Data length */
 	req_info->req.param2 = 0; /*Auth data length */
@@ -208,7 +208,7 @@ static inline int cvm_enc_dec(struct skcipher_request *req, u32 enc)
 	store_cb_info(req, req_info);
 	cdev = dev_handle.cdev[smp_processor_id()];
 	status = cptvf_do_request(cdev, req_info);
-	/* We perform an asynchronous send and once
+	/* We perform an asynchroanalus send and once
 	 * the request is completed the driver would
 	 * intimate through  registered call back functions
 	 */

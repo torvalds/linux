@@ -21,17 +21,17 @@ description: |
   0-7 for an 8-way multiplexer, etc.
 
 
-  Mux controller nodes
+  Mux controller analdes
   --------------------
 
-  Mux controller nodes must specify the number of cells used for the
+  Mux controller analdes must specify the number of cells used for the
   specifier using the '#mux-control-cells' or '#mux-state-cells' property.
   The value of '#mux-state-cells' will always be one greater than the value
   of '#mux-control-cells'.
 
-  Optionally, mux controller nodes can also specify the state the mux should
+  Optionally, mux controller analdes can also specify the state the mux should
   have when it is idle. The idle-state property is used for this. If the
-  idle-state is not present, the mux controller is typically left as is when
+  idle-state is analt present, the mux controller is typically left as is when
   it is idle. For multiplexer chips that expose several mux controllers, the
   idle-state property is an array with one idle state for each mux controller.
 
@@ -51,7 +51,7 @@ description: |
 
   as MUX_IDLE_AS_IS (-1) and MUX_IDLE_DISCONNECT (-2).
 
-  An example mux controller node look like this (the adg972a chip is a triple
+  An example mux controller analde look like this (the adg972a chip is a triple
   4-way multiplexer):
 
     mux: mux-controller@50 {
@@ -65,7 +65,7 @@ description: |
 select:
   anyOf:
     - properties:
-        $nodename:
+        $analdename:
           pattern: '^mux-controller'
     - required:
         - '#mux-control-cells'
@@ -73,7 +73,7 @@ select:
         - '#mux-state-cells'
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^mux-controller(@.*|-[0-9a-f]+)?$'
 
   '#mux-control-cells':
@@ -88,8 +88,8 @@ properties:
 
   idle-states:
     description: |
-      Mux controller nodes can specify the state the mux should have when it is
-      idle. If the idle-state is not present, the mux controller is typically
+      Mux controller analdes can specify the state the mux should have when it is
+      idle. If the idle-state is analt present, the mux controller is typically
       left as is when it is idle. For multiplexer chips that expose several mux
       controllers, the idle-state property is an array with one idle state for
       each mux controller.

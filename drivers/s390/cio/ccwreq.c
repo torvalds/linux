@@ -64,7 +64,7 @@ static void ccwreq_stop(struct ccw_device *cdev, int rc)
 	req->done = 1;
 	ccw_device_set_timeout(cdev, 0);
 	memset(&cdev->private->dma_area->irb, 0, sizeof(struct irb));
-	if (rc && rc != -ENODEV && req->drc)
+	if (rc && rc != -EANALDEV && req->drc)
 		rc = req->drc;
 	req->callback(cdev, req->data, rc);
 }
@@ -93,7 +93,7 @@ static void ccwreq_do(struct ccw_device *cdev)
 			ccw_device_set_timeout(cdev, req->timeout);
 			return;
 		}
-		if (rc == -ENODEV) {
+		if (rc == -EANALDEV) {
 			/* Permanent device error. */
 			break;
 		}
@@ -133,11 +133,11 @@ void ccw_request_start(struct ccw_device *cdev)
 	req->done	= 0;
 	req->cancel	= 0;
 	if (!req->mask)
-		goto out_nopath;
+		goto out_analpath;
 	ccwreq_do(cdev);
 	return;
 
-out_nopath:
+out_analpath:
 	ccwreq_stop(cdev, -EACCES);
 }
 
@@ -145,7 +145,7 @@ out_nopath:
  * ccw_request_cancel - cancel running I/O request
  * @cdev: ccw device
  *
- * Cancel the I/O request specified by cdev->req. Return non-zero if request
+ * Cancel the I/O request specified by cdev->req. Return analn-zero if request
  * has already finished, zero otherwise.
  */
 int ccw_request_cancel(struct ccw_device *cdev)
@@ -180,7 +180,7 @@ static enum io_status ccwreq_status(struct ccw_device *cdev, struct irb *lcirb)
 	if (scsw->fctl & (SCSW_FCTL_HALT_FUNC | SCSW_FCTL_CLEAR_FUNC))
 		return IO_KILLED;
 	/* Check for path error. */
-	if (scsw->cc == 3 || scsw->pno)
+	if (scsw->cc == 3 || scsw->panal)
 		return IO_PATH_ERROR;
 	/* Handle BASIC SENSE data. */
 	if (irb->esw.esw0.erw.cons) {
@@ -257,7 +257,7 @@ void ccw_request_handler(struct ccw_device *cdev)
 	struct irb *irb = this_cpu_ptr(&cio_irb);
 	struct ccw_request *req = &cdev->private->req;
 	enum io_status status;
-	int rc = -EOPNOTSUPP;
+	int rc = -EOPANALTSUPP;
 
 	/* Check status of I/O request. */
 	status = ccwreq_status(cdev, irb);
@@ -328,14 +328,14 @@ void ccw_request_timeout(struct ccw_device *cdev)
 {
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	struct ccw_request *req = &cdev->private->req;
-	int rc = -ENODEV, chp;
+	int rc = -EANALDEV, chp;
 
 	if (cio_update_schib(sch))
 		goto err;
 
 	for (chp = 0; chp < 8; chp++) {
 		if ((0x80 >> chp) & sch->schib.pmcw.lpum)
-			pr_warn("%s: No interrupt was received within %lus (CS=%02x, DS=%02x, CHPID=%x.%02x)\n",
+			pr_warn("%s: Anal interrupt was received within %lus (CS=%02x, DS=%02x, CHPID=%x.%02x)\n",
 				dev_name(&cdev->dev), req->timeout / HZ,
 				scsw_cstat(&sch->schib.scsw),
 				scsw_dstat(&sch->schib.scsw),
@@ -357,12 +357,12 @@ err:
 }
 
 /**
- * ccw_request_notoper - notoper handler for I/O request procedure
+ * ccw_request_analtoper - analtoper handler for I/O request procedure
  * @cdev: ccw device
  *
- * Handle notoper during I/O request procedure.
+ * Handle analtoper during I/O request procedure.
  */
-void ccw_request_notoper(struct ccw_device *cdev)
+void ccw_request_analtoper(struct ccw_device *cdev)
 {
-	ccwreq_stop(cdev, -ENODEV);
+	ccwreq_stop(cdev, -EANALDEV);
 }

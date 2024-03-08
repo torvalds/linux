@@ -78,14 +78,14 @@
 			cooling-maps {
 				map0 {
 					trip = <&skin_temp_alert0>;
-					cooling-device = <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 
 				map1 {
 					trip = <&skin_temp_alert1>;
-					cooling-device = <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -204,7 +204,7 @@
 };
 
 /*
- * No eDP on this board but it's logically the same signal so just give it
+ * Anal eDP on this board but it's logically the same signal so just give it
  * a new name and assign the proper GPIO.
  */
 pp3300_disp_on: &pp3300_dx_edp {
@@ -214,7 +214,7 @@ pp3300_disp_on: &pp3300_dx_edp {
 /* PINCTRL - modifications to sc7180-trogdor.dtsi */
 
 /*
- * No eDP on this board but it's logically the same signal so just give it
+ * Anal eDP on this board but it's logically the same signal so just give it
  * a new name and assign the proper GPIO.
  */
 

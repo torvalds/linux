@@ -34,7 +34,7 @@ static int tsnep_xdp_enable_pool(struct tsnep_adapter *adapter,
 		netdev_err(adapter->netdev,
 			   "XSK support only for TX/RX queue pairs\n");
 
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	retval = xsk_pool_dma_map(pool, adapter->dmadev,

@@ -20,7 +20,7 @@
 #include "xfs_alloc_btree.h"
 #include "xfs_rmap.h"
 #include "xfs_rmap_btree.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_refcount.h"
 #include "xfs_extent_busy.h"
 #include "xfs_health.h"
@@ -52,35 +52,35 @@
  *
  * Because the final step of building a new index is to free the space used by
  * the old index, repair needs to find that space.  Unfortunately, all
- * structures that live in the free space (bnobt, cntbt, rmapbt, agfl) share
- * the same rmapbt owner code (OWN_AG), so this is not straightforward.
+ * structures that live in the free space (banalbt, cntbt, rmapbt, agfl) share
+ * the same rmapbt owner code (OWN_AG), so this is analt straightforward.
  *
  * The scan of the reverse mapping information records the space used by OWN_AG
  * in @old_allocbt_blocks, which (at this stage) is somewhat misnamed.  While
- * walking the rmapbt records, we create a second bitmap @not_allocbt_blocks to
+ * walking the rmapbt records, we create a second bitmap @analt_allocbt_blocks to
  * record all visited rmap btree blocks and all blocks owned by the AGFL.
  *
  * After that is where the definitions of old_allocbt_blocks shifts.  This
- * expression identifies possible former bnobt/cntbt blocks:
+ * expression identifies possible former banalbt/cntbt blocks:
  *
  *	(OWN_AG blocks) & ~(rmapbt blocks | agfl blocks);
  *
  * Substituting from above definitions, that becomes:
  *
- *	old_allocbt_blocks & ~not_allocbt_blocks
+ *	old_allocbt_blocks & ~analt_allocbt_blocks
  *
  * The OWN_AG bitmap itself isn't needed after this point, so what we really do
  * instead is:
  *
- *	old_allocbt_blocks &= ~not_allocbt_blocks;
+ *	old_allocbt_blocks &= ~analt_allocbt_blocks;
  *
  * After this point, @old_allocbt_blocks is a bitmap of alleged former
- * bnobt/cntbt blocks.  The xagb_bitmap_disunion operation modifies its first
+ * banalbt/cntbt blocks.  The xagb_bitmap_disunion operation modifies its first
  * parameter in place to avoid copying records around.
  *
  * Next, some of the space described by @free_records are diverted to the newbt
  * reservation and used to format new btree blocks.  The remaining records are
- * written to the new btree indices.  We reconstruct both bnobt and cntbt at
+ * written to the new btree indices.  We reconstruct both banalbt and cntbt at
  * the same time since we've already done all the work.
  *
  * We use the prefix 'xrep_abt' here because we regenerate both free space
@@ -89,16 +89,16 @@
 
 struct xrep_abt {
 	/* Blocks owned by the rmapbt or the agfl. */
-	struct xagb_bitmap	not_allocbt_blocks;
+	struct xagb_bitmap	analt_allocbt_blocks;
 
 	/* All OWN_AG blocks. */
 	struct xagb_bitmap	old_allocbt_blocks;
 
 	/*
-	 * New bnobt information.  All btree block reservations are added to
-	 * the reservation list in new_bnobt.
+	 * New banalbt information.  All btree block reservations are added to
+	 * the reservation list in new_banalbt.
 	 */
-	struct xrep_newbt	new_bnobt;
+	struct xrep_newbt	new_banalbt;
 
 	/* new cntbt information */
 	struct xrep_newbt	new_cntbt;
@@ -108,7 +108,7 @@ struct xrep_abt {
 
 	struct xfs_scrub	*sc;
 
-	/* Number of non-null records in @free_records. */
+	/* Number of analn-null records in @free_records. */
 	uint64_t		nr_real_records;
 
 	/* get_records()'s position in the free space record array. */
@@ -116,9 +116,9 @@ struct xrep_abt {
 
 	/*
 	 * Next block we anticipate seeing in the rmap records.  If the next
-	 * rmap record is greater than next_agbno, we have found unused space.
+	 * rmap record is greater than next_agbanal, we have found unused space.
 	 */
-	xfs_agblock_t		next_agbno;
+	xfs_agblock_t		next_agbanal;
 
 	/* Number of free blocks in this AG. */
 	xfs_agblock_t		nr_blocks;
@@ -157,15 +157,15 @@ xrep_abt_check_free_ext(
 	if (xfs_alloc_check_irec(sc->sa.pag, rec) != NULL)
 		return -EFSCORRUPTED;
 
-	/* Must not be an inode chunk. */
-	error = xfs_ialloc_has_inodes_at_extent(sc->sa.ino_cur,
+	/* Must analt be an ianalde chunk. */
+	error = xfs_ialloc_has_ianaldes_at_extent(sc->sa.ianal_cur,
 			rec->ar_startblock, rec->ar_blockcount, &outcome);
 	if (error)
 		return error;
 	if (outcome != XBTREE_RECPACKING_EMPTY)
 		return -EFSCORRUPTED;
 
-	/* Must not be shared or CoW staging. */
+	/* Must analt be shared or CoW staging. */
 	if (sc->sa.refc_cur) {
 		error = xfs_refcount_has_records(sc->sa.refc_cur,
 				XFS_REFC_DOMAIN_SHARED, rec->ar_startblock,
@@ -188,7 +188,7 @@ xrep_abt_check_free_ext(
 }
 
 /*
- * Stash a free space record for all the space since the last bno we found
+ * Stash a free space record for all the space since the last banal we found
  * all the way up to @end.
  */
 static int
@@ -197,8 +197,8 @@ xrep_abt_stash(
 	xfs_agblock_t		end)
 {
 	struct xfs_alloc_rec_incore arec = {
-		.ar_startblock	= ra->next_agbno,
-		.ar_blockcount	= end - ra->next_agbno,
+		.ar_startblock	= ra->next_agbanal,
+		.ar_blockcount	= end - ra->next_agbanal,
 	};
 	struct xfs_scrub	*sc = ra->sc;
 	int			error = 0;
@@ -210,7 +210,7 @@ xrep_abt_stash(
 	if (error)
 		return error;
 
-	trace_xrep_abt_found(sc->mp, sc->sa.pag->pag_agno, &arec);
+	trace_xrep_abt_found(sc->mp, sc->sa.pag->pag_aganal, &arec);
 
 	error = xfarray_append(ra->free_records, &arec);
 	if (error)
@@ -239,12 +239,12 @@ xrep_abt_walk_rmap(
 	}
 
 	/* ...and all the rmapbt blocks... */
-	error = xagb_bitmap_set_btcur_path(&ra->not_allocbt_blocks, cur);
+	error = xagb_bitmap_set_btcur_path(&ra->analt_allocbt_blocks, cur);
 	if (error)
 		return error;
 
 	/* ...and all the free space. */
-	if (rec->rm_startblock > ra->next_agbno) {
+	if (rec->rm_startblock > ra->next_agbanal) {
 		error = xrep_abt_stash(ra, rec->rm_startblock);
 		if (error)
 			return error;
@@ -252,23 +252,23 @@ xrep_abt_walk_rmap(
 
 	/*
 	 * rmap records can overlap on reflink filesystems, so project
-	 * next_agbno as far out into the AG space as we currently know about.
+	 * next_agbanal as far out into the AG space as we currently kanalw about.
 	 */
-	ra->next_agbno = max_t(xfs_agblock_t, ra->next_agbno,
+	ra->next_agbanal = max_t(xfs_agblock_t, ra->next_agbanal,
 			rec->rm_startblock + rec->rm_blockcount);
 	return 0;
 }
 
-/* Collect an AGFL block for the not-to-release list. */
+/* Collect an AGFL block for the analt-to-release list. */
 static int
 xrep_abt_walk_agfl(
 	struct xfs_mount	*mp,
-	xfs_agblock_t		agbno,
+	xfs_agblock_t		agbanal,
 	void			*priv)
 {
 	struct xrep_abt		*ra = priv;
 
-	return xagb_bitmap_set(&ra->not_allocbt_blocks, agbno, 1);
+	return xagb_bitmap_set(&ra->analt_allocbt_blocks, agbanal, 1);
 }
 
 /*
@@ -276,7 +276,7 @@ xrep_abt_walk_agfl(
  * increasing block number.
  */
 static int
-xrep_bnobt_extent_cmp(
+xrep_banalbt_extent_cmp(
 	const void		*a,
 	const void		*b)
 {
@@ -292,27 +292,27 @@ xrep_bnobt_extent_cmp(
 
 /*
  * Re-sort the free extents by block number so that we can put the records into
- * the bnobt in the correct order.  Make sure the records do not overlap in
+ * the banalbt in the correct order.  Make sure the records do analt overlap in
  * physical space.
  */
 STATIC int
-xrep_bnobt_sort_records(
+xrep_banalbt_sort_records(
 	struct xrep_abt			*ra)
 {
 	struct xfs_alloc_rec_incore	arec;
 	xfarray_idx_t			cur = XFARRAY_CURSOR_INIT;
-	xfs_agblock_t			next_agbno = 0;
+	xfs_agblock_t			next_agbanal = 0;
 	int				error;
 
-	error = xfarray_sort(ra->free_records, xrep_bnobt_extent_cmp, 0);
+	error = xfarray_sort(ra->free_records, xrep_banalbt_extent_cmp, 0);
 	if (error)
 		return error;
 
 	while ((error = xfarray_iter(ra->free_records, &cur, &arec)) == 1) {
-		if (arec.ar_startblock < next_agbno)
+		if (arec.ar_startblock < next_agbanal)
 			return -EFSCORRUPTED;
 
-		next_agbno = arec.ar_startblock + arec.ar_blockcount;
+		next_agbanal = arec.ar_startblock + arec.ar_blockcount;
 	}
 
 	return error;
@@ -335,7 +335,7 @@ xrep_cntbt_extent_cmp(
 		return 1;
 	else if (ap->ar_blockcount < bp->ar_blockcount)
 		return -1;
-	return xrep_bnobt_extent_cmp(a, b);
+	return xrep_banalbt_extent_cmp(a, b);
 }
 
 /*
@@ -354,7 +354,7 @@ xrep_cntbt_sort_records(
 
 /*
  * Iterate all reverse mappings to find (1) the gaps between rmap records (all
- * unowned space), (2) the OWN_AG extents (which encompass the free space
+ * uanalwned space), (2) the OWN_AG extents (which encompass the free space
  * btrees, the rmapbt, and the agfl), (3) the rmapbt blocks, and (4) the AGFL
  * blocks.  The free space is (1) + (2) - (3) - (4).
  */
@@ -369,7 +369,7 @@ xrep_abt_find_freespace(
 	xfs_agblock_t		agend;
 	int			error;
 
-	xagb_bitmap_init(&ra->not_allocbt_blocks);
+	xagb_bitmap_init(&ra->analt_allocbt_blocks);
 
 	xrep_ag_btcur_init(sc, &sc->sa);
 
@@ -383,7 +383,7 @@ xrep_abt_find_freespace(
 
 	/* Insert a record for space between the last rmap and EOAG. */
 	agend = be32_to_cpu(agf->agf_length);
-	if (ra->next_agbno < agend) {
+	if (ra->next_agbanal < agend) {
 		error = xrep_abt_stash(ra, agend);
 		if (error)
 			goto err;
@@ -398,9 +398,9 @@ xrep_abt_find_freespace(
 	if (error)
 		goto err_agfl;
 
-	/* Compute the old bnobt/cntbt blocks. */
+	/* Compute the old banalbt/cntbt blocks. */
 	error = xagb_bitmap_disunion(&ra->old_allocbt_blocks,
-			&ra->not_allocbt_blocks);
+			&ra->analt_allocbt_blocks);
 	if (error)
 		goto err_agfl;
 
@@ -409,7 +409,7 @@ err_agfl:
 	xfs_trans_brelse(sc->tp, agfl_bp);
 err:
 	xchk_ag_btcur_free(&sc->sa);
-	xagb_bitmap_destroy(&ra->not_allocbt_blocks);
+	xagb_bitmap_destroy(&ra->analt_allocbt_blocks);
 	return error;
 }
 
@@ -432,7 +432,7 @@ err:
 STATIC int
 xrep_abt_reserve_space(
 	struct xrep_abt		*ra,
-	struct xfs_btree_cur	*bno_cur,
+	struct xfs_btree_cur	*banal_cur,
 	struct xfs_btree_cur	*cnt_cur,
 	bool			*needs_resort)
 {
@@ -454,25 +454,25 @@ xrep_abt_reserve_space(
 		if (error)
 			break;
 
-		error = xfs_btree_bload_compute_geometry(bno_cur,
-				&ra->new_bnobt.bload, ra->nr_real_records);
+		error = xfs_btree_bload_compute_geometry(banal_cur,
+				&ra->new_banalbt.bload, ra->nr_real_records);
 		if (error)
 			break;
 
 		/* How many btree blocks do we need to store all records? */
-		required = ra->new_bnobt.bload.nr_blocks +
+		required = ra->new_banalbt.bload.nr_blocks +
 			   ra->new_cntbt.bload.nr_blocks;
 		ASSERT(required < INT_MAX);
 
-		/* If we've reserved enough blocks, we're done. */
+		/* If we've reserved eanalugh blocks, we're done. */
 		if (allocated >= required)
 			break;
 
 		desired = required - allocated;
 
-		/* We need space but there's none left; bye! */
+		/* We need space but there's analne left; bye! */
 		if (ra->nr_real_records == 0) {
-			error = -ENOSPC;
+			error = -EANALSPC;
 			break;
 		}
 
@@ -484,10 +484,10 @@ xrep_abt_reserve_space(
 		ASSERT(arec.ar_blockcount <= UINT_MAX);
 		len = min_t(unsigned int, arec.ar_blockcount, desired);
 
-		trace_xrep_newbt_alloc_ag_blocks(sc->mp, sc->sa.pag->pag_agno,
+		trace_xrep_newbt_alloc_ag_blocks(sc->mp, sc->sa.pag->pag_aganal,
 				arec.ar_startblock, len, XFS_RMAP_OWN_AG);
 
-		error = xrep_newbt_add_extent(&ra->new_bnobt, sc->sa.pag,
+		error = xrep_newbt_add_extent(&ra->new_banalbt, sc->sa.pag,
 				arec.ar_startblock, len);
 		if (error)
 			break;
@@ -498,7 +498,7 @@ xrep_abt_reserve_space(
 			/*
 			 * Record has more space than we need.  The number of
 			 * free records doesn't change, so shrink the free
-			 * record, inform the caller that the records are no
+			 * record, inform the caller that the records are anal
 			 * longer sorted by length, and exit.
 			 */
 			arec.ar_startblock += desired;
@@ -535,7 +535,7 @@ xrep_abt_dispose_one(
 {
 	struct xfs_scrub	*sc = ra->sc;
 	struct xfs_perag	*pag = sc->sa.pag;
-	xfs_agblock_t		free_agbno = resv->agbno + resv->used;
+	xfs_agblock_t		free_agbanal = resv->agbanal + resv->used;
 	xfs_extlen_t		free_aglen = resv->len - resv->used;
 	int			error;
 
@@ -543,22 +543,22 @@ xrep_abt_dispose_one(
 
 	/* Add a deferred rmap for each extent we used. */
 	if (resv->used > 0)
-		xfs_rmap_alloc_extent(sc->tp, pag->pag_agno, resv->agbno,
+		xfs_rmap_alloc_extent(sc->tp, pag->pag_aganal, resv->agbanal,
 				resv->used, XFS_RMAP_OWN_AG);
 
 	/*
 	 * For each reserved btree block we didn't use, add it to the free
 	 * space btree.  We didn't touch fdblocks when we reserved them, so
-	 * we don't touch it now.
+	 * we don't touch it analw.
 	 */
 	if (free_aglen == 0)
 		return 0;
 
-	trace_xrep_newbt_free_blocks(sc->mp, resv->pag->pag_agno, free_agbno,
-			free_aglen, ra->new_bnobt.oinfo.oi_owner);
+	trace_xrep_newbt_free_blocks(sc->mp, resv->pag->pag_aganal, free_agbanal,
+			free_aglen, ra->new_banalbt.oinfo.oi_owner);
 
-	error = __xfs_free_extent(sc->tp, resv->pag, free_agbno, free_aglen,
-			&ra->new_bnobt.oinfo, XFS_AG_RESV_IGNORE, true);
+	error = __xfs_free_extent(sc->tp, resv->pag, free_agbanal, free_aglen,
+			&ra->new_banalbt.oinfo, XFS_AG_RESV_IGANALRE, true);
 	if (error)
 		return error;
 
@@ -581,20 +581,20 @@ xrep_abt_dispose_reservations(
 	if (error)
 		goto junkit;
 
-	list_for_each_entry_safe(resv, n, &ra->new_bnobt.resv_list, list) {
+	list_for_each_entry_safe(resv, n, &ra->new_banalbt.resv_list, list) {
 		error = xrep_abt_dispose_one(ra, resv);
 		if (error)
 			goto junkit;
 	}
 
 junkit:
-	list_for_each_entry_safe(resv, n, &ra->new_bnobt.resv_list, list) {
+	list_for_each_entry_safe(resv, n, &ra->new_banalbt.resv_list, list) {
 		xfs_perag_put(resv->pag);
 		list_del(&resv->list);
 		kfree(resv);
 	}
 
-	xrep_newbt_cancel(&ra->new_bnobt);
+	xrep_newbt_cancel(&ra->new_banalbt);
 	xrep_newbt_cancel(&ra->new_cntbt);
 }
 
@@ -637,7 +637,7 @@ xrep_abt_claim_block(
 {
 	struct xrep_abt		*ra = priv;
 
-	return xrep_newbt_claim_block(cur, &ra->new_bnobt, ptr);
+	return xrep_newbt_claim_block(cur, &ra->new_banalbt, ptr);
 }
 
 /*
@@ -658,10 +658,10 @@ xrep_abt_reset_counters(
 	 * btrees.  This is the computed btree size minus anything we didn't
 	 * use.
 	 */
-	freesp_btreeblks += ra->new_bnobt.bload.nr_blocks - 1;
+	freesp_btreeblks += ra->new_banalbt.bload.nr_blocks - 1;
 	freesp_btreeblks += ra->new_cntbt.bload.nr_blocks - 1;
 
-	freesp_btreeblks -= xrep_newbt_unused_blocks(&ra->new_bnobt);
+	freesp_btreeblks -= xrep_newbt_unused_blocks(&ra->new_banalbt);
 	freesp_btreeblks -= xrep_newbt_unused_blocks(&ra->new_cntbt);
 
 	/*
@@ -687,7 +687,7 @@ xrep_abt_reset_counters(
 	 * height values before re-initializing the perag info from the updated
 	 * AGF to capture all the new values.
 	 */
-	pag->pagf_repair_levels[XFS_BTNUM_BNOi] = pag->pagf_levels[XFS_BTNUM_BNOi];
+	pag->pagf_repair_levels[XFS_BTNUM_BANALi] = pag->pagf_levels[XFS_BTNUM_BANALi];
 	pag->pagf_repair_levels[XFS_BTNUM_CNTi] = pag->pagf_levels[XFS_BTNUM_CNTi];
 
 	/* Reinitialize with the values we just logged. */
@@ -697,14 +697,14 @@ xrep_abt_reset_counters(
 /*
  * Use the collected free space information to stage new free space btrees.
  * If this is successful we'll return with the new btree root
- * information logged to the repair transaction but not yet committed.
+ * information logged to the repair transaction but analt yet committed.
  */
 STATIC int
 xrep_abt_build_new_trees(
 	struct xrep_abt		*ra)
 {
 	struct xfs_scrub	*sc = ra->sc;
-	struct xfs_btree_cur	*bno_cur;
+	struct xfs_btree_cur	*banal_cur;
 	struct xfs_btree_cur	*cnt_cur;
 	struct xfs_perag	*pag = sc->sa.pag;
 	bool			needs_resort = false;
@@ -725,18 +725,18 @@ xrep_abt_build_new_trees(
 	 * to root the new btree while it's under construction and before we
 	 * attach it to the AG header.
 	 */
-	xrep_newbt_init_bare(&ra->new_bnobt, sc);
+	xrep_newbt_init_bare(&ra->new_banalbt, sc);
 	xrep_newbt_init_bare(&ra->new_cntbt, sc);
 
-	ra->new_bnobt.bload.get_records = xrep_abt_get_records;
+	ra->new_banalbt.bload.get_records = xrep_abt_get_records;
 	ra->new_cntbt.bload.get_records = xrep_abt_get_records;
 
-	ra->new_bnobt.bload.claim_block = xrep_abt_claim_block;
+	ra->new_banalbt.bload.claim_block = xrep_abt_claim_block;
 	ra->new_cntbt.bload.claim_block = xrep_abt_claim_block;
 
 	/* Allocate cursors for the staged btrees. */
-	bno_cur = xfs_allocbt_stage_cursor(sc->mp, &ra->new_bnobt.afake,
-			pag, XFS_BTNUM_BNO);
+	banal_cur = xfs_allocbt_stage_cursor(sc->mp, &ra->new_banalbt.afake,
+			pag, XFS_BTNUM_BANAL);
 	cnt_cur = xfs_allocbt_stage_cursor(sc->mp, &ra->new_cntbt.afake,
 			pag, XFS_BTNUM_CNT);
 
@@ -745,7 +745,7 @@ xrep_abt_build_new_trees(
 		goto err_cur;
 
 	/* Reserve the space we'll need for the new btrees. */
-	error = xrep_abt_reserve_space(ra, bno_cur, cnt_cur, &needs_resort);
+	error = xrep_abt_reserve_space(ra, banal_cur, cnt_cur, &needs_resort);
 	if (error)
 		goto err_cur;
 
@@ -765,8 +765,8 @@ xrep_abt_build_new_trees(
 	 * height so that we don't trip the verifiers when writing the new
 	 * btree blocks to disk.
 	 */
-	pag->pagf_repair_levels[XFS_BTNUM_BNOi] =
-					ra->new_bnobt.bload.btree_height;
+	pag->pagf_repair_levels[XFS_BTNUM_BANALi] =
+					ra->new_banalbt.bload.btree_height;
 	pag->pagf_repair_levels[XFS_BTNUM_CNTi] =
 					ra->new_cntbt.bload.btree_height;
 
@@ -777,26 +777,26 @@ xrep_abt_build_new_trees(
 	if (error)
 		goto err_levels;
 
-	error = xrep_bnobt_sort_records(ra);
+	error = xrep_banalbt_sort_records(ra);
 	if (error)
 		return error;
 
 	/* Load the free space by block number tree. */
 	ra->array_cur = XFARRAY_CURSOR_INIT;
-	error = xfs_btree_bload(bno_cur, &ra->new_bnobt.bload, ra);
+	error = xfs_btree_bload(banal_cur, &ra->new_banalbt.bload, ra);
 	if (error)
 		goto err_levels;
 
 	/*
 	 * Install the new btrees in the AG header.  After this point the old
-	 * btrees are no longer accessible and the new trees are live.
+	 * btrees are anal longer accessible and the new trees are live.
 	 */
-	xfs_allocbt_commit_staged_btree(bno_cur, sc->tp, sc->sa.agf_bp);
-	xfs_btree_del_cursor(bno_cur, 0);
+	xfs_allocbt_commit_staged_btree(banal_cur, sc->tp, sc->sa.agf_bp);
+	xfs_btree_del_cursor(banal_cur, 0);
 	xfs_allocbt_commit_staged_btree(cnt_cur, sc->tp, sc->sa.agf_bp);
 	xfs_btree_del_cursor(cnt_cur, 0);
 
-	/* Reset the AGF counters now that we've changed the btree shape. */
+	/* Reset the AGF counters analw that we've changed the btree shape. */
 	error = xrep_abt_reset_counters(ra);
 	if (error)
 		goto err_newbt;
@@ -807,18 +807,18 @@ xrep_abt_build_new_trees(
 	return xrep_roll_ag_trans(sc);
 
 err_levels:
-	pag->pagf_repair_levels[XFS_BTNUM_BNOi] = 0;
+	pag->pagf_repair_levels[XFS_BTNUM_BANALi] = 0;
 	pag->pagf_repair_levels[XFS_BTNUM_CNTi] = 0;
 err_cur:
 	xfs_btree_del_cursor(cnt_cur, error);
-	xfs_btree_del_cursor(bno_cur, error);
+	xfs_btree_del_cursor(banal_cur, error);
 err_newbt:
 	xrep_abt_dispose_reservations(ra, error);
 	return error;
 }
 
 /*
- * Now that we've logged the roots of the new btrees, invalidate all of the
+ * Analw that we've logged the roots of the new btrees, invalidate all of the
  * old blocks and free them.
  */
 STATIC int
@@ -828,17 +828,17 @@ xrep_abt_remove_old_trees(
 	struct xfs_perag	*pag = ra->sc->sa.pag;
 	int			error;
 
-	/* Free the old btree blocks if they're not in use. */
+	/* Free the old btree blocks if they're analt in use. */
 	error = xrep_reap_agblocks(ra->sc, &ra->old_allocbt_blocks,
-			&XFS_RMAP_OINFO_AG, XFS_AG_RESV_IGNORE);
+			&XFS_RMAP_OINFO_AG, XFS_AG_RESV_IGANALRE);
 	if (error)
 		return error;
 
 	/*
-	 * Now that we've zapped all the old allocbt blocks we can turn off
+	 * Analw that we've zapped all the old allocbt blocks we can turn off
 	 * the alternate height mechanism.
 	 */
-	pag->pagf_repair_levels[XFS_BTNUM_BNOi] = 0;
+	pag->pagf_repair_levels[XFS_BTNUM_BANALi] = 0;
 	pag->pagf_repair_levels[XFS_BTNUM_CNTi] = 0;
 	return 0;
 }
@@ -855,27 +855,27 @@ xrep_allocbt(
 
 	/* We require the rmapbt to rebuild anything. */
 	if (!xfs_has_rmapbt(mp))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ra = kzalloc(sizeof(struct xrep_abt), XCHK_GFP_FLAGS);
 	if (!ra)
-		return -ENOMEM;
+		return -EANALMEM;
 	ra->sc = sc;
 
 	/* We rebuild both data structures. */
-	sc->sick_mask = XFS_SICK_AG_BNOBT | XFS_SICK_AG_CNTBT;
+	sc->sick_mask = XFS_SICK_AG_BANALBT | XFS_SICK_AG_CNTBT;
 
 	/*
 	 * Make sure the busy extent list is clear because we can't put extents
 	 * on there twice.  In theory we cleared this before we started, but
-	 * let's not risk the filesystem.
+	 * let's analt risk the filesystem.
 	 */
 	if (!xfs_extent_busy_list_empty(sc->sa.pag)) {
 		error = -EDEADLOCK;
 		goto out_ra;
 	}
 
-	/* Set up enough storage to handle maximally fragmented free space. */
+	/* Set up eanalugh storage to handle maximally fragmented free space. */
 	descr = xchk_xfile_ag_descr(sc, "free space records");
 	error = xfarray_create(descr, mp->m_sb.sb_agblocks / 2,
 			sizeof(struct xfs_alloc_rec_incore),
@@ -921,7 +921,7 @@ xrep_revalidate_allocbt(
 	 * reference checks will work in the correct direction, and also so
 	 * that tracing will report correctly if there are more errors.
 	 */
-	sc->sm->sm_type = XFS_SCRUB_TYPE_BNOBT;
+	sc->sm->sm_type = XFS_SCRUB_TYPE_BANALBT;
 	error = xchk_allocbt(sc);
 	if (error)
 		goto out;

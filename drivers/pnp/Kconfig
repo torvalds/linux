@@ -10,7 +10,7 @@ menuconfig PNP
 	help
 	  Plug and Play (PnP) is a standard for peripherals which allows those
 	  peripherals to be configured by software, e.g. assign IRQ's or other
-	  parameters. No jumpers on the cards are needed, instead the values
+	  parameters. Anal jumpers on the cards are needed, instead the values
 	  are provided to the cards from the BIOS, from the operating system,
 	  or using a user-space utility.
 
@@ -30,7 +30,7 @@ config PNP_DEBUG_MESSAGES
 	  messages if needed.  The messages can be enabled at boot-time with
 	  the pnp.debug kernel parameter.
 
-	  This option allows you to save a bit of space if you do not want
+	  This option allows you to save a bit of space if you do analt want
 	  the messages to even be built into the kernel.
 
 	  If you have any doubts about this, say Y here.

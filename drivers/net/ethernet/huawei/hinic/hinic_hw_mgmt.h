@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #ifndef HINIC_HW_MGMT_H
@@ -18,7 +18,7 @@
 #define HINIC_MSG_HEADER_MSG_LEN_SHIFT                          0
 #define HINIC_MSG_HEADER_MODULE_SHIFT                           11
 #define HINIC_MSG_HEADER_SEG_LEN_SHIFT                          16
-#define HINIC_MSG_HEADER_NO_ACK_SHIFT                           22
+#define HINIC_MSG_HEADER_ANAL_ACK_SHIFT                           22
 #define HINIC_MSG_HEADER_ASYNC_MGMT_TO_PF_SHIFT                 23
 #define HINIC_MSG_HEADER_SEQID_SHIFT                            24
 #define HINIC_MSG_HEADER_LAST_SHIFT                             30
@@ -32,7 +32,7 @@
 #define HINIC_MSG_HEADER_MSG_LEN_MASK                           0x7FF
 #define HINIC_MSG_HEADER_MODULE_MASK                            0x1F
 #define HINIC_MSG_HEADER_SEG_LEN_MASK                           0x3F
-#define HINIC_MSG_HEADER_NO_ACK_MASK                            0x1
+#define HINIC_MSG_HEADER_ANAL_ACK_MASK                            0x1
 #define HINIC_MSG_HEADER_ASYNC_MGMT_TO_PF_MASK                  0x1
 #define HINIC_MSG_HEADER_SEQID_MASK                             0x3F
 #define HINIC_MSG_HEADER_LAST_MASK                              0x1

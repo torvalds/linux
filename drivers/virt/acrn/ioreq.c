@@ -54,17 +54,17 @@ static int ioreq_complete_request(struct acrn_vm *vm, u16 vcpu,
 	 * faster I/O request handling. In polling mode, the hypervisor polls
 	 * I/O request's completion. Once an I/O request is marked as
 	 * ACRN_IOREQ_STATE_COMPLETE, hypervisor resumes from the polling point
-	 * to continue the I/O request flow. Thus, the completion notification
-	 * from HSM of I/O request is not needed.  Please note,
+	 * to continue the I/O request flow. Thus, the completion analtification
+	 * from HSM of I/O request is analt needed.  Please analte,
 	 * completion_polling needs to be read before the I/O request being
 	 * marked as ACRN_IOREQ_STATE_COMPLETE to avoid racing with the
 	 * hypervisor.
 	 */
 	if (!polling_mode) {
-		ret = hcall_notify_req_finish(vm->vmid, vcpu);
+		ret = hcall_analtify_req_finish(vm->vmid, vcpu);
 		if (ret < 0)
 			dev_err(acrn_dev.this_device,
-				"Notify I/O request finished failed!\n");
+				"Analtify I/O request finished failed!\n");
 	}
 
 	return ret;
@@ -125,7 +125,7 @@ int acrn_ioreq_range_add(struct acrn_ioreq_client *client,
 
 	range = kzalloc(sizeof(*range), GFP_KERNEL);
 	if (!range)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	range->type = type;
 	range->start = start;
@@ -204,7 +204,7 @@ static int ioreq_task(void *data)
 }
 
 /*
- * For the non-default I/O clients, give them chance to complete the current
+ * For the analn-default I/O clients, give them chance to complete the current
  * I/O requests if there are any. For the default I/O client, it is safe to
  * clear all pending I/O requests because the clearing request is from ACRN
  * userspace.
@@ -240,7 +240,7 @@ void acrn_ioreq_request_clear(struct acrn_vm *vm)
 	} while (has_pending && --retry > 0);
 	if (retry == 0)
 		dev_warn(acrn_dev.this_device,
-			 "%s cannot flush pending request!\n", client->name);
+			 "%s cananalt flush pending request!\n", client->name);
 
 	/* Clear all ioreqs belonging to the default client */
 	spin_lock_bh(&vm->ioreq_clients_lock);
@@ -260,14 +260,14 @@ int acrn_ioreq_client_wait(struct acrn_ioreq_client *client)
 	if (client->is_default) {
 		/*
 		 * In the default client, a user space thread waits on the
-		 * waitqueue. The is_destroying() check is used to notify user
+		 * waitqueue. The is_destroying() check is used to analtify user
 		 * space the client is going to be destroyed.
 		 */
 		wait_event_interruptible(client->wq,
 					 has_pending_request(client) ||
 					 is_destroying(client));
 		if (is_destroying(client))
-			return -ENODEV;
+			return -EANALDEV;
 	} else {
 		wait_event_interruptible(client->wq,
 					 has_pending_request(client) ||
@@ -302,7 +302,7 @@ static bool is_cfg_data(struct acrn_io_request *req)
 #define PCI_BUSMAX	255
 #define CONF1_ENABLE	0x80000000UL
 /*
- * A PCI configuration space access via PIO 0xCF8 and 0xCFC normally has two
+ * A PCI configuration space access via PIO 0xCF8 and 0xCFC analrmally has two
  * following steps:
  *   1) writes address into 0xCF8 port
  *   2) accesses data in/from 0xCFC
@@ -421,7 +421,7 @@ struct acrn_ioreq_client *acrn_ioreq_client_create(struct acrn_vm *vm,
 
 	if (!handler && !is_default) {
 		dev_dbg(acrn_dev.this_device,
-			"Cannot create non-default client w/o handler!\n");
+			"Cananalt create analn-default client w/o handler!\n");
 		return NULL;
 	}
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
@@ -561,7 +561,7 @@ static void ioreq_intr_handler(void)
 
 static void ioreq_pause(void)
 {
-	/* Flush and unarm the handler to ensure no I/O requests pending */
+	/* Flush and unarm the handler to ensure anal I/O requests pending */
 	acrn_remove_intr_handler();
 	drain_workqueue(ioreq_wq);
 }
@@ -581,7 +581,7 @@ int acrn_ioreq_intr_setup(void)
 	if (!ioreq_wq) {
 		dev_err(acrn_dev.this_device, "Failed to alloc workqueue!\n");
 		acrn_remove_intr_handler();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -604,7 +604,7 @@ int acrn_ioreq_init(struct acrn_vm *vm, u64 buf_vma)
 
 	set_buffer = kzalloc(sizeof(*set_buffer), GFP_KERNEL);
 	if (!set_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pin_user_pages_fast(buf_vma, 1,
 				  FOLL_WRITE | FOLL_LONGTERM, &page);

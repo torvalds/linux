@@ -98,10 +98,10 @@ void die(struct pt_regs *regs, const char *str)
 	show_regs(regs);
 	show_stack(current, (unsigned long *)regs->regs[4], KERN_INFO);
 
-	ret = notify_die(DIE_OOPS, str, regs, 0, trap_no(regs), SIGSEGV);
+	ret = analtify_die(DIE_OOPS, str, regs, 0, trap_anal(regs), SIGSEGV);
 
 	bust_spinlocks(0);
-	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_DIE, LOCKDEP_ANALW_UNRELIABLE);
 	spin_unlock_irq(&die_lock);
 	oops_exit();
 
@@ -109,47 +109,47 @@ void die(struct pt_regs *regs, const char *str)
 		panic("Fatal exception in interrupt");
 	if (panic_on_oops)
 		panic("Fatal exception");
-	if (ret != NOTIFY_STOP)
+	if (ret != ANALTIFY_STOP)
 		make_task_dead(SIGSEGV);
 }
 
-void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr)
+void do_trap(struct pt_regs *regs, int siganal, int code, unsigned long addr)
 {
 	struct task_struct *tsk = current;
 
-	if (show_unhandled_signals && unhandled_signal(tsk, signo)
+	if (show_unhandled_signals && unhandled_signal(tsk, siganal)
 	    && printk_ratelimit()) {
 		pr_info("%s[%d]: unhandled signal %d code 0x%x at 0x%08lx",
-			tsk->comm, task_pid_nr(tsk), signo, code, addr);
+			tsk->comm, task_pid_nr(tsk), siganal, code, addr);
 		print_vma_addr(KERN_CONT " in ", instruction_pointer(regs));
 		pr_cont("\n");
 		show_regs(regs);
 	}
 
-	force_sig_fault(signo, code, (void __user *)addr);
+	force_sig_fault(siganal, code, (void __user *)addr);
 }
 
-static void do_trap_error(struct pt_regs *regs, int signo, int code,
+static void do_trap_error(struct pt_regs *regs, int siganal, int code,
 	unsigned long addr, const char *str)
 {
-	current->thread.trap_no = trap_no(regs);
+	current->thread.trap_anal = trap_anal(regs);
 
 	if (user_mode(regs)) {
-		do_trap(regs, signo, code, addr);
+		do_trap(regs, siganal, code, addr);
 	} else {
 		if (!fixup_exception(regs))
 			die(regs, str);
 	}
 }
 
-#define DO_ERROR_INFO(name, signo, code, str)				\
+#define DO_ERROR_INFO(name, siganal, code, str)				\
 asmlinkage __visible void name(struct pt_regs *regs)			\
 {									\
-	do_trap_error(regs, signo, code, regs->pc, "Oops - " str);	\
+	do_trap_error(regs, siganal, code, regs->pc, "Oops - " str);	\
 }
 
-DO_ERROR_INFO(do_trap_unknown,
-	SIGILL, ILL_ILLTRP, "unknown exception");
+DO_ERROR_INFO(do_trap_unkanalwn,
+	SIGILL, ILL_ILLTRP, "unkanalwn exception");
 DO_ERROR_INFO(do_trap_zdiv,
 	SIGFPE, FPE_INTDIV, "error zero div exception");
 DO_ERROR_INFO(do_trap_buserr,
@@ -160,7 +160,7 @@ asmlinkage void do_trap_misaligned(struct pt_regs *regs)
 #ifdef CONFIG_CPU_NEED_SOFTALIGN
 	csky_alignment(regs);
 #else
-	current->thread.trap_no = trap_no(regs);
+	current->thread.trap_anal = trap_anal(regs);
 	do_trap_error(regs, SIGBUS, BUS_ADRALN, regs->pc,
 		      "Oops - load/store address misaligned");
 #endif
@@ -187,7 +187,7 @@ asmlinkage void do_trap_bkpt(struct pt_regs *regs)
 
 asmlinkage void do_trap_illinsn(struct pt_regs *regs)
 {
-	current->thread.trap_no = trap_no(regs);
+	current->thread.trap_anal = trap_anal(regs);
 
 #ifdef CONFIG_KPROBES
 	if (kprobe_breakpoint_handler(regs))
@@ -197,7 +197,7 @@ asmlinkage void do_trap_illinsn(struct pt_regs *regs)
 	if (uprobe_breakpoint_handler(regs))
 		return;
 #endif
-#ifndef CONFIG_CPU_NO_USER_BKPT
+#ifndef CONFIG_CPU_ANAL_USER_BKPT
 	if (*(uint16_t *)instruction_pointer(regs) != USR_BKPT) {
 		send_sig(SIGTRAP, current, 0);
 		return;
@@ -230,7 +230,7 @@ asmlinkage void do_trap_priv(struct pt_regs *regs)
 
 asmlinkage void trap_c(struct pt_regs *regs)
 {
-	switch (trap_no(regs)) {
+	switch (trap_anal(regs)) {
 	case VEC_ZERODIV:
 		do_trap_zdiv(regs);
 		break;
@@ -257,7 +257,7 @@ asmlinkage void trap_c(struct pt_regs *regs)
 		do_trap_priv(regs);
 		break;
 	default:
-		do_trap_unknown(regs);
+		do_trap_unkanalwn(regs);
 		break;
 	}
 }

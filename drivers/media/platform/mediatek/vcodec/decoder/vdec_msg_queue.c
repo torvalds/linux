@@ -306,7 +306,7 @@ int vdec_msg_queue_init(struct vdec_msg_queue *msg_queue,
 	if (err) {
 		mtk_v4l2_vdec_err(ctx, "failed to allocate wdma_addr buf");
 		msg_queue->wdma_addr.size = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	msg_queue->wdma_rptr_addr = msg_queue->wdma_addr.dma_addr;
 	msg_queue->wdma_wptr_addr = msg_queue->wdma_addr.dma_addr;
@@ -351,7 +351,7 @@ int vdec_msg_queue_init(struct vdec_msg_queue *msg_queue,
 
 		lat_buf->private_data = kzalloc(private_size, GFP_KERNEL);
 		if (!lat_buf->private_data) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto mem_alloc_err;
 		}
 

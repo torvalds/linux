@@ -51,8 +51,8 @@
 #define REG_ARG5	REG_R9
 #endif
 
-#ifndef PR_SET_NO_NEW_PRIVS
-#define PR_SET_NO_NEW_PRIVS 38
+#ifndef PR_SET_ANAL_NEW_PRIVS
+#define PR_SET_ANAL_NEW_PRIVS 38
 #endif
 
 #ifndef SYS_SECCOMP
@@ -76,12 +76,12 @@ static void emulator(int nr, siginfo_t *info, void *void_context)
 
 	if (syscall != __NR_write)
 		return;
-	if (ctx->uc_mcontext.gregs[REG_ARG0] != STDERR_FILENO)
+	if (ctx->uc_mcontext.gregs[REG_ARG0] != STDERR_FILEANAL)
 		return;
 	/* Redirect stderr messages to stdout. Doesn't handle EINTR, etc */
 	ctx->uc_mcontext.gregs[REG_RESULT] = -1;
-	if (write(STDOUT_FILENO, "[ERR] ", 6) > 0) {
-		bytes = write(STDOUT_FILENO, buf, len);
+	if (write(STDOUT_FILEANAL, "[ERR] ", 6) > 0) {
+		bytes = write(STDOUT_FILEANAL, buf, len);
 		ctx->uc_mcontext.gregs[REG_RESULT] = bytes;
 	}
 	return;
@@ -129,14 +129,14 @@ static int install_filter(void)
 
 		/* Check that read is only using stdin. */
 		BPF_STMT(BPF_LD+BPF_W+BPF_ABS, syscall_arg(0)),
-		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, STDIN_FILENO, 4, 0),
+		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, STDIN_FILEANAL, 4, 0),
 		BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL),
 
 		/* Check that write is only using stdout */
 		BPF_STMT(BPF_LD+BPF_W+BPF_ABS, syscall_arg(0)),
-		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, STDOUT_FILENO, 1, 0),
+		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, STDOUT_FILEANAL, 1, 0),
 		/* Trap attempts to write to stderr */
-		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, STDERR_FILENO, 1, 2),
+		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, STDERR_FILEANAL, 1, 2),
 
 		BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
 		BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_TRAP),
@@ -147,8 +147,8 @@ static int install_filter(void)
 		.filter = filter,
 	};
 
-	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
-		perror("prctl(NO_NEW_PRIVS)");
+	if (prctl(PR_SET_ANAL_NEW_PRIVS, 1, 0, 0, 0)) {
+		perror("prctl(ANAL_NEW_PRIVS)");
 		return 1;
 	}
 
@@ -169,19 +169,19 @@ int main(int argc, char **argv)
 		return 1;
 	if (install_filter())
 		return 1;
-	syscall(__NR_write, STDOUT_FILENO,
+	syscall(__NR_write, STDOUT_FILEANAL,
 		payload("OHAI! WHAT IS YOUR NAME? "));
-	bytes = syscall(__NR_read, STDIN_FILENO, buf, sizeof(buf));
-	syscall(__NR_write, STDOUT_FILENO, payload("HELLO, "));
-	syscall(__NR_write, STDOUT_FILENO, buf, bytes);
-	syscall(__NR_write, STDERR_FILENO,
+	bytes = syscall(__NR_read, STDIN_FILEANAL, buf, sizeof(buf));
+	syscall(__NR_write, STDOUT_FILEANAL, payload("HELLO, "));
+	syscall(__NR_write, STDOUT_FILEANAL, buf, bytes);
+	syscall(__NR_write, STDERR_FILEANAL,
 		payload("Error message going to STDERR\n"));
 	return 0;
 }
 #else	/* SUPPORTED_ARCH */
 /*
  * This sample is x86-only.  Since kernel samples are compiled with the
- * host toolchain, a non-x86 host will result in using only the main()
+ * host toolchain, a analn-x86 host will result in using only the main()
  * below.
  */
 int main(void)

@@ -38,11 +38,11 @@ properties:
     description: |
       Internal reference voltage selection in microvolts.
 
-      If no internal reference is specified, the channel will default to the
+      If anal internal reference is specified, the channel will default to the
       external reference defined by vrefin-supply (or vref-supply).
       vrefin-supply will take precedence over vref-supply if both are defined.
 
-      If no supplies are defined, the reference selection will default to
+      If anal supplies are defined, the reference selection will default to
       4096mV internal reference.
 
     enum: [2500000, 4096000]

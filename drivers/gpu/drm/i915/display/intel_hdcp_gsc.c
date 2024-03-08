@@ -25,7 +25,7 @@ bool intel_hdcp_gsc_check_status(struct drm_i915_private *i915)
 
 	if (!gsc || !intel_uc_fw_is_running(&gsc->fw)) {
 		drm_dbg_kms(&i915->drm,
-			    "GSC components required for HDCP2.2 are not ready\n");
+			    "GSC components required for HDCP2.2 are analt ready\n");
 		return false;
 	}
 
@@ -108,17 +108,17 @@ static int intel_hdcp_gsc_hdcp2_init(struct drm_i915_private *i915)
 	hdcp_message = kzalloc(sizeof(*hdcp_message), GFP_KERNEL);
 
 	if (!hdcp_message)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * NOTE: No need to lock the comp mutex here as it is already
+	 * ANALTE: Anal need to lock the comp mutex here as it is already
 	 * going to be taken before this function called
 	 */
 	i915->display.hdcp.hdcp_message = hdcp_message;
 	ret = intel_hdcp_gsc_initialize_message(i915, hdcp_message);
 
 	if (ret)
-		drm_err(&i915->drm, "Could not initialize hdcp_message\n");
+		drm_err(&i915->drm, "Could analt initialize hdcp_message\n");
 
 	return ret;
 }
@@ -141,7 +141,7 @@ int intel_hdcp_gsc_init(struct drm_i915_private *i915)
 
 	data = kzalloc(sizeof(struct i915_hdcp_arbiter), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&i915->display.hdcp.hdcp_mutex);
 	i915->display.hdcp.arbiter = data;
@@ -201,10 +201,10 @@ static int intel_gsc_send_sync(struct drm_i915_private *i915,
 }
 
 /*
- * This function can now be used for sending requests and will also handle
- * receipt of reply messages hence no different function of message retrieval
+ * This function can analw be used for sending requests and will also handle
+ * receipt of reply messages hence anal different function of message retrieval
  * is required. We will initialize intel_hdcp_gsc_message structure then add
- * gsc cs memory header as stated in specs after which the normal HDCP payload
+ * gsc cs memory header as stated in specs after which the analrmal HDCP payload
  * will follow
  */
 ssize_t intel_hdcp_gsc_msg_send(struct drm_i915_private *i915, u8 *msg_in,
@@ -220,10 +220,10 @@ ssize_t intel_hdcp_gsc_msg_send(struct drm_i915_private *i915, u8 *msg_in,
 	int ret, tries = 0;
 
 	if (!intel_uc_uses_gsc_uc(&gt->uc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (msg_in_len > max_msg_size || msg_out_len > max_msg_size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	msg_size_in = msg_in_len + sizeof(*header_in);
 	msg_size_out = msg_out_len + sizeof(*header_out);
@@ -241,7 +241,7 @@ ssize_t intel_hdcp_gsc_msg_send(struct drm_i915_private *i915, u8 *msg_in,
 	memcpy(hdcp_message->hdcp_cmd_in + sizeof(*header_in), msg_in, msg_in_len);
 
 	/*
-	 * Keep sending request in case the pending bit is set no need to add
+	 * Keep sending request in case the pending bit is set anal need to add
 	 * message handle as we are using same address hence loc. of header is
 	 * same and it will contain the message handle. we will send the message
 	 * 20 times each message 50 ms apart

@@ -1,7 +1,7 @@
 #ifndef LLC_IF_H
 #define LLC_IF_H
 /*
- * Copyright (c) 1997 by Procom Technology,Inc.
+ * Copyright (c) 1997 by Procom Techanallogy,Inc.
  * 		 2001 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the
@@ -24,7 +24,7 @@
 #define LLC_DATA_PRIM		3
 #define LLC_DISC_PRIM		4
 #define LLC_RESET_PRIM		5
-#define LLC_FLOWCONTROL_PRIM	6 /* Not supported at this time */
+#define LLC_FLOWCONTROL_PRIM	6 /* Analt supported at this time */
 #define LLC_DISABLE_PRIM	7
 #define LLC_XID_PRIM		8
 #define LLC_TEST_PRIM		9

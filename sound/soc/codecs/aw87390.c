@@ -2,7 +2,7 @@
 //
 // aw87390.c  --  AW87390 ALSA SoC Audio driver
 //
-// Copyright (c) 2023 awinic Technology CO., LTD
+// Copyright (c) 2023 awinic Techanallogy CO., LTD
 //
 // Author: Weidong Wang <wangweidong.a@awinic.com>
 //
@@ -141,7 +141,7 @@ static int aw87390_power_on(struct aw_device *aw_dev)
 	}
 
 	if (!aw_dev->fw_status) {
-		dev_err(aw_dev->dev, "fw not load\n");
+		dev_err(aw_dev->dev, "fw analt load\n");
 		return -EINVAL;
 	}
 
@@ -230,7 +230,7 @@ static int aw87390_profile_set(struct snd_kcontrol *kcontrol,
 	mutex_lock(&aw87390->lock);
 	ret = aw87390_dev_set_profile_index(aw87390->aw_pa, ucontrol->value.integer.value[0]);
 	if (ret) {
-		dev_dbg(codec->dev, "profile index does not change\n");
+		dev_dbg(codec->dev, "profile index does analt change\n");
 		mutex_unlock(&aw87390->lock);
 		return 0;
 	}
@@ -269,7 +269,7 @@ static int aw87390_request_firmware_file(struct aw87390 *aw87390)
 				struct_size(aw87390->aw_cfg, data, cont->size), GFP_KERNEL);
 	if (!aw87390->aw_cfg) {
 		release_firmware(cont);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	aw87390->aw_cfg->len = cont->size;
@@ -318,7 +318,7 @@ static int aw87390_drv_event(struct snd_soc_dapm_widget *w,
 
 static const struct snd_soc_dapm_widget aw87390_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("IN"),
-	SND_SOC_DAPM_PGA_E("SPK PA", SND_SOC_NOPM, 0, 0, NULL, 0, aw87390_drv_event,
+	SND_SOC_DAPM_PGA_E("SPK PA", SND_SOC_ANALPM, 0, 0, NULL, 0, aw87390_drv_event,
 			       SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_OUTPUT("OUT"),
 };
@@ -354,7 +354,7 @@ static const struct snd_soc_component_driver soc_codec_dev_aw87390 = {
 static void aw87390_parse_channel_dt(struct aw87390 *aw87390)
 {
 	struct aw_device *aw_dev = aw87390->aw_pa;
-	struct device_node *np = aw_dev->dev->of_node;
+	struct device_analde *np = aw_dev->dev->of_analde;
 	u32 channel_value = AW87390_DEV_DEFAULT_CH;
 
 	of_property_read_u32(np, "awinic,audio-channel", &channel_value);
@@ -384,7 +384,7 @@ static int aw87390_init(struct aw87390 **aw87390, struct i2c_client *i2c, struct
 
 	aw_dev = devm_kzalloc(&i2c->dev, sizeof(*aw_dev), GFP_KERNEL);
 	if (!aw_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	(*aw87390)->aw_pa = aw_dev;
 	aw_dev->i2c = i2c;
@@ -394,7 +394,7 @@ static int aw87390_init(struct aw87390 **aw87390, struct i2c_client *i2c, struct
 	aw_dev->acf = NULL;
 	aw_dev->prof_info.prof_desc = NULL;
 	aw_dev->prof_info.count = 0;
-	aw_dev->prof_info.prof_type = AW88395_DEV_NONE_TYPE_ID;
+	aw_dev->prof_info.prof_type = AW88395_DEV_ANALNE_TYPE_ID;
 	aw_dev->channel = AW87390_DEV_DEFAULT_CH;
 	aw_dev->fw_status = AW87390_DEV_FW_FAILED;
 	aw_dev->prof_index = AW87390_INIT_PROFILE;
@@ -416,7 +416,7 @@ static int aw87390_i2c_probe(struct i2c_client *i2c)
 
 	aw87390 = devm_kzalloc(&i2c->dev, sizeof(*aw87390), GFP_KERNEL);
 	if (!aw87390)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&aw87390->lock);
 

@@ -17,7 +17,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -33,7 +33,7 @@
 #include <linux/uaccess.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/stat.h>
 #include <linux/module.h>
 #include <linux/lapb.h>
@@ -44,12 +44,12 @@
 static const u8 bcast_addr[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 /* If this number is made larger, check that the temporary string buffer
- * in lapbeth_new_device is large enough to store the probe device name.
+ * in lapbeth_new_device is large eanalugh to store the probe device name.
  */
 #define MAXLAPBDEV 100
 
 struct lapbethdev {
-	struct list_head	node;
+	struct list_head	analde;
 	struct net_device	*ethdev;	/* link to ethernet device */
 	struct net_device	*axdev;		/* lapbeth device (lapb#) */
 	bool			up;
@@ -71,7 +71,7 @@ static struct lapbethdev *lapbeth_get_x25_dev(struct net_device *dev)
 {
 	struct lapbethdev *lapbeth;
 
-	list_for_each_entry_rcu(lapbeth, &lapbeth_devices, node, lockdep_rtnl_is_held()) {
+	list_for_each_entry_rcu(lapbeth, &lapbeth_devices, analde, lockdep_rtnl_is_held()) {
 		if (lapbeth->ethdev == dev)
 			return lapbeth;
 	}
@@ -209,7 +209,7 @@ static netdev_tx_t lapbeth_xmit(struct sk_buff *skb,
 		goto drop;
 	case X25_IFACE_DISCONNECT:
 		err = lapb_disconnect_request(dev);
-		if (err == LAPB_NOTCONNECTED)
+		if (err == LAPB_ANALTCONNECTED)
 			lapbeth_disconnected(dev, LAPB_OK);
 		else if (err != LAPB_OK)
 			pr_err("lapb_disconnect_request err: %d\n", err);
@@ -263,7 +263,7 @@ static void lapbeth_connected(struct net_device *dev, int reason)
 {
 	struct lapbethdev *lapbeth = netdev_priv(dev);
 	unsigned char *ptr;
-	struct sk_buff *skb = __dev_alloc_skb(1, GFP_ATOMIC | __GFP_NOMEMALLOC);
+	struct sk_buff *skb = __dev_alloc_skb(1, GFP_ATOMIC | __GFP_ANALMEMALLOC);
 
 	if (!skb)
 		return;
@@ -281,7 +281,7 @@ static void lapbeth_disconnected(struct net_device *dev, int reason)
 {
 	struct lapbethdev *lapbeth = netdev_priv(dev);
 	unsigned char *ptr;
-	struct sk_buff *skb = __dev_alloc_skb(1, GFP_ATOMIC | __GFP_NOMEMALLOC);
+	struct sk_buff *skb = __dev_alloc_skb(1, GFP_ATOMIC | __GFP_ANALMEMALLOC);
 
 	if (!skb)
 		return;
@@ -327,7 +327,7 @@ static int lapbeth_open(struct net_device *dev)
 	if (err != LAPB_OK) {
 		napi_disable(&lapbeth->napi);
 		pr_err("lapb_register error: %d\n", err);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	spin_lock_bh(&lapbeth->up_lock);
@@ -380,14 +380,14 @@ static int lapbeth_new_device(struct net_device *dev)
 {
 	struct net_device *ndev;
 	struct lapbethdev *lapbeth;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	ASSERT_RTNL();
 
 	if (dev->type != ARPHRD_ETHER)
 		return -EINVAL;
 
-	ndev = alloc_netdev(sizeof(*lapbeth), "lapb%d", NET_NAME_UNKNOWN,
+	ndev = alloc_netdev(sizeof(*lapbeth), "lapb%d", NET_NAME_UNKANALWN,
 			    lapbeth_setup);
 	if (!ndev)
 		goto out;
@@ -418,7 +418,7 @@ static int lapbeth_new_device(struct net_device *dev)
 	if (register_netdevice(ndev))
 		goto fail;
 
-	list_add_rcu(&lapbeth->node, &lapbeth_devices);
+	list_add_rcu(&lapbeth->analde, &lapbeth_devices);
 	rc = 0;
 out:
 	return rc;
@@ -433,25 +433,25 @@ fail:
 static void lapbeth_free_device(struct lapbethdev *lapbeth)
 {
 	dev_put(lapbeth->ethdev);
-	list_del_rcu(&lapbeth->node);
+	list_del_rcu(&lapbeth->analde);
 	unregister_netdevice(lapbeth->axdev);
 }
 
 /*	Handle device status changes.
  *
- * Called from notifier with RTNL held.
+ * Called from analtifier with RTNL held.
  */
-static int lapbeth_device_event(struct notifier_block *this,
+static int lapbeth_device_event(struct analtifier_block *this,
 				unsigned long event, void *ptr)
 {
 	struct lapbethdev *lapbeth;
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 
 	if (dev_net(dev) != &init_net)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (!dev_is_ethdev(dev) && !lapbeth_get_x25_dev(dev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_UP:
@@ -473,7 +473,7 @@ static int lapbeth_device_event(struct notifier_block *this,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -483,8 +483,8 @@ static struct packet_type lapbeth_packet_type __read_mostly = {
 	.func = lapbeth_rcv,
 };
 
-static struct notifier_block lapbeth_dev_notifier = {
-	.notifier_call = lapbeth_device_event,
+static struct analtifier_block lapbeth_dev_analtifier = {
+	.analtifier_call = lapbeth_device_event,
 };
 
 static const char banner[] __initconst =
@@ -494,7 +494,7 @@ static int __init lapbeth_init_driver(void)
 {
 	dev_add_pack(&lapbeth_packet_type);
 
-	register_netdevice_notifier(&lapbeth_dev_notifier);
+	register_netdevice_analtifier(&lapbeth_dev_analtifier);
 
 	printk(banner);
 
@@ -508,11 +508,11 @@ static void __exit lapbeth_cleanup_driver(void)
 	struct list_head *entry, *tmp;
 
 	dev_remove_pack(&lapbeth_packet_type);
-	unregister_netdevice_notifier(&lapbeth_dev_notifier);
+	unregister_netdevice_analtifier(&lapbeth_dev_analtifier);
 
 	rtnl_lock();
 	list_for_each_safe(entry, tmp, &lapbeth_devices) {
-		lapbeth = list_entry(entry, struct lapbethdev, node);
+		lapbeth = list_entry(entry, struct lapbethdev, analde);
 
 		dev_put(lapbeth->ethdev);
 		unregister_netdevice(lapbeth->axdev);
@@ -522,5 +522,5 @@ static void __exit lapbeth_cleanup_driver(void)
 module_exit(lapbeth_cleanup_driver);
 
 MODULE_AUTHOR("Jonathan Naylor <g4klx@g4klx.demon.co.uk>");
-MODULE_DESCRIPTION("The unofficial LAPB over Ethernet driver");
+MODULE_DESCRIPTION("The uanalfficial LAPB over Ethernet driver");
 MODULE_LICENSE("GPL");

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022. Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022. Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2023, Richard Acayan. All rights reserved.
  */
 
@@ -77,7 +77,7 @@ static const struct dpu_dsc_cfg sdm670_dsc[] = {
 
 static const struct dpu_mdss_version sdm670_mdss_ver = {
 	.core_major_ver = 4,
-	.core_minor_ver = 1,
+	.core_mianalr_ver = 1,
 };
 
 const struct dpu_mdss_cfg dpu_sdm670_cfg = {

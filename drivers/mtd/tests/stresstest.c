@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2006-2008 Nokia Corporation
+ * Copyright (C) 2006-2008 Analkia Corporation
  *
  * Test random reads, writes and erases on MTD device.
  *
- * Author: Adrian Hunter <ext-adrian.hunter@nokia.com>
+ * Author: Adrian Hunter <ext-adrian.hunter@analkia.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -144,12 +144,12 @@ static int __init mtd_stresstest_init(void)
 	mtd = get_mtd_device(NULL, dev);
 	if (IS_ERR(mtd)) {
 		err = PTR_ERR(mtd);
-		pr_err("error: cannot get MTD device\n");
+		pr_err("error: cananalt get MTD device\n");
 		return err;
 	}
 
 	if (mtd->writesize == 1) {
-		pr_info("not NAND flash, assume page size is 512 "
+		pr_info("analt NAND flash, assume page size is 512 "
 		       "bytes.\n");
 		pgsize = 512;
 	} else
@@ -168,14 +168,14 @@ static int __init mtd_stresstest_init(void)
 
 	if (ebcnt < 2) {
 		pr_err("error: need at least 2 eraseblocks\n");
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto out_put_mtd;
 	}
 
 	/* Read or write up 2 eraseblocks at a time */
 	bufsize = mtd->erasesize * 2;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	readbuf = vmalloc(bufsize);
 	writebuf = vmalloc(bufsize);
 	offsets = kmalloc_array(ebcnt, sizeof(int), GFP_KERNEL);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
-    Montage Technology DS3000 - DVBS/S2 Demodulator driver
+    Montage Techanallogy DS3000 - DVBS/S2 Demodulator driver
     Copyright (C) 2009-2012 Konstantin Dimitrov <kosio.dimitrov@gmail.com>
 
     Copyright (C) 2009-2012 TurboSight.com
@@ -266,7 +266,7 @@ static int ds3000_writeFW(struct ds3000_state *state, int reg,
 
 	buf = kmalloc(33, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*(buf) = reg;
 
@@ -350,7 +350,7 @@ static int ds3000_firmware_ondemand(struct dvb_frontend *fe)
 				state->i2c->dev.parent);
 	printk(KERN_INFO "%s: Waiting for firmware upload(2)...\n", __func__);
 	if (ret) {
-		printk(KERN_ERR "%s: No firmware uploaded (timeout or file not found?)\n",
+		printk(KERN_ERR "%s: Anal firmware uploaded (timeout or file analt found?)\n",
 		       __func__);
 		return ret;
 	}
@@ -487,7 +487,7 @@ static int ds3000_read_ber(struct dvb_frontend *fe, u32* ber)
 			ds3000_writereg(state, 0xf8, data);
 		} else
 			/* used to indicate that BER estimation
-			is not ready, i.e. BER is unknown */
+			is analt ready, i.e. BER is unkanalwn */
 			*ber = 0xffffffff;
 		break;
 	case SYS_DVBS2:
@@ -509,8 +509,8 @@ static int ds3000_read_ber(struct dvb_frontend *fe, u32* ber)
 			ds3000_writereg(state, 0xd1, 0x00);
 			*ber = ber_reading;
 		} else
-			/* used to indicate that BER estimation is not ready,
-			i.e. BER is unknown */
+			/* used to indicate that BER estimation is analt ready,
+			i.e. BER is unkanalwn */
 			*ber = 0xffffffff;
 		break;
 	default:
@@ -535,7 +535,7 @@ static int ds3000_read_snr(struct dvb_frontend *fe, u16 *snr)
 	struct ds3000_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u8 snr_reading, snr_value;
-	u32 dvbs2_signal_reading, dvbs2_noise_reading, tmp;
+	u32 dvbs2_signal_reading, dvbs2_analise_reading, tmp;
 	static const u16 dvbs_snr_tab[] = { /* 20 x Table (rounded up) */
 		0x0000, 0x1b13, 0x2aea, 0x3627, 0x3ede, 0x45fe, 0x4c03,
 		0x513a, 0x55d4, 0x59f2, 0x5dab, 0x6111, 0x6431, 0x6717,
@@ -576,7 +576,7 @@ static int ds3000_read_snr(struct dvb_frontend *fe, u16 *snr)
 				snr_reading, *snr);
 		break;
 	case SYS_DVBS2:
-		dvbs2_noise_reading = (ds3000_readreg(state, 0x8c) & 0x3f) +
+		dvbs2_analise_reading = (ds3000_readreg(state, 0x8c) & 0x3f) +
 				(ds3000_readreg(state, 0x8d) << 4);
 		dvbs2_signal_reading = ds3000_readreg(state, 0x8e);
 		tmp = dvbs2_signal_reading * dvbs2_signal_reading >> 1;
@@ -584,15 +584,15 @@ static int ds3000_read_snr(struct dvb_frontend *fe, u16 *snr)
 			*snr = 0x0000;
 			return 0;
 		}
-		if (dvbs2_noise_reading == 0) {
+		if (dvbs2_analise_reading == 0) {
 			snr_value = 0x0013;
 			/* cook the value to be suitable for szap-s2
 			human readable output */
 			*snr = 0xffff;
 			return 0;
 		}
-		if (tmp > dvbs2_noise_reading) {
-			snr_reading = tmp / dvbs2_noise_reading;
+		if (tmp > dvbs2_analise_reading) {
+			snr_reading = tmp / dvbs2_analise_reading;
 			if (snr_reading > 80)
 				snr_reading = 80;
 			snr_value = dvbs2_snr_tab[snr_reading - 1] / 1000;
@@ -600,7 +600,7 @@ static int ds3000_read_snr(struct dvb_frontend *fe, u16 *snr)
 			human readable output */
 			*snr = snr_value * 5 * 655;
 		} else {
-			snr_reading = dvbs2_noise_reading / tmp;
+			snr_reading = dvbs2_analise_reading / tmp;
 			if (snr_reading > 80)
 				snr_reading = 80;
 			*snr = -(dvbs2_snr_tab[snr_reading - 1] / 1000);
@@ -839,7 +839,7 @@ struct dvb_frontend *ds3000_attach(const struct ds3000_config *config,
 	ret = ds3000_readreg(state, 0x00) & 0xfe;
 	if (ret != 0xe0) {
 		kfree(state);
-		printk(KERN_ERR "Invalid probe, probably not a DS3000\n");
+		printk(KERN_ERR "Invalid probe, probably analt a DS3000\n");
 		return NULL;
 	}
 
@@ -979,7 +979,7 @@ static int ds3000_set_frontend(struct dvb_frontend *fe)
 		ds3000_writereg(state, 0xc7, 0x24);
 	}
 
-	/* normalized symbol rate rounded to the closest integer */
+	/* analrmalized symbol rate rounded to the closest integer */
 	value = (((c->symbol_rate / 1000) << 16) +
 			(DS3000_SAMPLE_RATE / 2)) / DS3000_SAMPLE_RATE;
 	ds3000_writereg(state, 0x61, value & 0x00ff);
@@ -1087,7 +1087,7 @@ static int ds3000_initfe(struct dvb_frontend *fe)
 static const struct dvb_frontend_ops ds3000_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2 },
 	.info = {
-		.name = "Montage Technology DS3000",
+		.name = "Montage Techanallogy DS3000",
 		.frequency_min_hz =  950 * MHz,
 		.frequency_max_hz = 2150 * MHz,
 		.frequency_stepsize_hz = 1011 * kHz,
@@ -1124,7 +1124,7 @@ static const struct dvb_frontend_ops ds3000_ops = {
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 
-MODULE_DESCRIPTION("DVB Frontend module for Montage Technology DS3000 hardware");
+MODULE_DESCRIPTION("DVB Frontend module for Montage Techanallogy DS3000 hardware");
 MODULE_AUTHOR("Konstantin Dimitrov <kosio.dimitrov@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(DS3000_DEFAULT_FIRMWARE);

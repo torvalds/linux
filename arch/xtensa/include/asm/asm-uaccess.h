@@ -16,7 +16,7 @@
 #ifndef _XTENSA_ASM_UACCESS_H
 #define _XTENSA_ASM_UACCESS_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/types.h>
 
 #include <asm/current.h>
@@ -31,7 +31,7 @@
  * <error>.  This implies that the macro falls through to the next
  * instruction on success.
  *
- * Note that while this macro can be used independently, we designed
+ * Analte that while this macro can be used independently, we designed
  * in for optimal use in the access_ok macro below (i.e., we fall
  * through on success).
  *
@@ -61,7 +61,7 @@
  * <error>.  This implies that the macro falls through to the next
  * instruction on success.
  *
- * Note that we assume success is the common case, and we optimize the
+ * Analte that we assume success is the common case, and we optimize the
  * branch fall-through case on success.
  *
  * On Entry:

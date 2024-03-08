@@ -17,7 +17,7 @@ set -e
 VMLINUX="$1"
 XIPIMAGE="$2"
 
-DD="dd status=none"
+DD="dd status=analne"
 
 # Use "make V=1" to debug this script.
 case "$KBUILD_VERBOSE" in

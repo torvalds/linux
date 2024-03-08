@@ -10,7 +10,7 @@ maintainers:
   - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
 
 description: |
-  Bandwidth Monitor measures current throughput on buses between various NoC
+  Bandwidth Monitor measures current throughput on buses between various AnalC
   fabrics and provides information when it crosses configured thresholds.
 
   Certain SoCs might have more than one Bandwidth Monitors, for example on SDM845::
@@ -109,7 +109,7 @@ examples:
         compatible = "qcom,sdm845-cpu-bwmon", "qcom,sdm845-bwmon";
         reg = <0x01436400 0x600>;
         interrupts = <GIC_SPI 581 IRQ_TYPE_LEVEL_HIGH>;
-        interconnects = <&gladiator_noc MASTER_APPSS_PROC 3 &mem_noc SLAVE_LLCC 3>;
+        interconnects = <&gladiator_analc MASTER_APPSS_PROC 3 &mem_analc SLAVE_LLCC 3>;
 
         operating-points-v2 = <&cpu_bwmon_opp_table>;
 

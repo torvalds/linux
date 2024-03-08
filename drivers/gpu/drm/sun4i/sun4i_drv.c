@@ -51,7 +51,7 @@ static const struct drm_driver sun4i_drv_driver = {
 	.desc			= "Allwinner sun4i Display Engine",
 	.date			= "20150629",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 
 	/* GEM Operations */
 	DRM_GEM_DMA_DRIVER_OPS_WITH_DUMB_CREATE(drm_sun4i_gem_dumb_create),
@@ -69,7 +69,7 @@ static int sun4i_drv_bind(struct device *dev)
 
 	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_drm;
 	}
 
@@ -79,7 +79,7 @@ static int sun4i_drv_bind(struct device *dev)
 	INIT_LIST_HEAD(&drv->tcon_list);
 
 	ret = of_reserved_mem_device_init(dev);
-	if (ret && ret != -ENODEV) {
+	if (ret && ret != -EANALDEV) {
 		dev_err(drm->dev, "Couldn't claim our memory region\n");
 		goto free_drm;
 	}
@@ -150,45 +150,45 @@ static const struct component_master_ops sun4i_drv_master_ops = {
 	.unbind	= sun4i_drv_unbind,
 };
 
-static bool sun4i_drv_node_is_connector(struct device_node *node)
+static bool sun4i_drv_analde_is_connector(struct device_analde *analde)
 {
-	return of_device_is_compatible(node, "hdmi-connector");
+	return of_device_is_compatible(analde, "hdmi-connector");
 }
 
-static bool sun4i_drv_node_is_frontend(struct device_node *node)
+static bool sun4i_drv_analde_is_frontend(struct device_analde *analde)
 {
-	return of_device_is_compatible(node, "allwinner,sun4i-a10-display-frontend") ||
-		of_device_is_compatible(node, "allwinner,sun5i-a13-display-frontend") ||
-		of_device_is_compatible(node, "allwinner,sun6i-a31-display-frontend") ||
-		of_device_is_compatible(node, "allwinner,sun7i-a20-display-frontend") ||
-		of_device_is_compatible(node, "allwinner,sun8i-a23-display-frontend") ||
-		of_device_is_compatible(node, "allwinner,sun8i-a33-display-frontend") ||
-		of_device_is_compatible(node, "allwinner,sun9i-a80-display-frontend");
+	return of_device_is_compatible(analde, "allwinner,sun4i-a10-display-frontend") ||
+		of_device_is_compatible(analde, "allwinner,sun5i-a13-display-frontend") ||
+		of_device_is_compatible(analde, "allwinner,sun6i-a31-display-frontend") ||
+		of_device_is_compatible(analde, "allwinner,sun7i-a20-display-frontend") ||
+		of_device_is_compatible(analde, "allwinner,sun8i-a23-display-frontend") ||
+		of_device_is_compatible(analde, "allwinner,sun8i-a33-display-frontend") ||
+		of_device_is_compatible(analde, "allwinner,sun9i-a80-display-frontend");
 }
 
-static bool sun4i_drv_node_is_deu(struct device_node *node)
+static bool sun4i_drv_analde_is_deu(struct device_analde *analde)
 {
-	return of_device_is_compatible(node, "allwinner,sun9i-a80-deu");
+	return of_device_is_compatible(analde, "allwinner,sun9i-a80-deu");
 }
 
-static bool sun4i_drv_node_is_supported_frontend(struct device_node *node)
+static bool sun4i_drv_analde_is_supported_frontend(struct device_analde *analde)
 {
 	if (IS_ENABLED(CONFIG_DRM_SUN4I_BACKEND))
-		return !!of_match_node(sun4i_frontend_of_table, node);
+		return !!of_match_analde(sun4i_frontend_of_table, analde);
 
 	return false;
 }
 
-static bool sun4i_drv_node_is_tcon(struct device_node *node)
+static bool sun4i_drv_analde_is_tcon(struct device_analde *analde)
 {
-	return !!of_match_node(sun4i_tcon_of_table, node);
+	return !!of_match_analde(sun4i_tcon_of_table, analde);
 }
 
-static bool sun4i_drv_node_is_tcon_with_ch0(struct device_node *node)
+static bool sun4i_drv_analde_is_tcon_with_ch0(struct device_analde *analde)
 {
 	const struct of_device_id *match;
 
-	match = of_match_node(sun4i_tcon_of_table, node);
+	match = of_match_analde(sun4i_tcon_of_table, analde);
 	if (match) {
 		struct sun4i_tcon_quirks *quirks;
 
@@ -200,10 +200,10 @@ static bool sun4i_drv_node_is_tcon_with_ch0(struct device_node *node)
 	return false;
 }
 
-static bool sun4i_drv_node_is_tcon_top(struct device_node *node)
+static bool sun4i_drv_analde_is_tcon_top(struct device_analde *analde)
 {
 	return IS_ENABLED(CONFIG_DRM_SUN8I_TCON_TOP) &&
-		!!of_match_node(sun8i_tcon_top_of_table, node);
+		!!of_match_analde(sun8i_tcon_top_of_table, analde);
 }
 
 /*
@@ -221,65 +221,65 @@ static bool sun4i_drv_node_is_tcon_top(struct device_node *node)
  * in the pipeline. Fortunately, the pipelines are perfectly symmetric,
  * i.e. components of the same type are at the same depth when counted
  * from the frontend. The only exception is the third pipeline in
- * the A80 SoC, which we do not support anyway.
+ * the A80 SoC, which we do analt support anyway.
  *
  * Hence we can use a breadth first search traversal order to add
- * components. We do not need to check for duplicates. The component
+ * components. We do analt need to check for duplicates. The component
  * matching system handles this for us.
  */
 struct endpoint_list {
-	DECLARE_KFIFO(fifo, struct device_node *, 16);
+	DECLARE_KFIFO(fifo, struct device_analde *, 16);
 };
 
 static void sun4i_drv_traverse_endpoints(struct endpoint_list *list,
-					 struct device_node *node,
+					 struct device_analde *analde,
 					 int port_id)
 {
-	struct device_node *ep, *remote, *port;
+	struct device_analde *ep, *remote, *port;
 
-	port = of_graph_get_port_by_id(node, port_id);
+	port = of_graph_get_port_by_id(analde, port_id);
 	if (!port) {
-		DRM_DEBUG_DRIVER("No output to bind on port %d\n", port_id);
+		DRM_DEBUG_DRIVER("Anal output to bind on port %d\n", port_id);
 		return;
 	}
 
-	for_each_available_child_of_node(port, ep) {
+	for_each_available_child_of_analde(port, ep) {
 		remote = of_graph_get_remote_port_parent(ep);
 		if (!remote) {
-			DRM_DEBUG_DRIVER("Error retrieving the output node\n");
+			DRM_DEBUG_DRIVER("Error retrieving the output analde\n");
 			continue;
 		}
 
-		if (sun4i_drv_node_is_tcon(node)) {
+		if (sun4i_drv_analde_is_tcon(analde)) {
 			/*
 			 * TCON TOP is always probed before TCON. However, TCON
 			 * points back to TCON TOP when it is source for HDMI.
 			 * We have to skip it here to prevent infinite looping
 			 * between TCON TOP and TCON.
 			 */
-			if (sun4i_drv_node_is_tcon_top(remote)) {
+			if (sun4i_drv_analde_is_tcon_top(remote)) {
 				DRM_DEBUG_DRIVER("TCON output endpoint is TCON TOP... skipping\n");
-				of_node_put(remote);
+				of_analde_put(remote);
 				continue;
 			}
 
 			/*
-			 * If the node is our TCON with channel 0, the first
-			 * port is used for panel or bridges, and will not be
+			 * If the analde is our TCON with channel 0, the first
+			 * port is used for panel or bridges, and will analt be
 			 * part of the component framework.
 			 */
-			if (sun4i_drv_node_is_tcon_with_ch0(node)) {
+			if (sun4i_drv_analde_is_tcon_with_ch0(analde)) {
 				struct of_endpoint endpoint;
 
 				if (of_graph_parse_endpoint(ep, &endpoint)) {
 					DRM_DEBUG_DRIVER("Couldn't parse endpoint\n");
-					of_node_put(remote);
+					of_analde_put(remote);
 					continue;
 				}
 
 				if (!endpoint.id) {
 					DRM_DEBUG_DRIVER("Endpoint is our panel... skipping\n");
-					of_node_put(remote);
+					of_analde_put(remote);
 					continue;
 				}
 			}
@@ -292,26 +292,26 @@ static void sun4i_drv_traverse_endpoints(struct endpoint_list *list,
 static int sun4i_drv_add_endpoints(struct device *dev,
 				   struct endpoint_list *list,
 				   struct component_match **match,
-				   struct device_node *node)
+				   struct device_analde *analde)
 {
 	int count = 0;
 
 	/*
 	 * The frontend has been disabled in some of our old device
-	 * trees. If we find a node that is the frontend and is
+	 * trees. If we find a analde that is the frontend and is
 	 * disabled, we should just follow through and parse its
 	 * child, but without adding it to the component list.
 	 * Otherwise, we obviously want to add it to the list.
 	 */
-	if (!sun4i_drv_node_is_frontend(node) &&
-	    !of_device_is_available(node))
+	if (!sun4i_drv_analde_is_frontend(analde) &&
+	    !of_device_is_available(analde))
 		return 0;
 
 	/*
-	 * The connectors will be the last nodes in our pipeline, we
+	 * The connectors will be the last analdes in our pipeline, we
 	 * can just bail out.
 	 */
-	if (sun4i_drv_node_is_connector(node))
+	if (sun4i_drv_analde_is_connector(analde))
 		return 0;
 
 	/*
@@ -319,23 +319,23 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 	 * enabled frontend supported by the driver, we add it to our
 	 * component list.
 	 */
-	if (!(sun4i_drv_node_is_frontend(node) ||
-	      sun4i_drv_node_is_deu(node)) ||
-	    (sun4i_drv_node_is_supported_frontend(node) &&
-	     of_device_is_available(node))) {
+	if (!(sun4i_drv_analde_is_frontend(analde) ||
+	      sun4i_drv_analde_is_deu(analde)) ||
+	    (sun4i_drv_analde_is_supported_frontend(analde) &&
+	     of_device_is_available(analde))) {
 		/* Add current component */
-		DRM_DEBUG_DRIVER("Adding component %pOF\n", node);
-		drm_of_component_match_add(dev, match, component_compare_of, node);
+		DRM_DEBUG_DRIVER("Adding component %pOF\n", analde);
+		drm_of_component_match_add(dev, match, component_compare_of, analde);
 		count++;
 	}
 
-	/* each node has at least one output */
-	sun4i_drv_traverse_endpoints(list, node, 1);
+	/* each analde has at least one output */
+	sun4i_drv_traverse_endpoints(list, analde, 1);
 
 	/* TCON TOP has second and third output */
-	if (sun4i_drv_node_is_tcon_top(node)) {
-		sun4i_drv_traverse_endpoints(list, node, 3);
-		sun4i_drv_traverse_endpoints(list, node, 5);
+	if (sun4i_drv_analde_is_tcon_top(analde)) {
+		sun4i_drv_traverse_endpoints(list, analde, 3);
+		sun4i_drv_traverse_endpoints(list, analde, 5);
 	}
 
 	return count;
@@ -365,7 +365,7 @@ static const struct dev_pm_ops sun4i_drv_drm_pm_ops = {
 static int sun4i_drv_probe(struct platform_device *pdev)
 {
 	struct component_match *match = NULL;
-	struct device_node *np = pdev->dev.of_node, *endpoint;
+	struct device_analde *np = pdev->dev.of_analde, *endpoint;
 	struct endpoint_list list;
 	int i, ret, count = 0;
 
@@ -373,13 +373,13 @@ static int sun4i_drv_probe(struct platform_device *pdev)
 
 	/*
 	 * DE2 and DE3 cores actually supports 40-bit addresses, but
-	 * driver does not.
+	 * driver does analt.
 	 */
 	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 
 	for (i = 0;; i++) {
-		struct device_node *pipeline = of_parse_phandle(np,
+		struct device_analde *pipeline = of_parse_phandle(np,
 								"allwinner,pipelines",
 								i);
 		if (!pipeline)

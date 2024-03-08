@@ -3,7 +3,7 @@
  * PIC32 RTC driver
  *
  * Joshua Henderson <joshua.henderson@microchip.com>
- * Copyright (C) 2016 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2016 Microchip Techanallogy Inc.  All rights reserved.
  *
  */
 #include <linux/init.h>
@@ -247,7 +247,7 @@ static int pic32_rtc_proc(struct device *dev, struct seq_file *seq)
 
 	repeat = readw(base + PIC32_RTCALRM);
 	repeat &= PIC32_RTCALRM_ARPT;
-	seq_printf(seq, "periodic_IRQ\t: %s\n", repeat  ? "yes" : "no");
+	seq_printf(seq, "periodic_IRQ\t: %s\n", repeat  ? "anal" : "anal");
 
 	clk_disable(pdata->clk);
 	return 0;
@@ -300,7 +300,7 @@ static int pic32_rtc_probe(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, pdata);
 
@@ -338,7 +338,7 @@ static int pic32_rtc_probe(struct platform_device *pdev)
 
 	ret = devm_rtc_register_device(pdata->rtc);
 	if (ret)
-		goto err_nortc;
+		goto err_analrtc;
 
 	pdata->rtc->max_user_freq = 128;
 
@@ -349,14 +349,14 @@ static int pic32_rtc_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev,
 			"IRQ %d error %d\n", pdata->alarm_irq, ret);
-		goto err_nortc;
+		goto err_analrtc;
 	}
 
 	clk_disable(pdata->clk);
 
 	return 0;
 
-err_nortc:
+err_analrtc:
 	pic32_rtc_enable(pdata, 0);
 	clk_disable_unprepare(pdata->clk);
 

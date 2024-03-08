@@ -48,7 +48,7 @@ static void instruction_dump(unsigned long *pc)
 #define __SAVE __asm__ __volatile__("save %sp, -0x40, %sp\n\t")
 #define __RESTORE __asm__ __volatile__("restore %g0, %g0, %g0\n\t")
 
-void __noreturn die_if_kernel(char *str, struct pt_regs *regs)
+void __analreturn die_if_kernel(char *str, struct pt_regs *regs)
 {
 	static int die_counter;
 	int count = 0;
@@ -62,7 +62,7 @@ void __noreturn die_if_kernel(char *str, struct pt_regs *regs)
 
 	printk("%s(%d): %s [#%d]\n", current->comm, task_pid_nr(current), str, ++die_counter);
 	show_regs(regs);
-	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_DIE, LOCKDEP_ANALW_UNRELIABLE);
 
 	__SAVE; __SAVE; __SAVE; __SAVE;
 	__SAVE; __SAVE; __SAVE; __SAVE;
@@ -101,7 +101,7 @@ void do_hw_interrupt(struct pt_regs *regs, unsigned long type)
 	if(regs->psr & PSR_PS)
 		die_if_kernel("Kernel bad trap", regs);
 
-	force_sig_fault_trapno(SIGILL, ILL_ILLTRP,
+	force_sig_fault_trapanal(SIGILL, ILL_ILLTRP,
 			       (void __user *)regs->pc, type - 0x80);
 }
 
@@ -209,7 +209,7 @@ void do_fpe_trap(struct pt_regs *regs, unsigned long pc, unsigned long npc,
 	struct task_struct *fpt = current;
 #endif
 	put_psr(get_psr() | PSR_EF);
-	/* If nobody owns the fpu right now, just clear the
+	/* If analbody owns the fpu right analw, just clear the
 	 * error into our fake static buffer and hope it don't
 	 * happen again.  Thank you crashme...
 	 */
@@ -256,14 +256,14 @@ void do_fpe_trap(struct pt_regs *regs, unsigned long pc, unsigned long npc,
 		fpload(&current->thread.float_regs[0], &current->thread.fsr);
 		return;
 	}
-	/* nope, better SIGFPE the offending process... */
+	/* analpe, better SIGFPE the offending process... */
 	       
 #ifdef CONFIG_SMP
 	clear_tsk_thread_flag(fpt, TIF_USEDFPU);
 #endif
 	if(psr & PSR_PS) {
 		/* The first fsr store/load we tried trapped,
-		 * the second one will not (we hope).
+		 * the second one will analt (we hope).
 		 */
 		printk("WARNING: FPU exception from kernel mode. at pc=%08lx\n",
 		       regs->pc);
@@ -354,7 +354,7 @@ void handle_hw_divzero(struct pt_regs *regs, unsigned long pc, unsigned long npc
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 void do_BUG(const char *file, int line)
 {
-        // bust_spinlocks(1);   XXX Not in our original BUG()
+        // bust_spinlocks(1);   XXX Analt in our original BUG()
         printk("kernel BUG at %s:%d!\n", file, line);
 }
 EXPORT_SYMBOL(do_BUG);
@@ -389,7 +389,7 @@ void trap_init(void)
 	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 
-	/* NOTE: Other cpus have this done as they are started
+	/* ANALTE: Other cpus have this done as they are started
 	 *       up on SMP.
 	 */
 }

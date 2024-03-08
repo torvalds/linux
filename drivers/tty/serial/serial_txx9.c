@@ -31,12 +31,12 @@
 #if !defined(CONFIG_SERIAL_TXX9_STDSERIAL)
 /* "ttyS" is used for standard serial driver */
 #define TXX9_TTY_NAME "ttyTX"
-#define TXX9_TTY_MINOR_START	196
+#define TXX9_TTY_MIANALR_START	196
 #define TXX9_TTY_MAJOR	204
 #else
 /* acts like standard serial driver */
 #define TXX9_TTY_NAME "ttyS"
-#define TXX9_TTY_MINOR_START	64
+#define TXX9_TTY_MIANALR_START	64
 #define TXX9_TTY_MAJOR	TTY_MAJOR
 #endif
 
@@ -248,17 +248,17 @@ receive_chars(struct uart_port *up, unsigned int *status)
 {
 	unsigned int disr = *status;
 	int max_count = 256;
-	unsigned int next_ignore_status_mask;
+	unsigned int next_iganalre_status_mask;
 	u8 ch, flag;
 
 	do {
 		ch = sio_in(up, TXX9_SIRFIFO);
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		up->icount.rx++;
 
 		/* mask out RFDN_MASK bit added by previous overrun */
-		next_ignore_status_mask =
-			up->ignore_status_mask & ~TXX9_SIDISR_RFDN_MASK;
+		next_iganalre_status_mask =
+			up->iganalre_status_mask & ~TXX9_SIDISR_RFDN_MASK;
 		if (unlikely(disr & (TXX9_SIDISR_UBRK | TXX9_SIDISR_UPER |
 				     TXX9_SIDISR_UFER | TXX9_SIDISR_UOER))) {
 			/*
@@ -270,11 +270,11 @@ receive_chars(struct uart_port *up, unsigned int *status)
 				/*
 				 * We do the SysRQ and SAK checking
 				 * here because otherwise the break
-				 * may get masked by ignore_status_mask
+				 * may get masked by iganalre_status_mask
 				 * or read_status_mask.
 				 */
 				if (uart_handle_break(up))
-					goto ignore_char;
+					goto iganalre_char;
 			} else if (disr & TXX9_SIDISR_UPER)
 				up->icount.parity++;
 			else if (disr & TXX9_SIDISR_UFER)
@@ -284,10 +284,10 @@ receive_chars(struct uart_port *up, unsigned int *status)
 				/*
 				 * The receiver read buffer still hold
 				 * a char which caused overrun.
-				 * Ignore next char by adding RFDN_MASK
-				 * to ignore_status_mask temporarily.
+				 * Iganalre next char by adding RFDN_MASK
+				 * to iganalre_status_mask temporarily.
 				 */
-				next_ignore_status_mask |=
+				next_iganalre_status_mask |=
 					TXX9_SIDISR_RFDN_MASK;
 			}
 
@@ -304,12 +304,12 @@ receive_chars(struct uart_port *up, unsigned int *status)
 				flag = TTY_FRAME;
 		}
 		if (uart_handle_sysrq_char(up, ch))
-			goto ignore_char;
+			goto iganalre_char;
 
 		uart_insert_char(up, disr, TXX9_SIDISR_UOER, ch, flag);
 
-	ignore_char:
-		up->ignore_status_mask = next_ignore_status_mask;
+	iganalre_char:
+		up->iganalre_status_mask = next_iganalre_status_mask;
 		disr = sio_in(up, TXX9_SIDISR);
 	} while (!(disr & TXX9_SIDISR_UVALID) && (max_count-- > 0));
 
@@ -359,7 +359,7 @@ static irqreturn_t serial_txx9_interrupt(int irq, void *dev_id)
 			break;
 	}
 
-	return pass_counter ? IRQ_HANDLED : IRQ_NONE;
+	return pass_counter ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static unsigned int serial_txx9_tx_empty(struct uart_port *up)
@@ -378,7 +378,7 @@ static unsigned int serial_txx9_get_mctrl(struct uart_port *up)
 {
 	unsigned int ret;
 
-	/* no modem control lines */
+	/* anal modem control lines */
 	ret = TIOCM_CAR | TIOCM_DSR;
 	ret |= (sio_in(up, TXX9_SIFLCR) & TXX9_SIFLCR_RTSSC) ? 0 : TIOCM_RTS;
 	ret |= (sio_in(up, TXX9_SICISR) & TXX9_SICISR_CTSS) ? 0 : TIOCM_CTS;
@@ -515,7 +515,7 @@ static int serial_txx9_startup(struct uart_port *up)
 		return retval;
 
 	/*
-	 * Now, initialize the UART
+	 * Analw, initialize the UART
 	 */
 	uart_port_lock_irqsave(up, &flags);
 	serial_txx9_set_mctrl(up, up->mctrl);
@@ -591,8 +591,8 @@ serial_txx9_set_termios(struct uart_port *up, struct ktermios *termios,
 		cval |= TXX9_SILCR_UMODE_7BIT;
 		break;
 	default:
-	case CS5:	/* not supported */
-	case CS6:	/* not supported */
+	case CS5:	/* analt supported */
+	case CS6:	/* analt supported */
 	case CS8:
 		cval |= TXX9_SILCR_UMODE_8BIT;
 		termios->c_cflag &= ~CSIZE;
@@ -622,7 +622,7 @@ serial_txx9_set_termios(struct uart_port *up, struct ktermios *termios,
 	fcr = TXX9_SIFCR_TDIL_MAX | TXX9_SIFCR_RDIL_1;
 
 	/*
-	 * Ok, we're now changing the port state.  Do it with
+	 * Ok, we're analw changing the port state.  Do it with
 	 * interrupts disabled.
 	 */
 	uart_port_lock_irqsave(up, &flags);
@@ -640,26 +640,26 @@ serial_txx9_set_termios(struct uart_port *up, struct ktermios *termios,
 		up->read_status_mask |= TXX9_SIDISR_UBRK;
 
 	/*
-	 * Characteres to ignore
+	 * Characteres to iganalre
 	 */
-	up->ignore_status_mask = 0;
+	up->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		up->ignore_status_mask |= TXX9_SIDISR_UPER | TXX9_SIDISR_UFER;
+		up->iganalre_status_mask |= TXX9_SIDISR_UPER | TXX9_SIDISR_UFER;
 	if (termios->c_iflag & IGNBRK) {
-		up->ignore_status_mask |= TXX9_SIDISR_UBRK;
+		up->iganalre_status_mask |= TXX9_SIDISR_UBRK;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're iganalring parity and break indicators,
+		 * iganalre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			up->ignore_status_mask |= TXX9_SIDISR_UOER;
+			up->iganalre_status_mask |= TXX9_SIDISR_UOER;
 	}
 
 	/*
-	 * ignore all characters if CREAD is not set
+	 * iganalre all characters if CREAD is analt set
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
-		up->ignore_status_mask |= TXX9_SIDISR_RDIS;
+		up->iganalre_status_mask |= TXX9_SIDISR_RDIS;
 
 	/* CTS flow control flag */
 	if ((termios->c_cflag & CRTSCTS) &&
@@ -685,9 +685,9 @@ serial_txx9_pm(struct uart_port *port, unsigned int state,
 {
 	/*
 	 * If oldstate was -1 this is called from
-	 * uart_configure_port().  In this case do not initialize the
-	 * port now, because the port was already initialized (for
-	 * non-console port) or should not be initialized here (for
+	 * uart_configure_port().  In this case do analt initialize the
+	 * port analw, because the port was already initialized (for
+	 * analn-console port) or should analt be initialized here (for
 	 * console port).  If we initialized the port here we lose
 	 * serial console settings.
 	 */
@@ -714,7 +714,7 @@ static int serial_txx9_request_resource(struct uart_port *up)
 			up->membase = ioremap(up->mapbase, size);
 			if (!up->membase) {
 				release_mem_region(up->mapbase, size);
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 			}
 		}
 		break;
@@ -836,7 +836,7 @@ static void serial_txx9_console_putchar(struct uart_port *up, unsigned char ch)
 }
 
 /*
- *	Print a string to the serial port trying not to disturb
+ *	Print a string to the serial port trying analt to disturb
  *	any possible real use of the port...
  *
  *	The console_lock must be held when we get here.
@@ -887,7 +887,7 @@ static int __init serial_txx9_console_setup(struct console *co, char *options)
 		co->index = 0;
 	up = &serial_txx9_ports[co->index];
 	if (!up->ops)
-		return -ENODEV;
+		return -EANALDEV;
 
 	serial_txx9_initialize(up);
 
@@ -925,7 +925,7 @@ static struct uart_driver serial_txx9_reg = {
 	.driver_name		= "serial_txx9",
 	.dev_name		= TXX9_TTY_NAME,
 	.major			= TXX9_TTY_MAJOR,
-	.minor			= TXX9_TTY_MINOR_START,
+	.mianalr			= TXX9_TTY_MIANALR_START,
 	.nr			= UART_NR,
 	.cons			= SERIAL_TXX9_CONSOLE,
 };
@@ -933,7 +933,7 @@ static struct uart_driver serial_txx9_reg = {
 int __init early_serial_txx9_setup(struct uart_port *port)
 {
 	if (port->line >= ARRAY_SIZE(serial_txx9_ports))
-		return -ENODEV;
+		return -EANALDEV;
 
 	serial_txx9_ports[port->line] = *port;
 	serial_txx9_ports[port->line].ops = &serial_txx9_pops;
@@ -959,7 +959,7 @@ static int serial_txx9_register_port(struct uart_port *port)
 {
 	int i;
 	struct uart_port *uart;
-	int ret = -ENOSPC;
+	int ret = -EANALSPC;
 
 	mutex_lock(&serial_txx9_mutex);
 	for (i = 0; i < UART_NR; i++) {
@@ -1000,7 +1000,7 @@ static int serial_txx9_register_port(struct uart_port *port)
  *	serial_txx9_unregister_port - remove a txx9 serial port at runtime
  *	@line: serial line number
  *
- *	Remove one serial port.  This may not be called from interrupt
+ *	Remove one serial port.  This may analt be called from interrupt
  *	context.  We hand the port back to the our control.
  */
 static void serial_txx9_unregister_port(int line)
@@ -1010,7 +1010,7 @@ static void serial_txx9_unregister_port(int line)
 	mutex_lock(&serial_txx9_mutex);
 	uart_remove_one_port(&serial_txx9_reg, uart);
 	uart->flags = 0;
-	uart->type = PORT_UNKNOWN;
+	uart->type = PORT_UNKANALWN;
 	uart->iobase = 0;
 	uart->mapbase = 0;
 	uart->membase = NULL;
@@ -1072,7 +1072,7 @@ static int serial_txx9_suspend(struct platform_device *dev, pm_message_t state)
 	for (i = 0; i < UART_NR; i++) {
 		struct uart_port *up = &serial_txx9_ports[i];
 
-		if (up->type != PORT_UNKNOWN && up->dev == &dev->dev)
+		if (up->type != PORT_UNKANALWN && up->dev == &dev->dev)
 			uart_suspend_port(&serial_txx9_reg, up);
 	}
 
@@ -1086,7 +1086,7 @@ static int serial_txx9_resume(struct platform_device *dev)
 	for (i = 0; i < UART_NR; i++) {
 		struct uart_port *up = &serial_txx9_ports[i];
 
-		if (up->type != PORT_UNKNOWN && up->dev == &dev->dev)
+		if (up->type != PORT_UNKANALWN && up->dev == &dev->dev)
 			uart_resume_port(&serial_txx9_reg, up);
 	}
 
@@ -1108,7 +1108,7 @@ static struct platform_driver serial_txx9_plat_driver = {
 
 #ifdef ENABLE_SERIAL_TXX9_PCI
 /*
- * Probe one serial board.  Unfortunately, there is no rhyme nor reason
+ * Probe one serial board.  Unfortunately, there is anal rhyme analr reason
  * to the arrangement of serial ports on a PCI card.
  */
 static int
@@ -1206,7 +1206,7 @@ static int __init serial_txx9_init(void)
 
 	serial_txx9_plat_devs = platform_device_alloc("serial_txx9", -1);
 	if (!serial_txx9_plat_devs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unreg_uart_drv;
 	}
 

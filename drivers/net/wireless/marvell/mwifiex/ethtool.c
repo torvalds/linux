@@ -35,7 +35,7 @@ static int mwifiex_ethtool_set_wol(struct net_device *dev,
 	u32 conditions = 0;
 
 	if (wol->wolopts & ~(WAKE_UCAST|WAKE_MCAST|WAKE_BCAST|WAKE_PHY))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (wol->wolopts & WAKE_UCAST)
 		conditions |= HS_CFG_COND_UNICAST_DATA;

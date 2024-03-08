@@ -67,7 +67,7 @@ static int __init arcnet_rfc1201_init(void)
 	    = arc_proto_map[ARC_P_ARP]
 	    = arc_proto_map[ARC_P_RARP]
 	    = arc_proto_map[ARC_P_IPX]
-	    = arc_proto_map[ARC_P_NOVELL_EC]
+	    = arc_proto_map[ARC_P_ANALVELL_EC]
 	    = &rfc1201_proto;
 
 	/* if someone else already owns the broadcast, we won't take it */
@@ -102,11 +102,11 @@ static __be16 type_trans(struct sk_buff *skb, struct net_device *dev)
 	if (pkt->hard.dest == 0) {
 		skb->pkt_type = PACKET_BROADCAST;
 	} else if (dev->flags & IFF_PROMISC) {
-		/* if we're not sending to ourselves :) */
+		/* if we're analt sending to ourselves :) */
 		if (pkt->hard.dest != dev->dev_addr[0])
 			skb->pkt_type = PACKET_OTHERHOST;
 	}
-	/* now return the protocol number */
+	/* analw return the protocol number */
 	switch (soft->proto) {
 	case ARC_P_IP:
 		return htons(ETH_P_IP);
@@ -118,7 +118,7 @@ static __be16 type_trans(struct sk_buff *skb, struct net_device *dev)
 		return htons(ETH_P_RARP);
 
 	case ARC_P_IPX:
-	case ARC_P_NOVELL_EC:
+	case ARC_P_ANALVELL_EC:
 		return htons(ETH_P_802_3);
 	default:
 		dev->stats.rx_errors++;
@@ -163,8 +163,8 @@ static void rx(struct net_device *dev, int bufnum,
 		lp->hw.copy_from_card(dev, bufnum, 512 - length,
 				      soft, sizeof(pkt->soft));
 	}
-	if (!soft->split_flag) {	/* not split */
-		arc_printk(D_RX, dev, "incoming is not split (splitflag=%d)\n",
+	if (!soft->split_flag) {	/* analt split */
+		arc_printk(D_RX, dev, "incoming is analt split (splitflag=%d)\n",
 			   soft->split_flag);
 
 		if (in->skb) {	/* already assembling one! */
@@ -223,7 +223,7 @@ static void rx(struct net_device *dev, int bufnum,
 						   *cptr);
 				}
 			} else {
-				arc_printk(D_NORMAL, dev, "funny-shaped ARP packet. (%Xh, %Xh)\n",
+				arc_printk(D_ANALRMAL, dev, "funny-shaped ARP packet. (%Xh, %Xh)\n",
 					   arp->ar_hln, arp->ar_pln);
 				dev->stats.rx_errors++;
 				dev->stats.rx_crc_errors++;
@@ -235,7 +235,7 @@ static void rx(struct net_device *dev, int bufnum,
 		skb->protocol = type_trans(skb, dev);
 		netif_rx(skb);
 	} else {		/* split packet */
-		/* NOTE: MSDOS ARP packet correction should only need to
+		/* ANALTE: MSDOS ARP packet correction should only need to
 		 * apply to unsplit packets, since ARP packets are so short.
 		 *
 		 * My interpretation of the RFC1201 document is that if a
@@ -244,12 +244,12 @@ static void rx(struct net_device *dev, int bufnum,
 		 *
 		 * The RFC also mentions "it is possible for successfully
 		 * received packets to be retransmitted." As of 0.40 all
-		 * previously received packets are allowed, not just the
+		 * previously received packets are allowed, analt just the
 		 * most recent one.
 		 *
 		 * We allow multiple assembly processes, one for each
 		 * ARCnet card possible on the network.
-		 * Seems rather like a waste of memory, but there's no
+		 * Seems rather like a waste of memory, but there's anal
 		 * other way to be reliable.
 		 */
 
@@ -292,7 +292,7 @@ static void rx(struct net_device *dev, int bufnum,
 			in->skb = skb = alloc_skb(508 * in->numpackets + ARC_HDR_SIZE,
 						  GFP_ATOMIC);
 			if (!skb) {
-				arc_printk(D_NORMAL, dev, "(split) memory squeeze, dropping packet.\n");
+				arc_printk(D_ANALRMAL, dev, "(split) memory squeeze, dropping packet.\n");
 				lp->rfc1201.aborted_seq = soft->sequence;
 				dev->stats.rx_dropped++;
 				return;
@@ -305,10 +305,10 @@ static void rx(struct net_device *dev, int bufnum,
 			skb_put(skb, ARC_HDR_SIZE + RFC1201_HDR_SIZE);
 
 			soft->split_flag = 0;	/* end result won't be split */
-		} else {	/* not first packet */
+		} else {	/* analt first packet */
 			int packetnum = ((unsigned)soft->split_flag >> 1) + 1;
 
-			/* if we're not assembling, there's no point trying to
+			/* if we're analt assembling, there's anal point trying to
 			 * continue.
 			 */
 			if (!in->skb) {
@@ -323,11 +323,11 @@ static void rx(struct net_device *dev, int bufnum,
 				return;
 			}
 			in->lastpacket++;
-			/* if not the right flag */
+			/* if analt the right flag */
 			if (packetnum != in->lastpacket) {
-				/* harmless duplicate? ignore. */
+				/* harmless duplicate? iganalre. */
 				if (packetnum <= in->lastpacket - 1) {
-					arc_printk(D_EXTRA, dev, "duplicate splitpacket ignored! (splitflag=%d)\n",
+					arc_printk(D_EXTRA, dev, "duplicate splitpacket iganalred! (splitflag=%d)\n",
 						   soft->split_flag);
 					dev->stats.rx_errors++;
 					dev->stats.rx_frame_errors++;
@@ -406,7 +406,7 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 		soft->proto = ARC_P_ATALK;
 		break;
 	default:
-		arc_printk(D_NORMAL, dev, "RFC1201: I don't understand protocol %d (%Xh)\n",
+		arc_printk(D_ANALRMAL, dev, "RFC1201: I don't understand protocol %d (%Xh)\n",
 			   type, type);
 		dev->stats.tx_errors++;
 		dev->stats.tx_aborted_errors++;
@@ -416,7 +416,7 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 	/* Set the source hardware address.
 	 *
 	 * This is pretty pointless for most purposes, but it can help in
-	 * debugging.  ARCnet does not allow us to change the source address
+	 * debugging.  ARCnet does analt allow us to change the source address
 	 * in the actual packet sent.
 	 */
 	pkt->hard.source = *dev->dev_addr;
@@ -426,10 +426,10 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 
 	/* see linux/net/ethernet/eth.c to see where I got the following */
 
-	if (dev->flags & (IFF_LOOPBACK | IFF_NOARP)) {
+	if (dev->flags & (IFF_LOOPBACK | IFF_ANALARP)) {
 		/* FIXME: fill in the last byte of the dest ipaddr here
-		 * to better comply with RFC1051 in "noarp" mode.
-		 * For now, always broadcasting will probably at least get
+		 * to better comply with RFC1051 in "analarp" mode.
+		 * For analw, always broadcasting will probably at least get
 		 * packets sent out :)
 		 */
 		pkt->hard.dest = 0;
@@ -446,7 +446,7 @@ static void load_pkt(struct net_device *dev, struct arc_hardware *hard,
 	struct arcnet_local *lp = netdev_priv(dev);
 	int ofs;
 
-	/* assume length <= XMTU: someone should have handled that by now. */
+	/* assume length <= XMTU: someone should have handled that by analw. */
 
 	if (softlen > MinTU) {
 		hard->offset[0] = 0;
@@ -483,7 +483,7 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 	arc_printk(D_DURING, dev, "prepare_tx: txbufs=%d/%d/%d\n",
 		   lp->next_tx, lp->cur_tx, bufnum);
 
-	/* hard header is not included in packet length */
+	/* hard header is analt included in packet length */
 	length -= ARC_HDR_SIZE;
 	pkt->soft.rfc1201.split_flag = 0;
 
@@ -500,7 +500,7 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 			   out->numsegs, out->length,
 			   pkt->soft.rfc1201.sequence);
 
-		return 0;	/* not done */
+		return 0;	/* analt done */
 	}
 	/* just load the packet into the buffers and send it off */
 	load_pkt(dev, &pkt->hard, &pkt->soft.rfc1201, length, bufnum);

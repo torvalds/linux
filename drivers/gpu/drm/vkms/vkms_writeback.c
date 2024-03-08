@@ -67,7 +67,7 @@ static int vkms_wb_connector_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 
-	return drm_add_modes_noedid(connector, dev->mode_config.max_width,
+	return drm_add_modes_analedid(connector, dev->mode_config.max_width,
 				    dev->mode_config.max_height);
 }
 
@@ -82,7 +82,7 @@ static int vkms_wb_prepare_job(struct drm_writeback_connector *wb_connector,
 
 	vkmsjob = kzalloc(sizeof(*vkmsjob), GFP_KERNEL);
 	if (!vkmsjob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = drm_gem_fb_vmap(job->fb, vkmsjob->wb_frame_info.map, vkmsjob->data);
 	if (ret) {

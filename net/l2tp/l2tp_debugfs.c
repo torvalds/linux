@@ -264,11 +264,11 @@ static const struct seq_operations l2tp_dfs_seq_ops = {
 	.show		= l2tp_dfs_seq_show,
 };
 
-static int l2tp_dfs_seq_open(struct inode *inode, struct file *file)
+static int l2tp_dfs_seq_open(struct ianalde *ianalde, struct file *file)
 {
 	struct l2tp_dfs_seq_data *pd;
 	struct seq_file *seq;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
@@ -300,7 +300,7 @@ err_free_pd:
 	goto out;
 }
 
-static int l2tp_dfs_seq_release(struct inode *inode, struct file *file)
+static int l2tp_dfs_seq_release(struct ianalde *ianalde, struct file *file)
 {
 	struct l2tp_dfs_seq_data *pd;
 	struct seq_file *seq;
@@ -310,7 +310,7 @@ static int l2tp_dfs_seq_release(struct inode *inode, struct file *file)
 	if (pd->net)
 		put_net_track(pd->net, &pd->ns_tracker);
 	kfree(pd);
-	seq_release(inode, file);
+	seq_release(ianalde, file);
 
 	return 0;
 }

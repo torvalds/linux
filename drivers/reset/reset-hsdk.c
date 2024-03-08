@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2017 Synopsys.
+ * Copyright (C) 2017 Syanalpsys.
  *
- * Synopsys HSDK Development platform reset driver.
+ * Syanalpsys HSDK Development platform reset driver.
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -95,7 +95,7 @@ static int hsdk_reset_probe(struct platform_device *pdev)
 
 	rst = devm_kzalloc(&pdev->dev, sizeof(*rst), GFP_KERNEL);
 	if (!rst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rst->regs_ctl = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rst->regs_ctl))
@@ -109,7 +109,7 @@ static int hsdk_reset_probe(struct platform_device *pdev)
 
 	rst->rcdev.owner = THIS_MODULE;
 	rst->rcdev.ops = &hsdk_reset_ops;
-	rst->rcdev.of_node = pdev->dev.of_node;
+	rst->rcdev.of_analde = pdev->dev.of_analde;
 	rst->rcdev.nr_resets = HSDK_MAX_RESETS;
 	rst->rcdev.of_reset_n_cells = 1;
 
@@ -130,6 +130,6 @@ static struct platform_driver hsdk_reset_driver = {
 };
 builtin_platform_driver(hsdk_reset_driver);
 
-MODULE_AUTHOR("Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>");
-MODULE_DESCRIPTION("Synopsys HSDK SDP reset driver");
+MODULE_AUTHOR("Eugeniy Paltsev <Eugeniy.Paltsev@syanalpsys.com>");
+MODULE_DESCRIPTION("Syanalpsys HSDK SDP reset driver");
 MODULE_LICENSE("GPL v2");

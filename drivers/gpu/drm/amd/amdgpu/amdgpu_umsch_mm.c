@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -101,7 +101,7 @@ static int map_ring_data(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 	*bo_va = amdgpu_vm_bo_add(adev, vm, bo);
 	if (!*bo_va) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto error_fini_exec;
 	}
 
@@ -222,8 +222,8 @@ static int add_test_queue(struct amdgpu_device *adev,
 	queue_input.context_quantum = 10000; /* 1ms */
 	queue_input.context_csa_addr = qinfo->csa_addr;
 
-	queue_input.inprocess_context_priority = CONTEXT_PRIORITY_LEVEL_NORMAL;
-	queue_input.context_global_priority_level = CONTEXT_PRIORITY_LEVEL_NORMAL;
+	queue_input.inprocess_context_priority = CONTEXT_PRIORITY_LEVEL_ANALRMAL;
+	queue_input.context_global_priority_level = CONTEXT_PRIORITY_LEVEL_ANALRMAL;
 	queue_input.doorbell_offset_0 = qinfo->doorbell_offset_0;
 	queue_input.doorbell_offset_1 = qinfo->doorbell_offset_1;
 
@@ -287,7 +287,7 @@ static int submit_vpe_queue(struct amdgpu_device *adev, struct umsch_mm_test *te
 	ring[5] = 0;
 
 	mqd->wptr_val = (6 << 2);
-	// WDOORBELL32(adev->umsch_mm.agdb_index[CONTEXT_PRIORITY_LEVEL_NORMAL], mqd->wptr_val);
+	// WDOORBELL32(adev->umsch_mm.agdb_index[CONTEXT_PRIORITY_LEVEL_ANALRMAL], mqd->wptr_val);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		if (*fence == test_pattern)
@@ -315,7 +315,7 @@ static int setup_umsch_mm_test(struct amdgpu_device *adev,
 
 	test->vm = kzalloc(sizeof(*test->vm), GFP_KERNEL);
 	if (!test->vm) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		return r;
 	}
 
@@ -485,7 +485,7 @@ int amdgpu_umsch_mm_submit_pkt(struct amdgpu_umsch_mm *umsch, void *pkt, int ndw
 	struct amdgpu_ring *ring = &umsch->ring;
 
 	if (amdgpu_ring_alloc(ring, ndws))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	amdgpu_ring_write_multiple(ring, pkt, ndws);
 	amdgpu_ring_commit(ring);
@@ -539,12 +539,12 @@ static u64 umsch_mm_ring_get_wptr(struct amdgpu_ring *ring)
 static const struct amdgpu_ring_funcs umsch_v4_0_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_UMSCH_MM,
 	.align_mask = 0,
-	.nop = 0,
+	.analp = 0,
 	.support_64bit_ptrs = false,
 	.get_rptr = umsch_mm_ring_get_rptr,
 	.get_wptr = umsch_mm_ring_get_wptr,
 	.set_wptr = umsch_mm_ring_set_wptr,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_analp = amdgpu_ring_insert_analp,
 };
 
 int amdgpu_umsch_mm_ring_init(struct amdgpu_umsch_mm *umsch)
@@ -554,7 +554,7 @@ int amdgpu_umsch_mm_ring_init(struct amdgpu_umsch_mm *umsch)
 
 	ring->vm_hub = AMDGPU_MMHUB0(0);
 	ring->use_doorbell = true;
-	ring->no_scheduler = true;
+	ring->anal_scheduler = true;
 	ring->doorbell_index = (AMDGPU_NAVI10_DOORBELL64_VCN0_1 << 1) + 6;
 
 	snprintf(ring->name, sizeof(ring->name), "umsch");
@@ -872,7 +872,7 @@ static const struct amd_ip_funcs umsch_mm_v4_0_ip_funcs = {
 const struct amdgpu_ip_block_version umsch_mm_v4_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_UMSCH_MM,
 	.major = 4,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &umsch_mm_v4_0_ip_funcs,
 };

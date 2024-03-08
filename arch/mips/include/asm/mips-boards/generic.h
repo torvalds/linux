@@ -5,7 +5,7 @@
  *
  * Defines of the MIPS boards specific address-MAP, registers, etc.
  *
- * Copyright (C) 2000,2012 MIPS Technologies, Inc.
+ * Copyright (C) 2000,2012 MIPS Techanallogies, Inc.
  * All rights reserved.
  * Authors: Carsten Langgaard <carstenl@mips.com>
  *          Steven J. Hill <sjhill@mips.com>
@@ -56,7 +56,7 @@
 #define MIPS_REVISION_SCON_SOCITSCP	   2
 
 /* Artificial SCON defines for MIPS_REVISION_SCON_OTHER */
-#define MIPS_REVISION_SCON_UNKNOWN	   -1
+#define MIPS_REVISION_SCON_UNKANALWN	   -1
 #define MIPS_REVISION_SCON_GT64120	   -2
 #define MIPS_REVISION_SCON_BONITO	   -3
 #define MIPS_REVISION_SCON_BRTL		   -4

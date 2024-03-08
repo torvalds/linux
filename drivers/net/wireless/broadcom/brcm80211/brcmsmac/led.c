@@ -12,7 +12,7 @@
 #include "led.h"
 
 	/* number of leds */
-#define  BRCMS_LED_NO		4
+#define  BRCMS_LED_ANAL		4
 	/* behavior mask */
 #define  BRCMS_LED_BEH_MASK	0x7f
 	/* activelow (polarity) bit */
@@ -65,7 +65,7 @@ int brcms_led_register(struct brcms_info *wl)
 	enum gpio_lookup_flags lflags = GPIO_ACTIVE_HIGH;
 
 	/* find radio enabled LED */
-	for (i = 0; i < BRCMS_LED_NO; i++) {
+	for (i = 0; i < BRCMS_LED_ANAL; i++) {
 		u8 led = *leds[i];
 		if ((led & BRCMS_LED_BEH_MASK) == BRCMS_LED_RADIO) {
 			hwnum = i;
@@ -75,9 +75,9 @@ int brcms_led_register(struct brcms_info *wl)
 		}
 	}
 
-	/* No LED, bail out */
+	/* Anal LED, bail out */
 	if (hwnum == -1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Try to obtain this LED GPIO line */
 	radio_led->gpiod = gpiochip_request_own_desc(bcma_gpio, hwnum,
@@ -101,7 +101,7 @@ int brcms_led_register(struct brcms_info *wl)
 	err = led_classdev_register(wiphy_dev(wl->wiphy), &wl->led_dev);
 
 	if (err) {
-		wiphy_err(wl->wiphy, "cannot register led device: %s (err: %d)\n",
+		wiphy_err(wl->wiphy, "cananalt register led device: %s (err: %d)\n",
 			  wl->radio_led.name, err);
 		return err;
 	}

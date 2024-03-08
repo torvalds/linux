@@ -75,7 +75,7 @@ static void mmc_host_classdev_release(struct device *dev)
 {
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
 	wakeup_source_unregister(host->ws);
-	if (of_alias_get_id(host->parent->of_node, "mmc") < 0)
+	if (of_alias_get_id(host->parent->of_analde, "mmc") < 0)
 		ida_simple_remove(&mmc_host_ida, host->index);
 	kfree(host);
 }
@@ -107,7 +107,7 @@ void mmc_unregister_host_class(void)
 
 /**
  * mmc_retune_enable() - enter a transfer mode that requires retuning
- * @host: host which should retune now
+ * @host: host which should retune analw
  */
 void mmc_retune_enable(struct mmc_host *host)
 {
@@ -141,9 +141,9 @@ EXPORT_SYMBOL(mmc_retune_unpause);
 
 /**
  * mmc_retune_disable() - exit a transfer mode that requires retuning
- * @host: host which should not retune anymore
+ * @host: host which should analt retune anymore
  *
- * It is not meant for temporarily preventing retuning!
+ * It is analt meant for temporarily preventing retuning!
  */
 void mmc_retune_disable(struct mmc_host *host)
 {
@@ -162,7 +162,7 @@ EXPORT_SYMBOL(mmc_retune_timer_stop);
 void mmc_retune_hold(struct mmc_host *host)
 {
 	if (!host->hold_retune)
-		host->retune_now = 1;
+		host->retune_analw = 1;
 	host->hold_retune += 1;
 }
 
@@ -180,8 +180,8 @@ int mmc_retune(struct mmc_host *host)
 	bool return_to_hs400 = false;
 	int err;
 
-	if (host->retune_now)
-		host->retune_now = 0;
+	if (host->retune_analw)
+		host->retune_analw = 0;
 	else
 		return 0;
 
@@ -268,7 +268,7 @@ EXPORT_SYMBOL(mmc_of_parse_clk_phase);
  * @host: host whose properties should be parsed.
  *
  * To keep the rest of the MMC subsystem unaware of whether DT has been
- * used to instantiate and configure this host instance or not, we
+ * used to instantiate and configure this host instance or analt, we
  * parse the properties and set respective generic mmc-host flags and
  * parameters.
  */
@@ -278,7 +278,7 @@ int mmc_of_parse(struct mmc_host *host)
 	u32 bus_width, drv_type, cd_debounce_delay_ms;
 	int ret;
 
-	if (!dev || !dev_fwnode(dev))
+	if (!dev || !dev_fwanalde(dev))
 		return 0;
 
 	/* "bus-width" is translated to MMC_CAP_*_BIT_DATA flags */
@@ -313,15 +313,15 @@ int mmc_of_parse(struct mmc_host *host)
 	 * polarity inversion is specified in DT, one of MMC_CAP2_CD_ACTIVE_HIGH
 	 * and MMC_CAP2_RO_ACTIVE_HIGH capability-2 flags is set. If the
 	 * "broken-cd" property is provided, the MMC_CAP_NEEDS_POLL capability
-	 * is set. If the "non-removable" property is found, the
-	 * MMC_CAP_NONREMOVABLE capability is set and no card-detection
+	 * is set. If the "analn-removable" property is found, the
+	 * MMC_CAP_ANALNREMOVABLE capability is set and anal card-detection
 	 * configuration is performed.
 	 */
 
 	/* Parse Card Detection */
 
-	if (device_property_read_bool(dev, "non-removable")) {
-		host->caps |= MMC_CAP_NONREMOVABLE;
+	if (device_property_read_bool(dev, "analn-removable")) {
+		host->caps |= MMC_CAP_ANALNREMOVABLE;
 	} else {
 		if (device_property_read_bool(dev, "cd-inverted"))
 			host->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
@@ -337,7 +337,7 @@ int mmc_of_parse(struct mmc_host *host)
 					   cd_debounce_delay_ms * 1000);
 		if (!ret)
 			dev_info(host->parent, "Got CD GPIO\n");
-		else if (ret != -ENOENT && ret != -ENOSYS)
+		else if (ret != -EANALENT && ret != -EANALSYS)
 			return ret;
 	}
 
@@ -349,11 +349,11 @@ int mmc_of_parse(struct mmc_host *host)
 	ret = mmc_gpiod_request_ro(host, "wp", 0, 0);
 	if (!ret)
 		dev_info(host->parent, "Got WP GPIO\n");
-	else if (ret != -ENOENT && ret != -ENOSYS)
+	else if (ret != -EANALENT && ret != -EANALSYS)
 		return ret;
 
 	if (device_property_read_bool(dev, "disable-wp"))
-		host->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
+		host->caps2 |= MMC_CAP2_ANAL_WRITE_PROTECT;
 
 	if (device_property_read_bool(dev, "cap-sd-highspeed"))
 		host->caps |= MMC_CAP_SD_HIGHSPEED;
@@ -400,19 +400,19 @@ int mmc_of_parse(struct mmc_host *host)
 		host->caps2 |= MMC_CAP2_HS400_1_2V | MMC_CAP2_HS200_1_2V_SDR;
 	if (device_property_read_bool(dev, "mmc-hs400-enhanced-strobe"))
 		host->caps2 |= MMC_CAP2_HS400_ES;
-	if (device_property_read_bool(dev, "no-sdio"))
-		host->caps2 |= MMC_CAP2_NO_SDIO;
-	if (device_property_read_bool(dev, "no-sd"))
-		host->caps2 |= MMC_CAP2_NO_SD;
-	if (device_property_read_bool(dev, "no-mmc"))
-		host->caps2 |= MMC_CAP2_NO_MMC;
-	if (device_property_read_bool(dev, "no-mmc-hs400"))
+	if (device_property_read_bool(dev, "anal-sdio"))
+		host->caps2 |= MMC_CAP2_ANAL_SDIO;
+	if (device_property_read_bool(dev, "anal-sd"))
+		host->caps2 |= MMC_CAP2_ANAL_SD;
+	if (device_property_read_bool(dev, "anal-mmc"))
+		host->caps2 |= MMC_CAP2_ANAL_MMC;
+	if (device_property_read_bool(dev, "anal-mmc-hs400"))
 		host->caps2 &= ~(MMC_CAP2_HS400_1_8V | MMC_CAP2_HS400_1_2V |
 				 MMC_CAP2_HS400_ES);
 
-	/* Must be after "non-removable" check */
+	/* Must be after "analn-removable" check */
 	if (device_property_read_u32(dev, "fixed-emmc-driver-type", &drv_type) == 0) {
-		if (host->caps & MMC_CAP_NONREMOVABLE)
+		if (host->caps & MMC_CAP_ANALNREMOVABLE)
 			host->fixed_drv_type = drv_type;
 		else
 			dev_err(host->parent,
@@ -422,7 +422,7 @@ int mmc_of_parse(struct mmc_host *host)
 	host->dsr_req = !device_property_read_u32(dev, "dsr", &host->dsr);
 	if (host->dsr_req && (host->dsr & ~0xffff)) {
 		dev_err(host->parent,
-			"device tree specified broken value for DSR: 0x%x, ignoring\n",
+			"device tree specified broken value for DSR: 0x%x, iganalring\n",
 			host->dsr);
 		host->dsr_req = 0;
 	}
@@ -440,8 +440,8 @@ EXPORT_SYMBOL(mmc_of_parse);
  * @host: host whose properties should be parsed.
  * @mask: mask of voltages available for MMC/SD/SDIO
  *
- * Parse the "voltage-ranges" property, returning zero if it is not
- * found, negative errno if the voltage-range specification is invalid,
+ * Parse the "voltage-ranges" property, returning zero if it is analt
+ * found, negative erranal if the voltage-range specification is invalid,
  * or one if the voltage-range is specified and successfully parsed.
  */
 int mmc_of_parse_voltage(struct mmc_host *host, u32 *mask)
@@ -469,7 +469,7 @@ int mmc_of_parse_voltage(struct mmc_host *host, u32 *mask)
 
 	voltage_ranges = kcalloc(2 * num_ranges, sizeof(*voltage_ranges), GFP_KERNEL);
 	if (!voltage_ranges)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = device_property_read_u32_array(dev, prop, voltage_ranges, 2 * num_ranges);
 	if (ret) {
@@ -498,9 +498,9 @@ int mmc_of_parse_voltage(struct mmc_host *host, u32 *mask)
 EXPORT_SYMBOL(mmc_of_parse_voltage);
 
 /**
- * mmc_first_nonreserved_index() - get the first index that is not reserved
+ * mmc_first_analnreserved_index() - get the first index that is analt reserved
  */
-static int mmc_first_nonreserved_index(void)
+static int mmc_first_analnreserved_index(void)
 {
 	int max;
 
@@ -531,11 +531,11 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	/* scanning will be enabled when we're ready */
 	host->rescan_disable = 1;
 
-	alias_id = of_alias_get_id(dev->of_node, "mmc");
+	alias_id = of_alias_get_id(dev->of_analde, "mmc");
 	if (alias_id >= 0) {
 		index = alias_id;
 	} else {
-		min_idx = mmc_first_nonreserved_index();
+		min_idx = mmc_first_analnreserved_index();
 		max_idx = 0;
 
 		index = ida_simple_get(&mmc_host_ida, min_idx, max_idx, GFP_KERNEL);
@@ -568,7 +568,7 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	timer_setup(&host->retune_timer, mmc_retune_timer, 0);
 
 	/*
-	 * By default, hosts do not support SGIO or large requests.
+	 * By default, hosts do analt support SGIO or large requests.
 	 * They have to set these according to their abilities.
 	 */
 	host->max_segs = 1;
@@ -624,8 +624,8 @@ static int mmc_validate_host_caps(struct mmc_host *host)
 	}
 
 	if (caps2 & (MMC_CAP2_HS400_ES | MMC_CAP2_HS400) &&
-	    !(caps & MMC_CAP_8_BIT_DATA) && !(caps2 & MMC_CAP2_NO_MMC)) {
-		dev_warn(dev, "drop HS400 support since no 8-bit bus\n");
+	    !(caps & MMC_CAP_8_BIT_DATA) && !(caps2 & MMC_CAP2_ANAL_MMC)) {
+		dev_warn(dev, "drop HS400 support since anal 8-bit bus\n");
 		host->caps2 = caps2 & ~MMC_CAP2_HS400_ES & ~MMC_CAP2_HS400;
 	}
 
@@ -667,7 +667,7 @@ EXPORT_SYMBOL(mmc_add_host);
  *	@host: mmc host
  *
  *	Unregister and remove all cards associated with this host,
- *	and power down the MMC bus. No new requests will be issued
+ *	and power down the MMC bus. Anal new requests will be issued
  *	after this function has returned.
  */
 void mmc_remove_host(struct mmc_host *host)

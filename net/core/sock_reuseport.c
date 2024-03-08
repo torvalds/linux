@@ -197,7 +197,7 @@ int reuseport_alloc(struct sock *sk, bool bind_inany)
 	spin_lock_bh(&reuseport_lock);
 
 	/* Allocation attempts can occur concurrently via the setsockopt path
-	 * and the bind/hash path.  Nothing to do when we lose the race.
+	 * and the bind/hash path.  Analthing to do when we lose the race.
 	 */
 	reuse = rcu_dereference_protected(sk->sk_reuseport_cb,
 					  lockdep_is_held(&reuseport_lock));
@@ -219,7 +219,7 @@ int reuseport_alloc(struct sock *sk, bool bind_inany)
 
 	reuse = __reuseport_alloc(INIT_SOCKS);
 	if (!reuse) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -292,7 +292,7 @@ static struct sock_reuseport *reuseport_grow(struct sock_reuseport *reuse)
 		rcu_assign_pointer(reuse->socks[i]->sk_reuseport_cb,
 				   more_reuse);
 
-	/* Note: we use kfree_rcu here instead of reuseport_free_rcu so
+	/* Analte: we use kfree_rcu here instead of reuseport_free_rcu so
 	 * that reuse and more_reuse can temporarily share a reference
 	 * to prog.
 	 */
@@ -311,12 +311,12 @@ static void reuseport_free_rcu(struct rcu_head *head)
 }
 
 /**
- *  reuseport_add_sock - Add a socket to the reuseport group of another.
+ *  reuseport_add_sock - Add a socket to the reuseport group of aanalther.
  *  @sk:  New socket to add to the group.
  *  @sk2: Socket belonging to the existing reuseport group.
- *  @bind_inany: Whether or not the group is bound to a local INANY address.
+ *  @bind_inany: Whether or analt the group is bound to a local INANY address.
  *
- *  May return ENOMEM and not add socket to group under memory pressure.
+ *  May return EANALMEM and analt add socket to group under memory pressure.
  */
 int reuseport_add_sock(struct sock *sk, struct sock *sk2, bool bind_inany)
 {
@@ -351,7 +351,7 @@ int reuseport_add_sock(struct sock *sk, struct sock *sk2, bool bind_inany)
 		reuse = reuseport_grow(reuse);
 		if (!reuse) {
 			spin_unlock_bh(&reuseport_lock);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -379,9 +379,9 @@ static int reuseport_resurrect(struct sock *sk, struct sock_reuseport *old_reuse
 	}
 
 	if (!reuse) {
-		/* In bind()/listen() path, we cannot carry over the eBPF prog
+		/* In bind()/listen() path, we cananalt carry over the eBPF prog
 		 * for the shutdown()ed socket. In setsockopt() path, we should
-		 * not change the eBPF prog of listening sockets by attaching a
+		 * analt change the eBPF prog of listening sockets by attaching a
 		 * prog to the shutdown()ed socket. Thus, we will allocate a new
 		 * reuseport group and detach sk from the old group.
 		 */
@@ -389,7 +389,7 @@ static int reuseport_resurrect(struct sock *sk, struct sock_reuseport *old_reuse
 
 		reuse = __reuseport_alloc(INIT_SOCKS);
 		if (!reuse)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		id = ida_alloc(&reuseport_ida, GFP_ATOMIC);
 		if (id < 0) {
@@ -405,13 +405,13 @@ static int reuseport_resurrect(struct sock *sk, struct sock_reuseport *old_reuse
 		 *   shutdown()ed, and then sk2 has listen()ed on the same port
 		 * OR
 		 * - sk listen()ed without bind() (or with autobind), was
-		 *   shutdown()ed, and then listen()s on another port which
+		 *   shutdown()ed, and then listen()s on aanalther port which
 		 *   sk2 listen()s on.
 		 */
 		if (reuse->num_socks + reuse->num_closed_socks == reuse->max_socks) {
 			reuse = reuseport_grow(reuse);
 			if (!reuse)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 
@@ -437,7 +437,7 @@ void reuseport_detach_sock(struct sock *sk)
 	if (!reuse)
 		goto out;
 
-	/* Notify the bpf side. The sk may be added to a sockarray
+	/* Analtify the bpf side. The sk may be added to a sockarray
 	 * map. If so, sockarray logic will remove it from the map.
 	 *
 	 * Other bpf map types that work with reuseport, like sockmap,
@@ -490,7 +490,7 @@ void reuseport_stop_listen_sock(struct sock *sk)
 		spin_unlock_bh(&reuseport_lock);
 	}
 
-	/* Not capable to do migration, detach immediately */
+	/* Analt capable to do migration, detach immediately */
 	reuseport_detach_sock(sk);
 }
 EXPORT_SYMBOL(reuseport_stop_listen_sock);
@@ -559,10 +559,10 @@ static struct sock *reuseport_select_sock_by_hash(struct sock_reuseport *reuse,
 /**
  *  reuseport_select_sock - Select a socket from an SO_REUSEPORT group.
  *  @sk: First socket in the group.
- *  @hash: When no BPF filter is available, use this hash to select.
+ *  @hash: When anal BPF filter is available, use this hash to select.
  *  @skb: skb to run through BPF filter.
  *  @hdr_len: BPF filter expects skb data pointer at payload data.  If
- *    the skb does not yet point at the payload, this parameter represents
+ *    the skb does analt yet point at the payload, this parameter represents
  *    how far the pointer needs to advance to reach the payload.
  *  Returns a socket that should receive the packet (or NULL on error).
  */
@@ -579,7 +579,7 @@ struct sock *reuseport_select_sock(struct sock *sk,
 	rcu_read_lock();
 	reuse = rcu_dereference(sk->sk_reuseport_cb);
 
-	/* if memory allocation failed or add call is not yet complete */
+	/* if memory allocation failed or add call is analt yet complete */
 	if (!reuse)
 		goto out;
 
@@ -598,7 +598,7 @@ struct sock *reuseport_select_sock(struct sock *sk,
 			sk2 = run_bpf_filter(reuse, socks, prog, skb, hdr_len);
 
 select_by_hash:
-		/* no bpf or invalid bpf result: fall back to hash usage */
+		/* anal bpf or invalid bpf result: fall back to hash usage */
 		if (!sk2)
 			sk2 = reuseport_select_sock_by_hash(reuse, hash, socks);
 	}
@@ -666,7 +666,7 @@ select_by_hash:
 	if (!nsk)
 		nsk = reuseport_select_sock_by_hash(reuse, hash, socks);
 
-	if (IS_ERR_OR_NULL(nsk) || unlikely(!refcount_inc_not_zero(&nsk->sk_refcnt))) {
+	if (IS_ERR_OR_NULL(nsk) || unlikely(!refcount_inc_analt_zero(&nsk->sk_refcnt))) {
 		nsk = NULL;
 		goto failure;
 	}
@@ -728,12 +728,12 @@ int reuseport_detach_prog(struct sock *sk)
 	 */
 	if (!reuse) {
 		spin_unlock_bh(&reuseport_lock);
-		return sk->sk_reuseport ? -ENOENT : -EINVAL;
+		return sk->sk_reuseport ? -EANALENT : -EINVAL;
 	}
 
 	if (sk_unhashed(sk) && reuse->num_closed_socks) {
 		spin_unlock_bh(&reuseport_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	old_prog = rcu_replace_pointer(reuse->prog, old_prog,
@@ -741,7 +741,7 @@ int reuseport_detach_prog(struct sock *sk)
 	spin_unlock_bh(&reuseport_lock);
 
 	if (!old_prog)
-		return -ENOENT;
+		return -EANALENT;
 
 	sk_reuseport_prog_free(old_prog);
 	return 0;

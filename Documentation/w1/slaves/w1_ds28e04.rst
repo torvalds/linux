@@ -37,5 +37,5 @@ PIO Access
 	The 2 PIOs of the DS28E04-100 are accessible via the "pio" sysfs file.
 
 	The current status of the PIO's is returned as an 8 bit value. Bit 0/1
-	represent the state of PIO_0/PIO_1. Bits 2..7 do not care. The PIO's are
+	represent the state of PIO_0/PIO_1. Bits 2..7 do analt care. The PIO's are
 	driven low-active, i.e. the driver delivers/expects low-active values.

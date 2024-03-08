@@ -52,10 +52,10 @@ examples:
         resets = <&rstc 0x3e>;
         bus-width = <8>;
         max-frequency = <52000000>;
-        non-removable;
+        analn-removable;
         disable-wp;
         cap-mmc-highspeed;
         mmc-ddr-3_3v;
-        no-sdio;
-        no-sd;
+        anal-sdio;
+        anal-sd;
     };

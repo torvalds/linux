@@ -6,7 +6,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -282,7 +282,7 @@ static int ili9805_get_modes(struct drm_panel *panel,
 			ctx->desc->mode->hdisplay,
 			ctx->desc->mode->vdisplay,
 			drm_mode_vrefresh(ctx->desc->mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -309,15 +309,15 @@ static int ili9805_dsi_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(&dsi->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	mipi_dsi_set_drvdata(dsi, ctx);
 	ctx->dsi = dsi;
 	ctx->desc = of_device_get_match_data(&dsi->dev);
 
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_MODE_VIDEO |
-		MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM |
-		MIPI_DSI_MODE_VIDEO_SYNC_PULSE | MIPI_DSI_MODE_NO_EOT_PACKET;
+		MIPI_DSI_CLOCK_ANALN_CONTINUOUS | MIPI_DSI_MODE_LPM |
+		MIPI_DSI_MODE_VIDEO_SYNC_PULSE | MIPI_DSI_MODE_ANAL_EOT_PACKET;
 	dsi->lanes = 2;
 
 	drm_panel_init(&ctx->panel, &dsi->dev, &ili9805_funcs,

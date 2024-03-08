@@ -1,6 +1,6 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-dvb-usb-nova-t-usb2 cards list
+dvb-usb-analva-t-usb2 cards list
 ==============================
 
 .. tabularcolumns:: |p{7.0cm}|p{10.5cm}|
@@ -12,5 +12,5 @@ dvb-usb-nova-t-usb2 cards list
 
    * - Card name
      - USB IDs
-   * - Hauppauge WinTV-NOVA-T usb2
+   * - Hauppauge WinTV-ANALVA-T usb2
      - 2040:9300, 2040:9301

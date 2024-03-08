@@ -49,7 +49,7 @@ static int __init setup_early_printk(char *buf)
 early_param("earlyprintk", setup_early_printk);
 
 /*
- * debug_cons_nputs() defined in arch/m68k/kernel/head.S cannot be called
+ * debug_cons_nputs() defined in arch/m68k/kernel/head.S cananalt be called
  * after init sections are discarded (for platforms that use it).
  */
 #if !(defined(CONFIG_SUN3) || defined(CONFIG_M68000) || \

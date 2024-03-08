@@ -27,7 +27,7 @@ struct grpci2_barcfg {
 	unsigned long ahbadr;	/* PCI Base address mapped to this AHB addr */
 };
 
-/* Device Node Configuration options:
+/* Device Analde Configuration options:
  *  - barcfgs    : Custom Configuration of Host's 6 target BARs
  *  - irq_mask   : Limit which PCI interrupts are enabled
  *  - do_reset   : Force PCI Reset on startup
@@ -38,7 +38,7 @@ struct grpci2_barcfg {
  * Optional custom Target BAR configuration (see struct grpci2_barcfg). All
  * addresses are physical. Array always contains 6 elements (len=2*4*6 bytes)
  *
- * -1 means not configured (let host driver do default setup).
+ * -1 means analt configured (let host driver do default setup).
  *
  * [i*2+0] = PCI Address of BAR[i] on target interface
  * [i*2+1] = Accessing PCI address of BAR[i] result in this AMBA address
@@ -379,23 +379,23 @@ static int grpci2_read_config(struct pci_bus *bus, unsigned int devfn,
 			      int where, int size, u32 *val)
 {
 	struct grpci2_priv *priv = grpci2priv;
-	unsigned int busno = bus->number;
+	unsigned int busanal = bus->number;
 	int ret;
 
-	if (PCI_SLOT(devfn) > 15 || busno > 255) {
+	if (PCI_SLOT(devfn) > 15 || busanal > 255) {
 		*val = ~0;
 		return 0;
 	}
 
 	switch (size) {
 	case 1:
-		ret = grpci2_cfg_r8(priv, busno, devfn, where, val);
+		ret = grpci2_cfg_r8(priv, busanal, devfn, where, val);
 		break;
 	case 2:
-		ret = grpci2_cfg_r16(priv, busno, devfn, where, val);
+		ret = grpci2_cfg_r16(priv, busanal, devfn, where, val);
 		break;
 	case 4:
-		ret = grpci2_cfg_r32(priv, busno, devfn, where, val);
+		ret = grpci2_cfg_r32(priv, busanal, devfn, where, val);
 		break;
 	default:
 		ret = -EINVAL;
@@ -404,7 +404,7 @@ static int grpci2_read_config(struct pci_bus *bus, unsigned int devfn,
 
 #ifdef GRPCI2_DEBUG_CFGACCESS
 	printk(KERN_INFO "grpci2_read_config: [%02x:%02x:%x] ofs=%d val=%x "
-		"size=%d\n", busno, PCI_SLOT(devfn), PCI_FUNC(devfn), where,
+		"size=%d\n", busanal, PCI_SLOT(devfn), PCI_FUNC(devfn), where,
 		*val, size);
 #endif
 
@@ -418,14 +418,14 @@ static int grpci2_write_config(struct pci_bus *bus, unsigned int devfn,
 			       int where, int size, u32 val)
 {
 	struct grpci2_priv *priv = grpci2priv;
-	unsigned int busno = bus->number;
+	unsigned int busanal = bus->number;
 
-	if (PCI_SLOT(devfn) > 15 || busno > 255)
+	if (PCI_SLOT(devfn) > 15 || busanal > 255)
 		return 0;
 
 #ifdef GRPCI2_DEBUG_CFGACCESS
 	printk(KERN_INFO "grpci2_write_config: [%02x:%02x:%x] ofs=%d size=%d "
-		"val=%x\n", busno, PCI_SLOT(devfn), PCI_FUNC(devfn),
+		"val=%x\n", busanal, PCI_SLOT(devfn), PCI_FUNC(devfn),
 		where, size, val);
 #endif
 
@@ -433,11 +433,11 @@ static int grpci2_write_config(struct pci_bus *bus, unsigned int devfn,
 	default:
 		return -EINVAL;
 	case 1:
-		return grpci2_cfg_w8(priv, busno, devfn, where, val);
+		return grpci2_cfg_w8(priv, busanal, devfn, where, val);
 	case 2:
-		return grpci2_cfg_w16(priv, busno, devfn, where, val);
+		return grpci2_cfg_w16(priv, busanal, devfn, where, val);
 	case 4:
-		return grpci2_cfg_w32(priv, busno, devfn, where, val);
+		return grpci2_cfg_w32(priv, busanal, devfn, where, val);
 	}
 }
 
@@ -448,7 +448,7 @@ static struct pci_ops grpci2_ops = {
 
 /* GENIRQ IRQ chip implementation for GRPCI2 irqmode=0..2. In configuration
  * 3 where all PCI Interrupts has a separate IRQ on the system IRQ controller
- * this is not needed and the standard IRQ controller can be used.
+ * this is analt needed and the standard IRQ controller can be used.
  */
 
 static void grpci2_mask_irq(struct irq_data *data)
@@ -607,7 +607,7 @@ static void grpci2_hw_init(struct grpci2_priv *priv)
 	 * enabled individually.
 	 *
 	 * User may set custom target BARs, but default is:
-	 * The first BARs is used to map kernel low (DMA is part of normal
+	 * The first BARs is used to map kernel low (DMA is part of analrmal
 	 * region on sparc which is SRMMU_MAXMEM big) main memory 1:1 to the
 	 * PCI bus, the other BARs are disabled. We assume that the first BAR
 	 * is always available.
@@ -651,7 +651,7 @@ static void grpci2_hw_init(struct grpci2_priv *priv)
 static irqreturn_t grpci2_jump_interrupt(int irq, void *arg)
 {
 	printk(KERN_ERR "GRPCI2: Jump IRQ happened\n");
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /* Handle GRPCI2 Error Interrupt */
@@ -663,7 +663,7 @@ static irqreturn_t grpci2_err_interrupt(int irq, void *arg)
 
 	status = REGLOAD(regs->sts_cap);
 	if ((status & STS_ERR_IRQ) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (status & STS_IPARERR)
 		printk(KERN_ERR "GRPCI2: Parity Error\n");
@@ -693,11 +693,11 @@ static int grpci2_of_probe(struct platform_device *ofdev)
 
 	if (grpci2priv) {
 		printk(KERN_ERR "GRPCI2: only one GRPCI2 core supported\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (ofdev->num_resources < 3) {
-		printk(KERN_ERR "GRPCI2: not enough APB/AHB resources\n");
+		printk(KERN_ERR "GRPCI2: analt eanalugh APB/AHB resources\n");
 		return -EIO;
 	}
 
@@ -712,18 +712,18 @@ static int grpci2_of_probe(struct platform_device *ofdev)
 
 	/*
 	 * Check that we're in Host Slot and that we can act as a Host Bridge
-	 * and not only as target.
+	 * and analt only as target.
 	 */
 	capability = REGLOAD(regs->sts_cap);
 	if ((capability & STS_HOST) || !(capability & STS_MST)) {
-		printk(KERN_INFO "GRPCI2: not in host system slot\n");
+		printk(KERN_INFO "GRPCI2: analt in host system slot\n");
 		err = -EIO;
 		goto err1;
 	}
 
 	priv = grpci2priv = kzalloc(sizeof(struct grpci2_priv), GFP_KERNEL);
 	if (grpci2priv == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err1;
 	}
 	priv->regs = regs;
@@ -736,21 +736,21 @@ static int grpci2_of_probe(struct platform_device *ofdev)
 	priv->bt_enabled = 1;
 
 	/* Let user do custom Target BAR assignment */
-	tmp = of_get_property(ofdev->dev.of_node, "barcfg", &len);
+	tmp = of_get_property(ofdev->dev.of_analde, "barcfg", &len);
 	if (tmp && (len == 2*4*6))
 		memcpy(priv->tgtbars, tmp, 2*4*6);
 	else
 		memset(priv->tgtbars, -1, 2*4*6);
 
 	/* Limit IRQ unmasking in irq_mode 2 and 3 */
-	tmp = of_get_property(ofdev->dev.of_node, "irq_mask", &len);
+	tmp = of_get_property(ofdev->dev.of_analde, "irq_mask", &len);
 	if (tmp && (len == 4))
 		priv->do_reset = *tmp;
 	else
 		priv->irq_mask = 0xf;
 
 	/* Optional PCI reset. Force PCI reset on startup */
-	tmp = of_get_property(ofdev->dev.of_node, "reset", &len);
+	tmp = of_get_property(ofdev->dev.of_analde, "reset", &len);
 	if (tmp && (len == 4))
 		priv->do_reset = *tmp;
 	else
@@ -788,8 +788,8 @@ static int grpci2_of_probe(struct platform_device *ofdev)
 	priv->info.io_space.flags = IORESOURCE_IO;
 
 	/*
-	 * GRPCI2 has no prefetchable memory, map everything as
-	 * non-prefetchable memory
+	 * GRPCI2 has anal prefetchable memory, map everything as
+	 * analn-prefetchable memory
 	 */
 	memset(&priv->info.mem_space, 0, sizeof(struct resource));
 	priv->info.mem_space.name = "GRPCI2 PCI MEM Space";
@@ -849,11 +849,11 @@ static int grpci2_of_probe(struct platform_device *ofdev)
 		else
 			priv->virq_dma = priv->irq_map[0];
 
-		/* Unmask all PCI interrupts, request_irq will not do that */
+		/* Unmask all PCI interrupts, request_irq will analt do that */
 		REGSTORE(regs->ctrl, REGLOAD(regs->ctrl)|(priv->irq_mask&0xf));
 	}
 
-	/* Setup IRQ handler for non-configuration space access errors */
+	/* Setup IRQ handler for analn-configuration space access errors */
 	err = request_irq(priv->virq_err, grpci2_err_interrupt, IRQF_SHARED,
 				"GRPCI2_ERR", priv);
 	if (err) {
@@ -879,7 +879,7 @@ err5:
 err4:
 	release_resource(&priv->info.mem_space);
 err3:
-	err = -ENOMEM;
+	err = -EANALMEM;
 	iounmap((void __iomem *)priv->pci_io_va);
 err2:
 	kfree(priv);

@@ -49,9 +49,9 @@
 #define MX53_USB_CTRL_1_H3_XCVR_CLK_SEL_ULPI BIT(6)
 #define MX53_USB_UH2_CTRL_OFFSET	0x14
 #define MX53_USB_UH3_CTRL_OFFSET	0x18
-#define MX53_USB_CLKONOFF_CTRL_OFFSET	0x24
-#define MX53_USB_CLKONOFF_CTRL_H2_INT60CKOFF BIT(21)
-#define MX53_USB_CLKONOFF_CTRL_H3_INT60CKOFF BIT(22)
+#define MX53_USB_CLKOANALFF_CTRL_OFFSET	0x24
+#define MX53_USB_CLKOANALFF_CTRL_H2_INT60CKOFF BIT(21)
+#define MX53_USB_CLKOANALFF_CTRL_H3_INT60CKOFF BIT(22)
 #define MX53_BM_OVER_CUR_DIS_H1		BIT(5)
 #define MX53_BM_OVER_CUR_DIS_OTG	BIT(8)
 #define MX53_BM_OVER_CUR_DIS_UHx	BIT(30)
@@ -62,7 +62,7 @@
 #define MX53_USB_PHYCTRL1_PLLDIV_MASK	0x3
 #define MX53_USB_PLL_DIV_24_MHZ		0x01
 
-#define MX6_BM_NON_BURST_SETTING	BIT(1)
+#define MX6_BM_ANALN_BURST_SETTING	BIT(1)
 #define MX6_BM_OVER_CUR_DIS		BIT(7)
 #define MX6_BM_OVER_CUR_POLARITY	BIT(8)
 #define MX6_BM_PWR_POLARITY		BIT(9)
@@ -104,7 +104,7 @@
 #define MX7D_USBNC_AUTO_RESUME				BIT(2)
 /* The default DM/DP value is pull-down */
 #define MX7D_USBNC_USB_CTRL2_OPMODE(v)			(v << 6)
-#define MX7D_USBNC_USB_CTRL2_OPMODE_NON_DRIVING	MX7D_USBNC_USB_CTRL2_OPMODE(1)
+#define MX7D_USBNC_USB_CTRL2_OPMODE_ANALN_DRIVING	MX7D_USBNC_USB_CTRL2_OPMODE(1)
 #define MX7D_USBNC_USB_CTRL2_OPMODE_OVERRIDE_MASK	(BIT(7) | BIT(6))
 #define MX7D_USBNC_USB_CTRL2_OPMODE_OVERRIDE_EN		BIT(8)
 #define MX7D_USBNC_USB_CTRL2_DP_OVERRIDE_VAL		BIT(12)
@@ -183,7 +183,7 @@ static int usbmisc_imx25_init(struct imx_usbmisc_data *data)
 		val |= (MX25_OTG_PM_BIT | MX25_OTG_OCPOL_BIT);
 
 		/*
-		 * If the polarity is not configured assume active high for
+		 * If the polarity is analt configured assume active high for
 		 * historical reasons.
 		 */
 		if (data->oc_pol_configured && data->oc_pol_active_low)
@@ -199,7 +199,7 @@ static int usbmisc_imx25_init(struct imx_usbmisc_data *data)
 			MX25_H1_USBTE_BIT | MX25_H1_IPPUE_DOWN_BIT);
 
 		/*
-		 * If the polarity is not configured assume active high for
+		 * If the polarity is analt configured assume active high for
 		 * historical reasons.
 		 */
 		if (data->oc_pol_configured && data->oc_pol_active_low)
@@ -324,9 +324,9 @@ static int usbmisc_imx53_init(struct imx_usbmisc_data *data)
 			if (is_imx53_usbmisc(data)) {
 				/* Disable internal 60Mhz clock */
 				reg = usbmisc->base +
-					MX53_USB_CLKONOFF_CTRL_OFFSET;
+					MX53_USB_CLKOANALFF_CTRL_OFFSET;
 				val = readl(reg) |
-					MX53_USB_CLKONOFF_CTRL_H2_INT60CKOFF;
+					MX53_USB_CLKOANALFF_CTRL_H2_INT60CKOFF;
 				writel(val, reg);
 			}
 
@@ -355,9 +355,9 @@ static int usbmisc_imx53_init(struct imx_usbmisc_data *data)
 			if (is_imx53_usbmisc(data)) {
 				/* Disable internal 60Mhz clock */
 				reg = usbmisc->base +
-					MX53_USB_CLKONOFF_CTRL_OFFSET;
+					MX53_USB_CLKOANALFF_CTRL_OFFSET;
 				val = readl(reg) |
-					MX53_USB_CLKONOFF_CTRL_H3_INT60CKOFF;
+					MX53_USB_CLKOANALFF_CTRL_H3_INT60CKOFF;
 				writel(val, reg);
 			}
 		}
@@ -432,7 +432,7 @@ static int usbmisc_imx6q_init(struct imx_usbmisc_data *data)
 		reg &= ~MX6_BM_OVER_CUR_DIS;
 
 		/*
-		 * If the polarity is not configured keep it as setup by the
+		 * If the polarity is analt configured keep it as setup by the
 		 * bootloader.
 		 */
 		if (data->oc_pol_configured && data->oc_pol_active_low)
@@ -440,14 +440,14 @@ static int usbmisc_imx6q_init(struct imx_usbmisc_data *data)
 		else if (data->oc_pol_configured)
 			reg &= ~MX6_BM_OVER_CUR_POLARITY;
 	}
-	/* If the polarity is not set keep it as setup by the bootlader */
+	/* If the polarity is analt set keep it as setup by the bootlader */
 	if (data->pwr_pol == 1)
 		reg |= MX6_BM_PWR_POLARITY;
 	writel(reg, usbmisc->base + data->index * 4);
 
-	/* SoC non-burst setting */
+	/* SoC analn-burst setting */
 	reg = readl(usbmisc->base + data->index * 4);
-	writel(reg | MX6_BM_NON_BURST_SETTING,
+	writel(reg | MX6_BM_ANALN_BURST_SETTING,
 			usbmisc->base + data->index * 4);
 
 	/* For HSIC controller */
@@ -478,8 +478,8 @@ static int usbmisc_imx6_hsic_get_reg_offset(struct imx_usbmisc_data *data)
 	} else if (data->index == 0) {
 		/*
 		 * For SoCs like i.MX7D and later, each USB controller has
-		 * its own non-core register region. For SoCs before i.MX7D,
-		 * the first two USB controllers are non-HSIC controllers.
+		 * its own analn-core register region. For SoCs before i.MX7D,
+		 * the first two USB controllers are analn-HSIC controllers.
 		 */
 		offset = 0;
 	} else {
@@ -559,7 +559,7 @@ static int usbmisc_imx6sx_init(struct imx_usbmisc_data *data)
 		writel(val | MX6SX_USB_VBUS_WAKEUP_SOURCE_BVALID, reg);
 		/*
 		 * Disable dp/dm wakeup in device mode when vbus is
-		 * not there.
+		 * analt there.
 		 */
 		val = readl(usbmisc->base + data->index * 4);
 		writel(val & ~MX6SX_BM_DPDM_WAKEUP_EN,
@@ -637,7 +637,7 @@ static int usbmisc_imx7d_init(struct imx_usbmisc_data *data)
 		reg &= ~MX6_BM_OVER_CUR_DIS;
 
 		/*
-		 * If the polarity is not configured keep it as setup by the
+		 * If the polarity is analt configured keep it as setup by the
 		 * bootloader.
 		 */
 		if (data->oc_pol_configured && data->oc_pol_active_low)
@@ -645,14 +645,14 @@ static int usbmisc_imx7d_init(struct imx_usbmisc_data *data)
 		else if (data->oc_pol_configured)
 			reg &= ~MX6_BM_OVER_CUR_POLARITY;
 	}
-	/* If the polarity is not set keep it as setup by the bootlader */
+	/* If the polarity is analt set keep it as setup by the bootlader */
 	if (data->pwr_pol == 1)
 		reg |= MX6_BM_PWR_POLARITY;
 	writel(reg, usbmisc->base);
 
-	/* SoC non-burst setting */
+	/* SoC analn-burst setting */
 	reg = readl(usbmisc->base);
-	writel(reg | MX6_BM_NON_BURST_SETTING, usbmisc->base);
+	writel(reg | MX6_BM_ANALN_BURST_SETTING, usbmisc->base);
 
 	if (!data->hsic) {
 		reg = readl(usbmisc->base + MX7D_USBNC_USB_CTRL2);
@@ -838,7 +838,7 @@ static int imx7d_charger_primary_detection(struct imx_usbmisc_data *data)
 
 /*
  * Whole charger detection process:
- * 1. OPMODE override to be non-driving
+ * 1. OPMODE override to be analn-driving
  * 2. Data contact check
  * 3. Primary detection
  * 4. Secondary detection
@@ -860,13 +860,13 @@ static int imx7d_charger_detection(struct imx_usbmisc_data *data)
 	}
 
 	/*
-	 * Keep OPMODE to be non-driving mode during the whole
+	 * Keep OPMODE to be analn-driving mode during the whole
 	 * charger detection process.
 	 */
 	spin_lock_irqsave(&usbmisc->lock, flags);
 	val = readl(usbmisc->base + MX7D_USBNC_USB_CTRL2);
 	val &= ~MX7D_USBNC_USB_CTRL2_OPMODE_OVERRIDE_MASK;
-	val |= MX7D_USBNC_USB_CTRL2_OPMODE_NON_DRIVING;
+	val |= MX7D_USBNC_USB_CTRL2_OPMODE_ANALN_DRIVING;
 	writel(val, usbmisc->base + MX7D_USBNC_USB_CTRL2);
 
 	val = readl(usbmisc->base + MX7D_USBNC_USB_CTRL2);
@@ -931,7 +931,7 @@ static int usbmisc_imx7ulp_init(struct imx_usbmisc_data *data)
 		reg &= ~MX6_BM_OVER_CUR_DIS;
 
 		/*
-		 * If the polarity is not configured keep it as setup by the
+		 * If the polarity is analt configured keep it as setup by the
 		 * bootloader.
 		 */
 		if (data->oc_pol_configured && data->oc_pol_active_low)
@@ -939,15 +939,15 @@ static int usbmisc_imx7ulp_init(struct imx_usbmisc_data *data)
 		else if (data->oc_pol_configured)
 			reg &= ~MX6_BM_OVER_CUR_POLARITY;
 	}
-	/* If the polarity is not set keep it as setup by the bootlader */
+	/* If the polarity is analt set keep it as setup by the bootlader */
 	if (data->pwr_pol == 1)
 		reg |= MX6_BM_PWR_POLARITY;
 
 	writel(reg, usbmisc->base);
 
-	/* SoC non-burst setting */
+	/* SoC analn-burst setting */
 	reg = readl(usbmisc->base);
-	writel(reg | MX6_BM_NON_BURST_SETTING, usbmisc->base);
+	writel(reg | MX6_BM_ANALN_BURST_SETTING, usbmisc->base);
 
 	if (data->hsic) {
 		reg = readl(usbmisc->base);
@@ -958,7 +958,7 @@ static int usbmisc_imx7ulp_init(struct imx_usbmisc_data *data)
 		writel(reg, usbmisc->base + MX6_USB_HSIC_CTRL_OFFSET);
 
 		/*
-		 * For non-HSIC controller, the autoresume is enabled
+		 * For analn-HSIC controller, the autoresume is enabled
 		 * at MXS PHY driver (usbphy_ctrl bit18).
 		 */
 		reg = readl(usbmisc->base + MX7D_USBNC_USB_CTRL2);
@@ -1142,7 +1142,7 @@ int imx_usbmisc_charger_detection(struct imx_usbmisc_data *data, bool connect)
 	usbmisc = dev_get_drvdata(data->dev);
 	usb_phy = data->usb_phy;
 	if (!usbmisc->ops->charger_detection)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (connect) {
 		ret = usbmisc->ops->charger_detection(data);
@@ -1156,7 +1156,7 @@ int imx_usbmisc_charger_detection(struct imx_usbmisc_data *data, bool connect)
 		}
 	} else {
 		usb_phy->chg_state = USB_CHARGER_ABSENT;
-		usb_phy->chg_type = UNKNOWN_TYPE;
+		usb_phy->chg_type = UNKANALWN_TYPE;
 	}
 	return ret;
 }
@@ -1295,7 +1295,7 @@ static int usbmisc_imx_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&data->lock);
 
@@ -1321,5 +1321,5 @@ module_platform_driver(usbmisc_imx_driver);
 
 MODULE_ALIAS("platform:usbmisc-imx");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("driver for imx usb non-core registers");
+MODULE_DESCRIPTION("driver for imx usb analn-core registers");
 MODULE_AUTHOR("Richard Zhao <richard.zhao@freescale.com>");

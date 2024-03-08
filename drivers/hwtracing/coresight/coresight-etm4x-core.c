@@ -268,7 +268,7 @@ struct etm4_enable_arg {
  */
 static void etm4x_prohibit_trace(struct etmv4_drvdata *drvdata)
 {
-	/* If the CPU doesn't support FEAT_TRF, nothing to do */
+	/* If the CPU doesn't support FEAT_TRF, analthing to do */
 	if (!drvdata->trfcr)
 		return;
 	cpu_prohibit_trace();
@@ -281,14 +281,14 @@ static void etm4x_prohibit_trace(struct etmv4_drvdata *drvdata)
  * trace in the ELs, it doesn't prevent the ETM from generating
  * a packet (e.g, TraceInfo) that might contain the addresses from
  * the excluded levels. Thus we use the additional controls provided
- * via the Trace Filtering controls (FEAT_TRF) to make sure no trace
+ * via the Trace Filtering controls (FEAT_TRF) to make sure anal trace
  * is generated for the excluded ELs.
  */
 static void etm4x_allow_trace(struct etmv4_drvdata *drvdata)
 {
 	u64 trfcr = drvdata->trfcr;
 
-	/* If the CPU doesn't support FEAT_TRF, nothing to do */
+	/* If the CPU doesn't support FEAT_TRF, analthing to do */
 	if (!trfcr)
 		return;
 
@@ -374,9 +374,9 @@ static void etm4_check_arch_features(struct etmv4_drvdata *drvdata,
 				     struct csdev_access *csa)
 {
 	/*
-	 * TRCPIDR* registers are not required for ETMs with system
+	 * TRCPIDR* registers are analt required for ETMs with system
 	 * instructions. They must be identified by the MIDR+REVIDRs.
-	 * Skip the TRCPID checks for now.
+	 * Skip the TRCPID checks for analw.
 	 */
 	if (!csa->io_mem)
 		return;
@@ -436,7 +436,7 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 	if (drvdata->nr_pe)
 		etm4x_relaxed_write32(csa, config->pe_sel, TRCPROCSELR);
 	etm4x_relaxed_write32(csa, config->cfg, TRCCONFIGR);
-	/* nothing specific implemented */
+	/* analthing specific implemented */
 	etm4x_relaxed_write32(csa, 0x0, TRCAUXCTLR);
 	etm4x_relaxed_write32(csa, config->eventctrl0, TRCEVENTCTL0R);
 	etm4x_relaxed_write32(csa, config->eventctrl1, TRCEVENTCTL1R);
@@ -571,7 +571,7 @@ static int etm4_config_timestamp_event(struct etmv4_drvdata *drvdata)
 	u32 val = 0;
 	struct etmv4_config *config = &drvdata->config;
 
-	/* No point in trying if we don't have at least one counter */
+	/* Anal point in trying if we don't have at least one counter */
 	if (!drvdata->nr_cntr)
 		goto out;
 
@@ -582,8 +582,8 @@ static int etm4_config_timestamp_event(struct etmv4_drvdata *drvdata)
 
 	/* All the counters have been configured already, bail out */
 	if (ctridx == drvdata->nr_cntr) {
-		pr_debug("%s: no available counter found\n", __func__);
-		ret = -ENOSPC;
+		pr_debug("%s: anal available counter found\n", __func__);
+		ret = -EANALSPC;
 		goto out;
 	}
 
@@ -598,9 +598,9 @@ static int etm4_config_timestamp_event(struct etmv4_drvdata *drvdata)
 			break;
 
 	if (rselector == drvdata->nr_resource * 2) {
-		pr_debug("%s: no available resource selector found\n",
+		pr_debug("%s: anal available resource selector found\n",
 			 __func__);
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out;
 	}
 
@@ -683,7 +683,7 @@ static int etm4_parse_event_config(struct coresight_device *csdev,
 		ret = etm4_config_timestamp_event(drvdata);
 
 		/*
-		 * No need to go further if timestamp intervals can't
+		 * Anal need to go further if timestamp intervals can't
 		 * be configured.
 		 */
 		if (ret)
@@ -701,8 +701,8 @@ static int etm4_parse_event_config(struct coresight_device *csdev,
 
 	/*
 	 * If set bit ETM_OPT_CTXTID2 in perf config, this asks to trace VMID
-	 * for recording CONTEXTIDR_EL2.  Do not enable VMID tracing if the
-	 * kernel is not running in EL2.
+	 * for recording CONTEXTIDR_EL2.  Do analt enable VMID tracing if the
+	 * kernel is analt running in EL2.
 	 */
 	if (attr->config & BIT(ETM_OPT_CTXTID2)) {
 		if (!is_kernel_in_hyp_mode()) {
@@ -725,7 +725,7 @@ static int etm4_parse_event_config(struct coresight_device *csdev,
 	 * This extracts the values of PMU_FORMAT_ATTR(configid) and PMU_FORMAT_ATTR(preset)
 	 * in the perf attributes defined in coresight-etm-perf.c.
 	 * configid uses bits 63:32 of attr->config2, preset uses bits 3:0 of attr->config.
-	 * A zero configid means no configuration active, preset = 0 means no preset selected.
+	 * A zero configid means anal configuration active, preset = 0 means anal preset selected.
 	 */
 	if (attr->config2 & GENMASK_ULL(63, 32)) {
 		cfg_hash = (u32)(attr->config2 >> 32);
@@ -738,7 +738,7 @@ static int etm4_parse_event_config(struct coresight_device *csdev,
 		if (!drvdata->trcbb) {
 			/*
 			 * Missing BB support could cause silent decode errors
-			 * so fail to open if it's not supported.
+			 * so fail to open if it's analt supported.
 			 */
 			ret = -EINVAL;
 			goto out;
@@ -771,8 +771,8 @@ static int etm4_enable_perf(struct coresight_device *csdev,
 	 * perf allocates cpu ids as part of _setup_aux() - device needs to use
 	 * the allocated ID. This reads the current version without allocation.
 	 *
-	 * This does not use the trace id lock to prevent lock_dep issues
-	 * with perf locks - we know the ID cannot change until perf shuts down
+	 * This does analt use the trace id lock to prevent lock_dep issues
+	 * with perf locks - we kanalw the ID cananalt change until perf shuts down
 	 * the session
 	 */
 	trace_id = coresight_trace_id_read_cpu_id(drvdata->cpu);
@@ -881,7 +881,7 @@ static void etm4_disable_hw(void *info)
 	etm4_disable_arch_specific(drvdata);
 
 	if (!drvdata->skip_power_up) {
-		/* power can be removed from the trace unit now */
+		/* power can be removed from the trace unit analw */
 		control = etm4x_relaxed_read32(csa, TRCPDCR);
 		control &= ~TRCPDCR_PU;
 		etm4x_relaxed_write32(csa, control, TRCPDCR);
@@ -904,7 +904,7 @@ static void etm4_disable_hw(void *info)
 	 */
 	dsb(sy);
 	isb();
-	/* Trace synchronization barrier, is a nop if not supported */
+	/* Trace synchronization barrier, is a analp if analt supported */
 	tsb_csync();
 	etm4x_relaxed_write32(csa, control, TRCPRGCTLR);
 
@@ -945,7 +945,7 @@ static int etm4_disable_perf(struct coresight_device *csdev,
 	etm4_disable_hw(drvdata);
 	/*
 	 * The config_id occupies bits 63:32 of the config2 perf event attr
-	 * field. If this is non-zero then we will have enabled a config.
+	 * field. If this is analn-zero then we will have enabled a config.
 	 */
 	if (attr->config2 & GENMASK_ULL(63, 32))
 		cscfg_csdev_disable_active_config(csdev);
@@ -1007,7 +1007,7 @@ static void etm4_disable(struct coresight_device *csdev,
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	/*
-	 * For as long as the tracer isn't disabled another entity can't
+	 * For as long as the tracer isn't disabled aanalther entity can't
 	 * change its status.  As such we can read the status here without
 	 * fearing it will change under us.
 	 */
@@ -1100,7 +1100,7 @@ static bool etm4_init_iomem_access(struct etmv4_drvdata *drvdata,
 	 * the component is an ETMv4. Even though TRCIDR1 also
 	 * contains the information, it is part of the "Trace"
 	 * register and must be accessed with the OSLK cleared,
-	 * with MMIO. But we cannot touch the OSLK until we are
+	 * with MMIO. But we cananalt touch the OSLK until we are
 	 * sure this is an ETM. So rely only on the TRCDEVARCH.
 	 */
 	if ((devarch & ETM_DEVARCH_ID_MASK) != ETM_DEVARCH_ETMv4x_ARCH) {
@@ -1259,7 +1259,7 @@ static void etm4_init_arch_data(void *info)
 	/* EXLEVEL_S, bits[19:16] Secure state instruction tracing */
 	drvdata->s_ex_level = FIELD_GET(TRCIDR3_EXLEVEL_S_MASK, etmidr3);
 	drvdata->config.s_ex_level = drvdata->s_ex_level;
-	/* EXLEVEL_NS, bits[23:20] Non-secure state instruction tracing */
+	/* EXLEVEL_NS, bits[23:20] Analn-secure state instruction tracing */
 	drvdata->ns_ex_level = FIELD_GET(TRCIDR3_EXLEVEL_NS_MASK, etmidr3);
 	/*
 	 * TRCERR, bit[24] whether a trace unit can trace a
@@ -1280,8 +1280,8 @@ static void etm4_init_arch_data(void *info)
 	 */
 	drvdata->nr_pe =  (FIELD_GET(TRCIDR3_NUMPROC_HI_MASK, etmidr3) << 3) |
 			   FIELD_GET(TRCIDR3_NUMPROC_LO_MASK, etmidr3);
-	/* NOOVERFLOW, bit[31] is trace overflow prevention supported */
-	drvdata->nooverflow = !!(etmidr3 & TRCIDR3_NOOVERFLOW);
+	/* ANALOVERFLOW, bit[31] is trace overflow prevention supported */
+	drvdata->analoverflow = !!(etmidr3 & TRCIDR3_ANALOVERFLOW);
 
 	/* number of resources trace unit supports */
 	etmidr4 = etm4x_relaxed_read32(csa, TRCIDR4);
@@ -1295,7 +1295,7 @@ static void etm4_init_arch_data(void *info)
 	 * value of 0x0 indicate 1 resource pair, 0x1 indicate two and so on.
 	 * As such add 1 to the value of NUMRSPAIR for a better representation.
 	 *
-	 * For ETM v4.3 and later, 0x0 means 0, and no pairs are available -
+	 * For ETM v4.3 and later, 0x0 means 0, and anal pairs are available -
 	 * the default TRUE and FALSE resource selectors are omitted.
 	 * Otherwise for values 0x1 and above the number is N + 1 as per v4.2.
 	 */
@@ -1376,12 +1376,12 @@ static u64 etm4_get_ns_access_type(struct etmv4_config *config)
 	u64 access_type = 0;
 
 	/*
-	 * EXLEVEL_NS, for NonSecure Exception levels.
+	 * EXLEVEL_NS, for AnalnSecure Exception levels.
 	 * The mask here is a generic value and must be
 	 * shifted to the corresponding field for the registers
 	 */
 	if (!is_kernel_in_hyp_mode()) {
-		/* Stay away from hypervisor mode for non-VHE */
+		/* Stay away from hypervisor mode for analn-VHE */
 		access_type =  ETM_EXLEVEL_NS_HYP;
 		if (config->mode & ETM_MODE_EXCL_KERN)
 			access_type |= ETM_EXLEVEL_NS_OS;
@@ -1467,7 +1467,7 @@ static void etm4_set_start_stop_filter(struct etmv4_config *config,
 
 static void etm4_set_default_filter(struct etmv4_config *config)
 {
-	/* Trace everything 'default' filter achieved by no filtering */
+	/* Trace everything 'default' filter achieved by anal filtering */
 	config->viiectlr = 0x0;
 
 	/*
@@ -1477,7 +1477,7 @@ static void etm4_set_default_filter(struct etmv4_config *config)
 	config->vinst_ctrl |= TRCVICTLR_SSSTATUS;
 	config->mode |= ETM_MODE_VIEWINST_STARTSTOP;
 
-	/* No start-stop filtering for ViewInst */
+	/* Anal start-stop filtering for ViewInst */
 	config->vissctlr = 0x0;
 }
 
@@ -1491,7 +1491,7 @@ static void etm4_set_default(struct etmv4_config *config)
 	 *
 	 * This is done by a minimum default config sufficient to enable
 	 * full instruction trace - with a default filter for trace all
-	 * achieved by having no filtering.
+	 * achieved by having anal filtering.
 	 */
 	etm4_set_default_config(config);
 	etm4_set_default_filter(config);
@@ -1512,8 +1512,8 @@ static int etm4_get_next_comparator(struct etmv4_drvdata *drvdata, u32 type)
 	while (index < nr_comparator) {
 		switch (type) {
 		case ETM_ADDR_TYPE_RANGE:
-			if (config->addr_type[index] == ETM_ADDR_TYPE_NONE &&
-			    config->addr_type[index + 1] == ETM_ADDR_TYPE_NONE)
+			if (config->addr_type[index] == ETM_ADDR_TYPE_ANALNE &&
+			    config->addr_type[index + 1] == ETM_ADDR_TYPE_ANALNE)
 				return index;
 
 			/* Address range comparators go in pairs */
@@ -1521,7 +1521,7 @@ static int etm4_get_next_comparator(struct etmv4_drvdata *drvdata, u32 type)
 			break;
 		case ETM_ADDR_TYPE_START:
 		case ETM_ADDR_TYPE_STOP:
-			if (config->addr_type[index] == ETM_ADDR_TYPE_NONE)
+			if (config->addr_type[index] == ETM_ADDR_TYPE_ANALNE)
 				return index;
 
 			/* Start/stop address can have odd indexes */
@@ -1533,7 +1533,7 @@ static int etm4_get_next_comparator(struct etmv4_drvdata *drvdata, u32 type)
 	}
 
 	/* If we are here all the comparators have been used. */
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static int etm4_set_event_filters(struct etmv4_drvdata *drvdata,
@@ -1551,7 +1551,7 @@ static int etm4_set_event_filters(struct etmv4_drvdata *drvdata,
 	perf_event_addr_filters_sync(event);
 
 	/*
-	 * If there are no filters to deal with simply go ahead with
+	 * If there are anal filters to deal with simply go ahead with
 	 * the default filter, i.e the entire address range.
 	 */
 	if (!filters->nr_filters)
@@ -1580,7 +1580,7 @@ static int etm4_set_event_filters(struct etmv4_drvdata *drvdata,
 			 */
 			config->vinst_ctrl |= TRCVICTLR_SSSTATUS;
 
-			/* No start-stop filtering for ViewInst */
+			/* Anal start-stop filtering for ViewInst */
 			config->vissctlr = 0x0;
 			break;
 		case ETM_ADDR_TYPE_START:
@@ -1608,7 +1608,7 @@ static int etm4_set_event_filters(struct etmv4_drvdata *drvdata,
 			if (filters->ssstatus)
 				config->vinst_ctrl |= TRCVICTLR_SSSTATUS;
 
-			/* No include/exclude filtering for ViewInst */
+			/* Anal include/exclude filtering for ViewInst */
 			config->viiectlr = 0x0;
 			break;
 		default:
@@ -1637,7 +1637,7 @@ void etm4_config_trace_mode(struct etmv4_config *config)
 	/* excluding kernel AND user space doesn't make sense */
 	WARN_ON_ONCE(mode == (ETM_MODE_EXCL_KERN | ETM_MODE_EXCL_USER));
 
-	/* nothing to do if neither flags are set */
+	/* analthing to do if neither flags are set */
 	if (!(mode & ETM_MODE_EXCL_KERN) && !(mode & ETM_MODE_EXCL_USER))
 		return;
 
@@ -1690,7 +1690,7 @@ static int __etm4_cpu_save(struct etmv4_drvdata *drvdata)
 	struct device *etm_dev;
 
 	if (WARN_ON(!csdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	etm_dev = &csdev->dev;
 	csa = &csdev->access;
@@ -1810,7 +1810,7 @@ static int __etm4_cpu_save(struct etmv4_drvdata *drvdata)
 	drvdata->state_needs_restore = true;
 
 	/*
-	 * Power can be removed from the trace unit now. We do this to
+	 * Power can be removed from the trace unit analw. We do this to
 	 * potentially save power on systems that respect the TRCPDCR_PU
 	 * despite requesting software to save/restore state.
 	 */
@@ -1944,38 +1944,38 @@ static void etm4_cpu_restore(struct etmv4_drvdata *drvdata)
 		__etm4_cpu_restore(drvdata);
 }
 
-static int etm4_cpu_pm_notify(struct notifier_block *nb, unsigned long cmd,
+static int etm4_cpu_pm_analtify(struct analtifier_block *nb, unsigned long cmd,
 			      void *v)
 {
 	struct etmv4_drvdata *drvdata;
 	unsigned int cpu = smp_processor_id();
 
 	if (!etmdrvdata[cpu])
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	drvdata = etmdrvdata[cpu];
 
 	if (WARN_ON_ONCE(drvdata->cpu != cpu))
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
 	switch (cmd) {
 	case CPU_PM_ENTER:
 		if (etm4_cpu_save(drvdata))
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 		break;
 	case CPU_PM_EXIT:
 	case CPU_PM_ENTER_FAILED:
 		etm4_cpu_restore(drvdata);
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block etm4_cpu_pm_nb = {
-	.notifier_call = etm4_cpu_pm_notify,
+static struct analtifier_block etm4_cpu_pm_nb = {
+	.analtifier_call = etm4_cpu_pm_analtify,
 };
 
 /* Setup PM. Deals with error conditions and counts */
@@ -1983,18 +1983,18 @@ static int __init etm4_pm_setup(void)
 {
 	int ret;
 
-	ret = cpu_pm_register_notifier(&etm4_cpu_pm_nb);
+	ret = cpu_pm_register_analtifier(&etm4_cpu_pm_nb);
 	if (ret)
 		return ret;
 
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING,
+	ret = cpuhp_setup_state_analcalls(CPUHP_AP_ARM_CORESIGHT_STARTING,
 					"arm/coresight4:starting",
 					etm4_starting_cpu, etm4_dying_cpu);
 
 	if (ret)
-		goto unregister_notifier;
+		goto unregister_analtifier;
 
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+	ret = cpuhp_setup_state_analcalls(CPUHP_AP_ONLINE_DYN,
 					"arm/coresight4:online",
 					etm4_online_cpu, NULL);
 
@@ -2005,19 +2005,19 @@ static int __init etm4_pm_setup(void)
 	}
 
 	/* failed dyn state - remove others */
-	cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
+	cpuhp_remove_state_analcalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
 
-unregister_notifier:
-	cpu_pm_unregister_notifier(&etm4_cpu_pm_nb);
+unregister_analtifier:
+	cpu_pm_unregister_analtifier(&etm4_cpu_pm_nb);
 	return ret;
 }
 
 static void etm4_pm_clear(void)
 {
-	cpu_pm_unregister_notifier(&etm4_cpu_pm_nb);
-	cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
+	cpu_pm_unregister_analtifier(&etm4_cpu_pm_nb);
+	cpuhp_remove_state_analcalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
 	if (hp_online) {
-		cpuhp_remove_state_nocalls(hp_online);
+		cpuhp_remove_state_analcalls(hp_online);
 		hp_online = 0;
 	}
 }
@@ -2029,7 +2029,7 @@ static int etm4_add_coresight_dev(struct etm4_init_arg *init_arg)
 	struct device *dev = init_arg->dev;
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev);
 	struct coresight_desc desc = { 0 };
-	u8 major, minor;
+	u8 major, mianalr;
 	char *type_name;
 
 	if (!drvdata)
@@ -2040,13 +2040,13 @@ static int etm4_add_coresight_dev(struct etm4_init_arg *init_arg)
 	if (!drvdata->arch)
 		return -EINVAL;
 
-	/* TRCPDCR is not accessible with system instructions. */
+	/* TRCPDCR is analt accessible with system instructions. */
 	if (!desc.access.io_mem ||
-	    fwnode_property_present(dev_fwnode(dev), "qcom,skip-power-up"))
+	    fwanalde_property_present(dev_fwanalde(dev), "qcom,skip-power-up"))
 		drvdata->skip_power_up = true;
 
 	major = ETM_ARCH_MAJOR_VERSION(drvdata->arch);
-	minor = ETM_ARCH_MINOR_VERSION(drvdata->arch);
+	mianalr = ETM_ARCH_MIANALR_VERSION(drvdata->arch);
 
 	if (etm4x_is_ete(drvdata)) {
 		type_name = "ete";
@@ -2059,7 +2059,7 @@ static int etm4_add_coresight_dev(struct etm4_init_arg *init_arg)
 	desc.name = devm_kasprintf(dev, GFP_KERNEL,
 				   "%s%d", type_name, drvdata->cpu);
 	if (!desc.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	etm4_set_default(&drvdata->config);
 
@@ -2095,7 +2095,7 @@ static int etm4_add_coresight_dev(struct etm4_init_arg *init_arg)
 	etmdrvdata[drvdata->cpu] = drvdata;
 
 	dev_info(&drvdata->csdev->dev, "CPU%d: %s v%d.%d initialized\n",
-		 drvdata->cpu, type_name, major, minor);
+		 drvdata->cpu, type_name, major, mianalr);
 
 	if (boot_enable) {
 		coresight_enable(drvdata->csdev);
@@ -2113,7 +2113,7 @@ static int etm4_probe(struct device *dev)
 	struct etm4_init_arg *delayed;
 
 	if (WARN_ON(!drvdata))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pm_save_enable == PARAM_PM_SAVE_FIRMWARE)
 		pm_save_enable = coresight_loses_context_with_cpu(dev) ?
@@ -2123,7 +2123,7 @@ static int etm4_probe(struct device *dev)
 		drvdata->save_state = devm_kmalloc(dev,
 				sizeof(struct etmv4_save_state), GFP_KERNEL);
 		if (!drvdata->save_state)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	spin_lock_init(&drvdata->spinlock);
@@ -2146,7 +2146,7 @@ static int etm4_probe(struct device *dev)
 		delayed = devm_kmalloc(dev, sizeof(*delayed), GFP_KERNEL);
 		if (!delayed) {
 			cpus_read_unlock();
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		*delayed = init_arg;
@@ -2176,7 +2176,7 @@ static int etm4_probe_amba(struct amba_device *adev, const struct amba_id *id)
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->base = base;
 	dev_set_drvdata(dev, drvdata);
@@ -2195,11 +2195,11 @@ static int etm4_probe_platform_dev(struct platform_device *pdev)
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->pclk = coresight_get_enable_apb_pclk(&pdev->dev);
 	if (IS_ERR(drvdata->pclk))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (res) {
 		drvdata->base = devm_ioremap_resource(&pdev->dev, res);
@@ -2210,7 +2210,7 @@ static int etm4_probe_platform_dev(struct platform_device *pdev)
 	}
 
 	dev_set_drvdata(&pdev->dev, drvdata);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
@@ -2279,7 +2279,7 @@ static void etm4_remove_dev(struct etmv4_drvdata *drvdata)
 
 	/*
 	 * The readers for etmdrvdata[] are CPU hotplug call backs
-	 * and PM notification call backs. Change etmdrvdata[i] on
+	 * and PM analtification call backs. Change etmdrvdata[i] on
 	 * CPU i ensures these call backs has consistent view
 	 * inside one call back function.
 	 */
@@ -2336,7 +2336,7 @@ static const struct amba_id etm4_ids[] = {
 	CS_AMBA_UCI_ID(0x000b6d01, uci_id_etm4),/* HiSilicon-Hip08 */
 	CS_AMBA_UCI_ID(0x000b6d02, uci_id_etm4),/* HiSilicon-Hip09 */
 	/*
-	 * Match all PIDs with ETM4 DEVARCH. No need for adding any of the new
+	 * Match all PIDs with ETM4 DEVARCH. Anal need for adding any of the new
 	 * CPUs to the list here.
 	 */
 	CS_AMBA_MATCH_ALL_UCI(uci_id_etm4),

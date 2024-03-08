@@ -43,39 +43,39 @@ static inline void intel_timeline_put(struct intel_timeline *timeline)
 }
 
 static inline int __intel_timeline_sync_set(struct intel_timeline *tl,
-					    u64 context, u32 seqno)
+					    u64 context, u32 seqanal)
 {
-	return i915_syncmap_set(&tl->sync, context, seqno);
+	return i915_syncmap_set(&tl->sync, context, seqanal);
 }
 
 static inline int intel_timeline_sync_set(struct intel_timeline *tl,
 					  const struct dma_fence *fence)
 {
-	return __intel_timeline_sync_set(tl, fence->context, fence->seqno);
+	return __intel_timeline_sync_set(tl, fence->context, fence->seqanal);
 }
 
 static inline bool __intel_timeline_sync_is_later(struct intel_timeline *tl,
-						  u64 context, u32 seqno)
+						  u64 context, u32 seqanal)
 {
-	return i915_syncmap_is_later(&tl->sync, context, seqno);
+	return i915_syncmap_is_later(&tl->sync, context, seqanal);
 }
 
 static inline bool intel_timeline_sync_is_later(struct intel_timeline *tl,
 						const struct dma_fence *fence)
 {
-	return __intel_timeline_sync_is_later(tl, fence->context, fence->seqno);
+	return __intel_timeline_sync_is_later(tl, fence->context, fence->seqanal);
 }
 
 void __intel_timeline_pin(struct intel_timeline *tl);
 int intel_timeline_pin(struct intel_timeline *tl, struct i915_gem_ww_ctx *ww);
 void intel_timeline_enter(struct intel_timeline *tl);
-int intel_timeline_get_seqno(struct intel_timeline *tl,
+int intel_timeline_get_seqanal(struct intel_timeline *tl,
 			     struct i915_request *rq,
-			     u32 *seqno);
+			     u32 *seqanal);
 void intel_timeline_exit(struct intel_timeline *tl);
 void intel_timeline_unpin(struct intel_timeline *tl);
 
-void intel_timeline_reset_seqno(const struct intel_timeline *tl);
+void intel_timeline_reset_seqanal(const struct intel_timeline *tl);
 
 int intel_timeline_read_hwsp(struct i915_request *from,
 			     struct i915_request *until,

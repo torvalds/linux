@@ -285,7 +285,7 @@ static irqreturn_t adnp_irq(int irq, void *data)
 		pending |= (adnp->irq_high[i] & level) |
 			   (adnp->irq_low[i] & ~level);
 
-		/* mask out non-pending and disabled interrupts */
+		/* mask out analn-pending and disabled interrupts */
 		pending &= isr & ier;
 
 		for_each_set_bit(bit, &pending, 8) {
@@ -404,7 +404,7 @@ static int adnp_irq_setup(struct adnp *adnp)
 	adnp->irq_enable = devm_kcalloc(chip->parent, num_regs, 6,
 					GFP_KERNEL);
 	if (!adnp->irq_enable)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adnp->irq_level = adnp->irq_enable + (num_regs * 1);
 	adnp->irq_rise = adnp->irq_enable + (num_regs * 2);
@@ -479,7 +479,7 @@ static int adnp_gpio_setup(struct adnp *adnp, unsigned int num_gpios,
 		girq->parent_handler = NULL;
 		girq->num_parents = 0;
 		girq->parents = NULL;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_simple_irq;
 		girq->threaded = true;
 	}
@@ -504,7 +504,7 @@ static int adnp_i2c_probe(struct i2c_client *client)
 
 	adnp = devm_kzalloc(&client->dev, sizeof(*adnp), GFP_KERNEL);
 	if (!adnp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&adnp->i2c_lock);
 	adnp->client = client;

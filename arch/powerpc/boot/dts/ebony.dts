@@ -299,13 +299,13 @@
 			compatible = "ibm,plb440gp-pcix", "ibm,plb-pcix";
 			primary;
 			reg = <0x00000002 0x0ec00000 0x00000008	/* Config space access */
-			       0x00000000 0x00000000 0x00000000		/* no IACK cycles */
+			       0x00000000 0x00000000 0x00000000		/* anal IACK cycles */
 			       0x00000002 0x0ed00000 0x00000004     /* Special cycles */
 			       0x00000002 0x0ec80000 0x000000f0	/* Internal registers */
 			       0x00000002 0x0ec80100 0x000000fc>;	/* Internal messaging registers */
 
 			/* Outbound ranges, one memory and one IO,
-			 * later cannot be changed
+			 * later cananalt be changed
 			 */
 			ranges = <0x02000000 0x00000000 0x80000000 0x00000003 0x80000000 0x00000000 0x80000000
 				  0x01000000 0x00000000 0x00000000 0x00000002 0x08000000 0x00000000 0x00010000>;

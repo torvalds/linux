@@ -13,7 +13,7 @@
  * that occur between the SBUS and physical memory.  Access by
  * the cpu to IO registers and similar go over the mbus so are
  * translated by the on chip SRMMU.  The iommu and the srmmu do
- * not need to have the same translations at all, in fact most
+ * analt need to have the same translations at all, in fact most
  * of the time the translations they handle are a disjunct set.
  * Basically the iommu handles all dvma sbus activity.
  */
@@ -58,7 +58,7 @@ struct iommu_regs {
 #define IOMMU_AFSR_ERR      0x80000000 /* LE, TO, or BE asserted */
 #define IOMMU_AFSR_LE       0x40000000 /* SBUS reports error after transaction */
 #define IOMMU_AFSR_TO       0x20000000 /* Write access took more than 12.8 us. */
-#define IOMMU_AFSR_BE       0x10000000 /* Write access received error acknowledge */
+#define IOMMU_AFSR_BE       0x10000000 /* Write access received error ackanalwledge */
 #define IOMMU_AFSR_SIZE     0x0e000000 /* Size of transaction causing error */
 #define IOMMU_AFSR_S        0x01000000 /* Sparc was in supervisor mode */
 #define IOMMU_AFSR_RESV     0x00f00000 /* Reserver, forced to 0x8 by hardware */

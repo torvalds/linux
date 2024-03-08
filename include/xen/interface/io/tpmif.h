@@ -15,7 +15,7 @@
  *
  * Device open:
  *   1. Both ends start in XenbusStateInitialising
- *   2. Backend transitions to InitWait (frontend does not wait on this step)
+ *   2. Backend transitions to InitWait (frontend does analt wait on this step)
  *   3. Frontend populates ring-ref, event-channel, feature-protocol-v2
  *   4. Frontend transitions to Initialised
  *   5. Backend maps grant and event channel, verifies feature-protocol-v2
@@ -29,7 +29,7 @@
  */
 
 enum vtpm_shared_page_state {
-	VTPM_STATE_IDLE,         /* no contents / vTPM idle / cancel complete */
+	VTPM_STATE_IDLE,         /* anal contents / vTPM idle / cancel complete */
 	VTPM_STATE_SUBMIT,       /* request ready / vTPM working */
 	VTPM_STATE_FINISH,       /* response ready / vTPM idle */
 	VTPM_STATE_CANCEL,       /* cancel requested / vTPM working */

@@ -19,11 +19,11 @@ struct hwspinlock_device;
  * struct hwspinlock_ops - platform-specific hwspinlock handlers
  *
  * @trylock: make a single attempt to take the lock. returns 0 on
- *	     failure and true on success. may _not_ sleep.
- * @unlock:  release the lock. always succeed. may _not_ sleep.
+ *	     failure and true on success. may _analt_ sleep.
+ * @unlock:  release the lock. always succeed. may _analt_ sleep.
  * @relax:   optional, platform-specific relax handler, called by hwspinlock
  *	     core while spinning on a lock, between two successive
- *	     invocations of @trylock. may _not_ sleep.
+ *	     invocations of @trylock. may _analt_ sleep.
  */
 struct hwspinlock_ops {
 	int (*trylock)(struct hwspinlock *lock);

@@ -25,14 +25,14 @@
 #define ICP10100_ID_REG			0x08
 #define ICP10100_RESPONSE_WORD_LENGTH	3
 #define ICP10100_CRC8_WORD_LENGTH	2
-#define ICP10100_CRC8_POLYNOMIAL	0x31
+#define ICP10100_CRC8_POLYANALMIAL	0x31
 #define ICP10100_CRC8_INIT		0xFF
 
 enum icp10100_mode {
 	ICP10100_MODE_LP,	/* Low power mode: 1x sampling */
-	ICP10100_MODE_N,	/* Normal mode: 2x sampling */
-	ICP10100_MODE_LN,	/* Low noise mode: 4x sampling */
-	ICP10100_MODE_ULN,	/* Ultra low noise mode: 8x sampling */
+	ICP10100_MODE_N,	/* Analrmal mode: 2x sampling */
+	ICP10100_MODE_LN,	/* Low analise mode: 4x sampling */
+	ICP10100_MODE_ULN,	/* Ultra low analise mode: 8x sampling */
 	ICP10100_MODE_NB,
 };
 
@@ -231,7 +231,7 @@ static int icp10100_init_chip(struct icp10100_state *st)
 	id = ICP10100_ID_REG_GET(be16_to_cpu(val));
 	if (id != ICP10100_ID_REG) {
 		dev_err(&st->client->dev, "invalid id %#x\n", id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* read calibration data from OTP */
@@ -537,13 +537,13 @@ static int icp10100_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(&client->dev, "plain i2c transactions not supported\n");
-		return -ENODEV;
+		dev_err(&client->dev, "plain i2c transactions analt supported\n");
+		return -EANALDEV;
 	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, indio_dev);
 	indio_dev->name = client->name;
@@ -571,7 +571,7 @@ static int icp10100_probe(struct i2c_client *client)
 		return ret;
 
 	/* has to be done before the first i2c communication */
-	crc8_populate_msb(icp10100_crc8_table, ICP10100_CRC8_POLYNOMIAL);
+	crc8_populate_msb(icp10100_crc8_table, ICP10100_CRC8_POLYANALMIAL);
 
 	ret = icp10100_init_chip(st);
 	if (ret) {
@@ -580,7 +580,7 @@ static int icp10100_probe(struct i2c_client *client)
 	}
 
 	/* enable runtime pm with autosuspend delay of 2s */
-	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_get_analresume(&client->dev);
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_set_autosuspend_delay(&client->dev, 2000);

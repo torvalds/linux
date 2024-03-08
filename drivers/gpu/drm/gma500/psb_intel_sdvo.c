@@ -10,13 +10,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -439,11 +439,11 @@ static void psb_intel_sdvo_debug_write(struct psb_intel_sdvo *psb_intel_sdvo,
 static const char *cmd_status_names[] = {
 	"Power on",
 	"Success",
-	"Not supported",
+	"Analt supported",
 	"Invalid arg",
 	"Pending",
-	"Target not specified",
-	"Scaling not supported"
+	"Target analt specified",
+	"Scaling analt supported"
 };
 
 #define MAX_ARG_LEN 32
@@ -526,7 +526,7 @@ static bool psb_intel_sdvo_read_response(struct psb_intel_sdvo *psb_intel_sdvo,
 		goto log_fail;
 
 	while ((status == SDVO_CMD_STATUS_PENDING ||
-		status == SDVO_CMD_STATUS_TARGET_NOT_SPECIFIED) && retry--) {
+		status == SDVO_CMD_STATUS_TARGET_ANALT_SPECIFIED) && retry--) {
 		udelay(15);
 		if (!psb_intel_sdvo_read_byte(psb_intel_sdvo,
 					  SDVO_I2C_CMD_STATUS,
@@ -537,7 +537,7 @@ static bool psb_intel_sdvo_read_response(struct psb_intel_sdvo *psb_intel_sdvo,
 #define BUF_PRINT(args...) \
 	pos += snprintf(buffer + pos, max_t(int, sizeof(buffer) - pos, 0), args)
 
-	if (status <= SDVO_CMD_STATUS_SCALING_NOT_SUPP)
+	if (status <= SDVO_CMD_STATUS_SCALING_ANALT_SUPP)
 		BUF_PRINT("(%s)", cmd_status_names[status]);
 	else
 		BUF_PRINT("(??? %d)", status);
@@ -885,7 +885,7 @@ static void psb_intel_sdvo_dump_hdmi_buf(struct psb_intel_sdvo *psb_intel_sdvo)
 
 static bool psb_intel_sdvo_set_avi_infoframe(struct psb_intel_sdvo *psb_intel_sdvo)
 {
-	DRM_INFO("HDMI is not supported yet");
+	DRM_INFO("HDMI is analt supported yet");
 
 	return false;
 }
@@ -1143,7 +1143,7 @@ static void psb_intel_sdvo_dpms(struct drm_encoder *encoder, int mode)
 
 		status = psb_intel_sdvo_get_trained_inputs(psb_intel_sdvo, &input1, &input2);
 		/* Warn if the device reported failure to sync.
-		 * A lot of SDVO devices fail to notify of sync, but it's
+		 * A lot of SDVO devices fail to analtify of sync, but it's
 		 * a given it the status is a success, we succeeded.
 		 */
 		if (status == SDVO_CMD_STATUS_SUCCESS && !input1) {
@@ -1164,7 +1164,7 @@ static enum drm_mode_status psb_intel_sdvo_mode_valid(struct drm_connector *conn
 	struct psb_intel_sdvo *psb_intel_sdvo = intel_attached_sdvo(connector);
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
+		return MODE_ANAL_DBLESCAN;
 
 	if (psb_intel_sdvo->pixel_clock_min > mode->clock)
 		return MODE_CLOCK_LOW;
@@ -1196,7 +1196,7 @@ static bool psb_intel_sdvo_get_capabilities(struct psb_intel_sdvo *psb_intel_sdv
 		      "  device_id: %d\n"
 		      "  device_rev_id: %d\n"
 		      "  sdvo_version_major: %d\n"
-		      "  sdvo_version_minor: %d\n"
+		      "  sdvo_version_mianalr: %d\n"
 		      "  sdvo_inputs_mask: %d\n"
 		      "  smooth_scaling: %d\n"
 		      "  sharp_scaling: %d\n"
@@ -1208,7 +1208,7 @@ static bool psb_intel_sdvo_get_capabilities(struct psb_intel_sdvo *psb_intel_sdv
 		      caps->device_id,
 		      caps->device_rev_id,
 		      caps->sdvo_version_major,
-		      caps->sdvo_version_minor,
+		      caps->sdvo_version_mianalr,
 		      caps->sdvo_inputs_mask,
 		      caps->smooth_scaling,
 		      caps->sharp_scaling,
@@ -1276,13 +1276,13 @@ psb_intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 	}
 
 	/*
-	 * When there is no edid and no monitor is connected with VGA
+	 * When there is anal edid and anal monitor is connected with VGA
 	 * port, try to use the CRT ddc to read the EDID for DVI-connector.
 	 */
 	if (edid == NULL)
 		edid = psb_intel_sdvo_get_analog_edid(connector);
 
-	status = connector_status_unknown;
+	status = connector_status_unkanalwn;
 	if (edid != NULL) {
 		/* DDC bus is shared, match EDID to connector type */
 		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
@@ -1315,7 +1315,7 @@ psb_intel_sdvo_detect(struct drm_connector *connector, bool force)
 
 	if (!psb_intel_sdvo_write_cmd(psb_intel_sdvo,
 				  SDVO_CMD_GET_ATTACHED_DISPLAYS, NULL, 0))
-		return connector_status_unknown;
+		return connector_status_unkanalwn;
 
 	/* add 30ms delay when the output type might be TV */
 	if (psb_intel_sdvo->caps.output_flags &
@@ -1323,7 +1323,7 @@ psb_intel_sdvo_detect(struct drm_connector *connector, bool force)
 		mdelay(30);
 
 	if (!psb_intel_sdvo_read_response(psb_intel_sdvo, &response, 2))
-		return connector_status_unknown;
+		return connector_status_unkanalwn;
 
 	DRM_DEBUG_KMS("SDVO response %d %d [%x]\n",
 		      response & 0xff, response >> 8,
@@ -1407,7 +1407,7 @@ static void psb_intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 
 /*
  * Set of SDVO TV modes.
- * Note!  This is in reply order (see loop in get_tv_modes).
+ * Analte!  This is in reply order (see loop in get_tv_modes).
  * XXX: all 60Hz refresh?
  */
 static const struct drm_display_mode sdvo_tv_modes[] = {
@@ -1716,7 +1716,7 @@ psb_intel_sdvo_set_property(struct drm_connector *connector,
 		CHECK_PROPERTY(dot_crawl, DOT_CRAWL)
 	}
 
-	return -EINVAL; /* unknown property */
+	return -EINVAL; /* unkanalwn property */
 
 set_value:
 	if (!psb_intel_sdvo_set_value(psb_intel_sdvo, cmd, &temp_value, 2))
@@ -1832,7 +1832,7 @@ psb_intel_sdvo_guess_ddc_bus(struct psb_intel_sdvo *sdvo)
 	/* Count bits to find what number we are in the priority list. */
 	mask &= sdvo->caps.output_flags;
 	num_bits = hweight16(mask);
-	/* If more than 3 outputs, default to DDC bus 3 for now. */
+	/* If more than 3 outputs, default to DDC bus 3 for analw. */
 	if (num_bits > 3)
 		num_bits = 3;
 
@@ -1926,7 +1926,7 @@ psb_intel_sdvo_get_slave_addr(struct drm_device *dev, int sdvo_reg)
 			return 0x70;
 	}
 
-	/* No SDVO device info is found for another DVO port,
+	/* Anal SDVO device info is found for aanalther DVO port,
 	 * so use mapping assumption we had before BIOS parsing.
 	 */
 	if (IS_SDVOB(sdvo_reg))
@@ -1998,7 +1998,7 @@ psb_intel_sdvo_dvi_init(struct psb_intel_sdvo *psb_intel_sdvo, int device)
 		connector->connector_type = DRM_MODE_CONNECTOR_HDMIA;
 		psb_intel_sdvo->is_hdmi = true;
 	}
-	psb_intel_sdvo->base.clone_mask = ((1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
+	psb_intel_sdvo->base.clone_mask = ((1 << INTEL_SDVO_ANALN_TV_CLONE_BIT) |
 				       (1 << INTEL_ANALOG_CLONE_BIT));
 
 	psb_intel_sdvo_connector_init(psb_intel_sdvo_connector, psb_intel_sdvo);
@@ -2073,7 +2073,7 @@ psb_intel_sdvo_analog_init(struct psb_intel_sdvo *psb_intel_sdvo, int device)
 		psb_intel_sdvo_connector->output_flag = SDVO_OUTPUT_RGB1;
 	}
 
-	psb_intel_sdvo->base.clone_mask = ((1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
+	psb_intel_sdvo->base.clone_mask = ((1 << INTEL_SDVO_ANALN_TV_CLONE_BIT) |
 				       (1 << INTEL_ANALOG_CLONE_BIT));
 
 	psb_intel_sdvo_connector_init(psb_intel_sdvo_connector,
@@ -2127,7 +2127,7 @@ psb_intel_sdvo_output_setup(struct psb_intel_sdvo *psb_intel_sdvo, uint16_t flag
 	psb_intel_sdvo->base.needs_tv_clock = false;
 	psb_intel_sdvo->is_lvds = false;
 
-	/* SDVO requires XXX1 function may not exist unless it has XXX0 function.*/
+	/* SDVO requires XXX1 function may analt exist unless it has XXX0 function.*/
 
 	if (flags & SDVO_OUTPUT_TMDS0)
 		if (!psb_intel_sdvo_dvi_init(psb_intel_sdvo, 0))
@@ -2137,7 +2137,7 @@ psb_intel_sdvo_output_setup(struct psb_intel_sdvo *psb_intel_sdvo, uint16_t flag
 		if (!psb_intel_sdvo_dvi_init(psb_intel_sdvo, 1))
 			return false;
 
-	/* TV has no XXX1 function block */
+	/* TV has anal XXX1 function block */
 	if (flags & SDVO_OUTPUT_SVID0)
 		if (!psb_intel_sdvo_tv_init(psb_intel_sdvo, SDVO_OUTPUT_SVID0))
 			return false;
@@ -2167,7 +2167,7 @@ psb_intel_sdvo_output_setup(struct psb_intel_sdvo *psb_intel_sdvo, uint16_t flag
 
 		psb_intel_sdvo->controlled_output = 0;
 		memcpy(bytes, &psb_intel_sdvo->caps.output_flags, 2);
-		DRM_DEBUG_KMS("%s: Unknown SDVO output type (0x%02x%02x)\n",
+		DRM_DEBUG_KMS("%s: Unkanalwn SDVO output type (0x%02x%02x)\n",
 			      SDVO_NAME(psb_intel_sdvo),
 			      bytes[0], bytes[1]);
 		return false;
@@ -2386,7 +2386,7 @@ static bool psb_intel_sdvo_create_enhance_property(struct psb_intel_sdvo *psb_in
 			     SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS,
 			     &enhancements, sizeof(enhancements));
 	if (enhancements.response == 0) {
-		DRM_DEBUG_KMS("No enhancement is supported\n");
+		DRM_DEBUG_KMS("Anal enhancement is supported\n");
 		return true;
 	}
 
@@ -2464,7 +2464,7 @@ bool psb_intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 		u8 byte;
 
 		if (!psb_intel_sdvo_read_byte(psb_intel_sdvo, i, &byte)) {
-			DRM_DEBUG_KMS("No SDVO device found on SDVO%c\n",
+			DRM_DEBUG_KMS("Anal SDVO device found on SDVO%c\n",
 				      IS_SDVOB(sdvo_reg) ? 'B' : 'C');
 			goto err;
 		}

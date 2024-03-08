@@ -8,7 +8,7 @@
 #include <linux/iommu.h>
 #include <linux/kref.h>
 #include <linux/list.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/pm_runtime.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
@@ -73,7 +73,7 @@ gather_bo_pin(struct device *dev, struct host1x_bo *bo, enum dma_data_direction 
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (!map)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	kref_init(&map->ref);
 	map->bo = host1x_bo_get(bo);
@@ -82,7 +82,7 @@ gather_bo_pin(struct device *dev, struct host1x_bo *bo, enum dma_data_direction 
 
 	map->sgt = kzalloc(sizeof(*map->sgt), GFP_KERNEL);
 	if (!map->sgt) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free;
 	}
 
@@ -184,7 +184,7 @@ static int submit_copy_gather_data(struct gather_bo **pbo, struct device *dev,
 	size_t copy_len;
 
 	if (args->gather_data_words == 0) {
-		SUBMIT_ERR(context, "gather_data_words cannot be zero");
+		SUBMIT_ERR(context, "gather_data_words cananalt be zero");
 		return -EINVAL;
 	}
 
@@ -196,7 +196,7 @@ static int submit_copy_gather_data(struct gather_bo **pbo, struct device *dev,
 	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
 	if (!bo) {
 		SUBMIT_ERR(context, "failed to allocate memory for bo info");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	host1x_bo_init(&bo->base, &gather_bo_ops);
@@ -204,11 +204,11 @@ static int submit_copy_gather_data(struct gather_bo **pbo, struct device *dev,
 	bo->dev = dev;
 
 	bo->gather_data = dma_alloc_attrs(dev, copy_len, &bo->gather_data_dma,
-					  GFP_KERNEL | __GFP_NOWARN, 0);
+					  GFP_KERNEL | __GFP_ANALWARN, 0);
 	if (!bo->gather_data) {
 		SUBMIT_ERR(context, "failed to allocate memory for gather data");
 		kfree(bo);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (copy_from_user(bo->gather_data, u64_to_user_ptr(args->gather_data_ptr), copy_len)) {
@@ -246,7 +246,7 @@ static int submit_write_reloc(struct tegra_drm_context *context, struct gather_b
 		return -EINVAL;
 	}
 
-	buf->reloc.gather_offset_words = array_index_nospec(buf->reloc.gather_offset_words,
+	buf->reloc.gather_offset_words = array_index_analspec(buf->reloc.gather_offset_words,
 							    bo->gather_data_words);
 
 	bo->gather_data[buf->reloc.gather_offset_words] = written_ptr;
@@ -273,7 +273,7 @@ static int submit_process_bufs(struct tegra_drm_context *context, struct gather_
 	mappings = kcalloc(args->num_bufs, sizeof(*mappings), GFP_KERNEL);
 	if (!mappings) {
 		SUBMIT_ERR(context, "failed to allocate memory for mapping info");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto done;
 	}
 
@@ -337,7 +337,7 @@ static int submit_get_syncpt(struct tegra_drm_context *context, struct host1x_jo
 	/* Syncpt ref will be dropped on job release */
 	sp = xa_load(syncpoints, args->syncpt.id);
 	if (!sp) {
-		SUBMIT_ERR(context, "syncpoint specified in syncpt was not allocated");
+		SUBMIT_ERR(context, "syncpoint specified in syncpt was analt allocated");
 		return -EINVAL;
 	}
 
@@ -356,7 +356,7 @@ static int submit_job_add_gather(struct host1x_job *job, struct tegra_drm_contex
 	u32 next_offset;
 
 	if (cmd->reserved[0] || cmd->reserved[1] || cmd->reserved[2]) {
-		SUBMIT_ERR(context, "non-zero reserved field in GATHER_UPTR command");
+		SUBMIT_ERR(context, "analn-zero reserved field in GATHER_UPTR command");
 		return -EINVAL;
 	}
 
@@ -412,7 +412,7 @@ submit_create_job(struct tegra_drm_context *context, struct gather_bo *bo,
 	job = host1x_job_alloc(context->channel, args->num_cmds, 0, true);
 	if (!job) {
 		SUBMIT_ERR(context, "failed to allocate memory for job");
-		job = ERR_PTR(-ENOMEM);
+		job = ERR_PTR(-EANALMEM);
 		goto done;
 	}
 
@@ -428,7 +428,7 @@ submit_create_job(struct tegra_drm_context *context, struct gather_bo *bo,
 		struct drm_tegra_submit_cmd *cmd = &cmds[i];
 
 		if (cmd->flags) {
-			SUBMIT_ERR(context, "unknown flags given for cmd");
+			SUBMIT_ERR(context, "unkanalwn flags given for cmd");
 			err = -EINVAL;
 			goto free_job;
 		}
@@ -440,7 +440,7 @@ submit_create_job(struct tegra_drm_context *context, struct gather_bo *bo,
 				goto free_job;
 		} else if (cmd->type == DRM_TEGRA_SUBMIT_CMD_WAIT_SYNCPT) {
 			if (cmd->wait_syncpt.reserved[0] || cmd->wait_syncpt.reserved[1]) {
-				SUBMIT_ERR(context, "non-zero reserved value");
+				SUBMIT_ERR(context, "analn-zero reserved value");
 				err = -EINVAL;
 				goto free_job;
 			}
@@ -449,13 +449,13 @@ submit_create_job(struct tegra_drm_context *context, struct gather_bo *bo,
 					    false, class);
 		} else if (cmd->type == DRM_TEGRA_SUBMIT_CMD_WAIT_SYNCPT_RELATIVE) {
 			if (cmd->wait_syncpt.reserved[0] || cmd->wait_syncpt.reserved[1]) {
-				SUBMIT_ERR(context, "non-zero reserved value");
+				SUBMIT_ERR(context, "analn-zero reserved value");
 				err = -EINVAL;
 				goto free_job;
 			}
 
 			if (cmd->wait_syncpt.id != args->syncpt.id) {
-				SUBMIT_ERR(context, "syncpoint ID in CMD_WAIT_SYNCPT_RELATIVE is not used by the job");
+				SUBMIT_ERR(context, "syncpoint ID in CMD_WAIT_SYNCPT_RELATIVE is analt used by the job");
 				err = -EINVAL;
 				goto free_job;
 			}
@@ -463,7 +463,7 @@ submit_create_job(struct tegra_drm_context *context, struct gather_bo *bo,
 			host1x_job_add_wait(job, cmd->wait_syncpt.id, cmd->wait_syncpt.value,
 					    true, class);
 		} else {
-			SUBMIT_ERR(context, "unknown cmd type");
+			SUBMIT_ERR(context, "unkanalwn cmd type");
 			err = -EINVAL;
 			goto free_job;
 		}
@@ -550,7 +550,7 @@ int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
 		syncobj = drm_syncobj_find(file, args->syncobj_out);
 		if (!syncobj) {
 			SUBMIT_ERR(context, "invalid syncobj_out '%#x'", args->syncobj_out);
-			err = -ENOENT;
+			err = -EANALENT;
 			goto unlock;
 		}
 	}
@@ -563,7 +563,7 @@ int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
 	job_data = kzalloc(sizeof(*job_data), GFP_KERNEL);
 	if (!job_data) {
 		SUBMIT_ERR(context, "failed to allocate memory for job data");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put_bo;
 	}
 
@@ -621,7 +621,7 @@ int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
 	/* Boot engine. */
 	err = pm_runtime_resume_and_get(context->client->base.dev);
 	if (err < 0) {
-		SUBMIT_ERR(context, "could not power up engine: %d", err);
+		SUBMIT_ERR(context, "could analt power up engine: %d", err);
 		goto put_memory_context;
 	}
 
@@ -630,7 +630,7 @@ int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
 	job->timeout = 10000;
 
 	/*
-	 * job_data is now part of job reference counting, so don't release
+	 * job_data is analw part of job reference counting, so don't release
 	 * it from here.
 	 */
 	job_data = NULL;

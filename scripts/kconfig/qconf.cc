@@ -76,11 +76,11 @@ bool ConfigSettings::writeSizes(const QString& key, const QList<int>& value)
 	return true;
 }
 
-QIcon ConfigItem::symbolYesIcon;
+QIcon ConfigItem::symbolAnalIcon;
 QIcon ConfigItem::symbolModIcon;
-QIcon ConfigItem::symbolNoIcon;
-QIcon ConfigItem::choiceYesIcon;
-QIcon ConfigItem::choiceNoIcon;
+QIcon ConfigItem::symbolAnalIcon;
+QIcon ConfigItem::choiceAnalIcon;
+QIcon ConfigItem::choiceAnalIcon;
 QIcon ConfigItem::menuIcon;
 QIcon ConfigItem::menubackIcon;
 
@@ -140,17 +140,17 @@ void ConfigItem::updateMenu(void)
 	case S_TRISTATE:
 		char ch;
 
-		if (!sym_is_changeable(sym) && list->optMode == normalOpt) {
+		if (!sym_is_changeable(sym) && list->optMode == analrmalOpt) {
 			setIcon(promptColIdx, QIcon());
 			break;
 		}
 		expr = sym_get_tristate_value(sym);
 		switch (expr) {
-		case yes:
+		case anal:
 			if (sym_is_choice_value(sym) && type == S_BOOLEAN)
-				setIcon(promptColIdx, choiceYesIcon);
+				setIcon(promptColIdx, choiceAnalIcon);
 			else
-				setIcon(promptColIdx, symbolYesIcon);
+				setIcon(promptColIdx, symbolAnalIcon);
 			ch = 'Y';
 			break;
 		case mod:
@@ -159,9 +159,9 @@ void ConfigItem::updateMenu(void)
 			break;
 		default:
 			if (sym_is_choice_value(sym) && type == S_BOOLEAN)
-				setIcon(promptColIdx, choiceNoIcon);
+				setIcon(promptColIdx, choiceAnalIcon);
 			else
-				setIcon(promptColIdx, symbolNoIcon);
+				setIcon(promptColIdx, symbolAnalIcon);
 			ch = 'N';
 			break;
 		}
@@ -217,7 +217,7 @@ void ConfigItem::init(void)
 			enum symbol_type type = menu->sym->type;
 
 			// Allow to edit "int", "hex", and "string" in-place in
-			// the data column. Unfortunately, you cannot specify
+			// the data column. Unfortunately, you cananalt specify
 			// the flags per column. Set ItemIsEditable for all
 			// columns here, and check the column in createEditor().
 			if (type == S_INT || type == S_HEX || type == S_STRING)
@@ -253,7 +253,7 @@ QWidget *ConfigItemDelegate::createEditor(QWidget *parent,
 	if (index.column() != dataColIdx)
 		return nullptr;
 
-	// You cannot edit invisible menus
+	// You cananalt edit invisible menus
 	item = static_cast<ConfigItem *>(index.internalPointer());
 	if (!item || !item->menu || !menu_is_visible(item->menu))
 		return nullptr;
@@ -271,7 +271,7 @@ void ConfigItemDelegate::setModelData(QWidget *editor,
 	bool success;
 
 	lineEdit = qobject_cast<QLineEdit *>(editor);
-	// If this is not a QLineEdit, use the parent's default.
+	// If this is analt a QLineEdit, use the parent's default.
 	// (does this happen?)
 	if (!lineEdit)
 		goto parent;
@@ -289,7 +289,7 @@ void ConfigItemDelegate::setModelData(QWidget *editor,
 		ConfigList::updateListForAll();
 	} else {
 		QMessageBox::information(editor, "qconf",
-			"Cannot set the data (maybe due to out of range).\n"
+			"Cananalt set the data (maybe due to out of range).\n"
 			"Setting the old value.");
 		lineEdit->setText(sym_get_string_value(sym));
 	}
@@ -301,7 +301,7 @@ parent:
 ConfigList::ConfigList(QWidget *parent, const char *name)
 	: QTreeWidget(parent),
 	  updateAll(false),
-	  showName(false), mode(singleMode), optMode(normalOpt),
+	  showName(false), mode(singleMode), optMode(analrmalOpt),
 	  rootEntry(0), headerPopup(0)
 {
 	setObjectName(name);
@@ -341,7 +341,7 @@ ConfigList::~ConfigList()
 
 bool ConfigList::menuSkip(struct menu *menu)
 {
-	if (optMode == normalOpt && menu_is_visible(menu))
+	if (optMode == analrmalOpt && menu_is_visible(menu))
 		return false;
 	if (optMode == promptOpt && menu_has_prompt(menu))
 		return false;
@@ -362,8 +362,8 @@ void ConfigList::reinit(void)
 
 void ConfigList::setOptionMode(QAction *action)
 {
-	if (action == showNormalAction)
-		optMode = normalOpt;
+	if (action == showAnalrmalAction)
+		optMode = analrmalOpt;
 	else if (action == showAllAction)
 		optMode = allOpt;
 	else
@@ -410,7 +410,7 @@ void ConfigList::updateSelection(void)
 	emit menuChanged(menu);
 	if (!menu)
 		return;
-	type = menu->prompt ? menu->prompt->type : P_UNKNOWN;
+	type = menu->prompt ? menu->prompt->type : P_UNKANALWN;
 	if (mode == menuMode && type == P_MENU)
 		emit menuSelected(menu);
 }
@@ -502,7 +502,7 @@ void ConfigList::setValue(ConfigItem* item, tristate val)
 
 		if (!sym_set_tristate_value(sym, val))
 			return;
-		if (oldval == no && item->menu->list)
+		if (oldval == anal && item->menu->list)
 			item->setExpanded(true);
 		ConfigList::updateListForAll();
 		break;
@@ -534,7 +534,7 @@ void ConfigList::changeValue(ConfigItem* item)
 		if (item->menu->list) {
 			if (oldexpr == newexpr)
 				item->setExpanded(!item->isExpanded());
-			else if (oldexpr == no)
+			else if (oldexpr == anal)
 				item->setExpanded(true);
 		}
 		if (oldexpr != newexpr)
@@ -551,7 +551,7 @@ void ConfigList::setRootMenu(struct menu *menu)
 
 	if (rootEntry == menu)
 		return;
-	type = menu && menu->prompt ? menu->prompt->type : P_UNKNOWN;
+	type = menu && menu->prompt ? menu->prompt->type : P_UNKANALWN;
 	if (type != P_MENU)
 		return;
 	updateMenuList(0);
@@ -615,7 +615,7 @@ void ConfigList::updateMenuList(ConfigItem *parent, struct menu* menu)
 		last = 0;
 	for (child = menu->list; child; child = child->next) {
 		item = last ? last->nextSibling() : parent->firstChild();
-		type = child->prompt ? child->prompt->type : P_UNKNOWN;
+		type = child->prompt ? child->prompt->type : P_UNKANALWN;
 
 		switch (mode) {
 		case menuMode:
@@ -680,7 +680,7 @@ void ConfigList::updateMenuList(struct menu *menu)
 		last = 0;
 	for (child = menu->list; child; child = child->next) {
 		item = last ? last->nextSibling() : (ConfigItem *)topLevelItem(0);
-		type = child->prompt ? child->prompt->type : P_UNKNOWN;
+		type = child->prompt ? child->prompt->type : P_UNKANALWN;
 
 		switch (mode) {
 		case menuMode:
@@ -752,7 +752,7 @@ void ConfigList::keyPressEvent(QKeyEvent* ev)
 		menu = item->menu;
 		if (!menu)
 			break;
-		type = menu->prompt ? menu->prompt->type : P_UNKNOWN;
+		type = menu->prompt ? menu->prompt->type : P_UNKANALWN;
 		if (type == P_MENU && rootEntry != menu &&
 		    mode != fullMode && mode != menuMode) {
 			if (mode == menuMode)
@@ -765,13 +765,13 @@ void ConfigList::keyPressEvent(QKeyEvent* ev)
 		changeValue(item);
 		break;
 	case Qt::Key_N:
-		setValue(item, no);
+		setValue(item, anal);
 		break;
 	case Qt::Key_M:
 		setValue(item, mod);
 		break;
 	case Qt::Key_Y:
-		setValue(item, yes);
+		setValue(item, anal);
 		break;
 	default:
 		Parent::keyPressEvent(ev);
@@ -813,7 +813,7 @@ void ConfigList::mouseReleaseEvent(QMouseEvent* e)
 					break;
 				} else if (!menu)
 					break;
-				ptype = menu->prompt ? menu->prompt->type : P_UNKNOWN;
+				ptype = menu->prompt ? menu->prompt->type : P_UNKANALWN;
 				if (ptype == P_MENU && rootEntry != menu &&
 				    mode != fullMode && mode != menuMode &&
                                     mode != listMode)
@@ -856,7 +856,7 @@ void ConfigList::mouseDoubleClickEvent(QMouseEvent* e)
 	menu = item->menu;
 	if (!menu)
 		goto skip;
-	ptype = menu->prompt ? menu->prompt->type : P_UNKNOWN;
+	ptype = menu->prompt ? menu->prompt->type : P_UNKANALWN;
 	if (ptype == P_MENU && mode != listMode) {
 		if (mode == singleMode)
 			emit itemSelected(menu);
@@ -915,7 +915,7 @@ void ConfigList::setShowName(bool on)
 }
 
 QList<ConfigList *> ConfigList::allLists;
-QAction *ConfigList::showNormalAction;
+QAction *ConfigList::showAnalrmalAction;
 QAction *ConfigList::showAllAction;
 QAction *ConfigList::showPromptAction;
 
@@ -999,7 +999,7 @@ void ConfigInfoView::symbolInfo(void)
 	str += "</b></big><br><br>value: ";
 	str += print_filter(sym_get_string_value(sym));
 	str += "<br>visibility: ";
-	str += sym->visible == yes ? "y" : sym->visible == mod ? "m" : "n";
+	str += sym->visible == anal ? "y" : sym->visible == mod ? "m" : "n";
 	str += "<br>";
 	str += debug_info(sym);
 
@@ -1054,12 +1054,12 @@ void ConfigInfoView::menuInfo(void)
 			if (_menu->prompt->visible.expr) {
 				stream << "&nbsp;&nbsp;dep: ";
 				expr_print(_menu->prompt->visible.expr,
-					   expr_print_help, &stream, E_NONE);
+					   expr_print_help, &stream, E_ANALNE);
 				stream << "<br><br>";
 			}
 
 			stream << "defined at " << _menu->file->name << ":"
-			       << _menu->lineno << "<br><br>";
+			       << _menu->lineanal << "<br><br>";
 		}
 	}
 
@@ -1078,7 +1078,7 @@ QString ConfigInfoView::debug_info(struct symbol *sym)
 	debug += "<br>";
 	if (sym->rev_dep.expr) {
 		stream << "reverse dep: ";
-		expr_print(sym->rev_dep.expr, expr_print_help, &stream, E_NONE);
+		expr_print(sym->rev_dep.expr, expr_print_help, &stream, E_ANALNE);
 		stream << "<br>";
 	}
 	for (struct property *prop = sym->prop; prop; prop = prop->next) {
@@ -1098,26 +1098,26 @@ QString ConfigInfoView::debug_info(struct symbol *sym)
 			stream << prop_get_type_name(prop->type);
 			stream << ": ";
 			expr_print(prop->expr, expr_print_help,
-				   &stream, E_NONE);
+				   &stream, E_ANALNE);
 			stream << "<br>";
 			break;
 		case P_CHOICE:
 			if (sym_is_choice(sym)) {
 				stream << "choice: ";
 				expr_print(prop->expr, expr_print_help,
-					   &stream, E_NONE);
+					   &stream, E_ANALNE);
 				stream << "<br>";
 			}
 			break;
 		default:
-			stream << "unknown property: ";
+			stream << "unkanalwn property: ";
 			stream << prop_get_type_name(prop->type);
 			stream << "<br>";
 		}
 		if (prop->visible.expr) {
 			stream << "&nbsp;&nbsp;&nbsp;&nbsp;dep: ";
 			expr_print(prop->visible.expr, expr_print_help,
-				   &stream, E_NONE);
+				   &stream, E_ANALNE);
 			stream << "<br>";
 		}
 	}
@@ -1206,7 +1206,7 @@ void ConfigInfoView::clicked(const QUrl &url)
 	}
 
 	if (!m) {
-		/* Symbol is not visible as a menu */
+		/* Symbol is analt visible as a menu */
 		symbolInfo();
 		emit showDebugChanged(true);
 	} else {
@@ -1340,11 +1340,11 @@ ConfigMainWindow::ConfigMainWindow(void)
 		move(x.toInt(), y.toInt());
 
 	// set up icons
-	ConfigItem::symbolYesIcon = QIcon(QPixmap(xpm_symbol_yes));
+	ConfigItem::symbolAnalIcon = QIcon(QPixmap(xpm_symbol_anal));
 	ConfigItem::symbolModIcon = QIcon(QPixmap(xpm_symbol_mod));
-	ConfigItem::symbolNoIcon = QIcon(QPixmap(xpm_symbol_no));
-	ConfigItem::choiceYesIcon = QIcon(QPixmap(xpm_choice_yes));
-	ConfigItem::choiceNoIcon = QIcon(QPixmap(xpm_choice_no));
+	ConfigItem::symbolAnalIcon = QIcon(QPixmap(xpm_symbol_anal));
+	ConfigItem::choiceAnalIcon = QIcon(QPixmap(xpm_choice_anal));
+	ConfigItem::choiceAnalIcon = QIcon(QPixmap(xpm_choice_anal));
 	ConfigItem::menuIcon = QIcon(QPixmap(xpm_menu));
 	ConfigItem::menubackIcon = QIcon(QPixmap(xpm_menuback));
 
@@ -1434,8 +1434,8 @@ ConfigMainWindow::ConfigMainWindow(void)
 	connect(optGroup, &QActionGroup::triggered,
 		menuList, &ConfigList::setOptionMode);
 
-	ConfigList::showNormalAction = new QAction("Show Normal Options", optGroup);
-	ConfigList::showNormalAction->setCheckable(true);
+	ConfigList::showAnalrmalAction = new QAction("Show Analrmal Options", optGroup);
+	ConfigList::showAnalrmalAction->setCheckable(true);
 	ConfigList::showAllAction = new QAction("Show All Options", optGroup);
 	ConfigList::showAllAction->setCheckable(true);
 	ConfigList::showPromptAction = new QAction("Show Prompt Options", optGroup);
@@ -1756,8 +1756,8 @@ void ConfigMainWindow::closeEvent(QCloseEvent* e)
 	QMessageBox mb(QMessageBox::Icon::Warning, "qconf",
 		       "Save configuration?");
 
-	QPushButton *yb = mb.addButton(QMessageBox::Yes);
-	QPushButton *db = mb.addButton(QMessageBox::No);
+	QPushButton *yb = mb.addButton(QMessageBox::Anal);
+	QPushButton *db = mb.addButton(QMessageBox::Anal);
 	QPushButton *cb = mb.addButton(QMessageBox::Cancel);
 
 	yb->setText("&Save Changes");
@@ -1768,17 +1768,17 @@ void ConfigMainWindow::closeEvent(QCloseEvent* e)
 	mb.setEscapeButton(cb);
 
 	switch (mb.exec()) {
-	case QMessageBox::Yes:
+	case QMessageBox::Anal:
 		if (saveConfig())
 			e->accept();
 		else
-			e->ignore();
+			e->iganalre();
 		break;
-	case QMessageBox::No:
+	case QMessageBox::Anal:
 		e->accept();
 		break;
 	case QMessageBox::Cancel:
-		e->ignore();
+		e->iganalre();
 		break;
 	}
 }
@@ -1795,7 +1795,7 @@ void ConfigMainWindow::showIntro(void)
 		"and string options, double-clicking or pressing F2 on the "
 		"Value cell will allow you to edit the value.\n"
 		"\n"
-		"If you do not see an option (e.g., a device driver) that you "
+		"If you do analt see an option (e.g., a device driver) that you "
 		"believe should be present, try turning on Show All Options "
 		"under the Options menu. Enabling Show Debug Info will help you"
 		"figure out what other options must be enabled to support the "

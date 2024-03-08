@@ -84,7 +84,7 @@
 				pinctrl-names = "default";
 				status = "okay";
 				/*
-				 * No CD or WP GPIOs: SDIO interface used for
+				 * Anal CD or WP GPIOs: SDIO interface used for
 				 * Wifi/Bluetooth chip
 				 */
 				 broken-cd;

@@ -32,8 +32,8 @@ struct alt_pr_priv {
 static enum fpga_mgr_states alt_pr_fpga_state(struct fpga_manager *mgr)
 {
 	struct alt_pr_priv *priv = mgr->priv;
-	const char *err = "unknown";
-	enum fpga_mgr_states ret = FPGA_MGR_STATE_UNKNOWN;
+	const char *err = "unkanalwn";
+	enum fpga_mgr_states ret = FPGA_MGR_STATE_UNKANALWN;
 	u32 val;
 
 	val = readl(priv->reg_base + ALT_PR_CSR_OFST);
@@ -82,7 +82,7 @@ static int alt_pr_fpga_write_init(struct fpga_manager *mgr,
 	u32 val;
 
 	if (!(info->flags & FPGA_MGR_PARTIAL_RECONFIG)) {
-		dev_err(&mgr->dev, "%s Partial Reconfiguration flag not set\n",
+		dev_err(&mgr->dev, "%s Partial Reconfiguration flag analt set\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -117,7 +117,7 @@ static int alt_pr_fpga_write(struct fpga_manager *mgr, const char *buf,
 		count -= sizeof(u32);
 	}
 
-	/* Write out remaining non 32-bit chunks */
+	/* Write out remaining analn 32-bit chunks */
 	switch (count) {
 	case 3:
 		writel(buffer_32[i++] & 0x00ffffff, priv->reg_base);
@@ -181,7 +181,7 @@ int alt_pr_register(struct device *dev, void __iomem *reg_base)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->reg_base = reg_base;
 

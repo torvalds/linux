@@ -69,10 +69,10 @@ struct pnd2_pvt {
 /*
  * System address space is divided into multiple regions with
  * different interleave rules in each. The as0/as1 regions
- * have no interleaving at all. The as2 region is interleaved
+ * have anal interleaving at all. The as2 region is interleaved
  * between two channels. The mot region is magic and may overlap
  * other regions, with its interleave rules taking precedence.
- * Addresses not in any of these regions are interleaved across
+ * Addresses analt in any of these regions are interleaved across
  * all four channels.
  */
 static struct region {
@@ -247,7 +247,7 @@ static int dnv_rd_reg(int port, int off, int op, void *data, size_t sz, char *na
 	if (op == 4) {
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x1980, NULL);
 		if (!pdev)
-			return -ENODEV;
+			return -EANALDEV;
 
 		pci_read_config_dword(pdev, off, data);
 		pci_dev_put(pdev);
@@ -258,7 +258,7 @@ static int dnv_rd_reg(int port, int off, int op, void *data, size_t sz, char *na
 
 			r.start = get_mem_ctrl_hub_base_addr();
 			if (!r.start)
-				return -ENODEV;
+				return -EANALDEV;
 			r.end = r.start + DNV_MCHBAR_SIZE - 1;
 		} else {
 			/* MMIO via sideband register base address */
@@ -272,7 +272,7 @@ static int dnv_rd_reg(int port, int off, int op, void *data, size_t sz, char *na
 
 		base = ioremap(r.start, resource_size(&r));
 		if (!base)
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (sz == 8)
 			*(u64 *)data = readq(base + off);
@@ -326,7 +326,7 @@ static void mk_region(char *name, struct region *rp, u64 base, u64 limit)
 static void mk_region_mask(char *name, struct region *rp, u64 base, u64 mask)
 {
 	if (mask == 0) {
-		pr_info(FW_BUG "MOT mask cannot be zero\n");
+		pr_info(FW_BUG "MOT mask cananalt be zero\n");
 		return;
 	}
 	if (mask != GENMASK_ULL(PND_MAX_PHYS_BIT, __ffs(mask))) {
@@ -444,14 +444,14 @@ static void dnv_mk_region(char *name, struct region *rp, void *asym)
 
 static int apl_get_registers(void)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	int i;
 
 	if (RD_REG(&asym_2way, b_cr_asym_2way_mem_region_mchbar))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * RD_REGP() will fail for unpopulated or non-existent
+	 * RD_REGP() will fail for unpopulated or analn-existent
 	 * DIMM slots. Return success if we find at least one DIMM.
 	 */
 	for (i = 0; i < APL_NUM_CHANNELS; i++)
@@ -466,7 +466,7 @@ static int dnv_get_registers(void)
 	int i;
 
 	if (RD_REG(&dsch, d_cr_dsch))
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < DNV_NUM_CHANNELS; i++)
 		if (RD_REGP(&ecc_ctrl[i], d_cr_ecc_ctrl, dnv_dports[i]) ||
@@ -477,7 +477,7 @@ static int dnv_get_registers(void)
 			RD_REGP(&dmap3[i], d_cr_dmap3, dnv_dports[i]) ||
 			RD_REGP(&dmap4[i], d_cr_dmap4, dnv_dports[i]) ||
 			RD_REGP(&dmap5[i], d_cr_dmap5, dnv_dports[i]))
-			return -ENODEV;
+			return -EANALDEV;
 
 	return 0;
 }
@@ -499,10 +499,10 @@ static int get_registers(void)
 		RD_REG(&mot_base, b_cr_mot_out_base_mchbar) ||
 		RD_REG(&mot_mask, b_cr_mot_out_mask_mchbar) ||
 		RD_REG(&chash, b_cr_slice_channel_hash))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (ops->get_registers())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (ops->type == DNV) {
 		/* PMI channel idx (always 0) for asymmetric region */
@@ -637,7 +637,7 @@ static int sys2pmi(const u64 addr, u32 *pmiidx, u64 *pmiaddr, char *msg)
 	/*
 	 * The amount we need to shift the asym base can be determined by the
 	 * number of enabled symmetric channels.
-	 * NOTE: This can only work because symmetric memory is not supposed
+	 * ANALTE: This can only work because symmetric memory is analt supposed
 	 * to do a 3-way interleave.
 	 */
 	int sym_chan_shift = sym_channels >> 1;
@@ -645,7 +645,7 @@ static int sys2pmi(const u64 addr, u32 *pmiidx, u64 *pmiaddr, char *msg)
 	/* Give up if address is out of range, or in MMIO gap */
 	if (addr >= BIT(PND_MAX_PHYS_BIT) ||
 	   (addr >= top_lm && addr < SZ_4G) || addr >= top_hm) {
-		snprintf(msg, PND2_MSG_SIZE, "Error address 0x%llx is not DRAM", addr);
+		snprintf(msg, PND2_MSG_SIZE, "Error address 0x%llx is analt DRAM", addr);
 		return -EINVAL;
 	}
 
@@ -683,7 +683,7 @@ static int sys2pmi(const u64 addr, u32 *pmiidx, u64 *pmiaddr, char *msg)
 		remove_addr_bit(&contig_offset, chan_intlv_bit_rm);
 		contig_addr = (contig_base >> sym_chan_shift) + contig_offset;
 	} else {
-		/* Otherwise we're in normal, boring symmetric mode. */
+		/* Otherwise we're in analrmal, boring symmetric mode. */
 		*pmiidx = 0u;
 
 		if (two_slices) {
@@ -924,7 +924,7 @@ static int apl_pmi2mem(struct mem_ctl_info *mci, u64 pmiaddr, u32 pmiidx,
 		idx = d->bits[i + skiprs] & 0xf;
 
 		/*
-		 * On single rank DIMMs ignore the rank select bit
+		 * On single rank DIMMs iganalre the rank select bit
 		 * and shift remainder of "bits[]" down one place.
 		 */
 		if (type == RS && (cr_drp0->rken0 + cr_drp0->rken1) == 1) {
@@ -981,7 +981,7 @@ static int dnv_pmi2mem(struct mem_ctl_info *mci, u64 pmiaddr, u32 pmiidx,
 	daddr->rank |= dnv_get_bit(pmiaddr, dmap[pmiidx].rs1 + 13, 1);
 
 	/*
-	 * Normally ranks 0,1 are DIMM0, and 2,3 are DIMM1, but we
+	 * Analrmally ranks 0,1 are DIMM0, and 2,3 are DIMM1, but we
 	 * flip them if DIMM1 is larger than DIMM0.
 	 */
 	daddr->dimm = (daddr->rank >= 2) ^ drp[pmiidx].dimmflip;
@@ -1149,7 +1149,7 @@ static void pnd2_mce_output_error(struct mem_ctl_info *mci, const struct mce *m,
 	 * If the mask doesn't match, report an error to the parsing logic
 	 */
 	if (!((errcode & 0xef80) == 0x80)) {
-		optype = "Can't parse: it is not a mem";
+		optype = "Can't parse: it is analt a mem";
 	} else {
 		switch (optypenum) {
 		case 0:
@@ -1209,7 +1209,7 @@ static void apl_get_dimm_config(struct mem_ctl_info *mci)
 	for_each_set_bit(i, &chan_mask, APL_NUM_CHANNELS) {
 		dimm = edac_get_dimm(mci, i, 0, 0);
 		if (!dimm) {
-			edac_dbg(0, "No allocated DIMM for channel %d\n", i);
+			edac_dbg(0, "Anal allocated DIMM for channel %d\n", i);
 			continue;
 		}
 
@@ -1238,7 +1238,7 @@ static void apl_get_dimm_config(struct mem_ctl_info *mci)
 }
 
 static const int dnv_dtypes[] = {
-	DEV_X8, DEV_X4, DEV_X16, DEV_UNKNOWN
+	DEV_X8, DEV_X4, DEV_X16, DEV_UNKANALWN
 };
 
 static void dnv_get_dimm_config(struct mem_ctl_info *mci)
@@ -1288,7 +1288,7 @@ static void dnv_get_dimm_config(struct mem_ctl_info *mci)
 
 			dimm = edac_get_dimm(mci, i, j, 0);
 			if (!dimm) {
-				edac_dbg(0, "No allocated DIMM for channel %d DIMM %d\n", i, j);
+				edac_dbg(0, "Anal allocated DIMM for channel %d DIMM %d\n", i, j);
 				continue;
 			}
 
@@ -1324,7 +1324,7 @@ static int pnd2_register_mci(struct mem_ctl_info **ppmci)
 	layers[1].is_virt_csrow = true;
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
 	if (!mci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pvt = mci->pvt_info;
 	memset(pvt, 0, sizeof(*pvt));
@@ -1354,7 +1354,7 @@ static void pnd2_unregister_mci(struct mem_ctl_info *mci)
 		return;
 	}
 
-	/* Remove MC sysfs nodes */
+	/* Remove MC sysfs analdes */
 	edac_mc_del_mc(NULL);
 	edac_dbg(1, "%s: free mci struct\n", mci->ctl_name);
 	edac_mc_free(mci);
@@ -1364,7 +1364,7 @@ static void pnd2_unregister_mci(struct mem_ctl_info *mci)
  * Callback function registered with core kernel mce code.
  * Called once for each logged error.
  */
-static int pnd2_mce_check_error(struct notifier_block *nb, unsigned long val, void *data)
+static int pnd2_mce_check_error(struct analtifier_block *nb, unsigned long val, void *data)
 {
 	struct mce *mce = (struct mce *)data;
 	struct mem_ctl_info *mci;
@@ -1373,7 +1373,7 @@ static int pnd2_mce_check_error(struct notifier_block *nb, unsigned long val, vo
 
 	mci = pnd2_mci;
 	if (!mci || (mce->kflags & MCE_HANDLED_CEC))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/*
 	 * Just let mcelog handle it if the error is
@@ -1382,7 +1382,7 @@ static int pnd2_mce_check_error(struct notifier_block *nb, unsigned long val, vo
 	 * bit 12 has an special meaning.
 	 */
 	if ((mce->status & 0xefff) >> 7 != 1)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (mce->mcgstatus & MCG_STATUS_MCIP)
 		type = "Exception";
@@ -1402,11 +1402,11 @@ static int pnd2_mce_check_error(struct notifier_block *nb, unsigned long val, vo
 
 	/* Advice mcelog that the error were handled */
 	mce->kflags |= MCE_HANDLED_EDAC;
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block pnd2_mce_dec = {
-	.notifier_call	= pnd2_mce_check_error,
+static struct analtifier_block pnd2_mce_dec = {
+	.analtifier_call	= pnd2_mce_check_error,
 	.priority	= MCE_PRIO_EDAC,
 };
 
@@ -1431,7 +1431,7 @@ static int debugfs_u64_set(void *data, u64 val)
 
 	*(u64 *)data = val;
 	m.mcgstatus = 0;
-	/* ADDRV + MemRd + Unknown channel */
+	/* ADDRV + MemRd + Unkanalwn channel */
 	m.status = MCI_STATUS_ADDRV + 0x9f;
 	m.addr = val;
 	pnd2_mce_output_error(pnd2_mci, &m, &daddr);
@@ -1533,18 +1533,18 @@ static int __init pnd2_init(void)
 		return -EBUSY;
 
 	if (cpu_feature_enabled(X86_FEATURE_HYPERVISOR))
-		return -ENODEV;
+		return -EANALDEV;
 
 	id = x86_match_cpu(pnd2_cpuids);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ops = (struct dunit_ops *)id->driver_data;
 
 	if (ops->type == APL) {
 		p2sb_bus = pci_find_bus(0, 0);
 		if (!p2sb_bus)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
@@ -1557,7 +1557,7 @@ static int __init pnd2_init(void)
 	}
 
 	if (!pnd2_mci)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mce_register_decode_chain(&pnd2_mce_dec);
 	setup_pnd2_debug();

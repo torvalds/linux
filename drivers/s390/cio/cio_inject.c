@@ -39,7 +39,7 @@ static int crw_inject(struct crw *crw)
 
 	copy = kmemdup(crw, sizeof(*crw), GFP_KERNEL);
 	if (!copy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irqsave(&crw_inject_lock, flags);
 	if (crw_inject_data) {
@@ -60,7 +60,7 @@ static int crw_inject(struct crw *crw)
  * stcrw_get_injected: Copy the artificial CRW data to CRW struct.
  * @crw: The target CRW pointer.
  *
- * Retrieve an injected CRW data. Return 0 on success, 1 if no
+ * Retrieve an injected CRW data. Return 0 on success, 1 if anal
  * injected-CRW is available. The function reproduces the return
  * code of the actual STCRW function.
  */
@@ -81,7 +81,7 @@ int stcrw_get_injected(struct crw *crw)
 	return rc;
 }
 
-/* The debugfs write handler for crw_inject nodes operation */
+/* The debugfs write handler for crw_inject analdes operation */
 static ssize_t crw_inject_write(struct file *file, const char __user *buf,
 				size_t lbuf, loff_t *ppos)
 {
@@ -91,13 +91,13 @@ static ssize_t crw_inject_write(struct file *file, const char __user *buf,
 	int rc;
 
 	if (!static_branch_likely(&cio_inject_enabled)) {
-		pr_warn("CIO inject is not enabled - ignoring CRW inject\n");
+		pr_warn("CIO inject is analt enabled - iganalring CRW inject\n");
 		return -EINVAL;
 	}
 
 	buffer = vmemdup_user(buf, lbuf);
 	if (IS_ERR(buffer))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = sscanf(buffer, "%x %x %x %x %x %x %x", &slct, &oflw, &chn, &rsc, &anc,
 		    &erc, &rsid);
@@ -124,7 +124,7 @@ static ssize_t crw_inject_write(struct file *file, const char __user *buf,
 	return lbuf;
 }
 
-/* Debugfs write handler for inject_enable node*/
+/* Debugfs write handler for inject_enable analde*/
 static ssize_t enable_inject_write(struct file *file, const char __user *buf,
 				   size_t lbuf, loff_t *ppos)
 {
@@ -159,7 +159,7 @@ static const struct file_operations cio_en_fops = {
 
 static int __init cio_inject_init(void)
 {
-	/* enable_inject node enables the static branching */
+	/* enable_inject analde enables the static branching */
 	debugfs_create_file("enable_inject", 0200, cio_debugfs_dir,
 			    NULL, &cio_en_fops);
 

@@ -10,18 +10,18 @@ Capacity Aware Scheduling
 
 Conventional, homogeneous SMP platforms are composed of purely identical
 CPUs. Heterogeneous platforms on the other hand are composed of CPUs with
-different performance characteristics - on such platforms, not all CPUs can be
+different performance characteristics - on such platforms, analt all CPUs can be
 considered equal.
 
-CPU capacity is a measure of the performance a CPU can reach, normalized against
+CPU capacity is a measure of the performance a CPU can reach, analrmalized against
 the most performant CPU in the system. Heterogeneous systems are also called
 asymmetric CPU capacity systems, as they contain CPUs of different capacities.
 
 Disparity in maximum attainable performance (IOW in maximum CPU capacity) stems
 from two factors:
 
-- not all CPUs may have the same microarchitecture (µarch).
-- with Dynamic Voltage and Frequency Scaling (DVFS), not all CPUs may be
+- analt all CPUs may have the same microarchitecture (µarch).
+- with Dynamic Voltage and Frequency Scaling (DVFS), analt all CPUs may be
   physically able to attain the higher Operating Performance Points (OPP).
 
 Arm big.LITTLE systems are an example of both. The big CPUs are more
@@ -45,8 +45,8 @@ the function arch_scale_cpu_capacity(). A CPU's ``capacity`` is its ``original
 capacity`` to which some loss of available performance (e.g. time spent
 handling IRQs) is subtracted.
 
-Note that a CPU's ``capacity`` is solely intended to be used by the CFS class,
-while ``original capacity`` is class-agnostic. The rest of this document will use
+Analte that a CPU's ``capacity`` is solely intended to be used by the CFS class,
+while ``original capacity`` is class-aganalstic. The rest of this document will use
 the term ``capacity`` interchangeably with ``original capacity`` for the sake of
 brevity.
 
@@ -118,11 +118,11 @@ maximum frequency results in::
 1.4 Representation caveat
 -------------------------
 
-It should be noted that having a *single* value to represent differences in CPU
+It should be analted that having a *single* value to represent differences in CPU
 performance is somewhat of a contentious point. The relative performance
 difference between two different µarchs could be X% on integer operations, Y% on
 floating point operations, Z% on branches, and so on. Still, results using this
-simple approach have been satisfactory for now.
+simple approach have been satisfactory for analw.
 
 2. Task utilization
 ===================
@@ -160,7 +160,7 @@ periodic workload at a given frequency F::
 
 This yields duty_cycle(p) == 25%.
 
-Now, consider running the *same* workload at frequency F/2::
+Analw, consider running the *same* workload at frequency F/2::
 
   CPU work ^
            |     _________           _________           ____
@@ -239,7 +239,7 @@ invariant form.
 2.5 Utilization estimation
 --------------------------
 
-Without a crystal ball, task behaviour (and thus task utilization) cannot
+Without a crystal ball, task behaviour (and thus task utilization) cananalt
 accurately be predicted the moment a task first becomes runnable. The CFS class
 maintains a handful of CPU and task signals based on the Per-Entity Load
 Tracking (PELT) mechanism, one of those yielding an *average* utilization (as
@@ -255,7 +255,7 @@ will only ever be able to use an estimator thereof.
 3.1 CPU capacity
 ----------------
 
-Linux cannot currently figure out CPU capacity on its own, this information thus
+Linux cananalt currently figure out CPU capacity on its own, this information thus
 needs to be handed to it. Architectures must define arch_scale_cpu_capacity()
 for that purpose.
 
@@ -273,7 +273,7 @@ purpose.
 Implementing this function requires figuring out at which frequency each CPU
 have been running at. One way to implement this is to leverage hardware counters
 whose increment rate scale with a CPU's current frequency (APERF/MPERF on x86,
-AMU on arm64). Another is to directly hook into cpufreq frequency transitions,
+AMU on arm64). Aanalther is to directly hook into cpufreq frequency transitions,
 when the kernel is aware of the switched-to frequency (also employed by
 arm/arm64).
 
@@ -291,7 +291,7 @@ case:
   CPUs with any range of asymmetry.
 
 The sched_asym_cpucapacity static key is intended to guard sections of code that
-cater to asymmetric CPU capacity systems. Do note however that said key is
+cater to asymmetric CPU capacity systems. Do analte however that said key is
 *system-wide*. Imagine the following setup using cpusets::
 
   capacity    C/2          C
@@ -320,7 +320,7 @@ sched_asym_cpucapacity static key will be enabled. However, the sched_domain
 hierarchy of CPUs 0-1 spans a single capacity value: SD_ASYM_CPUCAPACITY isn't
 set in that hierarchy, it describes an SMP island and should be treated as such.
 
-Therefore, the 'canonical' pattern for protecting codepaths that cater to
+Therefore, the 'caanalnical' pattern for protecting codepaths that cater to
 asymmetric CPU capacities is to:
 
 - Check the sched_asym_cpucapacity static key
@@ -365,7 +365,7 @@ on any CPU by giving it a low uclamp.max value. Conversely, it can force a small
 periodic task (e.g. 10% utilization) to run on the highest-performance CPUs by
 giving it a high uclamp.min value.
 
-.. note::
+.. analte::
 
   Wakeup CPU selection in CFS can be eclipsed by Energy Aware Scheduling
   (EAS), which is described in Documentation/scheduler/sched-energy.rst.
@@ -403,7 +403,7 @@ This workload should run on CPU0, but if the task either:
   processing power
 
 then it might become CPU-bound, IOW ``task_util(p) > capacity(task_cpu(p))``;
-the CPU capacity scheduling criterion is violated, and there may not be any more
+the CPU capacity scheduling criterion is violated, and there may analt be any more
 wakeup event to fix this up via wakeup CPU selection.
 
 Tasks that are in this situation are dubbed "misfit" tasks, and the mechanism
@@ -423,9 +423,9 @@ RT task wakeup CPU selection searches for a CPU that satisfies::
 
   task_uclamp_min(p) <= capacity(task_cpu(cpu))
 
-while still following the usual priority constraints. If none of the candidate
+while still following the usual priority constraints. If analne of the candidate
 CPUs can satisfy this capacity criterion, then strict priority based scheduling
-is followed and CPU capacities are ignored.
+is followed and CPU capacities are iganalred.
 
 5.3 DL
 ------
@@ -438,5 +438,5 @@ DL task wakeup CPU selection searches for a CPU that satisfies::
   task_bandwidth(p) < capacity(task_cpu(p))
 
 while still respecting the usual bandwidth and deadline constraints. If
-none of the candidate CPUs can satisfy this capacity criterion, then the
+analne of the candidate CPUs can satisfy this capacity criterion, then the
 task will remain on its current CPU.

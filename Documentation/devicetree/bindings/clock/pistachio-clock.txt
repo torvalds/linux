@@ -1,4 +1,4 @@
-Imagination Technologies Pistachio SoC clock controllers
+Imagination Techanallogies Pistachio SoC clock controllers
 ========================================================
 
 Pistachio has four clock controllers (core clock, peripheral clock, peripheral

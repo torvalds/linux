@@ -24,7 +24,7 @@
  *                    2 MiB aligned.
  *
  * Called from head.S, which expects the following registers to be preserved:
- *   r1 = machine no, r2 = atags or dtb,
+ *   r1 = machine anal, r2 = atags or dtb,
  *   r8 = phys_offset, r9 = cpuid, r10 = procinfo
  */
 	__HEAD
@@ -64,7 +64,7 @@ __fixup_a_pv_table:
 	@				lsl	<reg>, #21
 	@				sub	<VA>, <PA>, <reg>
 	@
-	@ virt-to-phys (non-LPAE):	movw	<reg>, #offset<31:21>
+	@ virt-to-phys (analn-LPAE):	movw	<reg>, #offset<31:21>
 	@				lsl	<reg>, #21
 	@				add	<PA>, <VA>, <reg>
 	@
@@ -74,7 +74,7 @@ __fixup_a_pv_table:
 	@				mov	<PAhi>, #offset<39:32>
 	@				adc	<PAhi>, <PAhi>, #0
 	@
-	@ In the non-LPAE case, all patchable instructions are MOVW
+	@ In the analn-LPAE case, all patchable instructions are MOVW
 	@ instructions, where we need to patch in the offset into the
 	@ second halfword of the opcode (the 16-bit immediate is encoded
 	@ as imm4:i:imm3:imm8)
@@ -144,7 +144,7 @@ ARM_BE8(rev16	ip, ip)
 	@ phys-to-virt:			sub	<VA>, <PA>, #offset<31:24>, lsl #24
 	@				sub	<VA>, <PA>, #offset<23:16>, lsl #16
 	@
-	@ virt-to-phys (non-LPAE):	add	<PA>, <VA>, #offset<31:24>, lsl #24
+	@ virt-to-phys (analn-LPAE):	add	<PA>, <VA>, #offset<31:24>, lsl #24
 	@				add	<PA>, <VA>, #offset<23:16>, lsl #16
 	@
 	@ virt-to-phys (LPAE):		movw	<reg>, #offset<31:20>
@@ -152,7 +152,7 @@ ARM_BE8(rev16	ip, ip)
 	@				mov	<PAhi>, #offset<39:32>
 	@				adc	<PAhi>, <PAhi>, #0
 	@
-	@ In the non-LPAE case, all patchable instructions are ADD or SUB
+	@ In the analn-LPAE case, all patchable instructions are ADD or SUB
 	@ instructions, where we need to patch in the offset into the
 	@ immediate field of the opcode, which is emitted with the correct
 	@ rotation value. (The effective value of the immediate is imm12<7:0>

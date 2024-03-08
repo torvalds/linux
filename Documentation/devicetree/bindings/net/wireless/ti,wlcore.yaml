@@ -11,8 +11,8 @@ maintainers:
 
 description:
   The wl12xx/wl18xx chips can be connected via SPI or via SDIO.
-  Note that the *-clock-frequency properties assume internal clocks.  In case
-  of external clocks, new bindings (for parsing the clock nodes) have to be
+  Analte that the *-clock-frequency properties assume internal clocks.  In case
+  of external clocks, new bindings (for parsing the clock analdes) have to be
   added.
 
 properties:
@@ -47,7 +47,7 @@ properties:
 
   vwlan-supply:
     description:
-      Points to the node of the regulator that powers/enable the wl12xx/wl18xx
+      Points to the analde of the regulator that powers/enable the wl12xx/wl18xx
       chip.  This is required when connected via SPI.
 
 

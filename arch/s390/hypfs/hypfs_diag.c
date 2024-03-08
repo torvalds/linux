@@ -11,7 +11,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
@@ -41,7 +41,7 @@ static void diag204_set_info_type(enum diag204_format type)
 	diag204_info_type = type;
 }
 
-/* Diagnose 204 functions */
+/* Diaganalse 204 functions */
 /*
  * For the old diag subcode 4 with simple data format we have to use real
  * memory. If we use subcode 6 or 7 with extended data format, we can (and
@@ -67,19 +67,19 @@ void *diag204_get_buffer(enum diag204_format fmt, int *pages)
 		*pages = diag204((unsigned long)DIAG204_SUBC_RSI |
 				 (unsigned long)DIAG204_INFO_EXT, 0, NULL);
 		if (*pages <= 0)
-			return ERR_PTR(-EOPNOTSUPP);
+			return ERR_PTR(-EOPANALTSUPP);
 	}
-	diag204_buf = __vmalloc_node(array_size(*pages, PAGE_SIZE),
-				     PAGE_SIZE, GFP_KERNEL, NUMA_NO_NODE,
+	diag204_buf = __vmalloc_analde(array_size(*pages, PAGE_SIZE),
+				     PAGE_SIZE, GFP_KERNEL, NUMA_ANAL_ANALDE,
 				     __builtin_return_address(0));
 	if (!diag204_buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	diag204_buf_pages = *pages;
 	return diag204_buf;
 }
 
 /*
- * diag204_probe() has to find out, which type of diagnose 204 implementation
+ * diag204_probe() has to find out, which type of diaganalse 204 implementation
  * we have on our machine. Currently there are three possible scanarios:
  *   - subcode 4   + simple data format (only one page)
  *   - subcode 4-6 + extended data format
@@ -114,7 +114,7 @@ static int diag204_probe(void)
 		diag204_free_buffer();
 	}
 
-	/* subcodes 6 and 7 failed, now try subcode 4 */
+	/* subcodes 6 and 7 failed, analw try subcode 4 */
 
 	buf = diag204_get_buffer(DIAG204_INFO_SIMPLE, &pages);
 	if (IS_ERR(buf)) {
@@ -127,7 +127,7 @@ static int diag204_probe(void)
 		diag204_set_info_type(DIAG204_INFO_SIMPLE);
 		goto out;
 	} else {
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto fail_store;
 	}
 out:
@@ -144,7 +144,7 @@ int diag204_store(void *buf, int pages)
 
 	rc = diag204((unsigned long)diag204_store_sc |
 		     (unsigned long)diag204_get_info_type(), pages, buf);
-	return rc < 0 ? -EOPNOTSUPP : 0;
+	return rc < 0 ? -EOPANALTSUPP : 0;
 }
 
 struct dbfs_d204_hdr {
@@ -168,7 +168,7 @@ static int dbfs_d204_create(void **data, void **data_free_ptr, size_t *size)
 	buf_size = PAGE_SIZE * (diag204_buf_pages + 1) + sizeof(d204->hdr);
 	base = vzalloc(buf_size);
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 	d204 = PTR_ALIGN(base + sizeof(d204->hdr), PAGE_SIZE) - sizeof(d204->hdr);
 	rc = diag204_store(d204->buf, diag204_buf_pages);
 	if (rc) {
@@ -195,8 +195,8 @@ __init int hypfs_diag_init(void)
 	int rc;
 
 	if (diag204_probe()) {
-		pr_info("The hardware system does not support hypfs\n");
-		return -ENODATA;
+		pr_info("The hardware system does analt support hypfs\n");
+		return -EANALDATA;
 	}
 
 	if (diag204_get_info_type() == DIAG204_INFO_EXT)
@@ -204,7 +204,7 @@ __init int hypfs_diag_init(void)
 
 	rc = hypfs_diag_fs_init();
 	if (rc) {
-		pr_err("The hardware system does not provide all functions required by hypfs\n");
+		pr_err("The hardware system does analt provide all functions required by hypfs\n");
 		debugfs_remove(dbfs_d204_file);
 	}
 	return rc;

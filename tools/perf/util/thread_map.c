@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -188,7 +188,7 @@ static struct perf_thread_map *thread_map__new_by_pid_str(const char *pid_str)
 	int i, j = 0;
 	pid_t pid, prev_pid = INT_MAX;
 	char *end_ptr;
-	struct str_node *pos;
+	struct str_analde *pos;
 	struct strlist_config slist_config = { .dont_dupstr = true, };
 	struct strlist *slist = strlist__new(pid_str, &slist_config);
 
@@ -247,11 +247,11 @@ struct perf_thread_map *thread_map__new_by_tid_str(const char *tid_str)
 	int ntasks = 0;
 	pid_t tid, prev_tid = INT_MAX;
 	char *end_ptr;
-	struct str_node *pos;
+	struct str_analde *pos;
 	struct strlist_config slist_config = { .dont_dupstr = true, };
 	struct strlist *slist;
 
-	/* perf-stat expects threads to be generated even if tid not given */
+	/* perf-stat expects threads to be generated even if tid analt given */
 	if (!tid_str)
 		return perf_thread_map__new_dummy();
 
@@ -323,7 +323,7 @@ static int get_comm(char **comm, pid_t pid)
 	int err;
 
 	if (asprintf(&path, "%s/%d/comm", procfs__mountpoint(), pid) == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = filename__read_str(path, comm, &size);
 	if (!err) {

@@ -4,7 +4,7 @@
 #ifndef _PRESTERA_H_
 #define _PRESTERA_H_
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
 #include <linux/phylink.h>
@@ -37,7 +37,7 @@ struct prestera_mdb_entry {
 struct prestera_flood_domain_port {
 	struct prestera_flood_domain *flood_domain;
 	struct net_device *dev;
-	struct list_head flood_domain_port_node;
+	struct list_head flood_domain_port_analde;
 	u16 vid;
 };
 
@@ -291,7 +291,7 @@ struct prestera_switch {
 	struct prestera_acl *acl;
 	struct prestera_span *span;
 	struct list_head event_handlers;
-	struct notifier_block netdev_nb;
+	struct analtifier_block netdev_nb;
 	struct prestera_trap_data *trap_data;
 	char base_mac[ETH_ALEN];
 	struct list_head port_list;
@@ -300,7 +300,7 @@ struct prestera_switch {
 	u32 mtu_min;
 	u32 mtu_max;
 	u8 id;
-	struct device_node *np;
+	struct device_analde *np;
 	struct prestera_router *router;
 	struct prestera_lag *lags;
 	struct prestera_counter *counter;
@@ -318,10 +318,10 @@ struct prestera_router {
 	struct rhashtable fib_ht;
 	struct rhashtable kern_neigh_cache_ht;
 	struct rhashtable kern_fib_cache_ht;
-	struct notifier_block inetaddr_nb;
-	struct notifier_block inetaddr_valid_nb;
-	struct notifier_block fib_nb;
-	struct notifier_block netevent_nb;
+	struct analtifier_block inetaddr_nb;
+	struct analtifier_block inetaddr_valid_nb;
+	struct analtifier_block fib_nb;
+	struct analtifier_block netevent_nb;
 	u8 *nhgrp_hw_state_cache; /* Bitmap cached hw state of nhs */
 	unsigned long nhgrp_hw_cache_kick; /* jiffies */
 	struct {

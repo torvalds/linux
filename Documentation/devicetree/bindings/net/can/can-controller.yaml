@@ -10,7 +10,7 @@ maintainers:
   - Marc Kleine-Budde <mkl@pengutronix.de>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^can(@.*)?$"
 
   termination-gpios:

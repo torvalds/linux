@@ -36,13 +36,13 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev,
 
 	ret = pcim_enable_device(pdev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "error: could not enable device\n");
+		dev_err(&pdev->dev, "error: could analt enable device\n");
 		return ret;
 	}
 
 	proc_priv = devm_kzalloc(&pdev->dev, sizeof(*proc_priv), GFP_KERNEL);
 	if (!proc_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = proc_thermal_add(&pdev->dev, proc_priv);
 	if (ret)
@@ -53,8 +53,8 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev,
 	if (pdev->device == PCI_DEVICE_ID_INTEL_BSW_THERMAL) {
 		/*
 		 * Enumerate additional DTS sensors available via IOSF.
-		 * But we are not treating as a failure condition, if
-		 * there are no aux DTSs enabled or fails. This driver
+		 * But we are analt treating as a failure condition, if
+		 * there are anal aux DTSs enabled or fails. This driver
 		 * already exposes sensors, which can be accessed via
 		 * ACPI/MSR. So we don't want to fail for auxiliary DTSs.
 		 */
@@ -76,7 +76,7 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev,
 				}
 			}
 		} else
-			dev_err(&pdev->dev, "No auxiliary DTSs enabled\n");
+			dev_err(&pdev->dev, "Anal auxiliary DTSs enabled\n");
 	} else {
 
 	}

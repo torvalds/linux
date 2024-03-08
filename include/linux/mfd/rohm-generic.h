@@ -30,7 +30,7 @@ struct rohm_regmap_dev {
 #define ROHM_DVS_LEVEL_LPSR		BIT(3)
 #define ROHM_DVS_LEVEL_SNVS		BIT(4)
 #define ROHM_DVS_LEVEL_VALID_AMOUNT	5
-#define ROHM_DVS_LEVEL_UNKNOWN		0
+#define ROHM_DVS_LEVEL_UNKANALWN		0
 
 /**
  * struct rohm_dvs_config - dynamic voltage scaling register descriptions
@@ -75,7 +75,7 @@ struct rohm_dvs_config {
 
 #if IS_ENABLED(CONFIG_REGULATOR_ROHM)
 int rohm_regulator_set_dvs_levels(const struct rohm_dvs_config *dvs,
-				  struct device_node *np,
+				  struct device_analde *np,
 				  const struct regulator_desc *desc,
 				  struct regmap *regmap);
 

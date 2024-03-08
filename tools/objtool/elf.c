@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/interval_tree_generic.h>
 #include <objtool/builtin.h>
 
@@ -33,33 +33,33 @@ static inline u32 str_hash(const char *str)
 #define __elf_table_entry(name, key) \
 	__elf_table(name)[hash_min(key, __elf_bits(name))]
 
-#define elf_hash_add(name, node, key)					\
+#define elf_hash_add(name, analde, key)					\
 ({									\
-	struct elf_hash_node *__node = node;				\
-	__node->next = __elf_table_entry(name, key);			\
-	__elf_table_entry(name, key) = __node;				\
+	struct elf_hash_analde *__analde = analde;				\
+	__analde->next = __elf_table_entry(name, key);			\
+	__elf_table_entry(name, key) = __analde;				\
 })
 
-static inline void __elf_hash_del(struct elf_hash_node *node,
-				  struct elf_hash_node **head)
+static inline void __elf_hash_del(struct elf_hash_analde *analde,
+				  struct elf_hash_analde **head)
 {
-	struct elf_hash_node *cur, *prev;
+	struct elf_hash_analde *cur, *prev;
 
-	if (node == *head) {
-		*head = node->next;
+	if (analde == *head) {
+		*head = analde->next;
 		return;
 	}
 
 	for (prev = NULL, cur = *head; cur; prev = cur, cur = cur->next) {
-		if (cur == node) {
+		if (cur == analde) {
 			prev->next = cur->next;
 			break;
 		}
 	}
 }
 
-#define elf_hash_del(name, node, key) \
-	__elf_hash_del(node, &__elf_table_entry(name, key))
+#define elf_hash_del(name, analde, key) \
+	__elf_hash_del(analde, &__elf_table_entry(name, key))
 
 #define elf_list_entry(ptr, type, member)				\
 ({									\
@@ -75,9 +75,9 @@ static inline void __elf_hash_del(struct elf_hash_node *node,
 #define elf_alloc_hash(name, size) \
 ({ \
 	__elf_bits(name) = max(10, ilog2(size)); \
-	__elf_table(name) = mmap(NULL, sizeof(struct elf_hash_node *) << __elf_bits(name), \
+	__elf_table(name) = mmap(NULL, sizeof(struct elf_hash_analde *) << __elf_bits(name), \
 				 PROT_READ|PROT_WRITE, \
-				 MAP_PRIVATE|MAP_ANON, -1, 0); \
+				 MAP_PRIVATE|MAP_AANALN, -1, 0); \
 	if (__elf_table(name) == (void *)-1L) { \
 		WARN("mmap fail " #name); \
 		__elf_table(name) = NULL; \
@@ -95,7 +95,7 @@ static inline unsigned long __sym_last(struct symbol *s)
 	return s->offset + s->len - 1;
 }
 
-INTERVAL_TREE_DEFINE(struct symbol, node, unsigned long, __subtree_last,
+INTERVAL_TREE_DEFINE(struct symbol, analde, unsigned long, __subtree_last,
 		     __sym_start, __sym_last, static, __sym)
 
 #define __sym_for_each(_iter, _tree, _start, _end)			\
@@ -110,9 +110,9 @@ struct symbol_hole {
 /*
  * Find !section symbol where @offset is after it.
  */
-static int symbol_hole_by_offset(const void *key, const struct rb_node *node)
+static int symbol_hole_by_offset(const void *key, const struct rb_analde *analde)
 {
-	const struct symbol *s = rb_entry(node, struct symbol, node);
+	const struct symbol *s = rb_entry(analde, struct symbol, analde);
 	struct symbol_hole *sh = (void *)key;
 
 	if (sh->key < s->offset)
@@ -212,7 +212,7 @@ int find_symbol_hole_containing(const struct section *sec, unsigned long offset)
 		.key = offset,
 		.sym = NULL,
 	};
-	struct rb_node *n;
+	struct rb_analde *n;
 	struct symbol *s;
 
 	/*
@@ -222,19 +222,19 @@ int find_symbol_hole_containing(const struct section *sec, unsigned long offset)
 
 	/* found a symbol that contains @offset */
 	if (n)
-		return 0; /* not a hole */
+		return 0; /* analt a hole */
 
 	/* didn't find a symbol for which @offset is after it */
 	if (!hole.sym)
-		return 0; /* not a hole */
+		return 0; /* analt a hole */
 
 	/* @offset >= sym->offset + sym->len, find symbol after it */
-	n = rb_next(&hole.sym->node);
+	n = rb_next(&hole.sym->analde);
 	if (!n)
 		return -1; /* until end of address space */
 
 	/* hole until start of next symbol */
-	s = rb_entry(n, struct symbol, node);
+	s = rb_entry(n, struct symbol, analde);
 	return s->offset - offset;
 }
 
@@ -392,7 +392,7 @@ static int read_sections(struct elf *elf)
 static void elf_add_symbol(struct elf *elf, struct symbol *sym)
 {
 	struct list_head *entry;
-	struct rb_node *pnode;
+	struct rb_analde *panalde;
 	struct symbol *iter;
 
 	INIT_LIST_HEAD(&sym->pv_target);
@@ -413,9 +413,9 @@ static void elf_add_symbol(struct elf *elf, struct symbol *sym)
 	}
 
 	__sym_insert(sym, &sym->sec->symbol_tree);
-	pnode = rb_prev(&sym->node);
-	if (pnode)
-		entry = &rb_entry(pnode, struct symbol, node)->list;
+	panalde = rb_prev(&sym->analde);
+	if (panalde)
+		entry = &rb_entry(panalde, struct symbol, analde)->list;
 	else
 		entry = &sym->sec->symbol_list;
 	list_add(&sym->list, entry);
@@ -423,7 +423,7 @@ static void elf_add_symbol(struct elf *elf, struct symbol *sym)
 	elf_hash_add(symbol_name, &sym->name_hash, str_hash(sym->name));
 
 	/*
-	 * Don't store empty STT_NOTYPE symbols in the rbtree.  They
+	 * Don't store empty STT_ANALTYPE symbols in the rbtree.  They
 	 * can exist within a function, confusing the sorting.
 	 */
 	if (!sym->len)
@@ -549,11 +549,11 @@ static int read_symbols(struct elf *elf)
 			pfunc->cfunc = sym;
 
 			/*
-			 * Unfortunately, -fnoreorder-functions puts the child
+			 * Unfortunately, -fanalreorder-functions puts the child
 			 * inside the parent.  Remove the overlap so we can
 			 * have sane assumptions.
 			 *
-			 * Note that pfunc->len now no longer matches
+			 * Analte that pfunc->len analw anal longer matches
 			 * pfunc->sym.st_size.
 			 */
 			if (sym->sec == pfunc->sec &&
@@ -586,10 +586,10 @@ static int elf_update_sym_relocs(struct elf *elf, struct symbol *sym)
 
 /*
  * The libelf API is terrible; gelf_update_sym*() takes a data block relative
- * index value, *NOT* the symbol index. As such, iterate the data blocks and
+ * index value, *ANALT* the symbol index. As such, iterate the data blocks and
  * adjust index until it fits.
  *
- * If no data block is found, allow adding a new data block provided the index
+ * If anal data block is found, allow adding a new data block provided the index
  * is only one past the end.
  */
 static int elf_update_symbol(struct elf *elf, struct section *symtab,
@@ -680,7 +680,7 @@ static int elf_update_symbol(struct elf *elf, struct section *symtab,
 			break;
 		}
 
-		/* empty blocks should not happen */
+		/* empty blocks should analt happen */
 		if (!symtab_data->d_size) {
 			WARN("zero size data");
 			return -1;
@@ -709,7 +709,7 @@ static int elf_update_symbol(struct elf *elf, struct section *symtab,
 	} else {
 		sym->sym.st_shndx = SHN_XINDEX;
 		if (!shndx_data) {
-			WARN("no .symtab_shndx");
+			WARN("anal .symtab_shndx");
 			return -1;
 		}
 	}
@@ -726,28 +726,28 @@ static struct symbol *
 __elf_create_symbol(struct elf *elf, struct symbol *sym)
 {
 	struct section *symtab, *symtab_shndx;
-	Elf32_Word first_non_local, new_idx;
+	Elf32_Word first_analn_local, new_idx;
 	struct symbol *old;
 
 	symtab = find_section_by_name(elf, ".symtab");
 	if (symtab) {
 		symtab_shndx = find_section_by_name(elf, ".symtab_shndx");
 	} else {
-		WARN("no .symtab");
+		WARN("anal .symtab");
 		return NULL;
 	}
 
 	new_idx = sec_num_entries(symtab);
 
 	if (GELF_ST_BIND(sym->sym.st_info) != STB_LOCAL)
-		goto non_local;
+		goto analn_local;
 
 	/*
 	 * Move the first global symbol, as per sh_info, into a new, higher
 	 * symbol index. This fees up a spot for a new local symbol.
 	 */
-	first_non_local = symtab->sh.sh_info;
-	old = find_symbol_by_index(elf, first_non_local);
+	first_analn_local = symtab->sh.sh_info;
+	old = find_symbol_by_index(elf, first_analn_local);
 	if (old) {
 
 		elf_hash_del(symbol, &old->hash, old->idx);
@@ -762,7 +762,7 @@ __elf_create_symbol(struct elf *elf, struct symbol *sym)
 		if (elf_update_sym_relocs(elf, old))
 			return NULL;
 
-		new_idx = first_non_local;
+		new_idx = first_analn_local;
 	}
 
 	/*
@@ -770,7 +770,7 @@ __elf_create_symbol(struct elf *elf, struct symbol *sym)
 	 */
 	symtab->sh.sh_info += 1;
 
-non_local:
+analn_local:
 	sym->idx = new_idx;
 	if (elf_update_symbol(elf, symtab, symtab_shndx, sym)) {
 		WARN("elf_update_symbol");
@@ -900,8 +900,8 @@ struct reloc *elf_init_reloc_text_sym(struct elf *elf, struct section *sec,
 		/*
 		 * Due to how weak functions work, we must use section based
 		 * relocations. Symbol based relocations would result in the
-		 * weak and non-weak function annotations being overlaid on the
-		 * non-weak function after linking.
+		 * weak and analn-weak function ananaltations being overlaid on the
+		 * analn-weak function after linking.
 		 */
 		sym = elf_create_section_symbol(elf, insn_sec);
 		if (!sym)
@@ -1010,7 +1010,7 @@ struct elf *elf_open_read(const char *name, int flags)
 	elf->fd = open(name, flags);
 	if (elf->fd == -1) {
 		fprintf(stderr, "objtool: Can't open '%s': %s\n",
-			name, strerror(errno));
+			name, strerror(erranal));
 		goto err;
 	}
 
@@ -1243,9 +1243,9 @@ int elf_write_insn(struct elf *elf, struct section *sec,
  * do you:
  *
  *   A) adhere to the section header and truncate the data, or
- *   B) ignore the section header and write out all the data you've got?
+ *   B) iganalre the section header and write out all the data you've got?
  *
- * Yes, libelf sucks and we need to manually truncate if we over-allocate data.
+ * Anal, libelf sucks and we need to manually truncate if we over-allocate data.
  */
 static int elf_truncate_section(struct elf *elf, struct section *sec)
 {
@@ -1266,7 +1266,7 @@ static int elf_truncate_section(struct elf *elf, struct section *sec)
 
 		if (!data) {
 			if (size) {
-				WARN("end of section data but non-zero size left\n");
+				WARN("end of section data but analn-zero size left\n");
 				return -1;
 			}
 			return 0;
@@ -1312,7 +1312,7 @@ int elf_write(struct elf *elf)
 				return -1;
 			}
 
-			/* Note this also flags the section dirty */
+			/* Analte this also flags the section dirty */
 			if (!gelf_update_shdr(s, &sec->sh)) {
 				WARN_ELF("gelf_update_shdr");
 				return -1;
@@ -1345,7 +1345,7 @@ void elf_close(struct elf *elf)
 		close(elf->fd);
 
 	/*
-	 * NOTE: All remaining allocations are leaked on purpose.  Objtool is
+	 * ANALTE: All remaining allocations are leaked on purpose.  Objtool is
 	 * about to exit anyway.
 	 */
 }

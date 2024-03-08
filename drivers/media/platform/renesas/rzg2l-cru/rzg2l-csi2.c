@@ -20,7 +20,7 @@
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
 
@@ -113,7 +113,7 @@ struct rzg2l_csi2 {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[NR_OF_RZG2L_CSI2_PAD];
 
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct v4l2_subdev *remote_source;
 
 	unsigned short lanes;
@@ -206,9 +206,9 @@ static const struct rzg2l_csi2_format *rzg2l_csi2_code_to_fmt(unsigned int code)
 	return NULL;
 }
 
-static inline struct rzg2l_csi2 *notifier_to_csi2(struct v4l2_async_notifier *n)
+static inline struct rzg2l_csi2 *analtifier_to_csi2(struct v4l2_async_analtifier *n)
 {
-	return container_of(n, struct rzg2l_csi2, notifier);
+	return container_of(n, struct rzg2l_csi2, analtifier);
 }
 
 static u32 rzg2l_csi2_read(struct rzg2l_csi2 *csi2, unsigned int reg)
@@ -244,7 +244,7 @@ static int rzg2l_csi2_calc_mbps(struct rzg2l_csi2 *csi2)
 	/* Read the pixel rate control from remote. */
 	ctrl = v4l2_ctrl_find(source->ctrl_handler, V4L2_CID_PIXEL_RATE);
 	if (!ctrl) {
-		dev_err(csi2->dev, "no pixel rate control in subdev %s\n",
+		dev_err(csi2->dev, "anal pixel rate control in subdev %s\n",
 			source->name);
 		return -EINVAL;
 	}
@@ -513,7 +513,7 @@ static int rzg2l_csi2_set_format(struct v4l2_subdev *sd,
 	else
 		sink_format->code = fmt->format.code;
 
-	sink_format->field = V4L2_FIELD_NONE;
+	sink_format->field = V4L2_FIELD_ANALNE;
 	sink_format->colorspace = fmt->format.colorspace;
 	sink_format->xfer_func = fmt->format.xfer_func;
 	sink_format->ycbcr_enc = fmt->format.ycbcr_enc;
@@ -537,7 +537,7 @@ static int rzg2l_csi2_init_state(struct v4l2_subdev *sd,
 
 	fmt.format.width = RZG2L_CSI2_DEFAULT_WIDTH;
 	fmt.format.height = RZG2L_CSI2_DEFAULT_HEIGHT;
-	fmt.format.field = V4L2_FIELD_NONE;
+	fmt.format.field = V4L2_FIELD_ANALNE;
 	fmt.format.code = RZG2L_CSI2_DEFAULT_FMT;
 	fmt.format.colorspace = V4L2_COLORSPACE_SRGB;
 	fmt.format.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
@@ -600,11 +600,11 @@ static const struct v4l2_subdev_internal_ops rzg2l_csi2_internal_ops = {
  * Async handling and registration of subdevices and links.
  */
 
-static int rzg2l_csi2_notify_bound(struct v4l2_async_notifier *notifier,
+static int rzg2l_csi2_analtify_bound(struct v4l2_async_analtifier *analtifier,
 				   struct v4l2_subdev *subdev,
 				   struct v4l2_async_connection *asd)
 {
-	struct rzg2l_csi2 *csi2 = notifier_to_csi2(notifier);
+	struct rzg2l_csi2 *csi2 = analtifier_to_csi2(analtifier);
 
 	csi2->remote_source = subdev;
 
@@ -616,28 +616,28 @@ static int rzg2l_csi2_notify_bound(struct v4l2_async_notifier *notifier,
 				     MEDIA_LNK_FL_IMMUTABLE);
 }
 
-static void rzg2l_csi2_notify_unbind(struct v4l2_async_notifier *notifier,
+static void rzg2l_csi2_analtify_unbind(struct v4l2_async_analtifier *analtifier,
 				     struct v4l2_subdev *subdev,
 				     struct v4l2_async_connection *asd)
 {
-	struct rzg2l_csi2 *csi2 = notifier_to_csi2(notifier);
+	struct rzg2l_csi2 *csi2 = analtifier_to_csi2(analtifier);
 
 	csi2->remote_source = NULL;
 
 	dev_dbg(csi2->dev, "Unbind subdev %s\n", subdev->name);
 }
 
-static const struct v4l2_async_notifier_operations rzg2l_csi2_notify_ops = {
-	.bound = rzg2l_csi2_notify_bound,
-	.unbind = rzg2l_csi2_notify_unbind,
+static const struct v4l2_async_analtifier_operations rzg2l_csi2_analtify_ops = {
+	.bound = rzg2l_csi2_analtify_bound,
+	.unbind = rzg2l_csi2_analtify_unbind,
 };
 
 static int rzg2l_csi2_parse_v4l2(struct rzg2l_csi2 *csi2,
-				 struct v4l2_fwnode_endpoint *vep)
+				 struct v4l2_fwanalde_endpoint *vep)
 {
 	/* Only port 0 endpoint 0 is valid. */
 	if (vep->base.port || vep->base.id)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	csi2->lanes = vep->bus.mipi_csi2.num_data_lanes;
 
@@ -646,48 +646,48 @@ static int rzg2l_csi2_parse_v4l2(struct rzg2l_csi2 *csi2,
 
 static int rzg2l_csi2_parse_dt(struct rzg2l_csi2 *csi2)
 {
-	struct v4l2_fwnode_endpoint v4l2_ep = {
+	struct v4l2_fwanalde_endpoint v4l2_ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
 	struct v4l2_async_connection *asd;
-	struct fwnode_handle *fwnode;
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *fwanalde;
+	struct fwanalde_handle *ep;
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csi2->dev), 0, 0, 0);
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(csi2->dev), 0, 0, 0);
 	if (!ep) {
-		dev_err(csi2->dev, "Not connected to subdevice\n");
+		dev_err(csi2->dev, "Analt connected to subdevice\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(ep, &v4l2_ep);
+	ret = v4l2_fwanalde_endpoint_parse(ep, &v4l2_ep);
 	if (ret) {
-		dev_err(csi2->dev, "Could not parse v4l2 endpoint\n");
-		fwnode_handle_put(ep);
+		dev_err(csi2->dev, "Could analt parse v4l2 endpoint\n");
+		fwanalde_handle_put(ep);
 		return -EINVAL;
 	}
 
 	ret = rzg2l_csi2_parse_v4l2(csi2, &v4l2_ep);
 	if (ret) {
-		fwnode_handle_put(ep);
+		fwanalde_handle_put(ep);
 		return ret;
 	}
 
-	fwnode = fwnode_graph_get_remote_endpoint(ep);
-	fwnode_handle_put(ep);
+	fwanalde = fwanalde_graph_get_remote_endpoint(ep);
+	fwanalde_handle_put(ep);
 
-	v4l2_async_subdev_nf_init(&csi2->notifier, &csi2->subdev);
-	csi2->notifier.ops = &rzg2l_csi2_notify_ops;
+	v4l2_async_subdev_nf_init(&csi2->analtifier, &csi2->subdev);
+	csi2->analtifier.ops = &rzg2l_csi2_analtify_ops;
 
-	asd = v4l2_async_nf_add_fwnode(&csi2->notifier, fwnode,
+	asd = v4l2_async_nf_add_fwanalde(&csi2->analtifier, fwanalde,
 				       struct v4l2_async_connection);
-	fwnode_handle_put(fwnode);
+	fwanalde_handle_put(fwanalde);
 	if (IS_ERR(asd))
 		return PTR_ERR(asd);
 
-	ret = v4l2_async_nf_register(&csi2->notifier);
+	ret = v4l2_async_nf_register(&csi2->analtifier);
 	if (ret)
-		v4l2_async_nf_cleanup(&csi2->notifier);
+		v4l2_async_nf_cleanup(&csi2->analtifier);
 
 	return ret;
 }
@@ -736,7 +736,7 @@ static int rzg2l_csi2_probe(struct platform_device *pdev)
 
 	csi2 = devm_kzalloc(&pdev->dev, sizeof(*csi2), GFP_KERNEL);
 	if (!csi2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csi2->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(csi2->base))
@@ -784,7 +784,7 @@ static int rzg2l_csi2_probe(struct platform_device *pdev)
 	v4l2_set_subdevdata(&csi2->subdev, &pdev->dev);
 	snprintf(csi2->subdev.name, sizeof(csi2->subdev.name),
 		 "csi-%s", dev_name(&pdev->dev));
-	csi2->subdev.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+	csi2->subdev.flags = V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	csi2->subdev.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	csi2->subdev.entity.ops = &rzg2l_csi2_entity_ops;
@@ -793,7 +793,7 @@ static int rzg2l_csi2_probe(struct platform_device *pdev)
 	/*
 	 * TODO: RZ/G2L CSI2 supports 4 virtual channels, as virtual
 	 * channels should be implemented by streams API which is under
-	 * development lets hardcode to VC0 for now.
+	 * development lets hardcode to VC0 for analw.
 	 */
 	csi2->pads[RZG2L_CSI2_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&csi2->subdev.entity, 2, csi2->pads);
@@ -813,8 +813,8 @@ static int rzg2l_csi2_probe(struct platform_device *pdev)
 error_subdev:
 	v4l2_subdev_cleanup(&csi2->subdev);
 error_async:
-	v4l2_async_nf_unregister(&csi2->notifier);
-	v4l2_async_nf_cleanup(&csi2->notifier);
+	v4l2_async_nf_unregister(&csi2->analtifier);
+	v4l2_async_nf_cleanup(&csi2->analtifier);
 	media_entity_cleanup(&csi2->subdev.entity);
 error_pm:
 	pm_runtime_disable(&pdev->dev);
@@ -826,8 +826,8 @@ static void rzg2l_csi2_remove(struct platform_device *pdev)
 {
 	struct rzg2l_csi2 *csi2 = platform_get_drvdata(pdev);
 
-	v4l2_async_nf_unregister(&csi2->notifier);
-	v4l2_async_nf_cleanup(&csi2->notifier);
+	v4l2_async_nf_unregister(&csi2->analtifier);
+	v4l2_async_nf_cleanup(&csi2->analtifier);
 	v4l2_async_unregister_subdev(&csi2->subdev);
 	v4l2_subdev_cleanup(&csi2->subdev);
 	media_entity_cleanup(&csi2->subdev.entity);

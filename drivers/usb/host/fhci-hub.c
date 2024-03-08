@@ -15,7 +15,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
@@ -28,8 +28,8 @@ static u8 root_hub_des[] = {
 	0x09, /* blength */
 	USB_DT_HUB, /* bDescriptorType;hub-descriptor */
 	0x01, /* bNbrPorts */
-	HUB_CHAR_INDV_PORT_LPSM | HUB_CHAR_NO_OCPM, /* wHubCharacteristics */
-	0x00, /* per-port power, no overcurrent */
+	HUB_CHAR_INDV_PORT_LPSM | HUB_CHAR_ANAL_OCPM, /* wHubCharacteristics */
+	0x00, /* per-port power, anal overcurrent */
 	0x01, /* bPwrOn2pwrGood;2ms */
 	0x00, /* bHubContrCurrent;0mA */
 	0x00, /* DeviceRemoveable */
@@ -90,7 +90,7 @@ void fhci_port_disable(struct fhci_hcd *fhci)
 	port_status = usb->port_status;
 	usb->port_status = FHCI_PORT_DISABLED;
 
-	/* Enable IDLE since we want to know if something comes along */
+	/* Enable IDLE since we want to kanalw if something comes along */
 	usb->saved_msk |= USB_E_IDLE_MASK;
 	out_be16(&usb->fhci->regs->usb_usbmr, usb->saved_msk);
 

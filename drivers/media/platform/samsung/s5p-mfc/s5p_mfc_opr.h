@@ -314,7 +314,7 @@ struct s5p_mfc_hw_ops {
 	int (*get_img_height)(struct s5p_mfc_dev *dev);
 	int (*get_dpb_count)(struct s5p_mfc_dev *dev);
 	int (*get_mv_count)(struct s5p_mfc_dev *dev);
-	int (*get_inst_no)(struct s5p_mfc_dev *dev);
+	int (*get_inst_anal)(struct s5p_mfc_dev *dev);
 	int (*get_enc_strm_size)(struct s5p_mfc_dev *dev);
 	int (*get_enc_slice_type)(struct s5p_mfc_dev *dev);
 	int (*get_enc_dpb_count)(struct s5p_mfc_dev *dev);

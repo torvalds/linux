@@ -23,7 +23,7 @@ void pnic_do_nway(struct net_device *dev)
 	u32 phy_reg = ioread32(ioaddr + 0xB8);
 	u32 new_csr6;
 
-	if (phy_reg & 0x78000000) { /* Ignore baseT4 */
+	if (phy_reg & 0x78000000) { /* Iganalre baseT4 */
 		if (phy_reg & 0x20000000)		dev->if_port = 5;
 		else if (phy_reg & 0x40000000)	dev->if_port = 3;
 		else if (phy_reg & 0x10000000)	dev->if_port = 4;
@@ -118,7 +118,7 @@ void pnic_timer(struct timer_list *t)
 			iowrite32(0x0201F078, ioaddr + 0xB8);
 			next_tick = 1*HZ;
 			tp->nwayset = 0;
-		} else if (phy_reg & 0x78000000) { /* Ignore baseT4 */
+		} else if (phy_reg & 0x78000000) { /* Iganalre baseT4 */
 			pnic_do_nway(dev);
 			next_tick = 60*HZ;
 		} else if (csr5 & TPLnkFail) { /* 100baseTx link beat */

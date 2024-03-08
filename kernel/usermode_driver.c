@@ -19,7 +19,7 @@ static struct vfsmount *blob_to_mnt(const void *data, size_t len, const char *na
 
 	type = get_fs_type("tmpfs");
 	if (!type)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	mnt = kern_mount(type);
 	put_filesystem(type);
@@ -36,7 +36,7 @@ static struct vfsmount *blob_to_mnt(const void *data, size_t len, const char *na
 	if (written != len) {
 		int err = written;
 		if (err >= 0)
-			err = -ENOMEM;
+			err = -EANALMEM;
 		filp_close(file, NULL);
 		kern_unmount(mnt);
 		return ERR_PTR(err);
@@ -164,7 +164,7 @@ EXPORT_SYMBOL_GPL(umd_cleanup_helper);
  * executing a usermode driver. In such case 'struct umd_info *info'
  * is populated with two pipes and a tgid of the process. The caller is
  * responsible for health check of the user process, killing it via
- * tgid, and closing the pipes when user process is no longer needed.
+ * tgid, and closing the pipes when user process is anal longer needed.
  */
 int fork_usermode_driver(struct umd_info *info)
 {
@@ -175,7 +175,7 @@ int fork_usermode_driver(struct umd_info *info)
 	if (WARN_ON_ONCE(info->tgid))
 		return -EBUSY;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	sub_info = call_usermodehelper_setup(info->driver_name,
 					     (char **)argv, NULL, GFP_KERNEL,
 					     umd_setup, umd_cleanup, info);

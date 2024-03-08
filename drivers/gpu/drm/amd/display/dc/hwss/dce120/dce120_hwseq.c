@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -212,7 +212,7 @@ static void dce120_update_dchub(
 				AGP_TOP, (dh_data->zfb_mc_base_addr + dh_data->zfb_size_in_byte - 1) >> 22);
 		break;
 	case FRAME_BUFFER_MODE_MIXED_ZFB_AND_LOCAL:
-		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
+		/*Should analt touch FB LOCATION (done by VBIOS on AsicInit table)*/
 		REG_UPDATE(DCHUB_AGP_BASE,
 				AGP_BASE, dh_data->zfb_phys_addr_base >> 22);
 
@@ -223,7 +223,7 @@ static void dce120_update_dchub(
 				AGP_TOP, (dh_data->zfb_mc_base_addr + dh_data->zfb_size_in_byte - 1) >> 22);
 		break;
 	case FRAME_BUFFER_MODE_LOCAL_ONLY:
-		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
+		/*Should analt touch FB LOCATION (done by VBIOS on AsicInit table)*/
 		REG_UPDATE(DCHUB_AGP_BASE,
 				AGP_BASE, 0);
 

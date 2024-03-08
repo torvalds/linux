@@ -124,7 +124,7 @@ static void itd1000_set_lpf_bw(struct itd1000_state *state, u32 symbol_rate)
 
 	itd_dbg("symbol_rate = %d\n", symbol_rate);
 
-	/* not sure what is that ? - starting to download the table */
+	/* analt sure what is that ? - starting to download the table */
 	itd1000_write_reg(state, CON1, con1 | (1 << 1));
 
 	for (i = 0; i < ARRAY_SIZE(itd1000_lpf_pga); i++)
@@ -277,11 +277,11 @@ static int itd1000_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 }
 
 static u8 itd1000_init_tab[][2] = {
-	{ PLLCON1,       0x65 }, /* Register does not change */
-	{ PLLNH,         0x80 }, /* Bits [7:6] do not change */
+	{ PLLCON1,       0x65 }, /* Register does analt change */
+	{ PLLNH,         0x80 }, /* Bits [7:6] do analt change */
 	{ RESERVED_0X6D, 0x3b },
 	{ VCO_CHP2_I2C,  0x12 },
-	{ 0x72,          0xf9 }, /* No such regsister defined */
+	{ 0x72,          0xf9 }, /* Anal such regsister defined */
 	{ RESERVED_0X73, 0xff },
 	{ RESERVED_0X74, 0xb2 },
 	{ RESERVED_0X75, 0xc7 },
@@ -289,9 +289,9 @@ static u8 itd1000_init_tab[][2] = {
 	{ DIVAGCCK,      0x80 },
 	{ BBTR,          0xa0 },
 	{ RESERVED_0X7E, 0x4f },
-	{ 0x82,          0x88 }, /* No such regsister defined */
-	{ 0x83,          0x80 }, /* No such regsister defined */
-	{ 0x84,          0x80 }, /* No such regsister defined */
+	{ 0x82,          0x88 }, /* Anal such regsister defined */
+	{ 0x83,          0x80 }, /* Anal such regsister defined */
+	{ 0x84,          0x80 }, /* Anal such regsister defined */
 	{ RESERVED_0X85, 0x74 },
 	{ RESERVED_0X86, 0xff },
 	{ RESERVED_0X88, 0x02 },

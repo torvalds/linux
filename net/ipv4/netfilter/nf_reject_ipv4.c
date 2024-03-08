@@ -153,7 +153,7 @@ const struct tcphdr *nf_reject_ip_tcphdr_get(struct sk_buff *oldskb,
 	if (oth == NULL)
 		return NULL;
 
-	/* No RST for RST. */
+	/* Anal RST for RST. */
 	if (oth->rst)
 		return NULL;
 
@@ -261,7 +261,7 @@ void nf_send_reset(struct net *net, struct sock *sk, struct sk_buff *oldskb,
 		return;
 
 	/* ip_route_me_harder expects skb->dst to be set */
-	skb_dst_set_noref(nskb, skb_dst(oldskb));
+	skb_dst_set_analref(nskb, skb_dst(oldskb));
 
 	nskb->mark = IP4_REPLY_MARK(net, oldskb->mark);
 

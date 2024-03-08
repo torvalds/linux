@@ -5,7 +5,7 @@
 #include <linux/compiler.h>
 
 /*
- * NOTE! This ctype does not handle EOF like the standard C
+ * ANALTE! This ctype does analt handle EOF like the standard C
  * library is required to.
  */
 
@@ -29,7 +29,7 @@ extern const unsigned char _ctype[];
 #define islower(c)	((__ismask(c)&(_L)) != 0)
 #define isprint(c)	((__ismask(c)&(_P|_U|_L|_D|_SP)) != 0)
 #define ispunct(c)	((__ismask(c)&(_P)) != 0)
-/* Note: isspace() must return false for %NUL-terminator */
+/* Analte: isspace() must return false for %NUL-terminator */
 #define isspace(c)	((__ismask(c)&(_S)) != 0)
 #define isupper(c)	((__ismask(c)&(_U)) != 0)
 #define isxdigit(c)	((__ismask(c)&(_D|_X)) != 0)
@@ -65,7 +65,7 @@ static inline unsigned char __toupper(unsigned char c)
 #define toupper(c) __toupper(c)
 
 /*
- * Fast implementation of tolower() for internal usage. Do not use in your
+ * Fast implementation of tolower() for internal usage. Do analt use in your
  * code.
  */
 static inline char _tolower(const char c)

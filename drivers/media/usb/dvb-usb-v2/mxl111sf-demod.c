@@ -172,13 +172,13 @@ int mxl1x1sf_demod_get_tps_hierarchy(struct mxl111sf_demod_state *state,
 {
 	u8 val;
 	int ret = mxl111sf_demod_read_reg(state, V6_TPS_HIERACHY_REG, &val);
-	/* bit<6:4> - 000:Non hierarchy, 001:1, 010:2, 011:4 */
+	/* bit<6:4> - 000:Analn hierarchy, 001:1, 010:2, 011:4 */
 	if (mxl_fail(ret))
 		goto fail;
 
 	switch ((val & V6_TPS_HIERARCHY_INFO_MASK) >> 6) {
 	case 0:
-		*hierarchy = HIERARCHY_NONE;
+		*hierarchy = HIERARCHY_ANALNE;
 		break;
 	case 1:
 		*hierarchy = HIERARCHY_1;
@@ -361,7 +361,7 @@ fail:
  * and we shouldn't have any floating point math in the kernel, anyway.
  *
  * These macros need to be re-written, but it's harmless to simply
- * return zero for now. */
+ * return zero for analw. */
 #define CALCULATE_BER(avg_errors, count) \
 	((u32)(avg_errors * 4)/(count*64*188*8))
 #define CALCULATE_SNR(data) \

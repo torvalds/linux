@@ -21,7 +21,7 @@ Optional properties:
     board delay = RE#PAD delay + PCB trace to device + PCB trace from device
     + DQ PAD delay
 
-Child nodes represent the available NAND chips.
+Child analdes represent the available NAND chips.
 
 Required properties of NAND chips:
   - reg: shall contain the native Chip Select ids from 0 to max supported by

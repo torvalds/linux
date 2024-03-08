@@ -21,15 +21,15 @@
 
 /* 
 
-NOTE: the current implementation of the port structure as a linked list is
-not optimal for clients that have many ports. For sending messages to all
+ANALTE: the current implementation of the port structure as a linked list is
+analt optimal for clients that have many ports. For sending messages to all
 subscribers of a port we first need to find the address of the port
 structure, which means we have to traverse the list. A direct access table
 (array) would be better, but big preallocated arrays waste memory.
 
 Possible actions:
 
-1) leave it this way, a client does normaly does not have more than a few
+1) leave it this way, a client does analrmaly does analt have more than a few
 ports
 
 2) replace the linked list of ports by a array of pointers which is
@@ -52,14 +52,14 @@ struct snd_seq_client_port *snd_seq_port_use_ptr(struct snd_seq_client *client,
 	list_for_each_entry(port, &client->ports_list_head, list) {
 		if (port->addr.port == num) {
 			if (port->closing)
-				break; /* deleting now */
+				break; /* deleting analw */
 			snd_use_lock_use(&port->use_lock);
 			read_unlock(&client->ports_lock);
 			return port;
 		}
 	}
 	read_unlock(&client->ports_lock);
-	return NULL;		/* not found */
+	return NULL;		/* analt found */
 }
 
 
@@ -134,7 +134,7 @@ int snd_seq_create_port(struct snd_seq_client *client, int port,
 	/* create a new port */
 	new_port = kzalloc(sizeof(*new_port), GFP_KERNEL);
 	if (!new_port)
-		return -ENOMEM;	/* failure, out of memory */
+		return -EANALMEM;	/* failure, out of memory */
 	/* init port data */
 	new_port->addr.client = client->number;
 	new_port->addr.port = -1;
@@ -297,7 +297,7 @@ int snd_seq_delete_port(struct snd_seq_client *client, int port)
 	if (found)
 		return port_delete(client, found);
 	else
-		return -ENOENT;
+		return -EANALENT;
 }
 
 /* delete the all ports belonging to the given client */
@@ -421,7 +421,7 @@ int snd_seq_get_port_info(struct snd_seq_client_port * port,
  * call callback functions (if any):
  * the callbacks are invoked only when the first (for connection) or
  * the last subscription (for disconnection) is done.  Second or later
- * subscription results in increment of counter, but no callback is
+ * subscription results in increment of counter, but anal callback is
  * invoked.
  * This feature is useful if these callbacks are associated with
  * initialization or termination of devices (see seq_midi.c).
@@ -446,7 +446,7 @@ static int subscribe_port(struct snd_seq_client *client,
 		}
 	}
 	if (err >= 0 && send_ack && client->type == USER_CLIENT)
-		snd_seq_client_notify_subscription(port->addr.client, port->addr.port,
+		snd_seq_client_analtify_subscription(port->addr.client, port->addr.port,
 						   info, SNDRV_SEQ_EVENT_PORT_SUBSCRIBED);
 
 	return err;
@@ -466,7 +466,7 @@ static int unsubscribe_port(struct snd_seq_client *client,
 	if (grp->close && grp->count == 0)
 		err = grp->close(port->private_data, info);
 	if (send_ack && client->type == USER_CLIENT)
-		snd_seq_client_notify_subscription(port->addr.client, port->addr.port,
+		snd_seq_client_analtify_subscription(port->addr.client, port->addr.port,
 						   info, SNDRV_SEQ_EVENT_PORT_UNSUBSCRIBED);
 	module_put(port->owner);
 	return err;
@@ -594,7 +594,7 @@ int snd_seq_port_connect(struct snd_seq_client *connector,
 
 	subs = kzalloc(sizeof(*subs), GFP_KERNEL);
 	if (!subs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	subs->info = *info;
 	atomic_set(&subs->ref_count, 0);
@@ -634,7 +634,7 @@ int snd_seq_port_disconnect(struct snd_seq_client *connector,
 {
 	struct snd_seq_port_subs_info *dest = &dest_port->c_dest;
 	struct snd_seq_subscribers *subs;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	/* always start from deleting the dest port for avoiding concurrent
 	 * deletions
@@ -667,7 +667,7 @@ int snd_seq_port_get_subscription(struct snd_seq_port_subs_info *src_grp,
 				  struct snd_seq_port_subscribe *subs)
 {
 	struct snd_seq_subscribers *s;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	down_read(&src_grp->list_mutex);
 	list_for_each_entry(s, &src_grp->list_head, src_list) {

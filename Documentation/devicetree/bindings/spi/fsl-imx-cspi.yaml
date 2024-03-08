@@ -76,7 +76,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Integer, representing the value of DRCTL, the register controlling
-      the SPI_READY handling. Note that to enable the DRCTL consideration,
+      the SPI_READY handling. Analte that to enable the DRCTL consideration,
       the SPI_READY mode-flag needs to be set too.
       Valid values are: 0 (disabled), 1 (edge-triggered burst) and 2 (level-triggered burst).
     enum: [0, 1, 2]

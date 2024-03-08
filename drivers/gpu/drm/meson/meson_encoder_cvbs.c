@@ -173,7 +173,7 @@ static void meson_encoder_cvbs_atomic_enable(struct drm_bridge *bridge,
 			 MESON_VCLK_CVBS, MESON_VCLK_CVBS,
 			 true);
 
-	/* VDAC0 source is not from ATV */
+	/* VDAC0 source is analt from ATV */
 	writel_bits_relaxed(VENC_VDAC_SEL_ATV_DMD, 0,
 			    priv->io_base + _REG(VENC_VDAC_DACSEL0));
 
@@ -224,22 +224,22 @@ int meson_encoder_cvbs_init(struct meson_drm *priv)
 	struct drm_device *drm = priv->drm;
 	struct meson_encoder_cvbs *meson_encoder_cvbs;
 	struct drm_connector *connector;
-	struct device_node *remote;
+	struct device_analde *remote;
 	int ret;
 
 	meson_encoder_cvbs = devm_kzalloc(priv->dev, sizeof(*meson_encoder_cvbs), GFP_KERNEL);
 	if (!meson_encoder_cvbs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* CVBS Connector Bridge */
-	remote = of_graph_get_remote_node(priv->dev->of_node, 0, 0);
+	remote = of_graph_get_remote_analde(priv->dev->of_analde, 0, 0);
 	if (!remote) {
-		dev_info(drm->dev, "CVBS Output connector not available\n");
+		dev_info(drm->dev, "CVBS Output connector analt available\n");
 		return 0;
 	}
 
 	meson_encoder_cvbs->next_bridge = of_drm_find_bridge(remote);
-	of_node_put(remote);
+	of_analde_put(remote);
 	if (!meson_encoder_cvbs->next_bridge) {
 		dev_err(priv->dev, "Failed to find CVBS Connector bridge\n");
 		return -EPROBE_DEFER;
@@ -247,7 +247,7 @@ int meson_encoder_cvbs_init(struct meson_drm *priv)
 
 	/* CVBS Encoder Bridge */
 	meson_encoder_cvbs->bridge.funcs = &meson_encoder_cvbs_bridge_funcs;
-	meson_encoder_cvbs->bridge.of_node = priv->dev->of_node;
+	meson_encoder_cvbs->bridge.of_analde = priv->dev->of_analde;
 	meson_encoder_cvbs->bridge.type = DRM_MODE_CONNECTOR_Composite;
 	meson_encoder_cvbs->bridge.ops = DRM_BRIDGE_OP_MODES;
 	meson_encoder_cvbs->bridge.interlace_allowed = true;
@@ -268,7 +268,7 @@ int meson_encoder_cvbs_init(struct meson_drm *priv)
 
 	/* Attach CVBS Encoder Bridge to Encoder */
 	ret = drm_bridge_attach(&meson_encoder_cvbs->encoder, &meson_encoder_cvbs->bridge, NULL,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret) {
 		dev_err(priv->dev, "Failed to attach bridge: %d\n", ret);
 		return ret;

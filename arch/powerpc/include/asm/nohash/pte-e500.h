@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_NOHASH_PTE_E500_H
-#define _ASM_POWERPC_NOHASH_PTE_E500_H
+#ifndef _ASM_POWERPC_ANALHASH_PTE_E500_H
+#define _ASM_POWERPC_ANALHASH_PTE_E500_H
 #ifdef __KERNEL__
 
 /* PTE bit definitions for processors compliant to the Book3E
@@ -43,7 +43,7 @@
 #define _PAGE_ENDIAN	0x080000
 #define _PAGE_GUARDED	0x100000
 #define _PAGE_COHERENT	0x200000 /* M: enforce memory coherence */
-#define _PAGE_NO_CACHE	0x400000 /* I: cache inhibit */
+#define _PAGE_ANAL_CACHE	0x400000 /* I: cache inhibit */
 #define _PAGE_WRITETHRU	0x800000 /* W: cache write-through */
 
 /* "Higher level" linux bit combinations */
@@ -74,18 +74,18 @@
 
 /* On 32-bit, we never clear the top part of the PTE */
 #ifdef CONFIG_PPC32
-#define _PTE_NONE_MASK	0xffffffff00000000ULL
+#define _PTE_ANALNE_MASK	0xffffffff00000000ULL
 #define _PMD_PRESENT	0
 #define _PMD_PRESENT_MASK (PAGE_MASK)
 #define _PMD_BAD	(~PAGE_MASK)
 #define _PMD_USER	0
 #else
-#define _PTE_NONE_MASK	0
+#define _PTE_ANALNE_MASK	0
 #endif
 
 /*
  * We define 2 sets of base prot bits, one for basic pages (ie,
- * cacheable kernel and user pages) and one for non cacheable
+ * cacheable kernel and user pages) and one for analn cacheable
  * pages. We always set _PAGE_COHERENT when SMP is enabled or
  * the processor might need it for DMA coherency.
  */
@@ -108,4 +108,4 @@ static inline pte_t pte_mkexec(pte_t pte)
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */
-#endif /*  _ASM_POWERPC_NOHASH_PTE_E500_H */
+#endif /*  _ASM_POWERPC_ANALHASH_PTE_E500_H */

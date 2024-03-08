@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 1999, 2000, 2004  MIPS Technologies, Inc.
+ * Copyright (C) 1999, 2000, 2004  MIPS Techanallogies, Inc.
  *	All rights reserved.
  *	Authors: Carsten Langgaard <carstenl@mips.com>
  *		 Maciej W. Rozycki <macro@mips.com>
@@ -95,7 +95,7 @@ static int gt64xxx_pci0_pcibios_read(struct pci_bus *bus, unsigned int devfn,
 
 	if (gt64xxx_pci0_pcibios_config_access(PCI_ACCESS_READ, bus, devfn,
 					       where, &data))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	if (size == 1)
 		*val = (data >> ((where & 3) << 3)) & 0xff;
@@ -117,7 +117,7 @@ static int gt64xxx_pci0_pcibios_write(struct pci_bus *bus, unsigned int devfn,
 	else {
 		if (gt64xxx_pci0_pcibios_config_access(PCI_ACCESS_READ, bus,
 						       devfn, where, &data))
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 
 		if (size == 1)
 			data = (data & ~(0xff << ((where & 3) << 3))) |
@@ -129,7 +129,7 @@ static int gt64xxx_pci0_pcibios_write(struct pci_bus *bus, unsigned int devfn,
 
 	if (gt64xxx_pci0_pcibios_config_access(PCI_ACCESS_WRITE, bus, devfn,
 					       where, &data))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	return PCIBIOS_SUCCESSFUL;
 }

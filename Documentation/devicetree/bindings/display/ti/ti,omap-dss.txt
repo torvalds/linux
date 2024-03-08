@@ -36,13 +36,13 @@ Aliases
 -------
 
 The board dts file may define aliases for displays to assign "displayX" style
-name for each display. If no aliases are defined, a semi-random number is used
+name for each display. If anal aliases are defined, a semi-random number is used
 for the display.
 
 Example
 -------
 
-A shortened example of the DSS description for OMAP4, with non-relevant parts
+A shortened example of the DSS description for OMAP4, with analn-relevant parts
 removed, defined in omap4.dtsi:
 
 dss: dss@58000000 {

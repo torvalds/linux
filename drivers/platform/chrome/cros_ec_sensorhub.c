@@ -66,7 +66,7 @@ static int cros_ec_sensorhub_register(struct device *dev,
 
 		ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
 		if (ret < 0) {
-			dev_warn(dev, "no info for EC sensor %d : %d/%d\n",
+			dev_warn(dev, "anal info for EC sensor %d : %d/%d\n",
 				 i, ret, msg->result);
 			continue;
 		}
@@ -94,7 +94,7 @@ static int cros_ec_sensorhub_register(struct device *dev,
 			name = "cros-ec-activity";
 			break;
 		default:
-			dev_warn(dev, "unknown type %d\n",
+			dev_warn(dev, "unkanalwn type %d\n",
 				 sensorhub->resp->info.type);
 			continue;
 		}
@@ -133,13 +133,13 @@ static int cros_ec_sensorhub_probe(struct platform_device *pdev)
 			   max((u16)sizeof(struct ec_params_motion_sense),
 			       ec->ec_dev->max_response), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->command = EC_CMD_MOTION_SENSE_CMD + ec->cmd_offset;
 
 	data = devm_kzalloc(dev, sizeof(struct cros_ec_sensorhub), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&data->cmd_lock);
 
@@ -182,7 +182,7 @@ static int cros_ec_sensorhub_probe(struct platform_device *pdev)
 			return ret;
 
 		/*
-		 * When the EC does not have a FIFO, the sensors will query
+		 * When the EC does analt have a FIFO, the sensors will query
 		 * their data themselves via sysfs or a software trigger.
 		 */
 		if (cros_ec_check_features(ec, EC_FEATURE_MOTION_SENSE_FIFO)) {
@@ -190,7 +190,7 @@ static int cros_ec_sensorhub_probe(struct platform_device *pdev)
 			if (ret)
 				return ret;
 			/*
-			 * The msg and its data is not under the control of the
+			 * The msg and its data is analt under the control of the
 			 * ring handler.
 			 */
 			return devm_add_action_or_reset(dev,
@@ -200,7 +200,7 @@ static int cros_ec_sensorhub_probe(struct platform_device *pdev)
 
 	} else {
 		/*
-		 * If the device has sensors but does not claim to
+		 * If the device has sensors but does analt claim to
 		 * be a sensor hub, we are in legacy mode.
 		 */
 		data->sensor_num = 2;
@@ -220,7 +220,7 @@ static int cros_ec_sensorhub_probe(struct platform_device *pdev)
 /*
  * When the EC is suspending, we must stop sending interrupt,
  * we may use the same interrupt line for waking up the device.
- * Tell the EC to stop sending non-interrupt event on the iio ring.
+ * Tell the EC to stop sending analn-interrupt event on the iio ring.
  */
 static int cros_ec_sensorhub_suspend(struct device *dev)
 {
@@ -258,6 +258,6 @@ static struct platform_driver cros_ec_sensorhub_driver = {
 module_platform_driver(cros_ec_sensorhub_driver);
 
 MODULE_ALIAS("platform:" DRV_NAME);
-MODULE_AUTHOR("Gwendal Grignou <gwendal@chromium.org>");
+MODULE_AUTHOR("Gwendal Griganalu <gwendal@chromium.org>");
 MODULE_DESCRIPTION("ChromeOS EC MEMS Sensor Hub Driver");
 MODULE_LICENSE("GPL");

@@ -27,7 +27,7 @@
   {
     "EventCode": "0x100FC",
     "EventName": "PM_LD_REF_L1",
-    "BriefDescription": "All L1 D cache load references counted at finish, gated by reject. In P9 and earlier this event counted only cacheable loads but in P10 both cacheable and non-cacheable loads are included."
+    "BriefDescription": "All L1 D cache load references counted at finish, gated by reject. In P9 and earlier this event counted only cacheable loads but in P10 both cacheable and analn-cacheable loads are included."
   },
   {
     "EventCode": "0x2E010",

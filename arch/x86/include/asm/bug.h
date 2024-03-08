@@ -72,9 +72,9 @@ do {								\
 
 /*
  * This instrumentation_begin() is strictly speaking incorrect; but it
- * suppresses the complaints from WARN()s in noinstr code. If such a WARN()
+ * suppresses the complaints from WARN()s in analinstr code. If such a WARN()
  * were to trigger, we'd rather wreck the machine in an attempt to get the
- * message out than not know about it.
+ * message out than analt kanalw about it.
  */
 #define __WARN_FLAGS(flags)					\
 do {								\

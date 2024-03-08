@@ -50,7 +50,7 @@ static size_t zstd_cctx_init(zstd_cctx *cctx, const zstd_parameters *parameters,
 	ZSTD_FORWARD_IF_ERR(ZSTD_CCtx_setParameter(
 		cctx, ZSTD_c_checksumFlag, parameters->fParams.checksumFlag));
 	ZSTD_FORWARD_IF_ERR(ZSTD_CCtx_setParameter(
-		cctx, ZSTD_c_dictIDFlag, !parameters->fParams.noDictIDFlag));
+		cctx, ZSTD_c_dictIDFlag, !parameters->fParams.analDictIDFlag));
 	return 0;
 }
 
@@ -119,9 +119,9 @@ zstd_cstream *zstd_init_cstream(const zstd_parameters *parameters,
 	if (cstream == NULL)
 		return NULL;
 
-	/* 0 means unknown in linux zstd API but means 0 in new zstd API */
+	/* 0 means unkanalwn in linux zstd API but means 0 in new zstd API */
 	if (pledged_src_size == 0)
-		pledged_src_size = ZSTD_CONTENTSIZE_UNKNOWN;
+		pledged_src_size = ZSTD_CONTENTSIZE_UNKANALWN;
 
 	if (ZSTD_isError(zstd_cctx_init(cstream, parameters, pledged_src_size)))
 		return NULL;
@@ -134,7 +134,7 @@ size_t zstd_reset_cstream(zstd_cstream *cstream,
 	unsigned long long pledged_src_size)
 {
 	if (pledged_src_size == 0)
-		pledged_src_size = ZSTD_CONTENTSIZE_UNKNOWN;
+		pledged_src_size = ZSTD_CONTENTSIZE_UNKANALWN;
 	ZSTD_FORWARD_IF_ERR( ZSTD_CCtx_reset(cstream, ZSTD_reset_session_only) );
 	ZSTD_FORWARD_IF_ERR( ZSTD_CCtx_setPledgedSrcSize(cstream, pledged_src_size) );
 	return 0;

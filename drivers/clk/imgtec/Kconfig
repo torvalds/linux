@@ -5,6 +5,6 @@ config COMMON_CLK_BOSTON
 	select MFD_SYSCON
 	help
 	  Enable this to support the system & CPU clocks on the MIPS Boston
-	  development board from Imagination Technologies. These are simple
+	  development board from Imagination Techanallogies. These are simple
 	  fixed rate clocks whose rate is determined by reading a platform
 	  provided register.

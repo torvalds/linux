@@ -102,10 +102,10 @@ properties:
     description:
       Remote wakeup is wired on the platform.
 
-  no-big-frame-no:
+  anal-big-frame-anal:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      Set if frame_no lives in bits [15:0] of HCCA
+      Set if frame_anal lives in bits [15:0] of HCCA
 
   num-ports:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -141,7 +141,7 @@ required:
 allOf:
   - $ref: usb-hcd.yaml
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

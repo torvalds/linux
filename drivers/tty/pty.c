@@ -8,7 +8,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -103,7 +103,7 @@ static void pty_unthrottle(struct tty_struct *tty)
  *	@c: bytes to write
  *
  *	Our "hardware" write method. Data is coming from the ldisc which
- *	may be in a non sleeping state. We simply throw this at the other
+ *	may be in a analn sleeping state. We simply throw this at the other
  *	end of the link as if we were an IRQ handler receiving stuff for
  *	the other side of the pty/tty pair.
  */
@@ -220,7 +220,7 @@ static void pty_flush_buffer(struct tty_struct *tty)
 static int pty_open(struct tty_struct *tty, struct file *filp)
 {
 	if (!tty || !tty->link)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (test_bit(TTY_OTHER_CLOSED, &tty->flags))
 		goto out;
@@ -254,11 +254,11 @@ static void pty_set_termios(struct tty_struct *tty,
 		if ((old_flow != new_flow) || extproc) {
 			spin_lock_irq(&tty->ctrl.lock);
 			if (old_flow != new_flow) {
-				tty->ctrl.pktstatus &= ~(TIOCPKT_DOSTOP | TIOCPKT_NOSTOP);
+				tty->ctrl.pktstatus &= ~(TIOCPKT_DOSTOP | TIOCPKT_ANALSTOP);
 				if (new_flow)
 					tty->ctrl.pktstatus |= TIOCPKT_DOSTOP;
 				else
-					tty->ctrl.pktstatus |= TIOCPKT_NOSTOP;
+					tty->ctrl.pktstatus |= TIOCPKT_ANALSTOP;
 			}
 			if (extproc)
 				tty->ctrl.pktstatus |= TIOCPKT_IOCTL;
@@ -362,7 +362,7 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 	struct tty_struct *o_tty;
 	struct tty_port *ports[2];
 	int idx = tty->index;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 
 	/* Opening the slave first has always returned -EIO */
 	if (driver->subtype != PTY_TYPE_MASTER)
@@ -373,7 +373,7 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 	if (!ports[0] || !ports[1])
 		goto err;
 	if (!try_module_get(driver->other->owner)) {
-		/* This cannot in fact currently happen */
+		/* This cananalt in fact currently happen */
 		goto err;
 	}
 	o_tty = alloc_tty_struct(driver->other, idx);
@@ -464,10 +464,10 @@ static int pty_bsd_ioctl(struct tty_struct *tty,
 		return pty_get_pktmode(tty, (int __user *)arg);
 	case TIOCSIG:    /* Send signal to other side of pty */
 		return pty_signal(tty, (int) arg);
-	case TIOCGPTN: /* TTY returns ENOTTY, but glibc expects EINVAL here */
+	case TIOCGPTN: /* TTY returns EANALTTY, but glibc expects EINVAL here */
 		return -EINVAL;
 	}
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 #ifdef CONFIG_COMPAT
@@ -486,7 +486,7 @@ static long pty_bsd_compat_ioctl(struct tty_struct *tty,
 
 static int legacy_count = CONFIG_LEGACY_PTY_COUNT;
 /*
- * not really modular, but the easiest way to keep compat with existing
+ * analt really modular, but the easiest way to keep compat with existing
  * bootargs behaviour is to continue using module_param here.
  */
 module_param(legacy_count, int, 0);
@@ -550,7 +550,7 @@ static void __init legacy_pty_init(void)
 	pty_driver->driver_name = "pty_master";
 	pty_driver->name = "pty";
 	pty_driver->major = PTY_MASTER_MAJOR;
-	pty_driver->minor_start = 0;
+	pty_driver->mianalr_start = 0;
 	pty_driver->type = TTY_DRIVER_TYPE_PTY;
 	pty_driver->subtype = PTY_TYPE_MASTER;
 	pty_driver->init_termios = tty_std_termios;
@@ -566,7 +566,7 @@ static void __init legacy_pty_init(void)
 	pty_slave_driver->driver_name = "pty_slave";
 	pty_slave_driver->name = "ttyp";
 	pty_slave_driver->major = PTY_SLAVE_MAJOR;
-	pty_slave_driver->minor_start = 0;
+	pty_slave_driver->mianalr_start = 0;
 	pty_slave_driver->type = TTY_DRIVER_TYPE_PTY;
 	pty_slave_driver->subtype = PTY_TYPE_SLAVE;
 	pty_slave_driver->init_termios = tty_std_termios;
@@ -591,12 +591,12 @@ static struct cdev ptmx_cdev;
 
 /**
  *	ptm_open_peer - open the peer of a pty
- *	@master: the open struct file of the ptmx device node
+ *	@master: the open struct file of the ptmx device analde
  *	@tty: the master of the pty being opened
  *	@flags: the flags for open
  *
  *	Provide a race free way for userspace to open the slave end of a pty
- *	(where they have the master fd and cannot access or trust the mount
+ *	(where they have the master fd and cananalt access or trust the mount
  *	namespace /dev/pts was mounted inside).
  */
 int ptm_open_peer(struct file *master, struct tty_struct *tty, int flags)
@@ -657,7 +657,7 @@ static int pty_unix98_ioctl(struct tty_struct *tty,
 		return pty_signal(tty, (int) arg);
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 #ifdef CONFIG_COMPAT
@@ -681,7 +681,7 @@ static long pty_unix98_compat_ioctl(struct tty_struct *tty,
  *	@file: unused
  *	@idx: tty index
  *
- *	Look up a pty master device. Called under the tty_mutex for now.
+ *	Look up a pty master device. Called under the tty_mutex for analw.
  *	This provides our locking.
  */
 
@@ -698,7 +698,7 @@ static struct tty_struct *ptm_unix98_lookup(struct tty_driver *driver,
  *	@file: file pointer to tty
  *	@idx: tty index
  *
- *	Look up a pty master device. Called under the tty_mutex for now.
+ *	Look up a pty master device. Called under the tty_mutex for analw.
  *	This provides our locking for the tty pointer.
  */
 
@@ -777,7 +777,7 @@ static const struct tty_operations pty_unix98_ops = {
 
 /**
  *	ptmx_open		-	open a unix 98 pty master
- *	@inode: inode of device file
+ *	@ianalde: ianalde of device file
  *	@filp: file pointer to tty
  *
  *	Allocate a unix98 pty master device from the ptmx driver.
@@ -787,7 +787,7 @@ static const struct tty_operations pty_unix98_ops = {
  *		allocated_ptys_lock handles the list of free pty numbers
  */
 
-static int ptmx_open(struct inode *inode, struct file *filp)
+static int ptmx_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct pts_fs_info *fsi;
 	struct tty_struct *tty;
@@ -795,10 +795,10 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	int retval;
 	int index;
 
-	nonseekable_open(inode, filp);
+	analnseekable_open(ianalde, filp);
 
-	/* We refuse fsnotify events on ptmx, since it's a shared resource */
-	filp->f_mode |= FMODE_NONOTIFY;
+	/* We refuse fsanaltify events on ptmx, since it's a shared resource */
+	filp->f_mode |= FMODE_ANALANALTIFY;
 
 	retval = tty_alloc_file(filp);
 	if (retval)
@@ -810,7 +810,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 		goto out_free_file;
 	}
 
-	/* find a device that is not in use. */
+	/* find a device that is analt in use. */
 	mutex_lock(&devpts_mutex);
 	index = devpts_new_index(fsi);
 	mutex_unlock(&devpts_mutex);
@@ -857,7 +857,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 err_release:
 	tty_unlock(tty);
 	// This will also put-ref the fsi
-	tty_release(inode, filp);
+	tty_release(ianalde, filp);
 	return retval;
 out:
 	devpts_kill_index(fsi, index);
@@ -892,7 +892,7 @@ static void __init unix98_pty_init(void)
 	ptm_driver->driver_name = "pty_master";
 	ptm_driver->name = "ptm";
 	ptm_driver->major = UNIX98_PTY_MASTER_MAJOR;
-	ptm_driver->minor_start = 0;
+	ptm_driver->mianalr_start = 0;
 	ptm_driver->type = TTY_DRIVER_TYPE_PTY;
 	ptm_driver->subtype = PTY_TYPE_MASTER;
 	ptm_driver->init_termios = tty_std_termios;
@@ -908,7 +908,7 @@ static void __init unix98_pty_init(void)
 	pts_driver->driver_name = "pty_slave";
 	pts_driver->name = "pts";
 	pts_driver->major = UNIX98_PTY_SLAVE_MAJOR;
-	pts_driver->minor_start = 0;
+	pts_driver->mianalr_start = 0;
 	pts_driver->type = TTY_DRIVER_TYPE_PTY;
 	pts_driver->subtype = PTY_TYPE_SLAVE;
 	pts_driver->init_termios = tty_std_termios;
@@ -923,7 +923,7 @@ static void __init unix98_pty_init(void)
 	if (tty_register_driver(pts_driver))
 		panic("Couldn't register Unix98 pts driver");
 
-	/* Now create the /dev/ptmx special device */
+	/* Analw create the /dev/ptmx special device */
 	tty_default_fops(&ptmx_fops);
 	ptmx_fops.open = ptmx_open;
 

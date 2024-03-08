@@ -12,7 +12,7 @@
 #define BUGFLAG_WARNING		(1 << 0)
 #define BUGFLAG_ONCE		(1 << 1)
 #define BUGFLAG_DONE		(1 << 2)
-#define BUGFLAG_NO_CUT_HERE	(1 << 3)	/* CUT_HERE already sent */
+#define BUGFLAG_ANAL_CUT_HERE	(1 << 3)	/* CUT_HERE already sent */
 #define BUGFLAG_TAINT(taint)	((taint) << 8)
 #define BUG_GET_TAINT(bug)	((bug)->flags >> 8)
 #endif
@@ -49,11 +49,11 @@ struct bug_entry {
 #endif	/* CONFIG_GENERIC_BUG */
 
 /*
- * Don't use BUG() or BUG_ON() unless there's really no way out; one
+ * Don't use BUG() or BUG_ON() unless there's really anal way out; one
  * example might be detecting data structure corruption in the middle
  * of an operation that can't be backed out of.  If the (sub)system
  * can somehow continue operating, perhaps with reduced functionality,
- * it's probably not BUG-worthy.
+ * it's probably analt BUG-worthy.
  *
  * If you're tempted to BUG(), think again:  is completely giving up
  * really the *only* solution?  There are usually better options, where
@@ -76,16 +76,16 @@ struct bug_entry {
  * significant kernel issues that need prompt attention if they should ever
  * appear at runtime.
  *
- * Do not use these macros when checking for invalid external inputs
+ * Do analt use these macros when checking for invalid external inputs
  * (e.g. invalid system call arguments, or invalid data coming from
- * network/devices), and on transient conditions like ENOMEM or EAGAIN.
+ * network/devices), and on transient conditions like EANALMEM or EAGAIN.
  * These macros should be used for recoverable kernel issues only.
  * For invalid external inputs, transient conditions, etc use
  * pr_err[_once/_ratelimited]() followed by dump_stack(), if necessary.
- * Do not include "BUG"/"WARNING" in format strings manually to make these
+ * Do analt include "BUG"/"WARNING" in format strings manually to make these
  * conditions distinguishable from kernel issues.
  *
- * Use the versions with printk format strings to provide better diagnostics.
+ * Use the versions with printk format strings to provide better diaganalstics.
  */
 extern __printf(4, 5)
 void warn_slowpath_fmt(const char *file, const int line, unsigned taint,
@@ -104,7 +104,7 @@ extern __printf(1, 2) void __warn_printk(const char *fmt, ...);
 #define __WARN_printf(taint, arg...) do {				\
 		instrumentation_begin();				\
 		__warn_printk(arg);					\
-		__WARN_FLAGS(BUGFLAG_NO_CUT_HERE | BUGFLAG_TAINT(taint));\
+		__WARN_FLAGS(BUGFLAG_ANAL_CUT_HERE | BUGFLAG_TAINT(taint));\
 		instrumentation_end();					\
 	} while (0)
 #define WARN_ON_ONCE(condition) ({				\
@@ -173,7 +173,7 @@ extern __printf(1, 2) void __warn_printk(const char *fmt, ...);
 #ifndef WARN
 #define WARN(condition, format...) ({					\
 	int __ret_warn_on = !!(condition);				\
-	no_printk(format);						\
+	anal_printk(format);						\
 	unlikely(__ret_warn_on);					\
 })
 #endif
@@ -203,7 +203,7 @@ extern __printf(1, 2) void __warn_printk(const char *fmt, ...);
  *	WARN_ON_SMP(!zoot->bar);
  *
  * For CONFIG_SMP, WARN_ON_SMP() should act the same as WARN_ON(),
- * and should be a nop and return false for uniprocessor.
+ * and should be a analp and return false for uniprocessor.
  *
  * if (WARN_ON_SMP(x)) returns true only when CONFIG_SMP is set
  * and x is true.
@@ -215,7 +215,7 @@ extern __printf(1, 2) void __warn_printk(const char *fmt, ...);
  * Use of ({0;}) because WARN_ON_SMP(x) may be used either as
  * a stand alone line statement or as a condition in an if ()
  * statement.
- * A simple "0" would cause gcc to give a "statement has no effect"
+ * A simple "0" would cause gcc to give a "statement has anal effect"
  * warning.
  */
 # define WARN_ON_SMP(x)			({0;})

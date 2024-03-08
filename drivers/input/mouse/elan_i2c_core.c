@@ -54,7 +54,7 @@
 struct elan_tp_data {
 	struct i2c_client	*client;
 	struct input_dev	*input;
-	struct input_dev	*tp_input; /* trackpoint input node */
+	struct input_dev	*tp_input; /* trackpoint input analde */
 	struct regulator	*vcc;
 
 	const struct elan_transport_ops *ops;
@@ -162,7 +162,7 @@ static int elan_get_fwinfo(u16 ic_type, u8 iap_version, u16 *validpage_count,
 		*validpage_count = 1024;
 		break;
 	default:
-		/* unknown ic type clear value */
+		/* unkanalwn ic type clear value */
 		*validpage_count = 0;
 		*signature_address = 0;
 		*page_size = 0;
@@ -367,7 +367,7 @@ static int elan_query_device_info(struct elan_tp_data *data)
 				&data->fw_page_size);
 	if (error)
 		dev_warn(&data->client->dev,
-			 "unexpected iap version %#04x (ic type: %#04x), firmware update will not work\n",
+			 "unexpected iap version %#04x (ic type: %#04x), firmware update will analt work\n",
 			 data->iap_version, data->ic_type);
 
 	return 0;
@@ -634,7 +634,7 @@ static ssize_t elan_sysfs_update_fw(struct device *dev,
 	fw_name = kasprintf(GFP_KERNEL, ETP_FW_NAME, data->product_id);
 	if (!fw_name) {
 		dev_err(dev, "failed to allocate memory for firmware name\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev_info(dev, "requesting fw '%s'\n", fw_name);
@@ -854,7 +854,7 @@ static ssize_t min_show(struct device *dev,
 		return retval;
 
 	if (!data->baseline_ready) {
-		retval = -ENODATA;
+		retval = -EANALDATA;
 		goto out;
 	}
 
@@ -877,7 +877,7 @@ static ssize_t max_show(struct device *dev,
 		return retval;
 
 	if (!data->baseline_ready) {
-		retval = -ENODATA;
+		retval = -EANALDATA;
 		goto out;
 	}
 
@@ -971,7 +971,7 @@ static void elan_report_contact(struct elan_tp_data *data, int contact_num,
 			input_report_abs(input, ABS_TOOL_WIDTH, mk_x);
 			input_report_abs(input, ABS_MT_TOUCH_MAJOR,
 					 max(area_x, area_y));
-			input_report_abs(input, ABS_MT_TOUCH_MINOR,
+			input_report_abs(input, ABS_MT_TOUCH_MIANALR,
 					 min(area_x, area_y));
 		}
 	} else {
@@ -1020,7 +1020,7 @@ static void elan_report_trackpoint(struct elan_tp_data *data, u8 *report)
 
 	if (!data->tp_input) {
 		dev_warn_once(&data->client->dev,
-			      "received a trackpoint report while no trackpoint device has been created. Please report upstream.\n");
+			      "received a trackpoint report while anal trackpoint device has been created. Please report upstream.\n");
 		return;
 	}
 
@@ -1092,7 +1092,7 @@ static int elan_setup_trackpoint_input_device(struct elan_tp_data *data)
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->name = "Elan TrackPoint";
 	input->id.bustype = BUS_I2C;
@@ -1124,7 +1124,7 @@ static int elan_setup_input_device(struct elan_tp_data *data)
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->name = "Elan Touchpad";
 	input->id.bustype = BUS_I2C;
@@ -1171,7 +1171,7 @@ static int elan_setup_input_device(struct elan_tp_data *data)
 	if (data->report_features & ETP_FEATURE_REPORT_MK) {
 		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR,
 				     0, ETP_FINGER_WIDTH * max_width, 0, 0);
-		input_set_abs_params(input, ABS_MT_TOUCH_MINOR,
+		input_set_abs_params(input, ABS_MT_TOUCH_MIANALR,
 				     0, ETP_FINGER_WIDTH * min_width, 0, 0);
 	}
 
@@ -1205,13 +1205,13 @@ static int elan_probe(struct i2c_client *client)
 						I2C_FUNC_SMBUS_I2C_BLOCK)) {
 		transport_ops = &elan_smbus_ops;
 	} else {
-		dev_err(dev, "not a supported I2C/SMBus adapter\n");
+		dev_err(dev, "analt a supported I2C/SMBus adapter\n");
 		return -EIO;
 	}
 
 	data = devm_kzalloc(dev, sizeof(struct elan_tp_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 
@@ -1240,7 +1240,7 @@ static int elan_probe(struct i2c_client *client)
 	/* Make sure there is something at this address */
 	error = i2c_smbus_read_byte(client);
 	if (error < 0) {
-		dev_dbg(&client->dev, "nothing at this address: %d\n", error);
+		dev_dbg(&client->dev, "analthing at this address: %d\n", error);
 		return -ENXIO;
 	}
 
@@ -1288,8 +1288,8 @@ static int elan_probe(struct i2c_client *client)
 	}
 
 	/*
-	 * Platform code (ACPI, DTS) should normally set up interrupt
-	 * for us, but in case it did not let's fall back to using falling
+	 * Platform code (ACPI, DTS) should analrmally set up interrupt
+	 * for us, but in case it did analt let's fall back to using falling
 	 * edge to be compatible with older Chromebooks.
 	 */
 	irqflags = irq_get_trigger_type(client->irq);
@@ -1300,7 +1300,7 @@ static int elan_probe(struct i2c_client *client)
 					  irqflags | IRQF_ONESHOT,
 					  client->name, data);
 	if (error) {
-		dev_err(dev, "cannot register irq=%d\n", client->irq);
+		dev_err(dev, "cananalt register irq=%d\n", client->irq);
 		return error;
 	}
 
@@ -1416,7 +1416,7 @@ static struct i2c_driver elan_driver = {
 		.pm	= pm_sleep_ptr(&elan_pm_ops),
 		.acpi_match_table = ACPI_PTR(elan_acpi_id),
 		.of_match_table = of_match_ptr(elan_of_match),
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.dev_groups = elan_sysfs_groups,
 	},
 	.probe		= elan_probe,

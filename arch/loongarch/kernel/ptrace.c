@@ -3,7 +3,7 @@
  * Author: Hanlu Li <lihanlu@loongson.cn>
  *         Huacai Chen <chenhuacai@loongson.cn>
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  *
  * Derived from MIPS:
  * Copyright (C) 1992 Ross Biro
@@ -11,7 +11,7 @@
  * Copyright (C) 1994, 95, 96, 97, 98, 2000 Ralf Baechle
  * Copyright (C) 1996 David S. Miller
  * Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999 MIPS Technologies, Inc.
+ * Copyright (C) 1999 MIPS Techanallogies, Inc.
  * Copyright (C) 2000 Ulf Carlsson
  */
 #include <linux/kernel.h>
@@ -19,10 +19,10 @@
 #include <linux/compiler.h>
 #include <linux/context_tracking.h>
 #include <linux/elf.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/mm.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/ptrace.h>
 #include <linux/regset.h>
 #include <linux/sched.h>
@@ -61,7 +61,7 @@ static void init_fp_ctx(struct task_struct *target)
 /*
  * Called by kernel/ptrace.c when detaching..
  *
- * Make sure single step bits etc are not set.
+ * Make sure single step bits etc are analt set.
  */
 void ptrace_disable(struct task_struct *child)
 {
@@ -399,26 +399,26 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 		if (current->thread.hbp_watch[i] == bp)
 			break;
 
-	force_sig_ptrace_errno_trap(i, (void __user *)bkpt->address);
+	force_sig_ptrace_erranal_trap(i, (void __user *)bkpt->address);
 }
 
-static struct perf_event *ptrace_hbp_get_event(unsigned int note_type,
+static struct perf_event *ptrace_hbp_get_event(unsigned int analte_type,
 					       struct task_struct *tsk,
 					       unsigned long idx)
 {
 	struct perf_event *bp;
 
-	switch (note_type) {
+	switch (analte_type) {
 	case NT_LOONGARCH_HW_BREAK:
 		if (idx >= LOONGARCH_MAX_BRP)
 			return ERR_PTR(-EINVAL);
-		idx = array_index_nospec(idx, LOONGARCH_MAX_BRP);
+		idx = array_index_analspec(idx, LOONGARCH_MAX_BRP);
 		bp = tsk->thread.hbp_break[idx];
 		break;
 	case NT_LOONGARCH_HW_WATCH:
 		if (idx >= LOONGARCH_MAX_WRP)
 			return ERR_PTR(-EINVAL);
-		idx = array_index_nospec(idx, LOONGARCH_MAX_WRP);
+		idx = array_index_analspec(idx, LOONGARCH_MAX_WRP);
 		bp = tsk->thread.hbp_watch[idx];
 		break;
 	}
@@ -426,22 +426,22 @@ static struct perf_event *ptrace_hbp_get_event(unsigned int note_type,
 	return bp;
 }
 
-static int ptrace_hbp_set_event(unsigned int note_type,
+static int ptrace_hbp_set_event(unsigned int analte_type,
 				struct task_struct *tsk,
 				unsigned long idx,
 				struct perf_event *bp)
 {
-	switch (note_type) {
+	switch (analte_type) {
 	case NT_LOONGARCH_HW_BREAK:
 		if (idx >= LOONGARCH_MAX_BRP)
 			return -EINVAL;
-		idx = array_index_nospec(idx, LOONGARCH_MAX_BRP);
+		idx = array_index_analspec(idx, LOONGARCH_MAX_BRP);
 		tsk->thread.hbp_break[idx] = bp;
 		break;
 	case NT_LOONGARCH_HW_WATCH:
 		if (idx >= LOONGARCH_MAX_WRP)
 			return -EINVAL;
-		idx = array_index_nospec(idx, LOONGARCH_MAX_WRP);
+		idx = array_index_analspec(idx, LOONGARCH_MAX_WRP);
 		tsk->thread.hbp_watch[idx] = bp;
 		break;
 	}
@@ -449,7 +449,7 @@ static int ptrace_hbp_set_event(unsigned int note_type,
 	return 0;
 }
 
-static struct perf_event *ptrace_hbp_create(unsigned int note_type,
+static struct perf_event *ptrace_hbp_create(unsigned int analte_type,
 					    struct task_struct *tsk,
 					    unsigned long idx)
 {
@@ -457,7 +457,7 @@ static struct perf_event *ptrace_hbp_create(unsigned int note_type,
 	struct perf_event *bp;
 	struct perf_event_attr attr;
 
-	switch (note_type) {
+	switch (analte_type) {
 	case NT_LOONGARCH_HW_BREAK:
 		type = HW_BREAKPOINT_X;
 		break;
@@ -483,14 +483,14 @@ static struct perf_event *ptrace_hbp_create(unsigned int note_type,
 	if (IS_ERR(bp))
 		return bp;
 
-	err = ptrace_hbp_set_event(note_type, tsk, idx, bp);
+	err = ptrace_hbp_set_event(analte_type, tsk, idx, bp);
 	if (err)
 		return ERR_PTR(err);
 
 	return bp;
 }
 
-static int ptrace_hbp_fill_attr_ctrl(unsigned int note_type,
+static int ptrace_hbp_fill_attr_ctrl(unsigned int analte_type,
 				     struct arch_hw_breakpoint_ctrl ctrl,
 				     struct perf_event_attr *attr)
 {
@@ -500,7 +500,7 @@ static int ptrace_hbp_fill_attr_ctrl(unsigned int note_type,
 	if (err)
 		return err;
 
-	switch (note_type) {
+	switch (analte_type) {
 	case NT_LOONGARCH_HW_BREAK:
 		if ((type & HW_BREAKPOINT_X) != type)
 			return -EINVAL;
@@ -520,12 +520,12 @@ static int ptrace_hbp_fill_attr_ctrl(unsigned int note_type,
 	return 0;
 }
 
-static int ptrace_hbp_get_resource_info(unsigned int note_type, u64 *info)
+static int ptrace_hbp_get_resource_info(unsigned int analte_type, u64 *info)
 {
 	u8 num;
 	u64 reg = 0;
 
-	switch (note_type) {
+	switch (analte_type) {
 	case NT_LOONGARCH_HW_BREAK:
 		num = hw_breakpoint_slots(TYPE_INST);
 		break;
@@ -541,23 +541,23 @@ static int ptrace_hbp_get_resource_info(unsigned int note_type, u64 *info)
 	return 0;
 }
 
-static struct perf_event *ptrace_hbp_get_initialised_bp(unsigned int note_type,
+static struct perf_event *ptrace_hbp_get_initialised_bp(unsigned int analte_type,
 							struct task_struct *tsk,
 							unsigned long idx)
 {
-	struct perf_event *bp = ptrace_hbp_get_event(note_type, tsk, idx);
+	struct perf_event *bp = ptrace_hbp_get_event(analte_type, tsk, idx);
 
 	if (!bp)
-		bp = ptrace_hbp_create(note_type, tsk, idx);
+		bp = ptrace_hbp_create(analte_type, tsk, idx);
 
 	return bp;
 }
 
-static int ptrace_hbp_get_ctrl(unsigned int note_type,
+static int ptrace_hbp_get_ctrl(unsigned int analte_type,
 			       struct task_struct *tsk,
 			       unsigned long idx, u32 *ctrl)
 {
-	struct perf_event *bp = ptrace_hbp_get_event(note_type, tsk, idx);
+	struct perf_event *bp = ptrace_hbp_get_event(analte_type, tsk, idx);
 
 	if (IS_ERR(bp))
 		return PTR_ERR(bp);
@@ -567,11 +567,11 @@ static int ptrace_hbp_get_ctrl(unsigned int note_type,
 	return 0;
 }
 
-static int ptrace_hbp_get_mask(unsigned int note_type,
+static int ptrace_hbp_get_mask(unsigned int analte_type,
 			       struct task_struct *tsk,
 			       unsigned long idx, u64 *mask)
 {
-	struct perf_event *bp = ptrace_hbp_get_event(note_type, tsk, idx);
+	struct perf_event *bp = ptrace_hbp_get_event(analte_type, tsk, idx);
 
 	if (IS_ERR(bp))
 		return PTR_ERR(bp);
@@ -581,11 +581,11 @@ static int ptrace_hbp_get_mask(unsigned int note_type,
 	return 0;
 }
 
-static int ptrace_hbp_get_addr(unsigned int note_type,
+static int ptrace_hbp_get_addr(unsigned int analte_type,
 			       struct task_struct *tsk,
 			       unsigned long idx, u64 *addr)
 {
-	struct perf_event *bp = ptrace_hbp_get_event(note_type, tsk, idx);
+	struct perf_event *bp = ptrace_hbp_get_event(analte_type, tsk, idx);
 
 	if (IS_ERR(bp))
 		return PTR_ERR(bp);
@@ -595,7 +595,7 @@ static int ptrace_hbp_get_addr(unsigned int note_type,
 	return 0;
 }
 
-static int ptrace_hbp_set_ctrl(unsigned int note_type,
+static int ptrace_hbp_set_ctrl(unsigned int analte_type,
 			       struct task_struct *tsk,
 			       unsigned long idx, u32 uctrl)
 {
@@ -604,20 +604,20 @@ static int ptrace_hbp_set_ctrl(unsigned int note_type,
 	struct perf_event_attr attr;
 	struct arch_hw_breakpoint_ctrl ctrl;
 
-	bp = ptrace_hbp_get_initialised_bp(note_type, tsk, idx);
+	bp = ptrace_hbp_get_initialised_bp(analte_type, tsk, idx);
 	if (IS_ERR(bp))
 		return PTR_ERR(bp);
 
 	attr = bp->attr;
 	decode_ctrl_reg(uctrl, &ctrl);
-	err = ptrace_hbp_fill_attr_ctrl(note_type, ctrl, &attr);
+	err = ptrace_hbp_fill_attr_ctrl(analte_type, ctrl, &attr);
 	if (err)
 		return err;
 
 	return modify_user_hw_breakpoint(bp, &attr);
 }
 
-static int ptrace_hbp_set_mask(unsigned int note_type,
+static int ptrace_hbp_set_mask(unsigned int analte_type,
 			       struct task_struct *tsk,
 			       unsigned long idx, u64 mask)
 {
@@ -625,7 +625,7 @@ static int ptrace_hbp_set_mask(unsigned int note_type,
 	struct perf_event_attr attr;
 	struct arch_hw_breakpoint *info;
 
-	bp = ptrace_hbp_get_initialised_bp(note_type, tsk, idx);
+	bp = ptrace_hbp_get_initialised_bp(analte_type, tsk, idx);
 	if (IS_ERR(bp))
 		return PTR_ERR(bp);
 
@@ -636,14 +636,14 @@ static int ptrace_hbp_set_mask(unsigned int note_type,
 	return modify_user_hw_breakpoint(bp, &attr);
 }
 
-static int ptrace_hbp_set_addr(unsigned int note_type,
+static int ptrace_hbp_set_addr(unsigned int analte_type,
 			       struct task_struct *tsk,
 			       unsigned long idx, u64 addr)
 {
 	struct perf_event *bp;
 	struct perf_event_attr attr;
 
-	bp = ptrace_hbp_get_initialised_bp(note_type, tsk, idx);
+	bp = ptrace_hbp_get_initialised_bp(analte_type, tsk, idx);
 	if (IS_ERR(bp))
 		return PTR_ERR(bp);
 
@@ -666,10 +666,10 @@ static int hw_break_get(struct task_struct *target,
 	u32 ctrl;
 	u64 addr, mask;
 	int ret, idx = 0;
-	unsigned int note_type = regset->core_note_type;
+	unsigned int analte_type = regset->core_analte_type;
 
 	/* Resource info */
-	ret = ptrace_hbp_get_resource_info(note_type, &info);
+	ret = ptrace_hbp_get_resource_info(analte_type, &info);
 	if (ret)
 		return ret;
 
@@ -677,15 +677,15 @@ static int hw_break_get(struct task_struct *target,
 
 	/* (address, mask, ctrl) registers */
 	while (to.left) {
-		ret = ptrace_hbp_get_addr(note_type, target, idx, &addr);
+		ret = ptrace_hbp_get_addr(analte_type, target, idx, &addr);
 		if (ret)
 			return ret;
 
-		ret = ptrace_hbp_get_mask(note_type, target, idx, &mask);
+		ret = ptrace_hbp_get_mask(analte_type, target, idx, &mask);
 		if (ret)
 			return ret;
 
-		ret = ptrace_hbp_get_ctrl(note_type, target, idx, &ctrl);
+		ret = ptrace_hbp_get_ctrl(analte_type, target, idx, &ctrl);
 		if (ret)
 			return ret;
 
@@ -707,11 +707,11 @@ static int hw_break_set(struct task_struct *target,
 	u32 ctrl;
 	u64 addr, mask;
 	int ret, idx = 0, offset, limit;
-	unsigned int note_type = regset->core_note_type;
+	unsigned int analte_type = regset->core_analte_type;
 
 	/* Resource info */
 	offset = offsetof(struct user_watch_state, dbg_regs);
-	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 0, offset);
+	user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf, 0, offset);
 
 	/* (address, mask, ctrl) registers */
 	limit = regset->n * regset->size;
@@ -724,7 +724,7 @@ static int hw_break_set(struct task_struct *target,
 		if (ret)
 			return ret;
 
-		ret = ptrace_hbp_set_addr(note_type, target, idx, addr);
+		ret = ptrace_hbp_set_addr(analte_type, target, idx, addr);
 		if (ret)
 			return ret;
 		offset += PTRACE_HBP_ADDR_SZ;
@@ -737,7 +737,7 @@ static int hw_break_set(struct task_struct *target,
 		if (ret)
 			return ret;
 
-		ret = ptrace_hbp_set_mask(note_type, target, idx, mask);
+		ret = ptrace_hbp_set_mask(analte_type, target, idx, mask);
 		if (ret)
 			return ret;
 		offset += PTRACE_HBP_MASK_SZ;
@@ -747,12 +747,12 @@ static int hw_break_set(struct task_struct *target,
 		if (ret)
 			return ret;
 
-		ret = ptrace_hbp_set_ctrl(note_type, target, idx, ctrl);
+		ret = ptrace_hbp_set_ctrl(analte_type, target, idx, ctrl);
 		if (ret)
 			return ret;
 		offset += PTRACE_HBP_CTRL_SZ;
 
-		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf,
 					  offset, offset + PTRACE_HBP_PAD_SZ);
 		offset += PTRACE_HBP_PAD_SZ;
 
@@ -854,7 +854,7 @@ enum loongarch_regset {
 
 static const struct user_regset loongarch64_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type	= NT_PRSTATUS,
+		.core_analte_type	= NT_PRSTATUS,
 		.n		= ELF_NGREG,
 		.size		= sizeof(elf_greg_t),
 		.align		= sizeof(elf_greg_t),
@@ -862,7 +862,7 @@ static const struct user_regset loongarch64_regsets[] = {
 		.set		= gpr_set,
 	},
 	[REGSET_FPR] = {
-		.core_note_type	= NT_PRFPREG,
+		.core_analte_type	= NT_PRFPREG,
 		.n		= ELF_NFPREG,
 		.size		= sizeof(elf_fpreg_t),
 		.align		= sizeof(elf_fpreg_t),
@@ -870,7 +870,7 @@ static const struct user_regset loongarch64_regsets[] = {
 		.set		= fpr_set,
 	},
 	[REGSET_CPUCFG] = {
-		.core_note_type	= NT_LOONGARCH_CPUCFG,
+		.core_analte_type	= NT_LOONGARCH_CPUCFG,
 		.n		= 64,
 		.size		= sizeof(u32),
 		.align		= sizeof(u32),
@@ -879,7 +879,7 @@ static const struct user_regset loongarch64_regsets[] = {
 	},
 #ifdef CONFIG_CPU_HAS_LSX
 	[REGSET_LSX] = {
-		.core_note_type	= NT_LOONGARCH_LSX,
+		.core_analte_type	= NT_LOONGARCH_LSX,
 		.n		= NUM_FPU_REGS,
 		.size		= 16,
 		.align		= 16,
@@ -889,7 +889,7 @@ static const struct user_regset loongarch64_regsets[] = {
 #endif
 #ifdef CONFIG_CPU_HAS_LASX
 	[REGSET_LASX] = {
-		.core_note_type	= NT_LOONGARCH_LASX,
+		.core_analte_type	= NT_LOONGARCH_LASX,
 		.n		= NUM_FPU_REGS,
 		.size		= 32,
 		.align		= 32,
@@ -899,7 +899,7 @@ static const struct user_regset loongarch64_regsets[] = {
 #endif
 #ifdef CONFIG_CPU_HAS_LBT
 	[REGSET_LBT] = {
-		.core_note_type	= NT_LOONGARCH_LBT,
+		.core_analte_type	= NT_LOONGARCH_LBT,
 		.n		= 5,
 		.size		= sizeof(u64),
 		.align		= sizeof(u64),
@@ -909,7 +909,7 @@ static const struct user_regset loongarch64_regsets[] = {
 #endif
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	[REGSET_HW_BREAK] = {
-		.core_note_type = NT_LOONGARCH_HW_BREAK,
+		.core_analte_type = NT_LOONGARCH_HW_BREAK,
 		.n = sizeof(struct user_watch_state) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -917,7 +917,7 @@ static const struct user_regset loongarch64_regsets[] = {
 		.set = hw_break_set,
 	},
 	[REGSET_HW_WATCH] = {
-		.core_note_type = NT_LOONGARCH_HW_WATCH,
+		.core_analte_type = NT_LOONGARCH_HW_WATCH,
 		.n = sizeof(struct user_watch_state) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),

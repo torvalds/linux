@@ -40,7 +40,7 @@ struct bfa_adapter_attr {
 	char		model[BFA_ADAPTER_MODEL_NAME_LEN];
 	char		model_descr[BFA_ADAPTER_MODEL_DESCR_LEN];
 	u64		pwwn;
-	char		node_symname[FC_SYMNAME_MAX];
+	char		analde_symname[FC_SYMNAME_MAX];
 	char		hw_ver[BFA_VERSION_LEN];
 	char		fw_ver[BFA_VERSION_LEN];
 	char		optrom_ver[BFA_VERSION_LEN];
@@ -114,7 +114,7 @@ struct bfa_fw_ioc_stats {
 	u32	get_attr_reqs;
 	u32	dbg_sync;
 	u32	dbg_dump;
-	u32	unknown_reqs;
+	u32	unkanalwn_reqs;
 };
 
 /* IOC driver stats */

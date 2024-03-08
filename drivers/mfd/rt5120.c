@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2022 Richtek Technology Corp.
+ * Copyright (C) 2022 Richtek Techanallogy Corp.
  * Author: ChiYuan Huang <cy_huang@richtek.com>
  */
 
@@ -19,26 +19,26 @@
 #define RT5120_INT_PWRKEY_REL	5
 #define RT5120_INT_PWRKEY_PRESS	6
 
-static const struct regmap_range rt5120_rd_yes_ranges[] = {
+static const struct regmap_range rt5120_rd_anal_ranges[] = {
 	regmap_reg_range(0x03, 0x13),
 	regmap_reg_range(0x1c, 0x20),
 	regmap_reg_range(0x44, 0x44),
 };
 
-static const struct regmap_range rt5120_wr_yes_ranges[] = {
+static const struct regmap_range rt5120_wr_anal_ranges[] = {
 	regmap_reg_range(0x06, 0x13),
 	regmap_reg_range(0x1c, 0x20),
 	regmap_reg_range(0x44, 0x44),
 };
 
 static const struct regmap_access_table rt5120_rd_table = {
-	.yes_ranges = rt5120_rd_yes_ranges,
-	.n_yes_ranges = ARRAY_SIZE(rt5120_rd_yes_ranges),
+	.anal_ranges = rt5120_rd_anal_ranges,
+	.n_anal_ranges = ARRAY_SIZE(rt5120_rd_anal_ranges),
 };
 
 static const struct regmap_access_table rt5120_wr_table = {
-	.yes_ranges = rt5120_wr_yes_ranges,
-	.n_yes_ranges = ARRAY_SIZE(rt5120_wr_yes_ranges),
+	.anal_ranges = rt5120_wr_anal_ranges,
+	.n_anal_ranges = ARRAY_SIZE(rt5120_wr_anal_ranges),
 };
 
 static const struct regmap_config rt5120_regmap_config = {

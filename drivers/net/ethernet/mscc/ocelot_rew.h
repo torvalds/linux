@@ -38,9 +38,9 @@
 #define REW_PORT_CFG_GSZ                                  0x80
 
 #define REW_PORT_CFG_ES0_EN                               BIT(5)
-#define REW_PORT_CFG_FCS_UPDATE_NONCPU_CFG(x)             (((x) << 3) & GENMASK(4, 3))
-#define REW_PORT_CFG_FCS_UPDATE_NONCPU_CFG_M              GENMASK(4, 3)
-#define REW_PORT_CFG_FCS_UPDATE_NONCPU_CFG_X(x)           (((x) & GENMASK(4, 3)) >> 3)
+#define REW_PORT_CFG_FCS_UPDATE_ANALNCPU_CFG(x)             (((x) << 3) & GENMASK(4, 3))
+#define REW_PORT_CFG_FCS_UPDATE_ANALNCPU_CFG_M              GENMASK(4, 3)
+#define REW_PORT_CFG_FCS_UPDATE_ANALNCPU_CFG_X(x)           (((x) & GENMASK(4, 3)) >> 3)
 #define REW_PORT_CFG_FCS_UPDATE_CPU_ENA                   BIT(2)
 #define REW_PORT_CFG_FLUSH_ENA                            BIT(1)
 #define REW_PORT_CFG_AGE_DIS                              BIT(0)

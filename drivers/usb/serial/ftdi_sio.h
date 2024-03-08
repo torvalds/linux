@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Driver definitions for the FTDI USB Single Port Serial Converter -
- * known as FTDI_SIO (Serial Input/Output application of the chipset)
+ * kanalwn as FTDI_SIO (Serial Input/Output application of the chipset)
  *
  * For USB vendor/product IDs (VID/PID), please see ftdi_sio_ids.h
  *
  *
- * The example I have is known as the USC-1000 which is available from
- * http://www.dse.co.nz - cat no XH4214 It looks similar to this:
+ * The example I have is kanalwn as the USC-1000 which is available from
+ * http://www.dse.co.nz - cat anal XH4214 It looks similar to this:
  * http://www.dansdata.com/usbser.htm but I can't be sure There are other
  * USC-1000s which don't look like my device though so beware!
  *
@@ -80,20 +80,20 @@
  *                   2 = Purge TX buffer
  * wIndex:         Port
  * wLength:        0
- * Data:           None
+ * Data:           Analne
  *
  * The Reset SIO command has this effect:
  *
- *    Sets flow control set to 'none'
+ *    Sets flow control set to 'analne'
  *    Event char = $0D
  *    Event trigger = disabled
  *    Purge RX buffer
  *    Purge TX buffer
  *    Clear DTR
  *    Clear RTS
- *    baud and data format not reset
+ *    baud and data format analt reset
  *
- * The Purge RX and TX buffer commands affect nothing except the buffers
+ * The Purge RX and TX buffer commands affect analthing except the buffers
  *
    */
 
@@ -107,19 +107,19 @@
  * wValue:         BaudDivisor value - see below
  * wIndex:         Port
  * wLength:        0
- * Data:           None
+ * Data:           Analne
  * The BaudDivisor values are calculated as follows:
  * - BaseClock is either 12000000 or 48000000 depending on the device.
  *   FIXME: I wish I knew how to detect old chips to select proper base clock!
  * - BaudDivisor is a fixed point number encoded in a funny way.
  *   (--WRONG WAY OF THINKING--)
  *   BaudDivisor is a fixed point number encoded with following bit weighs:
- *   (-2)(-1)(13..0). It is a radical with a denominator of 4, so values
+ *   (-2)(-1)(13..0). It is a radical with a deanalminator of 4, so values
  *   end with 0.0 (00...), 0.25 (10...), 0.5 (01...), and 0.75 (11...).
  *   (--THE REALITY--)
  *   The both-bits-set has quite different meaning from 0.75 - the chip
  *   designers have decided it to mean 0.125 instead of 0.75.
- *   This info looked up in FTDI application note "FT8U232 DEVICES \ Data Rates
+ *   This info looked up in FTDI application analte "FT8U232 DEVICES \ Data Rates
  *   and Flow Control Consideration for USB to RS232".
  * - BaudDivisor = (BaseClock / 16) / BaudRate, where the (=) operation should
  *   automagically re-encode the resulting value to take fractions into
@@ -146,11 +146,11 @@
  * Bits 15 to 0 of the 17-bit divisor are placed in the urb value.  Bit 16 is
  * placed in bit 0 of the urb index.
  *
- * Note that there are a couple of special cases to support the highest baud
+ * Analte that there are a couple of special cases to support the highest baud
  * rates.  If the calculated divisor value is 1, this needs to be replaced with
  * 0.  Additionally for the FT232BM, if the calculated divisor value is 0x4001
  * (1.5), this needs to be replaced with 0x0001 (1) (but this divisor value is
- * not supported by the FT8U232AM).
+ * analt supported by the FT8U232AM).
  */
 
 enum ftdi_sio_baudrate {
@@ -172,7 +172,7 @@ enum ftdi_sio_baudrate {
  */
 #define FTDI_SIO_SET_DATA_REQUEST	FTDI_SIO_SET_DATA
 #define FTDI_SIO_SET_DATA_REQUEST_TYPE	0x40
-#define FTDI_SIO_SET_DATA_PARITY_NONE	(0x0 << 8)
+#define FTDI_SIO_SET_DATA_PARITY_ANALNE	(0x0 << 8)
 #define FTDI_SIO_SET_DATA_PARITY_ODD	(0x1 << 8)
 #define FTDI_SIO_SET_DATA_PARITY_EVEN	(0x2 << 8)
 #define FTDI_SIO_SET_DATA_PARITY_MARK	(0x3 << 8)
@@ -189,13 +189,13 @@ enum ftdi_sio_baudrate {
  * wValue:         Data characteristics (see below)
  * wIndex:         Port
  * wLength:        0
- * Data:           No
+ * Data:           Anal
  *
  * Data characteristics
  *
  *   B0..7   Number of data bits
  *   B8..10  Parity
- *           0 = None
+ *           0 = Analne
  *           1 = Odd
  *           2 = Even
  *           3 = Mark
@@ -206,7 +206,7 @@ enum ftdi_sio_baudrate {
  *           2 = 2
  *   B14
  *           1 = TX ON (break)
- *           0 = TX OFF (normal state)
+ *           0 = TX OFF (analrmal state)
  *   B15 Reserved
  *
  */
@@ -223,11 +223,11 @@ enum ftdi_sio_baudrate {
  * wValue:          ControlValue (see below)
  * wIndex:          Port
  * wLength:         0
- * Data:            None
+ * Data:            Analne
  *
- * NOTE: If the device is in RTS/CTS flow control, the RTS set by this
- * command will be IGNORED without an error being returned
- * Also - you can not set DTR and RTS with one control message
+ * ANALTE: If the device is in RTS/CTS flow control, the RTS set by this
+ * command will be IGANALRED without an error being returned
+ * Also - you can analt set DTR and RTS with one control message
  */
 
 #define FTDI_SIO_SET_DTR_MASK 0x1
@@ -247,10 +247,10 @@ enum ftdi_sio_baudrate {
  *          1 = set
  * B2..7 Reserved
  * B8    DTR state enable
- *          0 = ignore
+ *          0 = iganalre
  *          1 = use DTR state
  * B9    RTS state enable
- *          0 = ignore
+ *          0 = iganalre
  *          1 = use RTS state
  * B10..15 Reserved
  */
@@ -268,7 +268,7 @@ enum ftdi_sio_baudrate {
  *   wValue:         Xoff/Xon
  *   wIndex:         Protocol/Port - hIndex is protocol / lIndex is port
  *   wLength:        0
- *   Data:           None
+ *   Data:           Analne
  *
  * hIndex protocol is:
  *   B0 Output handshaking using RTS/CTS
@@ -328,7 +328,7 @@ enum ftdi_sio_baudrate {
  *  wValue:          Latency (milliseconds)
  *  wIndex:          Port
  *  wLength:         0
- *  Data:            None
+ *  Data:            Analne
  *
  * wValue:
  *   B0..7   Latency timer
@@ -342,7 +342,7 @@ enum ftdi_sio_baudrate {
  * Set the special event character for the specified communications port.
  * If the device sees this character it will immediately return the
  * data read so far - rather than wait 40ms or until 62 bytes are read
- * which is what normally happens.
+ * which is what analrmally happens.
  */
 
 
@@ -356,7 +356,7 @@ enum ftdi_sio_baudrate {
  *  wValue:          EventChar
  *  wIndex:          Port
  *  wLength:         0
- *  Data:            None
+ *  Data:            Analne
  *
  * wValue:
  *   B0..7   Event Character
@@ -380,7 +380,7 @@ enum ftdi_sio_baudrate {
  *  wValue:         Error Char
  *  wIndex:         Port
  *  wLength:        0
- *  Data:           None
+ *  Data:           Analne
  *
  *Error Char
  *  B0..7  Error Character
@@ -440,7 +440,7 @@ enum ftdi_sio_baudrate {
  * FTDI_SIO_READ_EEPROM
  *
  * EEPROM format found in FTDI AN_201, "FT-X MTP memory Configuration",
- * http://www.ftdichip.com/Support/Documents/AppNotes/AN_201_FT-X%20MTP%20Memory%20Configuration.pdf
+ * http://www.ftdichip.com/Support/Documents/AppAnaltes/AN_201_FT-X%20MTP%20Memory%20Configuration.pdf
  */
 #define FTDI_SIO_READ_EEPROM_REQUEST_TYPE 0xc0
 #define FTDI_SIO_READ_EEPROM_REQUEST FTDI_SIO_READ_EEPROM
@@ -574,6 +574,6 @@ enum ftdi_sio_baudrate {
  * Offset	Description
  * B0	Reserved - must be 1
  * B1	Reserved - must be 0
- * B2..7	Length of message - (not including Byte 0)
+ * B2..7	Length of message - (analt including Byte 0)
  *
  */

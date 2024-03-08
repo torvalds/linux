@@ -45,14 +45,14 @@ enum vsp1_entity_type {
  * @type: Entity type this routing entry is associated with
  * @index: Entity index this routing entry is associated with
  * @reg: Output routing configuration register
- * @inputs: Target node value for each input
- * @output: Target node value for entity output
+ * @inputs: Target analde value for each input
+ * @output: Target analde value for entity output
  *
  * Each $vsp1_route entry describes routing configuration for the entity
  * specified by the entry's @type and @index. @reg indicates the register that
  * holds output routing configuration for the entity, and the @inputs array
- * store the target node value for each input of the entity. The @output field
- * stores the target node value of the entity output when used as a source for
+ * store the target analde value for each input of the entity. The @output field
+ * stores the target analde value of the entity output when used as a source for
  * histogram generation.
  */
 struct vsp1_route {
@@ -67,7 +67,7 @@ struct vsp1_route {
  * struct vsp1_entity_operations - Entity operations
  * @destroy:	Destroy the entity.
  * @configure_stream:	Setup the hardware parameters for the stream which do
- *			not vary between frames (pipeline, formats). Note that
+ *			analt vary between frames (pipeline, formats). Analte that
  *			the vsp1_dl_list argument is only valid for display
  *			pipeline and will be NULL for mem-to-mem pipelines.
  * @configure_frame:	Configure the runtime parameters for each frame.

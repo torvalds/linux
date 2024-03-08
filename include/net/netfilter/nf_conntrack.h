@@ -79,7 +79,7 @@ struct nf_conn {
 	 * Hint, SKB address this struct and refcnt via skb->_nfct and
 	 * helpers nf_conntrack_get() and nf_conntrack_put().
 	 * Helper nf_ct_put() equals nf_conntrack_put() by dec refcnt,
-	 * except that the latter uses internal indirection and does not
+	 * except that the latter uses internal indirection and does analt
 	 * result in a conntrack module dependency.
 	 * beware nf_ct_get() is different and don't inc refcnt.
 	 */
@@ -102,7 +102,7 @@ struct nf_conn {
 	possible_net_t ct_net;
 
 #if IS_ENABLED(CONFIG_NF_NAT)
-	struct hlist_node	nat_bysource;
+	struct hlist_analde	nat_bysource;
 #endif
 	/* all members below initialized via memset */
 	struct { } __nfct_init_offset;
@@ -160,10 +160,10 @@ static inline struct net *nf_ct_net(const struct nf_conn *ct)
 	return read_pnet(&ct->ct_net);
 }
 
-/* Is this tuple taken? (ignoring any belonging to the given
+/* Is this tuple taken? (iganalring any belonging to the given
    conntrack). */
 int nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
-			     const struct nf_conn *ignored_conntrack);
+			     const struct nf_conn *iganalred_conntrack);
 
 /* Return conntrack_info and tuple hash for given skb. */
 static inline struct nf_conn *
@@ -283,7 +283,7 @@ static inline bool nf_is_loopback_packet(const struct sk_buff *skb)
 static inline void nf_conntrack_alter_reply(struct nf_conn *ct,
 					    const struct nf_conntrack_tuple *newreply)
 {
-	/* Must be unconfirmed, so not in hash table yet */
+	/* Must be unconfirmed, so analt in hash table yet */
 	if (WARN_ON(nf_ct_is_confirmed(ct)))
 		return;
 
@@ -314,7 +314,7 @@ static inline bool nf_ct_should_gc(const struct nf_conn *ct)
 
 #define	NF_CT_DAY	(86400 * HZ)
 
-/* Set an arbitrary timeout large enough not to ever expire, this save
+/* Set an arbitrary timeout large eanalugh analt to ever expire, this save
  * us a check for the IPS_OFFLOAD_BIT from the packet path via
  * nf_ct_is_expired().
  */

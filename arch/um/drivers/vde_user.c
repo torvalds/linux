@@ -4,7 +4,7 @@
  */
 
 #include <stddef.h>
-#include <errno.h>
+#include <erranal.h>
 #include <libvdeplug.h>
 #include <net_user.h>
 #include <um_malloc.h>
@@ -21,9 +21,9 @@ static int vde_user_init(void *data, void *dev)
 	conn = vde_open(pri->vde_switch, pri->descr, pri->args);
 
 	if (conn == NULL) {
-		err = -errno;
+		err = -erranal;
 		printk(UM_KERN_ERR "vde_user_init: vde_open failed, "
-		       "errno = %d\n", errno);
+		       "erranal = %d\n", erranal);
 		return err;
 	}
 
@@ -41,7 +41,7 @@ static int vde_user_open(void *data)
 	if (pri->conn != NULL)
 		return vde_datafd(pri->conn);
 
-	printk(UM_KERN_WARNING "vde_open - we have no VDECONN to open");
+	printk(UM_KERN_WARNING "vde_open - we have anal VDECONN to open");
 	return -EINVAL;
 }
 
@@ -58,7 +58,7 @@ static void vde_remove(void *data)
 		return;
 	}
 
-	printk(UM_KERN_WARNING "vde_remove - we have no VDECONN to remove");
+	printk(UM_KERN_WARNING "vde_remove - we have anal VDECONN to remove");
 }
 
 const struct net_user_info vde_user_info = {
@@ -103,12 +103,12 @@ int vde_user_read(void *conn, void *buf, int len)
 
 	rv = vde_recv(vconn, buf, len, 0);
 	if (rv < 0) {
-		if (errno == EAGAIN)
+		if (erranal == EAGAIN)
 			return 0;
-		return -errno;
+		return -erranal;
 	}
 	else if (rv == 0)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	return rv;
 }

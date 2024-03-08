@@ -20,7 +20,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		bootargs = "iganalre_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:1843200n8";
 	};
 
@@ -137,8 +137,8 @@
 };
 
 /*
- * This board also has a microSD slot which we will not support upstream
- * because we cannot directly switch voltages in software.
+ * This board also has a microSD slot which we will analt support upstream
+ * because we cananalt directly switch voltages in software.
  */
 &mmc0 {
 	pinctrl-0 = <&mmc_pins>;
@@ -150,9 +150,9 @@
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
 	bus-width = <8>;
-	no-sd;
-	no-sdio;
-	non-removable;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	full-pwr-cycle-in-suspend;
 	status = "okay";
 };

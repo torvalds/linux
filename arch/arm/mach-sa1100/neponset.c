@@ -133,7 +133,7 @@ void neponset_ncr_frob(unsigned int mask, unsigned int val)
 EXPORT_SYMBOL(neponset_ncr_frob);
 
 /*
- * Install handler for Neponset IRQ.  Note that we have to loop here
+ * Install handler for Neponset IRQ.  Analte that we have to loop here
  * since the ETHERNET and USAR IRQs are level based, and we need to
  * ensure that the IRQ signal is deasserted before returning.  This
  * is rather unfortunate.
@@ -145,13 +145,13 @@ static void neponset_irq_handler(struct irq_desc *desc)
 
 	while (1) {
 		/*
-		 * Acknowledge the parent IRQ.
+		 * Ackanalwledge the parent IRQ.
 		 */
 		desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 		/*
 		 * Read the interrupt reason register.  Let's have all
-		 * active IRQ bits high.  Note: there is a typo in the
+		 * active IRQ bits high.  Analte: there is a typo in the
 		 * Neponset user's guide for the SA1111 IRR level.
 		 */
 		irr = readb_relaxed(d->base + IRR);
@@ -161,7 +161,7 @@ static void neponset_irq_handler(struct irq_desc *desc)
 			break;
 
 		/*
-		 * Since there is no individual mask, we have to
+		 * Since there is anal individual mask, we have to
 		 * mask the parent IRQ.  This is safe, since we'll
 		 * recheck the register for any pending IRQs.
 		 */
@@ -169,7 +169,7 @@ static void neponset_irq_handler(struct irq_desc *desc)
 			desc->irq_data.chip->irq_mask(&desc->irq_data);
 
 			/*
-			 * Ack the interrupt now to prevent re-entering
+			 * Ack the interrupt analw to prevent re-entering
 			 * this neponset handler.  Again, this is safe
 			 * since we'll check the IRR register prior to
 			 * leaving.
@@ -190,16 +190,16 @@ static void neponset_irq_handler(struct irq_desc *desc)
 	}
 }
 
-/* Yes, we really do not have any kind of masking or unmasking */
-static void nochip_noop(struct irq_data *irq)
+/* Anal, we really do analt have any kind of masking or unmasking */
+static void analchip_analop(struct irq_data *irq)
 {
 }
 
-static struct irq_chip nochip = {
+static struct irq_chip analchip = {
 	.name = "neponset",
-	.irq_ack = nochip_noop,
-	.irq_mask = nochip_noop,
-	.irq_unmask = nochip_noop,
+	.irq_ack = analchip_analop,
+	.irq_mask = analchip_analop,
+	.irq_unmask = analchip_analop,
 };
 
 static int neponset_init_gpio(struct gpio_chip **gcp,
@@ -248,7 +248,7 @@ static int neponset_probe(struct platform_device *dev)
 		{ .flags = IORESOURCE_IRQ },
 	};
 	struct smc91x_platdata smc91x_platdata = {
-		.flags = SMC91X_USE_8BIT | SMC91X_IO_SHIFT_2 | SMC91X_NOWAIT,
+		.flags = SMC91X_USE_8BIT | SMC91X_IO_SHIFT_2 | SMC91X_ANALWAIT,
 	};
 	struct platform_device_info smc91x_devinfo = {
 		.parent = &dev->dev,
@@ -278,20 +278,20 @@ static int neponset_probe(struct platform_device *dev)
 
 	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (!d) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc;
 	}
 
 	d->base = ioremap(nep_res->start, SZ_4K);
 	if (!d->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_ioremap;
 	}
 
 	if (readb_relaxed(d->base + WHOAMI) != 0x11) {
 		dev_warn(&dev->dev, "Neponset board detected, but wrong ID: %02x\n",
 			 readb_relaxed(d->base + WHOAMI));
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_id;
 	}
 
@@ -300,19 +300,19 @@ static int neponset_probe(struct platform_device *dev)
 		dev_err(&dev->dev, "unable to allocate %u irqs: %d\n",
 			NEP_IRQ_NR, ret);
 		if (ret == 0)
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 		goto err_irq_alloc;
 	}
 
 	d->irq_base = ret;
 
-	irq_set_chip_and_handler(d->irq_base + NEP_IRQ_SMC91X, &nochip,
+	irq_set_chip_and_handler(d->irq_base + NEP_IRQ_SMC91X, &analchip,
 		handle_simple_irq);
-	irq_clear_status_flags(d->irq_base + NEP_IRQ_SMC91X, IRQ_NOREQUEST | IRQ_NOPROBE);
-	irq_set_chip_and_handler(d->irq_base + NEP_IRQ_USAR, &nochip,
+	irq_clear_status_flags(d->irq_base + NEP_IRQ_SMC91X, IRQ_ANALREQUEST | IRQ_ANALPROBE);
+	irq_set_chip_and_handler(d->irq_base + NEP_IRQ_USAR, &analchip,
 		handle_simple_irq);
-	irq_clear_status_flags(d->irq_base + NEP_IRQ_USAR, IRQ_NOREQUEST | IRQ_NOPROBE);
-	irq_set_chip(d->irq_base + NEP_IRQ_SA1111, &nochip);
+	irq_clear_status_flags(d->irq_base + NEP_IRQ_USAR, IRQ_ANALREQUEST | IRQ_ANALPROBE);
+	irq_set_chip(d->irq_base + NEP_IRQ_SA1111, &analchip);
 
 	irq_set_irq_type(irq, IRQ_TYPE_EDGE_RISING);
 	irq_set_chained_handler_and_data(irq, neponset_irq_handler, d);
@@ -413,8 +413,8 @@ static int neponset_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops neponset_pm_ops = {
-	.resume_noirq = neponset_resume,
-	.restore_noirq = neponset_resume,
+	.resume_analirq = neponset_resume,
+	.restore_analirq = neponset_resume,
 };
 #define PM_OPS &neponset_pm_ops
 #else

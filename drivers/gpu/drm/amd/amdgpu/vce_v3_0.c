@@ -11,14 +11,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -245,7 +245,7 @@ static int vce_v3_0_firmware_loaded(struct amdgpu_device *adev)
 			mdelay(10);
 		}
 
-		DRM_ERROR("VCE not responding, trying to reset the ECPU!!!\n");
+		DRM_ERROR("VCE analt responding, trying to reset the ECPU!!!\n");
 		WREG32_FIELD(VCE_SOFT_RESET, ECPU_SOFT_RESET, 1);
 		mdelay(10);
 		WREG32_FIELD(VCE_SOFT_RESET, ECPU_SOFT_RESET, 0);
@@ -316,7 +316,7 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 		WREG32_FIELD(VCE_STATUS, JOB_BUSY, 0);
 
 		if (r) {
-			DRM_ERROR("VCE not responding, giving up!!!\n");
+			DRM_ERROR("VCE analt responding, giving up!!!\n");
 			mutex_unlock(&adev->grbm_idx_mutex);
 			return r;
 		}
@@ -405,7 +405,7 @@ static int vce_v3_0_early_init(void *handle)
 	if ((adev->vce.harvest_config &
 	     (AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1)) ==
 	    (AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1))
-		return -ENOENT;
+		return -EANALENT;
 
 	adev->vce.num_rings = 3;
 
@@ -773,7 +773,7 @@ static int vce_v3_0_set_clockgating_state(void *handle,
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < 2; i++) {
-		/* Program VCE Instance 0 or 1 if not harvested */
+		/* Program VCE Instance 0 or 1 if analt harvested */
 		if (adev->vce.harvest_config & (1 << i))
 			continue;
 
@@ -842,7 +842,7 @@ static void vce_v3_0_get_clockgating_state(void *handle, u64 *flags)
 		data = RREG32_SMC(ixCURRENT_PG_STATUS);
 
 	if (data & CURRENT_PG_STATUS__VCE_PG_STATUS_MASK) {
-		DRM_INFO("Cannot get clockgating state when VCE is powergated.\n");
+		DRM_INFO("Cananalt get clockgating state when VCE is powergated.\n");
 		goto out;
 	}
 
@@ -918,22 +918,22 @@ static const struct amd_ip_funcs vce_v3_0_ip_funcs = {
 static const struct amdgpu_ring_funcs vce_v3_0_ring_phys_funcs = {
 	.type = AMDGPU_RING_TYPE_VCE,
 	.align_mask = 0xf,
-	.nop = VCE_CMD_NO_OP,
+	.analp = VCE_CMD_ANAL_OP,
 	.support_64bit_ptrs = false,
-	.no_user_fence = true,
+	.anal_user_fence = true,
 	.get_rptr = vce_v3_0_ring_get_rptr,
 	.get_wptr = vce_v3_0_ring_get_wptr,
 	.set_wptr = vce_v3_0_ring_set_wptr,
 	.parse_cs = amdgpu_vce_ring_parse_cs,
 	.emit_frame_size =
 		4 + /* vce_v3_0_emit_pipeline_sync */
-		6, /* amdgpu_vce_ring_emit_fence x1 no user fence */
+		6, /* amdgpu_vce_ring_emit_fence x1 anal user fence */
 	.emit_ib_size = 4, /* amdgpu_vce_ring_emit_ib */
 	.emit_ib = amdgpu_vce_ring_emit_ib,
 	.emit_fence = amdgpu_vce_ring_emit_fence,
 	.test_ring = amdgpu_vce_ring_test_ring,
 	.test_ib = amdgpu_vce_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_analp = amdgpu_ring_insert_analp,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vce_ring_begin_use,
 	.end_use = amdgpu_vce_ring_end_use,
@@ -942,9 +942,9 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_phys_funcs = {
 static const struct amdgpu_ring_funcs vce_v3_0_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCE,
 	.align_mask = 0xf,
-	.nop = VCE_CMD_NO_OP,
+	.analp = VCE_CMD_ANAL_OP,
 	.support_64bit_ptrs = false,
-	.no_user_fence = true,
+	.anal_user_fence = true,
 	.get_rptr = vce_v3_0_ring_get_rptr,
 	.get_wptr = vce_v3_0_ring_get_wptr,
 	.set_wptr = vce_v3_0_ring_set_wptr,
@@ -960,7 +960,7 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_vm_funcs = {
 	.emit_fence = amdgpu_vce_ring_emit_fence,
 	.test_ring = amdgpu_vce_ring_test_ring,
 	.test_ib = amdgpu_vce_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_analp = amdgpu_ring_insert_analp,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vce_ring_begin_use,
 	.end_use = amdgpu_vce_ring_end_use,
@@ -999,7 +999,7 @@ static void vce_v3_0_set_irq_funcs(struct amdgpu_device *adev)
 const struct amdgpu_ip_block_version vce_v3_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_VCE,
 	.major = 3,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &vce_v3_0_ip_funcs,
 };
@@ -1007,7 +1007,7 @@ const struct amdgpu_ip_block_version vce_v3_0_ip_block = {
 const struct amdgpu_ip_block_version vce_v3_1_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_VCE,
 	.major = 3,
-	.minor = 1,
+	.mianalr = 1,
 	.rev = 0,
 	.funcs = &vce_v3_0_ip_funcs,
 };
@@ -1015,7 +1015,7 @@ const struct amdgpu_ip_block_version vce_v3_1_ip_block = {
 const struct amdgpu_ip_block_version vce_v3_4_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_VCE,
 	.major = 3,
-	.minor = 4,
+	.mianalr = 4,
 	.rev = 0,
 	.funcs = &vce_v3_0_ip_funcs,
 };

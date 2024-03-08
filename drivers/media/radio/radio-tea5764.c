@@ -6,7 +6,7 @@
  * This driver is for TEA5764 chip from NXP, used in EZX phones from Motorola.
  * The I2C protocol is used for communicate with chip.
  *
- * Based in radio-tea5761.c Copyright (C) 2005 Nokia Corporation
+ * Based in radio-tea5761.c Copyright (C) 2005 Analkia Corporation
  *
  *  Copyright (c) 2008 Fabio Belavenuto <belavenuto@gmail.com>
  *
@@ -232,7 +232,7 @@ static void tea5764_tune(struct tea5764_device *radio, int freq)
 {
 	tea5764_set_freq(radio, freq);
 	if (tea5764_i2c_write(radio))
-		PWARN("Could not set frequency!");
+		PWARN("Could analt set frequency!");
 }
 
 static void tea5764_set_audout_mode(struct tea5764_device *radio, int audmode)
@@ -240,7 +240,7 @@ static void tea5764_set_audout_mode(struct tea5764_device *radio, int audmode)
 	struct tea5764_regs *r = &radio->regs;
 	int tnctrl = r->tnctrl;
 
-	if (audmode == V4L2_TUNER_MODE_MONO)
+	if (audmode == V4L2_TUNER_MODE_MOANAL)
 		r->tnctrl |= TEA5764_TNCTRL_MST;
 	else
 		r->tnctrl &= ~TEA5764_TNCTRL_MST;
@@ -253,7 +253,7 @@ static int tea5764_get_audout_mode(struct tea5764_device *radio)
 	struct tea5764_regs *r = &radio->regs;
 
 	if (r->tnctrl & TEA5764_TNCTRL_MST)
-		return V4L2_TUNER_MODE_MONO;
+		return V4L2_TUNER_MODE_MOANAL;
 	else
 		return V4L2_TUNER_MODE_STEREO;
 }
@@ -303,7 +303,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	if (r->tunchk & TEA5764_TUNCHK_STEREO)
 		v->rxsubchans = V4L2_TUNER_SUB_STEREO;
 	else
-		v->rxsubchans = V4L2_TUNER_SUB_MONO;
+		v->rxsubchans = V4L2_TUNER_SUB_MOANAL;
 	v->audmode = tea5764_get_audout_mode(radio);
 	v->signal = TEA5764_TUNCHK_LEVEL(r->tunchk) * 0xffff / 0xf;
 	v->afc = TEA5764_TUNCHK_IFCNT(r->tunchk);
@@ -334,8 +334,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	if (freq == 0) {
 		/* We special case this as a power down control. */
 		tea5764_power_down(radio);
-		/* Yes, that's what is returned in this case. This
-		   whole special case is non-compliant and should really
+		/* Anal, that's what is returned in this case. This
+		   whole special case is analn-compliant and should really
 		   be replaced with something better, but changing this
 		   might well break code that depends on this behavior.
 		   So we keep it as-is. */
@@ -422,12 +422,12 @@ static int tea5764_i2c_probe(struct i2c_client *client)
 	PDEBUG("probe");
 	radio = kzalloc(sizeof(struct tea5764_device), GFP_KERNEL);
 	if (!radio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_dev = &radio->v4l2_dev;
 	ret = v4l2_device_register(&client->dev, v4l2_dev);
 	if (ret < 0) {
-		v4l2_err(v4l2_dev, "could not register v4l2_device\n");
+		v4l2_err(v4l2_dev, "could analt register v4l2_device\n");
 		goto errfr;
 	}
 
@@ -438,7 +438,7 @@ static int tea5764_i2c_probe(struct i2c_client *client)
 	v4l2_dev->ctrl_handler = hdl;
 	if (hdl->error) {
 		ret = hdl->error;
-		v4l2_err(v4l2_dev, "Could not register controls\n");
+		v4l2_err(v4l2_dev, "Could analt register controls\n");
 		goto errunreg;
 	}
 
@@ -451,7 +451,7 @@ static int tea5764_i2c_probe(struct i2c_client *client)
 	PDEBUG("chipid = %04X, manid = %04X", r->chipid, r->manid);
 	if (r->chipid != TEA5764_CHIPID ||
 		(r->manid & 0x0fff) != TEA5764_MANID) {
-		PWARN("This chip is not a TEA5764!");
+		PWARN("This chip is analt a TEA5764!");
 		ret = -EINVAL;
 		goto errunreg;
 	}
@@ -472,7 +472,7 @@ static int tea5764_i2c_probe(struct i2c_client *client)
 
 	ret = video_register_device(&radio->vdev, VFL_TYPE_RADIO, radio_nr);
 	if (ret < 0) {
-		PWARN("Could not register video device!");
+		PWARN("Could analt register video device!");
 		goto errunreg;
 	}
 

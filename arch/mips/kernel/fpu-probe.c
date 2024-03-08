@@ -2,10 +2,10 @@
 /*
  * Processor capabilities determination functions.
  *
- * Copyright (C) xxxx  the Anonymous
+ * Copyright (C) xxxx  the Aanalnymous
  * Copyright (C) 1994 - 2006 Ralf Baechle
  * Copyright (C) 2003, 2004  Maciej W. Rozycki
- * Copyright (C) 2001, 2004, 2011, 2012	 MIPS Technologies, Inc.
+ * Copyright (C) 2001, 2004, 2011, 2012	 MIPS Techanallogies, Inc.
  */
 
 #include <linux/init.h>
@@ -40,7 +40,7 @@ static inline unsigned long cpu_get_fpu_id(void)
  */
 int __cpu_has_fpu(void)
 {
-	return (cpu_get_fpu_id() & FPIR_IMP_MASK) != FPIR_IMP_NONE;
+	return (cpu_get_fpu_id() & FPIR_IMP_MASK) != FPIR_IMP_ANALNE;
 }
 
 /*
@@ -149,10 +149,10 @@ static enum { STRICT, LEGACY, STD2008, RELAXED } ieee754 = STRICT;
 /*
  * Set the IEEE 754 NaN encodings and the ABS.fmt/NEG.fmt execution modes
  * to support by the FPU emulator according to the IEEE 754 conformance
- * mode selected.  Note that "relaxed" straps the emulator so that it
+ * mode selected.  Analte that "relaxed" straps the emulator so that it
  * allows 2008-NaN binaries even for legacy processors.
  */
-static void cpu_set_nofpu_2008(struct cpuinfo_mips *c)
+static void cpu_set_analfpu_2008(struct cpuinfo_mips *c)
 {
 	c->options &= ~(MIPS_CPU_NAN_2008 | MIPS_CPU_NAN_LEGACY);
 	c->fpu_csr31 &= ~(FPU_CSR_ABS2008 | FPU_CSR_NAN2008);
@@ -236,7 +236,7 @@ static int __init ieee754_setup(char *s)
 		return -1;
 
 	if (!(boot_cpu_data.options & MIPS_CPU_FPU))
-		cpu_set_nofpu_2008(&boot_cpu_data);
+		cpu_set_analfpu_2008(&boot_cpu_data);
 	cpu_set_nan_2008(&boot_cpu_data);
 
 	return 0;
@@ -247,7 +247,7 @@ early_param("ieee754", ieee754_setup);
 /*
  * Set the FIR feature flags for the FPU emulator.
  */
-static void cpu_set_nofpu_id(struct cpuinfo_mips *c)
+static void cpu_set_analfpu_id(struct cpuinfo_mips *c)
 {
 	u32 value;
 
@@ -266,8 +266,8 @@ static void cpu_set_nofpu_id(struct cpuinfo_mips *c)
 	c->fpu_id = value;
 }
 
-/* Determined FPU emulator mask to use for the boot CPU with "nofpu".  */
-static unsigned int mips_nofpu_msk31;
+/* Determined FPU emulator mask to use for the boot CPU with "analfpu".  */
+static unsigned int mips_analfpu_msk31;
 
 /*
  * Set options for FPU hardware.
@@ -275,7 +275,7 @@ static unsigned int mips_nofpu_msk31;
 void cpu_set_fpu_opts(struct cpuinfo_mips *c)
 {
 	c->fpu_id = cpu_get_fpu_id();
-	mips_nofpu_msk31 = c->fpu_msk31;
+	mips_analfpu_msk31 = c->fpu_msk31;
 
 	if (c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1 |
 			    MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
@@ -297,25 +297,25 @@ void cpu_set_fpu_opts(struct cpuinfo_mips *c)
 /*
  * Set options for the FPU emulator.
  */
-void cpu_set_nofpu_opts(struct cpuinfo_mips *c)
+void cpu_set_analfpu_opts(struct cpuinfo_mips *c)
 {
 	c->options &= ~MIPS_CPU_FPU;
-	c->fpu_msk31 = mips_nofpu_msk31;
+	c->fpu_msk31 = mips_analfpu_msk31;
 
-	cpu_set_nofpu_2008(c);
+	cpu_set_analfpu_2008(c);
 	cpu_set_nan_2008(c);
-	cpu_set_nofpu_id(c);
+	cpu_set_analfpu_id(c);
 }
 
 int mips_fpu_disabled;
 
 static int __init fpu_disable(char *s)
 {
-	cpu_set_nofpu_opts(&boot_cpu_data);
+	cpu_set_analfpu_opts(&boot_cpu_data);
 	mips_fpu_disabled = 1;
 
 	return 1;
 }
 
-__setup("nofpu", fpu_disable);
+__setup("analfpu", fpu_disable);
 

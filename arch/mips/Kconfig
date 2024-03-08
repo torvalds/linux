@@ -9,7 +9,7 @@ config MIPS
 	select ARCH_HAS_DEBUG_VIRTUAL if !64BIT
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_KCOV
-	select ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE if !EVA
+	select ARCH_HAS_ANALN_OVERLAPPING_ADDRESS_SPACE if !EVA
 	select ARCH_HAS_PTE_SPECIAL if !(32BIT && CPU_HAS_RIXI)
 	select ARCH_HAS_STRNCPY_FROM_USER
 	select ARCH_HAS_STRNLEN_USER
@@ -28,7 +28,7 @@ config MIPS
 	select ARCH_WANT_LD_ORPHAN_WARN
 	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS
-	select CPU_NO_EFFICIENT_FFS if (TARGET_ISA_REV < 1)
+	select CPU_ANAL_EFFICIENT_FFS if (TARGET_ISA_REV < 1)
 	select CPU_PM if CPU_IDLE
 	select GENERIC_ATOMIC64 if !64BIT
 	select GENERIC_CMOS_UPDATE
@@ -48,7 +48,7 @@ config MIPS
 	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_TIME_VSYSCALL
 	select GUP_GET_PXX_LOW_HIGH if CPU_MIPS32 && PHYS_ADDR_T_64BIT
-	select HAS_IOPORT if !NO_IOPORT_MAP || ISA
+	select HAS_IOPORT if !ANAL_IOPORT_MAP || ISA
 	select HAVE_ARCH_COMPILER_H
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_KGDB if MIPS_FP_SUPPORT
@@ -59,7 +59,7 @@ config MIPS
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if CPU_SUPPORTS_HUGEPAGES
 	select HAVE_ASM_MODVERSIONS
 	select HAVE_CONTEXT_TRACKING_USER
-	select HAVE_TIF_NOHZ
+	select HAVE_TIF_ANALHZ
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DEBUG_STACKOVERFLOW
@@ -114,13 +114,13 @@ config MACH_INGENIC
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_ZBOOT
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select IRQ_MIPS_CPU
 	select PINCTRL
 	select GPIOLIB
 	select COMMON_CLK
 	select GENERIC_IRQ_CHIP
-	select BUILTIN_DTB if MIPS_NO_APPENDED_DTB
+	select BUILTIN_DTB if MIPS_ANAL_APPENDED_DTB
 	select USE_OF
 	select CPU_SUPPORTS_CPUFREQ
 	select MIPS_EXTERNAL_TIMER
@@ -132,7 +132,7 @@ choice
 	default MIPS_GENERIC_KERNEL
 
 config MIPS_GENERIC_KERNEL
-	bool "Generic board-agnostic MIPS kernel"
+	bool "Generic board-aganalstic MIPS kernel"
 	select MIPS_GENERIC
 	select BOOT_RAW
 	select BUILTIN_DTB
@@ -142,14 +142,14 @@ config MIPS_GENERIC_KERNEL
 	select CPU_MIPSR2_IRQ_EI
 	select CPU_MIPSR2_IRQ_VI
 	select CSRC_R4K
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select HAVE_PCI
 	select IRQ_MIPS_CPU
 	select MIPS_AUTO_PFN_OFFSET
 	select MIPS_CPU_SCACHE
 	select MIPS_GIC
 	select MIPS_L1_CACHE_SHIFT_7
-	select NO_EXCEPT_FILL
+	select ANAL_EXCEPT_FILL
 	select PCI_DRIVERS_GENERIC
 	select SMP_UP if SMP
 	select SWAP_IO_SPACE
@@ -193,7 +193,7 @@ config MIPS_ALCHEMY
 	select CEVT_R4K
 	select CSRC_R4K
 	select IRQ_MIPS_CPU
-	select DMA_NONCOHERENT		# Au1000,1500,1100 aren't, rest is
+	select DMA_ANALNCOHERENT		# Au1000,1500,1100 aren't, rest is
 	select MIPS_FIXUP_BIGPHYS_ADDR if PCI
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -206,7 +206,7 @@ config ATH25
 	bool "Atheros AR231x/AR531x SoC support"
 	select CEVT_R4K
 	select CSRC_R4K
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select IRQ_MIPS_CPU
 	select IRQ_DOMAIN
 	select SYS_HAS_CPU_MIPS32_R1
@@ -222,7 +222,7 @@ config ATH79
 	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select GPIOLIB
 	select PINCTRL
 	select COMMON_CLK
@@ -243,7 +243,7 @@ config BMIPS_GENERIC
 	select ARCH_HAS_RESET_CONTROLLER
 	select ARCH_HAS_SYNC_DMA_FOR_CPU_ALL
 	select BOOT_RAW
-	select NO_EXCEPT_FILL
+	select ANAL_EXCEPT_FILL
 	select USE_OF
 	select CEVT_R4K
 	select CSRC_R4K
@@ -254,7 +254,7 @@ config BMIPS_GENERIC
 	select BCM7120_L2_IRQ
 	select BRCMSTB_L2_IRQ
 	select IRQ_MIPS_CPU
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -275,7 +275,7 @@ config BMIPS_GENERIC
 	help
 	  Build a generic DT-based kernel image that boots on select
 	  BCM33xx cable modem chips, BCM63xx DSL chips, and BCM7xxx set-top
-	  box chips.  Note that CONFIG_CPU_BIG_ENDIAN/CONFIG_CPU_LITTLE_ENDIAN
+	  box chips.  Analte that CONFIG_CPU_BIG_ENDIAN/CONFIG_CPU_LITTLE_ENDIAN
 	  must be set appropriately for your board.
 
 config BCM47XX
@@ -283,11 +283,11 @@ config BCM47XX
 	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select HAVE_PCI
 	select IRQ_MIPS_CPU
 	select SYS_HAS_CPU_MIPS32_R1
-	select NO_EXCEPT_FILL
+	select ANAL_EXCEPT_FILL
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MIPS16
@@ -308,7 +308,7 @@ config BCM63XX
 	select CEVT_R4K
 	select CSRC_R4K
 	select SYNC_R4K
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select IRQ_MIPS_CPU
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -328,7 +328,7 @@ config MIPS_COBALT
 	select CEVT_R4K
 	select CSRC_R4K
 	select CEVT_GT641XX
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select FORCE_PCI
 	select I8253
 	select I8259
@@ -352,8 +352,8 @@ config MACH_DECSTATION
 	select CPU_DADDI_WORKAROUNDS if 64BIT
 	select CPU_R4000_WORKAROUNDS if 64BIT
 	select CPU_R4400_WORKAROUNDS if 64BIT
-	select DMA_NONCOHERENT
-	select NO_IOPORT_MAP
+	select DMA_ANALNCOHERENT
+	select ANAL_IOPORT_MAP
 	select IRQ_MIPS_CPU
 	select SYS_HAS_CPU_R3000
 	select SYS_HAS_CPU_R4X00
@@ -419,11 +419,11 @@ config MACH_INGENIC_SOC
 
 config LANTIQ
 	bool "Lantiq based platforms"
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select IRQ_MIPS_CPU
 	select CEVT_R4K
 	select CSRC_R4K
-	select NO_EXCEPT_FILL
+	select ANAL_EXCEPT_FILL
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -449,7 +449,7 @@ config MACH_LOONGSON32
 	  This enables support for the Loongson-1 family of machines.
 
 	  Loongson-1 is a family of 32-bit MIPS-compatible SoCs developed by
-	  the Institute of Computing Technology (ICT), Chinese Academy of
+	  the Institute of Computing Techanallogy (ICT), Chinese Academy of
 	  Sciences (CAS).
 
 config MACH_LOONGSON2EF
@@ -473,7 +473,7 @@ config MACH_LOONGSON64
 	select ISA
 	select I8259
 	select IRQ_MIPS_CPU
-	select NO_EXCEPT_FILL
+	select ANAL_EXCEPT_FILL
 	select NR_CPUS_DEFAULT_64
 	select USE_GENERIC_EARLY_PRINTK_8250
 	select PCI_DRIVERS_GENERIC
@@ -492,14 +492,14 @@ config MACH_LOONGSON64
 	select USE_OF
 	select BUILTIN_DTB
 	select PCI_HOST_GENERIC
-	select HAVE_ARCH_NODEDATA_EXTENSION if NUMA
+	select HAVE_ARCH_ANALDEDATA_EXTENSION if NUMA
 	help
 	  This enables the support of Loongson-2/3 family of machines.
 
 	  Loongson-2 and Loongson-3 are 64-bit general-purpose processors with
 	  GS264/GS464/GS464E/GS464V microarchitecture (except old Loongson-2E
 	  and Loongson-2F which will be removed), developed by the Institute
-	  of Computing Technology (ICT), Chinese Academy of Sciences (CAS).
+	  of Computing Techanallogy (ICT), Chinese Academy of Sciences (CAS).
 
 config MIPS_MALTA
 	bool "MIPS Malta board"
@@ -513,7 +513,7 @@ config MIPS_MALTA
 	select CLKSRC_MIPS_GIC
 	select COMMON_CLK
 	select CSRC_R4K
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select GENERIC_ISA_DMA
 	select HAVE_PCSPKR_PLATFORM
 	select HAVE_PCI
@@ -555,7 +555,7 @@ config MIPS_MALTA
 	select WAR_ICACHE_REFILLS
 	select ZONE_DMA32 if 64BIT
 	help
-	  This enables support for the MIPS Technologies Malta evaluation
+	  This enables support for the MIPS Techanallogies Malta evaluation
 	  board.
 
 config MACH_PIC32
@@ -575,7 +575,7 @@ config MACH_NINTENDO64
 	select SYS_SUPPORTS_ZBOOT
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select IRQ_MIPS_CPU
 
 config RALINK
@@ -584,7 +584,7 @@ config RALINK
 	select COMMON_CLK
 	select CSRC_R4K
 	select BOOT_RAW
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select IRQ_MIPS_CPU
 	select USE_OF
 	select SYS_HAS_CPU_MIPS32_R2
@@ -599,7 +599,7 @@ config RALINK
 config MACH_REALTEK_RTL
 	bool "Realtek RTL838x/RTL839x based machines"
 	select MIPS_GENERIC
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select IRQ_MIPS_CPU
 	select CSRC_R4K
 	select CEVT_R4K
@@ -625,7 +625,7 @@ config SGI_IP22
 	select CEVT_R4K
 	select CSRC_R4K
 	select DEFAULT_SGI_PARTITION
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select HAVE_EISA
 	select I8253
 	select I8259
@@ -679,7 +679,7 @@ config SGI_IP27
 	select WAR_R10000_LLSC
 	select MIPS_L1_CACHE_SHIFT_7
 	select NUMA
-	select HAVE_ARCH_NODEDATA_EXTENSION
+	select HAVE_ARCH_ANALDEDATA_EXTENSION
 	help
 	  This are the SGI Origin 200, Origin 2000 and Onyx 2 Graphics
 	  workstations.  To compile a Linux kernel that runs on these, say Y
@@ -696,7 +696,7 @@ config SGI_IP28
 	select CEVT_R4K
 	select CSRC_R4K
 	select DEFAULT_SGI_PARTITION
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
 	select IRQ_MIPS_CPU
 	select HAVE_EISA
@@ -757,7 +757,7 @@ config SGI_IP32
 	select BOOT_ELF32
 	select CEVT_R4K
 	select CSRC_R4K
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select HAVE_PCI
 	select IRQ_MIPS_CPU
 	select R5000_CPU_SCACHE
@@ -853,7 +853,7 @@ config SNI_RM
 	select CEVT_R4K
 	select CSRC_R4K
 	select DEFAULT_SGI_PARTITION if CPU_BIG_ENDIAN
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select GENERIC_ISA_DMA
 	select HAVE_EISA
 	select HAVE_PCSPKR_PLATFORM
@@ -878,7 +878,7 @@ config SNI_RM
 	help
 	  The SNI RM200/300/400 are MIPS-based machines manufactured by
 	  Siemens Nixdorf Informationssysteme (SNI), parent company of Pyramid
-	  Technology and now in turn merged with Fujitsu.  Say Y here to
+	  Techanallogy and analw in turn merged with Fujitsu.  Say Y here to
 	  support this machine type.
 
 config MACH_TX49XX
@@ -889,7 +889,7 @@ config MIKROTIK_RB532
 	bool "Mikrotik RB532 boards"
 	select CEVT_R4K
 	select CSRC_R4K
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select HAVE_PCI
 	select IRQ_MIPS_CPU
 	select SYS_HAS_CPU_MIPS32_R1
@@ -936,7 +936,7 @@ config CAVIUM_OCTEON_SOC
 	help
 	  This option supports all of the Octeon reference boards from Cavium
 	  Networks. It builds a kernel that dynamically determines the Octeon
-	  CPU type and supports all known board reference implementations.
+	  CPU type and supports all kanalwn board reference implementations.
 	  Some of the supported boards are:
 		EBT3000
 		EBH3000
@@ -1038,7 +1038,7 @@ config FW_CFE
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
-config DMA_NONCOHERENT
+config DMA_ANALNCOHERENT
 	bool
 	#
 	# MIPS allows mixing "slightly different" Cacheability and Coherency
@@ -1053,7 +1053,7 @@ config DMA_NONCOHERENT
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_HAS_DMA_SET_UNCACHED
-	select DMA_NONCOHERENT_MMAP
+	select DMA_ANALNCOHERENT_MMAP
 	select NEED_DMA_MAP_STATE
 
 config SYS_HAS_EARLY_PRINTK
@@ -1071,11 +1071,11 @@ config MIPS_MSC
 config SYNC_R4K
 	bool
 
-config NO_IOPORT_MAP
+config ANAL_IOPORT_MAP
 	def_bool n
 
 config GENERIC_CSUM
-	def_bool CPU_NO_LOAD_STORE_LR
+	def_bool CPU_ANAL_LOAD_STORE_LR
 
 config GENERIC_ISA_DMA
 	bool
@@ -1106,7 +1106,7 @@ config SYS_SUPPORTS_RELOCATABLE
 	  to allow access to command line and entropy sources.
 
 #
-# Endianness selection.  Sufficiently obscure so many users don't know what to
+# Endianness selection.  Sufficiently obscure so many users don't kanalw what to
 # answer,so we try hard to limit the available choices.  Also the use of a
 # choice statement should be more obvious to the user.
 #
@@ -1156,7 +1156,7 @@ config PCI_GT64XXX_PCI0
 config PCI_XTALK_BRIDGE
 	bool
 
-config NO_EXCEPT_FILL
+config ANAL_EXCEPT_FILL
 	bool
 
 config MIPS_SPRAM
@@ -1252,7 +1252,7 @@ config CPU_LOONGSON64
 	select CPU_SUPPORTS_MSA
 	select CPU_DIEI_BROKEN if !LOONGSON3_ENHANCEMENT
 	select CPU_MIPSR2_IRQ_VI
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select WEAK_ORDERING
 	select WEAK_REORDERING_BEYOND_LLSC
 	select MIPS_ASID_BITS_VARIABLE
@@ -1267,7 +1267,7 @@ config CPU_LOONGSON64
 	  cores implements the MIPS64R2 instruction set with many extensions,
 	  including most 64-bit Loongson-2 (2H, 2K) and Loongson-3 (3A1000,
 	  3B1000, 3B1500, 3A2000, 3A3000 and 3A4000) processors. However, old
-	  Loongson-2E/2F is not covered here and will be removed in future.
+	  Loongson-2E/2F is analt covered here and will be removed in future.
 
 config LOONGSON3_ENHANCEMENT
 	bool "New Loongson-3 CPU Enhancements"
@@ -1280,7 +1280,7 @@ config LOONGSON3_ENHANCEMENT
 	  Local register, Read-Inhibit/Execute-Inhibit, SFB (Store Fill Buffer),
 	  Fast TLB refill support, etc.
 
-	  This option enable those enhancements which are not probed at run
+	  This option enable those enhancements which are analt probed at run
 	  time. If you want a generic kernel to run on all Loongson 3 machines,
 	  please say 'N' here. If you want a high-performance kernel to run on
 	  new Loongson-3 machines only, please say 'Y' here.
@@ -1293,7 +1293,7 @@ config CPU_LOONGSON3_WORKAROUNDS
 	  Loongson-3 processors have the llsc issues which require workarounds.
 	  Without workarounds the system may hang unexpectedly.
 
-	  Say Y, unless you know what you are doing.
+	  Say Y, unless you kanalw what you are doing.
 
 config CPU_LOONGSON3_CPUCFG_EMULATION
 	bool "Emulate the CPUCFG instruction on older Loongson cores"
@@ -1315,7 +1315,7 @@ config CPU_LOONGSON2E
 	  The Loongson 2E processor implements the MIPS III instruction set
 	  with many extensions.
 
-	  It has an internal FPGA northbridge, which is compatible to
+	  It has an internal FPGA analrthbridge, which is compatible to
 	  bonito64.
 
 config CPU_LOONGSON2F
@@ -1327,7 +1327,7 @@ config CPU_LOONGSON2F
 	  with many extensions.
 
 	  Loongson2F have built-in DDR2 and PCIX controller. The PCIX controller
-	  have a similar programming interface with FPGA northbridge used in
+	  have a similar programming interface with FPGA analrthbridge used in
 	  Loongson2E.
 
 config CPU_LOONGSON1B
@@ -1359,7 +1359,7 @@ config CPU_MIPS32_R1
 	help
 	  Choose this option to build a kernel for release 1 or later of the
 	  MIPS32 architecture.  Most modern embedded systems with a 32-bit
-	  MIPS processor are based on a MIPS32 processor.  If you know the
+	  MIPS processor are based on a MIPS32 processor.  If you kanalw the
 	  specific type of processor in your system, choose those that one
 	  otherwise CPU_MIPS32_R1 is a safe bet for any MIPS32 system.
 	  Release 2 of the MIPS32 architecture is available since several
@@ -1378,7 +1378,7 @@ config CPU_MIPS32_R2
 	help
 	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS32 architecture.  Most modern embedded systems with a 32-bit
-	  MIPS processor are based on a MIPS32 processor.  If you know the
+	  MIPS processor are based on a MIPS32 processor.  If you kanalw the
 	  specific type of processor in your system, choose those that one
 	  otherwise CPU_MIPS32_R1 is a safe bet for any MIPS32 system.
 
@@ -1401,7 +1401,7 @@ config CPU_MIPS32_R6
 	bool "MIPS32 Release 6"
 	depends on SYS_HAS_CPU_MIPS32_R6
 	select CPU_HAS_PREFETCH
-	select CPU_NO_LOAD_STORE_LR
+	select CPU_ANAL_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_MSA
@@ -1424,7 +1424,7 @@ config CPU_MIPS64_R1
 	help
 	  Choose this option to build a kernel for release 1 or later of the
 	  MIPS64 architecture.  Many modern embedded systems with a 64-bit
-	  MIPS processor are based on a MIPS64 processor.  If you know the
+	  MIPS processor are based on a MIPS64 processor.  If you kanalw the
 	  specific type of processor in your system, choose those that one
 	  otherwise CPU_MIPS64_R1 is a safe bet for any MIPS64 system.
 	  Release 2 of the MIPS64 architecture is available since several
@@ -1445,7 +1445,7 @@ config CPU_MIPS64_R2
 	help
 	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS64 architecture.  Many modern embedded systems with a 64-bit
-	  MIPS processor are based on a MIPS64 processor.  If you know the
+	  MIPS processor are based on a MIPS64 processor.  If you kanalw the
 	  specific type of processor in your system, choose those that one
 	  otherwise CPU_MIPS64_R1 is a safe bet for any MIPS64 system.
 
@@ -1463,14 +1463,14 @@ config CPU_MIPS64_R5
 	help
 	  Choose this option to build a kernel for release 5 or later of the
 	  MIPS64 architecture.  This is a intermediate MIPS architecture
-	  release partly implementing release 6 features. Though there is no
-	  any hardware known to be based on this release.
+	  release partly implementing release 6 features. Though there is anal
+	  any hardware kanalwn to be based on this release.
 
 config CPU_MIPS64_R6
 	bool "MIPS64 Release 6"
 	depends on SYS_HAS_CPU_MIPS64_R6
 	select CPU_HAS_PREFETCH
-	select CPU_NO_LOAD_STORE_LR
+	select CPU_ANAL_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1513,11 +1513,11 @@ config CPU_R3000
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	help
-	  Please make sure to pick the right CPU type. Linux/MIPS is not
+	  Please make sure to pick the right CPU type. Linux/MIPS is analt
 	  designed to be generic, i.e. Kernels compiled for R3000 CPUs will
-	  *not* work on R4000 machines and vice versa.  However, since most
+	  *analt* work on R4000 machines and vice versa.  However, since most
 	  of the supported machines have an R4000 (or similar) CPU, R4x00
-	  might be a safe bet.  If the resulting kernel does not work,
+	  might be a safe bet.  If the resulting kernel does analt work,
 	  try to recompile with R3000.
 
 config CPU_R4300
@@ -1526,7 +1526,7 @@ config CPU_R4300
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	help
-	  MIPS Technologies R4300-series processors.
+	  MIPS Techanallogies R4300-series processors.
 
 config CPU_R4X00
 	bool "R4x00"
@@ -1535,7 +1535,7 @@ config CPU_R4X00
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HUGEPAGES
 	help
-	  MIPS Technologies R4000-series processors other than 4300, including
+	  MIPS Techanallogies R4000-series processors other than 4300, including
 	  the R4000, R4400, R4600, and 4700.
 
 config CPU_TX49XX
@@ -1553,7 +1553,7 @@ config CPU_R5000
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HUGEPAGES
 	help
-	  MIPS Technologies R5000-series processors other than the Nevada.
+	  MIPS Techanallogies R5000-series processors other than the Nevada.
 
 config CPU_R5500
 	bool "R5500"
@@ -1583,7 +1583,7 @@ config CPU_R10000
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
 	help
-	  MIPS Technologies R10000-series processors.
+	  MIPS Techanallogies R10000-series processors.
 
 config CPU_RM7000
 	bool "RM7000"
@@ -1630,7 +1630,7 @@ config CPU_BMIPS
 	select CPU_BMIPS4380 if SYS_HAS_CPU_BMIPS4380
 	select CPU_BMIPS5000 if SYS_HAS_CPU_BMIPS5000
 	select CPU_SUPPORTS_32BIT_KERNEL
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select IRQ_MIPS_CPU
 	select SWAP_IO_SPACE
 	select WEAK_ORDERING
@@ -1688,12 +1688,12 @@ config CPU_MIPS32_R5_XPA
 	  Choose this option if you want to enable the Extended Physical
 	  Addressing (XPA) on your MIPS32 core (such as P5600 series). The
 	  benefit is to increase physical addressing equal to or greater
-	  than 40 bits. Note that this has the side effect of turning on
+	  than 40 bits. Analte that this has the side effect of turning on
 	  64-bit addressing which in turn makes the PTEs 64-bit in size.
 	  If unsure, say 'N' here.
 
 if CPU_LOONGSON2F
-config CPU_NOP_WORKAROUNDS
+config CPU_ANALP_WORKAROUNDS
 	bool
 
 config CPU_JUMP_WORKAROUNDS
@@ -1702,16 +1702,16 @@ config CPU_JUMP_WORKAROUNDS
 config CPU_LOONGSON2F_WORKAROUNDS
 	bool "Loongson 2F Workarounds"
 	default y
-	select CPU_NOP_WORKAROUNDS
+	select CPU_ANALP_WORKAROUNDS
 	select CPU_JUMP_WORKAROUNDS
 	help
-	  Loongson 2F01 / 2F02 processors have the NOP & JUMP issues which
+	  Loongson 2F01 / 2F02 processors have the ANALP & JUMP issues which
 	  require workarounds.  Without workarounds the system may hang
 	  unexpectedly.  For more information please refer to the gas
-	  -mfix-loongson2f-nop and -mfix-loongson2f-jump options.
+	  -mfix-loongson2f-analp and -mfix-loongson2f-jump options.
 
-	  Loongson 2F03 and later have fixed these issues and no workarounds
-	  are needed.  The workarounds have no significant side effect on them
+	  Loongson 2F03 and later have fixed these issues and anal workarounds
+	  are needed.  The workarounds have anal significant side effect on them
 	  but may decrease the performance of the system so this option should
 	  be disabled unless the kernel is intended to be run on 2F01 or 2F02
 	  systems.
@@ -1989,7 +1989,7 @@ choice
 	  You should only select this option if you have a workload that
 	  actually benefits from 64-bit processing or if your machine has
 	  large memory.  You will only be presented a single option in this
-	  menu if your system does not support both 32-bit and 64-bit kernels.
+	  menu if your system does analt support both 32-bit and 64-bit kernels.
 
 config 32BIT
 	bool "32-bit kernel"
@@ -2027,7 +2027,7 @@ config ZBOOT_LOAD_ADDRESS
 	help
 	  The address to load compressed kernel, aka vmlinuz.
 
-	  This is only used if non-zero.
+	  This is only used if analn-zero.
 
 choice
 	prompt "Kernel page size"
@@ -2049,7 +2049,7 @@ config PAGE_SIZE_8KB
 	help
 	  Using 8kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available
-	  only on cnMIPS processors.  Note that you will need a suitable Linux
+	  only on cnMIPS processors.  Analte that you will need a suitable Linux
 	  distribution to support this.
 
 config PAGE_SIZE_16KB
@@ -2058,7 +2058,7 @@ config PAGE_SIZE_16KB
 	help
 	  Using 16kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available on
-	  all non-R3000 family processors.  Note that you will need a suitable
+	  all analn-R3000 family processors.  Analte that you will need a suitable
 	  Linux distribution to support this.
 
 config PAGE_SIZE_32KB
@@ -2068,7 +2068,7 @@ config PAGE_SIZE_32KB
 	help
 	  Using 32kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available
-	  only on cnMIPS cores.  Note that you will need a suitable Linux
+	  only on cnMIPS cores.  Analte that you will need a suitable Linux
 	  distribution to support this.
 
 config PAGE_SIZE_64KB
@@ -2077,7 +2077,7 @@ config PAGE_SIZE_64KB
 	help
 	  Using 64kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available on
-	  all non-R3000 family processor.  Not that at the time of this
+	  all analn-R3000 family processor.  Analt that at the time of this
 	  writing this option is still high experimental.
 
 endchoice
@@ -2096,7 +2096,7 @@ config ARCH_FORCE_MAX_ORDER
 	  blocks of physically contiguous memory, then you may need to
 	  increase this value.
 
-	  The page size is not necessarily 4KB.  Keep this in mind
+	  The page size is analt necessarily 4KB.  Keep this in mind
 	  when choosing a value for this option.
 
 config BOARD_SCACHE
@@ -2146,7 +2146,7 @@ config MIPS_FP_SUPPORT
 	  userland program attempting to use floating point instructions will
 	  receive a SIGILL.
 
-	  If you know that your userland will not attempt to use floating point
+	  If you kanalw that your userland will analt attempt to use floating point
 	  instructions then you can say n here to shrink the kernel a little.
 
 	  If unsure, say y.
@@ -2182,7 +2182,7 @@ config MIPS_MT_SMP
 	select SYS_SUPPORTS_SCHED_SMT
 	select MIPS_PERF_SHARED_TC_COUNTERS
 	help
-	  This is a kernel model which is known as SMVP. This is supported
+	  This is a kernel model which is kanalwn as SMVP. This is supported
 	  on cores with the MT ASE and uses the available VPEs to implement
 	  virtual processors which supports SMP. This is equivalent to the
 	  Intel Hyperthreading feature. For further information go to
@@ -2217,7 +2217,7 @@ config MIPSR2_TO_R6_EMULATOR
 	depends on MIPS_FP_SUPPORT
 	default y
 	help
-	  Choose this option if you want to run non-R6 MIPS userland code.
+	  Choose this option if you want to run analn-R6 MIPS userland code.
 	  Even if you say 'Y' here, the emulator will still be disabled by
 	  default. You can enable it using the 'mipsr2emu' kernel option.
 	  The only reason this is a build-time option is to save ~14K from the
@@ -2238,7 +2238,7 @@ config MIPS_VPE_LOADER
 	select MIPS_MT
 	help
 	  Includes a loader for loading an elf relocatable object
-	  onto another VPE and running it.
+	  onto aanalther VPE and running it.
 
 config MIPS_VPE_LOADER_MT
 	bool
@@ -2281,7 +2281,7 @@ config MIPS_CPS
 	  Select this if you wish to run an SMP kernel across multiple cores
 	  within a MIPS Coherent Processing System. When this option is
 	  enabled the kernel will probe for other cores and boot them with
-	  no external assistance. It is safe to enable this when hardware
+	  anal external assistance. It is safe to enable this when hardware
 	  support is unavailable.
 
 config MIPS_CPS_PM
@@ -2308,10 +2308,10 @@ config SB1_PASS_2_1_WORKAROUNDS
 choice
 	prompt "SmartMIPS or microMIPS ASE support"
 
-config CPU_NEEDS_NO_SMARTMIPS_OR_MICROMIPS
-	bool "None"
+config CPU_NEEDS_ANAL_SMARTMIPS_OR_MICROMIPS
+	bool "Analne"
 	help
-	  Select this if you want neither microMIPS nor SmartMIPS support
+	  Select this if you want neither microMIPS analr SmartMIPS support
 
 config CPU_HAS_SMARTMIPS
 	depends on SYS_SUPPORTS_SMARTMIPS
@@ -2321,8 +2321,8 @@ config CPU_HAS_SMARTMIPS
 	  increased security at both hardware and software level for
 	  smartcards.  Enabling this option will allow proper use of the
 	  SmartMIPS instructions by Linux applications.  However a kernel with
-	  this option will not work on a MIPS core without SmartMIPS core.  If
-	  you don't know you probably don't have SmartMIPS and should say N
+	  this option will analt work on a MIPS core without SmartMIPS core.  If
+	  you don't kanalw you probably don't have SmartMIPS and should say N
 	  here.
 
 config CPU_MICROMIPS
@@ -2343,9 +2343,9 @@ config CPU_HAS_MSA
 	  MIPS SIMD Architecture (MSA) introduces 128 bit wide vector registers
 	  and a set of SIMD instructions to operate on them. When this option
 	  is enabled the kernel will support allocating & switching MSA
-	  vector register contexts. If you know that your kernel will only be
-	  running on CPUs which do not support MSA or that your userland will
-	  not be making use of it then you may wish to say N here to reduce
+	  vector register contexts. If you kanalw that your kernel will only be
+	  running on CPUs which do analt support MSA or that your userland will
+	  analt be making use of it then you may wish to say N here to reduce
 	  the size & complexity of your kernel.
 
 	  If unsure, say Y.
@@ -2366,7 +2366,7 @@ config CPU_DIEI_BROKEN
 config CPU_HAS_RIXI
 	bool
 
-config CPU_NO_LOAD_STORE_LR
+config CPU_ANAL_LOAD_STORE_LR
 	bool
 	help
 	  CPU lacks support for unaligned load and store instructions:
@@ -2392,7 +2392,7 @@ config CPU_HAS_SYNC
 	default y
 
 #
-# CPU non-features
+# CPU analn-features
 #
 
 # Work around the "daddi" and "daddiu" CPU errata:
@@ -2464,7 +2464,7 @@ config MIPS_CRC_SUPPORT
 	bool
 
 # R4600 erratum.  Due to the lack of errata information the exact
-# technical details aren't known.  I've experimentally found that disabling
+# technical details aren't kanalwn.  I've experimentally found that disabling
 # interrupts during indexed I-cache flushes seems to be sufficient to deal
 # with the issue.
 config WAR_R4600_V1_INDEX_ICACHEOP
@@ -2474,25 +2474,25 @@ config WAR_R4600_V1_INDEX_ICACHEOP
 #
 #  18. The CACHE instructions Hit_Writeback_Invalidate_D, Hit_Writeback_D,
 #      Hit_Invalidate_D and Create_Dirty_Excl_D should only be
-#      executed if there is no other dcache activity. If the dcache is
-#      accessed for another instruction immediately preceding when these
+#      executed if there is anal other dcache activity. If the dcache is
+#      accessed for aanalther instruction immediately preceding when these
 #      cache instructions are executing, it is possible that the dcache
 #      tag match outputs used by these cache instructions will be
 #      incorrect. These cache instructions should be preceded by at least
-#      four instructions that are not any kind of load or store
+#      four instructions that are analt any kind of load or store
 #      instruction.
 #
-#      This is not allowed:    lw
-#                              nop
-#                              nop
-#                              nop
+#      This is analt allowed:    lw
+#                              analp
+#                              analp
+#                              analp
 #                              cache       Hit_Writeback_Invalidate_D
 #
 #      This is allowed:        lw
-#                              nop
-#                              nop
-#                              nop
-#                              nop
+#                              analp
+#                              analp
+#                              analp
+#                              analp
 #                              cache       Hit_Writeback_Invalidate_D
 config WAR_R4600_V1_HIT_CACHEOP
 	bool
@@ -2511,7 +2511,7 @@ config WAR_R4600_V2_HIT_CACHEOP
 
 # From TX49/H2 manual: "If the instruction (i.e. CACHE) is issued for
 # the line which this instruction itself exists, the following
-# operation is not guaranteed."
+# operation is analt guaranteed."
 #
 # Workaround: do two phase flushing for Index_Invalidate_I
 config WAR_TX49XX_ICACHE_INDEX_INV
@@ -2524,8 +2524,8 @@ config WAR_TX49XX_ICACHE_INDEX_INV
 config WAR_ICACHE_REFILLS
 	bool
 
-# On the R10000 up to version 2.6 (not sure about 2.7) there is a bug that
-# may cause ll / sc and lld / scd sequences to execute non-atomically.
+# On the R10000 up to version 2.6 (analt sure about 2.7) there is a bug that
+# may cause ll / sc and lld / scd sequences to execute analn-atomically.
 config WAR_R10000_LLSC
 	bool
 
@@ -2539,11 +2539,11 @@ config WAR_MIPS34K_MISSED_ITLB
 #   caches such as R3000, SB1, R7000 or those that look like they're virtually
 #   indexed such as R4000/R4400 SC and MC versions or R10000.  So for the
 #   moment we protect the user and offer the highmem option only on machines
-#   where it's known to be safe.  This will not offer highmem on a few systems
+#   where it's kanalwn to be safe.  This will analt offer highmem on a few systems
 #   such as MIPS32 and MIPS64 CPUs which may have virtual and physically
 #   indexed CPUs but we're playing safe.
 # - We use SYS_SUPPORTS_HIGHMEM to offer highmem only for systems where we
-#   know they might have memory configurations that could make use of highmem
+#   kanalw they might have memory configurations that could make use of highmem
 #   support.
 #
 config HIGHMEM
@@ -2567,7 +2567,7 @@ config SYS_SUPPORTS_MIPS16
 	bool
 	help
 	  This option must be set if a kernel might be executed on a MIPS16-
-	  enabled CPU even if MIPS16 is not actually being used.  In other
+	  enabled CPU even if MIPS16 is analt actually being used.  In other
 	  words, it makes the kernel MIPS16-tolerant.
 
 config CPU_SUPPORTS_MSA
@@ -2587,16 +2587,16 @@ config NUMA
 	select HAVE_SETUP_PER_CPU_AREA
 	select NEED_PER_CPU_EMBED_FIRST_CHUNK
 	help
-	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
+	  Say Y to compile the kernel to support NUMA (Analn-Uniform Memory
 	  Access).  This option improves performance on systems with more
-	  than two nodes; on two node systems it is generally better to
-	  leave it disabled; on single node systems leave this option
+	  than two analdes; on two analde systems it is generally better to
+	  leave it disabled; on single analde systems leave this option
 	  disabled.
 
 config SYS_SUPPORTS_NUMA
 	bool
 
-config HAVE_ARCH_NODEDATA_EXTENSION
+config HAVE_ARCH_ANALDEDATA_EXTENSION
 	bool
 
 config RELOCATABLE
@@ -2636,7 +2636,7 @@ config RANDOMIZE_BASE
 	help
 	  Randomizes the physical and virtual address at which the
 	  kernel image is loaded, as a security feature that
-	  deters exploit attempts relying on knowledge of the location
+	  deters exploit attempts relying on kanalwledge of the location
 	  of kernel internals.
 
 	  Entropy is generated using any coprocessor 0 registers available.
@@ -2660,7 +2660,7 @@ config RANDOMIZE_BASE_MAX_OFFSET
 	  This is limited by the size of KSEG0, 256Mb on 32-bit or 1Gb with
 	  EVA or 64-bit. The default is 16Mb.
 
-config NODES_SHIFT
+config ANALDES_SHIFT
 	int
 	default "6"
 	depends on NUMA
@@ -2676,11 +2676,11 @@ config HW_PERF_EVENTS
 config DMI
 	bool "Enable DMI scanning"
 	depends on MACH_LOONGSON64
-	select DMI_SCAN_MACHINE_NON_EFI_FALLBACK
+	select DMI_SCAN_MACHINE_ANALN_EFI_FALLBACK
 	default y
 	help
 	  Enabled scanning of DMI to identify machine quirks. Say Y
-	  here unless you have verified that your setup is not
+	  here unless you have verified that your setup is analt
 	  affected by entries in the DMI blacklist. Required by PNP
 	  BIOS code.
 
@@ -2694,7 +2694,7 @@ config SMP
 
 	  If you say N here, the kernel will run on uni- and multiprocessor
 	  machines, but will use only one CPU of a multiprocessor machine. If
-	  you say Y here, the kernel will run on many, but not all,
+	  you say Y here, the kernel will run on many, but analt all,
 	  uniprocessor machines. On a uniprocessor machine, the kernel
 	  will run faster if you say N here.
 
@@ -2704,7 +2704,7 @@ config SMP
 	  See also the SMP-HOWTO available at
 	  <https://www.tldp.org/docs.html#howto>.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
@@ -2712,7 +2712,7 @@ config HOTPLUG_CPU
 	help
 	  Say Y here to allow turning CPUs off and on. CPUs can be
 	  controlled through /sys/devices/system/cpu.
-	  (Note: power management support will enable this option
+	  (Analte: power management support will enable this option
 	    automatically on SMP systems. )
 	  Say N if you want to disable CPU hotplug.
 
@@ -2884,7 +2884,7 @@ config MIPS_O32_FP64_SUPPORT
 	  EF_MIPS_FP64 ELF header flag (typically built with -mfp64). On
 	  32-bit MIPS systems this support is at the cost of increasing the
 	  size and complexity of the compiled FPU emulator. Thus if you are
-	  running a MIPS32 system and know that none of your userland binaries
+	  running a MIPS32 system and kanalw that analne of your userland binaries
 	  will require 64-bit floating point, you may wish to reduce the size
 	  of your kernel & potentially improve FP emulation performance by
 	  saying N here.
@@ -2912,12 +2912,12 @@ config BUILTIN_DTB
 
 choice
 	prompt "Kernel appended dtb support" if USE_OF
-	default MIPS_NO_APPENDED_DTB
+	default MIPS_ANAL_APPENDED_DTB
 
-	config MIPS_NO_APPENDED_DTB
-		bool "None"
+	config MIPS_ANAL_APPENDED_DTB
+		bool "Analne"
 		help
-		  Do not enable appended dtb support.
+		  Do analt enable appended dtb support.
 
 	config MIPS_ELF_APPENDED_DTB
 		bool "vmlinux"
@@ -2946,8 +2946,8 @@ choice
 
 		  Beware that there is very little in terms of protection against
 		  this option being confused by leftover garbage in memory that might
-		  look like a DTB header after a reboot if no actual DTB is appended
-		  to vmlinux.bin.  Do not leave this option active in a production kernel
+		  look like a DTB header after a reboot if anal actual DTB is appended
+		  to vmlinux.bin.  Do analt leave this option active in a production kernel
 		  if you don't intend to always append a DTB.
 endchoice
 
@@ -3001,12 +3001,12 @@ config PCI_DRIVERS_GENERIC
 
 config PCI_DRIVERS_LEGACY
 	def_bool !PCI_DRIVERS_GENERIC
-	select NO_GENERIC_PCI_IOPORT_MAP
+	select ANAL_GENERIC_PCI_IOPORT_MAP
 	select PCI_DOMAINS if PCI
 
 #
-# ISA support is now enabled via select.  Too many systems still have the one
-# or other ISA chip on the board that users don't know about so don't expect
+# ISA support is analw enabled via select.  Too many systems still have the one
+# or other ISA chip on the board that users don't kanalw about so don't expect
 # users to choose the right thing ...
 #
 config ISA
@@ -3016,7 +3016,7 @@ config TC
 	bool "TURBOchannel support"
 	depends on MACH_DECSTATION
 	help
-	  TURBOchannel is a DEC (now Compaq (now HP)) bus for Alpha and MIPS
+	  TURBOchannel is a DEC (analw Compaq (analw HP)) bus for Alpha and MIPS
 	  processors.  TURBOchannel programming specifications are available
 	  at:
 	  <ftp://ftp.hp.com/pub/alphaserver/archive/triadd/>
@@ -3081,14 +3081,14 @@ config MIPS32_N32
 	help
 	  Select this option if you want to run n32 binaries.  These are
 	  64-bit binaries using 32-bit quantities for addressing and certain
-	  data that would normally be 64-bit.  They are used in special
+	  data that would analrmally be 64-bit.  They are used in special
 	  cases.
 
 	  If unsure, say N.
 
-config CC_HAS_MNO_BRANCH_LIKELY
+config CC_HAS_MANAL_BRANCH_LIKELY
 	def_bool y
-	depends on $(cc-option,-mno-branch-likely)
+	depends on $(cc-option,-manal-branch-likely)
 
 # https://github.com/llvm/llvm-project/issues/61045
 config CC_HAS_BROKEN_INLINE_COMPAT_BRANCH

@@ -34,7 +34,7 @@ static unsigned long psci_affinity_mask(unsigned long affinity_level)
 static unsigned long kvm_psci_vcpu_suspend(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * NOTE: For simplicity, we make VCPU suspend emulation to be
+	 * ANALTE: For simplicity, we make VCPU suspend emulation to be
 	 * same-as WFI (Wait-for-interrupt) emulation.
 	 *
 	 * This means for KVM the wakeup events are interrupts and
@@ -96,7 +96,7 @@ static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
 	reset_state->be = kvm_vcpu_is_be(source_vcpu);
 
 	/*
-	 * NOTE: We always update r0 (or x0) because for PSCI v0.1
+	 * ANALTE: We always update r0 (or x0) because for PSCI v0.1
 	 * the general purpose registers are undefined upon CPU_ON.
 	 */
 	reset_state->r0 = smccc_get_arg3(source_vcpu);
@@ -139,7 +139,7 @@ static unsigned long kvm_psci_vcpu_affinity_info(struct kvm_vcpu *vcpu)
 	if (!target_affinity_mask)
 		return PSCI_RET_INVALID_PARAMS;
 
-	/* Ignore other bits of target affinity */
+	/* Iganalre other bits of target affinity */
 	target_affinity &= target_affinity_mask;
 
 	/*
@@ -171,7 +171,7 @@ static void kvm_prepare_system_event(struct kvm_vcpu *vcpu, u32 type, u64 flags)
 	 * again and may perform shutdown/reboot at a later time that when the
 	 * actual request is made.  Since we are implementing PSCI and a
 	 * caller of PSCI reboot and shutdown expects that the system shuts
-	 * down or reboots immediately, let's make sure that VCPUs are not run
+	 * down or reboots immediately, let's make sure that VCPUs are analt run
 	 * after this call is handled and before the VCPUs have been
 	 * re-initialized.
 	 */
@@ -232,7 +232,7 @@ static unsigned long kvm_psci_check_allowed_function(struct kvm_vcpu *vcpu, u32 
 	 * Prevent 32 bit guests from calling 64 bit PSCI functions.
 	 */
 	if ((fn & PSCI_0_2_64BIT) && vcpu_mode_is_32bit(vcpu))
-		return PSCI_RET_NOT_SUPPORTED;
+		return PSCI_RET_ANALT_SUPPORTED;
 
 	return 0;
 }
@@ -247,7 +247,7 @@ static int kvm_psci_0_2_call(struct kvm_vcpu *vcpu)
 	case PSCI_0_2_FN_PSCI_VERSION:
 		/*
 		 * Bits[31:16] = Major Version = 0
-		 * Bits[15:0] = Minor Version = 2
+		 * Bits[15:0] = Mianalr Version = 2
 		 */
 		val = KVM_ARM_PSCI_0_2;
 		break;
@@ -273,9 +273,9 @@ static int kvm_psci_0_2_call(struct kvm_vcpu *vcpu)
 		break;
 	case PSCI_0_2_FN_MIGRATE_INFO_TYPE:
 		/*
-		 * Trusted OS is MP hence does not require migration
+		 * Trusted OS is MP hence does analt require migration
 	         * or
-		 * Trusted OS is not present
+		 * Trusted OS is analt present
 		 */
 		val = PSCI_0_2_TOS_MP;
 		break;
@@ -304,7 +304,7 @@ static int kvm_psci_0_2_call(struct kvm_vcpu *vcpu)
 		ret = 0;
 		break;
 	default:
-		val = PSCI_RET_NOT_SUPPORTED;
+		val = PSCI_RET_ANALT_SUPPORTED;
 		break;
 	}
 
@@ -312,9 +312,9 @@ static int kvm_psci_0_2_call(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
-static int kvm_psci_1_x_call(struct kvm_vcpu *vcpu, u32 minor)
+static int kvm_psci_1_x_call(struct kvm_vcpu *vcpu, u32 mianalr)
 {
-	unsigned long val = PSCI_RET_NOT_SUPPORTED;
+	unsigned long val = PSCI_RET_ANALT_SUPPORTED;
 	u32 psci_fn = smccc_get_function(vcpu);
 	struct kvm *kvm = vcpu->kvm;
 	u32 arg;
@@ -322,7 +322,7 @@ static int kvm_psci_1_x_call(struct kvm_vcpu *vcpu, u32 minor)
 
 	switch(psci_fn) {
 	case PSCI_0_2_FN_PSCI_VERSION:
-		val = minor == 0 ? KVM_ARM_PSCI_1_0 : KVM_ARM_PSCI_1_1;
+		val = mianalr == 0 ? KVM_ARM_PSCI_1_0 : KVM_ARM_PSCI_1_1;
 		break;
 	case PSCI_1_0_FN_PSCI_FEATURES:
 		arg = smccc_get_arg1(vcpu);
@@ -330,7 +330,7 @@ static int kvm_psci_1_x_call(struct kvm_vcpu *vcpu, u32 minor)
 		if (val)
 			break;
 
-		val = PSCI_RET_NOT_SUPPORTED;
+		val = PSCI_RET_ANALT_SUPPORTED;
 
 		switch(arg) {
 		case PSCI_0_2_FN_PSCI_VERSION:
@@ -355,7 +355,7 @@ static int kvm_psci_1_x_call(struct kvm_vcpu *vcpu, u32 minor)
 			break;
 		case PSCI_1_1_FN_SYSTEM_RESET2:
 		case PSCI_1_1_FN64_SYSTEM_RESET2:
-			if (minor >= 1)
+			if (mianalr >= 1)
 				val = 0;
 			break;
 		}
@@ -378,7 +378,7 @@ static int kvm_psci_1_x_call(struct kvm_vcpu *vcpu, u32 minor)
 		kvm_psci_narrow_to_32bit(vcpu);
 		fallthrough;
 	case PSCI_1_1_FN64_SYSTEM_RESET2:
-		if (minor >= 1) {
+		if (mianalr >= 1) {
 			arg = smccc_get_arg1(vcpu);
 
 			if (arg <= PSCI_1_1_RESET_TYPE_SYSTEM_WARM_RESET ||
@@ -414,7 +414,7 @@ static int kvm_psci_0_1_call(struct kvm_vcpu *vcpu)
 		val = kvm_psci_vcpu_on(vcpu);
 		break;
 	default:
-		val = PSCI_RET_NOT_SUPPORTED;
+		val = PSCI_RET_ANALT_SUPPORTED;
 		break;
 	}
 
@@ -458,8 +458,8 @@ int kvm_psci_call(struct kvm_vcpu *vcpu)
 	case KVM_ARM_PSCI_0_1:
 		return kvm_psci_0_1_call(vcpu);
 	default:
-		WARN_ONCE(1, "Unknown PSCI version %d", version);
-		smccc_set_retval(vcpu, SMCCC_RET_NOT_SUPPORTED, 0, 0, 0);
+		WARN_ONCE(1, "Unkanalwn PSCI version %d", version);
+		smccc_set_retval(vcpu, SMCCC_RET_ANALT_SUPPORTED, 0, 0, 0);
 		return 1;
 	}
 }

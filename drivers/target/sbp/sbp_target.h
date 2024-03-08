@@ -16,7 +16,7 @@
 #define MANAGEMENT_AGENT_STATE_IDLE	0
 #define MANAGEMENT_AGENT_STATE_BUSY	1
 
-#define ORB_NOTIFY(v)			(((v) >> 31) & 0x01)
+#define ORB_ANALTIFY(v)			(((v) >> 31) & 0x01)
 #define ORB_REQUEST_FORMAT(v)		(((v) >> 29) & 0x03)
 
 #define MANAGEMENT_ORB_FUNCTION(v)	(((v) >> 16) & 0x0f)
@@ -65,16 +65,16 @@
 #define STATUS_RESP_VENDOR_DEPENDENT	3
 
 #define SBP_STATUS_OK			0
-#define SBP_STATUS_REQ_TYPE_NOTSUPP	1
-#define SBP_STATUS_SPEED_NOTSUPP	2
-#define SBP_STATUS_PAGE_SIZE_NOTSUPP	3
+#define SBP_STATUS_REQ_TYPE_ANALTSUPP	1
+#define SBP_STATUS_SPEED_ANALTSUPP	2
+#define SBP_STATUS_PAGE_SIZE_ANALTSUPP	3
 #define SBP_STATUS_ACCESS_DENIED	4
-#define SBP_STATUS_LUN_NOTSUPP		5
+#define SBP_STATUS_LUN_ANALTSUPP		5
 #define SBP_STATUS_PAYLOAD_TOO_SMALL	6
 /* 7 is reserved */
 #define SBP_STATUS_RESOURCES_UNAVAIL	8
 #define SBP_STATUS_FUNCTION_REJECTED	9
-#define SBP_STATUS_LOGIN_ID_UNKNOWN	10
+#define SBP_STATUS_LOGIN_ID_UNKANALWN	10
 #define SBP_STATUS_DUMMY_ORB_COMPLETE	11
 #define SBP_STATUS_REQUEST_ABORTED	12
 #define SBP_STATUS_UNSPECIFIED_ERROR	0xff
@@ -142,7 +142,7 @@ struct sbp_session {
 	struct delayed_work maint_work;
 
 	u64 guid; /* login_owner_EUI_64 */
-	int node_id; /* login_owner_ID */
+	int analde_id; /* login_owner_ID */
 
 	struct fw_card *card;
 	int generation;
@@ -236,7 +236,7 @@ struct sbp_management_request {
 	struct sbp_status_block status;
 	struct fw_card *card;
 	int generation;
-	int node_addr;
+	int analde_addr;
 	int speed;
 };
 

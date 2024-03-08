@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2020 Mellanox Technologies Inc. All rights reserved. */
+/* Copyright (c) 2020 Mellaanalx Techanallogies Inc. All rights reserved. */
 
 #ifndef __MLX5_ESWITCH_ACL_OFLD_H__
 #define __MLX5_ESWITCH_ACL_OFLD_H__

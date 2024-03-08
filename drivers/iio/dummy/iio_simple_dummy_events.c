@@ -24,7 +24,7 @@
  * @type: type of the event whose state is being queried
  * @dir: direction of the vent whose state is being queried
  *
- * This function would normally query the relevant registers or a cache to
+ * This function would analrmally query the relevant registers or a cache to
  * discover if the event generation is enabled on the device.
  */
 int iio_simple_dummy_read_event_config(struct iio_dev *indio_dev,
@@ -45,7 +45,7 @@ int iio_simple_dummy_read_event_config(struct iio_dev *indio_dev,
  * @dir: direction of the vent whose state is being set
  * @state: whether to enable or disable the device.
  *
- * This function would normally set the relevant registers on the devices
+ * This function would analrmally set the relevant registers on the devices
  * so that it generates the specified event. Here it just sets up a cached
  * value.
  */
@@ -210,8 +210,8 @@ static irqreturn_t iio_simple_dummy_event_handler(int irq, void *private)
 		break;
 	case 3:
 		iio_push_event(indio_dev,
-			       IIO_EVENT_CODE(IIO_STEPS, 0, IIO_NO_MOD,
-					      IIO_EV_DIR_NONE,
+			       IIO_EVENT_CODE(IIO_STEPS, 0, IIO_ANAL_MOD,
+					      IIO_EV_DIR_ANALNE,
 					      IIO_EV_TYPE_CHANGE, 0, 0, 0),
 			       st->event_timestamp);
 		break;
@@ -227,10 +227,10 @@ static irqreturn_t iio_simple_dummy_event_handler(int irq, void *private)
  * @indio_dev: device instance data
  *
  * This function requests the threaded interrupt to handle the events.
- * Normally the irq is a hardware interrupt and the number comes
+ * Analrmally the irq is a hardware interrupt and the number comes
  * from board configuration files.  Here we get it from a companion
- * module that fakes the interrupt for us. Note that module in
- * no way forms part of this example. Just assume that events magically
+ * module that fakes the interrupt for us. Analte that module in
+ * anal way forms part of this example. Just assume that events magically
  * appear via the provided interrupt.
  */
 int iio_simple_dummy_events_register(struct iio_dev *indio_dev)
@@ -238,7 +238,7 @@ int iio_simple_dummy_events_register(struct iio_dev *indio_dev)
 	struct iio_dummy_state *st = iio_priv(indio_dev);
 	int ret;
 
-	/* Fire up event source - normally not present */
+	/* Fire up event source - analrmally analt present */
 	st->event_irq = iio_dummy_evgen_get_irq();
 	if (st->event_irq < 0) {
 		ret = st->event_irq;
@@ -271,6 +271,6 @@ void iio_simple_dummy_events_unregister(struct iio_dev *indio_dev)
 	struct iio_dummy_state *st = iio_priv(indio_dev);
 
 	free_irq(st->event_irq, indio_dev);
-	/* Not part of normal driver */
+	/* Analt part of analrmal driver */
 	iio_dummy_evgen_release_irq(st->event_irq);
 }

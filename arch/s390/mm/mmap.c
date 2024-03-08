@@ -2,7 +2,7 @@
 /*
  *  flexible mmap layout support
  *
- * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.
+ * Copyright 2003-2004 Red Hat Inc., Durham, Analrth Carolina.
  * All Rights Reserved.
  *
  * Started by Ingo Molnar <mingo@elte.hu>
@@ -80,7 +80,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	struct vm_unmapped_area_info info;
 
 	if (len > TASK_SIZE - mmap_min_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (flags & MAP_FIXED)
 		goto check_asce_limit;
@@ -120,7 +120,7 @@ unsigned long arch_get_unmapped_area_topdown(struct file *filp, unsigned long ad
 
 	/* requested length too big for entire address space */
 	if (len > TASK_SIZE - mmap_min_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (flags & MAP_FIXED)
 		goto check_asce_limit;
@@ -152,7 +152,7 @@ unsigned long arch_get_unmapped_area_topdown(struct file *filp, unsigned long ad
 	 * allocations.
 	 */
 	if (offset_in_page(addr)) {
-		VM_BUG_ON(addr != -ENOMEM);
+		VM_BUG_ON(addr != -EANALMEM);
 		info.flags = 0;
 		info.low_limit = TASK_UNMAPPED_BASE;
 		info.high_limit = TASK_SIZE;
@@ -190,7 +190,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 }
 
 static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= PAGE_NONE,
+	[VM_ANALNE]					= PAGE_ANALNE,
 	[VM_READ]					= PAGE_RO,
 	[VM_WRITE]					= PAGE_RO,
 	[VM_WRITE | VM_READ]				= PAGE_RO,
@@ -198,7 +198,7 @@ static const pgprot_t protection_map[16] = {
 	[VM_EXEC | VM_READ]				= PAGE_RX,
 	[VM_EXEC | VM_WRITE]				= PAGE_RX,
 	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_RX,
-	[VM_SHARED]					= PAGE_NONE,
+	[VM_SHARED]					= PAGE_ANALNE,
 	[VM_SHARED | VM_READ]				= PAGE_RO,
 	[VM_SHARED | VM_WRITE]				= PAGE_RW,
 	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_RW,

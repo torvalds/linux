@@ -5,13 +5,13 @@
 $id: http://devicetree.org/schemas/net/wireless/qcom,ath11k.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies ath11k wireless devices
+title: Qualcomm Techanallogies ath11k wireless devices
 
 maintainers:
   - Kalle Valo <kvalo@kernel.org>
 
 description: |
-  These are dt entries for Qualcomm Technologies, Inc. IEEE 802.11ax
+  These are dt entries for Qualcomm Techanallogies, Inc. IEEE 802.11ax
   devices, for example like AHB based IPQ8074.
 
 properties:
@@ -36,7 +36,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
       DT entry of q6v5-wcss remoteproc driver.
-      Phandle to a node that can contain the following properties
+      Phandle to a analde that can contain the following properties
         * compatible
         * reg
         * reg-names
@@ -51,7 +51,7 @@ properties:
     minItems: 1
     maxItems: 2
     description:
-      phandle to a node describing reserved memory (System RAM memory)
+      phandle to a analde describing reserved memory (System RAM memory)
       used by ath11k firmware (see bindings/reserved-memory/reserved-memory.txt)
 
   iommus:
@@ -61,8 +61,8 @@ properties:
   wifi-firmware:
     type: object
     description: |
-      WCN6750 wifi node can contain one optional firmware subnode.
-      Firmware subnode is needed when the platform does not have Trustzone.
+      WCN6750 wifi analde can contain one optional firmware subanalde.
+      Firmware subanalde is needed when the platform does analt have Trustzone.
     required:
       - iommus
 
@@ -387,7 +387,7 @@ examples:
         #size-cells = <2>;
 
         qcn9074_0: wifi@51100000 {
-            no-map;
+            anal-map;
             reg = <0x0 0x51100000 0x0 0x03500000>;
         };
     };
@@ -412,12 +412,12 @@ examples:
         #size-cells = <2>;
 
         wlan_ce_mem: memory@4cd000 {
-            no-map;
+            anal-map;
             reg = <0x0 0x004cd000 0x0 0x1000>;
         };
 
         wlan_fw_mem: memory@80c00000 {
-            no-map;
+            anal-map;
             reg = <0x0 0x80c00000 0x0 0xc00000>;
         };
     };

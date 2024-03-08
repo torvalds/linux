@@ -81,7 +81,7 @@ struct clk_hw *imx_clk_hw_cpu(const char *name, const char *parent_name,
 
 	cpu = kzalloc(sizeof(*cpu), GFP_KERNEL);
 	if (!cpu)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cpu->div = div;
 	cpu->mux = mux;

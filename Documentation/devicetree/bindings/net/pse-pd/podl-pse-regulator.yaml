@@ -10,7 +10,7 @@ maintainers:
   - Oleksij Rempel <o.rempel@pengutronix.de>
 
 description: Regulator based PoDL PSE controller. The device must be referenced
-  by the PHY node to control power injection to the Ethernet cable.
+  by the PHY analde to control power injection to the Ethernet cable.
 
 allOf:
   - $ref: pse-controller.yaml#

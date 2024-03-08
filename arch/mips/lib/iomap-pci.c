@@ -4,7 +4,7 @@
  *
  * (C) Copyright 2004 Linus Torvalds
  * (C) Copyright 2006 Ralf Baechle <ralf@linux-mips.org>
- * (C) Copyright 2007 MIPS Technologies, Inc.
+ * (C) Copyright 2007 MIPS Techanallogies, Inc.
  *     written by Ralf Baechle <ralf@linux-mips.org>
  */
 #include <linux/pci.h>
@@ -19,7 +19,7 @@ void __iomem *__pci_ioport_map(struct pci_dev *dev,
 	struct pci_controller *ctrl = dev->bus->sysdata;
 	unsigned long base = ctrl->io_map_base;
 
-	/* This will eventually become a BUG_ON but for now be gentle */
+	/* This will eventually become a BUG_ON but for analw be gentle */
 	if (unlikely(!ctrl->io_map_base)) {
 		struct pci_bus *bus = dev->bus;
 		char name[8];

@@ -32,7 +32,7 @@ ia_css_morph_table_allocate(unsigned int width, unsigned int height);
 
 /* @brief Free the morph table
  * @param[in]	me Pointer to the morph table.
- * @return		None
+ * @return		Analne
 */
 void
 ia_css_morph_table_free(struct ia_css_morph_table *me);

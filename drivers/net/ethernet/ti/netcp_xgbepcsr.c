@@ -223,7 +223,7 @@ static int netcp_xgbe_wait_pll_locked(void __iomem *sw_regs)
 		cpu_relax();
 	} while (true);
 
-	pr_err("XGBE serdes not locked: time out.\n");
+	pr_err("XGBE serdes analt locked: time out.\n");
 	return ret;
 }
 
@@ -338,7 +338,7 @@ static int netcp_xgbe_check_link_status(void __iomem *serdes_regs,
 					MASK_WID_SH(2, 1));
 				current_state[i] = 1;
 			} else if (!blk_lock) {
-				/* if no lock, then reset CDR */
+				/* if anal lock, then reset CDR */
 				pr_debug("XGBE PCSR Recover Lane: %d\n", i);
 				netcp_xgbe_serdes_reset_cdr(serdes_regs,
 							    sig_detect_reg, i);
@@ -355,11 +355,11 @@ static int netcp_xgbe_check_link_status(void __iomem *serdes_regs,
 
 		case 2:
 			if (blk_lock)
-				/* Nope just noise */
+				/* Analpe just analise */
 				current_state[i] = 1;
 			else {
 				/* Lost the block lock, reset CDR if it is
-				 * not centered and go back to sync state
+				 * analt centered and go back to sync state
 				 */
 				netcp_xgbe_serdes_reset_cdr(serdes_regs,
 							    sig_detect_reg, i);
@@ -368,7 +368,7 @@ static int netcp_xgbe_check_link_status(void __iomem *serdes_regs,
 			break;
 
 		default:
-			pr_err("XGBE: unknown current_state[%d] %d\n",
+			pr_err("XGBE: unkanalwn current_state[%d] %d\n",
 			       i, current_state[i]);
 			break;
 		}
@@ -403,7 +403,7 @@ static int netcp_xgbe_serdes_check_lane(void __iomem *serdes_regs,
 						       current_state,
 						       lane_down);
 
-		/* if we did not get link up then wait 100ms before calling
+		/* if we did analt get link up then wait 100ms before calling
 		 * it again
 		 */
 		if (link_up)

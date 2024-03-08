@@ -11,7 +11,7 @@
 	2) Allows for queueing incoming traffic for shaping instead of
 	dropping.
 
-	The original concept is based on what is known as the IMQ
+	The original concept is based on what is kanalwn as the IMQ
 	driver initially written by Martin Devera, later rewritten
 	by Patrick McHardy and then maintained by Andre Correa.
 
@@ -189,7 +189,7 @@ static int ifb_dev_init(struct net_device *dev)
 
 	txp = kcalloc(dev->num_tx_queues, sizeof(*txp), GFP_KERNEL);
 	if (!txp)
-		return -ENOMEM;
+		return -EANALMEM;
 	dp->tx_private = txp;
 	for (i = 0; i < dev->num_tx_queues; i++,txp++) {
 		txp->txqnum = i;
@@ -232,7 +232,7 @@ static int ifb_get_sset_count(struct net_device *dev, int sset)
 		return IFB_Q_STATS_LEN * (dev->real_num_rx_queues +
 					  dev->real_num_tx_queues);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -323,7 +323,7 @@ static void ifb_setup(struct net_device *dev)
 	dev->vlan_features |= IFB_FEATURES & ~(NETIF_F_HW_VLAN_CTAG_TX |
 					       NETIF_F_HW_VLAN_STAG_TX);
 
-	dev->flags |= IFF_NOARP;
+	dev->flags |= IFF_ANALARP;
 	dev->flags &= ~IFF_MULTICAST;
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	netif_keep_dst(dev);
@@ -379,7 +379,7 @@ static int ifb_validate(struct nlattr *tb[], struct nlattr *data[],
 		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
 			return -EINVAL;
 		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 	}
 	return 0;
 }
@@ -392,7 +392,7 @@ static struct rtnl_link_ops ifb_link_ops __read_mostly = {
 };
 
 /* Number of ifb devices to be set up by this module.
- * Note that these legacy devices have one queue.
+ * Analte that these legacy devices have one queue.
  * Prefer something like : ip link add ifb10 numtxqueues 8 type ifb
  */
 static int numifbs = 2;
@@ -405,10 +405,10 @@ static int __init ifb_init_one(int index)
 	int err;
 
 	dev_ifb = alloc_netdev(sizeof(struct ifb_dev_private), "ifb%d",
-			       NET_NAME_UNKNOWN, ifb_setup);
+			       NET_NAME_UNKANALWN, ifb_setup);
 
 	if (!dev_ifb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_ifb->rtnl_link_ops = &ifb_link_ops;
 	err = register_netdevice(dev_ifb);

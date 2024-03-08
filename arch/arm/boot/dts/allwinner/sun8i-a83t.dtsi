@@ -4,8 +4,8 @@
  * Vishnu Patekar <vishnupatekar0510@gmail.com>
  *
  * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * of the GPL or the X11 license, at your option. Analte that this dual
+ * licensing only applies to this file, and analt this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -29,13 +29,13 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright analtice and this permission analtice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES
  *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT
  *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -720,7 +720,7 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			csi_8bit_parallel_pins: csi-8bit-parallel-pins {
 				pins = "PE0", "PE2", "PE3", "PE6", "PE7",
 				       "PE8", "PE9", "PE10", "PE11",
@@ -728,7 +728,7 @@
 				function = "csi";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			csi_mclk_pin: csi-mclk-pin {
 				pins = "PE1";
 				function = "csi";
@@ -761,7 +761,7 @@
 				function = "i2c1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			i2c2_pe_pins: i2c2-pe-pins {
 				pins = "PE14", "PE15";
 				function = "i2c2";
@@ -773,7 +773,7 @@
 			};
 
 			i2s1_pins: i2s1-pins {
-				/* I2S1 does not have external MCLK pin */
+				/* I2S1 does analt have external MCLK pin */
 				pins = "PG10", "PG11", "PG12", "PG13";
 				function = "i2s1";
 			};
@@ -839,7 +839,7 @@
 				function = "uart1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			uart2_pb_pins: uart2-pb-pins {
 				pins = "PB0", "PB1";
 				function = "uart2";
@@ -1227,10 +1227,10 @@
 			cooling-maps {
 				cpu-hot-limit {
 					trip = <&cpu0_hot>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -1257,10 +1257,10 @@
 			cooling-maps {
 				cpu-hot-limit {
 					trip = <&cpu1_hot>;
-					cooling-device = <&cpu100 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu101 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu102 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu103 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu100 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu101 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu102 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu103 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

@@ -11,7 +11,7 @@
 /*
  * MM IOMMU larbs:
  * From below, for example larb11 has larb11a/larb11b/larb11c,
- * the index of larb is not in order. So we reindexed these larbs from a
+ * the index of larb is analt in order. So we reindexed these larbs from a
  * software view.
  */
 #define SMI_L0_ID		0
@@ -46,7 +46,7 @@
  * 0 ~ 4G; 4G ~ 8G; 8G ~ 12G; 12G ~ 16G, we could adjust these masters
  * locate in anyone region. BUT:
  * a) Make sure all the ports inside a larb are in one range.
- * b) The iova of any master can NOT cross the 4G/8G/12G boundary.
+ * b) The iova of any master can ANALT cross the 4G/8G/12G boundary.
  *
  * This is the suggested mapping in this SoC:
  *
@@ -409,7 +409,7 @@
 #define M4U_PORT_L17A_YUVCO_R1			MTK_M4U_ID(SMI_L17A_ID, 2)
 #define M4U_PORT_L17A_YUVO_R2			MTK_M4U_ID(SMI_L17A_ID, 3)
 #define M4U_PORT_L17A_RZH1N2TO_R1		MTK_M4U_ID(SMI_L17A_ID, 4)
-#define M4U_PORT_L17A_DRZS4NO_R1		MTK_M4U_ID(SMI_L17A_ID, 5)
+#define M4U_PORT_L17A_DRZS4ANAL_R1		MTK_M4U_ID(SMI_L17A_ID, 5)
 #define M4U_PORT_L17A_TNCSO_R1			MTK_M4U_ID(SMI_L17A_ID, 6)
 
 /* LARB 17B -- CAM */
@@ -418,7 +418,7 @@
 #define M4U_PORT_L17B_YUVCO_R1			MTK_M4U_ID(SMI_L17B_ID, 2)
 #define M4U_PORT_L17B_YUVO_R2			MTK_M4U_ID(SMI_L17B_ID, 3)
 #define M4U_PORT_L17B_RZH1N2TO_R1		MTK_M4U_ID(SMI_L17B_ID, 4)
-#define M4U_PORT_L17B_DRZS4NO_R1		MTK_M4U_ID(SMI_L17B_ID, 5)
+#define M4U_PORT_L17B_DRZS4ANAL_R1		MTK_M4U_ID(SMI_L17B_ID, 5)
 #define M4U_PORT_L17B_TNCSO_R1			MTK_M4U_ID(SMI_L17B_ID, 6)
 
 /* LARB 19 -- VENC */

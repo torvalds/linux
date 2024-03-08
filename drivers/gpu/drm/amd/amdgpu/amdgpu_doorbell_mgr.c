@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -125,7 +125,7 @@ uint32_t amdgpu_doorbell_index_on_bar(struct amdgpu_device *adev,
 {
 	int db_bo_offset;
 
-	db_bo_offset = amdgpu_bo_gpu_offset_no_check(db_bo);
+	db_bo_offset = amdgpu_bo_gpu_offset_anal_check(db_bo);
 
 	/* doorbell index is 32 bit but doorbell's size can be 32 bit
 	 * or 64 bit, so *db_size(in byte)/4 for alignment.
@@ -147,7 +147,7 @@ int amdgpu_doorbell_create_kernel_doorbells(struct amdgpu_device *adev)
 	int r;
 	int size;
 
-	/* SI HW does not have doorbells, skip allocation */
+	/* SI HW does analt have doorbells, skip allocation */
 	if (adev->doorbell.num_kernel_doorbells == 0)
 		return 0;
 
@@ -188,7 +188,7 @@ int amdgpu_doorbell_create_kernel_doorbells(struct amdgpu_device *adev)
 int amdgpu_doorbell_init(struct amdgpu_device *adev)
 {
 
-	/* No doorbell on SI hardware generation */
+	/* Anal doorbell on SI hardware generation */
 	if (adev->asic_type < CHIP_BONAIRE) {
 		adev->doorbell.base = 0;
 		adev->doorbell.size = 0;

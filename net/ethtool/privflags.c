@@ -37,14 +37,14 @@ static int ethnl_get_priv_flags_info(struct net_device *dev,
 	if (names) {
 		*names = kcalloc(nflags, ETH_GSTRING_LEN, GFP_KERNEL);
 		if (!*names)
-			return -ENOMEM;
+			return -EANALMEM;
 		ops->get_strings(dev, ETH_SS_PRIV_FLAGS, (u8 *)*names);
 	}
 
 	/* We can pass more than 32 private flags to userspace via netlink but
-	 * we cannot get more with ethtool_ops::get_priv_flags(). Note that we
-	 * must not adjust nflags before allocating the space for flag names
-	 * as the buffer must be large enough for all flags.
+	 * we cananalt get more with ethtool_ops::get_priv_flags(). Analte that we
+	 * must analt adjust nflags before allocating the space for flag names
+	 * as the buffer must be large eanalugh for all flags.
 	 */
 	if (WARN_ONCE(nflags > 32,
 		      "device %s reports more than 32 private flags (%d)\n",
@@ -68,7 +68,7 @@ static int privflags_prepare_data(const struct ethnl_req_info *req_base,
 
 	ops = dev->ethtool_ops;
 	if (!ops->get_priv_flags || !ops->get_sset_count || !ops->get_strings)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		return ret;
@@ -137,7 +137,7 @@ ethnl_set_privflags_validate(struct ethnl_req_info *req_info,
 
 	if (!ops->get_priv_flags || !ops->set_priv_flags ||
 	    !ops->get_sset_count || !ops->get_strings)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return 1;
 }
 

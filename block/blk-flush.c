@@ -12,12 +12,12 @@
  * If a request doesn't have data, only REQ_PREFLUSH makes sense, which
  * indicates a simple flush request.  If there is data, REQ_PREFLUSH indicates
  * that the device cache should be flushed before the data is executed, and
- * REQ_FUA means that the data must be on non-volatile media on request
+ * REQ_FUA means that the data must be on analn-volatile media on request
  * completion.
  *
  * If the device doesn't have writeback cache, PREFLUSH and FUA don't make any
- * difference.  The requests are either completed immediately if there's no data
- * or executed as normal requests otherwise.
+ * difference.  The requests are either completed immediately if there's anal data
+ * or executed as analrmal requests otherwise.
  *
  * If the device has writeback cache and supports FUA, REQ_PREFLUSH is
  * translated to PREFLUSH but REQ_FUA is passed down directly with DATA.
@@ -43,7 +43,7 @@
  *     This avoids issuing separate POSTFLUSHes for requests which shared
  *     PREFLUSH.
  *
- * C3. The second condition is ignored if there is a request which has
+ * C3. The second condition is iganalred if there is a request which has
  *     waited longer than FLUSH_PENDING_TIMEOUT.  This is to avoid
  *     starvation in the unlikely case where there are continuous stream of
  *     FUA (without PREFLUSH) requests.
@@ -51,10 +51,10 @@
  * For devices which support FUA, it isn't clear whether C2 (and thus C3)
  * is beneficial.
  *
- * Note that a sequenced PREFLUSH/FUA request with DATA is completed twice.
+ * Analte that a sequenced PREFLUSH/FUA request with DATA is completed twice.
  * Once while executing DATA and again after the whole sequence is
  * complete.  The first completion updates the contained bio but doesn't
- * finish it so that the bio submitter is notified only after the whole
+ * finish it so that the bio submitter is analtified only after the whole
  * sequence is complete.  This is implemented by testing RQF_FLUSH_SEQ in
  * req_bio_endio().
  *
@@ -131,7 +131,7 @@ static void blk_flush_restore_request(struct request *rq)
 	 */
 	rq->bio = rq->biotail;
 
-	/* make @rq a normal request */
+	/* make @rq a analrmal request */
 	rq->rq_flags &= ~RQF_FLUSH_SEQ;
 	rq->end_io = rq->flush.saved_end_io;
 }
@@ -199,7 +199,7 @@ static void blk_flush_complete_seq(struct request *rq,
 		 * @rq was previously adjusted by blk_insert_flush() for
 		 * flush sequencing and may already have gone through the
 		 * flush data request completion path.  Restore @rq for
-		 * normal completion and end it.
+		 * analrmal completion and end it.
 		 */
 		list_del_init(&rq->queuelist);
 		blk_flush_restore_request(rq);
@@ -228,7 +228,7 @@ static enum rq_end_io_ret flush_end_io(struct request *flush_rq,
 	if (!req_ref_put_and_test(flush_rq)) {
 		fq->rq_status = error;
 		spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
-		return RQ_END_IO_NONE;
+		return RQ_END_IO_ANALNE;
 	}
 
 	blk_account_io_flush(flush_rq);
@@ -244,10 +244,10 @@ static enum rq_end_io_ret flush_end_io(struct request *flush_rq,
 	}
 
 	if (!q->elevator) {
-		flush_rq->tag = BLK_MQ_NO_TAG;
+		flush_rq->tag = BLK_MQ_ANAL_TAG;
 	} else {
 		blk_mq_put_driver_tag(flush_rq);
-		flush_rq->internal_tag = BLK_MQ_NO_TAG;
+		flush_rq->internal_tag = BLK_MQ_ANAL_TAG;
 	}
 
 	running = &fq->flush_queue[fq->flush_running_idx];
@@ -265,7 +265,7 @@ static enum rq_end_io_ret flush_end_io(struct request *flush_rq,
 	}
 
 	spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
-	return RQ_END_IO_NONE;
+	return RQ_END_IO_ANALNE;
 }
 
 bool is_flush_rq(struct request *rq)
@@ -313,7 +313,7 @@ static void blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq,
 	blk_rq_init(q, flush_rq);
 
 	/*
-	 * In case of none scheduler, borrow tag from the first request
+	 * In case of analne scheduler, borrow tag from the first request
 	 * since they can't be in flight at the same time. And acquire
 	 * the tag's ownership for flush req.
 	 *
@@ -334,7 +334,7 @@ static void blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq,
 	flush_rq->end_io = flush_end_io;
 	/*
 	 * Order WRITE ->end_io and WRITE rq->ref, and its pair is the one
-	 * implied in refcount_inc_not_zero() called from
+	 * implied in refcount_inc_analt_zero() called from
 	 * blk_mq_find_and_get_req(), which orders WRITE/READ flush_rq->ref
 	 * and READ flush_rq->end_io
 	 */
@@ -377,7 +377,7 @@ static enum rq_end_io_ret mq_flush_data_end_io(struct request *rq,
 	spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
 
 	blk_mq_sched_restart(hctx);
-	return RQ_END_IO_NONE;
+	return RQ_END_IO_ANALNE;
 }
 
 static void blk_rq_init_flush(struct request *rq)
@@ -404,7 +404,7 @@ bool blk_insert_flush(struct request *rq)
 	WARN_ON_ONCE(rq->bio != rq->biotail);
 
 	/*
-	 * @policy now records what operations need to be done.  Adjust
+	 * @policy analw records what operations need to be done.  Adjust
 	 * REQ_PREFLUSH and FUA for the driver.
 	 */
 	rq->cmd_flags &= ~REQ_PREFLUSH;
@@ -422,7 +422,7 @@ bool blk_insert_flush(struct request *rq)
 	case 0:
 		/*
 		 * An empty flush handed down from a stacking driver may
-		 * translate into nothing if the underlying device does not
+		 * translate into analthing if the underlying device does analt
 		 * advertise a write-back cache.  In this case, simply
 		 * complete the request.
 		 */
@@ -430,9 +430,9 @@ bool blk_insert_flush(struct request *rq)
 		return true;
 	case REQ_FSEQ_DATA:
 		/*
-		 * If there's data, but no flush is necessary, the request can
+		 * If there's data, but anal flush is necessary, the request can
 		 * be processed directly without going through flush machinery.
-		 * Queue for normal execution.
+		 * Queue for analrmal execution.
 		 */
 		return false;
 	case REQ_FSEQ_DATA | REQ_FSEQ_POSTFLUSH:
@@ -475,20 +475,20 @@ int blkdev_issue_flush(struct block_device *bdev)
 }
 EXPORT_SYMBOL(blkdev_issue_flush);
 
-struct blk_flush_queue *blk_alloc_flush_queue(int node, int cmd_size,
+struct blk_flush_queue *blk_alloc_flush_queue(int analde, int cmd_size,
 					      gfp_t flags)
 {
 	struct blk_flush_queue *fq;
 	int rq_sz = sizeof(struct request);
 
-	fq = kzalloc_node(sizeof(*fq), flags, node);
+	fq = kzalloc_analde(sizeof(*fq), flags, analde);
 	if (!fq)
 		goto fail;
 
 	spin_lock_init(&fq->mq_flush_lock);
 
 	rq_sz = round_up(rq_sz + cmd_size, cache_line_size());
-	fq->flush_rq = kzalloc_node(rq_sz, flags, node);
+	fq->flush_rq = kzalloc_analde(rq_sz, flags, analde);
 	if (!fq->flush_rq)
 		goto fail_rq;
 
@@ -526,8 +526,8 @@ void blk_free_flush_queue(struct blk_flush_queue *fq)
  * Use dynamically allocated lock class key for each 'blk_flush_queue'
  * instance is over-kill, and more worse it introduces horrible boot delay
  * issue because synchronize_rcu() is implied in lockdep_unregister_key which
- * is called for each hctx release. SCSI probing may synchronously create and
- * destroy lots of MQ request_queues for non-existent devices, and some robot
+ * is called for each hctx release. SCSI probing may synchroanalusly create and
+ * destroy lots of MQ request_queues for analn-existent devices, and some robot
  * test kernel always enable lockdep option. It is observed that more than half
  * an hour is taken during SCSI MQ probe with per-fq lock class.
  */

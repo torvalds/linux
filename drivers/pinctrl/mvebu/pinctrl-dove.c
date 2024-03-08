@@ -231,10 +231,10 @@ static int dove_audio1_ctrl_get(struct mvebu_mpp_ctrl_data *data, unsigned pid,
 	if (gcfg2 & TWSI_OPTION3_GPIO)
 		*config |= BIT(0);
 
-	/* SSP/TWSI only if I2S1 not set*/
+	/* SSP/TWSI only if I2S1 analt set*/
 	if ((*config & BIT(3)) == 0)
 		*config &= ~(BIT(2) | BIT(0));
-	/* TWSI only if SPDIFO not set*/
+	/* TWSI only if SPDIFO analt set*/
 	if ((*config & BIT(1)) == 0)
 		*config &= ~BIT(0);
 	return 0;
@@ -264,7 +264,7 @@ static int dove_audio1_ctrl_set(struct mvebu_mpp_ctrl_data *data, unsigned pid,
 }
 
 /* mpp[52:57] gpio pins depend heavily on current config;
- * gpio_req does not try to mux in gpio capabilities to not
+ * gpio_req does analt try to mux in gpio capabilities to analt
  * break other functions. If you require all mpps as gpio
  * enforce gpio setting by pinctrl mapping.
  */
@@ -280,19 +280,19 @@ static int dove_audio1_ctrl_gpio_req(struct mvebu_mpp_ctrl_data *data,
 	case 0x0e: /* ssp  : gpio[56:57] */
 		if (pid >= 56)
 			return 0;
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	case 0x08: /* spdifo : gpio[52:55] */
 	case 0x0b: /* twsi   : gpio[52:55] */
 		if (pid <= 55)
 			return 0;
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	case 0x0a: /* all gpio */
 		return 0;
-	/* 0x00 : i2s1/spdifo : no gpio */
-	/* 0x0c : ssp/spdifo  : no gpio */
-	/* 0x0f : ssp/twsi    : no gpio */
+	/* 0x00 : i2s1/spdifo : anal gpio */
+	/* 0x0c : ssp/spdifo  : anal gpio */
+	/* 0x0f : ssp/twsi    : anal gpio */
 	}
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 /* mpp[52:57] has gpio pins capable of in and out */
@@ -300,7 +300,7 @@ static int dove_audio1_ctrl_gpio_dir(struct mvebu_mpp_ctrl_data *data,
 				     unsigned pid, bool input)
 {
 	if (pid < 52 || pid > 57)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	return 0;
 }
 
@@ -725,7 +725,7 @@ static struct mvebu_mpp_mode dove_mpp_modes[] = {
 		MPP_FUNCTION(0x00, "i2s", NULL),
 		MPP_FUNCTION(0x01, "ac97", NULL)),
 	MPP_MODE(73,
-		MPP_FUNCTION(0x00, "twsi-none", NULL),
+		MPP_FUNCTION(0x00, "twsi-analne", NULL),
 		MPP_FUNCTION(0x01, "twsi-opt1", NULL),
 		MPP_FUNCTION(0x02, "twsi-opt2", NULL),
 		MPP_FUNCTION(0x03, "twsi-opt3", NULL)),
@@ -789,7 +789,7 @@ static int dove_pinctrl_probe(struct platform_device *pdev)
 	mpp_data = devm_kcalloc(&pdev->dev, dove_pinctrl_info.ncontrols,
 				sizeof(*mpp_data), GFP_KERNEL);
 	if (!mpp_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dove_pinctrl_info.control_data = mpp_data;
 	for (i = 0; i < ARRAY_SIZE(dove_mpp_controls); i++)

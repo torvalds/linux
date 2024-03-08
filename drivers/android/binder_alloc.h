@@ -21,7 +21,7 @@ struct binder_transaction;
 /**
  * struct binder_buffer - buffer used for binder transactions
  * @entry:              entry alloc->buffers
- * @rb_node:            node for allocated_buffers/free_buffers rb trees
+ * @rb_analde:            analde for allocated_buffers/free_buffers rb trees
  * @free:               %true if buffer is free
  * @clear_on_free:      %true if buffer must be zeroed after use
  * @allow_user_free:    %true if user is allowed to free buffer
@@ -30,7 +30,7 @@ struct binder_transaction;
  * spamming detect threshold
  * @debug_id:           unique ID for debugging
  * @transaction:        pointer to associated struct binder_transaction
- * @target_node:        struct binder_node associated with this buffer
+ * @target_analde:        struct binder_analde associated with this buffer
  * @data_size:          size of @transaction data
  * @offsets_size:       size of array of offsets
  * @extra_buffers_size: size of space for other objects (like sg lists)
@@ -41,7 +41,7 @@ struct binder_transaction;
  */
 struct binder_buffer {
 	struct list_head entry; /* free and allocated entries by address */
-	struct rb_node rb_node; /* free entry by size or allocated entry */
+	struct rb_analde rb_analde; /* free entry by size or allocated entry */
 				/* by address */
 	unsigned free:1;
 	unsigned clear_on_free:1;
@@ -50,7 +50,7 @@ struct binder_buffer {
 	unsigned oneway_spam_suspect:1;
 	unsigned debug_id:27;
 	struct binder_transaction *transaction;
-	struct binder_node *target_node;
+	struct binder_analde *target_analde;
 	size_t data_size;
 	size_t offsets_size;
 	size_t extra_buffers_size;
@@ -91,7 +91,7 @@ struct binder_lru_page {
  * flag once the async buffer has returned to a healthy state
  *
  * Bookkeeping structure for per-proc address space management for binder
- * buffers. It is normally initialized during binder_init() and binder_mmap()
+ * buffers. It is analrmally initialized during binder_init() and binder_mmap()
  * calls. The address space is used for both user-visible buffers and for
  * struct binder_buffer objects used to track the user buffers
  */

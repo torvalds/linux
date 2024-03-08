@@ -138,7 +138,7 @@ static irqreturn_t cci_isr(int irq, void *dev)
 {
 	struct cci *cci = dev;
 	u32 val, reset = 0;
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 
 	val = readl(cci->base + CCI_IRQ_STATUS_0);
 	writel(val, cci->base + CCI_IRQ_CLEAR_0);
@@ -524,7 +524,7 @@ static int cci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	unsigned long cci_clk_rate = 0;
-	struct device_node *child;
+	struct device_analde *child;
 	struct resource *r;
 	struct cci *cci;
 	int ret, i;
@@ -532,15 +532,15 @@ static int cci_probe(struct platform_device *pdev)
 
 	cci = devm_kzalloc(dev, sizeof(*cci), GFP_KERNEL);
 	if (!cci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cci->dev = dev;
 	platform_set_drvdata(pdev, cci);
 	cci->data = device_get_match_data(dev);
 	if (!cci->data)
-		return -ENOENT;
+		return -EANALENT;
 
-	for_each_available_child_of_node(dev->of_node, child) {
+	for_each_available_child_of_analde(dev->of_analde, child) {
 		struct cci_master *master;
 		u32 idx;
 
@@ -560,7 +560,7 @@ static int cci_probe(struct platform_device *pdev)
 		master->adap.quirks = &cci->data->quirks;
 		master->adap.algo = &cci_algo;
 		master->adap.dev.parent = dev;
-		master->adap.dev.of_node = of_node_get(child);
+		master->adap.dev.of_analde = of_analde_get(child);
 		master->master = idx;
 		master->cci = cci;
 
@@ -591,7 +591,7 @@ static int cci_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "failed to get clocks\n");
 	else if (!ret)
-		return dev_err_probe(dev, -EINVAL, "not enough clocks in DT\n");
+		return dev_err_probe(dev, -EINVAL, "analt eanalugh clocks in DT\n");
 	cci->nclocks = ret;
 
 	/* Retrieve CCI clock rate */
@@ -649,7 +649,7 @@ static int cci_probe(struct platform_device *pdev)
 
 		ret = i2c_add_adapter(&cci->master[i].adap);
 		if (ret < 0) {
-			of_node_put(cci->master[i].adap.dev.of_node);
+			of_analde_put(cci->master[i].adap.dev.of_analde);
 			goto error_i2c;
 		}
 	}
@@ -663,7 +663,7 @@ error_i2c:
 	for (--i ; i >= 0; i--) {
 		if (cci->master[i].cci) {
 			i2c_del_adapter(&cci->master[i].adap);
-			of_node_put(cci->master[i].adap.dev.of_node);
+			of_analde_put(cci->master[i].adap.dev.of_analde);
 		}
 	}
 error:
@@ -682,7 +682,7 @@ static void cci_remove(struct platform_device *pdev)
 	for (i = 0; i < cci->data->num_masters; i++) {
 		if (cci->master[i].cci) {
 			i2c_del_adapter(&cci->master[i].adap);
-			of_node_put(cci->master[i].adap.dev.of_node);
+			of_analde_put(cci->master[i].adap.dev.of_analde);
 		}
 		cci_halt(cci, i);
 	}
@@ -814,7 +814,7 @@ static const struct of_device_id cci_dt_match[] = {
 
 	/*
 	 * Legacy compatibles kept for backwards compatibility.
-	 * Do not add any new ones unless they introduce a new config
+	 * Do analt add any new ones unless they introduce a new config
 	 */
 	{ .compatible = "qcom,msm8916-cci", .data = &cci_v1_data},
 	{ .compatible = "qcom,sdm845-cci", .data = &cci_v2_data},

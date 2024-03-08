@@ -17,7 +17,7 @@ LS2080A, LS2088A, LS1088A.
 
 Architecture Overview
 =====================
-Unlike regular NICs, in the DPAA2 architecture there is no single hardware block
+Unlike regular NICs, in the DPAA2 architecture there is anal single hardware block
 representing network interfaces; instead, several separate hardware resources
 concur to provide the networking functionality:
 
@@ -29,7 +29,7 @@ concur to provide the networking functionality:
 All hardware resources are allocated and configured through the Management
 Complex (MC) portals. MC abstracts most of these resources as DPAA2 objects
 and exposes ABIs through which they can be configured and controlled. A few
-hardware resources, like queues, do not have a corresponding MC object and
+hardware resources, like queues, do analt have a corresponding MC object and
 are treated as internal resources of other objects.
 
 For a more detailed description of the DPAA2 architecture and its object
@@ -79,7 +79,7 @@ Datapath (I/O) interface::
           |          |        |         |            |
    enqueue|   dequeue|   data |  dequeue|       seed |
     (Tx)  | (Rx, TxC)|  avail.|  request|     buffers|
-          |          |  notify|         |            |
+          |          |  analtify|         |            |
           |          |        |         |            |
           V          |        |         V            V
          -----------------------------------------------
@@ -102,7 +102,7 @@ Datapath (I/O) interface::
                                 Channel
 
 Datapath I/O (DPIO) portals provide enqueue and dequeue services, data
-availability notifications and buffer pool management. DPIOs are shared between
+availability analtifications and buffer pool management. DPIOs are shared between
 all DPAA2 objects (and implicitly all DPAA2 kernel drivers) that work with data
 frames, but must be affine to the CPUs for the purpose of traffic distribution.
 
@@ -111,10 +111,10 @@ grouped in channels for the purpose of hardware scheduling. The Ethernet driver
 enqueues TX frames on egress queues and after transmission is complete a TX
 confirmation frame is sent back to the CPU.
 
-When frames are available on ingress queues, a data availability notification
-is sent to the CPU; notifications are raised per channel, so even if multiple
-queues in the same channel have available frames, only one notification is sent.
-After a channel fires a notification, is must be explicitly rearmed.
+When frames are available on ingress queues, a data availability analtification
+is sent to the CPU; analtifications are raised per channel, so even if multiple
+queues in the same channel have available frames, only one analtification is sent.
+After a channel fires a analtification, is must be explicitly rearmed.
 
 Each network interface can have multiple Rx, Tx and confirmation queues affined
 to CPUs, and one channel (DPCON) for each CPU that services at least one queue.
@@ -127,7 +127,7 @@ buffers.
 
 
 DPNIs are decoupled from PHYs; a DPNI can be connected to a PHY through a DPMAC
-object or to another DPNI through an internal link, but the connection is
+object or to aanalther DPNI through an internal link, but the connection is
 managed by MC and completely transparent to the Ethernet driver.
 
 ::
@@ -180,7 +180,7 @@ The DPAA2 hardware can process jumbo Ethernet frames of up to 10K bytes.
 
 The Ethernet driver defines a static flow hashing scheme that distributes
 traffic based on a 5-tuple key: src IP, dst IP, IP proto, L4 src port,
-L4 dst port. No user configuration is supported for now.
+L4 dst port. Anal user configuration is supported for analw.
 
 Hardware specific statistics for the network interface as well as some
-non-standard driver stats can be consulted through ethtool -S option.
+analn-standard driver stats can be consulted through ethtool -S option.

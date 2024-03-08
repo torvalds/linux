@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * traps.h:  Format of entries for the Sparc trap table.
  *
@@ -13,7 +13,7 @@
 #ifndef __ASSEMBLY__
 #endif /* !(__ASSEMBLY__) */
 
-/* For patching the trap table at boot time, we need to know how to
+/* For patching the trap table at boot time, we need to kanalw how to
  * form various common Sparc instructions.  Thus these macros...
  */
 
@@ -28,7 +28,7 @@
 
 #define SPARC_RD_PSR_L0  (0xa1480000)
 #define SPARC_RD_WIM_L3  (0xa7500000)
-#define SPARC_NOP (0x01000000)
+#define SPARC_ANALP (0x01000000)
 
 /* Various interesting trap levels. */
 /* First, hardware traps. */
@@ -57,7 +57,7 @@
 #define SP_TRAP_IRQ12   0x1c         /* IRQ level 12 */
 #define SP_TRAP_IRQ13   0x1d         /* IRQ level 13 */
 #define SP_TRAP_IRQ14   0x1e         /* IRQ level 14 */
-#define SP_TRAP_IRQ15   0x1f         /* IRQ level 15 Non-maskable */
+#define SP_TRAP_IRQ15   0x1f         /* IRQ level 15 Analn-maskable */
 #define SP_TRAP_RACC    0x20         /* Register Access Error ??? */
 #define SP_TRAP_IACC    0x21         /* Instruction Access Error */
 #define SP_TRAP_CPDIS   0x24         /* Co-Processor Disabled */
@@ -69,8 +69,8 @@
 #define SP_TRAP_DMM     0x2c         /* Data Access MMU Miss ??? */
 #define SP_TRAP_IMM     0x3c         /* Instruction Access MMU Miss ??? */
 
-/* Now the Software Traps... */
-#define SP_TRAP_SUNOS   0x80         /* SunOS System Call */
+/* Analw the Software Traps... */
+#define SP_TRAP_SUANALS   0x80         /* SunOS System Call */
 #define SP_TRAP_SBPT    0x81         /* Software Breakpoint */
 #define SP_TRAP_SDIVZ   0x82         /* Software Divide-by-Zero trap */
 #define SP_TRAP_FWIN    0x83         /* Flush Windows */
@@ -103,17 +103,17 @@
 	 (level > SP_TRAP_IACC && level < SP_TRAP_CPDIS) || \
 	 (level > SP_TRAP_BADFL && level < SP_TRAP_CPEXP) || \
 	 (level > SP_TRAP_DMM && level < SP_TRAP_IMM) || \
-	 (level > SP_TRAP_IMM && level < SP_TRAP_SUNOS) || \
+	 (level > SP_TRAP_IMM && level < SP_TRAP_SUANALS) || \
 	 (level > SP_TRAP_LINUX && level < SP_TRAP_KBPT1))
 
 /* Is this a Hardware trap? */
-#define HW_TRAP_P(level) ((level > 0) && (level < SP_TRAP_SUNOS))
+#define HW_TRAP_P(level) ((level > 0) && (level < SP_TRAP_SUANALS))
 
 /* Is this a Software trap? */
-#define SW_TRAP_P(level) ((level >= SP_TRAP_SUNOS) && (level <= SP_TRAP_KBPT2))
+#define SW_TRAP_P(level) ((level >= SP_TRAP_SUANALS) && (level <= SP_TRAP_KBPT2))
 
-/* Is this a system call for some OS we know about? */
-#define SCALL_TRAP_P(level) ((level == SP_TRAP_SUNOS) || \
+/* Is this a system call for some OS we kanalw about? */
+#define SCALL_TRAP_P(level) ((level == SP_TRAP_SUANALS) || \
 			     (level == SP_TRAP_SOLARIS) || \
 			     (level == SP_TRAP_NETBSD) || \
 			     (level == SP_TRAP_LINUX))

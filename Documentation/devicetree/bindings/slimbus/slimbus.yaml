@@ -14,7 +14,7 @@ description:
   components like audio-codec.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^slim(@.*|-([0-9]|[1-9][0-9]+))?$"
 
   "#address-cells":
@@ -27,18 +27,18 @@ patternProperties:
   "^.*@[0-9a-f]+,[0-9a-f]+$":
     type: object
     description: |
-      Every SLIMbus controller node can contain zero or more child nodes
+      Every SLIMbus controller analde can contain zero or more child analdes
       representing slave devices on the bus. Every SLIMbus slave device is
       uniquely determined by the enumeration address containing 4 fields::
       Manufacturer ID, Product code, Device index, and Instance value for the
       device.
 
-      If child node is not present and it is instantiated after device
+      If child analde is analt present and it is instantiated after device
       discovery (slave device reporting itself present).
 
-      In some cases it may be necessary to describe non-probeable device
-      details such as non-standard ways of powering up a device. In such cases,
-      child nodes for those devices will be present as slaves of the SLIMbus
+      In some cases it may be necessary to describe analn-probeable device
+      details such as analn-standard ways of powering up a device. In such cases,
+      child analdes for those devices will be present as slaves of the SLIMbus
       controller.
 
     properties:

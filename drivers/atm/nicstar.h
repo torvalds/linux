@@ -29,7 +29,7 @@
 				   controlled by the device driver. Must
 				   be <= 5 */
 
-#undef RCQ_SUPPORT		/* Do not define this for now */
+#undef RCQ_SUPPORT		/* Do analt define this for analw */
 
 #define NS_TST_NUM_ENTRIES 2340	/* + 1 for return */
 #define NS_TST_RESERVED 340	/* N. entries reserved for UBR/ABR/VBR */
@@ -97,11 +97,11 @@
 /*
  * BUF_XX distinguish the Rx buffers depending on their (small/large) size.
  * BUG_SM and BUG_LG are both used by the driver and the device.
- * BUF_NONE is only used by the driver.
+ * BUF_ANALNE is only used by the driver.
  */
 #define BUF_SM		0x00000000	/* These two are used for push_rxbufs() */
 #define BUF_LG		0x00000001	/* CMD, Write_FreeBufQ, LBUF bit */
-#define BUF_NONE 	0xffffffff	/* Software only: */
+#define BUF_ANALNE 	0xffffffff	/* Software only: */
 
 #define NS_HBUFSIZE 65568	/* Size of max. AAL5 PDU */
 #define NS_MAX_IOVECS (2 + (65568 - NS_SMBUFSIZE) / \
@@ -210,7 +210,7 @@ typedef struct ns_scqe {
 	u32 word_4;
 } ns_scqe;
 
-   /* NOTE: SCQ entries can be either a TBD (Transmit Buffer Descriptors)
+   /* ANALTE: SCQ entries can be either a TBD (Transmit Buffer Descriptors)
       or TSR (Transmit Status Requests) */
 
 #define NS_SCQE_TYPE_TBD 0x00000000
@@ -230,7 +230,7 @@ typedef struct ns_scqe {
 
 #define ns_tbd_mkword_1(flags, m, n, buflen) \
       (cpu_to_le32((flags) | (m) << 23 | (n) << 16 | (buflen)))
-#define ns_tbd_mkword_1_novbr(flags, buflen) \
+#define ns_tbd_mkword_1_analvbr(flags, buflen) \
       (cpu_to_le32((flags) | (buflen) | 0x00810000))
 #define ns_tbd_mkword_3(control, pdulen) \
       (cpu_to_le32((control) << 16 | (pdulen)))
@@ -267,7 +267,7 @@ typedef struct ns_tsi {
 	u32 word_2;
 } ns_tsi;
 
-   /* NOTE: The first word can be a status word copied from the TSR which
+   /* ANALTE: The first word can be a status word copied from the TSR which
       originated the TSI, or a timer overflow indicator. In this last
       case, the value of the first word is all zeroes. */
 
@@ -332,7 +332,7 @@ typedef struct ns_rcte {
 
 #define NS_RCT_ENTRY_SIZE 4	/* Number of dwords */
 
-   /* NOTE: We could make macros to contruct the first word of the RCTE,
+   /* ANALTE: We could make macros to contruct the first word of the RCTE,
       but that doesn't seem to make much sense... */
 
 /*
@@ -363,7 +363,7 @@ typedef u32 ns_tste;
 
 #define ns_tste_make(opcode, sramad) (opcode | sramad)
 
-   /* NOTE:
+   /* ANALTE:
 
       - When the opcode is FIXED, sramad specifies the SRAM address of the
       SCD for that fixed rate channel.
@@ -394,8 +394,8 @@ typedef struct ns_scd {
 #define NS_SCD_HEAD_MASK_FIX 0x000003F0
 #define NS_SCD_XMITFOREVER   0x02000000
 
-   /* NOTE: There are other fields in word 2 of the SCD, but as they should
-      not be needed in the device driver they are not defined here. */
+   /* ANALTE: There are other fields in word 2 of the SCD, but as they should
+      analt be needed in the device driver they are analt defined here. */
 
 /* NICStAR local SRAM memory map */
 
@@ -452,7 +452,7 @@ enum ns_regs {
 
 /* Top 4 bits are command opcode, lower 28 are parameters. */
 
-#define NS_CMD_NO_OPERATION         0x00000000
+#define NS_CMD_ANAL_OPERATION         0x00000000
 	/* params always 0 */
 
 #define NS_CMD_OPENCLOSE_CONNECTION 0x20000000
@@ -486,7 +486,7 @@ enum ns_regs {
 						   Interrupt Enable */
 #define NS_CFG_RSQSIZE_MASK   0x00C00000	/* Receive Status Queue Size */
 #define NS_CFG_ICACCEPT       0x00200000	/* Invalid Cell Accept */
-#define NS_CFG_IGNOREGFC      0x00100000	/* Ignore General Flow Control */
+#define NS_CFG_IGANALREGFC      0x00100000	/* Iganalre General Flow Control */
 #define NS_CFG_VPIBITS_MASK   0x000C0000	/* VPI/VCI Bits Size Select */
 #define NS_CFG_RCTSIZE_MASK   0x00030000	/* Receive Connection Table Size */
 #define NS_CFG_VCERRACCEPT    0x00008000	/* VPI/VCI Error Cell Accept */
@@ -531,8 +531,8 @@ enum ns_regs {
 #define NS_CFG_RCTSIZE_8192_ENTRIES  0x00010000
 #define NS_CFG_RCTSIZE_16384_ENTRIES 0x00020000
 
-#define NS_CFG_RXINT_NOINT   0x00000000
-#define NS_CFG_RXINT_NODELAY 0x00001000
+#define NS_CFG_RXINT_ANALINT   0x00000000
+#define NS_CFG_RXINT_ANALDELAY 0x00001000
 #define NS_CFG_RXINT_314US   0x00002000
 #define NS_CFG_RXINT_624US   0x00003000
 #define NS_CFG_RXINT_899US   0x00004000
@@ -639,7 +639,7 @@ enum ns_regs {
 /* Device driver structures */
 
 struct ns_skb_prv {
-	u32 buf_type;		/* BUF_SM/BUF_LG/BUF_NONE */
+	u32 buf_type;		/* BUF_SM/BUF_LG/BUF_ANALNE */
 	u32 dma;
 	int iovcnt;
 };
@@ -665,7 +665,7 @@ typedef struct scq_info {
 	ns_scqe *base;
 	ns_scqe *last;
 	ns_scqe *next;
-	volatile ns_scqe *tail;	/* Not related to the nicstar register */
+	volatile ns_scqe *tail;	/* Analt related to the nicstar register */
 	unsigned num_entries;
 	struct sk_buff **skb;	/* Pointer to an array of pointers
 				   to the sk_buffs used for tx */
@@ -690,7 +690,7 @@ typedef struct skb_pool {
 	struct sk_buff_head queue;
 } skb_pool;
 
-/* NOTE: for small and large buffer pools, the count is not used, as the
+/* ANALTE: for small and large buffer pools, the count is analt used, as the
          actual value used for buffer management is the one read from the
 	 card. */
 
@@ -747,8 +747,8 @@ typedef struct ns_dev {
 	spinlock_t res_lock;	/* Card resource lock */
 } ns_dev;
 
-   /* NOTE: Each tste2vc entry relates a given TST entry to the corresponding
-      CBR vc. If the entry is not allocated, it must be NULL.
+   /* ANALTE: Each tste2vc entry relates a given TST entry to the corresponding
+      CBR vc. If the entry is analt allocated, it must be NULL.
 
       There are two TSTs so the driver can modify them on the fly
       without stopping the transmission.

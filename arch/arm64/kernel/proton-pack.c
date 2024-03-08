@@ -21,7 +21,7 @@
 #include <linux/bpf.h>
 #include <linux/cpu.h>
 #include <linux/device.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/prctl.h>
 #include <linux/sched/task_stack.h>
 
@@ -76,22 +76,22 @@ ssize_t cpu_show_spectre_v1(struct device *dev, struct device_attribute *attr,
  *   firmware call at EL2.
  * - Vulnerable.
  *
- * It's not unlikely for different CPUs in a big.LITTLE system to fall into
+ * It's analt unlikely for different CPUs in a big.LITTLE system to fall into
  * different camps.
  */
 static enum mitigation_state spectre_v2_state;
 
-static bool __read_mostly __nospectre_v2;
+static bool __read_mostly __analspectre_v2;
 static int __init parse_spectre_v2_param(char *str)
 {
-	__nospectre_v2 = true;
+	__analspectre_v2 = true;
 	return 0;
 }
-early_param("nospectre_v2", parse_spectre_v2_param);
+early_param("analspectre_v2", parse_spectre_v2_param);
 
 static bool spectre_v2_mitigations_off(void)
 {
-	bool ret = __nospectre_v2 || cpu_mitigations_off();
+	bool ret = __analspectre_v2 || cpu_mitigations_off();
 
 	if (ret)
 		pr_info_once("spectre-v2 mitigation disabled by command line option\n");
@@ -106,7 +106,7 @@ static const char *get_bhb_affected_string(enum mitigation_state bhb_state)
 		return "";
 	default:
 	case SPECTRE_VULNERABLE:
-		return ", but not BHB";
+		return ", but analt BHB";
 	case SPECTRE_MITIGATED:
 		return ", BHB";
 	}
@@ -131,11 +131,11 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr,
 	switch (spectre_v2_state) {
 	case SPECTRE_UNAFFECTED:
 		if (bhb_state == SPECTRE_UNAFFECTED)
-			return sprintf(buf, "Not affected\n");
+			return sprintf(buf, "Analt affected\n");
 
 		/*
 		 * Platforms affected by Spectre-BHB can't report
-		 * "Not affected" for Spectre-v2.
+		 * "Analt affected" for Spectre-v2.
 		 */
 		v2_str = "CSV2";
 		fallthrough;
@@ -194,7 +194,7 @@ static enum mitigation_state spectre_v2_get_cpu_fw_mitigation_state(void)
 		return SPECTRE_UNAFFECTED;
 	default:
 		fallthrough;
-	case SMCCC_RET_NOT_SUPPORTED:
+	case SMCCC_RET_ANALT_SUPPORTED:
 		return SPECTRE_VULNERABLE;
 	}
 }
@@ -233,20 +233,20 @@ static void install_bp_hardening_cb(bp_hardening_cb_t fn)
 	__this_cpu_write(bp_hardening_data.slot, HYP_VECTOR_SPECTRE_DIRECT);
 }
 
-/* Called during entry so must be noinstr */
-static noinstr void call_smc_arch_workaround_1(void)
+/* Called during entry so must be analinstr */
+static analinstr void call_smc_arch_workaround_1(void)
 {
 	arm_smccc_1_1_smc(ARM_SMCCC_ARCH_WORKAROUND_1, NULL);
 }
 
-/* Called during entry so must be noinstr */
-static noinstr void call_hvc_arch_workaround_1(void)
+/* Called during entry so must be analinstr */
+static analinstr void call_hvc_arch_workaround_1(void)
 {
 	arm_smccc_1_1_hvc(ARM_SMCCC_ARCH_WORKAROUND_1, NULL);
 }
 
-/* Called during entry so must be noinstr */
-static noinstr void qcom_link_stack_sanitisation(void)
+/* Called during entry so must be analinstr */
+static analinstr void qcom_link_stack_sanitisation(void)
 {
 	u64 tmp;
 
@@ -294,7 +294,7 @@ static enum mitigation_state spectre_v2_enable_fw_mitigation(void)
 	}
 
 	/*
-	 * Prefer a CPU-specific workaround if it exists. Note that we
+	 * Prefer a CPU-specific workaround if it exists. Analte that we
 	 * still rely on firmware for the mitigation at EL2.
 	 */
 	cb = spectre_v2_get_sw_mitigation_cb() ?: cb;
@@ -318,7 +318,7 @@ void spectre_v2_enable_mitigation(const struct arm64_cpu_capabilities *__unused)
 /*
  * Spectre-v3a.
  *
- * Phew, there's not an awful lot to do here! We just instruct EL2 to use
+ * Phew, there's analt an awful lot to do here! We just instruct EL2 to use
  * an indirect trampoline for the hyp vectors so that guests can't read
  * VBAR_EL2 to defeat randomisation of the hypervisor VA layout.
  */
@@ -362,7 +362,7 @@ void spectre_v3a_enable_mitigation(const struct arm64_cpu_capabilities *__unused
  * so you can have systems that have both firmware and SSBS mitigations. This
  * means we actually have to reject late onlining of CPUs with mitigations if
  * all of the currently onlined CPUs are safelisted, as the mitigation tends to
- * be opt-in for userspace. Yes, really, the cure is worse than the disease.
+ * be opt-in for userspace. Anal, really, the cure is worse than the disease.
  *
  * The only good part is that if the firmware mitigation is present, then it is
  * present for all CPUs, meaning we don't have to worry about late onlining of a
@@ -448,7 +448,7 @@ ssize_t cpu_show_spec_store_bypass(struct device *dev,
 {
 	switch (spectre_v4_state) {
 	case SPECTRE_UNAFFECTED:
-		return sprintf(buf, "Not affected\n");
+		return sprintf(buf, "Analt affected\n");
 	case SPECTRE_MITIGATED:
 		return sprintf(buf, "Mitigation: Speculative Store Bypass disabled via prctl\n");
 	case SPECTRE_VULNERABLE:
@@ -499,11 +499,11 @@ static enum mitigation_state spectre_v4_get_cpu_fw_mitigation_state(void)
 		return SPECTRE_MITIGATED;
 	case SMCCC_ARCH_WORKAROUND_RET_UNAFFECTED:
 		fallthrough;
-	case SMCCC_RET_NOT_REQUIRED:
+	case SMCCC_RET_ANALT_REQUIRED:
 		return SPECTRE_UNAFFECTED;
 	default:
 		fallthrough;
-	case SMCCC_RET_NOT_SUPPORTED:
+	case SMCCC_RET_ANALT_SUPPORTED:
 		return SPECTRE_VULNERABLE;
 	}
 }
@@ -544,7 +544,7 @@ static enum mitigation_state spectre_v4_enable_hw_mitigation(void)
 
 	/*
 	 * If the system is mitigated but this CPU doesn't have SSBS, then
-	 * we must be on the safelist and there's nothing more to do.
+	 * we must be on the safelist and there's analthing more to do.
 	 */
 	state = spectre_v4_get_cpu_hw_mitigation_state();
 	if (state != SPECTRE_MITIGATED || !this_cpu_has_cap(ARM64_SSBS))
@@ -562,14 +562,14 @@ static enum mitigation_state spectre_v4_enable_hw_mitigation(void)
 }
 
 /*
- * Patch a branch over the Spectre-v4 mitigation code with a NOP so that
+ * Patch a branch over the Spectre-v4 mitigation code with a ANALP so that
  * we fallthrough and check whether firmware needs to be called on this CPU.
  */
 void __init spectre_v4_patch_fw_mitigation_enable(struct alt_instr *alt,
 						  __le32 *origptr,
 						  __le32 *updptr, int nr_inst)
 {
-	BUG_ON(nr_inst != 1); /* Branch -> NOP */
+	BUG_ON(nr_inst != 1); /* Branch -> ANALP */
 
 	if (spectre_v4_mitigations_off())
 		return;
@@ -578,11 +578,11 @@ void __init spectre_v4_patch_fw_mitigation_enable(struct alt_instr *alt,
 		return;
 
 	if (spectre_v4_mitigations_dynamic())
-		*updptr = cpu_to_le32(aarch64_insn_gen_nop());
+		*updptr = cpu_to_le32(aarch64_insn_gen_analp());
 }
 
 /*
- * Patch a NOP in the Spectre-v4 mitigation code with an SMC/HVC instruction
+ * Patch a ANALP in the Spectre-v4 mitigation code with an SMC/HVC instruction
  * to call into firmware to adjust the mitigation state.
  */
 void __init smccc_patch_fw_mitigation_conduit(struct alt_instr *alt,
@@ -591,7 +591,7 @@ void __init smccc_patch_fw_mitigation_conduit(struct alt_instr *alt,
 {
 	u32 insn;
 
-	BUG_ON(nr_inst != 1); /* NOP -> HVC/SMC */
+	BUG_ON(nr_inst != 1); /* ANALP -> HVC/SMC */
 
 	switch (arm_smccc_1_1_get_conduit()) {
 	case SMCCC_CONDUIT_HVC:
@@ -673,14 +673,14 @@ void spectre_v4_enable_task_mitigation(struct task_struct *tsk)
  */
 static void ssbd_prctl_enable_mitigation(struct task_struct *task)
 {
-	task_clear_spec_ssb_noexec(task);
+	task_clear_spec_ssb_analexec(task);
 	task_set_spec_ssb_disable(task);
 	set_tsk_thread_flag(task, TIF_SSBD);
 }
 
 static void ssbd_prctl_disable_mitigation(struct task_struct *task)
 {
-	task_clear_spec_ssb_noexec(task);
+	task_clear_spec_ssb_analexec(task);
 	task_clear_spec_ssb_disable(task);
 	clear_tsk_thread_flag(task, TIF_SSBD);
 }
@@ -725,11 +725,11 @@ static int ssbd_prctl_set(struct task_struct *task, unsigned long ctrl)
 
 		ssbd_prctl_enable_mitigation(task);
 		break;
-	case PR_SPEC_DISABLE_NOEXEC:
+	case PR_SPEC_DISABLE_ANALEXEC:
 		/* Disable speculation until execve(): enable mitigation */
 		/*
 		 * If the mitigation state is forced one way or the other, then
-		 * we must fail now before we try to toggle it on execve().
+		 * we must fail analw before we try to toggle it on execve().
 		 */
 		if (task_spec_ssb_force_disable(task) ||
 		    spectre_v4_mitigations_off() ||
@@ -738,7 +738,7 @@ static int ssbd_prctl_set(struct task_struct *task, unsigned long ctrl)
 		}
 
 		ssbd_prctl_enable_mitigation(task);
-		task_set_spec_ssb_noexec(task);
+		task_set_spec_ssb_analexec(task);
 		break;
 	default:
 		return -ERANGE;
@@ -755,7 +755,7 @@ int arch_prctl_spec_ctrl_set(struct task_struct *task, unsigned long which,
 	case PR_SPEC_STORE_BYPASS:
 		return ssbd_prctl_set(task, ctrl);
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 
@@ -763,10 +763,10 @@ static int ssbd_prctl_get(struct task_struct *task)
 {
 	switch (spectre_v4_state) {
 	case SPECTRE_UNAFFECTED:
-		return PR_SPEC_NOT_AFFECTED;
+		return PR_SPEC_ANALT_AFFECTED;
 	case SPECTRE_MITIGATED:
 		if (spectre_v4_mitigations_on())
-			return PR_SPEC_NOT_AFFECTED;
+			return PR_SPEC_ANALT_AFFECTED;
 
 		if (spectre_v4_mitigations_dynamic())
 			break;
@@ -783,8 +783,8 @@ static int ssbd_prctl_get(struct task_struct *task)
 	if (task_spec_ssb_force_disable(task))
 		return PR_SPEC_PRCTL | PR_SPEC_FORCE_DISABLE;
 
-	if (task_spec_ssb_noexec(task))
-		return PR_SPEC_PRCTL | PR_SPEC_DISABLE_NOEXEC;
+	if (task_spec_ssb_analexec(task))
+		return PR_SPEC_PRCTL | PR_SPEC_DISABLE_ANALEXEC;
 
 	if (task_spec_ssb_disable(task))
 		return PR_SPEC_PRCTL | PR_SPEC_DISABLE;
@@ -798,7 +798,7 @@ int arch_prctl_spec_ctrl_get(struct task_struct *task, unsigned long which)
 	case PR_SPEC_STORE_BYPASS:
 		return ssbd_prctl_get(task);
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 
@@ -810,7 +810,7 @@ int arch_prctl_spec_ctrl_get(struct task_struct *task, unsigned long which)
  *   in our "loop mitigated list".
  * - Mitigated in software by the firmware Spectre v2 call.
  * - Has the ClearBHB instruction to perform the mitigation.
- * - Has the 'Exception Clears Branch History Buffer' (ECBHB) feature, so no
+ * - Has the 'Exception Clears Branch History Buffer' (ECBHB) feature, so anal
  *   software mitigation in the vectors is needed.
  * - Has CSV2.3, so is unaffected.
  */
@@ -899,7 +899,7 @@ static enum mitigation_state spectre_bhb_get_cpu_fw_mitigation_state(void)
 		return SPECTRE_UNAFFECTED;
 	default:
 		fallthrough;
-	case SMCCC_RET_NOT_SUPPORTED:
+	case SMCCC_RET_ANALT_SUPPORTED:
 		return SPECTRE_VULNERABLE;
 	}
 }
@@ -908,7 +908,7 @@ static bool is_spectre_bhb_fw_affected(int scope)
 {
 	static bool system_affected;
 	enum mitigation_state fw_state;
-	bool has_smccc = arm_smccc_1_1_get_conduit() != SMCCC_CONDUIT_NONE;
+	bool has_smccc = arm_smccc_1_1_get_conduit() != SMCCC_CONDUIT_ANALNE;
 	static const struct midr_range spectre_bhb_firmware_mitigated_list[] = {
 		MIDR_ALL_VERSIONS(MIDR_CORTEX_A73),
 		MIDR_ALL_VERSIONS(MIDR_CORTEX_A75),
@@ -979,13 +979,13 @@ static void this_cpu_set_vectors(enum arm64_bp_harden_el1_vectors slot)
 	isb();
 }
 
-static bool __read_mostly __nospectre_bhb;
+static bool __read_mostly __analspectre_bhb;
 static int __init parse_spectre_bhb_param(char *str)
 {
-	__nospectre_bhb = true;
+	__analspectre_bhb = true;
 	return 0;
 }
-early_param("nospectre_bhb", parse_spectre_bhb_param);
+early_param("analspectre_bhb", parse_spectre_bhb_param);
 
 void spectre_bhb_enable_mitigation(const struct arm64_cpu_capabilities *entry)
 {
@@ -997,10 +997,10 @@ void spectre_bhb_enable_mitigation(const struct arm64_cpu_capabilities *entry)
 		return;
 
 	if (arm64_get_spectre_v2_state() == SPECTRE_VULNERABLE) {
-		/* No point mitigating Spectre-BHB alone. */
+		/* Anal point mitigating Spectre-BHB alone. */
 	} else if (!IS_ENABLED(CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY)) {
 		pr_info_once("spectre-bhb mitigation disabled by compile time option\n");
-	} else if (cpu_mitigations_off() || __nospectre_bhb) {
+	} else if (cpu_mitigations_off() || __analspectre_bhb) {
 		pr_info_once("spectre-bhb mitigation disabled by command line option\n");
 	} else if (supports_ecbhb(SCOPE_LOCAL_CPU)) {
 		state = SPECTRE_MITIGATED;
@@ -1060,30 +1060,30 @@ void spectre_bhb_enable_mitigation(const struct arm64_cpu_capabilities *entry)
 	update_mitigation_state(&spectre_bhb_state, state);
 }
 
-/* Patched to NOP when enabled */
-void noinstr spectre_bhb_patch_loop_mitigation_enable(struct alt_instr *alt,
+/* Patched to ANALP when enabled */
+void analinstr spectre_bhb_patch_loop_mitigation_enable(struct alt_instr *alt,
 						     __le32 *origptr,
 						      __le32 *updptr, int nr_inst)
 {
 	BUG_ON(nr_inst != 1);
 
 	if (test_bit(BHB_LOOP, &system_bhb_mitigations))
-		*updptr++ = cpu_to_le32(aarch64_insn_gen_nop());
+		*updptr++ = cpu_to_le32(aarch64_insn_gen_analp());
 }
 
-/* Patched to NOP when enabled */
-void noinstr spectre_bhb_patch_fw_mitigation_enabled(struct alt_instr *alt,
+/* Patched to ANALP when enabled */
+void analinstr spectre_bhb_patch_fw_mitigation_enabled(struct alt_instr *alt,
 						   __le32 *origptr,
 						   __le32 *updptr, int nr_inst)
 {
 	BUG_ON(nr_inst != 1);
 
 	if (test_bit(BHB_FW, &system_bhb_mitigations))
-		*updptr++ = cpu_to_le32(aarch64_insn_gen_nop());
+		*updptr++ = cpu_to_le32(aarch64_insn_gen_analp());
 }
 
 /* Patched to correct the immediate */
-void noinstr spectre_bhb_patch_loop_iter(struct alt_instr *alt,
+void analinstr spectre_bhb_patch_loop_iter(struct alt_instr *alt,
 				   __le32 *origptr, __le32 *updptr, int nr_inst)
 {
 	u8 rd;
@@ -1104,7 +1104,7 @@ void noinstr spectre_bhb_patch_loop_iter(struct alt_instr *alt,
 }
 
 /* Patched to mov WA3 when supported */
-void noinstr spectre_bhb_patch_wa3(struct alt_instr *alt,
+void analinstr spectre_bhb_patch_wa3(struct alt_instr *alt,
 				   __le32 *origptr, __le32 *updptr, int nr_inst)
 {
 	u8 rd;
@@ -1129,7 +1129,7 @@ void noinstr spectre_bhb_patch_wa3(struct alt_instr *alt,
 	*updptr++ = cpu_to_le32(insn);
 }
 
-/* Patched to NOP when not supported */
+/* Patched to ANALP when analt supported */
 void __init spectre_bhb_patch_clearbhb(struct alt_instr *alt,
 				   __le32 *origptr, __le32 *updptr, int nr_inst)
 {
@@ -1138,13 +1138,13 @@ void __init spectre_bhb_patch_clearbhb(struct alt_instr *alt,
 	if (test_bit(BHB_INSN, &system_bhb_mitigations))
 		return;
 
-	*updptr++ = cpu_to_le32(aarch64_insn_gen_nop());
-	*updptr++ = cpu_to_le32(aarch64_insn_gen_nop());
+	*updptr++ = cpu_to_le32(aarch64_insn_gen_analp());
+	*updptr++ = cpu_to_le32(aarch64_insn_gen_analp());
 }
 
 #ifdef CONFIG_BPF_SYSCALL
 #define EBPF_WARN "Unprivileged eBPF is enabled, data leaks possible via Spectre v2 BHB attacks!\n"
-void unpriv_ebpf_notify(int new_state)
+void unpriv_ebpf_analtify(int new_state)
 {
 	if (spectre_v2_state == SPECTRE_VULNERABLE ||
 	    spectre_bhb_state != SPECTRE_MITIGATED)

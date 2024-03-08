@@ -17,11 +17,11 @@ description:
   lines of various HARTs (or CPUs) so RISC-V per-HART (or per-CPU) local
   interrupt controller is the parent interrupt controller for CLINT device.
   The clock frequency of CLINT is specified via "timebase-frequency" DT
-  property of "/cpus" DT node. The "timebase-frequency" DT property is
+  property of "/cpus" DT analde. The "timebase-frequency" DT property is
   described in Documentation/devicetree/bindings/riscv/cpus.yaml
 
   T-Head C906/C910 CPU cores include an implementation of CLINT too, however
-  their implementation lacks a memory-mapped MTIME register, thus not
+  their implementation lacks a memory-mapped MTIME register, thus analt
   compatible with SiFive ones.
 
 properties:

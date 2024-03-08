@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 #include <linux/linkage.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/enclu.h>
 
 #include "extable.h"
@@ -16,7 +16,7 @@
 #define SGX_ENCLAVE_RUN_EXCEPTION_ERROR_CODE	14
 #define SGX_ENCLAVE_RUN_EXCEPTION_ADDR		16
 #define SGX_ENCLAVE_RUN_USER_HANDLER		24
-#define SGX_ENCLAVE_RUN_USER_DATA		32	/* not used */
+#define SGX_ENCLAVE_RUN_USER_DATA		32	/* analt used */
 #define SGX_ENCLAVE_RUN_RESERVED_START		40
 #define SGX_ENCLAVE_RUN_RESERVED_END		256
 
@@ -106,12 +106,12 @@ SYM_FUNC_START(__vdso_sgx_enter_enclave)
 	/* Save struct sgx_enclave_exception %rbx is about to be clobbered. */
 	mov	%rbx, %rax
 
-	/* Save the untrusted RSP offset in %rbx (non-volatile register). */
+	/* Save the untrusted RSP offset in %rbx (analn-volatile register). */
 	mov	%rsp, %rbx
 	and	$0xf, %rbx
 
 	/*
-	 * Align stack per x86_64 ABI. Note, %rsp needs to be 16-byte aligned
+	 * Align stack per x86_64 ABI. Analte, %rsp needs to be 16-byte aligned
 	 * _after_ pushing the parameters on the stack, hence the bonus push.
 	 */
 	and	$-0x10, %rsp

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2015, Mellaanalx Techanallogies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -122,7 +122,7 @@ static void update_gid(enum gid_op_type gid_op, struct ib_device *ib_dev,
 enum bonding_slave_state {
 	BONDING_SLAVE_STATE_ACTIVE	= 1UL << 0,
 	BONDING_SLAVE_STATE_INACTIVE	= 1UL << 1,
-	/* No primary slave or the device isn't a slave in bonding */
+	/* Anal primary slave or the device isn't a slave in bonding */
 	BONDING_SLAVE_STATE_NA		= 1UL << 2,
 };
 
@@ -188,7 +188,7 @@ is_eth_port_inactive_slave_filter(struct ib_device *ib_dev, u32 port,
 
 /**
  * is_ndev_for_default_gid_filter - Check if a given netdevice
- * can be considered for default GIDs or not.
+ * can be considered for default GIDs or analt.
  * @ib_dev:		IB device to check
  * @port:		Port to consider for adding default GID
  * @rdma_ndev:		rdma netdevice pointer
@@ -211,7 +211,7 @@ is_ndev_for_default_gid_filter(struct ib_device *ib_dev, u32 port,
 
 	/*
 	 * When rdma netdevice is used in bonding, bonding master netdevice
-	 * should be considered for default GIDs. Therefore, ignore slave rdma
+	 * should be considered for default GIDs. Therefore, iganalre slave rdma
 	 * netdevices when bonding is considered.
 	 * Additionally when event(cookie) netdevice is bond master device,
 	 * make sure that it the upper netdevice of rdma netdevice.
@@ -258,7 +258,7 @@ static bool upper_device_filter(struct ib_device *ib_dev, u32 port,
  *
  * is_upper_ndev_bond_master_filter() returns true if a cookie_netdev
  * is bond master device and rdma_ndev is its lower netdevice. It might
- * not have been established as slave device yet.
+ * analt have been established as slave device yet.
  */
 static bool
 is_upper_ndev_bond_master_filter(struct ib_device *ib_dev, u32 port,
@@ -478,7 +478,7 @@ static void enum_all_gids_of_dev_cb(struct ib_device *ib_dev,
 	struct net *net;
 	struct net_device *ndev;
 
-	/* Lock the rtnl to make sure the netdevs does not move under
+	/* Lock the rtnl to make sure the netdevs does analt move under
 	 * our feet
 	 */
 	rtnl_lock();
@@ -487,7 +487,7 @@ static void enum_all_gids_of_dev_cb(struct ib_device *ib_dev,
 		for_each_netdev(net, ndev) {
 			/*
 			 * Filter and add default GIDs of the primary netdevice
-			 * when not in bonding mode, or add default GIDs
+			 * when analt in bonding mode, or add default GIDs
 			 * of bond master device, when in bonding mode.
 			 */
 			if (is_ndev_for_default_gid_filter(ib_dev, port,
@@ -643,7 +643,7 @@ static int netdevice_queue_work(struct netdev_event_work_cmd *cmds,
 		kmalloc(sizeof(*ndev_work), GFP_KERNEL);
 
 	if (!ndev_work)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	memcpy(ndev_work->cmds, cmds, sizeof(ndev_work->cmds));
 	for (i = 0; i < ARRAY_SIZE(ndev_work->cmds) && ndev_work->cmds[i].cb; i++) {
@@ -658,7 +658,7 @@ static int netdevice_queue_work(struct netdev_event_work_cmd *cmds,
 
 	queue_work(gid_cache_wq, &ndev_work->work);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static const struct netdev_event_work_cmd add_cmd = {
@@ -672,7 +672,7 @@ static const struct netdev_event_work_cmd add_cmd_upper_ips = {
 };
 
 static void
-ndev_event_unlink(struct netdev_notifier_changeupper_info *changeupper_info,
+ndev_event_unlink(struct netdev_analtifier_changeupper_info *changeupper_info,
 		  struct netdev_event_work_cmd *cmds)
 {
 	static const struct netdev_event_work_cmd
@@ -693,7 +693,7 @@ static const struct netdev_event_work_cmd bonding_default_add_cmd = {
 
 static void
 ndev_event_link(struct net_device *event_ndev,
-		struct netdev_notifier_changeupper_info *changeupper_info,
+		struct netdev_analtifier_changeupper_info *changeupper_info,
 		struct netdev_event_work_cmd *cmds)
 {
 	static const struct netdev_event_work_cmd
@@ -709,19 +709,19 @@ ndev_event_link(struct net_device *event_ndev,
 	cmds[0].ndev = event_ndev;
 	cmds[0].filter_ndev = changeupper_info->upper_dev;
 
-	/* Now add bonding upper device default GIDs */
+	/* Analw add bonding upper device default GIDs */
 	cmds[1] = bonding_default_add_cmd;
 	cmds[1].ndev = changeupper_info->upper_dev;
 	cmds[1].filter_ndev = changeupper_info->upper_dev;
 
-	/* Now add bonding upper device IP based GIDs */
+	/* Analw add bonding upper device IP based GIDs */
 	cmds[2] = add_cmd_upper_ips;
 	cmds[2].ndev = changeupper_info->upper_dev;
 	cmds[2].filter_ndev = changeupper_info->upper_dev;
 }
 
 static void netdevice_event_changeupper(struct net_device *event_ndev,
-		struct netdev_notifier_changeupper_info *changeupper_info,
+		struct netdev_analtifier_changeupper_info *changeupper_info,
 		struct netdev_event_work_cmd *cmds)
 {
 	if (changeupper_info->linking)
@@ -735,7 +735,7 @@ static const struct netdev_event_work_cmd add_default_gid_cmd = {
 	.filter	= is_ndev_for_default_gid_filter,
 };
 
-static int netdevice_event(struct notifier_block *this, unsigned long event,
+static int netdevice_event(struct analtifier_block *this, unsigned long event,
 			   void *ptr)
 {
 	static const struct netdev_event_work_cmd del_cmd = {
@@ -752,11 +752,11 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 			};
 	static const struct netdev_event_work_cmd bonding_event_ips_del_cmd = {
 		.cb = del_netdev_upper_ips, .filter = upper_device_filter};
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *ndev = netdev_analtifier_info_to_dev(ptr);
 	struct netdev_event_work_cmd cmds[ROCE_NETDEV_CALLBACK_SZ] = { {NULL} };
 
 	if (ndev->type != ARPHRD_ETHER)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_REGISTER:
@@ -770,7 +770,7 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 		if (ndev->reg_state < NETREG_UNREGISTERED)
 			cmds[0] = del_cmd;
 		else
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		break;
 
 	case NETDEV_CHANGEADDR:
@@ -783,7 +783,7 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 
 	case NETDEV_CHANGEUPPER:
 		netdevice_event_changeupper(ndev,
-			container_of(ptr, struct netdev_notifier_changeupper_info, info),
+			container_of(ptr, struct netdev_analtifier_changeupper_info, info),
 			cmds);
 		break;
 
@@ -796,7 +796,7 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 		break;
 
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	return netdevice_queue_work(cmds, ndev);
@@ -815,14 +815,14 @@ static void update_gid_event_work_handler(struct work_struct *_work)
 	kfree(work);
 }
 
-static int addr_event(struct notifier_block *this, unsigned long event,
+static int addr_event(struct analtifier_block *this, unsigned long event,
 		      struct sockaddr *sa, struct net_device *ndev)
 {
 	struct update_gid_event_work *work;
 	enum gid_op_type gid_op;
 
 	if (ndev->type != ARPHRD_ETHER)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_UP:
@@ -834,12 +834,12 @@ static int addr_event(struct notifier_block *this, unsigned long event,
 		break;
 
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	work = kmalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	INIT_WORK(&work->work, update_gid_event_work_handler);
 
@@ -852,10 +852,10 @@ static int addr_event(struct notifier_block *this, unsigned long event,
 
 	queue_work(gid_cache_wq, &work->work);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static int inetaddr_event(struct notifier_block *this, unsigned long event,
+static int inetaddr_event(struct analtifier_block *this, unsigned long event,
 			  void *ptr)
 {
 	struct sockaddr_in	in;
@@ -869,7 +869,7 @@ static int inetaddr_event(struct notifier_block *this, unsigned long event,
 	return addr_event(this, event, (struct sockaddr *)&in, ndev);
 }
 
-static int inet6addr_event(struct notifier_block *this, unsigned long event,
+static int inet6addr_event(struct analtifier_block *this, unsigned long event,
 			   void *ptr)
 {
 	struct sockaddr_in6	in6;
@@ -883,33 +883,33 @@ static int inet6addr_event(struct notifier_block *this, unsigned long event,
 	return addr_event(this, event, (struct sockaddr *)&in6, ndev);
 }
 
-static struct notifier_block nb_netdevice = {
-	.notifier_call = netdevice_event
+static struct analtifier_block nb_netdevice = {
+	.analtifier_call = netdevice_event
 };
 
-static struct notifier_block nb_inetaddr = {
-	.notifier_call = inetaddr_event
+static struct analtifier_block nb_inetaddr = {
+	.analtifier_call = inetaddr_event
 };
 
-static struct notifier_block nb_inet6addr = {
-	.notifier_call = inet6addr_event
+static struct analtifier_block nb_inet6addr = {
+	.analtifier_call = inet6addr_event
 };
 
 int __init roce_gid_mgmt_init(void)
 {
 	gid_cache_wq = alloc_ordered_workqueue("gid-cache-wq", 0);
 	if (!gid_cache_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	register_inetaddr_notifier(&nb_inetaddr);
+	register_inetaddr_analtifier(&nb_inetaddr);
 	if (IS_ENABLED(CONFIG_IPV6))
-		register_inet6addr_notifier(&nb_inet6addr);
-	/* We relay on the netdevice notifier to enumerate all
-	 * existing devices in the system. Register to this notifier
-	 * last to make sure we will not miss any IP add/del
+		register_inet6addr_analtifier(&nb_inet6addr);
+	/* We relay on the netdevice analtifier to enumerate all
+	 * existing devices in the system. Register to this analtifier
+	 * last to make sure we will analt miss any IP add/del
 	 * callbacks.
 	 */
-	register_netdevice_notifier(&nb_netdevice);
+	register_netdevice_analtifier(&nb_netdevice);
 
 	return 0;
 }
@@ -917,13 +917,13 @@ int __init roce_gid_mgmt_init(void)
 void __exit roce_gid_mgmt_cleanup(void)
 {
 	if (IS_ENABLED(CONFIG_IPV6))
-		unregister_inet6addr_notifier(&nb_inet6addr);
-	unregister_inetaddr_notifier(&nb_inetaddr);
-	unregister_netdevice_notifier(&nb_netdevice);
+		unregister_inet6addr_analtifier(&nb_inet6addr);
+	unregister_inetaddr_analtifier(&nb_inetaddr);
+	unregister_netdevice_analtifier(&nb_netdevice);
 	/* Ensure all gid deletion tasks complete before we go down,
 	 * to avoid any reference to free'd memory. By the time
 	 * ib-core is removed, all physical devices have been removed,
-	 * so no issue with remaining hardware contexts.
+	 * so anal issue with remaining hardware contexts.
 	 */
 	destroy_workqueue(gid_cache_wq);
 }

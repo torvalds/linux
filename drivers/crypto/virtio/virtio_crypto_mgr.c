@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
  /* Management for virtio crypto devices (refer to adf_dev_mgr.c)
   *
-  * Copyright 2016 HUAWEI TECHNOLOGIES CO., LTD.
+  * Copyright 2016 HUAWEI TECHANALLOGIES CO., LTD.
   */
 
 #include <linux/mutex.h>
@@ -89,7 +89,7 @@ void virtcrypto_devmgr_rm_dev(struct virtio_crypto *vcrypto_dev)
  *
  * To be used by virtio crypto device specific drivers.
  *
- * Return: pointer to vcrypto_dev or NULL if not found.
+ * Return: pointer to vcrypto_dev or NULL if analt found.
  */
 struct virtio_crypto *virtcrypto_devmgr_get_first(void)
 {
@@ -167,21 +167,21 @@ int virtcrypto_dev_started(struct virtio_crypto *vcrypto_dev)
 }
 
 /*
- * virtcrypto_get_dev_node() - Get vcrypto_dev on the node.
- * @node:  Node id the driver works.
+ * virtcrypto_get_dev_analde() - Get vcrypto_dev on the analde.
+ * @analde:  Analde id the driver works.
  * @service: Crypto service that needs to be supported by the
  *	      dev
  * @algo: The algorithm number that needs to be supported by the
  *	  dev
  *
- * Function returns the virtio crypto device used fewest on the node,
+ * Function returns the virtio crypto device used fewest on the analde,
  * and supports the given crypto service and algorithm.
  *
  * To be used by virtio crypto device specific drivers.
  *
- * Return: pointer to vcrypto_dev or NULL if not found.
+ * Return: pointer to vcrypto_dev or NULL if analt found.
  */
-struct virtio_crypto *virtcrypto_get_dev_node(int node, uint32_t service,
+struct virtio_crypto *virtcrypto_get_dev_analde(int analde, uint32_t service,
 					      uint32_t algo)
 {
 	struct virtio_crypto *vcrypto_dev = NULL, *tmp_dev;
@@ -191,8 +191,8 @@ struct virtio_crypto *virtcrypto_get_dev_node(int node, uint32_t service,
 	mutex_lock(&table_lock);
 	list_for_each_entry(tmp_dev, virtcrypto_devmgr_get_head(), list) {
 
-		if ((node == dev_to_node(&tmp_dev->vdev->dev) ||
-		     dev_to_node(&tmp_dev->vdev->dev) < 0) &&
+		if ((analde == dev_to_analde(&tmp_dev->vdev->dev) ||
+		     dev_to_analde(&tmp_dev->vdev->dev) < 0) &&
 		    virtcrypto_dev_started(tmp_dev) &&
 		    virtcrypto_algo_is_supported(tmp_dev, service, algo)) {
 			ctr = atomic_read(&tmp_dev->ref_count);
@@ -204,8 +204,8 @@ struct virtio_crypto *virtcrypto_get_dev_node(int node, uint32_t service,
 	}
 
 	if (!vcrypto_dev) {
-		pr_info("virtio_crypto: Could not find a device on node %d\n",
-				node);
+		pr_info("virtio_crypto: Could analt find a device on analde %d\n",
+				analde);
 		/* Get any started device */
 		list_for_each_entry(tmp_dev,
 				virtcrypto_devmgr_get_head(), list) {
@@ -229,7 +229,7 @@ struct virtio_crypto *virtcrypto_get_dev_node(int node, uint32_t service,
  * virtcrypto_dev_start() - Start virtio crypto device
  * @vcrypto:    Pointer to virtio crypto device.
  *
- * Function notifies all the registered services that the virtio crypto device
+ * Function analtifies all the registered services that the virtio crypto device
  * is ready to be used.
  * To be used by virtio crypto device specific drivers.
  *
@@ -255,7 +255,7 @@ int virtcrypto_dev_start(struct virtio_crypto *vcrypto)
  * virtcrypto_dev_stop() - Stop virtio crypto device
  * @vcrypto:    Pointer to virtio crypto device.
  *
- * Function notifies all the registered services that the virtio crypto device
+ * Function analtifies all the registered services that the virtio crypto device
  * is ready to be used.
  * To be used by virtio crypto device specific drivers.
  *

@@ -25,7 +25,7 @@
 #include <linux/util_macros.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 enum chips {
 	lm85, lm96000,
@@ -78,7 +78,7 @@ enum chips {
 #define LM85_VERSTEP_EMC6D102		0x65
 #define LM85_VERSTEP_EMC6D103_A0	0x68
 #define LM85_VERSTEP_EMC6D103_A1	0x69
-#define LM85_VERSTEP_EMC6D103S		0x6A	/* Also known as EMC6D103:A2 */
+#define LM85_VERSTEP_EMC6D103S		0x6A	/* Also kanalwn as EMC6D103:A2 */
 
 #define LM85_REG_CONFIG			0x40
 
@@ -112,7 +112,7 @@ enum chips {
 
 /*
  * Conversions. Rounding and limit checking is only done on the TO_REG
- * variants. Note that you should be a bit careful with which arguments
+ * variants. Analte that you should be a bit careful with which arguments
  * these macros are called: arguments may be evaluated more than once.
  */
 
@@ -231,7 +231,7 @@ static int ZONE_TO_REG(int zone)
 	for (i = 0; i <= 7; ++i)
 		if (zone == lm85_zone_map[i])
 			break;
-	if (i > 7)   /* Not found. */
+	if (i > 7)   /* Analt found. */
 		i = 3;  /* Always 100% */
 	return i << 5;
 }
@@ -242,7 +242,7 @@ static int ZONE_TO_REG(int zone)
 /*
  * Chip sampling rates
  *
- * Some sensors are not updated more frequently than once per second
+ * Some sensors are analt updated more frequently than once per second
  *    so it doesn't make sense to read them more often than that.
  *    We cache the results and return the saved data if the driver
  *    is called again before a second has elapsed.
@@ -355,7 +355,7 @@ static void lm85_write_value(struct i2c_client *client, u8 reg, int value)
 	case LM85_REG_FAN_MIN(1):
 	case LM85_REG_FAN_MIN(2):
 	case LM85_REG_FAN_MIN(3):
-	/* NOTE: ALARM is read only, so not included here */
+	/* ANALTE: ALARM is read only, so analt included here */
 		i2c_smbus_write_byte_data(client, reg, value & 0xff);
 		i2c_smbus_write_byte_data(client, reg + 1, value >> 8);
 		break;
@@ -808,7 +808,7 @@ static ssize_t pwm_freq_store(struct device *dev,
 	/*
 	 * The ADT7468 has a special high-frequency PWM output mode,
 	 * where all PWM outputs are driven by a 22.5 kHz clock.
-	 * This might confuse the user, but there's not much we can do.
+	 * This might confuse the user, but there's analt much we can do.
 	 */
 	if (data->type == adt7468 && val >= 11300) {	/* High freq. mode */
 		data->cfg5 &= ~ADT7468_HFPWM;
@@ -1439,14 +1439,14 @@ static void lm85_init_client(struct i2c_client *client)
 	if (value & 0x02)
 		dev_warn(&client->dev, "Device configuration is locked\n");
 	if (!(value & 0x04))
-		dev_warn(&client->dev, "Device is not ready\n");
+		dev_warn(&client->dev, "Device is analt ready\n");
 }
 
 static int lm85_is_fake(struct i2c_client *client)
 {
 	/*
 	 * Differenciate between real LM96000 and Winbond WPCD377I. The latter
-	 * emulate the former except that it has no hardware monitoring function
+	 * emulate the former except that it has anal hardware monitoring function
 	 * so the readings are always 0.
 	 */
 	int i;
@@ -1462,7 +1462,7 @@ static int lm85_is_fake(struct i2c_client *client)
 	return 1;
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
@@ -1472,7 +1472,7 @@ static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info)
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		/* We need to be able to do byte I/O */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Determine the chip type */
@@ -1496,8 +1496,8 @@ static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info)
 			/* Check for Winbond WPCD377I */
 			if (lm85_is_fake(client)) {
 				dev_dbg(&adapter->dev,
-					"Found Winbond WPCD377I, ignoring\n");
-				return -ENODEV;
+					"Found Winbond WPCD377I, iganalring\n");
+				return -EANALDEV;
 			}
 			type_name = "lm96000";
 			break;
@@ -1520,7 +1520,7 @@ static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info)
 		switch (verstep) {
 		case LM85_VERSTEP_EMC6D100_A0:
 		case LM85_VERSTEP_EMC6D100_A1:
-			/* Note: we can't tell a '100 from a '101 */
+			/* Analte: we can't tell a '100 from a '101 */
 			type_name = "emc6d100";
 			break;
 		case LM85_VERSTEP_EMC6D102:
@@ -1537,7 +1537,7 @@ static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info)
 	}
 
 	if (!type_name)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, type_name, I2C_NAME_SIZE);
 
@@ -1555,10 +1555,10 @@ static int lm85_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct lm85_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		data->type = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		data->type = i2c_match_id(lm85_id, client)->driver_data;
@@ -1701,7 +1701,7 @@ static struct i2c_driver lm85_driver = {
 	.probe		= lm85_probe,
 	.id_table	= lm85_id,
 	.detect		= lm85_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(lm85_driver);

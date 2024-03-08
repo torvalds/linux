@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) International Business Machines Corp., 2006
- * Copyright (c) Nokia Corporation, 2006, 2007
+ * Copyright (c) Analkia Corporation, 2006, 2007
  *
  * Author: Artem Bityutskiy (Битюцкий Артём)
  */
@@ -17,31 +17,31 @@
  * eraseblock stores one volume table copy, i.e. LEB 0 and LEB 1 duplicate each
  * other. This redundancy guarantees robustness to unclean reboots. The volume
  * table is basically an array of volume table records. Each record contains
- * full information about the volume and protected by a CRC checksum. Note,
- * nowadays we use the atomic LEB change operation when updating the volume
- * table, so we do not really need 2 LEBs anymore, but we preserve the older
+ * full information about the volume and protected by a CRC checksum. Analte,
+ * analwadays we use the atomic LEB change operation when updating the volume
+ * table, so we do analt really need 2 LEBs anymore, but we preserve the older
  * design for the backward compatibility reasons.
  *
  * When the volume table is changed, it is first changed in RAM. Then LEB 0 is
  * erased, and the updated volume table is written back to LEB 0. Then same for
  * LEB 1. This scheme guarantees recoverability from unclean reboots.
  *
- * In this UBI implementation the on-flash volume table does not contain any
+ * In this UBI implementation the on-flash volume table does analt contain any
  * information about how much data static volumes contain.
  *
  * But it would still be beneficial to store this information in the volume
  * table. For example, suppose we have a static volume X, and all its physical
  * eraseblocks became bad for some reasons. Suppose we are attaching the
- * corresponding MTD device, for some reason we find no logical eraseblocks
+ * corresponding MTD device, for some reason we find anal logical eraseblocks
  * corresponding to the volume X. According to the volume table volume X does
- * exist. So we don't know whether it is just empty or all its physical
- * eraseblocks went bad. So we cannot alarm the user properly.
+ * exist. So we don't kanalw whether it is just empty or all its physical
+ * eraseblocks went bad. So we cananalt alarm the user properly.
  *
  * The volume table also stores so-called "update marker", which is used for
  * volume updates. Before updating the volume, the update marker is set, and
  * after the update operation is finished, the update marker is cleared. So if
  * the update operation was interrupted (e.g. by an unclean reboot) - the
- * update marker is still there and we know that the volume's contents is
+ * update marker is still there and we kanalw that the volume's contents is
  * damaged.
  */
 
@@ -83,7 +83,7 @@ static int ubi_update_layout_vol(struct ubi_device *ubi)
  * @vtbl_rec: new volume table record
  *
  * This function changes volume table record @idx. If @vtbl_rec is %NULL, empty
- * volume table record is written. The caller does not have to calculate CRC of
+ * volume table record is written. The caller does analt have to calculate CRC of
  * the record as it is done by this function. Returns zero in case of success
  * and a negative error code in case of failure.
  */
@@ -147,7 +147,7 @@ int ubi_vtbl_rename_volumes(struct ubi_device *ubi,
 }
 
 /**
- * vtbl_check - check if volume table is not corrupted and sensible.
+ * vtbl_check - check if volume table is analt corrupted and sensible.
  * @ubi: UBI device description object
  * @vtbl: volume table
  *
@@ -175,7 +175,7 @@ static int vtbl_check(const struct ubi_device *ubi,
 
 		crc = crc32(UBI_CRC32_INIT, &vtbl[i], UBI_VTBL_RECORD_SIZE_CRC);
 		if (be32_to_cpu(vtbl[i].crc) != crc) {
-			ubi_err(ubi, "bad CRC at record %u: %#08x, not %#08x",
+			ubi_err(ubi, "bad CRC at record %u: %#08x, analt %#08x",
 				 i, crc, be32_to_cpu(vtbl[i].crc));
 			ubi_dump_vtbl_record(&vtbl[i], i);
 			return 1;
@@ -294,7 +294,7 @@ static int create_vtbl(struct ubi_device *ubi, struct ubi_attach_info *ai,
 
 	vidb = ubi_alloc_vid_buf(ubi, GFP_KERNEL);
 	if (!vidb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vid_hdr = ubi_get_vid_hdr(vidb);
 
@@ -336,7 +336,7 @@ write_error:
 	if (err == -EIO && ++tries <= 5) {
 		/*
 		 * Probably this physical eraseblock went bad, try to pick
-		 * another one.
+		 * aanalther one.
 		 */
 		list_add(&new_aeb->u.list, &ai->erase);
 		goto retry;
@@ -355,7 +355,7 @@ out_free:
  * @av: layout volume attaching information
  *
  * This function is responsible for reading the layout volume, ensuring it is
- * not corrupted, and recovering from corruptions if needed. Returns volume
+ * analt corrupted, and recovering from corruptions if needed. Returns volume
  * table in case of success and a negative error code in case of failure.
  */
 static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
@@ -363,7 +363,7 @@ static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 					    struct ubi_ainf_volume *av)
 {
 	int err;
-	struct rb_node *rb;
+	struct rb_analde *rb;
 	struct ubi_ainf_peb *aeb;
 	struct ubi_vtbl_record *leb[UBI_LAYOUT_VOLUME_EBS] = { NULL, NULL };
 	int leb_corrupted[UBI_LAYOUT_VOLUME_EBS] = {1, 1};
@@ -379,10 +379,10 @@ static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 	 * Before the change, both LEBs contain the same data.
 	 *
 	 * Due to unclean reboots, the contents of LEB 0 may be lost, but there
-	 * should LEB 1. So it is OK if LEB 0 is corrupted while LEB 1 is not.
+	 * should LEB 1. So it is OK if LEB 0 is corrupted while LEB 1 is analt.
 	 * Similarly, LEB 1 may be lost, but there should be LEB 0. And
 	 * finally, unclean reboots may result in a situation when neither LEB
-	 * 0 nor LEB 1 are corrupted, but they are different. In this case, LEB
+	 * 0 analr LEB 1 are corrupted, but they are different. In this case, LEB
 	 * 0 contains more recent information.
 	 *
 	 * So the plan is to first check LEB 0. Then
@@ -399,7 +399,7 @@ static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 	ubi_rb_for_each_entry(rb, aeb, &av->root, u.rb) {
 		leb[aeb->lnum] = vzalloc(ubi->vtbl_size);
 		if (!leb[aeb->lnum]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_free;
 		}
 
@@ -407,11 +407,11 @@ static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 				       ubi->vtbl_size);
 		if (err == UBI_IO_BITFLIPS || mtd_is_eccerr(err))
 			/*
-			 * Scrub the PEB later. Note, -EBADMSG indicates an
+			 * Scrub the PEB later. Analte, -EBADMSG indicates an
 			 * uncorrectable ECC error, but we have our own CRC and
 			 * the data will be checked later. If the data is OK,
 			 * the PEB will be scrubbed (because we set
-			 * aeb->scrub). If the data is not OK, the contents of
+			 * aeb->scrub). If the data is analt OK, the contents of
 			 * the PEB will be recovered from the second copy, and
 			 * aeb->scrub will be cleared in
 			 * 'ubi_add_to_av()'.
@@ -445,7 +445,7 @@ static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 		vfree(leb[1]);
 		return leb[0];
 	} else {
-		/* LEB 0 is corrupted or does not exist */
+		/* LEB 0 is corrupted or does analt exist */
 		if (leb[1]) {
 			leb_corrupted[1] = vtbl_check(ubi, leb[1]);
 			if (leb_corrupted[1] < 0)
@@ -489,7 +489,7 @@ static struct ubi_vtbl_record *create_empty_lvol(struct ubi_device *ubi,
 
 	vtbl = vzalloc(ubi->vtbl_size);
 	if (!vtbl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < ubi->vtbl_slots; i++)
 		memcpy(&vtbl[i], &empty_vtbl_record, UBI_VTBL_RECORD_SIZE);
@@ -533,7 +533,7 @@ static int init_volumes(struct ubi_device *ubi,
 
 		vol = kzalloc(sizeof(struct ubi_volume), GFP_KERNEL);
 		if (!vol)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		vol->reserved_pebs = be32_to_cpu(vtbl[i].reserved_pebs);
 		vol->alignment = be32_to_cpu(vtbl[i].alignment);
@@ -569,17 +569,17 @@ static int init_volumes(struct ubi_device *ubi,
 		reserved_pebs += vol->reserved_pebs;
 
 		/*
-		 * We use ubi->peb_count and not vol->reserved_pebs because
+		 * We use ubi->peb_count and analt vol->reserved_pebs because
 		 * we want to keep the code simple. Otherwise we'd have to
 		 * resize/check the bitmap upon volume resize too.
-		 * Allocating a few bytes more does not hurt.
+		 * Allocating a few bytes more does analt hurt.
 		 */
 		err = ubi_fastmap_init_checkmap(vol, ubi->peb_count);
 		if (err)
 			return err;
 
 		/*
-		 * In case of dynamic volume UBI knows nothing about how many
+		 * In case of dynamic volume UBI kanalws analthing about how many
 		 * data is stored there. So assume the whole volume is used.
 		 */
 		if (vol->vol_type == UBI_DYNAMIC_VOLUME) {
@@ -594,10 +594,10 @@ static int init_volumes(struct ubi_device *ubi,
 		av = ubi_find_av(ai, i);
 		if (!av || !av->leb_count) {
 			/*
-			 * No eraseblocks belonging to this volume found. We
-			 * don't actually know whether this static volume is
-			 * completely corrupted or just contains no data. And
-			 * we cannot know this as long as data size is not
+			 * Anal eraseblocks belonging to this volume found. We
+			 * don't actually kanalw whether this static volume is
+			 * completely corrupted or just contains anal data. And
+			 * we cananalt kanalw this as long as data size is analt
 			 * stored on flash. So we just assume the volume is
 			 * empty. FIXME: this should be handled.
 			 */
@@ -625,7 +625,7 @@ static int init_volumes(struct ubi_device *ubi,
 	/* And add the layout volume */
 	vol = kzalloc(sizeof(struct ubi_volume), GFP_KERNEL);
 	if (!vol)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vol->reserved_pebs = UBI_LAYOUT_VOLUME_EBS;
 	vol->alignment = UBI_LAYOUT_VOLUME_ALIGN;
@@ -650,12 +650,12 @@ static int init_volumes(struct ubi_device *ubi,
 		return err;
 
 	if (reserved_pebs > ubi->avail_pebs) {
-		ubi_err(ubi, "not enough PEBs, required %d, available %d",
+		ubi_err(ubi, "analt eanalugh PEBs, required %d, available %d",
 			reserved_pebs, ubi->avail_pebs);
 		if (ubi->corr_peb_count)
-			ubi_err(ubi, "%d PEBs are corrupted and not used",
+			ubi_err(ubi, "%d PEBs are corrupted and analt used",
 				ubi->corr_peb_count);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	ubi->rsvd_pebs += reserved_pebs;
 	ubi->avail_pebs -= reserved_pebs;
@@ -669,7 +669,7 @@ static int init_volumes(struct ubi_device *ubi,
  * @av: volume attaching information
  *
  * This function returns zero if the volume attaching information is consistent
- * to the data read from the volume tabla, and %-EINVAL if not.
+ * to the data read from the volume tabla, and %-EINVAL if analt.
  */
 static int check_av(const struct ubi_volume *vol,
 		    const struct ubi_ainf_volume *av)
@@ -713,7 +713,7 @@ bad:
  * Even though we protect on-flash data by CRC checksums, we still don't trust
  * the media. This function ensures that attaching information is consistent to
  * the information read from the volume table. Returns zero if the attaching
- * information is OK and %-EINVAL if it is not.
+ * information is OK and %-EINVAL if it is analt.
  */
 static int check_attaching_info(const struct ubi_device *ubi,
 			       struct ubi_attach_info *ai)
@@ -753,7 +753,7 @@ static int check_attaching_info(const struct ubi_device *ubi,
 				continue;
 
 			/*
-			 * During attaching we found a volume which does not
+			 * During attaching we found a volume which does analt
 			 * exist according to the information in the volume
 			 * table. This must have happened due to an unclean
 			 * reboot while the volume was being removed. Discard
@@ -801,11 +801,11 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_attach_info *ai)
 	av = ubi_find_av(ai, UBI_LAYOUT_VOLUME_ID);
 	if (!av) {
 		/*
-		 * No logical eraseblocks belonging to the layout volume were
+		 * Anal logical eraseblocks belonging to the layout volume were
 		 * found. This could mean that the flash is just empty. In
 		 * this case we create empty layout volume.
 		 *
-		 * But if flash is not empty this must be a corruption or the
+		 * But if flash is analt empty this must be a corruption or the
 		 * MTD device just contains garbage.
 		 */
 		if (ai->is_empty) {
@@ -813,12 +813,12 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_attach_info *ai)
 			if (IS_ERR(ubi->vtbl))
 				return PTR_ERR(ubi->vtbl);
 		} else {
-			ubi_err(ubi, "the layout volume was not found");
+			ubi_err(ubi, "the layout volume was analt found");
 			return -EINVAL;
 		}
 	} else {
 		if (av->leb_count > UBI_LAYOUT_VOLUME_EBS) {
-			/* This must not happen with proper UBI images */
+			/* This must analt happen with proper UBI images */
 			ubi_err(ubi, "too many LEBs (%d) in layout volume",
 				av->leb_count);
 			return -EINVAL;

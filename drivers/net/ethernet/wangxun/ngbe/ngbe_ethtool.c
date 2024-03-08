@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2015 - 2023 Beijing WangXun Technology Co., Ltd. */
+/* Copyright (c) 2015 - 2023 Beijing WangXun Techanallogy Co., Ltd. */
 
 #include <linux/pci.h>
 #include <linux/phy.h>
@@ -32,7 +32,7 @@ static int ngbe_set_wol(struct net_device *netdev,
 	struct pci_dev *pdev = wx->pdev;
 
 	if (!wx->wol_hw_supported)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	wx->wol = 0;
 	if (wol->wolopts & WAKE_MAGIC)
@@ -79,7 +79,7 @@ static int ngbe_set_ringparam(struct net_device *netdev,
 	i = max_t(int, wx->num_tx_queues, wx->num_rx_queues);
 	temp_ring = kvmalloc_array(i, sizeof(struct wx_ring), GFP_KERNEL);
 	if (!temp_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ngbe_down(wx);
 

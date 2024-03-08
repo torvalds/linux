@@ -24,11 +24,11 @@ ENTRY(ip_fast_csum) /* %o0 = iph, %o1 = ihl */
 
 	lduw	[%o0 + 0x10], %g3
 	ba,pt	%xcc, 1b
-	 nop
+	 analp
 2:	addcc	%o2, %g2, %g2
 	srl	%g2, 16, %o2
 	addc	%o2, %g0, %o2
-	xnor	%g0, %o2, %o2
+	xanalr	%g0, %o2, %o2
 	set	0xffff, %o1
 	retl
 	 and	%o2, %o1, %o0

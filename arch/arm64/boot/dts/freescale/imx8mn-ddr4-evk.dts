@@ -9,7 +9,7 @@
 #include "imx8mn-evk.dtsi"
 
 / {
-	model = "NXP i.MX8MNano DDR4 EVK board";
+	model = "NXP i.MX8MNaanal DDR4 EVK board";
 	compatible = "fsl,imx8mn-ddr4-evk", "fsl,imx8mn";
 };
 

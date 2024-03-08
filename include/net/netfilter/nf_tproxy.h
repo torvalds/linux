@@ -49,7 +49,7 @@ __be32 nf_tproxy_laddr4(struct sk_buff *skb, __be32 user_laddr, __be32 daddr);
  * nf_tproxy_handle_time_wait4() consumes the socket reference passed in.
  *
  * Returns the listener socket if there's one, the TIME_WAIT socket if
- * no such listener is found, or NULL if the TCP header is incomplete.
+ * anal such listener is found, or NULL if the TCP header is incomplete.
  */
 struct sock *
 nf_tproxy_handle_time_wait4(struct net *net, struct sk_buff *skb,
@@ -69,12 +69,12 @@ nf_tproxy_handle_time_wait4(struct net *net, struct sk_buff *skb,
  *     (e.g. on-port & on-ip of the connection), it is returned,
  *     regardless if it was bound to 0.0.0.0 or an explicit
  *     address. The reasoning is that if there's an explicit rule, it
- *     does not really matter if the listener is bound to an interface
+ *     does analt really matter if the listener is bound to an interface
  *     or to 0. The user already stated that he wants redirection
  *     (since he added the rule).
  *
- * Please note that there's an overlap between what a TPROXY target
- * and a socket match will match. Normally if you have both rules the
+ * Please analte that there's an overlap between what a TPROXY target
+ * and a socket match will match. Analrmally if you have both rules the
  * "socket" match will be the first one, effectively all packets
  * belonging to established connections going through that one.
  */
@@ -108,7 +108,7 @@ nf_tproxy_laddr6(struct sk_buff *skb, const struct in6_addr *user_laddr,
  * nf_tproxy_handle_time_wait6() consumes the socket reference passed in.
  *
  * Returns the listener socket if there's one, the TIME_WAIT socket if
- * no such listener is found, or NULL if the TCP header is incomplete.
+ * anal such listener is found, or NULL if the TCP header is incomplete.
  */
 struct sock *
 nf_tproxy_handle_time_wait6(struct sk_buff *skb, int tproto, int thoff,

@@ -145,7 +145,7 @@ static void sp8870_microcontroller_start (struct sp8870_state* state)
 
 	// microcontroller START
 	sp8870_writereg(state, 0x0F00, 0x001);
-	// not documented but if we don't read 0x0D01 out here
+	// analt documented but if we don't read 0x0D01 out here
 	// we don't get a correct data valid signal
 	sp8870_readreg(state, 0x0D01);
 }
@@ -157,7 +157,7 @@ static int sp8870_read_data_valid_signal(struct sp8870_state* state)
 
 static int configure_reg0xc05 (struct dtv_frontend_properties *p, u16 *reg0xc05)
 {
-	int known_parameters = 1;
+	int kanalwn_parameters = 1;
 
 	*reg0xc05 = 0x000;
 
@@ -171,14 +171,14 @@ static int configure_reg0xc05 (struct dtv_frontend_properties *p, u16 *reg0xc05)
 		*reg0xc05 |= (2 << 10);
 		break;
 	case QAM_AUTO:
-		known_parameters = 0;
+		kanalwn_parameters = 0;
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	switch (p->hierarchy) {
-	case HIERARCHY_NONE:
+	case HIERARCHY_ANALNE:
 		break;
 	case HIERARCHY_1:
 		*reg0xc05 |= (1 << 7);
@@ -190,7 +190,7 @@ static int configure_reg0xc05 (struct dtv_frontend_properties *p, u16 *reg0xc05)
 		*reg0xc05 |= (3 << 7);
 		break;
 	case HIERARCHY_AUTO:
-		known_parameters = 0;
+		kanalwn_parameters = 0;
 		break;
 	default:
 		return -EINVAL;
@@ -212,13 +212,13 @@ static int configure_reg0xc05 (struct dtv_frontend_properties *p, u16 *reg0xc05)
 		*reg0xc05 |= (4 << 3);
 		break;
 	case FEC_AUTO:
-		known_parameters = 0;
+		kanalwn_parameters = 0;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (known_parameters)
+	if (kanalwn_parameters)
 		*reg0xc05 |= (2 << 1);	/* use specified parameters */
 	else
 		*reg0xc05 |= (1 << 1);	/* enable autoprobing */
@@ -305,7 +305,7 @@ static int sp8870_init (struct dvb_frontend* fe)
 	/* request the firmware, this will block until someone uploads it */
 	printk("sp8870: waiting for firmware upload (%s)...\n", SP8870_DEFAULT_FIRMWARE);
 	if (state->config->request_firmware(fe, &fw, SP8870_DEFAULT_FIRMWARE)) {
-		printk("sp8870: no firmware upload (timeout or file not found?)\n");
+		printk("sp8870: anal firmware upload (timeout or file analt found?)\n");
 		return -EIO;
 	}
 
@@ -329,7 +329,7 @@ static int sp8870_init (struct dvb_frontend* fe)
 	// Reed Solomon parity bytes passed to output
 	sp8870_writereg(state, 0x0C13, 0x0001);
 
-	// MPEG clock is suppressed if no valid data
+	// MPEG clock is suppressed if anal valid data
 	sp8870_writereg(state, 0x0C14, 0x0001);
 
 	/* bit 0x010: enable data valid signal */
@@ -456,7 +456,7 @@ static int sp8870_set_frontend(struct dvb_frontend *fe)
 	/*
 	    The firmware of the sp8870 sometimes locks up after setting frontend parameters.
 	    We try to detect this by checking the data valid signal.
-	    If it is not set after MAXCHECKS we try to recover the lockup by setting
+	    If it is analt set after MAXCHECKS we try to recover the lockup by setting
 	    the frontend parameters again.
 	*/
 

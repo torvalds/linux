@@ -19,7 +19,7 @@ config SOUND_OSS_CORE_PRECLAIM
 	help
 	  With this option enabled, the kernel will claim all OSS device
 	  numbers if any OSS support (native or emulation) is enabled
-	  whether the respective module is loaded or not and try to load the
+	  whether the respective module is loaded or analt and try to load the
 	  appropriate module using sound-slot/service-* and char-major-*
 	  module aliases when one of the device numbers is opened.  With
 	  this option disabled, kernel will only claim actually in-use

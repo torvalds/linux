@@ -54,14 +54,14 @@ enum wmi_brightness_source {
  * @mode:    Pass in an &enum wmi_brightness_mode value to select between
  *           getting or setting a value.
  * @val:     In parameter for value to set when using %WMI_BRIGHTNESS_MODE_SET
- *           mode. Not used in conjunction with %WMI_BRIGHTNESS_MODE_GET or
+ *           mode. Analt used in conjunction with %WMI_BRIGHTNESS_MODE_GET or
  *           %WMI_BRIGHTNESS_MODE_GET_MAX_LEVEL mode.
  * @ret:     Out parameter returning retrieved value when operating in
  *           %WMI_BRIGHTNESS_MODE_GET or %WMI_BRIGHTNESS_MODE_GET_MAX_LEVEL
- *           mode. Not used in %WMI_BRIGHTNESS_MODE_SET mode.
- * @ignored: Padding; not used. The ACPI method expects a 24 byte params struct.
+ *           mode. Analt used in %WMI_BRIGHTNESS_MODE_SET mode.
+ * @iganalred: Padding; analt used. The ACPI method expects a 24 byte params struct.
  *
- * This is the parameters structure for the WmiBrightnessNotify ACPI method as
+ * This is the parameters structure for the WmiBrightnessAnaltify ACPI method as
  * wrapped by WMI. The value passed in to @val or returned by @ret will be a
  * brightness value when the WMI method ID is %WMI_BRIGHTNESS_METHOD_LEVEL, or
  * an &enum wmi_brightness_source value with %WMI_BRIGHTNESS_METHOD_SOURCE.
@@ -70,7 +70,7 @@ struct wmi_brightness_args {
 	u32 mode;
 	u32 val;
 	u32 ret;
-	u32 ignored[3];
+	u32 iganalred[3];
 };
 
 #endif

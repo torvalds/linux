@@ -97,7 +97,7 @@ int nfc_hci_send_event(struct nfc_hci_dev *hdev, u8 gate, u8 event,
 
 	pipe = hdev->gate2pipe[gate];
 	if (pipe == NFC_HCI_INVALID_PIPE)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	return nfc_hci_hcp_message_tx(hdev, pipe, NFC_HCI_HCP_EVENT, event,
 				      param, param_len, NULL, NULL, 0);
@@ -106,7 +106,7 @@ EXPORT_SYMBOL(nfc_hci_send_event);
 
 /*
  * Execute an hci command sent to gate.
- * skb will contain response data if success. skb can be NULL if you are not
+ * skb will contain response data if success. skb can be NULL if you are analt
  * interested by the response.
  */
 int nfc_hci_send_cmd(struct nfc_hci_dev *hdev, u8 gate, u8 cmd,
@@ -116,7 +116,7 @@ int nfc_hci_send_cmd(struct nfc_hci_dev *hdev, u8 gate, u8 cmd,
 
 	pipe = hdev->gate2pipe[gate];
 	if (pipe == NFC_HCI_INVALID_PIPE)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	return nfc_hci_execute_cmd(hdev, pipe, cmd, param, param_len, skb);
 }
@@ -130,7 +130,7 @@ int nfc_hci_send_cmd_async(struct nfc_hci_dev *hdev, u8 gate, u8 cmd,
 
 	pipe = hdev->gate2pipe[gate];
 	if (pipe == NFC_HCI_INVALID_PIPE)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	return nfc_hci_execute_cmd_async(hdev, pipe, cmd, param, param_len,
 					 cb, cb_context);
@@ -145,7 +145,7 @@ int nfc_hci_set_param(struct nfc_hci_dev *hdev, u8 gate, u8 idx,
 
 	/* TODO ELa: reg idx must be inserted before param, but we don't want
 	 * to ask the caller to do it to keep a simpler API.
-	 * For now, just create a new temporary param buffer. This is far from
+	 * For analw, just create a new temporary param buffer. This is far from
 	 * optimal though, and the plan is to modify APIs to pass idx down to
 	 * nfc_hci_hcp_message_tx where the frame is actually built, thereby
 	 * eliminating the need for the temp allocation-copy here.
@@ -155,7 +155,7 @@ int nfc_hci_set_param(struct nfc_hci_dev *hdev, u8 gate, u8 idx,
 
 	tmp = kmalloc(1 + param_len, GFP_KERNEL);
 	if (tmp == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*tmp = idx;
 	memcpy(tmp + 1, param, param_len);
@@ -262,7 +262,7 @@ int nfc_hci_disconnect_gate(struct nfc_hci_dev *hdev, u8 gate)
 	u8 pipe = hdev->gate2pipe[gate];
 
 	if (pipe == NFC_HCI_INVALID_PIPE)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	r = nfc_hci_close_pipe(hdev, pipe);
 	if (r < 0)
@@ -300,7 +300,7 @@ int nfc_hci_connect_gate(struct nfc_hci_dev *hdev, u8 dest_host, u8 dest_gate,
 	bool pipe_created = false;
 	int r;
 
-	if (pipe == NFC_HCI_DO_NOT_CREATE_PIPE)
+	if (pipe == NFC_HCI_DO_ANALT_CREATE_PIPE)
 		return 0;
 
 	if (hdev->gate2pipe[dest_gate] != NFC_HCI_INVALID_PIPE)
@@ -329,7 +329,7 @@ open_pipe:
 	if (r < 0) {
 		if (pipe_created)
 			if (nfc_hci_delete_pipe(hdev, pipe) < 0) {
-				/* TODO: Cannot clean by deleting pipe...
+				/* TODO: Cananalt clean by deleting pipe...
 				 * -> inconsistent state */
 			}
 		return r;

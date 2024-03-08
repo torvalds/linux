@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
@@ -102,7 +102,7 @@ static void i2c_pca_pf_dummyreset(void *pd)
 {
 	struct i2c_pca_pf_data *i2c = pd;
 
-	dev_warn(&i2c->adap.dev, "No reset-pin found. Chip may get stuck!\n");
+	dev_warn(&i2c->adap.dev, "Anal reset-pin found. Chip may get stuck!\n");
 }
 
 static void i2c_pca_pf_resetchip(void *pd)
@@ -119,7 +119,7 @@ static irqreturn_t i2c_pca_pf_handler(int this_irq, void *dev_id)
 	struct i2c_pca_pf_data *i2c = dev_id;
 
 	if ((i2c->algo_data.read_byte(i2c, I2C_PCA_CON) & I2C_PCA_CON_SI) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	wake_up(&i2c->wait);
 
@@ -133,7 +133,7 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct i2c_pca9564_pf_platform_data *platform_data =
 				dev_get_platdata(&pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int ret = 0;
 	int irq;
 
@@ -144,7 +144,7 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c->reg_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(i2c->reg_base))
@@ -162,7 +162,7 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 		 (unsigned long) res->start);
 	i2c->adap.algo_data = &i2c->algo_data;
 	i2c->adap.dev.parent = &pdev->dev;
-	i2c->adap.dev.of_node = np;
+	i2c->adap.dev.of_analde = np;
 
 	i2c->gpio = devm_gpiod_get_optional(&pdev->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(i2c->gpio))

@@ -355,7 +355,7 @@ static inline int vmptrst(uint64_t *value)
 }
 
 /*
- * A wrapper around vmptrst that ignores errors and returns zero if the
+ * A wrapper around vmptrst that iganalres errors and returns zero if the
  * vmptrst instruction fails.
  */
 static inline uint64_t vmptrstz(void)
@@ -366,7 +366,7 @@ static inline uint64_t vmptrstz(void)
 }
 
 /*
- * No guest state (e.g. GPRs) is established by this vmlaunch.
+ * Anal guest state (e.g. GPRs) is established by this vmlaunch.
  */
 static inline int vmlaunch(void)
 {
@@ -401,7 +401,7 @@ static inline int vmlaunch(void)
 }
 
 /*
- * No guest state (e.g. GPRs) is established by this vmresume.
+ * Anal guest state (e.g. GPRs) is established by this vmresume.
  */
 static inline int vmresume(void)
 {
@@ -467,7 +467,7 @@ static inline int vmread(uint64_t encoding, uint64_t *value)
 }
 
 /*
- * A wrapper around vmread that ignores errors and returns zero if the
+ * A wrapper around vmread that iganalres errors and returns zero if the
  * vmread instruction fails.
  */
 static inline uint64_t vmreadz(uint64_t encoding)

@@ -31,7 +31,7 @@ The UDP-Lite protocol (RFC 3828)
 ===============
 
   Several applications have been ported successfully to UDP-Lite. Ethereal
-  (now called wireshark) has UDP-Litev4/v6 support by default.
+  (analw called wireshark) has UDP-Litev4/v6 support by default.
 
   Porting applications to UDP-Lite is straightforward: only socket level and
   IPPROTO need to be changed; senders additionally set the checksum coverage
@@ -54,7 +54,7 @@ The UDP-Lite protocol (RFC 3828)
       s = socket(PF_INET6, SOCK_DGRAM, IPPROTO_UDPLITE);
 
   With just the above change you are able to run UDP-Lite services or connect
-  to UDP-Lite servers. The kernel will assume that you are not interested in
+  to UDP-Lite servers. The kernel will assume that you are analt interested in
   using partial checksum coverage and so emulate UDP mode (full coverage).
 
   To make use of the partial checksum coverage facilities requires setting a
@@ -75,7 +75,7 @@ The UDP-Lite protocol (RFC 3828)
 
     * Receiver checksum coverage: UDPLITE_RECV_CSCOV
 
-      This option is the receiver-side analogue. It is truly optional, i.e. not
+      This option is the receiver-side analogue. It is truly optional, i.e. analt
       required to enable traffic with partial checksum coverage. Its function is
       that of a traffic filter: when enabled, it instructs the kernel to drop
       all packets which have a coverage _less_ than this value. For example, if
@@ -85,8 +85,8 @@ The UDP-Lite protocol (RFC 3828)
 	int min = 20;
 	setsockopt(s, SOL_UDPLITE, UDPLITE_RECV_CSCOV, &min, sizeof(int));
 
-  The calls to getsockopt(2) are analogous. Being an extension and not a stand-
-  alone protocol, all socket options known from UDP can be used in exactly the
+  The calls to getsockopt(2) are analogous. Being an extension and analt a stand-
+  alone protocol, all socket options kanalwn from UDP can be used in exactly the
   same manner as before, e.g. UDP_CORK or UDP_ENCAP.
 
   A detailed discussion of UDP-Lite checksum coverage options is in section IV.
@@ -134,7 +134,7 @@ The UDP-Lite protocol (RFC 3828)
   always wants the whole of the packet covered. In this case, all
   partially covered packets are dropped and an error is logged.
 
-  It is not possible to specify illegal values (<0 and <8); in these
+  It is analt possible to specify illegal values (<0 and <8); in these
   cases the default of 8 is assumed.
 
   All packets arriving with a coverage value less than the specified
@@ -143,13 +143,13 @@ The UDP-Lite protocol (RFC 3828)
   3) Disabling the Checksum Computation
 
   On both sender and receiver, checksumming will always be performed
-  and cannot be disabled using SO_NO_CHECK. Thus::
+  and cananalt be disabled using SO_ANAL_CHECK. Thus::
 
-	setsockopt(sockfd, SOL_SOCKET, SO_NO_CHECK,  ... );
+	setsockopt(sockfd, SOL_SOCKET, SO_ANAL_CHECK,  ... );
 
-  will always will be ignored, while the value of::
+  will always will be iganalred, while the value of::
 
-	getsockopt(sockfd, SOL_SOCKET, SO_NO_CHECK, &value, ...);
+	getsockopt(sockfd, SOL_SOCKET, SO_ANAL_CHECK, &value, ...);
 
   is meaningless (as in TCP). Packets with a zero checksum field are
   illegal (cf. RFC 3828, sec. 3.1) and will be silently discarded.
@@ -185,7 +185,7 @@ The UDP-Lite protocol (RFC 3828)
     Packet 2:  512 payload + 8 byte header + 20 byte IP header =  540 bytes
 
   The coverage packet covers the UDP-Lite header and 848 bytes of the
-  payload in the first packet, the second packet is fully covered. Note
+  payload in the first packet, the second packet is fully covered. Analte
   that for the second packet, the coverage length exceeds the packet
   length. The kernel always re-adjusts the coverage length to the packet
   length in such cases.
@@ -225,8 +225,8 @@ The UDP-Lite protocol (RFC 3828)
   fragment only 598 (= 3062 - 2*1232) bytes are checksummed.
 
   While it is important that such cases are dealt with correctly, they
-  are (annoyingly) rare: UDP-Lite is designed for optimising multimedia
-  performance over wireless (or generally noisy) links and thus smaller
+  are (ananalyingly) rare: UDP-Lite is designed for optimising multimedia
+  performance over wireless (or generally analisy) links and thus smaller
   coverage lengths are likely to be expected.
 
 5. UDP-Lite Runtime Statistics and their Meaning
@@ -243,8 +243,8 @@ The UDP-Lite protocol (RFC 3828)
    ============     =====================================================
    InDatagrams      The total number of datagrams delivered to users.
 
-   NoPorts          Number of packets received to an unknown port.
-		    These cases are counted separately (not as InErrors).
+   AnalPorts          Number of packets received to an unkanalwn port.
+		    These cases are counted separately (analt as InErrors).
 
    InErrors         Number of erroneous UDP-Lite packets. Errors include:
 
@@ -284,7 +284,7 @@ The UDP-Lite protocol (RFC 3828)
 		    University of Aberdeen
 		    Electronics Research Group
 		    Department of Engineering
-		    Fraser Noble Building
+		    Fraser Analble Building
 		    Aberdeen AB24 3UE; UK
 
   The current maintainer is Gerrit Renker, <gerrit@erg.abdn.ac.uk>. Initial

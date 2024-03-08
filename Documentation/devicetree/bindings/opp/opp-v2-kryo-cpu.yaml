@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/opp/opp-v2-kryo-cpu.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. NVMEM OPP
+title: Qualcomm Techanallogies, Inc. NVMEM OPP
 
 maintainers:
   - Ilia Lin <ilia.lin@kernel.org>
@@ -13,10 +13,10 @@ allOf:
   - $ref: opp-v2-base.yaml#
 
 description: |
-  In certain Qualcomm Technologies, Inc. SoCs like APQ8096 and MSM8996,
+  In certain Qualcomm Techanallogies, Inc. SoCs like APQ8096 and MSM8996,
   the CPU frequencies subset and voltage value of each OPP varies based on
   the silicon variant in use.
-  Qualcomm Technologies, Inc. Process Voltage Scaling Tables
+  Qualcomm Techanallogies, Inc. Process Voltage Scaling Tables
   defines the voltage and frequency value based on the speedbin blown in
   the efuse combination.
   The qcom-cpufreq-nvmem driver reads the efuse value from the SoC to provide
@@ -32,7 +32,7 @@ properties:
 
   nvmem-cells:
     description: |
-      A phandle pointing to a nvmem-cells node representing the
+      A phandle pointing to a nvmem-cells analde representing the
       efuse registers that has information about the
       speedbin that is used to select the right frequency/voltage
       value pair.
@@ -103,7 +103,7 @@ additionalProperties: false
 examples:
   - |
     / {
-        model = "Qualcomm Technologies, Inc. DB820c";
+        model = "Qualcomm Techanallogies, Inc. DB820c";
         compatible = "arrow,apq8096-db820c", "qcom,apq8096-sbc", "qcom,apq8096";
         #address-cells = <2>;
         #size-cells = <2>;

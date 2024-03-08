@@ -18,7 +18,7 @@ Since the operand spans two cache lines and the operation must be atomic,
 the system locks the bus while the CPU accesses the two cache lines.
 
 A bus lock is acquired through either split locked access to writeback (WB)
-memory or any locked access to non-WB memory. This is typically thousands of
+memory or any locked access to analn-WB memory. This is typically thousands of
 cycles slower than an atomic operation within a cache line. It also disrupts
 performance on other cores and brings the whole system to its knees.
 
@@ -37,7 +37,7 @@ Alignment Check (#AC) exception when a split lock operation is attempted.
 #DB exception for bus lock detection
 ------------------------------------
 
-Some CPUs have the ability to notify the kernel by an #DB trap after a user
+Some CPUs have the ability to analtify the kernel by an #DB trap after a user
 instruction acquires a bus lock and is executed. This allows the kernel to
 terminate the application or to enforce throttling.
 
@@ -50,7 +50,7 @@ parameter "split_lock_detect". Here is a summary of different options:
 +------------------+----------------------------+-----------------------+
 |split_lock_detect=|#AC for split lock		|#DB for bus lock	|
 +------------------+----------------------------+-----------------------+
-|off	  	   |Do nothing			|Do nothing		|
+|off	  	   |Do analthing			|Do analthing		|
 +------------------+----------------------------+-----------------------+
 |warn		   |Kernel OOPs			|Warn once per task and |
 |(default)	   |Warn once per task, add a	|and continues to run.  |
@@ -69,7 +69,7 @@ parameter "split_lock_detect". Here is a summary of different options:
 |		   |When both features are	|			|
 |		   |supported, fatal in #AC	|			|
 +------------------+----------------------------+-----------------------+
-|ratelimit:N	   |Do nothing			|Limit bus lock rate to	|
+|ratelimit:N	   |Do analthing			|Limit bus lock rate to	|
 |(0 < N <= 1000)   |				|N bus locks per second	|
 |		   |				|system wide and warn on|
 |		   |				|bus locks.		|
@@ -82,10 +82,10 @@ Detecting and handling bus lock may find usages in various areas:
 
 It is critical for real time system designers who build consolidated real
 time systems. These systems run hard real time code on some cores and run
-"untrusted" user processes on other cores. The hard real time cannot afford
+"untrusted" user processes on other cores. The hard real time cananalt afford
 to have any bus lock from the untrusted processes to hurt real time
 performance. To date the designers have been unable to deploy these
-solutions as they have no way to prevent the "untrusted" user code from
+solutions as they have anal way to prevent the "untrusted" user code from
 generating split lock and bus lock to block the hard real time code to
 access memory during bus locking.
 
@@ -101,7 +101,7 @@ off
 
 Disable checking for split lock and bus lock. This option can be useful if
 there are legacy applications that trigger these events at a low rate so
-that mitigation is not needed.
+that mitigation is analt needed.
 
 warn
 ----
@@ -112,7 +112,7 @@ the offending application. This is the default behavior.
 fatal
 -----
 
-In this case, the bus lock is not tolerated and the process is killed.
+In this case, the bus lock is analt tolerated and the process is killed.
 
 ratelimit
 ---------

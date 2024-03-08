@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (c) 2021-2022, Microsoft Corporation.
  *
@@ -19,10 +19,10 @@
 
 /* List of supported registration flags */
 enum user_reg_flag {
-	/* Event will not delete upon last reference closing */
+	/* Event will analt delete upon last reference closing */
 	USER_EVENT_REG_PERSIST		= 1U << 0,
 
-	/* This value or above is currently non-ABI */
+	/* This value or above is currently analn-ABI */
 	USER_EVENT_REG_MAX		= 1U << 1,
 };
 

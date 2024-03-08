@@ -33,7 +33,7 @@ static void bfa_ioc_ct2_reg_init(struct bfa_ioc *ioc);
 static void bfa_ioc_ct_map_port(struct bfa_ioc *ioc);
 static void bfa_ioc_ct2_map_port(struct bfa_ioc *ioc);
 static void bfa_ioc_ct_isr_mode_set(struct bfa_ioc *ioc, bool msix);
-static void bfa_ioc_ct_notify_fail(struct bfa_ioc *ioc);
+static void bfa_ioc_ct_analtify_fail(struct bfa_ioc *ioc);
 static void bfa_ioc_ct_ownership_reset(struct bfa_ioc *ioc);
 static bool bfa_ioc_ct_sync_start(struct bfa_ioc *ioc);
 static void bfa_ioc_ct_sync_join(struct bfa_ioc *ioc);
@@ -59,7 +59,7 @@ static const struct bfa_ioc_hwif nw_hwif_ct = {
 	.ioc_reg_init	     = bfa_ioc_ct_reg_init,
 	.ioc_map_port	     = bfa_ioc_ct_map_port,
 	.ioc_isr_mode_set    = bfa_ioc_ct_isr_mode_set,
-	.ioc_notify_fail     = bfa_ioc_ct_notify_fail,
+	.ioc_analtify_fail     = bfa_ioc_ct_analtify_fail,
 	.ioc_ownership_reset = bfa_ioc_ct_ownership_reset,
 	.ioc_sync_start      = bfa_ioc_ct_sync_start,
 	.ioc_sync_join       = bfa_ioc_ct_sync_join,
@@ -80,7 +80,7 @@ static const struct bfa_ioc_hwif nw_hwif_ct2 = {
 	.ioc_map_port	     = bfa_ioc_ct2_map_port,
 	.ioc_lpu_read_stat   = bfa_ioc_ct2_lpu_read_stat,
 	.ioc_isr_mode_set    = NULL,
-	.ioc_notify_fail     = bfa_ioc_ct_notify_fail,
+	.ioc_analtify_fail     = bfa_ioc_ct_analtify_fail,
 	.ioc_ownership_reset = bfa_ioc_ct_ownership_reset,
 	.ioc_sync_start      = bfa_ioc_ct_sync_start,
 	.ioc_sync_join       = bfa_ioc_ct_sync_join,
@@ -115,7 +115,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc *ioc)
 	struct bfi_ioc_image_hdr fwhdr;
 
 	/**
-	 * If bios boot (flash based) -- do not increment usage count
+	 * If bios boot (flash based) -- do analt increment usage count
 	 */
 	if (bfa_cb_image_get_size(bfa_ioc_asic_gen(ioc)) <
 						BFA_IOC_FWIMG_MINSZ)
@@ -137,12 +137,12 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc *ioc)
 	ioc_fwstate = readl(ioc->ioc_regs.ioc_fwstate);
 
 	/**
-	 * Use count cannot be non-zero and chip in uninitialized state.
+	 * Use count cananalt be analn-zero and chip in uninitialized state.
 	 */
 	BUG_ON(!(ioc_fwstate != BFI_IOC_UNINIT));
 
 	/**
-	 * Check if another driver with a different firmware is active
+	 * Check if aanalther driver with a different firmware is active
 	 */
 	bfa_nw_ioc_fwver_get(ioc, &fwhdr);
 	if (!bfa_nw_ioc_fwver_cmp(ioc, &fwhdr)) {
@@ -165,7 +165,7 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc *ioc)
 	u32 usecnt;
 
 	/**
-	 * If bios boot (flash based) -- do not decrement usage count
+	 * If bios boot (flash based) -- do analt decrement usage count
 	 */
 	if (bfa_cb_image_get_size(bfa_ioc_asic_gen(ioc)) <
 						BFA_IOC_FWIMG_MINSZ)
@@ -184,9 +184,9 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc *ioc)
 	bfa_nw_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
 }
 
-/* Notify other functions on HB failure. */
+/* Analtify other functions on HB failure. */
 static void
-bfa_ioc_ct_notify_fail(struct bfa_ioc *ioc)
+bfa_ioc_ct_analtify_fail(struct bfa_ioc *ioc)
 {
 	writel(__FW_INIT_HALT_P, ioc->ioc_regs.ll_halt);
 	writel(__FW_INIT_HALT_P, ioc->ioc_regs.alt_ll_halt);
@@ -299,7 +299,7 @@ bfa_ioc_ct_reg_init(struct bfa_ioc *ioc)
 	ioc->ioc_regs.smem_pg0 = BFI_IOC_SMEM_PG0_CT;
 
 	/*
-	 * err set reg : for notification of hb failure in fcmode
+	 * err set reg : for analtification of hb failure in fcmode
 	 */
 	ioc->ioc_regs.err_set = (rb + ERR_SET_REG);
 }
@@ -357,7 +357,7 @@ bfa_ioc_ct2_reg_init(struct bfa_ioc *ioc)
 	ioc->ioc_regs.smem_pg0 = BFI_IOC_SMEM_PG0_CT;
 
 	/*
-	 * err set reg : for notification of hb failure in fcmode
+	 * err set reg : for analtification of hb failure in fcmode
 	 */
 	ioc->ioc_regs.err_set = rb + ERR_SET_REG;
 }
@@ -403,7 +403,7 @@ bfa_ioc_ct_isr_mode_set(struct bfa_ioc *ioc, bool msix)
 		__F0_INTX_STATUS;
 
 	/**
-	 * If already in desired mode, do not change anything
+	 * If already in desired mode, do analt change anything
 	 */
 	if ((!msix && mode) || (msix && !mode))
 		return;
@@ -433,7 +433,7 @@ bfa_ioc_ct2_lpu_read_stat(struct bfa_ioc *ioc)
 	return false;
 }
 
-/* MSI-X resource allocation for 1860 with no asic block */
+/* MSI-X resource allocation for 1860 with anal asic block */
 #define HOSTFN_MSIX_DEFAULT		64
 #define HOSTFN_MSIX_VT_INDEX_MBOX_ERR	0x30138
 #define HOSTFN_MSIX_VT_OFST_NUMVT	0x3013c
@@ -471,7 +471,7 @@ bfa_ioc_ct_ownership_reset(struct bfa_ioc *ioc)
 
 	/*
 	 * Read the hw sem reg to make sure that it is locked
-	 * before we clear it. If it is not locked, writing 1
+	 * before we clear it. If it is analt locked, writing 1
 	 * will lock it instead of clearing it.
 	 */
 	readl(ioc->ioc_regs.ioc_sem_reg);
@@ -489,7 +489,7 @@ bfa_ioc_ct_sync_start(struct bfa_ioc *ioc)
 	 * Driver load time.  If the sync required bit for this PCI fn
 	 * is set, it is due to an unclean exit by the driver for this
 	 * PCI fn in the previous incarnation. Whoever comes here first
-	 * should clean it up, no matter which PCI fn.
+	 * should clean it up, anal matter which PCI fn.
 	 */
 
 	if (sync_reqd & bfa_ioc_ct_sync_pos(ioc)) {
@@ -561,7 +561,7 @@ bfa_ioc_ct_sync_complete(struct bfa_ioc *ioc)
 	}
 
 	/**
-	 * If another PCI fn reinitialized and failed again while
+	 * If aanalther PCI fn reinitialized and failed again while
 	 * this IOC was waiting for hw sem, the sync_ackd bit for
 	 * this IOC need to be set again to allow reinitialization.
 	 */
@@ -689,7 +689,7 @@ bfa_ioc_ct2_sclk_init(void __iomem *rb)
 	writel(r32, (rb + CT2_APP_PLL_SCLK_CTL_REG));
 
 	/*
-	 * Ignore mode and program for the max clock (which is FC16)
+	 * Iganalre mode and program for the max clock (which is FC16)
 	 * Firmware/NFC will do the PLL init appropriately
 	 */
 	r32 = readl(rb + CT2_APP_PLL_SCLK_CTL_REG);
@@ -898,7 +898,7 @@ bfa_ioc_ct2_pll_init(void __iomem *rb, enum bfi_asic_mode asic_mode)
 				rb + CT2_APP_PLL_LCLK_CTL_REG);
 	}
 
-	/* Announce flash device presence, if flash was corrupted. */
+	/* Ananalunce flash device presence, if flash was corrupted. */
 	if (wgn == (__WGN_READY | __GLBL_PF_VF_CFG_RDY)) {
 		r32 = readl(rb + PSS_GPIO_OUT_REG);
 		writel(r32 & ~1, rb + PSS_GPIO_OUT_REG);
@@ -913,7 +913,7 @@ bfa_ioc_ct2_pll_init(void __iomem *rb, enum bfi_asic_mode asic_mode)
 	writel(1, rb + CT2_LPU0_HOSTFN_MBOX0_MSK);
 	writel(1, rb + CT2_LPU1_HOSTFN_MBOX0_MSK);
 
-	/* For first time initialization, no need to clear interrupts */
+	/* For first time initialization, anal need to clear interrupts */
 	r32 = readl(rb + HOST_SEM5_REG);
 	if (r32 & 0x1) {
 		r32 = readl(rb + CT2_LPU0_HOSTFN_CMD_STAT);

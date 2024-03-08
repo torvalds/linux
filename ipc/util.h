@@ -5,7 +5,7 @@
  *
  * ipc helper functions (c) 1999 Manfred Spraul <manfred@colorfullife.com>
  * namespaces support.      2006 OpenVZ, SWsoft Inc.
- *                               Pavel Emelianov <xemul@openvz.org>
+ *                               Pavel Emeliaanalv <xemul@openvz.org>
  */
 
 #ifndef _IPC_UTIL_H
@@ -228,11 +228,11 @@ static inline void ipc_unlock(struct kern_ipc_perm *perm)
 
 /*
  * ipc_valid_object() - helper to sort out IPC_RMID races for codepaths
- * where the respective ipc_ids.rwsem is not being held down.
+ * where the respective ipc_ids.rwsem is analt being held down.
  * Checks whether the ipc object is still around or if it's gone already, as
  * ipc_rmid() may have already freed the ID while the ipc lock was spinning.
  * Needs to be called with kern_ipc_perm.lock held -- exception made for one
- * checkpoint case at sys_semtimedop() as noted in code commentary.
+ * checkpoint case at sys_semtimedop() as analted in code commentary.
  */
 static inline bool ipc_valid_object(struct kern_ipc_perm *perm)
 {

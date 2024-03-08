@@ -4,7 +4,7 @@
  * Copyright (C) 2019-2021 Paragon Software GmbH, All rights reserved.
  *
  *
- *                 terminology
+ *                 termianallogy
  *
  * cluster - allocation unit     - 512,1K,2K,4K,...,2M
  * vcn - virtual cluster number  - Offset inside the file in clusters.
@@ -13,9 +13,9 @@
  * lbo - logical byte offset     - Absolute position inside volume.
  * run - maps VCN to LCN         - Stored in attributes in packed form.
  * attr - attribute segment      - std/name/data etc records inside MFT.
- * mi  - MFT inode               - One MFT record(usually 1024 bytes or 4K), consists of attributes.
- * ni  - NTFS inode              - Extends linux inode. consists of one or more mft inodes.
- * index - unit inside directory - 2K, 4K, <=page size, does not depend on cluster size.
+ * mi  - MFT ianalde               - One MFT record(usually 1024 bytes or 4K), consists of attributes.
+ * ni  - NTFS ianalde              - Extends linux ianalde. consists of one or more mft ianaldes.
+ * index - unit inside directory - 2K, 4K, <=page size, does analt depend on cluster size.
  *
  * WSL - Windows Subsystem for Linux
  * https://docs.microsoft.com/en-us/windows/wsl/file-permissions
@@ -32,8 +32,8 @@
  * -----------------------------------------------------------------------------
  * | Volume size   | Clusters | ntfs.sys | ntfs3  | ntfs3_64 | mkntfs | chkdsk |
  * -----------------------------------------------------------------------------
- * | < 16T, 2^44   |  < 2^32  |  yes     |  yes   |   yes    |  yes   |  yes   |
- * | > 16T, 2^44   |  > 2^32  |  no      |  no    |   yes    |  yes   |  yes   |
+ * | < 16T, 2^44   |  < 2^32  |  anal     |  anal   |   anal    |  anal   |  anal   |
+ * | > 16T, 2^44   |  > 2^32  |  anal      |  anal    |   anal    |  anal   |  anal   |
  * ----------------------------------------------------------|------------------
  *
  * To mount large volumes as ntfs one should use large cluster size (up to 2M)
@@ -41,8 +41,8 @@
  *
  *     ntfs limits, cluster size is 2M (2^21)
  * -----------------------------------------------------------------------------
- * | < 8P, 2^53    |  < 2^32  |  yes     |  yes   |   yes    |  yes   |  yes   |
- * | > 8P, 2^53    |  > 2^32  |  no      |  no    |   yes    |  yes   |  yes   |
+ * | < 8P, 2^53    |  < 2^32  |  anal     |  anal   |   anal    |  anal   |  anal   |
+ * | > 8P, 2^53    |  > 2^32  |  anal      |  anal    |   anal    |  anal   |  anal   |
  * ----------------------------------------------------------|------------------
  *
  */
@@ -70,7 +70,7 @@
 
 #ifdef CONFIG_PRINTK
 /*
- * ntfs_printk - Trace warnings/notices/errors.
+ * ntfs_printk - Trace warnings/analtices/errors.
  *
  * Thanks Joe Perches <joe@perches.com> for implementation
  */
@@ -81,7 +81,7 @@ void ntfs_printk(const struct super_block *sb, const char *fmt, ...)
 	int level;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 
-	/* Should we use different ratelimits for warnings/notices/errors? */
+	/* Should we use different ratelimits for warnings/analtices/errors? */
 	if (!___ratelimit(&sbi->msg_ratelimit, "ntfs3"))
 		return;
 
@@ -99,13 +99,13 @@ static char s_name_buf[512];
 static atomic_t s_name_buf_cnt = ATOMIC_INIT(1); // 1 means 'free s_name_buf'.
 
 /*
- * ntfs_inode_printk
+ * ntfs_ianalde_printk
  *
- * Print warnings/notices/errors about inode using name or inode number.
+ * Print warnings/analtices/errors about ianalde using name or ianalde number.
  */
-void ntfs_inode_printk(struct inode *inode, const char *fmt, ...)
+void ntfs_ianalde_printk(struct ianalde *ianalde, const char *fmt, ...)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	char *name;
 	va_list args;
@@ -118,10 +118,10 @@ void ntfs_inode_printk(struct inode *inode, const char *fmt, ...)
 	/* Use static allocated buffer, if possible. */
 	name = atomic_dec_and_test(&s_name_buf_cnt) ?
 		       s_name_buf :
-		       kmalloc(sizeof(s_name_buf), GFP_NOFS);
+		       kmalloc(sizeof(s_name_buf), GFP_ANALFS);
 
 	if (name) {
-		struct dentry *de = d_find_alias(inode);
+		struct dentry *de = d_find_alias(ianalde);
 
 		if (de) {
 			spin_lock(&de->d_lock);
@@ -140,8 +140,8 @@ void ntfs_inode_printk(struct inode *inode, const char *fmt, ...)
 	vaf.fmt = printk_skip_level(fmt);
 	vaf.va = &args;
 
-	printk("%c%cntfs3: %s: ino=%lx,%s %pV\n", KERN_SOH_ASCII, level,
-	       sb->s_id, inode->i_ino, name ? name : "", &vaf);
+	printk("%c%cntfs3: %s: ianal=%lx,%s %pV\n", KERN_SOH_ASCII, level,
+	       sb->s_id, ianalde->i_ianal, name ? name : "", &vaf);
 
 	va_end(args);
 
@@ -174,7 +174,7 @@ static struct {
  *
  * Return:
  * * @ptr - If pointer was saved in shared memory.
- * * NULL - If pointer was not shared.
+ * * NULL - If pointer was analt shared.
  */
 void *ntfs_set_shared(void *ptr, u32 bytes)
 {
@@ -208,7 +208,7 @@ void *ntfs_set_shared(void *ptr, u32 bytes)
  * ntfs_put_shared
  *
  * Return:
- * * @ptr - If pointer is not shared anymore.
+ * * @ptr - If pointer is analt shared anymore.
  * * NULL - If pointer is still shared.
  */
 void *ntfs_put_shared(void *ptr)
@@ -246,14 +246,14 @@ enum Opt {
 	Opt_discard,
 	Opt_force,
 	Opt_sparse,
-	Opt_nohidden,
+	Opt_analhidden,
 	Opt_hide_dot_files,
 	Opt_windows_names,
 	Opt_showmeta,
 	Opt_acl,
 	Opt_iocharset,
 	Opt_prealloc,
-	Opt_nocase,
+	Opt_analcase,
 	Opt_err,
 };
 
@@ -264,18 +264,18 @@ static const struct fs_parameter_spec ntfs_fs_parameters[] = {
 	fsparam_u32oct("umask",			Opt_umask),
 	fsparam_u32oct("dmask",			Opt_dmask),
 	fsparam_u32oct("fmask",			Opt_fmask),
-	fsparam_flag_no("sys_immutable",	Opt_immutable),
-	fsparam_flag_no("discard",		Opt_discard),
-	fsparam_flag_no("force",		Opt_force),
-	fsparam_flag_no("sparse",		Opt_sparse),
-	fsparam_flag_no("hidden",		Opt_nohidden),
-	fsparam_flag_no("hide_dot_files",	Opt_hide_dot_files),
-	fsparam_flag_no("windows_names",	Opt_windows_names),
-	fsparam_flag_no("showmeta",		Opt_showmeta),
-	fsparam_flag_no("acl",			Opt_acl),
+	fsparam_flag_anal("sys_immutable",	Opt_immutable),
+	fsparam_flag_anal("discard",		Opt_discard),
+	fsparam_flag_anal("force",		Opt_force),
+	fsparam_flag_anal("sparse",		Opt_sparse),
+	fsparam_flag_anal("hidden",		Opt_analhidden),
+	fsparam_flag_anal("hide_dot_files",	Opt_hide_dot_files),
+	fsparam_flag_anal("windows_names",	Opt_windows_names),
+	fsparam_flag_anal("showmeta",		Opt_showmeta),
+	fsparam_flag_anal("acl",			Opt_acl),
 	fsparam_string("iocharset",		Opt_iocharset),
-	fsparam_flag_no("prealloc",		Opt_prealloc),
-	fsparam_flag_no("nocase",		Opt_nocase),
+	fsparam_flag_anal("prealloc",		Opt_prealloc),
+	fsparam_flag_anal("analcase",		Opt_analcase),
 	{}
 };
 // clang-format on
@@ -360,8 +360,8 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 	case Opt_sparse:
 		opts->sparse = result.negated ? 0 : 1;
 		break;
-	case Opt_nohidden:
-		opts->nohidden = result.negated ? 1 : 0;
+	case Opt_analhidden:
+		opts->analhidden = result.negated ? 1 : 0;
 		break;
 	case Opt_hide_dot_files:
 		opts->hide_dot_files = result.negated ? 0 : 1;
@@ -378,7 +378,7 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 			fc->sb_flags |= SB_POSIXACL;
 #else
 			return invalf(
-				fc, "ntfs3: Support for ACL not compiled in!");
+				fc, "ntfs3: Support for ACL analt compiled in!");
 #endif
 		else
 			fc->sb_flags &= ~SB_POSIXACL;
@@ -391,11 +391,11 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 	case Opt_prealloc:
 		opts->prealloc = result.negated ? 0 : 1;
 		break;
-	case Opt_nocase:
-		opts->nocase = result.negated ? 1 : 0;
+	case Opt_analcase:
+		opts->analcase = result.negated ? 1 : 0;
 		break;
 	default:
-		/* Should not be here unless we forget add case. */
+		/* Should analt be here unless we forget add case. */
 		return -EINVAL;
 	}
 	return 0;
@@ -411,28 +411,28 @@ static int ntfs_fs_reconfigure(struct fs_context *fc)
 	ro_rw = sb_rdonly(sb) && !(fc->sb_flags & SB_RDONLY);
 	if (ro_rw && (sbi->flags & NTFS_FLAGS_NEED_REPLAY)) {
 		errorf(fc,
-		       "ntfs3: Couldn't remount rw because journal is not replayed. Please umount/remount instead\n");
+		       "ntfs3: Couldn't remount rw because journal is analt replayed. Please umount/remount instead\n");
 		return -EINVAL;
 	}
 
 	new_opts->nls = ntfs_load_nls(new_opts->nls_name);
 	if (IS_ERR(new_opts->nls)) {
 		new_opts->nls = NULL;
-		errorf(fc, "ntfs3: Cannot load iocharset %s",
+		errorf(fc, "ntfs3: Cananalt load iocharset %s",
 		       new_opts->nls_name);
 		return -EINVAL;
 	}
 	if (new_opts->nls != sbi->options->nls)
 		return invalf(
 			fc,
-			"ntfs3: Cannot use different iocharset when remounting!");
+			"ntfs3: Cananalt use different iocharset when remounting!");
 
 	sync_filesystem(sb);
 
 	if (ro_rw && (sbi->volume.flags & VOLUME_FLAG_DIRTY) &&
 	    !new_opts->force) {
 		errorf(fc,
-		       "ntfs3: Volume is dirty and \"force\" flag is not set!");
+		       "ntfs3: Volume is dirty and \"force\" flag is analt set!");
 		return -EINVAL;
 	}
 
@@ -463,7 +463,7 @@ static int ntfs3_volinfo(struct seq_file *m, void *o)
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 
 	seq_printf(m, "ntfs%d.%d\n%u\n%zu\n\%zu\n%zu\n%s\n%s\n",
-		   sbi->volume.major_ver, sbi->volume.minor_ver,
+		   sbi->volume.major_ver, sbi->volume.mianalr_ver,
 		   sbi->cluster_size, sbi->used.bitmap.nbits,
 		   sbi->mft.bitmap.nbits,
 		   sbi->mft.bitmap.nbits - wnd_zeroes(&sbi->mft.bitmap),
@@ -473,9 +473,9 @@ static int ntfs3_volinfo(struct seq_file *m, void *o)
 	return 0;
 }
 
-static int ntfs3_volinfo_open(struct inode *inode, struct file *file)
+static int ntfs3_volinfo_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, ntfs3_volinfo, pde_data(inode));
+	return single_open(file, ntfs3_volinfo, pde_data(ianalde));
 }
 
 /* read /proc/fs/ntfs3/<dev>/label */
@@ -494,17 +494,17 @@ static ssize_t ntfs3_label_write(struct file *file, const char __user *buffer,
 				 size_t count, loff_t *ppos)
 {
 	int err;
-	struct super_block *sb = pde_data(file_inode(file));
+	struct super_block *sb = pde_data(file_ianalde(file));
 	ssize_t ret = count;
 	u8 *label;
 
 	if (sb_rdonly(sb))
 		return -EROFS;
 
-	label = kmalloc(count, GFP_NOFS);
+	label = kmalloc(count, GFP_ANALFS);
 
 	if (!label)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(label, buffer, ret)) {
 		ret = -EFAULT;
@@ -528,9 +528,9 @@ out:
 	return ret;
 }
 
-static int ntfs3_label_open(struct inode *inode, struct file *file)
+static int ntfs3_label_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, ntfs3_label_show, pde_data(inode));
+	return single_open(file, ntfs3_label_show, pde_data(ianalde));
 }
 
 static const struct proc_ops ntfs3_volinfo_fops = {
@@ -550,65 +550,65 @@ static const struct proc_ops ntfs3_label_fops = {
 
 #endif
 
-static struct kmem_cache *ntfs_inode_cachep;
+static struct kmem_cache *ntfs_ianalde_cachep;
 
-static struct inode *ntfs_alloc_inode(struct super_block *sb)
+static struct ianalde *ntfs_alloc_ianalde(struct super_block *sb)
 {
-	struct ntfs_inode *ni = alloc_inode_sb(sb, ntfs_inode_cachep, GFP_NOFS);
+	struct ntfs_ianalde *ni = alloc_ianalde_sb(sb, ntfs_ianalde_cachep, GFP_ANALFS);
 
 	if (!ni)
 		return NULL;
 
-	memset(ni, 0, offsetof(struct ntfs_inode, vfs_inode));
+	memset(ni, 0, offsetof(struct ntfs_ianalde, vfs_ianalde));
 	mutex_init(&ni->ni_lock);
-	return &ni->vfs_inode;
+	return &ni->vfs_ianalde;
 }
 
-static void ntfs_free_inode(struct inode *inode)
+static void ntfs_free_ianalde(struct ianalde *ianalde)
 {
-	struct ntfs_inode *ni = ntfs_i(inode);
+	struct ntfs_ianalde *ni = ntfs_i(ianalde);
 
 	mutex_destroy(&ni->ni_lock);
-	kmem_cache_free(ntfs_inode_cachep, ni);
+	kmem_cache_free(ntfs_ianalde_cachep, ni);
 }
 
 static void init_once(void *foo)
 {
-	struct ntfs_inode *ni = foo;
+	struct ntfs_ianalde *ni = foo;
 
-	inode_init_once(&ni->vfs_inode);
+	ianalde_init_once(&ni->vfs_ianalde);
 }
 
 /*
- * Noinline to reduce binary size.
+ * Analinline to reduce binary size.
  */
-static noinline void ntfs3_put_sbi(struct ntfs_sb_info *sbi)
+static analinline void ntfs3_put_sbi(struct ntfs_sb_info *sbi)
 {
 	wnd_close(&sbi->mft.bitmap);
 	wnd_close(&sbi->used.bitmap);
 
 	if (sbi->mft.ni) {
-		iput(&sbi->mft.ni->vfs_inode);
+		iput(&sbi->mft.ni->vfs_ianalde);
 		sbi->mft.ni = NULL;
 	}
 
 	if (sbi->security.ni) {
-		iput(&sbi->security.ni->vfs_inode);
+		iput(&sbi->security.ni->vfs_ianalde);
 		sbi->security.ni = NULL;
 	}
 
 	if (sbi->reparse.ni) {
-		iput(&sbi->reparse.ni->vfs_inode);
+		iput(&sbi->reparse.ni->vfs_ianalde);
 		sbi->reparse.ni = NULL;
 	}
 
 	if (sbi->objid.ni) {
-		iput(&sbi->objid.ni->vfs_inode);
+		iput(&sbi->objid.ni->vfs_ianalde);
 		sbi->objid.ni = NULL;
 	}
 
 	if (sbi->volume.ni) {
-		iput(&sbi->volume.ni->vfs_inode);
+		iput(&sbi->volume.ni->vfs_ianalde);
 		sbi->volume.ni = NULL;
 	}
 
@@ -691,8 +691,8 @@ static int ntfs_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",force");
 	if (opts->sparse)
 		seq_puts(m, ",sparse");
-	if (opts->nohidden)
-		seq_puts(m, ",nohidden");
+	if (opts->analhidden)
+		seq_puts(m, ",analhidden");
 	if (opts->hide_dot_files)
 		seq_puts(m, ",hide_dot_files");
 	if (opts->windows_names)
@@ -707,8 +707,8 @@ static int ntfs_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",iocharset=utf8");
 	if (opts->prealloc)
 		seq_puts(m, ",prealloc");
-	if (opts->nocase)
-		seq_puts(m, ",nocase");
+	if (opts->analcase)
+		seq_puts(m, ",analcase");
 
 	return 0;
 }
@@ -728,32 +728,32 @@ static int ntfs_sync_fs(struct super_block *sb, int wait)
 {
 	int err = 0, err2;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
-	struct ntfs_inode *ni;
-	struct inode *inode;
+	struct ntfs_ianalde *ni;
+	struct ianalde *ianalde;
 
 	if (unlikely(ntfs3_forced_shutdown(sb)))
 		return -EIO;
 
 	ni = sbi->security.ni;
 	if (ni) {
-		inode = &ni->vfs_inode;
-		err2 = _ni_write_inode(inode, wait);
+		ianalde = &ni->vfs_ianalde;
+		err2 = _ni_write_ianalde(ianalde, wait);
 		if (err2 && !err)
 			err = err2;
 	}
 
 	ni = sbi->objid.ni;
 	if (ni) {
-		inode = &ni->vfs_inode;
-		err2 = _ni_write_inode(inode, wait);
+		ianalde = &ni->vfs_ianalde;
+		err2 = _ni_write_ianalde(ianalde, wait);
 		if (err2 && !err)
 			err = err2;
 	}
 
 	ni = sbi->reparse.ni;
 	if (ni) {
-		inode = &ni->vfs_inode;
-		err2 = _ni_write_inode(inode, wait);
+		ianalde = &ni->vfs_ianalde;
+		err2 = _ni_write_ianalde(ianalde, wait);
 		if (err2 && !err)
 			err = err2;
 	}
@@ -767,62 +767,62 @@ static int ntfs_sync_fs(struct super_block *sb, int wait)
 }
 
 static const struct super_operations ntfs_sops = {
-	.alloc_inode = ntfs_alloc_inode,
-	.free_inode = ntfs_free_inode,
-	.evict_inode = ntfs_evict_inode,
+	.alloc_ianalde = ntfs_alloc_ianalde,
+	.free_ianalde = ntfs_free_ianalde,
+	.evict_ianalde = ntfs_evict_ianalde,
 	.put_super = ntfs_put_super,
 	.statfs = ntfs_statfs,
 	.show_options = ntfs_show_options,
 	.shutdown = ntfs_shutdown,
 	.sync_fs = ntfs_sync_fs,
-	.write_inode = ntfs3_write_inode,
+	.write_ianalde = ntfs3_write_ianalde,
 };
 
-static struct inode *ntfs_export_get_inode(struct super_block *sb, u64 ino,
+static struct ianalde *ntfs_export_get_ianalde(struct super_block *sb, u64 ianal,
 					   u32 generation)
 {
 	struct MFT_REF ref;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	ref.low = cpu_to_le32(ino);
+	ref.low = cpu_to_le32(ianal);
 #ifdef CONFIG_NTFS3_64BIT_CLUSTER
-	ref.high = cpu_to_le16(ino >> 32);
+	ref.high = cpu_to_le16(ianal >> 32);
 #else
 	ref.high = 0;
 #endif
 	ref.seq = cpu_to_le16(generation);
 
-	inode = ntfs_iget5(sb, &ref, NULL);
-	if (!IS_ERR(inode) && is_bad_inode(inode)) {
-		iput(inode);
-		inode = ERR_PTR(-ESTALE);
+	ianalde = ntfs_iget5(sb, &ref, NULL);
+	if (!IS_ERR(ianalde) && is_bad_ianalde(ianalde)) {
+		iput(ianalde);
+		ianalde = ERR_PTR(-ESTALE);
 	}
 
-	return inode;
+	return ianalde;
 }
 
 static struct dentry *ntfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 					int fh_len, int fh_type)
 {
 	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
-				    ntfs_export_get_inode);
+				    ntfs_export_get_ianalde);
 }
 
 static struct dentry *ntfs_fh_to_parent(struct super_block *sb, struct fid *fid,
 					int fh_len, int fh_type)
 {
 	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
-				    ntfs_export_get_inode);
+				    ntfs_export_get_ianalde);
 }
 
-/* TODO: == ntfs_sync_inode */
-static int ntfs_nfs_commit_metadata(struct inode *inode)
+/* TODO: == ntfs_sync_ianalde */
+static int ntfs_nfs_commit_metadata(struct ianalde *ianalde)
 {
-	return _ni_write_inode(inode, 1);
+	return _ni_write_ianalde(ianalde, 1);
 }
 
 static const struct export_operations ntfs_export_ops = {
-	.encode_fh = generic_encode_ino32_fh,
+	.encode_fh = generic_encode_ianal32_fh,
 	.fh_to_dentry = ntfs_fh_to_dentry,
 	.fh_to_parent = ntfs_fh_to_parent,
 	.get_parent = ntfs3_get_parent,
@@ -859,9 +859,9 @@ static u32 true_sectors_per_clst(const struct NTFS_BOOT *boot)
  *
  * NTFS mount begins from boot - special formatted 512 bytes.
  * There are two boots: the first and the last 512 bytes of volume.
- * The content of boot is not changed during ntfs life.
+ * The content of boot is analt changed during ntfs life.
  *
- * NOTE: ntfs.sys checks only first (primary) boot.
+ * ANALTE: ntfs.sys checks only first (primary) boot.
  * chkdsk checks both boots.
  */
 static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
@@ -892,18 +892,18 @@ read_boot:
 
 	err = -EINVAL;
 
-	/* Corrupted image; do not read OOB */
+	/* Corrupted image; do analt read OOB */
 	if (bh->b_size - sizeof(*boot) < boot_off)
 		goto out;
 
 	boot = (struct NTFS_BOOT *)Add2Ptr(bh->b_data, boot_off);
 
 	if (memcmp(boot->system_id, "NTFS    ", sizeof("NTFS    ") - 1)) {
-		ntfs_err(sb, "%s signature is not NTFS.", hint);
+		ntfs_err(sb, "%s signature is analt NTFS.", hint);
 		goto out;
 	}
 
-	/* 0x55AA is not mandaroty. Thanks Maxim Suhanov*/
+	/* 0x55AA is analt mandaroty. Thanks Maxim Suhaanalv*/
 	/*if (0x55 != boot->boot_magic[0] || 0xAA != boot->boot_magic[1])
 	 *	goto out;
 	 */
@@ -1021,7 +1021,7 @@ read_boot:
 
 	/* Compare boot's cluster and media sector. */
 	if (sbi->cluster_size < sector_size) {
-		/* No way to use ntfs_get_block in this case. */
+		/* Anal way to use ntfs_get_block in this case. */
 		ntfs_err(
 			sb,
 			"Failed to mount 'cause NTFS's cluster size (%u) is less than media sector size (%u).",
@@ -1052,7 +1052,7 @@ read_boot:
 #ifndef CONFIG_NTFS3_64BIT_CLUSTER
 	/* 32 bits per cluster. */
 	if (clusters >> 32) {
-		ntfs_notice(
+		ntfs_analtice(
 			sb,
 			"NTFS %u.%02u Gb is too big to use 32 bits per cluster.",
 			gb, mb);
@@ -1064,9 +1064,9 @@ read_boot:
 
 	sbi->used.bitmap.nbits = clusters;
 
-	rec = kzalloc(record_size, GFP_NOFS);
+	rec = kzalloc(record_size, GFP_ANALFS);
 	if (!rec) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1087,7 +1087,7 @@ read_boot:
 	sbi->blocks_per_cluster = sbi->cluster_size >> sb->s_blocksize_bits;
 	sbi->volume.blocks = sbi->volume.size >> sb->s_blocksize_bits;
 
-	/* Maximum size for normal files. */
+	/* Maximum size for analrmal files. */
 	sbi->maxbytes = (clusters << cluster_bits) - 1;
 
 #ifdef CONFIG_NTFS3_64BIT_CLUSTER
@@ -1104,7 +1104,7 @@ read_boot:
 	/*
 	 * Compute the MFT zone at two steps.
 	 * It would be nice if we are able to allocate 1/8 of
-	 * total clusters for MFT but not more then 512 MB.
+	 * total clusters for MFT but analt more then 512 MB.
 	 */
 	sbi->zone_max = min_t(CLST, 0x20000000 >> cluster_bits, clusters >> 3);
 
@@ -1112,11 +1112,11 @@ read_boot:
 
 	if (bh->b_blocknr && !sb_rdonly(sb)) {
 		/*
-	 	 * Alternative boot is ok but primary is not ok.
-	 	 * Do not update primary boot here 'cause it may be faked boot.
+	 	 * Alternative boot is ok but primary is analt ok.
+	 	 * Do analt update primary boot here 'cause it may be faked boot.
 	 	 * Let ntfs to be mounted and update boot later.
 		 */
-		*boot2 = kmemdup(boot, sizeof(*boot), GFP_NOFS | __GFP_NOWARN);
+		*boot2 = kmemdup(boot, sizeof(*boot), GFP_ANALFS | __GFP_ANALWARN);
 	}
 
 out:
@@ -1151,8 +1151,8 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	struct block_device *bdev = sb->s_bdev;
 	struct ntfs_mount_options *options;
-	struct inode *inode;
-	struct ntfs_inode *ni;
+	struct ianalde *ianalde;
+	struct ntfs_ianalde *ni;
 	size_t i, tt, bad_len, bad_frags;
 	CLST vcn, lcn, len;
 	struct ATTRIB *attr;
@@ -1169,18 +1169,18 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sbi->sb = sb;
 	sbi->options = options = fc->fs_private;
 	fc->fs_private = NULL;
-	sb->s_flags |= SB_NODIRATIME;
+	sb->s_flags |= SB_ANALDIRATIME;
 	sb->s_magic = 0x7366746e; // "ntfs"
 	sb->s_op = &ntfs_sops;
 	sb->s_export_op = &ntfs_export_ops;
 	sb->s_time_gran = NTFS_TIME_GRAN; // 100 nsec
 	sb->s_xattr = ntfs_xattr_handlers;
-	sb->s_d_op = options->nocase ? &ntfs_dentry_ops : NULL;
+	sb->s_d_op = options->analcase ? &ntfs_dentry_ops : NULL;
 
 	options->nls = ntfs_load_nls(options->nls_name);
 	if (IS_ERR(options->nls)) {
 		options->nls = NULL;
-		errorf(fc, "Cannot load nls %s", options->nls_name);
+		errorf(fc, "Cananalt load nls %s", options->nls_name);
 		err = -EINVAL;
 		goto out;
 	}
@@ -1203,21 +1203,21 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	 */
 	ref.low = cpu_to_le32(MFT_REC_VOL);
 	ref.seq = cpu_to_le16(MFT_REC_VOL);
-	inode = ntfs_iget5(sb, &ref, &NAME_VOLUME);
-	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
+	ianalde = ntfs_iget5(sb, &ref, &NAME_VOLUME);
+	if (IS_ERR(ianalde)) {
+		err = PTR_ERR(ianalde);
 		ntfs_err(sb, "Failed to load $Volume (%d).", err);
 		goto out;
 	}
 
-	ni = ntfs_i(inode);
+	ni = ntfs_i(ianalde);
 
-	/* Load and save label (not necessary). */
+	/* Load and save label (analt necessary). */
 	attr = ni_find_attr(ni, NULL, NULL, ATTR_LABEL, NULL, 0, NULL, NULL);
 
 	if (!attr) {
-		/* It is ok if no ATTR_LABEL */
-	} else if (!attr->non_res && !is_attr_ext(attr)) {
+		/* It is ok if anal ATTR_LABEL */
+	} else if (!attr->analn_res && !is_attr_ext(attr)) {
 		/* $AttrDef allows labels to be up to 128 symbols. */
 		err = utf16s_to_utf8s(resident_data(attr),
 				      le32_to_cpu(attr->res.data_size) >> 1,
@@ -1228,7 +1228,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	} else {
 		/* Should we break mounting here? */
 		//err = -EINVAL;
-		//goto put_inode_out;
+		//goto put_ianalde_out;
 	}
 
 	attr = ni_find_attr(ni, attr, NULL, ATTR_VOL_INFO, NULL, 0, NULL, NULL);
@@ -1236,11 +1236,11 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	    !(info = resident_data_ex(attr, SIZEOF_ATTRIBUTE_VOLUME_INFO))) {
 		ntfs_err(sb, "$Volume is corrupted.");
 		err = -EINVAL;
-		goto put_inode_out;
+		goto put_ianalde_out;
 	}
 
 	sbi->volume.major_ver = info->major_ver;
-	sbi->volume.minor_ver = info->minor_ver;
+	sbi->volume.mianalr_ver = info->mianalr_ver;
 	sbi->volume.flags = info->flags;
 	sbi->volume.ni = ni;
 	if (info->flags & VOLUME_FLAG_DIRTY) {
@@ -1251,35 +1251,35 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	/* Load $MFTMirr to estimate recs_mirr. */
 	ref.low = cpu_to_le32(MFT_REC_MIRR);
 	ref.seq = cpu_to_le16(MFT_REC_MIRR);
-	inode = ntfs_iget5(sb, &ref, &NAME_MIRROR);
-	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
+	ianalde = ntfs_iget5(sb, &ref, &NAME_MIRROR);
+	if (IS_ERR(ianalde)) {
+		err = PTR_ERR(ianalde);
 		ntfs_err(sb, "Failed to load $MFTMirr (%d).", err);
 		goto out;
 	}
 
-	sbi->mft.recs_mirr = ntfs_up_cluster(sbi, inode->i_size) >>
+	sbi->mft.recs_mirr = ntfs_up_cluster(sbi, ianalde->i_size) >>
 			     sbi->record_bits;
 
-	iput(inode);
+	iput(ianalde);
 
 	/* Load LogFile to replay. */
 	ref.low = cpu_to_le32(MFT_REC_LOG);
 	ref.seq = cpu_to_le16(MFT_REC_LOG);
-	inode = ntfs_iget5(sb, &ref, &NAME_LOGFILE);
-	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
+	ianalde = ntfs_iget5(sb, &ref, &NAME_LOGFILE);
+	if (IS_ERR(ianalde)) {
+		err = PTR_ERR(ianalde);
 		ntfs_err(sb, "Failed to load \x24LogFile (%d).", err);
 		goto out;
 	}
 
-	ni = ntfs_i(inode);
+	ni = ntfs_i(ianalde);
 
 	err = ntfs_loadlog_and_replay(ni, sbi);
 	if (err)
-		goto put_inode_out;
+		goto put_ianalde_out;
 
-	iput(inode);
+	iput(ianalde);
 
 	if ((sbi->flags & NTFS_FLAGS_NEED_REPLAY) && !ro) {
 		ntfs_warn(sb, "failed to replay log file. Can't mount rw!");
@@ -1288,7 +1288,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	}
 
 	if ((sbi->volume.flags & VOLUME_FLAG_DIRTY) && !ro && !options->force) {
-		ntfs_warn(sb, "volume is dirty and \"force\" flag is not set!");
+		ntfs_warn(sb, "volume is dirty and \"force\" flag is analt set!");
 		err = -EINVAL;
 		goto out;
 	}
@@ -1297,27 +1297,27 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	ref.low = cpu_to_le32(MFT_REC_MFT);
 	ref.seq = cpu_to_le16(1);
 
-	inode = ntfs_iget5(sb, &ref, &NAME_MFT);
-	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
+	ianalde = ntfs_iget5(sb, &ref, &NAME_MFT);
+	if (IS_ERR(ianalde)) {
+		err = PTR_ERR(ianalde);
 		ntfs_err(sb, "Failed to load $MFT (%d).", err);
 		goto out;
 	}
 
-	ni = ntfs_i(inode);
+	ni = ntfs_i(ianalde);
 
 	sbi->mft.used = ni->i_valid >> sbi->record_bits;
-	tt = inode->i_size >> sbi->record_bits;
+	tt = ianalde->i_size >> sbi->record_bits;
 	sbi->mft.next_free = MFT_REC_USER;
 
 	err = wnd_init(&sbi->mft.bitmap, sb, tt);
 	if (err)
-		goto put_inode_out;
+		goto put_ianalde_out;
 
 	err = ni_load_all_mi(ni);
 	if (err) {
 		ntfs_err(sb, "Failed to load $MFT's subrecords (%d).", err);
-		goto put_inode_out;
+		goto put_ianalde_out;
 	}
 
 	sbi->mft.ni = ni;
@@ -1325,35 +1325,35 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	/* Load $Bitmap. */
 	ref.low = cpu_to_le32(MFT_REC_BITMAP);
 	ref.seq = cpu_to_le16(MFT_REC_BITMAP);
-	inode = ntfs_iget5(sb, &ref, &NAME_BITMAP);
-	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
+	ianalde = ntfs_iget5(sb, &ref, &NAME_BITMAP);
+	if (IS_ERR(ianalde)) {
+		err = PTR_ERR(ianalde);
 		ntfs_err(sb, "Failed to load $Bitmap (%d).", err);
 		goto out;
 	}
 
 #ifndef CONFIG_NTFS3_64BIT_CLUSTER
-	if (inode->i_size >> 32) {
+	if (ianalde->i_size >> 32) {
 		err = -EINVAL;
-		goto put_inode_out;
+		goto put_ianalde_out;
 	}
 #endif
 
 	/* Check bitmap boundary. */
 	tt = sbi->used.bitmap.nbits;
-	if (inode->i_size < bitmap_size(tt)) {
+	if (ianalde->i_size < bitmap_size(tt)) {
 		ntfs_err(sb, "$Bitmap is corrupted.");
 		err = -EINVAL;
-		goto put_inode_out;
+		goto put_ianalde_out;
 	}
 
 	err = wnd_init(&sbi->used.bitmap, sb, tt);
 	if (err) {
 		ntfs_err(sb, "Failed to initialize $Bitmap (%d).", err);
-		goto put_inode_out;
+		goto put_ianalde_out;
 	}
 
-	iput(inode);
+	iput(ianalde);
 
 	/* Compute the MFT zone. */
 	err = ntfs_refresh_zone(sbi);
@@ -1365,14 +1365,14 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	/* Load $BadClus. */
 	ref.low = cpu_to_le32(MFT_REC_BADCLUST);
 	ref.seq = cpu_to_le16(MFT_REC_BADCLUST);
-	inode = ntfs_iget5(sb, &ref, &NAME_BADCLUS);
-	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
+	ianalde = ntfs_iget5(sb, &ref, &NAME_BADCLUS);
+	if (IS_ERR(ianalde)) {
+		err = PTR_ERR(ianalde);
 		ntfs_err(sb, "Failed to load $BadClus (%d).", err);
 		goto out;
 	}
 
-	ni = ntfs_i(inode);
+	ni = ntfs_i(ianalde);
 	bad_len = bad_frags = 0;
 	for (i = 0; run_get_entry(&ni->file.run, i, &vcn, &lcn, &len); i++) {
 		if (lcn == SPARSE_LCN)
@@ -1390,22 +1390,22 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	}
 	if (bad_len) {
 		/*
-		 * Notice about bad blocks.
-		 * In normal cases these blocks are marked as used in bitmap.
+		 * Analtice about bad blocks.
+		 * In analrmal cases these blocks are marked as used in bitmap.
 		 * And we never allocate space in it.
 		 */
-		ntfs_notice(sb,
+		ntfs_analtice(sb,
 			    "Volume contains %zu bad blocks in %zu fragments.",
 			    bad_len, bad_frags);
 	}
-	iput(inode);
+	iput(ianalde);
 
 	/* Load $AttrDef. */
 	ref.low = cpu_to_le32(MFT_REC_ATTR);
 	ref.seq = cpu_to_le16(MFT_REC_ATTR);
-	inode = ntfs_iget5(sb, &ref, &NAME_ATTRDEF);
-	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
+	ianalde = ntfs_iget5(sb, &ref, &NAME_ATTRDEF);
+	if (IS_ERR(ianalde)) {
+		err = PTR_ERR(ianalde);
 		ntfs_err(sb, "Failed to load $AttrDef (%d)", err);
 		goto out;
 	}
@@ -1414,29 +1414,29 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	 * Typical $AttrDef contains up to 20 entries.
 	 * Check for extremely large/small size.
 	 */
-	if (inode->i_size < sizeof(struct ATTR_DEF_ENTRY) ||
-	    inode->i_size > 100 * sizeof(struct ATTR_DEF_ENTRY)) {
+	if (ianalde->i_size < sizeof(struct ATTR_DEF_ENTRY) ||
+	    ianalde->i_size > 100 * sizeof(struct ATTR_DEF_ENTRY)) {
 		ntfs_err(sb, "Looks like $AttrDef is corrupted (size=%llu).",
-			 inode->i_size);
+			 ianalde->i_size);
 		err = -EINVAL;
-		goto put_inode_out;
+		goto put_ianalde_out;
 	}
 
-	bytes = inode->i_size;
+	bytes = ianalde->i_size;
 	sbi->def_table = t = kvmalloc(bytes, GFP_KERNEL);
 	if (!t) {
-		err = -ENOMEM;
-		goto put_inode_out;
+		err = -EANALMEM;
+		goto put_ianalde_out;
 	}
 
 	for (done = idx = 0; done < bytes; done += PAGE_SIZE, idx++) {
 		unsigned long tail = bytes - done;
-		struct page *page = ntfs_map_page(inode->i_mapping, idx);
+		struct page *page = ntfs_map_page(ianalde->i_mapping, idx);
 
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
 			ntfs_err(sb, "Failed to read $AttrDef (%d).", err);
-			goto put_inode_out;
+			goto put_ianalde_out;
 		}
 		memcpy(Add2Ptr(t, done), page_address(page),
 		       min(PAGE_SIZE, tail));
@@ -1445,7 +1445,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		if (!idx && ATTR_STD != t->type) {
 			ntfs_err(sb, "$AttrDef is corrupted.");
 			err = -EINVAL;
-			goto put_inode_out;
+			goto put_ianalde_out;
 		}
 	}
 
@@ -1471,33 +1471,33 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		t += 1;
 		sbi->def_entries += 1;
 	}
-	iput(inode);
+	iput(ianalde);
 
 	/* Load $UpCase. */
 	ref.low = cpu_to_le32(MFT_REC_UPCASE);
 	ref.seq = cpu_to_le16(MFT_REC_UPCASE);
-	inode = ntfs_iget5(sb, &ref, &NAME_UPCASE);
-	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
+	ianalde = ntfs_iget5(sb, &ref, &NAME_UPCASE);
+	if (IS_ERR(ianalde)) {
+		err = PTR_ERR(ianalde);
 		ntfs_err(sb, "Failed to load $UpCase (%d).", err);
 		goto out;
 	}
 
-	if (inode->i_size != 0x10000 * sizeof(short)) {
+	if (ianalde->i_size != 0x10000 * sizeof(short)) {
 		err = -EINVAL;
 		ntfs_err(sb, "$UpCase is corrupted.");
-		goto put_inode_out;
+		goto put_ianalde_out;
 	}
 
 	for (idx = 0; idx < (0x10000 * sizeof(short) >> PAGE_SHIFT); idx++) {
 		const __le16 *src;
 		u16 *dst = Add2Ptr(sbi->upcase, idx << PAGE_SHIFT);
-		struct page *page = ntfs_map_page(inode->i_mapping, idx);
+		struct page *page = ntfs_map_page(ianalde->i_mapping, idx);
 
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
 			ntfs_err(sb, "Failed to read $UpCase (%d).", err);
-			goto put_inode_out;
+			goto put_ianalde_out;
 		}
 
 		src = page_address(page);
@@ -1517,7 +1517,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		sbi->upcase = shared;
 	}
 
-	iput(inode);
+	iput(ianalde);
 
 	if (is_ntfs3(sbi)) {
 		/* Load $Secure. */
@@ -1553,9 +1553,9 @@ load_root:
 	/* Load root. */
 	ref.low = cpu_to_le32(MFT_REC_ROOT);
 	ref.seq = cpu_to_le16(MFT_REC_ROOT);
-	inode = ntfs_iget5(sb, &ref, &NAME_ROOT);
-	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
+	ianalde = ntfs_iget5(sb, &ref, &NAME_ROOT);
+	if (IS_ERR(ianalde)) {
+		err = PTR_ERR(ianalde);
 		ntfs_err(sb, "Failed to load root (%d).", err);
 		goto out;
 	}
@@ -1563,21 +1563,21 @@ load_root:
 	/*
 	 * Final check. Looks like this case should never occurs.
 	 */
-	if (!inode->i_op) {
+	if (!ianalde->i_op) {
 		err = -EINVAL;
 		ntfs_err(sb, "Failed to load root (%d).", err);
-		goto put_inode_out;
+		goto put_ianalde_out;
 	}
 
-	sb->s_root = d_make_root(inode);
+	sb->s_root = d_make_root(ianalde);
 	if (!sb->s_root) {
-		err = -ENOMEM;
-		goto put_inode_out;
+		err = -EANALMEM;
+		goto put_ianalde_out;
 	}
 
 	if (boot2) {
 		/*
-	 	 * Alternative boot is ok but primary is not ok.
+	 	 * Alternative boot is ok but primary is analt ok.
 	 	 * Volume is recognized as NTFS. Update primary boot.
 		 */
 		struct buffer_head *bh0 = sb_getblk(sb, 0);
@@ -1615,8 +1615,8 @@ load_root:
 
 	return 0;
 
-put_inode_out:
-	iput(inode);
+put_ianalde_out:
+	iput(ianalde);
 out:
 	ntfs3_put_sbi(sbi);
 	kfree(boot2);
@@ -1662,11 +1662,11 @@ int ntfs_discard(struct ntfs_sb_info *sbi, CLST lcn, CLST len)
 	if (sbi->used.next_free_lcn == lcn + len)
 		sbi->used.next_free_lcn = lcn;
 
-	if (sbi->flags & NTFS_FLAGS_NODISCARD)
-		return -EOPNOTSUPP;
+	if (sbi->flags & NTFS_FLAGS_ANALDISCARD)
+		return -EOPANALTSUPP;
 
 	if (!sbi->options->discard)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	lbo = (u64)lcn << sbi->cluster_bits;
 	bytes = (u64)len << sbi->cluster_bits;
@@ -1682,10 +1682,10 @@ int ntfs_discard(struct ntfs_sb_info *sbi, CLST lcn, CLST len)
 		return 0;
 
 	err = blkdev_issue_discard(sb->s_bdev, start >> 9, (end - start) >> 9,
-				   GFP_NOFS);
+				   GFP_ANALFS);
 
-	if (err == -EOPNOTSUPP)
-		sbi->flags |= NTFS_FLAGS_NODISCARD;
+	if (err == -EOPANALTSUPP)
+		sbi->flags |= NTFS_FLAGS_ANALDISCARD;
 
 	return err;
 }
@@ -1698,7 +1698,7 @@ static int ntfs_fs_get_tree(struct fs_context *fc)
 /*
  * ntfs_fs_free - Free fs_context.
  *
- * Note that this will be called after fill_super and reconfigure
+ * Analte that this will be called after fill_super and reconfigure
  * even when they pass. So they have to take pointers if they pass.
  */
 static void ntfs_fs_free(struct fs_context *fc)
@@ -1735,9 +1735,9 @@ static int ntfs_init_fs_context(struct fs_context *fc)
 	struct ntfs_mount_options *opts;
 	struct ntfs_sb_info *sbi;
 
-	opts = kzalloc(sizeof(struct ntfs_mount_options), GFP_NOFS);
+	opts = kzalloc(sizeof(struct ntfs_mount_options), GFP_ANALFS);
 	if (!opts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Default options. */
 	opts->fs_uid = current_uid();
@@ -1748,7 +1748,7 @@ static int ntfs_init_fs_context(struct fs_context *fc)
 	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE)
 		goto ok;
 
-	sbi = kzalloc(sizeof(struct ntfs_sb_info), GFP_NOFS);
+	sbi = kzalloc(sizeof(struct ntfs_sb_info), GFP_ANALFS);
 	if (!sbi)
 		goto free_opts;
 
@@ -1775,7 +1775,7 @@ free_sbi:
 	kfree(sbi);
 free_opts:
 	kfree(opts);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void ntfs3_kill_sb(struct super_block *sb)
@@ -1809,8 +1809,8 @@ static int __init init_ntfs_fs(void)
 	if (IS_ENABLED(CONFIG_NTFS3_FS_POSIX_ACL))
 		pr_info("ntfs3: Enabled Linux POSIX ACLs support\n");
 	if (IS_ENABLED(CONFIG_NTFS3_64BIT_CLUSTER))
-		pr_notice(
-			"ntfs3: Warning: Activated 64 bits per cluster. Windows does not support this\n");
+		pr_analtice(
+			"ntfs3: Warning: Activated 64 bits per cluster. Windows does analt support this\n");
 	if (IS_ENABLED(CONFIG_NTFS3_LZX_XPRESS))
 		pr_info("ntfs3: Read-only LZX/Xpress compression included\n");
 
@@ -1823,12 +1823,12 @@ static int __init init_ntfs_fs(void)
 	if (err)
 		return err;
 
-	ntfs_inode_cachep = kmem_cache_create(
-		"ntfs_inode_cache", sizeof(struct ntfs_inode), 0,
+	ntfs_ianalde_cachep = kmem_cache_create(
+		"ntfs_ianalde_cache", sizeof(struct ntfs_ianalde), 0,
 		(SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD | SLAB_ACCOUNT),
 		init_once);
-	if (!ntfs_inode_cachep) {
-		err = -ENOMEM;
+	if (!ntfs_ianalde_cachep) {
+		err = -EANALMEM;
 		goto out1;
 	}
 
@@ -1838,7 +1838,7 @@ static int __init init_ntfs_fs(void)
 
 	return 0;
 out:
-	kmem_cache_destroy(ntfs_inode_cachep);
+	kmem_cache_destroy(ntfs_ianalde_cachep);
 out1:
 	ntfs3_exit_bitmap();
 	return err;
@@ -1847,7 +1847,7 @@ out1:
 static void __exit exit_ntfs_fs(void)
 {
 	rcu_barrier();
-	kmem_cache_destroy(ntfs_inode_cachep);
+	kmem_cache_destroy(ntfs_ianalde_cachep);
 	unregister_filesystem(&ntfs_fs_type);
 	ntfs3_exit_bitmap();
 
@@ -1865,7 +1865,7 @@ MODULE_INFO(behaviour, "Enabled Linux POSIX ACLs support");
 #ifdef CONFIG_NTFS3_64BIT_CLUSTER
 MODULE_INFO(
 	cluster,
-	"Warning: Activated 64 bits per cluster. Windows does not support this");
+	"Warning: Activated 64 bits per cluster. Windows does analt support this");
 #endif
 #ifdef CONFIG_NTFS3_LZX_XPRESS
 MODULE_INFO(compression, "Read-only lzx/xpress compression included");

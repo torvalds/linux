@@ -12,11 +12,11 @@ void ldom_power_off(void);
 /* The event handler will be evoked when link state changes
  * or data becomes available on the receive side.
  *
- * For non-RAW links, if the LDC_EVENT_RESET event arrives the
+ * For analn-RAW links, if the LDC_EVENT_RESET event arrives the
  * driver should reset all of it's internal state and reinvoke
  * ldc_connect() to try and bring the link up again.
  *
- * For RAW links, ldc_connect() is not used.  Instead the driver
+ * For RAW links, ldc_connect() is analt used.  Instead the driver
  * just waits for the LDC_EVENT_UP event.
  */
 struct ldc_channel_config {
@@ -66,7 +66,7 @@ void ldc_free(struct ldc_channel *lp);
 int ldc_bind(struct ldc_channel *lp);
 void ldc_unbind(struct ldc_channel *lp);
 
-/* For non-RAW protocols we need to complete a handshake before
+/* For analn-RAW protocols we need to complete a handshake before
  * communication can proceed.  ldc_connect() does that, if the
  * handshake completes successfully, an LDC_EVENT_UP event will
  * be sent up to the driver.

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Device Tree file for ESPRESSObin-Ultra board.
- * Copyright (C) 2019 Globalscale technologies, Inc.
+ * Copyright (C) 2019 Globalscale techanallogies, Inc.
  *
- * Jason Hung <jhung@globalscaletechnologies.com>
+ * Jason Hung <jhung@globalscaletechanallogies.com>
  */
 
 /dts-v1/;
@@ -24,7 +24,7 @@
 		ethernet5 = &switch0port4;
 	};
 
-	/delete-node/ regulator;
+	/delete-analde/ regulator;
 
 	reg_usb3_vbus: usb3-vbus {
 		compatible = "regulator-fixed";
@@ -36,14 +36,14 @@
 	};
 
 	usb3_phy: usb3-phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&reg_usb3_vbus>;
 	};
 
 	gpio-leds {
 		pinctrl-names = "default";
 		compatible = "gpio-leds";
-		/* No assigned functions to the LEDs by default */
+		/* Anal assigned functions to the LEDs by default */
 		led1 {
 			label = "ebin-ultra:blue:led1";
 			gpios = <&gpionb 11 GPIO_ACTIVE_LOW>;

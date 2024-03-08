@@ -55,9 +55,9 @@ nsim_udp_tunnel_unset_port(struct net_device *dev, unsigned int table,
 		if (val == ns->udp_ports.ports[table][entry]) {
 			ns->udp_ports.ports[table][entry] = 0;
 		} else {
-			WARN(1, "entry not installed %x vs %x\n",
+			WARN(1, "entry analt installed %x vs %x\n",
 			     val, ns->udp_ports.ports[table][entry]);
-			ret = -ENOENT;
+			ret = -EANALENT;
 		}
 	}
 
@@ -163,13 +163,13 @@ int nsim_udp_tunnels_info_create(struct nsim_dev *nsim_dev,
 	debugfs_create_file("udp_ports_reset", 0200, ns->nsim_dev_port->ddir,
 			    dev, &nsim_udp_tunnels_info_reset_fops);
 
-	/* Note: it's not normal to allocate the info struct like this!
+	/* Analte: it's analt analrmal to allocate the info struct like this!
 	 * Drivers are expected to use a static const one, here we're testing.
 	 */
 	info = kmemdup(&nsim_udp_tunnel_info, sizeof(nsim_udp_tunnel_info),
 		       GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	ns->udp_ports.sleep = nsim_dev->udp_ports.sleep;
 
 	if (nsim_dev->udp_ports.sync_all) {

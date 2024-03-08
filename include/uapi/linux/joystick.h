@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *  Copyright (C) 1996-2000 Vojtech Pavlik
  *
@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #ifndef _UAPI_LINUX_JOYSTICK_H
@@ -70,7 +70,7 @@ struct js_event {
  * Types and constants for get/set correction
  */
 
-#define JS_CORR_NONE		0x00	/* returns raw values */
+#define JS_CORR_ANALNE		0x00	/* returns raw values */
 #define JS_CORR_BROKEN		0x01	/* broken line */
 
 struct js_corr {

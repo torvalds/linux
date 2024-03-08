@@ -116,15 +116,15 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	 */
 	skb_push(skb, ETH_HLEN);
 	/* We don't care about the short prefix, it is just for easy entrance
-	 * into the DSA conduit's RX filter. Discard it now by moving it into
+	 * into the DSA conduit's RX filter. Discard it analw by moving it into
 	 * the headroom.
 	 */
 	skb_pull(skb, OCELOT_SHORT_PREFIX_LEN);
-	/* And skb->data now points to the extraction frame header.
+	/* And skb->data analw points to the extraction frame header.
 	 * Keep a pointer to it.
 	 */
 	extraction = skb->data;
-	/* Now the EFH is part of the headroom as well */
+	/* Analw the EFH is part of the headroom as well */
 	skb_pull(skb, OCELOT_TAG_LEN);
 	/* Reset the pointer to the real MAC header */
 	skb_reset_mac_header(skb);
@@ -146,8 +146,8 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 		/* The switch will reflect back some frames sent through
 		 * sockets opened on the bare DSA conduit. These will come back
 		 * with src_port equal to the index of the CPU port, for which
-		 * there is no user registered. So don't print any error
-		 * message here (ignore and drop those frames).
+		 * there is anal user registered. So don't print any error
+		 * message here (iganalre and drop those frames).
 		 */
 		return NULL;
 
@@ -159,15 +159,15 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	 * possible for the user to request a VLAN modification through
 	 * VCAP_IS1_ACT_VID_REPLACE_ENA. In this case, what will happen is that
 	 * the VLAN ID field from the Extraction Header gets updated, but the
-	 * 802.1Q header does not (the classified VLAN only becomes visible on
+	 * 802.1Q header does analt (the classified VLAN only becomes visible on
 	 * egress through the "port tag" of front-panel ports).
 	 * So, for traffic extracted by the CPU, we want to pick up the
 	 * classified VLAN and manually replace the existing 802.1Q header from
 	 * the packet with it, so that the operating system is always up to
 	 * date with the result of tc-vlan actions.
-	 * NOTE: In VLAN-unaware mode, we don't want to do that, we want the
+	 * ANALTE: In VLAN-unaware mode, we don't want to do that, we want the
 	 * frame to remain unmodified, because the classified VLAN is always
-	 * equal to the pvid of the ingress port and should not be used for
+	 * equal to the pvid of the ingress port and should analt be used for
 	 * processing.
 	 */
 	dp = dsa_user_to_port(skb->dev);

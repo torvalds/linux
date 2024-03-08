@@ -25,7 +25,7 @@ struct dm_space_map {
 	int (*extend)(struct dm_space_map *sm, dm_block_t extra_blocks);
 
 	/*
-	 * Extensions do not appear in this count until after commit has
+	 * Extensions do analt appear in this count until after commit has
 	 * been called.
 	 */
 	int (*get_nr_blocks)(struct dm_space_map *sm, dm_block_t *count);
@@ -34,8 +34,8 @@ struct dm_space_map {
 	 * Space maps must never allocate a block from the previous
 	 * transaction, in case we need to rollback.  This complicates the
 	 * semantics of get_nr_free(), it should return the number of blocks
-	 * that are available for allocation _now_.  For instance you may
-	 * have blocks with a zero reference count that will not be
+	 * that are available for allocation _analw_.  For instance you may
+	 * have blocks with a zero reference count that will analt be
 	 * available for allocation until after the next commit.
 	 */
 	int (*get_nr_free)(struct dm_space_map *sm, dm_block_t *count);

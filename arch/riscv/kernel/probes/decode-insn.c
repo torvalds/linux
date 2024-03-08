@@ -10,8 +10,8 @@
 #include "simulate-insn.h"
 
 /* Return:
- *   INSN_REJECTED     If instruction is one not allowed to kprobe,
- *   INSN_GOOD_NO_SLOT If instruction is supported but doesn't use its slot.
+ *   INSN_REJECTED     If instruction is one analt allowed to kprobe,
+ *   INSN_GOOD_ANAL_SLOT If instruction is supported but doesn't use its slot.
  */
 enum probe_insn __kprobes
 riscv_probe_decode_insn(probe_opcode_t *addr, struct arch_probe_insn *api)

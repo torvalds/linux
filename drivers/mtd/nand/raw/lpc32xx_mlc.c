@@ -112,7 +112,7 @@
 /**********************************************************************
 * MLC_CEH bit definitions
 **********************************************************************/
-#define MLCCEH_NORMAL			(1 << 0)
+#define MLCCEH_ANALRMAL			(1 << 0)
 
 struct lpc32xx_nand_cfg_mlc {
 	uint32_t tcea_delay;
@@ -160,13 +160,13 @@ static const struct mtd_ooblayout_ops lpc32xx_ooblayout_ops = {
 };
 
 static struct nand_bbt_descr lpc32xx_nand_bbt = {
-	.options = NAND_BBT_ABSPAGE | NAND_BBT_2BIT | NAND_BBT_NO_OOB |
+	.options = NAND_BBT_ABSPAGE | NAND_BBT_2BIT | NAND_BBT_ANAL_OOB |
 		   NAND_BBT_WRITE,
 	.pages = { 524224, 0, 0, 0, 0, 0, 0, 0 },
 };
 
 static struct nand_bbt_descr lpc32xx_nand_bbt_mirror = {
-	.options = NAND_BBT_ABSPAGE | NAND_BBT_2BIT | NAND_BBT_NO_OOB |
+	.options = NAND_BBT_ABSPAGE | NAND_BBT_2BIT | NAND_BBT_ANAL_OOB |
 		   NAND_BBT_WRITE,
 	.pages = { 524160, 0, 0, 0, 0, 0, 0, 0 },
 };
@@ -212,18 +212,18 @@ struct lpc32xx_nand_host {
  *
  * - readl() of 128 x 32 bits in a loop: ~20us
  * - DMA read of 512 bytes (32 bit, 4...128 words bursts): ~60us
- * - DMA read of 512 bytes (32 bit, no bursts): ~100us
+ * - DMA read of 512 bytes (32 bit, anal bursts): ~100us
  *
  * This applies to the transfer itself. In the DMA case: only the
- * wait_for_completion() (DMA setup _not_ included).
+ * wait_for_completion() (DMA setup _analt_ included).
  *
- * Note that the 512 bytes subpage transfer is done directly from/to a
+ * Analte that the 512 bytes subpage transfer is done directly from/to a
  * FIFO/buffer inside the NAND controller. Most of the time (~400-800us for a
  * 2048 bytes page) is spent waiting for the NAND IRQ, anyway. (The NAND
  * controller transferring data between its internal buffer to/from the NAND
  * chip.)
  *
- * Therefore, using the PL080 DMA is disabled by default, for now.
+ * Therefore, using the PL080 DMA is disabled by default, for analw.
  *
  */
 static int use_dma;
@@ -268,8 +268,8 @@ static void lpc32xx_nand_setup(struct lpc32xx_nand_host *host)
 	writeb(MLCIRQ_CONTROLLER_READY | MLCIRQ_NAND_READY,
 			MLC_IRQ_MR(host->io_base));
 
-	/* Normal nCE operation: nCE controlled by controller */
-	writel(MLCCEH_NORMAL, MLC_CEH(host->io_base));
+	/* Analrmal nCE operation: nCE controlled by controller */
+	writel(MLCCEH_ANALRMAL, MLC_CEH(host->io_base));
 }
 
 /*
@@ -280,7 +280,7 @@ static void lpc32xx_nand_cmd_ctrl(struct nand_chip *nand_chip, int cmd,
 {
 	struct lpc32xx_nand_host *host = nand_get_controller_data(nand_chip);
 
-	if (cmd != NAND_CMD_NONE) {
+	if (cmd != NAND_CMD_ANALNE) {
 		if (ctrl & NAND_CLE)
 			writel(cmd, MLC_CMD(host->io_base));
 		else
@@ -329,7 +329,7 @@ static int lpc32xx_waitfunc_nand(struct nand_chip *chip)
 
 	while (!(readb(MLC_ISR(host->io_base)) & MLCISR_NAND_READY)) {
 		/* Seems to be delayed sometimes by controller */
-		dev_dbg(&mtd->dev, "Warning: NAND not ready.\n");
+		dev_dbg(&mtd->dev, "Warning: NAND analt ready.\n");
 		cpu_relax();
 	}
 
@@ -349,7 +349,7 @@ static int lpc32xx_waitfunc_controller(struct nand_chip *chip)
 
 	while (!(readb(MLC_ISR(host->io_base)) &
 		 MLCISR_CONTROLLER_READY)) {
-		dev_dbg(&mtd->dev, "Warning: Controller not ready.\n");
+		dev_dbg(&mtd->dev, "Warning: Controller analt ready.\n");
 		cpu_relax();
 	}
 
@@ -558,7 +558,7 @@ static int lpc32xx_read_oob(struct nand_chip *chip, int page)
 
 static int lpc32xx_write_oob(struct nand_chip *chip, int page)
 {
-	/* None, write_oob conflicts with the automatic LPC MLC ECC decoder! */
+	/* Analne, write_oob conflicts with the automatic LPC MLC ECC decoder! */
 	return 0;
 }
 
@@ -574,8 +574,8 @@ static int lpc32xx_dma_setup(struct lpc32xx_nand_host *host)
 	dma_cap_mask_t mask;
 
 	if (!host->pdata || !host->pdata->dma_filter) {
-		dev_err(mtd->dev.parent, "no DMA platform data\n");
-		return -ENOENT;
+		dev_err(mtd->dev.parent, "anal DMA platform data\n");
+		return -EANALENT;
 	}
 
 	dma_cap_zero(mask);
@@ -589,7 +589,7 @@ static int lpc32xx_dma_setup(struct lpc32xx_nand_host *host)
 
 	/*
 	 * Set direction to a sensible value even if the dmaengine driver
-	 * should ignore it. With the default (DMA_MEM_TO_MEM), the amba-pl08x
+	 * should iganalre it. With the default (DMA_MEM_TO_MEM), the amba-pl08x
 	 * driver criticizes it as "alien transfer direction".
 	 */
 	host->dma_slave_config.direction = DMA_DEV_TO_MEM;
@@ -615,7 +615,7 @@ out1:
 static struct lpc32xx_nand_cfg_mlc *lpc32xx_parse_dt(struct device *dev)
 {
 	struct lpc32xx_nand_cfg_mlc *ncfg;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	ncfg = devm_kzalloc(dev, sizeof(*ncfg), GFP_KERNEL);
 	if (!ncfg)
@@ -632,7 +632,7 @@ static struct lpc32xx_nand_cfg_mlc *lpc32xx_parse_dt(struct device *dev)
 	if (!ncfg->tcea_delay || !ncfg->busy_delay || !ncfg->nand_ta ||
 	    !ncfg->rd_high || !ncfg->rd_low || !ncfg->wr_high ||
 	    !ncfg->wr_low) {
-		dev_err(dev, "chip parameters not specified correctly\n");
+		dev_err(dev, "chip parameters analt specified correctly\n");
 		return NULL;
 	}
 
@@ -650,11 +650,11 @@ static int lpc32xx_nand_attach_chip(struct nand_chip *chip)
 
 	host->dma_buf = devm_kzalloc(dev, mtd->writesize, GFP_KERNEL);
 	if (!host->dma_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->dummy_buf = devm_kzalloc(dev, mtd->writesize, GFP_KERNEL);
 	if (!host->dummy_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->ecc.size = 512;
 	chip->ecc.hwctl = lpc32xx_ecc_enable;
@@ -691,7 +691,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	/* Allocate memory for the device structure (and zero it) */
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->pdev = pdev;
 
@@ -703,12 +703,12 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 
 	nand_chip = &host->nand_chip;
 	mtd = nand_to_mtd(nand_chip);
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		host->ncfg = lpc32xx_parse_dt(&pdev->dev);
 	if (!host->ncfg) {
 		dev_err(&pdev->dev,
 			"Missing or bad NAND config from device tree\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* Start with WP disabled, if available */
@@ -716,7 +716,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	res = PTR_ERR_OR_ZERO(host->wp_gpio);
 	if (res) {
 		if (res != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "WP GPIO is not available: %d\n",
+			dev_err(&pdev->dev, "WP GPIO is analt available: %d\n",
 				res);
 		return res;
 	}
@@ -727,14 +727,14 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 
 	/* link the private data structures */
 	nand_set_controller_data(nand_chip, host);
-	nand_set_flash_node(nand_chip, pdev->dev.of_node);
+	nand_set_flash_analde(nand_chip, pdev->dev.of_analde);
 	mtd->dev.parent = &pdev->dev;
 
 	/* Get NAND clock */
 	host->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
 		dev_err(&pdev->dev, "Clock initialization failure\n");
-		res = -ENOENT;
+		res = -EANALENT;
 		goto free_gpio;
 	}
 	res = clk_prepare_enable(host->clk);
@@ -755,8 +755,8 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	/* Initialize function pointers */
 	nand_chip->legacy.waitfunc = lpc32xx_waitfunc;
 
-	nand_chip->options = NAND_NO_SUBPAGE_WRITE;
-	nand_chip->bbt_options = NAND_BBT_USE_FLASH | NAND_BBT_NO_OOB;
+	nand_chip->options = NAND_ANAL_SUBPAGE_WRITE;
+	nand_chip->bbt_options = NAND_BBT_USE_FLASH | NAND_BBT_ANAL_OOB;
 	nand_chip->bbt_td = &lpc32xx_nand_bbt;
 	nand_chip->bbt_md = &lpc32xx_nand_bbt_mirror;
 

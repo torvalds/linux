@@ -43,7 +43,7 @@ struct caam_alg_entry {
 	int class2_alg_type;
 	bool rfc3686;
 	bool geniv;
-	bool nodkp;
+	bool analdkp;
 };
 
 struct caam_aead_alg {
@@ -89,7 +89,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	struct caam_ctx *ctx = crypto_aead_ctx_dma(aead);
 	unsigned int ivsize = crypto_aead_ivsize(aead);
 	u32 ctx1_iv_off = 0;
-	u32 *nonce = NULL;
+	u32 *analnce = NULL;
 	unsigned int data_len[2];
 	u32 inl_mask;
 	const bool ctr_mode = ((ctx->cdata.algtype & OP_ALG_AAI_MASK) ==
@@ -110,12 +110,12 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 
 	/*
 	 * RFC3686 specific:
-	 *	CONTEXT1[255:128] = {NONCE, IV, COUNTER}
+	 *	CONTEXT1[255:128] = {ANALNCE, IV, COUNTER}
 	 */
 	if (is_rfc3686) {
-		ctx1_iv_off = 16 + CTR_RFC3686_NONCE_SIZE;
-		nonce = (u32 *)((void *)ctx->key + ctx->adata.keylen_pad +
-				ctx->cdata.keylen - CTR_RFC3686_NONCE_SIZE);
+		ctx1_iv_off = 16 + CTR_RFC3686_ANALNCE_SIZE;
+		analnce = (u32 *)((void *)ctx->key + ctx->adata.keylen_pad +
+				ctx->cdata.keylen - CTR_RFC3686_ANALNCE_SIZE);
 	}
 
 	/*
@@ -147,7 +147,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	ctx->cdata.key_inline = !!(inl_mask & 2);
 
 	cnstr_shdsc_aead_encap(ctx->sh_desc_enc, &ctx->cdata, &ctx->adata,
-			       ivsize, ctx->authsize, is_rfc3686, nonce,
+			       ivsize, ctx->authsize, is_rfc3686, analnce,
 			       ctx1_iv_off, true, ctrlpriv->era);
 
 skip_enc:
@@ -163,7 +163,7 @@ skip_enc:
 
 	cnstr_shdsc_aead_decap(ctx->sh_desc_dec, &ctx->cdata, &ctx->adata,
 			       ivsize, ctx->authsize, alg->caam.geniv,
-			       is_rfc3686, nonce, ctx1_iv_off, true,
+			       is_rfc3686, analnce, ctx1_iv_off, true,
 			       ctrlpriv->era);
 
 	if (!alg->caam.geniv)
@@ -180,7 +180,7 @@ skip_enc:
 	ctx->cdata.key_inline = !!(inl_mask & 2);
 
 	cnstr_shdsc_aead_givencap(ctx->sh_desc_enc, &ctx->cdata, &ctx->adata,
-				  ivsize, ctx->authsize, is_rfc3686, nonce,
+				  ivsize, ctx->authsize, is_rfc3686, analnce,
 				  ctx1_iv_off, true, ctrlpriv->era);
 
 skip_givenc:
@@ -259,7 +259,7 @@ skip_split_key:
 	if (ret)
 		goto badkey;
 
-	/* Now update the driver contexts with the new shared descriptor */
+	/* Analw update the driver contexts with the new shared descriptor */
 	if (ctx->drv_ctx[ENCRYPT]) {
 		ret = caam_drv_ctx_update(ctx->drv_ctx[ENCRYPT],
 					  ctx->sh_desc_enc);
@@ -383,7 +383,7 @@ static int gcm_setkey(struct crypto_aead *aead,
 	if (ret)
 		return ret;
 
-	/* Now update the driver contexts with the new shared descriptor */
+	/* Analw update the driver contexts with the new shared descriptor */
 	if (ctx->drv_ctx[ENCRYPT]) {
 		ret = caam_drv_ctx_update(ctx->drv_ctx[ENCRYPT],
 					  ctx->sh_desc_enc);
@@ -481,7 +481,7 @@ static int rfc4106_setkey(struct crypto_aead *aead,
 	memcpy(ctx->key, key, keylen);
 	/*
 	 * The last four bytes of the key material are used as the salt value
-	 * in the nonce. Update the AES key length.
+	 * in the analnce. Update the AES key length.
 	 */
 	ctx->cdata.keylen = keylen - 4;
 	dma_sync_single_for_device(jrdev->parent, ctx->key_dma,
@@ -491,7 +491,7 @@ static int rfc4106_setkey(struct crypto_aead *aead,
 	if (ret)
 		return ret;
 
-	/* Now update the driver contexts with the new shared descriptor */
+	/* Analw update the driver contexts with the new shared descriptor */
 	if (ctx->drv_ctx[ENCRYPT]) {
 		ret = caam_drv_ctx_update(ctx->drv_ctx[ENCRYPT],
 					  ctx->sh_desc_enc);
@@ -587,7 +587,7 @@ static int rfc4543_setkey(struct crypto_aead *aead,
 	memcpy(ctx->key, key, keylen);
 	/*
 	 * The last four bytes of the key material are used as the salt value
-	 * in the nonce. Update the AES key length.
+	 * in the analnce. Update the AES key length.
 	 */
 	ctx->cdata.keylen = keylen - 4;
 	dma_sync_single_for_device(jrdev->parent, ctx->key_dma,
@@ -597,7 +597,7 @@ static int rfc4543_setkey(struct crypto_aead *aead,
 	if (ret)
 		return ret;
 
-	/* Now update the driver contexts with the new shared descriptor */
+	/* Analw update the driver contexts with the new shared descriptor */
 	if (ctx->drv_ctx[ENCRYPT]) {
 		ret = caam_drv_ctx_update(ctx->drv_ctx[ENCRYPT],
 					  ctx->sh_desc_enc);
@@ -644,7 +644,7 @@ static int skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 	cnstr_shdsc_skcipher_decap(ctx->sh_desc_dec, &ctx->cdata, ivsize,
 				   is_rfc3686, ctx1_iv_off);
 
-	/* Now update the driver contexts with the new shared descriptor */
+	/* Analw update the driver contexts with the new shared descriptor */
 	if (ctx->drv_ctx[ENCRYPT]) {
 		ret = caam_drv_ctx_update(ctx->drv_ctx[ENCRYPT],
 					  ctx->sh_desc_enc);
@@ -686,11 +686,11 @@ static int rfc3686_skcipher_setkey(struct crypto_skcipher *skcipher,
 
 	/*
 	 * RFC3686 specific:
-	 *	| CONTEXT1[255:128] = {NONCE, IV, COUNTER}
-	 *	| *key = {KEY, NONCE}
+	 *	| CONTEXT1[255:128] = {ANALNCE, IV, COUNTER}
+	 *	| *key = {KEY, ANALNCE}
 	 */
-	ctx1_iv_off = 16 + CTR_RFC3686_NONCE_SIZE;
-	keylen -= CTR_RFC3686_NONCE_SIZE;
+	ctx1_iv_off = 16 + CTR_RFC3686_ANALNCE_SIZE;
+	keylen -= CTR_RFC3686_ANALNCE_SIZE;
 
 	err = aes_check_keylen(keylen);
 	if (err)
@@ -765,7 +765,7 @@ static int xts_skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 	cnstr_shdsc_xts_skcipher_encap(ctx->sh_desc_enc, &ctx->cdata);
 	cnstr_shdsc_xts_skcipher_decap(ctx->sh_desc_dec, &ctx->cdata);
 
-	/* Now update the driver contexts with the new shared descriptor */
+	/* Analw update the driver contexts with the new shared descriptor */
 	if (ctx->drv_ctx[ENCRYPT]) {
 		ret = caam_drv_ctx_update(ctx->drv_ctx[ENCRYPT],
 					  ctx->sh_desc_enc);
@@ -836,8 +836,8 @@ static struct caam_drv_ctx *get_drv_ctx(struct caam_ctx *ctx,
 {
 	/*
 	 * This function is called on the fast path with values of 'type'
-	 * known at compile time. Invalid arguments are not expected and
-	 * thus no checks are made.
+	 * kanalwn at compile time. Invalid arguments are analt expected and
+	 * thus anal checks are made.
 	 */
 	struct caam_drv_ctx *drv_ctx = ctx->drv_ctx[type];
 	u32 *desc;
@@ -966,8 +966,8 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	/* allocate space for base edesc and hw desc commands, link tables */
 	edesc = qi_cache_alloc(flags);
 	if (unlikely(!edesc)) {
-		dev_err(qidev, "could not allocate extended descriptor\n");
-		return ERR_PTR(-ENOMEM);
+		dev_err(qidev, "could analt allocate extended descriptor\n");
+		return ERR_PTR(-EANALMEM);
 	}
 
 	if (likely(req->src == req->dst)) {
@@ -987,7 +987,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 		if (unlikely(!mapped_src_nents)) {
 			dev_err(qidev, "unable to map source\n");
 			qi_cache_free(edesc);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 	} else {
 		src_len = req->assoclen + req->cryptlen;
@@ -1015,7 +1015,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 			if (unlikely(!mapped_src_nents)) {
 				dev_err(qidev, "unable to map source\n");
 				qi_cache_free(edesc);
-				return ERR_PTR(-ENOMEM);
+				return ERR_PTR(-EANALMEM);
 			}
 		} else {
 			mapped_src_nents = 0;
@@ -1030,7 +1030,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 				dma_unmap_sg(qidev, req->src, src_nents,
 					     DMA_TO_DEVICE);
 				qi_cache_free(edesc);
-				return ERR_PTR(-ENOMEM);
+				return ERR_PTR(-EANALMEM);
 			}
 		} else {
 			mapped_dst_nents = 0;
@@ -1042,7 +1042,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 
 	/*
 	 * Create S/G table: req->assoclen, [IV,] req->src [, req->dst].
-	 * Input is not contiguous.
+	 * Input is analt contiguous.
 	 * HW reads 4 S/G entries at a time; make sure the reads don't go beyond
 	 * the end of the table by allocating more S/G entries. Logic:
 	 * if (src != dst && output S/G)
@@ -1065,12 +1065,12 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	qm_sg_bytes = qm_sg_ents * sizeof(*sg_table);
 	if (unlikely(offsetof(struct aead_edesc, sgt) + qm_sg_bytes + ivsize >
 		     CAAM_QI_MEMCACHE_SIZE)) {
-		dev_err(qidev, "No space for %d S/G entries and/or %dB IV\n",
+		dev_err(qidev, "Anal space for %d S/G entries and/or %dB IV\n",
 			qm_sg_ents, ivsize);
 		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents, 0,
-			   0, DMA_NONE, 0, 0);
+			   0, DMA_ANALNE, 0, 0);
 		qi_cache_free(edesc);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	if (ivsize) {
@@ -1083,9 +1083,9 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 		if (dma_mapping_error(qidev, iv_dma)) {
 			dev_err(qidev, "unable to map IV\n");
 			caam_unmap(qidev, req->src, req->dst, src_nents,
-				   dst_nents, 0, 0, DMA_NONE, 0, 0);
+				   dst_nents, 0, 0, DMA_ANALNE, 0, 0);
 			qi_cache_free(edesc);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 	}
 
@@ -1104,7 +1104,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents,
 			   iv_dma, ivsize, DMA_TO_DEVICE, 0, 0);
 		qi_cache_free(edesc);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	dma_to_qm_sg_one(sg_table, edesc->assoclen_dma, 4, 0);
@@ -1126,7 +1126,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents,
 			   iv_dma, ivsize, DMA_TO_DEVICE, 0, 0);
 		qi_cache_free(edesc);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	edesc->qm_sg_dma = qm_sg_dma;
@@ -1292,7 +1292,7 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 					      DMA_TO_DEVICE);
 		if (unlikely(!mapped_src_nents)) {
 			dev_err(qidev, "unable to map source\n");
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 
 		mapped_dst_nents = dma_map_sg(qidev, req->dst, dst_nents,
@@ -1300,14 +1300,14 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 		if (unlikely(!mapped_dst_nents)) {
 			dev_err(qidev, "unable to map destination\n");
 			dma_unmap_sg(qidev, req->src, src_nents, DMA_TO_DEVICE);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 	} else {
 		mapped_src_nents = dma_map_sg(qidev, req->src, src_nents,
 					      DMA_BIDIRECTIONAL);
 		if (unlikely(!mapped_src_nents)) {
 			dev_err(qidev, "unable to map source\n");
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 	}
 
@@ -1334,20 +1334,20 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 	len += ivsize;
 
 	if (unlikely(len > CAAM_QI_MEMCACHE_SIZE)) {
-		dev_err(qidev, "No space for %d S/G entries and/or %dB IV\n",
+		dev_err(qidev, "Anal space for %d S/G entries and/or %dB IV\n",
 			qm_sg_ents, ivsize);
 		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents, 0,
-			   0, DMA_NONE, 0, 0);
-		return ERR_PTR(-ENOMEM);
+			   0, DMA_ANALNE, 0, 0);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/* allocate space for base edesc, link tables and IV */
 	edesc = qi_cache_alloc(flags);
 	if (unlikely(!edesc)) {
-		dev_err(qidev, "could not allocate extended descriptor\n");
+		dev_err(qidev, "could analt allocate extended descriptor\n");
 		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents, 0,
-			   0, DMA_NONE, 0, 0);
-		return ERR_PTR(-ENOMEM);
+			   0, DMA_ANALNE, 0, 0);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	edesc->src_nents = src_nents;
@@ -1366,9 +1366,9 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 	if (dma_mapping_error(qidev, iv_dma)) {
 		dev_err(qidev, "unable to map IV\n");
 		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents, 0,
-			   0, DMA_NONE, 0, 0);
+			   0, DMA_ANALNE, 0, 0);
 		qi_cache_free(edesc);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	edesc->iv_dma = iv_dma;
@@ -1389,7 +1389,7 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents,
 			   iv_dma, ivsize, DMA_BIDIRECTIONAL, 0, 0);
 		qi_cache_free(edesc);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	fd_sgt = &edesc->drv_req.fd_sgt[0];
@@ -1427,7 +1427,7 @@ static inline int skcipher_crypt(struct skcipher_request *req, bool encrypt)
 
 	/*
 	 * XTS is expected to return an error even for input length = 0
-	 * Note that the case input length < block size will be caught during
+	 * Analte that the case input length < block size will be caught during
 	 * HW offloading and return an error.
 	 */
 	if (!req->cryptlen && !ctx->fallback)
@@ -1556,9 +1556,9 @@ static struct caam_skcipher_alg driver_algs[] = {
 			.encrypt = skcipher_encrypt,
 			.decrypt = skcipher_decrypt,
 			.min_keysize = AES_MIN_KEY_SIZE +
-				       CTR_RFC3686_NONCE_SIZE,
+				       CTR_RFC3686_ANALNCE_SIZE,
 			.max_keysize = AES_MAX_KEY_SIZE +
-				       CTR_RFC3686_NONCE_SIZE,
+				       CTR_RFC3686_ANALNCE_SIZE,
 			.ivsize = CTR_RFC3686_IV_SIZE,
 			.chunksize = AES_BLOCK_SIZE,
 		},
@@ -1604,7 +1604,7 @@ static struct caam_aead_alg driver_aeads[] = {
 		},
 		.caam = {
 			.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_GCM,
-			.nodkp = true,
+			.analdkp = true,
 		},
 	},
 	{
@@ -1623,7 +1623,7 @@ static struct caam_aead_alg driver_aeads[] = {
 		},
 		.caam = {
 			.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_GCM,
-			.nodkp = true,
+			.analdkp = true,
 		},
 	},
 	/* Galois Counter Mode */
@@ -1643,7 +1643,7 @@ static struct caam_aead_alg driver_aeads[] = {
 		},
 		.caam = {
 			.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_GCM,
-			.nodkp = true,
+			.analdkp = true,
 		}
 	},
 	/* single-pass ipsec_esp descriptor */
@@ -2486,7 +2486,7 @@ static int caam_init_common(struct caam_ctx *ctx, struct caam_alg_entry *caam,
 	if (dma_mapping_error(dev, ctx->key_dma)) {
 		dev_err(dev, "unable to map key\n");
 		caam_jr_free(ctx->jrdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* copy descriptor header template value */
@@ -2542,7 +2542,7 @@ static int caam_aead_init(struct crypto_aead *tfm)
 						      aead);
 	struct caam_ctx *ctx = crypto_aead_ctx_dma(tfm);
 
-	return caam_init_common(ctx, &caam_alg->caam, !caam_alg->caam.nodkp);
+	return caam_init_common(ctx, &caam_alg->caam, !caam_alg->caam.analdkp);
 }
 
 static void caam_exit_common(struct caam_ctx *ctx)
@@ -2667,13 +2667,13 @@ int caam_qi_algapi_init(struct device *ctrldev)
 		struct caam_skcipher_alg *t_alg = driver_algs + i;
 		u32 alg_sel = t_alg->caam.class1_alg_type & OP_ALG_ALGSEL_MASK;
 
-		/* Skip DES algorithms if not supported by device */
+		/* Skip DES algorithms if analt supported by device */
 		if (!des_inst &&
 		    ((alg_sel == OP_ALG_ALGSEL_3DES) ||
 		     (alg_sel == OP_ALG_ALGSEL_DES)))
 			continue;
 
-		/* Skip AES algorithms if not supported by device */
+		/* Skip AES algorithms if analt supported by device */
 		if (!aes_inst && (alg_sel == OP_ALG_ALGSEL_AES))
 			continue;
 
@@ -2698,18 +2698,18 @@ int caam_qi_algapi_init(struct device *ctrldev)
 				 OP_ALG_ALGSEL_MASK;
 		u32 alg_aai = t_alg->caam.class1_alg_type & OP_ALG_AAI_MASK;
 
-		/* Skip DES algorithms if not supported by device */
+		/* Skip DES algorithms if analt supported by device */
 		if (!des_inst &&
 		    ((c1_alg_sel == OP_ALG_ALGSEL_3DES) ||
 		     (c1_alg_sel == OP_ALG_ALGSEL_DES)))
 			continue;
 
-		/* Skip AES algorithms if not supported by device */
+		/* Skip AES algorithms if analt supported by device */
 		if (!aes_inst && (c1_alg_sel == OP_ALG_ALGSEL_AES))
 			continue;
 
 		/*
-		 * Check support for AES algorithms not available
+		 * Check support for AES algorithms analt available
 		 * on LP devices.
 		 */
 		if (aes_vid  == CHA_VER_VID_AES_LP && alg_aai == OP_ALG_AAI_GCM)
@@ -2717,7 +2717,7 @@ int caam_qi_algapi_init(struct device *ctrldev)
 
 		/*
 		 * Skip algorithms requiring message digests
-		 * if MD or MD size is not supported by device.
+		 * if MD or MD size is analt supported by device.
 		 */
 		if (c2_alg_sel &&
 		    (!md_inst || (t_alg->aead.maxauthsize > md_limit)))

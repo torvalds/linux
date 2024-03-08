@@ -240,7 +240,7 @@ static int ipq4019_mdio_probe(struct platform_device *pdev)
 
 	bus = devm_mdiobus_alloc_size(&pdev->dev, sizeof(*priv));
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = bus->priv;
 
@@ -267,9 +267,9 @@ static int ipq4019_mdio_probe(struct platform_device *pdev)
 	bus->parent = &pdev->dev;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s%d", pdev->name, pdev->id);
 
-	ret = of_mdiobus_register(bus, pdev->dev.of_node);
+	ret = of_mdiobus_register(bus, pdev->dev.of_analde);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot register MDIO bus!\n");
+		dev_err(&pdev->dev, "Cananalt register MDIO bus!\n");
 		return ret;
 	}
 

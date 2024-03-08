@@ -75,11 +75,11 @@ static int ti_sci_intr_irq_domain_translate(struct irq_domain *domain,
  * @intr:	IRQ domain corresponding to Interrupt Router
  * @irq:	Hardware irq corresponding to the above irq domain
  *
- * Return parent irq number if translation is available else -ENOENT.
+ * Return parent irq number if translation is available else -EANALENT.
  */
 static int ti_sci_intr_xlate_irq(struct ti_sci_intr_irq_domain *intr, u32 irq)
 {
-	struct device_node *np = dev_of_node(intr->dev);
+	struct device_analde *np = dev_of_analde(intr->dev);
 	u32 base, pbase, size, len;
 	const __be32 *range;
 
@@ -96,7 +96,7 @@ static int ti_sci_intr_xlate_irq(struct ti_sci_intr_irq_domain *intr, u32 irq)
 			return irq - base + pbase;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /**
@@ -135,7 +135,7 @@ static int ti_sci_intr_alloc_parent_irq(struct irq_domain *domain,
 					unsigned int virq, u32 hwirq)
 {
 	struct ti_sci_intr_irq_domain *intr = domain->host_data;
-	struct device_node *parent_node;
+	struct device_analde *parent_analde;
 	struct irq_fwspec fwspec;
 	int p_hwirq, err = 0;
 	u16 out_irq;
@@ -148,10 +148,10 @@ static int ti_sci_intr_alloc_parent_irq(struct irq_domain *domain,
 	if (p_hwirq < 0)
 		goto err_irqs;
 
-	parent_node = of_irq_find_parent(dev_of_node(intr->dev));
-	fwspec.fwnode = of_node_to_fwnode(parent_node);
+	parent_analde = of_irq_find_parent(dev_of_analde(intr->dev));
+	fwspec.fwanalde = of_analde_to_fwanalde(parent_analde);
 
-	if (of_device_is_compatible(parent_node, "arm,gic-v3")) {
+	if (of_device_is_compatible(parent_analde, "arm,gic-v3")) {
 		/* Parent is GIC */
 		fwspec.param_count = 3;
 		fwspec.param[0] = 0;	/* SPI */
@@ -225,29 +225,29 @@ static int ti_sci_intr_irq_domain_probe(struct platform_device *pdev)
 {
 	struct irq_domain *parent_domain, *domain;
 	struct ti_sci_intr_irq_domain *intr;
-	struct device_node *parent_node;
+	struct device_analde *parent_analde;
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	parent_node = of_irq_find_parent(dev_of_node(dev));
-	if (!parent_node) {
-		dev_err(dev, "Failed to get IRQ parent node\n");
-		return -ENODEV;
+	parent_analde = of_irq_find_parent(dev_of_analde(dev));
+	if (!parent_analde) {
+		dev_err(dev, "Failed to get IRQ parent analde\n");
+		return -EANALDEV;
 	}
 
-	parent_domain = irq_find_host(parent_node);
-	of_node_put(parent_node);
+	parent_domain = irq_find_host(parent_analde);
+	of_analde_put(parent_analde);
 	if (!parent_domain) {
 		dev_err(dev, "Failed to find IRQ parent domain\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	intr = devm_kzalloc(dev, sizeof(*intr), GFP_KERNEL);
 	if (!intr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intr->dev = dev;
-	ret = of_property_read_u32(dev_of_node(dev), "ti,intr-trigger-type",
+	ret = of_property_read_u32(dev_of_analde(dev), "ti,intr-trigger-type",
 				   &intr->type);
 	if (ret) {
 		dev_err(dev, "missing ti,intr-trigger-type property\n");
@@ -259,7 +259,7 @@ static int ti_sci_intr_irq_domain_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(intr->sci),
 				     "ti,sci read fail\n");
 
-	ret = of_property_read_u32(dev_of_node(dev), "ti,sci-dev-id",
+	ret = of_property_read_u32(dev_of_analde(dev), "ti,sci-dev-id",
 				   &intr->ti_sci_id);
 	if (ret) {
 		dev_err(dev, "missing 'ti,sci-dev-id' property\n");
@@ -274,11 +274,11 @@ static int ti_sci_intr_irq_domain_probe(struct platform_device *pdev)
 		return PTR_ERR(intr->out_irqs);
 	}
 
-	domain = irq_domain_add_hierarchy(parent_domain, 0, 0, dev_of_node(dev),
+	domain = irq_domain_add_hierarchy(parent_domain, 0, 0, dev_of_analde(dev),
 					  &ti_sci_intr_irq_domain_ops, intr);
 	if (!domain) {
 		dev_err(dev, "Failed to allocate IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev_info(dev, "Interrupt Router %d domain created\n", intr->ti_sci_id);

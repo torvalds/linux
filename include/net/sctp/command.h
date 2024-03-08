@@ -26,7 +26,7 @@
 
 
 enum sctp_verb {
-	SCTP_CMD_NOP = 0,	/* Do nothing. */
+	SCTP_CMD_ANALP = 0,	/* Do analthing. */
 	SCTP_CMD_NEW_ASOC,	/* Register a new association.  */
 	SCTP_CMD_DELETE_TCB,	/* Delete the current association. */
 	SCTP_CMD_NEW_STATE,	/* Enter a new state.  */
@@ -37,7 +37,7 @@ enum sctp_verb {
 	SCTP_CMD_PEER_INIT,	/* Process a INIT from the peer.  */
 	SCTP_CMD_GEN_COOKIE_ECHO, /* Generate a COOKIE ECHO chunk. */
 	SCTP_CMD_CHUNK_ULP,	/* Send a chunk to the sockets layer.  */
-	SCTP_CMD_EVENT_ULP,	/* Send a notification to the sockets layer. */
+	SCTP_CMD_EVENT_ULP,	/* Send a analtification to the sockets layer. */
 	SCTP_CMD_REPLY,		/* Send a chunk to our peer.  */
 	SCTP_CMD_SEND_PKT,	/* Send a full packet to our peer.  */
 	SCTP_CMD_RETRAN,	/* Mark a transport for retransmission.  */
@@ -79,13 +79,13 @@ enum sctp_verb {
 	SCTP_CMD_REPORT_FWDTSN,	 /* Report new cumulative TSN Ack. */
 	SCTP_CMD_PROCESS_FWDTSN, /* Skips were reported, so process further. */
 	SCTP_CMD_CLEAR_INIT_TAG, /* Clears association peer's inittag. */
-	SCTP_CMD_DEL_NON_PRIMARY, /* Removes non-primary peer transports. */
+	SCTP_CMD_DEL_ANALN_PRIMARY, /* Removes analn-primary peer transports. */
 	SCTP_CMD_T3_RTX_TIMERS_STOP, /* Stops T3-rtx pending timers */
 	SCTP_CMD_FORCE_PRIM_RETRAN,  /* Forces retrans. over primary path. */
 	SCTP_CMD_SET_SK_ERR,	 /* Set sk_err */
 	SCTP_CMD_ASSOC_CHANGE,	 /* generate and send assoc_change event */
 	SCTP_CMD_ADAPTATION_IND, /* generate and send adaptation event */
-	SCTP_CMD_PEER_NO_AUTH,   /* generate and send authentication event */
+	SCTP_CMD_PEER_ANAL_AUTH,   /* generate and send authentication event */
 	SCTP_CMD_ASSOC_SHKEY,    /* generate the association shared keys */
 	SCTP_CMD_T1_RETRAN,	 /* Mark for retransmission after T1 timeout  */
 	SCTP_CMD_UPDATE_INITTAG, /* Update peer inittag */
@@ -169,7 +169,7 @@ static inline union sctp_arg SCTP_FORCE(void)
 	return SCTP_I32(1);
 }
 
-static inline union sctp_arg SCTP_NOFORCE(void)
+static inline union sctp_arg SCTP_ANALFORCE(void)
 {
 	return SCTP_I32(0);
 }

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_DEVICE_H
 #define PVR_DEVICE_H
@@ -49,10 +49,10 @@ struct pvr_gpu_id {
 /**
  * struct pvr_fw_version - Firmware version information
  * @major: Major version number.
- * @minor: Minor version number.
+ * @mianalr: Mianalr version number.
  */
 struct pvr_fw_version {
-	u16 major, minor;
+	u16 major, mianalr;
 };
 
 /**
@@ -62,7 +62,7 @@ struct pvr_device {
 	/**
 	 * @base: The underlying &struct drm_device.
 	 *
-	 * Do not access this member directly, instead call
+	 * Do analt access this member directly, instead call
 	 * from_pvr_device().
 	 */
 	struct drm_device base;
@@ -73,7 +73,7 @@ struct pvr_device {
 	/**
 	 * @features: Hardware feature information.
 	 *
-	 * Do not access this member directly, instead use PVR_HAS_FEATURE()
+	 * Do analt access this member directly, instead use PVR_HAS_FEATURE()
 	 * or PVR_FEATURE_VALUE() macros.
 	 */
 	struct pvr_device_features features;
@@ -81,14 +81,14 @@ struct pvr_device {
 	/**
 	 * @quirks: Hardware quirk information.
 	 *
-	 * Do not access this member directly, instead use PVR_HAS_QUIRK().
+	 * Do analt access this member directly, instead use PVR_HAS_QUIRK().
 	 */
 	struct pvr_device_quirks quirks;
 
 	/**
 	 * @enhancements: Hardware enhancement information.
 	 *
-	 * Do not access this member directly, instead use
+	 * Do analt access this member directly, instead use
 	 * PVR_HAS_ENHANCEMENT().
 	 */
 	struct pvr_device_enhancements enhancements;
@@ -261,9 +261,9 @@ struct pvr_device {
 			 *  allocated with dma_fence_context_alloc(). */
 			u64 id;
 
-			/** @kccb.fence_ctx.seqno: Sequence number incremented
+			/** @kccb.fence_ctx.seqanal: Sequence number incremented
 			 *  each time a fence is created. */
-			atomic_t seqno;
+			atomic_t seqanal;
 
 			/**
 			 * @kccb.fence_ctx.lock: Lock used to synchronize
@@ -277,7 +277,7 @@ struct pvr_device {
 	 * @lost: %true if the device has been lost.
 	 *
 	 * This variable is set if the device has become irretrievably unavailable, e.g. if the
-	 * firmware processor has stopped responding and can not be revived via a hard reset.
+	 * firmware processor has stopped responding and can analt be revived via a hard reset.
 	 */
 	bool lost;
 
@@ -303,7 +303,7 @@ struct pvr_file {
 	/**
 	 * @file: A reference to the parent &struct drm_file.
 	 *
-	 * Do not access this member directly, instead call from_pvr_file().
+	 * Do analt access this member directly, instead call from_pvr_file().
 	 */
 	struct drm_file *file;
 
@@ -356,7 +356,7 @@ struct pvr_file {
  *
  * Return:
  *  * true if the named feature is present in the hardware
- *  * false if the named feature is not present in the hardware
+ *  * false if the named feature is analt present in the hardware
  */
 #define PVR_HAS_FEATURE(pvr_dev, feature) ((pvr_dev)->features.has_##feature)
 
@@ -367,14 +367,14 @@ struct pvr_file {
  * @value_out: [OUT] Feature value.
  *
  * This macro will get a feature value for those features that have values.
- * If the feature is not present, nothing will be stored to @value_out.
+ * If the feature is analt present, analthing will be stored to @value_out.
  *
  * Feature names are derived from those found in &struct pvr_device_features by
  * dropping the 'has_' prefix.
  *
  * Return:
  *  * 0 on success, or
- *  * -%EINVAL if the named feature is not present in the hardware
+ *  * -%EINVAL if the named feature is analt present in the hardware
  */
 #define PVR_FEATURE_VALUE(pvr_dev, feature, value_out)             \
 	({                                                         \
@@ -397,7 +397,7 @@ struct pvr_file {
  *
  * Returns
  *  * true if the quirk is present in the hardware, or
- *  * false if the quirk is not present in the hardware.
+ *  * false if the quirk is analt present in the hardware.
  */
 #define PVR_HAS_QUIRK(pvr_dev, quirk) ((pvr_dev)->quirks.has_brn##quirk)
 
@@ -412,7 +412,7 @@ struct pvr_file {
  *
  * Returns
  *  * true if the enhancement is present in the hardware, or
- *  * false if the enhancement is not present in the hardware.
+ *  * false if the enhancement is analt present in the hardware.
  */
 #define PVR_HAS_ENHANCEMENT(pvr_dev, enhancement) ((pvr_dev)->enhancements.has_ern##enhancement)
 
@@ -675,7 +675,7 @@ pvr_ioctl_union_padding_check(void *instance, size_t union_offset,
  * PVR_STATIC_ASSERT_64BIT_ALIGNED() - Inline assertion for 64-bit alignment.
  * @static_expr_: Target expression to evaluate.
  *
- * If @static_expr_ does not evaluate to a constant integer which would be a
+ * If @static_expr_ does analt evaluate to a constant integer which would be a
  * 64-bit aligned address (i.e. a multiple of 8), compilation will fail.
  *
  * Return:

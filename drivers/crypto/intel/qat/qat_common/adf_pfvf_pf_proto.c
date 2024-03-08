@@ -13,8 +13,8 @@
 typedef u8 (*pf2vf_blkmsg_data_getter_fn)(u8 const *blkmsg, u8 byte);
 
 static const adf_pf2vf_blkmsg_provider pf2vf_blkmsg_providers[] = {
-	NULL,				  /* no message type defined for value 0 */
-	NULL,				  /* no message type defined for value 1 */
+	NULL,				  /* anal message type defined for value 0 */
+	NULL,				  /* anal message type defined for value 1 */
 	adf_pf_capabilities_msg_provider, /* ADF_VF2PF_BLKMSG_REQ_CAP_SUMMARY */
 	adf_pf_ring_to_svc_msg_provider,  /* ADF_VF2PF_BLKMSG_REQ_RING_SVC_MAP */
 };
@@ -89,13 +89,13 @@ static int adf_pf2vf_blkmsg_get_data(struct adf_accel_vf_info *vf_info,
 	provider = get_blkmsg_response_provider(type);
 
 	if (unlikely(!provider)) {
-		pr_err("QAT: No registered provider for message %d\n", type);
+		pr_err("QAT: Anal registered provider for message %d\n", type);
 		*data = ADF_PF2VF_INVALID_BLOCK_TYPE;
 		return -EINVAL;
 	}
 
 	if (unlikely((*provider)(accel_dev, blkmsg, vf_info->vf_compat_ver))) {
-		pr_err("QAT: unknown error from provider for message %d\n", type);
+		pr_err("QAT: unkanalwn error from provider for message %d\n", type);
 		*data = ADF_PF2VF_UNSPECIFIED_ERROR;
 		return -EINVAL;
 	}
@@ -198,8 +198,8 @@ static struct pfvf_message handle_rp_reset_req(struct adf_accel_dev *accel_dev, 
 
 	if (!hw_data->ring_pair_reset || rsvd_field) {
 		dev_dbg(&GET_DEV(accel_dev),
-			"Ring Pair Reset for VF%d is not supported\n", vf_nr);
-		resp.data = RPRESET_NOT_SUPPORTED;
+			"Ring Pair Reset for VF%d is analt supported\n", vf_nr);
+		resp.data = RPRESET_ANALT_SUPPORTED;
 		goto out;
 	}
 
@@ -247,7 +247,7 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr,
 		else if (vf_compat_ver <= ADF_PFVF_COMPAT_THIS_VERSION)
 			compat = ADF_PF2VF_VF_COMPATIBLE;
 		else
-			compat = ADF_PF2VF_VF_COMPAT_UNKNOWN;
+			compat = ADF_PF2VF_VF_COMPAT_UNKANALWN;
 
 		vf_info->vf_compat_ver = vf_compat_ver;
 
@@ -271,7 +271,7 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr,
 		/* PF always newer than legacy VF */
 		compat = ADF_PF2VF_VF_COMPATIBLE;
 
-		/* Set legacy major and minor version to the latest, 1.1 */
+		/* Set legacy major and mianalr version to the latest, 1.1 */
 		resp->type = ADF_PF2VF_MSGTYPE_VERSION_RESP;
 		resp->data = FIELD_PREP(ADF_PF2VF_VERSION_RESP_VERS_MASK, 0x11) |
 			     FIELD_PREP(ADF_PF2VF_VERSION_RESP_RESULT_MASK, compat);
@@ -301,9 +301,9 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr,
 		break;
 	default:
 		dev_dbg(&GET_DEV(accel_dev),
-			"Unknown message from VF%d (type 0x%.4x, data: 0x%.4x)\n",
+			"Unkanalwn message from VF%d (type 0x%.4x, data: 0x%.4x)\n",
 			vf_nr, msg.type, msg.data);
-		return -ENOMSG;
+		return -EANALMSG;
 	}
 
 	return 0;
@@ -315,7 +315,7 @@ bool adf_recv_and_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr)
 	struct pfvf_message resp = {0};
 
 	req = adf_recv_vf2pf_msg(accel_dev, vf_nr);
-	if (!req.type)  /* Legacy or no message */
+	if (!req.type)  /* Legacy or anal message */
 		return true;
 
 	if (adf_handle_vf2pf_msg(accel_dev, vf_nr, req, &resp))

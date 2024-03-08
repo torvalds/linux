@@ -66,11 +66,11 @@ What:		/sys/class/power_supply/ltc4162-l/arm_ship_mode
 Date:		Januari 2021
 KernelVersion:	5.11
 Description:
-		The charger will normally drain the battery while inactive,
+		The charger will analrmally drain the battery while inactive,
 		typically drawing about 54 microamps. Write a "1" to this
 		property to arm a special "ship" mode that extends shelf life
 		by reducing the leakage to about 2.8 microamps. The chip will
-		remain in this mode (and no longer respond to I2C commands)
+		remain in this mode (and anal longer respond to I2C commands)
 		until some external power-supply is attached raising the input
 		voltage above 1V. It will then automatically revert to "0".
 		Writing a "0" to the property cancels the "ship" mode request.

@@ -28,7 +28,7 @@
  * ensure crash data is preserved in hope that the subsequent memory
  * preserving kernel boot is going to process this crash data.
  */
-void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
+void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 analde)
 {
 	const struct opal_fadump_mem_struct *opal_fdm_active;
 	const __be32 *prop;
@@ -36,8 +36,8 @@ void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
 	u64 addr = 0;
 	s64 ret;
 
-	dn = of_get_flat_dt_subnode_by_name(node, "dump");
-	if (dn == -FDT_ERR_NOTFOUND)
+	dn = of_get_flat_dt_subanalde_by_name(analde, "dump");
+	if (dn == -FDT_ERR_ANALTFOUND)
 		return;
 
 	/*
@@ -49,7 +49,7 @@ void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
 
 	ret = opal_mpipl_query_tag(OPAL_MPIPL_TAG_KERNEL, &addr);
 	if ((ret != OPAL_SUCCESS) || !addr) {
-		pr_debug("Could not get Kernel metadata (%lld)\n", ret);
+		pr_debug("Could analt get Kernel metadata (%lld)\n", ret);
 		return;
 	}
 
@@ -148,15 +148,15 @@ static void __init opal_fadump_get_config(struct fw_dump *fadump_conf,
 	/*
 	 * Rarely, but it can so happen that system crashes before all
 	 * boot memory regions are registered for MPIPL. In such
-	 * cases, warn that the vmcore may not be accurate and proceed
+	 * cases, warn that the vmcore may analt be accurate and proceed
 	 * anyway as that is the best bet considering free pages, cache
 	 * pages, user pages, etc are usually filtered out.
 	 *
-	 * Hope the memory that could not be preserved only has pages
+	 * Hope the memory that could analt be preserved only has pages
 	 * that are usually filtered out while saving the vmcore.
 	 */
 	if (be16_to_cpu(fdm->region_cnt) > be16_to_cpu(fdm->registered_regions)) {
-		pr_warn("Not all memory regions were saved!!!\n");
+		pr_warn("Analt all memory regions were saved!!!\n");
 		pr_warn("  Unsaved memory regions:\n");
 		i = be16_to_cpu(fdm->registered_regions);
 		while (i < be16_to_cpu(fdm->region_cnt)) {
@@ -297,7 +297,7 @@ static int opal_fadump_register(struct fw_dump *fadump_conf)
 		break;
 	case OPAL_RESOURCE:
 		/* If MAX regions limit in f/w is hit, warn and proceed. */
-		pr_warn("%d regions could not be registered for MPIPL as MAX limit is reached!\n",
+		pr_warn("%d regions could analt be registered for MPIPL as MAX limit is reached!\n",
 			(be16_to_cpu(opal_fdm->region_cnt) -
 			 be16_to_cpu(opal_fdm->registered_regions)));
 		fadump_conf->dump_registered = 1;
@@ -307,12 +307,12 @@ static int opal_fadump_register(struct fw_dump *fadump_conf)
 		pr_err("Failed to register. Parameter Error(%lld).\n", rc);
 		break;
 	case OPAL_HARDWARE:
-		pr_err("Support not available.\n");
+		pr_err("Support analt available.\n");
 		fadump_conf->fadump_supported = 0;
 		fadump_conf->fadump_enabled = 0;
 		break;
 	default:
-		pr_err("Failed to register. Unknown Error(%lld).\n", rc);
+		pr_err("Failed to register. Unkanalwn Error(%lld).\n", rc);
 		break;
 	}
 
@@ -362,7 +362,7 @@ static void opal_fadump_cleanup(struct fw_dump *fadump_conf)
 
 	ret = opal_mpipl_register_tag(OPAL_MPIPL_TAG_KERNEL, 0);
 	if (ret != OPAL_SUCCESS)
-		pr_warn("Could not reset (%llu) kernel metadata tag!\n", ret);
+		pr_warn("Could analt reset (%llu) kernel metadata tag!\n", ret);
 }
 
 /*
@@ -394,7 +394,7 @@ static bool __init is_opal_fadump_cpu_data_valid(struct fw_dump *fadump_conf)
 	    (fadump_conf->cpu_state_entry_size == 0) ||
 	    (fadump_conf->cpu_state_entry_size >
 	     fadump_conf->cpu_state_data_size)) {
-		pr_err("CPU state data is invalid. Ignoring!\n");
+		pr_err("CPU state data is invalid. Iganalring!\n");
 		return false;
 	}
 
@@ -402,7 +402,7 @@ static bool __init is_opal_fadump_cpu_data_valid(struct fw_dump *fadump_conf)
 }
 
 /*
- * Convert CPU state data saved at the time of crash into ELF notes.
+ * Convert CPU state data saved at the time of crash into ELF analtes.
  *
  * While the crashing CPU's register data is saved by the kernel, CPU state
  * data for all CPUs is saved by f/w. In CPU state data provided by f/w,
@@ -410,17 +410,17 @@ static bool __init is_opal_fadump_cpu_data_valid(struct fw_dump *fadump_conf)
  * a GPR/SPR flag in the first 8 bytes and the register value in the next
  * 8 bytes. For more details refer to F/W documentation. If this data is
  * missing or in unsupported format, append crashing CPU's register data
- * saved by the kernel in the PT_NOTE, to have something to work with in
+ * saved by the kernel in the PT_ANALTE, to have something to work with in
  * the vmcore file.
  */
 static int __init
-opal_fadump_build_cpu_notes(struct fw_dump *fadump_conf,
+opal_fadump_build_cpu_analtes(struct fw_dump *fadump_conf,
 			    struct fadump_crash_info_header *fdh)
 {
 	u32 thread_pir, size_per_thread, regs_offset, regs_cnt, reg_esize;
 	struct hdat_fadump_thread_hdr *thdr;
 	bool is_cpu_data_valid = false;
-	u32 num_cpus = 1, *note_buf;
+	u32 num_cpus = 1, *analte_buf;
 	struct pt_regs regs;
 	char *bufp;
 	int rc, i;
@@ -432,11 +432,11 @@ opal_fadump_build_cpu_notes(struct fw_dump *fadump_conf,
 		is_cpu_data_valid = true;
 	}
 
-	rc = fadump_setup_cpu_notes_buf(num_cpus);
+	rc = fadump_setup_cpu_analtes_buf(num_cpus);
 	if (rc != 0)
 		return rc;
 
-	note_buf = (u32 *)fadump_conf->cpu_notes_buf_vaddr;
+	analte_buf = (u32 *)fadump_conf->cpu_analtes_buf_vaddr;
 	if (!is_cpu_data_valid)
 		goto out;
 
@@ -467,11 +467,11 @@ opal_fadump_build_cpu_notes(struct fw_dump *fadump_conf,
 		 * If this is kernel initiated crash, crashing_cpu would be set
 		 * appropriately and register data of the crashing CPU saved by
 		 * crashing kernel. Add this saved register data of crashing CPU
-		 * to elf notes and populate the pt_regs for the remaining CPUs
+		 * to elf analtes and populate the pt_regs for the remaining CPUs
 		 * from register state data provided by firmware.
 		 */
 		if (fdh->crashing_cpu == thread_pir) {
-			note_buf = fadump_regs_to_elf_notes(note_buf,
+			analte_buf = fadump_regs_to_elf_analtes(analte_buf,
 							    &fdh->regs);
 			pr_debug("Crashing CPU PIR: 0x%x - R1 : 0x%lx, NIP : 0x%lx\n",
 				 fdh->crashing_cpu, fdh->regs.gpr[1],
@@ -481,7 +481,7 @@ opal_fadump_build_cpu_notes(struct fw_dump *fadump_conf,
 
 		/*
 		 * Register state data of MAX cores is provided by firmware,
-		 * but some of this cores may not be active. So, while
+		 * but some of this cores may analt be active. So, while
 		 * processing register state data, check core state and
 		 * skip threads that belong to inactive cores.
 		 */
@@ -490,7 +490,7 @@ opal_fadump_build_cpu_notes(struct fw_dump *fadump_conf,
 
 		opal_fadump_read_regs((bufp + regs_offset), regs_cnt,
 				      reg_esize, true, &regs);
-		note_buf = fadump_regs_to_elf_notes(note_buf, &regs);
+		analte_buf = fadump_regs_to_elf_analtes(analte_buf, &regs);
 		pr_debug("CPU PIR: 0x%x - R1 : 0x%lx, NIP : 0x%lx\n",
 			 thread_pir, regs.gpr[1], regs.nip);
 	}
@@ -500,19 +500,19 @@ out:
 	 * CPU state data is invalid/unsupported. Try appending crashing CPU's
 	 * register data, if it is saved by the kernel.
 	 */
-	if (fadump_conf->cpu_notes_buf_vaddr == (u64)note_buf) {
-		if (fdh->crashing_cpu == FADUMP_CPU_UNKNOWN) {
-			fadump_free_cpu_notes_buf();
-			return -ENODEV;
+	if (fadump_conf->cpu_analtes_buf_vaddr == (u64)analte_buf) {
+		if (fdh->crashing_cpu == FADUMP_CPU_UNKANALWN) {
+			fadump_free_cpu_analtes_buf();
+			return -EANALDEV;
 		}
 
 		pr_warn("WARNING: appending only crashing CPU's register data\n");
-		note_buf = fadump_regs_to_elf_notes(note_buf, &(fdh->regs));
+		analte_buf = fadump_regs_to_elf_analtes(analte_buf, &(fdh->regs));
 	}
 
-	final_note(note_buf);
+	final_analte(analte_buf);
 
-	pr_debug("Updating elfcore header (%llx) with cpu notes\n",
+	pr_debug("Updating elfcore header (%llx) with cpu analtes\n",
 		 fdh->elfcorehdr_addr);
 	fadump_update_elfcore_header(__va(fdh->elfcorehdr_addr));
 	return 0;
@@ -529,7 +529,7 @@ static int __init opal_fadump_process(struct fw_dump *fadump_conf)
 	/* Validate the fadump crash info header */
 	fdh = __va(fadump_conf->fadumphdr_addr);
 	if (fdh->magic_number != FADUMP_CRASH_INFO_MAGIC) {
-		pr_err("Crash info header is not valid.\n");
+		pr_err("Crash info header is analt valid.\n");
 		return rc;
 	}
 
@@ -538,19 +538,19 @@ static int __init opal_fadump_process(struct fw_dump *fadump_conf)
 	 * If this is a kernel initiated crash, crashing_cpu would be set
 	 * appropriately and register data of the crashing CPU saved by
 	 * crashing kernel. Add this saved register data of crashing CPU
-	 * to elf notes and populate the pt_regs for the remaining CPUs
+	 * to elf analtes and populate the pt_regs for the remaining CPUs
 	 * from register state data provided by firmware.
 	 */
-	if (fdh->crashing_cpu != FADUMP_CPU_UNKNOWN)
+	if (fdh->crashing_cpu != FADUMP_CPU_UNKANALWN)
 		kernel_initiated = true;
 #endif
 
-	rc = opal_fadump_build_cpu_notes(fadump_conf, fdh);
+	rc = opal_fadump_build_cpu_analtes(fadump_conf, fdh);
 	if (rc)
 		return rc;
 
 	/*
-	 * We are done validating dump info and elfcore header is now ready
+	 * We are done validating dump info and elfcore header is analw ready
 	 * to be exported. set elfcorehdr_addr so that vmcore module will
 	 * export the elfcore header through '/proc/vmcore'.
 	 */
@@ -600,7 +600,7 @@ static void opal_fadump_trigger(struct fadump_crash_info_header *fdh,
 	int rc;
 
 	/*
-	 * Unlike on pSeries platform, logical CPU number is not provided
+	 * Unlike on pSeries platform, logical CPU number is analt provided
 	 * with architected register state data. So, store the crashing
 	 * CPU's PIR instead to plug the appropriate register data for
 	 * crashing CPU in the vmcore file.
@@ -609,10 +609,10 @@ static void opal_fadump_trigger(struct fadump_crash_info_header *fdh,
 
 	rc = opal_cec_reboot2(OPAL_REBOOT_MPIPL, msg);
 	if (rc == OPAL_UNSUPPORTED) {
-		pr_emerg("Reboot type %d not supported.\n",
+		pr_emerg("Reboot type %d analt supported.\n",
 			 OPAL_REBOOT_MPIPL);
 	} else if (rc == OPAL_HARDWARE)
-		pr_emerg("No backend support for MPIPL!\n");
+		pr_emerg("Anal backend support for MPIPL!\n");
 }
 
 static struct fadump_ops opal_fadump_ops = {
@@ -629,7 +629,7 @@ static struct fadump_ops opal_fadump_ops = {
 	.fadump_trigger			= opal_fadump_trigger,
 };
 
-void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
+void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 analde)
 {
 	const __be32 *prop;
 	unsigned long dn;
@@ -639,11 +639,11 @@ void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
 	s64 ret;
 
 	/*
-	 * Check if Firmware-Assisted Dump is supported. if yes, check
+	 * Check if Firmware-Assisted Dump is supported. if anal, check
 	 * if dump has been initiated on last reboot.
 	 */
-	dn = of_get_flat_dt_subnode_by_name(node, "dump");
-	if (dn == -FDT_ERR_NOTFOUND) {
+	dn = of_get_flat_dt_subanalde_by_name(analde, "dump");
+	if (dn == -FDT_ERR_ANALTFOUND) {
 		pr_debug("FADump support is missing!\n");
 		return;
 	}
@@ -668,7 +668,7 @@ void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
 			if (end > OPAL_FADUMP_MIN_BOOT_MEM) {
 				pr_err("F/W load area: 0x%llx-0x%llx\n",
 				       base, end);
-				pr_err("F/W version not supported!\n");
+				pr_err("F/W version analt supported!\n");
 				return;
 			}
 		}
@@ -706,7 +706,7 @@ void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
 		pr_warn("WARNING: Kernel metadata format mismatch identified! Core file maybe corrupted..\n");
 	}
 
-	/* Kernel regions not registered with f/w for MPIPL */
+	/* Kernel regions analt registered with f/w for MPIPL */
 	if (be16_to_cpu(opal_fdm_active->registered_regions) == 0) {
 		opal_fdm_active = NULL;
 		return;

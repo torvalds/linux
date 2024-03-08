@@ -2,7 +2,7 @@
 Kernel driver i2c-nvidia-gpu
 ============================
 
-Datasheet: not publicly available.
+Datasheet: analt publicly available.
 
 Authors:
 	Ajay Gupta <ajayg@nvidia.com>

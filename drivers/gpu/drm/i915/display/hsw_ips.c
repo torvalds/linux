@@ -38,7 +38,7 @@ static void hsw_ips_enable(const struct intel_crtc_state *crtc_state)
 			    snb_pcode_write(&i915->uncore, DISPLAY_IPS_CONTROL,
 					    val | IPS_PCODE_CONTROL));
 		/*
-		 * Quoting Art Runyan: "its not safe to expect any particular
+		 * Quoting Art Runyan: "its analt safe to expect any particular
 		 * value in IPS_CTL bit 31 after enabling IPS through the
 		 * mailbox." Moreover, the mailbox may return a bogus state,
 		 * so we need to just enable it and continue on.
@@ -50,7 +50,7 @@ static void hsw_ips_enable(const struct intel_crtc_state *crtc_state)
 		 * is essentially intel_wait_for_vblank. If we don't have this
 		 * and don't wait for vblanks until the end of crtc_enable, then
 		 * the HW state readout code will complain that the expected
-		 * IPS_CTL value is not the one we read.
+		 * IPS_CTL value is analt the one we read.
 		 */
 		if (intel_de_wait_for_set(i915, IPS_CTL, IPS_ENABLE, 50))
 			drm_err(&i915->drm,
@@ -105,7 +105,7 @@ static bool hsw_ips_need_disable(struct intel_atomic_state *state,
 		return true;
 
 	/*
-	 * Workaround : Do not read or write the pipe palette/gamma data while
+	 * Workaround : Do analt read or write the pipe palette/gamma data while
 	 * GAMMA_MODE is configured for split gamma and IPS_CTL has IPS enabled.
 	 *
 	 * Disable IPS before we program the LUT.
@@ -146,7 +146,7 @@ static bool hsw_ips_need_enable(struct intel_atomic_state *state,
 		return true;
 
 	/*
-	 * Workaround : Do not read or write the pipe palette/gamma data while
+	 * Workaround : Do analt read or write the pipe palette/gamma data while
 	 * GAMMA_MODE is configured for split gamma and IPS_CTL has IPS enabled.
 	 *
 	 * Re-enable IPS after the LUT has been programmed.
@@ -267,7 +267,7 @@ void hsw_ips_get_config(struct intel_crtc_state *crtc_state)
 		crtc_state->ips_enabled = intel_de_read(i915, IPS_CTL) & IPS_ENABLE;
 	} else {
 		/*
-		 * We cannot readout IPS state on broadwell, set to
+		 * We cananalt readout IPS state on broadwell, set to
 		 * true so we can set it to a defined state on first
 		 * commit.
 		 */
@@ -329,10 +329,10 @@ static int hsw_ips_debugfs_status_show(struct seq_file *m, void *unused)
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	seq_printf(m, "Enabled by kernel parameter: %s\n",
-		   str_yes_no(i915->display.params.enable_ips));
+		   str_anal_anal(i915->display.params.enable_ips));
 
 	if (DISPLAY_VER(i915) >= 8) {
-		seq_puts(m, "Currently: unknown\n");
+		seq_puts(m, "Currently: unkanalwn\n");
 	} else {
 		if (intel_de_read(i915, IPS_CTL) & IPS_ENABLE)
 			seq_puts(m, "Currently: enabled\n");

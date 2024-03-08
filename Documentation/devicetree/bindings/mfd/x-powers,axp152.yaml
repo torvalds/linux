@@ -51,7 +51,7 @@ allOf:
         x-powers,drive-vbus-en: false
 
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:
@@ -63,7 +63,7 @@ allOf:
         x-powers,master-mode: false
 
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:
@@ -134,7 +134,7 @@ properties:
     description: >
       Set this when the N_VBUSEN pin is used as an output pin to control an
       external regulator to drive the OTG VBus, rather then as an input pin
-      which signals whether the board is driving OTG VBus or not.
+      which signals whether the board is driving OTG VBus or analt.
 
   x-powers,self-working-mode:
     type: boolean
@@ -149,103 +149,103 @@ properties:
 
   vin1-supply:
     description: >
-      DCDC1 power supply node, if present.
+      DCDC1 power supply analde, if present.
 
   vin2-supply:
     description: >
-      DCDC2 power supply node, if present.
+      DCDC2 power supply analde, if present.
 
   vin3-supply:
     description: >
-      DCDC3 power supply node, if present.
+      DCDC3 power supply analde, if present.
 
   vin4-supply:
     description: >
-      DCDC4 power supply node, if present.
+      DCDC4 power supply analde, if present.
 
   vin5-supply:
     description: >
-      DCDC5 power supply node, if present.
+      DCDC5 power supply analde, if present.
 
   vin6-supply:
     description: >
-      DCDC6 power supply node, if present.
+      DCDC6 power supply analde, if present.
 
   vin7-supply:
     description: >
-      DCDC7 power supply node, if present.
+      DCDC7 power supply analde, if present.
 
   vina-supply:
     description: >
-      DCDCA power supply node, if present.
+      DCDCA power supply analde, if present.
 
   vinb-supply:
     description: >
-      DCDCB power supply node, if present.
+      DCDCB power supply analde, if present.
 
   vinc-supply:
     description: >
-      DCDCC power supply node, if present.
+      DCDCC power supply analde, if present.
 
   vind-supply:
     description: >
-      DCDCD power supply node, if present.
+      DCDCD power supply analde, if present.
 
   vine-supply:
     description: >
-      DCDCE power supply node, if present.
+      DCDCE power supply analde, if present.
 
   acin-supply:
     description: >
-      LDO1 power supply node, if present.
+      LDO1 power supply analde, if present.
 
   ldo24in-supply:
     description: >
-      LDO2 and LDO4 power supply node, if present.
+      LDO2 and LDO4 power supply analde, if present.
 
   ldo3in-supply:
     description: >
-      LDO3 power supply node, if present.
+      LDO3 power supply analde, if present.
 
   ldo5in-supply:
     description: >
-      LDO5 power supply node, if present.
+      LDO5 power supply analde, if present.
 
   aldoin-supply:
     description: >
-      ALDO* power supply node, if present.
+      ALDO* power supply analde, if present.
 
   bldoin-supply:
     description: >
-      BLDO* power supply node, if present.
+      BLDO* power supply analde, if present.
 
   cldoin-supply:
     description: >
-      CLDO* power supply node, if present.
+      CLDO* power supply analde, if present.
 
   dldoin-supply:
     description: >
-      DLDO* power supply node, if present.
+      DLDO* power supply analde, if present.
 
   eldoin-supply:
     description: >
-      ELDO* power supply node, if present.
+      ELDO* power supply analde, if present.
 
   fldoin-supply:
     description: >
-      FLDO* power supply node, if present.
+      FLDO* power supply analde, if present.
 
   ips-supply:
     description: >
-      LDO_IO0, LDO_IO1 and RTC_LDO power supply node, if present.
+      LDO_IO0, LDO_IO1 and RTC_LDO power supply analde, if present.
 
   drivevbus-supply:
     description: >
-      DRIVEVBUS power supply node, if present.
+      DRIVEVBUS power supply analde, if present.
 
   swin-supply:
     description: >
-      SW power supply node, if present.
+      SW power supply analde, if present.
 
   adc:
     $ref: /schemas/iio/adc/x-powers,axp209-adc.yaml#
@@ -296,7 +296,7 @@ properties:
               mixed PWM/PFM mode, using PFM under light loads and
               switching to PWM for heavier loads. Forcing PWM mode
               trades efficiency under light loads for lower output
-              noise. This probably makes sense for HiFi audio related
+              analise. This probably makes sense for HiFi audio related
               applications that aren't battery constrained.
 
     additionalProperties: false

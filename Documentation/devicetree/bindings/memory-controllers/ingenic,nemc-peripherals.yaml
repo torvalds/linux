@@ -21,23 +21,23 @@ properties:
 
   ingenic,nemc-tAS:
     $ref: /schemas/types.yaml#/definitions/uint32
-    description: Address setup time in nanoseconds.
+    description: Address setup time in naanalseconds.
 
   ingenic,nemc-tAH:
     $ref: /schemas/types.yaml#/definitions/uint32
-    description: Address hold time in nanoseconds.
+    description: Address hold time in naanalseconds.
 
   ingenic,nemc-tBP:
     $ref: /schemas/types.yaml#/definitions/uint32
-    description: Burst pitch time in nanoseconds.
+    description: Burst pitch time in naanalseconds.
 
   ingenic,nemc-tAW:
     $ref: /schemas/types.yaml#/definitions/uint32
-    description: Address wait time in nanoseconds.
+    description: Address wait time in naanalseconds.
 
   ingenic,nemc-tSTRV:
     $ref: /schemas/types.yaml#/definitions/uint32
-    description: Static memory recovery time in nanoseconds.
+    description: Static memory recovery time in naanalseconds.
 
 required:
   - reg

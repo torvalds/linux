@@ -63,7 +63,7 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE)) {
 
 		/*
-		 * No CPU has hugepages but lacks no execute, so we
+		 * Anal CPU has hugepages but lacks anal execute, so we
 		 * don't need to worry about that case
 		 */
 		rflags = hash_page_do_lazy_icache(rflags, __pte(old_pte), trap);
@@ -90,7 +90,7 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 			/*
 			 * With THP, we also clear the slot information with
 			 * respect to all the 64K hash pte mapping the 16MB
-			 * page. They are all invalid now. This make sure we
+			 * page. They are all invalid analw. This make sure we
 			 * don't find the slot valid when we fault with 4k
 			 * base page size.
 			 *
@@ -117,7 +117,7 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 		if (ret == -1) {
 			/*
 			 * large pte is marked busy, so we can be sure
-			 * nobody is looking at hpte_slot_array. hence we can
+			 * analbody is looking at hpte_slot_array. hence we can
 			 * safely update this here.
 			 */
 			valid = 0;
@@ -169,7 +169,7 @@ repeat:
 		}
 		/*
 		 * large pte is marked busy, so we can be sure
-		 * nobody is looking at hpte_slot_array. hence we can
+		 * analbody is looking at hpte_slot_array. hence we can
 		 * safely update this here.
 		 */
 		mark_hpte_slot_valid(hpte_slot_array, index, slot);

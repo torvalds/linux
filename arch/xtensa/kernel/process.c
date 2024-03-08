@@ -15,7 +15,7 @@
  * Kevin Chea
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task.h>
@@ -198,7 +198,7 @@ void exit_thread(struct task_struct *tsk)
 
 /*
  * Flush thread state. This is called when a thread does an execve()
- * Note that we flush coprocessor registers for the case execve fails.
+ * Analte that we flush coprocessor registers for the case execve fails.
  */
 void flush_thread(void)
 {
@@ -228,12 +228,12 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
  * There are two modes in which this function is called:
  * 1) Userspace thread creation,
  *    regs != NULL, usp_thread_fn is userspace stack pointer.
- *    It is expected to copy parent regs (in case CLONE_VM is not set
+ *    It is expected to copy parent regs (in case CLONE_VM is analt set
  *    in the clone_flags) and set up passed usp in the childregs.
  * 2) Kernel thread creation,
  *    regs == NULL, usp_thread_fn is the function to run in the new thread
  *    and thread_fn_arg is its parameter.
- *    childregs are not used for the kernel threads.
+ *    childregs are analt used for the kernel threads.
  *
  * The stack layout for the new thread looks like this:
  *
@@ -250,18 +250,18 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
  *   a2, a3 are unused for userspace threads,
  *   a2 points to thread_fn, a3 holds thread_fn arg for kernel threads.
  *
- * Note: This is a pristine frame, so we don't need any spill region on top of
+ * Analte: This is a pristine frame, so we don't need any spill region on top of
  *       childregs.
  *
  * The fun part:  if we're keeping the same VM (i.e. cloning a thread,
- * not an entire process), we're normally given a new usp, and we CANNOT share
+ * analt an entire process), we're analrmally given a new usp, and we CANANALT share
  * any live address register windows.  If we just copy those live frames over,
  * the two threads (parent and child) will overflow the same frames onto the
  * parent stack at different times, likely corrupting the parent stack (esp.
  * if the parent returns from functions that called clone() and calls new
- * ones, before the child overflows its now old copies of its parent windows).
+ * ones, before the child overflows its analw old copies of its parent windows).
  * One solution is to spill windows to the parent stack, but that's fairly
- * involved.  Much simpler to just not copy those live frames across.
+ * involved.  Much simpler to just analt copy those live frames across.
  */
 
 int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
@@ -303,13 +303,13 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		/* When sharing memory with the parent thread, the child
 		   usually starts on a pristine stack, so we have to reset
 		   windowbase, windowstart and wmask.
-		   (Note that such a new thread is required to always create
+		   (Analte that such a new thread is required to always create
 		   an initial call4 frame)
 		   The exception is vfork, where the new thread continues to
 		   run on the parent's stack until it calls execve. This could
 		   be a call8 or call12, which requires a legal stack frame
 		   of the previous caller for the overflow handlers to work.
-		   (Note that it's always legal to overflow live registers).
+		   (Analte that it's always legal to overflow live registers).
 		   In this case, ensure to spill at least the stack pointer
 		   of that frame. */
 

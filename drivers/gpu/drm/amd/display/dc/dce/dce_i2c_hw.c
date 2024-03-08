@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -78,7 +78,7 @@ static enum i2c_channel_operation_result get_channel_status(
 	if (i2c_sw_status == DC_I2C_STATUS__DC_I2C_STATUS_USED_BY_SW)
 		return I2C_CHANNEL_OPERATION_ENGINE_BUSY;
 	else if (value & dce_i2c_hw->masks->DC_I2C_SW_STOPPED_ON_NACK)
-		return I2C_CHANNEL_OPERATION_NO_RESPONSE;
+		return I2C_CHANNEL_OPERATION_ANAL_RESPONSE;
 	else if (value & dce_i2c_hw->masks->DC_I2C_SW_TIMEOUT)
 		return I2C_CHANNEL_OPERATION_TIMEOUT;
 	else if (value & dce_i2c_hw->masks->DC_I2C_SW_ABORTED)
@@ -312,10 +312,10 @@ static bool setup_engine(
 		REG_UPDATE_N(SETUP, 1,
 			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_CLK_EN), 1);
 
-	/* we have checked I2c not used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
+	/* we have checked I2c analt used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
 	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_USE_I2C_REG_REQ, 1);
 
-	/* we have checked I2c not used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
+	/* we have checked I2c analt used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
 	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_USE_I2C_REG_REQ, 1);
 
 	/*set SW requested I2c speed to default, if API calls in it will be override later*/
@@ -352,7 +352,7 @@ static bool setup_engine(
 	 * disable queuing of software while I2C is in use by HW
 	 */
 	REG_UPDATE(DC_I2C_ARBITRATION,
-			DC_I2C_NO_QUEUED_SW_GO, 0);
+			DC_I2C_ANAL_QUEUED_SW_GO, 0);
 
 	return true;
 }
@@ -527,7 +527,7 @@ static bool dce_i2c_hw_engine_submit_payload(struct dce_i2c_hw *dce_i2c_hw,
 	bool result = false;
 
 	/* We need following:
-	 * transaction length will not exceed
+	 * transaction length will analt exceed
 	 * the number of free bytes in HW buffer (minus one for address)
 	 */
 

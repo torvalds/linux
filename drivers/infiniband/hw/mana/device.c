@@ -59,7 +59,7 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 
 	dev = ib_alloc_device(mana_ib_dev, ib_dev);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ib_set_device_ops(&dev->ib_dev, &mana_ib_dev_ops);
 
@@ -68,7 +68,7 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 	ibdev_dbg(&dev->ib_dev, "mdev=%p id=%d num_ports=%d\n", mdev,
 		  mdev->dev_id.as_uint32, dev->ib_dev.phys_port_cnt);
 
-	dev->ib_dev.node_type = RDMA_NODE_IB_CA;
+	dev->ib_dev.analde_type = RDMA_ANALDE_IB_CA;
 
 	/*
 	 * num_comp_vectors needs to set to the max MSIX index

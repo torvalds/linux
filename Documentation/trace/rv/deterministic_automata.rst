@@ -1,7 +1,7 @@
 Deterministic Automata
 ======================
 
-Formally, a deterministic automaton, denoted by G, is defined as a quintuple:
+Formally, a deterministic automaton, deanalted by G, is defined as a quintuple:
 
         *G* = { *X*, *E*, *f*, x\ :subscript:`0`, X\ :subscript:`m` }
 
@@ -19,18 +19,18 @@ where:
 For example, a given automaton named 'wip' (wakeup in preemptive) can
 be defined as:
 
-- *X* = { ``preemptive``, ``non_preemptive``}
+- *X* = { ``preemptive``, ``analn_preemptive``}
 - *E* = { ``preempt_enable``, ``preempt_disable``, ``sched_waking``}
 - x\ :subscript:`0` = ``preemptive``
 - X\ :subscript:`m` = {``preemptive``}
 - *f* =
-   - *f*\ (``preemptive``, ``preempt_disable``) = ``non_preemptive``
-   - *f*\ (``non_preemptive``, ``sched_waking``) = ``non_preemptive``
-   - *f*\ (``non_preemptive``, ``preempt_enable``) = ``preemptive``
+   - *f*\ (``preemptive``, ``preempt_disable``) = ``analn_preemptive``
+   - *f*\ (``analn_preemptive``, ``sched_waking``) = ``analn_preemptive``
+   - *f*\ (``analn_preemptive``, ``preempt_enable``) = ``preemptive``
 
 One of the benefits of this formal definition is that it can be presented
 in multiple formats. For example, using a *graphical representation*, using
-vertices (nodes) and edges, which is very intuitive for *operating system*
+vertices (analdes) and edges, which is very intuitive for *operating system*
 practitioners, without any loss.
 
 The previous 'wip' automaton can also be represented as::
@@ -39,7 +39,7 @@ The previous 'wip' automaton can also be represented as::
           +---------------------------------+
           v                                 |
         #============#  preempt_disable   +------------------+
-    --> H preemptive H -----------------> |  non_preemptive  |
+    --> H preemptive H -----------------> |  analn_preemptive  |
         #============#                    +------------------+
                                             ^              |
                                             | sched_waking |
@@ -57,7 +57,7 @@ For example, the 'wip' automata can be presented as (augmented with comments)::
   /* enum representation of X (set of states) to be used as index */
   enum states {
 	preemptive = 0,
-	non_preemptive,
+	analn_preemptive,
 	state_max
   };
 
@@ -82,7 +82,7 @@ For example, the 'wip' automata can be presented as (augmented with comments)::
   struct automaton aut = {
 	.state_names = {
 		"preemptive",
-		"non_preemptive"
+		"analn_preemptive"
 	},
 	.event_names = {
 		"preempt_disable",
@@ -90,8 +90,8 @@ For example, the 'wip' automata can be presented as (augmented with comments)::
 		"sched_waking"
 	},
 	.function = {
-		{ non_preemptive,  INVALID_STATE,  INVALID_STATE },
-		{  INVALID_STATE,     preemptive, non_preemptive },
+		{ analn_preemptive,  INVALID_STATE,  INVALID_STATE },
+		{  INVALID_STATE,     preemptive, analn_preemptive },
 	},
 	.initial_state = preemptive,
 	.final_states = { 1, 0 },
@@ -113,16 +113,16 @@ The DOT format is widely used and can be converted to many other formats.
 For example, this is the 'wip' model in DOT::
 
   digraph state_automaton {
-        {node [shape = circle] "non_preemptive"};
-        {node [shape = plaintext, style=invis, label=""] "__init_preemptive"};
-        {node [shape = doublecircle] "preemptive"};
-        {node [shape = circle] "preemptive"};
+        {analde [shape = circle] "analn_preemptive"};
+        {analde [shape = plaintext, style=invis, label=""] "__init_preemptive"};
+        {analde [shape = doublecircle] "preemptive"};
+        {analde [shape = circle] "preemptive"};
         "__init_preemptive" -> "preemptive";
-        "non_preemptive" [label = "non_preemptive"];
-        "non_preemptive" -> "non_preemptive" [ label = "sched_waking" ];
-        "non_preemptive" -> "preemptive" [ label = "preempt_enable" ];
+        "analn_preemptive" [label = "analn_preemptive"];
+        "analn_preemptive" -> "analn_preemptive" [ label = "sched_waking" ];
+        "analn_preemptive" -> "preemptive" [ label = "preempt_enable" ];
         "preemptive" [label = "preemptive"];
-        "preemptive" -> "non_preemptive" [ label = "preempt_disable" ];
+        "preemptive" -> "analn_preemptive" [ label = "preempt_disable" ];
         { rank = min ;
                 "__init_preemptive";
                 "preemptive";
@@ -178,7 +178,7 @@ Event Systems (DES), see::
 
 For the C representation in kernel, see::
 
-  De Oliveira, Daniel Bristot; Cucinotta, Tommaso; De Oliveira, Romulo
+  De Oliveira, Daniel Bristot; Cucianaltta, Tommaso; De Oliveira, Romulo
   Silva. Efficient formal verification for the Linux kernel. In:
   International Conference on Software Engineering and Formal Methods.
   Springer, Cham, 2019. p. 315-332.

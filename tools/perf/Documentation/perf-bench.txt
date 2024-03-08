@@ -5,7 +5,7 @@ NAME
 ----
 perf-bench - General framework for benchmark suites
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf bench' [<common options>] <subsystem> <suite> [<options>]
@@ -28,7 +28,7 @@ Current available format styles are:
 'default'::
 Default style. This is mainly for human reading.
 ---------------------
-% perf bench sched pipe                      # with no style specified
+% perf bench sched pipe                      # with anal style specified
 (executing 1000000 pipe operations between two tasks)
         Total time:5.855 sec
                 5.855061 usecs/op
@@ -128,7 +128,7 @@ Specify number of loops.
 --cgroups=::
 Names of cgroups for sender and receiver, separated by a comma.
 This is useful to check cgroup context switching overhead.
-Note that perf doesn't create nor delete the cgroups, so users should
+Analte that perf doesn't create analr delete the cgroups, so users should
 make sure that the cgroups exist and are accessible before use.
 
 
@@ -166,7 +166,7 @@ SUITES FOR 'syscall'
 ~~~~~~~~~~~~~~~~~~
 *basic*::
 Suite for evaluating performance of core system call throughput (both usecs/op and ops/sec metrics).
-This uses a single thread simply doing getppid(2), which is a simple syscall where the result is not
+This uses a single thread simply doing getppid(2), which is a simple syscall where the result is analt
 cached by glibc.
 
 

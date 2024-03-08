@@ -4,7 +4,7 @@
  */
 
 #include <stddef.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include "chan_user.h"
 #include <os.h>
@@ -25,12 +25,12 @@ static int null_open(int input, int output, int primary, void *d,
 	*dev_out = NULL;
 
 	fd = open(DEV_NULL, O_RDWR);
-	return (fd < 0) ? -errno : fd;
+	return (fd < 0) ? -erranal : fd;
 }
 
 static int null_read(int fd, __u8 *c_out, void *unused)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void null_free(void *data)

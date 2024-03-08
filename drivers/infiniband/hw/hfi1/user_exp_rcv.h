@@ -16,7 +16,7 @@ struct tid_pageset {
 };
 
 struct tid_user_buf {
-	struct mmu_interval_notifier notifier;
+	struct mmu_interval_analtifier analtifier;
 	struct mutex cover_mutex;
 	unsigned long vaddr;
 	unsigned long length;
@@ -26,8 +26,8 @@ struct tid_user_buf {
 	unsigned int n_psets;
 };
 
-struct tid_rb_node {
-	struct mmu_interval_notifier notifier;
+struct tid_rb_analde {
+	struct mmu_interval_analtifier analtifier;
 	struct hfi1_filedata *fdata;
 	struct mutex invalidate_mutex; /* covers hw removal */
 	unsigned long phys;
@@ -58,9 +58,9 @@ int hfi1_user_exp_rcv_clear(struct hfi1_filedata *fd,
 int hfi1_user_exp_rcv_invalid(struct hfi1_filedata *fd,
 			      struct hfi1_tid_info *tinfo);
 
-static inline struct mm_struct *mm_from_tid_node(struct tid_rb_node *node)
+static inline struct mm_struct *mm_from_tid_analde(struct tid_rb_analde *analde)
 {
-	return node->notifier.mm;
+	return analde->analtifier.mm;
 }
 
 #endif /* _HFI1_USER_EXP_RCV_H */

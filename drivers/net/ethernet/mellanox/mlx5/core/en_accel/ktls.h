@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #ifndef __MLX5E_KTLS_H__
 #define __MLX5E_KTLS_H__
@@ -121,14 +121,14 @@ static inline void mlx5e_ktls_cleanup_rx(struct mlx5e_priv *priv)
 
 static inline int mlx5e_ktls_set_feature_rx(struct net_device *netdev, bool enable)
 {
-	netdev_warn(netdev, "kTLS is not supported\n");
-	return -EOPNOTSUPP;
+	netdev_warn(netdev, "kTLS is analt supported\n");
+	return -EOPANALTSUPP;
 }
 
 static inline struct mlx5e_ktls_resync_resp *
 mlx5e_ktls_rx_resync_create_resp_list(void)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline void

@@ -8,7 +8,7 @@
  * Datasheet: https://prod-edam.honeywell.com/content/dam/honeywell-edam/sps/siot/en-us/products/sensors/pressure-sensors/board-mount-pressure-sensors/common/documents/sps-siot-i2c-comms-digital-output-pressure-sensors-tn-008201-3-en-ciid-45841.pdf [i2c related]
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -36,7 +36,7 @@ static int hsc_i2c_recv(struct hsc_data *data)
 static int hsc_i2c_probe(struct i2c_client *client)
 {
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return hsc_common_probe(&client->dev, hsc_i2c_recv);
 }

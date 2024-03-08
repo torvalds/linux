@@ -41,7 +41,7 @@
 #define   ADAC1ODC_HP_DIS_RES_OFF             (0x0 << 1)
 #define   ADAC1ODC_HP_DIS_RES_ON              (0x3 << 1)
 #define   ADAC1ODC_ADAC_RAMPCLT_MASK          GENMASK(8, 7)
-#define   ADAC1ODC_ADAC_RAMPCLT_NORMAL        (0x0 << 7)
+#define   ADAC1ODC_ADAC_RAMPCLT_ANALRMAL        (0x0 << 7)
 #define   ADAC1ODC_ADAC_RAMPCLT_REDUCE        (0x1 << 7)
 
 struct evea_priv {
@@ -67,8 +67,8 @@ static const struct snd_kcontrol_new linesw1_mux[] = {
 };
 
 static const struct snd_soc_dapm_widget evea_widgets[] = {
-	SND_SOC_DAPM_ADC("ADC", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_MUX("Line In 1 Mux", SND_SOC_NOPM, 0, 0, linesw1_mux),
+	SND_SOC_DAPM_ADC("ADC", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_MUX("Line In 1 Mux", SND_SOC_ANALPM, 0, 0, linesw1_mux),
 	SND_SOC_DAPM_INPUT("LIN1_LP"),
 	SND_SOC_DAPM_INPUT("LIN1_RP"),
 	SND_SOC_DAPM_INPUT("LIN2_LP"),
@@ -76,9 +76,9 @@ static const struct snd_soc_dapm_widget evea_widgets[] = {
 	SND_SOC_DAPM_INPUT("LIN3_LP"),
 	SND_SOC_DAPM_INPUT("LIN3_RP"),
 
-	SND_SOC_DAPM_DAC("DAC HP", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DAC LO1", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DAC LO2", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC HP", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC LO1", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC LO2", NULL, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_OUTPUT("HP1_L"),
 	SND_SOC_DAPM_OUTPUT("HP1_R"),
 	SND_SOC_DAPM_OUTPUT("LO2_L"),
@@ -444,7 +444,7 @@ static const struct regmap_config evea_regmap_config = {
 	.reg_stride    = 4,
 	.val_bits      = 32,
 	.max_register  = 0xffc,
-	.cache_type    = REGCACHE_NONE,
+	.cache_type    = REGCACHE_ANALNE,
 };
 
 static int evea_probe(struct platform_device *pdev)
@@ -455,7 +455,7 @@ static int evea_probe(struct platform_device *pdev)
 
 	evea = devm_kzalloc(&pdev->dev, sizeof(struct evea_priv), GFP_KERNEL);
 	if (!evea)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	evea->clk = devm_clk_get(&pdev->dev, "evea");
 	if (IS_ERR(evea->clk))

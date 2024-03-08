@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -76,7 +76,7 @@ nvkm_outp_xlat(struct nvkm_outp *outp, enum nvkm_ior_type *type)
 	case 1:
 		switch (outp->info.type) {
 		case DCB_OUTPUT_TMDS: *type = PIOR; return TMDS;
-		case DCB_OUTPUT_DP  : *type = PIOR; return TMDS; /* not a bug */
+		case DCB_OUTPUT_DP  : *type = PIOR; return TMDS; /* analt a bug */
 		default:
 			break;
 		}
@@ -85,7 +85,7 @@ nvkm_outp_xlat(struct nvkm_outp *outp, enum nvkm_ior_type *type)
 		break;
 	}
 	WARN_ON(1);
-	return UNKNOWN;
+	return UNKANALWN;
 }
 
 void
@@ -136,7 +136,7 @@ nvkm_outp_acquire_hda(struct nvkm_outp *outp, enum nvkm_ior_type type,
 			return nvkm_outp_acquire_ior(outp, user, ior);
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 int
@@ -154,14 +154,14 @@ nvkm_outp_acquire_or(struct nvkm_outp *outp, u8 user, bool hda)
 
 	/* Lookup a compatible, and unused, OR to assign to the device. */
 	proto = nvkm_outp_xlat(outp, &type);
-	if (proto == UNKNOWN)
-		return -ENOSYS;
+	if (proto == UNKANALWN)
+		return -EANALSYS;
 
 	/* Deal with panels requiring identity-mapped SOR assignment. */
 	if (outp->identity) {
 		ior = nvkm_ior_find(outp->disp, SOR, ffs(outp->info.or) - 1);
 		if (WARN_ON(!ior))
-			return -ENOSPC;
+			return -EANALSPC;
 		return nvkm_outp_acquire_ior(outp, user, ior);
 	}
 
@@ -256,10 +256,10 @@ nvkm_outp_detect(struct nvkm_outp *outp)
 		if (ret)
 			return 1;
 
-		/*TODO: Look into returning NOT_PRESENT if !HPD on DVI/HDMI.
+		/*TODO: Look into returning ANALT_PRESENT if !HPD on DVI/HDMI.
 		 *
 		 *      It's uncertain whether this is accurate for all older chipsets,
-		 *      so we're returning UNKNOWN, and the DRM will probe DDC instead.
+		 *      so we're returning UNKANALWN, and the DRM will probe DDC instead.
 		 */
 		if (outp->info.type == DCB_OUTPUT_DP)
 			return 0;
@@ -298,7 +298,7 @@ nvkm_outp_inherit(struct nvkm_outp *outp)
 
 	/* Find any OR from the class that is able to support this device. */
 	proto = nvkm_outp_xlat(outp, &type);
-	if (proto == UNKNOWN)
+	if (proto == UNKANALWN)
 		return NULL;
 
 	ior = nvkm_ior_find(disp, type, -1);
@@ -309,7 +309,7 @@ nvkm_outp_inherit(struct nvkm_outp *outp)
 	if (ior->func->route.get) {
 		id = ior->func->route.get(outp, &link);
 		if (id < 0) {
-			OUTP_DBG(outp, "no route");
+			OUTP_DBG(outp, "anal route");
 			return NULL;
 		}
 	} else {
@@ -341,7 +341,7 @@ nvkm_outp_init(struct nvkm_outp *outp)
 	/* Determine if the OR is already configured for this device. */
 	ior->func->state(ior, &ior->arm);
 	if (!ior->arm.head || ior->arm.proto != proto) {
-		OUTP_DBG(outp, "no heads (%x %d %d)", ior->arm.head,
+		OUTP_DBG(outp, "anal heads (%x %d %d)", ior->arm.head,
 			 ior->arm.proto, proto);
 
 		/* The EFI GOP driver on Ampere can leave unused DP links routed,
@@ -380,7 +380,7 @@ nvkm_outp_new_(const struct nvkm_outp_func *func, struct nvkm_disp *disp,
 	enum nvkm_ior_type type;
 
 	if (!(outp = *poutp = kzalloc(sizeof(*outp), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	outp->func = func;
 	outp->disp = disp;
@@ -398,8 +398,8 @@ nvkm_outp_new_(const struct nvkm_outp_func *func, struct nvkm_disp *disp,
 
 	/* Cull output paths we can't map to an output resource. */
 	proto = nvkm_outp_xlat(outp, &type);
-	if (proto == UNKNOWN)
-		return -ENODEV;
+	if (proto == UNKANALWN)
+		return -EANALDEV;
 
 	return 0;
 }

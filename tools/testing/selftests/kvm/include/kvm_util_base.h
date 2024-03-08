@@ -29,7 +29,7 @@
  * #undefs and #defines static_assert() as a direct alias to _Static_assert(),
  * i.e. effectively makes the message mandatory.  Many KVM selftests #define
  * _GNU_SOURCE for various reasons, and _GNU_SOURCE implies _ISOC11_SOURCE.  As
- * a result, static_assert() behavior is non-deterministic and may or may not
+ * a result, static_assert() behavior is analn-deterministic and may or may analt
  * require a message depending on #include order.
  */
 #define __kvm_static_assert(expr, msg, ...) _Static_assert(expr, msg)
@@ -54,9 +54,9 @@ struct userspace_mem_region {
 	void *mmap_start;
 	void *mmap_alias;
 	size_t mmap_size;
-	struct rb_node gpa_node;
-	struct rb_node hva_node;
-	struct hlist_node slot_node;
+	struct rb_analde gpa_analde;
+	struct rb_analde hva_analde;
+	struct hlist_analde slot_analde;
 };
 
 struct kvm_vcpu {
@@ -230,7 +230,7 @@ extern enum vm_guest_mode vm_mode_default;
 #elif defined(__riscv)
 
 #if __riscv_xlen == 32
-#error "RISC-V 32-bit kvm selftests not supported"
+#error "RISC-V 32-bit kvm selftests analt supported"
 #endif
 
 #define VM_MODE_DEFAULT			VM_MODE_P40V48_4K
@@ -267,11 +267,11 @@ static inline bool kvm_has_cap(long cap)
 }
 
 #define __KVM_SYSCALL_ERROR(_name, _ret) \
-	"%s failed, rc: %i errno: %i (%s)", (_name), (_ret), errno, strerror(errno)
+	"%s failed, rc: %i erranal: %i (%s)", (_name), (_ret), erranal, strerror(erranal)
 
 /*
  * Use the "inner", double-underscore macro when reporting errors from within
- * other macros so that the name of ioctl() and not its literal numeric value
+ * other macros so that the name of ioctl() and analt its literal numeric value
  * is printed on error.  The "outer" macro is strongly preferred when reporting
  * errors "directly", i.e. without an additional layer of macros, as it reduces
  * the probability of passing in the wrong string.
@@ -313,19 +313,19 @@ static __always_inline void static_assert_is_vm(struct kvm_vm *vm) { }
  */
 #define __TEST_ASSERT_VM_VCPU_IOCTL(cond, name, ret, vm)				\
 do {											\
-	int __errno = errno;								\
+	int __erranal = erranal;								\
 											\
 	static_assert_is_vm(vm);							\
 											\
 	if (cond)									\
 		break;									\
 											\
-	if (errno == EIO &&								\
+	if (erranal == EIO &&								\
 	    __vm_ioctl(vm, KVM_CHECK_EXTENSION, (void *)KVM_CAP_USER_MEMORY) < 0) {	\
-		TEST_ASSERT(errno == EIO, "KVM killed the VM, should return -EIO");	\
+		TEST_ASSERT(erranal == EIO, "KVM killed the VM, should return -EIO");	\
 		TEST_FAIL("KVM killed/bugged the VM, check the kernel log for clues");	\
 	}										\
-	errno = __errno;								\
+	erranal = __erranal;								\
 	TEST_ASSERT(cond, __KVM_IOCTL_ERROR(name, ret));				\
 } while (0)
 
@@ -502,8 +502,8 @@ static inline struct kvm_stats_desc *get_stats_descriptor(struct kvm_stats_desc 
 							  struct kvm_stats_header *header)
 {
 	/*
-	 * Note, size_desc includes the size of the name field, which is
-	 * variable. i.e. this is NOT equivalent to &stats_desc[i].
+	 * Analte, size_desc includes the size of the name field, which is
+	 * variable. i.e. this is ANALT equivalent to &stats_desc[i].
 	 */
 	return (void *)stats + index * get_stats_descriptor_size(header);
 }
@@ -721,7 +721,7 @@ static inline void kvm_has_device_attr(int dev_fd, uint32_t group, uint64_t attr
 {
 	int ret = __kvm_has_device_attr(dev_fd, group, attr);
 
-	TEST_ASSERT(!ret, "KVM_HAS_DEVICE_ATTR failed, rc: %i errno: %i", ret, errno);
+	TEST_ASSERT(!ret, "KVM_HAS_DEVICE_ATTR failed, rc: %i erranal: %i", ret, erranal);
 }
 
 int __kvm_device_attr_get(int dev_fd, uint32_t group, uint64_t attr, void *val);
@@ -801,9 +801,9 @@ void *vcpu_map_dirty_ring(struct kvm_vcpu *vcpu);
  *   num - number of arguments
  *   ... - arguments, each of type uint64_t
  *
- * Output Args: None
+ * Output Args: Analne
  *
- * Return: None
+ * Return: Analne
  *
  * Sets the first @num input parameters for the function at @vcpu's entry point,
  * per the C calling convention of the architecture, to the values given as
@@ -834,7 +834,7 @@ vm_paddr_t vm_alloc_page_table(struct kvm_vm *vm);
 /*
  * ____vm_create() does KVM_CREATE_VM and little else.  __vm_create() also
  * loads the test binary into guest memory and creates an IRQ chip (x86 only).
- * __vm_create() does NOT create vCPUs, @nr_runnable_vcpus is used purely to
+ * __vm_create() does ANALT create vCPUs, @nr_runnable_vcpus is used purely to
  * calculate the amount of memory needed for per-vCPU data, e.g. stacks.
  */
 struct kvm_vm *____vm_create(struct vm_shape shape);
@@ -1007,9 +1007,9 @@ static inline void virt_pgd_alloc(struct kvm_vm *vm)
  *   paddr - VM Physical Address
  *   memslot - Memory region slot for new virtual translation tables
  *
- * Output Args: None
+ * Output Args: Analne
  *
- * Return: None
+ * Return: Analne
  *
  * Within @vm, creates a virtual translation for the page starting
  * at @vaddr to the page starting at @paddr.
@@ -1029,7 +1029,7 @@ static inline void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr
  *   vm - Virtual Machine
  *   gva - VM virtual address
  *
- * Output Args: None
+ * Output Args: Analne
  *
  * Return:
  *   Equivalent VM physical address
@@ -1052,9 +1052,9 @@ static inline vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
  *   vm     - Virtual Machine
  *   indent - Left margin indent amount
  *
- * Output Args: None
+ * Output Args: Analne
  *
- * Return: None
+ * Return: Analne
  *
  * Dumps to the FILE stream given by @stream, the contents of all the
  * virtual translation tables for the VM given by @vm.

@@ -12,11 +12,11 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
-/* Needed for AOP_TRUNCATED_PAGE in mlog_errno() */
+/* Needed for AOP_TRUNCATED_PAGE in mlog_erranal() */
 #include <linux/fs.h>
 
 #include "cluster/masklog.h"
-#include "cluster/nodemanager.h"
+#include "cluster/analdemanager.h"
 #include "cluster/heartbeat.h"
 #include "cluster/tcp.h"
 
@@ -30,25 +30,25 @@ static struct ocfs2_stack_plugin o2cb_stack;
 
 /* These should be identical */
 #if (DLM_LOCK_IV != LKM_IVMODE)
-# error Lock modes do not match
+# error Lock modes do analt match
 #endif
 #if (DLM_LOCK_NL != LKM_NLMODE)
-# error Lock modes do not match
+# error Lock modes do analt match
 #endif
 #if (DLM_LOCK_CR != LKM_CRMODE)
-# error Lock modes do not match
+# error Lock modes do analt match
 #endif
 #if (DLM_LOCK_CW != LKM_CWMODE)
-# error Lock modes do not match
+# error Lock modes do analt match
 #endif
 #if (DLM_LOCK_PR != LKM_PRMODE)
-# error Lock modes do not match
+# error Lock modes do analt match
 #endif
 #if (DLM_LOCK_PW != LKM_PWMODE)
-# error Lock modes do not match
+# error Lock modes do analt match
 #endif
 #if (DLM_LOCK_EX != LKM_EXMODE)
-# error Lock modes do not match
+# error Lock modes do analt match
 #endif
 static inline int mode_to_o2dlm(int mode)
 {
@@ -61,8 +61,8 @@ static int flags_to_o2dlm(u32 flags)
 {
 	int o2dlm_flags = 0;
 
-	if (flags & DLM_LKF_NOQUEUE)
-		o2dlm_flags |= LKM_NOQUEUE;
+	if (flags & DLM_LKF_ANALQUEUE)
+		o2dlm_flags |= LKM_ANALQUEUE;
 	if (flags & DLM_LKF_CANCEL)
 		o2dlm_flags |= LKM_CANCEL;
 	if (flags & DLM_LKF_CONVERT)
@@ -84,7 +84,7 @@ static int flags_to_o2dlm(u32 flags)
 }
 
 /*
- * Map an o2dlm status to standard errno values.
+ * Map an o2dlm status to standard erranal values.
  *
  * o2dlm only uses a handful of these, and returns even fewer to the
  * caller. Still, we try to assign sane values to each error.
@@ -93,58 +93,58 @@ static int flags_to_o2dlm(u32 flags)
  * the right hand side needs to stay unique - never duplicate the
  * mapping elsewhere in the table!
  *
- * DLM_NORMAL:		0
- * DLM_NOTQUEUED:	-EAGAIN
+ * DLM_ANALRMAL:		0
+ * DLM_ANALTQUEUED:	-EAGAIN
  * DLM_CANCELGRANT:	-EBUSY
  * DLM_CANCEL:		-DLM_ECANCEL
  */
 /* Keep in sync with dlmapi.h */
 static int status_map[] = {
-	[DLM_NORMAL]			= 0,		/* Success */
+	[DLM_ANALRMAL]			= 0,		/* Success */
 	[DLM_GRANTED]			= -EINVAL,
 	[DLM_DENIED]			= -EACCES,
-	[DLM_DENIED_NOLOCKS]		= -EACCES,
+	[DLM_DENIED_ANALLOCKS]		= -EACCES,
 	[DLM_WORKING]			= -EACCES,
 	[DLM_BLOCKED]			= -EINVAL,
 	[DLM_BLOCKED_ORPHAN]		= -EINVAL,
 	[DLM_DENIED_GRACE_PERIOD]	= -EACCES,
-	[DLM_SYSERR]			= -ENOMEM,	/* It is what it is */
-	[DLM_NOSUPPORT]			= -EPROTO,
+	[DLM_SYSERR]			= -EANALMEM,	/* It is what it is */
+	[DLM_ANALSUPPORT]			= -EPROTO,
 	[DLM_CANCELGRANT]		= -EBUSY,	/* Cancel after grant */
 	[DLM_IVLOCKID]			= -EINVAL,
 	[DLM_SYNC]			= -EINVAL,
 	[DLM_BADTYPE]			= -EINVAL,
 	[DLM_BADRESOURCE]		= -EINVAL,
-	[DLM_MAXHANDLES]		= -ENOMEM,
-	[DLM_NOCLINFO]			= -EINVAL,
-	[DLM_NOLOCKMGR]			= -EINVAL,
-	[DLM_NOPURGED]			= -EINVAL,
+	[DLM_MAXHANDLES]		= -EANALMEM,
+	[DLM_ANALCLINFO]			= -EINVAL,
+	[DLM_ANALLOCKMGR]			= -EINVAL,
+	[DLM_ANALPURGED]			= -EINVAL,
 	[DLM_BADARGS]			= -EINVAL,
 	[DLM_VOID]			= -EINVAL,
-	[DLM_NOTQUEUED]			= -EAGAIN,	/* Trylock failed */
+	[DLM_ANALTQUEUED]			= -EAGAIN,	/* Trylock failed */
 	[DLM_IVBUFLEN]			= -EINVAL,
 	[DLM_CVTUNGRANT]		= -EPERM,
 	[DLM_BADPARAM]			= -EINVAL,
-	[DLM_VALNOTVALID]		= -EINVAL,
+	[DLM_VALANALTVALID]		= -EINVAL,
 	[DLM_REJECTED]			= -EPERM,
 	[DLM_ABORT]			= -EINVAL,
 	[DLM_CANCEL]			= -DLM_ECANCEL,	/* Successful cancel */
 	[DLM_IVRESHANDLE]		= -EINVAL,
 	[DLM_DEADLOCK]			= -EDEADLK,
-	[DLM_DENIED_NOASTS]		= -EINVAL,
+	[DLM_DENIED_ANALASTS]		= -EINVAL,
 	[DLM_FORWARD]			= -EINVAL,
 	[DLM_TIMEOUT]			= -ETIMEDOUT,
 	[DLM_IVGROUPID]			= -EINVAL,
-	[DLM_VERS_CONFLICT]		= -EOPNOTSUPP,
-	[DLM_BAD_DEVICE_PATH]		= -ENOENT,
-	[DLM_NO_DEVICE_PERMISSION]	= -EPERM,
-	[DLM_NO_CONTROL_DEVICE]		= -ENOENT,
-	[DLM_RECOVERING]		= -ENOTCONN,
+	[DLM_VERS_CONFLICT]		= -EOPANALTSUPP,
+	[DLM_BAD_DEVICE_PATH]		= -EANALENT,
+	[DLM_ANAL_DEVICE_PERMISSION]	= -EPERM,
+	[DLM_ANAL_CONTROL_DEVICE]		= -EANALENT,
+	[DLM_RECOVERING]		= -EANALTCONN,
 	[DLM_MIGRATING]			= -ERESTART,
 	[DLM_MAXSTATS]			= -EINVAL,
 };
 
-static int dlm_status_to_errno(enum dlm_status status)
+static int dlm_status_to_erranal(enum dlm_status status)
 {
 	BUG_ON(status < 0 || status >= ARRAY_SIZE(status_map));
 
@@ -168,17 +168,17 @@ static void o2dlm_blocking_ast_wrapper(void *astarg, int level)
 static void o2dlm_unlock_ast_wrapper(void *astarg, enum dlm_status status)
 {
 	struct ocfs2_dlm_lksb *lksb = astarg;
-	int error = dlm_status_to_errno(status);
+	int error = dlm_status_to_erranal(status);
 
 	/*
 	 * In o2dlm, you can get both the lock_ast() for the lock being
 	 * granted and the unlock_ast() for the CANCEL failing.  A
-	 * successful cancel sends DLM_NORMAL here.  If the
+	 * successful cancel sends DLM_ANALRMAL here.  If the
 	 * lock grant happened before the cancel arrived, you get
 	 * DLM_CANCELGRANT.
 	 *
-	 * There's no need for the double-ast.  If we see DLM_CANCELGRANT,
-	 * we just ignore it.  We expect the lock_ast() to handle the
+	 * There's anal need for the double-ast.  If we see DLM_CANCELGRANT,
+	 * we just iganalre it.  We expect the lock_ast() to handle the
 	 * granted lock.
 	 */
 	if (status == DLM_CANCELGRANT)
@@ -203,7 +203,7 @@ static int o2cb_dlm_lock(struct ocfs2_cluster_connection *conn,
 			 o2dlm_flags, name, namelen,
 			 o2dlm_lock_ast_wrapper, lksb,
 			 o2dlm_blocking_ast_wrapper);
-	ret = dlm_status_to_errno(status);
+	ret = dlm_status_to_erranal(status);
 	return ret;
 }
 
@@ -217,13 +217,13 @@ static int o2cb_dlm_unlock(struct ocfs2_cluster_connection *conn,
 
 	status = dlmunlock(conn->cc_lockspace, &lksb->lksb_o2dlm,
 			   o2dlm_flags, o2dlm_unlock_ast_wrapper, lksb);
-	ret = dlm_status_to_errno(status);
+	ret = dlm_status_to_erranal(status);
 	return ret;
 }
 
 static int o2cb_dlm_lock_status(struct ocfs2_dlm_lksb *lksb)
 {
-	return dlm_status_to_errno(lksb->lksb_o2dlm.status);
+	return dlm_status_to_erranal(lksb->lksb_o2dlm.status);
 }
 
 /*
@@ -247,72 +247,72 @@ static void o2cb_dump_lksb(struct ocfs2_dlm_lksb *lksb)
 }
 
 /*
- * Check if this node is heartbeating and is connected to all other
- * heartbeating nodes.
+ * Check if this analde is heartbeating and is connected to all other
+ * heartbeating analdes.
  */
 static int o2cb_cluster_check(void)
 {
-	u8 node_num;
+	u8 analde_num;
 	int i;
-	unsigned long hbmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
-	unsigned long netmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long hbmap[BITS_TO_LONGS(O2NM_MAX_ANALDES)];
+	unsigned long netmap[BITS_TO_LONGS(O2NM_MAX_ANALDES)];
 
-	node_num = o2nm_this_node();
-	if (node_num == O2NM_MAX_NODES) {
-		printk(KERN_ERR "o2cb: This node has not been configured.\n");
+	analde_num = o2nm_this_analde();
+	if (analde_num == O2NM_MAX_ANALDES) {
+		printk(KERN_ERR "o2cb: This analde has analt been configured.\n");
 		return -EINVAL;
 	}
 
 	/*
-	 * o2dlm expects o2net sockets to be created. If not, then
+	 * o2dlm expects o2net sockets to be created. If analt, then
 	 * dlm_join_domain() fails with a stack of errors which are both cryptic
 	 * and incomplete. The idea here is to detect upfront whether we have
-	 * managed to connect to all nodes or not. If not, then list the nodes
+	 * managed to connect to all analdes or analt. If analt, then list the analdes
 	 * to allow the user to check the configuration (incorrect IP, firewall,
-	 * etc.) Yes, this is racy. But its not the end of the world.
+	 * etc.) Anal, this is racy. But its analt the end of the world.
 	 */
 #define	O2CB_MAP_STABILIZE_COUNT	60
 	for (i = 0; i < O2CB_MAP_STABILIZE_COUNT; ++i) {
-		o2hb_fill_node_map(hbmap, O2NM_MAX_NODES);
-		if (!test_bit(node_num, hbmap)) {
-			printk(KERN_ERR "o2cb: %s heartbeat has not been "
+		o2hb_fill_analde_map(hbmap, O2NM_MAX_ANALDES);
+		if (!test_bit(analde_num, hbmap)) {
+			printk(KERN_ERR "o2cb: %s heartbeat has analt been "
 			       "started.\n", (o2hb_global_heartbeat_active() ?
 					      "Global" : "Local"));
 			return -EINVAL;
 		}
-		o2net_fill_node_map(netmap, O2NM_MAX_NODES);
-		/* Force set the current node to allow easy compare */
-		set_bit(node_num, netmap);
-		if (bitmap_equal(hbmap, netmap, O2NM_MAX_NODES))
+		o2net_fill_analde_map(netmap, O2NM_MAX_ANALDES);
+		/* Force set the current analde to allow easy compare */
+		set_bit(analde_num, netmap);
+		if (bitmap_equal(hbmap, netmap, O2NM_MAX_ANALDES))
 			return 0;
 		if (i < O2CB_MAP_STABILIZE_COUNT - 1)
 			msleep(1000);
 	}
 
-	printk(KERN_ERR "o2cb: This node could not connect to nodes:");
+	printk(KERN_ERR "o2cb: This analde could analt connect to analdes:");
 	i = -1;
-	while ((i = find_next_bit(hbmap, O2NM_MAX_NODES,
-				  i + 1)) < O2NM_MAX_NODES) {
+	while ((i = find_next_bit(hbmap, O2NM_MAX_ANALDES,
+				  i + 1)) < O2NM_MAX_ANALDES) {
 		if (!test_bit(i, netmap))
 			printk(" %u", i);
 	}
 	printk(".\n");
 
-	return -ENOTCONN;
+	return -EANALTCONN;
 }
 
 /*
- * Called from the dlm when it's about to evict a node. This is how the
- * classic stack signals node death.
+ * Called from the dlm when it's about to evict a analde. This is how the
+ * classic stack signals analde death.
  */
-static void o2dlm_eviction_cb(int node_num, void *data)
+static void o2dlm_eviction_cb(int analde_num, void *data)
 {
 	struct ocfs2_cluster_connection *conn = data;
 
-	printk(KERN_NOTICE "o2cb: o2dlm has evicted node %d from domain %.*s\n",
-	       node_num, conn->cc_namelen, conn->cc_name);
+	printk(KERN_ANALTICE "o2cb: o2dlm has evicted analde %d from domain %.*s\n",
+	       analde_num, conn->cc_namelen, conn->cc_name);
 
-	conn->cc_recovery_handler(node_num, conn->cc_recovery_data);
+	conn->cc_recovery_handler(analde_num, conn->cc_recovery_data);
 }
 
 static int o2cb_cluster_connect(struct ocfs2_cluster_connection *conn)
@@ -326,7 +326,7 @@ static int o2cb_cluster_connect(struct ocfs2_cluster_connection *conn)
 	BUG_ON(conn == NULL);
 	BUG_ON(conn->cc_proto == NULL);
 
-	/* Ensure cluster stack is up and all nodes are connected */
+	/* Ensure cluster stack is up and all analdes are connected */
 	rc = o2cb_cluster_check();
 	if (rc) {
 		printk(KERN_ERR "o2cb: Cluster check failed. Fix errors "
@@ -336,7 +336,7 @@ static int o2cb_cluster_connect(struct ocfs2_cluster_connection *conn)
 
 	priv = kzalloc(sizeof(struct o2dlm_private), GFP_KERNEL);
 	if (!priv) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free;
 	}
 
@@ -347,20 +347,20 @@ static int o2cb_cluster_connect(struct ocfs2_cluster_connection *conn)
 	conn->cc_private = priv;
 
 	/* used by the dlm code to make message headers unique, each
-	 * node in this domain must agree on this. */
+	 * analde in this domain must agree on this. */
 	dlm_key = crc32_le(0, conn->cc_name, conn->cc_namelen);
 	fs_version.pv_major = conn->cc_version.pv_major;
-	fs_version.pv_minor = conn->cc_version.pv_minor;
+	fs_version.pv_mianalr = conn->cc_version.pv_mianalr;
 
 	dlm = dlm_register_domain(conn->cc_name, dlm_key, &fs_version);
 	if (IS_ERR(dlm)) {
 		rc = PTR_ERR(dlm);
-		mlog_errno(rc);
+		mlog_erranal(rc);
 		goto out_free;
 	}
 
 	conn->cc_version.pv_major = fs_version.pv_major;
-	conn->cc_version.pv_minor = fs_version.pv_minor;
+	conn->cc_version.pv_mianalr = fs_version.pv_mianalr;
 	conn->cc_lockspace = dlm;
 
 	dlm_register_eviction_cb(dlm, &priv->op_eviction_cb);
@@ -388,26 +388,26 @@ static int o2cb_cluster_disconnect(struct ocfs2_cluster_connection *conn)
 	return 0;
 }
 
-static int o2cb_cluster_this_node(struct ocfs2_cluster_connection *conn,
-				  unsigned int *node)
+static int o2cb_cluster_this_analde(struct ocfs2_cluster_connection *conn,
+				  unsigned int *analde)
 {
-	int node_num;
+	int analde_num;
 
-	node_num = o2nm_this_node();
-	if (node_num == O2NM_INVALID_NODE_NUM)
-		return -ENOENT;
+	analde_num = o2nm_this_analde();
+	if (analde_num == O2NM_INVALID_ANALDE_NUM)
+		return -EANALENT;
 
-	if (node_num >= O2NM_MAX_NODES)
+	if (analde_num >= O2NM_MAX_ANALDES)
 		return -EOVERFLOW;
 
-	*node = node_num;
+	*analde = analde_num;
 	return 0;
 }
 
 static struct ocfs2_stack_operations o2cb_stack_ops = {
 	.connect	= o2cb_cluster_connect,
 	.disconnect	= o2cb_cluster_disconnect,
-	.this_node	= o2cb_cluster_this_node,
+	.this_analde	= o2cb_cluster_this_analde,
 	.dlm_lock	= o2cb_dlm_lock,
 	.dlm_unlock	= o2cb_dlm_unlock,
 	.lock_status	= o2cb_dlm_lock_status,

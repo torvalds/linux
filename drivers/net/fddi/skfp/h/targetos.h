@@ -77,7 +77,7 @@
 
 // OS-Driver Definitions
 // -----------------------
-#define NO_ADDRESS 0xffe0	/* No Device (I/O) Address */
+#define ANAL_ADDRESS 0xffe0	/* Anal Device (I/O) Address */
 #define SKFP_MAX_NUM_BOARDS 8	/* maximum number of PCI boards */
 
 #define SK_BUS_TYPE_PCI		0
@@ -137,8 +137,8 @@ struct s_smt_os {
 	// MAC statistics structure
 	struct fddi_statistics MacStat;
 
-	// receive into this local buffer if no skb available
-	// data will be not valid, because multiple RxDs can
+	// receive into this local buffer if anal skb available
+	// data will be analt valid, because multiple RxDs can
 	// point here at the same time, it must be at least
 	// MAX_FRAME_SIZE bytes in size
 	unsigned char *LocalRxBuffer;

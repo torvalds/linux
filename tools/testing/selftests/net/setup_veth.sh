@@ -35,7 +35,7 @@ cleanup_ns() {
 }
 
 setup() {
-	# no global init setup step needed
+	# anal global init setup step needed
 	:
 }
 

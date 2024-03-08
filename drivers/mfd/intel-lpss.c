@@ -30,7 +30,7 @@
 #include <linux/sprintf.h>
 #include <linux/types.h>
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 #include <linux/dma/idma64.h>
 
@@ -66,7 +66,7 @@ struct dentry;
 #define LPSS_PRIV_REMAP_ADDR		0x40
 
 #define LPSS_PRIV_CAPS			0xfc
-#define LPSS_PRIV_CAPS_NO_IDMA		BIT(8)
+#define LPSS_PRIV_CAPS_ANAL_IDMA		BIT(8)
 #define LPSS_PRIV_CAPS_TYPE_MASK	GENMASK(7, 4)
 #define LPSS_PRIV_CAPS_TYPE_SHIFT	4
 
@@ -232,12 +232,12 @@ static int intel_lpss_assign_devs(struct intel_lpss *lpss)
 		cell = &intel_lpss_spi_cell;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	lpss->cell = devm_kmemdup(lpss->dev, cell, sizeof(*cell), GFP_KERNEL);
 	if (!lpss->cell)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lpss->type = type;
 
@@ -246,7 +246,7 @@ static int intel_lpss_assign_devs(struct intel_lpss *lpss)
 
 static bool intel_lpss_has_idma(const struct intel_lpss *lpss)
 {
-	return (lpss->caps & LPSS_PRIV_CAPS_NO_IDMA) == 0;
+	return (lpss->caps & LPSS_PRIV_CAPS_ANAL_IDMA) == 0;
 }
 
 static void intel_lpss_set_remap_addr(const struct intel_lpss *lpss)
@@ -346,7 +346,7 @@ static int intel_lpss_register_clock(struct intel_lpss *lpss)
 
 	/*
 	 * Support for clock divider only if it has some preset value.
-	 * Otherwise we assume that the divider is not used.
+	 * Otherwise we assume that the divider is analt used.
 	 */
 	if (lpss->type != LPSS_DEV_I2C) {
 		ret = intel_lpss_register_clock_divider(lpss, devname, &clk);
@@ -354,7 +354,7 @@ static int intel_lpss_register_clock(struct intel_lpss *lpss)
 			goto err_clk_register;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	/* Clock for the host controller */
 	lpss->clock = clkdev_create(clk, lpss->info->clk_con_id, "%s", devname);
@@ -394,12 +394,12 @@ int intel_lpss_probe(struct device *dev,
 
 	lpss = devm_kzalloc(dev, sizeof(*lpss), GFP_KERNEL);
 	if (!lpss)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lpss->priv = devm_ioremap_uc(dev, info->mem->start + LPSS_PRIV_OFFSET,
 				  LPSS_PRIV_SIZE);
 	if (!lpss->priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lpss->info = info;
 	lpss->dev = dev;
@@ -411,8 +411,8 @@ int intel_lpss_probe(struct device *dev,
 	if (ret)
 		return ret;
 
-	lpss->cell->swnode = info->swnode;
-	lpss->cell->ignore_resource_conflicts = info->ignore_resource_conflicts;
+	lpss->cell->swanalde = info->swanalde;
+	lpss->cell->iganalre_resource_conflicts = info->iganalre_resource_conflicts;
 
 	intel_lpss_init_dev(lpss);
 
@@ -499,9 +499,9 @@ static int intel_lpss_suspend(struct device *dev)
 		lpss->priv_ctx[i] = readl(lpss->priv + i * 4);
 
 	/*
-	 * If the device type is not UART, then put the controller into
-	 * reset. UART cannot be put into reset since S3/S0ix fail when
-	 * no_console_suspend flag is enabled.
+	 * If the device type is analt UART, then put the controller into
+	 * reset. UART cananalt be put into reset since S3/S0ix fail when
+	 * anal_console_suspend flag is enabled.
 	 */
 	if (lpss->type != LPSS_DEV_UART)
 		writel(0, lpss->priv + LPSS_PRIV_RESETS);
@@ -554,6 +554,6 @@ MODULE_LICENSE("GPL v2");
  * so that the host controller driver can request its DMA channels as early
  * as possible.
  *
- * If the DMA module is not there that's OK as well.
+ * If the DMA module is analt there that's OK as well.
  */
 MODULE_SOFTDEP("pre: platform:" LPSS_IDMA64_DRIVER_NAME);

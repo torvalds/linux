@@ -12,8 +12,8 @@ I915_GEM_CREATE_EXT_FLAG_NEEDS_CPU_ACCESS flag
 New gem_create_ext flag to tell the kernel that a BO will require CPU access.
 This becomes important when placing an object in I915_MEMORY_CLASS_DEVICE, where
 underneath the device has a small BAR, meaning only some portion of it is CPU
-accessible. Without this flag the kernel will assume that CPU access is not
-required, and prioritize using the non-CPU visible portion of
+accessible. Without this flag the kernel will assume that CPU access is analt
+required, and prioritize using the analn-CPU visible portion of
 I915_MEMORY_CLASS_DEVICE.
 
 .. kernel-doc:: Documentation/gpu/rfc/i915_small_bar.h
@@ -28,7 +28,7 @@ unallocated_cpu_visible_size, alongside the unallocated_size.
 
 Vulkan will need this as part of creating a separate VkMemoryHeap with the
 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT set, to represent the CPU visible portion,
-where the total size of the heap needs to be known. It also wants to be able to
+where the total size of the heap needs to be kanalwn. It also wants to be able to
 give a rough estimate of how memory can potentially be allocated.
 
 .. kernel-doc:: Documentation/gpu/rfc/i915_small_bar.h
@@ -38,10 +38,10 @@ Error Capture restrictions
 --------------------------
 With error capture we have two new restrictions:
 
-    1) Error capture is best effort on small BAR systems; if the pages are not
+    1) Error capture is best effort on small BAR systems; if the pages are analt
     CPU accessible, at the time of capture, then the kernel is free to skip
     trying to capture them.
 
-    2) On discrete and newer integrated platforms we now reject error capture
+    2) On discrete and newer integrated platforms we analw reject error capture
     on recoverable contexts. In the future the kernel may want to blit during
-    error capture, when for example something is not currently CPU accessible.
+    error capture, when for example something is analt currently CPU accessible.

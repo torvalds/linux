@@ -38,7 +38,7 @@ u32 cc_sram_alloc(struct cc_drvdata *drvdata, u32 size);
 /**
  * cc_set_sram_desc() - Create const descriptors sequence to
  *	set values in given array into SRAM.
- * Note: each const value can't exceed word size.
+ * Analte: each const value can't exceed word size.
  *
  * @src:	  A pointer to array of words to set as consts.
  * @dst:	  The target SRAM buffer to set into

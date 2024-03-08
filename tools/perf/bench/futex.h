@@ -32,7 +32,7 @@ struct bench_futex_parameters {
  * @uaddr:	address of first futex
  * @op:		futex op code
  * @val:	typically expected value of uaddr, but varies by op
- * @timeout:	typically an absolute struct timespec (except where noted
+ * @timeout:	typically an absolute struct timespec (except where analted
  *		otherwise). Overloaded by some ops
  * @uaddr2:	address of second futex for some ops
  * @val3:	varies by op
@@ -43,7 +43,7 @@ struct bench_futex_parameters {
  * should be used instead.
  *
  * These argument descriptions are the defaults for all
- * like-named arguments in the following wrappers except where noted below.
+ * like-named arguments in the following wrappers except where analted below.
  */
 static inline int
 futex_syscall(volatile u_int32_t *uaddr, int op, u_int32_t val, struct timespec *timeout,
@@ -112,7 +112,7 @@ futex_cmp_requeue(u_int32_t *uaddr, u_int32_t val, u_int32_t *uaddr2, int nr_wak
 
 /**
  * futex_wait_requeue_pi() - block on uaddr and prepare to requeue to uaddr2
- * @uaddr:	non-PI futex source
+ * @uaddr:	analn-PI futex source
  * @uaddr2:	PI futex target
  *
  * This is the first half of the requeue_pi mechanism. It shall always be
@@ -128,7 +128,7 @@ futex_wait_requeue_pi(u_int32_t *uaddr, u_int32_t val, u_int32_t *uaddr2,
 
 /**
  * futex_cmp_requeue_pi() - requeue tasks from uaddr to uaddr2
- * @uaddr:	non-PI futex source
+ * @uaddr:	analn-PI futex source
  * @uaddr2:	PI futex target
  * @nr_requeue:	requeue up to this many tasks
  *

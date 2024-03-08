@@ -41,17 +41,17 @@ unsigned long temp_pgt __visible;
 unsigned long relocated_restore_code __visible;
 
 /**
- *	pfn_is_nosave - check if given pfn is in the 'nosave' section
+ *	pfn_is_analsave - check if given pfn is in the 'analsave' section
  */
-int pfn_is_nosave(unsigned long pfn)
+int pfn_is_analsave(unsigned long pfn)
 {
-	unsigned long nosave_begin_pfn;
-	unsigned long nosave_end_pfn;
+	unsigned long analsave_begin_pfn;
+	unsigned long analsave_end_pfn;
 
-	nosave_begin_pfn = __pa_symbol(&__nosave_begin) >> PAGE_SHIFT;
-	nosave_end_pfn = PAGE_ALIGN(__pa_symbol(&__nosave_end)) >> PAGE_SHIFT;
+	analsave_begin_pfn = __pa_symbol(&__analsave_begin) >> PAGE_SHIFT;
+	analsave_end_pfn = PAGE_ALIGN(__pa_symbol(&__analsave_end)) >> PAGE_SHIFT;
 
-	return pfn >= nosave_begin_pfn && pfn < nosave_end_pfn;
+	return pfn >= analsave_begin_pfn && pfn < analsave_end_pfn;
 }
 
 struct restore_data_record {
@@ -111,8 +111,8 @@ int arch_hibernation_header_save(void *addr, unsigned int max_size)
 	 * 6. CR3 <= saved CR3
 	 *
 	 * Our mmu_cr4_features has CR4.PCIDE=0, and toggling
-	 * CR4.PCIDE while CR3's PCID bits are nonzero is illegal, so
-	 * rdr->cr3 needs to point to valid page tables but must not
+	 * CR4.PCIDE while CR3's PCID bits are analnzero is illegal, so
+	 * rdr->cr3 needs to point to valid page tables but must analt
 	 * have any of the PCID bits set.
 	 */
 	rdr->cr3 = restore_cr3 & ~CR3_PCID_MASK;
@@ -141,7 +141,7 @@ int arch_hibernation_header_restore(void *addr)
 
 	if (rdr->e820_checksum != compute_e820_crc32(e820_table_firmware)) {
 		pr_crit("Hibernate inconsistent memory map detected!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -157,7 +157,7 @@ int relocate_restore_code(void)
 
 	relocated_restore_code = get_safe_page(GFP_ATOMIC);
 	if (!relocated_restore_code)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__memcpy((void *)relocated_restore_code, core_restore_code, PAGE_SIZE);
 
@@ -186,14 +186,14 @@ out:
 	return 0;
 }
 
-int arch_resume_nosmt(void)
+int arch_resume_analsmt(void)
 {
 	int ret = 0;
 	/*
 	 * We reached this while coming out of hibernation. This means
-	 * that SMT siblings are sleeping in hlt, as mwait is not safe
+	 * that SMT siblings are sleeping in hlt, as mwait is analt safe
 	 * against control transition during resume (see comment in
-	 * hibernate_resume_nonboot_cpu_disable()).
+	 * hibernate_resume_analnboot_cpu_disable()).
 	 *
 	 * If the resumed kernel has SMT disabled, we have to take all the
 	 * SMT siblings out of hlt, and offline them again so that they

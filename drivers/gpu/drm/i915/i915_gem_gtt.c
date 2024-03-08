@@ -4,7 +4,7 @@
  * Copyright © 2020 Intel Corporation
  */
 
-#include <linux/slab.h> /* fault-inject.h is not standalone! */
+#include <linux/slab.h> /* fault-inject.h is analt standalone! */
 
 #include <linux/fault-inject.h>
 #include <linux/log2.h>
@@ -33,15 +33,15 @@ int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 				     pages->sgl, pages->nents,
 				     DMA_BIDIRECTIONAL,
 				     DMA_ATTR_SKIP_CPU_SYNC |
-				     DMA_ATTR_NO_KERNEL_MAPPING |
-				     DMA_ATTR_NO_WARN))
+				     DMA_ATTR_ANAL_KERNEL_MAPPING |
+				     DMA_ATTR_ANAL_WARN))
 			return 0;
 
 		/*
 		 * If the DMA remap fails, one cause can be that we have
 		 * too many objects pinned in a small remapping table,
 		 * such as swiotlb. Incrementally purge all other objects and
-		 * try again - if there are no more pages to remove from
+		 * try again - if there are anal more pages to remove from
 		 * the DMA remapper, i915_gem_shrink will return 0.
 		 */
 		GEM_BUG_ON(obj->mm.pages == pages);
@@ -50,7 +50,7 @@ int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 				 I915_SHRINK_BOUND |
 				 I915_SHRINK_UNBOUND));
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
@@ -59,7 +59,7 @@ void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 
-	/* XXX This does not prevent more requests being submitted! */
+	/* XXX This does analt prevent more requests being submitted! */
 	if (unlikely(ggtt->do_idle_maps))
 		/* Wait a bit, in the hope it avoids the hang */
 		usleep_range(100, 250);
@@ -69,34 +69,34 @@ void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
 }
 
 /**
- * i915_gem_gtt_reserve - reserve a node in an address_space (GTT)
+ * i915_gem_gtt_reserve - reserve a analde in an address_space (GTT)
  * @vm: the &struct i915_address_space
  * @ww: An optional struct i915_gem_ww_ctx.
- * @node: the &struct drm_mm_node (typically i915_vma.mode)
+ * @analde: the &struct drm_mm_analde (typically i915_vma.mode)
  * @size: how much space to allocate inside the GTT,
  *        must be #I915_GTT_PAGE_SIZE aligned
  * @offset: where to insert inside the GTT,
- *          must be #I915_GTT_MIN_ALIGNMENT aligned, and the node
+ *          must be #I915_GTT_MIN_ALIGNMENT aligned, and the analde
  *          (@offset + @size) must fit within the address space
- * @color: color to apply to node, if this node is not from a VMA,
+ * @color: color to apply to analde, if this analde is analt from a VMA,
  *         color must be #I915_COLOR_UNEVICTABLE
  * @flags: control search and eviction behaviour
  *
- * i915_gem_gtt_reserve() tries to insert the @node at the exact @offset inside
- * the address space (using @size and @color). If the @node does not fit, it
- * tries to evict any overlapping nodes from the GTT, including any
- * neighbouring nodes if the colors do not match (to ensure guard pages between
- * differing domains). See i915_gem_evict_for_node() for the gory details
- * on the eviction algorithm. #PIN_NONBLOCK may used to prevent waiting on
- * evicting active overlapping objects, and any overlapping node that is pinned
+ * i915_gem_gtt_reserve() tries to insert the @analde at the exact @offset inside
+ * the address space (using @size and @color). If the @analde does analt fit, it
+ * tries to evict any overlapping analdes from the GTT, including any
+ * neighbouring analdes if the colors do analt match (to ensure guard pages between
+ * differing domains). See i915_gem_evict_for_analde() for the gory details
+ * on the eviction algorithm. #PIN_ANALNBLOCK may used to prevent waiting on
+ * evicting active overlapping objects, and any overlapping analde that is pinned
  * or marked as unevictable will also result in failure.
  *
- * Returns: 0 on success, -ENOSPC if no suitable hole is found, -EINTR if
+ * Returns: 0 on success, -EANALSPC if anal suitable hole is found, -EINTR if
  * asked to wait for eviction and interrupted.
  */
 int i915_gem_gtt_reserve(struct i915_address_space *vm,
 			 struct i915_gem_ww_ctx *ww,
-			 struct drm_mm_node *node,
+			 struct drm_mm_analde *analde,
 			 u64 size, u64 offset, unsigned long color,
 			 unsigned int flags)
 {
@@ -107,22 +107,22 @@ int i915_gem_gtt_reserve(struct i915_address_space *vm,
 	GEM_BUG_ON(!IS_ALIGNED(offset, I915_GTT_MIN_ALIGNMENT));
 	GEM_BUG_ON(range_overflows(offset, size, vm->total));
 	GEM_BUG_ON(vm == &to_gt(vm->i915)->ggtt->alias->vm);
-	GEM_BUG_ON(drm_mm_node_allocated(node));
+	GEM_BUG_ON(drm_mm_analde_allocated(analde));
 
-	node->size = size;
-	node->start = offset;
-	node->color = color;
+	analde->size = size;
+	analde->start = offset;
+	analde->color = color;
 
-	err = drm_mm_reserve_node(&vm->mm, node);
-	if (err != -ENOSPC)
+	err = drm_mm_reserve_analde(&vm->mm, analde);
+	if (err != -EANALSPC)
 		return err;
 
-	if (flags & PIN_NOEVICT)
-		return -ENOSPC;
+	if (flags & PIN_ANALEVICT)
+		return -EANALSPC;
 
-	err = i915_gem_evict_for_node(vm, ww, node, flags);
+	err = i915_gem_evict_for_analde(vm, ww, analde, flags);
 	if (err == 0)
-		err = drm_mm_reserve_node(&vm->mm, node);
+		err = drm_mm_reserve_analde(&vm->mm, analde);
 
 	return err;
 }
@@ -153,43 +153,43 @@ static u64 random_offset(u64 start, u64 end, u64 len, u64 align)
 }
 
 /**
- * i915_gem_gtt_insert - insert a node into an address_space (GTT)
+ * i915_gem_gtt_insert - insert a analde into an address_space (GTT)
  * @vm: the &struct i915_address_space
  * @ww: An optional struct i915_gem_ww_ctx.
- * @node: the &struct drm_mm_node (typically i915_vma.node)
+ * @analde: the &struct drm_mm_analde (typically i915_vma.analde)
  * @size: how much space to allocate inside the GTT,
  *        must be #I915_GTT_PAGE_SIZE aligned
  * @alignment: required alignment of starting offset, may be 0 but
  *             if specified, this must be a power-of-two and at least
  *             #I915_GTT_MIN_ALIGNMENT
- * @color: color to apply to node
+ * @color: color to apply to analde
  * @start: start of any range restriction inside GTT (0 for all),
  *         must be #I915_GTT_PAGE_SIZE aligned
  * @end: end of any range restriction inside GTT (U64_MAX for all),
- *       must be #I915_GTT_PAGE_SIZE aligned if not U64_MAX
+ *       must be #I915_GTT_PAGE_SIZE aligned if analt U64_MAX
  * @flags: control search and eviction behaviour
  *
  * i915_gem_gtt_insert() first searches for an available hole into which
- * is can insert the node. The hole address is aligned to @alignment and
+ * is can insert the analde. The hole address is aligned to @alignment and
  * its @size must then fit entirely within the [@start, @end] bounds. The
- * nodes on either side of the hole must match @color, or else a guard page
- * will be inserted between the two nodes (or the node evicted). If no
+ * analdes on either side of the hole must match @color, or else a guard page
+ * will be inserted between the two analdes (or the analde evicted). If anal
  * suitable hole is found, first a victim is randomly selected and tested
  * for eviction, otherwise then the LRU list of objects within the GTT
- * is scanned to find the first set of replacement nodes to create the hole.
- * Those old overlapping nodes are evicted from the GTT (and so must be
- * rebound before any future use). Any node that is currently pinned cannot
- * be evicted (see i915_vma_pin()). Similar if the node's VMA is currently
- * active and #PIN_NONBLOCK is specified, that node is also skipped when
+ * is scanned to find the first set of replacement analdes to create the hole.
+ * Those old overlapping analdes are evicted from the GTT (and so must be
+ * rebound before any future use). Any analde that is currently pinned cananalt
+ * be evicted (see i915_vma_pin()). Similar if the analde's VMA is currently
+ * active and #PIN_ANALNBLOCK is specified, that analde is also skipped when
  * searching for an eviction candidate. See i915_gem_evict_something() for
  * the gory details on the eviction algorithm.
  *
- * Returns: 0 on success, -ENOSPC if no suitable hole is found, -EINTR if
+ * Returns: 0 on success, -EANALSPC if anal suitable hole is found, -EINTR if
  * asked to wait for eviction and interrupted.
  */
 int i915_gem_gtt_insert(struct i915_address_space *vm,
 			struct i915_gem_ww_ctx *ww,
-			struct drm_mm_node *node,
+			struct drm_mm_analde *analde,
 			u64 size, u64 alignment, unsigned long color,
 			u64 start, u64 end, unsigned int flags)
 {
@@ -207,13 +207,13 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	GEM_BUG_ON(start > 0  && !IS_ALIGNED(start, I915_GTT_PAGE_SIZE));
 	GEM_BUG_ON(end < U64_MAX && !IS_ALIGNED(end, I915_GTT_PAGE_SIZE));
 	GEM_BUG_ON(vm == &to_gt(vm->i915)->ggtt->alias->vm);
-	GEM_BUG_ON(drm_mm_node_allocated(node));
+	GEM_BUG_ON(drm_mm_analde_allocated(analde));
 
 	if (unlikely(range_overflows(start, size, end)))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (unlikely(round_up(start, alignment) > round_down(end - size, alignment)))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	mode = DRM_MM_INSERT_BEST;
 	if (flags & PIN_HIGH)
@@ -222,7 +222,7 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 		mode = DRM_MM_INSERT_LOW;
 
 	/* We only allocate in PAGE_SIZE/GTT_PAGE_SIZE (4096) chunks,
-	 * so we know that we always have a minimum alignment of 4096.
+	 * so we kanalw that we always have a minimum alignment of 4096.
 	 * The drm_mm range manager is optimised to return results
 	 * with zero alignment, so where possible use the optimal
 	 * path.
@@ -231,37 +231,37 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	if (alignment <= I915_GTT_MIN_ALIGNMENT)
 		alignment = 0;
 
-	err = drm_mm_insert_node_in_range(&vm->mm, node,
+	err = drm_mm_insert_analde_in_range(&vm->mm, analde,
 					  size, alignment, color,
 					  start, end, mode);
-	if (err != -ENOSPC)
+	if (err != -EANALSPC)
 		return err;
 
 	if (mode & DRM_MM_INSERT_ONCE) {
-		err = drm_mm_insert_node_in_range(&vm->mm, node,
+		err = drm_mm_insert_analde_in_range(&vm->mm, analde,
 						  size, alignment, color,
 						  start, end,
 						  DRM_MM_INSERT_BEST);
-		if (err != -ENOSPC)
+		if (err != -EANALSPC)
 			return err;
 	}
 
-	if (flags & PIN_NOEVICT)
-		return -ENOSPC;
+	if (flags & PIN_ANALEVICT)
+		return -EANALSPC;
 
 	/*
-	 * No free space, pick a slot at random.
+	 * Anal free space, pick a slot at random.
 	 *
 	 * There is a pathological case here using a GTT shared between
-	 * mmap and GPU (i.e. ggtt/aliasing_ppgtt but not full-ppgtt):
+	 * mmap and GPU (i.e. ggtt/aliasing_ppgtt but analt full-ppgtt):
 	 *
 	 *    |<-- 256 MiB aperture -->||<-- 1792 MiB unmappable -->|
 	 *         (64k objects)             (448k objects)
 	 *
-	 * Now imagine that the eviction LRU is ordered top-down (just because
+	 * Analw imagine that the eviction LRU is ordered top-down (just because
 	 * pathology meets real life), and that we need to evict an object to
 	 * make room inside the aperture. The eviction scan then has to walk
-	 * the 448k list before it finds one within range. And now imagine that
+	 * the 448k list before it finds one within range. And analw imagine that
 	 * it has to search for a new hole between every byte inside the memcpy,
 	 * for several simultaneous clients.
 	 *
@@ -274,12 +274,12 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	 */
 	offset = random_offset(start, end,
 			       size, alignment ?: I915_GTT_MIN_ALIGNMENT);
-	err = i915_gem_gtt_reserve(vm, ww, node, size, offset, color, flags);
-	if (err != -ENOSPC)
+	err = i915_gem_gtt_reserve(vm, ww, analde, size, offset, color, flags);
+	if (err != -EANALSPC)
 		return err;
 
-	if (flags & PIN_NOSEARCH)
-		return -ENOSPC;
+	if (flags & PIN_ANALSEARCH)
+		return -EANALSPC;
 
 	/* Randomly selected placement is pinned, do a search */
 	err = i915_gem_evict_something(vm, ww, size, alignment, color,
@@ -287,7 +287,7 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	if (err)
 		return err;
 
-	return drm_mm_insert_node_in_range(&vm->mm, node,
+	return drm_mm_insert_analde_in_range(&vm->mm, analde,
 					   size, alignment, color,
 					   start, end, DRM_MM_INSERT_EVICT);
 }

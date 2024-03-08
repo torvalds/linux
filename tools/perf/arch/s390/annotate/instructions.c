@@ -154,7 +154,7 @@ static int s390__cpuid_parse(struct arch *arch, char *cpuid)
 	return -1;
 }
 
-static int s390__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+static int s390__ananaltate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
 	int err = 0;
 
@@ -163,7 +163,7 @@ static int s390__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
 		arch->associate_instruction_ops = s390__associate_ins_ops;
 		if (cpuid) {
 			if (s390__cpuid_parse(arch, cpuid))
-				err = SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_CPUID_PARSING;
+				err = SYMBOL_ANANALTATE_ERRANAL__ARCH_INIT_CPUID_PARSING;
 		}
 	}
 

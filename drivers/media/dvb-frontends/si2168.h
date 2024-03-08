@@ -29,7 +29,7 @@
  * @spectral_inversion:
  *	Inverted spectrum
  *
- * Note:
+ * Analte:
  *	The I2C address of this demod is 0x64.
  */
 struct si2168_config {

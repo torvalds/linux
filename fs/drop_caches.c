@@ -18,34 +18,34 @@ int sysctl_drop_caches;
 
 static void drop_pagecache_sb(struct super_block *sb, void *unused)
 {
-	struct inode *inode, *toput_inode = NULL;
+	struct ianalde *ianalde, *toput_ianalde = NULL;
 
-	spin_lock(&sb->s_inode_list_lock);
-	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
-		spin_lock(&inode->i_lock);
+	spin_lock(&sb->s_ianalde_list_lock);
+	list_for_each_entry(ianalde, &sb->s_ianaldes, i_sb_list) {
+		spin_lock(&ianalde->i_lock);
 		/*
-		 * We must skip inodes in unusual state. We may also skip
-		 * inodes without pages but we deliberately won't in case
+		 * We must skip ianaldes in unusual state. We may also skip
+		 * ianaldes without pages but we deliberately won't in case
 		 * we need to reschedule to avoid softlockups.
 		 */
-		if ((inode->i_state & (I_FREEING|I_WILL_FREE|I_NEW)) ||
-		    (mapping_empty(inode->i_mapping) && !need_resched())) {
-			spin_unlock(&inode->i_lock);
+		if ((ianalde->i_state & (I_FREEING|I_WILL_FREE|I_NEW)) ||
+		    (mapping_empty(ianalde->i_mapping) && !need_resched())) {
+			spin_unlock(&ianalde->i_lock);
 			continue;
 		}
-		__iget(inode);
-		spin_unlock(&inode->i_lock);
-		spin_unlock(&sb->s_inode_list_lock);
+		__iget(ianalde);
+		spin_unlock(&ianalde->i_lock);
+		spin_unlock(&sb->s_ianalde_list_lock);
 
-		invalidate_mapping_pages(inode->i_mapping, 0, -1);
-		iput(toput_inode);
-		toput_inode = inode;
+		invalidate_mapping_pages(ianalde->i_mapping, 0, -1);
+		iput(toput_ianalde);
+		toput_ianalde = ianalde;
 
 		cond_resched();
-		spin_lock(&sb->s_inode_list_lock);
+		spin_lock(&sb->s_ianalde_list_lock);
 	}
-	spin_unlock(&sb->s_inode_list_lock);
-	iput(toput_inode);
+	spin_unlock(&sb->s_ianalde_list_lock);
+	iput(toput_ianalde);
 }
 
 int drop_caches_sysctl_handler(struct ctl_table *table, int write,

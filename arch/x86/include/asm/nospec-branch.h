@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-#ifndef _ASM_X86_NOSPEC_BRANCH_H_
-#define _ASM_X86_NOSPEC_BRANCH_H_
+#ifndef _ASM_X86_ANALSPEC_BRANCH_H_
+#define _ASM_X86_ANALSPEC_BRANCH_H_
 
 #include <linux/static_key.h>
 #include <linux/objtool.h>
@@ -18,7 +18,7 @@
  * Call depth tracking for Intel SKL CPUs to address the RSB underflow
  * issue in software.
  *
- * The tracking does not use a counter. It uses uses arithmetic shift
+ * The tracking does analt use a counter. It uses uses arithmetic shift
  * right on call entry and logical shift left on return.
  *
  * The depth tracking variable is initialized to 0x8000.... when the call
@@ -46,9 +46,9 @@
  *   ....
  *
  * The shift count might cause this to be off by one in either direction,
- * but there is still a cushion vs. the RSB depth. The algorithm does not
+ * but there is still a cushion vs. the RSB depth. The algorithm does analt
  * claim to be perfect and it can be speculated around by the CPU, but it
- * is considered that it obfuscates the problem enough to make exploitation
+ * is considered that it obfuscates the problem eanalugh to make exploitation
  * extremely difficult.
  */
 #define RET_DEPTH_SHIFT			5
@@ -125,7 +125,7 @@
  *
  * We define a CPP macro such that it can be used from both .S files and
  * inline assembly. It's possible to do a .macro and then include that
- * from C via asm(".include <asm/nospec-branch.h>") but let's not go there.
+ * from C via asm(".include <asm/analspec-branch.h>") but let's analt go there.
  */
 
 #define RETPOLINE_THUNK_SIZE	32
@@ -135,7 +135,7 @@
  * Common helper for __FILL_RETURN_BUFFER and __FILL_ONE_RETURN.
  */
 #define __FILL_RETURN_SLOT			\
-	ANNOTATE_INTRA_FUNCTION_CALL;		\
+	ANANALTATE_INTRA_FUNCTION_CALL;		\
 	call	772f;				\
 	int3;					\
 772:
@@ -178,7 +178,7 @@
  * To mitigate Post-Barrier RSB speculation, one CALL instruction must be
  * forced to retire before letting a RET instruction execute.
  *
- * On PBRSB-vulnerable CPUs, it is not safe for a RET to be executed
+ * On PBRSB-vulnerable CPUs, it is analt safe for a RET to be executed
  * before this point.
  */
 #define __FILL_ONE_RETURN				\
@@ -193,7 +193,7 @@
  * objtool the subsequent indirect jump/call is vouched safe for retpoline
  * builds.
  */
-.macro ANNOTATE_RETPOLINE_SAFE
+.macro ANANALTATE_RETPOLINE_SAFE
 .Lhere_\@:
 	.pushsection .discard.retpoline_safe
 	.long .Lhere_\@
@@ -201,20 +201,20 @@
 .endm
 
 /*
- * (ab)use RETPOLINE_SAFE on RET to annotate away 'bare' RET instructions
+ * (ab)use RETPOLINE_SAFE on RET to ananaltate away 'bare' RET instructions
  * vs RETBleed validation.
  */
-#define ANNOTATE_UNRET_SAFE ANNOTATE_RETPOLINE_SAFE
+#define ANANALTATE_UNRET_SAFE ANANALTATE_RETPOLINE_SAFE
 
 /*
- * Abuse ANNOTATE_RETPOLINE_SAFE on a NOP to indicate UNRET_END, should
- * eventually turn into its own annotation.
+ * Abuse ANANALTATE_RETPOLINE_SAFE on a ANALP to indicate UNRET_END, should
+ * eventually turn into its own ananaltation.
  */
 .macro VALIDATE_UNRET_END
-#if defined(CONFIG_NOINSTR_VALIDATION) && \
+#if defined(CONFIG_ANALINSTR_VALIDATION) && \
 	(defined(CONFIG_CPU_UNRET_ENTRY) || defined(CONFIG_CPU_SRSO))
-	ANNOTATE_RETPOLINE_SAFE
-	nop
+	ANANALTATE_RETPOLINE_SAFE
+	analp
 #endif
 .endm
 
@@ -232,15 +232,15 @@
 .endm
 
 /*
- * JMP_NOSPEC and CALL_NOSPEC macros can be used instead of a simple
+ * JMP_ANALSPEC and CALL_ANALSPEC macros can be used instead of a simple
  * indirect jmp/call which may be susceptible to the Spectre variant 2
  * attack.
  *
- * NOTE: these do not take kCFI into account and are thus not comparable to C
+ * ANALTE: these do analt take kCFI into account and are thus analt comparable to C
  * indirect calls, take care when using. The target of these should be an ENDBR
  * instruction irrespective of kCFI.
  */
-.macro JMP_NOSPEC reg:req
+.macro JMP_ANALSPEC reg:req
 #ifdef CONFIG_RETPOLINE
 	__CS_PREFIX \reg
 	jmp	__x86_indirect_thunk_\reg
@@ -250,7 +250,7 @@
 #endif
 .endm
 
-.macro CALL_NOSPEC reg:req
+.macro CALL_ANALSPEC reg:req
 #ifdef CONFIG_RETPOLINE
 	__CS_PREFIX \reg
 	call	__x86_indirect_thunk_\reg
@@ -263,10 +263,10 @@
   * A simpler FILL_RETURN_BUFFER macro. Don't make people use the CPP
   * monstrosity above, manually.
   */
-.macro FILL_RETURN_BUFFER reg:req nr:req ftr:req ftr2=ALT_NOT(X86_FEATURE_ALWAYS)
+.macro FILL_RETURN_BUFFER reg:req nr:req ftr:req ftr2=ALT_ANALT(X86_FEATURE_ALWAYS)
 	ALTERNATIVE_2 "jmp .Lskip_rsb_\@", \
 		__stringify(__FILL_RETURN_BUFFER(\reg,\nr)), \ftr, \
-		__stringify(nop;nop;__FILL_ONE_RETURN), \ftr2
+		__stringify(analp;analp;__FILL_ONE_RETURN), \ftr2
 
 .Lskip_rsb_\@:
 .endm
@@ -280,7 +280,7 @@
 /*
  * Mitigate RETBleed for AMD/Hygon Zen uarch. Requires KERNEL CR3 because the
  * return thunk isn't mapped into the userspace tables (then again, AMD
- * typically has NO_MELTDOWN).
+ * typically has ANAL_MELTDOWN).
  *
  * While retbleed_untrain_ret() doesn't clobber anything but requires stack,
  * entry_ibpb() will clobber AX, CX, DX.
@@ -320,7 +320,7 @@
  * attacks such as MDS. On affected systems a microcode update overloaded VERW
  * instruction to also clear the CPU buffers. VERW clobbers CFLAGS.ZF.
  *
- * Note: Only the memory operand variant of VERW clears the CPU buffers.
+ * Analte: Only the memory operand variant of VERW clears the CPU buffers.
  */
 .macro CLEAR_CPU_BUFFERS
 	ALTERNATIVE "", __stringify(verw _ASM_RIP(mds_verw_sel)), X86_FEATURE_CLEAR_CPU_BUF
@@ -328,7 +328,7 @@
 
 #else /* __ASSEMBLY__ */
 
-#define ANNOTATE_RETPOLINE_SAFE					\
+#define ANANALTATE_RETPOLINE_SAFE					\
 	"999:\n\t"						\
 	".pushsection .discard.retpoline_safe\n\t"		\
 	".long 999b\n\t"					\
@@ -412,14 +412,14 @@ static inline void call_depth_return_thunk(void) {}
  * Inline asm uses the %V modifier which is only in newer GCC
  * which is ensured when CONFIG_RETPOLINE is defined.
  */
-# define CALL_NOSPEC						\
+# define CALL_ANALSPEC						\
 	ALTERNATIVE_2(						\
-	ANNOTATE_RETPOLINE_SAFE					\
+	ANANALTATE_RETPOLINE_SAFE					\
 	"call *%[thunk_target]\n",				\
 	"call __x86_indirect_thunk_%V[thunk_target]\n",		\
 	X86_FEATURE_RETPOLINE,					\
 	"lfence;\n"						\
-	ANNOTATE_RETPOLINE_SAFE					\
+	ANANALTATE_RETPOLINE_SAFE					\
 	"call *%[thunk_target]\n",				\
 	X86_FEATURE_RETPOLINE_LFENCE)
 
@@ -431,9 +431,9 @@ static inline void call_depth_return_thunk(void) {}
  * otherwise we'll run out of registers. We don't care about CET
  * here, anyway.
  */
-# define CALL_NOSPEC						\
+# define CALL_ANALSPEC						\
 	ALTERNATIVE_2(						\
-	ANNOTATE_RETPOLINE_SAFE					\
+	ANANALTATE_RETPOLINE_SAFE					\
 	"call *%[thunk_target]\n",				\
 	"       jmp    904f;\n"					\
 	"       .align 16\n"					\
@@ -449,20 +449,20 @@ static inline void call_depth_return_thunk(void) {}
 	"904:	call   901b;\n",				\
 	X86_FEATURE_RETPOLINE,					\
 	"lfence;\n"						\
-	ANNOTATE_RETPOLINE_SAFE					\
+	ANANALTATE_RETPOLINE_SAFE					\
 	"call *%[thunk_target]\n",				\
 	X86_FEATURE_RETPOLINE_LFENCE)
 
 # define THUNK_TARGET(addr) [thunk_target] "rm" (addr)
 #endif
-#else /* No retpoline for C / inline asm */
-# define CALL_NOSPEC "call *%[thunk_target]\n"
+#else /* Anal retpoline for C / inline asm */
+# define CALL_ANALSPEC "call *%[thunk_target]\n"
 # define THUNK_TARGET(addr) [thunk_target] "rm" (addr)
 #endif
 
 /* The Spectre V2 mitigation variants */
 enum spectre_v2_mitigation {
-	SPECTRE_V2_NONE,
+	SPECTRE_V2_ANALNE,
 	SPECTRE_V2_RETPOLINE,
 	SPECTRE_V2_LFENCE,
 	SPECTRE_V2_EIBRS,
@@ -473,7 +473,7 @@ enum spectre_v2_mitigation {
 
 /* The indirect branch speculation control variants */
 enum spectre_v2_user_mitigation {
-	SPECTRE_V2_USER_NONE,
+	SPECTRE_V2_USER_ANALNE,
 	SPECTRE_V2_USER_STRICT,
 	SPECTRE_V2_USER_STRICT_PREFERRED,
 	SPECTRE_V2_USER_PRCTL,
@@ -482,7 +482,7 @@ enum spectre_v2_user_mitigation {
 
 /* The Speculative Store Bypass disable variants */
 enum ssb_mitigation {
-	SPEC_STORE_BYPASS_NONE,
+	SPEC_STORE_BYPASS_ANALNE,
 	SPEC_STORE_BYPASS_DISABLE,
 	SPEC_STORE_BYPASS_PRCTL,
 	SPEC_STORE_BYPASS_SECCOMP,
@@ -564,7 +564,7 @@ static __always_inline void mds_clear_cpu_buffers(void)
 	/*
 	 * Has to be the memory-operand variant because only that
 	 * guarantees the CPU buffer flush functionality according to
-	 * documentation. The register-operand variant does not.
+	 * documentation. The register-operand variant does analt.
 	 * Works with any segment selector, but a valid writable
 	 * data segment is the fastest variant.
 	 *
@@ -586,4 +586,4 @@ static __always_inline void mds_idle_clear_cpu_buffers(void)
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* _ASM_X86_NOSPEC_BRANCH_H_ */
+#endif /* _ASM_X86_ANALSPEC_BRANCH_H_ */

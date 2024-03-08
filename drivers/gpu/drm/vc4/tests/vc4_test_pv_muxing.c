@@ -31,7 +31,7 @@ static bool check_fifo_conflict(struct kunit *test,
 	unsigned int i;
 
 	hvs_state = vc4_hvs_get_new_global_state(state);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, hvs_state);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, hvs_state);
 
 	for (i = 0; i < HVS_NUM_CHANNELS; i++) {
 		if (!hvs_state->fifo_state[i].in_use)
@@ -129,10 +129,10 @@ get_vc4_crtc_state_for_encoder(struct kunit *test,
 	struct drm_crtc *crtc;
 
 	encoder = vc4_find_encoder_by_type(drm, type);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, encoder);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, encoder);
 
 	crtc = vc4_find_crtc_for_encoder(test, drm, encoder);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, crtc);
 
 	new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	if (!new_crtc_state)
@@ -151,10 +151,10 @@ static bool check_channel_for_encoder(struct kunit *test,
 	unsigned int channel;
 
 	new_hvs_state = vc4_hvs_get_new_global_state(state);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, new_hvs_state);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, new_hvs_state);
 
 	new_vc4_crtc_state = get_vc4_crtc_state_for_encoder(test, state, type);
-	KUNIT_ASSERT_NOT_NULL(test, new_vc4_crtc_state);
+	KUNIT_ASSERT_ANALT_NULL(test, new_vc4_crtc_state);
 
 	channel = new_vc4_crtc_state->assigned_channel;
 	KUNIT_EXPECT_NE(test, channel, VC4_HVS_CHANNEL_DISABLED);
@@ -730,19 +730,19 @@ static int vc4_pv_muxing_test_init(struct kunit *test)
 	struct vc4_dev *vc4;
 
 	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, priv);
+	KUNIT_ASSERT_ANALT_NULL(test, priv);
 	test->priv = priv;
 
 	vc4 = params->mock_fn(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, vc4);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, vc4);
 	priv->vc4 = vc4;
 
 	ctx = drm_kunit_helper_acquire_ctx_alloc(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx);
 
 	drm = &vc4->base;
 	priv->state = drm_kunit_helper_atomic_state_alloc(test, drm, ctx);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->state);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, priv->state);
 
 	return 0;
 }
@@ -778,7 +778,7 @@ static struct kunit_suite vc5_pv_muxing_test_suite = {
 /* See
  * https://lore.kernel.org/all/3e113525-aa89-b1e2-56b7-ca55bd41d057@samsung.com/
  * and
- * https://lore.kernel.org/dri-devel/20200917121623.42023-1-maxime@cerno.tech/
+ * https://lore.kernel.org/dri-devel/20200917121623.42023-1-maxime@ceranal.tech/
  */
 static void drm_test_vc5_pv_muxing_bugs_subsequent_crtc_enable(struct kunit *test)
 {
@@ -793,14 +793,14 @@ static void drm_test_vc5_pv_muxing_bugs_subsequent_crtc_enable(struct kunit *tes
 	int ret;
 
 	vc4 = vc5_mock_device(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, vc4);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, vc4);
 
 	ctx = drm_kunit_helper_acquire_ctx_alloc(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx);
 
 	drm = &vc4->base;
 	state = drm_kunit_helper_atomic_state_alloc(test, drm, ctx);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, state);
 
 	ret = vc4_mock_atomic_add_output(test, state, VC4_ENCODER_TYPE_HDMI0);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -809,11 +809,11 @@ static void drm_test_vc5_pv_muxing_bugs_subsequent_crtc_enable(struct kunit *tes
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	new_hvs_state = vc4_hvs_get_new_global_state(state);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, new_hvs_state);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, new_hvs_state);
 
 	new_vc4_crtc_state = get_vc4_crtc_state_for_encoder(test, state,
 							    VC4_ENCODER_TYPE_HDMI0);
-	KUNIT_ASSERT_NOT_NULL(test, new_vc4_crtc_state);
+	KUNIT_ASSERT_ANALT_NULL(test, new_vc4_crtc_state);
 
 	hdmi0_channel = new_vc4_crtc_state->assigned_channel;
 	KUNIT_ASSERT_NE(test, hdmi0_channel, VC4_HVS_CHANNEL_DISABLED);
@@ -823,7 +823,7 @@ static void drm_test_vc5_pv_muxing_bugs_subsequent_crtc_enable(struct kunit *tes
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	state = drm_kunit_helper_atomic_state_alloc(test, drm, ctx);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, state);
 
 	ret = vc4_mock_atomic_add_output(test, state, VC4_ENCODER_TYPE_HDMI1);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -832,11 +832,11 @@ static void drm_test_vc5_pv_muxing_bugs_subsequent_crtc_enable(struct kunit *tes
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	new_hvs_state = vc4_hvs_get_new_global_state(state);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, new_hvs_state);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, new_hvs_state);
 
 	new_vc4_crtc_state = get_vc4_crtc_state_for_encoder(test, state,
 							    VC4_ENCODER_TYPE_HDMI1);
-	KUNIT_ASSERT_NOT_NULL(test, new_vc4_crtc_state);
+	KUNIT_ASSERT_ANALT_NULL(test, new_vc4_crtc_state);
 
 	hdmi1_channel = new_vc4_crtc_state->assigned_channel;
 	KUNIT_ASSERT_NE(test, hdmi1_channel, VC4_HVS_CHANNEL_DISABLED);
@@ -865,14 +865,14 @@ static void drm_test_vc5_pv_muxing_bugs_stable_fifo(struct kunit *test)
 	int ret;
 
 	vc4 = vc5_mock_device(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, vc4);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, vc4);
 
 	ctx = drm_kunit_helper_acquire_ctx_alloc(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx);
 
 	drm = &vc4->base;
 	state = drm_kunit_helper_atomic_state_alloc(test, drm, ctx);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, state);
 
 	ret = vc4_mock_atomic_add_output(test, state, VC4_ENCODER_TYPE_HDMI0);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -884,11 +884,11 @@ static void drm_test_vc5_pv_muxing_bugs_stable_fifo(struct kunit *test)
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	new_hvs_state = vc4_hvs_get_new_global_state(state);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, new_hvs_state);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, new_hvs_state);
 
 	new_vc4_crtc_state = get_vc4_crtc_state_for_encoder(test, state,
 							    VC4_ENCODER_TYPE_HDMI0);
-	KUNIT_ASSERT_NOT_NULL(test, new_vc4_crtc_state);
+	KUNIT_ASSERT_ANALT_NULL(test, new_vc4_crtc_state);
 
 	old_hdmi0_channel = new_vc4_crtc_state->assigned_channel;
 	KUNIT_ASSERT_NE(test, old_hdmi0_channel, VC4_HVS_CHANNEL_DISABLED);
@@ -896,7 +896,7 @@ static void drm_test_vc5_pv_muxing_bugs_stable_fifo(struct kunit *test)
 
 	new_vc4_crtc_state = get_vc4_crtc_state_for_encoder(test, state,
 							    VC4_ENCODER_TYPE_HDMI1);
-	KUNIT_ASSERT_NOT_NULL(test, new_vc4_crtc_state);
+	KUNIT_ASSERT_ANALT_NULL(test, new_vc4_crtc_state);
 
 	old_hdmi1_channel = new_vc4_crtc_state->assigned_channel;
 	KUNIT_ASSERT_NE(test, old_hdmi1_channel, VC4_HVS_CHANNEL_DISABLED);
@@ -906,7 +906,7 @@ static void drm_test_vc5_pv_muxing_bugs_stable_fifo(struct kunit *test)
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	state = drm_kunit_helper_atomic_state_alloc(test, drm, ctx);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, state);
 
 	ret = vc4_mock_atomic_del_output(test, state, VC4_ENCODER_TYPE_HDMI0);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -915,7 +915,7 @@ static void drm_test_vc5_pv_muxing_bugs_stable_fifo(struct kunit *test)
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	new_hvs_state = vc4_hvs_get_new_global_state(state);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, new_hvs_state);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, new_hvs_state);
 
 	new_vc4_crtc_state = get_vc4_crtc_state_for_encoder(test, state,
 							    VC4_ENCODER_TYPE_HDMI1);
@@ -957,14 +957,14 @@ drm_test_vc5_pv_muxing_bugs_subsequent_crtc_enable_too_many_crtc_state(struct ku
 	int ret;
 
 	vc4 = vc5_mock_device(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, vc4);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, vc4);
 
 	ctx = drm_kunit_helper_acquire_ctx_alloc(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx);
 
 	drm = &vc4->base;
 	state = drm_kunit_helper_atomic_state_alloc(test, drm, ctx);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, state);
 
 	ret = vc4_mock_atomic_add_output(test, state, VC4_ENCODER_TYPE_HDMI0);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -976,7 +976,7 @@ drm_test_vc5_pv_muxing_bugs_subsequent_crtc_enable_too_many_crtc_state(struct ku
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	state = drm_kunit_helper_atomic_state_alloc(test, drm, ctx);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, state);
 
 	ret = vc4_mock_atomic_add_output(test, state, VC4_ENCODER_TYPE_HDMI1);
 	KUNIT_ASSERT_EQ(test, ret, 0);

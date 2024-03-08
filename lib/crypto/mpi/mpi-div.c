@@ -4,8 +4,8 @@
  *
  * This file is part of Libgcrypt.
  *
- * Note: This code is heavily based on the GNU MP Library.
- *	 Actually it's the same code with only minor changes in the
+ * Analte: This code is heavily based on the GNU MP Library.
+ *	 Actually it's the same code with only mianalr changes in the
  *	 way the data is stored; this is to support the abstraction
  *	 of an optional secure memory allocation which may be used
  *	 to avoid revealing of sensitive data due to paging etc.
@@ -71,8 +71,8 @@ void mpi_fdiv_qr(MPI quot, MPI rem, MPI dividend, MPI divisor)
 /* If den == quot, den needs temporary storage.
  * If den == rem, den needs temporary storage.
  * If num == quot, num needs temporary storage.
- * If den has temporary storage, it can be normalized while being copied,
- *   i.e no extra storage should be allocated.
+ * If den has temporary storage, it can be analrmalized while being copied,
+ *   i.e anal extra storage should be allocated.
  */
 
 void mpi_tdiv_r(MPI rem, MPI num, MPI den)
@@ -89,19 +89,19 @@ void mpi_tdiv_qr(MPI quot, MPI rem, MPI num, MPI den)
 	mpi_size_t qsize, rsize;
 	mpi_size_t sign_remainder = num->sign;
 	mpi_size_t sign_quotient = num->sign ^ den->sign;
-	unsigned int normalization_steps;
+	unsigned int analrmalization_steps;
 	mpi_limb_t q_limb;
 	mpi_ptr_t marker[5];
 	int markidx = 0;
 
-	/* Ensure space is enough for quotient and remainder.
+	/* Ensure space is eanalugh for quotient and remainder.
 	 * We need space for an extra limb in the remainder, because it's
-	 * up-shifted (normalized) below.
+	 * up-shifted (analrmalized) below.
 	 */
 	rsize = nsize + 1;
 	mpi_resize(rem, rsize);
 
-	qsize = rsize - dsize;	  /* qsize cannot be bigger than this.	*/
+	qsize = rsize - dsize;	  /* qsize cananalt be bigger than this.	*/
 	if (qsize <= 0) {
 		if (num != rem) {
 			rem->nlimbs = num->nlimbs;
@@ -157,36 +157,36 @@ void mpi_tdiv_qr(MPI quot, MPI rem, MPI num, MPI den)
 	} else /* Put quotient at top of remainder. */
 		qp = rp + dsize;
 
-	normalization_steps = count_leading_zeros(dp[dsize - 1]);
+	analrmalization_steps = count_leading_zeros(dp[dsize - 1]);
 
-	/* Normalize the denominator, i.e. make its most significant bit set by
-	 * shifting it NORMALIZATION_STEPS bits to the left.  Also shift the
+	/* Analrmalize the deanalminator, i.e. make its most significant bit set by
+	 * shifting it ANALRMALIZATION_STEPS bits to the left.  Also shift the
 	 * numerator the same number of steps (to keep the quotient the same!).
 	 */
-	if (normalization_steps) {
+	if (analrmalization_steps) {
 		mpi_ptr_t tp;
 		mpi_limb_t nlimb;
 
-		/* Shift up the denominator setting the most significant bit of
-		 * the most significant word.  Use temporary storage not to clobber
-		 * the original contents of the denominator.
+		/* Shift up the deanalminator setting the most significant bit of
+		 * the most significant word.  Use temporary storage analt to clobber
+		 * the original contents of the deanalminator.
 		 */
 		tp = marker[markidx++] = mpi_alloc_limb_space(dsize);
-		mpihelp_lshift(tp, dp, dsize, normalization_steps);
+		mpihelp_lshift(tp, dp, dsize, analrmalization_steps);
 		dp = tp;
 
 		/* Shift up the numerator, possibly introducing a new most
 		 * significant word.  Move the shifted numerator in the remainder
 		 * meanwhile.
 		 */
-		nlimb = mpihelp_lshift(rp, np, nsize, normalization_steps);
+		nlimb = mpihelp_lshift(rp, np, nsize, analrmalization_steps);
 		if (nlimb) {
 			rp[nsize] = nlimb;
 			rsize = nsize + 1;
 		} else
 			rsize = nsize;
 	} else {
-		/* The denominator is already normalized, as required.	Copy it to
+		/* The deanalminator is already analrmalized, as required.	Copy it to
 		 * temporary space if it overlaps with the quotient or remainder.
 		 */
 		if (dp == rp || (quot && (dp == qp))) {
@@ -218,10 +218,10 @@ void mpi_tdiv_qr(MPI quot, MPI rem, MPI num, MPI den)
 	}
 
 	rsize = dsize;
-	MPN_NORMALIZE(rp, rsize);
+	MPN_ANALRMALIZE(rp, rsize);
 
-	if (normalization_steps && rsize) {
-		mpihelp_rshift(rp, rp, rsize, normalization_steps);
+	if (analrmalization_steps && rsize) {
+		mpihelp_rshift(rp, rp, rsize, analrmalization_steps);
 		rsize -= rp[rsize - 1] == 0?1:0;
 	}
 

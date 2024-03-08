@@ -17,7 +17,7 @@ int ExtractStatistics(struct dl_phdr_info *info, size_t size, void *data)
 	int i;
 
 	if (info->dlpi_name != NULL && info->dlpi_name[0] != '\0') {
-		// Ignore headers from other than the executable.
+		// Iganalre headers from other than the executable.
 		return 2;
 	}
 
@@ -48,10 +48,10 @@ int main(int argc, char **argv)
 	}
 
 	if (extracted.alignment == 0) {
-		fprintf(stderr, "No alignment found\n");
+		fprintf(stderr, "Anal alignment found\n");
 		return 1;
 	} else if (extracted.alignment & (extracted.alignment - 1)) {
-		fprintf(stderr, "Alignment is not a power of 2\n");
+		fprintf(stderr, "Alignment is analt a power of 2\n");
 		return 1;
 	}
 

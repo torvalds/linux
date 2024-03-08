@@ -47,16 +47,16 @@ static u32 ibs_caps;
  * NMI handled (this is fundamentally racy in the face or multiple NMI sources,
  * someone else can consume our BIT and our NMI will go unhandled).
  *
- * And since we cannot set/clear this separate bit together with the EN bit,
+ * And since we cananalt set/clear this separate bit together with the EN bit,
  * there are races; if we cleared STARTED early, an NMI could land in
  * between clearing STARTED and clearing the EN bit (in fact multiple NMIs
- * could happen if the period is small enough), and consume our STOPPED bit
+ * could happen if the period is small eanalugh), and consume our STOPPED bit
  * and trigger streams of unhandled NMIs.
  *
  * If, however, we clear STARTED late, an NMI can hit between clearing the
  * EN bit and clearing STARTED, still see STARTED set and process the event.
  * If this event will have the VALID bit clear, we bail properly, but this
- * is not a given. With VALID set we can end up calling pmu::stop() again
+ * is analt a given. With VALID set we can end up calling pmu::stop() again
  * (the throttle logic) and trigger the WARNs in there.
  *
  * So what we do is set STOPPING before clearing EN to avoid the pmu::stop()
@@ -91,7 +91,7 @@ struct perf_ibs {
 	unsigned long			offset_mask[1];
 	int				offset_max;
 	unsigned int			fetch_count_reset_broken : 1;
-	unsigned int			fetch_ignore_if_zero_rip : 1;
+	unsigned int			fetch_iganalre_if_zero_rip : 1;
 	struct cpu_perf_ibs __percpu	*pcpu;
 
 	u64				(*get_count)(u64 config);
@@ -161,11 +161,11 @@ perf_event_try_update(struct perf_event *event, u64 new_raw_count, int width)
 		return 0;
 
 	/*
-	 * Now we have the new raw value and have updated the prev
-	 * timestamp already. We can now calculate the elapsed delta
+	 * Analw we have the new raw value and have updated the prev
+	 * timestamp already. We can analw calculate the elapsed delta
 	 * (event-)time and add that to the generic event.
 	 *
-	 * Careful, not all hw sign-extends above the physical width
+	 * Careful, analt all hw sign-extends above the physical width
 	 * of the count.
 	 */
 	delta = (new_raw_count << shift) - (prev_raw_count << shift);
@@ -221,16 +221,16 @@ static int core_pmu_ibs_config(struct perf_event *event, u64 *config)
 		}
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /*
  * The rip of IBS samples has skid 0. Thus, IBS supports precise
  * levels 1 and 2 and the PERF_EFLAGS_EXACT is set. In rare cases the
- * rip is invalid when IBS was not able to record the rip correctly.
+ * rip is invalid when IBS was analt able to record the rip correctly.
  * We clear PERF_EFLAGS_EXACT and take the rip from pt_regs then.
  */
 int forward_event_to_ibs(struct perf_event *event)
@@ -238,17 +238,17 @@ int forward_event_to_ibs(struct perf_event *event)
 	u64 config = 0;
 
 	if (!event->attr.precise_ip || event->attr.precise_ip > 2)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!core_pmu_ibs_config(event, &config)) {
 		event->attr.type = perf_ibs_op.pmu.type;
 		event->attr.config = config;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /*
- * Grouping of IBS events is not possible since IBS can have only
+ * Grouping of IBS events is analt possible since IBS can have only
  * one event active at any point in time.
  */
 static int validate_group(struct perf_event *event)
@@ -277,18 +277,18 @@ static int perf_ibs_init(struct perf_event *event)
 
 	perf_ibs = get_ibs_pmu(event->attr.type);
 	if (!perf_ibs)
-		return -ENOENT;
+		return -EANALENT;
 
 	config = event->attr.config;
 
 	if (event->pmu != &perf_ibs->pmu)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (config & ~perf_ibs->config_mask)
 		return -EINVAL;
 
 	if (has_branch_stack(event))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = validate_group(event);
 	if (ret)
@@ -296,11 +296,11 @@ static int perf_ibs_init(struct perf_event *event)
 
 	if (hwc->sample_period) {
 		if (config & perf_ibs->cnt_mask)
-			/* raw max_cnt may not be set */
+			/* raw max_cnt may analt be set */
 			return -EINVAL;
 		if (!event->attr.sample_freq && hwc->sample_period & 0x0f)
 			/*
-			 * lower 4 bits can not be set in ibs max cnt,
+			 * lower 4 bits can analt be set in ibs max cnt,
 			 * but allowing it in case we adjust the
 			 * sample period to set a frequency.
 			 */
@@ -336,7 +336,7 @@ static int perf_ibs_set_period(struct perf_ibs *perf_ibs,
 {
 	int overflow;
 
-	/* ignore lower 4 bits in min count: */
+	/* iganalre lower 4 bits in min count: */
 	overflow = perf_event_set_period(hwc, 1<<4, perf_ibs->max_period, period);
 	local64_set(&hwc->prev_count, 0);
 
@@ -378,7 +378,7 @@ perf_ibs_event_update(struct perf_ibs *perf_ibs, struct perf_event *event,
 	u64 count = perf_ibs->get_count(*config);
 
 	/*
-	 * Set width to 64 since we do not overflow on max width but
+	 * Set width to 64 since we do analt overflow on max width but
 	 * instead on max count. In perf_ibs_set_period() we clear
 	 * prev count manually on overflow.
 	 */
@@ -401,7 +401,7 @@ static inline void perf_ibs_enable_event(struct perf_ibs *perf_ibs,
 
 /*
  * Erratum #420 Instruction-Based Sampling Engine May Generate
- * Interrupt that Cannot Be Cleared:
+ * Interrupt that Cananalt Be Cleared:
  *
  * Must clear counter mask first, then clear the enable bit. See
  * Revision Guide for AMD Family 10h Processors, Publication #41322.
@@ -417,9 +417,9 @@ static inline void perf_ibs_disable_event(struct perf_ibs *perf_ibs,
 }
 
 /*
- * We cannot restore the ibs pmu state, so we always needs to update
+ * We cananalt restore the ibs pmu state, so we always needs to update
  * the event while stopping it and then reset the state when starting
- * again. Thus, ignoring PERF_EF_RELOAD and PERF_EF_UPDATE flags in
+ * again. Thus, iganalring PERF_EF_RELOAD and PERF_EF_UPDATE flags in
  * perf_ibs_start()/perf_ibs_stop() and instead always do it.
  */
 static void perf_ibs_start(struct perf_event *event, int flags)
@@ -483,11 +483,11 @@ static void perf_ibs_stop(struct perf_event *event, int flags)
 		/*
 		 * Clear STARTED after disabling the hardware; if it were
 		 * cleared before an NMI hitting after the clear but before
-		 * clearing the EN bit might think it a spurious NMI and not
+		 * clearing the EN bit might think it a spurious NMI and analt
 		 * handle it.
 		 *
 		 * Clearing it after, however, creates the problem of the NMI
-		 * handler seeing STARTED but not having a valid sample.
+		 * handler seeing STARTED but analt having a valid sample.
 		 */
 		clear_bit(IBS_STARTED, pcpu->state);
 		WARN_ON_ONCE(hwc->state & PERF_HES_STOPPED);
@@ -498,7 +498,7 @@ static void perf_ibs_stop(struct perf_event *event, int flags)
 		return;
 
 	/*
-	 * Clear valid bit to not count rollovers on update, rollovers
+	 * Clear valid bit to analt count rollovers on update, rollovers
 	 * are only updated in the irq handler.
 	 */
 	config &= ~perf_ibs->valid_mask;
@@ -513,7 +513,7 @@ static int perf_ibs_add(struct perf_event *event, int flags)
 	struct cpu_perf_ibs *pcpu = this_cpu_ptr(perf_ibs->pcpu);
 
 	if (test_and_set_bit(IBS_ENABLED, pcpu->state))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	event->hw.state = PERF_HES_UPTODATE | PERF_HES_STOPPED;
 
@@ -667,7 +667,7 @@ static struct perf_ibs perf_ibs_fetch = {
 		.start		= perf_ibs_start,
 		.stop		= perf_ibs_stop,
 		.read		= perf_ibs_read,
-		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 	},
 	.msr			= MSR_AMD64_IBSFETCHCTL,
 	.config_mask		= IBS_FETCH_CONFIG_MASK,
@@ -691,7 +691,7 @@ static struct perf_ibs perf_ibs_op = {
 		.start		= perf_ibs_start,
 		.stop		= perf_ibs_stop,
 		.read		= perf_ibs_read,
-		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 	},
 	.msr			= MSR_AMD64_IBSOPCTL,
 	.config_mask		= IBS_OP_CONFIG_MASK,
@@ -743,8 +743,8 @@ static u64 g_data_src[8] = {
 	[IBS_DATA_SRC_IO]		  = L(IO) | LN(IO),
 };
 
-#define RMT_NODE_BITS			(1 << IBS_DATA_SRC_DRAM)
-#define RMT_NODE_APPLICABLE(x)		(RMT_NODE_BITS & (1 << x))
+#define RMT_ANALDE_BITS			(1 << IBS_DATA_SRC_DRAM)
+#define RMT_ANALDE_APPLICABLE(x)		(RMT_ANALDE_BITS & (1 << x))
 
 static u64 g_zen4_data_src[32] = {
 	[IBS_DATA_SRC_EXT_LOC_CACHE]	  = L(L3) | LN(L3),
@@ -756,10 +756,10 @@ static u64 g_zen4_data_src[32] = {
 	[IBS_DATA_SRC_EXT_EXT_MEM]	  = LN(CXL),
 };
 
-#define ZEN4_RMT_NODE_BITS		((1 << IBS_DATA_SRC_EXT_DRAM) | \
+#define ZEN4_RMT_ANALDE_BITS		((1 << IBS_DATA_SRC_EXT_DRAM) | \
 					 (1 << IBS_DATA_SRC_EXT_PMEM) | \
 					 (1 << IBS_DATA_SRC_EXT_EXT_MEM))
-#define ZEN4_RMT_NODE_APPLICABLE(x)	(ZEN4_RMT_NODE_BITS & (1 << x))
+#define ZEN4_RMT_ANALDE_APPLICABLE(x)	(ZEN4_RMT_ANALDE_BITS & (1 << x))
 
 static __u64 perf_ibs_get_mem_lvl(union ibs_op_data2 *op_data2,
 				  union ibs_op_data3 *op_data3,
@@ -786,7 +786,7 @@ static __u64 perf_ibs_get_mem_lvl(union ibs_op_data2 *op_data2,
 	if (op_data3->l2_miss == 0) {
 		/* Erratum #1293 */
 		if (boot_cpu_data.x86 != 0x19 || boot_cpu_data.x86_model > 0xF ||
-		    !(op_data3->sw_pf || op_data3->dc_miss_no_mab_alloc))
+		    !(op_data3->sw_pf || op_data3->dc_miss_anal_mab_alloc))
 			return L(L2) | LN(L2);
 	}
 
@@ -804,7 +804,7 @@ static __u64 perf_ibs_get_mem_lvl(union ibs_op_data2 *op_data2,
 			goto check_mab;
 
 		/* HOPS_1 because IBS doesn't provide remote socket detail */
-		if (op_data2->rmt_node && ZEN4_RMT_NODE_APPLICABLE(ibs_data_src)) {
+		if (op_data2->rmt_analde && ZEN4_RMT_ANALDE_APPLICABLE(ibs_data_src)) {
 			if (ibs_data_src == IBS_DATA_SRC_EXT_DRAM)
 				val = L(REM_RAM1) | LN(RAM) | REM | HOPS(1);
 			else
@@ -819,7 +819,7 @@ static __u64 perf_ibs_get_mem_lvl(union ibs_op_data2 *op_data2,
 			goto check_mab;
 
 		/* HOPS_1 because IBS doesn't provide remote socket detail */
-		if (op_data2->rmt_node && RMT_NODE_APPLICABLE(ibs_data_src)) {
+		if (op_data2->rmt_analde && RMT_ANALDE_APPLICABLE(ibs_data_src)) {
 			if (ibs_data_src == IBS_DATA_SRC_DRAM)
 				val = L(REM_RAM1) | LN(RAM) | REM | HOPS(1);
 			else
@@ -837,7 +837,7 @@ check_mab:
 	 * DataSrc simultaneously. Prioritize DataSrc over MAB, i.e. set
 	 * MAB only when IBS fails to provide DataSrc.
 	 */
-	if (op_data3->dc_miss_no_mab_alloc)
+	if (op_data3->dc_miss_anal_mab_alloc)
 		return L(LFB) | LN(LFB);
 
 	/* Don't set HIT with NA */
@@ -863,13 +863,13 @@ static bool perf_ibs_cache_hit_st_valid(void)
 	return cache_hit_st_valid == 1;
 }
 
-static void perf_ibs_get_mem_snoop(union ibs_op_data2 *op_data2,
+static void perf_ibs_get_mem_sanalop(union ibs_op_data2 *op_data2,
 				   struct perf_sample_data *data)
 {
 	union perf_mem_data_src *data_src = &data->data_src;
 	u8 ibs_data_src;
 
-	data_src->mem_snoop = PERF_MEM_SNOOP_NA;
+	data_src->mem_sanalop = PERF_MEM_SANALOP_NA;
 
 	if (!perf_ibs_cache_hit_st_valid() ||
 	    data_src->mem_op != PERF_MEM_OP_LOAD ||
@@ -884,9 +884,9 @@ static void perf_ibs_get_mem_snoop(union ibs_op_data2 *op_data2,
 		if (ibs_data_src == IBS_DATA_SRC_EXT_LOC_CACHE ||
 		    ibs_data_src == IBS_DATA_SRC_EXT_NEAR_CCX_CACHE ||
 		    ibs_data_src == IBS_DATA_SRC_EXT_FAR_CCX_CACHE)
-			data_src->mem_snoop = PERF_MEM_SNOOP_HITM;
+			data_src->mem_sanalop = PERF_MEM_SANALOP_HITM;
 	} else if (ibs_data_src == IBS_DATA_SRC_LOC_CACHE) {
-		data_src->mem_snoop = PERF_MEM_SNOOP_HITM;
+		data_src->mem_sanalop = PERF_MEM_SANALOP_HITM;
 	}
 }
 
@@ -934,7 +934,7 @@ static void perf_ibs_get_data_src(struct perf_ibs_data *ibs_data,
 	union perf_mem_data_src *data_src = &data->data_src;
 
 	data_src->val |= perf_ibs_get_mem_lvl(op_data2, op_data3, data);
-	perf_ibs_get_mem_snoop(op_data2, data);
+	perf_ibs_get_mem_sanalop(op_data2, data);
 	perf_ibs_get_tlb_lvl(op_data3, data);
 	perf_ibs_get_mem_lock(op_data3, data);
 }
@@ -946,10 +946,10 @@ static __u64 perf_ibs_get_op_data2(struct perf_ibs_data *ibs_data,
 
 	/* Erratum #1293 */
 	if (boot_cpu_data.x86 == 0x19 && boot_cpu_data.x86_model <= 0xF &&
-	    (op_data3->sw_pf || op_data3->dc_miss_no_mab_alloc)) {
+	    (op_data3->sw_pf || op_data3->dc_miss_anal_mab_alloc)) {
 		/*
-		 * OP_DATA2 has only two fields on Zen3: DataSrc and RmtNode.
-		 * DataSrc=0 is 'No valid status' and RmtNode is invalid when
+		 * OP_DATA2 has only two fields on Zen3: DataSrc and RmtAnalde.
+		 * DataSrc=0 is 'Anal valid status' and RmtAnalde is invalid when
 		 * DataSrc=0.
 		 */
 		val = 0;
@@ -1060,7 +1060,7 @@ fail:
 	perf_ibs_event_update(perf_ibs, event, config);
 	perf_sample_data_init(&data, 0, hwc->last_period);
 	if (!perf_ibs_set_period(perf_ibs, hwc, &period))
-		goto out;	/* no sw counter overflow */
+		goto out;	/* anal sw counter overflow */
 
 	ibs_data.caps = ibs_caps;
 	size = 1;
@@ -1104,7 +1104,7 @@ fail:
 		regs.flags &= ~PERF_EFLAGS_EXACT;
 	} else {
 		/* Workaround for erratum #1197 */
-		if (perf_ibs->fetch_ignore_if_zero_rip && !(ibs_data.regs[1]))
+		if (perf_ibs->fetch_iganalre_if_zero_rip && !(ibs_data.regs[1]))
 			goto out;
 
 		set_linear_ip(&regs, ibs_data.regs[1]);
@@ -1125,7 +1125,7 @@ fail:
 		perf_ibs_parse_ld_st_data(event->attr.sample_type, &ibs_data, &data);
 
 	/*
-	 * rip recorded by IbsOpRip will not be consistent with rsp and rbp
+	 * rip recorded by IbsOpRip will analt be consistent with rsp and rbp
 	 * recorded as part of interrupt regs. Thus we need to use rip from
 	 * interrupt regs while unwinding call stack.
 	 */
@@ -1171,7 +1171,7 @@ perf_ibs_nmi_handler(unsigned int cmd, struct pt_regs *regs)
 
 	return handled;
 }
-NOKPROBE_SYMBOL(perf_ibs_nmi_handler);
+ANALKPROBE_SYMBOL(perf_ibs_nmi_handler);
 
 static __init int perf_ibs_pmu_init(struct perf_ibs *perf_ibs, char *name)
 {
@@ -1180,7 +1180,7 @@ static __init int perf_ibs_pmu_init(struct perf_ibs *perf_ibs, char *name)
 
 	pcpu = alloc_percpu(struct cpu_perf_ibs);
 	if (!pcpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	perf_ibs->pcpu = pcpu;
 
@@ -1203,7 +1203,7 @@ static __init int perf_ibs_fetch_init(void)
 		perf_ibs_fetch.fetch_count_reset_broken = 1;
 
 	if (boot_cpu_data.x86 == 0x19 && boot_cpu_data.x86_model < 0x10)
-		perf_ibs_fetch.fetch_ignore_if_zero_rip = 1;
+		perf_ibs_fetch.fetch_iganalre_if_zero_rip = 1;
 
 	if (ibs_caps & IBS_CAPS_ZEN4)
 		perf_ibs_fetch.config_mask |= IBS_FETCH_L3MISSONLY;
@@ -1291,7 +1291,7 @@ static __init u32 __get_ibs_caps(void)
 
 	caps = cpuid_eax(IBS_CPUID_FEATURES);
 	if (!(caps & IBS_CAPS_AVAIL))
-		/* cpuid flags not valid */
+		/* cpuid flags analt valid */
 		return IBS_CAPS_DEFAULT;
 
 	return caps;
@@ -1335,7 +1335,7 @@ static inline int ibs_eilvt_valid(void)
 	}
 
 	if (!get_eilvt(offset)) {
-		pr_err(FW_BUG "cpu %d, IBS interrupt offset %d not available (MSR%08X=0x%016llx)\n",
+		pr_err(FW_BUG "cpu %d, IBS interrupt offset %d analt available (MSR%08X=0x%016llx)\n",
 		       smp_processor_id(), offset, MSR_AMD64_IBSCTL, val);
 		goto out;
 	}
@@ -1350,10 +1350,10 @@ out:
 static int setup_ibs_ctl(int ibs_eilvt_off)
 {
 	struct pci_dev *cpu_cfg;
-	int nodes;
+	int analdes;
 	u32 value = 0;
 
-	nodes = 0;
+	analdes = 0;
 	cpu_cfg = NULL;
 	do {
 		cpu_cfg = pci_get_device(PCI_VENDOR_ID_AMD,
@@ -1361,7 +1361,7 @@ static int setup_ibs_ctl(int ibs_eilvt_off)
 					 cpu_cfg);
 		if (!cpu_cfg)
 			break;
-		++nodes;
+		++analdes;
 		pci_write_config_dword(cpu_cfg, IBSCTL, ibs_eilvt_off
 				       | IBSCTL_LVT_OFFSET_VALID);
 		pci_read_config_dword(cpu_cfg, IBSCTL, &value);
@@ -1373,9 +1373,9 @@ static int setup_ibs_ctl(int ibs_eilvt_off)
 		}
 	} while (1);
 
-	if (!nodes) {
-		pr_debug("No CPU node configured for IBS\n");
-		return -ENODEV;
+	if (!analdes) {
+		pr_debug("Anal CPU analde configured for IBS\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1384,9 +1384,9 @@ static int setup_ibs_ctl(int ibs_eilvt_off)
 /*
  * This runs only on the current cpu. We try to find an LVT offset and
  * setup the local APIC. For this we must disable preemption. On
- * success we initialize all nodes with this offset. This updates then
- * the offset in the IBS_CTL per-node msr. The per-core APIC setup of
- * the IBS interrupt vector is handled by perf_ibs_cpu_notifier that
+ * success we initialize all analdes with this offset. This updates then
+ * the offset in the IBS_CTL per-analde msr. The per-core APIC setup of
+ * the IBS interrupt vector is handled by perf_ibs_cpu_analtifier that
  * is using the new offset.
  */
 static void force_ibs_eilvt_setup(void)
@@ -1403,7 +1403,7 @@ static void force_ibs_eilvt_setup(void)
 	preempt_enable();
 
 	if (offset == APIC_EILVT_NR_MAX) {
-		pr_debug("No EILVT entry available\n");
+		pr_debug("Anal EILVT entry available\n");
 		return;
 	}
 
@@ -1428,7 +1428,7 @@ static void ibs_eilvt_setup(void)
 {
 	/*
 	 * Force LVT offset assignment for family 10h: The offsets are
-	 * not assigned by the BIOS for this family, so the OS is
+	 * analt assigned by the BIOS for this family, so the OS is
 	 * responsible for doing it. If the OS assignment fails, fall
 	 * back to BIOS settings and try to setup this.
 	 */
@@ -1519,7 +1519,7 @@ static __init int amd_ibs_init(void)
 
 	caps = __get_ibs_caps();
 	if (!caps)
-		return -ENODEV;	/* ibs not supported by the cpu */
+		return -EANALDEV;	/* ibs analt supported by the cpu */
 
 	ibs_eilvt_setup();
 

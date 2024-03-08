@@ -11,7 +11,7 @@ pcmcia-y					+= ds.o pcmcia_resource.o cistpl.o pcmcia_cis.o
 obj-$(CONFIG_PCMCIA)				+= pcmcia.o
 
 pcmcia_rsrc-y					+= rsrc_mgr.o
-pcmcia_rsrc-$(CONFIG_PCCARD_NONSTATIC)		+= rsrc_nonstatic.o
+pcmcia_rsrc-$(CONFIG_PCCARD_ANALNSTATIC)		+= rsrc_analnstatic.o
 pcmcia_rsrc-$(CONFIG_PCCARD_IODYN)		+= rsrc_iodyn.o
 obj-$(CONFIG_PCCARD)				+= pcmcia_rsrc.o
 

@@ -17,7 +17,7 @@ struct rockchip_mmc_clock {
 	int		id;
 	int		shift;
 	int		cached_phase;
-	struct notifier_block clk_rate_change_nb;
+	struct analtifier_block clk_rate_change_nb;
 };
 
 #define to_mmc_clock(_hw) container_of(_hw, struct rockchip_mmc_clock, hw)
@@ -51,7 +51,7 @@ static int rockchip_mmc_get_phase(struct clk_hw *hw)
 	u16 degrees;
 	u32 delay_num = 0;
 
-	/* Constant signal, no measurable phase shift */
+	/* Constant signal, anal measurable phase shift */
 	if (!rate)
 		return 0;
 
@@ -103,7 +103,7 @@ static int rockchip_mmc_set_phase(struct clk_hw *hw, int degrees)
 
 	/*
 	 * Due to the inexact nature of the "fine" delay, we might
-	 * actually go non-monotonic.  We don't go _too_ monotonic
+	 * actually go analn-moanaltonic.  We don't go _too_ moanaltonic
 	 * though, so we should be OK.  Here are options of how we may
 	 * work:
 	 *
@@ -155,11 +155,11 @@ static const struct clk_ops rockchip_mmc_clk_ops = {
 
 #define to_rockchip_mmc_clock(x) \
 	container_of(x, struct rockchip_mmc_clock, clk_rate_change_nb)
-static int rockchip_mmc_clk_rate_notify(struct notifier_block *nb,
+static int rockchip_mmc_clk_rate_analtify(struct analtifier_block *nb,
 					unsigned long event, void *data)
 {
 	struct rockchip_mmc_clock *mmc_clock = to_rockchip_mmc_clock(nb);
-	struct clk_notifier_data *ndata = data;
+	struct clk_analtifier_data *ndata = data;
 
 	/*
 	 * rockchip_mmc_clk is mostly used by mmc controllers to sample
@@ -176,7 +176,7 @@ static int rockchip_mmc_clk_rate_notify(struct notifier_block *nb,
 	 * over the heads of that, otherwise the tests smoke out the issue.
 	 */
 	if (ndata->old_rate <= ndata->new_rate)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (event == PRE_RATE_CHANGE)
 		mmc_clock->cached_phase =
@@ -185,7 +185,7 @@ static int rockchip_mmc_clk_rate_notify(struct notifier_block *nb,
 		 event == POST_RATE_CHANGE)
 		rockchip_mmc_set_phase(&mmc_clock->hw, mmc_clock->cached_phase);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 struct clk *rockchip_clk_register_mmc(const char *name,
@@ -199,7 +199,7 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 
 	mmc_clock = kmalloc(sizeof(*mmc_clock), GFP_KERNEL);
 	if (!mmc_clock)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.flags = 0;
@@ -217,14 +217,14 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 		goto err_register;
 	}
 
-	mmc_clock->clk_rate_change_nb.notifier_call =
-				&rockchip_mmc_clk_rate_notify;
-	ret = clk_notifier_register(clk, &mmc_clock->clk_rate_change_nb);
+	mmc_clock->clk_rate_change_nb.analtifier_call =
+				&rockchip_mmc_clk_rate_analtify;
+	ret = clk_analtifier_register(clk, &mmc_clock->clk_rate_change_nb);
 	if (ret)
-		goto err_notifier;
+		goto err_analtifier;
 
 	return clk;
-err_notifier:
+err_analtifier:
 	clk_unregister(clk);
 err_register:
 	kfree(mmc_clock);

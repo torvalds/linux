@@ -96,9 +96,9 @@ static int rm692e5_on(struct rm692e5_panel *ctx)
 	mipi_dsi_generic_write_seq(dsi, 0x1a, 0xcc);
 	mipi_dsi_generic_write_seq(dsi, 0x1b, 0x01);
 
-	ret = mipi_dsi_dcs_nop(dsi);
+	ret = mipi_dsi_dcs_analp(dsi);
 	if (ret < 0) {
-		dev_err(dev, "Failed to nop: %d\n", ret);
+		dev_err(dev, "Failed to analp: %d\n", ret);
 		return ret;
 	}
 	msleep(32);
@@ -253,7 +253,7 @@ static int rm692e5_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &rm692e5_mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_set_name(mode);
 
@@ -333,7 +333,7 @@ static int rm692e5_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->supplies[0].supply = "vddio";
 	ctx->supplies[1].supply = "dvdd";
@@ -353,8 +353,8 @@ static int rm692e5_probe(struct mipi_dsi_device *dsi)
 
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_NO_EOT_PACKET |
-			  MIPI_DSI_CLOCK_NON_CONTINUOUS;
+	dsi->mode_flags = MIPI_DSI_MODE_ANAL_EOT_PACKET |
+			  MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 
 	drm_panel_init(&ctx->panel, dev, &rm692e5_panel_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
@@ -372,7 +372,7 @@ static int rm692e5_probe(struct mipi_dsi_device *dsi)
 
 	/* TODO: Pass slice_per_pkt = 2 */
 	ctx->dsc.dsc_version_major = 1;
-	ctx->dsc.dsc_version_minor = 1;
+	ctx->dsc.dsc_version_mianalr = 1;
 	ctx->dsc.slice_height = 60;
 	ctx->dsc.slice_width = 1224;
 

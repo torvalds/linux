@@ -109,7 +109,7 @@ examples:
                     "mem";
 
         clocks = <&rpmcc RPM_SMD_OCMEMGX_CLK>,
-                 <&mmcc OCMEMCX_OCMEMNOC_CLK>;
+                 <&mmcc OCMEMCX_OCMEMANALC_CLK>;
         clock-names = "core",
                       "iface";
 

@@ -24,7 +24,7 @@ enum {
 /* alive response ver_subtype values */
 enum {
 	FW_SUBTYPE_FULL_FEATURE = 0,
-	FW_SUBTYPE_BOOTSRAP = 1, /* Not valid */
+	FW_SUBTYPE_BOOTSRAP = 1, /* Analt valid */
 	FW_SUBTYPE_REDUCED = 2,
 	FW_SUBTYPE_ALIVE_ONLY = 3,
 	FW_SUBTYPE_WOWLAN = 4,
@@ -51,7 +51,7 @@ struct iwl_lmac_debug_addrs {
 
 struct iwl_lmac_alive {
 	__le32 ucode_major;
-	__le32 ucode_minor;
+	__le32 ucode_mianalr;
 	u8 ver_subtype;
 	u8 ver_type;
 	u8 mac;
@@ -67,7 +67,7 @@ struct iwl_umac_debug_addrs {
 
 struct iwl_umac_alive {
 	__le32 umac_major;		/* UMAC version: major */
-	__le32 umac_minor;		/* UMAC version: minor */
+	__le32 umac_mianalr;		/* UMAC version: mianalr */
 	struct iwl_umac_debug_addrs dbg_ptrs;
 } __packed; /* UMAC_ALIVE_DATA_API_S_VER_2 */
 
@@ -135,17 +135,17 @@ struct iwl_init_extended_cfg_cmd {
 } __packed; /* INIT_EXTENDED_CFG_CMD_API_S_VER_1 */
 
 /**
- * struct iwl_radio_version_notif - information on the radio version
- * ( RADIO_VERSION_NOTIFICATION = 0x68 )
+ * struct iwl_radio_version_analtif - information on the radio version
+ * ( RADIO_VERSION_ANALTIFICATION = 0x68 )
  * @radio_flavor: radio flavor
  * @radio_step: radio version step
  * @radio_dash: radio version dash
  */
-struct iwl_radio_version_notif {
+struct iwl_radio_version_analtif {
 	__le32 radio_flavor;
 	__le32 radio_step;
 	__le32 radio_dash;
-} __packed; /* RADIO_VERSION_NOTOFICATION_S_VER_1 */
+} __packed; /* RADIO_VERSION_ANALTOFICATION_S_VER_1 */
 
 enum iwl_card_state_flags {
 	CARD_ENABLED		= 0x00,

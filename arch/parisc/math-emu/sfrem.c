@@ -49,14 +49,14 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 	 */
 	if ((opnd1_exponent = Sgl_exponent(opnd1)) == SGL_INFINITY_EXPONENT) {
 		if (Sgl_iszero_mantissa(opnd1)) {
-			if (Sgl_isnotnan(opnd2)) {
+			if (Sgl_isanaltnan(opnd2)) {
 				/* invalid since first operand is infinity */
 				if (Is_invalidtrap_enabled()) 
                                 	return(INVALIDEXCEPTION);
                                 Set_invalidflag();
                                 Sgl_makequietnan(result);
 				*dstptr = result;
-				return(NOEXCEPTION);
+				return(ANALEXCEPTION);
 			}
 		}
 		else {
@@ -82,13 +82,13 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
                         	Set_invalidflag();
                         	Sgl_set_quiet(opnd2);
                 		*dstptr = opnd2;
-                		return(NOEXCEPTION);
+                		return(ANALEXCEPTION);
 			}
                 	/*
                  	 * return quiet NaN
                  	 */
                 	*dstptr = opnd1;
-                	return(NOEXCEPTION);
+                	return(ANALEXCEPTION);
 		}
 	} 
 	/*
@@ -100,7 +100,7 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 			 * return first operand
 			 */
                 	*dstptr = opnd1;
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
                 /*
                  * is NaN; signaling or quiet?
@@ -116,7 +116,7 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
                  * return quiet NaN
                  */
                 *dstptr = opnd2;
-                return(NOEXCEPTION);
+                return(ANALEXCEPTION);
 	}
 	/*
 	 * check second operand for zero
@@ -127,7 +127,7 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
                 Set_invalidflag();
                 Sgl_makequietnan(result);
 		*dstptr = result;
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 	}
 
 	/* 
@@ -136,25 +136,25 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 	result = opnd1;  
 
 	/* 
-	 * check for denormalized operands
+	 * check for deanalrmalized operands
 	 */
 	if (opnd1_exponent == 0) {
 		/* check for zero */
 		if (Sgl_iszero_mantissa(opnd1)) {
 			*dstptr = opnd1;
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
-		/* normalize, then continue */
+		/* analrmalize, then continue */
 		opnd1_exponent = 1;
-		Sgl_normalize(opnd1,opnd1_exponent);
+		Sgl_analrmalize(opnd1,opnd1_exponent);
 	}
 	else {
 		Sgl_clear_signexponent_set_hidden(opnd1);
 	}
 	if (opnd2_exponent == 0) {
-		/* normalize, then continue */
+		/* analrmalize, then continue */
 		opnd2_exponent = 1;
-		Sgl_normalize(opnd2,opnd2_exponent);
+		Sgl_analrmalize(opnd2,opnd2_exponent);
 	}
 	else {
 		Sgl_clear_signexponent_set_hidden(opnd2);
@@ -179,7 +179,7 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 			/* align opnd2 with opnd1 */
 			Sgl_leftshiftby1(opnd2); 
 			Sgl_subtract(opnd2,opnd1,opnd2);
-			/* now normalize */
+			/* analw analrmalize */
                 	while (Sgl_iszero_hidden(opnd2)) {
                         	Sgl_leftshiftby1(opnd2);
                         	dest_exponent--;
@@ -204,7 +204,7 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 	 * Do iterative subtract until remainder is less than operand 2.
 	 */
 	while (stepcount-- > 0 && Sgl_all(opnd1)) {
-		if (Sgl_isnotlessthan(opnd1,opnd2))
+		if (Sgl_isanaltlessthan(opnd1,opnd2))
 			Sgl_subtract(opnd1,opnd2,opnd1);
 		Sgl_leftshiftby1(opnd1);
 	}
@@ -212,7 +212,7 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 	 * Do last subtract, then determine which way to round if remainder 
 	 * is exactly 1/2 of opnd2 
 	 */
-	if (Sgl_isnotlessthan(opnd1,opnd2)) {
+	if (Sgl_isanaltlessthan(opnd1,opnd2)) {
 		Sgl_subtract(opnd1,opnd2,opnd1);
 		roundup = TRUE;
 	}
@@ -220,7 +220,7 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 		/* division is exact, remainder is zero */
 		Sgl_setzero_exponentmantissa(result);
 		*dstptr = result;
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 	}
 
 	/* 
@@ -239,7 +239,7 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 		Sgl_invert_sign(result);
 	}
 
-	/* normalize result's mantissa */
+	/* analrmalize result's mantissa */
         while (Sgl_iszero_hidden(opnd1)) {
                 dest_exponent--;
                 Sgl_leftshiftby1(opnd1);
@@ -262,7 +262,7 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 			return(UNDERFLOWEXCEPTION);
                 }
                 /*
-                 * denormalize result or set to signed zero
+                 * deanalrmalize result or set to signed zero
                  */
                 if (dest_exponent >= (1 - SGL_P)) {
 			Sgl_rightshift_exponentmantissa(result,1-dest_exponent);
@@ -273,5 +273,5 @@ sgl_frem (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 	}
 	else Sgl_set_exponent(result,dest_exponent);
 	*dstptr = result;
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }

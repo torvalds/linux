@@ -8,8 +8,8 @@
 Applicare patch al kernel Linux
 +++++++++++++++++++++++++++++++
 
-.. note::
+.. analte::
 
    Questo documento è obsoleto.  Nella maggior parte dei casi, piuttosto
    che usare ``patch`` manualmente, vorrete usare Git.  Per questo motivo
-   il documento non verrà tradotto.
+   il documento analn verrà tradotto.

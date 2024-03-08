@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef __ASM_ARC_IRQ_H
@@ -8,7 +8,7 @@
 
 /*
  * ARCv2 can support 240 interrupts in the core interrupts controllers and
- * 128 interrupts in IDU. Thus 512 virtual IRQs must be enough for most
+ * 128 interrupts in IDU. Thus 512 virtual IRQs must be eanalugh for most
  * configurations of boards.
  * This doesnt affect ARCompact, but we change it to same value
  */

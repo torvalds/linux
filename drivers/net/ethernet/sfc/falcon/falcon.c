@@ -121,8 +121,8 @@
 #define XgTxUndersizePkts_WIDTH 32
 #define XgTxOversizePkts_offset 0xC4
 #define XgTxOversizePkts_WIDTH 32
-#define XgTxNonTcpUdpPkt_offset 0xC8
-#define XgTxNonTcpUdpPkt_WIDTH 16
+#define XgTxAnalnTcpUdpPkt_offset 0xC8
+#define XgTxAnalnTcpUdpPkt_WIDTH 16
 #define XgTxMacSrcErrPkt_offset 0xCC
 #define XgTxMacSrcErrPkt_WIDTH 16
 #define XgTxIpSrcErrPkt_offset 0xD0
@@ -161,7 +161,7 @@ static const struct ef4_hw_stat_desc falcon_stat_desc[FALCON_STAT_COUNT] = {
 	FALCON_DMA_STAT(tx_1024_to_15xx, XgTxPkts1024to15xxOctets),
 	FALCON_DMA_STAT(tx_15xx_to_jumbo, XgTxPkts1519toMaxOctets),
 	FALCON_DMA_STAT(tx_gtjumbo, XgTxOversizePkts),
-	FALCON_DMA_STAT(tx_non_tcpudp, XgTxNonTcpUdpPkt),
+	FALCON_DMA_STAT(tx_analn_tcpudp, XgTxAnalnTcpUdpPkt),
 	FALCON_DMA_STAT(tx_mac_src_error, XgTxMacSrcErrPkt),
 	FALCON_DMA_STAT(tx_ip_src_error, XgTxIpSrcErrPkt),
 	FALCON_DMA_STAT(rx_bytes, XgRxOctets),
@@ -191,9 +191,9 @@ static const struct ef4_hw_stat_desc falcon_stat_desc[FALCON_STAT_COUNT] = {
 	FALCON_DMA_STAT(rx_align_error, XgRxAlignError),
 	FALCON_DMA_STAT(rx_length_error, XgRxLengthError),
 	FALCON_DMA_STAT(rx_internal_error, XgRxInternalMACError),
-	FALCON_OTHER_STAT(rx_nodesc_drop_cnt),
-	GENERIC_SW_STAT(rx_nodesc_trunc),
-	GENERIC_SW_STAT(rx_noskb_drops),
+	FALCON_OTHER_STAT(rx_analdesc_drop_cnt),
+	GENERIC_SW_STAT(rx_analdesc_trunc),
+	GENERIC_SW_STAT(rx_analskb_drops),
 };
 static const unsigned long falcon_stat_mask[] = {
 	[0 ... BITS_TO_LONGS(FALCON_STAT_COUNT) - 1] = ~0UL,
@@ -222,14 +222,14 @@ static const unsigned long falcon_stat_mask[] = {
 
 /**************************************************************************
  *
- * Non-volatile memory layout
+ * Analn-volatile memory layout
  *
  **************************************************************************
  */
 
 /* SFC4000 flash is partitioned into:
  *     0-0x400       chip and board config (see struct falcon_nvconfig)
- *     0x400-0x8000  unused (or may contain VPD if EEPROM not present)
+ *     0x400-0x8000  unused (or may contain VPD if EEPROM analt present)
  *     0x8000-end    boot code (mapped to PCI expansion ROM)
  * SFC4000 small EEPROM (size < 0x400) is used for VPD only.
  * SFC4000 large EEPROM (size >= 0x400) is partitioned into:
@@ -318,7 +318,7 @@ default_flash_type = ((17 << SPI_DEV_TYPE_SIZE_LBN)
 /**************************************************************************
  *
  * I2C bus - this is a bit-bashing interface using GPIO pins
- * Note that it uses the output enables to tristate the outputs
+ * Analte that it uses the output enables to tristate the outputs
  * SDA is the data pin and SCL is the clock
  *
  **************************************************************************
@@ -409,12 +409,12 @@ static void falcon_prepare_flush(struct ef4_nic *efx)
 	msleep(10);
 }
 
-/* Acknowledge a legacy interrupt from Falcon
+/* Ackanalwledge a legacy interrupt from Falcon
  *
- * This acknowledges a legacy (not MSI) interrupt via INT_ACK_KER_REG.
+ * This ackanalwledges a legacy (analt MSI) interrupt via INT_ACK_KER_REG.
  *
  * Due to SFC bug 3706 (silicon revision <=A1) reads can be duplicated in the
- * BIU. Interrupt acknowledge is read sensitive so must write instead
+ * BIU. Interrupt ackanalwledge is read sensitive so must write instead
  * (then read to ensure the BIU collector is flushed)
  *
  * NB most hardware supports MSI interrupts
@@ -440,9 +440,9 @@ static irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 	 */
 	if (unlikely(EF4_OWORD_IS_ZERO(*int_ker))) {
 		netif_vdbg(efx, intr, efx->net_dev,
-			   "IRQ %d on CPU %d not for me\n", irq,
+			   "IRQ %d on CPU %d analt for me\n", irq,
 			   raw_smp_processor_id());
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	efx->last_irq_cpu = raw_smp_processor_id();
 	netif_vdbg(efx, intr, efx->net_dev,
@@ -458,7 +458,7 @@ static irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 		return ef4_farch_fatal_interrupt(efx);
 
 	/* Determine interrupting queues, clear interrupt status
-	 * register and acknowledge the device interrupt.
+	 * register and ackanalwledge the device interrupt.
 	 */
 	BUILD_BUG_ON(FSF_AZ_NET_IVEC_INT_Q_WIDTH > EF4_MAX_CHANNELS);
 	queues = EF4_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_INT_Q);
@@ -485,7 +485,7 @@ static int dummy_rx_push_rss_config(struct ef4_nic *efx, bool user,
 	(void) efx;
 	(void) user;
 	(void) rx_indir_table;
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static int falcon_b0_rx_push_rss_config(struct ef4_nic *efx, bool user,
@@ -562,7 +562,7 @@ falcon_spi_cmd(struct ef4_nic *efx, const struct falcon_spi_device *spi,
 	if (len > FALCON_SPI_MAX_LEN)
 		return -EINVAL;
 
-	/* Check that previous command is not still running */
+	/* Check that previous command is analt still running */
 	rc = falcon_spi_poll(efx);
 	if (rc)
 		return rc;
@@ -814,7 +814,7 @@ falcon_spi_erase(struct falcon_mtd_partition *part, loff_t start, size_t len)
 		return -EINVAL;
 
 	if (spi->erase_command == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = falcon_spi_unlock(efx, spi);
 	if (rc)
@@ -924,14 +924,14 @@ static int falcon_mtd_probe(struct ef4_nic *efx)
 	struct falcon_mtd_partition *parts;
 	struct falcon_spi_device *spi;
 	size_t n_parts;
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 
 	ASSERT_RTNL();
 
 	/* Allocate space for maximum number of partitions */
 	parts = kcalloc(2, sizeof(*parts), GFP_KERNEL);
 	if (!parts)
-		return -ENOMEM;
+		return -EANALMEM;
 	n_parts = 0;
 
 	spi = &nic_data->spi_flash;
@@ -940,8 +940,8 @@ static int falcon_mtd_probe(struct ef4_nic *efx)
 		parts[n_parts].offset = FALCON_FLASH_BOOTCODE_START;
 		parts[n_parts].common.dev_type_name = "flash";
 		parts[n_parts].common.type_name = "sfc_flash_bootrom";
-		parts[n_parts].common.mtd.type = MTD_NORFLASH;
-		parts[n_parts].common.mtd.flags = MTD_CAP_NORFLASH;
+		parts[n_parts].common.mtd.type = MTD_ANALRFLASH;
+		parts[n_parts].common.mtd.flags = MTD_CAP_ANALRFLASH;
 		parts[n_parts].common.mtd.size = spi->size - FALCON_FLASH_BOOTCODE_START;
 		parts[n_parts].common.mtd.erasesize = spi->erase_size;
 		n_parts++;
@@ -982,9 +982,9 @@ static void falcon_setup_xaui(struct ef4_nic *efx)
 {
 	ef4_oword_t sdctl, txdrv;
 
-	/* Move the XAUI into low power, unless there is no PHY, in
+	/* Move the XAUI into low power, unless there is anal PHY, in
 	 * which case the XAUI will have to drive a cable. */
-	if (efx->phy_type == PHY_TYPE_NONE)
+	if (efx->phy_type == PHY_TYPE_ANALNE)
 		return;
 
 	ef4_reado(efx, &sdctl, FR_AB_XX_SD_CTL);
@@ -1274,7 +1274,7 @@ static void falcon_reset_macs(struct ef4_nic *efx)
 	int count;
 
 	if (ef4_nic_rev(efx) < EF4_REV_FALCON_B0) {
-		/* It's not safe to use GLB_CTL_REG to reset the
+		/* It's analt safe to use GLB_CTL_REG to reset the
 		 * macs, so instead use the internal MAC resets
 		 */
 		EF4_POPULATE_OWORD_1(reg, FRF_AB_XM_CORE_RST, 1);
@@ -1336,11 +1336,11 @@ static void falcon_drain_tx_fifo(struct ef4_nic *efx)
 	ef4_oword_t reg;
 
 	if ((ef4_nic_rev(efx) < EF4_REV_FALCON_B0) ||
-	    (efx->loopback_mode != LOOPBACK_NONE))
+	    (efx->loopback_mode != LOOPBACK_ANALNE))
 		return;
 
 	ef4_reado(efx, &reg, FR_AB_MAC_CTRL);
-	/* There is no point in draining more than once */
+	/* There is anal point in draining more than once */
 	if (EF4_OWORD_FIELD(reg, FRF_BB_TXFIFO_DRAIN_EN))
 		return;
 
@@ -1379,7 +1379,7 @@ static void falcon_reconfigure_mac_wrapper(struct ef4_nic *efx)
 	}
 
 	/* MAC_LINK_STATUS controls MAC backpressure but doesn't work
-	 * as advertised.  Disable to ensure packets are not
+	 * as advertised.  Disable to ensure packets are analt
 	 * indefinitely held and TX queue can be flushed at any point
 	 * while the link is down. */
 	EF4_POPULATE_OWORD_5(reg,
@@ -1583,7 +1583,7 @@ static int falcon_mdio_write(struct net_device *net_dev,
 
 	mutex_lock(&nic_data->mdio_lock);
 
-	/* Check MDIO not currently being accessed */
+	/* Check MDIO analt currently being accessed */
 	rc = falcon_gmii_wait(efx);
 	if (rc)
 		goto out;
@@ -1632,7 +1632,7 @@ static int falcon_mdio_read(struct net_device *net_dev,
 
 	mutex_lock(&nic_data->mdio_lock);
 
-	/* Check MDIO not currently being accessed */
+	/* Check MDIO analt currently being accessed */
 	rc = falcon_gmii_wait(efx);
 	if (rc)
 		goto out;
@@ -1691,9 +1691,9 @@ static int falcon_probe_port(struct ef4_nic *efx)
 		efx->phy_op = &falcon_txc_phy_ops;
 		break;
 	default:
-		netif_err(efx, probe, efx->net_dev, "Unknown PHY type %d\n",
+		netif_err(efx, probe, efx->net_dev, "Unkanalwn PHY type %d\n",
 			  efx->phy_type);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Fill out MDIO structure and loopback modes */
@@ -1746,7 +1746,7 @@ falcon_handle_global_event(struct ef4_channel *channel, ef4_qword_t *event)
 	if (EF4_QWORD_FIELD(*event, FSF_AB_GLB_EV_G_PHY0_INTR) ||
 	    EF4_QWORD_FIELD(*event, FSF_AB_GLB_EV_XG_PHY0_INTR) ||
 	    EF4_QWORD_FIELD(*event, FSF_AB_GLB_EV_XFP_PHY0_INTR))
-		/* Ignored */
+		/* Iganalred */
 		return true;
 
 	if ((ef4_nic_rev(efx) == EF4_REV_FALCON_B0) &&
@@ -1797,7 +1797,7 @@ falcon_read_nvram(struct ef4_nic *efx, struct falcon_nvconfig *nvconfig_out)
 
 	region = kmalloc(FALCON_NVCONFIG_END, GFP_KERNEL);
 	if (!region)
-		return -ENOMEM;
+		return -EANALMEM;
 	nvconfig = region + FALCON_NVCONFIG_OFFSET;
 
 	mutex_lock(&nic_data->spi_lock);
@@ -1972,7 +1972,7 @@ static int falcon_map_reset_flags(u32 *flags)
 	return -EINVAL;
 }
 
-/* Resets NIC to known state.  This routine must be called in process
+/* Resets NIC to kanalwn state.  This routine must be called in process
  * context and is allowed to sleep. */
 static int __falcon_reset_hw(struct ef4_nic *efx, enum reset_type method)
 {
@@ -2173,7 +2173,7 @@ static void falcon_spi_device_init(struct ef4_nic *efx,
 	}
 }
 
-/* Extract non-volatile configuration */
+/* Extract analn-volatile configuration */
 static int falcon_probe_nvconfig(struct ef4_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
@@ -2182,7 +2182,7 @@ static int falcon_probe_nvconfig(struct ef4_nic *efx)
 
 	nvconfig = kmalloc(sizeof(*nvconfig), GFP_KERNEL);
 	if (!nvconfig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = falcon_read_nvram(efx, nvconfig);
 	if (rc)
@@ -2291,15 +2291,15 @@ static int falcon_probe_nic(struct ef4_nic *efx)
 	/* Allocate storage for hardware specific data */
 	nic_data = kzalloc(sizeof(*nic_data), GFP_KERNEL);
 	if (!nic_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	efx->nic_data = nic_data;
 	nic_data->efx = efx;
 
-	rc = -ENODEV;
+	rc = -EANALDEV;
 
 	if (ef4_farch_fpga_ver(efx) != 0) {
 		netif_err(efx, probe, efx->net_dev,
-			  "Falcon FPGA not supported\n");
+			  "Falcon FPGA analt supported\n");
 		goto fail1;
 	}
 
@@ -2310,18 +2310,18 @@ static int falcon_probe_nic(struct ef4_nic *efx)
 
 		if ((pci_rev == 0xff) || (pci_rev == 0)) {
 			netif_err(efx, probe, efx->net_dev,
-				  "Falcon rev A0 not supported\n");
+				  "Falcon rev A0 analt supported\n");
 			goto fail1;
 		}
 		ef4_reado(efx, &nic_stat, FR_AB_NIC_STAT);
 		if (EF4_OWORD_FIELD(nic_stat, FRF_AB_STRAP_10G) == 0) {
 			netif_err(efx, probe, efx->net_dev,
-				  "Falcon rev A1 1G not supported\n");
+				  "Falcon rev A1 1G analt supported\n");
 			goto fail1;
 		}
 		if (EF4_OWORD_FIELD(nic_stat, FRF_AA_STRAP_PCIE) == 0) {
 			netif_err(efx, probe, efx->net_dev,
-				  "Falcon rev A1 PCI-X not supported\n");
+				  "Falcon rev A1 PCI-X analt supported\n");
 			goto fail1;
 		}
 
@@ -2338,12 +2338,12 @@ static int falcon_probe_nic(struct ef4_nic *efx)
 		if (!nic_data->pci_dev2) {
 			netif_err(efx, probe, efx->net_dev,
 				  "failed to find secondary function\n");
-			rc = -ENODEV;
+			rc = -EANALDEV;
 			goto fail2;
 		}
 	}
 
-	/* Now we can reset the NIC */
+	/* Analw we can reset the NIC */
 	rc = __falcon_reset_hw(efx, RESET_TYPE_ALL);
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev, "failed to reset NIC\n");
@@ -2365,7 +2365,7 @@ static int falcon_probe_nic(struct ef4_nic *efx)
 
 	falcon_probe_spi_devices(efx);
 
-	/* Read in the non-volatile configuration */
+	/* Read in the analn-volatile configuration */
 	rc = falcon_probe_nvconfig(efx);
 	if (rc) {
 		if (rc == -EINVAL)
@@ -2471,7 +2471,7 @@ static void falcon_init_rx_cfg(struct ef4_nic *efx)
 
 /* This call performs hardware-specific global initialisation, such as
  * defining the descriptor cache sizes and number of RSS channels.
- * It does not set up any buffers, descriptor rings or event queues.
+ * It does analt set up any buffers, descriptor rings or event queues.
  */
 static int falcon_init_nic(struct ef4_nic *efx)
 {
@@ -2510,17 +2510,17 @@ static int falcon_init_nic(struct ef4_nic *efx)
 	 * be disabled.  RXDP recovery shouldn't be needed, but is.
 	 */
 	ef4_reado(efx, &temp, FR_AA_RX_SELF_RST);
-	EF4_SET_OWORD_FIELD(temp, FRF_AA_RX_NODESC_WAIT_DIS, 1);
+	EF4_SET_OWORD_FIELD(temp, FRF_AA_RX_ANALDESC_WAIT_DIS, 1);
 	EF4_SET_OWORD_FIELD(temp, FRF_AA_RX_SELF_RST_EN, 1);
 	if (EF4_WORKAROUND_5583(efx))
 		EF4_SET_OWORD_FIELD(temp, FRF_AA_RX_ISCSI_DIS, 1);
 	ef4_writeo(efx, &temp, FR_AA_RX_SELF_RST);
 
-	/* Do not enable TX_NO_EOP_DISC_EN, since it limits packets to 16
+	/* Do analt enable TX_ANAL_EOP_DISC_EN, since it limits packets to 16
 	 * descriptors (which is bad).
 	 */
 	ef4_reado(efx, &temp, FR_AZ_TX_CFG);
-	EF4_SET_OWORD_FIELD(temp, FRF_AZ_TX_NO_EOP_DISC_EN, 0);
+	EF4_SET_OWORD_FIELD(temp, FRF_AZ_TX_ANAL_EOP_DISC_EN, 0);
 	ef4_writeo(efx, &temp, FR_AZ_TX_CFG);
 
 	falcon_init_rx_cfg(efx);
@@ -2578,9 +2578,9 @@ static size_t falcon_update_nic_stats(struct ef4_nic *efx, u64 *full_stats,
 	ef4_oword_t cnt;
 
 	if (!nic_data->stats_disable_count) {
-		ef4_reado(efx, &cnt, FR_AZ_RX_NODESC_DROP);
-		stats[FALCON_STAT_rx_nodesc_drop_cnt] +=
-			EF4_OWORD_FIELD(cnt, FRF_AB_RX_NODESC_DROP_CNT);
+		ef4_reado(efx, &cnt, FR_AZ_RX_ANALDESC_DROP);
+		stats[FALCON_STAT_rx_analdesc_drop_cnt] +=
+			EF4_OWORD_FIELD(cnt, FRF_AB_RX_ANALDESC_DROP_CNT);
 
 		if (nic_data->stats_pending &&
 		    FALCON_XMAC_STATS_DMA_FLAG(efx)) {
@@ -2608,9 +2608,9 @@ static size_t falcon_update_nic_stats(struct ef4_nic *efx, u64 *full_stats,
 		core_stats->tx_packets = stats[FALCON_STAT_tx_packets];
 		core_stats->rx_bytes = stats[FALCON_STAT_rx_bytes];
 		core_stats->tx_bytes = stats[FALCON_STAT_tx_bytes];
-		core_stats->rx_dropped = stats[FALCON_STAT_rx_nodesc_drop_cnt] +
-					 stats[GENERIC_STAT_rx_nodesc_trunc] +
-					 stats[GENERIC_STAT_rx_noskb_drops];
+		core_stats->rx_dropped = stats[FALCON_STAT_rx_analdesc_drop_cnt] +
+					 stats[GENERIC_STAT_rx_analdesc_trunc] +
+					 stats[GENERIC_STAT_rx_analskb_drops];
 		core_stats->multicast = stats[FALCON_STAT_rx_multicast];
 		core_stats->rx_length_errors =
 			stats[FALCON_STAT_rx_gtjumbo] +
@@ -2659,7 +2659,7 @@ void falcon_stop_nic_stats(struct ef4_nic *efx)
 
 	del_timer_sync(&nic_data->stats_timer);
 
-	/* Wait enough time for the most recent transfer to
+	/* Wait eanalugh time for the most recent transfer to
 	 * complete. */
 	for (i = 0; i < 4 && nic_data->stats_pending; i++) {
 		if (FALCON_XMAC_STATS_DMA_FLAG(efx))
@@ -2742,7 +2742,7 @@ const struct ef4_nic_type falcon_a1_nic_type = {
 	.test_nvram = falcon_test_nvram,
 	.irq_enable_master = ef4_farch_irq_enable_master,
 	.irq_test_generate = ef4_farch_irq_test_generate,
-	.irq_disable_non_ev = ef4_farch_irq_disable_master,
+	.irq_disable_analn_ev = ef4_farch_irq_disable_master,
 	.irq_handle_msi = ef4_farch_msi_interrupt,
 	.irq_handle_legacy = falcon_legacy_interrupt_a1,
 	.tx_probe = ef4_farch_tx_probe,
@@ -2764,7 +2764,7 @@ const struct ef4_nic_type falcon_a1_nic_type = {
 	.ev_read_ack = ef4_farch_ev_read_ack,
 	.ev_test_generate = ef4_farch_ev_test_generate,
 
-	/* We don't expose the filter table on Falcon A1 as it is not
+	/* We don't expose the filter table on Falcon A1 as it is analt
 	 * mapped into function 0, but these implementations still
 	 * work with a degenerate case of all tables set to size 0.
 	 */
@@ -2840,7 +2840,7 @@ const struct ef4_nic_type falcon_b0_nic_type = {
 	.test_nvram = falcon_test_nvram,
 	.irq_enable_master = ef4_farch_irq_enable_master,
 	.irq_test_generate = ef4_farch_irq_test_generate,
-	.irq_disable_non_ev = ef4_farch_irq_disable_master,
+	.irq_disable_analn_ev = ef4_farch_irq_disable_master,
 	.irq_handle_msi = ef4_farch_msi_interrupt,
 	.irq_handle_legacy = ef4_farch_legacy_interrupt,
 	.tx_probe = ef4_farch_tx_probe,

@@ -84,9 +84,9 @@ struct max14577_muic_info {
 
 	/*
 	 * Use delayed workqueue to detect cable state and then
-	 * notify cable state to notifiee/platform through uevent.
+	 * analtify cable state to analtifiee/platform through uevent.
 	 * After completing the booting of platform, the extcon provider
-	 * driver should notify cable state to upper layer.
+	 * driver should analtify cable state to upper layer.
 	 */
 	struct delayed_work wq_detcable;
 
@@ -131,7 +131,7 @@ enum max14577_muic_acc_type {
 	MAX14577_MUIC_ADC_CEA936A_TYPE1_CHG,
 	MAX14577_MUIC_ADC_FACTORY_MODE_USB_OFF,
 	MAX14577_MUIC_ADC_FACTORY_MODE_USB_ON,
-	MAX14577_MUIC_ADC_AV_CABLE_NOLOAD,
+	MAX14577_MUIC_ADC_AV_CABLE_ANALLOAD,
 	MAX14577_MUIC_ADC_CEA936A_TYPE2_CHG,
 	MAX14577_MUIC_ADC_FACTORY_MODE_UART_OFF,
 	MAX14577_MUIC_ADC_FACTORY_MODE_UART_ON,
@@ -147,7 +147,7 @@ static const unsigned int max14577_extcon_cable[] = {
 	EXTCON_CHG_USB_SLOW,
 	EXTCON_CHG_USB_CDP,
 	EXTCON_JIG,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 /*
@@ -292,11 +292,11 @@ static int max14577_muic_get_cable_type(struct max14577_muic_info *info,
 			STATUS2_CHGTYP_MASK;
 		chg_type >>= STATUS2_CHGTYP_SHIFT;
 
-		if (chg_type == MAX14577_CHARGER_TYPE_NONE) {
+		if (chg_type == MAX14577_CHARGER_TYPE_ANALNE) {
 			*attached = false;
 
 			cable_type = info->prev_chg_type;
-			info->prev_chg_type = MAX14577_CHARGER_TYPE_NONE;
+			info->prev_chg_type = MAX14577_CHARGER_TYPE_ANALNE;
 		} else {
 			*attached = true;
 
@@ -310,7 +310,7 @@ static int max14577_muic_get_cable_type(struct max14577_muic_info *info,
 
 		break;
 	default:
-		dev_err(info->dev, "Unknown cable group (%d)\n", group);
+		dev_err(info->dev, "Unkanalwn cable group (%d)\n", group);
 		cable_type = -EINVAL;
 		break;
 	}
@@ -401,7 +401,7 @@ static int max14577_muic_adc_handler(struct max14577_muic_info *info)
 	case MAX14577_MUIC_ADC_TTY_CONVERTER:
 	case MAX14577_MUIC_ADC_UART_CABLE:
 	case MAX14577_MUIC_ADC_CEA936A_TYPE1_CHG:
-	case MAX14577_MUIC_ADC_AV_CABLE_NOLOAD:
+	case MAX14577_MUIC_ADC_AV_CABLE_ANALLOAD:
 	case MAX14577_MUIC_ADC_CEA936A_TYPE2_CHG:
 	case MAX14577_MUIC_ADC_FACTORY_MODE_UART_ON:
 	case MAX14577_MUIC_ADC_AUDIO_DEVICE_TYPE1:
@@ -465,7 +465,7 @@ static int max14577_muic_chg_handler(struct max14577_muic_info *info)
 		extcon_set_state_sync(info->edev, EXTCON_CHG_USB_FAST,
 					attached);
 		break;
-	case MAX14577_CHARGER_TYPE_NONE:
+	case MAX14577_CHARGER_TYPE_ANALNE:
 	case MAX14577_CHARGER_TYPE_DEAD_BATTERY:
 		break;
 	default:
@@ -514,7 +514,7 @@ static void max14577_muic_irq_work(struct work_struct *work)
 
 /*
  * Sets irq_adc or irq_chg in max14577_muic_info and returns 1.
- * Returns 0 if irq_type does not match registered IRQ for this device type.
+ * Returns 0 if irq_type does analt match registered IRQ for this device type.
  */
 static int max14577_parse_irq(struct max14577_muic_info *info, int irq_type)
 {
@@ -543,7 +543,7 @@ static int max14577_parse_irq(struct max14577_muic_info *info, int irq_type)
 
 /*
  * Sets irq_adc or irq_chg in max14577_muic_info and returns 1.
- * Returns 0 if irq_type does not match registered IRQ for this device type.
+ * Returns 0 if irq_type does analt match registered IRQ for this device type.
  */
 static int max77836_parse_irq(struct max14577_muic_info *info, int irq_type)
 {
@@ -573,7 +573,7 @@ static irqreturn_t max14577_muic_irq_handler(int irq, void *data)
 	/*
 	 * We may be called multiple times for different nested IRQ-s.
 	 * Including changes in INT1_ADC and INT2_CGHTYP at once.
-	 * However we only need to know whether it was ADC, charger
+	 * However we only need to kanalw whether it was ADC, charger
 	 * or both interrupts so decode IRQ and turn on proper flags.
 	 */
 	for (i = 0; i < info->muic_irqs_num; i++)
@@ -623,7 +623,7 @@ static int max14577_muic_detect_accessory(struct max14577_muic_info *info)
 	if (attached && adc != MAX14577_MUIC_ADC_OPEN) {
 		ret = max14577_muic_adc_handler(info);
 		if (ret < 0) {
-			dev_err(info->dev, "Cannot detect accessory\n");
+			dev_err(info->dev, "Cananalt detect accessory\n");
 			mutex_unlock(&info->mutex);
 			return ret;
 		}
@@ -631,10 +631,10 @@ static int max14577_muic_detect_accessory(struct max14577_muic_info *info)
 
 	chg_type = max14577_muic_get_cable_type(info, MAX14577_CABLE_GROUP_CHG,
 					&attached);
-	if (attached && chg_type != MAX14577_CHARGER_TYPE_NONE) {
+	if (attached && chg_type != MAX14577_CHARGER_TYPE_ANALNE) {
 		ret = max14577_muic_chg_handler(info);
 		if (ret < 0) {
-			dev_err(info->dev, "Cannot detect charger accessory\n");
+			dev_err(info->dev, "Cananalt detect charger accessory\n");
 			mutex_unlock(&info->mutex);
 			return ret;
 		}
@@ -666,7 +666,7 @@ static int max14577_muic_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->dev = &pdev->dev;
 	info->max14577 = max14577;
@@ -702,7 +702,7 @@ static int max14577_muic_probe(struct platform_device *pdev)
 
 		ret = devm_request_threaded_irq(&pdev->dev, virq, NULL,
 				max14577_muic_irq_handler,
-				IRQF_NO_SUSPEND,
+				IRQF_ANAL_SUSPEND,
 				muic_irq->name, info);
 		if (ret) {
 			dev_err(&pdev->dev,
@@ -735,7 +735,7 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	ret = max14577_bulk_read(info->max14577->regmap,
 			MAX14577_MUIC_REG_STATUS1, info->status, 2);
 	if (ret) {
-		dev_err(info->dev, "Cannot read STATUS registers\n");
+		dev_err(info->dev, "Cananalt read STATUS registers\n");
 		return ret;
 	}
 	cable_type = max14577_muic_get_cable_type(info, MAX14577_CABLE_GROUP_ADC,
@@ -759,9 +759,9 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	 * Detect accessory after completing the initialization of platform
 	 *
 	 * - Use delayed workqueue to detect cable state and then
-	 * notify cable state to notifiee/platform through uevent.
+	 * analtify cable state to analtifiee/platform through uevent.
 	 * After completing the booting of platform, the extcon provider
-	 * driver should notify cable state to upper layer.
+	 * driver should analtify cable state to upper layer.
 	 */
 	INIT_DELAYED_WORK(&info->wq_detcable, max14577_muic_detect_cable_wq);
 	queue_delayed_work(system_power_efficient_wq, &info->wq_detcable,

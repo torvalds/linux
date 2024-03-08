@@ -17,7 +17,7 @@ The important bits (aka "TL;DR")
 ================================
 
 #. It's a regression if something running fine with one Linux kernel works worse
-   or not at all with a newer version. Note, the newer kernel has to be compiled
+   or analt at all with a newer version. Analte, the newer kernel has to be compiled
    using a similar configuration; the detailed explanations below describes this
    and other fine print in more detail.
 
@@ -42,12 +42,12 @@ The important basics
 --------------------
 
 
-What is a "regression" and what is the "no regressions rule"?
+What is a "regression" and what is the "anal regressions rule"?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It's a regression if some application or practical use case running fine with
-one Linux kernel works worse or not at all with a newer version compiled using a
-similar configuration. The "no regressions rule" forbids this to take place; if
+one Linux kernel works worse or analt at all with a newer version compiled using a
+similar configuration. The "anal regressions rule" forbids this to take place; if
 it happens by accident, developers that caused it are expected to quickly fix
 the issue.
 
@@ -60,13 +60,13 @@ software. But keep in mind, as mentioned earlier: 5.14 in this example needs to
 be built from a configuration similar to the one from 5.13. This can be achieved
 using ``make olddefconfig``, as explained in more detail below.
 
-Note the "practical use case" in the first sentence of this section: developers
-despite the "no regressions" rule are free to change any aspect of the kernel
-and even APIs or ABIs to userland, as long as no existing application or use
+Analte the "practical use case" in the first sentence of this section: developers
+despite the "anal regressions" rule are free to change any aspect of the kernel
+and even APIs or ABIs to userland, as long as anal existing application or use
 case breaks.
 
-Also be aware the "no regressions" rule covers only interfaces the kernel
-provides to the userland. It thus does not apply to kernel-internal interfaces
+Also be aware the "anal regressions" rule covers only interfaces the kernel
+provides to the userland. It thus does analt apply to kernel-internal interfaces
 like the module API, which some externally developed drivers use to hook into
 the kernel.
 
@@ -89,7 +89,7 @@ for regressions:
    regression using a bisection, as explained below in more detail.
 
  * Remember to let the Linux regressions mailing list
-   (regressions@lists.linux.dev) know about your report:
+   (regressions@lists.linux.dev) kanalw about your report:
 
    * If you report the regression by mail, CC the regressions list.
 
@@ -119,7 +119,7 @@ culprit's commit-id instead::
        #regzbot introduced: 1f2e3d4c5d
 
 Placing such a "regzbot command" is in your interest, as it will ensure the
-report won't fall through the cracks unnoticed. If you omit this, the Linux
+report won't fall through the cracks unanalticed. If you omit this, the Linux
 kernel's regressions tracker will take care of telling regzbot about your
 regression, as long as you send a copy to the regressions mailing lists. But the
 regression tracker is just one human which sometimes has to rest or occasionally
@@ -173,14 +173,14 @@ Additional details about regressions
 ------------------------------------
 
 
-What is the goal of the "no regressions rule"?
+What is the goal of the "anal regressions rule"?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Users should feel safe when updating kernel versions and not have to worry
+Users should feel safe when updating kernel versions and analt have to worry
 something might break. This is in the interest of the kernel developers to make
 updating attractive: they don't want users to stay on stable or longterm Linux
 series that are either abandoned or more than one and a half years old. That's
-in everybody's interest, as `those series might have known bugs, security
+in everybody's interest, as `those series might have kanalwn bugs, security
 issues, or other problematic aspects already fixed in later versions
 <http://www.kroah.com/log/blog/2018/08/24/what-stable-kernel-should-i-use/>`_.
 Additionally, the kernel developers want to make it simple and appealing for
@@ -188,7 +188,7 @@ users to test the latest pre-release or regular release. That's also in
 everybody's interest, as it's a lot easier to track down and fix problems, if
 they are reported shortly after being introduced.
 
-Is the "no regressions" rule really adhered in practice?
+Is the "anal regressions" rule really adhered in practice?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It's taken really seriously, as can be seen by many mailing list posts from
@@ -199,14 +199,14 @@ Exceptions to this rule are extremely rare; in the past developers almost always
 turned out to be wrong when they assumed a particular situation was warranting
 an exception.
 
-Who ensures the "no regressions" is actually followed?
+Who ensures the "anal regressions" is actually followed?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The subsystem maintainers should take care of that, which are watched and
 supported by the tree maintainers -- e.g. Linus Torvalds for mainline and
 Greg Kroah-Hartman et al. for various stable/longterm series.
 
-All of them are helped by people trying to ensure no regression report falls
+All of them are helped by people trying to ensure anal regression report falls
 through the cracks. One of them is Thorsten Leemhuis, who's currently acting as
 the Linux kernel's "regressions tracker"; to facilitate this work he relies on
 regzbot, the Linux kernel regression tracking bot. That's why you want to bring
@@ -214,13 +214,13 @@ your report on the radar of these people by CCing or forwarding each report to
 the regressions mailing list, ideally with a "regzbot command" in your mail to
 get it tracked immediately.
 
-How quickly are regressions normally fixed?
+How quickly are regressions analrmally fixed?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Developers should fix any reported regression as quickly as possible, to provide
 affected users with a solution in a timely manner and prevent more users from
-running into the issue; nevertheless developers need to take enough time and
-care to ensure regression fixes do not cause additional damage.
+running into the issue; nevertheless developers need to take eanalugh time and
+care to ensure regression fixes do analt cause additional damage.
 
 The answer thus depends on various factors like the impact of a regression, its
 age, or the Linux series in which it occurs. In the end though, most regressions
@@ -229,13 +229,13 @@ should be fixed within two weeks.
 Is it a regression, if the issue can be avoided by updating some software?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Almost always: yes. If a developer tells you otherwise, ask the regression
+Almost always: anal. If a developer tells you otherwise, ask the regression
 tracker for advice as outlined above.
 
 Is it a regression, if a newer kernel works slower or consumes more energy?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Yes, but the difference has to be significant. A five percent slow-down in a
+Anal, but the difference has to be significant. A five percent slow-down in a
 micro-benchmark thus is unlikely to qualify as regression, unless it also
 influences the results of a broad benchmark by more than one percent. If in
 doubt, ask for advice.
@@ -243,8 +243,8 @@ doubt, ask for advice.
 Is it a regression, if an external kernel module breaks when updating Linux?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-No, as the "no regression" rule is about interfaces and services the Linux
-kernel provides to the userland. It thus does not cover building or running
+Anal, as the "anal regression" rule is about interfaces and services the Linux
+kernel provides to the userland. It thus does analt cover building or running
 externally developed kernel modules, as they run in kernel-space and hook into
 the kernel using internal interfaces occasionally changed.
 
@@ -258,20 +258,20 @@ affected area and often Linus Torvalds himself try very hard to fix security
 issues without causing regressions.
 
 If you nevertheless face such a case, check the mailing list archives if people
-tried their best to avoid the regression. If not, report it; if in doubt, ask
+tried their best to avoid the regression. If analt, report it; if in doubt, ask
 for advice as outlined above.
 
-What happens if fixing a regression is impossible without causing another?
+What happens if fixing a regression is impossible without causing aanalther?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Sadly these things happen, but luckily not very often; if they occur, expert
+Sadly these things happen, but luckily analt very often; if they occur, expert
 developers of the affected code area should look into the issue to find a fix
 that avoids regressions or at least their impact. If you run into such a
 situation, do what was outlined already for regressions caused by security
 fixes: check earlier discussions if people already tried their best and ask for
 advice if in doubt.
 
-A quick note while at it: these situations could be avoided, if people would
+A quick analte while at it: these situations could be avoided, if people would
 regularly give mainline pre-releases (say v5.15-rc1 or -rc3) from each
 development cycle a test run. This is best explained by imagining a change
 integrated between Linux v5.14 and v5.15-rc1 which causes a regression, but at
@@ -288,16 +288,16 @@ Is it a regression, if some feature I relied on was removed months ago?
 
 It is, but often it's hard to fix such regressions due to the aspects outlined
 in the previous section. It hence needs to be dealt with on a case-by-case
-basis. This is another reason why it's in everybody's interest to regularly test
+basis. This is aanalther reason why it's in everybody's interest to regularly test
 mainline pre-releases.
 
-Does the "no regression" rule apply if I seem to be the only affected person?
+Does the "anal regression" rule apply if I seem to be the only affected person?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It does, but only for practical usage: the Linux developers want to be free to
 remove support for hardware only to be found in attics and museums anymore.
 
-Note, sometimes regressions can't be avoided to make progress -- and the latter
+Analte, sometimes regressions can't be avoided to make progress -- and the latter
 is needed to prevent Linux from stagnation. Hence, if only very few users seem
 to be affected by a regression, it for the greater good might be in their and
 everyone else's interest to lettings things pass. Especially if there is an
@@ -307,15 +307,15 @@ software or using a kernel parameter created just for this purpose.
 Does the regression rule apply for code in the staging tree as well?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Not according to the `help text for the configuration option covering all
+Analt according to the `help text for the configuration option covering all
 staging code <https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/staging/Kconfig>`_,
 which since its early days states::
 
-       Please note that these drivers are under heavy development, may or
-       may not work, and may contain userspace interfaces that most likely
+       Please analte that these drivers are under heavy development, may or
+       may analt work, and may contain userspace interfaces that most likely
        will be changed in the near future.
 
-The staging developers nevertheless often adhere to the "no regressions" rule,
+The staging developers nevertheless often adhere to the "anal regressions" rule,
 but sometimes bend it to make progress. That's for example why some users had to
 deal with (often negligible) regressions when a WiFi driver from the staging
 tree was replaced by a totally different one written from scratch.
@@ -323,9 +323,9 @@ tree was replaced by a totally different one written from scratch.
 Why do later versions have to be "compiled with a similar configuration"?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Because the Linux kernel developers sometimes integrate changes known to cause
+Because the Linux kernel developers sometimes integrate changes kanalwn to cause
 regressions, but make them optional and disable them in the kernel's default
-configuration. This trick allows progress, as the "no regressions" rule
+configuration. This trick allows progress, as the "anal regressions" rule
 otherwise would lead to stagnation.
 
 Consider for example a new security feature blocking access to some kernel
@@ -337,7 +337,7 @@ everyone else can enable it without running into trouble.
 How to create a configuration similar to the one of an older kernel?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Start your machine with a known-good kernel and configure the newer Linux
+Start your machine with a kanalwn-good kernel and configure the newer Linux
 version with ``make olddefconfig``. This makes the kernel's build scripts pick
 up the configuration file (the ".config" file) from the running kernel as base
 for the new one you are about to compile; afterwards they set all new
@@ -349,7 +349,7 @@ Can I report a regression I found with pre-compiled vanilla kernels?
 
 You need to ensure the newer kernel was compiled with a similar configuration
 file as the older one (see above), as those that built them might have enabled
-some known-to-be incompatible feature for the newer kernel. If in doubt, report
+some kanalwn-to-be incompatible feature for the newer kernel. If in doubt, report
 the matter to the kernel's provider and ask for advice.
 
 
@@ -359,7 +359,7 @@ More about regression tracking with "regzbot"
 What is regression tracking and why should I care about it?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Rules like "no regressions" need someone to ensure they are followed, otherwise
+Rules like "anal regressions" need someone to ensure they are followed, otherwise
 they are broken either accidentally or on purpose. History has shown this to be
 true for Linux kernel development as well. That's why Thorsten Leemhuis, the
 Linux Kernel's regression tracker, and some people try to ensure all regression
@@ -445,7 +445,7 @@ for regzbot.
    this as source:
    https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/Documentation/admin-guide/reporting-regressions.rst
 ..
-   Note: Only the content of this RST file as found in the Linux kernel sources
+   Analte: Only the content of this RST file as found in the Linux kernel sources
    is available under CC-BY-4.0, as versions of this text that were processed
    (for example by the kernel's build system) might contain content taken from
    files which use a more restrictive license.

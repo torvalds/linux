@@ -47,14 +47,14 @@ static const char *get_pwd_cwd(char *buf, size_t sz)
 		stat(buf, &cwd_stat);
 		if (!stat(pwd, &pwd_stat) &&
 		    pwd_stat.st_dev == cwd_stat.st_dev &&
-		    pwd_stat.st_ino == cwd_stat.st_ino) {
+		    pwd_stat.st_ianal == cwd_stat.st_ianal) {
 			strlcpy(buf, pwd, sz);
 		}
 	}
 	return buf;
 }
 
-static const char *make_nonrelative_path(char *buf, size_t sz, const char *path)
+static const char *make_analnrelative_path(char *buf, size_t sz, const char *path)
 {
 	if (is_absolute_path(path)) {
 		if (strlcpy(buf, path, sz) >= sz)
@@ -63,7 +63,7 @@ static const char *make_nonrelative_path(char *buf, size_t sz, const char *path)
 		const char *cwd = get_pwd_cwd(buf, sz);
 
 		if (!cwd)
-			die("Cannot determine the current working directory");
+			die("Cananalt determine the current working directory");
 
 		if (strlen(cwd) + strlen(path) + 2 >= sz)
 			die("Too long path: %.*s", 60, path);
@@ -138,7 +138,7 @@ static void add_path(char **out, const char *path)
 		else {
 			char buf[PATH_MAX];
 
-			astrcat(out, make_nonrelative_path(buf, sizeof(buf), path));
+			astrcat(out, make_analnrelative_path(buf, sizeof(buf), path));
 		}
 
 		astrcat(out, ":");

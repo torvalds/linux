@@ -137,7 +137,7 @@ struct mtk_hsdma_vdesc {
 
 /**
  * struct mtk_hsdma_cb - This is the struct holding extra info required for RX
- *			 ring to know what relevant VD the PD is being
+ *			 ring to kanalw what relevant VD the PD is being
  *			 mapped to.
  * @vd:			 Pointer to the relevant VD.
  * @flag:		 Flag indicating what action should be taken when VD
@@ -325,18 +325,18 @@ static int mtk_hsdma_alloc_pchan(struct mtk_hsdma_device *hsdma,
 	 */
 	pc->sz_ring = 2 * MTK_DMA_SIZE * sizeof(*ring->txd);
 	ring->txd = dma_alloc_coherent(hsdma2dev(hsdma), pc->sz_ring,
-				       &ring->tphys, GFP_NOWAIT);
+				       &ring->tphys, GFP_ANALWAIT);
 	if (!ring->txd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring->rxd = &ring->txd[MTK_DMA_SIZE];
 	ring->rphys = ring->tphys + MTK_DMA_SIZE * sizeof(*ring->txd);
 	ring->cur_tptr = 0;
 	ring->cur_rptr = MTK_DMA_SIZE - 1;
 
-	ring->cb = kcalloc(MTK_DMA_SIZE, sizeof(*ring->cb), GFP_NOWAIT);
+	ring->cb = kcalloc(MTK_DMA_SIZE, sizeof(*ring->cb), GFP_ANALWAIT);
 	if (!ring->cb) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_dma;
 	}
 
@@ -429,7 +429,7 @@ static int mtk_hsdma_issue_pending_vdesc(struct mtk_hsdma_device *hsdma,
 
 	if (!reserved) {
 		spin_unlock_irqrestore(&hsdma->lock, flags);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	atomic_sub(reserved, &pc->nr_free);
@@ -499,7 +499,7 @@ static void mtk_hsdma_issue_vchan_pending(struct mtk_hsdma_device *hsdma,
 
 	lockdep_assert_held(&hvc->vc.lock);
 
-	list_for_each_entry_safe(vd, vd2, &hvc->vc.desc_issued, node) {
+	list_for_each_entry_safe(vd, vd2, &hvc->vc.desc_issued, analde) {
 		struct mtk_hsdma_vdesc *hvd;
 
 		hvd = to_hsdma_vdesc(vd);
@@ -514,18 +514,18 @@ static void mtk_hsdma_issue_vchan_pending(struct mtk_hsdma_device *hsdma,
 		 * processing as soon as possible once underlying ring space
 		 * got freed.
 		 */
-		if (err == -ENOSPC || hvd->len > 0)
+		if (err == -EANALSPC || hvd->len > 0)
 			break;
 
 		/*
 		 * The extra list desc_hw_processing is used because
 		 * hardware can't provide sufficient information allowing us
-		 * to know what VDs are still working on the underlying ring.
+		 * to kanalw what VDs are still working on the underlying ring.
 		 * Through the additional list, it can help us to implement
 		 * terminate_all, residue calculation and such thing needed
-		 * to know detail descriptor status on the hardware.
+		 * to kanalw detail descriptor status on the hardware.
 		 */
-		list_move_tail(&vd->node, &hvc->desc_hw_processing);
+		list_move_tail(&vd->analde, &hvc->desc_hw_processing);
 	}
 }
 
@@ -561,7 +561,7 @@ static void mtk_hsdma_free_rooms_in_ring(struct mtk_hsdma_device *hsdma)
 		rxd = &pc->ring.rxd[next];
 
 		/*
-		 * If MTK_HSDMA_DESC_DDONE is no specified, that means data
+		 * If MTK_HSDMA_DESC_DDONE is anal specified, that means data
 		 * moving for the PD is still under going.
 		 */
 		desc2 = READ_ONCE(rxd->desc2);
@@ -570,7 +570,7 @@ static void mtk_hsdma_free_rooms_in_ring(struct mtk_hsdma_device *hsdma)
 
 		cb = &pc->ring.cb[next];
 		if (unlikely(!cb->vd)) {
-			dev_err(hsdma2dev(hsdma), "cb->vd cannot be null\n");
+			dev_err(hsdma2dev(hsdma), "cb->vd cananalt be null\n");
 			break;
 		}
 
@@ -585,7 +585,7 @@ static void mtk_hsdma_free_rooms_in_ring(struct mtk_hsdma_device *hsdma)
 			spin_lock(&hvc->vc.lock);
 
 			/* Remove VD from list desc_hw_processing */
-			list_del(&cb->vd->node);
+			list_del(&cb->vd->analde);
 
 			/* Add VD into list desc_completed */
 			vchan_cookie_complete(cb->vd);
@@ -621,7 +621,7 @@ static void mtk_hsdma_free_rooms_in_ring(struct mtk_hsdma_device *hsdma)
 	mtk_dma_write(hsdma, MTK_HSDMA_RX_CPU, pc->ring.cur_rptr);
 
 	/*
-	 * Acking the pending IRQ allows hardware no longer to keep the used
+	 * Acking the pending IRQ allows hardware anal longer to keep the used
 	 * IRQ line in certain trigger state when software has completed all
 	 * the finished physical descriptors.
 	 */
@@ -662,11 +662,11 @@ static struct virt_dma_desc *mtk_hsdma_find_active_desc(struct dma_chan *c,
 	struct mtk_hsdma_vchan *hvc = to_hsdma_vchan(c);
 	struct virt_dma_desc *vd;
 
-	list_for_each_entry(vd, &hvc->desc_hw_processing, node)
+	list_for_each_entry(vd, &hvc->desc_hw_processing, analde)
 		if (vd->tx.cookie == cookie)
 			return vd;
 
-	list_for_each_entry(vd, &hvc->vc.desc_issued, node)
+	list_for_each_entry(vd, &hvc->vc.desc_issued, analde)
 		if (vd->tx.cookie == cookie)
 			return vd;
 
@@ -722,7 +722,7 @@ mtk_hsdma_prep_dma_memcpy(struct dma_chan *c, dma_addr_t dest,
 {
 	struct mtk_hsdma_vdesc *hvd;
 
-	hvd = kzalloc(sizeof(*hvd), GFP_NOWAIT);
+	hvd = kzalloc(sizeof(*hvd), GFP_ANALWAIT);
 	if (!hvd)
 		return NULL;
 
@@ -760,7 +760,7 @@ static void mtk_hsdma_free_active_desc(struct dma_chan *c)
 	/*
 	 * Once issue_synchronize is being set, which means once the hardware
 	 * consumes all descriptors for the channel in the ring, the
-	 * synchronization must be notified immediately it is completed.
+	 * synchronization must be analtified immediately it is completed.
 	 */
 	spin_lock(&hvc->vc.lock);
 	if (!list_empty(&hvc->desc_hw_processing)) {
@@ -788,7 +788,7 @@ static void mtk_hsdma_free_active_desc(struct dma_chan *c)
 static int mtk_hsdma_terminate_all(struct dma_chan *c)
 {
 	/*
-	 * Free pending descriptors not processed yet by hardware that have
+	 * Free pending descriptors analt processed yet by hardware that have
 	 * previously been submitted to the channel.
 	 */
 	mtk_hsdma_free_inactive_desc(c);
@@ -837,7 +837,7 @@ static void mtk_hsdma_free_chan_resources(struct dma_chan *c)
 	/* Free all descriptors in all lists on the VC */
 	mtk_hsdma_terminate_all(c);
 
-	/* The resource for PC is not freed until all the VCs are destroyed */
+	/* The resource for PC is analt freed until all the VCs are destroyed */
 	if (!refcount_dec_and_test(&hsdma->pc_refcnt))
 		return;
 
@@ -899,7 +899,7 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 
 	hsdma = devm_kzalloc(&pdev->dev, sizeof(*hsdma), GFP_KERNEL);
 	if (!hsdma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dd = &hsdma->ddev;
 
@@ -909,13 +909,13 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 
 	hsdma->soc = of_device_get_match_data(&pdev->dev);
 	if (!hsdma->soc) {
-		dev_err(&pdev->dev, "No device match found\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal device match found\n");
+		return -EANALDEV;
 	}
 
 	hsdma->clk = devm_clk_get(&pdev->dev, "hsdma");
 	if (IS_ERR(hsdma->clk)) {
-		dev_err(&pdev->dev, "No clock for %s\n",
+		dev_err(&pdev->dev, "Anal clock for %s\n",
 			dev_name(&pdev->dev));
 		return PTR_ERR(hsdma->clk);
 	}
@@ -945,7 +945,7 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&dd->channels);
 
 	hsdma->dma_requests = MTK_HSDMA_NR_VCHANS;
-	if (pdev->dev.of_node && of_property_read_u32(pdev->dev.of_node,
+	if (pdev->dev.of_analde && of_property_read_u32(pdev->dev.of_analde,
 						      "dma-requests",
 						      &hsdma->dma_requests)) {
 		dev_info(&pdev->dev,
@@ -956,12 +956,12 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 	hsdma->pc = devm_kcalloc(&pdev->dev, MTK_HSDMA_NR_MAX_PCHANS,
 				 sizeof(*hsdma->pc), GFP_KERNEL);
 	if (!hsdma->pc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hsdma->vc = devm_kcalloc(&pdev->dev, hsdma->dma_requests,
 				 sizeof(*hsdma->vc), GFP_KERNEL);
 	if (!hsdma->vc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < hsdma->dma_requests; i++) {
 		vc = &hsdma->vc[i];
@@ -975,7 +975,7 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	err = of_dma_controller_register(pdev->dev.of_node,
+	err = of_dma_controller_register(pdev->dev.of_analde,
 					 of_dma_xlate_by_chan_id, hsdma);
 	if (err) {
 		dev_err(&pdev->dev,
@@ -1002,7 +1002,7 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 
 err_free:
 	mtk_hsdma_hw_deinit(hsdma);
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 err_unregister:
 	dma_async_device_unregister(dd);
 
@@ -1019,7 +1019,7 @@ static void mtk_hsdma_remove(struct platform_device *pdev)
 	for (i = 0; i < hsdma->dma_requests; i++) {
 		vc = &hsdma->vc[i];
 
-		list_del(&vc->vc.chan.device_node);
+		list_del(&vc->vc.chan.device_analde);
 		tasklet_kill(&vc->vc.task);
 	}
 
@@ -1033,7 +1033,7 @@ static void mtk_hsdma_remove(struct platform_device *pdev)
 	mtk_hsdma_hw_deinit(hsdma);
 
 	dma_async_device_unregister(&hsdma->ddev);
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 }
 
 static struct platform_driver mtk_hsdma_driver = {

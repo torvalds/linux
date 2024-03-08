@@ -2,7 +2,7 @@
 /*
  * max8998.h - Voltage regulator driver for the Maxim 8998
  *
- *  Copyright (C) 2009-2010 Samsung Electrnoics
+ *  Copyright (C) 2009-2010 Samsung Electranalics
  *  Kyungmin Park <kyungmin.park@samsung.com>
  *  Marek Szyprowski <m.szyprowski@samsung.com>
  */
@@ -46,12 +46,12 @@ enum {
  * max8998_regulator_data - regulator data
  * @id: regulator id
  * @initdata: regulator init data (contraints, supplies, ...)
- * @reg_node: DT node of regulator (unused on non-DT platforms)
+ * @reg_analde: DT analde of regulator (unused on analn-DT platforms)
  */
 struct max8998_regulator_data {
 	int				id;
 	struct regulator_init_data	*initdata;
-	struct device_node		*reg_node;
+	struct device_analde		*reg_analde;
 };
 
 /**
@@ -59,9 +59,9 @@ struct max8998_regulator_data {
  * @regulators: array of defined regulators
  * @num_regulators: number of regulators used
  * @irq_base: base IRQ number for max8998, required for IRQs
- * @ono: power onoff IRQ number for max8998
- * @buck_voltage_lock: Do NOT change the values of the following six
- *   registers set by buck?_voltage?. The voltage of BUCK1/2 cannot
+ * @oanal: power oanalff IRQ number for max8998
+ * @buck_voltage_lock: Do ANALT change the values of the following six
+ *   registers set by buck?_voltage?. The voltage of BUCK1/2 cananalt
  *   be other than the preset values.
  * @buck1_voltage: BUCK1 DVS mode 1 voltage registers
  * @buck2_voltage: BUCK2 DVS mode 2 voltage registers
@@ -87,7 +87,7 @@ struct max8998_platform_data {
 	struct max8998_regulator_data	*regulators;
 	int				num_regulators;
 	unsigned int			irq_base;
-	int				ono;
+	int				oanal;
 	bool				buck_voltage_lock;
 	int				buck1_voltage[4];
 	int				buck2_voltage[2];

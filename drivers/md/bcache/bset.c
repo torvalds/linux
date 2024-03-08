@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Code for working with individual keys, and sorted sets of keys with in a
- * btree node
+ * btree analde
  *
  * Copyright 2012 Google, Inc.
  */
@@ -31,7 +31,7 @@ void bch_dump_bset(struct btree_keys *b, struct bset *i, unsigned int set)
 		if (b->ops->key_dump)
 			b->ops->key_dump(b, k);
 		else
-			pr_cont("%llu:%llu\n", KEY_INODE(k), KEY_OFFSET(k));
+			pr_cont("%llu:%llu\n", KEY_IANALDE(k), KEY_OFFSET(k));
 
 		if (next < bset_bkey_last(i) &&
 		    bkey_cmp(k, b->ops->is_extents ?
@@ -93,7 +93,7 @@ void __bch_check_keys(struct btree_keys *b, const char *fmt, ...)
 		p = k;
 	}
 #if 0
-	err = "Key larger than btree node key";
+	err = "Key larger than btree analde key";
 	if (p && bkey_cmp(p, &b->key) > 0)
 		goto bug;
 #endif
@@ -141,10 +141,10 @@ int __bch_keylist_realloc(struct keylist *l, unsigned int u64s)
 	    roundup_pow_of_two(oldsize) == newsize)
 		return 0;
 
-	new_keys = krealloc(old_keys, sizeof(uint64_t) * newsize, GFP_NOIO);
+	new_keys = krealloc(old_keys, sizeof(uint64_t) * newsize, GFP_ANALIO);
 
 	if (!new_keys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!old_keys)
 		memcpy(new_keys, l->inline_keys, sizeof(uint64_t) * oldsize);
@@ -221,7 +221,7 @@ bool __bch_cut_back(const struct bkey *where, struct bkey *k)
 	if (bkey_cmp(where, k) >= 0)
 		return false;
 
-	BUG_ON(KEY_INODE(where) != KEY_INODE(k));
+	BUG_ON(KEY_IANALDE(where) != KEY_IANALDE(k));
 
 	if (bkey_cmp(where, &START_KEY(k)) > 0)
 		len = KEY_OFFSET(where) - KEY_START(k);
@@ -264,7 +264,7 @@ struct bkey_float {
 
 #define BSET_CACHELINE		128
 
-/* Space required for the btree node keys */
+/* Space required for the btree analde keys */
 static inline size_t btree_keys_bytes(struct btree_keys *b)
 {
 	return PAGE_SIZE << b->page_order;
@@ -341,7 +341,7 @@ int bch_btree_keys_alloc(struct btree_keys *b,
 	return 0;
 err:
 	bch_btree_keys_free(b);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void bch_btree_keys_init(struct btree_keys *b, const struct btree_keys_ops *ops,
@@ -368,7 +368,7 @@ void bch_btree_keys_init(struct btree_keys *b, const struct btree_keys_ops *ops,
  * return array index next to j when does in-order traverse
  * of a binary tree which is stored in a linear array
  */
-static unsigned int inorder_next(unsigned int j, unsigned int size)
+static unsigned int ianalrder_next(unsigned int j, unsigned int size)
 {
 	if (j * 2 + 1 < size) {
 		j = j * 2 + 1;
@@ -385,7 +385,7 @@ static unsigned int inorder_next(unsigned int j, unsigned int size)
  * return array index previous to j when does in-order traverse
  * of a binary tree which is stored in a linear array
  */
-static unsigned int inorder_prev(unsigned int j, unsigned int size)
+static unsigned int ianalrder_prev(unsigned int j, unsigned int size)
 {
 	if (j * 2 < size) {
 		j = j * 2;
@@ -399,20 +399,20 @@ static unsigned int inorder_prev(unsigned int j, unsigned int size)
 }
 
 /*
- * I have no idea why this code works... and I'm the one who wrote it
+ * I have anal idea why this code works... and I'm the one who wrote it
  *
- * However, I do know what it does:
- * Given a binary tree constructed in an array (i.e. how you normally implement
- * a heap), it converts a node in the tree - referenced by array index - to the
- * index it would have if you did an inorder traversal.
+ * However, I do kanalw what it does:
+ * Given a binary tree constructed in an array (i.e. how you analrmally implement
+ * a heap), it converts a analde in the tree - referenced by array index - to the
+ * index it would have if you did an ianalrder traversal.
  *
  * Also tested for every j, size up to size somewhere around 6 million.
  *
- * The binary tree starts at array index 1, not 0
+ * The binary tree starts at array index 1, analt 0
  * extra is a function of size:
  *   extra = (size - rounddown_pow_of_two(size - 1)) << 1;
  */
-static unsigned int __to_inorder(unsigned int j,
+static unsigned int __to_ianalrder(unsigned int j,
 				  unsigned int size,
 				  unsigned int extra)
 {
@@ -434,12 +434,12 @@ static unsigned int __to_inorder(unsigned int j,
  * Return the cacheline index in bset_tree->data, where j is index
  * from a linear array which stores the auxiliar binary tree
  */
-static unsigned int to_inorder(unsigned int j, struct bset_tree *t)
+static unsigned int to_ianalrder(unsigned int j, struct bset_tree *t)
 {
-	return __to_inorder(j, t->size, t->extra);
+	return __to_ianalrder(j, t->size, t->extra);
 }
 
-static unsigned int __inorder_to_tree(unsigned int j,
+static unsigned int __ianalrder_to_tree(unsigned int j,
 				      unsigned int size,
 				      unsigned int extra)
 {
@@ -460,13 +460,13 @@ static unsigned int __inorder_to_tree(unsigned int j,
  * Return an index from a linear array which stores the auxiliar binary
  * tree, j is the cacheline index of t->data.
  */
-static unsigned int inorder_to_tree(unsigned int j, struct bset_tree *t)
+static unsigned int ianalrder_to_tree(unsigned int j, struct bset_tree *t)
 {
-	return __inorder_to_tree(j, t->size, t->extra);
+	return __ianalrder_to_tree(j, t->size, t->extra);
 }
 
 #if 0
-void inorder_test(void)
+void ianalrder_test(void)
 {
 	unsigned long done = 0;
 	ktime_t start = ktime_get();
@@ -479,22 +479,22 @@ void inorder_test(void)
 		unsigned int i = 1, j = rounddown_pow_of_two(size - 1);
 
 		if (!(size % 4096))
-			pr_notice("loop %u, %llu per us\n", size,
+			pr_analtice("loop %u, %llu per us\n", size,
 			       done / ktime_us_delta(ktime_get(), start));
 
 		while (1) {
-			if (__inorder_to_tree(i, size, extra) != j)
+			if (__ianalrder_to_tree(i, size, extra) != j)
 				panic("size %10u j %10u i %10u", size, j, i);
 
-			if (__to_inorder(j, size, extra) != i)
+			if (__to_ianalrder(j, size, extra) != i)
 				panic("size %10u j %10u i %10u", size, j, i);
 
 			if (j == rounddown_pow_of_two(size) - 1)
 				break;
 
-			BUG_ON(inorder_prev(inorder_next(j, size), size) != j);
+			BUG_ON(ianalrder_prev(ianalrder_next(j, size), size) != j);
 
-			j = inorder_next(j, size);
+			j = ianalrder_next(j, size);
 			i++;
 		}
 
@@ -506,17 +506,17 @@ void inorder_test(void)
 /*
  * Cacheline/offset <-> bkey pointer arithmetic:
  *
- * t->tree is a binary search tree in an array; each node corresponds to a key
+ * t->tree is a binary search tree in an array; each analde corresponds to a key
  * in one cacheline in t->set (BSET_CACHELINE bytes).
  *
- * This means we don't have to store the full index of the key that a node in
- * the binary tree points to; to_inorder() gives us the cacheline, and then
+ * This means we don't have to store the full index of the key that a analde in
+ * the binary tree points to; to_ianalrder() gives us the cacheline, and then
  * bkey_float->m gives us the offset within that cacheline, in units of 8 bytes.
  *
  * cacheline_to_bkey() and friends abstract out all the pointer arithmetic to
  * make this work.
  *
- * To construct the bfloat for an arbitrary key we need to know what the key
+ * To construct the bfloat for an arbitrary key we need to kanalw what the key
  * immediately preceding it is: we have to check if the two keys differ in the
  * bits we're going to store in bkey_float->mantissa. t->prev[j] stores the size
  * of the previous key so we can walk backwards to it from t->tree[j]'s key.
@@ -543,7 +543,7 @@ static unsigned int bkey_to_cacheline_offset(struct bset_tree *t,
 
 static struct bkey *tree_to_bkey(struct bset_tree *t, unsigned int j)
 {
-	return cacheline_to_bkey(t, to_inorder(j, t), t->tree[j].m);
+	return cacheline_to_bkey(t, to_ianalrder(j, t), t->tree[j].m);
 }
 
 static struct bkey *tree_to_prev_bkey(struct bset_tree *t, unsigned int j)
@@ -569,17 +569,17 @@ static inline uint64_t shrd128(uint64_t high, uint64_t low, uint8_t shift)
 
 /*
  * Calculate mantissa value for struct bkey_float.
- * If most significant bit of f->exponent is not set, then
+ * If most significant bit of f->exponent is analt set, then
  *  - f->exponent >> 6 is 0
  *  - p[0] points to bkey->low
- *  - p[-1] borrows bits from KEY_INODE() of bkey->high
+ *  - p[-1] borrows bits from KEY_IANALDE() of bkey->high
  * if most isgnificant bits of f->exponent is set, then
  *  - f->exponent >> 6 is 1
- *  - p[0] points to bits from KEY_INODE() of bkey->high
- *  - p[-1] points to other bits from KEY_INODE() of
+ *  - p[0] points to bits from KEY_IANALDE() of bkey->high
+ *  - p[-1] points to other bits from KEY_IANALDE() of
  *    bkey->high too.
  * See make_bfloat() to check when most significant bit of f->exponent
- * is set or not.
+ * is set or analt.
  */
 static inline unsigned int bfloat_mantissa(const struct bkey *k,
 				       struct bkey_float *f)
@@ -607,24 +607,24 @@ static void make_bfloat(struct bset_tree *t, unsigned int j)
 	BUG_ON(bkey_next(p) != m);
 
 	/*
-	 * If l and r have different KEY_INODE values (different backing
+	 * If l and r have different KEY_IANALDE values (different backing
 	 * device), f->exponent records how many least significant bits
-	 * are different in KEY_INODE values and sets most significant
+	 * are different in KEY_IANALDE values and sets most significant
 	 * bits to 1 (by +64).
-	 * If l and r have same KEY_INODE value, f->exponent records
+	 * If l and r have same KEY_IANALDE value, f->exponent records
 	 * how many different bits in least significant bits of bkey->low.
 	 * See bfloat_mantiss() how the most significant bit of
 	 * f->exponent is used to calculate bfloat mantissa value.
 	 */
-	if (KEY_INODE(l) != KEY_INODE(r))
-		f->exponent = fls64(KEY_INODE(r) ^ KEY_INODE(l)) + 64;
+	if (KEY_IANALDE(l) != KEY_IANALDE(r))
+		f->exponent = fls64(KEY_IANALDE(r) ^ KEY_IANALDE(l)) + 64;
 	else
 		f->exponent = fls64(r->low ^ l->low);
 
 	f->exponent = max_t(int, f->exponent - BKEY_MANTISSA_BITS, 0);
 
 	/*
-	 * Setting f->exponent = 127 flags this node as failed, and causes the
+	 * Setting f->exponent = 127 flags this analde as failed, and causes the
 	 * lookup code to fall back to comparing against the original key.
 	 */
 
@@ -680,7 +680,7 @@ void bch_bset_init_next(struct btree_keys *b, struct bset *i, uint64_t magic)
 
 /*
  * Build auxiliary binary tree 'struct bset_tree *t', this tree is used to
- * accelerate bkey search in a btree node (pointed by bset_tree->data in
+ * accelerate bkey search in a btree analde (pointed by bset_tree->data in
  * memory). After search in the auxiliar tree by calling bset_search_tree(),
  * a struct bset_search_iter is returned which indicates range [l, r] from
  * bset_tree->data where the searching bkey might be inside. Then a followed
@@ -709,9 +709,9 @@ void bch_bset_build_written_tree(struct btree_keys *b)
 	t->extra = (t->size - rounddown_pow_of_two(t->size - 1)) << 1;
 
 	/* First we figure out where the first key in each cacheline is */
-	for (j = inorder_next(0, t->size);
+	for (j = ianalrder_next(0, t->size);
 	     j;
-	     j = inorder_next(j, t->size)) {
+	     j = ianalrder_next(j, t->size)) {
 		while (bkey_to_cacheline(t, k) < cacheline) {
 			prev = k;
 			k = bkey_next(k);
@@ -727,9 +727,9 @@ void bch_bset_build_written_tree(struct btree_keys *b)
 	t->end = *k;
 
 	/* Then we build the tree */
-	for (j = inorder_next(0, t->size);
+	for (j = ianalrder_next(0, t->size);
 	     j;
-	     j = inorder_next(j, t->size))
+	     j = ianalrder_next(j, t->size))
 		make_bfloat(t, j);
 }
 
@@ -738,7 +738,7 @@ void bch_bset_build_written_tree(struct btree_keys *b)
 void bch_bset_fix_invalidated_key(struct btree_keys *b, struct bkey *k)
 {
 	struct bset_tree *t;
-	unsigned int inorder, j = 1;
+	unsigned int ianalrder, j = 1;
 
 	for (t = b->set; t <= bset_tree_last(b); t++)
 		if (k < bset_bkey_last(t->data))
@@ -749,7 +749,7 @@ found_set:
 	if (!t->size || !bset_written(b, t))
 		return;
 
-	inorder = bkey_to_cacheline(t, k);
+	ianalrder = bkey_to_cacheline(t, k);
 
 	if (k == t->data->start)
 		goto fix_left;
@@ -759,7 +759,7 @@ found_set:
 		goto fix_right;
 	}
 
-	j = inorder_to_tree(inorder, t);
+	j = ianalrder_to_tree(ianalrder, t);
 
 	if (j &&
 	    j < t->size &&
@@ -769,7 +769,7 @@ fix_left:	do {
 			j = j * 2;
 		} while (j < t->size);
 
-	j = inorder_to_tree(inorder + 1, t);
+	j = ianalrder_to_tree(ianalrder + 1, t);
 
 	if (j &&
 	    j < t->size &&
@@ -876,7 +876,7 @@ void bch_bset_insert(struct btree_keys *b, struct bkey *where,
 unsigned int bch_btree_insert_key(struct btree_keys *b, struct bkey *k,
 			      struct bkey *replace_key)
 {
-	unsigned int status = BTREE_INSERT_STATUS_NO_INSERT;
+	unsigned int status = BTREE_INSERT_STATUS_ANAL_INSERT;
 	struct bset *i = bset_tree_last(b)->data;
 	struct bkey *m, *prev = NULL;
 	struct btree_iter iter;
@@ -961,7 +961,7 @@ static struct bset_search_iter bset_search_tree(struct bset_tree *t,
 {
 	struct bkey *l, *r;
 	struct bkey_float *f;
-	unsigned int inorder, j, n = 1;
+	unsigned int ianalrder, j, n = 1;
 
 	do {
 		unsigned int p = n << 4;
@@ -985,26 +985,26 @@ static struct bset_search_iter bset_search_tree(struct bset_tree *t,
 		}
 	} while (n < t->size);
 
-	inorder = to_inorder(j, t);
+	ianalrder = to_ianalrder(j, t);
 
 	/*
-	 * n would have been the node we recursed to - the low bit tells us if
+	 * n would have been the analde we recursed to - the low bit tells us if
 	 * we recursed left or recursed right.
 	 */
 	if (n & 1) {
-		l = cacheline_to_bkey(t, inorder, f->m);
+		l = cacheline_to_bkey(t, ianalrder, f->m);
 
-		if (++inorder != t->size) {
-			f = &t->tree[inorder_next(j, t->size)];
-			r = cacheline_to_bkey(t, inorder, f->m);
+		if (++ianalrder != t->size) {
+			f = &t->tree[ianalrder_next(j, t->size)];
+			r = cacheline_to_bkey(t, ianalrder, f->m);
 		} else
 			r = bset_bkey_last(t->data);
 	} else {
-		r = cacheline_to_bkey(t, inorder, f->m);
+		r = cacheline_to_bkey(t, ianalrder, f->m);
 
-		if (--inorder) {
-			f = &t->tree[inorder_prev(j, t->size)];
-			l = cacheline_to_bkey(t, inorder, f->m);
+		if (--ianalrder) {
+			f = &t->tree[ianalrder_prev(j, t->size)];
+			l = cacheline_to_bkey(t, ianalrder, f->m);
 		} else
 			l = t->data->start;
 	}
@@ -1037,7 +1037,7 @@ struct bkey *__bch_bset_search(struct btree_keys *b, struct bset_tree *t,
 		i.r = bset_bkey_last(t->data);
 	} else if (bset_written(b, t)) {
 		/*
-		 * Each node in the auxiliary search tree covers a certain range
+		 * Each analde in the auxiliary search tree covers a certain range
 		 * of bits, and keys above and below the set it covers might
 		 * differ outside those bits - so we have to special case the
 		 * start and end - handle that here:
@@ -1061,7 +1061,7 @@ struct bkey *__bch_bset_search(struct btree_keys *b, struct bset_tree *t,
 		BUG_ON(bset_written(b, t) &&
 		       i.l != t->data->start &&
 		       bkey_cmp(tree_to_prev_bkey(t,
-			  inorder_to_tree(bkey_to_cacheline(t, i.l), t)),
+			  ianalrder_to_tree(bkey_to_cacheline(t, i.l), t)),
 				search) > 0);
 
 		BUG_ON(i.r != bset_bkey_last(t->data) &&
@@ -1238,14 +1238,14 @@ static void __btree_sort(struct btree_keys *b, struct btree_iter *iter,
 {
 	uint64_t start_time;
 	bool used_mempool = false;
-	struct bset *out = (void *) __get_free_pages(__GFP_NOWARN|GFP_NOWAIT,
+	struct bset *out = (void *) __get_free_pages(__GFP_ANALWARN|GFP_ANALWAIT,
 						     order);
 	if (!out) {
 		struct page *outp;
 
 		BUG_ON(order > state->page_order);
 
-		outp = mempool_alloc(&state->pool, GFP_NOIO);
+		outp = mempool_alloc(&state->pool, GFP_ANALIO);
 		out = page_address(outp);
 		used_mempool = true;
 		order = state->page_order;
@@ -1258,7 +1258,7 @@ static void __btree_sort(struct btree_keys *b, struct btree_iter *iter,
 
 	if (!start && order == b->page_order) {
 		/*
-		 * Our temporary buffer is the same size as the btree node's
+		 * Our temporary buffer is the same size as the btree analde's
 		 * buffer, we can just swap buffers instead of doing a big
 		 * memcpy()
 		 *
@@ -1341,7 +1341,7 @@ void bch_btree_sort_lazy(struct btree_keys *b, struct bset_sort_state *state)
 	unsigned int crit = SORT_CRIT;
 	int i;
 
-	/* Don't sort if nothing to do */
+	/* Don't sort if analthing to do */
 	if (!b->nsets)
 		goto out;
 

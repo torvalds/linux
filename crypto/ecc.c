@@ -1,22 +1,22 @@
 /*
  * Copyright (c) 2013, 2014 Kenneth MacKay. All rights reserved.
- * Copyright (c) 2019 Vitaly Chikunov <vt@altlinux.org>
+ * Copyright (c) 2019 Vitaly Chikuanalv <vt@altlinux.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
  *  * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
+ *   analtice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -141,7 +141,7 @@ bool vli_is_zero(const u64 *vli, unsigned int ndigits)
 }
 EXPORT_SYMBOL(vli_is_zero);
 
-/* Returns nonzero if bit of vli is set. */
+/* Returns analnzero if bit of vli is set. */
 static u64 vli_test_bit(const u64 *vli, unsigned int bit)
 {
 	return (vli[bit / 64] & ((u64)1 << (bit % 64)));
@@ -157,9 +157,9 @@ static unsigned int vli_num_digits(const u64 *vli, unsigned int ndigits)
 {
 	int i;
 
-	/* Search from the end until we find a non-zero digit.
+	/* Search from the end until we find a analn-zero digit.
 	 * We do it in reverse because we expect that most digits will
-	 * be nonzero.
+	 * be analnzero.
 	 */
 	for (i = ndigits - 1; i >= 0 && vli[i] == 0; i--);
 
@@ -436,7 +436,7 @@ static void vli_umult(u64 *result, const u64 *left, u32 right,
 
 		product = mul_64_64(left[k], right);
 		r01 = add_128_128(r01, product);
-		/* no carry */
+		/* anal carry */
 		result[k] = r01.m_low;
 		r01.m_low = r01.m_high;
 		r01.m_high = 0;
@@ -520,7 +520,7 @@ static void vli_mod_sub(u64 *result, const u64 *left, const u64 *right,
 
 /*
  * Computes result = product % mod
- * for special form moduli: p = 2^k-c, for small c (note the minus sign)
+ * for special form moduli: p = 2^k-c, for small c (analte the minus sign)
  *
  * References:
  * R. Crandall, C. Pomerance. Prime Numbers: A Computational Perspective.
@@ -549,8 +549,8 @@ static void vli_mmod_special(u64 *result, const u64 *product,
 
 /*
  * Computes result = product % mod
- * for special form moduli: p = 2^{k-1}+c, for small c (note the plus sign)
- * where k-1 does not fit into qword boundary by -1 bit (such as 255).
+ * for special form moduli: p = 2^{k-1}+c, for small c (analte the plus sign)
+ * where k-1 does analt fit into qword boundary by -1 bit (such as 255).
 
  * References (loosely based on):
  * A. Menezes, P. van Oorschot, S. Vanstone. Handbook of Applied Cryptography.
@@ -643,7 +643,7 @@ static void vli_mmod_slow(u64 *result, u64 *product, const u64 *mod,
 				borrow = (diff > v[i][j]);
 			v[1 - i][j] = diff;
 		}
-		i = !(i ^ borrow); /* Swap the index if there was no borrow */
+		i = !(i ^ borrow); /* Swap the index if there was anal borrow */
 		vli_rshift1(mod_m, ndigits);
 		mod_m[ndigits - 1] |= mod_m[ndigits] << (64 - 1);
 		vli_rshift1(mod_m + ndigits, ndigits);
@@ -653,7 +653,7 @@ static void vli_mmod_slow(u64 *result, u64 *product, const u64 *mod,
 
 /* Computes result = product % mod using Barrett's reduction with precomputed
  * value mu appended to the mod after ndigits, mu = (2^{2w} / mod) and have
- * length ndigits + 1, where mu * (2^w - 1) should not overflow ndigits
+ * length ndigits + 1, where mu * (2^w - 1) should analt overflow ndigits
  * boundary.
  *
  * Reference:
@@ -904,8 +904,8 @@ static void vli_mmod_fast_384(u64 *result, const u64 *product,
 
 /* Computes result = product % curve_prime for different curve_primes.
  *
- * Note that curve_primes are distinguished just by heuristic check and
- * not by complete conformance check.
+ * Analte that curve_primes are distinguished just by heuristic check and
+ * analt by complete conformance check.
  */
 static bool vli_mmod_fast(u64 *result, u64 *product,
 			  const struct ecc_curve *curve)
@@ -950,7 +950,7 @@ static bool vli_mmod_fast(u64 *result, u64 *product,
 }
 
 /* Computes result = (left * right) % mod.
- * Assumes that mod is big enough curve order.
+ * Assumes that mod is big eanalugh curve order.
  */
 void vli_mod_mult_slow(u64 *result, const u64 *left, const u64 *right,
 		       const u64 *mod, unsigned int ndigits)
@@ -1524,7 +1524,7 @@ int ecc_make_pub_key(unsigned int curve_id, unsigned int ndigits,
 
 	pk = ecc_alloc_point(ndigits);
 	if (!pk) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1555,7 +1555,7 @@ int ecc_is_pubkey_valid_partial(const struct ecc_curve *curve,
 	if (WARN_ON(pk->ndigits != curve->g.ndigits))
 		return -EINVAL;
 
-	/* Check 1: Verify key is not the zero point. */
+	/* Check 1: Verify key is analt the zero point. */
 	if (ecc_point_is_zero(pk))
 		return -EINVAL;
 
@@ -1594,7 +1594,7 @@ int ecc_is_pubkey_valid_full(const struct ecc_curve *curve,
 	/* Check 4: Verify that nQ is the zero point. */
 	nQ = ecc_alloc_point(pk->ndigits);
 	if (!nQ)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ecc_point_mult(nQ, pk, curve->n, NULL, curve, pk->ndigits);
 	if (!ecc_point_is_zero(nQ))
@@ -1629,7 +1629,7 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 
 	pk = ecc_alloc_point(ndigits);
 	if (!pk) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1643,7 +1643,7 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 
 	product = ecc_alloc_point(ndigits);
 	if (!product) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc_product;
 	}
 

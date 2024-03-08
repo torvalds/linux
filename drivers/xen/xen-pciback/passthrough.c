@@ -53,7 +53,7 @@ static int __xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev,
 
 	dev_entry = kmalloc(sizeof(*dev_entry), GFP_KERNEL);
 	if (!dev_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_entry->dev = dev;
 
 	mutex_lock(&dev_data->lock);
@@ -103,7 +103,7 @@ static int __xen_pcibk_init_devices(struct xen_pcibk_device *pdev)
 
 	dev_data = kmalloc(sizeof(*dev_data), GFP_KERNEL);
 	if (!dev_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&dev_data->lock);
 
@@ -127,7 +127,7 @@ static int __xen_pcibk_publish_pci_roots(struct xen_pcibk_device *pdev,
 	mutex_lock(&dev_data->lock);
 
 	list_for_each_entry(dev_entry, &dev_data->dev_list, list) {
-		/* Only publish this device as a root if none of its
+		/* Only publish this device as a root if analne of its
 		 * parent bridges are exported
 		 */
 		found = 0;

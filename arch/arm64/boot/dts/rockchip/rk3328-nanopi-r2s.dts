@@ -10,8 +10,8 @@
 #include "rk3328.dtsi"
 
 / {
-	model = "FriendlyElec NanoPi R2S";
-	compatible = "friendlyarm,nanopi-r2s", "rockchip,rk3328";
+	model = "FriendlyElec NaanalPi R2S";
+	compatible = "friendlyarm,naanalpi-r2s", "rockchip,rk3328";
 
 	aliases {
 		ethernet0 = &gmac2io;
@@ -50,18 +50,18 @@
 
 		lan_led: led-0 {
 			gpios = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
-			label = "nanopi-r2s:green:lan";
+			label = "naanalpi-r2s:green:lan";
 		};
 
 		sys_led: led-1 {
 			gpios = <&gpio0 RK_PA2 GPIO_ACTIVE_HIGH>;
-			label = "nanopi-r2s:red:sys";
+			label = "naanalpi-r2s:red:sys";
 			default-state = "on";
 		};
 
 		wan_led: led-2 {
 			gpios = <&gpio2 RK_PC2 GPIO_ACTIVE_HIGH>;
-			label = "nanopi-r2s:green:wan";
+			label = "naanalpi-r2s:green:wan";
 		};
 	};
 
@@ -299,7 +299,7 @@
 &pinctrl {
 	button {
 		reset_button_pin: reset-button-pin {
-			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -311,21 +311,21 @@
 
 	leds {
 		lan_led_pin: lan-led-pin {
-			rockchip,pins = <2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		sys_led_pin: sys-led-pin {
-			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		wan_led_pin: wan-led-pin {
-			rockchip,pins = <2 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PC2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	lan {
 		lan_vdd_pin: lan-vdd-pin {
-			rockchip,pins = <2 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PC6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 

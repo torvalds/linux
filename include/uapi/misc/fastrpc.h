@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 
 #ifndef __QCOM_FASTRPC_H__
 #define __QCOM_FASTRPC_H__
@@ -33,7 +33,7 @@
  * functions on DSP. It is useful to map a buffer with cache modes
  * other than default modes. User is responsible for CPU and DSP
  * cache maintenance for the buffer.
- * @FASTRPC_MAP_FD_NOMAP: This flag is used to skip CPU mapping,
+ * @FASTRPC_MAP_FD_ANALMAP: This flag is used to skip CPU mapping,
  * otherwise behaves similar to FASTRPC_MAP_FD_DELAYED flag.
  * @FASTRPC_MAP_MAX: max count for flags
  *
@@ -43,7 +43,7 @@ enum fastrpc_map_flags {
 	FASTRPC_MAP_RESERVED,
 	FASTRPC_MAP_FD = 2,
 	FASTRPC_MAP_FD_DELAYED,
-	FASTRPC_MAP_FD_NOMAP = 16,
+	FASTRPC_MAP_FD_ANALMAP = 16,
 	FASTRPC_MAP_MAX,
 };
 

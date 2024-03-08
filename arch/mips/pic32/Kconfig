@@ -10,7 +10,7 @@ config PIC32MZDA
 	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -33,12 +33,12 @@ endchoice
 
 choice
 	prompt "Devicetree selection"
-	default DTB_PIC32_NONE
+	default DTB_PIC32_ANALNE
 	help
 	  Select the devicetree.
 
-config DTB_PIC32_NONE
-	bool "None"
+config DTB_PIC32_ANALNE
+	bool "Analne"
 
 config DTB_PIC32_MZDA_SK
 	bool "PIC32MZDA Starter Kit"

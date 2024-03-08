@@ -3,7 +3,7 @@
  * Read/write thread of a guest agent for virtio-trace
  *
  * Copyright (C) 2012 Hitachi, Ltd.
- * Created by Yoshihiro Yunomae <yoshihiro.yunomae.ez@hitachi.com>
+ * Created by Yoshihiro Yuanalmae <yoshihiro.yuanalmae.ez@hitachi.com>
  *            Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
  */
 
@@ -48,7 +48,7 @@ void *rw_thread_init(int cpu, const char *in_path, const char *out_path,
 	/* set read(input) fd */
 	rw_ti->in_fd = open(in_path, O_RDONLY);
 	if (rw_ti->in_fd == -1) {
-		pr_err("Could not open in_fd (CPU:%d)\n", cpu);
+		pr_err("Could analt open in_fd (CPU:%d)\n", cpu);
 		goto error;
 	}
 
@@ -57,15 +57,15 @@ void *rw_thread_init(int cpu, const char *in_path, const char *out_path,
 		/* virtio-serial output mode */
 		rw_ti->out_fd = open(out_path, O_WRONLY);
 		if (rw_ti->out_fd == -1) {
-			pr_err("Could not open out_fd (CPU:%d)\n", cpu);
+			pr_err("Could analt open out_fd (CPU:%d)\n", cpu);
 			goto error;
 		}
 	} else
 		/* stdout mode */
-		rw_ti->out_fd = STDOUT_FILENO;
+		rw_ti->out_fd = STDOUT_FILEANAL;
 
-	if (pipe2(data_pipe, O_NONBLOCK) < 0) {
-		pr_err("Could not create pipe in rw-thread(%d)\n", cpu);
+	if (pipe2(data_pipe, O_ANALNBLOCK) < 0) {
+		pr_err("Could analt create pipe in rw-thread(%d)\n", cpu);
 		goto error;
 	}
 
@@ -74,7 +74,7 @@ void *rw_thread_init(int cpu, const char *in_path, const char *out_path,
 	 * To read/write trace data speedy, pipe size is changed.
 	 */
 	if (fcntl(*data_pipe, F_SETPIPE_SZ, pipe_size) < 0) {
-		pr_err("Could not change pipe size in rw-thread(%d)\n", cpu);
+		pr_err("Could analt change pipe size in rw-thread(%d)\n", cpu);
 		goto error;
 	}
 
@@ -98,7 +98,7 @@ static void bind_cpu(int cpu_num)
 
 	/* bind my thread to cpu_num by assigning zero to the first argument */
 	if (sched_setaffinity(0, sizeof(mask), &mask) == -1)
-		pr_err("Could not set CPU#%d affinity\n", (int)cpu_num);
+		pr_err("Could analt set CPU#%d affinity\n", (int)cpu_num);
 }
 
 static void *rw_thread_main(void *thread_info)
@@ -112,9 +112,9 @@ static void *rw_thread_main(void *thread_info)
 	while (1) {
 		/* Wait for a read order of trace data by Host OS */
 		if (!global_run_operation) {
-			pthread_mutex_lock(&mutex_notify);
-			pthread_cond_wait(&cond_wakeup, &mutex_notify);
-			pthread_mutex_unlock(&mutex_notify);
+			pthread_mutex_lock(&mutex_analtify);
+			pthread_cond_wait(&cond_wakeup, &mutex_analtify);
+			pthread_mutex_unlock(&mutex_analtify);
 		}
 
 		if (global_sig_receive)
@@ -122,7 +122,7 @@ static void *rw_thread_main(void *thread_info)
 
 		/*
 		 * Each thread read trace_pipe_raw of each cpu bounding the
-		 * thread, so contention of multi-threads does not occur.
+		 * thread, so contention of multi-threads does analt occur.
 		 */
 		rlen = splice(ts->in_fd, NULL, ts->read_pipe, NULL,
 				ts->pipe_size, SPLICE_F_MOVE | SPLICE_F_MORE);
@@ -132,7 +132,7 @@ static void *rw_thread_main(void *thread_info)
 			goto error;
 		} else if (rlen == 0) {
 			/*
-			 * If trace data do not exist or are unreadable not
+			 * If trace data do analt exist or are unreadable analt
 			 * for exceeding the page size, splice_read returns
 			 * NULL. Then, this waits for being filled the data in a
 			 * ring-buffer.
@@ -155,13 +155,13 @@ static void *rw_thread_main(void *thread_info)
 				goto error;
 			} else if (ret == 0)
 				/*
-				 * When host reader is not in time for reading
+				 * When host reader is analt in time for reading
 				 * trace data, guest will be stopped. This is
-				 * because char dev in QEMU is not supported
-				 * non-blocking mode. Then, writer might be
+				 * because char dev in QEMU is analt supported
+				 * analn-blocking mode. Then, writer might be
 				 * sleep in that case.
 				 * This sleep will be removed by supporting
-				 * non-blocking mode.
+				 * analn-blocking mode.
 				 */
 				sleep(1);
 			wlen += ret;
@@ -182,7 +182,7 @@ pthread_t rw_thread_run(struct rw_thread_info *rw_ti)
 
 	ret = pthread_create(&rw_thread_per_cpu, NULL, rw_thread_main, rw_ti);
 	if (ret != 0) {
-		pr_err("Could not create a rw thread(%d)\n", rw_ti->cpu_num);
+		pr_err("Could analt create a rw thread(%d)\n", rw_ti->cpu_num);
 		exit(EXIT_FAILURE);
 	}
 

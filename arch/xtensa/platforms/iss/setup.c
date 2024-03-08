@@ -13,8 +13,8 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/notifier.h>
-#include <linux/panic_notifier.h>
+#include <linux/analtifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/printk.h>
 #include <linux/reboot.h>
 #include <linux/string.h>
@@ -29,32 +29,32 @@ static int iss_power_off(struct sys_off_data *unused)
 {
 	pr_info(" ** Called platform_power_off() **\n");
 	simc_exit(0);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static int iss_restart(struct notifier_block *this,
+static int iss_restart(struct analtifier_block *this,
 		       unsigned long event, void *ptr)
 {
 	/* Flush and reset the mmu, simulate a processor reset, and
 	 * jump to the reset vector. */
 	cpu_reset();
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block iss_restart_block = {
-	.notifier_call = iss_restart,
+static struct analtifier_block iss_restart_block = {
+	.analtifier_call = iss_restart,
 };
 
 static int
-iss_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
+iss_panic_event(struct analtifier_block *this, unsigned long event, void *ptr)
 {
 	simc_exit(1);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block iss_panic_block = {
-	.notifier_call = iss_panic_event,
+static struct analtifier_block iss_panic_block = {
+	.analtifier_call = iss_panic_event,
 };
 
 void __init platform_setup(char **p_cmdline)
@@ -83,7 +83,7 @@ void __init platform_setup(char **p_cmdline)
 		}
 	}
 
-	atomic_notifier_chain_register(&panic_notifier_list, &iss_panic_block);
+	atomic_analtifier_chain_register(&panic_analtifier_list, &iss_panic_block);
 	register_restart_handler(&iss_restart_block);
 	register_sys_off_handler(SYS_OFF_MODE_POWER_OFF,
 				 SYS_OFF_PRIO_PLATFORM,

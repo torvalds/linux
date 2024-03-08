@@ -1,6 +1,6 @@
 WM8782 stereo ADC
 
-This device does not have any control interface or reset pins.
+This device does analt have any control interface or reset pins.
 
 Required properties:
 

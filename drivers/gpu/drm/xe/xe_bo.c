@@ -363,12 +363,12 @@ static struct ttm_tt *xe_ttm_tt_create(struct ttm_buffer_object *ttm_bo,
 	WARN_ON((bo->flags & XE_BO_CREATE_USER_BIT) && !bo->cpu_caching);
 
 	/*
-	 * Display scanout is always non-coherent with the CPU cache.
+	 * Display scaanalut is always analn-coherent with the CPU cache.
 	 *
-	 * For Xe_LPG and beyond, PPGTT PTE lookups are also non-coherent and
+	 * For Xe_LPG and beyond, PPGTT PTE lookups are also analn-coherent and
 	 * require a CPU:WC mapping.
 	 */
-	if ((!bo->cpu_caching && bo->flags & XE_BO_SCANOUT_BIT) ||
+	if ((!bo->cpu_caching && bo->flags & XE_BO_SCAANALUT_BIT) ||
 	    (xe->info.graphics_verx100 >= 1270 && bo->flags & XE_BO_PAGETABLE))
 		caching = ttm_write_combined;
 
@@ -387,7 +387,7 @@ static int xe_ttm_tt_populate(struct ttm_device *ttm_dev, struct ttm_tt *tt,
 	int err;
 
 	/*
-	 * dma-bufs are not populated with pages, and the dma-
+	 * dma-bufs are analt populated with pages, and the dma-
 	 * addresses are set up when moved to XE_PL_TT.
 	 */
 	if (tt->page_flags & TTM_TT_FLAG_EXTERNAL)
@@ -499,7 +499,7 @@ static int xe_bo_trigger_rebind(struct xe_device *xe, struct xe_bo *bo,
 		if (!idle) {
 			long timeout;
 
-			if (ctx->no_wait_gpu &&
+			if (ctx->anal_wait_gpu &&
 			    !dma_resv_test_signaled(bo->ttm.base.resv,
 						    DMA_RESV_USAGE_BOOKKEEP))
 				return -EBUSY;
@@ -531,11 +531,11 @@ static int xe_bo_trigger_rebind(struct xe_device *xe, struct xe_bo *bo,
 
 /*
  * The dma-buf map_attachment() / unmap_attachment() is hooked up here.
- * Note that unmapping the attachment is deferred to the next
+ * Analte that unmapping the attachment is deferred to the next
  * map_attachment time, or to bo destroy (after idling) whichever comes first.
  * This is to avoid syncing before unmap_attachment(), assuming that the
  * caller relies on idling the reservation object before moving the
- * backing store out. Should that assumption not hold, then we will be able
+ * backing store out. Should that assumption analt hold, then we will be able
  * to unconditionally call unmap_attachment() when moving out to system.
  */
 static int xe_bo_move_dmabuf(struct ttm_buffer_object *ttm_bo,
@@ -572,12 +572,12 @@ out:
 }
 
 /**
- * xe_bo_move_notify - Notify subsystems of a pending move
+ * xe_bo_move_analtify - Analtify subsystems of a pending move
  * @bo: The buffer object
  * @ctx: The struct ttm_operation_ctx controlling locking and waits.
  *
- * This function notifies subsystems of an upcoming buffer move.
- * Upon receiving such a notification, subsystems should schedule
+ * This function analtifies subsystems of an upcoming buffer move.
+ * Upon receiving such a analtification, subsystems should schedule
  * halting access to the underlying pages and optionally add a fence
  * to the buffer object's dma_resv object, that signals when access is
  * stopped. The caller will wait on all dma_resv fences before
@@ -589,7 +589,7 @@ out:
  * Return: 0 on success, -EINTR or -ERESTARTSYS if interrupted in fault mode,
  * negative error code on error.
  */
-static int xe_bo_move_notify(struct xe_bo *bo,
+static int xe_bo_move_analtify(struct xe_bo *bo,
 			     const struct ttm_operation_ctx *ctx)
 {
 	struct ttm_buffer_object *ttm_bo = &bo->ttm;
@@ -598,7 +598,7 @@ static int xe_bo_move_notify(struct xe_bo *bo,
 
 	/*
 	 * If this starts to call into many components, consider
-	 * using a notification chain here.
+	 * using a analtification chain here.
 	 */
 
 	if (xe_bo_is_pinned(bo))
@@ -609,9 +609,9 @@ static int xe_bo_move_notify(struct xe_bo *bo,
 	if (ret)
 		return ret;
 
-	/* Don't call move_notify() for imported dma-bufs. */
+	/* Don't call move_analtify() for imported dma-bufs. */
 	if (ttm_bo->base.dma_buf && !ttm_bo->base.import_attach)
-		dma_buf_move_notify(ttm_bo->base.dma_buf);
+		dma_buf_move_analtify(ttm_bo->base.dma_buf);
 
 	return 0;
 }
@@ -641,7 +641,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	}
 
 	if (ttm_bo->type == ttm_bo_type_sg) {
-		ret = xe_bo_move_notify(bo, ctx);
+		ret = xe_bo_move_analtify(bo, ctx);
 		if (!ret)
 			ret = xe_bo_move_dmabuf(ttm_bo, new_mem);
 		goto out;
@@ -677,7 +677,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	}
 
 	if (!move_lacks_source && !xe_bo_is_pinned(bo)) {
-		ret = xe_bo_move_notify(bo, ctx);
+		ret = xe_bo_move_analtify(bo, ctx);
 		if (ret)
 			goto out;
 	}
@@ -841,7 +841,7 @@ int xe_bo_evict_pinned(struct xe_bo *bo)
 	if (!bo->ttm.ttm) {
 		bo->ttm.ttm = xe_ttm_tt_create(&bo->ttm, 0);
 		if (!bo->ttm.ttm) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_res_free;
 		}
 	}
@@ -967,7 +967,7 @@ static bool xe_ttm_bo_lock_in_destructor(struct ttm_buffer_object *ttm_bo)
 	return locked;
 }
 
-static void xe_ttm_bo_release_notify(struct ttm_buffer_object *ttm_bo)
+static void xe_ttm_bo_release_analtify(struct ttm_buffer_object *ttm_bo)
 {
 	struct dma_resv_iter cursor;
 	struct dma_fence *fence;
@@ -1014,7 +1014,7 @@ static void xe_ttm_bo_release_notify(struct ttm_buffer_object *ttm_bo)
 	dma_resv_unlock(ttm_bo->base.resv);
 }
 
-static void xe_ttm_bo_delete_mem_notify(struct ttm_buffer_object *ttm_bo)
+static void xe_ttm_bo_delete_mem_analtify(struct ttm_buffer_object *ttm_bo)
 {
 	if (!xe_bo_is_xe_bo(ttm_bo))
 		return;
@@ -1043,9 +1043,9 @@ struct ttm_device_funcs xe_ttm_funcs = {
 	.move = xe_bo_move,
 	.io_mem_reserve = xe_ttm_io_mem_reserve,
 	.io_mem_pfn = xe_ttm_io_mem_pfn,
-	.release_notify = xe_ttm_bo_release_notify,
+	.release_analtify = xe_ttm_bo_release_analtify,
 	.eviction_valuable = ttm_bo_eviction_valuable,
-	.delete_mem_notify = xe_ttm_bo_delete_mem_notify,
+	.delete_mem_analtify = xe_ttm_bo_delete_mem_analtify,
 };
 
 static void xe_ttm_bo_destroy(struct ttm_buffer_object *ttm_bo)
@@ -1059,7 +1059,7 @@ static void xe_ttm_bo_destroy(struct ttm_buffer_object *ttm_bo)
 
 	xe_assert(xe, list_empty(&ttm_bo->base.gpuva.list));
 
-	if (bo->ggtt_node.size)
+	if (bo->ggtt_analde.size)
 		xe_ggtt_remove_bo(bo->tile->mem.ggtt, bo);
 
 #ifdef CONFIG_PROC_FS
@@ -1081,7 +1081,7 @@ static void xe_gem_object_free(struct drm_gem_object *obj)
 	 * and the gem object holds a ttm_buffer_object refcount, so
 	 * that when the last gem object reference is put, which is when
 	 * we end up in this function, we put also that ttm_buffer_object
-	 * refcount. Anything using gem interfaces is then no longer
+	 * refcount. Anything using gem interfaces is then anal longer
 	 * allowed to access the object in a way that requires a gem
 	 * refcount, including locking the object.
 	 *
@@ -1132,7 +1132,7 @@ static vm_fault_t xe_gem_fault(struct vm_fault *vmf)
 		if (should_migrate_to_system(bo)) {
 			r = xe_bo_migrate(bo, XE_PL_TT);
 			if (r == -EBUSY || r == -ERESTARTSYS || r == -EINTR)
-				ret = VM_FAULT_NOPAGE;
+				ret = VM_FAULT_ANALPAGE;
 			else if (r)
 				ret = VM_FAULT_SIGBUS;
 		}
@@ -1144,7 +1144,7 @@ static vm_fault_t xe_gem_fault(struct vm_fault *vmf)
 	} else {
 		ret = ttm_bo_vm_dummy_page(vmf, vmf->vma->vm_page_prot);
 	}
-	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
+	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_ANALWAIT))
 		return ret;
 
 	dma_resv_unlock(tbo->base.resv);
@@ -1177,14 +1177,14 @@ static const struct drm_gem_object_funcs xe_gem_object_funcs = {
  * xe_bo_free().
  *
  * Return: A pointer to an uninitialized struct xe_bo on success,
- * ERR_PTR(-ENOMEM) on error.
+ * ERR_PTR(-EANALMEM) on error.
  */
 struct xe_bo *xe_bo_alloc(void)
 {
 	struct xe_bo *bo = kzalloc(sizeof(*bo), GFP_KERNEL);
 
 	if (!bo)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return bo;
 }
@@ -1208,7 +1208,7 @@ struct xe_bo *___xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
-		.no_wait_gpu = false,
+		.anal_wait_gpu = false,
 	};
 	struct ttm_placement *placement;
 	uint32_t alignment;
@@ -1224,7 +1224,7 @@ struct xe_bo *___xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 	}
 
 	if (flags & (XE_BO_CREATE_VRAM_MASK | XE_BO_CREATE_STOLEN_BIT) &&
-	    !(flags & XE_BO_CREATE_IGNORE_MIN_PAGE_SIZE_BIT) &&
+	    !(flags & XE_BO_CREATE_IGANALRE_MIN_PAGE_SIZE_BIT) &&
 	    xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K) {
 		aligned_size = ALIGN(size, SZ_64K);
 		if (type != ttm_bo_type_device)
@@ -1256,7 +1256,7 @@ struct xe_bo *___xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 	bo->props.preferred_mem_class = XE_BO_PROPS_INVALID;
 	bo->props.preferred_gt = XE_BO_PROPS_INVALID;
 	bo->props.preferred_mem_type = XE_BO_PROPS_INVALID;
-	bo->ttm.priority = XE_BO_PRIORITY_NORMAL;
+	bo->ttm.priority = XE_BO_PRIORITY_ANALRMAL;
 	INIT_LIST_HEAD(&bo->pinned_link);
 #ifdef CONFIG_PROC_FS
 	INIT_LIST_HEAD(&bo->client_link);
@@ -1265,7 +1265,7 @@ struct xe_bo *___xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 	drm_gem_private_object_init(&xe->drm, &bo->ttm.base, size);
 
 	if (resv) {
-		ctx.allow_res_evict = !(flags & XE_BO_CREATE_NO_RESV_EVICT);
+		ctx.allow_res_evict = !(flags & XE_BO_CREATE_ANAL_RESV_EVICT);
 		ctx.resv = resv;
 	}
 
@@ -1295,12 +1295,12 @@ struct xe_bo *___xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 	 *
 	 * For KMD internal buffers we don't care about GPU clearing, however we
 	 * still need to handle async evictions, where the VRAM is still being
-	 * accessed by the GPU. Most internal callers are not expecting this,
+	 * accessed by the GPU. Most internal callers are analt expecting this,
 	 * since they are missing the required synchronisation before accessing
 	 * the memory. To keep things simple just sync wait any kernel fences
 	 * here, if the buffer is designated KMD internal.
 	 *
-	 * For normal userspace objects we should already have the required
+	 * For analrmal userspace objects we should already have the required
 	 * pipelining or sync waiting elsewhere, since we already have to deal
 	 * with things like async GPU clearing.
 	 */
@@ -1401,7 +1401,7 @@ __xe_bo_create_locked(struct xe_device *xe,
 		return bo;
 
 	/*
-	 * Note that instead of taking a reference no the drm_gpuvm_resv_bo(),
+	 * Analte that instead of taking a reference anal the drm_gpuvm_resv_bo(),
 	 * to ensure the shared resv doesn't disappear under the bo, the bo
 	 * will keep a reference to the vm, and avoid circular references
 	 * by having all the vm's bo refereferences released at vm close
@@ -1540,9 +1540,9 @@ struct xe_bo *xe_bo_create_from_data(struct xe_device *xe, struct xe_tile *tile,
 	return bo;
 }
 
-static void __xe_bo_unpin_map_no_vm(struct drm_device *drm, void *arg)
+static void __xe_bo_unpin_map_anal_vm(struct drm_device *drm, void *arg)
 {
-	xe_bo_unpin_map_no_vm(arg);
+	xe_bo_unpin_map_anal_vm(arg);
 }
 
 struct xe_bo *xe_managed_bo_create_pin_map(struct xe_device *xe, struct xe_tile *tile,
@@ -1555,7 +1555,7 @@ struct xe_bo *xe_managed_bo_create_pin_map(struct xe_device *xe, struct xe_tile 
 	if (IS_ERR(bo))
 		return bo;
 
-	ret = drmm_add_action_or_reset(&xe->drm, __xe_bo_unpin_map_no_vm, bo);
+	ret = drmm_add_action_or_reset(&xe->drm, __xe_bo_unpin_map_anal_vm, bo);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -1593,7 +1593,7 @@ uint64_t vram_region_gpu_offset(struct ttm_resource *res)
  * xe_bo_pin_external - pin an external BO
  * @bo: buffer object to be pinned
  *
- * Pin an external (not tied to a VM, can be exported via dma-buf / prime FD)
+ * Pin an external (analt tied to a VM, can be exported via dma-buf / prime FD)
  * BO. Unique call compared to xe_bo_pin as this function has it own set of
  * asserts and code to ensure evict / restore on suspend / resume.
  *
@@ -1624,7 +1624,7 @@ int xe_bo_pin_external(struct xe_bo *bo)
 
 	/*
 	 * FIXME: If we always use the reserve / unreserve functions for locking
-	 * we do not need this.
+	 * we do analt need this.
 	 */
 	ttm_bo_move_to_lru_tail_unlocked(&bo->ttm);
 
@@ -1644,7 +1644,7 @@ int xe_bo_pin(struct xe_bo *bo)
 				   XE_BO_CREATE_GGTT_BIT));
 
 	/*
-	 * No reason we can't support pinning imported dma-bufs we just don't
+	 * Anal reason we can't support pinning imported dma-bufs we just don't
 	 * expect to pin an imported dma-buf.
 	 */
 	xe_assert(xe, !bo->ttm.base.import_attach);
@@ -1682,7 +1682,7 @@ int xe_bo_pin(struct xe_bo *bo)
 
 	/*
 	 * FIXME: If we always use the reserve / unreserve functions for locking
-	 * we do not need this.
+	 * we do analt need this.
 	 */
 	ttm_bo_move_to_lru_tail_unlocked(&bo->ttm);
 
@@ -1693,7 +1693,7 @@ int xe_bo_pin(struct xe_bo *bo)
  * xe_bo_unpin_external - unpin an external BO
  * @bo: buffer object to be unpinned
  *
- * Unpin an external (not tied to a VM, can be exported via dma-buf / prime FD)
+ * Unpin an external (analt tied to a VM, can be exported via dma-buf / prime FD)
  * BO. Unique call compared to xe_bo_unpin as this function has it own set of
  * asserts and code to ensure evict / restore on suspend / resume.
  *
@@ -1717,7 +1717,7 @@ void xe_bo_unpin_external(struct xe_bo *bo)
 
 	/*
 	 * FIXME: If we always use the reserve / unreserve functions for locking
-	 * we do not need this.
+	 * we do analt need this.
 	 */
 	ttm_bo_move_to_lru_tail_unlocked(&bo->ttm);
 }
@@ -1765,7 +1765,7 @@ int xe_bo_validate(struct xe_bo *bo, struct xe_vm *vm, bool allow_res_evict)
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
-		.no_wait_gpu = false,
+		.anal_wait_gpu = false,
 	};
 
 	if (vm) {
@@ -1788,9 +1788,9 @@ bool xe_bo_is_xe_bo(struct ttm_buffer_object *bo)
 }
 
 /*
- * Resolve a BO address. There is no assert to check if the proper lock is held
- * so it should only be used in cases where it is not fatal to get the wrong
- * address, such as printing debug information, but not in cases where memory is
+ * Resolve a BO address. There is anal assert to check if the proper lock is held
+ * so it should only be used in cases where it is analt fatal to get the wrong
+ * address, such as printing debug information, but analt in cases where memory is
  * written based on this result.
  */
 dma_addr_t __xe_bo_addr(struct xe_bo *bo, u64 offset, size_t page_size)
@@ -1840,7 +1840,7 @@ int xe_bo_vmap(struct xe_bo *bo)
 		return 0;
 
 	/*
-	 * We use this more or less deprecated interface for now since
+	 * We use this more or less deprecated interface for analw since
 	 * ttm_bo_vmap() doesn't offer the optimization of kmapping
 	 * single page bos, which is done here.
 	 * TODO: Fix up ttm_bo_vmap to do that, or fix up ttm_bo_kmap
@@ -1897,7 +1897,7 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 
 	if (XE_IOCTL_DBG(xe, args->flags &
 			 ~(DRM_XE_GEM_CREATE_FLAG_DEFER_BACKING |
-			   DRM_XE_GEM_CREATE_FLAG_SCANOUT |
+			   DRM_XE_GEM_CREATE_FLAG_SCAANALUT |
 			   DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM)))
 		return -EINVAL;
 
@@ -1917,8 +1917,8 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 	if (args->flags & DRM_XE_GEM_CREATE_FLAG_DEFER_BACKING)
 		bo_flags |= XE_BO_DEFER_BACKING;
 
-	if (args->flags & DRM_XE_GEM_CREATE_FLAG_SCANOUT)
-		bo_flags |= XE_BO_SCANOUT_BIT;
+	if (args->flags & DRM_XE_GEM_CREATE_FLAG_SCAANALUT)
+		bo_flags |= XE_BO_SCAANALUT_BIT;
 
 	bo_flags |= args->placement << (ffs(XE_BO_CREATE_SYSTEM_BIT) - 1);
 
@@ -1937,14 +1937,14 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 			 args->cpu_caching != DRM_XE_GEM_CPU_CACHING_WC))
 		return -EINVAL;
 
-	if (XE_IOCTL_DBG(xe, bo_flags & XE_BO_SCANOUT_BIT &&
+	if (XE_IOCTL_DBG(xe, bo_flags & XE_BO_SCAANALUT_BIT &&
 			 args->cpu_caching == DRM_XE_GEM_CPU_CACHING_WB))
 		return -EINVAL;
 
 	if (args->vm_id) {
 		vm = xe_vm_lookup(xef, args->vm_id);
 		if (XE_IOCTL_DBG(xe, !vm))
-			return -ENOENT;
+			return -EANALENT;
 		err = xe_vm_lock(vm, true);
 		if (err)
 			goto out_vm;
@@ -1999,10 +1999,10 @@ int xe_gem_mmap_offset_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file, args->handle);
 	if (XE_IOCTL_DBG(xe, !gem_obj))
-		return -ENOENT;
+		return -EANALENT;
 
 	/* The mmap offset was set up at BO allocation time. */
-	args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
+	args->offset = drm_vma_analde_offset_addr(&gem_obj->vma_analde);
 
 	xe_bo_put(gem_to_xe_bo(gem_obj));
 	return 0;
@@ -2047,7 +2047,7 @@ void xe_bo_unlock(struct xe_bo *bo)
  * @mem_type: The TTM memory type intended to migrate to
  *
  * Check whether the buffer object supports migration to the
- * given memory type. Note that pinning may affect the ability to migrate as
+ * given memory type. Analte that pinning may affect the ability to migrate as
  * returned by this function.
  *
  * This function is primarily intended as a helper for checking the
@@ -2087,9 +2087,9 @@ static void xe_place_from_ttm_type(u32 mem_type, struct ttm_place *place)
  * @mem_type: The TTM region type to migrate to.
  *
  * Attempt to migrate the buffer object to the desired memory region. The
- * buffer object may not be pinned, and must be locked.
+ * buffer object may analt be pinned, and must be locked.
  * On successful completion, the object memory type will be updated,
- * but an async migration task may not have completed yet, and to
+ * but an async migration task may analt have completed yet, and to
  * accomplish that, the object's kernel fences must be signaled with
  * the object lock held.
  *
@@ -2101,7 +2101,7 @@ int xe_bo_migrate(struct xe_bo *bo, u32 mem_type)
 	struct xe_device *xe = ttm_to_xe_device(bo->ttm.bdev);
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
-		.no_wait_gpu = false,
+		.anal_wait_gpu = false,
 	};
 	struct ttm_placement placement;
 	struct ttm_place requested;
@@ -2152,7 +2152,7 @@ int xe_bo_evict(struct xe_bo *bo, bool force_alloc)
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
-		.no_wait_gpu = false,
+		.anal_wait_gpu = false,
 		.force_alloc = force_alloc,
 	};
 	struct ttm_placement placement;
@@ -2185,8 +2185,8 @@ bool xe_bo_needs_ccs_pages(struct xe_bo *bo)
 
 	/* On discrete GPUs, if the GPU can access this buffer from
 	 * system memory (i.e., it allows XE_PL_TT placement), FlatCCS
-	 * can't be used since there's no CCS storage associated with
-	 * non-VRAM addresses.
+	 * can't be used since there's anal CCS storage associated with
+	 * analn-VRAM addresses.
 	 */
 	if (IS_DGFX(xe) && (bo->flags & XE_BO_CREATE_SYSTEM_BIT))
 		return false;
@@ -2214,7 +2214,7 @@ void __xe_bo_release_dummy(struct kref *kref)
  */
 void xe_bo_put_commit(struct llist_head *deferred)
 {
-	struct llist_node *freed;
+	struct llist_analde *freed;
 	struct xe_bo *bo, *next;
 
 	if (!deferred)
@@ -2258,13 +2258,13 @@ int xe_bo_dumb_create(struct drm_file *file_priv,
 			       DRM_XE_GEM_CPU_CACHING_WC,
 			       ttm_bo_type_device,
 			       XE_BO_CREATE_VRAM_IF_DGFX(xe_device_get_root_tile(xe)) |
-			       XE_BO_CREATE_USER_BIT | XE_BO_SCANOUT_BIT |
+			       XE_BO_CREATE_USER_BIT | XE_BO_SCAANALUT_BIT |
 			       XE_BO_NEEDS_CPU_ACCESS);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
 	err = drm_gem_handle_create(file_priv, &bo->ttm.base, &handle);
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it analw */
 	drm_gem_object_put(&bo->ttm.base);
 	if (!err)
 		args->handle = handle;

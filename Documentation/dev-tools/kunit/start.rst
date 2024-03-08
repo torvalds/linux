@@ -23,9 +23,9 @@ can run kunit_tool:
 
 	./tools/testing/kunit/kunit.py run
 
-.. note ::
+.. analte ::
 	You may see the following error:
-	"The source tree is not clean, please run 'make ARCH=um mrproper'"
+	"The source tree is analt clean, please run 'make ARCH=um mrproper'"
 
 	This happens because internally kunit.py specifies ``.kunit``
 	(default option) as the build directory in the command ``make O=output/dir``
@@ -49,7 +49,7 @@ If everything worked correctly, you should see the following:
 
 The tests will pass or fail.
 
-.. note ::
+.. analte ::
    Because it is building a lot of sources for the first time,
    the ``Building KUnit Kernel`` step may take a while.
 
@@ -77,20 +77,20 @@ If you didn't run ``kunit.py run`` yet, you can generate it by running:
 	tools/testing/kunit/kunit.py config
 	cat .kunit/.kunitconfig
 
-.. note ::
+.. analte ::
    ``.kunitconfig`` lives in the ``--build_dir`` used by kunit.py, which is
    ``.kunit`` by default.
 
 Before running the tests, kunit_tool ensures that all config options
 set in ``.kunitconfig`` are set in the kernel ``.config``. It will warn
-you if you have not included dependencies for the options used.
+you if you have analt included dependencies for the options used.
 
 There are many ways to customize the configurations:
 
 a. Edit ``.kunit/.kunitconfig``. The file should contain the list of kconfig
    options required to run the desired tests, including their dependencies.
    You may want to remove CONFIG_KUNIT_ALL_TESTS from the ``.kunitconfig`` as
-   it will enable a number of additional tests that you may not want.
+   it will enable a number of additional tests that you may analt want.
    If you need to run on an architecture other than UML see :ref:`kunit-on-qemu`.
 
 b. Enable additional kconfig options on top of ``.kunit/.kunitconfig``.
@@ -112,7 +112,7 @@ d. If you change the ``.kunitconfig``, kunit.py will trigger a rebuild of the
    ``.kunitconfig``, kunit.py won't overwrite your changes.
 
 
-.. note ::
+.. analte ::
 
 	To save a .kunitconfig after finding a satisfactory configuration::
 
@@ -147,15 +147,15 @@ c. use wildcard characters (``*?[``) to run any test case that matches the patte
 
 Running Tests without the KUnit Wrapper
 =======================================
-If you do not want to use the KUnit Wrapper (for example: you want code
+If you do analt want to use the KUnit Wrapper (for example: you want code
 under test to integrate with other systems, or use a different/
 unsupported architecture or configuration), KUnit can be included in
 any kernel, and the results are read out and parsed manually.
 
-.. note ::
-   ``CONFIG_KUNIT`` should not be enabled in a production environment.
+.. analte ::
+   ``CONFIG_KUNIT`` should analt be enabled in a production environment.
    Enabling KUnit disables Kernel Address-Space Layout Randomization
-   (KASLR), and tests may affect the state of the kernel in ways not
+   (KASLR), and tests may affect the state of the kernel in ways analt
    suitable for production.
 
 Configuring the Kernel
@@ -174,7 +174,7 @@ Build and run your kernel. In the kernel log, the test output is printed
 out in the TAP format. This will only happen by default if KUnit/tests
 are built-in. Otherwise the module will need to be loaded.
 
-.. note ::
+.. analte ::
    Some lines and/or data may get interspersed in the TAP output.
 
 Writing Your First Test
@@ -191,7 +191,7 @@ In your kernel repository, let's add some code that we can test.
 
 .. code-block:: c
 
-	#include <linux/errno.h>
+	#include <linux/erranal.h>
 
 	#include "example.h"
 
@@ -213,7 +213,7 @@ In your kernel repository, let's add some code that we can test.
 
 	obj-$(CONFIG_MISC_EXAMPLE) += example.o
 
-Now we are ready to write the test cases.
+Analw we are ready to write the test cases.
 
 1. Add the below test case in ``drivers/misc/example_test.c``:
 
@@ -261,7 +261,7 @@ Now we are ready to write the test cases.
 		depends on MISC_EXAMPLE && KUNIT
 		default KUNIT_ALL_TESTS
 
-Note: If your test does not support being built as a loadable module (which is
+Analte: If your test does analt support being built as a loadable module (which is
 discouraged), replace tristate by bool, and depend on KUNIT=y instead of KUNIT.
 
 3. Add the following lines to ``drivers/misc/Makefile``:
@@ -272,7 +272,7 @@ discouraged), replace tristate by bool, and depend on KUNIT=y instead of KUNIT.
 
 4. Add the following lines to ``.kunit/.kunitconfig``:
 
-.. code-block:: none
+.. code-block:: analne
 
 	CONFIG_MISC_EXAMPLE=y
 	CONFIG_MISC_EXAMPLE_TEST=y
@@ -285,7 +285,7 @@ discouraged), replace tristate by bool, and depend on KUNIT=y instead of KUNIT.
 
 You should see the following failure:
 
-.. code-block:: none
+.. code-block:: analne
 
 	...
 	[16:08:57] [PASSED] misc-example:misc_example_add_test_basic

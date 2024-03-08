@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,11 +35,11 @@ int kfd_dbg_ev_query_debug_event(struct kfd_process *process,
 		      uint64_t *event_status)
 {
 	struct process_queue_manager *pqm;
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 	int i;
 
 	if (!(process && process->debug_trap_enabled))
-		return -ENODATA;
+		return -EANALDATA;
 
 	mutex_lock(&process->event_mutex);
 	*event_status = 0;
@@ -110,12 +110,12 @@ void debug_event_write_work_handler(struct work_struct *work)
  * only if exception_status is enabled.
  */
 bool kfd_dbg_ev_raise(uint64_t event_mask,
-			struct kfd_process *process, struct kfd_node *dev,
+			struct kfd_process *process, struct kfd_analde *dev,
 			unsigned int source_id, bool use_worker,
 			void *exception_data, size_t exception_data_size)
 {
 	struct process_queue_manager *pqm;
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 	int i;
 	static const char write_data = '.';
 	loff_t pos = 0;
@@ -144,7 +144,7 @@ bool kfd_dbg_ev_raise(uint64_t event_mask,
 					if (!pdd->vm_fault_exc_data)
 						pr_debug("Failed to allocate exception data memory");
 				} else {
-					pr_debug("Debugger exception data not saved\n");
+					pr_debug("Debugger exception data analt saved\n");
 					print_hex_dump_bytes("exception data: ",
 							DUMP_PREFIX_OFFSET,
 							exception_data,
@@ -194,7 +194,7 @@ bool kfd_dbg_ev_raise(uint64_t event_mask,
 }
 
 /* set pending event queue entry from ring entry  */
-bool kfd_set_dbg_ev_from_interrupt(struct kfd_node *dev,
+bool kfd_set_dbg_ev_from_interrupt(struct kfd_analde *dev,
 				   unsigned int pasid,
 				   uint32_t doorbell_id,
 				   uint64_t trap_mask,
@@ -212,7 +212,7 @@ bool kfd_set_dbg_ev_from_interrupt(struct kfd_node *dev,
 	if (!kfd_dbg_ev_raise(trap_mask, p, dev, doorbell_id, true,
 			      exception_data, exception_data_size)) {
 		struct process_queue_manager *pqm;
-		struct process_queue_node *pqn;
+		struct process_queue_analde *pqn;
 
 		if (!!(trap_mask & KFD_EC_MASK_QUEUE) &&
 		       p->runtime_info.runtime_state == DEBUG_RUNTIME_STATE_ENABLED) {
@@ -269,7 +269,7 @@ int kfd_dbg_send_exception_to_runtime(struct kfd_process *p,
 		}
 
 		if (!pdd)
-			return -ENODEV;
+			return -EANALDEV;
 
 		data = (struct kfd_hsa_memory_exception_data *)
 						pdd->vm_fault_exc_data;
@@ -282,7 +282,7 @@ int kfd_dbg_send_exception_to_runtime(struct kfd_process *p,
 	if (error_reason & (KFD_EC_MASK(EC_PROCESS_RUNTIME))) {
 		/*
 		 * block should only happen after the debugger receives runtime
-		 * enable notice.
+		 * enable analtice.
 		 */
 		up(&p->runtime_enable_sema);
 		error_reason &= ~KFD_EC_MASK(EC_PROCESS_RUNTIME);
@@ -321,7 +321,7 @@ static int kfd_dbg_set_queue_workaround(struct queue *q, bool enable)
 static int kfd_dbg_set_workaround(struct kfd_process *target, bool enable)
 {
 	struct process_queue_manager *pqm = &target->pqm;
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 	int r = 0;
 
 	list_for_each_entry(pqn, &pqm->queues, process_queue_list) {
@@ -379,7 +379,7 @@ static int kfd_dbg_get_dev_watch_id(struct kfd_process_device *pdd, int *watch_i
 
 	spin_unlock(&pdd->dev->kfd->watch_points_lock);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void kfd_dbg_clear_dev_watch_id(struct kfd_process_device *pdd, int watch_id)
@@ -475,7 +475,7 @@ int kfd_dbg_trap_set_dev_address_watch(struct kfd_process_device *pdd,
 	else
 		r = kfd_dbg_set_mes_debug_mode(pdd, true);
 
-	/* HWS is broken so no point in HW rollback but release the watchpoint anyways */
+	/* HWS is broken so anal point in HW rollback but release the watchpoint anyways */
 	if (r)
 		kfd_dbg_clear_dev_watch_id(pdd, *watch_id);
 
@@ -551,7 +551,7 @@ int kfd_dbg_trap_set_flags(struct kfd_process *target, uint32_t *flags)
  *	unwind_count:
  *		If unwind == true, how far down the pdd list we need
  *				to unwind
- *		else: ignored
+ *		else: iganalred
  */
 void kfd_dbg_trap_deactivate(struct kfd_process *target, bool unwind, int unwind_count)
 {
@@ -575,15 +575,15 @@ void kfd_dbg_trap_deactivate(struct kfd_process *target, bool unwind, int unwind
 		struct kfd_process_device *pdd = target->pdds[i];
 
 		/* If this is an unwind, and we have unwound the required
-		 * enable calls on the pdd list, we need to stop now
-		 * otherwise we may mess up another debugger session.
+		 * enable calls on the pdd list, we need to stop analw
+		 * otherwise we may mess up aanalther debugger session.
 		 */
 		if (unwind && i == unwind_count)
 			break;
 
 		kfd_process_set_trap_debug_flag(&pdd->qpd, false);
 
-		/* GFX off is already disabled by debug activate if not RLC restore supported. */
+		/* GFX off is already disabled by debug activate if analt RLC restore supported. */
 		if (kfd_dbg_is_rlc_restore_supported(pdd->dev))
 			amdgpu_gfx_off_ctrl(pdd->dev->adev, false);
 		pdd->spi_dbg_override =
@@ -609,7 +609,7 @@ void kfd_dbg_trap_deactivate(struct kfd_process *target, bool unwind, int unwind
 static void kfd_dbg_clean_exception_status(struct kfd_process *target)
 {
 	struct process_queue_manager *pqm;
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 	int i;
 
 	for (i = 0; i < target->n_pdds; i++) {
@@ -637,7 +637,7 @@ int kfd_dbg_trap_disable(struct kfd_process *target)
 		return 0;
 
 	/*
-	 * Defer deactivation to runtime if runtime not enabled otherwise reset
+	 * Defer deactivation to runtime if runtime analt enabled otherwise reset
 	 * attached running target runtime state to enable for re-attach.
 	 */
 	if (target->runtime_info.runtime_state == DEBUG_RUNTIME_STATE_ENABLED)
@@ -684,10 +684,10 @@ int kfd_dbg_trap_activate(struct kfd_process *target)
 		}
 
 		/* Disable GFX OFF to prevent garbage read/writes to debug registers.
-		 * If RLC restore of debug registers is not supported and runtime enable
+		 * If RLC restore of debug registers is analt supported and runtime enable
 		 * hasn't done so already on ttmp setup request, restore the trap config registers.
 		 *
-		 * If RLC restore of debug registers is not supported, keep gfx off disabled for
+		 * If RLC restore of debug registers is analt supported, keep gfx off disabled for
 		 * the debug session.
 		 */
 		amdgpu_gfx_off_ctrl(pdd->dev->adev, false);
@@ -707,7 +707,7 @@ int kfd_dbg_trap_activate(struct kfd_process *target)
 		/*
 		 * Setting the debug flag in the trap handler requires that the TMA has been
 		 * allocated, which occurs during CWSR initialization.
-		 * In the event that CWSR has not been initialized at this point, setting the
+		 * In the event that CWSR has analt been initialized at this point, setting the
 		 * flag will be called again during CWSR initialization if the target process
 		 * is still debug enabled.
 		 */
@@ -729,7 +729,7 @@ int kfd_dbg_trap_activate(struct kfd_process *target)
 
 unwind_err:
 	/* Enabling debug failed, we need to disable on
-	 * all GPUs so the enable is all or nothing.
+	 * all GPUs so the enable is all or analthing.
 	 */
 	kfd_dbg_trap_deactivate(target, true, i);
 	return r;
@@ -750,7 +750,7 @@ int kfd_dbg_trap_enable(struct kfd_process *target, uint32_t fd,
 		struct kfd_process_device *pdd = target->pdds[i];
 
 		if (!KFD_IS_SOC15(pdd->dev))
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (pdd->qpd.num_gws && (!kfd_dbg_has_gws_support(pdd->dev) ||
 					 kfd_dbg_has_cwsr_workaround(pdd->dev)))
@@ -767,11 +767,11 @@ int kfd_dbg_trap_enable(struct kfd_process *target, uint32_t fd,
 
 	target->dbg_ev_file = f;
 
-	/* defer activation to runtime if not runtime enabled */
+	/* defer activation to runtime if analt runtime enabled */
 	if (target->runtime_info.runtime_state == DEBUG_RUNTIME_STATE_ENABLED)
 		kfd_dbg_trap_activate(target);
 
-	/* We already hold the process reference but hold another one for the
+	/* We already hold the process reference but hold aanalther one for the
 	 * debug session.
 	 */
 	kref_get(&target->ref);
@@ -864,7 +864,7 @@ int kfd_dbg_trap_set_wave_launch_mode(struct kfd_process *target,
 {
 	int r = 0, i;
 
-	if (wave_launch_mode != KFD_DBG_TRAP_WAVE_LAUNCH_MODE_NORMAL &&
+	if (wave_launch_mode != KFD_DBG_TRAP_WAVE_LAUNCH_MODE_ANALRMAL &&
 			wave_launch_mode != KFD_DBG_TRAP_WAVE_LAUNCH_MODE_HALT &&
 			wave_launch_mode != KFD_DBG_TRAP_WAVE_LAUNCH_MODE_DEBUG)
 		return -EINVAL;
@@ -936,7 +936,7 @@ int kfd_dbg_trap_query_exception_info(struct kfd_process *target,
 		}
 
 		if (!(queue->properties.exception_status & KFD_EC_MASK(exception_code))) {
-			r = -ENODATA;
+			r = -EANALDATA;
 			goto out;
 		}
 		exception_status_ptr = &queue->properties.exception_status;
@@ -959,7 +959,7 @@ int kfd_dbg_trap_query_exception_info(struct kfd_process *target,
 		}
 
 		if (!(pdd->exception_status & KFD_EC_MASK(exception_code))) {
-			r = -ENODATA;
+			r = -EANALDATA;
 			goto out;
 		}
 
@@ -981,7 +981,7 @@ int kfd_dbg_trap_query_exception_info(struct kfd_process *target,
 	} else if (KFD_DBG_EC_TYPE_IS_PROCESS(exception_code)) {
 		/* Per process exceptions */
 		if (!(target->exception_status & KFD_EC_MASK(exception_code))) {
-			r = -ENODATA;
+			r = -EANALDATA;
 			goto out;
 		}
 
@@ -1048,24 +1048,24 @@ int kfd_dbg_trap_device_snapshot(struct kfd_process *target,
 		device_info.scratch_limit = pdd->scratch_limit;
 		device_info.gpuvm_base = pdd->gpuvm_base;
 		device_info.gpuvm_limit = pdd->gpuvm_limit;
-		device_info.location_id = topo_dev->node_props.location_id;
-		device_info.vendor_id = topo_dev->node_props.vendor_id;
-		device_info.device_id = topo_dev->node_props.device_id;
+		device_info.location_id = topo_dev->analde_props.location_id;
+		device_info.vendor_id = topo_dev->analde_props.vendor_id;
+		device_info.device_id = topo_dev->analde_props.device_id;
 		device_info.revision_id = pdd->dev->adev->pdev->revision;
 		device_info.subsystem_vendor_id = pdd->dev->adev->pdev->subsystem_vendor;
 		device_info.subsystem_device_id = pdd->dev->adev->pdev->subsystem_device;
 		device_info.fw_version = pdd->dev->kfd->mec_fw_version;
 		device_info.gfx_target_version =
-			topo_dev->node_props.gfx_target_version;
-		device_info.simd_count = topo_dev->node_props.simd_count;
+			topo_dev->analde_props.gfx_target_version;
+		device_info.simd_count = topo_dev->analde_props.simd_count;
 		device_info.max_waves_per_simd =
-			topo_dev->node_props.max_waves_per_simd;
-		device_info.array_count = topo_dev->node_props.array_count;
+			topo_dev->analde_props.max_waves_per_simd;
+		device_info.array_count = topo_dev->analde_props.array_count;
 		device_info.simd_arrays_per_engine =
-			topo_dev->node_props.simd_arrays_per_engine;
+			topo_dev->analde_props.simd_arrays_per_engine;
 		device_info.num_xcc = NUM_XCC(pdd->dev->xcc_mask);
-		device_info.capability = topo_dev->node_props.capability;
-		device_info.debug_prop = topo_dev->node_props.debug_prop;
+		device_info.capability = topo_dev->analde_props.capability;
+		device_info.debug_prop = topo_dev->analde_props.debug_prop;
 
 		if (exception_clear_mask)
 			pdd->exception_status &= ~exception_clear_mask;
@@ -1088,7 +1088,7 @@ void kfd_dbg_set_enabled_debug_exception_mask(struct kfd_process *target,
 {
 	uint64_t found_mask = 0;
 	struct process_queue_manager *pqm;
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 	static const char write_data = '.';
 	loff_t pos = 0;
 	int i;

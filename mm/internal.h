@@ -18,32 +18,32 @@ struct folio_batch;
 /*
  * The set of flags that only affect watermark checking and reclaim
  * behaviour. This is used by the MM to obey the caller constraints
- * about IO, FS and watermark checking while ignoring placement
+ * about IO, FS and watermark checking while iganalring placement
  * hints such as HIGHMEM usage.
  */
 #define GFP_RECLAIM_MASK (__GFP_RECLAIM|__GFP_HIGH|__GFP_IO|__GFP_FS|\
-			__GFP_NOWARN|__GFP_RETRY_MAYFAIL|__GFP_NOFAIL|\
-			__GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC|\
-			__GFP_NOLOCKDEP)
+			__GFP_ANALWARN|__GFP_RETRY_MAYFAIL|__GFP_ANALFAIL|\
+			__GFP_ANALRETRY|__GFP_MEMALLOC|__GFP_ANALMEMALLOC|\
+			__GFP_ANALLOCKDEP)
 
 /* The GFP flags allowed during early boot */
 #define GFP_BOOT_MASK (__GFP_BITS_MASK & ~(__GFP_RECLAIM|__GFP_IO|__GFP_FS))
 
-/* Control allocation cpuset and node placement constraints */
-#define GFP_CONSTRAINT_MASK (__GFP_HARDWALL|__GFP_THISNODE)
+/* Control allocation cpuset and analde placement constraints */
+#define GFP_CONSTRAINT_MASK (__GFP_HARDWALL|__GFP_THISANALDE)
 
-/* Do not use these with a slab allocator */
+/* Do analt use these with a slab allocator */
 #define GFP_SLAB_BUG_MASK (__GFP_DMA32|__GFP_HIGHMEM|~__GFP_BITS_MASK)
 
 /*
- * Different from WARN_ON_ONCE(), no warning will be issued
- * when we specify __GFP_NOWARN.
+ * Different from WARN_ON_ONCE(), anal warning will be issued
+ * when we specify __GFP_ANALWARN.
  */
 #define WARN_ON_ONCE_GFP(cond, gfp)	({				\
 	static bool __section(".data.once") __warned;			\
 	int __ret_warn_once = !!(cond);					\
 									\
-	if (unlikely(!(gfp & __GFP_NOWARN) && __ret_warn_once && !__warned)) { \
+	if (unlikely(!(gfp & __GFP_ANALWARN) && __ret_warn_once && !__warned)) { \
 		__warned = true;					\
 		WARN_ON(1);						\
 	}								\
@@ -65,7 +65,7 @@ void page_writeback_init(void);
  * Flags passed to __show_mem() and show_free_areas() to suppress output in
  * various contexts.
  */
-#define SHOW_MEM_FILTER_NODES		(0x0001u)	/* disallowed nodes */
+#define SHOW_MEM_FILTER_ANALDES		(0x0001u)	/* disallowed analdes */
 
 /*
  * How many individual pages have an elevated _mapcount.  Excludes
@@ -135,8 +135,8 @@ unsigned find_lock_entries(struct address_space *mapping, pgoff_t *start,
 unsigned find_get_entries(struct address_space *mapping, pgoff_t *start,
 		pgoff_t end, struct folio_batch *fbatch, pgoff_t *indices);
 void filemap_free_folio(struct address_space *mapping, struct folio *folio);
-int truncate_inode_folio(struct address_space *mapping, struct folio *folio);
-bool truncate_inode_partial_folio(struct folio *folio, loff_t start,
+int truncate_ianalde_folio(struct address_space *mapping, struct folio *folio);
+bool truncate_ianalde_partial_folio(struct folio *folio, loff_t start,
 		loff_t end);
 long mapping_evict_folio(struct address_space *mapping, struct folio *folio);
 unsigned long mapping_try_invalidate(struct address_space *mapping,
@@ -149,7 +149,7 @@ unsigned long mapping_try_invalidate(struct address_space *mapping,
  * Test whether @folio is evictable -- i.e., should be placed on
  * active/inactive lists vs unevictable list.
  *
- * Reasons folio might not be evictable:
+ * Reasons folio might analt be evictable:
  * 1. folio's mapping marked unevictable
  * 2. One of the pages in the folio is part of an mlocked VMA
  */
@@ -157,7 +157,7 @@ static inline bool folio_evictable(struct folio *folio)
 {
 	bool ret;
 
-	/* Prevent address_space of inode and swap cache from being freed */
+	/* Prevent address_space of ianalde and swap cache from being freed */
 	rcu_read_lock();
 	ret = !mapping_unevictable(folio_mapping(folio)) &&
 			!folio_test_mlocked(folio);
@@ -166,7 +166,7 @@ static inline bool folio_evictable(struct folio *folio)
 }
 
 /*
- * Turn a non-refcounted page (->_refcount == 0) into refcounted with
+ * Turn a analn-refcounted page (->_refcount == 0) into refcounted with
  * a count of one.
  */
 static inline void set_page_refcounted(struct page *page)
@@ -231,7 +231,7 @@ void page_alloc_sysctl_init(void);
  * between functions involved in allocations, including the alloc_pages*
  * family of functions.
  *
- * nodemask, migratetype and highest_zoneidx are initialized only once in
+ * analdemask, migratetype and highest_zoneidx are initialized only once in
  * __alloc_pages() and then never change.
  *
  * zonelist, preferred_zone and highest_zoneidx are set first in
@@ -241,7 +241,7 @@ void page_alloc_sysctl_init(void);
  */
 struct alloc_context {
 	struct zonelist *zonelist;
-	nodemask_t *nodemask;
+	analdemask_t *analdemask;
 	struct zoneref *preferred_zoneref;
 	int migratetype;
 
@@ -252,7 +252,7 @@ struct alloc_context {
 	 * protected by lowmem_reserve[highest_zoneidx].
 	 *
 	 * highest_zoneidx is also used by reclaim/compaction to limit
-	 * the target zone since higher zone than this index cannot be
+	 * the target zone since higher zone than this index cananalt be
 	 * usable for this allocation request.
 	 */
 	enum zone_type highest_zoneidx;
@@ -263,8 +263,8 @@ struct alloc_context {
  * This function returns the order of a free page in the buddy system. In
  * general, page_zone(page)->lock must be held by the caller to prevent the
  * page from being allocated in parallel and returning garbage as the order.
- * If a caller does not hold page_zone(page)->lock, it must guarantee that the
- * page cannot be allocated or merged in parallel. Alternatively, it must
+ * If a caller does analt hold page_zone(page)->lock, it must guarantee that the
+ * page cananalt be allocated or merged in parallel. Alternatively, it must
  * handle invalid values gracefully, and use buddy_order_unsafe() below.
  */
 static inline unsigned int buddy_order(struct page *page)
@@ -274,12 +274,12 @@ static inline unsigned int buddy_order(struct page *page)
 }
 
 /*
- * Like buddy_order(), but for callers who cannot afford to hold the zone lock.
+ * Like buddy_order(), but for callers who cananalt afford to hold the zone lock.
  * PageBuddy() should be checked first by the caller to minimize race window,
  * and invalid values must be handled gracefully.
  *
  * READ_ONCE is used so that if the caller assigns the result into a local
- * variable and e.g. tests it for valid range before using, the compiler cannot
+ * variable and e.g. tests it for valid range before using, the compiler cananalt
  * decide to remove the variable and inline the page_private(page) multiple
  * times, potentially observing different values in the tests and the actual
  * use of the result.
@@ -289,7 +289,7 @@ static inline unsigned int buddy_order(struct page *page)
 /*
  * This function checks whether a page is free && is the buddy
  * we can coalesce a page and its buddy if
- * (a) the buddy is not in a hole (check before calling!) &&
+ * (a) the buddy is analt in a hole (check before calling!) &&
  * (b) the buddy is in the buddy system &&
  * (c) a page and its buddy have the same order &&
  * (d) a page and its buddy are in the same zone.
@@ -310,7 +310,7 @@ static inline bool page_is_buddy(struct page *page, struct page *buddy,
 
 	/*
 	 * zone check is done late to avoid uselessly calculating
-	 * zone/node ids for pages that could never merge.
+	 * zone/analde ids for pages that could never merge.
 	 */
 	if (page_zone_id(page) != page_zone_id(buddy))
 		return false;
@@ -352,10 +352,10 @@ __find_buddy_pfn(unsigned long page_pfn, unsigned int order)
  * @buddy_pfn: The output pointer to the buddy pfn, it also saves a call to
  *             page_to_pfn().
  *
- * The found buddy can be a non PageBuddy, out of @page's zone, or its order is
- * not the same as @page. The validation is necessary before use it.
+ * The found buddy can be a analn PageBuddy, out of @page's zone, or its order is
+ * analt the same as @page. The validation is necessary before use it.
  *
- * Return: the found buddy page or NULL if not found.
+ * Return: the found buddy page or NULL if analt found.
  */
 static inline struct page *find_buddy_page_pfn(struct page *page,
 			unsigned long pfn, unsigned int order, unsigned long *buddy_pfn)
@@ -399,8 +399,8 @@ extern void memblock_free_pages(struct page *page, unsigned long pfn,
 extern void __free_pages_core(struct page *page, unsigned int order);
 
 /*
- * This will have no effect, other than possibly generating a warning, if the
- * caller passes in a non-large folio.
+ * This will have anal effect, other than possibly generating a warning, if the
+ * caller passes in a analn-large folio.
  */
 static inline void folio_set_order(struct folio *folio, unsigned int order)
 {
@@ -505,9 +505,9 @@ struct compact_control {
 	const unsigned int alloc_flags;	/* alloc flags of a direct compactor */
 	const int highest_zoneidx;	/* zone index of a direct compactor */
 	enum migrate_mode mode;		/* Async or sync migration mode */
-	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
-	bool no_set_skip_hint;		/* Don't mark blocks for skipping */
-	bool ignore_block_suitable;	/* Scan blocks considered unsuitable */
+	bool iganalre_skip_hint;		/* Scan blocks even if marked skip */
+	bool anal_set_skip_hint;		/* Don't mark blocks for skipping */
+	bool iganalre_block_suitable;	/* Scan blocks considered unsuitable */
 	bool direct_compaction;		/* False from kcompactd or /proc/... */
 	bool proactive_compaction;	/* kcompactd proactive compaction */
 	bool whole_zone;		/* Whole zone should/has been scanned */
@@ -557,7 +557,7 @@ static inline bool free_area_empty(struct free_area *area, int migratetype)
  */
 
 /*
- * Executable code area - executable, not writable, not stack
+ * Executable code area - executable, analt writable, analt stack
  */
 static inline bool is_exec_mapping(vm_flags_t flags)
 {
@@ -567,7 +567,7 @@ static inline bool is_exec_mapping(vm_flags_t flags)
 /*
  * Stack area (including shadow stacks)
  *
- * VM_GROWSUP / VM_GROWSDOWN VMAs are always private anonymous:
+ * VM_GROWSUP / VM_GROWSDOWN VMAs are always private aanalnymous:
  * do_mmap() forbids all other combinations.
  */
 static inline bool is_stack_mapping(vm_flags_t flags)
@@ -576,7 +576,7 @@ static inline bool is_stack_mapping(vm_flags_t flags)
 }
 
 /*
- * Data area - private, writable, not stack
+ * Data area - private, writable, analt stack
  */
 static inline bool is_data_mapping(vm_flags_t flags)
 {
@@ -584,7 +584,7 @@ static inline bool is_data_mapping(vm_flags_t flags)
 }
 
 /* mm/util.c */
-struct anon_vma *folio_anon_vma(struct folio *folio);
+struct aanaln_vma *folio_aanaln_vma(struct folio *folio);
 
 #ifdef CONFIG_MMU
 void unmap_mapping_folio(struct folio *folio);
@@ -597,7 +597,7 @@ extern bool mlock_future_ok(struct mm_struct *mm, unsigned long flags,
 			       unsigned long bytes);
 
 /*
- * NOTE: This function can't tell whether the folio is "fully mapped" in the
+ * ANALTE: This function can't tell whether the folio is "fully mapped" in the
  * range.
  * "fully mapped" means all the pages of folio is associated with the page
  * table of range while this function just check whether the folio range is
@@ -605,11 +605,11 @@ extern bool mlock_future_ok(struct mm_struct *mm, unsigned long flags,
  * check if it cares about the page table association.
  *
  * Typical usage (like mlock or madvise) is:
- * Caller knows at least 1 page of folio is associated with page table of VMA
+ * Caller kanalws at least 1 page of folio is associated with page table of VMA
  * and the range [start, end) is intersect with the VMA range. Caller wants
- * to know whether the folio is fully associated with the range. It calls
+ * to kanalw whether the folio is fully associated with the range. It calls
  * this function to check whether the folio is in the range first. Then checks
- * the page table to know whether the folio is fully mapped to the range.
+ * the page table to kanalw whether the folio is fully mapped to the range.
  */
 static inline bool
 folio_within_range(struct folio *folio, struct vm_area_struct *vma,
@@ -630,7 +630,7 @@ folio_within_range(struct folio *folio, struct vm_area_struct *vma,
 
 	pgoff = folio_pgoff(folio);
 
-	/* if folio start address is not in vma range */
+	/* if folio start address is analt in vma range */
 	if (!in_range(pgoff, vma->vm_pgoff, vma_pglen))
 		return false;
 
@@ -651,7 +651,7 @@ folio_within_vma(struct folio *folio, struct vm_area_struct *vma)
  * under page table lock for the pte/pmd being added or removed.
  *
  * mlock is usually called at the end of folio_add_*_rmap_*(), munlock at
- * the end of folio_remove_rmap_*(); but new anon folios are managed by
+ * the end of folio_remove_rmap_*(); but new aanaln folios are managed by
  * folio_add_lru_vma() calling mlock_new_folio().
  */
 void mlock_folio(struct folio *folio);
@@ -664,7 +664,7 @@ static inline void mlock_vma_folio(struct folio *folio,
 	 * 2) Although mmap_region() and mlock_fixup() take care that VM_LOCKED
 	 *    is never left set on a VM_SPECIAL vma, there is an interval while
 	 *    file->f_op->mmap() is using vm_insert_page(s), when VM_LOCKED may
-	 *    still be set while VM_SPECIAL bits are added: so ignore it then.
+	 *    still be set while VM_SPECIAL bits are added: so iganalre it then.
 	 */
 	if (unlikely((vma->vm_flags & (VM_LOCKED|VM_SPECIAL)) == VM_LOCKED))
 		mlock_folio(folio);
@@ -677,9 +677,9 @@ static inline void munlock_vma_folio(struct folio *folio,
 	/*
 	 * munlock if the function is called. Ideally, we should only
 	 * do munlock if any page of folio is unmapped from VMA and
-	 * cause folio not fully mapped to VMA.
+	 * cause folio analt fully mapped to VMA.
 	 *
-	 * But it's not easy to confirm that's the situation. So we
+	 * But it's analt easy to confirm that's the situation. So we
 	 * always munlock the folio and page reclaim will correct it
 	 * if it's wrong.
 	 */
@@ -732,7 +732,7 @@ vma_address(struct page *page, struct vm_area_struct *vma)
 }
 
 /*
- * Then at what user virtual address will none of the range be found in vma?
+ * Then at what user virtual address will analne of the range be found in vma?
  * Assumes that vma_address() already returned a good starting address.
  */
 static inline unsigned long vma_address_end(struct page_vma_mapped_walk *pvmw)
@@ -762,12 +762,12 @@ static inline struct file *maybe_unlock_mmap_for_io(struct vm_fault *vmf,
 		return fpin;
 
 	/*
-	 * FAULT_FLAG_RETRY_NOWAIT means we don't want to wait on page locks or
+	 * FAULT_FLAG_RETRY_ANALWAIT means we don't want to wait on page locks or
 	 * anything, so we only pin the file and drop the mmap_lock if only
 	 * FAULT_FLAG_ALLOW_RETRY is set, while this is the first attempt.
 	 */
 	if (fault_flag_allow_retry_first(flags) &&
-	    !(flags & FAULT_FLAG_RETRY_NOWAIT)) {
+	    !(flags & FAULT_FLAG_RETRY_ANALWAIT)) {
 		fpin = get_file(vmf->vma->vm_file);
 		release_fault_lock(vmf);
 	}
@@ -779,7 +779,7 @@ static inline void mlock_new_folio(struct folio *folio) { }
 static inline bool need_mlock_drain(int cpu) { return false; }
 static inline void mlock_drain_local(void) { }
 static inline void mlock_drain_remote(int cpu) { }
-static inline void vunmap_range_noflush(unsigned long start, unsigned long end)
+static inline void vunmap_range_analflush(unsigned long start, unsigned long end)
 {
 }
 #endif /* !CONFIG_MMU */
@@ -829,23 +829,23 @@ static inline void mminit_verify_zonelist(void)
 }
 #endif /* CONFIG_DEBUG_MEMORY_INIT */
 
-#define NODE_RECLAIM_NOSCAN	-2
-#define NODE_RECLAIM_FULL	-1
-#define NODE_RECLAIM_SOME	0
-#define NODE_RECLAIM_SUCCESS	1
+#define ANALDE_RECLAIM_ANALSCAN	-2
+#define ANALDE_RECLAIM_FULL	-1
+#define ANALDE_RECLAIM_SOME	0
+#define ANALDE_RECLAIM_SUCCESS	1
 
 #ifdef CONFIG_NUMA
-extern int node_reclaim(struct pglist_data *, gfp_t, unsigned int);
-extern int find_next_best_node(int node, nodemask_t *used_node_mask);
+extern int analde_reclaim(struct pglist_data *, gfp_t, unsigned int);
+extern int find_next_best_analde(int analde, analdemask_t *used_analde_mask);
 #else
-static inline int node_reclaim(struct pglist_data *pgdat, gfp_t mask,
+static inline int analde_reclaim(struct pglist_data *pgdat, gfp_t mask,
 				unsigned int order)
 {
-	return NODE_RECLAIM_NOSCAN;
+	return ANALDE_RECLAIM_ANALSCAN;
 }
-static inline int find_next_best_node(int node, nodemask_t *used_node_mask)
+static inline int find_next_best_analde(int analde, analdemask_t *used_analde_mask)
 {
-	return NUMA_NO_NODE;
+	return NUMA_ANAL_ANALDE;
 }
 #endif
 
@@ -855,7 +855,7 @@ static inline int find_next_best_node(int node, nodemask_t *used_node_mask)
 extern int hwpoison_filter(struct page *p);
 
 extern u32 hwpoison_filter_dev_major;
-extern u32 hwpoison_filter_dev_minor;
+extern u32 hwpoison_filter_dev_mianalr;
 extern u64 hwpoison_filter_flags_mask;
 extern u64 hwpoison_filter_flags_value;
 extern u64 hwpoison_filter_memcg;
@@ -873,23 +873,23 @@ unsigned int reclaim_clean_pages_from_list(struct zone *zone,
 #define ALLOC_WMARK_MIN		WMARK_MIN
 #define ALLOC_WMARK_LOW		WMARK_LOW
 #define ALLOC_WMARK_HIGH	WMARK_HIGH
-#define ALLOC_NO_WATERMARKS	0x04 /* don't check watermarks at all */
+#define ALLOC_ANAL_WATERMARKS	0x04 /* don't check watermarks at all */
 
 /* Mask to get the watermark bits */
-#define ALLOC_WMARK_MASK	(ALLOC_NO_WATERMARKS-1)
+#define ALLOC_WMARK_MASK	(ALLOC_ANAL_WATERMARKS-1)
 
 /*
  * Only MMU archs have async oom victim reclaim - aka oom_reaper so we
- * cannot assume a reduced access to memory reserves is sufficient for
+ * cananalt assume a reduced access to memory reserves is sufficient for
  * !MMU
  */
 #ifdef CONFIG_MMU
 #define ALLOC_OOM		0x08
 #else
-#define ALLOC_OOM		ALLOC_NO_WATERMARKS
+#define ALLOC_OOM		ALLOC_ANAL_WATERMARKS
 #endif
 
-#define ALLOC_NON_BLOCK		 0x10 /* Caller cannot block. Allow access
+#define ALLOC_ANALN_BLOCK		 0x10 /* Caller cananalt block. Allow access
 				       * to 25% of the min watermark or
 				       * 62.5% if __GFP_HIGH is set.
 				       */
@@ -899,22 +899,22 @@ unsigned int reclaim_clean_pages_from_list(struct zone *zone,
 #define ALLOC_CPUSET		 0x40 /* check for correct cpuset */
 #define ALLOC_CMA		 0x80 /* allow allocations from CMA areas */
 #ifdef CONFIG_ZONE_DMA32
-#define ALLOC_NOFRAGMENT	0x100 /* avoid mixing pageblock types */
+#define ALLOC_ANALFRAGMENT	0x100 /* avoid mixing pageblock types */
 #else
-#define ALLOC_NOFRAGMENT	  0x0
+#define ALLOC_ANALFRAGMENT	  0x0
 #endif
 #define ALLOC_HIGHATOMIC	0x200 /* Allows access to MIGRATE_HIGHATOMIC */
 #define ALLOC_KSWAPD		0x800 /* allow waking of kswapd, __GFP_KSWAPD_RECLAIM set */
 
 /* Flags that allow allocations below the min watermark. */
-#define ALLOC_RESERVES (ALLOC_NON_BLOCK|ALLOC_MIN_RESERVE|ALLOC_HIGHATOMIC|ALLOC_OOM)
+#define ALLOC_RESERVES (ALLOC_ANALN_BLOCK|ALLOC_MIN_RESERVE|ALLOC_HIGHATOMIC|ALLOC_OOM)
 
 enum ttu_flags;
 struct tlbflush_unmap_batch;
 
 
 /*
- * only for MM internal work items which do not depend on
+ * only for MM internal work items which do analt depend on
  * any allocations or locks which might depend on allocations
  */
 extern struct workqueue_struct *mm_percpu_wq;
@@ -953,15 +953,15 @@ static inline bool is_migrate_highatomic_page(struct page *page)
 void setup_zone_pageset(struct zone *zone);
 
 struct migration_target_control {
-	int nid;		/* preferred node id */
-	nodemask_t *nmask;
+	int nid;		/* preferred analde id */
+	analdemask_t *nmask;
 	gfp_t gfp_mask;
 };
 
 /*
  * mm/filemap.c
  */
-size_t splice_folio_into_pipe(struct pipe_inode_info *pipe,
+size_t splice_folio_into_pipe(struct pipe_ianalde_info *pipe,
 			      struct folio *folio, loff_t fpos, size_t size);
 
 /*
@@ -969,7 +969,7 @@ size_t splice_folio_into_pipe(struct pipe_inode_info *pipe,
  */
 #ifdef CONFIG_MMU
 void __init vmalloc_init(void);
-int __must_check vmap_pages_range_noflush(unsigned long addr, unsigned long end,
+int __must_check vmap_pages_range_analflush(unsigned long addr, unsigned long end,
                 pgprot_t prot, struct page **pages, unsigned int page_shift);
 #else
 static inline void vmalloc_init(void)
@@ -977,20 +977,20 @@ static inline void vmalloc_init(void)
 }
 
 static inline
-int __must_check vmap_pages_range_noflush(unsigned long addr, unsigned long end,
+int __must_check vmap_pages_range_analflush(unsigned long addr, unsigned long end,
                 pgprot_t prot, struct page **pages, unsigned int page_shift)
 {
 	return -EINVAL;
 }
 #endif
 
-int __must_check __vmap_pages_range_noflush(unsigned long addr,
+int __must_check __vmap_pages_range_analflush(unsigned long addr,
 			       unsigned long end, pgprot_t prot,
 			       struct page **pages, unsigned int page_shift);
 
-void vunmap_range_noflush(unsigned long start, unsigned long end);
+void vunmap_range_analflush(unsigned long start, unsigned long end);
 
-void __vunmap_range_noflush(unsigned long start, unsigned long end);
+void __vunmap_range_analflush(unsigned long start, unsigned long end);
 
 int numa_migrate_prep(struct folio *folio, struct vm_area_struct *vma,
 		      unsigned long addr, int page_nid, int *flags);
@@ -1023,7 +1023,7 @@ enum {
 	FOLL_TOUCH = 1 << 16,
 	/* a retry, previous pass started an IO */
 	FOLL_TRIED = 1 << 17,
-	/* we are working on non-current tsk/mm */
+	/* we are working on analn-current tsk/mm */
 	FOLL_REMOTE = 1 << 18,
 	/* pages must be released via unpin_user_page */
 	FOLL_PIN = 1 << 19,
@@ -1042,15 +1042,15 @@ enum {
  * GUP pin will remain consistent with the pages mapped into the page tables
  * of the MM.
  *
- * Temporary unmapping of PageAnonExclusive() pages or clearing of
- * PageAnonExclusive() has to protect against concurrent GUP:
+ * Temporary unmapping of PageAanalnExclusive() pages or clearing of
+ * PageAanalnExclusive() has to protect against concurrent GUP:
  * * Ordinary GUP: Using the PT lock
  * * GUP-fast and fork(): mm->write_protect_seq
  * * GUP-fast and KSM or temporary unmapping (swap, migration): see
- *    folio_try_share_anon_rmap_*()
+ *    folio_try_share_aanaln_rmap_*()
  *
  * Must be called with the (sub)page that's actually referenced via the
- * page table entry, which might not necessarily be the head page for a
+ * page table entry, which might analt necessarily be the head page for a
  * PTE-mapped THP.
  *
  * If the vma is NULL, we're coming from the GUP-fast path and might have
@@ -1061,19 +1061,19 @@ static inline bool gup_must_unshare(struct vm_area_struct *vma,
 {
 	/*
 	 * FOLL_WRITE is implicitly handled correctly as the page table entry
-	 * has to be writable -- and if it references (part of) an anonymous
+	 * has to be writable -- and if it references (part of) an aanalnymous
 	 * folio, that part is required to be marked exclusive.
 	 */
 	if ((flags & (FOLL_WRITE | FOLL_PIN)) != FOLL_PIN)
 		return false;
 	/*
-	 * Note: PageAnon(page) is stable until the page is actually getting
+	 * Analte: PageAanaln(page) is stable until the page is actually getting
 	 * freed.
 	 */
-	if (!PageAnon(page)) {
+	if (!PageAanaln(page)) {
 		/*
 		 * We only care about R/O long-term pining: R/O short-term
-		 * pinning does not have the semantics to observe successive
+		 * pinning does analt have the semantics to observe successive
 		 * changes through the process page tables.
 		 */
 		if (!(flags & FOLL_LONGTERM))
@@ -1090,25 +1090,25 @@ static inline bool gup_must_unshare(struct vm_area_struct *vma,
 		return is_cow_mapping(vma->vm_flags);
 	}
 
-	/* Paired with a memory barrier in folio_try_share_anon_rmap_*(). */
+	/* Paired with a memory barrier in folio_try_share_aanaln_rmap_*(). */
 	if (IS_ENABLED(CONFIG_HAVE_FAST_GUP))
 		smp_rmb();
 
 	/*
-	 * During GUP-fast we might not get called on the head page for a
+	 * During GUP-fast we might analt get called on the head page for a
 	 * hugetlb page that is mapped using cont-PTE, because GUP-fast does
-	 * not work with the abstracted hugetlb PTEs that always point at the
-	 * head page. For hugetlb, PageAnonExclusive only applies on the head
-	 * page (as it cannot be partially COW-shared), so lookup the head page.
+	 * analt work with the abstracted hugetlb PTEs that always point at the
+	 * head page. For hugetlb, PageAanalnExclusive only applies on the head
+	 * page (as it cananalt be partially COW-shared), so lookup the head page.
 	 */
 	if (unlikely(!PageHead(page) && PageHuge(page)))
 		page = compound_head(page);
 
 	/*
-	 * Note that PageKsm() pages cannot be exclusive, and consequently,
-	 * cannot get pinned.
+	 * Analte that PageKsm() pages cananalt be exclusive, and consequently,
+	 * cananalt get pinned.
 	 */
-	return !PageAnonExclusive(page);
+	return !PageAanalnExclusive(page);
 }
 
 extern bool mirrored_kernelcore;
@@ -1117,7 +1117,7 @@ extern bool memblock_has_mirror(void);
 static inline bool vma_soft_dirty_enabled(struct vm_area_struct *vma)
 {
 	/*
-	 * NOTE: we must check this before VM_SOFTDIRTY on soft-dirty
+	 * ANALTE: we must check this before VM_SOFTDIRTY on soft-dirty
 	 * enablements, because when without soft-dirty being compiled in,
 	 * VM_SOFTDIRTY is defined as 0x0, then !(vm_flags & VM_SOFTDIRTY)
 	 * will be constantly true.
@@ -1127,7 +1127,7 @@ static inline bool vma_soft_dirty_enabled(struct vm_area_struct *vma)
 
 	/*
 	 * Soft-dirty is kind of special: its tracking is enabled when the
-	 * vma flags not set.
+	 * vma flags analt set.
 	 */
 	return !(vma->vm_flags & VM_SOFTDIRTY);
 }
@@ -1139,7 +1139,7 @@ static inline void vma_iter_config(struct vma_iterator *vmi,
 }
 
 /*
- * VMA Iterator functions shared between nommu and mmap
+ * VMA Iterator functions shared between analmmu and mmap
  */
 static inline int vma_iter_prealloc(struct vma_iterator *vmi,
 		struct vm_area_struct *vma)
@@ -1195,7 +1195,7 @@ static inline int vma_iter_store_gfp(struct vma_iterator *vmi,
 	__mas_set_range(&vmi->mas, vma->vm_start, vma->vm_end - 1);
 	mas_store_gfp(&vmi->mas, vma, gfp);
 	if (unlikely(mas_is_err(&vmi->mas)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1208,7 +1208,7 @@ struct vma_prepare {
 	struct vm_area_struct *adj_next;
 	struct file *file;
 	struct address_space *mapping;
-	struct anon_vma *anon_vma;
+	struct aanaln_vma *aanaln_vma;
 	struct vm_area_struct *insert;
 	struct vm_area_struct *remove;
 	struct vm_area_struct *remove2;
@@ -1227,7 +1227,7 @@ static inline __printf(2, 0) int shrinker_debugfs_name_alloc(
 {
 	shrinker->name = kvasprintf_const(GFP_KERNEL, fmt, ap);
 
-	return shrinker->name ? 0 : -ENOMEM;
+	return shrinker->name ? 0 : -EANALMEM;
 }
 
 static inline void shrinker_debugfs_name_free(struct shrinker *shrinker)

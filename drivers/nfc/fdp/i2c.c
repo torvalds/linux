@@ -171,7 +171,7 @@ static int fdp_nci_i2c_read(struct fdp_i2c_phy *phy, struct sk_buff **skb)
 
 			*skb = alloc_skb(len, GFP_KERNEL);
 			if (*skb == NULL) {
-				r = -ENOMEM;
+				r = -EANALMEM;
 				goto flush;
 			}
 
@@ -200,12 +200,12 @@ static irqreturn_t fdp_nci_i2c_irq_thread_fn(int irq, void *phy_id)
 
 	if (!phy || irq != phy->i2c_dev->irq) {
 		WARN_ON_ONCE(1);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	r = fdp_nci_i2c_read(phy, &skb);
 
-	if (r == -EREMOTEIO || r == -ENOMEM || r == -EBADMSG)
+	if (r == -EREMOTEIO || r == -EANALMEM || r == -EBADMSG)
 		return IRQ_HANDLED;
 
 	if (skb != NULL)
@@ -259,13 +259,13 @@ static void fdp_nci_i2c_read_device_properties(struct device *dev,
 		}
 	} else {
 vsc_read_err:
-		dev_dbg(dev, "FW vendor specific commands not present\n");
+		dev_dbg(dev, "FW vendor specific commands analt present\n");
 		*fw_vsc_cfg = NULL;
 	}
 
 alloc_err:
 	dev_dbg(dev, "Clock type: %d, clock frequency: %d, VSC: %s",
-		*clock_type, *clock_freq, *fw_vsc_cfg != NULL ? "yes" : "no");
+		*clock_type, *clock_freq, *fw_vsc_cfg != NULL ? "anal" : "anal");
 }
 
 static const struct acpi_gpio_params power_gpios = { 0, 0, false };
@@ -285,19 +285,19 @@ static int fdp_nci_i2c_probe(struct i2c_client *client)
 	int r = 0;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		nfc_err(dev, "No I2C_FUNC_I2C support\n");
-		return -ENODEV;
+		nfc_err(dev, "Anal I2C_FUNC_I2C support\n");
+		return -EANALDEV;
 	}
 
 	/* Checking if we have an irq */
 	if (client->irq <= 0) {
-		nfc_err(dev, "IRQ not present\n");
-		return -ENODEV;
+		nfc_err(dev, "IRQ analt present\n");
+		return -EANALDEV;
 	}
 
 	phy = devm_kzalloc(dev, sizeof(struct fdp_i2c_phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->i2c_dev = client;
 	phy->next_read_size = FDP_NCI_I2C_MIN_PAYLOAD;

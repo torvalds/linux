@@ -29,28 +29,28 @@ validate_goto_chain(struct mlx5e_priv *priv,
 			   MLX5_CAP_FLOWTABLE_NIC_RX(priv->mdev, reformat_and_fwd_to_table);
 
 	if (ft_flow) {
-		NL_SET_ERR_MSG_MOD(extack, "Goto action is not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Goto action is analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	if (!mlx5_chains_backwards_supported(chains) &&
 	    dest_chain <= attr->chain) {
 		NL_SET_ERR_MSG_MOD(extack, "Goto lower numbered chain isn't supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (dest_chain > max_chain) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Requested destination chain is out of supported range");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (attr->action & (MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT |
 			    MLX5_FLOW_CONTEXT_ACTION_DECAP) &&
 	    !reformat_and_fwd) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Goto chain is not allowed if action has reformat or decap");
-		return -EOPNOTSUPP;
+				   "Goto chain is analt allowed if action has reformat or decap");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -106,12 +106,12 @@ tc_act_post_parse_goto(struct mlx5e_tc_act_parse_state *parse_state,
 
 		NL_SET_ERR_MSG_MOD(extack, "Decap with goto isn't supported");
 		netdev_warn(priv->netdev, "Decap with goto isn't supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!mlx5e_is_eswitch_flow(flow) && parse_attr->mirred_ifindex[0]) {
 		NL_SET_ERR_MSG_MOD(extack, "Mirroring goto chain rules isn't supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;

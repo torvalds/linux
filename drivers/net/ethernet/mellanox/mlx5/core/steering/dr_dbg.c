@@ -57,14 +57,14 @@ enum dr_dump_rec_type {
 void mlx5dr_dbg_tbl_add(struct mlx5dr_table *tbl)
 {
 	mutex_lock(&tbl->dmn->dump_info.dbg_mutex);
-	list_add_tail(&tbl->dbg_node, &tbl->dmn->dbg_tbl_list);
+	list_add_tail(&tbl->dbg_analde, &tbl->dmn->dbg_tbl_list);
 	mutex_unlock(&tbl->dmn->dump_info.dbg_mutex);
 }
 
 void mlx5dr_dbg_tbl_del(struct mlx5dr_table *tbl)
 {
 	mutex_lock(&tbl->dmn->dump_info.dbg_mutex);
-	list_del(&tbl->dbg_node);
+	list_del(&tbl->dbg_analde);
 	mutex_unlock(&tbl->dmn->dump_info.dbg_mutex);
 }
 
@@ -73,7 +73,7 @@ void mlx5dr_dbg_rule_add(struct mlx5dr_rule *rule)
 	struct mlx5dr_domain *dmn = rule->matcher->tbl->dmn;
 
 	mutex_lock(&dmn->dump_info.dbg_mutex);
-	list_add_tail(&rule->dbg_node, &rule->matcher->dbg_rule_list);
+	list_add_tail(&rule->dbg_analde, &rule->matcher->dbg_rule_list);
 	mutex_unlock(&dmn->dump_info.dbg_mutex);
 }
 
@@ -82,7 +82,7 @@ void mlx5dr_dbg_rule_del(struct mlx5dr_rule *rule)
 	struct mlx5dr_domain *dmn = rule->matcher->tbl->dmn;
 
 	mutex_lock(&dmn->dump_info.dbg_mutex);
-	list_del(&rule->dbg_node);
+	list_del(&rule->dbg_analde);
 	mutex_unlock(&dmn->dump_info.dbg_mutex);
 }
 
@@ -472,7 +472,7 @@ dr_dump_matcher_all(struct seq_file *file, struct mlx5dr_matcher *matcher)
 	if (ret < 0)
 		return ret;
 
-	list_for_each_entry(rule, &matcher->dbg_rule_list, dbg_node) {
+	list_for_each_entry(rule, &matcher->dbg_rule_list, dbg_analde) {
 		ret = dr_dump_rule(file, rule);
 		if (ret < 0)
 			return ret;
@@ -534,7 +534,7 @@ static int dr_dump_table_all(struct seq_file *file, struct mlx5dr_table *tbl)
 	if (ret < 0)
 		return ret;
 
-	list_for_each_entry(matcher, &tbl->matcher_list, list_node) {
+	list_for_each_entry(matcher, &tbl->matcher_list, list_analde) {
 		ret = dr_dump_matcher_all(file, matcher);
 		if (ret < 0)
 			return ret;
@@ -671,7 +671,7 @@ static int dr_dump_domain_all(struct seq_file *file, struct mlx5dr_domain *dmn)
 	if (ret < 0)
 		goto unlock_mutex;
 
-	list_for_each_entry(tbl, &dmn->dbg_tbl_list, dbg_node) {
+	list_for_each_entry(tbl, &dmn->dbg_tbl_list, dbg_analde) {
 		ret = dr_dump_table_all(file, tbl);
 		if (ret < 0)
 			break;
@@ -696,7 +696,7 @@ void mlx5dr_dbg_init_dump(struct mlx5dr_domain *dmn)
 
 	if (dmn->type != MLX5DR_DOMAIN_TYPE_FDB) {
 		mlx5_core_warn(dev,
-			       "Steering dump is not supported for NIC RX/TX domains\n");
+			       "Steering dump is analt supported for NIC RX/TX domains\n");
 		return;
 	}
 

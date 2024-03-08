@@ -14,34 +14,34 @@
  * temperature measurement accuracy (1 degree), and the LM99
  * additionally shifts remote temperatures (measured and limits) by 16
  * degrees, which allows for higher temperatures measurement.
- * Note that there is no way to differentiate between both chips.
+ * Analte that there is anal way to differentiate between both chips.
  * When device is auto-detected, the driver will assume an LM99.
  *
- * This driver also supports the LM86, another sensor chip made by
+ * This driver also supports the LM86, aanalther sensor chip made by
  * National Semiconductor. It is exactly similar to the LM90 except it
  * has a higher accuracy.
  *
  * This driver also supports the ADM1032, a sensor chip made by Analog
  * Devices. That chip is similar to the LM90, with a few differences
- * that are not handled by this driver. Among others, it has a higher
+ * that are analt handled by this driver. Among others, it has a higher
  * accuracy than the LM90, much like the LM86 does.
  *
  * This driver also supports the MAX6657, MAX6658 and MAX6659 sensor
  * chips made by Maxim. These chips are similar to the LM86.
- * Note that there is no easy way to differentiate between the three
+ * Analte that there is anal easy way to differentiate between the three
  * variants. We use the device address to detect MAX6659, which will result
  * in a detection as max6657 if it is on address 0x4c. The extra address
  * and features of the MAX6659 are only supported if the chip is configured
- * explicitly as max6659, or if its address is not 0x4c.
+ * explicitly as max6659, or if its address is analt 0x4c.
  * These chips lack the remote temperature offset feature.
  *
  * This driver also supports the MAX6654 chip made by Maxim. This chip can be
  * at 9 different addresses, similar to MAX6680/MAX6681. The MAX6654 is similar
- * to MAX6657/MAX6658/MAX6659, but does not support critical temperature
+ * to MAX6657/MAX6658/MAX6659, but does analt support critical temperature
  * limits. Extended range is available by setting the configuration register
  * accordingly, and is done during initialization. Extended precision is only
- * available at conversion rates of 1 Hz and slower. Note that extended
- * precision is not enabled by default, as this driver initializes all chips
+ * available at conversion rates of 1 Hz and slower. Analte that extended
+ * precision is analt enabled by default, as this driver initializes all chips
  * to 2 Hz by design. The driver also supports MAX6690, which is practically
  * identical to MAX6654.
  *
@@ -52,13 +52,13 @@
  *
  * This driver also supports the MAX6680 and MAX6681, two other sensor
  * chips made by Maxim. These are quite similar to the other Maxim
- * chips. The MAX6680 and MAX6681 only differ in the pinout so they can
+ * chips. The MAX6680 and MAX6681 only differ in the pianalut so they can
  * be treated identically.
  *
  * This driver also supports the MAX6695 and MAX6696, two other sensor
  * chips made by Maxim. These are also quite similar to other Maxim
  * chips, but support three temperature sensors instead of two. MAX6695
- * and MAX6696 only differ in the pinout so they can be treated identically.
+ * and MAX6696 only differ in the pianalut so they can be treated identically.
  *
  * This driver also supports ADT7461 and ADT7461A from Analog Devices as well as
  * NCT1008 from ON Semiconductor. The chips are supported in both compatibility
@@ -116,7 +116,7 @@
 
 /*
  * Addresses to scan
- * Address is fully defined internally and cannot be changed except for
+ * Address is fully defined internally and cananalt be changed except for
  * MAX6659, MAX6680 and MAX6681.
  * LM86, LM89, LM90, LM99, ADM1032, ADM1032-1, ADT7461, ADT7461A, MAX6649,
  * MAX6657, MAX6658, NCT1008 and W83L771 have address 0x4c.
@@ -129,7 +129,7 @@
  * SA56004 can have address 0x48 through 0x4F.
  */
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short analrmal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 	0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
@@ -438,7 +438,7 @@ static const struct lm90_params lm90_params[] = {
 	[adt7461] = {
 		/*
 		 * Standard temperature range is supposed to be unsigned,
-		 * but that does not match reality. Negative temperatures
+		 * but that does analt match reality. Negative temperatures
 		 * are always reported.
 		 */
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
@@ -723,7 +723,7 @@ struct lm90_data {
 	u8 conalert;
 	u16 reported_alarms;	/* alarms reported as sysfs/udev events */
 	u16 current_alarms;	/* current alarms, reported by chip */
-	u16 alarms;		/* alarms not yet reported to user */
+	u16 alarms;		/* alarms analt yet reported to user */
 };
 
 /*
@@ -731,10 +731,10 @@ struct lm90_data {
  */
 
 /*
- * If the chip supports PEC but not on write byte transactions, we need
+ * If the chip supports PEC but analt on write byte transactions, we need
  * to explicitly ask for a transaction without PEC.
  */
-static inline s32 lm90_write_no_pec(struct i2c_client *client, u8 value)
+static inline s32 lm90_write_anal_pec(struct i2c_client *client, u8 value)
 {
 	return i2c_smbus_xfer(client->adapter, client->addr,
 			      client->flags & ~I2C_CLIENT_PEC,
@@ -755,7 +755,7 @@ static int lm90_read_reg(struct i2c_client *client, u8 reg)
 	int err;
 
 	if (partial_pec) {
-		err = lm90_write_no_pec(client, reg);
+		err = lm90_write_anal_pec(client, reg);
 		if (err)
 			return err;
 		return i2c_smbus_read_byte(client);
@@ -831,7 +831,7 @@ static int lm90_read16(struct i2c_client *client, u8 regh, u8 regl,
 	 * exact same time). So the solution used here is to read the high
 	 * the high byte again. If the new high byte matches the old one,
 	 * then we have a valid reading. Otherwise we have to read the low
-	 * byte again, and now we believe we have a correct reading.
+	 * byte again, and analw we believe we have a correct reading.
 	 */
 	newh = lm90_read_reg(client, regh);
 	if (newh < 0)
@@ -863,7 +863,7 @@ static int lm90_update_confreg(struct lm90_data *data, u8 config)
  * than channel 0 is selected. Also, calling code must make sure to re-select
  * external channel 0 before releasing the lock. This is necessary because
  * various registers have different meanings as a result of selecting a
- * non-default remote channel.
+ * analn-default remote channel.
  */
 static int lm90_select_remote_channel(struct lm90_data *data, bool second)
 {
@@ -1081,32 +1081,32 @@ static void lm90_report_alarms(struct work_struct *work)
 	st2 |= cleared_alarms >> 8;
 
 	if (st & LM90_STATUS_LLOW)
-		hwmon_notify_event(hwmon_dev, hwmon_temp, hwmon_temp_min_alarm, 0);
+		hwmon_analtify_event(hwmon_dev, hwmon_temp, hwmon_temp_min_alarm, 0);
 	if (st & LM90_STATUS_RLOW)
-		hwmon_notify_event(hwmon_dev, hwmon_temp, hwmon_temp_min_alarm, 1);
+		hwmon_analtify_event(hwmon_dev, hwmon_temp, hwmon_temp_min_alarm, 1);
 	if (st2 & MAX6696_STATUS2_R2LOW)
-		hwmon_notify_event(hwmon_dev, hwmon_temp, hwmon_temp_min_alarm, 2);
+		hwmon_analtify_event(hwmon_dev, hwmon_temp, hwmon_temp_min_alarm, 2);
 
 	if (st & LM90_STATUS_LHIGH)
-		hwmon_notify_event(hwmon_dev, hwmon_temp, hwmon_temp_max_alarm, 0);
+		hwmon_analtify_event(hwmon_dev, hwmon_temp, hwmon_temp_max_alarm, 0);
 	if (st & LM90_STATUS_RHIGH)
-		hwmon_notify_event(hwmon_dev, hwmon_temp, hwmon_temp_max_alarm, 1);
+		hwmon_analtify_event(hwmon_dev, hwmon_temp, hwmon_temp_max_alarm, 1);
 	if (st2 & MAX6696_STATUS2_R2HIGH)
-		hwmon_notify_event(hwmon_dev, hwmon_temp, hwmon_temp_max_alarm, 2);
+		hwmon_analtify_event(hwmon_dev, hwmon_temp, hwmon_temp_max_alarm, 2);
 
 	if (st & LM90_STATUS_LTHRM)
-		hwmon_notify_event(hwmon_dev, hwmon_temp, hwmon_temp_crit_alarm, 0);
+		hwmon_analtify_event(hwmon_dev, hwmon_temp, hwmon_temp_crit_alarm, 0);
 	if (st & LM90_STATUS_RTHRM)
-		hwmon_notify_event(hwmon_dev, hwmon_temp, hwmon_temp_crit_alarm, 1);
+		hwmon_analtify_event(hwmon_dev, hwmon_temp, hwmon_temp_crit_alarm, 1);
 	if (st2 & MAX6696_STATUS2_R2THRM)
-		hwmon_notify_event(hwmon_dev, hwmon_temp, hwmon_temp_crit_alarm, 2);
+		hwmon_analtify_event(hwmon_dev, hwmon_temp, hwmon_temp_crit_alarm, 2);
 
 	if (st2 & MAX6696_STATUS2_LOT2)
-		hwmon_notify_event(hwmon_dev, hwmon_temp, hwmon_temp_emergency_alarm, 0);
+		hwmon_analtify_event(hwmon_dev, hwmon_temp, hwmon_temp_emergency_alarm, 0);
 	if (st2 & MAX6696_STATUS2_ROT2)
-		hwmon_notify_event(hwmon_dev, hwmon_temp, hwmon_temp_emergency_alarm, 1);
+		hwmon_analtify_event(hwmon_dev, hwmon_temp, hwmon_temp_emergency_alarm, 1);
 	if (st2 & MAX6696_STATUS2_R2OT2)
-		hwmon_notify_event(hwmon_dev, hwmon_temp, hwmon_temp_emergency_alarm, 2);
+		hwmon_analtify_event(hwmon_dev, hwmon_temp, hwmon_temp_emergency_alarm, 2);
 
 	data->reported_alarms = current_alarms;
 }
@@ -1163,7 +1163,7 @@ static int lm90_update_alarms_locked(struct lm90_data *data, bool force)
 				lm90_update_confreg(data, data->config & ~0x80);
 				/*
 				 * We may have been called from the update handler.
-				 * If so, the worker, if scheduled, is no longer
+				 * If so, the worker, if scheduled, is anal longer
 				 * needed. Cancel it. Don't synchronize because
 				 * it may already be running.
 				 */
@@ -1195,7 +1195,7 @@ static void lm90_alert_work(struct work_struct *__work)
 	struct delayed_work *delayed_work = container_of(__work, struct delayed_work, work);
 	struct lm90_data *data = container_of(delayed_work, struct lm90_data, alert_work);
 
-	/* Nothing to do if alerts are enabled */
+	/* Analthing to do if alerts are enabled */
 	if (!(data->config & 0x80))
 		return;
 
@@ -1573,7 +1573,7 @@ static int lm90_temp_read(struct device *dev, u32 attr, int channel, long *val)
 		*val = lm90_get_temp_offset(data, lm90_temp_offset_index[channel]);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -1614,7 +1614,7 @@ static int lm90_temp_write(struct device *dev, u32 attr, int channel, long val)
 					   channel, val);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 error:
@@ -1691,7 +1691,7 @@ static int lm90_chip_read(struct device *dev, u32 attr, int channel, long *val)
 		}
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1718,7 +1718,7 @@ static int lm90_chip_write(struct device *dev, u32 attr, int channel, long val)
 		err = lm90_set_faultqueue(client, data, clamp_val(val, 1, 4));
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 error:
@@ -1749,7 +1749,7 @@ static int lm90_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return lm90_temp_read(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1772,7 +1772,7 @@ static int lm90_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return lm90_temp_write(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1797,7 +1797,7 @@ static const char *lm90_detect_lm84(struct i2c_client *client)
 	};
 	int status = i2c_smbus_read_byte_data(client, LM90_REG_STATUS);
 	int reg1, reg2, reg3, reg4;
-	bool nonzero = false;
+	bool analnzero = false;
 	u8 ff = 0xff;
 	int i;
 
@@ -1818,18 +1818,18 @@ static const char *lm90_detect_lm84(struct i2c_client *client)
 		if (reg1 < 0)
 			return NULL;
 
-		/* If any register has a different value, this is not an LM84 */
+		/* If any register has a different value, this is analt an LM84 */
 		if (reg2 != reg1 || reg3 != reg1 || reg4 != reg1)
 			return NULL;
 
-		nonzero |= reg1 || reg2 || reg3 || reg4;
+		analnzero |= reg1 || reg2 || reg3 || reg4;
 		ff &= reg1;
 	}
 	/*
 	 * If all registers always returned 0 or 0xff, all bets are off,
-	 * and we can not make any predictions about the chip type.
+	 * and we can analt make any predictions about the chip type.
 	 */
-	return nonzero && ff != 0xff ? "lm84" : NULL;
+	return analnzero && ff != 0xff ? "lm84" : NULL;
 }
 
 static const char *lm90_detect_max1617(struct i2c_client *client, int config1)
@@ -1969,17 +1969,17 @@ static const char *lm90_detect_analog(struct i2c_client *client, bool common_add
 		return NULL;
 
 	/*
-	 * The following chips should be detected by this function. Known
+	 * The following chips should be detected by this function. Kanalwn
 	 * register values are listed. Registers 0x3d .. 0x3e are undocumented
 	 * for most of the chips, yet appear to return a well defined value.
 	 * Register 0xff is undocumented for some of the chips. Register 0x3f
 	 * is undocumented for all chips, but also returns a well defined value.
 	 * Values are as reported from real chips unless mentioned otherwise.
 	 * The code below checks values for registers 0x3d, 0x3e, and 0xff,
-	 * but not for register 0x3f.
+	 * but analt for register 0x3f.
 	 *
 	 * Chip			Register
-	 *		3d	3e	3f	fe	ff	Notes
+	 *		3d	3e	3f	fe	ff	Analtes
 	 * ----------------------------------------------------------
 	 * adm1020	00	00	00	41	39
 	 * adm1021	00	00	00	41	03
@@ -2023,12 +2023,12 @@ static const char *lm90_detect_analog(struct i2c_client *client, bool common_add
 		 * ADM1021A and compatible chips will be mis-detected as
 		 * ADM1023. Chips labeled 'ADM1021A' and 'ADM1023' were both
 		 * found to have a Chip ID of 0x3c.
-		 * ADM1021A does not officially support low byte registers
+		 * ADM1021A does analt officially support low byte registers
 		 * (0x12 .. 0x14), but a chip labeled ADM1021A does support it.
 		 * Official support for the temperature offset high byte
 		 * register (0x11) was added to revision F of the ADM1021A
 		 * datasheet.
-		 * It is currently unknown if there is a means to distinguish
+		 * It is currently unkanalwn if there is a means to distinguish
 		 * ADM1021A from ADM1023, and/or if revisions of ADM1021A exist
 		 * which differ in functionality from ADM1023.
 		 */
@@ -2142,7 +2142,7 @@ static const char *lm90_detect_maxim(struct i2c_client *client, bool common_addr
 			return NULL;
 
 		/*
-		 * Even though MAX6695 and MAX6696 do not have a chip ID
+		 * Even though MAX6695 and MAX6696 do analt have a chip ID
 		 * register, reading it returns 0x01. Bit 4 of the config1
 		 * register is unused and should return zero when read. Bit 0 of
 		 * the status2 register is unused and should return zero when
@@ -2162,20 +2162,20 @@ static const char *lm90_detect_maxim(struct i2c_client *client, bool common_addr
 		 * second to last bit of config1 (software reset). Register
 		 * address 0x12 (LM90_REG_REMOTE_OFFSL) exists for this chip and
 		 * should differ from emerg2, and emerg2 should match man_id
-		 * since it does not exist.
+		 * since it does analt exist.
 		 */
 		else if (!(config1 & 0x03) && convrate <= 0x07 &&
 			 emerg2 == man_id && emerg2 != status2)
 			name = "max6680";
 		/*
-		 * MAX1617A does not have any extended registers (register
+		 * MAX1617A does analt have any extended registers (register
 		 * address 0x10 or higher) except for manufacturer and
 		 * device ID registers. Unlike other chips of this series,
 		 * unsupported registers were observed to return a fixed value
 		 * of 0x01.
-		 * Note: Multiple chips with different markings labeled as
-		 * "MAX1617" (no "A") were observed to report manufacturer ID
-		 * 0x4d and device ID 0x01. It is unknown if other variants of
+		 * Analte: Multiple chips with different markings labeled as
+		 * "MAX1617" (anal "A") were observed to report manufacturer ID
+		 * 0x4d and device ID 0x01. It is unkanalwn if other variants of
 		 * MAX1617/MAX617A with different behavior exist. The detection
 		 * code below works for those chips.
 		 */
@@ -2197,7 +2197,7 @@ static const char *lm90_detect_maxim(struct i2c_client *client, bool common_addr
 		 * The chip_id of the MAX6690 holds the revision of the chip.
 		 * The lowest 3 bits of the config1 register are unused and
 		 * should return zero when read.
-		 * Note that MAX6654 and MAX6690 are practically the same chips.
+		 * Analte that MAX6654 and MAX6690 are practically the same chips.
 		 * The only diference is the rated accuracy. Rev. 1 of the
 		 * MAX6690 datasheet lists a chip ID of 0x08, and a chip labeled
 		 * MAX6654 was observed to have a chip ID of 0x09.
@@ -2207,11 +2207,11 @@ static const char *lm90_detect_maxim(struct i2c_client *client, bool common_addr
 		break;
 	case 0x4d:
 		/*
-		 * MAX6642, MAX6657, MAX6658 and MAX6659 do NOT have a chip_id
+		 * MAX6642, MAX6657, MAX6658 and MAX6659 do ANALT have a chip_id
 		 * register. Reading from that address will return the last
 		 * read value, which in our case is those of the man_id
 		 * register, or 0x4d.
-		 * MAX6642 does not have a conversion rate register, nor low
+		 * MAX6642 does analt have a conversion rate register, analr low
 		 * limit registers. Reading from those registers returns the
 		 * last read value.
 		 *
@@ -2229,16 +2229,16 @@ static const char *lm90_detect_maxim(struct i2c_client *client, bool common_addr
 			int regval;
 
 			/*
-			 * We know that this is not a MAX6657/58/59 because its
+			 * We kanalw that this is analt a MAX6657/58/59 because its
 			 * configuration register has the wrong value and it does
-			 * not appear to have a conversion rate register.
+			 * analt appear to have a conversion rate register.
 			 */
 
 			/* re-read manufacturer ID to have a good baseline */
 			if (i2c_smbus_read_byte_data(client, LM90_REG_MAN_ID) != 0x4d)
 				break;
 
-			/* check various non-existing registers */
+			/* check various analn-existing registers */
 			if (i2c_smbus_read_byte_data(client, LM90_REG_CONVRATE) != 0x4d ||
 			    i2c_smbus_read_byte_data(client, LM90_REG_LOCAL_LOW) != 0x4d ||
 			    i2c_smbus_read_byte_data(client, LM90_REG_REMOTE_LOWH) != 0x4d)
@@ -2372,15 +2372,15 @@ static const char *lm90_detect_gmt(struct i2c_client *client, int chip_id,
 	 * 0x4c and have a chip ID of 0x01. G781-1 is supposed to be at I2C
 	 * address 0x4d and have a chip ID of 0x03. However, when support
 	 * for G781 was added, chips at 0x4c and 0x4d were found to have a
-	 * chip ID of 0x01. A G781-1 at I2C address 0x4d was now found with
+	 * chip ID of 0x01. A G781-1 at I2C address 0x4d was analw found with
 	 * chip ID 0x03.
 	 * To avoid detection failures, accept chip ID 0x01 and 0x03 at both
 	 * addresses.
 	 * G784 reports manufacturer ID 0x47 and chip ID 0x01. A public
-	 * datasheet is not available. Extensive testing suggests that
+	 * datasheet is analt available. Extensive testing suggests that
 	 * the chip appears to be fully compatible with G781.
 	 * Available register dumps show that G751 also reports manufacturer
-	 * ID 0x47 and chip ID 0x01 even though that chip does not officially
+	 * ID 0x47 and chip ID 0x01 even though that chip does analt officially
 	 * support those registers. This makes chip detection somewhat
 	 * vulnerable. To improve detection quality, read the offset low byte
 	 * and alert fault queue registers and verify that only expected bits
@@ -2444,7 +2444,7 @@ static const char *lm90_detect_ti(struct i2c_client *client, int chip_id,
 	return name;
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int lm90_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
@@ -2457,10 +2457,10 @@ static int lm90_detect(struct i2c_client *client, struct i2c_board_info *info)
 			(address >= 0x4c && address <= 0x4e);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * Get well defined register value for chips with neither man_id nor
+	 * Get well defined register value for chips with neither man_id analr
 	 * chip_id registers.
 	 */
 	lhigh = i2c_smbus_read_byte_data(client, LM90_REG_LOCAL_HIGH);
@@ -2471,15 +2471,15 @@ static int lm90_detect(struct i2c_client *client, struct i2c_board_info *info)
 	config1 = i2c_smbus_read_byte_data(client, LM90_REG_CONFIG1);
 	convrate = i2c_smbus_read_byte_data(client, LM90_REG_CONVRATE);
 	if (man_id < 0 || chip_id < 0 || config1 < 0 || convrate < 0 || lhigh < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Bail out immediately if all register report the same value */
 	if (lhigh == man_id && lhigh == chip_id && lhigh == config1 && lhigh == convrate)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * If reading man_id and chip_id both return the same value as lhigh,
-	 * the chip may not support those registers and return the most recent read
+	 * the chip may analt support those registers and return the most recent read
 	 * value. Check again with a different register and handle accordingly.
 	 */
 	if (man_id == lhigh && chip_id == lhigh) {
@@ -2487,12 +2487,12 @@ static int lm90_detect(struct i2c_client *client, struct i2c_board_info *info)
 		man_id = i2c_smbus_read_byte_data(client, LM90_REG_MAN_ID);
 		chip_id = i2c_smbus_read_byte_data(client, LM90_REG_CHIP_ID);
 		if (convrate < 0 || man_id < 0 || chip_id < 0)
-			return -ENODEV;
+			return -EANALDEV;
 		if (man_id == convrate && chip_id == convrate)
 			man_id = -1;
 	}
 	switch (man_id) {
-	case -1:	/* Chip does not support man_id / chip_id */
+	case -1:	/* Chip does analt support man_id / chip_id */
 		if (common_address && !convrate && !(config1 & 0x7f))
 			name = lm90_detect_lm84(client);
 		break;
@@ -2545,7 +2545,7 @@ static int lm90_detect(struct i2c_client *client, struct i2c_board_info *info)
 		dev_dbg(&adapter->dev,
 			"Unsupported chip at 0x%02x (man_id=0x%02X, chip_id=0x%02X)\n",
 			client->addr, man_id, chip_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	strscpy(info->type, name, I2C_NAME_SIZE);
@@ -2569,7 +2569,7 @@ static void lm90_restore_conf(void *_data)
 
 static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	int config, convrate;
 
 	if (data->flags & LM90_HAVE_CONVRATE) {
@@ -2603,17 +2603,17 @@ static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 	 * Put MAX6680/MAX8881 into extended resolution (bit 0x10,
 	 * 0.125 degree resolution) and range (0x08, extend range
 	 * to -64 degree) mode for the remote temperature sensor.
-	 * Note that expeciments with an actual chip do not show a difference
-	 * if bit 3 is set or not.
+	 * Analte that expeciments with an actual chip do analt show a difference
+	 * if bit 3 is set or analt.
 	 */
 	if (data->kind == max6680)
 		config |= 0x18;
 
 	/*
 	 * Put MAX6654 into extended range (0x20, extend minimum range from
-	 * 0 degrees to -64 degrees). Note that extended resolution is not
+	 * 0 degrees to -64 degrees). Analte that extended resolution is analt
 	 * possible on the MAX6654 unless conversion rate is set to 1 Hz or
-	 * slower, which is intentionally not done by default.
+	 * slower, which is intentionally analt done by default.
 	 */
 	if (data->kind == max6654)
 		config |= 0x20;
@@ -2656,7 +2656,7 @@ static irqreturn_t lm90_irq_thread(int irq, void *dev_id)
 	if (lm90_is_tripped(client))
 		return IRQ_HANDLED;
 	else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 }
 
 static void lm90_remove_pec(void *dev)
@@ -2665,7 +2665,7 @@ static void lm90_remove_pec(void *dev)
 }
 
 static int lm90_probe_channel_from_dt(struct i2c_client *client,
-				      struct device_node *child,
+				      struct device_analde *child,
 				      struct lm90_data *data)
 {
 	u32 id;
@@ -2685,7 +2685,7 @@ static int lm90_probe_channel_from_dt(struct i2c_client *client,
 	}
 
 	err = of_property_read_string(child, "label", &data->channel_label[id]);
-	if (err == -ENODATA || err == -EILSEQ) {
+	if (err == -EANALDATA || err == -EILSEQ) {
 		dev_err(dev, "invalid label property in %pOFn\n", child);
 		return err;
 	}
@@ -2715,17 +2715,17 @@ static int lm90_parse_dt_channel_info(struct i2c_client *client,
 				      struct lm90_data *data)
 {
 	int err;
-	struct device_node *child;
+	struct device_analde *child;
 	struct device *dev = &client->dev;
-	const struct device_node *np = dev->of_node;
+	const struct device_analde *np = dev->of_analde;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		if (strcmp(child->name, "channel"))
 			continue;
 
 		err = lm90_probe_channel_from_dt(client, child, data);
 		if (err) {
-			of_node_put(child);
+			of_analde_put(child);
 			return err;
 		}
 	}
@@ -2755,7 +2755,7 @@ static int lm90_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct lm90_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	i2c_set_clientdata(client, data);
@@ -2764,7 +2764,7 @@ static int lm90_probe(struct i2c_client *client)
 	INIT_WORK(&data->report_work, lm90_report_alarms);
 
 	/* Set the device type */
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		data->kind = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		data->kind = i2c_match_id(lm90_id, client)->driver_data;
@@ -2865,7 +2865,7 @@ static int lm90_probe(struct i2c_client *client)
 	data->max_convrate = lm90_params[data->kind].max_convrate;
 
 	/* Parse device-tree channel information */
-	if (client->dev.of_node) {
+	if (client->dev.of_analde) {
 		err = lm90_parse_dt_channel_info(client, data);
 		if (err)
 			return err;
@@ -2905,7 +2905,7 @@ static int lm90_probe(struct i2c_client *client)
 						NULL, lm90_irq_thread,
 						IRQF_ONESHOT, "lm90", client);
 		if (err < 0) {
-			dev_err(dev, "cannot request IRQ %d\n", client->irq);
+			dev_err(dev, "cananalt request IRQ %d\n", client->irq);
 			return err;
 		}
 	}
@@ -2976,7 +2976,7 @@ static struct i2c_driver lm90_driver = {
 	.alert		= lm90_alert,
 	.id_table	= lm90_id,
 	.detect		= lm90_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(lm90_driver);

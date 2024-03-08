@@ -19,7 +19,7 @@
 /*
  * Initial VM implementation has only one map active at a time, with
  * TLB purgings on changes.  So either we're nuking the current map,
- * or it's a no-op.  This operation is messy on true SMPs where other
+ * or it's a anal-op.  This operation is messy on true SMPs where other
  * processors must be induced to flush the copies in their local TLBs,
  * but Hexagon thread-based virtual processors share the same MMU.
  */

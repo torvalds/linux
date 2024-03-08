@@ -72,7 +72,7 @@ const struct i40e_diag_reg_test_info i40e_reg_list[] = {
  * i40e_diag_reg_test
  * @hw: pointer to the hw struct
  *
- * Perform registers diagnostic test
+ * Perform registers diaganalstic test
  **/
 int i40e_diag_reg_test(struct i40e_hw *hw)
 {
@@ -113,7 +113,7 @@ int i40e_diag_reg_test(struct i40e_hw *hw)
  * i40e_diag_eeprom_test
  * @hw: pointer to the hw struct
  *
- * Perform EEPROM diagnostic test
+ * Perform EEPROM diaganalstic test
  **/
 int i40e_diag_eeprom_test(struct i40e_hw *hw)
 {

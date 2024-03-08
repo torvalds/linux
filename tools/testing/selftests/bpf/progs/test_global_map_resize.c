@@ -18,16 +18,16 @@ int array[1];
 /* custom data secton */
 int my_array[1] SEC(".data.custom");
 
-/* custom data section which should NOT be resizable,
- * since it contains a single var which is not an array
+/* custom data section which should ANALT be resizable,
+ * since it contains a single var which is analt an array
  */
-int my_int SEC(".data.non_array");
+int my_int SEC(".data.analn_array");
 
-/* custom data section which should NOT be resizable,
- * since its last var is not an array
+/* custom data section which should ANALT be resizable,
+ * since its last var is analt an array
  */
-int my_array_first[1] SEC(".data.array_not_last");
-int my_int_last SEC(".data.array_not_last");
+int my_array_first[1] SEC(".data.array_analt_last");
+int my_int_last SEC(".data.array_analt_last");
 
 int percpu_arr[1] SEC(".data.percpu_arr");
 
@@ -37,7 +37,7 @@ int bss_array_sum(void *ctx)
 	if (pid != (bpf_get_current_pid_tgid() >> 32))
 		return 0;
 
-	/* this will be zero, we just rely on verifier not rejecting this */
+	/* this will be zero, we just rely on verifier analt rejecting this */
 	sum = percpu_arr[bpf_get_smp_processor_id()];
 
 	for (size_t i = 0; i < bss_array_len; ++i)
@@ -52,7 +52,7 @@ int data_array_sum(void *ctx)
 	if (pid != (bpf_get_current_pid_tgid() >> 32))
 		return 0;
 
-	/* this will be zero, we just rely on verifier not rejecting this */
+	/* this will be zero, we just rely on verifier analt rejecting this */
 	sum = percpu_arr[bpf_get_smp_processor_id()];
 
 	for (size_t i = 0; i < data_array_len; ++i)

@@ -10,13 +10,13 @@
 
 /*
  * Stolen from linux/const.h, which can't be directly included since
- * this is used in userspace code, which has no access to the kernel
+ * this is used in userspace code, which has anal access to the kernel
  * headers.  Changed to be suitable for adding casts to the start,
  * rather than "UL" to the end.
  */
 
 /* Some constant macros are used in both assembler and
- * C code.  Therefore we cannot annotate them always with
+ * C code.  Therefore we cananalt ananaltate them always with
  * 'UL' and other type specifiers unilaterally.  We
  * use the following macros to deal with this.
  */

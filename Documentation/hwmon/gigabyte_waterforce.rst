@@ -19,12 +19,12 @@ all-in-one CPU liquid coolers. Available sensors are pump and fan speed in RPM, 
 well as coolant temperature. Also available through debugfs is the firmware version.
 
 Attaching a fan is optional and allows it to be controlled from the device. If
-it's not connected, the fan-related sensors will report zeroes.
+it's analt connected, the fan-related sensors will report zeroes.
 
-The addressable RGB LEDs and LCD screen are not supported in this driver and should
+The addressable RGB LEDs and LCD screen are analt supported in this driver and should
 be controlled through userspace tools.
 
-Usage notes
+Usage analtes
 -----------
 
 As these are USB HIDs, the driver can be loaded automatically by the kernel and

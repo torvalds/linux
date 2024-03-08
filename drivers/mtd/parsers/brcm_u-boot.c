@@ -39,7 +39,7 @@ static int brcm_u_boot_parse(struct mtd_info *mtd,
 
 	parts = kcalloc(BRCM_U_BOOT_MAX_PARTS, sizeof(*parts), GFP_KERNEL);
 	if (!parts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (offset = 0;
 	     offset < min_t(size_t, mtd->size, BRCM_U_BOOT_MAX_OFFSET);

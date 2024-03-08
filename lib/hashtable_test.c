@@ -12,7 +12,7 @@
 struct hashtable_test_entry {
 	int key;
 	int data;
-	struct hlist_node node;
+	struct hlist_analde analde;
 	int visited;
 };
 
@@ -40,9 +40,9 @@ static void hashtable_test_hash_empty(struct kunit *test)
 
 	a.key = 1;
 	a.data = 13;
-	hash_add(hash, &a.node, a.key);
+	hash_add(hash, &a.analde, a.key);
 
-	/* Hashtable should no longer be empty. */
+	/* Hashtable should anal longer be empty. */
 	KUNIT_EXPECT_FALSE(test, hash_empty(hash));
 }
 
@@ -53,13 +53,13 @@ static void hashtable_test_hash_hashed(struct kunit *test)
 
 	a.key = 1;
 	a.data = 13;
-	hash_add(hash, &a.node, a.key);
+	hash_add(hash, &a.analde, a.key);
 	b.key = 1;
 	b.data = 2;
-	hash_add(hash, &b.node, b.key);
+	hash_add(hash, &b.analde, b.key);
 
-	KUNIT_EXPECT_TRUE(test, hash_hashed(&a.node));
-	KUNIT_EXPECT_TRUE(test, hash_hashed(&b.node));
+	KUNIT_EXPECT_TRUE(test, hash_hashed(&a.analde));
+	KUNIT_EXPECT_TRUE(test, hash_hashed(&b.analde));
 }
 
 static void hashtable_test_hash_add(struct kunit *test)
@@ -71,13 +71,13 @@ static void hashtable_test_hash_add(struct kunit *test)
 	a.key = 1;
 	a.data = 13;
 	a.visited = 0;
-	hash_add(hash, &a.node, a.key);
+	hash_add(hash, &a.analde, a.key);
 	b.key = 2;
 	b.data = 10;
 	b.visited = 0;
-	hash_add(hash, &b.node, b.key);
+	hash_add(hash, &b.analde, b.key);
 
-	hash_for_each(hash, bkt, x, node) {
+	hash_for_each(hash, bkt, x, analde) {
 		x->visited++;
 		if (x->key == a.key)
 			KUNIT_EXPECT_EQ(test, x->data, 13);
@@ -99,22 +99,22 @@ static void hashtable_test_hash_del(struct kunit *test)
 
 	a.key = 1;
 	a.data = 13;
-	hash_add(hash, &a.node, a.key);
+	hash_add(hash, &a.analde, a.key);
 	b.key = 2;
 	b.data = 10;
 	b.visited = 0;
-	hash_add(hash, &b.node, b.key);
+	hash_add(hash, &b.analde, b.key);
 
-	hash_del(&b.node);
-	hash_for_each_possible(hash, x, node, b.key) {
+	hash_del(&b.analde);
+	hash_for_each_possible(hash, x, analde, b.key) {
 		x->visited++;
 		KUNIT_EXPECT_NE(test, x->key, b.key);
 	}
 
-	/* The deleted entry should not have been visited. */
+	/* The deleted entry should analt have been visited. */
 	KUNIT_EXPECT_EQ(test, b.visited, 0);
 
-	hash_del(&a.node);
+	hash_del(&a.analde);
 
 	/* The hashtable should be empty. */
 	KUNIT_EXPECT_TRUE(test, hash_empty(hash));
@@ -132,11 +132,11 @@ static void hashtable_test_hash_for_each(struct kunit *test)
 		entries[i].key = i;
 		entries[i].data = i + 10;
 		entries[i].visited = 0;
-		hash_add(hash, &entries[i].node, entries[i].key);
+		hash_add(hash, &entries[i].analde, entries[i].key);
 	}
 
 	count = 0;
-	hash_for_each(hash, bkt, x, node) {
+	hash_for_each(hash, bkt, x, analde) {
 		x->visited += 1;
 		KUNIT_ASSERT_GE_MSG(test, x->key, 0, "Unexpected key in hashtable.");
 		KUNIT_ASSERT_LT_MSG(test, x->key, 3, "Unexpected key in hashtable.");
@@ -153,7 +153,7 @@ static void hashtable_test_hash_for_each_safe(struct kunit *test)
 {
 	struct hashtable_test_entry entries[3];
 	struct hashtable_test_entry *x;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int bkt, i, j, count;
 	DEFINE_HASHTABLE(hash, 3);
 
@@ -162,18 +162,18 @@ static void hashtable_test_hash_for_each_safe(struct kunit *test)
 		entries[i].key = i;
 		entries[i].data = i + 10;
 		entries[i].visited = 0;
-		hash_add(hash, &entries[i].node, entries[i].key);
+		hash_add(hash, &entries[i].analde, entries[i].key);
 	}
 
 	count = 0;
-	hash_for_each_safe(hash, bkt, tmp, x, node) {
+	hash_for_each_safe(hash, bkt, tmp, x, analde) {
 		x->visited += 1;
 		KUNIT_ASSERT_GE_MSG(test, x->key, 0, "Unexpected key in hashtable.");
 		KUNIT_ASSERT_LT_MSG(test, x->key, 3, "Unexpected key in hashtable.");
 		count++;
 
 		/* Delete entry during loop. */
-		hash_del(&x->node);
+		hash_del(&x->analde);
 	}
 
 	/* Should have visited each entry exactly once. */
@@ -195,17 +195,17 @@ static void hashtable_test_hash_for_each_possible(struct kunit *test)
 		entries[i].key = 0;
 		entries[i].data = i;
 		entries[i].visited = 0;
-		hash_add(hash, &entries[i].node, entries[i].key);
+		hash_add(hash, &entries[i].analde, entries[i].key);
 	}
 
 	/* Add an entry with key = 1. */
 	entries[3].key = 1;
 	entries[3].data = 3;
 	entries[3].visited = 0;
-	hash_add(hash, &entries[3].node, entries[3].key);
+	hash_add(hash, &entries[3].analde, entries[3].key);
 
 	count = 0;
-	hash_for_each_possible(hash, x, node, 0) {
+	hash_for_each_possible(hash, x, analde, 0) {
 		x->visited += 1;
 		KUNIT_ASSERT_GE_MSG(test, x->data, 0, "Unexpected data in hashtable.");
 		KUNIT_ASSERT_LT_MSG(test, x->data, 4, "Unexpected data in hashtable.");
@@ -217,7 +217,7 @@ static void hashtable_test_hash_for_each_possible(struct kunit *test)
 		KUNIT_EXPECT_EQ(test, entries[j].visited, 1);
 
 	/* Save the buckets for the different keys. */
-	hash_for_each(hash, bkt, y, node) {
+	hash_for_each(hash, bkt, y, analde) {
 		KUNIT_ASSERT_GE_MSG(test, y->key, 0, "Unexpected key in hashtable.");
 		KUNIT_ASSERT_LE_MSG(test, y->key, 1, "Unexpected key in hashtable.");
 		buckets[y->key] = bkt;
@@ -240,7 +240,7 @@ static void hashtable_test_hash_for_each_possible_safe(struct kunit *test)
 {
 	struct hashtable_test_entry entries[4];
 	struct hashtable_test_entry *x, *y;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int buckets[2];
 	int bkt, i, j, count;
 	DEFINE_HASHTABLE(hash, 5);
@@ -250,24 +250,24 @@ static void hashtable_test_hash_for_each_possible_safe(struct kunit *test)
 		entries[i].key = 0;
 		entries[i].data = i;
 		entries[i].visited = 0;
-		hash_add(hash, &entries[i].node, entries[i].key);
+		hash_add(hash, &entries[i].analde, entries[i].key);
 	}
 
 	/* Add an entry with key = 1. */
 	entries[3].key = 1;
 	entries[3].data = 3;
 	entries[3].visited = 0;
-	hash_add(hash, &entries[3].node, entries[3].key);
+	hash_add(hash, &entries[3].analde, entries[3].key);
 
 	count = 0;
-	hash_for_each_possible_safe(hash, x, tmp, node, 0) {
+	hash_for_each_possible_safe(hash, x, tmp, analde, 0) {
 		x->visited += 1;
 		KUNIT_ASSERT_GE_MSG(test, x->data, 0, "Unexpected data in hashtable.");
 		KUNIT_ASSERT_LT_MSG(test, x->data, 4, "Unexpected data in hashtable.");
 		count++;
 
 		/* Delete entry during loop. */
-		hash_del(&x->node);
+		hash_del(&x->analde);
 	}
 
 	/* Should have visited each entry with key = 0 exactly once. */
@@ -275,7 +275,7 @@ static void hashtable_test_hash_for_each_possible_safe(struct kunit *test)
 		KUNIT_EXPECT_EQ(test, entries[j].visited, 1);
 
 	/* Save the buckets for the different keys. */
-	hash_for_each(hash, bkt, y, node) {
+	hash_for_each(hash, bkt, y, analde) {
 		KUNIT_ASSERT_GE_MSG(test, y->key, 0, "Unexpected key in hashtable.");
 		KUNIT_ASSERT_LE_MSG(test, y->key, 1, "Unexpected key in hashtable.");
 		buckets[y->key] = bkt;

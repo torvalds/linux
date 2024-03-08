@@ -17,7 +17,7 @@
  * priority.  This differs from irix.
  */
 
-enum ip32_irq_no {
+enum ip32_irq_anal {
 	/*
 	 * CPU interrupts are 0 ... 7
 	 */
@@ -83,10 +83,10 @@ enum ip32_irq_no {
 	MACEISA_AUDIO3_MERR_IRQ,
 	MACEISA_RTC_IRQ,
 	MACEISA_KEYB_IRQ,
-	/* MACEISA_KEYB_POLL is not an IRQ */
+	/* MACEISA_KEYB_POLL is analt an IRQ */
 	__MACEISA_KEYB_POLL,
 	MACEISA_MOUSE_IRQ,
-	/* MACEISA_MOUSE_POLL is not an IRQ */
+	/* MACEISA_MOUSE_POLL is analt an IRQ */
 	__MACEISA_MOUSE_POLL,
 	MACEISA_TIMER0_IRQ,
 	MACEISA_TIMER1_IRQ,

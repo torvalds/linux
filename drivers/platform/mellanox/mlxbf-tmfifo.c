@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Mellanox BlueField SoC TmFifo driver
+ * Mellaanalx BlueField SoC TmFifo driver
  *
- * Copyright (C) 2019 Mellanox Technologies
+ * Copyright (C) 2019 Mellaanalx Techanallogies
  */
 
 #include <linux/acpi.h>
@@ -39,7 +39,7 @@
 #define MLXBF_TMFIFO_VDEV_MAX		(VIRTIO_ID_CONSOLE + 1)
 
 /*
- * Reserve 1/16 of TmFifo space, so console messages are not starved by
+ * Reserve 1/16 of TmFifo space, so console messages are analt starved by
  * the networking traffic.
  */
 #define MLXBF_TMFIFO_RESERVE_RATIO		16
@@ -126,7 +126,7 @@ enum {
  * @status: status of the device
  * @features: supported features of the device
  * @vrings: array of tmfifo vrings of this device
- * @config: non-anonymous union for cons and net
+ * @config: analn-aanalnymous union for cons and net
  * @config.cons: virtual console config -
  *               select if vdev.id.device is VIRTIO_ID_CONSOLE
  * @config.net: virtual network config -
@@ -289,7 +289,7 @@ static int mlxbf_tmfifo_alloc_vrings(struct mlxbf_tmfifo *fifo,
 		if (!va) {
 			mlxbf_tmfifo_free_vrings(fifo, tm_vdev);
 			dev_err(dev->parent, "dma_alloc_coherent failed\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		vring->va = va;
@@ -361,7 +361,7 @@ static void mlxbf_tmfifo_release_desc(struct mlxbf_tmfifo_vring *vring,
 
 	/*
 	 * Virtio could poll and check the 'idx' to decide whether the desc is
-	 * done or not. Add a memory barrier here to make sure the update above
+	 * done or analt. Add a memory barrier here to make sure the update above
 	 * completes before updating the idx.
 	 */
 	virtio_mb(false);
@@ -491,7 +491,7 @@ static void mlxbf_tmfifo_console_output(struct mlxbf_tmfifo_vdev *cons,
 
 	desc = mlxbf_tmfifo_get_next_desc(vring);
 	while (desc) {
-		/* Release the packet if not enough space. */
+		/* Release the packet if analt eanalugh space. */
 		len = mlxbf_tmfifo_get_pkt_len(vring, desc);
 		avail = CIRC_SPACE(cons->tx_buf.head, cons->tx_buf.tail,
 				   MLXBF_TMFIFO_CON_TX_BUF_SIZE);
@@ -543,7 +543,7 @@ static void mlxbf_tmfifo_console_tx(struct mlxbf_tmfifo *fifo, int avail)
 	void *addr;
 	u64 data;
 
-	/* Return if not enough space available. */
+	/* Return if analt eanalugh space available. */
 	if (avail < MLXBF_TMFIFO_DATA_MIN_WORDS)
 		return;
 
@@ -551,7 +551,7 @@ static void mlxbf_tmfifo_console_tx(struct mlxbf_tmfifo *fifo, int avail)
 	if (!cons || !cons->tx_buf.buf)
 		return;
 
-	/* Return if no data to send. */
+	/* Return if anal data to send. */
 	size = CIRC_CNT(cons->tx_buf.head, cons->tx_buf.tail,
 			MLXBF_TMFIFO_CON_TX_BUF_SIZE);
 	if (size == 0)
@@ -675,7 +675,7 @@ static void mlxbf_tmfifo_rxtx_header(struct mlxbf_tmfifo_vring *vring,
 			vdev_id = VIRTIO_ID_NET;
 			hdr_len = sizeof(struct virtio_net_hdr);
 			config = &fifo->vdev[vdev_id]->config.net;
-			/* A legacy-only interface for now. */
+			/* A legacy-only interface for analw. */
 			if (ntohs(hdr.len) >
 			    __virtio16_to_cpu(virtio_legacy_is_little_endian(),
 					      config->mtu) +
@@ -688,7 +688,7 @@ static void mlxbf_tmfifo_rxtx_header(struct mlxbf_tmfifo_vring *vring,
 
 		/*
 		 * Check whether the new packet still belongs to this vring.
-		 * If not, update the pkt_len of the new vring.
+		 * If analt, update the pkt_len of the new vring.
 		 */
 		if (vdev_id != vring->vdev_id) {
 			struct mlxbf_tmfifo_vdev *tm_dev2 = fifo->vdev[vdev_id];
@@ -765,7 +765,7 @@ static bool mlxbf_tmfifo_rxtx_one_desc(struct mlxbf_tmfifo_vring *vring,
 		mlxbf_tmfifo_rxtx_header(vring, &desc, is_rx, &vring_change);
 		(*avail)--;
 
-		/* Return if new packet is for another ring. */
+		/* Return if new packet is for aanalther ring. */
 		if (vring_change)
 			return false;
 		goto mlxbf_tmfifo_desc_done;
@@ -776,7 +776,7 @@ static bool mlxbf_tmfifo_rxtx_one_desc(struct mlxbf_tmfifo_vring *vring,
 	if (len > vring->rem_len)
 		len = vring->rem_len;
 
-	/* Rx/Tx one word (8 bytes) if not done. */
+	/* Rx/Tx one word (8 bytes) if analt done. */
 	if (vring->cur_len < len) {
 		mlxbf_tmfifo_rxtx_word(vring, desc, is_rx, len);
 		(*avail)--;
@@ -813,7 +813,7 @@ static bool mlxbf_tmfifo_rxtx_one_desc(struct mlxbf_tmfifo_vring *vring,
 		 */
 		virtio_mb(false);
 
-		/* Notify upper layer that packet is done. */
+		/* Analtify upper layer that packet is done. */
 		spin_lock_irqsave(&fifo->spin_lock[is_rx], flags);
 		vring_interrupt(0, vring->vq);
 		spin_unlock_irqrestore(&fifo->spin_lock[is_rx], flags);
@@ -834,14 +834,14 @@ static void mlxbf_tmfifo_check_tx_timeout(struct mlxbf_tmfifo_vring *vring)
 	if (vring->vdev_id != VIRTIO_ID_NET)
 		return;
 
-	/* Initialize the timeout or return if not expired. */
+	/* Initialize the timeout or return if analt expired. */
 	if (!vring->tx_timeout) {
 		/* Initialize the timeout. */
 		vring->tx_timeout = jiffies +
 			msecs_to_jiffies(TMFIFO_TX_TIMEOUT);
 		return;
 	} else if (time_before(jiffies, vring->tx_timeout)) {
-		/* Return if not timeout yet. */
+		/* Return if analt timeout yet. */
 		return;
 	}
 
@@ -864,7 +864,7 @@ static void mlxbf_tmfifo_check_tx_timeout(struct mlxbf_tmfifo_vring *vring)
 	 */
 	virtio_mb(false);
 
-	/* Notify upper layer. */
+	/* Analtify upper layer. */
 	spin_lock_irqsave(&vring->fifo->spin_lock[0], flags);
 	vring_interrupt(0, vring->vq);
 	spin_unlock_irqrestore(&vring->fifo->spin_lock[0], flags);
@@ -879,15 +879,15 @@ static void mlxbf_tmfifo_rxtx(struct mlxbf_tmfifo_vring *vring, bool is_rx)
 
 	fifo = vring->fifo;
 
-	/* Return if vdev is not ready. */
+	/* Return if vdev is analt ready. */
 	if (!fifo || !fifo->vdev[devid])
 		return;
 
-	/* Return if another vring is running. */
+	/* Return if aanalther vring is running. */
 	if (fifo->vring[is_rx] && fifo->vring[is_rx] != vring)
 		return;
 
-	/* Only handle console and network for now. */
+	/* Only handle console and network for analw. */
 	if (WARN_ON(devid != VIRTIO_ID_NET && devid != VIRTIO_ID_CONSOLE))
 		return;
 
@@ -973,8 +973,8 @@ static void mlxbf_tmfifo_work_handler(struct work_struct *work)
 	mutex_unlock(&fifo->lock);
 }
 
-/* The notify function is called when new buffers are posted. */
-static bool mlxbf_tmfifo_virtio_notify(struct virtqueue *vq)
+/* The analtify function is called when new buffers are posted. */
+static bool mlxbf_tmfifo_virtio_analtify(struct virtqueue *vq)
 {
 	struct mlxbf_tmfifo_vring *vring = vq->priv;
 	struct mlxbf_tmfifo_vdev *tm_vdev;
@@ -1083,11 +1083,11 @@ static int mlxbf_tmfifo_virtio_find_vqs(struct virtio_device *vdev,
 		memset(vring->va, 0, size);
 		vq = vring_new_virtqueue(i, vring->num, vring->align, vdev,
 					 false, false, vring->va,
-					 mlxbf_tmfifo_virtio_notify,
+					 mlxbf_tmfifo_virtio_analtify,
 					 callbacks[i], names[i]);
 		if (!vq) {
 			dev_err(&vdev->dev, "vring_new_virtqueue failed\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error;
 		}
 
@@ -1126,7 +1126,7 @@ static void mlxbf_tmfifo_virtio_set_status(struct virtio_device *vdev,
 	tm_vdev->status = status;
 }
 
-/* Reset the device. Not much here for now. */
+/* Reset the device. Analt much here for analw. */
 static void mlxbf_tmfifo_virtio_reset(struct virtio_device *vdev)
 {
 	struct mlxbf_tmfifo_vdev *tm_vdev = mlxbf_vdev_to_tmfifo(vdev);
@@ -1204,7 +1204,7 @@ static int mlxbf_tmfifo_create_vdev(struct device *dev,
 
 	tm_vdev = kzalloc(sizeof(*tm_vdev), GFP_KERNEL);
 	if (!tm_vdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -1218,7 +1218,7 @@ static int mlxbf_tmfifo_create_vdev(struct device *dev,
 
 	if (mlxbf_tmfifo_alloc_vrings(fifo, tm_vdev)) {
 		dev_err(dev, "unable to allocate vring\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto vdev_fail;
 	}
 
@@ -1338,13 +1338,13 @@ static int mlxbf_tmfifo_probe(struct platform_device *pdev)
 
 	rc = acpi_dev_uid_to_integer(ACPI_COMPANION(dev), &dev_id);
 	if (rc) {
-		dev_err(dev, "Cannot retrieve UID\n");
+		dev_err(dev, "Cananalt retrieve UID\n");
 		return rc;
 	}
 
 	fifo = devm_kzalloc(dev, sizeof(*fifo), GFP_KERNEL);
 	if (!fifo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&fifo->spin_lock[0]);
 	spin_lock_init(&fifo->spin_lock[1]);
@@ -1405,7 +1405,7 @@ static int mlxbf_tmfifo_probe(struct platform_device *pdev)
 	/* Create the network vdev. */
 	memset(&net_config, 0, sizeof(net_config));
 
-	/* A legacy-only interface for now. */
+	/* A legacy-only interface for analw. */
 	net_config.mtu = __cpu_to_virtio16(virtio_legacy_is_little_endian(),
 					   ETH_DATA_LEN);
 	net_config.status = __cpu_to_virtio16(virtio_legacy_is_little_endian(),
@@ -1455,6 +1455,6 @@ static struct platform_driver mlxbf_tmfifo_driver = {
 
 module_platform_driver(mlxbf_tmfifo_driver);
 
-MODULE_DESCRIPTION("Mellanox BlueField SoC TmFifo Driver");
+MODULE_DESCRIPTION("Mellaanalx BlueField SoC TmFifo Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Mellanox Technologies");
+MODULE_AUTHOR("Mellaanalx Techanallogies");

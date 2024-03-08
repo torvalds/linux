@@ -22,7 +22,7 @@ unsigned long hv_perf_caps_get(struct hv_perf_caps *caps)
 		}
 	};
 
-	r = plpar_hcall_norets(H_GET_PERF_COUNTER_INFO,
+	r = plpar_hcall_analrets(H_GET_PERF_COUNTER_INFO,
 			       virt_to_phys(&arg), sizeof(arg));
 
 	if (r)

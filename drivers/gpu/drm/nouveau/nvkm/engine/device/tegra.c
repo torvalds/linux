@@ -8,19 +8,19 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
 #include <core/tegra.h>
-#ifdef CONFIG_NOUVEAU_PLATFORM_DRIVER
+#ifdef CONFIG_ANALUVEAU_PLATFORM_DRIVER
 #include "priv.h"
 
 #if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
@@ -163,7 +163,7 @@ free_domain:
 error:
 	tdev->iommu.domain = NULL;
 	tdev->iommu.pgshift = 0;
-	dev_err(dev, "cannot initialize IOMMU MM\n");
+	dev_err(dev, "cananalt initialize IOMMU MM\n");
 #endif
 }
 
@@ -245,7 +245,7 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 	int ret;
 
 	if (!(tdev = kzalloc(sizeof(*tdev), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tdev->func = func;
 	tdev->pdev = pdev;
@@ -336,6 +336,6 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 		      bool detect, bool mmio, u64 subdev_mask,
 		      struct nvkm_device **pdevice)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 #endif

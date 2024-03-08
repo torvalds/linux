@@ -153,7 +153,7 @@ static const struct regmap_config drv2665_regmap_config = {
 	.max_register = DRV2665_FIFO,
 	.reg_defaults = drv2665_reg_defs,
 	.num_reg_defaults = ARRAY_SIZE(drv2665_reg_defs),
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static int drv2665_probe(struct i2c_client *client)
@@ -163,7 +163,7 @@ static int drv2665_probe(struct i2c_client *client)
 
 	haptics = devm_kzalloc(&client->dev, sizeof(*haptics), GFP_KERNEL);
 	if (!haptics)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	haptics->regulator = devm_regulator_get(&client->dev, "vbat");
 	if (IS_ERR(haptics->regulator)) {
@@ -176,7 +176,7 @@ static int drv2665_probe(struct i2c_client *client)
 	haptics->input_dev = devm_input_allocate_device(&client->dev);
 	if (!haptics->input_dev) {
 		dev_err(&client->dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	haptics->input_dev->name = "drv2665:haptics";

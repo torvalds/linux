@@ -40,7 +40,7 @@ extern const char * const cpu_name_version[][2]; /* mapping from enum cpu_type t
 struct parisc_driver;
 
 struct io_module {
-        volatile uint32_t nothing;		/* reg 0 */
+        volatile uint32_t analthing;		/* reg 0 */
         volatile uint32_t io_eim;
         volatile uint32_t io_dc_adata;
         volatile uint32_t io_ii_cdata;
@@ -116,7 +116,7 @@ extern const struct parisc_device *find_pa_parent_type(const struct parisc_devic
 extern void print_parisc_devices(void);
 extern char *print_pa_hwpath(struct parisc_device *dev, char *path);
 extern char *print_pci_hwpath(struct pci_dev *dev, char *path);
-extern void get_pci_node_path(struct pci_dev *dev, struct hardware_path *path);
+extern void get_pci_analde_path(struct pci_dev *dev, struct hardware_path *path);
 extern void init_parisc_bus(void);
 extern struct device *hwpath_to_device(struct hardware_path *modpath);
 extern void device_to_hwpath(struct device *dev, struct hardware_path *path);

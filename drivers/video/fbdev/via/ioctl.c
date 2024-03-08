@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -55,7 +55,7 @@ int viafb_ioctl_get_viafb_info(u_long arg)
 	}
 
 	viainfo.version = VERSION_MAJOR;
-	viainfo.revision = VERSION_MINOR;
+	viainfo.revision = VERSION_MIANALR;
 
 	if (copy_to_user((void __user *)arg, &viainfo, sizeof(viainfo)))
 		return -EFAULT;
@@ -70,7 +70,7 @@ int viafb_ioctl_hotplug(int hres, int vres, int bpp)
 	DEBUG_MSG(KERN_INFO "viafb_ioctl_hotplug!!\n");
 
 	if (viaparinfo->chip_info->tmds_chip_info.tmds_chip_name !=
-		NON_TMDS_TRANSMITTER) {
+		ANALN_TMDS_TRANSMITTER) {
 		DVIsense = viafb_dvi_sense();
 
 		if (DVIsense) {

@@ -84,7 +84,7 @@ static const struct reg_default cs47l35_reg_default[] = {
 	{ 0x00000095, 0x0000 }, /* R149 (0x95) - Haptics phase 2 duration */
 	{ 0x00000096, 0x0000 }, /* R150 (0x96) - Haptics phase 3 intensity */
 	{ 0x00000097, 0x0000 }, /* R151 (0x97) - Haptics phase 3 duration */
-	{ 0x000000A0, 0x0000 }, /* R160 (0xa0) - Comfort Noise Generator */
+	{ 0x000000A0, 0x0000 }, /* R160 (0xa0) - Comfort Analise Generator */
 	{ 0x00000100, 0x0002 }, /* R256 (0x100) - Clock 32k 1 */
 	{ 0x00000101, 0x0404 }, /* R257 (0x101) - System Clock 1 */
 	{ 0x00000102, 0x0011 }, /* R258 (0x102) - Sample rate 1 */
@@ -156,22 +156,22 @@ static const struct reg_default cs47l35_reg_default[] = {
 	{ 0x00000409, 0x0022 }, /* R1033 (0x409) - Output Volume Ramp */
 	{ 0x00000410, 0x0080 }, /* R1040 (0x410) - Output Path Config 1L */
 	{ 0x00000411, 0x0180 }, /* R1041 (0x411) - DAC Digital Volume 1L */
-	{ 0x00000413, 0x0001 }, /* R1043 (0x413) - Noise Gate Select 1L */
+	{ 0x00000413, 0x0001 }, /* R1043 (0x413) - Analise Gate Select 1L */
 	{ 0x00000414, 0x0080 }, /* R1044 (0x414) - Output Path Config 1R */
 	{ 0x00000415, 0x0180 }, /* R1045 (0x415) - DAC Digital Volume 1R */
-	{ 0x00000417, 0x0002 }, /* R1047 (0x417) - Noise Gate Select 1R */
+	{ 0x00000417, 0x0002 }, /* R1047 (0x417) - Analise Gate Select 1R */
 	{ 0x00000428, 0x0000 }, /* R1064 (0x428) - Output Path Config 4L */
 	{ 0x00000429, 0x0180 }, /* R1065 (0x429) - DAC Digital Volume 4L */
-	{ 0x0000042b, 0x0040 }, /* R1067 (0x42b) - Noise Gate Select 4L */
+	{ 0x0000042b, 0x0040 }, /* R1067 (0x42b) - Analise Gate Select 4L */
 	{ 0x00000430, 0x0000 }, /* R1072 (0x430) - Output Path Config 5L */
 	{ 0x00000431, 0x0180 }, /* R1073 (0x431) - DAC Digital Volume 5L */
-	{ 0x00000433, 0x0100 }, /* R1075 (0x433) - Noise Gate Select 5L */
+	{ 0x00000433, 0x0100 }, /* R1075 (0x433) - Analise Gate Select 5L */
 	{ 0x00000434, 0x0000 }, /* R1076 (0x434) - Output Path Config 5R */
 	{ 0x00000435, 0x0180 }, /* R1077 (0x435) - DAC Digital Volume 5R */
-	{ 0x00000437, 0x0200 }, /* R1079 (0x437) - Noise Gate Select 5R */
+	{ 0x00000437, 0x0200 }, /* R1079 (0x437) - Analise Gate Select 5R */
 	{ 0x00000450, 0x0000 }, /* R1104 (0x450) - DAC AEC Control 1 */
 	{ 0x00000451, 0x0000 }, /* R1105 (0x451) - DAC AEC Control 2 */
-	{ 0x00000458, 0x0000 }, /* R1112 (0x458) - Noise Gate Control */
+	{ 0x00000458, 0x0000 }, /* R1112 (0x458) - Analise Gate Control */
 	{ 0x00000490, 0x0069 }, /* R1168 (0x490) - PDM SPK1 CTRL 1 */
 	{ 0x00000491, 0x0000 }, /* R1169 (0x491) - PDM SPK1 CTRL 2 */
 	{ 0x000004a0, 0x3080 }, /* R1184 (0x4a0) - HP1 Short Circuit Ctrl */
@@ -836,7 +836,7 @@ static bool cs47l35_16bit_readable_register(struct device *dev,
 	case MADERA_HAPTICS_PHASE_3_INTENSITY:
 	case MADERA_HAPTICS_PHASE_3_DURATION:
 	case MADERA_HAPTICS_STATUS:
-	case MADERA_COMFORT_NOISE_GENERATOR:
+	case MADERA_COMFORT_ANALISE_GENERATOR:
 	case MADERA_CLOCK_32K_1:
 	case MADERA_SYSTEM_CLOCK_1:
 	case MADERA_SAMPLE_RATE_1:
@@ -923,22 +923,22 @@ static bool cs47l35_16bit_readable_register(struct device *dev,
 	case MADERA_OUTPUT_VOLUME_RAMP:
 	case MADERA_OUTPUT_PATH_CONFIG_1L:
 	case MADERA_DAC_DIGITAL_VOLUME_1L:
-	case MADERA_NOISE_GATE_SELECT_1L:
+	case MADERA_ANALISE_GATE_SELECT_1L:
 	case MADERA_OUTPUT_PATH_CONFIG_1R:
 	case MADERA_DAC_DIGITAL_VOLUME_1R:
-	case MADERA_NOISE_GATE_SELECT_1R:
+	case MADERA_ANALISE_GATE_SELECT_1R:
 	case MADERA_OUTPUT_PATH_CONFIG_4L:
 	case MADERA_DAC_DIGITAL_VOLUME_4L:
-	case MADERA_NOISE_GATE_SELECT_4L:
+	case MADERA_ANALISE_GATE_SELECT_4L:
 	case MADERA_OUTPUT_PATH_CONFIG_5L:
 	case MADERA_DAC_DIGITAL_VOLUME_5L:
-	case MADERA_NOISE_GATE_SELECT_5L:
+	case MADERA_ANALISE_GATE_SELECT_5L:
 	case MADERA_OUTPUT_PATH_CONFIG_5R:
 	case MADERA_DAC_DIGITAL_VOLUME_5R:
-	case MADERA_NOISE_GATE_SELECT_5R:
+	case MADERA_ANALISE_GATE_SELECT_5R:
 	case MADERA_DAC_AEC_CONTROL_1:
 	case MADERA_DAC_AEC_CONTROL_2:
-	case MADERA_NOISE_GATE_CONTROL:
+	case MADERA_ANALISE_GATE_CONTROL:
 	case MADERA_PDM_SPK1_CTRL_1:
 	case MADERA_PDM_SPK1_CTRL_2:
 	case MADERA_HP1_SHORT_CIRCUIT_CTRL:

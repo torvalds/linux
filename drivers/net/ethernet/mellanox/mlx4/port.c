@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,25 +12,25 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/export.h>
@@ -50,13 +50,13 @@
 #define MLX4_STATS_ERROR_COUNTERS_MASK		0x1ffc30ULL
 #define MLX4_STATS_PORT_COUNTERS_MASK		0x1fe00000ULL
 
-#define MLX4_FLAG2_V_IGNORE_FCS_MASK		BIT(1)
+#define MLX4_FLAG2_V_IGANALRE_FCS_MASK		BIT(1)
 #define MLX4_FLAG2_V_USER_MTU_MASK		BIT(5)
 #define MLX4_FLAG2_V_USER_MAC_MASK		BIT(6)
 #define MLX4_FLAG_V_MTU_MASK			BIT(0)
 #define MLX4_FLAG_V_PPRX_MASK			BIT(1)
 #define MLX4_FLAG_V_PPTX_MASK			BIT(2)
-#define MLX4_IGNORE_FCS_MASK			0x1
+#define MLX4_IGANALRE_FCS_MASK			0x1
 #define MLX4_TC_MAX_NUMBER			8
 
 void mlx4_init_mac_table(struct mlx4_dev *dev, struct mlx4_mac_table *table)
@@ -103,7 +103,7 @@ static int validate_index(struct mlx4_dev *dev,
 	int err = 0;
 
 	if (index < 0 || index >= table->max || !table->entries[index]) {
-		mlx4_warn(dev, "No valid Mac entry for the given index\n");
+		mlx4_warn(dev, "Anal valid Mac entry for the given index\n");
 		err = -EINVAL;
 	}
 	return err;
@@ -120,7 +120,7 @@ static int find_index(struct mlx4_dev *dev,
 		    (MLX4_MAC_MASK & be64_to_cpu(table->entries[i])))
 			return i;
 	}
-	/* Mac not found */
+	/* Mac analt found */
 	return -EINVAL;
 }
 
@@ -163,7 +163,7 @@ int mlx4_find_cached_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *idx)
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 EXPORT_SYMBOL_GPL(mlx4_find_cached_mac);
 
@@ -219,7 +219,7 @@ int __mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 				index_at_dup_port = i;
 		}
 
-		/* check that same mac is not in the tables at different indices */
+		/* check that same mac is analt in the tables at different indices */
 		if ((index_at_port != index_at_dup_port) &&
 		    (index_at_port >= 0) &&
 		    (index_at_dup_port >= 0))
@@ -233,9 +233,9 @@ int __mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 			can_mf_bond = false;
 		}
 		/* If the mac is already in the duplicate table, check that the
-		 * corresponding index is not occupied in the primary table, or
+		 * corresponding index is analt occupied in the primary table, or
 		 * the primary table already contains the mac at the same index.
-		 * Otherwise, you cannot bond (primary contains a different mac
+		 * Otherwise, you cananalt bond (primary contains a different mac
 		 * at that index).
 		 */
 		if (index_at_dup_port >= 0) {
@@ -278,7 +278,7 @@ int __mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 	if (need_mf_bond && (free_for_dup < 0)) {
 		if (dup) {
 			mlx4_warn(dev, "Fail to allocate duplicate MAC table entry\n");
-			mlx4_warn(dev, "High Availability for virtual functions may not work as expected\n");
+			mlx4_warn(dev, "High Availability for virtual functions may analt work as expected\n");
 			dup = false;
 		}
 		can_mf_bond = false;
@@ -290,8 +290,8 @@ int __mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 	mlx4_dbg(dev, "Free MAC index is %d\n", free);
 
 	if (table->total == table->max) {
-		/* No free mac entries */
-		err = -ENOSPC;
+		/* Anal free mac entries */
+		err = -EANALSPC;
 		goto out;
 	}
 
@@ -410,7 +410,7 @@ void __mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 		goto out;
 
 	if (--table->refs[index] || table->is_dup[index]) {
-		mlx4_dbg(dev, "Have more references for index %d, no need to modify mac table\n",
+		mlx4_dbg(dev, "Have more references for index %d, anal need to modify mac table\n",
 			 index);
 		if (!table->refs[index])
 			dup_table->is_dup[index] = false;
@@ -570,7 +570,7 @@ int mlx4_find_cached_vlan(struct mlx4_dev *dev, u8 port, u16 vid, int *idx)
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 EXPORT_SYMBOL_GPL(mlx4_find_cached_vlan);
 
@@ -604,8 +604,8 @@ int __mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan,
 	}
 
 	if (table->total == table->max) {
-		/* No free vlan entries */
-		err = -ENOSPC;
+		/* Anal free vlan entries */
+		err = -EANALSPC;
 		goto out;
 	}
 
@@ -619,7 +619,7 @@ int __mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan,
 			if (vlan == (MLX4_VLAN_MASK & be32_to_cpu(dup_table->entries[i])))
 				index_at_dup_port = i;
 		}
-		/* check that same vlan is not in the tables at different indices */
+		/* check that same vlan is analt in the tables at different indices */
 		if ((index_at_port != index_at_dup_port) &&
 		    (index_at_port >= 0) &&
 		    (index_at_dup_port >= 0))
@@ -633,9 +633,9 @@ int __mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan,
 			can_mf_bond = false;
 		}
 		/* If the vlan is already in the duplicate table, check that the
-		 * corresponding index is not occupied in the primary table, or
+		 * corresponding index is analt occupied in the primary table, or
 		 * the primary table already contains the vlan at the same index.
-		 * Otherwise, you cannot bond (primary contains a different vlan
+		 * Otherwise, you cananalt bond (primary contains a different vlan
 		 * at that index).
 		 */
 		if (index_at_dup_port >= 0) {
@@ -679,7 +679,7 @@ int __mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan,
 	if (need_mf_bond && (free_for_dup < 0)) {
 		if (dup) {
 			mlx4_warn(dev, "Fail to allocate duplicate VLAN table entry\n");
-			mlx4_warn(dev, "High Availability for virtual functions may not work as expected\n");
+			mlx4_warn(dev, "High Availability for virtual functions may analt work as expected\n");
 			dup = false;
 		}
 		can_mf_bond = false;
@@ -689,7 +689,7 @@ int __mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan,
 		free = free_for_dup;
 
 	if (free < 0) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -780,7 +780,7 @@ void __mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, u16 vlan)
 	}
 
 	if (mlx4_find_cached_vlan(dev, port, vlan, &index)) {
-		mlx4_warn(dev, "vlan 0x%x is not in the vlan table\n", vlan);
+		mlx4_warn(dev, "vlan 0x%x is analt in the vlan table\n", vlan);
 		goto out;
 	}
 
@@ -790,7 +790,7 @@ void __mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, u16 vlan)
 	}
 
 	if (--table->refs[index] || table->is_dup[index]) {
-		mlx4_dbg(dev, "Have %d more references for index %d, no need to modify vlan table\n",
+		mlx4_dbg(dev, "Have %d more references for index %d, anal need to modify vlan table\n",
 			 table->refs[index], index);
 		if (!table->refs[index])
 			dup_table->is_dup[index] = false;
@@ -1185,7 +1185,7 @@ static int mlx4_reset_roce_port_gids(struct mlx4_dev *dev, int slave,
 		memcpy(priv->port[port].gid_table.roce_gids[offset].raw,
 		       zgid_entry.raw, MLX4_ROCE_GID_ENTRY_SIZE);
 
-	/* Now, copy roce port gids table to mailbox for passing to FW */
+	/* Analw, copy roce port gids table to mailbox for passing to FW */
 	gid_entry_mbox = (struct mlx4_roce_gid_entry *)mailbox->buf;
 	for (i = 0; i < MLX4_ROCE_MAX_GIDS; gid_entry_mbox++, i++)
 		memcpy(gid_entry_mbox->raw,
@@ -1235,7 +1235,7 @@ void mlx4_reset_roce_gids(struct mlx4_dev *dev, int slave)
 				continue;
 			err = mlx4_reset_roce_port_gids(dev, slave, i + 1, mailbox);
 			if (err)
-				mlx4_warn(dev, "Could not reset ETH port GID table for slave %d, port %d (%d)\n",
+				mlx4_warn(dev, "Could analt reset ETH port GID table for slave %d, port %d (%d)\n",
 					  slave, i + 1, err);
 		}
 	}
@@ -1315,7 +1315,7 @@ mlx4_en_set_port_global_pause(struct mlx4_dev *dev, int slave,
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_mfunc_master_ctx *master = &priv->mfunc.master;
 
-	/* Slave cannot change Global Pause configuration */
+	/* Slave cananalt change Global Pause configuration */
 	if (slave != mlx4_master_func_num(dev) &&
 	    (gen_context->pptx != master->pptx ||
 	     gen_context->pprx != master->pprx)) {
@@ -1356,7 +1356,7 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 	is_eth = op_mod;
 	port_info = &priv->port[port];
 
-	/* Slaves cannot perform SET_PORT operations,
+	/* Slaves cananalt perform SET_PORT operations,
 	 * except for changing MTU and USER_MTU.
 	 */
 	if (is_eth) {
@@ -1404,7 +1404,7 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 		case MLX4_SET_PORT_GID_TABLE:
 			/* change to MULTIPLE entries: number of guest's gids
 			 * need a FOR-loop here over number of gids the guest has.
-			 * 1. Check no duplicates in gids passed by slave
+			 * 1. Check anal duplicates in gids passed by slave
 			 */
 			num_gids = mlx4_get_slave_num_gids(dev, slave, port);
 			base = mlx4_get_base_gid_ix(dev, slave, port);
@@ -1426,7 +1426,7 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 				}
 			}
 
-			/* 2. Check that do not have duplicates in OTHER
+			/* 2. Check that do analt have duplicates in OTHER
 			 *    entries in the port GID table
 			 */
 
@@ -1459,7 +1459,7 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 				memcpy(priv->port[port].gid_table.roce_gids[offset].raw,
 				       gid_entry_mbox->raw, MLX4_ROCE_GID_ENTRY_SIZE);
 
-			/* Now, copy roce port gids table to current mailbox for passing to FW */
+			/* Analw, copy roce port gids table to current mailbox for passing to FW */
 			gid_entry_mbox = (struct mlx4_roce_gid_entry *)(inbox->buf);
 			for (i = 0; i < MLX4_ROCE_MAX_GIDS; gid_entry_mbox++, i++)
 				memcpy(gid_entry_mbox->raw,
@@ -1478,7 +1478,7 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 				MLX4_CMD_NATIVE);
 	}
 
-	/* Slaves are not allowed to SET_PORT beacon (LED) blink */
+	/* Slaves are analt allowed to SET_PORT beacon (LED) blink */
 	if (op_mod == MLX4_SET_PORT_BEACON_OPCODE) {
 		mlx4_warn(dev, "denying SET_PORT Beacon slave:%d\n", slave);
 		return -EPERM;
@@ -1498,12 +1498,12 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 		new_cap_mask = ((__be32 *) inbox->buf)[1];
 	}
 
-	/* slave may not set the IS_SM capability for the port */
+	/* slave may analt set the IS_SM capability for the port */
 	if (slave != mlx4_master_func_num(dev) &&
 	    (be32_to_cpu(new_cap_mask) & MLX4_PORT_CAP_IS_SM))
 		return -EINVAL;
 
-	/* No DEV_MGMT in multifunc mode */
+	/* Anal DEV_MGMT in multifunc mode */
 	if (mlx4_is_mfunc(dev) &&
 	    (be32_to_cpu(new_cap_mask) & MLX4_PORT_CAP_DEV_MGMT_SUP))
 		return -EINVAL;
@@ -1595,7 +1595,7 @@ int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port, int pkey_tbl_sz)
 		err = mlx4_cmd(dev, mailbox->dma, port,
 			       MLX4_SET_PORT_IB_OPCODE, MLX4_CMD_SET_PORT,
 			       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
-		if (err != -ENOMEM)
+		if (err != -EANALMEM)
 			break;
 	}
 
@@ -1662,8 +1662,8 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 				       base_qpn);
 	context->mcast = cpu_to_be32(m_promisc << SET_PORT_MC_PROMISC_SHIFT |
 				     base_qpn);
-	context->intra_no_vlan = 0;
-	context->no_vlan = MLX4_NO_VLAN_IDX;
+	context->intra_anal_vlan = 0;
+	context->anal_vlan = MLX4_ANAL_VLAN_IDX;
 	context->intra_vlan_miss = 0;
 	context->vlan_miss = MLX4_VLAN_MISS_IDX;
 
@@ -1725,7 +1725,7 @@ int mlx4_SET_PORT_user_mac(struct mlx4_dev *dev, u8 port, u8 *user_mac)
 }
 EXPORT_SYMBOL(mlx4_SET_PORT_user_mac);
 
-int mlx4_SET_PORT_fcs_check(struct mlx4_dev *dev, u8 port, u8 ignore_fcs_value)
+int mlx4_SET_PORT_fcs_check(struct mlx4_dev *dev, u8 port, u8 iganalre_fcs_value)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	struct mlx4_set_port_general_context *context;
@@ -1736,11 +1736,11 @@ int mlx4_SET_PORT_fcs_check(struct mlx4_dev *dev, u8 port, u8 ignore_fcs_value)
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
 	context = mailbox->buf;
-	context->flags2 |= MLX4_FLAG2_V_IGNORE_FCS_MASK;
-	if (ignore_fcs_value)
-		context->ignore_fcs |= MLX4_IGNORE_FCS_MASK;
+	context->flags2 |= MLX4_FLAG2_V_IGANALRE_FCS_MASK;
+	if (iganalre_fcs_value)
+		context->iganalre_fcs |= MLX4_IGANALRE_FCS_MASK;
 	else
-		context->ignore_fcs &= ~MLX4_IGNORE_FCS_MASK;
+		context->iganalre_fcs &= ~MLX4_IGANALRE_FCS_MASK;
 
 	in_mod = MLX4_SET_PORT_GENERAL << 8 | port;
 	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
@@ -1881,7 +1881,7 @@ int mlx4_get_slave_from_roce_gid(struct mlx4_dev *dev, int port, u8 *gid,
 
 	if (found_ix >= 0) {
 		/* Calculate a slave_gid which is the slave number in the gid
-		 * table and not a globally unique slave number.
+		 * table and analt a globally unique slave number.
 		 */
 		if (found_ix < MLX4_ROCE_PF_GIDS)
 			slave_gid = 0;
@@ -1988,9 +1988,9 @@ struct mlx4_cable_info {
 
 enum cable_info_err {
 	 CABLE_INF_INV_PORT      = 0x1,
-	 CABLE_INF_OP_NOSUP      = 0x2,
-	 CABLE_INF_NOT_CONN      = 0x3,
-	 CABLE_INF_NO_EEPRM      = 0x4,
+	 CABLE_INF_OP_ANALSUP      = 0x2,
+	 CABLE_INF_ANALT_CONN      = 0x3,
+	 CABLE_INF_ANAL_EEPRM      = 0x4,
 	 CABLE_INF_PAGE_ERR      = 0x5,
 	 CABLE_INF_INV_ADDR      = 0x6,
 	 CABLE_INF_I2C_ADDR      = 0x7,
@@ -2007,12 +2007,12 @@ static inline const char *cable_info_mad_err_str(u16 mad_status)
 	switch (err) {
 	case CABLE_INF_INV_PORT:
 		return "invalid port selected";
-	case CABLE_INF_OP_NOSUP:
-		return "operation not supported for this port (the port is of type CX4 or internal)";
-	case CABLE_INF_NOT_CONN:
-		return "cable is not connected";
-	case CABLE_INF_NO_EEPRM:
-		return "the connected cable has no EPROM (passive copper cable)";
+	case CABLE_INF_OP_ANALSUP:
+		return "operation analt supported for this port (the port is of type CX4 or internal)";
+	case CABLE_INF_ANALT_CONN:
+		return "cable is analt connected";
+	case CABLE_INF_ANAL_EEPRM:
+		return "the connected cable has anal EPROM (passive copper cable)";
 	case CABLE_INF_PAGE_ERR:
 		return "page number is greater than 15";
 	case CABLE_INF_INV_ADDR:
@@ -2020,11 +2020,11 @@ static inline const char *cable_info_mad_err_str(u16 mad_status)
 	case CABLE_INF_I2C_ADDR:
 		return "invalid I2C slave address";
 	case CABLE_INF_QSFP_VIO:
-		return "at least one cable violates the QSFP specification and ignores the modsel signal";
+		return "at least one cable violates the QSFP specification and iganalres the modsel signal";
 	case CABLE_INF_I2C_BUSY:
 		return "I2C bus is constantly busy";
 	}
-	return "Unknown Error";
+	return "Unkanalwn Error";
 }
 
 static int mlx4_get_module_id(struct mlx4_dev *dev, u8 port, u8 *module_id)
@@ -2148,7 +2148,7 @@ int mlx4_get_module_info(struct mlx4_dev *dev, u8 port,
 		mlx4_qsfp_eeprom_params_set(&i2c_addr, &page_num, &offset);
 		break;
 	default:
-		mlx4_err(dev, "Module ID not recognized: %#x\n", module_id);
+		mlx4_err(dev, "Module ID analt recognized: %#x\n", module_id);
 		return -EINVAL;
 	}
 
@@ -2172,7 +2172,7 @@ int mlx4_get_module_info(struct mlx4_dev *dev, u8 port,
 	inmad->attr_id = cpu_to_be16(0xFF60); /* Module Info */
 
 	if (offset < I2C_PAGE_SIZE && offset + size > I2C_PAGE_SIZE)
-		/* Cross pages reads are not allowed
+		/* Cross pages reads are analt allowed
 		 * read until offset 256 in low page
 		 */
 		size -= offset + size - I2C_PAGE_SIZE;
@@ -2199,7 +2199,7 @@ int mlx4_get_module_info(struct mlx4_dev *dev, u8 port,
 
 		if (i2c_addr == I2C_ADDR_HIGH &&
 		    MAD_STATUS_2_CABLE_ERR(ret) == CABLE_INF_I2C_ADDR)
-			/* Some SFP cables do not support i2c slave
+			/* Some SFP cables do analt support i2c slave
 			 * address 0x51 (high page), abort silently.
 			 */
 			ret = 0;

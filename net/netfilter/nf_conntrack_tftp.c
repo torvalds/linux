@@ -63,7 +63,7 @@ static int tftp_help(struct sk_buff *skb,
 
 		exp = nf_ct_expect_alloc(ct);
 		if (exp == NULL) {
-			nf_ct_helper_log(skb, ct, "cannot alloc expectation");
+			nf_ct_helper_log(skb, ct, "cananalt alloc expectation");
 			return NF_DROP;
 		}
 		tuple = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
@@ -79,7 +79,7 @@ static int tftp_help(struct sk_buff *skb,
 		if (nf_nat_tftp && ct->status & IPS_NAT_MASK)
 			ret = nf_nat_tftp(skb, ctinfo, exp);
 		else if (nf_ct_expect_related(exp, 0) != 0) {
-			nf_ct_helper_log(skb, ct, "cannot add expectation");
+			nf_ct_helper_log(skb, ct, "cananalt add expectation");
 			ret = NF_DROP;
 		}
 		nf_ct_expect_put(exp);
@@ -92,7 +92,7 @@ static int tftp_help(struct sk_buff *skb,
 		pr_debug("Error opcode\n");
 		break;
 	default:
-		pr_debug("Unknown opcode\n");
+		pr_debug("Unkanalwn opcode\n");
 	}
 	return ret;
 }

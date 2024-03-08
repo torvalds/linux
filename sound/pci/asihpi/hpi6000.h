@@ -37,13 +37,13 @@ struct hpi_hif_6000 {
 	u32 control_cache_count;
 };
 
-#define HPI_HIF_PACK_ADAPTER_INFO(adapter, version_major, version_minor) \
-		((adapter << 16) | (version_major << 8) | version_minor)
+#define HPI_HIF_PACK_ADAPTER_INFO(adapter, version_major, version_mianalr) \
+		((adapter << 16) | (version_major << 8) | version_mianalr)
 #define HPI_HIF_ADAPTER_INFO_EXTRACT_ADAPTER(adapterinfo) \
 		((adapterinfo >> 16) & 0xffff)
 #define HPI_HIF_ADAPTER_INFO_EXTRACT_HWVERSION_MAJOR(adapterinfo) \
 		((adapterinfo >> 8) & 0xff)
-#define HPI_HIF_ADAPTER_INFO_EXTRACT_HWVERSION_MINOR(adapterinfo) \
+#define HPI_HIF_ADAPTER_INFO_EXTRACT_HWVERSION_MIANALR(adapterinfo) \
 		(adapterinfo & 0xff)
 
 /* Command/status exchanged between host and DSP */

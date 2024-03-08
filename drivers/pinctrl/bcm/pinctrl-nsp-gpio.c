@@ -2,7 +2,7 @@
 // Copyright (C) 2014-2017 Broadcom
 
 /*
- * This file contains the Broadcom Northstar Plus (NSP) GPIO driver that
+ * This file contains the Broadcom Analrthstar Plus (NSP) GPIO driver that
  * supports the chipCommonA GPIO controller. Basic PINCONF such as bias,
  * pull up/down, slew and drive strength are also supported in this driver.
  *
@@ -146,7 +146,7 @@ static irqreturn_t nsp_gpio_irq_handler(int irq, void *data)
 			generic_handle_domain_irq(gc->irq.domain, bit);
 	}
 
-	return  int_bits ? IRQ_HANDLED : IRQ_NONE;
+	return  int_bits ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static void nsp_gpio_irq_ack(struct irq_data *d)
@@ -346,7 +346,7 @@ static const char *nsp_get_group_name(struct pinctrl_dev *pctldev,
 static const struct pinctrl_ops nsp_pctrl_ops = {
 	.get_groups_count = nsp_get_groups_count,
 	.get_group_name = nsp_get_group_name,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -395,7 +395,7 @@ static int nsp_gpio_set_strength(struct nsp_gpio *chip, unsigned gpio,
 
 	/* make sure drive strength is supported */
 	if (strength < 2 || strength > 16 || (strength % 2))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	shift = gpio;
 	offset = NSP_GPIO_DRV_CTRL;
@@ -497,7 +497,7 @@ static int nsp_pin_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 		return 0;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -508,7 +508,7 @@ static int nsp_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 	enum pin_config_param param;
 	u32 arg;
 	unsigned int i, gpio;
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	gpio = nsp_pin_to_gpio(pin);
 	for (i = 0; i < num_configs; i++) {
@@ -548,7 +548,7 @@ static int nsp_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 
 		default:
 			dev_err(chip->dev, "invalid configuration\n");
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 
@@ -581,13 +581,13 @@ static int nsp_gpio_register_pinconf(struct nsp_gpio *chip)
 
 	pins = devm_kcalloc(chip->dev, gc->ngpio, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < gc->ngpio; i++) {
 		pins[i].number = i;
 		pins[i].name = devm_kasprintf(chip->dev, GFP_KERNEL,
 					      "gpio-%d", i);
 		if (!pins[i].name)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	pctldesc->name = dev_name(chip->dev);
 	pctldesc->pctlops = &nsp_pctrl_ops;
@@ -617,14 +617,14 @@ static int nsp_gpio_probe(struct platform_device *pdev)
 	u32 val;
 	int irq, ret;
 
-	if (of_property_read_u32(pdev->dev.of_node, "ngpios", &val)) {
+	if (of_property_read_u32(pdev->dev.of_analde, "ngpios", &val)) {
 		dev_err(&pdev->dev, "Missing ngpios OF property\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = dev;
 	platform_set_drvdata(pdev, chip);
@@ -680,7 +680,7 @@ static int nsp_gpio_probe(struct platform_device *pdev)
 		girq->parent_handler = NULL;
 		girq->num_parents = 0;
 		girq->parents = NULL;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_bad_irq;
 	}
 

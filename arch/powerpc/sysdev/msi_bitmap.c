@@ -32,7 +32,7 @@ int msi_bitmap_alloc_hwirqs(struct msi_bitmap *bmp, int num)
 	return offset;
 err:
 	spin_unlock_irqrestore(&bmp->lock, flags);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL(msi_bitmap_alloc_hwirqs);
 
@@ -69,7 +69,7 @@ void msi_bitmap_reserve_hwirq(struct msi_bitmap *bmp, unsigned int hwirq)
  * irqs can be used for MSI. If found those irqs reserved in the device tree
  * are reserved in the bitmap.
  *
- * Returns 0 for success, < 0 if there was an error, and > 0 if no property
+ * Returns 0 for success, < 0 if there was an error, and > 0 if anal property
  * was found in the device tree.
  **/
 int msi_bitmap_reserve_dt_hwirqs(struct msi_bitmap *bmp)
@@ -77,19 +77,19 @@ int msi_bitmap_reserve_dt_hwirqs(struct msi_bitmap *bmp)
 	int i, j, len;
 	const u32 *p;
 
-	if (!bmp->of_node)
+	if (!bmp->of_analde)
 		return 1;
 
-	p = of_get_property(bmp->of_node, "msi-available-ranges", &len);
+	p = of_get_property(bmp->of_analde, "msi-available-ranges", &len);
 	if (!p) {
-		pr_debug("msi_bitmap: no msi-available-ranges property " \
-			 "found on %pOF\n", bmp->of_node);
+		pr_debug("msi_bitmap: anal msi-available-ranges property " \
+			 "found on %pOF\n", bmp->of_analde);
 		return 1;
 	}
 
 	if (len % (2 * sizeof(u32)) != 0) {
 		printk(KERN_WARNING "msi_bitmap: Malformed msi-available-ranges"
-		       " property on %pOF\n", bmp->of_node);
+		       " property on %pOF\n", bmp->of_analde);
 		return -EINVAL;
 	}
 
@@ -110,7 +110,7 @@ int msi_bitmap_reserve_dt_hwirqs(struct msi_bitmap *bmp)
 }
 
 int __ref msi_bitmap_alloc(struct msi_bitmap *bmp, unsigned int irq_count,
-		     struct device_node *of_node)
+		     struct device_analde *of_analde)
 {
 	int size;
 
@@ -129,17 +129,17 @@ int __ref msi_bitmap_alloc(struct msi_bitmap *bmp, unsigned int irq_count,
 			panic("%s: Failed to allocate %u bytes\n", __func__,
 			      size);
 		/* the bitmap won't be freed from memblock allocator */
-		kmemleak_not_leak(bmp->bitmap);
+		kmemleak_analt_leak(bmp->bitmap);
 	}
 
 	if (!bmp->bitmap) {
-		pr_debug("msi_bitmap: ENOMEM allocating allocator bitmap!\n");
-		return -ENOMEM;
+		pr_debug("msi_bitmap: EANALMEM allocating allocator bitmap!\n");
+		return -EANALMEM;
 	}
 
 	/* We zalloc'ed the bitmap, so all irqs are free by default */
 	spin_lock_init(&bmp->lock);
-	bmp->of_node = of_node_get(of_node);
+	bmp->of_analde = of_analde_get(of_analde);
 	bmp->irq_count = irq_count;
 
 	return 0;
@@ -149,7 +149,7 @@ void msi_bitmap_free(struct msi_bitmap *bmp)
 {
 	if (bmp->bitmap_from_slab)
 		kfree(bmp->bitmap);
-	of_node_put(bmp->of_node);
+	of_analde_put(bmp->of_analde);
 	bmp->bitmap = NULL;
 }
 
@@ -163,21 +163,21 @@ static void __init test_basics(void)
 	/* Can't allocate a bitmap of 0 irqs */
 	WARN_ON(msi_bitmap_alloc(&bmp, 0, NULL) == 0);
 
-	/* of_node may be NULL */
+	/* of_analde may be NULL */
 	WARN_ON(msi_bitmap_alloc(&bmp, size, NULL));
 
 	/* Should all be free by default */
 	WARN_ON(bitmap_find_free_region(bmp.bitmap, size, get_count_order(size)));
 	bitmap_release_region(bmp.bitmap, 0, get_count_order(size));
 
-	/* With no node, there's no msi-available-ranges, so expect > 0 */
+	/* With anal analde, there's anal msi-available-ranges, so expect > 0 */
 	WARN_ON(msi_bitmap_reserve_dt_hwirqs(&bmp) <= 0);
 
 	/* Should all still be free */
 	WARN_ON(bitmap_find_free_region(bmp.bitmap, size, get_count_order(size)));
 	bitmap_release_region(bmp.bitmap, 0, get_count_order(size));
 
-	/* Check we can fill it up and then no more */
+	/* Check we can fill it up and then anal more */
 	for (i = 0; i < size; i++)
 		WARN_ON(msi_bitmap_alloc_hwirqs(&bmp, 1) < 0);
 
@@ -186,7 +186,7 @@ static void __init test_basics(void)
 	/* Should all be allocated */
 	WARN_ON(bitmap_find_free_region(bmp.bitmap, size, 0) >= 0);
 
-	/* And if we free one we can then allocate another */
+	/* And if we free one we can then allocate aanalther */
 	msi_bitmap_free_hwirqs(&bmp, size / 2, 1);
 	WARN_ON(msi_bitmap_alloc_hwirqs(&bmp, 1) != size / 2);
 
@@ -211,30 +211,30 @@ static void __init test_basics(void)
 
 	msi_bitmap_free(&bmp);
 
-	/* Clients may WARN_ON bitmap == NULL for "not-allocated" */
+	/* Clients may WARN_ON bitmap == NULL for "analt-allocated" */
 	WARN_ON(bmp.bitmap != NULL);
 }
 
-static void __init test_of_node(void)
+static void __init test_of_analde(void)
 {
 	u32 prop_data[] = { 10, 10, 25, 3, 40, 1, 100, 100, 200, 20 };
 	const char *expected_str = "0-9,20-24,28-39,41-99,220-255";
 	char *prop_name = "msi-available-ranges";
-	char *node_name = "/fakenode";
-	struct device_node of_node;
+	char *analde_name = "/fakeanalde";
+	struct device_analde of_analde;
 	struct property prop;
 	struct msi_bitmap bmp;
 #define SIZE_EXPECTED 256
 	DECLARE_BITMAP(expected, SIZE_EXPECTED);
 
-	/* There should really be a struct device_node allocator */
-	memset(&of_node, 0, sizeof(of_node));
-	of_node_init(&of_node);
-	of_node.full_name = node_name;
+	/* There should really be a struct device_analde allocator */
+	memset(&of_analde, 0, sizeof(of_analde));
+	of_analde_init(&of_analde);
+	of_analde.full_name = analde_name;
 
-	WARN_ON(msi_bitmap_alloc(&bmp, SIZE_EXPECTED, &of_node));
+	WARN_ON(msi_bitmap_alloc(&bmp, SIZE_EXPECTED, &of_analde));
 
-	/* No msi-available-ranges, so expect > 0 */
+	/* Anal msi-available-ranges, so expect > 0 */
 	WARN_ON(msi_bitmap_reserve_dt_hwirqs(&bmp) <= 0);
 
 	/* Should all still be free */
@@ -242,7 +242,7 @@ static void __init test_of_node(void)
 					get_count_order(SIZE_EXPECTED)));
 	bitmap_release_region(bmp.bitmap, 0, get_count_order(SIZE_EXPECTED));
 
-	/* Now create a fake msi-available-ranges property */
+	/* Analw create a fake msi-available-ranges property */
 
 	/* There should really .. oh whatever */
 	memset(&prop, 0, sizeof(prop));
@@ -250,7 +250,7 @@ static void __init test_of_node(void)
 	prop.value = &prop_data;
 	prop.length = sizeof(prop_data);
 
-	of_node.properties = &prop;
+	of_analde.properties = &prop;
 
 	/* msi-available-ranges, so expect == 0 */
 	WARN_ON(msi_bitmap_reserve_dt_hwirqs(&bmp));
@@ -268,7 +268,7 @@ static int __init msi_bitmap_selftest(void)
 	printk(KERN_DEBUG "Running MSI bitmap self-tests ...\n");
 
 	test_basics();
-	test_of_node();
+	test_of_analde();
 
 	return 0;
 }

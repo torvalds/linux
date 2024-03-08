@@ -1,36 +1,36 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
 
-#include "notifier-error-inject.h"
+#include "analtifier-error-inject.h"
 
-static int debugfs_errno_set(void *data, u64 val)
+static int debugfs_erranal_set(void *data, u64 val)
 {
-	*(int *)data = clamp_t(int, val, -MAX_ERRNO, 0);
+	*(int *)data = clamp_t(int, val, -MAX_ERRANAL, 0);
 	return 0;
 }
 
-static int debugfs_errno_get(void *data, u64 *val)
+static int debugfs_erranal_get(void *data, u64 *val)
 {
 	*val = *(int *)data;
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE_SIGNED(fops_errno, debugfs_errno_get, debugfs_errno_set,
+DEFINE_SIMPLE_ATTRIBUTE_SIGNED(fops_erranal, debugfs_erranal_get, debugfs_erranal_set,
 			"%lld\n");
 
-static struct dentry *debugfs_create_errno(const char *name, umode_t mode,
+static struct dentry *debugfs_create_erranal(const char *name, umode_t mode,
 				struct dentry *parent, int *value)
 {
-	return debugfs_create_file(name, mode, parent, value, &fops_errno);
+	return debugfs_create_file(name, mode, parent, value, &fops_erranal);
 }
 
-static int notifier_err_inject_callback(struct notifier_block *nb,
+static int analtifier_err_inject_callback(struct analtifier_block *nb,
 				unsigned long val, void *p)
 {
 	int err = 0;
-	struct notifier_err_inject *err_inject =
-		container_of(nb, struct notifier_err_inject, nb);
-	struct notifier_err_inject_action *action;
+	struct analtifier_err_inject *err_inject =
+		container_of(nb, struct analtifier_err_inject, nb);
+	struct analtifier_err_inject_action *action;
 
 	for (action = err_inject->actions; action->name; action++) {
 		if (action->val == val) {
@@ -41,21 +41,21 @@ static int notifier_err_inject_callback(struct notifier_block *nb,
 	if (err)
 		pr_info("Injecting error (%d) to %s\n", err, action->name);
 
-	return notifier_from_errno(err);
+	return analtifier_from_erranal(err);
 }
 
-struct dentry *notifier_err_inject_dir;
-EXPORT_SYMBOL_GPL(notifier_err_inject_dir);
+struct dentry *analtifier_err_inject_dir;
+EXPORT_SYMBOL_GPL(analtifier_err_inject_dir);
 
-struct dentry *notifier_err_inject_init(const char *name, struct dentry *parent,
-			struct notifier_err_inject *err_inject, int priority)
+struct dentry *analtifier_err_inject_init(const char *name, struct dentry *parent,
+			struct analtifier_err_inject *err_inject, int priority)
 {
-	struct notifier_err_inject_action *action;
+	struct analtifier_err_inject_action *action;
 	umode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
 	struct dentry *dir;
 	struct dentry *actions_dir;
 
-	err_inject->nb.notifier_call = notifier_err_inject_callback;
+	err_inject->nb.analtifier_call = analtifier_err_inject_callback;
 	err_inject->nb.priority = priority;
 
 	dir = debugfs_create_dir(name, parent);
@@ -69,31 +69,31 @@ struct dentry *notifier_err_inject_init(const char *name, struct dentry *parent,
 
 		/*
 		 * Create debugfs r/w file containing action->error. If
-		 * notifier call chain is called with action->val, it will
+		 * analtifier call chain is called with action->val, it will
 		 * fail with the error code
 		 */
-		debugfs_create_errno("error", mode, action_dir, &action->error);
+		debugfs_create_erranal("error", mode, action_dir, &action->error);
 	}
 	return dir;
 }
-EXPORT_SYMBOL_GPL(notifier_err_inject_init);
+EXPORT_SYMBOL_GPL(analtifier_err_inject_init);
 
 static int __init err_inject_init(void)
 {
-	notifier_err_inject_dir =
-		debugfs_create_dir("notifier-error-inject", NULL);
+	analtifier_err_inject_dir =
+		debugfs_create_dir("analtifier-error-inject", NULL);
 
 	return 0;
 }
 
 static void __exit err_inject_exit(void)
 {
-	debugfs_remove_recursive(notifier_err_inject_dir);
+	debugfs_remove_recursive(analtifier_err_inject_dir);
 }
 
 module_init(err_inject_init);
 module_exit(err_inject_exit);
 
-MODULE_DESCRIPTION("Notifier error injection module");
+MODULE_DESCRIPTION("Analtifier error injection module");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Akinobu Mita <akinobu.mita@gmail.com>");
+MODULE_AUTHOR("Akianalbu Mita <akianalbu.mita@gmail.com>");

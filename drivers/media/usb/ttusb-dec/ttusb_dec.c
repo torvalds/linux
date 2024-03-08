@@ -41,7 +41,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #define dprintk	if (debug) printk
 
-#define DRIVER_NAME		"TechnoTrend/Hauppauge DEC USB"
+#define DRIVER_NAME		"TechanalTrend/Hauppauge DEC USB"
 
 #define COMMAND_PIPE		0x03
 #define RESULT_PIPE		0x04
@@ -256,7 +256,7 @@ static void ttusb_dec_handle_irq( struct urb *urb)
 		case 0: /*success*/
 			break;
 		case -ECONNRESET:
-		case -ENOENT:
+		case -EANALENT:
 		case -ESHUTDOWN:
 		case -ETIME:
 			/* this urb is dead, cleanup */
@@ -264,7 +264,7 @@ static void ttusb_dec_handle_irq( struct urb *urb)
 					__func__, urb->status);
 			return;
 		default:
-			dprintk("%s:nonzero status received: %d\n",
+			dprintk("%s:analnzero status received: %d\n",
 					__func__,urb->status);
 			goto exit;
 	}
@@ -277,10 +277,10 @@ static void ttusb_dec_handle_irq( struct urb *urb)
 		 * the box also reports a keyrepeat signal
 		 * (with buffer[3] == 0x40) in an interval of ~100ms.
 		 * But to handle this correctly we had to imlemenent some
-		 * kind of timer which signals a 'key up' event if no
+		 * kind of timer which signals a 'key up' event if anal
 		 * keyrepeat signal is received for lets say 200ms.
 		 * this should/could be added later ...
-		 * for now lets report each signal as a key down and up
+		 * for analw lets report each signal as a key down and up
 		 */
 		if (index - 1 < ARRAY_SIZE(rc_keys)) {
 			dprintk("%s:rc signal:%d\n", __func__, index);
@@ -322,7 +322,7 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 
 	b = kzalloc(COMMAND_PACKET_SIZE + 4, GFP_KERNEL);
 	if (!b)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = mutex_lock_interruptible(&dec->usb_mutex);
 	if (result) {
@@ -407,7 +407,7 @@ static int ttusb_dec_get_stb_state (struct ttusb_dec *dec, unsigned int *mode,
 		}
 		return 0;
 	} else {
-		return -ENOENT;
+		return -EANALENT;
 	}
 }
 
@@ -548,7 +548,7 @@ static void ttusb_dec_process_pva(struct ttusb_dec *dec, u8 *pva, int length)
 		break;
 
 	default:
-		printk("%s: unknown PVA type: %02x.\n", __func__,
+		printk("%s: unkanalwn PVA type: %02x.\n", __func__,
 		       pva[2]);
 		break;
 	}
@@ -687,7 +687,7 @@ static void ttusb_dec_process_urb_frame(struct ttusb_dec *dec, u8 *b,
 					dec->packet_payload_length = 2;
 					dec->packet_state = 7;
 				} else {
-					printk("%s: unknown packet type: %02x%02x\n",
+					printk("%s: unkanalwn packet type: %02x%02x\n",
 					       __func__,
 					       dec->packet[0], dec->packet[1]);
 					dec->packet_state = 0;
@@ -826,8 +826,8 @@ static void ttusb_dec_process_urb(struct urb *urb)
 			}
 		}
 	} else {
-		 /* -ENOENT is expected when unlinking urbs */
-		if (urb->status != -ENOENT)
+		 /* -EANALENT is expected when unlinking urbs */
+		if (urb->status != -EANALENT)
 			dprintk("%s: urb error: %d\n", __func__,
 				urb->status);
 	}
@@ -886,7 +886,7 @@ static void ttusb_dec_stop_iso_xfer(struct ttusb_dec *dec)
 }
 
 /* Setting the interface of the DEC tends to take down the USB communications
- * for a short period, so it's important not to call this function just before
+ * for a short period, so it's important analt to call this function just before
  * trying to talk to it.
  */
 static int ttusb_dec_set_interface(struct ttusb_dec *dec,
@@ -1002,8 +1002,8 @@ static int ttusb_dec_start_ts_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	case DMX_PES_TELETEXT:
 		dec->pid[DMX_PES_TELETEXT] = dvbdmxfeed->pid;
-		dprintk("  pes_type: DMX_PES_TELETEXT(not supported)\n");
-		return -ENOSYS;
+		dprintk("  pes_type: DMX_PES_TELETEXT(analt supported)\n");
+		return -EANALSYS;
 
 	case DMX_PES_PCR:
 		dprintk("  pes_type: DMX_PES_PCR\n");
@@ -1012,11 +1012,11 @@ static int ttusb_dec_start_ts_feed(struct dvb_demux_feed *dvbdmxfeed)
 		break;
 
 	case DMX_PES_OTHER:
-		dprintk("  pes_type: DMX_PES_OTHER(not supported)\n");
-		return -ENOSYS;
+		dprintk("  pes_type: DMX_PES_OTHER(analt supported)\n");
+		return -EANALSYS;
 
 	default:
-		dprintk("  pes_type: unknown (%d)\n", dvbdmxfeed->pes_type);
+		dprintk("  pes_type: unkanalwn (%d)\n", dvbdmxfeed->pes_type);
 		return -EINVAL;
 
 	}
@@ -1062,7 +1062,7 @@ static int ttusb_dec_start_sec_feed(struct dvb_demux_feed *dvbdmxfeed)
 		if (c_length == 2) {
 			if (!(finfo = kmalloc(sizeof(struct filter_info),
 					      GFP_ATOMIC)))
-				return -ENOMEM;
+				return -EANALMEM;
 
 			finfo->stream_id = c[1];
 			finfo->filter = dvbdmxfeed->filter;
@@ -1104,7 +1104,7 @@ static int ttusb_dec_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 		return ttusb_dec_start_sec_feed(dvbdmxfeed);
 
 	default:
-		dprintk("  type: unknown (%d)\n", dvbdmxfeed->type);
+		dprintk("  type: unkanalwn (%d)\n", dvbdmxfeed->type);
 		return -EINVAL;
 
 	}
@@ -1180,14 +1180,14 @@ static int ttusb_dec_alloc_iso_urbs(struct ttusb_dec *dec)
 	dec->iso_buffer = kcalloc(FRAMES_PER_ISO_BUF * ISO_BUF_COUNT,
 			ISO_FRAME_SIZE, GFP_KERNEL);
 	if (!dec->iso_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ISO_BUF_COUNT; i++) {
 		struct urb *urb;
 
 		if (!(urb = usb_alloc_urb(FRAMES_PER_ISO_BUF, GFP_ATOMIC))) {
 			ttusb_dec_free_iso_urbs(dec);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dec->iso_urb[i] = urb;
@@ -1217,7 +1217,7 @@ static int ttusb_init_rc( struct ttusb_dec *dec)
 
 	input_dev = input_allocate_device();
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev->name = "ttusb_dec remote control";
 	input_dev->phys = dec->rc_phys;
@@ -1272,19 +1272,19 @@ static int ttusb_dec_init_usb(struct ttusb_dec *dec)
 	if(enable_rc) {
 		dec->irq_urb = usb_alloc_urb(0, GFP_KERNEL);
 		if(!dec->irq_urb) {
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		dec->irq_buffer = usb_alloc_coherent(dec->udev,IRQ_PACKET_SIZE,
 					GFP_KERNEL, &dec->irq_dma_handle);
 		if(!dec->irq_buffer) {
 			usb_free_urb(dec->irq_urb);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		usb_fill_int_urb(dec->irq_urb, dec->udev,dec->irq_pipe,
 				 dec->irq_buffer, IRQ_PACKET_SIZE,
 				 ttusb_dec_handle_irq, dec, 1);
 		dec->irq_urb->transfer_dma = dec->irq_dma_handle;
-		dec->irq_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+		dec->irq_urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 	}
 
 	result = ttusb_dec_alloc_iso_urbs(dec);
@@ -1330,7 +1330,7 @@ static int ttusb_dec_boot_dsp(struct ttusb_dec *dec)
 		printk("%s: firmware size too small for DSP code (%zu < 60).\n",
 			__func__, firmware_size);
 		release_firmware(fw_entry);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* a 32 bit checksum over the first 56 bytes of the DSP Code is stored
@@ -1343,7 +1343,7 @@ static int ttusb_dec_boot_dsp(struct ttusb_dec *dec)
 		printk("%s: crc32 check of DSP code failed (calculated 0x%08x != 0x%08x in file), file invalid.\n",
 			__func__, crc32_csum, crc32_check);
 		release_firmware(fw_entry);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	memcpy(idstring, &firmware[36], 20);
 	idstring[20] = '\0';
@@ -1368,7 +1368,7 @@ static int ttusb_dec_boot_dsp(struct ttusb_dec *dec)
 	b = kmalloc(ARM_PACKET_SIZE, GFP_KERNEL);
 	if (b == NULL) {
 		release_firmware(fw_entry);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < firmware_size; i += COMMAND_PACKET_SIZE) {
@@ -1417,7 +1417,7 @@ static int ttusb_dec_init_stb(struct ttusb_dec *dec)
 
 	if (!mode) {
 		if (version == 0xABCDEFAB)
-			printk(KERN_INFO "ttusb_dec: no version info in Firmware\n");
+			printk(KERN_INFO "ttusb_dec: anal version info in Firmware\n");
 		else
 			printk(KERN_INFO "ttusb_dec: Firmware %x.%02x%c%c\n",
 			       version >> 24, (version >> 16) & 0xff,
@@ -1443,9 +1443,9 @@ static int ttusb_dec_init_stb(struct ttusb_dec *dec)
 			ttusb_dec_set_model(dec, TTUSB_DEC2540T);
 			break;
 		default:
-			printk(KERN_ERR "%s: unknown model returned by firmware (%08x) - please report\n",
+			printk(KERN_ERR "%s: unkanalwn model returned by firmware (%08x) - please report\n",
 			       __func__, model);
-			return -ENOENT;
+			return -EANALENT;
 		}
 		if (version >= 0x01770000)
 			dec->can_playback = 1;
@@ -1645,7 +1645,7 @@ static int ttusb_dec_probe(struct usb_interface *intf,
 
 	if (!(dec = kzalloc(sizeof(struct ttusb_dec), GFP_KERNEL))) {
 		printk("%s: couldn't allocate memory.\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	usb_set_intfdata(intf, (void *)dec);
@@ -1689,7 +1689,7 @@ static int ttusb_dec_probe(struct usb_interface *intf,
 	}
 
 	if (dec->fe == NULL) {
-		printk("dvb-ttusb-dec: A frontend driver was not found for device [%04x:%04x]\n",
+		printk("dvb-ttusb-dec: A frontend driver was analt found for device [%04x:%04x]\n",
 		       le16_to_cpu(dec->udev->descriptor.idVendor),
 		       le16_to_cpu(dec->udev->descriptor.idProduct));
 	} else {

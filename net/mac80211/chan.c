@@ -105,7 +105,7 @@ ieee80211_chanctx_reserved_chandef(struct ieee80211_local *local,
 }
 
 static const struct cfg80211_chan_def *
-ieee80211_chanctx_non_reserved_chandef(struct ieee80211_local *local,
+ieee80211_chanctx_analn_reserved_chandef(struct ieee80211_local *local,
 				       struct ieee80211_chanctx *ctx,
 				       const struct cfg80211_chan_def *compat)
 {
@@ -143,7 +143,7 @@ ieee80211_chanctx_combined_chandef(struct ieee80211_local *local,
 	if (!compat)
 		return NULL;
 
-	compat = ieee80211_chanctx_non_reserved_chandef(local, ctx, compat);
+	compat = ieee80211_chanctx_analn_reserved_chandef(local, ctx, compat);
 	if (!compat)
 		return NULL;
 
@@ -204,9 +204,9 @@ static enum nl80211_chan_width ieee80211_get_sta_bw(struct sta_info *sta,
 
 	link_sta = rcu_dereference(sta->link[link_id]);
 
-	/* no effect if this STA has no presence on this link */
+	/* anal effect if this STA has anal presence on this link */
 	if (!link_sta)
-		return NL80211_CHAN_WIDTH_20_NOHT;
+		return NL80211_CHAN_WIDTH_20_ANALHT;
 
 	width = ieee80211_sta_cap_rx_bw(link_sta);
 
@@ -215,7 +215,7 @@ static enum nl80211_chan_width ieee80211_get_sta_bw(struct sta_info *sta,
 		if (link_sta->pub->ht_cap.ht_supported)
 			return NL80211_CHAN_WIDTH_20;
 		else
-			return NL80211_CHAN_WIDTH_20_NOHT;
+			return NL80211_CHAN_WIDTH_20_ANALHT;
 	case IEEE80211_STA_RX_BW_40:
 		return NL80211_CHAN_WIDTH_40;
 	case IEEE80211_STA_RX_BW_80:
@@ -226,7 +226,7 @@ static enum nl80211_chan_width ieee80211_get_sta_bw(struct sta_info *sta,
 		 * the returned value to consider degradation of
 		 * ctx->conf.min_def, we have to make sure to take
 		 * the bigger one (NL80211_CHAN_WIDTH_160).
-		 * Otherwise we might try degrading even when not
+		 * Otherwise we might try degrading even when analt
 		 * needed, as the max required sta_bw returned (80+80)
 		 * might be smaller than the configured bw (160).
 		 */
@@ -243,7 +243,7 @@ static enum nl80211_chan_width
 ieee80211_get_max_required_bw(struct ieee80211_sub_if_data *sdata,
 			      unsigned int link_id)
 {
-	enum nl80211_chan_width max_bw = NL80211_CHAN_WIDTH_20_NOHT;
+	enum nl80211_chan_width max_bw = NL80211_CHAN_WIDTH_20_ANALHT;
 	struct sta_info *sta;
 
 	list_for_each_entry_rcu(sta, &sdata->local->sta_list, list) {
@@ -262,13 +262,13 @@ ieee80211_get_chanctx_vif_max_required_bw(struct ieee80211_sub_if_data *sdata,
 					  struct ieee80211_chanctx *ctx,
 					  struct ieee80211_link_data *rsvd_for)
 {
-	enum nl80211_chan_width max_bw = NL80211_CHAN_WIDTH_20_NOHT;
+	enum nl80211_chan_width max_bw = NL80211_CHAN_WIDTH_20_ANALHT;
 	struct ieee80211_vif *vif = &sdata->vif;
 	int link_id;
 
 	rcu_read_lock();
 	for (link_id = 0; link_id < ARRAY_SIZE(sdata->link); link_id++) {
-		enum nl80211_chan_width width = NL80211_CHAN_WIDTH_20_NOHT;
+		enum nl80211_chan_width width = NL80211_CHAN_WIDTH_20_ANALHT;
 		struct ieee80211_link_data *link =
 			rcu_dereference(sdata->link[link_id]);
 
@@ -286,7 +286,7 @@ ieee80211_get_chanctx_vif_max_required_bw(struct ieee80211_sub_if_data *sdata,
 			break;
 		case NL80211_IFTYPE_STATION:
 			/*
-			 * The ap's sta->bandwidth is not set yet at this
+			 * The ap's sta->bandwidth is analt set yet at this
 			 * point, so take the width from the chandef, but
 			 * account also for TDLS peers
 			 */
@@ -323,7 +323,7 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 				      struct ieee80211_link_data *rsvd_for)
 {
 	struct ieee80211_sub_if_data *sdata;
-	enum nl80211_chan_width max_bw = NL80211_CHAN_WIDTH_20_NOHT;
+	enum nl80211_chan_width max_bw = NL80211_CHAN_WIDTH_20_ANALHT;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
@@ -364,7 +364,7 @@ _ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	/* don't optimize non-20MHz based and radar_enabled confs */
+	/* don't optimize analn-20MHz based and radar_enabled confs */
 	if (ctx->conf.def.width == NL80211_CHAN_WIDTH_5 ||
 	    ctx->conf.def.width == NL80211_CHAN_WIDTH_10 ||
 	    ctx->conf.def.width == NL80211_CHAN_WIDTH_1 ||
@@ -432,7 +432,7 @@ static void ieee80211_chan_bw_change(struct ieee80211_local *local,
 
 			new_sta_bw = ieee80211_sta_cur_vht_bw(link_sta);
 
-			/* nothing change */
+			/* analthing change */
 			if (new_sta_bw == link_sta->pub->bandwidth)
 				continue;
 
@@ -482,7 +482,7 @@ static void _ieee80211_change_chanctx(struct ieee80211_local *local,
 
 	/* expected to handle only 20/40/80/160/320 channel widths */
 	switch (chandef->width) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20_ANALHT:
 	case NL80211_CHAN_WIDTH_20:
 	case NL80211_CHAN_WIDTH_40:
 	case NL80211_CHAN_WIDTH_80:
@@ -495,7 +495,7 @@ static void _ieee80211_change_chanctx(struct ieee80211_local *local,
 	}
 
 	/* Check maybe BW narrowed - we do this _before_ calling recalc_chanctx_min_def
-	 * due to maybe not returning from it, e.g in case new context was added
+	 * due to maybe analt returning from it, e.g in case new context was added
 	 * first time with all parameters up to date.
 	 */
 	ieee80211_chan_bw_change(local, old_ctx, true);
@@ -551,7 +551,7 @@ ieee80211_find_chanctx(struct ieee80211_local *local,
 	list_for_each_entry(ctx, &local->chanctx_list, list) {
 		const struct cfg80211_chan_def *compat;
 
-		if (ctx->replace_state != IEEE80211_CHANCTX_REPLACE_NONE)
+		if (ctx->replace_state != IEEE80211_CHANCTX_REPLACE_ANALNE)
 			continue;
 
 		if (ctx->mode == IEEE80211_CHANCTX_EXCLUSIVE)
@@ -708,7 +708,7 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 
 	ctx = ieee80211_alloc_chanctx(local, chandef, mode);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = ieee80211_add_chanctx(local, ctx);
 	if (err) {
@@ -734,12 +734,12 @@ static void ieee80211_del_chanctx(struct ieee80211_local *local,
 			chandef->width =
 				ieee80211_s1g_channel_width(chandef->chan);
 		else
-			chandef->width = NL80211_CHAN_WIDTH_20_NOHT;
+			chandef->width = NL80211_CHAN_WIDTH_20_ANALHT;
 		chandef->center_freq1 = chandef->chan->center_freq;
 		chandef->freq1_offset = chandef->chan->freq_offset;
 		chandef->center_freq2 = 0;
 
-		/* NOTE: Disabling radar is only valid here for
+		/* ANALTE: Disabling radar is only valid here for
 		 * single channel context. To be sure, check it ...
 		 */
 		WARN_ON(local->hw.conf.radar_enabled &&
@@ -867,7 +867,7 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 	int ret = 0;
 
 	if (WARN_ON(sdata->vif.type == NL80211_IFTYPE_NAN))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	conf = rcu_dereference_protected(link->conf->chanctx_conf,
 					 lockdep_is_held(&local->hw.wiphy->mtx));
@@ -881,7 +881,7 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 	}
 
 	if (new_ctx) {
-		/* recalc considering the link we'll use it for now */
+		/* recalc considering the link we'll use it for analw */
 		ieee80211_recalc_chanctx_min_def(local, new_ctx, link);
 
 		ret = drv_assign_vif_chanctx(local, sdata, link->conf, new_ctx);
@@ -912,7 +912,7 @@ out:
 
 	if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
 	    sdata->vif.type != NL80211_IFTYPE_MONITOR)
-		ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_IDLE);
+		ieee80211_vif_cfg_change_analtify(sdata, BSS_CHANGED_IDLE);
 
 	ieee80211_check_fast_xmit_iface(sdata);
 
@@ -1090,7 +1090,7 @@ int ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link)
 
 			ctx->replace_ctx->replace_ctx = NULL;
 			ctx->replace_ctx->replace_state =
-					IEEE80211_CHANCTX_REPLACE_NONE;
+					IEEE80211_CHANCTX_REPLACE_ANALNE;
 
 			list_del_rcu(&ctx->list);
 			kfree_rcu(ctx, rcu_head);
@@ -1115,7 +1115,7 @@ int ieee80211_link_reserve_chanctx(struct ieee80211_link_data *link,
 
 	curr_ctx = ieee80211_link_get_chanctx(link);
 	if (curr_ctx && local->use_chanctx && !local->ops->switch_vif_chanctx)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	new_ctx = ieee80211_find_reservation_chanctx(local, chandef, mode);
 	if (!new_ctx) {
@@ -1129,10 +1129,10 @@ int ieee80211_link_reserve_chanctx(struct ieee80211_link_data *link,
 			     IEEE80211_CHANCTX_WILL_BE_REPLACED) ||
 			    !list_empty(&curr_ctx->reserved_links)) {
 				/*
-				 * Another link already requested this context
-				 * for a reservation. Find another one hoping
+				 * Aanalther link already requested this context
+				 * for a reservation. Find aanalther one hoping
 				 * all links assigned to it will also switch
-				 * soon enough.
+				 * soon eanalugh.
 				 *
 				 * TODO: This needs a little more work as some
 				 * cases (more than 2 chanctx capable devices)
@@ -1153,7 +1153,7 @@ int ieee80211_link_reserve_chanctx(struct ieee80211_link_data *link,
 				list_for_each_entry(ctx, &local->chanctx_list,
 						    list) {
 					if (ctx->replace_state !=
-					    IEEE80211_CHANCTX_REPLACE_NONE)
+					    IEEE80211_CHANCTX_REPLACE_ANALNE)
 						continue;
 
 					if (!list_empty(&ctx->reserved_links))
@@ -1166,7 +1166,7 @@ int ieee80211_link_reserve_chanctx(struct ieee80211_link_data *link,
 
 			/*
 			 * If that's true then all available contexts already
-			 * have reservations and cannot be used.
+			 * have reservations and cananalt be used.
 			 */
 			if (!curr_ctx ||
 			    (curr_ctx->replace_state ==
@@ -1176,7 +1176,7 @@ int ieee80211_link_reserve_chanctx(struct ieee80211_link_data *link,
 
 			new_ctx = ieee80211_alloc_chanctx(local, chandef, mode);
 			if (!new_ctx)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			new_ctx->replace_ctx = curr_ctx;
 			new_ctx->replace_state =
@@ -1286,7 +1286,7 @@ ieee80211_link_use_reserved_reassign(struct ieee80211_link_data *link)
 		    IEEE80211_CHANCTX_REPLACES_OTHER))
 		return -EINVAL;
 
-	chandef = ieee80211_chanctx_non_reserved_chandef(local, new_ctx,
+	chandef = ieee80211_chanctx_analn_reserved_chandef(local, new_ctx,
 				&link->reserved_chandef);
 	if (WARN_ON(!chandef))
 		return -EINVAL;
@@ -1331,7 +1331,7 @@ ieee80211_link_use_reserved_reassign(struct ieee80211_link_data *link)
 	ieee80211_recalc_radar_chanctx(local, new_ctx);
 
 	if (changed)
-		ieee80211_link_info_change_notify(sdata, link, changed);
+		ieee80211_link_info_change_analtify(sdata, link, changed);
 
 out:
 	ieee80211_link_chanctx_reservation_complete(link);
@@ -1363,7 +1363,7 @@ ieee80211_link_use_reserved_assign(struct ieee80211_link_data *link)
 		    IEEE80211_CHANCTX_REPLACES_OTHER))
 		return -EINVAL;
 
-	chandef = ieee80211_chanctx_non_reserved_chandef(local, new_ctx,
+	chandef = ieee80211_chanctx_analn_reserved_chandef(local, new_ctx,
 				&link->reserved_chandef);
 	if (WARN_ON(!chandef))
 		return -EINVAL;
@@ -1442,7 +1442,7 @@ static int ieee80211_chsw_switch_vifs(struct ieee80211_local *local,
 
 	vif_chsw = kcalloc(n_vifs, sizeof(vif_chsw[0]), GFP_KERNEL);
 	if (!vif_chsw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	list_for_each_entry(ctx, &local->chanctx_list, list) {
@@ -1536,8 +1536,8 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 
 	/*
 	 * Verify if the reservation is still feasible.
-	 *  - if it's not then disconnect
-	 *  - if it is but not all vifs necessary are ready then defer
+	 *  - if it's analt then disconnect
+	 *  - if it is but analt all vifs necessary are ready then defer
 	 */
 
 	list_for_each_entry(ctx, &local->chanctx_list, list) {
@@ -1573,7 +1573,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 		if (n_assigned != n_reserved) {
 			if (n_ready == n_reserved) {
 				wiphy_info(local->hw.wiphy,
-					   "channel context reservation cannot be finalized because some interfaces aren't switching\n");
+					   "channel context reservation cananalt be finalized because some interfaces aren't switching\n");
 				err = -EBUSY;
 				goto err;
 			}
@@ -1615,7 +1615,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 	}
 
 	/*
-	 * All necessary vifs are ready. Perform the switch now depending on
+	 * All necessary vifs are ready. Perform the switch analw depending on
 	 * reservations and driver capabilities.
 	 */
 
@@ -1677,7 +1677,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 
 			ieee80211_link_update_chandef(link, &link->reserved_chandef);
 			if (changed)
-				ieee80211_link_info_change_notify(sdata,
+				ieee80211_link_info_change_analtify(sdata,
 								  link,
 								  changed);
 
@@ -1705,7 +1705,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 		/*
 		 * This context might have been a dependency for an already
 		 * ready re-assign reservation interface that was deferred. Do
-		 * not propagate error to the caller though. The in-place
+		 * analt propagate error to the caller though. The in-place
 		 * reservation for originally requested interface has already
 		 * succeeded at this point.
 		 */
@@ -1747,7 +1747,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 
 		ctx->replace_ctx->replace_ctx = NULL;
 		ctx->replace_ctx->replace_state =
-				IEEE80211_CHANCTX_REPLACE_NONE;
+				IEEE80211_CHANCTX_REPLACE_ANALNE;
 
 		list_del_rcu(&ctx->list);
 		kfree_rcu(ctx, rcu_head);
@@ -1896,7 +1896,7 @@ int ieee80211_link_use_reserved_context(struct ieee80211_link_data *link)
 
 	link->reserved_ready = true;
 
-	if (new_ctx->replace_state == IEEE80211_CHANCTX_REPLACE_NONE) {
+	if (new_ctx->replace_state == IEEE80211_CHANCTX_REPLACE_ANALNE) {
 		if (old_ctx)
 			return ieee80211_link_use_reserved_reassign(link);
 
@@ -1904,12 +1904,12 @@ int ieee80211_link_use_reserved_context(struct ieee80211_link_data *link)
 	}
 
 	/*
-	 * In-place reservation may need to be finalized now either if:
+	 * In-place reservation may need to be finalized analw either if:
 	 *  a) sdata is taking part in the swapping itself and is the last one
 	 *  b) sdata has switched with a re-assign reservation to an existing
 	 *     context readying in-place switching of old_ctx
 	 *
-	 * In case of (b) do not propagate the error up because the requested
+	 * In case of (b) do analt propagate the error up because the requested
 	 * sdata already switched successfully. Just spill an extra warning.
 	 * The ieee80211_vif_use_reserved_switch() already stops all necessary
 	 * interfaces upon failure.
@@ -1952,8 +1952,8 @@ int ieee80211_link_change_bandwidth(struct ieee80211_link_data *link,
 	if (cfg80211_chandef_identical(chandef, &link_conf->chandef))
 		return 0;
 
-	if (chandef->width == NL80211_CHAN_WIDTH_20_NOHT ||
-	    link_conf->chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
+	if (chandef->width == NL80211_CHAN_WIDTH_20_ANALHT ||
+	    link_conf->chandef.width == NL80211_CHAN_WIDTH_20_ANALHT)
 		return -EINVAL;
 
 	conf = rcu_dereference_protected(link_conf->chanctx_conf,
@@ -1968,7 +1968,7 @@ int ieee80211_link_change_bandwidth(struct ieee80211_link_data *link,
 		return -EINVAL;
 
 	switch (ctx->replace_state) {
-	case IEEE80211_CHANCTX_REPLACE_NONE:
+	case IEEE80211_CHANCTX_REPLACE_ANALNE:
 		if (!ieee80211_chanctx_reserved_chandef(local, ctx, compat))
 			return -EBUSY;
 		break;
@@ -1977,7 +1977,7 @@ int ieee80211_link_change_bandwidth(struct ieee80211_link_data *link,
 		 * reservation itself? */
 		return -EBUSY;
 	case IEEE80211_CHANCTX_REPLACES_OTHER:
-		/* channel context that is going to replace another channel
+		/* channel context that is going to replace aanalther channel
 		 * context doesn't really exist and shouldn't be assigned
 		 * anywhere yet */
 		WARN_ON(1);

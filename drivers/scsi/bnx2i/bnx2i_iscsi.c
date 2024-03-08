@@ -90,7 +90,7 @@ static void bnx2i_setup_write_cmd_bd_info(struct iscsi_task *task)
 	u32 cmd_len = cmd->req.total_data_transfer_length;
 
 	/* if ImmediateData is turned off & IntialR2T is turned on,
-	 * there will be no immediate or unsolicited data, just return.
+	 * there will be anal immediate or unsolicited data, just return.
 	 */
 	if (!iscsi_task_has_unsol_data(task) && !task->imm_count)
 		return;
@@ -241,7 +241,7 @@ static int bnx2i_bind_conn_to_iscsi_cid(struct bnx2i_hba *hba,
 {
 	if (hba && hba->cid_que.conn_cid_tbl[iscsi_cid]) {
 		iscsi_conn_printk(KERN_ALERT, bnx2i_conn->cls_conn->dd_data,
-				 "conn bind - entry #%d not free\n", iscsi_cid);
+				 "conn bind - entry #%d analt free\n", iscsi_cid);
 		return -EBUSY;
 	}
 
@@ -331,7 +331,7 @@ static int bnx2i_setup_free_cid_que(struct bnx2i_hba *hba)
 
 	hba->cid_que.cid_que_base = kmalloc(mem_size, GFP_KERNEL);
 	if (!hba->cid_que.cid_que_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mem_size = hba->max_active_conns * sizeof(struct bnx2i_conn *);
 	mem_size = (mem_size + (PAGE_SIZE - 1)) & PAGE_MASK;
@@ -339,7 +339,7 @@ static int bnx2i_setup_free_cid_que(struct bnx2i_hba *hba)
 	if (!hba->cid_que.conn_cid_tbl) {
 		kfree(hba->cid_que.cid_que_base);
 		hba->cid_que.cid_que_base = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hba->cid_que.cid_que = (u32 *)hba->cid_que.cid_que_base;
@@ -386,7 +386,7 @@ static struct iscsi_endpoint *bnx2i_alloc_ep(struct bnx2i_hba *hba)
 
 	ep = iscsi_create_endpoint(sizeof(*bnx2i_ep));
 	if (!ep) {
-		printk(KERN_ERR "bnx2i: Could not allocate ep\n");
+		printk(KERN_ERR "bnx2i: Could analt allocate ep\n");
 		return NULL;
 	}
 
@@ -451,9 +451,9 @@ static int bnx2i_alloc_bdt(struct bnx2i_hba *hba, struct iscsi_session *session,
 					ISCSI_MAX_BDS_PER_CMD * sizeof(*bd),
 					&io->bd_tbl_dma, GFP_KERNEL);
 	if (!io->bd_tbl) {
-		iscsi_session_printk(KERN_ERR, session, "Could not "
+		iscsi_session_printk(KERN_ERR, session, "Could analt "
 				     "allocate bdt.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	io->bd_valid = 0;
 	return 0;
@@ -509,7 +509,7 @@ static int bnx2i_setup_cmd_pool(struct bnx2i_hba *hba,
 
 free_bdts:
 	bnx2i_destroy_cmd_pool(hba, session);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 
@@ -580,14 +580,14 @@ static void bnx2i_free_mp_bdt(struct bnx2i_hba *hba)
 }
 
 /**
- * bnx2i_drop_session - notifies iscsid of connection error.
+ * bnx2i_drop_session - analtifies iscsid of connection error.
  * @cls_session:	iscsi cls session pointer
  *
- * This notifies iscsid that there is a error, so it can initiate
+ * This analtifies iscsid that there is a error, so it can initiate
  * recovery.
  *
  * This relies on caller using the iscsi class iterator so the object
- * is refcounted and does not disapper from under us.
+ * is refcounted and does analt disapper from under us.
  */
 void bnx2i_drop_session(struct iscsi_cls_session *cls_session)
 {
@@ -686,7 +686,7 @@ bnx2i_find_ep_in_ofld_list(struct bnx2i_hba *hba, u32 iscsi_cid)
 	read_unlock_bh(&hba->ep_rdwr_lock);
 
 	if (!ep)
-		printk(KERN_ERR "l5 cid %d not found\n", iscsi_cid);
+		printk(KERN_ERR "l5 cid %d analt found\n", iscsi_cid);
 	return ep;
 }
 
@@ -714,7 +714,7 @@ bnx2i_find_ep_in_destroy_list(struct bnx2i_hba *hba, u32 iscsi_cid)
 	read_unlock_bh(&hba->ep_rdwr_lock);
 
 	if (!ep)
-		printk(KERN_ERR "l5 cid %d not found\n", iscsi_cid);
+		printk(KERN_ERR "l5 cid %d analt found\n", iscsi_cid);
 
 	return ep;
 }
@@ -807,7 +807,7 @@ struct bnx2i_hba *bnx2i_alloc_hba(struct cnic_dev *cnic)
 	hba->pci_sdid = hba->pcidev->subsystem_device;
 	hba->pci_svid = hba->pcidev->subsystem_vendor;
 	hba->pci_func = PCI_FUNC(hba->pcidev->devfn);
-	hba->pci_devno = PCI_SLOT(hba->pcidev->devfn);
+	hba->pci_devanal = PCI_SLOT(hba->pcidev->devfn);
 
 	bnx2i_identify_device(hba, cnic);
 	bnx2i_setup_host_queue_size(hba, shost);
@@ -966,7 +966,7 @@ static void bnx2i_conn_free_login_resources(struct bnx2i_hba *hba,
 }
 
 /**
- * bnx2i_conn_alloc_login_resources - alloc DMA resources for login/nop.
+ * bnx2i_conn_alloc_login_resources - alloc DMA resources for login/analp.
  * @hba:		pointer to adapter instance
  * @bnx2i_conn:		iscsi connection pointer
  *
@@ -1032,7 +1032,7 @@ login_resp_buf_failure:
 login_req_buf_failure:
 	iscsi_conn_printk(KERN_ERR, bnx2i_conn->cls_conn->dd_data,
 			  "login resource alloc failed!!\n");
-	return -ENOMEM;
+	return -EANALMEM;
 
 }
 
@@ -1074,7 +1074,7 @@ static void bnx2i_iscsi_prep_generic_pdu_bd(struct bnx2i_conn *bnx2i_conn)
  * @task:	transport layer task pointer
  *
  * called to transmit PDUs prepared by the 'iscsid' daemon. iSCSI login,
- *	Nop-out and Logout requests flow through this path.
+ *	Analp-out and Logout requests flow through this path.
  */
 static int bnx2i_iscsi_send_generic_request(struct iscsi_task *task)
 {
@@ -1089,14 +1089,14 @@ static int bnx2i_iscsi_send_generic_request(struct iscsi_task *task)
 	case ISCSI_OP_LOGIN:
 		bnx2i_send_iscsi_login(bnx2i_conn, task);
 		break;
-	case ISCSI_OP_NOOP_OUT:
+	case ISCSI_OP_ANALOP_OUT:
 		data_len = bnx2i_conn->gen_pdu.req_buf_size;
 		buf = bnx2i_conn->gen_pdu.req_buf;
 		if (data_len)
-			rc = bnx2i_send_iscsi_nopout(bnx2i_conn, task,
+			rc = bnx2i_send_iscsi_analpout(bnx2i_conn, task,
 						     buf, data_len, 1);
 		else
-			rc = bnx2i_send_iscsi_nopout(bnx2i_conn, task,
+			rc = bnx2i_send_iscsi_analpout(bnx2i_conn, task,
 						     NULL, 0, 1);
 		break;
 	case ISCSI_OP_LOGOUT:
@@ -1229,10 +1229,10 @@ static int bnx2i_task_xmit(struct iscsi_task *task)
 
 	if (atomic_read(&bnx2i_conn->ep->num_active_cmds) + 1  >
 	    hba->max_sqes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * If there is no scsi_cmnd this must be a mgmt task
+	 * If there is anal scsi_cmnd this must be a mgmt task
 	 */
 	if (!sc)
 		return bnx2i_mtask_xmit(conn, task);
@@ -1347,7 +1347,7 @@ static void bnx2i_session_destroy(struct iscsi_cls_session *cls_session)
 /**
  * bnx2i_conn_create - create iscsi connection instance
  * @cls_session:	pointer to iscsi cls session
- * @cid:		iscsi cid as per rfc (not NX2's CID terminology)
+ * @cid:		iscsi cid as per rfc (analt NX2's CID termianallogy)
  *
  * Creates a new iSCSI connection instance for a given session
  */
@@ -1398,7 +1398,7 @@ free_conn:
  *
  * Binds together iSCSI session instance, iSCSI connection instance
  *	and the TCP connection. This routine returns error code if
- *	TCP connection does not belong on the device iSCSI sess/conn
+ *	TCP connection does analt belong on the device iSCSI sess/conn
  *	is bound
  */
 static int bnx2i_conn_bind(struct iscsi_cls_session *cls_session,
@@ -1439,10 +1439,10 @@ static int bnx2i_conn_bind(struct iscsi_cls_session *cls_session,
 	}
 
 	if (bnx2i_ep->hba != hba) {
-		/* Error - TCP connection does not belong to this device
+		/* Error - TCP connection does analt belong to this device
 		 */
 		iscsi_conn_printk(KERN_ALERT, cls_conn->dd_data,
-				  "conn bind, ep=0x%p (%s) does not",
+				  "conn bind, ep=0x%p (%s) does analt",
 				  bnx2i_ep, bnx2i_ep->hba->netdev->name);
 		iscsi_conn_printk(KERN_ALERT, cls_conn->dd_data,
 				  "belong to hba (%s)\n",
@@ -1529,10 +1529,10 @@ static int bnx2i_ep_get_param(struct iscsi_endpoint *ep,
 {
 	struct bnx2i_endpoint *bnx2i_ep = ep->dd_data;
 	struct bnx2i_hba *hba = bnx2i_ep->hba;
-	int len = -ENOTCONN;
+	int len = -EANALTCONN;
 
 	if (!hba)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	switch (param) {
 	case ISCSI_PARAM_CONN_PORT:
@@ -1548,7 +1548,7 @@ static int bnx2i_ep_get_param(struct iscsi_endpoint *ep,
 		mutex_unlock(&hba->net_dev_lock);
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return len;
@@ -1614,8 +1614,8 @@ static int bnx2i_conn_start(struct iscsi_cls_conn *cls_conn)
 	bnx2i_update_iscsi_conn(conn);
 
 	/*
-	 * this should normally not sleep for a long time so it should
-	 * not disrupt the caller.
+	 * this should analrmally analt sleep for a long time so it should
+	 * analt disrupt the caller.
 	 */
 	timer_setup(&bnx2i_conn->ep->ofld_timer, bnx2i_ep_ofld_timer, 0);
 	bnx2i_conn->ep->ofld_timer.expires = 1 * HZ + jiffies;
@@ -1676,27 +1676,27 @@ static struct bnx2i_hba *bnx2i_check_route(struct sockaddr *dst_addr)
 	if (hba && hba->cnic)
 		cnic = hba->cnic->cm_select_dev(desti, CNIC_ULP_ISCSI);
 	if (!cnic) {
-		printk(KERN_ALERT "bnx2i: no route,"
+		printk(KERN_ALERT "bnx2i: anal route,"
 		       "can't connect using cnic\n");
-		goto no_nx2_route;
+		goto anal_nx2_route;
 	}
 	hba = bnx2i_find_hba_for_cnic(cnic);
 	if (!hba)
-		goto no_nx2_route;
+		goto anal_nx2_route;
 
 	if (bnx2i_adapter_ready(hba)) {
-		printk(KERN_ALERT "bnx2i: check route, hba not found\n");
-		goto no_nx2_route;
+		printk(KERN_ALERT "bnx2i: check route, hba analt found\n");
+		goto anal_nx2_route;
 	}
 	if (hba->netdev->mtu > hba->mtu_supported) {
 		printk(KERN_ALERT "bnx2i: %s network i/f mtu is set to %d\n",
 				  hba->netdev->name, hba->netdev->mtu);
 		printk(KERN_ALERT "bnx2i: iSCSI HBA can support mtu of %d\n",
 				  hba->mtu_supported);
-		goto no_nx2_route;
+		goto anal_nx2_route;
 	}
 	return hba;
-no_nx2_route:
+anal_nx2_route:
 	return NULL;
 }
 
@@ -1723,7 +1723,7 @@ static int bnx2i_tear_down_conn(struct bnx2i_hba *hba,
 			/* Must suspend all rx queue activity for this ep */
 			set_bit(ISCSI_CONN_FLAG_SUSPEND_RX, &conn->flags);
 		}
-		/* CONN_DISCONNECT timeout may or may not be an issue depending
+		/* CONN_DISCONNECT timeout may or may analt be an issue depending
 		 * on what transcribed in TCP layer, different targets behave
 		 * differently
 		 */
@@ -1765,7 +1765,7 @@ static int bnx2i_tear_down_conn(struct bnx2i_hba *hba,
  * bnx2i_ep_connect - establish TCP connection to target portal
  * @shost:		scsi host
  * @dst_addr:		target IP address
- * @non_blocking:	blocking or non-blocking call
+ * @analn_blocking:	blocking or analn-blocking call
  *
  * this routine initiates the TCP/IP connection by invoking Option-2 i/f
  *	with l5_core and the CNIC. This is a multi-step process of resolving
@@ -1775,7 +1775,7 @@ static int bnx2i_tear_down_conn(struct bnx2i_hba *hba,
  */
 static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 					       struct sockaddr *dst_addr,
-					       int non_blocking)
+					       int analn_blocking)
 {
 	u32 iscsi_cid = BNX2I_CID_RESERVED;
 	struct sockaddr_in *desti = (struct sockaddr_in *) dst_addr;
@@ -1799,7 +1799,7 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 
 	if (!hba) {
 		rc = -EINVAL;
-		goto nohba;
+		goto analhba;
 	}
 	mutex_lock(&hba->net_dev_lock);
 
@@ -1810,7 +1810,7 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 	cnic = hba->cnic;
 	ep = bnx2i_alloc_ep(hba);
 	if (!ep) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto check_busy;
 	}
 	bnx2i_ep = ep->dd_data;
@@ -1820,7 +1820,7 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 	if (iscsi_cid == -1) {
 		printk(KERN_ALERT "bnx2i (%s): alloc_ep - unable to allocate "
 			"iscsi cid\n", hba->netdev->name);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		bnx2i_free_ep(ep);
 		goto check_busy;
 	}
@@ -1830,7 +1830,7 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 	if (rc != 0) {
 		printk(KERN_ALERT "bnx2i (%s): ep_conn - alloc QP resc error"
 			"\n", hba->netdev->name);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto qp_resc_err;
 	}
 
@@ -1848,7 +1848,7 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 				hba->netdev->name, bnx2i_ep->ep_iscsi_cid);
 			rc = -EBUSY;
 		} else
-			rc = -ENOSPC;
+			rc = -EANALSPC;
 		printk(KERN_ALERT "bnx2i (%s): unable to send conn offld kwqe"
 			"\n", hba->netdev->name);
 		bnx2i_ep_ofld_list_del(hba, bnx2i_ep);
@@ -1871,7 +1871,7 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 				hba->netdev->name, bnx2i_ep->ep_iscsi_cid);
 			rc = -EBUSY;
 		} else
-			rc = -ENOSPC;
+			rc = -EANALSPC;
 		goto conn_failed;
 	}
 
@@ -1930,7 +1930,7 @@ qp_resc_err:
 	bnx2i_free_ep(ep);
 check_busy:
 	mutex_unlock(&hba->net_dev_lock);
-nohba:
+analhba:
 	return ERR_PTR(rc);
 }
 
@@ -2067,9 +2067,9 @@ int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep)
 		if (bnx2i_ep->state != EP_STATE_TCP_FIN_RCVD) {
 			if (session->state == ISCSI_STATE_LOGGING_OUT) {
 				if (bnx2i_ep->state == EP_STATE_LOGOUT_SENT) {
-					/* Logout sent, but no resp */
+					/* Logout sent, but anal resp */
 					printk(KERN_ALERT "bnx2i (%s): WARNING"
-						" logout response was not "
+						" logout response was analt "
 						"received!\n",
 						bnx2i_ep->hba->netdev->name);
 				} else if (bnx2i_ep->state ==
@@ -2126,7 +2126,7 @@ static void bnx2i_ep_disconnect(struct iscsi_endpoint *ep)
 
 	bnx2i_ep = ep->dd_data;
 
-	/* driver should not attempt connection cleanup until TCP_CONNECT
+	/* driver should analt attempt connection cleanup until TCP_CONNECT
 	 * completes either successfully or fails. Timeout is 9-secs, so
 	 * wait for it to complete
 	 */
@@ -2219,8 +2219,8 @@ static umode_t bnx2i_attr_is_visible(int param_type, int param)
 		case ISCSI_PARAM_IMM_DATA_EN:
 		case ISCSI_PARAM_FIRST_BURST:
 		case ISCSI_PARAM_MAX_BURST:
-		case ISCSI_PARAM_PDU_INORDER_EN:
-		case ISCSI_PARAM_DATASEQ_INORDER_EN:
+		case ISCSI_PARAM_PDU_IANALRDER_EN:
+		case ISCSI_PARAM_DATASEQ_IANALRDER_EN:
 		case ISCSI_PARAM_ERL:
 		case ISCSI_PARAM_TARGET_NAME:
 		case ISCSI_PARAM_TPGT:

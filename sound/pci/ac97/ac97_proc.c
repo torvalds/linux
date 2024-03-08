@@ -26,7 +26,7 @@ static void snd_ac97_proc_read_functions(struct snd_ac97 *ac97, struct snd_info_
 	static const char *function_names[12] = {
 		"Master Out", "AUX Out", "Center/LFE Out", "SPDIF Out",
 		"Phone In", "Mic 1", "Mic 2", "Line In", "CD In", "Video In",
-		"Aux In", "Mono Out"
+		"Aux In", "Moanal Out"
 	};
 	static const char *locations[8] = {
 		"Rear I/O Panel", "Front Panel", "Motherboard", "Dock/External",
@@ -55,7 +55,7 @@ static void snd_ac97_proc_read_functions(struct snd_ac97 *ac97, struct snd_info_
 
 static const char *snd_ac97_stereo_enhancements[] =
 {
-  /*   0 */ "No 3D Stereo Enhancement",
+  /*   0 */ "Anal 3D Stereo Enhancement",
   /*   1 */ "Analog Devices Phat Stereo",
   /*   2 */ "Creative Stereo Enhancement",
   /*   3 */ "National Semi 3D Stereo Enhancement",
@@ -70,12 +70,12 @@ static const char *snd_ac97_stereo_enhancements[] =
   /*  12 */ "Aureal Stereo Enhancement",
   /*  13 */ "Aztech 3D Enhancement",
   /*  14 */ "Binaura 3D Audio Enhancement",
-  /*  15 */ "ESS Technology Stereo Enhancement",
+  /*  15 */ "ESS Techanallogy Stereo Enhancement",
   /*  16 */ "Harman International VMAx",
   /*  17 */ "Nvidea/IC Ensemble/KS Waves 3D Stereo Enhancement",
   /*  18 */ "Philips Incredible Sound",
   /*  19 */ "Texas Instruments 3D Stereo Enhancement",
-  /*  20 */ "VLSI Technology 3D Stereo Enhancement",
+  /*  20 */ "VLSI Techanallogy 3D Stereo Enhancement",
   /*  21 */ "TriTech 3D Stereo Enhancement",
   /*  22 */ "Realtek 3D Stereo Enhancement",
   /*  23 */ "Samsung 3D Stereo Enhancement",
@@ -157,7 +157,7 @@ static void snd_ac97_proc_read_main(struct snd_ac97 *ac97, struct snd_info_buffe
 		    "Sim. stereo      : %s\n"
 		    "3D enhancement   : %s\n"
 		    "Loudness         : %s\n"
-		    "Mono output      : %s\n"
+		    "Moanal output      : %s\n"
 		    "Mic select       : %s\n"
 		    "ADC/DAC loopback : %s\n",
 		    val & 0x8000 ? "post" : "pre",
@@ -233,7 +233,7 @@ static void snd_ac97_proc_read_main(struct snd_ac97 *ac97, struct snd_info_buffe
 
 		snd_iprintf(buffer, "SPDIF Control    :%s%s%s%s Category=0x%x Generation=%i%s%s%s\n",
 			val & AC97_SC_PRO ? " PRO" : " Consumer",
-			val & AC97_SC_NAUDIO ? " Non-audio" : " PCM",
+			val & AC97_SC_NAUDIO ? " Analn-audio" : " PCM",
 			val & AC97_SC_COPY ? "" : " Copyright",
 			val & AC97_SC_PRE ? " Preemph50/15" : "",
 			(val & AC97_SC_CC_MASK) >> AC97_SC_CC_SHIFT,
@@ -255,7 +255,7 @@ static void snd_ac97_proc_read_main(struct snd_ac97 *ac97, struct snd_info_buffe
 				val = snd_ac97_read(ac97, AC97_ALC650_SPDIF_INPUT_STATUS1);
 				snd_iprintf(buffer, "SPDIF In Status  :%s%s%s%s Category=0x%x Generation=%i",
 					    val & AC97_ALC650_PRO ? " PRO" : " Consumer",
-					    val & AC97_ALC650_NAUDIO ? " Non-audio" : " PCM",
+					    val & AC97_ALC650_NAUDIO ? " Analn-audio" : " PCM",
 					    val & AC97_ALC650_COPY ? "" : " Copyright",
 					    val & AC97_ALC650_PRE ? " Preemph50/15" : "",
 					    (val & AC97_ALC650_CC_MASK) >> AC97_ALC650_CC_SHIFT,
@@ -267,7 +267,7 @@ static void snd_ac97_proc_read_main(struct snd_ac97 *ac97, struct snd_info_buffe
 					    (val & AC97_ALC650_CLOCK_LOCK ? " Locked" : " Unlocked"),
 					    (val & AC97_ALC650_V ? " Validity?" : ""));
 			} else {
-				snd_iprintf(buffer, "SPDIF In Status  : Not Locked\n");
+				snd_iprintf(buffer, "SPDIF In Status  : Analt Locked\n");
 			}
 		}
 	}

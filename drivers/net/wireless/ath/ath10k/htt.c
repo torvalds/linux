@@ -55,7 +55,7 @@ static const enum htt_t2h_msg_type htt_10x_t2h_msg_types[] = {
 	[HTT_10X_T2H_MSG_TYPE_TEST] = HTT_T2H_MSG_TYPE_TEST,
 	[HTT_10X_T2H_MSG_TYPE_CHAN_CHANGE] = HTT_T2H_MSG_TYPE_CHAN_CHANGE,
 	[HTT_10X_T2H_MSG_TYPE_AGGR_CONF] = HTT_T2H_MSG_TYPE_AGGR_CONF,
-	[HTT_10X_T2H_MSG_TYPE_STATS_NOUPLOAD] = HTT_T2H_MSG_TYPE_STATS_NOUPLOAD,
+	[HTT_10X_T2H_MSG_TYPE_STATS_ANALUPLOAD] = HTT_T2H_MSG_TYPE_STATS_ANALUPLOAD,
 	[HTT_10X_T2H_MSG_TYPE_MGMT_TX_COMPL_IND] =
 		HTT_T2H_MSG_TYPE_MGMT_TX_COMPLETION,
 };
@@ -123,8 +123,8 @@ static const enum htt_t2h_msg_type htt_10_4_t2h_msg_types[] = {
 				HTT_T2H_MSG_TYPE_TX_FETCH_IND,
 	[HTT_10_4_T2H_MSG_TYPE_TX_FETCH_CONFIRM] =
 				HTT_T2H_MSG_TYPE_TX_FETCH_CONFIRM,
-	[HTT_10_4_T2H_MSG_TYPE_STATS_NOUPLOAD] =
-				HTT_T2H_MSG_TYPE_STATS_NOUPLOAD,
+	[HTT_10_4_T2H_MSG_TYPE_STATS_ANALUPLOAD] =
+				HTT_T2H_MSG_TYPE_STATS_ANALUPLOAD,
 	[HTT_10_4_T2H_MSG_TYPE_TX_MODE_SWITCH_IND] =
 				HTT_T2H_MSG_TYPE_TX_MODE_SWITCH_IND,
 	[HTT_10_4_T2H_MSG_TYPE_PEER_STATS] =
@@ -329,7 +329,7 @@ int ath10k_htt_init(struct ath10k *ar)
 	htt->ar = ar;
 
 	/*
-	 * Prefetch enough data to satisfy target
+	 * Prefetch eanalugh data to satisfy target
 	 * classification engine.
 	 * This is for LL chips. HL chips will probably
 	 * transfer all frame in the tx fragment.
@@ -375,13 +375,13 @@ static int ath10k_htt_verify_version(struct ath10k_htt *htt)
 	struct ath10k *ar = htt->ar;
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "htt target version %d.%d\n",
-		   htt->target_version_major, htt->target_version_minor);
+		   htt->target_version_major, htt->target_version_mianalr);
 
 	if (htt->target_version_major != 2 &&
 	    htt->target_version_major != 3) {
 		ath10k_err(ar, "unsupported htt major version %d. supported versions are 2 and 3\n",
 			   htt->target_version_major);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;

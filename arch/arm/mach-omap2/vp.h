@@ -7,7 +7,7 @@
  * Lesly A M <x0080970@ti.com>
  * Thara Gopinath <thara@ti.com>
  *
- * Copyright (C) 2008, 2011 Nokia Corporation
+ * Copyright (C) 2008, 2011 Analkia Corporation
  * Kalle Jokiniemi
  * Paul Walmsley
  */
@@ -82,9 +82,9 @@ struct omap_vp_common {
  * @vstatus: PRM_VP*_VSTATUS reg offset from PRM start
  * @voltage: PRM_VP*_VOLTAGE reg offset from PRM start
  * @id: Unique identifier for VP instance.
- * @enabled: flag to keep track of whether vp is enabled or not
+ * @enabled: flag to keep track of whether vp is enabled or analt
  *
- * XXX vp_common is probably not needed since it is per-SoC
+ * XXX vp_common is probably analt needed since it is per-SoC
  */
 struct omap_vp_instance {
 	const struct omap_vp_common *common;

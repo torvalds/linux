@@ -13,7 +13,7 @@ struct Big {
 	long y;
 };
 
-__noinline int foo(const struct Big *big)
+__analinline int foo(const struct Big *big)
 {
 	if (!big)
 		return 0;

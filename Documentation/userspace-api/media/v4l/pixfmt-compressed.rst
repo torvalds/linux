@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 ******************
 Compressed Formats
@@ -44,11 +44,11 @@ Compressed Formats
 	The decoder expects one Access Unit per buffer.
 	The encoder generates one Access Unit per buffer.
 	If :ref:`VIDIOC_ENUM_FMT` reports ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
-	then the decoder has no requirements since it can parse all the
+	then the decoder has anal requirements since it can parse all the
 	information from the raw bytestream.
-    * .. _V4L2-PIX-FMT-H264-NO-SC:
+    * .. _V4L2-PIX-FMT-H264-ANAL-SC:
 
-      - ``V4L2_PIX_FMT_H264_NO_SC``
+      - ``V4L2_PIX_FMT_H264_ANAL_SC``
       - 'AVC1'
       - H264 video elementary stream without start codes.
     * .. _V4L2-PIX-FMT-H264-MVC:
@@ -100,7 +100,7 @@ Compressed Formats
       - MPEG1 Picture. Each buffer starts with a Picture header, followed
 	by other headers as needed and ending with the Picture data.
 	If :ref:`VIDIOC_ENUM_FMT` reports ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
-	then the decoder has no requirements since it can parse all the
+	then the decoder has anal requirements since it can parse all the
 	information from the raw bytestream.
     * .. _V4L2-PIX-FMT-MPEG2:
 
@@ -109,7 +109,7 @@ Compressed Formats
       - MPEG2 Picture. Each buffer starts with a Picture header, followed
 	by other headers as needed and ending with the Picture data.
 	If :ref:`VIDIOC_ENUM_FMT` reports ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
-	then the decoder has no requirements since it can parse all the
+	then the decoder has anal requirements since it can parse all the
 	information from the raw bytestream.
     * .. _V4L2-PIX-FMT-MPEG2-SLICE:
 
@@ -200,7 +200,7 @@ Compressed Formats
 	The decoder expects one Access Unit per buffer.
 	The encoder generates one Access Unit per buffer.
 	If :ref:`VIDIOC_ENUM_FMT` reports ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
-	then the decoder has no	requirements since it can parse all the
+	then the decoder has anal	requirements since it can parse all the
 	information from the raw bytestream.
     * .. _V4L2-PIX-FMT-HEVC-SLICE:
 
@@ -255,7 +255,7 @@ Compressed Formats
         RealVideo 9, suspected to be based on H.264.
         RealVideo 10, aka RV9 EHQ, This refers to an improved encoder
         for the RV9 format that is fully backwards compatible with
-        RV9 players - the format and decoder did not change, only
+        RV9 players - the format and decoder did analt change, only
         the encoder did. As a result, it uses the same FourCC.
 
     * .. _V4L2-PIX-FMT-AV1-FRAME:
@@ -276,4 +276,4 @@ Compressed Formats
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize

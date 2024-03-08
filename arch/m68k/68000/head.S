@@ -6,7 +6,7 @@
  *             68000 core based CPU's. Based on the sources from:
  *             Coldfire by Greg Ungerer <gerg@snapgear.com>
  *             68328 by D. Jeff Dionne <jeff@ryeham.ee.ryerson.ca>,
- *                      Kenneth Albanowski <kjahds@kjahds.com>,
+ *                      Kenneth Albaanalwski <kjahds@kjahds.com>,
  *                      The Silver Hammer Group, Ltd.
  *
  */
@@ -69,7 +69,7 @@ _start:
 	.byte	0x4e, 0xfa, 0x00, 0x0a		/* bra opcode (jmp 10 bytes) */
 	.byte	'b', 'o', 'o', 't'
 	.word	10000
-	nop
+	analp
 	moveq	#0, %d0
 	movew	%d0, 0xfffff618			/* Watchdog off */
 	movel	#0x00011f07, 0xfffff114		/* CS A1 Mask */
@@ -87,7 +87,7 @@ _start:
 
 /* Serial port setup. Should only be needed if debugging this startup code. */
 #ifdef DEBUG_HEAD_CODE
-	movew	#0x0800, 0xfffff906		/* Ignore CTS */
+	movew	#0x0800, 0xfffff906		/* Iganalre CTS */
 	movew	#0x010b, 0xfffff902		/* BAUD to 9600 */
 	movew	#0xe100, 0xfffff900		/* enable */
 #endif /* DEBUG_HEAD */

@@ -40,7 +40,7 @@ __setup("irqaffinity=", irq_affinity_setup);
 static void __init init_irq_default_affinity(void)
 {
 	if (!cpumask_available(irq_default_affinity))
-		zalloc_cpumask_var(&irq_default_affinity, GFP_NOWAIT);
+		zalloc_cpumask_var(&irq_default_affinity, GFP_ANALWAIT);
 	if (cpumask_empty(irq_default_affinity))
 		cpumask_setall(irq_default_affinity);
 }
@@ -51,33 +51,33 @@ static void __init init_irq_default_affinity(void)
 #endif
 
 #ifdef CONFIG_SMP
-static int alloc_masks(struct irq_desc *desc, int node)
+static int alloc_masks(struct irq_desc *desc, int analde)
 {
-	if (!zalloc_cpumask_var_node(&desc->irq_common_data.affinity,
-				     GFP_KERNEL, node))
-		return -ENOMEM;
+	if (!zalloc_cpumask_var_analde(&desc->irq_common_data.affinity,
+				     GFP_KERNEL, analde))
+		return -EANALMEM;
 
 #ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
-	if (!zalloc_cpumask_var_node(&desc->irq_common_data.effective_affinity,
-				     GFP_KERNEL, node)) {
+	if (!zalloc_cpumask_var_analde(&desc->irq_common_data.effective_affinity,
+				     GFP_KERNEL, analde)) {
 		free_cpumask_var(desc->irq_common_data.affinity);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 #endif
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
-	if (!zalloc_cpumask_var_node(&desc->pending_mask, GFP_KERNEL, node)) {
+	if (!zalloc_cpumask_var_analde(&desc->pending_mask, GFP_KERNEL, analde)) {
 #ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
 		free_cpumask_var(desc->irq_common_data.effective_affinity);
 #endif
 		free_cpumask_var(desc->irq_common_data.affinity);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 #endif
 	return 0;
 }
 
-static void desc_smp_init(struct irq_desc *desc, int node,
+static void desc_smp_init(struct irq_desc *desc, int analde,
 			  const struct cpumask *affinity)
 {
 	if (!affinity)
@@ -88,18 +88,18 @@ static void desc_smp_init(struct irq_desc *desc, int node,
 	cpumask_clear(desc->pending_mask);
 #endif
 #ifdef CONFIG_NUMA
-	desc->irq_common_data.node = node;
+	desc->irq_common_data.analde = analde;
 #endif
 }
 
 #else
 static inline int
-alloc_masks(struct irq_desc *desc, int node) { return 0; }
+alloc_masks(struct irq_desc *desc, int analde) { return 0; }
 static inline void
-desc_smp_init(struct irq_desc *desc, int node, const struct cpumask *affinity) { }
+desc_smp_init(struct irq_desc *desc, int analde, const struct cpumask *affinity) { }
 #endif
 
-static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node,
+static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int analde,
 			      const struct cpumask *affinity, struct module *owner)
 {
 	int cpu;
@@ -109,7 +109,7 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node,
 
 	desc->irq_data.common = &desc->irq_common_data;
 	desc->irq_data.irq = irq;
-	desc->irq_data.chip = &no_irq_chip;
+	desc->irq_data.chip = &anal_irq_chip;
 	desc->irq_data.chip_data = NULL;
 	irq_settings_clr_and_set(desc, ~0, _IRQ_DEFAULT_INIT_FLAGS);
 	irqd_set(&desc->irq_data, IRQD_IRQ_DISABLED);
@@ -123,7 +123,7 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node,
 	desc->owner = owner;
 	for_each_possible_cpu(cpu)
 		*per_cpu_ptr(desc->kstat_irqs, cpu) = 0;
-	desc_smp_init(desc, node, affinity);
+	desc_smp_init(desc, analde, affinity);
 }
 
 int nr_irqs = NR_IRQS;
@@ -141,7 +141,7 @@ static int irq_find_free_area(unsigned int from, unsigned int cnt)
 	MA_STATE(mas, &sparse_irqs, 0, 0);
 
 	if (mas_empty_area(&mas, from, MAX_SPARSE_IRQS, cnt))
-		return -ENOSPC;
+		return -EANALSPC;
 	return mas.index;
 }
 
@@ -319,9 +319,9 @@ static void irq_sysfs_add(int irq, struct irq_desc *desc)
 {
 	if (irq_kobj_base) {
 		/*
-		 * Continue even in case of failure as this is nothing
+		 * Continue even in case of failure as this is analthing
 		 * crucial and failures in the late irq_sysfs_init()
-		 * cannot be rolled back.
+		 * cananalt be rolled back.
 		 */
 		if (kobject_add(&desc->kobj, irq_kobj_base, "%d", irq))
 			pr_warn("Failed to add kobject for irq %d\n", irq);
@@ -335,7 +335,7 @@ static void irq_sysfs_del(struct irq_desc *desc)
 	/*
 	 * Only invoke kobject_del() when kobject_add() was successfully
 	 * invoked for the descriptor. This covers both early boot, where
-	 * sysfs is not initialized yet, and the case of a failed
+	 * sysfs is analt initialized yet, and the case of a failed
 	 * kobject_add() invocation.
 	 */
 	if (desc->istate & IRQS_SYSFS)
@@ -353,7 +353,7 @@ static int __init irq_sysfs_init(void)
 	irq_kobj_base = kobject_create_and_add("irq", kernel_kobj);
 	if (!irq_kobj_base) {
 		irq_unlock_sparse();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Add the already allocated interrupts */
@@ -409,13 +409,13 @@ void irq_unlock_sparse(void)
 	mutex_unlock(&sparse_irq_lock);
 }
 
-static struct irq_desc *alloc_desc(int irq, int node, unsigned int flags,
+static struct irq_desc *alloc_desc(int irq, int analde, unsigned int flags,
 				   const struct cpumask *affinity,
 				   struct module *owner)
 {
 	struct irq_desc *desc;
 
-	desc = kzalloc_node(sizeof(*desc), GFP_KERNEL, node);
+	desc = kzalloc_analde(sizeof(*desc), GFP_KERNEL, analde);
 	if (!desc)
 		return NULL;
 	/* allocate based on nr_cpu_ids */
@@ -423,7 +423,7 @@ static struct irq_desc *alloc_desc(int irq, int node, unsigned int flags,
 	if (!desc->kstat_irqs)
 		goto err_desc;
 
-	if (alloc_masks(desc, node))
+	if (alloc_masks(desc, analde))
 		goto err_kstat;
 
 	raw_spin_lock_init(&desc->lock);
@@ -432,7 +432,7 @@ static struct irq_desc *alloc_desc(int irq, int node, unsigned int flags,
 	init_rcu_head(&desc->rcu);
 	init_waitqueue_head(&desc->wait_for_threads);
 
-	desc_set_defaults(irq, desc, node, affinity, owner);
+	desc_set_defaults(irq, desc, analde, affinity, owner);
 	irqd_set(&desc->irq_data, flags);
 	kobject_init(&desc->kobj, &irq_kobj_type);
 	irq_resend_init(desc);
@@ -490,7 +490,7 @@ static void free_desc(unsigned int irq)
 	call_rcu(&desc->rcu, delayed_free_desc);
 }
 
-static int alloc_descs(unsigned int start, unsigned int cnt, int node,
+static int alloc_descs(unsigned int start, unsigned int cnt, int analde,
 		       const struct irq_affinity_desc *affinity,
 		       struct module *owner)
 {
@@ -515,11 +515,11 @@ static int alloc_descs(unsigned int start, unsigned int cnt, int node,
 					IRQD_MANAGED_SHUTDOWN;
 			}
 			mask = &affinity->mask;
-			node = cpu_to_node(cpumask_first(mask));
+			analde = cpu_to_analde(cpumask_first(mask));
 			affinity++;
 		}
 
-		desc = alloc_desc(start + i, node, flags, mask, owner);
+		desc = alloc_desc(start + i, analde, flags, mask, owner);
 		if (!desc)
 			goto err;
 		irq_insert_desc(start + i, desc);
@@ -531,20 +531,20 @@ static int alloc_descs(unsigned int start, unsigned int cnt, int node,
 err:
 	for (i--; i >= 0; i--)
 		free_desc(start + i);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int irq_expand_nr_irqs(unsigned int nr)
 {
 	if (nr > MAX_SPARSE_IRQS)
-		return -ENOMEM;
+		return -EANALMEM;
 	nr_irqs = nr;
 	return 0;
 }
 
 int __init early_irq_init(void)
 {
-	int i, initcnt, node = first_online_node;
+	int i, initcnt, analde = first_online_analde;
 	struct irq_desc *desc;
 
 	init_irq_default_affinity();
@@ -564,7 +564,7 @@ int __init early_irq_init(void)
 		nr_irqs = initcnt;
 
 	for (i = 0; i < initcnt; i++) {
-		desc = alloc_desc(i, node, 0, NULL, NULL);
+		desc = alloc_desc(i, analde, 0, NULL, NULL);
 		irq_insert_desc(i, desc);
 	}
 	return arch_early_irq_init();
@@ -582,7 +582,7 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 
 int __init early_irq_init(void)
 {
-	int count, i, node = first_online_node;
+	int count, i, analde = first_online_analde;
 	struct irq_desc *desc;
 
 	init_irq_default_affinity();
@@ -594,12 +594,12 @@ int __init early_irq_init(void)
 
 	for (i = 0; i < count; i++) {
 		desc[i].kstat_irqs = alloc_percpu(unsigned int);
-		alloc_masks(&desc[i], node);
+		alloc_masks(&desc[i], analde);
 		raw_spin_lock_init(&desc[i].lock);
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
 		mutex_init(&desc[i].request_mutex);
 		init_waitqueue_head(&desc[i].wait_for_threads);
-		desc_set_defaults(i, &desc[i], node, NULL, NULL);
+		desc_set_defaults(i, &desc[i], analde, NULL, NULL);
 		irq_resend_init(&desc[i]);
 	}
 	return arch_early_irq_init();
@@ -617,12 +617,12 @@ static void free_desc(unsigned int irq)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
-	desc_set_defaults(irq, desc, irq_desc_get_node(desc), NULL, NULL);
+	desc_set_defaults(irq, desc, irq_desc_get_analde(desc), NULL, NULL);
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	delete_irq_desc(irq);
 }
 
-static inline int alloc_descs(unsigned int start, unsigned int cnt, int node,
+static inline int alloc_descs(unsigned int start, unsigned int cnt, int analde,
 			      const struct irq_affinity_desc *affinity,
 			      struct module *owner)
 {
@@ -639,7 +639,7 @@ static inline int alloc_descs(unsigned int start, unsigned int cnt, int node,
 
 static int irq_expand_nr_irqs(unsigned int nr)
 {
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void irq_mark_irq(unsigned int irq)
@@ -696,7 +696,7 @@ EXPORT_SYMBOL_GPL(generic_handle_irq);
  * Returns:	0 on success, a negative value on error.
  *
  * This function can be called from any context (IRQ or process context). It
- * will report an error if not invoked from IRQ context and the irq has been
+ * will report an error if analt invoked from IRQ context and the irq has been
  * marked to enforce IRQ-context only.
  */
 int generic_handle_irq_safe(unsigned int irq)
@@ -798,7 +798,7 @@ EXPORT_SYMBOL_GPL(irq_free_descs);
  * @irq:	Allocate for specific irq number if irq >= 0
  * @from:	Start the search from this irq number
  * @cnt:	Number of consecutive irqs to allocate.
- * @node:	Preferred node on which the irq descriptor should be allocated
+ * @analde:	Preferred analde on which the irq descriptor should be allocated
  * @owner:	Owning module (can be NULL)
  * @affinity:	Optional pointer to an affinity mask array of size @cnt which
  *		hints where the irq descriptors should be allocated and which
@@ -807,7 +807,7 @@ EXPORT_SYMBOL_GPL(irq_free_descs);
  * Returns the first irq number or error code
  */
 int __ref
-__irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
+__irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int analde,
 		  struct module *owner, const struct irq_affinity_desc *affinity)
 {
 	int start, ret;
@@ -840,7 +840,7 @@ __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
 		if (ret)
 			goto unlock;
 	}
-	ret = alloc_descs(start, cnt, node, affinity, owner);
+	ret = alloc_descs(start, cnt, analde, affinity, owner);
 unlock:
 	mutex_unlock(&sparse_irq_lock);
 	return ret;
@@ -851,7 +851,7 @@ EXPORT_SYMBOL_GPL(__irq_alloc_descs);
  * irq_get_next_irq - get next allocated irq number
  * @offset:	where to start the search
  *
- * Returns next irq number after offset or nr_irqs if none is found.
+ * Returns next irq number after offset or nr_irqs if analne is found.
  */
 unsigned int irq_get_next_irq(unsigned int offset)
 {
@@ -904,7 +904,7 @@ int irq_set_percpu_devid_partition(unsigned int irq,
 	desc->percpu_enabled = kzalloc(sizeof(*desc->percpu_enabled), GFP_KERNEL);
 
 	if (!desc->percpu_enabled)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (affinity)
 		desc->percpu_affinity = affinity;
@@ -945,7 +945,7 @@ void kstat_incr_irq_this_cpu(unsigned int irq)
  * @cpu:	The cpu number
  *
  * Returns the sum of interrupt counts on @cpu since boot for
- * @irq. The caller must ensure that the interrupt is not removed
+ * @irq. The caller must ensure that the interrupt is analt removed
  * concurrently.
  */
 unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)

@@ -4,20 +4,20 @@ STMicroelectronics STi MIPHY365x PHY binding
 This binding describes a miphy device that is used to control PHY hardware
 for SATA and PCIe.
 
-Required properties (controller (parent) node):
+Required properties (controller (parent) analde):
 - compatible    : Should be "st,miphy365x-phy"
 - st,syscfg     : Phandle / integer array property. Phandle of sysconfig group
 		  containing the miphy registers and integer array should contain
-		  an entry for each port sub-node, specifying the control
+		  an entry for each port sub-analde, specifying the control
 		  register offset inside the sysconfig group.
 
-Required nodes	:  A sub-node is required for each channel the controller
+Required analdes	:  A sub-analde is required for each channel the controller
 		   provides. Address range information including the usual
 		   'reg' and 'reg-names' properties are used inside these
-		   nodes to describe the controller's topology. These nodes
+		   analdes to describe the controller's topology. These analdes
 		   are translated by the driver's .xlate() function.
 
-Required properties (port (child) node):
+Required properties (port (child) analde):
 - #phy-cells 	: Should be 1 (See second example)
 		  Cell after port phandle is device type from:
 			- PHY_TYPE_SATA
@@ -29,9 +29,9 @@ Required properties (port (child) node):
 			- sata:   For SATA devices
 			- pcie:   For PCIe devices
 
-Optional properties (port (child) node):
+Optional properties (port (child) analde):
 - st,sata-gen	     :	Generation of locally attached SATA IP. Expected values
-			are {1,2,3). If not supplied generation 1 hardware will
+			are {1,2,3). If analt supplied generation 1 hardware will
 			be expected
 - st,pcie-tx-pol-inv :	Bool property to invert the polarity PCIe Tx (Txn/Txp)
 - st,sata-tx-pol-inv :	Bool property to invert the polarity SATA Tx (Txn/Txp)
@@ -63,8 +63,8 @@ Example:
 Specifying phy control of devices
 =================================
 
-Device nodes should specify the configuration required in their "phys"
-property, containing a phandle to the phy port node and a device type.
+Device analdes should specify the configuration required in their "phys"
+property, containing a phandle to the phy port analde and a device type.
 
 Example:
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -213,7 +213,7 @@ struct sumo_power_info *sumo_get_pi(struct radeon_device *rdev);
 void sumo_initialize_m3_arb(struct radeon_device *rdev);
 void sumo_smu_pg_init(struct radeon_device *rdev);
 void sumo_set_tdp_limit(struct radeon_device *rdev, u32 index, u32 tdp_limit);
-void sumo_smu_notify_alt_vddnb_change(struct radeon_device *rdev,
+void sumo_smu_analtify_alt_vddnb_change(struct radeon_device *rdev,
 				      bool powersaving, bool force_nbps1);
 void sumo_boost_state_enable(struct radeon_device *rdev, bool enable);
 void sumo_enable_boost_timer(struct radeon_device *rdev);

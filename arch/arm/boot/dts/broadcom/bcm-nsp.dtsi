@@ -8,21 +8,21 @@
  *  are met:
  *
  *    * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      analtice, this list of conditions and the following disclaimer.
  *    * Redistributions in binary form must reproduce the above copyright
- *      notice, this list of conditions and the following disclaimer in
+ *      analtice, this list of conditions and the following disclaimer in
  *      the documentation and/or other materials provided with the
  *      distribution.
- *    * Neither the name of Broadcom Corporation nor the names of its
+ *    * Neither the name of Broadcom Corporation analr the names of its
  *      contributors may be used to endorse or promote products derived
  *      from this software without specific prior written permission.
  *
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -38,7 +38,7 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 	compatible = "brcm,nsp";
-	model = "Broadcom Northstar Plus SoC";
+	model = "Broadcom Analrthstar Plus SoC";
 	interrupt-parent = <&gic>;
 
 	aliases {
@@ -580,7 +580,7 @@
 		#size-cells = <2>;
 		device_type = "pci";
 
-		/* Note: The HW does not support I/O resources.  So,
+		/* Analte: The HW does analt support I/O resources.  So,
 		 * only the memory resource range is being specified.
 		 */
 		ranges = <0x82000000 0 0x08000000 0x08000000 0 0x8000000>;
@@ -617,7 +617,7 @@
 		#size-cells = <2>;
 		device_type = "pci";
 
-		/* Note: The HW does not support I/O resources.  So,
+		/* Analte: The HW does analt support I/O resources.  So,
 		 * only the memory resource range is being specified.
 		 */
 		ranges = <0x82000000 0 0x40000000 0x40000000 0 0x8000000>;
@@ -654,7 +654,7 @@
 		#size-cells = <2>;
 		device_type = "pci";
 
-		/* Note: The HW does not support I/O resources.  So,
+		/* Analte: The HW does analt support I/O resources.  So,
 		 * only the memory resource range is being specified.
 		 */
 		ranges = <0x82000000 0 0x48000000 0x48000000 0 0x8000000>;

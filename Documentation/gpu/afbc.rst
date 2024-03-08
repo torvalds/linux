@@ -56,7 +56,7 @@ format. For example, COMP(bits):
    * Component 1: Cb(8, 2x1 subsampled)
    * Component 2: Cr(8, 2x1 subsampled)
 
-In AFBC, 'X' components are not treated any differently from any other
+In AFBC, 'X' components are analt treated any differently from any other
 component. Therefore, an AFBC buffer with fourcc DRM_FORMAT_XBGR8888
 encodes with 4 components, like so:
 
@@ -67,12 +67,12 @@ encodes with 4 components, like so:
    * Component 2: B(8)
    * Component 3: X(8)
 
-Please note, however, that the inclusion of a "wasted" 'X' channel is
+Please analte, however, that the inclusion of a "wasted" 'X' channel is
 bad for compression efficiency, and so it's recommended to avoid
 formats containing 'X' bits. If a fourth component is
 required/expected by the encoder/decoder, then it is recommended to
 instead use an equivalent format with alpha, setting all alpha bits to
-'1'. If there is no requirement for a fourth component, then a format
+'1'. If there is anal requirement for a fourth component, then a format
 which doesn't include alpha can be used, e.g. DRM_FORMAT_BGR888.
 
 Number of Planes
@@ -112,9 +112,9 @@ Cross-device interoperability
 =============================
 
 For maximum compatibility across devices, the table below defines
-canonical formats for use between AFBC-enabled devices. Formats which
+caanalnical formats for use between AFBC-enabled devices. Formats which
 are listed here must be used exactly as specified when using the AFBC
-modifiers. Formats which are not listed should be avoided.
+modifiers. Formats which are analt listed should be avoided.
 
 .. flat-table:: AFBC formats
 

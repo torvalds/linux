@@ -23,7 +23,7 @@ static struct pds_vdpa_device *vdpa_to_pdsv(struct vdpa_device *vdpa_dev)
 	return container_of(vdpa_dev, struct pds_vdpa_device, vdpa_dev);
 }
 
-static int pds_vdpa_notify_handler(struct notifier_block *nb,
+static int pds_vdpa_analtify_handler(struct analtifier_block *nb,
 				   unsigned long ecode,
 				   void *data)
 {
@@ -43,14 +43,14 @@ static int pds_vdpa_notify_handler(struct notifier_block *nb,
 static int pds_vdpa_register_event_handler(struct pds_vdpa_device *pdsv)
 {
 	struct device *dev = &pdsv->vdpa_aux->padev->aux_dev.dev;
-	struct notifier_block *nb = &pdsv->nb;
+	struct analtifier_block *nb = &pdsv->nb;
 	int err;
 
-	if (!nb->notifier_call) {
-		nb->notifier_call = pds_vdpa_notify_handler;
-		err = pdsc_register_notify(nb);
+	if (!nb->analtifier_call) {
+		nb->analtifier_call = pds_vdpa_analtify_handler;
+		err = pdsc_register_analtify(nb);
 		if (err) {
-			nb->notifier_call = NULL;
+			nb->analtifier_call = NULL;
 			dev_err(dev, "failed to register pds event handler: %ps\n",
 				ERR_PTR(err));
 			return -EINVAL;
@@ -63,9 +63,9 @@ static int pds_vdpa_register_event_handler(struct pds_vdpa_device *pdsv)
 
 static void pds_vdpa_unregister_event_handler(struct pds_vdpa_device *pdsv)
 {
-	if (pdsv->nb.notifier_call) {
-		pdsc_unregister_notify(&pdsv->nb);
-		pdsv->nb.notifier_call = NULL;
+	if (pdsv->nb.analtifier_call) {
+		pdsc_unregister_analtify(&pdsv->nb);
+		pdsv->nb.analtifier_call = NULL;
 	}
 }
 
@@ -92,7 +92,7 @@ static void pds_vdpa_kick_vq(struct vdpa_device *vdpa_dev, u16 qid)
 {
 	struct pds_vdpa_device *pdsv = vdpa_to_pdsv(vdpa_dev);
 
-	iowrite16(qid, pdsv->vqs[qid].notify);
+	iowrite16(qid, pdsv->vqs[qid].analtify);
 }
 
 static void pds_vdpa_set_vq_cb(struct vdpa_device *vdpa_dev, u16 qid,
@@ -116,11 +116,11 @@ static irqreturn_t pds_vdpa_isr(int irq, void *data)
 
 static void pds_vdpa_release_irq(struct pds_vdpa_device *pdsv, int qid)
 {
-	if (pdsv->vqs[qid].irq == VIRTIO_MSI_NO_VECTOR)
+	if (pdsv->vqs[qid].irq == VIRTIO_MSI_ANAL_VECTOR)
 		return;
 
 	free_irq(pdsv->vqs[qid].irq, &pdsv->vqs[qid]);
-	pdsv->vqs[qid].irq = VIRTIO_MSI_NO_VECTOR;
+	pdsv->vqs[qid].irq = VIRTIO_MSI_ANAL_VECTOR;
 }
 
 static void pds_vdpa_set_vq_ready(struct vdpa_device *vdpa_dev, u16 qid, bool ready)
@@ -192,7 +192,7 @@ static int pds_vdpa_set_vq_state(struct vdpa_device *vdpa_dev, u16 qid,
 
 		/* The avail and used index are stored with the packed wrap
 		 * counter bit inverted.  This way, in case set_vq_state is
-		 * not called, the initial value can be set to zero prior to
+		 * analt called, the initial value can be set to zero prior to
 		 * feature negotiation, and it is good for both packed and
 		 * split vq.
 		 */
@@ -200,7 +200,7 @@ static int pds_vdpa_set_vq_state(struct vdpa_device *vdpa_dev, u16 qid,
 		used ^= PDS_VDPA_PACKED_INVERT_IDX;
 	} else {
 		avail = state->split.avail_index;
-		/* state->split does not provide a used_index:
+		/* state->split does analt provide a used_index:
 		 * the vq will be set to "empty" here, and the vq will read
 		 * the current used index the next time the vq is kicked.
 		 */
@@ -247,26 +247,26 @@ static int pds_vdpa_get_vq_state(struct vdpa_device *vdpa_dev, u16 qid,
 		state->packed.last_used_counter = used >> 15;
 	} else {
 		state->split.avail_index = avail;
-		/* state->split does not provide a used_index. */
+		/* state->split does analt provide a used_index. */
 	}
 
 	return 0;
 }
 
-static struct vdpa_notification_area
-pds_vdpa_get_vq_notification(struct vdpa_device *vdpa_dev, u16 qid)
+static struct vdpa_analtification_area
+pds_vdpa_get_vq_analtification(struct vdpa_device *vdpa_dev, u16 qid)
 {
 	struct pds_vdpa_device *pdsv = vdpa_to_pdsv(vdpa_dev);
 	struct virtio_pci_modern_device *vd_mdev;
-	struct vdpa_notification_area area;
+	struct vdpa_analtification_area area;
 
-	area.addr = pdsv->vqs[qid].notify_pa;
+	area.addr = pdsv->vqs[qid].analtify_pa;
 
 	vd_mdev = &pdsv->vdpa_aux->vd_mdev;
-	if (!vd_mdev->notify_offset_multiplier)
+	if (!vd_mdev->analtify_offset_multiplier)
 		area.size = PDS_PAGE_SIZE;
 	else
-		area.size = vd_mdev->notify_offset_multiplier;
+		area.size = vd_mdev->analtify_offset_multiplier;
 
 	return area;
 }
@@ -305,8 +305,8 @@ static int pds_vdpa_set_driver_features(struct vdpa_device *vdpa_dev, u64 featur
 	u64 missing;
 
 	if (!(features & BIT_ULL(VIRTIO_F_ACCESS_PLATFORM)) && features) {
-		dev_err(dev, "VIRTIO_F_ACCESS_PLATFORM is not negotiated\n");
-		return -EOPNOTSUPP;
+		dev_err(dev, "VIRTIO_F_ACCESS_PLATFORM is analt negotiated\n");
+		return -EOPANALTSUPP;
 	}
 
 	/* Check for valid feature bits */
@@ -315,7 +315,7 @@ static int pds_vdpa_set_driver_features(struct vdpa_device *vdpa_dev, u64 featur
 	if (missing) {
 		dev_err(dev, "Can't support all requested features in %#llx, missing %#llx features\n",
 			features, missing);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	driver_features = pds_vdpa_get_driver_features(vdpa_dev);
@@ -403,7 +403,7 @@ static int pds_vdpa_request_irqs(struct pds_vdpa_device *pdsv)
 				  pdsv->vqs[qid].irq_name,
 				  &pdsv->vqs[qid]);
 		if (err) {
-			dev_err(dev, "%s: no irq for qid %d: %pe\n",
+			dev_err(dev, "%s: anal irq for qid %d: %pe\n",
 				__func__, qid, ERR_PTR(err));
 			goto err_release;
 		}
@@ -476,9 +476,9 @@ static void pds_vdpa_set_status(struct vdpa_device *vdpa_dev, u8 status)
 
 	if (status & ~old_status & VIRTIO_CONFIG_S_FEATURES_OK) {
 		for (i = 0; i < pdsv->num_vqs; i++) {
-			pdsv->vqs[i].notify =
-				vp_modern_map_vq_notify(&pdsv->vdpa_aux->vd_mdev,
-							i, &pdsv->vqs[i].notify_pa);
+			pdsv->vqs[i].analtify =
+				vp_modern_map_vq_analtify(&pdsv->vdpa_aux->vd_mdev,
+							i, &pdsv->vqs[i].analtify_pa);
 		}
 	}
 
@@ -487,14 +487,14 @@ static void pds_vdpa_set_status(struct vdpa_device *vdpa_dev, u8 status)
 }
 
 static void pds_vdpa_init_vqs_entry(struct pds_vdpa_device *pdsv, int qid,
-				    void __iomem *notify)
+				    void __iomem *analtify)
 {
 	memset(&pdsv->vqs[qid], 0, sizeof(pdsv->vqs[0]));
 	pdsv->vqs[qid].qid = qid;
 	pdsv->vqs[qid].pdsv = pdsv;
 	pdsv->vqs[qid].ready = false;
-	pdsv->vqs[qid].irq = VIRTIO_MSI_NO_VECTOR;
-	pdsv->vqs[qid].notify = notify;
+	pdsv->vqs[qid].irq = VIRTIO_MSI_ANAL_VECTOR;
+	pdsv->vqs[qid].analtify = analtify;
 }
 
 static int pds_vdpa_reset(struct vdpa_device *vdpa_dev)
@@ -526,7 +526,7 @@ static int pds_vdpa_reset(struct vdpa_device *vdpa_dev)
 	if (status & VIRTIO_CONFIG_S_DRIVER_OK) {
 		/* Reset the vq info */
 		for (i = 0; i < pdsv->num_vqs && !err; i++)
-			pds_vdpa_init_vqs_entry(pdsv, i, pdsv->vqs[i].notify);
+			pds_vdpa_init_vqs_entry(pdsv, i, pdsv->vqs[i].analtify);
 	}
 
 	return 0;
@@ -578,7 +578,7 @@ static const struct vdpa_config_ops pds_vdpa_ops = {
 	.get_vq_ready		= pds_vdpa_get_vq_ready,
 	.set_vq_state		= pds_vdpa_set_vq_state,
 	.get_vq_state		= pds_vdpa_get_vq_state,
-	.get_vq_notification	= pds_vdpa_get_vq_notification,
+	.get_vq_analtification	= pds_vdpa_get_vq_analtification,
 	.get_vq_irq		= pds_vdpa_get_vq_irq,
 	.get_vq_align		= pds_vdpa_get_vq_align,
 	.get_vq_group		= pds_vdpa_get_vq_group,
@@ -620,8 +620,8 @@ static int pds_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	mgmt = &vdpa_aux->vdpa_mdev;
 
 	if (vdpa_aux->pdsv) {
-		dev_warn(dev, "Multiple vDPA devices on a VF is not supported.\n");
-		return -EOPNOTSUPP;
+		dev_warn(dev, "Multiple vDPA devices on a VF is analt supported.\n");
+		return -EOPANALTSUPP;
 	}
 
 	pdsv = vdpa_alloc_device(struct pds_vdpa_device, vdpa_dev,
@@ -646,7 +646,7 @@ static int pds_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 
 		if (unsupp_features) {
 			dev_err(dev, "Unsupported features: %#llx\n", unsupp_features);
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			goto err_unmap;
 		}
 
@@ -679,7 +679,7 @@ static int pds_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	if (pdsv->num_vqs > fw_max_vqs) {
 		dev_err(dev, "%s: queue count requested %u greater than max %u\n",
 			__func__, pdsv->num_vqs, fw_max_vqs);
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto err_unmap;
 	}
 
@@ -693,7 +693,7 @@ static int pds_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	}
 
 	/* Set a mac, either from the user config if provided
-	 * or use the device's mac if not 00:..:00
+	 * or use the device's mac if analt 00:..:00
 	 * or set a random mac
 	 */
 	if (add_config->mask & BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MACADDR)) {
@@ -712,11 +712,11 @@ static int pds_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	pds_vdpa_cmd_set_mac(pdsv, pdsv->mac);
 
 	for (i = 0; i < pdsv->num_vqs; i++) {
-		void __iomem *notify;
+		void __iomem *analtify;
 
-		notify = vp_modern_map_vq_notify(&pdsv->vdpa_aux->vd_mdev,
-						 i, &pdsv->vqs[i].notify_pa);
-		pds_vdpa_init_vqs_entry(pdsv, i, notify);
+		analtify = vp_modern_map_vq_analtify(&pdsv->vdpa_aux->vd_mdev,
+						 i, &pdsv->vqs[i].analtify_pa);
+		pds_vdpa_init_vqs_entry(pdsv, i, analtify);
 	}
 
 	pdsv->vdpa_dev.mdev = &vdpa_aux->vdpa_mdev;
@@ -805,7 +805,7 @@ int pds_vdpa_get_mgmt_info(struct pds_vdpa_aux *vdpa_aux)
 				  sizeof(vdpa_aux->ident), DMA_FROM_DEVICE);
 	if (dma_mapping_error(pf_dev, ident_pa)) {
 		dev_err(dev, "Failed to map ident space\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cmd.vdpa_ident.ident_pa = cpu_to_le64(ident_pa);

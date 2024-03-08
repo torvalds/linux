@@ -54,13 +54,13 @@ enum igc_mac_type {
 };
 
 enum igc_media_type {
-	igc_media_type_unknown = 0,
+	igc_media_type_unkanalwn = 0,
 	igc_media_type_copper = 1,
 	igc_num_media_types
 };
 
 enum igc_nvm_type {
-	igc_nvm_unknown = 0,
+	igc_nvm_unkanalwn = 0,
 	igc_nvm_eeprom_spi,
 };
 
@@ -154,7 +154,7 @@ struct igc_bus_info {
 };
 
 enum igc_fc_mode {
-	igc_fc_none = 0,
+	igc_fc_analne = 0,
 	igc_fc_rx_pause,
 	igc_fc_tx_pause,
 	igc_fc_full,

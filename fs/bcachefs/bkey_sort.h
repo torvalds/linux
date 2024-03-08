@@ -45,7 +45,7 @@ bch2_key_sort_fix_overlapping(struct bch_fs *, struct bset *,
 
 struct btree_nr_keys
 bch2_sort_repack(struct bset *, struct btree *,
-		 struct btree_node_iter *,
+		 struct btree_analde_iter *,
 		 struct bkey_format *, bool);
 
 unsigned bch2_sort_keys(struct bkey_packed *,

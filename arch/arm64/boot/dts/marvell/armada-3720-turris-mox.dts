@@ -145,11 +145,11 @@
 	 * contains exactly 2 ranges with 3 (child) address cells, 2 (parent) address cells and
 	 * 2 size cells and also expects that the second range starts at 16 MB offset. Also it
 	 * expects that first range uses same address for PCI (child) and CPU (parent) cells (so
-	 * no remapping) and that this address is the lowest from all specified ranges. If these
-	 * conditions are not met then U-Boot crashes during loading kernel DTB file. PCIe address
+	 * anal remapping) and that this address is the lowest from all specified ranges. If these
+	 * conditions are analt met then U-Boot crashes during loading kernel DTB file. PCIe address
 	 * space is 128 MB long, so the best split between MEM and IO is to use fixed 16 MB window
 	 * for IO and the rest 112 MB (64+32+16) for MEM, despite that maximal IO size is just 64 kB.
-	 * This bug is not present in U-Boot ports for other Armada 3700 devices and is fixed in
+	 * This bug is analt present in U-Boot ports for other Armada 3700 devices and is fixed in
 	 * U-Boot version 2021.07. See relevant U-Boot commits (the last one contains fix):
 	 * https://source.denx.de/u-boot/u-boot/-/commit/cb2ddb291ee6fcbddd6d8f4ff49089dfe580f5d7
 	 * https://source.denx.de/u-boot/u-boot/-/commit/c64ac3b3185aeb3846297ad7391fc6df8ecd73bf
@@ -197,7 +197,7 @@
 &sdhci1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio_pins>;
-	non-removable;
+	analn-removable;
 	bus-width = <4>;
 	marvell,pad-type = "sd";
 	vqmmc-supply = <&vsdio_reg>;
@@ -218,7 +218,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <20000000>;
 
@@ -305,11 +305,11 @@
 	};
 
 	/*
-	 * NOTE: switch nodes are enabled by U-Boot if modules are present
-	 * DO NOT change this node name (switch0@10) even if it is not following
+	 * ANALTE: switch analdes are enabled by U-Boot if modules are present
+	 * DO ANALT change this analde name (switch0@10) even if it is analt following
 	 * conventions! Deployed U-Boot binaries are explicitly looking for
-	 * this node in order to augment the device tree!
-	 * Also do not touch the "ports" or "port@n" nodes. These are also ABI.
+	 * this analde in order to augment the device tree!
+	 * Also do analt touch the "ports" or "port@n" analdes. These are also ABI.
 	 */
 	switch0@10 {
 		compatible = "marvell,turris-mox-mv88e6190", "marvell,mv88e6190";
@@ -436,7 +436,7 @@
 		};
 	};
 
-	/* NOTE: this node name is ABI, don't change it! */
+	/* ANALTE: this analde name is ABI, don't change it! */
 	switch0@2 {
 		compatible = "marvell,turris-mox-mv88e6085", "marvell,mv88e6085";
 		reg = <0x2>;
@@ -504,7 +504,7 @@
 		};
 	};
 
-	/* NOTE: this node name is ABI, don't change it! */
+	/* ANALTE: this analde name is ABI, don't change it! */
 	switch1@11 {
 		compatible = "marvell,turris-mox-mv88e6190", "marvell,mv88e6190";
 		reg = <0x11>;
@@ -630,7 +630,7 @@
 		};
 	};
 
-	/* NOTE: this node name is ABI, don't change it! */
+	/* ANALTE: this analde name is ABI, don't change it! */
 	switch1@2 {
 		compatible = "marvell,turris-mox-mv88e6085", "marvell,mv88e6085";
 		reg = <0x2>;
@@ -698,7 +698,7 @@
 		};
 	};
 
-	/* NOTE: this node name is ABI, don't change it! */
+	/* ANALTE: this analde name is ABI, don't change it! */
 	switch2@12 {
 		compatible = "marvell,turris-mox-mv88e6190", "marvell,mv88e6190";
 		reg = <0x12>;
@@ -815,7 +815,7 @@
 		};
 	};
 
-	/* NOTE: this node name is ABI, don't change it! */
+	/* ANALTE: this analde name is ABI, don't change it! */
 	switch2@2 {
 		compatible = "marvell,turris-mox-mv88e6085", "marvell,mv88e6085";
 		reg = <0x2>;

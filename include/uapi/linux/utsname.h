@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_UTSNAME_H
 #define _UAPI_LINUX_UTSNAME_H
 
@@ -6,7 +6,7 @@
 
 struct oldold_utsname {
 	char sysname[9];
-	char nodename[9];
+	char analdename[9];
 	char release[9];
 	char version[9];
 	char machine[9];
@@ -16,7 +16,7 @@ struct oldold_utsname {
 
 struct old_utsname {
 	char sysname[65];
-	char nodename[65];
+	char analdename[65];
 	char release[65];
 	char version[65];
 	char machine[65];
@@ -24,7 +24,7 @@ struct old_utsname {
 
 struct new_utsname {
 	char sysname[__NEW_UTS_LEN + 1];
-	char nodename[__NEW_UTS_LEN + 1];
+	char analdename[__NEW_UTS_LEN + 1];
 	char release[__NEW_UTS_LEN + 1];
 	char version[__NEW_UTS_LEN + 1];
 	char machine[__NEW_UTS_LEN + 1];

@@ -82,7 +82,7 @@ struct cxusb_state {
 
 enum cxusb_open_type {
 	CXUSB_OPEN_INIT,
-	CXUSB_OPEN_NONE,
+	CXUSB_OPEN_ANALNE,
 	CXUSB_OPEN_ANALOG,
 	CXUSB_OPEN_DIGITAL
 };
@@ -134,7 +134,7 @@ struct cxusb_medion_dev {
 	u32 width, height;
 	u32 field_order;
 	struct cxusb_medion_auxbuf auxbuf;
-	v4l2_std_id norm;
+	v4l2_std_id analrm;
 
 	struct urb *streamurbs[CXUSB_VIDEO_URBS];
 	unsigned long urbcomplete;

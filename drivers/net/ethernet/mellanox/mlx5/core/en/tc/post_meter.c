@@ -65,7 +65,7 @@ mlx5e_post_meter_table_create(struct mlx5e_priv *priv,
 	root_ns = mlx5_get_flow_namespace(priv->mdev, ns_type);
 	if (!root_ns) {
 		mlx5_core_warn(priv->mdev, "Failed to get namespace for flow meter\n");
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	ft_attr.flags = MLX5_FLOW_TABLE_UNMANAGED;
@@ -88,7 +88,7 @@ mlx5e_post_meter_rate_fg_create(struct mlx5e_priv *priv,
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable,
 		 MLX5_MATCH_MISC_PARAMETERS_2);
@@ -126,15 +126,15 @@ mlx5e_post_meter_add_rule(struct mlx5e_priv *priv,
 	else
 		attr->counter = act_counter;
 
-	attr->flags |= MLX5_ATTR_FLAG_NO_IN_PORT;
-	attr->inner_match_level = MLX5_MATCH_NONE;
-	attr->outer_match_level = MLX5_MATCH_NONE;
+	attr->flags |= MLX5_ATTR_FLAG_ANAL_IN_PORT;
+	attr->inner_match_level = MLX5_MATCH_ANALNE;
+	attr->outer_match_level = MLX5_MATCH_ANALNE;
 	attr->chain = 0;
 	attr->prio = 0;
 
 	ret = mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
 
-	/* We did not create the counter, so we can't delete it.
+	/* We did analt create the counter, so we can't delete it.
 	 * Avoid freeing the counter when the attr is deleted in free_branching_attr
 	 */
 	attr->action &= ~MLX5_FLOW_CONTEXT_ACTION_COUNT;
@@ -158,7 +158,7 @@ mlx5e_post_meter_rate_rules_create(struct mlx5e_priv *priv,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mlx5e_tc_match_to_reg_match(spec, PACKET_COLOR_TO_REG,
 				    MLX5_FLOW_METER_COLOR_RED, MLX5_PACKET_COLOR_MASK);
@@ -179,7 +179,7 @@ mlx5e_post_meter_rate_rules_create(struct mlx5e_priv *priv,
 	rule = mlx5e_post_meter_add_rule(priv, post_meter, spec, green_attr,
 					 act_counter, drop_counter);
 	if (IS_ERR(rule)) {
-		mlx5_core_warn(priv->mdev, "Failed to create post_meter notexceed rule\n");
+		mlx5_core_warn(priv->mdev, "Failed to create post_meter analtexceed rule\n");
 		err = PTR_ERR(rule);
 		goto err_green;
 	}
@@ -301,7 +301,7 @@ mlx5e_post_meter_create_mtu_table(struct mlx5e_priv *priv,
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	table->ft = mlx5e_post_meter_table_create(priv, ns_type);
 	if (IS_ERR(table->ft)) {
@@ -404,7 +404,7 @@ mlx5e_post_meter_init(struct mlx5e_priv *priv,
 
 	post_meter = kzalloc(sizeof(*post_meter), GFP_KERNEL);
 	if (!post_meter)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	switch (type) {
 	case MLX5E_POST_METER_MTU:
@@ -418,7 +418,7 @@ mlx5e_post_meter_init(struct mlx5e_priv *priv,
 						   branch_true, branch_false);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	if (err)

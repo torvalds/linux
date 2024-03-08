@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -57,9 +57,9 @@ enum amdgpu_ring_mux_offset_type {
 };
 
 enum ib_complete_status {
-	/* IB not started/reset value, default value. */
+	/* IB analt started/reset value, default value. */
 	IB_COMPLETION_STATUS_DEFAULT = 0,
-	/* IB preempted, started but not completed. */
+	/* IB preempted, started but analt completed. */
 	IB_COMPLETION_STATUS_PREEMPTED = 1,
 	/* IB completed. */
 	IB_COMPLETION_STATUS_COMPLETED = 2,
@@ -74,7 +74,7 @@ struct amdgpu_ring_mux {
 	/*the lock for copy data from different software rings*/
 	spinlock_t              lock;
 	bool                    s_resubmit;
-	uint32_t                seqno_to_resubmit;
+	uint32_t                seqanal_to_resubmit;
 	u64                     wptr_resubmit;
 	struct timer_list       resubmit_timer;
 
@@ -84,7 +84,7 @@ struct amdgpu_ring_mux {
 /**
  * struct amdgpu_mux_chunk - save the location of indirect buffer's package on softare rings.
  * @entry: the list entry.
- * @sync_seq: the fence seqno related with the saved IB.
+ * @sync_seq: the fence seqanal related with the saved IB.
  * @start:- start location on the software ring.
  * @end:- end location on the software ring.
  * @control_offset:- the PRE_RESUME bit position used for resubmission.
@@ -117,7 +117,7 @@ bool amdgpu_mcbp_handle_trailing_fence_irq(struct amdgpu_ring_mux *mux);
 u64 amdgpu_sw_ring_get_rptr_gfx(struct amdgpu_ring *ring);
 u64 amdgpu_sw_ring_get_wptr_gfx(struct amdgpu_ring *ring);
 void amdgpu_sw_ring_set_wptr_gfx(struct amdgpu_ring *ring);
-void amdgpu_sw_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
+void amdgpu_sw_ring_insert_analp(struct amdgpu_ring *ring, uint32_t count);
 void amdgpu_sw_ring_ib_begin(struct amdgpu_ring *ring);
 void amdgpu_sw_ring_ib_end(struct amdgpu_ring *ring);
 void amdgpu_sw_ring_ib_mark_offset(struct amdgpu_ring *ring, enum amdgpu_ring_mux_offset_type type);

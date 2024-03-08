@@ -85,7 +85,7 @@ allOf:
       properties:
         SPKVDD-supply:
           description:
-            Mono speaker driver power supply.
+            Moanal speaker driver power supply.
 
       required:
         - SPKVDD-supply
@@ -132,12 +132,12 @@ properties:
 
   DCVDD-supply:
     description:
-      Digital power supply, normally supplied internally except on cs47l24,
+      Digital power supply, analrmally supplied internally except on cs47l24,
       wm1831 where it is mandatory.
 
   MICVDD-supply:
     description:
-      Microphone power supply, normally supplied internally except on
+      Microphone power supply, analrmally supplied internally except on
       cs47l24, wm1831 where it is mandatory.
 
   gpio-controller: true
@@ -152,7 +152,7 @@ properties:
     description:
       A list of GPIO configuration register values. Defines for the
       appropriate values can found in dt-bindings/mfd/arizona.h. If
-      absent, no configuration of these registers is performed. If any
+      absent, anal configuration of these registers is performed. If any
       entry has a value that is out of range for a 16 bit register then the
       chip default will be used. If present exactly five values must be
       specified.
@@ -263,7 +263,7 @@ examples:
             wlf,dmic-ref = <ARIZONA_DMIC_MICBIAS1 ARIZONA_DMIC_MICBIAS3>;
 
             wlf,use-jd2;
-            wlf,use-jd2-nopull;
+            wlf,use-jd2-analpull;
             wlf,jd-invert;
 
             wlf,micd-software-compare;

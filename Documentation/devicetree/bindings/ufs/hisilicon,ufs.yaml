@@ -9,7 +9,7 @@ title: HiSilicon Universal Flash Storage (UFS) Controller
 maintainers:
   - Li Wei <liwei213@huawei.com>
 
-# Select only our matches, not all jedec,ufs
+# Select only our matches, analt all jedec,ufs
 select:
   properties:
     compatible:

@@ -13,14 +13,14 @@ description:
   The CS4234 is a highly versatile CODEC that combines 4 channels of
   high performance analog to digital conversion, 4 channels of high
   performance digital to analog conversion for audio, and 1 channel of
-  digital to analog conversion to provide a nondelayed audio reference
-  signal to an external Class H tracking power supply. If not used to
+  digital to analog conversion to provide a analndelayed audio reference
+  signal to an external Class H tracking power supply. If analt used to
   drive a tracking power supply, the 5th DAC can instead be used as a
   standard audio grade DAC, with performance specifications identical
   to that of the 4 DACs in the audio path. Additionally, the CS4234
   includes tunable group delay for each of the 4 audio DAC paths to
   provide lead time for the external switch-mode power supply, and a
-  nondelayed path into the DAC outputs for input signals requiring a
+  analndelayed path into the DAC outputs for input signals requiring a
   low-latency path to the outputs.
 
 properties:

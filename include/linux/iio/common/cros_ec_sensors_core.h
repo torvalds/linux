@@ -26,7 +26,7 @@ enum {
 
 /*
  * 4 16 bit channels are allowed.
- * Good enough for current sensors, they use up to 3 16 bit vectors.
+ * Good eanalugh for current sensors, they use up to 3 16 bit vectors.
  */
 #define CROS_EC_SAMPLE_SIZE  (sizeof(s64) * 2)
 
@@ -45,7 +45,7 @@ typedef irqreturn_t (*cros_ec_sensors_capture_t)(int irq, void *p);
  *				updated.
  * @curr_range:			If updated, the current range value.
  *				It will be reapplied at every resume.
- * @calib:			calibration parameters. Note that trigger
+ * @calib:			calibration parameters. Analte that trigger
  *				captured data will always provide the calibrated
  *				data
  * @samples:			static array to hold data from a single capture.
@@ -54,7 +54,7 @@ typedef irqreturn_t (*cros_ec_sensors_capture_t)(int irq, void *p);
  *				is always 8-byte aligned.
  * @read_ec_sensors_data:	function used for accessing sensors values
  * @fifo_max_event_count:	Size of the EC sensor FIFO
- * @frequencies:		Table of known available frequencies:
+ * @frequencies:		Table of kanalwn available frequencies:
  *				0, Min and Max in mHz
  */
 struct cros_ec_sensors_core_state {

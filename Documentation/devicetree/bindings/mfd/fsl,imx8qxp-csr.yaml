@@ -14,12 +14,12 @@ description: |
   Registers(CSR) module represents a set of miscellaneous registers of a
   specific subsystem.  It may provide control and/or status report interfaces
   to a mix of standalone hardware devices within that subsystem.  One typical
-  use-case is for some other nodes to acquire a reference to the syscon node
+  use-case is for some other analdes to acquire a reference to the syscon analde
   by phandle, and the other typical use-case is that the operating system
-  should consider all subnodes of the CSR module as separate child devices.
+  should consider all subanaldes of the CSR module as separate child devices.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^syscon@[0-9a-f]+$"
 
   compatible:

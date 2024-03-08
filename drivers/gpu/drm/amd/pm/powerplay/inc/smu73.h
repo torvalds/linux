@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -51,7 +51,7 @@ struct SMU7_Poly3rdOrder_Data {
 typedef struct SMU7_Poly3rdOrder_Data SMU7_Poly3rdOrder_Data;
 
 struct Power_Calculator_Data {
-  uint16_t NoLoadVoltage;
+  uint16_t AnalLoadVoltage;
   uint16_t LoadVoltage;
   uint16_t Resistance;
   uint16_t Temperature;
@@ -112,8 +112,8 @@ typedef struct {
 #define SMU73_MAX_LEVELS_SAMU            8   // SAMCLK levels for SAMU.
 #define SMU73_MAX_ENTRIES_SMIO           32  // Number of entries in SMIO table.
 
-#define DPM_NO_LIMIT 0
-#define DPM_NO_UP 1
+#define DPM_ANAL_LIMIT 0
+#define DPM_ANAL_UP 1
 #define DPM_GO_DOWN 2
 #define DPM_GO_UP 3
 
@@ -174,7 +174,7 @@ typedef struct {
 #define SMU73_DTE_SINKS 1
 #define SMU73_NUM_CPU_TES 0
 #define SMU73_NUM_GPU_TES 1
-#define SMU73_NUM_NON_TES 2
+#define SMU73_NUM_ANALN_TES 2
 #define SMU73_DTE_FAN_SCALAR_MIN 0x100
 #define SMU73_DTE_FAN_SCALAR_MAX 0x166
 #define SMU73_DTE_FAN_TEMP_MAX 93

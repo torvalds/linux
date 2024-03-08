@@ -6,7 +6,7 @@
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netlink.h>
 #include <linux/jiffies.h>
 #include <linux/timer.h>
@@ -38,7 +38,7 @@ struct bitmap_port {
 	struct timer_list gc;	/* garbage collection */
 	struct ip_set *set;	/* attached to this ip_set */
 	unsigned char extensions[]	/* data extensions */
-		__aligned(__alignof__(u64));
+		__aligned(__aliganalf__(u64));
 };
 
 /* ADT structure for generic function args */
@@ -151,7 +151,7 @@ bitmap_port_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 bitmap_port_uadt(struct ip_set *set, struct nlattr *tb[],
-		 enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+		 enum ipset_adt adt, u32 *lineanal, u32 flags, bool retried)
 {
 	struct bitmap_port *map = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -161,8 +161,8 @@ bitmap_port_uadt(struct ip_set *set, struct nlattr *tb[],
 	u16 port_to;
 	int ret = 0;
 
-	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+	if (tb[IPSET_ATTR_LINEANAL])
+		*lineanal = nla_get_u32(tb[IPSET_ATTR_LINEANAL]);
 
 	if (unlikely(!ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PORT_TO)))
@@ -231,12 +231,12 @@ static bool
 init_map_port(struct ip_set *set, struct bitmap_port *map,
 	      u16 first_port, u16 last_port)
 {
-	map->members = bitmap_zalloc(map->elements, GFP_KERNEL | __GFP_NOWARN);
+	map->members = bitmap_zalloc(map->elements, GFP_KERNEL | __GFP_ANALWARN);
 	if (!map->members)
 		return false;
 	map->first_port = first_port;
 	map->last_port = last_port;
-	set->timeout = IPSET_NO_TIMEOUT;
+	set->timeout = IPSET_ANAL_TIMEOUT;
 
 	map->set = set;
 	set->data = map;
@@ -268,14 +268,14 @@ bitmap_port_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 	set->dsize = ip_set_elem_len(set, tb, 0, 0);
 	map = ip_set_alloc(sizeof(*map) + elements * set->dsize);
 	if (!map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map->elements = elements;
 	map->memsize = BITS_TO_LONGS(elements) * sizeof(unsigned long);
 	set->variant = &bitmap_port;
 	if (!init_map_port(set, map, first_port, last_port)) {
 		ip_set_free(map);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (tb[IPSET_ATTR_TIMEOUT]) {
 		set->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
@@ -303,7 +303,7 @@ static struct ip_set_type bitmap_port_type = {
 		[IPSET_ATTR_PORT]	= { .type = NLA_U16 },
 		[IPSET_ATTR_PORT_TO]	= { .type = NLA_U16 },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
-		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
+		[IPSET_ATTR_LINEANAL]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
 		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
 		[IPSET_ATTR_COMMENT]	= { .type = NLA_NUL_STRING,

@@ -18,13 +18,13 @@ if [ "$end_intr" = "0x" ]; then
 	exit 0
 fi
 
-# we know that there is a correct branch to
+# we kanalw that there is a correct branch to
 # __start_initialization_multiplatform, so find its address
 # so we can exclude it.
 sim=0x$($nm -p "$vmlinux" |
 	sed -E -n '/\s+[[:alpha:]]\s+__start_initialization_multiplatform\s*$/{s///p;q}')
 
-$objdump -D --no-show-raw-insn --start-address="$kstart" --stop-address="$end_intr" "$vmlinux" |
+$objdump -D --anal-show-raw-insn --start-address="$kstart" --stop-address="$end_intr" "$vmlinux" |
 sed -E -n '
 # match lines that start with a kernel address
 /^c[0-9a-f]*:\s*b/ {

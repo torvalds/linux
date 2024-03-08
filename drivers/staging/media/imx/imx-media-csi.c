@@ -15,7 +15,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
@@ -30,7 +30,7 @@
  * to meet IDMAC alignment requirements.
  *
  * TODO: move this into pad format negotiation, if capture device
- * has not requested planar formats, we should allow 8 pixel
+ * has analt requested planar formats, we should allow 8 pixel
  * alignment.
  */
 #define MIN_W       32
@@ -58,7 +58,7 @@ struct csi_priv {
 	struct ipu_soc *ipu;
 	struct v4l2_subdev sd;
 	struct media_pad pad[CSI_NUM_PADS];
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 
 	/* the video device at IDMAC output pad */
 	struct imx_media_video_dev *vdev;
@@ -120,9 +120,9 @@ static inline struct csi_priv *sd_to_dev(struct v4l2_subdev *sdev)
 	return container_of(sdev, struct csi_priv, sd);
 }
 
-static inline struct csi_priv *notifier_to_dev(struct v4l2_async_notifier *n)
+static inline struct csi_priv *analtifier_to_dev(struct v4l2_async_analtifier *n)
 {
-	return container_of(n, struct csi_priv, notifier);
+	return container_of(n, struct csi_priv, analtifier);
 }
 
 static inline bool is_parallel_bus(struct v4l2_mbus_config *mbus_cfg)
@@ -193,7 +193,7 @@ static int csi_get_upstream_mbus_config(struct csi_priv *priv,
 		break;
 	default:
 		/*
-		 * the source is neither the CSI mux nor the CSI-2 receiver,
+		 * the source is neither the CSI mux analr the CSI-2 receiver,
 		 * get the source pad directly upstream from CSI itself.
 		 */
 		sd = &priv->sd;
@@ -210,9 +210,9 @@ static int csi_get_upstream_mbus_config(struct csi_priv *priv,
 
 	ret = v4l2_subdev_call(remote_sd, pad, get_mbus_config,
 			       remote_pad->index, mbus_cfg);
-	if (ret == -ENOIOCTLCMD)
+	if (ret == -EANALIOCTLCMD)
 		v4l2_err(&priv->sd,
-			 "entity %s does not implement get_mbus_config()\n",
+			 "entity %s does analt implement get_mbus_config()\n",
 			 remote_pad->entity->name);
 
 	return ret;
@@ -247,7 +247,7 @@ static int csi_idmac_get_ipu_resources(struct csi_priv *priv)
 
 	idmac_ch = ipu_idmac_get(priv->ipu, ch_num);
 	if (IS_ERR(idmac_ch)) {
-		v4l2_err(&priv->sd, "could not get IDMAC channel %u\n",
+		v4l2_err(&priv->sd, "could analt get IDMAC channel %u\n",
 			 ch_num);
 		ret = PTR_ERR(idmac_ch);
 		goto out;
@@ -338,7 +338,7 @@ static irqreturn_t csi_idmac_nfb4eof_interrupt(int irq, void *dev_id)
 	spin_lock(&priv->irqlock);
 
 	/*
-	 * this is not an unrecoverable error, just mark
+	 * this is analt an unrecoverable error, just mark
 	 * the next captured frame with vb2 error flag.
 	 */
 	priv->nfb4eof = true;
@@ -471,7 +471,7 @@ static int csi_idmac_setup_channel(struct csi_priv *priv)
 			      ((image.pix.width & 0xf) ? 8 : 16) : 32) : 64;
 		passthrough_bits = 16;
 		/*
-		 * Skip writing U and V components to odd rows (but not
+		 * Skip writing U and V components to odd rows (but analt
 		 * when enabling IDMAC interweaving, they are incompatible).
 		 */
 		if (!interweave)
@@ -490,7 +490,7 @@ static int csi_idmac_setup_channel(struct csi_priv *priv)
 			passthrough_cycles = incc->cycles;
 			break;
 		}
-		fallthrough;	/* non-passthrough RGB565 (CSI-2 bus) */
+		fallthrough;	/* analn-passthrough RGB565 (CSI-2 bus) */
 	default:
 		burst_size = (image.pix.width & 0xf) ? 8 : 16;
 		passthrough_bits = 16;
@@ -535,7 +535,7 @@ static int csi_idmac_setup_channel(struct csi_priv *priv)
 	 * value.
 	 *
 	 * The WM's are set very low by intention here to ensure that
-	 * the SMFC FIFOs do not overflow.
+	 * the SMFC FIFOs do analt overflow.
 	 */
 	ipu_smfc_set_watermark(priv->smfc, 0x02, 0x01);
 	ipu_cpmem_set_high_priority(priv->idmac_ch);
@@ -753,7 +753,7 @@ static int csi_start(struct csi_priv *priv)
 
 	/* start upstream */
 	ret = v4l2_subdev_call(priv->src_sd, video, s_stream, 1);
-	ret = (ret && ret != -ENOIOCTLCMD) ? ret : 0;
+	ret = (ret && ret != -EANALIOCTLCMD) ? ret : 0;
 	if (ret)
 		return ret;
 
@@ -763,7 +763,7 @@ static int csi_start(struct csi_priv *priv)
 
 		delay_usec = DIV_ROUND_UP_ULL((u64)USEC_PER_SEC *
 			input_fi->numerator * bad_frames,
-			input_fi->denominator);
+			input_fi->deanalminator);
 
 		usleep_range(delay_usec, delay_usec + 1000);
 	}
@@ -846,13 +846,13 @@ static void csi_apply_skip_interval(const struct csi_skip_desc *skip,
 	unsigned int div;
 
 	interval->numerator *= skip->max_ratio;
-	interval->denominator *= skip->keep;
+	interval->deanalminator *= skip->keep;
 
 	/* Reduce fraction to lowest terms */
-	div = gcd(interval->numerator, interval->denominator);
+	div = gcd(interval->numerator, interval->deanalminator);
 	if (div > 1) {
 		interval->numerator /= div;
-		interval->denominator /= div;
+		interval->deanalminator /= div;
 	}
 }
 
@@ -870,20 +870,20 @@ static const struct csi_skip_desc *csi_find_best_skip(struct v4l2_fract *in,
 	int i;
 
 	/* Default to 1:1 ratio */
-	if (out->numerator == 0 || out->denominator == 0 ||
-	    in->numerator == 0 || in->denominator == 0) {
+	if (out->numerator == 0 || out->deanalminator == 0 ||
+	    in->numerator == 0 || in->deanalminator == 0) {
 		*out = *in;
 		return best_skip;
 	}
 
-	want_us = div_u64((u64)USEC_PER_SEC * out->numerator, out->denominator);
+	want_us = div_u64((u64)USEC_PER_SEC * out->numerator, out->deanalminator);
 
 	/* Find the reduction closest to the requested time per frame */
 	for (i = 0; i < ARRAY_SIZE(csi_skip); i++, skip++) {
 		u64 tmp, err;
 
 		tmp = div_u64((u64)USEC_PER_SEC * in->numerator *
-			      skip->max_ratio, in->denominator * skip->keep);
+			      skip->max_ratio, in->deanalminator * skip->keep);
 
 		err = abs((s64)tmp - want_us);
 		if (err < min_err) {
@@ -948,9 +948,9 @@ static int csi_set_frame_interval(struct v4l2_subdev *sd,
 
 	switch (fi->pad) {
 	case CSI_SINK_PAD:
-		/* No limits on valid input frame intervals */
+		/* Anal limits on valid input frame intervals */
 		if (fi->interval.numerator == 0 ||
-		    fi->interval.denominator == 0)
+		    fi->interval.deanalminator == 0)
 			fi->interval = *input_fi;
 		/* Reset output intervals and frame skipping ratio to 1:1 */
 		priv->frame_interval[CSI_SRC_PAD_IDMAC] = fi->interval;
@@ -1066,12 +1066,12 @@ static int csi_link_setup(struct media_entity *entity,
 		v4l2_ctrl_handler_free(&priv->ctrl_hdlr);
 		v4l2_ctrl_handler_init(&priv->ctrl_hdlr, 0);
 		priv->sink = NULL;
-		/* do not apply IC burst alignment in csi_try_crop */
+		/* do analt apply IC burst alignment in csi_try_crop */
 		priv->active_output_pad = CSI_SRC_PAD_IDMAC;
 		goto out;
 	}
 
-	/* record which output pad is now active */
+	/* record which output pad is analw active */
 	priv->active_output_pad = local->index;
 
 	/* set CSI destination */
@@ -1142,7 +1142,7 @@ static int csi_link_validate(struct v4l2_subdev *sd,
 	is_csi2 = !is_parallel_bus(&mbus_cfg);
 	if (is_csi2) {
 		/*
-		 * NOTE! It seems the virtual channels from the mipi csi-2
+		 * ANALTE! It seems the virtual channels from the mipi csi-2
 		 * receiver are used only for routing by the video mux's,
 		 * or for hard-wired routing to the CSI's. Once the stream
 		 * enters the CSI's however, they are treated internally
@@ -1212,7 +1212,7 @@ static void csi_try_crop(struct csi_priv *priv,
 		in_height *= 2;
 
 	/*
-	 * FIXME: not sure why yet, but on interlaced bt.656,
+	 * FIXME: analt sure why yet, but on interlaced bt.656,
 	 * changing the vertical cropping causes loss of vertical
 	 * sync, so fix it to NTSC/PAL active lines. NTSC contains
 	 * 2 extra lines of active video that need to be cropped.
@@ -1386,12 +1386,12 @@ static void csi_try_field(struct csi_priv *priv,
 		__csi_get_fmt(priv, sd_state, CSI_SINK_PAD, sdformat->which);
 
 	/*
-	 * no restrictions on sink pad field type except must
+	 * anal restrictions on sink pad field type except must
 	 * be initialized.
 	 */
 	if (sdformat->pad == CSI_SINK_PAD) {
 		if (sdformat->format.field == V4L2_FIELD_ANY)
-			sdformat->format.field = V4L2_FIELD_NONE;
+			sdformat->format.field = V4L2_FIELD_ANALNE;
 		return;
 	}
 
@@ -1408,9 +1408,9 @@ static void csi_try_field(struct csi_priv *priv,
 		break;
 	case V4L2_FIELD_ALTERNATE:
 		/*
-		 * This driver does not support alternate field mode, and
+		 * This driver does analt support alternate field mode, and
 		 * the CSI captures a whole frame, so the CSI never presents
-		 * alternate mode at its source pads. If user has not
+		 * alternate mode at its source pads. If user has analt
 		 * already requested sequential, translate ALTERNATE at
 		 * sink pad to SEQ_TB or SEQ_BT at the source pad depending
 		 * on input height (assume NTSC BT order if 480 total active
@@ -1781,13 +1781,13 @@ static int csi_registered(struct v4l2_subdev *sd)
 		ret = imx_media_init_mbus_fmt(&priv->format_mbus[i],
 					      IMX_MEDIA_DEF_PIX_WIDTH,
 					      IMX_MEDIA_DEF_PIX_HEIGHT, code,
-					      V4L2_FIELD_NONE, &priv->cc[i]);
+					      V4L2_FIELD_ANALNE, &priv->cc[i]);
 		if (ret)
 			goto put_csi;
 
 		/* init default frame interval */
 		priv->frame_interval[i].numerator = 1;
-		priv->frame_interval[i].denominator = 30;
+		priv->frame_interval[i].deanalminator = 30;
 	}
 
 	/* disable frame skipping */
@@ -1843,23 +1843,23 @@ static void csi_unregistered(struct v4l2_subdev *sd)
 }
 
 /*
- * The CSI has only one fwnode endpoint, at the sink pad. Verify the
+ * The CSI has only one fwanalde endpoint, at the sink pad. Verify the
  * endpoint belongs to us, and return CSI_SINK_PAD.
  */
-static int csi_get_fwnode_pad(struct media_entity *entity,
-			      struct fwnode_endpoint *endpoint)
+static int csi_get_fwanalde_pad(struct media_entity *entity,
+			      struct fwanalde_endpoint *endpoint)
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct csi_priv *priv = v4l2_get_subdevdata(sd);
-	struct fwnode_handle *csi_port = dev_fwnode(priv->dev);
-	struct fwnode_handle *csi_ep;
+	struct fwanalde_handle *csi_port = dev_fwanalde(priv->dev);
+	struct fwanalde_handle *csi_ep;
 	int ret;
 
-	csi_ep = fwnode_get_next_child_node(csi_port, NULL);
+	csi_ep = fwanalde_get_next_child_analde(csi_port, NULL);
 
-	ret = endpoint->local_fwnode == csi_ep ? CSI_SINK_PAD : -ENXIO;
+	ret = endpoint->local_fwanalde == csi_ep ? CSI_SINK_PAD : -ENXIO;
 
-	fwnode_handle_put(csi_ep);
+	fwanalde_handle_put(csi_ep);
 
 	return ret;
 }
@@ -1867,7 +1867,7 @@ static int csi_get_fwnode_pad(struct media_entity *entity,
 static const struct media_entity_operations csi_entity_ops = {
 	.link_setup = csi_link_setup,
 	.link_validate = v4l2_subdev_link_validate,
-	.get_fwnode_pad = csi_get_fwnode_pad,
+	.get_fwanalde_pad = csi_get_fwanalde_pad,
 };
 
 static const struct v4l2_subdev_core_ops csi_core_ops = {
@@ -1904,11 +1904,11 @@ static const struct v4l2_subdev_internal_ops csi_internal_ops = {
 	.unregistered = csi_unregistered,
 };
 
-static int imx_csi_notify_bound(struct v4l2_async_notifier *notifier,
+static int imx_csi_analtify_bound(struct v4l2_async_analtifier *analtifier,
 				struct v4l2_subdev *sd,
 				struct v4l2_async_connection *asd)
 {
-	struct csi_priv *priv = notifier_to_dev(notifier);
+	struct csi_priv *priv = analtifier_to_dev(analtifier);
 	struct media_pad *sink = &priv->sd.entity.pads[CSI_SINK_PAD];
 
 	/*
@@ -1918,35 +1918,35 @@ static int imx_csi_notify_bound(struct v4l2_async_notifier *notifier,
 	if (sd->entity.function == MEDIA_ENT_F_VID_MUX)
 		sd->grp_id = IMX_MEDIA_GRP_ID_CSI_MUX;
 
-	return v4l2_create_fwnode_links_to_pad(sd, sink, 0);
+	return v4l2_create_fwanalde_links_to_pad(sd, sink, 0);
 }
 
-static const struct v4l2_async_notifier_operations csi_notify_ops = {
-	.bound = imx_csi_notify_bound,
+static const struct v4l2_async_analtifier_operations csi_analtify_ops = {
+	.bound = imx_csi_analtify_bound,
 };
 
 static int imx_csi_async_register(struct csi_priv *priv)
 {
 	struct v4l2_async_connection *asd = NULL;
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	unsigned int port;
 	int ret;
 
-	v4l2_async_subdev_nf_init(&priv->notifier, &priv->sd);
+	v4l2_async_subdev_nf_init(&priv->analtifier, &priv->sd);
 
 	/* get this CSI's port id */
-	ret = fwnode_property_read_u32(dev_fwnode(priv->dev), "reg", &port);
+	ret = fwanalde_property_read_u32(dev_fwanalde(priv->dev), "reg", &port);
 	if (ret < 0)
 		return ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(priv->dev->parent),
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(priv->dev->parent),
 					     port, 0,
-					     FWNODE_GRAPH_ENDPOINT_NEXT);
+					     FWANALDE_GRAPH_ENDPOINT_NEXT);
 	if (ep) {
-		asd = v4l2_async_nf_add_fwnode_remote(&priv->notifier, ep,
+		asd = v4l2_async_nf_add_fwanalde_remote(&priv->analtifier, ep,
 						      struct v4l2_async_connection);
 
-		fwnode_handle_put(ep);
+		fwanalde_handle_put(ep);
 
 		if (IS_ERR(asd)) {
 			ret = PTR_ERR(asd);
@@ -1956,9 +1956,9 @@ static int imx_csi_async_register(struct csi_priv *priv)
 		}
 	}
 
-	priv->notifier.ops = &csi_notify_ops;
+	priv->analtifier.ops = &csi_analtify_ops;
 
-	ret = v4l2_async_nf_register(&priv->notifier);
+	ret = v4l2_async_nf_register(&priv->analtifier);
 	if (ret)
 		return ret;
 
@@ -1974,7 +1974,7 @@ static int imx_csi_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, &priv->sd);
 	priv->dev = &pdev->dev;
@@ -2002,9 +2002,9 @@ static int imx_csi_probe(struct platform_device *pdev)
 	priv->sd.entity.ops = &csi_entity_ops;
 	priv->sd.entity.function = MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
 	priv->sd.dev = &pdev->dev;
-	priv->sd.fwnode = of_fwnode_handle(pdata->of_node);
+	priv->sd.fwanalde = of_fwanalde_handle(pdata->of_analde);
 	priv->sd.owner = THIS_MODULE;
-	priv->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	priv->sd.flags = V4L2_SUBDEV_FL_HAS_DEVANALDE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	priv->sd.grp_id = priv->csi_id ?
 		IMX_MEDIA_GRP_ID_IPU_CSI1 : IMX_MEDIA_GRP_ID_IPU_CSI0;
 	imx_media_grp_id_to_sd_name(priv->sd.name, sizeof(priv->sd.name),
@@ -2025,18 +2025,18 @@ static int imx_csi_probe(struct platform_device *pdev)
 	priv->sd.ctrl_handler = &priv->ctrl_hdlr;
 
 	/*
-	 * The IPUv3 driver did not assign an of_node to this
-	 * device. As a result, pinctrl does not automatically
+	 * The IPUv3 driver did analt assign an of_analde to this
+	 * device. As a result, pinctrl does analt automatically
 	 * configure our pin groups, so we need to do that manually
-	 * here, after setting this device's of_node.
+	 * here, after setting this device's of_analde.
 	 */
-	priv->dev->of_node = pdata->of_node;
+	priv->dev->of_analde = pdata->of_analde;
 	pinctrl = devm_pinctrl_get_select_default(priv->dev);
 	if (IS_ERR(pinctrl)) {
 		ret = PTR_ERR(pinctrl);
 		dev_dbg(priv->dev,
 			"devm_pinctrl_get_select_default() failed: %d\n", ret);
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			goto free;
 	}
 
@@ -2047,8 +2047,8 @@ static int imx_csi_probe(struct platform_device *pdev)
 	return 0;
 
 cleanup:
-	v4l2_async_nf_unregister(&priv->notifier);
-	v4l2_async_nf_cleanup(&priv->notifier);
+	v4l2_async_nf_unregister(&priv->analtifier);
+	v4l2_async_nf_cleanup(&priv->analtifier);
 free:
 	v4l2_ctrl_handler_free(&priv->ctrl_hdlr);
 	mutex_destroy(&priv->lock);
@@ -2062,8 +2062,8 @@ static void imx_csi_remove(struct platform_device *pdev)
 
 	v4l2_ctrl_handler_free(&priv->ctrl_hdlr);
 	mutex_destroy(&priv->lock);
-	v4l2_async_nf_unregister(&priv->notifier);
-	v4l2_async_nf_cleanup(&priv->notifier);
+	v4l2_async_nf_unregister(&priv->analtifier);
+	v4l2_async_nf_cleanup(&priv->analtifier);
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 }

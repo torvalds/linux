@@ -84,7 +84,7 @@ struct xstate {
 #define XFEATURE_MASK_XTILE		(XFEATURE_MASK_XTILE_DATA | \
 					 XFEATURE_MASK_XTILE_CFG)
 
-/* Note, these are ordered alphabetically to match kvm_cpuid_entry2.  Eww. */
+/* Analte, these are ordered alphabetically to match kvm_cpuid_entry2.  Eww. */
 enum cpuid_output_regs {
 	KVM_CPUID_EAX,
 	KVM_CPUID_EBX,
@@ -94,7 +94,7 @@ enum cpuid_output_regs {
 
 /*
  * Pack the information into a 64-bit value so that each X86_FEATURE_XXX can be
- * passed by value with no overhead.
+ * passed by value with anal overhead.
  */
 struct kvm_x86_cpu_feature {
 	u32	function;
@@ -195,7 +195,7 @@ struct kvm_x86_cpu_feature {
  * KVM defined paravirt features.
  */
 #define X86_FEATURE_KVM_CLOCKSOURCE	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 0)
-#define X86_FEATURE_KVM_NOP_IO_DELAY	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 1)
+#define X86_FEATURE_KVM_ANALP_IO_DELAY	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 1)
 #define X86_FEATURE_KVM_MMU_OP		KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 2)
 #define X86_FEATURE_KVM_CLOCKSOURCE2	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 3)
 #define X86_FEATURE_KVM_ASYNC_PF	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 4)
@@ -216,7 +216,7 @@ struct kvm_x86_cpu_feature {
 /*
  * Same idea as X86_FEATURE_XXX, but X86_PROPERTY_XXX retrieves a multi-bit
  * value/property as opposed to a single-bit feature.  Again, pack the info
- * into a 64-bit value to pass by value with no overhead.
+ * into a 64-bit value to pass by value with anal overhead.
  */
 struct kvm_x86_cpu_property {
 	u32	function;
@@ -279,12 +279,12 @@ struct kvm_x86_cpu_property {
 
 /*
  * Intel's architectural PMU events are bizarre.  They have a "feature" bit
- * that indicates the feature is _not_ supported, and a property that states
+ * that indicates the feature is _analt_ supported, and a property that states
  * the length of the bit mask of unsupported features.  A feature is supported
  * if the size of the bit mask is larger than the "unavailable" bit, and said
- * bit is not set.
+ * bit is analt set.
  *
- * Wrap the "unavailable" feature to simplify checking whether or not a given
+ * Wrap the "unavailable" feature to simplify checking whether or analt a given
  * architectural event is supported.
  */
 struct kvm_x86_pmu_feature {
@@ -563,7 +563,7 @@ static inline void xsetbv(u32 index, u64 value)
 
 static inline void wrpkru(u32 pkru)
 {
-	/* Note, ECX and EDX are architecturally required to be '0'. */
+	/* Analte, ECX and EDX are architecturally required to be '0'. */
 	asm volatile(".byte 0x0f,0x01,0xef\n\t"
 		     : : "a" (pkru), "c"(0), "d"(0));
 }
@@ -784,7 +784,7 @@ static inline void write_sse_reg(int reg, const sse128_t *data)
 
 static inline void cpu_relax(void)
 {
-	asm volatile("rep; nop" ::: "memory");
+	asm volatile("rep; analp" ::: "memory");
 }
 
 #define ud2()			\
@@ -948,7 +948,7 @@ static inline struct kvm_cpuid2 *allocate_kvm_cpuid2(int nr_entries)
 	struct kvm_cpuid2 *cpuid;
 
 	cpuid = malloc(kvm_cpuid2_size(nr_entries));
-	TEST_ASSERT(cpuid, "-ENOMEM when allocating kvm_cpuid2");
+	TEST_ASSERT(cpuid, "-EANALMEM when allocating kvm_cpuid2");
 
 	cpuid->nent = nr_entries;
 
@@ -1020,8 +1020,8 @@ int _vcpu_set_msr(struct kvm_vcpu *vcpu, uint64_t msr_index, uint64_t msr_value)
 
 /*
  * Assert on an MSR access(es) and pretty print the MSR name when possible.
- * Note, the caller provides the stringified name so that the name of macro is
- * printed, not the value the macro resolves to (due to macro expansion).
+ * Analte, the caller provides the stringified name so that the name of macro is
+ * printed, analt the value the macro resolves to (due to macro expansion).
  */
 #define TEST_ASSERT_MSR(cond, fmt, msr, str, args...)				\
 do {										\
@@ -1038,8 +1038,8 @@ do {										\
 /*
  * Returns true if KVM should return the last written value when reading an MSR
  * from userspace, e.g. the MSR isn't a command MSR, doesn't emulate state that
- * is changing, etc.  This is NOT an exhaustive list!  The intent is to filter
- * out MSRs that are not durable _and_ that a selftest wants to write.
+ * is changing, etc.  This is ANALT an exhaustive list!  The intent is to filter
+ * out MSRs that are analt durable _and_ that a selftest wants to write.
  */
 static inline bool is_durable_msr(uint32_t msr)
 {
@@ -1102,14 +1102,14 @@ void vm_install_exception_handler(struct kvm_vm *vm, int vector,
  * for recursive faults when accessing memory in the handler.  The downside to
  * using registers is that it restricts what registers can be used by the actual
  * instruction.  But, selftests are 64-bit only, making register* pressure a
- * minor concern.  Use r9-r11 as they are volatile, i.e. don't need to be saved
- * by the callee, and except for r11 are not implicit parameters to any
+ * mianalr concern.  Use r9-r11 as they are volatile, i.e. don't need to be saved
+ * by the callee, and except for r11 are analt implicit parameters to any
  * instructions.  Ideally, fixup would use r8-r10 and thus avoid implicit
  * parameters entirely, but Hyper-V's hypercall ABI uses r8 and testing Hyper-V
- * is higher priority than testing non-faulting SYSCALL/SYSRET.
+ * is higher priority than testing analn-faulting SYSCALL/SYSRET.
  *
- * Note, the fixup handler deliberately does not handle #DE, i.e. the vector
- * is guaranteed to be non-zero on fault.
+ * Analte, the fixup handler deliberately does analt handle #DE, i.e. the vector
+ * is guaranteed to be analn-zero on fault.
  *
  * REGISTER INPUTS:
  * r9  = MAGIC
@@ -1117,7 +1117,7 @@ void vm_install_exception_handler(struct kvm_vm *vm, int vector,
  * r11 = new RIP on fault
  *
  * REGISTER OUTPUTS:
- * r9  = exception vector (non-zero)
+ * r9  = exception vector (analn-zero)
  * r10 = error code
  */
 #define KVM_ASM_SAFE(insn)					\
@@ -1215,7 +1215,7 @@ void __vm_xsave_require_permission(uint64_t xfeature, const char *name);
 	__vm_xsave_require_permission(xfeature, #xfeature)
 
 enum pg_level {
-	PG_LEVEL_NONE,
+	PG_LEVEL_ANALNE,
 	PG_LEVEL_4K,
 	PG_LEVEL_2M,
 	PG_LEVEL_1G,
@@ -1245,7 +1245,7 @@ void virt_map_level(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 #define X86_CR0_NE          (1UL<<5) /* Numeric Error */
 #define X86_CR0_WP          (1UL<<16) /* Write Protect */
 #define X86_CR0_AM          (1UL<<18) /* Alignment Mask */
-#define X86_CR0_NW          (1UL<<29) /* Not Write-through */
+#define X86_CR0_NW          (1UL<<29) /* Analt Write-through */
 #define X86_CR0_CD          (1UL<<30) /* Cache Disable */
 #define X86_CR0_PG          (1UL<<31) /* Paging */
 

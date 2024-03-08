@@ -10,7 +10,7 @@ maintainers:
   - Stefan Wahren <wahrenst@gmx.net>
 
 description: |+
-  The thermal node should be the child of a syscon node with the
+  The thermal analde should be the child of a syscon analde with the
   required property:
 
   - compatible: Should be one of the following:

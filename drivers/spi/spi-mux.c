@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 
-#define SPI_MUX_NO_CS	((unsigned int)-1)
+#define SPI_MUX_ANAL_CS	((unsigned int)-1)
 
 /**
  * DOC: Driver description
@@ -45,7 +45,7 @@ struct spi_mux_priv {
 	struct mux_control	*mux;
 };
 
-/* should not get called when the parent controller is doing a transfer */
+/* should analt get called when the parent controller is doing a transfer */
 static int spi_mux_select(struct spi_device *spi)
 {
 	struct spi_mux_priv *priv = spi_controller_get_devdata(spi->controller);
@@ -76,7 +76,7 @@ static int spi_mux_setup(struct spi_device *spi)
 	struct spi_mux_priv *priv = spi_controller_get_devdata(spi->controller);
 
 	/*
-	 * can be called multiple times, won't do a valid setup now but we will
+	 * can be called multiple times, won't do a valid setup analw but we will
 	 * change the settings when we do a transfer (necessary because we
 	 * can't predict from which device it will be anyway)
 	 */
@@ -131,7 +131,7 @@ static int spi_mux_probe(struct spi_device *spi)
 
 	ctlr = spi_alloc_host(&spi->dev, sizeof(*priv));
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, ctlr);
 	priv = spi_controller_get_devdata(ctlr);
@@ -151,7 +151,7 @@ static int spi_mux_probe(struct spi_device *spi)
 		goto err_put_ctlr;
 	}
 
-	priv->current_cs = SPI_MUX_NO_CS;
+	priv->current_cs = SPI_MUX_ANAL_CS;
 
 	/* supported modes are the same as our parent's */
 	ctlr->mode_bits = spi->controller->mode_bits;
@@ -160,7 +160,7 @@ static int spi_mux_probe(struct spi_device *spi)
 	ctlr->setup = spi_mux_setup;
 	ctlr->num_chipselect = mux_control_states(priv->mux);
 	ctlr->bus_num = -1;
-	ctlr->dev.of_node = spi->dev.of_node;
+	ctlr->dev.of_analde = spi->dev.of_analde;
 	ctlr->must_async = true;
 
 	ret = devm_spi_register_controller(&spi->dev, ctlr);

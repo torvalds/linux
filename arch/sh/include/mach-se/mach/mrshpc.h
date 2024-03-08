@@ -7,7 +7,7 @@
 static inline void __init mrshpc_setup_windows(void)
 {
 	if ((__raw_readw(MRSHPC_CSR) & 0x000c) != 0)
-		return;	/* Not detected */
+		return;	/* Analt detected */
 
 	if ((__raw_readw(MRSHPC_CSR) & 0x0080) == 0) {
 		__raw_writew(0x0674, MRSHPC_CPWCR); /* Card Vcc is 3.3v? */

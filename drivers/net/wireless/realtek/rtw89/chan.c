@@ -227,7 +227,7 @@ enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 	weight = bitmap_weight(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
 	switch (weight) {
 	default:
-		rtw89_warn(rtwdev, "unknown ent chan weight: %d\n", weight);
+		rtw89_warn(rtwdev, "unkanalwn ent chan weight: %d\n", weight);
 		bitmap_zero(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
 		fallthrough;
 	case 0:
@@ -265,7 +265,7 @@ enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 	return mode;
 }
 
-static void rtw89_chanctx_notify(struct rtw89_dev *rtwdev,
+static void rtw89_chanctx_analtify(struct rtw89_dev *rtwdev,
 				 enum rtw89_chanctx_state state)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
@@ -280,7 +280,7 @@ static void rtw89_chanctx_notify(struct rtw89_dev *rtwdev,
 			continue;
 
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-			    "chanctx notify listener: cb %d, state %d\n",
+			    "chanctx analtify listener: cb %d, state %d\n",
 			    i, state);
 
 		listener->callbacks[i](rtwdev, state);
@@ -291,7 +291,7 @@ static void rtw89_chanctx_notify(struct rtw89_dev *rtwdev,
  * And, it guarantees that ordered_idx is less than NUM_OF_RTW89_MCC_ROLES.
  * So, if data needs to pass an array for ordered_idx, the array can declare
  * with NUM_OF_RTW89_MCC_ROLES. Besides, the entire iteration will stop
- * immediately as long as iterator returns a non-zero value.
+ * immediately as long as iterator returns a analn-zero value.
  */
 static
 int rtw89_iterate_mcc_roles(struct rtw89_dev *rtwdev,
@@ -320,8 +320,8 @@ int rtw89_iterate_mcc_roles(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
-/* For now, IEEE80211_HW_TIMING_BEACON_ONLY can make things simple to ensure
- * correctness of MCC calculation logic below. We have noticed that once driver
+/* For analw, IEEE80211_HW_TIMING_BEACON_ONLY can make things simple to ensure
+ * correctness of MCC calculation logic below. We have analticed that once driver
  * declares WIPHY_FLAG_SUPPORTS_MLO, the use of IEEE80211_HW_TIMING_BEACON_ONLY
  * will be restricted. We will make an alternative in driver when it is ready
  * for MLO.
@@ -337,7 +337,7 @@ static u32 rtw89_mcc_get_tbtt_ofst(struct rtw89_dev *rtwdev,
 
 	if (tsf < sync_tsf) {
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-			    "MCC get tbtt ofst: tsf might not update yet\n");
+			    "MCC get tbtt ofst: tsf might analt update yet\n");
 		sync_tsf = 0;
 	}
 
@@ -437,7 +437,7 @@ static void rtw89_mcc_fill_role_limit(struct rtw89_dev *rtwdev,
 				      struct rtw89_mcc_role *mcc_role)
 {
 	struct ieee80211_vif *vif = rtwvif_to_vif(mcc_role->rtwvif);
-	struct ieee80211_p2p_noa_desc *noa_desc;
+	struct ieee80211_p2p_anala_desc *anala_desc;
 	u32 bcn_intvl_us = ieee80211_tu_to_usec(mcc_role->beacon_interval);
 	u32 max_toa_us, max_tob_us, max_dur_us;
 	u32 start_time, interval, duration;
@@ -448,19 +448,19 @@ static void rtw89_mcc_fill_role_limit(struct rtw89_dev *rtwdev,
 	if (!mcc_role->is_go && !mcc_role->is_gc)
 		return;
 
-	/* find the first periodic NoA */
-	for (i = 0; i < RTW89_P2P_MAX_NOA_NUM; i++) {
-		noa_desc = &vif->bss_conf.p2p_noa_attr.desc[i];
-		if (noa_desc->count == 255)
+	/* find the first periodic AnalA */
+	for (i = 0; i < RTW89_P2P_MAX_ANALA_NUM; i++) {
+		anala_desc = &vif->bss_conf.p2p_anala_attr.desc[i];
+		if (anala_desc->count == 255)
 			goto fill;
 	}
 
 	return;
 
 fill:
-	start_time = le32_to_cpu(noa_desc->start_time);
-	interval = le32_to_cpu(noa_desc->interval);
-	duration = le32_to_cpu(noa_desc->duration);
+	start_time = le32_to_cpu(anala_desc->start_time);
+	interval = le32_to_cpu(anala_desc->interval);
+	duration = le32_to_cpu(anala_desc->duration);
 
 	if (interval != bcn_intvl_us) {
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
@@ -516,7 +516,7 @@ static int rtw89_mcc_fill_role(struct rtw89_dev *rtwdev,
 
 	if (!role->beacon_interval) {
 		rtw89_warn(rtwdev,
-			   "cannot handle MCC role without beacon interval\n");
+			   "cananalt handle MCC role without beacon interval\n");
 		return -EINVAL;
 	}
 
@@ -565,7 +565,7 @@ static int rtw89_mcc_fill_role_iterator(struct rtw89_dev *rtwdev,
 	int ret;
 
 	if (!role_vif) {
-		rtw89_warn(rtwdev, "cannot handle MCC without role[%d]\n",
+		rtw89_warn(rtwdev, "cananalt handle MCC without role[%d]\n",
 			   ordered_idx);
 		return -EINVAL;
 	}
@@ -658,7 +658,7 @@ static void rtw89_mcc_assign_pattern(struct rtw89_dev *rtwdev,
  *
  * In loose pattern calculation, we only ensure at least tob_ref and
  * toa_ref have positive results. If tob_aux or toa_aux is negative
- * unfortunately, FW will be notified to handle it with courtesy
+ * unfortunately, FW will be analtified to handle it with courtesy
  * mechanism.
  */
 static void __rtw89_mcc_calc_pattern_loose(struct rtw89_dev *rtwdev,
@@ -676,7 +676,7 @@ static void __rtw89_mcc_calc_pattern_loose(struct rtw89_dev *rtwdev,
 	u16 res;
 
 	*ptrn = (typeof(*ptrn)){
-		.plan = hdl_bt ? RTW89_MCC_PLAN_TAIL_BT : RTW89_MCC_PLAN_NO_BT,
+		.plan = hdl_bt ? RTW89_MCC_PLAN_TAIL_BT : RTW89_MCC_PLAN_ANAL_BT,
 	};
 
 	if (!hdl_bt)
@@ -752,20 +752,20 @@ static int __rtw89_mcc_calc_pattern_strict(struct rtw89_dev *rtwdev,
 
 	if (ref->duration < min_tob + min_toa) {
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-			    "MCC calc ptrn_st: not meet ref dur cond\n");
+			    "MCC calc ptrn_st: analt meet ref dur cond\n");
 		return -EINVAL;
 	}
 
 	if (aux->duration < min_tob + min_toa) {
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-			    "MCC calc ptrn_st: not meet aux dur cond\n");
+			    "MCC calc ptrn_st: analt meet aux dur cond\n");
 		return -EINVAL;
 	}
 
 	res = bcn_ofst - min_toa - min_tob - bt_dur_in_mid;
 	if (res < 0) {
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-			    "MCC calc ptrn_st: not meet bcn_ofst cond\n");
+			    "MCC calc ptrn_st: analt meet bcn_ofst cond\n");
 		return -EINVAL;
 	}
 
@@ -825,21 +825,21 @@ static int rtw89_mcc_calc_pattern(struct rtw89_dev *rtwdev, bool hdl_bt)
 
 	if (ref->limit.enable && aux->limit.enable) {
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-			    "MCC calc ptrn: not support dual limited roles\n");
+			    "MCC calc ptrn: analt support dual limited roles\n");
 		return -EINVAL;
 	}
 
 	if (ref->limit.enable &&
 	    ref->duration > ref->limit.max_tob + ref->limit.max_toa) {
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-			    "MCC calc ptrn: not fit ref limit\n");
+			    "MCC calc ptrn: analt fit ref limit\n");
 		return -EINVAL;
 	}
 
 	if (aux->limit.enable &&
 	    aux->duration > aux->limit.max_tob + aux->limit.max_toa) {
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-			    "MCC calc ptrn: not fit aux limit\n");
+			    "MCC calc ptrn: analt fit aux limit\n");
 		return -EINVAL;
 	}
 
@@ -847,7 +847,7 @@ static int rtw89_mcc_calc_pattern(struct rtw89_dev *rtwdev, bool hdl_bt)
 		sel_plan[RTW89_MCC_PLAN_TAIL_BT] = true;
 		sel_plan[RTW89_MCC_PLAN_MID_BT] = true;
 	} else {
-		sel_plan[RTW89_MCC_PLAN_NO_BT] = true;
+		sel_plan[RTW89_MCC_PLAN_ANAL_BT] = true;
 	}
 
 	for (i = 0; i < NUM_OF_RTW89_MCC_PLAN; i++) {
@@ -883,7 +883,7 @@ static void rtw89_mcc_set_default_pattern(struct rtw89_dev *rtwdev)
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 		    "MCC use default pattern unexpectedly\n");
 
-	tmp.plan = RTW89_MCC_PLAN_NO_BT;
+	tmp.plan = RTW89_MCC_PLAN_ANAL_BT;
 	tmp.tob_ref = ref->duration / 2;
 	tmp.toa_ref = ref->duration - tmp.tob_ref;
 	tmp.tob_aux = aux->duration / 2;
@@ -1035,15 +1035,15 @@ static void rtw89_mcc_mod_duration_dual_2ghz_with_bt(struct rtw89_dev *rtwdev)
 static
 void rtw89_mcc_mod_duration_diff_band_with_bt(struct rtw89_dev *rtwdev,
 					      struct rtw89_mcc_role *role_2ghz,
-					      struct rtw89_mcc_role *role_non_2ghz)
+					      struct rtw89_mcc_role *role_analn_2ghz)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
 	struct rtw89_mcc_config *config = &mcc->config;
-	u16 dur_2ghz, dur_non_2ghz;
+	u16 dur_2ghz, dur_analn_2ghz;
 	u16 bt_dur, mcc_intvl;
 
 	dur_2ghz = role_2ghz->duration;
-	dur_non_2ghz = role_non_2ghz->duration;
+	dur_analn_2ghz = role_analn_2ghz->duration;
 	mcc_intvl = config->mcc_interval;
 	bt_dur = mcc->bt_role.duration;
 
@@ -1052,33 +1052,33 @@ void rtw89_mcc_mod_duration_diff_band_with_bt(struct rtw89_dev *rtwdev,
 		    mcc_intvl, bt_dur);
 
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-		    "MCC mod dur: check dur_2ghz %u, dur_non_2ghz %u\n",
-		    dur_2ghz, dur_non_2ghz);
+		    "MCC mod dur: check dur_2ghz %u, dur_analn_2ghz %u\n",
+		    dur_2ghz, dur_analn_2ghz);
 
-	if (dur_non_2ghz >= bt_dur) {
+	if (dur_analn_2ghz >= bt_dur) {
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-			    "MCC mod dur: dur_non_2ghz is enough for bt\n");
+			    "MCC mod dur: dur_analn_2ghz is eanalugh for bt\n");
 		return;
 	}
 
-	dur_non_2ghz = bt_dur;
-	dur_2ghz = mcc_intvl - dur_non_2ghz;
+	dur_analn_2ghz = bt_dur;
+	dur_2ghz = mcc_intvl - dur_analn_2ghz;
 
-	if (role_non_2ghz->limit.enable) {
+	if (role_analn_2ghz->limit.enable) {
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-			    "MCC mod dur: dur_non_2ghz is limited with max %u\n",
-			    role_non_2ghz->limit.max_dur);
+			    "MCC mod dur: dur_analn_2ghz is limited with max %u\n",
+			    role_analn_2ghz->limit.max_dur);
 
-		dur_non_2ghz = min(dur_non_2ghz, role_non_2ghz->limit.max_dur);
-		dur_2ghz = mcc_intvl - dur_non_2ghz;
+		dur_analn_2ghz = min(dur_analn_2ghz, role_analn_2ghz->limit.max_dur);
+		dur_2ghz = mcc_intvl - dur_analn_2ghz;
 	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-		    "MCC mod dur: set dur_2ghz %u, dur_non_2ghz %u\n",
-		    dur_2ghz, dur_non_2ghz);
+		    "MCC mod dur: set dur_2ghz %u, dur_analn_2ghz %u\n",
+		    dur_2ghz, dur_analn_2ghz);
 
 	role_2ghz->duration = dur_2ghz;
-	role_non_2ghz->duration = dur_non_2ghz;
+	role_analn_2ghz->duration = dur_analn_2ghz;
 }
 
 static bool rtw89_mcc_duration_decision_on_bt(struct rtw89_dev *rtwdev)
@@ -1101,12 +1101,12 @@ static bool rtw89_mcc_duration_decision_on_bt(struct rtw89_dev *rtwdev)
 
 	if (!ref->is_2ghz && !aux->is_2ghz) {
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-			    "MCC dual roles are not on 2GHz; ignore BT duration\n");
+			    "MCC dual roles are analt on 2GHz; iganalre BT duration\n");
 		return false;
 	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-		    "MCC one role is on 2GHz; modify another for BT duration\n");
+		    "MCC one role is on 2GHz; modify aanalther for BT duration\n");
 
 	if (ref->is_2ghz)
 		rtw89_mcc_mod_duration_diff_band_with_bt(rtwdev, ref, aux);
@@ -1227,7 +1227,7 @@ static int rtw89_mcc_fill_config(struct rtw89_dev *rtwdev)
 		rtw89_mcc_set_duration_gc_sta(rtwdev);
 		break;
 	default:
-		rtw89_warn(rtwdev, "MCC unknown mode: %d\n", mcc->mode);
+		rtw89_warn(rtwdev, "MCC unkanalwn mode: %d\n", mcc->mode);
 		return -EFAULT;
 	}
 
@@ -1364,7 +1364,7 @@ static int __mcc_fw_start(struct rtw89_dev *rtwdev, bool replace)
 
 		req.btc_in_group = true;
 		break;
-	case RTW89_MCC_PLAN_NO_BT:
+	case RTW89_MCC_PLAN_ANAL_BT:
 		ret = __mcc_fw_add_role(rtwdev, ref);
 		if (ret)
 			return ret;
@@ -1375,7 +1375,7 @@ static int __mcc_fw_start(struct rtw89_dev *rtwdev, bool replace)
 		req.btc_in_group = false;
 		break;
 	default:
-		rtw89_warn(rtwdev, "MCC unknown plan: %d\n", pattern->plan);
+		rtw89_warn(rtwdev, "MCC unkanalwn plan: %d\n", pattern->plan);
 		return -EFAULT;
 	}
 
@@ -1403,7 +1403,7 @@ static int __mcc_fw_start(struct rtw89_dev *rtwdev, bool replace)
 	return 0;
 }
 
-static int __mcc_fw_set_duration_no_bt(struct rtw89_dev *rtwdev, bool sync_changed)
+static int __mcc_fw_set_duration_anal_bt(struct rtw89_dev *rtwdev, bool sync_changed)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
 	struct rtw89_mcc_config *config = &mcc->config;
@@ -1444,7 +1444,7 @@ static int __mcc_fw_set_duration_no_bt(struct rtw89_dev *rtwdev, bool sync_chang
 	return 0;
 }
 
-static void rtw89_mcc_handle_beacon_noa(struct rtw89_dev *rtwdev, bool enable)
+static void rtw89_mcc_handle_beacon_anala(struct rtw89_dev *rtwdev, bool enable)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
 	struct rtw89_mcc_role *ref = &mcc->role_ref;
@@ -1452,7 +1452,7 @@ static void rtw89_mcc_handle_beacon_noa(struct rtw89_dev *rtwdev, bool enable)
 	struct rtw89_mcc_config *config = &mcc->config;
 	struct rtw89_mcc_pattern *pattern = &config->pattern;
 	struct rtw89_mcc_sync *sync = &config->sync;
-	struct ieee80211_p2p_noa_desc noa_desc = {};
+	struct ieee80211_p2p_anala_desc anala_desc = {};
 	u64 start_time = config->start_tsf;
 	u32 interval = config->mcc_interval;
 	struct rtw89_vif *rtwvif_go;
@@ -1476,28 +1476,28 @@ static void rtw89_mcc_handle_beacon_noa(struct rtw89_dev *rtwdev, bool enable)
 		start_time += ieee80211_tu_to_usec(sync->offset);
 	} else {
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-			    "MCC find no GO: skip updating beacon NoA\n");
+			    "MCC find anal GO: skip updating beacon AnalA\n");
 		return;
 	}
 
-	rtw89_p2p_noa_renew(rtwvif_go);
+	rtw89_p2p_anala_renew(rtwvif_go);
 
 	if (enable) {
-		noa_desc.start_time = cpu_to_le32(start_time);
-		noa_desc.interval = cpu_to_le32(ieee80211_tu_to_usec(interval));
-		noa_desc.duration = cpu_to_le32(ieee80211_tu_to_usec(duration));
-		noa_desc.count = 255;
-		rtw89_p2p_noa_append(rtwvif_go, &noa_desc);
+		anala_desc.start_time = cpu_to_le32(start_time);
+		anala_desc.interval = cpu_to_le32(ieee80211_tu_to_usec(interval));
+		anala_desc.duration = cpu_to_le32(ieee80211_tu_to_usec(duration));
+		anala_desc.count = 255;
+		rtw89_p2p_anala_append(rtwvif_go, &anala_desc);
 	}
 
-	/* without chanctx, we cannot get beacon from mac80211 stack */
+	/* without chanctx, we cananalt get beacon from mac80211 stack */
 	if (!rtwvif_go->chanctx_assigned)
 		return;
 
 	rtw89_fw_h2c_update_beacon(rtwdev, rtwvif_go);
 }
 
-static void rtw89_mcc_start_beacon_noa(struct rtw89_dev *rtwdev)
+static void rtw89_mcc_start_beacon_anala(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
 	struct rtw89_mcc_role *ref = &mcc->role_ref;
@@ -1511,10 +1511,10 @@ static void rtw89_mcc_start_beacon_noa(struct rtw89_dev *rtwdev)
 	else if (aux->is_go)
 		rtw89_fw_h2c_tsf32_toggle(rtwdev, aux->rtwvif, true);
 
-	rtw89_mcc_handle_beacon_noa(rtwdev, true);
+	rtw89_mcc_handle_beacon_anala(rtwdev, true);
 }
 
-static void rtw89_mcc_stop_beacon_noa(struct rtw89_dev *rtwdev)
+static void rtw89_mcc_stop_beacon_anala(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
 	struct rtw89_mcc_role *ref = &mcc->role_ref;
@@ -1528,7 +1528,7 @@ static void rtw89_mcc_stop_beacon_noa(struct rtw89_dev *rtwdev)
 	else if (aux->is_go)
 		rtw89_fw_h2c_tsf32_toggle(rtwdev, aux->rtwvif, false);
 
-	rtw89_mcc_handle_beacon_noa(rtwdev, false);
+	rtw89_mcc_handle_beacon_anala(rtwdev, false);
 }
 
 static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
@@ -1566,9 +1566,9 @@ static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
 	if (ret)
 		return ret;
 
-	rtw89_chanctx_notify(rtwdev, RTW89_CHANCTX_STATE_MCC_START);
+	rtw89_chanctx_analtify(rtwdev, RTW89_CHANCTX_STATE_MCC_START);
 
-	rtw89_mcc_start_beacon_noa(rtwdev);
+	rtw89_mcc_start_beacon_anala(rtwdev);
 	return 0;
 }
 
@@ -1591,9 +1591,9 @@ static void rtw89_mcc_stop(struct rtw89_dev *rtwdev)
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 			    "MCC h2c failed to delete group: %d\n", ret);
 
-	rtw89_chanctx_notify(rtwdev, RTW89_CHANCTX_STATE_MCC_STOP);
+	rtw89_chanctx_analtify(rtwdev, RTW89_CHANCTX_STATE_MCC_STOP);
 
-	rtw89_mcc_stop_beacon_noa(rtwdev);
+	rtw89_mcc_stop_beacon_anala(rtwdev);
 }
 
 static int rtw89_mcc_update(struct rtw89_dev *rtwdev)
@@ -1613,8 +1613,8 @@ static int rtw89_mcc_update(struct rtw89_dev *rtwdev)
 	if (ret)
 		return ret;
 
-	if (old_cfg.pattern.plan != RTW89_MCC_PLAN_NO_BT ||
-	    config->pattern.plan != RTW89_MCC_PLAN_NO_BT) {
+	if (old_cfg.pattern.plan != RTW89_MCC_PLAN_ANAL_BT ||
+	    config->pattern.plan != RTW89_MCC_PLAN_ANAL_BT) {
 		ret = __mcc_fw_start(rtwdev, true);
 		if (ret)
 			return ret;
@@ -1624,12 +1624,12 @@ static int rtw89_mcc_update(struct rtw89_dev *rtwdev)
 		else
 			sync_changed = true;
 
-		ret = __mcc_fw_set_duration_no_bt(rtwdev, sync_changed);
+		ret = __mcc_fw_set_duration_anal_bt(rtwdev, sync_changed);
 		if (ret)
 			return ret;
 	}
 
-	rtw89_mcc_handle_beacon_noa(rtwdev, true);
+	rtw89_mcc_handle_beacon_anala(rtwdev, true);
 	return 0;
 }
 
@@ -1910,7 +1910,7 @@ int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,
 
 	idx = find_first_zero_bit(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
 	if (idx >= chip->support_chanctx_num)
-		return -ENOENT;
+		return -EANALENT;
 
 	rtw89_config_entity_chandef(rtwdev, idx, &ctx->def);
 	rtw89_set_channel(rtwdev);
@@ -1938,8 +1938,8 @@ void rtw89_chanctx_ops_remove(struct rtw89_dev *rtwdev,
 	if (roll == NUM_OF_RTW89_SUB_ENTITY)
 		goto out;
 
-	/* RTW89_SUB_ENTITY_0 is going to release, and another exists.
-	 * Make another roll down to RTW89_SUB_ENTITY_0 to replace.
+	/* RTW89_SUB_ENTITY_0 is going to release, and aanalther exists.
+	 * Make aanalther roll down to RTW89_SUB_ENTITY_0 to replace.
 	 */
 	hal->sub[roll].cfg->idx = RTW89_SUB_ENTITY_0;
 	hal->sub[RTW89_SUB_ENTITY_0] = hal->sub[roll];

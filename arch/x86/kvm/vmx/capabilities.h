@@ -27,7 +27,7 @@ extern int __read_mostly pt_mode;
 struct nested_vmx_msrs {
 	/*
 	 * We only store the "true" versions of the VMX capability MSRs. We
-	 * generate the "non-true" versions by setting the must-be-1 bits
+	 * generate the "analn-true" versions by setting the must-be-1 bits
 	 * according to the SDM.
 	 */
 	u32 procbased_ctls_low;
@@ -74,9 +74,9 @@ struct vmx_capability {
 };
 extern struct vmx_capability vmx_capability __ro_after_init;
 
-static inline bool cpu_has_vmx_basic_inout(void)
+static inline bool cpu_has_vmx_basic_ianalut(void)
 {
-	return	(((u64)vmcs_config.basic_cap << 32) & VMX_BASIC_INOUT);
+	return	(((u64)vmcs_config.basic_cap << 32) & VMX_BASIC_IANALUT);
 }
 
 static inline bool cpu_has_virtual_nmis(void)
@@ -395,10 +395,10 @@ static inline bool vmx_pebs_supported(void)
 	return boot_cpu_has(X86_FEATURE_PEBS) && kvm_pmu_cap.pebs_ept;
 }
 
-static inline bool cpu_has_notify_vmexit(void)
+static inline bool cpu_has_analtify_vmexit(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
-		SECONDARY_EXEC_NOTIFY_VM_EXITING;
+		SECONDARY_EXEC_ANALTIFY_VM_EXITING;
 }
 
 #endif /* __KVM_X86_VMX_CAPS_H */

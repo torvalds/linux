@@ -128,7 +128,7 @@ static int bcm2836_map(struct irq_domain *d, unsigned int irq,
 	irq_set_percpu_devid(irq);
 	irq_domain_set_info(d, irq, hw, chip, d->host_data,
 			    handle_percpu_devid_irq, NULL, NULL);
-	irq_set_status_flags(irq, IRQ_NOAUTOEN);
+	irq_set_status_flags(irq, IRQ_ANALAUTOEN);
 
 	return 0;
 }
@@ -182,7 +182,7 @@ static void bcm2836_arm_irqchip_ipi_send_mask(struct irq_data *d,
 	void __iomem *mailbox0_base = intc.base + LOCAL_MAILBOX0_SET0;
 
 	/*
-	 * Ensure that stores to normal memory are visible to the
+	 * Ensure that stores to analrmal memory are visible to the
 	 * other CPUs before issuing the IPI.
 	 */
 	smp_wmb();
@@ -220,7 +220,7 @@ static void bcm2836_arm_irqchip_ipi_free(struct irq_domain *d,
 					 unsigned int virq,
 					 unsigned int nr_irqs)
 {
-	/* Not freeing IPIs */
+	/* Analt freeing IPIs */
 }
 
 static const struct irq_domain_ops ipi_domain_ops = {
@@ -247,7 +247,7 @@ static int bcm2836_cpu_dying(unsigned int cpu)
 static void __init bcm2836_arm_irqchip_smp_init(void)
 {
 	struct irq_fwspec ipi_fwspec = {
-		.fwnode		= intc.domain->fwnode,
+		.fwanalde		= intc.domain->fwanalde,
 		.param_count	= 1,
 		.param		= {
 			[0]	= LOCAL_IRQ_MAILBOX0,
@@ -259,7 +259,7 @@ static void __init bcm2836_arm_irqchip_smp_init(void)
 	if (WARN_ON(mux_irq <= 0))
 		return;
 
-	ipi_domain = irq_domain_create_linear(intc.domain->fwnode,
+	ipi_domain = irq_domain_create_linear(intc.domain->fwanalde,
 					      BITS_PER_MBOX, &ipi_domain_ops,
 					      NULL);
 	if (WARN_ON(!ipi_domain))
@@ -268,7 +268,7 @@ static void __init bcm2836_arm_irqchip_smp_init(void)
 	ipi_domain->flags |= IRQ_DOMAIN_FLAG_IPI_SINGLE;
 	irq_domain_update_bus_token(ipi_domain, DOMAIN_BUS_IPI);
 
-	base_ipi = irq_domain_alloc_irqs(ipi_domain, BITS_PER_MBOX, NUMA_NO_NODE, NULL);
+	base_ipi = irq_domain_alloc_irqs(ipi_domain, BITS_PER_MBOX, NUMA_ANAL_ANALDE, NULL);
 	if (WARN_ON(!base_ipi))
 		return;
 
@@ -312,21 +312,21 @@ static void bcm2835_init_local_timer_frequency(void)
 	writel(0x80000000, intc.base + LOCAL_PRESCALER);
 }
 
-static int __init bcm2836_arm_irqchip_l1_intc_of_init(struct device_node *node,
-						      struct device_node *parent)
+static int __init bcm2836_arm_irqchip_l1_intc_of_init(struct device_analde *analde,
+						      struct device_analde *parent)
 {
-	intc.base = of_iomap(node, 0);
+	intc.base = of_iomap(analde, 0);
 	if (!intc.base) {
-		panic("%pOF: unable to map local interrupt registers\n", node);
+		panic("%pOF: unable to map local interrupt registers\n", analde);
 	}
 
 	bcm2835_init_local_timer_frequency();
 
-	intc.domain = irq_domain_add_linear(node, LAST_IRQ + 1,
+	intc.domain = irq_domain_add_linear(analde, LAST_IRQ + 1,
 					    &bcm2836_arm_irqchip_intc_ops,
 					    NULL);
 	if (!intc.domain)
-		panic("%pOF: unable to create IRQ domain\n", node);
+		panic("%pOF: unable to create IRQ domain\n", analde);
 
 	irq_domain_update_bus_token(intc.domain, DOMAIN_BUS_WIRED);
 

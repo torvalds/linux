@@ -3,8 +3,8 @@
  * RDMA Transport Layer
  *
  * Copyright (c) 2014 - 2018 ProfitBricks GmbH. All rights reserved.
- * Copyright (c) 2018 - 2019 1&1 IONOS Cloud GmbH. All rights reserved.
- * Copyright (c) 2019 - 2020 1&1 IONOS SE. All rights reserved.
+ * Copyright (c) 2018 - 2019 1&1 IOANALS Cloud GmbH. All rights reserved.
+ * Copyright (c) 2019 - 2020 1&1 IOANALS SE. All rights reserved.
  */
 
 #ifndef RTRS_PRI_H
@@ -18,10 +18,10 @@
 #include "rtrs.h"
 
 #define RTRS_PROTO_VER_MAJOR 2
-#define RTRS_PROTO_VER_MINOR 0
+#define RTRS_PROTO_VER_MIANALR 0
 
 #define RTRS_PROTO_VER_STRING __stringify(RTRS_PROTO_VER_MAJOR) "." \
-			       __stringify(RTRS_PROTO_VER_MINOR)
+			       __stringify(RTRS_PROTO_VER_MIANALR)
 
 /*
  * Max IB immediate data size is 2^28 (MAX_IMM_PAYL_BITS)
@@ -62,7 +62,7 @@ enum {
 	RTRS_HB_MISSED_MAX = 5,
 
 	RTRS_MAGIC = 0x1BBD,
-	RTRS_PROTO_VER = (RTRS_PROTO_VER_MAJOR << 8) | RTRS_PROTO_VER_MINOR,
+	RTRS_PROTO_VER = (RTRS_PROTO_VER_MAJOR << 8) | RTRS_PROTO_VER_MIANALR,
 };
 
 struct rtrs_ib_dev;
@@ -178,10 +178,10 @@ struct rtrs_sg_desc {
  * @sess_uuid:	   UUID of a session (path)
  * @paths_uuid:	   UUID of a group of sessions (paths)
  *
- * NOTE: max size 56 bytes, see man rdma_connect().
+ * ANALTE: max size 56 bytes, see man rdma_connect().
  */
 struct rtrs_msg_conn_req {
-	/* Is set to 0 by cma.c in case of AF_IB, do not touch that.
+	/* Is set to 0 by cma.c in case of AF_IB, do analt touch that.
 	 * see https://www.spinics.net/lists/linux-rdma/msg22397.html
 	 */
 	u8		__cma_version;
@@ -205,17 +205,17 @@ struct rtrs_msg_conn_req {
  * struct rtrs_msg_conn_rsp - Server connection response to the client
  * @magic:	   RTRS magic
  * @version:	   RTRS protocol version
- * @errno:	   If rdma_accept() then 0, if rdma_reject() indicates error
+ * @erranal:	   If rdma_accept() then 0, if rdma_reject() indicates error
  * @queue_depth:   max inflight messages (queue-depth) in this session
  * @max_io_size:   max io size server supports
  * @max_hdr_size:  max msg header size server supports
  *
- * NOTE: size is 56 bytes, max possible is 136 bytes, see man rdma_accept().
+ * ANALTE: size is 56 bytes, max possible is 136 bytes, see man rdma_accept().
  */
 struct rtrs_msg_conn_rsp {
 	__le16		magic;
 	__le16		version;
-	__le16		errno;
+	__le16		erranal;
 	__le16		queue_depth;
 	__le32		max_io_size;
 	__le32		max_hdr_size;
@@ -351,23 +351,23 @@ static inline u32 rtrs_to_io_req_imm(u32 addr)
 	return rtrs_to_imm(RTRS_IO_REQ_IMM, addr);
 }
 
-static inline u32 rtrs_to_io_rsp_imm(u32 msg_id, int errno, bool w_inval)
+static inline u32 rtrs_to_io_rsp_imm(u32 msg_id, int erranal, bool w_inval)
 {
 	enum rtrs_imm_type type;
 	u32 payload;
 
-	/* 9 bits for errno, 19 bits for msg_id */
-	payload = (abs(errno) & 0x1ff) << 19 | (msg_id & 0x7ffff);
+	/* 9 bits for erranal, 19 bits for msg_id */
+	payload = (abs(erranal) & 0x1ff) << 19 | (msg_id & 0x7ffff);
 	type = w_inval ? RTRS_IO_RSP_W_INV_IMM : RTRS_IO_RSP_IMM;
 
 	return rtrs_to_imm(type, payload);
 }
 
-static inline void rtrs_from_io_rsp_imm(u32 payload, u32 *msg_id, int *errno)
+static inline void rtrs_from_io_rsp_imm(u32 payload, u32 *msg_id, int *erranal)
 {
-	/* 9 bits for errno, 19 bits for msg_id */
+	/* 9 bits for erranal, 19 bits for msg_id */
 	*msg_id = payload & 0x7ffff;
-	*errno = -(int)((payload >> 19) & 0x1ff);
+	*erranal = -(int)((payload >> 19) & 0x1ff);
 }
 
 #define STAT_STORE_FUNC(type, set_value, reset)				\

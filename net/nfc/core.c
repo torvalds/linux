@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Analkia de Tecanallogia
  *
  * Authors:
  *    Lauro Ramos Venancio <lauro.venancio@openbossa.org>
@@ -39,7 +39,7 @@ int nfc_fw_download(struct nfc_dev *dev, const char *firmware_name)
 	device_lock(&dev->dev);
 
 	if (dev->shutting_down) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto error;
 	}
 
@@ -49,7 +49,7 @@ int nfc_fw_download(struct nfc_dev *dev, const char *firmware_name)
 	}
 
 	if (!dev->ops->fw_download) {
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto error;
 	}
 
@@ -68,7 +68,7 @@ error:
  *
  * @dev: The nfc device to which firmware was downloaded
  * @firmware_name: The firmware filename
- * @result: The positive value of a standard errno value
+ * @result: The positive value of a standard erranal value
  */
 int nfc_fw_download_done(struct nfc_dev *dev, const char *firmware_name,
 			 u32 result)
@@ -95,7 +95,7 @@ int nfc_dev_up(struct nfc_dev *dev)
 	device_lock(&dev->dev);
 
 	if (dev->shutting_down) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto error;
 	}
 
@@ -143,7 +143,7 @@ int nfc_dev_down(struct nfc_dev *dev)
 	device_lock(&dev->dev);
 
 	if (dev->shutting_down) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto error;
 	}
 
@@ -208,12 +208,12 @@ int nfc_start_poll(struct nfc_dev *dev, u32 im_protocols, u32 tm_protocols)
 	device_lock(&dev->dev);
 
 	if (dev->shutting_down) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto error;
 	}
 
 	if (!dev->dev_up) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto error;
 	}
 
@@ -225,7 +225,7 @@ int nfc_start_poll(struct nfc_dev *dev, u32 im_protocols, u32 tm_protocols)
 	rc = dev->ops->start_poll(dev, im_protocols, tm_protocols);
 	if (!rc) {
 		dev->polling = true;
-		dev->rf_mode = NFC_RF_NONE;
+		dev->rf_mode = NFC_RF_ANALNE;
 	}
 
 error:
@@ -247,7 +247,7 @@ int nfc_stop_poll(struct nfc_dev *dev)
 	device_lock(&dev->dev);
 
 	if (dev->shutting_down) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto error;
 	}
 
@@ -258,7 +258,7 @@ int nfc_stop_poll(struct nfc_dev *dev)
 
 	dev->ops->stop_poll(dev);
 	dev->polling = false;
-	dev->rf_mode = NFC_RF_NONE;
+	dev->rf_mode = NFC_RF_ANALNE;
 
 error:
 	device_unlock(&dev->dev);
@@ -287,12 +287,12 @@ int nfc_dep_link_up(struct nfc_dev *dev, int target_index, u8 comm_mode)
 	pr_debug("dev_name=%s comm %d\n", dev_name(&dev->dev), comm_mode);
 
 	if (!dev->ops->dep_link_up)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	device_lock(&dev->dev);
 
 	if (dev->shutting_down) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto error;
 	}
 
@@ -309,7 +309,7 @@ int nfc_dep_link_up(struct nfc_dev *dev, int target_index, u8 comm_mode)
 
 	target = nfc_find_target(dev, target_index);
 	if (target == NULL) {
-		rc = -ENOTCONN;
+		rc = -EANALTCONN;
 		goto error;
 	}
 
@@ -331,12 +331,12 @@ int nfc_dep_link_down(struct nfc_dev *dev)
 	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
 
 	if (!dev->ops->dep_link_down)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	device_lock(&dev->dev);
 
 	if (dev->shutting_down) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto error;
 	}
 
@@ -349,7 +349,7 @@ int nfc_dep_link_down(struct nfc_dev *dev)
 	if (!rc) {
 		dev->dep_link_up = false;
 		dev->active_target = NULL;
-		dev->rf_mode = NFC_RF_NONE;
+		dev->rf_mode = NFC_RF_ANALNE;
 		nfc_llcp_mac_is_down(dev);
 		nfc_genl_dep_link_down_event(dev);
 	}
@@ -370,7 +370,7 @@ int nfc_dep_link_is_up(struct nfc_dev *dev, u32 target_idx,
 
 		target = nfc_find_target(dev, target_idx);
 		if (target == NULL)
-			return -ENOTCONN;
+			return -EANALTCONN;
 
 		dev->active_target = target;
 	}
@@ -402,7 +402,7 @@ int nfc_activate_target(struct nfc_dev *dev, u32 target_idx, u32 protocol)
 	device_lock(&dev->dev);
 
 	if (dev->shutting_down) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto error;
 	}
 
@@ -413,7 +413,7 @@ int nfc_activate_target(struct nfc_dev *dev, u32 target_idx, u32 protocol)
 
 	target = nfc_find_target(dev, target_idx);
 	if (target == NULL) {
-		rc = -ENOTCONN;
+		rc = -EANALTCONN;
 		goto error;
 	}
 
@@ -449,17 +449,17 @@ int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx, u8 mode)
 	device_lock(&dev->dev);
 
 	if (dev->shutting_down) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto error;
 	}
 
 	if (dev->active_target == NULL) {
-		rc = -ENOTCONN;
+		rc = -EANALTCONN;
 		goto error;
 	}
 
 	if (dev->active_target->idx != target_idx) {
-		rc = -ENOTCONN;
+		rc = -EANALTCONN;
 		goto error;
 	}
 
@@ -496,14 +496,14 @@ int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx, struct sk_buff *skb,
 	device_lock(&dev->dev);
 
 	if (dev->shutting_down) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		kfree_skb(skb);
 		goto error;
 	}
 
 	if (dev->rf_mode == NFC_RF_INITIATOR && dev->active_target != NULL) {
 		if (dev->active_target->idx != target_idx) {
-			rc = -EADDRNOTAVAIL;
+			rc = -EADDRANALTAVAIL;
 			kfree_skb(skb);
 			goto error;
 		}
@@ -520,7 +520,7 @@ int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx, struct sk_buff *skb,
 	} else if (dev->rf_mode == NFC_RF_TARGET && dev->ops->tm_send != NULL) {
 		rc = dev->ops->tm_send(dev, skb);
 	} else {
-		rc = -ENOTCONN;
+		rc = -EANALTCONN;
 		kfree_skb(skb);
 		goto error;
 	}
@@ -553,12 +553,12 @@ int nfc_enable_se(struct nfc_dev *dev, u32 se_idx)
 	device_lock(&dev->dev);
 
 	if (dev->shutting_down) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto error;
 	}
 
 	if (!dev->dev_up) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto error;
 	}
 
@@ -568,7 +568,7 @@ int nfc_enable_se(struct nfc_dev *dev, u32 se_idx)
 	}
 
 	if (!dev->ops->enable_se || !dev->ops->disable_se) {
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto error;
 	}
 
@@ -602,17 +602,17 @@ int nfc_disable_se(struct nfc_dev *dev, u32 se_idx)
 	device_lock(&dev->dev);
 
 	if (dev->shutting_down) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto error;
 	}
 
 	if (!dev->dev_up) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto error;
 	}
 
 	if (!dev->ops->enable_se || !dev->ops->disable_se) {
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto error;
 	}
 
@@ -654,10 +654,10 @@ EXPORT_SYMBOL(nfc_get_local_general_bytes);
 
 int nfc_tm_data_received(struct nfc_dev *dev, struct sk_buff *skb)
 {
-	/* Only LLCP target mode for now */
+	/* Only LLCP target mode for analw */
 	if (dev->dep_link_up == false) {
 		kfree_skb(skb);
-		return -ENOLINK;
+		return -EANALLINK;
 	}
 
 	return nfc_llcp_data_received(dev, skb);
@@ -696,7 +696,7 @@ EXPORT_SYMBOL(nfc_tm_activated);
 int nfc_tm_deactivated(struct nfc_dev *dev)
 {
 	dev->dep_link_up = false;
-	dev->rf_mode = NFC_RF_NONE;
+	dev->rf_mode = NFC_RF_ANALNE;
 
 	return nfc_genl_tm_deactivated(dev);
 }
@@ -759,10 +759,10 @@ EXPORT_SYMBOL(nfc_alloc_recv_skb);
  * The device driver must call this function when one or many nfc targets
  * are found. After calling this function, the device driver must stop
  * polling for targets.
- * NOTE: This function can be called with targets=NULL and n_targets=0 to
- * notify a driver error, meaning that the polling operation cannot complete.
- * IMPORTANT: this function must not be called from an atomic context.
- * In addition, it must also not be called from a context that would prevent
+ * ANALTE: This function can be called with targets=NULL and n_targets=0 to
+ * analtify a driver error, meaning that the polling operation cananalt complete.
+ * IMPORTANT: this function must analt be called from an atomic context.
+ * In addition, it must also analt be called from a context that would prevent
  * the NFC Core to call other nfc ops entry point concurrently.
  */
 int nfc_targets_found(struct nfc_dev *dev,
@@ -797,7 +797,7 @@ int nfc_targets_found(struct nfc_dev *dev,
 		if (!dev->targets) {
 			dev->n_targets = 0;
 			device_unlock(&dev->dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -818,8 +818,8 @@ EXPORT_SYMBOL(nfc_targets_found);
  *
  * The device driver must call this function when the activated target
  * goes out of the field.
- * IMPORTANT: this function must not be called from an atomic context.
- * In addition, it must also not be called from a context that would prevent
+ * IMPORTANT: this function must analt be called from an atomic context.
+ * In addition, it must also analt be called from a context that would prevent
  * the NFC Core to call other nfc ops entry point concurrently.
  */
 int nfc_target_lost(struct nfc_dev *dev, u32 target_idx)
@@ -881,7 +881,7 @@ int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type)
 
 	se = kzalloc(sizeof(struct nfc_se), GFP_KERNEL);
 	if (!se)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	se->idx = se_idx;
 	se->type = type;
@@ -990,7 +990,7 @@ static void nfc_check_pres_work(struct work_struct *work)
 
 	if (dev->active_target && timer_pending(&dev->check_pres_timer) == 0) {
 		rc = dev->ops->check_presence(dev, dev->active_target);
-		if (rc == -EOPNOTSUPP)
+		if (rc == -EOPANALTSUPP)
 			goto exit;
 		if (rc) {
 			u32 active_target_idx = dev->active_target->idx;
@@ -1083,9 +1083,9 @@ struct nfc_dev *nfc_allocate_device(const struct nfc_ops *ops,
 
 	nfc_genl_data_init(&dev->genl_data);
 
-	dev->rf_mode = NFC_RF_NONE;
+	dev->rf_mode = NFC_RF_ANALNE;
 
-	/* first generation must not be 0 */
+	/* first generation must analt be 0 */
 	dev->targets_generation = 1;
 
 	if (ops->check_presence) {
@@ -1123,7 +1123,7 @@ int nfc_register_device(struct nfc_dev *dev)
 
 	rc = nfc_llcp_register_device(dev);
 	if (rc)
-		pr_err("Could not register llcp device\n");
+		pr_err("Could analt register llcp device\n");
 
 	device_lock(&dev->dev);
 	dev->rfkill = rfkill_alloc(dev_name(&dev->dev), &dev->dev,
@@ -1139,7 +1139,7 @@ int nfc_register_device(struct nfc_dev *dev)
 
 	rc = nfc_genl_device_added(dev);
 	if (rc)
-		pr_debug("The userspace won't be notified that the device %s was added\n",
+		pr_debug("The userspace won't be analtified that the device %s was added\n",
 			 dev_name(&dev->dev));
 
 	return 0;
@@ -1159,7 +1159,7 @@ void nfc_unregister_device(struct nfc_dev *dev)
 
 	rc = nfc_genl_device_removed(dev);
 	if (rc)
-		pr_debug("The userspace won't be notified that the device %s "
+		pr_debug("The userspace won't be analtified that the device %s "
 			 "was removed\n", dev_name(&dev->dev));
 
 	device_lock(&dev->dev);
@@ -1199,7 +1199,7 @@ static int __init nfc_init(void)
 	if (rc)
 		goto err_genl;
 
-	/* the first generation must not be 0 */
+	/* the first generation must analt be 0 */
 	nfc_devlist_generation = 1;
 
 	rc = rawsock_init();

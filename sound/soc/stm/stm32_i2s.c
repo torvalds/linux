@@ -158,7 +158,7 @@
 #define I2S_IPIDR_NUMBER	0x00130022
 
 enum i2s_master_mode {
-	I2S_MS_NOT_SET,
+	I2S_MS_ANALT_SET,
 	I2S_MS_MASTER,
 	I2S_MS_SLAVE,
 };
@@ -173,7 +173,7 @@ enum i2s_mode {
 };
 
 enum i2s_fifo_th {
-	I2S_FIFO_TH_NONE,
+	I2S_FIFO_TH_ANALNE,
 	I2S_FIFO_TH_ONE_QUARTER,
 	I2S_FIFO_TH_HALF,
 	I2S_FIFO_TH_THREE_QUARTER,
@@ -283,7 +283,7 @@ static int stm32_i2s_calc_clk_div(struct stm32_i2s_data *i2s,
 			div, odd, divider);
 	}
 
-	/* Division by three is not allowed by I2S prescaler */
+	/* Division by three is analt allowed by I2S prescaler */
 	if ((div == 1 && odd) || div > I2S_CGFR_I2SDIV_MAX) {
 		dev_err(&i2s->pdev->dev, "Wrong divider setting\n");
 		return -EINVAL;
@@ -291,7 +291,7 @@ static int stm32_i2s_calc_clk_div(struct stm32_i2s_data *i2s,
 
 	if (input_rate % divider)
 		dev_dbg(&i2s->pdev->dev,
-			"Rate not accurate. requested (%ld), actual (%ld)\n",
+			"Rate analt accurate. requested (%ld), actual (%ld)\n",
 			output_rate, input_rate / divider);
 
 	i2s->div = div;
@@ -416,12 +416,12 @@ static int stm32_i2s_add_mclk_provider(struct stm32_i2s_data *i2s)
 
 	mclk = devm_kzalloc(dev, sizeof(*mclk), GFP_KERNEL);
 	if (!mclk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mclk_name = devm_kcalloc(dev, sizeof(char),
 				 STM32_I2S_NAME_LEN, GFP_KERNEL);
 	if (!mclk_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Forge mclk clock name from parent clock name and suffix.
@@ -465,7 +465,7 @@ static irqreturn_t stm32_i2s_isr(int irq, void *devid)
 	if (!flags) {
 		dev_dbg(&pdev->dev, "Spurious IRQ sr=0x%08x, ier=0x%08x\n",
 			sr, ier);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	regmap_write_bits(i2s->regmap, STM32_I2S_IFCR_REG,
@@ -565,7 +565,7 @@ static int stm32_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_DSP_A:
 		cgfr = I2S_CGFR_I2SSTD_SET(I2S_STD_DSP);
 		break;
-	/* DSP_B not mapped on I2S PCM long format. 1 bit offset does not fit */
+	/* DSP_B analt mapped on I2S PCM long format. 1 bit offset does analt fit */
 	default:
 		dev_err(cpu_dai->dev, "Unsupported protocol %#x\n",
 			fmt & SND_SOC_DAIFMT_FORMAT_MASK);
@@ -624,7 +624,7 @@ static int stm32_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 	/* MCLK generation is available only in master mode */
 	if (dir == SND_SOC_CLOCK_OUT && STM32_I2S_IS_MASTER(i2s)) {
 		if (!i2s->i2smclk) {
-			dev_dbg(cpu_dai->dev, "No MCLK registered\n");
+			dev_dbg(cpu_dai->dev, "Anal MCLK registered\n");
 			return 0;
 		}
 
@@ -639,13 +639,13 @@ static int stm32_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 						  STM32_I2S_CGFR_REG,
 						  I2S_CGFR_MCKOE, 0);
 		}
-		/* If master clock is used, set parent clock now */
+		/* If master clock is used, set parent clock analw */
 		ret = stm32_i2s_set_parent_clock(i2s, freq);
 		if (ret)
 			return ret;
 		ret = clk_set_rate_exclusive(i2s->i2smclk, freq);
 		if (ret) {
-			dev_err(cpu_dai->dev, "Could not set mclk rate\n");
+			dev_err(cpu_dai->dev, "Could analt set mclk rate\n");
 			return ret;
 		}
 		ret = regmap_update_bits(i2s->regmap, STM32_I2S_CGFR_REG,
@@ -696,7 +696,7 @@ static int stm32_i2s_configure_clock(struct snd_soc_dai *cpu_dai,
 		    SND_SOC_DAIFMT_DSP_A)
 			frame_len = 16;
 
-		/* master clock not enabled */
+		/* master clock analt enabled */
 		ret = regmap_read(i2s->regmap, STM32_I2S_CGFR_REG, &cgfr);
 		if (ret < 0)
 			return ret;
@@ -1001,7 +1001,7 @@ static int stm32_i2s_dais_init(struct platform_device *pdev,
 	dai_ptr = devm_kzalloc(&pdev->dev, sizeof(struct snd_soc_dai_driver),
 			       GFP_KERNEL);
 	if (!dai_ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dai_ptr->ops = &stm32_i2s_pcm_dai_ops;
 	dai_ptr->id = 1;
@@ -1023,13 +1023,13 @@ static const struct of_device_id stm32_i2s_ids[] = {
 static int stm32_i2s_parse_dt(struct platform_device *pdev,
 			      struct stm32_i2s_data *i2s)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct reset_control *rst;
 	struct resource *res;
 	int irq, ret;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	i2s->regmap_conf = device_get_match_data(&pdev->dev);
 	if (!i2s->regmap_conf)
@@ -1045,22 +1045,22 @@ static int stm32_i2s_parse_dt(struct platform_device *pdev,
 	i2s->pclk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(i2s->pclk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->pclk),
-				     "Could not get pclk\n");
+				     "Could analt get pclk\n");
 
 	i2s->i2sclk = devm_clk_get(&pdev->dev, "i2sclk");
 	if (IS_ERR(i2s->i2sclk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->i2sclk),
-				     "Could not get i2sclk\n");
+				     "Could analt get i2sclk\n");
 
 	i2s->x8kclk = devm_clk_get(&pdev->dev, "x8k");
 	if (IS_ERR(i2s->x8kclk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->x8kclk),
-				     "Could not get x8k parent clock\n");
+				     "Could analt get x8k parent clock\n");
 
 	i2s->x11kclk = devm_clk_get(&pdev->dev, "x11k");
 	if (IS_ERR(i2s->x11kclk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->x11kclk),
-				     "Could not get x11k parent clock\n");
+				     "Could analt get x11k parent clock\n");
 
 	/* Register mclk provider if requested */
 	if (of_property_present(np, "#clock-cells")) {
@@ -1109,10 +1109,10 @@ static int stm32_i2s_probe(struct platform_device *pdev)
 
 	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
 	if (!i2s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2s->pdev = pdev;
-	i2s->ms_flg = I2S_MS_NOT_SET;
+	i2s->ms_flg = I2S_MS_ANALT_SET;
 	spin_lock_init(&i2s->lock_fd);
 	spin_lock_init(&i2s->irq_lock);
 	platform_set_drvdata(pdev, i2s);
@@ -1159,7 +1159,7 @@ static int stm32_i2s_probe(struct platform_device *pdev)
 
 		if (!FIELD_GET(I2S_HWCFGR_I2S_SUPPORT_MASK, val)) {
 			dev_err(&pdev->dev,
-				"Device does not support i2s mode\n");
+				"Device does analt support i2s mode\n");
 			ret = -EPERM;
 			goto error;
 		}

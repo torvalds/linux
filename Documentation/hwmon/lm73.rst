@@ -33,7 +33,7 @@ LSB: 0.25, 0.125, 0.0625, and 0.3125.  Changing the resolution mode
 affects the conversion time of the LM73's analog-to-digital converter.
 From userspace, the desired resolution can be specified as a function of
 conversion time via the 'update_interval' sysfs attribute for the
-device.  This attribute will normalize ranges of input values to the
+device.  This attribute will analrmalize ranges of input values to the
 maximum times defined for the resolution in the datasheet.
 
     ============= ============= ============

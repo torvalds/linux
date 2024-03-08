@@ -8,13 +8,13 @@
 
 struct sk_stg {
 	__u32 pid;
-	__u32 last_notclose_state;
+	__u32 last_analtclose_state;
 	char comm[16];
 };
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, struct sk_stg);
 } sk_stg_map SEC(".maps");
@@ -22,7 +22,7 @@ struct {
 /* Testing delete */
 struct {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, int);
 } del_sk_stg_map SEC(".maps");
@@ -43,7 +43,7 @@ int BPF_PROG(trace_inet_sock_set_state, struct sock *sk, int oldstate,
 	if (!stg)
 		return 0;
 
-	stg->last_notclose_state = newstate;
+	stg->last_analtclose_state = newstate;
 
 	bpf_sk_storage_delete(&del_sk_stg_map, sk);
 

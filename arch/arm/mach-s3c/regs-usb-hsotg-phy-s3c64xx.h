@@ -8,7 +8,7 @@
  * S3C - USB2.0 Highspeed/OtG device PHY registers
 */
 
-/* Note, this is a separate header file as some of the clock framework
+/* Analte, this is a separate header file as some of the clock framework
  * needs to touch this if the clk_48m is used as the USB OHCI or other
  * peripheral source.
 */
@@ -21,7 +21,7 @@
 #define S3C_HSOTG_PHYREG(x)	((x) + S3C_VA_USB_HSPHY)
 
 #define S3C_PHYPWR				S3C_HSOTG_PHYREG(0x00)
-#define S3C_PHYPWR_NORMAL_MASK			(0x19 << 0)
+#define S3C_PHYPWR_ANALRMAL_MASK			(0x19 << 0)
 #define S3C_PHYPWR_OTG_DISABLE			(1 << 4)
 #define S3C_PHYPWR_ANALOG_POWERDOWN		(1 << 3)
 #define SRC_PHYPWR_FORCE_SUSPEND		(1 << 1)

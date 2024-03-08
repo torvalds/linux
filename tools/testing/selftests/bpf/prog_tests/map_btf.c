@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2023. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2023. Huawei Techanallogies Co., Ltd */
 #include <test_progs.h>
 
-#include "normal_map_btf.skel.h"
+#include "analrmal_map_btf.skel.h"
 #include "map_in_map_btf.skel.h"
 
-static void do_test_normal_map_btf(void)
+static void do_test_analrmal_map_btf(void)
 {
-	struct normal_map_btf *skel;
+	struct analrmal_map_btf *skel;
 	int i, err, new_fd = -1;
 	int map_fd_arr[64];
 
-	skel = normal_map_btf__open_and_load();
+	skel = analrmal_map_btf__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "open_load"))
 		return;
 
-	err = normal_map_btf__attach(skel);
+	err = analrmal_map_btf__attach(skel);
 	if (!ASSERT_OK(err, "attach"))
 		goto out;
 
@@ -32,7 +32,7 @@ static void do_test_normal_map_btf(void)
 	/* Close array fd later */
 	new_fd = dup(bpf_map__fd(skel->maps.array));
 out:
-	normal_map_btf__destroy(skel);
+	analrmal_map_btf__destroy(skel);
 	if (new_fd < 0)
 		return;
 	/* Use kern_sync_rcu() to wait for the start of the free of the bpf
@@ -92,7 +92,7 @@ out:
 void test_map_btf(void)
 {
 	if (test__start_subtest("array_btf"))
-		do_test_normal_map_btf();
+		do_test_analrmal_map_btf();
 	if (test__start_subtest("inner_array_btf"))
 		do_test_map_in_map_btf();
 }

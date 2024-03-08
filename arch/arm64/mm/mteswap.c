@@ -29,7 +29,7 @@ int mte_save_tags(struct page *page)
 
 	tag_storage = mte_allocate_tag_storage();
 	if (!tag_storage)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mte_save_page_tags(page_address(page), tag_storage);
 

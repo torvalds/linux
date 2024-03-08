@@ -2,7 +2,7 @@
 #ifndef __ASM_ARM_SYSTEM_INFO_H
 #define __ASM_ARM_SYSTEM_INFO_H
 
-#define CPU_ARCH_UNKNOWN	0
+#define CPU_ARCH_UNKANALWN	0
 #define CPU_ARCH_ARMv3		1
 #define CPU_ARCH_ARMv4		2
 #define CPU_ARCH_ARMv4T		3

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * s390 diagnose functions
+ * s390 diaganalse functions
  *
  * Copyright IBM Corp. 2007
  * Author(s): Michael Holzheu <holzheu@de.ibm.com>
@@ -42,10 +42,10 @@ enum diag_stat_enum {
 };
 
 void diag_stat_inc(enum diag_stat_enum nr);
-void diag_stat_inc_norecursion(enum diag_stat_enum nr);
+void diag_stat_inc_analrecursion(enum diag_stat_enum nr);
 
 /*
- * Diagnose 10: Release page range
+ * Diaganalse 10: Release page range
  */
 static inline void diag10_range(unsigned long start_pfn, unsigned long num_pfn)
 {
@@ -57,22 +57,22 @@ static inline void diag10_range(unsigned long start_pfn, unsigned long num_pfn)
 	diag_stat_inc(DIAG_STAT_X010);
 	asm volatile(
 		"0:	diag	%0,%1,0x10\n"
-		"1:	nopr	%%r7\n"
+		"1:	analpr	%%r7\n"
 		EX_TABLE(0b, 1b)
 		EX_TABLE(1b, 1b)
 		: : "a" (start_addr), "a" (end_addr));
 }
 
 /*
- * Diagnose 14: Input spool file manipulation
+ * Diaganalse 14: Input spool file manipulation
  */
 extern int diag14(unsigned long rx, unsigned long ry1, unsigned long subcode);
 
 /*
- * Diagnose 210: Get information about a virtual device
+ * Diaganalse 210: Get information about a virtual device
  */
 struct diag210 {
-	u16 vrdcdvno;	/* device number (input) */
+	u16 vrdcdvanal;	/* device number (input) */
 	u16 vrdclen;	/* data block length (input) */
 	u8 vrdcvcla;	/* virtual device class (output) */
 	u8 vrdcvtyp;	/* virtual device type (output) */
@@ -94,7 +94,7 @@ struct diag8c {
 	u8 data[];
 } __packed __aligned(4);
 
-extern int diag8c(struct diag8c *out, struct ccw_dev_id *devno);
+extern int diag8c(struct diag8c *out, struct ccw_dev_id *devanal);
 
 /* bit is set in flags, when physical cpu info is included in diag 204 data */
 #define DIAG204_LPAR_PHYS_FLG 0x80
@@ -263,19 +263,19 @@ struct diag26c_vnic_req {
 	u16	vlan_id;
 	u64	sys_name;
 	u8	res[2];
-	u16	devno;
+	u16	devanal;
 } __packed __aligned(8);
 
 #define VNIC_INFO_PROT_L3	1
 #define VNIC_INFO_PROT_L2	2
-/* Note: this is the bare minimum, use it for uninitialized VNICs only. */
+/* Analte: this is the bare minimum, use it for uninitialized VNICs only. */
 struct diag26c_vnic_resp {
 	u32	version;
 	u32	entry_cnt;
 	/* VNIC info: */
 	u32	next_entry;
 	u64	owner;
-	u16	devno;
+	u16	devanal;
 	u8	status;
 	u8	type;
 	u64	lan_owner;
@@ -284,7 +284,7 @@ struct diag26c_vnic_resp {
 	u8	port_type;
 	u8	ext_status:6;
 	u8	protocol:2;
-	u16	base_devno;
+	u16	base_devanal;
 	u32	port_num;
 	u32	ifindex;
 	u32	maxinfo;
@@ -300,7 +300,7 @@ struct diag26c_mac_req {
 	u32	resp_buf_len;
 	u32	resp_version;
 	u16	op_code;
-	u16	devno;
+	u16	devanal;
 	u8	res[4];
 };
 
@@ -333,7 +333,7 @@ struct diag_ops {
 	int (*diag210)(struct diag210 *addr);
 	int (*diag26c)(void *req, void *resp, enum diag26c_sc subcode);
 	int (*diag14)(unsigned long rx, unsigned long ry1, unsigned long subcode);
-	int (*diag8c)(struct diag8c *addr, struct ccw_dev_id *devno, size_t len);
+	int (*diag8c)(struct diag8c *addr, struct ccw_dev_id *devanal, size_t len);
 	void (*diag0c)(struct hypfs_diag0c_entry *entry);
 	void (*diag308_reset)(void);
 };
@@ -346,6 +346,6 @@ int _diag26c_amode31(void *req, void *resp, enum diag26c_sc subcode);
 int _diag14_amode31(unsigned long rx, unsigned long ry1, unsigned long subcode);
 void _diag0c_amode31(struct hypfs_diag0c_entry *entry);
 void _diag308_reset_amode31(void);
-int _diag8c_amode31(struct diag8c *addr, struct ccw_dev_id *devno, size_t len);
+int _diag8c_amode31(struct diag8c *addr, struct ccw_dev_id *devanal, size_t len);
 
 #endif /* _ASM_S390_DIAG_H */

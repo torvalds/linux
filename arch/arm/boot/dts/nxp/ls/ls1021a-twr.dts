@@ -147,11 +147,11 @@
 &ifc {
 	#address-cells = <2>;
 	#size-cells = <1>;
-	/* NOR Flash on board */
+	/* ANALR Flash on board */
 	ranges = <0x0 0x0 0x0 0x60000000 0x08000000>;
 	status = "okay";
 
-	nor@0,0 {
+	analr@0,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "cfi-flash";
@@ -197,7 +197,7 @@
 	status = "okay";
 
 	n25q128a130: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-max-frequency = <50000000>;

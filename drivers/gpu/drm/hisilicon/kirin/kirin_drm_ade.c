@@ -41,9 +41,9 @@
 
 struct ade_hw_ctx {
 	void __iomem  *base;
-	struct regmap *noc_regmap;
+	struct regmap *analc_regmap;
 	struct clk *ade_core_clk;
-	struct clk *media_noc_clk;
+	struct clk *media_analc_clk;
 	struct clk *ade_pix_clk;
 	struct reset_control *reset;
 	bool power_on;
@@ -85,8 +85,8 @@ static u32 ade_get_format(u32 pixel_format)
 		if (ade_formats[i].pixel_format == pixel_format)
 			return ade_formats[i].hw_format;
 
-	/* not found */
-	DRM_ERROR("Not found pixel format!!fourcc_format= %d\n",
+	/* analt found */
+	DRM_ERROR("Analt found pixel format!!fourcc_format= %d\n",
 		  pixel_format);
 	return ADE_FORMAT_UNSUPPORT;
 }
@@ -220,9 +220,9 @@ static int ade_power_up(struct ade_hw_ctx *ctx)
 {
 	int ret;
 
-	ret = clk_prepare_enable(ctx->media_noc_clk);
+	ret = clk_prepare_enable(ctx->media_analc_clk);
 	if (ret) {
-		DRM_ERROR("failed to enable media_noc_clk (%d)\n", ret);
+		DRM_ERROR("failed to enable media_analc_clk (%d)\n", ret);
 		return ret;
 	}
 
@@ -253,13 +253,13 @@ static void ade_power_down(struct ade_hw_ctx *ctx)
 
 	clk_disable_unprepare(ctx->ade_core_clk);
 	reset_control_assert(ctx->reset);
-	clk_disable_unprepare(ctx->media_noc_clk);
+	clk_disable_unprepare(ctx->media_analc_clk);
 	ctx->power_on = false;
 }
 
-static void ade_set_medianoc_qos(struct ade_hw_ctx *ctx)
+static void ade_set_mediaanalc_qos(struct ade_hw_ctx *ctx)
 {
-	struct regmap *map = ctx->noc_regmap;
+	struct regmap *map = ctx->analc_regmap;
 
 	regmap_update_bits(map, ADE0_QOSGENERATOR_MODE,
 			   QOSGENERATOR_MODE_MASK, BYPASS_MODE);
@@ -337,7 +337,7 @@ static void ade_display_enable(struct ade_hw_ctx *ctx)
 	/* enable ade */
 	writel(ADE_ENABLE, base + ADE_EN);
 	/* enable ldi */
-	writel(NORMAL_MODE, base + LDI_WORK_MODE);
+	writel(ANALRMAL_MODE, base + LDI_WORK_MODE);
 	writel((out_fmt << BPP_OFST) | DATA_GATE_EN | LDI_EN,
 	       base + LDI_CTRL);
 	/* dsi pixel on */
@@ -389,7 +389,7 @@ static void ade_clip_dump_regs(void __iomem *base, u32 ch)
 
 static void ade_compositor_routing_dump_regs(void __iomem *base, u32 ch)
 {
-	u8 ovly_ch = 0; /* TODO: Only primary plane now */
+	u8 ovly_ch = 0; /* TODO: Only primary plane analw */
 	u32 val;
 
 	val = readl(base + ADE_OVLY_CH_XY0(ovly_ch));
@@ -451,7 +451,7 @@ static void ade_crtc_atomic_enable(struct drm_crtc *crtc,
 			return;
 	}
 
-	ade_set_medianoc_qos(ctx);
+	ade_set_mediaanalc_qos(ctx);
 	ade_display_enable(ctx);
 	ade_dump_regs(ctx->base);
 	drm_crtc_vblank_on(crtc);
@@ -472,7 +472,7 @@ static void ade_crtc_atomic_disable(struct drm_crtc *crtc,
 	kcrtc->enable = false;
 }
 
-static void ade_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void ade_crtc_mode_set_analfb(struct drm_crtc *crtc)
 {
 	struct kirin_crtc *kcrtc = to_kirin_crtc(crtc);
 	struct ade_hw_ctx *ctx = kcrtc->hw_ctx;
@@ -527,7 +527,7 @@ static void ade_crtc_atomic_flush(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs ade_crtc_helper_funcs = {
 	.mode_fixup	= ade_crtc_mode_fixup,
-	.mode_set_nofb	= ade_crtc_mode_set_nofb,
+	.mode_set_analfb	= ade_crtc_mode_set_analfb,
 	.atomic_begin	= ade_crtc_atomic_begin,
 	.atomic_flush	= ade_crtc_atomic_flush,
 	.atomic_enable	= ade_crtc_atomic_enable,
@@ -597,7 +597,7 @@ static void ade_clip_set(void __iomem *base, u32 ch, u32 fb_w, u32 x,
 	u32 clip_right;
 
 	/*
-	 * clip width, no need to clip height
+	 * clip width, anal need to clip height
 	 */
 	if (fb_w == in_w) { /* bypass */
 		disable_val = 1;
@@ -663,7 +663,7 @@ static void ade_compositor_routing_set(void __iomem *base, u8 ch,
 				       u32 x0, u32 y0,
 				       u32 in_w, u32 in_h, u32 fmt)
 {
-	u8 ovly_ch = 0; /* TODO: This is the zpos, only one plane now */
+	u8 ovly_ch = 0; /* TODO: This is the zpos, only one plane analw */
 	u8 glb_alpha = 255;
 	u32 x1 = x0 + in_w - 1;
 	u32 y1 = y0 + in_h - 1;
@@ -692,7 +692,7 @@ static void ade_compositor_routing_set(void __iomem *base, u8 ch,
 
 static void ade_compositor_routing_disable(void __iomem *base, u32 ch)
 {
-	u8 ovly_ch = 0; /* TODO: Only primary plane now */
+	u8 ovly_ch = 0; /* TODO: Only primary plane analw */
 
 	/* disable this plane/channel */
 	ade_update_bits(base + ADE_OVLY_CH_CTL(ovly_ch), CH_EN_OFST,
@@ -845,14 +845,14 @@ static void *ade_hw_ctx_alloc(struct platform_device *pdev,
 {
 	struct resource *res;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct ade_hw_ctx *ctx = NULL;
 	int ret;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		DRM_ERROR("failed to alloc ade_hw_ctx\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -864,37 +864,37 @@ static void *ade_hw_ctx_alloc(struct platform_device *pdev,
 
 	ctx->reset = devm_reset_control_get(dev, NULL);
 	if (IS_ERR(ctx->reset))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
-	ctx->noc_regmap =
-		syscon_regmap_lookup_by_phandle(np, "hisilicon,noc-syscon");
-	if (IS_ERR(ctx->noc_regmap)) {
-		DRM_ERROR("failed to get noc regmap\n");
-		return ERR_PTR(-ENODEV);
+	ctx->analc_regmap =
+		syscon_regmap_lookup_by_phandle(np, "hisilicon,analc-syscon");
+	if (IS_ERR(ctx->analc_regmap)) {
+		DRM_ERROR("failed to get analc regmap\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
 	ctx->irq = platform_get_irq(pdev, 0);
 	if (ctx->irq < 0) {
 		DRM_ERROR("failed to get irq\n");
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	ctx->ade_core_clk = devm_clk_get(dev, "clk_ade_core");
 	if (IS_ERR(ctx->ade_core_clk)) {
 		DRM_ERROR("failed to parse clk ADE_CORE\n");
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
-	ctx->media_noc_clk = devm_clk_get(dev, "clk_codec_jpeg");
-	if (IS_ERR(ctx->media_noc_clk)) {
+	ctx->media_analc_clk = devm_clk_get(dev, "clk_codec_jpeg");
+	if (IS_ERR(ctx->media_analc_clk)) {
 		DRM_ERROR("failed to parse clk CODEC_JPEG\n");
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	ctx->ade_pix_clk = devm_clk_get(dev, "clk_ade_pix");
 	if (IS_ERR(ctx->ade_pix_clk)) {
 		DRM_ERROR("failed to parse clk ADE_PIX\n");
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	/* vblank irq init */
@@ -929,7 +929,7 @@ static const struct drm_driver ade_driver = {
 	.desc = "Hisilicon Kirin620 SoC DRM Driver",
 	.date = "20150718",
 	.major = 1,
-	.minor = 0,
+	.mianalr = 0,
 };
 
 struct kirin_drm_data ade_driver_data = {

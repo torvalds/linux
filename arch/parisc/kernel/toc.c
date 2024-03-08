@@ -61,7 +61,7 @@ static void toc11_to_pt_regs(struct pt_regs *regs, struct pdc_toc_pim_11 *toc)
 	regs->ior  = toc->cr[21];
 }
 
-void notrace __noreturn __cold toc_intr(struct pt_regs *regs)
+void analtrace __analreturn __cold toc_intr(struct pt_regs *regs)
 {
 	struct pdc_toc_pim_20 pim_data20;
 	struct pdc_toc_pim_11 pim_data11;

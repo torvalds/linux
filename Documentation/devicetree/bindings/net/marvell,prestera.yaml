@@ -30,7 +30,7 @@ properties:
     maxItems: 3
 
   dfx:
-    description: Reference to the DFX Server bus node.
+    description: Reference to the DFX Server bus analde.
     $ref: /schemas/types.yaml#/definitions/phandle
 
   nvmem-cells: true

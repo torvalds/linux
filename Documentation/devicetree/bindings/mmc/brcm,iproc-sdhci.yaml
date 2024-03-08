@@ -59,6 +59,6 @@ examples:
       clocks = <&lcpll0_clks BCM_CYGNUS_LCPLL0_SDIO_CLK>;
       bus-width = <4>;
       sdhci,auto-cmd12;
-      no-1-8-v;
+      anal-1-8-v;
     };
 ...

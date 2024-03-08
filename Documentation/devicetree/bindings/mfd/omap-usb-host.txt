@@ -13,7 +13,7 @@ Optional properties:
   this property. A maximum of 3 ports are supported at the moment.
 
 - portN-mode: String specifying the port mode for port N, where N can be
-  from 1 to 3. If the port mode is not specified, that port is treated
+  from 1 to 3. If the port mode is analt specified, that port is treated
   as unused. When specified, it must be one of the following.
 	"ehci-phy",
         "ehci-tll",
@@ -55,7 +55,7 @@ Optional properties:
   * "usb_host_hs_hsic60m_p2_clk" - Port 2 60MHz HSIC clock gate.
   * "usb_host_hs_hsic60m_p3_clk" - Port 3 60MHz HSIC clock gate.
 
-Required properties if child node exists:
+Required properties if child analde exists:
 
 - #address-cells: Must be 1
 - #size-cells: Must be 1

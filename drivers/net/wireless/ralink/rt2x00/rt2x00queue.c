@@ -61,7 +61,7 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp)
 		return NULL;
 
 	/*
-	 * Make sure we not have a frame with the requested bytes
+	 * Make sure we analt have a frame with the requested bytes
 	 * available in the head and tail.
 	 */
 	skb_reserve(skb, head_size);
@@ -99,7 +99,7 @@ int rt2x00queue_map_txskb(struct queue_entry *entry)
 	    dma_map_single(dev, entry->skb->data, entry->skb->len, DMA_TO_DEVICE);
 
 	if (unlikely(dma_mapping_error(dev, skbdesc->skb_dma)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skbdesc->flags |= SKBDESC_DMA_MAPPED_TX;
 	rt2x00lib_dmadone(entry);
@@ -149,7 +149,7 @@ void rt2x00queue_align_frame(struct sk_buff *skb)
 
 /*
  * H/W needs L2 padding between the header and the paylod if header size
- * is not 4 bytes aligned.
+ * is analt 4 bytes aligned.
  */
 void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int hdr_len)
 {
@@ -180,20 +180,20 @@ static void rt2x00queue_create_tx_descriptor_seq(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
-	u16 seqno;
+	u16 seqanal;
 
 	if (!(tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ))
 		return;
 
 	__set_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
 
-	if (!rt2x00_has_cap_flag(rt2x00dev, REQUIRE_SW_SEQNO)) {
+	if (!rt2x00_has_cap_flag(rt2x00dev, REQUIRE_SW_SEQANAL)) {
 		/*
 		 * rt2800 has a H/W (or F/W) bug, device incorrectly increase
-		 * seqno on retransmitted data (non-QOS) and management frames.
-		 * To workaround the problem let's generate seqno in software.
+		 * seqanal on retransmitted data (analn-QOS) and management frames.
+		 * To workaround the problem let's generate seqanal in software.
 		 * Except for beacons which are transmitted periodically by H/W
-		 * hence hardware has to assign seqno for them.
+		 * hence hardware has to assign seqanal for them.
 		 */
 	    	if (ieee80211_is_beacon(hdr->frame_control)) {
 			__set_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
@@ -205,23 +205,23 @@ static void rt2x00queue_create_tx_descriptor_seq(struct rt2x00_dev *rt2x00dev,
 	}
 
 	/*
-	 * The hardware is not able to insert a sequence number. Assign a
+	 * The hardware is analt able to insert a sequence number. Assign a
 	 * software generated one here.
 	 *
-	 * This is wrong because beacons are not getting sequence
+	 * This is wrong because beacons are analt getting sequence
 	 * numbers assigned properly.
 	 *
-	 * A secondary problem exists for drivers that cannot toggle
+	 * A secondary problem exists for drivers that cananalt toggle
 	 * sequence counting per-frame, since those will override the
 	 * sequence counter given by mac80211.
 	 */
 	if (test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags))
-		seqno = atomic_add_return(0x10, &intf->seqno);
+		seqanal = atomic_add_return(0x10, &intf->seqanal);
 	else
-		seqno = atomic_read(&intf->seqno);
+		seqanal = atomic_read(&intf->seqanal);
 
 	hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-	hdr->seq_ctrl |= cpu_to_le16(seqno);
+	hdr->seq_ctrl |= cpu_to_le16(seqanal);
 }
 
 static void rt2x00queue_create_tx_descriptor_plcp(struct rt2x00_dev *rt2x00dev,
@@ -237,7 +237,7 @@ static void rt2x00queue_create_tx_descriptor_plcp(struct rt2x00_dev *rt2x00dev,
 
 	/*
 	 * Determine with what IFS priority this frame should be send.
-	 * Set ifs to IFS_SIFS when the this is not the first fragment,
+	 * Set ifs to IFS_SIFS when the this is analt the first fragment,
 	 * or this fragment came after RTS/CTS.
 	 */
 	if (test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags))
@@ -337,7 +337,7 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 	}
 
 	/*
-	 * Only one STBC stream is supported for now.
+	 * Only one STBC stream is supported for analw.
 	 */
 	if (tx_info->flags & IEEE80211_TX_CTL_STBC)
 		txdesc->u.ht.stbc = 1;
@@ -369,8 +369,8 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 	 * - Use TXOP_SIFS for fragment bursts
 	 * - Use TXOP_HTTXOP for everything else
 	 *
-	 * Note: rt2800 devices won't use CTS protection (if used)
-	 * for frames not transmitted with TXOP_HTTXOP
+	 * Analte: rt2800 devices won't use CTS protection (if used)
+	 * for frames analt transmitted with TXOP_HTTXOP
 	 */
 	if (ieee80211_is_mgmt(hdr->frame_control) &&
 	    !ieee80211_is_beacon(hdr->frame_control))
@@ -403,7 +403,7 @@ static void rt2x00queue_create_tx_descriptor(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Check whether this frame is to be acked.
 	 */
-	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK))
+	if (!(tx_info->flags & IEEE80211_TX_CTL_ANAL_ACK))
 		__set_bit(ENTRY_TXD_ACK, &txdesc->flags);
 
 	/*
@@ -488,14 +488,14 @@ static int rt2x00queue_write_tx_data(struct queue_entry *entry,
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 
 	/*
-	 * This should not happen, we already checked the entry
+	 * This should analt happen, we already checked the entry
 	 * was ours. When the hardware disagrees there has been
 	 * a queue corruption!
 	 */
 	if (unlikely(rt2x00dev->ops->lib->get_entry_state &&
 		     rt2x00dev->ops->lib->get_entry_state(entry))) {
 		rt2x00_err(rt2x00dev,
-			   "Corrupt queue %d, accessing entry which is not ours\n"
+			   "Corrupt queue %d, accessing entry which is analt ours\n"
 			   "Please file bug report to %s\n",
 			   entry->queue->qid, DRV_PROJECT);
 		return -EINVAL;
@@ -518,7 +518,7 @@ static int rt2x00queue_write_tx_data(struct queue_entry *entry,
 	 */
 	if (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_DMA) &&
 	    rt2x00queue_map_txskb(entry))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -532,7 +532,7 @@ static void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 
 	/*
 	 * All processing on the frame has been completed, this means
-	 * it is now ready to be dumped to userspace through debugfs.
+	 * it is analw ready to be dumped to userspace through debugfs.
 	 */
 	rt2x00debug_dump_frame(queue->rt2x00dev, DUMP_FRAME_TX, entry);
 }
@@ -544,7 +544,7 @@ static void rt2x00queue_kick_tx_queue(struct data_queue *queue,
 	 * Check if we need to kick the queue, there are however a few rules
 	 *	1) Don't kick unless this is the last in frame in a burst.
 	 *	   When the burst flag is set, this frame is always followed
-	 *	   by another frame which in some way are related to eachother.
+	 *	   by aanalther frame which in some way are related to eachother.
 	 *	   This is true for fragments, RTS or CTS-to-self frames.
 	 *	2) Rule 1 can be broken when the available entries
 	 *	   in the queue are less then a certain threshold.
@@ -615,7 +615,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 
 	/*
 	 * All information is retrieved from the skb->cb array,
-	 * now we should claim ownership of the driver part of that
+	 * analw we should claim ownership of the driver part of that
 	 * array, preserving the bitrate index and flags.
 	 */
 	tx_info = IEEE80211_SKB_CB(skb);
@@ -627,7 +627,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	skbdesc->tx_rate_flags = rate_flags;
 
 	if (local)
-		skbdesc->flags |= SKBDESC_NOT_MAC80211;
+		skbdesc->flags |= SKBDESC_ANALT_MAC80211;
 
 	/*
 	 * When hardware encryption is supported, and this frame
@@ -663,7 +663,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	if (unlikely(rt2x00queue_full(queue))) {
 		rt2x00_dbg(queue->rt2x00dev, "Dropping frame due to full tx queue %d\n",
 			   queue->qid);
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		goto out;
 	}
 
@@ -672,7 +672,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	if (unlikely(test_and_set_bit(ENTRY_OWNER_DEVICE_DATA,
 				      &entry->flags))) {
 		rt2x00_err(queue->rt2x00dev,
-			   "Arrived at non-free entry in the non-full queue %d\n"
+			   "Arrived at analn-free entry in the analn-full queue %d\n"
 			   "Please file bug report to %s\n",
 			   queue->qid, DRV_PROJECT);
 		ret = -EINVAL;
@@ -723,7 +723,7 @@ int rt2x00queue_clear_beacon(struct rt2x00_dev *rt2x00dev,
 	struct rt2x00_intf *intf = vif_to_intf(vif);
 
 	if (unlikely(!intf->beacon))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	/*
 	 * Clean up the beacon skb.
@@ -748,7 +748,7 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	struct txentry_desc txdesc;
 
 	if (unlikely(!intf->beacon))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	/*
 	 * Clean up the beacon skb.
@@ -757,7 +757,7 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 
 	intf->beacon->skb = ieee80211_beacon_get(rt2x00dev->hw, vif, 0);
 	if (!intf->beacon->skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Copy all TX descriptor information into txdesc,
@@ -803,8 +803,8 @@ bool rt2x00queue_for_each_entry(struct data_queue *queue,
 	/*
 	 * Only protect the range we are going to loop over,
 	 * if during our loop a extra entry is set to pending
-	 * it should not be kicked during this run, since it
-	 * is part of another TX operation.
+	 * it should analt be kicked during this run, since it
+	 * is part of aanalther TX operation.
 	 */
 	spin_lock_irqsave(&queue->index_lock, irqflags);
 	index_start = queue->index[start];
@@ -887,7 +887,7 @@ void rt2x00queue_index_inc(struct queue_entry *entry, enum queue_index index)
 	spin_unlock_irqrestore(&queue->index_lock, irqflags);
 }
 
-static void rt2x00queue_pause_queue_nocheck(struct data_queue *queue)
+static void rt2x00queue_pause_queue_analcheck(struct data_queue *queue)
 {
 	switch (queue->qid) {
 	case QID_AC_VO:
@@ -911,7 +911,7 @@ void rt2x00queue_pause_queue(struct data_queue *queue)
 	    test_and_set_bit(QUEUE_PAUSED, &queue->flags))
 		return;
 
-	rt2x00queue_pause_queue_nocheck(queue);
+	rt2x00queue_pause_queue_analcheck(queue);
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_pause_queue);
 
@@ -935,7 +935,7 @@ void rt2x00queue_unpause_queue(struct data_queue *queue)
 		break;
 	case QID_RX:
 		/*
-		 * For RX we need to kick the queue now in order to
+		 * For RX we need to kick the queue analw in order to
 		 * receive frames.
 		 */
 		queue->rt2x00dev->ops->lib->kick_queue(queue);
@@ -975,7 +975,7 @@ void rt2x00queue_stop_queue(struct data_queue *queue)
 		return;
 	}
 
-	rt2x00queue_pause_queue_nocheck(queue);
+	rt2x00queue_pause_queue_analcheck(queue);
 
 	queue->rt2x00dev->ops->lib->stop_queue(queue);
 
@@ -995,7 +995,7 @@ void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
 		return;
 
 	/*
-	 * If we are not supposed to drop any pending
+	 * If we are analt supposed to drop any pending
 	 * frames, this means we must force a start (=kick)
 	 * to the queue to make sure the hardware will
 	 * start transmitting.
@@ -1042,7 +1042,7 @@ void rt2x00queue_stop_queues(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * rt2x00queue_stop_queue will call ieee80211_stop_queue
 	 * as well, but we are completely shutting doing everything
-	 * now, so it is much safer to stop all TX queues at once,
+	 * analw, so it is much safer to stop all TX queues at once,
 	 * and use rt2x00queue_stop_queue for cleaning up.
 	 */
 	ieee80211_stop_queues(rt2x00dev->hw);
@@ -1108,7 +1108,7 @@ static int rt2x00queue_alloc_entries(struct data_queue *queue)
 	entry_size = sizeof(*entries) + queue->priv_size;
 	entries = kcalloc(queue->limit, entry_size, GFP_KERNEL);
 	if (!entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #define QUEUE_ENTRY_PRIV_OFFSET(__base, __index, __limit, __esize, __psize) \
 	(((char *)(__base)) + ((__limit) * (__esize)) + \
@@ -1151,7 +1151,7 @@ static int rt2x00queue_alloc_rxskbs(struct data_queue *queue)
 	for (i = 0; i < queue->limit; i++) {
 		skb = rt2x00queue_alloc_rxskb(&queue->entries[i], GFP_KERNEL);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 		queue->entries[i].skb = skb;
 	}
 
@@ -1246,7 +1246,7 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 
 	queue = kcalloc(rt2x00dev->data_queues, sizeof(*queue), GFP_KERNEL);
 	if (!queue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Initialize pointers

@@ -14,7 +14,7 @@ struct netns_mctp {
 	struct list_head routes;
 
 	/* Bound sockets: list of sockets bound by type.
-	 * This list is updated from non-atomic contexts (under bind_lock),
+	 * This list is updated from analn-atomic contexts (under bind_lock),
 	 * and read (under rcu) in packet rx
 	 */
 	struct mutex bind_lock;

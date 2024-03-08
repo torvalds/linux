@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -49,7 +49,7 @@ static struct vmwgfx_gmrid_man *to_gmrid_manager(struct ttm_resource_manager *ma
 	return container_of(man, struct vmwgfx_gmrid_man, manager);
 }
 
-static int vmw_gmrid_man_get_node(struct ttm_resource_manager *man,
+static int vmw_gmrid_man_get_analde(struct ttm_resource_manager *man,
 				  struct ttm_buffer_object *bo,
 				  const struct ttm_place *place,
 				  struct ttm_resource **res)
@@ -59,7 +59,7 @@ static int vmw_gmrid_man_get_node(struct ttm_resource_manager *man,
 
 	*res = kmalloc(sizeof(**res), GFP_KERNEL);
 	if (!*res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ttm_resource_init(bo, place, *res);
 
@@ -102,7 +102,7 @@ static int vmw_gmrid_man_get_node(struct ttm_resource_manager *man,
 					 ((gman->max_gmr_pages) << (PAGE_SHIFT - 10)));
 				vmw_host_printf(buf);
 				DRM_WARN("%s", buf);
-				goto nospace;
+				goto analspace;
 			}
 		}
 	}
@@ -112,16 +112,16 @@ static int vmw_gmrid_man_get_node(struct ttm_resource_manager *man,
 	spin_unlock(&gman->lock);
 	return 0;
 
-nospace:
+analspace:
 	gman->used_gmr_pages -= PFN_UP((*res)->size);
 	spin_unlock(&gman->lock);
 	ida_free(&gman->gmr_ida, id);
 	ttm_resource_fini(man, *res);
 	kfree(*res);
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
-static void vmw_gmrid_man_put_node(struct ttm_resource_manager *man,
+static void vmw_gmrid_man_put_analde(struct ttm_resource_manager *man,
 				   struct ttm_resource *res)
 {
 	struct vmwgfx_gmrid_man *gman = to_gmrid_manager(man);
@@ -155,7 +155,7 @@ int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type)
 		kzalloc(sizeof(*gman), GFP_KERNEL);
 
 	if (unlikely(!gman))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	man = &gman->manager;
 
@@ -202,7 +202,7 @@ void vmw_gmrid_man_fini(struct vmw_private *dev_priv, int type)
 }
 
 static const struct ttm_resource_manager_func vmw_gmrid_manager_func = {
-	.alloc = vmw_gmrid_man_get_node,
-	.free = vmw_gmrid_man_put_node,
+	.alloc = vmw_gmrid_man_get_analde,
+	.free = vmw_gmrid_man_put_analde,
 	.debug = vmw_gmrid_man_debug
 };

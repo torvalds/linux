@@ -5,7 +5,7 @@
  * Driver for Semtech's SX9310/SX9311 capacitive proximity/button solution.
  * Based on SX9500 driver and Semtech driver using the input framework
  * <https://my.syncplicity.com/share/teouwsim8niiaud/
- *          linux-driver-SX9310_NoSmartHSensing>.
+ *          linux-driver-SX9310_AnalSmartHSensing>.
  * Reworked in April 2019 by Evan Green <evgreen@chromium.org>
  * and in January 2020 by Daniel Campello <campello@chromium.org>.
  */
@@ -181,7 +181,7 @@ static const struct {
 	int val;
 	int val2;
 } sx9310_samp_freq_table[] = {
-	{ 500, 0 }, /* 0000: Min (no idle time) */
+	{ 500, 0 }, /* 0000: Min (anal idle time) */
 	{ 66, 666666 }, /* 0001: 15 ms */
 	{ 33, 333333 }, /* 0010: 30 ms (Typ.) */
 	{ 22, 222222 }, /* 0011: 45 ms */
@@ -214,8 +214,8 @@ static const struct regmap_range sx9310_writable_reg_ranges[] = {
 };
 
 static const struct regmap_access_table sx9310_writeable_regs = {
-	.yes_ranges = sx9310_writable_reg_ranges,
-	.n_yes_ranges = ARRAY_SIZE(sx9310_writable_reg_ranges),
+	.anal_ranges = sx9310_writable_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(sx9310_writable_reg_ranges),
 };
 
 static const struct regmap_range sx9310_readable_reg_ranges[] = {
@@ -228,8 +228,8 @@ static const struct regmap_range sx9310_readable_reg_ranges[] = {
 };
 
 static const struct regmap_access_table sx9310_readable_regs = {
-	.yes_ranges = sx9310_readable_reg_ranges,
-	.n_yes_ranges = ARRAY_SIZE(sx9310_readable_reg_ranges),
+	.anal_ranges = sx9310_readable_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(sx9310_readable_reg_ranges),
 };
 
 static const struct regmap_range sx9310_volatile_reg_ranges[] = {
@@ -240,8 +240,8 @@ static const struct regmap_range sx9310_volatile_reg_ranges[] = {
 };
 
 static const struct regmap_access_table sx9310_volatile_regs = {
-	.yes_ranges = sx9310_volatile_reg_ranges,
-	.n_yes_ranges = ARRAY_SIZE(sx9310_volatile_reg_ranges),
+	.anal_ranges = sx9310_volatile_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(sx9310_volatile_reg_ranges),
 };
 
 static const struct regmap_config sx9310_regmap_config = {
@@ -269,7 +269,7 @@ static int sx9310_read_prox_data(struct sx_common_data *data,
 }
 
 /*
- * If we have no interrupt support, we have to wait for a scan period
+ * If we have anal interrupt support, we have to wait for a scan period
  * after enabling a channel to get a result.
  */
 static int sx9310_wait_for_sample(struct sx_common_data *data)
@@ -734,7 +734,7 @@ static const struct sx_common_reg_default sx9310_default_regs[] = {
 	{ SX9310_REG_IRQ_MSK, 0x00 },
 	{ SX9310_REG_IRQ_FUNC, 0x00 },
 	/*
-	 * The lower 4 bits should not be set as it enable sensors measurements.
+	 * The lower 4 bits should analt be set as it enable sensors measurements.
 	 * Turning the detection on before the configuration values are set to
 	 * good values can cause the device to return erroneous readings.
 	 */
@@ -917,7 +917,7 @@ static int sx9310_check_whoami(struct device *dev,
 
 	ddata = device_get_match_data(dev);
 	if (ddata->whoami != whoami)
-		return -ENODEV;
+		return -EANALDEV;
 
 	indio_dev->name = ddata->name;
 
@@ -967,7 +967,7 @@ static int sx9310_suspend(struct device *dev)
 	u8 ctrl0;
 	int ret;
 
-	disable_irq_nosync(data->client->irq);
+	disable_irq_analsync(data->client->irq);
 
 	mutex_lock(&data->mutex);
 	ret = regmap_read(data->regmap, SX9310_REG_PROX_CTRL0,
@@ -1054,14 +1054,14 @@ static struct i2c_driver sx9310_driver = {
 		 * sx9310_init_compensation() mean a slow probe; prefer async
 		 * so we don't delay boot if we're builtin to the kernel.
 		 */
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe		= sx9310_probe,
 	.id_table	= sx9310_id,
 };
 module_i2c_driver(sx9310_driver);
 
-MODULE_AUTHOR("Gwendal Grignou <gwendal@chromium.org>");
+MODULE_AUTHOR("Gwendal Griganalu <gwendal@chromium.org>");
 MODULE_AUTHOR("Daniel Campello <campello@chromium.org>");
 MODULE_DESCRIPTION("Driver for Semtech SX9310/SX9311 proximity sensor");
 MODULE_LICENSE("GPL v2");

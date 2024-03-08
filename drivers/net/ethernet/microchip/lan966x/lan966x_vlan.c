@@ -219,7 +219,7 @@ void lan966x_vlan_port_add_vlan(struct lan966x_port *port,
 
 	/* If the CPU(br) is already part of the vlan then add the fdb
 	 * entries in MAC table to copy the frames to the CPU(br).
-	 * If the CPU(br) is not part of the vlan then it would
+	 * If the CPU(br) is analt part of the vlan then it would
 	 * just drop the frames.
 	 */
 	if (lan966x_vlan_cpu_member_cpu_vlan_mask(lan966x, vid)) {
@@ -241,9 +241,9 @@ void lan966x_vlan_port_del_vlan(struct lan966x_port *port, u16 vid)
 	lan966x_vlan_port_del_vlan_mask(port, vid);
 	lan966x_vlan_port_apply(port);
 
-	/* In case there are no other ports in vlan then remove the CPU from
+	/* In case there are anal other ports in vlan then remove the CPU from
 	 * that vlan but still keep it in the mask because it may be needed
-	 * again then another port gets added in that vlan
+	 * again then aanalther port gets added in that vlan
 	 */
 	if (!lan966x_vlan_port_any_vlan_mask(lan966x, vid)) {
 		lan966x_vlan_cpu_del_vlan_mask(lan966x, vid);
@@ -255,9 +255,9 @@ void lan966x_vlan_port_del_vlan(struct lan966x_port *port, u16 vid)
 void lan966x_vlan_cpu_add_vlan(struct lan966x *lan966x, u16 vid)
 {
 	/* Add an entry in the MAC table for the CPU
-	 * Add the CPU part of the vlan only if there is another port in that
+	 * Add the CPU part of the vlan only if there is aanalther port in that
 	 * vlan otherwise all the broadcast frames in that vlan will go to CPU
-	 * even if none of the ports are in the vlan and then the CPU will just
+	 * even if analne of the ports are in the vlan and then the CPU will just
 	 * need to discard these frames. It is required to store this
 	 * information so when a front port is added then it would add also the
 	 * CPU port.

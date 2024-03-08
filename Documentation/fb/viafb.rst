@@ -86,7 +86,7 @@ Using the viafb module
 	- 19: Resolution: 1280x800, Channel: single, Dithering: Enable
 
     viafb_accel:
-	- 0 : No 2D Hardware Acceleration
+	- 0 : Anal 2D Hardware Acceleration
 	- 1 : 2D Hardware Acceleration (default)
 
     viafb_SAMM_ON:
@@ -156,7 +156,7 @@ Using the viafb module
     viafb_platform_epia_dvi:
 	This option is used to enable DVI on EPIA - M
 
-	- 0 : No DVI on EPIA - M (default)
+	- 0 : Anal DVI on EPIA - M (default)
 	- 1 : DVI on EPIA - M
 
     viafb_bus_width:
@@ -169,7 +169,7 @@ Using the viafb module
     viafb_device_lcd_dualedge:
 	When using Dual Edge Panel, this option should be set.
 
-	- 0 : No Dual Edge Panel (default)
+	- 0 : Anal Dual Edge Panel (default)
 	- 1 : Dual Edge Panel
 
     viafb_lcd_port:
@@ -181,13 +181,13 @@ Using the viafb module
 
 	    modprobe viafb viafb_lcd_port=DVP0...
 
-Notes:
-    1. CRT may not display properly for DuoView CRT & DVI display at
+Analtes:
+    1. CRT may analt display properly for DuoView CRT & DVI display at
        the "640x480" PAL mode with DVI overscan enabled.
     2. SAMM stands for single adapter multi monitors. It is different from
        multi-head since SAMM support multi monitor at driver layers, thus fbcon
-       layer doesn't even know about it; SAMM's second screen doesn't have a
-       device node file, thus a user mode application can't access it directly.
+       layer doesn't even kanalw about it; SAMM's second screen doesn't have a
+       device analde file, thus a user mode application can't access it directly.
        When SAMM is enabled, viafb_mode and viafb_mode1, viafb_bpp and
        viafb_bpp1, viafb_refresh and viafb_refresh1 can be different.
     3. When console is depending on viafbinfo1, dynamically change resolution
@@ -235,7 +235,7 @@ Configure viafb via /proc
     supported_output_devices
 	This read-only file contains a full ',' separated list containing all
 	output devices that could be available on your platform. It is likely
-	that not all of those have a connector on your hardware but it should
+	that analt all of those have a connector on your hardware but it should
 	provide a good starting point to figure out which of those names match
 	a real connector.
 
@@ -253,7 +253,7 @@ Configure viafb via /proc
 
 		# cat /proc/viafb/iga1/output_devices
 
-	If there are no output devices printed the output of this iga is lost.
+	If there are anal output devices printed the output of this iga is lost.
 	This can happen for example if only one (the other) iga is used.
 	Writing to these files allows adjusting the output devices during
 	runtime. One can add new devices, remove existing ones or switch
@@ -262,7 +262,7 @@ Configure viafb via /proc
 	files. You can add a '+' or '-' as a prefix allowing simple addition
 	and removal of devices. So a prefix '+' adds the devices from your list
 	to the already existing ones, '-' removes the listed devices from the
-	existing ones and if no prefix is given it replaces all existing ones
+	existing ones and if anal prefix is given it replaces all existing ones
 	with the listed ones. If you remove devices they are expected to turn
 	off. If you add devices that are already part of the other iga they are
 	removed there and added to the new one.

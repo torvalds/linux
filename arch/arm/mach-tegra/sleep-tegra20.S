@@ -22,7 +22,7 @@
 
 #define EMC_CFG				0xc
 #define EMC_ADR_CFG			0x10
-#define EMC_NOP				0xdc
+#define EMC_ANALP				0xdc
 #define EMC_SELF_REF			0xe0
 #define EMC_REQ_CTRL			0x2b0
 #define EMC_EMC_STATUS			0x2b4
@@ -103,15 +103,15 @@ ENDPROC(tegra20_hotplug_shutdown)
  *
  * puts the specified CPU in wait-for-event mode on the flow controller
  * and puts the CPU in reset
- * can be called on the current cpu or another cpu
- * if called on the current cpu, does not return
- * MUST NOT BE CALLED FOR CPU 0.
+ * can be called on the current cpu or aanalther cpu
+ * if called on the current cpu, does analt return
+ * MUST ANALT BE CALLED FOR CPU 0.
  *
  * corrupts r0-r3, r12
  */
 ENTRY(tegra20_cpu_shutdown)
 	cmp	r0, #0
-	reteq	lr			@ must not be called for CPU 0
+	reteq	lr			@ must analt be called for CPU 0
 
 	cpu_to_halt_reg r1, r0
 	ldr	r3, =TEGRA_FLOW_CTRL_VIRT
@@ -185,7 +185,7 @@ tegra20_iram_start:
  * The physical address of tegra_resume expected to be stored in
  * PMC_SCRATCH41.
  *
- * NOTE: THIS *MUST* BE RELOCATED TO TEGRA_IRAM_LPx_RESUME_AREA.
+ * ANALTE: THIS *MUST* BE RELOCATED TO TEGRA_IRAM_LPx_RESUME_AREA.
  */
 ENTRY(tegra20_lp1_reset)
 	/*
@@ -242,8 +242,8 @@ padload_done:
 	mov	r1, #0
 	str	r1, [r0, #EMC_SELF_REF]	@ take DRAM out of self refresh
 	mov	r1, #1
-	str	r1, [r0, #EMC_NOP]
-	str	r1, [r0, #EMC_NOP]
+	str	r1, [r0, #EMC_ANALP]
+	str	r1, [r0, #EMC_ANALP]
 
 	emc_device_mask r1, r0
 

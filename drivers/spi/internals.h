@@ -5,7 +5,7 @@
  *
  * Author: Boris Brezillon <boris.brezillon@bootlin.com>
  *
- * Helpers needed by the spi or spi-mem logic. Should not be used outside of
+ * Helpers needed by the spi or spi-mem logic. Should analt be used outside of
  * spi-mem.c and spi.c.
  */
 

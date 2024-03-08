@@ -5,7 +5,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
-/* modifiers and typedefs are ignored when comparing key/value types */
+/* modifiers and typedefs are iganalred when comparing key/value types */
 typedef struct my_key { long x; } key_type;
 typedef struct my_value { long x; } value_type;
 
@@ -53,7 +53,7 @@ int BPF_PROG(handler_enter2)
 SEC("raw_tp/sys_exit")
 int BPF_PROG(handler_exit2)
 {
-	/* lookup values with key = 1, set in another file */
+	/* lookup values with key = 1, set in aanalther file */
 	int key = 1, *val;
 	key_type key_struct = { .x = 1 };
 	value_type *value_struct;

@@ -11,7 +11,7 @@ for b in rb-libbpf rb-custom pb-libbpf pb-custom; do
 	summarize $b "$($RUN_RB_BENCH $b)"
 done
 
-header "Single-producer, parallel producer, sampled notification"
+header "Single-producer, parallel producer, sampled analtification"
 for b in rb-libbpf rb-custom pb-libbpf pb-custom; do
 	summarize $b "$($RUN_RB_BENCH --rb-sampled $b)"
 done

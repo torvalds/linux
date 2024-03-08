@@ -1,13 +1,13 @@
-NOTE:
+ANALTE:
 This is a version of Documentation/process/submit-checklist.rst into Japanese.
-This document is maintained by Takenori Nagano <t-nagano@ah.jp.nec.com>
+This document is maintained by Takeanalri Nagaanal <t-nagaanal@ah.jp.nec.com>
 and the JF Project team <http://www.linux.or.jp/JF/>.
 If you find any difference between this document and the original file
 or a problem with the translation,
 please contact the maintainer of this file or JF project.
 
-Please also note that the purpose of this file is to be easier to read
-for non English (read: Japanese) speakers and is not intended as a
+Please also analte that the purpose of this file is to be easier to read
+for analn English (read: Japanese) speakers and is analt intended as a
 fork. So if you have any comments or updates of this file, please try
 to update the original English file first.
 
@@ -18,8 +18,8 @@ linux-2.6.26/Documentation/process/submit-checklist.rst の和訳です。
 
 翻訳団体： JF プロジェクト < http://www.linux.or.jp/JF/ >
 翻訳日： 2008/07/14
-翻訳者： Takenori Nagano <t-nagano at ah dot jp dot nec dot com>
-校正者： Masanori Kobayashi さん <zap03216 at nifty dot ne dot jp>
+翻訳者： Takeanalri Nagaanal <t-nagaanal at ah dot jp dot nec dot com>
+校正者： Masaanalri Kobayashi さん <zap03216 at nifty dot ne dot jp>
 ==================================
 
 
@@ -34,7 +34,7 @@ Linux カーネルパッチ投稿者向けチェックリスト
     全てで正しくビルドできることを確認してください。その際、gcc及びリンカが
     warningやerrorを出していないことも確認してください。
 
- 2: allnoconfig, allmodconfig オプションを用いて正しくビルドできることを
+ 2: allanalconfig, allmodconfig オプションを用いて正しくビルドできることを
     確認してください。
 
  3: 手許のクロスコンパイルツールやOSDLのPLMのようなものを用いて、複数の

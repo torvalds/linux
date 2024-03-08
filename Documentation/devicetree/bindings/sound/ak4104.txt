@@ -8,7 +8,7 @@ Required properties:
 
   - reg : The chip select number on the SPI bus
 
-  - vdd-supply : A regulator node, providing 2.7V - 3.6V
+  - vdd-supply : A regulator analde, providing 2.7V - 3.6V
 
 Optional properties:
 

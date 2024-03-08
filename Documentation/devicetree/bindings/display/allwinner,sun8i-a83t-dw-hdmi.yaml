@@ -7,12 +7,12 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Allwinner A83t DWC HDMI TX Encoder
 
 description: |
-  The HDMI transmitter is a Synopsys DesignWare HDMI 1.4 TX controller
+  The HDMI transmitter is a Syanalpsys DesignWare HDMI 1.4 TX controller
   IP with Allwinner\'s own PHY IP. It supports audio and video outputs
   and CEC.
 
-  These DT bindings follow the Synopsys DWC HDMI TX bindings defined
-  in bridge/synopsys,dw-hdmi.yaml with the following device-specific
+  These DT bindings follow the Syanalpsys DWC HDMI TX bindings defined
+  in bridge/syanalpsys,dw-hdmi.yaml with the following device-specific
   properties.
 
 maintainers:

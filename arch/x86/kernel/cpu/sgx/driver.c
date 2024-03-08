@@ -14,14 +14,14 @@ u64 sgx_attributes_reserved_mask;
 u64 sgx_xfrm_reserved_mask = ~0x3;
 u32 sgx_misc_reserved_mask;
 
-static int sgx_open(struct inode *inode, struct file *file)
+static int sgx_open(struct ianalde *ianalde, struct file *file)
 {
 	struct sgx_encl *encl;
 	int ret;
 
 	encl = kzalloc(sizeof(*encl), GFP_KERNEL);
 	if (!encl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kref_init(&encl->refcount);
 	xa_init(&encl->page_array);
@@ -41,7 +41,7 @@ static int sgx_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int sgx_release(struct inode *inode, struct file *file)
+static int sgx_release(struct ianalde *ianalde, struct file *file)
 {
 	struct sgx_encl *encl = file->private_data;
 	struct sgx_encl_mm *encl_mm;
@@ -49,8 +49,8 @@ static int sgx_release(struct inode *inode, struct file *file)
 	/*
 	 * Drain the remaining mm_list entries. At this point the list contains
 	 * entries for processes, which have closed the enclave file but have
-	 * not exited yet. The processes, which have exited, are gone from the
-	 * list by sgx_mmu_notifier_release().
+	 * analt exited yet. The processes, which have exited, are gone from the
+	 * list by sgx_mmu_analtifier_release().
 	 */
 	for ( ; ; )  {
 		spin_lock(&encl->mm_lock);
@@ -65,12 +65,12 @@ static int sgx_release(struct inode *inode, struct file *file)
 
 		spin_unlock(&encl->mm_lock);
 
-		/* The enclave is no longer mapped by any mm. */
+		/* The enclave is anal longer mapped by any mm. */
 		if (!encl_mm)
 			break;
 
 		synchronize_srcu(&encl->srcu);
-		mmu_notifier_unregister(&encl_mm->mmu_notifier, encl_mm->mm);
+		mmu_analtifier_unregister(&encl_mm->mmu_analtifier, encl_mm->mm);
 		kfree(encl_mm);
 
 		/* 'encl_mm' is gone, put encl_mm->encl reference: */
@@ -137,9 +137,9 @@ static const struct file_operations sgx_encl_fops = {
 };
 
 static struct miscdevice sgx_dev_enclave = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "sgx_enclave",
-	.nodename = "sgx_enclave",
+	.analdename = "sgx_enclave",
 	.fops = &sgx_encl_fops,
 };
 
@@ -151,13 +151,13 @@ int __init sgx_drv_init(void)
 	int ret;
 
 	if (!cpu_feature_enabled(X86_FEATURE_SGX_LC))
-		return -ENODEV;
+		return -EANALDEV;
 
 	cpuid_count(SGX_CPUID, 0, &eax, &ebx, &ecx, &edx);
 
 	if (!(eax & 1))  {
-		pr_err("SGX disabled: SGX1 instruction support not available.\n");
-		return -ENODEV;
+		pr_err("SGX disabled: SGX1 instruction support analt available.\n");
+		return -EANALDEV;
 	}
 
 	sgx_misc_reserved_mask = ~ebx | SGX_MISC_RESERVED_MASK;

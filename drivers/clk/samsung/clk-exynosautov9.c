@@ -3,7 +3,7 @@
  * Copyright (c) 2022 Samsung Electronics Co., Ltd.
  * Author: Chanho Park <chanho61.park@samsung.com>
  *
- * Common Clock Framework support for ExynosAuto V9 SoC.
+ * Common Clock Framework support for ExyanalsAuto V9 SoC.
  */
 
 #include <linux/clk.h>
@@ -11,12 +11,12 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
-#include <dt-bindings/clock/samsung,exynosautov9.h>
+#include <dt-bindings/clock/samsung,exyanalsautov9.h>
 
 #include "clk.h"
-#include "clk-exynos-arm64.h"
+#include "clk-exyanals-arm64.h"
 
-/* NOTE: Must be equal to the last clock ID increased by one */
+/* ANALTE: Must be equal to the last clock ID increased by one */
 #define CLKS_NR_TOP			(GOUT_CLKCMU_PERIS_BUS + 1)
 #define CLKS_NR_BUSMC			(CLK_GOUT_BUSMC_SPDMA_PCLK + 1)
 #define CLKS_NR_CORE			(CLK_GOUT_CORE_CMU_CORE_PCLK + 1)
@@ -786,7 +786,7 @@ static const struct samsung_gate_clock top_gate_clks[] __initconst = {
 
 	/* APM */
 	GATE(GOUT_CLKCMU_APM_BUS, "gout_clkcmu_apm_bus", "mout_clkcmu_apm_bus",
-	     CLK_CON_GAT_GATE_CLKCMU_APM_BUS, 21, CLK_IGNORE_UNUSED, 0),
+	     CLK_CON_GAT_GATE_CLKCMU_APM_BUS, 21, CLK_IGANALRE_UNUSED, 0),
 
 	/* AUD */
 	GATE(GOUT_CLKCMU_AUD_CPU, "gout_clkcmu_aud_cpu", "mout_clkcmu_aud_cpu",
@@ -812,18 +812,18 @@ static const struct samsung_gate_clock top_gate_clks[] __initconst = {
 	/* CPUCL0 */
 	GATE(GOUT_CLKCMU_CPUCL0_SWITCH, "gout_clkcmu_cpucl0_switch",
 	     "mout_clkcmu_cpucl0_switch",
-	     CLK_CON_GAT_GATE_CLKCMU_CPUCL0_SWITCH, 21, CLK_IGNORE_UNUSED, 0),
+	     CLK_CON_GAT_GATE_CLKCMU_CPUCL0_SWITCH, 21, CLK_IGANALRE_UNUSED, 0),
 	GATE(GOUT_CLKCMU_CPUCL0_CLUSTER, "gout_clkcmu_cpucl0_cluster",
 	     "mout_clkcmu_cpucl0_cluster",
-	     CLK_CON_GAT_GATE_CLKCMU_CPUCL0_CLUSTER, 21, CLK_IGNORE_UNUSED, 0),
+	     CLK_CON_GAT_GATE_CLKCMU_CPUCL0_CLUSTER, 21, CLK_IGANALRE_UNUSED, 0),
 
 	/* CPUCL1 */
 	GATE(GOUT_CLKCMU_CPUCL1_SWITCH, "gout_clkcmu_cpucl1_switch",
 	     "mout_clkcmu_cpucl1_switch",
-	     CLK_CON_GAT_GATE_CLKCMU_CPUCL1_SWITCH, 21, CLK_IGNORE_UNUSED, 0),
+	     CLK_CON_GAT_GATE_CLKCMU_CPUCL1_SWITCH, 21, CLK_IGANALRE_UNUSED, 0),
 	GATE(GOUT_CLKCMU_CPUCL1_CLUSTER, "gout_clkcmu_cpucl1_cluster",
 	     "mout_clkcmu_cpucl1_cluster",
-	     CLK_CON_GAT_GATE_CLKCMU_CPUCL1_CLUSTER, 21, CLK_IGNORE_UNUSED, 0),
+	     CLK_CON_GAT_GATE_CLKCMU_CPUCL1_CLUSTER, 21, CLK_IGANALRE_UNUSED, 0),
 
 	/* DPTX */
 	GATE(GOUT_CLKCMU_DPTX_BUS, "gout_clkcmu_dptx_bus",
@@ -910,10 +910,10 @@ static const struct samsung_gate_clock top_gate_clks[] __initconst = {
 	/* MIF */
 	GATE(GOUT_CLKCMU_MIF_SWITCH, "gout_clkcmu_mif_switch",
 	     "mout_clkcmu_mif_switch", CLK_CON_GAT_GATE_CLKCMU_MIF_SWITCH,
-	     21, CLK_IGNORE_UNUSED, 0),
+	     21, CLK_IGANALRE_UNUSED, 0),
 	GATE(GOUT_CLKCMU_MIF_BUSP, "gout_clkcmu_mif_busp",
 	     "mout_clkcmu_mif_busp", CLK_CON_GAT_GATE_CLKCMU_MIF_BUSP,
-	     21, CLK_IGNORE_UNUSED, 0),
+	     21, CLK_IGANALRE_UNUSED, 0),
 
 	/* NPU */
 	GATE(GOUT_CLKCMU_NPU_BUS, "gout_clkcmu_npu_bus", "mout_clkcmu_npu_bus",
@@ -938,7 +938,7 @@ static const struct samsung_gate_clock top_gate_clks[] __initconst = {
 	/* PERIS */
 	GATE(GOUT_CLKCMU_PERIS_BUS, "gout_clkcmu_peris_bus",
 	     "mout_clkcmu_peris_bus", CLK_CON_GAT_GATE_CLKCMU_PERIS_BUS,
-	     21, CLK_IGNORE_UNUSED, 0),
+	     21, CLK_IGANALRE_UNUSED, 0),
 };
 
 static const struct samsung_cmu_info top_cmu_info __initconst = {
@@ -957,14 +957,14 @@ static const struct samsung_cmu_info top_cmu_info __initconst = {
 	.nr_clk_regs		= ARRAY_SIZE(top_clk_regs),
 };
 
-static void __init exynosautov9_cmu_top_init(struct device_node *np)
+static void __init exyanalsautov9_cmu_top_init(struct device_analde *np)
 {
-	exynos_arm64_register_cmu(NULL, np, &top_cmu_info);
+	exyanals_arm64_register_cmu(NULL, np, &top_cmu_info);
 }
 
 /* Register CMU_TOP early, as it's a dependency for other early domains */
-CLK_OF_DECLARE(exynosautov9_cmu_top, "samsung,exynosautov9-cmu-top",
-	       exynosautov9_cmu_top_init);
+CLK_OF_DECLARE(exyanalsautov9_cmu_top, "samsung,exyanalsautov9-cmu-top",
+	       exyanalsautov9_cmu_top_init);
 
 /* ---- CMU_BUSMC ---------------------------------------------------------- */
 
@@ -1176,7 +1176,7 @@ static const struct samsung_gate_clock fsys0_gate_clks[] __initconst = {
 	GATE(CLK_GOUT_FSYS0_BUS_PCLK, "gout_fsys0_bus_pclk",
 	     "mout_fsys0_bus_user",
 	     CLK_CON_GAT_CLK_BLK_FSYS0_UID_FSYS0_CMU_FSYS0_IPCLKPORT_PCLK,
-	     21, CLK_IGNORE_UNUSED, 0),
+	     21, CLK_IGANALRE_UNUSED, 0),
 
 	/* Gen3 2L0 */
 	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L0_X1_REFCLK,
@@ -1385,7 +1385,7 @@ static const struct samsung_div_clock fsys1_div_clks[] __initconst = {
 static const struct samsung_gate_clock fsys1_gate_clks[] __initconst = {
 	GATE(CLK_GOUT_FSYS1_PCLK, "gout_fsys1_pclk", "mout_fsys1_bus_user",
 	     CLK_CON_GAT_GOUT_BLK_FSYS1_UID_FSYS1_CMU_FSYS1_IPCLKPORT_PCLK,
-	     21, CLK_IGNORE_UNUSED, 0),
+	     21, CLK_IGANALRE_UNUSED, 0),
 	GATE(CLK_GOUT_FSYS1_MMC_CARD_SDCLKIN, "gout_fsys1_mmc_card_sdclkin",
 	     "dout_fsys1_mmc_card",
 	     CLK_CON_GAT_GOUT_BLK_FSYS1_UID_MMC_CARD_IPCLKPORT_SDCLKIN,
@@ -2047,7 +2047,7 @@ static const struct samsung_gate_clock peris_gate_clks[] __initconst = {
 	GATE(CLK_GOUT_SYSREG_PERIS_PCLK, "gout_sysreg_peris_pclk",
 	     "mout_peris_bus_user",
 	     CLK_CON_GAT_GOUT_BLK_PERIS_UID_SYSREG_PERIS_IPCLKPORT_PCLK,
-	     21, CLK_IGNORE_UNUSED, 0),
+	     21, CLK_IGANALRE_UNUSED, 0),
 	GATE(CLK_GOUT_WDT_CLUSTER0, "gout_wdt_cluster0", "mout_peris_bus_user",
 	     CLK_CON_GAT_GOUT_BLK_PERIS_UID_WDT_CLUSTER0_IPCLKPORT_PCLK,
 	     21, 0, 0),
@@ -2067,57 +2067,57 @@ static const struct samsung_cmu_info peris_cmu_info __initconst = {
 	.clk_name		= "dout_clkcmu_peris_bus",
 };
 
-static int __init exynosautov9_cmu_probe(struct platform_device *pdev)
+static int __init exyanalsautov9_cmu_probe(struct platform_device *pdev)
 {
 	const struct samsung_cmu_info *info;
 	struct device *dev = &pdev->dev;
 
 	info = of_device_get_match_data(dev);
-	exynos_arm64_register_cmu(dev, dev->of_node, info);
+	exyanals_arm64_register_cmu(dev, dev->of_analde, info);
 
 	return 0;
 }
 
-static const struct of_device_id exynosautov9_cmu_of_match[] = {
+static const struct of_device_id exyanalsautov9_cmu_of_match[] = {
 	{
-		.compatible = "samsung,exynosautov9-cmu-busmc",
+		.compatible = "samsung,exyanalsautov9-cmu-busmc",
 		.data = &busmc_cmu_info,
 	}, {
-		.compatible = "samsung,exynosautov9-cmu-core",
+		.compatible = "samsung,exyanalsautov9-cmu-core",
 		.data = &core_cmu_info,
 	}, {
-		.compatible = "samsung,exynosautov9-cmu-fsys0",
+		.compatible = "samsung,exyanalsautov9-cmu-fsys0",
 		.data = &fsys0_cmu_info,
 	}, {
-		.compatible = "samsung,exynosautov9-cmu-fsys1",
+		.compatible = "samsung,exyanalsautov9-cmu-fsys1",
 		.data = &fsys1_cmu_info,
 	}, {
-		.compatible = "samsung,exynosautov9-cmu-fsys2",
+		.compatible = "samsung,exyanalsautov9-cmu-fsys2",
 		.data = &fsys2_cmu_info,
 	}, {
-		.compatible = "samsung,exynosautov9-cmu-peric0",
+		.compatible = "samsung,exyanalsautov9-cmu-peric0",
 		.data = &peric0_cmu_info,
 	}, {
-		.compatible = "samsung,exynosautov9-cmu-peric1",
+		.compatible = "samsung,exyanalsautov9-cmu-peric1",
 		.data = &peric1_cmu_info,
 	}, {
-		.compatible = "samsung,exynosautov9-cmu-peris",
+		.compatible = "samsung,exyanalsautov9-cmu-peris",
 		.data = &peris_cmu_info,
 	}, {
 	},
 };
 
-static struct platform_driver exynosautov9_cmu_driver __refdata = {
+static struct platform_driver exyanalsautov9_cmu_driver __refdata = {
 	.driver = {
-		.name = "exynosautov9-cmu",
-		.of_match_table = exynosautov9_cmu_of_match,
+		.name = "exyanalsautov9-cmu",
+		.of_match_table = exyanalsautov9_cmu_of_match,
 		.suppress_bind_attrs = true,
 	},
-	.probe = exynosautov9_cmu_probe,
+	.probe = exyanalsautov9_cmu_probe,
 };
 
-static int __init exynosautov9_cmu_init(void)
+static int __init exyanalsautov9_cmu_init(void)
 {
-	return platform_driver_register(&exynosautov9_cmu_driver);
+	return platform_driver_register(&exyanalsautov9_cmu_driver);
 }
-core_initcall(exynosautov9_cmu_init);
+core_initcall(exyanalsautov9_cmu_init);

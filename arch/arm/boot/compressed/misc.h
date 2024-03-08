@@ -3,7 +3,7 @@
 
 #include <linux/compiler.h>
 
-void error(char *x) __noreturn;
+void error(char *x) __analreturn;
 extern unsigned long free_mem_ptr;
 extern unsigned long free_mem_end_ptr;
 void __div0(void);

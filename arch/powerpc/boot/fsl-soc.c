@@ -19,7 +19,7 @@ u32 *fsl_get_immr(void)
 	void *soc;
 	unsigned long ret = 0;
 
-	soc = find_node_by_devtype(NULL, "soc");
+	soc = find_analde_by_devtype(NULL, "soc");
 	if (soc) {
 		int size;
 		u32 naddr;

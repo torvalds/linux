@@ -9,7 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -148,7 +148,7 @@ static int tps65218_gpio_set_config(struct gpio_chip *gc, unsigned offset,
 		/* GPO1 is hardwired to be open drain */
 		if (param == PIN_CONFIG_DRIVE_OPEN_DRAIN)
 			return 0;
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	case 1:
 		/* GPO2 is push-pull by default, can be set as open drain. */
 		if (param == PIN_CONFIG_DRIVE_OPEN_DRAIN)
@@ -162,11 +162,11 @@ static int tps65218_gpio_set_config(struct gpio_chip *gc, unsigned offset,
 						 TPS65218_CONFIG1_GPO2_BUF,
 						 TPS65218_CONFIG1_GPO2_BUF,
 						 TPS65218_PROTECT_L1);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	default:
 		break;
 	}
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static const struct gpio_chip template_chip = {
@@ -191,7 +191,7 @@ static int tps65218_gpio_probe(struct platform_device *pdev)
 	tps65218_gpio = devm_kzalloc(&pdev->dev, sizeof(*tps65218_gpio),
 				     GFP_KERNEL);
 	if (!tps65218_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tps65218_gpio->tps65218 = tps65218;
 	tps65218_gpio->gpio_chip = template_chip;

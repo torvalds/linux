@@ -121,7 +121,7 @@ static int stm32_crc_init(struct shash_desc *desc)
 
 	crc = stm32_crc_get_next_crc();
 	if (!crc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pm_runtime_get_sync(crc->dev);
 
@@ -153,7 +153,7 @@ static int burst_update(struct shash_desc *desc, const u8 *d8,
 
 	crc = stm32_crc_get_next_crc();
 	if (!crc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pm_runtime_get_sync(crc->dev);
 
@@ -169,7 +169,7 @@ static int burst_update(struct shash_desc *desc, const u8 *d8,
 
 	/*
 	 * Restore previously calculated CRC for this context as init value
-	 * Restore polynomial configuration
+	 * Restore polyanalmial configuration
 	 * Configure in register for word input data,
 	 * Configure out register in reversed bit mode data.
 	 */
@@ -226,7 +226,7 @@ static int stm32_crc_update(struct shash_desc *desc, const u8 *d8,
 	if (!burst_sz)
 		return burst_update(desc, d8, length);
 
-	/* Digest first bytes not 32bit aligned at first pass in the loop */
+	/* Digest first bytes analt 32bit aligned at first pass in the loop */
 	size = min_t(size_t, length, burst_sz + (size_t)d8 -
 				     ALIGN_DOWN((size_t)d8, sizeof(u32)));
 	for (rem_sz = length, cur = d8; rem_sz;
@@ -288,7 +288,7 @@ static struct shash_alg algs[] = {
 			.cra_init               = stm32_crc32_cra_init,
 		}
 	},
-	/* CRC-32Castagnoli */
+	/* CRC-32Castaganalli */
 	{
 		.setkey         = stm32_crc_setkey,
 		.init           = stm32_crc_init,
@@ -319,19 +319,19 @@ static int stm32_crc_probe(struct platform_device *pdev)
 
 	crc = devm_kzalloc(dev, sizeof(*crc), GFP_KERNEL);
 	if (!crc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crc->dev = dev;
 
 	crc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(crc->regs)) {
-		dev_err(dev, "Cannot map CRC IO\n");
+		dev_err(dev, "Cananalt map CRC IO\n");
 		return PTR_ERR(crc->regs);
 	}
 
 	crc->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(crc->clk)) {
-		dev_err(dev, "Could not get clock\n");
+		dev_err(dev, "Could analt get clock\n");
 		return PTR_ERR(crc->clk);
 	}
 
@@ -344,7 +344,7 @@ static int stm32_crc_probe(struct platform_device *pdev)
 	pm_runtime_set_autosuspend_delay(dev, CRC_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(dev);
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_irq_safe(dev);
 	pm_runtime_enable(dev);
@@ -392,7 +392,7 @@ static void stm32_crc_remove(struct platform_device *pdev)
 	mutex_unlock(&refcnt_lock);
 
 	pm_runtime_disable(crc->dev);
-	pm_runtime_put_noidle(crc->dev);
+	pm_runtime_put_analidle(crc->dev);
 
 	if (ret >= 0)
 		clk_disable(crc->clk);

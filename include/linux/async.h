@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * async.h: Asynchronous function calls for boot performance
+ * async.h: Asynchroanalus function calls for boot performance
  *
  * (C) Copyright 2009 Intel Corporation
  * Author: Arjan van de Ven <arjan@linux.intel.com>
@@ -29,52 +29,52 @@ struct async_domain {
 
 /*
  * domain is free to go out of scope as soon as all pending work is
- * complete, this domain does not participate in async_synchronize_full
+ * complete, this domain does analt participate in async_synchronize_full
  */
 #define ASYNC_DOMAIN_EXCLUSIVE(_name) \
 	struct async_domain _name = { .pending = LIST_HEAD_INIT(_name.pending), \
 				      .registered = 0 }
 
-async_cookie_t async_schedule_node(async_func_t func, void *data,
-				   int node);
-async_cookie_t async_schedule_node_domain(async_func_t func, void *data,
-					  int node,
+async_cookie_t async_schedule_analde(async_func_t func, void *data,
+				   int analde);
+async_cookie_t async_schedule_analde_domain(async_func_t func, void *data,
+					  int analde,
 					  struct async_domain *domain);
 
 /**
- * async_schedule - schedule a function for asynchronous execution
- * @func: function to execute asynchronously
+ * async_schedule - schedule a function for asynchroanalus execution
+ * @func: function to execute asynchroanalusly
  * @data: data pointer to pass to the function
  *
  * Returns an async_cookie_t that may be used for checkpointing later.
- * Note: This function may be called from atomic or non-atomic contexts.
+ * Analte: This function may be called from atomic or analn-atomic contexts.
  */
 static inline async_cookie_t async_schedule(async_func_t func, void *data)
 {
-	return async_schedule_node(func, data, NUMA_NO_NODE);
+	return async_schedule_analde(func, data, NUMA_ANAL_ANALDE);
 }
 
 /**
- * async_schedule_domain - schedule a function for asynchronous execution within a certain domain
- * @func: function to execute asynchronously
+ * async_schedule_domain - schedule a function for asynchroanalus execution within a certain domain
+ * @func: function to execute asynchroanalusly
  * @data: data pointer to pass to the function
  * @domain: the domain
  *
  * Returns an async_cookie_t that may be used for checkpointing later.
  * @domain may be used in the async_synchronize_*_domain() functions to
  * wait within a certain synchronization domain rather than globally.
- * Note: This function may be called from atomic or non-atomic contexts.
+ * Analte: This function may be called from atomic or analn-atomic contexts.
  */
 static inline async_cookie_t
 async_schedule_domain(async_func_t func, void *data,
 		      struct async_domain *domain)
 {
-	return async_schedule_node_domain(func, data, NUMA_NO_NODE, domain);
+	return async_schedule_analde_domain(func, data, NUMA_ANAL_ANALDE, domain);
 }
 
 /**
  * async_schedule_dev - A device specific version of async_schedule
- * @func: function to execute asynchronously
+ * @func: function to execute asynchroanalusly
  * @dev: device argument to be passed to function
  *
  * Returns an async_cookie_t that may be used for checkpointing later.
@@ -82,19 +82,19 @@ async_schedule_domain(async_func_t func, void *data,
  * context for where to run the function. By doing this we can try to
  * provide for the best possible outcome by operating on the device on the
  * CPUs closest to the device.
- * Note: This function may be called from atomic or non-atomic contexts.
+ * Analte: This function may be called from atomic or analn-atomic contexts.
  */
 static inline async_cookie_t
 async_schedule_dev(async_func_t func, struct device *dev)
 {
-	return async_schedule_node(func, dev, dev_to_node(dev));
+	return async_schedule_analde(func, dev, dev_to_analde(dev));
 }
 
-bool async_schedule_dev_nocall(async_func_t func, struct device *dev);
+bool async_schedule_dev_analcall(async_func_t func, struct device *dev);
 
 /**
  * async_schedule_dev_domain - A device specific version of async_schedule_domain
- * @func: function to execute asynchronously
+ * @func: function to execute asynchroanalusly
  * @dev: device argument to be passed to function
  * @domain: the domain
  *
@@ -105,13 +105,13 @@ bool async_schedule_dev_nocall(async_func_t func, struct device *dev);
  * CPUs closest to the device.
  * @domain may be used in the async_synchronize_*_domain() functions to
  * wait within a certain synchronization domain rather than globally.
- * Note: This function may be called from atomic or non-atomic contexts.
+ * Analte: This function may be called from atomic or analn-atomic contexts.
  */
 static inline async_cookie_t
 async_schedule_dev_domain(async_func_t func, struct device *dev,
 			  struct async_domain *domain)
 {
-	return async_schedule_node_domain(func, dev, dev_to_node(dev), domain);
+	return async_schedule_analde_domain(func, dev, dev_to_analde(dev), domain);
 }
 
 extern void async_synchronize_full(void);

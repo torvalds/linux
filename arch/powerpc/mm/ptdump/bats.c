@@ -49,7 +49,7 @@ static void bat_show_603(struct seq_file *m, int idx, u32 lower, u32 upper, bool
 		seq_puts(m, is_d ? "    " : "    ");
 
 	seq_puts(m, lower & _PAGE_WRITETHRU ? "w " : "  ");
-	seq_puts(m, lower & _PAGE_NO_CACHE ? "i " : "  ");
+	seq_puts(m, lower & _PAGE_ANAL_CACHE ? "i " : "  ");
 	seq_puts(m, lower & _PAGE_COHERENT ? "m " : "  ");
 	seq_puts(m, lower & _PAGE_GUARDED ? "g " : "  ");
 	seq_puts(m, "\n");

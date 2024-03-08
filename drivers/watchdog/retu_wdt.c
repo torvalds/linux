@@ -2,7 +2,7 @@
 /*
  * Retu watchdog driver
  *
- * Copyright (C) 2004, 2005 Nokia Corporation
+ * Copyright (C) 2004, 2005 Analkia Corporation
  *
  * Based on code written by Amit Kucheria and Michael Buesch.
  * Rewritten by Aaro Koskinen.
@@ -10,7 +10,7 @@
 
 #include <linux/devm-helpers.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -28,9 +28,9 @@ struct retu_wdt_dev {
 };
 
 /*
- * Since Retu watchdog cannot be disabled in hardware, we must kick it
+ * Since Retu watchdog cananalt be disabled in hardware, we must kick it
  * with a timer until userspace watchdog software takes over. If
- * CONFIG_WATCHDOG_NOWAYOUT is set, we never start the feeding.
+ * CONFIG_WATCHDOG_ANALWAYOUT is set, we never start the feeding.
  */
 static void retu_wdt_ping_enable(struct retu_wdt_dev *wdev)
 {
@@ -102,18 +102,18 @@ static const struct watchdog_ops retu_wdt_ops = {
 static int retu_wdt_probe(struct platform_device *pdev)
 {
 	struct retu_dev *rdev = dev_get_drvdata(pdev->dev.parent);
-	bool nowayout = WATCHDOG_NOWAYOUT;
+	bool analwayout = WATCHDOG_ANALWAYOUT;
 	struct watchdog_device *retu_wdt;
 	struct retu_wdt_dev *wdev;
 	int ret;
 
 	retu_wdt = devm_kzalloc(&pdev->dev, sizeof(*retu_wdt), GFP_KERNEL);
 	if (!retu_wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdev = devm_kzalloc(&pdev->dev, sizeof(*wdev), GFP_KERNEL);
 	if (!wdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retu_wdt->info		= &retu_wdt_info;
 	retu_wdt->ops		= &retu_wdt_ops;
@@ -123,7 +123,7 @@ static int retu_wdt_probe(struct platform_device *pdev)
 	retu_wdt->parent	= &pdev->dev;
 
 	watchdog_set_drvdata(retu_wdt, wdev);
-	watchdog_set_nowayout(retu_wdt, nowayout);
+	watchdog_set_analwayout(retu_wdt, analwayout);
 
 	wdev->rdev		= rdev;
 	wdev->dev		= &pdev->dev;
@@ -137,7 +137,7 @@ static int retu_wdt_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	if (nowayout)
+	if (analwayout)
 		retu_wdt_ping(retu_wdt);
 	else
 		retu_wdt_ping_enable(wdev);

@@ -20,7 +20,7 @@ typedef __be32	rxrpc_serial_net_t; /* on-the-wire Rx message serial number */
  */
 struct rxrpc_wire_header {
 	__be32		epoch;		/* client boot timestamp */
-#define RXRPC_RANDOM_EPOCH	0x80000000	/* Random if set, date-based if not */
+#define RXRPC_RANDOM_EPOCH	0x80000000	/* Random if set, date-based if analt */
 
 	__be32		cid;		/* connection and channel ID */
 #define RXRPC_MAXCALLS		4			/* max active calls per conn */
@@ -42,9 +42,9 @@ struct rxrpc_wire_header {
 #define RXRPC_PACKET_TYPE_CHALLENGE	6	/* connection security challenge (SRVR->CLNT) */
 #define RXRPC_PACKET_TYPE_RESPONSE	7	/* connection secutity response (CLNT->SRVR) */
 #define RXRPC_PACKET_TYPE_DEBUG		8	/* debug info request */
-#define RXRPC_PACKET_TYPE_PARAMS	9	/* Parameter negotiation (unspec'd, ignore) */
-#define RXRPC_PACKET_TYPE_10		10	/* Ignored */
-#define RXRPC_PACKET_TYPE_11		11	/* Ignored */
+#define RXRPC_PACKET_TYPE_PARAMS	9	/* Parameter negotiation (unspec'd, iganalre) */
+#define RXRPC_PACKET_TYPE_10		10	/* Iganalred */
+#define RXRPC_PACKET_TYPE_11		11	/* Iganalred */
 #define RXRPC_PACKET_TYPE_VERSION	13	/* version string request */
 
 	uint8_t		flags;		/* packet flags */
@@ -86,7 +86,7 @@ struct rxrpc_jumbo_header {
 	};
 } __packed;
 
-#define RXRPC_JUMBO_DATALEN	1412	/* non-terminal jumbo packet data length */
+#define RXRPC_JUMBO_DATALEN	1412	/* analn-terminal jumbo packet data length */
 #define RXRPC_JUMBO_SUBPKTLEN	(RXRPC_JUMBO_DATALEN + sizeof(struct rxrpc_jumbo_header))
 
 /*
@@ -94,7 +94,7 @@ struct rxrpc_jumbo_header {
  *
  *	((max_IP - IP_hdr - UDP_hdr) / RXRPC_JUMBO_SUBPKTLEN) + 1
  *	= ((65535 - 28 - 28) / 1416) + 1
- *	= 46 non-terminal packets and 1 terminal packet.
+ *	= 46 analn-terminal packets and 1 terminal packet.
  */
 #define RXRPC_MAX_NR_JUMBO	47
 
@@ -105,21 +105,21 @@ struct rxrpc_jumbo_header {
  */
 struct rxrpc_ackpacket {
 	__be16		bufferSpace;	/* number of packet buffers available */
-	__be16		maxSkew;	/* diff between serno being ACK'd and highest serial no
+	__be16		maxSkew;	/* diff between seranal being ACK'd and highest serial anal
 					 * received */
-	__be32		firstPacket;	/* sequence no of first ACK'd packet in attached list */
-	__be32		previousPacket;	/* sequence no of previous packet received */
-	__be32		serial;		/* serial no of packet that prompted this ACK */
+	__be32		firstPacket;	/* sequence anal of first ACK'd packet in attached list */
+	__be32		previousPacket;	/* sequence anal of previous packet received */
+	__be32		serial;		/* serial anal of packet that prompted this ACK */
 
 	uint8_t		reason;		/* reason for ACK */
 #define RXRPC_ACK_REQUESTED		1	/* ACK was requested on packet */
 #define RXRPC_ACK_DUPLICATE		2	/* duplicate packet received */
 #define RXRPC_ACK_OUT_OF_SEQUENCE	3	/* out of sequence packet received */
 #define RXRPC_ACK_EXCEEDS_WINDOW	4	/* packet received beyond end of ACK window */
-#define RXRPC_ACK_NOSPACE		5	/* packet discarded due to lack of buffer space */
+#define RXRPC_ACK_ANALSPACE		5	/* packet discarded due to lack of buffer space */
 #define RXRPC_ACK_PING			6	/* keep alive ACK */
 #define RXRPC_ACK_PING_RESPONSE		7	/* response to RXRPC_ACK_PING */
-#define RXRPC_ACK_DELAY			8	/* nothing happened since received packet */
+#define RXRPC_ACK_DELAY			8	/* analthing happened since received packet */
 #define RXRPC_ACK_IDLE			9	/* ACK due to fully received ACK window */
 #define RXRPC_ACK__INVALID		10	/* Representation of invalid ACK reason */
 
@@ -148,7 +148,7 @@ struct rxrpc_ackinfo {
  */
 struct rxkad_challenge {
 	__be32		version;	/* version of this challenge type */
-	__be32		nonce;		/* encrypted random number */
+	__be32		analnce;		/* encrypted random number */
 	__be32		min_level;	/* minimum security level */
 	__be32		__padding;	/* padding to 8-byte boundary */
 } __packed;
@@ -168,11 +168,11 @@ struct rxkad_response {
 		__be32		checksum;	/* checksum */
 		__be32		securityIndex;	/* security type */
 		__be32		call_id[4];	/* encrypted call IDs */
-		__be32		inc_nonce;	/* challenge nonce + 1 */
+		__be32		inc_analnce;	/* challenge analnce + 1 */
 		__be32		level;		/* desired level */
 	} encrypted;
 
-	__be32		kvno;		/* Kerberos key version number */
+	__be32		kvanal;		/* Kerberos key version number */
 	__be32		ticket_len;	/* Kerberos ticket length  */
 } __packed;
 

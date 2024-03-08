@@ -16,7 +16,7 @@ struct adr_remap {
 };
 
 /*
- * Some TigerLake devices based on an initial Intel BIOS do not expose
+ * Some TigerLake devices based on an initial Intel BIOS do analt expose
  * the correct _ADR in the DSDT.
  * Remap the bad _ADR values to the ones reported by hardware
  */
@@ -33,7 +33,7 @@ static const struct adr_remap intel_tgl_bios[] = {
 };
 
 /*
- * The initial version of the Dell SKU 0A3E did not expose the devices
+ * The initial version of the Dell SKU 0A3E did analt expose the devices
  * on the correct links.
  */
 static const struct adr_remap dell_sku_0A3E[] = {
@@ -56,8 +56,8 @@ static const struct adr_remap dell_sku_0A3E[] = {
 };
 
 /*
- * The HP Omen 16-k0005TX does not expose the correct version of RT711 on link0
- * and does not expose a RT1316 on link3
+ * The HP Omen 16-k0005TX does analt expose the correct version of RT711 on link0
+ * and does analt expose a RT1316 on link3
  */
 static const struct adr_remap hp_omen_16[] = {
 	/* rt711-sdca on link0 */

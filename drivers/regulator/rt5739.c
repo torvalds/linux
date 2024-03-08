@@ -2,7 +2,7 @@
 /*
  * Device driver for RT5739 regulator
  *
- * Copyright (C) 2023 Richtek Technology Corp.
+ * Copyright (C) 2023 Richtek Techanallogy Corp.
  *
  * Author: ChiYuan Huang <cy_huang@richtek.com>
  */
@@ -63,7 +63,7 @@ static int rt5739_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	case REGULATOR_MODE_FAST:
 		val = mask;
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = 0;
 		break;
 	default:
@@ -92,7 +92,7 @@ static unsigned int rt5739_get_mode(struct regulator_dev *rdev)
 	if (val & mask)
 		return REGULATOR_MODE_FAST;
 
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static int rt5739_set_suspend_voltage(struct regulator_dev *rdev, int uV)
@@ -160,7 +160,7 @@ static int rt5739_set_suspend_mode(struct regulator_dev *rdev,
 	case REGULATOR_MODE_FAST:
 		val = mask;
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = 0;
 		break;
 	default:
@@ -190,7 +190,7 @@ static unsigned int rt5739_of_map_mode(unsigned int mode)
 {
 	switch (mode) {
 	case RT5739_AUTO_MODE:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case RT5739_FPWM_MODE:
 		return REGULATOR_MODE_FAST;
 	default:
@@ -257,7 +257,7 @@ static int rt5739_probe(struct i2c_client *i2c)
 
 	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	enable_gpio = devm_gpiod_get_optional(dev, "enable", GPIOD_OUT_HIGH);
 	if (IS_ERR(enable_gpio))
@@ -275,15 +275,15 @@ static int rt5739_probe(struct i2c_client *i2c)
 
 	/* RT5739: (VID & MASK) must be 0 */
 	if (vid & RT5739_VID_MASK)
-		return dev_err_probe(dev, -ENODEV, "Incorrect VID (0x%02x)\n", vid);
+		return dev_err_probe(dev, -EANALDEV, "Incorrect VID (0x%02x)\n", vid);
 
 	vsel_acth = device_property_read_bool(dev, "richtek,vsel-active-high");
 
 	rt5739_init_regulator_desc(desc, vsel_acth, vid & RT5739_DID_MASK);
 
 	cfg.dev = dev;
-	cfg.of_node = dev_of_node(dev);
-	cfg.init_data = of_get_regulator_init_data(dev, dev_of_node(dev), desc);
+	cfg.of_analde = dev_of_analde(dev);
+	cfg.init_data = of_get_regulator_init_data(dev, dev_of_analde(dev), desc);
 	rdev = devm_regulator_register(dev, desc, &cfg);
 	if (IS_ERR(rdev))
 		return dev_err_probe(dev, PTR_ERR(rdev), "Failed to register regulator\n");
@@ -301,7 +301,7 @@ MODULE_DEVICE_TABLE(of, rt5739_device_table);
 static struct i2c_driver rt5739_driver = {
 	.driver = {
 		.name = "rt5739",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = rt5739_device_table,
 	},
 	.probe = rt5739_probe,

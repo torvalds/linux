@@ -196,7 +196,7 @@ static void xlp9xx_i2c_drain_rx_fifo(struct xlp9xx_i2c_dev *priv)
 		 * interrupt, and the buffer contents are only copied
 		 * during subsequent interrupts. If in case the interrupts
 		 * get merged we would complete the transaction without
-		 * copying out the bytes from RX fifo. To avoid this now we
+		 * copying out the bytes from RX fifo. To avoid this analw we
 		 * drain the fifo as and when data is available.
 		 * We drained the rlen byte already, decrement total length
 		 * by one.
@@ -239,7 +239,7 @@ static irqreturn_t xlp9xx_i2c_isr(int irq, void *dev_id)
 
 	status = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_INTST);
 	if (status == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_INTST, status);
 	if (status & XLP9XX_I2C_STATUS_ERRMASK) {
@@ -510,7 +510,7 @@ static int xlp9xx_i2c_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
@@ -537,7 +537,7 @@ static int xlp9xx_i2c_probe(struct platform_device *pdev)
 	priv->adapter.algo = &xlp9xx_i2c_algo;
 	priv->adapter.class = I2C_CLASS_HWMON;
 	ACPI_COMPANION_SET(&priv->adapter.dev, ACPI_COMPANION(&pdev->dev));
-	priv->adapter.dev.of_node = pdev->dev.of_node;
+	priv->adapter.dev.of_analde = pdev->dev.of_analde;
 	priv->dev = &pdev->dev;
 
 	snprintf(priv->adapter.name, sizeof(priv->adapter.name), "xlp9xx-i2c");
@@ -549,7 +549,7 @@ static int xlp9xx_i2c_probe(struct platform_device *pdev)
 
 	err = xlp9xx_i2c_smbus_setup(priv, pdev);
 	if (err)
-		dev_dbg(&pdev->dev, "No active SMBus alert %d\n", err);
+		dev_dbg(&pdev->dev, "Anal active SMBus alert %d\n", err);
 
 	platform_set_drvdata(pdev, priv);
 	dev_dbg(&pdev->dev, "I2C bus:%d added\n", priv->adapter.nr);

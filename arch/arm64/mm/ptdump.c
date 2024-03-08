@@ -10,7 +10,7 @@
  * Author: Arjan van de Ven <arjan@linux.intel.com>
  */
 #include <linux/debugfs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/io.h>
 #include <linux/init.h>
@@ -157,16 +157,16 @@ static const struct prot_bits pte_bits[] = {
 		.set	= "DEVICE/nGnRE",
 	}, {
 		.mask	= PTE_ATTRINDX_MASK,
-		.val	= PTE_ATTRINDX(MT_NORMAL_NC),
-		.set	= "MEM/NORMAL-NC",
+		.val	= PTE_ATTRINDX(MT_ANALRMAL_NC),
+		.set	= "MEM/ANALRMAL-NC",
 	}, {
 		.mask	= PTE_ATTRINDX_MASK,
-		.val	= PTE_ATTRINDX(MT_NORMAL),
-		.set	= "MEM/NORMAL",
+		.val	= PTE_ATTRINDX(MT_ANALRMAL),
+		.set	= "MEM/ANALRMAL",
 	}, {
 		.mask	= PTE_ATTRINDX_MASK,
-		.val	= PTE_ATTRINDX(MT_NORMAL_TAGGED),
-		.set	= "MEM/NORMAL-TAGGED",
+		.val	= PTE_ATTRINDX(MT_ANALRMAL_TAGGED),
+		.set	= "MEM/ANALRMAL-TAGGED",
 	}
 };
 
@@ -219,7 +219,7 @@ static void dump_prot(struct pg_state *st, const struct prot_bits *bits,
 	}
 }
 
-static void note_prot_uxn(struct pg_state *st, unsigned long addr)
+static void analte_prot_uxn(struct pg_state *st, unsigned long addr)
 {
 	if (!st->check_wx)
 		return;
@@ -227,13 +227,13 @@ static void note_prot_uxn(struct pg_state *st, unsigned long addr)
 	if ((st->current_prot & PTE_UXN) == PTE_UXN)
 		return;
 
-	WARN_ONCE(1, "arm64/mm: Found non-UXN mapping at address %p/%pS\n",
+	WARN_ONCE(1, "arm64/mm: Found analn-UXN mapping at address %p/%pS\n",
 		  (void *)st->start_address, (void *)st->start_address);
 
 	st->uxn_pages += (addr - st->start_address) / PAGE_SIZE;
 }
 
-static void note_prot_wx(struct pg_state *st, unsigned long addr)
+static void analte_prot_wx(struct pg_state *st, unsigned long addr)
 {
 	if (!st->check_wx)
 		return;
@@ -248,7 +248,7 @@ static void note_prot_wx(struct pg_state *st, unsigned long addr)
 	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
 }
 
-static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
+static void analte_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 		      u64 val)
 {
 	struct pg_state *st = container_of(pt_st, struct pg_state, ptdump);
@@ -269,8 +269,8 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 		unsigned long delta;
 
 		if (st->current_prot) {
-			note_prot_uxn(st, addr);
-			note_prot_wx(st, addr);
+			analte_prot_uxn(st, addr);
+			analte_prot_wx(st, addr);
 		}
 
 		pt_dump_seq_printf(st->seq, "0x%016lx-0x%016lx   ",
@@ -318,7 +318,7 @@ void ptdump_walk(struct seq_file *s, struct ptdump_info *info)
 		.marker = info->markers,
 		.level = -1,
 		.ptdump = {
-			.note_page = note_page,
+			.analte_page = analte_page,
 			.range = (struct ptdump_range[]){
 				{info->base_addr, end},
 				{0, 0}
@@ -356,7 +356,7 @@ void ptdump_check_wx(void)
 		.level = -1,
 		.check_wx = true,
 		.ptdump = {
-			.note_page = note_page,
+			.analte_page = analte_page,
 			.range = (struct ptdump_range[]) {
 				{PAGE_OFFSET, ~0UL},
 				{0, 0}
@@ -367,10 +367,10 @@ void ptdump_check_wx(void)
 	ptdump_walk_pgd(&st.ptdump, &init_mm, NULL);
 
 	if (st.wx_pages || st.uxn_pages)
-		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found, %lu non-UXN pages found\n",
+		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found, %lu analn-UXN pages found\n",
 			st.wx_pages, st.uxn_pages);
 	else
-		pr_info("Checked W+X mappings: passed, no W+X pages found\n");
+		pr_info("Checked W+X mappings: passed, anal W+X pages found\n");
 }
 
 static int __init ptdump_init(void)

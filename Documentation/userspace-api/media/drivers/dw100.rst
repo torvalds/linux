@@ -60,7 +60,7 @@ The number of elements in the array must match the image size:
 
     elems = (DIV_ROUND_UP(width, 16) + 1) * (DIV_ROUND_UP(height, 16) + 1);
 
-If the control has not been set by the application, the driver uses an identity
+If the control has analt been set by the application, the driver uses an identity
 map.
 
 More details on the DW100 hardware operations can be found in
@@ -72,7 +72,7 @@ The Vivante DW100 m2m driver implements the following driver-specific control:
     Specifies to DW100 driver its dewarping map (aka LUT) blob as described in
     *chapter 13.15.2.3 Dewarping Remap* of IMX8MP_ reference manual as an U32
     dynamic array. The image is divided into many small 16x16 blocks. If the
-    width/height of the image is not divisible by 16, the size of the
+    width/height of the image is analt divisible by 16, the size of the
     rightmost/bottommost block is the remainder. The dewarping map only saves
     the vertex coordinates of the block. The dewarping grid map is comprised of
     vertex coordinates for x and y. Each x, y coordinate register uses 16 bits

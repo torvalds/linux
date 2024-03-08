@@ -166,14 +166,14 @@ enum omap3_l3_initiator_id {
 };
 
 enum omap3_l3_code {
-	OMAP_L3_CODE_NOERROR = 0,
+	OMAP_L3_CODE_ANALERROR = 0,
 	OMAP_L3_CODE_UNSUP_CMD = 1,
 	OMAP_L3_CODE_ADDR_HOLE = 2,
 	OMAP_L3_CODE_PROTECT_VIOLATION = 3,
 	OMAP_L3_CODE_IN_BAND_ERR = 4,
 	/* codes 5 and 6 are reserved */
-	OMAP_L3_CODE_REQ_TOUT_NOT_ACCEPT = 7,
-	OMAP_L3_CODE_REQ_TOUT_NO_RESP = 8,
+	OMAP_L3_CODE_REQ_TOUT_ANALT_ACCEPT = 7,
+	OMAP_L3_CODE_REQ_TOUT_ANAL_RESP = 8,
 	/* codes 9 - 15 are also reserved */
 };
 

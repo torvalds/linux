@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -90,7 +90,7 @@ nv31_mpeg_chan_new(struct nvkm_chan *fifoch, const struct nvkm_oclass *oclass,
 	int ret = -EBUSY;
 
 	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_object_ctor(&nv31_mpeg_chan, oclass, &chan->object);
 	chan->mpeg = mpeg;
 	chan->fifo = fifoch;
@@ -214,7 +214,7 @@ nv31_mpeg_intr(struct nvkm_engine *engine)
 		nvkm_error(subdev, "ch %d [%s] %08x %08x %08x %08x\n",
 			   mpeg->chan ? mpeg->chan->fifo->id : -1,
 			   mpeg->chan ? mpeg->chan->fifo->name :
-			   "unknown", stat, type, mthd, data);
+			   "unkanalwn", stat, type, mthd, data);
 	}
 
 	spin_unlock_irqrestore(&mpeg->engine.lock, flags);
@@ -278,7 +278,7 @@ nv31_mpeg_new_(const struct nv31_mpeg_func *func, struct nvkm_device *device,
 	struct nv31_mpeg *mpeg;
 
 	if (!(mpeg = kzalloc(sizeof(*mpeg), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	mpeg->func = func;
 	*pmpeg = &mpeg->engine;
 

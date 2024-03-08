@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020 Mellanox Technologies */
+/* Copyright (c) 2020 Mellaanalx Techanallogies */
 
 #include "en/txrx.h"
 #include "en/params.h"
@@ -63,14 +63,14 @@ static int mlx5e_open_trap_rq(struct mlx5e_priv *priv, struct mlx5e_trap *t)
 	struct mlx5e_create_cq_param ccp = {};
 	struct dim_cq_moder trap_moder = {};
 	struct mlx5e_rq *rq = &t->rq;
-	int node;
+	int analde;
 	int err;
 
-	node = dev_to_node(mdev->device);
+	analde = dev_to_analde(mdev->device);
 
 	ccp.netdev   = priv->netdev;
 	ccp.wq       = priv->wq;
-	ccp.node     = node;
+	ccp.analde     = analde;
 	ccp.ch_stats = t->stats;
 	ccp.napi     = &t->napi;
 	ccp.ix       = 0;
@@ -79,7 +79,7 @@ static int mlx5e_open_trap_rq(struct mlx5e_priv *priv, struct mlx5e_trap *t)
 		return err;
 
 	mlx5e_init_trap_rq(t, &t->params, rq);
-	err = mlx5e_open_rq(&t->params, rq_param, NULL, node, rq);
+	err = mlx5e_open_rq(&t->params, rq_param, NULL, analde, rq);
 	if (err)
 		goto err_destroy_cq;
 
@@ -105,7 +105,7 @@ static int mlx5e_create_trap_direct_rq_tir(struct mlx5_core_dev *mdev, struct ml
 
 	builder = mlx5e_tir_builder_alloc(false);
 	if (!builder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mlx5e_tir_builder_build_inline(builder, mdev->mlx5e_res.hw_objs.td.tdn, rqn);
 	err = mlx5e_tir_init(tir, builder, mdev, true);
@@ -134,9 +134,9 @@ static struct mlx5e_trap *mlx5e_open_trap(struct mlx5e_priv *priv)
 	struct mlx5e_trap *t;
 	int err;
 
-	t = kvzalloc_node(sizeof(*t), GFP_KERNEL, cpu_to_node(cpu));
+	t = kvzalloc_analde(sizeof(*t), GFP_KERNEL, cpu_to_analde(cpu));
 	if (!t)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mlx5e_build_trap_params(priv->mdev, netdev->max_mtu, priv->q_counter, t);
 
@@ -241,7 +241,7 @@ static int mlx5e_handle_action_trap(struct mlx5e_priv *priv, int trap_id)
 			goto err_out;
 		break;
 	default:
-		netdev_warn(priv->netdev, "%s: Unknown trap id %d\n", __func__, trap_id);
+		netdev_warn(priv->netdev, "%s: Unkanalwn trap id %d\n", __func__, trap_id);
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -263,7 +263,7 @@ static int mlx5e_handle_action_drop(struct mlx5e_priv *priv, int trap_id)
 		mlx5e_remove_mac_trap(priv->fs);
 		break;
 	default:
-		netdev_warn(priv->netdev, "%s: Unknown trap id %d\n", __func__, trap_id);
+		netdev_warn(priv->netdev, "%s: Unkanalwn trap id %d\n", __func__, trap_id);
 		return -EINVAL;
 	}
 	if (priv->en_trap && !mlx5_devlink_trap_get_num_active(priv->mdev))
@@ -276,7 +276,7 @@ int mlx5e_handle_trap_event(struct mlx5e_priv *priv, struct mlx5_trap_ctx *trap_
 {
 	int err = 0;
 
-	/* Traps are unarmed when interface is down, no need to update
+	/* Traps are unarmed when interface is down, anal need to update
 	 * them. The configuration is saved in the core driver,
 	 * queried and applied upon interface up operation in
 	 * mlx5e_open_locked().

@@ -12,7 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  */
-/* Generated code: do not edit or commmit. */
+/* Generated code: do analt edit or commmit. */
 
 #include "ia_css_pipeline.h"
 #include "ia_css_isp_states.h"

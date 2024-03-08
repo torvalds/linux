@@ -23,7 +23,7 @@ ip netns exec ${NETNS} ip link set bond_slave_1 master bond0
 ip netns exec ${NETNS} ethtool -K bond0 rx-vlan-filter off
 ip netns exec ${NETNS} ip link add link bond_slave_1 name bond_slave_1.0 type vlan id 0
 ip netns exec ${NETNS} ip link add link bond0 name bond0.0 type vlan id 0
-ip netns exec ${NETNS} ip link set bond_slave_1 nomaster
+ip netns exec ${NETNS} ip link set bond_slave_1 analmaster
 ip netns exec ${NETNS} ip link del veth2 || fail "Please check vlan HW filter function"
 
 exit $ret

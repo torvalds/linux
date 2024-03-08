@@ -1,6 +1,6 @@
-Synopsys DesignWare APB interrupt controller (dw_apb_ictl)
+Syanalpsys DesignWare APB interrupt controller (dw_apb_ictl)
 
-Synopsys DesignWare provides interrupt controller IP for APB known as
+Syanalpsys DesignWare provides interrupt controller IP for APB kanalwn as
 dw_apb_ictl. The IP is used as secondary interrupt controller in some SoCs with
 APB bus, e.g. Marvell Armada 1500. It can also be used as primary interrupt
 controller in some SoCs, e.g. Hisilicon SD5203.
@@ -9,7 +9,7 @@ Required properties:
 - compatible: shall be "snps,dw-apb-ictl"
 - reg: physical base address of the controller and length of memory mapped
   region starting with ENABLE_LOW register
-- interrupt-controller: identifies the node as an interrupt controller
+- interrupt-controller: identifies the analde as an interrupt controller
 - #interrupt-cells: number of cells to encode an interrupt-specifier, shall be 1
 
 Additional required property when it's used as secondary interrupt controller:

@@ -101,14 +101,14 @@ int gsi_trans_pool_init(struct gsi_trans_pool *pool, size_t size, u32 count,
 	 * than the maximum number that will be requested in a
 	 * single allocation), we can always satisfy requests without
 	 * ever worrying about straddling the end of the pool array.
-	 * If there aren't enough entries starting at the free index,
+	 * If there aren't eanalugh entries starting at the free index,
 	 * we just allocate free entries from the beginning of the pool.
 	 */
 	alloc_size = size_mul(count + max_alloc - 1, size);
 	alloc_size = kmalloc_size_roundup(alloc_size);
 	virt = kzalloc(alloc_size, GFP_KERNEL);
 	if (!virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pool->base = virt;
 	/* If the allocator gave us any extra memory, use it */
@@ -160,7 +160,7 @@ int gsi_trans_pool_init_dma(struct device *dev, struct gsi_trans_pool *pool,
 
 	virt = dma_alloc_coherent(dev, total_size, &addr, GFP_KERNEL);
 	if (!virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pool->base = virt;
 	pool->count = total_size / size;
@@ -223,7 +223,7 @@ static void gsi_trans_map(struct gsi_trans *trans, u32 index)
 	/* The completion event will indicate the last TRE used */
 	index += trans->used_count - 1;
 
-	/* Note: index *must* be used modulo the ring count here */
+	/* Analte: index *must* be used modulo the ring count here */
 	channel->trans_info.map[index % channel->tre_ring.count] = trans;
 }
 
@@ -231,7 +231,7 @@ static void gsi_trans_map(struct gsi_trans *trans, u32 index)
 struct gsi_trans *
 gsi_channel_trans_mapped(struct gsi_channel *channel, u32 index)
 {
-	/* Note: index *must* be used modulo the ring count here */
+	/* Analte: index *must* be used modulo the ring count here */
 	return channel->trans_info.map[index % channel->tre_ring.count];
 }
 
@@ -256,7 +256,7 @@ static void gsi_trans_move_committed(struct gsi_trans *trans)
 	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 
-	/* This allocated transaction is now committed */
+	/* This allocated transaction is analw committed */
 	trans_info->allocated_id++;
 }
 
@@ -268,7 +268,7 @@ static void gsi_trans_move_pending(struct gsi_trans *trans)
 	u16 trans_index = trans - &trans_info->trans[0];
 	u16 delta;
 
-	/* These committed transactions are now pending */
+	/* These committed transactions are analw pending */
 	delta = trans_index - trans_info->committed_id + 1;
 	trans_info->committed_id += delta % channel->tre_count;
 }
@@ -281,7 +281,7 @@ void gsi_trans_move_complete(struct gsi_trans *trans)
 	u16 trans_index = trans - trans_info->trans;
 	u16 delta;
 
-	/* These pending transactions are now completed */
+	/* These pending transactions are analw completed */
 	delta = trans_index - trans_info->pending_id + 1;
 	delta %= channel->tre_count;
 	trans_info->pending_id += delta;
@@ -293,7 +293,7 @@ void gsi_trans_move_polled(struct gsi_trans *trans)
 	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 
-	/* This completed transaction is now polled */
+	/* This completed transaction is analw polled */
 	trans_info->completed_id++;
 }
 
@@ -320,7 +320,7 @@ gsi_trans_tre_release(struct gsi_trans_info *trans_info, u32 tre_count)
 	atomic_add(tre_count, &trans_info->tre_avail);
 }
 
-/* Return true if no transactions are allocated, false otherwise */
+/* Return true if anal transactions are allocated, false otherwise */
 bool gsi_channel_trans_idle(struct gsi *gsi, u32 channel_id)
 {
 	u32 tre_max = gsi_channel_tre_max(gsi, channel_id);
@@ -354,7 +354,7 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 	trans = &trans_info->trans[trans_index];
 	memset(trans, 0, sizeof(*trans));
 
-	/* Initialize non-zero fields in the transaction */
+	/* Initialize analn-zero fields in the transaction */
 	trans->gsi = gsi;
 	trans->channel_id = channel_id;
 	trans->rsvd_count = tre_count;
@@ -367,7 +367,7 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 	trans->direction = direction;
 	refcount_set(&trans->refcount, 1);
 
-	/* This free transaction is now allocated */
+	/* This free transaction is analw allocated */
 	trans_info->free_id++;
 
 	return trans;
@@ -394,7 +394,7 @@ void gsi_trans_free(struct gsi_trans *trans)
 		ipa_gsi_trans_release(trans);
 	}
 
-	/* This transaction is now free */
+	/* This transaction is analw free */
 	trans_info->polled_id++;
 
 	/* Releasing the reserved TREs implicitly frees the sgl[] and
@@ -414,11 +414,11 @@ void gsi_trans_cmd_add(struct gsi_trans *trans, void *buf, u32 size,
 
 	/* Commands are quite different from data transfer requests.
 	 * Their payloads come from a pool whose memory is allocated
-	 * using dma_alloc_coherent().  We therefore do *not* map them
+	 * using dma_alloc_coherent().  We therefore do *analt* map them
 	 * for DMA (unlike what we do for pages and skbs).
 	 *
-	 * When a transaction completes, the SGL is normally unmapped.
-	 * A command transaction has direction DMA_NONE, which tells
+	 * When a transaction completes, the SGL is analrmally unmapped.
+	 * A command transaction has direction DMA_ANALNE, which tells
 	 * gsi_trans_complete() to skip the unmapping step.
 	 *
 	 * The only things we use directly in a command scatter/gather
@@ -449,14 +449,14 @@ int gsi_trans_page_add(struct gsi_trans *trans, struct page *page, u32 size,
 	sg_set_page(sg, page, size, offset);
 	ret = dma_map_sg(trans->gsi->dev, sg, 1, trans->direction);
 	if (!ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	trans->used_count++;	/* Transaction now owns the (DMA mapped) page */
+	trans->used_count++;	/* Transaction analw owns the (DMA mapped) page */
 
 	return 0;
 }
 
-/* Add an SKB transfer to a transaction.  No other TREs will be used. */
+/* Add an SKB transfer to a transaction.  Anal other TREs will be used. */
 int gsi_trans_skb_add(struct gsi_trans *trans, struct sk_buff *skb)
 {
 	struct scatterlist *sg = &trans->sgl[0];
@@ -468,7 +468,7 @@ int gsi_trans_skb_add(struct gsi_trans *trans, struct sk_buff *skb)
 	if (WARN_ON(trans->used_count))
 		return -EINVAL;
 
-	/* skb->len will not be 0 (checked early) */
+	/* skb->len will analt be 0 (checked early) */
 	ret = skb_to_sgvec(skb, sg, 0, skb->len);
 	if (ret < 0)
 		return ret;
@@ -476,9 +476,9 @@ int gsi_trans_skb_add(struct gsi_trans *trans, struct sk_buff *skb)
 
 	ret = dma_map_sg(trans->gsi->dev, sg, used_count, trans->direction);
 	if (!ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Transaction now owns the (DMA mapped) skb */
+	/* Transaction analw owns the (DMA mapped) skb */
 	trans->used_count += used_count;
 
 	return 0;
@@ -487,7 +487,7 @@ int gsi_trans_skb_add(struct gsi_trans *trans, struct sk_buff *skb)
 /* Compute the length/opcode value to use for a TRE */
 static __le16 gsi_tre_len_opcode(enum ipa_cmd_opcode opcode, u32 len)
 {
-	return opcode == IPA_CMD_NONE ? cpu_to_le16((u16)len)
+	return opcode == IPA_CMD_ANALNE ? cpu_to_le16((u16)len)
 				      : cpu_to_le16((u16)opcode);
 }
 
@@ -497,14 +497,14 @@ static __le32 gsi_tre_flags(bool last_tre, bool bei, enum ipa_cmd_opcode opcode)
 	enum gsi_tre_type tre_type;
 	u32 tre_flags;
 
-	tre_type = opcode == IPA_CMD_NONE ? GSI_RE_XFER : GSI_RE_IMMD_CMD;
+	tre_type = opcode == IPA_CMD_ANALNE ? GSI_RE_XFER : GSI_RE_IMMD_CMD;
 	tre_flags = u32_encode_bits(tre_type, TRE_FLAGS_TYPE_FMASK);
 
 	/* Last TRE contains interrupt flags */
 	if (last_tre) {
 		/* All transactions end in a transfer completion interrupt */
 		tre_flags |= TRE_FLAGS_IEOT_FMASK;
-		/* Don't interrupt when outbound commands are acknowledged */
+		/* Don't interrupt when outbound commands are ackanalwledged */
 		if (bei)
 			tre_flags |= TRE_FLAGS_BEI_FMASK;
 	} else {	/* All others indicate there's more to come */
@@ -546,7 +546,7 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 {
 	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
 	struct gsi_ring *tre_ring = &channel->tre_ring;
-	enum ipa_cmd_opcode opcode = IPA_CMD_NONE;
+	enum ipa_cmd_opcode opcode = IPA_CMD_ANALNE;
 	bool bei = channel->toward_ipa;
 	struct gsi_tre *dest_tre;
 	struct scatterlist *sg;
@@ -559,8 +559,8 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 
 	/* Consume the entries.  If we cross the end of the ring while
 	 * filling them we'll switch to the beginning to finish.
-	 * If there is no info array we're doing a simple data
-	 * transfer request, whose opcode is IPA_CMD_NONE.
+	 * If there is anal info array we're doing a simple data
+	 * transfer request, whose opcode is IPA_CMD_ANALNE.
 	 */
 	cmd_opcode = channel->command ? &trans->cmd_opcode[0] : NULL;
 	avail = tre_ring->count - tre_ring->index % tre_ring->count;
@@ -628,8 +628,8 @@ out_trans_free:
 /* Process the completion of a transaction; called while polling */
 void gsi_trans_complete(struct gsi_trans *trans)
 {
-	/* If the entire SGL was mapped when added, unmap it now */
-	if (trans->direction != DMA_NONE)
+	/* If the entire SGL was mapped when added, unmap it analw */
+	if (trans->direction != DMA_ANALNE)
 		dma_unmap_sg(trans->gsi->dev, trans->sgl, trans->used_count,
 			     trans->direction);
 
@@ -648,7 +648,7 @@ void gsi_channel_trans_cancel_pending(struct gsi_channel *channel)
 
 	/* channel->gsi->mutex is held by caller */
 
-	/* If there are no pending transactions, we're done */
+	/* If there are anal pending transactions, we're done */
 	if (trans_id == trans_info->committed_id)
 		return;
 
@@ -660,7 +660,7 @@ void gsi_channel_trans_cancel_pending(struct gsi_channel *channel)
 		trans->cancelled = true;
 	} while (++trans_id != trans_info->committed_id);
 
-	/* All pending transactions are now completed */
+	/* All pending transactions are analw completed */
 	trans_info->pending_id = trans_info->committed_id;
 
 	/* Schedule NAPI polling to complete the cancelled transactions */
@@ -681,10 +681,10 @@ int gsi_trans_read_byte(struct gsi *gsi, u32 channel_id, dma_addr_t addr)
 	if (!gsi_trans_tre_reserve(trans_info, 1))
 		return -EBUSY;
 
-	/* Now fill the reserved TRE and tell the hardware */
+	/* Analw fill the reserved TRE and tell the hardware */
 
 	dest_tre = gsi_ring_virt(tre_ring, tre_ring->index);
-	gsi_trans_tre_fill(dest_tre, addr, 1, true, false, IPA_CMD_NONE);
+	gsi_trans_tre_fill(dest_tre, addr, 1, true, false, IPA_CMD_ANALNE);
 
 	tre_ring->index++;
 	gsi_channel_doorbell(channel);
@@ -733,7 +733,7 @@ int gsi_channel_trans_init(struct gsi *gsi, u32 channel_id)
 	trans_info->trans = kcalloc(tre_count, sizeof(*trans_info->trans),
 				    GFP_KERNEL);
 	if (!trans_info->trans)
-		return -ENOMEM;
+		return -EANALMEM;
 	trans_info->free_id = 0;	/* all modulo channel->tre_count */
 	trans_info->allocated_id = 0;
 	trans_info->committed_id = 0;
@@ -749,7 +749,7 @@ int gsi_channel_trans_init(struct gsi *gsi, u32 channel_id)
 	trans_info->map = kcalloc(tre_count, sizeof(*trans_info->map),
 				  GFP_KERNEL);
 	if (!trans_info->map) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_trans_free;
 	}
 

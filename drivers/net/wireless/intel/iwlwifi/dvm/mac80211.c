@@ -72,7 +72,7 @@ iwlagn_iface_combinations_dualmode[] = {
 };
 
 /*
- * Not a mac80211 entry point function, but it fits in with all the
+ * Analt a mac80211 entry point function, but it fits in with all the
  * other mac80211 functions grouped here.
  */
 int iwlagn_mac_setup_register(struct iwl_priv *priv,
@@ -115,7 +115,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 
 	/*
 	 * Enable 11w if advertised by firmware and software crypto
-	 * is not enabled (as the firmware will interpret some mgmt
+	 * is analt enabled (as the firmware will interpret some mgmt
 	 * packets, so enabling it with software crypto isn't safe)
 	 */
 	if (priv->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_MFP &&
@@ -225,7 +225,7 @@ static int __iwl_up(struct iwl_priv *priv)
 	lockdep_assert_held(&priv->mutex);
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
-		IWL_WARN(priv, "Exit pending; will not bring the NIC up\n");
+		IWL_WARN(priv, "Exit pending; will analt bring the NIC up\n");
 		return -EIO;
 	}
 
@@ -291,7 +291,7 @@ static int iwlagn_mac_start(struct ieee80211_hw *hw)
 
 	IWL_DEBUG_INFO(priv, "Start UP work done.\n");
 
-	/* Now we should be done, and the READY bit should be set. */
+	/* Analw we should be done, and the READY bit should be set. */
 	if (WARN_ON(!test_bit(STATUS_READY, &priv->status)))
 		ret = -EIO;
 
@@ -365,7 +365,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 	mutex_lock(&priv->mutex);
 
-	/* Don't attempt WoWLAN when not associated, tear down instead. */
+	/* Don't attempt WoWLAN when analt associated, tear down instead. */
 	if (!ctx->vif || ctx->vif->type != NL80211_IFTYPE_STATION ||
 	    !iwl_is_associated_ctx(ctx)) {
 		ret = 1;
@@ -401,7 +401,7 @@ struct iwl_resume_data {
 	bool valid;
 };
 
-static bool iwl_resume_status_fn(struct iwl_notif_wait_data *notif_wait,
+static bool iwl_resume_status_fn(struct iwl_analtif_wait_data *analtif_wait,
 				 struct iwl_rx_packet *pkt, void *data)
 {
 	struct iwl_resume_data *resume_data = data;
@@ -430,7 +430,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 		u32 valid;
 		u32 error_id;
 	} err_info;
-	struct iwl_notification_wait status_wait;
+	struct iwl_analtification_wait status_wait;
 	static const u16 status_cmd[] = {
 		REPLY_WOWLAN_GET_STATUS,
 	};
@@ -462,7 +462,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 		goto out_unlock;
 	}
 
-	/* uCode is no longer operating by itself */
+	/* uCode is anal longer operating by itself */
 	iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
 		    CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
@@ -502,20 +502,20 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	/*
 	 * This is very strange. The GET_STATUS command is sent but the device
 	 * doesn't reply properly, it seems it doesn't close the RBD so one is
-	 * always left open ... As a result, we need to send another command
+	 * always left open ... As a result, we need to send aanalther command
 	 * and have to reset the driver afterwards. As we need to switch to
 	 * runtime firmware again that'll happen.
 	 */
 
-	iwl_init_notification_wait(&priv->notif_wait, &status_wait, status_cmd,
+	iwl_init_analtification_wait(&priv->analtif_wait, &status_wait, status_cmd,
 				   ARRAY_SIZE(status_cmd), iwl_resume_status_fn,
 				   &resume_data);
 
 	iwl_dvm_send_cmd_pdu(priv, REPLY_WOWLAN_GET_STATUS, CMD_ASYNC, 0, NULL);
 	iwl_dvm_send_cmd_pdu(priv, REPLY_ECHO, CMD_ASYNC, 0, NULL);
-	/* an RBD is left open in the firmware now! */
+	/* an RBD is left open in the firmware analw! */
 
-	ret = iwl_wait_notification(&priv->notif_wait, &status_wait, HZ/5);
+	ret = iwl_wait_analtification(&priv->analtif_wait, &status_wait, HZ/5);
 	if (ret)
 		goto out_unlock;
 
@@ -608,7 +608,7 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if (iwlwifi_mod_params.swcrypto) {
 		IWL_DEBUG_MAC80211(priv, "leave - hwcrypto disabled\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	switch (key->cipher) {
@@ -648,7 +648,7 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	 * If we are getting WEP group key and we didn't receive any key mapping
 	 * so far, we are in legacy wep mode (group key only), otherwise we are
 	 * in 1X mode.
-	 * In legacy wep mode, we use another host command to the uCode.
+	 * In legacy wep mode, we use aanalther host command to the uCode.
 	 */
 	if ((key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 	     key->cipher == WLAN_CIPHER_SUITE_WEP104) && !sta) {
@@ -839,8 +839,8 @@ static int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 	enum {
-		NONE, ADD, REMOVE, HT_RATE_INIT, ADD_RATE_INIT,
-	} op = NONE;
+		ANALNE, ADD, REMOVE, HT_RATE_INIT, ADD_RATE_INIT,
+	} op = ANALNE;
 	int ret;
 
 	IWL_DEBUG_MAC80211(priv, "station %pM state change %d->%d\n",
@@ -848,11 +848,11 @@ static int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 	if (vif->type == NL80211_IFTYPE_STATION) {
-		if (old_state == IEEE80211_STA_NOTEXIST &&
-		    new_state == IEEE80211_STA_NONE)
+		if (old_state == IEEE80211_STA_ANALTEXIST &&
+		    new_state == IEEE80211_STA_ANALNE)
 			op = ADD;
-		else if (old_state == IEEE80211_STA_NONE &&
-			 new_state == IEEE80211_STA_NOTEXIST)
+		else if (old_state == IEEE80211_STA_ANALNE &&
+			 new_state == IEEE80211_STA_ANALTEXIST)
 			op = REMOVE;
 		else if (old_state == IEEE80211_STA_AUTH &&
 			 new_state == IEEE80211_STA_ASSOC)
@@ -970,10 +970,10 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 
 	/* Configure HT40 channels */
 	switch (cfg80211_get_chandef_type(&ch_switch->chandef)) {
-	case NL80211_CHAN_NO_HT:
+	case NL80211_CHAN_ANAL_HT:
 	case NL80211_CHAN_HT20:
 		ctx->ht.is_40mhz = false;
-		ctx->ht.extension_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_NONE;
+		ctx->ht.extension_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_ANALNE;
 		break;
 	case NL80211_CHAN_HT40MINUS:
 		ctx->ht.extension_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_BELOW;
@@ -1060,7 +1060,7 @@ static void iwlagn_configure_filter(struct ieee80211_hw *hw,
 		ctx->staging.filter_flags |= filter_or;
 
 		/*
-		 * Not committing directly because hardware can perform a scan,
+		 * Analt committing directly because hardware can perform a scan,
 		 * but we'll eventually commit the filter flags change anyway.
 		 */
 	}
@@ -1070,7 +1070,7 @@ static void iwlagn_configure_filter(struct ieee80211_hw *hw,
 	/*
 	 * Receiving all multicast frames is always enabled by the
 	 * default flags setup in iwl_connection_init_rx_config()
-	 * since we currently do not support programming multicast
+	 * since we currently do analt support programming multicast
 	 * filters into the device.
 	 */
 	*total_flags &= FIF_OTHER_BSS | FIF_ALLMULTI |
@@ -1136,7 +1136,7 @@ static void iwlagn_mac_event_callback(struct ieee80211_hw *hw,
 		queue_work(priv->workqueue, &priv->bt_runtime_config);
 	} else {
 		IWL_DEBUG_MAC80211(priv, "Advanced BT coex disabled,"
-				"ignoring RSSI callback\n");
+				"iganalring RSSI callback\n");
 	}
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
@@ -1168,7 +1168,7 @@ static int iwlagn_mac_conf_tx(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
 	if (!iwl_is_ready_rf(priv)) {
-		IWL_DEBUG_MAC80211(priv, "leave - RF not ready\n");
+		IWL_DEBUG_MAC80211(priv, "leave - RF analt ready\n");
 		return -EIO;
 	}
 
@@ -1275,7 +1275,7 @@ static int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
 	mutex_lock(&priv->mutex);
 
 	if (!iwl_is_ready_rf(priv)) {
-		IWL_WARN(priv, "Try to add interface when device not ready\n");
+		IWL_WARN(priv, "Try to add interface when device analt ready\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -1310,7 +1310,7 @@ static int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
 	}
 
 	if (!ctx) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -1366,8 +1366,8 @@ static void iwl_teardown_interface(struct iwl_priv *priv,
 	/*
 	 * When removing the IBSS interface, overwrite the
 	 * BT traffic load with the stored one from the last
-	 * notification, if any. If this is a device that
-	 * doesn't implement this, this has no effect since
+	 * analtification, if any. If this is a device that
+	 * doesn't implement this, this has anal effect since
 	 * both values are the same and zero.
 	 */
 	if (vif->type == NL80211_IFTYPE_ADHOC)
@@ -1449,7 +1449,7 @@ static int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
 
 			/*
 			 * The current mode switch would be exclusive, but
-			 * another context is active ... refuse the switch.
+			 * aanalther context is active ... refuse the switch.
 			 */
 			err = -EBUSY;
 			goto out;
@@ -1465,7 +1465,7 @@ static int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
 	/*
 	 * We've switched internally, but submitting to the
 	 * device may have failed for some reason. Mask this
-	 * error, because otherwise mac80211 will not switch
+	 * error, because otherwise mac80211 will analt switch
 	 * (and set the interface type back) and we'll be
 	 * out of sync with it.
 	 */
@@ -1497,7 +1497,7 @@ static int iwlagn_mac_hw_scan(struct ieee80211_hw *hw,
 	 * If an internal scan is in progress, just set
 	 * up the scan_request as per above.
 	 */
-	if (priv->scan_type != IWL_SCAN_NORMAL) {
+	if (priv->scan_type != IWL_SCAN_ANALRMAL) {
 		IWL_DEBUG_SCAN(priv,
 			       "SCAN request during internal scan - defer\n");
 		priv->scan_request = req;
@@ -1510,7 +1510,7 @@ static int iwlagn_mac_hw_scan(struct ieee80211_hw *hw,
 		 * mac80211 will only ask for one band at a time
 		 * so using channels[0] here is ok
 		 */
-		ret = iwl_scan_initiate(priv, vif, IWL_SCAN_NORMAL,
+		ret = iwl_scan_initiate(priv, vif, IWL_SCAN_ANALRMAL,
 					req->channels[0]->band);
 		if (ret) {
 			priv->scan_request = NULL;
@@ -1536,9 +1536,9 @@ static void iwl_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id)
 	iwl_send_add_sta(priv, &cmd, CMD_ASYNC);
 }
 
-static void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
+static void iwlagn_mac_sta_analtify(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
-				  enum sta_notify_cmd cmd,
+				  enum sta_analtify_cmd cmd,
 				  struct ieee80211_sta *sta)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
@@ -1548,13 +1548,13 @@ static void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
 	switch (cmd) {
-	case STA_NOTIFY_SLEEP:
+	case STA_ANALTIFY_SLEEP:
 		WARN_ON(!sta_priv->client);
 		sta_priv->asleep = true;
 		if (atomic_read(&sta_priv->pending_frames) > 0)
 			ieee80211_sta_block_awake(hw, sta, true);
 		break;
-	case STA_NOTIFY_AWAKE:
+	case STA_ANALTIFY_AWAKE:
 		WARN_ON(!sta_priv->client);
 		if (!sta_priv->asleep)
 			break;
@@ -1591,7 +1591,7 @@ const struct ieee80211_ops iwlagn_hw_ops = {
 	.bss_info_changed = iwlagn_bss_info_changed,
 	.ampdu_action = iwlagn_mac_ampdu_action,
 	.hw_scan = iwlagn_mac_hw_scan,
-	.sta_notify = iwlagn_mac_sta_notify,
+	.sta_analtify = iwlagn_mac_sta_analtify,
 	.sta_state = iwlagn_mac_sta_state,
 	.channel_switch = iwlagn_mac_channel_switch,
 	.flush = iwlagn_mac_flush,

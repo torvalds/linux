@@ -45,7 +45,7 @@
 #define KEXEC_ARCH KEXEC_ARCH_PPC
 #endif
 
-#define KEXEC_STATE_NONE 0
+#define KEXEC_STATE_ANALNE 0
 #define KEXEC_STATE_IRQS_OFF 1
 #define KEXEC_STATE_REAL_MODE 2
 
@@ -95,7 +95,7 @@ static inline bool kdump_in_progress(void)
 }
 
 void relocate_new_kernel(unsigned long indirection_page, unsigned long reboot_code_buffer,
-			 unsigned long start_address) __noreturn;
+			 unsigned long start_address) __analreturn;
 
 void kexec_copy_flush(struct kimage *image);
 

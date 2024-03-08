@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -74,7 +74,7 @@ static int sni_82596_probe(struct platform_device *dev)
 	struct	net_device *netdevice;
 	struct i596_private *lp;
 	struct  resource *res, *ca, *idprom, *options;
-	int	retval = -ENOMEM;
+	int	retval = -EANALMEM;
 	void __iomem *mpu_addr;
 	void __iomem *ca_addr;
 	u8 __iomem *eth_addr;
@@ -85,10 +85,10 @@ static int sni_82596_probe(struct platform_device *dev)
 	options = platform_get_resource(dev, 0, 0);
 	idprom = platform_get_resource(dev, IORESOURCE_MEM, 2);
 	if (!res || !ca || !options || !idprom)
-		return -ENODEV;
+		return -EANALDEV;
 	mpu_addr = ioremap(res->start, 4);
 	if (!mpu_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 	ca_addr = ioremap(ca->start, 4);
 	if (!ca_addr)
 		goto probe_failed_free_mpu;
@@ -120,7 +120,7 @@ static int sni_82596_probe(struct platform_device *dev)
 	iounmap(eth_addr);
 
 	if (netdevice->irq < 0) {
-		printk(KERN_ERR "%s: IRQ not found for i82596 at 0x%lx\n",
+		printk(KERN_ERR "%s: IRQ analt found for i82596 at 0x%lx\n",
 			__FILE__, netdevice->base_addr);
 		retval = netdevice->irq;
 		goto probe_failed;

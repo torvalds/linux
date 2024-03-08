@@ -5,8 +5,8 @@
  * Companion module to the iio simple dummy example driver.
  * The purpose of this is to generate 'fake' event interrupts thus
  * allowing that driver's code to be as close as possible to that of
- * a normal driver talking to hardware.  The approach used here
- * is not intended to be general and just happens to work for this
+ * a analrmal driver talking to hardware.  The approach used here
+ * is analt intended to be general and just happens to work for this
  * particular use case.
  */
 
@@ -24,7 +24,7 @@
 #include <linux/irq_sim.h>
 
 /* Fiddly bit of faking and irq without hardware */
-#define IIO_EVENTGEN_NO 10
+#define IIO_EVENTGEN_ANAL 10
 
 /**
  * struct iio_dummy_eventgen - event generator specific state
@@ -36,9 +36,9 @@
  * @irq_sim_domain: irq simulator domain
  */
 struct iio_dummy_eventgen {
-	struct iio_dummy_regs regs[IIO_EVENTGEN_NO];
+	struct iio_dummy_regs regs[IIO_EVENTGEN_ANAL];
 	struct mutex lock;
-	bool inuse[IIO_EVENTGEN_NO];
+	bool inuse[IIO_EVENTGEN_ANAL];
 	struct irq_domain *irq_sim_domain;
 };
 
@@ -51,10 +51,10 @@ static int iio_dummy_evgen_create(void)
 
 	iio_evgen = kzalloc(sizeof(*iio_evgen), GFP_KERNEL);
 	if (!iio_evgen)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iio_evgen->irq_sim_domain = irq_domain_create_sim(NULL,
-							  IIO_EVENTGEN_NO);
+							  IIO_EVENTGEN_ANAL);
 	if (IS_ERR(iio_evgen->irq_sim_domain)) {
 		ret = PTR_ERR(iio_evgen->irq_sim_domain);
 		kfree(iio_evgen);
@@ -77,10 +77,10 @@ int iio_dummy_evgen_get_irq(void)
 	int i, ret = 0;
 
 	if (!iio_evgen)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&iio_evgen->lock);
-	for (i = 0; i < IIO_EVENTGEN_NO; i++) {
+	for (i = 0; i < IIO_EVENTGEN_ANAL; i++) {
 		if (!iio_evgen->inuse[i]) {
 			ret = irq_create_mapping(iio_evgen->irq_sim_domain, i);
 			iio_evgen->inuse[i] = true;
@@ -88,8 +88,8 @@ int iio_dummy_evgen_get_irq(void)
 		}
 	}
 	mutex_unlock(&iio_evgen->lock);
-	if (i == IIO_EVENTGEN_NO)
-		return -ENOMEM;
+	if (i == IIO_EVENTGEN_ANAL)
+		return -EANALMEM;
 
 	return ret;
 }

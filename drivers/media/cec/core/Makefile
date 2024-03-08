@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 cec-objs := cec-core.o cec-adap.o cec-api.o
 
-ifeq ($(CONFIG_CEC_NOTIFIER),y)
-  cec-objs += cec-notifier.o
+ifeq ($(CONFIG_CEC_ANALTIFIER),y)
+  cec-objs += cec-analtifier.o
 endif
 
 ifeq ($(CONFIG_CEC_PIN),y)

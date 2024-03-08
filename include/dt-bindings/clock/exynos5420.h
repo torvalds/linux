@@ -3,11 +3,11 @@
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  * Author: Andrzej Hajda <a.hajda@samsung.com>
  *
- * Device Tree binding constants for Exynos5420 clock controller.
+ * Device Tree binding constants for Exyanals5420 clock controller.
  */
 
-#ifndef _DT_BINDINGS_CLOCK_EXYNOS_5420_H
-#define _DT_BINDINGS_CLOCK_EXYNOS_5420_H
+#ifndef _DT_BINDINGS_CLOCK_EXYANALS_5420_H
+#define _DT_BINDINGS_CLOCK_EXYANALS_5420_H
 
 /* core clocks */
 #define CLK_FIN_PLL		1
@@ -244,7 +244,7 @@
 #define CLK_DOUT_ACLK400_MSCL	771
 #define CLK_DOUT_ACLK200	772
 #define CLK_DOUT_ACLK200_FSYS2	773
-#define CLK_DOUT_ACLK100_NOC	774
+#define CLK_DOUT_ACLK100_ANALC	774
 #define CLK_DOUT_PCLK200_FSYS	775
 #define CLK_DOUT_ACLK200_FSYS	776
 #define CLK_DOUT_ACLK333_432_GSCL	777
@@ -271,4 +271,4 @@
 #define CLK_DOUT_PCLK_DREX0	798
 #define CLK_DOUT_PCLK_DREX1	799
 
-#endif /* _DT_BINDINGS_CLOCK_EXYNOS_5420_H */
+#endif /* _DT_BINDINGS_CLOCK_EXYANALS_5420_H */

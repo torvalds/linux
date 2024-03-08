@@ -14,7 +14,7 @@
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pgtable.h>
 /* Used for the temporal inet entries and routing */
 #include <linux/socket.h>
@@ -84,7 +84,7 @@ static const struct net_device_ops hplance_netdev_ops = {
 static int hplance_init_one(struct dio_dev *d, const struct dio_device_id *ent)
 {
 	struct net_device *dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	dev = alloc_etherdev(sizeof(struct hplance_private));
 	if (!dev)

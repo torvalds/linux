@@ -12,19 +12,19 @@ maintainers:
   - Heiner Kallweit <hkallweit1@gmail.com>
 
 # The dt-schema tools will generate a select statement first by using
-# the compatible, and second by using the node name if any. In our
-# case, the node name is the one we want to match on, while the
+# the compatible, and second by using the analde name if any. In our
+# case, the analde name is the one we want to match on, while the
 # compatible is optional.
 select:
   properties:
-    $nodename:
+    $analdename:
       pattern: "^ethernet-phy(@[a-f0-9]+)?$"
 
   required:
-    - $nodename
+    - $analdename
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^ethernet-phy(@[a-f0-9]+)?$"
 
   compatible:
@@ -35,7 +35,7 @@ properties:
         description: PHYs that implement IEEE802.3 clause 45
       - pattern: "^ethernet-phy-id[a-f0-9]{4}\\.[a-f0-9]{4}$"
         description:
-          If the PHY reports an incorrect ID (or none at all) then the
+          If the PHY reports an incorrect ID (or analne at all) then the
           compatible list may contain an entry with the correct PHY ID
           in the above form.
           The first group of digits is the 16 bit Phy Identifier 1
@@ -89,14 +89,14 @@ properties:
   broken-turn-around:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      If set, indicates the PHY device does not correctly release
+      If set, indicates the PHY device does analt correctly release
       the turn around line low at end of the control phase of the
       MDIO transaction.
 
   clocks:
     maxItems: 1
     description:
-      External clock connected to the PHY. If not specified it is assumed
+      External clock connected to the PHY. If analt specified it is assumed
       that the PHY uses a fixed crystal or an internal oscillator.
 
   enet-phy-lane-swap:
@@ -106,7 +106,7 @@ properties:
       compensate for the board being designed with the lanes
       swapped.
 
-  enet-phy-lane-no-swap:
+  enet-phy-lane-anal-swap:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       If set, indicates that PHY will disable swap of the
@@ -154,7 +154,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     maxItems: 1
     description:
-      Specifies a reference to a node representing a Power Sourcing Equipment.
+      Specifies a reference to a analde representing a Power Sourcing Equipment.
 
   phy-is-integrated:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -189,7 +189,7 @@ properties:
   sfp:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Specifies a reference to a node representing a SFP cage.
+      Specifies a reference to a analde representing a SFP cage.
 
   rx-internal-delay-ps:
     description: |

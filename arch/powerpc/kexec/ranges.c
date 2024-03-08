@@ -24,11 +24,11 @@
 #include <asm/kexec_ranges.h>
 
 /**
- * get_max_nr_ranges - Get the max no. of ranges crash_mem structure
+ * get_max_nr_ranges - Get the max anal. of ranges crash_mem structure
  *                     could hold, given the size allocated for it.
  * @size:              Allocation size of crash_mem structure.
  *
- * Returns the maximum no. of ranges.
+ * Returns the maximum anal. of ranges.
  */
 static inline unsigned int get_max_nr_ranges(size_t size)
 {
@@ -68,7 +68,7 @@ static inline size_t get_mem_rngs_size(struct crash_mem *mem_rngs)
  *
  * (Re)allocates memory, if needed.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 static int __add_mem_range(struct crash_mem **mem_ranges, u64 base, u64 size)
 {
@@ -77,7 +77,7 @@ static int __add_mem_range(struct crash_mem **mem_ranges, u64 base, u64 size)
 	if (!mem_rngs || (mem_rngs->nr_ranges == mem_rngs->max_nr_ranges)) {
 		mem_rngs = realloc_mem_ranges(mem_ranges);
 		if (!mem_rngs)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	mem_rngs->ranges[mem_rngs->nr_ranges].start = base;
@@ -94,7 +94,7 @@ static int __add_mem_range(struct crash_mem **mem_ranges, u64 base, u64 size)
  *
  * Assumes a sorted range list.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void __merge_memory_ranges(struct crash_mem *mem_rngs)
 {
@@ -137,7 +137,7 @@ static int rngcmp(const void *_x, const void *_y)
  * @mem_rngs:           Range list to sort.
  * @merge:              If true, merge the list after sorting.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 void sort_memory_ranges(struct crash_mem *mem_rngs, bool merge)
 {
@@ -203,7 +203,7 @@ struct crash_mem *realloc_mem_ranges(struct crash_mem **mem_ranges)
  *
  * (Re)allocates memory, if needed.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 int add_mem_range(struct crash_mem **mem_ranges, u64 base, u64 size)
 {
@@ -238,14 +238,14 @@ int add_mem_range(struct crash_mem **mem_ranges, u64 base, u64 size)
  * add_tce_mem_ranges - Adds tce-table range to the given memory ranges list.
  * @mem_ranges:         Range list to add the memory range(s) to.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 int add_tce_mem_ranges(struct crash_mem **mem_ranges)
 {
-	struct device_node *dn = NULL;
+	struct device_analde *dn = NULL;
 	int ret = 0;
 
-	for_each_node_by_type(dn, "pci") {
+	for_each_analde_by_type(dn, "pci") {
 		u64 base;
 		u32 size;
 
@@ -253,8 +253,8 @@ int add_tce_mem_ranges(struct crash_mem **mem_ranges)
 		ret |= of_property_read_u32(dn, "linux,tce-size", &size);
 		if (ret) {
 			/*
-			 * It is ok to have pci nodes without tce. So, ignore
-			 * property does not exist error.
+			 * It is ok to have pci analdes without tce. So, iganalre
+			 * property does analt exist error.
 			 */
 			if (ret == -EINVAL) {
 				ret = 0;
@@ -268,7 +268,7 @@ int add_tce_mem_ranges(struct crash_mem **mem_ranges)
 			break;
 	}
 
-	of_node_put(dn);
+	of_analde_put(dn);
 	return ret;
 }
 
@@ -277,7 +277,7 @@ int add_tce_mem_ranges(struct crash_mem **mem_ranges)
  *                        if the initrd was retained.
  * @mem_ranges:           Range list to add the memory range to.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 int add_initrd_mem_range(struct crash_mem **mem_ranges)
 {
@@ -302,7 +302,7 @@ int add_initrd_mem_range(struct crash_mem **mem_ranges)
  *                      if it exists
  * @mem_ranges:         Range list to add the memory range to.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 int add_htab_mem_range(struct crash_mem **mem_ranges)
 {
@@ -318,7 +318,7 @@ int add_htab_mem_range(struct crash_mem **mem_ranges)
  *                        memory ranges list.
  * @mem_ranges:           Range list to add the memory range to.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 int add_kernel_mem_range(struct crash_mem **mem_ranges)
 {
@@ -329,15 +329,15 @@ int add_kernel_mem_range(struct crash_mem **mem_ranges)
  * add_rtas_mem_range - Adds RTAS region to the given memory ranges list.
  * @mem_ranges:         Range list to add the memory range to.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 int add_rtas_mem_range(struct crash_mem **mem_ranges)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	u32 base, size;
 	int ret = 0;
 
-	dn = of_find_node_by_path("/rtas");
+	dn = of_find_analde_by_path("/rtas");
 	if (!dn)
 		return 0;
 
@@ -346,7 +346,7 @@ int add_rtas_mem_range(struct crash_mem **mem_ranges)
 	if (!ret)
 		ret = add_mem_range(mem_ranges, base, size);
 
-	of_node_put(dn);
+	of_analde_put(dn);
 	return ret;
 }
 
@@ -354,15 +354,15 @@ int add_rtas_mem_range(struct crash_mem **mem_ranges)
  * add_opal_mem_range - Adds OPAL region to the given memory ranges list.
  * @mem_ranges:         Range list to add the memory range to.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 int add_opal_mem_range(struct crash_mem **mem_ranges)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	u64 base, size;
 	int ret;
 
-	dn = of_find_node_by_path("/ibm,opal");
+	dn = of_find_analde_by_path("/ibm,opal");
 	if (!dn)
 		return 0;
 
@@ -371,7 +371,7 @@ int add_opal_mem_range(struct crash_mem **mem_ranges)
 	if (!ret)
 		ret = add_mem_range(mem_ranges, base, size);
 
-	of_node_put(dn);
+	of_analde_put(dn);
 	return ret;
 }
 
@@ -380,7 +380,7 @@ int add_opal_mem_range(struct crash_mem **mem_ranges)
  *                           to the given memory ranges list.
  * @mem_ranges:              Range list to add the memory ranges to.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 int add_reserved_mem_ranges(struct crash_mem **mem_ranges)
 {

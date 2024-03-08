@@ -26,12 +26,12 @@ static int min_capability;
 /**
  * struct zynqmp_pm_domain - Wrapper around struct generic_pm_domain
  * @gpd:		Generic power domain
- * @node_id:		PM node ID corresponding to device inside PM domain
- * @requested:		The PM node mapped to the PM domain has been requested
+ * @analde_id:		PM analde ID corresponding to device inside PM domain
+ * @requested:		The PM analde mapped to the PM domain has been requested
  */
 struct zynqmp_pm_domain {
 	struct generic_pm_domain gpd;
-	u32 node_id;
+	u32 analde_id;
 	bool requested;
 };
 
@@ -42,14 +42,14 @@ struct zynqmp_pm_domain {
  * zynqmp_gpd_is_active_wakeup_path() - Check if device is in wakeup source
  *					path
  * @dev:	Device to check for wakeup source path
- * @not_used:	Data member (not required)
+ * @analt_used:	Data member (analt required)
  *
  * This function is checks device's child hierarchy and checks if any device is
  * set as wakeup source.
  *
  * Return: 1 if device is in wakeup source path else 0
  */
-static int zynqmp_gpd_is_active_wakeup_path(struct device *dev, void *not_used)
+static int zynqmp_gpd_is_active_wakeup_path(struct device *dev, void *analt_used)
 {
 	int may_wakeup;
 
@@ -75,19 +75,19 @@ static int zynqmp_gpd_power_on(struct generic_pm_domain *domain)
 	struct zynqmp_pm_domain *pd = to_zynqmp_pm_domain(domain);
 	int ret;
 
-	ret = zynqmp_pm_set_requirement(pd->node_id,
+	ret = zynqmp_pm_set_requirement(pd->analde_id,
 					ZYNQMP_PM_CAPABILITY_ACCESS,
 					ZYNQMP_PM_MAX_QOS,
 					ZYNQMP_PM_REQUEST_ACK_BLOCKING);
 	if (ret) {
 		dev_err(&domain->dev,
-			"failed to set requirement to 0x%x for PM node id %d: %d\n",
-			ZYNQMP_PM_CAPABILITY_ACCESS, pd->node_id, ret);
+			"failed to set requirement to 0x%x for PM analde id %d: %d\n",
+			ZYNQMP_PM_CAPABILITY_ACCESS, pd->analde_id, ret);
 		return ret;
 	}
 
-	dev_dbg(&domain->dev, "set requirement to 0x%x for PM node id %d\n",
-		ZYNQMP_PM_CAPABILITY_ACCESS, pd->node_id);
+	dev_dbg(&domain->dev, "set requirement to 0x%x for PM analde id %d\n",
+		ZYNQMP_PM_CAPABILITY_ACCESS, pd->analde_id);
 
 	return 0;
 }
@@ -109,14 +109,14 @@ static int zynqmp_gpd_power_off(struct generic_pm_domain *domain)
 	u32 capabilities = min_capability;
 	bool may_wakeup;
 
-	/* If domain is already released there is nothing to be done */
+	/* If domain is already released there is analthing to be done */
 	if (!pd->requested) {
-		dev_dbg(&domain->dev, "PM node id %d is already released\n",
-			pd->node_id);
+		dev_dbg(&domain->dev, "PM analde id %d is already released\n",
+			pd->analde_id);
 		return 0;
 	}
 
-	list_for_each_entry_safe(pdd, tmp, &domain->dev_list, list_node) {
+	list_for_each_entry_safe(pdd, tmp, &domain->dev_list, list_analde) {
 		/* If device is in wakeup path, set capability to WAKEUP */
 		may_wakeup = zynqmp_gpd_is_active_wakeup_path(pdd->dev, NULL);
 		if (may_wakeup) {
@@ -127,17 +127,17 @@ static int zynqmp_gpd_power_off(struct generic_pm_domain *domain)
 		}
 	}
 
-	ret = zynqmp_pm_set_requirement(pd->node_id, capabilities, 0,
-					ZYNQMP_PM_REQUEST_ACK_NO);
+	ret = zynqmp_pm_set_requirement(pd->analde_id, capabilities, 0,
+					ZYNQMP_PM_REQUEST_ACK_ANAL);
 	if (ret) {
 		dev_err(&domain->dev,
-			"failed to set requirement to 0x%x for PM node id %d: %d\n",
-			capabilities, pd->node_id, ret);
+			"failed to set requirement to 0x%x for PM analde id %d: %d\n",
+			capabilities, pd->analde_id, ret);
 		return ret;
 	}
 
-	dev_dbg(&domain->dev, "set requirement to 0x%x for PM node id %d\n",
-		capabilities, pd->node_id);
+	dev_dbg(&domain->dev, "set requirement to 0x%x for PM analde id %d\n",
+		capabilities, pd->analde_id);
 
 	return 0;
 }
@@ -161,22 +161,22 @@ static int zynqmp_gpd_attach_dev(struct generic_pm_domain *domain,
 		dev_dbg(&domain->dev, "failed to create device link for %s\n",
 			dev_name(dev));
 
-	/* If this is not the first device to attach there is nothing to do */
+	/* If this is analt the first device to attach there is analthing to do */
 	if (domain->device_count)
 		return 0;
 
-	ret = zynqmp_pm_request_node(pd->node_id, 0, 0,
+	ret = zynqmp_pm_request_analde(pd->analde_id, 0, 0,
 				     ZYNQMP_PM_REQUEST_ACK_BLOCKING);
 	if (ret) {
-		dev_err(&domain->dev, "%s request failed for node %d: %d\n",
-			domain->name, pd->node_id, ret);
+		dev_err(&domain->dev, "%s request failed for analde %d: %d\n",
+			domain->name, pd->analde_id, ret);
 		return ret;
 	}
 
 	pd->requested = true;
 
-	dev_dbg(&domain->dev, "%s requested PM node id %d\n",
-		dev_name(dev), pd->node_id);
+	dev_dbg(&domain->dev, "%s requested PM analde id %d\n",
+		dev_name(dev), pd->analde_id);
 
 	return 0;
 }
@@ -192,21 +192,21 @@ static void zynqmp_gpd_detach_dev(struct generic_pm_domain *domain,
 	struct zynqmp_pm_domain *pd = to_zynqmp_pm_domain(domain);
 	int ret;
 
-	/* If this is not the last device to detach there is nothing to do */
+	/* If this is analt the last device to detach there is analthing to do */
 	if (domain->device_count)
 		return;
 
-	ret = zynqmp_pm_release_node(pd->node_id);
+	ret = zynqmp_pm_release_analde(pd->analde_id);
 	if (ret) {
-		dev_err(&domain->dev, "failed to release PM node id %d: %d\n",
-			pd->node_id, ret);
+		dev_err(&domain->dev, "failed to release PM analde id %d: %d\n",
+			pd->analde_id, ret);
 		return;
 	}
 
 	pd->requested = false;
 
-	dev_dbg(&domain->dev, "%s released PM node id %d\n",
-		dev_name(dev), pd->node_id);
+	dev_dbg(&domain->dev, "%s released PM analde id %d\n",
+		dev_name(dev), pd->analde_id);
 }
 
 static struct generic_pm_domain *zynqmp_gpd_xlate
@@ -223,24 +223,24 @@ static struct generic_pm_domain *zynqmp_gpd_xlate
 
 	/* Check for existing pm domains */
 	for (i = 0; i < ZYNQMP_NUM_DOMAINS; i++) {
-		if (pd[i].node_id == idx)
+		if (pd[i].analde_id == idx)
 			goto done;
 	}
 
 	/*
-	 * Add index in empty node_id of power domain list as no existing
+	 * Add index in empty analde_id of power domain list as anal existing
 	 * power domain found for current index.
 	 */
 	for (i = 0; i < ZYNQMP_NUM_DOMAINS; i++) {
-		if (pd[i].node_id == 0) {
-			pd[i].node_id = idx;
+		if (pd[i].analde_id == 0) {
+			pd[i].analde_id = idx;
 			break;
 		}
 	}
 
 done:
 	if (!genpd_data->domains[i] || i == ZYNQMP_NUM_DOMAINS)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	return genpd_data->domains[i];
 }
@@ -255,25 +255,25 @@ static int zynqmp_gpd_probe(struct platform_device *pdev)
 
 	pd = devm_kcalloc(dev, ZYNQMP_NUM_DOMAINS, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	zynqmp_pd_data = devm_kzalloc(dev, sizeof(*zynqmp_pd_data), GFP_KERNEL);
 	if (!zynqmp_pd_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	zynqmp_pd_data->xlate = zynqmp_gpd_xlate;
 
 	domains = devm_kcalloc(dev, ZYNQMP_NUM_DOMAINS, sizeof(*domains),
 			       GFP_KERNEL);
 	if (!domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (!of_device_is_compatible(dev->parent->of_node,
+	if (!of_device_is_compatible(dev->parent->of_analde,
 				     "xlnx,zynqmp-firmware"))
 		min_capability = ZYNQMP_PM_CAPABILITY_UNUSABLE;
 
 	for (i = 0; i < ZYNQMP_NUM_DOMAINS; i++, pd++) {
-		pd->node_id = 0;
+		pd->analde_id = 0;
 		pd->gpd.name = kasprintf(GFP_KERNEL, "domain%d", i);
 		pd->gpd.power_off = zynqmp_gpd_power_off;
 		pd->gpd.power_on = zynqmp_gpd_power_on;
@@ -288,14 +288,14 @@ static int zynqmp_gpd_probe(struct platform_device *pdev)
 
 	zynqmp_pd_data->domains = domains;
 	zynqmp_pd_data->num_domains = ZYNQMP_NUM_DOMAINS;
-	of_genpd_add_provider_onecell(dev->parent->of_node, zynqmp_pd_data);
+	of_genpd_add_provider_onecell(dev->parent->of_analde, zynqmp_pd_data);
 
 	return 0;
 }
 
 static void zynqmp_gpd_remove(struct platform_device *pdev)
 {
-	of_genpd_del_provider(pdev->dev.parent->of_node);
+	of_genpd_del_provider(pdev->dev.parent->of_analde);
 }
 
 static void zynqmp_gpd_sync_state(struct device *dev)

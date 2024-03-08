@@ -81,7 +81,7 @@ static void z8536_reset(struct comedi_device *dev)
 	unsigned long flags;
 
 	/*
-	 * Even if the state of the Z8536 is not known, the following
+	 * Even if the state of the Z8536 is analt kanalwn, the following
 	 * sequence will reset it and put it in State 0.
 	 */
 	spin_lock_irqsave(&dev->spinlock, flags);
@@ -111,8 +111,8 @@ static void z8536_reset(struct comedi_device *dev)
 	 * Port B is connected to Ditial Input channels 8-13.
 	 * Configure the port to allow interrupt detection.
 	 *
-	 * NOTE: Bits 7 and 6 of Port B are connected to internal
-	 * diagnostic signals and bit 7 is inverted.
+	 * ANALTE: Bits 7 and 6 of Port B are connected to internal
+	 * diaganalstic signals and bit 7 is inverted.
 	 */
 	z8536_write(dev, Z8536_PAB_MODE_PTS_BIT |
 			 Z8536_PAB_MODE_SB |
@@ -122,7 +122,7 @@ static void z8536_reset(struct comedi_device *dev)
 	z8536_write(dev, 0xff, Z8536_PB_DD_REG);
 
 	/*
-	 * Not sure what Port C is connected to...
+	 * Analt sure what Port C is connected to...
 	 */
 	z8536_write(dev, 0x09, Z8536_PC_DPP_REG);
 	z8536_write(dev, 0x0e, Z8536_PC_DD_REG);
@@ -213,7 +213,7 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 
 	val = inl(devpriv->amcc + AMCC_OP_REG_INTCSR);
 	if (!(val & INTCSR_INTR_ASSERTED))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (apci1500_ack_irq(dev, Z8536_PA_CMDSTAT_REG))
 		status |= 0x01;	/* port a event (inputs 0-7) */
@@ -233,17 +233,17 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 	}
 
 	/*
-	 * NOTE: The 'status' returned by the sample matches the
+	 * ANALTE: The 'status' returned by the sample matches the
 	 * interrupt mask information from the APCI-1500 Users Manual.
 	 *
 	 *    Mask     Meaning
 	 * ----------  ------------------------------------------
 	 * 0b00000001  Event 1 has occurred
 	 * 0b00000010  Event 2 has occurred
-	 * 0b00000100  Counter/timer 1 has run down (not implemented)
-	 * 0b00001000  Counter/timer 2 has run down (not implemented)
-	 * 0b00010000  Counter 3 has run down (not implemented)
-	 * 0b00100000  Watchdog has run down (not implemented)
+	 * 0b00000100  Counter/timer 1 has run down (analt implemented)
+	 * 0b00001000  Counter/timer 2 has run down (analt implemented)
+	 * 0b00010000  Counter 3 has run down (analt implemented)
+	 * 0b00100000  Watchdog has run down (analt implemented)
 	 * 0b01000000  Voltage error
 	 * 0b10000000  Short-circuit error
 	 */
@@ -348,7 +348,7 @@ static int apci1500_di_inttrig_start(struct comedi_device *dev,
 
 	if (!valid_trig) {
 		dev_dbg(dev->class_dev,
-			"digital trigger %d is not configured\n", trig_num);
+			"digital trigger %d is analt configured\n", trig_num);
 		return -EINVAL;
 	}
 
@@ -379,7 +379,7 @@ static int apci1500_di_cmdtest(struct comedi_device *dev,
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -427,7 +427,7 @@ static int apci1500_di_cmdtest(struct comedi_device *dev,
  * input async command is started.
  *
  * Digital input channels 0 to 13 can generate interrupts. Channels 14
- * and 15 are connected to internal board status/diagnostic signals.
+ * and 15 are connected to internal board status/diaganalstic signals.
  *
  * Channel 14 - Voltage error (the external supply is < 5V)
  * Channel 15 - Short-circuit/overtemperature error
@@ -437,7 +437,7 @@ static int apci1500_di_cmdtest(struct comedi_device *dev,
  *		  0 = AND mode
  *		  1 = OR mode
  *	data[2] : configuration operation:
- *	          COMEDI_DIGITAL_TRIG_DISABLE = no interrupts
+ *	          COMEDI_DIGITAL_TRIG_DISABLE = anal interrupts
  *	          COMEDI_DIGITAL_TRIG_ENABLE_EDGES = edge interrupts
  *	          COMEDI_DIGITAL_TRIG_ENABLE_LEVELS = level interrupts
  *	data[3] : left-shift for data[4] and data[5]
@@ -769,7 +769,7 @@ static int apci1500_auto_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -828,7 +828,7 @@ static int apci1500_auto_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
 	s->n_chan	= 3;
 	s->maxdata	= 0xffff;
-	s->range_table	= &range_unknown;
+	s->range_table	= &range_unkanalwn;
 	s->insn_config	= apci1500_timer_insn_config;
 	s->insn_write	= apci1500_timer_insn_write;
 	s->insn_read	= apci1500_timer_insn_read;

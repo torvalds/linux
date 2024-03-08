@@ -217,7 +217,7 @@ allOf:
 additionalProperties: false
 
 examples:
-  # Clock Control Module node:
+  # Clock Control Module analde:
   - |
     #include <dt-bindings/clock/imx8-lpcg.h>
     #include <dt-bindings/firmware/imx/rsrc.h>

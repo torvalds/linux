@@ -349,13 +349,13 @@ void tcp_update_metrics(struct sock *sk)
 	int m;
 
 	sk_dst_confirm(sk);
-	if (READ_ONCE(net->ipv4.sysctl_tcp_nometrics_save) || !dst)
+	if (READ_ONCE(net->ipv4.sysctl_tcp_analmetrics_save) || !dst)
 		return;
 
 	rcu_read_lock();
 	if (icsk->icsk_backoff || !tp->srtt_us) {
 		/* This session failed to estimate rtt. Why?
-		 * Probably, no packets returned in time.  Reset our
+		 * Probably, anal packets returned in time.  Reset our
 		 * results.
 		 */
 		tm = tcp_get_metrics(sk, dst, false);
@@ -404,8 +404,8 @@ void tcp_update_metrics(struct sock *sk)
 	}
 
 	if (tcp_in_initial_slowstart(tp)) {
-		/* Slow start still did not finish. */
-		if (!READ_ONCE(net->ipv4.sysctl_tcp_no_ssthresh_metrics_save) &&
+		/* Slow start still did analt finish. */
+		if (!READ_ONCE(net->ipv4.sysctl_tcp_anal_ssthresh_metrics_save) &&
 		    !tcp_metric_locked(tm, TCP_METRIC_SSTHRESH)) {
 			val = tcp_metric_get(tm, TCP_METRIC_SSTHRESH);
 			if (val && (tcp_snd_cwnd(tp) >> 1) > val)
@@ -421,7 +421,7 @@ void tcp_update_metrics(struct sock *sk)
 	} else if (!tcp_in_slow_start(tp) &&
 		   icsk->icsk_ca_state == TCP_CA_Open) {
 		/* Cong. avoidance phase, cwnd is reliable. */
-		if (!READ_ONCE(net->ipv4.sysctl_tcp_no_ssthresh_metrics_save) &&
+		if (!READ_ONCE(net->ipv4.sysctl_tcp_anal_ssthresh_metrics_save) &&
 		    !tcp_metric_locked(tm, TCP_METRIC_SSTHRESH))
 			tcp_metric_set(tm, TCP_METRIC_SSTHRESH,
 				       max(tcp_snd_cwnd(tp) >> 1, tp->snd_ssthresh));
@@ -430,7 +430,7 @@ void tcp_update_metrics(struct sock *sk)
 			tcp_metric_set(tm, TCP_METRIC_CWND, (val + tcp_snd_cwnd(tp)) >> 1);
 		}
 	} else {
-		/* Else slow start did not finish, cwnd is non-sense,
+		/* Else slow start did analt finish, cwnd is analn-sense,
 		 * ssthresh may be also invalid.
 		 */
 		if (!tcp_metric_locked(tm, TCP_METRIC_CWND)) {
@@ -438,7 +438,7 @@ void tcp_update_metrics(struct sock *sk)
 			tcp_metric_set(tm, TCP_METRIC_CWND,
 				       (val + tp->snd_ssthresh) >> 1);
 		}
-		if (!READ_ONCE(net->ipv4.sysctl_tcp_no_ssthresh_metrics_save) &&
+		if (!READ_ONCE(net->ipv4.sysctl_tcp_anal_ssthresh_metrics_save) &&
 		    !tcp_metric_locked(tm, TCP_METRIC_SSTHRESH)) {
 			val = tcp_metric_get(tm, TCP_METRIC_SSTHRESH);
 			if (val && tp->snd_ssthresh > val)
@@ -487,7 +487,7 @@ void tcp_init_metrics(struct sock *sk)
 	if (tcp_metric_locked(tm, TCP_METRIC_CWND))
 		tp->snd_cwnd_clamp = tcp_metric_get(tm, TCP_METRIC_CWND);
 
-	val = READ_ONCE(net->ipv4.sysctl_tcp_no_ssthresh_metrics_save) ?
+	val = READ_ONCE(net->ipv4.sysctl_tcp_anal_ssthresh_metrics_save) ?
 	      0 : tcp_metric_get(tm, TCP_METRIC_SSTHRESH);
 	if (val) {
 		tp->snd_ssthresh = val;
@@ -501,23 +501,23 @@ void tcp_init_metrics(struct sock *sk)
 	crtt = tcp_metric_get(tm, TCP_METRIC_RTT);
 	rcu_read_unlock();
 reset:
-	/* The initial RTT measurement from the SYN/SYN-ACK is not ideal
+	/* The initial RTT measurement from the SYN/SYN-ACK is analt ideal
 	 * to seed the RTO for later data packets because SYN packets are
 	 * small. Use the per-dst cached values to seed the RTO but keep
 	 * the RTT estimator variables intact (e.g., srtt, mdev, rttvar).
 	 * Later the RTO will be updated immediately upon obtaining the first
 	 * data RTT sample (tcp_rtt_estimator()). Hence the cached RTT only
-	 * influences the first RTO but not later RTT estimation.
+	 * influences the first RTO but analt later RTT estimation.
 	 *
-	 * But if RTT is not available from the SYN (due to retransmits or
+	 * But if RTT is analt available from the SYN (due to retransmits or
 	 * syn cookies) or the cache, force a conservative 3secs timeout.
 	 *
-	 * A bit of theory. RTT is time passed after "normal" sized packet
-	 * is sent until it is ACKed. In normal circumstances sending small
+	 * A bit of theory. RTT is time passed after "analrmal" sized packet
+	 * is sent until it is ACKed. In analrmal circumstances sending small
 	 * packets force peer to delay ACKs and calculation is correct too.
 	 * The algorithm is adaptive and, provided we follow specs, it
 	 * NEVER underestimate RTT. BUT! If peer tries to make some clever
-	 * tricks sort of "quick acks" for time long enough to decrease RTT
+	 * tricks sort of "quick acks" for time long eanalugh to decrease RTT
 	 * to low value, and then abruptly stops to do it and starts to delay
 	 * ACKs, wait for troubles.
 	 */
@@ -619,7 +619,7 @@ static const struct nla_policy tcp_metrics_nl_policy[TCP_METRICS_ATTR_MAX + 1] =
 	[TCP_METRICS_ATTR_ADDR_IPV4]	= { .type = NLA_U32, },
 	[TCP_METRICS_ATTR_ADDR_IPV6]	= { .type = NLA_BINARY,
 					    .len = sizeof(struct in6_addr), },
-	/* Following attributes are not received for GET/DEL,
+	/* Following attributes are analt received for GET/DEL,
 	 * we keep them for reference
 	 */
 #if 0
@@ -660,7 +660,7 @@ static int tcp_metrics_fill_info(struct sk_buff *msg,
 			goto nla_put_failure;
 		break;
 	default:
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 	}
 
 	if (nla_put_msecs(msg, TCP_METRICS_ATTR_AGE,
@@ -671,7 +671,7 @@ static int tcp_metrics_fill_info(struct sk_buff *msg,
 	{
 		int n = 0;
 
-		nest = nla_nest_start_noflag(msg, TCP_METRICS_ATTR_VALS);
+		nest = nla_nest_start_analflag(msg, TCP_METRICS_ATTR_VALS);
 		if (!nest)
 			goto nla_put_failure;
 		for (i = 0; i < TCP_METRIC_MAX_KERNEL + 1; i++) {
@@ -816,7 +816,7 @@ static int __parse_nl_addr(struct genl_info *info, struct inetpeer_addr *addr,
 			*hash = ipv6_addr_hash(inetpeer_get_addr_v6(addr));
 		return 0;
 	}
-	return optional ? 1 : -EAFNOSUPPORT;
+	return optional ? 1 : -EAFANALSUPPORT;
 }
 
 static int parse_nl_addr(struct genl_info *info, struct inetpeer_addr *addr,
@@ -855,7 +855,7 @@ static int tcp_metrics_nl_cmd_get(struct sk_buff *skb, struct genl_info *info)
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reply = genlmsg_put_reply(msg, info, &tcp_metrics_nl_family, 0,
 				  info->genlhdr->cmd);
@@ -1025,7 +1025,7 @@ static void __init tcp_metrics_hash_alloc(void)
 
 	tcp_metrics_hash = kvzalloc(size, GFP_KERNEL);
 	if (!tcp_metrics_hash)
-		panic("Could not allocate the tcp_metrics hash table\n");
+		panic("Could analt allocate the tcp_metrics hash table\n");
 }
 
 static void __net_exit tcp_net_metrics_exit_batch(struct list_head *net_exit_list)
@@ -1045,9 +1045,9 @@ void __init tcp_metrics_init(void)
 
 	ret = register_pernet_subsys(&tcp_net_metrics_ops);
 	if (ret < 0)
-		panic("Could not register tcp_net_metrics_ops\n");
+		panic("Could analt register tcp_net_metrics_ops\n");
 
 	ret = genl_register_family(&tcp_metrics_nl_family);
 	if (ret < 0)
-		panic("Could not register tcp_metrics generic netlink\n");
+		panic("Could analt register tcp_metrics generic netlink\n");
 }

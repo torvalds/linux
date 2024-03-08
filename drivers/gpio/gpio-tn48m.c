@@ -47,11 +47,11 @@ static int tn48m_gpio_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!pdev->dev.parent)
-		return -ENODEV;
+		return -EANALDEV;
 
 	gpio_config = device_get_match_data(&pdev->dev);
 	if (!gpio_config)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = device_property_read_u32(&pdev->dev, "reg", &base);
 	if (ret)
@@ -59,7 +59,7 @@ static int tn48m_gpio_probe(struct platform_device *pdev)
 
 	regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	config.regmap = regmap;
 	config.parent = &pdev->dev;

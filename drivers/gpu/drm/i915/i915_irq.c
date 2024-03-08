@@ -12,14 +12,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL TUNGSTEN GRAPHICS AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT.
+ * IN ANAL EVENT SHALL TUNGSTEN GRAPHICS AND/OR ITS SUPPLIERS BE LIABLE FOR
  * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -63,7 +63,7 @@
 /*
  * Interrupt statistic for PMU. Increments the counter only if the
  * interrupt originated from the GPU so interrupts from a device which
- * shares the interrupt line are not accounted.
+ * shares the interrupt line are analt accounted.
  */
 static inline void pmu_irq_stats(struct drm_i915_private *i915,
 				 irqreturn_t res)
@@ -72,7 +72,7 @@ static inline void pmu_irq_stats(struct drm_i915_private *i915,
 		return;
 
 	/*
-	 * A clever compiler translates that into INC. A not so clever one
+	 * A clever compiler translates that into INC. A analt so clever one
 	 * should at least prevent store tearing.
 	 */
 	WRITE_ONCE(i915->pmu.irq_count, i915->pmu.irq_count + 1);
@@ -86,7 +86,7 @@ void gen3_irq_reset(struct intel_uncore *uncore, i915_reg_t imr,
 
 	intel_uncore_write(uncore, ier, 0);
 
-	/* IIR can theoretically queue up two events. Be paranoid. */
+	/* IIR can theoretically queue up two events. Be paraanalid. */
 	intel_uncore_write(uncore, iir, 0xffffffff);
 	intel_uncore_posting_read(uncore, iir);
 	intel_uncore_write(uncore, iir, 0xffffffff);
@@ -100,7 +100,7 @@ static void gen2_irq_reset(struct intel_uncore *uncore)
 
 	intel_uncore_write16(uncore, GEN2_IER, 0);
 
-	/* IIR can theoretically queue up two events. Be paranoid. */
+	/* IIR can theoretically queue up two events. Be paraanalid. */
 	intel_uncore_write16(uncore, GEN2_IIR, 0xffff);
 	intel_uncore_posting_read16(uncore, GEN2_IIR);
 	intel_uncore_write16(uncore, GEN2_IIR, 0xffff);
@@ -118,7 +118,7 @@ void gen3_assert_iir_is_zero(struct intel_uncore *uncore, i915_reg_t reg)
 		return;
 
 	drm_WARN(&uncore->i915->drm, 1,
-		 "Interrupt register 0x%x is not zero: 0x%08x\n",
+		 "Interrupt register 0x%x is analt zero: 0x%08x\n",
 		 i915_mmio_reg_offset(reg), val);
 	intel_uncore_write(uncore, reg, 0xffffffff);
 	intel_uncore_posting_read(uncore, reg);
@@ -134,7 +134,7 @@ static void gen2_assert_iir_is_zero(struct intel_uncore *uncore)
 		return;
 
 	drm_WARN(&uncore->i915->drm, 1,
-		 "Interrupt register 0x%x is not zero: 0x%08x\n",
+		 "Interrupt register 0x%x is analt zero: 0x%08x\n",
 		 i915_mmio_reg_offset(GEN2_IIR), val);
 	intel_uncore_write16(uncore, GEN2_IIR, 0xffff);
 	intel_uncore_posting_read16(uncore, GEN2_IIR);
@@ -169,7 +169,7 @@ static void gen2_irq_init(struct intel_uncore *uncore,
  * occurred.
  * @work: workqueue struct
  *
- * Doesn't actually do anything except notify userspace. As a consequence of
+ * Doesn't actually do anything except analtify userspace. As a consequence of
  * this event, userspace should try to remap the bad rows since statistically
  * it is likely the same row is more likely to go bad again.
  */
@@ -251,10 +251,10 @@ out:
 static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private *dev_priv = arg;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	if (!intel_irqs_enabled(dev_priv))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
@@ -298,7 +298,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		if (iir & I915_DISPLAY_PORT_INTERRUPT)
 			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
-		/* Call regardless, as some status bits might not be
+		/* Call regardless, as some status bits might analt be
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
@@ -337,10 +337,10 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private *dev_priv = arg;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	if (!intel_irqs_enabled(dev_priv))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
@@ -380,7 +380,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		if (iir & I915_DISPLAY_PORT_INTERRUPT)
 			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
-		/* Call regardless, as some status bits might not be
+		/* Call regardless, as some status bits might analt be
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
@@ -425,10 +425,10 @@ static irqreturn_t ilk_irq_handler(int irq, void *arg)
 	struct drm_i915_private *i915 = arg;
 	void __iomem * const regs = intel_uncore_regs(&i915->uncore);
 	u32 de_iir, gt_iir, de_ier, sde_ier = 0;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	if (unlikely(!intel_irqs_enabled(i915)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	disable_rpm_wakeref_asserts(&i915->runtime_pm);
@@ -442,7 +442,7 @@ static irqreturn_t ilk_irq_handler(int irq, void *arg)
 	 * able to process them after we restore SDEIER (as soon as we restore
 	 * it, we'll get an interrupt if SDEIIR still has something to process
 	 * due to its back queue). */
-	if (!HAS_PCH_NOP(i915)) {
+	if (!HAS_PCH_ANALP(i915)) {
 		sde_ier = raw_reg_read(regs, SDEIER);
 		raw_reg_write(regs, SDEIER, 0);
 	}
@@ -495,7 +495,7 @@ static inline u32 gen8_master_intr_disable(void __iomem * const regs)
 	raw_reg_write(regs, GEN8_MASTER_IRQ, 0);
 
 	/*
-	 * Now with master disabled, get a sample of level indications
+	 * Analw with master disabled, get a sample of level indications
 	 * for this interrupt. Indications will be cleared on related acks.
 	 * New indications can and will light up during processing,
 	 * and will generate new interrupt after enabling master.
@@ -515,12 +515,12 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	u32 master_ctl;
 
 	if (!intel_irqs_enabled(dev_priv))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	master_ctl = gen8_master_intr_disable(regs);
 	if (!master_ctl) {
 		gen8_master_intr_enable(regs);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Find, queue (onto bottom-halves), then clear each source */
@@ -545,7 +545,7 @@ static inline u32 gen11_master_intr_disable(void __iomem * const regs)
 	raw_reg_write(regs, GEN11_GFX_MSTR_IRQ, 0);
 
 	/*
-	 * Now with master disabled, get a sample of level indications
+	 * Analw with master disabled, get a sample of level indications
 	 * for this interrupt. Indications will be cleared on related acks.
 	 * New indications can and will light up during processing,
 	 * and will generate new interrupt after enabling master.
@@ -567,12 +567,12 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 	u32 gu_misc_iir;
 
 	if (!intel_irqs_enabled(i915))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	master_ctl = gen11_master_intr_disable(regs);
 	if (!master_ctl) {
 		gen11_master_intr_enable(regs);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Find, queue (onto bottom-halves), then clear each source */
@@ -624,23 +624,23 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 	u32 gu_misc_iir;
 
 	if (!intel_irqs_enabled(i915))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	master_tile_ctl = dg1_master_intr_disable(regs);
 	if (!master_tile_ctl) {
 		dg1_master_intr_enable(regs);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
-	/* FIXME: we only support tile 0 for now. */
+	/* FIXME: we only support tile 0 for analw. */
 	if (master_tile_ctl & DG1_MSTR_TILE(0)) {
 		master_ctl = raw_reg_read(regs, GEN11_GFX_MSTR_IRQ);
 		raw_reg_write(regs, GEN11_GFX_MSTR_IRQ, master_ctl);
 	} else {
-		drm_err(&i915->drm, "Tile not supported: 0x%08x\n",
+		drm_err(&i915->drm, "Tile analt supported: 0x%08x\n",
 			master_tile_ctl);
 		dg1_master_intr_enable(regs);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	gen11_gt_irq_handler(gt, master_ctl);
@@ -663,7 +663,7 @@ static void ibx_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 
-	if (HAS_PCH_NOP(dev_priv))
+	if (HAS_PCH_ANALP(dev_priv))
 		return;
 
 	GEN3_IRQ_RESET(uncore, SDE);
@@ -864,7 +864,7 @@ static u32 i9xx_error_mask(struct drm_i915_private *i915)
 	 *
 	 * Also gen3 bspec has this to say:
 	 * "DISPA_INVALID_GTT_PTE
-	 "  [DevNapa] : Reserved. This bit does not reflect the page
+	 "  [DevNapa] : Reserved. This bit does analt reflect the page
 	 "              table error for the display plane A."
 	 *
 	 * Unfortunately we can't mask off individual PGTBL_ER bits,
@@ -923,7 +923,7 @@ static void i8xx_error_irq_ack(struct drm_i915_private *i915,
 	 * Toggle all EMR bits to make sure we get an edge
 	 * in the ISR master error bit if we don't clear
 	 * all the EIR bits. Otherwise the edge triggered
-	 * IIR on i965/g4x wouldn't notice that an interrupt
+	 * IIR on i965/g4x wouldn't analtice that an interrupt
 	 * is still pending. Also some EIR bits can't be
 	 * cleared except by handling the underlying error
 	 * (or by a GPU reset) so we mask any bit that
@@ -963,7 +963,7 @@ static void i9xx_error_irq_ack(struct drm_i915_private *dev_priv,
 	 * Toggle all EMR bits to make sure we get an edge
 	 * in the ISR master error bit if we don't clear
 	 * all the EIR bits. Otherwise the edge triggered
-	 * IIR on i965/g4x wouldn't notice that an interrupt
+	 * IIR on i965/g4x wouldn't analtice that an interrupt
 	 * is still pending. Also some EIR bits can't be
 	 * cleared except by handling the underlying error
 	 * (or by a GPU reset) so we mask any bit that
@@ -990,10 +990,10 @@ static void i9xx_error_irq_handler(struct drm_i915_private *dev_priv,
 static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private *dev_priv = arg;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	if (!intel_irqs_enabled(dev_priv))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
@@ -1009,7 +1009,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 
 		ret = IRQ_HANDLED;
 
-		/* Call regardless, as some status bits might not be
+		/* Call regardless, as some status bits might analt be
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
@@ -1092,10 +1092,10 @@ static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
 static irqreturn_t i915_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private *dev_priv = arg;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	if (!intel_irqs_enabled(dev_priv))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
@@ -1116,7 +1116,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		    iir & I915_DISPLAY_PORT_INTERRUPT)
 			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
-		/* Call regardless, as some status bits might not be
+		/* Call regardless, as some status bits might analt be
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
@@ -1160,10 +1160,10 @@ static void i965_irq_reset(struct drm_i915_private *dev_priv)
 static u32 i965_error_mask(struct drm_i915_private *i915)
 {
 	/*
-	 * Enable some error detection, note the instruction error mask
+	 * Enable some error detection, analte the instruction error mask
 	 * bit is reserved, so we leave it masked.
 	 *
-	 * i965 FBC no longer generates spurious GTT errors,
+	 * i965 FBC anal longer generates spurious GTT errors,
 	 * so we can always enable the page table errors.
 	 */
 	if (IS_G4X(i915))
@@ -1218,10 +1218,10 @@ static void i965_irq_postinstall(struct drm_i915_private *dev_priv)
 static irqreturn_t i965_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private *dev_priv = arg;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	if (!intel_irqs_enabled(dev_priv))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
@@ -1241,7 +1241,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		if (iir & I915_DISPLAY_PORT_INTERRUPT)
 			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
-		/* Call regardless, as some status bits might not be
+		/* Call regardless, as some status bits might analt be
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
@@ -1279,7 +1279,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
  * @dev_priv: i915 device instance
  *
  * This function initializes all the irq support including work items, timers
- * and all the vtables. It does not setup the interrupt itself though.
+ * and all the vtables. It does analt setup the interrupt itself though.
  */
 void intel_irq_init(struct drm_i915_private *dev_priv)
 {

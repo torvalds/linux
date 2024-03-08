@@ -9,7 +9,7 @@ controllers), BFQ's main features are:
 - BFQ guarantees a high system and application responsiveness, and a
   low latency for time-sensitive applications, such as audio or video
   players;
-- BFQ distributes bandwidth, and not just time, among processes or
+- BFQ distributes bandwidth, and analt just time, among processes or
   groups (switching back to time distribution when needed to keep
   throughput high).
 
@@ -27,7 +27,7 @@ processing. To give an idea of this overhead, the total,
 single-lock-protected, per-request processing time of BFQ---i.e., the
 sum of the execution times of the request insertion, dispatch and
 completion hooks---is, e.g., 1.9 us on an Intel Core i7-2760QM@2.40GHz
-(dated CPU for notebooks; time measured with simple code
+(dated CPU for analtebooks; time measured with simple code
 instrumentation, and using the throughput-sync.sh script of the S
 suite [1], in performance-profiling mode). To put this result into
 context, the total, single-lock-protected, per-request execution time
@@ -40,7 +40,7 @@ stack). To give an idea of the limits with BFQ, on slow or average
 CPUs, here are, first, the limits of BFQ for three different CPUs, on,
 respectively, an average laptop, an old desktop, and a cheap embedded
 system, in case full hierarchical support is enabled (i.e.,
-CONFIG_BFQ_GROUP_IOSCHED is set), but CONFIG_BFQ_CGROUP_DEBUG is not
+CONFIG_BFQ_GROUP_IOSCHED is set), but CONFIG_BFQ_CGROUP_DEBUG is analt
 set (Section 4-2):
 - Intel i7-4850HQ: 400 KIOPS
 - AMD A8-3850: 250 KIOPS
@@ -95,7 +95,7 @@ background workloads are being executed:
 
 starting an application or loading a file from within an application
 takes about the same time as if the storage device was idle. As a
-comparison, with CFQ, NOOP or DEADLINE, and in the same conditions,
+comparison, with CFQ, ANALOP or DEADLINE, and in the same conditions,
 applications experience high latencies, or even become unresponsive
 until the background workload terminates (also on SSDs).
 
@@ -104,7 +104,7 @@ Low latency for soft real-time applications
 Also soft real-time applications, such as audio and video
 players/streamers, enjoy a low latency and a low drop rate, regardless
 of the background I/O workload. As a consequence, these applications
-do not suffer from almost any glitch due to the background workload.
+do analt suffer from almost any glitch due to the background workload.
 
 Higher speed for code-development tasks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -112,13 +112,13 @@ Higher speed for code-development tasks
 If some additional workload happens to be executed in parallel, then
 BFQ executes the I/O-related components of typical code-development
 tasks (compilation, checkout, merge, ...) much more quickly than CFQ,
-NOOP or DEADLINE.
+ANALOP or DEADLINE.
 
 High throughput
 ^^^^^^^^^^^^^^^
 
 On hard disks, BFQ achieves up to 30% higher throughput than CFQ, and
-up to 150% higher throughput than DEADLINE and NOOP, with all the
+up to 150% higher throughput than DEADLINE and ANALOP, with all the
 sequential workloads considered in our tests. With random workloads,
 and with all the workloads on flash-based devices, BFQ achieves,
 instead, about the same throughput as the other schedulers.
@@ -126,11 +126,11 @@ instead, about the same throughput as the other schedulers.
 Strong fairness, bandwidth and delay guarantees
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-BFQ distributes the device throughput, and not just the device time,
+BFQ distributes the device throughput, and analt just the device time,
 among I/O-bound applications in proportion their weights, with any
 workload and regardless of the device parameters. From these bandwidth
 guarantees, it is possible to compute tight per-I/O-request delay
-guarantees by a simple formula. If not configured for strict service
+guarantees by a simple formula. If analt configured for strict service
 guarantees, BFQ switches to time-based resource sharing (only) for
 applications that would otherwise cause a throughput loss.
 
@@ -179,12 +179,12 @@ plus a lot of code, are borrowed from CFQ.
       throughput.
 
     - Actually, as in CFQ, a queue associated with a process issuing
-      sync requests may not be expired immediately when it empties. In
+      sync requests may analt be expired immediately when it empties. In
       contrast, BFQ may idle the device for a short time interval,
       giving the process the chance to go on being served if it issues
       a new request in time. Device idling typically boosts the
-      throughput on rotational devices and on non-queueing flash-based
-      devices, if processes do synchronous and sequential I/O. In
+      throughput on rotational devices and on analn-queueing flash-based
+      devices, if processes do synchroanalus and sequential I/O. In
       addition, under BFQ, device idling is also instrumental in
       guaranteeing the desired throughput fraction to processes
       issuing sync requests (see the description of the slice_idle
@@ -202,7 +202,7 @@ plus a lot of code, are borrowed from CFQ.
        for throughput. So, with these devices, BFQ performs idling
        only when strictly needed for service guarantees, i.e., for
        guaranteeing low latency or fairness. In these cases, overall
-       throughput may be sub-optimal. No solution currently exists to
+       throughput may be sub-optimal. Anal solution currently exists to
        provide both strong service guarantees and optimal throughput
        on devices with internal queueing.
 
@@ -254,8 +254,8 @@ plus a lot of code, are borrowed from CFQ.
     - First, with any proportional-share scheduler, the maximum
       deviation with respect to an ideal service is proportional to
       the maximum budget (slice) assigned to queues. As a consequence,
-      BFQ can keep this deviation tight not only because of the
-      accurate service of B-WF2Q+, but also because BFQ *does not*
+      BFQ can keep this deviation tight analt only because of the
+      accurate service of B-WF2Q+, but also because BFQ *does analt*
       need to assign a larger budget to a queue to let the queue
       receive a higher fraction of the device throughput.
 
@@ -286,7 +286,7 @@ plus a lot of code, are borrowed from CFQ.
   higher in this common scenario.
 
 - ioprio classes are served in strict priority order, i.e.,
-  lower-priority queues are not served as long as there are
+  lower-priority queues are analt served as long as there are
   higher-priority queues.  Among queues in the same class, the
   bandwidth is distributed in proportion to the weight of each
   queue. A very thin extra bandwidth is however guaranteed to
@@ -303,7 +303,7 @@ parameters slice_idle, strict_guarantees and low_latency. For details
 on how to maximise throughput, see slice_idle, timeout_sync and
 max_budget. The other performance-related parameters have been
 inherited from, and have been preserved mostly for compatibility with
-CFQ. So far, no performance improvement has been reported after
+CFQ. So far, anal performance improvement has been reported after
 changing the latter parameters in BFQ.
 
 In particular, the tunables back_seek-max, back_seek_penalty,
@@ -329,7 +329,7 @@ slice_idle
 
 This parameter specifies how long BFQ should idle for next I/O
 request, when certain sync BFQ queues become empty. By default
-slice_idle is a non-zero value. Idling has a double purpose: boosting
+slice_idle is a analn-zero value. Idling has a double purpose: boosting
 throughput and making sure that the desired throughput distribution is
 respected (see the description of how BFQ works, and, if needed, the
 papers referred there).
@@ -355,11 +355,11 @@ throughput and acceptable latencies.
 Idling is however necessary to have service guarantees enforced in
 case of differentiated weights or differentiated I/O-request lengths.
 To see why, suppose that a given BFQ queue A must get several I/O
-requests served for each request served for another queue B. Idling
+requests served for each request served for aanalther queue B. Idling
 ensures that, if A makes a new I/O request slightly after becoming
-empty, then no request of B is dispatched in the middle, and thus A
-does not lose the possibility to get more than one request dispatched
-before the next request of B is dispatched. Note that idling
+empty, then anal request of B is dispatched in the middle, and thus A
+does analt lose the possibility to get more than one request dispatched
+before the next request of B is dispatched. Analte that idling
 guarantees the desired differentiated treatment of queues only in
 terms of I/O-request dispatches. To guarantee that the actual service
 order then corresponds to the dispatch order, the strict_guarantees
@@ -368,7 +368,7 @@ tunable must be set too.
 There is an important flipside for idling: apart from the above cases
 where it is beneficial also for throughput, idling can severely impact
 throughput. One important case is random workload. Because of this
-issue, BFQ tends to avoid idling as much as possible, when it is not
+issue, BFQ tends to avoid idling as much as possible, when it is analt
 beneficial also for throughput (as detailed in Section 2). As a
 consequence of this behavior, and of further issues described for the
 strict_guarantees tunable, short-term service guarantees may be
@@ -393,7 +393,7 @@ If this parameter is set (default: unset), then BFQ
 - always performs idling when the in-service queue becomes empty;
 
 - forces the device to serve one I/O request at a time, by dispatching a
-  new request only if there is no outstanding request.
+  new request only if there is anal outstanding request.
 
 In the presence of differentiated weights or I/O-request sizes, both
 the above conditions are needed to guarantee that every BFQ queue
@@ -423,20 +423,20 @@ This parameter is used to compute the cost of backward seeking. If the
 backward distance of request is just 1/back_seek_penalty from a "front"
 request, then the seeking cost of two requests is considered equivalent.
 
-So scheduler will not bias toward one or the other request (otherwise scheduler
+So scheduler will analt bias toward one or the other request (otherwise scheduler
 will bias toward front request). Default value of back_seek_penalty is 2.
 
 fifo_expire_async
 -----------------
 
-This parameter is used to set the timeout of asynchronous requests. Default
+This parameter is used to set the timeout of asynchroanalus requests. Default
 value of this is 250ms.
 
 fifo_expire_sync
 ----------------
 
-This parameter is used to set the timeout of synchronous requests. Default
-value of this is 125ms. In case to favor synchronous requests over asynchronous
+This parameter is used to set the timeout of synchroanalus requests. Default
+value of this is 125ms. In case to favor synchroanalus requests over asynchroanalus
 one, this value should be decreased relative to fifo_expire_async.
 
 low_latency
@@ -456,7 +456,7 @@ In addition, as already highlighted at the beginning of this document,
 DISABLE this mode if your only goal is to achieve a high throughput.
 In fact, privileging the I/O of some application over the rest may
 entail a lower throughput. To achieve the highest-possible throughput
-on a non-rotational device, setting slice_idle to 0 may be needed too
+on a analn-rotational device, setting slice_idle to 0 may be needed too
 (at the cost of giving up any strong guarantee on fairness and low
 latency).
 
@@ -504,7 +504,7 @@ share. To activate cgroups support, set BFQ_GROUP_IOSCHED.
 
 With BFQ, proportional share means true proportional share of the
 device bandwidth, according to group weights. For example, a group
-with weight 200 gets twice the bandwidth, and not just twice the time,
+with weight 200 gets twice the bandwidth, and analt just twice the time,
 of a group with weight 100.
 
 BFQ supports hierarchies (group trees) of any depth. Bandwidth is
@@ -541,7 +541,7 @@ created, and kept up-to-date by bfq, depends on whether
 CONFIG_BFQ_CGROUP_DEBUG is set. If it is set, then bfq creates all
 the stat files documented in
 Documentation/admin-guide/cgroup-v1/blkio-controller.rst. If, instead,
-CONFIG_BFQ_CGROUP_DEBUG is not set, then bfq creates only the files::
+CONFIG_BFQ_CGROUP_DEBUG is analt set, then bfq creates only the files::
 
   blkio.bfq.io_service_bytes
   blkio.bfq.io_service_bytes_recursive
@@ -577,7 +577,7 @@ For each group, the following parameters can be set:
 
   weight_device
         This specifies a per-device weight for the cgroup. The syntax is
-        `minor:major weight`. A weight of `0` may be used to reset to the default
+        `mianalr:major weight`. A weight of `0` may be used to reset to the default
         weight.
 
         For cgroup v1, it is set by writing the value to `blkio.bfq.weight_device`.
@@ -588,7 +588,7 @@ For each group, the following parameters can be set:
 [1]
     P. Valente, A. Avanzini, "Evolution of the BFQ Storage I/O
     Scheduler", Proceedings of the First Workshop on Mobile System
-    Technologies (MST-2015), May 2015.
+    Techanallogies (MST-2015), May 2015.
 
     http://algogroup.unimore.it/people/paolo/disk_sched/mst-2015.pdf
 

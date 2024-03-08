@@ -37,7 +37,7 @@ struct rpmsg_device *rpmsg_create_channel(struct rpmsg_device *rpdev,
 	if (WARN_ON(!rpdev))
 		return NULL;
 	if (!rpdev->ops || !rpdev->ops->create_channel) {
-		dev_err(&rpdev->dev, "no create_channel ops found\n");
+		dev_err(&rpdev->dev, "anal create_channel ops found\n");
 		return NULL;
 	}
 
@@ -59,7 +59,7 @@ int rpmsg_release_channel(struct rpmsg_device *rpdev,
 	if (WARN_ON(!rpdev))
 		return -EINVAL;
 	if (!rpdev->ops || !rpdev->ops->release_channel) {
-		dev_err(&rpdev->dev, "no release_channel ops found\n");
+		dev_err(&rpdev->dev, "anal release_channel ops found\n");
 		return -ENXIO;
 	}
 
@@ -80,10 +80,10 @@ EXPORT_SYMBOL(rpmsg_release_channel);
  *
  * This function allows drivers to create such an endpoint, and by that,
  * bind a callback, and possibly some private data too, to an rpmsg address
- * (either one that is known in advance, or one that will be dynamically
+ * (either one that is kanalwn in advance, or one that will be dynamically
  * assigned for them).
  *
- * Simple rpmsg drivers need not call rpmsg_create_ept, because an endpoint
+ * Simple rpmsg drivers need analt call rpmsg_create_ept, because an endpoint
  * is already created for them when they are probed by the rpmsg bus
  * (using the rx callback provided when they registered to the rpmsg bus).
  *
@@ -103,7 +103,7 @@ EXPORT_SYMBOL(rpmsg_release_channel);
  * rx callback is invoked), and an address they want to bind with the
  * callback. If @addr is RPMSG_ADDR_ANY, then rpmsg_create_ept will
  * dynamically assign them an available rpmsg address (drivers should have
- * a very good reason why not to always use RPMSG_ADDR_ANY here).
+ * a very good reason why analt to always use RPMSG_ADDR_ANY here).
  *
  * Return: a pointer to the endpoint on success, or NULL on error.
  */
@@ -143,11 +143,11 @@ EXPORT_SYMBOL(rpmsg_destroy_ept);
  * The message will be sent to the remote processor which the @ept
  * endpoint belongs to, using @ept's address and its associated rpmsg
  * device destination addresses.
- * In case there are no TX buffers available, the function will block until
+ * In case there are anal TX buffers available, the function will block until
  * one becomes available, or a timeout of 15 seconds elapses. When the latter
  * happens, -ERESTARTSYS is returned.
  *
- * Can only be called from process context (for now).
+ * Can only be called from process context (for analw).
  *
  * Return: 0 on success and an appropriate error value on failure.
  */
@@ -172,11 +172,11 @@ EXPORT_SYMBOL(rpmsg_send);
  * This function sends @data of length @len to the remote @dst address.
  * The message will be sent to the remote processor which the @ept
  * endpoint belongs to, using @ept's address as source.
- * In case there are no TX buffers available, the function will block until
+ * In case there are anal TX buffers available, the function will block until
  * one becomes available, or a timeout of 15 seconds elapses. When the latter
  * happens, -ERESTARTSYS is returned.
  *
- * Can only be called from process context (for now).
+ * Can only be called from process context (for analw).
  *
  * Return: 0 on success and an appropriate error value on failure.
  */
@@ -203,11 +203,11 @@ EXPORT_SYMBOL(rpmsg_sendto);
  * and uses @src as the source address.
  * The message will be sent to the remote processor which the @ept
  * endpoint belongs to.
- * In case there are no TX buffers available, the function will block until
+ * In case there are anal TX buffers available, the function will block until
  * one becomes available, or a timeout of 15 seconds elapses. When the latter
  * happens, -ERESTARTSYS is returned.
  *
- * Can only be called from process context (for now).
+ * Can only be called from process context (for analw).
  *
  * Return: 0 on success and an appropriate error value on failure.
  */
@@ -233,10 +233,10 @@ EXPORT_SYMBOL(rpmsg_send_offchannel);
  * The message will be sent to the remote processor which the @ept
  * endpoint belongs to, using @ept's address as source and its associated
  * rpdev's address as destination.
- * In case there are no TX buffers available, the function will immediately
- * return -ENOMEM without waiting until one becomes available.
+ * In case there are anal TX buffers available, the function will immediately
+ * return -EANALMEM without waiting until one becomes available.
  *
- * Can only be called from process context (for now).
+ * Can only be called from process context (for analw).
  *
  * Return: 0 on success and an appropriate error value on failure.
  */
@@ -261,10 +261,10 @@ EXPORT_SYMBOL(rpmsg_trysend);
  * This function sends @data of length @len to the remote @dst address.
  * The message will be sent to the remote processor which the @ept
  * endpoint belongs to, using @ept's address as source.
- * In case there are no TX buffers available, the function will immediately
- * return -ENOMEM without waiting until one becomes available.
+ * In case there are anal TX buffers available, the function will immediately
+ * return -EANALMEM without waiting until one becomes available.
  *
- * Can only be called from process context (for now).
+ * Can only be called from process context (for analw).
  *
  * Return: 0 on success and an appropriate error value on failure.
  */
@@ -311,10 +311,10 @@ EXPORT_SYMBOL(rpmsg_poll);
  * and uses @src as the source address.
  * The message will be sent to the remote processor which the @ept
  * endpoint belongs to.
- * In case there are no TX buffers available, the function will immediately
- * return -ENOMEM without waiting until one becomes available.
+ * In case there are anal TX buffers available, the function will immediately
+ * return -EANALMEM without waiting until one becomes available.
  *
- * Can only be called from process context (for now).
+ * Can only be called from process context (for analw).
  *
  * Return: 0 on success and an appropriate error value on failure.
  */
@@ -343,7 +343,7 @@ int rpmsg_set_flow_control(struct rpmsg_endpoint *ept, bool pause, u32 dst)
 	if (WARN_ON(!ept))
 		return -EINVAL;
 	if (!ept->ops->set_flow_control)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ept->ops->set_flow_control(ept, pause, dst);
 }
@@ -364,7 +364,7 @@ ssize_t rpmsg_get_mtu(struct rpmsg_endpoint *ept)
 	if (WARN_ON(!ept))
 		return -EINVAL;
 	if (!ept->ops->get_mtu)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return ept->ops->get_mtu(ept);
 }
@@ -372,7 +372,7 @@ EXPORT_SYMBOL(rpmsg_get_mtu);
 
 /*
  * match a rpmsg channel with a channel info struct.
- * this is used to make sure we're not creating rpmsg devices for channels
+ * this is used to make sure we're analt creating rpmsg devices for channels
  * that already exist.
  */
 static int rpmsg_device_match(struct device *dev, void *data)
@@ -424,7 +424,7 @@ field##_store(struct device *dev, struct device_attribute *attr,	\
 									\
 	new = kstrndup(buf, sz, GFP_KERNEL);				\
 	if (!new)							\
-		return -ENOMEM;						\
+		return -EANALMEM;						\
 	new[strcspn(new, "\n")] = '\0';					\
 									\
 	device_lock(dev);						\
@@ -455,7 +455,7 @@ static DEVICE_ATTR_RW(field)
 rpmsg_show_attr(name, id.name, "%s\n");
 rpmsg_show_attr(src, src, "0x%x\n");
 rpmsg_show_attr(dst, dst, "0x%x\n");
-rpmsg_show_attr(announce, announce ? "true" : "false", "%s\n");
+rpmsg_show_attr(ananalunce, ananalunce ? "true" : "false", "%s\n");
 rpmsg_string_attr(driver_override, driver_override);
 
 static ssize_t modalias_show(struct device *dev,
@@ -465,7 +465,7 @@ static ssize_t modalias_show(struct device *dev,
 	ssize_t len;
 
 	len = of_device_modalias(dev, buf, PAGE_SIZE);
-	if (len != -ENODEV)
+	if (len != -EANALDEV)
 		return len;
 
 	return sprintf(buf, RPMSG_DEVICE_MODALIAS_FMT "\n", rpdev->id.name);
@@ -477,7 +477,7 @@ static struct attribute *rpmsg_dev_attrs[] = {
 	&dev_attr_modalias.attr,
 	&dev_attr_dst.attr,
 	&dev_attr_src.attr,
-	&dev_attr_announce.attr,
+	&dev_attr_ananalunce.attr,
 	&dev_attr_driver_override.attr,
 	NULL,
 };
@@ -517,7 +517,7 @@ static int rpmsg_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	int ret;
 
 	ret = of_device_uevent_modalias(dev, env);
-	if (ret != -ENODEV)
+	if (ret != -EANALDEV)
 		return ret;
 
 	return add_uevent_var(env, "MODALIAS=" RPMSG_DEVICE_MODALIAS_FMT,
@@ -529,7 +529,7 @@ static int rpmsg_uevent(const struct device *dev, struct kobj_uevent_env *env)
  * it an endpoint, binding its rx callback to a unique local rpmsg
  * address.
  *
- * if we need to, we also announce about this channel to the remote
+ * if we need to, we also ananalunce about this channel to the remote
  * processor (needed in case the driver is exposing an rpmsg service).
  */
 static int rpmsg_dev_probe(struct device *dev)
@@ -552,7 +552,7 @@ static int rpmsg_dev_probe(struct device *dev)
 		ept = rpmsg_create_ept(rpdev, rpdrv->callback, NULL, chinfo);
 		if (!ept) {
 			dev_err(dev, "failed to create endpoint\n");
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 
@@ -568,10 +568,10 @@ static int rpmsg_dev_probe(struct device *dev)
 		goto destroy_ept;
 	}
 
-	if (ept && rpdev->ops->announce_create) {
-		err = rpdev->ops->announce_create(rpdev);
+	if (ept && rpdev->ops->ananalunce_create) {
+		err = rpdev->ops->ananalunce_create(rpdev);
 		if (err) {
-			dev_err(dev, "failed to announce creation\n");
+			dev_err(dev, "failed to ananalunce creation\n");
 			goto remove_rpdev;
 		}
 	}
@@ -593,8 +593,8 @@ static void rpmsg_dev_remove(struct device *dev)
 	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
 	struct rpmsg_driver *rpdrv = to_rpmsg_driver(rpdev->dev.driver);
 
-	if (rpdev->ops->announce_destroy)
-		rpdev->ops->announce_destroy(rpdev);
+	if (rpdev->ops->ananalunce_destroy)
+		rpdev->ops->ananalunce_destroy(rpdev);
 
 	if (rpdrv->remove)
 		rpdrv->remove(rpdev);
@@ -616,7 +616,7 @@ static struct bus_type rpmsg_bus = {
 
 /*
  * A helper for registering rpmsg device with driver override and name.
- * Drivers should not be using it, but instead rpmsg_register_device().
+ * Drivers should analt be using it, but instead rpmsg_register_device().
  */
 int rpmsg_register_device_override(struct rpmsg_device *rpdev,
 				   const char *driver_override)

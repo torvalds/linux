@@ -2,7 +2,7 @@
 
 #define _GNU_SOURCE
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -94,7 +94,7 @@ static int dev_create(const char *dev, const char *link_type,
 
 	rtnl = socket(AF_NETLINK, SOCK_DGRAM, NETLINK_ROUTE);
 	if (rtnl < 0) {
-		fprintf(stderr, "%s: socket %s\n", __func__, strerror(errno));
+		fprintf(stderr, "%s: socket %s\n", __func__, strerror(erranal));
 		return 1;
 	}
 
@@ -133,7 +133,7 @@ static int dev_create(const char *dev, const char *link_type,
 
 	ret = send(rtnl, &req, req.nh.nlmsg_len, 0);
 	if (ret < 0)
-		fprintf(stderr, "%s: send %s\n", __func__, strerror(errno));
+		fprintf(stderr, "%s: send %s\n", __func__, strerror(erranal));
 	ret = (unsigned int)ret != req.nh.nlmsg_len;
 
 	close(rtnl);
@@ -151,7 +151,7 @@ static int dev_delete(const char *dev)
 
 	rtnl = socket(AF_NETLINK, SOCK_DGRAM, NETLINK_ROUTE);
 	if (rtnl < 0) {
-		fprintf(stderr, "%s: socket %s\n", __func__, strerror(errno));
+		fprintf(stderr, "%s: socket %s\n", __func__, strerror(erranal));
 		return 1;
 	}
 
@@ -166,7 +166,7 @@ static int dev_delete(const char *dev)
 
 	ret = send(rtnl, &req, req.nh.nlmsg_len, 0);
 	if (ret < 0)
-		fprintf(stderr, "%s: send %s\n", __func__, strerror(errno));
+		fprintf(stderr, "%s: send %s\n", __func__, strerror(erranal));
 
 	ret = (unsigned int)ret != req.nh.nlmsg_len;
 
@@ -180,8 +180,8 @@ static int macvtap_fill_rtattr(struct nlmsghdr *nh)
 
 	ifindex = if_nametoindex(param_dev_dummy_name);
 	if (ifindex == 0) {
-		fprintf(stderr, "%s: ifindex  %s\n", __func__, strerror(errno));
-		return -errno;
+		fprintf(stderr, "%s: ifindex  %s\n", __func__, strerror(erranal));
+		return -erranal;
 	}
 
 	rtattr_add_any(nh, IFLA_LINK, &ifindex, sizeof(ifindex));
@@ -199,22 +199,22 @@ static int opentap(const char *devname)
 
 	ifindex = if_nametoindex(devname);
 	if (ifindex == 0) {
-		fprintf(stderr, "%s: ifindex %s\n", __func__, strerror(errno));
-		return -errno;
+		fprintf(stderr, "%s: ifindex %s\n", __func__, strerror(erranal));
+		return -erranal;
 	}
 
 	sprintf(buf, "/dev/tap%d", ifindex);
-	fd = open(buf, O_RDWR | O_NONBLOCK);
+	fd = open(buf, O_RDWR | O_ANALNBLOCK);
 	if (fd < 0) {
-		fprintf(stderr, "%s: open %s\n", __func__, strerror(errno));
-		return -errno;
+		fprintf(stderr, "%s: open %s\n", __func__, strerror(erranal));
+		return -erranal;
 	}
 
 	memset(&ifr, 0, sizeof(ifr));
 	strcpy(ifr.ifr_name, devname);
-	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_VNET_HDR | IFF_MULTI_QUEUE;
+	ifr.ifr_flags = IFF_TAP | IFF_ANAL_PI | IFF_VNET_HDR | IFF_MULTI_QUEUE;
 	if (ioctl(fd, TUNSETIFF, &ifr, sizeof(ifr)) < 0)
-		return -errno;
+		return -erranal;
 	return fd;
 }
 
@@ -329,7 +329,7 @@ size_t build_test_packet_valid_udp_csum(uint8_t *buf, size_t payload_len)
 	struct virtio_net_hdr *vh = (struct virtio_net_hdr *)buf;
 
 	vh->flags = VIRTIO_NET_HDR_F_DATA_VALID;
-	vh->gso_type = VIRTIO_NET_HDR_GSO_NONE;
+	vh->gso_type = VIRTIO_NET_HDR_GSO_ANALNE;
 	cur += sizeof(*vh);
 
 	cur += build_eth(cur, ETH_P_IP);
@@ -428,7 +428,7 @@ TEST_F(tap, test_packet_crash_tap_invalid_eth_proto)
 	off = build_test_packet_crash_tap_invalid_eth_proto(pkt, 1024);
 	ret = write(self->fd, pkt, off);
 	ASSERT_EQ(ret, -1);
-	ASSERT_EQ(errno, EINVAL);
+	ASSERT_EQ(erranal, EINVAL);
 }
 
 TEST_HARNESS_MAIN

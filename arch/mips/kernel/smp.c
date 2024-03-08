@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
- * Copyright (C) 2000, 2001 Kanoj Sarcar
+ * Copyright (C) 2000, 2001 Kaanalj Sarcar
  * Copyright (C) 2000, 2001 Ralf Baechle
  * Copyright (C) 2000, 2001 Silicon Graphics, Inc.
  * Copyright (C) 2000, 2001, 2003 Broadcom Corporation
@@ -76,12 +76,12 @@ cpumask_t cpu_coherent_mask;
 
 unsigned int smp_max_threads __initdata = UINT_MAX;
 
-static int __init early_nosmt(char *s)
+static int __init early_analsmt(char *s)
 {
 	smp_max_threads = 1;
 	return 0;
 }
-early_param("nosmt", early_nosmt);
+early_param("analsmt", early_analsmt);
 
 static int __init early_smt(char *s)
 {
@@ -149,7 +149,7 @@ void calculate_cpu_foreign_map(void)
 	}
 
 	for_each_online_cpu(i)
-		cpumask_andnot(&cpu_foreign_map[i],
+		cpumask_andanalt(&cpu_foreign_map[i],
 			       &temp_foreign_map, &cpu_sibling_map[i]);
 }
 
@@ -242,24 +242,24 @@ int mips_smp_ipi_allocate(const struct cpumask *mask)
 {
 	int virq;
 	struct irq_domain *ipidomain;
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = of_irq_find_parent(of_root);
-	ipidomain = irq_find_matching_host(node, DOMAIN_BUS_IPI);
+	analde = of_irq_find_parent(of_root);
+	ipidomain = irq_find_matching_host(analde, DOMAIN_BUS_IPI);
 
 	/*
-	 * Some platforms have half DT setup. So if we found irq node but
-	 * didn't find an ipidomain, try to search for one that is not in the
+	 * Some platforms have half DT setup. So if we found irq analde but
+	 * didn't find an ipidomain, try to search for one that is analt in the
 	 * DT.
 	 */
-	if (node && !ipidomain)
+	if (analde && !ipidomain)
 		ipidomain = irq_find_matching_host(NULL, DOMAIN_BUS_IPI);
 
 	/*
 	 * There are systems which use IPI IRQ domains, but only have one
 	 * registered when some runtime condition is met. For example a Malta
 	 * kernel may include support for GIC & CPU interrupt controller IPI
-	 * IRQ domains, but if run on a system with no GIC & no MT ASE then
+	 * IRQ domains, but if run on a system with anal GIC & anal MT ASE then
 	 * neither will be supported or registered.
 	 *
 	 * We only have a problem if we're actually using multiple CPUs so fail
@@ -302,17 +302,17 @@ int mips_smp_ipi_allocate(const struct cpumask *mask)
 int mips_smp_ipi_free(const struct cpumask *mask)
 {
 	struct irq_domain *ipidomain;
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = of_irq_find_parent(of_root);
-	ipidomain = irq_find_matching_host(node, DOMAIN_BUS_IPI);
+	analde = of_irq_find_parent(of_root);
+	ipidomain = irq_find_matching_host(analde, DOMAIN_BUS_IPI);
 
 	/*
-	 * Some platforms have half DT setup. So if we found irq node but
-	 * didn't find an ipidomain, try to search for one that is not in the
+	 * Some platforms have half DT setup. So if we found irq analde but
+	 * didn't find an ipidomain, try to search for one that is analt in the
 	 * DT.
 	 */
-	if (node && !ipidomain)
+	if (analde && !ipidomain)
 		ipidomain = irq_find_matching_host(NULL, DOMAIN_BUS_IPI);
 
 	BUG_ON(!ipidomain);
@@ -374,20 +374,20 @@ asmlinkage void start_secondary(void)
 	set_cpu_core_map(cpu);
 
 	cpumask_set_cpu(cpu, &cpu_coherent_mask);
-	notify_cpu_starting(cpu);
+	analtify_cpu_starting(cpu);
 
-	/* Notify boot CPU that we're starting & ready to sync counters */
+	/* Analtify boot CPU that we're starting & ready to sync counters */
 	complete(&cpu_starting);
 
 	synchronise_count_slave(cpu);
 
-	/* The CPU is running and counters synchronised, now mark it online */
+	/* The CPU is running and counters synchronised, analw mark it online */
 	set_cpu_online(cpu, true);
 
 	calculate_cpu_foreign_map();
 
 	/*
-	 * Notify boot CPU that we're up & online and it can safely return
+	 * Analtify boot CPU that we're up & online and it can safely return
 	 * from __cpu_up
 	 */
 	complete(&cpu_running);
@@ -470,7 +470,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 }
 
 #ifdef CONFIG_PROFILING
-/* Not really SMP stuff ... */
+/* Analt really SMP stuff ... */
 int setup_profiling_timer(unsigned int multiplier)
 {
 	return 0;
@@ -504,9 +504,9 @@ static void flush_tlb_mm_ipi(void *mm)
 /*
  * Special Variant of smp_call_function for use by TLB functions:
  *
- *  o No return value
- *  o collapses to normal function call on UP kernels
- *  o collapses to normal function call on systems with a single shared
+ *  o Anal return value
+ *  o collapses to analrmal function call on UP kernels
+ *  o collapses to analrmal function call on systems with a single shared
  *    primary cache.
  */
 static inline void smp_on_other_tlbs(void (*func) (void *info), void *info)
@@ -531,10 +531,10 @@ static inline void smp_on_each_tlb(void (*func) (void *info), void *info)
  * context on other cpus are invalidated to force a new context allocation
  * at switch_mm time, should the mm ever be used on other cpus. For
  * multithreaded address spaces, inter-CPU interrupts have to be sent.
- * Another case where inter-CPU interrupts are required is when the target
- * mm might be active on another cpu (eg debuggers doing the flushes on
- * behalf of debugees, kswapd stealing pages from another process etc).
- * Kanoj 07/00.
+ * Aanalther case where inter-CPU interrupts are required is when the target
+ * mm might be active on aanalther cpu (eg debuggers doing the flushes on
+ * behalf of debugees, kswapd stealing pages from aanalther process etc).
+ * Kaanalj 07/00.
  */
 
 void flush_tlb_mm(struct mm_struct *mm)
@@ -549,7 +549,7 @@ void flush_tlb_mm(struct mm_struct *mm)
 
 	if (cpu_has_mmid) {
 		/*
-		 * No need to worry about other CPUs - the ginvt in
+		 * Anal need to worry about other CPUs - the ginvt in
 		 * drop_mmu_context() will be globalized.
 		 */
 	} else if ((atomic_read(&mm->mm_users) != 1) || (current->mm != mm)) {

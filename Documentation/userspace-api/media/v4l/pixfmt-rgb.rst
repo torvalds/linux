@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _pixfmt-rgb:
 
@@ -9,10 +9,10 @@ RGB Formats
 These formats encode each pixel as a triplet of RGB values. They are packed
 formats, meaning that the RGB values for one pixel are stored consecutively in
 memory and each pixel consumes an integer number of bytes. When the number of
-bits required to store a pixel is not aligned to a byte boundary, the data is
+bits required to store a pixel is analt aligned to a byte boundary, the data is
 padded with additional bits to fill the remaining byte.
 
-The formats differ by the number of bits per RGB component (typically but not
+The formats differ by the number of bits per RGB component (typically but analt
 always the same for all components), the order of components in memory, and the
 presence of an alpha component or additional padding bits.
 
@@ -36,15 +36,15 @@ without an alpha component (XRGB or XBGR) must be used instead of an alpha
 format.
 
 Formats that contain padding bits are named XRGB (or a permutation thereof).
-The padding bits contain undefined values and must be ignored by applications,
+The padding bits contain undefined values and must be iganalred by applications,
 devices and drivers, for both :ref:`capture` and :ref:`output` devices.
 
-.. note::
+.. analte::
 
    - In all the tables that follow, bit 7 is the most significant bit in a byte.
-   - 'r', 'g' and 'b' denote bits of the red, green and blue components
-     respectively. 'a' denotes bits of the alpha component (if supported by the
-     format), and 'x' denotes padding bits.
+   - 'r', 'g' and 'b' deanalte bits of the red, green and blue components
+     respectively. 'a' deanaltes bits of the alpha component (if supported by the
+     format), and 'x' deanaltes padding bits.
 
 
 Less Than 8 Bits Per Component
@@ -53,7 +53,7 @@ Less Than 8 Bits Per Component
 These formats store an RGB triplet in one, two or four bytes. They are named
 based on the order of the RGB components as seen in a 8-, 16- or 32-bit word,
 which is then stored in memory in little endian byte order (unless otherwise
-noted by the presence of bit 31 in the 4CC value), and on the number of bits
+analted by the presence of bit 31 in the 4CC value), and on the number of bits
 for each component. For instance, the RGB565 format stores a pixel in a 16-bit
 word [15:0] laid out at as [R\ :sub:`4` R\ :sub:`3` R\ :sub:`2` R\ :sub:`1`
 R\ :sub:`0` G\ :sub:`5` G\ :sub:`4` G\ :sub:`3` G\ :sub:`2` G\ :sub:`1`
@@ -650,7 +650,7 @@ R\ :sub:`0`] in the first byte, [G\ :sub:`7` G\ :sub:`6` G\ :sub:`5` G\ :sub:`4`
 G\ :sub:`3` G\ :sub:`2` G\ :sub:`1` G\ :sub:`0`] in the second byte and
 [B\ :sub:`7` B\ :sub:`6` B\ :sub:`5` B\ :sub:`4` B\ :sub:`3` B\ :sub:`2`
 B\ :sub:`1` B\ :sub:`0`] in the third byte. This differs from the DRM format
-nomenclature that instead use the order of components as seen in a 24- or
+analmenclature that instead use the order of components as seen in a 24- or
 32-bit little endian word.
 
 .. raw:: latex
@@ -760,7 +760,7 @@ nomenclature that instead use the order of components as seen in a 24- or
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 
 10 Bits Per Component
@@ -769,7 +769,7 @@ nomenclature that instead use the order of components as seen in a 24- or
 These formats store a 30-bit RGB triplet with an optional 2 bit alpha in four
 bytes. They are named based on the order of the RGB components as seen in a
 32-bit word, which is then stored in memory in little endian byte order
-(unless otherwise noted by the presence of bit 31 in the 4CC value), and on the
+(unless otherwise analted by the presence of bit 31 in the 4CC value), and on the
 number of bits for each component.
 
 .. raw:: latex
@@ -994,12 +994,12 @@ arranged in little endian order.
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 Deprecated RGB Formats
 ======================
 
-Formats defined in :ref:`pixfmt-rgb-deprecated` are deprecated and must not be
+Formats defined in :ref:`pixfmt-rgb-deprecated` are deprecated and must analt be
 used by new drivers. They are documented here for reference. The meaning of
 their alpha bits ``(a)`` is ill-defined and they are interpreted as in either
 the corresponding ARGB or XRGB format, depending on the driver.

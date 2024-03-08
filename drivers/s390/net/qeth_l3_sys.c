@@ -51,7 +51,7 @@ static ssize_t qeth_l3_dev_route_show(struct qeth_card *card,
 		else
 			return sysfs_emit(buf, "%s\n", "secondary connector");
 	default:
-		return sysfs_emit(buf, "%s\n", "no");
+		return sysfs_emit(buf, "%s\n", "anal");
 	}
 }
 
@@ -71,8 +71,8 @@ static ssize_t qeth_l3_dev_route_store(struct qeth_card *card,
 	int rc = 0;
 
 	mutex_lock(&card->conf_mutex);
-	if (sysfs_streq(buf, "no_router")) {
-		route->type = NO_ROUTER;
+	if (sysfs_streq(buf, "anal_router")) {
+		route->type = ANAL_ROUTER;
 	} else if (sysfs_streq(buf, "primary_connector")) {
 		route->type = PRIMARY_CONNECTOR;
 	} else if (sysfs_streq(buf, "secondary_connector")) {
@@ -224,7 +224,7 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 		goto out;
 	}
 
-	if (card->options.cq == QETH_CQ_NOTAVAILABLE) {
+	if (card->options.cq == QETH_CQ_ANALTAVAILABLE) {
 		rc = -EPERM;
 		goto out;
 	}
@@ -433,7 +433,7 @@ static ssize_t qeth_l3_dev_ipato_add_store(const char *buf, size_t count,
 
 	ipatoe = kzalloc(sizeof(struct qeth_ipato_entry), GFP_KERNEL);
 	if (!ipatoe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipatoe->proto = proto;
 	memcpy(ipatoe->addr, addr, (proto == QETH_PROT_IPV4) ? 4 : 16);
@@ -578,7 +578,7 @@ static ssize_t qeth_l3_dev_ip_add_show(struct device *dev, char *buf,
 	int i;
 
 	mutex_lock(&card->ip_lock);
-	hash_for_each(card->ip_htable, i, ipaddr, hnode) {
+	hash_for_each(card->ip_htable, i, ipaddr, hanalde) {
 		if (ipaddr->proto != proto || ipaddr->type != type)
 			continue;
 
@@ -691,13 +691,13 @@ static int qeth_l3_parse_rxipe(const char *buf, enum qeth_prot_versions proto,
 	if (proto == QETH_PROT_IPV4) {
 		memcpy(&ipv4_addr, addr, sizeof(ipv4_addr));
 		if (ipv4_is_multicast(ipv4_addr)) {
-			QETH_DBF_MESSAGE(2, "multicast rxip not supported.\n");
+			QETH_DBF_MESSAGE(2, "multicast rxip analt supported.\n");
 			return -EINVAL;
 		}
 	} else if (proto == QETH_PROT_IPV6) {
 		memcpy(&ipv6_addr, addr, sizeof(ipv6_addr));
 		if (ipv6_addr_is_multicast(&ipv6_addr)) {
-			QETH_DBF_MESSAGE(2, "multicast rxip not supported.\n");
+			QETH_DBF_MESSAGE(2, "multicast rxip analt supported.\n");
 			return -EINVAL;
 		}
 	}

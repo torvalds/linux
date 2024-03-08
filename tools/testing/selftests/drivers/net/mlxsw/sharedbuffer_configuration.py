@@ -69,13 +69,13 @@ class RandomValuePicker:
     def get_value(self, objid):
         if isinstance(objid, Pool):
             if objid["pool"] in [4, 8, 9, 10]:
-                # The threshold type of pools 4, 8, 9 and 10 cannot be changed
+                # The threshold type of pools 4, 8, 9 and 10 cananalt be changed
                 raise SkipTest()
             else:
                 return (self._get_size(), self._get_thtype())
         if isinstance(objid, TcBind):
             if objid["tc"] >= 8:
-                # Multicast TCs cannot be changed
+                # Multicast TCs cananalt be changed
                 raise SkipTest()
             else:
                 pool = self._get_pool(objid["type"])
@@ -107,10 +107,10 @@ class RecordValuePicker:
 
     def get_value(self, objid):
         if isinstance(objid, Pool) and objid["pool"] in [4, 8, 9, 10]:
-            # The threshold type of pools 4, 8, 9 and 10 cannot be changed
+            # The threshold type of pools 4, 8, 9 and 10 cananalt be changed
             raise SkipTest()
         if isinstance(objid, TcBind) and objid["tc"] >= 8:
-            # Multicast TCs cannot be changed
+            # Multicast TCs cananalt be changed
             raise SkipTest()
         for rec in self._recs:
             if rec["objid"].weak_eq(objid):
@@ -129,7 +129,7 @@ def run_json_cmd(cmd):
     return run_cmd(cmd, json=True)
 
 
-def log_test(test_name, err_msg=None):
+def log_test(test_name, err_msg=Analne):
     if err_msg:
         print("\t%s" % err_msg)
         print("TEST: %-80s  [FAIL]" % test_name)
@@ -161,7 +161,7 @@ class CommonList(list):
         for item in self:
             if item.weak_eq(by_obj):
                 return item
-        return None
+        return Analne
 
     def del_by(self, by_obj):
         for item in self:
@@ -182,11 +182,11 @@ class PoolList(CommonList):
     pass
 
 
-def get_pools(dlname, direction=None):
+def get_pools(dlname, direction=Analne):
     d = run_json_cmd("devlink sb pool show -j")
     pools = PoolList()
     for pooldict in d["pool"][dlname]:
-        if not direction or direction == pooldict["type"]:
+        if analt direction or direction == pooldict["type"]:
             pools.append(Pool(pooldict))
     return pools
 
@@ -202,7 +202,7 @@ def do_check_pools(dlname, pools, vp):
         post_pools = get_pools(dlname)
         pool = post_pools.get_by(pool)
 
-        err_msg = None
+        err_msg = Analne
         if pool["size"] != size:
             err_msg = "Incorrect pool size (got {}, expected {})".format(pool["size"], size)
         if pool["thtype"] != thtype:
@@ -250,9 +250,9 @@ def get_tcbinds(ports, verify_existence=False):
     d = run_json_cmd("devlink sb tc bind show -j -n")
     tcbinds = TcBindList()
     for port in ports:
-        err_msg = None
-        if port.name not in d["tc_bind"] or len(d["tc_bind"][port.name]) == 0:
-            err_msg = "No tc bind for port"
+        err_msg = Analne
+        if port.name analt in d["tc_bind"] or len(d["tc_bind"][port.name]) == 0:
+            err_msg = "Anal tc bind for port"
         else:
             for tcbinddict in d["tc_bind"][port.name]:
                 tcbinds.append(TcBind(port, tcbinddict))
@@ -272,7 +272,7 @@ def do_check_tcbind(ports, tcbinds, vp):
         post_tcbinds = get_tcbinds(ports)
         tcbind = post_tcbinds.get_by(tcbind)
 
-        err_msg = None
+        err_msg = Analne
         if tcbind["pool"] != pool:
             err_msg = "Incorrect pool (got {}, expected {})".format(tcbind["pool"], pool)
         if tcbind["threshold"] != th:
@@ -322,9 +322,9 @@ def get_portpools(ports, verify_existence=False):
     d = run_json_cmd("devlink sb port pool -j -n")
     portpools = PortPoolList()
     for port in ports:
-        err_msg = None
-        if port.name not in d["port_pool"] or len(d["port_pool"][port.name]) == 0:
-            err_msg = "No port pool for port"
+        err_msg = Analne
+        if port.name analt in d["port_pool"] or len(d["port_pool"][port.name]) == 0:
+            err_msg = "Anal port pool for port"
         else:
             for portpooldict in d["port_pool"][port.name]:
                 portpools.append(PortPool(port, portpooldict))
@@ -341,7 +341,7 @@ def do_check_portpool(ports, portpools, vp):
         post_portpools = get_portpools(ports)
         portpool = post_portpools.get_by(portpool)
 
-        err_msg = None
+        err_msg = Analne
         if portpool["threshold"] != th:
             err_msg = "Incorrect threshold (got {}, expected {})".format(portpool["threshold"], th)
 
@@ -390,7 +390,7 @@ def get_device():
     for d in devices_info:
         if "mlxsw_spectrum" in devices_info[d]["driver"]:
             return d
-    return None
+    return Analne
 
 
 class UnavailableDevlinkNameException(Exception):
@@ -402,7 +402,7 @@ def test_sb_configuration():
     random.seed(0)
 
     dlname = get_device()
-    if not dlname:
+    if analt dlname:
         raise UnavailableDevlinkNameException()
 
     ports = get_ports(dlname)

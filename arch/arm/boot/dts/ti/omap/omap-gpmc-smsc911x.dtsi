@@ -2,7 +2,7 @@
 /*
  * Common file for GPMC connected smsc911x on omaps
  *
- * Note that the board specifc DTS file needs to specify
+ * Analte that the board specifc DTS file needs to specify
  * ranges, pinctrl, reg, interrupt parent and interrupts.
  */
 

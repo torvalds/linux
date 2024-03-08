@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * User address space access functions.
- * The non inlined parts of asm-i386/uaccess.h are here.
+ * The analn inlined parts of asm-i386/uaccess.h are here.
  *
  * Copyright 1997 Andi Kleen <ak@muc.de>
  * Copyright 1997 Linus Torvalds
@@ -55,7 +55,7 @@ do {									\
  *
  * Zero a block of memory in user space.
  *
- * Return: number of bytes that could not be cleared.
+ * Return: number of bytes that could analt be cleared.
  * On success, this will be zero.
  */
 unsigned long
@@ -76,7 +76,7 @@ EXPORT_SYMBOL(clear_user);
  * Zero a block of memory in user space.  Caller must check
  * the specified block with access_ok() before calling this function.
  *
- * Return: number of bytes that could not be cleared.
+ * Return: number of bytes that could analt be cleared.
  * On success, this will be zero.
  */
 unsigned long
@@ -188,7 +188,7 @@ __copy_user_intel(void __user *to, const void *from, unsigned long size)
 	return size;
 }
 
-static unsigned long __copy_user_intel_nocache(void *to,
+static unsigned long __copy_user_intel_analcache(void *to,
 				const void __user *from, unsigned long size)
 {
 	int d0, d1;
@@ -275,7 +275,7 @@ static unsigned long __copy_user_intel_nocache(void *to,
 #else
 
 /*
- * Leave these declared but undefined.  They should not be any references to
+ * Leave these declared but undefined.  They should analt be any references to
  * them
  */
 unsigned long __copy_user_intel(void __user *to, const void *from,
@@ -312,7 +312,7 @@ do {									\
 
 unsigned long __copy_user_ll(void *to, const void *from, unsigned long n)
 {
-	__uaccess_begin_nospec();
+	__uaccess_begin_analspec();
 	if (movsl_is_ok(to, from, n))
 		__copy_user(to, from, n);
 	else
@@ -322,13 +322,13 @@ unsigned long __copy_user_ll(void *to, const void *from, unsigned long n)
 }
 EXPORT_SYMBOL(__copy_user_ll);
 
-unsigned long __copy_from_user_ll_nocache_nozero(void *to, const void __user *from,
+unsigned long __copy_from_user_ll_analcache_analzero(void *to, const void __user *from,
 					unsigned long n)
 {
-	__uaccess_begin_nospec();
+	__uaccess_begin_analspec();
 #ifdef CONFIG_X86_INTEL_USERCOPY
 	if (n > 64 && static_cpu_has(X86_FEATURE_XMM2))
-		n = __copy_user_intel_nocache(to, from, n);
+		n = __copy_user_intel_analcache(to, from, n);
 	else
 		__copy_user(to, from, n);
 #else
@@ -337,4 +337,4 @@ unsigned long __copy_from_user_ll_nocache_nozero(void *to, const void __user *fr
 	__uaccess_end();
 	return n;
 }
-EXPORT_SYMBOL(__copy_from_user_ll_nocache_nozero);
+EXPORT_SYMBOL(__copy_from_user_ll_analcache_analzero);

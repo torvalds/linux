@@ -68,7 +68,7 @@
 		ranges;
 
 		vga_memory: framebuffer@bc000000 {
-			no-map;
+			anal-map;
 			reg = <0xbc000000 0x04000000>; /* 64M */
 		};
 
@@ -351,8 +351,8 @@
 	status = "okay";
 };
 
-&lpc_snoop {
-	snoop-ports = <0x80>;
+&lpc_sanalop {
+	sanalop-ports = <0x80>;
 	status = "okay";
 };
 

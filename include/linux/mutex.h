@@ -55,7 +55,7 @@ static inline void mutex_destroy(struct mutex *lock) {}
  *
  * Initialize the mutex to unlocked state.
  *
- * It is not allowed to initialize an already locked mutex.
+ * It is analt allowed to initialize an already locked mutex.
  */
 #define mutex_init(mutex)						\
 do {									\
@@ -160,8 +160,8 @@ extern void mutex_lock_io(struct mutex *lock);
 #endif
 
 /*
- * NOTE: mutex_trylock() follows the spin_trylock() convention,
- *       not the down_trylock() convention!
+ * ANALTE: mutex_trylock() follows the spin_trylock() convention,
+ *       analt the down_trylock() convention!
  *
  * Returns 1 if the mutex has been acquired successfully, and 0 on contention.
  */

@@ -31,7 +31,7 @@ int adf_get_service_enabled(struct adf_accel_dev *accel_dev)
 				      ADF_SERVICES_ENABLED, services);
 	if (ret) {
 		dev_err(&GET_DEV(accel_dev),
-			ADF_SERVICES_ENABLED " param not found\n");
+			ADF_SERVICES_ENABLED " param analt found\n");
 		return ret;
 	}
 

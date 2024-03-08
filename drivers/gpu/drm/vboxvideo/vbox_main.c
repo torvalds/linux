@@ -37,7 +37,7 @@ static int vbox_accel_init(struct vbox_private *vbox)
 	vbox->vbva_info = devm_kcalloc(vbox->ddev.dev, vbox->num_crtcs,
 				       sizeof(*vbox->vbva_info), GFP_KERNEL);
 	if (!vbox->vbva_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Take a command buffer for each screen from the end of usable VRAM. */
 	vbox->available_vram_size -= vbox->num_crtcs * VBVA_MIN_BUFFER_SIZE;
@@ -47,7 +47,7 @@ static int vbox_accel_init(struct vbox_private *vbox)
 					     vbox->num_crtcs *
 					     VBVA_MIN_BUFFER_SIZE);
 	if (!vbox->vbva_buffers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < vbox->num_crtcs; ++i) {
 		vbva_setup_buffer_context(&vbox->vbva_info[i],
@@ -108,7 +108,7 @@ bool vbox_check_supported(u16 id)
 int vbox_hw_init(struct vbox_private *vbox)
 {
 	struct pci_dev *pdev = to_pci_dev(vbox->ddev.dev);
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	vbox->full_vram_size = inl(VBE_DISPI_IOPORT_DATA);
 	vbox->any_pitch = vbox_check_supported(VBE_DISPI_ID_ANYX);
@@ -120,7 +120,7 @@ int vbox_hw_init(struct vbox_private *vbox)
 	    pci_iomap_range(pdev, 0, GUEST_HEAP_OFFSET(vbox),
 			    GUEST_HEAP_SIZE);
 	if (!vbox->guest_heap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Create guest-heap mem-pool use 2^4 = 16 byte chunks */
 	vbox->guest_pool = devm_gen_pool_create(vbox->ddev.dev, 4, -1,
@@ -149,7 +149,7 @@ int vbox_hw_init(struct vbox_private *vbox)
 	vbox->num_crtcs = clamp_t(u32, vbox->num_crtcs, 1, VBOX_MAX_SCREENS);
 
 	if (!have_hgsmi_mode_hints(vbox)) {
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		return ret;
 	}
 
@@ -157,7 +157,7 @@ int vbox_hw_init(struct vbox_private *vbox)
 					     sizeof(struct vbva_modehint),
 					     GFP_KERNEL);
 	if (!vbox->last_mode_hints)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = vbox_accel_init(vbox);
 	if (ret)

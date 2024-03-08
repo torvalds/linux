@@ -11,7 +11,7 @@
 #include "network_helpers.h"
 #include "task_local_storage_helpers.h"
 
-static const char * const bash_envp[] = { "TMPDIR=shouldnotbeset", NULL };
+static const char * const bash_envp[] = { "TMPDIR=shouldanaltbeset", NULL };
 
 static int update_storage(int map_fd, int secureexec)
 {
@@ -19,11 +19,11 @@ static int update_storage(int map_fd, int secureexec)
 
 	task_fd = sys_pidfd_open(getpid(), 0);
 	if (task_fd < 0)
-		return errno;
+		return erranal;
 
-	ret = bpf_map_update_elem(map_fd, &task_fd, &secureexec, BPF_NOEXIST);
+	ret = bpf_map_update_elem(map_fd, &task_fd, &secureexec, BPF_ANALEXIST);
 	if (ret)
-		ret = errno;
+		ret = erranal;
 
 	close(task_fd);
 	return ret;
@@ -37,9 +37,9 @@ static int run_set_secureexec(int map_fd, int secureexec)
 	if (child_pid == 0) {
 		null_fd = open("/dev/null", O_WRONLY);
 		if (null_fd == -1)
-			exit(errno);
-		dup2(null_fd, STDOUT_FILENO);
-		dup2(null_fd, STDERR_FILENO);
+			exit(erranal);
+		dup2(null_fd, STDOUT_FILEANAL);
+		dup2(null_fd, STDERR_FILEANAL);
 		close(null_fd);
 
 		/* Ensure that all executions from hereon are
@@ -61,7 +61,7 @@ static int run_set_secureexec(int map_fd, int secureexec)
 		execle("/bin/bash", "bash", "-c",
 		       "[[ -z \"${TMPDIR}\" ]] || exit 10 && exit 20", NULL,
 		       bash_envp);
-		exit(errno);
+		exit(erranal);
 	} else if (child_pid > 0) {
 		waitpid(child_pid, &child_status, 0);
 		ret = WEXITSTATUS(child_status);
@@ -70,7 +70,7 @@ static int run_set_secureexec(int map_fd, int secureexec)
 		if (secureexec && ret == 20)
 			return 0;
 
-		/* If normal execution happened, the exit code should be 10 */
+		/* If analrmal execution happened, the exit code should be 10 */
 		if (!secureexec && ret == 10)
 			return 0;
 	}

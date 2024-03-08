@@ -9,7 +9,7 @@
  * under the terms of the GNU General Public License version 2, available
  * at http://www.gnu.org/licenses/old-licenses/gpl-2.0.html (the "GPL").
  *
- * Notwithstanding the above, under no circumstances may you combine this
+ * Analtwithstanding the above, under anal circumstances may you combine this
  * software in any way with any other QLogic software provided under a
  * license other than the GPL, without QLogic's express prior written
  * consent.
@@ -23,7 +23,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/rtnetlink.h>
 #include <net/dcbnl.h>
 
@@ -44,7 +44,7 @@ static void bnx2x_dcbx_fill_cos_params(struct bnx2x *bp,
 				       struct pg_help_data *help_data,
 				       struct dcbx_ets_feature *ets,
 				       u32 *pg_pri_orginal_spread);
-static void bnx2x_dcbx_separate_pauseable_from_non(struct bnx2x *bp,
+static void bnx2x_dcbx_separate_pauseable_from_analn(struct bnx2x *bp,
 				struct cos_help_data *cos_data,
 				u32 *pg_pri_orginal_spread,
 				struct dcbx_ets_feature *ets);
@@ -80,7 +80,7 @@ static void bnx2x_pfc_set(struct bnx2x *bp)
 	/* Tx COS configuration */
 	for (i = 0; i < bp->dcbx_port_params.ets.num_of_cos; i++)
 		/*
-		 * We configure only the pauseable bits (non pauseable aren't
+		 * We configure only the pauseable bits (analn pauseable aren't
 		 * configured at all) it's done to avoid false pauses from
 		 * network
 		 */
@@ -203,11 +203,11 @@ static void bnx2x_dcbx_get_ap_feature(struct bnx2x *bp,
 	if (GET_FLAGS(error, DCBX_LOCAL_APP_MISMATCH))
 		DP(BNX2X_MSG_DCB, "DCBX_LOCAL_APP_MISMATCH\n");
 
-	if (GET_FLAGS(error, DCBX_REMOTE_APP_TLV_NOT_FOUND))
-		DP(BNX2X_MSG_DCB, "DCBX_REMOTE_APP_TLV_NOT_FOUND\n");
+	if (GET_FLAGS(error, DCBX_REMOTE_APP_TLV_ANALT_FOUND))
+		DP(BNX2X_MSG_DCB, "DCBX_REMOTE_APP_TLV_ANALT_FOUND\n");
 	if (app->enabled &&
 	    !GET_FLAGS(error, DCBX_LOCAL_APP_ERROR | DCBX_LOCAL_APP_MISMATCH |
-			      DCBX_REMOTE_APP_TLV_NOT_FOUND)) {
+			      DCBX_REMOTE_APP_TLV_ANALT_FOUND)) {
 
 		bp->dcbx_port_params.app.enabled = true;
 
@@ -245,9 +245,9 @@ static void bnx2x_dcbx_get_ap_feature(struct bnx2x *bp,
 						   type);
 		}
 
-		/* If we have received a non-zero default application
+		/* If we have received a analn-zero default application
 		 * priority, then use that for applications which are
-		 * not configured with any priority.
+		 * analt configured with any priority.
 		 */
 		if (ttp[LLFC_TRAFFIC_TYPE_NW] != 0) {
 			if (!iscsi_pri_found) {
@@ -285,8 +285,8 @@ static void bnx2x_dcbx_get_ets_feature(struct bnx2x *bp,
 	if (GET_FLAGS(error, DCBX_LOCAL_ETS_ERROR))
 		DP(BNX2X_MSG_DCB, "DCBX_LOCAL_ETS_ERROR\n");
 
-	if (GET_FLAGS(error, DCBX_REMOTE_ETS_TLV_NOT_FOUND))
-		DP(BNX2X_MSG_DCB, "DCBX_REMOTE_ETS_TLV_NOT_FOUND\n");
+	if (GET_FLAGS(error, DCBX_REMOTE_ETS_TLV_ANALT_FOUND))
+		DP(BNX2X_MSG_DCB, "DCBX_REMOTE_ETS_TLV_ANALT_FOUND\n");
 
 	/* Clean up old settings of ets on COS */
 	for (i = 0; i < ARRAY_SIZE(bp->dcbx_port_params.ets.cos_params) ; i++) {
@@ -298,7 +298,7 @@ static void bnx2x_dcbx_get_ets_feature(struct bnx2x *bp,
 
 	if (bp->dcbx_port_params.app.enabled && ets->enabled &&
 	   !GET_FLAGS(error,
-		      DCBX_LOCAL_ETS_ERROR | DCBX_REMOTE_ETS_TLV_NOT_FOUND)) {
+		      DCBX_LOCAL_ETS_ERROR | DCBX_REMOTE_ETS_TLV_ANALT_FOUND)) {
 		DP(BNX2X_MSG_DCB, "DCBX_LOCAL_ETS_ENABLE\n");
 		bp->dcbx_port_params.ets.enabled = true;
 
@@ -329,18 +329,18 @@ static void  bnx2x_dcbx_get_pfc_feature(struct bnx2x *bp,
 	if (GET_FLAGS(error, DCBX_LOCAL_PFC_ERROR))
 		DP(BNX2X_MSG_DCB, "DCBX_LOCAL_PFC_ERROR\n");
 
-	if (GET_FLAGS(error, DCBX_REMOTE_PFC_TLV_NOT_FOUND))
-		DP(BNX2X_MSG_DCB, "DCBX_REMOTE_PFC_TLV_NOT_FOUND\n");
+	if (GET_FLAGS(error, DCBX_REMOTE_PFC_TLV_ANALT_FOUND))
+		DP(BNX2X_MSG_DCB, "DCBX_REMOTE_PFC_TLV_ANALT_FOUND\n");
 	if (bp->dcbx_port_params.app.enabled && pfc->enabled &&
 	   !GET_FLAGS(error, DCBX_LOCAL_PFC_ERROR | DCBX_LOCAL_PFC_MISMATCH |
-			     DCBX_REMOTE_PFC_TLV_NOT_FOUND)) {
+			     DCBX_REMOTE_PFC_TLV_ANALT_FOUND)) {
 		bp->dcbx_port_params.pfc.enabled = true;
-		bp->dcbx_port_params.pfc.priority_non_pauseable_mask =
+		bp->dcbx_port_params.pfc.priority_analn_pauseable_mask =
 			~(pfc->pri_en_bitmap);
 	} else {
 		DP(BNX2X_MSG_DCB, "DCBX_LOCAL_PFC_DISABLED\n");
 		bp->dcbx_port_params.pfc.enabled = false;
-		bp->dcbx_port_params.pfc.priority_non_pauseable_mask = 0;
+		bp->dcbx_port_params.pfc.priority_analn_pauseable_mask = 0;
 	}
 }
 
@@ -430,7 +430,7 @@ static int bnx2x_dcbx_read_mib(struct bnx2x *bp,
 	       (max_try_read < DCBX_LOCAL_MIB_MAX_TRY_READ));
 
 	if (max_try_read >= DCBX_LOCAL_MIB_MAX_TRY_READ) {
-		BNX2X_ERR("MIB could not be read\n");
+		BNX2X_ERR("MIB could analt be read\n");
 		return 1;
 	}
 
@@ -513,7 +513,7 @@ static void bnx2x_dcbx_2cos_limit_update_ets_config(struct bnx2x *bp)
 	}
 
 	/* valid COS entries */
-	if (ets->num_of_cos == 1)   /* no ETS */
+	if (ets->num_of_cos == 1)   /* anal ETS */
 		return;
 
 	/* sanity */
@@ -537,8 +537,8 @@ static void bnx2x_dcbx_2cos_limit_update_ets_config(struct bnx2x *bp)
 	    (DCBX_INVALID_COS_BW != ets->cos_params[1].bw_tbl)) {
 		u32 bw_tbl_0 = ets->cos_params[0].bw_tbl;
 		u32 bw_tbl_1 = ets->cos_params[1].bw_tbl;
-		/* Do not allow 0-100 configuration
-		 * since PBF does not support it
+		/* Do analt allow 0-100 configuration
+		 * since PBF does analt support it
 		 * force 1-99 instead
 		 */
 		if (bw_tbl_0 == 0) {
@@ -576,7 +576,7 @@ static void bnx2x_dcbx_update_ets_config(struct bnx2x *bp)
 		/* COS is SP */
 		if (ets->cos_params[i].strict != BNX2X_DCBX_STRICT_INVALID) {
 			if (ets->cos_params[i].bw_tbl != DCBX_INVALID_COS_BW) {
-				BNX2X_ERR("COS can't be not BW and not SP\n");
+				BNX2X_ERR("COS can't be analt BW and analt SP\n");
 				return;
 			}
 
@@ -585,7 +585,7 @@ static void bnx2x_dcbx_update_ets_config(struct bnx2x *bp)
 						ets->cos_params[i].strict;
 		} else { /* COS is BW */
 			if (ets->cos_params[i].bw_tbl == DCBX_INVALID_COS_BW) {
-				BNX2X_ERR("COS can't be not BW and not SP\n");
+				BNX2X_ERR("COS can't be analt BW and analt SP\n");
 				return;
 			}
 			ets_params.cos[i].state = bnx2x_cos_state_bw;
@@ -630,7 +630,7 @@ static int bnx2x_dcbx_read_shmem_remote_mib(struct bnx2x *bp)
 	DP(BNX2X_MSG_DCB, "dcbx_remote_mib_offset 0x%x\n",
 	   dcbx_remote_mib_offset);
 
-	if (SHMEM_DCBX_REMOTE_MIB_NONE == dcbx_remote_mib_offset) {
+	if (SHMEM_DCBX_REMOTE_MIB_ANALNE == dcbx_remote_mib_offset) {
 		BNX2X_ERR("FW doesn't support dcbx_remote_mib_offset\n");
 		return -EINVAL;
 	}
@@ -658,7 +658,7 @@ static int bnx2x_dcbx_read_shmem_neg_results(struct bnx2x *bp)
 
 	DP(BNX2X_MSG_DCB, "dcbx_neg_res_offset 0x%x\n", dcbx_neg_res_offset);
 
-	if (SHMEM_DCBX_NEG_RES_NONE == dcbx_neg_res_offset) {
+	if (SHMEM_DCBX_NEG_RES_ANALNE == dcbx_neg_res_offset) {
 		BNX2X_ERR("FW doesn't support dcbx_neg_res_offset\n");
 		return -EINVAL;
 	}
@@ -792,7 +792,7 @@ void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 			 * accordingly
 			 */
 			if (IS_MF(bp))
-				bnx2x_link_sync_notify(bp);
+				bnx2x_link_sync_analtify(bp);
 
 			bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_TX_STOP, 0);
 			return;
@@ -811,13 +811,13 @@ void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 		bnx2x_fw_command(bp, DRV_MSG_CODE_DCBX_PMF_DRV_OK, 0);
 #ifdef BCM_DCBNL
 		/*
-		 * Send a notification for the new negotiated parameters
+		 * Send a analtification for the new negotiated parameters
 		 */
-		dcbnl_cee_notify(bp->dev, RTM_GETDCB, DCB_CMD_CEE_GET, 0, 0);
+		dcbnl_cee_analtify(bp->dev, RTM_GETDCB, DCB_CMD_CEE_GET, 0, 0);
 #endif
 		return;
 	default:
-		BNX2X_ERR("Unknown DCBX_STATE\n");
+		BNX2X_ERR("Unkanalwn DCBX_STATE\n");
 	}
 }
 
@@ -1022,10 +1022,10 @@ void bnx2x_dcbx_init_params(struct bnx2x *bp)
 
 void bnx2x_dcbx_init(struct bnx2x *bp, bool update_shmem)
 {
-	u32 dcbx_lldp_params_offset = SHMEM_LLDP_DCBX_PARAMS_NONE;
+	u32 dcbx_lldp_params_offset = SHMEM_LLDP_DCBX_PARAMS_ANALNE;
 
 	/* only PMF can send ADMIN msg to MFW in old MFW versions */
-	if ((!bp->port.pmf) && (!(bp->flags & BC_SUPPORTS_DCBX_MSG_NON_PMF)))
+	if ((!bp->port.pmf) && (!(bp->flags & BC_SUPPORTS_DCBX_MSG_ANALN_PMF)))
 		return;
 
 	if (bp->dcbx_enabled <= 0)
@@ -1049,7 +1049,7 @@ void bnx2x_dcbx_init(struct bnx2x *bp, bool update_shmem)
 
 		bnx2x_update_drv_flags(bp, 1 << DRV_FLAGS_DCB_CONFIGURED, 0);
 
-		if (SHMEM_LLDP_DCBX_PARAMS_NONE != dcbx_lldp_params_offset) {
+		if (SHMEM_LLDP_DCBX_PARAMS_ANALNE != dcbx_lldp_params_offset) {
 			/* need HW lock to avoid scenario of two drivers
 			 * writing in parallel to shmem
 			 */
@@ -1080,8 +1080,8 @@ bnx2x_dcbx_print_cos_params(struct bnx2x *bp,
 	DP(BNX2X_MSG_DCB,
 	   "pfc_fw_cfg->dcb_version %x\n", pfc_fw_cfg->dcb_version);
 	DP(BNX2X_MSG_DCB,
-	   "pdev->params.dcbx_port_params.pfc.priority_non_pauseable_mask %x\n",
-	   bp->dcbx_port_params.pfc.priority_non_pauseable_mask);
+	   "pdev->params.dcbx_port_params.pfc.priority_analn_pauseable_mask %x\n",
+	   bp->dcbx_port_params.pfc.priority_analn_pauseable_mask);
 
 	for (cos = 0 ; cos < bp->dcbx_port_params.ets.num_of_cos ; cos++) {
 		DP(BNX2X_MSG_DCB,
@@ -1155,7 +1155,7 @@ static void bnx2x_dcbx_get_num_pg_traf_type(struct bnx2x *bp,
 		}
 		DP(BNX2X_MSG_DCB,
 		   "add_traf_type %d pg_found %s num_of_pg %d\n",
-		   add_traf_type, !pg_found ? "NO" : "YES",
+		   add_traf_type, !pg_found ? "ANAL" : "ANAL",
 		   help_data->num_of_pg);
 	}
 }
@@ -1182,7 +1182,7 @@ static inline void bnx2x_dcbx_add_to_cos_bw(struct bnx2x *bp,
 		data->cos_bw += pg_bw;
 }
 
-static void bnx2x_dcbx_separate_pauseable_from_non(struct bnx2x *bp,
+static void bnx2x_dcbx_separate_pauseable_from_analn(struct bnx2x *bp,
 			struct cos_help_data *cos_data,
 			u32 *pg_pri_orginal_spread,
 			struct dcbx_ets_feature *ets)
@@ -1201,7 +1201,7 @@ static void bnx2x_dcbx_separate_pauseable_from_non(struct bnx2x *bp,
 		pri_tested = 1 << bp->dcbx_port_params.
 					app.traffic_type_priority[i];
 
-		if (pri_tested & DCBX_PFC_PRI_NON_PAUSE_MASK(bp)) {
+		if (pri_tested & DCBX_PFC_PRI_ANALN_PAUSE_MASK(bp)) {
 			cos_data->data[1].pri_join_mask |= pri_tested;
 			entry = 1;
 		} else {
@@ -1247,14 +1247,14 @@ static void bnx2x_dcbx_2cos_limit_cee_single_pg_to_cos_params(struct bnx2x *bp,
 	}
 	/* single priority group */
 	if (pg_help_data->data[0].pg < DCBX_MAX_NUM_PG_BW_ENTRIES) {
-		/* If there are both pauseable and non-pauseable priorities,
+		/* If there are both pauseable and analn-pauseable priorities,
 		 * the pauseable priorities go to the first queue and
-		 * the non-pauseable priorities go to the second queue.
+		 * the analn-pauseable priorities go to the second queue.
 		 */
 		if (IS_DCBX_PFC_PRI_MIX_PAUSE(bp, pri_join_mask)) {
 			/* Pauseable */
 			cos_data->data[0].pausable = true;
-			/* Non pauseable.*/
+			/* Analn pauseable.*/
 			cos_data->data[1].pausable = false;
 
 			if (2 == num_of_dif_pri) {
@@ -1294,21 +1294,21 @@ static void bnx2x_dcbx_2cos_limit_cee_single_pg_to_cos_params(struct bnx2x *bp,
 			cos_data->data[1].pri_join_mask =
 				(1 << ttp[LLFC_TRAFFIC_TYPE_FCOE]);
 		} else
-			/* If there are only non-pauseable priorities,
+			/* If there are only analn-pauseable priorities,
 			 * they will all go to the same queue.
 			 */
 			bnx2x_dcbx_ets_disabled_entry_data(bp,
 						cos_data, pri_join_mask);
 	} else {
-		/* priority group which is not BW limited (PG#15):*/
+		/* priority group which is analt BW limited (PG#15):*/
 		if (IS_DCBX_PFC_PRI_MIX_PAUSE(bp, pri_join_mask)) {
-			/* If there are both pauseable and non-pauseable
+			/* If there are both pauseable and analn-pauseable
 			 * priorities, the pauseable priorities go to the first
-			 * queue and the non-pauseable priorities
+			 * queue and the analn-pauseable priorities
 			 * go to the second queue.
 			 */
 			if (DCBX_PFC_PRI_GET_PAUSE(bp, pri_join_mask) >
-			    DCBX_PFC_PRI_GET_NON_PAUSE(bp, pri_join_mask)) {
+			    DCBX_PFC_PRI_GET_ANALN_PAUSE(bp, pri_join_mask)) {
 				cos_data->data[0].strict =
 					BNX2X_DCBX_STRICT_COS_HIGHEST;
 				cos_data->data[1].strict =
@@ -1323,11 +1323,11 @@ static void bnx2x_dcbx_2cos_limit_cee_single_pg_to_cos_params(struct bnx2x *bp,
 			}
 			/* Pauseable */
 			cos_data->data[0].pausable = true;
-			/* Non pause-able.*/
+			/* Analn pause-able.*/
 			cos_data->data[1].pausable = false;
 		} else {
 			/* If there are only pauseable priorities or
-			 * only non-pauseable,* the lower priorities go
+			 * only analn-pauseable,* the lower priorities go
 			 * to the first queue and the higher priorities go
 			 * to the second queue.
 			 */
@@ -1346,7 +1346,7 @@ static void bnx2x_dcbx_2cos_limit_cee_single_pg_to_cos_params(struct bnx2x *bp,
 			}
 
 			if (i == LLFC_DRIVER_TRAFFIC_TYPE_MAX)
-				BNX2X_ERR("Invalid value for pri_join_mask - could not find a priority\n");
+				BNX2X_ERR("Invalid value for pri_join_mask - could analt find a priority\n");
 
 			cos_data->data[0].pri_join_mask = pri_mask_without_pri;
 			cos_data->data[1].pri_join_mask = pri_tested;
@@ -1375,9 +1375,9 @@ static void bnx2x_dcbx_2cos_limit_cee_two_pg_to_cos_params(
 	u8 i = 0;
 	u8 pg[DCBX_COS_MAX_NUM_E2] = { 0 };
 
-	/* If there are both pauseable and non-pauseable priorities,
+	/* If there are both pauseable and analn-pauseable priorities,
 	 * the pauseable priorities go to the first queue and
-	 * the non-pauseable priorities go to the second queue.
+	 * the analn-pauseable priorities go to the second queue.
 	 */
 	if (IS_DCBX_PFC_PRI_MIX_PAUSE(bp, pri_join_mask)) {
 		if (IS_DCBX_PFC_PRI_MIX_PAUSE(bp,
@@ -1385,9 +1385,9 @@ static void bnx2x_dcbx_2cos_limit_cee_two_pg_to_cos_params(
 		    IS_DCBX_PFC_PRI_MIX_PAUSE(bp,
 					 pg_help_data->data[1].pg_priority)) {
 			/* If one PG contains both pauseable and
-			 * non-pauseable priorities then ETS is disabled.
+			 * analn-pauseable priorities then ETS is disabled.
 			 */
-			bnx2x_dcbx_separate_pauseable_from_non(bp, cos_data,
+			bnx2x_dcbx_separate_pauseable_from_analn(bp, cos_data,
 					pg_pri_orginal_spread, ets);
 			bp->dcbx_port_params.ets.enabled = false;
 			return;
@@ -1395,7 +1395,7 @@ static void bnx2x_dcbx_2cos_limit_cee_two_pg_to_cos_params(
 
 		/* Pauseable */
 		cos_data->data[0].pausable = true;
-		/* Non pauseable. */
+		/* Analn pauseable. */
 		cos_data->data[1].pausable = false;
 		if (IS_DCBX_PFC_PRI_ONLY_PAUSE(bp,
 				pg_help_data->data[0].pg_priority)) {
@@ -1416,7 +1416,7 @@ static void bnx2x_dcbx_2cos_limit_cee_two_pg_to_cos_params(
 		}
 	} else {
 		/* If there are only pauseable priorities or
-		 * only non-pauseable, each PG goes to a queue.
+		 * only analn-pauseable, each PG goes to a queue.
 		 */
 		cos_data->data[0].pausable = cos_data->data[1].pausable =
 			IS_DCBX_PFC_PRI_ONLY_PAUSE(bp, pri_join_mask);
@@ -1507,23 +1507,23 @@ static void bnx2x_dcbx_2cos_limit_cee_three_pg_to_cos_params(
 	u8 num_of_pri = LLFC_DRIVER_TRAFFIC_TYPE_MAX;
 
 	cos_data->data[0].pri_join_mask = cos_data->data[1].pri_join_mask = 0;
-	/* If there are both pauseable and non-pauseable priorities,
+	/* If there are both pauseable and analn-pauseable priorities,
 	 * the pauseable priorities go to the first queue and the
-	 * non-pauseable priorities go to the second queue.
+	 * analn-pauseable priorities go to the second queue.
 	 */
 	if (IS_DCBX_PFC_PRI_MIX_PAUSE(bp, pri_join_mask))
-		bnx2x_dcbx_separate_pauseable_from_non(bp,
+		bnx2x_dcbx_separate_pauseable_from_analn(bp,
 				cos_data, pg_pri_orginal_spread, ets);
 	else {
 		/* If two BW-limited PG-s were combined to one queue,
 		 * the BW is their sum.
 		 *
-		 * If there are only pauseable priorities or only non-pauseable,
-		 * and there are both BW-limited and non-BW-limited PG-s,
-		 * the BW-limited PG/s go to one queue and the non-BW-limited
+		 * If there are only pauseable priorities or only analn-pauseable,
+		 * and there are both BW-limited and analn-BW-limited PG-s,
+		 * the BW-limited PG/s go to one queue and the analn-BW-limited
 		 * PG/s go to the second queue.
 		 *
-		 * If there are only pauseable priorities or only non-pauseable
+		 * If there are only pauseable priorities or only analn-pauseable
 		 * and all are BW limited, then	two priorities go to the first
 		 * queue and one priority goes to the second queue.
 		 *
@@ -1546,7 +1546,7 @@ static void bnx2x_dcbx_2cos_limit_cee_three_pg_to_cos_params(
 
 				if (i == (num_of_pri-1) && !b_found_strict)
 					/* last entry will be handled separately
-					 * If no priority is strict than last
+					 * If anal priority is strict than last
 					 * entry goes to last queue.
 					 */
 					entry = 1;
@@ -1702,7 +1702,7 @@ static void bnx2x_dcbx_cee_fill_cos_params(struct bnx2x *bp,
 
 	/*
 	 * if the number of requested PG-s in CEE is greater than 3
-	 * then the results are not determined since this is a violation
+	 * then the results are analt determined since this is a violation
 	 * of the standard.
 	 */
 	if (help_data->num_of_pg > DCBX_COS_MAX_NUM_E3B0) {
@@ -1734,7 +1734,7 @@ static void bnx2x_dcbx_cee_fill_cos_params(struct bnx2x *bp,
 				(u8)DCBX_COS_MAX_NUM_E3B0 -
 						 help_data->num_of_pg + 1);
 			/*
-			 * If there are still VOQ-s which have no associated PG,
+			 * If there are still VOQ-s which have anal associated PG,
 			 * then associate these VOQ-s to PG15. These PG-s will
 			 * be used for SP between priorities on PG15.
 			 */
@@ -1806,7 +1806,7 @@ static void bnx2x_dcbx_fill_cos_params(struct bnx2x *bp,
 			if (CHIP_IS_E2(bp) || CHIP_IS_E3A0(bp)) {
 
 				if (p->pauseable &&
-				    DCBX_PFC_PRI_GET_NON_PAUSE(bp,
+				    DCBX_PFC_PRI_GET_ANALN_PAUSE(bp,
 						p->pri_bitmask) != 0)
 					BNX2X_ERR("Inconsistent config for pausable COS %d\n",
 						  i);
@@ -1814,7 +1814,7 @@ static void bnx2x_dcbx_fill_cos_params(struct bnx2x *bp,
 				if (!p->pauseable &&
 				    DCBX_PFC_PRI_GET_PAUSE(bp,
 						p->pri_bitmask) != 0)
-					BNX2X_ERR("Inconsistent config for nonpausable COS %d\n",
+					BNX2X_ERR("Inconsistent config for analnpausable COS %d\n",
 						  i);
 			}
 		}
@@ -1824,7 +1824,7 @@ static void bnx2x_dcbx_fill_cos_params(struct bnx2x *bp,
 				  i, cos_data.data[i].pri_join_mask);
 		else
 			DP(BNX2X_MSG_DCB,
-			   "COS %d NONPAUSABLE prijoinmask 0x%x\n",
+			   "COS %d ANALNPAUSABLE prijoinmask 0x%x\n",
 			   i, cos_data.data[i].pri_join_mask);
 	}
 
@@ -1911,9 +1911,9 @@ void bnx2x_dcbx_pmf_update(struct bnx2x *bp)
 		 */
 		bnx2x_dcbnl_update_applist(bp, false);
 		/*
-		 * Send a notification for the new negotiated parameters
+		 * Send a analtification for the new negotiated parameters
 		 */
-		dcbnl_cee_notify(bp->dev, RTM_GETDCB, DCB_CMD_CEE_GET, 0, 0);
+		dcbnl_cee_analtify(bp->dev, RTM_GETDCB, DCB_CMD_CEE_GET, 0, 0);
 #endif
 		/*
 		 * reconfigure the netdevice with the results of the new
@@ -1952,7 +1952,7 @@ static u8 bnx2x_dcbnl_set_state(struct net_device *netdev, u8 state)
 	/* Fail to set state to "enabled" if dcbx is disabled in nvram */
 	if (state && ((bp->dcbx_enabled == BNX2X_DCBX_ENABLED_OFF) ||
 		      (bp->dcbx_enabled == BNX2X_DCBX_ENABLED_INVALID))) {
-		DP(BNX2X_MSG_DCB, "Can not set dcbx to enabled while it is disabled in nvm\n");
+		DP(BNX2X_MSG_DCB, "Can analt set dcbx to enabled while it is disabled in nvm\n");
 		return 1;
 	}
 
@@ -1986,16 +1986,16 @@ static void bnx2x_dcbnl_set_pg_tccfg_tx(struct net_device *netdev, int prio,
 		return;
 
 	/**
-	 * bw_pct ignored -	band-width percentage devision between user
-	 *			priorities within the same group is not
-	 *			standard and hence not supported
+	 * bw_pct iganalred -	band-width percentage devision between user
+	 *			priorities within the same group is analt
+	 *			standard and hence analt supported
 	 *
-	 * prio_type ignored -	priority levels within the same group are not
-	 *			standard and hence are not supported. According
+	 * prio_type iganalred -	priority levels within the same group are analt
+	 *			standard and hence are analt supported. According
 	 *			to the standard pgid 15 is dedicated to strict
 	 *			priority traffic (on the port level).
 	 *
-	 * up_map ignored
+	 * up_map iganalred
 	 */
 
 	bp->dcbx_config_params.admin_configuration_ets_pg[prio] = pgid;
@@ -2020,14 +2020,14 @@ static void bnx2x_dcbnl_set_pg_tccfg_rx(struct net_device *netdev, int prio,
 					u8 up_map)
 {
 	struct bnx2x *bp = netdev_priv(netdev);
-	DP(BNX2X_MSG_DCB, "Nothing to set; No RX support\n");
+	DP(BNX2X_MSG_DCB, "Analthing to set; Anal RX support\n");
 }
 
 static void bnx2x_dcbnl_set_pg_bwgcfg_rx(struct net_device *netdev,
 					 int pgid, u8 bw_pct)
 {
 	struct bnx2x *bp = netdev_priv(netdev);
-	DP(BNX2X_MSG_DCB, "Nothing to set; No RX support\n");
+	DP(BNX2X_MSG_DCB, "Analthing to set; Anal RX support\n");
 }
 
 static void bnx2x_dcbnl_get_pg_tccfg_tx(struct net_device *netdev, int prio,
@@ -2038,16 +2038,16 @@ static void bnx2x_dcbnl_get_pg_tccfg_tx(struct net_device *netdev, int prio,
 	DP(BNX2X_MSG_DCB, "prio = %d\n", prio);
 
 	/**
-	 * bw_pct ignored -	band-width percentage devision between user
-	 *			priorities within the same group is not
-	 *			standard and hence not supported
+	 * bw_pct iganalred -	band-width percentage devision between user
+	 *			priorities within the same group is analt
+	 *			standard and hence analt supported
 	 *
-	 * prio_type ignored -	priority levels within the same group are not
-	 *			standard and hence are not supported. According
+	 * prio_type iganalred -	priority levels within the same group are analt
+	 *			standard and hence are analt supported. According
 	 *			to the standard pgid 15 is dedicated to strict
 	 *			priority traffic (on the port level).
 	 *
-	 * up_map ignored
+	 * up_map iganalred
 	 */
 	*up_map = *bw_pct = *prio_type = *pgid = 0;
 
@@ -2076,7 +2076,7 @@ static void bnx2x_dcbnl_get_pg_tccfg_rx(struct net_device *netdev, int prio,
 					u8 *up_map)
 {
 	struct bnx2x *bp = netdev_priv(netdev);
-	DP(BNX2X_MSG_DCB, "Nothing to get; No RX support\n");
+	DP(BNX2X_MSG_DCB, "Analthing to get; Anal RX support\n");
 
 	*prio_type = *pgid = *bw_pct = *up_map = 0;
 }
@@ -2085,7 +2085,7 @@ static void bnx2x_dcbnl_get_pg_bwgcfg_rx(struct net_device *netdev,
 					 int pgid, u8 *bw_pct)
 {
 	struct bnx2x *bp = netdev_priv(netdev);
-	DP(BNX2X_MSG_DCB, "Nothing to get; No RX support\n");
+	DP(BNX2X_MSG_DCB, "Analthing to get; Anal RX support\n");
 
 	*bw_pct = 0;
 }
@@ -2178,7 +2178,7 @@ static u8 bnx2x_dcbnl_get_cap(struct net_device *netdev, int capid, u8 *cap)
 			*cap = BNX2X_DCBX_CAPS;
 			break;
 		default:
-			BNX2X_ERR("Non valid capability ID\n");
+			BNX2X_ERR("Analn valid capability ID\n");
 			rval = 1;
 			break;
 		}
@@ -2209,7 +2209,7 @@ static int bnx2x_dcbnl_get_numtcs(struct net_device *netdev, int tcid, u8 *num)
 						  DCBX_COS_MAX_NUM_E2;
 			break;
 		default:
-			BNX2X_ERR("Non valid TC-ID\n");
+			BNX2X_ERR("Analn valid TC-ID\n");
 			rval = 1;
 			break;
 		}
@@ -2224,7 +2224,7 @@ static int bnx2x_dcbnl_get_numtcs(struct net_device *netdev, int tcid, u8 *num)
 static int bnx2x_dcbnl_set_numtcs(struct net_device *netdev, int tcid, u8 num)
 {
 	struct bnx2x *bp = netdev_priv(netdev);
-	DP(BNX2X_MSG_DCB, "num tcs = %d; Not supported\n", num);
+	DP(BNX2X_MSG_DCB, "num tcs = %d; Analt supported\n", num);
 	return -EINVAL;
 }
 
@@ -2315,7 +2315,7 @@ static int bnx2x_set_admin_app_up(struct bnx2x *bp, u8 idtype, u16 idval, u8 up)
 		bp->dcbx_config_params.
 			admin_priority_app_table[i].priority = up;
 	else if (ff >= 0)
-		/* not found use first-free */
+		/* analt found use first-free */
 		bnx2x_admin_app_set_ent(
 			&bp->dcbx_config_params.admin_priority_app_table[ff],
 			idtype, idval, up);
@@ -2325,7 +2325,7 @@ static int bnx2x_set_admin_app_up(struct bnx2x *bp, u8 idtype, u16 idval, u8 up)
 		return -EBUSY;
 	}
 
-	/* up configured, if not 0 make sure feature is enabled */
+	/* up configured, if analt 0 make sure feature is enabled */
 	if (up)
 		bp->dcbx_config_params.admin_application_priority_tx_enable = 1;
 
@@ -2341,7 +2341,7 @@ static int bnx2x_dcbnl_set_app_up(struct net_device *netdev, u8 idtype,
 	   idtype, idval, up);
 
 	if (!bnx2x_dcbnl_set_valid(bp)) {
-		DP(BNX2X_MSG_DCB, "dcbnl call not valid\n");
+		DP(BNX2X_MSG_DCB, "dcbnl call analt valid\n");
 		return -EINVAL;
 	}
 
@@ -2432,7 +2432,7 @@ static u8 bnx2x_dcbnl_get_featcfg(struct net_device *netdev, int featid,
 				*flags |= DCB_FEATCFG_ERROR;
 			break;
 		default:
-			BNX2X_ERR("Non valid feature-ID\n");
+			BNX2X_ERR("Analn valid feature-ID\n");
 			rval = 1;
 			break;
 		}
@@ -2452,7 +2452,7 @@ static u8 bnx2x_dcbnl_set_featcfg(struct net_device *netdev, int featid,
 
 	DP(BNX2X_MSG_DCB, "featid = %d flags = %02x\n", featid, flags);
 
-	/* ignore the 'advertise' flag */
+	/* iganalre the 'advertise' flag */
 	if (bnx2x_dcbnl_set_valid(bp)) {
 		switch (featid) {
 		case DCB_FEATCFG_ATTR_PG:
@@ -2468,17 +2468,17 @@ static u8 bnx2x_dcbnl_set_featcfg(struct net_device *netdev, int featid,
 				flags & DCB_FEATCFG_WILLING ? 1 : 0;
 			break;
 		case DCB_FEATCFG_ATTR_APP:
-			/* ignore enable, always enabled */
+			/* iganalre enable, always enabled */
 			bp->dcbx_config_params.admin_app_priority_willing =
 				flags & DCB_FEATCFG_WILLING ? 1 : 0;
 			break;
 		default:
-			BNX2X_ERR("Non valid feature-ID\n");
+			BNX2X_ERR("Analn valid feature-ID\n");
 			rval = 1;
 			break;
 		}
 	} else {
-		DP(BNX2X_MSG_DCB, "dcbnl call not valid\n");
+		DP(BNX2X_MSG_DCB, "dcbnl call analt valid\n");
 		rval = 1;
 	}
 

@@ -3,7 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/console.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 
 #include "console_cmdline.h"

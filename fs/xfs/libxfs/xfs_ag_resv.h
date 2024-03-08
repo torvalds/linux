@@ -41,13 +41,13 @@ xfs_perag_resv(
 static inline void
 xfs_ag_resv_rmapbt_alloc(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno)
+	xfs_agnumber_t		aganal)
 {
 	struct xfs_alloc_arg	args = { NULL };
 	struct xfs_perag	*pag;
 
 	args.len = 1;
-	pag = xfs_perag_get(mp, agno);
+	pag = xfs_perag_get(mp, aganal);
 	xfs_ag_resv_alloc_extent(pag, XFS_AG_RESV_RMAPBT, &args);
 	xfs_perag_put(pag);
 }

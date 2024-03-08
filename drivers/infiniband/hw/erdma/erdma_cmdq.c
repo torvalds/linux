@@ -38,7 +38,7 @@ static struct erdma_comp_wait *get_comp_wait(struct erdma_cmdq *cmdq)
 				       cmdq->max_outstandings);
 	if (comp_idx == cmdq->max_outstandings) {
 		spin_unlock(&cmdq->lock);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	__set_bit(comp_idx, cmdq->comp_wait_bitmap);
@@ -69,13 +69,13 @@ static int erdma_cmdq_wait_res_init(struct erdma_dev *dev,
 		devm_kcalloc(&dev->pdev->dev, cmdq->max_outstandings,
 			     sizeof(struct erdma_comp_wait), GFP_KERNEL);
 	if (!cmdq->wait_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&cmdq->lock);
 	cmdq->comp_wait_bitmap = devm_bitmap_zalloc(
 		&dev->pdev->dev, cmdq->max_outstandings, GFP_KERNEL);
 	if (!cmdq->comp_wait_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < cmdq->max_outstandings; i++) {
 		init_completion(&cmdq->wait_pool[i].wait_event);
@@ -100,7 +100,7 @@ static int erdma_cmdq_sq_init(struct erdma_dev *dev)
 		dma_alloc_coherent(&dev->pdev->dev, WARPPED_BUFSIZE(buf_size),
 				   &sq->qbuf_dma_addr, GFP_KERNEL);
 	if (!sq->qbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sq->db_record = (u64 *)(sq->qbuf + buf_size);
 
@@ -130,7 +130,7 @@ static int erdma_cmdq_cq_init(struct erdma_dev *dev)
 		dma_alloc_coherent(&dev->pdev->dev, WARPPED_BUFSIZE(buf_size),
 				   &cq->qbuf_dma_addr, GFP_KERNEL | __GFP_ZERO);
 	if (!cq->qbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&cq->lock);
 
@@ -161,7 +161,7 @@ static int erdma_cmdq_eq_init(struct erdma_dev *dev)
 		dma_alloc_coherent(&dev->pdev->dev, WARPPED_BUFSIZE(buf_size),
 				   &eq->qbuf_dma_addr, GFP_KERNEL | __GFP_ZERO);
 	if (!eq->qbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&eq->lock);
 	atomic64_set(&eq->event_num, 0);
@@ -361,7 +361,7 @@ void erdma_cmdq_completion_handler(struct erdma_cmdq *cmdq)
 		erdma_polling_cmd_completions(cmdq);
 	}
 
-	notify_eq(&cmdq->eq);
+	analtify_eq(&cmdq->eq);
 }
 
 static int erdma_poll_cmd_completion(struct erdma_comp_wait *comp_ctx,
@@ -414,7 +414,7 @@ int erdma_post_cmd_wait(struct erdma_cmdq *cmdq, void *req, u32 req_size,
 	int ret;
 
 	if (!test_bit(ERDMA_CMDQ_STATE_OK_BIT, &cmdq->state))
-		return -ENODEV;
+		return -EANALDEV;
 
 	down(&cmdq->credits);
 

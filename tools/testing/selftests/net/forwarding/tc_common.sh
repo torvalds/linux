@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-CHECK_TC="yes"
+CHECK_TC="anal"
 
 # Can be overridden by the configuration file. See lib.sh
 TC_HIT_TIMEOUT=${TC_HIT_TIMEOUT:=1000} # ms

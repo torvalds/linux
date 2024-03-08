@@ -13,8 +13,8 @@
 #include "rk3588.dtsi"
 
 / {
-	model = "FriendlyElec NanoPC-T6";
-	compatible = "friendlyarm,nanopc-t6", "rockchip,rk3588";
+	model = "FriendlyElec NaanalPC-T6";
+	compatible = "friendlyarm,naanalpc-t6", "rockchip,rk3588";
 
 	aliases {
 		mmc0 = &sdhci;
@@ -461,17 +461,17 @@
 &pinctrl {
 	gpio-leds {
 		sys_led_pin: sys-led-pin {
-			rockchip,pins = <2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		usr_led_pin: usr-led-pin {
-			rockchip,pins = <2 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PC0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	headphone {
 		hp_det: hp-det {
-			rockchip,pins = <1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -483,29 +483,29 @@
 
 	pcie {
 		pcie2_0_rst: pcie2-0-rst {
-			rockchip,pins = <4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		pcie2_1_rst: pcie2-1-rst {
-			rockchip,pins = <4 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		pcie2_2_rst: pcie2-2-rst {
-			rockchip,pins = <4 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PA4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		pcie_m2_0_pwren: pcie-m20-pwren {
-			rockchip,pins = <2 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PC5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		pcie_m2_1_pwren: pcie-m21-pwren {
-			rockchip,pins = <4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb {
 		typec5v_pwren: typec5v-pwren {
-			rockchip,pins = <1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		usbc0_int: usbc0-int {
@@ -526,9 +526,9 @@
 
 &sdhci {
 	bus-width = <8>;
-	no-sdio;
-	no-sd;
-	non-removable;
+	anal-sdio;
+	anal-sd;
+	analn-removable;
 	max-frequency = <200000000>;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
@@ -540,8 +540,8 @@
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	disable-wp;
-	no-mmc;
-	no-sdio;
+	anal-mmc;
+	anal-sdio;
 	sd-uhs-sdr104;
 	vmmc-supply = <&vcc_3v3_s3>;
 	vqmmc-supply = <&vccio_sd_s0>;

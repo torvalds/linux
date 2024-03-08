@@ -4,7 +4,7 @@
  *
  *  Based almost entirely on cfbimgblt.c
  *
- *      Copyright (C)  April 2007 Antonino Daplas <adaplas@pol.net>
+ *      Copyright (C)  April 2007 Antonianal Daplas <adaplas@pol.net>
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License.  See the file COPYING in the main directory of this archive for
@@ -176,7 +176,7 @@ static void slow_imageblit(const struct fb_image *image, struct fb_info *p,
 }
 
 /*
- * fast_imageblit - optimized monochrome color expansion
+ * fast_imageblit - optimized moanalchrome color expansion
  *
  * Only if:  bits_per_pixel == 8, 16, or 32
  *           image->width is divisible by pixel/dword (ppw);
@@ -267,7 +267,7 @@ static void fast_imageblit(const struct fb_image *image, struct fb_info *p,
 		}
 
 		/*
-		 * For image widths that are not a multiple of 8, there
+		 * For image widths that are analt a multiple of 8, there
 		 * are trailing pixels left on the current line. Print
 		 * them as well.
 		 */
@@ -297,7 +297,7 @@ void sys_imageblit(struct fb_info *p, const struct fb_image *image)
 		return;
 
 	if (!(p->flags & FBINFO_VIRTFB))
-		fb_warn_once(p, "Framebuffer is not in virtual address space.");
+		fb_warn_once(p, "Framebuffer is analt in virtual address space.");
 
 	bitstart = (dy * p->fix.line_length * 8) + (dx * bpp);
 	start_index = bitstart & (32 - 1);
@@ -333,7 +333,7 @@ void sys_imageblit(struct fb_info *p, const struct fb_image *image)
 
 EXPORT_SYMBOL(sys_imageblit);
 
-MODULE_AUTHOR("Antonino Daplas <adaplas@pol.net>");
+MODULE_AUTHOR("Antonianal Daplas <adaplas@pol.net>");
 MODULE_DESCRIPTION("1-bit/8-bit to 1-32 bit color expansion (sys-to-sys)");
 MODULE_LICENSE("GPL");
 

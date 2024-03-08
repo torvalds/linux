@@ -16,7 +16,7 @@ description: |
   data path or MDP data path.
   In some SoC, such as mt2701, MUTEX could be a hardware mutex which protects
   the shadow register.
-  MUTEX device node must be siblings to the central MMSYS_CONFIG node.
+  MUTEX device analde must be siblings to the central MMSYS_CONFIG analde.
   For a description of the MMSYS_CONFIG binding, see
   Documentation/devicetree/bindings/arm/mediatek/mediatek,mmsys.yaml
   for details.

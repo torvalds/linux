@@ -3,7 +3,7 @@
 Marvell Armada 37xx SoCs allow to determine the xtal clock frequencies by
 reading the gpio latch register.
 
-This node must be a subnode of the node exposing the register address
+This analde must be a subanalde of the analde exposing the register address
 of the GPIO block where the gpio latch is located.
 See Documentation/devicetree/bindings/pinctrl/marvell,armada-37xx-pinctrl.txt
 

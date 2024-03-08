@@ -75,16 +75,16 @@ static void mvebu_armada_pm_enter(void __iomem *sdram_reg, u32 srcmd)
 
 static int __init mvebu_armada_pm_init(void)
 {
-	struct device_node *np;
-	struct device_node *gpio_ctrl_np = NULL;
+	struct device_analde *np;
+	struct device_analde *gpio_ctrl_np = NULL;
 	int ret = 0, i;
 
 	if (!of_machine_is_compatible("marvell,axp-gp"))
-		return -ENODEV;
+		return -EANALDEV;
 
-	np = of_find_node_by_name(NULL, "pm_pic");
+	np = of_find_analde_by_name(NULL, "pm_pic");
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < ARMADA_PIC_NR_GPIOS; i++) {
 		char *name;
@@ -92,11 +92,11 @@ static int __init mvebu_armada_pm_init(void)
 
 		name = kasprintf(GFP_KERNEL, "pic-pin%d", i);
 		if (!name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
-		pic_gpios[i] = fwnode_gpiod_get_index(of_fwnode_handle(np),
+		pic_gpios[i] = fwanalde_gpiod_get_index(of_fwanalde_handle(np),
 						      "ctrl", i, GPIOD_OUT_HIGH,
 						      name);
 		ret = PTR_ERR_OR_ZERO(pic_gpios[i]);
@@ -114,22 +114,22 @@ static int __init mvebu_armada_pm_init(void)
 		}
 
 		if (gpio_ctrl_np)
-			of_node_put(gpio_ctrl_np);
+			of_analde_put(gpio_ctrl_np);
 		gpio_ctrl_np = args.np;
 		pic_raw_gpios[i] = args.args[0];
 	}
 
 	gpio_ctrl = of_iomap(gpio_ctrl_np, 0);
 	if (!gpio_ctrl) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	mvebu_pm_suspend_init(mvebu_armada_pm_enter);
 
 out:
-	of_node_put(np);
-	of_node_put(gpio_ctrl_np);
+	of_analde_put(np);
+	of_analde_put(gpio_ctrl_np);
 	return ret;
 }
 

@@ -124,7 +124,7 @@
 
 #ifndef map_bankwidth
 #ifdef CONFIG_MTD
-#warning "No CONFIG_MTD_MAP_BANK_WIDTH_xx selected. No NOR chip support can work"
+#warning "Anal CONFIG_MTD_MAP_BANK_WIDTH_xx selected. Anal ANALR chip support can work"
 #endif
 static inline int map_bankwidth(void *map)
 {
@@ -192,7 +192,7 @@ struct map_info {
 	const char *name;
 	unsigned long size;
 	resource_size_t phys;
-#define NO_XIP (-1UL)
+#define ANAL_XIP (-1UL)
 
 	void __iomem *virt;
 	void *cached;
@@ -211,14 +211,14 @@ struct map_info {
 	void (*copy_to)(struct map_info *, unsigned long, const void *, ssize_t);
 
 	/* We can perhaps put in 'point' and 'unpoint' methods, if we really
-	   want to enable XIP for non-linear mappings. Not yet though. */
+	   want to enable XIP for analn-linear mappings. Analt yet though. */
 #endif
 	/* It's possible for the map driver to use cached memory in its
 	   copy_from implementation (and _only_ with copy_from).  However,
-	   when the chip driver knows some flash area has changed contents,
+	   when the chip driver kanalws some flash area has changed contents,
 	   it will signal it to the map driver through this routine to let
 	   the map driver invalidate the corresponding cache as needed.
-	   If there is no cache to care about this can be set to NULL. */
+	   If there is anal cache to care about this can be set to NULL. */
 	void (*inval_cache)(struct map_info *, unsigned long, ssize_t);
 
 	/* This will be called with 1 as parameter when the first map user
@@ -231,7 +231,7 @@ struct map_info {
 	unsigned long pfow_base;
 	unsigned long map_priv_1;
 	unsigned long map_priv_2;
-	struct device_node *device_node;
+	struct device_analde *device_analde;
 	void *fldrv_priv;
 	struct mtd_chip_driver *fldrv;
 };
@@ -447,7 +447,7 @@ static inline void inline_map_copy_to(struct map_info *map, unsigned long to, co
 #define map_copy_to(map, to, from, len) (map)->copy_to(map, to, from, len)
 
 extern void simple_map_init(struct map_info *);
-#define map_is_linear(map) (map->phys != NO_XIP)
+#define map_is_linear(map) (map->phys != ANAL_XIP)
 
 #else
 #define map_read(map, ofs) inline_map_read(map, ofs)

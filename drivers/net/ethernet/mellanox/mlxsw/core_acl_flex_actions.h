@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #ifndef _MLXSW_CORE_ACL_FLEX_ACTIONS_H
 #define _MLXSW_CORE_ACL_FLEX_ACTIONS_H
@@ -89,7 +89,7 @@ int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
 				   struct netlink_ext_ack *extack);
 int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid,
 				   struct netlink_ext_ack *extack);
-int mlxsw_afa_block_append_ignore(struct mlxsw_afa_block *block,
+int mlxsw_afa_block_append_iganalre(struct mlxsw_afa_block *block,
 				  bool disable_learning, bool disable_security);
 int mlxsw_afa_block_append_mcrouter(struct mlxsw_afa_block *block,
 				    u16 expected_irif, u16 min_mtu,

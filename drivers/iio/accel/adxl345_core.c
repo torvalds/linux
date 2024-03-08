@@ -32,7 +32,7 @@
 	(ADXL345_REG_DATAX0 + (index) * sizeof(__le16))
 
 #define ADXL345_BW_RATE			GENMASK(3, 0)
-#define ADXL345_BASE_RATE_NANO_HZ	97656250LL
+#define ADXL345_BASE_RATE_NAANAL_HZ	97656250LL
 
 #define ADXL345_POWER_CTL_MEASURE	BIT(3)
 #define ADXL345_POWER_CTL_STANDBY	0x00
@@ -114,11 +114,11 @@ static int adxl345_read_raw(struct iio_dev *indio_dev,
 		if (ret < 0)
 			return ret;
 
-		samp_freq_nhz = ADXL345_BASE_RATE_NANO_HZ <<
+		samp_freq_nhz = ADXL345_BASE_RATE_NAANAL_HZ <<
 				(regval & ADXL345_BW_RATE);
-		*val = div_s64_rem(samp_freq_nhz, NANOHZ_PER_HZ, val2);
+		*val = div_s64_rem(samp_freq_nhz, NAANALHZ_PER_HZ, val2);
 
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	}
 
 	return -EINVAL;
@@ -141,8 +141,8 @@ static int adxl345_write_raw(struct iio_dev *indio_dev,
 				    ADXL345_REG_OFS_AXIS(chan->address),
 				    val / 4);
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		n = div_s64(val * NANOHZ_PER_HZ + val2,
-			    ADXL345_BASE_RATE_NANO_HZ);
+		n = div_s64(val * NAANALHZ_PER_HZ + val2,
+			    ADXL345_BASE_RATE_NAANAL_HZ);
 
 		return regmap_update_bits(data->regmap, ADXL345_REG_BW_RATE,
 					  ADXL345_BW_RATE,
@@ -161,7 +161,7 @@ static int adxl345_write_raw_get_fmt(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_CALIBBIAS:
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return -EINVAL;
 	}
@@ -209,12 +209,12 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap)
 		return dev_err_probe(dev, ret, "Error reading device ID\n");
 
 	if (regval != ADXL345_DEVID)
-		return dev_err_probe(dev, -ENODEV, "Invalid device ID: %x, expected %x\n",
+		return dev_err_probe(dev, -EANALDEV, "Invalid device ID: %x, expected %x\n",
 				     regval, ADXL345_DEVID);
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->regmap = regmap;
@@ -222,7 +222,7 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap)
 	data->data_range = ADXL345_DATA_FORMAT_FULL_RES;
 	data->info = device_get_match_data(dev);
 	if (!data->info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = regmap_write(data->regmap, ADXL345_REG_DATA_FORMAT,
 			   data->data_range);

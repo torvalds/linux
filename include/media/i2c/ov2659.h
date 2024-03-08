@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2015 Texas Instruments, Inc.
  *
- * Benoit Parrot <bparrot@ti.com>
+ * Beanalit Parrot <bparrot@ti.com>
  * Lad, Prabhakar <prabhakar.csengg@gmail.com>
  */
 

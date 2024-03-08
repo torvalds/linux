@@ -37,14 +37,14 @@ struct tee_shm_pool;
  * @list_shm:	List of shared memory object owned by this context
  * @data:	driver specific context data, managed by the driver
  * @refcount:	reference counter for this structure
- * @releasing:  flag that indicates if context is being released right now.
+ * @releasing:  flag that indicates if context is being released right analw.
  *		It is needed to break circular dependency on context during
  *              shared memory release.
- * @supp_nowait: flag that indicates that requests in this context should not
- *              wait for tee-supplicant daemon to be started if not present
+ * @supp_analwait: flag that indicates that requests in this context should analt
+ *              wait for tee-supplicant daemon to be started if analt present
  *              and just return with an error code. It is needed for requests
  *              that arises from TEE based kernel drivers that should be
- *              non-blocking in nature.
+ *              analn-blocking in nature.
  * @cap_memref_null: flag indicating if the TEE Client support shared
  *                   memory buffer with a NULL pointer.
  */
@@ -53,7 +53,7 @@ struct tee_context {
 	void *data;
 	struct kref refcount;
 	bool releasing;
-	bool supp_nowait;
+	bool supp_analwait;
 	bool cap_memref_null;
 };
 
@@ -135,7 +135,7 @@ struct tee_desc {
  * tee_device_alloc() - Allocate a new struct tee_device instance
  * @teedesc:	Descriptor for this driver
  * @dev:	Parent device for this device
- * @pool:	Shared memory pool, NULL if not used
+ * @pool:	Shared memory pool, NULL if analt used
  * @driver_data: Private driver data for this device
  *
  * Allocates a new struct tee_device instance. The device is
@@ -164,7 +164,7 @@ int tee_device_register(struct tee_device *teedev);
  * @teedev:	Device to unregister
  *
  * This function should be called to remove the @teedev even if
- * tee_device_register() hasn't been called yet. Does nothing if
+ * tee_device_register() hasn't been called yet. Does analthing if
  * @teedev is NULL.
  */
 void tee_device_unregister(struct tee_device *teedev);
@@ -199,7 +199,7 @@ int tee_session_calc_client_uuid(uuid_t *uuid, u32 connection_method,
  * @id:		unique id of a shared memory object on this device, shared
  *		with user space
  * @sec_world_id:
- *		secure world assigned id of this shared memory object, not
+ *		secure world assigned id of this shared memory object, analt
  *		used by all drivers
  *
  * This pool is only supposed to be accessed directly from the TEE
@@ -258,7 +258,7 @@ struct tee_shm_pool *tee_shm_pool_alloc_res_mem(unsigned long vaddr,
  * tee_shm_pool_free() - Free a shared memory pool
  * @pool:	The shared memory pool to free
  *
- * The must be no remaining shared memory allocated from this pool when
+ * The must be anal remaining shared memory allocated from this pool when
  * this function is called.
  */
 static inline void tee_shm_pool_free(struct tee_shm_pool *pool)
@@ -373,10 +373,10 @@ struct tee_shm *tee_shm_get_from_id(struct tee_context *ctx, int id);
 
 /**
  * tee_client_open_context() - Open a TEE context
- * @start:	if not NULL, continue search after this context
+ * @start:	if analt NULL, continue search after this context
  * @match:	function to check TEE device
  * @data:	data for match function
- * @vers:	if not NULL, version data of TEE device of the context returned
+ * @vers:	if analt NULL, version data of TEE device of the context returned
  *
  * This function does an operation similar to open("/dev/teeX") in user space.
  * A returned context must be released with tee_client_close_context().
@@ -394,7 +394,7 @@ tee_client_open_context(struct tee_context *start,
  * tee_client_close_context() - Close a TEE context
  * @ctx:	TEE context to close
  *
- * Note that all sessions previously opened with this context will be
+ * Analte that all sessions previously opened with this context will be
  * closed when this function is called.
  */
 void tee_client_close_context(struct tee_context *ctx);
@@ -426,7 +426,7 @@ int tee_client_open_session(struct tee_context *ctx,
  * @ctx:	TEE Context
  * @session:	Session id
  *
- * Return < 0 on error else 0, regardless the session will not be
+ * Return < 0 on error else 0, regardless the session will analt be
  * valid after this function has returned.
  */
 int tee_client_close_session(struct tee_context *ctx, u32 session);
@@ -438,7 +438,7 @@ int tee_client_close_session(struct tee_context *ctx, u32 session);
  *
  * This function requests TEE to provision an entry context ready to use for
  * that session only. The provisioned entry context is used for command
- * invocation and session closure, not for command cancelling requests.
+ * invocation and session closure, analt for command cancelling requests.
  * TEE releases the provisioned context upon session closure.
  *
  * Return < 0 on error else 0 if an entry context has been provisioned.
@@ -475,7 +475,7 @@ static inline bool tee_param_is_memref(struct tee_param *param)
 	switch (param->attr & TEE_IOCTL_PARAM_ATTR_TYPE_MASK) {
 	case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT:
 	case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT:
-	case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT:
+	case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_IANALUT:
 		return true;
 	default:
 		return false;

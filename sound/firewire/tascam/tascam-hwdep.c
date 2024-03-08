@@ -8,8 +8,8 @@
 /*
  * This codes give three functionality.
  *
- * 1.get firewire node information
- * 2.get notification about starting/stopping stream
+ * 1.get firewire analde information
+ * 2.get analtification about starting/stopping stream
  * 3.lock/unlock stream
  */
 
@@ -113,7 +113,7 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 		spin_lock_irq(&tscm->lock);
 	}
 
-	// NOTE: The acquired lock should be released in callee side.
+	// ANALTE: The acquired lock should be released in callee side.
 	if (tscm->dev_lock_changed) {
 		count = tscm_hwdep_read_locked(tscm, buf, count, offset);
 	} else if (tscm->push_pos != tscm->pull_pos) {
@@ -136,7 +136,7 @@ static __poll_t hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 
 	spin_lock_irq(&tscm->lock);
 	if (tscm->dev_lock_changed || tscm->push_pos != tscm->pull_pos)
-		events = EPOLLIN | EPOLLRDNORM;
+		events = EPOLLIN | EPOLLRDANALRM;
 	else
 		events = 0;
 	spin_unlock_irq(&tscm->lock);
@@ -234,7 +234,7 @@ static int hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 	case SNDRV_FIREWIRE_IOCTL_TASCAM_STATE:
 		return tscm_hwdep_state(tscm, (void __user *)arg);
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 

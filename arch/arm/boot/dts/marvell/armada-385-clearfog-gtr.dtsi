@@ -197,8 +197,8 @@
 
 			sdhci@d8000 {
 				bus-width = <4>;
-				no-1-8-v;
-				non-removable;
+				anal-1-8-v;
+				analn-removable;
 				pinctrl-0 = <&cf_gtr_sdhci_pins>;
 				pinctrl-names = "default";
 				status = "okay";
@@ -342,7 +342,7 @@
 
 	phy_dedicated: ethernet-phy@0 {
 		/*
-		 * Annoyingly, the marvell phy driver configures the LED
+		 * Ananalyingly, the marvell phy driver configures the LED
 		 * register, rather than preserving reset-loaded setting.
 		 * We undo that rubbish here.
 		 */
@@ -368,7 +368,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "w25q32", "jedec,spi-nor";
+		compatible = "w25q32", "jedec,spi-analr";
 		reg = <0>; /* Chip select 0 */
 		spi-max-frequency = <3000000>;
 		status = "okay";

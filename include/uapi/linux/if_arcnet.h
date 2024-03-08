@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * INET         An implementation of the TCP/IP protocol suite for the LINUX
  *              operating system.  INET is implemented using the  BSD Socket
@@ -25,7 +25,7 @@
  */
 
 /* CAP mode */
-/* No macro but uses 1-8 */
+/* Anal macro but uses 1-8 */
 
 /* RFC1201 Protocol ID's */
 #define ARC_P_IP		212	/* 0xD4 */
@@ -33,7 +33,7 @@
 #define ARC_P_ARP		213	/* 0xD5 */
 #define ARC_P_RARP		214	/* 0xD6 */
 #define ARC_P_IPX		250	/* 0xFA */
-#define ARC_P_NOVELL_EC		236	/* 0xEC */
+#define ARC_P_ANALVELL_EC		236	/* 0xEC */
 
 /* Old RFC1051 Protocol ID's */
 #define ARC_P_IP_RFC1051	240	/* 0xF0 */
@@ -87,7 +87,7 @@ struct arc_eth_encap {
 struct arc_cap {
 	__u8 proto;
 	__u8 cookie[sizeof(int)];
-				/* Actually NOT sent over the network */
+				/* Actually ANALT sent over the network */
 	union {
 		__u8 ack;
 		__u8 raw[0];	/* 507 bytes */
@@ -97,7 +97,7 @@ struct arc_cap {
 /*
  * The data needed by the actual arcnet hardware.
  *
- * Now, in the real arcnet hardware, the third and fourth bytes are the
+ * Analw, in the real arcnet hardware, the third and fourth bytes are the
  * 'offset' specification instead of the length, and the soft data is at
  * the _end_ of the 512-byte buffer.  We hide this complexity inside the
  * driver.

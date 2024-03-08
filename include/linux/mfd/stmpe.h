@@ -158,6 +158,6 @@ extern int stmpe_enable(struct stmpe *stmpe, unsigned int blocks);
 extern int stmpe_disable(struct stmpe *stmpe, unsigned int blocks);
 extern int stmpe811_adc_common_init(struct stmpe *stmpe);
 
-#define STMPE_GPIO_NOREQ_811_TOUCH	(0xf0)
+#define STMPE_GPIO_ANALREQ_811_TOUCH	(0xf0)
 
 #endif

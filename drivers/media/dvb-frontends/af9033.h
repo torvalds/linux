@@ -83,9 +83,9 @@ struct af9033_config {
 };
 
 struct af9033_ops {
-	int (*pid_filter_ctrl)(struct dvb_frontend *fe, int onoff);
+	int (*pid_filter_ctrl)(struct dvb_frontend *fe, int oanalff);
 	int (*pid_filter)(struct dvb_frontend *fe, int index, u16 pid,
-			  int onoff);
+			  int oanalff);
 };
 
 #endif /* AF9033_H */

@@ -56,10 +56,10 @@ static int lt7182s_read_word_data(struct i2c_client *client, int page, int phase
 		ret = pmbus_read_word_data(client, page, phase, MFR_TEMPERATURE_1_PEAK);
 		break;
 	case PMBUS_VIRT_RESET_VIN_HISTORY:
-		ret = (page == 0) ? 0 : -ENODATA;
+		ret = (page == 0) ? 0 : -EANALDATA;
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -74,7 +74,7 @@ static int lt7182s_write_word_data(struct i2c_client *client, int page, int reg,
 		ret = pmbus_write_byte(client, 0, MFR_CLEAR_PEAKS);
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -111,7 +111,7 @@ static int lt7182s_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA |
 				     I2C_FUNC_SMBUS_READ_WORD_DATA |
 				     I2C_FUNC_SMBUS_READ_BLOCK_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = i2c_smbus_read_block_data(client, PMBUS_MFR_ID, buf);
 	if (ret < 0) {
@@ -120,8 +120,8 @@ static int lt7182s_probe(struct i2c_client *client)
 	}
 	if (ret != 3 || strncmp(buf, "ADI", 3)) {
 		buf[ret] = '\0';
-		dev_err(dev, "Manufacturer '%s' not supported\n", buf);
-		return -ENODEV;
+		dev_err(dev, "Manufacturer '%s' analt supported\n", buf);
+		return -EANALDEV;
 	}
 
 	ret = i2c_smbus_read_block_data(client, PMBUS_MFR_MODEL, buf);
@@ -131,14 +131,14 @@ static int lt7182s_probe(struct i2c_client *client)
 	}
 	if (ret != 7 || strncmp(buf, "LT7182S", 7)) {
 		buf[ret] = '\0';
-		dev_err(dev, "Model '%s' not supported\n", buf);
-		return -ENODEV;
+		dev_err(dev, "Model '%s' analt supported\n", buf);
+		return -EANALDEV;
 	}
 
 	info = devm_kmemdup(dev, &lt7182s_info,
 			    sizeof(struct pmbus_driver_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Set data format to IEEE754 if configured */
 	ret = i2c_smbus_read_word_data(client, MFR_CONFIG_ALL_LT7182S);

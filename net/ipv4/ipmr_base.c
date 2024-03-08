@@ -40,7 +40,7 @@ mr_table_alloc(struct net *net, u32 id,
 
 	mrt = kzalloc(sizeof(*mrt), GFP_KERNEL);
 	if (!mrt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	mrt->id = id;
 	write_pnet(&mrt->net, net);
 
@@ -67,7 +67,7 @@ void *mr_mfc_find_parent(struct mr_table *mrt, void *hasharg, int parent)
 	struct mr_mfc *c;
 
 	list = rhltable_lookup(&mrt->mfc_hash, hasharg, *mrt->ops.rht_params);
-	rhl_for_each_entry_rcu(c, tmp, list, mnode)
+	rhl_for_each_entry_rcu(c, tmp, list, manalde)
 		if (parent == -1 || parent == c->mfc_parent)
 			return c;
 
@@ -82,7 +82,7 @@ void *mr_mfc_find_any_parent(struct mr_table *mrt, int vifi)
 
 	list = rhltable_lookup(&mrt->mfc_hash, mrt->ops.cmparg_any,
 			       *mrt->ops.rht_params);
-	rhl_for_each_entry_rcu(c, tmp, list, mnode)
+	rhl_for_each_entry_rcu(c, tmp, list, manalde)
 		if (c->mfc_un.res.ttls[vifi] < 255)
 			return c;
 
@@ -96,7 +96,7 @@ void *mr_mfc_find_any(struct mr_table *mrt, int vifi, void *hasharg)
 	struct mr_mfc *c, *proxy;
 
 	list = rhltable_lookup(&mrt->mfc_hash, hasharg, *mrt->ops.rht_params);
-	rhl_for_each_entry_rcu(c, tmp, list, mnode) {
+	rhl_for_each_entry_rcu(c, tmp, list, manalde) {
 		if (c->mfc_un.res.ttls[vifi] < 255)
 			return c;
 
@@ -218,7 +218,7 @@ int mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 	/* If cache is unresolved, don't try to parse IIF and OIF */
 	if (c->mfc_parent >= MAXVIFS) {
 		rtm->rtm_flags |= RTNH_F_UNRESOLVED;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	rcu_read_lock();
@@ -232,7 +232,7 @@ int mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 	if (c->mfc_flags & MFC_OFFLOAD)
 		rtm->rtm_flags |= RTNH_F_OFFLOAD;
 
-	mp_attr = nla_nest_start_noflag(skb, RTA_MULTIPATH);
+	mp_attr = nla_nest_start_analflag(skb, RTA_MULTIPATH);
 	if (!mp_attr)
 		return -EMSGSIZE;
 
@@ -243,7 +243,7 @@ int mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 		vif_dev = rcu_dereference(vif->dev);
 		if (vif_dev && c->mfc_un.res.ttls[ct] < 255) {
 
-			nhp = nla_reserve_nohdr(skb, sizeof(*nhp));
+			nhp = nla_reserve_analhdr(skb, sizeof(*nhp));
 			if (!nhp) {
 				rcu_read_unlock();
 				nla_nest_cancel(skb, mp_attr);
@@ -364,7 +364,7 @@ int mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
 	struct mr_table *mrt;
 	int err;
 
-	/* multicast does not track protocol or have route type other
+	/* multicast does analt track protocol or have route type other
 	 * than RTN_MULTICAST
 	 */
 	if (filter->filter_set) {
@@ -393,9 +393,9 @@ next_table:
 }
 EXPORT_SYMBOL(mr_rtm_dumproute);
 
-int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
+int mr_dump(struct net *net, struct analtifier_block *nb, unsigned short family,
 	    int (*rules_dump)(struct net *net,
-			      struct notifier_block *nb,
+			      struct analtifier_block *nb,
 			      struct netlink_ext_ack *extack),
 	    struct mr_table *(*mr_iter)(struct net *net,
 					struct mr_table *mrt),
@@ -414,14 +414,14 @@ int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
 		struct mr_mfc *mfc;
 		int vifi;
 
-		/* Notifiy on table VIF entries */
+		/* Analtifiy on table VIF entries */
 		rcu_read_lock();
 		for (vifi = 0; vifi < mrt->maxvif; vifi++, v++) {
 			vif_dev = rcu_dereference(v->dev);
 			if (!vif_dev)
 				continue;
 
-			err = mr_call_vif_notifier(nb, family,
+			err = mr_call_vif_analtifier(nb, family,
 						   FIB_EVENT_VIF_ADD, v,
 						   vif_dev, vifi,
 						   mrt->id, extack);
@@ -433,9 +433,9 @@ int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
 		if (err)
 			return err;
 
-		/* Notify on table MFC entries */
+		/* Analtify on table MFC entries */
 		list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list) {
-			err = mr_call_mfc_notifier(nb, family,
+			err = mr_call_mfc_analtifier(nb, family,
 						   FIB_EVENT_ENTRY_ADD,
 						   mfc, mrt->id, extack);
 			if (err)

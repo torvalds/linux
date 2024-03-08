@@ -233,8 +233,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	bus-width = <8>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	keep-power-in-suspend;
 	status = "okay";
 };
@@ -242,8 +242,8 @@
 &usdhc2 {  /* Wifi SDIO */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	keep-power-in-suspend;
 	wakeup-source;
 	vmmc-supply = <&reg_brcm>;

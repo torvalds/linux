@@ -4,7 +4,7 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
-#include <linux/adreno-smmu-priv.h>
+#include <linux/adreanal-smmu-priv.h>
 #include <linux/io-pgtable.h>
 #include "msm_drv.h"
 #include "msm_mmu.h"
@@ -42,7 +42,7 @@ static size_t calc_pgsize(struct msm_iommu_pagetable *pagetable,
 	size_t offset, pgsize, pgsize_next;
 	unsigned long addr_merge = paddr | iova;
 
-	/* Page sizes supported by the hardware and small enough for @size */
+	/* Page sizes supported by the hardware and small eanalugh for @size */
 	pgsizes = pagetable->pgsize_bitmap & GENMASK(__fls(size), 0);
 
 	/* Constrain the page sizes further based on the maximum alignment */
@@ -67,7 +67,7 @@ static size_t calc_pgsize(struct msm_iommu_pagetable *pagetable,
 	pgsize_next = BIT(pgsize_idx_next);
 
 	/*
-	 * There's no point trying a bigger page size unless the virtual
+	 * There's anal point trying a bigger page size unless the virtual
 	 * and physical addresses are similarly offset within the larger page.
 	 */
 	if ((iova ^ paddr) & (pgsize_next - 1))
@@ -77,7 +77,7 @@ static size_t calc_pgsize(struct msm_iommu_pagetable *pagetable,
 	offset = pgsize_next - (addr_merge & (pgsize_next - 1));
 
 	/*
-	 * If size is big enough to accommodate the larger page, reduce
+	 * If size is big eanalugh to accommodate the larger page, reduce
 	 * the number of smaller pages.
 	 */
 	if (offset + pgsize_next <= size)
@@ -155,7 +155,7 @@ static void msm_iommu_pagetable_destroy(struct msm_mmu *mmu)
 {
 	struct msm_iommu_pagetable *pagetable = to_pagetable(mmu);
 	struct msm_iommu *iommu = to_msm_iommu(pagetable->parent);
-	struct adreno_smmu_priv *adreno_smmu =
+	struct adreanal_smmu_priv *adreanal_smmu =
 		dev_get_drvdata(pagetable->parent->dev);
 
 	/*
@@ -163,7 +163,7 @@ static void msm_iommu_pagetable_destroy(struct msm_mmu *mmu)
 	 * disable TTBR0 in the arm-smmu driver
 	 */
 	if (atomic_dec_return(&iommu->pagetables) == 0)
-		adreno_smmu->set_ttbr0_cfg(adreno_smmu->cookie, NULL);
+		adreanal_smmu->set_ttbr0_cfg(adreanal_smmu->cookie, NULL);
 
 	free_io_pgtable_ops(pagetable->pgtbl_ops);
 	kfree(pagetable);
@@ -204,14 +204,14 @@ static const struct msm_mmu_funcs pagetable_funcs = {
 static void msm_iommu_tlb_flush_all(void *cookie)
 {
 	struct msm_iommu_pagetable *pagetable = cookie;
-	struct adreno_smmu_priv *adreno_smmu;
+	struct adreanal_smmu_priv *adreanal_smmu;
 
 	if (!pm_runtime_get_if_in_use(pagetable->iommu_dev))
 		return;
 
-	adreno_smmu = dev_get_drvdata(pagetable->parent->dev);
+	adreanal_smmu = dev_get_drvdata(pagetable->parent->dev);
 
-	pagetable->tlb->tlb_flush_all((void *)adreno_smmu->cookie);
+	pagetable->tlb->tlb_flush_all((void *)adreanal_smmu->cookie);
 
 	pm_runtime_put_autosuspend(pagetable->iommu_dev);
 }
@@ -220,14 +220,14 @@ static void msm_iommu_tlb_flush_walk(unsigned long iova, size_t size,
 		size_t granule, void *cookie)
 {
 	struct msm_iommu_pagetable *pagetable = cookie;
-	struct adreno_smmu_priv *adreno_smmu;
+	struct adreanal_smmu_priv *adreanal_smmu;
 
 	if (!pm_runtime_get_if_in_use(pagetable->iommu_dev))
 		return;
 
-	adreno_smmu = dev_get_drvdata(pagetable->parent->dev);
+	adreanal_smmu = dev_get_drvdata(pagetable->parent->dev);
 
-	pagetable->tlb->tlb_flush_walk(iova, size, granule, (void *)adreno_smmu->cookie);
+	pagetable->tlb->tlb_flush_walk(iova, size, granule, (void *)adreanal_smmu->cookie);
 
 	pm_runtime_put_autosuspend(pagetable->iommu_dev);
 }
@@ -248,7 +248,7 @@ static int msm_fault_handler(struct iommu_domain *domain, struct device *dev,
 
 struct msm_mmu *msm_iommu_pagetable_create(struct msm_mmu *parent)
 {
-	struct adreno_smmu_priv *adreno_smmu = dev_get_drvdata(parent->dev);
+	struct adreanal_smmu_priv *adreanal_smmu = dev_get_drvdata(parent->dev);
 	struct msm_iommu *iommu = to_msm_iommu(parent);
 	struct msm_iommu_pagetable *pagetable;
 	const struct io_pgtable_cfg *ttbr1_cfg = NULL;
@@ -256,19 +256,19 @@ struct msm_mmu *msm_iommu_pagetable_create(struct msm_mmu *parent)
 	int ret;
 
 	/* Get the pagetable configuration from the domain */
-	if (adreno_smmu->cookie)
-		ttbr1_cfg = adreno_smmu->get_ttbr1_cfg(adreno_smmu->cookie);
+	if (adreanal_smmu->cookie)
+		ttbr1_cfg = adreanal_smmu->get_ttbr1_cfg(adreanal_smmu->cookie);
 
 	/*
 	 * If you hit this WARN_ONCE() you are probably missing an entry in
 	 * qcom_smmu_impl_of_match[] in arm-smmu-qcom.c
 	 */
-	if (WARN_ONCE(!ttbr1_cfg, "No per-process page tables"))
-		return ERR_PTR(-ENODEV);
+	if (WARN_ONCE(!ttbr1_cfg, "Anal per-process page tables"))
+		return ERR_PTR(-EANALDEV);
 
 	pagetable = kzalloc(sizeof(*pagetable), GFP_KERNEL);
 	if (!pagetable)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	msm_mmu_init(&pagetable->base, parent->dev, &pagetable_funcs,
 		MSM_MMU_IOMMU_PAGETABLE);
@@ -285,7 +285,7 @@ struct msm_mmu *msm_iommu_pagetable_create(struct msm_mmu *parent)
 
 	if (!pagetable->pgtbl_ops) {
 		kfree(pagetable);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/*
@@ -293,7 +293,7 @@ struct msm_mmu *msm_iommu_pagetable_create(struct msm_mmu *parent)
 	 * the arm-smmu driver as a trigger to set up TTBR0
 	 */
 	if (atomic_inc_return(&iommu->pagetables) == 1) {
-		ret = adreno_smmu->set_ttbr0_cfg(adreno_smmu->cookie, &ttbr0_cfg);
+		ret = adreanal_smmu->set_ttbr0_cfg(adreanal_smmu->cookie, &ttbr0_cfg);
 		if (ret) {
 			free_io_pgtable_ops(pagetable->pgtbl_ops);
 			kfree(pagetable);
@@ -311,8 +311,8 @@ struct msm_mmu *msm_iommu_pagetable_create(struct msm_mmu *parent)
 	/*
 	 * TODO we would like each set of page tables to have a unique ASID
 	 * to optimize TLB invalidation.  But iommu_flush_iotlb_all() will
-	 * end up flushing the ASID used for TTBR1 pagetables, which is not
-	 * what we want.  So for now just use the same ASID as TTBR1.
+	 * end up flushing the ASID used for TTBR1 pagetables, which is analt
+	 * what we want.  So for analw just use the same ASID as TTBR1.
 	 */
 	pagetable->asid = 0;
 
@@ -324,11 +324,11 @@ static int msm_fault_handler(struct iommu_domain *domain, struct device *dev,
 {
 	struct msm_iommu *iommu = arg;
 	struct msm_mmu *mmu = &iommu->base;
-	struct adreno_smmu_priv *adreno_smmu = dev_get_drvdata(iommu->base.dev);
-	struct adreno_smmu_fault_info info, *ptr = NULL;
+	struct adreanal_smmu_priv *adreanal_smmu = dev_get_drvdata(iommu->base.dev);
+	struct adreanal_smmu_fault_info info, *ptr = NULL;
 
-	if (adreno_smmu->get_fault_info) {
-		adreno_smmu->get_fault_info(adreno_smmu->cookie, &info);
+	if (adreanal_smmu->get_fault_info) {
+		adreanal_smmu->get_fault_info(adreanal_smmu->cookie, &info);
 		ptr = &info;
 	}
 
@@ -345,10 +345,10 @@ static int msm_fault_handler(struct iommu_domain *domain, struct device *dev,
 
 static void msm_iommu_resume_translation(struct msm_mmu *mmu)
 {
-	struct adreno_smmu_priv *adreno_smmu = dev_get_drvdata(mmu->dev);
+	struct adreanal_smmu_priv *adreanal_smmu = dev_get_drvdata(mmu->dev);
 
-	if (adreno_smmu->resume_translation)
-		adreno_smmu->resume_translation(adreno_smmu->cookie, true);
+	if (adreanal_smmu->resume_translation)
+		adreanal_smmu->resume_translation(adreanal_smmu->cookie, true);
 }
 
 static void msm_iommu_detach(struct msm_mmu *mmu)
@@ -416,7 +416,7 @@ struct msm_mmu *msm_iommu_new(struct device *dev, unsigned long quirks)
 	iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
 	if (!iommu) {
 		iommu_domain_free(domain);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	iommu->domain = domain;
@@ -436,7 +436,7 @@ struct msm_mmu *msm_iommu_new(struct device *dev, unsigned long quirks)
 
 struct msm_mmu *msm_iommu_gpu_new(struct device *dev, struct msm_gpu *gpu, unsigned long quirks)
 {
-	struct adreno_smmu_priv *adreno_smmu = dev_get_drvdata(dev);
+	struct adreanal_smmu_priv *adreanal_smmu = dev_get_drvdata(dev);
 	struct msm_iommu *iommu;
 	struct msm_mmu *mmu;
 
@@ -448,8 +448,8 @@ struct msm_mmu *msm_iommu_gpu_new(struct device *dev, struct msm_gpu *gpu, unsig
 	iommu_set_fault_handler(iommu->domain, msm_fault_handler, iommu);
 
 	/* Enable stall on iommu fault: */
-	if (adreno_smmu->set_stall)
-		adreno_smmu->set_stall(adreno_smmu->cookie, true);
+	if (adreanal_smmu->set_stall)
+		adreanal_smmu->set_stall(adreanal_smmu->cookie, true);
 
 	return mmu;
 }

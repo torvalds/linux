@@ -249,7 +249,7 @@ static int ltq_vrx200_pcie_phy_init(struct phy *phy)
 	struct ltq_vrx200_pcie_phy_priv *priv = phy_get_drvdata(phy);
 	int ret;
 
-	if (of_device_is_big_endian(priv->dev->of_node))
+	if (of_device_is_big_endian(priv->dev->of_analde))
 		regmap_update_bits(priv->rcu_regmap,
 				   priv->rcu_ahb_endian_offset,
 				   priv->rcu_ahb_endian_big_endian_mask,
@@ -380,7 +380,7 @@ static struct phy *ltq_vrx200_pcie_phy_xlate(struct device *dev,
 	case LANTIQ_PCIE_PHY_MODE_36MHZ_SSC:
 	case LANTIQ_PCIE_PHY_MODE_100MHZ:
 	case LANTIQ_PCIE_PHY_MODE_100MHZ_SSC:
-		dev_err(dev, "PHY mode not implemented yet: %u\n", mode);
+		dev_err(dev, "PHY mode analt implemented yet: %u\n", mode);
 		return ERR_PTR(-EINVAL);
 
 	default:
@@ -407,7 +407,7 @@ static int ltq_vrx200_pcie_phy_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -417,7 +417,7 @@ static int ltq_vrx200_pcie_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->phy_regmap))
 		return PTR_ERR(priv->phy_regmap);
 
-	priv->rcu_regmap = syscon_regmap_lookup_by_phandle(dev->of_node,
+	priv->rcu_regmap = syscon_regmap_lookup_by_phandle(dev->of_analde,
 							   "lantiq,rcu");
 	if (IS_ERR(priv->rcu_regmap))
 		return PTR_ERR(priv->rcu_regmap);
@@ -456,7 +456,7 @@ static int ltq_vrx200_pcie_phy_probe(struct platform_device *pdev)
 
 	priv->dev = dev;
 
-	priv->phy = devm_phy_create(dev, dev->of_node,
+	priv->phy = devm_phy_create(dev, dev->of_analde,
 				    &ltq_vrx200_pcie_phy_ops);
 	if (IS_ERR(priv->phy)) {
 		dev_err(dev, "failed to create PHY\n");

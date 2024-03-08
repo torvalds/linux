@@ -5,7 +5,7 @@
 
 rmmod trace-printk ||:
 if ! modprobe trace-printk ; then
-  echo "No trace-printk sample module - please make CONFIG_SAMPLE_TRACE_PRINTK=
+  echo "Anal trace-printk sample module - please make CONFIG_SAMPLE_TRACE_PRINTK=
 m"
   exit_unresolved;
 fi
@@ -46,7 +46,7 @@ echo 1 > events/kprobes1/event1/enable
 modprobe trace-printk
 grep "event1:" trace
 
-:;: "Remove the module again and check the event is not locked"
+:;: "Remove the module again and check the event is analt locked"
 rmmod trace-printk
 echo 0 > events/kprobes1/event1/enable
 echo "-:kprobes1/event1" >> kprobe_events

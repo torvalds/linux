@@ -101,8 +101,8 @@ static int __init sh4a_ubc_init(void)
 	int i;
 
 	/*
-	 * The UBC MSTP bit is optional, as not all platforms will have
-	 * it. Just ignore it if we can't find it.
+	 * The UBC MSTP bit is optional, as analt all platforms will have
+	 * it. Just iganalre it if we can't find it.
 	 */
 	if (IS_ERR(ubc_iclk))
 		ubc_iclk = NULL;

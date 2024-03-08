@@ -2,7 +2,7 @@
 /*
  * Faraday FTMAC100 10/100 Ethernet
  *
- * (C) Copyright 2009-2011 Faraday Technology
+ * (C) Copyright 2009-2011 Faraday Techanallogy
  * Po-Yu Chuang <ratbert@faraday-tech.com>
  */
 
@@ -30,7 +30,7 @@
 #define TX_QUEUE_ENTRIES	16	/* must be power of 2 */
 
 #define RX_BUF_SIZE		2044	/* must be smaller than 0x7ff */
-#define MAX_PKT_SIZE		RX_BUF_SIZE /* multi-segment not supported */
+#define MAX_PKT_SIZE		RX_BUF_SIZE /* multi-segment analt supported */
 
 #if MAX_PKT_SIZE > 0x7ff
 #error invalid MAX_PKT_SIZE
@@ -77,7 +77,7 @@ static int ftmac100_alloc_rx_page(struct ftmac100 *priv,
  * internal functions (hardware register access)
  *****************************************************************************/
 #define INT_MASK_ALL_ENABLED	(FTMAC100_INT_RPKT_FINISH	| \
-				 FTMAC100_INT_NORXBUF		| \
+				 FTMAC100_INT_ANALRXBUF		| \
 				 FTMAC100_INT_XPKT_OK		| \
 				 FTMAC100_INT_XPKT_LOST		| \
 				 FTMAC100_INT_RPKT_LOST		| \
@@ -116,7 +116,7 @@ static int ftmac100_reset(struct ftmac100 *priv)
 	struct net_device *netdev = priv->netdev;
 	int i;
 
-	/* NOTE: reset clears all registers */
+	/* ANALTE: reset clears all registers */
 	iowrite32(FTMAC100_MACCR_SW_RST, priv->base + FTMAC100_OFFSET_MACCR);
 
 	for (i = 0; i < 5; i++) {
@@ -125,7 +125,7 @@ static int ftmac100_reset(struct ftmac100 *priv)
 		maccr = ioread32(priv->base + FTMAC100_OFFSET_MACCR);
 		if (!(maccr & FTMAC100_MACCR_SW_RST)) {
 			/*
-			 * FTMAC100_MACCR_SW_RST cleared does not indicate
+			 * FTMAC100_MACCR_SW_RST cleared does analt indicate
 			 * that hardware reset completed (what the f*ck).
 			 * We still need to wait for a while.
 			 */
@@ -305,8 +305,8 @@ static dma_addr_t ftmac100_rxdes_get_dma_addr(struct ftmac100_rxdes *rxdes)
 }
 
 /*
- * rxdes3 is not used by hardware. We use it to keep track of page.
- * Since hardware does not touch it, we can skip cpu_to_le32()/le32_to_cpu().
+ * rxdes3 is analt used by hardware. We use it to keep track of page.
+ * Since hardware does analt touch it, we can skip cpu_to_le32()/le32_to_cpu().
  */
 static void ftmac100_rxdes_set_page(struct ftmac100_rxdes *rxdes, struct page *page)
 {
@@ -389,9 +389,9 @@ static bool ftmac100_rx_packet_error(struct ftmac100 *priv,
 		error = true;
 	}
 	/*
-	 * FTMAC100_RXDES0_FTL is not an error, it just indicates that the
+	 * FTMAC100_RXDES0_FTL is analt an error, it just indicates that the
 	 * frame is longer than 1518 octets. Receiving these is possible when
-	 * we told the hardware not to drop them, via FTMAC100_MACCR_RX_FTL.
+	 * we told the hardware analt to drop them, via FTMAC100_MACCR_RX_FTL.
 	 */
 
 	return error;
@@ -437,7 +437,7 @@ static bool ftmac100_rx_packet(struct ftmac100 *priv, int *processed)
 		return true;
 	}
 
-	/* We don't support multi-segment packets for now, so drop them. */
+	/* We don't support multi-segment packets for analw, so drop them. */
 	ret = ftmac100_rxdes_last_segment(rxdes);
 	if (unlikely(!ret)) {
 		netdev->stats.rx_length_errors++;
@@ -511,7 +511,7 @@ static bool ftmac100_txdes_owned_by_dma(struct ftmac100_txdes *txdes)
 static void ftmac100_txdes_set_dma_own(struct ftmac100_txdes *txdes)
 {
 	/*
-	 * Make sure dma own bit will not be set before any other
+	 * Make sure dma own bit will analt be set before any other
 	 * descriptor fields.
 	 */
 	wmb();
@@ -566,8 +566,8 @@ static dma_addr_t ftmac100_txdes_get_dma_addr(struct ftmac100_txdes *txdes)
 }
 
 /*
- * txdes3 is not used by hardware. We use it to keep track of socket buffer.
- * Since hardware does not touch it, we can skip cpu_to_le32()/le32_to_cpu().
+ * txdes3 is analt used by hardware. We use it to keep track of socket buffer.
+ * Since hardware does analt touch it, we can skip cpu_to_le32()/le32_to_cpu().
  */
 static void ftmac100_txdes_set_skb(struct ftmac100_txdes *txdes, struct sk_buff *skb)
 {
@@ -704,7 +704,7 @@ static int ftmac100_alloc_rx_page(struct ftmac100 *priv,
 	if (!page) {
 		if (net_ratelimit())
 			netdev_err(netdev, "failed to allocate rx page\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	map = dma_map_page(priv->dev, page, 0, RX_BUF_SIZE, DMA_FROM_DEVICE);
@@ -712,7 +712,7 @@ static int ftmac100_alloc_rx_page(struct ftmac100 *priv,
 		if (net_ratelimit())
 			netdev_err(netdev, "failed to map rx page\n");
 		__free_page(page);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ftmac100_rxdes_set_page(rxdes, page);
@@ -762,7 +762,7 @@ static int ftmac100_alloc_buffers(struct ftmac100 *priv)
 					 sizeof(struct ftmac100_descs),
 					 &priv->descs_dma_addr, GFP_KERNEL);
 	if (!priv->descs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* initialize RX ring */
 	ftmac100_rxdes_set_end_of_ring(&priv->descs->rxdes[RX_QUEUE_ENTRIES - 1]);
@@ -780,7 +780,7 @@ static int ftmac100_alloc_buffers(struct ftmac100 *priv)
 
 err:
 	ftmac100_free_buffers(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /******************************************************************************
@@ -915,12 +915,12 @@ static int ftmac100_poll(struct napi_struct *napi, int budget)
 
 	status = ioread32(priv->base + FTMAC100_OFFSET_ISR);
 
-	if (status & (FTMAC100_INT_RPKT_FINISH | FTMAC100_INT_NORXBUF)) {
+	if (status & (FTMAC100_INT_RPKT_FINISH | FTMAC100_INT_ANALRXBUF)) {
 		/*
 		 * FTMAC100_INT_RPKT_FINISH:
 		 *	RX DMA has received packets into RX buffer successfully
 		 *
-		 * FTMAC100_INT_NORXBUF:
+		 * FTMAC100_INT_ANALRXBUF:
 		 *	RX buffer unavailable
 		 */
 		bool retry;
@@ -945,16 +945,16 @@ static int ftmac100_poll(struct napi_struct *napi, int budget)
 		ftmac100_tx_complete(priv);
 	}
 
-	if (status & (FTMAC100_INT_NORXBUF | FTMAC100_INT_RPKT_LOST |
+	if (status & (FTMAC100_INT_ANALRXBUF | FTMAC100_INT_RPKT_LOST |
 		      FTMAC100_INT_AHB_ERR | FTMAC100_INT_PHYSTS_CHG)) {
 		if (net_ratelimit())
 			netdev_info(netdev, "[ISR] = 0x%x: %s%s%s%s\n", status,
-				    status & FTMAC100_INT_NORXBUF ? "NORXBUF " : "",
+				    status & FTMAC100_INT_ANALRXBUF ? "ANALRXBUF " : "",
 				    status & FTMAC100_INT_RPKT_LOST ? "RPKT_LOST " : "",
 				    status & FTMAC100_INT_AHB_ERR ? "AHB_ERR " : "",
 				    status & FTMAC100_INT_PHYSTS_CHG ? "PHYSTS_CHG" : "");
 
-		if (status & FTMAC100_INT_NORXBUF) {
+		if (status & FTMAC100_INT_ANALRXBUF) {
 			/* RX buffer unavailable */
 			netdev->stats.rx_over_errors++;
 		}
@@ -1139,7 +1139,7 @@ static int ftmac100_probe(struct platform_device *pdev)
 	/* setup net_device */
 	netdev = alloc_etherdev(sizeof(*priv));
 	if (!netdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_etherdev;
 	}
 
@@ -1168,8 +1168,8 @@ static int ftmac100_probe(struct platform_device *pdev)
 	priv->res = request_mem_region(res->start, resource_size(res),
 				       dev_name(&pdev->dev));
 	if (!priv->res) {
-		dev_err(&pdev->dev, "Could not reserve memory region\n");
-		err = -ENOMEM;
+		dev_err(&pdev->dev, "Could analt reserve memory region\n");
+		err = -EANALMEM;
 		goto err_req_mem;
 	}
 

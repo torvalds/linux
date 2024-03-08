@@ -17,9 +17,9 @@ static int value(yyscan_t scanner, int base)
 	char *text = perf_pmu_get_text(scanner);
 	long num;
 
-	errno = 0;
+	erranal = 0;
 	num = strtoul(text, NULL, base);
-	if (errno)
+	if (erranal)
 		return PP_ERROR;
 
 	yylval->num = num;

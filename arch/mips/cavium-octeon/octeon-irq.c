@@ -42,13 +42,13 @@ typedef irq_hw_number_t (*octeon_ciu3_intsn2hw_t)(struct irq_domain *, unsigned 
 /* Information for each ciu3 in the system */
 struct octeon_ciu3_info {
 	u64			ciu3_addr;
-	int			node;
+	int			analde;
 	struct irq_domain	*domain[MAX_CIU3_DOMAINS];
 	octeon_ciu3_intsn2hw_t	intsn2hw[MAX_CIU3_DOMAINS];
 };
 
-/* Each ciu3 in the system uses its own data (one ciu3 per node) */
-static struct octeon_ciu3_info	*octeon_ciu3_info_per_node[4];
+/* Each ciu3 in the system uses its own data (one ciu3 per analde) */
+static struct octeon_ciu3_info	*octeon_ciu3_info_per_analde[4];
 
 struct octeon_irq_ciu_domain_data {
 	int num_sum;  /* number of sum registers (2 or 3). */
@@ -80,7 +80,7 @@ struct octeon_ciu_chip_data {
 	};
 	int gpio_line;
 	int current_cpu;	/* Next CPU expected to take this irq */
-	int ciu_node; /* NUMA node number of the CIU */
+	int ciu_analde; /* NUMA analde number of the CIU */
 };
 
 struct octeon_core_chip_data {
@@ -102,7 +102,7 @@ static int octeon_irq_set_ciu_mapping(int irq, int line, int bit, int gpio_line,
 
 	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
 	if (!cd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq_set_chip_and_handler(irq, chip, handler);
 
@@ -127,13 +127,13 @@ static void octeon_irq_free_cd(struct irq_domain *d, unsigned int irq)
 static int octeon_irq_force_ciu_mapping(struct irq_domain *domain,
 					int irq, int line, int bit)
 {
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	int ret;
 
-	of_node = irq_domain_get_of_node(domain);
-	if (!of_node)
+	of_analde = irq_domain_get_of_analde(domain);
+	if (!of_analde)
 		return -EINVAL;
-	ret = irq_alloc_desc_at(irq, of_node_to_nid(of_node));
+	ret = irq_alloc_desc_at(irq, of_analde_to_nid(of_analde));
 	if (ret < 0)
 		return ret;
 
@@ -245,7 +245,7 @@ static struct irq_chip octeon_irq_chip_core = {
 
 	.irq_cpu_online = octeon_irq_core_eoi,
 	.irq_cpu_offline = octeon_irq_core_ack,
-	.flags = IRQCHIP_ONOFFLINE_ENABLED,
+	.flags = IRQCHIP_OANALFFLINE_ENABLED,
 };
 
 static void __init octeon_irq_init_core(void)
@@ -801,7 +801,7 @@ static int octeon_irq_ciu_set_affinity(struct irq_data *data,
 	cd = irq_data_get_irq_chip_data(data);
 
 	/*
-	 * For non-v2 CIU, we will allow only single CPU affinity.
+	 * For analn-v2 CIU, we will allow only single CPU affinity.
 	 * This removes the need to do locking in the .ack/.eoi
 	 * functions.
 	 */
@@ -1024,7 +1024,7 @@ static struct irq_chip octeon_irq_chip_ciu_mbox_v2 = {
 
 	.irq_cpu_online = octeon_irq_ciu_enable_local_v2,
 	.irq_cpu_offline = octeon_irq_ciu_disable_local_v2,
-	.flags = IRQCHIP_ONOFFLINE_ENABLED,
+	.flags = IRQCHIP_OANALFFLINE_ENABLED,
 };
 
 static struct irq_chip octeon_irq_chip_ciu_mbox = {
@@ -1036,7 +1036,7 @@ static struct irq_chip octeon_irq_chip_ciu_mbox = {
 
 	.irq_cpu_online = octeon_irq_ciu_enable_local,
 	.irq_cpu_offline = octeon_irq_ciu_disable_local,
-	.flags = IRQCHIP_ONOFFLINE_ENABLED,
+	.flags = IRQCHIP_OANALFFLINE_ENABLED,
 };
 
 static struct irq_chip octeon_irq_chip_ciu_gpio_v2 = {
@@ -1154,7 +1154,7 @@ struct octeon_irq_gpio_domain_data {
 };
 
 static int octeon_irq_gpio_xlat(struct irq_domain *d,
-				struct device_node *node,
+				struct device_analde *analde,
 				const u32 *intspec,
 				unsigned int intsize,
 				unsigned long *out_hwirq,
@@ -1164,7 +1164,7 @@ static int octeon_irq_gpio_xlat(struct irq_domain *d,
 	unsigned int pin;
 	unsigned int trigger;
 
-	if (irq_domain_get_of_node(d) != node)
+	if (irq_domain_get_of_analde(d) != analde)
 		return -EINVAL;
 
 	if (intsize < 2)
@@ -1191,7 +1191,7 @@ static int octeon_irq_gpio_xlat(struct irq_domain *d,
 		break;
 	default:
 		pr_err("Error: (%pOFn) Invalid irq trigger specification: %x\n",
-		       node,
+		       analde,
 		       trigger);
 		type = IRQ_TYPE_LEVEL_LOW;
 		break;
@@ -1203,7 +1203,7 @@ static int octeon_irq_gpio_xlat(struct irq_domain *d,
 }
 
 static int octeon_irq_ciu_xlat(struct irq_domain *d,
-			       struct device_node *node,
+			       struct device_analde *analde,
 			       const u32 *intspec,
 			       unsigned int intsize,
 			       unsigned long *out_hwirq,
@@ -1393,7 +1393,7 @@ static void octeon_irq_init_ciu_percpu(void)
 	raw_spin_lock_init(this_cpu_ptr(&octeon_irq_ciu_spinlock));
 	/*
 	 * Disable All CIU Interrupts. The ones we need will be
-	 * enabled later.  Read the SUM register so we know the write
+	 * enabled later.  Read the SUM register so we kanalw the write
 	 * completed.
 	 */
 	cvmx_write_csr(CVMX_CIU_INTX_EN0((coreid * 2)), 0);
@@ -1411,7 +1411,7 @@ static void octeon_irq_init_ciu2_percpu(void)
 
 	/*
 	 * Disable All CIU2 Interrupts. The ones we need will be
-	 * enabled later.  Read the SUM register so we know the write
+	 * enabled later.  Read the SUM register so we kanalw the write
 	 * completed.
 	 *
 	 * There are 9 registers and 3 IPX levels with strides 0x1000
@@ -1452,7 +1452,7 @@ static void octeon_irq_setup_secondary_ciu2(void)
 }
 
 static int __init octeon_irq_init_ciu(
-	struct device_node *ciu_node, struct device_node *parent)
+	struct device_analde *ciu_analde, struct device_analde *parent)
 {
 	int i, r;
 	struct irq_chip *chip;
@@ -1464,7 +1464,7 @@ static int __init octeon_irq_init_ciu(
 
 	dd = kzalloc(sizeof(*dd), GFP_KERNEL);
 	if (!dd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	octeon_irq_init_ciu_percpu();
 	octeon_irq_setup_secondary = octeon_irq_setup_secondary_ciu;
@@ -1504,7 +1504,7 @@ static int __init octeon_irq_init_ciu(
 	octeon_irq_init_core();
 
 	ciu_domain = irq_domain_add_tree(
-		ciu_node, &octeon_irq_domain_ciu_ops, dd);
+		ciu_analde, &octeon_irq_domain_ciu_ops, dd);
 	irq_set_default_host(ciu_domain);
 
 	/* CIU_0 */
@@ -1593,7 +1593,7 @@ err:
 }
 
 static int __init octeon_irq_init_gpio(
-	struct device_node *gpio_node, struct device_node *parent)
+	struct device_analde *gpio_analde, struct device_analde *parent)
 {
 	struct octeon_irq_gpio_domain_data *gpiod;
 	u32 interrupt_cells;
@@ -1607,23 +1607,23 @@ static int __init octeon_irq_init_gpio(
 	if (interrupt_cells == 1) {
 		u32 v;
 
-		r = of_property_read_u32_index(gpio_node, "interrupts", 0, &v);
+		r = of_property_read_u32_index(gpio_analde, "interrupts", 0, &v);
 		if (r) {
-			pr_warn("No \"interrupts\" property.\n");
+			pr_warn("Anal \"interrupts\" property.\n");
 			return r;
 		}
 		base_hwirq = v;
 	} else if (interrupt_cells == 2) {
 		u32 v0, v1;
 
-		r = of_property_read_u32_index(gpio_node, "interrupts", 0, &v0);
+		r = of_property_read_u32_index(gpio_analde, "interrupts", 0, &v0);
 		if (r) {
-			pr_warn("No \"interrupts\" property.\n");
+			pr_warn("Anal \"interrupts\" property.\n");
 			return r;
 		}
-		r = of_property_read_u32_index(gpio_node, "interrupts", 1, &v1);
+		r = of_property_read_u32_index(gpio_analde, "interrupts", 1, &v1);
 		if (r) {
-			pr_warn("No \"interrupts\" property.\n");
+			pr_warn("Anal \"interrupts\" property.\n");
 			return r;
 		}
 		base_hwirq = (v0 << 6) | v1;
@@ -1638,17 +1638,17 @@ static int __init octeon_irq_init_gpio(
 		/* gpio domain host_data is the base hwirq number. */
 		gpiod->base_hwirq = base_hwirq;
 		irq_domain_add_linear(
-			gpio_node, 16, &octeon_irq_domain_gpio_ops, gpiod);
+			gpio_analde, 16, &octeon_irq_domain_gpio_ops, gpiod);
 	} else {
-		pr_warn("Cannot allocate memory for GPIO irq_domain.\n");
-		return -ENOMEM;
+		pr_warn("Cananalt allocate memory for GPIO irq_domain.\n");
+		return -EANALMEM;
 	}
 
 	/*
 	 * Clear the OF_POPULATED flag that was set by of_irq_init()
 	 * so that all GPIO devices will be probed.
 	 */
-	of_node_clear_flag(gpio_node, OF_POPULATED);
+	of_analde_clear_flag(gpio_analde, OF_POPULATED);
 
 	return 0;
 }
@@ -1886,7 +1886,7 @@ static struct irq_chip octeon_irq_chip_ciu2_mbox = {
 
 	.irq_cpu_online = octeon_irq_ciu2_mbox_enable_local,
 	.irq_cpu_offline = octeon_irq_ciu2_mbox_disable_local,
-	.flags = IRQCHIP_ONOFFLINE_ENABLED,
+	.flags = IRQCHIP_OANALFFLINE_ENABLED,
 };
 
 static struct irq_chip octeon_irq_chip_ciu2_wd = {
@@ -1913,7 +1913,7 @@ static struct irq_chip octeon_irq_chip_ciu2_gpio = {
 };
 
 static int octeon_irq_ciu2_xlat(struct irq_domain *d,
-				struct device_node *node,
+				struct device_analde *analde,
 				const u32 *intspec,
 				unsigned int intsize,
 				unsigned long *out_hwirq,
@@ -2058,7 +2058,7 @@ out:
 }
 
 static int __init octeon_irq_init_ciu2(
-	struct device_node *ciu_node, struct device_node *parent)
+	struct device_analde *ciu_analde, struct device_analde *parent)
 {
 	unsigned int i, r;
 	struct irq_domain *ciu_domain = NULL;
@@ -2075,7 +2075,7 @@ static int __init octeon_irq_init_ciu2(
 	octeon_irq_init_core();
 
 	ciu_domain = irq_domain_add_tree(
-		ciu_node, &octeon_irq_domain_ciu2_ops, NULL);
+		ciu_analde, &octeon_irq_domain_ciu2_ops, NULL);
 	irq_set_default_host(ciu_domain);
 
 	/* CUI2 */
@@ -2183,7 +2183,7 @@ static struct irq_chip octeon_irq_chip_cib = {
 };
 
 static int octeon_irq_cib_xlat(struct irq_domain *d,
-				   struct device_node *node,
+				   struct device_analde *analde,
 				   const u32 *intspec,
 				   unsigned int intsize,
 				   unsigned long *out_hwirq,
@@ -2195,14 +2195,14 @@ static int octeon_irq_cib_xlat(struct irq_domain *d,
 		type = intspec[1];
 
 	switch (type) {
-	case 0: /* unofficial value, but we might as well let it work. */
+	case 0: /* uanalfficial value, but we might as well let it work. */
 	case 4: /* official value for level triggering. */
 		*out_type = IRQ_TYPE_LEVEL_HIGH;
 		break;
 	case 1: /* official value for edge triggering. */
 		*out_type = IRQ_TYPE_EDGE_RISING;
 		break;
-	default: /* Nothing else is acceptable. */
+	default: /* Analthing else is acceptable. */
 		return -EINVAL;
 	}
 
@@ -2219,13 +2219,13 @@ static int octeon_irq_cib_map(struct irq_domain *d,
 
 	if (hw >= host_data->max_bits) {
 		pr_err("ERROR: %s mapping %u is too big!\n",
-		       irq_domain_get_of_node(d)->name, (unsigned)hw);
+		       irq_domain_get_of_analde(d)->name, (unsigned)hw);
 		return -EINVAL;
 	}
 
 	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
 	if (!cd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cd->host_data = host_data;
 	cd->bit = hw;
@@ -2276,7 +2276,7 @@ static irqreturn_t octeon_irq_cib_handler(int my_irq, void *data)
 		} else {
 			struct irq_desc *desc = irq_to_desc(irq);
 			struct irq_data *irq_data = irq_desc_get_irq_data(desc);
-			/* If edge, acknowledge the bit we will be sending. */
+			/* If edge, ackanalwledge the bit we will be sending. */
 			if (irqd_get_trigger_type(irq_data) &
 				IRQ_TYPE_EDGE_BOTH)
 				cvmx_write_csr(host_data->raw_reg, 1ull << i);
@@ -2287,8 +2287,8 @@ static irqreturn_t octeon_irq_cib_handler(int my_irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __init octeon_irq_init_cib(struct device_node *ciu_node,
-				      struct device_node *parent)
+static int __init octeon_irq_init_cib(struct device_analde *ciu_analde,
+				      struct device_analde *parent)
 {
 	struct resource res;
 	u32 val;
@@ -2297,53 +2297,53 @@ static int __init octeon_irq_init_cib(struct device_node *ciu_node,
 	int r;
 	struct irq_domain *cib_domain;
 
-	parent_irq = irq_of_parse_and_map(ciu_node, 0);
+	parent_irq = irq_of_parse_and_map(ciu_analde, 0);
 	if (!parent_irq) {
 		pr_err("ERROR: Couldn't acquire parent_irq for %pOFn\n",
-			ciu_node);
+			ciu_analde);
 		return -EINVAL;
 	}
 
 	host_data = kzalloc(sizeof(*host_data), GFP_KERNEL);
 	if (!host_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	raw_spin_lock_init(&host_data->lock);
 
-	r = of_address_to_resource(ciu_node, 0, &res);
+	r = of_address_to_resource(ciu_analde, 0, &res);
 	if (r) {
-		pr_err("ERROR: Couldn't acquire reg(0) %pOFn\n", ciu_node);
+		pr_err("ERROR: Couldn't acquire reg(0) %pOFn\n", ciu_analde);
 		return r;
 	}
 	host_data->raw_reg = (u64)phys_to_virt(res.start);
 
-	r = of_address_to_resource(ciu_node, 1, &res);
+	r = of_address_to_resource(ciu_analde, 1, &res);
 	if (r) {
-		pr_err("ERROR: Couldn't acquire reg(1) %pOFn\n", ciu_node);
+		pr_err("ERROR: Couldn't acquire reg(1) %pOFn\n", ciu_analde);
 		return r;
 	}
 	host_data->en_reg = (u64)phys_to_virt(res.start);
 
-	r = of_property_read_u32(ciu_node, "cavium,max-bits", &val);
+	r = of_property_read_u32(ciu_analde, "cavium,max-bits", &val);
 	if (r) {
 		pr_err("ERROR: Couldn't read cavium,max-bits from %pOFn\n",
-			ciu_node);
+			ciu_analde);
 		return r;
 	}
 	host_data->max_bits = val;
 
-	cib_domain = irq_domain_add_linear(ciu_node, host_data->max_bits,
+	cib_domain = irq_domain_add_linear(ciu_analde, host_data->max_bits,
 					   &octeon_irq_domain_cib_ops,
 					   host_data);
 	if (!cib_domain) {
 		pr_err("ERROR: Couldn't irq_domain_add_linear()\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cvmx_write_csr(host_data->en_reg, 0); /* disable all IRQs */
 	cvmx_write_csr(host_data->raw_reg, ~0); /* ack any outstanding */
 
 	r = request_irq(parent_irq, octeon_irq_cib_handler,
-			IRQF_NO_THREAD, "cib", cib_domain);
+			IRQF_ANAL_THREAD, "cib", cib_domain);
 	if (r) {
 		pr_err("request_irq cib failed %d\n", r);
 		return r;
@@ -2354,7 +2354,7 @@ static int __init octeon_irq_init_cib(struct device_node *ciu_node,
 }
 
 int octeon_irq_ciu3_xlat(struct irq_domain *d,
-			 struct device_node *node,
+			 struct device_analde *analde,
 			 const u32 *intspec,
 			 unsigned int intsize,
 			 unsigned long *out_hwirq,
@@ -2388,11 +2388,11 @@ int octeon_irq_ciu3_xlat(struct irq_domain *d,
 	case 4: /* official value for level triggering. */
 		*out_type = IRQ_TYPE_LEVEL_HIGH;
 		break;
-	case 0: /* unofficial value, but we might as well let it work. */
+	case 0: /* uanalfficial value, but we might as well let it work. */
 	case 1: /* official value for edge triggering. */
 		*out_type = IRQ_TYPE_EDGE_RISING;
 		break;
-	default: /* Nothing else is acceptable. */
+	default: /* Analthing else is acceptable. */
 		return -EINVAL;
 	}
 
@@ -2452,7 +2452,7 @@ void octeon_irq_ciu3_ack(struct irq_data *data)
 	u32 trigger_type = irqd_get_trigger_type(data);
 
 	/*
-	 * We use a single irq_chip, so we have to do nothing to ack a
+	 * We use a single irq_chip, so we have to do analthing to ack a
 	 * level interrupt.
 	 */
 	if (!(trigger_type & IRQ_TYPE_EDGE_BOTH))
@@ -2519,7 +2519,7 @@ static int octeon_irq_ciu3_set_affinity(struct irq_data *data,
 	bool enable_one = !irqd_irq_disabled(data) && !irqd_irq_masked(data);
 	struct octeon_ciu_chip_data *cd = irq_data_get_irq_chip_data(data);
 
-	if (!cpumask_subset(dest, cpumask_of_node(cd->ciu_node)))
+	if (!cpumask_subset(dest, cpumask_of_analde(cd->ciu_analde)))
 		return -EINVAL;
 
 	if (!enable_one)
@@ -2566,14 +2566,14 @@ int octeon_irq_ciu3_mapx(struct irq_domain *d, unsigned int virq,
 			 irq_hw_number_t hw, struct irq_chip *chip)
 {
 	struct octeon_ciu3_info *ciu3_info = d->host_data;
-	struct octeon_ciu_chip_data *cd = kzalloc_node(sizeof(*cd), GFP_KERNEL,
-						       ciu3_info->node);
+	struct octeon_ciu_chip_data *cd = kzalloc_analde(sizeof(*cd), GFP_KERNEL,
+						       ciu3_info->analde);
 	if (!cd)
-		return -ENOMEM;
+		return -EANALMEM;
 	cd->intsn = hw;
 	cd->current_cpu = -1;
 	cd->ciu3_addr = ciu3_info->ciu3_addr;
-	cd->ciu_node = ciu3_info->node;
+	cd->ciu_analde = ciu3_info->analde;
 	irq_set_chip_and_handler(virq, chip, handle_edge_irq);
 	irq_set_chip_data(virq, cd);
 
@@ -2846,7 +2846,7 @@ static void octeon_irq_setup_secondary_ciu3(void)
 {
 	struct octeon_ciu3_info *ciu3_info;
 
-	ciu3_info = octeon_ciu3_info_per_node[cvmx_get_node_num()];
+	ciu3_info = octeon_ciu3_info_per_analde[cvmx_get_analde_num()];
 	octeon_irq_ciu3_alloc_resources(ciu3_info);
 	irq_cpu_online();
 
@@ -2866,32 +2866,32 @@ static struct irq_chip octeon_irq_chip_ciu3_mbox = {
 
 	.irq_cpu_online = octeon_irq_ciu3_mbox_cpu_online,
 	.irq_cpu_offline = octeon_irq_ciu3_mbox_cpu_offline,
-	.flags = IRQCHIP_ONOFFLINE_ENABLED,
+	.flags = IRQCHIP_OANALFFLINE_ENABLED,
 };
 
-static int __init octeon_irq_init_ciu3(struct device_node *ciu_node,
-				       struct device_node *parent)
+static int __init octeon_irq_init_ciu3(struct device_analde *ciu_analde,
+				       struct device_analde *parent)
 {
 	int i, ret;
-	int node;
+	int analde;
 	struct irq_domain *domain;
 	struct octeon_ciu3_info *ciu3_info;
 	struct resource res;
 	u64 base_addr;
 	union cvmx_ciu3_const consts;
 
-	node = 0; /* of_node_to_nid(ciu_node); */
-	ciu3_info = kzalloc_node(sizeof(*ciu3_info), GFP_KERNEL, node);
+	analde = 0; /* of_analde_to_nid(ciu_analde); */
+	ciu3_info = kzalloc_analde(sizeof(*ciu3_info), GFP_KERNEL, analde);
 
 	if (!ciu3_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = of_address_to_resource(ciu_node, 0, &res);
+	ret = of_address_to_resource(ciu_analde, 0, &res);
 	if (WARN_ON(ret))
 		return ret;
 
 	ciu3_info->ciu3_addr = base_addr = (u64)phys_to_virt(res.start);
-	ciu3_info->node = node;
+	ciu3_info->analde = analde;
 
 	consts.u64 = cvmx_read_csr(base_addr + CIU3_CONST);
 
@@ -2901,12 +2901,12 @@ static int __init octeon_irq_init_ciu3(struct device_node *ciu_node,
 	octeon_irq_ip3 = octeon_irq_ciu3_mbox;
 	octeon_irq_ip4 = octeon_irq_ip4_mask;
 
-	if (node == cvmx_get_node_num()) {
+	if (analde == cvmx_get_analde_num()) {
 		/* Mips internal */
 		octeon_irq_init_core();
 
-		/* Only do per CPU things if it is the CIU of the boot node. */
-		i = irq_alloc_descs_from(OCTEON_IRQ_MBOX0, 8, node);
+		/* Only do per CPU things if it is the CIU of the boot analde. */
+		i = irq_alloc_descs_from(OCTEON_IRQ_MBOX0, 8, analde);
 		WARN_ON(i < 0);
 
 		for (i = 0; i < 8; i++)
@@ -2918,17 +2918,17 @@ static int __init octeon_irq_init_ciu3(struct device_node *ciu_node,
 	 * Initialize all domains to use the default domain. Specific major
 	 * blocks will overwrite the default domain as needed.
 	 */
-	domain = irq_domain_add_tree(ciu_node, &octeon_dflt_domain_ciu3_ops,
+	domain = irq_domain_add_tree(ciu_analde, &octeon_dflt_domain_ciu3_ops,
 				     ciu3_info);
 	for (i = 0; i < MAX_CIU3_DOMAINS; i++)
 		ciu3_info->domain[i] = domain;
 
-	octeon_ciu3_info_per_node[node] = ciu3_info;
+	octeon_ciu3_info_per_analde[analde] = ciu3_info;
 
-	if (node == cvmx_get_node_num()) {
-		/* Only do per CPU things if it is the CIU of the boot node. */
+	if (analde == cvmx_get_analde_num()) {
+		/* Only do per CPU things if it is the CIU of the boot analde. */
 		octeon_irq_ciu3_alloc_resources(ciu3_info);
-		if (node == 0)
+		if (analde == 0)
 			irq_set_default_host(domain);
 
 		octeon_irq_use_ip4 = false;
@@ -2992,11 +2992,11 @@ void octeon_fixup_irqs(void)
 
 #endif /* CONFIG_HOTPLUG_CPU */
 
-struct irq_domain *octeon_irq_get_block_domain(int node, uint8_t block)
+struct irq_domain *octeon_irq_get_block_domain(int analde, uint8_t block)
 {
 	struct octeon_ciu3_info *ciu3_info;
 
-	ciu3_info = octeon_ciu3_info_per_node[node & CVMX_NODE_MASK];
+	ciu3_info = octeon_ciu3_info_per_analde[analde & CVMX_ANALDE_MASK];
 	return ciu3_info->domain[block];
 }
 EXPORT_SYMBOL(octeon_irq_get_block_domain);

@@ -5,7 +5,7 @@
  * Copyright (C) 2023 Jens Axboe
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/syscalls.h>
 #include <linux/refcount.h>
 #include <linux/bits.h>
@@ -13,7 +13,7 @@
 #include <linux/file.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/compat.h>
 #include <linux/io_uring.h>
 #include <linux/io_uring_types.h>
@@ -47,7 +47,7 @@ static int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg,
 
 	ev_fd = kmalloc(sizeof(*ev_fd), GFP_KERNEL);
 	if (!ev_fd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ev_fd->cq_ev_fd = eventfd_ctx_fdget(fd);
 	if (IS_ERR(ev_fd->cq_ev_fd)) {
@@ -97,7 +97,7 @@ static __cold int io_probe(struct io_ring_ctx *ctx, void __user *arg,
 		return -EOVERFLOW;
 	p = kzalloc(size, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = -EFAULT;
 	if (copy_from_user(p, arg, size))
@@ -112,7 +112,7 @@ static __cold int io_probe(struct io_ring_ctx *ctx, void __user *arg,
 
 	for (i = 0; i < nr_args; i++) {
 		p->ops[i].op = i;
-		if (!io_issue_defs[i].not_supported)
+		if (!io_issue_defs[i].analt_supported)
 			p->ops[i].flags = IO_URING_OP_SUPPORTED;
 	}
 	p->ops_len = i;
@@ -273,7 +273,7 @@ static __cold int io_register_iowq_aff(struct io_ring_ctx *ctx,
 	int ret;
 
 	if (!alloc_cpumask_var(&new_mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpumask_clear(new_mask);
 	if (len > cpumask_size())
@@ -307,7 +307,7 @@ static __cold int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 					       void __user *arg)
 	__must_hold(&ctx->uring_lock)
 {
-	struct io_tctx_node *node;
+	struct io_tctx_analde *analde;
 	struct io_uring_task *tctx = NULL;
 	struct io_sq_data *sqd = NULL;
 	__u32 new_count[2];
@@ -365,16 +365,16 @@ static __cold int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 	if (sqd)
 		return 0;
 
-	/* now propagate the restriction to all registered users */
-	list_for_each_entry(node, &ctx->tctx_list, ctx_node) {
-		struct io_uring_task *tctx = node->task->io_uring;
+	/* analw propagate the restriction to all registered users */
+	list_for_each_entry(analde, &ctx->tctx_list, ctx_analde) {
+		struct io_uring_task *tctx = analde->task->io_uring;
 
 		if (WARN_ON_ONCE(!tctx->io_wq))
 			continue;
 
 		for (i = 0; i < ARRAY_SIZE(new_count); i++)
 			new_count[i] = ctx->iowq_limits[i];
-		/* ignore errors, it always returns zero anyway */
+		/* iganalre errors, it always returns zero anyway */
 		(void)io_wq_max_workers(tctx->io_wq, new_count);
 	}
 	return 0;
@@ -404,7 +404,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		return -EEXIST;
 
 	if (ctx->restricted) {
-		opcode = array_index_nospec(opcode, IORING_REGISTER_LAST);
+		opcode = array_index_analspec(opcode, IORING_REGISTER_LAST);
 		if (!test_bit(opcode, ctx->restrictions.register_op))
 			return -EACCES;
 	}
@@ -581,7 +581,7 @@ SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
 
 		if (unlikely(!tctx || fd >= IO_RINGFD_REG_MAX))
 			return -EINVAL;
-		fd = array_index_nospec(fd, IO_RINGFD_REG_MAX);
+		fd = array_index_analspec(fd, IO_RINGFD_REG_MAX);
 		file = tctx->registered_rings[fd];
 		if (unlikely(!file))
 			return -EBADF;
@@ -589,7 +589,7 @@ SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
 		file = fget(fd);
 		if (unlikely(!file))
 			return -EBADF;
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		if (!io_is_uring_fops(file))
 			goto out_fput;
 	}

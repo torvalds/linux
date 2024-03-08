@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -84,7 +84,7 @@ static void ath_btcoex_period_work(struct work_struct *work)
 
 	ath9k_hw_btcoex_enable(priv->ah);
 	timer_period = test_bit(OP_BT_SCAN, &priv->op_flags) ?
-		btcoex->btscan_no_stomp : btcoex->btcoex_no_stomp;
+		btcoex->btscan_anal_stomp : btcoex->btcoex_anal_stomp;
 	ieee80211_queue_delayed_work(priv->hw, &priv->duty_cycle_work,
 				     msecs_to_jiffies(timer_period));
 	ieee80211_queue_delayed_work(priv->hw, &priv->coex_period_work,
@@ -107,7 +107,7 @@ static void ath_btcoex_duty_cycle_work(struct work_struct *work)
 
 	if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_LOW ||
 	    test_bit(OP_BT_SCAN, &priv->op_flags))
-		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_NONE);
+		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_ANALNE);
 	else if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_ALL)
 		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_LOW);
 
@@ -119,9 +119,9 @@ static void ath_htc_init_btcoex_work(struct ath9k_htc_priv *priv)
 	struct ath_btcoex *btcoex = &priv->btcoex;
 
 	btcoex->btcoex_period = ATH_BTCOEX_DEF_BT_PERIOD;
-	btcoex->btcoex_no_stomp = (100 - ATH_BTCOEX_DEF_DUTY_CYCLE) *
+	btcoex->btcoex_anal_stomp = (100 - ATH_BTCOEX_DEF_DUTY_CYCLE) *
 		btcoex->btcoex_period / 100;
-	btcoex->btscan_no_stomp = (100 - ATH_BTCOEX_BTSCAN_DUTY_CYCLE) *
+	btcoex->btscan_anal_stomp = (100 - ATH_BTCOEX_BTSCAN_DUTY_CYCLE) *
 				   btcoex->btcoex_period / 100;
 	INIT_DELAYED_WORK(&priv->coex_period_work, ath_btcoex_period_work);
 	INIT_DELAYED_WORK(&priv->duty_cycle_work, ath_btcoex_duty_cycle_work);
@@ -172,7 +172,7 @@ void ath9k_htc_stop_btcoex(struct ath9k_htc_priv *priv)
 	struct ath_hw *ah = priv->ah;
 
 	if (ah->btcoex_hw.enabled &&
-	    ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) {
+	    ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_ANALNE) {
 		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
 			ath_htc_cancel_btcoex_work(priv);
 		ath9k_hw_btcoex_disable(ah);
@@ -189,7 +189,7 @@ void ath9k_htc_init_btcoex(struct ath9k_htc_priv *priv, char *product)
 	 * Check if BTCOEX is globally disabled.
 	 */
 	if (!common->btcoex_enabled) {
-		ah->btcoex_hw.scheme = ATH_BTCOEX_CFG_NONE;
+		ah->btcoex_hw.scheme = ATH_BTCOEX_CFG_ANALNE;
 		return;
 	}
 
@@ -198,7 +198,7 @@ void ath9k_htc_init_btcoex(struct ath9k_htc_priv *priv, char *product)
 	}
 
 	switch (ath9k_hw_get_btcoex_scheme(priv->ah)) {
-	case ATH_BTCOEX_CFG_NONE:
+	case ATH_BTCOEX_CFG_ANALNE:
 		break;
 	case ATH_BTCOEX_CFG_3WIRE:
 		priv->ah->btcoex_hw.btactive_gpio = 7;
@@ -240,7 +240,7 @@ static void ath9k_led_brightness(struct led_classdev *led_cdev,
 						   struct ath9k_htc_priv,
 						   led_cdev);
 
-	/* Not locked, but it's just a tiny green light..*/
+	/* Analt locked, but it's just a tiny green light..*/
 	priv->brightness = brightness;
 	ieee80211_queue_work(priv->hw, &priv->led_work);
 }

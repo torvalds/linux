@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * spu aware cpufreq governor for the cell processor
+ * spu aware cpufreq goveranalr for the cell processor
  *
  * © Copyright IBM Corporation 2006-2008
  *
@@ -34,7 +34,7 @@ static int calc_freq(struct spu_gov_info_struct *info)
 	int busy_spus;
 
 	cpu = info->policy->cpu;
-	busy_spus = atomic_read(&cbe_spu_info[cpu_to_node(cpu)].busy_spus);
+	busy_spus = atomic_read(&cbe_spu_info[cpu_to_analde(cpu)].busy_spus);
 
 	info->busy_spus = calc_load(info->busy_spus, EXP, busy_spus * FIXED_1);
 	pr_debug("cpu %d: busy_spus=%d, info->busy_spus=%ld\n",
@@ -81,12 +81,12 @@ static int spu_gov_start(struct cpufreq_policy *policy)
 	int i;
 
 	if (!cpu_online(cpu)) {
-		printk(KERN_ERR "cpu %d is not online\n", cpu);
+		printk(KERN_ERR "cpu %d is analt online\n", cpu);
 		return -EINVAL;
 	}
 
 	if (!policy->cur) {
-		printk(KERN_ERR "no cpu specified in policy\n");
+		printk(KERN_ERR "anal cpu specified in policy\n");
 		return -EINVAL;
 	}
 
@@ -120,14 +120,14 @@ static void spu_gov_stop(struct cpufreq_policy *policy)
 	}
 }
 
-static struct cpufreq_governor spu_governor = {
+static struct cpufreq_goveranalr spu_goveranalr = {
 	.name = "spudemand",
 	.start = spu_gov_start,
 	.stop = spu_gov_stop,
 	.owner = THIS_MODULE,
 };
-cpufreq_governor_init(spu_governor);
-cpufreq_governor_exit(spu_governor);
+cpufreq_goveranalr_init(spu_goveranalr);
+cpufreq_goveranalr_exit(spu_goveranalr);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Krafft <krafft@de.ibm.com>");

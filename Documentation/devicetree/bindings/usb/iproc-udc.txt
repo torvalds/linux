@@ -1,8 +1,8 @@
 Broadcom IPROC USB Device controller.
 
-The device node is used for UDCs integrated into Broadcom's
-iProc family (Northstar2, Cygnus) of SoCs'. The UDC is based
-on Synopsys Designware Cores AHB Subsystem Device Controller
+The device analde is used for UDCs integrated into Broadcom's
+iProc family (Analrthstar2, Cygnus) of SoCs'. The UDC is based
+on Syanalpsys Designware Cores AHB Subsystem Device Controller
 IP.
 
 Required properties:
@@ -11,7 +11,7 @@ Required properties:
    For Broadcom Cygnus platform, add "brcm,cygnus-udc", "brcm,iproc-udc".
  - reg: Offset and length of UDC register set
  - interrupts: description of interrupt line
- - phys: phandle to phy node.
+ - phys: phandle to phy analde.
 
 Example:
 	udc_dwc: usb@664e0000 {

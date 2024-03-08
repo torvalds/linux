@@ -2,21 +2,21 @@
 /*
  * This file is part of wl12xx
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  */
 
 #include "wl1251.h"
 #include "reg.h"
 #include "io.h"
 
-/* FIXME: this is static data nowadays and the table can be removed */
+/* FIXME: this is static data analwadays and the table can be removed */
 static enum wl12xx_acx_int_reg wl1251_io_reg_table[ACX_REG_TABLE_LEN] = {
 	[ACX_REG_INTERRUPT_TRIG]     = (REGISTERS_BASE + 0x0474),
 	[ACX_REG_INTERRUPT_TRIG_H]   = (REGISTERS_BASE + 0x0478),
 	[ACX_REG_INTERRUPT_MASK]     = (REGISTERS_BASE + 0x0494),
 	[ACX_REG_HINT_MASK_SET]      = (REGISTERS_BASE + 0x0498),
 	[ACX_REG_HINT_MASK_CLR]      = (REGISTERS_BASE + 0x049C),
-	[ACX_REG_INTERRUPT_NO_CLEAR] = (REGISTERS_BASE + 0x04B0),
+	[ACX_REG_INTERRUPT_ANAL_CLEAR] = (REGISTERS_BASE + 0x04B0),
 	[ACX_REG_INTERRUPT_CLEAR]    = (REGISTERS_BASE + 0x04A4),
 	[ACX_REG_INTERRUPT_ACK]      = (REGISTERS_BASE + 0x04A8),
 	[ACX_REG_SLV_SOFT_RESET]     = (REGISTERS_BASE + 0x0000),
@@ -89,7 +89,7 @@ void wl1251_reg_write32(struct wl1251 *wl, int addr, u32 val)
  * There are two VIRTUAL partitions (the memory partition and the
  * registers partition), which are mapped to two different areas of the
  * PHYSICAL (hardware) memory.  This function also makes other checks to
- * ensure that the partitions are not overlapping.  In the diagram below, the
+ * ensure that the partitions are analt overlapping.  In the diagram below, the
  * memory partition comes before the register partition, but the opposite is
  * also supported.
  *
@@ -125,7 +125,7 @@ void wl1251_set_partition(struct wl1251 *wl,
 
 	partition = kmalloc(sizeof(*partition), GFP_KERNEL);
 	if (!partition) {
-		wl1251_error("can not allocate partition buffer");
+		wl1251_error("can analt allocate partition buffer");
 		return;
 	}
 

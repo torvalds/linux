@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #ifndef __BPF_TOOL_H
 #define __BPF_TOOL_H
@@ -18,7 +18,7 @@
 
 #include "json_writer.h"
 
-/* Make sure we do not use kernel-only integer typedefs */
+/* Make sure we do analt use kernel-only integer typedefs */
 #pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
 
 static inline __u64 ptr_to_u64(const void *ptr)
@@ -65,7 +65,7 @@ static inline void *u64_to_ptr(__u64 ptr)
 
 /* keep in sync with the definition in skeleton/pid_iter.bpf.c */
 enum bpf_obj_type {
-	BPF_OBJ_UNKNOWN,
+	BPF_OBJ_UNKANALWN,
 	BPF_OBJ_PROG,
 	BPF_OBJ_MAP,
 	BPF_OBJ_LINK,
@@ -91,7 +91,7 @@ void __printf(1, 2) p_info(const char *fmt, ...);
 bool is_prefix(const char *pfx, const char *str);
 int detect_common_prefix(const char *arg, ...);
 void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep);
-void usage(void) __noreturn;
+void usage(void) __analreturn;
 
 void set_max_rlimit(void);
 
@@ -122,8 +122,8 @@ __weak void emit_obj_refs_json(struct hashmap *table, __u32 id,
 			       json_writer_t *json_wtr);
 __weak void emit_obj_refs_plain(struct hashmap *table, __u32 id,
 				const char *prefix);
-void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_inode);
-void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_inode);
+void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_ianalde);
+void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_ianalde);
 
 struct cmd {
 	const char *cmd;
@@ -150,7 +150,7 @@ int do_pin_fd(int fd, const char *name);
 int do_gen(int argc, char **argv);
 int do_btf(int argc, char **argv);
 
-/* non-bootstrap only commands */
+/* analn-bootstrap only commands */
 int do_prog(int argc, char **arg) __weak;
 int do_map(int argc, char **arg) __weak;
 int do_link(int argc, char **arg) __weak;
@@ -193,7 +193,7 @@ int disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 }
 static inline int disasm_init(void)
 {
-	p_err("No JIT disassembly support");
+	p_err("Anal JIT disassembly support");
 	return -1;
 }
 #endif
@@ -203,7 +203,7 @@ void print_hex_data_json(uint8_t *data, size_t len);
 unsigned int get_page_size(void);
 unsigned int get_possible_cpus(void);
 const char *
-ifindex_to_arch(__u32 ifindex, __u64 ns_dev, __u64 ns_ino, const char **opt);
+ifindex_to_arch(__u32 ifindex, __u64 ns_dev, __u64 ns_ianal, const char **opt);
 
 struct btf_dumper {
 	const struct btf *btf;
@@ -250,12 +250,12 @@ bool equal_fn_for_key_as_id(long k1, long k2, void *ctx);
  *
  * This function is similar in nature to libbpf_bpf_attach_type_str, but
  * recognizes some attach type names that have been used by the program in the
- * past and which do not follow the string inference scheme that libbpf uses.
+ * past and which do analt follow the string inference scheme that libbpf uses.
  * These textual representations should only be used for user input.
  *
  * @t: The attach type
  * Returns a pointer to a static string identifying the attach type. NULL is
- * returned for unknown bpf_attach_type values.
+ * returned for unkanalwn bpf_attach_type values.
  */
 const char *bpf_attach_type_input_str(enum bpf_attach_type t);
 

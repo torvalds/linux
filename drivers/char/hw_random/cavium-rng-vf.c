@@ -104,12 +104,12 @@ static int check_rng_health(struct cavium_rng *rng)
 
 	/* RNM_HEALTH_STATUS[CYCLES_SINCE_HEALTH_FAILURE]
 	 * Number of coprocessor cycles times 2 since the last failure.
-	 * This field doesn't get cleared/updated until another failure.
+	 * This field doesn't get cleared/updated until aanalther failure.
 	 */
 	cycles = cycles / 2;
-	cur_err = (cycles * 1000000000) / rng->clock_rate; /* In nanosec */
+	cur_err = (cycles * 1000000000) / rng->clock_rate; /* In naanalsec */
 
-	/* Ignore errors that happenned a long time ago, these
+	/* Iganalre errors that happenned a long time ago, these
 	 * are most likely false positive errors.
 	 */
 	if (cur_err > MSEC_TO_NSEC(10)) {
@@ -170,7 +170,7 @@ static int cavium_map_pf_regs(struct cavium_rng *rng)
 {
 	struct pci_dev *pdev;
 
-	/* Health status is not supported on 83xx, skip mapping PF CSRs */
+	/* Health status is analt supported on 83xx, skip mapping PF CSRs */
 	if (is_octeontx(rng->pdev)) {
 		rng->pf_regbase = NULL;
 		return 0;
@@ -179,7 +179,7 @@ static int cavium_map_pf_regs(struct cavium_rng *rng)
 	pdev = pci_get_device(PCI_VENDOR_ID_CAVIUM,
 			      PCI_DEVID_CAVIUM_RNG_PF, NULL);
 	if (!pdev) {
-		pr_err("Cannot find RNG PF device\n");
+		pr_err("Cananalt find RNG PF device\n");
 		return -EIO;
 	}
 
@@ -188,7 +188,7 @@ static int cavium_map_pf_regs(struct cavium_rng *rng)
 	if (!rng->pf_regbase) {
 		dev_err(&pdev->dev, "Failed to map PF CSR region\n");
 		pci_dev_put(pdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pci_dev_put(pdev);
@@ -208,7 +208,7 @@ static int cavium_rng_probe_vf(struct	pci_dev		*pdev,
 
 	rng = devm_kzalloc(&pdev->dev, sizeof(*rng), GFP_KERNEL);
 	if (!rng)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rng->pdev = pdev;
 
@@ -216,13 +216,13 @@ static int cavium_rng_probe_vf(struct	pci_dev		*pdev,
 	rng->result = pcim_iomap(pdev, 0, 0);
 	if (!rng->result) {
 		dev_err(&pdev->dev, "Error iomap failed retrieving result.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rng->ops.name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 				       "cavium-rng-%s", dev_name(&pdev->dev));
 	if (!rng->ops.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rng->ops.read    = cavium_rng_read;
 

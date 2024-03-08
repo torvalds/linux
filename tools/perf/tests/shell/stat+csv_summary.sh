@@ -21,7 +21,7 @@ done
 #     1.001360298 9148534  cycles 8012853854 100.00
 #9148534  cycles 8012853854 100.00
 #
-perf stat -e cycles  -x' ' -I1000 --interval-count 1 --summary --no-csv-summary 2>&1 | \
+perf stat -e cycles  -x' ' -I1000 --interval-count 1 --summary --anal-csv-summary 2>&1 | \
 grep -e summary | \
 while read _ _ _ _
 do

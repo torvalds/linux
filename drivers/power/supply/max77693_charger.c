@@ -55,7 +55,7 @@ static int max77693_get_charger_state(struct regmap *regmap, int *val)
 		break;
 	case MAX77693_CHARGING_TIMER_EXPIRED:
 	case MAX77693_CHARGING_THERMISTOR_SUSPEND:
-		*val = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		*val = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 	case MAX77693_CHARGING_OFF:
 	case MAX77693_CHARGING_OVER_TEMP:
@@ -64,7 +64,7 @@ static int max77693_get_charger_state(struct regmap *regmap, int *val)
 		break;
 	case MAX77693_CHARGING_RESERVED:
 	default:
-		*val = POWER_SUPPLY_STATUS_UNKNOWN;
+		*val = POWER_SUPPLY_STATUS_UNKANALWN;
 	}
 
 	return 0;
@@ -103,11 +103,11 @@ static int max77693_get_charge_type(struct regmap *regmap, int *val)
 	case MAX77693_CHARGING_OFF:
 	case MAX77693_CHARGING_OVER_TEMP:
 	case MAX77693_CHARGING_WATCHDOG_EXPIRED:
-		*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		*val = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 		break;
 	case MAX77693_CHARGING_RESERVED:
 	default:
-		*val = POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
+		*val = POWER_SUPPLY_CHARGE_TYPE_UNKANALWN;
 	}
 
 	return 0;
@@ -119,7 +119,7 @@ static int max77693_get_charge_type(struct regmap *regmap, int *val)
  *  - POWER_SUPPLY_HEALTH_GOOD
  *  - POWER_SUPPLY_HEALTH_OVERVOLTAGE
  *  - POWER_SUPPLY_HEALTH_SAFETY_TIMER_EXPIRE
- *  - POWER_SUPPLY_HEALTH_UNKNOWN
+ *  - POWER_SUPPLY_HEALTH_UNKANALWN
  *  - POWER_SUPPLY_HEALTH_UNSPEC_FAILURE
  */
 static int max77693_get_battery_health(struct regmap *regmap, int *val)
@@ -135,7 +135,7 @@ static int max77693_get_battery_health(struct regmap *regmap, int *val)
 	data >>= CHG_DETAILS_01_BAT_SHIFT;
 
 	switch (data) {
-	case MAX77693_BATTERY_NOBAT:
+	case MAX77693_BATTERY_ANALBAT:
 		*val = POWER_SUPPLY_HEALTH_DEAD;
 		break;
 	case MAX77693_BATTERY_PREQUALIFICATION:
@@ -158,7 +158,7 @@ static int max77693_get_battery_health(struct regmap *regmap, int *val)
 		break;
 	case MAX77693_BATTERY_RESERVED:
 	default:
-		*val = POWER_SUPPLY_HEALTH_UNKNOWN;
+		*val = POWER_SUPPLY_HEALTH_UNKANALWN;
 		break;
 	}
 
@@ -628,10 +628,10 @@ static int max77693_reg_init(struct max77693_charger *chg)
 #ifdef CONFIG_OF
 static int max77693_dt_init(struct device *dev, struct max77693_charger *chg)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	if (!np) {
-		dev_err(dev, "no charger OF node\n");
+		dev_err(dev, "anal charger OF analde\n");
 		return -EINVAL;
 	}
 
@@ -674,7 +674,7 @@ static int max77693_charger_probe(struct platform_device *pdev)
 
 	chg = devm_kzalloc(&pdev->dev, sizeof(*chg), GFP_KERNEL);
 	if (!chg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, chg);
 	chg->dev = &pdev->dev;

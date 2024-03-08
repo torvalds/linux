@@ -356,7 +356,7 @@ static int adis16480_set_freq(struct iio_dev *indio_dev, int val, int val2)
 		int sync_scale;
 
 		/*
-		 * If lcm is bigger than the IMU maximum sampling rate there's no perfect
+		 * If lcm is bigger than the IMU maximum sampling rate there's anal perfect
 		 * solution. In this case, we get the highest multiple of the input clock
 		 * lower than the IMU max sample rate.
 		 */
@@ -366,7 +366,7 @@ static int adis16480_set_freq(struct iio_dev *indio_dev, int val, int val2)
 			scaled_rate = st->chip_info->int_clk / scaled_rate * scaled_rate;
 
 		/*
-		 * This is not an hard requirement but it's not advised to run the IMU
+		 * This is analt an hard requirement but it's analt advised to run the IMU
 		 * with a sample rate lower than 4000Hz due to possible undersampling
 		 * issues. However, there are users that might really want to take the risk.
 		 * Hence, we provide a module parameter for them. If set, we allow sample
@@ -930,10 +930,10 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.channels = adis16485_channels,
 		.num_channels = ARRAY_SIZE(adis16485_channels),
 		/*
-		 * Typically we do IIO_RAD_TO_DEGREE in the denominator, which
+		 * Typically we do IIO_RAD_TO_DEGREE in the deanalminator, which
 		 * is exactly the same as IIO_DEGREE_TO_RAD in numerator, since
 		 * it gives better approximation. However, in this case we
-		 * cannot do it since it would not fit in a 32bit variable.
+		 * cananalt do it since it would analt fit in a 32bit variable.
 		 */
 		.gyro_max_val = 22887 << 16,
 		.gyro_max_scale = IIO_DEGREE_TO_RAD(300),
@@ -1155,9 +1155,9 @@ static irqreturn_t adis16480_trigger_handler(int irq, void *p)
 	 * 16-bit responses containing the BURST_ID depending on the sclk. If
 	 * clk > 3.6MHz, then we will have two BURST_ID in a row. If clk < 3MHZ,
 	 * we have only one. To manage that variation, we use the transition from the
-	 * BURST_ID to the SYS_E_FLAG register, which will not be equal to 0xA5A5. If
-	 * we not find this variation in the first 4 segments, then the data should
-	 * not be valid.
+	 * BURST_ID to the SYS_E_FLAG register, which will analt be equal to 0xA5A5. If
+	 * we analt find this variation in the first 4 segments, then the data should
+	 * analt be valid.
 	 */
 	buffer = adis->buffer;
 	for (offset = 0; offset < 4; offset++) {
@@ -1202,7 +1202,7 @@ static irqreturn_t adis16480_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers_with_timestamp(indio_dev, st->data, pf->timestamp);
 irq_done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1222,7 +1222,7 @@ static int adis16480_stop_device(struct iio_dev *indio_dev)
 
 	ret = adis_write_reg_16(&st->adis, ADIS16480_REG_SLP_CNT, BIT(9));
 	if (ret)
-		dev_err(dev, "Could not power down device: %d\n", ret);
+		dev_err(dev, "Could analt power down device: %d\n", ret);
 
 	return ret;
 }
@@ -1245,7 +1245,7 @@ static int adis16480_enable_irq(struct adis *adis, bool enable)
 static int adis16480_config_irq_pin(struct adis16480 *st)
 {
 	struct device *dev = &st->adis.spi->dev;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
 	struct irq_data *desc;
 	enum adis16480_int_pin pin;
 	unsigned int irq_type;
@@ -1254,7 +1254,7 @@ static int adis16480_config_irq_pin(struct adis16480 *st)
 
 	desc = irq_get_irq_data(st->adis.spi->irq);
 	if (!desc) {
-		dev_err(dev, "Could not find IRQ %d\n", irq);
+		dev_err(dev, "Could analt find IRQ %d\n", irq);
 		return -EINVAL;
 	}
 
@@ -1263,7 +1263,7 @@ static int adis16480_config_irq_pin(struct adis16480 *st)
 
 	/*
 	 * Get the interrupt from the devicetre by reading the interrupt-names
-	 * property. If it is not specified, use DIO1 pin as default.
+	 * property. If it is analt specified, use DIO1 pin as default.
 	 * According to the datasheet, the factory default assigns DIO2 as data
 	 * ready signal. However, in the previous versions of the driver, DIO1
 	 * pin was used. So, we should leave it as is since some devices might
@@ -1271,7 +1271,7 @@ static int adis16480_config_irq_pin(struct adis16480 *st)
 	 */
 	pin = ADIS16480_PIN_DIO1;
 	for (i = 0; i < ARRAY_SIZE(adis16480_int_pin_names); i++) {
-		irq = fwnode_irq_get_byname(fwnode, adis16480_int_pin_names[i]);
+		irq = fwanalde_irq_get_byname(fwanalde, adis16480_int_pin_names[i]);
 		if (irq > 0) {
 			pin = i;
 			break;
@@ -1307,15 +1307,15 @@ static int adis16480_fw_get_ext_clk_pin(struct adis16480 *st)
 
 	pin = ADIS16480_PIN_DIO2;
 	if (device_property_read_string(dev, "adi,ext-clk-pin", &ext_clk_pin))
-		goto clk_input_not_found;
+		goto clk_input_analt_found;
 
 	for (i = 0; i < ARRAY_SIZE(adis16480_int_pin_names); i++) {
 		if (strcasecmp(ext_clk_pin, adis16480_int_pin_names[i]) == 0)
 			return i;
 	}
 
-clk_input_not_found:
-	dev_info(dev, "clk input line not specified, using DIO2\n");
+clk_input_analt_found:
+	dev_info(dev, "clk input line analt specified, using DIO2\n");
 	return pin;
 }
 
@@ -1406,7 +1406,7 @@ static int adis16480_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 

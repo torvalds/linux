@@ -40,7 +40,7 @@
 /*
  * retrieve the ctrl registers
  * the ctrl register has a size of 20 but a fw bug split it into 16 + 4,
- * and there is no way to know if the first 20 bytes are here or not.
+ * and there is anal way to kanalw if the first 20 bytes are here or analt.
  * We use only the first 12 bytes, so get only them.
  */
 #define RMI_F11_CTRL_REG_COUNT		12
@@ -48,7 +48,7 @@
 enum rmi_mode_type {
 	RMI_MODE_OFF			= 0,
 	RMI_MODE_ATTN_REPORTS		= 1,
-	RMI_MODE_NO_PACKED_ATTN_REPORTS	= 2,
+	RMI_MODE_ANAL_PACKED_ATTN_REPORTS	= 2,
 };
 
 /**
@@ -116,7 +116,7 @@ static int rmi_write_report(struct hid_device *hdev, u8 *report, int len);
  *
  * The page_mutex lock must be held when this function is entered.
  *
- * Returns zero on success, non-zero on failure.
+ * Returns zero on success, analn-zero on failure.
  */
 static int rmi_set_page(struct hid_device *hdev, u8 page)
 {
@@ -148,7 +148,7 @@ static int rmi_set_mode(struct hid_device *hdev, u8 mode)
 
 	buf = kmemdup(txbuf, sizeof(txbuf), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_hw_raw_request(hdev, RMI_SET_RMI_MODE_REPORT_ID, buf,
 			sizeof(txbuf), HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
@@ -344,7 +344,7 @@ static int rmi_read_data_event(struct hid_device *hdev, u8 *data, int size)
 	struct rmi_data *hdata = hid_get_drvdata(hdev);
 
 	if (!test_bit(RMI_READ_REQUEST_PENDING, &hdata->flags)) {
-		hid_dbg(hdev, "no read request pending\n");
+		hid_dbg(hdev, "anal read request pending\n");
 		return 0;
 	}
 
@@ -361,7 +361,7 @@ static int rmi_check_sanity(struct hid_device *hdev, u8 *data, int size)
 	/*
 	 * On the Dell XPS 13 9333, the bus sometimes get confused and fills
 	 * the report with a sentinel value "ff". Synaptics told us that such
-	 * behavior does not comes from the touchpad itself, so we filter out
+	 * behavior does analt comes from the touchpad itself, so we filter out
 	 * such reports here.
 	 */
 
@@ -543,7 +543,7 @@ static int rmi_input_mapping(struct hid_device *hdev,
 	struct rmi_data *data = hid_get_drvdata(hdev);
 
 	/*
-	 * we want to make HID ignore the advertised HID collection
+	 * we want to make HID iganalre the advertised HID collection
 	 * for RMI deivces
 	 */
 	if (data->device_flags & RMI_DEVICE) {
@@ -621,10 +621,10 @@ static int rmi_setup_irq_domain(struct hid_device *hdev)
 	struct rmi_data *hdata = hid_get_drvdata(hdev);
 	int ret;
 
-	hdata->domain = irq_domain_create_linear(hdev->dev.fwnode, 1,
+	hdata->domain = irq_domain_create_linear(hdev->dev.fwanalde, 1,
 						 &rmi_irq_ops, hdata);
 	if (!hdata->domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_add_action_or_reset(&hdev->dev, &rmi_irq_teardown, hdata);
 	if (ret)
@@ -650,15 +650,15 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	data = devm_kzalloc(&hdev->dev, sizeof(struct rmi_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&data->reset_work, rmi_reset_work);
 	data->hdev = hdev;
 
 	hid_set_drvdata(hdev, data);
 
-	hdev->quirks |= HID_QUIRK_NO_INIT_REPORTS;
-	hdev->quirks |= HID_QUIRK_NO_INPUT_SYNC;
+	hdev->quirks |= HID_QUIRK_ANAL_INIT_REPORTS;
+	hdev->quirks |= HID_QUIRK_ANAL_INPUT_SYNC;
 
 	ret = hid_parse(hdev);
 	if (ret) {
@@ -675,13 +675,13 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	 */
 	if (!rmi_check_valid_report_id(hdev, HID_FEATURE_REPORT,
 	    RMI_SET_RMI_MODE_REPORT_ID, &feature_report)) {
-		hid_dbg(hdev, "device does not have set mode feature report\n");
+		hid_dbg(hdev, "device does analt have set mode feature report\n");
 		goto start;
 	}
 
 	if (!rmi_check_valid_report_id(hdev, HID_INPUT_REPORT,
 	    RMI_ATTN_REPORT_ID, &input_report)) {
-		hid_dbg(hdev, "device does not have attention input report\n");
+		hid_dbg(hdev, "device does analt have attention input report\n");
 		goto start;
 	}
 
@@ -690,7 +690,7 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (!rmi_check_valid_report_id(hdev, HID_OUTPUT_REPORT,
 	    RMI_WRITE_REPORT_ID, &output_report)) {
 		hid_dbg(hdev,
-			"device does not have rmi write output report\n");
+			"device does analt have rmi write output report\n");
 		goto start;
 	}
 
@@ -702,7 +702,7 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	data->writeReport = devm_kzalloc(&hdev->dev, alloc_size, GFP_KERNEL);
 	if (!data->writeReport) {
 		hid_err(hdev, "failed to allocate buffer for HID reports\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data->readReport = data->writeReport + data->output_report_size;
@@ -753,7 +753,7 @@ static void rmi_remove(struct hid_device *hdev)
 static const struct hid_device_id rmi_id[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_RAZER, USB_DEVICE_ID_RAZER_BLADE_14),
 		.driver_data = RMI_DEVICE_HAS_PHYS_BUTTONS },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_X1_COVER) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LEANALVO, USB_DEVICE_ID_LEANALVO_X1_COVER) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_PRIMAX, USB_DEVICE_ID_PRIMAX_REZEL) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SYNAPTICS, USB_DEVICE_ID_SYNAPTICS_ACER_SWITCH5),
 		.driver_data = RMI_DEVICE_OUTPUT_SET_REPORT },

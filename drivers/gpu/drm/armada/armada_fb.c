@@ -57,7 +57,7 @@ struct armada_framebuffer *armada_framebuffer_create(struct drm_device *dev,
 	dfb = kzalloc(sizeof(*dfb), GFP_KERNEL);
 	if (!dfb) {
 		DRM_ERROR("failed to allocate Armada fb object\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	dfb->fmt = format;
@@ -106,7 +106,7 @@ struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
 
 	obj = armada_gem_object_lookup(dfile, mode->handles[0]);
 	if (!obj) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err;
 	}
 
@@ -116,7 +116,7 @@ struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
 			goto err_unref;
 	}
 
-	/* Framebuffer objects must have a valid device address for scanout */
+	/* Framebuffer objects must have a valid device address for scaanalut */
 	if (!obj->mapped) {
 		ret = -EINVAL;
 		goto err_unref;

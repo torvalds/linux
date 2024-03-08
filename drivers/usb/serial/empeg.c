@@ -13,7 +13,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -66,7 +66,7 @@ static int empeg_startup(struct usb_serial *serial)
 	if (serial->dev->actconfig->desc.bConfigurationValue != 1) {
 		dev_err(&serial->dev->dev, "active config #%d != 1 ??\n",
 			serial->dev->actconfig->desc.bConfigurationValue);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	r = usb_reset_configuration(serial->dev);
@@ -83,18 +83,18 @@ static void empeg_init_termios(struct tty_struct *tty)
 	 * The empeg-car player wants these particular tty settings.
 	 * You could, for example, change the baud rate, however the
 	 * player only supports 115200 (currently), so there is really
-	 * no point in support for changes to the tty settings.
-	 * (at least for now)
+	 * anal point in support for changes to the tty settings.
+	 * (at least for analw)
 	 *
 	 * The default requirements for this device are:
 	 */
 	termios->c_iflag
-		&= ~(IGNBRK	/* disable ignore break */
+		&= ~(IGNBRK	/* disable iganalre break */
 		| BRKINT	/* disable break causes interrupt */
 		| PARMRK	/* disable mark parity errors */
 		| ISTRIP	/* disable clear high bit of input characters */
 		| INLCR		/* disable translate NL to CR */
-		| IGNCR		/* disable ignore CR */
+		| IGNCR		/* disable iganalre CR */
 		| ICRNL		/* disable translate CR to NL */
 		| IXON);	/* disable enable XON/XOFF flow control */
 
@@ -104,12 +104,12 @@ static void empeg_init_termios(struct tty_struct *tty)
 	termios->c_lflag
 		&= ~(ECHO	/* disable echo input characters */
 		| ECHONL	/* disable echo new line */
-		| ICANON	/* disable erase, kill, werase, and rprnt special characters */
+		| ICAANALN	/* disable erase, kill, werase, and rprnt special characters */
 		| ISIG		/* disable interrupt, quit, and suspend special characters */
-		| IEXTEN);	/* disable non-POSIX special characters */
+		| IEXTEN);	/* disable analn-POSIX special characters */
 
 	termios->c_cflag
-		&= ~(CSIZE	/* no size */
+		&= ~(CSIZE	/* anal size */
 		| PARENB	/* disable parity bit */
 		| CBAUD);	/* clear current baud rate */
 

@@ -52,7 +52,7 @@ static int identify_model(struct snd_tscm *tscm)
 	if (fw_dev->config_rom_length < 30) {
 		dev_err(&tscm->unit->device,
 			"Configuration ROM is too short.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Pick up model name from certain addresses. */
@@ -71,7 +71,7 @@ static int identify_model(struct snd_tscm *tscm)
 		}
 	}
 	if (tscm->spec == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strcpy(tscm->card->driver, "FW-TASCAM");
 	strcpy(tscm->card->shortname, model);
@@ -186,7 +186,7 @@ static const struct ieee1394_device_id snd_tscm_id_table[] = {
 	// can be implemented in userspace without any specific support of this
 	// module.
 	//
-	// .version = 0x800002 is unknown.
+	// .version = 0x800002 is unkanalwn.
 	//
 	// Tascam, FW-1082.
 	{

@@ -3,8 +3,8 @@
  *
  *  This file contains the structure definitions for clocksources.
  *
- *  If you are not a clocksource, or timekeeping code, you should
- *  not be including this file!
+ *  If you are analt a clocksource, or timekeeping code, you should
+ *  analt be including this file!
  */
 #ifndef _LINUX_CLOCKSOURCE_H
 #define _LINUX_CLOCKSOURCE_H
@@ -38,12 +38,12 @@ struct module;
  *
  * @read:		Returns a cycle value, passes clocksource as argument
  * @mask:		Bitmask for two's complement
- *			subtraction of non 64 bit counters
- * @mult:		Cycle to nanosecond multiplier
- * @shift:		Cycle to nanosecond divisor (power of two)
+ *			subtraction of analn 64 bit counters
+ * @mult:		Cycle to naanalsecond multiplier
+ * @shift:		Cycle to naanalsecond divisor (power of two)
  * @max_idle_ns:	Maximum idle time permitted by the clocksource (nsecs)
  * @maxadj:		Maximum adjustment value to mult (~11%)
- * @uncertainty_margin:	Maximum uncertainty in nanoseconds per half second.
+ * @uncertainty_margin:	Maximum uncertainty in naanalseconds per half second.
  *			Zero says to use default WATCHDOG_THRESHOLD.
  * @archdata:		Optional arch-specific data
  * @max_cycles:		Maximum safe cycle value which won't overflow on
@@ -57,7 +57,7 @@ struct module;
  *			1-99: Unfit for real use
  *				Only available for bootup and testing purposes.
  *			100-199: Base level usability.
- *				Functional for real use, but not desired.
+ *				Functional for real use, but analt desired.
  *			200-299: Good.
  *				A correct and usable clocksource.
  *			300-399: Desired.
@@ -83,9 +83,9 @@ struct module;
  * @wd_last:		Last watchdog value corresponding to @cs_last
  * @owner:		Module reference, must be set by clocksource in modules
  *
- * Note: This struct is not used in hotpathes of the timekeeping code
+ * Analte: This struct is analt used in hotpathes of the timekeeping code
  * because the timekeeper caches the hot path fields in its own data
- * structure, so no cache line alignment is required,
+ * structure, so anal cache line alignment is required,
  *
  * The pointer to the clocksource itself is handed to the read
  * callback. If you need extra information there you can wrap struct
@@ -138,7 +138,7 @@ struct clocksource {
 #define CLOCK_SOURCE_WATCHDOG			0x10
 #define CLOCK_SOURCE_VALID_FOR_HRES		0x20
 #define CLOCK_SOURCE_UNSTABLE			0x40
-#define CLOCK_SOURCE_SUSPEND_NONSTOP		0x80
+#define CLOCK_SOURCE_SUSPEND_ANALNSTOP		0x80
 #define CLOCK_SOURCE_RESELECT			0x100
 #define CLOCK_SOURCE_VERIFY_PERCPU		0x200
 /* simplify initialization of mask field */
@@ -189,13 +189,13 @@ static inline u32 clocksource_hz2mult(u32 hz, u32 shift_constant)
 }
 
 /**
- * clocksource_cyc2ns - converts clocksource cycles to nanoseconds
+ * clocksource_cyc2ns - converts clocksource cycles to naanalseconds
  * @cycles:	cycles
- * @mult:	cycle to nanosecond multiplier
- * @shift:	cycle to nanosecond divisor (power of two)
+ * @mult:	cycle to naanalsecond multiplier
+ * @shift:	cycle to naanalsecond divisor (power of two)
  *
- * Converts clocksource cycles to nanoseconds, using the given @mult and @shift.
- * The code is optimized for performance and is not intended to work
+ * Converts clocksource cycles to naanalseconds, using the given @mult and @shift.
+ * The code is optimized for performance and is analt intended to work
  * with absolute clocksource cycles (as those will easily overflow),
  * but is only intended to be used with relative (delta) clocksource cycles.
  *
@@ -216,7 +216,7 @@ extern struct clocksource * __init clocksource_default_clock(void);
 extern void clocksource_mark_unstable(struct clocksource *cs);
 extern void
 clocksource_start_suspend_timing(struct clocksource *cs, u64 start_cycles);
-extern u64 clocksource_stop_suspend_timing(struct clocksource *cs, u64 now);
+extern u64 clocksource_stop_suspend_timing(struct clocksource *cs, u64 analw);
 
 extern u64
 clocks_calc_max_nsecs(u32 mult, u32 shift, u32 maxadj, u64 mask, u64 *max_cycles);
@@ -267,7 +267,7 @@ extern void clocksource_arch_init(struct clocksource *cs);
 static inline void clocksource_arch_init(struct clocksource *cs) { }
 #endif
 
-extern int timekeeping_notify(struct clocksource *clock);
+extern int timekeeping_analtify(struct clocksource *clock);
 
 extern u64 clocksource_mmio_readl_up(struct clocksource *);
 extern u64 clocksource_mmio_readl_down(struct clocksource *);

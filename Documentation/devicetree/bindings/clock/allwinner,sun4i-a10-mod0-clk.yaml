@@ -21,8 +21,8 @@ select:
           - allwinner,sun9i-a80-mod0-clk
 
   # The PRCM on the A31 and A23 will have the reg property missing,
-  # since it's set at the upper level node, and will be validated by
-  # PRCM's schema. Make sure we only validate standalone nodes.
+  # since it's set at the upper level analde, and will be validated by
+  # PRCM's schema. Make sure we only validate standalone analdes.
   required:
     - compatible
     - reg

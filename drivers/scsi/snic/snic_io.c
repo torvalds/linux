@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // Copyright 2014 Cisco Systems, Inc.  All rights reserved.
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 
@@ -31,7 +31,7 @@ snic_wq_cmpl_frame_send(struct vnic_wq *wq,
 			       "Ack received for snic_host_req %p.\n",
 			       buf->os_buf);
 
-	SNIC_TRC(snic->shost->host_no, 0, 0,
+	SNIC_TRC(snic->shost->host_anal, 0, 0,
 		 ((ulong)(buf->os_buf) - sizeof(struct snic_req_info)), 0, 0,
 		 0);
 
@@ -98,7 +98,7 @@ snic_free_wq_buf(struct vnic_wq *wq, struct vnic_wq_buf *buf)
 		goto end;
 	}
 
-	SNIC_BUG_ON(rqi->list.next == NULL); /* if not added to spl_cmd_list */
+	SNIC_BUG_ON(rqi->list.next == NULL); /* if analt added to spl_cmd_list */
 	list_del_init(&rqi->list);
 	spin_unlock_irqrestore(&snic->spl_cmd_lock, flags);
 
@@ -118,7 +118,7 @@ end:
 static int
 snic_select_wq(struct snic *snic)
 {
-	/* No multi queue support for now */
+	/* Anal multi queue support for analw */
 	BUILD_BUG_ON(SNIC_WQ_MAX > 1);
 
 	return 0;
@@ -163,7 +163,7 @@ snic_queue_wq_desc(struct snic *snic, void *os_buf, u16 len)
 	if (dma_mapping_error(&snic->pdev->dev, pa)) {
 		SNIC_HOST_ERR(snic->shost, "qdesc: PCI DMA Mapping Fail.\n");
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	req->req_pa = (ulong)pa;
@@ -177,15 +177,15 @@ snic_queue_wq_desc(struct snic *snic, void *os_buf, u16 len)
 		req->req_pa = 0;
 		spin_unlock_irqrestore(&snic->wq_lock[q_num], flags);
 		atomic64_inc(&snic->s_stats.misc.wq_alloc_fail);
-		SNIC_DBG("host = %d, WQ is Full\n", snic->shost->host_no);
+		SNIC_DBG("host = %d, WQ is Full\n", snic->shost->host_anal);
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	snic_queue_wq_eth_desc(&snic->wq[q_num], os_buf, pa, len, 0, 0, 1);
 	/*
 	 * Update stats
-	 * note: when multi queue enabled, fw actv_reqs should be per queue.
+	 * analte: when multi queue enabled, fw actv_reqs should be per queue.
 	 */
 	act_reqs = atomic64_inc_return(&fwstats->actv_reqs);
 	spin_unlock_irqrestore(&snic->wq_lock[q_num], flags);
@@ -435,7 +435,7 @@ void
 snic_hex_dump(char *pfx, char *data, int len)
 {
 	SNIC_INFO("%s Dumping Data of Len = %d\n", pfx, len);
-	print_hex_dump_bytes(pfx, DUMP_PREFIX_NONE, data, len);
+	print_hex_dump_bytes(pfx, DUMP_PREFIX_ANALNE, data, len);
 }
 
 #define	LINE_BUFSZ	128	/* for snic_print_desc fn */
@@ -516,13 +516,13 @@ snic_dump_desc(const char *fn, char *os_buf, int len)
 		snprintf(line, LINE_BUFSZ, "SNIC_MSG_ACK :");
 		break;
 
-	case SNIC_MSG_ASYNC_EVNOTIFY:
-		cmd_str = "async notify : ";
-		snprintf(line, LINE_BUFSZ, "SNIC_MSG_ASYNC_EVNOTIFY :");
+	case SNIC_MSG_ASYNC_EVANALTIFY:
+		cmd_str = "async analtify : ";
+		snprintf(line, LINE_BUFSZ, "SNIC_MSG_ASYNC_EVANALTIFY :");
 		break;
 
 	default:
-		cmd_str = "unknown : ";
+		cmd_str = "unkanalwn : ";
 		SNIC_BUG_ON(1);
 		break;
 	}

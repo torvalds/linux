@@ -37,7 +37,7 @@ EXPORT_SYMBOL_GPL(soundbus_dev_put);
 
 static int soundbus_probe(struct device *dev)
 {
-	int error = -ENODEV;
+	int error = -EANALDEV;
 	struct soundbus_driver *drv;
 	struct soundbus_dev *soundbus_dev;
 
@@ -66,28 +66,28 @@ static int soundbus_uevent(const struct device *dev, struct kobj_uevent_env *env
 	int cplen, seen = 0;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	soundbus_dev = to_soundbus_device(dev);
 	if (!soundbus_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	of = &soundbus_dev->ofdev;
 
 	/* stuff we want to pass to /sbin/hotplug */
-	retval = add_uevent_var(env, "OF_NAME=%pOFn", of->dev.of_node);
+	retval = add_uevent_var(env, "OF_NAME=%pOFn", of->dev.of_analde);
 	if (retval)
 		return retval;
 
-	retval = add_uevent_var(env, "OF_TYPE=%s", of_node_get_device_type(of->dev.of_node));
+	retval = add_uevent_var(env, "OF_TYPE=%s", of_analde_get_device_type(of->dev.of_analde));
 	if (retval)
 		return retval;
 
 	/* Since the compatible field can contain pretty much anything
-	 * it's not really legal to split it out with commas. We split it
+	 * it's analt really legal to split it out with commas. We split it
 	 * up using a number of environment variables instead. */
 
-	compat = of_get_property(of->dev.of_node, "compatible", &cplen);
+	compat = of_get_property(of->dev.of_analde, "compatible", &cplen);
 	while (compat && cplen > 0) {
 		int tmp = env->buflen;
 		retval = add_uevent_var(env, "OF_COMPATIBLE_%d=%s", seen, compat);
@@ -142,7 +142,7 @@ int soundbus_add_one(struct soundbus_dev *dev)
 
 	/* sanity checks */
 	if (!dev->attach_codec ||
-	    !dev->ofdev.dev.of_node ||
+	    !dev->ofdev.dev.of_analde ||
 	    dev->pcmname ||
 	    dev->pcmid != -1) {
 		printk(KERN_ERR "soundbus: adding device failed sanity check!\n");

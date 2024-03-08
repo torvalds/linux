@@ -11,9 +11,9 @@
  *
  * The driver brings the USB functions of the MDC800 to Linux.
  * To use the Camera you must support the USB Protocol of the camera
- * to the Kernel Node.
- * The Driver uses a misc device Node. Create it with :
- * mknod /dev/mustek c 180 32
+ * to the Kernel Analde.
+ * The Driver uses a misc device Analde. Create it with :
+ * mkanald /dev/mustek c 180 32
  *
  * The driver supports only one camera.
  * 
@@ -29,7 +29,7 @@
  * version 0.7.5
  * Fixed potential SMP races with Spinlocks.
  * Thanks to Oliver Neukum <oliver@neukum.name> who 
- * noticed the race conditions.
+ * analticed the race conditions.
  * (30/10/2000)
  *
  * Fixed: Setting urb->dev before submitting urb.
@@ -38,7 +38,7 @@
  *
  * version 0.7.3
  * bugfix : The mdc800->state field gets set to READY after the
- * disconnect function sets it to NOT_CONNECTED. This makes the
+ * disconnect function sets it to ANALT_CONNECTED. This makes the
  * driver running like the camera is connected and causes some
  * hang ups.
  *
@@ -47,7 +47,7 @@
  * problems when compiled as Module.
  * (04/04/2000)
  *
- * The mdc800 driver gets assigned the USB Minor 32-47. The Registration
+ * The mdc800 driver gets assigned the USB Mianalr 32-47. The Registration
  * was updated to use these values.
  * (26/03/2000)
  *
@@ -55,7 +55,7 @@
  * (01/03/2000)
  *
  * version 0.7.0
- * Rewrite of the driver : The driver now uses URB's. The old stuff
+ * Rewrite of the driver : The driver analw uses URB's. The old stuff
  * has been removed.
  *
  * version 0.6.0
@@ -75,7 +75,7 @@
 #include <linux/sched/signal.h>
 #include <linux/signal.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/random.h>
 #include <linux/poll.h>
 #include <linux/init.h>
@@ -106,8 +106,8 @@
 #define TO_READ_FROM_IRQ 		TO_DEFAULT_COMMAND
 #define TO_GET_READY			TO_DEFAULT_COMMAND
 
-/* Minor Number of the device (create with mknod /dev/mustek c 180 32) */
-#define MDC800_DEVICE_MINOR_BASE 32
+/* Mianalr Number of the device (create with mkanald /dev/mustek c 180 32) */
+#define MDC800_DEVICE_MIANALR_BASE 32
 
 
 /**************************************************************************
@@ -116,7 +116,7 @@
 
 
 typedef enum {
-	NOT_CONNECTED, READY, WORKING, DOWNLOAD
+	ANALT_CONNECTED, READY, WORKING, DOWNLOAD
 } mdc800_state;
 
 
@@ -152,7 +152,7 @@ struct mdc800_data
 
 	/* Device Data */
 	char			out [64];	// Answer Buffer
-	int 			out_ptr;	// Index to the first not readen byte
+	int 			out_ptr;	// Index to the first analt readen byte
 	int			out_count;	// Bytes in the buffer
 
 	int			open;		// Camera device open ?
@@ -161,9 +161,9 @@ struct mdc800_data
 	char 			in [8];		// Command Input Buffer
 	int  			in_count;
 
-	int			pic_index;	// Cache for the Imagesize (-1 for nothing cached )
+	int			pic_index;	// Cache for the Imagesize (-1 for analthing cached )
 	int			pic_len;
-	int			minor;
+	int			mianalr;
 };
 
 
@@ -345,7 +345,7 @@ static int mdc800_usb_waitForIRQ (int mode, int msec)
 		return -1;
 	}
 	
-	if (mdc800->state == NOT_CONNECTED)
+	if (mdc800->state == ANALT_CONNECTED)
 	{
 		printk(KERN_WARNING "mdc800: Camera gets disconnected "
 		       "during waiting for irq.\n");
@@ -360,7 +360,7 @@ static int mdc800_usb_waitForIRQ (int mode, int msec)
 /*
  * The write_urb callback function
  */
-static void mdc800_usb_write_notify (struct urb *urb)
+static void mdc800_usb_write_analtify (struct urb *urb)
 {
 	struct mdc800_data* mdc800=urb->context;
 	int status = urb->status;
@@ -378,7 +378,7 @@ static void mdc800_usb_write_notify (struct urb *urb)
 /*
  * The download_urb callback function
  */
-static void mdc800_usb_download_notify (struct urb *urb)
+static void mdc800_usb_download_analtify (struct urb *urb)
 {
 	struct mdc800_data* mdc800=urb->context;
 	int status = urb->status;
@@ -411,7 +411,7 @@ static const struct file_operations mdc800_device_ops;
 static struct usb_class_driver mdc800_class = {
 	.name =		"mdc800%d",
 	.fops =		&mdc800_device_ops,
-	.minor_base =	MDC800_DEVICE_MINOR_BASE,
+	.mianalr_base =	MDC800_DEVICE_MIANALR_BASE,
 };
 
 
@@ -433,14 +433,14 @@ static int mdc800_usb_probe (struct usb_interface *intf,
 	if (mdc800->dev != NULL)
 	{
 		dev_warn(&intf->dev, "only one Mustek MDC800 is supported.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (dev->descriptor.bNumConfigurations != 1)
 	{
 		dev_err(&intf->dev,
 			"probe fails -> wrong Number of Configuration\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	intf_desc = intf->cur_altsetting;
 
@@ -452,7 +452,7 @@ static int mdc800_usb_probe (struct usb_interface *intf,
 	)
 	{
 		dev_err(&intf->dev, "probe fails -> wrong Interface\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Check the Endpoints */
@@ -473,7 +473,7 @@ static int mdc800_usb_probe (struct usb_interface *intf,
 		if (mdc800->endpoint[i] == -1)
 		{
 			dev_err(&intf->dev, "probe fails -> Wrong Endpoints.\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -484,9 +484,9 @@ static int mdc800_usb_probe (struct usb_interface *intf,
 
 	retval = usb_register_dev(intf, &mdc800_class);
 	if (retval) {
-		dev_err(&intf->dev, "Not able to get a minor for this device.\n");
+		dev_err(&intf->dev, "Analt able to get a mianalr for this device.\n");
 		mutex_unlock(&mdc800->io_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mdc800->dev=dev;
@@ -510,7 +510,7 @@ static int mdc800_usb_probe (struct usb_interface *intf,
 		usb_sndbulkpipe (mdc800->dev, mdc800->endpoint[0]),
 		mdc800->write_urb_buffer,
 		8,
-		mdc800_usb_write_notify,
+		mdc800_usb_write_analtify,
 		mdc800
 	);
 
@@ -520,7 +520,7 @@ static int mdc800_usb_probe (struct usb_interface *intf,
 		usb_rcvbulkpipe (mdc800->dev, mdc800->endpoint [3]),
 		mdc800->download_urb_buffer,
 		64,
-		mdc800_usb_download_notify,
+		mdc800_usb_download_analtify,
 		mdc800
 	);
 
@@ -543,15 +543,15 @@ static void mdc800_usb_disconnect (struct usb_interface *intf)
 	dev_dbg(&intf->dev, "(%s) called\n", __func__);
 
 	if (mdc800) {
-		if (mdc800->state == NOT_CONNECTED)
+		if (mdc800->state == ANALT_CONNECTED)
 			return;
 
 		usb_deregister_dev(intf, &mdc800_class);
 
-		/* must be under lock to make sure no URB
+		/* must be under lock to make sure anal URB
 		   is submitted after usb_kill_urb() */
 		mutex_lock(&mdc800->io_lock);
-		mdc800->state=NOT_CONNECTED;
+		mdc800->state=ANALT_CONNECTED;
 
 		usb_kill_urb(mdc800->irq_urb);
 		usb_kill_urb(mdc800->write_urb);
@@ -603,14 +603,14 @@ static int mdc800_getAnswerSize (char command)
 /*
  * Init the device: (1) alloc mem (2) Increase MOD Count ..
  */
-static int mdc800_device_open (struct inode* inode, struct file *file)
+static int mdc800_device_open (struct ianalde* ianalde, struct file *file)
 {
 	int retval=0;
 	int errn=0;
 
 	mutex_lock(&mdc800->io_lock);
 	
-	if (mdc800->state == NOT_CONNECTED)
+	if (mdc800->state == ANALT_CONNECTED)
 	{
 		errn=-EBUSY;
 		goto error_out;
@@ -653,12 +653,12 @@ error_out:
 /*
  * Close the Camera and release Memory
  */
-static int mdc800_device_release (struct inode* inode, struct file *file)
+static int mdc800_device_release (struct ianalde* ianalde, struct file *file)
 {
 	int retval=0;
 
 	mutex_lock(&mdc800->io_lock);
-	if (mdc800->open && (mdc800->state != NOT_CONNECTED))
+	if (mdc800->open && (mdc800->state != ANALT_CONNECTED))
 	{
 		usb_kill_urb(mdc800->irq_urb);
 		usb_kill_urb(mdc800->write_urb);
@@ -685,7 +685,7 @@ static ssize_t mdc800_device_read (struct file *file, char __user *buf, size_t l
 	int retval;
 
 	mutex_lock(&mdc800->io_lock);
-	if (mdc800->state == NOT_CONNECTED)
+	if (mdc800->state == ANALT_CONNECTED)
 	{
 		mutex_unlock(&mdc800->io_lock);
 		return -EBUSY;
@@ -747,7 +747,7 @@ static ssize_t mdc800_device_read (struct file *file, char __user *buf, size_t l
 			}
 			else
 			{
-				/* No more bytes -> that's an error*/
+				/* Anal more bytes -> that's an error*/
 				mutex_unlock(&mdc800->io_lock);
 				return -EIO;
 			}
@@ -901,7 +901,7 @@ static ssize_t mdc800_device_write (struct file *file, const char __user *buf, s
 						}
 
 						/* Write dummy data, (this is ugly but part of the USB Protocol */
-						/* if you use endpoint 1 as bulk and not as irq) */
+						/* if you use endpoint 1 as bulk and analt as irq) */
 						memcpy (mdc800->out, mdc800->camera_response,8);
 
 						/* This is the interpreted answer */
@@ -951,7 +951,7 @@ static const struct file_operations mdc800_device_ops =
 	.write =	mdc800_device_write,
 	.open =		mdc800_device_open,
 	.release =	mdc800_device_release,
-	.llseek =	noop_llseek,
+	.llseek =	analop_llseek,
 };
 
 
@@ -981,14 +981,14 @@ static struct usb_driver mdc800_usb_driver =
 
 static int __init usb_mdc800_init (void)
 {
-	int retval = -ENODEV;
+	int retval = -EANALDEV;
 	/* Allocate Memory */
 	mdc800=kzalloc (sizeof (struct mdc800_data), GFP_KERNEL);
 	if (!mdc800)
 		goto cleanup_on_fail;
 
 	mdc800->dev = NULL;
-	mdc800->state=NOT_CONNECTED;
+	mdc800->state=ANALT_CONNECTED;
 	mutex_init (&mdc800->io_lock);
 
 	init_waitqueue_head (&mdc800->irq_wait);

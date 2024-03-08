@@ -41,7 +41,7 @@ struct surface_hid_attributes {
 	__le16 vendor;
 	__le16 product;
 	__le16 version;
-	__u8 _unknown[22];
+	__u8 _unkanalwn[22];
 } __packed;
 
 static_assert(sizeof(struct surface_hid_attributes) == 32);
@@ -63,7 +63,7 @@ struct surface_hid_device {
 	struct surface_hid_descriptor hid_desc;
 	struct surface_hid_attributes attrs;
 
-	struct ssam_event_notifier notif;
+	struct ssam_event_analtifier analtif;
 	struct hid_device *hid;
 
 	struct surface_hid_device_ops ops;

@@ -121,7 +121,7 @@ properties:
     description:
       HS400 command response sample selection.
       If present, HS400 command responses are sampled on rising edges.
-      If not present, HS400 command responses are sampled on falling edges.
+      If analt present, HS400 command responses are sampled on falling edges.
 
   mediatek,hs400-ds-dly3:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -138,9 +138,9 @@ properties:
   mediatek,latch-ck:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
-      Some SoCs do not support enhance_rx, need set correct latch-ck to avoid
+      Some SoCs do analt support enhance_rx, need set correct latch-ck to avoid
       data crc error caused by stop clock(fifo full) Valid range = [0:0x7].
-      if not present, default value is 0.
+      if analt present, default value is 0.
       applied to compatible "mediatek,mt2701-mmc".
     minimum: 0
     maximum: 7
@@ -149,7 +149,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Some SoCs need extend tuning step for better delay value to avoid CRC issue.
-      If not present, default tuning step is 32. For eMMC and SD, this can yield
+      If analt present, default tuning step is 32. For eMMC and SD, this can yield
       satisfactory calibration results in most cases.
     enum: [32, 64]
     default: 32
@@ -358,9 +358,9 @@ examples:
         keep-power-in-suspend;
         wakeup-source;
         cap-sdio-irq;
-        no-mmc;
-        no-sd;
-        non-removable;
+        anal-mmc;
+        anal-sd;
+        analn-removable;
         vmmc-supply = <&sdio_fixed_3v3>;
         vqmmc-supply = <&mt6397_vgp3_reg>;
         mmc-pwrseq = <&wifi_pwrseq>;

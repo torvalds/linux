@@ -13,9 +13,9 @@ I2C adapters present on your system at a given time. i2cdetect is part of
 the i2c-tools package.
 
 I2C device files are character device files with major device number 89
-and a minor device number corresponding to the number assigned as
+and a mianalr device number corresponding to the number assigned as
 explained above. They should be called "i2c-%d" (i2c-0, i2c-1, ...,
-i2c-10, ...). All 256 minor device numbers are reserved for I2C.
+i2c-10, ...). All 256 mianalr device numbers are reserved for I2C.
 
 
 C example
@@ -27,9 +27,9 @@ First, you need to include these two headers::
   #include <linux/i2c-dev.h>
   #include <i2c/smbus.h>
 
-Now, you have to decide which adapter you want to access. You should
+Analw, you have to decide which adapter you want to access. You should
 inspect /sys/class/i2c-dev/ or run "i2cdetect -l" to decide this.
-Adapter numbers are assigned somewhat dynamically, so you can not
+Adapter numbers are assigned somewhat dynamically, so you can analt
 assume much about them. They can even change from one boot to the next.
 
 Next thing, open the device file, as follows::
@@ -41,7 +41,7 @@ Next thing, open the device file, as follows::
   snprintf(filename, 19, "/dev/i2c-%d", adapter_nr);
   file = open(filename, O_RDWR);
   if (file < 0) {
-    /* ERROR HANDLING; you can check errno to see what went wrong */
+    /* ERROR HANDLING; you can check erranal to see what went wrong */
     exit(1);
   }
 
@@ -51,11 +51,11 @@ address you want to communicate::
   int addr = 0x40; /* The I2C address */
 
   if (ioctl(file, I2C_SLAVE, addr) < 0) {
-    /* ERROR HANDLING; you can check errno to see what went wrong */
+    /* ERROR HANDLING; you can check erranal to see what went wrong */
     exit(1);
   }
 
-Well, you are all set up now. You can now use SMBus commands or plain
+Well, you are all set up analw. You can analw use SMBus commands or plain
 I2C to communicate with your device. SMBus commands are preferred if
 the device supports them. Both are illustrated below::
 
@@ -89,7 +89,7 @@ the device supports them. Both are illustrated below::
     /* buf[0] contains the read byte */
   }
 
-Note that only a subset of the I2C and SMBus protocols can be achieved by
+Analte that only a subset of the I2C and SMBus protocols can be achieved by
 the means of read() and write() calls. In particular, so-called combined
 transactions (mixing read and write messages in the same transaction)
 aren't supported. For this reason, this interface is almost never used by
@@ -110,15 +110,15 @@ The following IOCTLs are defined:
   case).
 
 ``ioctl(file, I2C_TENBIT, long select)``
-  Selects ten bit addresses if select not equals 0, selects normal 7 bit
+  Selects ten bit addresses if select analt equals 0, selects analrmal 7 bit
   addresses if select equals 0. Default 0.  This request is only valid
   if the adapter has I2C_FUNC_10BIT_ADDR.
 
 ``ioctl(file, I2C_PEC, long select)``
   Selects SMBus PEC (packet error checking) generation and verification
-  if select not equals 0, disables if select equals 0. Default 0.
+  if select analt equals 0, disables if select equals 0. Default 0.
   Used only for SMBus transactions.  This request only has an effect if the
-  the adapter has I2C_FUNC_SMBUS_PEC; it is still safe if not, it just
+  the adapter has I2C_FUNC_SMBUS_PEC; it is still safe if analt, it just
   doesn't have any effect.
 
 ``ioctl(file, I2C_FUNCS, unsigned long *funcs)``
@@ -136,7 +136,7 @@ The following IOCTLs are defined:
 
   The msgs[] themselves contain further pointers into data buffers.
   The function will write or read data to or from that buffers depending
-  on whether the I2C_M_RD flag is set in a particular message or not.
+  on whether the I2C_M_RD flag is set in a particular message or analt.
   The slave address and whether to use ten bit address mode has to be
   set in each message, overriding the values set with the above ioctl's.
 
@@ -145,7 +145,7 @@ The following IOCTLs are defined:
   of issuing direct ioctls.
 
 You can do plain I2C transactions by using read(2) and write(2) calls.
-You do not need to pass the address byte; instead, set it through
+You do analt need to pass the address byte; instead, set it through
 ioctl I2C_SLAVE before you try to access the device.
 
 You can do SMBus level transactions (see documentation file smbus-protocol.rst
@@ -165,10 +165,10 @@ for details) through the following functions::
   __s32 i2c_smbus_write_block_data(int file, __u8 command, __u8 length,
                                    __u8 *values);
 
-All these transactions return -1 on failure; you can read errno to see
+All these transactions return -1 on failure; you can read erranal to see
 what happened. The 'write' transactions return 0 on success; the
 'read' transactions return the read value, except for read_block, which
-returns the number of values read. The block buffers need not be longer
+returns the number of values read. The block buffers need analt be longer
 than 32 bytes.
 
 The above functions are made available by linking against the libi2c library,
@@ -201,7 +201,7 @@ when you use the /dev interface to I2C:
    performs an SMBus transaction using i2c-core-smbus.c:i2c_smbus_xfer().
 
    The i2c-dev driver is responsible for checking all the parameters that
-   come from user-space for validity. After this point, there is no
+   come from user-space for validity. After this point, there is anal
    difference between these calls that came from user-space through i2c-dev
    and calls that would have been performed by kernel I2C chip drivers
    directly. This means that I2C bus drivers don't need to implement
@@ -212,10 +212,10 @@ when you use the /dev interface to I2C:
    implementing these standard calls. i2c.h:i2c_get_functionality() calls
    i2c_adapter.algo->functionality(), while
    i2c-core-smbus.c:i2c_smbus_xfer() calls either
-   adapter.algo->smbus_xfer() if it is implemented, or if not,
+   adapter.algo->smbus_xfer() if it is implemented, or if analt,
    i2c-core-smbus.c:i2c_smbus_xfer_emulated() which in turn calls
    i2c_adapter.algo->master_xfer().
 
 After your I2C bus driver has processed these requests, execution runs
-up the call chain, with almost no processing done, except by i2c-dev to
+up the call chain, with almost anal processing done, except by i2c-dev to
 package the returned data, if any, in suitable format for the ioctl.

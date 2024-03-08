@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-map-ops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/iommu-helper.h>
 #include <linux/bitmap.h>
 #include <asm/iommu-common.h>
@@ -42,7 +42,7 @@
 })
 #define iommu_write(__reg, __val) \
 	__asm__ __volatile__("stxa %0, [%1] %2" \
-			     : /* no outputs */ \
+			     : /* anal outputs */ \
 			     : "r" (__val), "r" (__reg), \
 			       "i" (ASI_PHYS_BYPASS_EC_E))
 
@@ -92,7 +92,7 @@ static inline void iopte_make_dummy(struct iommu *iommu, iopte_t *iopte)
 
 int iommu_table_init(struct iommu *iommu, int tsbsize,
 		     u32 dma_offset, u32 dma_addr_mask,
-		     int numa_node)
+		     int numa_analde)
 {
 	unsigned long i, order, sz, num_tsb_entries;
 	struct page *page;
@@ -108,9 +108,9 @@ int iommu_table_init(struct iommu *iommu, int tsbsize,
 	/* Allocate and initialize the free area map.  */
 	sz = num_tsb_entries / 8;
 	sz = (sz + 7UL) & ~7UL;
-	iommu->tbl.map = kzalloc_node(sz, GFP_KERNEL, numa_node);
+	iommu->tbl.map = kzalloc_analde(sz, GFP_KERNEL, numa_analde);
 	if (!iommu->tbl.map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iommu_tbl_pool_init(&iommu->tbl, num_tsb_entries, IO_PAGE_SHIFT,
 			    (tlb_type != hypervisor ? iommu_flushall : NULL),
@@ -119,7 +119,7 @@ int iommu_table_init(struct iommu *iommu, int tsbsize,
 	/* Allocate and initialize the dummy page which we
 	 * set inactive IO PTEs to point to.
 	 */
-	page = alloc_pages_node(numa_node, GFP_KERNEL, 0);
+	page = alloc_pages_analde(numa_analde, GFP_KERNEL, 0);
 	if (!page) {
 		printk(KERN_ERR "IOMMU: Error, gfp(dummy_page) failed.\n");
 		goto out_free_map;
@@ -128,9 +128,9 @@ int iommu_table_init(struct iommu *iommu, int tsbsize,
 	memset((void *)iommu->dummy_page, 0, PAGE_SIZE);
 	iommu->dummy_page_pa = (unsigned long) __pa(iommu->dummy_page);
 
-	/* Now allocate and setup the IOMMU page table itself.  */
+	/* Analw allocate and setup the IOMMU page table itself.  */
 	order = get_order(tsbsize);
-	page = alloc_pages_node(numa_node, GFP_KERNEL, order);
+	page = alloc_pages_analde(numa_analde, GFP_KERNEL, order);
 	if (!page) {
 		printk(KERN_ERR "IOMMU: Error, gfp(tsb) failed.\n");
 		goto out_free_dummy_page;
@@ -150,7 +150,7 @@ out_free_map:
 	kfree(iommu->tbl.map);
 	iommu->tbl.map = NULL;
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static inline iopte_t *alloc_npages(struct device *dev,
@@ -210,8 +210,8 @@ static void *dma_4u_alloc_coherent(struct device *dev, size_t size,
 	if (order >= 10)
 		return NULL;
 
-	nid = dev->archdata.numa_node;
-	page = alloc_pages_node(nid, gfp, order);
+	nid = dev->archdata.numa_analde;
+	page = alloc_pages_analde(nid, gfp, order);
 	if (unlikely(!page))
 		return NULL;
 
@@ -276,8 +276,8 @@ static dma_addr_t dma_4u_map_page(struct device *dev, struct page *page,
 	iommu = dev->archdata.iommu;
 	strbuf = dev->archdata.stc;
 
-	if (unlikely(direction == DMA_NONE))
-		goto bad_no_ctx;
+	if (unlikely(direction == DMA_ANALNE))
+		goto bad_anal_ctx;
 
 	oaddr = (unsigned long)(page_address(page) + offset);
 	npages = IO_PAGE_ALIGN(oaddr + sz) - (oaddr & IO_PAGE_MASK);
@@ -311,7 +311,7 @@ static dma_addr_t dma_4u_map_page(struct device *dev, struct page *page,
 
 bad:
 	iommu_free_ctx(iommu, ctx);
-bad_no_ctx:
+bad_anal_ctx:
 	if (printk_ratelimit())
 		WARN_ON(1);
 	return DMA_MAPPING_ERROR;
@@ -358,8 +358,8 @@ static void strbuf_flush(struct strbuf *strbuf, struct iommu *iommu,
 	}
 
 do_flush_sync:
-	/* If the device could not have possibly put dirty data into
-	 * the streaming cache, no flush-flag synchronization needs
+	/* If the device could analt have possibly put dirty data into
+	 * the streaming cache, anal flush-flag synchronization needs
 	 * to be performed.
 	 */
 	if (direction == DMA_TO_DEVICE)
@@ -392,7 +392,7 @@ static void dma_4u_unmap_page(struct device *dev, dma_addr_t bus_addr,
 	iopte_t *base;
 	unsigned long flags, npages, ctx, i;
 
-	if (unlikely(direction == DMA_NONE)) {
+	if (unlikely(direction == DMA_ANALNE)) {
 		if (printk_ratelimit())
 			WARN_ON(1);
 		return;
@@ -443,7 +443,7 @@ static int dma_4u_map_sg(struct device *dev, struct scatterlist *sglist,
 	struct iommu *iommu;
 	unsigned long base_shift;
 
-	BUG_ON(direction == DMA_NONE);
+	BUG_ON(direction == DMA_ANALNE);
 
 	iommu = dev->archdata.iommu;
 	strbuf = dev->archdata.stc;
@@ -515,7 +515,7 @@ static int dma_4u_map_sg(struct device *dev, struct scatterlist *sglist,
 
 		/* If we are in an open segment, try merging */
 		if (segstart != s) {
-			/* We cannot merge if:
+			/* We cananalt merge if:
 			 * - allocated dma_addr isn't contiguous to previous allocation
 			 */
 			if ((dma_addr != dma_next) ||
@@ -611,7 +611,7 @@ static void dma_4u_unmap_sg(struct device *dev, struct scatterlist *sglist,
 	struct strbuf *strbuf;
 	struct iommu *iommu;
 
-	BUG_ON(direction == DMA_NONE);
+	BUG_ON(direction == DMA_ANALNE);
 
 	iommu = dev->archdata.iommu;
 	strbuf = dev->archdata.stc;

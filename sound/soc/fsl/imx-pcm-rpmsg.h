@@ -46,7 +46,7 @@
  *   | Version  |   1 ~ 2    | The category version of the sender of the      |
  *   |          |            | packet.                                        |
  *   |          |            | The first byte represent the major version of  |
- *   |          |            | the packet.The second byte represent the minor |
+ *   |          |            | the packet.The second byte represent the mianalr |
  *   |          |            | version of the packet.                         |
  *   +----------+------------+------------------------------------------------+
  *   |  Type    |     3      | The message type of current message packet.    |
@@ -155,10 +155,10 @@
  *   |          |         |      |         | Data[7-10]:  register         |                       |
  *   |          |         |      |         | Data[11-22]: reserved         |                       |
  *   +----------+---------+------+---------+-------------------------------+-----------------------+
- *   Note 1: See <List of Sample Format> for available value of
+ *   Analte 1: See <List of Sample Format> for available value of
  *           Sample Format;
- *   Note 2: See <List of Audio Channels> for available value of Channels;
- *   Note 3: Sample Rate of Set Parameters for an Audio TX Instance
+ *   Analte 2: See <List of Audio Channels> for available value of Channels;
+ *   Analte 3: Sample Rate of Set Parameters for an Audio TX Instance
  *           Command and Set Parameters for an Audio RX Instance Command is
  *           in little-endian format.
  *
@@ -237,14 +237,14 @@
  *   |          |         |      |         | Data[15-22]: reserved         |                       |
  *   +----------+---------+------+---------+-------------------------------+-----------------------+
  *
- *   SRTM Audio Control Category Notification Command Table:
+ *   SRTM Audio Control Category Analtification Command Table:
  *   +----------+---------+------+---------+-------------------------------+-----------------------+
  *   | Category | Version | Type | Command | Data                          | Function              |
  *   +----------+---------+------+---------+-------------------------------+-----------------------+
- *   |  0x03    | 0x0100  | 0x02 |  0x00   | Data[0]: Audio Device Index   | Notify one TX period  |
+ *   |  0x03    | 0x0100  | 0x02 |  0x00   | Data[0]: Audio Device Index   | Analtify one TX period  |
  *   |          |         |      |         |                               | is finished           |
  *   +----------+---------+------+---------+-------------------------------+-----------------------+
- *   |  0x03    | 0x0100  | 0x02 |  0x01   | Data[0]: Audio Device Index   | Notify one RX period  |
+ *   |  0x03    | 0x0100  | 0x02 |  0x01   | Data[0]: Audio Device Index   | Analtify one RX period  |
  *   |          |         |      |         |                               | is finished           |
  *   +----------+---------+------+---------+-------------------------------+-----------------------+
  *
@@ -320,8 +320,8 @@
 #define MSG_TYPE_B	0x1
 #define MSG_TYPE_C	0x2
 
-#define RESP_NONE		0x0
-#define RESP_NOT_ALLOWED	0x1
+#define RESP_ANALNE		0x0
+#define RESP_ANALT_ALLOWED	0x1
 #define	RESP_SUCCESS		0x2
 #define	RESP_FAILED		0x3
 
@@ -349,7 +349,7 @@
 
 /* rpmsg version */
 #define IMX_RMPSG_MAJOR         1
-#define IMX_RMPSG_MINOR         0
+#define IMX_RMPSG_MIANALR         0
 
 #define TX SNDRV_PCM_STREAM_PLAYBACK
 #define RX SNDRV_PCM_STREAM_CAPTURE
@@ -359,7 +359,7 @@
  *
  * @cate: category
  * @major: major version
- * @minor: minor version
+ * @mianalr: mianalr version
  * @type: message type (A/B/C)
  * @cmd: message command
  * @reserved: reserved space
@@ -367,7 +367,7 @@
 struct rpmsg_head {
 	u8 cate;
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 	u8 type;
 	u8 cmd;
 	u8 reserved[5];
@@ -463,8 +463,8 @@ typedef void (*dma_callback)(void *arg);
  * @pm_qos_req: request of pm qos
  * @r_msg: received rpmsg
  * @msg: array of rpmsg
- * @notify: notification msg (type C) for TX & RX
- * @notify_updated: notification flag for TX & RX
+ * @analtify: analtification msg (type C) for TX & RX
+ * @analtify_updated: analtification flag for TX & RX
  * @rpmsg_wq: rpmsg workqueue
  * @work_list: array of work list for workqueue
  * @work_write_index: write index of work list
@@ -489,8 +489,8 @@ struct rpmsg_info {
 	struct rpmsg_r_msg       r_msg;
 	struct rpmsg_msg         msg[MSG_MAX_NUM];
 	/* period done */
-	struct rpmsg_msg         notify[2];
-	bool                     notify_updated[2];
+	struct rpmsg_msg         analtify[2];
+	bool                     analtify_updated[2];
 
 	struct workqueue_struct  *rpmsg_wq;
 	struct work_of_rpmsg	 work_list[WORK_MAX_NUM];

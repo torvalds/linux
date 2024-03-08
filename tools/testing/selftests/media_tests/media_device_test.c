@@ -10,7 +10,7 @@
 
 /*
  * This file adds a test for Media Controller API.
- * This test should be run as root and should not be
+ * This test should be run as root and should analt be
  * included in the Kselftest run. This test should be
  * run when hardware and driver that makes use Media
  * Controller API are present in the system.
@@ -23,7 +23,7 @@
  *	sudo ./media_device_test -d /dev/mediaX
  *
  *	While test is running, remove the device and
- *	ensure there are no use after free errors and
+ *	ensure there are anal use after free errors and
  *	other Oops in the dmesg. Enable KaSan kernel
  *	config option for use-after-free error detection.
 */
@@ -31,7 +31,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -78,13 +78,13 @@ int main(int argc, char **argv)
 	/* Open Media device and keep it open */
 	fd = open(media_device, O_RDWR);
 	if (fd == -1) {
-		printf("Media Device open errno %s\n", strerror(errno));
+		printf("Media Device open erranal %s\n", strerror(erranal));
 		exit(-1);
 	}
 
-	printf("\nNote:\n"
+	printf("\nAnalte:\n"
 	       "While test is running, remove the device and\n"
-	       "ensure there are no use after free errors and\n"
+	       "ensure there are anal use after free errors and\n"
 	       "other Oops in the dmesg. Enable KaSan kernel\n"
 	       "config option for use-after-free error detection.\n\n");
 
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
 	while (count > 0) {
 		ret = ioctl(fd, MEDIA_IOC_DEVICE_INFO, &mdi);
 		if (ret < 0)
-			printf("Media Device Info errno %s\n", strerror(errno));
+			printf("Media Device Info erranal %s\n", strerror(erranal));
 		else
 			printf("Media device model %s driver %s - count %d\n",
 				mdi.model, mdi.driver, count);

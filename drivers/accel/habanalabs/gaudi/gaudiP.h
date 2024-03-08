@@ -128,7 +128,7 @@
 #define DRAM_BASE_ADDR_USER	0x20000000
 
 #if (DRAM_DRIVER_END_ADDR > DRAM_BASE_ADDR_USER)
-#error "Driver must reserve no more than 512MB"
+#error "Driver must reserve anal more than 512MB"
 #endif
 
 /* Internal QMANs PQ sizes */
@@ -301,7 +301,7 @@ struct gaudi_internal_qman_info {
  * @cpucp_info_get: get information on device from CPU-CP
  * @hw_queues_lock: protects the H/W queues from concurrent access.
  * @internal_qmans: Internal QMANs information. The array size is larger than
- *                  the actual number of internal queues because they are not in
+ *                  the actual number of internal queues because they are analt in
  *                  consecutive order.
  * @hbm_bar_cur_addr: current address of HBM PCI bar.
  * @events: array that holds all event id's

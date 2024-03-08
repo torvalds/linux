@@ -106,7 +106,7 @@ static inline u32 get_mask(int size)
 
 static inline int valid_request(int offset, int size)
 {
-	/* Validate request (no un-aligned requests) */
+	/* Validate request (anal un-aligned requests) */
 	if ((size == 1 || size == 2 || size == 4) && (offset % size) == 0)
 		return 1;
 	return 0;
@@ -127,17 +127,17 @@ static inline u32 merge_value(u32 val, u32 new_val, u32 new_val_mask,
 	return val;
 }
 
-static int xen_pcibios_err_to_errno(int err)
+static int xen_pcibios_err_to_erranal(int err)
 {
 	switch (err) {
 	case PCIBIOS_SUCCESSFUL:
 		return XEN_PCI_ERR_success;
-	case PCIBIOS_DEVICE_NOT_FOUND:
-		return XEN_PCI_ERR_dev_not_found;
+	case PCIBIOS_DEVICE_ANALT_FOUND:
+		return XEN_PCI_ERR_dev_analt_found;
 	case PCIBIOS_BAD_REGISTER_NUMBER:
 		return XEN_PCI_ERR_invalid_offset;
-	case PCIBIOS_FUNC_NOT_SUPPORTED:
-		return XEN_PCI_ERR_not_implemented;
+	case PCIBIOS_FUNC_ANALT_SUPPORTED:
+		return XEN_PCI_ERR_analt_implemented;
 	case PCIBIOS_SET_FAILED:
 		return XEN_PCI_ERR_access_denied;
 	}
@@ -198,7 +198,7 @@ out:
 	dev_dbg(&dev->dev, "read %d bytes at 0x%x = %x\n", size, offset, value);
 
 	*ret_val = value;
-	return xen_pcibios_err_to_errno(err);
+	return xen_pcibios_err_to_erranal(err);
 }
 
 int xen_pcibk_config_write(struct pci_dev *dev, int offset, int size, u32 value)
@@ -234,7 +234,7 @@ int xen_pcibk_config_write(struct pci_dev *dev, int offset, int size, u32 value)
 			err = conf_space_write(dev, cfg_entry, field_start,
 					       tmp_val);
 
-			/* handled is set true here, but not every byte
+			/* handled is set true here, but analt every byte
 			 * may have been written! Properly detecting if
 			 * every byte is handled is unnecessary as the
 			 * flag is used to detect devices that need
@@ -245,12 +245,12 @@ int xen_pcibk_config_write(struct pci_dev *dev, int offset, int size, u32 value)
 	}
 
 	if (!handled && !err) {
-		/* By default, anything not specificially handled above is
+		/* By default, anything analt specificially handled above is
 		 * read-only. The permissive flag changes this behavior so
-		 * that anything not specifically handled above is writable.
+		 * that anything analt specifically handled above is writable.
 		 * This means that some fields may still be read-only because
 		 * they have entries in the config_field list that intercept
-		 * the write and do nothing. */
+		 * the write and do analthing. */
 		if (dev_data->permissive || xen_pcibk_permissive) {
 			switch (size) {
 			case 1:
@@ -279,7 +279,7 @@ int xen_pcibk_config_write(struct pci_dev *dev, int offset, int size, u32 value)
 		}
 	}
 
-	return xen_pcibios_err_to_errno(err);
+	return xen_pcibios_err_to_erranal(err);
 }
 
 int xen_pcibk_get_interrupt_type(struct pci_dev *dev)
@@ -289,7 +289,7 @@ int xen_pcibk_get_interrupt_type(struct pci_dev *dev)
 	int ret = 0;
 
 	/*
-	 * Do not trust dev->msi(x)_enabled here, as enabling could be done
+	 * Do analt trust dev->msi(x)_enabled here, as enabling could be done
 	 * bypassing the pci_*msi* functions, by the qemu.
 	 */
 	if (dev->msi_cap) {
@@ -312,7 +312,7 @@ int xen_pcibk_get_interrupt_type(struct pci_dev *dev)
 	}
 
 	/*
-	 * PCIe spec says device cannot use INTx if MSI/MSI-X is enabled,
+	 * PCIe spec says device cananalt use INTx if MSI/MSI-X is enabled,
 	 * so check for INTx only when both are disabled.
 	 */
 	if (!ret) {
@@ -323,7 +323,7 @@ int xen_pcibk_get_interrupt_type(struct pci_dev *dev)
 			ret |= INTERRUPT_TYPE_INTX;
 	}
 
-	return ret ?: INTERRUPT_TYPE_NONE;
+	return ret ?: INTERRUPT_TYPE_ANALNE;
 }
 
 void xen_pcibk_config_free_dyn_fields(struct pci_dev *dev)
@@ -403,7 +403,7 @@ int xen_pcibk_config_add_field_offset(struct pci_dev *dev,
 
 	cfg_entry = kmalloc(sizeof(*cfg_entry), GFP_KERNEL);
 	if (!cfg_entry) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -411,7 +411,7 @@ int xen_pcibk_config_add_field_offset(struct pci_dev *dev,
 	cfg_entry->field = field;
 	cfg_entry->base_offset = base_offset;
 
-	/* silently ignore duplicate fields */
+	/* silently iganalre duplicate fields */
 	err = xen_pcibk_field_is_dup(dev, OFFSET(cfg_entry));
 	if (err)
 		goto out;

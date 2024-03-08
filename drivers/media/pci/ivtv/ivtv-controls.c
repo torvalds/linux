@@ -27,7 +27,7 @@ static int ivtv_s_stream_vbi_fmt(struct cx2341x_handler *cxhdl, u32 fmt)
 					kfree(itv->vbi.sliced_mpeg_data[i]);
 					itv->vbi.sliced_mpeg_data[i] = NULL;
 				}
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 	}

@@ -16,7 +16,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/usb/otg.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/power_supply.h>
 #include <linux/property.h>
 #include <linux/mfd/axp20x.h>
@@ -41,7 +41,7 @@
 #define VBUS_ISPOUT_CUR_LIM_900MA	0x0	/* 900mA */
 #define VBUS_ISPOUT_CUR_LIM_1500MA	0x1	/* 1500mA */
 #define VBUS_ISPOUT_CUR_LIM_2000MA	0x2	/* 2000mA */
-#define VBUS_ISPOUT_CUR_NO_LIM		0x3	/* 2500mA */
+#define VBUS_ISPOUT_CUR_ANAL_LIM		0x3	/* 2500mA */
 #define VBUS_ISPOUT_VHOLD_SET_MASK	0x38
 #define VBUS_ISPOUT_VHOLD_SET_BIT_POS	0x3
 #define VBUS_ISPOUT_VHOLD_SET_OFFSET	4000	/* 4000mV */
@@ -67,7 +67,7 @@
 #define CNTL2_CC_TIMEOUT_LSB_RES	2	/* 2 Hrs */
 #define CNTL2_CC_TIMEOUT_12HRS		0x3	/* 12 Hrs */
 #define CNTL2_CHGLED_TYPEB		BIT(4)
-#define CNTL2_CHG_OUT_TURNON		BIT(5)
+#define CNTL2_CHG_OUT_TURANALN		BIT(5)
 #define CNTL2_PC_TIMEOUT_MASK		0xC0
 #define CNTL2_PC_TIMEOUT_OFFSET		40	/* 40 mins */
 #define CNTL2_PC_TIMEOUT_LSB_RES	10	/* 10 mins */
@@ -127,14 +127,14 @@ struct axp288_chrg_info {
 	struct {
 		struct work_struct work;
 		struct extcon_dev *cable;
-		struct notifier_block id_nb;
+		struct analtifier_block id_nb;
 		bool id_short;
 	} otg;
 
-	/* SDP/CDP/DCP USB charging cable notifications */
+	/* SDP/CDP/DCP USB charging cable analtifications */
 	struct {
 		struct extcon_dev *edev;
-		struct notifier_block nb;
+		struct analtifier_block nb;
 		struct work_struct work;
 	} cable;
 
@@ -305,7 +305,7 @@ static int axp288_charger_enable_charger(struct axp288_chrg_info *info,
 static int axp288_get_charger_health(struct axp288_chrg_info *info)
 {
 	if (!(info->input_status & PS_STAT_VBUS_PRESENT))
-		return POWER_SUPPLY_HEALTH_UNKNOWN;
+		return POWER_SUPPLY_HEALTH_UNKANALWN;
 
 	if (!(info->input_status & PS_STAT_VBUS_VALID))
 		return POWER_SUPPLY_HEALTH_DEAD;
@@ -516,7 +516,7 @@ static irqreturn_t axp288_charger_irq_thread_handler(int irq, void *dev)
 
 	if (i >= CHRG_INTR_END) {
 		dev_warn(&info->pdev->dev, "spurious interrupt!!\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	switch (i) {
@@ -574,27 +574,27 @@ out:
  *
  * The variants with the AXP288 + Type-C connector are all kinds of special:
  *
- * 1. They use a Type-C connector which the AXP288 does not support, so when
- * using a Type-C charger it is not recognized. Unlike most AXP288 devices,
+ * 1. They use a Type-C connector which the AXP288 does analt support, so when
+ * using a Type-C charger it is analt recognized. Unlike most AXP288 devices,
  * this model actually has mostly working ACPI AC / Battery code, the ACPI code
  * "solves" this by simply setting the input_current_limit to 3A.
  * There are still some issues with the ACPI code, so we use this native driver,
- * and to solve the charging not working (500mA is not enough) issue we hardcode
+ * and to solve the charging analt working (500mA is analt eanalugh) issue we hardcode
  * the 3A input_current_limit like the ACPI code does.
  *
- * 2. If no charger is connected the machine boots with the vbus-path disabled.
- * Normally this is done when a 5V boost converter is active to avoid the PMIC
+ * 2. If anal charger is connected the machine boots with the vbus-path disabled.
+ * Analrmally this is done when a 5V boost converter is active to avoid the PMIC
  * trying to charge from the 5V boost converter's output. This is done when
  * an OTG host cable is inserted and the ID pin on the micro-B receptacle is
  * pulled low and the ID pin has an ACPI event handler associated with it
  * which re-enables the vbus-path when the ID pin is pulled high when the
- * OTG host cable is removed. The Type-C connector has no ID pin, there is
- * no ID pin handler and there appears to be no 5V boost converter, so we
- * end up not charging because the vbus-path is disabled, until we unplug
+ * OTG host cable is removed. The Type-C connector has anal ID pin, there is
+ * anal ID pin handler and there appears to be anal 5V boost converter, so we
+ * end up analt charging because the vbus-path is disabled, until we unplug
  * the charger which automatically clears the vbus-path disable bit and then
- * on the second plug-in of the adapter we start charging. To solve the not
+ * on the second plug-in of the adapter we start charging. To solve the analt
  * charging on first charger plugin we unconditionally enable the vbus-path at
- * probe on this model, which is safe since there is no 5V boost converter.
+ * probe on this model, which is safe since there is anal 5V boost converter.
  */
 static const struct dmi_system_id axp288_hp_x2_dmi_ids[] = {
 	{
@@ -672,13 +672,13 @@ static void axp288_charger_extcon_evt_worker(struct work_struct *work)
 	power_supply_changed(info->psy_usb);
 }
 
-static int axp288_charger_handle_cable_evt(struct notifier_block *nb,
+static int axp288_charger_handle_cable_evt(struct analtifier_block *nb,
 					   unsigned long event, void *param)
 {
 	struct axp288_chrg_info *info =
 		container_of(nb, struct axp288_chrg_info, cable.nb);
 	schedule_work(&info->cable.work);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void axp288_charger_otg_evt_worker(struct work_struct *work)
@@ -703,7 +703,7 @@ static void axp288_charger_otg_evt_worker(struct work_struct *work)
 		dev_warn(&info->pdev->dev, "vbus path disable failed\n");
 }
 
-static int axp288_charger_handle_otg_evt(struct notifier_block *nb,
+static int axp288_charger_handle_otg_evt(struct analtifier_block *nb,
 				   unsigned long event, void *param)
 {
 	struct axp288_chrg_info *info =
@@ -711,7 +711,7 @@ static int axp288_charger_handle_otg_evt(struct notifier_block *nb,
 
 	schedule_work(&info->otg.work);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int charger_init_hw_regs(struct axp288_chrg_info *info)
@@ -734,10 +734,10 @@ static int charger_init_hw_regs(struct axp288_chrg_info *info)
 		return ret;
 	}
 
-	/* Do not turn-off charger o/p after charge cycle ends */
+	/* Do analt turn-off charger o/p after charge cycle ends */
 	ret = regmap_update_bits(info->regmap,
 				AXP20X_CHRG_CTRL2,
-				CNTL2_CHG_OUT_TURNON, CNTL2_CHG_OUT_TURNON);
+				CNTL2_CHG_OUT_TURANALN, CNTL2_CHG_OUT_TURANALN);
 	if (ret < 0) {
 		dev_err(&info->pdev->dev, "register(%x) write error(%d)\n",
 						AXP20X_CHRG_CTRL2, ret);
@@ -812,7 +812,7 @@ static int charger_init_hw_regs(struct axp288_chrg_info *info)
 	info->cc = cc;
 
 	/*
-	 * Do not allow the user to configure higher settings then those
+	 * Do analt allow the user to configure higher settings then those
 	 * set by the firmware
 	 */
 	info->max_cv = info->cv;
@@ -840,25 +840,25 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	unsigned int val;
 
 	/*
-	 * Normally the native AXP288 fg/charger drivers are preferred but
+	 * Analrmally the native AXP288 fg/charger drivers are preferred but
 	 * on some devices the ACPI drivers should be used instead.
 	 */
 	if (!acpi_quirk_skip_acpi_ac_and_battery())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * On some devices the fuelgauge and charger parts of the axp288 are
-	 * not used, check that the fuelgauge is enabled (CC_CTRL != 0).
+	 * analt used, check that the fuelgauge is enabled (CC_CTRL != 0).
 	 */
 	ret = regmap_read(axp20x->regmap, AXP20X_CC_CTRL, &val);
 	if (ret < 0)
 		return ret;
 	if (val == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&info->lock);
 	info->pdev = pdev;
@@ -874,7 +874,7 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * On devices with broken ACPI GPIO event handlers there also is no ACPI
+	 * On devices with broken ACPI GPIO event handlers there also is anal ACPI
 	 * "INT3496" (USB_HOST_EXTCON_HID) device. x86-android-tablets.ko
 	 * instantiates an "intel-int3496" extcon on these devs as a workaround.
 	 */
@@ -910,30 +910,30 @@ static int axp288_charger_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Cancel our work on cleanup, register this before the notifiers */
+	/* Cancel our work on cleanup, register this before the analtifiers */
 	ret = devm_add_action(dev, axp288_charger_cancel_work, info);
 	if (ret)
 		return ret;
 
-	/* Register for extcon notification */
+	/* Register for extcon analtification */
 	INIT_WORK(&info->cable.work, axp288_charger_extcon_evt_worker);
-	info->cable.nb.notifier_call = axp288_charger_handle_cable_evt;
-	ret = devm_extcon_register_notifier_all(dev, info->cable.edev,
+	info->cable.nb.analtifier_call = axp288_charger_handle_cable_evt;
+	ret = devm_extcon_register_analtifier_all(dev, info->cable.edev,
 						&info->cable.nb);
 	if (ret) {
-		dev_err(dev, "failed to register cable extcon notifier\n");
+		dev_err(dev, "failed to register cable extcon analtifier\n");
 		return ret;
 	}
 	schedule_work(&info->cable.work);
 
-	/* Register for OTG notification */
+	/* Register for OTG analtification */
 	INIT_WORK(&info->otg.work, axp288_charger_otg_evt_worker);
-	info->otg.id_nb.notifier_call = axp288_charger_handle_otg_evt;
+	info->otg.id_nb.analtifier_call = axp288_charger_handle_otg_evt;
 	if (info->otg.cable) {
-		ret = devm_extcon_register_notifier(dev, info->otg.cable,
+		ret = devm_extcon_register_analtifier(dev, info->otg.cable,
 					EXTCON_USB_HOST, &info->otg.id_nb);
 		if (ret) {
-			dev_err(dev, "failed to register EXTCON_USB_HOST notifier\n");
+			dev_err(dev, "failed to register EXTCON_USB_HOST analtifier\n");
 			return ret;
 		}
 		schedule_work(&info->otg.work);

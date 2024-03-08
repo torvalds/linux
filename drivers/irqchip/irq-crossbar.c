@@ -42,19 +42,19 @@ struct crossbar_device {
 
 static struct crossbar_device *cb;
 
-static void crossbar_writel(int irq_no, int cb_no)
+static void crossbar_writel(int irq_anal, int cb_anal)
 {
-	writel(cb_no, cb->crossbar_base + cb->register_offsets[irq_no]);
+	writel(cb_anal, cb->crossbar_base + cb->register_offsets[irq_anal]);
 }
 
-static void crossbar_writew(int irq_no, int cb_no)
+static void crossbar_writew(int irq_anal, int cb_anal)
 {
-	writew(cb_no, cb->crossbar_base + cb->register_offsets[irq_no]);
+	writew(cb_anal, cb->crossbar_base + cb->register_offsets[irq_anal]);
 }
 
-static void crossbar_writeb(int irq_no, int cb_no)
+static void crossbar_writeb(int irq_anal, int cb_anal)
 {
-	writeb(cb_no, cb->crossbar_base + cb->register_offsets[irq_no]);
+	writeb(cb_anal, cb->crossbar_base + cb->register_offsets[irq_anal]);
 }
 
 static struct irq_chip crossbar_chip = {
@@ -78,7 +78,7 @@ static int allocate_gic_irq(struct irq_domain *domain, unsigned virq,
 	int i;
 	int err;
 
-	if (!irq_domain_get_of_node(domain->parent))
+	if (!irq_domain_get_of_analde(domain->parent))
 		return -EINVAL;
 
 	raw_spin_lock(&cb->lock);
@@ -91,9 +91,9 @@ static int allocate_gic_irq(struct irq_domain *domain, unsigned virq,
 	raw_spin_unlock(&cb->lock);
 
 	if (i < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
-	fwspec.fwnode = domain->parent->fwnode;
+	fwspec.fwanalde = domain->parent->fwanalde;
 	fwspec.param_count = 3;
 	fwspec.param[0] = 0;	/* SPI */
 	fwspec.param[1] = i;
@@ -116,9 +116,9 @@ static int crossbar_domain_alloc(struct irq_domain *d, unsigned int virq,
 	int i;
 
 	if (fwspec->param_count != 3)
-		return -EINVAL;	/* Not GIC compliant */
+		return -EINVAL;	/* Analt GIC compliant */
 	if (fwspec->param[0] != 0)
-		return -EINVAL;	/* No PPI should point to this domain */
+		return -EINVAL;	/* Anal PPI should point to this domain */
 
 	hwirq = fwspec->param[1];
 	if ((hwirq + nr_irqs) > cb->max_crossbar_sources)
@@ -143,7 +143,7 @@ static int crossbar_domain_alloc(struct irq_domain *d, unsigned int virq,
  * @virq: virq number
  * @nr_irqs: number of irqs to free
  *
- * We do not maintain a use count of total number of map/unmap
+ * We do analt maintain a use count of total number of map/unmap
  * calls for a particular irq to find out if a irq can be really
  * unmapped. This is because unmap is called during irq_dispose_mapping(irq),
  * after which irq is anyways unusable. So an explicit map has to be called
@@ -170,11 +170,11 @@ static int crossbar_domain_translate(struct irq_domain *d,
 				     unsigned long *hwirq,
 				     unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_analde(fwspec->fwanalde)) {
 		if (fwspec->param_count != 3)
 			return -EINVAL;
 
-		/* No PPI should point to this domain */
+		/* Anal PPI should point to this domain */
 		if (fwspec->param[0] != 0)
 			return -EINVAL;
 
@@ -192,23 +192,23 @@ static const struct irq_domain_ops crossbar_domain_ops = {
 	.translate	= crossbar_domain_translate,
 };
 
-static int __init crossbar_of_init(struct device_node *node)
+static int __init crossbar_of_init(struct device_analde *analde)
 {
 	u32 max = 0, entry, reg_size;
 	int i, size, reserved = 0;
 	const __be32 *irqsr;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	cb = kzalloc(sizeof(*cb), GFP_KERNEL);
 
 	if (!cb)
 		return ret;
 
-	cb->crossbar_base = of_iomap(node, 0);
+	cb->crossbar_base = of_iomap(analde, 0);
 	if (!cb->crossbar_base)
 		goto err_cb;
 
-	of_property_read_u32(node, "ti,max-crossbar-sources",
+	of_property_read_u32(analde, "ti,max-crossbar-sources",
 			     &cb->max_crossbar_sources);
 	if (!cb->max_crossbar_sources) {
 		pr_err("missing 'ti,max-crossbar-sources' property\n");
@@ -216,7 +216,7 @@ static int __init crossbar_of_init(struct device_node *node)
 		goto err_base;
 	}
 
-	of_property_read_u32(node, "ti,max-irqs", &max);
+	of_property_read_u32(analde, "ti,max-irqs", &max);
 	if (!max) {
 		pr_err("missing 'ti,max-irqs' property\n");
 		ret = -EINVAL;
@@ -232,12 +232,12 @@ static int __init crossbar_of_init(struct device_node *node)
 		cb->irq_map[i] = IRQ_FREE;
 
 	/* Get and mark reserved irqs */
-	irqsr = of_get_property(node, "ti,irqs-reserved", &size);
+	irqsr = of_get_property(analde, "ti,irqs-reserved", &size);
 	if (irqsr) {
 		size /= sizeof(__be32);
 
 		for (i = 0; i < size; i++) {
-			of_property_read_u32_index(node,
+			of_property_read_u32_index(analde,
 						   "ti,irqs-reserved",
 						   i, &entry);
 			if (entry >= max) {
@@ -250,12 +250,12 @@ static int __init crossbar_of_init(struct device_node *node)
 	}
 
 	/* Skip irqs hardwired to bypass the crossbar */
-	irqsr = of_get_property(node, "ti,irqs-skip", &size);
+	irqsr = of_get_property(analde, "ti,irqs-skip", &size);
 	if (irqsr) {
 		size /= sizeof(__be32);
 
 		for (i = 0; i < size; i++) {
-			of_property_read_u32_index(node,
+			of_property_read_u32_index(analde,
 						   "ti,irqs-skip",
 						   i, &entry);
 			if (entry >= max) {
@@ -272,7 +272,7 @@ static int __init crossbar_of_init(struct device_node *node)
 	if (!cb->register_offsets)
 		goto err_irq_map;
 
-	of_property_read_u32(node, "ti,reg-size", &reg_size);
+	of_property_read_u32(analde, "ti,reg-size", &reg_size);
 
 	switch (reg_size) {
 	case 1:
@@ -292,7 +292,7 @@ static int __init crossbar_of_init(struct device_node *node)
 	}
 
 	/*
-	 * Register offsets are not linear because of the
+	 * Register offsets are analt linear because of the
 	 * reserved irqs. so find and store the offsets once.
 	 */
 	for (i = 0; i < max; i++) {
@@ -303,7 +303,7 @@ static int __init crossbar_of_init(struct device_node *node)
 		reserved += reg_size;
 	}
 
-	of_property_read_u32(node, "ti,irqs-safe-map", &cb->safe_map);
+	of_property_read_u32(analde, "ti,irqs-safe-map", &cb->safe_map);
 	/* Initialize the crossbar with safe map to start with */
 	for (i = 0; i < max; i++) {
 		if (cb->irq_map[i] == IRQ_RESERVED ||
@@ -330,34 +330,34 @@ err_cb:
 	return ret;
 }
 
-static int __init irqcrossbar_init(struct device_node *node,
-				   struct device_node *parent)
+static int __init irqcrossbar_init(struct device_analde *analde,
+				   struct device_analde *parent)
 {
 	struct irq_domain *parent_domain, *domain;
 	int err;
 
 	if (!parent) {
-		pr_err("%pOF: no parent, giving up\n", node);
-		return -ENODEV;
+		pr_err("%pOF: anal parent, giving up\n", analde);
+		return -EANALDEV;
 	}
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%pOF: unable to obtain parent domain\n", node);
+		pr_err("%pOF: unable to obtain parent domain\n", analde);
 		return -ENXIO;
 	}
 
-	err = crossbar_of_init(node);
+	err = crossbar_of_init(analde);
 	if (err)
 		return err;
 
 	domain = irq_domain_add_hierarchy(parent_domain, 0,
 					  cb->max_crossbar_sources,
-					  node, &crossbar_domain_ops,
+					  analde, &crossbar_domain_ops,
 					  NULL);
 	if (!domain) {
-		pr_err("%pOF: failed to allocated domain\n", node);
-		return -ENOMEM;
+		pr_err("%pOF: failed to allocated domain\n", analde);
+		return -EANALMEM;
 	}
 
 	return 0;

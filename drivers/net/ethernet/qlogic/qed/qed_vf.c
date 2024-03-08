@@ -83,15 +83,15 @@ static int qed_send_msg2pf(struct qed_hwfn *p_hwfn, u8 *done)
 			     PXP_CONCRETE_FID_PFID),
 		   upper_32_bits(p_hwfn->vf_iov_info->vf2pf_request_phys),
 		   lower_32_bits(p_hwfn->vf_iov_info->vf2pf_request_phys),
-		   &zone_data->non_trigger.vf_pf_msg_addr,
+		   &zone_data->analn_trigger.vf_pf_msg_addr,
 		   *((u32 *)&trigger), &zone_data->trigger);
 
 	REG_WR(p_hwfn,
-	       (uintptr_t)&zone_data->non_trigger.vf_pf_msg_addr.lo,
+	       (uintptr_t)&zone_data->analn_trigger.vf_pf_msg_addr.lo,
 	       lower_32_bits(p_hwfn->vf_iov_info->vf2pf_request_phys));
 
 	REG_WR(p_hwfn,
-	       (uintptr_t)&zone_data->non_trigger.vf_pf_msg_addr.hi,
+	       (uintptr_t)&zone_data->analn_trigger.vf_pf_msg_addr.hi,
 	       upper_32_bits(p_hwfn->vf_iov_info->vf2pf_request_phys));
 
 	/* The message data must be written first, to prevent trigger before
@@ -118,14 +118,14 @@ static int qed_send_msg2pf(struct qed_hwfn *p_hwfn, u8 *done)
 	}
 
 	if (!*done) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "VF <-- PF Timeout [Type %d]\n",
 			  p_req->first_tlv.tl.type);
 		rc = -EBUSY;
 	} else {
 		if ((*done != PFVF_STATUS_SUCCESS) &&
-		    (*done != PFVF_STATUS_NO_RESOURCE))
-			DP_NOTICE(p_hwfn,
+		    (*done != PFVF_STATUS_ANAL_RESOURCE))
+			DP_ANALTICE(p_hwfn,
 				  "PF response: %d [Type %d]\n",
 				  *done, p_req->first_tlv.tl.type);
 		else
@@ -266,13 +266,13 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 
 	req->vfdev_info.os_type = VFPF_ACQUIRE_OS_LINUX;
 	req->vfdev_info.fw_major = FW_MAJOR_VERSION;
-	req->vfdev_info.fw_minor = FW_MINOR_VERSION;
+	req->vfdev_info.fw_mianalr = FW_MIANALR_VERSION;
 	req->vfdev_info.fw_revision = FW_REVISION_VERSION;
 	req->vfdev_info.fw_engineering = FW_ENGINEERING_VERSION;
 	req->vfdev_info.eth_fp_hsi_major = ETH_HSI_VER_MAJOR;
-	req->vfdev_info.eth_fp_hsi_minor = ETH_HSI_VER_MINOR;
+	req->vfdev_info.eth_fp_hsi_mianalr = ETH_HSI_VER_MIANALR;
 
-	/* Fill capability field with any non-deprecated config we support */
+	/* Fill capability field with any analn-deprecated config we support */
 	req->vfdev_info.capabilities |= VFPF_ACQUIRE_CAP_100G;
 
 	/* If we've mapped the doorbell bar, try using queue qids */
@@ -329,19 +329,19 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 			}
 			DP_VERBOSE(p_hwfn, QED_MSG_IOV, "resources acquired\n");
 			resources_acquired = true;
-		} else if (resp->hdr.status == PFVF_STATUS_NO_RESOURCE &&
+		} else if (resp->hdr.status == PFVF_STATUS_ANAL_RESOURCE &&
 			   attempts < VF_ACQUIRE_THRESH) {
 			qed_vf_pf_acquire_reduce_resc(p_hwfn, p_resc,
 						      &resp->resc);
-		} else if (resp->hdr.status == PFVF_STATUS_NOT_SUPPORTED) {
+		} else if (resp->hdr.status == PFVF_STATUS_ANALT_SUPPORTED) {
 			if (pfdev_info->major_fp_hsi &&
 			    (pfdev_info->major_fp_hsi != ETH_HSI_VER_MAJOR)) {
-				DP_NOTICE(p_hwfn,
+				DP_ANALTICE(p_hwfn,
 					  "PF uses an incompatible fastpath HSI %02x.%02x [VF requires %02x.%02x]. Please change to a VF driver using %02x.xx.\n",
 					  pfdev_info->major_fp_hsi,
-					  pfdev_info->minor_fp_hsi,
+					  pfdev_info->mianalr_fp_hsi,
 					  ETH_HSI_VER_MAJOR,
-					  ETH_HSI_VER_MINOR,
+					  ETH_HSI_VER_MIANALR,
 					  pfdev_info->major_fp_hsi);
 				rc = -EINVAL;
 				goto exit;
@@ -350,8 +350,8 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 			if (!pfdev_info->major_fp_hsi) {
 				if (req->vfdev_info.capabilities &
 				    VFPF_ACQUIRE_CAP_PRE_FP_HSI) {
-					DP_NOTICE(p_hwfn,
-						  "PF uses very old drivers. Please change to a VF driver using no later than 8.8.x.x.\n");
+					DP_ANALTICE(p_hwfn,
+						  "PF uses very old drivers. Please change to a VF driver using anal later than 8.8.x.x.\n");
 					rc = -EINVAL;
 					goto exit;
 				} else {
@@ -366,7 +366,7 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 			/* If PF/VF are using same Major, PF must have had
 			 * it's reasons. Simply fail.
 			 */
-			DP_NOTICE(p_hwfn, "PF rejected acquisition by VF\n");
+			DP_ANALTICE(p_hwfn, "PF rejected acquisition by VF\n");
 			rc = -EINVAL;
 			goto exit;
 		} else {
@@ -401,16 +401,16 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 	/* Learn of the possibility of CMT */
 	if (IS_LEAD_HWFN(p_hwfn)) {
 		if (resp->pfdev_info.capabilities & PFVF_ACQUIRE_CAP_100G) {
-			DP_NOTICE(p_hwfn, "100g VF\n");
+			DP_ANALTICE(p_hwfn, "100g VF\n");
 			p_hwfn->cdev->num_hwfns = 2;
 		}
 	}
 
 	if (!p_iov->b_pre_fp_hsi &&
-	    (resp->pfdev_info.minor_fp_hsi < ETH_HSI_VER_MINOR)) {
+	    (resp->pfdev_info.mianalr_fp_hsi < ETH_HSI_VER_MIANALR)) {
 		DP_INFO(p_hwfn,
 			"PF is using older fastpath HSI; %02x.%02x is configured\n",
-			ETH_HSI_VER_MAJOR, resp->pfdev_info.minor_fp_hsi);
+			ETH_HSI_VER_MAJOR, resp->pfdev_info.mianalr_fp_hsi);
 	}
 
 exit:
@@ -456,7 +456,7 @@ int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn)
 	/* Allocate vf sriov info */
 	p_iov = kzalloc(sizeof(*p_iov), GFP_KERNEL);
 	if (!p_iov)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Doorbells are tricky; Upper-layer has alreday set the hwfn doorbell
 	 * value, but there are several incompatibily scenarios where that
@@ -467,7 +467,7 @@ int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn)
 						  PXP_VF_BAR0_START_DQ;
 	} else if (p_hwfn == p_lead) {
 		/* For leading hw-function, value is always correct, but need
-		 * to handle scenario where legacy PF would not support 100g
+		 * to handle scenario where legacy PF would analt support 100g
 		 * mapped bars later.
 		 */
 		p_iov->b_doorbell_bar = true;
@@ -527,9 +527,9 @@ int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn)
 	rc = qed_vf_pf_acquire(p_hwfn);
 
 	/* If VF is 100g using a mapped bar and PF is too old to support that,
-	 * acquisition would succeed - but the VF would have no way knowing
-	 * the size of the doorbell bar configured in HW and thus will not
-	 * know how to split it for 2nd hw-function.
+	 * acquisition would succeed - but the VF would have anal way kanalwing
+	 * the size of the doorbell bar configured in HW and thus will analt
+	 * kanalw how to split it for 2nd hw-function.
 	 * In this case we re-try without the indication of the mapped
 	 * doorbell.
 	 */
@@ -563,7 +563,7 @@ free_vf2pf_request:
 free_p_iov:
 	kfree(p_iov);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 #define TSTORM_QZONE_START   PXP_VF_BAR0_START_SDM_ZONE_A
@@ -1445,7 +1445,7 @@ u16 qed_vf_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
 	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
 
 	if (!p_iov) {
-		DP_NOTICE(p_hwfn, "vf_sriov_info isn't initialized\n");
+		DP_ANALTICE(p_hwfn, "vf_sriov_info isn't initialized\n");
 		return 0;
 	}
 
@@ -1458,12 +1458,12 @@ void qed_vf_set_sb_info(struct qed_hwfn *p_hwfn,
 	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
 
 	if (!p_iov) {
-		DP_NOTICE(p_hwfn, "vf_sriov_info isn't initialized\n");
+		DP_ANALTICE(p_hwfn, "vf_sriov_info isn't initialized\n");
 		return;
 	}
 
 	if (sb_id >= PFVF_MAX_SBS_PER_VF) {
-		DP_NOTICE(p_hwfn, "Can't configure SB %04x\n", sb_id);
+		DP_ANALTICE(p_hwfn, "Can't configure SB %04x\n", sb_id);
 		return;
 	}
 
@@ -1479,10 +1479,10 @@ int qed_vf_read_bulletin(struct qed_hwfn *p_hwfn, u8 *p_change)
 	crc_size = sizeof(p_iov->bulletin.p_virt->crc);
 	*p_change = 0;
 
-	/* Need to guarantee PF is not in the middle of writing it */
+	/* Need to guarantee PF is analt in the middle of writing it */
 	memcpy(&shadow, p_iov->bulletin.p_virt, p_iov->bulletin.size);
 
-	/* If version did not update, no need to do anything */
+	/* If version did analt update, anal need to do anything */
 	if (shadow.version == p_iov->bulletin_shadow.version)
 		return 0;
 
@@ -1653,7 +1653,7 @@ qed_vf_bulletin_get_udp_ports(struct qed_hwfn *p_hwfn,
 }
 
 void qed_vf_get_fw_version(struct qed_hwfn *p_hwfn,
-			   u16 *fw_major, u16 *fw_minor,
+			   u16 *fw_major, u16 *fw_mianalr,
 			   u16 *fw_rev, u16 *fw_eng)
 {
 	struct pf_vf_pfdev_info *info;
@@ -1661,7 +1661,7 @@ void qed_vf_get_fw_version(struct qed_hwfn *p_hwfn,
 	info = &p_hwfn->vf_iov_info->acquire_resp.pfdev_info;
 
 	*fw_major = info->fw_major;
-	*fw_minor = info->fw_minor;
+	*fw_mianalr = info->fw_mianalr;
 	*fw_rev = info->fw_rev;
 	*fw_eng = info->fw_eng;
 }

@@ -5,9 +5,9 @@ Adaptive Voltage Scaling (AVS) hardware. The SPM is a programmable
 power-controller that transitions a piece of hardware (like a processor or
 subsystem) into and out of low power modes via a direct connection to
 the PMIC. It can also be wired up to interact with other processors in the
-system, notifying them when a low power state is entered or exited.
+system, analtifying them when a low power state is entered or exited.
 
-Multiple revisions of the SAW hardware are supported using these Device Nodes.
+Multiple revisions of the SAW hardware are supported using these Device Analdes.
 SAW2 revisions differ in the register offset and configuration data. Also, the
 same revision of the SAW in different SoCs may have different configuration
 data due the differences in hardware capabilities. Hence the SoC name, the

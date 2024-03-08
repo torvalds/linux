@@ -334,7 +334,7 @@ static int imx6ul_pinctrl_probe(struct platform_device *pdev)
 
 	pinctrl_info = of_device_get_match_data(&pdev->dev);
 	if (!pinctrl_info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return imx_pinctrl_probe(pdev, pinctrl_info);
 }

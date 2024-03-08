@@ -26,10 +26,10 @@
 	};
 
 	panel {
-		compatible = "innolux,n125hce-gn1";
+		compatible = "inanallux,n125hce-gn1";
 		power-supply = <&reg_main_3v3>;
 		backlight = <&backlight>;
-		no-hpd;
+		anal-hpd;
 
 		port {
 			panel_in: endpoint {
@@ -236,7 +236,7 @@
 	assigned-clock-parents = <&clk IMX8MQ_CLK_25M>;
 	assigned-clock-rates = <25000000>;
 	fsl,sai-mclk-direction-output;
-	fsl,sai-asynchronous;
+	fsl,sai-asynchroanalus;
 	status = "okay";
 };
 

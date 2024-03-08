@@ -18,23 +18,23 @@ static const struct nla_policy cifs_genl_policy[CIFS_GENL_ATTR_MAX + 1] = {
 	[CIFS_GENL_ATTR_SWN_NET_NAME]		= { .type = NLA_STRING },
 	[CIFS_GENL_ATTR_SWN_SHARE_NAME]		= { .type = NLA_STRING },
 	[CIFS_GENL_ATTR_SWN_IP]			= { .len = sizeof(struct sockaddr_storage) },
-	[CIFS_GENL_ATTR_SWN_NET_NAME_NOTIFY]	= { .type = NLA_FLAG },
-	[CIFS_GENL_ATTR_SWN_SHARE_NAME_NOTIFY]	= { .type = NLA_FLAG },
-	[CIFS_GENL_ATTR_SWN_IP_NOTIFY]		= { .type = NLA_FLAG },
+	[CIFS_GENL_ATTR_SWN_NET_NAME_ANALTIFY]	= { .type = NLA_FLAG },
+	[CIFS_GENL_ATTR_SWN_SHARE_NAME_ANALTIFY]	= { .type = NLA_FLAG },
+	[CIFS_GENL_ATTR_SWN_IP_ANALTIFY]		= { .type = NLA_FLAG },
 	[CIFS_GENL_ATTR_SWN_KRB_AUTH]		= { .type = NLA_FLAG },
 	[CIFS_GENL_ATTR_SWN_USER_NAME]		= { .type = NLA_STRING },
 	[CIFS_GENL_ATTR_SWN_PASSWORD]		= { .type = NLA_STRING },
 	[CIFS_GENL_ATTR_SWN_DOMAIN_NAME]	= { .type = NLA_STRING },
-	[CIFS_GENL_ATTR_SWN_NOTIFICATION_TYPE]	= { .type = NLA_U32 },
+	[CIFS_GENL_ATTR_SWN_ANALTIFICATION_TYPE]	= { .type = NLA_U32 },
 	[CIFS_GENL_ATTR_SWN_RESOURCE_STATE]	= { .type = NLA_U32 },
 	[CIFS_GENL_ATTR_SWN_RESOURCE_NAME]	= { .type = NLA_STRING},
 };
 
 static const struct genl_ops cifs_genl_ops[] = {
 	{
-		.cmd = CIFS_GENL_CMD_SWN_NOTIFY,
+		.cmd = CIFS_GENL_CMD_SWN_ANALTIFY,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit = cifs_swn_notify,
+		.doit = cifs_swn_analtify,
 	},
 };
 
@@ -51,7 +51,7 @@ struct genl_family cifs_genl_family = {
 	.policy		= cifs_genl_policy,
 	.ops		= cifs_genl_ops,
 	.n_ops		= ARRAY_SIZE(cifs_genl_ops),
-	.resv_start_op	= CIFS_GENL_CMD_SWN_NOTIFY + 1,
+	.resv_start_op	= CIFS_GENL_CMD_SWN_ANALTIFY + 1,
 	.mcgrps		= cifs_genl_mcgrps,
 	.n_mcgrps	= ARRAY_SIZE(cifs_genl_mcgrps),
 };
@@ -59,7 +59,7 @@ struct genl_family cifs_genl_family = {
 /**
  * cifs_genl_init - Register generic netlink family
  *
- * Return zero if initialized successfully, otherwise non-zero.
+ * Return zero if initialized successfully, otherwise analn-zero.
  */
 int cifs_genl_init(void)
 {

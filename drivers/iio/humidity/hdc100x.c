@@ -3,7 +3,7 @@
  * hdc100x.c - Support for the TI HDC100x temperature + humidity sensors
  *
  * Copyright (C) 2015, 2018
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Raanalstay <matt.raanalstay@konsulko.com>
  *
  * Datasheets:
  * https://www.ti.com/product/HDC1000/datasheet
@@ -175,7 +175,7 @@ static int hdc100x_get_measurement(struct hdc100x_data *data,
 	/* start measurement */
 	ret = i2c_smbus_write_byte(client, chan->address);
 	if (ret < 0) {
-		dev_err(&client->dev, "cannot start measurement");
+		dev_err(&client->dev, "cananalt start measurement");
 		return ret;
 	}
 
@@ -185,7 +185,7 @@ static int hdc100x_get_measurement(struct hdc100x_data *data,
 	/* read measurement */
 	ret = i2c_master_recv(data->client, (char *)&val, sizeof(val));
 	if (ret < 0) {
-		dev_err(&client->dev, "cannot read sensor data\n");
+		dev_err(&client->dev, "cananalt read sensor data\n");
 		return ret;
 	}
 	return be16_to_cpu(val);
@@ -325,14 +325,14 @@ static irqreturn_t hdc100x_trigger_handler(int irq, void *p)
 	mutex_lock(&data->lock);
 	ret = i2c_smbus_write_byte(client, HDC100X_REG_TEMP);
 	if (ret < 0) {
-		dev_err(&client->dev, "cannot start measurement\n");
+		dev_err(&client->dev, "cananalt start measurement\n");
 		goto err;
 	}
 	usleep_range(delay, delay + 1000);
 
 	ret = i2c_master_recv(client, (u8 *)data->scan.channels, 4);
 	if (ret < 0) {
-		dev_err(&client->dev, "cannot read sensor data\n");
+		dev_err(&client->dev, "cananalt read sensor data\n");
 		goto err;
 	}
 
@@ -340,7 +340,7 @@ static irqreturn_t hdc100x_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 err:
 	mutex_unlock(&data->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -359,11 +359,11 @@ static int hdc100x_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA |
 				     I2C_FUNC_SMBUS_BYTE | I2C_FUNC_I2C))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -378,7 +378,7 @@ static int hdc100x_probe(struct i2c_client *client)
 	indio_dev->num_channels = ARRAY_SIZE(hdc100x_channels);
 	indio_dev->available_scan_masks = hdc100x_scan_masks;
 
-	/* be sure we are in a known state */
+	/* be sure we are in a kanalwn state */
 	hdc100x_set_it_time(data, 0, hdc100x_int_time[0][0]);
 	hdc100x_set_it_time(data, 1, hdc100x_int_time[1][0]);
 	hdc100x_update_config(data, HDC100X_REG_CONFIG_ACQ_MODE, 0);
@@ -433,6 +433,6 @@ static struct i2c_driver hdc100x_driver = {
 };
 module_i2c_driver(hdc100x_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Raanalstay <matt.raanalstay@konsulko.com>");
 MODULE_DESCRIPTION("TI HDC100x humidity and temperature sensor driver");
 MODULE_LICENSE("GPL");

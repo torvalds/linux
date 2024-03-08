@@ -20,7 +20,7 @@ port_cleanup()
 
 	for port in "${unsplit[@]}"; do
 		devlink port unsplit $port
-		check_err $? "Did not unsplit $netdev"
+		check_err $? "Did analt unsplit $netdev"
 	done
 	unsplit=()
 }
@@ -41,7 +41,7 @@ split_all_ports()
 		[[ ! -z $netdev ]]
 	do
 		devlink port split $netdev count $count
-		check_err $? "Did not split $netdev into $count"
+		check_err $? "Did analt split $netdev into $count"
 		unsplit+=( "${netdev}s0" )
 	done
 }

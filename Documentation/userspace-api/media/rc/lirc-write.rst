@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: RC
 
 .. _lirc-write:
@@ -12,7 +12,7 @@ Name
 
 lirc-write - Write to a LIRC device
 
-Synopsis
+Syanalpsis
 ========
 
 .. code-block:: c
@@ -57,16 +57,16 @@ When in :ref:`LIRC_MODE_SCANCODE <lirc-mode-scancode>` mode, one
 ``EINVAL`` is returned. Set the desired scancode in the ``scancode`` member,
 and the :ref:`IR protocol <Remote_controllers_Protocols>` in the
 :c:type:`rc_proto`: member. All other members must be
-set to 0, else ``EINVAL`` is returned. If there is no protocol encoder
-for the protocol or the scancode is not valid for the specified protocol,
+set to 0, else ``EINVAL`` is returned. If there is anal protocol encoder
+for the protocol or the scancode is analt valid for the specified protocol,
 ``EINVAL`` is returned. The write function blocks until the scancode
 is transmitted by the hardware.
 
 Return Value
 ============
 
-On success, the number of bytes written is returned. It is not an error if
+On success, the number of bytes written is returned. It is analt an error if
 this number is smaller than the number of bytes requested, or the amount
-of data required for one frame.  On error, -1 is returned, and the ``errno``
+of data required for one frame.  On error, -1 is returned, and the ``erranal``
 variable is set appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

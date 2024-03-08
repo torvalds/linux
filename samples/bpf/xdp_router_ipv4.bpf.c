@@ -44,7 +44,7 @@ struct {
 	__uint(key_size, 8);
 	__uint(value_size, sizeof(struct trie_value));
 	__uint(max_entries, 50);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 } lpm_map SEC(".maps");
 
 /* Map for ARP table */
@@ -83,7 +83,7 @@ int xdp_router_ipv4_prog(struct xdp_md *ctx)
 
 	rec = bpf_map_lookup_elem(&rx_cnt, &key);
 	if (rec)
-		NO_TEAR_INC(rec->processed);
+		ANAL_TEAR_INC(rec->processed);
 
 	if (data + nh_off > data_end)
 		goto drop;
@@ -104,7 +104,7 @@ int xdp_router_ipv4_prog(struct xdp_md *ctx)
 	switch (bpf_ntohs(h_proto)) {
 	case ETH_P_ARP:
 		if (rec)
-			NO_TEAR_INC(rec->xdp_pass);
+			ANAL_TEAR_INC(rec->xdp_pass);
 		return XDP_PASS;
 	case ETH_P_IP: {
 		struct iphdr *iph = data + nh_off;
@@ -156,7 +156,7 @@ int xdp_router_ipv4_prog(struct xdp_md *ctx)
 					 * the default gw.
 					 */
 					if (rec)
-						NO_TEAR_INC(rec->xdp_pass);
+						ANAL_TEAR_INC(rec->xdp_pass);
 					return XDP_PASS;
 				}
 			}
@@ -171,7 +171,7 @@ int xdp_router_ipv4_prog(struct xdp_md *ctx)
 			ret = bpf_redirect_map(&tx_port, forward_to, 0);
 			if (ret == XDP_REDIRECT) {
 				if (rec)
-					NO_TEAR_INC(rec->xdp_redirect);
+					ANAL_TEAR_INC(rec->xdp_redirect);
 				return ret;
 			}
 		}
@@ -181,7 +181,7 @@ int xdp_router_ipv4_prog(struct xdp_md *ctx)
 	}
 drop:
 	if (rec)
-		NO_TEAR_INC(rec->xdp_drop);
+		ANAL_TEAR_INC(rec->xdp_drop);
 
 	return XDP_DROP;
 }

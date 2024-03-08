@@ -29,7 +29,7 @@ enum wcd_clsh_event {
 #define NUM_CLSH_STATES_V3	BIT(WCD_CLSH_V3_STATE_MAX)
 
 enum wcd_clsh_mode {
-	CLS_H_NORMAL = 0, /* Class-H Default */
+	CLS_H_ANALRMAL = 0, /* Class-H Default */
 	CLS_H_HIFI, /* Class-H HiFi */
 	CLS_H_LP, /* Class-H Low Power */
 	CLS_AB, /* Class-AB */
@@ -38,7 +38,7 @@ enum wcd_clsh_mode {
 	CLS_AB_HIFI, /* Class-AB */
 	CLS_AB_LP, /* Class-AB Low Power */
 	CLS_AB_LOHIFI, /* Class-AB Low HIFI */
-	CLS_NONE, /* None of the above modes */
+	CLS_ANALNE, /* Analne of the above modes */
 };
 
 enum wcd_codec_version {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-// Copyright (c) 2020 Mellanox Technologies.
+// Copyright (c) 2020 Mellaanalx Techanallogies.
 
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/mlx5_ifc.h>
@@ -38,7 +38,7 @@ struct mlx5_fs_chains {
 };
 
 struct fs_chain {
-	struct rhash_head node;
+	struct rhash_head analde;
 
 	u32 chain;
 
@@ -58,7 +58,7 @@ struct prio_key {
 };
 
 struct prio {
-	struct rhash_head node;
+	struct rhash_head analde;
 	struct list_head list;
 
 	struct prio_key key;
@@ -73,14 +73,14 @@ struct prio {
 };
 
 static const struct rhashtable_params chain_params = {
-	.head_offset = offsetof(struct fs_chain, node),
+	.head_offset = offsetof(struct fs_chain, analde),
 	.key_offset = offsetof(struct fs_chain, chain),
 	.key_len = sizeof_field(struct fs_chain, chain),
 	.automatic_shrinking = true,
 };
 
 static const struct rhashtable_params prio_params = {
-	.head_offset = offsetof(struct prio, node),
+	.head_offset = offsetof(struct prio, analde),
 	.key_offset = offsetof(struct prio, key),
 	.key_len = sizeof_field(struct prio, key),
 	.automatic_shrinking = true,
@@ -91,15 +91,15 @@ bool mlx5_chains_prios_supported(struct mlx5_fs_chains *chains)
 	return chains->flags & MLX5_CHAINS_AND_PRIOS_SUPPORTED;
 }
 
-bool mlx5_chains_ignore_flow_level_supported(struct mlx5_fs_chains *chains)
+bool mlx5_chains_iganalre_flow_level_supported(struct mlx5_fs_chains *chains)
 {
-	return chains->flags & MLX5_CHAINS_IGNORE_FLOW_LEVEL_SUPPORTED;
+	return chains->flags & MLX5_CHAINS_IGANALRE_FLOW_LEVEL_SUPPORTED;
 }
 
 bool mlx5_chains_backwards_supported(struct mlx5_fs_chains *chains)
 {
 	return mlx5_chains_prios_supported(chains) &&
-	       mlx5_chains_ignore_flow_level_supported(chains);
+	       mlx5_chains_iganalre_flow_level_supported(chains);
 }
 
 u32 mlx5_chains_get_chain_range(struct mlx5_fs_chains *chains)
@@ -107,7 +107,7 @@ u32 mlx5_chains_get_chain_range(struct mlx5_fs_chains *chains)
 	if (!mlx5_chains_prios_supported(chains))
 		return 1;
 
-	if (mlx5_chains_ignore_flow_level_supported(chains))
+	if (mlx5_chains_iganalre_flow_level_supported(chains))
 		return UINT_MAX - 1;
 
 	/* We should get here only for eswitch case */
@@ -121,7 +121,7 @@ u32 mlx5_chains_get_nf_ft_chain(struct mlx5_fs_chains *chains)
 
 u32 mlx5_chains_get_prio_range(struct mlx5_fs_chains *chains)
 {
-	if (mlx5_chains_ignore_flow_level_supported(chains))
+	if (mlx5_chains_iganalre_flow_level_supported(chains))
 		return UINT_MAX;
 
 	if (!chains->dev->priv.eswitch ||
@@ -134,7 +134,7 @@ u32 mlx5_chains_get_prio_range(struct mlx5_fs_chains *chains)
 
 static unsigned int mlx5_chains_get_level_range(struct mlx5_fs_chains *chains)
 {
-	if (mlx5_chains_ignore_flow_level_supported(chains))
+	if (mlx5_chains_iganalre_flow_level_supported(chains))
 		return UINT_MAX;
 
 	/* Same value for FDB and NIC RX tables */
@@ -165,7 +165,7 @@ mlx5_chains_create_table(struct mlx5_fs_chains *chains,
 	ft_attr.max_fte = sz;
 
 	/* We use chains_default_ft(chains) as the table's next_ft till
-	 * ignore_flow_level is allowed on FT creation and not just for FTEs.
+	 * iganalre_flow_level is allowed on FT creation and analt just for FTEs.
 	 * Instead caller should add an explicit miss rule if needed.
 	 */
 	ft_attr.next_ft = chains_default_ft(chains);
@@ -175,7 +175,7 @@ mlx5_chains_create_table(struct mlx5_fs_chains *chains,
 	 * We always create it, as a managed table, in order to align with
 	 * fs_core logic.
 	 */
-	if (!mlx5_chains_ignore_flow_level_supported(chains) ||
+	if (!mlx5_chains_iganalre_flow_level_supported(chains) ||
 	    (chain == 0 && prio == 1 && level == 0)) {
 		ft_attr.level = chains->fs_base_level;
 		ft_attr.prio = chains->fs_base_prio + prio - 1;
@@ -185,11 +185,11 @@ mlx5_chains_create_table(struct mlx5_fs_chains *chains,
 	} else {
 		ft_attr.flags |= MLX5_FLOW_TABLE_UNMANAGED;
 		ft_attr.prio = chains->fs_base_prio;
-		/* Firmware doesn't allow us to create another level 0 table,
+		/* Firmware doesn't allow us to create aanalther level 0 table,
 		 * so we create all unmanaged tables as level 1 (base + 1).
 		 *
 		 * To connect them, we use explicit miss rules with
-		 * ignore_flow_level. Caller is responsible to create
+		 * iganalre_flow_level. Caller is responsible to create
 		 * these rules (if needed).
 		 */
 		ft_attr.level = chains->fs_base_level + 1;
@@ -228,7 +228,7 @@ create_chain_restore(struct fs_chain *chain)
 	if (err)
 		return err;
 	if (index == MLX5_FS_DEFAULT_FLOW_TAG) {
-		/* we got the special default flow tag id, so we won't know
+		/* we got the special default flow tag id, so we won't kanalw
 		 * if we actually marked the packet with the restore rule
 		 * we create.
 		 *
@@ -310,7 +310,7 @@ mlx5_chains_create_chain(struct mlx5_fs_chains *chains, u32 chain)
 
 	chain_s = kvzalloc(sizeof(*chain_s), GFP_KERNEL);
 	if (!chain_s)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	chain_s->chains = chains;
 	chain_s->chain = chain;
@@ -320,7 +320,7 @@ mlx5_chains_create_chain(struct mlx5_fs_chains *chains, u32 chain)
 	if (err)
 		goto err_restore;
 
-	err = rhashtable_insert_fast(&chains_ht(chains), &chain_s->node,
+	err = rhashtable_insert_fast(&chains_ht(chains), &chain_s->analde,
 				     chain_params);
 	if (err)
 		goto err_insert;
@@ -339,7 +339,7 @@ mlx5_chains_destroy_chain(struct fs_chain *chain)
 {
 	struct mlx5_fs_chains *chains = chain->chains;
 
-	rhashtable_remove_fast(&chains_ht(chains), &chain->node,
+	rhashtable_remove_fast(&chains_ht(chains), &chain->analde,
 			       chain_params);
 
 	destroy_chain_restore(chain);
@@ -373,9 +373,9 @@ mlx5_chains_add_miss_rule(struct fs_chain *chain,
 	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_act act = {};
 
-	act.flags  = FLOW_ACT_NO_APPEND;
-	if (mlx5_chains_ignore_flow_level_supported(chain->chains))
-		act.flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
+	act.flags  = FLOW_ACT_ANAL_APPEND;
+	if (mlx5_chains_iganalre_flow_level_supported(chain->chains))
+		act.flags |= FLOW_ACT_IGANALRE_FLOW_LEVEL;
 
 	act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	dest.type  = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
@@ -478,7 +478,7 @@ mlx5_chains_create_prio(struct mlx5_fs_chains *chains,
 	prio_s = kvzalloc(sizeof(*prio_s), GFP_KERNEL);
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!prio_s || !flow_group_in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -541,7 +541,7 @@ mlx5_chains_create_prio(struct mlx5_fs_chains *chains,
 	prio_s->key.level = level;
 	prio_s->ft = ft;
 
-	err = rhashtable_insert_fast(&prios_ht(chains), &prio_s->node,
+	err = rhashtable_insert_fast(&prios_ht(chains), &prio_s->analde,
 				     prio_params);
 	if (err)
 		goto err_insert;
@@ -558,7 +558,7 @@ mlx5_chains_create_prio(struct mlx5_fs_chains *chains,
 
 err_update:
 	list_del(&prio_s->list);
-	rhashtable_remove_fast(&prios_ht(chains), &prio_s->node,
+	rhashtable_remove_fast(&prios_ht(chains), &prio_s->analde,
 			       prio_params);
 err_insert:
 	mlx5_del_flow_rules(miss_rule);
@@ -584,7 +584,7 @@ mlx5_chains_destroy_prio(struct mlx5_fs_chains *chains,
 					      prio->next_ft));
 
 	list_del(&prio->list);
-	rhashtable_remove_fast(&prios_ht(chains), &prio->node,
+	rhashtable_remove_fast(&prios_ht(chains), &prio->analde,
 			       prio_params);
 	mlx5_del_flow_rules(prio->miss_rule);
 	mlx5_destroy_flow_group(prio->miss_group);
@@ -606,7 +606,7 @@ mlx5_chains_get_table(struct mlx5_fs_chains *chains, u32 chain, u32 prio,
 	     chain != mlx5_chains_get_nf_ft_chain(chains)) ||
 	    prio > mlx5_chains_get_prio_range(chains) ||
 	    level > mlx5_chains_get_level_range(chains))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	/* create earlier levels for correct fs_core lookup when
 	 * connecting tables.
@@ -691,12 +691,12 @@ mlx5_chains_create_global_table(struct mlx5_fs_chains *chains)
 	u32 chain, prio, level;
 	int err;
 
-	if (!mlx5_chains_ignore_flow_level_supported(chains)) {
-		err = -EOPNOTSUPP;
+	if (!mlx5_chains_iganalre_flow_level_supported(chains)) {
+		err = -EOPANALTSUPP;
 
 		mlx5_core_warn(chains->dev,
-			       "Couldn't create global flow table, ignore_flow_level not supported.");
-		goto err_ignore;
+			       "Couldn't create global flow table, iganalre_flow_level analt supported.");
+		goto err_iganalre;
 	}
 
 	chain = mlx5_chains_get_chain_range(chains),
@@ -705,7 +705,7 @@ mlx5_chains_create_global_table(struct mlx5_fs_chains *chains)
 
 	return mlx5_chains_create_table(chains, chain, prio, level);
 
-err_ignore:
+err_iganalre:
 	return ERR_PTR(err);
 }
 
@@ -724,7 +724,7 @@ mlx5_chains_init(struct mlx5_core_dev *dev, struct mlx5_chains_attr *attr)
 
 	chains = kzalloc(sizeof(*chains), GFP_KERNEL);
 	if (!chains)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	chains->dev = dev;
 	chains->flags = attr->flags;

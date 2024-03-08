@@ -142,7 +142,7 @@ static struct resource ram_resource[NUM_MEMINFO];
 
 int __init amiga_parse_bootinfo(const struct bi_record *record)
 {
-	int unknown = 0;
+	int unkanalwn = 0;
 	const void *data = record->data;
 
 	switch (be16_to_cpu(record->tag)) {
@@ -186,13 +186,13 @@ int __init amiga_parse_bootinfo(const struct bi_record *record)
 		break;
 
 	case BI_AMIGA_SERPER:
-		/* serial port period: ignored here */
+		/* serial port period: iganalred here */
 		break;
 
 	default:
-		unknown = 1;
+		unkanalwn = 1;
 	}
-	return unknown;
+	return unkanalwn;
 }
 
     /*
@@ -214,7 +214,7 @@ static void __init amiga_identify(void)
 	}
 
 	switch (amiga_model) {
-	case AMI_UNKNOWN:
+	case AMI_UNKANALWN:
 		break;
 
 	case AMI_600:
@@ -257,10 +257,10 @@ static void __init amiga_identify(void)
 		break;
 
 	case AMI_DRACO:
-		panic("No support for Draco yet");
+		panic("Anal support for Draco yet");
 
 	default:
-		panic("Unknown Amiga Model");
+		panic("Unkanalwn Amiga Model");
 	}
 
 	AMIGAHW_SET(AMI_VIDEO);
@@ -317,44 +317,44 @@ static void __init amiga_identify(void)
 	}
 	AMIGAHW_SET(ZORRO);
 
-#define AMIGAHW_ANNOUNCE(name, str)		\
+#define AMIGAHW_ANANALUNCE(name, str)		\
 	if (AMIGAHW_PRESENT(name))		\
 		pr_cont(str)
 
-	AMIGAHW_ANNOUNCE(AMI_VIDEO, "VIDEO ");
-	AMIGAHW_ANNOUNCE(AMI_BLITTER, "BLITTER ");
-	AMIGAHW_ANNOUNCE(AMBER_FF, "AMBER_FF ");
-	AMIGAHW_ANNOUNCE(AMI_AUDIO, "AUDIO ");
-	AMIGAHW_ANNOUNCE(AMI_FLOPPY, "FLOPPY ");
-	AMIGAHW_ANNOUNCE(A3000_SCSI, "A3000_SCSI ");
-	AMIGAHW_ANNOUNCE(A4000_SCSI, "A4000_SCSI ");
-	AMIGAHW_ANNOUNCE(A1200_IDE, "A1200_IDE ");
-	AMIGAHW_ANNOUNCE(A4000_IDE, "A4000_IDE ");
-	AMIGAHW_ANNOUNCE(CD_ROM, "CD_ROM ");
-	AMIGAHW_ANNOUNCE(AMI_KEYBOARD, "KEYBOARD ");
-	AMIGAHW_ANNOUNCE(AMI_MOUSE, "MOUSE ");
-	AMIGAHW_ANNOUNCE(AMI_SERIAL, "SERIAL ");
-	AMIGAHW_ANNOUNCE(AMI_PARALLEL, "PARALLEL ");
-	AMIGAHW_ANNOUNCE(A2000_CLK, "A2000_CLK ");
-	AMIGAHW_ANNOUNCE(A3000_CLK, "A3000_CLK ");
-	AMIGAHW_ANNOUNCE(CHIP_RAM, "CHIP_RAM ");
-	AMIGAHW_ANNOUNCE(PAULA, "PAULA ");
-	AMIGAHW_ANNOUNCE(DENISE, "DENISE ");
-	AMIGAHW_ANNOUNCE(DENISE_HR, "DENISE_HR ");
-	AMIGAHW_ANNOUNCE(LISA, "LISA ");
-	AMIGAHW_ANNOUNCE(AGNUS_PAL, "AGNUS_PAL ");
-	AMIGAHW_ANNOUNCE(AGNUS_NTSC, "AGNUS_NTSC ");
-	AMIGAHW_ANNOUNCE(AGNUS_HR_PAL, "AGNUS_HR_PAL ");
-	AMIGAHW_ANNOUNCE(AGNUS_HR_NTSC, "AGNUS_HR_NTSC ");
-	AMIGAHW_ANNOUNCE(ALICE_PAL, "ALICE_PAL ");
-	AMIGAHW_ANNOUNCE(ALICE_NTSC, "ALICE_NTSC ");
-	AMIGAHW_ANNOUNCE(MAGIC_REKICK, "MAGIC_REKICK ");
-	AMIGAHW_ANNOUNCE(PCMCIA, "PCMCIA ");
+	AMIGAHW_ANANALUNCE(AMI_VIDEO, "VIDEO ");
+	AMIGAHW_ANANALUNCE(AMI_BLITTER, "BLITTER ");
+	AMIGAHW_ANANALUNCE(AMBER_FF, "AMBER_FF ");
+	AMIGAHW_ANANALUNCE(AMI_AUDIO, "AUDIO ");
+	AMIGAHW_ANANALUNCE(AMI_FLOPPY, "FLOPPY ");
+	AMIGAHW_ANANALUNCE(A3000_SCSI, "A3000_SCSI ");
+	AMIGAHW_ANANALUNCE(A4000_SCSI, "A4000_SCSI ");
+	AMIGAHW_ANANALUNCE(A1200_IDE, "A1200_IDE ");
+	AMIGAHW_ANANALUNCE(A4000_IDE, "A4000_IDE ");
+	AMIGAHW_ANANALUNCE(CD_ROM, "CD_ROM ");
+	AMIGAHW_ANANALUNCE(AMI_KEYBOARD, "KEYBOARD ");
+	AMIGAHW_ANANALUNCE(AMI_MOUSE, "MOUSE ");
+	AMIGAHW_ANANALUNCE(AMI_SERIAL, "SERIAL ");
+	AMIGAHW_ANANALUNCE(AMI_PARALLEL, "PARALLEL ");
+	AMIGAHW_ANANALUNCE(A2000_CLK, "A2000_CLK ");
+	AMIGAHW_ANANALUNCE(A3000_CLK, "A3000_CLK ");
+	AMIGAHW_ANANALUNCE(CHIP_RAM, "CHIP_RAM ");
+	AMIGAHW_ANANALUNCE(PAULA, "PAULA ");
+	AMIGAHW_ANANALUNCE(DENISE, "DENISE ");
+	AMIGAHW_ANANALUNCE(DENISE_HR, "DENISE_HR ");
+	AMIGAHW_ANANALUNCE(LISA, "LISA ");
+	AMIGAHW_ANANALUNCE(AGNUS_PAL, "AGNUS_PAL ");
+	AMIGAHW_ANANALUNCE(AGNUS_NTSC, "AGNUS_NTSC ");
+	AMIGAHW_ANANALUNCE(AGNUS_HR_PAL, "AGNUS_HR_PAL ");
+	AMIGAHW_ANANALUNCE(AGNUS_HR_NTSC, "AGNUS_HR_NTSC ");
+	AMIGAHW_ANANALUNCE(ALICE_PAL, "ALICE_PAL ");
+	AMIGAHW_ANANALUNCE(ALICE_NTSC, "ALICE_NTSC ");
+	AMIGAHW_ANANALUNCE(MAGIC_REKICK, "MAGIC_REKICK ");
+	AMIGAHW_ANANALUNCE(PCMCIA, "PCMCIA ");
 	if (AMIGAHW_PRESENT(ZORRO))
 		pr_cont("ZORRO%s ", AMIGAHW_PRESENT(ZORRO3) ? "3" : "");
 	pr_cont("\n");
 
-#undef AMIGAHW_ANNOUNCE
+#undef AMIGAHW_ANANALUNCE
 }
 
 
@@ -423,7 +423,7 @@ void __init config_amiga(void)
 			}
 		}
 		if (disabled_z2mem)
-			pr_info("%dK of Zorro II memory will not be used as system memory\n",
+			pr_info("%dK of Zorro II memory will analt be used as system memory\n",
 				disabled_z2mem>>10);
 	}
 
@@ -484,7 +484,7 @@ static void __init amiga_sched_init(void)
 	jiffy_ticks = DIV_ROUND_CLOSEST(amiga_eclock, HZ);
 
 	if (request_resource(&mb_resources._ciab, &sched_res))
-		pr_warn("Cannot allocate ciab.ta{lo,hi}\n");
+		pr_warn("Cananalt allocate ciab.ta{lo,hi}\n");
 	ciab.cra &= 0xC0;   /* turn off timer A, continuous mode, from Eclk */
 	ciab.talo = jiffy_ticks % 256;
 	ciab.tahi = jiffy_ticks / 256;
@@ -536,7 +536,7 @@ static u64 amiga_read_clk(struct clocksource *cs)
 	return ticks;
 }
 
-static void amiga_reset(void)  __noreturn;
+static void amiga_reset(void)  __analreturn;
 
 static void amiga_reset(void)
 {
@@ -557,7 +557,7 @@ static void amiga_reset(void)
 			"	movec	%%d0,%%dtt0\n"
 			"	.chip	68k\n"
 			"	jmp	%0@\n"
-			: /* no outputs */
+			: /* anal outputs */
 			: "a" (jmp_addr040)
 			: "d0");
 	else
@@ -569,17 +569,17 @@ static void amiga_reset(void)
 			"	bclr	#7,%@\n"
 			"	pmove	%@,%%tc\n"
 			"	jmp	%0@\n"
-			: /* no outputs */
+			: /* anal outputs */
 			: "a" (jmp_addr));
 jmp_addr_label040:
-	/* disable translation on '040 now */
+	/* disable translation on '040 analw */
 	asm volatile ("\n"
 		"	moveq	#0,%%d0\n"
 		"	.chip	68040\n"
 		"	movec	%%d0,%%tc\n"	/* disable MMU */
 		"	.chip	68k\n"
-		: /* no outputs */
-		: /* no inputs */
+		: /* anal outputs */
+		: /* anal inputs */
 		: "d0");
 
 	jmp_addr_label:
@@ -640,8 +640,8 @@ static int __init amiga_savekmsg_setup(char *arg)
 		return 0;
 
 	if (amiga_chip_size < SAVEKMSG_MAXMEM) {
-		pr_err("Not enough chipram for debugging\n");
-		return -ENOMEM;
+		pr_err("Analt eanalugh chipram for debugging\n");
+		return -EANALMEM;
 	}
 
 	/* Just steal the block, the chipram allocator isn't functional yet */
@@ -691,7 +691,7 @@ int amiga_serial_console_wait_key(struct console *co)
 	while (!(amiga_custom.intreqr & IF_RBF))
 		barrier();
 	ch = amiga_custom.serdatr & 0xff;
-	/* clear the interrupt, so that another character can be read */
+	/* clear the interrupt, so that aanalther character can be read */
 	amiga_custom.intreq = IF_RBF;
 	return ch;
 }
@@ -742,7 +742,7 @@ static int __init amiga_debug_setup(char *arg)
 	if (!MACH_IS_AMIGA || strcmp(arg, "ser"))
 		return 0;
 
-	/* no initialization required (?) */
+	/* anal initialization required (?) */
 	registered = !!amiga_console_driver.write;
 	amiga_console_driver.write = amiga_serial_console_write;
 	if (!registered)
@@ -791,46 +791,46 @@ static void amiga_get_hardware_list(struct seq_file *m)
 			type = "AGA";
 			break;
 		default:
-			type = "Old or Unknown";
+			type = "Old or Unkanalwn";
 			break;
 		}
 		seq_printf(m, "Graphics:\t%s\n", type);
 	}
 
-#define AMIGAHW_ANNOUNCE(name, str)			\
+#define AMIGAHW_ANANALUNCE(name, str)			\
 	if (AMIGAHW_PRESENT(name))			\
 		seq_printf (m, "\t%s\n", str)
 
 	seq_puts(m, "Detected hardware:\n");
-	AMIGAHW_ANNOUNCE(AMI_VIDEO, "Amiga Video");
-	AMIGAHW_ANNOUNCE(AMI_BLITTER, "Blitter");
-	AMIGAHW_ANNOUNCE(AMBER_FF, "Amber Flicker Fixer");
-	AMIGAHW_ANNOUNCE(AMI_AUDIO, "Amiga Audio");
-	AMIGAHW_ANNOUNCE(AMI_FLOPPY, "Floppy Controller");
-	AMIGAHW_ANNOUNCE(A3000_SCSI, "SCSI Controller WD33C93 (A3000 style)");
-	AMIGAHW_ANNOUNCE(A4000_SCSI, "SCSI Controller NCR53C710 (A4000T style)");
-	AMIGAHW_ANNOUNCE(A1200_IDE, "IDE Interface (A1200 style)");
-	AMIGAHW_ANNOUNCE(A4000_IDE, "IDE Interface (A4000 style)");
-	AMIGAHW_ANNOUNCE(CD_ROM, "Internal CD ROM drive");
-	AMIGAHW_ANNOUNCE(AMI_KEYBOARD, "Keyboard");
-	AMIGAHW_ANNOUNCE(AMI_MOUSE, "Mouse Port");
-	AMIGAHW_ANNOUNCE(AMI_SERIAL, "Serial Port");
-	AMIGAHW_ANNOUNCE(AMI_PARALLEL, "Parallel Port");
-	AMIGAHW_ANNOUNCE(A2000_CLK, "Hardware Clock (A2000 style)");
-	AMIGAHW_ANNOUNCE(A3000_CLK, "Hardware Clock (A3000 style)");
-	AMIGAHW_ANNOUNCE(CHIP_RAM, "Chip RAM");
-	AMIGAHW_ANNOUNCE(PAULA, "Paula 8364");
-	AMIGAHW_ANNOUNCE(DENISE, "Denise 8362");
-	AMIGAHW_ANNOUNCE(DENISE_HR, "Denise 8373");
-	AMIGAHW_ANNOUNCE(LISA, "Lisa 8375");
-	AMIGAHW_ANNOUNCE(AGNUS_PAL, "Normal/Fat PAL Agnus 8367/8371");
-	AMIGAHW_ANNOUNCE(AGNUS_NTSC, "Normal/Fat NTSC Agnus 8361/8370");
-	AMIGAHW_ANNOUNCE(AGNUS_HR_PAL, "Fat Hires PAL Agnus 8372");
-	AMIGAHW_ANNOUNCE(AGNUS_HR_NTSC, "Fat Hires NTSC Agnus 8372");
-	AMIGAHW_ANNOUNCE(ALICE_PAL, "PAL Alice 8374");
-	AMIGAHW_ANNOUNCE(ALICE_NTSC, "NTSC Alice 8374");
-	AMIGAHW_ANNOUNCE(MAGIC_REKICK, "Magic Hard Rekick");
-	AMIGAHW_ANNOUNCE(PCMCIA, "PCMCIA Slot");
+	AMIGAHW_ANANALUNCE(AMI_VIDEO, "Amiga Video");
+	AMIGAHW_ANANALUNCE(AMI_BLITTER, "Blitter");
+	AMIGAHW_ANANALUNCE(AMBER_FF, "Amber Flicker Fixer");
+	AMIGAHW_ANANALUNCE(AMI_AUDIO, "Amiga Audio");
+	AMIGAHW_ANANALUNCE(AMI_FLOPPY, "Floppy Controller");
+	AMIGAHW_ANANALUNCE(A3000_SCSI, "SCSI Controller WD33C93 (A3000 style)");
+	AMIGAHW_ANANALUNCE(A4000_SCSI, "SCSI Controller NCR53C710 (A4000T style)");
+	AMIGAHW_ANANALUNCE(A1200_IDE, "IDE Interface (A1200 style)");
+	AMIGAHW_ANANALUNCE(A4000_IDE, "IDE Interface (A4000 style)");
+	AMIGAHW_ANANALUNCE(CD_ROM, "Internal CD ROM drive");
+	AMIGAHW_ANANALUNCE(AMI_KEYBOARD, "Keyboard");
+	AMIGAHW_ANANALUNCE(AMI_MOUSE, "Mouse Port");
+	AMIGAHW_ANANALUNCE(AMI_SERIAL, "Serial Port");
+	AMIGAHW_ANANALUNCE(AMI_PARALLEL, "Parallel Port");
+	AMIGAHW_ANANALUNCE(A2000_CLK, "Hardware Clock (A2000 style)");
+	AMIGAHW_ANANALUNCE(A3000_CLK, "Hardware Clock (A3000 style)");
+	AMIGAHW_ANANALUNCE(CHIP_RAM, "Chip RAM");
+	AMIGAHW_ANANALUNCE(PAULA, "Paula 8364");
+	AMIGAHW_ANANALUNCE(DENISE, "Denise 8362");
+	AMIGAHW_ANANALUNCE(DENISE_HR, "Denise 8373");
+	AMIGAHW_ANANALUNCE(LISA, "Lisa 8375");
+	AMIGAHW_ANANALUNCE(AGNUS_PAL, "Analrmal/Fat PAL Agnus 8367/8371");
+	AMIGAHW_ANANALUNCE(AGNUS_NTSC, "Analrmal/Fat NTSC Agnus 8361/8370");
+	AMIGAHW_ANANALUNCE(AGNUS_HR_PAL, "Fat Hires PAL Agnus 8372");
+	AMIGAHW_ANANALUNCE(AGNUS_HR_NTSC, "Fat Hires NTSC Agnus 8372");
+	AMIGAHW_ANANALUNCE(ALICE_PAL, "PAL Alice 8374");
+	AMIGAHW_ANANALUNCE(ALICE_NTSC, "NTSC Alice 8374");
+	AMIGAHW_ANANALUNCE(MAGIC_REKICK, "Magic Hard Rekick");
+	AMIGAHW_ANANALUNCE(PCMCIA, "PCMCIA Slot");
 #ifdef CONFIG_ZORRO
 	if (AMIGAHW_PRESENT(ZORRO))
 		seq_printf(m, "\tZorro II%s AutoConfig: %d Expansion "
@@ -839,11 +839,11 @@ static void amiga_get_hardware_list(struct seq_file *m)
 				zorro_num_autocon, zorro_num_autocon == 1 ? "" : "s");
 #endif /* CONFIG_ZORRO */
 
-#undef AMIGAHW_ANNOUNCE
+#undef AMIGAHW_ANANALUNCE
 }
 
 /*
- * The Amiga keyboard driver needs key_maps, but we cannot export it in
+ * The Amiga keyboard driver needs key_maps, but we cananalt export it in
  * drivers/char/defkeymap.c, as it is autogenerated
  */
 #ifdef CONFIG_HW_CONSOLE

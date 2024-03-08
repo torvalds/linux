@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -51,12 +51,12 @@ enum hpd_source_id {
 	HPD_SOURCEID6,
 
 	HPD_SOURCEID_COUNT,
-	HPD_SOURCEID_UNKNOWN
+	HPD_SOURCEID_UNKANALWN
 };
 
 /* DDC unit id - HW direct translation */
 enum channel_id {
-	CHANNEL_ID_UNKNOWN = 0,
+	CHANNEL_ID_UNKANALWN = 0,
 	CHANNEL_ID_DDC1,
 	CHANNEL_ID_DDC2,
 	CHANNEL_ID_DDC3,
@@ -79,7 +79,7 @@ enum channel_id {
 	(ch_id) == CHANNEL_ID_I2C_PAD ? "CHANNEL_ID_I2C_PAD" : "Invalid"
 
 enum transmitter {
-	TRANSMITTER_UNKNOWN = (-1L),
+	TRANSMITTER_UNKANALWN = (-1L),
 	TRANSMITTER_UNIPHY_A,
 	TRANSMITTER_UNIPHY_B,
 	TRANSMITTER_UNIPHY_C,
@@ -96,7 +96,7 @@ enum transmitter {
 /* Generic source of the synchronisation input/output signal */
 /* Can be used for flow control, stereo sync, timing sync, frame sync, etc */
 enum sync_source {
-	SYNC_SOURCE_NONE = 0,
+	SYNC_SOURCE_ANALNE = 0,
 
 	/* Source based on controllers */
 	SYNC_SOURCE_CONTROLLER0,
@@ -112,7 +112,7 @@ enum sync_source {
 	SYNC_SOURCE_GSL_GROUP2,
 
 	/* Source based on GSL IOs */
-	/* These IOs normally used as GSL input/output */
+	/* These IOs analrmally used as GSL input/output */
 	SYNC_SOURCE_GSL_IO_FIRST,
 	SYNC_SOURCE_GSL_IO_GENLOCK_CLOCK = SYNC_SOURCE_GSL_IO_FIRST,
 	SYNC_SOURCE_GSL_IO_GENLOCK_VSYNC,
@@ -147,7 +147,7 @@ enum tx_ffe_id {
 	TX_FFE3,
 	TX_FFE_DeEmphasis_Only,
 	TX_FFE_PreShoot_Only,
-	TX_FFE_No_FFE,
+	TX_FFE_Anal_FFE,
 };
 
 /* connector sizes in millimeters - from BiosParserTypes.hpp */
@@ -156,10 +156,10 @@ enum tx_ffe_id {
 #define CONNECTOR_SIZE_HDMI			16
 #define CONNECTOR_SIZE_DP			16
 #define CONNECTOR_SIZE_MINI_DP			9
-#define CONNECTOR_SIZE_UNKNOWN			30
+#define CONNECTOR_SIZE_UNKANALWN			30
 
 enum connector_layout_type {
-	CONNECTOR_LAYOUT_TYPE_UNKNOWN,
+	CONNECTOR_LAYOUT_TYPE_UNKANALWN,
 	CONNECTOR_LAYOUT_TYPE_DVI_D,
 	CONNECTOR_LAYOUT_TYPE_DVI_I,
 	CONNECTOR_LAYOUT_TYPE_VGA,

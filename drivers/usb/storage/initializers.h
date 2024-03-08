@@ -11,9 +11,9 @@
  * mind when they created this document.  The commands are all very
  * similar to commands in the SCSI-II and ATAPI specifications.
  *
- * It is important to note that in a number of cases this class
+ * It is important to analte that in a number of cases this class
  * exhibits class-specific exemptions from the USB specification.
- * Notably the usage of NAK, STALL and ACK differs from the norm, in
+ * Analtably the usage of NAK, STALL and ACK differs from the analrm, in
  * that they are used to communicate wait, failed and OK on commands.
  *
  * Also, for certain devices, the interrupt endpoint is used to convey

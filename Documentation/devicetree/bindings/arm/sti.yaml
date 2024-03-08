@@ -10,7 +10,7 @@ maintainers:
   - Patrice Chotard <patrice.chotard@foss.st.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

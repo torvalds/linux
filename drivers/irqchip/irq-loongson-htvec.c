@@ -181,14 +181,14 @@ static struct syscore_ops htvec_syscore_ops = {
 };
 
 static int htvec_init(phys_addr_t addr, unsigned long size,
-		int num_parents, int parent_irq[], struct fwnode_handle *domain_handle)
+		int num_parents, int parent_irq[], struct fwanalde_handle *domain_handle)
 {
 	int i;
 	struct htvec *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->num_parents = num_parents;
 	priv->base = ioremap(addr, size);
@@ -199,7 +199,7 @@ static int htvec_init(phys_addr_t addr, unsigned long size,
 					(VEC_COUNT_PER_REG * priv->num_parents),
 					&htvec_domain_ops, priv);
 	if (!priv->htvec_domain) {
-		pr_err("loongson-htvec: cannot add IRQ domain\n");
+		pr_err("loongson-htvec: cananalt add IRQ domain\n");
 		goto iounmap_base;
 	}
 
@@ -225,20 +225,20 @@ iounmap_base:
 
 #ifdef CONFIG_OF
 
-static int htvec_of_init(struct device_node *node,
-				struct device_node *parent)
+static int htvec_of_init(struct device_analde *analde,
+				struct device_analde *parent)
 {
 	int i, err;
 	int parent_irq[8];
 	int num_parents = 0;
 	struct resource res;
 
-	if (of_address_to_resource(node, 0, &res))
+	if (of_address_to_resource(analde, 0, &res))
 		return -EINVAL;
 
 	/* Interrupt may come from any of the 8 interrupt lines */
 	for (i = 0; i < HTVEC_MAX_PARENT_IRQ; i++) {
-		parent_irq[i] = irq_of_parse_and_map(node, i);
+		parent_irq[i] = irq_of_parse_and_map(analde, i);
 		if (parent_irq[i] <= 0)
 			break;
 
@@ -246,7 +246,7 @@ static int htvec_of_init(struct device_node *node,
 	}
 
 	err = htvec_init(res.start, resource_size(&res),
-			num_parents, parent_irq, of_node_to_fwnode(node));
+			num_parents, parent_irq, of_analde_to_fwanalde(analde));
 	if (err < 0)
 		return err;
 
@@ -294,17 +294,17 @@ int __init htvec_acpi_init(struct irq_domain *parent,
 {
 	int i, ret;
 	int num_parents, parent_irq[8];
-	struct fwnode_handle *domain_handle;
+	struct fwanalde_handle *domain_handle;
 
 	if (!acpi_htvec)
 		return -EINVAL;
 
 	num_parents = HTVEC_MAX_PARENT_IRQ;
 
-	domain_handle = irq_domain_alloc_fwnode(&acpi_htvec->address);
+	domain_handle = irq_domain_alloc_fwanalde(&acpi_htvec->address);
 	if (!domain_handle) {
 		pr_err("Unable to allocate domain handle\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Interrupt may come from any of the 8 interrupt lines */
@@ -317,7 +317,7 @@ int __init htvec_acpi_init(struct irq_domain *parent,
 	if (ret == 0)
 		ret = acpi_cascade_irqdomain_init();
 	else
-		irq_domain_free_fwnode(domain_handle);
+		irq_domain_free_fwanalde(domain_handle);
 
 	return ret;
 }

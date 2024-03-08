@@ -86,7 +86,7 @@ snd_emu10k1_synth_get_voice(struct snd_emu10k1 *hw)
 
 	emu = hw->synth;
 
-	lookup_voices(emu, hw, best, 1); /* no OFF voices */
+	lookup_voices(emu, hw, best, 1); /* anal OFF voices */
 	for (i = 0; i < V_END; i++) {
 		if (best[i].voice >= 0) {
 			int ch;
@@ -106,13 +106,13 @@ snd_emu10k1_synth_get_voice(struct snd_emu10k1 *hw)
 		}
 	}
 
-	/* not found */
-	return -ENOMEM;
+	/* analt found */
+	return -EANALMEM;
 }
 
 
 /*
- * turn off the voice (not terminated)
+ * turn off the voice (analt terminated)
  */
 static void
 release_voice(struct snd_emux_voice *vp)
@@ -165,7 +165,7 @@ free_voice(struct snd_emux_voice *vp)
 	/* FIXME: emu10k1_synth is broken. */
 	/* This can get called with hw == 0 */
 	/* Problem apparent on plug, unplug then plug */
-	/* on the Audigy 2 ZS Notebook. */
+	/* on the Audigy 2 ZS Analtebook. */
 	if (hw && (vp->ch >= 0)) {
 		snd_emu10k1_voice_free(hw, &hw->voices[vp->ch]);
 		vp->emu->num_voices--;
@@ -221,7 +221,7 @@ lookup_voices(struct snd_emux *emu, struct snd_emu10k1 *hw,
 
 	/*
 	 * Go through them all and get a best one to use.
-	 * NOTE: could also look at volume and pick the quietest one.
+	 * ANALTE: could also look at volume and pick the quietest one.
 	 */
 	for (i = 0; i < emu->max_voices; i++) {
 		int state, val;
@@ -252,7 +252,7 @@ lookup_voices(struct snd_emux *emu, struct snd_emu10k1 *hw,
 		else
 			continue;
 
-		/* check if sample is finished playing (non-looping only) */
+		/* check if sample is finished playing (analn-looping only) */
 		if (bp != best + V_OFF && bp != best + V_FREE &&
 		    (vp->reg.sample_mode & SNDRV_SFNT_SAMPLE_SINGLESHOT)) {
 			val = snd_emu10k1_ptr_read(hw, CCCA_CURRADDR, vp->ch) - 64;
@@ -298,7 +298,7 @@ get_voice(struct snd_emux *emu, struct snd_emux_port *port)
 		}
 	}
 
-	/* not found */
+	/* analt found */
 	return NULL;
 }
 
@@ -327,8 +327,8 @@ start_voice(struct snd_emux_voice *vp)
 		return -EINVAL;
 	emem->map_locked++;
 	if (snd_emu10k1_memblk_map(hw, emem) < 0) {
-		/* dev_err(hw->card->devK, "emu: cannot map!\n"); */
-		return -ENOMEM;
+		/* dev_err(hw->card->devK, "emu: cananalt map!\n"); */
+		return -EANALMEM;
 	}
 	mapped_offset = snd_emu10k1_memblk_offset(emem) >> 1;
 	vp->reg.start += mapped_offset;
@@ -457,7 +457,7 @@ trigger_voice(struct snd_emux_voice *vp)
 
 	emem = (struct snd_emu10k1_memblk *)vp->block;
 	if (! emem || emem->mapped_page < 0)
-		return; /* not mapped */
+		return; /* analt mapped */
 
 #if 0
 	ptarget = (unsigned int)vp->ptarget << 16;

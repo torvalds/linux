@@ -16,7 +16,7 @@
 #include <linux/firmware.h>
 
 /* APA trackpad firmware generation number. */
-#define CYAPA_GEN_UNKNOWN   0x00   /* unknown protocol. */
+#define CYAPA_GEN_UNKANALWN   0x00   /* unkanalwn protocol. */
 #define CYAPA_GEN3   0x03   /* support MT-protocol B with tracking ID. */
 #define CYAPA_GEN5   0x05   /* support TrueTouch GEN5 trackpad device. */
 #define CYAPA_GEN6   0x06   /* support TrueTouch GEN6 trackpad device. */
@@ -134,8 +134,8 @@
 #define BL_ERROR_FLASH_PROT  0x08
 #define BL_ERROR_FLASH_CSUM  0x04
 #define BL_ERROR_RESERVED    0x03
-#define BL_ERROR_NO_ERR_IDLE    0x00
-#define BL_ERROR_NO_ERR_ACTIVE  (BL_ERROR_BOOTLOADING)
+#define BL_ERROR_ANAL_ERR_IDLE    0x00
+#define BL_ERROR_ANAL_ERR_ACTIVE  (BL_ERROR_BOOTLOADING)
 
 #define CAPABILITY_BTN_SHIFT            3
 #define CAPABILITY_LEFT_BTN_MASK	(0x01 << 3)
@@ -160,7 +160,7 @@
 
 #define AUTOSUSPEND_DELAY   2000 /* unit : ms */
 
-#define BTN_ONLY_MODE_NAME   "buttononly"
+#define BTN_ONLY_MODE_NAME   "buttoanalnly"
 #define OFF_MODE_NAME        "off"
 
 /* Common macros for PIP interface. */
@@ -310,7 +310,7 @@ union cyapa_cmd_states {
 };
 
 enum cyapa_state {
-	CYAPA_STATE_NO_DEVICE,
+	CYAPA_STATE_ANAL_DEVICE,
 	CYAPA_STATE_BL_BUSY,
 	CYAPA_STATE_BL_IDLE,
 	CYAPA_STATE_BL_ACTIVE,
@@ -331,7 +331,7 @@ struct gen6_interval_setting {
 struct cyapa {
 	enum cyapa_state state;
 	u8 status[BL_STATUS_SIZE];
-	bool operational; /* true: ready for data reporting; false: not. */
+	bool operational; /* true: ready for data reporting; false: analt. */
 
 	struct regulator *vcc;
 	struct i2c_client *client;
@@ -353,7 +353,7 @@ struct cyapa {
 	char product_id[16];
 	u8 platform_ver;  /* Platform version. */
 	u8 fw_maj_ver;  /* Firmware major version. */
-	u8 fw_min_ver;  /* Firmware minor version. */
+	u8 fw_min_ver;  /* Firmware mianalr version. */
 	u8 btn_capability;
 	u8 gen;
 	int max_abs_x;

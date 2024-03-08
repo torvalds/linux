@@ -3,7 +3,7 @@
 #define __ASM_GENERIC_TLBFLUSH_H
 /*
  * This is a dummy tlbflush implementation that can be used on all
- * nommu architectures.
+ * analmmu architectures.
  * If you have an MMU, you need to write your own functions.
  */
 #ifdef CONFIG_MMU

@@ -16,7 +16,7 @@ struct nvkm_vmm_pt {
 
 	/* Page size handled by this PT.
 	 *
-	 * Tesla backend needs to know this when writinge PDEs,
+	 * Tesla backend needs to kanalw this when writinge PDEs,
 	 * otherwise unnecessary.
 	 */
 	u8 page;
@@ -164,8 +164,8 @@ int nvkm_vmm_new_(const struct nvkm_vmm_func *, struct nvkm_mmu *,
 		  struct lock_class_key *, const char *name,
 		  struct nvkm_vmm **);
 struct nvkm_vma *nvkm_vma_new(u64 addr, u64 size);
-struct nvkm_vma *nvkm_vmm_node_search(struct nvkm_vmm *, u64 addr);
-struct nvkm_vma *nvkm_vmm_node_split(struct nvkm_vmm *, struct nvkm_vma *,
+struct nvkm_vma *nvkm_vmm_analde_search(struct nvkm_vmm *, u64 addr);
+struct nvkm_vma *nvkm_vmm_analde_split(struct nvkm_vmm *, struct nvkm_vma *,
 				     u64 addr, u64 size);
 int nvkm_vmm_get_locked(struct nvkm_vmm *, bool getref, bool mapref,
 			bool sparse, u8 page, u8 align, u64 size,
@@ -206,7 +206,7 @@ nvkm_vmm_in_managed_range(struct nvkm_vmm *vmm, u64 start, u64 size)
 #define NVKM_VMM_PFN_A					  0x0000000000000004ULL
 #define NVKM_VMM_PFN_W                                    0x0000000000000002ULL
 #define NVKM_VMM_PFN_V                                    0x0000000000000001ULL
-#define NVKM_VMM_PFN_NONE                                 0x0000000000000000ULL
+#define NVKM_VMM_PFN_ANALNE                                 0x0000000000000000ULL
 
 int nvkm_vmm_pfn_map(struct nvkm_vmm *, u8 page, u64 addr, u64 size, u64 *pfn);
 int nvkm_vmm_pfn_unmap(struct nvkm_vmm *, u64 addr, u64 size);
@@ -299,7 +299,7 @@ int tu102_vmm_new(struct nvkm_mmu *, bool, u64, u64, void *, u32,
 
 #define VMM_PRINT(l,v,p,f,a...) do {                                           \
 	struct nvkm_vmm *_vmm = (v);                                           \
-	if (CONFIG_NOUVEAU_DEBUG >= (l) && _vmm->debug >= (l)) {               \
+	if (CONFIG_ANALUVEAU_DEBUG >= (l) && _vmm->debug >= (l)) {               \
 		nvkm_printk_(&_vmm->mmu->subdev, 0, p, "%s: "f"\n",            \
 			     _vmm->name, ##a);                                 \
 	}                                                                      \

@@ -9,7 +9,7 @@
  * 2002-Oct	Created by Vamsi Krishna S <vamsi_krishna@in.ibm.com> Kernel
  *		Probes initial implementation ( includes suggestions from
  *		Rusty Russell).
- * 2004-Nov	Modified for PPC64 by Ananth N Mavinakayanahalli
+ * 2004-Analv	Modified for PPC64 by Ananth N Mavinakayanahalli
  *		<ananth@in.ibm.com>
  * 2005-Dec	Used as a template for s390 by Mike Grundy
  *		<grundym@us.ibm.com>
@@ -20,10 +20,10 @@
 
 #define BREAKPOINT_INSTRUCTION	0x0002
 
-#define FIXUP_PSW_NORMAL	0x08
-#define FIXUP_BRANCH_NOT_TAKEN	0x04
+#define FIXUP_PSW_ANALRMAL	0x08
+#define FIXUP_BRANCH_ANALT_TAKEN	0x04
 #define FIXUP_RETURN_REGISTER	0x02
-#define FIXUP_NOT_REQUIRED	0x01
+#define FIXUP_ANALT_REQUIRED	0x01
 
 int probe_is_prohibited_opcode(u16 *insn);
 int probe_get_fixup_type(u16 *insn);

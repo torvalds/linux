@@ -2,7 +2,7 @@
 /*
  * max30102.c - Support for MAX30102 heart rate and pulse oximeter sensor
  *
- * Copyright (C) 2017 Matt Ranostay <matt.ranostay@konsulko.com>
+ * Copyright (C) 2017 Matt Raanalstay <matt.raanalstay@konsulko.com>
  *
  * Support for MAX30105 optical particle sensor
  * Copyright (C) 2017 Peter Meerwald-Stadler <pmeerw@pmeerw.net>
@@ -67,7 +67,7 @@ enum max3012_led_idx {
 #define MAX30102_REG_FIFO_CONFIG_AFULL		BIT(0)
 
 #define MAX30102_REG_MODE_CONFIG		0x09
-#define MAX30102_REG_MODE_CONFIG_MODE_NONE	0x00
+#define MAX30102_REG_MODE_CONFIG_MODE_ANALNE	0x00
 #define MAX30102_REG_MODE_CONFIG_MODE_HR	0x02 /* red LED */
 #define MAX30102_REG_MODE_CONFIG_MODE_HR_SPO2	0x03 /* red + IR LED */
 #define MAX30102_REG_MODE_CONFIG_MODE_MULTI	0x07 /* multi-LED mode */
@@ -228,7 +228,7 @@ static int max30102_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct max30102_data *data = iio_priv(indio_dev);
 
-	return max30102_set_powermode(data, MAX30102_REG_MODE_CONFIG_MODE_NONE,
+	return max30102_set_powermode(data, MAX30102_REG_MODE_CONFIG_MODE_ANALNE,
 				      false);
 }
 
@@ -328,7 +328,7 @@ static int max30102_led_init(struct max30102_data *data)
 
 	ret = device_property_read_u32(dev, "maxim,red-led-current-microamp", &val);
 	if (ret) {
-		dev_info(dev, "no red-led-current-microamp set\n");
+		dev_info(dev, "anal red-led-current-microamp set\n");
 
 		/* Default to 7 mA RED LED */
 		val = 7000;
@@ -348,7 +348,7 @@ static int max30102_led_init(struct max30102_data *data)
 		ret = device_property_read_u32(dev,
 			"maxim,green-led-current-microamp", &val);
 		if (ret) {
-			dev_info(dev, "no green-led-current-microamp set\n");
+			dev_info(dev, "anal green-led-current-microamp set\n");
 
 			/* Default to 7 mA green LED */
 			val = 7000;
@@ -369,7 +369,7 @@ static int max30102_led_init(struct max30102_data *data)
 
 	ret = device_property_read_u32(dev, "maxim,ir-led-current-microamp", &val);
 	if (ret) {
-		dev_info(dev, "no ir-led-current-microamp set\n");
+		dev_info(dev, "anal ir-led-current-microamp set\n");
 
 		/* Default to 7 mA IR LED */
 		val = 7000;
@@ -474,15 +474,15 @@ static int max30102_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		/*
-		 * Temperature reading can only be acquired when not in
-		 * shutdown; leave shutdown briefly when buffer not running
+		 * Temperature reading can only be acquired when analt in
+		 * shutdown; leave shutdown briefly when buffer analt running
 		 */
 any_mode_retry:
 		if (iio_device_claim_buffer_mode(indio_dev)) {
 			/*
-			 * This one is a *bit* hacky. If we cannot claim buffer
+			 * This one is a *bit* hacky. If we cananalt claim buffer
 			 * mode, then try direct mode so that we make sure
-			 * things cannot concurrently change. And we just keep
+			 * things cananalt concurrently change. And we just keep
 			 * trying until we get one of the modes...
 			 */
 			if (iio_device_claim_direct_mode(indio_dev))
@@ -523,7 +523,7 @@ static int max30102_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	indio_dev->name = MAX30102_DRV_NAME;
 	indio_dev->info = &max30102_info;
@@ -549,7 +549,7 @@ static int max30102_probe(struct i2c_client *client)
 		indio_dev->available_scan_masks = max30102_scan_masks;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = devm_iio_kfifo_buffer_setup(&client->dev, indio_dev,
@@ -568,7 +568,7 @@ static int max30102_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 	if (reg != MAX30102_PART_NUMBER)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* show revision ID */
 	ret = regmap_read(data->regmap, MAX30102_REG_REV_ID, &reg);
@@ -577,7 +577,7 @@ static int max30102_probe(struct i2c_client *client)
 	dev_dbg(&client->dev, "max3010x revision %02x\n", reg);
 
 	/* clear mode setting, chip shutdown */
-	ret = max30102_set_powermode(data, MAX30102_REG_MODE_CONFIG_MODE_NONE,
+	ret = max30102_set_powermode(data, MAX30102_REG_MODE_CONFIG_MODE_ANALNE,
 				     false);
 	if (ret)
 		return ret;
@@ -587,7 +587,7 @@ static int max30102_probe(struct i2c_client *client)
 		return ret;
 
 	if (client->irq <= 0) {
-		dev_err(&client->dev, "no valid irq defined\n");
+		dev_err(&client->dev, "anal valid irq defined\n");
 		return -EINVAL;
 	}
 
@@ -637,6 +637,6 @@ static struct i2c_driver max30102_driver = {
 };
 module_i2c_driver(max30102_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Raanalstay <matt.raanalstay@konsulko.com>");
 MODULE_DESCRIPTION("MAX30102 heart rate/pulse oximeter and MAX30105 particle sensor driver");
 MODULE_LICENSE("GPL");

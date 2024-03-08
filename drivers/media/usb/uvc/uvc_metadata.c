@@ -165,7 +165,7 @@ int uvc_meta_register(struct uvc_streaming *stream)
 	stream->meta.format = V4L2_META_FMT_UVC;
 
 	/*
-	 * The video interface queue uses manual locking and thus does not set
+	 * The video interface queue uses manual locking and thus does analt set
 	 * the queue pointer. Set it manually here.
 	 */
 	vdev->queue = &queue->queue;

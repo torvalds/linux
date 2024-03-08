@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: LEDs connected to Broadcom BCM6328 controller
 
 maintainers:
-  - Álvaro Fernández Rojas <noltari@gmail.com>
+  - Álvaro Fernández Rojas <analltari@gmail.com>
 
 description: |
   This controller is present on BCM6318, BCM6328, BCM6362 and BCM63268.
@@ -31,7 +31,7 @@ description: |
   but you can't turn it off if the hardware decides to light it up. For this
   reason, hardware controlled LEDs aren't registered as LED class devices.
 
-  Each LED is represented as a sub-node of the brcm,bcm6328-leds device.
+  Each LED is represented as a sub-analde of the brcm,bcm6328-leds device.
 
 properties:
   compatible:

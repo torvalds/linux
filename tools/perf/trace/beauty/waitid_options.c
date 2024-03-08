@@ -15,7 +15,7 @@ static size_t syscall_arg__scnprintf_waitid_options(char *bf, size_t size,
 		options &= ~W##n; \
 	}
 
-	P_OPTION(NOHANG);
+	P_OPTION(ANALHANG);
 	P_OPTION(UNTRACED);
 	P_OPTION(CONTINUED);
 #undef P_OPTION

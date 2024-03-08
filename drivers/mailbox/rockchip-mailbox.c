@@ -119,7 +119,7 @@ static irqreturn_t rockchip_mbox_irq(int irq, void *dev_id)
 		}
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t rockchip_mbox_isr(int irq, void *dev_id)
@@ -168,24 +168,24 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, irq, i;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
 	drv_data = (const struct rockchip_mbox_data *) device_get_match_data(&pdev->dev);
 
 	mb = devm_kzalloc(&pdev->dev, sizeof(*mb), GFP_KERNEL);
 	if (!mb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mb->chans = devm_kcalloc(&pdev->dev, drv_data->num_chans,
 				 sizeof(*mb->chans), GFP_KERNEL);
 	if (!mb->chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mb->mbox.chans = devm_kcalloc(&pdev->dev, drv_data->num_chans,
 				      sizeof(*mb->mbox.chans), GFP_KERNEL);
 	if (!mb->mbox.chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, mb);
 

@@ -106,7 +106,7 @@
 		compatible = "ti,omap2-nand";
 		reg = <0 0 4>;
 		interrupt-parent = <&gpmc>;
-		interrupts = <0 IRQ_TYPE_NONE>, <1 IRQ_TYPE_NONE>;
+		interrupts = <0 IRQ_TYPE_ANALNE>, <1 IRQ_TYPE_ANALNE>;
 		nand-bus-width = <8>;
 		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>;
 		gpmc,device-width = <1>;

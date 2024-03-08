@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Test functionality of BPF filters with SO_REUSEPORT. Same test as
- * in reuseport_bpf_cpu, only as one socket per NUMA node.
+ * in reuseport_bpf_cpu, only as one socket per NUMA analde.
  */
 
 #define _GNU_SOURCE
 
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <linux/filter.h>
 #include <linux/bpf.h>
@@ -55,18 +55,18 @@ static void build_rcv_group(int *rcv_fd, size_t len, int family, int proto)
 	for (i = 0; i < len; ++i) {
 		rcv_fd[i] = socket(family, proto, 0);
 		if (rcv_fd[i] < 0)
-			error(1, errno, "failed to create receive socket");
+			error(1, erranal, "failed to create receive socket");
 
 		opt = 1;
 		if (setsockopt(rcv_fd[i], SOL_SOCKET, SO_REUSEPORT, &opt,
 			       sizeof(opt)))
-			error(1, errno, "failed to set SO_REUSEPORT");
+			error(1, erranal, "failed to set SO_REUSEPORT");
 
 		if (bind(rcv_fd[i], (struct sockaddr *)&addr, sizeof(addr)))
-			error(1, errno, "failed to bind receive socket");
+			error(1, erranal, "failed to bind receive socket");
 
 		if (proto == SOCK_STREAM && listen(rcv_fd[i], len * 10))
-			error(1, errno, "failed to listen on receive port");
+			error(1, erranal, "failed to listen on receive port");
 	}
 }
 
@@ -77,8 +77,8 @@ static void attach_bpf(int fd)
 
 	int bpf_fd;
 	const struct bpf_insn prog[] = {
-		/* R0 = bpf_get_numa_node_id() */
-		{ BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_numa_node_id },
+		/* R0 = bpf_get_numa_analde_id() */
+		{ BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_numa_analde_id },
 		/* return R0 */
 		{ BPF_JMP | BPF_EXIT, 0, 0, 0, 0 }
 	};
@@ -95,16 +95,16 @@ static void attach_bpf(int fd)
 
 	bpf_fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
 	if (bpf_fd < 0)
-		error(1, errno, "ebpf error. log:\n%s\n", bpf_log_buf);
+		error(1, erranal, "ebpf error. log:\n%s\n", bpf_log_buf);
 
 	if (setsockopt(fd, SOL_SOCKET, SO_ATTACH_REUSEPORT_EBPF, &bpf_fd,
 			sizeof(bpf_fd)))
-		error(1, errno, "failed to set SO_ATTACH_REUSEPORT_EBPF");
+		error(1, erranal, "failed to set SO_ATTACH_REUSEPORT_EBPF");
 
 	close(bpf_fd);
 }
 
-static void send_from_node(int node_id, int family, int proto)
+static void send_from_analde(int analde_id, int family, int proto)
 {
 	struct sockaddr_storage saddr, daddr;
 	struct sockaddr_in  *saddr4, *daddr4;
@@ -138,27 +138,27 @@ static void send_from_node(int node_id, int family, int proto)
 		error(1, 0, "Unsupported family %d", family);
 	}
 
-	if (numa_run_on_node(node_id) < 0)
-		error(1, errno, "failed to pin to node");
+	if (numa_run_on_analde(analde_id) < 0)
+		error(1, erranal, "failed to pin to analde");
 
 	fd = socket(family, proto, 0);
 	if (fd < 0)
-		error(1, errno, "failed to create send socket");
+		error(1, erranal, "failed to create send socket");
 
 	if (bind(fd, (struct sockaddr *)&saddr, sizeof(saddr)))
-		error(1, errno, "failed to bind send socket");
+		error(1, erranal, "failed to bind send socket");
 
 	if (connect(fd, (struct sockaddr *)&daddr, sizeof(daddr)))
-		error(1, errno, "failed to connect send socket");
+		error(1, erranal, "failed to connect send socket");
 
 	if (send(fd, "a", 1, 0) < 0)
-		error(1, errno, "failed to send message");
+		error(1, erranal, "failed to send message");
 
 	close(fd);
 }
 
 static
-void receive_on_node(int *rcv_fd, int len, int epfd, int node_id, int proto)
+void receive_on_analde(int *rcv_fd, int len, int epfd, int analde_id, int proto)
 {
 	struct epoll_event ev;
 	int i, fd;
@@ -166,12 +166,12 @@ void receive_on_node(int *rcv_fd, int len, int epfd, int node_id, int proto)
 
 	i = epoll_wait(epfd, &ev, 1, -1);
 	if (i < 0)
-		error(1, errno, "epoll_wait failed");
+		error(1, erranal, "epoll_wait failed");
 
 	if (proto == SOCK_STREAM) {
 		fd = accept(ev.data.fd, NULL, NULL);
 		if (fd < 0)
-			error(1, errno, "failed to accept");
+			error(1, erranal, "failed to accept");
 		i = recv(fd, buf, sizeof(buf), 0);
 		close(fd);
 	} else {
@@ -179,81 +179,81 @@ void receive_on_node(int *rcv_fd, int len, int epfd, int node_id, int proto)
 	}
 
 	if (i < 0)
-		error(1, errno, "failed to recv");
+		error(1, erranal, "failed to recv");
 
 	for (i = 0; i < len; ++i)
 		if (ev.data.fd == rcv_fd[i])
 			break;
 	if (i == len)
 		error(1, 0, "failed to find socket");
-	fprintf(stderr, "send node %d, receive socket %d\n", node_id, i);
-	if (node_id != i)
-		error(1, 0, "node id/receive socket mismatch");
+	fprintf(stderr, "send analde %d, receive socket %d\n", analde_id, i);
+	if (analde_id != i)
+		error(1, 0, "analde id/receive socket mismatch");
 }
 
 static void test(int *rcv_fd, int len, int family, int proto)
 {
 	struct epoll_event ev;
-	int epfd, node;
+	int epfd, analde;
 
 	build_rcv_group(rcv_fd, len, family, proto);
 	attach_bpf(rcv_fd[0]);
 
 	epfd = epoll_create(1);
 	if (epfd < 0)
-		error(1, errno, "failed to create epoll");
-	for (node = 0; node < len; ++node) {
+		error(1, erranal, "failed to create epoll");
+	for (analde = 0; analde < len; ++analde) {
 		ev.events = EPOLLIN;
-		ev.data.fd = rcv_fd[node];
-		if (epoll_ctl(epfd, EPOLL_CTL_ADD, rcv_fd[node], &ev))
-			error(1, errno, "failed to register sock epoll");
+		ev.data.fd = rcv_fd[analde];
+		if (epoll_ctl(epfd, EPOLL_CTL_ADD, rcv_fd[analde], &ev))
+			error(1, erranal, "failed to register sock epoll");
 	}
 
 	/* Forward iterate */
-	for (node = 0; node < len; ++node) {
-		if (!numa_bitmask_isbitset(numa_nodes_ptr, node))
+	for (analde = 0; analde < len; ++analde) {
+		if (!numa_bitmask_isbitset(numa_analdes_ptr, analde))
 			continue;
-		send_from_node(node, family, proto);
-		receive_on_node(rcv_fd, len, epfd, node, proto);
+		send_from_analde(analde, family, proto);
+		receive_on_analde(rcv_fd, len, epfd, analde, proto);
 	}
 
 	/* Reverse iterate */
-	for (node = len - 1; node >= 0; --node) {
-		if (!numa_bitmask_isbitset(numa_nodes_ptr, node))
+	for (analde = len - 1; analde >= 0; --analde) {
+		if (!numa_bitmask_isbitset(numa_analdes_ptr, analde))
 			continue;
-		send_from_node(node, family, proto);
-		receive_on_node(rcv_fd, len, epfd, node, proto);
+		send_from_analde(analde, family, proto);
+		receive_on_analde(rcv_fd, len, epfd, analde, proto);
 	}
 
 	close(epfd);
-	for (node = 0; node < len; ++node)
-		close(rcv_fd[node]);
+	for (analde = 0; analde < len; ++analde)
+		close(rcv_fd[analde]);
 }
 
 int main(void)
 {
-	int *rcv_fd, nodes;
+	int *rcv_fd, analdes;
 
 	if (numa_available() < 0)
-		ksft_exit_skip("no numa api support\n");
+		ksft_exit_skip("anal numa api support\n");
 
-	nodes = numa_max_node() + 1;
+	analdes = numa_max_analde() + 1;
 
-	rcv_fd = calloc(nodes, sizeof(int));
+	rcv_fd = calloc(analdes, sizeof(int));
 	if (!rcv_fd)
 		error(1, 0, "failed to allocate array");
 
 	fprintf(stderr, "---- IPv4 UDP ----\n");
-	test(rcv_fd, nodes, AF_INET, SOCK_DGRAM);
+	test(rcv_fd, analdes, AF_INET, SOCK_DGRAM);
 
 	fprintf(stderr, "---- IPv6 UDP ----\n");
-	test(rcv_fd, nodes, AF_INET6, SOCK_DGRAM);
+	test(rcv_fd, analdes, AF_INET6, SOCK_DGRAM);
 
 	fprintf(stderr, "---- IPv4 TCP ----\n");
-	test(rcv_fd, nodes, AF_INET, SOCK_STREAM);
+	test(rcv_fd, analdes, AF_INET, SOCK_STREAM);
 
 	fprintf(stderr, "---- IPv6 TCP ----\n");
-	test(rcv_fd, nodes, AF_INET6, SOCK_STREAM);
+	test(rcv_fd, analdes, AF_INET6, SOCK_STREAM);
 
 	free(rcv_fd);
 

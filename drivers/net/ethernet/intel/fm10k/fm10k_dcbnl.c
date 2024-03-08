@@ -16,7 +16,7 @@ static int fm10k_dcbnl_ieee_getets(struct net_device *dev, struct ieee_ets *ets)
 	ets->ets_cap = IEEE_8021QAZ_MAX_TCS;
 	ets->cbs = 0;
 
-	/* we only support strict priority and cannot do traffic shaping */
+	/* we only support strict priority and cananalt do traffic shaping */
 	memset(ets->tc_tx_bw, 0, sizeof(ets->tc_tx_bw));
 	memset(ets->tc_rx_bw, 0, sizeof(ets->tc_rx_bw));
 	memset(ets->tc_tsa, IEEE_8021QAZ_TSA_STRICT, sizeof(ets->tc_tsa));

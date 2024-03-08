@@ -5,7 +5,7 @@
 #
 
 # This script checks prom_init.o to see what external symbols it
-# is using, if it finds symbols not in the whitelist it returns
+# is using, if it finds symbols analt in the whitelist it returns
 # an error. The point of this is to discourage people from
 # intentionally or accidentally adding new code to prom_init.c
 # which has side effects on other parts of the kernel.
@@ -28,7 +28,7 @@ fi
 
 WHITELIST="add_reloc_offset __bss_start __bss_stop copy_and_flush
 _end enter_prom $MEM_FUNCS reloc_offset __secondary_hold
-__secondary_hold_acknowledge __secondary_hold_spinloop __start
+__secondary_hold_ackanalwledge __secondary_hold_spinloop __start
 logo_linux_clut224 btext_prepare_BAT
 reloc_got2 kernstart_addr memstart_addr linux_banner _stext
 btext_setup_display TOC. relocate"
@@ -46,7 +46,7 @@ check_section()
     size=${size:-0}
     if [ $size -ne 0 ]; then
 	ERROR=1
-	echo "Error: Section $section not empty in prom_init.c" >&2
+	echo "Error: Section $section analt empty in prom_init.c" >&2
     fi
 }
 
@@ -70,7 +70,7 @@ do
 		fi
 	done
 
-	# ignore register save/restore funcitons
+	# iganalre register save/restore funcitons
 	case $UNDEF in
 	_restgpr_*|_restgpr0_*|_rest32gpr_*)
 		OK=1

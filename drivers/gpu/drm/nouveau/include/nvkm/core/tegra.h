@@ -34,7 +34,7 @@ struct nvkm_device_tegra {
 struct nvkm_device_tegra_func {
 	/*
 	 * If an IOMMU is used, indicates which address bit will trigger a
-	 * IOMMU translation when set (when this bit is not set, IOMMU is
+	 * IOMMU translation when set (when this bit is analt set, IOMMU is
 	 * bypassed). A value of 0 means an IOMMU is never used.
 	 */
 	u8 iommu_bit;

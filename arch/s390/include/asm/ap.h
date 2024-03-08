@@ -121,7 +121,7 @@ struct ap_tapq_hwinfo {
  * Convenience defines to be used with the bs field from struct ap_tapq_gr2
  */
 #define AP_BS_Q_USABLE		      0
-#define AP_BS_Q_USABLE_NO_SECURE_KEY  1
+#define AP_BS_Q_USABLE_ANAL_SECURE_KEY  1
 #define AP_BS_Q_AVAIL_FOR_BINDING     2
 #define AP_BS_Q_UNUSABLE	      3
 
@@ -242,12 +242,12 @@ struct ap_config_info {
 /**
  * ap_qci(): Get AP configuration data
  *
- * Returns 0 on success, or -EOPNOTSUPP.
+ * Returns 0 on success, or -EOPANALTSUPP.
  */
 static inline int ap_qci(struct ap_config_info *config)
 {
 	unsigned long reg0 = 4UL << 24;  /* fc 4UL is QCI */
-	unsigned long reg1 = -EOPNOTSUPP;
+	unsigned long reg1 = -EOPANALTSUPP;
 	struct ap_config_info *reg2 = config;
 
 	asm volatile(
@@ -291,7 +291,7 @@ union ap_qirq_ctrl {
  * ap_aqic(): Control interruption for a specific AP.
  * @qid: The AP queue number
  * @qirqctrl: struct ap_qirq_ctrl (64 bit value)
- * @pa_ind: Physical address of the notification indicator byte
+ * @pa_ind: Physical address of the analtification indicator byte
  *
  * Returns AP queue status.
  */
@@ -372,7 +372,7 @@ static inline struct ap_queue_status ap_qact(ap_qid_t qid, int ifbit,
  *
  * Returns AP queue status structure.
  *
- * Invoking this function in a non-SE environment
+ * Invoking this function in a analn-SE environment
  * may case a specification exception.
  */
 static inline struct ap_queue_status ap_bapq(ap_qid_t qid)
@@ -398,7 +398,7 @@ static inline struct ap_queue_status ap_bapq(ap_qid_t qid)
  *
  * Returns AP queue status structure.
  *
- * Invoking this function in a non-SE environment
+ * Invoking this function in a analn-SE environment
  * may case a specification exception.
  */
 static inline struct ap_queue_status ap_aapq(ap_qid_t qid, unsigned int sec_idx)
@@ -473,12 +473,12 @@ static inline struct ap_queue_status ap_nqap(ap_qid_t qid,
  * Condition code 2 on DQAP also means the receive is incomplete,
  * this time because a segment boundary was reached. Again, the
  * DQAP is repeated.
- * Note that gpr2 is used by the DQAP instruction to keep track of
+ * Analte that gpr2 is used by the DQAP instruction to keep track of
  * any 'residual' length, in case the instruction gets interrupted.
  * Hence it gets zeroed before the instruction.
- * If the message does not fit into the buffer, this function will
+ * If the message does analt fit into the buffer, this function will
  * return with a truncated message and the reply in the firmware queue
- * is not removed. This is indicated to the caller with an
+ * is analt removed. This is indicated to the caller with an
  * ap_queue_status response_code value of all bits on (0xFF) and (if
  * the reslength ptr is given) the remaining length is stored in
  * *reslength and (if the resgr0 ptr is given) the updated gr0 value
@@ -524,7 +524,7 @@ static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 		*reslength = reg2;
 	if (reg2 != 0 && rp2.odd == 0) {
 		/*
-		 * Partially complete, status in gr1 is not set.
+		 * Partially complete, status in gr1 is analt set.
 		 * Signal the caller that this dqap is only partially received
 		 * with a special status response code 0xFF and *resgr0 updated
 		 */

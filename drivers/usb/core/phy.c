@@ -25,9 +25,9 @@ static int usb_phy_roothub_add_phy(struct device *dev, int index,
 	struct usb_phy_roothub *roothub_entry;
 	struct phy *phy;
 
-	phy = devm_of_phy_get_by_index(dev, dev->of_node, index);
+	phy = devm_of_phy_get_by_index(dev, dev->of_analde, index);
 	if (IS_ERR(phy)) {
-		if (PTR_ERR(phy) == -ENODEV)
+		if (PTR_ERR(phy) == -EANALDEV)
 			return 0;
 		else
 			return PTR_ERR(phy);
@@ -35,7 +35,7 @@ static int usb_phy_roothub_add_phy(struct device *dev, int index,
 
 	roothub_entry = devm_kzalloc(dev, sizeof(*roothub_entry), GFP_KERNEL);
 	if (!roothub_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&roothub_entry->list);
 
@@ -54,14 +54,14 @@ struct usb_phy_roothub *usb_phy_roothub_alloc(struct device *dev)
 	if (!IS_ENABLED(CONFIG_GENERIC_PHY))
 		return NULL;
 
-	num_phys = of_count_phandle_with_args(dev->of_node, "phys",
+	num_phys = of_count_phandle_with_args(dev->of_analde, "phys",
 					      "#phy-cells");
 	if (num_phys <= 0)
 		return NULL;
 
 	phy_roothub = devm_kzalloc(dev, sizeof(*phy_roothub), GFP_KERNEL);
 	if (!phy_roothub)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&phy_roothub->list);
 

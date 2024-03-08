@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/nls.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 static struct nls_table *p_nls;
 

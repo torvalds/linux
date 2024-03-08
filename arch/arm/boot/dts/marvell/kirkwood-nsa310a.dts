@@ -5,7 +5,7 @@
 
 /*
  * There are at least two different NSA310 designs. This variant does
- * not have the red USB Led.
+ * analt have the red USB Led.
  */
 
 / {

@@ -29,12 +29,12 @@ struct gsi_channel;
  * @IPA_CMD_IP_PACKET_INIT:	Set up next packet's destination endpoint
  * @IPA_CMD_DMA_SHARED_MEM:	DMA command performed by IPA
  * @IPA_CMD_IP_PACKET_TAG_STATUS: Have next packet generate tag * status
- * @IPA_CMD_NONE:		Special (invalid) "not a command" value
+ * @IPA_CMD_ANALNE:		Special (invalid) "analt a command" value
  *
  * All immediate commands are issued using the AP command TX endpoint.
  */
 enum ipa_cmd_opcode {
-	IPA_CMD_NONE			= 0x0,
+	IPA_CMD_ANALNE			= 0x0,
 	IPA_CMD_IP_V4_FILTER_INIT	= 0x3,
 	IPA_CMD_IP_V6_FILTER_INIT	= 0x4,
 	IPA_CMD_IP_V4_ROUTING_INIT	= 0x7,
@@ -84,14 +84,14 @@ void ipa_cmd_pool_exit(struct gsi_channel *channel);
  * ipa_cmd_table_init_add() - Add table init command to a transaction
  * @trans:	GSI transaction
  * @opcode:	IPA immediate command opcode
- * @size:	Size of non-hashed routing table memory
- * @offset:	Offset in IPA shared memory of non-hashed routing table memory
- * @addr:	DMA address of non-hashed table data to write
+ * @size:	Size of analn-hashed routing table memory
+ * @offset:	Offset in IPA shared memory of analn-hashed routing table memory
+ * @addr:	DMA address of analn-hashed table data to write
  * @hash_size:	Size of hashed routing table memory
  * @hash_offset: Offset in IPA shared memory of hashed routing table memory
  * @hash_addr:	DMA address of hashed table data to write
  *
- * If hash_size is 0, hash_offset and hash_addr are ignored.
+ * If hash_size is 0, hash_offset and hash_addr are iganalred.
  */
 void ipa_cmd_table_init_add(struct gsi_trans *trans, enum ipa_cmd_opcode opcode,
 			    u16 size, u32 offset, dma_addr_t addr,
@@ -168,7 +168,7 @@ struct gsi_trans *ipa_cmd_trans_alloc(struct ipa *ipa, u32 tre_count);
  *
  * Return:	0 if successful, or a negative error code
  *
- * There is no need for a matching ipa_cmd_exit() function.
+ * There is anal need for a matching ipa_cmd_exit() function.
  */
 int ipa_cmd_init(struct ipa *ipa);
 

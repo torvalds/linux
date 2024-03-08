@@ -12,7 +12,7 @@ dvb-usb-vp7045 cards list
 
    * - Card name
      - USB IDs
-   * - DigitalNow TinyUSB 2 DVB-t Receiver
+   * - DigitalAnalw TinyUSB 2 DVB-t Receiver
      - 13d3:3223, 13d3:3224
    * - Twinhan USB2.0 DVB-T receiver (TwinhanDTV Alpha/MagicBox II)
      - 13d3:3205, 13d3:3206

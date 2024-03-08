@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// ASoC machine driver for Snow boards
+// ASoC machine driver for Sanalw boards
 
 #include <linux/clk.h>
 #include <linux/module.h>
@@ -18,19 +18,19 @@ SND_SOC_DAILINK_DEFS(links,
 	DAILINK_COMP_ARRAY(COMP_EMPTY()),
 	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
-struct snow_priv {
+struct sanalw_priv {
 	struct snd_soc_dai_link dai_link;
 	struct clk *clk_i2s_bus;
 };
 
-static int snow_card_hw_params(struct snd_pcm_substream *substream,
+static int sanalw_card_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params)
 {
 	static const unsigned int pll_rate[] = {
 		73728000U, 67737602U, 49152000U, 45158401U, 32768001U
 	};
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
-	struct snow_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct sanalw_priv *priv = snd_soc_card_get_drvdata(rtd->card);
 	int bfs, psr, rfs, bitwidth;
 	unsigned long int rclk;
 	long int freq = -EINVAL;
@@ -96,11 +96,11 @@ static int snow_card_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const struct snd_soc_ops snow_card_ops = {
-	.hw_params = snow_card_hw_params,
+static const struct snd_soc_ops sanalw_card_ops = {
+	.hw_params = sanalw_card_hw_params,
 };
 
-static int snow_late_probe(struct snd_soc_card *card)
+static int sanalw_late_probe(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai *codec_dai;
@@ -115,24 +115,24 @@ static int snow_late_probe(struct snd_soc_card *card)
 				FIN_PLL_RATE, SND_SOC_CLOCK_IN);
 }
 
-static struct snd_soc_card snow_snd = {
-	.name = "Snow-I2S",
+static struct snd_soc_card sanalw_snd = {
+	.name = "Sanalw-I2S",
 	.owner = THIS_MODULE,
-	.late_probe = snow_late_probe,
+	.late_probe = sanalw_late_probe,
 };
 
-static int snow_probe(struct platform_device *pdev)
+static int sanalw_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct snd_soc_card *card = &snow_snd;
-	struct device_node *cpu, *codec;
+	struct snd_soc_card *card = &sanalw_snd;
+	struct device_analde *cpu, *codec;
 	struct snd_soc_dai_link *link;
-	struct snow_priv *priv;
+	struct sanalw_priv *priv;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	link = &priv->dai_link;
 
@@ -154,56 +154,56 @@ static int snow_probe(struct platform_device *pdev)
 	card->dev = dev;
 
 	/* Try new DT bindings with HDMI support first. */
-	cpu = of_get_child_by_name(dev->of_node, "cpu");
+	cpu = of_get_child_by_name(dev->of_analde, "cpu");
 
 	if (cpu) {
-		link->ops = &snow_card_ops;
+		link->ops = &sanalw_card_ops;
 
-		link->cpus->of_node = of_parse_phandle(cpu, "sound-dai", 0);
-		of_node_put(cpu);
+		link->cpus->of_analde = of_parse_phandle(cpu, "sound-dai", 0);
+		of_analde_put(cpu);
 
-		if (!link->cpus->of_node) {
+		if (!link->cpus->of_analde) {
 			dev_err(dev, "Failed parsing cpu/sound-dai property\n");
 			return -EINVAL;
 		}
 
-		codec = of_get_child_by_name(dev->of_node, "codec");
+		codec = of_get_child_by_name(dev->of_analde, "codec");
 		ret = snd_soc_of_get_dai_link_codecs(dev, codec, link);
-		of_node_put(codec);
+		of_analde_put(codec);
 
 		if (ret < 0) {
-			of_node_put(link->cpus->of_node);
-			dev_err(dev, "Failed parsing codec node\n");
+			of_analde_put(link->cpus->of_analde);
+			dev_err(dev, "Failed parsing codec analde\n");
 			return ret;
 		}
 
-		priv->clk_i2s_bus = of_clk_get_by_name(link->cpus->of_node,
+		priv->clk_i2s_bus = of_clk_get_by_name(link->cpus->of_analde,
 						       "i2s_opclk0");
 		if (IS_ERR(priv->clk_i2s_bus)) {
 			snd_soc_of_put_dai_link_codecs(link);
-			of_node_put(link->cpus->of_node);
+			of_analde_put(link->cpus->of_analde);
 			return PTR_ERR(priv->clk_i2s_bus);
 		}
 	} else {
 		link->codecs->dai_name = "HiFi";
 
-		link->cpus->of_node = of_parse_phandle(dev->of_node,
+		link->cpus->of_analde = of_parse_phandle(dev->of_analde,
 						"samsung,i2s-controller", 0);
-		if (!link->cpus->of_node) {
+		if (!link->cpus->of_analde) {
 			dev_err(dev, "i2s-controller property parse error\n");
 			return -EINVAL;
 		}
 
-		link->codecs->of_node = of_parse_phandle(dev->of_node,
+		link->codecs->of_analde = of_parse_phandle(dev->of_analde,
 						"samsung,audio-codec", 0);
-		if (!link->codecs->of_node) {
-			of_node_put(link->cpus->of_node);
+		if (!link->codecs->of_analde) {
+			of_analde_put(link->cpus->of_analde);
 			dev_err(dev, "audio-codec property parse error\n");
 			return -EINVAL;
 		}
 	}
 
-	link->platforms->of_node = link->cpus->of_node;
+	link->platforms->of_analde = link->cpus->of_analde;
 
 	/* Update card-name if provided through DT, else use default name */
 	snd_soc_of_parse_card_name(card, "samsung,model");
@@ -218,37 +218,37 @@ static int snow_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void snow_remove(struct platform_device *pdev)
+static void sanalw_remove(struct platform_device *pdev)
 {
-	struct snow_priv *priv = platform_get_drvdata(pdev);
+	struct sanalw_priv *priv = platform_get_drvdata(pdev);
 	struct snd_soc_dai_link *link = &priv->dai_link;
 
-	of_node_put(link->cpus->of_node);
-	of_node_put(link->codecs->of_node);
+	of_analde_put(link->cpus->of_analde);
+	of_analde_put(link->codecs->of_analde);
 	snd_soc_of_put_dai_link_codecs(link);
 
 	clk_put(priv->clk_i2s_bus);
 }
 
-static const struct of_device_id snow_of_match[] = {
-	{ .compatible = "google,snow-audio-max98090", },
-	{ .compatible = "google,snow-audio-max98091", },
-	{ .compatible = "google,snow-audio-max98095", },
+static const struct of_device_id sanalw_of_match[] = {
+	{ .compatible = "google,sanalw-audio-max98090", },
+	{ .compatible = "google,sanalw-audio-max98091", },
+	{ .compatible = "google,sanalw-audio-max98095", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, snow_of_match);
+MODULE_DEVICE_TABLE(of, sanalw_of_match);
 
-static struct platform_driver snow_driver = {
+static struct platform_driver sanalw_driver = {
 	.driver = {
-		.name = "snow-audio",
+		.name = "sanalw-audio",
 		.pm = &snd_soc_pm_ops,
-		.of_match_table = snow_of_match,
+		.of_match_table = sanalw_of_match,
 	},
-	.probe = snow_probe,
-	.remove_new = snow_remove,
+	.probe = sanalw_probe,
+	.remove_new = sanalw_remove,
 };
 
-module_platform_driver(snow_driver);
+module_platform_driver(sanalw_driver);
 
-MODULE_DESCRIPTION("ALSA SoC Audio machine driver for Snow");
+MODULE_DESCRIPTION("ALSA SoC Audio machine driver for Sanalw");
 MODULE_LICENSE("GPL");

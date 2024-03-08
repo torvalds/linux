@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/linkage.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/ioport.h>
@@ -37,7 +37,7 @@
 
 /*
  * The IO-APIC gives us many more interrupt sources. Most of these
- * are unused but an SMP system is supposed to have enough memory ...
+ * are unused but an SMP system is supposed to have eanalugh memory ...
  * sometimes (mostly wrt. hw bugs) we get corrupted vectors all
  * across the spectrum, so we really want to be prepared to get all
  * of these. Plus, more powerful systems might have more than 64
@@ -101,7 +101,7 @@ void __init native_init_IRQ(void)
 
 	if (!acpi_ioapic && !of_ioapic && nr_legacy_irqs()) {
 		/* IRQ2 is cascade interrupt to second interrupt controller */
-		if (request_irq(2, no_action, IRQF_NO_THREAD, "cascade", NULL))
+		if (request_irq(2, anal_action, IRQF_ANAL_THREAD, "cascade", NULL))
 			pr_err("%s: request_irq() failed\n", "cascade");
 	}
 }

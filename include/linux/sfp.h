@@ -152,10 +152,10 @@ struct sfp_eeprom_base {
 	u8 fc_speed_800:1;
 	u8 fc_speed_1200:1;
 #else
-#error Unknown Endian
+#error Unkanalwn Endian
 #endif
 	u8 encoding;
-	u8 br_nominal;
+	u8 br_analminal;
 	u8 rate_id;
 	u8 link_len[6];
 	char vendor_name[16];
@@ -178,7 +178,7 @@ struct sfp_eeprom_base {
 			u8 reserved60_2:6;
 			u8 reserved61:8;
 #else
-#error Unknown Endian
+#error Unkanalwn Endian
 #endif
 		} __packed passive;
 		struct {
@@ -197,7 +197,7 @@ struct sfp_eeprom_base {
 			u8 reserved60_4:4;
 			u8 reserved61:8;
 #else
-#error Unknown Endian
+#error Unkanalwn Endian
 #endif
 		} __packed active;
 	} __packed;
@@ -224,7 +224,7 @@ struct sfp_eeprom_ext {
  *
  * See the SFF-8472 specification and related documents for the definition
  * of these structure members. This can be obtained from
- * https://www.snia.org/technology-communities/sff/specifications
+ * https://www.snia.org/techanallogy-communities/sff/specifications
  */
 struct sfp_eeprom_id {
 	struct sfp_eeprom_base base;
@@ -299,7 +299,7 @@ enum {
 	SFF8024_ENCODING_PAM4		= 0x08,
 
 	SFF8024_CONNECTOR_UNSPEC	= 0x00,
-	/* codes 01-05 not supportable on SFP, but some modules have single SC */
+	/* codes 01-05 analt supportable on SFP, but some modules have single SC */
 	SFF8024_CONNECTOR_SC		= 0x01,
 	SFF8024_CONNECTOR_FIBERJACK	= 0x06,
 	SFF8024_CONNECTOR_LC		= 0x07,
@@ -312,7 +312,7 @@ enum {
 	SFF8024_CONNECTOR_HSSDC_II	= 0x20,
 	SFF8024_CONNECTOR_COPPER_PIGTAIL= 0x21,
 	SFF8024_CONNECTOR_RJ45		= 0x22,
-	SFF8024_CONNECTOR_NOSEPARATE	= 0x23,
+	SFF8024_CONNECTOR_ANALSEPARATE	= 0x23,
 	SFF8024_CONNECTOR_MXC_2X16	= 0x24,
 
 	SFF8024_ECC_UNSPEC		= 0x00,
@@ -340,7 +340,7 @@ enum {
 	SFP_CONNECTOR			= 2,
 	SFP_COMPLIANCE			= 3,
 	SFP_ENCODING			= 11,
-	SFP_BR_NOMINAL			= 12,
+	SFP_BR_ANALMINAL			= 12,
 	SFP_RATE_ID			= 13,
 	SFF_RID_8079			= 0x01,
 	SFF_RID_8431_RX_ONLY		= 0x02,
@@ -377,7 +377,7 @@ enum {
 	SFP_OPTIONS_TX_DISABLE		= BIT(4),
 	SFP_OPTIONS_TX_FAULT		= BIT(3),
 	SFP_OPTIONS_LOS_INVERTED	= BIT(2),
-	SFP_OPTIONS_LOS_NORMAL		= BIT(1),
+	SFP_OPTIONS_LOS_ANALRMAL		= BIT(1),
 
 	SFP_BR_MAX			= 66,
 	SFP_BR_MIN			= 67,
@@ -401,7 +401,7 @@ enum {
 	SFP_ENHOPTS_SOFT_RATE_SFF8431	= BIT(1),
 
 	SFP_SFF8472_COMPLIANCE		= 94,
-	SFP_SFF8472_COMPLIANCE_NONE	= 0x00,
+	SFP_SFF8472_COMPLIANCE_ANALNE	= 0x00,
 	SFP_SFF8472_COMPLIANCE_REV9_3	= 0x01,
 	SFP_SFF8472_COMPLIANCE_REV9_5	= 0x02,
 	SFP_SFF8472_COMPLIANCE_REV10_2	= 0x03,
@@ -414,7 +414,7 @@ enum {
 	SFP_CC_EXT			= 95,
 };
 
-/* SFP Diagnostics */
+/* SFP Diaganalstics */
 enum {
 	/* Alarm and warnings stored MSB at lower address then LSB */
 	SFP_TEMP_HIGH_ALARM		= 0,
@@ -510,7 +510,7 @@ enum {
 	SFP_PAGE			= 127,
 };
 
-struct fwnode_handle;
+struct fwanalde_handle;
 struct ethtool_eeprom;
 struct ethtool_modinfo;
 struct sfp_bus;
@@ -526,7 +526,7 @@ struct sfp_bus;
  * @module_remove: called after the module has been removed.
  * @module_start: called after the PHY probe step
  * @module_stop: called before the PHY is removed
- * @link_down: called when the link is non-operational for whatever
+ * @link_down: called when the link is analn-operational for whatever
  *   reason.
  * @link_up: called when the link is operational.
  * @connect_phy: called when an I2C accessible PHY has been detected
@@ -566,7 +566,7 @@ void sfp_upstream_start(struct sfp_bus *bus);
 void sfp_upstream_stop(struct sfp_bus *bus);
 void sfp_upstream_set_signal_rate(struct sfp_bus *bus, unsigned int rate_kbd);
 void sfp_bus_put(struct sfp_bus *bus);
-struct sfp_bus *sfp_bus_find_fwnode(const struct fwnode_handle *fwnode);
+struct sfp_bus *sfp_bus_find_fwanalde(const struct fwanalde_handle *fwanalde);
 int sfp_bus_add_upstream(struct sfp_bus *bus, void *upstream,
 			 const struct sfp_upstream_ops *ops);
 void sfp_bus_del_upstream(struct sfp_bus *bus);
@@ -600,20 +600,20 @@ static inline phy_interface_t sfp_select_interface(struct sfp_bus *bus,
 static inline int sfp_get_module_info(struct sfp_bus *bus,
 				      struct ethtool_modinfo *modinfo)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int sfp_get_module_eeprom(struct sfp_bus *bus,
 					struct ethtool_eeprom *ee, u8 *data)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int sfp_get_module_eeprom_by_page(struct sfp_bus *bus,
 						const struct ethtool_module_eeprom *page,
 						struct netlink_ext_ack *extack)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void sfp_upstream_start(struct sfp_bus *bus)
@@ -634,7 +634,7 @@ static inline void sfp_bus_put(struct sfp_bus *bus)
 }
 
 static inline struct sfp_bus *
-sfp_bus_find_fwnode(const struct fwnode_handle *fwnode)
+sfp_bus_find_fwanalde(const struct fwanalde_handle *fwanalde)
 {
 	return NULL;
 }

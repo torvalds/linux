@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2015 Imagination Technologies
+ * Copyright (C) 2015 Imagination Techanallogies
  * Author: Alex Smith <alex.smith@imgtec.com>
  */
 
@@ -8,12 +8,12 @@
 
 #include <asm/isa-rev.h>
 
-#include <linux/elfnote.h>
+#include <linux/elfanalte.h>
 #include <linux/version.h>
 
-ELFNOTE_START(Linux, 0, "a")
+ELFANALTE_START(Linux, 0, "a")
 	.long LINUX_VERSION_CODE
-ELFNOTE_END
+ELFANALTE_END
 
 /*
  * The .MIPS.abiflags section must be defined with the FP ABI flags set
@@ -54,7 +54,7 @@ __mips_abiflags:
 	.byte	1		/* AFL_REG_32 */
 #endif
 
-	.byte	0		/* cpr2_size (AFL_REG_NONE) */
+	.byte	0		/* cpr2_size (AFL_REG_ANALNE) */
 	.byte	0		/* fp_abi (Val_GNU_MIPS_ABI_FP_ANY) */
 	.word	0		/* isa_ext */
 	.word	0		/* ases */

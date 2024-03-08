@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -32,17 +32,17 @@
 struct intel_color_funcs {
 	int (*color_check)(struct intel_crtc_state *crtc_state);
 	/*
-	 * Program non-arming double buffered color management registers
+	 * Program analn-arming double buffered color management registers
 	 * before vblank evasion. The registers should then latch after
 	 * the arming register is written (by color_commit_arm()) during
 	 * the next vblank start, alongside any other double buffered
 	 * registers involved with the same commit. This hook is optional.
 	 */
-	void (*color_commit_noarm)(const struct intel_crtc_state *crtc_state);
+	void (*color_commit_analarm)(const struct intel_crtc_state *crtc_state);
 	/*
 	 * Program arming double buffered color management registers
 	 * during vblank evasion. The registers (and whatever other registers
-	 * they arm that were written by color_commit_noarm) should then latch
+	 * they arm that were written by color_commit_analarm) should then latch
 	 * during the next vblank start, alongside any other double buffered
 	 * registers involved with the same commit.
 	 */
@@ -292,11 +292,11 @@ static void skl_read_csc(struct intel_crtc_state *crtc_state)
 	 *
 	 * Danger! On SKL-ICL *reads* from the CSC coeff/offset registers
 	 * will disarm an already armed CSC double buffer update.
-	 * So this must not be called while armed. Fortunately the state checker
+	 * So this must analt be called while armed. Fortunately the state checker
 	 * readout happens only after the update has been already been latched.
 	 *
 	 * On earlier and later platforms only writes to said registers will
-	 * disarm the update. This is considered normal behavior and also
+	 * disarm the update. This is considered analrmal behavior and also
 	 * happens with various other hardware units.
 	 */
 	if (crtc_state->csc_enable)
@@ -514,7 +514,7 @@ static void ilk_assign_csc(struct intel_crtc_state *crtc_state)
 		/*
 		 * On GLK both pipe CSC and degamma LUT are controlled
 		 * by csc_enable. Hence for the cases where the degama
-		 * LUT is needed but CSC is not we need to load an
+		 * LUT is needed but CSC is analt we need to load an
 		 * identity matrix.
 		 */
 		drm_WARN_ON(&i915->drm, !IS_GEMINILAKE(i915));
@@ -952,11 +952,11 @@ static void ilk_lut_12p4_pack(struct drm_color_lut *entry, u32 ldw, u32 udw)
 		REG_FIELD_GET(PREC_PALETTE_12P4_BLUE_LDW_MASK, ldw);
 }
 
-static void icl_color_commit_noarm(const struct intel_crtc_state *crtc_state)
+static void icl_color_commit_analarm(const struct intel_crtc_state *crtc_state)
 {
 	/*
-	 * Despite Wa_1406463849, ICL no longer suffers from the SKL
-	 * DC5/PSR CSC black screen issue (see skl_color_commit_noarm()).
+	 * Despite Wa_1406463849, ICL anal longer suffers from the SKL
+	 * DC5/PSR CSC black screen issue (see skl_color_commit_analarm()).
 	 * Possibly due to the extra sticky CSC arming
 	 * (see icl_color_post_update()).
 	 *
@@ -965,7 +965,7 @@ static void icl_color_commit_noarm(const struct intel_crtc_state *crtc_state)
 	icl_load_csc_matrix(crtc_state);
 }
 
-static void skl_color_commit_noarm(const struct intel_crtc_state *crtc_state)
+static void skl_color_commit_analarm(const struct intel_crtc_state *crtc_state)
 {
 	/*
 	 * Possibly related to display WA #1184, SKL CSC loses the latched
@@ -981,7 +981,7 @@ static void skl_color_commit_noarm(const struct intel_crtc_state *crtc_state)
 		ilk_load_csc_matrix(crtc_state);
 }
 
-static void ilk_color_commit_noarm(const struct intel_crtc_state *crtc_state)
+static void ilk_color_commit_analarm(const struct intel_crtc_state *crtc_state)
 {
 	ilk_load_csc_matrix(crtc_state);
 }
@@ -1128,18 +1128,18 @@ static void icl_color_post_update(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
 	/*
-	 * Despite Wa_1406463849, ICL CSC is no longer disarmed by
+	 * Despite Wa_1406463849, ICL CSC is anal longer disarmed by
 	 * coeff/offset register *writes*. Instead, once CSC_MODE
 	 * is armed it stays armed, even after it has been latched.
 	 * Afterwards the coeff/offset registers become effectively
 	 * self-arming. That self-arming must be disabled before the
-	 * next icl_color_commit_noarm() tries to write the next set
+	 * next icl_color_commit_analarm() tries to write the next set
 	 * of coeff/offset registers. Fortunately register *reads*
-	 * do still disarm the CSC. Naturally this must not be done
+	 * do still disarm the CSC. Naturally this must analt be done
 	 * until the previously written CSC registers have actually
 	 * been latched.
 	 *
-	 * TGL+ no longer need this workaround.
+	 * TGL+ anal longer need this workaround.
 	 */
 	intel_de_read_fw(i915, PIPE_CSC_PREOFF_HI(crtc->pipe));
 }
@@ -1330,17 +1330,17 @@ static void ilk_load_lut_8(const struct intel_crtc_state *crtc_state,
 	/*
 	 * DSB fails to correctly load the legacy LUT
 	 * unless we either write each entry twice,
-	 * or use non-posted writes
+	 * or use analn-posted writes
 	 */
 	if (crtc_state->dsb)
-		intel_dsb_nonpost_start(crtc_state->dsb);
+		intel_dsb_analnpost_start(crtc_state->dsb);
 
 	for (i = 0; i < 256; i++)
 		ilk_lut_write(crtc_state, LGC_PALETTE(pipe, i),
 			      i9xx_lut_8(&lut[i]));
 
 	if (crtc_state->dsb)
-		intel_dsb_nonpost_end(crtc_state->dsb);
+		intel_dsb_analnpost_end(crtc_state->dsb);
 }
 
 static void ilk_load_lut_10(const struct intel_crtc_state *crtc_state,
@@ -1385,8 +1385,8 @@ static int ivb_lut_10_size(u32 prec_index)
 
 /*
  * IVB/HSW Bspec / PAL_PREC_INDEX:
- * "Restriction : Index auto increment mode is not
- *  supported and must not be enabled."
+ * "Restriction : Index auto increment mode is analt
+ *  supported and must analt be enabled."
  */
 static void ivb_load_lut_10(const struct intel_crtc_state *crtc_state,
 			    const struct drm_property_blob *blob,
@@ -1560,7 +1560,7 @@ static void glk_load_degamma_lut(const struct intel_crtc_state *crtc_state,
 
 	/*
 	 * When setting the auto-increment bit, the hardware seems to
-	 * ignore the index bits, so we need to reset it to index 0
+	 * iganalre the index bits, so we need to reset it to index 0
 	 * separately.
 	 */
 	ilk_lut_write(crtc_state, PRE_CSC_GAMC_INDEX(pipe),
@@ -1711,8 +1711,8 @@ icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
 	 * above, we need to pick every (8 * 128)th entry in LUT, and
 	 * program 256 of those.
 	 *
-	 * Spec is not very clear about if entries seg3[0] and seg3[1] are
-	 * being used or not, but we still need to program these to advance
+	 * Spec is analt very clear about if entries seg3[0] and seg3[1] are
+	 * being used or analt, but we still need to program these to advance
 	 * the index.
 	 */
 	for (i = 0; i < 256; i++) {
@@ -1871,12 +1871,12 @@ void intel_color_load_luts(const struct intel_crtc_state *crtc_state)
 	i915->display.funcs.color->load_luts(crtc_state);
 }
 
-void intel_color_commit_noarm(const struct intel_crtc_state *crtc_state)
+void intel_color_commit_analarm(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
-	if (i915->display.funcs.color->color_commit_noarm)
-		i915->display.funcs.color->color_commit_noarm(crtc_state);
+	if (i915->display.funcs.color->color_commit_analarm)
+		i915->display.funcs.color->color_commit_analarm(crtc_state);
 }
 
 void intel_color_commit_arm(const struct intel_crtc_state *crtc_state)
@@ -2460,14 +2460,14 @@ static int ilk_color_check(struct intel_crtc_state *crtc_state)
 
 	if (crtc_state->hw.degamma_lut && crtc_state->hw.gamma_lut) {
 		drm_dbg_kms(&i915->drm,
-			    "Degamma and gamma together are not possible\n");
+			    "Degamma and gamma together are analt possible\n");
 		return -EINVAL;
 	}
 
 	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB &&
 	    crtc_state->hw.ctm) {
 		drm_dbg_kms(&i915->drm,
-			    "YCbCr and CTM together are not possible\n");
+			    "YCbCr and CTM together are analt possible\n");
 		return -EINVAL;
 	}
 
@@ -2561,21 +2561,21 @@ static int ivb_color_check(struct intel_crtc_state *crtc_state)
 
 	if (crtc_state->c8_planes && crtc_state->hw.degamma_lut) {
 		drm_dbg_kms(&i915->drm,
-			    "C8 pixelformat and degamma together are not possible\n");
+			    "C8 pixelformat and degamma together are analt possible\n");
 		return -EINVAL;
 	}
 
 	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB &&
 	    crtc_state->hw.ctm) {
 		drm_dbg_kms(&i915->drm,
-			    "YCbCr and CTM together are not possible\n");
+			    "YCbCr and CTM together are analt possible\n");
 		return -EINVAL;
 	}
 
 	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB &&
 	    crtc_state->hw.degamma_lut && crtc_state->hw.gamma_lut) {
 		drm_dbg_kms(&i915->drm,
-			    "YCbCr and degamma+gamma together are not possible\n");
+			    "YCbCr and degamma+gamma together are analt possible\n");
 		return -EINVAL;
 	}
 
@@ -2660,7 +2660,7 @@ static int glk_assign_luts(struct intel_crtc_state *crtc_state)
 	/*
 	 * On GLK+ both pipe CSC and degamma LUT are controlled
 	 * by csc_enable. Hence for the cases where the CSC is
-	 * needed but degamma LUT is not we need to load a
+	 * needed but degamma LUT is analt we need to load a
 	 * linear degamma LUT.
 	 */
 	if (crtc_state->csc_enable && !crtc_state->pre_csc_lut)
@@ -2693,14 +2693,14 @@ static int glk_color_check(struct intel_crtc_state *crtc_state)
 	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB &&
 	    crtc_state->hw.ctm) {
 		drm_dbg_kms(&i915->drm,
-			    "YCbCr and CTM together are not possible\n");
+			    "YCbCr and CTM together are analt possible\n");
 		return -EINVAL;
 	}
 
 	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB &&
 	    crtc_state->hw.degamma_lut && crtc_state->hw.gamma_lut) {
 		drm_dbg_kms(&i915->drm,
-			    "YCbCr and degamma+gamma together are not possible\n");
+			    "YCbCr and degamma+gamma together are analt possible\n");
 		return -EINVAL;
 	}
 
@@ -3415,8 +3415,8 @@ static void ilk_read_luts(struct intel_crtc_state *crtc_state)
 
 /*
  * IVB/HSW Bspec / PAL_PREC_INDEX:
- * "Restriction : Index auto increment mode is not
- *  supported and must not be enabled."
+ * "Restriction : Index auto increment mode is analt
+ *  supported and must analt be enabled."
  */
 static struct drm_property_blob *ivb_read_lut_10(struct intel_crtc *crtc,
 						 u32 prec_index)
@@ -3567,7 +3567,7 @@ static struct drm_property_blob *glk_read_degamma_lut(struct intel_crtc *crtc)
 
 	/*
 	 * When setting the auto-increment bit, the hardware seems to
-	 * ignore the index bits, so we need to reset it to index 0
+	 * iganalre the index bits, so we need to reset it to index 0
 	 * separately.
 	 */
 	intel_de_write_fw(dev_priv, PRE_CSC_GAMC_INDEX(pipe),
@@ -3650,7 +3650,7 @@ icl_read_lut_multi_segment(struct intel_crtc *crtc)
 	/*
 	 * FIXME readouts from PAL_PREC_DATA register aren't giving
 	 * correct values in the case of fine and coarse segments.
-	 * Restricting readouts only for super fine segment as of now.
+	 * Restricting readouts only for super fine segment as of analw.
 	 */
 
 	return blob;
@@ -3722,7 +3722,7 @@ static const struct intel_color_funcs i9xx_color_funcs = {
 
 static const struct intel_color_funcs tgl_color_funcs = {
 	.color_check = icl_color_check,
-	.color_commit_noarm = icl_color_commit_noarm,
+	.color_commit_analarm = icl_color_commit_analarm,
 	.color_commit_arm = icl_color_commit_arm,
 	.load_luts = icl_load_luts,
 	.read_luts = icl_read_luts,
@@ -3733,7 +3733,7 @@ static const struct intel_color_funcs tgl_color_funcs = {
 
 static const struct intel_color_funcs icl_color_funcs = {
 	.color_check = icl_color_check,
-	.color_commit_noarm = icl_color_commit_noarm,
+	.color_commit_analarm = icl_color_commit_analarm,
 	.color_commit_arm = icl_color_commit_arm,
 	.color_post_update = icl_color_post_update,
 	.load_luts = icl_load_luts,
@@ -3745,7 +3745,7 @@ static const struct intel_color_funcs icl_color_funcs = {
 
 static const struct intel_color_funcs glk_color_funcs = {
 	.color_check = glk_color_check,
-	.color_commit_noarm = skl_color_commit_noarm,
+	.color_commit_analarm = skl_color_commit_analarm,
 	.color_commit_arm = skl_color_commit_arm,
 	.load_luts = glk_load_luts,
 	.read_luts = glk_read_luts,
@@ -3756,7 +3756,7 @@ static const struct intel_color_funcs glk_color_funcs = {
 
 static const struct intel_color_funcs skl_color_funcs = {
 	.color_check = ivb_color_check,
-	.color_commit_noarm = skl_color_commit_noarm,
+	.color_commit_analarm = skl_color_commit_analarm,
 	.color_commit_arm = skl_color_commit_arm,
 	.load_luts = bdw_load_luts,
 	.read_luts = bdw_read_luts,
@@ -3767,7 +3767,7 @@ static const struct intel_color_funcs skl_color_funcs = {
 
 static const struct intel_color_funcs bdw_color_funcs = {
 	.color_check = ivb_color_check,
-	.color_commit_noarm = ilk_color_commit_noarm,
+	.color_commit_analarm = ilk_color_commit_analarm,
 	.color_commit_arm = hsw_color_commit_arm,
 	.load_luts = bdw_load_luts,
 	.read_luts = bdw_read_luts,
@@ -3778,7 +3778,7 @@ static const struct intel_color_funcs bdw_color_funcs = {
 
 static const struct intel_color_funcs hsw_color_funcs = {
 	.color_check = ivb_color_check,
-	.color_commit_noarm = ilk_color_commit_noarm,
+	.color_commit_analarm = ilk_color_commit_analarm,
 	.color_commit_arm = hsw_color_commit_arm,
 	.load_luts = ivb_load_luts,
 	.read_luts = ivb_read_luts,
@@ -3789,7 +3789,7 @@ static const struct intel_color_funcs hsw_color_funcs = {
 
 static const struct intel_color_funcs ivb_color_funcs = {
 	.color_check = ivb_color_check,
-	.color_commit_noarm = ilk_color_commit_noarm,
+	.color_commit_analarm = ilk_color_commit_analarm,
 	.color_commit_arm = ilk_color_commit_arm,
 	.load_luts = ivb_load_luts,
 	.read_luts = ivb_read_luts,
@@ -3800,7 +3800,7 @@ static const struct intel_color_funcs ivb_color_funcs = {
 
 static const struct intel_color_funcs ilk_color_funcs = {
 	.color_check = ilk_color_check,
-	.color_commit_noarm = ilk_color_commit_noarm,
+	.color_commit_analarm = ilk_color_commit_analarm,
 	.color_commit_arm = ilk_color_commit_arm,
 	.load_luts = ilk_load_luts,
 	.read_luts = ilk_read_luts,
@@ -3822,12 +3822,12 @@ void intel_color_crtc_init(struct intel_crtc *crtc)
 	has_ctm = DISPLAY_VER(i915) >= 5;
 
 	/*
-	 * "DPALETTE_A: NOTE: The 8-bit (non-10-bit) mode is the
+	 * "DPALETTE_A: ANALTE: The 8-bit (analn-10-bit) mode is the
 	 *  only mode supported by Alviso and Grantsdale."
 	 *
 	 * Actually looks like this affects all of gen3.
 	 * Confirmed on alv,cst,pnv. Mobile gen2 parts (alm,mgm)
-	 * are confirmed not to suffer from this restriction.
+	 * are confirmed analt to suffer from this restriction.
 	 */
 	if (DISPLAY_VER(i915) == 3 && crtc->pipe == PIPE_A)
 		gamma_lut_size = 256;

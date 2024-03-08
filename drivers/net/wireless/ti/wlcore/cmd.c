@@ -2,9 +2,9 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2009-2010 Nokia Corporation
+ * Copyright (C) 2009-2010 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #include <linux/module.h>
@@ -75,7 +75,7 @@ static int __wlcore_cmd_send(struct wl1271 *wl, u16 id, void *buf,
 
 	timeout = jiffies + msecs_to_jiffies(WL1271_COMMAND_TIMEOUT);
 
-	ret = wlcore_read_reg(wl, REG_INTERRUPT_NO_CLEAR, &intr);
+	ret = wlcore_read_reg(wl, REG_INTERRUPT_ANAL_CLEAR, &intr);
 	if (ret < 0)
 		return ret;
 
@@ -91,7 +91,7 @@ static int __wlcore_cmd_send(struct wl1271 *wl, u16 id, void *buf,
 		else
 			msleep(1);
 
-		ret = wlcore_read_reg(wl, REG_INTERRUPT_NO_CLEAR, &intr);
+		ret = wlcore_read_reg(wl, REG_INTERRUPT_ANAL_CLEAR, &intr);
 		if (ret < 0)
 			return ret;
 	}
@@ -174,7 +174,7 @@ int wlcore_cmd_wait_for_event_or_timeout(struct wl1271 *wl,
 
 	events_vector = kmalloc(sizeof(*events_vector), GFP_KERNEL | GFP_DMA);
 	if (!events_vector)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	timeout_time = jiffies + msecs_to_jiffies(WL1271_EVENT_TIMEOUT);
 
@@ -234,7 +234,7 @@ int wl12xx_cmd_role_enable(struct wl1271 *wl, u8 *addr, u8 role_type,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -272,11 +272,11 @@ int wl12xx_cmd_role_disable(struct wl1271 *wl, u8 *role_id)
 	wl1271_debug(DEBUG_CMD, "cmd role disable");
 
 	if (WARN_ON(*role_id == WL12XX_INVALID_ROLE_ID))
-		return -ENOENT;
+		return -EANALENT;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	cmd->role_id = *role_id;
@@ -324,7 +324,7 @@ int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 
 	/*
 	 * take the last "freed packets" value from the current FW status.
-	 * on recovery, we might not have fw_status yet, and
+	 * on recovery, we might analt have fw_status yet, and
 	 * tx_lnk_free_pkts will be NULL. check for it.
 	 */
 	if (wl->fw_status->counters.tx_lnk_free_pkts)
@@ -364,7 +364,7 @@ void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 	eth_zero_addr(wl->links[*hlid].addr);
 
 	/*
-	 * At this point op_tx() will not add more packets to the queues. We
+	 * At this point op_tx() will analt add more packets to the queues. We
 	 * can purge them.
 	 */
 	wl1271_tx_reset_link_queues(wl, *hlid);
@@ -400,8 +400,8 @@ void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 u8 wlcore_get_native_channel_type(u8 nl_channel_type)
 {
 	switch (nl_channel_type) {
-	case NL80211_CHAN_NO_HT:
-		return WLCORE_CHAN_NO_HT;
+	case NL80211_CHAN_ANAL_HT:
+		return WLCORE_CHAN_ANAL_HT;
 	case NL80211_CHAN_HT20:
 		return WLCORE_CHAN_HT20;
 	case NL80211_CHAN_HT40MINUS:
@@ -410,7 +410,7 @@ u8 wlcore_get_native_channel_type(u8 nl_channel_type)
 		return WLCORE_CHAN_HT40PLUS;
 	default:
 		WARN_ON(1);
-		return WLCORE_CHAN_NO_HT;
+		return WLCORE_CHAN_ANAL_HT;
 	}
 }
 EXPORT_SYMBOL_GPL(wlcore_get_native_channel_type);
@@ -425,7 +425,7 @@ static int wl12xx_cmd_role_start_dev(struct wl1271 *wl,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -477,7 +477,7 @@ static int wl12xx_cmd_role_stop_dev(struct wl1271 *wl,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -511,7 +511,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -547,7 +547,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	/*
 	 * We don't have the correct remote rates in this stage.  The
 	 * rates will be reconfigured later, after association, if the
-	 * firmware supports ACX_PEER_CAP.  Otherwise, there's nothing
+	 * firmware supports ACX_PEER_CAP.  Otherwise, there's analthing
 	 * we can do, so use all supported_rates here.
 	 */
 	cmd->sta.remote_rates = cpu_to_le32(supported_rates);
@@ -588,7 +588,7 @@ int wl12xx_cmd_role_stop_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -635,7 +635,7 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -697,7 +697,7 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		cmd->band = WLCORE_BAND_5GHZ;
 		break;
 	default:
-		wl1271_warning("ap start - unknown band: %d", (int)wlvif->band);
+		wl1271_warning("ap start - unkanalwn band: %d", (int)wlvif->band);
 		cmd->band = WLCORE_BAND_2_4GHZ;
 		break;
 	}
@@ -730,7 +730,7 @@ int wl12xx_cmd_role_stop_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -763,7 +763,7 @@ int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -866,7 +866,7 @@ int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf,
 
 	acx->id = cpu_to_le16(id);
 
-	/* response payload length, does not include any headers */
+	/* response payload length, does analt include any headers */
 	acx->len = cpu_to_le16(res_len - sizeof(*acx));
 
 	ret = wl1271_cmd_send(wl, CMD_INTERROGATE, acx, cmd_len, res_len);
@@ -899,13 +899,13 @@ int wlcore_cmd_configure_failsafe(struct wl1271 *wl, u16 id, void *buf,
 
 	acx->id = cpu_to_le16(id);
 
-	/* payload length, does not include any headers */
+	/* payload length, does analt include any headers */
 	acx->len = cpu_to_le16(len - sizeof(*acx));
 
 	ret = wlcore_cmd_send_failsafe(wl, CMD_CONFIGURE, acx, len, 0,
 				       valid_rets);
 	if (ret < 0) {
-		wl1271_warning("CONFIGURE command NOK");
+		wl1271_warning("CONFIGURE command ANALK");
 		return ret;
 	}
 
@@ -936,7 +936,7 @@ int wl1271_cmd_data_path(struct wl1271 *wl, bool enable)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -987,7 +987,7 @@ int wl1271_cmd_ps_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	ps_params = kzalloc(sizeof(*ps_params), GFP_KERNEL);
 	if (!ps_params) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1022,7 +1022,7 @@ int wl1271_cmd_template_set(struct wl1271 *wl, u8 role_id,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1056,7 +1056,7 @@ int wl12xx_cmd_build_null_data(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	struct sk_buff *skb = NULL;
 	int size;
 	void *ptr;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 
 	if (wlvif->bss_type == BSS_TYPE_IBSS) {
@@ -1090,7 +1090,7 @@ int wl12xx_cmd_build_klv_null_data(struct wl1271 *wl,
 {
 	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 	struct sk_buff *skb = NULL;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	skb = ieee80211_nullfunc_get(wl->hw, vif,-1, false);
 	if (!skb)
@@ -1148,7 +1148,7 @@ int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	skb = ieee80211_probereq_get(wl->hw, vif->addr, ssid, ssid_len,
 				     ie0_len + ie1_len);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	if (ie0_len)
@@ -1224,7 +1224,7 @@ int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 			    WL1271_EXTRA_SPACE_MAX);
 	if (!skb) {
 		wl1271_error("failed to allocate buffer for arp rsp template");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb_reserve(skb, sizeof(*hdr) + WL1271_EXTRA_SPACE_MAX);
@@ -1256,13 +1256,13 @@ int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	case KEY_AES:
 		extra = WL1271_EXTRA_SPACE_AES;
 		break;
-	case KEY_NONE:
+	case KEY_ANALNE:
 	case KEY_WEP:
 	case KEY_GEM:
 		extra = 0;
 		break;
 	default:
-		wl1271_warning("Unknown encryption type: %d",
+		wl1271_warning("Unkanalwn encryption type: %d",
 			       wlvif->encryption_type);
 		ret = -EINVAL;
 		goto out;
@@ -1285,7 +1285,7 @@ int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		fc |= IEEE80211_STYPE_QOS_DATA;
 	else
 		fc |= IEEE80211_STYPE_DATA;
-	if (wlvif->encryption_type != KEY_NONE)
+	if (wlvif->encryption_type != KEY_ANALNE)
 		fc |= IEEE80211_FCTL_PROTECTED;
 
 	hdr->frame_control = cpu_to_le16(fc);
@@ -1316,7 +1316,7 @@ int wl1271_build_qos_null_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 					     IEEE80211_STYPE_QOS_NULLFUNC |
 					     IEEE80211_FCTL_TODS);
 
-	/* FIXME: not sure what priority to use here */
+	/* FIXME: analt sure what priority to use here */
 	template.qos_ctrl = cpu_to_le16(0);
 
 	return wl1271_cmd_template_set(wl, wlvif->role_id,
@@ -1334,7 +1334,7 @@ int wl12xx_cmd_set_default_wep_key(struct wl1271 *wl, u8 id, u8 hlid)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1370,7 +1370,7 @@ int wl1271_cmd_set_sta_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1411,7 +1411,7 @@ int wl1271_cmd_set_sta_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	ret = wl1271_cmd_send(wl, CMD_SET_KEYS, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
-		wl1271_warning("could not set keys");
+		wl1271_warning("could analt set keys");
 		goto out;
 	}
 
@@ -1423,7 +1423,7 @@ out:
 
 /*
  * TODO: merge with sta/ibss into 1 set_key function.
- * note there are slight diffs
+ * analte there are slight diffs
  */
 int wl1271_cmd_set_ap_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			  u16 action, u8 id, u8 key_type,
@@ -1436,7 +1436,7 @@ int wl1271_cmd_set_ap_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (hlid == wlvif->ap.bcast_hlid) {
 		if (key_type == KEY_WEP)
@@ -1480,7 +1480,7 @@ int wl1271_cmd_set_ap_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	ret = wl1271_cmd_send(wl, CMD_SET_KEYS, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
-		wl1271_warning("could not set ap keys");
+		wl1271_warning("could analt set ap keys");
 		goto out;
 	}
 
@@ -1499,7 +1499,7 @@ int wl12xx_cmd_set_peer_state(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1534,7 +1534,7 @@ int wl12xx_cmd_add_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1568,7 +1568,7 @@ int wl12xx_cmd_add_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	if (!cmd->supported_rates) {
 		wl1271_debug(DEBUG_CMD,
-			     "peer has no supported rates yet, configuring basic rates: 0x%x",
+			     "peer has anal supported rates yet, configuring basic rates: 0x%x",
 			     wlvif->basic_rate_set);
 		cmd->supported_rates = cpu_to_le32(wlvif->basic_rate_set);
 	}
@@ -1600,7 +1600,7 @@ int wl12xx_cmd_remove_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1621,8 +1621,8 @@ int wl12xx_cmd_remove_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 				      &timeout);
 
 	/*
-	 * We are ok with a timeout here. The event is sometimes not sent
-	 * due to a firmware bug. In case of another error (like SDIO timeout)
+	 * We are ok with a timeout here. The event is sometimes analt sent
+	 * due to a firmware bug. In case of aanalther error (like SDIO timeout)
 	 * queue a recovery.
 	 */
 	if (ret)
@@ -1672,7 +1672,7 @@ static int wlcore_get_reg_conf_ch_idx(enum nl80211_band band, u16 ch)
 		break;
 	}
 
-	wl1271_error("%s: unknown band/channel: %d/%d", __func__, band, ch);
+	wl1271_error("%s: unkanalwn band/channel: %d/%d", __func__, band, ch);
 	return -1;
 }
 
@@ -1714,7 +1714,7 @@ int wlcore_cmd_regdomain_config_locked(struct wl1271 *wl)
 			u32 flags = channel->flags;
 
 			if (flags & (IEEE80211_CHAN_DISABLED |
-				     IEEE80211_CHAN_NO_IR))
+				     IEEE80211_CHAN_ANAL_IR))
 				continue;
 
 			if ((flags & IEEE80211_CHAN_RADAR) &&
@@ -1734,7 +1734,7 @@ int wlcore_cmd_regdomain_config_locked(struct wl1271 *wl)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1779,7 +1779,7 @@ int wl12xx_cmd_config_fwlog(struct wl1271 *wl)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1811,7 +1811,7 @@ int wl12xx_cmd_start_fwlog(struct wl1271 *wl)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1837,7 +1837,7 @@ int wl12xx_cmd_stop_fwlog(struct wl1271 *wl)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1867,7 +1867,7 @@ static int wl12xx_cmd_roc(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1881,7 +1881,7 @@ static int wl12xx_cmd_roc(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		cmd->band = WLCORE_BAND_5GHZ;
 		break;
 	default:
-		wl1271_error("roc - unknown band: %d", (int)wlvif->band);
+		wl1271_error("roc - unkanalwn band: %d", (int)wlvif->band);
 		ret = -EINVAL;
 		goto out_free;
 	}
@@ -1909,7 +1909,7 @@ static int wl12xx_cmd_croc(struct wl1271 *wl, u8 role_id)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	cmd->role_id = role_id;
@@ -1978,7 +1978,7 @@ int wl12xx_cmd_stop_channel_switch(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -2082,7 +2082,7 @@ int wlcore_cmd_generic_cfg(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->role_id = wlvif->role_id;
 	cmd->feature = feature;

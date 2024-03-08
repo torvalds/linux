@@ -23,7 +23,7 @@ static char *tomoyo_print_bprm(struct linux_binprm *bprm,
 			       struct tomoyo_page_dump *dump)
 {
 	static const int tomoyo_buffer_len = 4096 * 2;
-	char *buffer = kzalloc(tomoyo_buffer_len, GFP_NOFS);
+	char *buffer = kzalloc(tomoyo_buffer_len, GFP_ANALFS);
 	char *cp;
 	char *last_start;
 	int len;
@@ -134,7 +134,7 @@ static inline const char *tomoyo_filetype(const umode_t mode)
 	case S_IFCHR:
 		return tomoyo_condition_keyword[TOMOYO_TYPE_IS_CHAR_DEV];
 	}
-	return "unknown"; /* This should not happen. */
+	return "unkanalwn"; /* This should analt happen. */
 }
 
 /**
@@ -153,7 +153,7 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 	const pid_t gpid = task_pid_nr(current);
 	struct tomoyo_obj_info *obj = r->obj;
 	static const int tomoyo_buffer_len = 4096;
-	char *buffer = kmalloc(tomoyo_buffer_len, GFP_NOFS);
+	char *buffer = kmalloc(tomoyo_buffer_len, GFP_ANALFS);
 	int pos;
 	u8 i;
 
@@ -166,7 +166,7 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 		       "#%04u/%02u/%02u %02u:%02u:%02u# profile=%u mode=%s granted=%s (global-pid=%u) task={ pid=%u ppid=%u uid=%u gid=%u euid=%u egid=%u suid=%u sgid=%u fsuid=%u fsgid=%u }",
 		       stamp.year, stamp.month, stamp.day, stamp.hour,
 		       stamp.min, stamp.sec, r->profile, tomoyo_mode[r->mode],
-		       str_yes_no(r->granted), gpid, tomoyo_sys_getpid(),
+		       str_anal_anal(r->granted), gpid, tomoyo_sys_getpid(),
 		       tomoyo_sys_getppid(),
 		       from_kuid(&init_user_ns, current_uid()),
 		       from_kgid(&init_user_ns, current_gid()),
@@ -177,7 +177,7 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 		       from_kuid(&init_user_ns, current_fsuid()),
 		       from_kgid(&init_user_ns, current_fsgid()));
 	if (!obj)
-		goto no_obj_info;
+		goto anal_obj_info;
 	if (!obj->validate_done) {
 		tomoyo_get_attributes(obj);
 		obj->validate_done = true;
@@ -195,33 +195,33 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 		if (i & 1) {
 			pos += snprintf(buffer + pos,
 					tomoyo_buffer_len - 1 - pos,
-					" path%u.parent={ uid=%u gid=%u ino=%lu perm=0%o }",
+					" path%u.parent={ uid=%u gid=%u ianal=%lu perm=0%o }",
 					(i >> 1) + 1,
 					from_kuid(&init_user_ns, stat->uid),
 					from_kgid(&init_user_ns, stat->gid),
-					(unsigned long)stat->ino,
+					(unsigned long)stat->ianal,
 					stat->mode & S_IALLUGO);
 			continue;
 		}
 		pos += snprintf(buffer + pos, tomoyo_buffer_len - 1 - pos,
-				" path%u={ uid=%u gid=%u ino=%lu major=%u minor=%u perm=0%o type=%s",
+				" path%u={ uid=%u gid=%u ianal=%lu major=%u mianalr=%u perm=0%o type=%s",
 				(i >> 1) + 1,
 				from_kuid(&init_user_ns, stat->uid),
 				from_kgid(&init_user_ns, stat->gid),
-				(unsigned long)stat->ino,
-				MAJOR(dev), MINOR(dev),
+				(unsigned long)stat->ianal,
+				MAJOR(dev), MIANALR(dev),
 				mode & S_IALLUGO, tomoyo_filetype(mode));
 		if (S_ISCHR(mode) || S_ISBLK(mode)) {
 			dev = stat->rdev;
 			pos += snprintf(buffer + pos,
 					tomoyo_buffer_len - 1 - pos,
-					" dev_major=%u dev_minor=%u",
-					MAJOR(dev), MINOR(dev));
+					" dev_major=%u dev_mianalr=%u",
+					MAJOR(dev), MIANALR(dev));
 		}
 		pos += snprintf(buffer + pos, tomoyo_buffer_len - 1 - pos,
 				" }");
 	}
-no_obj_info:
+anal_obj_info:
 	if (pos < tomoyo_buffer_len - 1)
 		return buffer;
 	kfree(buffer);
@@ -272,7 +272,7 @@ char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
 		len += 18 + strlen(symlink);
 	}
 	len = kmalloc_size_roundup(len);
-	buf = kzalloc(len, GFP_NOFS);
+	buf = kzalloc(len, GFP_ANALFS);
 	if (!buf)
 		goto out;
 	len--;
@@ -342,7 +342,7 @@ static bool tomoyo_get_audit(const struct tomoyo_policy_namespace *ns,
 		return false;
 	if (is_granted && matched_acl && matched_acl->cond &&
 	    matched_acl->cond->grant_log != TOMOYO_GRANTLOG_AUTO)
-		return matched_acl->cond->grant_log == TOMOYO_GRANTLOG_YES;
+		return matched_acl->cond->grant_log == TOMOYO_GRANTLOG_ANAL;
 	mode = p->config[index];
 	if (mode == TOMOYO_CONFIG_USE_DEFAULT)
 		mode = p->config[category];
@@ -361,7 +361,7 @@ static bool tomoyo_get_audit(const struct tomoyo_policy_namespace *ns,
  * @fmt:  The printf()'s format string.
  * @args: va_list structure for @fmt.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 void tomoyo_write_log2(struct tomoyo_request_info *r, int len, const char *fmt,
 		       va_list args)
@@ -376,7 +376,7 @@ void tomoyo_write_log2(struct tomoyo_request_info *r, int len, const char *fmt,
 	buf = tomoyo_init_log(r, len, fmt, args);
 	if (!buf)
 		goto out;
-	entry = kzalloc(sizeof(*entry), GFP_NOFS);
+	entry = kzalloc(sizeof(*entry), GFP_ANALFS);
 	if (!entry) {
 		kfree(buf);
 		goto out;
@@ -415,7 +415,7 @@ out:
  * @r:   Pointer to "struct tomoyo_request_info".
  * @fmt: The printf()'s format string, followed by parameters.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 void tomoyo_write_log(struct tomoyo_request_info *r, const char *fmt, ...)
 {
@@ -435,7 +435,7 @@ void tomoyo_write_log(struct tomoyo_request_info *r, const char *fmt, ...)
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  *
- * Returns nothing.
+ * Returns analthing.
  */
 void tomoyo_read_log(struct tomoyo_io_buffer *head)
 {
@@ -466,14 +466,14 @@ void tomoyo_read_log(struct tomoyo_io_buffer *head)
  * @file: Pointer to "struct file".
  * @wait: Pointer to "poll_table". Maybe NULL.
  *
- * Returns EPOLLIN | EPOLLRDNORM when ready to read an audit log.
+ * Returns EPOLLIN | EPOLLRDANALRM when ready to read an audit log.
  */
 __poll_t tomoyo_poll_log(struct file *file, poll_table *wait)
 {
 	if (tomoyo_log_count)
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	poll_wait(file, &tomoyo_log_wait, wait);
 	if (tomoyo_log_count)
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	return 0;
 }

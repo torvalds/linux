@@ -125,10 +125,10 @@ static struct packet_type caif_usb_type __read_mostly = {
 	.type = cpu_to_be16(ETH_P_802_EX1),
 };
 
-static int cfusbl_device_notify(struct notifier_block *me, unsigned long what,
+static int cfusbl_device_analtify(struct analtifier_block *me, unsigned long what,
 				void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct caif_dev_common common;
 	struct cflayer *layer, *link_support;
 	struct usbnet *usbnet;
@@ -174,7 +174,7 @@ static int cfusbl_device_notify(struct notifier_block *me, unsigned long what,
 					dev->broadcast);
 
 	if (!link_support)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (dev->num_tx_queues > 1)
 		pr_warn("USB device uses more than one tx queue\n");
@@ -196,19 +196,19 @@ err:
 	return res;
 }
 
-static struct notifier_block caif_device_notifier = {
-	.notifier_call = cfusbl_device_notify,
+static struct analtifier_block caif_device_analtifier = {
+	.analtifier_call = cfusbl_device_analtify,
 	.priority = 0,
 };
 
 static int __init cfusbl_init(void)
 {
-	return register_netdevice_notifier(&caif_device_notifier);
+	return register_netdevice_analtifier(&caif_device_analtifier);
 }
 
 static void __exit cfusbl_exit(void)
 {
-	unregister_netdevice_notifier(&caif_device_notifier);
+	unregister_netdevice_analtifier(&caif_device_analtifier);
 	dev_remove_pack(&caif_usb_type);
 }
 

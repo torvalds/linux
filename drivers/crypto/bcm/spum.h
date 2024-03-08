@@ -41,14 +41,14 @@
  * Total:  371
  *
  * For SPU2, FMD_SIZE (32) plus lengths of hash and cipher keys,
- * hash and cipher IVs. If SPU2 does not support RC4, then
+ * hash and cipher IVs. If SPU2 does analt support RC4, then
  */
 #define SPU_HEADER_ALLOC_LEN  (SPU_REQ_FIXED_LEN + MAX_KEY_SIZE + \
 				MAX_KEY_SIZE + MAX_IV_SIZE)
 
 /*
- * Response message header length. Normally MH, EMH, BD header, but when
- * BD_SUPPRESS is used for hash requests, there is no BD header.
+ * Response message header length. Analrmally MH, EMH, BD header, but when
+ * BD_SUPPRESS is used for hash requests, there is anal BD header.
  */
 #define SPU_RESP_HDR_LEN 12
 #define SPU_HASH_RESP_HDR_LEN 8

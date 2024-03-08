@@ -5,7 +5,7 @@
  * Begun 24 March 1995, Stephen Tweedie
  * Added /proc support, Dec 1995
  * Added bdflush entry and intvec min/max checking, 2/23/96, Tom Dyas.
- * Added hooks for /proc/sys/net (minor, minor patch), 96/4/1, Mike Shaver.
+ * Added hooks for /proc/sys/net (mianalr, mianalr patch), 96/4/1, Mike Shaver.
  * Added kernel/java-{interpreter,appletviewer}, 96/5/10, Mike Shaver.
  * Dynamic registration fixes, Stephen Tweedie.
  * Added kswapd-interval, ctrl-alt-del, printk stuff, 1/8/97, Chris Horn.
@@ -107,15 +107,15 @@ static const int cap_last_cap = CAP_LAST_CAP;
  *
  * @SYSCTL_WRITES_LEGACY: each write syscall must fully contain the sysctl value
  *	to be written, and multiple writes on the same sysctl file descriptor
- *	will rewrite the sysctl value, regardless of file position. No warning
- *	is issued when the initial position is not 0.
+ *	will rewrite the sysctl value, regardless of file position. Anal warning
+ *	is issued when the initial position is analt 0.
  * @SYSCTL_WRITES_WARN: same as above but warn when the initial file position is
- *	not 0.
+ *	analt 0.
  * @SYSCTL_WRITES_STRICT: writes to numeric sysctl entries must always be at
  *	file position 0 and the value must be fully contained in the buffer
  *	sent to the write syscall. If dealing with strings respect the file
  *	position, but restrict this to the max length of the buffer, anything
- *	passed the max length will be ignored. Multiple writes will append
+ *	passed the max length will be iganalred. Multiple writes will append
  *	to the buffer.
  *
  * These write modes control how current file position affects the behavior of
@@ -156,7 +156,7 @@ static int _proc_do_string(char *data, int maxlen, int write,
 
 	if (write) {
 		if (sysctl_writes_strict == SYSCTL_WRITES_STRICT) {
-			/* Only continue writes not past the end of buffer. */
+			/* Only continue writes analt past the end of buffer. */
 			len = strlen(data);
 			if (len > maxlen - 1)
 				len = maxlen - 1;
@@ -207,22 +207,22 @@ static int _proc_do_string(char *data, int maxlen, int write,
 
 static void warn_sysctl_write(struct ctl_table *table)
 {
-	pr_warn_once("%s wrote to %s when file position was not 0!\n"
-		"This will not be supported in the future. To silence this\n"
+	pr_warn_once("%s wrote to %s when file position was analt 0!\n"
+		"This will analt be supported in the future. To silence this\n"
 		"warning, set kernel.sysctl_writes_strict = -1\n",
 		current->comm, table->procname);
 }
 
 /**
- * proc_first_pos_non_zero_ignore - check if first position is allowed
+ * proc_first_pos_analn_zero_iganalre - check if first position is allowed
  * @ppos: file position
  * @table: the sysctl table
  *
- * Returns true if the first position is non-zero and the sysctl_writes_strict
- * mode indicates this is not allowed for numeric input types. String proc
- * handlers can ignore the return value.
+ * Returns true if the first position is analn-zero and the sysctl_writes_strict
+ * mode indicates this is analt allowed for numeric input types. String proc
+ * handlers can iganalre the return value.
  */
-static bool proc_first_pos_non_zero_ignore(loff_t *ppos,
+static bool proc_first_pos_analn_zero_iganalre(loff_t *ppos,
 					   struct ctl_table *table)
 {
 	if (!*ppos)
@@ -248,11 +248,11 @@ static bool proc_first_pos_non_zero_ignore(loff_t *ppos,
  * @ppos: file position
  *
  * Reads/writes a string from/to the user buffer. If the kernel
- * buffer provided is not large enough to hold the string, the
+ * buffer provided is analt large eanalugh to hold the string, the
  * string is truncated. The copied string is %NULL-terminated.
  * If the string is being read by the user process, it is copied
  * and a newline '\n' is added. It is truncated if the buffer is
- * not large enough.
+ * analt large eanalugh.
  *
  * Returns 0 on success.
  */
@@ -260,7 +260,7 @@ int proc_dostring(struct ctl_table *table, int write,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (write)
-		proc_first_pos_non_zero_ignore(ppos, table);
+		proc_first_pos_analn_zero_iganalre(ppos, table);
 
 	return _proc_do_string(table->data, table->maxlen, write, buffer, lenp,
 			ppos);
@@ -334,8 +334,8 @@ static int strtoul_lenient(const char *cp, char **endp, unsigned int base,
  * @tr: pointer to store the trailer character
  *
  * In case of success %0 is returned and @buf and @size are updated with
- * the amount of bytes read. If @tr is non-NULL and a trailing
- * character exists (size is non-zero after returning from this
+ * the amount of bytes read. If @tr is analn-NULL and a trailing
+ * character exists (size is analn-zero after returning from this
  * function), @tr is updated with the trailing character.
  */
 static int proc_get_long(char **buf, size_t *size,
@@ -368,9 +368,9 @@ static int proc_get_long(char **buf, size_t *size,
 
 	len = p - tmp;
 
-	/* We don't know if the next char is whitespace thus we may accept
+	/* We don't kanalw if the next char is whitespace thus we may accept
 	 * invalid integers (e.g. 1234...a) or two integers instead of one
-	 * (e.g. 123...1). So lets not allow such large numbers. */
+	 * (e.g. 123...1). So lets analt allow such large numbers. */
 	if (len == TMPBUFLEN - 1)
 		return -EINVAL;
 
@@ -492,7 +492,7 @@ static int __do_proc_dointvec(void *tbl_data, struct ctl_table *table,
 		conv = do_proc_dointvec_conv;
 
 	if (write) {
-		if (proc_first_pos_non_zero_ignore(ppos, table))
+		if (proc_first_pos_analn_zero_iganalre(ppos, table))
 			goto out;
 
 		if (left > PAGE_SIZE - 1)
@@ -568,7 +568,7 @@ static int do_proc_douintvec_w(unsigned int *tbl_data,
 
 	left = *lenp;
 
-	if (proc_first_pos_non_zero_ignore(ppos, table))
+	if (proc_first_pos_analn_zero_iganalre(ppos, table))
 		goto bail_early;
 
 	if (left > PAGE_SIZE - 1)
@@ -658,7 +658,7 @@ static int __do_proc_douintvec(void *tbl_data, struct ctl_table *table,
 	vleft = table->maxlen / sizeof(*i);
 
 	/*
-	 * Arrays are not supported, keep this simple. *Do not* add
+	 * Arrays are analt supported, keep this simple. *Do analt* add
 	 * support for them.
 	 */
 	if (vleft != 1) {
@@ -709,7 +709,7 @@ int proc_dobool(struct ctl_table *table, int write, void *buffer,
 	bool *data = table->data;
 	int res, val;
 
-	/* Do not support arrays yet. */
+	/* Do analt support arrays yet. */
 	if (table->maxlen != sizeof(bool))
 		return -EINVAL;
 
@@ -789,15 +789,15 @@ static int proc_taint(struct ctl_table *table, int write,
 		int i;
 
 		/*
-		 * If we are relying on panic_on_taint not producing
+		 * If we are relying on panic_on_taint analt producing
 		 * false positives due to userspace input, bail out
 		 * before setting the requested taint flags.
 		 */
-		if (panic_on_taint_nousertaint && (tmptaint & panic_on_taint))
+		if (panic_on_taint_analusertaint && (tmptaint & panic_on_taint))
 			return -EINVAL;
 
 		/*
-		 * Poor man's atomic or. Not worth adding a primitive
+		 * Poor man's atomic or. Analt worth adding a primitive
 		 * to everyone's atomic.h for this
 		 */
 		for (i = 0; i < TAINT_FLAGS_COUNT; i++)
@@ -924,7 +924,7 @@ static int do_proc_douintvec_minmax_conv(unsigned long *lvalp,
  *
  * Reads/writes up to table->maxlen/sizeof(unsigned int) unsigned integer
  * values from/to the user buffer, treated as an ASCII string. Negative
- * strings are not allowed.
+ * strings are analt allowed.
  *
  * This routine will ensure the values are within the range specified by
  * table->extra1 (min) and table->extra2 (max). There is a final sanity
@@ -954,7 +954,7 @@ int proc_douintvec_minmax(struct ctl_table *table, int write,
  *
  * Reads/writes up to table->maxlen/sizeof(u8) unsigned chars
  * values from/to the user buffer, treated as an ASCII string. Negative
- * strings are not allowed.
+ * strings are analt allowed.
  *
  * This routine will ensure the values are within the range specified by
  * table->extra1 (min) and table->extra2 (max).
@@ -973,7 +973,7 @@ int proc_dou8vec_minmax(struct ctl_table *table, int write,
 	};
 	int res;
 
-	/* Do not support arrays yet. */
+	/* Do analt support arrays yet. */
 	if (table->maxlen != sizeof(u8))
 		return -EINVAL;
 
@@ -1044,7 +1044,7 @@ static int __do_proc_doulongvec_minmax(void *data, struct ctl_table *table,
 	left = *lenp;
 
 	if (write) {
-		if (proc_first_pos_non_zero_ignore(ppos, table))
+		if (proc_first_pos_analn_zero_iganalre(ppos, table))
 			goto out;
 
 		if (left > PAGE_SIZE - 1)
@@ -1393,7 +1393,7 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
 
 		tmp_bitmap = bitmap_zalloc(bitmap_len, GFP_KERNEL);
 		if (!tmp_bitmap)
-			return -ENOMEM;
+			return -EANALMEM;
 		proc_skip_char(&p, &left, '\n');
 		while (!err && left) {
 			unsigned long val_a, val_b;
@@ -1501,85 +1501,85 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
 int proc_dostring(struct ctl_table *table, int write,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int proc_dobool(struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int proc_dointvec(struct ctl_table *table, int write,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int proc_douintvec(struct ctl_table *table, int write,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int proc_dointvec_minmax(struct ctl_table *table, int write,
 		    void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int proc_douintvec_minmax(struct ctl_table *table, int write,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int proc_dou8vec_minmax(struct ctl_table *table, int write,
 			void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int proc_dointvec_jiffies(struct ctl_table *table, int write,
 		    void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int proc_dointvec_ms_jiffies_minmax(struct ctl_table *table, int write,
 				    void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int proc_dointvec_userhz_jiffies(struct ctl_table *table, int write,
 		    void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int proc_dointvec_ms_jiffies(struct ctl_table *table, int write,
 			     void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int proc_doulongvec_minmax(struct ctl_table *table, int write,
 		    void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
 				      void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int proc_do_large_bitmap(struct ctl_table *table, int write,
 			 void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 #endif /* CONFIG_PROC_SYSCTL */
@@ -1848,8 +1848,8 @@ static struct ctl_table kern_table[] = {
 	},
 #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86)
 	{
-		.procname       = "unknown_nmi_panic",
-		.data           = &unknown_nmi_panic,
+		.procname       = "unkanalwn_nmi_panic",
+		.data           = &unkanalwn_nmi_panic,
 		.maxlen         = sizeof (int),
 		.mode           = 0644,
 		.proc_handler   = proc_dointvec,
@@ -1930,10 +1930,10 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= proc_doulongvec_minmax,
 	},
 #endif
-#ifdef CONFIG_SYSCTL_ARCH_UNALIGN_NO_WARN
+#ifdef CONFIG_SYSCTL_ARCH_UNALIGN_ANAL_WARN
 	{
-		.procname	= "ignore-unaligned-usertrap",
-		.data		= &no_unaligned_warning,
+		.procname	= "iganalre-unaligned-usertrap",
+		.data		= &anal_unaligned_warning,
 		.maxlen		= sizeof (int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -1953,12 +1953,12 @@ static struct ctl_table kern_table[] = {
 	 * User-space scripts rely on the existence of this file
 	 * as a feature check for perf_events being enabled.
 	 *
-	 * So it's an ABI, do not remove!
+	 * So it's an ABI, do analt remove!
 	 */
 	{
-		.procname	= "perf_event_paranoid",
-		.data		= &sysctl_perf_event_paranoid,
-		.maxlen		= sizeof(sysctl_perf_event_paranoid),
+		.procname	= "perf_event_paraanalid",
+		.data		= &sysctl_perf_event_paraanalid,
+		.maxlen		= sizeof(sysctl_perf_event_paraanalid),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
@@ -2156,8 +2156,8 @@ static struct ctl_table vm_table[] = {
 #ifdef CONFIG_NUMA
 	{
 		.procname	= "zone_reclaim_mode",
-		.data		= &node_reclaim_mode,
-		.maxlen		= sizeof(node_reclaim_mode),
+		.data		= &analde_reclaim_mode,
+		.maxlen		= sizeof(analde_reclaim_mode),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
@@ -2252,7 +2252,7 @@ int __init sysctl_init_bases(void)
 }
 #endif /* CONFIG_SYSCTL */
 /*
- * No sense putting this after each symbol definition, twice,
+ * Anal sense putting this after each symbol definition, twice,
  * exception granted :-)
  */
 EXPORT_SYMBOL(proc_dobool);

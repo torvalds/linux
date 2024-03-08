@@ -11,7 +11,7 @@ maintainers:
   - Richard Zhu <hongxing.zhu@nxp.com>
 
 description: |+
-  This PCIe host controller is based on the Synopsys DesignWare PCIe IP
+  This PCIe host controller is based on the Syanalpsys DesignWare PCIe IP
   and thus inherits all the common properties defined in snps,dw-pcie.yaml.
   The controller instances are dual mode where in they can work either in
   Root Port mode or Endpoint mode but one at a time.
@@ -63,7 +63,7 @@ properties:
 
   reset-gpio:
     description: Should specify the GPIO for controlling the PCI bus device
-      reset signal. It's not polarity aware and defaults to active-low reset
+      reset signal. It's analt polarity aware and defaults to active-low reset
       sequence (L=reset state, H=operation state) (optional required).
 
   reset-gpio-active-high:

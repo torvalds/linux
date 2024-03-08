@@ -10,19 +10,19 @@ static int
 op_unsupported_vlan_arg(struct ice_vsi * __always_unused vsi,
 			struct ice_vlan * __always_unused vlan)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int
 op_unsupported_tpid_arg(struct ice_vsi *__always_unused vsi,
 			u16 __always_unused tpid)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int op_unsupported(struct ice_vsi *__always_unused vsi)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /* If any new ops are added to the VSI VLAN ops interface then an unsupported
@@ -46,9 +46,9 @@ static struct ice_vsi_vlan_ops ops_unsupported = {
  * ice_vsi_init_unsupported_vlan_ops - init all VSI VLAN ops to unsupported
  * @vsi: VSI to initialize VSI VLAN ops to unsupported for
  *
- * By default all inner and outer VSI VLAN ops return -EOPNOTSUPP. This was done
+ * By default all inner and outer VSI VLAN ops return -EOPANALTSUPP. This was done
  * as oppsed to leaving the ops null to prevent unexpected crashes. Instead if
- * an unsupported VSI VLAN op is called it will just return -EOPNOTSUPP.
+ * an unsupported VSI VLAN op is called it will just return -EOPANALTSUPP.
  *
  */
 static void ice_vsi_init_unsupported_vlan_ops(struct ice_vsi *vsi)
@@ -79,7 +79,7 @@ void ice_vsi_init_vlan_ops(struct ice_vsi *vsi)
 		ice_vf_vsi_init_vlan_ops(vsi);
 		break;
 	default:
-		dev_dbg(ice_pf_to_dev(vsi->back), "%s does not support VLAN operations\n",
+		dev_dbg(ice_pf_to_dev(vsi->back), "%s does analt support VLAN operations\n",
 			ice_vsi_type_str(vsi->type));
 		break;
 	}
@@ -89,9 +89,9 @@ void ice_vsi_init_vlan_ops(struct ice_vsi *vsi)
  * ice_get_compat_vsi_vlan_ops - Get VSI VLAN ops based on VLAN mode
  * @vsi: VSI used to get the VSI VLAN ops
  *
- * This function is meant to be used when the caller doesn't know which VLAN ops
+ * This function is meant to be used when the caller doesn't kanalw which VLAN ops
  * to use (i.e. inner or outer). This allows backward compatibility for VLANs
- * since most of the Outer VSI VLAN functins are not supported when
+ * since most of the Outer VSI VLAN functins are analt supported when
  * the device is configured in Single VLAN Mode (SVM).
  */
 struct ice_vsi_vlan_ops *ice_get_compat_vsi_vlan_ops(struct ice_vsi *vsi)

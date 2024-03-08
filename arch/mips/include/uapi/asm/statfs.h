@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -41,7 +41,7 @@ struct statfs {
 #if (_MIPS_SIM == _MIPS_SIM_ABI32) || (_MIPS_SIM == _MIPS_SIM_NABI32)
 
 /*
- * Unlike the traditional version the LFAPI version has none of the ABI junk
+ * Unlike the traditional version the LFAPI version has analne of the ABI junk
  */
 struct statfs64 {
 	__u32	f_type;

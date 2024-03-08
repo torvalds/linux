@@ -142,12 +142,12 @@ properties:
                   TCON can have 1 or 2 channels, usually with the
                   first channel being used for the panels interfaces
                   (RGB, LVDS, etc.), and the second being used for the
-                  outputs that require another controller (TV Encoder,
+                  outputs that require aanalther controller (TV Encoder,
                   HDMI, etc.).
 
                   If that property is present, specifies the TCON
                   channel the endpoint is associated to. If that
-                  property is not present, the endpoint number will be
+                  property is analt present, the endpoint number will be
                   used as the channel number.
 
     required:

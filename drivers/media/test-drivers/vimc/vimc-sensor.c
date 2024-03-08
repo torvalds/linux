@@ -17,7 +17,7 @@
 enum vimc_sensor_osd_mode {
 	VIMC_SENSOR_OSD_SHOW_ALL = 0,
 	VIMC_SENSOR_OSD_SHOW_COUNTERS = 1,
-	VIMC_SENSOR_OSD_SHOW_NONE = 2
+	VIMC_SENSOR_OSD_SHOW_ANALNE = 2
 };
 
 struct vimc_sensor_device {
@@ -37,7 +37,7 @@ static const struct v4l2_mbus_framefmt fmt_default = {
 	.width = 640,
 	.height = 480,
 	.code = MEDIA_BUS_FMT_RGB888_1X24,
-	.field = V4L2_FIELD_NONE,
+	.field = V4L2_FIELD_ANALNE,
 	.colorspace = V4L2_COLORSPACE_SRGB,
 };
 
@@ -153,7 +153,7 @@ static int vimc_sensor_set_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mf;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		/* Do not change the format while stream is on */
+		/* Do analt change the format while stream is on */
 		if (vsensor->frame)
 			return -EBUSY;
 
@@ -233,7 +233,7 @@ static void *vimc_sensor_process_frame(struct vimc_ent_device *ved,
 		tpg_gen_text(&vsensor->tpg, basep, line++ * line_height, 16, str);
 		break;
 	}
-	case VIMC_SENSOR_OSD_SHOW_NONE:
+	case VIMC_SENSOR_OSD_SHOW_ANALNE:
 	default:
 		break;
 	}
@@ -263,7 +263,7 @@ static int vimc_sensor_s_stream(struct v4l2_subdev *sd, int enable)
 		 */
 		vsensor->frame = vmalloc(frame_size);
 		if (!vsensor->frame)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* configure the test pattern generator */
 		vimc_sensor_tpg_s_format(vsensor);
@@ -361,14 +361,14 @@ static const struct v4l2_ctrl_config vimc_sensor_ctrl_test_pattern = {
 	.id = VIMC_CID_TEST_PATTERN,
 	.name = "Test Pattern",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.max = TPG_PAT_NOISE,
+	.max = TPG_PAT_ANALISE,
 	.qmenu = tpg_pattern_strings,
 };
 
 static const char * const vimc_ctrl_osd_mode_strings[] = {
 	"All",
 	"Counters Only",
-	"None",
+	"Analne",
 	NULL,
 };
 
@@ -391,7 +391,7 @@ static struct vimc_ent_device *vimc_sensor_add(struct vimc_device *vimc,
 	/* Allocate the vsensor struct */
 	vsensor = kzalloc(sizeof(*vsensor), GFP_KERNEL);
 	if (!vsensor)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	v4l2_ctrl_handler_init(&vsensor->hdl, 4);
 

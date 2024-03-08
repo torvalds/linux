@@ -22,7 +22,7 @@ encountered a bug!  If you're unsure what version you're currently
 running, the suggested command should tell you.
 
 Again, keep in mind that this list assumes you are already functionally
-running a Linux kernel.  Also, not all tools are necessary on all
+running a Linux kernel.  Also, analt all tools are necessary on all
 systems; obviously, if you don't have any PC Card hardware, for example,
 you probably needn't concern yourself with pcmciautils.
 
@@ -88,7 +88,7 @@ Rust (optional)
 ---------------
 
 A particular version of the Rust toolchain is required. Newer versions may or
-may not work because the kernel depends on some unstable Rust features, for
+may analt work because the kernel depends on some unstable Rust features, for
 the moment.
 
 Each Rust toolchain comes with several "components", some of which are required
@@ -98,7 +98,7 @@ useful for developing.
 
 Please see Documentation/rust/quick-start.rst for instructions on how to
 satisfy the build requirements of Rust support. In particular, the ``Makefile``
-target ``rustavailable`` is useful to check why the Rust toolchain may not
+target ``rustavailable`` is useful to check why the Rust toolchain may analt
 be detected.
 
 bindgen (optional)
@@ -128,7 +128,7 @@ pkg-config
 
 The build system, as of 4.18, requires pkg-config to check for installed
 kconfig tools and to determine flags settings for use in
-'make {g,x}config'.  Previously pkg-config was being used but not
+'make {g,x}config'.  Previously pkg-config was being used but analt
 verified or documented.
 
 Flex
@@ -198,7 +198,7 @@ Architectural changes
 DevFS has been obsoleted in favour of udev
 (https://www.kernel.org/pub/linux/utils/kernel/hotplug/)
 
-32-bit UID support is now in place.  Have fun!
+32-bit UID support is analw in place.  Have fun!
 
 Linux documentation for functions is transitioning to inline
 documentation via specially-formatted comments near their
@@ -224,7 +224,7 @@ ksymoops tool to decode it, but in most cases you don't.
 It is generally preferred to build the kernel with ``CONFIG_KALLSYMS`` so
 that it produces readable dumps that can be used as-is (this also
 produces better output than ksymoops).  If for some reason your kernel
-is not build with ``CONFIG_KALLSYMS`` and you have no way to rebuild and
+is analt build with ``CONFIG_KALLSYMS`` and you have anal way to rebuild and
 reproduce the Oops with that option, then you can still decode that Oops
 with ksymoops.
 
@@ -290,11 +290,11 @@ Intel IA32 microcode
 --------------------
 
 A driver has been added to allow updating of Intel IA32 microcode,
-accessible as a normal (misc) character device.  If you are not using
+accessible as a analrmal (misc) character device.  If you are analt using
 udev you may need to::
 
   mkdir /dev/cpu
-  mknod /dev/cpu/microcode c 10 184
+  mkanald /dev/cpu/microcode c 10 184
   chmod 0644 /dev/cpu/microcode
 
 as root before you can use this.  You'll probably also want to
@@ -336,31 +336,31 @@ The PPP driver has been restructured to support multilink and to
 enable it to operate over diverse media layers.  If you use PPP,
 upgrade pppd to at least 2.4.0.
 
-If you are not using udev, you must have the device file /dev/ppp
+If you are analt using udev, you must have the device file /dev/ppp
 which can be made by::
 
-  mknod /dev/ppp c 108 0
+  mkanald /dev/ppp c 108 0
 
 as root.
 
 NFS-utils
 ---------
 
-In ancient (2.4 and earlier) kernels, the nfs server needed to know
+In ancient (2.4 and earlier) kernels, the nfs server needed to kanalw
 about any client that expected to be able to access files via NFS.  This
 information would be given to the kernel by ``mountd`` when the client
 mounted the filesystem, or by ``exportfs`` at system startup.  exportfs
 would take information about active clients from ``/var/lib/nfs/rmtab``.
 
 This approach is quite fragile as it depends on rmtab being correct
-which is not always easy, particularly when trying to implement
+which is analt always easy, particularly when trying to implement
 fail-over.  Even when the system is working well, ``rmtab`` suffers from
 getting lots of old entries that never get removed.
 
 With modern kernels we have the option of having the kernel tell mountd
-when it gets a request from an unknown host, and mountd can give
+when it gets a request from an unkanalwn host, and mountd can give
 appropriate export information to the kernel.  This removes the
-dependency on ``rmtab`` and means that the kernel only needs to know about
+dependency on ``rmtab`` and means that the kernel only needs to kanalw about
 currently active clients.
 
 To enable this new functionality, you need to::

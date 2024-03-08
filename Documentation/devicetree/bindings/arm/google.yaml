@@ -30,7 +30,7 @@ description: |
   e.g. gs101 and gs101-oriole.
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
@@ -40,7 +40,7 @@ properties:
               - google,gs101-oriole
           - const: google,gs101
 
-  # Bootloader requires empty ect node to be present
+  # Bootloader requires empty ect analde to be present
   ect:
     type: object
     additionalProperties: false

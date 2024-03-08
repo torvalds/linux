@@ -5,7 +5,7 @@
  *
  * Based on arch/sh/kernel/cpu/sh5/unwind.c code which is:
  * Copyright (C) 2004  Paul Mundt
- * Copyright (C) 2004  Richard Curnow
+ * Copyright (C) 2004  Richard Curanalw
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -20,7 +20,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/stacktrace.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <asm/sections.h>
 #include <asm/exceptions.h>
@@ -31,8 +31,8 @@ struct stack_trace;
 
 /*
  * On Microblaze, finding the previous stack frame is a little tricky.
- * At this writing (3/2010), Microblaze does not support CONFIG_FRAME_POINTERS,
- * and even if it did, gcc (4.1.2) does not store the frame pointer at
+ * At this writing (3/2010), Microblaze does analt support CONFIG_FRAME_POINTERS,
+ * and even if it did, gcc (4.1.2) does analt store the frame pointer at
  * a consistent offset within each frame. To determine frame size, it is
  * necessary to search for the assembly instruction that creates or reclaims
  * the frame and extract the size from it.
@@ -49,7 +49,7 @@ struct stack_trace;
  * Depending on the compiler, reclaim may occur at the end, or before
  * a mid-function return.
  *
- * A stack frame is usually not created in a leaf function.
+ * A stack frame is usually analt created in a leaf function.
  *
  */
 
@@ -72,13 +72,13 @@ static inline long get_frame_size(unsigned long instr)
  * @pc : Program counter at which to begin the search
  *
  * Return - PC at which stack frame creation occurs
- *          NULL if this cannot be found, i.e. a leaf function
+ *          NULL if this cananalt be found, i.e. a leaf function
  */
 static unsigned long *find_frame_creation(unsigned long *pc)
 {
 	int i;
 
-	/* NOTE: Distance to search is arbitrary
+	/* ANALTE: Distance to search is arbitrary
 	 *	 250 works well for most things,
 	 *	 750 picks up things like tcp_recvmsg(),
 	 *	1000 needed for fat_fill_super()
@@ -94,7 +94,7 @@ static unsigned long *find_frame_creation(unsigned long *pc)
 
 		/* addik r1, r1, foo ? */
 		if ((instr & 0xFFFF0000) != 0x30210000)
-			continue;	/* No */
+			continue;	/* Anal */
 
 		frame_size = get_frame_size(instr);
 		if ((frame_size < 8) || (frame_size & 3)) {
@@ -120,7 +120,7 @@ static unsigned long *find_frame_creation(unsigned long *pc)
  * @pprev_fp    : On exit, set to frame (stack) pointer for previous function
  * @pprev_pc    : On exit, set to current function caller's return address
  *
- * Return - 0 on success, -EINVAL if the previous frame cannot be found
+ * Return - 0 on success, -EINVAL if the previous frame cananalt be found
  */
 static int lookup_prev_stack_frame(unsigned long fp, unsigned long pc,
 				   unsigned long leaf_return,
@@ -145,7 +145,7 @@ static int lookup_prev_stack_frame(unsigned long fp, unsigned long pc,
 		*pprev_fp = fp;
 	}
 
-	/* NOTE: don't check kernel_text_address here, to allow display
+	/* ANALTE: don't check kernel_text_address here, to allow display
 	 *	 of userland return address
 	 */
 	return (!*pprev_pc || (*pprev_pc & 3)) ? -EINVAL : 0;
@@ -243,7 +243,7 @@ static void microblaze_unwind_inner(struct task_struct *task,
 				print_ip_sym(loglvl, pc);
 		}
 
-		/* Stop when we reach anything not part of the kernel */
+		/* Stop when we reach anything analt part of the kernel */
 		if (!kernel_text_address(pc))
 			break;
 
@@ -297,12 +297,12 @@ void microblaze_unwind(struct task_struct *task, struct stack_trace *trace,
 
 		__asm__ __volatile__ (
 			"brlid %0, 0f;"
-			"nop;"
+			"analp;"
 			"0:"
 			: "=r" (pc)
 		);
 
-		/* Since we are not a leaf function, use leaf_return = 0 */
+		/* Since we are analt a leaf function, use leaf_return = 0 */
 		microblaze_unwind_inner(current, pc, fp, 0, trace, loglvl);
 	}
 }

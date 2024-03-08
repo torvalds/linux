@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2016 Mellaanalx Techanallogies. All rights reserved.
+ * Copyright (c) 2016 Jiri Pirko <jiri@mellaanalx.com>
  */
 
 #include <net/genetlink.h>
@@ -44,9 +44,9 @@ struct devlink_rel {
 	struct {
 		u32 devlink_index;
 		u32 obj_index;
-		devlink_rel_notify_cb_t *notify_cb;
+		devlink_rel_analtify_cb_t *analtify_cb;
 		devlink_rel_cleanup_cb_t *cleanup_cb;
-		struct delayed_work notify_work;
+		struct delayed_work analtify_work;
 	} nested_in;
 };
 
@@ -67,10 +67,10 @@ static void __devlink_rel_put(struct devlink_rel *rel)
 		devlink_rel_free(rel);
 }
 
-static void devlink_rel_nested_in_notify_work(struct work_struct *work)
+static void devlink_rel_nested_in_analtify_work(struct work_struct *work)
 {
 	struct devlink_rel *rel = container_of(work, struct devlink_rel,
-					       nested_in.notify_work.work);
+					       nested_in.analtify_work.work);
 	struct devlink *devlink;
 
 	devlink = devlinks_xa_get(rel->nested_in.devlink_index);
@@ -87,7 +87,7 @@ static void devlink_rel_nested_in_notify_work(struct work_struct *work)
 	}
 	if (!xa_get_mark(&devlink_rels, rel->index, DEVLINK_REL_IN_USE))
 		rel->nested_in.cleanup_cb(devlink, rel->nested_in.obj_index, rel->index);
-	rel->nested_in.notify_cb(devlink, rel->nested_in.obj_index);
+	rel->nested_in.analtify_cb(devlink, rel->nested_in.obj_index);
 	devl_unlock(devlink);
 	devlink_put(devlink);
 
@@ -96,13 +96,13 @@ rel_put:
 	return;
 
 reschedule_work:
-	schedule_delayed_work(&rel->nested_in.notify_work, 1);
+	schedule_delayed_work(&rel->nested_in.analtify_work, 1);
 }
 
-static void devlink_rel_nested_in_notify_work_schedule(struct devlink_rel *rel)
+static void devlink_rel_nested_in_analtify_work_schedule(struct devlink_rel *rel)
 {
 	__devlink_rel_get(rel);
-	schedule_delayed_work(&rel->nested_in.notify_work, 0);
+	schedule_delayed_work(&rel->nested_in.analtify_work, 0);
 }
 
 static struct devlink_rel *devlink_rel_alloc(void)
@@ -113,7 +113,7 @@ static struct devlink_rel *devlink_rel_alloc(void)
 
 	rel = kzalloc(sizeof(*rel), GFP_KERNEL);
 	if (!rel)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = xa_alloc_cyclic(&devlink_rels, &rel->index, rel,
 			      xa_limit_32b, &next, GFP_KERNEL);
@@ -123,8 +123,8 @@ static struct devlink_rel *devlink_rel_alloc(void)
 	}
 
 	refcount_set(&rel->refcount, 1);
-	INIT_DELAYED_WORK(&rel->nested_in.notify_work,
-			  &devlink_rel_nested_in_notify_work);
+	INIT_DELAYED_WORK(&rel->nested_in.analtify_work,
+			  &devlink_rel_nested_in_analtify_work);
 	return rel;
 }
 
@@ -135,7 +135,7 @@ static void devlink_rel_put(struct devlink *devlink)
 	if (!rel)
 		return;
 	xa_clear_mark(&devlink_rels, rel->index, DEVLINK_REL_IN_USE);
-	devlink_rel_nested_in_notify_work_schedule(rel);
+	devlink_rel_nested_in_analtify_work_schedule(rel);
 	__devlink_rel_put(rel);
 	devlink->rel = NULL;
 }
@@ -146,13 +146,13 @@ void devlink_rel_nested_in_clear(u32 rel_index)
 }
 
 int devlink_rel_nested_in_add(u32 *rel_index, u32 devlink_index,
-			      u32 obj_index, devlink_rel_notify_cb_t *notify_cb,
+			      u32 obj_index, devlink_rel_analtify_cb_t *analtify_cb,
 			      devlink_rel_cleanup_cb_t *cleanup_cb,
 			      struct devlink *devlink)
 {
 	struct devlink_rel *rel = devlink_rel_alloc();
 
-	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
+	ASSERT_DEVLINK_ANALT_REGISTERED(devlink);
 
 	if (IS_ERR(rel))
 		return PTR_ERR(rel);
@@ -160,7 +160,7 @@ int devlink_rel_nested_in_add(u32 *rel_index, u32 devlink_index,
 	rel->devlink_index = devlink->index;
 	rel->nested_in.devlink_index = devlink_index;
 	rel->nested_in.obj_index = obj_index;
-	rel->nested_in.notify_cb = notify_cb;
+	rel->nested_in.analtify_cb = analtify_cb;
 	rel->nested_in.cleanup_cb = cleanup_cb;
 	*rel_index = rel->index;
 	xa_set_mark(&devlink_rels, rel->index, DEVLINK_REL_IN_USE);
@@ -169,26 +169,26 @@ int devlink_rel_nested_in_add(u32 *rel_index, u32 devlink_index,
 }
 
 /**
- * devlink_rel_nested_in_notify - Notify the object this devlink
+ * devlink_rel_nested_in_analtify - Analtify the object this devlink
  *				  instance is nested in.
  * @devlink: devlink
  *
  * This is called upon network namespace change of devlink instance.
- * In case this devlink instance is nested in another devlink object,
- * a notification of a change of this object should be sent
+ * In case this devlink instance is nested in aanalther devlink object,
+ * a analtification of a change of this object should be sent
  * over netlink. The parent devlink instance lock needs to be
- * taken during the notification preparation.
+ * taken during the analtification preparation.
  * However, since the devlink lock of nested instance is held here,
  * we would end with wrong devlink instance lock ordering and
  * deadlock. Therefore the work is utilized to avoid that.
  */
-void devlink_rel_nested_in_notify(struct devlink *devlink)
+void devlink_rel_nested_in_analtify(struct devlink *devlink)
 {
 	struct devlink_rel *rel = devlink->rel;
 
 	if (!rel)
 		return;
-	devlink_rel_nested_in_notify_work_schedule(rel);
+	devlink_rel_nested_in_analtify_work_schedule(rel);
 }
 
 static struct devlink_rel *devlink_rel_find(unsigned long rel_index)
@@ -294,13 +294,13 @@ EXPORT_SYMBOL_GPL(devl_unlock);
  * @devlink: instance to reference
  *
  * Obtain a reference on a devlink instance. A reference on a devlink instance
- * only implies that it's safe to take the instance lock. It does not imply
+ * only implies that it's safe to take the instance lock. It does analt imply
  * that the instance is registered, use devl_is_registered() after taking
  * the instance lock to check registration status.
  */
 struct devlink *__must_check devlink_try_get(struct devlink *devlink)
 {
-	if (refcount_inc_not_zero(&devlink->refcount))
+	if (refcount_inc_analt_zero(&devlink->refcount))
 		return devlink;
 	return NULL;
 }
@@ -354,12 +354,12 @@ next:
  */
 int devl_register(struct devlink *devlink)
 {
-	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
+	ASSERT_DEVLINK_ANALT_REGISTERED(devlink);
 	devl_assert_locked(devlink);
 
 	xa_set_mark(&devlinks, devlink->index, DEVLINK_REGISTERED);
-	devlink_notify_register(devlink);
-	devlink_rel_nested_in_notify(devlink);
+	devlink_analtify_register(devlink);
+	devlink_rel_nested_in_analtify(devlink);
 
 	return 0;
 }
@@ -382,7 +382,7 @@ void devl_unregister(struct devlink *devlink)
 	ASSERT_DEVLINK_REGISTERED(devlink);
 	devl_assert_locked(devlink);
 
-	devlink_notify_unregister(devlink);
+	devlink_analtify_unregister(devlink);
 	xa_clear_mark(&devlinks, devlink->index, DEVLINK_REGISTERED);
 	devlink_rel_put(devlink);
 }
@@ -467,7 +467,7 @@ EXPORT_SYMBOL_GPL(devlink_alloc_ns);
  */
 void devlink_free(struct devlink *devlink)
 {
-	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
+	ASSERT_DEVLINK_ANALT_REGISTERED(devlink);
 
 	WARN_ON(!list_empty(&devlink->trap_policer_list));
 	WARN_ON(!list_empty(&devlink->trap_group_list));
@@ -512,7 +512,7 @@ static void __net_exit devlink_pernet_pre_exit(struct net *net)
 					     &actions_performed, NULL);
 		devl_dev_unlock(devlink, true);
 		devlink_put(devlink);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			pr_warn("Failed to reload devlink instance into init_net\n");
 	}
 }
@@ -521,8 +521,8 @@ static struct pernet_operations devlink_pernet_ops __net_initdata = {
 	.pre_exit = devlink_pernet_pre_exit,
 };
 
-static struct notifier_block devlink_port_netdevice_nb = {
-	.notifier_call = devlink_port_netdevice_event,
+static struct analtifier_block devlink_port_netdevice_nb = {
+	.analtifier_call = devlink_port_netdevice_event,
 };
 
 static int __init devlink_init(void)
@@ -535,7 +535,7 @@ static int __init devlink_init(void)
 	err = genl_register_family(&devlink_nl_family);
 	if (err)
 		goto out_unreg_pernet_subsys;
-	err = register_netdevice_notifier(&devlink_port_netdevice_nb);
+	err = register_netdevice_analtifier(&devlink_port_netdevice_nb);
 	if (!err)
 		return 0;
 

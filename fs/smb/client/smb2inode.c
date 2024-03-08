@@ -46,10 +46,10 @@ static struct reparse_data_buffer *reparse_buf_ptr(struct kvec *iov)
 
 static inline __u32 file_create_options(struct dentry *dentry)
 {
-	struct cifsInodeInfo *ci;
+	struct cifsIanaldeInfo *ci;
 
 	if (dentry) {
-		ci = CIFS_I(d_inode(dentry));
+		ci = CIFS_I(d_ianalde(dentry));
 		if (ci->cifsAttrs & ATTR_REPARSE)
 			return OPEN_REPARSE_POINT;
 	}
@@ -86,10 +86,10 @@ static int parse_posix_sids(struct cifs_open_info_data *data,
 }
 
 /*
- * note: If cfile is passed, the reference to it is dropped here.
- * So make sure that you do not reuse cfile after return from this func.
+ * analte: If cfile is passed, the reference to it is dropped here.
+ * So make sure that you do analt reuse cfile after return from this func.
  *
- * If passing @out_iov and @out_buftype, ensure to make them both large enough
+ * If passing @out_iov and @out_buftype, ensure to make them both large eanalugh
  * (>= 3) to hold all compounded responses.  Caller is also responsible for
  * freeing them up with free_rsp_buf().
  */
@@ -107,7 +107,7 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	struct smb_rqst *rqst;
 	int rc;
 	__le16 *utf16_path = NULL;
-	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	__u8 oplock = SMB2_OPLOCK_LEVEL_ANALNE;
 	struct cifs_fid fid;
 	struct cifs_ses *ses = tcon->ses;
 	struct TCP_Server_Info *server;
@@ -125,13 +125,13 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 replay_again:
 	/* reinitialize for possible replay */
 	flags = 0;
-	oplock = SMB2_OPLOCK_LEVEL_NONE;
+	oplock = SMB2_OPLOCK_LEVEL_ANALNE;
 	num_rqst = 0;
 	server = cifs_pick_channel(ses);
 
 	vars = kzalloc(sizeof(*vars), GFP_ATOMIC);
 	if (vars == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	rqst = &vars->rqst[0];
 	rsp_iov = &vars->rsp_iov[0];
 
@@ -139,7 +139,7 @@ replay_again:
 		flags |= CIFS_TRANSFORM_REQ;
 
 	for (i = 0; i < ARRAY_SIZE(resp_buftype); i++)
-		resp_buftype[i] = CIFS_NO_BUFFER;
+		resp_buftype[i] = CIFS_ANAL_BUFFER;
 
 	/* We already have a handle so we can skip the open */
 	if (cfile)
@@ -148,7 +148,7 @@ replay_again:
 	/* Open */
 	utf16_path = cifs_convert_path_to_utf16(full_path, cifs_sb);
 	if (!utf16_path) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto finished;
 	}
 
@@ -503,7 +503,7 @@ finished:
 			if (rc == 0 && cfile && cfile->symlink_target) {
 				idata->symlink_target = kstrdup(cfile->symlink_target, GFP_KERNEL);
 				if (!idata->symlink_target)
-					rc = -ENOMEM;
+					rc = -EANALMEM;
 			}
 			if (rc == 0) {
 				qi_rsp = (struct smb2_query_info_rsp *)
@@ -526,7 +526,7 @@ finished:
 			if (rc == 0 && cfile && cfile->symlink_target) {
 				idata->symlink_target = kstrdup(cfile->symlink_target, GFP_KERNEL);
 				if (!idata->symlink_target)
-					rc = -ENOMEM;
+					rc = -EANALMEM;
 			}
 			if (rc == 0) {
 				qi_rsp = (struct smb2_query_info_rsp *)
@@ -624,7 +624,7 @@ finished:
 									     tcon->tid);
 				}
 				memset(iov, 0, sizeof(*iov));
-				resp_buftype[i + 1] = CIFS_NO_BUFFER;
+				resp_buftype[i + 1] = CIFS_ANAL_BUFFER;
 			} else {
 				trace_smb3_set_reparse_compound_err(xid,  ses->Suid,
 								    tcon->tid, rc);
@@ -667,7 +667,7 @@ static int parse_create_response(struct cifs_open_info_data *data,
 	int rc = 0;
 
 	switch (rsp->hdr.Status) {
-	case STATUS_IO_REPARSE_TAG_NOT_HANDLED:
+	case STATUS_IO_REPARSE_TAG_ANALT_HANDLED:
 		reparse_point = true;
 		break;
 	case STATUS_STOPPED_ON_SYMLINK:
@@ -709,13 +709,13 @@ int smb2_query_path_info(const unsigned int xid,
 
 	/*
 	 * BB TODO: Add support for using cached root handle in SMB3.1.1 POSIX.
-	 * Create SMB2_query_posix_info worker function to do non-compounded
-	 * query when we already have an open file handle for this. For now this
-	 * is fast enough (always using the compounded version).
+	 * Create SMB2_query_posix_info worker function to do analn-compounded
+	 * query when we already have an open file handle for this. For analw this
+	 * is fast eanalugh (always using the compounded version).
 	 */
 	if (!tcon->posix_extensions) {
 		if (*full_path) {
-			rc = -ENOENT;
+			rc = -EANALENT;
 		} else {
 			rc = open_cached_dir(xid, tcon, full_path,
 					     cifs_sb, false, &cfid);
@@ -746,19 +746,19 @@ int smb2_query_path_info(const unsigned int xid,
 	cifs_get_readable_path(tcon, full_path, &cfile);
 	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
 			      FILE_READ_ATTRIBUTES, FILE_OPEN,
-			      create_options, ACL_NO_MODE, in_iov,
+			      create_options, ACL_ANAL_MODE, in_iov,
 			      cmds, 1, cfile, out_iov, out_buftype);
 	hdr = out_iov[0].iov_base;
 	/*
 	 * If first iov is unset, then SMB session was dropped or we've got a
 	 * cached open file (@cfile).
 	 */
-	if (!hdr || out_buftype[0] == CIFS_NO_BUFFER)
+	if (!hdr || out_buftype[0] == CIFS_ANAL_BUFFER)
 		goto out;
 
 	switch (rc) {
 	case 0:
-	case -EOPNOTSUPP:
+	case -EOPANALTSUPP:
 		/*
 		 * BB TODO: When support for special files added to Samba
 		 * re-verify this path.
@@ -778,7 +778,7 @@ int smb2_query_path_info(const unsigned int xid,
 		cifs_get_readable_path(tcon, full_path, &cfile);
 		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
 				      FILE_READ_ATTRIBUTES, FILE_OPEN,
-				      create_options, ACL_NO_MODE, in_iov,
+				      create_options, ACL_ANAL_MODE, in_iov,
 				      cmds, num_cmds, cfile, NULL, NULL);
 		break;
 	case -EREMOTE:
@@ -803,24 +803,24 @@ out:
 }
 
 int
-smb2_mkdir(const unsigned int xid, struct inode *parent_inode, umode_t mode,
+smb2_mkdir(const unsigned int xid, struct ianalde *parent_ianalde, umode_t mode,
 	   struct cifs_tcon *tcon, const char *name,
 	   struct cifs_sb_info *cifs_sb)
 {
 	return smb2_compound_op(xid, tcon, cifs_sb, name,
 				FILE_WRITE_ATTRIBUTES, FILE_CREATE,
-				CREATE_NOT_FILE, mode,
+				CREATE_ANALT_FILE, mode,
 				NULL, &(int){SMB2_OP_MKDIR}, 1,
 				NULL, NULL, NULL);
 }
 
 void
-smb2_mkdir_setinfo(struct inode *inode, const char *name,
+smb2_mkdir_setinfo(struct ianalde *ianalde, const char *name,
 		   struct cifs_sb_info *cifs_sb, struct cifs_tcon *tcon,
 		   const unsigned int xid)
 {
 	FILE_BASIC_INFO data = {};
-	struct cifsInodeInfo *cifs_i;
+	struct cifsIanaldeInfo *cifs_i;
 	struct cifsFileInfo *cfile;
 	struct kvec in_iov;
 	u32 dosattrs;
@@ -828,13 +828,13 @@ smb2_mkdir_setinfo(struct inode *inode, const char *name,
 
 	in_iov.iov_base = &data;
 	in_iov.iov_len = sizeof(data);
-	cifs_i = CIFS_I(inode);
+	cifs_i = CIFS_I(ianalde);
 	dosattrs = cifs_i->cifsAttrs | ATTR_READONLY;
 	data.Attributes = cpu_to_le32(dosattrs);
 	cifs_get_writable_path(tcon, name, FIND_WR_ANY, &cfile);
 	tmprc = smb2_compound_op(xid, tcon, cifs_sb, name,
 				 FILE_WRITE_ATTRIBUTES, FILE_CREATE,
-				 CREATE_NOT_FILE, ACL_NO_MODE, &in_iov,
+				 CREATE_ANALT_FILE, ACL_ANAL_MODE, &in_iov,
 				 &(int){SMB2_OP_SET_INFO}, 1,
 				 cfile, NULL, NULL);
 	if (tmprc == 0)
@@ -847,8 +847,8 @@ smb2_rmdir(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
 {
 	drop_cached_dir_by_name(xid, tcon, name, cifs_sb);
 	return smb2_compound_op(xid, tcon, cifs_sb, name,
-				DELETE, FILE_OPEN, CREATE_NOT_FILE,
-				ACL_NO_MODE, NULL,
+				DELETE, FILE_OPEN, CREATE_ANALT_FILE,
+				ACL_ANAL_MODE, NULL,
 				&(int){SMB2_OP_RMDIR}, 1,
 				NULL, NULL, NULL);
 }
@@ -859,7 +859,7 @@ smb2_unlink(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
 {
 	return smb2_compound_op(xid, tcon, cifs_sb, name, DELETE, FILE_OPEN,
 				CREATE_DELETE_ON_CLOSE | OPEN_REPARSE_POINT,
-				ACL_NO_MODE, NULL,
+				ACL_ANAL_MODE, NULL,
 				&(int){SMB2_OP_DELETE}, 1,
 				NULL, NULL, NULL);
 }
@@ -876,13 +876,13 @@ static int smb2_set_path_attr(const unsigned int xid, struct cifs_tcon *tcon,
 
 	smb2_to_name = cifs_convert_path_to_utf16(to_name, cifs_sb);
 	if (smb2_to_name == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto smb2_rename_path;
 	}
 	in_iov.iov_base = smb2_to_name;
 	in_iov.iov_len = 2 * UniStrnlen((wchar_t *)smb2_to_name, PATH_MAX);
 	rc = smb2_compound_op(xid, tcon, cifs_sb, from_name, access,
-			      FILE_OPEN, create_options, ACL_NO_MODE,
+			      FILE_OPEN, create_options, ACL_ANAL_MODE,
 			      &in_iov, &command, 1, cfile, NULL, NULL);
 smb2_rename_path:
 	kfree(smb2_to_name);
@@ -932,16 +932,16 @@ smb2_set_path_size(const unsigned int xid, struct cifs_tcon *tcon,
 	cifs_get_writable_path(tcon, full_path, FIND_WR_ANY, &cfile);
 	return smb2_compound_op(xid, tcon, cifs_sb, full_path,
 				FILE_WRITE_DATA, FILE_OPEN,
-				0, ACL_NO_MODE, &in_iov,
+				0, ACL_ANAL_MODE, &in_iov,
 				&(int){SMB2_OP_SET_EOF}, 1,
 				cfile, NULL, NULL);
 }
 
 int
-smb2_set_file_info(struct inode *inode, const char *full_path,
+smb2_set_file_info(struct ianalde *ianalde, const char *full_path,
 		   FILE_BASIC_INFO *buf, const unsigned int xid)
 {
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(ianalde->i_sb);
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
 	struct cifsFileInfo *cfile;
@@ -951,7 +951,7 @@ smb2_set_file_info(struct inode *inode, const char *full_path,
 	if ((buf->CreationTime == 0) && (buf->LastAccessTime == 0) &&
 	    (buf->LastWriteTime == 0) && (buf->ChangeTime == 0) &&
 	    (buf->Attributes == 0))
-		return 0; /* would be a no op, no sense sending this */
+		return 0; /* would be a anal op, anal sense sending this */
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
@@ -961,14 +961,14 @@ smb2_set_file_info(struct inode *inode, const char *full_path,
 	cifs_get_writable_path(tcon, full_path, FIND_WR_ANY, &cfile);
 	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
 			      FILE_WRITE_ATTRIBUTES, FILE_OPEN,
-			      0, ACL_NO_MODE, &in_iov,
+			      0, ACL_ANAL_MODE, &in_iov,
 			      &(int){SMB2_OP_SET_INFO}, 1,
 			      cfile, NULL, NULL);
 	cifs_put_tlink(tlink);
 	return rc;
 }
 
-struct inode *smb2_get_reparse_inode(struct cifs_open_info_data *data,
+struct ianalde *smb2_get_reparse_ianalde(struct cifs_open_info_data *data,
 				     struct super_block *sb,
 				     const unsigned int xid,
 				     struct cifs_tcon *tcon,
@@ -977,7 +977,7 @@ struct inode *smb2_get_reparse_inode(struct cifs_open_info_data *data,
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifsFileInfo *cfile;
-	struct inode *new = NULL;
+	struct ianalde *new = NULL;
 	struct kvec in_iov[2];
 	int cmds[2];
 	int da, co, cd;
@@ -986,7 +986,7 @@ struct inode *smb2_get_reparse_inode(struct cifs_open_info_data *data,
 	da = SYNCHRONIZE | DELETE |
 		FILE_READ_ATTRIBUTES |
 		FILE_WRITE_ATTRIBUTES;
-	co = CREATE_NOT_DIR | OPEN_REPARSE_POINT;
+	co = CREATE_ANALT_DIR | OPEN_REPARSE_POINT;
 	cd = FILE_CREATE;
 	cmds[0] = SMB2_OP_SET_REPARSE;
 	in_iov[0] = *iov;
@@ -997,20 +997,20 @@ struct inode *smb2_get_reparse_inode(struct cifs_open_info_data *data,
 		cmds[1] = SMB2_OP_POSIX_QUERY_INFO;
 		cifs_get_writable_path(tcon, full_path, FIND_WR_ANY, &cfile);
 		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
-				      da, cd, co, ACL_NO_MODE, in_iov,
+				      da, cd, co, ACL_ANAL_MODE, in_iov,
 				      cmds, 2, cfile, NULL, NULL);
 		if (!rc) {
-			rc = smb311_posix_get_inode_info(&new, full_path,
+			rc = smb311_posix_get_ianalde_info(&new, full_path,
 							 data, sb, xid);
 		}
 	} else {
 		cmds[1] = SMB2_OP_QUERY_INFO;
 		cifs_get_writable_path(tcon, full_path, FIND_WR_ANY, &cfile);
 		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
-				      da, cd, co, ACL_NO_MODE, in_iov,
+				      da, cd, co, ACL_ANAL_MODE, in_iov,
 				      cmds, 2, cfile, NULL, NULL);
 		if (!rc) {
-			rc = cifs_get_inode_info(&new, full_path,
+			rc = cifs_get_ianalde_info(&new, full_path,
 						 data, sb, xid, NULL);
 		}
 	}
@@ -1034,7 +1034,7 @@ int smb2_query_reparse_point(const unsigned int xid,
 	cifs_get_readable_path(tcon, full_path, &cfile);
 	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
 			      FILE_READ_ATTRIBUTES, FILE_OPEN,
-			      OPEN_REPARSE_POINT, ACL_NO_MODE, &in_iov,
+			      OPEN_REPARSE_POINT, ACL_ANAL_MODE, &in_iov,
 			      &(int){SMB2_OP_GET_REPARSE}, 1,
 			      cfile, NULL, NULL);
 	if (rc)
@@ -1044,7 +1044,7 @@ int smb2_query_reparse_point(const unsigned int xid,
 	*rsp = data.reparse.io.iov;
 	*rsp_buftype = data.reparse.io.buftype;
 	memset(&data.reparse.io.iov, 0, sizeof(data.reparse.io.iov));
-	data.reparse.io.buftype = CIFS_NO_BUFFER;
+	data.reparse.io.buftype = CIFS_ANAL_BUFFER;
 out:
 	cifs_free_open_info(&data);
 	return rc;

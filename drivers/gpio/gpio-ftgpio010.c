@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Faraday Technolog FTGPIO010 gpiochip and interrupt routines
+ * Faraday Techanallog FTGPIO010 gpiochip and interrupt routines
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
  *
  * Based on arch/arm/mach-gemini/gpio.c:
@@ -165,7 +165,7 @@ static int ftgpio_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 	u32 val;
 
 	if (param != PIN_CONFIG_INPUT_DEBOUNCE)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/*
 	 * Debounce only works if interrupts are enabled. The manual
@@ -183,7 +183,7 @@ static int ftgpio_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 
 	/* This register is only 24 bits wide */
 	if (deb_div > (1 << 24))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	dev_dbg(g->dev, "prescale divisor: %08x, resulting frequency %lu Hz\n",
 		deb_div, (pclk_freq/deb_div));
@@ -206,10 +206,10 @@ static int ftgpio_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 	val = readl(g->base + GPIO_DEBOUNCE_EN);
 	if (val) {
 		/*
-		 * Oh no! Someone is already using the debounce with
-		 * another setting than what we need. Bummer.
+		 * Oh anal! Someone is already using the debounce with
+		 * aanalther setting than what we need. Bummer.
 		 */
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	/* First come, first serve */
@@ -241,7 +241,7 @@ static int ftgpio_gpio_probe(struct platform_device *pdev)
 
 	g = devm_kzalloc(dev, sizeof(*g), GFP_KERNEL);
 	if (!g)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	g->dev = dev;
 
@@ -294,10 +294,10 @@ static int ftgpio_gpio_probe(struct platform_device *pdev)
 	girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
 				     GFP_KERNEL);
 	if (!girq->parents) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto dis_clk;
 	}
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_bad_irq;
 	girq->parents[0] = irq;
 

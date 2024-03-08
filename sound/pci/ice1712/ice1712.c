@@ -6,8 +6,8 @@
  */
 
 /*
-  NOTES:
-  - spdif nonaudio consumer mode does not work (at least with my
+  ANALTES:
+  - spdif analnaudio consumer mode does analt work (at least with my
     Sony STR-DB830)
 */
 
@@ -26,9 +26,9 @@
  *
  *  2003.02.20  Taksahi Iwai <tiwai@suse.de>
  *	Split vt1724 part to an independent driver.
- *	The GPIO is accessed through the callback functions now.
+ *	The GPIO is accessed through the callback functions analw.
  *
- * 2004.03.31 Doug McLain <nostar@comcast.net>
+ * 2004.03.31 Doug McLain <analstar@comcast.net>
  *    Added support for Event Electronics EZ8 card to hoontech.c.
  */
 
@@ -234,7 +234,7 @@ static unsigned short snd_ice1712_pro_ac97_read(struct snd_ac97 *ac97,
 /*
  * consumer ac97 digital mix
  */
-#define snd_ice1712_digmix_route_ac97_info	snd_ctl_boolean_mono_info
+#define snd_ice1712_digmix_route_ac97_info	snd_ctl_boolean_moanal_info
 
 static int snd_ice1712_digmix_route_ac97_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -388,7 +388,7 @@ static void snd_ice1712_set_input_clock_source(struct snd_ice1712 *ice, int spdi
 	/* change CS8427 clock source too */
 	if (ice->cs8427)
 		snd_ice1712_cs8427_set_input_clock(ice, spdif_is_master);
-	/* notify ak4524 chip as well */
+	/* analtify ak4524 chip as well */
 	if (spdif_is_master) {
 		unsigned int i;
 		for (i = 0; i < ice->akm_codecs; i++) {
@@ -857,7 +857,7 @@ static int snd_ice1712_pcm(struct snd_ice1712 *ice, int device)
 				       &ice->pci->dev, 64*1024, 64*1024);
 
 	dev_warn(ice->card->dev,
-		 "Consumer PCM code does not work well at the moment --jk\n");
+		 "Consumer PCM code does analt work well at the moment --jk\n");
 
 	return 0;
 }
@@ -1090,7 +1090,7 @@ static const struct snd_pcm_hardware snd_ice1712_playback_pro = {
 				 SNDRV_PCM_INFO_MMAP_VALID |
 				 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_SYNC_START),
 	.formats =		SNDRV_PCM_FMTBIT_S32_LE,
-	.rates =		SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_8000_96000,
+	.rates =		SNDRV_PCM_RATE_KANALT | SNDRV_PCM_RATE_8000_96000,
 	.rate_min =		4000,
 	.rate_max =		96000,
 	.channels_min =		10,
@@ -1109,7 +1109,7 @@ static const struct snd_pcm_hardware snd_ice1712_capture_pro = {
 				 SNDRV_PCM_INFO_MMAP_VALID |
 				 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_SYNC_START),
 	.formats =		SNDRV_PCM_FMTBIT_S32_LE,
-	.rates =		SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_8000_96000,
+	.rates =		SNDRV_PCM_RATE_KANALT | SNDRV_PCM_RATE_8000_96000,
 	.rate_min =		4000,
 	.rate_max =		96000,
 	.channels_min =		12,
@@ -1477,7 +1477,7 @@ static int snd_ice1712_ac97_mixer(struct snd_ice1712 *ice)
 		err = snd_ac97_mixer(pbus, &ac97, &ice->ac97);
 		if (err < 0)
 			dev_warn(ice->card->dev,
-				 "cannot initialize ac97 for consumer, skipped\n");
+				 "cananalt initialize ac97 for consumer, skipped\n");
 		else {
 			return snd_ctl_add(ice->card,
 			snd_ctl_new1(&snd_ice1712_mixer_digmix_route_ac97,
@@ -1495,7 +1495,7 @@ static int snd_ice1712_ac97_mixer(struct snd_ice1712 *ice)
 		err = snd_ac97_mixer(pbus, &ac97, &ice->ac97);
 		if (err < 0)
 			dev_warn(ice->card->dev,
-				 "cannot initialize pro ac97, skipped\n");
+				 "cananalt initialize pro ac97, skipped\n");
 		else
 			return 0;
 	}
@@ -1629,9 +1629,9 @@ static int snd_ice1712_spdif_maskc_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	if (ice->spdif.ops.default_get) {
-		ucontrol->value.iec958.status[0] = IEC958_AES0_NONAUDIO |
+		ucontrol->value.iec958.status[0] = IEC958_AES0_ANALNAUDIO |
 						     IEC958_AES0_PROFESSIONAL |
-						     IEC958_AES0_CON_NOT_COPYRIGHT |
+						     IEC958_AES0_CON_ANALT_COPYRIGHT |
 						     IEC958_AES0_CON_EMPHASIS;
 		ucontrol->value.iec958.status[1] = IEC958_AES1_CON_ORIGINAL |
 						     IEC958_AES1_CON_CATEGORY;
@@ -1651,7 +1651,7 @@ static int snd_ice1712_spdif_maskp_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	if (ice->spdif.ops.default_get) {
-		ucontrol->value.iec958.status[0] = IEC958_AES0_NONAUDIO |
+		ucontrol->value.iec958.status[0] = IEC958_AES0_ANALNAUDIO |
 						     IEC958_AES0_PROFESSIONAL |
 						     IEC958_AES0_PRO_FS |
 						     IEC958_AES0_PRO_EMPHASIS;
@@ -1900,7 +1900,7 @@ static const struct snd_kcontrol_new snd_ice1712_pro_internal_clock_default = {
 	.put = snd_ice1712_pro_internal_clock_default_put
 };
 
-#define snd_ice1712_pro_rate_locking_info	snd_ctl_boolean_mono_info
+#define snd_ice1712_pro_rate_locking_info	snd_ctl_boolean_moanal_info
 
 static int snd_ice1712_pro_rate_locking_get(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
@@ -1931,7 +1931,7 @@ static const struct snd_kcontrol_new snd_ice1712_pro_rate_locking = {
 	.put = snd_ice1712_pro_rate_locking_put
 };
 
-#define snd_ice1712_pro_rate_reset_info		snd_ctl_boolean_mono_info
+#define snd_ice1712_pro_rate_reset_info		snd_ctl_boolean_moanal_info
 
 static int snd_ice1712_pro_rate_reset_get(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_value *ucontrol)
@@ -2124,7 +2124,7 @@ static const struct snd_kcontrol_new snd_ice1712_mixer_pro_analog_route = {
 
 static const struct snd_kcontrol_new snd_ice1712_mixer_pro_spdif_route = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = SNDRV_CTL_NAME_IEC958("", PLAYBACK, NONE) "Route",
+	.name = SNDRV_CTL_NAME_IEC958("", PLAYBACK, ANALNE) "Route",
 	.info = snd_ice1712_pro_route_info,
 	.get = snd_ice1712_pro_route_spdif_get,
 	.put = snd_ice1712_pro_route_spdif_put,
@@ -2254,7 +2254,7 @@ static int snd_ice1712_read_eeprom(struct snd_ice1712 *ice,
 			ice->eeprom.subvendor = ((unsigned int)swab16(vendor) << 16) | swab16(device);
 			if (ice->eeprom.subvendor == 0 || ice->eeprom.subvendor == (unsigned int)-1) {
 				dev_err(ice->card->dev,
-					"No valid ID is found\n");
+					"Anal valid ID is found\n");
 				return -ENXIO;
 			}
 		}
@@ -2277,7 +2277,7 @@ static int snd_ice1712_read_eeprom(struct snd_ice1712 *ice,
 			goto read_skipped;
 		}
 	}
-	dev_warn(ice->card->dev, "No matching model found for ID 0x%x\n",
+	dev_warn(ice->card->dev, "Anal matching model found for ID 0x%x\n",
 	       ice->eeprom.subvendor);
 
  found:
@@ -2318,8 +2318,8 @@ static int snd_ice1712_chip_init(struct snd_ice1712 *ice)
 	if (ice->eeprom.subvendor == ICE1712_SUBDEVICE_DMX6FIRE &&
 	    !ice->dxr_enable)
 		/*  Set eeprom value to limit active ADCs and DACs to 6;
-		 *  Also disable AC97 as no hardware in standard 6fire card/box
-		 *  Note: DXR extensions are not currently supported
+		 *  Also disable AC97 as anal hardware in standard 6fire card/box
+		 *  Analte: DXR extensions are analt currently supported
 		 */
 		ice->eeprom.data[ICE_EEP1_CODEC] = 0x3a;
 	pci_write_config_byte(ice->pci, 0x60, ice->eeprom.data[ICE_EEP1_CODEC]);
@@ -2345,7 +2345,7 @@ static int snd_ice1712_chip_init(struct snd_ice1712 *ice)
 				  ICE1712_STDSP24_CLOCK_BIT);
 	}
 	snd_ice1712_write(ice, ICE1712_IREG_PRO_POWERDOWN, 0);
-	if (!(ice->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_NO_CON_AC97)) {
+	if (!(ice->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_ANAL_CON_AC97)) {
 		outb(ICE1712_AC97_WARM, ICEREG(ice, AC97_CMD));
 		udelay(100);
 		outb(0, ICEREG(ice, AC97_CMD));
@@ -2356,7 +2356,7 @@ static int snd_ice1712_chip_init(struct snd_ice1712 *ice)
 	/* unmask used interrupts */
 	outb(((ice->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_2xMPU401) == 0 ?
 	      ICE1712_IRQ_MPU2 : 0) |
-	     ((ice->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_NO_CON_AC97) ?
+	     ((ice->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_ANAL_CON_AC97) ?
 	      ICE1712_IRQ_PBKDS | ICE1712_IRQ_CONCAP | ICE1712_IRQ_CONPBK : 0),
 	     ICEREG(ice, IRQMASK));
 	outb(0x00, ICEMT(ice, IRQ));
@@ -2467,7 +2467,7 @@ static int snd_ice1712_create(struct snd_card *card,
 	/* check, if we can restrict PCI DMA transfers to 28 bits */
 	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(28))) {
 		dev_err(card->dev,
-			"architecture does not support 28bit PCI busmaster DMA\n");
+			"architecture does analt support 28bit PCI busmaster DMA\n");
 		return -ENXIO;
 	}
 
@@ -2491,7 +2491,7 @@ static int snd_ice1712_create(struct snd_card *card,
 
 	ice->spdif.cs8403_bits =
 		ice->spdif.cs8403_stream_bits = (0x01 |	/* consumer format */
-						 0x10 |	/* no emphasis */
+						 0x10 |	/* anal emphasis */
 						 0x20);	/* PCM encoder/decoder */
 	ice->card = card;
 	ice->pci = pci;
@@ -2535,7 +2535,7 @@ static int snd_ice1712_create(struct snd_card *card,
  *
  */
 
-static struct snd_ice1712_card_info no_matched;
+static struct snd_ice1712_card_info anal_matched;
 
 static int snd_ice1712_probe(struct pci_dev *pci,
 			     const struct pci_device_id *pci_id)
@@ -2547,10 +2547,10 @@ static int snd_ice1712_probe(struct pci_dev *pci,
 	const struct snd_ice1712_card_info * const *tbl, *c;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
@@ -2583,7 +2583,7 @@ static int snd_ice1712_probe(struct pci_dev *pci,
 			}
 		}
 	}
-	c = &no_matched;
+	c = &anal_matched;
  __found:
 
 	err = snd_ice1712_pcm_profi(ice, pcm_dev++);
@@ -2616,7 +2616,7 @@ static int snd_ice1712_probe(struct pci_dev *pci,
 			return err;
 	}
 
-	if (!c->no_mpu401) {
+	if (!c->anal_mpu401) {
 		err = snd_mpu401_uart_new(card, 0, MPU401_HW_ICE1712,
 			ICEREG(ice, MPU1_CTRL),
 			c->mpu401_1_info_flags |

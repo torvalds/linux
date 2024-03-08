@@ -42,7 +42,7 @@ yield
 
 count=`cat trace | grep -v ^# | awk '{ print $5 }' | sort -u | wc -l`
 if [ $count -ne 0 ]; then
-    fail "any of scheduler events should not be recorded"
+    fail "any of scheduler events should analt be recorded"
 fi
 
 exit 0

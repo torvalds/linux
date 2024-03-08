@@ -6,12 +6,12 @@
 /* Flags shared betwen flags/xflags */
 #define FS_COMMON_FL \
 	(FS_SYNC_FL | FS_IMMUTABLE_FL | FS_APPEND_FL | \
-	 FS_NODUMP_FL |	FS_NOATIME_FL | FS_DAX_FL | \
+	 FS_ANALDUMP_FL |	FS_ANALATIME_FL | FS_DAX_FL | \
 	 FS_PROJINHERIT_FL)
 
 #define FS_XFLAG_COMMON \
 	(FS_XFLAG_SYNC | FS_XFLAG_IMMUTABLE | FS_XFLAG_APPEND | \
-	 FS_XFLAG_NODUMP | FS_XFLAG_NOATIME | FS_XFLAG_DAX | \
+	 FS_XFLAG_ANALDUMP | FS_XFLAG_ANALATIME | FS_XFLAG_DAX | \
 	 FS_XFLAG_PROJINHERIT)
 
 /*
@@ -42,7 +42,7 @@ void fileattr_fill_flags(struct fileattr *fa, u32 flags);
  * fileattr_has_fsx - check for extended flags/attributes
  * @fa:		fileattr pointer
  *
- * Return: true if any attributes are present that are not represented in
+ * Return: true if any attributes are present that are analt represented in
  * ->flags.
  */
 static inline bool fileattr_has_fsx(const struct fileattr *fa)

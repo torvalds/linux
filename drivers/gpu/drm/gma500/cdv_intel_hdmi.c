@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -165,7 +165,7 @@ static int cdv_hdmi_set_property(struct drm_connector *connector,
 		switch (value) {
 		case DRM_MODE_SCALE_FULLSCREEN:
 			break;
-		case DRM_MODE_SCALE_NO_SCALE:
+		case DRM_MODE_SCALE_ANAL_SCALE:
 			break;
 		case DRM_MODE_SCALE_ASPECT:
 			break;
@@ -184,8 +184,8 @@ static int cdv_hdmi_set_property(struct drm_connector *connector,
 							property, value))
 			return -1;
 
-		centre = (curValue == DRM_MODE_SCALE_NO_SCALE) ||
-			(value == DRM_MODE_SCALE_NO_SCALE);
+		centre = (curValue == DRM_MODE_SCALE_ANAL_SCALE) ||
+			(value == DRM_MODE_SCALE_ANAL_SCALE);
 
 		if (crtc->saved_mode.hdisplay != 0 &&
 		    crtc->saved_mode.vdisplay != 0) {
@@ -231,11 +231,11 @@ static enum drm_mode_status cdv_hdmi_mode_valid(struct drm_connector *connector,
 
 	/* just in case */
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
+		return MODE_ANAL_DBLESCAN;
 
 	/* just in case */
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		return MODE_NO_INTERLACE;
+		return MODE_ANAL_INTERLACE;
 
 	return MODE_OK;
 }
@@ -310,14 +310,14 @@ void cdv_hdmi_init(struct drm_device *dev,
 		gma_encoder->ddi_select = DDI1_SELECT;
 		break;
 	default:
-		DRM_ERROR("unknown reg 0x%x for HDMI\n", reg);
+		DRM_ERROR("unkanalwn reg 0x%x for HDMI\n", reg);
 		goto err_free_hdmi_priv;
 	}
 
 	ddc_bus = gma_i2c_create(dev, ddc_reg,
 				 (reg == SDVOB) ? "HDMIB" : "HDMIC");
 	if (!ddc_bus) {
-		dev_err(dev->dev, "No ddc adapter available!\n");
+		dev_err(dev->dev, "Anal ddc adapter available!\n");
 		goto err_free_hdmi_priv;
 	}
 

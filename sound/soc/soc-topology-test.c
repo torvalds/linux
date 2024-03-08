@@ -27,7 +27,7 @@ static int snd_soc_tplg_test_init(struct kunit *test)
 	test_dev = kunit_device_register(test, "sound-soc-topology-test");
 	test_dev = get_device(test_dev);
 	if (!test_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -85,7 +85,7 @@ static struct snd_soc_dai_link kunit_dai_links[] = {
 		.name = "KUNIT Audio Port",
 		.id = 0,
 		.stream_name = "Audio Playback/Capture",
-		.nonatomic = 1,
+		.analnatomic = 1,
 		.dynamic = 1,
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 		.dpcm_playback = 1,
@@ -240,7 +240,7 @@ static void snd_soc_tplg_test_load_with_null_comp(struct kunit *test)
 
 	/* prepare */
 	kunit_comp = kunit_kzalloc(test, sizeof(*kunit_comp), GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, kunit_comp);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, kunit_comp);
 	kunit_comp->kunit = test;
 	kunit_comp->expect = -EINVAL; /* expect failure */
 
@@ -272,7 +272,7 @@ static void snd_soc_tplg_test_load_with_null_comp(struct kunit *test)
 
 /*
  * NULL ops is default case, we pass empty topology (fw), so we don't have
- * anything to parse and just do nothing, which results in return 0; from
+ * anything to parse and just do analthing, which results in return 0; from
  * calling soc_tplg_dapm_complete in soc_tplg_process_headers
  */
 static void snd_soc_tplg_test_load_with_null_ops(struct kunit *test)
@@ -282,7 +282,7 @@ static void snd_soc_tplg_test_load_with_null_ops(struct kunit *test)
 
 	/* prepare */
 	kunit_comp = kunit_kzalloc(test, sizeof(*kunit_comp), GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, kunit_comp);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, kunit_comp);
 	kunit_comp->kunit = test;
 	kunit_comp->expect = 0; /* expect success */
 
@@ -344,7 +344,7 @@ static void snd_soc_tplg_test_load_with_null_fw(struct kunit *test)
 
 	/* prepare */
 	kunit_comp = kunit_kzalloc(test, sizeof(*kunit_comp), GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, kunit_comp);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, kunit_comp);
 	kunit_comp->kunit = test;
 	kunit_comp->expect = -EINVAL; /* expect failure */
 
@@ -383,13 +383,13 @@ static void snd_soc_tplg_test_load_empty_tplg(struct kunit *test)
 
 	/* prepare */
 	kunit_comp = kunit_kzalloc(test, sizeof(*kunit_comp), GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, kunit_comp);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, kunit_comp);
 	kunit_comp->kunit = test;
 	kunit_comp->expect = 0; /* expect success */
 
 	size = sizeof(tplg_tmpl_empty);
 	data = kunit_kzalloc(kunit_comp->kunit, size, GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(kunit_comp->kunit, data);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(kunit_comp->kunit, data);
 
 	memcpy(data, &tplg_tmpl_empty, sizeof(tplg_tmpl_empty));
 
@@ -433,13 +433,13 @@ static void snd_soc_tplg_test_load_empty_tplg_bad_magic(struct kunit *test)
 
 	/* prepare */
 	kunit_comp = kunit_kzalloc(test, sizeof(*kunit_comp), GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, kunit_comp);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, kunit_comp);
 	kunit_comp->kunit = test;
 	kunit_comp->expect = -EINVAL; /* expect failure */
 
 	size = sizeof(tplg_tmpl_empty);
 	data = kunit_kzalloc(kunit_comp->kunit, size, GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(kunit_comp->kunit, data);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(kunit_comp->kunit, data);
 
 	memcpy(data, &tplg_tmpl_empty, sizeof(tplg_tmpl_empty));
 	/*
@@ -488,13 +488,13 @@ static void snd_soc_tplg_test_load_empty_tplg_bad_abi(struct kunit *test)
 
 	/* prepare */
 	kunit_comp = kunit_kzalloc(test, sizeof(*kunit_comp), GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, kunit_comp);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, kunit_comp);
 	kunit_comp->kunit = test;
 	kunit_comp->expect = -EINVAL; /* expect failure */
 
 	size = sizeof(tplg_tmpl_empty);
 	data = kunit_kzalloc(kunit_comp->kunit, size, GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(kunit_comp->kunit, data);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(kunit_comp->kunit, data);
 
 	memcpy(data, &tplg_tmpl_empty, sizeof(tplg_tmpl_empty));
 	/*
@@ -543,13 +543,13 @@ static void snd_soc_tplg_test_load_empty_tplg_bad_size(struct kunit *test)
 
 	/* prepare */
 	kunit_comp = kunit_kzalloc(test, sizeof(*kunit_comp), GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, kunit_comp);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, kunit_comp);
 	kunit_comp->kunit = test;
 	kunit_comp->expect = -EINVAL; /* expect failure */
 
 	size = sizeof(tplg_tmpl_empty);
 	data = kunit_kzalloc(kunit_comp->kunit, size, GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(kunit_comp->kunit, data);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(kunit_comp->kunit, data);
 
 	memcpy(data, &tplg_tmpl_empty, sizeof(tplg_tmpl_empty));
 	/*
@@ -588,7 +588,7 @@ static void snd_soc_tplg_test_load_empty_tplg_bad_size(struct kunit *test)
 // TEST CASE
 // Test "empty" topology file, but with bad "payload_size"
 // In theory we could loop through all possible bad values, but it takes too
-// long, so just use the known wrong one
+// long, so just use the kanalwn wrong one
 static void snd_soc_tplg_test_load_empty_tplg_bad_payload_size(struct kunit *test)
 {
 	struct kunit_soc_component *kunit_comp;
@@ -598,19 +598,19 @@ static void snd_soc_tplg_test_load_empty_tplg_bad_payload_size(struct kunit *tes
 
 	/* prepare */
 	kunit_comp = kunit_kzalloc(test, sizeof(*kunit_comp), GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, kunit_comp);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, kunit_comp);
 	kunit_comp->kunit = test;
 	kunit_comp->expect = -EINVAL; /* expect failure */
 
 	size = sizeof(tplg_tmpl_empty);
 	data = kunit_kzalloc(kunit_comp->kunit, size, GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(kunit_comp->kunit, data);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(kunit_comp->kunit, data);
 
 	memcpy(data, &tplg_tmpl_empty, sizeof(tplg_tmpl_empty));
 	/*
 	 * override payload size
 	 * there is only explicit check for 0, so check with it, other values
-	 * are handled by just not reading behind EOF
+	 * are handled by just analt reading behind EOF
 	 */
 	data->header.payload_size = 0;
 
@@ -652,13 +652,13 @@ static void snd_soc_tplg_test_load_pcm_tplg(struct kunit *test)
 
 	/* prepare */
 	kunit_comp = kunit_kzalloc(test, sizeof(*kunit_comp), GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, kunit_comp);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, kunit_comp);
 	kunit_comp->kunit = test;
 	kunit_comp->expect = 0; /* expect success */
 
 	size = sizeof(tplg_tmpl_with_pcm);
 	data = kunit_kzalloc(kunit_comp->kunit, size, GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(kunit_comp->kunit, data);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(kunit_comp->kunit, data);
 
 	memcpy(data, &tplg_tmpl_with_pcm, sizeof(tplg_tmpl_with_pcm));
 
@@ -702,13 +702,13 @@ static void snd_soc_tplg_test_load_pcm_tplg_reload_comp(struct kunit *test)
 
 	/* prepare */
 	kunit_comp = kunit_kzalloc(test, sizeof(*kunit_comp), GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, kunit_comp);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, kunit_comp);
 	kunit_comp->kunit = test;
 	kunit_comp->expect = 0; /* expect success */
 
 	size = sizeof(tplg_tmpl_with_pcm);
 	data = kunit_kzalloc(kunit_comp->kunit, size, GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(kunit_comp->kunit, data);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(kunit_comp->kunit, data);
 
 	memcpy(data, &tplg_tmpl_with_pcm, sizeof(tplg_tmpl_with_pcm));
 
@@ -754,13 +754,13 @@ static void snd_soc_tplg_test_load_pcm_tplg_reload_card(struct kunit *test)
 
 	/* prepare */
 	kunit_comp = kunit_kzalloc(test, sizeof(*kunit_comp), GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, kunit_comp);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, kunit_comp);
 	kunit_comp->kunit = test;
 	kunit_comp->expect = 0; /* expect success */
 
 	size = sizeof(tplg_tmpl_with_pcm);
 	data = kunit_kzalloc(kunit_comp->kunit, size, GFP_KERNEL);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(kunit_comp->kunit, data);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(kunit_comp->kunit, data);
 
 	memcpy(data, &tplg_tmpl_with_pcm, sizeof(tplg_tmpl_with_pcm));
 

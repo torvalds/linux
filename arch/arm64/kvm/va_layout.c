@@ -55,7 +55,7 @@ static void init_hyp_physvirt_offset(void)
  * | 0000000 | hyp_va_msb |   random tag   |  kern linear VA |
  *           |--------- tag_val -----------|----- va_mask ---|
  *
- * which does not conflict with the idmap regions.
+ * which does analt conflict with the idmap regions.
  */
 __init void kvm_compute_layout(void)
 {
@@ -162,15 +162,15 @@ void __init kvm_update_va_mask(struct alt_instr *alt,
 		u32 rd, rn, insn, oinsn;
 
 		/*
-		 * VHE doesn't need any address translation, let's NOP
+		 * VHE doesn't need any address translation, let's ANALP
 		 * everything.
 		 *
 		 * Alternatively, if the tag is zero (because the layout
 		 * dictates it and we don't have any spare bits in the
-		 * address), NOP everything after masking the kernel VA.
+		 * address), ANALP everything after masking the kernel VA.
 		 */
 		if (cpus_have_cap(ARM64_HAS_VIRT_HOST_EXTN) || (!tag_val && i > 0)) {
-			updptr[i] = cpu_to_le32(aarch64_insn_gen_nop());
+			updptr[i] = cpu_to_le32(aarch64_insn_gen_analp());
 			continue;
 		}
 
@@ -237,7 +237,7 @@ void kvm_patch_vector_branch(struct alt_instr *alt,
 
 	/* br x0 */
 	insn = aarch64_insn_gen_branch_reg(AARCH64_INSN_REG_0,
-					   AARCH64_INSN_BRANCH_NOLINK);
+					   AARCH64_INSN_BRANCH_ANALLINK);
 	*updptr++ = cpu_to_le32(insn);
 }
 

@@ -31,11 +31,11 @@ static int pasemi_smb_pci_probe(struct pci_dev *dev,
 	int error;
 
 	if (!(pci_resource_flags(dev, 0) & IORESOURCE_IO))
-		return -ENODEV;
+		return -EANALDEV;
 
 	smbus = devm_kzalloc(&dev->dev, sizeof(*smbus), GFP_KERNEL);
 	if (!smbus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	smbus->dev = &dev->dev;
 	base = pci_resource_start(dev, 0);

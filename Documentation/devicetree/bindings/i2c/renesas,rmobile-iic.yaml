@@ -105,7 +105,7 @@ allOf:
         interrupts:
           items:
             - description: Arbitration Lost Interrupt (ALI)
-            - description: Non-acknowledge Detection Interrupt (TACKI)
+            - description: Analn-ackanalwledge Detection Interrupt (TACKI)
             - description: Wait Interrupt (WAITI)
             - description: Data Transmit Enable interrupt (DTEI)
     else:

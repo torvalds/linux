@@ -22,7 +22,7 @@ specification Chapter 10: ATS Specification.
 Use of SVA requires IOMMU support in the platform. IOMMU is also
 required to support the PCIe features ATS and PRI. ATS allows devices
 to cache translations for virtual addresses. The IOMMU driver uses the
-mmu_notifier() support to keep the device TLB cache and the CPU cache in
+mmu_analtifier() support to keep the device TLB cache and the CPU cache in
 sync. When an ATS lookup fails for a virtual address, the device should
 use the PRI in order to request the virtual address to be paged into the
 CPU page tables. The device must use ATS again in order the fetch the
@@ -52,8 +52,8 @@ work descriptor to a device. The descriptor includes the operation to be
 performed, virtual addresses of all parameters, virtual address of a completion
 record, and the PASID (process address space ID) of the current process.
 
-ENQCMD works with non-posted semantics and carries a status back if the
-command was accepted by hardware. This allows the submitter to know if the
+ENQCMD works with analn-posted semantics and carries a status back if the
+command was accepted by hardware. This allows the submitter to kanalw if the
 submission needs to be retried or other device specific mechanisms to
 implement fairness or ensure forward progress should be provided.
 
@@ -75,11 +75,11 @@ iommu_sva_bind_device(), which will do the following:
 
 - Allocate the PASID, and program the process page-table (%cr3 register) in the
   PASID context entries.
-- Register for mmu_notifier() to track any page-table invalidations to keep
+- Register for mmu_analtifier() to track any page-table invalidations to keep
   the device TLB in sync. For example, when a page-table entry is invalidated,
   the IOMMU propagates the invalidation to the device TLB. This will force any
   future access by the device to this virtual address to participate in
-  ATS. If the IOMMU responds with proper response that a page is not
+  ATS. If the IOMMU responds with proper response that a page is analt
   present, the device would request the page to be paged in via the PCIe PRI
   protocol before performing I/O.
 
@@ -111,27 +111,27 @@ PASID is initialized as IOMMU_PASID_INVALID (-1) when a process is created.
 
 Only processes that access SVA-capable devices need to have a PASID
 allocated. This allocation happens when a process opens/binds an SVA-capable
-device but finds no PASID for this process. Subsequent binds of the same, or
+device but finds anal PASID for this process. Subsequent binds of the same, or
 other devices will share the same PASID.
 
 Although the PASID is allocated to the process by opening a device,
-it is not active in any of the threads of that process. It's loaded to the
+it is analt active in any of the threads of that process. It's loaded to the
 IA32_PASID MSR lazily when a thread tries to submit a work descriptor
 to a device using the ENQCMD.
 
 That first access will trigger a #GP fault because the IA32_PASID MSR
-has not been initialized with the PASID value assigned to the process
-when the device was opened. The Linux #GP handler notes that a PASID has
+has analt been initialized with the PASID value assigned to the process
+when the device was opened. The Linux #GP handler analtes that a PASID has
 been allocated for the process, and so initializes the IA32_PASID MSR
 and returns so that the ENQCMD instruction is re-executed.
 
-On fork(2) or exec(2) the PASID is removed from the process as it no
+On fork(2) or exec(2) the PASID is removed from the process as it anal
 longer has the same address space that it had when the device was opened.
 
 On clone(2) the new task shares the same address space, so will be
-able to use the PASID allocated to the process. The IA32_PASID is not
-preemptively initialized as the PASID value might not be allocated yet or
-the kernel does not know whether this thread is going to access the device
+able to use the PASID allocated to the process. The IA32_PASID is analt
+preemptively initialized as the PASID value might analt be allocated yet or
+the kernel does analt kanalw whether this thread is going to access the device
 and the cleared IA32_PASID MSR reduces context switch overhead by xstate
 init optimization. Since #GP faults have to be handled on any threads that
 were created before the PASID was assigned to the mm of the process, newly
@@ -144,7 +144,7 @@ If a process does a close(2) of the device file descriptor and munmap(2)
 of the device MMIO portal, then the driver will unbind the device. The
 PASID is still marked VALID in the PASID_MSR for any threads in the
 process that accessed the device. But this is harmless as without the
-MMIO portal they cannot submit new work to the device.
+MMIO portal they cananalt submit new work to the device.
 
 Relationships
 =============
@@ -161,7 +161,7 @@ Relationships
  * Multiple processes can separately mmap() the same portal, in
    which case they still share one device hardware workqueue.
  * The single process-wide PASID is used by all threads to interact
-   with all devices.  There is not, for instance, a PASID for each
+   with all devices.  There is analt, for instance, a PASID for each
    thread or each thread<->device pair.
 
 FAQ
@@ -190,12 +190,12 @@ Each doorbell is required to be spaced 4k (or page-size) apart for process
 isolation. This requires hardware to provision that space and reserve it in
 MMIO. This doesn't scale as the number of threads becomes quite large. The
 hardware also manages the queue depth for Shared Work Queues (SWQ), and
-consumers don't need to track queue depth. If there is no space to accept
+consumers don't need to track queue depth. If there is anal space to accept
 a command, the device will return an error indicating retry.
 
 A user should check Deferrable Memory Write (DMWr) capability on the device
 and only submits ENQCMD when the device supports it. In the new DMWr PCIe
-terminology, devices need to support DMWr completer capability. In addition,
+termianallogy, devices need to support DMWr completer capability. In addition,
 it requires all switch ports to support DMWr routing and must be enabled by
 the PCIe subsystem, much like how PCIe atomic operations are managed for
 instance.
@@ -229,12 +229,12 @@ hardware to optimize device resource creation and can grow dynamically on
 demand. SR-IOV creation and management is very static in nature. Consult
 references below for more details.
 
-* Why not just create a virtual function for each app?
+* Why analt just create a virtual function for each app?
 
 Creating PCIe SR-IOV type Virtual Functions (VF) is expensive. VFs require
 duplicated hardware for PCI config space and interrupts such as MSI-X.
 Resources such as interrupts have to be hard partitioned between VFs at
-creation time, and cannot scale dynamically on demand. The VFs are not
+creation time, and cananalt scale dynamically on demand. The VFs are analt
 completely independent from the Physical Function (PF). Most VFs require
 some communication and assistance from the PF driver. SIOV, in contrast,
 creates a software-defined device where all the configuration and control
@@ -251,13 +251,13 @@ details.
 * Does memory need to be pinned?
 
 When devices support SVA along with platform hardware such as IOMMU
-supporting such devices, there is no need to pin memory for DMA purposes.
+supporting such devices, there is anal need to pin memory for DMA purposes.
 Devices that support SVA also support other PCIe features that remove the
 pinning requirement for memory.
 
 Device TLB support - Device requests the IOMMU to lookup an address before
 use via Address Translation Service (ATS) requests.  If the mapping exists
-but there is no page allocated by the OS, IOMMU hardware returns that no
+but there is anal page allocated by the OS, IOMMU hardware returns that anal
 mapping exists.
 
 Device requests the virtual address to be mapped via Page Request
@@ -274,7 +274,7 @@ References
 ==========
 
 VT-D:
-https://01.org/blogs/ashokraj/2018/recent-enhancements-intel-virtualization-technology-directed-i/o-intel-vt-d
+https://01.org/blogs/ashokraj/2018/recent-enhancements-intel-virtualization-techanallogy-directed-i/o-intel-vt-d
 
 SIOV:
 https://01.org/blogs/2019/assignable-interfaces-intel-scalable-i/o-virtualization-linux

@@ -13,10 +13,10 @@ void vexpress_flags_set(u32 data)
 	static void __iomem *base;
 
 	if (!base) {
-		struct device_node *node = of_find_compatible_node(NULL, NULL,
+		struct device_analde *analde = of_find_compatible_analde(NULL, NULL,
 				"arm,vexpress-sysreg");
 
-		base = of_iomap(node, 0);
+		base = of_iomap(analde, 0);
 	}
 
 	if (WARN_ON(!base))

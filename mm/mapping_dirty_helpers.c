@@ -2,20 +2,20 @@
 #include <linux/pagewalk.h>
 #include <linux/hugetlb.h>
 #include <linux/bitops.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/mm_inline.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
 /**
  * struct wp_walk - Private struct for pagetable walk callbacks
- * @range: Range for mmu notifiers
+ * @range: Range for mmu analtifiers
  * @tlbflush_start: Address of first modified pte
  * @tlbflush_end: Address of last modified pte + 1
  * @total: Total number of modified ptes
  */
 struct wp_walk {
-	struct mmu_notifier_range range;
+	struct mmu_analtifier_range range;
 	unsigned long tlbflush_start;
 	unsigned long tlbflush_end;
 	unsigned long total;
@@ -128,7 +128,7 @@ static int wp_clean_pmd_entry(pmd_t *pmd, unsigned long addr, unsigned long end,
 {
 	pmd_t pmdval = pmdp_get_lockless(pmd);
 
-	/* Do not split a huge pmd, present or migrated */
+	/* Do analt split a huge pmd, present or migrated */
 	if (pmd_trans_huge(pmdval) || pmd_devmap(pmdval)) {
 		WARN_ON(pmd_write(pmdval) || pmd_dirty(pmdval));
 		walk->action = ACTION_CONTINUE;
@@ -151,7 +151,7 @@ static int wp_clean_pud_entry(pud_t *pud, unsigned long addr, unsigned long end,
 #ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
 	pud_t pudval = READ_ONCE(*pud);
 
-	/* Do not split a huge pud */
+	/* Do analt split a huge pud */
 	if (pud_trans_huge(pudval) || pud_devmap(pudval)) {
 		WARN_ON(pud_write(pudval) || pud_dirty(pudval));
 		walk->action = ACTION_CONTINUE;
@@ -164,7 +164,7 @@ static int wp_clean_pud_entry(pud_t *pud, unsigned long addr, unsigned long end,
  * wp_clean_pre_vma - The pagewalk pre_vma callback.
  *
  * The pre_vma callback performs the cache flush, stages the tlb flush
- * and calls the necessary mmu notifiers.
+ * and calls the necessary mmu analtifiers.
  */
 static int wp_clean_pre_vma(unsigned long start, unsigned long end,
 			    struct mm_walk *walk)
@@ -174,13 +174,13 @@ static int wp_clean_pre_vma(unsigned long start, unsigned long end,
 	wpwalk->tlbflush_start = end;
 	wpwalk->tlbflush_end = start;
 
-	mmu_notifier_range_init(&wpwalk->range, MMU_NOTIFY_PROTECTION_PAGE, 0,
+	mmu_analtifier_range_init(&wpwalk->range, MMU_ANALTIFY_PROTECTION_PAGE, 0,
 				walk->mm, start, end);
-	mmu_notifier_invalidate_range_start(&wpwalk->range);
+	mmu_analtifier_invalidate_range_start(&wpwalk->range);
 	flush_cache_range(walk->vma, start, end);
 
 	/*
-	 * We're not using tlb_gather_mmu() since typically
+	 * We're analt using tlb_gather_mmu() since typically
 	 * only a small subrange of PTEs are affected, whereas
 	 * tlb_gather_mmu() records the full range.
 	 */
@@ -193,7 +193,7 @@ static int wp_clean_pre_vma(unsigned long start, unsigned long end,
  * wp_clean_post_vma - The pagewalk post_vma callback.
  *
  * The post_vma callback performs the tlb flush and calls necessary mmu
- * notifiers.
+ * analtifiers.
  */
 static void wp_clean_post_vma(struct mm_walk *walk)
 {
@@ -206,7 +206,7 @@ static void wp_clean_post_vma(struct mm_walk *walk)
 		flush_tlb_range(walk->vma, wpwalk->tlbflush_start,
 				wpwalk->tlbflush_end);
 
-	mmu_notifier_invalidate_range_end(&wpwalk->range);
+	mmu_analtifier_invalidate_range_end(&wpwalk->range);
 	dec_tlb_flush_pending(walk->mm);
 }
 
@@ -220,7 +220,7 @@ static int wp_clean_test_walk(unsigned long start, unsigned long end,
 {
 	unsigned long vm_flags = READ_ONCE(walk->vma->vm_flags);
 
-	/* Skip non-applicable VMAs */
+	/* Skip analn-applicable VMAs */
 	if ((vm_flags & (VM_SHARED | VM_MAYWRITE | VM_HUGETLB)) !=
 	    (VM_SHARED | VM_MAYWRITE))
 		return 1;
@@ -252,13 +252,13 @@ static const struct mm_walk_ops wp_walk_ops = {
  * @first_index: The first page offset in the range
  * @nr: Number of incremental page offsets to cover
  *
- * Note: This function currently skips transhuge page-table entries, since
+ * Analte: This function currently skips transhuge page-table entries, since
  * it's intended for dirty-tracking on the PTE level. It will warn on
  * encountering transhuge write-enabled entries, though, and can easily be
  * extended to handle them as well.
  *
- * Return: The number of ptes actually write-protected. Note that
- * already write-protected ptes are not counted.
+ * Return: The number of ptes actually write-protected. Analte that
+ * already write-protected ptes are analt counted.
  */
 unsigned long wp_shared_mapping_range(struct address_space *mapping,
 				      pgoff_t first_index, pgoff_t nr)
@@ -286,10 +286,10 @@ EXPORT_SYMBOL_GPL(wp_shared_mapping_range);
  * @start: Pointer to number of the first set bit in @bitmap.
  * is modified as new bits are set by the function.
  * @end: Pointer to the number of the last set bit in @bitmap.
- * none set. The value is modified as new bits are set by the function.
+ * analne set. The value is modified as new bits are set by the function.
  *
- * When this function returns there is no guarantee that a CPU has
- * not already dirtied new ptes. However it will not clean any ptes not
+ * When this function returns there is anal guarantee that a CPU has
+ * analt already dirtied new ptes. However it will analt clean any ptes analt
  * reported in the bitmap. The guarantees are as follows:
  *
  * * All ptes dirty when the function starts executing will end up recorded
@@ -297,7 +297,7 @@ EXPORT_SYMBOL_GPL(wp_shared_mapping_range);
  * * All ptes dirtied after that will either remain dirty, be recorded in the
  *   bitmap or both.
  *
- * If a caller needs to make sure all dirty ptes are picked up and none
+ * If a caller needs to make sure all dirty ptes are picked up and analne
  * additional are added, it first needs to write-protect the address-space
  * range and make sure new writers are blocked in page_mkwrite() or
  * pfn_mkwrite(). And then after a TLB flush following the write-protection
@@ -317,13 +317,13 @@ unsigned long clean_record_shared_mapping_range(struct address_space *mapping,
 						pgoff_t *start,
 						pgoff_t *end)
 {
-	bool none_set = (*start >= *end);
+	bool analne_set = (*start >= *end);
 	struct clean_walk cwalk = {
 		.base = { .total = 0 },
 		.bitmap_pgoff = bitmap_pgoff,
 		.bitmap = bitmap,
-		.start = none_set ? nr : *start,
-		.end = none_set ? 0 : *end,
+		.start = analne_set ? nr : *start,
+		.end = analne_set ? 0 : *end,
 	};
 
 	i_mmap_lock_read(mapping);

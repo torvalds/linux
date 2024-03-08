@@ -39,7 +39,7 @@ int crypto_rng_reset(struct crypto_rng *tfm, const u8 *seed, unsigned int slen)
 
 	if (!seed && slen) {
 		buf = kmalloc(slen, GFP_KERNEL);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		if (!buf)
 			goto out;
 

@@ -94,12 +94,12 @@ static void mdp4_dtv_encoder_disable(struct drm_encoder *encoder)
 	mdp4_write(mdp4_kms, REG_MDP4_DTV_ENABLE, 0);
 
 	/*
-	 * Wait for a vsync so we know the ENABLE=0 latched before
+	 * Wait for a vsync so we kanalw the ENABLE=0 latched before
 	 * the (connector) source of the vsync's gets disabled,
 	 * otherwise we end up in a funny state if we re-enable
 	 * before the disable latches, which results that some of
 	 * the settings changes for the new modeset (like new
-	 * scanout buffer) don't latch properly..
+	 * scaanalut buffer) don't latch properly..
 	 */
 	mdp_irq_wait(&mdp4_kms->base, MDP4_IRQ_EXTERNAL_VSYNC);
 

@@ -62,7 +62,7 @@
 
 /* SE_UART_MANUAL_RFR register fields */
 #define UART_MANUAL_RFR_EN		BIT(31)
-#define UART_RFR_NOT_READY		BIT(1)
+#define UART_RFR_ANALT_READY		BIT(1)
 #define UART_RFR_READY			BIT(0)
 
 /* UART M_CMD OP codes */
@@ -104,7 +104,7 @@ struct qcom_geni_device_data {
 };
 
 struct qcom_geni_private_data {
-	/* NOTE: earlycon port will have NULL here */
+	/* ANALTE: earlycon port will have NULL here */
 	struct uart_driver *drv;
 
 	u32 poll_cached_bytes;
@@ -234,7 +234,7 @@ static void qcom_geni_serial_set_mctrl(struct uart_port *uport,
 		port->loopback = RX_TX_CTS_RTS_SORTED;
 
 	if (!(mctrl & TIOCM_RTS) && !uport->suspended)
-		uart_manual_rfr = UART_MANUAL_RFR_EN | UART_RFR_NOT_READY;
+		uart_manual_rfr = UART_MANUAL_RFR_EN | UART_RFR_ANALT_READY;
 	writel(uart_manual_rfr, uport->membase + SE_UART_MANUAL_RFR);
 }
 
@@ -290,7 +290,7 @@ static bool qcom_geni_serial_poll_bit(struct uart_port *uport,
 
 	/*
 	 * Use custom implementation instead of readl_poll_atomic since ktimer
-	 * is not ready at the time of early console.
+	 * is analt ready at the time of early console.
 	 */
 	timeout_us = DIV_ROUND_UP(timeout_us, 10) * 10;
 	while (timeout_us) {
@@ -358,11 +358,11 @@ static int qcom_geni_serial_get_char(struct uart_port *uport)
 		status = readl(uport->membase + SE_GENI_RX_FIFO_STATUS);
 		word_cnt = status & RX_FIFO_WC_MSK;
 		if (!word_cnt)
-			return NO_POLL_CHAR;
+			return ANAL_POLL_CHAR;
 
 		if (word_cnt == 1 && (status & RX_LAST))
 			/*
-			 * NOTE: If RX_LAST_BYTE_VALID is 0 it needs to be
+			 * ANALTE: If RX_LAST_BYTE_VALID is 0 it needs to be
 			 * treated as if it was BYTES_PER_FIFO_WORD.
 			 */
 			private_data->poll_cached_bytes_cnt =
@@ -437,7 +437,7 @@ __qcom_geni_serial_console_write(struct uart_port *uport, const char *s,
 		size_t avail = DEF_FIFO_DEPTH_WORDS - DEF_TX_WM;
 
 		/*
-		 * If the WM bit never set, then the Tx state machine is not
+		 * If the WM bit never set, then the Tx state machine is analt
 		 * in a valid state, so break, cancel/abort any existing
 		 * command. Unfortunately the current data being written is
 		 * lost.
@@ -553,7 +553,7 @@ static void handle_rx_console(struct uart_port *uport, u32 bytes, bool drop)
 			sysrq = uart_prepare_sysrq_char(uport, buf[c]);
 
 			if (!sysrq)
-				tty_insert_flip_char(tport, buf[c], TTY_NORMAL);
+				tty_insert_flip_char(tport, buf[c], TTY_ANALRMAL);
 		}
 	}
 	if (!drop)
@@ -611,7 +611,7 @@ static void qcom_geni_serial_stop_tx_dma(struct uart_port *uport)
 		done = qcom_geni_serial_poll_bit(uport, SE_GENI_M_IRQ_STATUS,
 						 M_CMD_ABORT_EN, true);
 		if (!done)
-			dev_err_ratelimited(uport->dev, "M_CMD_ABORT_EN not set");
+			dev_err_ratelimited(uport->dev, "M_CMD_ABORT_EN analt set");
 		writel(M_CMD_ABORT_EN, uport->membase + SE_GENI_M_IRQ_CLEAR);
 	}
 
@@ -891,7 +891,7 @@ static void qcom_geni_serial_handle_tx_fifo(struct uart_port *uport,
 	else
 		pending = uart_circ_chars_pending(xmit);
 
-	/* All data has been transmitted and acknowledged as received */
+	/* All data has been transmitted and ackanalwledged as received */
 	if (!pending && !status && done) {
 		qcom_geni_serial_stop_tx_fifo(uport);
 		goto out_write_wakeup;
@@ -968,7 +968,7 @@ static irqreturn_t qcom_geni_serial_isr(int isr, void *dev)
 	struct qcom_geni_serial_port *port = to_dev_port(uport);
 
 	if (uport->suspended)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	uart_port_lock(uport);
 
@@ -1053,13 +1053,13 @@ static int setup_fifos(struct qcom_geni_serial_port *port)
 		/*
 		 * Use krealloc rather than krealloc_array because rx_buf is
 		 * accessed as 1 byte entries as well as 4 byte entries so it's
-		 * not necessarily an array.
+		 * analt necessarily an array.
 		 */
 		port->rx_buf = devm_krealloc(uport->dev, port->rx_buf,
 					     port->rx_fifo_depth * sizeof(u32),
 					     GFP_KERNEL);
 		if (!port->rx_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -1378,7 +1378,7 @@ static int qcom_geni_serial_earlycon_read(struct console *con,
 
 	while (num_read < n) {
 		ch = qcom_geni_serial_get_char(uport);
-		if (ch == NO_POLL_CHAR)
+		if (ch == ANAL_POLL_CHAR)
 			break;
 		s[num_read++] = ch;
 	}
@@ -1421,7 +1421,7 @@ static int __init qcom_geni_serial_earlycon_setup(struct earlycon_device *dev,
 	if (geni_se_read_proto(&se) != GENI_SE_UART)
 		return -ENXIO;
 	/*
-	 * Ignore Flow control.
+	 * Iganalre Flow control.
 	 * n = 8.
 	 */
 	tx_trans_cfg = UART_CTS_MASK;
@@ -1578,12 +1578,12 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 
 	if (data->console) {
 		drv = &qcom_geni_console_driver;
-		line = of_alias_get_id(pdev->dev.of_node, "serial");
+		line = of_alias_get_id(pdev->dev.of_analde, "serial");
 	} else {
 		drv = &qcom_geni_uart_driver;
-		line = of_alias_get_id(pdev->dev.of_node, "serial");
-		if (line == -ENODEV) /* compat with non-standard aliases */
-			line = of_alias_get_id(pdev->dev.of_node, "hsuart");
+		line = of_alias_get_id(pdev->dev.of_analde, "serial");
+		if (line == -EANALDEV) /* compat with analn-standard aliases */
+			line = of_alias_get_id(pdev->dev.of_analde, "hsuart");
 	}
 
 	port = get_port_from_line(line, data->console);
@@ -1595,7 +1595,7 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 	uport = &port->uport;
 	/* Don't allow 2 drivers to access the same port */
 	if (uport->private_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	uport->dev = &pdev->dev;
 	port->dev_data = data;
@@ -1621,7 +1621,7 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 		port->rx_buf = devm_kzalloc(uport->dev,
 					    DMA_RX_BUF_SIZE, GFP_KERNEL);
 		if (!port->rx_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	ret = geni_icc_get(&port->se, NULL);
@@ -1639,7 +1639,7 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 			"qcom_geni_serial_%s%d",
 			uart_console(uport) ? "console" : "uart", uport->line);
 	if (!port->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -1650,10 +1650,10 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 	if (!data->console)
 		port->wakeup_irq = platform_get_irq_optional(pdev, 1);
 
-	if (of_property_read_bool(pdev->dev.of_node, "rx-tx-swap"))
+	if (of_property_read_bool(pdev->dev.of_analde, "rx-tx-swap"))
 		port->rx_tx_swap = true;
 
-	if (of_property_read_bool(pdev->dev.of_node, "cts-rts-swap"))
+	if (of_property_read_bool(pdev->dev.of_analde, "cts-rts-swap"))
 		port->cts_rts_swap = true;
 
 	ret = devm_pm_opp_set_clkname(&pdev->dev, "se");
@@ -1661,7 +1661,7 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 		return ret;
 	/* OPP table is optional */
 	ret = devm_pm_opp_of_add_table(&pdev->dev);
-	if (ret && ret != -ENODEV) {
+	if (ret && ret != -EANALDEV) {
 		dev_err(&pdev->dev, "invalid OPP table in device tree\n");
 		return ret;
 	}
@@ -1670,7 +1670,7 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 	uport->private_data = &port->private_data;
 	platform_set_drvdata(pdev, port);
 
-	irq_set_status_flags(uport->irq, IRQ_NOAUTOEN);
+	irq_set_status_flags(uport->irq, IRQ_ANALAUTOEN);
 	ret = devm_request_irq(uport->dev, uport->irq, qcom_geni_serial_isr,
 			IRQF_TRIGGER_HIGH, port->name, uport);
 	if (ret) {
@@ -1714,7 +1714,7 @@ static int qcom_geni_serial_sys_suspend(struct device *dev)
 
 	/*
 	 * This is done so we can hit the lowest possible state in suspend
-	 * even with no_console_suspend
+	 * even with anal_console_suspend
 	 */
 	if (uart_console(uport)) {
 		geni_icc_set_tag(&port->se, QCOM_ICC_TAG_ACTIVE_ONLY);

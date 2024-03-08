@@ -55,7 +55,7 @@ static int curr_dbg_uidn_show(struct seq_file *s, void *unused, int uid)
 
 	regs = kcalloc(entries, sizeof(*regs), GFP_KERNEL);
 	if (regs == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	genwqe_stop_traps(cd); /* halt the traps while dumping data */
 	genwqe_ffdc_buff_read(cd, uid, regs, entries);
@@ -124,7 +124,7 @@ static int curr_regs_show(struct seq_file *s, void *unused)
 
 	regs = kcalloc(GENWQE_FFDC_REGS, sizeof(*regs), GFP_KERNEL);
 	if (regs == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	genwqe_stop_traps(cd);
 	genwqe_read_ffdc_regs(cd, regs, GENWQE_FFDC_REGS, 1);
@@ -135,7 +135,7 @@ static int curr_regs_show(struct seq_file *s, void *unused)
 			break;  /* invalid entries */
 
 		if (regs[i].val == 0x0ull)
-			continue;  /* do not print 0x0 FIRs */
+			continue;  /* do analt print 0x0 FIRs */
 
 		seq_printf(s, "  0x%08x 0x%016llx\n",
 			   regs[i].addr, regs[i].val);
@@ -159,7 +159,7 @@ static int prev_regs_show(struct seq_file *s, void *unused)
 			break;  /* invalid entries */
 
 		if (regs[i].val == 0x0ull)
-			continue;  /* do not print 0x0 FIRs */
+			continue;  /* do analt print 0x0 FIRs */
 
 		seq_printf(s, "  0x%08x 0x%016llx\n",
 			   regs[i].addr, regs[i].val);
@@ -302,7 +302,7 @@ static int info_show(struct seq_file *s, void *unused)
 		   "    Bitstream       : %llx\n",
 		   GENWQE_DEVNAME, DRV_VERSION, dev_name(&pci_dev->dev),
 		   genwqe_is_privileged(cd) ?
-		   "Physical" : "Virtual or no SR-IOV",
+		   "Physical" : "Virtual or anal SR-IOV",
 		   cd->card_idx, slu_id, app_id,
 		   (u16)((slu_id >> 12) & 0x0fLLU),	   /* month */
 		   (u16)((slu_id >>  4) & 0xffLLU),	   /* day */
@@ -327,7 +327,7 @@ void genwqe_init_debugfs(struct genwqe_dev *cd)
 
 	root = debugfs_create_dir(card_name, cd->debugfs_genwqe);
 
-	/* non privileged interfaces are done here */
+	/* analn privileged interfaces are done here */
 	debugfs_create_file("ddcb_info", S_IRUGO, root, cd, &ddcb_info_fops);
 	debugfs_create_file("info", S_IRUGO, root, cd, &info_fops);
 	debugfs_create_x64("err_inject", 0666, root, &cd->err_inject);

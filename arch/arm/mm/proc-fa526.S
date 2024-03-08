@@ -37,8 +37,8 @@ ENTRY(cpu_fa526_proc_fin)
 	bic	r0, r0, #0x1000			@ ...i............
 	bic	r0, r0, #0x000e			@ ............wca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-	nop
-	nop
+	analp
+	analp
 	ret	lr
 
 /*
@@ -65,8 +65,8 @@ ENTRY(cpu_fa526_reset)
 	bic	ip, ip, #0x1100			@ ...i...s........
 	bic	ip, ip, #0x0800			@ BTB off
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
-	nop
-	nop
+	analp
+	analp
 	ret	r0
 ENDPROC(cpu_fa526_reset)
 	.popsection

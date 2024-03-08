@@ -30,12 +30,12 @@ struct vm_area_struct;
 #define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
 				 _PAGE_GLOBAL | _page_cachable_default)
 #define PAGE_KERNEL_NC	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
-				 _PAGE_GLOBAL | _CACHE_CACHABLE_NONCOHERENT)
+				 _PAGE_GLOBAL | _CACHE_CACHABLE_ANALNCOHERENT)
 #define PAGE_KERNEL_UNCACHED __pgprot(_PAGE_PRESENT | __READABLE | \
 			__WRITEABLE | _PAGE_GLOBAL | _CACHE_UNCACHED)
 
 /*
- * If _PAGE_NO_EXEC is not defined, we can't do page protection for
+ * If _PAGE_ANAL_EXEC is analt defined, we can't do page protection for
  * execute, and consider it to be the same as read. Also, write
  * permissions imply read permissions. This is the closest we can get
  * by reasonable means..
@@ -108,13 +108,13 @@ do {									\
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 
 #ifdef CONFIG_XPA
-# define pte_none(pte)		(!(((pte).pte_high) & ~_PAGE_GLOBAL))
+# define pte_analne(pte)		(!(((pte).pte_high) & ~_PAGE_GLOBAL))
 #else
-# define pte_none(pte)		(!(((pte).pte_low | (pte).pte_high) & ~_PAGE_GLOBAL))
+# define pte_analne(pte)		(!(((pte).pte_low | (pte).pte_high) & ~_PAGE_GLOBAL))
 #endif
 
 #define pte_present(pte)	((pte).pte_low & _PAGE_PRESENT)
-#define pte_no_exec(pte)	((pte).pte_low & _PAGE_NO_EXEC)
+#define pte_anal_exec(pte)	((pte).pte_low & _PAGE_ANAL_EXEC)
 
 static inline void set_pte(pte_t *ptep, pte_t pte)
 {
@@ -129,10 +129,10 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 #endif
 		pte_t *buddy = ptep_buddy(ptep);
 		/*
-		 * Make sure the buddy is global too (if it's !none,
+		 * Make sure the buddy is global too (if it's !analne,
 		 * it better already be global)
 		 */
-		if (pte_none(*buddy)) {
+		if (pte_analne(*buddy)) {
 			if (!IS_ENABLED(CONFIG_XPA))
 				buddy->pte_low |= _PAGE_GLOBAL;
 			buddy->pte_high |= _PAGE_GLOBAL;
@@ -159,9 +159,9 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 }
 #else
 
-#define pte_none(pte)		(!(pte_val(pte) & ~_PAGE_GLOBAL))
+#define pte_analne(pte)		(!(pte_val(pte) & ~_PAGE_GLOBAL))
 #define pte_present(pte)	(pte_val(pte) & _PAGE_PRESENT)
-#define pte_no_exec(pte)	(pte_val(pte) & _PAGE_NO_EXEC)
+#define pte_anal_exec(pte)	(pte_val(pte) & _PAGE_ANAL_EXEC)
 
 /*
  * Certain architectures need to do special things when pte's
@@ -175,7 +175,7 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 	if (pte_val(pteval) & _PAGE_GLOBAL) {
 		pte_t *buddy = ptep_buddy(ptep);
 		/*
-		 * Make sure the buddy is global too (if it's !none,
+		 * Make sure the buddy is global too (if it's !analne,
 		 * it better already be global)
 		 */
 # if defined(CONFIG_PHYS_ADDR_T_64BIT) && !defined(CONFIG_CPU_MIPS32)
@@ -248,7 +248,7 @@ static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
 #define PTE_T_LOG2	(__builtin_ffs(sizeof(pte_t)) - 1)
 
 /*
- * We used to declare this array with size but gcc 3.3 and older are not able
+ * We used to declare this array with size but gcc 3.3 and older are analt able
  * to find that this expression is a constant, so the size is dropped.
  */
 extern pgd_t swapper_pg_dir[];
@@ -285,7 +285,7 @@ static inline pte_t pte_mkspecial(pte_t pte)
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if analt..
  */
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 static inline int pte_write(pte_t pte)	{ return pte.pte_low & _PAGE_WRITE; }
@@ -319,7 +319,7 @@ static inline pte_t pte_mkold(pte_t pte)
 	return pte;
 }
 
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 {
 	pte.pte_low |= _PAGE_WRITE;
 	if (pte.pte_low & _PAGE_MODIFIED) {
@@ -344,7 +344,7 @@ static inline pte_t pte_mkdirty(pte_t pte)
 static inline pte_t pte_mkyoung(pte_t pte)
 {
 	pte.pte_low |= _PAGE_ACCESSED;
-	if (!(pte.pte_low & _PAGE_NO_READ)) {
+	if (!(pte.pte_low & _PAGE_ANAL_READ)) {
 		if (!IS_ENABLED(CONFIG_XPA))
 			pte.pte_low |= _PAGE_SILENT_READ;
 		pte.pte_high |= _PAGE_SILENT_READ;
@@ -374,7 +374,7 @@ static inline pte_t pte_mkold(pte_t pte)
 	return pte;
 }
 
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_WRITE;
 	if (pte_val(pte) & _PAGE_MODIFIED)
@@ -393,7 +393,7 @@ static inline pte_t pte_mkdirty(pte_t pte)
 static inline pte_t pte_mkyoung(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_ACCESSED;
-	if (!(pte_val(pte) & _PAGE_NO_READ))
+	if (!(pte_val(pte) & _PAGE_ANAL_READ))
 		pte_val(pte) |= _PAGE_SILENT_READ;
 	return pte;
 }
@@ -450,14 +450,14 @@ static inline pte_t pte_clear_soft_dirty(pte_t pte)
 #endif
 
 /*
- * Macro to make mark a page protection value as "uncacheable".	 Note
- * that "protection" is really a misnomer here as the protection value
+ * Macro to make mark a page protection value as "uncacheable".	 Analte
+ * that "protection" is really a misanalmer here as the protection value
  * contains the memory attribute bits, dirty bits, and various other
  * bits as well.
  */
-#define pgprot_noncached pgprot_noncached
+#define pgprot_analncached pgprot_analncached
 
-static inline pgprot_t pgprot_noncached(pgprot_t _prot)
+static inline pgprot_t pgprot_analncached(pgprot_t _prot)
 {
 	unsigned long prot = pgprot_val(_prot);
 
@@ -533,7 +533,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	pte_val(pte) &= _PAGE_CHG_MASK;
 	pte_val(pte) |= pgprot_val(newprot) & ~_PAGE_CHG_MASK;
-	if ((pte_val(pte) & _PAGE_ACCESSED) && !(pte_val(pte) & _PAGE_NO_READ))
+	if ((pte_val(pte) & _PAGE_ACCESSED) && !(pte_val(pte) & _PAGE_ANAL_READ))
 		pte_val(pte) |= _PAGE_SILENT_READ;
 	return pte;
 }
@@ -646,7 +646,7 @@ static inline pmd_t pmd_wrprotect(pmd_t pmd)
 	return pmd;
 }
 
-static inline pmd_t pmd_mkwrite_novma(pmd_t pmd)
+static inline pmd_t pmd_mkwrite_analvma(pmd_t pmd)
 {
 	pmd_val(pmd) |= _PAGE_WRITE;
 	if (pmd_val(pmd) & _PAGE_MODIFIED)
@@ -693,7 +693,7 @@ static inline pmd_t pmd_mkyoung(pmd_t pmd)
 {
 	pmd_val(pmd) |= _PAGE_ACCESSED;
 
-	if (!(pmd_val(pmd) & _PAGE_NO_READ))
+	if (!(pmd_val(pmd) & _PAGE_ANAL_READ))
 		pmd_val(pmd) |= _PAGE_SILENT_READ;
 
 	return pmd;

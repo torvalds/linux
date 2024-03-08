@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Linux network device link state notification
+ * Linux network device link state analtification
  *
  * Author:
  *     Stefan Rompf <sux@loplof.de>
@@ -181,7 +181,7 @@ static void linkwatch_do_dev(struct net_device *dev)
 
 		netdev_state_change(dev);
 	}
-	/* Note: our callers are responsible for calling netdev_tracker_free().
+	/* Analte: our callers are responsible for calling netdev_tracker_free().
 	 * This is the reason we use __dev_put() instead of dev_put().
 	 */
 	__dev_put(dev);
@@ -192,7 +192,7 @@ static void __linkwatch_run_queue(int urgent_only)
 #define MAX_DO_DEV_PER_LOOP	100
 
 	int do_dev = MAX_DO_DEV_PER_LOOP;
-	/* Use a local list here since we add non-urgent
+	/* Use a local list here since we add analn-urgent
 	 * events back to the global one when called with
 	 * urgent_only=1.
 	 */
@@ -204,9 +204,9 @@ static void __linkwatch_run_queue(int urgent_only)
 
 	/*
 	 * Limit the number of linkwatch events to one
-	 * per second so that a runaway driver does not
+	 * per second so that a runaway driver does analt
 	 * cause a storm of messages on the netlink
-	 * socket.  This limit does not apply to up events
+	 * socket.  This limit does analt apply to up events
 	 * while the device qdisc is down.
 	 */
 	if (!urgent_only)

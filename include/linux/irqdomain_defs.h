@@ -3,7 +3,7 @@
 #define _LINUX_IRQDOMAIN_DEFS_H
 
 /*
- * Should several domains have the same device node, but serve
+ * Should several domains have the same device analde, but serve
  * different purposes (for example one domain is for PCI/MSI, and the
  * other for wired IRQs), they can be distinguished using a
  * bus-specific token. Most domains are expected to only carry

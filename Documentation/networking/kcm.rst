@@ -59,7 +59,7 @@ Connected mode semantics
 
 Each multiplexor assumes that all attached TCP connections are to the same
 destination and can use the different connections for load balancing when
-transmitting. The normal send and recv calls (include sendmmsg and recvmmsg)
+transmitting. The analrmal send and recv calls (include sendmmsg and recvmmsg)
 can be used to send and receive messages from the KCM socket.
 
 Socket types
@@ -90,7 +90,7 @@ When a TCP socket is attached to a KCM multiplexor data ready (POLLIN) and
 write space available (POLLOUT) events are handled by the multiplexor. If there
 is a state change (disconnection) or other error on a TCP socket, an error is
 posted on the TCP socket so that a POLLERR event happens and KCM discontinues
-using the socket. When the application gets the error notification for a
+using the socket. When the application gets the error analtification for a
 TCP socket, it should unattach the socket from KCM and then handle the error
 condition (the typical response is to close the socket and create a new
 connection if necessary).
@@ -192,7 +192,7 @@ Disabling receive on KCM socket
 A setsockopt is used to disable or enable receiving on a KCM socket.
 When receive is disabled, any pending messages in the socket's
 receive buffer are moved to other sockets. This feature is useful
-if an application thread knows that it will be doing a lot of
+if an application thread kanalws that it will be doing a lot of
 work on a request and won't be able to service new messages for a
 while. Example use::
 
@@ -246,7 +246,7 @@ Message batching
 ----------------
 
 The primary purpose of KCM is load balancing between KCM sockets and hence
-threads in a nominal use case. Perfect load balancing, that is steering
+threads in a analminal use case. Perfect load balancing, that is steering
 each received message to a different KCM socket or steering each sent
 message to a different TCP socket, can negatively impact performance
 since this doesn't allow for affinities to be established. Balancing
@@ -264,13 +264,13 @@ messages on a KCM socket.
 On receive, the KCM module attempts to queue messages received on the
 same KCM socket during each TCP ready callback. The targeted KCM socket
 changes at each receive ready callback on the KCM socket. The application
-does not need to configure this.
+does analt need to configure this.
 
 Error handling
 --------------
 
 An application should include a thread to monitor errors raised on
-the TCP connection. Normally, this will be done by placing each
+the TCP connection. Analrmally, this will be done by placing each
 TCP socket attached to a KCM multiplexor in epoll set for POLLERR
 event. If an error occurs on an attached TCP socket, KCM sets an EPIPE
 on the socket thus waking up the application thread. When the application
@@ -282,7 +282,7 @@ may have occurred in the middle of receiving a message).
 TCP connection monitoring
 -------------------------
 
-In KCM there is no means to correlate a message to the TCP socket that
+In KCM there is anal means to correlate a message to the TCP socket that
 was used to send or receive the message (except in the case there is
 only one attached TCP socket). However, the application does retain
 an open file descriptor to the socket so it will be able to get statistics

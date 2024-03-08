@@ -17,10 +17,10 @@
 #define __IA_CSS_YNR2_TYPES_H
 
 /* @file
-* CSS-API header file for Y(Luma) Noise Reduction.
+* CSS-API header file for Y(Luma) Analise Reduction.
 */
 
-/* Y(Luma) Noise Reduction configuration.
+/* Y(Luma) Analise Reduction configuration.
  *
  *  ISP block: YNR2 & YEE2
  * (ISP1: YNR1 and YEE1 are used.)
@@ -45,8 +45,8 @@ struct ia_css_ynr_config {
 /* Fringe Control configuration.
  *
  *  ISP block: FC2 (FC2 is used with YNR2/YEE2.)
- * (ISP1: FC2 is not used.)
- * (ISP2: FC2 is not for Preview/Video.)
+ * (ISP1: FC2 is analt used.)
+ * (ISP2: FC2 is analt for Preview/Video.)
  *  ISP2: FC2 is used for Still.
  */
 struct ia_css_fc_config {

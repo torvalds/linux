@@ -87,7 +87,7 @@ static void nsim_dev_hwsdev_disable(struct nsim_dev_hwstats_netdev *hwsdev)
 
 static int
 nsim_dev_hwsdev_report_delta(struct nsim_dev_hwstats_netdev *hwsdev,
-			     struct netdev_notifier_offload_xstats_info *info)
+			     struct netdev_analtifier_offload_xstats_info *info)
 {
 	netdev_offload_xstats_report_delta(info->report_delta, &hwsdev->stats);
 	memset(&hwsdev->stats, 0, sizeof(hwsdev->stats));
@@ -96,7 +96,7 @@ nsim_dev_hwsdev_report_delta(struct nsim_dev_hwstats_netdev *hwsdev,
 
 static void
 nsim_dev_hwsdev_report_used(struct nsim_dev_hwstats_netdev *hwsdev,
-			    struct netdev_notifier_offload_xstats_info *info)
+			    struct netdev_analtifier_offload_xstats_info *info)
 {
 	if (hwsdev->enabled)
 		netdev_offload_xstats_report_used(info->report_used);
@@ -106,7 +106,7 @@ static int nsim_dev_hwstats_event_off_xstats(struct nsim_dev_hwstats *hwstats,
 					     struct net_device *dev,
 					     unsigned long event, void *ptr)
 {
-	struct netdev_notifier_offload_xstats_info *info;
+	struct netdev_analtifier_offload_xstats_info *info;
 	struct nsim_dev_hwstats_netdev *hwsdev;
 	struct list_head *hwsdev_list;
 	int err = 0;
@@ -196,19 +196,19 @@ static int nsim_dev_hwstats_event(struct nsim_dev_hwstats *hwstats,
 	return 0;
 }
 
-static int nsim_dev_netdevice_event(struct notifier_block *nb,
+static int nsim_dev_netdevice_event(struct analtifier_block *nb,
 				    unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct nsim_dev_hwstats *hwstats;
 	int err = 0;
 
 	hwstats = container_of(nb, struct nsim_dev_hwstats, netdevice_nb);
 	err = nsim_dev_hwstats_event(hwstats, dev, event, ptr);
 	if (err)
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int
@@ -220,7 +220,7 @@ nsim_dev_hwstats_enable_ifindex(struct nsim_dev_hwstats *hwstats,
 	struct nsim_dev_hwstats_netdev *hwsdev;
 	struct nsim_dev *nsim_dev;
 	struct net_device *netdev;
-	bool notify = false;
+	bool analtify = false;
 	struct net *net;
 	int err = 0;
 
@@ -235,13 +235,13 @@ nsim_dev_hwstats_enable_ifindex(struct nsim_dev_hwstats *hwstats,
 
 	netdev = dev_get_by_index(net, ifindex);
 	if (!netdev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_unlock_list;
 	}
 
 	hwsdev = kzalloc(sizeof(*hwsdev), GFP_KERNEL);
 	if (!hwsdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_put_netdev;
 	}
 
@@ -251,11 +251,11 @@ nsim_dev_hwstats_enable_ifindex(struct nsim_dev_hwstats *hwstats,
 
 	if (netdev_offload_xstats_enabled(netdev, type)) {
 		nsim_dev_hwsdev_enable(hwsdev, NULL);
-		notify = true;
+		analtify = true;
 	}
 
-	if (notify)
-		rtnl_offload_xstats_notify(netdev);
+	if (analtify)
+		rtnl_offload_xstats_analtify(netdev);
 	rtnl_unlock();
 	return err;
 
@@ -284,14 +284,14 @@ nsim_dev_hwstats_disable_ifindex(struct nsim_dev_hwstats *hwstats,
 	mutex_unlock(&hwstats->hwsdev_list_lock);
 
 	if (!hwsdev) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto unlock_out;
 	}
 
 	if (netdev_offload_xstats_enabled(hwsdev->netdev, type)) {
 		netdev_offload_xstats_push_delta(hwsdev->netdev, type,
 						 &hwsdev->stats);
-		rtnl_offload_xstats_notify(hwsdev->netdev);
+		rtnl_offload_xstats_analtify(hwsdev->netdev);
 	}
 	nsim_dev_hwsdev_fini(hwsdev);
 
@@ -313,7 +313,7 @@ nsim_dev_hwstats_fail_ifindex(struct nsim_dev_hwstats *hwstats,
 
 	hwsdev = nsim_dev_hwslist_find_hwsdev(hwsdev_list, ifindex);
 	if (!hwsdev) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_hwsdev_list_unlock;
 	}
 
@@ -416,15 +416,15 @@ int nsim_dev_hwstats_init(struct nsim_dev *nsim_dev)
 	mutex_init(&hwstats->hwsdev_list_lock);
 	INIT_LIST_HEAD(&hwstats->l3_list);
 
-	hwstats->netdevice_nb.notifier_call = nsim_dev_netdevice_event;
-	err = register_netdevice_notifier_net(net, &hwstats->netdevice_nb);
+	hwstats->netdevice_nb.analtifier_call = nsim_dev_netdevice_event;
+	err = register_netdevice_analtifier_net(net, &hwstats->netdevice_nb);
 	if (err)
 		goto err_mutex_destroy;
 
 	hwstats->ddir = debugfs_create_dir("hwstats", nsim_dev->ddir);
 	if (IS_ERR(hwstats->ddir)) {
 		err = PTR_ERR(hwstats->ddir);
-		goto err_unregister_notifier;
+		goto err_unregister_analtifier;
 	}
 
 	hwstats->l3_ddir = debugfs_create_dir("l3", hwstats->ddir);
@@ -448,8 +448,8 @@ int nsim_dev_hwstats_init(struct nsim_dev *nsim_dev)
 
 err_remove_hwstats_recursive:
 	debugfs_remove_recursive(hwstats->ddir);
-err_unregister_notifier:
-	unregister_netdevice_notifier_net(net, &hwstats->netdevice_nb);
+err_unregister_analtifier:
+	unregister_netdevice_analtifier_net(net, &hwstats->netdevice_nb);
 err_mutex_destroy:
 	mutex_destroy(&hwstats->hwsdev_list_lock);
 	return err;
@@ -480,7 +480,7 @@ void nsim_dev_hwstats_exit(struct nsim_dev *nsim_dev)
 
 	cancel_delayed_work_sync(&hwstats->traffic_dw);
 	debugfs_remove_recursive(hwstats->ddir);
-	unregister_netdevice_notifier_net(net, &hwstats->netdevice_nb);
+	unregister_netdevice_analtifier_net(net, &hwstats->netdevice_nb);
 	nsim_dev_hwsdev_list_wipe(hwstats, NETDEV_OFFLOAD_XSTATS_TYPE_L3);
 	mutex_destroy(&hwstats->hwsdev_list_lock);
 }

@@ -12,7 +12,7 @@
 #define		MAX_SILENT_RESET_RX_SLOT_NUM	10
 
 enum rtl819x_loopback {
-	RTL819X_NO_LOOPBACK = 0,
+	RTL819X_ANAL_LOOPBACK = 0,
 	RTL819X_MAC_LOOPBACK = 1,
 	RTL819X_DMA_LOOPBACK = 2,
 	RTL819X_CCK_LOOPBACK = 3,
@@ -49,7 +49,7 @@ enum rtl819x_loopback {
 #define DESC90_RATEMCS32			0x20
 
 #define SHORT_SLOT_TIME				9
-#define NON_SHORT_SLOT_TIME		20
+#define ANALN_SHORT_SLOT_TIME		20
 
 #define	RX_SMOOTH				20
 
@@ -185,10 +185,10 @@ struct tx_desc {
 	u8	DISFB:1;
 	u8	USERATE:1;
 	u8	MOREFRAG:1;
-	u8	NoEnc:1;
+	u8	AnalEnc:1;
 	u8	PIFS:1;
 	u8	QueueSelect:5;
-	u8	NoACM:1;
+	u8	AnalACM:1;
 	u8	Resv:2;
 	u8	SecCAMID:5;
 	u8	SecDescAssign:1;

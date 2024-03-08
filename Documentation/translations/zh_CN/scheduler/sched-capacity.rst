@@ -321,7 +321,7 @@ CFS任务唤醒的CPU选择，遵循上面描述的算力适应性准则。在�
 它设置低的uclamp.max值。相反，uclamp能强制一个小的周期性任务（比如，10%利用率）在最高性能
 的CPU上运行，只要给它设置高的uclamp.min值。
 
-.. note::
+.. analte::
 
   CFS的被唤醒的任务的CPU选择，可被能耗感知调度（Energy Aware Scheduling，EAS）覆盖，在
   Documentation/scheduler/sched-energy.rst中描述。

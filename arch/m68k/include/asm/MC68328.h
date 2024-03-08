@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-/* include/asm-m68knommu/MC68328.h: '328 control registers
+/* include/asm-m68kanalmmu/MC68328.h: '328 control registers
  *
  * Copyright (C) 1999  Vladimir Gurevich <vgurevic@cisco.com>
  *                     Bear & Hare Software, Inc.
  *
- * Based on include/asm-m68knommu/MC68332.h
- * Copyright (C) 1998  Kenneth Albanowski <kjahds@kjahds.com>,
+ * Based on include/asm-m68kanalmmu/MC68332.h
+ * Copyright (C) 1998  Kenneth Albaanalwski <kjahds@kjahds.com>,
  *
  */
 #include <linux/compiler.h>
@@ -929,7 +929,7 @@
 #define URX_BREAK	 0x0200	/* Break Detected */
 #define URX_FRAME_ERROR	 0x0400	/* Framing Error */
 #define URX_OVRUN	 0x0800	/* Serial Overrun */
-#define URX_DATA_READY	 0x2000	/* Data Ready (FIFO not empty) */
+#define URX_DATA_READY	 0x2000	/* Data Ready (FIFO analt empty) */
 #define URX_FIFO_HALF	 0x4000 /* FIFO is Half-Full */
 #define URX_FIFO_FULL	 0x8000	/* FIFO is Full */
 
@@ -946,7 +946,7 @@
 #define UTX_TXDATA_SHIFT 0
 #define UTX_CTS_DELTA	 0x0100	/* CTS changed */
 #define UTX_CTS_STATUS	 0x0200	/* CTS State */
-#define	UTX_IGNORE_CTS	 0x0800	/* Ignore CTS */
+#define	UTX_IGANALRE_CTS	 0x0800	/* Iganalre CTS */
 #define UTX_SEND_BREAK	 0x1000	/* Send a BREAK */
 #define UTX_TX_AVAIL	 0x2000	/* Transmit FIFO has a slot available */
 #define UTX_FIFO_HALF	 0x4000	/* Transmit FIFO is half empty */
@@ -954,7 +954,7 @@
 
 /* 'EZ328-compatible definitions */
 #define UTX_CTS_STAT	UTX_CTS_STATUS
-#define UTX_NOCTS	UTX_IGNORE_CTS
+#define UTX_ANALCTS	UTX_IGANALRE_CTS
 
 /*
  * UART Miscellaneous Register 
@@ -1019,7 +1019,7 @@ typedef volatile struct {
 #define LVPW		BYTE_REF(LVPW_ADDR)
 
 /*
- * LCD Screen Width Register (not compatible with 'EZ328 !!!)
+ * LCD Screen Width Register (analt compatible with 'EZ328 !!!)
  */
 #define LXMAX_ADDR	0xfffffa08
 #define LXMAX		WORD_REF(LXMAX_ADDR)

@@ -50,7 +50,7 @@ struct max20086_chip_info {
 };
 
 struct max20086_regulator {
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	struct regulator_init_data *init_data;
 	const struct regulator_desc *desc;
 	struct regulator_dev *rdev;
@@ -112,7 +112,7 @@ static int max20086_regulators_register(struct max20086 *chip)
 		config.dev = chip->dev;
 		config.init_data = reg->init_data;
 		config.driver_data = chip;
-		config.of_node = reg->of_node;
+		config.of_analde = reg->of_analde;
 		config.regmap = chip->regmap;
 		config.ena_gpiod = chip->ena_gpiod;
 
@@ -133,22 +133,22 @@ static int max20086_regulators_register(struct max20086 *chip)
 static int max20086_parse_regulators_dt(struct max20086 *chip, bool *boot_on)
 {
 	struct of_regulator_match matches[MAX20086_MAX_REGULATORS] = { };
-	struct device_node *node;
+	struct device_analde *analde;
 	unsigned int i;
 	int ret;
 
-	node = of_get_child_by_name(chip->dev->of_node, "regulators");
-	if (!node) {
-		dev_err(chip->dev, "regulators node not found\n");
-		return -ENODEV;
+	analde = of_get_child_by_name(chip->dev->of_analde, "regulators");
+	if (!analde) {
+		dev_err(chip->dev, "regulators analde analt found\n");
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < chip->info->num_outputs; ++i)
 		matches[i].name = max20086_output_names[i];
 
-	ret = of_regulator_match(chip->dev, node, matches,
+	ret = of_regulator_match(chip->dev, analde, matches,
 				 chip->info->num_outputs);
-	of_node_put(node);
+	of_analde_put(analde);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to match regulators\n");
 		return -EINVAL;
@@ -160,7 +160,7 @@ static int max20086_parse_regulators_dt(struct max20086 *chip, bool *boot_on)
 		struct max20086_regulator *reg = &chip->regulators[i];
 
 		reg->init_data = matches[i].init_data;
-		reg->of_node = matches[i].of_node;
+		reg->of_analde = matches[i].of_analde;
 		reg->desc = &max20086_regulators[i];
 
 		if (reg->init_data) {
@@ -208,7 +208,7 @@ static const struct regmap_config max20086_regmap_config = {
 	.val_bits = 8,
 	.writeable_reg = max20086_gen_is_writeable_reg,
 	.max_register = 0x9,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static int max20086_i2c_probe(struct i2c_client *i2c)
@@ -220,7 +220,7 @@ static int max20086_i2c_probe(struct i2c_client *i2c)
 
 	chip = devm_kzalloc(&i2c->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = &i2c->dev;
 	chip->info = i2c_get_match_data(i2c);
@@ -316,7 +316,7 @@ MODULE_DEVICE_TABLE(of, max20086_dt_ids);
 static struct i2c_driver max20086_regulator_driver = {
 	.driver = {
 		.name = "max20086",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(max20086_dt_ids),
 	},
 	.probe = max20086_i2c_probe,

@@ -56,7 +56,7 @@
 
 /*
  * CSR1: System control register.
- * SOFT_RESET: Software reset, 1: reset, 0: normal.
+ * SOFT_RESET: Software reset, 1: reset, 0: analrmal.
  * BBP_RESET: Hardware reset, 1: reset, 0, release.
  * HOST_READY: Host ready after initialization.
  */
@@ -365,7 +365,7 @@
  * DROP_CRC: Drop crc error.
  * DROP_PHYSICAL: Drop physical error.
  * DROP_CONTROL: Drop control frame.
- * DROP_NOT_TO_ME: Drop not to me unicast frame.
+ * DROP_ANALT_TO_ME: Drop analt to me unicast frame.
  * DROP_TODS: Drop frame tods bit is true.
  * DROP_VERSION_ERROR: Drop version error frame.
  * PASS_CRC: Pass all packets with crc attached.
@@ -375,7 +375,7 @@
 #define RXCSR0_DROP_CRC			FIELD32(0x00000002)
 #define RXCSR0_DROP_PHYSICAL		FIELD32(0x00000004)
 #define RXCSR0_DROP_CONTROL		FIELD32(0x00000008)
-#define RXCSR0_DROP_NOT_TO_ME		FIELD32(0x00000010)
+#define RXCSR0_DROP_ANALT_TO_ME		FIELD32(0x00000010)
 #define RXCSR0_DROP_TODS		FIELD32(0x00000020)
 #define RXCSR0_DROP_VERSION_ERROR	FIELD32(0x00000040)
 #define RXCSR0_PASS_CRC			FIELD32(0x00000080)
@@ -398,7 +398,7 @@
 /*
  * RXCSR3: BBP ID register for Rx operation.
  * BBP_ID#: BBP register # id.
- * BBP_ID#_VALID: BBP register # id is valid or not.
+ * BBP_ID#_VALID: BBP register # id is valid or analt.
  */
 #define RXCSR3				0x0090
 #define RXCSR3_BBP_ID0			FIELD32(0x0000007f)
@@ -413,7 +413,7 @@
 /*
  * RXCSR4: BBP ID register for Rx operation.
  * BBP_ID#: BBP register # id.
- * BBP_ID#_VALID: BBP register # id is valid or not.
+ * BBP_ID#_VALID: BBP register # id is valid or analt.
  */
 #define RXCSR4				0x0094
 #define RXCSR4_BBP_ID4			FIELD32(0x0000007f)
@@ -456,7 +456,7 @@
  * TX_TRESHOLD: Tx threshold in dw to start pci access
  * 0: 0dw (default), 1: 1dw, 2: 4dw, 3: forward.
  * BURST_LENTH: Pci burst length 0: 4dw (default, 1: 8dw, 2: 16dw, 3:32dw.
- * ENABLE_CLK: Enable clk_run, pci clock can't going down to non-operational.
+ * ENABLE_CLK: Enable clk_run, pci clock can't going down to analn-operational.
  */
 #define PCICSR				0x008c
 #define PCICSR_BIG_ENDIAN		FIELD32(0x00000001)
@@ -546,7 +546,7 @@
  * BBPRX_RESET_MODE: Ralink bbp rx reset mode.
  * AUTO_TXBBP: Auto tx logic access bbp control register.
  * AUTO_RXBBP: Auto rx logic access bbp control register.
- * LOOPBACK: Loopback mode. 0: normal, 1: internal, 2: external, 3:rsvd.
+ * LOOPBACK: Loopback mode. 0: analrmal, 1: internal, 2: external, 3:rsvd.
  * INTERSIL_IF: Intersil if calibration pin.
  */
 #define MACCSR1				0x00e4
@@ -774,7 +774,7 @@
  * TX_DEFAULT: Default antenna 0: diversity, 1: A, 2: B.
  * RX_DEFAULT: Default antenna 0: diversity, 1: A, 2: B.
  * RF_TYPE: Rf_type of this adapter.
- * LED_MODE: 0: default, 1: TX/RX activity,2: Single (ignore link), 3: rsvd.
+ * LED_MODE: 0: default, 1: TX/RX activity,2: Single (iganalre link), 3: rsvd.
  * RX_AGCVGC: 0: disable, 1:enable BBP R13 tuning.
  * HARDWARE_RADIO: 1: Hardware controlled radio. Read GPIO0.
  */
@@ -928,7 +928,7 @@
 /*
  * Macros for converting txpower from EEPROM to mac80211 value
  * and from mac80211 value to register value.
- * NOTE: Logics in rt2400pci for txpower are reversed
+ * ANALTE: Logics in rt2400pci for txpower are reversed
  * compared to the other rt2x00 drivers. A higher txpower
  * value means that the txpower must be lowered. This is
  * important when converting the value coming from the

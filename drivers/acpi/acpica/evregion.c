@@ -21,7 +21,7 @@ extern u8 acpi_gbl_default_address_spaces[];
 /* Local prototypes */
 
 static void
-acpi_ev_execute_orphan_reg_method(struct acpi_namespace_node *device_node,
+acpi_ev_execute_orphan_reg_method(struct acpi_namespace_analde *device_analde,
 				  acpi_adr_space_type space_id);
 
 static acpi_status
@@ -32,7 +32,7 @@ acpi_ev_reg_run(acpi_handle obj_handle,
  *
  * FUNCTION:    acpi_ev_initialize_op_regions
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -57,14 +57,14 @@ acpi_status acpi_ev_initialize_op_regions(void)
 
 	for (i = 0; i < ACPI_NUM_DEFAULT_SPACES; i++) {
 		/*
-		 * Make sure the installed handler is the DEFAULT handler. If not the
+		 * Make sure the installed handler is the DEFAULT handler. If analt the
 		 * default, the _REG methods will have already been run (when the
 		 * handler was installed)
 		 */
-		if (acpi_ev_has_default_handler(acpi_gbl_root_node,
+		if (acpi_ev_has_default_handler(acpi_gbl_root_analde,
 						acpi_gbl_default_address_spaces
 						[i])) {
-			acpi_ev_execute_reg_methods(acpi_gbl_root_node,
+			acpi_ev_execute_reg_methods(acpi_gbl_root_analde,
 						    acpi_gbl_default_address_spaces
 						    [i], ACPI_REG_CONNECT);
 		}
@@ -91,7 +91,7 @@ acpi_status acpi_ev_initialize_op_regions(void)
  * DESCRIPTION: Dispatch an address space or operation region access to
  *              a previously installed handler.
  *
- * NOTE: During early initialization, we always install the default region
+ * ANALTE: During early initialization, we always install the default region
  * handlers for Memory, I/O and PCI_Config. This ensures that these operation
  * region address spaces are always available as per the ACPI specification.
  * This is especially needed in order to support the execution of
@@ -120,7 +120,7 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 
 	region_obj2 = acpi_ns_get_secondary_object(region_obj);
 	if (!region_obj2) {
-		return_ACPI_STATUS(AE_NOT_EXIST);
+		return_ACPI_STATUS(AE_ANALT_EXIST);
 	}
 
 	/* Ensure that there is a handler associated with this region */
@@ -128,13 +128,13 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 	handler_desc = region_obj->region.handler;
 	if (!handler_desc) {
 		ACPI_ERROR((AE_INFO,
-			    "No handler for Region [%4.4s] (%p) [%s]",
-			    acpi_ut_get_node_name(region_obj->region.node),
+			    "Anal handler for Region [%4.4s] (%p) [%s]",
+			    acpi_ut_get_analde_name(region_obj->region.analde),
 			    region_obj,
 			    acpi_ut_get_region_name(region_obj->region.
 						    space_id)));
 
-		return_ACPI_STATUS(AE_NOT_EXIST);
+		return_ACPI_STATUS(AE_ANALT_EXIST);
 	}
 
 	context = handler_desc->address_space.context;
@@ -147,19 +147,19 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 	 */
 	if (!(region_obj->region.flags & AOPOBJ_SETUP_COMPLETE)) {
 
-		/* This region has not been initialized yet, do it */
+		/* This region has analt been initialized yet, do it */
 
 		region_setup = handler_desc->address_space.setup;
 		if (!region_setup) {
 
-			/* No initialization routine, exit with error */
+			/* Anal initialization routine, exit with error */
 
 			ACPI_ERROR((AE_INFO,
-				    "No init routine for region(%p) [%s]",
+				    "Anal init routine for region(%p) [%s]",
 				    region_obj,
 				    acpi_ut_get_region_name(region_obj->region.
 							    space_id)));
-			return_ACPI_STATUS(AE_NOT_EXIST);
+			return_ACPI_STATUS(AE_ANALT_EXIST);
 		}
 
 		if (region_obj->region.space_id == ACPI_ADR_SPACE_PLATFORM_COMM) {
@@ -239,7 +239,7 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 		/*
 		 * For handlers other than the default (supplied) handlers, we must
 		 * exit the interpreter because the handler *might* block -- we don't
-		 * know what it will do, so we can't hold the lock on the interpreter.
+		 * kanalw what it will do, so we can't hold the lock on the interpreter.
 		 */
 		acpi_ex_exit_interpreter();
 	}
@@ -254,7 +254,7 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 	 *
 	 * Since we pass these extra parameters via the context, which is
 	 * shared between threads, we must lock the context to avoid these
-	 * parameters being changed from another thread before the handler
+	 * parameters being changed from aanalther thread before the handler
 	 * has completed running.
 	 *
 	 * In addition, for general_purpose_io, the Address and bit_width fields
@@ -316,7 +316,7 @@ re_enter_interpreter:
 	if (!(handler_desc->address_space.handler_flags &
 	      ACPI_ADDR_HANDLER_DEFAULT_INSTALLED)) {
 		/*
-		 * We just returned from a non-default handler, we must re-enter the
+		 * We just returned from a analn-default handler, we must re-enter the
 		 * interpreter
 		 */
 		acpi_ex_enter_interpreter();
@@ -332,7 +332,7 @@ re_enter_interpreter:
  * PARAMETERS:  region_obj          - Region Object
  *              acpi_ns_is_locked   - Namespace Region Already Locked?
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Break the association between the handler and the region
  *              this is a two way association.
@@ -365,7 +365,7 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 	handler_obj = region_obj->region.handler;
 	if (!handler_obj) {
 
-		/* This region has no handler, all done */
+		/* This region has anal handler, all done */
 
 		return_VOID;
 	}
@@ -398,7 +398,7 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 				}
 			}
 
-			/* Now stop region accesses by executing the _REG method */
+			/* Analw stop region accesses by executing the _REG method */
 
 			status =
 			    acpi_ev_execute_reg_method(region_obj,
@@ -420,7 +420,7 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 
 			/*
 			 * If the region has been activated, call the setup handler with
-			 * the deactivate notification
+			 * the deactivate analtification
 			 */
 			if (region_obj->region.flags & AOPOBJ_SETUP_COMPLETE) {
 				region_setup = handler_obj->address_space.setup;
@@ -438,7 +438,7 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 					*region_context = NULL;
 				}
 
-				/* Init routine may fail, Just ignore errors */
+				/* Init routine may fail, Just iganalre errors */
 
 				if (ACPI_FAILURE(status)) {
 					ACPI_EXCEPTION((AE_INFO, status,
@@ -455,7 +455,7 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 			/*
 			 * Remove handler reference in the region
 			 *
-			 * NOTE: this doesn't mean that the region goes away, the region
+			 * ANALTE: this doesn't mean that the region goes away, the region
 			 * is just inaccessible as indicated to the _REG method
 			 *
 			 * If the region is on the handler's list, this must be the
@@ -482,10 +482,10 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 		}
 	}
 
-	/* If we get here, the region was not in the handler's region list */
+	/* If we get here, the region was analt in the handler's region list */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
-			  "Cannot remove region %p from address handler %p\n",
+			  "Cananalt remove region %p from address handler %p\n",
 			  region_obj, handler_obj));
 
 	return_VOID;
@@ -499,7 +499,7 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
  *              region_obj          - Region Object
  *              acpi_ns_is_locked   - Namespace Region Already Locked?
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Create the association between the handler and the region
  *              this is a two way association.
@@ -522,7 +522,7 @@ acpi_ev_attach_region(union acpi_operand_object *handler_obj,
 
 	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
 			  "Adding Region [%4.4s] %p to address handler %p [%s]\n",
-			  acpi_ut_get_node_name(region_obj->region.node),
+			  acpi_ut_get_analde_name(region_obj->region.analde),
 			  region_obj, handler_obj,
 			  acpi_ut_get_region_name(region_obj->region.
 						  space_id)));
@@ -558,8 +558,8 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 	union acpi_operand_object *region_obj2;
 	const acpi_name *reg_name_ptr =
 	    ACPI_CAST_PTR(acpi_name, METHOD_NAME__REG);
-	struct acpi_namespace_node *method_node;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *method_analde;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ev_execute_reg_method);
@@ -571,7 +571,7 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 
 	region_obj2 = acpi_ns_get_secondary_object(region_obj);
 	if (!region_obj2) {
-		return_ACPI_STATUS(AE_NOT_EXIST);
+		return_ACPI_STATUS(AE_ANALT_EXIST);
 	}
 
 	/*
@@ -579,17 +579,17 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 	 * The method should always be updated as this function may be
 	 * invoked after a namespace change.
 	 */
-	node = region_obj->region.node->parent;
+	analde = region_obj->region.analde->parent;
 	status =
-	    acpi_ns_search_one_scope(*reg_name_ptr, node, ACPI_TYPE_METHOD,
-				     &method_node);
+	    acpi_ns_search_one_scope(*reg_name_ptr, analde, ACPI_TYPE_METHOD,
+				     &method_analde);
 	if (ACPI_SUCCESS(status)) {
 		/*
 		 * The _REG method is optional and there can be only one per
 		 * region definition. This will be executed when the handler is
 		 * attached or removed.
 		 */
-		region_obj2->extra.method_REG = method_node;
+		region_obj2->extra.method_REG = method_analde;
 	}
 	if (region_obj2->extra.method_REG == NULL) {
 		return_ACPI_STATUS(AE_OK);
@@ -608,13 +608,13 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 
 	info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_evaluate_info));
 	if (!info) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
-	info->prefix_node = region_obj2->extra.method_REG;
+	info->prefix_analde = region_obj2->extra.method_REG;
 	info->relative_pathname = NULL;
 	info->parameters = args;
-	info->flags = ACPI_IGNORE_RETURN_VALUE;
+	info->flags = ACPI_IGANALRE_RETURN_VALUE;
 
 	/*
 	 * The _REG method has two arguments:
@@ -629,22 +629,22 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 	args[0] =
 	    acpi_ut_create_integer_object((u64)region_obj->region.space_id);
 	if (!args[0]) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup1;
 	}
 
 	args[1] = acpi_ut_create_integer_object((u64)function);
 	if (!args[1]) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup2;
 	}
 
 	args[2] = NULL;		/* Terminate list */
 
-	/* Execute the method, no return value */
+	/* Execute the method, anal return value */
 
 	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
-			(ACPI_TYPE_METHOD, info->prefix_node, NULL));
+			(ACPI_TYPE_METHOD, info->prefix_analde, NULL));
 
 	status = acpi_ns_evaluate(info);
 	acpi_ut_remove_reference(args[1]);
@@ -671,19 +671,19 @@ cleanup1:
  *
  * FUNCTION:    acpi_ev_execute_reg_methods
  *
- * PARAMETERS:  node            - Namespace node for the device
+ * PARAMETERS:  analde            - Namespace analde for the device
  *              space_id        - The address space ID
  *              function        - Passed to _REG: On (1) or Off (0)
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Run all _REG methods for the input Space ID;
- *              Note: assumes namespace is locked, or system init time.
+ *              Analte: assumes namespace is locked, or system init time.
  *
  ******************************************************************************/
 
 void
-acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
+acpi_ev_execute_reg_methods(struct acpi_namespace_analde *analde,
 			    acpi_adr_space_type space_id, u32 function)
 {
 	struct acpi_reg_walk_info info;
@@ -691,11 +691,11 @@ acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
 	ACPI_FUNCTION_TRACE(ev_execute_reg_methods);
 
 	/*
-	 * These address spaces do not need a call to _REG, since the ACPI
+	 * These address spaces do analt need a call to _REG, since the ACPI
 	 * specification defines them as: "must always be accessible". Since
-	 * they never change state (never become unavailable), no need to ever
-	 * call _REG on them. Also, a data_table is not a "real" address space,
-	 * so do not call _REG. September 2018.
+	 * they never change state (never become unavailable), anal need to ever
+	 * call _REG on them. Also, a data_table is analt a "real" address space,
+	 * so do analt call _REG. September 2018.
 	 */
 	if ((space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) ||
 	    (space_id == ACPI_ADR_SPACE_SYSTEM_IO) ||
@@ -717,16 +717,16 @@ acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
 	 * regions and _REG methods. (i.e. handlers must be installed for all
 	 * regions of this Space ID before we can run any _REG methods)
 	 */
-	(void)acpi_ns_walk_namespace(ACPI_TYPE_ANY, node, ACPI_UINT32_MAX,
+	(void)acpi_ns_walk_namespace(ACPI_TYPE_ANY, analde, ACPI_UINT32_MAX,
 				     ACPI_NS_WALK_UNLOCK, acpi_ev_reg_run, NULL,
 				     &info, NULL);
 
 	/*
 	 * Special case for EC and GPIO: handle "orphan" _REG methods with
-	 * no region.
+	 * anal region.
 	 */
 	if (space_id == ACPI_ADR_SPACE_EC || space_id == ACPI_ADR_SPACE_GPIO) {
-		acpi_ev_execute_orphan_reg_method(node, space_id);
+		acpi_ev_execute_orphan_reg_method(analde, space_id);
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_NAMES,
@@ -752,7 +752,7 @@ acpi_ev_reg_run(acpi_handle obj_handle,
 		u32 level, void *context, void **return_value)
 {
 	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 	struct acpi_reg_walk_info *info;
 
@@ -760,8 +760,8 @@ acpi_ev_reg_run(acpi_handle obj_handle,
 
 	/* Convert and validate the device handle */
 
-	node = acpi_ns_validate_handle(obj_handle);
-	if (!node) {
+	analde = acpi_ns_validate_handle(obj_handle);
+	if (!analde) {
 		return (AE_BAD_PARAMETER);
 	}
 
@@ -769,16 +769,16 @@ acpi_ev_reg_run(acpi_handle obj_handle,
 	 * We only care about regions and objects that are allowed to have
 	 * address space handlers
 	 */
-	if ((node->type != ACPI_TYPE_REGION) && (node != acpi_gbl_root_node)) {
+	if ((analde->type != ACPI_TYPE_REGION) && (analde != acpi_gbl_root_analde)) {
 		return (AE_OK);
 	}
 
 	/* Check for an existing internal object */
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(analde);
 	if (!obj_desc) {
 
-		/* No object, just exit */
+		/* Anal object, just exit */
 
 		return (AE_OK);
 	}
@@ -787,7 +787,7 @@ acpi_ev_reg_run(acpi_handle obj_handle,
 
 	if (obj_desc->region.space_id != info->space_id) {
 
-		/* This region is for a different address space, just ignore it */
+		/* This region is for a different address space, just iganalre it */
 
 		return (AE_OK);
 	}
@@ -801,13 +801,13 @@ acpi_ev_reg_run(acpi_handle obj_handle,
  *
  * FUNCTION:    acpi_ev_execute_orphan_reg_method
  *
- * PARAMETERS:  device_node         - Namespace node for an ACPI device
+ * PARAMETERS:  device_analde         - Namespace analde for an ACPI device
  *              space_id            - The address space ID
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Execute an "orphan" _REG method that appears under an ACPI
- *              device. This is a _REG method that has no corresponding region
+ *              device. This is a _REG method that has anal corresponding region
  *              within the device's scope. ACPI tables depending on these
  *              "orphan" _REG methods have been seen for both EC and GPIO
  *              Operation Regions. Presumably the Windows ACPI implementation
@@ -819,18 +819,18 @@ acpi_ev_reg_run(acpi_handle obj_handle,
  ******************************************************************************/
 
 static void
-acpi_ev_execute_orphan_reg_method(struct acpi_namespace_node *device_node,
+acpi_ev_execute_orphan_reg_method(struct acpi_namespace_analde *device_analde,
 				  acpi_adr_space_type space_id)
 {
 	acpi_handle reg_method;
-	struct acpi_namespace_node *next_node;
+	struct acpi_namespace_analde *next_analde;
 	acpi_status status;
 	struct acpi_object_list args;
 	union acpi_object objects[2];
 
 	ACPI_FUNCTION_TRACE(ev_execute_orphan_reg_method);
 
-	if (!device_node) {
+	if (!device_analde) {
 		return_VOID;
 	}
 
@@ -840,27 +840,27 @@ acpi_ev_execute_orphan_reg_method(struct acpi_namespace_node *device_node,
 
 	/* Get a handle to a _REG method immediately under the EC device */
 
-	status = acpi_get_handle(device_node, METHOD_NAME__REG, &reg_method);
+	status = acpi_get_handle(device_analde, METHOD_NAME__REG, &reg_method);
 	if (ACPI_FAILURE(status)) {
-		goto exit;	/* There is no _REG method present */
+		goto exit;	/* There is anal _REG method present */
 	}
 
 	/*
-	 * Execute the _REG method only if there is no Operation Region in
+	 * Execute the _REG method only if there is anal Operation Region in
 	 * this scope with the Embedded Controller space ID. Otherwise, it
-	 * will already have been executed. Note, this allows for Regions
+	 * will already have been executed. Analte, this allows for Regions
 	 * with other space IDs to be present; but the code below will then
 	 * execute the _REG method with the embedded_control space_ID argument.
 	 */
-	next_node = acpi_ns_get_next_node(device_node, NULL);
-	while (next_node) {
-		if ((next_node->type == ACPI_TYPE_REGION) &&
-		    (next_node->object) &&
-		    (next_node->object->region.space_id == space_id)) {
-			goto exit;	/* Do not execute the _REG */
+	next_analde = acpi_ns_get_next_analde(device_analde, NULL);
+	while (next_analde) {
+		if ((next_analde->type == ACPI_TYPE_REGION) &&
+		    (next_analde->object) &&
+		    (next_analde->object->region.space_id == space_id)) {
+			goto exit;	/* Do analt execute the _REG */
 		}
 
-		next_node = acpi_ns_get_next_node(device_node, next_node);
+		next_analde = acpi_ns_get_next_analde(device_analde, next_analde);
 	}
 
 	/* Evaluate the _REG(space_id,Connect) method */
@@ -875,7 +875,7 @@ acpi_ev_execute_orphan_reg_method(struct acpi_namespace_node *device_node,
 	(void)acpi_evaluate_object(reg_method, NULL, &args, NULL);
 
 exit:
-	/* We ignore all errors from above, don't care */
+	/* We iganalre all errors from above, don't care */
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	return_VOID;

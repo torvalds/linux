@@ -32,7 +32,7 @@ int shpchp_configure_device(struct slot *p_slot)
 
 	dev = pci_get_slot(parent, PCI_DEVFN(p_slot->device, 0));
 	if (dev) {
-		ctrl_err(ctrl, "Device %s already exists at %04x:%02x:%02x, cannot hot-add\n",
+		ctrl_err(ctrl, "Device %s already exists at %04x:%02x:%02x, cananalt hot-add\n",
 			 pci_name(dev), pci_domain_nr(parent),
 			 p_slot->bus, p_slot->device);
 		pci_dev_put(dev);
@@ -42,8 +42,8 @@ int shpchp_configure_device(struct slot *p_slot)
 
 	num = pci_scan_slot(parent, PCI_DEVFN(p_slot->device, 0));
 	if (num == 0) {
-		ctrl_err(ctrl, "No new device found\n");
-		ret = -ENODEV;
+		ctrl_err(ctrl, "Anal new device found\n");
+		ret = -EANALDEV;
 		goto out;
 	}
 

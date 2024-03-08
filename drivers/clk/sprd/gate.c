@@ -97,7 +97,7 @@ static int sprd_gate_is_enabled(struct clk_hw *hw)
 	struct clk_hw *parent;
 	unsigned int reg;
 
-	if (sg->flags & SPRD_GATE_NON_AON) {
+	if (sg->flags & SPRD_GATE_ANALN_AON) {
 		parent = clk_hw_get_parent(hw);
 		if (!parent || !clk_hw_is_enabled(parent))
 			return 0;

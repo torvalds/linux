@@ -14,7 +14,7 @@ description: |
   By means of the System Controller Baikal-T1 SoC exposes a few settings to
   tune the MIPS P5600 CM2 L2 cache performance up. In particular it's possible
   to change the Tag, Data and Way-select RAM access latencies. Baikal-T1
-  L2-cache controller block is responsible for the tuning. Its DT node is
+  L2-cache controller block is responsible for the tuning. Its DT analde is
   supposed to be a child of the system controller.
 
 properties:

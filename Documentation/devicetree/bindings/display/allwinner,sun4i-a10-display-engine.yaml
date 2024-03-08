@@ -13,7 +13,7 @@ maintainers:
 description: |
   The display engine pipeline (and its entry point, since it can be
   either directly the backend or the frontend) is represented as an
-  extra node.
+  extra analde.
 
   The Allwinner A10 Display pipeline is composed of several components
   that are going to be documented below:

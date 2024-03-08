@@ -19,8 +19,8 @@ enum MXL_BOOL_E {
 	MXL_INVALID = 0,
 	MXL_VALID   = 1,
 
-	MXL_NO      = 0,
-	MXL_YES     = 1,
+	MXL_ANAL      = 0,
+	MXL_ANAL     = 1,
 
 	MXL_OFF     = 0,
 	MXL_ON      = 1
@@ -29,12 +29,12 @@ enum MXL_BOOL_E {
 /* Firmware-Host Command IDs */
 enum MXL_HYDRA_HOST_CMD_ID_E {
 	/* --Device command IDs-- */
-	MXL_HYDRA_DEV_NO_OP_CMD = 0, /* No OP */
+	MXL_HYDRA_DEV_ANAL_OP_CMD = 0, /* Anal OP */
 
 	MXL_HYDRA_DEV_SET_POWER_MODE_CMD = 1,
 	MXL_HYDRA_DEV_SET_OVERWRITE_DEF_CMD = 2,
 
-	/* Host-used CMD, not used by firmware */
+	/* Host-used CMD, analt used by firmware */
 	MXL_HYDRA_DEV_FIRMWARE_DOWNLOAD_CMD = 3,
 
 	/* Additional CONTROL types from DTV */
@@ -79,7 +79,7 @@ enum MXL_HYDRA_HOST_CMD_ID_E {
 	/* -- Demod scramblle code */
 	MXL_HYDRA_DEMOD_SCRAMBLE_CODE_CMD = 24,
 
-	/* ---For host to know how many commands in total */
+	/* ---For host to kanalw how many commands in total */
 	MXL_HYDRA_LAST_HOST_CMD = 25,
 
 	MXL_HYDRA_DEMOD_INTR_TYPE_CMD = 47,
@@ -322,7 +322,7 @@ enum MXL_HYDRA_MODULATION_E {
 enum MXL_HYDRA_SPECTRUM_E {
 	MXL_HYDRA_SPECTRUM_AUTO = 0,
 	MXL_HYDRA_SPECTRUM_INVERTED,
-	MXL_HYDRA_SPECTRUM_NON_INVERTED,
+	MXL_HYDRA_SPECTRUM_ANALN_INVERTED,
 };
 
 enum MXL_HYDRA_ROLLOFF_E {
@@ -412,12 +412,12 @@ enum MXL_HYDRA_SPECTRUM_RESOLUTION_E {
 };
 
 enum MXL_HYDRA_SPECTRUM_ERROR_CODE_E {
-	MXL_SPECTRUM_NO_ERROR,
+	MXL_SPECTRUM_ANAL_ERROR,
 	MXL_SPECTRUM_INVALID_PARAMETER,
 	MXL_SPECTRUM_INVALID_STEP_SIZE,
-	MXL_SPECTRUM_BW_CANNOT_BE_COVERED,
+	MXL_SPECTRUM_BW_CANANALT_BE_COVERED,
 	MXL_SPECTRUM_DEMOD_BUSY,
-	MXL_SPECTRUM_TUNER_NOT_ENABLED,
+	MXL_SPECTRUM_TUNER_ANALT_ENABLED,
 };
 
 struct MXL_HYDRA_SPECTRUM_REQ_T {
@@ -468,7 +468,7 @@ enum MXL_HYDRA_TS_MUX_MODE_E {
 };
 
 enum MXL_HYDRA_TS_MUX_TYPE_E {
-	MXL_HYDRA_TS_MUX_DISABLE = 0, /* No Mux ( 1 TSIF to 1 TSIF) */
+	MXL_HYDRA_TS_MUX_DISABLE = 0, /* Anal Mux ( 1 TSIF to 1 TSIF) */
 	MXL_HYDRA_TS_MUX_2_TO_1, /* Mux 2 TSIF to 1 TSIF */
 	MXL_HYDRA_TS_MUX_4_TO_1, /* Mux 4 TSIF to 1 TSIF */
 };
@@ -661,7 +661,7 @@ struct MXL_HYDRA_DEMOD_SCRAMBLE_CODE_T {
 
 struct MXL_INTR_CFG_T {
 	u32 intr_type;
-	u32 intr_duration_in_nano_secs;
+	u32 intr_duration_in_naanal_secs;
 	u32 intr_mask;
 };
 

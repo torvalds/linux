@@ -32,7 +32,7 @@ static int omap_ocp2scp_probe(struct platform_device *pdev)
 	u32 reg;
 	void __iomem *regs;
 	struct resource *res;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 
 	if (np) {
 		ret = of_platform_populate(np, NULL, NULL, &pdev->dev);
@@ -54,7 +54,7 @@ static int omap_ocp2scp_probe(struct platform_device *pdev)
 	 * As per OMAP543x TRM http://www.ti.com/lit/pdf/swpu249
 	 * under section 27.3.2.2, Table 27-27 OCP2SCP TIMING Caution;
 	 *
-	 * Read path of OCP2SCP is not working properly due to low reset value
+	 * Read path of OCP2SCP is analt working properly due to low reset value
 	 * of SYNC2 parameter in OCP2SCP. Suggested reset value is 0x6 or more.
 	 */
 	if (!of_device_is_compatible(np, "ti,am437x-ocp2scp")) {

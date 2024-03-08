@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *	copyright notice, this list of conditions and the following
+ *	copyright analtice, this list of conditions and the following
  *	disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *	copyright notice, this list of conditions and the following
+ *	copyright analtice, this list of conditions and the following
  *	disclaimer in the documentation and/or other materials
  *	provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -44,7 +44,7 @@
 #include <linux/module.h>
 #include <linux/nsproxy.h>
 
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include <rdma/rdma_user_cm.h>
 #include <rdma/ib_marshall.h>
@@ -130,7 +130,7 @@ static inline struct ucma_context *_ucma_find_context(int id,
 
 	ctx = xa_load(&ctx_table, id);
 	if (!ctx)
-		ctx = ERR_PTR(-ENOENT);
+		ctx = ERR_PTR(-EANALENT);
 	else if (ctx->file != file)
 		ctx = ERR_PTR(-EINVAL);
 	return ctx;
@@ -143,7 +143,7 @@ static struct ucma_context *ucma_get_ctx(struct ucma_file *file, int id)
 	xa_lock(&ctx_table);
 	ctx = _ucma_find_context(id, file);
 	if (!IS_ERR(ctx))
-		if (!refcount_inc_not_zero(&ctx->ref))
+		if (!refcount_inc_analt_zero(&ctx->ref))
 			ctx = ERR_PTR(-ENXIO);
 	xa_unlock(&ctx_table);
 	return ctx;
@@ -182,10 +182,10 @@ static void ucma_close_id(struct work_struct *work)
 	 */
 	ucma_put_ctx(ctx);
 	wait_for_completion(&ctx->comp);
-	/* No new events will be generated after destroying the id. */
+	/* Anal new events will be generated after destroying the id. */
 	rdma_destroy_id(ctx->cm_id);
 
-	/* Reading the cm_id without holding a positive ref is not allowed */
+	/* Reading the cm_id without holding a positive ref is analt allowed */
 	ctx->cm_id = NULL;
 }
 
@@ -300,7 +300,7 @@ static int ucma_connect_event_handler(struct rdma_cm_id *cm_id,
 	struct ucma_event *uevent;
 
 	if (!atomic_add_unless(&listen_ctx->backlog, -1, 0))
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx = ucma_alloc_ctx(listen_ctx->file);
 	if (!ctx)
 		goto err_backlog;
@@ -326,7 +326,7 @@ err_alloc:
 err_backlog:
 	atomic_inc(&listen_ctx->backlog);
 	/* Returning error causes the new ID to be destroyed */
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int ucma_event_handler(struct rdma_cm_id *cm_id,
@@ -339,7 +339,7 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 		return ucma_connect_event_handler(cm_id, event);
 
 	/*
-	 * We ignore events for new connections until userspace has set their
+	 * We iganalre events for new connections until userspace has set their
 	 * context.  This can only happen if an error occurs on a new connection
 	 * before the user accepts it.  This is okay, since the accept will just
 	 * fail later. However, we do need to release the underlying HW
@@ -372,12 +372,12 @@ static ssize_t ucma_get_event(struct ucma_file *file, const char __user *inbuf,
 	struct ucma_event *uevent;
 
 	/*
-	 * Old 32 bit user space does not send the 4 byte padding in the
+	 * Old 32 bit user space does analt send the 4 byte padding in the
 	 * reserved field. We don't care, allow it to keep working.
 	 */
 	if (out_len < sizeof(uevent->resp) - sizeof(uevent->resp.reserved) -
 			      sizeof(uevent->resp.ece))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
@@ -386,7 +386,7 @@ static ssize_t ucma_get_event(struct ucma_file *file, const char __user *inbuf,
 	while (list_empty(&file->event_list)) {
 		mutex_unlock(&file->mut);
 
-		if (file->filp->f_flags & O_NONBLOCK)
+		if (file->filp->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 
 		if (wait_event_interruptible(file->poll_wait,
@@ -446,7 +446,7 @@ static ssize_t ucma_create_id(struct ucma_file *file, const char __user *inbuf,
 	int ret;
 
 	if (out_len < sizeof(resp))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
@@ -457,7 +457,7 @@ static ssize_t ucma_create_id(struct ucma_file *file, const char __user *inbuf,
 
 	ctx = ucma_alloc_ctx(file);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->uid = cmd.uid;
 	cm_id = rdma_create_user_id(ucma_event_handler, ctx, cmd.ps, qp_type);
@@ -492,8 +492,8 @@ static void ucma_cleanup_multicast(struct ucma_context *ctx)
 	list_for_each_entry_safe(mc, tmp, &ctx->mc_list, list) {
 		list_del(&mc->list);
 		/*
-		 * At this point mc->ctx->ref is 0 so the mc cannot leave the
-		 * lock on the reader and this is enough serialization
+		 * At this point mc->ctx->ref is 0 so the mc cananalt leave the
+		 * lock on the reader and this is eanalugh serialization
 		 */
 		__xa_erase(&multicast_table, mc->id);
 		kfree(mc);
@@ -524,7 +524,7 @@ static int ucma_cleanup_ctx_events(struct ucma_context *ctx)
 	struct ucma_event *uevent, *tmp;
 	LIST_HEAD(list);
 
-	/* Cleanup events not yet reported to the user.*/
+	/* Cleanup events analt yet reported to the user.*/
 	mutex_lock(&ctx->file->mut);
 	list_for_each_entry_safe(uevent, tmp, &ctx->file->event_list, list) {
 		if (uevent->ctx != ctx)
@@ -546,7 +546,7 @@ static int ucma_cleanup_ctx_events(struct ucma_context *ctx)
 
 	/*
 	 * If this was a listening ID then any connections spawned from it that
-	 * have not been delivered to userspace are cleaned up too. Must be done
+	 * have analt been delivered to userspace are cleaned up too. Must be done
 	 * outside any locks.
 	 */
 	list_for_each_entry_safe(uevent, tmp, &list, list) {
@@ -558,7 +558,7 @@ static int ucma_cleanup_ctx_events(struct ucma_context *ctx)
 
 /*
  * When this is called the xarray must have a XA_ZERO_ENTRY in the ctx->id (ie
- * the ctx is not public to the user). This either because:
+ * the ctx is analt public to the user). This either because:
  *  - ucma_finish_ctx() hasn't been called
  *  - xa_cmpxchg() succeed to remove the entry (only one thread can succeed)
  */
@@ -567,7 +567,7 @@ static int ucma_destroy_private_ctx(struct ucma_context *ctx)
 	int events_reported;
 
 	/*
-	 * Destroy the underlying cm_id. New work queuing is prevented now by
+	 * Destroy the underlying cm_id. New work queuing is prevented analw by
 	 * the removal from the xarray. Once the work is cancled ref will either
 	 * be 0 because the work ran to completion and consumed the ref from the
 	 * xarray, or it will be positive because we still have the ref from the
@@ -596,7 +596,7 @@ static ssize_t ucma_destroy_id(struct ucma_file *file, const char __user *inbuf,
 	int ret = 0;
 
 	if (out_len < sizeof(resp))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
@@ -606,7 +606,7 @@ static ssize_t ucma_destroy_id(struct ucma_file *file, const char __user *inbuf,
 	if (!IS_ERR(ctx)) {
 		if (__xa_cmpxchg(&ctx_table, ctx->id, ctx, XA_ZERO_ENTRY,
 				 GFP_KERNEL) != ctx)
-			ctx = ERR_PTR(-ENOENT);
+			ctx = ERR_PTR(-EANALENT);
 	}
 	xa_unlock(&ctx_table);
 
@@ -823,7 +823,7 @@ static ssize_t ucma_query_route(struct ucma_file *file,
 	int ret = 0;
 
 	if (out_len < offsetof(struct rdma_ucm_query_route_resp, ibdev_index))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
@@ -845,7 +845,7 @@ static ssize_t ucma_query_route(struct ucma_file *file,
 	if (!ctx->cm_id->device)
 		goto out;
 
-	resp.node_guid = (__force __u64) ctx->cm_id->device->node_guid;
+	resp.analde_guid = (__force __u64) ctx->cm_id->device->analde_guid;
 	resp.ibdev_index = ctx->cm_id->device->index;
 	resp.port_num = ctx->cm_id->port_num;
 
@@ -872,7 +872,7 @@ static void ucma_query_device_addr(struct rdma_cm_id *cm_id,
 	if (!cm_id->device)
 		return;
 
-	resp->node_guid = (__force __u64) cm_id->device->node_guid;
+	resp->analde_guid = (__force __u64) cm_id->device->analde_guid;
 	resp->ibdev_index = cm_id->device->index;
 	resp->port_num = cm_id->port_num;
 	resp->pkey = (__force __u16) cpu_to_be16(
@@ -887,7 +887,7 @@ static ssize_t ucma_query_addr(struct ucma_context *ctx,
 	int ret = 0;
 
 	if (out_len < offsetof(struct rdma_ucm_query_addr_resp, ibdev_index))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memset(&resp, 0, sizeof resp);
 
@@ -914,11 +914,11 @@ static ssize_t ucma_query_path(struct ucma_context *ctx,
 	int i, ret = 0;
 
 	if (out_len < sizeof(*resp))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	resp = kzalloc(out_len, GFP_KERNEL);
 	if (!resp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	resp->num_paths = ctx->cm_id->route.num_pri_alt_paths;
 	for (i = 0, out_len -= sizeof(*resp);
@@ -954,7 +954,7 @@ static ssize_t ucma_query_gid(struct ucma_context *ctx,
 	int ret = 0;
 
 	if (out_len < offsetof(struct rdma_ucm_query_addr_resp, ibdev_index))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memset(&resp, 0, sizeof resp);
 
@@ -1021,7 +1021,7 @@ static ssize_t ucma_query(struct ucma_file *file,
 		ret = ucma_query_gid(ctx, response, out_len);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 		break;
 	}
 	mutex_unlock(&ctx->mutex);
@@ -1169,7 +1169,7 @@ static ssize_t ucma_reject(struct ucma_file *file, const char __user *inbuf,
 
 	switch (cmd.reason) {
 	case IB_CM_REJ_CONSUMER_DEFINED:
-	case IB_CM_REJ_VENDOR_OPTION_NOT_SUPPORTED:
+	case IB_CM_REJ_VENDOR_OPTION_ANALT_SUPPORTED:
 		break;
 	default:
 		return -EINVAL;
@@ -1219,7 +1219,7 @@ static ssize_t ucma_init_qp_attr(struct ucma_file *file,
 	int ret;
 
 	if (out_len < sizeof(resp))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
@@ -1285,7 +1285,7 @@ static int ucma_set_option_id(struct ucma_context *ctx, int optname,
 		ret = rdma_set_ack_timeout(ctx->cm_id, *((u8 *)optval));
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 	}
 
 	return ret;
@@ -1348,7 +1348,7 @@ static int ucma_set_option_ib(struct ucma_context *ctx, int optname,
 		ret = ucma_set_ib_path(ctx, optval, optlen);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 	}
 
 	return ret;
@@ -1369,7 +1369,7 @@ static int ucma_set_option_level(struct ucma_context *ctx, int level,
 		ret = ucma_set_option_ib(ctx, optname, optval, optlen);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 	}
 
 	return ret;
@@ -1409,10 +1409,10 @@ out:
 	return ret;
 }
 
-static ssize_t ucma_notify(struct ucma_file *file, const char __user *inbuf,
+static ssize_t ucma_analtify(struct ucma_file *file, const char __user *inbuf,
 			   int in_len, int out_len)
 {
-	struct rdma_ucm_notify cmd;
+	struct rdma_ucm_analtify cmd;
 	struct ucma_context *ctx;
 	int ret = -EINVAL;
 
@@ -1425,7 +1425,7 @@ static ssize_t ucma_notify(struct ucma_file *file, const char __user *inbuf,
 
 	mutex_lock(&ctx->mutex);
 	if (ctx->cm_id->device)
-		ret = rdma_notify(ctx->cm_id, (enum ib_event_type)cmd.event);
+		ret = rdma_analtify(ctx->cm_id, (enum ib_event_type)cmd.event);
 	mutex_unlock(&ctx->mutex);
 
 	ucma_put_ctx(ctx);
@@ -1443,7 +1443,7 @@ static ssize_t ucma_process_join(struct ucma_file *file,
 	u8 join_state;
 
 	if (out_len < sizeof(resp))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	addr = (struct sockaddr *) &cmd->addr;
 	if (cmd->addr_size != rdma_addr_size(addr))
@@ -1462,7 +1462,7 @@ static ssize_t ucma_process_join(struct ucma_file *file,
 
 	mc = kzalloc(sizeof(*mc), GFP_KERNEL);
 	if (!mc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put_ctx;
 	}
 
@@ -1474,7 +1474,7 @@ static ssize_t ucma_process_join(struct ucma_file *file,
 	xa_lock(&multicast_table);
 	if (__xa_alloc(&multicast_table, &mc->id, NULL, xa_limit_32b,
 		     GFP_KERNEL)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_mc;
 	}
 
@@ -1565,7 +1565,7 @@ static ssize_t ucma_leave_multicast(struct ucma_file *file,
 	int ret = 0;
 
 	if (out_len < sizeof(resp))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
@@ -1573,10 +1573,10 @@ static ssize_t ucma_leave_multicast(struct ucma_file *file,
 	xa_lock(&multicast_table);
 	mc = xa_load(&multicast_table, cmd.id);
 	if (!mc)
-		mc = ERR_PTR(-ENOENT);
+		mc = ERR_PTR(-EANALENT);
 	else if (READ_ONCE(mc->ctx->file) != file)
 		mc = ERR_PTR(-EINVAL);
-	else if (!refcount_inc_not_zero(&mc->ctx->ref))
+	else if (!refcount_inc_analt_zero(&mc->ctx->ref))
 		mc = ERR_PTR(-ENXIO);
 
 	if (IS_ERR(mc)) {
@@ -1625,7 +1625,7 @@ static ssize_t ucma_migrate_id(struct ucma_file *new_file,
 	/* Get current fd to protect against it being closed */
 	f = fdget(cmd.fd);
 	if (!f.file)
-		return -ENOENT;
+		return -EANALENT;
 	if (f.file->f_op != &ucma_fops) {
 		ret = -EINVAL;
 		goto file_put;
@@ -1648,7 +1648,7 @@ static ssize_t ucma_migrate_id(struct ucma_file *new_file,
 	xa_lock(&ctx_table);
 	if (_ucma_find_context(cmd.id, cur_file) != ctx) {
 		xa_unlock(&ctx_table);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err_unlock;
 	}
 	ctx->file = new_file;
@@ -1701,7 +1701,7 @@ static ssize_t (*ucma_cmd_table[])(struct ucma_file *file,
 	[RDMA_USER_CM_CMD_GET_EVENT]	 = ucma_get_event,
 	[RDMA_USER_CM_CMD_GET_OPTION]	 = NULL,
 	[RDMA_USER_CM_CMD_SET_OPTION]	 = ucma_set_option,
-	[RDMA_USER_CM_CMD_NOTIFY]	 = ucma_notify,
+	[RDMA_USER_CM_CMD_ANALTIFY]	 = ucma_analtify,
 	[RDMA_USER_CM_CMD_JOIN_IP_MCAST] = ucma_join_ip_multicast,
 	[RDMA_USER_CM_CMD_LEAVE_MCAST]	 = ucma_leave_multicast,
 	[RDMA_USER_CM_CMD_MIGRATE_ID]	 = ucma_migrate_id,
@@ -1719,7 +1719,7 @@ static ssize_t ucma_write(struct file *filp, const char __user *buf,
 	ssize_t ret;
 
 	if (!ib_safe_file_access(filp)) {
-		pr_err_once("%s: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
+		pr_err_once("%s: process %d (%s) changed security contexts after opening file descriptor, this is analt allowed.\n",
 			    __func__, task_tgid_vnr(current), current->comm);
 		return -EACCES;
 	}
@@ -1732,13 +1732,13 @@ static ssize_t ucma_write(struct file *filp, const char __user *buf,
 
 	if (hdr.cmd >= ARRAY_SIZE(ucma_cmd_table))
 		return -EINVAL;
-	hdr.cmd = array_index_nospec(hdr.cmd, ARRAY_SIZE(ucma_cmd_table));
+	hdr.cmd = array_index_analspec(hdr.cmd, ARRAY_SIZE(ucma_cmd_table));
 
 	if (hdr.in + sizeof(hdr) > len)
 		return -EINVAL;
 
 	if (!ucma_cmd_table[hdr.cmd])
-		return -ENOSYS;
+		return -EANALSYS;
 
 	ret = ucma_cmd_table[hdr.cmd](file, buf + sizeof(hdr), hdr.in, hdr.out);
 	if (!ret)
@@ -1755,26 +1755,26 @@ static __poll_t ucma_poll(struct file *filp, struct poll_table_struct *wait)
 	poll_wait(filp, &file->poll_wait, wait);
 
 	if (!list_empty(&file->event_list))
-		mask = EPOLLIN | EPOLLRDNORM;
+		mask = EPOLLIN | EPOLLRDANALRM;
 
 	return mask;
 }
 
 /*
- * ucma_open() does not need the BKL:
+ * ucma_open() does analt need the BKL:
  *
- *  - no global state is referred to;
- *  - there is no ioctl method to race against;
- *  - no further module initialization is required for open to work
+ *  - anal global state is referred to;
+ *  - there is anal ioctl method to race against;
+ *  - anal further module initialization is required for open to work
  *    after the device is registered.
  */
-static int ucma_open(struct inode *inode, struct file *filp)
+static int ucma_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct ucma_file *file;
 
 	file = kmalloc(sizeof *file, GFP_KERNEL);
 	if (!file)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&file->event_list);
 	INIT_LIST_HEAD(&file->ctx_list);
@@ -1784,10 +1784,10 @@ static int ucma_open(struct inode *inode, struct file *filp)
 	filp->private_data = file;
 	file->filp = filp;
 
-	return stream_open(inode, filp);
+	return stream_open(ianalde, filp);
 }
 
-static int ucma_close(struct inode *inode, struct file *filp)
+static int ucma_close(struct ianalde *ianalde, struct file *filp)
 {
 	struct ucma_file *file = filp->private_data;
 
@@ -1797,7 +1797,7 @@ static int ucma_close(struct inode *inode, struct file *filp)
 	 * ucma_connect_event_handler() can run concurrently, however it only
 	 * adds to the list *after* a listening ID. By only reading the first of
 	 * the list, and relying on ucma_destroy_private_ctx() to block
-	 * ucma_connect_event_handler(), no additional locking is needed.
+	 * ucma_connect_event_handler(), anal additional locking is needed.
 	 */
 	while (!list_empty(&file->ctx_list)) {
 		struct ucma_context *ctx = list_first_entry(
@@ -1817,13 +1817,13 @@ static const struct file_operations ucma_fops = {
 	.release = ucma_close,
 	.write	 = ucma_write,
 	.poll    = ucma_poll,
-	.llseek	 = no_llseek,
+	.llseek	 = anal_llseek,
 };
 
 static struct miscdevice ucma_misc = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.mianalr		= MISC_DYNAMIC_MIANALR,
 	.name		= "rdma_cm",
-	.nodename	= "infiniband/rdma_cm",
+	.analdename	= "infiniband/rdma_cm",
 	.mode		= 0666,
 	.fops		= &ucma_fops,
 };
@@ -1865,7 +1865,7 @@ static int __init ucma_init(void)
 	ucma_ctl_table_hdr = register_net_sysctl(&init_net, "net/rdma_ucm", ucma_ctl_table);
 	if (!ucma_ctl_table_hdr) {
 		pr_err("rdma_ucm: couldn't register sysctl paths\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err2;
 	}
 

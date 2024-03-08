@@ -90,7 +90,7 @@
  * is asserted can be controlled by this regiser.
  */
 #define BBC_WDACTION_RST  0x01	/* When set, watchdog causes system reset.
-				 * When clear, BBC ignores watchdog signal.
+				 * When clear, BBC iganalres watchdog signal.
 				 */
 #define BBC_WDACTION_RESV 0xfe	/* Reserved */
 
@@ -167,7 +167,7 @@
 /* Energy Star Control register.  This register is used to generate the
  * clock frequency change trigger to the main system devices (Schizo and
  * the processors).  The transition occurs when bits in this register
- * go from 0 to 1, only one bit must be set at once else no action
+ * go from 0 to 1, only one bit must be set at once else anal action
  * occurs.  Basically the sequence of events is:
  * a) Choose new frequency: full, 1/2 or 1/32
  * b) Program this desired frequency into the cpus and Schizo.

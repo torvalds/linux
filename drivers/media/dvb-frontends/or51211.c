@@ -176,8 +176,8 @@ static int or51211_setmode(struct dvb_frontend* fe, int mode)
 	 *             Automatic NTSC rejection filter
 	 *             Enable  MPEG serial data output
 	 *             MPEG2tr
-	 *             High tuner phase noise
-	 *             normal +/-150kHz Carrier acquisition range
+	 *             High tuner phase analise
+	 *             analrmal +/-150kHz Carrier acquisition range
 	 */
 	if (i2c_writebytes(state,state->config->demod_address,cmd_buf,3)) {
 		pr_warn("error 3\n");
@@ -265,7 +265,7 @@ static int or51211_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 static u32 calculate_snr(u32 mse, u32 c)
 {
-	if (mse == 0) /* No signal */
+	if (mse == 0) /* Anal signal */
 		return 0;
 
 	mse = 2*intlog10(mse);
@@ -301,7 +301,7 @@ static int or51211_read_snr(struct dvb_frontend* fe, u16* snr)
 	state->snr = calculate_snr(rec_buf[0], 89599047);
 	*snr = (state->snr) >> 16;
 
-	dprintk("noise = 0x%02x, snr = %d.%02d dB\n", rec_buf[0],
+	dprintk("analise = 0x%02x, snr = %d.%02d dB\n", rec_buf[0],
 		state->snr >> 24, (((state->snr>>8) & 0xffff) * 100) >> 16);
 
 	return 0;
@@ -331,13 +331,13 @@ static int or51211_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 
 static int or51211_read_ber(struct dvb_frontend* fe, u32* ber)
 {
-	*ber = -ENOSYS;
+	*ber = -EANALSYS;
 	return 0;
 }
 
 static int or51211_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 {
-	*ucblocks = -ENOSYS;
+	*ucblocks = -EANALSYS;
 	return 0;
 }
 
@@ -363,7 +363,7 @@ static int or51211_init(struct dvb_frontend* fe)
 					       OR51211_DEFAULT_FIRMWARE);
 		pr_info("Got Hotplug firmware\n");
 		if (ret) {
-			pr_warn("No firmware uploaded (timeout or file not found?)\n");
+			pr_warn("Anal firmware uploaded (timeout or file analt found?)\n");
 			return ret;
 		}
 
@@ -381,8 +381,8 @@ static int or51211_init(struct dvb_frontend* fe)
 		 *             Automatic NTSC rejection filter
 		 *             Enable  MPEG serial data output
 		 *             MPEG2tr
-		 *             High tuner phase noise
-		 *             normal +/-150kHz Carrier acquisition range
+		 *             High tuner phase analise
+		 *             analrmal +/-150kHz Carrier acquisition range
 		 */
 		if (i2c_writebytes(state,state->config->demod_address,
 				   cmd_buf,3)) {

@@ -39,7 +39,7 @@ int atmel_hlcdc_encoder_get_bus_fmt(struct drm_encoder *encoder)
 	return output->bus_fmt;
 }
 
-static int atmel_hlcdc_of_bus_fmt(const struct device_node *ep)
+static int atmel_hlcdc_of_bus_fmt(const struct device_analde *ep)
 {
 	u32 bus_width;
 	int ret;
@@ -67,37 +67,37 @@ static int atmel_hlcdc_of_bus_fmt(const struct device_node *ep)
 static int atmel_hlcdc_attach_endpoint(struct drm_device *dev, int endpoint)
 {
 	struct atmel_hlcdc_rgb_output *output;
-	struct device_node *ep;
+	struct device_analde *ep;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
 	int ret;
 
-	ep = of_graph_get_endpoint_by_regs(dev->dev->of_node, 0, endpoint);
+	ep = of_graph_get_endpoint_by_regs(dev->dev->of_analde, 0, endpoint);
 	if (!ep)
-		return -ENODEV;
+		return -EANALDEV;
 
-	ret = drm_of_find_panel_or_bridge(dev->dev->of_node, 0, endpoint,
+	ret = drm_of_find_panel_or_bridge(dev->dev->of_analde, 0, endpoint,
 					  &panel, &bridge);
 	if (ret) {
-		of_node_put(ep);
+		of_analde_put(ep);
 		return ret;
 	}
 
 	output = devm_kzalloc(dev->dev, sizeof(*output), GFP_KERNEL);
 	if (!output) {
-		of_node_put(ep);
-		return -ENOMEM;
+		of_analde_put(ep);
+		return -EANALMEM;
 	}
 
 	output->bus_fmt = atmel_hlcdc_of_bus_fmt(ep);
-	of_node_put(ep);
+	of_analde_put(ep);
 	if (output->bus_fmt < 0) {
 		dev_err(dev->dev, "endpoint %d: invalid bus width\n", endpoint);
 		return -EINVAL;
 	}
 
 	ret = drm_simple_encoder_init(dev, &output->encoder,
-				      DRM_MODE_ENCODER_NONE);
+				      DRM_MODE_ENCODER_ANALNE);
 	if (ret)
 		return ret;
 
@@ -105,7 +105,7 @@ static int atmel_hlcdc_attach_endpoint(struct drm_device *dev, int endpoint)
 
 	if (panel) {
 		bridge = drm_panel_bridge_add_typed(panel,
-						    DRM_MODE_CONNECTOR_Unknown);
+						    DRM_MODE_CONNECTOR_Unkanalwn);
 		if (IS_ERR(bridge))
 			return PTR_ERR(bridge);
 	}
@@ -130,12 +130,12 @@ int atmel_hlcdc_create_outputs(struct drm_device *dev)
 	int attached = 0;
 
 	/*
-	 * Always scan the first few endpoints even if we get -ENODEV,
+	 * Always scan the first few endpoints even if we get -EANALDEV,
 	 * but keep going after that as long as we keep getting hits.
 	 */
 	for (endpoint = 0; !ret || endpoint < 4; endpoint++) {
 		ret = atmel_hlcdc_attach_endpoint(dev, endpoint);
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			continue;
 		if (ret)
 			break;
@@ -143,7 +143,7 @@ int atmel_hlcdc_create_outputs(struct drm_device *dev)
 	}
 
 	/* At least one device was successfully attached.*/
-	if (ret == -ENODEV && attached)
+	if (ret == -EANALDEV && attached)
 		return 0;
 
 	return ret;

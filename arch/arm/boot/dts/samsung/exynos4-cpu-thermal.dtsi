@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device tree sources for Exynos4 thermal zone
+ * Device tree sources for Exyanals4 thermal zone
  *
  * Copyright (c) 2014 Lukasz Majewski <l.majewski@samsung.com>
  */

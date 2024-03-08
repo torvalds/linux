@@ -117,7 +117,7 @@ static int mma8450_open(struct input_dev *input)
 	struct i2c_client *c = input_get_drvdata(input);
 	int err;
 
-	/* enable all events from X/Y/Z, no FIFO */
+	/* enable all events from X/Y/Z, anal FIFO */
 	err = mma8450_write(c, MMA8450_XYZ_DATA_CFG, 0x07);
 	if (err)
 		return err;
@@ -153,7 +153,7 @@ static int mma8450_probe(struct i2c_client *c)
 
 	input = devm_input_allocate_device(&c->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_set_drvdata(input, c);
 

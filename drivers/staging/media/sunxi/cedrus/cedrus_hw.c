@@ -129,12 +129,12 @@ static irqreturn_t cedrus_irq(int irq, void *data)
 	if (!ctx) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Instance released before the end of transaction\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	status = ctx->current_codec->irq_status(ctx);
-	if (status == CEDRUS_IRQ_NONE)
-		return IRQ_NONE;
+	if (status == CEDRUS_IRQ_ANALNE)
+		return IRQ_ANALNE;
 
 	ctx->current_codec->irq_disable(ctx);
 	ctx->current_codec->irq_clear(ctx);
@@ -250,7 +250,7 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 	}
 
 	ret = of_reserved_mem_device_init(dev->dev);
-	if (ret && ret != -ENODEV) {
+	if (ret && ret != -EANALDEV) {
 		dev_err(dev->dev, "Failed to reserve memory\n");
 
 		return ret;

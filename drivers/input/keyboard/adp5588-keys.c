@@ -10,7 +10,7 @@
 
 #include <linux/bits.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
@@ -269,7 +269,7 @@ static int adp5588_gpio_set_config(struct gpio_chip *chip,  unsigned int off,
 		pull_disable = true;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	mutex_lock(&kpad->gpio_lock);
@@ -430,7 +430,7 @@ static int adp5588_gpio_add(struct adp5588_kpad *kpad)
 
 	kpad->gc.ngpio = adp5588_build_gpiomap(kpad);
 	if (kpad->gc.ngpio == 0) {
-		dev_info(dev, "No unused gpios left to export\n");
+		dev_info(dev, "Anal unused gpios left to export\n");
 		return 0;
 	}
 
@@ -480,7 +480,7 @@ static unsigned long adp5588_gpiomap_get_hwirq(struct device *dev,
 			return hwirq;
 
 	/* should never happen */
-	dev_warn_ratelimited(dev, "could not find the hwirq for gpio(%u)\n", gpio);
+	dev_warn_ratelimited(dev, "could analt find the hwirq for gpio(%u)\n", gpio);
 
 	return ADP5588_INVALID_HWIRQ;
 }
@@ -496,7 +496,7 @@ static void adp5588_gpio_irq_handle(struct adp5588_kpad *kpad, int key_val,
 	hwirq = adp5588_gpiomap_get_hwirq(&client->dev, kpad->gpiomap,
 					  gpio, kpad->gc.ngpio);
 	if (hwirq == ADP5588_INVALID_HWIRQ) {
-		dev_err(&client->dev, "Could not get hwirq for key(%u)\n", key_val);
+		dev_err(&client->dev, "Could analt get hwirq for key(%u)\n", key_val);
 		return;
 	}
 
@@ -506,7 +506,7 @@ static void adp5588_gpio_irq_handle(struct adp5588_kpad *kpad, int key_val,
 
 	irqd = irq_get_irq_data(irq);
 	if (!irqd) {
-		dev_err(&client->dev, "Could not get irq(%u) data\n", irq);
+		dev_err(&client->dev, "Could analt get irq(%u) data\n", irq);
 		return;
 	}
 
@@ -561,19 +561,19 @@ static irqreturn_t adp5588_thread_irq(int irq, void *handle)
 {
 	struct adp5588_kpad *kpad = handle;
 	struct i2c_client *client = kpad->client;
-	ktime_t target_time, now;
+	ktime_t target_time, analw;
 	unsigned long delay;
 	int status, ev_cnt;
 
 	/*
-	 * Readout needs to wait for at least 25ms after the notification
+	 * Readout needs to wait for at least 25ms after the analtification
 	 * for REVID < 4.
 	 */
 	if (kpad->delay) {
 		target_time = ktime_add_ms(kpad->irq_time, kpad->delay);
-		now = ktime_get();
-		if (ktime_before(now, target_time)) {
-			delay = ktime_to_us(ktime_sub(target_time, now));
+		analw = ktime_get();
+		if (ktime_before(analw, target_time)) {
+			delay = ktime_to_us(ktime_sub(target_time, analw));
 			usleep_range(delay, delay + 1000);
 		}
 	}
@@ -692,8 +692,8 @@ static int adp5588_fw_parse(struct adp5588_kpad *kpad)
 		/*
 		 * Even though it should be possible (as stated in the datasheet)
 		 * to use GPIs (which are part of the keys event) as unlock keys,
-		 * it was not working at all and was leading to overflow events
-		 * at some point. Hence, for now, let's just allow keys which are
+		 * it was analt working at all and was leading to overflow events
+		 * at some point. Hence, for analw, let's just allow keys which are
 		 * part of keypad matrix to be used and if a reliable way of
 		 * using GPIs is found, this condition can be removed/lightened.
 		 */
@@ -724,17 +724,17 @@ static int adp5588_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(&client->dev, "SMBUS Byte Data not Supported\n");
+		dev_err(&client->dev, "SMBUS Byte Data analt Supported\n");
 		return -EIO;
 	}
 
 	kpad = devm_kzalloc(&client->dev, sizeof(*kpad), GFP_KERNEL);
 	if (!kpad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input = devm_input_allocate_device(&client->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kpad->client = client;
 	kpad->input = input;

@@ -36,7 +36,7 @@ static int mt2060_readreg(struct mt2060_priv *priv, u8 reg, u8 *val)
 
 	b = kmalloc(2, GFP_KERNEL);
 	if (!b)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	b[0] = reg;
 	b[1] = 0;
@@ -65,7 +65,7 @@ static int mt2060_writereg(struct mt2060_priv *priv, u8 reg, u8 val)
 
 	buf = kmalloc(2, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = reg;
 	buf[1] = val;
@@ -92,7 +92,7 @@ static int mt2060_writeregs(struct mt2060_priv *priv,u8 *buf, u8 len)
 
 	xfer_buf = kmalloc(16, GFP_KERNEL);
 	if (!xfer_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg.buf = xfer_buf;
 
@@ -149,7 +149,7 @@ static int mt2060_spurcalc(u32 lo1,u32 lo2,u32 if2)
 
 #define BANDWIDTH 4000 // kHz
 
-/* Calculates the frequency offset to add to avoid spurs. Returns 0 if no offset is needed */
+/* Calculates the frequency offset to add to avoid spurs. Returns 0 if anal offset is needed */
 static int mt2060_spurcheck(u32 lo1,u32 lo2,u32 if2)
 {
 	u32 Spur,Sp1,Sp2;
@@ -311,7 +311,7 @@ static void mt2060_calibrate(struct mt2060_priv *priv)
 		msleep(20);
 
 	if (i <= 10) {
-		mt2060_readreg(priv, REG_FM_FREQ, &priv->fmfreq); // now find out, what is fmreq used for :)
+		mt2060_readreg(priv, REG_FM_FREQ, &priv->fmfreq); // analw find out, what is fmreq used for :)
 		dprintk("calibration was successful: %d", (int)priv->fmfreq);
 	} else
 		dprintk("FMCAL timed out");
@@ -453,14 +453,14 @@ static int mt2060_probe(struct i2c_client *client)
 	dev_dbg(&client->dev, "\n");
 
 	if (!pdata) {
-		dev_err(&client->dev, "Cannot proceed without platform data\n");
+		dev_err(&client->dev, "Cananalt proceed without platform data\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
 	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -476,14 +476,14 @@ static int mt2060_probe(struct i2c_client *client)
 
 	ret = mt2060_readreg(dev, REG_PART_REV, &chip_id);
 	if (ret) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
 	dev_dbg(&client->dev, "chip id=%02x\n", chip_id);
 
 	if (chip_id != PART_REV) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 

@@ -55,13 +55,13 @@ static int efi_power_off(struct sys_off_data *data)
 {
 	efi.reset_system(EFI_RESET_SHUTDOWN, EFI_SUCCESS, 0, NULL);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int __init efi_shutdown_init(void)
 {
 	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_RESET_SYSTEM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (efi_poweroff_required()) {
 		/* SYS_OFF_PRIO_FIRMWARE + 1 so that it runs before acpi_power_off */

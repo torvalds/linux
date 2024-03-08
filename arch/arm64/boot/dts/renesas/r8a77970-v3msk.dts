@@ -106,7 +106,7 @@
 	pinctrl-0 = <&avb_pins>;
 	pinctrl-names = "default";
 
-	renesas,no-ether-link;
+	renesas,anal-ether-link;
 	phy-handle = <&phy0>;
 	rx-internal-delay-ps = <1800>;
 	tx-internal-delay-ps = <2000>;
@@ -201,7 +201,7 @@
 	vmmc-supply = <&vcc_d3_3v>;
 	vqmmc-supply = <&vcc_vddq_vin0>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -240,7 +240,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "spansion,s25fs512s", "jedec,spi-nor";
+		compatible = "spansion,s25fs512s", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 		spi-rx-bus-width = <4>;

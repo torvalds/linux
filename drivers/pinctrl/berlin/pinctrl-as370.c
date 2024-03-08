@@ -340,7 +340,7 @@ static int as370_pinctrl_probe(struct platform_device *pdev)
 
 	rmconfig = devm_kzalloc(&pdev->dev, sizeof(*rmconfig), GFP_KERNEL);
 	if (!rmconfig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base))

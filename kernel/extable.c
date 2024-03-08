@@ -20,9 +20,9 @@
  * mutex protecting text section modification (dynamic code patching).
  * some users need to sleep (allocating memory...) while they hold this lock.
  *
- * Note: Also protects SMP-alternatives modification on x86.
+ * Analte: Also protects SMP-alternatives modification on x86.
  *
- * NOT exported to modules - patching kernel text is a really delicate matter.
+ * ANALT exported to modules - patching kernel text is a really delicate matter.
  */
 DEFINE_MUTEX(text_mutex);
 
@@ -37,7 +37,7 @@ void __init sort_main_extable(void)
 {
 	if (main_extable_sort_needed &&
 	    &__stop___ex_table > &__start___ex_table) {
-		pr_notice("Sorting __ex_table...\n");
+		pr_analtice("Sorting __ex_table...\n");
 		sort_extable(__start___ex_table, __stop___ex_table);
 	}
 }
@@ -63,7 +63,7 @@ const struct exception_table_entry *search_exception_tables(unsigned long addr)
 	return e;
 }
 
-int notrace core_kernel_text(unsigned long addr)
+int analtrace core_kernel_text(unsigned long addr)
 {
 	if (is_kernel_text(addr))
 		return 1;
@@ -84,7 +84,7 @@ int __kernel_text_address(unsigned long addr)
 	 * backtraces (such as lockdep traces).
 	 *
 	 * Since we are after the module-symbols check, there's
-	 * no danger of address overlap:
+	 * anal danger of address overlap:
 	 */
 	if (is_kernel_inittext(addr))
 		return 1;
@@ -93,15 +93,15 @@ int __kernel_text_address(unsigned long addr)
 
 int kernel_text_address(unsigned long addr)
 {
-	bool no_rcu;
+	bool anal_rcu;
 	int ret = 1;
 
 	if (core_kernel_text(addr))
 		return 1;
 
 	/*
-	 * If a stack dump happens while RCU is not watching, then
-	 * RCU needs to be notified that it requires to start
+	 * If a stack dump happens while RCU is analt watching, then
+	 * RCU needs to be analtified that it requires to start
 	 * watching again. This can happen either by tracing that
 	 * triggers a stack trace, or a WARN() that happens during
 	 * coming back from idle, or cpu on or offlining.
@@ -110,10 +110,10 @@ int kernel_text_address(unsigned long addr)
 	 * is_bpf_text_address() and is_bpf_image_address require
 	 * RCU to be watching.
 	 */
-	no_rcu = !rcu_is_watching();
+	anal_rcu = !rcu_is_watching();
 
 	/* Treat this like an NMI as it can happen anywhere */
-	if (no_rcu)
+	if (anal_rcu)
 		ct_nmi_enter();
 
 	if (is_module_text_address(addr))
@@ -126,7 +126,7 @@ int kernel_text_address(unsigned long addr)
 		goto out;
 	ret = 0;
 out:
-	if (no_rcu)
+	if (anal_rcu)
 		ct_nmi_exit();
 
 	return ret;
@@ -145,7 +145,7 @@ void *dereference_function_descriptor(void *ptr)
 	func_desc_t *desc = ptr;
 	void *p;
 
-	if (!get_kernel_nofault(p, (void *)&desc->addr))
+	if (!get_kernel_analfault(p, (void *)&desc->addr))
 		ptr = p;
 	return ptr;
 }

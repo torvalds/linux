@@ -31,14 +31,14 @@
 #define DRV_VERSION	"1.0"
 
 /* macro to calculate base address for ATA regs */
-#define ADMA_ATA_REGS(base, port_no)	((base) + ((port_no) * 0x40))
+#define ADMA_ATA_REGS(base, port_anal)	((base) + ((port_anal) * 0x40))
 
 /* macro to calculate base address for ADMA regs */
-#define ADMA_REGS(base, port_no)	((base) + 0x80 + ((port_no) * 0x20))
+#define ADMA_REGS(base, port_anal)	((base) + 0x80 + ((port_anal) * 0x20))
 
 /* macro to obtain addresses from ata_port */
 #define ADMA_PORT_REGS(ap) \
-	ADMA_REGS((ap)->host->iomap[ADMA_MMIO_BAR], ap->port_no)
+	ADMA_REGS((ap)->host->iomap[ADMA_MMIO_BAR], ap->port_anal)
 
 enum {
 	ADMA_MMIO_BAR		= 4,
@@ -171,7 +171,7 @@ static struct pci_driver adma_ata_pci_driver = {
 
 static int adma_check_atapi_dma(struct ata_queued_cmd *qc)
 {
-	return 1;	/* ATAPI DMA not yet supported */
+	return 1;	/* ATAPI DMA analt yet supported */
 }
 
 static void adma_reset_engine(struct ata_port *ap)
@@ -246,7 +246,7 @@ static int adma_prereset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 	struct adma_port_priv *pp = ap->private_data;
 
-	if (pp->state != adma_state_idle) /* healthy paranoia */
+	if (pp->state != adma_state_idle) /* healthy paraanalia */
 		pp->state = adma_state_mmio;
 	adma_reinit_engine(ap);
 
@@ -386,10 +386,10 @@ static unsigned int adma_qc_issue(struct ata_queued_cmd *qc)
 
 static inline unsigned int adma_intr_pkt(struct ata_host *host)
 {
-	unsigned int handled = 0, port_no;
+	unsigned int handled = 0, port_anal;
 
-	for (port_no = 0; port_no < host->n_ports; ++port_no) {
-		struct ata_port *ap = host->ports[port_no];
+	for (port_anal = 0; port_anal < host->n_ports; ++port_anal) {
+		struct ata_port *ap = host->ports[port_anal];
 		struct adma_port_priv *pp;
 		struct ata_queued_cmd *qc;
 		void __iomem *chan = ADMA_PORT_REGS(ap);
@@ -436,10 +436,10 @@ static inline unsigned int adma_intr_pkt(struct ata_host *host)
 
 static inline unsigned int adma_intr_mmio(struct ata_host *host)
 {
-	unsigned int handled = 0, port_no;
+	unsigned int handled = 0, port_anal;
 
-	for (port_no = 0; port_no < host->n_ports; ++port_no) {
-		struct ata_port *ap = host->ports[port_no];
+	for (port_anal = 0; port_anal < host->n_ports; ++port_anal) {
+		struct ata_port *ap = host->ports[port_anal];
 		struct adma_port_priv *pp = ap->private_data;
 		struct ata_queued_cmd *qc;
 
@@ -511,16 +511,16 @@ static int adma_port_start(struct ata_port *ap)
 	adma_enter_reg_mode(ap);
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
-		return -ENOMEM;
+		return -EANALMEM;
 	pp->pkt = dmam_alloc_coherent(dev, ADMA_PKT_BYTES, &pp->pkt_dma,
 				      GFP_KERNEL);
 	if (!pp->pkt)
-		return -ENOMEM;
-	/* paranoia? */
+		return -EANALMEM;
+	/* paraanalia? */
 	if ((pp->pkt_dma & 7) != 0) {
 		ata_port_err(ap, "bad alignment for pp->pkt_dma: %08x\n",
 			     (u32)pp->pkt_dma);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ap->private_data = pp;
 	adma_reinit_engine(ap);
@@ -534,14 +534,14 @@ static void adma_port_stop(struct ata_port *ap)
 
 static void adma_host_init(struct ata_host *host, unsigned int chip_id)
 {
-	unsigned int port_no;
+	unsigned int port_anal;
 
 	/* enable/lock aGO operation */
 	writeb(7, host->iomap[ADMA_MMIO_BAR] + ADMA_MODE_LOCK);
 
 	/* reset the ADMA logic */
-	for (port_no = 0; port_no < ADMA_PORTS; ++port_no)
-		adma_reset_engine(host->ports[port_no]);
+	for (port_anal = 0; port_anal < ADMA_PORTS; ++port_anal)
+		adma_reset_engine(host->ports[port_anal]);
 }
 
 static int adma_ata_init_one(struct pci_dev *pdev,
@@ -551,14 +551,14 @@ static int adma_ata_init_one(struct pci_dev *pdev,
 	const struct ata_port_info *ppi[] = { &adma_port_info[board_idx], NULL };
 	struct ata_host *host;
 	void __iomem *mmio_base;
-	int rc, port_no;
+	int rc, port_anal;
 
 	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	/* alloc host */
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, ADMA_PORTS);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* acquire resources and fill host */
 	rc = pcim_enable_device(pdev);
@@ -566,7 +566,7 @@ static int adma_ata_init_one(struct pci_dev *pdev,
 		return rc;
 
 	if ((pci_resource_flags(pdev, 4) & IORESOURCE_MEM) == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = pcim_iomap_regions(pdev, 1 << ADMA_MMIO_BAR, DRV_NAME);
 	if (rc)
@@ -580,9 +580,9 @@ static int adma_ata_init_one(struct pci_dev *pdev,
 		return rc;
 	}
 
-	for (port_no = 0; port_no < ADMA_PORTS; ++port_no) {
-		struct ata_port *ap = host->ports[port_no];
-		void __iomem *port_base = ADMA_ATA_REGS(mmio_base, port_no);
+	for (port_anal = 0; port_anal < ADMA_PORTS; ++port_anal) {
+		struct ata_port *ap = host->ports[port_anal];
+		void __iomem *port_base = ADMA_ATA_REGS(mmio_base, port_anal);
 		unsigned int offset = port_base - mmio_base;
 
 		adma_ata_setup_port(&ap->ioaddr, port_base);

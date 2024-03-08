@@ -5,13 +5,13 @@
  *    Copyright IBM Corp. 2014
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/kprobes.h>
 #include <asm/dis.h>
 
 int probe_is_prohibited_opcode(u16 *insn)
 {
-	if (!is_known_insn((unsigned char *)insn))
+	if (!is_kanalwn_insn((unsigned char *)insn))
 		return -EINVAL;
 	switch (insn[0] >> 8) {
 	case 0x0c:	/* bassm */
@@ -46,19 +46,19 @@ int probe_is_prohibited_opcode(u16 *insn)
 int probe_get_fixup_type(u16 *insn)
 {
 	/* default fixup method */
-	int fixup = FIXUP_PSW_NORMAL;
+	int fixup = FIXUP_PSW_ANALRMAL;
 
 	switch (insn[0] >> 8) {
 	case 0x05:	/* balr	*/
 	case 0x0d:	/* basr */
 		fixup = FIXUP_RETURN_REGISTER;
-		/* if r2 = 0, no branch will be taken */
+		/* if r2 = 0, anal branch will be taken */
 		if ((insn[0] & 0x0f) == 0)
-			fixup |= FIXUP_BRANCH_NOT_TAKEN;
+			fixup |= FIXUP_BRANCH_ANALT_TAKEN;
 		break;
 	case 0x06:	/* bctr	*/
 	case 0x07:	/* bcr	*/
-		fixup = FIXUP_BRANCH_NOT_TAKEN;
+		fixup = FIXUP_BRANCH_ANALT_TAKEN;
 		break;
 	case 0x45:	/* bal	*/
 	case 0x4d:	/* bas	*/
@@ -68,14 +68,14 @@ int probe_get_fixup_type(u16 *insn)
 	case 0x46:	/* bct	*/
 	case 0x86:	/* bxh	*/
 	case 0x87:	/* bxle	*/
-		fixup = FIXUP_BRANCH_NOT_TAKEN;
+		fixup = FIXUP_BRANCH_ANALT_TAKEN;
 		break;
 	case 0x82:	/* lpsw	*/
-		fixup = FIXUP_NOT_REQUIRED;
+		fixup = FIXUP_ANALT_REQUIRED;
 		break;
 	case 0xb2:	/* lpswe */
 		if ((insn[0] & 0xff) == 0xb2)
-			fixup = FIXUP_NOT_REQUIRED;
+			fixup = FIXUP_ANALT_REQUIRED;
 		break;
 	case 0xa7:	/* bras	*/
 		if ((insn[0] & 0x0f) == 0x05)
@@ -89,13 +89,13 @@ int probe_get_fixup_type(u16 *insn)
 		switch (insn[2] & 0xff) {
 		case 0x44: /* bxhg  */
 		case 0x45: /* bxleg */
-			fixup = FIXUP_BRANCH_NOT_TAKEN;
+			fixup = FIXUP_BRANCH_ANALT_TAKEN;
 			break;
 		}
 		break;
 	case 0xe3:	/* bctg	*/
 		if ((insn[2] & 0xff) == 0x46)
-			fixup = FIXUP_BRANCH_NOT_TAKEN;
+			fixup = FIXUP_BRANCH_ANALT_TAKEN;
 		break;
 	case 0xec:
 		switch (insn[2] & 0xff) {
@@ -107,7 +107,7 @@ int probe_get_fixup_type(u16 *insn)
 		case 0xfd: /* cglib */
 		case 0xfe: /* cib   */
 		case 0xff: /* clib  */
-			fixup = FIXUP_BRANCH_NOT_TAKEN;
+			fixup = FIXUP_BRANCH_ANALT_TAKEN;
 			break;
 		}
 		break;

@@ -26,11 +26,11 @@ unsigned int pci_probe = PCI_PROBE_BIOS | PCI_PROBE_CONF1 | PCI_PROBE_CONF2 |
 
 static int pci_bf_sort;
 int pci_routeirq;
-int noioapicquirk;
+int analioapicquirk;
 #ifdef CONFIG_X86_REROUTE_FOR_BROKEN_BOOT_IRQS
-int noioapicreroute = 0;
+int analioapicreroute = 0;
 #else
-int noioapicreroute = 1;
+int analioapicreroute = 1;
 #endif
 int pcibios_last_bus = -1;
 unsigned long pirq_table_addr;
@@ -90,7 +90,7 @@ static int __init can_skip_ioresource_align(const struct dmi_system_id *d)
 static const struct dmi_system_id can_skip_pciprobe_dmi_table[] __initconst = {
 /*
  * Systems where PCI IO resource ISA alignment can be skipped
- * when the ISA enable bit in the bridge control is not set
+ * when the ISA enable bit in the bridge control is analt set
  */
 	{
 		.callback = can_skip_ioresource_align,
@@ -130,9 +130,9 @@ static void pcibios_fixup_device_resources(struct pci_dev *dev)
 	struct resource *bar_r;
 	int bar;
 
-	if (pci_probe & PCI_NOASSIGN_BARS) {
+	if (pci_probe & PCI_ANALASSIGN_BARS) {
 		/*
-		* If the BIOS did not assign the BAR, zero out the
+		* If the BIOS did analt assign the BAR, zero out the
 		* resource so the kernel doesn't attempt to assign
 		* it later on in pci_assign_unassigned_resources
 		*/
@@ -145,7 +145,7 @@ static void pcibios_fixup_device_resources(struct pci_dev *dev)
 		}
 	}
 
-	if (pci_probe & PCI_NOASSIGN_ROMS) {
+	if (pci_probe & PCI_ANALASSIGN_ROMS) {
 		if (rom_r->parent)
 			return;
 		if (rom_r->start) {
@@ -181,7 +181,7 @@ void pcibios_remove_bus(struct pci_bus *bus)
 }
 
 /*
- * Only use DMI information to set this if nothing was passed
+ * Only use DMI information to set this if analthing was passed
  * on the kernel command line (which was parsed earlier).
  */
 
@@ -466,7 +466,7 @@ void pcibios_scan_root(int busnum)
 		printk(KERN_ERR "PCI: OOM, skipping PCI bus %02x\n", busnum);
 		return;
 	}
-	sd->node = x86_pci_root_bus_node(busnum);
+	sd->analde = x86_pci_root_bus_analde(busnum);
 	x86_pci_root_bus_resources(busnum, &resources);
 	printk(KERN_DEBUG "PCI: Probing PCI hardware (bus %02x)\n", busnum);
 	bus = pci_scan_root_bus(NULL, busnum, &pci_root_ops, sd, &resources);
@@ -486,7 +486,7 @@ void __init pcibios_set_cache_line_size(void)
 	 * Set PCI cacheline size to that of the CPU if the CPU has reported it.
 	 * (For older CPUs that don't support cpuid, we se it to 32 bytes
 	 * It's also good for 386/486s (which actually have 16)
-	 * as quite a few PCI devices do not support smaller values.
+	 * as quite a few PCI devices do analt support smaller values.
 	 */
 	if (c->x86_clflush_size > 0) {
 		pci_dfl_cache_line_size = c->x86_clflush_size >> 2;
@@ -494,14 +494,14 @@ void __init pcibios_set_cache_line_size(void)
 			pci_dfl_cache_line_size << 2);
 	} else {
  		pci_dfl_cache_line_size = 32 >> 2;
-		printk(KERN_DEBUG "PCI: Unknown cacheline size. Setting to 32 bytes\n");
+		printk(KERN_DEBUG "PCI: Unkanalwn cacheline size. Setting to 32 bytes\n");
 	}
 }
 
 int __init pcibios_init(void)
 {
 	if (!raw_pci_ops && !raw_pci_ext_ops) {
-		printk(KERN_WARNING "PCI: System does not support PCI\n");
+		printk(KERN_WARNING "PCI: System does analt support PCI\n");
 		return 0;
 	}
 
@@ -521,15 +521,15 @@ char *__init pcibios_setup(char *str)
 	} else if (!strcmp(str, "bfsort")) {
 		pci_bf_sort = pci_force_bf;
 		return NULL;
-	} else if (!strcmp(str, "nobfsort")) {
-		pci_bf_sort = pci_force_nobf;
+	} else if (!strcmp(str, "analbfsort")) {
+		pci_bf_sort = pci_force_analbf;
 		return NULL;
 	}
 #ifdef CONFIG_PCI_BIOS
 	else if (!strcmp(str, "bios")) {
 		pci_probe = PCI_PROBE_BIOS;
 		return NULL;
-	} else if (!strcmp(str, "nobios")) {
+	} else if (!strcmp(str, "analbios")) {
 		pci_probe &= ~PCI_PROBE_BIOS;
 		return NULL;
 	} else if (!strcmp(str, "biosirq")) {
@@ -542,16 +542,16 @@ char *__init pcibios_setup(char *str)
 #endif
 #ifdef CONFIG_PCI_DIRECT
 	else if (!strcmp(str, "conf1")) {
-		pci_probe = PCI_PROBE_CONF1 | PCI_NO_CHECKS;
+		pci_probe = PCI_PROBE_CONF1 | PCI_ANAL_CHECKS;
 		return NULL;
 	}
 	else if (!strcmp(str, "conf2")) {
-		pci_probe = PCI_PROBE_CONF2 | PCI_NO_CHECKS;
+		pci_probe = PCI_PROBE_CONF2 | PCI_ANAL_CHECKS;
 		return NULL;
 	}
 #endif
 #ifdef CONFIG_PCI_MMCONFIG
-	else if (!strcmp(str, "nommconf")) {
+	else if (!strcmp(str, "analmmconf")) {
 		pci_probe &= ~PCI_PROBE_MMCONF;
 		return NULL;
 	}
@@ -560,12 +560,12 @@ char *__init pcibios_setup(char *str)
 		return NULL;
 	}
 #endif
-	else if (!strcmp(str, "noacpi")) {
-		acpi_noirq_set();
+	else if (!strcmp(str, "analacpi")) {
+		acpi_analirq_set();
 		return NULL;
 	}
-	else if (!strcmp(str, "noearly")) {
-		pci_probe |= PCI_PROBE_NOEARLY;
+	else if (!strcmp(str, "analearly")) {
+		pci_probe |= PCI_PROBE_ANALEARLY;
 		return NULL;
 	}
 	else if (!strcmp(str, "usepirqmask")) {
@@ -580,11 +580,11 @@ char *__init pcibios_setup(char *str)
 	} else if (!strcmp(str, "rom")) {
 		pci_probe |= PCI_ASSIGN_ROMS;
 		return NULL;
-	} else if (!strcmp(str, "norom")) {
-		pci_probe |= PCI_NOASSIGN_ROMS;
+	} else if (!strcmp(str, "analrom")) {
+		pci_probe |= PCI_ANALASSIGN_ROMS;
 		return NULL;
-	} else if (!strcmp(str, "nobar")) {
-		pci_probe |= PCI_NOASSIGN_BARS;
+	} else if (!strcmp(str, "analbar")) {
+		pci_probe |= PCI_ANALASSIGN_BARS;
 		return NULL;
 	} else if (!strcmp(str, "assign-busses")) {
 		pci_probe |= PCI_ASSIGN_ALL_BUSSES;
@@ -592,15 +592,15 @@ char *__init pcibios_setup(char *str)
 	} else if (!strcmp(str, "use_crs")) {
 		pci_probe |= PCI_USE__CRS;
 		return NULL;
-	} else if (!strcmp(str, "nocrs")) {
-		pci_probe |= PCI_ROOT_NO_CRS;
+	} else if (!strcmp(str, "analcrs")) {
+		pci_probe |= PCI_ROOT_ANAL_CRS;
 		return NULL;
 	} else if (!strcmp(str, "use_e820")) {
 		pci_probe |= PCI_USE_E820;
 		add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
 		return NULL;
-	} else if (!strcmp(str, "no_e820")) {
-		pci_probe |= PCI_NO_E820;
+	} else if (!strcmp(str, "anal_e820")) {
+		pci_probe |= PCI_ANAL_E820;
 		add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
 		return NULL;
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
@@ -614,16 +614,16 @@ char *__init pcibios_setup(char *str)
 	} else if (!strcmp(str, "skip_isa_align")) {
 		pci_probe |= PCI_CAN_SKIP_ISA_ALIGN;
 		return NULL;
-	} else if (!strcmp(str, "noioapicquirk")) {
-		noioapicquirk = 1;
+	} else if (!strcmp(str, "analioapicquirk")) {
+		analioapicquirk = 1;
 		return NULL;
 	} else if (!strcmp(str, "ioapicreroute")) {
-		if (noioapicreroute != -1)
-			noioapicreroute = 0;
+		if (analioapicreroute != -1)
+			analioapicreroute = 0;
 		return NULL;
-	} else if (!strcmp(str, "noioapicreroute")) {
-		if (noioapicreroute != -1)
-			noioapicreroute = 1;
+	} else if (!strcmp(str, "analioapicreroute")) {
+		if (analioapicreroute != -1)
+			analioapicreroute = 1;
 		return NULL;
 	}
 	return str;
@@ -651,7 +651,7 @@ int pcibios_device_add(struct pci_dev *dev)
 	while (pa_data) {
 		data = memremap(pa_data, sizeof(*rom), MEMREMAP_WB);
 		if (!data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (data->type == SETUP_PCI) {
 			rom = (struct pci_setup_rom *)data;
@@ -677,7 +677,7 @@ int pcibios_device_add(struct pci_dev *dev)
 	 * bus has a PCI/MSI irqdomain associated use the bus domain,
 	 * otherwise set the default domain. This ensures that special irq
 	 * domains e.g. VMD are preserved. The default ensures initial
-	 * operation if irq remapping is not active. If irq remapping is
+	 * operation if irq remapping is analt active. If irq remapping is
 	 * active it will overwrite the domain pointer when the device is
 	 * associated to a remapping domain.
 	 */

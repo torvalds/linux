@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef PINCTRL_PINCTRL_NOMADIK_H
-#define PINCTRL_PINCTRL_NOMADIK_H
+#ifndef PINCTRL_PINCTRL_ANALMADIK_H
+#define PINCTRL_PINCTRL_ANALMADIK_H
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -96,7 +96,7 @@ struct prcm_gpiocr_altcx_pin_desc {
 };
 
 /**
- * struct nmk_function - Nomadik pinctrl mux function
+ * struct nmk_function - Analmadik pinctrl mux function
  * @name: The name of the function, exported to pinctrl core.
  * @groups: An array of pin groups that may select this function.
  * @ngroups: The number of entries in @groups.
@@ -108,7 +108,7 @@ struct nmk_function {
 };
 
 /**
- * struct nmk_pingroup - describes a Nomadik pin group
+ * struct nmk_pingroup - describes a Analmadik pin group
  * @grp: Generic data of the pin group (name and pins)
  * @altsetting: the altsetting to apply to all pins in this group to
  *	configure them to be used by a function
@@ -125,7 +125,7 @@ struct nmk_pingroup {
 	}
 
 /**
- * struct nmk_pinctrl_soc_data - Nomadik pin controller per-SoC configuration
+ * struct nmk_pinctrl_soc_data - Analmadik pin controller per-SoC configuration
  * @pins:	An array describing all pins the pin controller affects.
  *		All pins which are also GPIOs must be listed first within the
  *		array, and be numbered identically to the GPIO controller's
@@ -177,4 +177,4 @@ nmk_pinctrl_db8500_init(const struct nmk_pinctrl_soc_data **soc)
 
 #endif
 
-#endif /* PINCTRL_PINCTRL_NOMADIK_H */
+#endif /* PINCTRL_PINCTRL_ANALMADIK_H */

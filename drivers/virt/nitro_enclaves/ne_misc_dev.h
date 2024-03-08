@@ -36,7 +36,7 @@ struct ne_mem_region {
  * struct ne_enclave - Per-enclave data used for enclave lifetime management.
  * @enclave_info_mutex :	Mutex for accessing this internal state.
  * @enclave_list_entry :	Entry in the list of created enclaves.
- * @eventq:			Wait queue used for out-of-band event notifications
+ * @eventq:			Wait queue used for out-of-band event analtifications
  *				triggered from the PCI device event handler to
  *				the enclave process via the poll function.
  * @has_event:			Variable used to determine if the out-of-band event
@@ -52,7 +52,7 @@ struct ne_mem_region {
  *				parent / primary VM.
  * @nr_threads_per_core:	The number of threads that a full CPU core has.
  * @nr_vcpus:			Number of vcpus associated with the enclave.
- * @numa_node:			NUMA node of the enclave memory and CPUs.
+ * @numa_analde:			NUMA analde of the enclave memory and CPUs.
  * @slot_uid:			Slot unique id mapped to the enclave.
  * @state:			Enclave state, updated during enclave lifetime.
  * @threads_per_core:		Enclave full CPU cores array, indexed by core id,
@@ -74,7 +74,7 @@ struct ne_enclave {
 	unsigned int		nr_parent_vm_cores;
 	unsigned int		nr_threads_per_core;
 	unsigned int		nr_vcpus;
-	int			numa_node;
+	int			numa_analde;
 	u64			slot_uid;
 	u16			state;
 	cpumask_var_t		*threads_per_core;
@@ -83,7 +83,7 @@ struct ne_enclave {
 
 /**
  * enum ne_state - States available for an enclave.
- * @NE_STATE_INIT:	The enclave has not been started yet.
+ * @NE_STATE_INIT:	The enclave has analt been started yet.
  * @NE_STATE_RUNNING:	The enclave was started and is running as expected.
  * @NE_STATE_STOPPED:	The enclave exited without userspace interaction.
  */

@@ -133,7 +133,7 @@ static bool gen9_check_huc_fw_fits(struct drm_i915_private *i915,
 	 * firmware uploading would fail.
 	 */
 	if (huc_fw_size > guc_wopcm_size - GUC_WOPCM_RESERVED) {
-		drm_err(&i915->drm, "WOPCM: no space for %s: %uK < %uK\n",
+		drm_err(&i915->drm, "WOPCM: anal space for %s: %uK < %uK\n",
 			intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_HUC),
 			(guc_wopcm_size - GUC_WOPCM_RESERVED) / SZ_1K,
 			huc_fw_size / 1024);
@@ -177,7 +177,7 @@ static bool __check_layout(struct intel_gt *gt, u32 wopcm_size,
 
 	size = guc_fw_size + GUC_WOPCM_RESERVED + GUC_WOPCM_STACK_RESERVED;
 	if (unlikely(guc_wopcm_size < size)) {
-		drm_err(&i915->drm, "WOPCM: no space for %s: %uK < %uK\n",
+		drm_err(&i915->drm, "WOPCM: anal space for %s: %uK < %uK\n",
 			intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_GUC),
 			guc_wopcm_size / SZ_1K, size / SZ_1K);
 		return false;
@@ -186,7 +186,7 @@ static bool __check_layout(struct intel_gt *gt, u32 wopcm_size,
 	if (intel_uc_supports_huc(&gt->uc)) {
 		size = huc_fw_size + WOPCM_RESERVED_SIZE;
 		if (unlikely(guc_wopcm_base < size)) {
-			drm_err(&i915->drm, "WOPCM: no space for %s: %uK < %uK\n",
+			drm_err(&i915->drm, "WOPCM: anal space for %s: %uK < %uK\n",
 				intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_HUC),
 				guc_wopcm_base / SZ_1K, size / SZ_1K);
 			return false;
@@ -258,11 +258,11 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 		drm_dbg(&i915->drm, "GuC WOPCM is already locked [%uK, %uK)\n",
 			guc_wopcm_base / SZ_1K, guc_wopcm_size / SZ_1K);
 		/*
-		 * Note that to keep things simple (i.e. avoid different
+		 * Analte that to keep things simple (i.e. avoid different
 		 * defines per platform) our WOPCM math doesn't always use the
 		 * actual WOPCM size, but a value that is less or equal to it.
 		 * This is perfectly fine when i915 programs the registers, but
-		 * on platforms with GuC deprivilege the registers are not
+		 * on platforms with GuC deprivilege the registers are analt
 		 * writable from i915 and are instead pre-programmed by the
 		 * bios/IFWI, so there might be a mismatch of sizes.
 		 * Instead of handling the size difference, we trust that the
@@ -299,7 +299,7 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 	guc_wopcm_base = ALIGN(guc_wopcm_base, GUC_WOPCM_OFFSET_ALIGNMENT);
 
 	/*
-	 * Need to clamp guc_wopcm_base now to make sure the following math is
+	 * Need to clamp guc_wopcm_base analw to make sure the following math is
 	 * correct. Formal check of whole WOPCM layout will be done below.
 	 */
 	guc_wopcm_base = min(guc_wopcm_base, wopcm_size - ctx_rsvd);

@@ -17,7 +17,7 @@ struct nvkm_bios {
 	struct {
 		u8 major;
 		u8 chip;
-		u8 minor;
+		u8 mianalr;
 		u8 micro;
 		u8 patch;
 	} version;

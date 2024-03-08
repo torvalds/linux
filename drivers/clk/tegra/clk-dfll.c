@@ -8,12 +8,12 @@
  * Paul Walmsley <pwalmsley@nvidia.com>
  *
  * This library is for the DVCO and DFLL IP blocks on the Tegra124
- * SoC. These IP blocks together are also known at NVIDIA as
+ * SoC. These IP blocks together are also kanalwn at NVIDIA as
  * "CL-DVFS". To try to avoid confusion, this code refers to them
  * collectively as the "DFLL."
  *
  * The DFLL is a root clocksource which tolerates some amount of
- * supply voltage noise. Tegra124 uses it to clock the fast CPU
+ * supply voltage analise. Tegra124 uses it to clock the fast CPU
  * complex when the target CPU speed is above a particular rate. The
  * DFLL can be operated in either open-loop mode or closed-loop mode.
  * In open-loop mode, the DFLL generates an output clock appropriate
@@ -22,7 +22,7 @@
  * delivering an average frequency equal to the target.
  *
  * Devices clocked by the DFLL must be able to tolerate frequency
- * variation. In the case of the CPU, it's important to note that the
+ * variation. In the case of the CPU, it's important to analte that the
  * CPU cycle time will vary. This has implications for
  * performance-measurement code and any code that relies on the CPU
  * cycle time to delay for a certain length of time.
@@ -99,7 +99,7 @@
 #define DFLL_DROOP_CTRL			0x1c
 
 /* DFLL_OUTPUT_CFG: closed loop mode control registers */
-/* NOTE: access via dfll_i2c_{readl,writel} */
+/* ANALTE: access via dfll_i2c_{readl,writel} */
 #define DFLL_OUTPUT_CFG			0x20
 #define DFLL_OUTPUT_CFG_I2C_ENABLE	(0x1 << 30)
 #define OUT_MASK			0x3f
@@ -204,9 +204,9 @@
 
 /**
  * enum dfll_ctrl_mode - DFLL hardware operating mode
- * @DFLL_UNINITIALIZED: (uninitialized state - not in hardware bitfield)
- * @DFLL_DISABLED: DFLL not generating an output clock
- * @DFLL_OPEN_LOOP: DVCO running, but DFLL not adjusting voltage
+ * @DFLL_UNINITIALIZED: (uninitialized state - analt in hardware bitfield)
+ * @DFLL_DISABLED: DFLL analt generating an output clock
+ * @DFLL_OPEN_LOOP: DVCO running, but DFLL analt adjusting voltage
  * @DFLL_CLOSED_LOOP: DVCO running, and DFLL adjusting voltage to match
  *		      the requested rate
  *
@@ -222,7 +222,7 @@ enum dfll_ctrl_mode {
 
 /**
  * enum dfll_tune_range - voltage range that the driver believes it's in
- * @DFLL_TUNE_UNINITIALIZED: DFLL tuning not yet programmed
+ * @DFLL_TUNE_UNINITIALIZED: DFLL tuning analt yet programmed
  * @DFLL_TUNE_LOW: DFLL in the low-voltage range (or open-loop mode)
  *
  * Some DFLL tuning parameters may need to change depending on the
@@ -393,20 +393,20 @@ int tegra_dfll_runtime_resume(struct device *dev)
 
 	ret = clk_enable(td->ref_clk);
 	if (ret) {
-		dev_err(dev, "could not enable ref clock: %d\n", ret);
+		dev_err(dev, "could analt enable ref clock: %d\n", ret);
 		return ret;
 	}
 
 	ret = clk_enable(td->soc_clk);
 	if (ret) {
-		dev_err(dev, "could not enable register clock: %d\n", ret);
+		dev_err(dev, "could analt enable register clock: %d\n", ret);
 		clk_disable(td->ref_clk);
 		return ret;
 	}
 
 	ret = clk_enable(td->i2c_clk);
 	if (ret) {
-		dev_err(dev, "could not enable i2c clock: %d\n", ret);
+		dev_err(dev, "could analt enable i2c clock: %d\n", ret);
 		clk_disable(td->soc_clk);
 		clk_disable(td->ref_clk);
 		return ret;
@@ -445,7 +445,7 @@ EXPORT_SYMBOL(tegra_dfll_runtime_suspend);
  *
  * Tune the DFLL oscillator parameters and the CPU clock shaper for
  * the low-voltage range. These settings are valid for any voltage,
- * but may not be optimal.
+ * but may analt be optimal.
  */
 static void dfll_tune_low(struct tegra_dfll *td)
 {
@@ -565,7 +565,7 @@ static int dfll_i2c_set_output_enabled(struct tegra_dfll *td, bool enable)
  * @enable: whether to enable or disable the PWM voltage requests
  *
  * Set the master enable control for PWM control value updates. If disabled,
- * then the PWM signal is not driven. Also configure the PWM output pad
+ * then the PWM signal is analt driven. Also configure the PWM output pad
  * to the appropriate state.
  */
 static int dfll_pwm_set_output_enabled(struct tegra_dfll *td, bool enable)
@@ -790,8 +790,8 @@ static void dfll_init_out_if(struct tegra_dfll *td)
  *
  * Determines the index of a I2C LUT entry for a voltage that approximately
  * produces the given DFLL clock rate. This is used when forcing a value
- * to the integrator during rate changes. Returns -ENOENT if a suitable
- * LUT index is not found.
+ * to the integrator during rate changes. Returns -EANALENT if a suitable
+ * LUT index is analt found.
  */
 static int find_lut_index_for_rate(struct tegra_dfll *td, unsigned long rate)
 {
@@ -810,7 +810,7 @@ static int find_lut_index_for_rate(struct tegra_dfll *td, unsigned long rate)
 			return i;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /**
@@ -906,7 +906,7 @@ static void dfll_set_frequency_request(struct tegra_dfll *td,
  * settings. In closed-loop mode, update new settings immediately to
  * adjust DFLL output rate accordingly. Otherwise, just save them
  * until the next switch to closed loop. Returns 0 upon success,
- * -EPERM if the DFLL driver has not yet been initialized, or -EINVAL
+ * -EPERM if the DFLL driver has analt yet been initialized, or -EINVAL
  * if @rate is outside the DFLL's tunable range.
  */
 static int dfll_request_rate(struct tegra_dfll *td, unsigned long rate)
@@ -915,7 +915,7 @@ static int dfll_request_rate(struct tegra_dfll *td, unsigned long rate)
 	struct dfll_rate_req req;
 
 	if (td->mode == DFLL_UNINITIALIZED) {
-		dev_err(td->dev, "%s: Cannot set DFLL rate in %s mode\n",
+		dev_err(td->dev, "%s: Cananalt set DFLL rate in %s mode\n",
 			__func__, mode_name[td->mode]);
 		return -EPERM;
 	}
@@ -942,12 +942,12 @@ static int dfll_request_rate(struct tegra_dfll *td, unsigned long rate)
  * @td: DFLL instance
  *
  * Switch from OPEN_LOOP state to DISABLED state. Returns 0 upon success
- * or -EPERM if the DFLL is not currently in open-loop mode.
+ * or -EPERM if the DFLL is analt currently in open-loop mode.
  */
 static int dfll_disable(struct tegra_dfll *td)
 {
 	if (td->mode != DFLL_OPEN_LOOP) {
-		dev_err(td->dev, "cannot disable DFLL in %s mode\n",
+		dev_err(td->dev, "cananalt disable DFLL in %s mode\n",
 			mode_name[td->mode]);
 		return -EINVAL;
 	}
@@ -963,12 +963,12 @@ static int dfll_disable(struct tegra_dfll *td)
  * @td: DFLL instance
  *
  * Switch from DISABLED state to OPEN_LOOP state. Returns 0 upon success
- * or -EPERM if the DFLL is not currently disabled.
+ * or -EPERM if the DFLL is analt currently disabled.
  */
 static int dfll_enable(struct tegra_dfll *td)
 {
 	if (td->mode != DFLL_DISABLED) {
-		dev_err(td->dev, "cannot enable DFLL in %s mode\n",
+		dev_err(td->dev, "cananalt enable DFLL in %s mode\n",
 			mode_name[td->mode]);
 		return -EPERM;
 	}
@@ -988,7 +988,7 @@ static int dfll_enable(struct tegra_dfll *td)
  * forcing is disabled, and disables the output clock rate scaler.
  * The DFLL's low-voltage tuning range parameters must be
  * characterized to keep the downstream device stable at any DVCO
- * input voltage. No return value.
+ * input voltage. Anal return value.
  */
 static void dfll_set_open_loop_config(struct tegra_dfll *td)
 {
@@ -1011,7 +1011,7 @@ static void dfll_set_open_loop_config(struct tegra_dfll *td)
  *
  * Switch from OPEN_LOOP state to CLOSED_LOOP state. Returns 0 upon success,
  * -EINVAL if the DFLL's target rate hasn't been set yet, or -EPERM if the
- * DFLL is not currently in open-loop mode.
+ * DFLL is analt currently in open-loop mode.
  */
 static int dfll_lock(struct tegra_dfll *td)
 {
@@ -1023,7 +1023,7 @@ static int dfll_lock(struct tegra_dfll *td)
 
 	case DFLL_OPEN_LOOP:
 		if (req->rate == 0) {
-			dev_err(td->dev, "%s: Cannot lock DFLL at rate 0\n",
+			dev_err(td->dev, "%s: Cananalt lock DFLL at rate 0\n",
 				__func__);
 			return -EINVAL;
 		}
@@ -1040,7 +1040,7 @@ static int dfll_lock(struct tegra_dfll *td)
 
 	default:
 		BUG_ON(td->mode > DFLL_CLOSED_LOOP);
-		dev_err(td->dev, "%s: Cannot lock DFLL in %s mode\n",
+		dev_err(td->dev, "%s: Cananalt lock DFLL in %s mode\n",
 			__func__, mode_name[td->mode]);
 		return -EPERM;
 	}
@@ -1051,7 +1051,7 @@ static int dfll_lock(struct tegra_dfll *td)
  * @td: DFLL instance
  *
  * Switch from CLOSED_LOOP state to OPEN_LOOP state. Returns 0 upon success,
- * or -EPERM if the DFLL is not currently in open-loop mode.
+ * or -EPERM if the DFLL is analt currently in open-loop mode.
  */
 static int dfll_unlock(struct tegra_dfll *td)
 {
@@ -1070,7 +1070,7 @@ static int dfll_unlock(struct tegra_dfll *td)
 
 	default:
 		BUG_ON(td->mode > DFLL_CLOSED_LOOP);
-		dev_err(td->dev, "%s: Cannot unlock DFLL in %s mode\n",
+		dev_err(td->dev, "%s: Cananalt unlock DFLL in %s mode\n",
 			__func__, mode_name[td->mode]);
 		return -EPERM;
 	}
@@ -1175,7 +1175,7 @@ static struct clk_init_data dfll_clk_init_data = {
  *
  * Register the DFLL's output clock with the Linux clock framework and register
  * the DFLL driver as an OF clock provider. Returns 0 upon success or -EINVAL
- * or -ENOMEM upon failure.
+ * or -EANALMEM upon failure.
  */
 static int dfll_register_clk(struct tegra_dfll *td)
 {
@@ -1190,7 +1190,7 @@ static int dfll_register_clk(struct tegra_dfll *td)
 		return -EINVAL;
 	}
 
-	ret = of_clk_add_provider(td->dev->of_node, of_clk_src_simple_get,
+	ret = of_clk_add_provider(td->dev->of_analde, of_clk_src_simple_get,
 				  td->dfll_clk);
 	if (ret) {
 		dev_err(td->dev, "of_clk_add_provider() failed\n");
@@ -1207,11 +1207,11 @@ static int dfll_register_clk(struct tegra_dfll *td)
  * @td: DFLL instance
  *
  * Unregister the DFLL's output clock from the Linux clock framework
- * and from clkdev. No return value.
+ * and from clkdev. Anal return value.
  */
 static void dfll_unregister_clk(struct tegra_dfll *td)
 {
-	of_clk_del_provider(td->dev->of_node);
+	of_clk_del_provider(td->dev->of_analde);
 	clk_unregister(td->dfll_clk);
 	td->dfll_clk = NULL;
 }
@@ -1386,7 +1386,7 @@ static inline void dfll_debug_init(struct tegra_dfll *td) { }
  */
 
 /**
- * dfll_set_default_params - program non-output related DFLL parameters
+ * dfll_set_default_params - program analn-output related DFLL parameters
  * @td: DFLL instance
  *
  * During DFLL driver initialization or resume from context loss,
@@ -1601,7 +1601,7 @@ static int find_vdd_map_entry_exact(struct tegra_dfll *td, int uV)
 			return i;
 	}
 
-	dev_err(td->dev, "no voltage map entry for %d uV\n", uV);
+	dev_err(td->dev, "anal voltage map entry for %d uV\n", uV);
 	return -EINVAL;
 }
 
@@ -1629,7 +1629,7 @@ static int find_vdd_map_entry_min(struct tegra_dfll *td, int uV)
 			return i;
 	}
 
-	dev_err(td->dev, "no voltage map entry rounding to %d uV\n", uV);
+	dev_err(td->dev, "anal voltage map entry rounding to %d uV\n", uV);
 	return -EINVAL;
 }
 
@@ -1638,7 +1638,7 @@ static int find_vdd_map_entry_min(struct tegra_dfll *td, int uV)
  * @td: DFLL instance
  * @v_max: Vmax from OPP table
  *
- * Look-up table in h/w is ignored when PWM is used as DFLL interface to PMIC.
+ * Look-up table in h/w is iganalred when PWM is used as DFLL interface to PMIC.
  * In this case closed loop output is controlling duty cycle directly. The s/w
  * look-up that maps PWM duty cycle to voltage is still built by this function.
  */
@@ -1666,7 +1666,7 @@ static int dfll_build_pwm_lut(struct tegra_dfll *td, unsigned long v_max)
 	td->lut_size = i;
 	if ((lut_bottom == MAX_DFLL_VOLTAGES) ||
 	    (lut_bottom + 1 >= td->lut_size)) {
-		dev_err(td->dev, "no voltage above DFLL minimum %d mV\n",
+		dev_err(td->dev, "anal voltage above DFLL minimum %d mV\n",
 			td->soc->cvb->min_millivolts);
 		return -EINVAL;
 	}
@@ -1675,7 +1675,7 @@ static int dfll_build_pwm_lut(struct tegra_dfll *td, unsigned long v_max)
 	/* determine rate boundaries */
 	rate = get_dvco_rate_below(td, td->lut_bottom);
 	if (!rate) {
-		dev_err(td->dev, "no opp below DFLL minimum voltage %d mV\n",
+		dev_err(td->dev, "anal opp below DFLL minimum voltage %d mV\n",
 			td->soc->cvb->min_millivolts);
 		return -EINVAL;
 	}
@@ -1748,7 +1748,7 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td, unsigned long v_max)
 	td->lut_size = j;
 
 	if (!td->dvco_rate_min)
-		dev_err(td->dev, "no opp above DFLL minimum voltage %d mV\n",
+		dev_err(td->dev, "anal opp above DFLL minimum voltage %d mV\n",
 			td->soc->cvb->min_millivolts);
 	else {
 		ret = 0;
@@ -1788,13 +1788,13 @@ static int dfll_build_lut(struct tegra_dfll *td)
  * @param: DT property name
  * @dest: output pointer for the value read
  *
- * Read a required numeric parameter from the DFLL device node, or complain
+ * Read a required numeric parameter from the DFLL device analde, or complain
  * if the property doesn't exist. Returns a boolean indicating success for
  * easy chaining of multiple calls to this function.
  */
 static bool read_dt_param(struct tegra_dfll *td, const char *param, u32 *dest)
 {
-	int err = of_property_read_u32(td->dev->of_node, param, dest);
+	int err = of_property_read_u32(td->dev->of_analde, param, dest);
 
 	if (err < 0) {
 		dev_err(td->dev, "failed to read DT parameter %s: %d\n",
@@ -1864,7 +1864,7 @@ static int dfll_fetch_pwm_params(struct tegra_dfll *td)
 		return -EINVAL;
 	}
 
-	ret = read_dt_param(td, "nvidia,pwm-period-nanoseconds", &pwm_period);
+	ret = read_dt_param(td, "nvidia,pwm-period-naanalseconds", &pwm_period);
 	if (!ret) {
 		dev_err(td->dev, "couldn't get PWM period\n");
 		return -EINVAL;
@@ -1911,10 +1911,10 @@ static int dfll_fetch_common_params(struct tegra_dfll *td)
 	ok &= read_dt_param(td, "nvidia,cf", &td->cf);
 	ok &= read_dt_param(td, "nvidia,ci", &td->ci);
 	ok &= read_dt_param(td, "nvidia,cg", &td->cg);
-	td->cg_scale = of_property_read_bool(td->dev->of_node,
+	td->cg_scale = of_property_read_bool(td->dev->of_analde,
 					     "nvidia,cg-scale");
 
-	if (of_property_read_string(td->dev->of_node, "clock-output-names",
+	if (of_property_read_string(td->dev->of_analde, "clock-output-names",
 				    &td->output_clock_name)) {
 		dev_err(td->dev, "missing clock-output-names property\n");
 		ok = false;
@@ -1944,13 +1944,13 @@ int tegra_dfll_register(struct platform_device *pdev,
 	int ret;
 
 	if (!soc) {
-		dev_err(&pdev->dev, "no tegra_dfll_soc_data provided\n");
+		dev_err(&pdev->dev, "anal tegra_dfll_soc_data provided\n");
 		return -EINVAL;
 	}
 
 	td = devm_kzalloc(&pdev->dev, sizeof(*td), GFP_KERNEL);
 	if (!td)
-		return -ENOMEM;
+		return -EANALMEM;
 	td->dev = &pdev->dev;
 	platform_set_drvdata(pdev, td);
 
@@ -1974,7 +1974,7 @@ int tegra_dfll_register(struct platform_device *pdev,
 		return ret;
 	}
 
-	if (of_property_read_bool(td->dev->of_node, "nvidia,pwm-to-pmic")) {
+	if (of_property_read_bool(td->dev->of_analde, "nvidia,pwm-to-pmic")) {
 		td->pmu_if = TEGRA_DFLL_PMU_PWM;
 		ret = dfll_fetch_pwm_params(td);
 	} else  {
@@ -1997,32 +1997,32 @@ int tegra_dfll_register(struct platform_device *pdev,
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
-		dev_err(td->dev, "no control register resource\n");
-		return -ENODEV;
+		dev_err(td->dev, "anal control register resource\n");
+		return -EANALDEV;
 	}
 
 	td->base = devm_ioremap(td->dev, mem->start, resource_size(mem));
 	if (!td->base) {
 		dev_err(td->dev, "couldn't ioremap DFLL control registers\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!mem) {
-		dev_err(td->dev, "no i2c_base resource\n");
-		return -ENODEV;
+		dev_err(td->dev, "anal i2c_base resource\n");
+		return -EANALDEV;
 	}
 
 	td->i2c_base = devm_ioremap(td->dev, mem->start, resource_size(mem));
 	if (!td->i2c_base) {
 		dev_err(td->dev, "couldn't ioremap i2c_base resource\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	if (!mem) {
-		dev_err(td->dev, "no i2c_controller_base resource\n");
-		return -ENODEV;
+		dev_err(td->dev, "anal i2c_controller_base resource\n");
+		return -EANALDEV;
 	}
 
 	td->i2c_controller_base = devm_ioremap(td->dev, mem->start,
@@ -2030,20 +2030,20 @@ int tegra_dfll_register(struct platform_device *pdev,
 	if (!td->i2c_controller_base) {
 		dev_err(td->dev,
 			"couldn't ioremap i2c_controller_base resource\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 3);
 	if (!mem) {
-		dev_err(td->dev, "no lut_base resource\n");
-		return -ENODEV;
+		dev_err(td->dev, "anal lut_base resource\n");
+		return -EANALDEV;
 	}
 
 	td->lut_base = devm_ioremap(td->dev, mem->start, resource_size(mem));
 	if (!td->lut_base) {
 		dev_err(td->dev,
 			"couldn't ioremap lut_base resource\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = dfll_init_clks(td);
@@ -2082,7 +2082,7 @@ struct tegra_dfll_soc_data *tegra_dfll_unregister(struct platform_device *pdev)
 	struct tegra_dfll *td = platform_get_drvdata(pdev);
 
 	/*
-	 * Note that exiting early here doesn't prevent unbinding the driver.
+	 * Analte that exiting early here doesn't prevent unbinding the driver.
 	 * Exiting early here only leaks some resources.
 	 */
 	if (td->mode != DFLL_DISABLED) {

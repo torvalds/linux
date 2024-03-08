@@ -47,28 +47,28 @@ struct atc260x_onkey {
 
 static const struct atc260x_onkey_params atc2603c_onkey_params = {
 	.reg_int_ctl		= ATC2603C_PMU_SYS_CTL2,
-	.long_int_pnd_bm	= ATC2603C_PMU_SYS_CTL2_ONOFF_LONG_PRESS,
-	.short_int_pnd_bm	= ATC2603C_PMU_SYS_CTL2_ONOFF_SHORT_PRESS,
-	.kdwn_int_pnd_bm	= ATC2603C_PMU_SYS_CTL2_ONOFF_PRESS_PD,
-	.press_int_en_bm	= ATC2603C_PMU_SYS_CTL2_ONOFF_INT_EN,
-	.kdwn_int_en_bm		= ATC2603C_PMU_SYS_CTL2_ONOFF_PRESS_INT_EN,
-	.kdwn_state_bm		= ATC2603C_PMU_SYS_CTL2_ONOFF_PRESS,
-	.press_time_bm		= ATC2603C_PMU_SYS_CTL2_ONOFF_PRESS_TIME,
-	.reset_en_bm		= ATC2603C_PMU_SYS_CTL2_ONOFF_PRESS_RESET_EN,
-	.reset_time_bm		= ATC2603C_PMU_SYS_CTL2_ONOFF_RESET_TIME_SEL,
+	.long_int_pnd_bm	= ATC2603C_PMU_SYS_CTL2_OANALFF_LONG_PRESS,
+	.short_int_pnd_bm	= ATC2603C_PMU_SYS_CTL2_OANALFF_SHORT_PRESS,
+	.kdwn_int_pnd_bm	= ATC2603C_PMU_SYS_CTL2_OANALFF_PRESS_PD,
+	.press_int_en_bm	= ATC2603C_PMU_SYS_CTL2_OANALFF_INT_EN,
+	.kdwn_int_en_bm		= ATC2603C_PMU_SYS_CTL2_OANALFF_PRESS_INT_EN,
+	.kdwn_state_bm		= ATC2603C_PMU_SYS_CTL2_OANALFF_PRESS,
+	.press_time_bm		= ATC2603C_PMU_SYS_CTL2_OANALFF_PRESS_TIME,
+	.reset_en_bm		= ATC2603C_PMU_SYS_CTL2_OANALFF_PRESS_RESET_EN,
+	.reset_time_bm		= ATC2603C_PMU_SYS_CTL2_OANALFF_RESET_TIME_SEL,
 };
 
 static const struct atc260x_onkey_params atc2609a_onkey_params = {
 	.reg_int_ctl		= ATC2609A_PMU_SYS_CTL2,
-	.long_int_pnd_bm	= ATC2609A_PMU_SYS_CTL2_ONOFF_LONG_PRESS,
-	.short_int_pnd_bm	= ATC2609A_PMU_SYS_CTL2_ONOFF_SHORT_PRESS,
-	.kdwn_int_pnd_bm	= ATC2609A_PMU_SYS_CTL2_ONOFF_PRESS_PD,
-	.press_int_en_bm	= ATC2609A_PMU_SYS_CTL2_ONOFF_LSP_INT_EN,
-	.kdwn_int_en_bm		= ATC2609A_PMU_SYS_CTL2_ONOFF_PRESS_INT_EN,
-	.kdwn_state_bm		= ATC2609A_PMU_SYS_CTL2_ONOFF_PRESS,
-	.press_time_bm		= ATC2609A_PMU_SYS_CTL2_ONOFF_PRESS_TIME,
-	.reset_en_bm		= ATC2609A_PMU_SYS_CTL2_ONOFF_RESET_EN,
-	.reset_time_bm		= ATC2609A_PMU_SYS_CTL2_ONOFF_RESET_TIME_SEL,
+	.long_int_pnd_bm	= ATC2609A_PMU_SYS_CTL2_OANALFF_LONG_PRESS,
+	.short_int_pnd_bm	= ATC2609A_PMU_SYS_CTL2_OANALFF_SHORT_PRESS,
+	.kdwn_int_pnd_bm	= ATC2609A_PMU_SYS_CTL2_OANALFF_PRESS_PD,
+	.press_int_en_bm	= ATC2609A_PMU_SYS_CTL2_OANALFF_LSP_INT_EN,
+	.kdwn_int_en_bm		= ATC2609A_PMU_SYS_CTL2_OANALFF_PRESS_INT_EN,
+	.kdwn_state_bm		= ATC2609A_PMU_SYS_CTL2_OANALFF_PRESS,
+	.press_time_bm		= ATC2609A_PMU_SYS_CTL2_OANALFF_PRESS_TIME,
+	.reset_en_bm		= ATC2609A_PMU_SYS_CTL2_OANALFF_RESET_EN,
+	.reset_time_bm		= ATC2609A_PMU_SYS_CTL2_OANALFF_RESET_TIME_SEL,
 };
 
 static int atc2603x_onkey_hw_init(struct atc260x_onkey *onkey,
@@ -198,7 +198,7 @@ static int atc260x_onkey_probe(struct platform_device *pdev)
 
 	onkey = devm_kzalloc(&pdev->dev, sizeof(*onkey), GFP_KERNEL);
 	if (!onkey)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = device_property_read_u32(pdev->dev.parent,
 					 "reset-time-sec", &val);
@@ -220,21 +220,21 @@ static int atc260x_onkey_probe(struct platform_device *pdev)
 	switch (atc260x->ic_type) {
 	case ATC2603C:
 		onkey->params = &atc2603c_onkey_params;
-		press_time = FIELD_PREP(ATC2603C_PMU_SYS_CTL2_ONOFF_PRESS_TIME,
+		press_time = FIELD_PREP(ATC2603C_PMU_SYS_CTL2_OANALFF_PRESS_TIME,
 					press_time);
-		reset_time = FIELD_PREP(ATC2603C_PMU_SYS_CTL2_ONOFF_RESET_TIME_SEL,
+		reset_time = FIELD_PREP(ATC2603C_PMU_SYS_CTL2_OANALFF_RESET_TIME_SEL,
 					reset_time);
 		break;
 	case ATC2609A:
 		onkey->params = &atc2609a_onkey_params;
-		press_time = FIELD_PREP(ATC2609A_PMU_SYS_CTL2_ONOFF_PRESS_TIME,
+		press_time = FIELD_PREP(ATC2609A_PMU_SYS_CTL2_OANALFF_PRESS_TIME,
 					press_time);
-		reset_time = FIELD_PREP(ATC2609A_PMU_SYS_CTL2_ONOFF_RESET_TIME_SEL,
+		reset_time = FIELD_PREP(ATC2609A_PMU_SYS_CTL2_OANALFF_RESET_TIME_SEL,
 					reset_time);
 		break;
 	default:
 		dev_err(&pdev->dev,
-			"OnKey not supported for ATC260x PMIC type: %u\n",
+			"OnKey analt supported for ATC260x PMIC type: %u\n",
 			atc260x->ic_type);
 		return -EINVAL;
 	}
@@ -242,7 +242,7 @@ static int atc260x_onkey_probe(struct platform_device *pdev)
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!input_dev) {
 		dev_err(&pdev->dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	onkey->input_dev = input_dev;

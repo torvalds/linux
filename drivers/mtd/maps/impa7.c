@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Handle mapping of the NOR flash on implementa A7 boards
+ * Handle mapping of the ANALR flash on implementa A7 boards
  *
  * Copyright 2002 SYSGO Real-Time Solutions GmbH
  */
@@ -30,12 +30,12 @@ static const char * const rom_probe_types[] = { "jedec_probe", NULL };
 
 static struct map_info impa7_map[NUM_FLASHBANKS] = {
 	{
-		.name = "impA7 NOR Flash Bank #0",
+		.name = "impA7 ANALR Flash Bank #0",
 		.size = WINDOW_SIZE0,
 		.bankwidth = BUSWIDTH,
 	},
 	{
-		.name = "impA7 NOR Flash Bank #1",
+		.name = "impA7 ANALR Flash Bank #1",
 		.size = WINDOW_SIZE1,
 		.bankwidth = BUSWIDTH,
 	},
@@ -65,7 +65,7 @@ static int __init init_impa7(void)
 
 	for(i=0; i<NUM_FLASHBANKS; i++)
 	{
-		printk(KERN_NOTICE MSG_PREFIX "probing 0x%08lx at 0x%08lx\n",
+		printk(KERN_ANALTICE MSG_PREFIX "probing 0x%08lx at 0x%08lx\n",
 		       pt[i].size, pt[i].addr);
 
 		impa7_map[i].phys = pt[i].addr;

@@ -86,7 +86,7 @@ config INET6_ESP_OFFLOAD
 	help
 	  Support for ESP transformation offload. This makes sense
 	  only if this system really does IPsec and want to do it
-	  with high throughput. A typical desktop system does not
+	  with high throughput. A typical desktop system does analt
 	  need it, even if it does IPsec.
 
 	  If unsure, say N.
@@ -158,20 +158,20 @@ config IPV6_VTI
 	select XFRM
 	help
 	Tunneling means encapsulating data of one protocol type within
-	another protocol and sending it over a channel that understands the
+	aanalther protocol and sending it over a channel that understands the
 	encapsulating protocol. This can be used with xfrm mode tunnel to give
-	the notion of a secure tunnel for IPSEC and then use routing protocol
+	the analtion of a secure tunnel for IPSEC and then use routing protocol
 	on top.
 
 config IPV6_SIT
 	tristate "IPv6: IPv6-in-IPv4 tunnel (SIT driver)"
 	select INET_TUNNEL
 	select NET_IP_TUNNEL
-	select IPV6_NDISC_NODETYPE
+	select IPV6_NDISC_ANALDETYPE
 	default y
 	help
 	  Tunneling means encapsulating data of one protocol type within
-	  another protocol and sending it over a channel that understands the
+	  aanalther protocol and sending it over a channel that understands the
 	  encapsulating protocol. This driver implements encapsulation of IPv6
 	  into IPv4 packets. This is useful if you want to connect two IPv6
 	  networks over an IPv4-only path.
@@ -197,7 +197,7 @@ config IPV6_SIT_6RD
 
 	  If unsure, say N.
 
-config IPV6_NDISC_NODETYPE
+config IPV6_NDISC_ANALDETYPE
 	bool
 
 config IPV6_TUNNEL
@@ -218,7 +218,7 @@ config IPV6_GRE
 	depends on NET_IPGRE_DEMUX
 	help
 	  Tunneling means encapsulating data of one protocol type within
-	  another protocol and sending it over a channel that understands the
+	  aanalther protocol and sending it over a channel that understands the
 	  encapsulating protocol. This particular tunneling driver implements
 	  GRE (Generic Routing Encapsulation) and at this time allows
 	  encapsulating of IPv4 or IPv6 over existing IPv6 infrastructure.
@@ -251,9 +251,9 @@ config IPV6_SUBTREES
 	  Enable routing by source address or prefix.
 
 	  The destination address is still the primary routing key, so mixing
-	  normal and source prefix specific routes in the same routing table
+	  analrmal and source prefix specific routes in the same routing table
 	  may sometimes lead to unintended routing behavior.  This can be
-	  avoided by defining different routing tables for the normal and
+	  avoided by defining different routing tables for the analrmal and
 	  source prefix specific routes.
 
 	  If unsure, say N.
@@ -271,7 +271,7 @@ config IPV6_MROUTE_MULTIPLE_TABLES
 	depends on IPV6_MROUTE
 	select FIB_RULES
 	help
-	  Normally, a multicast router runs a userspace daemon and decides
+	  Analrmally, a multicast router runs a userspace daemon and decides
 	  what to do with a multicast packet based on the source and
 	  destination addresses. If you say Y here, the multicast router
 	  will also be able to take interfaces and packet marks into

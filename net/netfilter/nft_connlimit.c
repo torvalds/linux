@@ -72,14 +72,14 @@ static int nft_connlimit_do_init(const struct nft_ctx *ctx,
 	if (tb[NFTA_CONNLIMIT_FLAGS]) {
 		flags = ntohl(nla_get_be32(tb[NFTA_CONNLIMIT_FLAGS]));
 		if (flags & ~NFT_CONNLIMIT_F_INV)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (flags & NFT_CONNLIMIT_F_INV)
 			invert = true;
 	}
 
 	priv->list = kmalloc(sizeof(*priv->list), GFP_KERNEL_ACCOUNT);
 	if (!priv->list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nf_conncount_list_init(priv->list);
 	priv->limit	= limit;
@@ -217,7 +217,7 @@ static int nft_connlimit_clone(struct nft_expr *dst, const struct nft_expr *src)
 
 	priv_dst->list = kmalloc(sizeof(*priv_dst->list), GFP_ATOMIC);
 	if (!priv_dst->list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nf_conncount_list_init(priv_dst->list);
 	priv_dst->limit	 = priv_src->limit;

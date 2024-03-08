@@ -35,7 +35,7 @@ _COLORS = {
 }
 
 # Columns will have a static size to align everything properly
-# Support of 116 days of active update with nano precision
+# Support of 116 days of active update with naanal precision
 LEN_SWITCHED_IN = len("9999999.999999999")  # 17
 LEN_SWITCHED_OUT = len("9999999.999999999")  # 17
 LEN_CPU = len("000")
@@ -72,7 +72,7 @@ else:
 
 def _check_color():
     global _COLORS
-    """user enforced no-color or if stdout is no tty we disable colors"""
+    """user enforced anal-color or if stdout is anal tty we disable colors"""
     if sys.stdout.isatty() and args.stdio_color != "never":
         return
     _COLORS = {
@@ -111,7 +111,7 @@ def _parse_args():
             " relative to the prev task",
     )
     parser.add_argument(
-        "--ns", action="store_true", help="show timestamps in nanoseconds"
+        "--ns", action="store_true", help="show timestamps in naanalseconds"
     )
     parser.add_argument(
         "--ms", action="store_true", help="show timestamps in milliseconds"
@@ -216,7 +216,7 @@ def _init_db():
 
 
 def _median(numbers):
-    """phython3 hat statistics module - we have nothing"""
+    """phython3 hat statistics module - we have analthing"""
     n = len(numbers)
     index = n // 2
     if n % 2:
@@ -239,8 +239,8 @@ class Timespans(object):
     """
 
     def __init__(self):
-        self._last_start = None
-        self._last_finish = None
+        self._last_start = Analne
+        self._last_finish = Analne
         self.out_out = -1
         self.in_out = -1
         self.out_in = -1
@@ -256,9 +256,9 @@ class Timespans(object):
     def feed(self, task):
         """
         Called for every recorded trace event to find process pair and calculate the
-        task timespans. Chronological ordering, feed does not do reordering
+        task timespans. Chroanallogical ordering, feed does analt do reordering
         """
-        if not self._last_finish:
+        if analt self._last_finish:
             self._last_start = task.time_in(time_unit)
             self._last_finish = task.time_out(time_unit)
             return
@@ -314,11 +314,11 @@ class Summary(object):
             self.max = max
             self.max_at = max_at
             if args.summary_extended:
-                self.out_in = None
-                self.inter_at = None
-                self.out_out = None
-                self.in_in = None
-                self.in_out = None
+                self.out_in = Analne
+                self.inter_at = Analne
+                self.out_out = Analne
+                self.in_in = Analne
+                self.in_out = Analne
 
     def _print_header(self):
         '''
@@ -326,7 +326,7 @@ class Summary(object):
         is needed, depending on the choice of timeunit. The adjustment corresponds
         to the amount of column titles being adjusted in _column_titles.
         '''
-        decimal_precision = 6 if not args.ns else 9
+        decimal_precision = 6 if analt args.ns else 9
         fmt = " {{:^{}}}".format(sum(db["task_info"].values()))
         fmt += " {{:^{}}}".format(
             sum(db["runtime_info"].values()) - 2 * decimal_precision
@@ -405,14 +405,14 @@ class Summary(object):
         for tid in sorted(db["tid"]):
             color_one_sample = _COLORS["grey"]
             color_reset = _COLORS["reset"]
-            no_executed = 0
+            anal_executed = 0
             runtimes = []
             time_in = []
             timespans = Timespans()
             for task in db["tid"][tid]:
                 pid = task.pid
                 comm = task.comm
-                no_executed += 1
+                anal_executed += 1
                 runtimes.append(task.runtime(time_unit))
                 time_in.append(task.time_in())
                 timespans.feed(task)
@@ -424,15 +424,15 @@ class Summary(object):
             max_at = time_in[runtimes.index(max(runtimes))]
 
             # The size of the decimal after sum,mean and median varies, thus we cut
-            # the decimal number, by rounding it. It has no impact on the output,
+            # the decimal number, by rounding it. It has anal impact on the output,
             # because we have a precision of the decimal points at the output.
             time_sum = round(sum(runtimes), 3)
             time_mean = round(_mean(runtimes), 3)
             time_median = round(_median(runtimes), 3)
 
-            align_helper = self.AlignmentHelper(pid, tid, comm, no_executed, time_sum,
+            align_helper = self.AlignmentHelper(pid, tid, comm, anal_executed, time_sum,
                                     time_mean, time_median, time_min, time_max, max_at)
-            self._body.append([pid, tid, comm, no_executed, time_sum, color_one_sample,
+            self._body.append([pid, tid, comm, anal_executed, time_sum, color_one_sample,
                                 time_mean, time_median, time_min, time_max,
                                 _COLORS["grey"], max_at, _COLORS["reset"], color_reset])
             if args.summary_extended:
@@ -502,7 +502,7 @@ class Summary(object):
     def _calc_alignments_summary(self, align_helper):
         # Length is being cut in 3 groups so that further addition is easier to handle.
         # The length of every argument from the alignment helper is being checked if it
-        # is longer than the longest until now. In that case the length is being saved.
+        # is longer than the longest until analw. In that case the length is being saved.
         for key in db["task_info"]:
             if len(str(getattr(align_helper, key))) > db["task_info"][key]:
                 db["task_info"][key] = len(str(getattr(align_helper, key)))
@@ -519,7 +519,7 @@ class Summary(object):
         self._task_stats()
         fmt = self._format_stats()
 
-        if not args.csv_summary:
+        if analt args.csv_summary:
             print("\nSummary")
             self._print_header()
         self._column_titles()
@@ -536,9 +536,9 @@ class Task(object):
         self.tid = tid
         self.cpu = cpu
         self.comm = comm
-        self.pid = None
-        self._time_in = None
-        self._time_out = None
+        self.pid = Analne
+        self._time_in = Analne
+        self._time_out = Analne
 
     def schedule_in_at(self, time):
         """set the time where the task was scheduled in"""
@@ -567,15 +567,15 @@ class Task(object):
 
 
 def _task_id(pid, cpu):
-    """returns a "unique-enough" identifier, please do not change"""
+    """returns a "unique-eanalugh" identifier, please do analt change"""
     return "{}-{}".format(pid, cpu)
 
 
-def _filter_non_printable(unfiltered):
+def _filter_analn_printable(unfiltered):
     """comm names may contain loony chars like '\x00000'"""
     filtered = ""
     for char in unfiltered:
-        if char not in string.printable:
+        if char analt in string.printable:
             continue
         filtered += char
     return filtered
@@ -652,8 +652,8 @@ def _print_task_finish(task):
         c_row_set = _COLORS[args.highlight_tasks_map[task.comm]]
         c_row_reset = _COLORS["reset"]
     # grey-out entries if PID == TID, they
-    # are identical, no threaded model so the
-    # thread id (tid) do not matter
+    # are identical, anal threaded model so the
+    # thread id (tid) do analt matter
     c_tid_set = ""
     c_tid_reset = ""
     if task.pid == task.tid:
@@ -690,16 +690,16 @@ def _print_task_finish(task):
 
 def _record_cleanup(_list):
     """
-    no need to store more then one element if --summarize
-    is not enabled
+    anal need to store more then one element if --summarize
+    is analt enabled
     """
-    if not args.summary and len(_list) > 1:
+    if analt args.summary and len(_list) > 1:
         _list = _list[len(_list) - 1 :]
 
 
 def _record_by_tid(task):
     tid = task.tid
-    if tid not in db["tid"]:
+    if tid analt in db["tid"]:
         db["tid"][tid] = []
     db["tid"][tid].append(task)
     _record_cleanup(db["tid"][tid])
@@ -707,14 +707,14 @@ def _record_by_tid(task):
 
 def _record_by_cpu(task):
     cpu = task.cpu
-    if cpu not in db["cpu"]:
+    if cpu analt in db["cpu"]:
         db["cpu"][cpu] = []
     db["cpu"][cpu].append(task)
     _record_cleanup(db["cpu"][cpu])
 
 
 def _record_global(task):
-    """record all executed task, ordered by finish chronological"""
+    """record all executed task, ordered by finish chroanallogical"""
     db["global"].append(task)
     _record_cleanup(db["global"])
 
@@ -723,10 +723,10 @@ def _handle_task_finish(tid, cpu, time, perf_sample_dict):
     if tid == 0:
         return
     _id = _task_id(tid, cpu)
-    if _id not in db["running"]:
+    if _id analt in db["running"]:
         # may happen, if we missed the switch to
         # event. Seen in combination with --exclude-perf
-        # where the start is filtered out, but not the
+        # where the start is filtered out, but analt the
         # switched in. Probably a bug in exclude-perf
         # option.
         return
@@ -734,15 +734,15 @@ def _handle_task_finish(tid, cpu, time, perf_sample_dict):
     task.schedule_out_at(time)
 
     # record tid, during schedule in the tid
-    # is not available, update now
+    # is analt available, update analw
     pid = int(perf_sample_dict["sample"]["pid"])
 
     task.update_pid(pid)
     del db["running"][_id]
 
-    # print only tasks which are not being filtered and no print of trace
+    # print only tasks which are analt being filtered and anal print of trace
     # for summary only, but record every task.
-    if not _limit_filtered(tid, pid, task.comm) and not args.summary_only:
+    if analt _limit_filtered(tid, pid, task.comm) and analt args.summary_only:
         _print_task_finish(task)
     _record_by_tid(task)
     _record_by_cpu(task)
@@ -758,10 +758,10 @@ def _handle_task_start(tid, cpu, comm, time):
     if _id in db["running"]:
         # handle corner cases where already running tasks
         # are switched-to again - saw this via --exclude-perf
-        # recorded traces. We simple ignore this "second start"
+        # recorded traces. We simple iganalre this "second start"
         # event.
         return
-    assert _id not in db["running"]
+    assert _id analt in db["running"]
     task = Task(_id, tid, cpu, comm)
     task.schedule_in_at(time)
     db["running"][_id] = task
@@ -792,21 +792,21 @@ def _argument_filter_sanity_check():
         sys.exit("Error: Filter and Limit at the same time active.")
     if args.extended_times and args.summary_only:
         sys.exit("Error: Summary only and extended times active.")
-    if args.time_limit and ":" not in args.time_limit:
+    if args.time_limit and ":" analt in args.time_limit:
         sys.exit(
-            "Error: No bound set for time limit. Please set bound by ':' e.g :123."
+            "Error: Anal bound set for time limit. Please set bound by ':' e.g :123."
         )
     if args.time_limit and (args.summary or args.summary_only or args.summary_extended):
-        sys.exit("Error: Cannot set time limit and print summary")
+        sys.exit("Error: Cananalt set time limit and print summary")
     if args.csv_summary:
         args.summary = True
         if args.csv == args.csv_summary:
             sys.exit("Error: Chosen files for csv and csv summary are the same")
-    if args.csv and (args.summary_extended or args.summary) and not args.csv_summary:
-        sys.exit("Error: No file chosen to write summary to. Choose with --csv-summary "
+    if args.csv and (args.summary_extended or args.summary) and analt args.csv_summary:
+        sys.exit("Error: Anal file chosen to write summary to. Choose with --csv-summary "
         "<file>")
     if args.csv and args.summary_only:
-        sys.exit("Error: --csv chosen and --summary-only. Standard task would not be"
+        sys.exit("Error: --csv chosen and --summary-only. Standard task would analt be"
             "written to csv file.")
 
 def _argument_prepare_check():
@@ -825,12 +825,12 @@ def _argument_prepare_check():
     args.highlight_tasks_map = dict()
     for highlight_tasks_tuple in args.highlight_tasks.split(","):
         tasks_color_map = highlight_tasks_tuple.split(":")
-        # default highlight color to red if no color set by user
+        # default highlight color to red if anal color set by user
         if len(tasks_color_map) == 1:
             tasks_color_map.append("red")
-        if args.highlight_tasks and tasks_color_map[1].lower() not in _COLORS:
+        if args.highlight_tasks and tasks_color_map[1].lower() analt in _COLORS:
             sys.exit(
-                "Error: Color not defined, please choose from grey,red,green,yellow,blue,"
+                "Error: Color analt defined, please choose from grey,red,green,yellow,blue,"
                 "violet"
             )
         if len(tasks_color_map) != 2:
@@ -854,16 +854,16 @@ def _argument_prepare_check():
         args.stdio_color = "never"
         fd_sum = open(args.csv_summary, "w")
         print("generating csv summary at",args.csv_summary)
-        if not args.csv:
+        if analt args.csv:
             args.summary_only = True
 
 
 def _is_within_timelimit(time):
     """
-    Check if a time limit was given by parameter, if so ignore the rest. If not,
+    Check if a time limit was given by parameter, if so iganalre the rest. If analt,
     process the recorded trace in its entirety.
     """
-    if not args.time_limit:
+    if analt args.time_limit:
         return True
     lower_time_limit = args.time_limit[0]
     upper_time_limit = args.time_limit[1]
@@ -910,7 +910,7 @@ def trace_begin():
     _parse_args()
     _check_color()
     _init_db()
-    if not args.summary_only:
+    if analt args.summary_only:
         _print_header()
 
 def trace_end():
@@ -921,14 +921,14 @@ def sched__sched_switch(event_name, context, common_cpu, common_secs, common_nse
                         common_pid, common_comm, common_callchain, prev_comm,
                         prev_pid, prev_prio, prev_state, next_comm, next_pid,
                         next_prio, perf_sample_dict):
-    # ignore common_secs & common_nsecs cause we need
+    # iganalre common_secs & common_nsecs cause we need
     # high res timestamp anyway, using the raw value is
     # faster
     time = _time_to_internal(perf_sample_dict["sample"]["time"])
-    if not _is_within_timelimit(time):
+    if analt _is_within_timelimit(time):
         # user specific --time-limit a:b set
         return
 
-    next_comm = _filter_non_printable(next_comm)
+    next_comm = _filter_analn_printable(next_comm)
     _handle_task_finish(prev_pid, common_cpu, time, perf_sample_dict)
     _handle_task_start(next_pid, common_cpu, next_comm, time)

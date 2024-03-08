@@ -4,7 +4,7 @@
  *
  * The driver handles Error's from Control Backbone(CBB) version 2.0.
  * generated due to illegal accesses. The driver prints debug information
- * about failed transaction on receiving interrupt from Error Notifier.
+ * about failed transaction on receiving interrupt from Error Analtifier.
  * Error types supported by CBB2.0 are:
  *   UNSUPPORTED_ERR, PWRDOWN_ERR, TIMEOUT_ERR, FIREWALL_ERR, DECODE_ERR,
  *   SLAVE_ERR
@@ -97,7 +97,7 @@ struct tegra234_cbb_fabric {
 	unsigned int firewall_ctl;
 	unsigned int firewall_wr_ctl;
 	const char * const *master_id;
-	unsigned int notifier_offset;
+	unsigned int analtifier_offset;
 	const struct tegra_cbb_error *errors;
 	const int max_errors;
 	const struct tegra234_slave_lookup *slave_map;
@@ -162,7 +162,7 @@ tegra234_cbb_write_access_allowed(struct platform_device *pdev, struct tegra234_
 
 	/*
 	 * If the firewall check is enabled then check whether CCPLEX
-	 * has write access to the fabric's error notifier registers
+	 * has write access to the fabric's error analtifier registers
 	 */
 	val = readl(cbb->regs + cbb->fabric->firewall_base + cbb->fabric->firewall_wr_ctl);
 	if (val & (BIT(CCPLEX_MSTRID)))
@@ -176,7 +176,7 @@ static void tegra234_cbb_fault_enable(struct tegra_cbb *cbb)
 	struct tegra234_cbb *priv = to_tegra234_cbb(cbb);
 	void __iomem *addr;
 
-	addr = priv->regs + priv->fabric->notifier_offset;
+	addr = priv->regs + priv->fabric->analtifier_offset;
 	writel(0x1ff, addr + FABRIC_EN_CFG_INTERRUPT_ENABLE_0_0);
 	dsb(sy);
 }
@@ -195,7 +195,7 @@ static u32 tegra234_cbb_get_status(struct tegra_cbb *cbb)
 	void __iomem *addr;
 	u32 value;
 
-	addr = priv->regs + priv->fabric->notifier_offset;
+	addr = priv->regs + priv->fabric->analtifier_offset;
 	value = readl(addr + FABRIC_EN_CFG_STATUS_0_0);
 	dsb(sy);
 
@@ -269,8 +269,8 @@ static void tegra234_lookup_slave_timeout(struct seq_file *file, struct tegra234
 	void __iomem *addr;
 
 	/*
-	 * 1) Get slave node name and address mapping using slave_id.
-	 * 2) Check if the timed out slave node is APB or AXI.
+	 * 1) Get slave analde name and address mapping using slave_id.
+	 * 2) Check if the timed out slave analde is APB or AXI.
 	 * 3) If AXI, then print timeout register and reset axi slave
 	 *    using <FABRIC>_SN_<>_SLV_TIMEOUT_STATUS_0_0 register.
 	 * 4) If APB, then perform an additional lookup to find the client
@@ -354,7 +354,7 @@ static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 	bool is_numa = false;
 	u8 burst_type;
 
-	if (num_possible_nodes() > 1)
+	if (num_possible_analdes() > 1)
 		is_numa = true;
 
 	mstr_id = FIELD_GET(FAB_EM_EL_MSTRID, cbb->mn_user_bits);
@@ -363,11 +363,11 @@ static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 	falconsec = FIELD_GET(FAB_EM_EL_FALCONSEC, cbb->mn_user_bits);
 
 	/*
-	 * For SOC with multiple NUMA nodes, print cross socket access
+	 * For SOC with multiple NUMA analdes, print cross socket access
 	 * errors only if initiator/master_id is CCPLEX, CPMU or GPU.
 	 */
 	if (is_numa) {
-		local_socket_id = numa_node_id();
+		local_socket_id = numa_analde_id();
 		requester_socket_id = FIELD_GET(REQ_SOCKET_ID, cbb->mn_attr2);
 
 		if (requester_socket_id != local_socket_id) {
@@ -416,8 +416,8 @@ static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 				    requester_socket_id);
 		tegra_cbb_print_err(file, "\t  Local_Socket_Id\t: %#x\n",
 				    local_socket_id);
-		tegra_cbb_print_err(file, "\t  No. of NUMA_NODES\t: %#x\n",
-				    num_possible_nodes());
+		tegra_cbb_print_err(file, "\t  Anal. of NUMA_ANALDES\t: %#x\n",
+				    num_possible_analdes());
 	}
 
 	tegra_cbb_print_err(file, "\t  Fabric\t\t: %s\n", fabric_name);
@@ -451,8 +451,8 @@ static int print_errmonX_info(struct seq_file *file, struct tegra234_cbb *cbb)
 
 	status = readl(cbb->mon + FABRIC_MN_MASTER_ERR_STATUS_0);
 	if (!status) {
-		pr_err("Error Notifier received a spurious notification\n");
-		return -ENODATA;
+		pr_err("Error Analtifier received a spurious analtification\n");
+		return -EANALDATA;
 	}
 
 	if (status == 0xffffffff) {
@@ -496,7 +496,7 @@ static int print_errmonX_info(struct seq_file *file, struct tegra234_cbb *cbb)
 	return 0;
 }
 
-static int print_err_notifier(struct seq_file *file, struct tegra234_cbb *cbb, u32 status)
+static int print_err_analtifier(struct seq_file *file, struct tegra234_cbb *cbb, u32 status)
 {
 	unsigned int index = 0;
 	int err;
@@ -507,14 +507,14 @@ static int print_err_notifier(struct seq_file *file, struct tegra234_cbb *cbb, u
 
 	while (status) {
 		if (status & BIT(0)) {
-			unsigned int notifier = cbb->fabric->notifier_offset;
+			unsigned int analtifier = cbb->fabric->analtifier_offset;
 			u32 hi, lo, mask = BIT(index);
 			phys_addr_t addr;
 			u64 offset;
 
-			writel(mask, cbb->regs + notifier + FABRIC_EN_CFG_ADDR_INDEX_0_0);
-			hi = readl(cbb->regs + notifier + FABRIC_EN_CFG_ADDR_HI_0);
-			lo = readl(cbb->regs + notifier + FABRIC_EN_CFG_ADDR_LOW_0);
+			writel(mask, cbb->regs + analtifier + FABRIC_EN_CFG_ADDR_INDEX_0_0);
+			hi = readl(cbb->regs + analtifier + FABRIC_EN_CFG_ADDR_HI_0);
+			lo = readl(cbb->regs + analtifier + FABRIC_EN_CFG_ADDR_LOW_0);
 
 			addr = (u64)hi << 32 | lo;
 
@@ -545,13 +545,13 @@ static int tegra234_cbb_debugfs_show(struct tegra_cbb *cbb, struct seq_file *fil
 
 	mutex_lock(&cbb_debugfs_mutex);
 
-	list_for_each_entry(cbb, &cbb_list, node) {
+	list_for_each_entry(cbb, &cbb_list, analde) {
 		struct tegra234_cbb *priv = to_tegra234_cbb(cbb);
 		u32 status;
 
 		status = tegra_cbb_get_status(&priv->base);
 		if (status) {
-			err = print_err_notifier(file, priv, status);
+			err = print_err_analtifier(file, priv, status);
 			if (err)
 				break;
 		}
@@ -575,7 +575,7 @@ static irqreturn_t tegra234_cbb_isr(int irq, void *data)
 
 	spin_lock_irqsave(&cbb_lock, flags);
 
-	list_for_each_entry(cbb, &cbb_list, node) {
+	list_for_each_entry(cbb, &cbb_list, analde) {
 		struct tegra234_cbb *priv = to_tegra234_cbb(cbb);
 		u32 status = tegra_cbb_get_status(cbb);
 
@@ -584,7 +584,7 @@ static irqreturn_t tegra234_cbb_isr(int irq, void *data)
 					    smp_processor_id(), priv->fabric->name,
 					    priv->res->start, irq);
 
-			err = print_err_notifier(NULL, priv, status);
+			err = print_err_analtifier(NULL, priv, status);
 			if (err)
 				goto unlock;
 
@@ -649,7 +649,7 @@ static const char * const tegra234_master_id[] = {
 	[0x04] = "AON",
 	[0x05] = "SCE",
 	[0x06] = "GPCDMA_P",
-	[0x07] = "TSECA_NONSECURE",
+	[0x07] = "TSECA_ANALNSECURE",
 	[0x08] = "TSECA_LIGHTSECURE",
 	[0x09] = "TSECA_HEAVYSECURE",
 	[0x0a] = "CORESIGHT",
@@ -663,7 +663,7 @@ static const char * const tegra234_master_id[] = {
 	[0x12] = "PSC_FW_MACHINE",
 	[0x13] = "PSC_BOOT",
 	[0x14] = "BPMP_BOOT",
-	[0x15] = "NVDEC_NONSECURE",
+	[0x15] = "NVDEC_ANALNSECURE",
 	[0x16] = "NVDEC_LIGHTSECURE",
 	[0x17] = "NVDEC_HEAVYSECURE",
 	[0x18] = "CBB_INTERNAL",
@@ -682,7 +682,7 @@ static const struct tegra_cbb_error tegra234_cbb_errors[] = {
 		.desc = "Attempt to access a region which is firewall protected"
 	}, {
 		.code = "TIMEOUT_ERR",
-		.desc = "No response returned by slave"
+		.desc = "Anal response returned by slave"
 	}, {
 		.code = "PWRDOWN_ERR",
 		.desc = "Attempt to access a portion of fabric that is powered down"
@@ -706,7 +706,7 @@ static const struct tegra234_cbb_fabric tegra234_aon_fabric = {
 	.max_slaves = ARRAY_SIZE(tegra234_aon_slave_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
-	.notifier_offset = 0x17000,
+	.analtifier_offset = 0x17000,
 	.firewall_base = 0x30000,
 	.firewall_ctl = 0x8d0,
 	.firewall_wr_ctl = 0x8c8,
@@ -727,7 +727,7 @@ static const struct tegra234_cbb_fabric tegra234_bpmp_fabric = {
 	.max_slaves = ARRAY_SIZE(tegra234_bpmp_slave_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
-	.notifier_offset = 0x19000,
+	.analtifier_offset = 0x19000,
 	.firewall_base = 0x30000,
 	.firewall_ctl = 0x8f0,
 	.firewall_wr_ctl = 0x8e8,
@@ -804,7 +804,7 @@ static const struct tegra234_cbb_fabric tegra234_cbb_fabric = {
 	.max_slaves = ARRAY_SIZE(tegra234_cbb_slave_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
-	.notifier_offset = 0x60000,
+	.analtifier_offset = 0x60000,
 	.off_mask_erd = 0x3a004,
 	.firewall_base = 0x10000,
 	.firewall_ctl = 0x23f0,
@@ -827,7 +827,7 @@ static const struct tegra234_cbb_fabric tegra234_dce_fabric = {
 	.max_slaves = ARRAY_SIZE(tegra234_common_slave_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
-	.notifier_offset = 0x19000,
+	.analtifier_offset = 0x19000,
 	.firewall_base = 0x30000,
 	.firewall_ctl = 0x290,
 	.firewall_wr_ctl = 0x288,
@@ -840,7 +840,7 @@ static const struct tegra234_cbb_fabric tegra234_rce_fabric = {
 	.max_slaves = ARRAY_SIZE(tegra234_common_slave_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
-	.notifier_offset = 0x19000,
+	.analtifier_offset = 0x19000,
 	.firewall_base = 0x30000,
 	.firewall_ctl = 0x290,
 	.firewall_wr_ctl = 0x288,
@@ -853,7 +853,7 @@ static const struct tegra234_cbb_fabric tegra234_sce_fabric = {
 	.max_slaves = ARRAY_SIZE(tegra234_common_slave_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
-	.notifier_offset = 0x19000,
+	.analtifier_offset = 0x19000,
 	.firewall_base = 0x30000,
 	.firewall_ctl = 0x290,
 	.firewall_wr_ctl = 0x288,
@@ -885,7 +885,7 @@ static const char * const tegra241_master_id[] = {
  *   level firewall(SCR), address hole within the slave, etc
  *
  * TIMEOUT_ERR:
- * No response returned by slave. Can be due to slave being clock
+ * Anal response returned by slave. Can be due to slave being clock
  * gated, under reset, powered down or slave inability to respond
  * for an internal slave issue
  */
@@ -901,7 +901,7 @@ static const struct tegra_cbb_error tegra241_cbb_errors[] = {
 		.desc = "Attempt to access a region which is firewalled."
 	}, {
 		.code = "TIMEOUT_ERR",
-		.desc = "No response returned by slave."
+		.desc = "Anal response returned by slave."
 	}, {
 		.code = "PWRDOWN_ERR",
 		.desc = "Attempt to access a portion of the fabric that is powered down."
@@ -930,12 +930,12 @@ static const struct tegra_cbb_error tegra241_cbb_errors[] = {
 	}, {
 		.code = "RSVD"
 	}, {
-		.code = "NO_SUCH_ADDRESS_ERR",
-		.desc = "The address belongs to the pri_target range but there is no register "
+		.code = "ANAL_SUCH_ADDRESS_ERR",
+		.desc = "The address belongs to the pri_target range but there is anal register "
 			"implemented at the address."
 	}, {
 		.code = "TASK_ERR",
-		.desc = "Attempt to update a PRI task when the current task has still not "
+		.desc = "Attempt to update a PRI task when the current task has still analt "
 			"completed."
 	}, {
 		.code = "EXTERNAL_ERR",
@@ -1037,7 +1037,7 @@ static const struct tegra234_cbb_fabric tegra241_cbb_fabric = {
 	.max_slaves = ARRAY_SIZE(tegra241_cbb_slave_map),
 	.errors = tegra241_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra241_cbb_errors),
-	.notifier_offset = 0x60000,
+	.analtifier_offset = 0x60000,
 	.off_mask_erd = 0x40004,
 	.firewall_base = 0x20000,
 	.firewall_ctl = 0x2370,
@@ -1062,7 +1062,7 @@ static const struct tegra234_cbb_fabric tegra241_bpmp_fabric = {
 	.max_slaves = ARRAY_SIZE(tegra241_bpmp_slave_map),
 	.errors = tegra241_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra241_cbb_errors),
-	.notifier_offset = 0x19000,
+	.analtifier_offset = 0x19000,
 	.firewall_base = 0x30000,
 	.firewall_ctl = 0x8f0,
 	.firewall_wr_ctl = 0x8e8,
@@ -1117,25 +1117,25 @@ static int tegra234_cbb_probe(struct platform_device *pdev)
 	unsigned long flags = 0;
 	int err;
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		fabric = of_device_get_match_data(&pdev->dev);
 	} else {
 		struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 		if (!device)
-			return -ENODEV;
+			return -EANALDEV;
 
 		fabric = tegra234_cbb_acpi_get_fabric(device);
 		if (!fabric) {
-			dev_err(&pdev->dev, "no device match found\n");
-			return -ENODEV;
+			dev_err(&pdev->dev, "anal device match found\n");
+			return -EANALDEV;
 		}
 	}
 
 	cbb = devm_kzalloc(&pdev->dev, sizeof(*cbb), GFP_KERNEL);
 	if (!cbb)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	INIT_LIST_HEAD(&cbb->base.node);
+	INIT_LIST_HEAD(&cbb->base.analde);
 	cbb->base.ops = &tegra234_cbb_ops;
 	cbb->base.dev = &pdev->dev;
 	cbb->fabric = fabric;
@@ -1155,12 +1155,12 @@ static int tegra234_cbb_probe(struct platform_device *pdev)
 	 * is blocked by CBB firewall.
 	 */
 	if (!tegra234_cbb_write_access_allowed(pdev, cbb)) {
-		dev_info(&pdev->dev, "error reporting not enabled due to firewall\n");
+		dev_info(&pdev->dev, "error reporting analt enabled due to firewall\n");
 		return 0;
 	}
 
 	spin_lock_irqsave(&cbb_lock, flags);
-	list_add(&cbb->base.node, &cbb_list);
+	list_add(&cbb->base.analde, &cbb_list);
 	spin_unlock_irqrestore(&cbb_lock, flags);
 
 	/* set ERD bit to mask SError and generate interrupt to report error */
@@ -1170,7 +1170,7 @@ static int tegra234_cbb_probe(struct platform_device *pdev)
 	return tegra_cbb_register(&cbb->base);
 }
 
-static int __maybe_unused tegra234_cbb_resume_noirq(struct device *dev)
+static int __maybe_unused tegra234_cbb_resume_analirq(struct device *dev)
 {
 	struct tegra234_cbb *cbb = dev_get_drvdata(dev);
 
@@ -1182,7 +1182,7 @@ static int __maybe_unused tegra234_cbb_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops tegra234_cbb_pm = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, tegra234_cbb_resume_noirq)
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(NULL, tegra234_cbb_resume_analirq)
 };
 
 static struct platform_driver tegra234_cbb_driver = {

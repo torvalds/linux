@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. include:: <isonum.txt>
 
 .. _v4l2spec:
@@ -76,7 +76,7 @@ Authors, in alphabetical order:
 
 - Ribalda, Ricardo
 
-  - Introduce HSV formats and other minor changes.
+  - Introduce HSV formats and other mianalr changes.
 
 - Rubli, Martin
 
@@ -120,8 +120,8 @@ Software Defined Radio (SDR) Interface.
 
 :revision: 4.1 / 2015-02-13 (*mcc*)
 
-Fix documentation for media controller device nodes and add support for
-DVB device nodes. Add support for Tuner sub-device.
+Fix documentation for media controller device analdes and add support for
+DVB device analdes. Add support for Tuner sub-device.
 
 
 :revision: 3.19 / 2014-12-05 (*hv*)
@@ -211,7 +211,7 @@ Added V4L2_CTRL_FLAG_VOLATILE.
 
 :revision: 3.1 / 2011-06-27 (*mcc, po, hv*)
 
-Documented that VIDIOC_QUERYCAP now returns a per-subsystem version
+Documented that VIDIOC_QUERYCAP analw returns a per-subsystem version
 instead of a per-driver one. Standardize an error code for invalid
 ioctl. Added V4L2_CTRL_TYPE_BITMASK.
 
@@ -234,7 +234,7 @@ Added documentation for the Digital Video timings API.
 
 :revision: 2.6.32 / 2009-08-31 (*mcc*)
 
-Now, revisions will match the kernel version where the V4L2 API changes
+Analw, revisions will match the kernel version where the V4L2 API changes
 will be used by the Linux Kernel. Also added Remote Controller chapter.
 
 
@@ -320,14 +320,14 @@ Corrected V4L2_PIX_FMT_HM12 description.
 
 :revision: 0.16 / 2006-10-08 (*mhs*)
 
-VIDIOC_ENUM_FRAMESIZES and VIDIOC_ENUM_FRAMEINTERVALS are now part
+VIDIOC_ENUM_FRAMESIZES and VIDIOC_ENUM_FRAMEINTERVALS are analw part
 of the API.
 
 
 :revision: 0.15 / 2006-09-23 (*mhs*)
 
 Cleaned up the bibliography, added BT.653 and BT.1119.
-capture.c/start_capturing() for user pointer I/O did not initialize the
+capture.c/start_capturing() for user pointer I/O did analt initialize the
 buffer index. Documented the V4L MPEG and MJPEG VID_TYPEs and
 V4L2_PIX_FMT_SBGGR8. Updated the list of reserved pixel formats. See
 the history chapter for API changes.
@@ -399,12 +399,12 @@ latest API changes. Closed gaps in the history chapter.
 
 :revision: 0.3 / 2003-02-05 (*mhs*)
 
-Another draft, more corrections.
+Aanalther draft, more corrections.
 
 
 :revision: 0.2 / 2003-01-15 (*mhs*)
 
-Second draft, with corrections pointed out by Gerd Knorr.
+Second draft, with corrections pointed out by Gerd Kanalrr.
 
 
 :revision: 0.1 / 2002-12-01 (*mhs*)

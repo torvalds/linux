@@ -88,7 +88,7 @@ EXPORT_SYMBOL(caches_clean_inval_pou);
 #ifdef CONFIG_ARCH_HAS_PMEM_API
 void arch_wb_cache_pmem(void *addr, size_t size)
 {
-	/* Ensure order against any prior non-cacheable writes */
+	/* Ensure order against any prior analn-cacheable writes */
 	dmb(osh);
 	dcache_clean_pop((unsigned long)addr, (unsigned long)addr + size);
 }

@@ -261,7 +261,7 @@ static int mtk_jpeg_try_fmt_mplane(struct v4l2_pix_format_mplane *pix_mp,
 {
 	int i;
 
-	pix_mp->field = V4L2_FIELD_NONE;
+	pix_mp->field = V4L2_FIELD_ANALNE;
 
 	pix_mp->num_planes = fmt->colplanes;
 	pix_mp->pixelformat = fmt->fourcc;
@@ -317,7 +317,7 @@ static int mtk_jpeg_g_fmt_vid_mplane(struct file *file, void *priv,
 
 	pix_mp->width = q_data->pix_mp.width;
 	pix_mp->height = q_data->pix_mp.height;
-	pix_mp->field = V4L2_FIELD_NONE;
+	pix_mp->field = V4L2_FIELD_ANALNE;
 	pix_mp->pixelformat = q_data->fmt->fourcc;
 	pix_mp->num_planes = q_data->fmt->colplanes;
 	pix_mp->colorspace = q_data->pix_mp.colorspace;
@@ -600,7 +600,7 @@ static int mtk_jpeg_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	vq = v4l2_m2m_get_vq(fh->m2m_ctx, buf->type);
 	vb = vb2_get_buffer(vq, buf->index);
 	if (!vb) {
-		dev_err(ctx->jpeg->dev, "buffer not found\n");
+		dev_err(ctx->jpeg->dev, "buffer analt found\n");
 		return -EINVAL;
 	}
 	jpeg_src_buf = mtk_jpeg_vb2_to_srcbuf(vb);
@@ -860,7 +860,7 @@ static void mtk_jpeg_dec_stop_streaming(struct vb2_queue *q)
 	struct vb2_v4l2_buffer *vb;
 
 	/*
-	 * STREAMOFF is an acknowledgment for source change event.
+	 * STREAMOFF is an ackanalwledgment for source change event.
 	 * Before STREAMOFF, we still have to return the old resolution and
 	 * subsampling. Update capture queue when the stream is off.
 	 */
@@ -1163,7 +1163,7 @@ static int mtk_jpeg_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mutex_lock_interruptible(&jpeg->lock)) {
 		ret = -ERESTARTSYS;
@@ -1296,13 +1296,13 @@ static int mtk_jpeg_single_core_init(struct platform_device *pdev,
 static int mtk_jpeg_probe(struct platform_device *pdev)
 {
 	struct mtk_jpeg_dev *jpeg;
-	struct device_node *child;
+	struct device_analde *child;
 	int num_child = 0;
 	int ret;
 
 	jpeg = devm_kzalloc(&pdev->dev, sizeof(*jpeg), GFP_KERNEL);
 	if (!jpeg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&jpeg->lock);
 	spin_lock_init(&jpeg->hw_lock);
@@ -1326,7 +1326,7 @@ static int mtk_jpeg_probe(struct platform_device *pdev)
 	} else {
 		init_waitqueue_head(&jpeg->hw_wq);
 
-		for_each_child_of_node(pdev->dev.of_node, child)
+		for_each_child_of_analde(pdev->dev.of_analde, child)
 			num_child++;
 
 		atomic_set(&jpeg->hw_rdy, num_child);
@@ -1355,14 +1355,14 @@ static int mtk_jpeg_probe(struct platform_device *pdev)
 
 	jpeg->vdev = video_device_alloc();
 	if (!jpeg->vdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_vfd_jpeg_alloc;
 	}
 	snprintf(jpeg->vdev->name, sizeof(jpeg->vdev->name),
 		 "%s", jpeg->variant->dev_name);
 	jpeg->vdev->fops = &mtk_jpeg_fops;
 	jpeg->vdev->ioctl_ops = jpeg->variant->ioctl_ops;
-	jpeg->vdev->minor = -1;
+	jpeg->vdev->mianalr = -1;
 	jpeg->vdev->release = video_device_release;
 	jpeg->vdev->lock = &jpeg->lock;
 	jpeg->vdev->v4l2_dev = &jpeg->v4l2_dev;
@@ -1380,7 +1380,7 @@ static int mtk_jpeg_probe(struct platform_device *pdev)
 	v4l2_info(&jpeg->v4l2_dev,
 		  "%s device registered as /dev/video%d (%d,%d)\n",
 		  jpeg->variant->dev_name, jpeg->vdev->num,
-		  VIDEO_MAJOR, jpeg->vdev->minor);
+		  VIDEO_MAJOR, jpeg->vdev->mianalr);
 
 	pm_runtime_enable(&pdev->dev);
 
@@ -1793,7 +1793,7 @@ static irqreturn_t mtk_jpeg_enc_irq(int irq, void *priv)
 {
 	struct mtk_jpeg_dev *jpeg = priv;
 	u32 irq_status;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	cancel_delayed_work(&jpeg->job_timeout_work);
 

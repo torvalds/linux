@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -71,8 +71,8 @@
 #define AR5416_EEPROM_START_ADDR(_ah) \
 	(AR_SREV_9100(_ah)) ? 0x1fff1000 : 0x503f1200
 
-#define SD_NO_CTL               0xE0
-#define NO_CTL                  0xff
+#define SD_ANAL_CTL               0xE0
+#define ANAL_CTL                  0xff
 #define CTL_MODE_M              0xf
 #define CTL_11A                 0
 #define CTL_11B                 1
@@ -94,7 +94,7 @@
 #define POWER_CORRECTION_FOR_THREE_CHAIN	10 /* 10*log10(3)*2 */
 
 /*
- * For AR9285 and later chipsets, the following bits are not being programmed
+ * For AR9285 and later chipsets, the following bits are analt being programmed
  * in EEPROM and so need to be enabled always.
  *
  * Bit 0: en_fcc_mid
@@ -129,21 +129,21 @@
 #define AR5416_OPFLAGS_N_5G_HT20     0x10
 #define AR5416_OPFLAGS_N_2G_HT20     0x20
 
-#define AR5416_EEP_NO_BACK_VER       0x1
+#define AR5416_EEP_ANAL_BACK_VER       0x1
 #define AR5416_EEP_VER               0xE
 #define AR5416_EEP_VER_MAJOR_SHIFT   12
 #define AR5416_EEP_VER_MAJOR_MASK    0xF000
-#define AR5416_EEP_VER_MINOR_MASK    0x0FFF
-#define AR5416_EEP_MINOR_VER_2       0x2
-#define AR5416_EEP_MINOR_VER_3       0x3
-#define AR5416_EEP_MINOR_VER_7       0x7
-#define AR5416_EEP_MINOR_VER_9       0x9
-#define AR5416_EEP_MINOR_VER_16      0x10
-#define AR5416_EEP_MINOR_VER_17      0x11
-#define AR5416_EEP_MINOR_VER_19      0x13
-#define AR5416_EEP_MINOR_VER_20      0x14
-#define AR5416_EEP_MINOR_VER_21      0x15
-#define AR5416_EEP_MINOR_VER_22      0x16
+#define AR5416_EEP_VER_MIANALR_MASK    0x0FFF
+#define AR5416_EEP_MIANALR_VER_2       0x2
+#define AR5416_EEP_MIANALR_VER_3       0x3
+#define AR5416_EEP_MIANALR_VER_7       0x7
+#define AR5416_EEP_MIANALR_VER_9       0x9
+#define AR5416_EEP_MIANALR_VER_16      0x10
+#define AR5416_EEP_MIANALR_VER_17      0x11
+#define AR5416_EEP_MIANALR_VER_19      0x13
+#define AR5416_EEP_MIANALR_VER_20      0x14
+#define AR5416_EEP_MIANALR_VER_21      0x15
+#define AR5416_EEP_MIANALR_VER_22      0x16
 
 #define AR5416_NUM_5G_CAL_PIERS         8
 #define AR5416_NUM_2G_CAL_PIERS         4
@@ -189,12 +189,12 @@
 #define AR9280_TX_GAIN_TABLE_SIZE 22
 
 #define AR9287_EEP_VER               0xE
-#define AR9287_EEP_MINOR_VER_1       0x1
-#define AR9287_EEP_MINOR_VER_2       0x2
-#define AR9287_EEP_MINOR_VER_3       0x3
-#define AR9287_EEP_MINOR_VER         AR9287_EEP_MINOR_VER_3
-#define AR9287_EEP_MINOR_VER_b       AR9287_EEP_MINOR_VER
-#define AR9287_EEP_NO_BACK_VER       AR9287_EEP_MINOR_VER_1
+#define AR9287_EEP_MIANALR_VER_1       0x1
+#define AR9287_EEP_MIANALR_VER_2       0x2
+#define AR9287_EEP_MIANALR_VER_3       0x3
+#define AR9287_EEP_MIANALR_VER         AR9287_EEP_MIANALR_VER_3
+#define AR9287_EEP_MIANALR_VER_b       AR9287_EEP_MIANALR_VER
+#define AR9287_EEP_ANAL_BACK_VER       AR9287_EEP_MIANALR_VER_1
 
 #define AR9287_EEP_START_LOC            128
 #define AR9287_HTC_EEP_START_LOC        256
@@ -349,7 +349,7 @@ struct modal_eep_header {
 	u8 txEndToRxOn;
 	u8 txFrameToXpaOn;
 	u8 thresh62;
-	u8 noiseFloorThreshCh[AR5416_MAX_CHAINS];
+	u8 analiseFloorThreshCh[AR5416_MAX_CHAINS];
 	u8 xpdGain;
 	u8 xpd;
 	u8 iqCalICh[AR5416_MAX_CHAINS];
@@ -399,7 +399,7 @@ struct modal_eep_4k_header {
 	u8 txEndToRxOn;
 	u8 txFrameToXpaOn;
 	u8 thresh62;
-	u8 noiseFloorThreshCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 analiseFloorThreshCh[AR5416_EEP4K_MAX_CHAINS];
 	u8 xpdGain;
 	u8 xpd;
 	u8 iqCalICh[AR5416_EEP4K_MAX_CHAINS];
@@ -484,7 +484,7 @@ struct modal_eep_ar9287_header {
 	u8 txEndToRxOn;
 	u8 txFrameToXpaOn;
 	u8 thresh62;
-	int8_t noiseFloorThreshCh[AR9287_MAX_CHAINS];
+	int8_t analiseFloorThreshCh[AR9287_MAX_CHAINS];
 	u8 xpdGain;
 	u8 xpd;
 	int8_t iqCalICh[AR9287_MAX_CHAINS];
@@ -638,7 +638,7 @@ enum reg_ext_bitmap {
 	REG_EXT_FCC_MIDBAND = 0,
 	REG_EXT_JAPAN_MIDBAND = 1,
 	REG_EXT_FCC_DFS_HT40 = 2,
-	REG_EXT_JAPAN_NONDFS_HT40 = 3,
+	REG_EXT_JAPAN_ANALNDFS_HT40 = 3,
 	REG_EXT_JAPAN_DFS_HT40 = 4
 };
 

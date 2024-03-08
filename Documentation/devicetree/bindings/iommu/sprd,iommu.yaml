@@ -18,7 +18,7 @@ properties:
   "#iommu-cells":
     const: 0
     description:
-      Unisoc IOMMUs are all single-master IOMMU devices, therefore no
+      Unisoc IOMMUs are all single-master IOMMU devices, therefore anal
       additional information needs to associate with its master device.
       Please refer to the generic bindings document for more details,
       Documentation/devicetree/bindings/iommu/iommu.txt
@@ -29,7 +29,7 @@ properties:
   clocks:
     description:
       Reference to a gate clock phandle, since access to some of IOMMUs are
-      controlled by gate clock, but this is not required.
+      controlled by gate clock, but this is analt required.
 
 required:
   - compatible

@@ -34,7 +34,7 @@ MODULE_PARM_DESC(emulated_formats, "enable emulated formats (disappears in futur
  *     bNumEndpoints           1
  *       bEndpointAddress     0x81  EP 1 IN
  *       bmAttributes            1
- *         Transfer Type            Isochronous
+ *         Transfer Type            Isochroanalus
  *       wMaxPacketSize     0x1400  3x 1024 bytes
  *       bInterval               1
  */
@@ -46,7 +46,7 @@ MODULE_PARM_DESC(emulated_formats, "enable emulated formats (disappears in futur
 
 /*
  * TODO: These formats should be moved to V4L2 API. Formats are currently
- * disabled from formats[] table, not visible to userspace.
+ * disabled from formats[] table, analt visible to userspace.
  */
  /* signed 12-bit */
 #define MSI2500_PIX_FMT_SDR_S12         v4l2_fourcc('D', 'S', '1', '2')
@@ -114,7 +114,7 @@ struct msi2500_dev {
 	struct list_head queued_bufs;
 	spinlock_t queued_bufs_lock; /* Protects queued_bufs */
 
-	/* Note if taking both locks v4l2_lock must always be locked first! */
+	/* Analte if taking both locks v4l2_lock must always be locked first! */
 	struct mutex v4l2_lock;      /* Protects everything else */
 	struct mutex vb_queue_lock;  /* Protects vb_queue and capt_file */
 
@@ -260,7 +260,7 @@ static int msi2500_convert_stream(struct msi2500_dev *dev, u8 *dst, u8 *src,
 		}
 
 		/*
-		 * Dump all unknown 'garbage' data - maybe we will discover
+		 * Dump all unkanalwn 'garbage' data - maybe we will discover
 		 * someday if there is something rational...
 		 */
 		dev_dbg_ratelimited(dev->dev, "%*ph\n", 12, &src[4]);
@@ -305,7 +305,7 @@ static int msi2500_convert_stream(struct msi2500_dev *dev, u8 *dst, u8 *src,
 			break;
 		}
 		case MSI2500_PIX_FMT_SDR_MSI2500_384: /* 384 x IQ samples */
-			/* Dump unknown 'garbage' data */
+			/* Dump unkanalwn 'garbage' data */
 			dev_dbg_ratelimited(dev->dev, "%*ph\n", 24, &src[1000]);
 			memcpy(dst, src, 984);
 			src += 984 + 24;
@@ -357,8 +357,8 @@ static int msi2500_convert_stream(struct msi2500_dev *dev, u8 *dst, u8 *src,
 }
 
 /*
- * This gets called for the Isochronous pipe (stream). This is done in interrupt
- * time, so it has to be fast, not crash, and not stall. Neat.
+ * This gets called for the Isochroanalus pipe (stream). This is done in interrupt
+ * time, so it has to be fast, analt crash, and analt stall. Neat.
  */
 static void msi2500_isoc_handler(struct urb *urb)
 {
@@ -367,11 +367,11 @@ static void msi2500_isoc_handler(struct urb *urb)
 	unsigned char *iso_buf = NULL;
 	struct msi2500_frame_buf *fbuf;
 
-	if (unlikely(urb->status == -ENOENT ||
+	if (unlikely(urb->status == -EANALENT ||
 		     urb->status == -ECONNRESET ||
 		     urb->status == -ESHUTDOWN)) {
-		dev_dbg(dev->dev, "URB (%p) unlinked %ssynchronously\n",
-			urb, urb->status == -ENOENT ? "" : "a");
+		dev_dbg(dev->dev, "URB (%p) unlinked %ssynchroanalusly\n",
+			urb, urb->status == -EANALENT ? "" : "a");
 		return;
 	}
 
@@ -494,7 +494,7 @@ static int msi2500_isoc_init(struct msi2500_dev *dev)
 		urb = usb_alloc_urb(ISO_FRAMES_PER_DESC, GFP_KERNEL);
 		if (urb == NULL) {
 			msi2500_isoc_cleanup(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		dev->urbs[i] = urb;
 		dev_dbg(dev->dev, "Allocated URB at 0x%p\n", urb);
@@ -502,7 +502,7 @@ static int msi2500_isoc_init(struct msi2500_dev *dev)
 		urb->interval = 1;
 		urb->dev = dev->udev;
 		urb->pipe = usb_rcvisocpipe(dev->udev, 0x81);
-		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_ANAL_TRANSFER_DMA_MAP;
 		urb->transfer_buffer = usb_alloc_coherent(dev->udev,
 				ISO_BUFFER_SIZE,
 				GFP_KERNEL, &urb->transfer_dma);
@@ -510,7 +510,7 @@ static int msi2500_isoc_init(struct msi2500_dev *dev)
 			dev_err(dev->dev,
 				"Failed to allocate urb buffer %d\n", i);
 			msi2500_isoc_cleanup(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		urb->transfer_buffer_length = ISO_BUFFER_SIZE;
 		urb->complete = msi2500_isoc_handler;
@@ -570,7 +570,7 @@ static void msi2500_disconnect(struct usb_interface *intf)
 
 	mutex_lock(&dev->vb_queue_lock);
 	mutex_lock(&dev->v4l2_lock);
-	/* No need to keep the urbs around after disconnection */
+	/* Anal need to keep the urbs around after disconnection */
 	dev->udev = NULL;
 	v4l2_device_disconnect(&dev->v4l2_dev);
 	video_unregister_device(&dev->vdev);
@@ -621,7 +621,7 @@ static void msi2500_buf_queue(struct vb2_buffer *vb)
 						     vb);
 	unsigned long flags;
 
-	/* Check the device has not disconnected between prep and queuing */
+	/* Check the device has analt disconnected between prep and queuing */
 	if (unlikely(!dev->udev)) {
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		return;
@@ -635,7 +635,7 @@ static void msi2500_buf_queue(struct vb2_buffer *vb)
 #define CMD_WREG               0x41
 #define CMD_START_STREAMING    0x43
 #define CMD_STOP_STREAMING     0x45
-#define CMD_READ_UNKNOWN       0x48
+#define CMD_READ_UNKANALWN       0x48
 
 #define msi2500_dbg_usb_control_msg(_dev, _r, _t, _v, _i, _b, _l) { \
 	char *_direction; \
@@ -831,7 +831,7 @@ static int msi2500_start_streaming(struct vb2_queue *vq, unsigned int count)
 	dev_dbg(dev->dev, "\n");
 
 	if (!dev->udev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (mutex_lock_interruptible(&dev->v4l2_lock))
 		return -ERESTARTSYS;
@@ -1174,7 +1174,7 @@ static int msi2500_probe(struct usb_interface *intf,
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1198,10 +1198,10 @@ static int msi2500_probe(struct usb_interface *intf,
 	dev->vb_queue.buf_struct_size = sizeof(struct msi2500_frame_buf);
 	dev->vb_queue.ops = &msi2500_vb2_ops;
 	dev->vb_queue.mem_ops = &vb2_vmalloc_memops;
-	dev->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	dev->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	ret = vb2_queue_init(&dev->vb_queue);
 	if (ret) {
-		dev_err(dev->dev, "Could not initialize vb2 queue\n");
+		dev_err(dev->dev, "Could analt initialize vb2 queue\n");
 		goto err_free_mem;
 	}
 
@@ -1222,7 +1222,7 @@ static int msi2500_probe(struct usb_interface *intf,
 	/* SPI master adapter */
 	master = spi_alloc_master(dev->dev, 0);
 	if (master == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unregister_v4l2_dev;
 	}
 
@@ -1241,8 +1241,8 @@ static int msi2500_probe(struct usb_interface *intf,
 	sd = v4l2_spi_new_subdev(&dev->v4l2_dev, master, &board_info);
 	dev->v4l2_subdev = sd;
 	if (sd == NULL) {
-		dev_err(dev->dev, "cannot get v4l2 subdevice\n");
-		ret = -ENODEV;
+		dev_err(dev->dev, "cananalt get v4l2 subdevice\n");
+		ret = -EANALDEV;
 		goto err_unregister_master;
 	}
 
@@ -1250,7 +1250,7 @@ static int msi2500_probe(struct usb_interface *intf,
 	v4l2_ctrl_handler_init(&dev->hdl, 0);
 	if (dev->hdl.error) {
 		ret = dev->hdl.error;
-		dev_err(dev->dev, "Could not initialize controls\n");
+		dev_err(dev->dev, "Could analt initialize controls\n");
 		goto err_free_controls;
 	}
 
@@ -1270,8 +1270,8 @@ static int msi2500_probe(struct usb_interface *intf,
 		goto err_unregister_v4l2_dev;
 	}
 	dev_info(dev->dev, "Registered as %s\n",
-		 video_device_node_name(&dev->vdev));
-	dev_notice(dev->dev,
+		 video_device_analde_name(&dev->vdev));
+	dev_analtice(dev->dev,
 		   "SDR API is still slightly experimental and functionality changes may follow\n");
 	return 0;
 err_free_controls:

@@ -49,7 +49,7 @@ static void zap_early_initrd_mapping(void)
 static inline void zap_early_initrd_mapping(void) { }
 #endif
 
-asmlinkage __visible void __init __noreturn i386_start_kernel(void)
+asmlinkage __visible void __init __analreturn i386_start_kernel(void)
 {
 	/* Make sure IDT is set up before any exception happens */
 	idt_setup_early_handler();
@@ -87,9 +87,9 @@ asmlinkage __visible void __init __noreturn i386_start_kernel(void)
  * and PAGE_OFFSET for up to _end.
  *
  * In PAE mode initial_page_table is statically defined to contain
- * enough entries to cover the VMSPLIT option (that is the top 1, 2 or 3
+ * eanalugh entries to cover the VMSPLIT option (that is the top 1, 2 or 3
  * entries). The identity mapping is handled by pointing two PGD entries
- * to the first kernel PMD. Note the upper half of each PMD or PTE are
+ * to the first kernel PMD. Analte the upper half of each PMD or PTE are
  * always zero at this stage.
  */
 #ifdef CONFIG_X86_PAE
@@ -102,7 +102,7 @@ typedef pgd_t			pl2_t;
 #define SET_PL2(val)		{ .pgd = (val), }
 #endif
 
-static __init __no_stack_protector pte_t init_map(pte_t pte, pte_t **ptep, pl2_t **pl2p,
+static __init __anal_stack_protector pte_t init_map(pte_t pte, pte_t **ptep, pl2_t **pl2p,
 						  const unsigned long limit)
 {
 	while ((pte.pte & PTE_PFN_MASK) < limit) {
@@ -125,23 +125,23 @@ static __init __no_stack_protector pte_t init_map(pte_t pte, pte_t **ptep, pl2_t
 	return pte;
 }
 
-void __init __no_stack_protector mk_early_pgtbl_32(void)
+void __init __anal_stack_protector mk_early_pgtbl_32(void)
 {
-	/* Enough space to fit pagetables for the low memory linear map */
-	unsigned long limit = __pa_nodebug(_end) + (PAGE_TABLE_SIZE(LOWMEM_PAGES) << PAGE_SHIFT);
-	pte_t pte, *ptep = (pte_t *)__pa_nodebug(__brk_base);
+	/* Eanalugh space to fit pagetables for the low memory linear map */
+	unsigned long limit = __pa_analdebug(_end) + (PAGE_TABLE_SIZE(LOWMEM_PAGES) << PAGE_SHIFT);
+	pte_t pte, *ptep = (pte_t *)__pa_analdebug(__brk_base);
 	struct boot_params __maybe_unused *params;
-	pl2_t *pl2p = (pl2_t *)__pa_nodebug(pl2_base);
+	pl2_t *pl2p = (pl2_t *)__pa_analdebug(pl2_base);
 	unsigned long *ptr;
 
 	pte.pte = PTE_IDENT_ATTR;
 	pte = init_map(pte, &ptep, &pl2p, limit);
 
-	ptr = (unsigned long *)__pa_nodebug(&max_pfn_mapped);
+	ptr = (unsigned long *)__pa_analdebug(&max_pfn_mapped);
 	/* Can't use pte_pfn() since it's a call with CONFIG_PARAVIRT */
 	*ptr = (pte.pte & PTE_PFN_MASK) >> PAGE_SHIFT;
 
-	ptr = (unsigned long *)__pa_nodebug(&_brk_end);
+	ptr = (unsigned long *)__pa_analdebug(&_brk_end);
 	*ptr = (unsigned long)ptep + PAGE_OFFSET;
 
 #ifdef CONFIG_MICROCODE_INITRD32
@@ -149,17 +149,17 @@ void __init __no_stack_protector mk_early_pgtbl_32(void)
 	if (native_cpuid_ecx(1) & BIT(31))
 		return;
 
-	params = (struct boot_params *)__pa_nodebug(&boot_params);
+	params = (struct boot_params *)__pa_analdebug(&boot_params);
 	if (!params->hdr.ramdisk_size || !params->hdr.ramdisk_image)
 		return;
 
 	/* Save the virtual start address */
-	ptr = (unsigned long *)__pa_nodebug(&initrd_start_early);
+	ptr = (unsigned long *)__pa_analdebug(&initrd_start_early);
 	*ptr = (pte.pte & PTE_PFN_MASK) + PAGE_OFFSET;
 	*ptr += ((unsigned long)params->hdr.ramdisk_image) & ~PAGE_MASK;
 
 	/* Save PLP2 for cleanup */
-	ptr = (unsigned long *)__pa_nodebug(&initrd_pl2p_start);
+	ptr = (unsigned long *)__pa_analdebug(&initrd_pl2p_start);
 	*ptr = (unsigned long)pl2p + PAGE_OFFSET;
 
 	limit = (unsigned long)params->hdr.ramdisk_image;
@@ -168,7 +168,7 @@ void __init __no_stack_protector mk_early_pgtbl_32(void)
 
 	init_map(pte, &ptep, &pl2p, limit);
 
-	ptr = (unsigned long *)__pa_nodebug(&initrd_pl2p_end);
+	ptr = (unsigned long *)__pa_analdebug(&initrd_pl2p_end);
 	*ptr = (unsigned long)pl2p + PAGE_OFFSET;
 #endif
 }

@@ -525,7 +525,7 @@
 
 		opp-128000000 {
 			opp-hz = /bits/ 64 <128000000>;
-			required-opps = <&rpmpd_opp_nom>;
+			required-opps = <&rpmpd_opp_analm>;
 		};
 	};
 
@@ -536,90 +536,90 @@
 
 		hyp_mem: hypervisor@80000000 {
 			reg = <0 0x80000000 0 0x600000>;
-			no-map;
+			anal-map;
 		};
 
 		xbl_aop_mem: xbl-aop@80700000 {
 			reg = <0 0x80700000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		reserved_xbl_uefi: xbl-uefi-res@80880000 {
 			reg = <0 0x80880000 0 0x14000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_mem: smem@80900000 {
 			compatible = "qcom,smem";
 			reg = <0 0x80900000 0 0x200000>;
 			hwlocks = <&tcsr_mutex 3>;
-			no-map;
+			anal-map;
 		};
 
 		fw_mem: fw@80b00000 {
 			reg = <0 0x80b00000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		cdsp_secure_heap_mem: cdsp-sec-heap@80c00000 {
 			reg = <0 0x80c00000 0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		dfps_data_mem: dpfs-data@85e00000 {
 			reg = <0 0x85e00000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_wlan_mem: pil-wlan@86500000 {
 			reg = <0 0x86500000 0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_adsp_mem: pil-adsp@86700000 {
 			reg = <0 0x86700000 0 0x2000000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_cdsp_mem: pil-cdsp@88700000 {
 			reg = <0 0x88700000 0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_video_mem: pil-video@8a500000 {
 			reg = <0 0x8a500000 0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_ipa_fw_mem: pil-ipa-fw@8aa00000 {
 			reg = <0 0x8aa00000 0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_ipa_gsi_mem: pil-ipa-gsi@8aa10000 {
 			reg = <0 0x8aa10000 0 0xa000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_gpu_micro_code_mem: pil-gpu-ucode@8aa1a000 {
 			reg = <0 0x8aa1a000 0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_mpss_wlan_mem: pil-mpss-wlan@8b800000 {
 			reg = <0 0x8b800000 0 0x10000000>;
-			no-map;
+			anal-map;
 		};
 
 		removed_mem: removed@c0000000 {
 			reg = <0 0xc0000000 0 0x5100000>;
-			no-map;
+			anal-map;
 		};
 
 		rmtfs_mem: rmtfs@f3900000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0 0xf3900000 0 0x280000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA QCOM_SCM_VMID_NAV>;
@@ -627,17 +627,17 @@
 
 		debug_mem: debug@ffb00000 {
 			reg = <0 0xffb00000 0 0xc0000>;
-			no-map;
+			anal-map;
 		};
 
 		last_log_mem: lastlog@ffbc0000 {
 			reg = <0 0xffbc0000 0 0x80000>;
-			no-map;
+			anal-map;
 		};
 
 		cmdline_region: cmdline@ffd00000 {
 			reg = <0 0xffd00000 0 0x1000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -691,20 +691,20 @@
 							opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
 						};
 
-						rpmpd_opp_nom: opp6 {
-							opp-level = <RPM_SMD_LEVEL_NOM>;
+						rpmpd_opp_analm: opp6 {
+							opp-level = <RPM_SMD_LEVEL_ANALM>;
 						};
 
-						rpmpd_opp_nom_plus: opp7 {
-							opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
+						rpmpd_opp_analm_plus: opp7 {
+							opp-level = <RPM_SMD_LEVEL_ANALM_PLUS>;
 						};
 
 						rpmpd_opp_turbo: opp8 {
 							opp-level = <RPM_SMD_LEVEL_TURBO>;
 						};
 
-						rpmpd_opp_turbo_no_cpr: opp9 {
-							opp-level = <RPM_SMD_LEVEL_TURBO_NO_CPR>;
+						rpmpd_opp_turbo_anal_cpr: opp9 {
+							opp-level = <RPM_SMD_LEVEL_TURBO_ANAL_CPR>;
 						};
 					};
 				};
@@ -1214,9 +1214,9 @@
 			};
 
 			/*
-			 * As per GCC, QUP3/4/5/11 also exist, but are not even defined downstream.
-			 * There is a comment in the included DTSI of another SoC saying that they
-			 * are not "bolled out" (probably meaning not routed to solder balls)
+			 * As per GCC, QUP3/4/5/11 also exist, but are analt even defined downstream.
+			 * There is a comment in the included DTSI of aanalther SoC saying that they
+			 * are analt "bolled out" (probably meaning analt routed to solder balls)
 			 * TLMM driver however, suggests there are as many as 15 QUPs in total!
 			 * Most of which don't even have pin configurations for.. Sad stuff!
 			 */
@@ -1413,13 +1413,13 @@
 			compatible = "qcom,sm6375-dwc3", "qcom,dwc3";
 			reg = <0 0x04ef8800 0 0x400>;
 
-			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
+			clocks = <&gcc GCC_CFG_ANALC_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
-				 <&gcc GCC_SYS_NOC_USB3_PRIM_AXI_CLK>,
+				 <&gcc GCC_SYS_ANALC_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_SLEEP_CLK>,
 				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
 				 <&gcc GCC_USB3_PRIM_CLKREF_CLK>;
-			clock-names = "cfg_noc",
+			clock-names = "cfg_analc",
 				      "core",
 				      "iface",
 				      "sleep",
@@ -1445,7 +1445,7 @@
 
 			/*
 			 * This property is there to allow USB2 to work, as
-			 * USB3 is not implemented yet - (re)move it when
+			 * USB3 is analt implemented yet - (re)move it when
 			 * proper support is in place.
 			 */
 			qcom,select-utmi-as-pipe-clk;
@@ -1465,7 +1465,7 @@
 				phy-names = "usb2-phy";
 				iommus = <&apps_smmu 0xe0 0x0>;
 
-				/* Yes, this impl *does* have an unfunny number of quirks.. */
+				/* Anal, this impl *does* have an unfunny number of quirks.. */
 				snps,hird-threshold = /bits/ 8 <0x10>;
 				snps,usb2-gadget-lpm-disable;
 				snps,dis_u2_susphy_quirk;
@@ -1478,7 +1478,7 @@
 			};
 		};
 
-		adreno_smmu: iommu@5940000 {
+		adreanal_smmu: iommu@5940000 {
 			compatible = "qcom,sm6375-smmu-v2", "qcom,smmu-v2";
 			reg = <0 0x05940000 0 0x10000>;
 			#iommu-cells = <1>;
@@ -1494,7 +1494,7 @@
 				     <GIC_SPI 463 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 464 IRQ_TYPE_LEVEL_HIGH>;
 
-			clocks = <&gcc GCC_GPU_MEMNOC_GFX_CLK>;
+			clocks = <&gcc GCC_GPU_MEMANALC_GFX_CLK>;
 			clock-names = "bus";
 
 			power-domains = <&gpucc GPU_CX_GDSC>;
@@ -1506,7 +1506,7 @@
 			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
 				 <&gcc GCC_GPU_GPLL0_CLK_SRC>,
 				 <&gcc GCC_GPU_GPLL0_DIV_CLK_SRC>,
-				 <&gcc GCC_GPU_SNOC_DVM_GFX_CLK>;
+				 <&gcc GCC_GPU_SANALC_DVM_GFX_CLK>;
 			power-domains = <&rpmpd SM6375_VDDGX>;
 			required-opps = <&rpmpd_opp_low_svs>;
 			#clock-cells = <1>;
@@ -1712,8 +1712,8 @@
 				     <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>;
 
-			power-domains = <&gcc HLOS1_VOTE_MM_SNOC_MMU_TBU_RT_GDSC>,
-					<&gcc HLOS1_VOTE_MM_SNOC_MMU_TBU_NRT_GDSC>,
+			power-domains = <&gcc HLOS1_VOTE_MM_SANALC_MMU_TBU_RT_GDSC>,
+					<&gcc HLOS1_VOTE_MM_SANALC_MMU_TBU_NRT_GDSC>,
 					<&gcc HLOS1_VOTE_TURING_MMU_TBU0_GDSC>;
 			#global-interrupts = <1>;
 			#iommu-cells = <2>;

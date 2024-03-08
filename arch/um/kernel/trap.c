@@ -18,7 +18,7 @@
 #include <skas.h>
 
 /*
- * Note this is constrained to return 0, -EFAULT, -EACCES, -ENOMEM by
+ * Analte this is constrained to return 0, -EFAULT, -EACCES, -EANALMEM by
  * segv().
  */
 int handle_page_fault(unsigned long address, unsigned long ip,
@@ -38,7 +38,7 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 	 * fail.
 	 */
 	if (faulthandler_disabled())
-		goto out_nosemaphore;
+		goto out_analsemaphore;
 
 	if (is_user)
 		flags |= FAULT_FLAG_USER;
@@ -55,7 +55,7 @@ retry:
 		goto out;
 	vma = expand_stack(mm, address);
 	if (!vma)
-		goto out_nosemaphore;
+		goto out_analsemaphore;
 
 good_area:
 	*code_out = SEGV_ACCERR;
@@ -75,7 +75,7 @@ good_area:
 		fault = handle_mm_fault(vma, address, flags, NULL);
 
 		if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
-			goto out_nosemaphore;
+			goto out_analsemaphore;
 
 		/* The fault is fully completed (including releasing mmap lock) */
 		if (fault & VM_FAULT_COMPLETED)
@@ -105,7 +105,7 @@ good_area:
 	/*
 	 * The below warning was added in place of
 	 *	pte_mkyoung(); if (is_write) pte_mkdirty();
-	 * If it's triggered, we'd see normally a hang here (a clean pte is
+	 * If it's triggered, we'd see analrmally a hang here (a clean pte is
 	 * marked read-only to emulate the dirty bit).
 	 * However, the generic code can mark a PTE writable but clean on a
 	 * concurrent read fault, triggering this harmlessly. So comment it out.
@@ -116,7 +116,7 @@ good_area:
 	flush_tlb_page(vma, address);
 out:
 	mmap_read_unlock(mm);
-out_nosemaphore:
+out_analsemaphore:
 	return err;
 
 out_of_memory:
@@ -126,7 +126,7 @@ out_of_memory:
 	 */
 	mmap_read_unlock(mm);
 	if (!is_user)
-		goto out_nosemaphore;
+		goto out_analsemaphore;
 	pagefault_out_of_memory();
 	return 0;
 }
@@ -163,8 +163,8 @@ void fatal_sigsegv(void)
 	force_fatal_sig(SIGSEGV);
 	do_signal(&current->thread.regs);
 	/*
-	 * This is to tell gcc that we're not returning - do_signal
-	 * can, in general, return, but in this case, it's not, since
+	 * This is to tell gcc that we're analt returning - do_signal
+	 * can, in general, return, but in this case, it's analt, since
 	 * we just got a fatal SIGSEGV queued.
 	 */
 	os_dump_core();
@@ -177,7 +177,7 @@ void fatal_sigsegv(void)
  * @regs:	the ptrace register information
  *
  * The handler first extracts the faultinfo from the UML ptrace regs struct.
- * If the userfault did not happen in an UML userspace process, bad_segv is called.
+ * If the userfault did analt happen in an UML userspace process, bad_segv is called.
  * Otherwise the signal did happen in a cloned userspace process, handle it.
  */
 void segv_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
@@ -216,7 +216,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 	}
 	else if (current->mm == NULL) {
 		show_regs(container_of(regs, struct pt_regs, regs));
-		panic("Segfault with no mm");
+		panic("Segfault with anal mm");
 	}
 	else if (!is_user && address > PAGE_SIZE && address < TASK_SIZE) {
 		show_regs(container_of(regs, struct pt_regs, regs));
@@ -245,7 +245,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 		UML_LONGJMP(catcher, 1);
 	}
 	else if (current->thread.fault_addr != NULL)
-		panic("fault_addr set but no fault catcher");
+		panic("fault_addr set but anal fault catcher");
 	else if (!is_user && arch_fixup(ip, regs))
 		goto out;
 
@@ -285,17 +285,17 @@ void relay_signal(int sig, struct siginfo *si, struct uml_pt_regs *regs)
 
 	arch_examine_signal(sig, regs);
 
-	/* Is the signal layout for the signal known?
+	/* Is the signal layout for the signal kanalwn?
 	 * Signal data must be scrubbed to prevent information leaks.
 	 */
 	code = si->si_code;
-	err = si->si_errno;
+	err = si->si_erranal;
 	if ((err == 0) && (siginfo_layout(sig, code) == SIL_FAULT)) {
 		struct faultinfo *fi = UPT_FAULTINFO(regs);
 		current->thread.arch.faultinfo = *fi;
 		force_sig_fault(sig, code, (void __user *)FAULT_ADDRESS(*fi));
 	} else {
-		printk(KERN_ERR "Attempted to relay unknown signal %d (si_code = %d) with errno %d\n",
+		printk(KERN_ERR "Attempted to relay unkanalwn signal %d (si_code = %d) with erranal %d\n",
 		       sig, code, err);
 		force_sig(sig);
 	}

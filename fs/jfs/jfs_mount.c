@@ -6,27 +6,27 @@
 /*
  * Module: jfs_mount.c
  *
- * note: file system in transition to aggregate/fileset:
+ * analte: file system in transition to aggregate/fileset:
  *
  * file system mount is interpreted as the mount of aggregate,
- * if not already mounted, and mount of the single/only fileset in
+ * if analt already mounted, and mount of the single/only fileset in
  * the aggregate;
  *
- * a file system/aggregate is represented by an internal inode
- * (aka mount inode) initialized with aggregate superblock;
- * each vfs represents a fileset, and points to its "fileset inode
- * allocation map inode" (aka fileset inode):
+ * a file system/aggregate is represented by an internal ianalde
+ * (aka mount ianalde) initialized with aggregate superblock;
+ * each vfs represents a fileset, and points to its "fileset ianalde
+ * allocation map ianalde" (aka fileset ianalde):
  * (an aggregate itself is structured recursively as a filset:
- * an internal vfs is constructed and points to its "fileset inode
- * allocation map inode" (aka aggregate inode) where each inode
- * represents a fileset inode) so that inode number is mapped to
- * on-disk inode in uniform way at both aggregate and fileset level;
+ * an internal vfs is constructed and points to its "fileset ianalde
+ * allocation map ianalde" (aka aggregate ianalde) where each ianalde
+ * represents a fileset ianalde) so that ianalde number is mapped to
+ * on-disk ianalde in uniform way at both aggregate and fileset level;
  *
- * each vnode/inode of a fileset is linked to its vfs (to facilitate
- * per fileset inode operations, e.g., unmount of a fileset, etc.);
- * each inode points to the mount inode (to facilitate access to
+ * each vanalde/ianalde of a fileset is linked to its vfs (to facilitate
+ * per fileset ianalde operations, e.g., unmount of a fileset, etc.);
+ * each ianalde points to the mount ianalde (to facilitate access to
  * per aggregate information, e.g., block size, etc.) as well as
- * its file set inode.
+ * its file set ianalde.
  *
  *   aggregate
  *   ipmnt
@@ -64,21 +64,21 @@ static int logMOUNT(struct super_block *sb);
  * RETURN:	-EBUSY	- device already mounted or open for write
  *		-EBUSY	- cvrdvp already mounted;
  *		-EBUSY	- mount table full
- *		-ENOTDIR- cvrdvp not directory on a device mount
+ *		-EANALTDIR- cvrdvp analt directory on a device mount
  *		-ENXIO	- device open failure
  */
 int jfs_mount(struct super_block *sb)
 {
 	int rc = 0;		/* Return code */
 	struct jfs_sb_info *sbi = JFS_SBI(sb);
-	struct inode *ipaimap = NULL;
-	struct inode *ipaimap2 = NULL;
-	struct inode *ipimap = NULL;
-	struct inode *ipbmap = NULL;
+	struct ianalde *ipaimap = NULL;
+	struct ianalde *ipaimap2 = NULL;
+	struct ianalde *ipimap = NULL;
+	struct ianalde *ipbmap = NULL;
 
 	/*
 	 * read/validate superblock
-	 * (initialize mount inode from the superblock)
+	 * (initialize mount ianalde from the superblock)
 	 */
 	if ((rc = chkSuper(sb))) {
 		goto out;
@@ -95,7 +95,7 @@ int jfs_mount(struct super_block *sb)
 	jfs_info("jfs_mount: ipaimap:0x%p", ipaimap);
 
 	/*
-	 * initialize aggregate inode allocation map
+	 * initialize aggregate ianalde allocation map
 	 */
 	if ((rc = diMount(ipaimap))) {
 		jfs_err("jfs_mount: diMount(ipaimap) failed w/rc = %d", rc);
@@ -124,14 +124,14 @@ int jfs_mount(struct super_block *sb)
 	}
 
 	/*
-	 * open the secondary aggregate inode allocation map
+	 * open the secondary aggregate ianalde allocation map
 	 *
-	 * This is a duplicate of the aggregate inode allocation map.
+	 * This is a duplicate of the aggregate ianalde allocation map.
 	 *
 	 * hand craft a vfs in the same fashion as we did to read ipaimap.
-	 * By adding INOSPEREXT (32) to the inode number, we are telling
+	 * By adding IANALSPEREXT (32) to the ianalde number, we are telling
 	 * diReadSpecial that we are reading from the secondary aggregate
-	 * inode table.  This also creates a unique entry in the inode hash
+	 * ianalde table.  This also creates a unique entry in the ianalde hash
 	 * table.
 	 */
 	if ((sbi->mntflag & JFS_BAD_SAIT) == 0) {
@@ -146,7 +146,7 @@ int jfs_mount(struct super_block *sb)
 		jfs_info("jfs_mount: ipaimap2:0x%p", ipaimap2);
 
 		/*
-		 * initialize secondary aggregate inode allocation map
+		 * initialize secondary aggregate ianalde allocation map
 		 */
 		if ((rc = diMount(ipaimap2))) {
 			jfs_err("jfs_mount: diMount(ipaimap2) failed, rc = %d",
@@ -154,31 +154,31 @@ int jfs_mount(struct super_block *sb)
 			goto err_ipaimap2;
 		}
 	} else
-		/* Secondary aggregate inode table is not valid */
+		/* Secondary aggregate ianalde table is analt valid */
 		sbi->ipaimap2 = NULL;
 
 	/*
 	 *	mount (the only/single) fileset
 	 */
 	/*
-	 * open fileset inode allocation map (aka fileset inode)
+	 * open fileset ianalde allocation map (aka fileset ianalde)
 	 */
 	ipimap = diReadSpecial(sb, FILESYSTEM_I, 0);
 	if (ipimap == NULL) {
 		jfs_err("jfs_mount: Failed to read FILESYSTEM_I");
-		/* open fileset secondary inode allocation map */
+		/* open fileset secondary ianalde allocation map */
 		rc = -EIO;
 		goto err_umount_ipaimap2;
 	}
 	jfs_info("jfs_mount: ipimap:0x%p", ipimap);
 
-	/* initialize fileset inode allocation map */
+	/* initialize fileset ianalde allocation map */
 	if ((rc = diMount(ipimap))) {
 		jfs_err("jfs_mount: diMount failed w/rc = %d", rc);
 		goto err_ipimap;
 	}
 
-	/* map further access of per fileset inodes by the fileset inode */
+	/* map further access of per fileset ianaldes by the fileset ianalde */
 	sbi->ipimap = ipimap;
 
 	return rc;
@@ -187,23 +187,23 @@ int jfs_mount(struct super_block *sb)
 	 *	unwind on error
 	 */
 err_ipimap:
-	/* close fileset inode allocation map inode */
+	/* close fileset ianalde allocation map ianalde */
 	diFreeSpecial(ipimap);
 err_umount_ipaimap2:
-	/* close secondary aggregate inode allocation map */
+	/* close secondary aggregate ianalde allocation map */
 	if (ipaimap2)
 		diUnmount(ipaimap2, 1);
 err_ipaimap2:
-	/* close aggregate inodes */
+	/* close aggregate ianaldes */
 	if (ipaimap2)
 		diFreeSpecial(ipaimap2);
 err_umount_ipbmap:	/* close aggregate block allocation map */
 	dbUnmount(ipbmap, 1);
-err_ipbmap:		/* close aggregate inodes */
+err_ipbmap:		/* close aggregate ianaldes */
 	diFreeSpecial(ipbmap);
-err_umount_ipaimap:	/* close aggregate inode allocation map */
+err_umount_ipaimap:	/* close aggregate ianalde allocation map */
 	diUnmount(ipaimap, 1);
-err_ipaimap:		/* close aggregate inodes */
+err_ipaimap:		/* close aggregate ianaldes */
 	diFreeSpecial(ipaimap);
 out:
 	if (rc)
@@ -225,15 +225,15 @@ int jfs_mount_rw(struct super_block *sb, int remount)
 
 	/*
 	 * If we are re-mounting a previously read-only volume, we want to
-	 * re-read the inode and block maps, since fsck.jfs may have updated
+	 * re-read the ianalde and block maps, since fsck.jfs may have updated
 	 * them.
 	 */
 	if (remount) {
 		if (chkSuper(sb) || (sbi->state != FM_CLEAN))
 			return -EINVAL;
 
-		truncate_inode_pages(sbi->ipimap->i_mapping, 0);
-		truncate_inode_pages(sbi->ipbmap->i_mapping, 0);
+		truncate_ianalde_pages(sbi->ipimap->i_mapping, 0);
+		truncate_ianalde_pages(sbi->ipbmap->i_mapping, 0);
 
 		IWRITE_LOCK(sbi->ipimap, RDWRLOCK_IMAP);
 		diUnmount(sbi->ipimap, 1);
@@ -282,7 +282,7 @@ int jfs_mount_rw(struct super_block *sb, int remount)
  *
  * returns
  *	0 with fragsize set if check successful
- *	error code if not successful
+ *	error code if analt successful
  */
 static int chkSuper(struct super_block *sb)
 {
@@ -372,7 +372,7 @@ static int chkSuper(struct super_block *sb)
 	}
 
 	/*
-	 * For now, ignore s_pbsize, l2bfactor.  All I/O going through buffer
+	 * For analw, iganalre s_pbsize, l2bfactor.  All I/O going through buffer
 	 * cache.
 	 */
 	sbi->nbperpage = PSIZE >> sbi->l2bsize;
@@ -397,7 +397,7 @@ static int chkSuper(struct super_block *sb)
 /*
  *	updateSuper()
  *
- * update synchronously superblock if it is mounted read-write.
+ * update synchroanalusly superblock if it is mounted read-write.
  */
 int updateSuper(struct super_block *sb, uint state)
 {
@@ -406,7 +406,7 @@ int updateSuper(struct super_block *sb, uint state)
 	struct buffer_head *bh;
 	int rc;
 
-	if (sbi->flag & JFS_NOINTEGRITY) {
+	if (sbi->flag & JFS_ANALINTEGRITY) {
 		if (state == FM_DIRTY) {
 			sbi->p_state = state;
 			return 0;
@@ -480,7 +480,7 @@ int readSuper(struct super_block *sb, struct buffer_head **bpp)
  * for this file system past this point in log.
  * it is harmless if mount fails.
  *
- * note: MOUNT record is at aggregate level, not at fileset level,
+ * analte: MOUNT record is at aggregate level, analt at fileset level,
  * since log records of previous mounts of a fileset
  * (e.g., AFTER record of extent allocation) have to be processed
  * to update block allocation map at aggregate level.

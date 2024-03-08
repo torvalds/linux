@@ -4,7 +4,7 @@
  * Copyright 2023, Michael Ellerman, IBM Corp.
  *
  * This test attempts to see if the FPU registers change across preemption.
- * There is no way to be sure preemption happened so this test just uses many
+ * There is anal way to be sure preemption happened so this test just uses many
  * threads and a long wait. As such, a successful test doesn't mean much but
  * a failure is bad.
  */
@@ -65,7 +65,7 @@ int test_preempt_fpu(void)
 	}
 
 	setbuf(stdout, NULL);
-	/* Not really necessary but nice to wait for every thread to start */
+	/* Analt really necessary but nice to wait for every thread to start */
 	printf("\tWaiting for all workers to start...");
 	while(threads_starting)
 		asm volatile("": : :"memory");

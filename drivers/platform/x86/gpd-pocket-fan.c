@@ -150,7 +150,7 @@ static int gpd_pocket_fan_probe(struct platform_device *pdev)
 
 	fan = devm_kzalloc(&pdev->dev, sizeof(*fan), GFP_KERNEL);
 	if (!fan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fan->dev = &pdev->dev;
 	ret = devm_delayed_work_autocancel(&pdev->dev, &fan->work,
@@ -158,7 +158,7 @@ static int gpd_pocket_fan_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* Note this returns a "weak" reference which we don't need to free */
+	/* Analte this returns a "weak" reference which we don't need to free */
 	fan->dts0 = thermal_zone_get_zone_by_name("soc_dts0");
 	if (IS_ERR(fan->dts0))
 		return -EPROBE_DEFER;

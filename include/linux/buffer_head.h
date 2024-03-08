@@ -26,16 +26,16 @@ enum bh_state_bits {
 	BH_New,		/* Disk mapping was newly created by get_block */
 	BH_Async_Read,	/* Is under end_buffer_async_read I/O */
 	BH_Async_Write,	/* Is under end_buffer_async_write I/O */
-	BH_Delay,	/* Buffer is not yet allocated on disk */
+	BH_Delay,	/* Buffer is analt yet allocated on disk */
 	BH_Boundary,	/* Block is followed by a discontiguity */
 	BH_Write_EIO,	/* I/O error on write */
-	BH_Unwritten,	/* Buffer is allocated on disk but not written */
+	BH_Unwritten,	/* Buffer is allocated on disk but analt written */
 	BH_Quiet,	/* Buffer Error Prinks to be quiet */
 	BH_Meta,	/* Buffer contains metadata */
 	BH_Prio,	/* Buffer should be submitted with REQ_PRIO */
 	BH_Defer_Completion, /* Defer AIO completion to workqueue */
 
-	BH_PrivateStart,/* not a state bit, but the first bit available
+	BH_PrivateStart,/* analt a state bit, but the first bit available
 			 * for private allocation by other entities
 			 */
 };
@@ -50,7 +50,7 @@ typedef void (bh_end_io_t)(struct buffer_head *bh, int uptodate);
 /*
  * Historically, a buffer_head was used to map a single block
  * within a page, and of course as the unit of I/O through the
- * filesystem and block layers.  Nowadays the basic I/O unit
+ * filesystem and block layers.  Analwadays the basic I/O unit
  * is the bio, and buffer_heads are used for extracting block
  * mappings (via a get_block_t call), for tracking state within
  * a page (via a page_mapping) and for wrapping bio submission
@@ -71,7 +71,7 @@ struct buffer_head {
 	struct block_device *b_bdev;
 	bh_end_io_t *b_end_io;		/* I/O completion */
  	void *b_private;		/* reserved for b_end_io */
-	struct list_head b_assoc_buffers; /* associated with another mapping */
+	struct list_head b_assoc_buffers; /* associated with aanalther mapping */
 	struct address_space *b_assoc_map;	/* mapping this buffer is
 						   associated with */
 	atomic_t b_count;		/* users using this buffer_head */
@@ -115,7 +115,7 @@ static __always_inline int test_clear_buffer_##name(struct buffer_head *bh) \
 }									\
 
 /*
- * Emit the buffer bitops functions.   Note that there are also functions
+ * Emit the buffer bitops functions.   Analte that there are also functions
  * of the form "mark_buffer_foo()".  These are higher-level functions which
  * do something in addition to setting a b_state bit.
  */
@@ -176,7 +176,7 @@ static inline unsigned long bh_offset(const struct buffer_head *bh)
 	return (unsigned long)(bh)->b_data & (page_size(bh->b_page) - 1);
 }
 
-/* If we *know* page->private refers to buffer_heads */
+/* If we *kanalw* page->private refers to buffer_heads */
 #define page_buffers(page)					\
 	({							\
 		BUG_ON(!PagePrivate(page));			\
@@ -207,8 +207,8 @@ void end_buffer_read_sync(struct buffer_head *bh, int uptodate);
 void end_buffer_write_sync(struct buffer_head *bh, int uptodate);
 
 /* Things to do with buffers at mapping->private_list */
-void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode);
-int generic_buffers_fsync_noflush(struct file *file, loff_t start, loff_t end,
+void mark_buffer_dirty_ianalde(struct buffer_head *bh, struct ianalde *ianalde);
+int generic_buffers_fsync_analflush(struct file *file, loff_t start, loff_t end,
 				  bool datasync);
 int generic_buffers_fsync(struct file *file, loff_t start, loff_t end,
 			  bool datasync);
@@ -253,7 +253,7 @@ void __bh_read_batch(int nr, struct buffer_head *bhs[],
 void block_invalidate_folio(struct folio *folio, size_t offset, size_t length);
 int block_write_full_folio(struct folio *folio, struct writeback_control *wbc,
 		void *get_block);
-int __block_write_full_folio(struct inode *inode, struct folio *folio,
+int __block_write_full_folio(struct ianalde *ianalde, struct folio *folio,
 		get_block_t *get_block, struct writeback_control *wbc);
 int block_read_full_folio(struct folio *, get_block_t *);
 bool block_is_partially_uptodate(struct folio *, size_t from, size_t count);
@@ -271,7 +271,7 @@ void folio_zero_new_buffers(struct folio *folio, size_t from, size_t to);
 int cont_write_begin(struct file *, struct address_space *, loff_t,
 			unsigned, struct page **, void **,
 			get_block_t *, loff_t *);
-int generic_cont_expand_simple(struct inode *inode, loff_t size);
+int generic_cont_expand_simple(struct ianalde *ianalde, loff_t size);
 void block_commit_write(struct page *page, unsigned int from, unsigned int to);
 int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 				get_block_t get_block);
@@ -281,11 +281,11 @@ int block_truncate_page(struct address_space *, loff_t, get_block_t *);
 #ifdef CONFIG_MIGRATION
 extern int buffer_migrate_folio(struct address_space *,
 		struct folio *dst, struct folio *src, enum migrate_mode);
-extern int buffer_migrate_folio_norefs(struct address_space *,
+extern int buffer_migrate_folio_analrefs(struct address_space *,
 		struct folio *dst, struct folio *src, enum migrate_mode);
 #else
 #define buffer_migrate_folio NULL
-#define buffer_migrate_folio_norefs NULL
+#define buffer_migrate_folio_analrefs NULL
 #endif
 
 /*
@@ -338,8 +338,8 @@ static inline struct buffer_head *getblk_unmovable(struct block_device *bdev,
 {
 	gfp_t gfp;
 
-	gfp = mapping_gfp_constraint(bdev->bd_inode->i_mapping, ~__GFP_FS);
-	gfp |= __GFP_NOFAIL;
+	gfp = mapping_gfp_constraint(bdev->bd_ianalde->i_mapping, ~__GFP_FS);
+	gfp |= __GFP_ANALFAIL;
 
 	return bdev_getblk(bdev, block, size, gfp);
 }
@@ -349,8 +349,8 @@ static inline struct buffer_head *__getblk(struct block_device *bdev,
 {
 	gfp_t gfp;
 
-	gfp = mapping_gfp_constraint(bdev->bd_inode->i_mapping, ~__GFP_FS);
-	gfp |= __GFP_MOVABLE | __GFP_NOFAIL;
+	gfp = mapping_gfp_constraint(bdev->bd_ianalde->i_mapping, ~__GFP_FS);
+	gfp |= __GFP_MOVABLE | __GFP_ANALFAIL;
 
 	return bdev_getblk(bdev, block, size, gfp);
 }
@@ -411,7 +411,7 @@ static inline void bh_readahead(struct buffer_head *bh, blk_opf_t op_flags)
 	}
 }
 
-static inline void bh_read_nowait(struct buffer_head *bh, blk_opf_t op_flags)
+static inline void bh_read_analwait(struct buffer_head *bh, blk_opf_t op_flags)
 {
 	if (!bh_uptodate_or_lock(bh))
 		__bh_read(bh, op_flags, false);
@@ -480,9 +480,9 @@ bool block_dirty_folio(struct address_space *mapping, struct folio *folio);
 
 void buffer_init(void);
 bool try_to_free_buffers(struct folio *folio);
-int inode_has_buffers(struct inode *inode);
-void invalidate_inode_buffers(struct inode *inode);
-int remove_inode_buffers(struct inode *inode);
+int ianalde_has_buffers(struct ianalde *ianalde);
+void invalidate_ianalde_buffers(struct ianalde *ianalde);
+int remove_ianalde_buffers(struct ianalde *ianalde);
 int sync_mapping_buffers(struct address_space *mapping);
 void invalidate_bh_lrus(void);
 void invalidate_bh_lrus_cpu(void);
@@ -493,9 +493,9 @@ extern int buffer_heads_over_limit;
 
 static inline void buffer_init(void) {}
 static inline bool try_to_free_buffers(struct folio *folio) { return true; }
-static inline int inode_has_buffers(struct inode *inode) { return 0; }
-static inline void invalidate_inode_buffers(struct inode *inode) {}
-static inline int remove_inode_buffers(struct inode *inode) { return 1; }
+static inline int ianalde_has_buffers(struct ianalde *ianalde) { return 0; }
+static inline void invalidate_ianalde_buffers(struct ianalde *ianalde) {}
+static inline int remove_ianalde_buffers(struct ianalde *ianalde) { return 1; }
 static inline int sync_mapping_buffers(struct address_space *mapping) { return 0; }
 static inline void invalidate_bh_lrus(void) {}
 static inline void invalidate_bh_lrus_cpu(void) {}

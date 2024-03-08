@@ -25,7 +25,7 @@ static int int3401_add(struct platform_device *pdev)
 
 	proc_priv = devm_kzalloc(&pdev->dev, sizeof(*proc_priv), GFP_KERNEL);
 	if (!proc_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = proc_thermal_add(&pdev->dev, proc_priv);
 	if (ret)

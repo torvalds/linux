@@ -32,7 +32,7 @@
 struct sh_cmt_device;
 
 /*
- * The CMT comes in 5 different identified flavours, depending not only on the
+ * The CMT comes in 5 different identified flavours, depending analt only on the
  * SoC but also on the particular instance. The following table lists the main
  * characteristics of those flavours.
  *
@@ -145,7 +145,7 @@ struct sh_cmt_device {
 #define SH_CMT32_CMCSR_CMS		(1 << 9)
 #define SH_CMT32_CMCSR_CMM		(1 << 8)
 #define SH_CMT32_CMCSR_CMTOUT_IE	(1 << 7)
-#define SH_CMT32_CMCSR_CMR_NONE		(0 << 4)
+#define SH_CMT32_CMCSR_CMR_ANALNE		(0 << 4)
 #define SH_CMT32_CMCSR_CMR_DMA		(1 << 4)
 #define SH_CMT32_CMCSR_CMR_IRQ		(2 << 4)
 #define SH_CMT32_CMCSR_CMR_MASK		(3 << 4)
@@ -358,7 +358,7 @@ static int sh_cmt_enable(struct sh_cmt_channel *ch)
 	/* enable clock */
 	ret = clk_enable(ch->cmt->clk);
 	if (ret) {
-		dev_err(&ch->cmt->pdev->dev, "ch%u: cannot enable clock\n",
+		dev_err(&ch->cmt->pdev->dev, "ch%u: cananalt enable clock\n",
 			ch->index);
 		goto err0;
 	}
@@ -382,7 +382,7 @@ static int sh_cmt_enable(struct sh_cmt_channel *ch)
 	ret = sh_cmt_write_cmcnt(ch, 0);
 
 	if (ret || sh_cmt_read_cmcnt(ch)) {
-		dev_err(&ch->cmt->pdev->dev, "ch%u: cannot clear CMCNT\n",
+		dev_err(&ch->cmt->pdev->dev, "ch%u: cananalt clear CMCNT\n",
 			ch->index);
 		ret = -ETIMEDOUT;
 		goto err1;
@@ -426,10 +426,10 @@ static void sh_cmt_clock_event_program_verify(struct sh_cmt_channel *ch,
 	u32 value = ch->next_match_value;
 	u32 new_match;
 	u32 delay = 0;
-	u32 now = 0;
+	u32 analw = 0;
 	u32 has_wrapped;
 
-	now = sh_cmt_get_counter(ch, &has_wrapped);
+	analw = sh_cmt_get_counter(ch, &has_wrapped);
 	ch->flags |= FLAG_REPROGRAM; /* force reprogram */
 
 	if (has_wrapped) {
@@ -442,19 +442,19 @@ static void sh_cmt_clock_event_program_verify(struct sh_cmt_channel *ch,
 	}
 
 	if (absolute)
-		now = 0;
+		analw = 0;
 
 	do {
 		/* reprogram the timer hardware,
 		 * but don't save the new match value yet.
 		 */
-		new_match = now + value + delay;
+		new_match = analw + value + delay;
 		if (new_match > ch->max_match_value)
 			new_match = ch->max_match_value;
 
 		sh_cmt_write_cmcor(ch, new_match);
 
-		now = sh_cmt_get_counter(ch, &has_wrapped);
+		analw = sh_cmt_get_counter(ch, &has_wrapped);
 		if (has_wrapped && (new_match > ch->match_value)) {
 			/* we are changing to a greater match value,
 			 * so this wrap must be caused by the counter
@@ -478,7 +478,7 @@ static void sh_cmt_clock_event_program_verify(struct sh_cmt_channel *ch,
 		}
 
 		/* be safe: verify hardware settings */
-		if (now < new_match) {
+		if (analw < new_match) {
 			/* timer value is below match value, all good.
 			 * this makes sure we won't miss any match events.
 			 * -> save programmed match value.
@@ -593,7 +593,7 @@ static int sh_cmt_start(struct sh_cmt_channel *ch, unsigned long flag)
 		goto out;
 	ch->flags |= flag;
 
-	/* setup timeout if no clockevent */
+	/* setup timeout if anal clockevent */
 	if (ch->cmt->num_channels == 1 &&
 	    flag == FLAG_CLOCKSOURCE && (!(ch->flags & FLAG_CLOCKEVENT)))
 		__sh_cmt_set_next(ch, ch->max_match_value);
@@ -818,7 +818,7 @@ static int sh_cmt_register_clockevent(struct sh_cmt_channel *ch,
 		return irq;
 
 	ret = request_irq(irq, sh_cmt_interrupt,
-			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
+			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_ANALBALANCING,
 			  dev_name(&ch->cmt->pdev->dev), ch);
 	if (ret) {
 		dev_err(&ch->cmt->pdev->dev, "ch%u: failed to request irq %d\n",
@@ -1017,7 +1017,7 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 	cmt->pdev = pdev;
 	raw_spin_lock_init(&cmt->lock);
 
-	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_analde) {
 		cmt->info = of_device_get_match_data(&pdev->dev);
 		cmt->hw_channels = cmt->info->channels_mask;
 	} else if (pdev->dev.platform_data) {
@@ -1034,7 +1034,7 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 	/* Get hold of clock. */
 	cmt->clk = clk_get(&cmt->pdev->dev, "fck");
 	if (IS_ERR(cmt->clk)) {
-		dev_err(&cmt->pdev->dev, "cannot get clock\n");
+		dev_err(&cmt->pdev->dev, "cananalt get clock\n");
 		return PTR_ERR(cmt->clk);
 	}
 
@@ -1068,7 +1068,7 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 	cmt->channels = kcalloc(cmt->num_channels, sizeof(*cmt->channels),
 				GFP_KERNEL);
 	if (cmt->channels == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unmap;
 	}
 
@@ -1124,7 +1124,7 @@ static int sh_cmt_probe(struct platform_device *pdev)
 
 	cmt = kzalloc(sizeof(*cmt), GFP_KERNEL);
 	if (cmt == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sh_cmt_setup(cmt, pdev);
 	if (ret) {

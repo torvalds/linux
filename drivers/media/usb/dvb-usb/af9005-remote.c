@@ -91,7 +91,7 @@ int af9005_rc_decode(struct dvb_usb_device *d, u8 * data, int len, u32 * event,
 					return 0;
 				}
 			}
-			deb_decode("repeated key ignored (non repeatable)\n");
+			deb_decode("repeated key iganalred (analn repeatable)\n");
 			return 0;
 		} else if (len >= 33 * 4) {	/*32 bits + start code */
 			result = 0;
@@ -107,7 +107,7 @@ int af9005_rc_decode(struct dvb_usb_device *d, u8 * data, int len, u32 * event,
 			deb_decode("key pressed, raw value %x\n", result);
 			if ((result & 0xff000000) != 0xfe000000) {
 				deb_decode
-				    ("doesn't start with 0xfe, ignored\n");
+				    ("doesn't start with 0xfe, iganalred\n");
 				return 0;
 			}
 			cust = (result >> 16) & 0xff;
@@ -127,7 +127,7 @@ int af9005_rc_decode(struct dvb_usb_device *d, u8 * data, int len, u32 * event,
 					return 0;
 				}
 			}
-			deb_decode("not found in table\n");
+			deb_decode("analt found in table\n");
 		}
 	}
 	return 0;

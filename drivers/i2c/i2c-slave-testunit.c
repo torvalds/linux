@@ -18,7 +18,7 @@
 
 enum testunit_cmds {
 	TU_CMD_READ_BYTES = 1,	/* save 0 for ABORT, RESET or similar */
-	TU_CMD_HOST_NOTIFY,
+	TU_CMD_HOST_ANALTIFY,
 	TU_CMD_SMBUS_BLOCK_PROC_CALL,
 	TU_NUM_CMDS
 };
@@ -60,7 +60,7 @@ static void i2c_slave_testunit_work(struct work_struct *work)
 		msg.len = tu->regs[TU_REG_DATAH];
 		break;
 
-	case TU_CMD_HOST_NOTIFY:
+	case TU_CMD_HOST_ANALTIFY:
 		msg.addr = 0x08;
 		msg.flags = 0;
 		msg.len = 3;
@@ -75,7 +75,7 @@ static void i2c_slave_testunit_work(struct work_struct *work)
 
 	if (msg.addr != I2C_CLIENT_END) {
 		ret = i2c_transfer(tu->client->adapter, &msg, 1);
-		/* convert '0 msgs transferred' to errno */
+		/* convert '0 msgs transferred' to erranal */
 		ret = (ret == 0) ? -EIO : ret;
 	}
 
@@ -144,7 +144,7 @@ static int i2c_slave_testunit_probe(struct i2c_client *client)
 
 	tu = devm_kzalloc(&client->dev, sizeof(struct testunit_data), GFP_KERNEL);
 	if (!tu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tu->client = client;
 	i2c_set_clientdata(client, tu);

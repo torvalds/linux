@@ -77,16 +77,16 @@ static void iommu_debugfs_add(struct iommu_table *tbl){}
 static void iommu_debugfs_del(struct iommu_table *tbl){}
 #endif
 
-static int novmerge;
+static int analvmerge;
 
 static void __iommu_free(struct iommu_table *, dma_addr_t, unsigned int);
 
 static int __init setup_iommu(char *str)
 {
-	if (!strcmp(str, "novmerge"))
-		novmerge = 1;
+	if (!strcmp(str, "analvmerge"))
+		analvmerge = 1;
 	else if (!strcmp(str, "vmerge"))
-		novmerge = 0;
+		analvmerge = 0;
 	return 1;
 }
 
@@ -156,16 +156,16 @@ static ssize_t fail_iommu_store(struct device *dev,
 
 static DEVICE_ATTR_RW(fail_iommu);
 
-static int fail_iommu_bus_notify(struct notifier_block *nb,
+static int fail_iommu_bus_analtify(struct analtifier_block *nb,
 				 unsigned long action, void *data)
 {
 	struct device *dev = data;
 
-	if (action == BUS_NOTIFY_ADD_DEVICE) {
+	if (action == BUS_ANALTIFY_ADD_DEVICE) {
 		if (device_create_file(dev, &dev_attr_fail_iommu))
 			pr_warn("Unable to create IOMMU fault injection sysfs "
 				"entries\n");
-	} else if (action == BUS_NOTIFY_DEL_DEVICE) {
+	} else if (action == BUS_ANALTIFY_DEL_DEVICE) {
 		device_remove_file(dev, &dev_attr_fail_iommu);
 	}
 
@@ -173,27 +173,27 @@ static int fail_iommu_bus_notify(struct notifier_block *nb,
 }
 
 /*
- * PCI and VIO buses need separate notifier_block structs, since they're linked
- * list nodes.  Sharing a notifier_block would mean that any notifiers later
+ * PCI and VIO buses need separate analtifier_block structs, since they're linked
+ * list analdes.  Sharing a analtifier_block would mean that any analtifiers later
  * registered for PCI buses would also get called by VIO buses and vice versa.
  */
-static struct notifier_block fail_iommu_pci_bus_notifier = {
-	.notifier_call = fail_iommu_bus_notify
+static struct analtifier_block fail_iommu_pci_bus_analtifier = {
+	.analtifier_call = fail_iommu_bus_analtify
 };
 
 #ifdef CONFIG_IBMVIO
-static struct notifier_block fail_iommu_vio_bus_notifier = {
-	.notifier_call = fail_iommu_bus_notify
+static struct analtifier_block fail_iommu_vio_bus_analtifier = {
+	.analtifier_call = fail_iommu_bus_analtify
 };
 #endif
 
 static int __init fail_iommu_setup(void)
 {
 #ifdef CONFIG_PCI
-	bus_register_notifier(&pci_bus_type, &fail_iommu_pci_bus_notifier);
+	bus_register_analtifier(&pci_bus_type, &fail_iommu_pci_bus_analtifier);
 #endif
 #ifdef CONFIG_IBMVIO
-	bus_register_notifier(&vio_bus_type, &fail_iommu_vio_bus_notifier);
+	bus_register_analtifier(&vio_bus_type, &fail_iommu_vio_bus_analtifier);
 #endif
 
 	return 0;
@@ -296,7 +296,7 @@ again:
 			goto again;
 
 		} else if (pass <= tbl->nr_pools) {
-			/* Now try scanning all the other pools */
+			/* Analw try scanning all the other pools */
 			spin_unlock(&(pool->lock));
 			pool_nr = (pool_nr + 1) & (tbl->nr_pools - 1);
 			pool = &tbl->pools[pool_nr];
@@ -365,10 +365,10 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 				      (unsigned long)page &
 				      IOMMU_PAGE_MASK(tbl), direction, attrs);
 
-	/* tbl->it_ops->set() only returns non-zero for transient errors.
+	/* tbl->it_ops->set() only returns analn-zero for transient errors.
 	 * Clean up the table bitmap in this case and return
 	 * DMA_MAPPING_ERROR. For all other errors the functionality is
-	 * not altered.
+	 * analt altered.
 	 */
 	if (unlikely(build_fail)) {
 		__iommu_free(tbl, ret, npages);
@@ -400,7 +400,7 @@ static bool iommu_free_check(struct iommu_table *tbl, dma_addr_t dma_addr,
 			printk(KERN_INFO "\tentry     = 0x%lx\n", entry); 
 			printk(KERN_INFO "\tdma_addr  = 0x%llx\n", (u64)dma_addr);
 			printk(KERN_INFO "\tTable     = 0x%llx\n", (u64)tbl);
-			printk(KERN_INFO "\tbus#      = 0x%llx\n", (u64)tbl->it_busno);
+			printk(KERN_INFO "\tbus#      = 0x%llx\n", (u64)tbl->it_busanal);
 			printk(KERN_INFO "\tsize      = 0x%llx\n", (u64)tbl->it_size);
 			printk(KERN_INFO "\tstartOff  = 0x%llx\n", (u64)tbl->it_offset);
 			printk(KERN_INFO "\tindex     = 0x%llx\n", (u64)tbl->it_index);
@@ -460,7 +460,7 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	__iommu_free(tbl, dma_addr, npages);
 
 	/* Make sure TLB cache is flushed if the HW needs it. We do
-	 * not do an mb() here on purpose, it is not needed on any of
+	 * analt do an mb() here on purpose, it is analt needed on any of
 	 * the current platforms.
 	 */
 	if (tbl->it_ops->flush)
@@ -479,7 +479,7 @@ int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 	unsigned long handle;
 	unsigned int max_seg_size;
 
-	BUG_ON(direction == DMA_NONE);
+	BUG_ON(direction == DMA_ANALNE);
 
 	if ((nelems == 0) || !tbl)
 		return -EINVAL;
@@ -518,7 +518,7 @@ int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 
 		/* Handle failure */
 		if (unlikely(entry == DMA_MAPPING_ERROR)) {
-			if (!(attrs & DMA_ATTR_NO_WARN) &&
+			if (!(attrs & DMA_ATTR_ANAL_WARN) &&
 			    printk_ratelimit())
 				dev_info(dev, "iommu_alloc failed, tbl %p "
 					 "vaddr %lx npages %lu\n", tbl, vaddr,
@@ -544,10 +544,10 @@ int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 		/* If we are in an open segment, try merging */
 		if (segstart != s) {
 			DBG("  - trying merge...\n");
-			/* We cannot merge if:
+			/* We cananalt merge if:
 			 * - allocated dma_addr isn't contiguous to previous allocation
 			 */
-			if (novmerge || (dma_addr != dma_next) ||
+			if (analvmerge || (dma_addr != dma_next) ||
 			    (outs->dma_length + s->length > max_seg_size)) {
 				/* Can't merge: create a new segment */
 				segstart = s;
@@ -616,7 +616,7 @@ void ppc_iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 {
 	struct scatterlist *sg;
 
-	BUG_ON(direction == DMA_NONE);
+	BUG_ON(direction == DMA_ANALNE);
 
 	if (!tbl)
 		return;
@@ -635,7 +635,7 @@ void ppc_iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 	}
 
 	/* Flush/invalidate TLBs if necessary. As for iommu_free(), we
-	 * do not do an mb() here, the affected platforms do not need it
+	 * do analt do an mb() here, the affected platforms do analt need it
 	 * when freeing.
 	 */
 	if (tbl->it_ops->flush)
@@ -690,7 +690,7 @@ static void iommu_table_reserve_pages(struct iommu_table *tbl,
 
 	WARN_ON_ONCE(res_end < res_start);
 	/*
-	 * Reserve page 0 so it will not be used for any mappings.
+	 * Reserve page 0 so it will analt be used for any mappings.
 	 * This avoids buggy drivers that consider page 0 to be invalid
 	 * to crash the machine or even lose data.
 	 */
@@ -734,7 +734,7 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid,
 	/* number of bytes needed for the bitmap */
 	sz = BITS_TO_LONGS(tbl->it_size) * sizeof(unsigned long);
 
-	tbl->it_map = vzalloc_node(sz, nid);
+	tbl->it_map = vzalloc_analde(sz, nid);
 	if (!tbl->it_map) {
 		pr_err("%s: Can't allocate %ld bytes\n", __func__, sz);
 		return NULL;
@@ -769,7 +769,7 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid,
 
 	if (!welcomed) {
 		printk(KERN_INFO "IOMMU table initialized, virtual merging %s\n",
-		       novmerge ? "disabled" : "enabled");
+		       analvmerge ? "disabled" : "enabled");
 		welcomed = 1;
 	}
 
@@ -782,11 +782,11 @@ bool iommu_table_in_use(struct iommu_table *tbl)
 {
 	unsigned long start = 0, end;
 
-	/* ignore reserved bit0 */
+	/* iganalre reserved bit0 */
 	if (tbl->it_offset == 0)
 		start = 1;
 
-	/* Simple case with no reserved MMIO32 region */
+	/* Simple case with anal reserved MMIO32 region */
 	if (!tbl->it_reserved_start && !tbl->it_reserved_end)
 		return find_next_bit(tbl->it_map, tbl->it_size, start) != tbl->it_size;
 
@@ -815,7 +815,7 @@ static void iommu_table_free(struct kref *kref)
 
 	iommu_debugfs_del(tbl);
 
-	/* verify that table contains no entries */
+	/* verify that table contains anal entries */
 	if (iommu_table_in_use(tbl))
 		pr_warn("%s: Unexpected TCEs\n", __func__);
 
@@ -845,7 +845,7 @@ int iommu_tce_table_put(struct iommu_table *tbl)
 EXPORT_SYMBOL_GPL(iommu_tce_table_put);
 
 /* Creates TCEs for a user provided buffer.  The user buffer must be
- * contiguous real kernel storage (not vmalloc).  The address passed here
+ * contiguous real kernel storage (analt vmalloc).  The address passed here
  * comprises a page address and offset into that page. The dma_addr_t
  * returned will point to the same byte within the page as was passed in.
  */
@@ -859,7 +859,7 @@ dma_addr_t iommu_map_page(struct device *dev, struct iommu_table *tbl,
 	unsigned long uaddr;
 	unsigned int npages, align;
 
-	BUG_ON(direction == DMA_NONE);
+	BUG_ON(direction == DMA_ANALNE);
 
 	vaddr = page_address(page) + offset;
 	uaddr = (unsigned long)vaddr;
@@ -875,7 +875,7 @@ dma_addr_t iommu_map_page(struct device *dev, struct iommu_table *tbl,
 					 mask >> tbl->it_page_shift, align,
 					 attrs);
 		if (dma_handle == DMA_MAPPING_ERROR) {
-			if (!(attrs & DMA_ATTR_NO_WARN) &&
+			if (!(attrs & DMA_ATTR_ANAL_WARN) &&
 			    printk_ratelimit())  {
 				dev_info(dev, "iommu_alloc failed, tbl %p "
 					 "vaddr %p npages %d\n", tbl, vaddr,
@@ -894,7 +894,7 @@ void iommu_unmap_page(struct iommu_table *tbl, dma_addr_t dma_handle,
 {
 	unsigned int npages;
 
-	BUG_ON(direction == DMA_NONE);
+	BUG_ON(direction == DMA_ANALNE);
 
 	if (tbl) {
 		npages = iommu_num_pages(dma_handle, size,
@@ -909,7 +909,7 @@ void iommu_unmap_page(struct iommu_table *tbl, dma_addr_t dma_handle,
  */
 void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 			   size_t size,	dma_addr_t *dma_handle,
-			   unsigned long mask, gfp_t flag, int node)
+			   unsigned long mask, gfp_t flag, int analde)
 {
 	void *ret = NULL;
 	dma_addr_t mapping;
@@ -935,8 +935,8 @@ void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 	if (!tbl)
 		return NULL;
 
-	/* Alloc enough pages (and possibly more) */
-	page = alloc_pages_node(node, flag, order);
+	/* Alloc eanalugh pages (and possibly more) */
+	page = alloc_pages_analde(analde, flag, order);
 	if (!page)
 		return NULL;
 	ret = page_address(page);
@@ -1005,7 +1005,7 @@ void iommu_register_group(struct iommu_table_group *table_group,
 
 	grp = iommu_group_alloc();
 	if (IS_ERR(grp)) {
-		pr_warn("powerpc iommu api: cannot create new group, err=%ld\n",
+		pr_warn("powerpc iommu api: cananalt create new group, err=%ld\n",
 				PTR_ERR(grp));
 		return;
 	}
@@ -1028,7 +1028,7 @@ enum dma_data_direction iommu_tce_direction(unsigned long tce)
 	else if (tce & TCE_PCI_WRITE)
 		return DMA_FROM_DEVICE;
 	else
-		return DMA_NONE;
+		return DMA_ANALNE;
 }
 EXPORT_SYMBOL_GPL(iommu_tce_direction);
 
@@ -1074,7 +1074,7 @@ int iommu_tce_check_gpa(unsigned long page_shift, unsigned long gpa)
 }
 EXPORT_SYMBOL_GPL(iommu_tce_check_gpa);
 
-long iommu_tce_xchg_no_kill(struct mm_struct *mm,
+long iommu_tce_xchg_anal_kill(struct mm_struct *mm,
 			    struct iommu_table *tbl,
 			    unsigned long entry, unsigned long *hpa,
 			    enum dma_data_direction *direction)
@@ -1082,7 +1082,7 @@ long iommu_tce_xchg_no_kill(struct mm_struct *mm,
 	long ret;
 	unsigned long size = 0;
 
-	ret = tbl->it_ops->xchg_no_kill(tbl, entry, hpa, direction);
+	ret = tbl->it_ops->xchg_anal_kill(tbl, entry, hpa, direction);
 	if (!ret && ((*direction == DMA_FROM_DEVICE) ||
 			(*direction == DMA_BIDIRECTIONAL)) &&
 			!mm_iommu_is_devmem(mm, *hpa, tbl->it_page_shift,
@@ -1091,7 +1091,7 @@ long iommu_tce_xchg_no_kill(struct mm_struct *mm,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(iommu_tce_xchg_no_kill);
+EXPORT_SYMBOL_GPL(iommu_tce_xchg_anal_kill);
 
 void iommu_tce_kill(struct iommu_table *tbl,
 		unsigned long entry, unsigned long pages)
@@ -1108,13 +1108,13 @@ static int iommu_take_ownership(struct iommu_table *tbl)
 	int ret = 0;
 
 	/*
-	 * VFIO does not control TCE entries allocation and the guest
+	 * VFIO does analt control TCE entries allocation and the guest
 	 * can write new TCEs on top of existing ones so iommu_tce_build()
 	 * must be able to release old pages. This functionality
-	 * requires exchange() callback defined so if it is not
+	 * requires exchange() callback defined so if it is analt
 	 * implemented, we disallow taking ownership over the table.
 	 */
-	if (!tbl->it_ops->xchg_no_kill)
+	if (!tbl->it_ops->xchg_anal_kill)
 		return -EINVAL;
 
 	spin_lock_irqsave(&tbl->large_pool.lock, flags);
@@ -1122,7 +1122,7 @@ static int iommu_take_ownership(struct iommu_table *tbl)
 		spin_lock_nest_lock(&tbl->pools[i].lock, &tbl->large_pool.lock);
 
 	if (iommu_table_in_use(tbl)) {
-		pr_err("iommu_tce: it_map is not empty");
+		pr_err("iommu_tce: it_map is analt empty");
 		ret = -EBUSY;
 	} else {
 		memset(tbl->it_map, 0xff, sz);
@@ -1162,7 +1162,7 @@ int iommu_add_device(struct iommu_table_group *table_group, struct device *dev)
 	 * ready, we simply bail.
 	 */
 	if (!device_is_registered(dev))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (device_iommu_mapped(dev)) {
 		pr_debug("%s: Skipping device %s with iommu group %d\n",
@@ -1174,10 +1174,10 @@ int iommu_add_device(struct iommu_table_group *table_group, struct device *dev)
 	pr_debug("%s: Adding %s to iommu group %d\n",
 		 __func__, dev_name(dev),  iommu_group_id(table_group->group));
 	/*
-	 * This is still not adding devices via the IOMMU bus notifier because
+	 * This is still analt adding devices via the IOMMU bus analtifier because
 	 * of pcibios_init() from arch/powerpc/kernel/pci_64.c which calls
 	 * pcibios_scan_phb() first (and this guy adds devices and triggers
-	 * the notifier) and only then it calls pci_bus_add_devices() which
+	 * the analtifier) and only then it calls pci_bus_add_devices() which
 	 * configures DMA for buses which also creates PEs and IOMMU groups.
 	 */
 	return iommu_probe_device(dev);
@@ -1188,7 +1188,7 @@ EXPORT_SYMBOL_GPL(iommu_add_device);
 /*
  * A simple iommu_table_group_ops which only allows reusing the existing
  * iommu_table. This handles VFIO for POWER7 or the nested KVM.
- * The ops does not allow creating windows and only allows reusing the existing
+ * The ops does analt allow creating windows and only allows reusing the existing
  * one if it matches table_group->tce32_start/tce32_size/page_shift.
  */
 static unsigned long spapr_tce_get_table_size(__u32 page_shift,
@@ -1360,7 +1360,7 @@ static struct iommu_device *spapr_tce_iommu_probe_device(struct device *dev)
 	struct pci_controller *hose;
 
 	if (!dev_is_pci(dev))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	pdev = to_pci_dev(dev);
 	hose = pdev->bus->sysdata;
@@ -1381,7 +1381,7 @@ static struct iommu_group *spapr_tce_iommu_device_group(struct device *dev)
 	hose = pdev->bus->sysdata;
 
 	if (!hose->controller_ops.device_group)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	return hose->controller_ops.device_group(hose, pdev);
 }
@@ -1433,7 +1433,7 @@ static int __init spapr_tce_setup_phb_iommus_initcall(void)
 {
 	struct pci_controller *hose;
 
-	list_for_each_entry(hose, &hose_list, list_node) {
+	list_for_each_entry(hose, &hose_list, list_analde) {
 		ppc_iommu_register_device(hose);
 	}
 	return 0;

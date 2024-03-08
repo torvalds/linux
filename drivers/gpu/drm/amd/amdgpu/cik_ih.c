@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -119,8 +119,8 @@ static int cik_ih_irq_init(struct amdgpu_device *adev)
 	 * INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK=1 - dummy read controlled by IH_DUMMY_RD_EN
 	 */
 	interrupt_cntl &= ~INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK;
-	/* INTERRUPT_CNTL__IH_REQ_NONSNOOP_EN_MASK=1 if ring is in non-cacheable memory, e.g., vram */
-	interrupt_cntl &= ~INTERRUPT_CNTL__IH_REQ_NONSNOOP_EN_MASK;
+	/* INTERRUPT_CNTL__IH_REQ_ANALNSANALOP_EN_MASK=1 if ring is in analn-cacheable memory, e.g., vram */
+	interrupt_cntl &= ~INTERRUPT_CNTL__IH_REQ_ANALNSANALOP_EN_MASK;
 	WREG32(mmINTERRUPT_CNTL, interrupt_cntl);
 
 	WREG32(mmIH_RB_BASE, adev->irq.ih.gpu_addr >> 8);
@@ -132,7 +132,7 @@ static int cik_ih_irq_init(struct amdgpu_device *adev)
 
 	ih_rb_cntl |= IH_RB_CNTL__WPTR_WRITEBACK_ENABLE_MASK;
 
-	/* set the writeback address whether it's enabled or not */
+	/* set the writeback address whether it's enabled or analt */
 	WREG32(mmIH_RB_WPTR_ADDR_LO, lower_32_bits(ih->wptr_addr));
 	WREG32(mmIH_RB_WPTR_ADDR_HI, upper_32_bits(ih->wptr_addr) & 0xFF);
 
@@ -169,7 +169,7 @@ static int cik_ih_irq_init(struct amdgpu_device *adev)
 static void cik_ih_irq_disable(struct amdgpu_device *adev)
 {
 	cik_ih_disable_interrupts(adev);
-	/* Wait and acknowledge irq */
+	/* Wait and ackanalwledge irq */
 	mdelay(1);
 }
 
@@ -195,7 +195,7 @@ static u32 cik_ih_get_wptr(struct amdgpu_device *adev,
 	if (wptr & IH_RB_WPTR__RB_OVERFLOW_MASK) {
 		wptr &= ~IH_RB_WPTR__RB_OVERFLOW_MASK;
 		/* When a ring buffer overflow happen start parsing interrupt
-		 * from the last not overwritten vector (wptr + 16). Hopefully
+		 * from the last analt overwritten vector (wptr + 16). Hopefully
 		 * this should allow us to catchup.
 		 */
 		dev_warn(adev->dev, "IH ring buffer overflow (0x%08X, 0x%08X, 0x%08X)\n",
@@ -451,7 +451,7 @@ static void cik_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 const struct amdgpu_ip_block_version cik_ih_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_IH,
 	.major = 2,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &cik_ih_ip_funcs,
 };

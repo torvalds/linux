@@ -21,7 +21,7 @@
 #include <linux/workqueue.h>
 #include <media/cec.h>
 
-#include "exynos_hdmi_cec.h"
+#include "exyanals_hdmi_cec.h"
 #include "regs-cec.h"
 #include "s5p_cec.h"
 
@@ -56,7 +56,7 @@ enum cec_state {
 	STATE_ERROR
 };
 
-struct cec_notifier;
+struct cec_analtifier;
 
 struct s5p_cec_dev {
 	struct cec_adapter	*adap;
@@ -64,7 +64,7 @@ struct s5p_cec_dev {
 	struct device		*dev;
 	struct mutex		lock;
 	struct regmap           *pmu;
-	struct cec_notifier	*notifier;
+	struct cec_analtifier	*analtifier;
 	int			irq;
 	void __iomem		*reg;
 

@@ -2,7 +2,7 @@
 /*
  * Author: Yun Liu <liuyun@loongson.cn>
  *         Huacai Chen <chenhuacai@loongson.cn>
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #include <asm/efi.h>
@@ -10,7 +10,7 @@
 #include "efistub.h"
 #include "loongarch-stub.h"
 
-typedef void __noreturn (*kernel_entry_t)(bool efi, unsigned long cmdline,
+typedef void __analreturn (*kernel_entry_t)(bool efi, unsigned long cmdline,
 					  unsigned long systab);
 
 efi_status_t check_platform_features(void)
@@ -61,7 +61,7 @@ efi_status_t efi_boot_kernel(void *handle, efi_loaded_image_t *image,
 
 	efi_info("Exiting boot services\n");
 
-	efi_novamap = false;
+	efi_analvamap = false;
 	status = efi_exit_boot_services(handle, &priv, exit_boot_func);
 	if (status != EFI_SUCCESS)
 		return status;

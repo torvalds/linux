@@ -14,7 +14,7 @@
 #include <asm/mcfmmu.h>
 #include <asm/mmu.h>
 
-#define NO_CONTEXT		256
+#define ANAL_CONTEXT		256
 #define LAST_CONTEXT		255
 #define FIRST_CONTEXT		1
 
@@ -29,7 +29,7 @@ static inline void get_mmu_context(struct mm_struct *mm)
 {
 	mm_context_t ctx;
 
-	if (mm->context != NO_CONTEXT)
+	if (mm->context != ANAL_CONTEXT)
 		return;
 	while (arch_atomic_dec_and_test_lt(&nr_free_contexts)) {
 		atomic_inc(&nr_free_contexts);
@@ -49,7 +49,7 @@ static inline void get_mmu_context(struct mm_struct *mm)
 /*
  * Set up the context for a new address space.
  */
-#define init_new_context(tsk, mm)	(((mm)->context = NO_CONTEXT), 0)
+#define init_new_context(tsk, mm)	(((mm)->context = ANAL_CONTEXT), 0)
 
 /*
  * We're finished using the context for an address space.
@@ -57,9 +57,9 @@ static inline void get_mmu_context(struct mm_struct *mm)
 #define destroy_context destroy_context
 static inline void destroy_context(struct mm_struct *mm)
 {
-	if (mm->context != NO_CONTEXT) {
+	if (mm->context != ANAL_CONTEXT) {
 		clear_bit(mm->context, context_map);
-		mm->context = NO_CONTEXT;
+		mm->context = ANAL_CONTEXT;
 		atomic_inc(&nr_free_contexts);
 	}
 }
@@ -114,7 +114,7 @@ static inline void load_ksp_mmu(struct task_struct *task)
 	if (mmuar >= PAGE_OFFSET) {
 		mm = &init_mm;
 	} else {
-		pr_info("load_ksp_mmu: non-kernel mm found: 0x%p\n", task->mm);
+		pr_info("load_ksp_mmu: analn-kernel mm found: 0x%p\n", task->mm);
 		mm = task->mm;
 	}
 
@@ -122,24 +122,24 @@ static inline void load_ksp_mmu(struct task_struct *task)
 		goto bug;
 
 	pgd = pgd_offset(mm, mmuar);
-	if (pgd_none(*pgd))
+	if (pgd_analne(*pgd))
 		goto bug;
 
 	p4d = p4d_offset(pgd, mmuar);
-	if (p4d_none(*p4d))
+	if (p4d_analne(*p4d))
 		goto bug;
 
 	pud = pud_offset(p4d, mmuar);
-	if (pud_none(*pud))
+	if (pud_analne(*pud))
 		goto bug;
 
 	pmd = pmd_offset(pud, mmuar);
-	if (pmd_none(*pmd))
+	if (pmd_analne(*pmd))
 		goto bug;
 
 	pte = (mmuar >= PAGE_OFFSET) ? pte_offset_kernel(pmd, mmuar)
 				     : pte_offset_map(pmd, mmuar);
-	if (!pte || pte_none(*pte) || !pte_present(*pte))
+	if (!pte || pte_analne(*pte) || !pte_present(*pte))
 		goto bug;
 
 	set_pte(pte, pte_mkyoung(*pte));
@@ -316,7 +316,7 @@ static inline void activate_mm(struct mm_struct *prev_mm,
 
 #else /* !CONFIG_MMU */
 
-#include <asm-generic/nommu_context.h>
+#include <asm-generic/analmmu_context.h>
 
 #endif /* CONFIG_MMU */
 #endif /* __M68K_MMU_CONTEXT_H */

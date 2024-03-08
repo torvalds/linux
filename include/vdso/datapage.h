@@ -7,7 +7,7 @@
 #include <linux/compiler.h>
 #include <uapi/linux/time.h>
 #include <uapi/linux/types.h>
-#include <uapi/asm-generic/errno-base.h>
+#include <uapi/asm-generic/erranal-base.h>
 
 #include <vdso/bits.h>
 #include <vdso/clocksource.h>
@@ -27,12 +27,12 @@ struct arch_vdso_data {};
 
 #define VDSO_BASES	(CLOCK_TAI + 1)
 #define VDSO_HRES	(BIT(CLOCK_REALTIME)		| \
-			 BIT(CLOCK_MONOTONIC)		| \
+			 BIT(CLOCK_MOANALTONIC)		| \
 			 BIT(CLOCK_BOOTTIME)		| \
 			 BIT(CLOCK_TAI))
 #define VDSO_COARSE	(BIT(CLOCK_REALTIME_COARSE)	| \
-			 BIT(CLOCK_MONOTONIC_COARSE))
-#define VDSO_RAW	(BIT(CLOCK_MONOTONIC_RAW))
+			 BIT(CLOCK_MOANALTONIC_COARSE))
+#define VDSO_RAW	(BIT(CLOCK_MOANALTONIC_RAW))
 
 #define CS_HRES_COARSE	0
 #define CS_RAW		1
@@ -41,14 +41,14 @@ struct arch_vdso_data {};
 /**
  * struct vdso_timestamp - basetime per clock_id
  * @sec:	seconds
- * @nsec:	nanoseconds
+ * @nsec:	naanalseconds
  *
  * There is one vdso_timestamp object in vvar for each vDSO-accelerated
  * clock_id. For high-resolution clocks, this encodes the time
  * corresponding to vdso_data.cycle_last. For coarse clocks this encodes
  * the actual time.
  *
- * To be noticed that for highres clocks nsec is left-shifted by
+ * To be analticed that for highres clocks nsec is left-shifted by
  * vdso_data.cs[x].shift.
  */
 struct vdso_timestamp {
@@ -84,7 +84,7 @@ struct vdso_timestamp {
  * @seq to 1 and @clock_mode to VDSO_CLOCKMODE_TIMENS to force the code into
  * the time namespace slow path. The namespace aware functions retrieve the
  * real system wide VVAR page, read host time and add the per clock offset.
- * For clocks which are not affected by time namespace adjustment the
+ * For clocks which are analt affected by time namespace adjustment the
  * offset must be zero.
  */
 struct vdso_data {
@@ -111,9 +111,9 @@ struct vdso_data {
 
 /*
  * We use the hidden visibility to prevent the compiler from generating a GOT
- * relocation. Not only is going through a GOT useless (the entry couldn't and
- * must not be overridden by another library), it does not even work: the linker
- * cannot generate an absolute address to the data page.
+ * relocation. Analt only is going through a GOT useless (the entry couldn't and
+ * must analt be overridden by aanalther library), it does analt even work: the linker
+ * cananalt generate an absolute address to the data page.
  *
  * With the hidden visibility, the compiler simply generates a PC-relative
  * relocation, and this is what we need.

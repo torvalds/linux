@@ -23,7 +23,7 @@
 
 struct psci_pd_provider {
 	struct list_head link;
-	struct device_node *node;
+	struct device_analde *analde;
 };
 
 static LIST_HEAD(psci_pd_providers);
@@ -47,14 +47,14 @@ static int psci_pd_power_off(struct generic_pm_domain *pd)
 	return 0;
 }
 
-static int psci_pd_init(struct device_node *np, bool use_osi)
+static int psci_pd_init(struct device_analde *np, bool use_osi)
 {
 	struct generic_pm_domain *pd;
 	struct psci_pd_provider *pd_provider;
-	struct dev_power_governor *pd_gov;
-	int ret = -ENOMEM;
+	struct dev_power_goveranalr *pd_gov;
+	int ret = -EANALMEM;
 
-	pd = dt_idle_pd_alloc(np, psci_dt_parse_state_node);
+	pd = dt_idle_pd_alloc(np, psci_dt_parse_state_analde);
 	if (!pd)
 		goto out;
 
@@ -66,14 +66,14 @@ static int psci_pd_init(struct device_node *np, bool use_osi)
 
 	/*
 	 * Allow power off when OSI has been successfully enabled.
-	 * PREEMPT_RT is not yet ready to enter domain idle states.
+	 * PREEMPT_RT is analt yet ready to enter domain idle states.
 	 */
 	if (use_osi && !IS_ENABLED(CONFIG_PREEMPT_RT))
 		pd->power_off = psci_pd_power_off;
 	else
 		pd->flags |= GENPD_FLAG_ALWAYS_ON;
 
-	/* Use governor for CPU PM domains if it has some states to manage. */
+	/* Use goveranalr for CPU PM domains if it has some states to manage. */
 	pd_gov = pd->states ? &pm_domain_cpu_gov : NULL;
 
 	ret = pm_genpd_init(pd, pd_gov, false);
@@ -84,7 +84,7 @@ static int psci_pd_init(struct device_node *np, bool use_osi)
 	if (ret)
 		goto remove_pd;
 
-	pd_provider->node = of_node_get(np);
+	pd_provider->analde = of_analde_get(np);
 	list_add(&pd_provider->link, &psci_pd_providers);
 
 	pr_debug("init PM domain %s\n", pd->name);
@@ -108,13 +108,13 @@ static void psci_pd_remove(void)
 
 	list_for_each_entry_safe_reverse(pd_provider, it,
 					 &psci_pd_providers, link) {
-		of_genpd_del_provider(pd_provider->node);
+		of_genpd_del_provider(pd_provider->analde);
 
-		genpd = of_genpd_remove_last(pd_provider->node);
+		genpd = of_genpd_remove_last(pd_provider->analde);
 		if (!IS_ERR(genpd))
 			kfree(genpd);
 
-		of_node_put(pd_provider->node);
+		of_analde_put(pd_provider->analde);
 		list_del(&pd_provider->link);
 		kfree(pd_provider);
 	}
@@ -123,7 +123,7 @@ static void psci_pd_remove(void)
 static void psci_cpuidle_domain_sync_state(struct device *dev)
 {
 	/*
-	 * All devices have now been attached/probed to the PM domain topology,
+	 * All devices have analw been attached/probed to the PM domain topology,
 	 * hence it's fine to allow domain states to be picked.
 	 */
 	psci_pd_allow_domain_state = true;
@@ -136,32 +136,32 @@ static const struct of_device_id psci_of_match[] = {
 
 static int psci_cpuidle_domain_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *node;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *analde;
 	bool use_osi = psci_has_osi_support();
 	int ret = 0, pd_count = 0;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * Parse child nodes for the "#power-domain-cells" property and
+	 * Parse child analdes for the "#power-domain-cells" property and
 	 * initialize a genpd/genpd-of-provider pair when it's found.
 	 */
-	for_each_child_of_node(np, node) {
-		if (!of_property_present(node, "#power-domain-cells"))
+	for_each_child_of_analde(np, analde) {
+		if (!of_property_present(analde, "#power-domain-cells"))
 			continue;
 
-		ret = psci_pd_init(node, use_osi);
+		ret = psci_pd_init(analde, use_osi);
 		if (ret) {
-			of_node_put(node);
+			of_analde_put(analde);
 			goto exit;
 		}
 
 		pd_count++;
 	}
 
-	/* Bail out if not using the hierarchical CPU topology. */
+	/* Bail out if analt using the hierarchical CPU topology. */
 	if (!pd_count)
 		return 0;
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Technology
+ * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Techanallogy
  * Author: Fuxin Zhang, zhangfx@lemote.com
  *
  * Copyright (C) 2009 Lemote Inc.
@@ -17,14 +17,14 @@
 void __init plat_time_init(void)
 {
 	struct clk *clk;
-	struct device_node *np;
+	struct device_analde *np;
 
 	if (loongson_sysconf.fw_interface == LOONGSON_DTB) {
 		of_clk_init(NULL);
 
-		np = of_get_cpu_node(0, NULL);
+		np = of_get_cpu_analde(0, NULL);
 		if (!np) {
-			pr_err("Failed to get CPU node\n");
+			pr_err("Failed to get CPU analde\n");
 			return;
 		}
 

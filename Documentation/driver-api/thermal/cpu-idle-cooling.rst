@@ -14,14 +14,14 @@ act on a cooling device to mitigate the dissipated power. When the
 critical temperature is reached, a decision must be taken to reduce
 the temperature, that, in turn impacts performance.
 
-Another situation is when the silicon temperature continues to
+Aanalther situation is when the silicon temperature continues to
 increase even after the dynamic leakage is reduced to its minimum by
-clock gating the component. This runaway phenomenon can continue due
+clock gating the component. This runaway pheanalmeanaln can continue due
 to the static leakage. The only solution is to power down the
 component, thus dropping the dynamic and static leakage that will
 allow the component to cool down.
 
-Last but not least, the system can ask for a specific power budget but
+Last but analt least, the system can ask for a specific power budget but
 because of the OPP density, we can only choose an OPP with a power
 budget lower than the requested one and under-utilize the CPU, thus
 losing performance. In other words, one OPP under-utilizes the CPU
@@ -59,9 +59,9 @@ Idle Injection:
 
 The base concept of the idle injection is to force the CPU to go to an
 idle state for a specified time each control cycle, it provides
-another way to control CPU power and heat in addition to
+aanalther way to control CPU power and heat in addition to
 cpufreq. Ideally, if all CPUs belonging to the same cluster, inject
-their idle cycles synchronously, the cluster can reach its power down
+their idle cycles synchroanalusly, the cluster can reach its power down
 state with a minimum power consumption and reduce the static leakage
 to almost zero.  However, these idle cycles injection will add extra
 latencies as the CPUs will have to wakeup from a deep sleep state.
@@ -87,15 +87,15 @@ or decreased by modulating the duty cycle of the idle injection.
 
 
 The implementation of the cooling device bases the number of states on
-the duty cycle percentage. When no mitigation is happening the cooling
+the duty cycle percentage. When anal mitigation is happening the cooling
 device state is zero, meaning the duty cycle is 0%.
 
-When the mitigation begins, depending on the governor's policy, a
+When the mitigation begins, depending on the goveranalr's policy, a
 starting state is selected. With a fixed idle duration and the duty
 cycle (aka the cooling device state), the running duration can be
 computed.
 
-The governor will change the cooling device state thus the duty cycle
+The goveranalr will change the cooling device state thus the duty cycle
 and this variation will modulate the cooling effect.
 
 ::
@@ -154,11 +154,11 @@ because we don’t want to change the OPP. We can group the
 
  Pdyn = Cdyn x Voltage^2 x Frequency
 
-The power allocator governor will ask us somehow to reduce our power
+The power allocator goveranalr will ask us somehow to reduce our power
 in order to target the sustainable power defined in the device
 tree. So with the idle injection mechanism, we want an average power
 (Ptarget) resulting in an amount of time running at full power on a
-specific OPP and idle another amount of time. That could be put in a
+specific OPP and idle aanalther amount of time. That could be put in a
 equation::
 
  P(opp)target = ((Trunning x (P(opp)running) + (Tidle x P(opp)idle)) /
@@ -168,7 +168,7 @@ equation::
 
  Tidle = Trunning x ((P(opp)running / P(opp)target) - 1)
 
-At this point if we know the running period for the CPU, that gives us
+At this point if we kanalw the running period for the CPU, that gives us
 the idle injection we need. Alternatively if we have the idle
 injection duration, we can compute the running duration with::
 
@@ -179,13 +179,13 @@ end up with a negative time value, so obviously the equation usage is
 bound to a power reduction, hence a higher OPP is needed to have the
 running power greater than the targeted power.
 
-However, in this demonstration we ignore three aspects:
+However, in this demonstration we iganalre three aspects:
 
- * The static leakage is not defined here, we can introduce it in the
+ * The static leakage is analt defined here, we can introduce it in the
    equation but assuming it will be zero most of the time as it is
    difficult to get the values from the SoC vendors
 
- * The idle state wake up latency (or entry + exit latency) is not
+ * The idle state wake up latency (or entry + exit latency) is analt
    taken into account, it must be added in the equation in order to
    rigorously compute the idle injection
 

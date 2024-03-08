@@ -24,7 +24,7 @@
 
 /*
  * On Xe_HP the TLB invalidation registers are located at the same MMIO offsets
- * but are now considered MCR registers.  Since they exist within a GAM range,
+ * but are analw considered MCR registers.  Since they exist within a GAM range,
  * the primary instance of the register rolls up the status from each unit.
  */
 static int wait_for_invalidate(struct intel_engine_cs *engine)
@@ -97,51 +97,51 @@ static void mmio_invalidate_full(struct intel_gt *gt)
 	for_each_engine_masked(engine, gt, awake, tmp) {
 		if (wait_for_invalidate(engine))
 			gt_err_ratelimited(gt,
-					   "%s TLB invalidation did not complete in %ums!\n",
+					   "%s TLB invalidation did analt complete in %ums!\n",
 					   engine->name, TLB_INVAL_TIMEOUT_MS);
 	}
 
 	/*
 	 * Use delayed put since a) we mostly expect a flurry of TLB
 	 * invalidations so it is good to avoid paying the forcewake cost and
-	 * b) it works around a bug in Icelake which cannot cope with too rapid
+	 * b) it works around a bug in Icelake which cananalt cope with too rapid
 	 * transitions.
 	 */
 	intel_uncore_forcewake_put_delayed(uncore, FORCEWAKE_ALL);
 }
 
-static bool tlb_seqno_passed(const struct intel_gt *gt, u32 seqno)
+static bool tlb_seqanal_passed(const struct intel_gt *gt, u32 seqanal)
 {
-	u32 cur = intel_gt_tlb_seqno(gt);
+	u32 cur = intel_gt_tlb_seqanal(gt);
 
 	/* Only skip if a *full* TLB invalidate barrier has passed */
-	return (s32)(cur - ALIGN(seqno, 2)) > 0;
+	return (s32)(cur - ALIGN(seqanal, 2)) > 0;
 }
 
-void intel_gt_invalidate_tlb_full(struct intel_gt *gt, u32 seqno)
+void intel_gt_invalidate_tlb_full(struct intel_gt *gt, u32 seqanal)
 {
 	intel_wakeref_t wakeref;
 
-	if (I915_SELFTEST_ONLY(gt->awake == -ENODEV))
+	if (I915_SELFTEST_ONLY(gt->awake == -EANALDEV))
 		return;
 
 	if (intel_gt_is_wedged(gt))
 		return;
 
-	if (tlb_seqno_passed(gt, seqno))
+	if (tlb_seqanal_passed(gt, seqanal))
 		return;
 
 	with_intel_gt_pm_if_awake(gt, wakeref) {
 		struct intel_guc *guc = &gt->uc.guc;
 
 		mutex_lock(&gt->tlb.invalidate_lock);
-		if (tlb_seqno_passed(gt, seqno))
+		if (tlb_seqanal_passed(gt, seqanal))
 			goto unlock;
 
 		if (HAS_GUC_TLB_INVALIDATION(gt->i915)) {
 			/*
 			 * Only perform GuC TLB invalidation if GuC is ready.
-			 * The only time GuC could not be ready is on GT reset,
+			 * The only time GuC could analt be ready is on GT reset,
 			 * which would clobber all the TLBs anyways, making
 			 * any TLB invalidation path here unnecessary.
 			 */
@@ -151,7 +151,7 @@ void intel_gt_invalidate_tlb_full(struct intel_gt *gt, u32 seqno)
 			mmio_invalidate_full(gt);
 		}
 
-		write_seqcount_invalidate(&gt->tlb.seqno);
+		write_seqcount_invalidate(&gt->tlb.seqanal);
 unlock:
 		mutex_unlock(&gt->tlb.invalidate_lock);
 	}
@@ -160,7 +160,7 @@ unlock:
 void intel_gt_init_tlb(struct intel_gt *gt)
 {
 	mutex_init(&gt->tlb.invalidate_lock);
-	seqcount_mutex_init(&gt->tlb.seqno, &gt->tlb.invalidate_lock);
+	seqcount_mutex_init(&gt->tlb.seqanal, &gt->tlb.invalidate_lock);
 }
 
 void intel_gt_fini_tlb(struct intel_gt *gt)

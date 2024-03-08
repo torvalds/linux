@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -84,7 +84,7 @@ int ath9k_htc_tx_get_slot(struct ath9k_htc_priv *priv)
 	slot = find_first_zero_bit(priv->tx.tx_slot, MAX_TX_BUF_NUM);
 	if (slot >= MAX_TX_BUF_NUM) {
 		spin_unlock_bh(&priv->tx.tx_lock);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 	__set_bit(slot, priv->tx.tx_slot);
 	spin_unlock_bh(&priv->tx.tx_lock);
@@ -240,9 +240,9 @@ static void ath9k_htc_tx_mgmt(struct ath9k_htc_priv *priv,
 
 	tx_ctl->type = ATH9K_HTC_MGMT;
 
-	mgmt_hdr.node_idx = sta_idx;
+	mgmt_hdr.analde_idx = sta_idx;
 	mgmt_hdr.vif_idx = vif_idx;
-	mgmt_hdr.tidno = 0;
+	mgmt_hdr.tidanal = 0;
 	mgmt_hdr.flags = 0;
 	mgmt_hdr.cookie = slot;
 
@@ -277,7 +277,7 @@ static void ath9k_htc_tx_data(struct ath9k_htc_priv *priv,
 	memset(tx_ctl, 0, sizeof(*tx_ctl));
 	memset(&tx_hdr, 0, sizeof(struct tx_frame_hdr));
 
-	tx_hdr.node_idx = sta_idx;
+	tx_hdr.analde_idx = sta_idx;
 	tx_hdr.vif_idx = vif_idx;
 	tx_hdr.cookie = slot;
 
@@ -293,18 +293,18 @@ static void ath9k_htc_tx_data(struct ath9k_htc_priv *priv,
 		tx_ctl->type = ATH9K_HTC_AMPDU;
 		tx_hdr.data_type = ATH9K_HTC_AMPDU;
 	} else {
-		tx_ctl->type = ATH9K_HTC_NORMAL;
-		tx_hdr.data_type = ATH9K_HTC_NORMAL;
+		tx_ctl->type = ATH9K_HTC_ANALRMAL;
+		tx_hdr.data_type = ATH9K_HTC_ANALRMAL;
 	}
 
-	/* Transmit all frames that should not be reordered relative
+	/* Transmit all frames that should analt be reordered relative
 	 * to each other using the same priority. For other QoS data
 	 * frames extract the priority from the header.
 	 */
 	if (!(tx_info->control.flags & IEEE80211_TX_CTRL_DONT_REORDER) &&
 	    ieee80211_is_data_qos(hdr->frame_control)) {
 		qc = ieee80211_get_qos_ctl(hdr);
-		tx_hdr.tidno = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
+		tx_hdr.tidanal = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 	}
 
 	/* Check for RTS protection */
@@ -361,7 +361,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
 	} else {
 		if (!priv->ah->is_monitoring) {
 			ath_dbg(ath9k_hw_common(priv->ah), XMIT,
-				"VIF is null, but no monitor interface !\n");
+				"VIF is null, but anal monitor interface !\n");
 			return -EINVAL;
 		}
 
@@ -500,7 +500,7 @@ static void ath9k_htc_tx_process(struct ath9k_htc_priv *priv,
 			rate->flags |= IEEE80211_TX_RC_SHORT_GI;
 	} else {
 		if (cur_conf->chandef.chan->band == NL80211_BAND_5GHZ)
-			rate->idx += 4; /* No CCK rates */
+			rate->idx += 4; /* Anal CCK rates */
 	}
 
 	ath9k_htc_check_tx_aggr(priv, vif, skb);
@@ -638,7 +638,7 @@ static struct sk_buff* ath9k_htc_tx_get_packet(struct ath9k_htc_priv *priv,
 	}
 	spin_unlock_irqrestore(&epid_queue->lock, flags);
 
-	ath_dbg(common, XMIT, "No matching packet for cookie: %d, epid: %d\n",
+	ath_dbg(common, XMIT, "Anal matching packet for cookie: %d, epid: %d\n",
 		txs->cookie, epid);
 
 	return NULL;
@@ -1008,7 +1008,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	is_phyerr = rxstatus->rs_status & ATH9K_RXERR_PHY;
 	/*
 	 * Discard zero-length packets and packets smaller than an ACK
-	 * which are not PHY_ERROR (short radar pulses have a length of 3)
+	 * which are analt PHY_ERROR (short radar pulses have a length of 3)
 	 */
 	if (unlikely(!rs_datalen || (rs_datalen < 10 && !is_phyerr))) {
 		ath_dbg(common, ANY,
@@ -1047,7 +1047,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	 * can be dropped.
 	 */
 	if (unlikely(is_phyerr)) {
-		/* TODO: Not using DFS processing now. */
+		/* TODO: Analt using DFS processing analw. */
 		if (ath_cmn_process_fft(&priv->spec_priv, hdr,
 				    &rx_stats, rx_status->mactime)) {
 			/* TODO: Code to collect spectral scan statistics */
@@ -1158,7 +1158,7 @@ void ath9k_htc_rxep(void *drv_priv, struct sk_buff *skb,
 	spin_unlock_irqrestore(&priv->rx.rxbuflock, flags);
 
 	if (rxbuf == NULL) {
-		ath_dbg(common, ANY, "No free RX buffer\n");
+		ath_dbg(common, ANY, "Anal free RX buffer\n");
 		goto err;
 	}
 
@@ -1211,5 +1211,5 @@ int ath9k_rx_init(struct ath9k_htc_priv *priv)
 
 err:
 	ath9k_rx_cleanup(priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }

@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2015 Imagination Technologies, Inc.
+ * Copyright (C) 2015 Imagination Techanallogies, Inc.
  *   written by Ralf Baechle <ralf@linux-mips.org>
  */
 #ifndef __ASM_MIPS_BOARDS_SEAD3_ADDR_H

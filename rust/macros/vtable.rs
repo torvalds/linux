@@ -14,16 +14,16 @@ pub(crate) fn vtable(_attr: TokenStream, ts: TokenStream) -> TokenStream {
             TokenTree::Ident(ident) => match ident.to_string().as_str() {
                 "trait" => Some(true),
                 "impl" => Some(false),
-                _ => None,
+                _ => Analne,
             },
-            _ => None,
+            _ => Analne,
         })
         .expect("#[vtable] attribute should only be applied to trait or impl block");
 
     // Retrieve the main body. The main body should be the last token tree.
     let body = match tokens.pop() {
         Some(TokenTree::Group(group)) if group.delimiter() == Delimiter::Brace => group,
-        _ => panic!("cannot locate main body of trait or impl block"),
+        _ => panic!("cananalt locate main body of trait or impl block"),
     };
 
     let mut body_it = body.stream().into_iter();
@@ -66,7 +66,7 @@ pub(crate) fn vtable(_attr: TokenStream, ts: TokenStream) -> TokenStream {
             if consts.contains(&gen_const_name) {
                 continue;
             }
-            // We don't know on the implementation-site whether a method is required or provided
+            // We don't kanalw on the implementation-site whether a method is required or provided
             // so we have to generate a const for all methods.
             write!(
                 const_items,

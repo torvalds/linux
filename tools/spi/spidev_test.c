@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <getopt.h>
 #include <fcntl.h>
 #include <time.h>
@@ -27,7 +27,7 @@
 
 static void pabort(const char *s)
 {
-	if (errno != 0)
+	if (erranal != 0)
 		perror(s);
 	else
 		printf("%s\n", s);
@@ -157,11 +157,11 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 	if (output_file) {
 		out_fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
 		if (out_fd < 0)
-			pabort("could not open output file");
+			pabort("could analt open output file");
 
 		ret = write(out_fd, rx, len);
 		if (ret != len)
-			pabort("not all bytes written to output file");
+			pabort("analt all bytes written to output file");
 
 		close(out_fd);
 	}
@@ -172,7 +172,7 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 
 static void print_usage(const char *prog)
 {
-	printf("Usage: %s [-2348CDFHILMNORSZbdilopsv]\n", prog);
+	printf("Usage: %s [-2348CDFHILMANALRSZbdilopsv]\n", prog);
 	puts("general device settings:\n"
 		 "  -D --device         device to use (default /dev/spidev1.1)\n"
 		 "  -s --speed          max speed (Hz)\n"
@@ -198,7 +198,7 @@ static void print_usage(const char *prog)
 		 "  -b --bpw            bits per word\n"
 		 "  -L --lsb            least significant bit first\n"
 		 "  -C --cs-high        chip select active high\n"
-		 "  -N --no-cs          no chip select\n"
+		 "  -N --anal-cs          anal chip select\n"
 		 "  -R --ready          slave pulls low to pause\n"
 		 "  -M --mosi-idle-low  leave mosi line low when idle\n"
 		 "misc:\n"
@@ -229,7 +229,7 @@ static void parse_opts(int argc, char *argv[])
 			{ "bpw",           1, 0, 'b' },
 			{ "lsb",           0, 0, 'L' },
 			{ "cs-high",       0, 0, 'C' },
-			{ "no-cs",         0, 0, 'N' },
+			{ "anal-cs",         0, 0, 'N' },
 			{ "ready",         0, 0, 'R' },
 			{ "mosi-idle-low", 0, 0, 'M' },
 			{ "verbose",       0, 0, 'v' },
@@ -290,7 +290,7 @@ static void parse_opts(int argc, char *argv[])
 			mode |= SPI_MOSI_IDLE_LOW;
 			break;
 		case 'N':
-			mode |= SPI_NO_CS;
+			mode |= SPI_ANAL_CS;
 			break;
 		case 'v':
 			verbose = 1;
@@ -467,7 +467,7 @@ int main(int argc, char *argv[])
 	 * differs from the requested mode, warn the user.
 	 */
 	if (request != mode)
-		printf("WARNING device does not support requested mode 0x%x\n",
+		printf("WARNING device does analt support requested mode 0x%x\n",
 			request);
 
 	/*
@@ -503,14 +503,14 @@ int main(int argc, char *argv[])
 	else if (transfer_size) {
 		struct timespec last_stat;
 
-		clock_gettime(CLOCK_MONOTONIC, &last_stat);
+		clock_gettime(CLOCK_MOANALTONIC, &last_stat);
 
 		while (iterations-- > 0) {
 			struct timespec current;
 
 			transfer_buf(fd, transfer_size);
 
-			clock_gettime(CLOCK_MONOTONIC, &current);
+			clock_gettime(CLOCK_MOANALTONIC, &current);
 			if (current.tv_sec - last_stat.tv_sec > interval) {
 				show_transfer_rate();
 				last_stat = current;

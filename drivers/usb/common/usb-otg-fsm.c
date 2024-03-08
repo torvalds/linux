@@ -132,7 +132,7 @@ static void otg_hnp_polling_work(struct work_struct *work)
 	udev = usb_hub_find_child(fsm->otg->host->root_hub, 1);
 	if (!udev) {
 		dev_err(fsm->otg->host->controller,
-			"no usb dev connected, can't start HNP polling\n");
+			"anal usb dev connected, can't start HNP polling\n");
 		return;
 	}
 
@@ -188,7 +188,7 @@ static void otg_start_hnp_polling(struct otg_fsm *fsm)
 {
 	/*
 	 * The memory of host_req_flag should be allocated by
-	 * controller driver, otherwise, hnp polling is not started.
+	 * controller driver, otherwise, hnp polling is analt started.
 	 */
 	if (!fsm->host_req_flag)
 		return;

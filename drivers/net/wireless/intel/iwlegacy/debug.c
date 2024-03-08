@@ -173,7 +173,7 @@ il_get_mgmt_string(int cmd)
 	IL_CMD(MANAGEMENT_DEAUTH);
 	IL_CMD(MANAGEMENT_ACTION);
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 
 	}
 }
@@ -191,7 +191,7 @@ il_get_ctrl_string(int cmd)
 	IL_CMD(CONTROL_CFEND);
 	IL_CMD(CONTROL_CFENDACK);
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 
 	}
 }
@@ -211,7 +211,7 @@ il_dbgfs_tx_stats_read(struct file *file, char __user *user_buf, size_t count,
 	    100 + sizeof(char) * 50 * (MANAGEMENT_MAX + CONTROL_MAX);
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	pos += scnprintf(buf + pos, bufsz - pos, "Management:\n");
 	for (cnt = 0; cnt < MANAGEMENT_MAX; cnt++) {
 		pos +=
@@ -271,7 +271,7 @@ il_dbgfs_rx_stats_read(struct file *file, char __user *user_buf, size_t count,
 	    100 + sizeof(char) * 50 * (MANAGEMENT_MAX + CONTROL_MAX);
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Management:\n");
 	for (cnt = 0; cnt < MANAGEMENT_MAX; cnt++) {
@@ -324,7 +324,7 @@ il_dbgfs_sram_read(struct file *file, char __user *user_buf, size_t count,
 	bufsz = 30 + il->dbgfs_sram_len * sizeof(char) * 10;
 	buf = kmalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, "sram_len: 0x%x\n",
 		      il->dbgfs_sram_len);
@@ -400,7 +400,7 @@ il_dbgfs_stations_read(struct file *file, char __user *user_buf, size_t count,
 
 	buf = kmalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, "num of stations: %d\n\n",
@@ -463,21 +463,21 @@ il_dbgfs_nvm_read(struct file *file, char __user *user_buf, size_t count,
 	buf_size = 4 * eeprom_len + 256;
 
 	if (eeprom_len % 16) {
-		IL_ERR("NVM size is not multiple of 16.\n");
-		return -ENODATA;
+		IL_ERR("NVM size is analt multiple of 16.\n");
+		return -EANALDATA;
 	}
 
 	ptr = il->eeprom;
 	if (!ptr) {
 		IL_ERR("Invalid EEPROM memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* 4 characters for byte 0xYY */
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR("Can not allocate Buffer\n");
-		return -ENOMEM;
+		IL_ERR("Can analt allocate Buffer\n");
+		return -EANALMEM;
 	}
 	eeprom_ver = il_eeprom_query16(il, EEPROM_VERSION);
 	pos +=
@@ -509,8 +509,8 @@ il_dbgfs_channels_read(struct file *file, char __user *user_buf, size_t count,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR("Can not allocate Buffer\n");
-		return -ENOMEM;
+		IL_ERR("Can analt allocate Buffer\n");
+		return -EANALMEM;
 	}
 
 	supp_band = il_get_hw_mode(il, NL80211_BAND_2GHZ);
@@ -532,12 +532,12 @@ il_dbgfs_channels_read(struct file *file, char __user *user_buf, size_t count,
 				      flags & IEEE80211_CHAN_RADAR ?
 				      " (IEEE 802.11h required)" : "",
 				      ((channels[i].
-					flags & IEEE80211_CHAN_NO_IR) ||
+					flags & IEEE80211_CHAN_ANAL_IR) ||
 				       (channels[i].
 					flags & IEEE80211_CHAN_RADAR)) ? "" :
 				      ", IBSS",
 				      channels[i].
-				      flags & IEEE80211_CHAN_NO_IR ?
+				      flags & IEEE80211_CHAN_ANAL_IR ?
 				      "passive only" : "active/passive");
 	}
 	supp_band = il_get_hw_mode(il, NL80211_BAND_5GHZ);
@@ -559,12 +559,12 @@ il_dbgfs_channels_read(struct file *file, char __user *user_buf, size_t count,
 				      flags & IEEE80211_CHAN_RADAR ?
 				      " (IEEE 802.11h required)" : "",
 				      ((channels[i].
-					flags & IEEE80211_CHAN_NO_IR) ||
+					flags & IEEE80211_CHAN_ANAL_IR) ||
 				       (channels[i].
 					flags & IEEE80211_CHAN_RADAR)) ? "" :
 				      ", IBSS",
 				      channels[i].
-				      flags & IEEE80211_CHAN_NO_IR ?
+				      flags & IEEE80211_CHAN_ANAL_IR ?
 				      "passive only" : "active/passive");
 	}
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
@@ -647,8 +647,8 @@ il_dbgfs_interrupt_read(struct file *file, char __user *user_buf, size_t count,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR("Can not allocate Buffer\n");
-		return -ENOMEM;
+		IL_ERR("Can analt allocate Buffer\n");
+		return -EANALMEM;
 	}
 
 	pos +=
@@ -777,7 +777,7 @@ il_dbgfs_disable_ht40_write(struct file *file, const char __user *user_buf,
 		il->disable_ht40 = ht40 ? true : false;
 	else {
 		IL_ERR("Sta associated with AP - "
-		       "Change to 40MHz channel support is not allowed\n");
+		       "Change to 40MHz channel support is analt allowed\n");
 		return -EINVAL;
 	}
 
@@ -824,12 +824,12 @@ il_dbgfs_tx_queue_read(struct file *file, char __user *user_buf, size_t count,
 	    sizeof(char) * 64 * il->cfg->num_of_queues;
 
 	if (!il->txq) {
-		IL_ERR("txq not ready\n");
+		IL_ERR("txq analt ready\n");
 		return -EAGAIN;
 	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (cnt = 0; cnt < il->hw_params.max_txq_num; cnt++) {
 		txq = &il->txq[cnt];
@@ -879,7 +879,7 @@ il_dbgfs_rx_queue_read(struct file *file, char __user *user_buf, size_t count,
 	} else {
 		pos +=
 		    scnprintf(buf + pos, bufsz - pos,
-			      "closed_rb_num: Not Allocated\n");
+			      "closed_rb_num: Analt Allocated\n");
 	}
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -927,8 +927,8 @@ il_dbgfs_sensitivity_read(struct file *file, char __user *user_buf,
 	data = &il->sensitivity_data;
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR("Can not allocate Buffer\n");
-		return -ENOMEM;
+		IL_ERR("Can analt allocate Buffer\n");
+		return -EANALMEM;
 	}
 
 	pos +=
@@ -999,8 +999,8 @@ il_dbgfs_sensitivity_read(struct file *file, char __user *user_buf,
 		      "nrg_auto_corr_silence_diff:\t %u\n",
 		      data->nrg_auto_corr_silence_diff);
 	pos +=
-	    scnprintf(buf + pos, bufsz - pos, "num_in_cck_no_fa:\t\t %u\n",
-		      data->num_in_cck_no_fa);
+	    scnprintf(buf + pos, bufsz - pos, "num_in_cck_anal_fa:\t\t %u\n",
+		      data->num_in_cck_anal_fa);
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, "nrg_th_ofdm:\t\t\t %u\n",
 		      data->nrg_th_ofdm);
@@ -1011,7 +1011,7 @@ il_dbgfs_sensitivity_read(struct file *file, char __user *user_buf,
 }
 
 static ssize_t
-il_dbgfs_chain_noise_read(struct file *file, char __user *user_buf,
+il_dbgfs_chain_analise_read(struct file *file, char __user *user_buf,
 			  size_t count, loff_t *ppos)
 {
 
@@ -1019,29 +1019,29 @@ il_dbgfs_chain_noise_read(struct file *file, char __user *user_buf,
 	int pos = 0;
 	int cnt = 0;
 	char *buf;
-	int bufsz = sizeof(struct il_chain_noise_data) * 4 + 100;
+	int bufsz = sizeof(struct il_chain_analise_data) * 4 + 100;
 	ssize_t ret;
-	struct il_chain_noise_data *data;
+	struct il_chain_analise_data *data;
 
-	data = &il->chain_noise_data;
+	data = &il->chain_analise_data;
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR("Can not allocate Buffer\n");
-		return -ENOMEM;
+		IL_ERR("Can analt allocate Buffer\n");
+		return -EANALMEM;
 	}
 
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, "active_chains:\t\t\t %u\n",
 		      data->active_chains);
 	pos +=
-	    scnprintf(buf + pos, bufsz - pos, "chain_noise_a:\t\t\t %u\n",
-		      data->chain_noise_a);
+	    scnprintf(buf + pos, bufsz - pos, "chain_analise_a:\t\t\t %u\n",
+		      data->chain_analise_a);
 	pos +=
-	    scnprintf(buf + pos, bufsz - pos, "chain_noise_b:\t\t\t %u\n",
-		      data->chain_noise_b);
+	    scnprintf(buf + pos, bufsz - pos, "chain_analise_b:\t\t\t %u\n",
+		      data->chain_analise_b);
 	pos +=
-	    scnprintf(buf + pos, bufsz - pos, "chain_noise_c:\t\t\t %u\n",
-		      data->chain_noise_c);
+	    scnprintf(buf + pos, bufsz - pos, "chain_analise_c:\t\t\t %u\n",
+		      data->chain_analise_c);
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, "chain_signal_a:\t\t\t %u\n",
 		      data->chain_signal_a);
@@ -1097,7 +1097,7 @@ il_dbgfs_power_save_status_read(struct file *file, char __user *user_buf,
 	pos += scnprintf(buf + pos, bufsz - pos, "Power Save Status: ");
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, "%s\n",
-		      (pwrsave_status == CSR_GP_REG_NO_POWER_SAVE) ? "none" :
+		      (pwrsave_status == CSR_GP_REG_ANAL_POWER_SAVE) ? "analne" :
 		      (pwrsave_status == CSR_GP_REG_MAC_POWER_SAVE) ? "MAC" :
 		      (pwrsave_status == CSR_GP_REG_PHY_POWER_SAVE) ? "PHY" :
 		      "error");
@@ -1297,7 +1297,7 @@ DEBUGFS_READ_FILE_OPS(ucode_rx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_tx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_general_stats);
 DEBUGFS_READ_FILE_OPS(sensitivity);
-DEBUGFS_READ_FILE_OPS(chain_noise);
+DEBUGFS_READ_FILE_OPS(chain_analise);
 DEBUGFS_READ_FILE_OPS(power_save_status);
 DEBUGFS_WRITE_FILE_OPS(clear_ucode_stats);
 DEBUGFS_WRITE_FILE_OPS(clear_traffic_stats);
@@ -1349,17 +1349,17 @@ il_dbgfs_register(struct il_priv *il, const char *name)
 
 	if (il->cfg->sensitivity_calib_by_driver)
 		DEBUGFS_ADD_FILE(sensitivity, dir_debug, 0400);
-	if (il->cfg->chain_noise_calib_by_driver)
-		DEBUGFS_ADD_FILE(chain_noise, dir_debug, 0400);
+	if (il->cfg->chain_analise_calib_by_driver)
+		DEBUGFS_ADD_FILE(chain_analise, dir_debug, 0400);
 	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, 0200);
 	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, 0200);
 	DEBUGFS_ADD_FILE(wd_timeout, dir_debug, 0200);
 	if (il->cfg->sensitivity_calib_by_driver)
 		DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf,
 				 &il->disable_sens_cal);
-	if (il->cfg->chain_noise_calib_by_driver)
-		DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
-				 &il->disable_chain_noise_cal);
+	if (il->cfg->chain_analise_calib_by_driver)
+		DEBUGFS_ADD_BOOL(disable_chain_analise, dir_rf,
+				 &il->disable_chain_analise_cal);
 	DEBUGFS_ADD_BOOL(disable_tx_power, dir_rf, &il->disable_tx_power_cal);
 }
 EXPORT_SYMBOL(il_dbgfs_register);

@@ -5,7 +5,7 @@
  * Copyright (C) 2016 Texas Instruments Incorporated - https://www.ti.com
  *
  * Authors:	Sandeep Nair
- *		Vitaly Andrianov
+ *		Vitaly Andriaanalv
  */
 
 #include <linux/hw_random.h>
@@ -176,15 +176,15 @@ static int ks_sa_rng_data_read(struct hwrng *rng, u32 *data)
 static int ks_sa_rng_data_present(struct hwrng *rng, int wait)
 {
 	struct ks_sa_rng *ks_sa_rng = container_of(rng, struct ks_sa_rng, rng);
-	u64 now = ktime_get_ns();
+	u64 analw = ktime_get_ns();
 
 	u32	ready;
 	int	j;
 
-	if (wait && now < ks_sa_rng->ready_ts) {
+	if (wait && analw < ks_sa_rng->ready_ts) {
 		/* Max delay expected here is 81920000 ns */
 		unsigned long min_delay =
-			DIV_ROUND_UP((u32)(ks_sa_rng->ready_ts - now), 1000);
+			DIV_ROUND_UP((u32)(ks_sa_rng->ready_ts - analw), 1000);
 
 		usleep_range(min_delay, min_delay + SA_RNG_DATA_RETRY_DELAY);
 	}
@@ -210,7 +210,7 @@ static int ks_sa_rng_probe(struct platform_device *pdev)
 
 	ks_sa_rng = devm_kzalloc(dev, sizeof(*ks_sa_rng), GFP_KERNEL);
 	if (!ks_sa_rng)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ks_sa_rng->rng = (struct hwrng) {
 		.name = "ks_sa_hwrng",
@@ -225,11 +225,11 @@ static int ks_sa_rng_probe(struct platform_device *pdev)
 		return PTR_ERR(ks_sa_rng->reg_rng);
 
 	ks_sa_rng->regmap_cfg =
-		syscon_regmap_lookup_by_phandle(dev->of_node,
+		syscon_regmap_lookup_by_phandle(dev->of_analde,
 						"ti,syscon-sa-cfg");
 
 	if (IS_ERR(ks_sa_rng->regmap_cfg))
-		return dev_err_probe(dev, -EINVAL, "syscon_node_to_regmap failed\n");
+		return dev_err_probe(dev, -EINVAL, "syscon_analde_to_regmap failed\n");
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_resume_and_get(dev);
@@ -267,5 +267,5 @@ static struct platform_driver ks_sa_rng_driver = {
 module_platform_driver(ks_sa_rng_driver);
 
 MODULE_DESCRIPTION("Keystone NETCP SA H/W Random Number Generator driver");
-MODULE_AUTHOR("Vitaly Andrianov <vitalya@ti.com>");
+MODULE_AUTHOR("Vitaly Andriaanalv <vitalya@ti.com>");
 MODULE_LICENSE("GPL");

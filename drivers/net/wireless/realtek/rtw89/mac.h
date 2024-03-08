@@ -94,7 +94,7 @@ enum rtw89_mac_wde_dle_queid_wdrls {
 	WDE_DLE_QUEID_DROP_RETRY_LIMIT = 1,
 	WDE_DLE_QUEID_DROP_LIFETIME_TO = 2,
 	WDE_DLE_QUEID_DROP_MACID_DROP = 3,
-	WDE_DLE_QUEID_NO_REPORT = 4
+	WDE_DLE_QUEID_ANAL_REPORT = 4
 };
 
 enum rtw89_mac_ple_dle_port_id {
@@ -110,7 +110,7 @@ enum rtw89_mac_ple_dle_port_id {
 };
 
 enum rtw89_mac_ple_dle_queid_plrls {
-	PLE_DLE_QUEID_NO_REPORT = 0x0
+	PLE_DLE_QUEID_ANAL_REPORT = 0x0
 };
 
 enum rtw89_machdr_frame_type {
@@ -384,7 +384,7 @@ enum rtw89_mac_c2h_ofld_func {
 	RTW89_MAC_C2H_FUNC_BCN_RESEND,
 	RTW89_MAC_C2H_FUNC_MACID_PAUSE,
 	RTW89_MAC_C2H_FUNC_TSF32_TOGL_RPT = 0x6,
-	RTW89_MAC_C2H_FUNC_SCANOFLD_RSP = 0x9,
+	RTW89_MAC_C2H_FUNC_SCAANALFLD_RSP = 0x9,
 	RTW89_MAC_C2H_FUNC_BCNFLTR_RPT = 0xd,
 	RTW89_MAC_C2H_FUNC_OFLD_MAX,
 };
@@ -530,15 +530,15 @@ enum rtw89_mac_bf_rrsc_rate {
 #define S_AX_PLE_PAGE_SEL_128	1
 #define S_AX_PLE_PAGE_SEL_256	2
 
-#define B_CMAC0_MGQ_NORMAL	BIT(2)
-#define B_CMAC0_MGQ_NO_PWRSAV	BIT(3)
+#define B_CMAC0_MGQ_ANALRMAL	BIT(2)
+#define B_CMAC0_MGQ_ANAL_PWRSAV	BIT(3)
 #define B_CMAC0_CPUMGQ		BIT(4)
-#define B_CMAC1_MGQ_NORMAL	BIT(10)
-#define B_CMAC1_MGQ_NO_PWRSAV	BIT(11)
+#define B_CMAC1_MGQ_ANALRMAL	BIT(10)
+#define B_CMAC1_MGQ_ANAL_PWRSAV	BIT(11)
 #define B_CMAC1_CPUMGQ		BIT(12)
 
-#define B_CMAC0_MGQ_NORMAL_BE	BIT(2)
-#define B_CMAC1_MGQ_NORMAL_BE	BIT(30)
+#define B_CMAC0_MGQ_ANALRMAL_BE	BIT(2)
+#define B_CMAC1_MGQ_ANALRMAL_BE	BIT(30)
 
 #define QEMP_ACQ_GRP_MACID_NUM	8
 #define QEMP_ACQ_GRP_QSEL_SH	4
@@ -828,8 +828,8 @@ enum mac_ax_err_info {
 	MAC_AX_ERR_L1_RCVY_STOP_REQ = 0x0003,
 	MAC_AX_ERR_L1_RCVY_START_REQ = 0x0004,
 	MAC_AX_ERR_L1_RESET_START_DMAC = 0x000A,
-	MAC_AX_ERR_L0_CFG_NOTIFY = 0x0010,
-	MAC_AX_ERR_L0_CFG_DIS_NOTIFY = 0x0011,
+	MAC_AX_ERR_L0_CFG_ANALTIFY = 0x0010,
+	MAC_AX_ERR_L0_CFG_DIS_ANALTIFY = 0x0011,
 	MAC_AX_ERR_L0_CFG_HANDSHAKE = 0x0012,
 	MAC_AX_ERR_L0_RCVY_EN = 0x0013,
 	MAC_AX_SET_ERR_MAX,
@@ -1155,7 +1155,7 @@ bool rtw89_mac_get_ctrl_path(struct rtw89_dev *rtwdev);
 int rtw89_mac_cfg_ctrl_path(struct rtw89_dev *rtwdev, bool wl);
 int rtw89_mac_cfg_ctrl_path_v1(struct rtw89_dev *rtwdev, bool wl);
 void rtw89_mac_power_mode_change(struct rtw89_dev *rtwdev, bool enter);
-void rtw89_mac_notify_wake(struct rtw89_dev *rtwdev);
+void rtw89_mac_analtify_wake(struct rtw89_dev *rtwdev);
 
 static inline
 void rtw89_mac_bf_assoc(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,

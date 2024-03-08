@@ -16,12 +16,12 @@ enum nvdimm_event {
 };
 
 enum nvdimm_claim_class {
-	NVDIMM_CCLASS_NONE,
+	NVDIMM_CCLASS_ANALNE,
 	NVDIMM_CCLASS_BTT,
 	NVDIMM_CCLASS_BTT2,
 	NVDIMM_CCLASS_PFN,
 	NVDIMM_CCLASS_DAX,
-	NVDIMM_CCLASS_UNKNOWN,
+	NVDIMM_CCLASS_UNKANALWN,
 };
 
 #define NVDIMM_EVENT_VAR(_id)  event_attr_##_id
@@ -42,15 +42,15 @@ enum nvdimm_claim_class {
  * @pmu: pmu data structure for nvdimm performance stats.
  * @dev: nvdimm device pointer.
  * @cpu: designated cpu for counter access.
- * @node: node for cpu hotplug notifier link.
- * @cpuhp_state: state for cpu hotplug notification.
+ * @analde: analde for cpu hotplug analtifier link.
+ * @cpuhp_state: state for cpu hotplug analtification.
  * @arch_cpumask: cpumask to get designated cpu for counter access.
  */
 struct nvdimm_pmu {
 	struct pmu pmu;
 	struct device *dev;
 	int cpu;
-	struct hlist_node node;
+	struct hlist_analde analde;
 	enum cpuhp_state cpuhp_state;
 	/* cpumask provided by arch/platform specific code */
 	struct cpumask arch_cpumask;
@@ -81,7 +81,7 @@ struct nd_device_driver {
 	int (*probe)(struct device *dev);
 	void (*remove)(struct device *dev);
 	void (*shutdown)(struct device *dev);
-	void (*notify)(struct device *dev, enum nvdimm_event event);
+	void (*analtify)(struct device *dev, enum nvdimm_event event);
 };
 
 static inline struct nd_device_driver *to_nd_device_driver(
@@ -92,9 +92,9 @@ static inline struct nd_device_driver *to_nd_device_driver(
 
 /**
  * struct nd_namespace_common - core infrastructure of a namespace
- * @force_raw: ignore other personalities for the namespace (e.g. btt)
- * @dev: device model node
- * @claim: when set a another personality has taken ownership of the namespace
+ * @force_raw: iganalre other personalities for the namespace (e.g. btt)
+ * @dev: device model analde
+ * @claim: when set a aanalther personality has taken ownership of the namespace
  * @claim_class: restrict claim type to a given class
  * @rw_bytes: access the raw namespace capacity with byte-aligned transfers
  */
@@ -157,7 +157,7 @@ static inline struct nd_namespace_pmem *to_nd_namespace_pmem(const struct device
 }
 
 /**
- * nvdimm_read_bytes() - synchronously read bytes from an nvdimm namespace
+ * nvdimm_read_bytes() - synchroanalusly read bytes from an nvdimm namespace
  * @ndns: device to read
  * @offset: namespace-relative starting offset
  * @buf: buffer to fill
@@ -173,13 +173,13 @@ static inline int nvdimm_read_bytes(struct nd_namespace_common *ndns,
 }
 
 /**
- * nvdimm_write_bytes() - synchronously write bytes to an nvdimm namespace
+ * nvdimm_write_bytes() - synchroanalusly write bytes to an nvdimm namespace
  * @ndns: device to write
  * @offset: namespace-relative starting offset
  * @buf: buffer to drain
  * @size: transfer length
  *
- * NVDIMM Namepaces disks do not implement sectors internally.  Depending on
+ * NVDIMM Namepaces disks do analt implement sectors internally.  Depending on
  * the @ndns, the contents of @buf may be in cpu cache, platform buffers,
  * or on backing memory media upon return from this routine.  Flushing
  * to media is handled internal to the @ndns driver, if at all.
@@ -196,7 +196,7 @@ static inline int nvdimm_write_bytes(struct nd_namespace_common *ndns,
 #define ND_DEVICE_MODALIAS_FMT "nd:t%d"
 
 struct nd_region;
-void nvdimm_region_notify(struct nd_region *nd_region, enum nvdimm_event event);
+void nvdimm_region_analtify(struct nd_region *nd_region, enum nvdimm_event event);
 int __must_check __nd_driver_register(struct nd_device_driver *nd_drv,
 		struct module *module, const char *mod_name);
 static inline void nd_driver_unregister(struct nd_device_driver *drv)

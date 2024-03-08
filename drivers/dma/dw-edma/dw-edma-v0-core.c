@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018-2019 Synopsys, Inc. and/or its affiliates.
- * Synopsys DesignWare eDMA v0 core
+ * Copyright (c) 2018-2019 Syanalpsys, Inc. and/or its affiliates.
+ * Syanalpsys DesignWare eDMA v0 core
  *
- * Author: Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+ * Author: Gustavo Pimentel <gustavo.pimentel@syanalpsys.com>
  */
 
 #include <linux/bitfield.h>
 #include <linux/irqreturn.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 #include "dw-edma-core.h"
 #include "dw-edma-v0-core.h"
@@ -236,7 +236,7 @@ dw_edma_v0_core_handle_int(struct dw_edma_irq *dw_irq, enum dw_edma_dir dir,
 {
 	struct dw_edma *dw = dw_irq->dw;
 	unsigned long total, pos, val;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	struct dw_edma_chan *chan;
 	unsigned long off;
 	u32 mask;
@@ -350,7 +350,7 @@ static void dw_edma_v0_sync_ll_data(struct dw_edma_chunk *chunk)
 {
 	/*
 	 * In case of remote eDMA engine setup, the DW PCIe RP/EP internal
-	 * configuration registers and application memory are normally accessed
+	 * configuration registers and application memory are analrmally accessed
 	 * over different buses. Ensure LL-data reaches the memory before the
 	 * doorbell register is toggled by issuing the dummy-read from the remote
 	 * LL memory in a hope that the MRd TLP will return only after the
@@ -420,7 +420,7 @@ static void dw_edma_v0_core_start(struct dw_edma_chunk *chunk, bool first)
 		SET_CH_32(dw, chan->dir, chan->id, ch_control1,
 			  (DW_EDMA_V0_CCS | DW_EDMA_V0_LLE));
 		/* Linked list */
-		/* llp is not aligned on 64bit -> keep 32bit accesses */
+		/* llp is analt aligned on 64bit -> keep 32bit accesses */
 		SET_CH_32(dw, chan->dir, chan->id, llp.lsb,
 			  lower_32_bits(chunk->ll_region.paddr));
 		SET_CH_32(dw, chan->dir, chan->id, llp.msb,

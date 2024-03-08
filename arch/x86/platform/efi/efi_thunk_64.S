@@ -27,7 +27,7 @@
 	.text
 	.code64
 SYM_FUNC_START(__efi64_thunk)
-STACK_FRAME_NON_STANDARD __efi64_thunk
+STACK_FRAME_ANALN_STANDARD __efi64_thunk
 	push	%rbp
 	push	%rbx
 
@@ -72,7 +72,7 @@ STACK_FRAME_NON_STANDARD __efi64_thunk
 	pushq	%rdi			/* EFI runtime service address */
 	lretq
 
-	// This return instruction is not needed for correctness, as it will
+	// This return instruction is analt needed for correctness, as it will
 	// never be reached. It only exists to make objtool happy, which will
 	// otherwise complain about unreachable instructions in the callers.
 	RET

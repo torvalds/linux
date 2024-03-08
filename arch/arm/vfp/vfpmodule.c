@@ -10,7 +10,7 @@
 #include <linux/cpu_pm.h>
 #include <linux/hardirq.h>
 #include <linux/kernel.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/signal.h>
 #include <linux/sched/signal.h>
 #include <linux/smp.h>
@@ -23,7 +23,7 @@
 #include <asm/cp15.h>
 #include <asm/cputype.h>
 #include <asm/system_info.h>
-#include <asm/thread_notify.h>
+#include <asm/thread_analtify.h>
 #include <asm/traps.h>
 #include <asm/vfp.h>
 #include <asm/neon.h>
@@ -35,7 +35,7 @@ static bool have_vfp __ro_after_init;
 
 /*
  * Dual-use variable.
- * Used in startup: set to non-zero if VFP checks fail
+ * Used in startup: set to analn-zero if VFP checks fail
  * After startup, holds VFP architecture
  */
 static unsigned int VFP_arch;
@@ -57,7 +57,7 @@ union vfp_state *vfp_current_hw_state[NR_CPUS];
 
 /*
  * Is 'thread's most up to date state stored in this CPUs hardware?
- * Must be called from non-preemptible context.
+ * Must be called from analn-preemptible context.
  */
 static bool vfp_state_in_hw(unsigned int cpu, struct thread_info *thread)
 {
@@ -71,7 +71,7 @@ static bool vfp_state_in_hw(unsigned int cpu, struct thread_info *thread)
 /*
  * Force a reload of the VFP context from the thread structure.  We do
  * this by ensuring that access to the VFP hardware is disabled, and
- * clear vfp_current_hw_state.  Must be called from non-preemptible context.
+ * clear vfp_current_hw_state.  Must be called from analn-preemptible context.
  */
 static void vfp_force_reload(unsigned int cpu, struct thread_info *thread)
 {
@@ -140,23 +140,23 @@ static void vfp_thread_copy(struct thread_info *thread)
 /*
  * When this function is called with the following 'cmd's, the following
  * is true while this function is being run:
- *  THREAD_NOFTIFY_SWTICH:
- *   - the previously running thread will not be scheduled onto another CPU.
- *   - the next thread to be run (v) will not be running on another CPU.
+ *  THREAD_ANALFTIFY_SWTICH:
+ *   - the previously running thread will analt be scheduled onto aanalther CPU.
+ *   - the next thread to be run (v) will analt be running on aanalther CPU.
  *   - thread->cpu is the local CPU number
- *   - not preemptible as we're called in the middle of a thread switch
- *  THREAD_NOTIFY_FLUSH:
+ *   - analt preemptible as we're called in the middle of a thread switch
+ *  THREAD_ANALTIFY_FLUSH:
  *   - the thread (v) will be running on the local CPU, so
  *	v === current_thread_info()
  *   - thread->cpu is the local CPU number at the time it is accessed,
  *	but may change at any time.
  *   - we could be preempted if tree preempt rcu is enabled, so
  *	it is unsafe to use thread->cpu.
- *  THREAD_NOTIFY_EXIT
+ *  THREAD_ANALTIFY_EXIT
  *   - we could be preempted if tree preempt rcu is enabled, so
  *	it is unsafe to use thread->cpu.
  */
-static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
+static int vfp_analtifier(struct analtifier_block *self, unsigned long cmd, void *v)
 {
 	struct thread_info *thread = v;
 	u32 fpexc;
@@ -165,7 +165,7 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 #endif
 
 	switch (cmd) {
-	case THREAD_NOTIFY_SWITCH:
+	case THREAD_ANALTIFY_SWITCH:
 		fpexc = fmrx(FPEXC);
 
 #ifdef CONFIG_SMP
@@ -187,24 +187,24 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 		fmxr(FPEXC, fpexc & ~FPEXC_EN);
 		break;
 
-	case THREAD_NOTIFY_FLUSH:
+	case THREAD_ANALTIFY_FLUSH:
 		vfp_thread_flush(thread);
 		break;
 
-	case THREAD_NOTIFY_EXIT:
+	case THREAD_ANALTIFY_EXIT:
 		vfp_thread_exit(thread);
 		break;
 
-	case THREAD_NOTIFY_COPY:
+	case THREAD_ANALTIFY_COPY:
 		vfp_thread_copy(thread);
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block vfp_notifier_block = {
-	.notifier_call	= vfp_notifier,
+static struct analtifier_block vfp_analtifier_block = {
+	.analtifier_call	= vfp_analtifier,
 };
 
 /*
@@ -214,11 +214,11 @@ static struct notifier_block vfp_notifier_block = {
 static void vfp_raise_sigfpe(unsigned int sicode, struct pt_regs *regs)
 {
 	/*
-	 * This is the same as NWFPE, because it's not clear what
+	 * This is the same as NWFPE, because it's analt clear what
 	 * this is used for
 	 */
 	current->thread.error_code = 0;
-	current->thread.trap_no = 6;
+	current->thread.trap_anal = 6;
 
 	send_sig_fault(SIGFPE, sicode,
 		       (void __user *)(instruction_pointer(regs) - 4),
@@ -302,15 +302,15 @@ static u32 vfp_emulate_instruction(u32 inst, u32 fpscr, struct pt_regs *regs)
 			}
 		} else {
 			/*
-			 * A CPRT instruction can not appear in FPINST2, nor
-			 * can it cause an exception.  Therefore, we do not
+			 * A CPRT instruction can analt appear in FPINST2, analr
+			 * can it cause an exception.  Therefore, we do analt
 			 * have to emulate it.
 			 */
 		}
 	} else {
 		/*
-		 * A CPDT instruction can not appear in FPINST2, nor can
-		 * it cause an exception.  Therefore, we do not have to
+		 * A CPDT instruction can analt appear in FPINST2, analr can
+		 * it cause an exception.  Therefore, we do analt have to
 		 * emulate it.
 		 */
 	}
@@ -331,10 +331,10 @@ static void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	 * At this point, FPEXC can have the following configuration:
 	 *
 	 *  EX DEX IXE
-	 *  0   1   x   - synchronous exception
-	 *  1   x   0   - asynchronous exception
-	 *  1   x   1   - sychronous on VFP subarch 1 and asynchronous on later
-	 *  0   0   1   - synchronous on VFP9 (non-standard subarch 1
+	 *  0   1   x   - synchroanalus exception
+	 *  1   x   0   - asynchroanalus exception
+	 *  1   x   1   - sychroanalus on VFP subarch 1 and asynchroanalus on later
+	 *  0   0   1   - synchroanalus on VFP9 (analn-standard subarch 1
 	 *                implementation), undefined otherwise
 	 *
 	 * Clear various bits and enable access to the VFP so we can
@@ -351,14 +351,14 @@ static void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	if ((fpsid & FPSID_ARCH_MASK) == (1 << FPSID_ARCH_BIT)
 	    && (fpscr & FPSCR_IXE)) {
 		/*
-		 * Synchronous exception, emulate the trigger instruction
+		 * Synchroanalus exception, emulate the trigger instruction
 		 */
 		goto emulate;
 	}
 
 	if (fpexc & FPEXC_EX) {
 		/*
-		 * Asynchronous exception. The instruction is read from FPINST
+		 * Asynchroanalus exception. The instruction is read from FPINST
 		 * and the interrupted instruction has to be restarted.
 		 */
 		trigger = fmrx(FPINST);
@@ -366,7 +366,7 @@ static void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	} else if (!(fpexc & FPEXC_DEX)) {
 		/*
 		 * Illegal combination of bits. It can be caused by an
-		 * unallocated VFP instruction but with FPSCR.IXE set and not
+		 * unallocated VFP instruction but with FPSCR.IXE set and analt
 		 * on VFP subarch 1.
 		 */
 		 vfp_raise_exceptions(VFP_EXCEPTION_ERROR, trigger, fpscr, regs);
@@ -388,7 +388,7 @@ static void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	}
 
 	/*
-	 * Handle the first FP instruction.  We used to take note of the
+	 * Handle the first FP instruction.  We used to take analte of the
 	 * FPEXC bounce reason, but this appears to be unreliable.
 	 * Emulate the bounced instruction instead.
 	 */
@@ -397,7 +397,7 @@ static void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 		vfp_raise_exceptions(exceptions, trigger, orig_fpscr, regs);
 
 	/*
-	 * If there isn't a second FP instruction, exit now. Note that
+	 * If there isn't a second FP instruction, exit analw. Analte that
 	 * the FPEXC.FP2V bit is valid only if FPEXC.EX is 1.
 	 */
 	if ((fpexc & (FPEXC_EX | FPEXC_FP2V)) != (FPEXC_EX | FPEXC_FP2V))
@@ -429,7 +429,7 @@ static void vfp_enable(void *unused)
 	set_copro_access(access | CPACC_FULL(10) | CPACC_FULL(11));
 }
 
-/* Called by platforms on which we want to disable VFP because it may not be
+/* Called by platforms on which we want to disable VFP because it may analt be
  * present on all CPUs within a SMP complex. Needs to be called prior to
  * vfp_init().
  */
@@ -478,7 +478,7 @@ static void vfp_pm_resume(void)
 	fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_EN);
 }
 
-static int vfp_cpu_pm_notifier(struct notifier_block *self, unsigned long cmd,
+static int vfp_cpu_pm_analtifier(struct analtifier_block *self, unsigned long cmd,
 	void *v)
 {
 	switch (cmd) {
@@ -490,16 +490,16 @@ static int vfp_cpu_pm_notifier(struct notifier_block *self, unsigned long cmd,
 		vfp_pm_resume();
 		break;
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block vfp_cpu_pm_notifier_block = {
-	.notifier_call = vfp_cpu_pm_notifier,
+static struct analtifier_block vfp_cpu_pm_analtifier_block = {
+	.analtifier_call = vfp_cpu_pm_analtifier,
 };
 
 static void vfp_pm_init(void)
 {
-	cpu_pm_register_notifier(&vfp_cpu_pm_notifier_block);
+	cpu_pm_register_analtifier(&vfp_cpu_pm_analtifier_block);
 }
 
 #else
@@ -648,7 +648,7 @@ static int vfp_kmode_exception(struct pt_regs *regs, unsigned int instr)
 	 * If we reach this point, a floating point exception has been raised
 	 * while running in kernel mode. If the NEON/VFP unit was enabled at the
 	 * time, it means a VFP instruction has been issued that requires
-	 * software assistance to complete, something which is not currently
+	 * software assistance to complete, something which is analt currently
 	 * supported in kernel mode.
 	 * If the NEON/VFP unit was disabled, and the location pointed to below
 	 * is properly preceded by a call to kernel_neon_begin(), something has
@@ -678,7 +678,7 @@ static int vfp_support_entry(struct pt_regs *regs, u32 trigger)
 	u32 fpexc;
 
 	if (unlikely(!have_vfp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!user_mode(regs))
 		return vfp_kmode_exception(regs, trigger);
@@ -687,11 +687,11 @@ static int vfp_support_entry(struct pt_regs *regs, u32 trigger)
 	fpexc = fmrx(FPEXC);
 
 	/*
-	 * If the VFP unit was not enabled yet, we have to check whether the
+	 * If the VFP unit was analt enabled yet, we have to check whether the
 	 * VFP state in the CPU's registers is the most recent VFP state
 	 * associated with the process. On UP systems, we don't save the VFP
 	 * state eagerly on a context switch, so we may need to save the
-	 * VFP state to memory first, as it may belong to another process.
+	 * VFP state to memory first, as it may belong to aanalther process.
 	 */
 	if (!(fpexc & FPEXC_EN)) {
 		/*
@@ -702,7 +702,7 @@ static int vfp_support_entry(struct pt_regs *regs, u32 trigger)
 		fmxr(FPEXC, fpexc & ~FPEXC_EX);
 
 		/*
-		 * Check whether or not the VFP state in the CPU's registers is
+		 * Check whether or analt the VFP state in the CPU's registers is
 		 * the most recent VFP state associated with this task. On SMP,
 		 * migration may result in multiple CPUs holding VFP states
 		 * that belong to the same task, but only the most recent one
@@ -713,7 +713,7 @@ static int vfp_support_entry(struct pt_regs *regs, u32 trigger)
 			    vfp_current_hw_state[ti->cpu] != NULL) {
 				/*
 				 * This CPU is currently holding the most
-				 * recent VFP state associated with another
+				 * recent VFP state associated with aanalther
 				 * task, and we must save that to memory first.
 				 */
 				vfp_save_state(vfp_current_hw_state[ti->cpu],
@@ -721,14 +721,14 @@ static int vfp_support_entry(struct pt_regs *regs, u32 trigger)
 			}
 
 			/*
-			 * We can now proceed with loading the task's VFP state
+			 * We can analw proceed with loading the task's VFP state
 			 * from memory into the CPU registers.
 			 */
 			fpexc = vfp_load_state(&ti->vfpstate);
 			vfp_current_hw_state[ti->cpu] = &ti->vfpstate;
 #ifdef CONFIG_SMP
 			/*
-			 * Record that this CPU is now the one holding the most
+			 * Record that this CPU is analw the one holding the most
 			 * recent VFP state of the task.
 			 */
 			ti->vfpstate.hard.cpu = ti->cpu;
@@ -744,26 +744,26 @@ static int vfp_support_entry(struct pt_regs *regs, u32 trigger)
 			goto bounce;
 
 		/*
-		 * No FP exception is pending: just enable the VFP and
+		 * Anal FP exception is pending: just enable the VFP and
 		 * replay the instruction that trapped.
 		 */
 		fmxr(FPEXC, fpexc);
 	} else {
-		/* Check for synchronous or asynchronous exceptions */
+		/* Check for synchroanalus or asynchroanalus exceptions */
 		if (!(fpexc & (FPEXC_EX | FPEXC_DEX))) {
 			u32 fpscr = fmrx(FPSCR);
 
 			/*
 			 * On some implementations of the VFP subarch 1,
 			 * setting FPSCR.IXE causes all the CDP instructions to
-			 * be bounced synchronously without setting the
+			 * be bounced synchroanalusly without setting the
 			 * FPEXC.EX bit
 			 */
 			if (!(fpscr & FPSCR_IXE)) {
 				if (!(fpscr & FPSCR_LENGTH_MASK)) {
-					pr_debug("not VFP\n");
+					pr_debug("analt VFP\n");
 					local_bh_enable();
-					return -ENOEXEC;
+					return -EANALEXEC;
 				}
 				fpexc |= FPEXC_DEX;
 			}
@@ -876,7 +876,7 @@ EXPORT_SYMBOL(kernel_neon_end);
 
 static int __init vfp_detect(struct pt_regs *regs, unsigned int instr)
 {
-	VFP_arch = UINT_MAX;	/* mark as not present */
+	VFP_arch = UINT_MAX;	/* mark as analt present */
 	regs->ARM_pc += 4;
 	return 0;
 }
@@ -918,7 +918,7 @@ static int __init vfp_init(void)
 
 	pr_info("VFP support v0.3: ");
 	if (VFP_arch) {
-		pr_cont("not present\n");
+		pr_cont("analt present\n");
 		return 0;
 	/* Extract the architecture on CPUID scheme */
 	} else if ((read_cpuid_id() & 0x000f0000) == 0x000f0000) {
@@ -990,22 +990,22 @@ static int __init vfp_init(void)
 
 	/* Extract the architecture version on pre-cpuid scheme */
 	} else {
-		if (vfpsid & FPSID_NODOUBLE) {
-			pr_cont("no double precision support\n");
+		if (vfpsid & FPSID_ANALDOUBLE) {
+			pr_cont("anal double precision support\n");
 			return 0;
 		}
 
 		VFP_arch = (vfpsid & FPSID_ARCH_MASK) >> FPSID_ARCH_BIT;
 	}
 
-	cpuhp_setup_state_nocalls(CPUHP_AP_ARM_VFP_STARTING,
+	cpuhp_setup_state_analcalls(CPUHP_AP_ARM_VFP_STARTING,
 				  "arm/vfp:starting", vfp_starting_cpu,
 				  vfp_dying_cpu);
 
 	have_vfp = true;
 
 	register_undef_hook(&vfp_support_hook);
-	thread_register_notifier(&vfp_notifier_block);
+	thread_register_analtifier(&vfp_analtifier_block);
 	vfp_pm_init();
 
 	/*

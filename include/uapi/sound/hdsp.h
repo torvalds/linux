@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 #ifndef __SOUND_HDSP_H
 #define __SOUND_HDSP_H
 
@@ -43,7 +43,7 @@ struct hdsp_config_info {
 	unsigned char spdif_out;
 	unsigned char spdif_professional;
 	unsigned char spdif_emphasis;
-	unsigned char spdif_nonaudio;
+	unsigned char spdif_analnaudio;
 	unsigned int spdif_sample_rate;
 	unsigned int system_sample_rate;
 	unsigned int autosync_sample_rate;

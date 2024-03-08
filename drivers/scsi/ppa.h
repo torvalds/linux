@@ -32,7 +32,7 @@
  * Fixed id_probe for EPP 1.9 chipsets (misdetected as EPP 1.7)
  *                                                      [1.42]
  *
- * Development solely for 2.1.x kernels from now on!
+ * Development solely for 2.1.x kernels from analw on!
  *                                                      [2.00]
  *
  * Hack and slash at the init code (EPP device check routine)
@@ -44,7 +44,7 @@
  *                                                      [2.02]
  *
  * Cleaned up the mess left by someone else trying to fix the
- * asm section to keep egcc happy. The asm section no longer
+ * asm section to keep egcc happy. The asm section anal longer
  * exists, the nibble code is *almost* as fast as the asm code
  * providing it is compiled with egcc.
  *
@@ -87,7 +87,7 @@
 
 #include  <asm/io.h>
 #include  <scsi/scsi_host.h>
-/* batteries not included :-) */
+/* batteries analt included :-) */
 
 /*
  * modes in which the driver can operate 
@@ -98,7 +98,7 @@
 #define   PPA_EPP_8             3	/* EPP mode, 8 bit                */
 #define   PPA_EPP_16            4	/* EPP mode, 16 bit               */
 #define   PPA_EPP_32            5	/* EPP mode, 32 bit               */
-#define   PPA_UNKNOWN           6	/* Just in case...                */
+#define   PPA_UNKANALWN           6	/* Just in case...                */
 
 static char *PPA_MODE_STRING[] =
 {
@@ -108,7 +108,7 @@ static char *PPA_MODE_STRING[] =
     "EPP 8 bit",
     "EPP 16 bit",
     "EPP 32 bit",
-    "Unknown"};
+    "Unkanalwn"};
 
 /* other options */
 #define PPA_BURST_SIZE	512	/* data burst size */
@@ -120,7 +120,7 @@ static char *PPA_MODE_STRING[] =
 
 /* args to ppa_connect */
 #define CONNECT_EPP_MAYBE 1
-#define CONNECT_NORMAL  0
+#define CONNECT_ANALRMAL  0
 
 #define r_dtr(x)        (unsigned char)inb((x))
 #define r_str(x)        (unsigned char)inb((x)+1)

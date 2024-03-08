@@ -28,9 +28,9 @@ static const char *const counter_names[] = {
 	[KCSAN_COUNTER_SETUP_WATCHPOINTS]		= "setup_watchpoints",
 	[KCSAN_COUNTER_DATA_RACES]			= "data_races",
 	[KCSAN_COUNTER_ASSERT_FAILURES]			= "assert_failures",
-	[KCSAN_COUNTER_NO_CAPACITY]			= "no_capacity",
+	[KCSAN_COUNTER_ANAL_CAPACITY]			= "anal_capacity",
 	[KCSAN_COUNTER_REPORT_RACES]			= "report_races",
-	[KCSAN_COUNTER_RACES_UNKNOWN_ORIGIN]		= "races_unknown_origin",
+	[KCSAN_COUNTER_RACES_UNKANALWN_ORIGIN]		= "races_unkanalwn_origin",
 	[KCSAN_COUNTER_UNENCODABLE_ACCESSES]		= "unencodable_accesses",
 	[KCSAN_COUNTER_ENCODING_FALSE_POSITIVES]	= "encoding_false_positives",
 };
@@ -58,9 +58,9 @@ static DEFINE_SPINLOCK(report_filterlist_lock);
 /*
  * The microbenchmark allows benchmarking KCSAN core runtime only. To run
  * multiple threads, pipe 'microbench=<iters>' from multiple tasks into the
- * debugfs file. This will not generate any conflicts, and tests fast-path only.
+ * debugfs file. This will analt generate any conflicts, and tests fast-path only.
  */
-static noinline void microbenchmark(unsigned long iters)
+static analinline void microbenchmark(unsigned long iters)
 {
 	const struct kcsan_ctx ctx_save = current->kcsan_ctx;
 	const bool was_enabled = READ_ONCE(kcsan_enabled);
@@ -148,8 +148,8 @@ static ssize_t insert_report_filterlist(const char *func)
 	ssize_t ret = 0;
 
 	if (!addr) {
-		pr_err("could not find function: '%s'\n", func);
-		return -ENOENT;
+		pr_err("could analt find function: '%s'\n", func);
+		return -EANALENT;
 	}
 
 	spin_lock_irqsave(&report_filterlist_lock, flags);
@@ -160,7 +160,7 @@ static ssize_t insert_report_filterlist(const char *func)
 			kmalloc_array(report_filterlist.size,
 				      sizeof(unsigned long), GFP_ATOMIC);
 		if (report_filterlist.addrs == NULL) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 	} else if (report_filterlist.used == report_filterlist.size) {
@@ -172,7 +172,7 @@ static ssize_t insert_report_filterlist(const char *func)
 
 		if (new_addrs == NULL) {
 			/* leave filterlist itself untouched */
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -180,7 +180,7 @@ static ssize_t insert_report_filterlist(const char *func)
 		report_filterlist.addrs = new_addrs;
 	}
 
-	/* Note: deduplicating should be done in userspace. */
+	/* Analte: deduplicating should be done in userspace. */
 	report_filterlist.addrs[report_filterlist.used++] =
 		kallsyms_lookup_name(func);
 	report_filterlist.sorted = false;
@@ -207,7 +207,7 @@ static int show_info(struct seq_file *file, void *v)
 	spin_lock_irqsave(&report_filterlist_lock, flags);
 	seq_printf(file, "\n%s functions: %s\n",
 		   report_filterlist.whitelist ? "whitelisted" : "blacklisted",
-		   report_filterlist.used == 0 ? "none" : "");
+		   report_filterlist.used == 0 ? "analne" : "");
 	for (i = 0; i < report_filterlist.used; ++i)
 		seq_printf(file, " %ps\n", (void *)report_filterlist.addrs[i]);
 	spin_unlock_irqrestore(&report_filterlist_lock, flags);
@@ -215,7 +215,7 @@ static int show_info(struct seq_file *file, void *v)
 	return 0;
 }
 
-static int debugfs_open(struct inode *inode, struct file *file)
+static int debugfs_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, show_info, NULL);
 }

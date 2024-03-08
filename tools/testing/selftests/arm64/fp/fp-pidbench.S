@@ -39,14 +39,14 @@ function _start
 	puts	"\n"
 
 	// Test having never used SVE
-	puts	"No SVE: "
+	puts	"Anal SVE: "
 	test_loop
 
 	// Check for SVE support - should use hwcap but that's hard in asm
 	mrs	x0, ID_AA64PFR0_EL1
 	ubfx	x0, x0, #32, #4
 	cbnz	x0, 1f
-	puts	"System does not support SVE\n"
+	puts	"System does analt support SVE\n"
 	b	out
 1:
 

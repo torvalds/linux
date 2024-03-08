@@ -23,5 +23,5 @@
 	regulator-max-microvolt = <2700000>;
 };
 
-/delete-node/ &pm8994_l19;
-/delete-node/ &pm8994_l32;
+/delete-analde/ &pm8994_l19;
+/delete-analde/ &pm8994_l32;

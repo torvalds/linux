@@ -2,7 +2,7 @@
 /*
  * Faraday FTGMAC100 Gigabit Ethernet
  *
- * (C) Copyright 2009-2011 Faraday Technology
+ * (C) Copyright 2009-2011 Faraday Techanallogy
  * Po-Yu Chuang <ratbert@faraday-tech.com>
  */
 
@@ -63,23 +63,23 @@
  */
 #define FTGMAC100_INT_RPKT_BUF		(1 << 0)
 #define FTGMAC100_INT_RPKT_FIFO		(1 << 1)
-#define FTGMAC100_INT_NO_RXBUF		(1 << 2)
+#define FTGMAC100_INT_ANAL_RXBUF		(1 << 2)
 #define FTGMAC100_INT_RPKT_LOST		(1 << 3)
 #define FTGMAC100_INT_XPKT_ETH		(1 << 4)
 #define FTGMAC100_INT_XPKT_FIFO		(1 << 5)
-#define FTGMAC100_INT_NO_NPTXBUF	(1 << 6)
+#define FTGMAC100_INT_ANAL_NPTXBUF	(1 << 6)
 #define FTGMAC100_INT_XPKT_LOST		(1 << 7)
 #define FTGMAC100_INT_AHB_ERR		(1 << 8)
 #define FTGMAC100_INT_PHYSTS_CHG	(1 << 9)
-#define FTGMAC100_INT_NO_HPTXBUF	(1 << 10)
+#define FTGMAC100_INT_ANAL_HPTXBUF	(1 << 10)
 
 /* Interrupts we care about in NAPI mode */
 #define FTGMAC100_INT_BAD  (FTGMAC100_INT_RPKT_LOST | \
 			    FTGMAC100_INT_XPKT_LOST | \
 			    FTGMAC100_INT_AHB_ERR   | \
-			    FTGMAC100_INT_NO_RXBUF)
+			    FTGMAC100_INT_ANAL_RXBUF)
 
-/* Normal RX/TX interrupts, enabled when NAPI off */
+/* Analrmal RX/TX interrupts, enabled when NAPI off */
 #define FTGMAC100_INT_RXTX (FTGMAC100_INT_XPKT_ETH  | \
 			    FTGMAC100_INT_RPKT_BUF)
 
@@ -260,7 +260,7 @@ struct ftgmac100_rxdes {
 
 #define FTGMAC100_RXDES1_VLANTAG_CI	0xffff
 #define FTGMAC100_RXDES1_PROT_MASK	(0x3 << 20)
-#define FTGMAC100_RXDES1_PROT_NONIP	(0x0 << 20)
+#define FTGMAC100_RXDES1_PROT_ANALNIP	(0x0 << 20)
 #define FTGMAC100_RXDES1_PROT_IP	(0x1 << 20)
 #define FTGMAC100_RXDES1_PROT_TCPIP	(0x2 << 20)
 #define FTGMAC100_RXDES1_PROT_UDPIP	(0x3 << 20)

@@ -7,7 +7,7 @@ How to get the bt8xx cards working
 Authors:
 	 Richard Walker,
 	 Jamie Honan,
-	 Michael Hunold,
+	 Michael Huanalld,
 	 Manu Abraham,
 	 Uwe Bugla,
 	 Michael Krufky
@@ -42,10 +42,10 @@ cards, you should also do::
 
     ./scripts/config -e MEDIA_SUBDRV_AUTOSELECT
 
-.. note::
+.. analte::
 
    Please use the following options with care as deselection of drivers which
-   are in fact necessary may result in DVB devices that cannot be tuned due
+   are in fact necessary may result in DVB devices that cananalt be tuned due
    to lack of driver support.
 
 If your goal is to just support an specific board, you may, instead,
@@ -72,7 +72,7 @@ frontend and backend modules will be loaded automatically.
 Exceptions are:
 
 - Old TV cards without EEPROMs, sharing a common PCI subsystem ID;
-- Old TwinHan DST cards or clones with or without CA slot and not
+- Old TwinHan DST cards or clones with or without CA slot and analt
   containing an Eeprom.
 
 In the following cases overriding the PCI type detection for bttv and
@@ -92,7 +92,7 @@ Useful parameters for verbosity level and debugging the dst module::
 
 	verbose=0:		messages are disabled
 		1:		only error messages are displayed
-		2:		notifications are displayed
+		2:		analtifications are displayed
 		3:		other useful messages are displayed
 		4:		debug setting
 	dst_addons=0:		card is a free to air (FTA) card only
@@ -127,10 +127,10 @@ Card ID. Some examples:
 	DViCO FusionHDTV 5 Lite		135
 	===========================	===
 
-.. note::
+.. analte::
 
    When you have multiple cards, the order of the card ID should
-   match the order where they're detected by the system. Please notice
+   match the order where they're detected by the system. Please analtice
    that removing/inserting other PCI cards may change the detection
    order.
 
@@ -145,7 +145,7 @@ Probing the cards with broken PCI subsystem ID
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are some TwinHan cards whose EEPROM has become corrupted for some
-reason. The cards do not have a correct PCI subsystem ID.
+reason. The cards do analt have a correct PCI subsystem ID.
 Still, it is possible to force probing the cards with::
 
 	$ echo 109e 0878 $subvendor $subdevice > \

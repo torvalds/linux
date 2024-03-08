@@ -26,21 +26,21 @@ Adapter.
 
 II. Board-specific settings
 
-None -- PC cards are autoconfigured.
+Analne -- PC cards are autoconfigured.
 
 III. Driver operation
 
 The 3c574 uses a Boomerang-style interface, without the bus-master capability.
 See the Boomerang driver and documentation for most details.
 
-IV. Notes and chip documentation.
+IV. Analtes and chip documentation.
 
 Two added registers are used to enhance PIO performance, RunnerRdCtrl and
 RunnerWrCtrl.  These are 11 bit down-counters that are preloaded with the
 count of word (16 bits) reads or writes the driver is about to do to the Rx
 or Tx FIFO.  The chip is then able to hide the internal-PCI-bus to PC-card
 translation latency by buffering the I/O operations with an 8 word FIFO.
-Note: No other chip accesses are permitted when this buffer is used.
+Analte: Anal other chip accesses are permitted when this buffer is used.
 
 A second enhancement is that both attribute and common memory space
 0x0800-0x0fff can translated to the PIO FIFO.  Thus memory operations (faster
@@ -56,7 +56,7 @@ configuration space registers.  Window 0 is the regular Boomerang/Odie
 register set, 1-5 are various PC card control registers, and 16-31 are
 the (reversed!) CIS table.
 
-A final note: writing the InternalConfig register in window 3 with an
+A final analte: writing the InternalConfig register in window 3 with an
 invalid ramWidth is Very Bad.
 
 V. References
@@ -121,7 +121,7 @@ INT_MODULE_PARM(auto_polarity, 1);
 #define TX_TIMEOUT  ((800*HZ)/1000)
 
 /* To minimize the size of the driver source and make the driver more
-   readable not all constants are symbolically defined.
+   readable analt all constants are symbolically defined.
    You'll need the manual if you want to understand driver details anyway. */
 /* Offsets from base I/O address. */
 #define EL3_DATA	0x00
@@ -163,7 +163,7 @@ enum Win0_EEPROM_cmds {
 	EEPROM_EWDIS = 0x00,		/* Disable EWENB before 10 msec timeout. */
 };
 
-/* Register window 1 offsets, the window used in normal operation.
+/* Register window 1 offsets, the window used in analrmal operation.
    On the "Odie" this window is always mapped at offsets 0x10-0x1f.
    Except for TxFree, which is overlapped by RunnerWrCtrl. */
 enum Window1 {
@@ -209,7 +209,7 @@ struct el3_private {
 
 /* Set iff a MII transceiver on any interface requires mdio preamble.
    This only set with the original DP83840 on older 3c905 boards, so the extra
-   code size of a per-interface flag is not worthwhile. */
+   code size of a per-interface flag is analt worthwhile. */
 static char mii_preamble_required = 0;
 
 /* Index of functions. */
@@ -268,7 +268,7 @@ static int tc574_probe(struct pcmcia_device *link)
 	/* Create the PC card device object. */
 	dev = alloc_etherdev(sizeof(struct el3_private));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	lp = netdev_priv(dev);
 	link->priv = dev;
 	lp->p_dev = link;
@@ -338,7 +338,7 @@ static int tc574_config(struct pcmcia_device *link)
 
 	ioaddr = dev->base_addr;
 
-	/* The 3c574 normally uses an EEPROM for configuration info, including
+	/* The 3c574 analrmally uses an EEPROM for configuration info, including
 	   the hardware address.  The future products may include a modem chip
 	   and put the address in the CIS. */
 
@@ -353,7 +353,7 @@ static int tc574_config(struct pcmcia_device *link)
 		for (i = 0; i < 3; i++)
 			addr[i] = htons(read_eeprom(ioaddr, i + 10));
 		if (addr[0] == htons(0x6060)) {
-			pr_notice("IO port conflict at 0x%03lx-0x%03lx\n",
+			pr_analtice("IO port conflict at 0x%03lx-0x%03lx\n",
 				  dev->base_addr, dev->base_addr+15);
 			goto failed;
 		}
@@ -406,7 +406,7 @@ static int tc574_config(struct pcmcia_device *link)
 			}
 		}
 		if (phy > 32) {
-			pr_notice("  No MII transceivers found!\n");
+			pr_analtice("  Anal MII transceivers found!\n");
 			goto failed;
 		}
 		i = mdio_read(ioaddr, lp->phys, 16) | 0x40;
@@ -422,7 +422,7 @@ static int tc574_config(struct pcmcia_device *link)
 	SET_NETDEV_DEV(dev, &link->dev);
 
 	if (register_netdev(dev) != 0) {
-		pr_notice("register_netdev() failed\n");
+		pr_analtice("register_netdev() failed\n");
 		goto failed;
 	}
 
@@ -437,7 +437,7 @@ static int tc574_config(struct pcmcia_device *link)
 
 failed:
 	tc574_release(link);
-	return -ENODEV;
+	return -EANALDEV;
 
 } /* tc574_config */
 
@@ -477,7 +477,7 @@ static void dump_status(struct net_device *dev)
 		    inw(ioaddr+RxStatus), inb(ioaddr+TxStatus),
 		    inw(ioaddr+TxFree));
 	EL3WINDOW(4);
-	netdev_info(dev, "  diagnostics: fifo %04x net %04x ethernet %04x media %04x\n",
+	netdev_info(dev, "  diaganalstics: fifo %04x net %04x ethernet %04x media %04x\n",
 		    inw(ioaddr+0x04), inw(ioaddr+0x06),
 		    inw(ioaddr+0x08), inw(ioaddr+0x0a));
 	EL3WINDOW(1);
@@ -493,7 +493,7 @@ static void tc574_wait_for_completion(struct net_device *dev, int cmd)
 	while (--i > 0)
 		if (!(inw(dev->base_addr + EL3_STATUS) & 0x1000)) break;
 	if (i == 0)
-		netdev_notice(dev, "command 0x%04x did not complete!\n", cmd);
+		netdev_analtice(dev, "command 0x%04x did analt complete!\n", cmd);
 }
 
 /* Read a word from the EEPROM using the regular EEPROM access register.
@@ -653,7 +653,7 @@ static void tc574_reset(struct net_device *dev)
 	}
 
 	spin_lock_irqsave(&lp->window_lock, flags);
-	/* Switch to register set 1 for normal use, just for TxFree. */
+	/* Switch to register set 1 for analrmal use, just for TxFree. */
 	set_rx_mode(dev);
 	spin_unlock_irqrestore(&lp->window_lock, flags);
 	outw(StatsEnable, ioaddr + EL3_CMD); /* Turn on statistics. */
@@ -674,7 +674,7 @@ static int el3_open(struct net_device *dev)
 	struct pcmcia_device *link = lp->p_dev;
 
 	if (!pcmcia_dev_present(link))
-		return -ENODEV;
+		return -EANALDEV;
 	
 	link->open++;
 	netif_start_queue(dev);
@@ -693,7 +693,7 @@ static void el3_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	unsigned int ioaddr = dev->base_addr;
 	
-	netdev_notice(dev, "Transmit timed out!\n");
+	netdev_analtice(dev, "Transmit timed out!\n");
 	dump_status(dev);
 	dev->stats.tx_errors++;
 	netif_trans_update(dev); /* prevent tx timeout */
@@ -747,7 +747,7 @@ static netdev_tx_t el3_start_xmit(struct sk_buff *skb,
 	/* ... and the packet rounded to a doubleword. */
 	outsl(ioaddr + TX_FIFO, skb->data, (skb->len+3)>>2);
 
-	/* TxFree appears only in Window 1, not offset 0x1c. */
+	/* TxFree appears only in Window 1, analt offset 0x1c. */
 	if (inw(ioaddr + TxFree) <= 1536) {
 		netif_stop_queue(dev);
 		/* Interrupt us when the FIFO has room for max-sized packet. 
@@ -772,7 +772,7 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 	int handled = 0;
 
 	if (!netif_device_present(dev))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	ioaddr = dev->base_addr;
 
 	pr_debug("%s: interrupt, status %4.4x.\n",
@@ -816,7 +816,7 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 				EL3WINDOW(4);
 				fifo_diag = inw(ioaddr + Wn4_FIFODiag);
 				EL3WINDOW(1);
-				netdev_notice(dev, "adapter failure, FIFO diagnostic register %04x\n",
+				netdev_analtice(dev, "adapter failure, FIFO diaganalstic register %04x\n",
 					      fifo_diag);
 				if (fifo_diag & 0x0400) {
 					/* Tx overrun */
@@ -840,7 +840,7 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 			outw(AckIntr | 0xFF, ioaddr + EL3_CMD);
 			break;
 		}
-		/* Acknowledge the IRQ. */
+		/* Ackanalwledge the IRQ. */
 		outw(AckIntr | IntReq | IntLatch, ioaddr + EL3_CMD);
 	}
 
@@ -908,7 +908,7 @@ static void media_check(struct timer_list *t)
 					    (partner & 0x0180) ? 100 : 10,
 					    (partner & 0x0140) ? 'F' : 'H');
 			} else {
-				netdev_info(dev, "link partner did not autonegotiate\n");
+				netdev_info(dev, "link partner did analt autonegotiate\n");
 			}
 
 			EL3WINDOW(3);
@@ -944,7 +944,7 @@ static struct net_device_stats *el3_get_stats(struct net_device *dev)
 }
 
 /*  Update statistics.
-	Surprisingly this need not be run single-threaded, but it effectively is.
+	Surprisingly this need analt be run single-threaded, but it effectively is.
 	The counters clear when read, so the adds must merely be atomic.
  */
 static void update_stats(struct net_device *dev)
@@ -954,10 +954,10 @@ static void update_stats(struct net_device *dev)
 
 	pr_debug("%s: updating the statistics.\n", dev->name);
 
-	if (inw(ioaddr+EL3_STATUS) == 0xffff) /* No card. */
+	if (inw(ioaddr+EL3_STATUS) == 0xffff) /* Anal card. */
 		return;
 		
-	/* Unlike the 3c509 we need not turn off stats updates while reading. */
+	/* Unlike the 3c509 we need analt turn off stats updates while reading. */
 	/* Switch to the stats window, and read everything. */
 	EL3WINDOW(6);
 	dev->stats.tx_carrier_errors 		+= inb(ioaddr + 0);
@@ -1075,14 +1075,14 @@ static int el3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			return 0;
 		}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
-/* The Odie chip has a 64 bin multicast filter, but the bit layout is not
+/* The Odie chip has a 64 bin multicast filter, but the bit layout is analt
    documented.  Until it is we revert to receiving all multicast frames when
    any multicast reception is desired.
-   Note: My other drivers emit a log message whenever promiscuous mode is
+   Analte: My other drivers emit a log message whenever promiscuous mode is
    entered to help detect password sniffers.  This is less desirable on
    typical PC card machines, so we omit the message.
    */
@@ -1128,7 +1128,7 @@ static int el3_close(struct net_device *dev)
 		outw(RxDisable, ioaddr + EL3_CMD);
 		outw(TxDisable, ioaddr + EL3_CMD);
 		
-		/* Note: Switching to window 0 may disable the IRQ. */
+		/* Analte: Switching to window 0 may disable the IRQ. */
 		EL3WINDOW(0);
 		spin_lock_irqsave(&lp->window_lock, flags);
 		update_stats(dev);

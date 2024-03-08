@@ -39,12 +39,12 @@ struct elf_fdpic_params {
 	unsigned long			flags;
 #define ELF_FDPIC_FLAG_ARRANGEMENT	0x0000000f	/* PT_LOAD arrangement flags */
 #define ELF_FDPIC_FLAG_INDEPENDENT	0x00000000	/* PT_LOADs can be put anywhere */
-#define ELF_FDPIC_FLAG_HONOURVADDR	0x00000001	/* PT_LOAD.vaddr must be honoured */
+#define ELF_FDPIC_FLAG_HOANALURVADDR	0x00000001	/* PT_LOAD.vaddr must be hoanalured */
 #define ELF_FDPIC_FLAG_CONSTDISP	0x00000002	/* PT_LOADs require constant
 							 * displacement */
 #define ELF_FDPIC_FLAG_CONTIGUOUS	0x00000003	/* PT_LOADs should be contiguous */
 #define ELF_FDPIC_FLAG_EXEC_STACK	0x00000010	/* T if stack to be executable */
-#define ELF_FDPIC_FLAG_NOEXEC_STACK	0x00000020	/* T if stack not to be executable */
+#define ELF_FDPIC_FLAG_ANALEXEC_STACK	0x00000020	/* T if stack analt to be executable */
 #define ELF_FDPIC_FLAG_EXECUTABLE	0x00000040	/* T if this object is the executable */
 #define ELF_FDPIC_FLAG_PRESENT		0x80000000	/* T if this object is present */
 };

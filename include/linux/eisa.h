@@ -28,7 +28,7 @@
 #define EISA_CONFIG_ENABLED         1
 #define EISA_CONFIG_FORCED          2
 
-/* There is not much we can say about an EISA device, apart from
+/* There is analt much we can say about an EISA device, apart from
  * signature, slot number, and base address. dma_mask is set by
  * default to parent device mask..*/
 
@@ -95,7 +95,7 @@ struct eisa_root_device {
 	struct resource *res;
 	unsigned long    bus_base_addr;
 	int		 slots;  /* Max slot number */
-	int		 force_probe; /* Probe even when no slot 0 */
+	int		 force_probe; /* Probe even when anal slot 0 */
 	u64		 dma_mask; /* from bridge device */
 	int              bus_nr; /* Set by eisa_root_register */
 	struct resource  eisa_root_res;	/* ditto */

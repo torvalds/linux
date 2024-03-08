@@ -40,7 +40,7 @@ enum hci_resp_err {
 	RESP_ERR_HC_TERMINATED		= 0x8,
 	RESP_ERR_I2C_WR_DATA_NACK	= 0x9,
 	RESP_ERR_BUS_XFER_ABORTED	= 0x9,
-	RESP_ERR_NOT_SUPPORTED		= 0xa,
+	RESP_ERR_ANALT_SUPPORTED		= 0xa,
 	RESP_ERR_ABORTED_WITH_CRC	= 0xb,
 	/* 0xc to 0xf are reserved for transfer specific errors */
 };

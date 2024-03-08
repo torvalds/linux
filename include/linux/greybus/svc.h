@@ -49,7 +49,7 @@ struct gb_svc {
 	u8 ap_intf_id;
 
 	u8 protocol_major;
-	u8 protocol_minor;
+	u8 protocol_mianalr;
 
 	struct gb_svc_watchdog	*watchdog;
 	enum gb_svc_watchdog_bite action;

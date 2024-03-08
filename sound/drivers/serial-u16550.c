@@ -49,8 +49,8 @@ static const char * const adaptor_names[] = {
 	"Generic"
 };
 
-#define SNDRV_SERIAL_NORMALBUFF 0 /* Normal blocking buffer operation */
-#define SNDRV_SERIAL_DROPBUFF   1 /* Non-blocking discard operation */
+#define SNDRV_SERIAL_ANALRMALBUFF 0 /* Analrmal blocking buffer operation */
+#define SNDRV_SERIAL_DROPBUFF   1 /* Analn-blocking discard operation */
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -62,7 +62,7 @@ static int base[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 115200}; /* baud bas
 static int outs[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 1};	 /* 1 to 16 */
 static int ins[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 1};	/* 1 to 16 */
 static int adaptor[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = SNDRV_SERIAL_SOUNDCANVAS};
-static bool droponfull[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS -1)] = SNDRV_SERIAL_NORMALBUFF };
+static bool droponfull[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS -1)] = SNDRV_SERIAL_ANALRMALBUFF };
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for Serial MIDI.");
@@ -88,7 +88,7 @@ MODULE_PARM_DESC(droponfull, "Flag to enable drop-on-full buffer mode");
 module_param_array(adaptor, int, NULL, 0444);
 MODULE_PARM_DESC(adaptor, "Type of adaptor.");
 
-/*#define SNDRV_SERIAL_MS124W_MB_NOCOMBO 1*/  /* Address outs as 0-3 instead of bitmap */
+/*#define SNDRV_SERIAL_MS124W_MB_ANALCOMBO 1*/  /* Address outs as 0-3 instead of bitmap */
 
 #define SNDRV_SERIAL_MAX_OUTS	16		/* max 64, min 16 */
 #define SNDRV_SERIAL_MAX_INS	16		/* max 64, min 16 */
@@ -96,7 +96,7 @@ MODULE_PARM_DESC(adaptor, "Type of adaptor.");
 #define TX_BUFF_SIZE		(1<<15)		/* Must be 2^n */
 #define TX_BUFF_MASK		(TX_BUFF_SIZE - 1)
 
-#define SERIAL_MODE_NOT_OPENED 		(0)
+#define SERIAL_MODE_ANALT_OPENED 		(0)
 #define SERIAL_MODE_INPUT_OPEN		(1 << 0)
 #define SERIAL_MODE_OUTPUT_OPEN		(1 << 1)
 #define SERIAL_MODE_INPUT_TRIGGERED	(1 << 2)
@@ -232,7 +232,7 @@ static void snd_uart16550_io_loop(struct snd_uart16550 * uart)
 	/* remember the last stream */
 	uart->prev_in = substream;
 
-	/* no need of check SERIAL_MODE_OUTPUT_OPEN because if not,
+	/* anal need of check SERIAL_MODE_OUTPUT_OPEN because if analt,
 	   buffer is never filled. */
 	/* Check write status */
 	if (status & UART_LSR_THRE)
@@ -256,7 +256,7 @@ static void snd_uart16550_io_loop(struct snd_uart16550 * uart)
 		snd_uart16550_add_timer(uart);
 }
 
-/* NOTES ON SERVICING INTERUPTS
+/* ANALTES ON SERVICING INTERUPTS
  * ---------------------------
  * After receiving a interrupt, it is important to indicate to the UART that
  * this has been done. 
@@ -265,15 +265,15 @@ static void snd_uart16550_io_loop(struct snd_uart16550 * uart)
  * a) Writing a byte
  * b) Reading the IIR
  * It is particularly important to read the IIR if a Tx interrupt is received
- * when there is no data in tx_buff[], as in this case there no other
+ * when there is anal data in tx_buff[], as in this case there anal other
  * indication that the interrupt has been serviced, and it remains outstanding
- * indefinitely. This has the curious side effect that and no further interrupts
+ * indefinitely. This has the curious side effect that and anal further interrupts
  * will be generated from this device AT ALL!!.
  * It is also desirable to clear outstanding interrupts when the device is
  * opened/closed.
  *
  *
- * Note that some devices need OUT2 to be set before they will generate
+ * Analte that some devices need OUT2 to be set before they will generate
  * interrupts at all. (Possibly tied to an internal pull-up on CTS?)
  */
 static irqreturn_t snd_uart16550_interrupt(int irq, void *dev_id)
@@ -282,9 +282,9 @@ static irqreturn_t snd_uart16550_interrupt(int irq, void *dev_id)
 
 	uart = dev_id;
 	spin_lock(&uart->open_lock);
-	if (uart->filemode == SERIAL_MODE_NOT_OPENED) {
+	if (uart->filemode == SERIAL_MODE_ANALT_OPENED) {
 		spin_unlock(&uart->open_lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	/* indicate to the UART that the interrupt has been serviced */
 	inb(uart->base + UART_IIR);
@@ -309,7 +309,7 @@ static void snd_uart16550_buffer_timer(struct timer_list *t)
 /*
  *  this method probes, if an uart sits on given port
  *  return 0 if found
- *  return negative error if not found
+ *  return negative error if analt found
  */
 static int snd_uart16550_detect(struct snd_uart16550 *uart)
 {
@@ -319,7 +319,7 @@ static int snd_uart16550_detect(struct snd_uart16550 *uart)
 
 	/* Do some vague tests for the presence of the uart */
 	if (io_base == 0 || io_base == SNDRV_AUTO_PORT) {
-		return -ENODEV;	/* Not configured */
+		return -EANALDEV;	/* Analt configured */
 	}
 
 	if (!devm_request_region(uart->card->dev, io_base, 8, "Serial MIDI")) {
@@ -369,7 +369,7 @@ static void snd_uart16550_do_open(struct snd_uart16550 * uart)
 	     | UART_FCR_CLEAR_RCVR	/* Clear receiver FIFO */
 	     | UART_FCR_CLEAR_XMIT	/* Clear transmitter FIFO */
 	     | UART_FCR_TRIGGER_4	/* Set FIFO trigger at 4-bytes */
-	/* NOTE: interrupt generated after T=(time)4-bytes
+	/* ANALTE: interrupt generated after T=(time)4-bytes
 	 * if less than UART_FCR_TRIGGER bytes received
 	 */
 	     ,uart->base + UART_FCR);	/* FIFO Control Register */
@@ -400,7 +400,7 @@ static void snd_uart16550_do_open(struct snd_uart16550 * uart)
 	default:
 		outb(UART_MCR_RTS	/* Set Request-To-Send line active */
 		     | UART_MCR_DTR	/* Set Data-Terminal-Ready line active */
-		     | UART_MCR_OUT2	/* Set OUT2 - not always required, but when
+		     | UART_MCR_OUT2	/* Set OUT2 - analt always required, but when
 					 * it is, it is ESSENTIAL for enabling interrupts
 				 */
 		     ,uart->base + UART_MCR);	/* Modem Control Register */
@@ -450,8 +450,8 @@ static void snd_uart16550_do_close(struct snd_uart16550 * uart)
 	if (uart->irq < 0)
 		snd_uart16550_del_timer(uart);
 
-	/* NOTE: may need to disable interrupts before de-registering out handler.
-	 * For now, the consequences are harmless.
+	/* ANALTE: may need to disable interrupts before de-registering out handler.
+	 * For analw, the consequences are harmless.
 	 */
 
 	outb((0 & UART_IER_RDI)		/* Disable Receiver data interrupt */
@@ -502,7 +502,7 @@ static int snd_uart16550_input_open(struct snd_rawmidi_substream *substream)
 	struct snd_uart16550 *uart = substream->rmidi->private_data;
 
 	spin_lock_irqsave(&uart->open_lock, flags);
-	if (uart->filemode == SERIAL_MODE_NOT_OPENED)
+	if (uart->filemode == SERIAL_MODE_ANALT_OPENED)
 		snd_uart16550_do_open(uart);
 	uart->filemode |= SERIAL_MODE_INPUT_OPEN;
 	uart->midi_input[substream->number] = substream;
@@ -518,7 +518,7 @@ static int snd_uart16550_input_close(struct snd_rawmidi_substream *substream)
 	spin_lock_irqsave(&uart->open_lock, flags);
 	uart->filemode &= ~SERIAL_MODE_INPUT_OPEN;
 	uart->midi_input[substream->number] = NULL;
-	if (uart->filemode == SERIAL_MODE_NOT_OPENED)
+	if (uart->filemode == SERIAL_MODE_ANALT_OPENED)
 		snd_uart16550_do_close(uart);
 	spin_unlock_irqrestore(&uart->open_lock, flags);
 	return 0;
@@ -544,7 +544,7 @@ static int snd_uart16550_output_open(struct snd_rawmidi_substream *substream)
 	struct snd_uart16550 *uart = substream->rmidi->private_data;
 
 	spin_lock_irqsave(&uart->open_lock, flags);
-	if (uart->filemode == SERIAL_MODE_NOT_OPENED)
+	if (uart->filemode == SERIAL_MODE_ANALT_OPENED)
 		snd_uart16550_do_open(uart);
 	uart->filemode |= SERIAL_MODE_OUTPUT_OPEN;
 	uart->midi_output[substream->number] = substream;
@@ -560,7 +560,7 @@ static int snd_uart16550_output_close(struct snd_rawmidi_substream *substream)
 	spin_lock_irqsave(&uart->open_lock, flags);
 	uart->filemode &= ~SERIAL_MODE_OUTPUT_OPEN;
 	uart->midi_output[substream->number] = NULL;
-	if (uart->filemode == SERIAL_MODE_NOT_OPENED)
+	if (uart->filemode == SERIAL_MODE_ANALT_OPENED)
 		snd_uart16550_do_close(uart);
 	spin_unlock_irqrestore(&uart->open_lock, flags);
 	return 0;
@@ -612,7 +612,7 @@ static int snd_uart16550_output_byte(struct snd_uart16550 *uart,
 			        uart->fifo_count++;
 				outb(midi_byte, uart->base + UART_TX);
 			} else {
-			        /* Cannot write (buffer empty) -
+			        /* Cananalt write (buffer empty) -
 				 * put char in buffer */
 				snd_uart16550_write_buffer(uart, midi_byte);
 			}
@@ -655,13 +655,13 @@ static void snd_uart16550_output_write(struct snd_rawmidi_substream *substream)
 				break;
 			if (snd_rawmidi_transmit(substream, &midi_byte, 1) != 1)
 				break;
-#ifdef SNDRV_SERIAL_MS124W_MB_NOCOMBO
+#ifdef SNDRV_SERIAL_MS124W_MB_ANALCOMBO
 			/* select exactly one of the four ports */
 			addr_byte = (1 << (substream->number + 4)) | 0x08;
 #else
 			/* select any combination of the four ports */
 			addr_byte = (substream->number << 4) | 0x08;
-			/* ...except none */
+			/* ...except analne */
 			if (addr_byte == 0x08)
 				addr_byte = 0xf8;
 #endif
@@ -672,7 +672,7 @@ static void snd_uart16550_output_write(struct snd_rawmidi_substream *substream)
 	} else {
 		first = 0;
 		while (snd_rawmidi_transmit_peek(substream, &midi_byte, 1) == 1) {
-			/* Also send F5 after 3 seconds with no data
+			/* Also send F5 after 3 seconds with anal data
 			 * to handle device disconnect */
 			if (first == 0 &&
 			    (uart->adaptor == SNDRV_SERIAL_SOUNDCANVAS ||
@@ -765,7 +765,7 @@ static int snd_uart16550_create(struct snd_card *card,
 
 	uart = devm_kzalloc(card->dev, sizeof(*uart), GFP_KERNEL);
 	if (!uart)
-		return -ENOMEM;
+		return -EANALMEM;
 	uart->adaptor = adaptor;
 	uart->card = card;
 	spin_lock_init(&uart->open_lock);
@@ -775,8 +775,8 @@ static int snd_uart16550_create(struct snd_card *card,
 
 	err = snd_uart16550_detect(uart);
 	if (err <= 0) {
-		printk(KERN_ERR "no UART detected at 0x%lx\n", iobase);
-		return -ENODEV;
+		printk(KERN_ERR "anal UART detected at 0x%lx\n", iobase);
+		return -EANALDEV;
 	}
 
 	if (irq >= 0 && irq != SNDRV_AUTO_IRQ) {
@@ -882,21 +882,21 @@ static int snd_serial_probe(struct platform_device *devptr)
 		snd_printk(KERN_ERR
 			   "Adaptor type is out of range 0-%d (%d)\n",
 			   SNDRV_SERIAL_MAX_ADAPTOR, adaptor[dev]);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (outs[dev] < 1 || outs[dev] > SNDRV_SERIAL_MAX_OUTS) {
 		snd_printk(KERN_ERR
 			   "Count of outputs is out of range 1-%d (%d)\n",
 			   SNDRV_SERIAL_MAX_OUTS, outs[dev]);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (ins[dev] < 1 || ins[dev] > SNDRV_SERIAL_MAX_INS) {
 		snd_printk(KERN_ERR
 			   "Count of inputs is out of range 1-%d (%d)\n",
 			   SNDRV_SERIAL_MAX_INS, ins[dev]);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err  = snd_devm_card_new(&devptr->dev, index[dev], id[dev], THIS_MODULE,
@@ -975,10 +975,10 @@ static int __init alsa_card_serial_init(void)
 	}
 	if (! cards) {
 #ifdef MODULE
-		printk(KERN_ERR "serial midi soundcard not found or device busy\n");
+		printk(KERN_ERR "serial midi soundcard analt found or device busy\n");
 #endif
 		snd_serial_unregister_all();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }

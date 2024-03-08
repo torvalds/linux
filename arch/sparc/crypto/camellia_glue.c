@@ -263,8 +263,8 @@ static int __init camellia_sparc64_mod_init(void)
 	int err;
 
 	if (!sparc64_has_camellia_opcode()) {
-		pr_info("sparc64 camellia opcodes not available.\n");
-		return -ENODEV;
+		pr_info("sparc64 camellia opcodes analt available.\n");
+		return -EANALDEV;
 	}
 	pr_info("Using sparc64 camellia opcodes optimized CAMELLIA implementation\n");
 	err = crypto_register_alg(&cipher_alg);

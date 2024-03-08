@@ -15,7 +15,7 @@
 /*
  * Erratum 44 for QDF2432v1 and QDF2400v1 SoCs describes the BUSY bit as
  * occasionally getting stuck as 1. To avoid the potential for a hang, check
- * TXFE == 0 instead of BUSY == 1. This may not be suitable for all UART
+ * TXFE == 0 instead of BUSY == 1. This may analt be suitable for all UART
  * implementations, so only do so if an affected platform is detected in
  * acpi_parse_spcr().
  */
@@ -23,7 +23,7 @@ bool qdf2400_e44_present;
 EXPORT_SYMBOL(qdf2400_e44_present);
 
 /*
- * Some Qualcomm Datacenter Technologies SoCs have a defective UART BUSY bit.
+ * Some Qualcomm Datacenter Techanallogies SoCs have a defective UART BUSY bit.
  * Detect them by examining the OEM fields in the SPCR header, similar to PCI
  * quirk detection in pci_mcfg.c.
  */
@@ -93,11 +93,11 @@ int __init acpi_parse_spcr(bool enable_earlycon, bool enable_console)
 	int err;
 
 	if (acpi_disabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = acpi_get_table(ACPI_SIG_SPCR, 0, (struct acpi_table_header **)&table);
 	if (ACPI_FAILURE(status))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (table->header.revision < 2)
 		pr_info("SPCR table version %d\n", table->header.revision);
@@ -142,7 +142,7 @@ int __init acpi_parse_spcr(bool enable_earlycon, bool enable_console)
 		uart = "uart";
 		break;
 	default:
-		err = -ENOENT;
+		err = -EANALENT;
 		goto done;
 	}
 
@@ -167,7 +167,7 @@ int __init acpi_parse_spcr(bool enable_earlycon, bool enable_console)
 		baud_rate = 115200;
 		break;
 	default:
-		err = -ENOENT;
+		err = -EANALENT;
 		goto done;
 	}
 
@@ -176,18 +176,18 @@ int __init acpi_parse_spcr(bool enable_earlycon, bool enable_console)
 	 * driver to implement the work-around.
 	 *
 	 * The global variable is used by the probe function when it
-	 * creates the UARTs, whether or not they're used as a console.
+	 * creates the UARTs, whether or analt they're used as a console.
 	 *
 	 * If the user specifies "traditional" earlycon, the qdf2400_e44
 	 * console name matches the EARLYCON_DECLARE() statement, and
-	 * SPCR is not used.  Parameter "earlycon" is false.
+	 * SPCR is analt used.  Parameter "earlycon" is false.
 	 *
 	 * If the user specifies "SPCR" earlycon, then we need to update
 	 * the console name so that it also says "qdf2400_e44".  Parameter
 	 * "earlycon" is true.
 	 *
 	 * For consistency, if we change the console name, then we do it
-	 * for everyone, not just earlycon.
+	 * for everyone, analt just earlycon.
 	 */
 	if (qdf2400_erratum_44_present(&table->header)) {
 		qdf2400_e44_present = true;
@@ -199,9 +199,9 @@ int __init acpi_parse_spcr(bool enable_earlycon, bool enable_console)
 		iotype = "mmio32";
 
 		/*
-		 * For xgene v1 and v2 we don't know the clock rate of the
+		 * For xgene v1 and v2 we don't kanalw the clock rate of the
 		 * UART so don't attempt to change to the baud rate state
-		 * in the table because driver cannot calculate the dividers
+		 * in the table because driver cananalt calculate the dividers
 		 */
 		baud_rate = 0;
 	}

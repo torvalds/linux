@@ -62,19 +62,19 @@ struct fun_admin_write48_req {
 
 #define FUN_ADMIN_WRITE48_REQ_KEY_S 56U
 #define FUN_ADMIN_WRITE48_REQ_KEY_M 0xff
-#define FUN_ADMIN_WRITE48_REQ_KEY_P_NOSWAP(x) \
+#define FUN_ADMIN_WRITE48_REQ_KEY_P_ANALSWAP(x) \
 	(((__u64)x) << FUN_ADMIN_WRITE48_REQ_KEY_S)
 
 #define FUN_ADMIN_WRITE48_REQ_DATA_S 0U
 #define FUN_ADMIN_WRITE48_REQ_DATA_M 0xffffffffffff
-#define FUN_ADMIN_WRITE48_REQ_DATA_P_NOSWAP(x) \
+#define FUN_ADMIN_WRITE48_REQ_DATA_P_ANALSWAP(x) \
 	(((__u64)x) << FUN_ADMIN_WRITE48_REQ_DATA_S)
 
 #define FUN_ADMIN_WRITE48_REQ_INIT(key, data)                       \
 	(struct fun_admin_write48_req) {                            \
 		.key_to_data = cpu_to_be64(                         \
-			FUN_ADMIN_WRITE48_REQ_KEY_P_NOSWAP(key) |   \
-			FUN_ADMIN_WRITE48_REQ_DATA_P_NOSWAP(data)), \
+			FUN_ADMIN_WRITE48_REQ_KEY_P_ANALSWAP(key) |   \
+			FUN_ADMIN_WRITE48_REQ_DATA_P_ANALSWAP(data)), \
 	}
 
 struct fun_admin_write48_rsp {
@@ -87,13 +87,13 @@ struct fun_admin_read48_req {
 
 #define FUN_ADMIN_READ48_REQ_KEY_S 56U
 #define FUN_ADMIN_READ48_REQ_KEY_M 0xff
-#define FUN_ADMIN_READ48_REQ_KEY_P_NOSWAP(x) \
+#define FUN_ADMIN_READ48_REQ_KEY_P_ANALSWAP(x) \
 	(((__u64)x) << FUN_ADMIN_READ48_REQ_KEY_S)
 
 #define FUN_ADMIN_READ48_REQ_INIT(key)                                       \
 	(struct fun_admin_read48_req) {                                      \
 		.key_pack =                                                  \
-			cpu_to_be64(FUN_ADMIN_READ48_REQ_KEY_P_NOSWAP(key)), \
+			cpu_to_be64(FUN_ADMIN_READ48_REQ_KEY_P_ANALSWAP(key)), \
 	}
 
 struct fun_admin_read48_rsp {
@@ -167,7 +167,7 @@ enum fun_admin_subop {
 	FUN_ADMIN_SUBOP_RES_COUNT = 0x14,
 	FUN_ADMIN_SUBOP_READ = 0x15,
 	FUN_ADMIN_SUBOP_WRITE = 0x16,
-	FUN_ADMIN_SUBOP_NOTIFY = 0x17,
+	FUN_ADMIN_SUBOP_ANALTIFY = 0x17,
 };
 
 enum {
@@ -204,7 +204,7 @@ enum {
 	FUN_ADMIN_EPCQ_CREATE_FLAG_SL_WR_TPH = 0x8,
 	FUN_ADMIN_EPCQ_CREATE_FLAG_RQ = 0x80,
 	FUN_ADMIN_EPCQ_CREATE_FLAG_INT_IQ = 0x100,
-	FUN_ADMIN_EPCQ_CREATE_FLAG_INT_NOARM = 0x200,
+	FUN_ADMIN_EPCQ_CREATE_FLAG_INT_ANALARM = 0x200,
 	FUN_ADMIN_EPCQ_CREATE_FLAG_DROP_ON_OVERFLOW = 0x400,
 };
 
@@ -286,7 +286,7 @@ enum {
 	FUN_ADMIN_EPSQ_CREATE_FLAG_HEAD_WB_EPCQ = 0x40,
 	FUN_ADMIN_EPSQ_CREATE_FLAG_RQ = 0x80,
 	FUN_ADMIN_EPSQ_CREATE_FLAG_INT_IQ = 0x100,
-	FUN_ADMIN_EPSQ_CREATE_FLAG_NO_CMPL = 0x200,
+	FUN_ADMIN_EPSQ_CREATE_FLAG_ANAL_CMPL = 0x200,
 };
 
 struct fun_admin_epsq_req {
@@ -368,14 +368,14 @@ enum {
 	FUN_PORT_CAP_100G_R4 = 0x40000,
 	FUN_PORT_CAP_100G_R2 = 0x80000,
 	FUN_PORT_CAP_200G_R4 = 0x100000,
-	FUN_PORT_CAP_FEC_NONE = 0x10000000,
+	FUN_PORT_CAP_FEC_ANALNE = 0x10000000,
 	FUN_PORT_CAP_FEC_FC = 0x20000000,
 	FUN_PORT_CAP_FEC_RS = 0x40000000,
 };
 
 enum fun_port_brkout_mode {
 	FUN_PORT_BRKMODE_NA = 0x0,
-	FUN_PORT_BRKMODE_NONE = 0x1,
+	FUN_PORT_BRKMODE_ANALNE = 0x1,
 	FUN_PORT_BRKMODE_2X = 0x2,
 	FUN_PORT_BRKMODE_4X = 0x3,
 };
@@ -428,7 +428,7 @@ enum {
 };
 
 enum {
-	FUN_PORT_FLAG_ENABLE_NOTIFY = 0x1,
+	FUN_PORT_FLAG_ENABLE_ANALTIFY = 0x1,
 };
 
 enum fun_port_lane_attr {
@@ -710,7 +710,7 @@ enum fun_xcvr_type {
 	FUN_XCVR_QSFPDD = 0x12, /* QSFP-DD */
 };
 
-struct fun_admin_port_notif {
+struct fun_admin_port_analtif {
 	struct fun_admin_rsp_common common;
 
 	__u8 subop;
@@ -1149,7 +1149,7 @@ struct fun_eth_rx_cv {
 #define FUN_ETH_RX_CV_L2_TYPE_M 0x1
 
 enum fun_rx_cv {
-	FUN_RX_CV_NONE = 0x0,
+	FUN_RX_CV_ANALNE = 0x0,
 	FUN_RX_CV_IP = 0x2,
 	FUN_RX_CV_IP6 = 0x3,
 	FUN_RX_CV_TCP = 0x2,

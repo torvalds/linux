@@ -50,7 +50,7 @@ static inline int cavium_ptp_clock_index(struct cavium_ptp *clock)
 
 static inline struct cavium_ptp *cavium_ptp_get(void)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline void cavium_ptp_put(struct cavium_ptp *ptp) {}

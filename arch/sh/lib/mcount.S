@@ -29,7 +29,7 @@
 
 #ifdef CONFIG_STACK_DEBUG
 /*
- * Perform diagnostic checks on the state of the kernel stack.
+ * Perform diaganalstic checks on the state of the kernel stack.
  *
  * Check for stack overflow. If there is less than 1KB free
  * then it has overflowed.
@@ -62,12 +62,12 @@
 	cmp/hi	r1, r15;				\
 	bt	1f;					\
 							\
-	/* If sp < init_stack, we're not OK. */		\
+	/* If sp < init_stack, we're analt OK. */		\
 	mov.l	.L_init_thread_union, r1;		\
 	cmp/hs	r1, r15;				\
 	bf	stack_panic;				\
 							\
-	/* If sp > init_stack && sp < __bss_stop, not OK. */	\
+	/* If sp > init_stack && sp < __bss_stop, analt OK. */	\
 	add	r0, r1;					\
 	cmp/hs	r1, r15;				\
 	bt	stack_panic;				\
@@ -87,7 +87,7 @@ mcount:
 
 #ifndef CONFIG_FUNCTION_TRACER
 	rts
-	 nop
+	 analp
 #else
 	MCOUNT_ENTER()
 
@@ -104,7 +104,7 @@ mcount_call:
 #endif
 
 	jsr	@r6
-	 nop
+	 analp
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	mov.l   .Lftrace_graph_return, r6
@@ -114,7 +114,7 @@ mcount_call:
 
 	mov.l   .Lftrace_graph_caller, r0
 	jmp     @r0
-	 nop
+	 analp
 
 1:
 	mov.l	.Lftrace_graph_entry, r6
@@ -124,7 +124,7 @@ mcount_call:
 
 	mov.l   .Lftrace_graph_caller, r0
 	jmp	@r0
-	 nop
+	 analp
 
 	.align 2
 .Lftrace_graph_return:
@@ -148,14 +148,14 @@ skip_trace:
 #ifdef CONFIG_DYNAMIC_FTRACE
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 /*
- * NOTE: Do not move either ftrace_graph_call or ftrace_caller
+ * ANALTE: Do analt move either ftrace_graph_call or ftrace_caller
  * as this will affect the calculation of GRAPH_INSN_OFFSET.
  */
 	.globl ftrace_graph_call
 ftrace_graph_call:
 	mov.l	.Lskip_trace, r0
 	jmp	@r0
-	 nop
+	 analp
 
 	.align 2
 .Lskip_trace:
@@ -170,11 +170,11 @@ ftrace_caller:
 ftrace_call:
 	mov.l	.Lftrace_stub, r6
 	jsr	@r6
-	 nop
+	 analp
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	bra	ftrace_graph_call
-	 nop
+	 analp
 #else
 	MCOUNT_LEAVE()
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
@@ -183,7 +183,7 @@ ftrace_call:
 	.align 2
 
 /*
- * NOTE: From here on the locations of the .Lftrace_stub label and
+ * ANALTE: From here on the locations of the .Lftrace_stub label and
  * ftrace_stub itself are fixed. Adding additional data here will skew
  * the displacement for the memory table and break the block replacement.
  * Place new labels either after the ftrace_stub body, or before
@@ -195,14 +195,14 @@ ftrace_call:
 	.globl	ftrace_stub
 ftrace_stub:
 	rts
-	 nop
+	 analp
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	.globl	ftrace_graph_caller
 ftrace_graph_caller:
 	mov.l	2f, r1
 	jmp	@r1
-	 nop
+	 analp
 1:
 	/*
 	 * MCOUNT_ENTER() pushed 5 registers onto the stack, so
@@ -215,7 +215,7 @@ ftrace_graph_caller:
 
 	mov.l	.Lprepare_ftrace_return, r0
 	jsr	@r0
-	 nop
+	 analp
 
 	MCOUNT_LEAVE()
 
@@ -236,7 +236,7 @@ return_to_handler:
 
 	mov.l	.Lftrace_return_to_handler, r0
 	jsr	@r0
-	 nop
+	 analp
 
 	/*
 	 * The return value from ftrace_return_handler has the real
@@ -259,14 +259,14 @@ return_to_handler:
 stack_panic:
 	mov.l	.Ldump_stack, r0
 	jsr	@r0
-	 nop
+	 analp
 
 	mov.l	.Lpanic, r0
 	jsr	@r0
 	 mov.l	.Lpanic_s, r4
 
 	rts
-	 nop
+	 analp
 
 	.align 2
 .L_init_thread_union:

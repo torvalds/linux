@@ -166,7 +166,7 @@
 };
 
 &emmc {
-	non-removable;
+	analn-removable;
 	bus-width = <4>;
 	max-frequency = <100000000>;
 	clk-phase-mmc-hs200 = <9>, <225>;
@@ -196,7 +196,7 @@
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-		label = "pnor";
+		label = "panalr";
 		spi-rx-bus-width = <4>;
 		spi-max-frequency = <100000000>;
 	};

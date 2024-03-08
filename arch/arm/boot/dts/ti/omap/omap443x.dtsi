@@ -30,7 +30,7 @@
 	};
 
 	ocp {
-		/* 4430 has only gpio_86 tshut and no talert interrupt */
+		/* 4430 has only gpio_86 tshut and anal talert interrupt */
 		bandgap: bandgap@4a002260 {
 			reg = <0x4a002260 0x4
 			       0x4a00232C 0x4>;

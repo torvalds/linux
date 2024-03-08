@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/ctype.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #undef CONFIG_KASAN
 #undef CONFIG_KASAN_GENERIC
 #include "../lib/string.c"

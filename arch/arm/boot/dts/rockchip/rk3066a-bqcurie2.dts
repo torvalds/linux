@@ -174,7 +174,7 @@
 
 &mmc1 { /* wifi */
 	status = "okay";
-	non-removable;
+	analn-removable;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_bus4>;

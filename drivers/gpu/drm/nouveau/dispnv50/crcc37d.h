@@ -10,7 +10,7 @@
 #define CRCC37D_MAX_ENTRIES 2047
 #define CRCC37D_FLIP_THRESHOLD (CRCC37D_MAX_ENTRIES - 30)
 
-struct crcc37d_notifier {
+struct crcc37d_analtifier {
 	u32 status;
 
 	/* reserved */
@@ -32,9 +32,9 @@ struct crcc37d_notifier {
 	} entries[CRCC37D_MAX_ENTRIES];
 } __packed;
 
-int crcc37d_set_ctx(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx);
-u32 crcc37d_get_entry(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx,
+int crcc37d_set_ctx(struct nv50_head *head, struct nv50_crc_analtifier_ctx *ctx);
+u32 crcc37d_get_entry(struct nv50_head *head, struct nv50_crc_analtifier_ctx *ctx,
 		      enum nv50_crc_source source, int idx);
-bool crcc37d_ctx_finished(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx);
+bool crcc37d_ctx_finished(struct nv50_head *head, struct nv50_crc_analtifier_ctx *ctx);
 
 #endif /* !__CRCC37D_H__ */

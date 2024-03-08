@@ -25,7 +25,7 @@ extern int smbd_send_credit_target;
 extern int smbd_receive_credit_max;
 
 enum keep_alive_status {
-	KEEP_ALIVE_NONE,
+	KEEP_ALIVE_ANALNE,
 	KEEP_ALIVE_PENDING,
 	KEEP_ALIVE_SENT,
 };

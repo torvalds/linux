@@ -13,8 +13,8 @@
 #include "xfs_btree.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
-#include "xfs_inode.h"
-#include "xfs_inode_fork.h"
+#include "xfs_ianalde.h"
+#include "xfs_ianalde_fork.h"
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
 #include "xfs_rmap.h"
@@ -40,15 +40,15 @@
  * CoW Fork Mapping Repair
  * =======================
  *
- * Although CoW staging extents are owned by incore CoW inode forks, on disk
- * they are owned by the refcount btree.  The ondisk metadata does not record
+ * Although CoW staging extents are owned by incore CoW ianalde forks, on disk
+ * they are owned by the refcount btree.  The ondisk metadata does analt record
  * any ownership information, which limits what we can do to repair the
  * mappings in the CoW fork.  At most, we can replace ifork mappings that lack
  * an entry in the refcount btree or are described by a reverse mapping record
- * whose owner is not OWN_COW.
+ * whose owner is analt OWN_COW.
  *
  * Replacing extents is also tricky -- we can't touch written CoW fork extents
- * since they are undergoing writeback, and delalloc extents do not require
+ * since they are undergoing writeback, and delalloc extents do analt require
  * repair since they only exist incore.  Hence the most we can do is find the
  * bad parts of unwritten mappings, allocate a replacement set of blocks, and
  * replace the incore mapping.  We use the regular reaping process to unmap
@@ -67,15 +67,15 @@ struct xrep_cow {
 	struct xfs_bmbt_irec	irec;
 
 	/* refcount btree block number of irec.br_startblock */
-	unsigned int		irec_startbno;
+	unsigned int		irec_startbanal;
 
 	/* refcount btree block number of the next refcount record we expect */
-	unsigned int		next_bno;
+	unsigned int		next_banal;
 };
 
 /* CoW staging extent. */
 struct xrep_cow_extent {
-	xfs_fsblock_t		fsbno;
+	xfs_fsblock_t		fsbanal;
 	xfs_extlen_t		len;
 };
 
@@ -114,16 +114,16 @@ xrep_cow_trim_refcount(
 
 	memcpy(dst, src, sizeof(*dst));
 
-	if (dst->rc_startblock < xc->irec_startbno) {
-		adj = xc->irec_startbno - dst->rc_startblock;
+	if (dst->rc_startblock < xc->irec_startbanal) {
+		adj = xc->irec_startbanal - dst->rc_startblock;
 		dst->rc_blockcount -= adj;
 		dst->rc_startblock += adj;
 	}
 
 	if (dst->rc_startblock + dst->rc_blockcount >
-	    xc->irec_startbno + xc->irec.br_blockcount) {
+	    xc->irec_startbanal + xc->irec.br_blockcount) {
 		adj = (dst->rc_startblock + dst->rc_blockcount) -
-		      (xc->irec_startbno + xc->irec.br_blockcount);
+		      (xc->irec_startbanal + xc->irec.br_blockcount);
 		dst->rc_blockcount -= adj;
 	}
 }
@@ -137,7 +137,7 @@ xrep_cow_mark_shared_staging(
 {
 	struct xrep_cow			*xc = priv;
 	struct xfs_refcount_irec	rrec;
-	xfs_fsblock_t			fsbno;
+	xfs_fsblock_t			fsbanal;
 
 	if (!xfs_refcount_check_domain(rec) ||
 	    rec->rc_domain != XFS_REFC_DOMAIN_SHARED)
@@ -145,18 +145,18 @@ xrep_cow_mark_shared_staging(
 
 	xrep_cow_trim_refcount(xc, &rrec, rec);
 
-	fsbno = XFS_AGB_TO_FSB(xc->sc->mp, cur->bc_ag.pag->pag_agno,
+	fsbanal = XFS_AGB_TO_FSB(xc->sc->mp, cur->bc_ag.pag->pag_aganal,
 			rrec.rc_startblock);
-	return xrep_cow_mark_file_range(xc, fsbno, rrec.rc_blockcount);
+	return xrep_cow_mark_file_range(xc, fsbanal, rrec.rc_blockcount);
 }
 
 /*
- * Mark any portion of the CoW fork file offset range where there is not a CoW
+ * Mark any portion of the CoW fork file offset range where there is analt a CoW
  * staging extent record in the refcountbt, and keep a record of where we did
  * find correct refcountbt records.  Staging records are always cleaned out at
- * mount time, so any two inodes trying to map the same staging area would have
+ * mount time, so any two ianaldes trying to map the same staging area would have
  * already taken the fs down due to refcount btree verifier errors.  Hence this
- * inode should be the sole creator of the staging extent records ondisk.
+ * ianalde should be the sole creator of the staging extent records ondisk.
  */
 STATIC int
 xrep_cow_mark_missing_staging(
@@ -174,23 +174,23 @@ xrep_cow_mark_missing_staging(
 
 	xrep_cow_trim_refcount(xc, &rrec, rec);
 
-	if (xc->next_bno >= rrec.rc_startblock)
+	if (xc->next_banal >= rrec.rc_startblock)
 		goto next;
 
 	error = xrep_cow_mark_file_range(xc,
-			XFS_AGB_TO_FSB(xc->sc->mp, cur->bc_ag.pag->pag_agno,
-				       xc->next_bno),
-			rrec.rc_startblock - xc->next_bno);
+			XFS_AGB_TO_FSB(xc->sc->mp, cur->bc_ag.pag->pag_aganal,
+				       xc->next_banal),
+			rrec.rc_startblock - xc->next_banal);
 	if (error)
 		return error;
 
 next:
-	xc->next_bno = rrec.rc_startblock + rrec.rc_blockcount;
+	xc->next_banal = rrec.rc_startblock + rrec.rc_blockcount;
 	return 0;
 }
 
 /*
- * Mark any area that does not correspond to a CoW staging rmap.  These are
+ * Mark any area that does analt correspond to a CoW staging rmap.  These are
  * cross-linked areas that must be avoided.
  */
 STATIC int
@@ -200,30 +200,30 @@ xrep_cow_mark_missing_staging_rmap(
 	void				*priv)
 {
 	struct xrep_cow			*xc = priv;
-	xfs_fsblock_t			fsbno;
-	xfs_agblock_t			rec_bno;
+	xfs_fsblock_t			fsbanal;
+	xfs_agblock_t			rec_banal;
 	xfs_extlen_t			rec_len;
 	unsigned int			adj;
 
 	if (rec->rm_owner == XFS_RMAP_OWN_COW)
 		return 0;
 
-	rec_bno = rec->rm_startblock;
+	rec_banal = rec->rm_startblock;
 	rec_len = rec->rm_blockcount;
-	if (rec_bno < xc->irec_startbno) {
-		adj = xc->irec_startbno - rec_bno;
+	if (rec_banal < xc->irec_startbanal) {
+		adj = xc->irec_startbanal - rec_banal;
 		rec_len -= adj;
-		rec_bno += adj;
+		rec_banal += adj;
 	}
 
-	if (rec_bno + rec_len > xc->irec_startbno + xc->irec.br_blockcount) {
-		adj = (rec_bno + rec_len) -
-		      (xc->irec_startbno + xc->irec.br_blockcount);
+	if (rec_banal + rec_len > xc->irec_startbanal + xc->irec.br_blockcount) {
+		adj = (rec_banal + rec_len) -
+		      (xc->irec_startbanal + xc->irec.br_blockcount);
 		rec_len -= adj;
 	}
 
-	fsbno = XFS_AGB_TO_FSB(xc->sc->mp, cur->bc_ag.pag->pag_agno, rec_bno);
-	return xrep_cow_mark_file_range(xc, fsbno, rec_len);
+	fsbanal = XFS_AGB_TO_FSB(xc->sc->mp, cur->bc_ag.pag->pag_aganal, rec_banal);
+	return xrep_cow_mark_file_range(xc, fsbanal, rec_len);
 }
 
 /*
@@ -240,13 +240,13 @@ xrep_cow_find_bad(
 	struct xfs_rmap_irec		rm_high = { 0 };
 	struct xfs_perag		*pag;
 	struct xfs_scrub		*sc = xc->sc;
-	xfs_agnumber_t			agno;
+	xfs_agnumber_t			aganal;
 	int				error;
 
-	agno = XFS_FSB_TO_AGNO(sc->mp, xc->irec.br_startblock);
-	xc->irec_startbno = XFS_FSB_TO_AGBNO(sc->mp, xc->irec.br_startblock);
+	aganal = XFS_FSB_TO_AGANAL(sc->mp, xc->irec.br_startblock);
+	xc->irec_startbanal = XFS_FSB_TO_AGBANAL(sc->mp, xc->irec.br_startblock);
 
-	pag = xfs_perag_get(sc->mp, agno);
+	pag = xfs_perag_get(sc->mp, aganal);
 	if (!pag)
 		return -EFSCORRUPTED;
 
@@ -255,8 +255,8 @@ xrep_cow_find_bad(
 		goto out_pag;
 
 	/* Mark any CoW fork extents that are shared. */
-	rc_low.rc_startblock = xc->irec_startbno;
-	rc_high.rc_startblock = xc->irec_startbno + xc->irec.br_blockcount - 1;
+	rc_low.rc_startblock = xc->irec_startbanal;
+	rc_high.rc_startblock = xc->irec_startbanal + xc->irec.br_blockcount - 1;
 	rc_low.rc_domain = rc_high.rc_domain = XFS_REFC_DOMAIN_SHARED;
 	error = xfs_refcount_query_range(sc->sa.refc_cur, &rc_low, &rc_high,
 			xrep_cow_mark_shared_staging, xc);
@@ -264,29 +264,29 @@ xrep_cow_find_bad(
 		goto out_sa;
 
 	/* Make sure there are CoW staging extents for the whole mapping. */
-	rc_low.rc_startblock = xc->irec_startbno;
-	rc_high.rc_startblock = xc->irec_startbno + xc->irec.br_blockcount - 1;
+	rc_low.rc_startblock = xc->irec_startbanal;
+	rc_high.rc_startblock = xc->irec_startbanal + xc->irec.br_blockcount - 1;
 	rc_low.rc_domain = rc_high.rc_domain = XFS_REFC_DOMAIN_COW;
-	xc->next_bno = xc->irec_startbno;
+	xc->next_banal = xc->irec_startbanal;
 	error = xfs_refcount_query_range(sc->sa.refc_cur, &rc_low, &rc_high,
 			xrep_cow_mark_missing_staging, xc);
 	if (error)
 		goto out_sa;
 
-	if (xc->next_bno < xc->irec_startbno + xc->irec.br_blockcount) {
+	if (xc->next_banal < xc->irec_startbanal + xc->irec.br_blockcount) {
 		error = xrep_cow_mark_file_range(xc,
-				XFS_AGB_TO_FSB(sc->mp, pag->pag_agno,
-					       xc->next_bno),
-				xc->irec_startbno + xc->irec.br_blockcount -
-				xc->next_bno);
+				XFS_AGB_TO_FSB(sc->mp, pag->pag_aganal,
+					       xc->next_banal),
+				xc->irec_startbanal + xc->irec.br_blockcount -
+				xc->next_banal);
 		if (error)
 			goto out_sa;
 	}
 
 	/* Mark any area has an rmap that isn't a COW staging extent. */
-	rm_low.rm_startblock = xc->irec_startbno;
+	rm_low.rm_startblock = xc->irec_startbanal;
 	memset(&rm_high, 0xFF, sizeof(rm_high));
-	rm_high.rm_startblock = xc->irec_startbno + xc->irec.br_blockcount - 1;
+	rm_high.rm_startblock = xc->irec_startbanal + xc->irec.br_blockcount - 1;
 	error = xfs_rmap_query_range(sc->sa.rmap_cur, &rm_low, &rm_high,
 			xrep_cow_mark_missing_staging_rmap, xc);
 	if (error)
@@ -294,7 +294,7 @@ xrep_cow_find_bad(
 
 	/*
 	 * If userspace is forcing us to rebuild the CoW fork or someone turned
-	 * on the debugging knob, replace everything in the CoW fork.
+	 * on the debugging kanalb, replace everything in the CoW fork.
 	 */
 	if ((sc->sm->sm_flags & XFS_SCRUB_IFLAG_FORCE_REBUILD) ||
 	    XFS_TEST_ERROR(false, sc->mp, XFS_ERRTAG_FORCE_SCRUB_REPAIR)) {
@@ -328,7 +328,7 @@ xrep_cow_alloc(
 		.minlen		= 1,
 		.maxlen		= maxlen,
 		.prod		= 1,
-		.resv		= XFS_AG_RESV_NONE,
+		.resv		= XFS_AG_RESV_ANALNE,
 		.datatype	= XFS_ALLOC_USERDATA,
 	};
 	int			error;
@@ -338,21 +338,21 @@ xrep_cow_alloc(
 		return error;
 
 	error = xfs_alloc_vextent_start_ag(&args,
-			XFS_INO_TO_FSB(sc->mp, sc->ip->i_ino));
+			XFS_IANAL_TO_FSB(sc->mp, sc->ip->i_ianal));
 	if (error)
 		return error;
-	if (args.fsbno == NULLFSBLOCK)
-		return -ENOSPC;
+	if (args.fsbanal == NULLFSBLOCK)
+		return -EANALSPC;
 
-	xfs_refcount_alloc_cow_extent(sc->tp, args.fsbno, args.len);
+	xfs_refcount_alloc_cow_extent(sc->tp, args.fsbanal, args.len);
 
-	repl->fsbno = args.fsbno;
+	repl->fsbanal = args.fsbanal;
 	repl->len = args.len;
 	return 0;
 }
 
 /*
- * Look up the current CoW fork mapping so that we only allocate enough to
+ * Look up the current CoW fork mapping so that we only allocate eanalugh to
  * replace a single mapping.  If we don't find a mapping that covers the start
  * of the file range, or we find a delalloc or written extent, something is
  * seriously wrong, since we didn't drop the ILOCK.
@@ -364,7 +364,7 @@ xrep_cow_find_mapping(
 	xfs_fileoff_t		startoff,
 	struct xfs_bmbt_irec	*got)
 {
-	struct xfs_inode	*ip = xc->sc->ip;
+	struct xfs_ianalde	*ip = xc->sc->ip;
 	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, XFS_COW_FORK);
 
 	if (!xfs_iext_lookup_extent(ip, ifp, startoff, icur, got))
@@ -397,7 +397,7 @@ bad:
  */
 static inline void
 xrep_cow_replace_mapping(
-	struct xfs_inode		*ip,
+	struct xfs_ianalde		*ip,
 	struct xfs_iext_cursor		*icur,
 	const struct xfs_bmbt_irec	*got,
 	const struct xrep_cow_extent	*repl)
@@ -407,14 +407,14 @@ xrep_cow_replace_mapping(
 	ASSERT(repl->len > 0);
 	ASSERT(!isnullstartblock(got->br_startblock));
 
-	trace_xrep_cow_replace_mapping(ip, got, repl->fsbno, repl->len);
+	trace_xrep_cow_replace_mapping(ip, got, repl->fsbanal, repl->len);
 
 	if (got->br_blockcount == repl->len) {
 		/*
 		 * The new extent is a complete replacement for the existing
 		 * extent.  Update the COW fork record.
 		 */
-		new.br_startblock = repl->fsbno;
+		new.br_startblock = repl->fsbanal;
 		xfs_iext_update_extent(ip, BMAP_COWFORK, icur, &new);
 		return;
 	}
@@ -429,7 +429,7 @@ xrep_cow_replace_mapping(
 	xfs_iext_update_extent(ip, BMAP_COWFORK, icur, &new);
 
 	new.br_startoff = got->br_startoff;
-	new.br_startblock = repl->fsbno;
+	new.br_startblock = repl->fsbanal;
 	new.br_blockcount = repl->len;
 	xfs_iext_insert(ip, icur, &new, BMAP_COWFORK);
 }
@@ -478,12 +478,12 @@ xrep_cow_replace_range(
 	 */
 	xrep_cow_replace_mapping(sc->ip, &icur, &got, &repl);
 
-	xfs_inode_set_cowblocks_tag(sc->ip);
+	xfs_ianalde_set_cowblocks_tag(sc->ip);
 	error = xfs_defer_finish(&sc->tp);
 	if (error)
 		return error;
 
-	/* Note the old CoW staging extents; we'll reap them all later. */
+	/* Analte the old CoW staging extents; we'll reap them all later. */
 	error = xfsb_bitmap_set(&xc->old_cowfork_fsblocks, got.br_startblock,
 			repl.len);
 	if (error)
@@ -522,8 +522,8 @@ xrep_cow_replace(
 }
 
 /*
- * Repair an inode's CoW fork.  The CoW fork is an in-core structure, so
- * there's no btree to rebuid.  Instead, we replace any mappings that are
+ * Repair an ianalde's CoW fork.  The CoW fork is an in-core structure, so
+ * there's anal btree to rebuid.  Instead, we replace any mappings that are
  * cross-linked or lack ondisk CoW fork records in the refcount btree.
  */
 int
@@ -536,28 +536,28 @@ xrep_bmap_cow(
 	int			error;
 
 	if (!xfs_has_rmapbt(sc->mp) || !xfs_has_reflink(sc->mp))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!ifp)
 		return 0;
 
 	/* realtime files aren't supported yet */
-	if (XFS_IS_REALTIME_INODE(sc->ip))
-		return -EOPNOTSUPP;
+	if (XFS_IS_REALTIME_IANALDE(sc->ip))
+		return -EOPANALTSUPP;
 
 	/*
-	 * If we're somehow not in extents format, then reinitialize it to
+	 * If we're somehow analt in extents format, then reinitialize it to
 	 * an empty extent mapping fork and exit.
 	 */
-	if (ifp->if_format != XFS_DINODE_FMT_EXTENTS) {
-		ifp->if_format = XFS_DINODE_FMT_EXTENTS;
+	if (ifp->if_format != XFS_DIANALDE_FMT_EXTENTS) {
+		ifp->if_format = XFS_DIANALDE_FMT_EXTENTS;
 		ifp->if_nextents = 0;
 		return 0;
 	}
 
 	xc = kzalloc(sizeof(struct xrep_cow), XCHK_GFP_FLAGS);
 	if (!xc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xfs_trans_ijoin(sc->tp, sc->ip, 0);
 
@@ -570,7 +570,7 @@ xrep_bmap_cow(
 			goto out_bitmap;
 
 		/*
-		 * delalloc reservations only exist incore, so there is no
+		 * delalloc reservations only exist incore, so there is anal
 		 * ondisk metadata that we can examine.  Hence we leave them
 		 * alone.
 		 */
@@ -579,7 +579,7 @@ xrep_bmap_cow(
 
 		/*
 		 * COW fork extents are only in the written state if writeback
-		 * is actively writing to disk.  We cannot restart the write
+		 * is actively writing to disk.  We cananalt restart the write
 		 * at a different disk address since we've already issued the
 		 * IO, so we leave these alone and hope for the best.
 		 */
@@ -598,8 +598,8 @@ xrep_bmap_cow(
 
 	/*
 	 * Reap as many of the old CoW blocks as we can.  They are owned ondisk
-	 * by the refcount btree, not the inode, so it is correct to treat them
-	 * like inode metadata.
+	 * by the refcount btree, analt the ianalde, so it is correct to treat them
+	 * like ianalde metadata.
 	 */
 	error = xrep_reap_fsblocks(sc, &xc->old_cowfork_fsblocks,
 			&XFS_RMAP_OINFO_COW);

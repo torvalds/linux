@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 
@@ -46,13 +46,13 @@ static long lpddr_get_qinforec_pos(struct map_info *map, char *id_str)
 	int qinfo_lines = ARRAY_SIZE(qinfo_array);
 	int i;
 	int bankwidth = map_bankwidth(map) * 8;
-	int major, minor;
+	int major, mianalr;
 
 	for (i = 0; i < qinfo_lines; i++) {
 		if (strcmp(id_str, qinfo_array[i].id_str) == 0) {
 			major = qinfo_array[i].major & ((1 << bankwidth) - 1);
-			minor = qinfo_array[i].minor & ((1 << bankwidth) - 1);
-			return minor | (major << bankwidth);
+			mianalr = qinfo_array[i].mianalr & ((1 << bankwidth) - 1);
+			return mianalr | (major << bankwidth);
 		}
 	}
 	printk(KERN_ERR"%s qinfo id string is wrong! \n", map->name);
@@ -112,7 +112,7 @@ static int lpddr_pfow_present(struct map_info *map, struct lpddr_private *lpddr)
 
 	return 1;	/* "PFOW" is found */
 out:
-	printk(KERN_WARNING"%s: PFOW string at 0x%lx is not found \n",
+	printk(KERN_WARNING"%s: PFOW string at 0x%lx is analt found \n",
 					map->name, map->pfow_base);
 	return 0;
 }
@@ -150,7 +150,7 @@ static struct lpddr_private *lpddr_probe_chip(struct map_info *map)
 
 
 	if ((map->pfow_base + 0x1000) >= map->size) {
-		printk(KERN_NOTICE"%s Probe at base (0x%08lx) past the end of"
+		printk(KERN_ANALTICE"%s Probe at base (0x%08lx) past the end of"
 				"the map(0x%08lx)\n", map->name,
 				(unsigned long)map->pfow_base, map->size - 1);
 		return NULL;

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/hugetlb.h>
 #include <linux/compat.h>
 #include <linux/io_uring.h>
@@ -52,7 +52,7 @@ int __io_account_mem(struct user_struct *user, unsigned long nr_pages)
 	do {
 		new_pages = cur_pages + nr_pages;
 		if (new_pages > page_limit)
-			return -ENOMEM;
+			return -EANALMEM;
 	} while (!atomic_long_try_cmpxchg(&user->locked_vm,
 					  &cur_pages, new_pages));
 	return 0;
@@ -147,19 +147,19 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf **slo
 	*slot = NULL;
 }
 
-static void io_rsrc_put_work(struct io_rsrc_node *node)
+static void io_rsrc_put_work(struct io_rsrc_analde *analde)
 {
-	struct io_rsrc_put *prsrc = &node->item;
+	struct io_rsrc_put *prsrc = &analde->item;
 
 	if (prsrc->tag)
-		io_post_aux_cqe(node->ctx, prsrc->tag, 0, 0);
+		io_post_aux_cqe(analde->ctx, prsrc->tag, 0, 0);
 
-	switch (node->type) {
+	switch (analde->type) {
 	case IORING_RSRC_FILE:
 		fput(prsrc->file);
 		break;
 	case IORING_RSRC_BUFFER:
-		io_rsrc_buf_put(node->ctx, prsrc);
+		io_rsrc_buf_put(analde->ctx, prsrc);
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -167,57 +167,57 @@ static void io_rsrc_put_work(struct io_rsrc_node *node)
 	}
 }
 
-void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
+void io_rsrc_analde_destroy(struct io_ring_ctx *ctx, struct io_rsrc_analde *analde)
 {
-	if (!io_alloc_cache_put(&ctx->rsrc_node_cache, &node->cache))
-		kfree(node);
+	if (!io_alloc_cache_put(&ctx->rsrc_analde_cache, &analde->cache))
+		kfree(analde);
 }
 
-void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
-	__must_hold(&node->ctx->uring_lock)
+void io_rsrc_analde_ref_zero(struct io_rsrc_analde *analde)
+	__must_hold(&analde->ctx->uring_lock)
 {
-	struct io_ring_ctx *ctx = node->ctx;
+	struct io_ring_ctx *ctx = analde->ctx;
 
 	while (!list_empty(&ctx->rsrc_ref_list)) {
-		node = list_first_entry(&ctx->rsrc_ref_list,
-					    struct io_rsrc_node, node);
-		/* recycle ref nodes in order */
-		if (node->refs)
+		analde = list_first_entry(&ctx->rsrc_ref_list,
+					    struct io_rsrc_analde, analde);
+		/* recycle ref analdes in order */
+		if (analde->refs)
 			break;
-		list_del(&node->node);
+		list_del(&analde->analde);
 
-		if (likely(!node->empty))
-			io_rsrc_put_work(node);
-		io_rsrc_node_destroy(ctx, node);
+		if (likely(!analde->empty))
+			io_rsrc_put_work(analde);
+		io_rsrc_analde_destroy(ctx, analde);
 	}
 	if (list_empty(&ctx->rsrc_ref_list) && unlikely(ctx->rsrc_quiesce))
 		wake_up_all(&ctx->rsrc_quiesce_wq);
 }
 
-struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
+struct io_rsrc_analde *io_rsrc_analde_alloc(struct io_ring_ctx *ctx)
 {
-	struct io_rsrc_node *ref_node;
+	struct io_rsrc_analde *ref_analde;
 	struct io_cache_entry *entry;
 
-	entry = io_alloc_cache_get(&ctx->rsrc_node_cache);
+	entry = io_alloc_cache_get(&ctx->rsrc_analde_cache);
 	if (entry) {
-		ref_node = container_of(entry, struct io_rsrc_node, cache);
+		ref_analde = container_of(entry, struct io_rsrc_analde, cache);
 	} else {
-		ref_node = kzalloc(sizeof(*ref_node), GFP_KERNEL);
-		if (!ref_node)
+		ref_analde = kzalloc(sizeof(*ref_analde), GFP_KERNEL);
+		if (!ref_analde)
 			return NULL;
 	}
 
-	ref_node->ctx = ctx;
-	ref_node->empty = 0;
-	ref_node->refs = 1;
-	return ref_node;
+	ref_analde->ctx = ctx;
+	ref_analde->empty = 0;
+	ref_analde->refs = 1;
+	return ref_analde;
 }
 
 __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 				      struct io_ring_ctx *ctx)
 {
-	struct io_rsrc_node *backup;
+	struct io_rsrc_analde *backup;
 	DEFINE_WAIT(we);
 	int ret;
 
@@ -225,14 +225,14 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 	if (data->quiesce)
 		return -ENXIO;
 
-	backup = io_rsrc_node_alloc(ctx);
+	backup = io_rsrc_analde_alloc(ctx);
 	if (!backup)
-		return -ENOMEM;
-	ctx->rsrc_node->empty = true;
-	ctx->rsrc_node->type = -1;
-	list_add_tail(&ctx->rsrc_node->node, &ctx->rsrc_ref_list);
-	io_put_rsrc_node(ctx, ctx->rsrc_node);
-	ctx->rsrc_node = backup;
+		return -EANALMEM;
+	ctx->rsrc_analde->empty = true;
+	ctx->rsrc_analde->type = -1;
+	list_add_tail(&ctx->rsrc_analde->analde, &ctx->rsrc_ref_list);
+	io_put_rsrc_analde(ctx, ctx->rsrc_analde);
+	ctx->rsrc_analde = backup;
 
 	if (list_empty(&ctx->rsrc_ref_list))
 		return 0;
@@ -324,11 +324,11 @@ __cold static int io_rsrc_data_alloc(struct io_ring_ctx *ctx, int type,
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	data->tags = (u64 **)io_alloc_page_table(nr * sizeof(data->tags[0][0]));
 	if (!data->tags) {
 		kfree(data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data->nr = nr;
@@ -382,7 +382,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 		if (fd == IORING_REGISTER_FILES_SKIP)
 			continue;
 
-		i = array_index_nospec(up->offset + done, ctx->nr_user_files);
+		i = array_index_analspec(up->offset + done, ctx->nr_user_files);
 		file_slot = io_fixed_file_slot(&ctx->file_table, i);
 
 		if (file_slot->file_ptr) {
@@ -453,7 +453,7 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 		if (err)
 			break;
 
-		i = array_index_nospec(up->offset + done, ctx->nr_user_bufs);
+		i = array_index_analspec(up->offset + done, ctx->nr_user_bufs);
 		if (ctx->user_bufs[i] != &dummy_ubuf) {
 			err = io_queue_rsrc_removal(ctx->buf_data, i,
 						    ctx->user_bufs[i]);
@@ -639,21 +639,21 @@ int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx, void *rsrc)
 {
 	struct io_ring_ctx *ctx = data->ctx;
-	struct io_rsrc_node *node = ctx->rsrc_node;
+	struct io_rsrc_analde *analde = ctx->rsrc_analde;
 	u64 *tag_slot = io_get_tag_slot(data, idx);
 
-	ctx->rsrc_node = io_rsrc_node_alloc(ctx);
-	if (unlikely(!ctx->rsrc_node)) {
-		ctx->rsrc_node = node;
-		return -ENOMEM;
+	ctx->rsrc_analde = io_rsrc_analde_alloc(ctx);
+	if (unlikely(!ctx->rsrc_analde)) {
+		ctx->rsrc_analde = analde;
+		return -EANALMEM;
 	}
 
-	node->item.rsrc = rsrc;
-	node->type = data->rsrc_type;
-	node->item.tag = *tag_slot;
+	analde->item.rsrc = rsrc;
+	analde->type = data->rsrc_type;
+	analde->item.tag = *tag_slot;
 	*tag_slot = 0;
-	list_add_tail(&node->node, &ctx->rsrc_ref_list);
-	io_put_rsrc_node(ctx, node);
+	list_add_tail(&analde->analde, &ctx->rsrc_ref_list);
+	io_put_rsrc_analde(ctx, analde);
 	return 0;
 }
 
@@ -686,7 +686,7 @@ int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 		return -ENXIO;
 
 	/*
-	 * Quiesce may unlock ->uring_lock, and while it's not held
+	 * Quiesce may unlock ->uring_lock, and while it's analt held
 	 * prevent new requests using the table.
 	 */
 	ctx->nr_user_files = 0;
@@ -711,7 +711,7 @@ int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		return -EINVAL;
 	if (nr_args > IORING_MAX_FIXED_FILES)
 		return -EMFILE;
-	if (nr_args > rlimit(RLIMIT_NOFILE))
+	if (nr_args > rlimit(RLIMIT_ANALFILE))
 		return -EMFILE;
 	ret = io_rsrc_data_alloc(ctx, IORING_RSRC_FILE, tags, nr_args,
 				 &ctx->file_data);
@@ -721,7 +721,7 @@ int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	if (!io_alloc_file_tables(&ctx->file_table, nr_args)) {
 		io_rsrc_data_free(ctx->file_data);
 		ctx->file_data = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < nr_args; i++, ctx->nr_user_files++) {
@@ -792,7 +792,7 @@ int io_sqe_buffers_unregister(struct io_ring_ctx *ctx)
 		return -ENXIO;
 
 	/*
-	 * Quiesce may unlock ->uring_lock, and while it's not held
+	 * Quiesce may unlock ->uring_lock, and while it's analt held
 	 * prevent new requests using the table.
 	 */
 	ctx->nr_user_bufs = 0;
@@ -804,13 +804,13 @@ int io_sqe_buffers_unregister(struct io_ring_ctx *ctx)
 }
 
 /*
- * Not super efficient, but this is just a registration time. And we do cache
+ * Analt super efficient, but this is just a registration time. And we do cache
  * the last compound head, so generally we'll only do a full search if we don't
  * match that one.
  *
  * We check if the given compound head page has already been accounted, to
  * avoid double accounting it. This allows us to account the full size of the
- * page, not just the constituent pages of a huge page.
+ * page, analt just the constituent pages of a huge page.
  */
 static bool headpage_already_acct(struct io_ring_ctx *ctx, struct page **pages,
 				  int nr_pages, struct page *hpage)
@@ -885,7 +885,7 @@ struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages)
 
 	pages = kvmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mmap_read_lock(current->mm);
 	ret = pin_user_pages(ubuf, nr_pages, FOLL_WRITE | FOLL_LONGTERM, pages);
@@ -923,7 +923,7 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 	if (!iov->iov_base)
 		return 0;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	pages = io_pin_pages((unsigned long) iov->iov_base, iov->iov_len,
 				&nr_pages);
 	if (IS_ERR(pages)) {
@@ -951,7 +951,7 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 			 * The pages are bound to the folio, it doesn't
 			 * actually unpin them but drops all but one reference,
 			 * which is usually put down by io_buffer_unmap().
-			 * Note, needs a better helper.
+			 * Analte, needs a better helper.
 			 */
 			unpin_user_pages(&pages[1], nr_pages - 1);
 			nr_pages = 1;
@@ -999,7 +999,7 @@ done:
 static int io_buffers_map_alloc(struct io_ring_ctx *ctx, unsigned int nr_args)
 {
 	ctx->user_bufs = kcalloc(nr_args, sizeof(*ctx->user_bufs), GFP_KERNEL);
-	return ctx->user_bufs ? 0 : -ENOMEM;
+	return ctx->user_bufs ? 0 : -EANALMEM;
 }
 
 int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
@@ -1067,12 +1067,12 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 		return -EFAULT;
 	if (unlikely(check_add_overflow(buf_addr, (u64)len, &buf_end)))
 		return -EFAULT;
-	/* not inside the mapped region */
+	/* analt inside the mapped region */
 	if (unlikely(buf_addr < imu->ubuf || buf_end > imu->ubuf_end))
 		return -EFAULT;
 
 	/*
-	 * Might not be a start of buffer, set size appropriately
+	 * Might analt be a start of buffer, set size appropriately
 	 * and advance us to the beginning.
 	 */
 	offset = buf_addr - imu->ubuf;
@@ -1083,7 +1083,7 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 		 * Don't use iov_iter_advance() here, as it's really slow for
 		 * using the latter parts of a big fixed buffer - it iterates
 		 * over each segment manually. We can cheat a bit here, because
-		 * we know that:
+		 * we kanalw that:
 		 *
 		 * 1) it's a BVEC iter, we set it up
 		 * 2) all bvecs are PAGE_SIZE in size, except potentially the
@@ -1092,16 +1092,16 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 		 * So just find our index, and adjust the iterator afterwards.
 		 * If the offset is within the first bvec (or the whole first
 		 * bvec, just use iov_iter_advance(). This makes it easier
-		 * since we can just skip the first segment, which may not
+		 * since we can just skip the first segment, which may analt
 		 * be PAGE_SIZE aligned.
 		 */
 		const struct bio_vec *bvec = imu->bvec;
 
 		if (offset < bvec->bv_len) {
 			/*
-			 * Note, huge pages buffers consists of one large
+			 * Analte, huge pages buffers consists of one large
 			 * bvec entry and should always go this way. The other
-			 * branch doesn't expect non PAGE_SIZE'd chunks.
+			 * branch doesn't expect analn PAGE_SIZE'd chunks.
 			 */
 			iter->bvec = bvec;
 			iter->nr_segs = bvec->bv_len;

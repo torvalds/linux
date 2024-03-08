@@ -12,7 +12,7 @@
  * The kdump kernel has to check whether a pfn of the crashed kernel
  * was a ballooned page. vmcore is using this function to decide
  * whether to access a pfn of the crashed kernel.
- * Returns "false" if the pfn is not backed by a RAM page, the caller may
+ * Returns "false" if the pfn is analt backed by a RAM page, the caller may
  * handle the pfn special in this case.
  */
 static bool xen_vmcore_pfn_is_ram(struct vmcore_cb *cb, unsigned long pfn)
@@ -53,7 +53,7 @@ static int is_pagetable_dying_supported(void)
 	a.gpa = 0x00;
 	rc = HYPERVISOR_hvm_op(HVMOP_pagetable_dying, &a);
 	if (rc < 0) {
-		printk(KERN_DEBUG "HVMOP_pagetable_dying not supported\n");
+		printk(KERN_DEBUG "HVMOP_pagetable_dying analt supported\n");
 		return 0;
 	}
 	return 1;

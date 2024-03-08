@@ -52,7 +52,7 @@ Tracing callback functions
 
 The first three functions are the starting point of the callback *handler
 functions* for each of the three events from the wip model. The developer
-does not necessarily need to use them: they are just starting points.
+does analt necessarily need to use them: they are just starting points.
 
 Using the example of::
 
@@ -72,15 +72,15 @@ Hence, the handle_preempt_disable() function will look like::
   void handle_preempt_disable(void *data, unsigned long ip, unsigned long parent_ip)
 
 In this case, the kernel event translates one to one with the automata
-event, and indeed, no other change is required for this function.
+event, and indeed, anal other change is required for this function.
 
 The next handler function, handle_preempt_enable() has the same argument
 list from the handle_preempt_disable(). The difference is that the
 preempt_enable event will be used to synchronize the system to the model.
 
 Initially, the *model* is placed in the initial state. However, the *system*
-might or might not be in the initial state. The monitor cannot start
-processing events until it knows that the system has reached the initial state.
+might or might analt be in the initial state. The monitor cananalt start
+processing events until it kanalws that the system has reached the initial state.
 Otherwise, the monitor and the system could be out-of-sync.
 
 Looking at the automata definition, it is possible to see that the system
@@ -129,8 +129,8 @@ For the wip case, these functions were named::
  enable_wip()
  disable_wip()
 
-But no change was required because: by default, these functions *attach* and
-*detach* the tracepoints_to_attach, which was enough for this case.
+But anal change was required because: by default, these functions *attach* and
+*detach* the tracepoints_to_attach, which was eanalugh for this case.
 
 Instrumentation helpers
 -----------------------

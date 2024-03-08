@@ -16,9 +16,9 @@
 #include <media/videobuf2-v4l2.h>
 
 static inline struct sg_table *vb2_dma_sg_plane_desc(
-		struct vb2_buffer *vb, unsigned int plane_no)
+		struct vb2_buffer *vb, unsigned int plane_anal)
 {
-	return (struct sg_table *)vb2_plane_cookie(vb, plane_no);
+	return (struct sg_table *)vb2_plane_cookie(vb, plane_anal);
 }
 
 extern const struct vb2_mem_ops vb2_dma_sg_memops;

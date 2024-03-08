@@ -23,7 +23,7 @@
 #undef MIPS_is_fake_mcount
 #undef mcount_adjust
 #undef sift_rel_mcount
-#undef nop_mcount
+#undef analp_mcount
 #undef find_secsym_ndx
 #undef __has_rel_mcount
 #undef has_rel_mcount
@@ -58,7 +58,7 @@
 #ifdef RECORD_MCOUNT_64
 # define append_func		append64
 # define sift_rel_mcount	sift64_rel_mcount
-# define nop_mcount		nop_mcount_64
+# define analp_mcount		analp_mcount_64
 # define find_secsym_ndx	find64_secsym_ndx
 # define __has_rel_mcount	__has64_rel_mcount
 # define has_rel_mcount		has64_rel_mcount
@@ -96,7 +96,7 @@
 #else
 # define append_func		append32
 # define sift_rel_mcount	sift32_rel_mcount
-# define nop_mcount		nop_mcount_32
+# define analp_mcount		analp_mcount_32
 # define find_secsym_ndx	find32_secsym_ndx
 # define __has_rel_mcount	__has32_rel_mcount
 # define has_rel_mcount		has32_rel_mcount
@@ -157,18 +157,18 @@ static int mcount_adjust = 0;
 /*
  * MIPS mcount long call has 2 _mcount symbols, only the position of the 1st
  * _mcount symbol is needed for dynamic function tracer, with it, to disable
- * tracing(ftrace_make_nop), the instruction in the position is replaced with
+ * tracing(ftrace_make_analp), the instruction in the position is replaced with
  * the "b label" instruction, to enable tracing(ftrace_make_call), replace the
  * instruction back. So, here, we set the 2nd one as fake and filter it.
  *
  * c:	3c030000	lui	v1,0x0		<-->	b	label
  *		c: R_MIPS_HI16	_mcount
- *		c: R_MIPS_NONE	*ABS*
- *		c: R_MIPS_NONE	*ABS*
+ *		c: R_MIPS_ANALNE	*ABS*
+ *		c: R_MIPS_ANALNE	*ABS*
  * 10:	64630000	daddiu	v1,v1,0
  *		10: R_MIPS_LO16	_mcount
- *		10: R_MIPS_NONE	*ABS*
- *		10: R_MIPS_NONE	*ABS*
+ *		10: R_MIPS_ANALNE	*ABS*
+ *		10: R_MIPS_ANALNE	*ABS*
  * 14:	03e0082d	move	at,ra
  * 18:	0060f809	jalr	v1
  * label:
@@ -445,10 +445,10 @@ static uint_t *sift_rel_mcount(uint_t *mlocp,
 
 /*
  * Read the relocation table again, but this time its called on sections
- * that are not going to be traced. The mcount calls here will be converted
- * into nops.
+ * that are analt going to be traced. The mcount calls here will be converted
+ * into analps.
  */
-static int nop_mcount(Elf_Shdr const *const relhdr,
+static int analp_mcount(Elf_Shdr const *const relhdr,
 		      Elf_Ehdr const *const ehdr,
 		      const char *const txtname)
 {
@@ -473,26 +473,26 @@ static int nop_mcount(Elf_Shdr const *const relhdr,
 			mcountsym = get_mcountsym(sym0, relp, str0);
 
 		if (mcountsym == Elf_r_sym(relp) && !is_fake_mcount(relp)) {
-			if (make_nop)
-				ret = make_nop((void *)ehdr, _w(shdr->sh_offset) + _w(relp->r_offset));
-			if (warn_on_notrace_sect && !once) {
-				printf("Section %s has mcount callers being ignored\n",
+			if (make_analp)
+				ret = make_analp((void *)ehdr, _w(shdr->sh_offset) + _w(relp->r_offset));
+			if (warn_on_analtrace_sect && !once) {
+				printf("Section %s has mcount callers being iganalred\n",
 				       txtname);
 				once = 1;
 				/* just warn? */
-				if (!make_nop)
+				if (!make_analp)
 					return 0;
 			}
 		}
 
 		/*
 		 * If we successfully removed the mcount, mark the relocation
-		 * as a nop (don't do anything with it).
+		 * as a analp (don't do anything with it).
 		 */
 		if (!ret) {
 			Elf_Rel rel;
 			rel = *(Elf_Rel *)relp;
-			Elf_r_info(&rel, Elf_r_sym(relp), rel_type_nop);
+			Elf_r_info(&rel, Elf_r_sym(relp), rel_type_analp);
 			if (ulseek((void *)relp - (void *)ehdr, SEEK_SET) < 0)
 				return -1;
 			if (uwrite(&rel, sizeof(rel)) < 0)
@@ -544,12 +544,12 @@ static int find_secsym_ndx(unsigned const txtndx,
 			return 0;
 		}
 	}
-	fprintf(stderr, "Cannot find symbol for section %u: %s.\n",
+	fprintf(stderr, "Cananalt find symbol for section %u: %s.\n",
 		txtndx, txtname);
 	return -1;
 }
 
-/* Evade ISO C restriction: no declaration after statement in has_rel_mcount. */
+/* Evade ISO C restriction: anal declaration after statement in has_rel_mcount. */
 static char const * __has_rel_mcount(Elf_Shdr const *const relhdr, /* reltype */
 				     Elf_Shdr const *const shdr0,
 				     char const *const shstrtab,
@@ -657,7 +657,7 @@ static int do_func(Elf_Ehdr *const ehdr, char const *const fname,
 		if (txtname == already_has_rel_mcount) {
 			result = 0;
 			file_updated = 0;
-			goto out; /* Nothing to be done; don't append! */
+			goto out; /* Analthing to be done; don't append! */
 		}
 		if (txtname && is_mcounted_section_name(txtname)) {
 			unsigned int recsym;
@@ -676,12 +676,12 @@ static int do_func(Elf_Ehdr *const ehdr, char const *const fname,
 			mlocp = sift_rel_mcount(mlocp,
 				(void *)mlocp - (void *)mloc0, &mrelp,
 				relhdr, ehdr, recsym, recval, reltype);
-		} else if (txtname && (warn_on_notrace_sect || make_nop)) {
+		} else if (txtname && (warn_on_analtrace_sect || make_analp)) {
 			/*
-			 * This section is ignored by ftrace, but still
-			 * has mcount calls. Convert them to nops now.
+			 * This section is iganalred by ftrace, but still
+			 * has mcount calls. Convert them to analps analw.
 			 */
-			if (nop_mcount(relhdr, ehdr, txtname) < 0) {
+			if (analp_mcount(relhdr, ehdr, txtname) < 0) {
 				result = -1;
 				goto out;
 			}

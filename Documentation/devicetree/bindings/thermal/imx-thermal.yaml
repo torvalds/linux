@@ -47,7 +47,7 @@ properties:
 
   fsl,tempmon:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: Phandle to anatop system controller node.
+    description: Phandle to anatop system controller analde.
 
   fsl,tempmon-data:
     $ref: /schemas/types.yaml#/definitions/phandle

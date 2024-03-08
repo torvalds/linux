@@ -3,8 +3,8 @@
  *
  * Based on pinctrl-sun8i-a23-r.c
  *
- * Copyright (C) 2016 Icenowy Zheng
- * Icenowy Zheng <icenowy@aosc.xyz>
+ * Copyright (C) 2016 Iceanalwy Zheng
+ * Iceanalwy Zheng <iceanalwy@aosc.xyz>
  *
  * Copyright (C) 2014 Chen-Yu Tsai
  * Chen-Yu Tsai <wens@csie.org>

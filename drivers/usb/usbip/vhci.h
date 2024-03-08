@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2003-2008 Takahiro Hirofuchi
- * Copyright (C) 2015 Nobuo Iwata
+ * Copyright (C) 2015 Analbuo Iwata
  */
 
 #ifndef __USBIP_VHCI_H
@@ -111,7 +111,7 @@ struct vhci_hcd {
 	atomic_t seqnum;
 
 	/*
-	 * NOTE:
+	 * ANALTE:
 	 * wIndex shows the port number and begins from 1.
 	 * But, the index of this array begins from 0.
 	 */

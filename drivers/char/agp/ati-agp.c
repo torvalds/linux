@@ -59,7 +59,7 @@ static int ati_create_page_map(struct ati_page_map *page_map)
 
 	page_map->real = (unsigned long *) __get_free_page(GFP_KERNEL);
 	if (page_map->real == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	set_memory_uc((unsigned long)page_map->real, 1);
 	err = map_page_into_agp(virt_to_page(page_map->real));
@@ -115,13 +115,13 @@ static int ati_create_gatt_pages(int nr_tables)
 	tables = kcalloc(nr_tables + 1, sizeof(struct ati_page_map *),
 			 GFP_KERNEL);
 	if (tables == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nr_tables; i++) {
 		entry = kzalloc(sizeof(struct ati_page_map), GFP_KERNEL);
 		tables[i] = entry;
 		if (entry == NULL) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			break;
 		}
 		retval = ati_create_page_map(entry);
@@ -210,7 +210,7 @@ static int ati_configure(void)
 	ati_generic_private.registers = (volatile u8 __iomem *) ioremap(reg, 4096);
 
 	if (!ati_generic_private.registers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (is_r200())
 		pci_write_config_dword(agp_bridge->dev, ATI_RS100_IG_AGPMODE, 0x20000);
@@ -376,7 +376,7 @@ static int ati_create_gatt_table(struct agp_bridge_data *bridge)
 	/*
 	 * Get the address for the gart region.
 	 * This is a bus address even on the alpha, b/c its
-	 * used to program the agp master not the cpu
+	 * used to program the agp master analt the cpu
 	 */
 	addr = pci_bus_address(agp_bridge->dev, AGP_APERTURE_BAR);
 	agp_bridge->gart_bus_addr = addr;
@@ -491,9 +491,9 @@ static int agp_ati_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	if (!cap_ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* probe for known chipsets */
+	/* probe for kanalwn chipsets */
 	for (j = 0; devs[j].chipset_name; j++) {
 		if (pdev->device == devs[j].device_id)
 			goto found;
@@ -501,12 +501,12 @@ static int agp_ati_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev_err(&pdev->dev, "unsupported Ati chipset [%04x/%04x])\n",
 		pdev->vendor, pdev->device);
-	return -ENODEV;
+	return -EANALDEV;
 
 found:
 	bridge = agp_alloc_bridge();
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bridge->dev = pdev;
 	bridge->capndx = cap_ptr;

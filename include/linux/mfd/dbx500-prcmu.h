@@ -8,7 +8,7 @@
 #define __MACH_PRCMU_H
 
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/err.h>
 
 #include <dt-bindings/mfd/dbx500-prcmu.h> /* For clock identifiers */
@@ -61,14 +61,14 @@ enum prcmu_wakeup_index {
 
 /*
  * state definition for EPOD (power domain)
- * - EPOD_STATE_NO_CHANGE: The EPOD should remain unchanged
+ * - EPOD_STATE_ANAL_CHANGE: The EPOD should remain unchanged
  * - EPOD_STATE_OFF: The EPOD is switched off
  * - EPOD_STATE_RAMRET: The EPOD is switched off with its internal RAM in
  *                         retention
  * - EPOD_STATE_ON_CLK_OFF: The EPOD is switched on, clock is still off
  * - EPOD_STATE_ON: Same as above, but with clock enabled
  */
-#define EPOD_STATE_NO_CHANGE	0x00
+#define EPOD_STATE_ANAL_CHANGE	0x00
 #define EPOD_STATE_OFF		0x01
 #define EPOD_STATE_RAMRET	0x02
 #define EPOD_STATE_ON_CLK_OFF	0x03
@@ -110,14 +110,14 @@ enum prcmu_wdog_id {
 /**
  * enum ape_opp - APE OPP states definition
  * @APE_OPP_INIT:
- * @APE_NO_CHANGE: The APE operating point is unchanged
+ * @APE_ANAL_CHANGE: The APE operating point is unchanged
  * @APE_100_OPP: The new APE operating point is ape100opp
  * @APE_50_OPP: 50%
  * @APE_50_PARTLY_25_OPP: 50%, except some clocks at 25%.
  */
 enum ape_opp {
 	APE_OPP_INIT = 0x00,
-	APE_NO_CHANGE = 0x01,
+	APE_ANAL_CHANGE = 0x01,
 	APE_100_OPP = 0x02,
 	APE_50_OPP = 0x03,
 	APE_50_PARTLY_25_OPP = 0xFF,
@@ -126,7 +126,7 @@ enum ape_opp {
 /**
  * enum arm_opp - ARM OPP states definition
  * @ARM_OPP_INIT:
- * @ARM_NO_CHANGE: The ARM operating point is unchanged
+ * @ARM_ANAL_CHANGE: The ARM operating point is unchanged
  * @ARM_100_OPP: The new ARM operating point is arm100opp
  * @ARM_50_OPP: The new ARM operating point is arm50opp
  * @ARM_MAX_OPP: Operating point is "max" (more than 100)
@@ -135,7 +135,7 @@ enum ape_opp {
  */
 enum arm_opp {
 	ARM_OPP_INIT = 0x00,
-	ARM_NO_CHANGE = 0x01,
+	ARM_ANAL_CHANGE = 0x01,
 	ARM_100_OPP = 0x02,
 	ARM_50_OPP = 0x03,
 	ARM_MAX_OPP = 0x04,
@@ -202,7 +202,7 @@ enum ddr_pwrst {
 
 #define PRCMU_FW_PROJECT_NAME_LEN	20
 struct prcmu_fw_version {
-	u32 project; /* Notice, project shifted with 8 on ux540 */
+	u32 project; /* Analtice, project shifted with 8 on ux540 */
 	u8 api_version;
 	u8 func_version;
 	u8 errata;
@@ -407,18 +407,18 @@ static inline void prcmu_disable_wakeups(void) {}
 
 static inline int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int prcmu_abb_write_masked(u8 slave, u8 reg, u8 *value, u8 *mask,
 	u8 size)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int prcmu_config_clkout(u8 clkout, u8 source, u8 div)

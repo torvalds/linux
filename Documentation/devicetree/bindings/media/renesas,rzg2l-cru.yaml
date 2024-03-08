@@ -68,7 +68,7 @@ properties:
         $ref: /schemas/graph.yaml#/$defs/port-base
         unevaluatedProperties: false
         description:
-          Input port node, single endpoint describing a parallel input source.
+          Input port analde, single endpoint describing a parallel input source.
 
         properties:
           endpoint:
@@ -84,7 +84,7 @@ properties:
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          Input port node, describing the Image Processing module connected to the
+          Input port analde, describing the Image Processing module connected to the
           CSI-2 receiver.
 
     required:
@@ -105,7 +105,7 @@ required:
 additionalProperties: false
 
 examples:
-  # Device node example with CSI-2
+  # Device analde example with CSI-2
   - |
     #include <dt-bindings/clock/r9a07g044-cpg.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>

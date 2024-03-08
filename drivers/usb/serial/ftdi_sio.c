@@ -28,7 +28,7 @@
    assimilated :-) */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -78,12 +78,12 @@ struct ftdi_private {
 	int flags;		/* some ASYNC_xxxx flags are supported */
 	unsigned long last_dtr_rts;	/* saved modem control outputs */
 	char prev_status;        /* Used for TIOCMIWAIT */
-	char transmit_empty;	/* If transmitter is empty or not */
+	char transmit_empty;	/* If transmitter is empty or analt */
 	u16 channel;		/* channel index, or 0 for legacy types */
 
-	speed_t force_baud;	/* if non-zero, force the baud rate to
+	speed_t force_baud;	/* if analn-zero, force the baud rate to
 				   this value */
-	int force_rtscts;	/* if non-zero, force RTS-CTS to always
+	int force_rtscts;	/* if analn-zero, force RTS-CTS to always
 				   be enabled */
 
 	unsigned int latency;		/* latency setting in use */
@@ -147,27 +147,27 @@ static const struct ftdi_quirk ftdi_8u2232c_quirk = {
  * - it returns characters every 16ms (the FTDI does it every 40ms)
  *
  * the bcdDevice value is used to differentiate FT232BM and FT245BM from
- * the earlier FT8U232AM and FT8U232BM.  For now, include all known VID/PID
+ * the earlier FT8U232AM and FT8U232BM.  For analw, include all kanalwn VID/PID
  * combinations in both tables.
  * FIXME: perhaps bcdDevice can also identify 12MHz FT8U232AM devices,
- * but I don't know if those ever went into mass production. [Ian Abbott]
+ * but I don't kanalw if those ever went into mass production. [Ian Abbott]
  */
 
 
 
 /*
- * Device ID not listed? Test it using
+ * Device ID analt listed? Test it using
  * /sys/bus/usb-serial/drivers/ftdi_sio/new_id and send a patch or report.
  */
 static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_BRICK_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ZEITCONTROL_TAGTRACE_MIFARE_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_CTI_MINI_PID) },
-	{ USB_DEVICE(FTDI_VID, FTDI_CTI_NANO_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_CTI_NAANAL_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_AMC232_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_CANUSB_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_CANDAPTER_PID) },
-	{ USB_DEVICE(FTDI_VID, FTDI_BM_ATOM_NANO_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_BM_ATOM_NAANAL_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_NXTCAM_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_EV3CON_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_SCS_DEVICE_0_PID) },
@@ -804,7 +804,7 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_NDI_AURORA_SCU_PID),
 		.driver_info = (kernel_ulong_t)&ftdi_NDI_device_quirk },
 	{ USB_DEVICE(TELLDUS_VID, TELLDUS_TELLSTICK_PID) },
-	{ USB_DEVICE(NOVITUS_VID, NOVITUS_BONO_E_PID) },
+	{ USB_DEVICE(ANALVITUS_VID, ANALVITUS_BOANAL_E_PID) },
 	{ USB_DEVICE(FTDI_VID, RTSYSTEMS_USB_VX8_PID) },
 	{ USB_DEVICE(RTSYSTEMS_VID, RTSYSTEMS_USB_S03_PID) },
 	{ USB_DEVICE(RTSYSTEMS_VID, RTSYSTEMS_USB_59_PID) },
@@ -1186,7 +1186,7 @@ static u32 ftdi_2232h_baud_base_to_divisor(int baud, int base)
 		divisor = 1;
 	/*
 	 * Set this bit to turn off a divide by 2.5 on baud rate generator
-	 * This enables baud rates up to 12Mbaud but cannot reach below 1200
+	 * This enables baud rates up to 12Mbaud but cananalt reach below 1200
 	 * baud with this bit set
 	 */
 	divisor |= 0x00020000;
@@ -1210,8 +1210,8 @@ static int update_mctrl(struct usb_serial_port *port, unsigned int set,
 	int rv;
 
 	if (((set | clear) & (TIOCM_DTR | TIOCM_RTS)) == 0) {
-		dev_dbg(dev, "%s - DTR|RTS not being set|cleared\n", __func__);
-		return 0;	/* no change */
+		dev_dbg(dev, "%s - DTR|RTS analt being set|cleared\n", __func__);
+		return 0;	/* anal change */
 	}
 
 	clear &= ~set;	/* 'set' takes precedence over 'clear' */
@@ -1287,7 +1287,7 @@ static u32 get_ftdi_divisor(struct tty_struct *tty,
 		case 57600: div_value = ftdi_sio_b57600;  break;
 		case 115200: div_value = ftdi_sio_b115200; break;
 		default:
-			dev_dbg(dev, "%s - Baudrate (%d) requested is not supported\n",
+			dev_dbg(dev, "%s - Baudrate (%d) requested is analt supported\n",
 				__func__,  baud);
 			div_value = ftdi_sio_b9600;
 			baud = 9600;
@@ -1580,8 +1580,8 @@ static int ftdi_determine_type(struct usb_serial_port *port)
 			priv->baud_base = 12000000 / 16;
 			priv->channel = 0;
 		} else {
-			dev_err(&port->dev, "unknown device type: 0x%02x\n", version);
-			return -ENODEV;
+			dev_err(&port->dev, "unkanalwn device type: 0x%02x\n", version);
+			return -EANALDEV;
 		}
 	}
 
@@ -1609,8 +1609,8 @@ static void ftdi_set_max_packet_size(struct usb_serial_port *port)
 		return;
 
 	/*
-	 * NOTE: Some customers have programmed FT232R/FT245R devices
-	 * with an endpoint size of 0 - not good. In this case, we
+	 * ANALTE: Some customers have programmed FT232R/FT245R devices
+	 * with an endpoint size of 0 - analt good. In this case, we
 	 * want to override the endpoint descriptor setting and use a
 	 * value of 64 for wMaxPacketSize.
 	 */
@@ -1785,7 +1785,7 @@ static int ftdi_gpio_request(struct gpio_chip *gc, unsigned int offset)
 
 	mutex_lock(&priv->gpio_lock);
 	if (!priv->gpio_used) {
-		/* Set default pin states, as we cannot get them from device */
+		/* Set default pin states, as we cananalt get them from device */
 		priv->gpio_output = 0x00;
 		priv->gpio_value = 0x00;
 		result = ftdi_set_cbus_pins(port);
@@ -1941,7 +1941,7 @@ static int ftdi_gpio_init_valid_mask(struct gpio_chip *gc,
 	bitmap_complement(valid_mask, &map, ngpios);
 
 	if (bitmap_empty(valid_mask, ngpios))
-		dev_dbg(&port->dev, "no CBUS pin configured for GPIO\n");
+		dev_dbg(&port->dev, "anal CBUS pin configured for GPIO\n");
 	else
 		dev_dbg(&port->dev, "CBUS%*pbl configured for GPIO\n", ngpios,
 			valid_mask);
@@ -1992,7 +1992,7 @@ static int ftdi_gpio_init_ft232h(struct usb_serial_port *port)
 
 	buf = kmalloc(4, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ftdi_read_eeprom(port->serial, buf, 0x1a, 4);
 	if (ret < 0)
@@ -2032,7 +2032,7 @@ static int ftdi_gpio_init_ft232r(struct usb_serial_port *port)
 
 	buf = kmalloc(2, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ftdi_read_eeprom(port->serial, buf, 0x14, 2);
 	if (ret < 0)
@@ -2067,7 +2067,7 @@ static int ftdi_gpio_init_ftx(struct usb_serial_port *port)
 
 	cbus_cfg_buf = kmalloc(cbus_cfg_size, GFP_KERNEL);
 	if (!cbus_cfg_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = ftdi_read_eeprom(serial, cbus_cfg_buf,
 				  cbus_cfg_addr, cbus_cfg_size);
@@ -2147,7 +2147,7 @@ static void ftdi_gpio_remove(struct usb_serial_port *port)
 	}
 
 	if (priv->gpio_used) {
-		/* Exiting CBUS-mode does not reset pin states. */
+		/* Exiting CBUS-mode does analt reset pin states. */
 		ftdi_exit_cbus_mode(port);
 		priv->gpio_used = false;
 	}
@@ -2193,7 +2193,7 @@ static int ftdi_port_probe(struct usb_serial_port *port)
 
 	priv = kzalloc(sizeof(struct ftdi_private), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->cfg_lock);
 
@@ -2249,7 +2249,7 @@ static void ftdi_HE_TIRA1_setup(struct ftdi_private *priv)
 
 /*
  * Module parameter to control latency timer for NDI FTDI-based USB devices.
- * If this value is not set in /etc/modprobe.d/ its value will be set
+ * If this value is analt set in /etc/modprobe.d/ its value will be set
  * to 1ms.
  */
 static int ndi_latency_timer = 1;
@@ -2272,7 +2272,7 @@ static int ftdi_NDI_device_setup(struct usb_serial *serial)
 	dev_dbg(&udev->dev, "%s setting NDI device latency to %d\n", __func__, latency);
 	dev_info(&udev->dev, "NDI device with a latency value of %d\n", latency);
 
-	/* FIXME: errors are not returned */
+	/* FIXME: errors are analt returned */
 	usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				FTDI_SIO_SET_LATENCY_TIMER_REQUEST,
 				FTDI_SIO_SET_LATENCY_TIMER_REQUEST_TYPE,
@@ -2283,7 +2283,7 @@ static int ftdi_NDI_device_setup(struct usb_serial *serial)
 /*
  * First port on JTAG adaptors such as Olimex arm-usb-ocd or the FIC/OpenMoko
  * Neo1973 Debug Board is reserved for JTAG interface and can be accessed from
- * userspace using openocd.
+ * userspace using opeanalcd.
  */
 static int ftdi_jtag_probe(struct usb_serial *serial)
 {
@@ -2291,8 +2291,8 @@ static int ftdi_jtag_probe(struct usb_serial *serial)
 	int ifnum = intf->cur_altsetting->desc.bInterfaceNumber;
 
 	if (ifnum == 0) {
-		dev_info(&intf->dev, "Ignoring interface reserved for JTAG\n");
-		return -ENODEV;
+		dev_info(&intf->dev, "Iganalring interface reserved for JTAG\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -2316,7 +2316,7 @@ static int ftdi_8u2232c_probe(struct usb_serial *serial)
 
 /*
  * First two ports on JTAG adaptors using an FT4232 such as STMicroelectronics's
- * ST Micro Connect Lite are reserved for JTAG or other non-UART interfaces and
+ * ST Micro Connect Lite are reserved for JTAG or other analn-UART interfaces and
  * can be accessed from userspace.
  * The next two ports are enabled as UARTs by default, where port 2 is
  * a conventional RS-232 UART.
@@ -2327,8 +2327,8 @@ static int ftdi_stmclite_probe(struct usb_serial *serial)
 	int ifnum = intf->cur_altsetting->desc.bInterfaceNumber;
 
 	if (ifnum < 2) {
-		dev_info(&intf->dev, "Ignoring interface reserved for JTAG\n");
-		return -ENODEV;
+		dev_info(&intf->dev, "Iganalring interface reserved for JTAG\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -2348,7 +2348,7 @@ static int ftdi_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct usb_device *dev = port->serial->dev;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 
-	/* No error checking for this (will get errors later anyway) */
+	/* Anal error checking for this (will get errors later anyway) */
 	/* See ftdi_sio.h for description of what is reset */
 	usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			FTDI_SIO_RESET_REQUEST, FTDI_SIO_RESET_REQUEST_TYPE,
@@ -2393,7 +2393,7 @@ static void ftdi_dtr_rts(struct usb_serial_port *port, int on)
  *  B1 0
  *  B2..7 length of message excluding byte 0
  *
- * The new devices do not require this byte
+ * The new devices do analt require this byte
  */
 static int ftdi_prepare_write_buffer(struct usb_serial_port *port,
 						void *dest, size_t size)
@@ -2472,7 +2472,7 @@ static int ftdi_process_packet(struct usb_serial_port *port,
 		priv->prev_status = status;
 	}
 
-	/* save if the transmitter is empty or not */
+	/* save if the transmitter is empty or analt */
 	if (buf[1] & FTDI_RS_TEMT)
 		priv->transmit_empty = 1;
 	else
@@ -2485,11 +2485,11 @@ static int ftdi_process_packet(struct usb_serial_port *port,
 	 * Break and error status must only be processed for packets with
 	 * data payload to avoid over-reporting.
 	 */
-	flag = TTY_NORMAL;
+	flag = TTY_ANALRMAL;
 	if (buf[1] & FTDI_RS_ERR_MASK) {
 		/*
 		 * Break takes precedence over parity, which takes precedence
-		 * over framing errors. Note that break is only associated
+		 * over framing errors. Analte that break is only associated
 		 * with the last character in the buffer and only when it's a
 		 * NUL.
 		 */
@@ -2504,7 +2504,7 @@ static int ftdi_process_packet(struct usb_serial_port *port,
 			flag = TTY_FRAME;
 			port->icount.frame++;
 		}
-		/* Overrun is special, not associated with a char */
+		/* Overrun is special, analt associated with a char */
 		if (buf[1] & FTDI_RS_OE) {
 			port->icount.overrun++;
 			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
@@ -2637,13 +2637,13 @@ static void ftdi_set_termios(struct tty_struct *tty,
 	 * eight data bits.
 	 *
 	 * TODO: Implement a quirk to only allow this with mentioned
-	 *       readers. One I know of (Argolis Smartreader V1)
+	 *       readers. One I kanalw of (Argolis Smartreader V1)
 	 *       returns "USB smartcard server" as iInterface string.
 	 *       The vendor didn't bother with a custom VID/PID of
 	 *       course.
 	 */
 	if (C_CSIZE(tty) == CS6) {
-		dev_warn(ddev, "requested CSIZE setting not supported\n");
+		dev_warn(ddev, "requested CSIZE setting analt supported\n");
 
 		termios->c_cflag &= ~CSIZE;
 		if (old_termios)
@@ -2655,22 +2655,22 @@ static void ftdi_set_termios(struct tty_struct *tty,
 	cflag = termios->c_cflag;
 
 	if (!old_termios)
-		goto no_skip;
+		goto anal_skip;
 
 	if (old_termios->c_cflag == termios->c_cflag
 	    && old_termios->c_ispeed == termios->c_ispeed
 	    && old_termios->c_ospeed == termios->c_ospeed)
-		goto no_c_cflag_changes;
+		goto anal_c_cflag_changes;
 
-	/* NOTE These routines can get interrupted by
+	/* ANALTE These routines can get interrupted by
 	   ftdi_sio_read_bulk_callback  - need to examine what this means -
 	   don't see any problems yet */
 
 	if ((old_termios->c_cflag & (CSIZE|PARODD|PARENB|CMSPAR|CSTOPB)) ==
 	    (termios->c_cflag & (CSIZE|PARODD|PARENB|CMSPAR|CSTOPB)))
-		goto no_data_parity_stop_changes;
+		goto anal_data_parity_stop_changes;
 
-no_skip:
+anal_skip:
 	/* Set number of data bits, parity, stop bits */
 
 	value = 0;
@@ -2686,7 +2686,7 @@ no_skip:
 					FTDI_SIO_SET_DATA_PARITY_ODD :
 					FTDI_SIO_SET_DATA_PARITY_EVEN;
 	} else {
-		value |= FTDI_SIO_SET_DATA_PARITY_NONE;
+		value |= FTDI_SIO_SET_DATA_PARITY_ANALNE;
 	}
 	switch (cflag & CSIZE) {
 	case CS5:
@@ -2716,8 +2716,8 @@ no_skip:
 			__func__);
 	}
 
-	/* Now do the baudrate */
-no_data_parity_stop_changes:
+	/* Analw do the baudrate */
+anal_data_parity_stop_changes:
 	if ((cflag & CBAUD) == B0) {
 		/* Disable flow control */
 		if (usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
@@ -2741,7 +2741,7 @@ no_data_parity_stop_changes:
 			set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
 	}
 
-no_c_cflag_changes:
+anal_c_cflag_changes:
 	/* Set hardware-assisted flow control */
 	value = 0;
 
@@ -2783,7 +2783,7 @@ static int ftdi_get_modem_status(struct usb_serial_port *port,
 
 	buf = kmalloc(2, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	/*
 	 * The device returns a two byte value (the SIO a 1 byte value) in the
 	 * same format as the data returned from the IN endpoint.
@@ -2800,7 +2800,7 @@ static int ftdi_get_modem_status(struct usb_serial_port *port,
 			0, priv->channel,
 			buf, len, WDR_TIMEOUT);
 
-	/* NOTE: We allow short responses and handle that below. */
+	/* ANALTE: We allow short responses and handle that below. */
 	if (ret < 1) {
 		dev_err(&port->dev, "failed to get modem status: %d\n", ret);
 		if (ret >= 0)
@@ -2864,7 +2864,7 @@ static int ftdi_ioctl(struct tty_struct *tty,
 		break;
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 static struct usb_serial_driver ftdi_device = {

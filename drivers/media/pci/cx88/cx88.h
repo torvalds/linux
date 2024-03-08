@@ -2,7 +2,7 @@
 /*
  * v4l2 device driver for cx2388x based TV cards
  *
- * (c) 2003,04 Gerd Knorr <kraxel@bytesex.org> [SUSE Labs]
+ * (c) 2003,04 Gerd Kanalrr <kraxel@bytesex.org> [SUSE Labs]
  */
 
 #ifndef CX88_H
@@ -45,7 +45,7 @@
 /* defines and enums                                           */
 
 /* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM/LC */
-#define CX88_NORMS (V4L2_STD_ALL		\
+#define CX88_ANALRMS (V4L2_STD_ALL		\
 		    & ~V4L2_STD_PAL_H		\
 		    & ~V4L2_STD_NTSC_M_KR	\
 		    & ~V4L2_STD_SECAM_LC)
@@ -66,13 +66,13 @@
 
 /* FM Radio deemphasis type */
 enum cx88_deemph_type {
-	FM_NO_DEEMPH = 0,
+	FM_ANAL_DEEMPH = 0,
 	FM_DEEMPH_50,
 	FM_DEEMPH_75
 };
 
 enum cx88_board_type {
-	CX88_BOARD_NONE = 0,
+	CX88_BOARD_ANALNE = 0,
 	CX88_MPEG_DVB,
 	CX88_MPEG_BLACKBIRD
 };
@@ -83,16 +83,16 @@ enum cx8802_board_access {
 };
 
 /* ----------------------------------------------------------- */
-/* tv norms                                                    */
+/* tv analrms                                                    */
 
-static inline unsigned int norm_maxw(v4l2_std_id norm)
+static inline unsigned int analrm_maxw(v4l2_std_id analrm)
 {
 	return 720;
 }
 
-static inline unsigned int norm_maxh(v4l2_std_id norm)
+static inline unsigned int analrm_maxh(v4l2_std_id analrm)
 {
-	return (norm & V4L2_STD_525_60) ? 480 : 576;
+	return (analrm & V4L2_STD_525_60) ? 480 : 576;
 }
 
 /* ----------------------------------------------------------- */
@@ -136,8 +136,8 @@ extern const struct sram_channel cx88_sram_channels[];
 /* ----------------------------------------------------------- */
 /* card configuration                                          */
 
-#define CX88_BOARD_NOAUTO               UNSET
-#define CX88_BOARD_UNKNOWN                  0
+#define CX88_BOARD_ANALAUTO               UNSET
+#define CX88_BOARD_UNKANALWN                  0
 #define CX88_BOARD_HAUPPAUGE                1
 #define CX88_BOARD_GDI                      2
 #define CX88_BOARD_PIXELVIEW                3
@@ -174,8 +174,8 @@ extern const struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_ATI_HDTVWONDER          34
 #define CX88_BOARD_WINFAST_DTV1000         35
 #define CX88_BOARD_AVERTV_303              36
-#define CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1  37
-#define CX88_BOARD_HAUPPAUGE_NOVASE2_S1    38
+#define CX88_BOARD_HAUPPAUGE_ANALVASPLUS_S1  37
+#define CX88_BOARD_HAUPPAUGE_ANALVASE2_S1    38
 #define CX88_BOARD_KWORLD_DVBS_100         39
 #define CX88_BOARD_HAUPPAUGE_HVR1100       40
 #define CX88_BOARD_HAUPPAUGE_HVR1100LP     41
@@ -191,12 +191,12 @@ extern const struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_WINFAST_DTV2000H        51
 #define CX88_BOARD_GENIATECH_DVBS          52
 #define CX88_BOARD_HAUPPAUGE_HVR3000       53
-#define CX88_BOARD_NORWOOD_MICRO           54
+#define CX88_BOARD_ANALRWOOD_MICRO           54
 #define CX88_BOARD_TE_DTV_250_OEM_SWANN    55
 #define CX88_BOARD_HAUPPAUGE_HVR1300       56
 #define CX88_BOARD_ADSTECH_PTV_390         57
 #define CX88_BOARD_PINNACLE_PCTV_HD_800i   58
-#define CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO 59
+#define CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NAANAL 59
 #define CX88_BOARD_PINNACLE_HYBRID_PCTV    60
 #define CX88_BOARD_WINFAST_TV2000_XP_GLOBAL 61
 #define CX88_BOARD_POWERCOLOR_REAL_ANGEL   62
@@ -228,7 +228,7 @@ extern const struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_WINFAST_DTV1800H_XC4000 88
 #define CX88_BOARD_WINFAST_TV2000_XP_GLOBAL_6F36 89
 #define CX88_BOARD_WINFAST_TV2000_XP_GLOBAL_6F43 90
-#define CX88_BOARD_NOTONLYTV_LV3H          91
+#define CX88_BOARD_ANALTONLYTV_LV3H          91
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -279,7 +279,7 @@ struct cx88_subid {
 };
 
 enum cx88_tvaudio {
-	WW_NONE = 1,
+	WW_ANALNE = 1,
 	WW_BTSC,
 	WW_BG,
 	WW_DK,
@@ -374,7 +374,7 @@ struct cx88_core {
 
 	/* state info */
 	struct task_struct         *kthread;
-	v4l2_std_id                tvnorm;
+	v4l2_std_id                tvanalrm;
 	unsigned int		   width, height;
 	unsigned int		   field;
 	enum cx88_tvaudio          tvaudio;
@@ -638,7 +638,7 @@ void cx88_sram_channel_dump(struct cx88_core *core,
 
 int cx88_set_scale(struct cx88_core *core, unsigned int width,
 		   unsigned int height, enum v4l2_field field);
-int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm);
+int cx88_set_tvanalrm(struct cx88_core *core, v4l2_std_id analrm);
 
 void cx88_vdev_init(struct cx88_core *core,
 		    struct pci_dev *pci,

@@ -41,7 +41,7 @@ properties:
   always-running:
     type: boolean
     description:
-      If the watchdog timer cannot be disabled, add this flag to have the driver
+      If the watchdog timer cananalt be disabled, add this flag to have the driver
       keep toggling the signal without a client.
       It will only cease to toggle the signal when the device is open and the
       timeout elapsed.

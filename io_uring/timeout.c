@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/file.h>
 #include <linux/io_uring.h>
 
@@ -35,7 +35,7 @@ struct io_timeout_rem {
 	bool				ltimeout;
 };
 
-static inline bool io_is_timeout_noseq(struct io_kiocb *req)
+static inline bool io_is_timeout_analseq(struct io_kiocb *req)
 {
 	struct io_timeout *timeout = io_kiocb_to_cmd(req, struct io_timeout);
 	struct io_timeout_data *data = req->async_data;
@@ -120,13 +120,13 @@ __cold void io_flush_timeouts(struct io_ring_ctx *ctx)
 		struct io_kiocb *req = cmd_to_io_kiocb(timeout);
 		u32 events_needed, events_got;
 
-		if (io_is_timeout_noseq(req))
+		if (io_is_timeout_analseq(req))
 			break;
 
 		/*
 		 * Since seq can easily wrap around over time, subtract
 		 * the last seq at which timeouts were flushed before comparing.
-		 * Assuming not more than 2^31-1 events have happened since,
+		 * Assuming analt more than 2^31-1 events have happened since,
 		 * these subtractions won't have wrapped, so we can check if
 		 * target is in [last_seq, current_seq] by comparing the two.
 		 */
@@ -161,13 +161,13 @@ static void io_fail_links(struct io_kiocb *req)
 	__must_hold(&req->ctx->completion_lock)
 {
 	struct io_kiocb *link = req->link;
-	bool ignore_cqes = req->flags & REQ_F_SKIP_LINK_CQES;
+	bool iganalre_cqes = req->flags & REQ_F_SKIP_LINK_CQES;
 
 	if (!link)
 		return;
 
 	while (link) {
-		if (ignore_cqes)
+		if (iganalre_cqes)
 			link->flags |= REQ_F_CQE_SKIP;
 		else
 			link->flags &= ~REQ_F_CQE_SKIP;
@@ -254,7 +254,7 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 	io_req_set_res(req, -ETIME, 0);
 	req->io_task_work.func = io_timeout_complete;
 	io_req_task_work_add(req);
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static struct io_kiocb *io_timeout_extract(struct io_ring_ctx *ctx,
@@ -274,7 +274,7 @@ static struct io_kiocb *io_timeout_extract(struct io_ring_ctx *ctx,
 		}
 	}
 	if (!req)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	io = req->async_data;
 	if (hrtimer_try_to_cancel(&io->timer) == -1)
@@ -304,7 +304,7 @@ static void io_req_task_link_timeout(struct io_kiocb *req, struct io_tw_state *t
 	unsigned issue_flags = ts->locked ? 0 : IO_URING_F_UNLOCKED;
 	struct io_timeout *timeout = io_kiocb_to_cmd(req, struct io_timeout);
 	struct io_kiocb *prev = timeout->prev;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	if (prev) {
 		if (!(req->task->flags & PF_EXITING)) {
@@ -343,7 +343,7 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	 */
 	if (prev) {
 		io_remove_next_linked(prev);
-		if (!req_ref_inc_not_zero(prev))
+		if (!req_ref_inc_analt_zero(prev))
 			prev = NULL;
 	}
 	list_del(&timeout->list);
@@ -352,7 +352,7 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 
 	req->io_task_work.func = io_req_task_link_timeout;
 	io_req_task_work_add(req);
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static clockid_t io_timeout_get_clock(struct io_timeout_data *data)
@@ -367,7 +367,7 @@ static clockid_t io_timeout_get_clock(struct io_timeout_data *data)
 		WARN_ON_ONCE(1);
 		fallthrough;
 	case 0:
-		return CLOCK_MONOTONIC;
+		return CLOCK_MOANALTONIC;
 	}
 }
 
@@ -388,7 +388,7 @@ static int io_linked_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,
 		}
 	}
 	if (!req)
-		return -ENOENT;
+		return -EANALENT;
 
 	io = req->async_data;
 	if (hrtimer_try_to_cancel(&io->timer) == -1)
@@ -411,7 +411,7 @@ static int io_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	timeout->off = 0; /* noseq */
+	timeout->off = 0; /* analseq */
 	data = req->async_data;
 	list_add_tail(&timeout->list, &ctx->timeout_list);
 	hrtimer_init(&data->timer, io_timeout_get_clock(data), mode);
@@ -529,7 +529,7 @@ static int __io_timeout_prep(struct io_kiocb *req,
 	if (WARN_ON_ONCE(req_has_async_data(req)))
 		return -EFAULT;
 	if (io_alloc_async_data(req))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = req->async_data;
 	data->req = req;
@@ -583,7 +583,7 @@ int io_timeout(struct io_kiocb *req, unsigned int issue_flags)
 	 * timeout event to be satisfied. If it isn't set, then this is
 	 * a pure timeout request, sequence isn't used.
 	 */
-	if (io_is_timeout_noseq(req)) {
+	if (io_is_timeout_analseq(req)) {
 		entry = ctx->timeout_list.prev;
 		goto add;
 	}
@@ -605,7 +605,7 @@ int io_timeout(struct io_kiocb *req, unsigned int issue_flags)
 		struct io_timeout *nextt = list_entry(entry, struct io_timeout, list);
 		struct io_kiocb *nxt = cmd_to_io_kiocb(nextt);
 
-		if (io_is_timeout_noseq(nxt))
+		if (io_is_timeout_analseq(nxt))
 			continue;
 		/* nxt.seq is behind @tail, otherwise would've been completed */
 		if (off >= nextt->target_seq - tail)

@@ -3,11 +3,11 @@ Marvell Kirkwood SoC Family Device Tree Bindings
 
 Boards with a SoC of the Marvell Kirkwook family, eg 88f6281
 
-* Required root node properties:
+* Required root analde properties:
 compatible: must contain "marvell,kirkwood"
 
 In addition, the above compatible shall be extended with the specific
-SoC. Currently known SoC compatibles are:
+SoC. Currently kanalwn SoC compatibles are:
 
 "marvell,kirkwood-88f6192"
 "marvell,kirkwood-88f6281"
@@ -17,7 +17,7 @@ SoC. Currently known SoC compatibles are:
 "marvell,kirkwood-98DX4122"
 
 And in addition, the compatible shall be extended with the specific
-board. Currently known boards are:
+board. Currently kanalwn boards are:
 
 "buffalo,linkstation-lsqvl"
 "buffalo,linkstation-lsvl"
@@ -76,29 +76,29 @@ board. Currently known boards are:
 "raidsonic,ib-nas62x0"
 "seagate,dockstar"
 "seagate,goflexnet"
-"synology,ds109"
-"synology,ds110jv10"
-"synology,ds110jv20"
-"synology,ds110jv30"
-"synology,ds111"
-"synology,ds209"
-"synology,ds210jv10"
-"synology,ds210jv20"
-"synology,ds212"
-"synology,ds212jv10"
-"synology,ds212jv20"
-"synology,ds212pv10"
-"synology,ds409"
-"synology,ds409slim"
-"synology,ds410j"
-"synology,ds411"
-"synology,ds411j"
-"synology,ds411slim"
-"synology,ds413jv10"
-"synology,rs212"
-"synology,rs409"
-"synology,rs411"
-"synology,rs812"
+"syanallogy,ds109"
+"syanallogy,ds110jv10"
+"syanallogy,ds110jv20"
+"syanallogy,ds110jv30"
+"syanallogy,ds111"
+"syanallogy,ds209"
+"syanallogy,ds210jv10"
+"syanallogy,ds210jv20"
+"syanallogy,ds212"
+"syanallogy,ds212jv10"
+"syanallogy,ds212jv20"
+"syanallogy,ds212pv10"
+"syanallogy,ds409"
+"syanallogy,ds409slim"
+"syanallogy,ds410j"
+"syanallogy,ds411"
+"syanallogy,ds411j"
+"syanallogy,ds411slim"
+"syanallogy,ds413jv10"
+"syanallogy,rs212"
+"syanallogy,rs409"
+"syanallogy,rs411"
+"syanallogy,rs812"
 "usi,topkick"
 "usi,topkick-1281P2"
 "zyxel,nsa310"

@@ -18,14 +18,14 @@
  * Updated: Fri, 29 Oct 2015 17:19:35 -0700
  * Status: untested
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: analt applicable, uses PCI auto config
  *
  * The PCI-1720 has 4 isolated 12-bit analog output channels with multiple
  * output ranges. It also has a BoardID switch to allow differentiating
  * multiple boards in the system.
  *
  * The analog outputs can operate in two modes, immediate and synchronized.
- * This driver currently does not support the synchronized output mode.
+ * This driver currently does analt support the synchronized output mode.
  *
  * Jumpers JP1 to JP4 are used to set the current sink ranges for each
  * analog output channel. In order to use the current sink ranges, the
@@ -37,7 +37,7 @@
  * last settings and output values or reset to the default state after
  * a "hot" reset. The default state for all channels is uniploar 5V range
  * and all the output values are 0V. To allow this feature to work, the
- * analog outputs are not "reset" when the driver attaches.
+ * analog outputs are analt "reset" when the driver attaches.
  */
 
 #include <linux/module.h>

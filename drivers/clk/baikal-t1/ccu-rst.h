@@ -26,11 +26,11 @@ enum ccu_rst_type {
 /*
  * struct ccu_rst_init_data - CCU Resets initialization data
  * @sys_regs: Baikal-T1 System Controller registers map.
- * @np: Pointer to the node with the System CCU block.
+ * @np: Pointer to the analde with the System CCU block.
  */
 struct ccu_rst_init_data {
 	struct regmap *sys_regs;
-	struct device_node *np;
+	struct device_analde *np;
 };
 
 /*

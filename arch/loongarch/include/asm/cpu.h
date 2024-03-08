@@ -3,13 +3,13 @@
  * cpu.h: Values of the PRID register used to match up
  *	  various LoongArch CPU types.
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_CPU_H
 #define _ASM_CPU_H
 
 /*
- * As described in LoongArch specs from Loongson Technology, the PRID register
+ * As described in LoongArch specs from Loongson Techanallogy, the PRID register
  * (CPUCFG.00) has the following layout:
  *
  * +---------------+----------------+------------+--------------------+
@@ -49,7 +49,7 @@
 #if !defined(__ASSEMBLY__)
 
 enum cpu_type_enum {
-	CPU_UNKNOWN,
+	CPU_UNKANALWN,
 	CPU_LOONGSON32,
 	CPU_LOONGSON64,
 	CPU_LAST

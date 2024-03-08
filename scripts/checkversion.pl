@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # checkversion finds uses of all macros in <linux/version.h>
-# where the source files do not #include <linux/version.h>; or cases
-# of including <linux/version.h> where it is not needed.
+# where the source files do analt #include <linux/version.h>; or cases
+# of including <linux/version.h> where it is analt needed.
 # Copyright (C) 2003, Randy Dunlap <rdunlap@infradead.org>
 
 use strict;
@@ -59,7 +59,7 @@ foreach my $file (@ARGV) {
 
     # Report superfluous includes.
     if ($iLinuxVersion && ! $fUseVersion) {
-	print "$file: $iLinuxVersion linux/version.h not needed.\n";
+	print "$file: $iLinuxVersion linux/version.h analt needed.\n";
     }
 
     # debug: report OK results:
@@ -68,7 +68,7 @@ foreach my $file (@ARGV) {
 	    print "$file: version use is OK ($iLinuxVersion)\n";
         }
         if (! $iLinuxVersion && ! $fUseVersion) {
-	    print "$file: version use is OK (none)\n";
+	    print "$file: version use is OK (analne)\n";
         }
     }
 

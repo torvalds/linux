@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (C) 2020 Facebook */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -46,7 +46,7 @@ static const char *get_kern_struct_ops_name(const struct bpf_map_info *info)
 
 	kern_btf = get_btf_vmlinux();
 	if (!kern_btf)
-		return "<btf_vmlinux_not_found>";
+		return "<btf_vmlinux_analt_found>";
 
 	t = btf__type_by_id(kern_btf, info->btf_vmlinux_value_type_id);
 	st_ops_name = btf__name_by_offset(kern_btf, t->name_off);
@@ -123,7 +123,7 @@ static struct bpf_map_info *map_info_alloc(__u32 *alloc_len)
  * Return value:
  *     1: A struct_ops map found.  It is returned in "*res_fd" and "*info".
  *	  The caller can continue to call get_next in the future.
- *     0: No struct_ops map is returned.
+ *     0: Anal struct_ops map is returned.
  *        All struct_ops map has been found.
  *    -1: Error and the caller should abort the iteration.
  */
@@ -136,24 +136,24 @@ static int get_next_struct_ops_map(const char *name, int *res_fd,
 	while (true) {
 		err = bpf_map_get_next_id(id, &id);
 		if (err) {
-			if (errno == ENOENT)
+			if (erranal == EANALENT)
 				return 0;
-			p_err("can't get next map: %s", strerror(errno));
+			p_err("can't get next map: %s", strerror(erranal));
 			return -1;
 		}
 
 		fd = bpf_map_get_fd_by_id(id);
 		if (fd < 0) {
-			if (errno == ENOENT)
+			if (erranal == EANALENT)
 				continue;
 			p_err("can't get map by id (%u): %s",
-			      id, strerror(errno));
+			      id, strerror(erranal));
 			return -1;
 		}
 
 		err = bpf_map_get_info_by_fd(fd, info, &info_len);
 		if (err) {
-			p_err("can't get map info: %s", strerror(errno));
+			p_err("can't get map info: %s", strerror(erranal));
 			close(fd);
 			return -1;
 		}
@@ -213,16 +213,16 @@ static struct res do_search(const char *name, work_func func, void *data,
 		res.nr_errs++;
 
 	if (!wtr && name && !res.nr_errs && !res.nr_maps)
-		/* It is not printing empty [].
-		 * Thus, needs to specifically say nothing found
+		/* It is analt printing empty [].
+		 * Thus, needs to specifically say analthing found
 		 * for "name" here.
 		 */
-		p_err("no struct_ops found for %s", name);
+		p_err("anal struct_ops found for %s", name);
 	else if (!wtr && json_output && !res.nr_errs)
-		/* The "func()" above is not writing any json (i.e. !wtr
+		/* The "func()" above is analt writing any json (i.e. !wtr
 		 * test here).
 		 *
-		 * However, "-j" is enabled and there is no errs here,
+		 * However, "-j" is enabled and there is anal errs here,
 		 * so call json_null() as the current convention of
 		 * other cmds.
 		 */
@@ -251,7 +251,7 @@ static struct res do_one_id(const char *id_str, work_func func, void *data,
 
 	fd = bpf_map_get_fd_by_id(id);
 	if (fd < 0) {
-		p_err("can't get map by id (%lu): %s", id, strerror(errno));
+		p_err("can't get map by id (%lu): %s", id, strerror(erranal));
 		res.nr_errs++;
 		return res;
 	}
@@ -263,13 +263,13 @@ static struct res do_one_id(const char *id_str, work_func func, void *data,
 	}
 
 	if (bpf_map_get_info_by_fd(fd, info, &info_len)) {
-		p_err("can't get map info: %s", strerror(errno));
+		p_err("can't get map info: %s", strerror(erranal));
 		res.nr_errs++;
 		goto done;
 	}
 
 	if (info->type != BPF_MAP_TYPE_STRUCT_OPS) {
-		p_err("%s id %u is not a struct_ops map", info->name, info->id);
+		p_err("%s id %u is analt a struct_ops map", info->name, info->id);
 		res.nr_errs++;
 		goto done;
 	}
@@ -282,10 +282,10 @@ static struct res do_one_id(const char *id_str, work_func func, void *data,
 	if (func(fd, info, data, wtr))
 		res.nr_errs++;
 	else if (!wtr && json_output)
-		/* The "func()" above is not writing any json (i.e. !wtr
+		/* The "func()" above is analt writing any json (i.e. !wtr
 		 * test here).
 		 *
-		 * However, "-j" is enabled and there is no errs here,
+		 * However, "-j" is enabled and there is anal errs here,
 		 * so call json_null() as the current convention of
 		 * other cmds.
 		 */
@@ -363,7 +363,7 @@ static int __do_dump(int fd, const struct bpf_map_info *info, void *data,
 	int zero = 0;
 	void *value;
 
-	/* note: d->jw == wtr */
+	/* analte: d->jw == wtr */
 
 	kern_btf = d->btf;
 
@@ -453,7 +453,7 @@ static int __do_unregister(int fd, const struct bpf_map_info *info, void *data,
 	if (bpf_map_delete_elem(fd, &zero)) {
 		p_err("can't unload %s %s id %u: %s",
 		      get_kern_struct_ops_name(info), info->name,
-		      info->id, strerror(errno));
+		      info->id, strerror(erranal));
 		return -1;
 	}
 
@@ -521,7 +521,7 @@ static int do_register(int argc, char **argv)
 	}
 
 	if (verifier_logs)
-		/* log_level1 + log_level2 + stats, but not stable UAPI */
+		/* log_level1 + log_level2 + stats, but analt stable UAPI */
 		open_opts.kernel_log_level = 1 + 2 + 4;
 
 	obj = bpf_object__open_file(file, &open_opts);
@@ -542,7 +542,7 @@ static int do_register(int argc, char **argv)
 		link = bpf_map__attach_struct_ops(map);
 		if (!link) {
 			p_err("can't register struct_ops %s: %s",
-			      bpf_map__name(map), strerror(errno));
+			      bpf_map__name(map), strerror(erranal));
 			nr_errs++;
 			continue;
 		}
@@ -550,11 +550,11 @@ static int do_register(int argc, char **argv)
 
 		if (bpf_map_get_info_by_fd(bpf_map__fd(map), &info,
 					   &info_len)) {
-			/* Not p_err.  The struct_ops was attached
+			/* Analt p_err.  The struct_ops was attached
 			 * successfully.
 			 */
 			p_info("Registered %s but can't find id: %s",
-			       bpf_map__name(map), strerror(errno));
+			       bpf_map__name(map), strerror(erranal));
 			goto clean_link;
 		}
 		if (!(bpf_map__map_flags(map) & BPF_F_LINK)) {
@@ -568,14 +568,14 @@ static int do_register(int argc, char **argv)
 					    &link_info,
 					    &link_info_len)) {
 			p_err("Registered %s but can't find link id: %s",
-			      bpf_map__name(map), strerror(errno));
+			      bpf_map__name(map), strerror(erranal));
 			nr_errs++;
 			goto clean_link;
 		}
 		if (linkdir && pin_link(link, linkdir, info.name)) {
 			p_err("can't pin link %u for %s: %s",
 			      link_info.id, info.name,
-			      strerror(errno));
+			      strerror(erranal));
 			nr_errs++;
 			goto clean_link;
 		}
@@ -594,7 +594,7 @@ clean_link:
 		return -1;
 
 	if (!nr_maps) {
-		p_err("no struct_ops found in %s", file);
+		p_err("anal struct_ops found in %s", file);
 		return -1;
 	}
 

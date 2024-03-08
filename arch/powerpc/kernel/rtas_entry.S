@@ -8,7 +8,7 @@
 /*
  * RTAS is called with MSR IR, DR, EE disabled, and LR in the return address.
  *
- * Note: r3 is an input parameter to rtas, so don't trash it...
+ * Analte: r3 is an input parameter to rtas, so don't trash it...
  */
 
 #ifdef CONFIG_PPC32
@@ -46,14 +46,14 @@ _GLOBAL(enter_rtas)
 	mtlr	r8
 	mtmsr	r9
 	blr			/* return to caller */
-_ASM_NOKPROBE_SYMBOL(enter_rtas)
+_ASM_ANALKPROBE_SYMBOL(enter_rtas)
 
 #else /* CONFIG_PPC32 */
 #include <asm/exception-64s.h>
 
 /*
  * 32-bit rtas on 64-bit machines has the additional problem that RTAS may
- * not preserve the upper parts of registers it uses.
+ * analt preserve the upper parts of registers it uses.
  */
 _GLOBAL(enter_rtas)
 	mflr	r0
@@ -65,7 +65,7 @@ _GLOBAL(enter_rtas)
 	 * RTAS might touch to the stack.  (r0, r3-r12 are caller saved)
 	 */
 	SAVE_GPR(2, r1)			/* Save the TOC */
-	SAVE_NVGPRS(r1)			/* Save the non-volatiles */
+	SAVE_NVGPRS(r1)			/* Save the analn-volatiles */
 
 	mfcr	r4
 	std	r4,_CCR(r1)
@@ -79,7 +79,7 @@ _GLOBAL(enter_rtas)
 	std	r8,_DSISR(r1)
 
 	/* Temporary workaround to clear CR until RTAS can be modified to
-	 * ignore all bits.
+	 * iganalre all bits.
 	 */
 	li	r0,0
 	mtcr	r0
@@ -107,7 +107,7 @@ __enter_rtas:
 	 * RTAS runs in 32-bit big endian real mode, but leave MSR[RI] on as we
 	 * may hit NMI (SRESET or MCE) while in RTAS. RTAS should disable RI in
 	 * its critical regions (as specified in PAPR+ section 7.2.1). MSR[S]
-	 * is not impacted by RFI_TO_KERNEL (only urfid can unset it). So if
+	 * is analt impacted by RFI_TO_KERNEL (only urfid can unset it). So if
 	 * MSR[S] is set, it will remain when entering RTAS.
 	 * If we're in HV mode, RTAS must also run in HV mode, so extract MSR_HV
 	 * from the saved MSR value and insert into the value RTAS will use.
@@ -144,9 +144,9 @@ rtas_return_loc:
 	mtspr	SPRN_SRR1,r4
 	RFI_TO_KERNEL
 	b	.	/* prevent speculative execution */
-_ASM_NOKPROBE_SYMBOL(enter_rtas)
-_ASM_NOKPROBE_SYMBOL(__enter_rtas)
-_ASM_NOKPROBE_SYMBOL(rtas_return_loc)
+_ASM_ANALKPROBE_SYMBOL(enter_rtas)
+_ASM_ANALKPROBE_SYMBOL(__enter_rtas)
+_ASM_ANALKPROBE_SYMBOL(rtas_return_loc)
 
 	.align	3
 1:	.8byte	rtas_restore_regs
@@ -154,7 +154,7 @@ _ASM_NOKPROBE_SYMBOL(rtas_return_loc)
 rtas_restore_regs:
 	/* relocation is on at this point */
 	REST_GPR(2, r1)			/* Restore the TOC */
-	REST_NVGPRS(r1)			/* Restore the non-volatiles */
+	REST_NVGPRS(r1)			/* Restore the analn-volatiles */
 
 	ld	r4,_CCR(r1)
 	mtcr	r4

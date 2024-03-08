@@ -69,7 +69,7 @@ static int reset_slot(struct hotplug_slot *hotplug_slot, bool probe)
 	 * probing and/or device removal which already happens under the
 	 * zdev->lock. Instead the user should use the higher level
 	 * pci_reset_function() or pci_bus_reset() which hold the PCI device
-	 * lock preventing concurrent removal. If not using these functions
+	 * lock preventing concurrent removal. If analt using these functions
 	 * holding the PCI device lock is required.
 	 */
 

@@ -45,7 +45,7 @@
 	 * IMX_SC_R_BOARD_R1 for 3.3V
 	 * IMX_SC_R_BOARD_R2 for 1.8V
 	 * IMX_SC_R_BOARD_R3 for 2.5V
-	 * Note that for 2.5V operation the pad muxing needs to be changed,
+	 * Analte that for 2.5V operation the pad muxing needs to be changed,
 	 * compare with PSW_OVR field of IMX8QM_COMP_CTL_GPIO_1V8_3V3_ENET_ENETA_PAD.
 	 *
 	 * those power domains are mutually exclusive.
@@ -133,17 +133,17 @@
 
 		decoder_boot: decoder-boot@84000000 {
 			reg = <0 0x84000000 0 0x2000000>;
-			no-map;
+			anal-map;
 		};
 
 		encoder1_boot: encoder1-boot@86000000 {
 			reg = <0 0x86000000 0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		encoder2_boot: encoder2-boot@86200000 {
 			reg = <0 0x86200000 0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		/*
@@ -154,38 +154,38 @@
 		 */
 		m4_reserved: m4@88000000 {
 			reg = <0 0x88000000 0 0x8000000>;
-			no-map;
+			anal-map;
 		};
 
 		rpmsg_reserved: rpmsg@90200000 {
 			reg = <0 0x90200000 0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		vdevbuffer: vdevbuffer@90400000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x90400000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		decoder_rpc: decoder-rpc@92000000 {
 			reg = <0 0x92000000 0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		dsp_reserved: dsp@92400000 {
 			reg = <0 0x92400000 0 0x2000000>;
-			no-map;
+			anal-map;
 		};
 
 		encoder1_rpc: encoder1-rpc@94400000 {
 			reg = <0 0x94400000 0 0x700000>;
-			no-map;
+			anal-map;
 		};
 
 		encoder2_rpc: encoder2-rpc@94b00000 {
 			reg = <0 0x94b00000 0 0x700000>;
-			no-map;
+			anal-map;
 		};
 
 		/* global autoconfigured region for contiguous allocations */
@@ -219,8 +219,8 @@
 		yp-gpios = <&lsio_gpio2 17 GPIO_ACTIVE_LOW>;
 		ym-gpios = <&lsio_gpio2 21 GPIO_ACTIVE_HIGH>;
 		/*
-		 * NOTE: you must remove the pinctrl-adc1 from the adc1
-		 * node below to use the touchscreen
+		 * ANALTE: you must remove the pinctrl-adc1 from the adc1
+		 * analde below to use the touchscreen
 		 */
 		status = "disabled";
 	};
@@ -237,7 +237,7 @@
 	pinctrl-0 = <&pinctrl_adc1>;
 };
 
-/* TODO: Asynchronous Sample Rate Converter (ASRC) */
+/* TODO: Asynchroanalus Sample Rate Converter (ASRC) */
 
 /* Apalis ETH1 */
 &fec1 {
@@ -727,7 +727,7 @@
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -748,7 +748,7 @@
 		    <&pinctrl_mmc1_cd_sleep>;
 	bus-width = <8>;
 	cd-gpios = <&lsio_gpio2 9 GPIO_ACTIVE_LOW>; /* Apalis MMC1_CD# */
-	no-1-8-v;
+	anal-1-8-v;
 };
 
 /* Apalis SD1 */
@@ -759,7 +759,7 @@
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>, <&pinctrl_sd1_cd>;
 	bus-width = <4>;
 	cd-gpios = <&lsio_gpio4 12 GPIO_ACTIVE_LOW>; /* Apalis SD1_CD# */
-	no-1-8-v;
+	anal-1-8-v;
 };
 
 /* Video Processing Unit */

@@ -34,7 +34,7 @@ static int max16064_read_word_data(struct i2c_client *client, int page,
 		ret = 0;
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -56,7 +56,7 @@ static int max16064_write_word_data(struct i2c_client *client, int page,
 					    0xffff);
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;

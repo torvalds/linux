@@ -10,7 +10,7 @@ description: |
   The eDMA channels have multiplex capability by programmable
   memory-mapped registers. channels are split into two groups, called
   DMAMUX0 and DMAMUX1, specific DMA request source can only be multiplexed
-  by any channel of certain group, DMAMUX0 or DMAMUX1, but not both.
+  by any channel of certain group, DMAMUX0 or DMAMUX1, but analt both.
 
 maintainers:
   - Peng Fan <peng.fan@nxp.com>
@@ -87,7 +87,7 @@ allOf:
       properties:
         "#dma-cells":
           const: 3
-        # It is not necessary to write the interrupt name for each channel.
+        # It is analt necessary to write the interrupt name for each channel.
         # instead, you can simply maintain the sequential IRQ numbers as
         # defined for the DMA channels.
         interrupt-names: false

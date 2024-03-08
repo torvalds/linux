@@ -86,7 +86,7 @@ EXPORT_SYMBOL(octeon_bootinfo);
  * Wait for relocation code is prepared and send
  * secondary CPUs to spin until kernel is relocated.
  */
-static void octeon_kexec_smp_down(void *ignored)
+static void octeon_kexec_smp_down(void *iganalred)
 {
 	int cpu = smp_processor_id();
 
@@ -127,7 +127,7 @@ static void kexec_bootmem_init(uint64_t mem_size, uint32_t low_reserved_bytes)
 	}
 
 	bootmem_desc->major_version = CVMX_BOOTMEM_DESC_MAJ_VER;
-	bootmem_desc->minor_version = CVMX_BOOTMEM_DESC_MIN_VER;
+	bootmem_desc->mianalr_version = CVMX_BOOTMEM_DESC_MIN_VER;
 
 	addr = (OCTEON_DDR0_BASE + reserve_low_mem + low_reserved_bytes);
 	bootmem_desc->head_addr = 0;
@@ -233,7 +233,7 @@ static void octeon_generic_shutdown(void)
 				PAGE_SIZE);
 	} else {
 		/*
-		 * Do not mark all memory as free. Free only named sections
+		 * Do analt mark all memory as free. Free only named sections
 		 * leaving the rest of memory unchanged.
 		 */
 		struct cvmx_bootmem_named_block_desc *ptr =
@@ -298,10 +298,10 @@ static int octeon_uart;
 extern asmlinkage void handle_int(void);
 
 /**
- * octeon_is_simulation - Return non-zero if we are currently running
+ * octeon_is_simulation - Return analn-zero if we are currently running
  * in the Octeon simulator
  *
- * Return: non-0 if running in the Octeon simulator, 0 otherwise
+ * Return: analn-0 if running in the Octeon simulator, 0 otherwise
  */
 int octeon_is_simulation(void)
 {
@@ -313,7 +313,7 @@ EXPORT_SYMBOL(octeon_is_simulation);
  * octeon_is_pci_host - Return true if Octeon is in PCI Host mode. This means
  * Linux can control the PCI bus.
  *
- * Return: Non-zero if Octeon is in host mode.
+ * Return: Analn-zero if Octeon is in host mode.
  */
 int octeon_is_pci_host(void)
 {
@@ -425,7 +425,7 @@ void octeon_check_cpu_bist(void)
 /**
  * octeon_restart - Reboot Octeon
  *
- * @command: Command to pass to the bootloader. Currently ignored.
+ * @command: Command to pass to the bootloader. Currently iganalred.
  */
 static void octeon_restart(char *command)
 {
@@ -450,7 +450,7 @@ static void octeon_restart(char *command)
 /**
  * octeon_kill_core - Permanently stop a core.
  *
- * @arg: Ignored.
+ * @arg: Iganalred.
  */
 static void octeon_kill_core(void *arg)
 {
@@ -496,12 +496,12 @@ static void __init init_octeon_system_type(void)
 
 	board_type = cvmx_board_type_to_string(octeon_bootinfo->board_type);
 	if (board_type == NULL) {
-		struct device_node *root;
+		struct device_analde *root;
 		int ret;
 
-		root = of_find_node_by_path("/");
+		root = of_find_analde_by_path("/");
 		ret = of_property_read_string(root, "model", &board_type);
-		of_node_put(root);
+		of_analde_put(root);
 		if (ret)
 			board_type = "Unsupported Board";
 	}
@@ -533,7 +533,7 @@ void octeon_user_io_init(void)
 	 * as other entries; if clear, marked write-buffer entries
 	 * use the maximum timeout. */
 	cvmmemctl.s.dismarkwblongto = 1;
-	/* R/W If set, a merged store does not clear the write-buffer
+	/* R/W If set, a merged store does analt clear the write-buffer
 	 * entry timeout state. */
 	cvmmemctl.s.dismrgclrwbto = 0;
 	/* R/W Two bits that are the MSBs of the resultant CVMSEG LM
@@ -542,12 +542,12 @@ void octeon_user_io_init(void)
 	cvmmemctl.s.iobdmascrmsb = 0;
 	/* R/W If set, SYNCWS and SYNCS only order marked stores; if
 	 * clear, SYNCWS and SYNCS only order unmarked
-	 * stores. SYNCWSMARKED has no effect when DISSYNCWS is
+	 * stores. SYNCWSMARKED has anal effect when DISSYNCWS is
 	 * set. */
 	cvmmemctl.s.syncwsmarked = 0;
 	/* R/W If set, SYNCWS acts as SYNCW and SYNCS acts as SYNC. */
 	cvmmemctl.s.dissyncws = 0;
-	/* R/W If set, no stall happens on write buffer full. */
+	/* R/W If set, anal stall happens on write buffer full. */
 	if (OCTEON_IS_MODEL(OCTEON_CN38XX_PASS2))
 		cvmmemctl.s.diswbfst = 1;
 	else
@@ -568,13 +568,13 @@ void octeon_user_io_init(void)
 	 * XKPHYS addresses with VA<48>==1 */
 	cvmmemctl.s.xkioenau = 0;
 
-	/* R/W If set, all stores act as SYNCW (NOMERGE must be set
+	/* R/W If set, all stores act as SYNCW (ANALMERGE must be set
 	 * when this is set) RW, reset to 0. */
 	cvmmemctl.s.allsyncw = 0;
 
-	/* R/W If set, no stores merge, and all stores reach the
+	/* R/W If set, anal stores merge, and all stores reach the
 	 * coherent bus in order. */
-	cvmmemctl.s.nomerge = 0;
+	cvmmemctl.s.analmerge = 0;
 	/* R/W Selects the bit in the counter used for DID time-outs 0
 	 * = 231, 1 = 230, 2 = 229, 3 = 214. Actual time-out is
 	 * between 1x and 2x this interval. For example, with
@@ -591,8 +591,8 @@ void octeon_user_io_init(void)
 	 * example, with WBFLT = 0, a write buffer expires between 2K
 	 * and 4K cycles after the write buffer entry is allocated. */
 	cvmmemctl.s.wbfltime = 0;
-	/* R/W If set, do not put Istream in the L2 cache. */
-	cvmmemctl.s.istrnol2 = 0;
+	/* R/W If set, do analt put Istream in the L2 cache. */
+	cvmmemctl.s.istranall2 = 0;
 
 	/*
 	 * R/W The write buffer threshold. As per erratum Core-14752
@@ -623,7 +623,7 @@ void octeon_user_io_init(void)
 
 	/* Setup of CVMSEG is done in kernel-entry-init.h */
 	if (smp_processor_id() == 0)
-		pr_notice("CVMSEG size: %d cache lines (%d bytes)\n",
+		pr_analtice("CVMSEG size: %d cache lines (%d bytes)\n",
 			  CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE,
 			  CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE * 128);
 
@@ -680,7 +680,7 @@ void __init prom_init(void)
 
 	if ((octeon_bootinfo->major_version > 1) ||
 	    (octeon_bootinfo->major_version == 1 &&
-	     octeon_bootinfo->minor_version >= 4))
+	     octeon_bootinfo->mianalr_version >= 4))
 		cvmx_coremask_copy(&sysinfo->core_mask,
 				   &octeon_bootinfo->ext_core_mask);
 	else
@@ -697,7 +697,7 @@ void __init prom_init(void)
 	sysinfo->dram_data_rate_hz = octeon_bootinfo->dclock_hz * 2;
 	sysinfo->board_type = octeon_bootinfo->board_type;
 	sysinfo->board_rev_major = octeon_bootinfo->board_rev_major;
-	sysinfo->board_rev_minor = octeon_bootinfo->board_rev_minor;
+	sysinfo->board_rev_mianalr = octeon_bootinfo->board_rev_mianalr;
 	memcpy(sysinfo->mac_addr_base, octeon_bootinfo->mac_addr_base,
 	       sizeof(sysinfo->mac_addr_base));
 	sysinfo->mac_addr_count = octeon_bootinfo->mac_addr_count;
@@ -730,7 +730,7 @@ void __init prom_init(void)
 	if ((t & (1ull << 27)) == 0) {
 		/*
 		 * Setup the multiplier save/restore code if
-		 * CvmCtl[NOMUL] clear.
+		 * CvmCtl[ANALMUL] clear.
 		 */
 		void *save;
 		void *save_end;
@@ -841,7 +841,7 @@ void __init prom_init(void)
 
 	/*
 	 * BIST should always be enabled when doing a soft reset. L2
-	 * Cache locking for instance is not cleared unless BIST is
+	 * Cache locking for instance is analt cleared unless BIST is
 	 * enabled.  Unfortunately due to a chip errata G-200 for
 	 * Cn38XX and CN31XX, BIST must be disabled on these parts.
 	 */
@@ -979,15 +979,15 @@ void __init plat_mem_setup(void)
 	/*
 	 * The Mips memory init uses the first memory location for
 	 * some memory vectors. When SPARSEMEM is in use, it doesn't
-	 * verify that the size is big enough for the final
-	 * vectors. Making the smallest chuck 4MB seems to be enough
+	 * verify that the size is big eanalugh for the final
+	 * vectors. Making the smallest chuck 4MB seems to be eanalugh
 	 * to consistently work.
 	 */
 	mem_alloc_size = 4 << 20;
 	if (mem_alloc_size > max_memory)
 		mem_alloc_size = max_memory;
 
-/* Crashkernel ignores bootmem list. It relies on mem=X@Y option */
+/* Crashkernel iganalres bootmem list. It relies on mem=X@Y option */
 #ifdef CONFIG_CRASH_DUMP
 	memblock_add(reserve_low_mem, max_memory);
 	total += max_memory;
@@ -1007,7 +1007,7 @@ void __init plat_mem_setup(void)
 		memory = cvmx_bootmem_phy_alloc(mem_alloc_size,
 						__pa_symbol(&_end), -1,
 						0x100000,
-						CVMX_BOOTMEM_FLAG_NO_LOCKING);
+						CVMX_BOOTMEM_FLAG_ANAL_LOCKING);
 		if (memory >= 0) {
 			u64 size = mem_alloc_size;
 #ifdef CONFIG_KEXEC
@@ -1016,7 +1016,7 @@ void __init plat_mem_setup(void)
 
 			/*
 			 * exclude a page at the beginning and end of
-			 * the 256MB PCIe 'hole' so the kernel will not
+			 * the 256MB PCIe 'hole' so the kernel will analt
 			 * try to allocate multi-page buffers that
 			 * span the discontinuity.
 			 */
@@ -1045,7 +1045,7 @@ void __init plat_mem_setup(void)
 			if (memory >= crashk_base && end <= crashk_end)
 				/*
 				 * Entire memory region is within the new
-				 *  kernel's memory, ignore it.
+				 *  kernel's memory, iganalre it.
 				 */
 				continue;
 
@@ -1077,7 +1077,7 @@ void __init plat_mem_setup(void)
 #endif /* CONFIG_CRASH_DUMP */
 
 	/*
-	 * Now that we've allocated the kernel memory it is safe to
+	 * Analw that we've allocated the kernel memory it is safe to
 	 * free the reserved region. We free it here so that builtin
 	 * drivers can use the memory.
 	 */
@@ -1120,18 +1120,18 @@ void __init prom_free_prom_memory(void)
 		prefetch(foo);
 		asm volatile(
 			".set push\n\t"
-			".set noreorder\n\t"
+			".set analreorder\n\t"
 			"bal 1f\n\t"
-			"nop\n"
+			"analp\n"
 			"1:\tlw %0,-12($31)\n\t"
 			".set pop\n\t"
 			: "=r" (insn) : : "$31", "memory");
 
 		if ((insn >> 26) != 0x33)
-			panic("No PREF instruction at Core-14449 probe point.");
+			panic("Anal PREF instruction at Core-14449 probe point.");
 
 		if (((insn >> 16) & 0x1f) != 28)
-			panic("OCTEON II DCache prefetch workaround not in place (%04x).\n"
+			panic("OCTEON II DCache prefetch workaround analt in place (%04x).\n"
 			      "Please build kernel with proper options (CONFIG_CAVIUM_CN63XXP1).",
 			      insn);
 	}
@@ -1153,7 +1153,7 @@ void __init device_tree_init(void)
 		pr_info("Using appended Device Tree.\n");
 	} else
 #endif
-	if (octeon_bootinfo->minor_version >= 3 && octeon_bootinfo->fdt_addr) {
+	if (octeon_bootinfo->mianalr_version >= 3 && octeon_bootinfo->fdt_addr) {
 		fdt = phys_to_virt(octeon_bootinfo->fdt_addr);
 		if (fdt_check_header(fdt))
 			panic("Corrupt Device Tree passed to kernel.");
@@ -1232,10 +1232,10 @@ device_initcall(edac_devinit);
 
 static void __initdata *octeon_dummy_iospace;
 
-static int __init octeon_no_pci_init(void)
+static int __init octeon_anal_pci_init(void)
 {
 	/*
-	 * Initially assume there is no PCI. The PCI/PCIe platform code will
+	 * Initially assume there is anal PCI. The PCI/PCIe platform code will
 	 * later re-initialize these to correct values if they are present.
 	 */
 	octeon_dummy_iospace = vzalloc(IO_SPACE_LIMIT);
@@ -1244,9 +1244,9 @@ static int __init octeon_no_pci_init(void)
 	ioport_resource.end = 0;
 	return 0;
 }
-core_initcall(octeon_no_pci_init);
+core_initcall(octeon_anal_pci_init);
 
-static int __init octeon_no_pci_release(void)
+static int __init octeon_anal_pci_release(void)
 {
 	/*
 	 * Release the allocated memory if a real IO space is there.
@@ -1255,4 +1255,4 @@ static int __init octeon_no_pci_release(void)
 		vfree(octeon_dummy_iospace);
 	return 0;
 }
-late_initcall(octeon_no_pci_release);
+late_initcall(octeon_anal_pci_release);

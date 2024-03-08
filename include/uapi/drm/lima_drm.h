@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT */
+/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-analte) OR MIT */
 /* Copyright 2017-2018 Qiang Yu <yuq825@gmail.com> */
 
 #ifndef __LIMA_DRM_H__
@@ -11,7 +11,7 @@ extern "C" {
 #endif
 
 enum drm_lima_param_gpu_id {
-	DRM_LIMA_PARAM_GPU_ID_UNKNOWN,
+	DRM_LIMA_PARAM_GPU_ID_UNKANALWN,
 	DRM_LIMA_PARAM_GPU_ID_MALI400,
 	DRM_LIMA_PARAM_GPU_ID_MALI450,
 };
@@ -110,7 +110,7 @@ struct drm_lima_m450_pp_frame {
  *
  * User can always merge multi sync_file and drm_syncobj
  * into one drm_syncobj as in_sync[0], but we reserve
- * in_sync[1] for another task's out_sync to avoid the
+ * in_sync[1] for aanalther task's out_sync to avoid the
  * export/import/merge pass when explicit sync.
  */
 struct drm_lima_gem_submit {

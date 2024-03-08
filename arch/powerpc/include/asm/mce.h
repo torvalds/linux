@@ -16,7 +16,7 @@ enum MCE_Version {
 };
 
 enum MCE_Severity {
-	MCE_SEV_NO_ERROR = 0,
+	MCE_SEV_ANAL_ERROR = 0,
 	MCE_SEV_WARNING = 1,
 	MCE_SEV_SEVERE = 2,
 	MCE_SEV_FATAL = 3,
@@ -24,11 +24,11 @@ enum MCE_Severity {
 
 enum MCE_Disposition {
 	MCE_DISPOSITION_RECOVERED = 0,
-	MCE_DISPOSITION_NOT_RECOVERED = 1,
+	MCE_DISPOSITION_ANALT_RECOVERED = 1,
 };
 
 enum MCE_Initiator {
-	MCE_INITIATOR_UNKNOWN = 0,
+	MCE_INITIATOR_UNKANALWN = 0,
 	MCE_INITIATOR_CPU = 1,
 	MCE_INITIATOR_PCI = 2,
 	MCE_INITIATOR_ISA = 3,
@@ -37,7 +37,7 @@ enum MCE_Initiator {
 };
 
 enum MCE_ErrorType {
-	MCE_ERROR_TYPE_UNKNOWN = 0,
+	MCE_ERROR_TYPE_UNKANALWN = 0,
 	MCE_ERROR_TYPE_UE = 1,
 	MCE_ERROR_TYPE_SLB = 2,
 	MCE_ERROR_TYPE_ERAT = 3,
@@ -50,7 +50,7 @@ enum MCE_ErrorType {
 };
 
 enum MCE_ErrorClass {
-	MCE_ECLASS_UNKNOWN = 0,
+	MCE_ECLASS_UNKANALWN = 0,
 	MCE_ECLASS_HARDWARE,
 	MCE_ECLASS_HARD_INDETERMINATE,
 	MCE_ECLASS_SOFTWARE,
@@ -129,7 +129,7 @@ struct machine_check_event {
 			enum MCE_UeErrorType ue_error_type:8;
 			u8		effective_address_provided;
 			u8		physical_address_provided;
-			u8		ignore_event;
+			u8		iganalre_event;
 			u8		reserved_1[4];
 			u64		effective_address;
 			u64		physical_address;
@@ -201,7 +201,7 @@ struct mce_error_info {
 	enum MCE_Initiator	initiator:8;
 	enum MCE_ErrorClass	error_class:8;
 	bool			sync_error;
-	bool			ignore_event;
+	bool			iganalre_event;
 };
 
 #define MAX_MC_EVT	10
@@ -222,7 +222,7 @@ struct mce_info {
 #define MCE_EVENT_DONTRELEASE	false
 
 struct pt_regs;
-struct notifier_block;
+struct analtifier_block;
 
 extern void save_mce_event(struct pt_regs *regs, long handled,
 			   struct mce_error_info *mce_err, uint64_t nip,
@@ -236,8 +236,8 @@ unsigned long addr_to_pfn(struct pt_regs *regs, unsigned long addr);
 extern void mce_common_process_ue(struct pt_regs *regs,
 				  struct mce_error_info *mce_err);
 void mce_irq_work_queue(void);
-int mce_register_notifier(struct notifier_block *nb);
-int mce_unregister_notifier(struct notifier_block *nb);
+int mce_register_analtifier(struct analtifier_block *nb);
+int mce_unregister_analtifier(struct analtifier_block *nb);
 
 #ifdef CONFIG_PPC_BOOK3S_64
 void mce_run_irq_context_handlers(void);

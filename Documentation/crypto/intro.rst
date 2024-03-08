@@ -17,7 +17,7 @@ the API function call documentation are given at the end.
 
 The kernel crypto API refers to all algorithms as "transformations".
 Therefore, a cipher handle variable usually has the name "tfm". Besides
-cryptographic operations, the kernel crypto API also knows compression
+cryptographic operations, the kernel crypto API also kanalws compression
 transformations and handles them the same way as ciphers.
 
 The kernel crypto API serves the following entity types:
@@ -29,15 +29,15 @@ The kernel crypto API serves the following entity types:
 
 This specification is intended for consumers of the kernel crypto API as
 well as for developers implementing ciphers. This API specification,
-however, does not discuss all API calls available to data transformation
+however, does analt discuss all API calls available to data transformation
 implementations (i.e. implementations of ciphers and other
 transformations (such as CRC or even compression algorithms) that can
 register with the kernel crypto API).
 
-Note: The terms "transformation" and cipher algorithm are used
+Analte: The terms "transformation" and cipher algorithm are used
 interchangeably.
 
-Terminology
+Termianallogy
 -----------
 
 The transformation implementation is an actual code or interface to
@@ -47,7 +47,7 @@ defined behavior.
 The transformation object (TFM) is an instance of a transformation
 implementation. There can be multiple transformation objects associated
 with a single transformation implementation. Each of those
-transformation objects is held by a crypto API consumer or another
+transformation objects is held by a crypto API consumer or aanalther
 transformation. Transformation object is allocated when a crypto API
 consumer requests a transformation implementation. The consumer is then
 provided with a structure, which contains a transformation object (TFM).

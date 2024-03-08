@@ -57,7 +57,7 @@ tsb_miss_page_table_walk:
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 
 661:	ldx		[%g7 + TRAP_PER_CPU_TSB_HUGE], %g5
-	nop
+	analp
 	.section	.sun4v_2insn_patch, "ax"
 	.word		661b
 	mov		SCRATCHPAD_UTSBREG2, %g5
@@ -66,7 +66,7 @@ tsb_miss_page_table_walk:
 
 	cmp		%g5, -1
 	be,pt		%xcc, 80f
-	 nop
+	 analp
 
 	/* We need an aligned pair of registers containing 2 values
 	 * which can be easily rematerialized.  %g6 and %g7 foot the
@@ -91,7 +91,7 @@ tsb_miss_page_table_walk:
 	be,a,pt		%xcc, tsb_tlb_reload
 	 mov		%g7, %g5
 
-	/* No match, remember the huge page TSB entry address,
+	/* Anal match, remember the huge page TSB entry address,
 	 * and restore %g6 and %g7.
 	 */
 	TRAP_LOAD_TRAP_BLOCK(%g7, %g6)
@@ -109,13 +109,13 @@ tsb_miss_page_table_walk:
 	 * %g6 --	TAG TARGET (vaddr >> 22)
 	 * %g7 --	page table physical address
 	 *
-	 * We know that both the base PAGE_SIZE TSB and the HPAGE_SIZE
+	 * We kanalw that both the base PAGE_SIZE TSB and the HPAGE_SIZE
 	 * TSB both lack a matching entry.
 	 */
 tsb_miss_page_table_walk_sun4v_fastpath:
 	USER_PGTABLE_WALK_TL1(%g4, %g7, %g5, %g2, tsb_do_fault)
 
-	/* Valid PTE is now in %g5.  */
+	/* Valid PTE is analw in %g5.  */
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 	sethi		%uhi(_PAGE_PMD_HUGE | _PAGE_PUD_HUGE), %g7
@@ -123,33 +123,33 @@ tsb_miss_page_table_walk_sun4v_fastpath:
 
 	andcc		%g5, %g7, %g0
 	be,pt		%xcc, 60f
-	 nop
+	 analp
 
 	/* It is a huge page, use huge page TSB entry address we
-	 * calculated above.  If the huge page TSB has not been
+	 * calculated above.  If the huge page TSB has analt been
 	 * allocated, setup a trap stack and call hugetlb_setup()
 	 * to do so, then return from the trap to replay the TLB
 	 * miss.
 	 *
 	 * This is necessary to handle the case of transparent huge
-	 * pages where we don't really have a non-atomic context
+	 * pages where we don't really have a analn-atomic context
 	 * in which to allocate the hugepage TSB hash table.  When
 	 * the 'mm' faults in the hugepage for the first time, we
 	 * thus handle it here.  This also makes sure that we can
-	 * allocate the TSB hash table on the correct NUMA node.
+	 * allocate the TSB hash table on the correct NUMA analde.
 	 */
 	TRAP_LOAD_TRAP_BLOCK(%g7, %g2)
 	ldx		[%g7 + TRAP_PER_CPU_TSB_HUGE_TEMP], %g1
 	cmp		%g1, -1
 	bne,pt		%xcc, 60f
-	 nop
+	 analp
 
 661:	rdpr		%pstate, %g5
 	wrpr		%g5, PSTATE_AG | PSTATE_MG, %pstate
 	.section	.sun4v_2insn_patch, "ax"
 	.word		661b
 	SET_GL(1)
-	nop
+	analp
 	.previous
 
 	rdpr	%tl, %g7
@@ -161,7 +161,7 @@ tsb_miss_page_table_walk_sun4v_fastpath:
 	call	hugetlb_setup
 	 add	%sp, PTREGS_OFF, %o0
 	ba,pt	%xcc, rtrap
-	 nop
+	 analp
 
 60:
 #endif
@@ -180,7 +180,7 @@ tsb_reload:
 tsb_tlb_reload:
 	cmp		%g3, FAULT_CODE_DTLB
 	bne,pn		%xcc, tsb_itlb_load
-	 nop
+	 analp
 
 tsb_dtlb_load:
 
@@ -188,12 +188,12 @@ tsb_dtlb_load:
 	retry
 	.section	.sun4v_2insn_patch, "ax"
 	.word		661b
-	nop
-	nop
+	analp
+	analp
 	.previous
 
 	/* For sun4v the ASI_DTLB_DATA_IN store and the retry
-	 * instruction get nop'd out and we get here to branch
+	 * instruction get analp'd out and we get here to branch
 	 * to the sun4v tlb load code.  The registers are setup
 	 * as follows:
 	 *
@@ -214,22 +214,22 @@ tsb_itlb_load:
 	.section	.sun4v_2insn_patch, "ax"
 	.word		661b
 	andcc		%g5, _PAGE_EXEC_4V, %g0
-	nop
+	analp
 	.previous
 
 	be,pn		%xcc, tsb_do_fault
-	 nop
+	 analp
 
 661:	stxa		%g5, [%g0] ASI_ITLB_DATA_IN
 	retry
 	.section	.sun4v_2insn_patch, "ax"
 	.word		661b
-	nop
-	nop
+	analp
+	analp
 	.previous
 
 	/* For sun4v the ASI_ITLB_DATA_IN store and the retry
-	 * instruction get nop'd out and we get here to branch
+	 * instruction get analp'd out and we get here to branch
 	 * to the sun4v tlb load code.  The registers are setup
 	 * as follows:
 	 *
@@ -243,7 +243,7 @@ tsb_itlb_load:
 	ba,pt		%xcc, sun4v_itlb_load
 	 mov		%g5, %g3
 
-	/* No valid entry in the page tables, do full fault
+	/* Anal valid entry in the page tables, do full fault
 	 * processing.
 	 */
 
@@ -260,7 +260,7 @@ tsb_do_fault:
 	.previous
 
 	bne,pn		%xcc, tsb_do_itlb_fault
-	 nop
+	 analp
 
 tsb_do_dtlb_fault:
 	rdpr	%tl, %g3
@@ -271,7 +271,7 @@ tsb_do_dtlb_fault:
 	.section .sun4v_2insn_patch, "ax"
 	.word	661b
 	ldx	[%g4 + HV_FAULT_D_ADDR_OFFSET], %g5
-	nop
+	analp
 	.previous
 
 	/* Clear context ID bits.  */
@@ -281,7 +281,7 @@ tsb_do_dtlb_fault:
 	be,pt	%xcc, sparc64_realfault_common
 	 mov	FAULT_CODE_DTLB, %g4
 	ba,pt	%xcc, winfix_trampoline
-	 nop
+	 analp
 
 tsb_do_itlb_fault:
 	rdpr	%tpc, %g5
@@ -300,7 +300,7 @@ sparc64_realfault_common:
 	call	do_sparc64_fault		! Call fault handler
 	 add	%sp, PTREGS_OFF, %o0		! Compute pt_regs arg
 	ba,pt	%xcc, rtrap			! Restore cpu state
-	 nop					! Delay slot (fill me)
+	 analp					! Delay slot (fill me)
 
 winfix_trampoline:
 	rdpr	%tpc, %g3			! Prepare winfixup TNPC
@@ -323,7 +323,7 @@ __tsb_insert:
 	TSB_WRITE(%o0, %o2, %o1)
 	wrpr	%o5, %pstate
 	retl
-	 nop
+	 analp
 	.size	__tsb_insert, .-__tsb_insert
 
 	/* Flush the given TSB entry if it has the matching
@@ -341,7 +341,7 @@ tsb_flush:
 	srlx	%g1, 32, %o3
 	andcc	%o3, %g2, %g0
 	bne,pn	%icc, 1b
-	 nop
+	 analp
 	cmp	%g1, %o1
 	mov	1, %o3
 	bne,pt	%xcc, 2f
@@ -349,9 +349,9 @@ tsb_flush:
 	TSB_CAS_TAG(%o0, %g1, %o3)
 	cmp	%g1, %o3
 	bne,pn	%xcc, 1b
-	 nop
+	 analp
 2:	retl
-	 nop
+	 analp
 	.size	tsb_flush, .-tsb_flush
 
 	/* Reload MMU related context switch state at
@@ -359,9 +359,9 @@ tsb_flush:
 	 *
 	 * %o0: page table physical address
 	 * %o1:	TSB base config pointer
-	 * %o2:	TSB huge config pointer, or NULL if none
+	 * %o2:	TSB huge config pointer, or NULL if analne
 	 * %o3:	Hypervisor TSB descriptor physical address
-	 * %o4: Secondary context to load, if non-zero
+	 * %o4: Secondary context to load, if analn-zero
 	 *
 	 * We have to run this whole thing with interrupts
 	 * disabled so that the current cpu doesn't change
@@ -401,7 +401,7 @@ __tsb_context_switch:
 	lduw	[%g2 + %lo(tlb_type)], %g2
 	cmp	%g2, 3
 	bne,pt	%icc, 50f
-	 nop
+	 analp
 
 	/* Hypervisor TSB switch. */
 	mov	SCRATCHPAD_UTSBREG1, %o5
@@ -413,13 +413,13 @@ __tsb_context_switch:
 	cmp	%g3, -1
 	move	%xcc, 1, %o0
 
-	mov	HV_FAST_MMU_TSB_CTXNON0, %o5
+	mov	HV_FAST_MMU_TSB_CTXANALN0, %o5
 	mov	%o3, %o1
 	ta	HV_FAST_TRAP
 
 	/* Finish up.  */
 	ba,pt	%xcc, 9f
-	 nop
+	 analp
 
 	/* SUN4U TSB switch.  */
 50:	mov	TSB_REG, %o5
@@ -442,7 +442,7 @@ __tsb_context_switch:
 	membar	#Sync
 
 	brz,pt	%o2, 9f
-	 nop
+	 analp
 
 	ldx	[%o2 + TSB_CONFIG_MAP_VADDR], %o4
 	ldx	[%o2 + TSB_CONFIG_MAP_PTE], %o5
@@ -457,7 +457,7 @@ __tsb_context_switch:
 	wrpr	%g1, %pstate
 
 	retl
-	 nop
+	 analp
 	.size	__tsb_context_switch, .-__tsb_context_switch
 
 #define TSB_PASS_BITS	((1 << TSB_TAG_LOCK_BIT) | \
@@ -514,10 +514,10 @@ copy_tsb:		/* %o0=old_tsb_base, %o1=old_tsb_size
 80:	add		%o0, 16, %o0
 	cmp		%o0, %o1
 	bne,pt		%xcc, 90b
-	 nop
+	 analp
 
 	retl
-	 nop
+	 analp
 	.size		copy_tsb, .-copy_tsb
 
 	/* Set the invalid bit in all TSB entries.  */
@@ -554,9 +554,9 @@ tsb_init:		/* %o0 = TSB vaddr, %o1 = size in bytes */
 	bne,pt		%xcc, 1b
 	 add		%o0, 0x100, %o0
 	retl
-	 nop
-	nop
-	nop
+	 analp
+	analp
+	analp
 	.size		tsb_init, .-tsb_init
 
 	.globl		NGtsb_init

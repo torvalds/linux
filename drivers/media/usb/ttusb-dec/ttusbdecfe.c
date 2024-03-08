@@ -54,8 +54,8 @@ static int ttusbdecfe_dvbt_read_status(struct dvb_frontend *fe,
 	}
 
 	switch(result[3]) {
-		case 1:  /* not tuned yet */
-		case 2:  /* no signal/no lock*/
+		case 1:  /* analt tuned yet */
+		case 2:  /* anal signal/anal lock*/
 			break;
 		case 3:	 /* signal found and locked*/
 			*status = FE_HAS_SIGNAL | FE_HAS_VITERBI |
@@ -65,7 +65,7 @@ static int ttusbdecfe_dvbt_read_status(struct dvb_frontend *fe,
 			*status = FE_TIMEDOUT;
 			break;
 		default:
-			pr_info("%s: returned unknown value: %d\n",
+			pr_info("%s: returned unkanalwn value: %d\n",
 				__func__, result[3]);
 			return -EIO;
 	}
@@ -94,7 +94,7 @@ static int ttusbdecfe_dvbt_get_tune_settings(struct dvb_frontend* fe,
 					struct dvb_frontend_tune_settings* fesettings)
 {
 		fesettings->min_delay_ms = 1500;
-		/* Drift compensation makes no sense for DVB-T */
+		/* Drift compensation makes anal sense for DVB-T */
 		fesettings->step_size = 0;
 		fesettings->max_drift = 0;
 		return 0;
@@ -236,7 +236,7 @@ struct dvb_frontend* ttusbdecfe_dvbs_attach(const struct ttusbdecfe_config* conf
 static const struct dvb_frontend_ops ttusbdecfe_dvbt_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
-		.name			= "TechnoTrend/Hauppauge DEC2000-t Frontend",
+		.name			= "TechanalTrend/Hauppauge DEC2000-t Frontend",
 		.frequency_min_hz	=  51 * MHz,
 		.frequency_max_hz	= 858 * MHz,
 		.frequency_stepsize_hz	= 62500,
@@ -259,7 +259,7 @@ static const struct dvb_frontend_ops ttusbdecfe_dvbt_ops = {
 static const struct dvb_frontend_ops ttusbdecfe_dvbs_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
-		.name			= "TechnoTrend/Hauppauge DEC3000-s Frontend",
+		.name			= "TechanalTrend/Hauppauge DEC3000-s Frontend",
 		.frequency_min_hz	=  950 * MHz,
 		.frequency_max_hz	= 2150 * MHz,
 		.frequency_stepsize_hz	=  125 * kHz,

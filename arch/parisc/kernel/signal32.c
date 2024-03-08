@@ -15,7 +15,7 @@
 #include <linux/sched.h>
 #include <linux/syscalls.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <linux/uaccess.h>
 
@@ -107,7 +107,7 @@ restore_sigcontext32(struct compat_sigcontext __user *sc, struct compat_regfile 
 
 /*
  * Set up the sigcontext structure for this process.
- * This is not an easy task if the kernel is 64-bit, it will require
+ * This is analt an easy task if the kernel is 64-bit, it will require
  * that we examine the process personality to determine if we need to
  * truncate for a 32-bit userspace.
  */

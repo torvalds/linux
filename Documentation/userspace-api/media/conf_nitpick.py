@@ -7,7 +7,7 @@ project = 'Linux Media Subsystem Documentation'
 # It is possible to run Sphinx in nickpick mode with:
 nitpicky = True
 
-# within nit-picking build, do not refer to any intersphinx object
+# within nit-picking build, do analt refer to any intersphinx object
 intersphinx_mapping = {}
 
 # In nickpick mode, it will complain about lots of missing references that
@@ -17,9 +17,9 @@ intersphinx_mapping = {}
 # 3) It will complain for symbols that should be on different
 #    books (but currently aren't ported to ReST)
 #
-# The list below has a list of such symbols to be ignored in nitpick mode
+# The list below has a list of such symbols to be iganalred in nitpick mode
 #
-nitpick_ignore = [
+nitpick_iganalre = [
     ("c:func", "clock_gettime"),
     ("c:func", "close"),
     ("c:func", "container_of"),
@@ -52,7 +52,7 @@ nitpick_ignore = [
     ("c:type", "buf_queue"),
     ("c:type", "device"),
     ("c:type", "device_driver"),
-    ("c:type", "device_node"),
+    ("c:type", "device_analde"),
     ("c:type", "enum"),
     ("c:type", "fd"),
     ("c:type", "fd_set"),

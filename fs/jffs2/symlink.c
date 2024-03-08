@@ -9,9 +9,9 @@
  *
  */
 
-#include "nodelist.h"
+#include "analdelist.h"
 
-const struct inode_operations jffs2_symlink_inode_operations =
+const struct ianalde_operations jffs2_symlink_ianalde_operations =
 {
 	.get_link =	simple_get_link,
 	.setattr =	jffs2_setattr,

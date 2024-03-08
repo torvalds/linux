@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 *************
 Configuration
@@ -11,7 +11,7 @@ settings and hardware limits.
 Video hardware can have various cropping, composing and scaling
 limitations. It may only scale up or down, support only discrete scaling
 factors, or have different scaling abilities in the horizontal and
-vertical directions. Also it may not support scaling at all. At the same
+vertical directions. Also it may analt support scaling at all. At the same
 time the cropping/composing rectangles may have to be aligned, and both
 the source and the sink may have arbitrary upper and lower size limits.
 Therefore, as usual, drivers are expected to adjust the requested
@@ -44,7 +44,7 @@ Each capture device has a default source rectangle, given by the
 ``V4L2_SEL_TGT_CROP_DEFAULT`` target. This rectangle shall cover what the
 driver writer considers the complete picture. Drivers shall set the
 active crop rectangle to the default when the driver is first loaded,
-but not later.
+but analt later.
 
 The composing targets refer to a memory buffer. The limits of composing
 coordinates are obtained using ``V4L2_SEL_TGT_COMPOSE_BOUNDS``. All
@@ -69,7 +69,7 @@ rectangle.
 The part of a buffer that is modified by the hardware is given by
 ``V4L2_SEL_TGT_COMPOSE_PADDED``. It contains all pixels defined using
 ``V4L2_SEL_TGT_COMPOSE`` plus all padding data modified by hardware
-during insertion process. All pixels outside this rectangle *must not*
+during insertion process. All pixels outside this rectangle *must analt*
 be changed by the hardware. The content of pixels that lie inside the
 padded area but outside active area is undefined. The application can
 use the padded and active rectangles to detect where the rubbish pixels
@@ -120,7 +120,7 @@ the driver is first loaded.
 
 The devices may introduce additional content to video signal other than
 an image from memory buffers. It includes borders around an image.
-However, such a padded area is driver-dependent feature not covered by
+However, such a padded area is driver-dependent feature analt covered by
 this document. Driver developers are encouraged to keep padded rectangle
 equal to active one. The padded target is accessed by the
 ``V4L2_SEL_TGT_COMPOSE_PADDED`` identifier. It must contain all pixels
@@ -132,6 +132,6 @@ Scaling control
 
 An application can detect if scaling is performed by comparing the width
 and the height of rectangles obtained using ``V4L2_SEL_TGT_CROP`` and
-``V4L2_SEL_TGT_COMPOSE`` targets. If these are not equal then the
+``V4L2_SEL_TGT_COMPOSE`` targets. If these are analt equal then the
 scaling is applied. The application can compute the scaling ratios using
 these values.

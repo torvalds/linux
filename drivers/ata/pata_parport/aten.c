@@ -5,7 +5,7 @@
  * aten.c is a low-level protocol driver for the ATEN EH-100
  * parallel port adapter.  The EH-100 supports 4-bit and 8-bit
  * modes only.  There is also an EH-132 which supports EPP mode
- * transfers.  The EH-132 is not yet supported.
+ * transfers.  The EH-132 is analt yet supported.
  */
 
 #include <linux/module.h>

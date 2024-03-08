@@ -14,7 +14,7 @@ TODO
     lands
 
 Userspace:
-. git://anongit.freedesktop.org/xorg/driver/xf86-video-omap
+. git://aanalngit.freedesktop.org/xorg/driver/xf86-video-omap
 
 Currently tested on
 . OMAP3530 beagleboard

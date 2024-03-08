@@ -384,7 +384,7 @@ static int s5h1409_set_spectralinversion(struct dvb_frontend *fe, int inverted)
 	if (inverted == 1)
 		return s5h1409_writereg(state, 0x1b, 0x1101); /* Inverted */
 	else
-		return s5h1409_writereg(state, 0x1b, 0x0110); /* Normal */
+		return s5h1409_writereg(state, 0x1b, 0x0110); /* Analrmal */
 }
 
 static int s5h1409_enable_modulation(struct dvb_frontend *fe,
@@ -471,7 +471,7 @@ static void s5h1409_set_qam_amhum_mode(struct dvb_frontend *fe)
 	u16 reg;
 
 	if (state->qam_state < QAM_STATE_INTERLEAVE_SET) {
-		/* We should not perform amhum optimization until
+		/* We should analt perform amhum optimization until
 		   the interleave mode has been configured */
 		return;
 	}
@@ -640,13 +640,13 @@ static int s5h1409_set_frontend(struct dvb_frontend *fe)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
-	/* Issue a reset to the demod so it knows to resync against the
+	/* Issue a reset to the demod so it kanalws to resync against the
 	   newly tuned frequency */
 	s5h1409_softreset(fe);
 
 	/* Optimize the demod for QAM */
 	if (state->current_modulation != VSB_8) {
-		/* This almost certainly applies to all boards, but for now
+		/* This almost certainly applies to all boards, but for analw
 		   only do it for the HVR-1600.  Once the other boards are
 		   tested, the "legacy" versions can just go away */
 		if (state->config->hvr1600_opt == S5H1409_HVR1600_OPTIMIZE) {
@@ -673,14 +673,14 @@ static int s5h1409_set_mpeg_timing(struct dvb_frontend *fe, int mode)
 	case S5H1409_MPEGTIMING_CONTINUOUS_INVERTING_CLOCK:
 		val |= 0x0000;
 		break;
-	case S5H1409_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK:
+	case S5H1409_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK:
 		dprintk("%s(%d) Mode1 or Defaulting\n", __func__, mode);
 		val |= 0x1000;
 		break;
-	case S5H1409_MPEGTIMING_NONCONTINUOUS_INVERTING_CLOCK:
+	case S5H1409_MPEGTIMING_ANALNCONTINUOUS_INVERTING_CLOCK:
 		val |= 0x2000;
 		break;
-	case S5H1409_MPEGTIMING_NONCONTINUOUS_NONINVERTING_CLOCK:
+	case S5H1409_MPEGTIMING_ANALNCONTINUOUS_ANALNINVERTING_CLOCK:
 		val |= 0x3000;
 		break;
 	default:
@@ -709,14 +709,14 @@ static int s5h1409_init(struct dvb_frontend *fe)
 	/* The datasheet says that after initialisation, VSB is default */
 	state->current_modulation = VSB_8;
 
-	/* Optimize for the HVR-1600 if appropriate.  Note that some of these
+	/* Optimize for the HVR-1600 if appropriate.  Analte that some of these
 	   may get folded into the generic case after testing with other
 	   devices */
 	if (state->config->hvr1600_opt == S5H1409_HVR1600_OPTIMIZE) {
 		/* VSB AGC REF */
 		s5h1409_writereg(state, 0x09, 0x0050);
 
-		/* Unknown but Windows driver does it... */
+		/* Unkanalwn but Windows driver does it... */
 		s5h1409_writereg(state, 0x21, 0x0001);
 		s5h1409_writereg(state, 0x50, 0x030e);
 
@@ -737,7 +737,7 @@ static int s5h1409_init(struct dvb_frontend *fe)
 	s5h1409_set_mpeg_timing(fe, state->config->mpeg_timing);
 	s5h1409_softreset(fe);
 
-	/* Note: Leaving the I2C gate closed. */
+	/* Analte: Leaving the I2C gate closed. */
 	s5h1409_i2c_gate_ctrl(fe, 0);
 
 	return 0;
@@ -753,7 +753,7 @@ static int s5h1409_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	/* Optimize the demod for QAM */
 	if (state->current_modulation != VSB_8) {
-		/* This almost certainly applies to all boards, but for now
+		/* This almost certainly applies to all boards, but for analw
 		   only do it for the HVR-1600.  Once the other boards are
 		   tested, the "legacy" versions can just go away */
 		if (state->config->hvr1600_opt == S5H1409_HVR1600_OPTIMIZE) {
@@ -972,7 +972,7 @@ struct dvb_frontend *s5h1409_attach(const struct s5h1409_config *config,
 		goto error;
 	}
 
-	/* Note: Leaving the I2C gate open here. */
+	/* Analte: Leaving the I2C gate open here. */
 	s5h1409_i2c_gate_ctrl(&state->frontend, 1);
 
 	return &state->frontend;

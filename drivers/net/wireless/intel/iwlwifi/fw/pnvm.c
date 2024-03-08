@@ -17,14 +17,14 @@ struct iwl_pnvm_section {
 	const u8 data[];
 } __packed;
 
-static bool iwl_pnvm_complete_fn(struct iwl_notif_wait_data *notif_wait,
+static bool iwl_pnvm_complete_fn(struct iwl_analtif_wait_data *analtif_wait,
 				 struct iwl_rx_packet *pkt, void *data)
 {
 	struct iwl_trans *trans = (struct iwl_trans *)data;
 	struct iwl_pnvm_init_complete_ntfy *pnvm_ntf = (void *)pkt->data;
 
 	IWL_DEBUG_FW(trans,
-		     "PNVM complete notification received with status 0x%0x\n",
+		     "PNVM complete analtification received with status 0x%0x\n",
 		     le32_to_cpu(pnvm_ntf->status));
 
 	return true;
@@ -108,7 +108,7 @@ static int iwl_pnvm_handle_section(struct iwl_trans *trans, const u8 *data,
 
 			/* TODO: remove, this is a deprecated separator */
 			if (le32_to_cpup((const __le32 *)data) == 0xddddeeee) {
-				IWL_DEBUG_FW(trans, "Ignoring separator.\n");
+				IWL_DEBUG_FW(trans, "Iganalring separator.\n");
 				break;
 			}
 
@@ -152,12 +152,12 @@ done:
 			     "HW mismatch, skipping PNVM section (need mac_type 0x%x rf_id 0x%x)\n",
 			     CSR_HW_REV_TYPE(trans->hw_rev),
 			     CSR_HW_RFID_TYPE(trans->hw_rf_id));
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (!pnvm_data->n_chunks) {
 		IWL_DEBUG_FW(trans, "Empty PNVM, skipping.\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return 0;
@@ -219,7 +219,7 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
@@ -231,9 +231,9 @@ static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
 
 	iwl_pnvm_get_fs_name(trans, pnvm_name, sizeof(pnvm_name));
 
-	ret = firmware_request_nowarn(&pnvm, pnvm_name, trans->dev);
+	ret = firmware_request_analwarn(&pnvm, pnvm_name, trans->dev);
 	if (ret) {
-		IWL_DEBUG_FW(trans, "PNVM file %s not found %d\n",
+		IWL_DEBUG_FW(trans, "PNVM file %s analt found %d\n",
 			     pnvm_name, ret);
 		return ret;
 	}
@@ -243,7 +243,7 @@ static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
 	release_firmware(pnvm);
 
 	if (!*data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*len = new_len;
 
@@ -269,7 +269,7 @@ static u8 *iwl_get_pnvm_image(struct iwl_trans *trans_p, size_t *len)
 			return image;
 	}
 
-	/* If it's not available, try from the filesystem */
+	/* If it's analt available, try from the filesystem */
 	if (iwl_pnvm_get_from_fs(trans_p, &image, len))
 		return NULL;
 	return image;
@@ -283,7 +283,7 @@ static void iwl_pnvm_load_pnvm_to_trans(struct iwl_trans *trans,
 	size_t length;
 	int ret;
 
-	/* failed to get/parse the image in the past, no use trying again */
+	/* failed to get/parse the image in the past, anal use trying again */
 	if (trans->fail_to_parse_pnvm_image)
 		return;
 
@@ -366,21 +366,21 @@ free:
 }
 
 int iwl_pnvm_load(struct iwl_trans *trans,
-		  struct iwl_notif_wait_data *notif_wait,
+		  struct iwl_analtif_wait_data *analtif_wait,
 		  const struct iwl_ucode_capabilities *capa)
 {
-	struct iwl_notification_wait pnvm_wait;
+	struct iwl_analtification_wait pnvm_wait;
 	static const u16 ntf_cmds[] = { WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						PNVM_INIT_COMPLETE_NTFY) };
 
-	/* if the SKU_ID is empty, there's nothing to do */
+	/* if the SKU_ID is empty, there's analthing to do */
 	if (!trans->sku_id[0] && !trans->sku_id[1] && !trans->sku_id[2])
 		return 0;
 
 	iwl_pnvm_load_pnvm_to_trans(trans, capa);
 	iwl_pnvm_load_reduce_power_to_trans(trans, capa);
 
-	iwl_init_notification_wait(notif_wait, &pnvm_wait,
+	iwl_init_analtification_wait(analtif_wait, &pnvm_wait,
 				   ntf_cmds, ARRAY_SIZE(ntf_cmds),
 				   iwl_pnvm_complete_fn, trans);
 
@@ -388,7 +388,7 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 	iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
 			    UREG_DOORBELL_TO_ISR6_PNVM);
 
-	return iwl_wait_notification(notif_wait, &pnvm_wait,
+	return iwl_wait_analtification(analtif_wait, &pnvm_wait,
 				     MVM_UCODE_PNVM_TIMEOUT);
 }
 IWL_EXPORT_SYMBOL(iwl_pnvm_load);

@@ -6,7 +6,7 @@
  *
  * Test to check the effect of various CPUID settings on
  * MSR_IA32_PERF_CAPABILITIES MSR, and check that what
- * we write with KVM_SET_MSR is _not_ modified by the guest
+ * we write with KVM_SET_MSR is _analt_ modified by the guest
  * and check it can be retrieved with KVM_GET_MSR, also test
  * the invalid LBR formats are rejected.
  */
@@ -156,7 +156,7 @@ static void test_fungible_perf_capabilities(union perf_capabilities host_cap)
 
 /*
  * Verify KVM rejects attempts to set unsupported and/or immutable features in
- * PERF_CAPABILITIES.  Note, LBR format and PEBS format need to be validated
+ * PERF_CAPABILITIES.  Analte, LBR format and PEBS format need to be validated
  * separately as they are multi-bit values, e.g. toggling or setting a single
  * bit can generate a false positive without dedicated safeguards.
  */

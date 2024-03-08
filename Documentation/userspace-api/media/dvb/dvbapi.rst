@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. include:: <isonum.txt>
 
 .. _dvbapi:
@@ -7,9 +7,9 @@
 Part II - Digital TV API
 ########################
 
-.. note::
+.. analte::
 
-   This API is also known as Linux **DVB API**.
+   This API is also kanalwn as Linux **DVB API**.
 
    It it was originally written to support the European digital TV
    standard (DVB), and later extended to support all digital TV standards.
@@ -22,7 +22,7 @@ Part II - Digital TV API
      - the Digital TV API version
        (e. g. DVB API version 3 or DVB API version 5);
      - digital TV data types (enums, structs, defines, etc);
-     - digital TV device nodes (``/dev/dvb/...``);
+     - digital TV device analdes (``/dev/dvb/...``);
      - the European DVB standard.
 
 **Version 5.10**
@@ -71,7 +71,7 @@ Revision History
 :revision: 2.2.0 / 2017-09-01 (*mcc*)
 
 Most gaps between the uAPI document and the Kernel implementation
-got fixed for the non-legacy API.
+got fixed for the analn-legacy API.
 
 :revision: 2.1.0 / 2015-05-29 (*mcc*)
 

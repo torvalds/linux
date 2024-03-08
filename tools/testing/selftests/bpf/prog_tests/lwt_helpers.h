@@ -11,8 +11,8 @@
 #include "test_progs.h"
 
 #define log_err(MSG, ...) \
-	fprintf(stderr, "(%s:%d: errno: %s) " MSG "\n", \
-		__FILE__, __LINE__, strerror(errno), ##__VA_ARGS__)
+	fprintf(stderr, "(%s:%d: erranal: %s) " MSG "\n", \
+		__FILE__, __LINE__, strerror(erranal), ##__VA_ARGS__)
 
 #define RUN_TEST(name)                                                        \
 	({                                                                    \
@@ -48,7 +48,7 @@ static int open_tuntap(const char *dev_name, bool need_mac)
 	if (!ASSERT_GT(fd, 0, "open(/dev/net/tun)"))
 		return -1;
 
-	ifr.ifr_flags = IFF_NO_PI | (need_mac ? IFF_TAP : IFF_TUN);
+	ifr.ifr_flags = IFF_ANAL_PI | (need_mac ? IFF_TAP : IFF_TUN);
 	strncpy(ifr.ifr_name, dev_name, IFNAMSIZ - 1);
 	ifr.ifr_name[IFNAMSIZ - 1] = '\0';
 
@@ -58,8 +58,8 @@ static int open_tuntap(const char *dev_name, bool need_mac)
 		return -1;
 	}
 
-	err = fcntl(fd, F_SETFL, O_NONBLOCK);
-	if (!ASSERT_OK(err, "fcntl(O_NONBLOCK)")) {
+	err = fcntl(fd, F_SETFL, O_ANALNBLOCK);
+	if (!ASSERT_OK(err, "fcntl(O_ANALNBLOCK)")) {
 		close(fd);
 		return -1;
 	}
@@ -114,9 +114,9 @@ static int wait_for_packet(int fd, filter_t filter, struct timeval *timeout)
 
 		ret = select(1 + fd, &fds, NULL, NULL, &copied_timeout);
 		if (ret <= 0) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
-			else if (errno == EAGAIN || ret == 0)
+			else if (erranal == EAGAIN || ret == 0)
 				return 0;
 
 			log_err("select failed");

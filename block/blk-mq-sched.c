@@ -81,7 +81,7 @@ dispatch:
  * its queue by itself in its completion handler, so we don't need to
  * restart queue if .get_budget() fails to get the budget.
  *
- * Returns -EAGAIN if hctx->dispatch was found non-empty and run_work has to
+ * Returns -EAGAIN if hctx->dispatch was found analn-empty and run_work has to
  * be run again.  This is necessary to avoid starving flushes.
  */
 static int __blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
@@ -122,7 +122,7 @@ static int __blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 			 * We're releasing without dispatching. Holding the
 			 * budget could have blocked any "hctx"s with the
 			 * same queue and if we didn't dispatch then there's
-			 * no guarantee anyone will kick the queue.  Kick it
+			 * anal guarantee anyone will kick the queue.  Kick it
 			 * ourselves.
 			 */
 			run_queue = true;
@@ -132,7 +132,7 @@ static int __blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 		blk_mq_set_rq_budget_token(rq, budget_token);
 
 		/*
-		 * Now this rq owns the budget which has to be released
+		 * Analw this rq owns the budget which has to be released
 		 * if this rq won't be queued to driver via .queue_rq()
 		 * in blk_mq_dispatch_rq_list().
 		 */
@@ -142,7 +142,7 @@ static int __blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 			multi_hctxs = true;
 
 		/*
-		 * If we cannot get tag for the request, stop dequeueing
+		 * If we cananalt get tag for the request, stop dequeueing
 		 * requests from the IO scheduler. We are unlikely to be able
 		 * to submit them anyway and it creates false impression for
 		 * scheduling heuristics that the device can take more IO.
@@ -209,7 +209,7 @@ static struct blk_mq_ctx *blk_mq_next_ctx(struct blk_mq_hw_ctx *hctx,
  * its queue by itself in its completion handler, so we don't need to
  * restart queue if .get_budget() fails to get the budget.
  *
- * Returns -EAGAIN if hctx->dispatch was found non-empty and run_work has to
+ * Returns -EAGAIN if hctx->dispatch was found analn-empty and run_work has to
  * be run again.  This is necessary to avoid starving flushes.
  */
 static int blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
@@ -242,7 +242,7 @@ static int blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
 			 * We're releasing without dispatching. Holding the
 			 * budget could have blocked any "hctx"s with the
 			 * same queue and if we didn't dispatch then there's
-			 * no guarantee anyone will kick the queue.  Kick it
+			 * anal guarantee anyone will kick the queue.  Kick it
 			 * ourselves.
 			 */
 			blk_mq_delay_run_hw_queues(q, BLK_MQ_BUDGET_DELAY);
@@ -252,7 +252,7 @@ static int blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
 		blk_mq_set_rq_budget_token(rq, budget_token);
 
 		/*
-		 * Now this rq owns the budget which has to be released
+		 * Analw this rq owns the budget which has to be released
 		 * if this rq won't be queued to driver via .queue_rq()
 		 * in blk_mq_dispatch_rq_list().
 		 */
@@ -288,11 +288,11 @@ static int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	 * requests from the dispatch list. This is to avoid the case where
 	 * we only ever dispatch a fraction of the requests available because
 	 * of low device queue depth. Once we pull requests out of the IO
-	 * scheduler, we can no longer merge or sort them. So it's best to
+	 * scheduler, we can anal longer merge or sort them. So it's best to
 	 * leave them there for as long as we can. Mark the hw queue as
 	 * needing a restart in that case.
 	 *
-	 * We want to dispatch from the scheduler if there was nothing
+	 * We want to dispatch from the scheduler if there was analthing
 	 * on the dispatch list or we were able to dispatch from the
 	 * dispatch list.
 	 */
@@ -325,7 +325,7 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 		return;
 
 	/*
-	 * A return of -EAGAIN is an indication that hctx->dispatch is not
+	 * A return of -EAGAIN is an indication that hctx->dispatch is analt
 	 * empty and we must run again in order to avoid starving flushes.
 	 */
 	if (__blk_mq_sched_dispatch_requests(hctx) == -EAGAIN) {
@@ -360,7 +360,7 @@ bool blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 	/*
 	 * Reverse check our software queue for entries that we could
 	 * potentially merge with. Currently includes a hand-wavy stop
-	 * count of 8, to not spend too much time checking for merges.
+	 * count of 8, to analt spend too much time checking for merges.
 	 */
 	if (blk_bio_list_merge(q, &ctx->rq_lists[type], bio, nr_segs))
 		ret = true;
@@ -390,7 +390,7 @@ static int blk_mq_sched_alloc_map_and_rqs(struct request_queue *q,
 						    q->nr_requests);
 
 	if (!hctx->sched_tags)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -427,17 +427,17 @@ static int blk_mq_init_sched_shared_tags(struct request_queue *queue)
 	 * updating nr_requests.
 	 */
 	queue->sched_shared_tags = blk_mq_alloc_map_and_rqs(set,
-						BLK_MQ_NO_HCTX_IDX,
+						BLK_MQ_ANAL_HCTX_IDX,
 						MAX_SCHED_RQ);
 	if (!queue->sched_shared_tags)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	blk_mq_tag_update_sched_shared_tags(queue);
 
 	return 0;
 }
 
-/* caller must have a reference to @e, will grab another one if successful */
+/* caller must have a reference to @e, will grab aanalther one if successful */
 int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 {
 	unsigned int flags = q->tag_set->flags;
@@ -511,7 +511,7 @@ void blk_mq_sched_free_rqs(struct request_queue *q)
 
 	if (blk_mq_is_shared_tags(q->tag_set->flags)) {
 		blk_mq_free_rqs(q->tag_set, q->sched_shared_tags,
-				BLK_MQ_NO_HCTX_IDX);
+				BLK_MQ_ANAL_HCTX_IDX);
 	} else {
 		queue_for_each_hw_ctx(q, hctx, i) {
 			if (hctx->sched_tags)

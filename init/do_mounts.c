@@ -36,7 +36,7 @@ dev_t ROOT_DEV;
 
 static int __init load_ramdisk(char *str)
 {
-	pr_warn("ignoring the deprecated load_ramdisk= option\n");
+	pr_warn("iganalring the deprecated load_ramdisk= option\n");
 	return 1;
 }
 __setup("load_ramdisk=", load_ramdisk);
@@ -83,18 +83,18 @@ static int __init rootwait_timeout_setup(char *str)
 	int sec;
 
 	if (kstrtoint(str, 0, &sec) || sec < 0) {
-		pr_warn("ignoring invalid rootwait value\n");
-		goto ignore;
+		pr_warn("iganalring invalid rootwait value\n");
+		goto iganalre;
 	}
 
 	if (check_mul_overflow(sec, MSEC_PER_SEC, &root_wait)) {
-		pr_warn("ignoring excessive rootwait value\n");
-		goto ignore;
+		pr_warn("iganalring excessive rootwait value\n");
+		goto iganalre;
 	}
 
 	return 1;
 
-ignore:
+iganalre:
 	/* Fallback to indefinite wait */
 	root_wait = -1;
 
@@ -157,7 +157,7 @@ static int __init do_mount_root(const char *name, const char *fs,
 		/* init_mount() requires a full page as fifth argument */
 		p = alloc_page(GFP_KERNEL);
 		if (!p)
-			return -ENOMEM;
+			return -EANALMEM;
 		data_page = page_address(p);
 		/* zero-pad. init_mount() will make sure it's terminated */
 		strncpy(data_page, data, PAGE_SIZE);
@@ -174,7 +174,7 @@ static int __init do_mount_root(const char *name, const char *fs,
 	       "VFS: Mounted root (%s filesystem)%s on device %u:%u.\n",
 	       s->s_type->name,
 	       sb_rdonly(s) ? " readonly" : "",
-	       MAJOR(ROOT_DEV), MINOR(ROOT_DEV));
+	       MAJOR(ROOT_DEV), MIANALR(ROOT_DEV));
 
 out:
 	if (p)
@@ -190,8 +190,8 @@ void __init mount_root_generic(char *name, char *pretty_name, int flags)
 	char b[BDEVNAME_SIZE];
 	int num_fs, i;
 
-	scnprintf(b, BDEVNAME_SIZE, "unknown-block(%u,%u)",
-		  MAJOR(ROOT_DEV), MINOR(ROOT_DEV));
+	scnprintf(b, BDEVNAME_SIZE, "unkanalwn-block(%u,%u)",
+		  MAJOR(ROOT_DEV), MIANALR(ROOT_DEV));
 	if (root_fs_names)
 		num_fs = split_fs_names(fs_names, PAGE_SIZE);
 	else
@@ -215,7 +215,7 @@ retry:
 		 * and bad superblock on root device.
 		 * and give them a list of the available devices
 		 */
-		printk("VFS: Cannot open root device \"%s\" or %s: error %d\n",
+		printk("VFS: Cananalt open root device \"%s\" or %s: error %d\n",
 				pretty_name, b, err);
 		printk("Please append a correct \"root=\" boot option; here are the available partitions:\n");
 		printk_all_partitions();
@@ -240,7 +240,7 @@ retry:
 
 	printk("List of all partitions:\n");
 	printk_all_partitions();
-	printk("No filesystem could mount root, tried: ");
+	printk("Anal filesystem could mount root, tried: ");
 	for (i = 0, p = fs_names; i < num_fs; i++, p += strlen(p)+1)
 		printk(" %s", p);
 	printk("\n");
@@ -265,7 +265,7 @@ static void __init mount_nfs_root(void)
 		goto fail;
 
 	/*
-	 * The server or network may not be ready, so try several
+	 * The server or network may analt be ready, so try several
 	 * times.  Stop after a few tries in case the client wants
 	 * to fall back to other boot methods.
 	 */
@@ -328,7 +328,7 @@ static inline void mount_cifs_root(void)
 }
 #endif /* CONFIG_CIFS_ROOT */
 
-static bool __init fs_is_nodev(char *fstype)
+static bool __init fs_is_analdev(char *fstype)
 {
 	struct file_system_type *fs = get_fs_type(fstype);
 	bool ret = false;
@@ -341,7 +341,7 @@ static bool __init fs_is_nodev(char *fstype)
 	return ret;
 }
 
-static int __init mount_nodev_root(char *root_device_name)
+static int __init mount_analdev_root(char *root_device_name)
 {
 	char *fs_names, *fstype;
 	int err = -EINVAL;
@@ -356,7 +356,7 @@ static int __init mount_nodev_root(char *root_device_name)
 	     i++, fstype += strlen(fstype) + 1) {
 		if (!*fstype)
 			continue;
-		if (!fs_is_nodev(fstype))
+		if (!fs_is_analdev(fstype))
 			continue;
 		err = do_mount_root(root_device_name, fstype, root_mountflags,
 				    root_mount_data);
@@ -398,7 +398,7 @@ void __init mount_root(char *root_device_name)
 		break;
 	case 0:
 		if (root_device_name && root_fs_names &&
-		    mount_nodev_root(root_device_name) == 0)
+		    mount_analdev_root(root_device_name) == 0)
 			break;
 		fallthrough;
 	default:
@@ -407,7 +407,7 @@ void __init mount_root(char *root_device_name)
 	}
 }
 
-/* wait for any asynchronous scanning to complete */
+/* wait for any asynchroanalus scanning to complete */
 static void __init wait_for_root(char *root_device_name)
 {
 	ktime_t end;
@@ -468,10 +468,10 @@ void __init prepare_namespace(void)
 	}
 
 	/*
-	 * wait for the known devices to complete their probing
+	 * wait for the kanalwn devices to complete their probing
 	 *
-	 * Note: this is a potential source of long boot delays.
-	 * For example, it is not atypical to wait 5 seconds here
+	 * Analte: this is a potential source of long boot delays.
+	 * For example, it is analt atypical to wait 5 seconds here
 	 * for the touchpad of a laptop to initialize.
 	 */
 	wait_for_device_probe();

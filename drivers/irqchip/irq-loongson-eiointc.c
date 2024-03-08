@@ -2,7 +2,7 @@
 /*
  * Loongson Extend I/O Interrupt Controller support
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #define pr_fmt(fmt) "eiointc: " fmt
@@ -16,7 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/syscore_ops.h>
 
-#define EIOINTC_REG_NODEMAP	0x14a0
+#define EIOINTC_REG_ANALDEMAP	0x14a0
 #define EIOINTC_REG_IPMAP	0x14c0
 #define EIOINTC_REG_ENABLE	0x1600
 #define EIOINTC_REG_BOUNCE	0x1680
@@ -30,16 +30,16 @@
 #define VEC_REG_BIT(irq_id)     ((irq_id) % VEC_COUNT_PER_REG)
 #define EIOINTC_ALL_ENABLE	0xffffffff
 
-#define MAX_EIO_NODES		(NR_CPUS / CORES_PER_EIO_NODE)
+#define MAX_EIO_ANALDES		(NR_CPUS / CORES_PER_EIO_ANALDE)
 
 static int nr_pics;
 
 struct eiointc_priv {
-	u32			node;
+	u32			analde;
 	u32			vec_count;
-	nodemask_t		node_map;
+	analdemask_t		analde_map;
 	cpumask_t		cpuspan_map;
-	struct fwnode_handle	*domain_handle;
+	struct fwanalde_handle	*domain_handle;
 	struct irq_domain	*eiointc_domain;
 };
 
@@ -54,14 +54,14 @@ static void eiointc_enable(void)
 	iocsr_write64(misc, LOONGARCH_IOCSR_MISC_FUNC);
 }
 
-static int cpu_to_eio_node(int cpu)
+static int cpu_to_eio_analde(int cpu)
 {
-	return cpu_logical_map(cpu) / CORES_PER_EIO_NODE;
+	return cpu_logical_map(cpu) / CORES_PER_EIO_ANALDE;
 }
 
-static void eiointc_set_irq_route(int pos, unsigned int cpu, unsigned int mnode, nodemask_t *node_map)
+static void eiointc_set_irq_route(int pos, unsigned int cpu, unsigned int manalde, analdemask_t *analde_map)
 {
-	int i, node, cpu_node, route_node;
+	int i, analde, cpu_analde, route_analde;
 	unsigned char coremap;
 	uint32_t pos_off, data, data_byte, data_mask;
 
@@ -69,19 +69,19 @@ static void eiointc_set_irq_route(int pos, unsigned int cpu, unsigned int mnode,
 	data_byte = pos & 3;
 	data_mask = ~BIT_MASK(data_byte) & 0xf;
 
-	/* Calculate node and coremap of target irq */
-	cpu_node = cpu_logical_map(cpu) / CORES_PER_EIO_NODE;
-	coremap = BIT(cpu_logical_map(cpu) % CORES_PER_EIO_NODE);
+	/* Calculate analde and coremap of target irq */
+	cpu_analde = cpu_logical_map(cpu) / CORES_PER_EIO_ANALDE;
+	coremap = BIT(cpu_logical_map(cpu) % CORES_PER_EIO_ANALDE);
 
 	for_each_online_cpu(i) {
-		node = cpu_to_eio_node(i);
-		if (!node_isset(node, *node_map))
+		analde = cpu_to_eio_analde(i);
+		if (!analde_isset(analde, *analde_map))
 			continue;
 
-		/* EIO node 0 is in charge of inter-node interrupt dispatch */
-		route_node = (node == mnode) ? cpu_node : node;
-		data = ((coremap | (route_node << 4)) << (data_byte * 8));
-		csr_any_send(EIOINTC_REG_ROUTE + pos_off, data, data_mask, node * CORES_PER_EIO_NODE);
+		/* EIO analde 0 is in charge of inter-analde interrupt dispatch */
+		route_analde = (analde == manalde) ? cpu_analde : analde;
+		data = ((coremap | (route_analde << 4)) << (data_byte * 8));
+		csr_any_send(EIOINTC_REG_ROUTE + pos_off, data, data_mask, analde * CORES_PER_EIO_ANALDE);
 	}
 }
 
@@ -111,14 +111,14 @@ static int eiointc_set_irq_affinity(struct irq_data *d, const struct cpumask *af
 
 	/* Mask target vector */
 	csr_any_send(regaddr, EIOINTC_ALL_ENABLE & (~BIT(vector & 0x1F)),
-			0x0, priv->node * CORES_PER_EIO_NODE);
+			0x0, priv->analde * CORES_PER_EIO_ANALDE);
 
 	/* Set route for target vector */
-	eiointc_set_irq_route(vector, cpu, priv->node, &priv->node_map);
+	eiointc_set_irq_route(vector, cpu, priv->analde, &priv->analde_map);
 
 	/* Unmask target vector */
 	csr_any_send(regaddr, EIOINTC_ALL_ENABLE,
-			0x0, priv->node * CORES_PER_EIO_NODE);
+			0x0, priv->analde * CORES_PER_EIO_ANALDE);
 
 	irq_data_update_effective_affinity(d, cpumask_of(cpu));
 
@@ -127,12 +127,12 @@ static int eiointc_set_irq_affinity(struct irq_data *d, const struct cpumask *af
 	return IRQ_SET_MASK_OK;
 }
 
-static int eiointc_index(int node)
+static int eiointc_index(int analde)
 {
 	int i;
 
 	for (i = 0; i < nr_pics; i++) {
-		if (node_isset(node, eiointc_priv[i]->node_map))
+		if (analde_isset(analde, eiointc_priv[i]->analde_map))
 			return i;
 	}
 
@@ -143,20 +143,20 @@ static int eiointc_router_init(unsigned int cpu)
 {
 	int i, bit;
 	uint32_t data;
-	uint32_t node = cpu_to_eio_node(cpu);
-	int index = eiointc_index(node);
+	uint32_t analde = cpu_to_eio_analde(cpu);
+	int index = eiointc_index(analde);
 
 	if (index < 0) {
-		pr_err("Error: invalid nodemap!\n");
+		pr_err("Error: invalid analdemap!\n");
 		return -1;
 	}
 
-	if ((cpu_logical_map(cpu) % CORES_PER_EIO_NODE) == 0) {
+	if ((cpu_logical_map(cpu) % CORES_PER_EIO_ANALDE) == 0) {
 		eiointc_enable();
 
 		for (i = 0; i < eiointc_priv[0]->vec_count / 32; i++) {
 			data = (((1 << (i * 2 + 1)) << 16) | (1 << (i * 2)));
-			iocsr_write32(data, EIOINTC_REG_NODEMAP + i * 4);
+			iocsr_write32(data, EIOINTC_REG_ANALDEMAP + i * 4);
 		}
 
 		for (i = 0; i < eiointc_priv[0]->vec_count / 32 / 4; i++) {
@@ -166,11 +166,11 @@ static int eiointc_router_init(unsigned int cpu)
 		}
 
 		for (i = 0; i < eiointc_priv[0]->vec_count / 4; i++) {
-			/* Route to Node-0 Core-0 */
+			/* Route to Analde-0 Core-0 */
 			if (index == 0)
 				bit = BIT(cpu_logical_map(0));
 			else
-				bit = (eiointc_priv[index]->node << 4) | 1;
+				bit = (eiointc_priv[index]->analde << 4) | 1;
 
 			data = bit | (bit << 8) | (bit << 16) | (bit << 24);
 			iocsr_write32(data, EIOINTC_REG_ROUTE + i * 4);
@@ -274,24 +274,24 @@ static const struct irq_domain_ops eiointc_domain_ops = {
 	.free		= eiointc_domain_free,
 };
 
-static void acpi_set_vec_parent(int node, struct irq_domain *parent, struct acpi_vector_group *vec_group)
+static void acpi_set_vec_parent(int analde, struct irq_domain *parent, struct acpi_vector_group *vec_group)
 {
 	int i;
 
 	for (i = 0; i < MAX_IO_PICS; i++) {
-		if (node == vec_group[i].node) {
+		if (analde == vec_group[i].analde) {
 			vec_group[i].parent = parent;
 			return;
 		}
 	}
 }
 
-static struct irq_domain *acpi_get_vec_parent(int node, struct acpi_vector_group *vec_group)
+static struct irq_domain *acpi_get_vec_parent(int analde, struct acpi_vector_group *vec_group)
 {
 	int i;
 
 	for (i = 0; i < MAX_IO_PICS; i++) {
-		if (node == vec_group[i].node)
+		if (analde == vec_group[i].analde)
 			return vec_group[i].parent;
 	}
 	return NULL;
@@ -332,8 +332,8 @@ static int __init pch_pic_parse_madt(union acpi_subtable_headers *header,
 					const unsigned long end)
 {
 	struct acpi_madt_bio_pic *pchpic_entry = (struct acpi_madt_bio_pic *)header;
-	unsigned int node = (pchpic_entry->address >> 44) & 0xf;
-	struct irq_domain *parent = acpi_get_vec_parent(node, pch_group);
+	unsigned int analde = (pchpic_entry->address >> 44) & 0xf;
+	struct irq_domain *parent = acpi_get_vec_parent(analde, pch_group);
 
 	if (parent)
 		return pch_pic_acpi_init(parent, pchpic_entry);
@@ -346,14 +346,14 @@ static int __init pch_msi_parse_madt(union acpi_subtable_headers *header,
 {
 	struct irq_domain *parent;
 	struct acpi_madt_msi_pic *pchmsi_entry = (struct acpi_madt_msi_pic *)header;
-	int node;
+	int analde;
 
 	if (cpu_has_flatmode)
-		node = cpu_to_node(eiointc_priv[nr_pics - 1]->node * CORES_PER_EIO_NODE);
+		analde = cpu_to_analde(eiointc_priv[nr_pics - 1]->analde * CORES_PER_EIO_ANALDE);
 	else
-		node = eiointc_priv[nr_pics - 1]->node;
+		analde = eiointc_priv[nr_pics - 1]->analde;
 
-	parent = acpi_get_vec_parent(node, msi_group);
+	parent = acpi_get_vec_parent(analde, msi_group);
 
 	if (parent)
 		return pch_msi_acpi_init(parent, pchmsi_entry);
@@ -377,14 +377,14 @@ static int __init acpi_cascade_irqdomain_init(void)
 }
 
 static int __init eiointc_init(struct eiointc_priv *priv, int parent_irq,
-			       u64 node_map)
+			       u64 analde_map)
 {
 	int i;
 
-	node_map = node_map ? node_map : -1ULL;
+	analde_map = analde_map ? analde_map : -1ULL;
 	for_each_possible_cpu(i) {
-		if (node_map & (1ULL << (cpu_to_eio_node(i)))) {
-			node_set(cpu_to_eio_node(i), priv->node_map);
+		if (analde_map & (1ULL << (cpu_to_eio_analde(i)))) {
+			analde_set(cpu_to_eio_analde(i), priv->analde_map);
 			cpumask_or(&priv->cpuspan_map, &priv->cpuspan_map,
 				   cpumask_of(i));
 		}
@@ -395,8 +395,8 @@ static int __init eiointc_init(struct eiointc_priv *priv, int parent_irq,
 							&eiointc_domain_ops,
 							priv);
 	if (!priv->eiointc_domain) {
-		pr_err("loongson-extioi: cannot add IRQ domain\n");
-		return -ENOMEM;
+		pr_err("loongson-extioi: cananalt add IRQ domain\n");
+		return -EANALMEM;
 	}
 
 	eiointc_priv[nr_pics++] = priv;
@@ -405,7 +405,7 @@ static int __init eiointc_init(struct eiointc_priv *priv, int parent_irq,
 
 	if (nr_pics == 1) {
 		register_syscore_ops(&eiointc_syscore_ops);
-		cpuhp_setup_state_nocalls(CPUHP_AP_IRQ_LOONGARCH_STARTING,
+		cpuhp_setup_state_analcalls(CPUHP_AP_IRQ_LOONGARCH_STARTING,
 					  "irqchip/loongarch/intc:starting",
 					  eiointc_router_init, NULL);
 	}
@@ -418,34 +418,34 @@ int __init eiointc_acpi_init(struct irq_domain *parent,
 {
 	int parent_irq, ret;
 	struct eiointc_priv *priv;
-	int node;
+	int analde;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	priv->domain_handle = irq_domain_alloc_named_id_fwnode("EIOPIC",
-							       acpi_eiointc->node);
+	priv->domain_handle = irq_domain_alloc_named_id_fwanalde("EIOPIC",
+							       acpi_eiointc->analde);
 	if (!priv->domain_handle) {
 		pr_err("Unable to allocate domain handle\n");
 		goto out_free_priv;
 	}
 
 	priv->vec_count = VEC_COUNT;
-	priv->node = acpi_eiointc->node;
+	priv->analde = acpi_eiointc->analde;
 
 	parent_irq = irq_create_mapping(parent, acpi_eiointc->cascade);
 
-	ret = eiointc_init(priv, parent_irq, acpi_eiointc->node_map);
+	ret = eiointc_init(priv, parent_irq, acpi_eiointc->analde_map);
 	if (ret < 0)
 		goto out_free_handle;
 
 	if (cpu_has_flatmode)
-		node = cpu_to_node(acpi_eiointc->node * CORES_PER_EIO_NODE);
+		analde = cpu_to_analde(acpi_eiointc->analde * CORES_PER_EIO_ANALDE);
 	else
-		node = acpi_eiointc->node;
-	acpi_set_vec_parent(node, priv->eiointc_domain, pch_group);
-	acpi_set_vec_parent(node, priv->eiointc_domain, msi_group);
+		analde = acpi_eiointc->analde;
+	acpi_set_vec_parent(analde, priv->eiointc_domain, pch_group);
+	acpi_set_vec_parent(analde, priv->eiointc_domain, msi_group);
 
 	ret = acpi_cascade_irqdomain_init();
 	if (ret < 0)
@@ -454,27 +454,27 @@ int __init eiointc_acpi_init(struct irq_domain *parent,
 	return ret;
 
 out_free_handle:
-	irq_domain_free_fwnode(priv->domain_handle);
+	irq_domain_free_fwanalde(priv->domain_handle);
 	priv->domain_handle = NULL;
 out_free_priv:
 	kfree(priv);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
-static int __init eiointc_of_init(struct device_node *of_node,
-				  struct device_node *parent)
+static int __init eiointc_of_init(struct device_analde *of_analde,
+				  struct device_analde *parent)
 {
 	int parent_irq, ret;
 	struct eiointc_priv *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	parent_irq = irq_of_parse_and_map(of_node, 0);
+	parent_irq = irq_of_parse_and_map(of_analde, 0);
 	if (parent_irq <= 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_free_priv;
 	}
 
@@ -486,13 +486,13 @@ static int __init eiointc_of_init(struct device_node *of_node,
 	 * In particular, the number of devices supported by the LS2K0500
 	 * extended I/O interrupt vector is 128.
 	 */
-	if (of_device_is_compatible(of_node, "loongson,ls2k0500-eiointc"))
+	if (of_device_is_compatible(of_analde, "loongson,ls2k0500-eiointc"))
 		priv->vec_count = 128;
 	else
 		priv->vec_count = VEC_COUNT;
 
-	priv->node = 0;
-	priv->domain_handle = of_node_to_fwnode(of_node);
+	priv->analde = 0;
+	priv->domain_handle = of_analde_to_fwanalde(of_analde);
 
 	ret = eiointc_init(priv, parent_irq, 0);
 	if (ret < 0)

@@ -12,18 +12,18 @@
  * buttons are ENTER and ESCAPE, and so on. This is implemented as additional
  * HID interfaces.
  *
- * This is known as the "lizard mode", because apparently lizards like to use
+ * This is kanalwn as the "lizard mode", because apparently lizards like to use
  * the computer from the coach, without a proper mouse and keyboard.
  *
  * This driver will disable the lizard mode when the input device is opened
- * and re-enable it when the input device is closed, so as not to break user
+ * and re-enable it when the input device is closed, so as analt to break user
  * mode behaviour. The lizard_mode parameter can be used to change that.
  *
- * There are a few user space applications (notably Steam Client) that use
+ * There are a few user space applications (analtably Steam Client) that use
  * the hidraw interface directly to create input devices (XTest, uinput...).
  * In order to avoid breaking them this driver creates a layered hidraw device,
  * so it can detect when the client is running and then:
- *  - it will not send any command to the controller.
+ *  - it will analt send any command to the controller.
  *  - this input device will be removed, to avoid double input of the same
  *    user action.
  * When the client is closed, this input device will be created again.
@@ -192,7 +192,7 @@ enum {
 
 	/* 50 */
 	SETTING_SLEEP_INACTIVITY_TIMEOUT,
-	SETTING_TRACKPAD_NOISE_THRESHOLD,
+	SETTING_TRACKPAD_ANALISE_THRESHOLD,
 	SETTING_LEFT_TRACKPAD_CLICK_PRESSURE,
 	SETTING_RIGHT_TRACKPAD_CLICK_PRESSURE,
 	SETTING_LEFT_BUMPER_CLICK_PRESSURE,
@@ -269,7 +269,7 @@ enum {
 	TRACKPAD_DPAD_EIGHT_WAY,
 	TRACKPAD_RADIAL_MODE,
 	TRACKPAD_ABSOLUTE_DPAD,
-	TRACKPAD_NONE,
+	TRACKPAD_ANALNE,
 	TRACKPAD_GESTURE_KEYBOARD,
 };
 
@@ -291,7 +291,7 @@ struct steam_device {
 	unsigned long quirks;
 	struct work_struct work_connect;
 	bool connected;
-	char serial_no[STEAM_SERIAL_LEN + 1];
+	char serial_anal[STEAM_SERIAL_LEN + 1];
 	struct power_supply_desc battery_desc;
 	struct power_supply __rcu *battery;
 	u8 battery_charge;
@@ -313,7 +313,7 @@ static int steam_recv_report(struct steam_device *steam,
 
 	r = steam->hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[0];
 	if (!r) {
-		hid_err(steam->hdev, "No HID_FEATURE_REPORT submitted -  nothing to read\n");
+		hid_err(steam->hdev, "Anal HID_FEATURE_REPORT submitted -  analthing to read\n");
 		return -EINVAL;
 	}
 
@@ -322,11 +322,11 @@ static int steam_recv_report(struct steam_device *steam,
 
 	buf = hid_alloc_report_buf(r, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * The report ID is always 0, so strip the first byte from the output.
-	 * hid_report_len() is not counting the report ID, so +1 to the length
+	 * hid_report_len() is analt counting the report ID, so +1 to the length
 	 * or else we get a EOVERFLOW. We are safe from a buffer overflow
 	 * because hid_alloc_report_buf() allocates +7 bytes.
 	 */
@@ -349,7 +349,7 @@ static int steam_send_report(struct steam_device *steam,
 
 	r = steam->hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[0];
 	if (!r) {
-		hid_err(steam->hdev, "No HID_FEATURE_REPORT submitted -  nothing to read\n");
+		hid_err(steam->hdev, "Anal HID_FEATURE_REPORT submitted -  analthing to read\n");
 		return -EINVAL;
 	}
 
@@ -358,7 +358,7 @@ static int steam_send_report(struct steam_device *steam,
 
 	buf = hid_alloc_report_buf(r, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* The report ID is always 0 */
 	memcpy(buf + 1, cmd, size);
@@ -432,7 +432,7 @@ static int steam_get_serial(struct steam_device *steam)
 	 * Recv: 0xae 0x15 0x01 serialnumber
 	 */
 	int ret = 0;
-	u8 cmd[] = {ID_GET_STRING_ATTRIBUTE, sizeof(steam->serial_no), ATTRIB_STR_UNIT_SERIAL};
+	u8 cmd[] = {ID_GET_STRING_ATTRIBUTE, sizeof(steam->serial_anal), ATTRIB_STR_UNIT_SERIAL};
 	u8 reply[3 + STEAM_SERIAL_LEN + 1];
 
 	mutex_lock(&steam->report_mutex);
@@ -443,12 +443,12 @@ static int steam_get_serial(struct steam_device *steam)
 	if (ret < 0)
 		goto out;
 	if (reply[0] != ID_GET_STRING_ATTRIBUTE || reply[1] < 1 ||
-	    reply[1] > sizeof(steam->serial_no) || reply[2] != ATTRIB_STR_UNIT_SERIAL) {
+	    reply[1] > sizeof(steam->serial_anal) || reply[2] != ATTRIB_STR_UNIT_SERIAL) {
 		ret = -EIO;
 		goto out;
 	}
 	reply[3 + STEAM_SERIAL_LEN] = 0;
-	strscpy(steam->serial_no, reply + 3, reply[1]);
+	strscpy(steam->serial_anal, reply + 3, reply[1]);
 out:
 	mutex_unlock(&steam->report_mutex);
 	return ret;
@@ -561,8 +561,8 @@ static void steam_set_lizard_mode(struct steam_device *steam, bool enable)
 
 		if (steam->quirks & STEAM_QUIRK_DECK) {
 			steam_write_settings(steam,
-				SETTING_LEFT_TRACKPAD_MODE, TRACKPAD_NONE, /* disable mouse */
-				SETTING_RIGHT_TRACKPAD_MODE, TRACKPAD_NONE, /* disable mouse */
+				SETTING_LEFT_TRACKPAD_MODE, TRACKPAD_ANALNE, /* disable mouse */
+				SETTING_RIGHT_TRACKPAD_MODE, TRACKPAD_ANALNE, /* disable mouse */
 				SETTING_LEFT_TRACKPAD_CLICK_PRESSURE, 0xFFFF, /* disable haptic click */
 				SETTING_RIGHT_TRACKPAD_CLICK_PRESSURE, 0xFFFF, /* disable haptic click */
 				SETTING_STEAM_WATCHDOG_ENABLE, 0, /* disable watchdog that tests if Steam is active */
@@ -570,8 +570,8 @@ static void steam_set_lizard_mode(struct steam_device *steam, bool enable)
 			mutex_unlock(&steam->report_mutex);
 		} else {
 			steam_write_settings(steam,
-				SETTING_LEFT_TRACKPAD_MODE, TRACKPAD_NONE, /* disable mouse */
-				SETTING_RIGHT_TRACKPAD_MODE, TRACKPAD_NONE, /* disable mouse */
+				SETTING_LEFT_TRACKPAD_MODE, TRACKPAD_ANALNE, /* disable mouse */
+				SETTING_RIGHT_TRACKPAD_MODE, TRACKPAD_ANALNE, /* disable mouse */
 				0);
 			mutex_unlock(&steam->report_mutex);
 		}
@@ -618,7 +618,7 @@ static void steam_input_close(struct input_dev *dev)
 static enum power_supply_property steam_battery_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_SCOPE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 };
 
@@ -644,7 +644,7 @@ static int steam_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_SCOPE:
 		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		val->intval = volts * 1000; /* mV -> uV */
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
@@ -670,9 +670,9 @@ static int steam_battery_register(struct steam_device *steam)
 	steam->battery_desc.get_property = steam_battery_get_property;
 	steam->battery_desc.name = devm_kasprintf(&steam->hdev->dev,
 			GFP_KERNEL, "steam-controller-%s-battery",
-			steam->serial_no);
+			steam->serial_anal);
 	if (!steam->battery_desc.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* avoid the warning of 0% battery while waiting for the first info */
 	spin_lock_irqsave(&steam->lock, flags);
@@ -710,7 +710,7 @@ static int steam_input_register(struct steam_device *steam)
 
 	input = input_allocate_device();
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_set_drvdata(input, steam);
 	input->dev.parent = &hdev->dev;
@@ -721,7 +721,7 @@ static int steam_input_register(struct steam_device *steam)
 		(steam->quirks & STEAM_QUIRK_DECK) ? "Steam Deck" :
 		"Steam Controller";
 	input->phys = hdev->phys;
-	input->uniq = steam->serial_no;
+	input->uniq = steam->serial_anal;
 	input->id.bustype = hdev->bus;
 	input->id.vendor = hdev->vendor;
 	input->id.product = hdev->product;
@@ -862,22 +862,22 @@ static int steam_register(struct steam_device *steam)
 	/*
 	 * This function can be called several times in a row with the
 	 * wireless adaptor, without steam_unregister() between them, because
-	 * another client send a get_connection_status command, for example.
+	 * aanalther client send a get_connection_status command, for example.
 	 * The battery and serial number are set just once per device.
 	 */
-	if (!steam->serial_no[0]) {
+	if (!steam->serial_anal[0]) {
 		/*
-		 * Unlikely, but getting the serial could fail, and it is not so
+		 * Unlikely, but getting the serial could fail, and it is analt so
 		 * important, so make up a serial number and go on.
 		 */
 		if (steam_get_serial(steam) < 0)
-			strscpy(steam->serial_no, "XXXXXXXXXX",
-					sizeof(steam->serial_no));
+			strscpy(steam->serial_anal, "XXXXXXXXXX",
+					sizeof(steam->serial_anal));
 
 		hid_info(steam->hdev, "Steam Controller '%s' connected",
-				steam->serial_no);
+				steam->serial_anal);
 
-		/* ignore battery errors, we can live without it */
+		/* iganalre battery errors, we can live without it */
 		if (steam->quirks & STEAM_QUIRK_WIRELESS)
 			steam_battery_register(steam);
 
@@ -903,13 +903,13 @@ static void steam_unregister(struct steam_device *steam)
 {
 	steam_battery_unregister(steam);
 	steam_input_unregister(steam);
-	if (steam->serial_no[0]) {
+	if (steam->serial_anal[0]) {
 		hid_info(steam->hdev, "Steam Controller '%s' disconnected",
-				steam->serial_no);
+				steam->serial_anal);
 		mutex_lock(&steam_devices_lock);
 		list_del_init(&steam->list);
 		mutex_unlock(&steam_devices_lock);
-		steam->serial_no[0] = 0;
+		steam->serial_anal[0] = 0;
 	}
 }
 
@@ -977,7 +977,7 @@ static bool steam_is_valve_interface(struct hid_device *hdev)
 	 * The wireless device creates 5 interfaces:
 	 *  0: emulated keyboard.
 	 *  1-4: slots where up to 4 real game pads will be connected to.
-	 * We know which one is the real gamepad interface because they are the
+	 * We kanalw which one is the real gamepad interface because they are the
 	 * only ones with a feature report.
 	 */
 	rep_enum = &hdev->report_enum[HID_FEATURE_REPORT];
@@ -1102,7 +1102,7 @@ static int steam_probe(struct hid_device *hdev,
 	if (hdev->group == HID_GROUP_STEAM)
 		return hid_hw_start(hdev, HID_CONNECT_HIDRAW);
 	/*
-	 * The non-valve interfaces (mouse and keyboard emulation) are
+	 * The analn-valve interfaces (mouse and keyboard emulation) are
 	 * connected without changes.
 	 */
 	if (!steam_is_valve_interface(hdev))
@@ -1110,7 +1110,7 @@ static int steam_probe(struct hid_device *hdev,
 
 	steam = devm_kzalloc(&hdev->dev, sizeof(*steam), GFP_KERNEL);
 	if (!steam)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	steam->hdev = hdev;
 	hid_set_drvdata(hdev, steam);
@@ -1123,7 +1123,7 @@ static int steam_probe(struct hid_device *hdev,
 	INIT_WORK(&steam->rumble_work, steam_haptic_rumble_cb);
 
 	/*
-	 * With the real steam controller interface, do not connect hidraw.
+	 * With the real steam controller interface, do analt connect hidraw.
 	 * Instead, create the client_hid and connect that.
 	 */
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_HIDRAW);
@@ -1236,8 +1236,8 @@ static inline s16 steam_le16(u8 *data)
 
 /*
  * The size for this message payload is 60.
- * The known values are:
- *  (* values are not sent through wireless)
+ * The kanalwn values are:
+ *  (* values are analt sent through wireless)
  *  (* accelerator/gyro is disabled by default)
  *  Offset| Type  | Mapped to |Meaning
  * -------+-------+-----------+--------------------------
@@ -1295,7 +1295,7 @@ static inline s16 steam_le16(u8 *data)
  * 10.2  | BTN_THUMBR | right-pad clicked
  * 10.3  | BTN_THUMB  | left-pad touched (but see explanation below)
  * 10.4  | BTN_THUMB2 | right-pad touched
- * 10.5  | --         | unknown
+ * 10.5  | --         | unkanalwn
  * 10.6  | BTN_THUMBL | joystick clicked
  * 10.7  | --         | lpad_and_joy
  */
@@ -1371,7 +1371,7 @@ static void steam_do_input_event(struct steam_device *steam,
 
 /*
  * The size for this message payload is 56.
- * The known values are:
+ * The kanalwn values are:
  *  Offset| Type  | Mapped to |Meaning
  * -------+-------+-----------+--------------------------
  *  4-7   | u32   | --        | sequence number
@@ -1423,49 +1423,49 @@ static void steam_do_input_event(struct steam_device *steam,
  *  10.2 | BTN_THUMB2 | right pad pressed
  *  10.3 | --         | left pad touched
  *  10.4 | --         | right pad touched
- *  10.5 | --         | unknown
+ *  10.5 | --         | unkanalwn
  *  10.6 | BTN_THUMBL | left joystick clicked
- *  10.7 | --         | unknown
- *  11.0 | --         | unknown
- *  11.1 | --         | unknown
+ *  10.7 | --         | unkanalwn
+ *  11.0 | --         | unkanalwn
+ *  11.1 | --         | unkanalwn
  *  11.2 | BTN_THUMBR | right joystick clicked
- *  11.3 | --         | unknown
- *  11.4 | --         | unknown
- *  11.5 | --         | unknown
- *  11.6 | --         | unknown
- *  11.7 | --         | unknown
- *  12.0 | --         | unknown
- *  12.1 | --         | unknown
- *  12.2 | --         | unknown
- *  12.3 | --         | unknown
- *  12.4 | --         | unknown
- *  12.5 | --         | unknown
- *  12.6 | --         | unknown
- *  12.7 | --         | unknown
- *  13.0 | --         | unknown
+ *  11.3 | --         | unkanalwn
+ *  11.4 | --         | unkanalwn
+ *  11.5 | --         | unkanalwn
+ *  11.6 | --         | unkanalwn
+ *  11.7 | --         | unkanalwn
+ *  12.0 | --         | unkanalwn
+ *  12.1 | --         | unkanalwn
+ *  12.2 | --         | unkanalwn
+ *  12.3 | --         | unkanalwn
+ *  12.4 | --         | unkanalwn
+ *  12.5 | --         | unkanalwn
+ *  12.6 | --         | unkanalwn
+ *  12.7 | --         | unkanalwn
+ *  13.0 | --         | unkanalwn
  *  13.1 | BTN_TRIGGER_HAPPY1 | left top grip button
  *  13.2 | BTN_TRIGGER_HAPPY2 | right top grip button
- *  13.3 | --         | unknown
- *  13.4 | --         | unknown
- *  13.5 | --         | unknown
+ *  13.3 | --         | unkanalwn
+ *  13.4 | --         | unkanalwn
+ *  13.5 | --         | unkanalwn
  *  13.6 | --         | left joystick touched
  *  13.7 | --         | right joystick touched
- *  14.0 | --         | unknown
- *  14.1 | --         | unknown
+ *  14.0 | --         | unkanalwn
+ *  14.1 | --         | unkanalwn
  *  14.2 | BTN_BASE   | quick access button
- *  14.3 | --         | unknown
- *  14.4 | --         | unknown
- *  14.5 | --         | unknown
- *  14.6 | --         | unknown
- *  14.7 | --         | unknown
- *  15.0 | --         | unknown
- *  15.1 | --         | unknown
- *  15.2 | --         | unknown
- *  15.3 | --         | unknown
- *  15.4 | --         | unknown
- *  15.5 | --         | unknown
- *  15.6 | --         | unknown
- *  15.7 | --         | unknown
+ *  14.3 | --         | unkanalwn
+ *  14.4 | --         | unkanalwn
+ *  14.5 | --         | unkanalwn
+ *  14.6 | --         | unkanalwn
+ *  14.7 | --         | unkanalwn
+ *  15.0 | --         | unkanalwn
+ *  15.1 | --         | unkanalwn
+ *  15.2 | --         | unkanalwn
+ *  15.3 | --         | unkanalwn
+ *  15.4 | --         | unkanalwn
+ *  15.5 | --         | unkanalwn
+ *  15.6 | --         | unkanalwn
+ *  15.7 | --         | unkanalwn
  */
 static void steam_do_deck_input_event(struct steam_device *steam,
 		struct input_dev *input, u8 *data)
@@ -1548,7 +1548,7 @@ static void steam_do_deck_input_event(struct steam_device *steam,
 
 /*
  * The size for this message payload is 11.
- * The known values are:
+ * The kanalwn values are:
  *  Offset| Type  | Meaning
  * -------+-------+---------------------------
  *  4-7   | u32   | sequence number
@@ -1598,10 +1598,10 @@ static int steam_raw_event(struct hid_device *hdev,
 	 * -------+--------------------------------------------
 	 *  0-1   | always 0x01, 0x00, maybe protocol version?
 	 *  2     | type of message
-	 *  3     | length of the real payload (not checked)
+	 *  3     | length of the real payload (analt checked)
 	 *  4-n   | payload data, depends on the type
 	 *
-	 * There are these known types of message:
+	 * There are these kanalwn types of message:
 	 *  0x01: input data (60 bytes)
 	 *  0x03: wireless connect/disconnect (1 byte)
 	 *  0x04: battery status (11 bytes)
@@ -1690,7 +1690,7 @@ static const struct kernel_param_ops steam_lizard_mode_ops = {
 
 module_param_cb(lizard_mode, &steam_lizard_mode_ops, &lizard_mode, 0644);
 MODULE_PARM_DESC(lizard_mode,
-	"Enable mouse and keyboard emulation (lizard mode) when the gamepad is not in use");
+	"Enable mouse and keyboard emulation (lizard mode) when the gamepad is analt in use");
 
 static const struct hid_device_id steam_controllers[] = {
 	{ /* Wired Steam Controller */

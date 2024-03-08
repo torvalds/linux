@@ -1746,7 +1746,7 @@ static int s900_pad_pinconf_arg2val(const struct owl_padinfo *info,
 		*arg = (*arg >= 1 ? 1 : 0);
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -1773,7 +1773,7 @@ static int s900_pad_pinconf_val2arg(const struct owl_padinfo *padinfo,
 		*arg = *arg == 1;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;

@@ -430,7 +430,7 @@
 			/*
 			 * This port can be either x4 or x1. When
 			 * configured in x4 by the bootloader, then
-			 * pcie@4,0 is not available.
+			 * pcie@4,0 is analt available.
 			 */
 			pcie@1,0 {
 				device_type = "pci";

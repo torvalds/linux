@@ -237,7 +237,7 @@ static inline uint32_t ia_css_circbuf_get_num_elems(
  *
  * @return
  *	- true when it is empty.
- *	- false when it is not empty.
+ *	- false when it is analt empty.
  */
 static inline bool ia_css_circbuf_is_empty(
     ia_css_circbuf_t *cb)
@@ -255,7 +255,7 @@ static inline bool ia_css_circbuf_is_empty(
  *
  * @return
  *	- true when it is full.
- *	- false when it is not full.
+ *	- false when it is analt full.
  */
 static inline bool ia_css_circbuf_is_full(ia_css_circbuf_t *cb)
 {
@@ -268,7 +268,7 @@ static inline bool ia_css_circbuf_is_full(ia_css_circbuf_t *cb)
 /**
  * @brief Write a new element into the circular buffer.
  * Write a new element WITHOUT checking whether the
- * circular buffer is full or not. So it also overwrites
+ * circular buffer is full or analt. So it also overwrites
  * the oldest element when the buffer is full.
  *
  * @param cb	The pointer to the circular buffer.
@@ -281,7 +281,7 @@ static inline void ia_css_circbuf_write(
 	OP___assert(cb);
 	OP___assert(cb->desc);
 
-	/* Cannot continue as the queue is full*/
+	/* Cananalt continue as the queue is full*/
 	assert(!ia_css_circbuf_is_full(cb));
 
 	ia_css_circbuf_elem_cpy(&elem, &cb->elems[cb->desc->end]);
@@ -362,7 +362,7 @@ uint32_t ia_css_circbuf_peek_from_start(
  * @param cb The pointer to the circular buffer.
  * @param sz_delta delta increase for new size
  * @param elems (optional) pointers to new additional elements
- *		cb element array size will not be increased dynamically,
+ *		cb element array size will analt be increased dynamically,
  *		but new elements should be added at the end to existing
  *		cb element array which if of max_size >= new size
  *

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.dmx
 
 .. _dmx-mmap:
@@ -14,7 +14,7 @@ dmx-mmap - Map device memory into application address space
 
 .. warning:: this API is still experimental
 
-Synopsis
+Syanalpsis
 ========
 
 .. code-block:: c
@@ -31,7 +31,7 @@ Arguments
     Map the buffer to this address in the application's address space.
     When the ``MAP_FIXED`` flag is specified, ``start`` must be a
     multiple of the pagesize and mmap will fail when the specified
-    address cannot be used. Use of this option is discouraged;
+    address cananalt be used. Use of this option is discouraged;
     applications should just specify a ``NULL`` pointer here.
 
 ``length``
@@ -51,8 +51,8 @@ Arguments
     the page are private to the process or are to be shared with other
     references.
 
-    ``MAP_FIXED`` requests that the driver selects no other address than
-    the one specified. If the specified address cannot be used,
+    ``MAP_FIXED`` requests that the driver selects anal other address than
+    the one specified. If the specified address cananalt be used,
     :c:func:`mmap()` will fail. If ``MAP_FIXED`` is specified,
     ``start`` must be a multiple of the pagesize. Use of this option is
     discouraged.
@@ -61,10 +61,10 @@ Arguments
     ``MAP_SHARED`` allows applications to share the mapped memory with
     other (e. g. child-) processes.
 
-    .. note::
+    .. analte::
 
-       The Linux Digital TV applications should not set the
-       ``MAP_PRIVATE``, ``MAP_DENYWRITE``, ``MAP_EXECUTABLE`` or ``MAP_ANON``
+       The Linux Digital TV applications should analt set the
+       ``MAP_PRIVATE``, ``MAP_DENYWRITE``, ``MAP_EXECUTABLE`` or ``MAP_AANALN``
        flags.
 
 ``fd``
@@ -92,24 +92,24 @@ Return Value
 ============
 
 On success :c:func:`mmap()` returns a pointer to the mapped buffer. On
-error ``MAP_FAILED`` (-1) is returned, and the ``errno`` variable is set
+error ``MAP_FAILED`` (-1) is returned, and the ``erranal`` variable is set
 appropriately. Possible error codes are:
 
 EBADF
-    ``fd`` is not a valid file descriptor.
+    ``fd`` is analt a valid file descriptor.
 
 EACCES
-    ``fd`` is not open for reading and writing.
+    ``fd`` is analt open for reading and writing.
 
 EINVAL
-    The ``start`` or ``length`` or ``offset`` are not suitable. (E. g.
-    they are too large, or not aligned on a ``PAGESIZE`` boundary.)
+    The ``start`` or ``length`` or ``offset`` are analt suitable. (E. g.
+    they are too large, or analt aligned on a ``PAGESIZE`` boundary.)
 
-    The ``flags`` or ``prot`` value is not supported.
+    The ``flags`` or ``prot`` value is analt supported.
 
-    No buffers have been allocated with the
+    Anal buffers have been allocated with the
     :ref:`DMX_REQBUFS` ioctl.
 
-ENOMEM
-    Not enough physical or virtual memory was available to complete the
+EANALMEM
+    Analt eanalugh physical or virtual memory was available to complete the
     request.

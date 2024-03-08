@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include "hid-ids.h"
 
-MODULE_AUTHOR("Bastien Nocera <hadess@hadess.net>");
+MODULE_AUTHOR("Bastien Analcera <hadess@hadess.net>");
 MODULE_DESCRIPTION("PS3 uDraw tablet driver");
 MODULE_LICENSE("GPL");
 
@@ -30,7 +30,7 @@ MODULE_LICENSE("GPL");
  */
 
 enum {
-	TOUCH_NONE,
+	TOUCH_ANALNE,
 	TOUCH_PEN,
 	TOUCH_FINGER,
 	TOUCH_TWOFINGER
@@ -76,7 +76,7 @@ struct udraw {
 	 * The device's two-finger support is pretty unreliable, as
 	 * the device could report a single touch when the two fingers
 	 * are too close together, and the distance between fingers, even
-	 * though reported is not in the same unit as the touches.
+	 * though reported is analt in the same unit as the touches.
 	 *
 	 * We'll make do without it, and try to report the first touch
 	 * as reliably as possible.
@@ -109,7 +109,7 @@ static int udraw_raw_event(struct hid_device *hdev, struct hid_report *report,
 		return 0;
 
 	if (data[11] == 0x00)
-		touch = TOUCH_NONE;
+		touch = TOUCH_ANALNE;
 	else if (data[11] == 0x40)
 		touch = TOUCH_PEN;
 	else if (data[11] == 0x80)
@@ -121,7 +121,7 @@ static int udraw_raw_event(struct hid_device *hdev, struct hid_report *report,
 	input_report_key(udraw->joy_input_dev, BTN_WEST, data[0] & 1);
 	input_report_key(udraw->joy_input_dev, BTN_SOUTH, !!(data[0] & 2));
 	input_report_key(udraw->joy_input_dev, BTN_EAST, !!(data[0] & 4));
-	input_report_key(udraw->joy_input_dev, BTN_NORTH, !!(data[0] & 8));
+	input_report_key(udraw->joy_input_dev, BTN_ANALRTH, !!(data[0] & 8));
 
 	input_report_key(udraw->joy_input_dev, BTN_SELECT, !!(data[1] & 1));
 	input_report_key(udraw->joy_input_dev, BTN_START, !!(data[1] & 2));
@@ -168,7 +168,7 @@ static int udraw_raw_event(struct hid_device *hdev, struct hid_report *report,
 
 	/* For pen and touchpad */
 	x = y = 0;
-	if (touch != TOUCH_NONE) {
+	if (touch != TOUCH_ANALNE) {
 		if (data[15] != 0x0F)
 			x = data[15] * 256 + data[17];
 		if (data[16] != 0x0F)
@@ -389,7 +389,7 @@ static bool udraw_setup_joypad(struct udraw *udraw,
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 
 	set_bit(BTN_SOUTH, input_dev->keybit);
-	set_bit(BTN_NORTH, input_dev->keybit);
+	set_bit(BTN_ANALRTH, input_dev->keybit);
 	set_bit(BTN_EAST, input_dev->keybit);
 	set_bit(BTN_WEST, input_dev->keybit);
 	set_bit(BTN_SELECT, input_dev->keybit);
@@ -411,7 +411,7 @@ static int udraw_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	udraw = devm_kzalloc(&hdev->dev, sizeof(struct udraw), GFP_KERNEL);
 	if (!udraw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	udraw->hdev = hdev;
 	udraw->last_two_finger_x = -1;
@@ -429,8 +429,8 @@ static int udraw_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	    !udraw_setup_touch(udraw, hdev) ||
 	    !udraw_setup_pen(udraw, hdev) ||
 	    !udraw_setup_accel(udraw, hdev)) {
-		hid_err(hdev, "could not allocate interfaces\n");
-		return -ENOMEM;
+		hid_err(hdev, "could analt allocate interfaces\n");
+		return -EANALMEM;
 	}
 
 	ret = input_register_device(udraw->joy_input_dev) ||

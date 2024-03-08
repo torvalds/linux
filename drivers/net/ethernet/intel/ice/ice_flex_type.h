@@ -154,10 +154,10 @@ struct ice_es {
 
 /* PTYPE Group management */
 
-/* Note: XLT1 table takes 13-bit as input, and results in an 8-bit packet type
+/* Analte: XLT1 table takes 13-bit as input, and results in an 8-bit packet type
  * group (PTG) ID as output.
  *
- * Note: PTG 0 is the default packet type group and it is assumed that all PTYPE
+ * Analte: PTG 0 is the default packet type group and it is assumed that all PTYPE
  * are a part of this group until moved to a new PTG.
  */
 #define ICE_DEFAULT_PTG	0
@@ -294,7 +294,7 @@ struct ice_mask {
 	u16 mask;	/* 16-bit mask */
 	u16 idx;	/* index */
 	u16 ref;	/* reference count */
-	u8 in_use;	/* non-zero if used */
+	u8 in_use;	/* analn-zero if used */
 };
 
 struct ice_masks {
@@ -324,7 +324,7 @@ struct ice_blk_info {
 };
 
 enum ice_chg_type {
-	ICE_TCAM_NONE = 0,
+	ICE_TCAM_ANALNE = 0,
 	ICE_PTG_ES_ADD,
 	ICE_TCAM_ADD,
 	ICE_VSIG_ADD,
@@ -353,7 +353,7 @@ struct ice_chs_chg {
 #define ICE_FLOW_PTYPE_MAX		ICE_XLT1_CNT
 
 enum ice_prof_type {
-	ICE_PROF_NON_TUN = 0x1,
+	ICE_PROF_ANALN_TUN = 0x1,
 	ICE_PROF_TUN_UDP = 0x2,
 	ICE_PROF_TUN_GRE = 0x4,
 	ICE_PROF_TUN_GTPU = 0x8,
@@ -362,7 +362,7 @@ enum ice_prof_type {
 	ICE_PROF_ALL = 0xFF,
 };
 
-/* Number of bits/bytes contained in meta init entry. Note, this should be a
+/* Number of bits/bytes contained in meta init entry. Analte, this should be a
  * multiple of 32 bits.
  */
 #define ICE_META_INIT_BITS	192

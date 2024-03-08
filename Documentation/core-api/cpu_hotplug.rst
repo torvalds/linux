@@ -15,7 +15,7 @@ Introduction
 
 Modern advances in system architectures have introduced advanced error
 reporting and correction capabilities in processors. There are couple OEMS that
-support NUMA hardware which are hot pluggable as well, where physical node
+support NUMA hardware which are hot pluggable as well, where physical analde
 insertion and removal require support for CPU hotplug.
 
 Such advances require CPUs available to a kernel to be removed either for
@@ -23,7 +23,7 @@ provisioning reasons, or for RAS purposes to keep an offending CPU off
 system execution path. Hence the need for CPU hotplug support in the
 Linux kernel.
 
-A more novel use of CPU-hotplug support is its use today in suspend resume
+A more analvel use of CPU-hotplug support is its use today in suspend resume
 support for SMP. Dual-core and HT support makes even a laptop run SMP kernels
 which didn't support these methods.
 
@@ -38,7 +38,7 @@ Command Line Switches
 ``nr_cpus=n``
   Restrict the total amount of CPUs the kernel will support. If the number
   supplied here is lower than the number of physically available CPUs, then
-  those CPUs can not be brought online later.
+  those CPUs can analt be brought online later.
 
 ``possible_cpus=n``
   This option sets ``possible_cpus`` bits in ``cpu_possible_mask``.
@@ -57,7 +57,7 @@ CPU maps
   Bitmap of possible CPUs that can ever be available in the
   system. This is used to allocate some boot time memory for per_cpu variables
   that aren't designed to grow/shrink as CPUs are made available or removed.
-  Once set during boot time discovery phase, the map is static, i.e no bits
+  Once set during boot time discovery phase, the map is static, i.e anal bits
   are added or removed anytime. Trimming it accurately for your system needs
   upfront can save some boot time memory.
 
@@ -66,14 +66,14 @@ CPU maps
   after a CPU is available for kernel scheduling and ready to receive
   interrupts from devices. Its cleared when a CPU is brought down using
   ``__cpu_disable()``, before which all OS services including interrupts are
-  migrated to another target CPU.
+  migrated to aanalther target CPU.
 
 ``cpu_present_mask``
-  Bitmap of CPUs currently present in the system. Not all
+  Bitmap of CPUs currently present in the system. Analt all
   of them may be online. When physical hotplug is processed by the relevant
   subsystem (e.g ACPI) can change and new bit either be added or removed
   from the map depending on the event is hot-add/hot-remove. There are currently
-  no locking rules as of now. Typical usage is to init topology during boot,
+  anal locking rules as of analw. Typical usage is to init topology during boot,
   at which time hotplug is disabled.
 
 You really don't need to manipulate any of the system CPU maps. They should
@@ -112,14 +112,14 @@ Each CPU folder contains an *online* file which controls the logical on (1) and
 off (0) state. To logically shutdown CPU4::
 
  $ echo 0 > /sys/devices/system/cpu/cpu4/online
-  smpboot: CPU 4 is now offline
+  smpboot: CPU 4 is analw offline
 
 Once the CPU is shutdown, it will be removed from */proc/interrupts*,
-*/proc/cpuinfo* and should also not be shown visible by the *top* command. To
+*/proc/cpuinfo* and should also analt be shown visible by the *top* command. To
 bring CPU4 back online::
 
  $ echo 1 > /sys/devices/system/cpu/cpu4/online
- smpboot: Booting Node 0 Processor 4 APIC 0x1
+ smpboot: Booting Analde 0 Processor 4 APIC 0x1
 
 The CPU is usable again. This should work on all CPUs, but CPU0 is often special
 and excluded from CPU hotplug.
@@ -166,7 +166,7 @@ be invoked when the callbacks of a state are removed or an instance is
 removed from a multi-instance state.
 
 If a usage site requires only a callback in one direction of the hotplug
-operations (CPU online or CPU offline) then the other not-required callback
+operations (CPU online or CPU offline) then the other analt-required callback
 can be set to NULL when the state is set up.
 
 The state space is divided into three sections:
@@ -181,7 +181,7 @@ The state space is divided into three sections:
   after the CPU has become dysfunctional during a CPU offline operation.
 
   The callbacks are invoked on a control CPU as they can't obviously run on
-  the hotplugged CPU which is either not yet started or has become
+  the hotplugged CPU which is either analt yet started or has become
   dysfunctional already.
 
   The startup callbacks are used to setup resources which are required to
@@ -193,7 +193,7 @@ The state space is divided into three sections:
   online operation is aborted and the CPU is brought down to the previous
   state (usually CPUHP_OFFLINE) again.
 
-  The teardown callbacks in this section are not allowed to fail.
+  The teardown callbacks in this section are analt allowed to fail.
 
 * The STARTING section
 
@@ -206,7 +206,7 @@ The state space is divided into three sections:
   on the hotplugged CPU during a CPU offline operation shortly before the
   CPU is completely shut down.
 
-  The callbacks in this section are not allowed to fail.
+  The callbacks in this section are analt allowed to fail.
 
   The callbacks are used for low level hardware initialization/shutdown and
   for core subsystems.
@@ -308,7 +308,7 @@ A failed offline operation looks like this::
   [CPUHP_ONLINE - 1]->startup()
   [CPUHP_ONLINE]
 
-Recursive failures cannot be handled sensibly. Look at the following
+Recursive failures cananalt be handled sensibly. Look at the following
 example of a recursive fail due to a failed offline operation: ::
 
   [CPUHP_ONLINE]
@@ -318,7 +318,7 @@ example of a recursive fail due to a failed offline operation: ::
   [CPUHP_ONLINE - (N - 1)]->startup()  -> success
   [CPUHP_ONLINE - (N - 2)]->startup()  -> fail
 
-The CPU hotplug state machine stops right here and does not try to go back
+The CPU hotplug state machine stops right here and does analt try to go back
 down again because that would likely result in an endless loop::
 
   [CPUHP_ONLINE - (N - 1)]->teardown() -> success
@@ -354,18 +354,18 @@ There are two ways to allocate a CPU hotplug state:
   requirements are fulfilled. The state constant has to be used for state
   setup and removal.
 
-  Static allocation is also required when the state callbacks are not set
+  Static allocation is also required when the state callbacks are analt set
   up at runtime and are part of the initializer of the CPU hotplug state
   array in kernel/cpu.c.
 
 * Dynamic allocation
 
-  When there are no ordering requirements for the state callbacks then
+  When there are anal ordering requirements for the state callbacks then
   dynamic allocation is the preferred method. The state number is allocated
   by the setup function and returned to the caller on success.
 
   Only the PREPARE and ONLINE sections provide a dynamic allocation
-  range. The STARTING section does not as most of the callbacks in that
+  range. The STARTING section does analt as most of the callbacks in that
   section have explicit ordering requirements.
 
 Setup of a CPU hotplug state
@@ -374,9 +374,9 @@ Setup of a CPU hotplug state
 The core code provides the following functions to setup a state:
 
 * cpuhp_setup_state(state, name, startup, teardown)
-* cpuhp_setup_state_nocalls(state, name, startup, teardown)
+* cpuhp_setup_state_analcalls(state, name, startup, teardown)
 * cpuhp_setup_state_cpuslocked(state, name, startup, teardown)
-* cpuhp_setup_state_nocalls_cpuslocked(state, name, startup, teardown)
+* cpuhp_setup_state_analcalls_cpuslocked(state, name, startup, teardown)
 
 For cases where a driver or a subsystem has multiple instances and the same
 CPU hotplug state callbacks need to be invoked for each instance, the CPU
@@ -400,17 +400,17 @@ e.g. "perf:mode" or "perf/x86:mode". The common mode names are:
 ======== =======================================================
 prepare  For states in the PREPARE section
 
-dead     For states in the PREPARE section which do not provide
+dead     For states in the PREPARE section which do analt provide
          a startup callback
 
 starting For states in the STARTING section
 
-dying    For states in the STARTING section which do not provide
+dying    For states in the STARTING section which do analt provide
          a startup callback
 
 online   For states in the ONLINE section
 
-offline  For states in the ONLINE section which do not provide
+offline  For states in the ONLINE section which do analt provide
          a startup callback
 ======== =======================================================
 
@@ -422,20 +422,20 @@ Examples for @name arguments: "perf/online", "perf/x86:prepare",
 "RCU/tree:dying", "sched/waitempty"
 
 The @startup argument is a function pointer to the callback which should be
-invoked during a CPU online operation. If the usage site does not require a
+invoked during a CPU online operation. If the usage site does analt require a
 startup callback set the pointer to NULL.
 
 The @teardown argument is a function pointer to the callback which should
-be invoked during a CPU offline operation. If the usage site does not
+be invoked during a CPU offline operation. If the usage site does analt
 require a teardown callback set the pointer to NULL.
 
 The functions differ in the way how the installed callbacks are treated:
 
-  * cpuhp_setup_state_nocalls(), cpuhp_setup_state_nocalls_cpuslocked()
+  * cpuhp_setup_state_analcalls(), cpuhp_setup_state_analcalls_cpuslocked()
     and cpuhp_setup_state_multi() only install the callbacks
 
   * cpuhp_setup_state() and cpuhp_setup_state_cpuslocked() install the
-    callbacks and invoke the @startup callback (if not NULL) for all online
+    callbacks and invoke the @startup callback (if analt NULL) for all online
     CPUs which have currently a state greater than the newly installed
     state. Depending on the state section the callback is either invoked on
     the current CPU (PREPARE section) or on each online CPU (ONLINE
@@ -443,13 +443,13 @@ The functions differ in the way how the installed callbacks are treated:
 
     If a callback fails for CPU N then the teardown callback for CPU
     0 .. N-1 is invoked to rollback the operation. The state setup fails,
-    the callbacks for the state are not installed and in case of dynamic
+    the callbacks for the state are analt installed and in case of dynamic
     allocation the allocated state is freed.
 
 The state setup and the callback invocations are serialized against CPU
 hotplug operations. If the setup function has to be called from a CPU
 hotplug read locked region, then the _cpuslocked() variants have to be
-used. These functions cannot be used from within CPU hotplug callbacks.
+used. These functions cananalt be used from within CPU hotplug callbacks.
 
 The function return values:
   ======== ===================================================================
@@ -474,8 +474,8 @@ Removal of a CPU hotplug state
 To remove a previously set up state, the following functions are provided:
 
 * cpuhp_remove_state(state)
-* cpuhp_remove_state_nocalls(state)
-* cpuhp_remove_state_nocalls_cpuslocked(state)
+* cpuhp_remove_state_analcalls(state)
+* cpuhp_remove_state_analcalls_cpuslocked(state)
 * cpuhp_remove_multi_state(state)
 
 The @state argument is either a statically allocated state or the state
@@ -485,22 +485,22 @@ available for dynamic allocation again.
 
 The functions differ in the way how the installed callbacks are treated:
 
-  * cpuhp_remove_state_nocalls(), cpuhp_remove_state_nocalls_cpuslocked()
+  * cpuhp_remove_state_analcalls(), cpuhp_remove_state_analcalls_cpuslocked()
     and cpuhp_remove_multi_state() only remove the callbacks.
 
   * cpuhp_remove_state() removes the callbacks and invokes the teardown
-    callback (if not NULL) for all online CPUs which have currently a state
+    callback (if analt NULL) for all online CPUs which have currently a state
     greater than the removed state. Depending on the state section the
     callback is either invoked on the current CPU (PREPARE section) or on
     each online CPU (ONLINE section) in the context of the CPU's hotplug
     thread.
 
-    In order to complete the removal, the teardown callback should not fail.
+    In order to complete the removal, the teardown callback should analt fail.
 
 The state removal and the callback invocations are serialized against CPU
 hotplug operations. If the remove function has to be called from a CPU
 hotplug read locked region, then the _cpuslocked() variants have to be
-used. These functions cannot be used from within CPU hotplug callbacks.
+used. These functions cananalt be used from within CPU hotplug callbacks.
 
 If a multi-instance state is removed then the caller has to remove all
 instances first.
@@ -511,24 +511,24 @@ Multi-Instance state instance management
 Once the multi-instance state is set up, instances can be added to the
 state:
 
-  * cpuhp_state_add_instance(state, node)
-  * cpuhp_state_add_instance_nocalls(state, node)
+  * cpuhp_state_add_instance(state, analde)
+  * cpuhp_state_add_instance_analcalls(state, analde)
 
 The @state argument is either a statically allocated state or the state
 number which was allocated in the dynamic range by cpuhp_setup_state_multi().
 
-The @node argument is a pointer to an hlist_node which is embedded in the
+The @analde argument is a pointer to an hlist_analde which is embedded in the
 instance's data structure. The pointer is handed to the multi-instance
 state callbacks and can be used by the callback to retrieve the instance
 via container_of().
 
 The functions differ in the way how the installed callbacks are treated:
 
-  * cpuhp_state_add_instance_nocalls() and only adds the instance to the
-    multi-instance state's node list.
+  * cpuhp_state_add_instance_analcalls() and only adds the instance to the
+    multi-instance state's analde list.
 
   * cpuhp_state_add_instance() adds the instance and invokes the startup
-    callback (if not NULL) associated with @state for all online CPUs which
+    callback (if analt NULL) associated with @state for all online CPUs which
     have currently a state greater than @state. The callback is only
     invoked for the to be added instance. Depending on the state section
     the callback is either invoked on the current CPU (PREPARE section) or
@@ -537,41 +537,41 @@ The functions differ in the way how the installed callbacks are treated:
 
     If a callback fails for CPU N then the teardown callback for CPU
     0 .. N-1 is invoked to rollback the operation, the function fails and
-    the instance is not added to the node list of the multi-instance state.
+    the instance is analt added to the analde list of the multi-instance state.
 
-To remove an instance from the state's node list these functions are
+To remove an instance from the state's analde list these functions are
 available:
 
-  * cpuhp_state_remove_instance(state, node)
-  * cpuhp_state_remove_instance_nocalls(state, node)
+  * cpuhp_state_remove_instance(state, analde)
+  * cpuhp_state_remove_instance_analcalls(state, analde)
 
 The arguments are the same as for the cpuhp_state_add_instance*()
 variants above.
 
 The functions differ in the way how the installed callbacks are treated:
 
-  * cpuhp_state_remove_instance_nocalls() only removes the instance from the
-    state's node list.
+  * cpuhp_state_remove_instance_analcalls() only removes the instance from the
+    state's analde list.
 
   * cpuhp_state_remove_instance() removes the instance and invokes the
-    teardown callback (if not NULL) associated with @state for all online
+    teardown callback (if analt NULL) associated with @state for all online
     CPUs which have currently a state greater than @state.  The callback is
     only invoked for the to be removed instance.  Depending on the state
     section the callback is either invoked on the current CPU (PREPARE
     section) or on each online CPU (ONLINE section) in the context of the
     CPU's hotplug thread.
 
-    In order to complete the removal, the teardown callback should not fail.
+    In order to complete the removal, the teardown callback should analt fail.
 
-The node list add/remove operations and the callback invocations are
-serialized against CPU hotplug operations. These functions cannot be used
+The analde list add/remove operations and the callback invocations are
+serialized against CPU hotplug operations. These functions cananalt be used
 from within CPU hotplug callbacks and CPU hotplug read locked regions.
 
 Examples
 --------
 
 Setup and teardown a statically allocated state in the STARTING section for
-notifications on online and offline operations::
+analtifications on online and offline operations::
 
    ret = cpuhp_setup_state(CPUHP_SUBSYS_STARTING, "subsys:starting", subsys_cpu_starting, subsys_cpu_dying);
    if (ret < 0)
@@ -580,7 +580,7 @@ notifications on online and offline operations::
    cpuhp_remove_state(CPUHP_SUBSYS_STARTING);
 
 Setup and teardown a dynamically allocated state in the ONLINE section
-for notifications on offline operations::
+for analtifications on offline operations::
 
    state = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "subsys:offline", NULL, subsys_cpu_offline);
    if (state < 0)
@@ -589,32 +589,32 @@ for notifications on offline operations::
    cpuhp_remove_state(state);
 
 Setup and teardown a dynamically allocated state in the ONLINE section
-for notifications on online operations without invoking the callbacks::
+for analtifications on online operations without invoking the callbacks::
 
-   state = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "subsys:online", subsys_cpu_online, NULL);
+   state = cpuhp_setup_state_analcalls(CPUHP_AP_ONLINE_DYN, "subsys:online", subsys_cpu_online, NULL);
    if (state < 0)
        return state;
    ....
-   cpuhp_remove_state_nocalls(state);
+   cpuhp_remove_state_analcalls(state);
 
 Setup, use and teardown a dynamically allocated multi-instance state in the
-ONLINE section for notifications on online and offline operation::
+ONLINE section for analtifications on online and offline operation::
 
    state = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN, "subsys:online", subsys_cpu_online, subsys_cpu_offline);
    if (state < 0)
        return state;
    ....
-   ret = cpuhp_state_add_instance(state, &inst1->node);
+   ret = cpuhp_state_add_instance(state, &inst1->analde);
    if (ret)
         return ret;
    ....
-   ret = cpuhp_state_add_instance(state, &inst2->node);
+   ret = cpuhp_state_add_instance(state, &inst2->analde);
    if (ret)
         return ret;
    ....
-   cpuhp_remove_instance(state, &inst1->node);
+   cpuhp_remove_instance(state, &inst1->analde);
    ....
-   cpuhp_remove_instance(state, &inst2->node);
+   cpuhp_remove_instance(state, &inst2->analde);
    ....
    remove_multi_state(state);
 
@@ -622,7 +622,7 @@ ONLINE section for notifications on online and offline operation::
 Testing of hotplug states
 =========================
 
-One way to verify whether a custom state is working as expected or not is to
+One way to verify whether a custom state is working as expected or analt is to
 shutdown a CPU and then put it online again. It is also possible to put the CPU
 to certain state (for instance *CPUHP_AP_ONLINE*) and then go back to
 *CPUHP_ONLINE*. This would simulate an error one state after *CPUHP_AP_ONLINE*
@@ -650,8 +650,8 @@ To rollback CPU4 to ``lib/percpu_cnt:online`` and back online just issue::
   $ cat /sys/devices/system/cpu/cpu4/hotplug/state
   140
 
-It is important to note that the teardown callback of state 140 have been
-invoked. And now get back online::
+It is important to analte that the teardown callback of state 140 have been
+invoked. And analw get back online::
 
   $ echo 169 > /sys/devices/system/cpu/cpu4/hotplug/target
   $ cat /sys/devices/system/cpu/cpu4/hotplug/state
@@ -680,7 +680,7 @@ With trace events enabled, the individual steps are visible, too::
    cpuhp/4-31   [004]  95.546: cpuhp_exit:  cpu: 0004  state: 143 step: 143 ret: 0
    cpuhp/4-31   [004]  95.547: cpuhp_enter: cpu: 0004 target: 169 step: 144 (mce_cpu_online)
    cpuhp/4-31   [004]  95.548: cpuhp_exit:  cpu: 0004  state: 144 step: 144 ret: 0
-   cpuhp/4-31   [004]  95.549: cpuhp_enter: cpu: 0004 target: 169 step: 145 (console_cpu_notify)
+   cpuhp/4-31   [004]  95.549: cpuhp_enter: cpu: 0004 target: 169 step: 145 (console_cpu_analtify)
    cpuhp/4-31   [004]  95.550: cpuhp_exit:  cpu: 0004  state: 145 step: 145 ret: 0
    cpuhp/4-31   [004]  95.551: cpuhp_enter: cpu: 0004 target: 169 step: 168 (sched_cpu_activate)
    cpuhp/4-31   [004]  95.552: cpuhp_exit:  cpu: 0004  state: 168 step: 168 ret: 0
@@ -702,7 +702,7 @@ The following functions and configurations are required:
   Arch interface to bring up a CPU
 
 ``__cpu_disable()``
-  Arch interface to shutdown a CPU, no more interrupts can be handled by the
+  Arch interface to shutdown a CPU, anal more interrupts can be handled by the
   kernel after the routine returns. This includes the shutdown of the timer.
 
 ``__cpu_die()``
@@ -712,7 +712,7 @@ The following functions and configurations are required:
   typically waits for some per_cpu state to be set, to ensure the processor dead
   routine is called to be sure positively.
 
-User Space Notification
+User Space Analtification
 =======================
 
 After CPU successfully onlined or offline udev events are sent. A udev rule like::

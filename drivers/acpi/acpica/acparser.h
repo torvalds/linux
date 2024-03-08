@@ -17,7 +17,7 @@
 #define ACPI_VAR_ARGS                   ACPI_UINT32_MAX
 
 #define ACPI_PARSE_DELETE_TREE          0x0001
-#define ACPI_PARSE_NO_TREE_DELETE       0x0000
+#define ACPI_PARSE_ANAL_TREE_DELETE       0x0000
 #define ACPI_PARSE_TREE_MASK            0x0001
 
 #define ACPI_PARSE_LOAD_PASS1           0x0010
@@ -65,7 +65,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 
 /* Values for u8 above */
 
-#define ACPI_NOT_METHOD_CALL            FALSE
+#define ACPI_ANALT_METHOD_CALL            FALSE
 #define ACPI_POSSIBLE_METHOD_CALL       TRUE
 
 acpi_status
@@ -178,7 +178,7 @@ acpi_status
 acpi_ps_walk_parsed_aml(union acpi_parse_object *start_op,
 			union acpi_parse_object *end_op,
 			union acpi_operand_object *mth_desc,
-			struct acpi_namespace_node *start_node,
+			struct acpi_namespace_analde *start_analde,
 			union acpi_operand_object **params,
 			union acpi_operand_object **caller_return_desc,
 			acpi_owner_id owner_id,

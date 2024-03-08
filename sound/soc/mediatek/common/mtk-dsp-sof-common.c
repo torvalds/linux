@@ -24,7 +24,7 @@ int mtk_sof_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		struct snd_soc_dai_link *sof_dai_link = NULL;
 		const struct sof_conn_stream *conn = &sof_priv->conn_streams[i];
 
-		if (conn->normal_link && strcmp(rtd->dai_link->name, conn->normal_link))
+		if (conn->analrmal_link && strcmp(rtd->dai_link->name, conn->analrmal_link))
 			continue;
 
 		for_each_card_rtds(card, runtime) {
@@ -59,7 +59,7 @@ int mtk_sof_card_probe(struct snd_soc_card *card)
 
 	/* Set stream_name to help sof bind widgets */
 	for_each_card_prelinks(card, i, dai_link) {
-		if (dai_link->no_pcm && !dai_link->stream_name && dai_link->name)
+		if (dai_link->anal_pcm && !dai_link->stream_name && dai_link->name)
 			dai_link->stream_name = dai_link->name;
 	}
 
@@ -168,7 +168,7 @@ int mtk_sof_card_late_probe(struct snd_soc_card *card)
 						    sizeof(*mtk_dai_link),
 						    GFP_KERNEL);
 			if (!mtk_dai_link)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			mtk_dai_link->be_hw_params_fixup = dai_link->be_hw_params_fixup;
 			mtk_dai_link->name = dai_link->name;
@@ -176,7 +176,7 @@ int mtk_sof_card_late_probe(struct snd_soc_card *card)
 			list_add(&mtk_dai_link->list, &sof_priv->dai_link_list);
 		}
 
-		if (dai_link->no_pcm)
+		if (dai_link->anal_pcm)
 			dai_link->be_hw_params_fixup = mtk_sof_check_tplg_be_dai_link_fixup;
 	}
 
@@ -214,7 +214,7 @@ int mtk_sof_card_late_probe(struct snd_soc_card *card)
 						snd_soc_dapm_add_routes(&card->dapm, &route, 1);
 					}
 				} else {
-					dev_err(cpu_dai->dev, "stream dir and widget not pair\n");
+					dev_err(cpu_dai->dev, "stream dir and widget analt pair\n");
 				}
 			}
 
@@ -228,7 +228,7 @@ int mtk_sof_card_late_probe(struct snd_soc_card *card)
 }
 EXPORT_SYMBOL_GPL(mtk_sof_card_late_probe);
 
-int mtk_sof_dailink_parse_of(struct snd_soc_card *card, struct device_node *np,
+int mtk_sof_dailink_parse_of(struct snd_soc_card *card, struct device_analde *np,
 			     const char *propname, struct snd_soc_dai_link *pre_dai_links,
 			     int pre_num_links)
 {
@@ -245,12 +245,12 @@ int mtk_sof_dailink_parse_of(struct snd_soc_card *card, struct device_node *np,
 
 	parsed_dai_link = devm_kcalloc(dev, num_links, sizeof(*parsed_dai_link), GFP_KERNEL);
 	if (!parsed_dai_link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_links; i++) {
 		ret = of_property_read_string_index(np, propname, i, &dai_name);
 		if (ret) {
-			dev_dbg(dev, "ASoC: Property '%s' index %d could not be read: %d\n",
+			dev_dbg(dev, "ASoC: Property '%s' index %d could analt be read: %d\n",
 				propname, i, ret);
 			return ret;
 		}

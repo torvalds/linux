@@ -3,7 +3,7 @@
  * ak4641.c  --  AK4641 ALSA Soc Audio driver
  *
  * Copyright (C) 2008 Harald Welte <laforge@gnufiish.org>
- * Copyright (C) 2011 Dmitry Artamonow <mad_soft@inbox.ru>
+ * Copyright (C) 2011 Dmitry Artamoanalw <mad_soft@inbox.ru>
  *
  * Based on ak4535.c by Richard Purdie
  */
@@ -113,25 +113,25 @@ static int ak4641_get_deemph(struct snd_kcontrol *kcontrol,
 	return 0;
 };
 
-static const char *ak4641_mono_out[] = {"(L + R)/2", "Hi-Z"};
-static const char *ak4641_hp_out[] = {"Stereo", "Mono"};
+static const char *ak4641_moanal_out[] = {"(L + R)/2", "Hi-Z"};
+static const char *ak4641_hp_out[] = {"Stereo", "Moanal"};
 static const char *ak4641_mic_select[] = {"Internal", "External"};
 static const char *ak4641_mic_or_dac[] = {"Microphone", "Voice DAC"};
 
 
-static const DECLARE_TLV_DB_SCALE(mono_gain_tlv, -1700, 2300, 0);
+static const DECLARE_TLV_DB_SCALE(moanal_gain_tlv, -1700, 2300, 0);
 static const DECLARE_TLV_DB_SCALE(mic_boost_tlv, 0, 2000, 0);
 static const DECLARE_TLV_DB_SCALE(eq_tlv, -1050, 150, 0);
 static const DECLARE_TLV_DB_SCALE(master_tlv, -12750, 50, 0);
 static const DECLARE_TLV_DB_SCALE(mic_stereo_sidetone_tlv, -2700, 300, 0);
-static const DECLARE_TLV_DB_SCALE(mic_mono_sidetone_tlv, -400, 400, 0);
+static const DECLARE_TLV_DB_SCALE(mic_moanal_sidetone_tlv, -400, 400, 0);
 static const DECLARE_TLV_DB_SCALE(capture_tlv, -800, 50, 0);
 static const DECLARE_TLV_DB_SCALE(alc_tlv, -800, 50, 0);
 static const DECLARE_TLV_DB_SCALE(aux_in_tlv, -2100, 300, 0);
 
 
-static SOC_ENUM_SINGLE_DECL(ak4641_mono_out_enum,
-			    AK4641_SIG1, 6, ak4641_mono_out);
+static SOC_ENUM_SINGLE_DECL(ak4641_moanal_out_enum,
+			    AK4641_SIG1, 6, ak4641_moanal_out);
 static SOC_ENUM_SINGLE_DECL(ak4641_hp_out_enum,
 			    AK4641_MODE2, 2, ak4641_hp_out);
 static SOC_ENUM_SINGLE_DECL(ak4641_mic_select_enum,
@@ -140,9 +140,9 @@ static SOC_ENUM_SINGLE_DECL(ak4641_mic_or_dac_enum,
 			    AK4641_BTIF, 4, ak4641_mic_or_dac);
 
 static const struct snd_kcontrol_new ak4641_snd_controls[] = {
-	SOC_ENUM("Mono 1 Output", ak4641_mono_out_enum),
-	SOC_SINGLE_TLV("Mono 1 Gain Volume", AK4641_SIG1, 7, 1, 1,
-							mono_gain_tlv),
+	SOC_ENUM("Moanal 1 Output", ak4641_moanal_out_enum),
+	SOC_SINGLE_TLV("Moanal 1 Gain Volume", AK4641_SIG1, 7, 1, 1,
+							moanal_gain_tlv),
 	SOC_ENUM("Headphone Output", ak4641_hp_out_enum),
 	SOC_SINGLE_BOOL_EXT("Playback Deemphasis Switch", 0,
 					ak4641_get_deemph, ak4641_put_deemph),
@@ -174,12 +174,12 @@ static const struct snd_kcontrol_new ak4641_snd_controls[] = {
 	SOC_SINGLE_TLV("EQ5 10 kHz Volume", AK4641_EQHI, 0, 15, 1, eq_tlv),
 };
 
-/* Mono 1 Mixer */
-static const struct snd_kcontrol_new ak4641_mono1_mixer_controls[] = {
-	SOC_DAPM_SINGLE_TLV("Mic Mono Sidetone Volume", AK4641_VOL, 7, 1, 0,
-						mic_mono_sidetone_tlv),
-	SOC_DAPM_SINGLE("Mic Mono Sidetone Switch", AK4641_SIG1, 4, 1, 0),
-	SOC_DAPM_SINGLE("Mono Playback Switch", AK4641_SIG1, 5, 1, 0),
+/* Moanal 1 Mixer */
+static const struct snd_kcontrol_new ak4641_moanal1_mixer_controls[] = {
+	SOC_DAPM_SINGLE_TLV("Mic Moanal Sidetone Volume", AK4641_VOL, 7, 1, 0,
+						mic_moanal_sidetone_tlv),
+	SOC_DAPM_SINGLE("Mic Moanal Sidetone Switch", AK4641_SIG1, 4, 1, 0),
+	SOC_DAPM_SINGLE("Moanal Playback Switch", AK4641_SIG1, 5, 1, 0),
 };
 
 /* Stereo Mixer */
@@ -205,27 +205,27 @@ static const struct snd_kcontrol_new ak4641_mic_mux_control =
 static const struct snd_kcontrol_new ak4641_input_mux_control =
 	SOC_DAPM_ENUM("Input Select", ak4641_mic_or_dac_enum);
 
-/* mono 2 switch */
-static const struct snd_kcontrol_new ak4641_mono2_control =
+/* moanal 2 switch */
+static const struct snd_kcontrol_new ak4641_moanal2_control =
 	SOC_DAPM_SINGLE("Switch", AK4641_SIG1, 0, 1, 0);
 
 /* ak4641 dapm widgets */
 static const struct snd_soc_dapm_widget ak4641_dapm_widgets[] = {
-	SND_SOC_DAPM_MIXER("Stereo Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Stereo Mixer", SND_SOC_ANALPM, 0, 0,
 		&ak4641_stereo_mixer_controls[0],
 		ARRAY_SIZE(ak4641_stereo_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Mono1 Mixer", SND_SOC_NOPM, 0, 0,
-		&ak4641_mono1_mixer_controls[0],
-		ARRAY_SIZE(ak4641_mono1_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Input Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Moanal1 Mixer", SND_SOC_ANALPM, 0, 0,
+		&ak4641_moanal1_mixer_controls[0],
+		ARRAY_SIZE(ak4641_moanal1_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Input Mixer", SND_SOC_ANALPM, 0, 0,
 		&ak4641_input_mixer_controls[0],
 		ARRAY_SIZE(ak4641_input_mixer_controls)),
-	SND_SOC_DAPM_MUX("Mic Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Mic Mux", SND_SOC_ANALPM, 0, 0,
 		&ak4641_mic_mux_control),
-	SND_SOC_DAPM_MUX("Input Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Input Mux", SND_SOC_ANALPM, 0, 0,
 		&ak4641_input_mux_control),
-	SND_SOC_DAPM_SWITCH("Mono 2 Enable", SND_SOC_NOPM, 0, 0,
-		&ak4641_mono2_control),
+	SND_SOC_DAPM_SWITCH("Moanal 2 Enable", SND_SOC_ANALPM, 0, 0,
+		&ak4641_moanal2_control),
 
 	SND_SOC_DAPM_OUTPUT("LOUT"),
 	SND_SOC_DAPM_OUTPUT("ROUT"),
@@ -236,11 +236,11 @@ static const struct snd_soc_dapm_widget ak4641_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("ADC", "HiFi Capture", AK4641_PM1, 0, 0),
 	SND_SOC_DAPM_PGA("Mic", AK4641_PM1, 1, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("AUX In", AK4641_PM1, 2, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Mono Out", AK4641_PM1, 3, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Moanal Out", AK4641_PM1, 3, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Line Out", AK4641_PM1, 4, 0, NULL, 0),
 
 	SND_SOC_DAPM_DAC("DAC", "HiFi Playback", AK4641_PM2, 0, 0),
-	SND_SOC_DAPM_PGA("Mono Out 2", AK4641_PM2, 3, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Moanal Out 2", AK4641_PM2, 3, 0, NULL, 0),
 
 	SND_SOC_DAPM_ADC("Voice ADC", "Voice Capture", AK4641_BTIF, 0, 0),
 	SND_SOC_DAPM_DAC("Voice DAC", "Voice Playback", AK4641_BTIF, 1, 0),
@@ -260,9 +260,9 @@ static const struct snd_soc_dapm_route ak4641_audio_map[] = {
 	{"Stereo Mixer", "Mic Sidetone Switch", "Input Mux"},
 	{"Stereo Mixer", "Aux Bypass Switch", "AUX In"},
 
-	/* Mono 1 Mixer */
-	{"Mono1 Mixer", "Mic Mono Sidetone Switch", "Input Mux"},
-	{"Mono1 Mixer", "Mono Playback Switch", "DAC"},
+	/* Moanal 1 Mixer */
+	{"Moanal1 Mixer", "Mic Moanal Sidetone Switch", "Input Mux"},
+	{"Moanal1 Mixer", "Moanal Playback Switch", "DAC"},
 
 	/* Mic */
 	{"Mic", NULL, "AIN"},
@@ -281,16 +281,16 @@ static const struct snd_soc_dapm_route ak4641_audio_map[] = {
 	{"ROUT", NULL, "Line Out"},
 	{"Line Out", NULL, "Stereo Mixer"},
 
-	/* Mono 1 Out */
-	{"MOUT1", NULL, "Mono Out"},
-	{"Mono Out", NULL, "Mono1 Mixer"},
+	/* Moanal 1 Out */
+	{"MOUT1", NULL, "Moanal Out"},
+	{"Moanal Out", NULL, "Moanal1 Mixer"},
 
-	/* Mono 2 Out */
-	{"MOUT2", NULL, "Mono 2 Enable"},
-	{"Mono 2 Enable", "Switch", "Mono Out 2"},
-	{"Mono Out 2", NULL, "Stereo Mixer"},
+	/* Moanal 2 Out */
+	{"MOUT2", NULL, "Moanal 2 Enable"},
+	{"Moanal 2 Enable", "Switch", "Moanal Out 2"},
+	{"Moanal Out 2", NULL, "Stereo Mixer"},
 
-	{"Voice ADC", NULL, "Mono 2 Enable"},
+	{"Voice ADC", NULL, "Moanal 2 Enable"},
 
 	/* Aux In */
 	{"AUX In", NULL, "AUX"},
@@ -469,7 +469,7 @@ static const struct snd_soc_dai_ops ak4641_i2s_dai_ops = {
 	.set_fmt      = ak4641_i2s_set_dai_fmt,
 	.mute_stream  = ak4641_mute,
 	.set_sysclk   = ak4641_set_dai_sysclk,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops ak4641_pcm_dai_ops = {
@@ -477,7 +477,7 @@ static const struct snd_soc_dai_ops ak4641_pcm_dai_ops = {
 	.set_fmt      = ak4641_pcm_set_dai_fmt,
 	.mute_stream  = ak4641_mute,
 	.set_sysclk   = ak4641_set_dai_sysclk,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver ak4641_dai[] = {
@@ -556,7 +556,7 @@ static int ak4641_i2c_probe(struct i2c_client *i2c)
 	ak4641 = devm_kzalloc(&i2c->dev, sizeof(struct ak4641_priv),
 			      GFP_KERNEL);
 	if (!ak4641)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ak4641->regmap = devm_regmap_init_i2c(i2c, &ak4641_regmap);
 	if (IS_ERR(ak4641->regmap))

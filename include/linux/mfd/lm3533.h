@@ -39,7 +39,7 @@ struct lm3533_ctrlbank {
 
 struct lm3533_als_platform_data {
 	unsigned pwm_mode:1;		/* PWM input mode (default analog) */
-	u8 r_select;			/* 1 - 127 (ignored in PWM-mode) */
+	u8 r_select;			/* 1 - 127 (iganalred in PWM-mode) */
 };
 
 struct lm3533_bl_platform_data {

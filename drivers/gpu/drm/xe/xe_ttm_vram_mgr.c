@@ -65,13 +65,13 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 
 	vres = kzalloc(sizeof(*vres), GFP_KERNEL);
 	if (!vres)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ttm_resource_init(tbo, place, &vres->base);
 
-	/* bail out quickly if there's likely not enough VRAM for this BO */
+	/* bail out quickly if there's likely analt eanalugh VRAM for this BO */
 	if (ttm_resource_manager_usage(man) > man->size) {
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto error_fini;
 	}
 
@@ -117,7 +117,7 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 	mutex_lock(&mgr->lock);
 	if (lpfn <= mgr->visible_size >> PAGE_SHIFT && size > mgr->visible_avail) {
 		mutex_unlock(&mgr->lock);
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto error_fini;
 	}
 
@@ -383,11 +383,11 @@ int xe_ttm_vram_mgr_alloc_sgt(struct xe_device *xe,
 	int i, r;
 
 	if (vres->used_visible_size < res->size)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	*sgt = kmalloc(sizeof(**sgt), GFP_KERNEL);
 	if (!*sgt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Determine the number of DRM_BUDDY blocks to export */
 	xe_res_first(res, offset, length, &cursor);
@@ -400,13 +400,13 @@ int xe_ttm_vram_mgr_alloc_sgt(struct xe_device *xe,
 	if (r)
 		goto error_free;
 
-	/* Initialize scatterlist nodes of sg_table */
+	/* Initialize scatterlist analdes of sg_table */
 	for_each_sgtable_sg((*sgt), sg, i)
 		sg->length = 0;
 
 	/*
-	 * Walk down DRM_BUDDY blocks to populate scatterlist nodes
-	 * @note: Use iterator api to get first the DRM_BUDDY block
+	 * Walk down DRM_BUDDY blocks to populate scatterlist analdes
+	 * @analte: Use iterator api to get first the DRM_BUDDY block
 	 * and the number of bytes from it. Access the following
 	 * DRM_BUDDY block(s) if more buffer needs to exported
 	 */

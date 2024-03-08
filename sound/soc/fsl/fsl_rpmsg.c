@@ -57,7 +57,7 @@ static int fsl_rpmsg_hw_params(struct snd_pcm_substream *substream,
 		p = pp;
 	}
 
-	/* Switch to another pll parent if needed. */
+	/* Switch to aanalther pll parent if needed. */
 	if (pll) {
 		npll = (do_div(rate, 8000) ? rpmsg->pll11k : rpmsg->pll8k);
 		if (!clk_is_match(pll, npll)) {
@@ -117,14 +117,14 @@ static struct snd_soc_dai_driver fsl_rpmsg_dai = {
 		.stream_name = "CPU-Playback",
 		.channels_min = 2,
 		.channels_max = 32,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = FSL_RPMSG_FORMATS,
 	},
 	.capture = {
 		.stream_name = "CPU-Capture",
 		.channels_min = 2,
 		.channels_max = 32,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = FSL_RPMSG_FORMATS,
 	},
 	.symmetric_rate        = 1,
@@ -145,7 +145,7 @@ static const struct fsl_rpmsg_soc_data imx7ulp_data = {
 };
 
 static const struct fsl_rpmsg_soc_data imx8mm_data = {
-	.rates = SNDRV_PCM_RATE_KNOT,
+	.rates = SNDRV_PCM_RATE_KANALT,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
 		   SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_DSD_U8 |
 		   SNDRV_PCM_FMTBIT_DSD_U16_LE | SNDRV_PCM_FMTBIT_DSD_U32_LE,
@@ -189,13 +189,13 @@ MODULE_DEVICE_TABLE(of, fsl_rpmsg_ids);
 
 static int fsl_rpmsg_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct fsl_rpmsg *rpmsg;
 	int ret;
 
 	rpmsg = devm_kzalloc(&pdev->dev, sizeof(struct fsl_rpmsg), GFP_KERNEL);
 	if (!rpmsg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rpmsg->soc_data = of_device_get_match_data(&pdev->dev);
 

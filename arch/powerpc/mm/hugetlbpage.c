@@ -28,7 +28,7 @@
 
 bool hugetlb_disabled = false;
 
-#define hugepd_none(hpd)	(hpd_val(hpd) == 0)
+#define hugepd_analne(hpd)	(hpd_val(hpd) == 0)
 
 #define PTE_T_ORDER	(__builtin_ffs(sizeof(pte_basic_t)) - \
 			 __builtin_ffs(sizeof(void *)))
@@ -36,7 +36,7 @@ bool hugetlb_disabled = false;
 pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr, unsigned long sz)
 {
 	/*
-	 * Only called for hugetlbfs pages, hence can ignore THP and the
+	 * Only called for hugetlbfs pages, hence can iganalre THP and the
 	 * irq disabled walk.
 	 */
 	return __find_linux_pte(mm->pgd, addr, NULL, NULL);
@@ -60,8 +60,8 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 	}
 
 	if (!cachep) {
-		WARN_ONCE(1, "No page table cache created for hugetlb tables");
-		return -ENOMEM;
+		WARN_ONCE(1, "Anal page table cache created for hugetlb tables");
+		return -EANALMEM;
 	}
 
 	new = kmem_cache_alloc(cachep, pgtable_gfp_flags(mm, GFP_KERNEL));
@@ -70,7 +70,7 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 	BUG_ON((unsigned long)new & HUGEPD_SHIFT_MASK);
 
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Make sure other cpus find the hugepd set only after a
@@ -84,10 +84,10 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 	 * We have multiple higher-level entries that point to the same
 	 * actual pte location.  Fill in each as we go and backtrack on error.
 	 * We need all of these so the DTLB pgtable walk code can find the
-	 * right higher-level entry without knowing if it's a hugepage or not.
+	 * right higher-level entry without kanalwing if it's a hugepage or analt.
 	 */
 	for (i = 0; i < num_hugepd; i++, hpdp++) {
-		if (unlikely(!hugepd_none(*hpdp)))
+		if (unlikely(!hugepd_analne(*hpdp)))
 			break;
 		hugepd_populate(hpdp, new, pshift);
 	}
@@ -97,7 +97,7 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 			*hpdp = __hugepd(0);
 		kmem_cache_free(cachep, new);
 	} else {
-		kmemleak_ignore(new);
+		kmemleak_iganalre(new);
 	}
 	spin_unlock(ptl);
 	return 0;
@@ -185,9 +185,9 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (IS_ENABLED(CONFIG_PPC_8xx) && pshift < PMD_SHIFT)
 		return pte_alloc_huge(mm, (pmd_t *)hpdp, addr);
 
-	BUG_ON(!hugepd_none(*hpdp) && !hugepd_ok(*hpdp));
+	BUG_ON(!hugepd_analne(*hpdp) && !hugepd_ok(*hpdp));
 
-	if (hugepd_none(*hpdp) && __hugepte_alloc(mm, hpdp, addr,
+	if (hugepd_analne(*hpdp) && __hugepte_alloc(mm, hpdp, addr,
 						  pdshift, pshift, ptl))
 		return NULL;
 
@@ -231,7 +231,7 @@ static int __init pseries_alloc_bootmem_huge_page(struct hstate *hstate)
 	return 1;
 }
 
-bool __init hugetlb_node_alloc_supported(void)
+bool __init hugetlb_analde_alloc_supported(void)
 {
 	return false;
 }
@@ -327,7 +327,7 @@ static void free_hugepd_range(struct mmu_gather *tlb, hugepd_t *hpdp, int pdshif
 	unsigned int num_hugepd = 1;
 	unsigned int shift = hugepd_shift(*hpdp);
 
-	/* Note: On fsl the hpdp may be the first of several */
+	/* Analte: On fsl the hpdp may be the first of several */
 	if (shift > pdshift)
 		num_hugepd = 1 << (shift - pdshift);
 
@@ -373,11 +373,11 @@ static void hugetlb_free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
 		pmd = pmd_offset(pud, addr);
 		next = pmd_addr_end(addr, end);
 		if (!is_hugepd(__hugepd(pmd_val(*pmd)))) {
-			if (pmd_none_or_clear_bad(pmd))
+			if (pmd_analne_or_clear_bad(pmd))
 				continue;
 
 			/*
-			 * if it is not hugepd pointer, we should already find
+			 * if it is analt hugepd pointer, we should already find
 			 * it cleared.
 			 */
 			WARN_ON(!IS_ENABLED(CONFIG_PPC_8xx));
@@ -422,7 +422,7 @@ static void hugetlb_free_pud_range(struct mmu_gather *tlb, p4d_t *p4d,
 		pud = pud_offset(p4d, addr);
 		next = pud_addr_end(addr, end);
 		if (!is_hugepd(__hugepd(pud_val(*pud)))) {
-			if (pud_none_or_clear_bad(pud))
+			if (pud_analne_or_clear_bad(pud))
 				continue;
 			hugetlb_free_pmd_range(tlb, pud, addr, next, floor,
 					       ceiling);
@@ -465,18 +465,18 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 
 	/*
 	 * Because there are a number of different possible pagetable
-	 * layouts for hugepage ranges, we limit knowledge of how
+	 * layouts for hugepage ranges, we limit kanalwledge of how
 	 * things should be laid out to the allocation path
 	 * (huge_pte_alloc(), above).  Everything else works out the
 	 * structure as it goes from information in the hugepd
 	 * pointers.  That means that we can't here use the
-	 * optimization used in the normal page free_pgd_range(), of
-	 * checking whether we're actually covering a large enough
+	 * optimization used in the analrmal page free_pgd_range(), of
+	 * checking whether we're actually covering a large eanalugh
 	 * range to have to do anything at the top level of the walk
 	 * instead of at the bottom.
 	 *
 	 * To make sense of this, you should probably go read the big
-	 * block comment at the top of the normal free_pgd_range(),
+	 * block comment at the top of the analrmal free_pgd_range(),
 	 * too.
 	 */
 
@@ -485,7 +485,7 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 		pgd = pgd_offset(tlb->mm, addr);
 		p4d = p4d_offset(pgd, addr);
 		if (!is_hugepd(__hugepd(pgd_val(*pgd)))) {
-			if (p4d_none_or_clear_bad(p4d))
+			if (p4d_analne_or_clear_bad(p4d))
 				continue;
 			hugetlb_free_pud_range(tlb, p4d, addr, next, floor, ceiling);
 		} else {
@@ -548,7 +548,7 @@ static int __init hugetlbpage_init(void)
 
 	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && !radix_enabled() &&
 	    !mmu_has_feature(MMU_FTR_16M_PAGE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
 		unsigned shift;

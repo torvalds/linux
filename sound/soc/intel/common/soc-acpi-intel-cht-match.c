@@ -52,10 +52,10 @@ static struct snd_soc_acpi_mach *cht_quirk(void *arg)
 
 /*
  * Some tablets with Android factory OS have buggy DSDTs with an ESSX8316 device
- * in the ACPI tables. While they are not using an ESS8316 codec. These DSDTs
- * also have an ACPI device for the correct codec, ignore the ESSX8316.
+ * in the ACPI tables. While they are analt using an ESS8316 codec. These DSDTs
+ * also have an ACPI device for the correct codec, iganalre the ESSX8316.
  */
-static const struct dmi_system_id cht_ess8316_not_present_table[] = {
+static const struct dmi_system_id cht_ess8316_analt_present_table[] = {
 	{
 		/* Nextbook Ares 8A */
 		.matches = {
@@ -69,19 +69,19 @@ static const struct dmi_system_id cht_ess8316_not_present_table[] = {
 
 static struct snd_soc_acpi_mach *cht_ess8316_quirk(void *arg)
 {
-	if (dmi_check_system(cht_ess8316_not_present_table))
+	if (dmi_check_system(cht_ess8316_analt_present_table))
 		return NULL;
 
 	return arg;
 }
 
 /*
- * The Lenovo Yoga Tab 3 Pro YT3-X90, with Android factory OS has a buggy DSDT
- * with the coded not being listed at all.
+ * The Leanalvo Yoga Tab 3 Pro YT3-X90, with Android factory OS has a buggy DSDT
+ * with the coded analt being listed at all.
  */
-static const struct dmi_system_id lenovo_yoga_tab3_x90[] = {
+static const struct dmi_system_id leanalvo_yoga_tab3_x90[] = {
 	{
-		/* Lenovo Yoga Tab 3 Pro YT3-X90, codec missing from DSDT */
+		/* Leanalvo Yoga Tab 3 Pro YT3-X90, codec missing from DSDT */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
@@ -91,7 +91,7 @@ static const struct dmi_system_id lenovo_yoga_tab3_x90[] = {
 	{ }
 };
 
-static struct snd_soc_acpi_mach cht_lenovo_yoga_tab3_x90_mach = {
+static struct snd_soc_acpi_mach cht_leanalvo_yoga_tab3_x90_mach = {
 	.id = "10WM5102",
 	.drv_name = "bytcr_wm5102",
 	.fw_filename = "intel/fw_sst_22a8.bin",
@@ -99,10 +99,10 @@ static struct snd_soc_acpi_mach cht_lenovo_yoga_tab3_x90_mach = {
 	.sof_tplg_filename = "sof-cht-wm5102.tplg",
 };
 
-static struct snd_soc_acpi_mach *lenovo_yt3_x90_quirk(void *arg)
+static struct snd_soc_acpi_mach *leanalvo_yt3_x90_quirk(void *arg)
 {
-	if (dmi_check_system(lenovo_yoga_tab3_x90))
-		return &cht_lenovo_yoga_tab3_x90_mach;
+	if (dmi_check_system(leanalvo_yoga_tab3_x90))
+		return &cht_leanalvo_yoga_tab3_x90_mach;
 
 	/* Skip wildcard match snd_soc_acpi_intel_cherrytrail_machines[] entry */
 	return NULL;
@@ -209,26 +209,26 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_cherrytrail_machines[] = {
 		.sof_tplg_filename = "sof-cht-src-50khz-pcm512x.tplg",
 	},
 	/*
-	 * Special case for the Lenovo Yoga Tab 3 Pro YT3-X90 where the DSDT
-	 * misses the codec. Match on the SST id instead, lenovo_yt3_x90_quirk()
+	 * Special case for the Leanalvo Yoga Tab 3 Pro YT3-X90 where the DSDT
+	 * misses the codec. Match on the SST id instead, leanalvo_yt3_x90_quirk()
 	 * will return a YT3 specific mach or NULL when called on other hw,
 	 * skipping this entry.
 	 */
 	{
 		.id = "808622A8",
-		.machine_quirk = lenovo_yt3_x90_quirk,
+		.machine_quirk = leanalvo_yt3_x90_quirk,
 	},
 
-#if IS_ENABLED(CONFIG_SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH)
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_BYT_CHT_ANALCODEC_MACH)
 	/*
 	 * This is always last in the table so that it is selected only when
-	 * enabled explicitly and there is no codec-related information in SSDT
+	 * enabled explicitly and there is anal codec-related information in SSDT
 	 */
 	{
 		.id = "808622A8",
-		.drv_name = "bytcht_nocodec",
+		.drv_name = "bytcht_analcodec",
 		.fw_filename = "intel/fw_sst_22a8.bin",
-		.board = "bytcht_nocodec",
+		.board = "bytcht_analcodec",
 	},
 #endif
 	{},

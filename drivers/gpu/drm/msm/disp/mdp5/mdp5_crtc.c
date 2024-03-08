@@ -30,7 +30,7 @@ struct mdp5_crtc {
 
 	spinlock_t lm_lock;     /* protect REG_MDP5_LM_* registers */
 
-	/* if there is a pending flip, these will be non-null: */
+	/* if there is a pending flip, these will be analn-null: */
 	struct drm_pending_vblank_event *event;
 
 	/* Bits have been flushed at the last commit,
@@ -42,7 +42,7 @@ struct mdp5_crtc {
 #define PENDING_FLIP   0x2
 	atomic_t pending;
 
-	/* for unref'ing cursor bo's after scanout completes: */
+	/* for unref'ing cursor bo's after scaanalut completes: */
 	struct drm_flip_work unref_cursor_work;
 
 	struct mdp_irq vblank;
@@ -54,11 +54,11 @@ struct mdp5_crtc {
 	bool lm_cursor_enabled;
 
 	struct {
-		/* protect REG_MDP5_LM_CURSOR* registers and cursor scanout_bo*/
+		/* protect REG_MDP5_LM_CURSOR* registers and cursor scaanalut_bo*/
 		spinlock_t lock;
 
 		/* current cursor being scanned out: */
-		struct drm_gem_object *scanout_bo;
+		struct drm_gem_object *scaanalut_bo;
 		uint64_t iova;
 		uint32_t width, height;
 		int x, y;
@@ -103,9 +103,9 @@ static u32 crtc_flush(struct drm_crtc *crtc, u32 flush_mask)
 }
 
 /*
- * flush updates, to make sure hw is updated to new scanout fb,
+ * flush updates, to make sure hw is updated to new scaanalut fb,
  * so that we can safely queue unref to current fb (ie. next
- * vblank we know hw is done w/ previous scanout_fb).
+ * vblank we kanalw hw is done w/ previous scaanalut_fb).
  */
 static u32 crtc_flush_all(struct drm_crtc *crtc)
 {
@@ -114,7 +114,7 @@ static u32 crtc_flush_all(struct drm_crtc *crtc)
 	struct drm_plane *plane;
 	uint32_t flush_mask = 0;
 
-	/* this should not happen: */
+	/* this should analt happen: */
 	if (WARN_ON(!mdp5_cstate->ctl))
 		return 0;
 
@@ -204,7 +204,7 @@ static inline u32 mdp5_lm_use_fg_alpha_mask(enum mdp_mixer_stage_id stage)
 /*
  * blend_setup() - blend all the planes of a CRTC
  *
- * If no base layer is available, border will be enabled as the base layer.
+ * If anal base layer is available, border will be enabled as the base layer.
  * Otherwise all layers will be blended based on their stage calculated
  * in mdp5_crtc_atomic_check.
  */
@@ -224,8 +224,8 @@ static void blend_setup(struct drm_crtc *crtc)
 	struct mdp5_ctl *ctl = mdp5_cstate->ctl;
 	uint32_t blend_op, fg_alpha, bg_alpha, ctl_blend_flags = 0;
 	unsigned long flags;
-	enum mdp5_pipe stage[STAGE_MAX + 1][MAX_PIPE_STAGE] = { { SSPP_NONE } };
-	enum mdp5_pipe r_stage[STAGE_MAX + 1][MAX_PIPE_STAGE] = { { SSPP_NONE } };
+	enum mdp5_pipe stage[STAGE_MAX + 1][MAX_PIPE_STAGE] = { { SSPP_ANALNE } };
+	enum mdp5_pipe r_stage[STAGE_MAX + 1][MAX_PIPE_STAGE] = { { SSPP_ANALNE } };
 	int i, plane_cnt = 0;
 	bool bg_alpha_enabled = false;
 	u32 mixer_op_mode = 0;
@@ -235,7 +235,7 @@ static void blend_setup(struct drm_crtc *crtc)
 	spin_lock_irqsave(&mdp5_crtc->lm_lock, flags);
 
 	/* ctl could be released already when we are shutting down: */
-	/* XXX: Can this happen now? */
+	/* XXX: Can this happen analw? */
 	if (!ctl)
 		goto out;
 
@@ -359,7 +359,7 @@ out:
 	spin_unlock_irqrestore(&mdp5_crtc->lm_lock, flags);
 }
 
-static void mdp5_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void mdp5_crtc_mode_set_analfb(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
@@ -420,7 +420,7 @@ static struct drm_encoder *get_encoder_from_crtc(struct drm_crtc *crtc)
 	return NULL;
 }
 
-static bool mdp5_crtc_get_scanout_position(struct drm_crtc *crtc,
+static bool mdp5_crtc_get_scaanalut_position(struct drm_crtc *crtc,
 					   bool in_vblank_irq,
 					   int *vpos, int *hpos,
 					   ktime_t *stime, ktime_t *etime,
@@ -433,7 +433,7 @@ static bool mdp5_crtc_get_scanout_position(struct drm_crtc *crtc,
 
 	encoder = get_encoder_from_crtc(crtc);
 	if (!encoder) {
-		DRM_ERROR("no encoder found for crtc %d\n", pipe);
+		DRM_ERROR("anal encoder found for crtc %d\n", pipe);
 		return false;
 	}
 
@@ -569,7 +569,7 @@ static void mdp5_crtc_atomic_enable(struct drm_crtc *crtc,
 	/* Restore vblank irq handling after power is enabled */
 	mdp5_crtc_vblank_on(crtc);
 
-	mdp5_crtc_mode_set_nofb(crtc);
+	mdp5_crtc_mode_set_analfb(crtc);
 
 	mdp_irq_register(&mdp5_kms->base, &mdp5_crtc->err);
 
@@ -655,7 +655,7 @@ static int pstate_cmp(const void *a, const void *b)
 {
 	struct plane_state *pa = (struct plane_state *)a;
 	struct plane_state *pb = (struct plane_state *)b;
-	return pa->state->base.normalized_zpos - pb->state->base.normalized_zpos;
+	return pa->state->base.analrmalized_zpos - pb->state->base.analrmalized_zpos;
 }
 
 /* is there a helper for this? */
@@ -681,7 +681,7 @@ static enum mdp_mixer_stage_id get_start_stage(struct drm_crtc *crtc,
 	if (mdp5_cstate->pipeline.r_mixer)
 		return STAGE0;
 
-	/* if the bottom-most layer is not fullscreen, we need to use
+	/* if the bottom-most layer is analt fullscreen, we need to use
 	 * it for solid-color:
 	 */
 	if (!is_fullscreen(new_crtc_state, bpstate))
@@ -765,7 +765,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 
 	start = get_start_stage(crtc, crtc_state, &pstates[0].state->base);
 
-	/* verify that there are not too many planes attached to crtc
+	/* verify that there are analt too many planes attached to crtc
 	 * and that we don't have conflicting mixer stages:
 	 */
 	if ((cnt + start - 1) >= hw_cfg->lm.nb_stages) {
@@ -811,20 +811,20 @@ static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc,
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	/*
-	 * If no CTL has been allocated in mdp5_crtc_atomic_check(),
+	 * If anal CTL has been allocated in mdp5_crtc_atomic_check(),
 	 * it means we are trying to flush a CRTC whose state is disabled:
-	 * nothing else needs to be done.
+	 * analthing else needs to be done.
 	 */
-	/* XXX: Can this happen now ? */
+	/* XXX: Can this happen analw ? */
 	if (unlikely(!mdp5_cstate->ctl))
 		return;
 
 	blend_setup(crtc);
 
-	/* PP_DONE irq is only used by command mode for now.
+	/* PP_DONE irq is only used by command mode for analw.
 	 * It is better to request pending before FLUSH and START trigger
-	 * to make sure no pp_done irq missed.
-	 * This is safe because no pp_done will happen before SW trigger
+	 * to make sure anal pp_done irq missed.
+	 * This is safe because anal pp_done will happen before SW trigger
 	 * in command mode.
 	 */
 	if (mdp5_cstate->cmd_mode)
@@ -992,7 +992,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 
 	cursor_bo = drm_gem_object_lookup(file, handle);
 	if (!cursor_bo)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = msm_gem_get_and_pin_iova(cursor_bo, kms->aspace,
 			&mdp5_crtc->cursor.iova);
@@ -1004,9 +1004,9 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	pm_runtime_get_sync(&pdev->dev);
 
 	spin_lock_irqsave(&mdp5_crtc->cursor.lock, flags);
-	old_bo = mdp5_crtc->cursor.scanout_bo;
+	old_bo = mdp5_crtc->cursor.scaanalut_bo;
 
-	mdp5_crtc->cursor.scanout_bo = cursor_bo;
+	mdp5_crtc->cursor.scaanalut_bo = cursor_bo;
 	mdp5_crtc->cursor.width = width;
 	mdp5_crtc->cursor.height = height;
 
@@ -1143,7 +1143,7 @@ static void mdp5_crtc_reset(struct drm_crtc *crtc)
 		__drm_atomic_helper_crtc_reset(crtc, NULL);
 }
 
-static const struct drm_crtc_funcs mdp5_crtc_no_lm_cursor_funcs = {
+static const struct drm_crtc_funcs mdp5_crtc_anal_lm_cursor_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.reset = mdp5_crtc_reset,
@@ -1172,13 +1172,13 @@ static const struct drm_crtc_funcs mdp5_crtc_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs mdp5_crtc_helper_funcs = {
-	.mode_set_nofb = mdp5_crtc_mode_set_nofb,
+	.mode_set_analfb = mdp5_crtc_mode_set_analfb,
 	.atomic_check = mdp5_crtc_atomic_check,
 	.atomic_begin = mdp5_crtc_atomic_begin,
 	.atomic_flush = mdp5_crtc_atomic_flush,
 	.atomic_enable = mdp5_crtc_atomic_enable,
 	.atomic_disable = mdp5_crtc_atomic_disable,
-	.get_scanout_position = mdp5_crtc_get_scanout_position,
+	.get_scaanalut_position = mdp5_crtc_get_scaanalut_position,
 };
 
 static void mdp5_crtc_vblank_irq(struct mdp_irq *irq, uint32_t irqstatus)
@@ -1237,7 +1237,7 @@ static void mdp5_crtc_wait_for_flush_done(struct drm_crtc *crtc)
 	struct mdp5_ctl *ctl = mdp5_cstate->ctl;
 	int ret;
 
-	/* Should not call this function if crtc is disabled. */
+	/* Should analt call this function if crtc is disabled. */
 	if (!ctl)
 		return;
 
@@ -1328,7 +1328,7 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 	mdp5_crtc = drmm_crtc_alloc_with_planes(dev, struct mdp5_crtc, base,
 						plane, cursor_plane,
 						cursor_plane ?
-						&mdp5_crtc_no_lm_cursor_funcs :
+						&mdp5_crtc_anal_lm_cursor_funcs :
 						&mdp5_crtc_funcs,
 						NULL);
 	if (IS_ERR(mdp5_crtc))

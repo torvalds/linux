@@ -22,7 +22,7 @@
  * cpu_arm9tdmi_dcache_clean_area()
  * cpu_arm9tdmi_switch_mm()
  *
- * These are not required.
+ * These are analt required.
  */
 ENTRY(cpu_arm9tdmi_proc_init)
 ENTRY(cpu_arm9tdmi_do_idle)
@@ -55,7 +55,7 @@ __arm9tdmi_setup:
 		__INITDATA
 
 		@ define struct processor (see <asm/proc-fns.h> and proc-macros.S)
-		define_processor_functions arm9tdmi, dabort=nommu_early_abort, pabort=legacy_pabort, nommu=1
+		define_processor_functions arm9tdmi, dabort=analmmu_early_abort, pabort=legacy_pabort, analmmu=1
 
 		.section ".rodata"
 

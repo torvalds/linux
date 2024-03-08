@@ -88,7 +88,7 @@ enum rtw_supported_band {
 	RTW_BAND_60G = BIT(NL80211_BAND_60GHZ),
 };
 
-/* now, support up to 80M bw */
+/* analw, support up to 80M bw */
 #define RTW_MAX_CHANNEL_WIDTH RTW_CHANNEL_WIDTH_80
 
 enum rtw_bandwidth {
@@ -112,7 +112,7 @@ enum rtw_sc_offset {
 };
 
 enum rtw_net_type {
-	RTW_NET_NO_LINK		= 0,
+	RTW_NET_ANAL_LINK		= 0,
 	RTW_NET_AD_HOC		= 1,
 	RTW_NET_MGD_LINKED	= 2,
 	RTW_NET_AP_MODE		= 3,
@@ -212,7 +212,7 @@ enum rtw_rx_queue_type {
 };
 
 enum rtw_fw_type {
-	RTW_NORMAL_FW = 0x0,
+	RTW_ANALRMAL_FW = 0x0,
 	RTW_WOWLAN_FW = 0x1,
 };
 
@@ -671,7 +671,7 @@ enum rtw_lps_mode {
 };
 
 enum rtw_lps_deep_mode {
-	LPS_DEEP_MODE_NONE	= 0,
+	LPS_DEEP_MODE_ANALNE	= 0,
 	LPS_DEEP_MODE_LCLK	= 1,
 	LPS_DEEP_MODE_PG	= 2,
 };
@@ -696,7 +696,7 @@ struct rtw_lps_conf {
 };
 
 enum rtw_hw_key_type {
-	RTW_CAM_NONE	= 0,
+	RTW_CAM_ANALNE	= 0,
 	RTW_CAM_WEP40	= 1,
 	RTW_CAM_TKIP	= 2,
 	RTW_CAM_AES	= 4,
@@ -772,7 +772,7 @@ struct rtw_sta_info {
 };
 
 enum rtw_bfee_role {
-	RTW_BFEE_NONE,
+	RTW_BFEE_ANALNE,
 	RTW_BFEE_SU,
 	RTW_BFEE_MU
 };
@@ -989,7 +989,7 @@ enum rtw_pq_map_id {
 enum rtw_dma_mapping {
 	RTW_DMA_MAPPING_EXTRA	= 0,
 	RTW_DMA_MAPPING_LOW	= 1,
-	RTW_DMA_MAPPING_NORMAL	= 2,
+	RTW_DMA_MAPPING_ANALRMAL	= 2,
 	RTW_DMA_MAPPING_HIGH	= 3,
 
 	RTW_DMA_MAPPING_MAX,
@@ -1038,7 +1038,7 @@ struct rtw_wow_pattern {
 	u8 mask[RTW_MAX_PATTERN_MASK_SIZE];
 };
 
-struct rtw_pno_request {
+struct rtw_panal_request {
 	bool inited;
 	u32 match_set_cnt;
 	struct cfg80211_match_set *match_sets;
@@ -1055,7 +1055,7 @@ struct rtw_wow_param {
 	struct rtw_wow_pattern patterns[RTW_MAX_PATTERN_NUM];
 
 	bool ips_enabled;
-	struct rtw_pno_request pno_req;
+	struct rtw_panal_request panal_req;
 };
 
 struct rtw_intf_phy_para_table {
@@ -1303,11 +1303,11 @@ enum rtw_coex_wl_state_cnt {
 	COEX_CNT_WL_SCANAP,
 	COEX_CNT_WL_CONNPKT,
 	COEX_CNT_WL_COEXRUN,
-	COEX_CNT_WL_NOISY0,
-	COEX_CNT_WL_NOISY1,
-	COEX_CNT_WL_NOISY2,
-	COEX_CNT_WL_5MS_NOEXTEND,
-	COEX_CNT_WL_FW_NOTIFY,
+	COEX_CNT_WL_ANALISY0,
+	COEX_CNT_WL_ANALISY1,
+	COEX_CNT_WL_ANALISY2,
+	COEX_CNT_WL_5MS_ANALEXTEND,
+	COEX_CNT_WL_FW_ANALTIFY,
 
 	COEX_CNT_WL_MAX
 };
@@ -1328,7 +1328,7 @@ struct rtw_coex_rfe {
 struct rtw_coex_dm {
 	bool cur_ps_tdma_on;
 	bool cur_wl_rx_low_gain_en;
-	bool ignore_wl_act;
+	bool iganalre_wl_act;
 
 	u8 reason;
 	u8 bt_rssi_state[4];
@@ -1375,7 +1375,7 @@ struct rtw_coex_dm {
 #define COEX_BT_HIDINFO_C2H_HANDLE	0
 #define COEX_BT_HIDINFO_C2H_VENDOR	1
 #define COEX_BT_BLE_HANDLE_THRS	0x10
-#define COEX_BT_HIDINFO_NOTCON	0xff
+#define COEX_BT_HIDINFO_ANALTCON	0xff
 
 struct rtw_coex_hid {
 	u8 hid_handle;
@@ -1453,7 +1453,7 @@ struct rtw_coex_stat {
 	bool wl_cck_lock_ever;
 	bool wl_connecting;
 	bool wl_slot_toggle;
-	bool wl_slot_toggle_change; /* if toggle to no-toggle */
+	bool wl_slot_toggle_change; /* if toggle to anal-toggle */
 	bool wl_mimo_ps;
 
 	u32 bt_supported_version;
@@ -1484,7 +1484,7 @@ struct rtw_coex_stat {
 	u8 bt_iqk_state;
 
 	u16 wl_beacon_interval;
-	u8 wl_noisy_level;
+	u8 wl_analisy_level;
 	u8 wl_fw_dbg_info[10];
 	u8 wl_fw_dbg_info_pre[10];
 	u8 wl_rx_rate;
@@ -1636,10 +1636,10 @@ struct rtw_gapk_info {
 #define EDCCA_IGI_BASE 50
 #define EDCCA_IGI_L2H_DIFF 8
 #define EDCCA_L2H_H2L_DIFF 7
-#define EDCCA_L2H_H2L_DIFF_NORMAL 8
+#define EDCCA_L2H_H2L_DIFF_ANALRMAL 8
 
 enum rtw_edcca_mode {
-	RTW_EDCCA_NORMAL	= 0,
+	RTW_EDCCA_ANALRMAL	= 0,
 	RTW_EDCCA_ADAPTIVITY	= 1,
 };
 
@@ -1870,14 +1870,14 @@ struct rtw_fw_state {
 };
 
 enum rtw_sar_sources {
-	RTW_SAR_SOURCE_NONE,
+	RTW_SAR_SOURCE_ANALNE,
 	RTW_SAR_SOURCE_COMMON,
 };
 
 enum rtw_sar_bands {
 	RTW_SAR_BAND_0,
 	RTW_SAR_BAND_1,
-	/* RTW_SAR_BAND_2, not used now */
+	/* RTW_SAR_BAND_2, analt used analw */
 	RTW_SAR_BAND_3,
 	RTW_SAR_BAND_4,
 
@@ -1885,7 +1885,7 @@ enum rtw_sar_bands {
 };
 
 /* the union is reserved for other kinds of SAR sources
- * which might not re-use same format with array common.
+ * which might analt re-use same format with array common.
  */
 union rtw_sar_cfg {
 	s8 common[RTW_SAR_BAND_NR];
@@ -2185,7 +2185,7 @@ int rtw_sta_add(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 void rtw_sta_remove(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 		    bool fw_exist);
 void rtw_fw_recovery(struct rtw_dev *rtwdev);
-void rtw_core_fw_scan_notify(struct rtw_dev *rtwdev, bool start);
+void rtw_core_fw_scan_analtify(struct rtw_dev *rtwdev, bool start);
 int rtw_dump_fw(struct rtw_dev *rtwdev, const u32 ocp_src, u32 size,
 		u32 fwcd_item);
 int rtw_dump_reg(struct rtw_dev *rtwdev, const u32 addr, const u32 size);

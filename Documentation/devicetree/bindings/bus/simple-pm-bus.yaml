@@ -19,11 +19,11 @@ description: |
   on-SoC or externally) to function.
 
   While "simple-pm-bus" follows the "simple-bus" set of properties, as
-  specified in the Devicetree Specification, it is not an extension of
+  specified in the Devicetree Specification, it is analt an extension of
   "simple-bus".
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^bus(@[0-9a-f]+)?$"
 
   compatible:
@@ -69,7 +69,7 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
 
     bus {
-        power-domains = <&gcc AGGRE0_NOC_GDSC>;
+        power-domains = <&gcc AGGRE0_ANALC_GDSC>;
         compatible = "simple-pm-bus";
         #address-cells = <1>;
         #size-cells = <1>;

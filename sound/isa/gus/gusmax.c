@@ -74,7 +74,7 @@ static int snd_gusmax_detect(struct snd_gus_card *gus)
 	d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET);
 	if ((d & 0x07) != 0) {
 		snd_printdd("[0x%lx] check 1 failed - 0x%x\n", gus->gf1.port, d);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	udelay(160);
 	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 1);	/* release reset */
@@ -82,7 +82,7 @@ static int snd_gusmax_detect(struct snd_gus_card *gus)
 	d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET);
 	if ((d & 0x07) != 1) {
 		snd_printdd("[0x%lx] check 2 failed - 0x%x\n", gus->gf1.port, d);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -158,21 +158,21 @@ static int snd_gusmax_mixer(struct snd_wss *chip)
 	if (err < 0)
 		return err;
 #if 0
-	/* reassign Mono Input to MIC */
+	/* reassign Moanal Input to MIC */
 	if (snd_mixer_group_rename(mixer,
-				SNDRV_MIXER_IN_MONO, 0,
+				SNDRV_MIXER_IN_MOANAL, 0,
 				SNDRV_MIXER_IN_MIC, 0) < 0)
 		goto __error;
 	if (snd_mixer_elem_rename(mixer,
-				SNDRV_MIXER_IN_MONO, 0, SNDRV_MIXER_ETYPE_INPUT,
+				SNDRV_MIXER_IN_MOANAL, 0, SNDRV_MIXER_ETYPE_INPUT,
 				SNDRV_MIXER_IN_MIC, 0) < 0)
 		goto __error;
 	if (snd_mixer_elem_rename(mixer,
-				"Mono Capture Volume", 0, SNDRV_MIXER_ETYPE_VOLUME1,
+				"Moanal Capture Volume", 0, SNDRV_MIXER_ETYPE_VOLUME1,
 				"Mic Capture Volume", 0) < 0)
 		goto __error;
 	if (snd_mixer_elem_rename(mixer,
-				"Mono Capture Switch", 0, SNDRV_MIXER_ETYPE_SWITCH1,
+				"Moanal Capture Switch", 0, SNDRV_MIXER_ETYPE_SWITCH1,
 				"Mic Capture Switch", 0) < 0)
 		goto __error;
 #endif
@@ -267,8 +267,8 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 		return err;
 
 	if (!gus->max_flag) {
-		snd_printk(KERN_ERR PFX "GUS MAX soundcard was not detected at 0x%lx\n", gus->gf1.port);
-		return -ENODEV;
+		snd_printk(KERN_ERR PFX "GUS MAX soundcard was analt detected at 0x%lx\n", gus->gf1.port);
+		return -EANALDEV;
 	}
 
 	if (devm_request_irq(card->dev, xirq, snd_gusmax_interrupt, 0,

@@ -14,7 +14,7 @@
 #include <dt-bindings/sound/apq8016-lpass.h>
 
 / {
-	model = "Qualcomm Technologies, Inc. APQ 8016 SBC";
+	model = "Qualcomm Techanallogies, Inc. APQ 8016 SBC";
 	compatible = "qcom,apq8016-sbc", "qcom,apq8016";
 
 	aliases {
@@ -122,7 +122,7 @@
 			label = "apq8016-sbc:green:user4";
 			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&pm8916_gpios 2 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 			panic-indicator;
 			default-state = "off";
 		};
@@ -285,7 +285,7 @@
 	 * The 96Boards specification expects a 1.8V power rail on the low-speed
 	 * expansion connector that is able to provide at least 0.18W / 100 mA.
 	 * L15/L16 are connected in parallel to provide 55 mA each. A minimum load
-	 * must be specified to ensure the regulators are not put in LPM where they
+	 * must be specified to ensure the regulators are analt put in LPM where they
 	 * would only provide 5 mA.
 	 */
 	pm8916_l15: l15 {
@@ -427,7 +427,7 @@
 &tpiu { status = "okay"; };
 
 /*
- * 2mA drive strength is not enough when connecting multiple
+ * 2mA drive strength is analt eanalugh when connecting multiple
  * I2C devices with different pull up resistors.
  */
 &blsp_i2c2_default {
@@ -444,9 +444,9 @@
 
 /*
  * GPIO name legend: proper name = the GPIO line is used as GPIO
- *         NC = not connected (pin out but not routed from the chip to
+ *         NC = analt connected (pin out but analt routed from the chip to
  *              anything the board)
- *         "[PER]" = pin is muxed for [peripheral] (not GPIO)
+ *         "[PER]" = pin is muxed for [peripheral] (analt GPIO)
  *         LSEC = Low Speed External Connector
  *         HSEC = High Speed External Connector
  *
@@ -663,7 +663,7 @@
 
 	usb_hub_reset_pm: usb-hub-reset-pm-state {
 		pins = "gpio3";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 
 		input-disable;
 		output-high;
@@ -671,14 +671,14 @@
 
 	usb_hub_reset_pm_device: usb-hub-reset-pm-device-state {
 		pins = "gpio3";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 
 		output-low;
 	};
 
 	usb_sw_sel_pm: usb-sw-sel-pm-state {
 		pins = "gpio4";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 
 		power-source = <PM8916_GPIO_VPH>;
 		input-disable;
@@ -687,7 +687,7 @@
 
 	usb_sw_sel_pm_device: usb-sw-sel-pm-device-state {
 		pins = "gpio4";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 
 		power-source = <PM8916_GPIO_VPH>;
 		input-disable;
@@ -696,7 +696,7 @@
 
 	pm8916_gpios_leds: pm8916-gpios-leds-state {
 		pins = "gpio1", "gpio2";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 
 		output-low;
 	};

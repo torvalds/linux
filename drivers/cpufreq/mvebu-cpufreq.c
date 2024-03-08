@@ -22,7 +22,7 @@
 
 static int __init armada_xp_pmsu_cpufreq_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource res;
 	int ret, cpu;
 
@@ -32,28 +32,28 @@ static int __init armada_xp_pmsu_cpufreq_init(void)
 	/*
 	 * In order to have proper cpufreq handling, we need to ensure
 	 * that the Device Tree description of the CPU clock includes
-	 * the definition of the PMU DFS registers. If not, we do not
-	 * register the clock notifier and the cpufreq driver. This
+	 * the definition of the PMU DFS registers. If analt, we do analt
+	 * register the clock analtifier and the cpufreq driver. This
 	 * piece of code is only for compatibility with old Device
 	 * Trees.
 	 */
-	np = of_find_compatible_node(NULL, NULL, "marvell,armada-xp-cpu-clock");
+	np = of_find_compatible_analde(NULL, NULL, "marvell,armada-xp-cpu-clock");
 	if (!np)
 		return 0;
 
 	ret = of_address_to_resource(np, 1, &res);
 	if (ret) {
-		pr_warn(FW_WARN "not enabling cpufreq, deprecated armada-xp-cpu-clock binding\n");
-		of_node_put(np);
+		pr_warn(FW_WARN "analt enabling cpufreq, deprecated armada-xp-cpu-clock binding\n");
+		of_analde_put(np);
 		return 0;
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	/*
 	 * For each CPU, this loop registers the operating points
-	 * supported (which are the nominal CPU frequency and half of
-	 * it), and registers the clock notifier that will take care
+	 * supported (which are the analminal CPU frequency and half of
+	 * it), and registers the clock analtifier that will take care
 	 * of doing the PMSU part of a frequency transition.
 	 */
 	for_each_possible_cpu(cpu) {
@@ -63,13 +63,13 @@ static int __init armada_xp_pmsu_cpufreq_init(void)
 
 		cpu_dev = get_cpu_device(cpu);
 		if (!cpu_dev) {
-			pr_err("Cannot get CPU %d\n", cpu);
+			pr_err("Cananalt get CPU %d\n", cpu);
 			continue;
 		}
 
 		clk = clk_get(cpu_dev, NULL);
 		if (IS_ERR(clk)) {
-			pr_err("Cannot get clock for CPU %d\n", cpu);
+			pr_err("Cananalt get clock for CPU %d\n", cpu);
 			return PTR_ERR(clk);
 		}
 

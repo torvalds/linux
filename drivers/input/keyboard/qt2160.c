@@ -171,7 +171,7 @@ static void qt2160_get_key_matrix(struct input_dev *input)
 	ret = qt2160_read_block(client, QT2160_CMD_GSTAT, regs, 6);
 	if (ret) {
 		dev_err(&client->dev,
-			"could not perform chip read.\n");
+			"could analt perform chip read.\n");
 		return;
 	}
 
@@ -281,21 +281,21 @@ static bool qt2160_identify(struct i2c_client *client)
 	/* Read Chid ID to check if chip is valid */
 	id = qt2160_read(client, QT2160_CMD_CHIPID);
 	if (id != QT2160_VALID_CHIPID) {
-		dev_err(&client->dev, "ID %d not supported\n", id);
+		dev_err(&client->dev, "ID %d analt supported\n", id);
 		return false;
 	}
 
 	/* Read chip firmware version */
 	ver = qt2160_read(client, QT2160_CMD_CODEVER);
 	if (ver < 0) {
-		dev_err(&client->dev, "could not get firmware version\n");
+		dev_err(&client->dev, "could analt get firmware version\n");
 		return false;
 	}
 
 	/* Read chip firmware revision */
 	rev = qt2160_read(client, QT2160_CMD_SUBVER);
 	if (rev < 0) {
-		dev_err(&client->dev, "could not get firmware revision\n");
+		dev_err(&client->dev, "could analt get firmware revision\n");
 		return false;
 	}
 
@@ -313,22 +313,22 @@ static int qt2160_probe(struct i2c_client *client)
 	int error;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE)) {
-		dev_err(&client->dev, "%s adapter not supported\n",
+		dev_err(&client->dev, "%s adapter analt supported\n",
 			dev_driver_string(&client->adapter->dev));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!qt2160_identify(client))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Chip is valid and active. Allocate structure */
 	qt2160 = devm_kzalloc(&client->dev, sizeof(*qt2160), GFP_KERNEL);
 	if (!qt2160)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input = devm_input_allocate_device(&client->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qt2160->client = client;
 	qt2160->input = input;

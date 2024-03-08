@@ -53,7 +53,7 @@
 
 #define LTQ_SPI_CLC_SMC_S	16	/* Clock divider for sleep mode */
 #define LTQ_SPI_CLC_SMC_M	(0xFF << LTQ_SPI_CLC_SMC_S)
-#define LTQ_SPI_CLC_RMC_S	8	/* Clock divider for normal run mode */
+#define LTQ_SPI_CLC_RMC_S	8	/* Clock divider for analrmal run mode */
 #define LTQ_SPI_CLC_RMC_M	(0xFF << LTQ_SPI_CLC_RMC_S)
 #define LTQ_SPI_CLC_DISS	BIT(1)	/* Disable status bit */
 #define LTQ_SPI_CLC_DISR	BIT(0)	/* Disable request bit */
@@ -570,7 +570,7 @@ static void rx_fifo_read_half_duplex(struct lantiq_ssc_spi *spi)
 	unsigned int rx_fill = rx_fifo_level(spi);
 
 	/*
-	 * In RX-only mode the bits per word value is ignored by HW. A value
+	 * In RX-only mode the bits per word value is iganalred by HW. A value
 	 * of 32 is used instead. Thus all 4 bytes per FIFO must be read.
 	 * If remaining RX bytes are less than 4, the FIFO must be read
 	 * differently. The amount of received and valid bytes is indicated
@@ -670,7 +670,7 @@ static irqreturn_t lantiq_ssc_err_interrupt(int irq, void *data)
 	u32 val = lantiq_ssc_readl(spi, hwcfg->irncr);
 
 	if (!(stat & LTQ_SPI_STAT_ERRORS))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&spi->lock);
 	if (hwcfg->irq_ack)
@@ -708,7 +708,7 @@ static irqreturn_t intel_lgm_ssc_isr(int irq, void *data)
 	u32 val = lantiq_ssc_readl(spi, hwcfg->irncr);
 
 	if (!(val & LTQ_SPI_IRNEN_ALL))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (val & LTQ_SPI_IRNEN_E)
 		return lantiq_ssc_err_interrupt(irq, data);
@@ -753,7 +753,7 @@ static int transfer_start(struct lantiq_ssc_spi *spi, struct spi_device *spidev,
  * The driver only gets an interrupt when the FIFO is empty, but there
  * is an additional shift register from which the data is written to
  * the wire. We get the last interrupt when the controller starts to
- * write the last word to the wire, not when it is finished. Do busy
+ * write the last word to the wire, analt when it is finished. Do busy
  * waiting till it finishes.
  */
 static void lantiq_ssc_bussy_work(struct work_struct *work)
@@ -915,7 +915,7 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(dev, sizeof(struct lantiq_ssc_spi));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi = spi_controller_get_devdata(host);
 	spi->host = host;
@@ -953,16 +953,16 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 	}
 
 	num_cs = 8;
-	of_property_read_u32(pdev->dev.of_node, "num-cs", &num_cs);
+	of_property_read_u32(pdev->dev.of_analde, "num-cs", &num_cs);
 
 	spi->base_cs = 1;
-	of_property_read_u32(pdev->dev.of_node, "base-cs", &spi->base_cs);
+	of_property_read_u32(pdev->dev.of_analde, "base-cs", &spi->base_cs);
 
 	spin_lock_init(&spi->lock);
 	spi->bits_per_word = 8;
 	spi->speed_hz = 0;
 
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->num_chipselect = num_cs;
 	host->use_gpio_descriptors = true;
 	host->setup = lantiq_ssc_setup;
@@ -978,7 +978,7 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 
 	spi->wq = alloc_ordered_workqueue(dev_name(dev), WQ_MEM_RECLAIM);
 	if (!spi->wq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_clk_put;
 	}
 	INIT_WORK(&spi->work, lantiq_ssc_bussy_work);

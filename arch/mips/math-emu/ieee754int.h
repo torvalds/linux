@@ -66,13 +66,13 @@ static inline int ieee754_class_nan(int xc)
 	} else if (ve == SP_EMIN-1+SP_EBIAS) {				\
 		if (vm) {						\
 			ve = SP_EMIN;					\
-			vc = IEEE754_CLASS_DNORM;			\
+			vc = IEEE754_CLASS_DANALRM;			\
 		} else							\
 			vc = IEEE754_CLASS_ZERO;			\
 	} else {							\
 		ve -= SP_EBIAS;						\
 		vm |= SP_HIDDEN_BIT;					\
-		vc = IEEE754_CLASS_NORM;				\
+		vc = IEEE754_CLASS_ANALRM;				\
 	}								\
 }
 #define EXPLODEXSP EXPLODESP(x, xc, xs, xe, xm)
@@ -104,13 +104,13 @@ static inline int ieee754_class_nan(int xc)
 	} else if (ve == DP_EMIN-1+DP_EBIAS) {				\
 		if (vm) {						\
 			ve = DP_EMIN;					\
-			vc = IEEE754_CLASS_DNORM;			\
+			vc = IEEE754_CLASS_DANALRM;			\
 		} else							\
 			vc = IEEE754_CLASS_ZERO;			\
 	} else {							\
 		ve -= DP_EBIAS;						\
 		vm |= DP_HIDDEN_BIT;					\
-		vc = IEEE754_CLASS_NORM;				\
+		vc = IEEE754_CLASS_ANALRM;				\
 	}								\
 }
 #define EXPLODEXDP EXPLODEDP(x, xc, xs, xe, xm)
@@ -118,8 +118,8 @@ static inline int ieee754_class_nan(int xc)
 #define EXPLODEZDP EXPLODEDP(z, zc, zs, ze, zm)
 
 #define FLUSHDP(v, vc, vs, ve, vm)					\
-	if (vc==IEEE754_CLASS_DNORM) {					\
-		if (ieee754_csr.nod) {					\
+	if (vc==IEEE754_CLASS_DANALRM) {					\
+		if (ieee754_csr.anald) {					\
 			ieee754_setcx(IEEE754_INEXACT);			\
 			vc = IEEE754_CLASS_ZERO;			\
 			ve = DP_EMIN-1+DP_EBIAS;			\
@@ -129,8 +129,8 @@ static inline int ieee754_class_nan(int xc)
 	}
 
 #define FLUSHSP(v, vc, vs, ve, vm)					\
-	if (vc==IEEE754_CLASS_DNORM) {					\
-		if (ieee754_csr.nod) {					\
+	if (vc==IEEE754_CLASS_DANALRM) {					\
+		if (ieee754_csr.anald) {					\
 			ieee754_setcx(IEEE754_INEXACT);			\
 			vc = IEEE754_CLASS_ZERO;			\
 			ve = SP_EMIN-1+SP_EBIAS;			\

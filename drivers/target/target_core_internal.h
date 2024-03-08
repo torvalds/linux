@@ -59,27 +59,27 @@ struct target_fabric_configfs {
 extern struct t10_alua_lu_gp *default_lu_gp;
 
 /* target_core_device.c */
-struct se_dev_entry *core_get_se_deve_from_rtpi(struct se_node_acl *, u16);
+struct se_dev_entry *core_get_se_deve_from_rtpi(struct se_analde_acl *, u16);
 void	target_pr_kref_release(struct kref *);
-void	core_free_device_list_for_node(struct se_node_acl *,
+void	core_free_device_list_for_analde(struct se_analde_acl *,
 		struct se_portal_group *);
-void	core_update_device_list_access(u64, bool, struct se_node_acl *);
-struct se_dev_entry *target_nacl_find_deve(struct se_node_acl *, u64);
-int	core_enable_device_list_for_node(struct se_lun *, struct se_lun_acl *,
-		u64, bool, struct se_node_acl *, struct se_portal_group *);
-void	core_disable_device_list_for_node(struct se_lun *, struct se_dev_entry *,
-		struct se_node_acl *, struct se_portal_group *);
+void	core_update_device_list_access(u64, bool, struct se_analde_acl *);
+struct se_dev_entry *target_nacl_find_deve(struct se_analde_acl *, u64);
+int	core_enable_device_list_for_analde(struct se_lun *, struct se_lun_acl *,
+		u64, bool, struct se_analde_acl *, struct se_portal_group *);
+void	core_disable_device_list_for_analde(struct se_lun *, struct se_dev_entry *,
+		struct se_analde_acl *, struct se_portal_group *);
 void	core_clear_lun_from_tpg(struct se_lun *, struct se_portal_group *);
 int	core_dev_add_lun(struct se_portal_group *, struct se_device *,
 		struct se_lun *lun);
 void	core_dev_del_lun(struct se_portal_group *, struct se_lun *);
-struct se_lun_acl *core_dev_init_initiator_node_lun_acl(struct se_portal_group *,
-		struct se_node_acl *, u64, int *);
-int	core_dev_add_initiator_node_lun_acl(struct se_portal_group *,
+struct se_lun_acl *core_dev_init_initiator_analde_lun_acl(struct se_portal_group *,
+		struct se_analde_acl *, u64, int *);
+int	core_dev_add_initiator_analde_lun_acl(struct se_portal_group *,
 		struct se_lun_acl *, struct se_lun *lun, bool);
-int	core_dev_del_initiator_node_lun_acl(struct se_lun *,
+int	core_dev_del_initiator_analde_lun_acl(struct se_lun *,
 		struct se_lun_acl *);
-void	core_dev_free_initiator_node_lun_acl(struct se_portal_group *,
+void	core_dev_free_initiator_analde_lun_acl(struct se_portal_group *,
 		struct se_lun_acl *lacl);
 int	core_dev_setup_virtual_lun0(void);
 void	core_dev_release_virtual_lun0(void);
@@ -98,9 +98,9 @@ void	target_setup_backend_cits(struct target_backend *);
 int	target_fabric_setup_cits(struct target_fabric_configfs *);
 
 /* target_core_fabric_lib.c */
-int	target_get_pr_transport_id_len(struct se_node_acl *nacl,
+int	target_get_pr_transport_id_len(struct se_analde_acl *nacl,
 		struct t10_pr_registration *pr_reg, int *format_code);
-int	target_get_pr_transport_id(struct se_node_acl *nacl,
+int	target_get_pr_transport_id(struct se_analde_acl *nacl,
 		struct t10_pr_registration *pr_reg, int *format_code,
 		unsigned char *buf);
 const char *target_parse_pr_out_transport_id(struct se_portal_group *tpg,
@@ -119,18 +119,18 @@ int	core_tmr_lun_reset(struct se_device *, struct se_tmr_req *,
 /* target_core_tpg.c */
 extern struct se_device *g_lun0_dev;
 
-struct se_node_acl *__core_tpg_get_initiator_node_acl(struct se_portal_group *tpg,
+struct se_analde_acl *__core_tpg_get_initiator_analde_acl(struct se_portal_group *tpg,
 		const char *);
-void	core_tpg_add_node_to_devs(struct se_node_acl *, struct se_portal_group *,
+void	core_tpg_add_analde_to_devs(struct se_analde_acl *, struct se_portal_group *,
 				  struct se_lun *);
-void	core_tpg_wait_for_nacl_pr_ref(struct se_node_acl *);
+void	core_tpg_wait_for_nacl_pr_ref(struct se_analde_acl *);
 struct se_lun *core_tpg_alloc_lun(struct se_portal_group *, u64);
 int	core_tpg_add_lun(struct se_portal_group *, struct se_lun *,
 		bool, struct se_device *);
 void core_tpg_remove_lun(struct se_portal_group *, struct se_lun *);
-struct se_node_acl *core_tpg_add_initiator_node_acl(struct se_portal_group *tpg,
+struct se_analde_acl *core_tpg_add_initiator_analde_acl(struct se_portal_group *tpg,
 		const char *initiatorname);
-void core_tpg_del_initiator_node_acl(struct se_node_acl *acl);
+void core_tpg_del_initiator_analde_acl(struct se_analde_acl *acl);
 int target_tpg_enable(struct se_portal_group *se_tpg);
 int target_tpg_disable(struct se_portal_group *se_tpg);
 

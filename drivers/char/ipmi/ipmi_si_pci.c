@@ -34,7 +34,7 @@ static int ipmi_pci_probe_regspacing(struct si_sm_io *io)
 		for (regspacing = DEFAULT_REGSPACING; regspacing <= 16;) {
 			io->regspacing = regspacing;
 			if (io->io_setup(io)) {
-				dev_err(io->dev, "Could not setup I/O space\n");
+				dev_err(io->dev, "Could analt setup I/O space\n");
 				return DEFAULT_REGSPACING;
 			}
 			/* write invalid cmd */
@@ -53,7 +53,7 @@ static int ipmi_pci_probe_regspacing(struct si_sm_io *io)
 static struct pci_device_id ipmi_pci_blacklist[] = {
 	/*
 	 * This is a "Virtual IPMI device", whatever that is.  It appears
-	 * as a KCS device by the class, but it is not one.
+	 * as a KCS device by the class, but it is analt one.
 	 */
 	{ PCI_VDEVICE(REALTEK, 0x816c) },
 	{ 0, }
@@ -66,7 +66,7 @@ static int ipmi_pci_probe(struct pci_dev *pdev,
 	struct si_sm_io io;
 
 	if (pci_match_id(ipmi_pci_blacklist, pdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(&io, 0, sizeof(io));
 	io.addr_source = SI_PCI;
@@ -86,8 +86,8 @@ static int ipmi_pci_probe(struct pci_dev *pdev,
 		break;
 
 	default:
-		dev_info(&pdev->dev, "Unknown IPMI class: %x\n", pdev->class);
-		return -ENOMEM;
+		dev_info(&pdev->dev, "Unkanalwn IPMI class: %x\n", pdev->class);
+		return -EANALMEM;
 	}
 
 	rv = pcim_enable_device(pdev);

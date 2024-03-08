@@ -84,17 +84,17 @@ l0_%=:	r0 = r0;					\
 }
 
 SEC("socket")
-__description("check known subreg with unknown reg")
+__description("check kanalwn subreg with unkanalwn reg")
 __success __failure_unpriv __msg_unpriv("R1 !read_ok")
 __retval(0)
-__naked void known_subreg_with_unknown_reg(void)
+__naked void kanalwn_subreg_with_unkanalwn_reg(void)
 {
 	asm volatile ("					\
 	call %[bpf_get_prandom_u32];			\
 	r0 <<= 32;					\
 	r0 += 1;					\
 	r0 &= 0xFFFF1234;				\
-	/* Upper bits are unknown but AND above masks out 1 zero'ing lower bits */\
+	/* Upper bits are unkanalwn but AND above masks out 1 zero'ing lower bits */\
 	if w0 < 1 goto l0_%=;				\
 	r1 = *(u32*)(r1 + 512);				\
 l0_%=:	r0 = 0;						\

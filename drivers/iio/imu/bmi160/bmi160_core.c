@@ -58,10 +58,10 @@
 
 #define BMI160_REG_CMD			0x7E
 #define BMI160_CMD_ACCEL_PM_SUSPEND	0x10
-#define BMI160_CMD_ACCEL_PM_NORMAL	0x11
+#define BMI160_CMD_ACCEL_PM_ANALRMAL	0x11
 #define BMI160_CMD_ACCEL_PM_LOW_POWER	0x12
 #define BMI160_CMD_GYRO_PM_SUSPEND	0x14
-#define BMI160_CMD_GYRO_PM_NORMAL	0x15
+#define BMI160_CMD_GYRO_PM_ANALRMAL	0x15
 #define BMI160_CMD_GYRO_PM_FAST_STARTUP	0x17
 #define BMI160_CMD_SOFTRESET		0xB6
 
@@ -88,7 +88,7 @@
 
 #define BMI160_REG_DUMMY		0x7F
 
-#define BMI160_NORMAL_WRITE_USLEEP	2
+#define BMI160_ANALRMAL_WRITE_USLEEP	2
 #define BMI160_SUSPENDED_WRITE_USLEEP	450
 
 #define BMI160_ACCEL_PMU_MIN_USLEEP	3800
@@ -151,7 +151,7 @@ struct bmi160_regs {
 	u8 config_odr_mask;
 	u8 config_bwp_mask;
 	u8 range;
-	u8 pmu_cmd_normal;
+	u8 pmu_cmd_analrmal;
 	u8 pmu_cmd_suspend;
 };
 
@@ -162,7 +162,7 @@ static struct bmi160_regs bmi160_regs[] = {
 		.config_odr_mask = BMI160_ACCEL_CONFIG_ODR_MASK,
 		.config_bwp_mask = BMI160_ACCEL_CONFIG_BWP_MASK,
 		.range	= BMI160_REG_ACCEL_RANGE,
-		.pmu_cmd_normal = BMI160_CMD_ACCEL_PM_NORMAL,
+		.pmu_cmd_analrmal = BMI160_CMD_ACCEL_PM_ANALRMAL,
 		.pmu_cmd_suspend = BMI160_CMD_ACCEL_PM_SUSPEND,
 	},
 	[BMI160_GYRO] = {
@@ -171,7 +171,7 @@ static struct bmi160_regs bmi160_regs[] = {
 		.config_odr_mask = BMI160_GYRO_CONFIG_ODR_MASK,
 		.config_bwp_mask = BMI160_GYRO_CONFIG_BWP_MASK,
 		.range	= BMI160_REG_GYRO_RANGE,
-		.pmu_cmd_normal = BMI160_CMD_GYRO_PM_NORMAL,
+		.pmu_cmd_analrmal = BMI160_CMD_GYRO_PM_ANALRMAL,
 		.pmu_cmd_suspend = BMI160_CMD_GYRO_PM_SUSPEND,
 	},
 };
@@ -309,7 +309,7 @@ int bmi160_set_mode(struct bmi160_data *data, enum bmi160_sensor_type t,
 	u8 cmd;
 
 	if (mode)
-		cmd = bmi160_regs[t].pmu_cmd_normal;
+		cmd = bmi160_regs[t].pmu_cmd_analrmal;
 	else
 		cmd = bmi160_regs[t].pmu_cmd_suspend;
 
@@ -440,7 +440,7 @@ static irqreturn_t bmi160_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buf, pf->timestamp);
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -596,7 +596,7 @@ static int bmi160_config_pin(struct regmap *regmap, enum bmi160_int_pin pin,
 	if (ret)
 		return ret;
 
-	/* Set the pin to input mode with no latching. */
+	/* Set the pin to input mode with anal latching. */
 	ret = bmi160_write_conf_reg(regmap, BMI160_REG_INT_LATCH,
 				    int_latch_mask, int_latch_mask,
 				    write_usleep);
@@ -631,22 +631,22 @@ int bmi160_enable_irq(struct regmap *regmap, bool enable)
 
 	return bmi160_write_conf_reg(regmap, BMI160_REG_INT_EN,
 				     BMI160_DRDY_INT_EN, enable_bit,
-				     BMI160_NORMAL_WRITE_USLEEP);
+				     BMI160_ANALRMAL_WRITE_USLEEP);
 }
 EXPORT_SYMBOL_NS(bmi160_enable_irq, IIO_BMI160);
 
-static int bmi160_get_irq(struct fwnode_handle *fwnode, enum bmi160_int_pin *pin)
+static int bmi160_get_irq(struct fwanalde_handle *fwanalde, enum bmi160_int_pin *pin)
 {
 	int irq;
 
 	/* Use INT1 if possible, otherwise fall back to INT2. */
-	irq = fwnode_irq_get_byname(fwnode, "INT1");
+	irq = fwanalde_irq_get_byname(fwanalde, "INT1");
 	if (irq > 0) {
 		*pin = BMI160_PIN_INT1;
 		return irq;
 	}
 
-	irq = fwnode_irq_get_byname(fwnode, "INT2");
+	irq = fwanalde_irq_get_byname(fwanalde, "INT2");
 	if (irq > 0)
 		*pin = BMI160_PIN_INT2;
 
@@ -679,7 +679,7 @@ static int bmi160_config_device_irq(struct iio_dev *indio_dev, int irq_type,
 	open_drain = device_property_read_bool(dev, "drive-open-drain");
 
 	return bmi160_config_pin(data->regmap, pin, open_drain, irq_mask,
-				 BMI160_NORMAL_WRITE_USLEEP);
+				 BMI160_ANALRMAL_WRITE_USLEEP);
 }
 
 static int bmi160_setup_irq(struct iio_dev *indio_dev, int irq,
@@ -691,7 +691,7 @@ static int bmi160_setup_irq(struct iio_dev *indio_dev, int irq,
 
 	desc = irq_get_irq_data(irq);
 	if (!desc) {
-		dev_err(&indio_dev->dev, "Could not find IRQ %d\n", irq);
+		dev_err(&indio_dev->dev, "Could analt find IRQ %d\n", irq);
 		return -EINVAL;
 	}
 
@@ -740,7 +740,7 @@ static int bmi160_chip_init(struct bmi160_data *data, bool use_spi)
 	if (val != BMI160_CHIP_ID_VAL) {
 		dev_err(dev, "Wrong chip id, got %x expected %x\n",
 			val, BMI160_CHIP_ID_VAL);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto disable_regulator;
 	}
 
@@ -785,7 +785,7 @@ int bmi160_probe_trigger(struct iio_dev *indio_dev, int irq, u32 irq_type)
 					    iio_device_id(indio_dev));
 
 	if (data->trig == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_request_irq(&indio_dev->dev, irq,
 			       &iio_trigger_generic_data_rdy_poll,
@@ -832,7 +832,7 @@ int bmi160_core_probe(struct device *dev, struct regmap *regmap,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);
@@ -872,14 +872,14 @@ int bmi160_core_probe(struct device *dev, struct regmap *regmap,
 	if (ret)
 		return ret;
 
-	irq = bmi160_get_irq(dev_fwnode(dev), &int_pin);
+	irq = bmi160_get_irq(dev_fwanalde(dev), &int_pin);
 	if (irq > 0) {
 		ret = bmi160_setup_irq(indio_dev, irq, int_pin);
 		if (ret)
 			dev_err(&indio_dev->dev, "Failed to setup IRQ %d\n",
 				irq);
 	} else {
-		dev_info(&indio_dev->dev, "Not setting up IRQ trigger\n");
+		dev_info(&indio_dev->dev, "Analt setting up IRQ trigger\n");
 	}
 
 	return devm_iio_device_register(dev, indio_dev);

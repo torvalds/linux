@@ -14,10 +14,10 @@
  * - it adds a parity bit every 8bits of data
  * - only one read access is required to read a byte (instead of a write
  *   followed by a read access in standard SMBus protocol)
- * - there's no Ack bit after each byte transfer
+ * - there's anal Ack bit after each byte transfer
  *
- * This means this bus cannot be used to interface with standard SMBus
- * devices (the only known device to support this interface is the AXP221
+ * This means this bus cananalt be used to interface with standard SMBus
+ * devices (the only kanalwn device to support this interface is the AXP221
  * PMIC).
  *
  */
@@ -183,8 +183,8 @@ MODULE_DEVICE_TABLE(of, p2wi_of_match_table);
 static int p2wi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *childnp;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *childnp;
 	unsigned long parent_clk_freq;
 	u32 clk_freq = I2C_MAX_STANDARD_MODE_FREQ;
 	struct p2wi *p2wi;
@@ -213,12 +213,12 @@ static int p2wi_probe(struct platform_device *pdev)
 
 	p2wi = devm_kzalloc(dev, sizeof(struct p2wi), GFP_KERNEL);
 	if (!p2wi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p2wi->slave_addr = -1;
 
 	/*
-	 * Authorize a p2wi node without any children to be able to use an
+	 * Authorize a p2wi analde without any children to be able to use an
 	 * i2c-dev from userpace.
 	 * In this case the slave_addr is set to -1 and won't be checked when
 	 * launching a P2WI transfer.
@@ -227,7 +227,7 @@ static int p2wi_probe(struct platform_device *pdev)
 	if (childnp) {
 		ret = of_property_read_u32(childnp, "reg", &slave_addr);
 		if (ret) {
-			dev_err(dev, "invalid slave address on node %pOF\n",
+			dev_err(dev, "invalid slave address on analde %pOF\n",
 				childnp);
 			return -EINVAL;
 		}
@@ -270,7 +270,7 @@ static int p2wi_probe(struct platform_device *pdev)
 	p2wi->adapter.dev.parent = dev;
 	p2wi->adapter.algo = &p2wi_algo;
 	p2wi->adapter.owner = THIS_MODULE;
-	p2wi->adapter.dev.of_node = pdev->dev.of_node;
+	p2wi->adapter.dev.of_analde = pdev->dev.of_analde;
 	platform_set_drvdata(pdev, p2wi);
 	i2c_set_adapdata(&p2wi->adapter, p2wi);
 

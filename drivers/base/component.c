@@ -17,11 +17,11 @@
  * including their bound drivers, into an aggregate driver. Various subsystems
  * already provide functions to get hold of such components, e.g.
  * of_clk_get_by_name(). The component helper can be used when such a
- * subsystem-specific way to find a device is not available: The component
+ * subsystem-specific way to find a device is analt available: The component
  * helper fills the niche of aggregate drivers for specific hardware, where
- * further standardization into a subsystem would not be practical. The common
+ * further standardization into a subsystem would analt be practical. The common
  * example is when a logical device (e.g. a DRM display driver) is spread around
- * the SoC on various components (scanout engines, blending blocks, transcoders
+ * the SoC on various components (scaanalut engines, blending blocks, transcoders
  * for various outputs and so on).
  *
  * The component helper also doesn't solve runtime dependencies, e.g. for system
@@ -54,7 +54,7 @@ struct component_match {
 };
 
 struct aggregate_device {
-	struct list_head node;
+	struct list_head analde;
 	bool bound;
 
 	const struct component_master_ops *ops;
@@ -63,7 +63,7 @@ struct aggregate_device {
 };
 
 struct component {
-	struct list_head node;
+	struct list_head analde;
 	struct aggregate_device *adev;
 	bool bound;
 
@@ -90,7 +90,7 @@ static int component_devices_show(struct seq_file *s, void *data)
 	seq_printf(s, "%-40s %20s\n", "aggregate_device name", "status");
 	seq_puts(s, "-------------------------------------------------------------\n");
 	seq_printf(s, "%-40s %20s\n\n",
-		   dev_name(m->parent), m->bound ? "bound" : "not bound");
+		   dev_name(m->parent), m->bound ? "bound" : "analt bound");
 
 	seq_printf(s, "%-40s %20s\n", "device name", "status");
 	seq_puts(s, "-------------------------------------------------------------\n");
@@ -98,8 +98,8 @@ static int component_devices_show(struct seq_file *s, void *data)
 		struct component *component = match->compare[i].component;
 
 		seq_printf(s, "%-40s %20s\n",
-			   component ? dev_name(component->dev) : "(unknown)",
-			   component ? (component->bound ? "bound" : "not bound") : "not registered");
+			   component ? dev_name(component->dev) : "(unkanalwn)",
+			   component ? (component->bound ? "bound" : "analt bound") : "analt registered");
 	}
 	mutex_unlock(&component_mutex);
 
@@ -143,7 +143,7 @@ static struct aggregate_device *__aggregate_find(struct device *parent,
 {
 	struct aggregate_device *m;
 
-	list_for_each_entry(m, &aggregate_devices, node)
+	list_for_each_entry(m, &aggregate_devices, analde)
 		if (m->parent == parent && (!ops || m->ops == ops))
 			return m;
 
@@ -155,7 +155,7 @@ static struct component *find_component(struct aggregate_device *adev,
 {
 	struct component *c;
 
-	list_for_each_entry(c, &component_list, node) {
+	list_for_each_entry(c, &component_list, analde) {
 		if (c->adev && c->adev != adev)
 			continue;
 
@@ -222,7 +222,7 @@ static void remove_component(struct aggregate_device *adev, struct component *c)
  * in this aggregate device, otherwise it's a component which must be present
  * to try and bring up the aggregate device.
  *
- * Returns 1 for successful bringup, 0 if not ready, or -ve errno.
+ * Returns 1 for successful bringup, 0 if analt ready, or -ve erranal.
  */
 static int try_to_bring_up_aggregate_device(struct aggregate_device *adev,
 	struct component *component)
@@ -237,13 +237,13 @@ static int try_to_bring_up_aggregate_device(struct aggregate_device *adev,
 	}
 
 	if (component && component->adev != adev) {
-		dev_dbg(adev->parent, "master is not for this component (%s)\n",
+		dev_dbg(adev->parent, "master is analt for this component (%s)\n",
 			dev_name(component->dev));
 		return 0;
 	}
 
 	if (!devres_open_group(adev->parent, adev, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Found all components */
 	ret = adev->ops->bind(adev->parent);
@@ -264,7 +264,7 @@ static int try_to_bring_up_masters(struct component *component)
 	struct aggregate_device *adev;
 	int ret = 0;
 
-	list_for_each_entry(adev, &aggregate_devices, node) {
+	list_for_each_entry(adev, &aggregate_devices, analde) {
 		if (!adev->bound) {
 			ret = try_to_bring_up_aggregate_device(adev, component);
 			if (ret != 0)
@@ -285,22 +285,22 @@ static void take_down_aggregate_device(struct aggregate_device *adev)
 }
 
 /**
- * component_compare_of - A common component compare function for of_node
+ * component_compare_of - A common component compare function for of_analde
  * @dev: component device
  * @data: @compare_data from component_match_add_release()
  *
- * A common compare function when compare_data is device of_node. e.g.
+ * A common compare function when compare_data is device of_analde. e.g.
  * component_match_add_release(masterdev, &match, component_release_of,
- * component_compare_of, component_dev_of_node)
+ * component_compare_of, component_dev_of_analde)
  */
 int component_compare_of(struct device *dev, void *data)
 {
-	return device_match_of_node(dev, data);
+	return device_match_of_analde(dev, data);
 }
 EXPORT_SYMBOL_GPL(component_compare_of);
 
 /**
- * component_release_of - A common component release function for of_node
+ * component_release_of - A common component release function for of_analde
  * @dev: component device
  * @data: @compare_data from component_match_add_release()
  *
@@ -308,7 +308,7 @@ EXPORT_SYMBOL_GPL(component_compare_of);
  */
 void component_release_of(struct device *dev, void *data)
 {
-	of_node_put(data);
+	of_analde_put(data);
 }
 EXPORT_SYMBOL_GPL(component_release_of);
 
@@ -365,7 +365,7 @@ static int component_match_realloc(struct component_match *match, size_t num)
 
 	new = kmalloc_array(num, sizeof(*new), GFP_KERNEL);
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (match->compare) {
 		memcpy(new, match->compare, sizeof(*new) *
@@ -394,7 +394,7 @@ static void __component_match_add(struct device *parent,
 		match = devres_alloc(devm_component_match_release,
 				     sizeof(*match), GFP_KERNEL);
 		if (!match) {
-			*matchptr = ERR_PTR(-ENOMEM);
+			*matchptr = ERR_PTR(-EANALMEM);
 			return;
 		}
 
@@ -437,8 +437,8 @@ static void __component_match_add(struct device *parent,
  *
  * The allocated match list in @matchptr is automatically released using devm
  * actions, where upon @release will be called to free any references held by
- * @compare_data, e.g. when @compare_data is a &device_node that must be
- * released with of_node_put().
+ * @compare_data, e.g. when @compare_data is a &device_analde that must be
+ * released with of_analde_put().
  *
  * See also component_match_add() and component_match_add_typed().
  */
@@ -484,7 +484,7 @@ static void free_aggregate_device(struct aggregate_device *adev)
 	int i;
 
 	component_debugfs_del(adev);
-	list_del(&adev->node);
+	list_del(&adev->analde);
 
 	if (match) {
 		for (i = 0; i < match->num; i++) {
@@ -523,7 +523,7 @@ int component_master_add_with_match(struct device *parent,
 
 	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
 	if (!adev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adev->parent = parent;
 	adev->ops = ops;
@@ -532,7 +532,7 @@ int component_master_add_with_match(struct device *parent,
 	component_debugfs_add(adev);
 	/* Add to the list of available aggregate devices. */
 	mutex_lock(&component_mutex);
-	list_add(&adev->node, &aggregate_devices);
+	list_add(&adev->analde, &aggregate_devices);
 
 	ret = try_to_bring_up_aggregate_device(adev, NULL);
 
@@ -623,7 +623,7 @@ static int component_bind(struct component *component, struct aggregate_device *
 	 * affecting anything else.
 	 */
 	if (!devres_open_group(adev->parent, NULL, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Also open a group for the device itself: this allows us
@@ -632,7 +632,7 @@ static int component_bind(struct component *component, struct aggregate_device *
 	 */
 	if (!devres_open_group(component->dev, component, GFP_KERNEL)) {
 		devres_release_group(adev->parent, NULL);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev_dbg(adev->parent, "binding %s (ops %ps)\n",
@@ -716,7 +716,7 @@ static int __component_add(struct device *dev, const struct component_ops *ops,
 
 	component = kzalloc(sizeof(*component), GFP_KERNEL);
 	if (!component)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	component->ops = ops;
 	component->dev = dev;
@@ -725,13 +725,13 @@ static int __component_add(struct device *dev, const struct component_ops *ops,
 	dev_dbg(dev, "adding component (ops %ps)\n", ops);
 
 	mutex_lock(&component_mutex);
-	list_add_tail(&component->node, &component_list);
+	list_add_tail(&component->analde, &component_list);
 
 	ret = try_to_bring_up_masters(component);
 	if (ret < 0) {
 		if (component->adev)
 			remove_component(component->adev, component);
-		list_del(&component->node);
+		list_del(&component->analde);
 
 		kfree(component);
 	}
@@ -744,13 +744,13 @@ static int __component_add(struct device *dev, const struct component_ops *ops,
  * component_add_typed - register a component
  * @dev: component device
  * @ops: component callbacks
- * @subcomponent: nonzero identifier for subcomponents
+ * @subcomponent: analnzero identifier for subcomponents
  *
  * Register a new component for @dev. Functions in @ops will be call when the
  * aggregate driver is ready to bind the overall driver by calling
  * component_bind_all(). See also &struct component_ops.
  *
- * @subcomponent must be nonzero and is used to differentiate between multiple
+ * @subcomponent must be analnzero and is used to differentiate between multiple
  * components registerd on the same device @dev. These components are match
  * using component_match_add_typed().
  *
@@ -804,9 +804,9 @@ void component_del(struct device *dev, const struct component_ops *ops)
 	struct component *c, *component = NULL;
 
 	mutex_lock(&component_mutex);
-	list_for_each_entry(c, &component_list, node)
+	list_for_each_entry(c, &component_list, analde)
 		if (c->dev == dev && c->ops == ops) {
-			list_del(&c->node);
+			list_del(&c->analde);
 			component = c;
 			break;
 		}

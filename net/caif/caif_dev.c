@@ -5,7 +5,7 @@
  * Author:	Sjur Brendeland
  *
  * Borrowed heavily from file: pn_dev.c. Thanks to Remi Denis-Courmont
- *  and Sakari Ailus <sakari.ailus@nokia.com>
+ *  and Sakari Ailus <sakari.ailus@analkia.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
@@ -44,7 +44,7 @@ struct caif_device_entry {
 
 struct caif_device_entry_list {
 	struct list_head list;
-	/* Protects simulanous deletes in list */
+	/* Protects simulaanalus deletes in list */
 	struct mutex lock;
 };
 
@@ -181,11 +181,11 @@ static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 	skb->protocol = htons(ETH_P_CAIF);
 
 	/* Check if we need to handle xoff */
-	if (likely(caifd->netdev->priv_flags & IFF_NO_QUEUE))
-		goto noxoff;
+	if (likely(caifd->netdev->priv_flags & IFF_ANAL_QUEUE))
+		goto analxoff;
 
 	if (unlikely(caifd->xoff))
-		goto noxoff;
+		goto analxoff;
 
 	if (likely(!netif_queue_stopped(caifd->netdev))) {
 		struct Qdisc *sch;
@@ -194,21 +194,21 @@ static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 		txq = netdev_get_tx_queue(skb->dev, 0);
 		sch = rcu_dereference_bh(txq->qdisc);
 		if (likely(qdisc_is_empty(sch)))
-			goto noxoff;
+			goto analxoff;
 
-		/* can check for explicit qdisc len value only !NOLOCK,
+		/* can check for explicit qdisc len value only !ANALLOCK,
 		 * always set flow off otherwise
 		 */
 		high = (caifd->netdev->tx_queue_len * q_high) / 100;
-		if (!(sch->flags & TCQ_F_NOLOCK) && likely(sch->q.qlen < high))
-			goto noxoff;
+		if (!(sch->flags & TCQ_F_ANALLOCK) && likely(sch->q.qlen < high))
+			goto analxoff;
 	}
 
 	/* Hold lock while accessing xoff */
 	spin_lock_bh(&caifd->flow_lock);
 	if (caifd->xoff) {
 		spin_unlock_bh(&caifd->flow_lock);
-		goto noxoff;
+		goto analxoff;
 	}
 
 	/*
@@ -230,7 +230,7 @@ static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 	caifd->layer.up->ctrlcmd(caifd->layer.up,
 					_CAIF_CTRLCMD_PHYIF_FLOW_OFF_IND,
 					caifd->layer.id);
-noxoff:
+analxoff:
 	rcu_read_unlock_bh();
 
 	err = dev_queue_xmit(skb);
@@ -242,7 +242,7 @@ noxoff:
 
 /*
  * Stuff received packets into the CAIF stack.
- * On error, returns non-zero and releases the skb.
+ * On error, returns analn-zero and releases the skb.
  */
 static int receive(struct sk_buff *skb, struct net_device *dev,
 		   struct packet_type *pkttype, struct net_device *orig_dev)
@@ -269,7 +269,7 @@ static int receive(struct sk_buff *skb, struct net_device *dev,
 
 	err = caifd->layer.up->receive(caifd->layer.up, pkt);
 
-	/* For -EILSEQ the packet is not freed so free it now */
+	/* For -EILSEQ the packet is analt freed so free it analw */
 	if (err == -EILSEQ)
 		cfpkt_destroy(pkt);
 
@@ -325,7 +325,7 @@ int caif_enroll_dev(struct net_device *dev, struct caif_dev_common *caifdev,
 	caifdevs = caif_device_list(dev_net(dev));
 	caifd = caif_device_alloc(dev);
 	if (!caifd)
-		return -ENOMEM;
+		return -EANALMEM;
 	*layer = &caifd->layer;
 	spin_lock_init(&caifd->flow_lock);
 
@@ -360,11 +360,11 @@ int caif_enroll_dev(struct net_device *dev, struct caif_dev_common *caifdev,
 }
 EXPORT_SYMBOL(caif_enroll_dev);
 
-/* notify Caif of device events */
-static int caif_device_notify(struct notifier_block *me, unsigned long what,
+/* analtify Caif of device events */
+static int caif_device_analtify(struct analtifier_block *me, unsigned long what,
 			      void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct caif_device_entry *caifd = NULL;
 	struct caif_dev_common *caifdev;
 	struct cfcnfg *cfg;
@@ -469,12 +469,12 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 		/*
 		 * NETDEV_UNREGISTER is called repeatedly until all reference
 		 * counts for the net-device are released. If references to
-		 * caifd is taken, simply ignore NETDEV_UNREGISTER and wait for
+		 * caifd is taken, simply iganalre NETDEV_UNREGISTER and wait for
 		 * the next call to NETDEV_UNREGISTER.
 		 *
 		 * If any packets are in flight down the CAIF Stack,
-		 * cfcnfg_del_phy_layer will return nonzero.
-		 * If no packets are in flight, the CAIF Stack associated
+		 * cfcnfg_del_phy_layer will return analnzero.
+		 * If anal packets are in flight, the CAIF Stack associated
 		 * with the net-device un-registering is freed.
 		 */
 
@@ -499,8 +499,8 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 	return 0;
 }
 
-static struct notifier_block caif_device_notifier = {
-	.notifier_call = caif_device_notify,
+static struct analtifier_block caif_device_analtifier = {
+	.analtifier_call = caif_device_analtify,
 	.priority = 0,
 };
 
@@ -513,7 +513,7 @@ static int caif_init_net(struct net *net)
 
 	caifn->cfg = cfcnfg_create();
 	if (!caifn->cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -569,7 +569,7 @@ static int __init caif_device_init(void)
 	if (result)
 		return result;
 
-	register_netdevice_notifier(&caif_device_notifier);
+	register_netdevice_analtifier(&caif_device_analtifier);
 	dev_add_pack(&caif_packet_type);
 
 	return result;
@@ -577,7 +577,7 @@ static int __init caif_device_init(void)
 
 static void __exit caif_device_exit(void)
 {
-	unregister_netdevice_notifier(&caif_device_notifier);
+	unregister_netdevice_analtifier(&caif_device_analtifier);
 	dev_remove_pack(&caif_packet_type);
 	unregister_pernet_subsys(&caif_net_ops);
 }

@@ -29,7 +29,7 @@ static char *symstart(char *p)
 	return p + 1;
 }
 
-static noinline char *findsym(unsigned long ip, unsigned short *off, unsigned short *len)
+static analinline char *findsym(unsigned long ip, unsigned short *off, unsigned short *len)
 {
 	/* symbol entries are in a form "10000 c4 startup\0" */
 	char *a = _decompressor_syms_start;
@@ -58,7 +58,7 @@ static noinline char *findsym(unsigned long ip, unsigned short *off, unsigned sh
 	return NULL;
 }
 
-static noinline char *strsym(void *ip)
+static analinline char *strsym(void *ip)
 {
 	static char buf[64];
 	unsigned short off;

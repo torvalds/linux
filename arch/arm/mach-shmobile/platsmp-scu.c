@@ -36,10 +36,10 @@ void __init shmobile_smp_scu_prepare_cpus(phys_addr_t scu_base_phys,
 	shmobile_scu_base_phys = scu_base_phys;
 	shmobile_scu_base = ioremap(scu_base_phys, PAGE_SIZE);
 	scu_enable(shmobile_scu_base);
-	scu_power_mode(shmobile_scu_base, SCU_PM_NORMAL);
+	scu_power_mode(shmobile_scu_base, SCU_PM_ANALRMAL);
 
-	/* Use CPU notifier for reset vector control */
-	cpuhp_setup_state_nocalls(CPUHP_ARM_SHMOBILE_SCU_PREPARE,
+	/* Use CPU analtifier for reset vector control */
+	cpuhp_setup_state_analcalls(CPUHP_ARM_SHMOBILE_SCU_PREPARE,
 				  "arm/shmobile-scu:prepare",
 				  shmobile_scu_cpu_prepare, NULL);
 }
@@ -74,7 +74,7 @@ int shmobile_smp_scu_cpu_kill(unsigned int cpu)
 {
 	int k;
 
-	/* this function is running on another CPU than the offline target,
+	/* this function is running on aanalther CPU than the offline target,
 	 * here we need wait for shutdown code in platform_cpu_die() to
 	 * finish before asking SoC-specific code to power off the CPU core.
 	 */

@@ -130,7 +130,7 @@ struct mma8452_data {
   * @ev_ths_mask:		mask for the threshold value
   * @ev_count:			event count (period) register address
   *
-  * Since not all chips supported by the driver support comparing high pass
+  * Since analt all chips supported by the driver support comparing high pass
   * filtered data for events (interrupts), different interrupt sources are
   * used for different chips and the relevant registers are included here.
   */
@@ -213,7 +213,7 @@ static int mma8452_drdy(struct mma8452_data *data)
 			msleep(20);
 	}
 
-	dev_err(&data->client->dev, "data not ready\n");
+	dev_err(&data->client->dev, "data analt ready\n");
 
 	return -EIO;
 }
@@ -298,7 +298,7 @@ static const int mma8452_samp_freq[8][2] = {
 
 /* Datasheet table: step time "Relationship with the ODR" (sample frequency) */
 static const unsigned int mma8452_time_step_us[4][8] = {
-	{ 1250, 2500, 5000, 10000, 20000, 20000, 20000, 20000 },  /* normal */
+	{ 1250, 2500, 5000, 10000, 20000, 20000, 20000, 20000 },  /* analrmal */
 	{ 1250, 2500, 5000, 10000, 20000, 80000, 80000, 80000 },  /* l p l n */
 	{ 1250, 2500, 2500, 2500, 2500, 2500, 2500, 2500 },	  /* high res*/
 	{ 1250, 2500, 5000, 10000, 20000, 80000, 160000, 160000 } /* l p */
@@ -306,7 +306,7 @@ static const unsigned int mma8452_time_step_us[4][8] = {
 
 /* Datasheet table "High-Pass Filter Cutoff Options" */
 static const int mma8452_hp_filter_cutoff[4][8][4][2] = {
-	{ /* normal */
+	{ /* analrmal */
 	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} },		/* 800 Hz sample */
 	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} },		/* 400 Hz sample */
 	{ {8, 0}, {4, 0}, {2, 0}, {1, 0} },		/* 200 Hz sample */
@@ -316,7 +316,7 @@ static const int mma8452_hp_filter_cutoff[4][8][4][2] = {
 	{ {2, 0}, {1, 0}, {0, 500000}, {0, 250000} },	/* 6.25 Hz sample */
 	{ {2, 0}, {1, 0}, {0, 500000}, {0, 250000} }	/* 1.56 Hz sample */
 	},
-	{ /* low noise low power */
+	{ /* low analise low power */
 	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} },
 	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} },
 	{ {8, 0}, {4, 0}, {2, 0}, {1, 0} },
@@ -351,8 +351,8 @@ static const int mma8452_hp_filter_cutoff[4][8][4][2] = {
 /* Datasheet table "MODS Oversampling modes averaging values at each ODR" */
 static const u16 mma8452_os_ratio[4][8] = {
 	/* 800 Hz, 400 Hz, ... , 1.56 Hz */
-	{ 2, 4, 4, 4, 4, 16, 32, 128 },		/* normal */
-	{ 2, 4, 4, 4, 4, 4, 8, 32 },		/* low power low noise */
+	{ 2, 4, 4, 4, 4, 16, 32, 128 },		/* analrmal */
+	{ 2, 4, 4, 4, 4, 4, 8, 32 },		/* low power low analise */
 	{ 2, 4, 8, 16, 32, 128, 256, 1024 },	/* high resolution */
 	{ 2, 2, 2, 2, 2, 2, 4, 16 }		/* low power */
 };
@@ -647,7 +647,7 @@ static int mma8452_set_power_mode(struct mma8452_data *data, u8 mode)
 	return mma8452_change_config(data, MMA8452_CTRL_REG2, reg);
 }
 
-/* returns >0 if in freefall mode, 0 if not or <0 if an error occurred */
+/* returns >0 if in freefall mode, 0 if analt or <0 if an error occurred */
 static int mma8452_freefall_mode_enabled(struct mma8452_data *data)
 {
 	int val;
@@ -1056,15 +1056,15 @@ static irqreturn_t mma8452_interrupt(int irq, void *p)
 {
 	struct iio_dev *indio_dev = p;
 	struct mma8452_data *data = iio_priv(indio_dev);
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	int src;
 
 	src = i2c_smbus_read_byte_data(data->client, MMA8452_INT_SRC);
 	if (src < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!(src & (data->chip_info->enabled_events | MMA8452_INT_DRDY)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (src & MMA8452_INT_DRDY) {
 		iio_trigger_poll_nested(indio_dev->trig);
@@ -1108,7 +1108,7 @@ static irqreturn_t mma8452_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1335,7 +1335,7 @@ static const struct mma_chip_info mma_chip_info_table[] = {
 		.mma_scales = { {0, 2394}, {0, 4788}, {0, 9577} },
 		/*
 		 * Although we enable the interrupt sources once and for
-		 * all here the event detection itself is not enabled until
+		 * all here the event detection itself is analt enabled until
 		 * userspace asks for it by mma8452_write_event_config()
 		 */
 		.all_events = MMA8452_INT_DRDY |
@@ -1352,7 +1352,7 @@ static const struct mma_chip_info mma_chip_info_table[] = {
 		.mma_scales = { {0, 9577}, {0, 19154}, {0, 38307} },
 		/*
 		 * Although we enable the interrupt sources once and for
-		 * all here the event detection itself is not enabled until
+		 * all here the event detection itself is analt enabled until
 		 * userspace asks for it by mma8452_write_event_config()
 		 */
 		.all_events = MMA8452_INT_DRDY |
@@ -1369,7 +1369,7 @@ static const struct mma_chip_info mma_chip_info_table[] = {
 		.mma_scales = { {0, 38307}, {0, 76614}, {0, 153228} },
 		/*
 		 * Although we enable the interrupt sources once and for
-		 * all here the event detection itself is not enabled until
+		 * all here the event detection itself is analt enabled until
 		 * userspace asks for it by mma8452_write_event_config()
 		 */
 		.all_events = MMA8452_INT_DRDY |
@@ -1396,7 +1396,7 @@ static const struct mma_chip_info mma_chip_info_table[] = {
 		.mma_scales = { {0, 38307}, {0, 76614}, {0, 153228} },
 		/*
 		 * Although we enable the interrupt sources once and for
-		 * all here the event detection itself is not enabled until
+		 * all here the event detection itself is analt enabled until
 		 * userspace asks for it by mma8452_write_event_config()
 		 */
 		.all_events = MMA8452_INT_DRDY |
@@ -1411,7 +1411,7 @@ static const struct mma_chip_info mma_chip_info_table[] = {
 		.mma_scales = { {0, 2394}, {0, 4788}, {0, 9577} },
 		/*
 		 * Although we enable the interrupt sources once and for
-		 * all here the event detection itself is not enabled until
+		 * all here the event detection itself is analt enabled until
 		 * userspace asks for it by mma8452_write_event_config()
 		 */
 		.all_events = MMA8452_INT_DRDY |
@@ -1486,7 +1486,7 @@ static int mma8452_trigger_setup(struct iio_dev *indio_dev)
 				      indio_dev->name,
 				      iio_device_id(indio_dev));
 	if (!trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	trig->ops = &mma8452_trigger_ops;
 	iio_trigger_set_drvdata(trig, indio_dev);
@@ -1513,7 +1513,7 @@ static int mma8452_reset(struct i2c_client *client)
 
 	/*
 	 * Find on fxls8471, after config reset bit, it reset immediately,
-	 * and will not give ACK, so here do not check the return value.
+	 * and will analt give ACK, so here do analt check the return value.
 	 * The following code will read the reset register, and check whether
 	 * this reset works.
 	 */
@@ -1553,7 +1553,7 @@ static int mma8452_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->client = client;
@@ -1561,8 +1561,8 @@ static int mma8452_probe(struct i2c_client *client)
 
 	data->chip_info = i2c_get_match_data(client);
 	if (!data->chip_info)
-		return dev_err_probe(&client->dev, -ENODEV,
-				     "unknown device model\n");
+		return dev_err_probe(&client->dev, -EANALDEV,
+				     "unkanalwn device model\n");
 
 	ret = iio_read_mount_matrix(&client->dev, &data->orientation);
 	if (ret)
@@ -1605,7 +1605,7 @@ static int mma8452_probe(struct i2c_client *client)
 			break;
 		fallthrough;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto disable_regulators;
 	}
 
@@ -1642,7 +1642,7 @@ static int mma8452_probe(struct i2c_client *client)
 	if (client->irq) {
 		int irq2;
 
-		irq2 = of_irq_get_byname(client->dev.of_node, "INT2");
+		irq2 = of_irq_get_byname(client->dev.of_analde, "INT2");
 
 		if (irq2 == client->irq) {
 			dev_dbg(&client->dev, "using interrupt line INT2\n");

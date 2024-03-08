@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2005 Voltaire Inc.  All rights reserved.
  * Copyright (c) 2002-2005, Network Appliance, Inc. All rights reserved.
- * Copyright (c) 1999-2005, Mellanox Technologies, Inc. All rights reserved.
+ * Copyright (c) 1999-2005, Mellaanalx Techanallogies, Inc. All rights reserved.
  * Copyright (c) 2005 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -15,18 +15,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -168,13 +168,13 @@ static int ib_nl_ip_send_msg(struct rdma_dev_addr *dev_addr,
 
 	skb = nlmsg_new(len, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = ibnl_put_msg(skb, &nlh, seq, 0, RDMA_NL_LS,
 			    RDMA_NL_LS_OP_IP_RESOLVE, NLM_F_REQUEST);
 	if (!data) {
 		nlmsg_free(skb);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	/* Construct the family header first */
@@ -189,7 +189,7 @@ static int ib_nl_ip_send_msg(struct rdma_dev_addr *dev_addr,
 	/* Make the request retry, so when we get the response from userspace
 	 * we will have something.
 	 */
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 int rdma_addr_size(const struct sockaddr *addr)
@@ -246,7 +246,7 @@ static struct net_device *
 rdma_find_ndev_for_src_ip_rcu(struct net *net, const struct sockaddr *src_in)
 {
 	struct net_device *dev = NULL;
-	int ret = -EADDRNOTAVAIL;
+	int ret = -EADDRANALTAVAIL;
 
 	switch (src_in->sa_family) {
 	case AF_INET:
@@ -280,7 +280,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
 	if (dev_addr->bound_dev_if) {
 		dev = dev_get_by_index(dev_addr->net, dev_addr->bound_dev_if);
 		if (!dev)
-			return -ENODEV;
+			return -EANALDEV;
 		rdma_copy_src_l2_addr(dev_addr, dev);
 		dev_put(dev);
 		return 0;
@@ -318,7 +318,7 @@ static int ib_nl_fetch_ha(struct rdma_dev_addr *dev_addr,
 			  const void *daddr, u32 seq, u16 family)
 {
 	if (!rdma_nl_chk_listeners(RDMA_NL_GROUP_LS))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	return ib_nl_ip_send_msg(dev_addr, daddr, seq, family);
 }
@@ -332,11 +332,11 @@ static int dst_fetch_ha(const struct dst_entry *dst,
 
 	n = dst_neigh_lookup(dst, daddr);
 	if (!n)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (!(n->nud_state & NUD_VALID)) {
 		neigh_event_send(n, NULL);
-		ret = -ENODATA;
+		ret = -EANALDATA;
 	} else {
 		neigh_ha_snapshot(dev_addr->dst_dev_addr, n, dst->dev);
 	}
@@ -448,7 +448,7 @@ static int addr6_resolve(struct sockaddr *src_sock,
 			 struct rdma_dev_addr *addr,
 			 struct dst_entry **pdst)
 {
-	return -EADDRNOTAVAIL;
+	return -EADDRANALTAVAIL;
 }
 #endif
 
@@ -463,7 +463,7 @@ static int addr_resolve_neigh(const struct dst_entry *dst,
 	if (ndev_flags & IFF_LOOPBACK) {
 		memcpy(addr->dst_dev_addr, addr->src_dev_addr, MAX_ADDR_LEN);
 	} else {
-		if (!(ndev_flags & IFF_NOARP)) {
+		if (!(ndev_flags & IFF_ANALARP)) {
 			/* If the device doesn't do ARP internally */
 			ret = fetch_ha(dst, addr, dst_in, seq);
 		}
@@ -484,7 +484,7 @@ static int copy_src_l2_addr(struct rdma_dev_addr *dev_addr,
 		rdma_copy_src_l2_addr(dev_addr, dst->dev);
 
 	/*
-	 * If there's a gateway and type of device not ARPHRD_INFINIBAND,
+	 * If there's a gateway and type of device analt ARPHRD_INFINIBAND,
 	 * we're definitely in RoCE v2 (as RoCE v1 isn't routable) set the
 	 * network type accordingly.
 	 */
@@ -512,12 +512,12 @@ static int rdma_set_src_addr_rcu(struct rdma_dev_addr *dev_addr,
 		/*
 		 * RDMA (IB/RoCE, iWarp) doesn't run on lo interface or
 		 * loopback IP address. So if route is resolved to loopback
-		 * interface, translate that to a real ndev based on non
+		 * interface, translate that to a real ndev based on analn
 		 * loopback IP address.
 		 */
 		ndev = rdma_find_ndev_for_src_ip_rcu(dev_net(ndev), dst_in);
 		if (IS_ERR(ndev))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	return copy_src_l2_addr(dev_addr, dst_in, dst, ndev);
@@ -625,7 +625,7 @@ static void process_one_req(struct work_struct *_work)
 
 	req = container_of(_work, struct addr_req, work.work);
 
-	if (req->status == -ENODATA) {
+	if (req->status == -EANALDATA) {
 		src_in = (struct sockaddr *)&req->src_addr;
 		dst_in = (struct sockaddr *)&req->dst_addr;
 		req->status = addr_resolve(src_in, dst_in, req->addr,
@@ -633,7 +633,7 @@ static void process_one_req(struct work_struct *_work)
 					   req->seq);
 		if (req->status && time_after_eq(jiffies, req->timeout)) {
 			req->status = -ETIMEDOUT;
-		} else if (req->status == -ENODATA) {
+		} else if (req->status == -EANALDATA) {
 			/* requeue the work for retrying again */
 			spin_lock_bh(&lock);
 			if (!list_empty(&req->list))
@@ -649,7 +649,7 @@ static void process_one_req(struct work_struct *_work)
 
 	spin_lock_bh(&lock);
 	/*
-	 * Although the work will normally have been canceled by the workqueue,
+	 * Although the work will analrmally have been canceled by the workqueue,
 	 * it can still be requeued as long as it is on the req_list.
 	 */
 	cancel_delayed_work(&req->work);
@@ -672,7 +672,7 @@ int rdma_resolve_ip(struct sockaddr *src_addr, const struct sockaddr *dst_addr,
 
 	req = kzalloc(sizeof *req, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	src_in = (struct sockaddr *) &req->src_addr;
 	dst_in = (struct sockaddr *) &req->dst_addr;
@@ -703,7 +703,7 @@ int rdma_resolve_ip(struct sockaddr *src_addr, const struct sockaddr *dst_addr,
 		req->timeout = jiffies;
 		queue_req(req);
 		break;
-	case -ENODATA:
+	case -EANALDATA:
 		req->timeout = msecs_to_jiffies(timeout_ms) + jiffies;
 		queue_req(req);
 		break;
@@ -764,7 +764,7 @@ int roce_resolve_route_from_path(struct sa_path_rec *rec,
  * rdma_addr_cancel - Cancel resolve ip request
  * @addr:	Pointer to address structure given previously
  *		during rdma_resolve_ip().
- * rdma_addr_cancel() is synchronous function which cancels any pending
+ * rdma_addr_cancel() is synchroanalus function which cancels any pending
  * request if there is any.
  */
 void rdma_addr_cancel(struct rdma_dev_addr *addr)
@@ -791,7 +791,7 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 
 	/*
 	 * sync canceling the work after removing it from the req_list
-	 * guarentees no work is running and none will be started.
+	 * guarentees anal work is running and analne will be started.
 	 */
 	cancel_delayed_work_sync(&found->work);
 	kfree(found);
@@ -848,7 +848,7 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 	return 0;
 }
 
-static int netevent_callback(struct notifier_block *self, unsigned long event,
+static int netevent_callback(struct analtifier_block *self, unsigned long event,
 	void *ctx)
 {
 	struct addr_req *req;
@@ -866,24 +866,24 @@ static int netevent_callback(struct notifier_block *self, unsigned long event,
 	return 0;
 }
 
-static struct notifier_block nb = {
-	.notifier_call = netevent_callback
+static struct analtifier_block nb = {
+	.analtifier_call = netevent_callback
 };
 
 int addr_init(void)
 {
 	addr_wq = alloc_ordered_workqueue("ib_addr", 0);
 	if (!addr_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	register_netevent_notifier(&nb);
+	register_netevent_analtifier(&nb);
 
 	return 0;
 }
 
 void addr_cleanup(void)
 {
-	unregister_netevent_notifier(&nb);
+	unregister_netevent_analtifier(&nb);
 	destroy_workqueue(addr_wq);
 	WARN_ON(!list_empty(&req_list));
 }

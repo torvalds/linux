@@ -51,7 +51,7 @@ struct ia_css_pipeline {
 	struct ia_css_frame out_frame[IA_CSS_PIPE_MAX_OUTPUT_STAGE];
 	struct ia_css_frame vf_frame[IA_CSS_PIPE_MAX_OUTPUT_STAGE];
 	unsigned int dvs_frame_delay;
-	unsigned int inout_port_config;
+	unsigned int ianalut_port_config;
 	int num_execs;
 	bool acquire_isp_each_stage;
 };
@@ -80,7 +80,7 @@ struct ia_css_pipeline_stage_desc {
 
 /* @brief initialize the pipeline module
  *
- * @return    None
+ * @return    Analne
  *
  * Initializes the pipeline module. This API has to be called
  * before any operation on the pipeline module is done
@@ -107,7 +107,7 @@ int ia_css_pipeline_create(
 /* @brief destroy a pipeline
  *
  * @param[in] pipeline
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipeline_destroy(struct ia_css_pipeline *pipeline);
@@ -116,7 +116,7 @@ void ia_css_pipeline_destroy(struct ia_css_pipeline *pipeline);
  *
  * @param[in] pipe_id
  * @param[in] pipeline
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipeline_start(enum ia_css_pipe_id pipe_id,
@@ -141,7 +141,7 @@ bool ia_css_pipeline_has_stopped(struct ia_css_pipeline *pipe);
 /* @brief clean all the stages pipeline and make it as new
  *
  * @param[in] pipeline
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipeline_clean(struct ia_css_pipeline *pipeline);
@@ -153,7 +153,7 @@ void ia_css_pipeline_clean(struct ia_css_pipeline *pipeline);
  * @param[out] stage            The successor of the stage.
  * @return                     0 or error code upon error.
  *
- * Add a new stage to a non-NULL pipeline.
+ * Add a new stage to a analn-NULL pipeline.
  * The stage consists of an ISP binary or firmware and input and output
  * arguments.
 */
@@ -165,7 +165,7 @@ int ia_css_pipeline_create_and_add_stage(
 /* @brief Finalize the stages in a pipeline
  *
  * @param     pipeline               Pointer to the pipeline to be added to.
- * @return                     None
+ * @return                     Analne
  *
  * This API is expected to be called after adding all stages
 */
@@ -244,7 +244,7 @@ bool ia_css_pipeline_get_sp_thread_id(unsigned int key, unsigned int *val);
 /**
  * @brief Get the pipeline io status
  *
- * @param[in] None
+ * @param[in] Analne
  * @return
  *	Pointer to pipe_io_status
  */
@@ -266,16 +266,16 @@ void ia_css_pipeline_map(unsigned int pipe_num, bool map);
  *
  * return
  *	true, pipeline is mapped to SP threads
- *	false, pipeline is not mapped to SP threads
+ *	false, pipeline is analt mapped to SP threads
  */
 bool ia_css_pipeline_is_mapped(unsigned int key);
 
 /**
  * @brief Print pipeline thread mapping
  *
- * @param[in]	none
+ * @param[in]	analne
  *
- * return none
+ * return analne
  */
 void ia_css_pipeline_dump_thread_map_info(void);
 

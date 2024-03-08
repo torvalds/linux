@@ -84,7 +84,7 @@ static void tqm85xx_ti1520_fixup(struct pci_dev *pdev)
 {
 	unsigned int val;
 
-	/* Do not do the fixup on other platforms! */
+	/* Do analt do the fixup on other platforms! */
 	if (!machine_is(tqm85xx))
 		return;
 

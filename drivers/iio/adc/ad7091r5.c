@@ -19,7 +19,7 @@ static const struct iio_chan_spec ad7091r5_channels_irq[] = {
 	AD7091R_CHANNEL(3, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
 };
 
-static const struct iio_chan_spec ad7091r5_channels_noirq[] = {
+static const struct iio_chan_spec ad7091r5_channels_analirq[] = {
 	AD7091R_CHANNEL(0, 12, NULL, 0),
 	AD7091R_CHANNEL(1, 12, NULL, 0),
 	AD7091R_CHANNEL(2, 12, NULL, 0),
@@ -68,10 +68,10 @@ static const struct ad7091r_chip_info ad7091r5_chip_info_irq = {
 	.set_mode = &ad7091r5_set_mode,
 };
 
-static const struct ad7091r_chip_info ad7091r5_chip_info_noirq = {
+static const struct ad7091r_chip_info ad7091r5_chip_info_analirq = {
 	.name = "ad7091r-5",
-	.channels = ad7091r5_channels_noirq,
-	.num_channels = ARRAY_SIZE(ad7091r5_channels_noirq),
+	.channels = ad7091r5_channels_analirq,
+	.num_channels = ARRAY_SIZE(ad7091r5_channels_analirq),
 	.vref_mV = 2500,
 	.reg_result_chan_id = &ad7091r5_reg_result_chan_id,
 	.set_mode = &ad7091r5_set_mode,
@@ -94,7 +94,7 @@ static void ad7091r5_regmap_init(struct ad7091r_state *st,
 
 static struct ad7091r_init_info ad7091r5_init_info = {
 	.info_irq = &ad7091r5_chip_info_irq,
-	.info_no_irq = &ad7091r5_chip_info_noirq,
+	.info_anal_irq = &ad7091r5_chip_info_analirq,
 	.regmap_config = &ad7091r_regmap_config,
 	.init_adc_regmap = &ad7091r5_regmap_init
 };

@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -264,13 +264,13 @@ static int vmw_context_init(struct vmw_private *dev_priv,
 	if (unlikely(res->id >= SVGA3D_HB_MAX_CONTEXT_IDS)) {
 		DRM_ERROR("Out of hw context ids.\n");
 		vmw_resource_unreference(&res);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
 		vmw_resource_unreference(&res);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cmd->header.id = SVGA_3D_CMD_CONTEXT_DEFINE;
@@ -310,18 +310,18 @@ static int vmw_gb_context_create(struct vmw_resource *res)
 	ret = vmw_resource_alloc_id(res);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed to allocate a context id.\n");
-		goto out_no_id;
+		goto out_anal_id;
 	}
 
 	if (unlikely(res->id >= VMWGFX_NUM_GB_CONTEXT)) {
 		ret = -EBUSY;
-		goto out_no_fifo;
+		goto out_anal_fifo;
 	}
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
-		ret = -ENOMEM;
-		goto out_no_fifo;
+		ret = -EANALMEM;
+		goto out_anal_fifo;
 	}
 
 	cmd->header.id = SVGA_3D_CMD_DEFINE_GB_CONTEXT;
@@ -332,9 +332,9 @@ static int vmw_gb_context_create(struct vmw_resource *res)
 
 	return 0;
 
-out_no_fifo:
+out_anal_fifo:
 	vmw_resource_release_id(res);
-out_no_id:
+out_anal_id:
 	return ret;
 }
 
@@ -352,7 +352,7 @@ static int vmw_gb_context_bind(struct vmw_resource *res,
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_BIND_GB_CONTEXT;
 	cmd->header.size = sizeof(cmd->body);
@@ -397,7 +397,7 @@ static int vmw_gb_context_unbind(struct vmw_resource *res,
 	cmd = VMW_CMD_RESERVE(dev_priv, submit_size);
 	if (unlikely(cmd == NULL)) {
 		mutex_unlock(&dev_priv->binding_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cmd2 = (void *) cmd;
@@ -444,7 +444,7 @@ static int vmw_gb_context_destroy(struct vmw_resource *res)
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DESTROY_GB_CONTEXT;
 	cmd->header.size = sizeof(cmd->body);
@@ -477,18 +477,18 @@ static int vmw_dx_context_create(struct vmw_resource *res)
 	ret = vmw_resource_alloc_id(res);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed to allocate a context id.\n");
-		goto out_no_id;
+		goto out_anal_id;
 	}
 
 	if (unlikely(res->id >= VMWGFX_NUM_DXCONTEXT)) {
 		ret = -EBUSY;
-		goto out_no_fifo;
+		goto out_anal_fifo;
 	}
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
-		ret = -ENOMEM;
-		goto out_no_fifo;
+		ret = -EANALMEM;
+		goto out_anal_fifo;
 	}
 
 	cmd->header.id = SVGA_3D_CMD_DX_DEFINE_CONTEXT;
@@ -499,9 +499,9 @@ static int vmw_dx_context_create(struct vmw_resource *res)
 
 	return 0;
 
-out_no_fifo:
+out_anal_fifo:
 	vmw_resource_release_id(res);
-out_no_id:
+out_anal_id:
 	return ret;
 }
 
@@ -519,7 +519,7 @@ static int vmw_dx_context_bind(struct vmw_resource *res,
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DX_BIND_CONTEXT;
 	cmd->header.size = sizeof(cmd->body);
@@ -541,7 +541,7 @@ static int vmw_dx_context_bind(struct vmw_resource *res,
  * @readback: Whether to save the otable contents on scrubbing.
  *
  * COtables must be unbound before their context, but unbinding requires
- * the backup buffer being reserved, whereas scrubbing does not.
+ * the backup buffer being reserved, whereas scrubbing does analt.
  * This function scrubs all cotables of a context, potentially reading back
  * the contents into their backup buffers. However, scrubbing cotables
  * also makes the device context invalid, so scrub all bindings first so
@@ -613,7 +613,7 @@ static int vmw_dx_context_unbind(struct vmw_resource *res,
 	cmd = VMW_CMD_RESERVE(dev_priv, submit_size);
 	if (unlikely(cmd == NULL)) {
 		mutex_unlock(&dev_priv->binding_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cmd2 = (void *) cmd;
@@ -660,7 +660,7 @@ static int vmw_dx_context_destroy(struct vmw_resource *res)
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DX_DESTROY_CONTEXT;
 	cmd->header.size = sizeof(cmd->body);
@@ -698,7 +698,7 @@ static void vmw_user_context_free(struct vmw_resource *res)
 }
 
 /*
- * This function is called when user space has no more references on the
+ * This function is called when user space has anal more references on the
  * base object. It releases the base-object's reference on the resource object.
  */
 
@@ -734,13 +734,13 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!has_sm4_context(dev_priv) && dx) {
-		VMW_DEBUG_USER("DX contexts not supported by device.\n");
+		VMW_DEBUG_USER("DX contexts analt supported by device.\n");
 		return -EINVAL;
 	}
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (unlikely(!ctx)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_ret;
 	}
 
@@ -800,7 +800,7 @@ int vmw_extended_context_define_ioctl(struct drm_device *dev, void *data,
  *
  * @ctx: The context resource
  *
- * Returns the current list of bindings of the given context. Note that
+ * Returns the current list of bindings of the given context. Analte that
  * this list becomes stale as soon as the dev_priv::binding_mutex is unlocked.
  */
 struct list_head *vmw_context_binding_list(struct vmw_resource *ctx)
@@ -835,7 +835,7 @@ struct vmw_resource *vmw_context_cotable(struct vmw_resource *ctx,
  *
  * @ctx: The context resource
  *
- * Returns the current state of bindings of the given context. Note that
+ * Returns the current state of bindings of the given context. Analte that
  * this state becomes stale as soon as the dev_priv::binding_mutex is unlocked.
  */
 struct vmw_ctx_binding_state *
@@ -853,7 +853,7 @@ vmw_context_binding_state(struct vmw_resource *ctx)
  * @ctx_res: The context resource
  * @mob: a reference to the query MOB
  *
- * Returns -EINVAL if a MOB has already been set and does not match the one
+ * Returns -EINVAL if a MOB has already been set and does analt match the one
  * specified in the parameter.  0 otherwise.
  */
 int vmw_context_bind_dx_query(struct vmw_resource *ctx_res,
@@ -885,7 +885,7 @@ int vmw_context_bind_dx_query(struct vmw_resource *ctx_res,
 }
 
 /**
- * vmw_context_get_dx_query_mob - Returns non-counted reference to DX query mob
+ * vmw_context_get_dx_query_mob - Returns analn-counted reference to DX query mob
  *
  * @ctx_res: The context resource
  */

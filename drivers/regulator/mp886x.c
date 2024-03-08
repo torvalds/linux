@@ -67,7 +67,7 @@ static int mp886x_set_mode(struct regulator_dev *rdev, unsigned int mode)
 		regmap_update_bits(rdev->regmap, MP886X_SYSCNTLREG1,
 				   MP886X_MODE, MP886X_MODE);
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		regmap_update_bits(rdev->regmap, MP886X_SYSCNTLREG1,
 				   MP886X_MODE, 0);
 		break;
@@ -88,7 +88,7 @@ static unsigned int mp886x_get_mode(struct regulator_dev *rdev)
 	if (val & MP886X_MODE)
 		return REGULATOR_MODE_FAST;
 	else
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 }
 
 static int mp8869_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
@@ -289,7 +289,7 @@ static const struct regmap_config mp886x_regmap_config = {
 static int mp886x_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct mp886x_device_info *di;
 	struct regulator_config config = { };
 	struct regmap *regmap;
@@ -298,11 +298,11 @@ static int mp886x_i2c_probe(struct i2c_client *client)
 
 	di = devm_kzalloc(dev, sizeof(struct mp886x_device_info), GFP_KERNEL);
 	if (!di)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	di->regulator = of_get_regulator_init_data(dev, np, &di->desc);
 	if (!di->regulator) {
-		dev_err(dev, "Platform data not found!\n");
+		dev_err(dev, "Platform data analt found!\n");
 		return -EINVAL;
 	}
 
@@ -329,7 +329,7 @@ static int mp886x_i2c_probe(struct i2c_client *client)
 	config.init_data = di->regulator;
 	config.regmap = regmap;
 	config.driver_data = di;
-	config.of_node = np;
+	config.of_analde = np;
 
 	if (!of_property_read_u32(np, "mps,switch-frequency-hz", &freq))
 		mp886x_set_switch_freq(di, regmap, freq);
@@ -356,7 +356,7 @@ MODULE_DEVICE_TABLE(i2c, mp886x_id);
 static struct i2c_driver mp886x_regulator_driver = {
 	.driver = {
 		.name = "mp886x-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = mp886x_dt_ids,
 	},
 	.probe = mp886x_i2c_probe,

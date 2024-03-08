@@ -92,7 +92,7 @@ struct pci_dev;
 #define   BCMA_CORE_PCI_SPROM_PI_MASK		0xf000	/* bit 15:12 */
 #define   BCMA_CORE_PCI_SPROM_PI_SHIFT		12	/* bit 15:12 */
 #define  BCMA_CORE_PCI_SPROM_MISC_CONFIG	5	/* word 5 */
-#define   BCMA_CORE_PCI_SPROM_L23READY_EXIT_NOPERST	0x8000	/* bit 15 */
+#define   BCMA_CORE_PCI_SPROM_L23READY_EXIT_ANALPERST	0x8000	/* bit 15 */
 #define   BCMA_CORE_PCI_SPROM_CLKREQ_OFFSET_REV5	20	/* word 20 for srom rev <= 5 */
 #define   BCMA_CORE_PCI_SPROM_CLKREQ_ENB	0x0800	/* bit 11 */
 
@@ -109,7 +109,7 @@ struct pci_dev;
 #define  BCMA_CORE_PCI_SBTOPCI_RC_READL		0x00000010 /* Memory read line */
 #define  BCMA_CORE_PCI_SBTOPCI_RC_READM		0x00000020 /* Memory read multiple */
 
-/* PCIE protocol PHY diagnostic registers */
+/* PCIE protocol PHY diaganalstic registers */
 #define BCMA_CORE_PCI_PLP_MODEREG		0x200	/* Mode */
 #define BCMA_CORE_PCI_PLP_STATUSREG		0x204	/* Status */
 #define  BCMA_CORE_PCI_PLP_POLARITYINV_STAT	0x10	/* Status reg PCIE_PLP_STATUSREG */
@@ -128,7 +128,7 @@ struct pci_dev;
 #define BCMA_CORE_PCI_PLP_RXTXSMDIAGREG		0x238	/* RXTX State Machine Diag */
 #define BCMA_CORE_PCI_PLP_LTSSMDIAGREG		0x23C	/* LTSSM State Machine Diag */
 
-/* PCIE protocol DLLP diagnostic registers */
+/* PCIE protocol DLLP diaganalstic registers */
 #define BCMA_CORE_PCI_DLLP_LCREG		0x100	/* Link Control */
 #define BCMA_CORE_PCI_DLLP_LSREG		0x104	/* Link Status */
 #define BCMA_CORE_PCI_DLLP_LAREG		0x108	/* Link Attention */
@@ -167,7 +167,7 @@ struct pci_dev;
 #define BCMA_CORE_PCI_PLL_CTRL_FREQDET_EN	0x4000	/* bit 14 is FREQDET on */
 
 /* PCIcore specific boardflags */
-#define BCMA_CORE_PCI_BFL_NOPCI			0x00000400 /* Board leaves PCI floating */
+#define BCMA_CORE_PCI_BFL_ANALPCI			0x00000400 /* Board leaves PCI floating */
 
 /* PCIE Config space accessing MACROS */
 #define BCMA_CORE_PCI_CFG_BUS_SHIFT		24	/* Bus shift */
@@ -253,11 +253,11 @@ extern int bcma_core_pci_plat_dev_init(struct pci_dev *dev);
 #else
 static inline int bcma_core_pci_pcibios_map_irq(const struct pci_dev *dev)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline int bcma_core_pci_plat_dev_init(struct pci_dev *dev)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 #endif
 

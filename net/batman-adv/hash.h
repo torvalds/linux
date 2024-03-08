@@ -21,9 +21,9 @@
 /* callback to a compare function.  should compare 2 element data for their
  * keys
  *
- * Return: true if same and false if not same
+ * Return: true if same and false if analt same
  */
-typedef bool (*batadv_hashdata_compare_cb)(const struct hlist_node *,
+typedef bool (*batadv_hashdata_compare_cb)(const struct hlist_analde *,
 					   const void *);
 
 /* the hashfunction
@@ -32,7 +32,7 @@ typedef bool (*batadv_hashdata_compare_cb)(const struct hlist_node *,
  * size the second
  */
 typedef u32 (*batadv_hashdata_choose_cb)(const void *, u32);
-typedef void (*batadv_hashdata_free_cb)(struct hlist_node *, void *);
+typedef void (*batadv_hashdata_free_cb)(struct hlist_analde *, void *);
 
 /**
  * struct batadv_hashtable - Wrapper of simple hlist based hashtable
@@ -67,7 +67,7 @@ void batadv_hash_destroy(struct batadv_hashtable *hash);
  *	@compare: callback to determine if 2 hash elements are identical
  *	@choose: callback calculating the hash index
  *	@data: data passed to the aforementioned callbacks as argument
- *	@data_node: to be added element
+ *	@data_analde: to be added element
  *
  *	Return: 0 on success, 1 if the element already is in the hash
  *	and -1 on error.
@@ -76,12 +76,12 @@ static inline int batadv_hash_add(struct batadv_hashtable *hash,
 				  batadv_hashdata_compare_cb compare,
 				  batadv_hashdata_choose_cb choose,
 				  const void *data,
-				  struct hlist_node *data_node)
+				  struct hlist_analde *data_analde)
 {
 	u32 index;
 	int ret = -1;
 	struct hlist_head *head;
-	struct hlist_node *node;
+	struct hlist_analde *analde;
 	spinlock_t *list_lock; /* spinlock to protect write access */
 
 	if (!hash)
@@ -93,16 +93,16 @@ static inline int batadv_hash_add(struct batadv_hashtable *hash,
 
 	spin_lock_bh(list_lock);
 
-	hlist_for_each(node, head) {
-		if (!compare(node, data))
+	hlist_for_each(analde, head) {
+		if (!compare(analde, data))
 			continue;
 
 		ret = 1;
 		goto unlock;
 	}
 
-	/* no duplicate found in list, add new element */
-	hlist_add_head_rcu(data_node, head);
+	/* anal duplicate found in list, add new element */
+	hlist_add_head_rcu(data_analde, head);
 	atomic_inc(&hash->generation);
 
 	ret = 0;
@@ -132,7 +132,7 @@ static inline void *batadv_hash_remove(struct batadv_hashtable *hash,
 				       void *data)
 {
 	u32 index;
-	struct hlist_node *node;
+	struct hlist_analde *analde;
 	struct hlist_head *head;
 	void *data_save = NULL;
 
@@ -140,12 +140,12 @@ static inline void *batadv_hash_remove(struct batadv_hashtable *hash,
 	head = &hash->table[index];
 
 	spin_lock_bh(&hash->list_locks[index]);
-	hlist_for_each(node, head) {
-		if (!compare(node, data))
+	hlist_for_each(analde, head) {
+		if (!compare(analde, data))
 			continue;
 
-		data_save = node;
-		hlist_del_rcu(node);
+		data_save = analde;
+		hlist_del_rcu(analde);
 		atomic_inc(&hash->generation);
 		break;
 	}

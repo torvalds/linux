@@ -6,7 +6,7 @@
  */
 
 #include <linux/cleanup.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -46,7 +46,7 @@ static void pxrc_usb_irq(struct urb *urb)
 			__func__);
 		return;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 	case -EPIPE:
 		/* this urb is terminated, clean up */
@@ -54,7 +54,7 @@ static void pxrc_usb_irq(struct urb *urb)
 			__func__, urb->status);
 		return;
 	default:
-		dev_dbg(&pxrc->intf->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&pxrc->intf->dev, "%s - analnzero urb status received: %d\n",
 			__func__, urb->status);
 		goto exit;
 	}
@@ -131,13 +131,13 @@ static int pxrc_probe(struct usb_interface *intf,
 	error = usb_find_common_endpoints(intf->cur_altsetting,
 					  NULL, NULL, &epirq, NULL);
 	if (error) {
-		dev_err(&intf->dev, "Could not find endpoint\n");
+		dev_err(&intf->dev, "Could analt find endpoint\n");
 		return error;
 	}
 
 	pxrc = devm_kzalloc(&intf->dev, sizeof(*pxrc), GFP_KERNEL);
 	if (!pxrc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&pxrc->pm_mutex);
 	pxrc->intf = intf;
@@ -147,11 +147,11 @@ static int pxrc_probe(struct usb_interface *intf,
 	xfer_size = usb_endpoint_maxp(epirq);
 	xfer_buf = devm_kmalloc(&intf->dev, xfer_size, GFP_KERNEL);
 	if (!xfer_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pxrc->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!pxrc->urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = devm_add_action_or_reset(&intf->dev, pxrc_free_urb, pxrc);
 	if (error)
@@ -164,7 +164,7 @@ static int pxrc_probe(struct usb_interface *intf,
 	pxrc->input = devm_input_allocate_device(&intf->dev);
 	if (!pxrc->input) {
 		dev_err(&intf->dev, "couldn't allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pxrc->input->name = "PXRC Flight Controller Adapter";

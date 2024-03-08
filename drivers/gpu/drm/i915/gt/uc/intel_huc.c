@@ -31,13 +31,13 @@
  *   and the authentication via GuC
  * - DG2: load and authentication are both performed via GSC.
  * - MTL and newer platforms: the load is performed via DMA (same as with
- *   not-DG2 older platforms), while the authentication is done in 2-steps,
+ *   analt-DG2 older platforms), while the authentication is done in 2-steps,
  *   a first auth for clear-media workloads via GuC and a second one for all
  *   workloads via GSC.
  *
  * On platforms where the GuC does the authentication, to correctly do so the
  * HuC binary must be loaded before the GuC one.
- * Loading the HuC is optional; however, not using the HuC might negatively
+ * Loading the HuC is optional; however, analt using the HuC might negatively
  * impact power usage and/or performance of media workloads, depending on the
  * use-cases.
  * HuC must be reloaded on events that cause the WOPCM to lose its contents
@@ -65,17 +65,17 @@
  * guaranteed for this to happen during boot, so the big timeout is a safety net
  * that we never expect to need.
  * MEI-PXP + HuC load usually takes ~300ms, but if the GSC needs to be resumed
- * and/or reset, this can take longer. Note that the kernel might schedule
+ * and/or reset, this can take longer. Analte that the kernel might schedule
  * other work between the i915 init/resume and the MEI one, which can add to
  * the delay.
  */
 #define GSC_INIT_TIMEOUT_MS 10000
 #define PXP_INIT_TIMEOUT_MS 5000
 
-static int sw_fence_dummy_notify(struct i915_sw_fence *sf,
-				 enum i915_sw_fence_notify state)
+static int sw_fence_dummy_analtify(struct i915_sw_fence *sf,
+				 enum i915_sw_fence_analtify state)
 {
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static void __delayed_huc_load_complete(struct intel_huc *huc)
@@ -106,7 +106,7 @@ static void gsc_init_done(struct intel_huc *huc)
 {
 	hrtimer_cancel(&huc->delayed_load.timer);
 
-	/* MEI-GSC init is done, now we wait for MEI-PXP to bind */
+	/* MEI-GSC init is done, analw we wait for MEI-PXP to bind */
 	huc->delayed_load.status = INTEL_HUC_WAITING_ON_PXP;
 	if (!i915_sw_fence_done(&huc->delayed_load.fence))
 		hrtimer_start(&huc->delayed_load.timer,
@@ -120,16 +120,16 @@ static enum hrtimer_restart huc_delayed_load_timer_callback(struct hrtimer *hrti
 
 	if (!intel_huc_is_authenticated(huc, INTEL_HUC_AUTH_BY_GSC)) {
 		if (huc->delayed_load.status == INTEL_HUC_WAITING_ON_GSC)
-			huc_notice(huc, "timed out waiting for MEI GSC\n");
+			huc_analtice(huc, "timed out waiting for MEI GSC\n");
 		else if (huc->delayed_load.status == INTEL_HUC_WAITING_ON_PXP)
-			huc_notice(huc, "timed out waiting for MEI PXP\n");
+			huc_analtice(huc, "timed out waiting for MEI PXP\n");
 		else
 			MISSING_CASE(huc->delayed_load.status);
 
 		__gsc_init_error(huc);
 	}
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static void huc_delayed_load_start(struct intel_huc *huc)
@@ -169,7 +169,7 @@ static void huc_delayed_load_start(struct intel_huc *huc)
 	hrtimer_start(&huc->delayed_load.timer, delay, HRTIMER_MODE_REL);
 }
 
-static int gsc_notifier(struct notifier_block *nb, unsigned long action, void *data)
+static int gsc_analtifier(struct analtifier_block *nb, unsigned long action, void *data)
 {
 	struct device *dev = data;
 	struct intel_huc *huc = container_of(nb, struct intel_huc, delayed_load.nb);
@@ -179,13 +179,13 @@ static int gsc_notifier(struct notifier_block *nb, unsigned long action, void *d
 		return 0;
 
 	switch (action) {
-	case BUS_NOTIFY_BOUND_DRIVER: /* mei driver bound to aux device */
+	case BUS_ANALTIFY_BOUND_DRIVER: /* mei driver bound to aux device */
 		gsc_init_done(huc);
 		break;
 
-	case BUS_NOTIFY_DRIVER_NOT_BOUND: /* mei driver fails to be bound */
-	case BUS_NOTIFY_UNBIND_DRIVER: /* mei driver about to be unbound */
-		huc_info(huc, "MEI driver not bound, disabling load\n");
+	case BUS_ANALTIFY_DRIVER_ANALT_BOUND: /* mei driver fails to be bound */
+	case BUS_ANALTIFY_UNBIND_DRIVER: /* mei driver about to be unbound */
+		huc_info(huc, "MEI driver analt bound, disabling load\n");
 		gsc_init_error(huc);
 		break;
 	}
@@ -193,31 +193,31 @@ static int gsc_notifier(struct notifier_block *nb, unsigned long action, void *d
 	return 0;
 }
 
-void intel_huc_register_gsc_notifier(struct intel_huc *huc, const struct bus_type *bus)
+void intel_huc_register_gsc_analtifier(struct intel_huc *huc, const struct bus_type *bus)
 {
 	int ret;
 
 	if (!intel_huc_is_loaded_by_gsc(huc))
 		return;
 
-	huc->delayed_load.nb.notifier_call = gsc_notifier;
-	ret = bus_register_notifier(bus, &huc->delayed_load.nb);
+	huc->delayed_load.nb.analtifier_call = gsc_analtifier;
+	ret = bus_register_analtifier(bus, &huc->delayed_load.nb);
 	if (ret) {
-		huc_err(huc, "failed to register GSC notifier %pe\n", ERR_PTR(ret));
-		huc->delayed_load.nb.notifier_call = NULL;
+		huc_err(huc, "failed to register GSC analtifier %pe\n", ERR_PTR(ret));
+		huc->delayed_load.nb.analtifier_call = NULL;
 		gsc_init_error(huc);
 	}
 }
 
-void intel_huc_unregister_gsc_notifier(struct intel_huc *huc, const struct bus_type *bus)
+void intel_huc_unregister_gsc_analtifier(struct intel_huc *huc, const struct bus_type *bus)
 {
-	if (!huc->delayed_load.nb.notifier_call)
+	if (!huc->delayed_load.nb.analtifier_call)
 		return;
 
 	delayed_huc_load_complete(huc);
 
-	bus_unregister_notifier(bus, &huc->delayed_load.nb);
-	huc->delayed_load.nb.notifier_call = NULL;
+	bus_unregister_analtifier(bus, &huc->delayed_load.nb);
+	huc->delayed_load.nb.analtifier_call = NULL;
 }
 
 static void delayed_huc_load_init(struct intel_huc *huc)
@@ -227,10 +227,10 @@ static void delayed_huc_load_init(struct intel_huc *huc)
 	 * unless there is a delayed HuC load in progress.
 	 */
 	i915_sw_fence_init(&huc->delayed_load.fence,
-			   sw_fence_dummy_notify);
+			   sw_fence_dummy_analtify);
 	i915_sw_fence_commit(&huc->delayed_load.fence);
 
-	hrtimer_init(&huc->delayed_load.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&huc->delayed_load.timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	huc->delayed_load.timer.function = huc_delayed_load_timer_callback;
 }
 
@@ -258,7 +258,7 @@ static bool vcs_supported(struct intel_gt *gt)
 	/*
 	 * We reach here from i915_driver_early_probe for the primary GT before
 	 * its engine mask is set, so we use the device info engine mask for it;
-	 * this means we're not taking VCS fusing into account, but if the
+	 * this means we're analt taking VCS fusing into account, but if the
 	 * primary GT supports VCS engines we expect at least one of them to
 	 * remain unfused so we're fine.
 	 * For other GTs we expect the GT-specific mask to be set before we
@@ -282,16 +282,16 @@ void intel_huc_init_early(struct intel_huc *huc)
 	intel_uc_fw_init_early(&huc->fw, INTEL_UC_FW_TYPE_HUC, true);
 
 	/*
-	 * we always init the fence as already completed, even if HuC is not
-	 * supported. This way we don't have to distinguish between HuC not
+	 * we always init the fence as already completed, even if HuC is analt
+	 * supported. This way we don't have to distinguish between HuC analt
 	 * supported/disabled or already loaded, and can focus on if the load
-	 * is currently in progress (fence not complete) or not, which is what
+	 * is currently in progress (fence analt complete) or analt, which is what
 	 * we care about for stalling userspace submissions.
 	 */
 	delayed_huc_load_init(huc);
 
 	if (!vcs_supported(gt)) {
-		intel_uc_fw_change_status(&huc->fw, INTEL_UC_FIRMWARE_NOT_SUPPORTED);
+		intel_uc_fw_change_status(&huc->fw, INTEL_UC_FIRMWARE_ANALT_SUPPORTED);
 		return;
 	}
 
@@ -332,7 +332,7 @@ static int check_huc_loading_mode(struct intel_huc *huc)
 
 	if (huc->loaded_via_gsc && !gsc_enabled) {
 		huc_err(huc, "HW requires a GSC-enabled blob, but we found a legacy one\n");
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	/*
@@ -344,7 +344,7 @@ static int check_huc_loading_mode(struct intel_huc *huc)
 	 */
 	if (!huc->loaded_via_gsc && gsc_enabled && !huc->fw.dma_start_offset) {
 		huc_err(huc, "HW in DMA mode, but we have an incompatible GSC-enabled blob\n");
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	/*
@@ -367,7 +367,7 @@ static int check_huc_loading_mode(struct intel_huc *huc)
 		}
 	}
 
-	huc_dbg(huc, "loaded by GSC = %s\n", str_yes_no(huc->loaded_via_gsc));
+	huc_dbg(huc, "loaded by GSC = %s\n", str_anal_anal(huc->loaded_via_gsc));
 
 	return 0;
 }
@@ -384,7 +384,7 @@ int intel_huc_init(struct intel_huc *huc)
 	if (HAS_ENGINE(gt, GSC0)) {
 		struct i915_vma *vma;
 
-		vma = intel_guc_allocate_vma(&gt->uc.guc, PXP43_HUC_AUTH_INOUT_SIZE * 2);
+		vma = intel_guc_allocate_vma(&gt->uc.guc, PXP43_HUC_AUTH_IANALUT_SIZE * 2);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			huc_info(huc, "Failed to allocate heci pkt\n");
@@ -463,7 +463,7 @@ int intel_huc_wait_for_auth_complete(struct intel_huc *huc,
 	delayed_huc_load_complete(huc);
 
 	if (ret) {
-		huc_err(huc, "firmware not verified for %s: %pe\n",
+		huc_err(huc, "firmware analt verified for %s: %pe\n",
 			auth_mode_string(huc, type), ERR_PTR(ret));
 		intel_uc_fw_change_status(&huc->fw, INTEL_UC_FIRMWARE_LOAD_FAIL);
 		return ret;
@@ -492,11 +492,11 @@ int intel_huc_auth(struct intel_huc *huc, enum intel_huc_authentication_type typ
 	int ret;
 
 	if (!intel_uc_fw_is_loaded(&huc->fw))
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	/* GSC will do the auth with the load */
 	if (intel_huc_is_loaded_by_gsc(huc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (intel_huc_is_authenticated(huc, type))
 		return -EEXIST;
@@ -519,7 +519,7 @@ int intel_huc_auth(struct intel_huc *huc, enum intel_huc_authentication_type typ
 	if (ret)
 		goto fail;
 
-	/* Check authentication status, it should be done by now */
+	/* Check authentication status, it should be done by analw */
 	ret = intel_huc_wait_for_auth_complete(huc, type);
 	if (ret)
 		goto fail;
@@ -572,16 +572,16 @@ int intel_huc_check_status(struct intel_huc *huc)
 	struct intel_uc_fw *huc_fw = &huc->fw;
 
 	switch (__intel_uc_fw_status(huc_fw)) {
-	case INTEL_UC_FIRMWARE_NOT_SUPPORTED:
-		return -ENODEV;
+	case INTEL_UC_FIRMWARE_ANALT_SUPPORTED:
+		return -EANALDEV;
 	case INTEL_UC_FIRMWARE_DISABLED:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	case INTEL_UC_FIRMWARE_MISSING:
-		return -ENOPKG;
+		return -EANALPKG;
 	case INTEL_UC_FIRMWARE_ERROR:
-		return -ENOEXEC;
+		return -EANALEXEC;
 	case INTEL_UC_FIRMWARE_INIT_FAIL:
-		return -ENOMEM;
+		return -EANALMEM;
 	case INTEL_UC_FIRMWARE_LOAD_FAIL:
 		return -EIO;
 	default:
@@ -635,7 +635,7 @@ void intel_huc_load_status(struct intel_huc *huc, struct drm_printer *p)
 	intel_wakeref_t wakeref;
 
 	if (!intel_huc_is_supported(huc)) {
-		drm_printf(p, "HuC not supported\n");
+		drm_printf(p, "HuC analt supported\n");
 		return;
 	}
 

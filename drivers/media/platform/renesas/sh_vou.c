@@ -7,7 +7,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -27,7 +27,7 @@
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 
-/* Mirror addresses are not available for all registers */
+/* Mirror addresses are analt available for all registers */
 #define VOUER	0
 #define VOUCR	4
 #define VOUSTR	8
@@ -287,14 +287,14 @@ static void sh_vou_buf_queue(struct vb2_buffer *vb)
 static int sh_vou_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct sh_vou_device *vou_dev = vb2_get_drv_priv(vq);
-	struct sh_vou_buffer *buf, *node;
+	struct sh_vou_buffer *buf, *analde;
 	int ret;
 
 	vou_dev->sequence = 0;
 	ret = v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0,
 					 video, s_stream, 1);
-	if (ret < 0 && ret != -ENOIOCTLCMD) {
-		list_for_each_entry_safe(buf, node, &vou_dev->buf_list, list) {
+	if (ret < 0 && ret != -EANALIOCTLCMD) {
+		list_for_each_entry_safe(buf, analde, &vou_dev->buf_list, list) {
 			vb2_buffer_done(&buf->vb.vb2_buf,
 					VB2_BUF_STATE_QUEUED);
 			list_del(&buf->list);
@@ -335,7 +335,7 @@ static int sh_vou_start_streaming(struct vb2_queue *vq, unsigned int count)
 static void sh_vou_stop_streaming(struct vb2_queue *vq)
 {
 	struct sh_vou_device *vou_dev = vb2_get_drv_priv(vq);
-	struct sh_vou_buffer *buf, *node;
+	struct sh_vou_buffer *buf, *analde;
 	unsigned long flags;
 
 	v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0,
@@ -346,7 +346,7 @@ static void sh_vou_stop_streaming(struct vb2_queue *vq)
 	sh_vou_reg_a_set(vou_dev, VOUIR, 0, 0x30000);
 	msleep(50);
 	spin_lock_irqsave(&vou_dev->lock, flags);
-	list_for_each_entry_safe(buf, node, &vou_dev->buf_list, list) {
+	list_for_each_entry_safe(buf, analde, &vou_dev->buf_list, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		list_del(&buf->list);
 	}
@@ -448,7 +448,7 @@ static void sh_vou_configure_geometry(struct sh_vou_device *vou_dev,
 	 * pixels" and out-of-image area (DPR) "background pixels." We fix VPR
 	 * at 138 / 144 : 20, because that's the HSYNC timing, that our first
 	 * client requires, and that's exactly what leaves us 720 pixels for the
-	 * image; we leave VPR[VVP] at default 20 for now, because the client
+	 * image; we leave VPR[VVP] at default 20 for analw, because the client
 	 * doesn't seem to have any special requirements for it. Otherwise we
 	 * could also set it to max - 240 = 22 / 72. Thus VPR depends only on
 	 * the selected standard, and DPR and DSR are selected according to
@@ -505,7 +505,7 @@ struct sh_vou_geometry {
  */
 static void vou_adjust_input(struct sh_vou_geometry *geo, v4l2_std_id std)
 {
-	/* The compiler cannot know, that best and idx will indeed be set */
+	/* The compiler cananalt kanalw, that best and idx will indeed be set */
 	unsigned int best_err = UINT_MAX, best = 0, img_height_max;
 	int i, idx = 0;
 
@@ -717,7 +717,7 @@ static int sh_vou_set_fmt_vid_out(struct sh_vou_device *vou_dev,
 	mbfmt->height = geo.output.height;
 	ret = v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, pad,
 					 set_fmt, NULL, &format);
-	/* Must be implemented, so, don't check for -ENOIOCTLCMD */
+	/* Must be implemented, so, don't check for -EANALIOCTLCMD */
 	if (ret < 0)
 		return ret;
 
@@ -781,7 +781,7 @@ static int sh_vou_enum_output(struct file *file, void *fh,
 		return -EINVAL;
 	strscpy(a->name, "Video Out", sizeof(a->name));
 	a->type = V4L2_OUTPUT_TYPE_ANALOG;
-	a->std = vou_dev->vdev.tvnorms;
+	a->std = vou_dev->vdev.tvanalrms;
 	return 0;
 }
 
@@ -828,7 +828,7 @@ static int sh_vou_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 	ret = v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, video,
 					 s_std_output, std_id);
 	/* Shall we continue, if the subdev doesn't support .s_std_output()? */
-	if (ret < 0 && ret != -ENOIOCTLCMD)
+	if (ret < 0 && ret != -EANALIOCTLCMD)
 		return ret;
 
 	vou_dev->rect.top = vou_dev->rect.left = 0;
@@ -968,7 +968,7 @@ static int sh_vou_s_selection(struct file *file, void *fh,
 	geo.in_width = pix->width;
 	geo.in_height = pix->height;
 
-	/* Configure the encoder one-to-one, position at 0, ignore errors */
+	/* Configure the encoder one-to-one, position at 0, iganalre errors */
 	sd_sel.r.width = geo.output.width;
 	sd_sel.r.height = geo.output.height;
 	/*
@@ -981,7 +981,7 @@ static int sh_vou_s_selection(struct file *file, void *fh,
 	format.format.height = geo.output.height;
 	ret = v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, pad,
 					 set_fmt, NULL, &format);
-	/* Must be implemented, so, don't check for -ENOIOCTLCMD */
+	/* Must be implemented, so, don't check for -EANALIOCTLCMD */
 	if (ret < 0)
 		return ret;
 
@@ -995,7 +995,7 @@ static int sh_vou_s_selection(struct file *file, void *fh,
 	geo.output.height = format.format.height;
 
 	/*
-	 * No down-scaling. According to the API, current call has precedence:
+	 * Anal down-scaling. According to the API, current call has precedence:
 	 * https://linuxtv.org/downloads/v4l-dvb-apis/uapi/v4l/crop.html#cropping-structures
 	 */
 	vou_adjust_input(&geo, vou_dev->std);
@@ -1024,7 +1024,7 @@ static irqreturn_t sh_vou_isr(int irq, void *dev_id)
 		if (printk_timed_ratelimit(&j, 500))
 			dev_warn(vou_dev->v4l2_dev.dev, "IRQ status 0x%x!\n",
 				 irq_status);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	spin_lock(&vou_dev->lock);
@@ -1051,7 +1051,7 @@ static irqreturn_t sh_vou_isr(int irq, void *dev_id)
 
 	vb = vou_dev->active;
 	if (list_is_singular(&vb->list)) {
-		/* Keep cycling while no next buffer is available */
+		/* Keep cycling while anal next buffer is available */
 		sh_vou_schedule_next(vou_dev, &vb->vb);
 		spin_unlock(&vou_dev->lock);
 		return IRQ_HANDLED;
@@ -1068,7 +1068,7 @@ static irqreturn_t sh_vou_isr(int irq, void *dev_id)
 				     struct sh_vou_buffer, list);
 
 	if (list_is_singular(&vou_dev->buf_list)) {
-		/* Keep cycling while no next buffer is available */
+		/* Keep cycling while anal next buffer is available */
 		sh_vou_schedule_next(vou_dev, &vou_dev->active->vb);
 	} else {
 		struct sh_vou_buffer *new = list_entry(vou_dev->active->list.next,
@@ -1209,7 +1209,7 @@ static const struct video_device sh_vou_video_template = {
 	.name		= "sh_vou",
 	.fops		= &sh_vou_fops,
 	.ioctl_ops	= &sh_vou_ioctl_ops,
-	.tvnorms	= V4L2_STD_525_60, /* PAL only supported in 8-bit non-bt656 mode */
+	.tvanalrms	= V4L2_STD_525_60, /* PAL only supported in 8-bit analn-bt656 mode */
 	.vfl_dir	= VFL_DIR_TX,
 	.device_caps	= V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_READWRITE |
 			  V4L2_CAP_STREAMING,
@@ -1229,7 +1229,7 @@ static int sh_vou_probe(struct platform_device *pdev)
 
 	if (!vou_pdata) {
 		dev_err(&pdev->dev, "Insufficient VOU platform information.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -1238,7 +1238,7 @@ static int sh_vou_probe(struct platform_device *pdev)
 
 	vou_dev = devm_kzalloc(&pdev->dev, sizeof(*vou_dev), GFP_KERNEL);
 	if (!vou_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&vou_dev->buf_list);
 	spin_lock_init(&vou_dev->lock);
@@ -1281,7 +1281,7 @@ static int sh_vou_probe(struct platform_device *pdev)
 	vdev = &vou_dev->vdev;
 	*vdev = sh_vou_video_template;
 	if (vou_pdata->bus_fmt == SH_VOU_BUS_8BIT)
-		vdev->tvnorms |= V4L2_STD_PAL;
+		vdev->tvanalrms |= V4L2_STD_PAL;
 	vdev->v4l2_dev = &vou_dev->v4l2_dev;
 	vdev->release = video_device_release_empty;
 	vdev->lock = &vou_dev->fop_lock;
@@ -1296,7 +1296,7 @@ static int sh_vou_probe(struct platform_device *pdev)
 	q->buf_struct_size = sizeof(struct sh_vou_buffer);
 	q->ops = &sh_vou_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->min_queued_buffers = 2;
 	q->lock = &vou_dev->fop_lock;
 	q->dev = &pdev->dev;
@@ -1312,7 +1312,7 @@ static int sh_vou_probe(struct platform_device *pdev)
 
 	i2c_adap = i2c_get_adapter(vou_pdata->i2c_adap);
 	if (!i2c_adap) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto ei2cgadap;
 	}
 
@@ -1323,7 +1323,7 @@ static int sh_vou_probe(struct platform_device *pdev)
 	subdev = v4l2_i2c_new_subdev_board(&vou_dev->v4l2_dev, i2c_adap,
 			vou_pdata->board_info, NULL);
 	if (!subdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto ei2cnd;
 	}
 

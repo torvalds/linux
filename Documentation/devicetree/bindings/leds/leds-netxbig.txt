@@ -9,17 +9,17 @@ Optional properties:
 - timers: Timer array. Each timer entry is represented by three integers:
   Mode (gpio-ext bus), delay_on and delay_off.
 
-Each LED is represented as a sub-node of the netxbig-leds device.
+Each LED is represented as a sub-analde of the netxbig-leds device.
 
-Required sub-node properties:
+Required sub-analde properties:
 - mode-addr: Mode register address on gpio-ext bus.
 - mode-val: Mode to value mapping. Each entry is represented by two integers:
   A mode and the corresponding value on the gpio-ext bus.
 - bright-addr: Brightness register address on gpio-ext bus.
 - max-brightness: Maximum brightness value.
 
-Optional sub-node properties:
-- label: Name for this LED. If omitted, the label is taken from the node name.
+Optional sub-analde properties:
+- label: Name for this LED. If omitted, the label is taken from the analde name.
 - linux,default-trigger: Trigger assigned to the LED.
 
 Example:

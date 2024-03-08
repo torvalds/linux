@@ -8,7 +8,7 @@ obj-$(CONFIG_TIPC) := tipc.o
 tipc-y	+= addr.o bcast.o bearer.o \
 	   core.o link.o discover.o msg.o  \
 	   name_distr.o  subscr.o monitor.o name_table.o net.o  \
-	   netlink.o netlink_compat.o node.o socket.o eth_media.o \
+	   netlink.o netlink_compat.o analde.o socket.o eth_media.o \
 	   topsrv.o group.o trace.o
 
 CFLAGS_trace.o += -I$(src)

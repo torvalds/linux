@@ -177,7 +177,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	}
 	/*
 	 * s390 stores the svc return address in arch_data when calling
-	 * sigreturn()/restart_syscall() via vdso. 1 means no valid address
+	 * sigreturn()/restart_syscall() via vdso. 1 means anal valid address
 	 * stored.
 	 */
 	p->restart_block.arch_data = 1;
@@ -221,7 +221,7 @@ unsigned long __get_wchan(struct task_struct *p)
 
 unsigned long arch_align_stack(unsigned long sp)
 {
-	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
+	if (!(current->personality & ADDR_ANAL_RANDOMIZE) && randomize_va_space)
 		sp -= get_random_u32_below(PAGE_SIZE);
 	return sp & ~0xf;
 }

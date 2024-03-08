@@ -156,7 +156,7 @@ static int max77541_pmic_setup(struct device *dev)
 	if (ret)
 		return dev_err_probe(dev, ret, "Unable to init wakeup\n");
 
-	return devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
+	return devm_mfd_add_devices(dev, PLATFORM_DEVID_ANALNE,
 				    cells, n_devs, NULL, 0, NULL);
 }
 
@@ -167,7 +167,7 @@ static int max77541_probe(struct i2c_client *client)
 
 	max77541 = devm_kzalloc(dev, sizeof(*max77541), GFP_KERNEL);
 	if (!max77541)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, max77541);
 	max77541->i2c = client;

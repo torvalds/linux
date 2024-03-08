@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * drm_panel_orientation_quirks.c -- Quirks for non-normal panel orientation
+ * drm_panel_orientation_quirks.c -- Quirks for analn-analrmal panel orientation
  *
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
  *
- * Note the quirks in this file are shared with fbdev/efifb and as such
- * must not depend on other drm code.
+ * Analte the quirks in this file are shared with fbdev/efifb and as such
+ * must analt depend on other drm code.
  */
 
 #include <linux/dmi.h>
@@ -17,10 +17,10 @@
 
 /*
  * Some x86 clamshell design devices use portrait tablet screens and a display
- * engine which cannot rotate in hardware, so we need to rotate the fbcon to
+ * engine which cananalt rotate in hardware, so we need to rotate the fbcon to
  * compensate. Unfortunately these (cheap) devices also typically have quite
  * generic DMI data, so we match on a combination of DMI data, screen resolution
- * and a list of known BIOS dates to avoid false positives.
+ * and a list of kanalwn BIOS dates to avoid false positives.
  */
 
 struct drm_dmi_panel_orientation_data {
@@ -237,7 +237,7 @@ static const struct dmi_system_id orientation_data[] = {
 		},
 		.driver_data = (void *)&lcd800x1280_rightside_up,
 	}, {	/*
-		 * GPD Pocket, note that the DMI data is less generic then
+		 * GPD Pocket, analte that the DMI data is less generic then
 		 * it seems, devices with a board-vendor of "AMI Corporation"
 		 * are quite rare, as are devices which have both board- *and*
 		 * product-id set to "Default String"
@@ -257,7 +257,7 @@ static const struct dmi_system_id orientation_data[] = {
 		  DMI_EXACT_MATCH(DMI_BOARD_NAME, "Default string"),
 		},
 		.driver_data = (void *)&gpd_pocket2,
-	}, {	/* GPD Win (same note on DMI match as GPD Pocket) */
+	}, {	/* GPD Win (same analte on DMI match as GPD Pocket) */
 		.matches = {
 		  DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
 		  DMI_EXACT_MATCH(DMI_BOARD_NAME, "Default string"),
@@ -295,73 +295,73 @@ static const struct dmi_system_id orientation_data[] = {
 		},
 		.driver_data = (void *)&lcd800x1280_rightside_up,
 	}, {	/*
-		 * Lenovo Ideapad Miix 310 laptop, only some production batches
+		 * Leanalvo Ideapad Miix 310 laptop, only some production batches
 		 * have a portrait screen, the resolution checks makes the quirk
 		 * apply only to those batches.
 		 */
 		.matches = {
-		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		  DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "80SG"),
 		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "MIIX 310-10ICR"),
 		},
 		.driver_data = (void *)&lcd800x1280_rightside_up,
-	}, {	/* Lenovo Ideapad Miix 320 */
+	}, {	/* Leanalvo Ideapad Miix 320 */
 		.matches = {
-		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		  DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "80XF"),
-		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Lenovo MIIX 320-10ICR"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Leanalvo MIIX 320-10ICR"),
 		},
 		.driver_data = (void *)&lcd800x1280_rightside_up,
-	}, {	/* Lenovo Ideapad D330-10IGM (HD) */
+	}, {	/* Leanalvo Ideapad D330-10IGM (HD) */
 		.matches = {
-		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad D330-10IGM"),
+		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Leanalvo ideapad D330-10IGM"),
 		},
 		.driver_data = (void *)&lcd800x1280_rightside_up,
-	}, {	/* Lenovo Ideapad D330-10IGM (FHD) */
+	}, {	/* Leanalvo Ideapad D330-10IGM (FHD) */
 		.matches = {
-		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad D330-10IGM"),
+		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Leanalvo ideapad D330-10IGM"),
 		},
 		.driver_data = (void *)&lcd1200x1920_rightside_up,
-	}, {	/* Lenovo Ideapad D330-10IGL (HD) */
+	}, {	/* Leanalvo Ideapad D330-10IGL (HD) */
 		.matches = {
-		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad D330-10IGL"),
+		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Leanalvo ideapad D330-10IGL"),
 		},
 		.driver_data = (void *)&lcd800x1280_rightside_up,
-	}, {	/* Lenovo IdeaPad Duet 3 10IGL5 */
+	}, {	/* Leanalvo IdeaPad Duet 3 10IGL5 */
 		.matches = {
-		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "IdeaPad Duet 3 10IGL5"),
 		},
 		.driver_data = (void *)&lcd1200x1920_rightside_up,
-	}, {	/* Lenovo Legion Go 8APU1 */
+	}, {	/* Leanalvo Legion Go 8APU1 */
 		.matches = {
-		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Legion Go 8APU1"),
 		},
 		.driver_data = (void *)&lcd1600x2560_leftside_up,
-	}, {	/* Lenovo Yoga Book X90F / X90L */
+	}, {	/* Leanalvo Yoga Book X90F / X90L */
 		.matches = {
 		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
 		  DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
 		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "YETI-11"),
 		},
 		.driver_data = (void *)&lcd1200x1920_rightside_up,
-	}, {	/* Lenovo Yoga Book X91F / X91L */
+	}, {	/* Leanalvo Yoga Book X91F / X91L */
 		.matches = {
-		  /* Non exact match to match F + L versions */
-		  DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X91"),
+		  /* Analn exact match to match F + L versions */
+		  DMI_MATCH(DMI_PRODUCT_NAME, "Leanalvo YB1-X91"),
 		},
 		.driver_data = (void *)&lcd1200x1920_rightside_up,
-	}, {	/* Lenovo Yoga Tablet 2 830F / 830L */
+	}, {	/* Leanalvo Yoga Tablet 2 830F / 830L */
 		.matches = {
 		 /*
-		  * Note this also matches the Lenovo Yoga Tablet 2 1050F/L
+		  * Analte this also matches the Leanalvo Yoga Tablet 2 1050F/L
 		  * since that uses the same mainboard. The resolution match
 		  * will limit this to only matching on the 830F/L. Neither has
-		  * any external video outputs so those are not a concern.
+		  * any external video outputs so those are analt a concern.
 		  */
 		 DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp."),
 		 DMI_MATCH(DMI_PRODUCT_NAME, "VALLEYVIEW C0 PLATFORM"),
@@ -370,14 +370,14 @@ static const struct dmi_system_id orientation_data[] = {
 		 DMI_MATCH(DMI_BIOS_VERSION, "BLADE_21"),
 		},
 		.driver_data = (void *)&lcd1200x1920_rightside_up,
-	}, {	/* Lenovo Yoga Tab 3 X90F */
+	}, {	/* Leanalvo Yoga Tab 3 X90F */
 		.matches = {
 		 DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
 		 DMI_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
 		 DMI_MATCH(DMI_PRODUCT_VERSION, "Blade3-10A-001"),
 		},
 		.driver_data = (void *)&lcd1600x2560_rightside_up,
-	}, {	/* Nanote UMPC-01 */
+	}, {	/* Naanalte UMPC-01 */
 		.matches = {
 		 DMI_MATCH(DMI_SYS_VENDOR, "RWC CO.,LTD"),
 		 DMI_MATCH(DMI_PRODUCT_NAME, "UMPC-01"),
@@ -392,7 +392,7 @@ static const struct dmi_system_id orientation_data[] = {
 		.driver_data = (void *)&onegx1_pro,
 	}, {	/* OneXPlayer */
 		.matches = {
-		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "ONE-NETBOOK TECHNOLOGY CO., LTD."),
+		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "ONE-NETBOOK TECHANALLOGY CO., LTD."),
 		  DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "ONE XPLAYER"),
 		},
 		.driver_data = (void *)&lcd1600x2560_leftside_up,
@@ -433,18 +433,18 @@ static const struct dmi_system_id orientation_data[] = {
  * @height: height in pixels of the panel
  *
  * This function checks for platform specific (e.g. DMI based) quirks
- * providing info on panel_orientation for systems where this cannot be
+ * providing info on panel_orientation for systems where this cananalt be
  * probed from the hard-/firm-ware. To avoid false-positive this function
  * takes the panel resolution as argument and checks that against the
  * resolution expected by the quirk-table entry.
  *
- * Note this function is also used outside of the drm-subsys, by for example
+ * Analte this function is also used outside of the drm-subsys, by for example
  * the efifb code. Because of this this function gets compiled into its own
  * kernel-module when built as a module.
  *
  * Returns:
  * A DRM_MODE_PANEL_ORIENTATION_* value if there is a quirk for this system,
- * or DRM_MODE_PANEL_ORIENTATION_UNKNOWN if there is no quirk.
+ * or DRM_MODE_PANEL_ORIENTATION_UNKANALWN if there is anal quirk.
  */
 int drm_get_panel_orientation_quirk(int width, int height)
 {
@@ -474,16 +474,16 @@ int drm_get_panel_orientation_quirk(int width, int height)
 			return data->orientation;
 	}
 
-	return DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
+	return DRM_MODE_PANEL_ORIENTATION_UNKANALWN;
 }
 EXPORT_SYMBOL(drm_get_panel_orientation_quirk);
 
 #else
 
-/* There are no quirks for non x86 devices yet */
+/* There are anal quirks for analn x86 devices yet */
 int drm_get_panel_orientation_quirk(int width, int height)
 {
-	return DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
+	return DRM_MODE_PANEL_ORIENTATION_UNKANALWN;
 }
 EXPORT_SYMBOL(drm_get_panel_orientation_quirk);
 

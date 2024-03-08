@@ -218,7 +218,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 
 	spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 
-	/* Last AMSDU packet does not need padding */
+	/* Last AMSDU packet does analt need padding */
 	skb_trim(skb_aggr, skb_aggr->len - pad);
 
 	/* Form AMSDU */

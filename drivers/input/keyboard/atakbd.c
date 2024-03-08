@@ -183,16 +183,16 @@ static int __init atakbd_init(void)
 	int i, error;
 
 	if (!MACH_IS_ATARI || !ATARIHW_PRESENT(ST_MFP))
-		return -ENODEV;
+		return -EANALDEV;
 
-	// need to init core driver if not already done so
+	// need to init core driver if analt already done so
 	error = atari_keyb_init();
 	if (error)
 		return error;
 
 	atakbd_dev = input_allocate_device();
 	if (!atakbd_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atakbd_dev->name = "Atari Keyboard";
 	atakbd_dev->phys = "atakbd/input0";

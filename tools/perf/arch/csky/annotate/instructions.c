@@ -38,7 +38,7 @@ static struct ins_ops *csky__associate_ins_ops(struct arch *arch,
 	return ops;
 }
 
-static int csky__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+static int csky__ananaltate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
 	arch->initialized = true;
 	arch->objdump.comment_char = '/';

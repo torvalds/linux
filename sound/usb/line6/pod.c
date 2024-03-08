@@ -126,7 +126,7 @@ static struct line6_pcm_properties pod_pcm_properties = {
 					   SNDRV_PCM_INFO_PAUSE |
 					   SNDRV_PCM_INFO_SYNC_START),
 				  .formats = SNDRV_PCM_FMTBIT_S24_3LE,
-				  .rates = SNDRV_PCM_RATE_KNOT,
+				  .rates = SNDRV_PCM_RATE_KANALT,
 				  .rate_min = 39062,
 				  .rate_max = 39063,
 				  .channels_min = 2,
@@ -143,7 +143,7 @@ static struct line6_pcm_properties pod_pcm_properties = {
 					  SNDRV_PCM_INFO_MMAP_VALID |
 					  SNDRV_PCM_INFO_SYNC_START),
 				 .formats = SNDRV_PCM_FMTBIT_S24_3LE,
-				 .rates = SNDRV_PCM_RATE_KNOT,
+				 .rates = SNDRV_PCM_RATE_KANALT,
 				 .rate_min = 39062,
 				 .rate_max = 39063,
 				 .channels_min = 2,
@@ -192,7 +192,7 @@ static void line6_pod_process_message(struct usb_line6 *line6)
 
 	/* Only look for sysex messages from this device */
 	if (buf[0] != (LINE6_SYSEX_BEGIN | LINE6_CHANNEL_DEVICE) &&
-	    buf[0] != (LINE6_SYSEX_BEGIN | LINE6_CHANNEL_UNKNOWN)) {
+	    buf[0] != (LINE6_SYSEX_BEGIN | LINE6_CHANNEL_UNKANALWN)) {
 		return;
 	}
 	if (memcmp(buf + 1, line6_midi_id, sizeof(line6_midi_id)) != 0)
@@ -216,7 +216,7 @@ static int pod_set_system_param_int(struct usb_line6_pod *pod, int value,
 
 	sysex = pod_alloc_sysex_buffer(pod, POD_SYSEX_SYSTEM, size);
 	if (!sysex)
-		return -ENOMEM;
+		return -EANALMEM;
 	sysex[SYSEX_DATA_OFS] = code;
 	sysex[SYSEX_DATA_OFS + 1] = (value >> 12) & 0x0f;
 	sysex[SYSEX_DATA_OFS + 2] = (value >> 8) & 0x0f;
@@ -267,7 +267,7 @@ static ssize_t device_id_show(struct device *dev,
 /*
 	POD startup procedure.
 	This is a sequence of functions with special requirements (e.g., must
-	not run immediately after initialization, must not run in interrupt
+	analt run immediately after initialization, must analt run in interrupt
 	context). After the last one has finished, the device is ready to use.
 */
 
@@ -470,7 +470,7 @@ static const struct line6_properties pod_properties_table[] = {
 		.altsetting = 0,
 		.ep_ctrl_r = 0x82,
 		.ep_ctrl_w = 0x02,
-		/* no audio channel */
+		/* anal audio channel */
 	},
 	[LINE6_PODXT] = {
 		.id = "PODxt",

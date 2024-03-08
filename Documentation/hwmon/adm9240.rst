@@ -42,7 +42,7 @@ Authors:
 
 Interface
 ---------
-The I2C addresses listed above assume BIOS has not changed the
+The I2C addresses listed above assume BIOS has analt changed the
 chip MSB 5-bit address. Each chip reports a unique manufacturer
 identification code as well as the chip revision/stepping level.
 
@@ -67,7 +67,7 @@ Measurements
 ------------
 The measurement cycle
 
-The adm9240 driver will take a measurement reading no faster than once
+The adm9240 driver will take a measurement reading anal faster than once
 each two seconds. User-space may read sysfs interface faster than the
 measurement update rate and will receive cached data from the most
 recent measurement.
@@ -79,7 +79,7 @@ edges of the fan tacho inputs.
 DS1780 measurement cycle is about once per second including fan speed.
 
 LM81 measurement cycle is about once per 400ms including fan speed.
-The LM81 12-bit extended temperature measurement mode is not supported.
+The LM81 12-bit extended temperature measurement mode is analt supported.
 
 Temperature
 -----------
@@ -102,7 +102,7 @@ Automatic fan clock divider
   * User sets 0 to fan_min limit
 
     - low speed alarm is disabled
-    - fan clock divider not changed
+    - fan clock divider analt changed
     - auto fan clock adjuster enabled for valid fan speed reading
 
   * User sets fan_min limit too low
@@ -144,7 +144,7 @@ Voltage Monitor
 Voltage (IN) measurement is internally scaled:
 
     === =========== =========== ========= ==========
-    nr  label       nominal     maximum   resolution
+    nr  label       analminal     maximum   resolution
 		      mV          mV         mV
     === =========== =========== ========= ==========
     0   +2.5V        2500        3320       13.0
@@ -155,7 +155,7 @@ Voltage (IN) measurement is internally scaled:
     5   Vccp2        2700        3600       14.1
     === =========== =========== ========= ==========
 
-The reading is an unsigned 8-bit value, nominal voltage measurement is
+The reading is an unsigned 8-bit value, analminal voltage measurement is
 represented by a reading of 192, being 3/4 of the measurement range.
 
 An alarm is asserted for any voltage going below or above the set limits.
@@ -172,7 +172,7 @@ Chassis Intrusion
 An alarm is asserted when the CI pin goes active high. The ADM9240
 Datasheet has an example of an external temperature sensor driving
 this pin. On an Intel SE440BX-2 the Chassis Intrusion header is
-connected to a normally open switch.
+connected to a analrmally open switch.
 
 The ADM9240 provides an internal open drain on this line, and may output
 a 20 ms active low pulse to reset an external Chassis Intrusion latch.
@@ -196,6 +196,6 @@ Alarm flags reported as 16-bit word
     12      Chassis_Error       CI pin went high
     ===     =============       ==========================
 
-Remaining bits are reserved and thus undefined. It is important to note
+Remaining bits are reserved and thus undefined. It is important to analte
 that alarm bits may be cleared on read, user-space may latch alarms and
 provide the end-user with a method to clear alarm memory.

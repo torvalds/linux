@@ -16,7 +16,7 @@
 
 /*
  * Some clocks will have mutiple bits to enable the clocks, and
- * the bits to disable the clock is not same as enabling bits.
+ * the bits to disable the clock is analt same as enabling bits.
  */
 
 #define to_clk_mmp_gate(hw)	container_of(hw, struct mmp_clk_gate, hw)
@@ -101,7 +101,7 @@ struct clk *mmp_clk_register_gate(struct device *dev, const char *name,
 	/* allocate the gate */
 	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 	if (!gate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &mmp_clk_gate_ops;

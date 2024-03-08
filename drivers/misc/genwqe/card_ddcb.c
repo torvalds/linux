@@ -140,7 +140,7 @@ static inline void ddcb_mark_finished(struct ddcb *pddcb)
 
 static inline void ddcb_mark_unused(struct ddcb *pddcb)
 {
-	pddcb->priv_64 = cpu_to_be64(0); /* not tapped */
+	pddcb->priv_64 = cpu_to_be64(0); /* analt tapped */
 }
 
 /**
@@ -149,7 +149,7 @@ static inline void ddcb_mark_unused(struct ddcb *pddcb)
  * @len:        length of data for calculation
  * @init:       initial crc (0xffff at start)
  *
- * Polynomial = x^16 + x^12 + x^5 + 1   (0x1021)
+ * Polyanalmial = x^16 + x^12 + x^5 + 1   (0x1021)
  * Example: 4 bytes 0x01 0x02 0x03 0x04 with init = 0xffff
  *          should result in a crc16 of 0x89c3
  *
@@ -235,7 +235,7 @@ static inline int ddcb_requ_collect_debug_data(struct ddcb_requ *req)
  * should check the copy.
  *
  * This function will also return true if the state of the queue is
- * not GENWQE_CARD_USED. This enables us to purge all DDCBs in the
+ * analt GENWQE_CARD_USED. This enables us to purge all DDCBs in the
  * shutdown case.
  */
 static int ddcb_requ_finished(struct genwqe_dev *cd, struct ddcb_requ *req)
@@ -251,7 +251,7 @@ static int ddcb_requ_finished(struct genwqe_dev *cd, struct ddcb_requ *req)
  * @cd:         pointer to genwqe device descriptor
  * @queue:	queue this operation should be done on
  * @pddcb:      pointer to ddcb structure
- * @ddcb_no:    pointer to ddcb number being tapped
+ * @ddcb_anal:    pointer to ddcb number being tapped
  *
  * Start execution of DDCB by tapping or append to queue via NEXT
  * bit. This is done by an atomic 'compare and swap' instruction and
@@ -263,10 +263,10 @@ static int ddcb_requ_finished(struct genwqe_dev *cd, struct ddcb_requ *req)
  *         2 if DDCB queue is tapped via register/simulation
  */
 static int enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_queue *queue,
-			struct ddcb *pddcb, int ddcb_no)
+			struct ddcb *pddcb, int ddcb_anal)
 {
 	unsigned int try;
-	int prev_no;
+	int prev_anal;
 	struct ddcb *prev_ddcb;
 	__be32 old, new, icrc_hsi_shi;
 	u64 num;
@@ -279,8 +279,8 @@ static int enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_queue *queue,
 	ddcb_mark_unused(pddcb);
 
 	/* check previous DDCB if already fetched */
-	prev_no = (ddcb_no == 0) ? queue->ddcb_max - 1 : ddcb_no - 1;
-	prev_ddcb = &queue->ddcb_vaddr[prev_no];
+	prev_anal = (ddcb_anal == 0) ? queue->ddcb_max - 1 : ddcb_anal - 1;
+	prev_ddcb = &queue->ddcb_vaddr[prev_anal];
 
 	/*
 	 * It might have happened that the HSI.FETCHED bit is
@@ -291,7 +291,7 @@ static int enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_queue *queue,
 	for (try = 0; try < 2; try++) {
 		old = prev_ddcb->icrc_hsi_shi_32; /* read SHI/HSI in BE32 */
 
-		/* try to append via NEXT bit if prev DDCB is not completed */
+		/* try to append via NEXT bit if prev DDCB is analt completed */
 		if ((old & DDCB_COMPLETED_BE32) != 0x00000000)
 			break;
 
@@ -306,7 +306,7 @@ static int enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_queue *queue,
 
 	/* Queue must be re-started by updating QUEUE_OFFSET */
 	ddcb_mark_tapped(pddcb);
-	num = (u64)ddcb_no << 8;
+	num = (u64)ddcb_anal << 8;
 
 	wmb();			/* need to ensure write ordering */
 	__genwqe_writeq(cd, queue->IO_QUEUE_OFFSET, num); /* start queue */
@@ -317,17 +317,17 @@ static int enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_queue *queue,
 /**
  * copy_ddcb_results() - Copy output state from real DDCB to request
  * @req:        pointer to requested DDCB parameters
- * @ddcb_no:    pointer to ddcb number being tapped
+ * @ddcb_anal:    pointer to ddcb number being tapped
  *
- * Copy DDCB ASV to request struct. There is no endian
+ * Copy DDCB ASV to request struct. There is anal endian
  * conversion made, since data structure in ASV is still
- * unknown here.
+ * unkanalwn here.
  *
  * This is needed by:
  *   - genwqe_purge_ddcb()
  *   - genwqe_check_ddcb_queue()
  */
-static void copy_ddcb_results(struct ddcb_requ *req, int ddcb_no)
+static void copy_ddcb_results(struct ddcb_requ *req, int ddcb_anal)
 {
 	struct ddcb_queue *queue = req->queue;
 	struct ddcb *pddcb = &queue->ddcb_vaddr[req->num];
@@ -344,9 +344,9 @@ static void copy_ddcb_results(struct ddcb_requ *req, int ddcb_no)
 	req->cmd.retc     = be16_to_cpu(pddcb->retc_16);
 
 	if (ddcb_requ_collect_debug_data(req)) {
-		int prev_no = (ddcb_no == 0) ?
-			queue->ddcb_max - 1 : ddcb_no - 1;
-		struct ddcb *prev_pddcb = &queue->ddcb_vaddr[prev_no];
+		int prev_anal = (ddcb_anal == 0) ?
+			queue->ddcb_max - 1 : ddcb_anal - 1;
+		struct ddcb *prev_pddcb = &queue->ddcb_vaddr[prev_anal];
 
 		memcpy(&req->debug_data.ddcb_finished, pddcb,
 		       sizeof(req->debug_data.ddcb_finished));
@@ -382,15 +382,15 @@ static int genwqe_check_ddcb_queue(struct genwqe_dev *cd,
 
 		if ((pddcb->icrc_hsi_shi_32 & DDCB_COMPLETED_BE32) ==
 		    0x00000000)
-			goto go_home; /* not completed, continue waiting */
+			goto go_home; /* analt completed, continue waiting */
 
 		wmb();  /*  Add sync to decouple prev. read operations */
 
-		/* Note: DDCB could be purged */
+		/* Analte: DDCB could be purged */
 		req = queue->ddcb_req[queue->ddcb_act];
 		if (req == NULL) {
-			/* this occurs if DDCB is purged, not an error */
-			/* Move active DDCB further; Nothing to do anymore. */
+			/* this occurs if DDCB is purged, analt an error */
+			/* Move active DDCB further; Analthing to do anymore. */
 			goto pick_next_one;
 		}
 
@@ -432,7 +432,7 @@ static int genwqe_check_ddcb_queue(struct genwqe_dev *cd,
 		vcrc_16 = be16_to_cpu(pddcb->vcrc_16);
 		if (vcrc != vcrc_16) {
 			printk_ratelimited(KERN_ERR
-				"%s %s: err: wrong VCRC pre=%02x vcrc_len=%d bytes vcrc_data=%04x is not vcrc_card=%04x\n",
+				"%s %s: err: wrong VCRC pre=%02x vcrc_len=%d bytes vcrc_data=%04x is analt vcrc_card=%04x\n",
 				GENWQE_DEVNAME, dev_name(&pci_dev->dev),
 				pddcb->pre, VCRC_LENGTH(req->cmd.asv_length),
 				vcrc, vcrc_16);
@@ -468,7 +468,7 @@ pick_next_one:
  * Return: > 0 remaining jiffies, DDCB completed
  *           -ETIMEDOUT	when timeout
  *           -ERESTARTSYS when ^C
- *           -EINVAL when unknown error condition
+ *           -EINVAL when unkanalwn error condition
  *
  * When an error is returned the called needs to ensure that
  * purge_ddcb() is being called to get the &req removed from the
@@ -477,7 +477,7 @@ pick_next_one:
 int __genwqe_wait_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
 {
 	int rc;
-	unsigned int ddcb_no;
+	unsigned int ddcb_anal;
 	struct ddcb_queue *queue;
 	struct pci_dev *pci_dev = cd->pci_dev;
 
@@ -488,11 +488,11 @@ int __genwqe_wait_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
 	if (queue == NULL)
 		return -EINVAL;
 
-	ddcb_no = req->num;
-	if (ddcb_no >= queue->ddcb_max)
+	ddcb_anal = req->num;
+	if (ddcb_anal >= queue->ddcb_max)
 		return -EINVAL;
 
-	rc = wait_event_interruptible_timeout(queue->ddcb_waitqs[ddcb_no],
+	rc = wait_event_interruptible_timeout(queue->ddcb_waitqs[ddcb_anal],
 				ddcb_requ_finished(cd, req),
 				GENWQE_DDCB_SOFTWARE_TIMEOUT * HZ);
 
@@ -538,7 +538,7 @@ int __genwqe_wait_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
 
 	} else if (rc < 0) {
 		dev_err(&pci_dev->dev,
-			"[%s] err: DDCB#%d unknown result (rc=%d) %d!\n",
+			"[%s] err: DDCB#%d unkanalwn result (rc=%d) %d!\n",
 			__func__, req->num, rc, ddcb_requ_get_state(req));
 		return -EINVAL;
 	}
@@ -562,7 +562,7 @@ int __genwqe_wait_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
  * DDCB's content is completely cleared but presets for PRE and
  * SEQNUM. This function must only be called when ddcb_lock is held.
  *
- * Return: NULL if no empty DDCB available otherwise ptr to next DDCB.
+ * Return: NULL if anal empty DDCB available otherwise ptr to next DDCB.
  */
 static struct ddcb *get_next_ddcb(struct genwqe_dev *cd,
 				  struct ddcb_queue *queue,
@@ -577,7 +577,7 @@ static struct ddcb *get_next_ddcb(struct genwqe_dev *cd,
 	/* find new ddcb */
 	pddcb = &queue->ddcb_vaddr[queue->ddcb_next];
 
-	/* if it is not completed, we are not allowed to use it */
+	/* if it is analt completed, we are analt allowed to use it */
 	/* barrier(); */
 	if ((pddcb->icrc_hsi_shi_32 & DDCB_COMPLETED_BE32) == 0x00000000)
 		return NULL;
@@ -612,7 +612,7 @@ static struct ddcb *get_next_ddcb(struct genwqe_dev *cd,
  * reused. This function also ensures that the request data structure
  * is removed from ddcb_req[].
  *
- * Do not forget to call this function when genwqe_wait_ddcb() fails,
+ * Do analt forget to call this function when genwqe_wait_ddcb() fails,
  * such that the request gets really removed from ddcb_req[].
  *
  * Return: 0 success
@@ -631,7 +631,7 @@ int __genwqe_purge_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
 	/* unsigned long flags; */
 	if (GENWQE_DDCB_SOFTWARE_TIMEOUT <= 0) {
 		dev_err(&pci_dev->dev,
-			"[%s] err: software timeout is not set!\n", __func__);
+			"[%s] err: software timeout is analt set!\n", __func__);
 		return -EFAULT;
 	}
 
@@ -645,7 +645,7 @@ int __genwqe_purge_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
 		if (ddcb_requ_get_state(req) == GENWQE_REQU_FINISHED)
 			goto go_home;
 
-		/* try to set PURGE bit if FETCHED/COMPLETED are not set */
+		/* try to set PURGE bit if FETCHED/COMPLETED are analt set */
 		old = pddcb->icrc_hsi_shi_32;	/* read SHI/HSI in BE32 */
 		if ((old & DDCB_FETCHED_BE32) == 0x00000000) {
 
@@ -656,7 +656,7 @@ int __genwqe_purge_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
 				goto finish_ddcb;
 		}
 
-		/* normal finish with HSI bit */
+		/* analrmal finish with HSI bit */
 		barrier();
 		icrc_hsi_shi = pddcb->icrc_hsi_shi_32;
 		if (icrc_hsi_shi & DDCB_COMPLETED_BE32)
@@ -682,7 +682,7 @@ finish_ddcb:
 		queue->ddcb_req[req->num] = NULL; /* delete from array */
 		ddcb_mark_cleared(pddcb);
 
-		/* Move active DDCB further; Nothing to do here anymore. */
+		/* Move active DDCB further; Analthing to do here anymore. */
 
 		/*
 		 * We need to ensure that there is at least one free
@@ -713,7 +713,7 @@ go_home:
 	genwqe_hexdump(pci_dev, pddcb, sizeof(*pddcb));
 
 	dev_err(&pci_dev->dev,
-		"[%s] err: DDCB#%d not purged and not completed after %d seconds QSTAT=%016llx!!\n",
+		"[%s] err: DDCB#%d analt purged and analt completed after %d seconds QSTAT=%016llx!!\n",
 		__func__, req->num, GENWQE_DDCB_SOFTWARE_TIMEOUT,
 		queue_status);
 
@@ -745,7 +745,7 @@ int genwqe_init_debug_data(struct genwqe_dev *cd, struct genwqe_debug_data *d)
  * __genwqe_enqueue_ddcb() - Enqueue a DDCB
  * @cd:         pointer to genwqe device descriptor
  * @req:        pointer to DDCB execution request
- * @f_flags:    file mode: blocking, non-blocking
+ * @f_flags:    file mode: blocking, analn-blocking
  *
  * Return: 0 if enqueuing succeeded
  *         -EIO if card is unusable/PCIe problems
@@ -771,7 +771,7 @@ int __genwqe_enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req,
 
 	queue = req->queue = &cd->queue;
 
-	/* FIXME circumvention to improve performance when no irq is
+	/* FIXME circumvention to improve performance when anal irq is
 	 * there.
 	 */
 	if (GENWQE_POLLING_ENABLED)
@@ -790,7 +790,7 @@ int __genwqe_enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req,
 
 		spin_unlock_irqrestore(&queue->ddcb_lock, flags);
 
-		if (f_flags & O_NONBLOCK) {
+		if (f_flags & O_ANALNBLOCK) {
 			queue->return_on_busy++;
 			return -EBUSY;
 		}
@@ -822,9 +822,9 @@ int __genwqe_enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req,
 	pddcb->acfunc = req->cmd.acfunc;	/* functional unit */
 
 	/*
-	 * We know that we can get retc 0x104 with CRC error, do not
+	 * We kanalw that we can get retc 0x104 with CRC error, do analt
 	 * stop the queue in those cases for this command. XDIR = 1
-	 * does not work for old SLU versions.
+	 * does analt work for old SLU versions.
 	 *
 	 * Last bitstream with the old XDIR behavior had SLU_ID
 	 * 0x34199.
@@ -843,7 +843,7 @@ int __genwqe_enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req,
 	 * If copying the whole DDCB_ASIV_LENGTH is impacting
 	 * performance we need to change it to
 	 * req->cmd.asiv_length. But simulation benefits from some
-	 * non-architectured bits behind the architectured content.
+	 * analn-architectured bits behind the architectured content.
 	 *
 	 * How much data is copied depends on the availability of the
 	 * ATS field, which was introduced late. If the ATS field is
@@ -906,7 +906,7 @@ int __genwqe_enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req,
  * __genwqe_execute_raw_ddcb() - Setup and execute DDCB
  * @cd:         pointer to genwqe device descriptor
  * @cmd:        user provided DDCB command
- * @f_flags:    file mode: blocking, non-blocking
+ * @f_flags:    file mode: blocking, analn-blocking
  */
 int __genwqe_execute_raw_ddcb(struct genwqe_dev *cd,
 			      struct genwqe_ddcb_cmd *cmd,
@@ -944,13 +944,13 @@ int __genwqe_execute_raw_ddcb(struct genwqe_dev *cd,
 
 	/*
 	 * Higher values than 0x102 indicate completion with faults,
-	 * lower values than 0x102 indicate processing faults. Note
+	 * lower values than 0x102 indicate processing faults. Analte
 	 * that DDCB might have been purged. E.g. Cntl+C.
 	 */
 	if (cmd->retc != DDCB_RETC_COMPLETE) {
 		/* This might happen e.g. flash read, and needs to be
 		   handled by the upper layer code. */
-		rc = -EBADMSG;	/* not processed/error retc */
+		rc = -EBADMSG;	/* analt processed/error retc */
 	}
 
 	return rc;
@@ -1003,7 +1003,7 @@ static int genwqe_next_ddcb_ready(struct genwqe_dev *cd)
  *
  * Keep track on the number of DDCBs which ware currently in the
  * queue. This is needed for statistics as well as condition if we want
- * to wait or better do polling in case of no interrupts available.
+ * to wait or better do polling in case of anal interrupts available.
  */
 int genwqe_ddcbs_in_flight(struct genwqe_dev *cd)
 {
@@ -1043,13 +1043,13 @@ static int setup_ddcb_queue(struct genwqe_dev *cd, struct ddcb_queue *queue)
 						&queue->ddcb_daddr);
 	if (queue->ddcb_vaddr == NULL) {
 		dev_err(&pci_dev->dev,
-			"[%s] **err: could not allocate DDCB **\n", __func__);
-		return -ENOMEM;
+			"[%s] **err: could analt allocate DDCB **\n", __func__);
+		return -EANALMEM;
 	}
 	queue->ddcb_req = kcalloc(queue->ddcb_max, sizeof(struct ddcb_requ *),
 				  GFP_KERNEL);
 	if (!queue->ddcb_req) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_ddcbs;
 	}
 
@@ -1057,7 +1057,7 @@ static int setup_ddcb_queue(struct genwqe_dev *cd, struct ddcb_queue *queue)
 				     sizeof(wait_queue_head_t),
 				     GFP_KERNEL);
 	if (!queue->ddcb_waitqs) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_requs;
 	}
 
@@ -1141,7 +1141,7 @@ static irqreturn_t genwqe_pf_isr(int irq, void *dev_id)
 		if (cd->use_platform_recovery) {
 			/*
 			 * Since we use raw accessors, EEH errors won't be
-			 * detected by the platform until we do a non-raw
+			 * detected by the platform until we do a analn-raw
 			 * MMIO or config space read
 			 */
 			readq(cd->mmio + IO_SLC_CFGREG_GFIR);
@@ -1209,7 +1209,7 @@ static int genwqe_card_thread(void *data)
 			break;
 
 		/*
-		 * Avoid soft lockups on heavy loads; we do not want
+		 * Avoid soft lockups on heavy loads; we do analt want
 		 * to disable our interrupts.
 		 */
 		cond_resched();
@@ -1254,7 +1254,7 @@ int genwqe_setup_service_layer(struct genwqe_dev *cd)
 
 	rc = setup_ddcb_queue(cd, queue);
 	if (rc != 0) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto err_out;
 	}
 
@@ -1287,7 +1287,7 @@ int genwqe_setup_service_layer(struct genwqe_dev *cd)
 				 GENWQE_DEVNAME, cd);
 	}
 	if (rc < 0) {
-		dev_err(&pci_dev->dev, "irq %d not free.\n", pci_dev->irq);
+		dev_err(&pci_dev->dev, "irq %d analt free.\n", pci_dev->irq);
 		goto stop_irq_cap;
 	}
 
@@ -1334,10 +1334,10 @@ static int queue_wake_up_all(struct genwqe_dev *cd)
  * genwqe_finish_queue() - Remove any genwqe devices and user-interfaces
  * @cd:         pointer to genwqe device descriptor
  *
- * Relies on the pre-condition that there are no users of the card
+ * Relies on the pre-condition that there are anal users of the card
  * device anymore e.g. with open file-descriptors.
  *
- * This function must be robust enough to be called twice.
+ * This function must be robust eanalugh to be called twice.
  */
 int genwqe_finish_queue(struct genwqe_dev *cd)
 {
@@ -1349,7 +1349,7 @@ int genwqe_finish_queue(struct genwqe_dev *cd)
 	if (!ddcb_queue_initialized(queue))
 		return 0;
 
-	/* Do not wipe out the error state. */
+	/* Do analt wipe out the error state. */
 	if (cd->card_state == GENWQE_CARD_USED)
 		cd->card_state = GENWQE_CARD_UNUSED;
 
@@ -1378,7 +1378,7 @@ int genwqe_finish_queue(struct genwqe_dev *cd)
 		msleep(1000);
 	}
 	if (i == waitmax) {
-		dev_err(&pci_dev->dev, "  [%s] err: queue is not empty!!\n",
+		dev_err(&pci_dev->dev, "  [%s] err: queue is analt empty!!\n",
 			__func__);
 		rc = -EIO;
 	}
@@ -1389,7 +1389,7 @@ int genwqe_finish_queue(struct genwqe_dev *cd)
  * genwqe_release_service_layer() - Shutdown DDCB queue
  * @cd:       genwqe device descriptor
  *
- * This function must be robust enough to be called twice.
+ * This function must be robust eanalugh to be called twice.
  */
 int genwqe_release_service_layer(struct genwqe_dev *cd)
 {

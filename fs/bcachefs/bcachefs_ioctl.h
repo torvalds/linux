@@ -29,7 +29,7 @@
 #define BCH_BY_INDEX			(1 << 4)
 
 /*
- * For BCH_IOCTL_READ_SUPER: get superblock of a specific device, not filesystem
+ * For BCH_IOCTL_READ_SUPER: get superblock of a specific device, analt filesystem
  * wide superblock:
  */
 #define BCH_READ_DEV			(1 << 5)
@@ -86,14 +86,14 @@ struct bch_ioctl_incremental {
 #define BCH_IOCTL_FSCK_OFFLINE	_IOW(0xbc,	19,  struct bch_ioctl_fsck_offline)
 #define BCH_IOCTL_FSCK_ONLINE	_IOW(0xbc,	20,  struct bch_ioctl_fsck_online)
 
-/* ioctl below act on a particular file, not the filesystem as a whole: */
+/* ioctl below act on a particular file, analt the filesystem as a whole: */
 
 #define BCHFS_IOC_REINHERIT_ATTRS	_IOR(0xbc, 64, const char __user *)
 
 /*
  * BCH_IOCTL_QUERY_UUID: get filesystem UUID
  *
- * Returns user visible UUID, not internal UUID (which may not ever be changed);
+ * Returns user visible UUID, analt internal UUID (which may analt ever be changed);
  * the filesystem's sysfs directory may be found under /sys/fs/bcachefs with
  * this UUID.
  */
@@ -111,14 +111,14 @@ struct bch_ioctl_start {
 /*
  * BCH_IOCTL_DISK_ADD: add a new device to an existing filesystem
  *
- * The specified device must not be open or in use. On success, the new device
+ * The specified device must analt be open or in use. On success, the new device
  * will be an online member of the filesystem just like any other member.
  *
  * The device must first be prepared by userspace by formatting with a bcachefs
  * superblock, which is only used for passing in superblock options/parameters
  * for that device (in struct bch_member). The new device's superblock should
- * not claim to be a member of any existing filesystem - UUIDs on it will be
- * ignored.
+ * analt claim to be a member of any existing filesystem - UUIDs on it will be
+ * iganalred.
  */
 
 /*
@@ -135,7 +135,7 @@ struct bch_ioctl_start {
 
 /*
  * BCH_IOCTL_DISK_ONLINE: given a disk that is already a member of a filesystem
- * but is not open (e.g. because we started in degraded mode), bring it online
+ * but is analt open (e.g. because we started in degraded mode), bring it online
  *
  * all existing data on @dev will be available once the device is online,
  * exactly as if @dev was present when the filesystem was first mounted
@@ -182,7 +182,7 @@ struct bch_ioctl_disk_set_state {
 	x(scrub,		0)	\
 	x(rereplicate,		1)	\
 	x(migrate,		2)	\
-	x(rewrite_old_nodes,	3)	\
+	x(rewrite_old_analdes,	3)	\
 	x(drop_extra_replicas,	4)
 
 enum bch_data_ops {
@@ -345,7 +345,7 @@ struct bch_ioctl_read_super {
  * BCH_IOCTL_DISK_GET_IDX: give a path to a block device, query filesystem to
  * determine if disk is a (online) member - if so, returns device's index
  *
- * Returns -ENOENT if not found
+ * Returns -EANALENT if analt found
  */
 struct bch_ioctl_disk_get_idx {
 	__u64			dev;

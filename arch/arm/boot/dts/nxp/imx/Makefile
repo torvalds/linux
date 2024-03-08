@@ -210,7 +210,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-nitrogen6x.dtb \
 	imx6q-nitrogen6_max.dtb \
 	imx6q-nitrogen6_som2.dtb \
-	imx6q-novena.dtb \
+	imx6q-analvena.dtb \
 	imx6q-phytec-mira-rdk-emmc.dtb \
 	imx6q-phytec-mira-rdk-nand.dtb \
 	imx6q-phytec-pbab01.dtb \
@@ -274,10 +274,10 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 dtb-$(CONFIG_SOC_IMX6SL) += \
 	imx6sl-evk.dtb \
 	imx6sl-kobo-aura2.dtb \
-	imx6sl-tolino-shine2hd.dtb \
-	imx6sl-tolino-shine3.dtb \
-	imx6sl-tolino-vision.dtb \
-	imx6sl-tolino-vision5.dtb \
+	imx6sl-tolianal-shine2hd.dtb \
+	imx6sl-tolianal-shine3.dtb \
+	imx6sl-tolianal-vision.dtb \
+	imx6sl-tolianal-vision5.dtb \
 	imx6sl-warp.dtb
 dtb-$(CONFIG_SOC_IMX6SLL) += \
 	imx6sll-evk.dtb \

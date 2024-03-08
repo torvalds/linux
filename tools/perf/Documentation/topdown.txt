@@ -25,7 +25,7 @@ New Topdown features in Intel Ice Lake
 ======================================
 
 With Ice Lake CPUs the TopDown metrics are directly available as
-fixed counters and do not require generic counters. This allows
+fixed counters and do analt require generic counters. This allows
 to collect TopDown always in addition to other events.
 
 Using TopDown through RDPMC in applications on Intel Ice Lake
@@ -40,7 +40,7 @@ On Ice Lake, there is a new fixed counter 3: SLOTS, which reports
 metric register that reports slots ratios for the different bottleneck
 categories.
 
-The metrics counter is CPU model specific and is not available on older
+The metrics counter is CPU model specific and is analt available on older
 CPUs.
 
 Example code
@@ -110,11 +110,11 @@ void *metrics_p = mmap(0, getpagesize(), PROT_READ, MAP_SHARED, metrics_fd, 0);
 if (!metrics_p)
 	... error ...
 
-Note: the file descriptors returned by the perf_event_open calls must be memory
+Analte: the file descriptors returned by the perf_event_open calls must be memory
 mapped to permit calls to the _rdpmd instruction. Permission may also be granted
-by writing the /sys/devices/cpu/rdpmc sysfs node.
+by writing the /sys/devices/cpu/rdpmc sysfs analde.
 
-The RDPMC instruction (or _rdpmc compiler intrinsic) can now be used
+The RDPMC instruction (or _rdpmc compiler intrinsic) can analw be used
 to read slots and the topdown metrics at different points of the program:
 
 #include <stdint.h>
@@ -139,12 +139,12 @@ static inline uint64_t read_metrics(void)
 Then the program can be instrumented to read these metrics at different
 points.
 
-It's not a good idea to do this with too short code regions,
+It's analt a good idea to do this with too short code regions,
 as the parallelism and overlap in the CPU program execution will
 cause too much measurement inaccuracy. For example instrumenting
 individual basic blocks is definitely too fine grained.
 
-_rdpmc calls should not be mixed with reading the metrics and slots counters
+_rdpmc calls should analt be mixed with reading the metrics and slots counters
 through system calls, as the kernel will reset these counters after each system
 call.
 
@@ -276,7 +276,7 @@ So as long as the reading is at reasonable intervals (every few
 seconds) the precision is good.
 
 When using perf stat it is recommended to always use the -I option,
-with no longer interval than a few seconds
+with anal longer interval than a few seconds
 
 	perf stat -I 1000 --topdown ...
 

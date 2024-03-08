@@ -4,7 +4,7 @@
  *  Written from the i915 driver.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fb.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -61,7 +61,7 @@ static int armada_fbdev_create(struct drm_fb_helper *fbh,
 	obj = armada_gem_alloc_private_object(dev, size);
 	if (!obj) {
 		DRM_ERROR("failed to allocate fb memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = armada_gem_linear_back(dev, obj);
@@ -73,13 +73,13 @@ static int armada_fbdev_create(struct drm_fb_helper *fbh,
 	ptr = armada_gem_map_object(dev, obj);
 	if (!ptr) {
 		drm_gem_object_put(&obj->obj);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dfb = armada_framebuffer_create(dev, &mode, obj);
 
 	/*
-	 * A reference is now held by the framebuffer object if
+	 * A reference is analw held by the framebuffer object if
 	 * successful, otherwise this drops the ref for the error path.
 	 */
 	drm_gem_object_put(&obj->obj);
@@ -195,7 +195,7 @@ void armada_fbdev_setup(struct drm_device *dev)
 	struct drm_fb_helper *fbh;
 	int ret;
 
-	drm_WARN(dev, !dev->registered, "Device has not been registered.\n");
+	drm_WARN(dev, !dev->registered, "Device has analt been registered.\n");
 	drm_WARN(dev, dev->fb_helper, "fb_helper is already set!\n");
 
 	fbh = kzalloc(sizeof(*fbh), GFP_KERNEL);

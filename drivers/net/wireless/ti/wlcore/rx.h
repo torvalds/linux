@@ -3,9 +3,9 @@
  * This file is part of wl1271
  *
  * Copyright (C) 1998-2009 Texas Instruments. All rights reserved.
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2009 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #ifndef __RX_H__
@@ -85,7 +85,7 @@
 #define ALIGNED_RX_BUF_SIZE_MASK     0xFFFF00
 #define ALIGNED_RX_BUF_SIZE_SHIFT    8
 
-/* If set, the start of IP payload is not 4 bytes aligned */
+/* If set, the start of IP payload is analt 4 bytes aligned */
 #define RX_BUF_UNALIGNED_PAYLOAD     BIT(20)
 
 /* If set, the buffer was padded by the FW to be 4 bytes aligned */
@@ -105,7 +105,7 @@ enum wl_rx_buf_align {
 };
 
 enum {
-	WL12XX_RX_CLASS_UNKNOWN,
+	WL12XX_RX_CLASS_UNKANALWN,
 	WL12XX_RX_CLASS_MANAGEMENT,
 	WL12XX_RX_CLASS_DATA,
 	WL12XX_RX_CLASS_QOS_DATA,

@@ -76,7 +76,7 @@ lan966x_mdb_entry_add(struct lan966x *lan966x,
 
 	mdb_entry = kzalloc(sizeof(*mdb_entry), GFP_KERNEL);
 	if (!mdb_entry)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ether_addr_copy(mdb_entry->mac, mdb->addr);
 	mdb_entry->vid = mdb->vid;
@@ -149,12 +149,12 @@ static int lan966x_mdb_ip_del(struct lan966x_port *port,
 
 	mdb_entry = lan966x_mdb_entry_get(lan966x, mdb->addr, mdb->vid);
 	if (!mdb_entry)
-		return -ENOENT;
+		return -EANALENT;
 
 	ports = mdb_entry->ports;
 	if (cpu_port) {
 		/* If there are still other references to the CPU port then
-		 * there is no point to delete and add again the same entry
+		 * there is anal point to delete and add again the same entry
 		 */
 		mdb_entry->cpu_copy--;
 		if (mdb_entry->cpu_copy)
@@ -186,7 +186,7 @@ lan966x_pgid_entry_add(struct lan966x *lan966x, int index, u16 ports)
 
 	pgid_entry = kzalloc(sizeof(*pgid_entry), GFP_KERNEL);
 	if (!pgid_entry)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pgid_entry->ports = ports;
 	pgid_entry->index = index;
@@ -215,7 +215,7 @@ lan966x_pgid_entry_get(struct lan966x *lan966x,
 	}
 
 	/* Try to find an empty pgid entry and allocate one in case it finds it,
-	 * otherwise it means that there are no more resources
+	 * otherwise it means that there are anal more resources
 	 */
 	for (index = PGID_GP_START; index < PGID_GP_END; index++) {
 		bool used = false;
@@ -232,7 +232,7 @@ lan966x_pgid_entry_get(struct lan966x *lan966x,
 						      mdb_entry->ports);
 	}
 
-	return ERR_PTR(-ENOSPC);
+	return ERR_PTR(-EANALSPC);
 }
 
 static void lan966x_pgid_entry_del(struct lan966x *lan966x,
@@ -307,12 +307,12 @@ static int lan966x_mdb_l2_del(struct lan966x_port *port,
 
 	mdb_entry = lan966x_mdb_entry_get(lan966x, mdb->addr, mdb->vid);
 	if (!mdb_entry)
-		return -ENOENT;
+		return -EANALENT;
 
 	ports = mdb_entry->ports;
 	if (cpu_port) {
 		/* If there are still other references to the CPU port then
-		 * there is no point to delete and add again the same entry
+		 * there is anal point to delete and add again the same entry
 		 */
 		mdb_entry->cpu_copy--;
 		if (mdb_entry->cpu_copy)

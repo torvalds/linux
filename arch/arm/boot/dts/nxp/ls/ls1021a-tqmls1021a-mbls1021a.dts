@@ -303,7 +303,7 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			/* GPIO 5-7 used for touch */
-			st,norequest-mask = <0xf0>;
+			st,analrequest-mask = <0xf0>;
 			gpio-line-names = "GPIO_ADC_I2C1_1",
 					  "GPIO_ADC_I2C1_2",
 					  "GPIO_ADC_I2C1_3",

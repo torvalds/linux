@@ -2,7 +2,7 @@
 /************************************************************
  * EFI GUID Partition Table
  * Per Intel EFI Specification v1.02
- * http://developer.intel.com/technology/efi/efi.htm
+ * http://developer.intel.com/techanallogy/efi/efi.htm
  *
  * By Matt Domsch <Matt_Domsch@dell.com>  Fri Sep 22 22:15:56 CDT 2000  
  *   Copyright 2000,2001 Dell Inc.
@@ -95,7 +95,7 @@ typedef struct _gpt_mbr_record {
 	u8	start_head;     /* unused by EFI, pt start in CHS */
 	u8	start_sector;   /* unused by EFI, pt start in CHS */
 	u8	start_track;
-	u8	os_type;        /* EFI and legacy non-EFI OS types */
+	u8	os_type;        /* EFI and legacy analn-EFI OS types */
 	u8	end_head;       /* unused by EFI, pt end in CHS */
 	u8	end_sector;     /* unused by EFI, pt end in CHS */
 	u8	end_track;      /* unused by EFI, pt end in CHS */
@@ -107,7 +107,7 @@ typedef struct _gpt_mbr_record {
 typedef struct _legacy_mbr {
 	u8 boot_code[440];
 	__le32 unique_mbr_signature;
-	__le16 unknown;
+	__le16 unkanalwn;
 	gpt_mbr_record partition_record[4];
 	__le16 signature;
 } __packed legacy_mbr;

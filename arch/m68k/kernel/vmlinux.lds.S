@@ -11,5 +11,5 @@ PHDRS
 #include "vmlinux-std.lds"
 #endif
 #else
-#include "vmlinux-nommu.lds"
+#include "vmlinux-analmmu.lds"
 #endif

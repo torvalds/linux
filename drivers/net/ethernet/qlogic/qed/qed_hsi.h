@@ -60,7 +60,7 @@ enum common_ramrod_cmd_id {
 /* How ll2 should deal with packet upon errors */
 enum core_error_handle {
 	LL2_DROP_PACKET,
-	LL2_DO_NOTHING,
+	LL2_DO_ANALTHING,
 	LL2_ASSERT,
 	MAX_CORE_ERROR_HANDLE
 };
@@ -118,7 +118,7 @@ struct core_ll2_rx_prod {
 
 struct core_ll2_tstorm_per_queue_stat {
 	struct regpair packet_too_big_discard;
-	struct regpair no_buff_discard;
+	struct regpair anal_buff_discard;
 };
 
 struct core_ll2_ustorm_per_queue_stat {
@@ -181,14 +181,14 @@ enum core_roce_flavor_type {
 };
 
 /* Specifies how ll2 should deal with packets errors: packet_too_big and
- * no_buff.
+ * anal_buff.
  */
 struct core_rx_action_on_error {
 	u8 error_type;
 #define CORE_RX_ACTION_ON_ERROR_PACKET_TOO_BIG_MASK	0x3
 #define CORE_RX_ACTION_ON_ERROR_PACKET_TOO_BIG_SHIFT	0
-#define CORE_RX_ACTION_ON_ERROR_NO_BUFF_MASK		0x3
-#define CORE_RX_ACTION_ON_ERROR_NO_BUFF_SHIFT		2
+#define CORE_RX_ACTION_ON_ERROR_ANAL_BUFF_MASK		0x3
+#define CORE_RX_ACTION_ON_ERROR_ANAL_BUFF_SHIFT		2
 #define CORE_RX_ACTION_ON_ERROR_RESERVED_MASK		0xF
 #define CORE_RX_ACTION_ON_ERROR_RESERVED_SHIFT		4
 };
@@ -906,8 +906,8 @@ struct eth_mstorm_per_pf_stat {
 struct eth_mstorm_per_queue_stat {
 	struct regpair ttl0_discard;
 	struct regpair packet_too_big_discard;
-	struct regpair no_buff_discard;
-	struct regpair not_active_discard;
+	struct regpair anal_buff_discard;
+	struct regpair analt_active_discard;
 	struct regpair tpa_coalesced_pkts;
 	struct regpair tpa_coalesced_events;
 	struct regpair tpa_aborts_num;
@@ -1071,16 +1071,16 @@ enum gft_profile_type {
 	MAX_GFT_PROFILE_TYPE
 };
 
-/* Major and Minor hsi Versions */
+/* Major and Mianalr hsi Versions */
 struct hsi_fp_ver_struct {
-	u8 minor_ver_arr[2];
+	u8 mianalr_ver_arr[2];
 	u8 major_ver_arr[2];
 };
 
 /* Integration Phase */
 enum integ_phase {
 	INTEG_PHASE_BB_A0_LATEST = 3,
-	INTEG_PHASE_BB_B0_NO_MCP = 10,
+	INTEG_PHASE_BB_B0_ANAL_MCP = 10,
 	INTEG_PHASE_BB_B0_WITH_MCP = 11,
 	MAX_INTEG_PHASE
 };
@@ -1096,10 +1096,10 @@ enum iwarp_ll2_tx_queues {
 
 /* Function error ID */
 enum func_err_id {
-	FUNC_NO_ERROR,
-	VF_PF_CHANNEL_NOT_READY,
-	VF_ZONE_MSG_NOT_VALID,
-	VF_ZONE_FUNC_NOT_ENABLED,
+	FUNC_ANAL_ERROR,
+	VF_PF_CHANNEL_ANALT_READY,
+	VF_ZONE_MSG_ANALT_VALID,
+	VF_ZONE_FUNC_ANALT_ENABLED,
 	ETH_PACKET_TOO_SMALL,
 	ETH_ILLEGAL_VLAN_MODE,
 	ETH_MTU_VIOLATION,
@@ -1154,15 +1154,15 @@ enum fw_err_recovery_scope {
 	MAX_FW_ERR_RECOVERY_SCOPE
 };
 
-/* Mstorm non-triggering VF zone */
-struct mstorm_non_trigger_vf_zone {
+/* Mstorm analn-triggering VF zone */
+struct mstorm_analn_trigger_vf_zone {
 	struct eth_mstorm_per_queue_stat eth_queue_stat;
 	struct eth_rx_prod_data eth_rx_queue_producers[ETH_MAX_RXQ_VF_QUAD];
 };
 
 /* Mstorm VF zone */
 struct mstorm_vf_zone {
-	struct mstorm_non_trigger_vf_zone non_trigger;
+	struct mstorm_analn_trigger_vf_zone analn_trigger;
 };
 
 /* vlan header including TPID and TCI fields */
@@ -1197,7 +1197,7 @@ enum personality_type {
 struct pf_start_tunnel_config {
 	u8 set_vxlan_udp_port_flg;
 	u8 set_geneve_udp_port_flg;
-	u8 set_no_inner_l2_vxlan_udp_port_flg;
+	u8 set_anal_inner_l2_vxlan_udp_port_flg;
 	u8 tunnel_clss_vxlan;
 	u8 tunnel_clss_l2geneve;
 	u8 tunnel_clss_ipgeneve;
@@ -1205,7 +1205,7 @@ struct pf_start_tunnel_config {
 	u8 tunnel_clss_ipgre;
 	__le16 vxlan_udp_port;
 	__le16 geneve_udp_port;
-	__le16 no_inner_l2_vxlan_udp_port;
+	__le16 anal_inner_l2_vxlan_udp_port;
 	__le16 reserved[3];
 };
 
@@ -1249,10 +1249,10 @@ struct protocol_dcb_data {
 struct pf_update_tunnel_config {
 	u8 update_rx_pf_clss;
 	u8 update_rx_def_ucast_clss;
-	u8 update_rx_def_non_ucast_clss;
+	u8 update_rx_def_analn_ucast_clss;
 	u8 set_vxlan_udp_port_flg;
 	u8 set_geneve_udp_port_flg;
-	u8 set_no_inner_l2_vxlan_udp_port_flg;
+	u8 set_anal_inner_l2_vxlan_udp_port_flg;
 	u8 tunnel_clss_vxlan;
 	u8 tunnel_clss_l2geneve;
 	u8 tunnel_clss_ipgeneve;
@@ -1261,7 +1261,7 @@ struct pf_update_tunnel_config {
 	u8 reserved;
 	__le16 vxlan_udp_port;
 	__le16 geneve_udp_port;
-	__le16 no_inner_l2_vxlan_udp_port;
+	__le16 anal_inner_l2_vxlan_udp_port;
 	__le16 reserved1[3];
 };
 
@@ -1304,7 +1304,7 @@ enum protocol_common_error_code {
 	MAX_PROTOCOL_COMMON_ERROR_CODE
 };
 
-/* use to index in hsi_fp_[major|minor]_ver_arr per protocol */
+/* use to index in hsi_fp_[major|mianalr]_ver_arr per protocol */
 enum protocol_version_array_key {
 	ETH_VER_KEY = 0,
 	ROCE_VER_KEY,
@@ -1317,15 +1317,15 @@ struct rdma_sent_stats {
 	struct regpair sent_pkts;
 };
 
-/* Pstorm non-triggering VF zone */
-struct pstorm_non_trigger_vf_zone {
+/* Pstorm analn-triggering VF zone */
+struct pstorm_analn_trigger_vf_zone {
 	struct eth_pstorm_per_queue_stat eth_queue_stat;
 	struct rdma_sent_stats rdma_stats;
 };
 
 /* Pstorm VF zone */
 struct pstorm_vf_zone {
-	struct pstorm_non_trigger_vf_zone non_trigger;
+	struct pstorm_analn_trigger_vf_zone analn_trigger;
 	struct regpair reserved[7];
 };
 
@@ -1374,8 +1374,8 @@ struct slow_path_element {
 	struct regpair data_ptr;
 };
 
-/* Tstorm non-triggering VF zone */
-struct tstorm_non_trigger_vf_zone {
+/* Tstorm analn-triggering VF zone */
+struct tstorm_analn_trigger_vf_zone {
 	struct rdma_rcv_stats rdma_stats;
 };
 
@@ -1401,7 +1401,7 @@ struct tstorm_per_port_stat {
 
 /* Tstorm VF zone */
 struct tstorm_vf_zone {
-	struct tstorm_non_trigger_vf_zone non_trigger;
+	struct tstorm_analn_trigger_vf_zone analn_trigger;
 };
 
 /* Tunnel classification scheme */
@@ -1414,8 +1414,8 @@ enum tunnel_clss {
 	MAX_TUNNEL_CLSS
 };
 
-/* Ustorm non-triggering VF zone */
-struct ustorm_non_trigger_vf_zone {
+/* Ustorm analn-triggering VF zone */
+struct ustorm_analn_trigger_vf_zone {
 	struct eth_ustorm_per_queue_stat eth_queue_stat;
 	struct regpair vf_pf_msg_addr;
 };
@@ -1428,7 +1428,7 @@ struct ustorm_trigger_vf_zone {
 
 /* Ustorm VF zone */
 struct ustorm_vf_zone {
-	struct ustorm_non_trigger_vf_zone non_trigger;
+	struct ustorm_analn_trigger_vf_zone analn_trigger;
 	struct ustorm_trigger_vf_zone trigger;
 };
 
@@ -1467,14 +1467,14 @@ enum vf_zone_size_mode {
 	MAX_VF_ZONE_SIZE_MODE
 };
 
-/* Xstorm non-triggering VF zone */
-struct xstorm_non_trigger_vf_zone {
-	struct regpair non_edpm_ack_pkts;
+/* Xstorm analn-triggering VF zone */
+struct xstorm_analn_trigger_vf_zone {
+	struct regpair analn_edpm_ack_pkts;
 };
 
 /* Tstorm VF zone */
 struct xstorm_vf_zone {
-	struct xstorm_non_trigger_vf_zone non_trigger;
+	struct xstorm_analn_trigger_vf_zone analn_trigger;
 };
 
 /* Attentions status block */
@@ -1579,10 +1579,10 @@ enum dmae_cmd_c_dst_enum {
 };
 
 enum dmae_cmd_dst_enum {
-	dmae_cmd_dst_none_0,
+	dmae_cmd_dst_analne_0,
 	dmae_cmd_dst_pcie,
 	dmae_cmd_dst_grc,
-	dmae_cmd_dst_none_3,
+	dmae_cmd_dst_analne_3,
 	MAX_DMAE_CMD_DST_ENUM
 };
 
@@ -1990,7 +1990,7 @@ struct init_qm_rl_params {
 
 /* QM Rate Limiter types */
 enum init_qm_rl_type {
-	QM_RL_TYPE_NORMAL,
+	QM_RL_TYPE_ANALRMAL,
 	QM_RL_TYPE_QCN,
 	MAX_INIT_QM_RL_TYPE
 };
@@ -2033,7 +2033,7 @@ struct fw_asserts_ram_section {
 
 struct fw_ver_num {
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 	u8 rev;
 	u8 eng;
 };
@@ -2088,7 +2088,7 @@ enum init_phases {
 };
 
 enum init_split_types {
-	SPLIT_TYPE_NONE,
+	SPLIT_TYPE_ANALNE,
 	SPLIT_TYPE_PORT,
 	SPLIT_TYPE_PF,
 	SPLIT_TYPE_PORT_PF,
@@ -2230,7 +2230,7 @@ struct init_if_phase_op {
 
 /* init mode operators */
 enum init_mode_ops {
-	INIT_MODE_OP_NOT,
+	INIT_MODE_OP_ANALT,
 	INIT_MODE_OP_OR,
 	INIT_MODE_OP_AND,
 	MAX_INIT_MODE_OPS
@@ -2314,7 +2314,7 @@ enum init_op_types {
 
 /* init polling types */
 enum init_poll_types {
-	INIT_POLL_NONE,
+	INIT_POLL_ANALNE,
 	INIT_POLL_EQ,
 	INIT_POLL_OR,
 	INIT_POLL_AND,
@@ -2468,7 +2468,7 @@ int qed_qm_pf_rt_init(struct qed_hwfn *p_hwfn,
  * @p_hwfn: HW device data.
  * @p_ptt: Ptt window used for writing the registers
  * @pf_id: PF ID
- * @pf_wfq: WFQ weight. Must be non-zero.
+ * @pf_wfq: WFQ weight. Must be analn-zero.
  *
  * Return: 0 on success, -1 on error.
  */
@@ -2496,7 +2496,7 @@ int qed_init_pf_rl(struct qed_hwfn *p_hwfn,
  * @first_tx_pq_id: An array containing the first Tx PQ ID associated
  *                  with the VPORT for each TC. This array is filled by
  *                  qed_qm_pf_rt_init
- * @wfq: WFQ weight. Must be non-zero.
+ * @wfq: WFQ weight. Must be analn-zero.
  *
  * Return: 0 on success, -1 on error.
  */
@@ -2619,7 +2619,7 @@ void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 			   struct qed_ptt *p_ptt,
 			   bool eth_geneve_enable, bool ip_geneve_enable);
 
-void qed_set_vxlan_no_l2_enable(struct qed_hwfn *p_hwfn,
+void qed_set_vxlan_anal_l2_enable(struct qed_hwfn *p_hwfn,
 				struct qed_ptt *p_ptt, bool enable);
 
 /**
@@ -2821,7 +2821,7 @@ void qed_fw_overlay_mem_free(struct qed_hwfn *p_hwfn,
 #define DORQ_REG_VF_MAX_ICID_5_RT_OFFSET				13
 #define DORQ_REG_VF_MAX_ICID_6_RT_OFFSET				14
 #define DORQ_REG_VF_MAX_ICID_7_RT_OFFSET				15
-#define DORQ_REG_VF_ICID_BIT_SHIFT_NORM_RT_OFFSET			16
+#define DORQ_REG_VF_ICID_BIT_SHIFT_ANALRM_RT_OFFSET			16
 #define DORQ_REG_PF_WAKE_ALL_RT_OFFSET					17
 #define DORQ_REG_TAG1_ETHERTYPE_RT_OFFSET				18
 #define IGU_REG_PF_CONFIGURATION_RT_OFFSET				19
@@ -2848,8 +2848,8 @@ void qed_fw_overlay_mem_free(struct qed_hwfn *p_hwfn,
 #define PRS_REG_ROCE_DEST_QP_MAX_VF_RT_OFFSET				5922
 #define PRS_REG_ROCE_DEST_QP_MAX_PF_RT_OFFSET				5923
 #define PRS_REG_SEARCH_OPENFLOW_RT_OFFSET				5924
-#define PRS_REG_SEARCH_NON_IP_AS_OPENFLOW_RT_OFFSET			5925
-#define PRS_REG_OPENFLOW_SUPPORT_ONLY_KNOWN_OVER_IP_RT_OFFSET		5926
+#define PRS_REG_SEARCH_ANALN_IP_AS_OPENFLOW_RT_OFFSET			5925
+#define PRS_REG_OPENFLOW_SUPPORT_ONLY_KANALWN_OVER_IP_RT_OFFSET		5926
 #define PRS_REG_OPENFLOW_SEARCH_KEY_MASK_RT_OFFSET			5927
 #define PRS_REG_TAG_ETHERTYPE_0_RT_OFFSET				5928
 #define PRS_REG_LIGHT_L2_ETHERTYPE_EN_RT_OFFSET				5929
@@ -3781,31 +3781,31 @@ enum eth_error_code {
 	ETH_FILTERS_MAC_ADD_FAIL_FULL_MTT2,
 	ETH_FILTERS_MAC_ADD_FAIL_DUP_MTT2,
 	ETH_FILTERS_MAC_ADD_FAIL_DUP_STT2,
-	ETH_FILTERS_MAC_DEL_FAIL_NOF,
-	ETH_FILTERS_MAC_DEL_FAIL_NOF_MTT2,
-	ETH_FILTERS_MAC_DEL_FAIL_NOF_STT2,
+	ETH_FILTERS_MAC_DEL_FAIL_ANALF,
+	ETH_FILTERS_MAC_DEL_FAIL_ANALF_MTT2,
+	ETH_FILTERS_MAC_DEL_FAIL_ANALF_STT2,
 	ETH_FILTERS_MAC_ADD_FAIL_ZERO_MAC,
 	ETH_FILTERS_VLAN_ADD_FAIL_FULL,
 	ETH_FILTERS_VLAN_ADD_FAIL_DUP,
-	ETH_FILTERS_VLAN_DEL_FAIL_NOF,
-	ETH_FILTERS_VLAN_DEL_FAIL_NOF_TT1,
+	ETH_FILTERS_VLAN_DEL_FAIL_ANALF,
+	ETH_FILTERS_VLAN_DEL_FAIL_ANALF_TT1,
 	ETH_FILTERS_PAIR_ADD_FAIL_DUP,
 	ETH_FILTERS_PAIR_ADD_FAIL_FULL,
 	ETH_FILTERS_PAIR_ADD_FAIL_FULL_MAC,
-	ETH_FILTERS_PAIR_DEL_FAIL_NOF,
-	ETH_FILTERS_PAIR_DEL_FAIL_NOF_TT1,
+	ETH_FILTERS_PAIR_DEL_FAIL_ANALF,
+	ETH_FILTERS_PAIR_DEL_FAIL_ANALF_TT1,
 	ETH_FILTERS_PAIR_ADD_FAIL_ZERO_MAC,
 	ETH_FILTERS_VNI_ADD_FAIL_FULL,
 	ETH_FILTERS_VNI_ADD_FAIL_DUP,
 	ETH_FILTERS_GFT_UPDATE_FAIL,
 	ETH_RX_QUEUE_FAIL_LOAD_VF_DATA,
 	ETH_FILTERS_GFS_ADD_FILTER_FAIL_MAX_HOPS,
-	ETH_FILTERS_GFS_ADD_FILTER_FAIL_NO_FREE_ENRTY,
+	ETH_FILTERS_GFS_ADD_FILTER_FAIL_ANAL_FREE_ENRTY,
 	ETH_FILTERS_GFS_ADD_FILTER_FAIL_ALREADY_EXISTS,
 	ETH_FILTERS_GFS_ADD_FILTER_FAIL_PCI_ERROR,
 	ETH_FILTERS_GFS_ADD_FINLER_FAIL_MAGIC_NUM_ERROR,
 	ETH_FILTERS_GFS_DEL_FILTER_FAIL_MAX_HOPS,
-	ETH_FILTERS_GFS_DEL_FILTER_FAIL_NO_MATCH_ENRTY,
+	ETH_FILTERS_GFS_DEL_FILTER_FAIL_ANAL_MATCH_ENRTY,
 	ETH_FILTERS_GFS_DEL_FILTER_FAIL_PCI_ERROR,
 	ETH_FILTERS_GFS_DEL_FILTER_FAIL_MAGIC_NUM_ERROR,
 	MAX_ETH_ERROR_CODE
@@ -3889,15 +3889,15 @@ enum eth_filter_type {
 struct eth_in_to_in_pri_map_cfg {
 	u8 inner_vlan_pri_remap_en;
 	u8 reserved[7];
-	u8 non_rdma_in_to_in_pri_map[8];
+	u8 analn_rdma_in_to_in_pri_map[8];
 	u8 rdma_in_to_in_pri_map[8];
 };
 
 /* Eth IPv4 Fragment Type */
 enum eth_ipv4_frag_type {
-	ETH_IPV4_NOT_FRAG,
+	ETH_IPV4_ANALT_FRAG,
 	ETH_IPV4_FIRST_FRAG,
-	ETH_IPV4_NON_FIRST_FRAG,
+	ETH_IPV4_ANALN_FIRST_FRAG,
 	MAX_ETH_IPV4_FRAG_TYPE
 };
 
@@ -4146,7 +4146,7 @@ struct rx_queue_start_ramrod_data {
 	__le16 pxp_st_index;
 	u8 pmd_mode;
 
-	u8 notify_en;
+	u8 analtify_en;
 	u8 toggle_val;
 
 	u8 vf_rx_prod_index;
@@ -4230,8 +4230,8 @@ struct tx_queue_start_ramrod_data {
 #define TX_QUEUE_START_RAMROD_DATA_TEST_MODE_PKT_DUP_SHIFT	1
 #define TX_QUEUE_START_RAMROD_DATA_PMD_MODE_MASK		0x1
 #define TX_QUEUE_START_RAMROD_DATA_PMD_MODE_SHIFT		2
-#define TX_QUEUE_START_RAMROD_DATA_NOTIFY_EN_MASK		0x1
-#define TX_QUEUE_START_RAMROD_DATA_NOTIFY_EN_SHIFT		3
+#define TX_QUEUE_START_RAMROD_DATA_ANALTIFY_EN_MASK		0x1
+#define TX_QUEUE_START_RAMROD_DATA_ANALTIFY_EN_SHIFT		3
 #define TX_QUEUE_START_RAMROD_DATA_PIN_CONTEXT_MASK		0x1
 #define TX_QUEUE_START_RAMROD_DATA_PIN_CONTEXT_SHIFT		4
 #define TX_QUEUE_START_RAMROD_DATA_RESERVED1_MASK		0x7
@@ -4268,7 +4268,7 @@ struct tx_queue_update_ramrod_data {
 /* Inner to Inner VLAN priority map update mode */
 enum update_in_to_in_pri_map_mode_enum {
 	ETH_IN_TO_IN_PRI_MAP_UPDATE_DISABLED,
-	ETH_IN_TO_IN_PRI_MAP_UPDATE_NON_RDMA_TBL,
+	ETH_IN_TO_IN_PRI_MAP_UPDATE_ANALN_RDMA_TBL,
 	ETH_IN_TO_IN_PRI_MAP_UPDATE_RDMA_TBL,
 	MAX_UPDATE_IN_TO_IN_PRI_MAP_MODE_ENUM
 };
@@ -4927,7 +4927,7 @@ struct gft_profile_key {
 
 /* Used in gft_profile_key: Indication for tunnel type */
 enum gft_profile_tunnel_type {
-	GFT_PROFILE_NO_TUNNEL = 0,
+	GFT_PROFILE_ANAL_TUNNEL = 0,
 	GFT_PROFILE_VXLAN_TUNNEL = 1,
 	GFT_PROFILE_GRE_MAC_OR_NVGRE_TUNNEL = 2,
 	GFT_PROFILE_GRE_IP_TUNNEL = 3,
@@ -5842,7 +5842,7 @@ struct toe_offload_params {
 	__le32 more_to_send_seq;
 	__le16 rcv_indication_size;
 	u8 rss_tss_id;
-	u8 ignore_grq_push;
+	u8 iganalre_grq_push;
 	struct regpair rx_db_data_ptr;
 };
 
@@ -5877,8 +5877,8 @@ struct toe_rx_bd {
 #define TOE_RX_BD_START_SHIFT		0
 #define TOE_RX_BD_END_MASK		0x1
 #define TOE_RX_BD_END_SHIFT		1
-#define TOE_RX_BD_NO_PUSH_MASK		0x1
-#define TOE_RX_BD_NO_PUSH_SHIFT		2
+#define TOE_RX_BD_ANAL_PUSH_MASK		0x1
+#define TOE_RX_BD_ANAL_PUSH_SHIFT		2
 #define TOE_RX_BD_SPLIT_MASK		0x1
 #define TOE_RX_BD_SPLIT_SHIFT		3
 #define TOE_RX_BD_RESERVED0_MASK	0xFFF
@@ -5988,8 +5988,8 @@ struct toe_tx_bd {
 	__le16 flags;
 #define TOE_TX_BD_PUSH_MASK		0x1
 #define TOE_TX_BD_PUSH_SHIFT		0
-#define TOE_TX_BD_NOTIFY_MASK		0x1
-#define TOE_TX_BD_NOTIFY_SHIFT		1
+#define TOE_TX_BD_ANALTIFY_MASK		0x1
+#define TOE_TX_BD_ANALTIFY_SHIFT		1
 #define TOE_TX_BD_LARGE_IO_MASK		0x1
 #define TOE_TX_BD_LARGE_IO_SHIFT	2
 #define TOE_TX_BD_BD_CONS_MASK		0x1FFF
@@ -7232,8 +7232,8 @@ struct roce_modify_qp_req_ramrod_data {
 #define ROCE_MODIFY_QP_REQ_RAMROD_DATA_MOVE_TO_ERR_FLG_SHIFT		0
 #define ROCE_MODIFY_QP_REQ_RAMROD_DATA_MOVE_TO_SQD_FLG_MASK		0x1
 #define ROCE_MODIFY_QP_REQ_RAMROD_DATA_MOVE_TO_SQD_FLG_SHIFT		1
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_EN_SQD_ASYNC_NOTIFY_MASK		0x1
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_EN_SQD_ASYNC_NOTIFY_SHIFT	2
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_EN_SQD_ASYNC_ANALTIFY_MASK		0x1
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_EN_SQD_ASYNC_ANALTIFY_SHIFT	2
 #define ROCE_MODIFY_QP_REQ_RAMROD_DATA_P_KEY_FLG_MASK			0x1
 #define ROCE_MODIFY_QP_REQ_RAMROD_DATA_P_KEY_FLG_SHIFT			3
 #define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ADDRESS_VECTOR_FLG_MASK		0x1
@@ -7895,8 +7895,8 @@ struct tstorm_roce_resp_conn_ag_ctx {
 	u8 flags0;
 #define TSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM0_MASK		0x1
 #define TSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM0_SHIFT		0
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_NOTIFY_REQUESTER_MASK	0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_NOTIFY_REQUESTER_SHIFT	1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_ANALTIFY_REQUESTER_MASK	0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_ANALTIFY_REQUESTER_SHIFT	1
 #define TSTORM_ROCE_RESP_CONN_AG_CTX_BIT2_MASK			0x1
 #define TSTORM_ROCE_RESP_CONN_AG_CTX_BIT2_SHIFT			2
 #define TSTORM_ROCE_RESP_CONN_AG_CTX_BIT3_MASK			0x1
@@ -8908,8 +8908,8 @@ struct xstorm_iwarp_conn_ag_ctx {
 #define XSTORM_IWARP_CONN_AG_CTX_RULE9EN_MASK	0x1
 #define XSTORM_IWARP_CONN_AG_CTX_RULE9EN_SHIFT	7
 	u8 flags12;
-#define XSTORM_IWARP_CONN_AG_CTX_SQ_NOT_EMPTY_RULE_EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_SQ_NOT_EMPTY_RULE_EN_SHIFT	0
+#define XSTORM_IWARP_CONN_AG_CTX_SQ_ANALT_EMPTY_RULE_EN_MASK	0x1
+#define XSTORM_IWARP_CONN_AG_CTX_SQ_ANALT_EMPTY_RULE_EN_SHIFT	0
 #define XSTORM_IWARP_CONN_AG_CTX_RULE11EN_MASK		0x1
 #define XSTORM_IWARP_CONN_AG_CTX_RULE11EN_SHIFT		1
 #define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED2_MASK		0x1
@@ -8925,18 +8925,18 @@ struct xstorm_iwarp_conn_ag_ctx {
 #define XSTORM_IWARP_CONN_AG_CTX_RULE17EN_MASK		0x1
 #define XSTORM_IWARP_CONN_AG_CTX_RULE17EN_SHIFT		7
 	u8 flags13;
-#define XSTORM_IWARP_CONN_AG_CTX_IRQ_NOT_EMPTY_RULE_EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_IRQ_NOT_EMPTY_RULE_EN_SHIFT	0
-#define XSTORM_IWARP_CONN_AG_CTX_HQ_NOT_FULL_RULE_EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_HQ_NOT_FULL_RULE_EN_SHIFT	1
+#define XSTORM_IWARP_CONN_AG_CTX_IRQ_ANALT_EMPTY_RULE_EN_MASK	0x1
+#define XSTORM_IWARP_CONN_AG_CTX_IRQ_ANALT_EMPTY_RULE_EN_SHIFT	0
+#define XSTORM_IWARP_CONN_AG_CTX_HQ_ANALT_FULL_RULE_EN_MASK	0x1
+#define XSTORM_IWARP_CONN_AG_CTX_HQ_ANALT_FULL_RULE_EN_SHIFT	1
 #define XSTORM_IWARP_CONN_AG_CTX_ORQ_RD_FENCE_RULE_EN_MASK	0x1
 #define XSTORM_IWARP_CONN_AG_CTX_ORQ_RD_FENCE_RULE_EN_SHIFT	2
 #define XSTORM_IWARP_CONN_AG_CTX_RULE21EN_MASK		0x1
 #define XSTORM_IWARP_CONN_AG_CTX_RULE21EN_SHIFT		3
 #define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED6_MASK		0x1
 #define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED6_SHIFT		4
-#define XSTORM_IWARP_CONN_AG_CTX_ORQ_NOT_FULL_RULE_EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_ORQ_NOT_FULL_RULE_EN_SHIFT	5
+#define XSTORM_IWARP_CONN_AG_CTX_ORQ_ANALT_FULL_RULE_EN_MASK	0x1
+#define XSTORM_IWARP_CONN_AG_CTX_ORQ_ANALT_FULL_RULE_EN_SHIFT	5
 #define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED8_MASK		0x1
 #define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED8_SHIFT		6
 #define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED9_MASK		0x1
@@ -9219,7 +9219,7 @@ enum iwarp_fw_return_code {
 	IWARP_CONN_ERROR_TCP_CONNECTION_RST,
 	IWARP_CONN_ERROR_TCP_CONNECT_TIMEOUT,
 	IWARP_CONN_ERROR_MPA_ERROR_REJECT,
-	IWARP_CONN_ERROR_MPA_NOT_SUPPORTED_VER,
+	IWARP_CONN_ERROR_MPA_ANALT_SUPPORTED_VER,
 	IWARP_CONN_ERROR_MPA_RST,
 	IWARP_CONN_ERROR_MPA_FIN,
 	IWARP_CONN_ERROR_MPA_RTR_MISMATCH,
@@ -9398,7 +9398,7 @@ enum mpa_negotiation_mode {
 
 /* iWARP MPA Enhanced mode RTR types */
 enum mpa_rtr_type {
-	MPA_RTR_TYPE_NONE = 0,
+	MPA_RTR_TYPE_ANALNE = 0,
 	MPA_RTR_TYPE_ZERO_SEND = 1,
 	MPA_RTR_TYPE_ZERO_WRITE = 2,
 	MPA_RTR_TYPE_ZERO_SEND_AND_WRITE = 3,
@@ -10233,8 +10233,8 @@ struct fcoe_mstorm_fcoe_conn_st_ctx_fp {
 	u8 reserved2[2];
 };
 
-/* Non fast path part of the fcoe storm context of Mstorm */
-struct fcoe_mstorm_fcoe_conn_st_ctx_non_fp {
+/* Analn fast path part of the fcoe storm context of Mstorm */
+struct fcoe_mstorm_fcoe_conn_st_ctx_analn_fp {
 	__le16 conn_id;
 	__le16 stat_ram_addr;
 	__le16 num_pages_in_pbl;
@@ -10252,7 +10252,7 @@ struct fcoe_mstorm_fcoe_conn_st_ctx_non_fp {
 /* The fcoe storm context of Mstorm */
 struct mstorm_fcoe_conn_st_ctx {
 	struct fcoe_mstorm_fcoe_conn_st_ctx_fp fp;
-	struct fcoe_mstorm_fcoe_conn_st_ctx_non_fp non_fp;
+	struct fcoe_mstorm_fcoe_conn_st_ctx_analn_fp analn_fp;
 };
 
 /* fcoe connection context */

@@ -7,7 +7,7 @@
 #include <linux/irqreturn.h>
 #include <xen/xen-ops.h>
 
-/* These are code, but not functions.  Defined in entry.S */
+/* These are code, but analt functions.  Defined in entry.S */
 extern const char xen_failsafe_callback[];
 
 void xen_entry_SYSENTER_compat(void);
@@ -135,7 +135,7 @@ __visible unsigned long xen_save_fl_direct(void);
 __visible unsigned long xen_read_cr2(void);
 __visible unsigned long xen_read_cr2_direct(void);
 
-/* These are not functions, and cannot be called normally */
+/* These are analt functions, and cananalt be called analrmally */
 __visible void xen_iret(void);
 
 extern int xen_panic_handler_init(void);

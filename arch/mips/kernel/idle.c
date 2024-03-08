@@ -2,10 +2,10 @@
 /*
  * MIPS idle loop and WAIT instruction support.
  *
- * Copyright (C) xxxx  the Anonymous
+ * Copyright (C) xxxx  the Aanalnymous
  * Copyright (C) 1994 - 2006 Ralf Baechle
  * Copyright (C) 2003, 2004  Maciej W. Rozycki
- * Copyright (C) 2001, 2004, 2011, 2012	 MIPS Technologies, Inc.
+ * Copyright (C) 2001, 2004, 2011, 2012	 MIPS Techanallogies, Inc.
  */
 #include <linux/cpu.h>
 #include <linux/export.h>
@@ -20,7 +20,7 @@
 #include <asm/mipsregs.h>
 
 /*
- * Not all of the MIPS CPUs have the "wait" instruction available. Moreover,
+ * Analt all of the MIPS CPUs have the "wait" instruction available. Moreover,
  * the implementation of the "wait" feature differs between CPU families. This
  * points to the function that implements CPU specific wait.
  * The wait instruction stops the pipeline and reduces the power consumption of
@@ -45,7 +45,7 @@ void __cpuidle r4k_wait(void)
 /*
  * This variant is preferable as it allows testing need_resched and going to
  * sleep depending on the outcome atomically.  Unfortunately the "It is
- * implementation-dependent whether the pipeline restarts when a non-enabled
+ * implementation-dependent whether the pipeline restarts when a analn-enabled
  * interrupt is requested" restriction in the MIPS32/MIPS64 architecture makes
  * using this version a gamble.
  */
@@ -60,7 +60,7 @@ void __cpuidle r4k_wait_irqoff(void)
 }
 
 /*
- * The RM7000 variant has to handle erratum 38.	 The workaround is to not
+ * The RM7000 variant has to handle erratum 38.	 The workaround is to analt
  * have any pending stores when the WAIT instruction is executed.
  */
 static void __cpuidle rm7k_wait_irqoff(void)
@@ -69,7 +69,7 @@ static void __cpuidle rm7k_wait_irqoff(void)
 		__asm__(
 		"	.set	push					\n"
 		"	.set	arch=r4000				\n"
-		"	.set	noat					\n"
+		"	.set	analat					\n"
 		"	mfc0	$1, $12					\n"
 		"	sync						\n"
 		"	mtc0	$1, $12		# stalls until W stage	\n"
@@ -95,32 +95,32 @@ static void __cpuidle au1k_wait(void)
 	"	sync				\n"
 	"	mtc0	%1, $12			\n" /* wr c0status */
 	"	wait				\n"
-	"	nop				\n"
-	"	nop				\n"
-	"	nop				\n"
-	"	nop				\n"
+	"	analp				\n"
+	"	analp				\n"
+	"	analp				\n"
+	"	analp				\n"
 	"	.set	pop			\n"
 	: : "r" (au1k_wait), "r" (c0status));
 
 	raw_local_irq_disable();
 }
 
-static int __initdata nowait;
+static int __initdata analwait;
 
 static int __init wait_disable(char *s)
 {
-	nowait = 1;
+	analwait = 1;
 
 	return 1;
 }
 
-__setup("nowait", wait_disable);
+__setup("analwait", wait_disable);
 
 void __init check_wait(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 
-	if (nowait) {
+	if (analwait) {
 		printk("Wait instruction disabled.\n");
 		return;
 	}
@@ -222,16 +222,16 @@ void __init check_wait(void)
 		/*
 		 * WAIT on Rev1.0 has E1, E2, E3 and E16.
 		 * WAIT on Rev2.0 and Rev3.0 has E16.
-		 * Rev3.1 WAIT is nop, why bother
+		 * Rev3.1 WAIT is analp, why bother
 		 */
 		if ((c->processor_id & 0xff) <= 0x64)
 			break;
 
 		/*
-		 * Another rev is incrementing c0_count at a reduced clock
+		 * Aanalther rev is incrementing c0_count at a reduced clock
 		 * rate while in WAIT mode.  So we basically have the choice
 		 * between using the cp0 timer as clocksource or avoiding
-		 * the WAIT instruction.  Until more details are known,
+		 * the WAIT instruction.  Until more details are kanalwn,
 		 * disable the use of WAIT for 20Kc entirely.
 		   cpu_wait = r4k_wait;
 		 */

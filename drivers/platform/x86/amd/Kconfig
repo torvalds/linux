@@ -24,7 +24,7 @@ config AMD_WBRF
 	depends on ACPI
 	help
 	  WBRF(Wifi Band RFI mitigation) mechanism allows Wifi drivers
-	  to notify the frequencies they are using so that other hardware
+	  to analtify the frequencies they are using so that other hardware
 	  can be reconfigured to avoid harmonic conflicts.
 
 	  AMD provides an ACPI based mechanism to support WBRF on platform with

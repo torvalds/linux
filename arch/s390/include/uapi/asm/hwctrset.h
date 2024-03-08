@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright IBM Corp. 2021
  * Interface implementation for communication with the CPU Measurement
@@ -29,18 +29,18 @@ struct s390_ctrset_start {		/* Set CPUs to operate on */
 
 struct s390_ctrset_setdata {		/* Counter set data */
 	__u32 set;			/* Counter set number */
-	__u32 no_cnts;			/* # of counters stored in cv[] */
+	__u32 anal_cnts;			/* # of counters stored in cv[] */
 	__u64 cv[];			/* Counter values (variable length) */
 };
 
 struct s390_ctrset_cpudata {		/* Counter set data per CPU */
 	__u32 cpu_nr;			/* CPU number */
-	__u32 no_sets;			/* # of counters sets in data[] */
+	__u32 anal_sets;			/* # of counters sets in data[] */
 	struct s390_ctrset_setdata data[];
 };
 
 struct s390_ctrset_read {		/* Structure to get all ctr sets */
-	__u64 no_cpus;			/* Total # of CPUs data taken from */
+	__u64 anal_cpus;			/* Total # of CPUs data taken from */
 	struct s390_ctrset_cpudata data[];
 };
 

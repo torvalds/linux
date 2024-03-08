@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2020, Alexey Minnekhanov <alexey.min@gmail.com>
+ * Copyright (c) 2020, Alexey Minnekhaanalv <alexey.min@gmail.com>
  * Copyright (c) 2021, Dang Huynh <danct12@riseup.net>
  */
 
@@ -13,7 +13,7 @@
 #include <dt-bindings/input/gpio-keys.h>
 
 / {
-	model = "Xiaomi Redmi Note 7";
+	model = "Xiaomi Redmi Analte 7";
 	compatible = "xiaomi,lavender", "qcom,sdm660";
 	chassis-type = "handset";
 
@@ -75,7 +75,7 @@
 
 		framebuffer_mem: memory@9d400000 {
 			reg = <0x0 0x9d400000 0x0 0x23ff000>;
-			no-map;
+			anal-map;
 		};
 	};
 

@@ -23,7 +23,7 @@
  * both the preceding and current bit are zero, else space. IMON_CHKBITS
  * defines which bits are of type check.
  *
- * There is no way to distinguish an incomplete message from one where
+ * There is anal way to distinguish an incomplete message from one where
  * the lower bits are all set, iow. the last pulse is for the lowest
  * bit which is 0.
  */
@@ -101,7 +101,7 @@ static int ir_imon_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	}
 
 	dev_dbg(&dev->dev,
-		"iMON decode started at state %d bitno %d (%uus %s)\n",
+		"iMON decode started at state %d bitanal %d (%uus %s)\n",
 		data->state, data->count, ev.duration, TO_STR(ev.pulse));
 
 	/*
@@ -109,7 +109,7 @@ static int ir_imon_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	 * we encounter an error, make sure that any remaining bits
 	 * aren't parsed as a scancode made up of less bits.
 	 *
-	 * Note that if the stick is held, then the remote repeats
+	 * Analte that if the stick is held, then the remote repeats
 	 * the scancode with about 12ms between them. So, make sure
 	 * we have at least 10ms of space after an error. That way,
 	 * we're at a new scancode.
@@ -167,7 +167,7 @@ static int ir_imon_decode(struct rc_dev *dev, struct ir_raw_event ev)
 
 err_out:
 	dev_dbg(&dev->dev,
-		"iMON decode failed at state %d bitno %d (%uus %s)\n",
+		"iMON decode failed at state %d bitanal %d (%uus %s)\n",
 		data->state, data->count, ev.duration, TO_STR(ev.pulse));
 
 	data->state = STATE_ERROR;
@@ -184,7 +184,7 @@ err_out:
  * @max:	maximum size of @events
  *
  * Returns:	The number of events written.
- *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		-EANALBUFS if there isn't eanalugh space in the array to fit the
  *		encoding. In this case all @max events will have been written.
  */
 static int ir_imon_encode(enum rc_proto protocol, u32 scancode,
@@ -194,7 +194,7 @@ static int ir_imon_encode(enum rc_proto protocol, u32 scancode,
 	int i, pulse;
 
 	if (!max--)
-		return -ENOBUFS;
+		return -EANALBUFS;
 	init_ir_raw_event_duration(e, 1, IMON_UNIT);
 
 	for (i = IMON_BITS; i >= 0; i--) {
@@ -207,7 +207,7 @@ static int ir_imon_encode(enum rc_proto protocol, u32 scancode,
 			e->duration += IMON_UNIT;
 		} else {
 			if (!max--)
-				return -ENOBUFS;
+				return -EANALBUFS;
 			init_ir_raw_event_duration(++e, pulse, IMON_UNIT);
 		}
 
@@ -217,7 +217,7 @@ static int ir_imon_encode(enum rc_proto protocol, u32 scancode,
 			e->duration += IMON_UNIT;
 		} else {
 			if (!max--)
-				return -ENOBUFS;
+				return -EANALBUFS;
 			init_ir_raw_event_duration(++e, pulse, IMON_UNIT);
 		}
 	}

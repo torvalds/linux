@@ -12,7 +12,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -228,7 +228,7 @@ static int visor_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (!port->read_urb) {
 		/* this is needed for some brain dead Sony devices */
 		dev_err(&port->dev, "Device lied about number of ports, please use a lower one.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Start reading from the device */
@@ -261,7 +261,7 @@ static void visor_close(struct usb_serial_port *port)
 		return;
 	usb_control_msg(port->serial->dev,
 					 usb_rcvctrlpipe(port->serial->dev, 0),
-					 VISOR_CLOSE_NOTIFICATION, 0xc2,
+					 VISOR_CLOSE_ANALTIFICATION, 0xc2,
 					 0x0000, 0x0000,
 					 transfer_buffer, 0x12, 300);
 	kfree(transfer_buffer);
@@ -278,23 +278,23 @@ static void visor_read_int_callback(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(&port->dev, "%s - urb shutting down with status: %d\n",
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&port->dev, "%s - analnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
 
 	/*
-	 * This information is still unknown what it can be used for.
-	 * If anyone has an idea, please let the author know...
+	 * This information is still unkanalwn what it can be used for.
+	 * If anyone has an idea, please let the author kanalw...
 	 *
-	 * Rumor has it this endpoint is used to notify when data
+	 * Rumor has it this endpoint is used to analtify when data
 	 * is ready to be read from the bulk ones.
 	 */
 	usb_serial_debug_data(&port->dev, __func__, urb->actual_length,
@@ -321,7 +321,7 @@ static int palm_os_3_probe(struct usb_serial *serial,
 
 	transfer_buffer = kmalloc(sizeof(*connection_info), GFP_KERNEL);
 	if (!transfer_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* send a get connection info request */
 	retval = usb_control_msg(serial->dev,
@@ -337,7 +337,7 @@ static int palm_os_3_probe(struct usb_serial *serial,
 
 	if (retval != sizeof(*connection_info)) {
 		dev_err(dev, "Invalid connection information received from device\n");
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto exit;
 	}
 
@@ -347,7 +347,7 @@ static int palm_os_3_probe(struct usb_serial *serial,
 
 	/* Handle devices that report invalid stuff here. */
 	if (num_ports == 0 || num_ports > 2) {
-		dev_warn(dev, "%s: No valid connect info available\n",
+		dev_warn(dev, "%s: Anal valid connect info available\n",
 			serial->type->description);
 		num_ports = 2;
 	}
@@ -370,7 +370,7 @@ static int palm_os_3_probe(struct usb_serial *serial,
 			string = "Remote File System";
 			break;
 		default:
-			string = "unknown";
+			string = "unkanalwn";
 			break;
 		}
 		dev_info(dev, "%s: port %d, is for %s use\n",
@@ -386,7 +386,7 @@ static int palm_os_3_probe(struct usb_serial *serial,
 	 */
 	usb_set_serial_data(serial, (void *)(long)num_ports);
 
-	/* ask for the number of bytes available, but ignore the
+	/* ask for the number of bytes available, but iganalre the
 	   response as it is broken */
 	retval = usb_control_msg(serial->dev,
 				  usb_rcvctrlpipe(serial->dev, 0),
@@ -414,7 +414,7 @@ static int palm_os_4_probe(struct usb_serial *serial,
 
 	transfer_buffer =  kmalloc(sizeof(*connection_info), GFP_KERNEL);
 	if (!transfer_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = usb_control_msg(serial->dev,
 				  usb_rcvctrlpipe(serial->dev, 0),
@@ -448,12 +448,12 @@ static int visor_probe(struct usb_serial *serial,
 		serial->dev->descriptor.bDeviceClass == USB_CLASS_COMM &&
 		serial->dev->descriptor.bDeviceSubClass ==
 			USB_CDC_SUBCLASS_ACM)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (serial->dev->actconfig->desc.bConfigurationValue != 1) {
 		dev_err(&serial->dev->dev, "active config #%d != 1 ??\n",
 			serial->dev->actconfig->desc.bConfigurationValue);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (id->driver_info) {
@@ -475,7 +475,7 @@ static int visor_calc_num_ports(struct usb_serial *serial,
 
 	/*
 	 * Only swap the bulk endpoints for the Handspring devices with
-	 * interrupt in endpoints, which for now are the Treo devices.
+	 * interrupt in endpoints, which for analw are the Treo devices.
 	 */
 	if (!(vid == HANDSPRING_VENDOR_ID || vid == KYOCERA_VENDOR_ID) ||
 			epds->num_interrupt_in == 0)
@@ -483,14 +483,14 @@ static int visor_calc_num_ports(struct usb_serial *serial,
 
 	if (epds->num_bulk_in < 2 || epds->num_interrupt_in < 2) {
 		dev_err(&serial->interface->dev, "missing endpoints\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
 	 * It appears that Treos and Kyoceras want to use the
 	 * 1st bulk in endpoint to communicate with the 2nd bulk out endpoint,
 	 * so let's swap the 1st and 2nd bulk in and interrupt endpoints.
-	 * Note that swapping the bulk out endpoints would break lots of
+	 * Analte that swapping the bulk out endpoints would break lots of
 	 * apps that want to communicate on the second port.
 	 */
 	swap(epds->bulk_in[0], epds->bulk_in[1]);
@@ -526,10 +526,10 @@ static int clie_3_5_startup(struct usb_serial *serial)
 
 	data = kmalloc(1, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Note that PEG-300 series devices expect the following two calls.
+	 * Analte that PEG-300 series devices expect the following two calls.
 	 */
 
 	/* get the config number */

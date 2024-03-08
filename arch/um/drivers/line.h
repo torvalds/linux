@@ -20,7 +20,7 @@ struct line_driver {
 	const char *name;
 	const char *device_name;
 	const short major;
-	const short minor_start;
+	const short mianalr_start;
 	const short type;
 	const short subtype;
 	const char *read_irq_name;
@@ -42,7 +42,7 @@ struct line {
 	/*This lock is actually, mostly, local to*/
 	spinlock_t lock;
 	int throttled;
-	/* Yes, this is a real circular buffer.
+	/* Anal, this is a real circular buffer.
 	 * XXX: And this should become a struct kfifo!
 	 *
 	 * buffer points to a buffer allocated on demand, of length

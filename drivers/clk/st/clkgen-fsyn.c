@@ -225,7 +225,7 @@ static const struct clkgen_quadfs_data_clks st_fs660c32_D3_data = {
  * prepare - clk_(un)prepare only ensures parent is (un)prepared
  * enable - clk_enable and clk_disable are functional & control the Fsyn
  * rate - inherits rate from parent. set_rate/round_rate/recalc_rate
- * parent - fixed parent.  No clk_set_parent support
+ * parent - fixed parent.  Anal clk_set_parent support
  */
 
 /**
@@ -264,7 +264,7 @@ static int quadfs_pll_enable(struct clk_hw *hw)
 		CLKGEN_WRITE(pll, nreset, 1);
 
 	/*
-	 * Use a fixed input clock noise bandwidth filter for the moment
+	 * Use a fixed input clock analise bandwidth filter for the moment
 	 */
 	if (pll->data->bwfilter_present)
 		CLKGEN_WRITE(pll, ref_bw, PLL_BW_GOODREF);
@@ -361,7 +361,7 @@ static int clk_fs660c32_vco_get_params(unsigned long input,
 
 	if (input > 40000000)
 		/* This means that PDIV would be 2 instead of 1.
-		   Not supported today. */
+		   Analt supported today. */
 		return -EINVAL;
 
 	input /= 1000;
@@ -457,11 +457,11 @@ static struct clk * __init st_clk_register_quadfs_pll(
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = quadfs->pll_ops;
-	init.flags = CLK_GET_RATE_NOCACHE;
+	init.flags = CLK_GET_RATE_ANALCACHE;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
@@ -485,7 +485,7 @@ static struct clk * __init st_clk_register_quadfs_pll(
  * prepare - clk_(un)prepare only ensures parent is (un)prepared
  * enable - clk_enable and clk_disable are functional
  * rate - set rate is functional
- * parent - fixed parent.  No clk_set_parent support
+ * parent - fixed parent.  Anal clk_set_parent support
  */
 
 /*
@@ -514,7 +514,7 @@ struct st_clk_quadfs_fsynth {
 	 * Cached hardware values from set_rate so we can program the
 	 * hardware in enable. There are two reasons for this:
 	 *
-	 *  1. The registers may not be writable until the parent has been
+	 *  1. The registers may analt be writable until the parent has been
 	 *     enabled.
 	 *
 	 *  2. It restores the clock rate when a driver does an enable
@@ -534,7 +534,7 @@ static void quadfs_fsynth_program_enable(struct st_clk_quadfs_fsynth *fs)
 {
 	/*
 	 * Pulse the program enable register lsb to make the hardware take
-	 * notice of the new md/pe values with a glitchless transition.
+	 * analtice of the new md/pe values with a glitchless transition.
 	 */
 	CLKGEN_WRITE(fs, en[fs->chan], 1);
 	CLKGEN_WRITE(fs, en[fs->chan], 0);
@@ -545,7 +545,7 @@ static void quadfs_fsynth_program_rate(struct st_clk_quadfs_fsynth *fs)
 	unsigned long flags = 0;
 
 	/*
-	 * Ensure the md/pe parameters are ignored while we are
+	 * Ensure the md/pe parameters are iganalred while we are
 	 * reprogramming them so we can get a glitchless change
 	 * when fine tuning the speed of a running clock.
 	 */
@@ -700,7 +700,7 @@ static int clk_fs660c32_dig_get_params(unsigned long input,
 		r2 = clk_fs660c32_get_pe(31, si, &deviation,
 				input, output, &p2, fs);
 
-		/* No solution */
+		/* Anal solution */
 		if (r1 && r2 && (p1 > p2))
 			continue;
 
@@ -711,10 +711,10 @@ static int clk_fs660c32_dig_get_params(unsigned long input,
 
 	}
 
-	if (deviation == ~0) /* No solution found */
+	if (deviation == ~0) /* Anal solution found */
 		return -1;
 
-	/* pe fine tuning if deviation not 0: +/- 2 around computed pe value */
+	/* pe fine tuning if deviation analt 0: +/- 2 around computed pe value */
 	if (deviation) {
 		fs_tmp.mdiv = fs->mdiv;
 		fs_tmp.sdiv = fs->sdiv;
@@ -759,7 +759,7 @@ static int quadfs_fsynt_get_hw_value_for_recalc(struct st_clk_quadfs_fsynth *fs,
 		params->nsdiv = 1;
 
 	/*
-	 * If All are NULL then assume no clock rate is programmed.
+	 * If All are NULL then assume anal clock rate is programmed.
 	 */
 	if (!params->mdiv && !params->pe && !params->sdiv)
 		return 1;
@@ -888,18 +888,18 @@ static struct clk * __init st_clk_register_quadfs_fsynth(
 	struct clk_init_data init;
 
 	/*
-	 * Sanity check required pointers, note that nsdiv3 is optional.
+	 * Sanity check required pointers, analte that nsdiv3 is optional.
 	 */
 	if (WARN_ON(!name || !parent_name))
 		return ERR_PTR(-EINVAL);
 
 	fs = kzalloc(sizeof(*fs), GFP_KERNEL);
 	if (!fs)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &st_quadfs_ops;
-	init.flags = flags | CLK_GET_RATE_NOCACHE;
+	init.flags = flags | CLK_GET_RATE_ANALCACHE;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
@@ -918,7 +918,7 @@ static struct clk * __init st_clk_register_quadfs_fsynth(
 }
 
 static void __init st_of_create_quadfs_fsynths(
-		struct device_node *np, const char *pll_name,
+		struct device_analde *np, const char *pll_name,
 		struct clkgen_quadfs_data_clks *quadfs, void __iomem *reg,
 		spinlock_t *lock)
 {
@@ -980,24 +980,24 @@ static void __init st_of_create_quadfs_fsynths(
 	of_clk_add_provider(np, of_clk_src_onecell_get, clk_data);
 }
 
-static void __init st_of_quadfs_setup(struct device_node *np,
+static void __init st_of_quadfs_setup(struct device_analde *np,
 		struct clkgen_quadfs_data_clks *datac)
 {
 	struct clk *clk;
 	const char *pll_name, *clk_parent_name;
 	void __iomem *reg;
 	spinlock_t *lock;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	/*
-	 * First check for reg property within the node to keep backward
-	 * compatibility, then if reg doesn't exist look at the parent node
+	 * First check for reg property within the analde to keep backward
+	 * compatibility, then if reg doesn't exist look at the parent analde
 	 */
 	reg = of_iomap(np, 0);
 	if (!reg) {
 		parent_np = of_get_parent(np);
 		reg = of_iomap(parent_np, 0);
-		of_node_put(parent_np);
+		of_analde_put(parent_np);
 		if (!reg) {
 			pr_err("%s: Failed to get base address\n", __func__);
 			return;
@@ -1032,38 +1032,38 @@ static void __init st_of_quadfs_setup(struct device_node *np,
 	st_of_create_quadfs_fsynths(np, pll_name, datac, reg, lock);
 
 err_exit:
-	kfree(pll_name); /* No longer need local copy of the PLL name */
+	kfree(pll_name); /* Anal longer need local copy of the PLL name */
 }
 
-static void __init st_of_quadfs660C_setup(struct device_node *np)
+static void __init st_of_quadfs660C_setup(struct device_analde *np)
 {
 	st_of_quadfs_setup(np,
 		(struct clkgen_quadfs_data_clks *) &st_fs660c32_C_data);
 }
 CLK_OF_DECLARE(quadfs660C, "st,quadfs-pll", st_of_quadfs660C_setup);
 
-static void __init st_of_quadfs660D_setup(struct device_node *np)
+static void __init st_of_quadfs660D_setup(struct device_analde *np)
 {
 	st_of_quadfs_setup(np,
 		(struct clkgen_quadfs_data_clks *) &st_fs660c32_D_data);
 }
 CLK_OF_DECLARE(quadfs660D, "st,quadfs", st_of_quadfs660D_setup);
 
-static void __init st_of_quadfs660D0_setup(struct device_node *np)
+static void __init st_of_quadfs660D0_setup(struct device_analde *np)
 {
 	st_of_quadfs_setup(np,
 		(struct clkgen_quadfs_data_clks *) &st_fs660c32_D0_data);
 }
 CLK_OF_DECLARE(quadfs660D0, "st,quadfs-d0", st_of_quadfs660D0_setup);
 
-static void __init st_of_quadfs660D2_setup(struct device_node *np)
+static void __init st_of_quadfs660D2_setup(struct device_analde *np)
 {
 	st_of_quadfs_setup(np,
 		(struct clkgen_quadfs_data_clks *) &st_fs660c32_D2_data);
 }
 CLK_OF_DECLARE(quadfs660D2, "st,quadfs-d2", st_of_quadfs660D2_setup);
 
-static void __init st_of_quadfs660D3_setup(struct device_node *np)
+static void __init st_of_quadfs660D3_setup(struct device_analde *np)
 {
 	st_of_quadfs_setup(np,
 		(struct clkgen_quadfs_data_clks *) &st_fs660c32_D3_data);

@@ -63,7 +63,7 @@
 #define	FIRST_FRAG	0x10	/* first TxD of the frame */
 #define	LAN_TX		0x20	/* send frame to network if set */
 #define RING_DOWN	0x40	/* error: unable to send, ring down */
-#define OUT_OF_TXD	0x80	/* error: not enough TxDs available */
+#define OUT_OF_TXD	0x80	/* error: analt eanalugh TxDs available */
 
 
 #ifndef NULL
@@ -180,9 +180,9 @@ do {									\
 		printf(fmt "\n", ##__VA_ARGS__);			\
 } while (0)
 #else	/* DEBUG */
-#define DB_RX(lev, fmt, ...)	no_printk(fmt "\n", ##__VA_ARGS__)
-#define DB_TX(lev, fmt, ...)	no_printk(fmt "\n", ##__VA_ARGS__)
-#define DB_GEN(lev, fmt, ...)	no_printk(fmt "\n", ##__VA_ARGS__)
+#define DB_RX(lev, fmt, ...)	anal_printk(fmt "\n", ##__VA_ARGS__)
+#define DB_TX(lev, fmt, ...)	anal_printk(fmt "\n", ##__VA_ARGS__)
+#define DB_GEN(lev, fmt, ...)	anal_printk(fmt "\n", ##__VA_ARGS__)
 #endif	/* DEBUG */
 
 #ifndef	SK_BREAK
@@ -303,7 +303,7 @@ do {									\
  *
  * return	the used RXD count of receive queue 1
  *
- * NOTE: Remember, because of an ASIC bug at least one RXD should be unused
+ * ANALTE: Remember, because of an ASIC bug at least one RXD should be unused
  *	 in the descriptor ring !
  *
  *	END_MANUAL_ENTRY
@@ -354,7 +354,7 @@ do {									\
  *
  *	END_MANUAL_ENTRY
  */
-#ifndef HWM_NO_FLOW_CTL
+#ifndef HWM_ANAL_FLOW_CTL
 #define	HWM_RX_CHECK(smc,low_water) {\
 	if ((low_water) >= (smc)->hw.fp.rx_q[QUEUE_R1].rx_used) {\
 		mac_drv_fill_rxd(smc) ;\

@@ -110,7 +110,7 @@ struct ccu_div_info {
 };
 
 struct ccu_div_data {
-	struct device_node *np;
+	struct device_analde *np;
 	struct regmap *sys_regs;
 
 	unsigned int divs_num;
@@ -231,24 +231,24 @@ static struct ccu_div_data *sys_data;
 
 static void ccu_div_set_data(struct ccu_div_data *data)
 {
-	struct device_node *np = data->np;
+	struct device_analde *np = data->np;
 
 	if (of_device_is_compatible(np, "baikal,bt1-ccu-axi"))
 		axi_data = data;
 	else if (of_device_is_compatible(np, "baikal,bt1-ccu-sys"))
 		sys_data = data;
 	else
-		pr_err("Invalid DT node '%s' specified\n", of_node_full_name(np));
+		pr_err("Invalid DT analde '%s' specified\n", of_analde_full_name(np));
 }
 
-static struct ccu_div_data *ccu_div_get_data(struct device_node *np)
+static struct ccu_div_data *ccu_div_get_data(struct device_analde *np)
 {
 	if (of_device_is_compatible(np, "baikal,bt1-ccu-axi"))
 		return axi_data;
 	else if (of_device_is_compatible(np, "baikal,bt1-ccu-sys"))
 		return sys_data;
 
-	pr_err("Invalid DT node '%s' specified\n", of_node_full_name(np));
+	pr_err("Invalid DT analde '%s' specified\n", of_analde_full_name(np));
 
 	return NULL;
 }
@@ -266,14 +266,14 @@ static struct ccu_div *ccu_div_find_desc(struct ccu_div_data *data,
 	return ERR_PTR(-EINVAL);
 }
 
-static struct ccu_div_data *ccu_div_create_data(struct device_node *np)
+static struct ccu_div_data *ccu_div_create_data(struct device_analde *np)
 {
 	struct ccu_div_data *data;
 	int ret;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	data->np = np;
 	if (of_device_is_compatible(np, "baikal,bt1-ccu-axi")) {
@@ -283,15 +283,15 @@ static struct ccu_div_data *ccu_div_create_data(struct device_node *np)
 		data->divs_num = ARRAY_SIZE(sys_info);
 		data->divs_info = sys_info;
 	} else {
-		pr_err("Incompatible DT node '%s' specified\n",
-			of_node_full_name(np));
+		pr_err("Incompatible DT analde '%s' specified\n",
+			of_analde_full_name(np));
 		ret = -EINVAL;
 		goto err_kfree_data;
 	}
 
 	data->divs = kcalloc(data->divs_num, sizeof(*data->divs), GFP_KERNEL);
 	if (!data->divs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_kfree_data;
 	}
 
@@ -312,10 +312,10 @@ static void ccu_div_free_data(struct ccu_div_data *data)
 
 static int ccu_div_find_sys_regs(struct ccu_div_data *data)
 {
-	data->sys_regs = syscon_node_to_regmap(data->np->parent);
+	data->sys_regs = syscon_analde_to_regmap(data->np->parent);
 	if (IS_ERR(data->sys_regs)) {
 		pr_err("Failed to find syscon regs for '%s'\n",
-			of_node_full_name(data->np));
+			of_analde_full_name(data->np));
 		return PTR_ERR(data->sys_regs);
 	}
 
@@ -421,7 +421,7 @@ static int ccu_div_of_register(struct ccu_div_data *data)
 	ret = of_clk_add_hw_provider(data->np, ccu_div_of_clk_hw_get, data);
 	if (ret) {
 		pr_err("Couldn't register dividers '%s' clock provider\n",
-		       of_node_full_name(data->np));
+		       of_analde_full_name(data->np));
 	}
 
 	return ret;
@@ -437,7 +437,7 @@ static int ccu_div_rst_register(struct ccu_div_data *data)
 	data->rsts = ccu_rst_hw_register(&init);
 	if (IS_ERR(data->rsts)) {
 		pr_err("Couldn't register divider '%s' reset controller\n",
-			of_node_full_name(data->np));
+			of_analde_full_name(data->np));
 		return PTR_ERR(data->rsts);
 	}
 
@@ -449,7 +449,7 @@ static int ccu_div_probe(struct platform_device *pdev)
 	struct ccu_div_data *data;
 	int ret;
 
-	data = ccu_div_get_data(dev_of_node(&pdev->dev));
+	data = ccu_div_get_data(dev_of_analde(&pdev->dev));
 	if (!data)
 		return -EINVAL;
 
@@ -485,7 +485,7 @@ static struct platform_driver ccu_div_driver = {
 };
 builtin_platform_driver(ccu_div_driver);
 
-static __init void ccu_div_init(struct device_node *np)
+static __init void ccu_div_init(struct device_analde *np)
 {
 	struct ccu_div_data *data;
 	int ret;

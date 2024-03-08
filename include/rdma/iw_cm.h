@@ -45,7 +45,7 @@ typedef int (*iw_cm_handler)(struct iw_cm_id *cm_id,
 /**
  * iw_event_handler - Function called by the provider when delivering provider
  * events to the IW CM.  Returns either 0 indicating the event was processed
- * or -errno if the event could not be processed.
+ * or -erranal if the event could analt be processed.
  *
  * @cm_id: The IW CM identifier associated with the event.
  * @event: Pointer to the event structure.
@@ -86,11 +86,11 @@ enum iw_flags {
 	/*
 	 * This flag allows the iwcm and iwpmd to still advertise
 	 * mappings but the real and mapped port numbers are the
-	 * same.  Further, iwpmd will not bind any user socket to
+	 * same.  Further, iwpmd will analt bind any user socket to
 	 * reserve the port.  This is required for soft iwarp
 	 * to play in the port mapped iwarp space.
 	 */
-	IW_F_NO_PORT_MAP = (1 << 0),
+	IW_F_ANAL_PORT_MAP = (1 << 0),
 };
 
 /**
@@ -109,7 +109,7 @@ struct iw_cm_id *iw_create_cm_id(struct ib_device *device,
  *
  * @cm_id: The previously created IW CM identifier to destroy.
  *
- * The client can assume that no events will be delivered for the CM ID after
+ * The client can assume that anal events will be delivered for the CM ID after
  * this function returns.
  */
 void iw_destroy_cm_id(struct iw_cm_id *cm_id);
@@ -137,8 +137,8 @@ int iw_cm_listen(struct iw_cm_id *cm_id, int backlog);
  * The specified cm_id will have been provided in the event data for a
  * CONNECT_REQUEST event. Subsequent events related to this connection will be
  * delivered to the specified IW CM identifier prior and may occur prior to
- * the return of this function. If this function returns a non-zero value, the
- * client can assume that no events will be delivered to the specified IW CM
+ * the return of this function. If this function returns a analn-zero value, the
+ * client can assume that anal events will be delivered to the specified IW CM
  * identifier.
  */
 int iw_cm_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param);
@@ -151,7 +151,7 @@ int iw_cm_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param);
  *   reject message.
  * @private_data_len: The number of bytes in the private_data parameter.
  *
- * The client can assume that no events will be delivered to the specified IW
+ * The client can assume that anal events will be delivered to the specified IW
  * CM identifier following the return of this function. The private_data
  * buffer is available for reuse when this function returns.
  */
@@ -166,8 +166,8 @@ int iw_cm_reject(struct iw_cm_id *cm_id, const void *private_data,
  *   parameters.
  *
  * Events may be delivered to the specified IW CM identifier prior to the
- * return of this function. If this function returns a non-zero value, the
- * client can assume that no events will be delivered to the specified IW CM
+ * return of this function. If this function returns a analn-zero value, the
+ * client can assume that anal events will be delivered to the specified IW CM
  * identifier.
  */
 int iw_cm_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param);

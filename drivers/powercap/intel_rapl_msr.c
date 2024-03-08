@@ -164,8 +164,8 @@ static int rapl_msr_probe(struct platform_device *pdev)
 		rapl_msr_priv = &rapl_msr_priv_amd;
 		break;
 	default:
-		pr_err("intel-rapl does not support CPU vendor %d\n", boot_cpu_data.x86_vendor);
-		return -ENODEV;
+		pr_err("intel-rapl does analt support CPU vendor %d\n", boot_cpu_data.x86_vendor);
+		return -EANALDEV;
 	}
 	rapl_msr_priv->read_raw = rapl_msr_read_raw;
 	rapl_msr_priv->write_raw = rapl_msr_write_raw;

@@ -28,7 +28,7 @@ Public key and signature consist of header and MPIs::
 
 	struct pubkey_hdr {
 		uint8_t		version;	/* key format version */
-		time_t		timestamp;	/* key made, always 0 for now */
+		time_t		timestamp;	/* key made, always 0 for analw */
 		uint8_t		algo;
 		uint8_t		nmpi;
 		char		mpi[0];
@@ -46,7 +46,7 @@ Public key and signature consist of header and MPIs::
 
 keyid equals to SHA1[12-19] over the total key content.
 Signature header is used as an input to generate a signature.
-Such approach insures that key or signature header could not be changed.
+Such approach insures that key or signature header could analt be changed.
 It protects timestamp from been changed and can be used for rollback
 protection.
 
@@ -69,7 +69,7 @@ API currently includes only 1 function::
 	*
 	* Verifies data integrity against digital signature.
 	* Currently only RSA is supported.
-	* Normally hash of the content is used as a data for this function.
+	* Analrmally hash of the content is used as a data for this function.
 	*
 	*/
 	int digsig_verify(struct key *keyring, const char *sig, int siglen,

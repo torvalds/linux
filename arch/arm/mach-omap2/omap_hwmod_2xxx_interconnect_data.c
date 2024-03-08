@@ -2,7 +2,7 @@
 /*
  * omap_hwmod_2xxx_interconnect_data.c - common interconnect data for OMAP2xxx
  *
- * Copyright (C) 2009-2011 Nokia Corporation
+ * Copyright (C) 2009-2011 Analkia Corporation
  * Paul Walmsley
  *
  * XXX handle crossbar/shared link difference for L3?

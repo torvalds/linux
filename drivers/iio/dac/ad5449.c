@@ -25,7 +25,7 @@
 #define AD5449_MAX_CHANNELS		2
 #define AD5449_MAX_VREFS		2
 
-#define AD5449_CMD_NOOP			0x0
+#define AD5449_CMD_ANALOP			0x0
 #define AD5449_CMD_LOAD_AND_UPDATE(x)	(0x1 + (x) * 3)
 #define AD5449_CMD_READ(x)		(0x2 + (x) * 3)
 #define AD5449_CMD_LOAD(x)		(0x3 + (x) * 3)
@@ -116,7 +116,7 @@ static int ad5449_read(struct iio_dev *indio_dev, unsigned int addr,
 
 	mutex_lock(&st->lock);
 	st->data[0] = cpu_to_be16(addr << 12);
-	st->data[1] = cpu_to_be16(AD5449_CMD_NOOP);
+	st->data[1] = cpu_to_be16(AD5449_CMD_ANALOP);
 
 	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
 	if (ret < 0)
@@ -277,7 +277,7 @@ static int ad5449_spi_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	spi_set_drvdata(spi, indio_dev);

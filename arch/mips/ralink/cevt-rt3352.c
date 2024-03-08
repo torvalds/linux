@@ -55,7 +55,7 @@ static int systick_next_event(unsigned long delta,
 
 static void systick_event_handler(struct clock_event_device *dev)
 {
-	/* noting to do here */
+	/* analting to do here */
 }
 
 static irqreturn_t systick_interrupt(int irq, void *dev_id)
@@ -116,7 +116,7 @@ static int systick_set_oneshot(struct clock_event_device *evt)
 	return 0;
 }
 
-static int __init ralink_systick_init(struct device_node *np)
+static int __init ralink_systick_init(struct device_analde *np)
 {
 	int ret;
 

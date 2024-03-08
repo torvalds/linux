@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (C) 2023 Linaro Ltd.
  */
 
@@ -266,12 +266,12 @@ static int wcd939x_usbss_set(struct wcd939x_usbss *usbss)
 			break;
 
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	} else if (usbss->mode == TYPEC_MODE_AUDIO) {
 		enable_audio = true;
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Disable all switches */
@@ -334,7 +334,7 @@ static int wcd939x_usbss_set(struct wcd939x_usbss *usbss)
 
 		/*
 		 * AATC switch configuration:
-		 * "Normal":
+		 * "Analrmal":
 		 * - R: DNR
 		 * - L: DNL
 		 * - Sense: GSBU2
@@ -462,7 +462,7 @@ static int wcd939x_usbss_set(struct wcd939x_usbss *usbss)
 
 	/* Enable USB muxes */
 	if (enable_usb) {
-		/* Do not enable Equalizer in safe mode */
+		/* Do analt enable Equalizer in safe mode */
 		if (usbss->mode != TYPEC_STATE_SAFE) {
 			ret = regmap_set_bits(usbss->regmap, WCD_USBSS_EQUALIZER1,
 					      WCD_USBSS_EQUALIZER1_EQ_EN);
@@ -568,7 +568,7 @@ static int wcd939x_usbss_mux_set(struct typec_mux_dev *mux,
 		if (state->alt)
 			usbss->svid = state->alt->svid;
 		else
-			usbss->svid = 0; // No SVID
+			usbss->svid = 0; // Anal SVID
 
 		ret = wcd939x_usbss_set(usbss);
 	}
@@ -592,7 +592,7 @@ static int wcd939x_usbss_probe(struct i2c_client *client)
 
 	usbss = devm_kzalloc(dev, sizeof(*usbss), GFP_KERNEL);
 	if (!usbss)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usbss->client = client;
 	mutex_init(&usbss->lock);
@@ -611,12 +611,12 @@ static int wcd939x_usbss_probe(struct i2c_client *client)
 		return PTR_ERR(usbss->vdd_supply);
 
 	/* Get Codec's MUX & Switch devices */
-	usbss->codec = fwnode_typec_mux_get(dev->fwnode);
+	usbss->codec = fwanalde_typec_mux_get(dev->fwanalde);
 	if (IS_ERR(usbss->codec))
 		return dev_err_probe(dev, PTR_ERR(usbss->codec),
 				     "failed to acquire codec mode-switch\n");
 
-	usbss->codec_switch = fwnode_typec_switch_get(dev->fwnode);
+	usbss->codec_switch = fwanalde_typec_switch_get(dev->fwanalde);
 	if (IS_ERR(usbss->codec_switch)) {
 		ret = dev_err_probe(dev, PTR_ERR(usbss->codec_switch),
 				    "failed to acquire codec orientation-switch\n");
@@ -624,7 +624,7 @@ static int wcd939x_usbss_probe(struct i2c_client *client)
 	}
 
 	usbss->mode = TYPEC_STATE_SAFE;
-	usbss->orientation = TYPEC_ORIENTATION_NONE;
+	usbss->orientation = TYPEC_ORIENTATION_ANALNE;
 
 	gpiod_set_value(usbss->reset_gpio, 1);
 
@@ -701,7 +701,7 @@ static int wcd939x_usbss_probe(struct i2c_client *client)
 		goto err_regulator_disable;
 
 	sw_desc.drvdata = usbss;
-	sw_desc.fwnode = dev_fwnode(dev);
+	sw_desc.fwanalde = dev_fwanalde(dev);
 	sw_desc.set = wcd939x_usbss_switch_set;
 
 	usbss->sw = typec_switch_register(dev, &sw_desc);
@@ -711,7 +711,7 @@ static int wcd939x_usbss_probe(struct i2c_client *client)
 	}
 
 	mux_desc.drvdata = usbss;
-	mux_desc.fwnode = dev_fwnode(dev);
+	mux_desc.fwanalde = dev_fwanalde(dev);
 	mux_desc.set = wcd939x_usbss_mux_set;
 
 	usbss->mux = typec_mux_register(dev, &mux_desc);

@@ -18,7 +18,7 @@
 /*
  * DM816X hardware modules integration data
  *
- * Note: This is incomplete and at present, not generated from h/w database.
+ * Analte: This is incomplete and at present, analt generated from h/w database.
  */
 
 /*
@@ -103,21 +103,21 @@ static struct omap_hwmod dm81xx_alwon_l3_slow_hwmod = {
 	.name		= "alwon_l3_slow",
 	.clkdm_name	= "alwon_l3s_clkdm",
 	.class		= &l3_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 static struct omap_hwmod dm81xx_default_l3_slow_hwmod = {
 	.name		= "default_l3_slow",
 	.clkdm_name	= "default_l3_slow_clkdm",
 	.class		= &l3_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 static struct omap_hwmod dm81xx_alwon_l3_med_hwmod = {
 	.name		= "l3_med",
 	.clkdm_name	= "alwon_l3_med_clkdm",
 	.class		= &l3_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /*
@@ -128,7 +128,7 @@ static struct omap_hwmod dm81xx_l4_ls_hwmod = {
 	.name		= "l4_ls",
 	.clkdm_name	= "alwon_l3s_clkdm",
 	.class		= &l4_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /*
@@ -140,7 +140,7 @@ static struct omap_hwmod dm81xx_l4_hs_hwmod = {
 	.name		= "l4_hs",
 	.clkdm_name	= "alwon_l3_med_clkdm",
 	.class		= &l4_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /* L3 slow -> L4 ls peripheral interface running at 125MHz */
@@ -162,7 +162,7 @@ static struct omap_hwmod dm814x_mpu_hwmod = {
 	.name		= "mpu",
 	.clkdm_name	= "alwon_l3s_clkdm",
 	.class		= &mpu_hwmod_class,
-	.flags		= HWMOD_INIT_NO_IDLE,
+	.flags		= HWMOD_INIT_ANAL_IDLE,
 	.main_clk	= "mpu_ck",
 	.prcm		= {
 		.omap4 = {
@@ -189,7 +189,7 @@ static struct omap_hwmod dm816x_mpu_hwmod = {
 	.name		= "mpu",
 	.clkdm_name	= "alwon_mpu_clkdm",
 	.class		= &mpu_hwmod_class,
-	.flags		= HWMOD_INIT_NO_IDLE,
+	.flags		= HWMOD_INIT_ANAL_IDLE,
 	.main_clk	= "mpu_ck",
 	.prcm		= {
 		.omap4 = {
@@ -217,7 +217,7 @@ static struct omap_hwmod_class_sysconfig ti81xx_rtc_sysc = {
 	.rev_offs	= 0x74,
 	.sysc_offs	= 0x78,
 	.sysc_flags	= SYSC_HAS_SIDLEMODE,
-	.idlemodes	= SIDLE_FORCE | SIDLE_NO |
+	.idlemodes	= SIDLE_FORCE | SIDLE_ANAL |
 			  SIDLE_SMART | SIDLE_SMART_WKUP,
 	.sysc_fields	= &omap_hwmod_sysc_type3,
 };
@@ -231,7 +231,7 @@ static struct omap_hwmod ti81xx_rtc_hwmod = {
 	.name		= "rtc",
 	.class		= &ti81xx_rtc_hwmod_class,
 	.clkdm_name	= "alwon_l3s_clkdm",
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 	.main_clk	= "sysclk18_ck",
 	.prcm		= {
 		.omap4	= {
@@ -256,7 +256,7 @@ static struct omap_hwmod_class_sysconfig uart_sysc = {
 	.sysc_flags	= SYSC_HAS_ENAWAKEUP | SYSC_HAS_SIDLEMODE |
 				SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
 				SYSS_HAS_RESET_STATUS,
-	.idlemodes	= SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
+	.idlemodes	= SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART |
 				MSTANDBY_SMART_WKUP,
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
@@ -349,7 +349,7 @@ static struct omap_hwmod dm81xx_wd_timer_hwmod = {
 	.name		= "wd_timer",
 	.clkdm_name	= "alwon_l3s_clkdm",
 	.main_clk	= "sysclk18_ck",
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 	.prcm		= {
 		.omap4 = {
 			.clkctrl_offs = DM81XX_CM_ALWON_WDTIMER_CLKCTRL,
@@ -374,7 +374,7 @@ static struct omap_hwmod_class_sysconfig i2c_sysc = {
 	.sysc_flags	= SYSC_HAS_SIDLEMODE |
 				SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
 				SYSC_HAS_AUTOIDLE,
-	.idlemodes	= SIDLE_FORCE | SIDLE_NO | SIDLE_SMART,
+	.idlemodes	= SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART,
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -430,7 +430,7 @@ static struct omap_hwmod_class_sysconfig dm81xx_elm_sysc = {
 	.sysc_flags	= SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 				SYSC_HAS_SOFTRESET |
 				SYSS_HAS_RESET_STATUS,
-	.idlemodes	= SIDLE_FORCE | SIDLE_NO | SIDLE_SMART,
+	.idlemodes	= SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART,
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -460,7 +460,7 @@ static struct omap_hwmod_class_sysconfig dm81xx_gpio_sysc = {
 	.sysc_flags	= SYSC_HAS_AUTOIDLE | SYSC_HAS_ENAWAKEUP |
 				SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET |
 				SYSS_HAS_RESET_STATUS,
-	.idlemodes	= SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
+	.idlemodes	= SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART |
 				SIDLE_SMART_WKUP,
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
@@ -580,7 +580,7 @@ static struct omap_hwmod_class_sysconfig dm81xx_gpmc_sysc = {
 	.syss_offs	= 0x14,
 	.sysc_flags	= SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET |
 				SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS,
-	.idlemodes	= SIDLE_FORCE | SIDLE_NO | SIDLE_SMART,
+	.idlemodes	= SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART,
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -671,7 +671,7 @@ static struct omap_hwmod_class_sysconfig dm816x_timer_sysc = {
 	.sysc_offs	= 0x0010,
 	.syss_offs	= 0x0014,
 	.sysc_flags	= SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET,
-	.idlemodes	= SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
+	.idlemodes	= SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART |
 				SIDLE_SMART_WKUP,
 	.sysc_fields	= &omap_hwmod_sysc_type2,
 };
@@ -802,7 +802,7 @@ static struct omap_hwmod dm816x_emac0_hwmod = {
 	.name		= "emac0",
 	.clkdm_name	= "alwon_ethernet_clkdm",
 	.class		= &dm816x_emac_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 static struct omap_hwmod_ocp_if dm81xx_l4_hs__emac0 = {
@@ -822,7 +822,7 @@ static struct omap_hwmod dm81xx_emac0_mdio_hwmod = {
 	.class		= &dm81xx_mdio_hwmod_class,
 	.clkdm_name	= "alwon_ethernet_clkdm",
 	.main_clk	= "sysclk24_ck",
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 	/*
 	 * REVISIT: This should be moved to the emac0_hwmod
 	 * once we have a better way to handle device slaves.
@@ -845,7 +845,7 @@ static struct omap_hwmod dm816x_emac1_hwmod = {
 	.name		= "emac1",
 	.clkdm_name	= "alwon_ethernet_clkdm",
 	.main_clk	= "sysclk24_ck",
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 	.prcm		= {
 		.omap4 = {
 			.clkctrl_offs = DM816X_CM_ALWON_ETHERNET_1_CLKCTRL,
@@ -878,7 +878,7 @@ static struct omap_hwmod_class dm81xx_sata_hwmod_class = {
 static struct omap_hwmod dm81xx_sata_hwmod = {
 	.name		= "sata",
 	.clkdm_name	= "default_clkdm",
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = DM81XX_CM_DEFAULT_SATA_CLKCTRL,
@@ -902,7 +902,7 @@ static struct omap_hwmod_class_sysconfig dm81xx_mmc_sysc = {
 	.sysc_flags	= SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 				SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
 				SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS,
-	.idlemodes	= SIDLE_FORCE | SIDLE_NO | SIDLE_SMART,
+	.idlemodes	= SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART,
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -1020,7 +1020,7 @@ static struct omap_hwmod_class_sysconfig dm816x_mcspi_sysc = {
 	.sysc_flags	= SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 				SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
 				SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS,
-	.idlemodes	= SIDLE_FORCE | SIDLE_NO | SIDLE_SMART,
+	.idlemodes	= SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART,
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -1115,7 +1115,7 @@ static struct omap_hwmod_class_sysconfig dm81xx_mailbox_sysc = {
 	.syss_offs	= 0x014,
 	.sysc_flags	= SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 				SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE,
-	.idlemodes	= SIDLE_FORCE | SIDLE_NO | SIDLE_SMART,
+	.idlemodes	= SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART,
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -1150,7 +1150,7 @@ static struct omap_hwmod_class_sysconfig dm81xx_spinbox_sysc = {
 	.syss_offs	= 0x014,
 	.sysc_flags	= SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 				SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE,
-	.idlemodes	= SIDLE_FORCE | SIDLE_NO | SIDLE_SMART,
+	.idlemodes	= SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART,
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -1183,7 +1183,7 @@ static struct omap_hwmod_ocp_if dm81xx_l4_ls__spinbox = {
  * REVISIT: Test and enable the following once clocks work:
  * dm81xx_l4_ls__mailbox
  *
- * Also note that some devices share a single clkctrl_offs..
+ * Also analte that some devices share a single clkctrl_offs..
  * For example, i2c1 and 3 share one, and i2c2 and 4 share one.
  */
 static struct omap_hwmod_ocp_if *dm814x_hwmod_ocp_ifs[] __initdata = {

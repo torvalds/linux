@@ -10,8 +10,8 @@
     Several AZT2316 chips are also supported/tested, but autoprobe doesn't
     work: all module option have to be set.
 
-    No docs available for us at Aztech headquarters !!!   Unbelievable ...
-    No other help obtained.
+    Anal docs available for us at Aztech headquarters !!!   Unbelievable ...
+    Anal other help obtained.
 
     Thanks to Rainer Wiesner <rainer.wiesner@01019freenet.de> for the WSS
     activation method (full-duplex audio!).
@@ -56,7 +56,7 @@ module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable azt2320 based soundcard.");
 
 struct snd_card_azt2320 {
-	int dev_no;
+	int dev_anal;
 	struct pnp_dev *dev;
 	struct pnp_dev *devmpu;
 	struct snd_wss *chip;
@@ -91,7 +91,7 @@ static int snd_card_azt2320_pnp(int dev, struct snd_card_azt2320 *acard,
 
 	acard->dev = pnp_request_card_device(card, id->devs[0].id, NULL);
 	if (acard->dev == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	acard->devmpu = pnp_request_card_device(card, id->devs[1].id, NULL);
 
@@ -210,14 +210,14 @@ static int snd_card_azt2320_probe(int dev,
 		if (snd_mpu401_uart_new(card, 0, MPU401_HW_AZT2320,
 				mpu_port[dev], 0,
 				mpu_irq[dev], NULL) < 0)
-			snd_printk(KERN_ERR PFX "no MPU-401 device at 0x%lx\n", mpu_port[dev]);
+			snd_printk(KERN_ERR PFX "anal MPU-401 device at 0x%lx\n", mpu_port[dev]);
 	}
 
 	if (fm_port[dev] > 0 && fm_port[dev] != SNDRV_AUTO_PORT) {
 		if (snd_opl3_create(card,
 				    fm_port[dev], fm_port[dev] + 2,
 				    OPL3_HW_AUTO, 0, &opl3) < 0) {
-			snd_printk(KERN_ERR PFX "no OPL device at 0x%lx-0x%lx\n",
+			snd_printk(KERN_ERR PFX "anal OPL device at 0x%lx-0x%lx\n",
 				   fm_port[dev], fm_port[dev] + 2);
 		} else {
 			error = snd_opl3_timer_new(opl3, 1, 2);
@@ -254,7 +254,7 @@ static int snd_azt2320_pnp_detect(struct pnp_card_link *card,
 		azt2320_devices++;
 		return 0;
 	}
-        return -ENODEV;
+        return -EANALDEV;
 }
 
 #ifdef CONFIG_PM
@@ -303,9 +303,9 @@ static int __init alsa_card_azt2320_init(void)
 	if (!azt2320_devices) {
 		pnp_unregister_card_driver(&azt2320_pnpc_driver);
 #ifdef MODULE
-		snd_printk(KERN_ERR "no AZT2320 based soundcards found\n");
+		snd_printk(KERN_ERR "anal AZT2320 based soundcards found\n");
 #endif
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }

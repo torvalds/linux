@@ -9,7 +9,7 @@
  */
 
 #include <linux/hw_breakpoint.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/kprobes.h>
 #include <linux/percpu.h>
 #include <linux/kernel.h>
@@ -40,7 +40,7 @@ int hw_breakpoint_slots(int type)
 {
 	if (type == TYPE_DATA)
 		return nr_wp_slots();
-	return 0;		/* no instruction breakpoints available */
+	return 0;		/* anal instruction breakpoints available */
 }
 
 
@@ -71,7 +71,7 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 		return -EBUSY;
 
 	/*
-	 * Do not install DABR values if the instruction must be single-stepped.
+	 * Do analt install DABR values if the instruction must be single-stepped.
 	 * If so, DABR will be populated in single_step_dabr_instruction().
 	 */
 	if (!info->perf_single_step)
@@ -211,14 +211,14 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
 	hw->len = attr->bp_len;
 
 	if (!ppc_breakpoint_available())
-		return -ENODEV;
+		return -EANALDEV;
 
 	return hw_breakpoint_validate_len(hw);
 }
 
 /*
  * Restores the breakpoint on the debug registers.
- * Invoke this function if it is known that the execution context is
+ * Invoke this function if it is kanalwn that the execution context is
  * about to change to cause loss of MSR_SE settings.
  *
  * The perf watchpoint will simply re-trigger once the thread is started again,
@@ -264,7 +264,7 @@ static bool is_octword_vsx_instr(int type, int size)
 
 /*
  * We've failed in reliably handling the hw-breakpoint. Unregister
- * it and throw a warning message to let the user know about it.
+ * it and throw a warning message to let the user kanalw about it.
  */
 static void handler_error(struct perf_event *bp)
 {
@@ -286,7 +286,7 @@ static bool stepping_handler(struct pt_regs *regs, struct perf_event **bp,
 	int i;
 	int stepped;
 
-	/* Do not emulate user-space instructions, instead single-step them */
+	/* Do analt emulate user-space instructions, instead single-step them */
 	if (user_mode(regs)) {
 		for (i = 0; i < nr_wp_slots(); i++) {
 			if (!hit[i])
@@ -320,7 +320,7 @@ static void handle_p10dd1_spurious_exception(struct perf_event **bp,
 
 	/*
 	 * Handle spurious exception only when any bp_per_reg is set.
-	 * Otherwise this might be created by xmon and not actually a
+	 * Otherwise this might be created by xmon and analt actually a
 	 * spurious exception.
 	 */
 	for (i = 0; i < nr_wp_slots(); i++) {
@@ -376,7 +376,7 @@ static void handle_p10dd1_spurious_exception(struct perf_event **bp,
 int hw_breakpoint_handler(struct die_args *args)
 {
 	bool err = false;
-	int rc = NOTIFY_STOP;
+	int rc = ANALTIFY_STOP;
 	struct perf_event *bp[HBP_NUM_MAX] = { NULL };
 	struct pt_regs *regs = args->regs;
 	int i;
@@ -437,7 +437,7 @@ int hw_breakpoint_handler(struct die_args *args)
 		    is_octword_vsx_instr(type, size)) {
 			handle_p10dd1_spurious_exception(bp, hit, ea);
 		} else {
-			rc = NOTIFY_DONE;
+			rc = ANALTIFY_DONE;
 			goto out;
 		}
 	}
@@ -455,7 +455,7 @@ int hw_breakpoint_handler(struct die_args *args)
 			perf_bp_event(bp[i], regs);
 			bp[i] = NULL;
 		}
-		rc = NOTIFY_DONE;
+		rc = ANALTIFY_DONE;
 		goto reset;
 	}
 
@@ -496,7 +496,7 @@ out:
 	rcu_read_unlock();
 	return rc;
 }
-NOKPROBE_SYMBOL(hw_breakpoint_handler);
+ANALKPROBE_SYMBOL(hw_breakpoint_handler);
 
 /*
  * Handle single-step exceptions following a DABR hit.
@@ -545,21 +545,21 @@ static int single_step_dabr_instruction(struct die_args *args)
 	 * other single-step actions occur (e.g. generate SIGTRAP).
 	 */
 	if (!found || test_thread_flag(TIF_SINGLESTEP))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
-	return NOTIFY_STOP;
+	return ANALTIFY_STOP;
 }
-NOKPROBE_SYMBOL(single_step_dabr_instruction);
+ANALKPROBE_SYMBOL(single_step_dabr_instruction);
 
 /*
- * Handle debug exception notifications.
+ * Handle debug exception analtifications.
  *
  * Called in atomic context.
  */
-int hw_breakpoint_exceptions_notify(
-		struct notifier_block *unused, unsigned long val, void *data)
+int hw_breakpoint_exceptions_analtify(
+		struct analtifier_block *unused, unsigned long val, void *data)
 {
-	int ret = NOTIFY_DONE;
+	int ret = ANALTIFY_DONE;
 
 	switch (val) {
 	case DIE_DABR_MATCH:
@@ -572,7 +572,7 @@ int hw_breakpoint_exceptions_notify(
 
 	return ret;
 }
-NOKPROBE_SYMBOL(hw_breakpoint_exceptions_notify);
+ANALKPROBE_SYMBOL(hw_breakpoint_exceptions_analtify);
 
 /*
  * Release the user breakpoints used by ptrace

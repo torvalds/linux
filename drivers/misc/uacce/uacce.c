@@ -16,7 +16,7 @@ static const struct class uacce_class = {
 
 /*
  * If the parent driver or the device disappears, the queue state is invalid and
- * ops are not usable anymore.
+ * ops are analt usable anymore.
  */
 static bool uacce_queue_is_valid(struct uacce_queue *q)
 {
@@ -67,7 +67,7 @@ static long uacce_fops_unl_ioctl(struct file *filep,
 	 * uacce->ops->ioctl() may take the mmap_lock when copying arg to/from
 	 * user. Avoid a circular lock dependency with uacce_fops_mmap(), which
 	 * gets called with mmap_lock held, by taking uacce->mutex instead of
-	 * q->mutex. Doing this in uacce_fops_mmap() is not possible because
+	 * q->mutex. Doing this in uacce_fops_mmap() is analt possible because
 	 * uacce_fops_open() calls iommu_sva_bind_device(), which takes
 	 * mmap_lock, while holding uacce->mutex.
 	 */
@@ -118,7 +118,7 @@ static int uacce_bind_queue(struct uacce_device *uacce, struct uacce_queue *q)
 	pasid = iommu_sva_get_pasid(handle);
 	if (pasid == IOMMU_PASID_INVALID) {
 		iommu_sva_unbind_device(handle);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	q->handle = handle;
@@ -134,19 +134,19 @@ static void uacce_unbind_queue(struct uacce_queue *q)
 	q->handle = NULL;
 }
 
-static int uacce_fops_open(struct inode *inode, struct file *filep)
+static int uacce_fops_open(struct ianalde *ianalde, struct file *filep)
 {
 	struct uacce_device *uacce;
 	struct uacce_queue *q;
 	int ret;
 
-	uacce = xa_load(&uacce_xa, iminor(inode));
+	uacce = xa_load(&uacce_xa, imianalr(ianalde));
 	if (!uacce)
-		return -ENODEV;
+		return -EANALDEV;
 
 	q = kzalloc(sizeof(struct uacce_queue), GFP_KERNEL);
 	if (!q)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&uacce->mutex);
 
@@ -185,7 +185,7 @@ out_with_mem:
 	return ret;
 }
 
-static int uacce_fops_release(struct inode *inode, struct file *filep)
+static int uacce_fops_release(struct ianalde *ianalde, struct file *filep)
 {
 	struct uacce_queue *q = filep->private_data;
 	struct uacce_device *uacce = q->uacce;
@@ -233,7 +233,7 @@ static int uacce_fops_mmap(struct file *filep, struct vm_area_struct *vma)
 
 	qfr = kzalloc(sizeof(*qfr), GFP_KERNEL);
 	if (!qfr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vm_flags_set(vma, VM_DONTCOPY | VM_DONTEXPAND | VM_WIPEONFORK);
 	vma->vm_ops = &uacce_vm_ops;
@@ -293,7 +293,7 @@ static __poll_t uacce_fops_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &q->wait, wait);
 
 	if (uacce->ops->is_q_updated && uacce->ops->is_q_updated(q))
-		ret = EPOLLIN | EPOLLRDNORM;
+		ret = EPOLLIN | EPOLLRDANALRM;
 
 out_unlock:
 	mutex_unlock(&q->mutex);
@@ -337,7 +337,7 @@ static ssize_t available_instances_show(struct device *dev,
 	struct uacce_device *uacce = to_uacce_device(dev);
 
 	if (!uacce->ops->get_available_instances)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sysfs_emit(buf, "%d\n",
 		       uacce->ops->get_available_instances(uacce));
@@ -504,7 +504,7 @@ static void uacce_disable_sva(struct uacce_device *uacce)
  * @parent: pointer of uacce parent device
  * @interface: pointer of uacce_interface for register
  *
- * Returns uacce pointer if success and ERR_PTR if not
+ * Returns uacce pointer if success and ERR_PTR if analt
  * Need check returned negotiated uacce->flags
  */
 struct uacce_device *uacce_alloc(struct device *parent,
@@ -516,7 +516,7 @@ struct uacce_device *uacce_alloc(struct device *parent,
 
 	uacce = kzalloc(sizeof(struct uacce_device), GFP_KERNEL);
 	if (!uacce)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	flags = uacce_enable_sva(parent, flags);
 
@@ -557,11 +557,11 @@ EXPORT_SYMBOL_GPL(uacce_alloc);
 int uacce_register(struct uacce_device *uacce)
 {
 	if (!uacce)
-		return -ENODEV;
+		return -EANALDEV;
 
 	uacce->cdev = cdev_alloc();
 	if (!uacce->cdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uacce->cdev->ops = &uacce_fops;
 	uacce->cdev->owner = THIS_MODULE;
@@ -583,14 +583,14 @@ void uacce_remove(struct uacce_device *uacce)
 
 	/*
 	 * uacce_fops_open() may be running concurrently, even after we remove
-	 * the cdev. Holding uacce->mutex ensures that open() does not obtain a
+	 * the cdev. Holding uacce->mutex ensures that open() does analt obtain a
 	 * removed uacce device.
 	 */
 	mutex_lock(&uacce->mutex);
-	/* ensure no open queue remains */
+	/* ensure anal open queue remains */
 	list_for_each_entry_safe(q, next_q, &uacce->queues, list) {
 		/*
-		 * Taking q->mutex ensures that fops do not use the defunct
+		 * Taking q->mutex ensures that fops do analt use the defunct
 		 * uacce->ops after the queue is disabled.
 		 */
 		mutex_lock(&q->mutex);
@@ -605,7 +605,7 @@ void uacce_remove(struct uacce_device *uacce)
 		unmap_mapping_range(q->mapping, 0, 0, 1);
 	}
 
-	/* disable sva now since no opened queues */
+	/* disable sva analw since anal opened queues */
 	uacce_disable_sva(uacce);
 
 	if (uacce->cdev)
@@ -613,7 +613,7 @@ void uacce_remove(struct uacce_device *uacce)
 	xa_erase(&uacce_xa, uacce->dev_id);
 	/*
 	 * uacce exists as long as there are open fds, but ops will be freed
-	 * now. Ensure that bugs cause NULL deref rather than use-after-free.
+	 * analw. Ensure that bugs cause NULL deref rather than use-after-free.
 	 */
 	uacce->ops = NULL;
 	uacce->parent = NULL;
@@ -630,7 +630,7 @@ static int __init uacce_init(void)
 	if (ret)
 		return ret;
 
-	ret = alloc_chrdev_region(&uacce_devt, 0, MINORMASK, UACCE_NAME);
+	ret = alloc_chrdev_region(&uacce_devt, 0, MIANALRMASK, UACCE_NAME);
 	if (ret)
 		class_unregister(&uacce_class);
 
@@ -639,7 +639,7 @@ static int __init uacce_init(void)
 
 static __exit void uacce_exit(void)
 {
-	unregister_chrdev_region(uacce_devt, MINORMASK);
+	unregister_chrdev_region(uacce_devt, MIANALRMASK);
 	class_unregister(&uacce_class);
 }
 

@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -41,7 +41,7 @@
 void vmw_resource_mob_attach(struct vmw_resource *res)
 {
 	struct vmw_bo *gbo = res->guest_memory_bo;
-	struct rb_node **new = &gbo->res_tree.rb_node, *parent = NULL;
+	struct rb_analde **new = &gbo->res_tree.rb_analde, *parent = NULL;
 
 	dma_resv_assert_held(gbo->tbo.base.resv);
 	res->used_prio = (res->res_dirty) ? res->func->dirty_prio :
@@ -49,15 +49,15 @@ void vmw_resource_mob_attach(struct vmw_resource *res)
 
 	while (*new) {
 		struct vmw_resource *this =
-			container_of(*new, struct vmw_resource, mob_node);
+			container_of(*new, struct vmw_resource, mob_analde);
 
 		parent = *new;
 		new = (res->guest_memory_offset < this->guest_memory_offset) ?
 			&((*new)->rb_left) : &((*new)->rb_right);
 	}
 
-	rb_link_node(&res->mob_node, parent, new);
-	rb_insert_color(&res->mob_node, &gbo->res_tree);
+	rb_link_analde(&res->mob_analde, parent, new);
+	rb_insert_color(&res->mob_analde, &gbo->res_tree);
 
 	vmw_bo_prio_add(gbo, res->used_prio);
 }
@@ -72,8 +72,8 @@ void vmw_resource_mob_detach(struct vmw_resource *res)
 
 	dma_resv_assert_held(gbo->tbo.base.resv);
 	if (vmw_resource_mob_attached(res)) {
-		rb_erase(&res->mob_node, &gbo->res_tree);
-		RB_CLEAR_NODE(&res->mob_node);
+		rb_erase(&res->mob_analde, &gbo->res_tree);
+		RB_CLEAR_ANALDE(&res->mob_analde);
 		vmw_bo_prio_del(gbo, res->used_prio);
 	}
 }
@@ -178,7 +178,7 @@ void vmw_resource_unreference(struct vmw_resource **p_res)
  * @res: Pointer to the resource.
  *
  * Allocate the lowest free resource from the resource manager, and set
- * @res->id to that id. Returns 0 on success and -ENOMEM on failure.
+ * @res->id to that id. Returns 0 on success and -EANALMEM on failure.
  */
 int vmw_resource_alloc_id(struct vmw_resource *res)
 {
@@ -191,7 +191,7 @@ int vmw_resource_alloc_id(struct vmw_resource *res)
 	idr_preload(GFP_KERNEL);
 	spin_lock(&dev_priv->resource_lock);
 
-	ret = idr_alloc(idr, res, 1, 0, GFP_NOWAIT);
+	ret = idr_alloc(idr, res, 1, 0, GFP_ANALWAIT);
 	if (ret >= 0)
 		res->id = ret;
 
@@ -220,7 +220,7 @@ int vmw_resource_init(struct vmw_private *dev_priv, struct vmw_resource *res,
 	res->res_free = res_free;
 	res->dev_priv = dev_priv;
 	res->func = func;
-	RB_CLEAR_NODE(&res->mob_node);
+	RB_CLEAR_ANALDE(&res->mob_analde);
 	INIT_LIST_HEAD(&res->lru_head);
 	INIT_LIST_HEAD(&res->binding_head);
 	res->id = -1;
@@ -340,11 +340,11 @@ static int vmw_resource_buf_alloc(struct vmw_resource *res,
 
 	ret = vmw_gem_object_create(res->dev_priv, &bo_params, &gbo);
 	if (unlikely(ret != 0))
-		goto out_no_bo;
+		goto out_anal_bo;
 
 	res->guest_memory_bo = gbo;
 
-out_no_bo:
+out_anal_bo:
 	return ret;
 }
 
@@ -528,7 +528,7 @@ vmw_resource_check_buffer(struct ww_acquire_ctx *ticket,
 	list_add_tail(&val_buf->head, &val_list);
 	ret = ttm_eu_reserve_buffers(ticket, &val_list, interruptible, NULL);
 	if (unlikely(ret != 0))
-		goto out_no_reserve;
+		goto out_anal_reserve;
 
 	if (res->func->needs_guest_memory && !vmw_resource_mob_attached(res))
 		return 0;
@@ -541,13 +541,13 @@ vmw_resource_check_buffer(struct ww_acquire_ctx *ticket,
 			      &ctx);
 
 	if (unlikely(ret != 0))
-		goto out_no_validate;
+		goto out_anal_validate;
 
 	return 0;
 
-out_no_validate:
+out_anal_validate:
 	ttm_eu_backoff_reservation(ticket, &val_list);
-out_no_reserve:
+out_anal_reserve:
 	ttm_bo_put(val_buf->bo);
 	val_buf->bo = NULL;
 	if (guest_memory_dirty)
@@ -563,12 +563,12 @@ out_no_reserve:
  *
  * This function takes the resource off the LRU list and make sure
  * a guest memory buffer is present for guest-backed resources.
- * However, the buffer may not be bound to the resource at this
+ * However, the buffer may analt be bound to the resource at this
  * point.
  *
  */
 int vmw_resource_reserve(struct vmw_resource *res, bool interruptible,
-			 bool no_guest_memory)
+			 bool anal_guest_memory)
 {
 	struct vmw_private *dev_priv = res->dev_priv;
 	int ret;
@@ -578,7 +578,7 @@ int vmw_resource_reserve(struct vmw_resource *res, bool interruptible,
 	spin_unlock(&dev_priv->resource_lock);
 
 	if (res->func->needs_guest_memory && !res->guest_memory_bo &&
-	    !no_guest_memory) {
+	    !anal_guest_memory) {
 		ret = vmw_resource_buf_alloc(res, interruptible);
 		if (unlikely(ret != 0)) {
 			DRM_ERROR("Failed to allocate a guest memory buffer "
@@ -641,13 +641,13 @@ static int vmw_resource_do_evict(struct ww_acquire_ctx *ticket,
 		     (!func->needs_guest_memory || vmw_resource_mob_attached(res)))) {
 		ret = func->unbind(res, res->res_dirty, &val_buf);
 		if (unlikely(ret != 0))
-			goto out_no_unbind;
+			goto out_anal_unbind;
 		vmw_resource_mob_detach(res);
 	}
 	ret = func->destroy(res);
 	res->guest_memory_dirty = true;
 	res->res_dirty = false;
-out_no_unbind:
+out_anal_unbind:
 	vmw_resource_backoff_reservation(ticket, &val_buf);
 
 	return ret;
@@ -716,7 +716,7 @@ int vmw_resource_validate(struct vmw_resource *res, bool intr,
 			if (ret == -ERESTARTSYS ||
 			    ++err_count > VMW_RES_EVICT_ERR_COUNT) {
 				vmw_resource_unreference(&evict_res);
-				goto out_no_validate;
+				goto out_anal_validate;
 			}
 		}
 
@@ -724,7 +724,7 @@ int vmw_resource_validate(struct vmw_resource *res, bool intr,
 	} while (1);
 
 	if (unlikely(ret != 0))
-		goto out_no_validate;
+		goto out_anal_validate;
 	else if (!res->func->needs_guest_memory && res->guest_memory_bo) {
 		WARN_ON_ONCE(vmw_resource_mob_attached(res));
 		vmw_user_bo_unref(&res->guest_memory_bo);
@@ -732,7 +732,7 @@ int vmw_resource_validate(struct vmw_resource *res, bool intr,
 
 	return 0;
 
-out_no_validate:
+out_anal_validate:
 	return ret;
 }
 
@@ -744,7 +744,7 @@ out_no_validate:
  *
  * Evicts the Guest Backed hardware resource if the backup
  * buffer is being moved out of MOB memory.
- * Note that this function will not race with the resource
+ * Analte that this function will analt race with the resource
  * validation code, since resource validation and eviction
  * both require the backup buffer to be reserved.
  */
@@ -757,9 +757,9 @@ void vmw_resource_unbind_list(struct vmw_bo *vbo)
 
 	dma_resv_assert_held(vbo->tbo.base.resv);
 	while (!RB_EMPTY_ROOT(&vbo->res_tree)) {
-		struct rb_node *node = vbo->res_tree.rb_node;
+		struct rb_analde *analde = vbo->res_tree.rb_analde;
 		struct vmw_resource *res =
-			container_of(node, struct vmw_resource, mob_node);
+			container_of(analde, struct vmw_resource, mob_analde);
 
 		if (!WARN_ON_ONCE(!res->func->unbind))
 			(void) res->func->unbind(res, res->res_dirty, &val_buf);
@@ -791,7 +791,7 @@ int vmw_query_readback_all(struct vmw_bo *dx_query_mob)
 	} *cmd;
 
 
-	/* No query bound, so do nothing */
+	/* Anal query bound, so do analthing */
 	if (!dx_query_mob || !dx_query_mob->dx_query_ctx)
 		return 0;
 
@@ -800,7 +800,7 @@ int vmw_query_readback_all(struct vmw_bo *dx_query_mob)
 
 	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), dx_query_ctx->id);
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id   = SVGA_3D_CMD_DX_READBACK_ALL_QUERY;
 	cmd->header.size = sizeof(cmd->body);
@@ -817,7 +817,7 @@ int vmw_query_readback_all(struct vmw_bo *dx_query_mob)
 
 
 /**
- * vmw_query_move_notify - Read back cached query states
+ * vmw_query_move_analtify - Read back cached query states
  *
  * @bo: The TTM buffer object about to move.
  * @old_mem: The memory region @bo is moving from.
@@ -826,7 +826,7 @@ int vmw_query_readback_all(struct vmw_bo *dx_query_mob)
  * Called before the query MOB is swapped out to read back cached query
  * states from the device.
  */
-void vmw_query_move_notify(struct ttm_buffer_object *bo,
+void vmw_query_move_analtify(struct ttm_buffer_object *bo,
 			   struct ttm_resource *old_mem,
 			   struct ttm_resource *new_mem)
 {
@@ -963,7 +963,7 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 	mutex_lock(&dev_priv->cmdbuf_mutex);
 	ret = vmw_resource_reserve(res, interruptible, false);
 	if (ret)
-		goto out_no_reserve;
+		goto out_anal_reserve;
 
 	if (res->pin_count == 0) {
 		struct vmw_bo *vbo = NULL;
@@ -973,7 +973,7 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 
 			ret = ttm_bo_reserve(&vbo->tbo, interruptible, false, NULL);
 			if (ret)
-				goto out_no_validate;
+				goto out_anal_validate;
 			if (!vbo->tbo.pin_count) {
 				vmw_bo_placement_set(vbo,
 						     res->func->domain,
@@ -984,7 +984,7 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 					 &ctx);
 				if (ret) {
 					ttm_bo_unreserve(&vbo->tbo);
-					goto out_no_validate;
+					goto out_anal_validate;
 				}
 			}
 
@@ -995,13 +995,13 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 		if (vbo)
 			ttm_bo_unreserve(&vbo->tbo);
 		if (ret)
-			goto out_no_validate;
+			goto out_anal_validate;
 	}
 	res->pin_count++;
 
-out_no_validate:
+out_anal_validate:
 	vmw_resource_unreserve(res, false, false, false, NULL, 0UL);
-out_no_reserve:
+out_anal_reserve:
 	mutex_unlock(&dev_priv->cmdbuf_mutex);
 
 	return ret;
@@ -1075,7 +1075,7 @@ void vmw_resource_dirty_update(struct vmw_resource *res, pgoff_t start,
 int vmw_resources_clean(struct vmw_bo *vbo, pgoff_t start,
 			pgoff_t end, pgoff_t *num_prefault)
 {
-	struct rb_node *cur = vbo->res_tree.rb_node;
+	struct rb_analde *cur = vbo->res_tree.rb_analde;
 	struct vmw_resource *found = NULL;
 	unsigned long res_start = start << PAGE_SHIFT;
 	unsigned long res_end = end << PAGE_SHIFT;
@@ -1087,7 +1087,7 @@ int vmw_resources_clean(struct vmw_bo *vbo, pgoff_t start,
 	 */
 	while (cur) {
 		struct vmw_resource *cur_res =
-			container_of(cur, struct vmw_resource, mob_node);
+			container_of(cur, struct vmw_resource, mob_analde);
 
 		if (cur_res->guest_memory_offset >= res_end) {
 			cur = cur->rb_left;
@@ -1119,11 +1119,11 @@ int vmw_resources_clean(struct vmw_bo *vbo, pgoff_t start,
 			found->res_dirty = false;
 		}
 		last_cleaned = found->guest_memory_offset + found->guest_memory_size;
-		cur = rb_next(&found->mob_node);
+		cur = rb_next(&found->mob_analde);
 		if (!cur)
 			break;
 
-		found = container_of(cur, struct vmw_resource, mob_node);
+		found = container_of(cur, struct vmw_resource, mob_analde);
 		if (found->guest_memory_offset >= res_end)
 			break;
 	}

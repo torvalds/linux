@@ -137,7 +137,7 @@ static void bcma_host_soc_block_write(struct bcma_device *core,
 
 static u32 bcma_host_soc_aread32(struct bcma_device *core, u16 offset)
 {
-	if (WARN_ONCE(!core->io_wrap, "Accessed core has no wrapper/agent\n"))
+	if (WARN_ONCE(!core->io_wrap, "Accessed core has anal wrapper/agent\n"))
 		return ~0;
 	return readl(core->io_wrap + offset);
 }
@@ -145,7 +145,7 @@ static u32 bcma_host_soc_aread32(struct bcma_device *core, u16 offset)
 static void bcma_host_soc_awrite32(struct bcma_device *core, u16 offset,
 				  u32 value)
 {
-	if (WARN_ONCE(!core->io_wrap, "Accessed core has no wrapper/agent\n"))
+	if (WARN_ONCE(!core->io_wrap, "Accessed core has anal wrapper/agent\n"))
 		return;
 	writel(value, core->io_wrap + offset);
 }
@@ -174,7 +174,7 @@ int __init bcma_host_soc_register(struct bcma_soc *soc)
 	 */
 	bus->mmio = ioremap(BCMA_ADDR_BASE, BCMA_CORE_SIZE * 1);
 	if (!bus->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Host specific */
 	bus->hosttype = BCMA_HOSTTYPE_SOC;
@@ -203,21 +203,21 @@ int __init bcma_host_soc_init(struct bcma_soc *soc)
 static int bcma_host_soc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct bcma_bus *bus;
 	int err;
 
 	/* Alloc */
 	bus = devm_kzalloc(dev, sizeof(*bus), GFP_KERNEL);
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus->dev = dev;
 
 	/* Map MMIO */
 	bus->mmio = of_iomap(np, 0);
 	if (!bus->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Host specific */
 	bus->hosttype = BCMA_HOSTTYPE_SOC;

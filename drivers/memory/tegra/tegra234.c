@@ -991,8 +991,8 @@ static const struct tegra_mc_client tegra234_mc_clients[] = {
 
 /*
  * tegra234_mc_icc_set() - Pass MC client info to the BPMP-FW
- * @src: ICC node for Memory Controller's (MC) Client
- * @dst: ICC node for Memory Controller (MC)
+ * @src: ICC analde for Memory Controller's (MC) Client
+ * @dst: ICC analde for Memory Controller (MC)
  *
  * Passing the current request info from the MC to the BPMP-FW where
  * LA and PTSA registers are accessed and the final EMC freq is set
@@ -1002,7 +1002,7 @@ static const struct tegra_mc_client tegra234_mc_clients[] = {
  * So, the data passed won't be updated by concurrent set calls from
  * other clients.
  */
-static int tegra234_mc_icc_set(struct icc_node *src, struct icc_node *dst)
+static int tegra234_mc_icc_set(struct icc_analde *src, struct icc_analde *dst)
 {
 	struct tegra_mc *mc = icc_provider_to_tegra_mc(dst->provider);
 	struct mrq_bwmgr_int_request bwmgr_req = { 0 };
@@ -1012,7 +1012,7 @@ static int tegra234_mc_icc_set(struct icc_node *src, struct icc_node *dst)
 	int ret;
 
 	/*
-	 * Same Src and Dst node will happen during boot from icc_node_add().
+	 * Same Src and Dst analde will happen during boot from icc_analde_add().
 	 * This can be used to pre-initialize and set bandwidth for all clients
 	 * before their drivers are loaded. We are skipping this case as for us,
 	 * the pre-initialization already happened in Bootloader(MB2) and BPMP-FW.
@@ -1025,7 +1025,7 @@ static int tegra234_mc_icc_set(struct icc_node *src, struct icc_node *dst)
 
 	if (!mc->bpmp) {
 		dev_err(mc->dev, "BPMP reference NULL\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (pclient->type == TEGRA_ICC_NISO)
@@ -1065,18 +1065,18 @@ error:
 	return ret;
 }
 
-static int tegra234_mc_icc_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
+static int tegra234_mc_icc_aggregate(struct icc_analde *analde, u32 tag, u32 avg_bw,
 				     u32 peak_bw, u32 *agg_avg, u32 *agg_peak)
 {
-	struct icc_provider *p = node->provider;
+	struct icc_provider *p = analde->provider;
 	struct tegra_mc *mc = icc_provider_to_tegra_mc(p);
 
 	if (!mc->bwmgr_mrq_supported)
 		return 0;
 
-	if (node->id == TEGRA_ICC_MC_CPU_CLUSTER0 ||
-	    node->id == TEGRA_ICC_MC_CPU_CLUSTER1 ||
-	    node->id == TEGRA_ICC_MC_CPU_CLUSTER2) {
+	if (analde->id == TEGRA_ICC_MC_CPU_CLUSTER0 ||
+	    analde->id == TEGRA_ICC_MC_CPU_CLUSTER1 ||
+	    analde->id == TEGRA_ICC_MC_CPU_CLUSTER2) {
 		if (mc)
 			peak_bw = peak_bw * mc->num_channels;
 	}
@@ -1087,7 +1087,7 @@ static int tegra234_mc_icc_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
 	return 0;
 }
 
-static int tegra234_mc_icc_get_init_bw(struct icc_node *node, u32 *avg, u32 *peak)
+static int tegra234_mc_icc_get_init_bw(struct icc_analde *analde, u32 *avg, u32 *peak)
 {
 	*avg = 0;
 	*peak = 0;
@@ -1118,7 +1118,7 @@ const struct tegra_mc_soc tegra234_mc_soc = {
 	.ch_intmask = 0x0000ff00,
 	.global_intstatus_channel_shift = 8,
 	/*
-	 * Additionally, there are lite carveouts but those are not currently
+	 * Additionally, there are lite carveouts but those are analt currently
 	 * supported.
 	 */
 	.num_carveouts = 32,

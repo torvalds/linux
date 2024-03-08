@@ -2,14 +2,14 @@
 
 	\kerneldocCJKoff
 
-NOTE:
+ANALTE:
 This is a version of Documentation/process/howto.rst translated into korean
 This document is maintained by Minchan Kim <minchan@kernel.org>
 If you find any difference between this document and the original file or
 a problem with the translation, please contact the maintainer of this file.
 
-Please also note that the purpose of this file is to be easier to
-read for non English (read: korean) speakers and is not intended as
+Please also analte that the purpose of this file is to be easier to
+read for analn English (read: korean) speakers and is analt intended as
 a fork. So if you have any comments or updates for this file please
 try to update the original English file first.
 
@@ -145,7 +145,7 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     "Linux kernel patch submission format"
         https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html
 
-   :ref:`Documentation/process/stable-api-nonsense.rst <stable_api_nonsense>`
+   :ref:`Documentation/process/stable-api-analnsense.rst <stable_api_analnsense>`
     이 문서는 의도적으로 커널이 불변하는 API를 갖지 않도록 결정한
     이유를 설명하며 다음과 같은 것들을 포함한다.
 
@@ -610,8 +610,8 @@ Pat이라는 이름을 가진 여자가 있을 수도 있는 것이다. 리눅�
 Randy Dunlap과 Gerrit Huizenga에게 감사한다. 또한 검토와 의견 그리고
 공헌을 아끼지 않은 Pat Mochel, Hanna Linder, Randy Dunlap, Kay Sievers,
 Vojtech Pavlik, Jan Kara, Josh Boyer, Kees Cook, Andrew Morton, Andi Kleen,
-Vadim Lobanov, Jesper Juhl, Adrian Bunk, Keri Harris, Frans Pop,
-David A. Wheeler, Junio Hamano, Michael Kerrisk, and Alex Shepard에게도 감사를 전한다.
+Vadim Lobaanalv, Jesper Juhl, Adrian Bunk, Keri Harris, Frans Pop,
+David A. Wheeler, Junio Hamaanal, Michael Kerrisk, and Alex Shepard에게도 감사를 전한다.
 그들의 도움이 없었다면 이 문서는 존재하지 않았을 것이다.
 
 

@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2014 - 2017 Jes Sorensen <Jes.Sorensen@gmail.com>
  *
- * Portions, notably calibration code:
+ * Portions, analtably calibration code:
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  * This driver was written as a replacement for the vendor provided
@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -488,7 +488,7 @@ static int rtl8192eu_identify_chip(struct rtl8xxxu_priv *priv)
 	priv->chip_cut = u32_get_bits(sys_cfg, SYS_CFG_CHIP_VERSION_MASK);
 	if (sys_cfg & SYS_CFG_TRP_VAUX_EN) {
 		dev_info(dev, "Unsupported test chip\n");
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto out;
 	}
 
@@ -516,10 +516,10 @@ static int rtl8192eu_identify_chip(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_config_endpoints_sie(priv);
 
 	/*
-	 * Fallback for devices that do not provide REG_NORMAL_SIE_EP_TX
+	 * Fallback for devices that do analt provide REG_ANALRMAL_SIE_EP_TX
 	 */
 	if (!priv->ep_tx_count)
-		ret = rtl8xxxu_config_endpoints_no_sie(priv);
+		ret = rtl8xxxu_config_endpoints_anal_sie(priv);
 
 out:
 	return ret;
@@ -1094,7 +1094,7 @@ static void rtl8192eu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 	u8 xb_agc = rtl8xxxu_read32(priv, REG_OFDM0_XB_AGC_CORE1) & 0xff;
 
 	/*
-	 * Note: IQ calibration must be performed after loading
+	 * Analte: IQ calibration must be performed after loading
 	 *       PHY_REG.txt , and radio_a, radio_b.txt
 	 */
 
@@ -1463,7 +1463,7 @@ static int rtl8192eu_active_to_lps(struct rtl8xxxu_priv *priv)
 	retry = 100;
 	retval = -EBUSY;
 	/*
-	 * Poll 32 bit wide 0x05f8 for 0x00000000 to ensure no TX is pending.
+	 * Poll 32 bit wide 0x05f8 for 0x00000000 to ensure anal TX is pending.
 	 */
 	do {
 		val32 = rtl8xxxu_read32(priv, REG_SCH_TX_CMD);
@@ -1778,5 +1778,5 @@ struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.total_page_num = TX_TOTAL_PAGE_NUM_8192E,
 	.page_num_hi = TX_PAGE_NUM_HI_PQ_8192E,
 	.page_num_lo = TX_PAGE_NUM_LO_PQ_8192E,
-	.page_num_norm = TX_PAGE_NUM_NORM_PQ_8192E,
+	.page_num_analrm = TX_PAGE_NUM_ANALRM_PQ_8192E,
 };

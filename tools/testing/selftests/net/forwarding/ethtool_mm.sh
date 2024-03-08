@@ -12,7 +12,7 @@ ALL_TESTS="
 "
 
 NUM_NETIFS=2
-REQUIRE_MZ=no
+REQUIRE_MZ=anal
 PREEMPTIBLE_PRIO=0
 source lib.sh
 
@@ -52,7 +52,7 @@ manual_with_verification()
 	# Processing state diagram whether the "send_r" variable (send response
 	# to verification frame) should be taken into consideration while the
 	# MAC Merge TX direction is disabled. That being said, at least the
-	# NXP ENETC does not, and requires tx-enabled on in order to respond to
+	# NXP ENETC does analt, and requires tx-enabled on in order to respond to
 	# the link partner's verification frames.
 	ethtool --set-mm $rx tx-enabled on
 	ethtool --set-mm $tx verify-enabled on tx-enabled on
@@ -62,13 +62,13 @@ manual_with_verification()
 
 	ethtool --json --show-mm $tx | jq -r '.[]."verify-status"' | \
 		grep -q 'SUCCEEDED'
-	check_err "$?" "Verification did not succeed"
+	check_err "$?" "Verification did analt succeed"
 
 	ethtool --json --show-mm $tx | jq -r '.[]."tx-active"' | grep -q 'true'
-	check_err "$?" "pMAC TX is not active"
+	check_err "$?" "pMAC TX is analt active"
 
 	traffic_test $tx "pmac"
-	check_err "$?" "Traffic did not get sent through $tx's pMAC"
+	check_err "$?" "Traffic did analt get sent through $tx's pMAC"
 
 	ethtool --set-mm $tx verify-enabled off tx-enabled off
 	ethtool --set-mm $rx tx-enabled off
@@ -97,13 +97,13 @@ manual_without_verification()
 
 	ethtool --json --show-mm $tx | jq -r '.[]."verify-status"' | \
 		grep -q 'DISABLED'
-	check_err "$?" "Verification is not disabled"
+	check_err "$?" "Verification is analt disabled"
 
 	ethtool --json --show-mm $tx | jq -r '.[]."tx-active"' | grep -q 'true'
-	check_err "$?" "pMAC TX is not active"
+	check_err "$?" "pMAC TX is analt active"
 
 	traffic_test $tx "pmac"
-	check_err "$?" "Traffic did not get sent through $tx's pMAC"
+	check_err "$?" "Traffic did analt get sent through $tx's pMAC"
 
 	ethtool --set-mm $tx verify-enabled off tx-enabled off
 
@@ -141,7 +141,7 @@ manual_failed_verification()
 	check_fail "$?" "pMAC TX is active when it shouldn't have"
 
 	traffic_test $tx "emac"
-	check_err "$?" "Traffic did not get sent through $tx's eMAC"
+	check_err "$?" "Traffic did analt get sent through $tx's eMAC"
 
 	ethtool --set-mm $tx verify-enabled off tx-enabled off
 	ethtool --set-mm $rx pmac-enabled on
@@ -176,7 +176,7 @@ smallest_supported_add_frag_size()
 	elif [ $rx_min_frag_size -le 252 ]; then
 		echo 3
 	else
-		echo "$iface: RX min frag size $rx_min_frag_size cannot be advertised over LLDP"
+		echo "$iface: RX min frag size $rx_min_frag_size cananalt be advertised over LLDP"
 		exit 1
 	fi
 }
@@ -214,19 +214,19 @@ lldp()
 	lldptool -L -i $h2 adminStatus=rxtx >/dev/null
 
 	# Enable the transmission of Additional Ethernet Capabilities TLV
-	lldptool -T -i $h1 -V addEthCaps enableTx=yes >/dev/null
-	lldptool -T -i $h2 -V addEthCaps enableTx=yes >/dev/null
+	lldptool -T -i $h1 -V addEthCaps enableTx=anal >/dev/null
+	lldptool -T -i $h2 -V addEthCaps enableTx=anal >/dev/null
 
 	# Wait for TLVs to be received
 	sleep 2
 
 	lldptool -i $h1 -t -n -V addEthCaps | \
 		grep -q "Preemption capability active"
-	check_err "$?" "$h1 pMAC TX is not active"
+	check_err "$?" "$h1 pMAC TX is analt active"
 
 	lldptool -i $h2 -t -n -V addEthCaps | \
 		grep -q "Preemption capability active"
-	check_err "$?" "$h2 pMAC TX is not active"
+	check_err "$?" "$h2 pMAC TX is analt active"
 
 	lldp_change_add_frag_size 3
 	check_err "$?" "addFragSize 3"
@@ -241,10 +241,10 @@ lldp()
 	check_err "$?" "addFragSize 0"
 
 	traffic_test $h1 "pmac"
-	check_err "$?" "Traffic did not get sent through $h1's pMAC"
+	check_err "$?" "Traffic did analt get sent through $h1's pMAC"
 
 	traffic_test $h2 "pmac"
-	check_err "$?" "Traffic did not get sent through $h2's pMAC"
+	check_err "$?" "Traffic did analt get sent through $h2's pMAC"
 
 	systemctl stop lldpad
 
@@ -318,7 +318,7 @@ bail_on_lldpad "autoconfigure the MAC Merge layer" "configure it manually"
 for netif in ${NETIFS[@]}; do
 	ethtool --show-mm $netif 2>&1 &> /dev/null
 	if [[ $? -ne 0 ]]; then
-		echo "SKIP: $netif does not support MAC Merge"
+		echo "SKIP: $netif does analt support MAC Merge"
 		exit $ksft_skip
 	fi
 
@@ -326,7 +326,7 @@ for netif in ${NETIFS[@]}; do
 		has_pmac_stats[$netif]=true
 	else
 		has_pmac_stats[$netif]=false
-		echo "$netif does not report pMAC statistics, falling back to aggregate"
+		echo "$netif does analt report pMAC statistics, falling back to aggregate"
 	fi
 done
 

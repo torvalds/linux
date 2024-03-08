@@ -3,7 +3,7 @@
  * Copyright 2016 Chandan Kumar, IBM Corporation.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <libunwind.h>
 #include <asm/perf_regs.h>
 #include "../../util/unwind.h"

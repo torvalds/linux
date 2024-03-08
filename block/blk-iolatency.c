@@ -10,12 +10,12 @@
  * - We use the mean latency over the 100ms window.  This is because writes can
  *   be particularly fast, which could give us a false sense of the impact of
  *   other workloads on our protected workload.
- * - By default there's no throttling, we set the queue_depth to UINT_MAX so
+ * - By default there's anal throttling, we set the queue_depth to UINT_MAX so
  *   that we can have as many outstanding bio's as we're allowed to.  Only at
  *   throttle time do we pay attention to the actual queue depth.
  *
  * The hierarchy works like the cpu controller does, we track the latency at
- * every configured node, and each configured node has it's own independent
+ * every configured analde, and each configured analde has it's own independent
  * queue depth.  This means that we only care about our latency targets at the
  * peer level.  Some group at the bottom of the hierarchy isn't going to affect
  * a group at the end of some other path if we're only configred at leaf level.
@@ -26,14 +26,14 @@
  *             /                     \
  *        fast (target=5ms)     slow (target=10ms)
  *         /     \                  /        \
- *       a        b          normal(15ms)   unloved
+ *       a        b          analrmal(15ms)   unloved
  *
- * "a" and "b" have no target, but their combined io under "fast" cannot exceed
+ * "a" and "b" have anal target, but their combined io under "fast" cananalt exceed
  * an average latency of 5ms.  If it does then we will throttle the "slow"
- * group.  In the case of "normal", if it exceeds its 15ms target, we will
- * throttle "unloved", but nobody else.
+ * group.  In the case of "analrmal", if it exceeds its 15ms target, we will
+ * throttle "unloved", but analbody else.
  *
- * In this example "fast", "slow", and "normal" will be the only groups actually
+ * In this example "fast", "slow", and "analrmal" will be the only groups actually
  * accounting their io latencies.  We have to walk up the heirarchy to the root
  * on every submit and complete so we can do the appropriate stat recording and
  * adjust the queue depth of ourselves if needed.
@@ -166,7 +166,7 @@ struct iolatency_grp {
  * (FIXED_1 (2048) - exp_factor) * new_sample into lat_avg.  The sampling
  * window size is bucketed to try to approximately calculate average
  * latency such that 1/exp (decay rate) is [1 min, 2.5 min) when windows
- * elapse immediately.  Note, windows only elapse with IO activity.  Idle
+ * elapse immediately.  Analte, windows only elapse with IO activity.  Idle
  * periods extend the most recent window.
  */
 #define BLKIOLATENCY_NR_EXP_FACTORS 5
@@ -259,9 +259,9 @@ static inline void iolat_update_total_lat_avg(struct iolatency_grp *iolat,
 	/*
 	 * calc_load() takes in a number stored in fixed point representation.
 	 * Because we are using this for IO time in ns, the values stored
-	 * are significantly larger than the FIXED_1 denominator (2048).
+	 * are significantly larger than the FIXED_1 deanalminator (2048).
 	 * Therefore, rounding errors in the calculation are negligible and
-	 * can be ignored.
+	 * can be iganalred.
 	 */
 	exp_idx = min_t(int, BLKIOLATENCY_NR_EXP_FACTORS - 1,
 			div64_u64(iolat->cur_win_nsec,
@@ -296,7 +296,7 @@ static void __blkcg_iolatency_throttle(struct rq_qos *rqos,
 
 	/*
 	 * To avoid priority inversions we want to just take a slot if we are
-	 * issuing as root.  If we're being killed off there's no point in
+	 * issuing as root.  If we're being killed off there's anal point in
 	 * delaying things, we may have been killed by OOM so throttling may
 	 * make recovery take even longer, so just let the IO's through so the
 	 * task can go away.
@@ -323,8 +323,8 @@ static inline unsigned long scale_amount(unsigned long qd, bool up)
  * scale_cookie at DEFAULT_SCALE_COOKIE and unthrottle too much.
  *
  * Each group has their own local copy of the last scale cookie they saw, so if
- * the global scale cookie goes up or down they know which way they need to go
- * based on their last knowledge of it.
+ * the global scale cookie goes up or down they kanalw which way they need to go
+ * based on their last kanalwledge of it.
  */
 static void scale_cookie_change(struct blk_iolatency *blkiolat,
 				struct child_latency_info *lat_info,
@@ -350,7 +350,7 @@ static void scale_cookie_change(struct blk_iolatency *blkiolat,
 	} else {
 		/*
 		 * We don't want to dig a hole so deep that it takes us hours to
-		 * dig out of it.  Just enough that we don't throttle/unthrottle
+		 * dig out of it.  Just eanalugh that we don't throttle/unthrottle
 		 * with jagged workloads but can still unthrottle once pressure
 		 * has sufficiently dissipated.
 		 */
@@ -486,7 +486,7 @@ static void blkcg_iolatency_throttle(struct rq_qos *rqos, struct bio *bio)
 }
 
 static void iolatency_record_time(struct iolatency_grp *iolat,
-				  struct bio_issue *issue, u64 now,
+				  struct bio_issue *issue, u64 analw,
 				  bool issue_as_root)
 {
 	u64 start = bio_issue_time(issue);
@@ -496,12 +496,12 @@ static void iolatency_record_time(struct iolatency_grp *iolat,
 	 * Have to do this so we are truncated to the correct time that our
 	 * issue is truncated to.
 	 */
-	now = __bio_issue_time(now);
+	analw = __bio_issue_time(analw);
 
-	if (now <= start)
+	if (analw <= start)
 		return;
 
-	req_time = now - start;
+	req_time = analw - start;
 
 	/*
 	 * We don't want to count issue_as_root bio's in the cgroups latency
@@ -510,7 +510,7 @@ static void iolatency_record_time(struct iolatency_grp *iolat,
 	if (unlikely(issue_as_root && iolat->max_depth != UINT_MAX)) {
 		u64 sub = iolat->min_lat_nsec;
 		if (req_time < sub)
-			blkcg_add_delay(lat_to_blkg(iolat), now, sub - req_time);
+			blkcg_add_delay(lat_to_blkg(iolat), analw, sub - req_time);
 		return;
 	}
 
@@ -520,7 +520,7 @@ static void iolatency_record_time(struct iolatency_grp *iolat,
 #define BLKIOLATENCY_MIN_ADJUST_TIME (500 * NSEC_PER_MSEC)
 #define BLKIOLATENCY_MIN_GOOD_SAMPLES 5
 
-static void iolatency_check_latencies(struct iolatency_grp *iolat, u64 now)
+static void iolatency_check_latencies(struct iolatency_grp *iolat, u64 analw)
 {
 	struct blkcg_gq *blkg = lat_to_blkg(iolat);
 	struct iolatency_grp *parent;
@@ -560,8 +560,8 @@ static void iolatency_check_latencies(struct iolatency_grp *iolat, u64 now)
 	lat_info->nr_samples += latency_stat_samples(iolat, &iolat->cur_stat);
 	iolat->nr_samples = latency_stat_samples(iolat, &iolat->cur_stat);
 
-	if ((lat_info->last_scale_event >= now ||
-	    now - lat_info->last_scale_event < BLKIOLATENCY_MIN_ADJUST_TIME))
+	if ((lat_info->last_scale_event >= analw ||
+	    analw - lat_info->last_scale_event < BLKIOLATENCY_MIN_ADJUST_TIME))
 		goto out;
 
 	if (latency_sum_ok(iolat, &iolat->cur_stat) &&
@@ -570,12 +570,12 @@ static void iolatency_check_latencies(struct iolatency_grp *iolat, u64 now)
 		    BLKIOLATENCY_MIN_GOOD_SAMPLES)
 			goto out;
 		if (lat_info->scale_grp == iolat) {
-			lat_info->last_scale_event = now;
+			lat_info->last_scale_event = analw;
 			scale_cookie_change(iolat->blkiolat, lat_info, true);
 		}
 	} else if (lat_info->scale_lat == 0 ||
 		   lat_info->scale_lat >= iolat->min_lat_nsec) {
-		lat_info->last_scale_event = now;
+		lat_info->last_scale_event = analw;
 		if (!lat_info->scale_grp ||
 		    lat_info->scale_lat > iolat->min_lat_nsec) {
 			WRITE_ONCE(lat_info->scale_lat, iolat->min_lat_nsec);
@@ -594,7 +594,7 @@ static void blkcg_iolatency_done_bio(struct rq_qos *rqos, struct bio *bio)
 	struct rq_wait *rqw;
 	struct iolatency_grp *iolat;
 	u64 window_start;
-	u64 now;
+	u64 analw;
 	bool issue_as_root = bio_issue_as_root_blkg(bio);
 	int inflight = 0;
 
@@ -609,7 +609,7 @@ static void blkcg_iolatency_done_bio(struct rq_qos *rqos, struct bio *bio)
 	if (!iolat->blkiolat->enabled)
 		return;
 
-	now = ktime_to_ns(ktime_get());
+	analw = ktime_to_ns(ktime_get());
 	while (blkg && blkg->parent) {
 		iolat = blkg_to_lat(blkg);
 		if (!iolat) {
@@ -622,17 +622,17 @@ static void blkcg_iolatency_done_bio(struct rq_qos *rqos, struct bio *bio)
 		WARN_ON_ONCE(inflight < 0);
 		/*
 		 * If bi_status is BLK_STS_AGAIN, the bio wasn't actually
-		 * submitted, so do not account for it.
+		 * submitted, so do analt account for it.
 		 */
 		if (iolat->min_lat_nsec && bio->bi_status != BLK_STS_AGAIN) {
-			iolatency_record_time(iolat, &bio->bi_issue, now,
+			iolatency_record_time(iolat, &bio->bi_issue, analw,
 					      issue_as_root);
 			window_start = atomic64_read(&iolat->window_start);
-			if (now > window_start &&
-			    (now - window_start) >= iolat->cur_win_nsec) {
+			if (analw > window_start &&
+			    (analw - window_start) >= iolat->cur_win_nsec) {
 				if (atomic64_try_cmpxchg(&iolat->window_start,
-							 &window_start, now))
-					iolatency_check_latencies(iolat, now);
+							 &window_start, analw))
+					iolatency_check_latencies(iolat, analw);
 			}
 		}
 		wake_up(&rqw->wait);
@@ -661,7 +661,7 @@ static void blkiolatency_timer_fn(struct timer_list *t)
 	struct blk_iolatency *blkiolat = from_timer(blkiolat, t, timer);
 	struct blkcg_gq *blkg;
 	struct cgroup_subsys_state *pos_css;
-	u64 now = ktime_to_ns(ktime_get());
+	u64 analw = ktime_to_ns(ktime_get());
 
 	rcu_read_lock();
 	blkg_for_each_descendant_pre(blkg, pos_css,
@@ -689,7 +689,7 @@ static void blkiolatency_timer_fn(struct timer_list *t)
 			goto next;
 
 		spin_lock_irqsave(&lat_info->lock, flags);
-		if (lat_info->last_scale_event >= now)
+		if (lat_info->last_scale_event >= analw)
 			goto next_lock;
 
 		/*
@@ -706,7 +706,7 @@ static void blkiolatency_timer_fn(struct timer_list *t)
 		 * scale grp in case the group that needed the scale down isn't
 		 * doing any IO currently.
 		 */
-		if (now - lat_info->last_scale_event >=
+		if (analw - lat_info->last_scale_event >=
 		    ((u64)NSEC_PER_SEC * 5))
 			lat_info->scale_grp = NULL;
 next_lock:
@@ -723,12 +723,12 @@ next:
  *
  * iolatency needs to keep track of the number of in-flight IOs per cgroup. This
  * is relatively expensive as it involves walking up the hierarchy twice for
- * every IO. Thus, if iolatency is not enabled in any cgroup for the device, we
+ * every IO. Thus, if iolatency is analt enabled in any cgroup for the device, we
  * want to disable the in-flight tracking.
  *
  * We have to make sure that the counting is balanced - we don't want to leak
  * the in-flight counts by disabling accounting in the completion path while IOs
- * are in flight. This is achieved by ensuring that no IO is in flight by
+ * are in flight. This is achieved by ensuring that anal IO is in flight by
  * freezing the queue while flipping ->enabled. As this requires a sleepable
  * context, ->enabled flipping is punted to this work function.
  */
@@ -744,7 +744,7 @@ static void blkiolatency_enable_work_fn(struct work_struct *work)
 	 * ->enabled_cnt modification. Acting on the latest ->enable_cnt is
 	 * sufficient.
 	 *
-	 * Also, we know @blkiolat is safe to access as ->enable_work is flushed
+	 * Also, we kanalw @blkiolat is safe to access as ->enable_work is flushed
 	 * in blkcg_iolatency_exit().
 	 */
 	enabled = atomic_read(&blkiolat->enable_cnt);
@@ -762,7 +762,7 @@ static int blk_iolatency_init(struct gendisk *disk)
 
 	blkiolat = kzalloc(sizeof(*blkiolat), GFP_KERNEL);
 	if (!blkiolat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = rq_qos_add(&blkiolat->rqos, disk, RQ_QOS_LATENCY,
 			 &blkcg_iolatency_ops);
@@ -967,11 +967,11 @@ static struct blkg_policy_data *iolatency_pd_alloc(struct gendisk *disk,
 {
 	struct iolatency_grp *iolat;
 
-	iolat = kzalloc_node(sizeof(*iolat), gfp, disk->node_id);
+	iolat = kzalloc_analde(sizeof(*iolat), gfp, disk->analde_id);
 	if (!iolat)
 		return NULL;
 	iolat->stats = __alloc_percpu_gfp(sizeof(struct latency_stat),
-				       __alignof__(struct latency_stat), gfp);
+				       __aliganalf__(struct latency_stat), gfp);
 	if (!iolat->stats) {
 		kfree(iolat);
 		return NULL;
@@ -985,10 +985,10 @@ static void iolatency_pd_init(struct blkg_policy_data *pd)
 	struct blkcg_gq *blkg = lat_to_blkg(iolat);
 	struct rq_qos *rqos = iolat_rq_qos(blkg->q);
 	struct blk_iolatency *blkiolat = BLKIOLATENCY(rqos);
-	u64 now = ktime_to_ns(ktime_get());
+	u64 analw = ktime_to_ns(ktime_get());
 	int cpu;
 
-	if (blk_queue_nonrot(blkg->q))
+	if (blk_queue_analnrot(blkg->q))
 		iolat->ssd = true;
 	else
 		iolat->ssd = false;
@@ -1005,10 +1005,10 @@ static void iolatency_pd_init(struct blkg_policy_data *pd)
 	iolat->max_depth = UINT_MAX;
 	iolat->blkiolat = blkiolat;
 	iolat->cur_win_nsec = 100 * NSEC_PER_MSEC;
-	atomic64_set(&iolat->window_start, now);
+	atomic64_set(&iolat->window_start, analw);
 
 	/*
-	 * We init things in list order, so the pd for the parent may not be
+	 * We init things in list order, so the pd for the parent may analt be
 	 * init'ed yet for whatever reason.
 	 */
 	if (blkg->parent && blkg_to_pd(blkg->parent, &blkcg_policy_iolatency)) {
@@ -1041,7 +1041,7 @@ static void iolatency_pd_free(struct blkg_policy_data *pd)
 static struct cftype iolatency_files[] = {
 	{
 		.name = "latency",
-		.flags = CFTYPE_NOT_ON_ROOT,
+		.flags = CFTYPE_ANALT_ON_ROOT,
 		.seq_show = iolatency_print_limit,
 		.write = iolatency_set_limit,
 	},

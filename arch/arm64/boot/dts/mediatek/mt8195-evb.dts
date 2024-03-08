@@ -56,13 +56,13 @@
 	status = "okay";
 };
 
-&nor_flash {
+&analr_flash {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&nor_pins_default>;
+	pinctrl-0 = <&analr_pins_default>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 	};
@@ -114,18 +114,18 @@
 		};
 	};
 
-	nor_pins_default: nor-pins {
+	analr_pins_default: analr-pins {
 		pins0 {
-			pinmux = <PINMUX_GPIO142__FUNC_SPINOR_IO0>,
-				 <PINMUX_GPIO141__FUNC_SPINOR_CK>,
-				 <PINMUX_GPIO143__FUNC_SPINOR_IO1>;
+			pinmux = <PINMUX_GPIO142__FUNC_SPIANALR_IO0>,
+				 <PINMUX_GPIO141__FUNC_SPIANALR_CK>,
+				 <PINMUX_GPIO143__FUNC_SPIANALR_IO1>;
 			bias-pull-down;
 		};
 
 		pins1 {
-			pinmux = <PINMUX_GPIO140__FUNC_SPINOR_CS>,
-				 <PINMUX_GPIO130__FUNC_SPINOR_IO2>,
-				 <PINMUX_GPIO131__FUNC_SPINOR_IO3>;
+			pinmux = <PINMUX_GPIO140__FUNC_SPIANALR_CS>,
+				 <PINMUX_GPIO130__FUNC_SPIANALR_IO2>,
+				 <PINMUX_GPIO131__FUNC_SPIANALR_IO3>;
 			bias-pull-up;
 		};
 	};
@@ -174,7 +174,7 @@
 
 &xhci3 {
 	/* This controller is connected with a BT device.
-	 * Disable usb2 lpm to prevent known issues.
+	 * Disable usb2 lpm to prevent kanalwn issues.
 	 */
 	usb2-lpm-disable;
 	status = "okay";

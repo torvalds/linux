@@ -81,22 +81,22 @@ static int gbphy_dev_uevent(const struct device *dev, struct kobj_uevent_env *en
 	const struct gb_host_device *hd = intf->hd;
 
 	if (add_uevent_var(env, "BUS=%u", hd->bus_id))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (add_uevent_var(env, "MODULE=%u", module->module_id))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (add_uevent_var(env, "INTERFACE=%u", intf->interface_id))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (add_uevent_var(env, "GREYBUS_ID=%08x/%08x",
 			   intf->vendor_id, intf->product_id))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (add_uevent_var(env, "BUNDLE=%u", gbphy_dev->bundle->id))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (add_uevent_var(env, "BUNDLE_CLASS=%02x", bundle->class))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (add_uevent_var(env, "GBPHY=%u", gbphy_dev->id))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (add_uevent_var(env, "PROTOCOL_ID=%02x", cport_desc->protocol_id))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -139,7 +139,7 @@ static int gbphy_dev_probe(struct device *dev)
 
 	id = gbphy_dev_match_id(gbphy_dev, gbphy_drv);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* for old kernels we need get_sync to resume parent devices */
 	ret = gb_pm_runtime_get_sync(gbphy_dev->bundle);
@@ -148,7 +148,7 @@ static int gbphy_dev_probe(struct device *dev)
 
 	pm_runtime_set_autosuspend_delay(dev, GB_GBPHY_AUTOSUSPEND_MS);
 	pm_runtime_use_autosuspend(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
@@ -160,7 +160,7 @@ static int gbphy_dev_probe(struct device *dev)
 	if (ret) {
 		pm_runtime_disable(dev);
 		pm_runtime_set_suspended(dev);
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 		pm_runtime_dont_use_autosuspend(dev);
 	}
 
@@ -178,7 +178,7 @@ static void gbphy_dev_remove(struct device *dev)
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_dont_use_autosuspend(dev);
 }
 
@@ -196,7 +196,7 @@ int gb_gbphy_register_driver(struct gbphy_driver *driver,
 	int retval;
 
 	if (greybus_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	driver->driver.bus = &gbphy_bus_type;
 	driver->driver.name = driver->name;
@@ -232,7 +232,7 @@ static struct gbphy_device *gb_gbphy_create_dev(struct gb_bundle *bundle,
 	gbphy_dev = kzalloc(sizeof(*gbphy_dev), GFP_KERNEL);
 	if (!gbphy_dev) {
 		ida_simple_remove(&gbphy_id, id);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	gbphy_dev->id = id;
@@ -262,7 +262,7 @@ static void gb_gbphy_disconnect(struct gb_bundle *bundle)
 
 	ret = gb_pm_runtime_get_sync(bundle);
 	if (ret < 0)
-		gb_pm_runtime_get_noresume(bundle);
+		gb_pm_runtime_get_analresume(bundle);
 
 	list_for_each_entry_safe(gbphy_dev, temp, &gbphy_host->devices, list) {
 		list_del(&gbphy_dev->list);
@@ -280,11 +280,11 @@ static int gb_gbphy_probe(struct gb_bundle *bundle,
 	int i;
 
 	if (bundle->num_cports == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	gbphy_host = kzalloc(sizeof(*gbphy_host), GFP_KERNEL);
 	if (!gbphy_host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gbphy_host->bundle = bundle;
 	INIT_LIST_HEAD(&gbphy_host->devices);

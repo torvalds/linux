@@ -4,7 +4,7 @@
  *
  * V4L2 events.
  *
- * Copyright (C) 2009--2010 Nokia Corporation.
+ * Copyright (C) 2009--2010 Analkia Corporation.
  *
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  */
@@ -34,7 +34,7 @@ static int __v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event)
 
 	if (list_empty(&fh->available)) {
 		spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	WARN_ON(fh->navailable == 0);
@@ -57,11 +57,11 @@ static int __v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event)
 }
 
 int v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event,
-		       int nonblocking)
+		       int analnblocking)
 {
 	int ret;
 
-	if (nonblocking)
+	if (analnblocking)
 		return __v4l2_event_dequeue(fh, event);
 
 	/* Release the vdev lock while waiting */
@@ -75,7 +75,7 @@ int v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event,
 			break;
 
 		ret = __v4l2_event_dequeue(fh, event);
-	} while (ret == -ENOENT);
+	} while (ret == -EANALENT);
 
 	if (fh->vdev->lock)
 		mutex_lock(fh->vdev->lock);
@@ -116,7 +116,7 @@ static void __v4l2_event_queue_fh(struct v4l2_fh *fh,
 
 	/* Do we have any free events? */
 	if (sev->in_use == sev->elems) {
-		/* no, remove the oldest one */
+		/* anal, remove the oldest one */
 		kev = sev->events + sev_pos(sev, 0);
 		list_del(&kev->list);
 		sev->in_use--;
@@ -237,7 +237,7 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 
 	sev = kvzalloc(struct_size(sev, events, elems), GFP_KERNEL);
 	if (!sev)
-		return -ENOMEM;
+		return -EANALMEM;
 	sev->elems = elems;
 	for (i = 0; i < elems; i++)
 		sev->events[i].sev = sev;

@@ -19,7 +19,7 @@ currently).
 2. HPMCs
 ========
 
-When real-mode code tries to access non-existent memory, you'll get
+When real-mode code tries to access analn-existent memory, you'll get
 an HPMC instead of a kernel oops.  To debug an HPMC, try to find
 the System Responder/Requestor addresses.  The System Requestor
 address should match (one of the) processor HPAs (high addresses in
@@ -36,11 +36,11 @@ access it.
 ============
 
 Certain, very critical code has to clear the Q bit in the PSW.  What
-happens when the Q bit is cleared is the CPU does not update the
+happens when the Q bit is cleared is the CPU does analt update the
 registers interruption handlers read to find out where the machine
 was interrupted - so if you get an interruption between the instruction
-that clears the Q bit and the RFI that sets it again you don't know
+that clears the Q bit and the RFI that sets it again you don't kanalw
 where exactly it happened.  If you're lucky the IAOQ will point to the
-instruction that cleared the Q bit, if you're not it points anywhere
+instruction that cleared the Q bit, if you're analt it points anywhere
 at all.  Usually Q bit problems will show themselves in unexplainable
 system hangs or running off the end of physical memory.

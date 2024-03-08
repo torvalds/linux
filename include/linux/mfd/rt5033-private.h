@@ -62,7 +62,7 @@ enum rt5033_reg {
 #define RT5033_CHG_STAT_DISCHARGING	0x00
 #define RT5033_CHG_STAT_FULL		0x10
 #define RT5033_CHG_STAT_CHARGING	0x20
-#define RT5033_CHG_STAT_NOT_CHARGING	0x30
+#define RT5033_CHG_STAT_ANALT_CHARGING	0x30
 
 /* RT5033 CHGCTRL1 register */
 #define RT5033_CHGCTRL1_IAICR_MASK	0xe0
@@ -115,7 +115,7 @@ enum rt5033_reg {
 
 /* RT5033 charger property - model, manufacturer */
 #define RT5033_CHARGER_MODEL	"RT5033WSC Charger"
-#define RT5033_MANUFACTURER	"Richtek Technology Corporation"
+#define RT5033_MANUFACTURER	"Richtek Techanallogy Corporation"
 
 /*
  * While RT5033 charger can limit the fast-charge current (as in CHGCTRL1

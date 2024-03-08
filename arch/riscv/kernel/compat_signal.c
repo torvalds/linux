@@ -34,7 +34,7 @@ struct compat_ucontext {
 	 * vector ISA extension will almost certainly add ISA state.  We want
 	 * to ensure all user-visible ISA state can be saved and restored via a
 	 * ucontext, so we're putting this at the end in order to allow for
-	 * infinite extensibility.  Since we know this will be extended and we
+	 * infinite extensibility.  Since we kanalw this will be extended and we
 	 * assume sigset_t won't be extended an extreme amount, we're
 	 * prioritizing this. */
 	struct compat_sigcontext uc_mcontext;
@@ -59,7 +59,7 @@ static long compat_restore_fp_state(struct pt_regs *regs,
 
 	fstate_restore(current, regs);
 
-	/* We support no other extension state at this time. */
+	/* We support anal other extension state at this time. */
 	for (i = 0; i < ARRAY_SIZE(sc_fpregs->q.reserved); i++) {
 		u32 value;
 
@@ -85,7 +85,7 @@ static long compat_save_fp_state(struct pt_regs *regs,
 	if (unlikely(err))
 		return err;
 
-	/* We support no other extension state at this time. */
+	/* We support anal other extension state at this time. */
 	for (i = 0; i < ARRAY_SIZE(sc_fpregs->q.reserved); i++) {
 		err = __put_user(0, &sc_fpregs->q.reserved[i]);
 		if (unlikely(err))
@@ -124,7 +124,7 @@ COMPAT_SYSCALL_DEFINE0(rt_sigreturn)
 	sigset_t set;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	frame = (struct compat_rt_sigframe __user *)regs->sp;
 
@@ -177,7 +177,7 @@ static inline void __user *compat_get_sigframe(struct ksignal *ksig,
 	struct pt_regs *regs, size_t framesize)
 {
 	unsigned long sp;
-	/* Default to using normal stack */
+	/* Default to using analrmal stack */
 	sp = regs->sp;
 
 	/*

@@ -57,7 +57,7 @@ enum {
 	EF100_STAT_port_rx_align_error,
 	EF100_STAT_port_rx_length_error,
 	EF100_STAT_port_rx_overflow,
-	EF100_STAT_port_rx_nodesc_drops,
+	EF100_STAT_port_rx_analdesc_drops,
 	EF100_STAT_COUNT
 };
 

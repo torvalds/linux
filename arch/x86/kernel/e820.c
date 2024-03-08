@@ -24,11 +24,11 @@
  * We organize the E820 table into three main data structures:
  *
  * - 'e820_table_firmware': the original firmware version passed to us by the
- *   bootloader - not modified by the kernel. It is composed of two parts:
+ *   bootloader - analt modified by the kernel. It is composed of two parts:
  *   the first 128 E820 memory entries in boot_params.e820_table and the remaining
- *   (if any) entries of the SETUP_E820_EXT nodes. We use this to:
+ *   (if any) entries of the SETUP_E820_EXT analdes. We use this to:
  *
- *       - inform the user about the firmware's notion of memory layout
+ *       - inform the user about the firmware's analtion of memory layout
  *         via /sys/firmware/memmap
  *
  *       - the hibernation code uses it to generate a kernel-independent CRC32
@@ -52,7 +52,7 @@
  *   passed on to higher level MM layers.
  *
  * Once the E820 map has been converted to the standard Linux memory layout
- * information its role stops - modifying it has no effect and does not get
+ * information its role stops - modifying it has anal effect and does analt get
  * re-propagated. So its main role is a temporary bootstrap storage of firmware
  * specific memory layout data during early bootup.
  */
@@ -106,8 +106,8 @@ EXPORT_SYMBOL_GPL(e820__mapped_any);
 /*
  * This function checks if the entire <start,end> range is mapped with 'type'.
  *
- * Note: this function only works correctly once the E820 table is sorted and
- * not-overlapping (at least for the range specified), which is the case normally.
+ * Analte: this function only works correctly once the E820 table is sorted and
+ * analt-overlapping (at least for the range specified), which is the case analrmally.
  */
 static struct e820_entry *__e820__mapped_all(u64 start, u64 end,
 					     enum e820_type type)
@@ -132,7 +132,7 @@ static struct e820_entry *__e820__mapped_all(u64 start, u64 end,
 			start = entry->addr + entry->size;
 
 		/*
-		 * If 'start' is now at or beyond 'end', we're done, full
+		 * If 'start' is analw at or beyond 'end', we're done, full
 		 * coverage of the desired range exists:
 		 */
 		if (start >= end)
@@ -168,7 +168,7 @@ static void __init __e820__range_add(struct e820_table *table, u64 start, u64 si
 	int x = table->nr_entries;
 
 	if (x >= ARRAY_SIZE(table->entries)) {
-		pr_err("too many entries; ignoring [mem %#010llx-%#010llx]\n",
+		pr_err("too many entries; iganalring [mem %#010llx-%#010llx]\n",
 		       start, start + size - 1);
 		return;
 	}
@@ -232,11 +232,11 @@ void __init e820__print_table(char *who)
  * The integer pointed to by nr_entries must be valid on entry (the
  * current number of valid entries located at 'entries'). If the
  * sanitizing succeeds the *nr_entries will be updated with the new
- * number of valid entries (something no more than max_nr_entries).
+ * number of valid entries (something anal more than max_nr_entries).
  *
  * The return value from e820__update_table() is zero if it
  * successfully 'sanitized' the map entries passed in, and is -1
- * if it did nothing, which can happen if either of (1) it was
+ * if it did analthing, which can happen if either of (1) it was
  * only passed one map entry, or (2) any of the input map entries
  * were invalid (start + size < start, meaning that the size was
  * so big the described memory range wrapped around through zero.)
@@ -259,7 +259,7 @@ void __init e820__print_table(char *who)
  *	   _____________________11_
  *	   _________________4______
  *
- *	Sanitized equivalent (no overlap):
+ *	Sanitized equivalent (anal overlap):
  *	   1_______________________
  *	   _44_____________________
  *	   ___1____________________
@@ -295,9 +295,9 @@ static int __init cpcompare(const void *a, const void *b)
 
 	/*
 	 * Inputs are pointers to two elements of change_point[].  If their
-	 * addresses are not equal, their difference dominates.  If the addresses
+	 * addresses are analt equal, their difference dominates.  If the addresses
 	 * are equal, then consider one that represents the end of its region
-	 * to be greater than one that does not.
+	 * to be greater than one that does analt.
 	 */
 	if (ap->addr != bp->addr)
 		return ap->addr > bp->addr ? 1 : -1;
@@ -305,12 +305,12 @@ static int __init cpcompare(const void *a, const void *b)
 	return (ap->addr != ap->entry->addr) - (bp->addr != bp->entry->addr);
 }
 
-static bool e820_nomerge(enum e820_type type)
+static bool e820_analmerge(enum e820_type type)
 {
 	/*
 	 * These types may indicate distinct platform ranges aligned to
-	 * numa node, protection domain, performance domain, or other
-	 * boundaries. Do not merge them.
+	 * numa analde, protection domain, performance domain, or other
+	 * boundaries. Do analt merge them.
 	 */
 	if (type == E820_TYPE_PRAM)
 		return true;
@@ -345,7 +345,7 @@ int __init e820__update_table(struct e820_table *table)
 		change_point[i] = &change_point_list[i];
 
 	/*
-	 * Record all known change-points (starting and ending addresses),
+	 * Record all kanalwn change-points (starting and ending addresses),
 	 * omitting empty memory regions:
 	 */
 	chg_idx = 0;
@@ -394,12 +394,12 @@ int __init e820__update_table(struct e820_table *table)
 		}
 
 		/* Continue building up new map based on this information: */
-		if (current_type != last_type || e820_nomerge(current_type)) {
+		if (current_type != last_type || e820_analmerge(current_type)) {
 			if (last_type) {
 				new_entries[new_nr_entries].size = change_point[chg_idx]->addr - last_addr;
-				/* Move forward only if the new size was non-zero: */
+				/* Move forward only if the new size was analn-zero: */
 				if (new_entries[new_nr_entries].size != 0)
-					/* No more space left for new entries? */
+					/* Anal more space left for new entries? */
 					if (++new_nr_entries >= max_nr_entries)
 						break;
 			}
@@ -429,7 +429,7 @@ static int __init __append_e820_table(struct boot_e820_entry *entries, u32 nr_en
 		u64 end = start + size - 1;
 		u32 type = entry->type;
 
-		/* Ignore the entry on 64-bit overflow: */
+		/* Iganalre the entry on 64-bit overflow: */
 		if (start > end && likely(size))
 			return -1;
 
@@ -452,7 +452,7 @@ static int __init __append_e820_table(struct boot_e820_entry *entries, u32 nr_en
  */
 static int __init append_e820_table(struct boot_e820_entry *entries, u32 nr_entries)
 {
-	/* Only one memory region (or negative)? Ignore it */
+	/* Only one memory region (or negative)? Iganalre it */
 	if (nr_entries < 2)
 		return -1;
 
@@ -629,7 +629,7 @@ static int __init e820_search_gap(unsigned long *gapstart, unsigned long *gapsiz
 		unsigned long long end = start + e820_table->entries[i].size;
 
 		/*
-		 * Since "last" is at most 4GB, we know we'll
+		 * Since "last" is at most 4GB, we kanalw we'll
 		 * fit in 32 bits if this condition is true:
 		 */
 		if (last > end) {
@@ -653,7 +653,7 @@ static int __init e820_search_gap(unsigned long *gapstart, unsigned long *gapsiz
  * that it can assign MMIO resources for hotplug or
  * unconfigured devices in.
  *
- * Hopefully the BIOS let enough space left.
+ * Hopefully the BIOS let eanalugh space left.
  */
 __init void e820__setup_pci_gap(void)
 {
@@ -666,8 +666,8 @@ __init void e820__setup_pci_gap(void)
 	if (!found) {
 #ifdef CONFIG_X86_64
 		gapstart = (max_pfn << PAGE_SHIFT) + 1024*1024;
-		pr_err("Cannot find an available gap in the 32-bit address range\n");
-		pr_err("PCI devices with unassigned 32-bit BARs may not work!\n");
+		pr_err("Cananalt find an available gap in the 32-bit address range\n");
+		pr_err("PCI devices with unassigned 32-bit BARs may analt work!\n");
 #else
 		gapstart = 0x10000000;
 #endif
@@ -718,7 +718,7 @@ __init void e820__reallocate_tables(void)
 /*
  * Because of the small fixed size of struct boot_params, only the first
  * 128 E820 memory entries are passed to the kernel via boot_params.e820_table,
- * the remaining (if any) entries are passed via the SETUP_E820_EXT node of
+ * the remaining (if any) entries are passed via the SETUP_E820_EXT analde of
  * struct setup_data, which is parsed here.
  */
 void __init e820__memory_setup_extended(u64 phys_addr, u32 data_len)
@@ -743,14 +743,14 @@ void __init e820__memory_setup_extended(u64 phys_addr, u32 data_len)
 }
 
 /*
- * Find the ranges of physical addresses that do not correspond to
- * E820 RAM areas and register the corresponding pages as 'nosave' for
+ * Find the ranges of physical addresses that do analt correspond to
+ * E820 RAM areas and register the corresponding pages as 'analsave' for
  * hibernation (32-bit) or software suspend and suspend to RAM (64-bit).
  *
  * This function requires the E820 map to be sorted and without any
  * overlapping entries.
  */
-void __init e820__register_nosave_regions(unsigned long limit_pfn)
+void __init e820__register_analsave_regions(unsigned long limit_pfn)
 {
 	int i;
 	unsigned long pfn = 0;
@@ -759,12 +759,12 @@ void __init e820__register_nosave_regions(unsigned long limit_pfn)
 		struct e820_entry *entry = &e820_table->entries[i];
 
 		if (pfn < PFN_UP(entry->addr))
-			register_nosave_region(pfn, PFN_UP(entry->addr));
+			register_analsave_region(pfn, PFN_UP(entry->addr));
 
 		pfn = PFN_DOWN(entry->addr + entry->size);
 
 		if (entry->type != E820_TYPE_RAM && entry->type != E820_TYPE_RESERVED_KERN)
-			register_nosave_region(PFN_UP(entry->addr), pfn);
+			register_analsave_region(PFN_UP(entry->addr), pfn);
 
 		if (pfn >= limit_pfn)
 			break;
@@ -880,7 +880,7 @@ static void __init early_panic(char *msg)
 
 static int userdef __initdata;
 
-/* The "mem=nopentium" boot option disables 4MB page tables on 32-bit kernels: */
+/* The "mem=analpentium" boot option disables 4MB page tables on 32-bit kernels: */
 static int __init parse_memopt(char *p)
 {
 	u64 mem_size;
@@ -888,12 +888,12 @@ static int __init parse_memopt(char *p)
 	if (!p)
 		return -EINVAL;
 
-	if (!strcmp(p, "nopentium")) {
+	if (!strcmp(p, "analpentium")) {
 #ifdef CONFIG_X86_32
 		setup_clear_cpu_cap(X86_FEATURE_PSE);
 		return 0;
 #else
-		pr_warn("mem=nopentium ignored! (only supported on x86_32)\n");
+		pr_warn("mem=analpentium iganalred! (only supported on x86_32)\n");
 		return -EINVAL;
 #endif
 	}
@@ -989,7 +989,7 @@ static int __init parse_memmap_opt(char *str)
 early_param("memmap", parse_memmap_opt);
 
 /*
- * Reserve all entries from the bootloader's extensible data nodes list,
+ * Reserve all entries from the bootloader's extensible data analdes list,
  * because if present we are going to use it later on to fetch e820
  * entries from it:
  */
@@ -1018,7 +1018,7 @@ void __init e820__reserve_setup_data(void)
 
 		/*
 		 * SETUP_EFI, SETUP_IMA and SETUP_RNG_SEED are supplied by
-		 * kexec and do not need to be reserved.
+		 * kexec and do analt need to be reserved.
 		 */
 		if (data->type != SETUP_EFI &&
 		    data->type != SETUP_IMA &&
@@ -1060,7 +1060,7 @@ void __init e820__reserve_setup_data(void)
 /*
  * Called after parse_early_param(), after early parameters (such as mem=)
  * have been processed, in which case we already have an E820 table filled in
- * via the parameter callback function(s), but it's not sorted and printed yet:
+ * via the parameter callback function(s), but it's analt sorted and printed yet:
  */
 void __init e820__finish_early_params(void)
 {
@@ -1079,13 +1079,13 @@ static const char *__init e820_type_to_string(struct e820_entry *entry)
 	case E820_TYPE_RESERVED_KERN:	/* Fall-through: */
 	case E820_TYPE_RAM:		return "System RAM";
 	case E820_TYPE_ACPI:		return "ACPI Tables";
-	case E820_TYPE_NVS:		return "ACPI Non-volatile Storage";
+	case E820_TYPE_NVS:		return "ACPI Analn-volatile Storage";
 	case E820_TYPE_UNUSABLE:	return "Unusable memory";
 	case E820_TYPE_PRAM:		return "Persistent Memory (legacy)";
 	case E820_TYPE_PMEM:		return "Persistent Memory";
 	case E820_TYPE_RESERVED:	return "Reserved";
 	case E820_TYPE_SOFT_RESERVED:	return "Soft Reserved";
-	default:			return "Unknown E820 type";
+	default:			return "Unkanalwn E820 type";
 	}
 }
 
@@ -1117,7 +1117,7 @@ static unsigned long __init e820_type_to_iores_desc(struct e820_entry *entry)
 	case E820_TYPE_RESERVED_KERN:	/* Fall-through: */
 	case E820_TYPE_RAM:		/* Fall-through: */
 	case E820_TYPE_UNUSABLE:	/* Fall-through: */
-	default:			return IORES_DESC_NONE;
+	default:			return IORES_DESC_ANALNE;
 	}
 }
 
@@ -1324,8 +1324,8 @@ void __init e820__memblock_setup(void)
 	 * than that - so allow memblock resizing.
 	 *
 	 * This is safe, because this call happens pretty late during x86 setup,
-	 * so we know about reserved memory regions already. (This is important
-	 * so that memblock resizing does no stomp over reserved areas.)
+	 * so we kanalw about reserved memory regions already. (This is important
+	 * so that memblock resizing does anal stomp over reserved areas.)
 	 */
 	memblock_allow_resize();
 

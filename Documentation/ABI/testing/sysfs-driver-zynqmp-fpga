@@ -9,19 +9,19 @@ Description:	(RO) Read fpga status.
 		https://docs.xilinx.com/v/u/en-US/ug570-ultrascale-configuration
 
 		======================  ==============================================
-		BIT(0)			0: No CRC error
+		BIT(0)			0: Anal CRC error
 					1: CRC error
 
-		BIT(1)			0: Decryptor security not set
+		BIT(1)			0: Decryptor security analt set
 					1: Decryptor security set
 
-		BIT(2)			0: MMCMs/PLLs are not locked
+		BIT(2)			0: MMCMs/PLLs are analt locked
 					1: MMCMs/PLLs are locked
 
-		BIT(3)			0: DCI not matched
+		BIT(3)			0: DCI analt matched
 					1: DCI matched
 
-		BIT(4)			0: Start-up sequence has not finished
+		BIT(4)			0: Start-up sequence has analt finished
 					1: Start-up sequence has finished
 
 		BIT(5)			0: All I/Os are placed in High-Z state
@@ -35,20 +35,20 @@ Description:	(RO) Read fpga status.
 
 		BIT(8) to BIT(10)	Status of the mode pins
 
-		BIT(11)			0: Initialization has not finished
+		BIT(11)			0: Initialization has analt finished
 					1: Initialization finished
 
 		BIT(12)			Value on INIT_B_PIN pin
 
-		BIT(13)			0: Signal not released
+		BIT(13)			0: Signal analt released
 					1: Signal released
 
 		BIT(14)			Value on DONE_PIN pin.
 
-		BIT(15)			0: No IDCODE_ERROR
+		BIT(15)			0: Anal IDCODE_ERROR
 					1: IDCODE_ERROR
 
-		BIT(16)			0: No SECURITY_ERROR
+		BIT(16)			0: Anal SECURITY_ERROR
 					1: SECURITY_ERROR
 
 		BIT(17)			System Monitor over-temperature if set

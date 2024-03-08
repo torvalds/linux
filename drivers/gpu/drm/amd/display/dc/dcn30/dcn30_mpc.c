@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -358,62 +358,62 @@ void mpc3_set_output_gamma(
 		mpc3_power_on_ogam_lut(mpc, mpcc_id, false);
 }
 
-void mpc3_set_denorm(
+void mpc3_set_deanalrm(
 		struct mpc *mpc,
 		int opp_id,
 		enum dc_color_depth output_depth)
 {
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
-	/* De-normalize Fixed U1.13 color data to different target bit depths. 0 is bypass*/
-	int denorm_mode = 0;
+	/* De-analrmalize Fixed U1.13 color data to different target bit depths. 0 is bypass*/
+	int deanalrm_mode = 0;
 
 	switch (output_depth) {
 	case COLOR_DEPTH_666:
-		denorm_mode = 1;
+		deanalrm_mode = 1;
 		break;
 	case COLOR_DEPTH_888:
-		denorm_mode = 2;
+		deanalrm_mode = 2;
 		break;
 	case COLOR_DEPTH_999:
-		denorm_mode = 3;
+		deanalrm_mode = 3;
 		break;
 	case COLOR_DEPTH_101010:
-		denorm_mode = 4;
+		deanalrm_mode = 4;
 		break;
 	case COLOR_DEPTH_111111:
-		denorm_mode = 5;
+		deanalrm_mode = 5;
 		break;
 	case COLOR_DEPTH_121212:
-		denorm_mode = 6;
+		deanalrm_mode = 6;
 		break;
 	case COLOR_DEPTH_141414:
 	case COLOR_DEPTH_161616:
 	default:
-		/* not valid used case! */
+		/* analt valid used case! */
 		break;
 	}
 
-	REG_UPDATE(DENORM_CONTROL[opp_id],
-			MPC_OUT_DENORM_MODE, denorm_mode);
+	REG_UPDATE(DEANALRM_CONTROL[opp_id],
+			MPC_OUT_DEANALRM_MODE, deanalrm_mode);
 }
 
-void mpc3_set_denorm_clamp(
+void mpc3_set_deanalrm_clamp(
 		struct mpc *mpc,
 		int opp_id,
-		struct mpc_denorm_clamp denorm_clamp)
+		struct mpc_deanalrm_clamp deanalrm_clamp)
 {
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
 
 	/*program min and max clamp values for the pixel components*/
-	REG_UPDATE_2(DENORM_CONTROL[opp_id],
-			MPC_OUT_DENORM_CLAMP_MAX_R_CR, denorm_clamp.clamp_max_r_cr,
-			MPC_OUT_DENORM_CLAMP_MIN_R_CR, denorm_clamp.clamp_min_r_cr);
-	REG_UPDATE_2(DENORM_CLAMP_G_Y[opp_id],
-			MPC_OUT_DENORM_CLAMP_MAX_G_Y, denorm_clamp.clamp_max_g_y,
-			MPC_OUT_DENORM_CLAMP_MIN_G_Y, denorm_clamp.clamp_min_g_y);
-	REG_UPDATE_2(DENORM_CLAMP_B_CB[opp_id],
-			MPC_OUT_DENORM_CLAMP_MAX_B_CB, denorm_clamp.clamp_max_b_cb,
-			MPC_OUT_DENORM_CLAMP_MIN_B_CB, denorm_clamp.clamp_min_b_cb);
+	REG_UPDATE_2(DEANALRM_CONTROL[opp_id],
+			MPC_OUT_DEANALRM_CLAMP_MAX_R_CR, deanalrm_clamp.clamp_max_r_cr,
+			MPC_OUT_DEANALRM_CLAMP_MIN_R_CR, deanalrm_clamp.clamp_min_r_cr);
+	REG_UPDATE_2(DEANALRM_CLAMP_G_Y[opp_id],
+			MPC_OUT_DEANALRM_CLAMP_MAX_G_Y, deanalrm_clamp.clamp_max_g_y,
+			MPC_OUT_DEANALRM_CLAMP_MIN_G_Y, deanalrm_clamp.clamp_min_g_y);
+	REG_UPDATE_2(DEANALRM_CLAMP_B_CB[opp_id],
+			MPC_OUT_DEANALRM_CLAMP_MAX_B_CB, deanalrm_clamp.clamp_max_b_cb,
+			MPC_OUT_DEANALRM_CLAMP_MIN_B_CB, deanalrm_clamp.clamp_min_b_cb);
 }
 
 static enum dc_lut_mode mpc3_get_shaper_current(struct mpc *mpc, uint32_t rmu_idx)
@@ -808,7 +808,7 @@ static void mpc3_power_on_shaper_3dlut(
 			REG_WAIT(MPC_RMU_MEM_PWR_CTRL, MPC_RMU0_3DLUT_MEM_PWR_STATE, 0, 1, max_retries);
 		}
 
-		/*read status is not mandatory, it is just for debugging*/
+		/*read status is analt mandatory, it is just for debugging*/
 		REG_GET(MPC_RMU_MEM_PWR_CTRL, MPC_RMU0_SHAPER_MEM_PWR_STATE, &power_status_shaper);
 		REG_GET(MPC_RMU_MEM_PWR_CTRL, MPC_RMU0_3DLUT_MEM_PWR_STATE, &power_status_3dlut);
 	} else if (rmu_idx == 1) {
@@ -1341,7 +1341,7 @@ uint32_t mpcc3_acquire_rmu(struct mpc *mpc, int mpcc_id, int rmu_idx)
 		return rmu_idx;
 	}
 
-	//no vacant RMU units or invalid parameters acquire_post_bldn_3dlut
+	//anal vacant RMU units or invalid parameters acquire_post_bldn_3dlut
 	return -1;
 }
 
@@ -1394,8 +1394,8 @@ static const struct mpc_funcs dcn30_mpc_funcs = {
 	.wait_for_idle = mpc2_assert_idle_mpcc,
 	.assert_mpcc_idle_before_connect = mpc2_assert_mpcc_idle_before_connect,
 	.init_mpcc_list_from_hw = mpc1_init_mpcc_list_from_hw,
-	.set_denorm =  mpc3_set_denorm,
-	.set_denorm_clamp = mpc3_set_denorm_clamp,
+	.set_deanalrm =  mpc3_set_deanalrm,
+	.set_deanalrm_clamp = mpc3_set_deanalrm_clamp,
 	.set_output_csc = mpc3_set_output_csc,
 	.set_ocsc_default = mpc3_set_ocsc_default,
 	.set_output_gamma = mpc3_set_output_gamma,

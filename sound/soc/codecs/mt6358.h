@@ -269,15 +269,15 @@
 #define AUDIO_DIG_DIG_ID_MASK_SFT                         (0xff << 8)
 
 /* MT6358_AUDIO_DIG_DSN_REV0 */
-#define AUDIO_DIG_ANA_MINOR_REV_SFT                       0
-#define AUDIO_DIG_ANA_MINOR_REV_MASK                      0xf
-#define AUDIO_DIG_ANA_MINOR_REV_MASK_SFT                  (0xf << 0)
+#define AUDIO_DIG_ANA_MIANALR_REV_SFT                       0
+#define AUDIO_DIG_ANA_MIANALR_REV_MASK                      0xf
+#define AUDIO_DIG_ANA_MIANALR_REV_MASK_SFT                  (0xf << 0)
 #define AUDIO_DIG_ANA_MAJOR_REV_SFT                       4
 #define AUDIO_DIG_ANA_MAJOR_REV_MASK                      0xf
 #define AUDIO_DIG_ANA_MAJOR_REV_MASK_SFT                  (0xf << 4)
-#define AUDIO_DIG_DIG_MINOR_REV_SFT                       8
-#define AUDIO_DIG_DIG_MINOR_REV_MASK                      0xf
-#define AUDIO_DIG_DIG_MINOR_REV_MASK_SFT                  (0xf << 8)
+#define AUDIO_DIG_DIG_MIANALR_REV_SFT                       8
+#define AUDIO_DIG_DIG_MIANALR_REV_MASK                      0xf
+#define AUDIO_DIG_DIG_MIANALR_REV_MASK_SFT                  (0xf << 8)
 #define AUDIO_DIG_DIG_MAJOR_REV_SFT                       12
 #define AUDIO_DIG_DIG_MAJOR_REV_MASK                      0xf
 #define AUDIO_DIG_DIG_MAJOR_REV_MASK_SFT                  (0xf << 12)
@@ -500,29 +500,29 @@
 #define UL_FIFO_WCLK_6P5M_TESTCK_SRC_SEL_MASK_SFT         (0x7 << 0)
 
 /* MT6358_AFUNC_AUD_CON5 */
-#define R_AUD_DAC_POS_LARGE_MONO_SFT                      8
-#define R_AUD_DAC_POS_LARGE_MONO_MASK                     0xff
-#define R_AUD_DAC_POS_LARGE_MONO_MASK_SFT                 (0xff << 8)
-#define R_AUD_DAC_NEG_LARGE_MONO_SFT                      0
-#define R_AUD_DAC_NEG_LARGE_MONO_MASK                     0xff
-#define R_AUD_DAC_NEG_LARGE_MONO_MASK_SFT                 (0xff << 0)
+#define R_AUD_DAC_POS_LARGE_MOANAL_SFT                      8
+#define R_AUD_DAC_POS_LARGE_MOANAL_MASK                     0xff
+#define R_AUD_DAC_POS_LARGE_MOANAL_MASK_SFT                 (0xff << 8)
+#define R_AUD_DAC_NEG_LARGE_MOANAL_SFT                      0
+#define R_AUD_DAC_NEG_LARGE_MOANAL_MASK                     0xff
+#define R_AUD_DAC_NEG_LARGE_MOANAL_MASK_SFT                 (0xff << 0)
 
 /* MT6358_AFUNC_AUD_CON6 */
-#define R_AUD_DAC_POS_SMALL_MONO_SFT                      12
-#define R_AUD_DAC_POS_SMALL_MONO_MASK                     0xf
-#define R_AUD_DAC_POS_SMALL_MONO_MASK_SFT                 (0xf << 12)
-#define R_AUD_DAC_NEG_SMALL_MONO_SFT                      8
-#define R_AUD_DAC_NEG_SMALL_MONO_MASK                     0xf
-#define R_AUD_DAC_NEG_SMALL_MONO_MASK_SFT                 (0xf << 8)
-#define R_AUD_DAC_POS_TINY_MONO_SFT                       6
-#define R_AUD_DAC_POS_TINY_MONO_MASK                      0x3
-#define R_AUD_DAC_POS_TINY_MONO_MASK_SFT                  (0x3 << 6)
-#define R_AUD_DAC_NEG_TINY_MONO_SFT                       4
-#define R_AUD_DAC_NEG_TINY_MONO_MASK                      0x3
-#define R_AUD_DAC_NEG_TINY_MONO_MASK_SFT                  (0x3 << 4)
-#define R_AUD_DAC_MONO_SEL_SFT                            3
-#define R_AUD_DAC_MONO_SEL_MASK                           0x1
-#define R_AUD_DAC_MONO_SEL_MASK_SFT                       (0x1 << 3)
+#define R_AUD_DAC_POS_SMALL_MOANAL_SFT                      12
+#define R_AUD_DAC_POS_SMALL_MOANAL_MASK                     0xf
+#define R_AUD_DAC_POS_SMALL_MOANAL_MASK_SFT                 (0xf << 12)
+#define R_AUD_DAC_NEG_SMALL_MOANAL_SFT                      8
+#define R_AUD_DAC_NEG_SMALL_MOANAL_MASK                     0xf
+#define R_AUD_DAC_NEG_SMALL_MOANAL_MASK_SFT                 (0xf << 8)
+#define R_AUD_DAC_POS_TINY_MOANAL_SFT                       6
+#define R_AUD_DAC_POS_TINY_MOANAL_MASK                      0x3
+#define R_AUD_DAC_POS_TINY_MOANAL_MASK_SFT                  (0x3 << 6)
+#define R_AUD_DAC_NEG_TINY_MOANAL_SFT                       4
+#define R_AUD_DAC_NEG_TINY_MOANAL_MASK                      0x3
+#define R_AUD_DAC_NEG_TINY_MOANAL_MASK_SFT                  (0x3 << 4)
+#define R_AUD_DAC_MOANAL_SEL_SFT                            3
+#define R_AUD_DAC_MOANAL_SEL_MASK                           0x1
+#define R_AUD_DAC_MOANAL_SEL_MASK_SFT                       (0x1 << 3)
 #define R_AUD_DAC_SW_RSTB_SFT                             0
 #define R_AUD_DAC_SW_RSTB_MASK                            0x1
 #define R_AUD_DAC_SW_RSTB_MASK_SFT                        (0x1 << 0)
@@ -923,9 +923,9 @@
 #define VOW_ADC_CLK_INV_SFT                               10
 #define VOW_ADC_CLK_INV_MASK                              0x1
 #define VOW_ADC_CLK_INV_MASK_SFT                          (0x1 << 10)
-#define VOW_TXIF_MONO_SFT                                 9
-#define VOW_TXIF_MONO_MASK                                0x1
-#define VOW_TXIF_MONO_MASK_SFT                            (0x1 << 9)
+#define VOW_TXIF_MOANAL_SFT                                 9
+#define VOW_TXIF_MOANAL_MASK                                0x1
+#define VOW_TXIF_MOANAL_MASK_SFT                            (0x1 << 9)
 #define VOW_TXIF_SCK_DIV_SFT                              4
 #define VOW_TXIF_SCK_DIV_MASK                             0x1f
 #define VOW_TXIF_SCK_DIV_MASK_SFT                         (0x1f << 4)
@@ -1300,15 +1300,15 @@
 #define AUDENC_DIG_ID_MASK_SFT                            (0xff << 8)
 
 /* MT6358_AUDENC_DSN_REV0 */
-#define AUDENC_ANA_MINOR_REV_SFT                          0
-#define AUDENC_ANA_MINOR_REV_MASK                         0xf
-#define AUDENC_ANA_MINOR_REV_MASK_SFT                     (0xf << 0)
+#define AUDENC_ANA_MIANALR_REV_SFT                          0
+#define AUDENC_ANA_MIANALR_REV_MASK                         0xf
+#define AUDENC_ANA_MIANALR_REV_MASK_SFT                     (0xf << 0)
 #define AUDENC_ANA_MAJOR_REV_SFT                          4
 #define AUDENC_ANA_MAJOR_REV_MASK                         0xf
 #define AUDENC_ANA_MAJOR_REV_MASK_SFT                     (0xf << 4)
-#define AUDENC_DIG_MINOR_REV_SFT                          8
-#define AUDENC_DIG_MINOR_REV_MASK                         0xf
-#define AUDENC_DIG_MINOR_REV_MASK_SFT                     (0xf << 8)
+#define AUDENC_DIG_MIANALR_REV_SFT                          8
+#define AUDENC_DIG_MIANALR_REV_MASK                         0xf
+#define AUDENC_DIG_MIANALR_REV_MASK_SFT                     (0xf << 8)
 #define AUDENC_DIG_MAJOR_REV_SFT                          12
 #define AUDENC_DIG_MAJOR_REV_MASK                         0xf
 #define AUDENC_DIG_MAJOR_REV_MASK_SFT                     (0xf << 12)
@@ -1470,9 +1470,9 @@
 #define RG_AUDADCWIDECM_SFT                               4
 #define RG_AUDADCWIDECM_MASK                              0x1
 #define RG_AUDADCWIDECM_MASK_SFT                          (0x1 << 4)
-#define RG_AUDADCNOPATEST_SFT                             5
-#define RG_AUDADCNOPATEST_MASK                            0x1
-#define RG_AUDADCNOPATEST_MASK_SFT                        (0x1 << 5)
+#define RG_AUDADCANALPATEST_SFT                             5
+#define RG_AUDADCANALPATEST_MASK                            0x1
+#define RG_AUDADCANALPATEST_MASK_SFT                        (0x1 << 5)
 #define RG_AUDADCBYPASS_SFT                               6
 #define RG_AUDADCBYPASS_MASK                              0x1
 #define RG_AUDADCBYPASS_MASK_SFT                          (0x1 << 6)
@@ -1488,9 +1488,9 @@
 #define RG_AUDADCDACNRZ_SFT                               11
 #define RG_AUDADCDACNRZ_MASK                              0x1
 #define RG_AUDADCDACNRZ_MASK_SFT                          (0x1 << 11)
-#define RG_AUDADCNODEM_SFT                                12
-#define RG_AUDADCNODEM_MASK                               0x1
-#define RG_AUDADCNODEM_MASK_SFT                           (0x1 << 12)
+#define RG_AUDADCANALDEM_SFT                                12
+#define RG_AUDADCANALDEM_MASK                               0x1
+#define RG_AUDADCANALDEM_MASK_SFT                           (0x1 << 12)
 #define RG_AUDADCDACTEST_SFT                              13
 #define RG_AUDADCDACTEST_MASK                             0x1
 #define RG_AUDADCDACTEST_MASK_SFT                         (0x1 << 13)
@@ -1685,15 +1685,15 @@
 #define AUDDEC_DIG_ID_MASK_SFT                            (0xff << 8)
 
 /* MT6358_AUDDEC_DSN_REV0 */
-#define AUDDEC_ANA_MINOR_REV_SFT                          0
-#define AUDDEC_ANA_MINOR_REV_MASK                         0xf
-#define AUDDEC_ANA_MINOR_REV_MASK_SFT                     (0xf << 0)
+#define AUDDEC_ANA_MIANALR_REV_SFT                          0
+#define AUDDEC_ANA_MIANALR_REV_MASK                         0xf
+#define AUDDEC_ANA_MIANALR_REV_MASK_SFT                     (0xf << 0)
 #define AUDDEC_ANA_MAJOR_REV_SFT                          4
 #define AUDDEC_ANA_MAJOR_REV_MASK                         0xf
 #define AUDDEC_ANA_MAJOR_REV_MASK_SFT                     (0xf << 4)
-#define AUDDEC_DIG_MINOR_REV_SFT                          8
-#define AUDDEC_DIG_MINOR_REV_MASK                         0xf
-#define AUDDEC_DIG_MINOR_REV_MASK_SFT                     (0xf << 8)
+#define AUDDEC_DIG_MIANALR_REV_SFT                          8
+#define AUDDEC_DIG_MIANALR_REV_MASK                         0xf
+#define AUDDEC_DIG_MIANALR_REV_MASK_SFT                     (0xf << 8)
 #define AUDDEC_DIG_MAJOR_REV_SFT                          12
 #define AUDDEC_DIG_MAJOR_REV_MASK                         0xf
 #define AUDDEC_DIG_MAJOR_REV_MASK_SFT                     (0xf << 12)

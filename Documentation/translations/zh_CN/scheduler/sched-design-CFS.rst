@@ -102,7 +102,7 @@ SMP负载均衡被重做/清理过：遍历运行队列的假设已经从负载�
 
 CFS实现了三种调度策略：
 
-  - SCHED_NORMAL：（传统被称为SCHED_OTHER）：该调度策略用于普通任务。
+  - SCHED_ANALRMAL：（传统被称为SCHED_OTHER）：该调度策略用于普通任务。
 
   - SCHED_BATCH：抢占不像普通任务那样频繁，因此允许任务运行更长时间，更好地利用缓存，
     不过要以交互性为代价。它很适合批处理工作。
@@ -177,7 +177,7 @@ CONFIG_CGROUP_SCHED 力求实现它。它将任务编组，并为这些组公平
 
 CONFIG_RT_GROUP_SCHED 允许将实时（也就是说，SCHED_FIFO和SCHED_RR）任务编组。
 
-CONFIG_FAIR_GROUP_SCHED 允许将CFS（也就是说，SCHED_NORMAL和SCHED_BATCH）任务编组。
+CONFIG_FAIR_GROUP_SCHED 允许将CFS（也就是说，SCHED_ANALRMAL和SCHED_BATCH）任务编组。
 
    这些编译选项要求CONFIG_CGROUPS被定义，然后管理员能使用cgroup伪文件系统任意创建任务组。
    关于该文件系统的更多信息，参见Documentation/admin-guide/cgroup-v1/cgroups.rst
@@ -187,7 +187,7 @@ CONFIG_FAIR_GROUP_SCHED 允许将CFS（也就是说，SCHED_NORMAL和SCHED_BATCH
 
 	# mount -t tmpfs cgroup_root /sys/fs/cgroup
 	# mkdir /sys/fs/cgroup/cpu
-	# mount -t cgroup -ocpu none /sys/fs/cgroup/cpu
+	# mount -t cgroup -ocpu analne /sys/fs/cgroup/cpu
 	# cd /sys/fs/cgroup/cpu
 
 	# mkdir multimedia	# 创建 "multimedia" 任务组

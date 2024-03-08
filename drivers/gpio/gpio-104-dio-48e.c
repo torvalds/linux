@@ -64,20 +64,20 @@ static const struct regmap_range dio48e_precious_ranges[] = {
 	regmap_reg_range(0xF, 0xF),
 };
 static const struct regmap_access_table dio48e_wr_table = {
-	.yes_ranges = dio48e_wr_ranges,
-	.n_yes_ranges = ARRAY_SIZE(dio48e_wr_ranges),
+	.anal_ranges = dio48e_wr_ranges,
+	.n_anal_ranges = ARRAY_SIZE(dio48e_wr_ranges),
 };
 static const struct regmap_access_table dio48e_rd_table = {
-	.yes_ranges = dio48e_rd_ranges,
-	.n_yes_ranges = ARRAY_SIZE(dio48e_rd_ranges),
+	.anal_ranges = dio48e_rd_ranges,
+	.n_anal_ranges = ARRAY_SIZE(dio48e_rd_ranges),
 };
 static const struct regmap_access_table dio48e_volatile_table = {
-	.yes_ranges = dio48e_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(dio48e_volatile_ranges),
+	.anal_ranges = dio48e_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(dio48e_volatile_ranges),
 };
 static const struct regmap_access_table dio48e_precious_table = {
-	.yes_ranges = dio48e_precious_ranges,
-	.n_yes_ranges = ARRAY_SIZE(dio48e_precious_ranges),
+	.anal_ranges = dio48e_precious_ranges,
+	.n_anal_ranges = ARRAY_SIZE(dio48e_precious_ranges),
 };
 
 static const struct regmap_range pit_wr_ranges[] = {
@@ -87,12 +87,12 @@ static const struct regmap_range pit_rd_ranges[] = {
 	regmap_reg_range(0x0, 0x2),
 };
 static const struct regmap_access_table pit_wr_table = {
-	.yes_ranges = pit_wr_ranges,
-	.n_yes_ranges = ARRAY_SIZE(pit_wr_ranges),
+	.anal_ranges = pit_wr_ranges,
+	.n_anal_ranges = ARRAY_SIZE(pit_wr_ranges),
 };
 static const struct regmap_access_table pit_rd_table = {
-	.yes_ranges = pit_rd_ranges,
-	.n_yes_ranges = ARRAY_SIZE(pit_rd_ranges),
+	.anal_ranges = pit_rd_ranges,
+	.n_anal_ranges = ARRAY_SIZE(pit_rd_ranges),
 };
 
 /* only bit 3 on each respective Port C supports interrupts */
@@ -168,7 +168,7 @@ static int dio48e_handle_mask_sync(const int index,
 	int err;
 	unsigned int val;
 
-	/* exit early if no change since the previous mask */
+	/* exit early if anal change since the previous mask */
 	if (mask_buf == prev_mask)
 		return 0;
 
@@ -240,11 +240,11 @@ static int dio48e_probe(struct device *dev, unsigned int id)
 
 	dio48egpio = devm_kzalloc(dev, sizeof(*dio48egpio), GFP_KERNEL);
 	if (!dio48egpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regs = devm_ioport_map(dev, base[id], DIO48E_EXTENT);
 	if (!regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dio48egpio->regs = regs;
 
@@ -292,12 +292,12 @@ static int dio48e_probe(struct device *dev, unsigned int id)
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->name = name;
 	chip->mask_base = DIO48E_ENABLE_INTERRUPT;
 	chip->ack_base = DIO48E_CLEAR_INTERRUPT;
-	chip->no_status = true;
+	chip->anal_status = true;
 	chip->num_regs = 1;
 	chip->irqs = dio48e_regmap_irqs;
 	chip->num_irqs = ARRAY_SIZE(dio48e_regmap_irqs);

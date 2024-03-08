@@ -300,7 +300,7 @@
 			compatible = "brcm,bcm7362-ohci", "generic-ohci";
 			reg = <0x480400 0x100>;
 			native-endian;
-			no-big-frame-no;
+			anal-big-frame-anal;
 			interrupt-parent = <&periph_intc>;
 			interrupts = <66>;
 			status = "disabled";

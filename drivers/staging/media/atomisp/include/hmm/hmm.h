@@ -55,14 +55,14 @@ phys_addr_t hmm_virt_to_phys(ia_css_ptr virt);
  * by using vmap. return NULL if failed.
  *
  * virt must be the start address of ISP memory (return by hmm_alloc),
- * do not pass any other address.
+ * do analt pass any other address.
  */
 void *hmm_vmap(ia_css_ptr virt, bool cached);
 void hmm_vunmap(ia_css_ptr virt);
 
 /*
  * flush the cache for the vmapped buffer.
- * if the buffer has not been vmapped, return directly.
+ * if the buffer has analt been vmapped, return directly.
  */
 void hmm_flush_vmap(ia_css_ptr virt);
 
@@ -72,7 +72,7 @@ void hmm_flush_vmap(ia_css_ptr virt);
  * used for mmap operation.
  *
  * virt must be the start address of ISP memory (return by hmm_alloc),
- * do not pass any other address.
+ * do analt pass any other address.
  */
 int hmm_mmap(struct vm_area_struct *vma, ia_css_ptr virt);
 

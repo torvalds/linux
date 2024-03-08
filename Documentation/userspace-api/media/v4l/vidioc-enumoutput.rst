@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_ENUMOUTPUT:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_ENUMOUTPUT - Enumerate video outputs
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_ENUMOUTPUT
@@ -65,10 +65,10 @@ shall begin at index zero, incrementing by one until the driver returns
 	shows which audio outputs were selectable as the current output if
 	this was the currently selected video output. It is a bit mask.
 	The LSB corresponds to audio output 0, the MSB to output 31. Any
-	number of bits can be set, or none.
+	number of bits can be set, or analne.
 
-	When the driver does not enumerate audio outputs no bits must be
-	set. Applications shall not interpret this as lack of audio
+	When the driver does analt enumerate audio outputs anal bits must be
+	set. Applications shall analt interpret this as lack of audio
 	support. Drivers may automatically select audio outputs without
 	enumerating them.
 
@@ -110,7 +110,7 @@ shall begin at index zero, incrementing by one until the driver returns
       - This output is an analog TV modulator.
     * - ``V4L2_OUTPUT_TYPE_ANALOG``
       - 2
-      - Any non-modulator video output, for example Composite Video,
+      - Any analn-modulator video output, for example Composite Video,
 	S-Video, HDMI. The naming as ``_TYPE_ANALOG`` is historical,
 	today we would have called it ``_TYPE_VIDEO``.
     * - ``V4L2_OUTPUT_TYPE_ANALOGVGAOVERLAY``
@@ -144,7 +144,7 @@ shall begin at index zero, incrementing by one until the driver returns
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

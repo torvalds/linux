@@ -53,7 +53,7 @@ static int __guc_rc_control(struct intel_guc *guc, bool enable)
 	int ret;
 
 	if (!intel_uc_uses_guc_rc(&gt->uc))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!intel_guc_is_ready(guc))
 		return -EINVAL;

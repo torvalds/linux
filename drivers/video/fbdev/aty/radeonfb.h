@@ -36,7 +36,7 @@
  * Chip families. Must fit in the low 16 bits of a long word
  */
 enum radeon_family {
-	CHIP_FAMILY_UNKNOW,
+	CHIP_FAMILY_UNKANALW,
 	CHIP_FAMILY_LEGACY,
 	CHIP_FAMILY_RADEON,
 	CHIP_FAMILY_RV100,
@@ -101,7 +101,7 @@ enum radeon_errata {
  * Monitor types
  */
 enum radeon_montype {
-	MT_NONE = 0,
+	MT_ANALNE = 0,
 	MT_CRT,		/* CRT */
 	MT_LCD,		/* LCD */
 	MT_DFP,		/* DVI */
@@ -113,7 +113,7 @@ enum radeon_montype {
  * DDC i2c ports
  */
 enum ddc_type {
-	ddc_none,
+	ddc_analne,
 	ddc_monid,
 	ddc_dvi,
 	ddc_vga,
@@ -124,7 +124,7 @@ enum ddc_type {
  * Connector types
  */
 enum conn_type {
-	conn_none,
+	conn_analne,
 	conn_proprietary,
 	conn_crt,
 	conn_DVI_I,
@@ -278,7 +278,7 @@ struct radeon_i2c_chan {
 #endif
 
 enum radeon_pm_mode {
-	radeon_pm_none	= 0,		/* Nothing supported */
+	radeon_pm_analne	= 0,		/* Analthing supported */
 	radeon_pm_d2	= 0x00000001,	/* Can do D2 state */
 	radeon_pm_off	= 0x00000002,	/* Can resume from D3 cold */
 };
@@ -303,7 +303,7 @@ struct radeonfb_info {
 
 	struct pci_dev		*pdev;
 #if defined(CONFIG_PPC) || defined(CONFIG_SPARC)
-	struct device_node	*of_node;
+	struct device_analde	*of_analde;
 #endif
 
 	void __iomem		*bios_seg;
@@ -347,7 +347,7 @@ struct radeonfb_info {
 	int			asleep;
 	int			lock_blank;
 	int			dynclk;
-	int			no_schedule;
+	int			anal_schedule;
 	enum radeon_pm_mode	pm_mode;
 	reinit_function_ptr     reinit_func;
 
@@ -385,12 +385,12 @@ void _OUTREGP(struct radeonfb_info *rinfo, u32 addr, u32 val, u32 mask);
 #define OUTREGP(addr,val,mask)	_OUTREGP(rinfo, addr, val,mask)
 
 /*
- * Note about PLL register accesses:
+ * Analte about PLL register accesses:
  *
- * I have removed the spinlock on them on purpose. The driver now
- * expects that it will only manipulate the PLL registers in normal
+ * I have removed the spinlock on them on purpose. The driver analw
+ * expects that it will only manipulate the PLL registers in analrmal
  * task environment, where radeon_msleep() will be called, protected
- * by a semaphore (currently the console semaphore) so that no conflict
+ * by a semaphore (currently the console semaphore) so that anal conflict
  * will happen on the PLL register index.
  *
  * With the latest changes to the VT layer, this is guaranteed for all
@@ -484,12 +484,12 @@ extern int radeon_probe_i2c_connector(struct radeonfb_info *rinfo, int conn, u8 
 
 /* PM Functions */
 extern const struct dev_pm_ops radeonfb_pci_pm_ops;
-extern void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int ignore_devlist, int force_sleep);
+extern void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int iganalre_devlist, int force_sleep);
 extern void radeonfb_pm_exit(struct radeonfb_info *rinfo);
 
 /* Monitor probe functions */
 extern void radeon_probe_screens(struct radeonfb_info *rinfo,
-				 const char *monitor_layout, int ignore_edid);
+				 const char *monitor_layout, int iganalre_edid);
 extern void radeon_check_modes(struct radeonfb_info *rinfo, const char *mode_option);
 extern int radeon_match_mode(struct radeonfb_info *rinfo,
 			     struct fb_var_screeninfo *dest,

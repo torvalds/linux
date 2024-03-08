@@ -17,7 +17,7 @@
 #define SSPA_FIFO_UL		(0x10)
 #define SSPA_INT_MASK		(0x14)
 #define SSPA_C			(0x18)
-#define SSPA_FIFO_NOFS		(0x1c)
+#define SSPA_FIFO_ANALFS		(0x1c)
 #define SSPA_FIFO_SIZE		(0x20)
 
 /* SSPA Control Register */

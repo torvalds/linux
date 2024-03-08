@@ -14,7 +14,7 @@
 
 /* path manager command handlers */
 
-int mptcp_pm_announce_addr(struct mptcp_sock *msk,
+int mptcp_pm_ananalunce_addr(struct mptcp_sock *msk,
 			   const struct mptcp_addr_info *addr,
 			   bool echo)
 {
@@ -138,7 +138,7 @@ static bool mptcp_pm_schedule_work(struct mptcp_sock *msk,
 void mptcp_pm_fully_established(struct mptcp_sock *msk, const struct sock *ssk)
 {
 	struct mptcp_pm_data *pm = &msk->pm;
-	bool announce = false;
+	bool ananalunce = false;
 
 	pr_debug("msk=%p", msk);
 
@@ -153,12 +153,12 @@ void mptcp_pm_fully_established(struct mptcp_sock *msk, const struct sock *ssk)
 		mptcp_pm_schedule_work(msk, MPTCP_PM_ESTABLISHED);
 
 	if ((msk->pm.status & BIT(MPTCP_PM_ALREADY_ESTABLISHED)) == 0)
-		announce = true;
+		ananalunce = true;
 
 	msk->pm.status |= BIT(MPTCP_PM_ALREADY_ESTABLISHED);
 	spin_unlock_bh(&pm->lock);
 
-	if (announce)
+	if (ananalunce)
 		mptcp_event(MPTCP_EVENT_ESTABLISHED, msk, ssk, GFP_ATOMIC);
 }
 
@@ -207,7 +207,7 @@ void mptcp_pm_subflow_check_next(struct mptcp_sock *msk,
 	if (update_subflows)
 		__mptcp_pm_close_subflow(msk);
 
-	/* Even if this subflow is not really established, tell the PM to try
+	/* Even if this subflow is analt really established, tell the PM to try
 	 * to pick the next ones, if possible.
 	 */
 	if (mptcp_pm_nl_check_work_pending(msk))
@@ -226,19 +226,19 @@ void mptcp_pm_add_addr_received(const struct sock *ssk,
 	pr_debug("msk=%p remote_id=%d accept=%d", msk, addr->id,
 		 READ_ONCE(pm->accept_addr));
 
-	mptcp_event_addr_announced(ssk, addr);
+	mptcp_event_addr_ananalunced(ssk, addr);
 
 	spin_lock_bh(&pm->lock);
 
 	if (mptcp_pm_is_userspace(msk)) {
 		if (mptcp_userspace_pm_active(msk)) {
-			mptcp_pm_announce_addr(msk, addr, true);
+			mptcp_pm_ananalunce_addr(msk, addr, true);
 			mptcp_pm_add_addr_send_ack(msk);
 		} else {
 			__MPTCP_INC_STATS(sock_net((struct sock *)msk), MPTCP_MIB_ADDADDRDROP);
 		}
 	} else if (!READ_ONCE(pm->accept_addr)) {
-		mptcp_pm_announce_addr(msk, addr, true);
+		mptcp_pm_ananalunce_addr(msk, addr, true);
 		mptcp_pm_add_addr_send_ack(msk);
 	} else if (mptcp_pm_schedule_work(msk, MPTCP_PM_ADD_ADDR_RECEIVED)) {
 		pm->remote = *addr;
@@ -258,7 +258,7 @@ void mptcp_pm_add_addr_echoed(struct mptcp_sock *msk,
 
 	spin_lock_bh(&pm->lock);
 
-	if (mptcp_lookup_anno_list_by_saddr(msk, addr) && READ_ONCE(pm->work_pending))
+	if (mptcp_lookup_ananal_list_by_saddr(msk, addr) && READ_ONCE(pm->work_pending))
 		mptcp_pm_schedule_work(msk, MPTCP_PM_SUBFLOW_ESTABLISHED);
 
 	spin_unlock_bh(&pm->lock);
@@ -455,7 +455,7 @@ void mptcp_pm_subflow_chk_stale(const struct mptcp_sock *msk, struct sock *ssk)
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
 	u32 rcv_tstamp = READ_ONCE(tcp_sk(ssk)->rcv_tstamp);
 
-	/* keep track of rtx periods with no progress */
+	/* keep track of rtx periods with anal progress */
 	if (!subflow->stale_count) {
 		subflow->stale_rcv_tstamp = rcv_tstamp;
 		subflow->stale_count++;
@@ -536,7 +536,7 @@ void mptcp_pm_data_reset(struct mptcp_sock *msk)
 void mptcp_pm_data_init(struct mptcp_sock *msk)
 {
 	spin_lock_init(&msk->pm.lock);
-	INIT_LIST_HEAD(&msk->pm.anno_list);
+	INIT_LIST_HEAD(&msk->pm.ananal_list);
 	INIT_LIST_HEAD(&msk->pm.userspace_pm_local_addr_list);
 	mptcp_pm_data_reset(msk);
 }

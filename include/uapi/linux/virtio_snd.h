@@ -66,7 +66,7 @@ enum {
 	/* common status codes */
 	VIRTIO_SND_S_OK = 0x8000,
 	VIRTIO_SND_S_BAD_MSG,
-	VIRTIO_SND_S_NOT_SUPP,
+	VIRTIO_SND_S_ANALT_SUPP,
 	VIRTIO_SND_S_IO_ERR
 };
 
@@ -75,7 +75,7 @@ struct virtio_snd_hdr {
 	__le32 code;
 };
 
-/* event notification */
+/* event analtification */
 struct virtio_snd_event {
 	/* VIRTIO_SND_EVT_XXX */
 	struct virtio_snd_hdr hdr;
@@ -97,7 +97,7 @@ struct virtio_snd_query_info {
 
 /* common item information header */
 struct virtio_snd_info {
-	/* function group node id (High Definition Audio Specification 7.1.2) */
+	/* function group analde id (High Definition Audio Specification 7.1.2) */
 	__le32 hda_fn_nid;
 };
 
@@ -278,9 +278,9 @@ struct virtio_snd_chmap_hdr {
 
 /* standard channel position definition */
 enum {
-	VIRTIO_SND_CHMAP_NONE = 0,	/* undefined */
+	VIRTIO_SND_CHMAP_ANALNE = 0,	/* undefined */
 	VIRTIO_SND_CHMAP_NA,		/* silent */
-	VIRTIO_SND_CHMAP_MONO,		/* mono stream */
+	VIRTIO_SND_CHMAP_MOANAL,		/* moanal stream */
 	VIRTIO_SND_CHMAP_FL,		/* front left */
 	VIRTIO_SND_CHMAP_FR,		/* front right */
 	VIRTIO_SND_CHMAP_RL,		/* rear left */

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -49,7 +49,7 @@ void dccg31_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk)
 
 	if (dccg->dpp_clock_gated[dpp_inst]) {
 		/*
-		 * Do not update the DPPCLK DTO if the clock is stopped.
+		 * Do analt update the DPPCLK DTO if the clock is stopped.
 		 * It is treated the same as if the pipe itself were in PG.
 		 */
 		return;
@@ -519,19 +519,19 @@ void dccg31_set_physymclk(
 		break;
 	case 4:
 		if (force_enable) {
-			REG_UPDATE_2(PHYESYMCLK_CLOCK_CNTL,
-					PHYESYMCLK_FORCE_EN, 1,
-					PHYESYMCLK_FORCE_SRC_SEL, clk_src);
+			REG_UPDATE_2(PHANALYMCLK_CLOCK_CNTL,
+					PHANALYMCLK_FORCE_EN, 1,
+					PHANALYMCLK_FORCE_SRC_SEL, clk_src);
 			if (dccg->ctx->dc->debug.root_clock_optimization.bits.physymclk)
 				REG_UPDATE(DCCG_GATE_DISABLE_CNTL2,
-					PHYESYMCLK_GATE_DISABLE, 1);
+					PHANALYMCLK_GATE_DISABLE, 1);
 		} else {
-			REG_UPDATE_2(PHYESYMCLK_CLOCK_CNTL,
-					PHYESYMCLK_FORCE_EN, 0,
-					PHYESYMCLK_FORCE_SRC_SEL, 0);
+			REG_UPDATE_2(PHANALYMCLK_CLOCK_CNTL,
+					PHANALYMCLK_FORCE_EN, 0,
+					PHANALYMCLK_FORCE_SRC_SEL, 0);
 			if (dccg->ctx->dc->debug.root_clock_optimization.bits.physymclk)
 				REG_UPDATE(DCCG_GATE_DISABLE_CNTL2,
-					PHYESYMCLK_GATE_DISABLE, 0);
+					PHANALYMCLK_GATE_DISABLE, 0);
 		}
 		break;
 	default:
@@ -552,7 +552,7 @@ void dccg31_set_dtbclk_dto(
 	/* Mode	                DTBDTO Rate       DTBCLK_DTO<x>_DIV Register
 	 * ODM 4:1 combine      pixel rate/4      2
 	 * ODM 2:1 combine      pixel rate/2      4
-	 * non-DSC 4:2:0 mode   pixel rate/2      4
+	 * analn-DSC 4:2:0 mode   pixel rate/2      4
 	 * DSC native 4:2:0     pixel rate/2      4
 	 * DSC native 4:2:2     pixel rate/2      4
 	 * Other modes          pixel rate        8
@@ -635,7 +635,7 @@ void dccg31_set_audio_dtbclk_dto(
 		REG_WRITE(DCCG_AUDIO_DTBCLK_DTO_MODULO, 0);
 
 		REG_UPDATE(DCCG_AUDIO_DTO_SOURCE,
-				DCCG_AUDIO_DTO_SEL, 3);  //  03 - DCCG_AUDIO_DTO_SEL_NO_AUDIO_DTO
+				DCCG_AUDIO_DTO_SEL, 3);  //  03 - DCCG_AUDIO_DTO_SEL_ANAL_AUDIO_DTO
 	}
 }
 

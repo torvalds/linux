@@ -23,7 +23,7 @@
 #define DRIVER_VERSION		"2.0"
 
 /* HSMP Status / Error codes */
-#define HSMP_STATUS_NOT_READY	0x00
+#define HSMP_STATUS_ANALT_READY	0x00
 #define HSMP_STATUS_OK		0x01
 #define HSMP_ERR_INVALID_MSG	0xFE
 #define HSMP_ERR_INVALID_INPUT	0xFF
@@ -48,7 +48,7 @@
 #define HSMP_DATA_REG		0xc8
 
 #define HSMP_CDEV_NAME		"hsmp_cdev"
-#define HSMP_DEVNODE_NAME	"hsmp"
+#define HSMP_DEVANALDE_NAME	"hsmp"
 #define HSMP_METRICS_TABLE_NAME	"metrics_bin"
 
 #define HSMP_ATTR_GRP_NAME_SIZE	10
@@ -103,7 +103,7 @@ static int __hsmp_send_message(struct pci_dev *root, struct hsmp_message *msg)
 	int ret;
 
 	/* Clear the status register */
-	mbox_status = HSMP_STATUS_NOT_READY;
+	mbox_status = HSMP_STATUS_ANALT_READY;
 	ret = amd_hsmp_rdwr(root, SMN_HSMP_MSG_RESP, &mbox_status, HSMP_WR);
 	if (ret) {
 		pr_err("Error %d clearing mailbox status register\n", ret);
@@ -146,7 +146,7 @@ static int __hsmp_send_message(struct pci_dev *root, struct hsmp_message *msg)
 			return ret;
 		}
 
-		if (mbox_status != HSMP_STATUS_NOT_READY)
+		if (mbox_status != HSMP_STATUS_ANALT_READY)
 			break;
 		if (time_before(jiffies, short_sleep))
 			usleep_range(50, 100);
@@ -154,14 +154,14 @@ static int __hsmp_send_message(struct pci_dev *root, struct hsmp_message *msg)
 			usleep_range(1000, 2000);
 	}
 
-	if (unlikely(mbox_status == HSMP_STATUS_NOT_READY)) {
+	if (unlikely(mbox_status == HSMP_STATUS_ANALT_READY)) {
 		return -ETIMEDOUT;
 	} else if (unlikely(mbox_status == HSMP_ERR_INVALID_MSG)) {
-		return -ENOMSG;
+		return -EANALMSG;
 	} else if (unlikely(mbox_status == HSMP_ERR_INVALID_INPUT)) {
 		return -EINVAL;
 	} else if (unlikely(mbox_status != HSMP_STATUS_OK)) {
-		pr_err("Message ID %u unknown failure (status = 0x%X)\n",
+		pr_err("Message ID %u unkanalwn failure (status = 0x%X)\n",
 		       msg->msg_id, mbox_status);
 		return -EIO;
 	}
@@ -192,11 +192,11 @@ static int validate_message(struct hsmp_message *msg)
 {
 	/* msg_id against valid range of message IDs */
 	if (msg->msg_id < HSMP_TEST || msg->msg_id >= HSMP_MSG_ID_MAX)
-		return -ENOMSG;
+		return -EANALMSG;
 
 	/* msg_id is a reserved message ID */
 	if (hsmp_msg_desc_table[msg->msg_id].type == HSMP_RSVD)
-		return -ENOMSG;
+		return -EANALMSG;
 
 	/* num_args and response_sz against the HSMP spec */
 	if (msg->num_args != hsmp_msg_desc_table[msg->msg_id].num_args ||
@@ -209,15 +209,15 @@ static int validate_message(struct hsmp_message *msg)
 int hsmp_send_message(struct hsmp_message *msg)
 {
 	struct hsmp_socket *sock = &plat_dev.sock[msg->sock_ind];
-	struct amd_northbridge *nb;
+	struct amd_analrthbridge *nb;
 	int ret;
 
 	if (!msg)
 		return -EINVAL;
 
-	nb = node_to_amd_nb(msg->sock_ind);
+	nb = analde_to_amd_nb(msg->sock_ind);
 	if (!nb || !nb->root)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = validate_message(msg);
 	if (ret)
@@ -227,7 +227,7 @@ int hsmp_send_message(struct hsmp_message *msg)
 	 * The time taken by smu operation to complete is between
 	 * 10us to 1ms. Sometime it may take more time.
 	 * In SMP system timeout of 100 millisecs should
-	 * be enough for the previous thread to finish the operation
+	 * be eanalugh for the previous thread to finish the operation
 	 */
 	ret = down_timeout(&sock->hsmp_sem, msecs_to_jiffies(HSMP_MSG_TIMEOUT));
 	if (ret < 0)
@@ -244,10 +244,10 @@ EXPORT_SYMBOL_GPL(hsmp_send_message);
 static int hsmp_test(u16 sock_ind, u32 value)
 {
 	struct hsmp_message msg = { 0 };
-	struct amd_northbridge *nb;
-	int ret = -ENODEV;
+	struct amd_analrthbridge *nb;
+	int ret = -EANALDEV;
 
-	nb = node_to_amd_nb(sock_ind);
+	nb = analde_to_amd_nb(sock_ind);
 	if (!nb || !nb->root)
 		return ret;
 
@@ -289,7 +289,7 @@ static long hsmp_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	 * i.e within the array bounds of hsmp_msg_desc_table
 	 */
 	if (msg.msg_id < HSMP_TEST || msg.msg_id >= HSMP_MSG_ID_MAX)
-		return -ENOMSG;
+		return -EANALMSG;
 
 	switch (fp->f_mode & (FMODE_WRITE | FMODE_READ)) {
 	case FMODE_WRITE:
@@ -345,7 +345,7 @@ static ssize_t hsmp_metric_tbl_read(struct file *filp, struct kobject *kobj,
 	struct hsmp_message msg = { 0 };
 	int ret;
 
-	/* Do not support lseek(), reads entire metric table */
+	/* Do analt support lseek(), reads entire metric table */
 	if (count < bin_attr->size) {
 		dev_err(plat_dev.dev, "Wrong buffer size\n");
 		return -EINVAL;
@@ -389,13 +389,13 @@ static int hsmp_get_tbl_dram_base(u16 sock_ind)
 	dram_addr = msg.args[0] | ((u64)(msg.args[1]) << 32);
 	if (!dram_addr) {
 		dev_err(plat_dev.dev, "Invalid DRAM address for metric table\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	sock->metric_tbl_addr = devm_ioremap(plat_dev.dev, dram_addr,
 					     sizeof(struct hsmp_metric_table));
 	if (!sock->metric_tbl_addr) {
 		dev_err(plat_dev.dev, "Failed to ioremap metric table addr\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -445,13 +445,13 @@ static int hsmp_create_sysfs_interface(void)
 	hsmp_attr_grps = devm_kzalloc(plat_dev.dev, sizeof(struct attribute_group *) *
 				      (plat_dev.num_sockets + 1), GFP_KERNEL);
 	if (!hsmp_attr_grps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Create a sysfs directory for each socket */
 	for (i = 0; i < plat_dev.num_sockets; i++) {
 		attr_grp = devm_kzalloc(plat_dev.dev, sizeof(struct attribute_group), GFP_KERNEL);
 		if (!attr_grp)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		snprintf(plat_dev.sock[i].name, HSMP_ATTR_GRP_NAME_SIZE, "socket%u", (u8)i);
 		attr_grp->name = plat_dev.sock[i].name;
@@ -460,13 +460,13 @@ static int hsmp_create_sysfs_interface(void)
 		hsmp_bin_attrs = devm_kzalloc(plat_dev.dev, sizeof(struct bin_attribute *) *
 					      (NUM_HSMP_ATTRS + 1), GFP_KERNEL);
 		if (!hsmp_bin_attrs)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		attr_grp->bin_attrs		= hsmp_bin_attrs;
 		attr_grp->is_bin_visible	= hsmp_is_sock_attr_visible;
 		hsmp_attr_grps[i]		= attr_grp;
 
-		/* Now create the leaf nodes */
+		/* Analw create the leaf analdes */
 		ret = hsmp_init_metric_tbl_bin_attr(hsmp_bin_attrs, i);
 		if (ret)
 			return ret;
@@ -498,7 +498,7 @@ static int hsmp_pltdrv_probe(struct platform_device *pdev)
 				     (plat_dev.num_sockets * sizeof(struct hsmp_socket)),
 				     GFP_KERNEL);
 	if (!plat_dev.sock)
-		return -ENOMEM;
+		return -EANALMEM;
 	plat_dev.dev = &pdev->dev;
 
 	for (i = 0; i < plat_dev.num_sockets; i++) {
@@ -507,10 +507,10 @@ static int hsmp_pltdrv_probe(struct platform_device *pdev)
 	}
 
 	plat_dev.hsmp_device.name	= HSMP_CDEV_NAME;
-	plat_dev.hsmp_device.minor	= MISC_DYNAMIC_MINOR;
+	plat_dev.hsmp_device.mianalr	= MISC_DYNAMIC_MIANALR;
 	plat_dev.hsmp_device.fops	= &hsmp_fops;
 	plat_dev.hsmp_device.parent	= &pdev->dev;
-	plat_dev.hsmp_device.nodename	= HSMP_DEVNODE_NAME;
+	plat_dev.hsmp_device.analdename	= HSMP_DEVANALDE_NAME;
 	plat_dev.hsmp_device.mode	= 0644;
 
 	ret = hsmp_cache_proto_ver();
@@ -543,11 +543,11 @@ static struct platform_device *amd_hsmp_platdev;
 
 static int __init hsmp_plt_init(void)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	int i;
 
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD || boot_cpu_data.x86 < 0x19) {
-		pr_err("HSMP is not supported on Family:%x model:%x\n",
+		pr_err("HSMP is analt supported on Family:%x model:%x\n",
 		       boot_cpu_data.x86, boot_cpu_data.x86_model);
 		return ret;
 	}
@@ -575,9 +575,9 @@ static int __init hsmp_plt_init(void)
 	if (ret)
 		return ret;
 
-	amd_hsmp_platdev = platform_device_alloc(DRIVER_NAME, PLATFORM_DEVID_NONE);
+	amd_hsmp_platdev = platform_device_alloc(DRIVER_NAME, PLATFORM_DEVID_ANALNE);
 	if (!amd_hsmp_platdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto drv_unregister;
 	}
 

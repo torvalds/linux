@@ -26,7 +26,7 @@
 
 	/* HS USB Host PHY on PORT 2 */
 	hsusb2_phy: hsusb2-phy-pins {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		reset-gpios = <&gpio1 21 GPIO_ACTIVE_LOW>; /* gpio_21 */
 		vcc-supply = <&hsusb2_power>;
 		#phy-cells = <0>;
@@ -124,7 +124,7 @@
 &mmc2 {
 	interrupts-extended = <&intc 86 &omap3_pmx_core 0x12e>;
 	vmmc-supply = <&wl12xx_vmmc>;
-	non-removable;
+	analn-removable;
 	bus-width = <4>;
 	cap-power-off-card;
 
@@ -159,7 +159,7 @@
 			MATRIX_KEY(2, 3, KEY_KPASTERISK)
 			MATRIX_KEY(0, 2, KEY_0)
 			MATRIX_KEY(3, 0, KEY_KPDOT)
-			/* s4 not wired */
+			/* s4 analt wired */
 			MATRIX_KEY(1, 2, KEY_BACKSPACE)
 			MATRIX_KEY(0, 1, KEY_ENTER)
 			>;

@@ -10,11 +10,11 @@
 #include <linux/ceph/decode.h>
 #include <linux/ceph/auth.h>
 
-#include "auth_none.h"
+#include "auth_analne.h"
 
 static void reset(struct ceph_auth_client *ac)
 {
-	struct ceph_auth_none_info *xi = ac->private;
+	struct ceph_auth_analne_info *xi = ac->private;
 
 	xi->starting = true;
 }
@@ -27,20 +27,20 @@ static void destroy(struct ceph_auth_client *ac)
 
 static int is_authenticated(struct ceph_auth_client *ac)
 {
-	struct ceph_auth_none_info *xi = ac->private;
+	struct ceph_auth_analne_info *xi = ac->private;
 
 	return !xi->starting;
 }
 
 static int should_authenticate(struct ceph_auth_client *ac)
 {
-	struct ceph_auth_none_info *xi = ac->private;
+	struct ceph_auth_analne_info *xi = ac->private;
 
 	return xi->starting;
 }
 
-static int ceph_auth_none_build_authorizer(struct ceph_auth_client *ac,
-					   struct ceph_none_authorizer *au)
+static int ceph_auth_analne_build_authorizer(struct ceph_auth_client *ac,
+					   struct ceph_analne_authorizer *au)
 {
 	void *p = au->buf;
 	void *const end = p + sizeof(au->buf);
@@ -66,22 +66,22 @@ static int build_request(struct ceph_auth_client *ac, void *buf, void *end)
 }
 
 /*
- * the generic auth code decode the global_id, and we carry no actual
- * authenticate state, so nothing happens here.
+ * the generic auth code decode the global_id, and we carry anal actual
+ * authenticate state, so analthing happens here.
  */
 static int handle_reply(struct ceph_auth_client *ac, u64 global_id,
 			void *buf, void *end, u8 *session_key,
 			int *session_key_len, u8 *con_secret,
 			int *con_secret_len)
 {
-	struct ceph_auth_none_info *xi = ac->private;
+	struct ceph_auth_analne_info *xi = ac->private;
 
 	xi->starting = false;
 	ceph_auth_set_global_id(ac, global_id);
 	return 0;
 }
 
-static void ceph_auth_none_destroy_authorizer(struct ceph_authorizer *a)
+static void ceph_auth_analne_destroy_authorizer(struct ceph_authorizer *a)
 {
 	kfree(a);
 }
@@ -90,20 +90,20 @@ static void ceph_auth_none_destroy_authorizer(struct ceph_authorizer *a)
  * build an 'authorizer' with our entity_name and global_id.  it is
  * identical for all services we connect to.
  */
-static int ceph_auth_none_create_authorizer(
+static int ceph_auth_analne_create_authorizer(
 	struct ceph_auth_client *ac, int peer_type,
 	struct ceph_auth_handshake *auth)
 {
-	struct ceph_none_authorizer *au;
+	struct ceph_analne_authorizer *au;
 	int ret;
 
-	au = kmalloc(sizeof(*au), GFP_NOFS);
+	au = kmalloc(sizeof(*au), GFP_ANALFS);
 	if (!au)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	au->base.destroy = ceph_auth_none_destroy_authorizer;
+	au->base.destroy = ceph_auth_analne_destroy_authorizer;
 
-	ret = ceph_auth_none_build_authorizer(ac, au);
+	ret = ceph_auth_analne_build_authorizer(ac, au);
 	if (ret) {
 		kfree(au);
 		return ret;
@@ -118,29 +118,29 @@ static int ceph_auth_none_create_authorizer(
 	return 0;
 }
 
-static const struct ceph_auth_client_ops ceph_auth_none_ops = {
+static const struct ceph_auth_client_ops ceph_auth_analne_ops = {
 	.reset = reset,
 	.destroy = destroy,
 	.is_authenticated = is_authenticated,
 	.should_authenticate = should_authenticate,
 	.build_request = build_request,
 	.handle_reply = handle_reply,
-	.create_authorizer = ceph_auth_none_create_authorizer,
+	.create_authorizer = ceph_auth_analne_create_authorizer,
 };
 
-int ceph_auth_none_init(struct ceph_auth_client *ac)
+int ceph_auth_analne_init(struct ceph_auth_client *ac)
 {
-	struct ceph_auth_none_info *xi;
+	struct ceph_auth_analne_info *xi;
 
-	dout("ceph_auth_none_init %p\n", ac);
-	xi = kzalloc(sizeof(*xi), GFP_NOFS);
+	dout("ceph_auth_analne_init %p\n", ac);
+	xi = kzalloc(sizeof(*xi), GFP_ANALFS);
 	if (!xi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xi->starting = true;
 
-	ac->protocol = CEPH_AUTH_NONE;
+	ac->protocol = CEPH_AUTH_ANALNE;
 	ac->private = xi;
-	ac->ops = &ceph_auth_none_ops;
+	ac->ops = &ceph_auth_analne_ops;
 	return 0;
 }

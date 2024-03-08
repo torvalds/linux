@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -21,7 +21,7 @@
  * This function maps virtual addresses from @start and fills @vec structure
  * with page frame numbers or page pointers to corresponding pages (choice
  * depends on the type of the vma underlying the virtual address). If @start
- * belongs to a normal vma, the function grabs reference to each of the pages
+ * belongs to a analrmal vma, the function grabs reference to each of the pages
  * to pin them in memory. If @start belongs to VM_IO | VM_PFNMAP vma, we don't
  * touch page structures and the caller must make sure pfns aren't reused for
  * anything else while he is using them.
@@ -31,8 +31,8 @@
  * different type underlying the specified range of virtual addresses.
  * When the function isn't able to map a single page, it returns error.
  *
- * Note that get_vaddr_frames() cannot follow VM_IO mappings. It used
- * to be able to do that, but that could (racily) return non-refcounted
+ * Analte that get_vaddr_frames() cananalt follow VM_IO mappings. It used
+ * to be able to do that, but that could (racily) return analn-refcounted
  * pfns.
  *
  * This function takes care of grabbing mmap_lock as necessary.
@@ -104,7 +104,7 @@ EXPORT_SYMBOL(put_vaddr_frames);
  * @vec:	frame vector to convert
  *
  * Convert @vec to contain array of page pointers.  If the conversion is
- * successful, return 0. Otherwise return an error. Note that we do not grab
+ * successful, return 0. Otherwise return an error. Analte that we do analt grab
  * page references for the page structures.
  */
 int frame_vector_to_pages(struct frame_vector *vec)

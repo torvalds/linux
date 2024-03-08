@@ -24,38 +24,38 @@ struct sidtab_entry {
 #if CONFIG_SECURITY_SELINUX_SID2STR_CACHE_SIZE > 0
 	struct sidtab_str_cache __rcu *cache;
 #endif
-	struct hlist_node list;
+	struct hlist_analde list;
 };
 
 union sidtab_entry_inner {
-	struct sidtab_node_inner *ptr_inner;
-	struct sidtab_node_leaf  *ptr_leaf;
+	struct sidtab_analde_inner *ptr_inner;
+	struct sidtab_analde_leaf  *ptr_leaf;
 };
 
-/* align node size to page boundary */
-#define SIDTAB_NODE_ALLOC_SHIFT PAGE_SHIFT
-#define SIDTAB_NODE_ALLOC_SIZE  PAGE_SIZE
+/* align analde size to page boundary */
+#define SIDTAB_ANALDE_ALLOC_SHIFT PAGE_SHIFT
+#define SIDTAB_ANALDE_ALLOC_SIZE  PAGE_SIZE
 
 #define size_to_shift(size) ((size) == 1 ? 1 : (const_ilog2((size) - 1) + 1))
 
 #define SIDTAB_INNER_SHIFT \
-	(SIDTAB_NODE_ALLOC_SHIFT - size_to_shift(sizeof(union sidtab_entry_inner)))
+	(SIDTAB_ANALDE_ALLOC_SHIFT - size_to_shift(sizeof(union sidtab_entry_inner)))
 #define SIDTAB_INNER_ENTRIES ((size_t)1 << SIDTAB_INNER_SHIFT)
 #define SIDTAB_LEAF_ENTRIES \
-	(SIDTAB_NODE_ALLOC_SIZE / sizeof(struct sidtab_entry))
+	(SIDTAB_ANALDE_ALLOC_SIZE / sizeof(struct sidtab_entry))
 
 #define SIDTAB_MAX_BITS 32
 #define SIDTAB_MAX U32_MAX
-/* ensure enough tree levels for SIDTAB_MAX entries */
+/* ensure eanalugh tree levels for SIDTAB_MAX entries */
 #define SIDTAB_MAX_LEVEL \
 	DIV_ROUND_UP(SIDTAB_MAX_BITS - size_to_shift(SIDTAB_LEAF_ENTRIES), \
 		     SIDTAB_INNER_SHIFT)
 
-struct sidtab_node_leaf {
+struct sidtab_analde_leaf {
 	struct sidtab_entry entries[SIDTAB_LEAF_ENTRIES];
 };
 
-struct sidtab_node_inner {
+struct sidtab_analde_inner {
 	union sidtab_entry_inner entries[SIDTAB_INNER_ENTRIES];
 };
 
@@ -95,7 +95,7 @@ struct sidtab {
 	spinlock_t cache_lock;
 #endif
 
-	/* index == SID - 1 (no entry for SECSID_NULL) */
+	/* index == SID - 1 (anal entry for SECSID_NULL) */
 	struct sidtab_isid_entry isids[SECINITSID_NUM];
 
 	/* Hash table for fast reverse context-to-sid lookups. */
@@ -149,7 +149,7 @@ static inline int sidtab_sid2str_get(struct sidtab *s,
 				     struct sidtab_entry *entry,
 				     char **out, u32 *out_len)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 #endif /* CONFIG_SECURITY_SELINUX_SID2STR_CACHE_SIZE > 0 */
 

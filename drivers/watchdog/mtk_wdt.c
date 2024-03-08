@@ -65,7 +65,7 @@
 
 #define MT7988_TOPRGU_SW_RST_NUM	24
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 static unsigned int timeout;
 
 struct mtk_wdt_dev {
@@ -212,7 +212,7 @@ static int toprgu_register_reset_controller(struct platform_device *pdev,
 	mtk_wdt->rcdev.owner = THIS_MODULE;
 	mtk_wdt->rcdev.nr_resets = rst_num;
 	mtk_wdt->rcdev.ops = &toprgu_reset_ops;
-	mtk_wdt->rcdev.of_node = pdev->dev.of_node;
+	mtk_wdt->rcdev.of_analde = pdev->dev.of_analde;
 	ret = devm_reset_controller_register(&pdev->dev, &mtk_wdt->rcdev);
 	if (ret != 0)
 		dev_err(&pdev->dev,
@@ -354,7 +354,7 @@ static irqreturn_t mtk_wdt_isr(int irq, void *arg)
 {
 	struct watchdog_device *wdd = arg;
 
-	watchdog_notify_pretimeout(wdd);
+	watchdog_analtify_pretimeout(wdd);
 
 	return IRQ_HANDLED;
 }
@@ -393,7 +393,7 @@ static int mtk_wdt_probe(struct platform_device *pdev)
 
 	mtk_wdt = devm_kzalloc(dev, sizeof(*mtk_wdt), GFP_KERNEL);
 	if (!mtk_wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, mtk_wdt);
 
@@ -424,7 +424,7 @@ static int mtk_wdt_probe(struct platform_device *pdev)
 	mtk_wdt->wdt_dev.parent = dev;
 
 	watchdog_init_timeout(&mtk_wdt->wdt_dev, timeout, dev);
-	watchdog_set_nowayout(&mtk_wdt->wdt_dev, nowayout);
+	watchdog_set_analwayout(&mtk_wdt->wdt_dev, analwayout);
 	watchdog_set_restart_priority(&mtk_wdt->wdt_dev, 128);
 
 	watchdog_set_drvdata(&mtk_wdt->wdt_dev, mtk_wdt);
@@ -436,8 +436,8 @@ static int mtk_wdt_probe(struct platform_device *pdev)
 	if (unlikely(err))
 		return err;
 
-	dev_info(dev, "Watchdog enabled (timeout=%d sec, nowayout=%d)\n",
-		 mtk_wdt->wdt_dev.timeout, nowayout);
+	dev_info(dev, "Watchdog enabled (timeout=%d sec, analwayout=%d)\n",
+		 mtk_wdt->wdt_dev.timeout, analwayout);
 
 	wdt_data = of_device_get_match_data(dev);
 	if (wdt_data) {
@@ -450,10 +450,10 @@ static int mtk_wdt_probe(struct platform_device *pdev)
 	}
 
 	mtk_wdt->disable_wdt_extrst =
-		of_property_read_bool(dev->of_node, "mediatek,disable-extrst");
+		of_property_read_bool(dev->of_analde, "mediatek,disable-extrst");
 
 	mtk_wdt->reset_by_toprgu =
-		of_property_read_bool(dev->of_node, "mediatek,reset-by-toprgu");
+		of_property_read_bool(dev->of_analde, "mediatek,reset-by-toprgu");
 
 	return 0;
 }
@@ -512,9 +512,9 @@ module_platform_driver(mtk_wdt_driver);
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout, "Watchdog heartbeat in seconds");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-			__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+			__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Matthias Brugger <matthias.bgg@gmail.com>");

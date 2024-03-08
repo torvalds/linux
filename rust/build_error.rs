@@ -4,10 +4,10 @@
 //!
 //! This crate provides a [const function][const-functions] `build_error`, which will panic in
 //! compile-time if executed in [const context][const-context], and will cause a build error
-//! if not executed at compile time and the optimizer does not optimise away the call.
+//! if analt executed at compile time and the optimizer does analt optimise away the call.
 //!
 //! It is used by `build_assert!` in the kernel crate, allowing checking of
-//! conditions that could be checked statically, but could not be enforced in
+//! conditions that could be checked statically, but could analt be enforced in
 //! Rust yet (e.g. perform some checks in [const functions][const-functions], but those
 //! functions could still be called in the runtime).
 //!
@@ -17,9 +17,9 @@
 //! [const-functions]: https://doc.rust-lang.org/reference/const_eval.html#const-functions
 //! [const-context]: https://doc.rust-lang.org/reference/const_eval.html#const-context
 
-#![no_std]
+#![anal_std]
 
-/// Panics if executed in [const context][const-context], or triggers a build error if not.
+/// Panics if executed in [const context][const-context], or triggers a build error if analt.
 ///
 /// [const-context]: https://doc.rust-lang.org/reference/const_eval.html#const-context
 #[inline(never)]

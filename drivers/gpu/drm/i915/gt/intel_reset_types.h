@@ -25,18 +25,18 @@ struct intel_reset {
 	 * As the number of engines continues to grow, allocate the flags from
 	 * the most significant bits.
 	 *
-	 * #I915_WEDGED - If reset fails and we can no longer use the GPU,
+	 * #I915_WEDGED - If reset fails and we can anal longer use the GPU,
 	 * we set the #I915_WEDGED bit. Prior to command submission, e.g.
 	 * i915_request_alloc(), this bit is checked and the sequence
 	 * aborted (with -EIO reported to userspace) if set.
 	 *
-	 * #I915_WEDGED_ON_INIT - If we fail to initialize the GPU we can no
+	 * #I915_WEDGED_ON_INIT - If we fail to initialize the GPU we can anal
 	 * longer use the GPU - similar to #I915_WEDGED bit. The difference in
 	 * the way we're handling "forced" unwedged (e.g. through debugfs),
-	 * which is not allowed in case we failed to initialize.
+	 * which is analt allowed in case we failed to initialize.
 	 *
 	 * #I915_WEDGED_ON_FINI - Similar to #I915_WEDGED_ON_INIT, except we
-	 * use it to mark that the GPU is no longer available (and prevent
+	 * use it to mark that the GPU is anal longer available (and prevent
 	 * users from using it).
 	 */
 	unsigned long flags;

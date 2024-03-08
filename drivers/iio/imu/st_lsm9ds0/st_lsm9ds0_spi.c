@@ -53,7 +53,7 @@ static int st_lsm9ds0_spi_probe(struct spi_device *spi)
 
 	lsm9ds0 = devm_kzalloc(dev, sizeof(*lsm9ds0), GFP_KERNEL);
 	if (!lsm9ds0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lsm9ds0->dev = dev;
 	lsm9ds0->name = spi->modalias;

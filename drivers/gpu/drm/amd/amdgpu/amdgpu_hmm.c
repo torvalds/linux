@@ -11,14 +11,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -29,9 +29,9 @@
  */
 
 /**
- * DOC: MMU Notifier
+ * DOC: MMU Analtifier
  *
- * For coherent userptr handling registers an MMU notifier to inform the driver
+ * For coherent userptr handling registers an MMU analtifier to inform the driver
  * about updates on the page tables of a process.
  *
  * When somebody tries to invalidate the page tables we block the update until
@@ -54,7 +54,7 @@
 #define MAX_WALK_BYTE	(2UL << 30)
 
 /**
- * amdgpu_hmm_invalidate_gfx - callback to notify about mm change
+ * amdgpu_hmm_invalidate_gfx - callback to analtify about mm change
  *
  * @mni: the range (mm) is about to update
  * @range: details on the invalidation
@@ -63,35 +63,35 @@
  * Block for operations on BOs to finish and mark pages as accessed and
  * potentially dirty.
  */
-static bool amdgpu_hmm_invalidate_gfx(struct mmu_interval_notifier *mni,
-				      const struct mmu_notifier_range *range,
+static bool amdgpu_hmm_invalidate_gfx(struct mmu_interval_analtifier *mni,
+				      const struct mmu_analtifier_range *range,
 				      unsigned long cur_seq)
 {
-	struct amdgpu_bo *bo = container_of(mni, struct amdgpu_bo, notifier);
+	struct amdgpu_bo *bo = container_of(mni, struct amdgpu_bo, analtifier);
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	long r;
 
-	if (!mmu_notifier_range_blockable(range))
+	if (!mmu_analtifier_range_blockable(range))
 		return false;
 
-	mutex_lock(&adev->notifier_lock);
+	mutex_lock(&adev->analtifier_lock);
 
 	mmu_interval_set_seq(mni, cur_seq);
 
 	r = dma_resv_wait_timeout(bo->tbo.base.resv, DMA_RESV_USAGE_BOOKKEEP,
 				  false, MAX_SCHEDULE_TIMEOUT);
-	mutex_unlock(&adev->notifier_lock);
+	mutex_unlock(&adev->analtifier_lock);
 	if (r <= 0)
 		DRM_ERROR("(%ld) failed to wait for user bo\n", r);
 	return true;
 }
 
-static const struct mmu_interval_notifier_ops amdgpu_hmm_gfx_ops = {
+static const struct mmu_interval_analtifier_ops amdgpu_hmm_gfx_ops = {
 	.invalidate = amdgpu_hmm_invalidate_gfx,
 };
 
 /**
- * amdgpu_hmm_invalidate_hsa - callback to notify about mm change
+ * amdgpu_hmm_invalidate_hsa - callback to analtify about mm change
  *
  * @mni: the range (mm) is about to update
  * @range: details on the invalidation
@@ -100,13 +100,13 @@ static const struct mmu_interval_notifier_ops amdgpu_hmm_gfx_ops = {
  * We temporarily evict the BO attached to this range. This necessitates
  * evicting all user-mode queues of the process.
  */
-static bool amdgpu_hmm_invalidate_hsa(struct mmu_interval_notifier *mni,
-				      const struct mmu_notifier_range *range,
+static bool amdgpu_hmm_invalidate_hsa(struct mmu_interval_analtifier *mni,
+				      const struct mmu_analtifier_range *range,
 				      unsigned long cur_seq)
 {
-	struct amdgpu_bo *bo = container_of(mni, struct amdgpu_bo, notifier);
+	struct amdgpu_bo *bo = container_of(mni, struct amdgpu_bo, analtifier);
 
-	if (!mmu_notifier_range_blockable(range))
+	if (!mmu_analtifier_range_blockable(range))
 		return false;
 
 	amdgpu_amdkfd_evict_userptr(mni, cur_seq, bo->kfd_bo);
@@ -114,46 +114,46 @@ static bool amdgpu_hmm_invalidate_hsa(struct mmu_interval_notifier *mni,
 	return true;
 }
 
-static const struct mmu_interval_notifier_ops amdgpu_hmm_hsa_ops = {
+static const struct mmu_interval_analtifier_ops amdgpu_hmm_hsa_ops = {
 	.invalidate = amdgpu_hmm_invalidate_hsa,
 };
 
 /**
- * amdgpu_hmm_register - register a BO for notifier updates
+ * amdgpu_hmm_register - register a BO for analtifier updates
  *
  * @bo: amdgpu buffer object
  * @addr: userptr addr we should monitor
  *
- * Registers a mmu_notifier for the given BO at the specified address.
- * Returns 0 on success, -ERRNO if anything goes wrong.
+ * Registers a mmu_analtifier for the given BO at the specified address.
+ * Returns 0 on success, -ERRANAL if anything goes wrong.
  */
 int amdgpu_hmm_register(struct amdgpu_bo *bo, unsigned long addr)
 {
 	if (bo->kfd_bo)
-		return mmu_interval_notifier_insert(&bo->notifier, current->mm,
+		return mmu_interval_analtifier_insert(&bo->analtifier, current->mm,
 						    addr, amdgpu_bo_size(bo),
 						    &amdgpu_hmm_hsa_ops);
-	return mmu_interval_notifier_insert(&bo->notifier, current->mm, addr,
+	return mmu_interval_analtifier_insert(&bo->analtifier, current->mm, addr,
 					    amdgpu_bo_size(bo),
 					    &amdgpu_hmm_gfx_ops);
 }
 
 /**
- * amdgpu_hmm_unregister - unregister a BO for notifier updates
+ * amdgpu_hmm_unregister - unregister a BO for analtifier updates
  *
  * @bo: amdgpu buffer object
  *
- * Remove any registration of mmu notifier updates from the buffer object.
+ * Remove any registration of mmu analtifier updates from the buffer object.
  */
 void amdgpu_hmm_unregister(struct amdgpu_bo *bo)
 {
-	if (!bo->notifier.mm)
+	if (!bo->analtifier.mm)
 		return;
-	mmu_interval_notifier_remove(&bo->notifier);
-	bo->notifier.mm = NULL;
+	mmu_interval_analtifier_remove(&bo->analtifier);
+	bo->analtifier.mm = NULL;
 }
 
-int amdgpu_hmm_range_get_pages(struct mmu_interval_notifier *notifier,
+int amdgpu_hmm_range_get_pages(struct mmu_interval_analtifier *analtifier,
 			       uint64_t start, uint64_t npages, bool readonly,
 			       void *owner, struct page **pages,
 			       struct hmm_range **phmm_range)
@@ -167,15 +167,15 @@ int amdgpu_hmm_range_get_pages(struct mmu_interval_notifier *notifier,
 
 	hmm_range = kzalloc(sizeof(*hmm_range), GFP_KERNEL);
 	if (unlikely(!hmm_range))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pfns = kvmalloc_array(npages, sizeof(*pfns), GFP_KERNEL);
 	if (unlikely(!pfns)) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto out_free_range;
 	}
 
-	hmm_range->notifier = notifier;
+	hmm_range->analtifier = analtifier;
 	hmm_range->default_flags = HMM_PFN_REQ_FAULT;
 	if (!readonly)
 		hmm_range->default_flags |= HMM_PFN_REQ_WRITE;
@@ -196,7 +196,7 @@ int amdgpu_hmm_range_get_pages(struct mmu_interval_notifier *notifier,
 		timeout = jiffies + msecs_to_jiffies(timeout);
 
 retry:
-		hmm_range->notifier_seq = mmu_interval_read_begin(notifier);
+		hmm_range->analtifier_seq = mmu_interval_read_begin(analtifier);
 		r = hmm_range_fault(hmm_range);
 		if (unlikely(r)) {
 			schedule();
@@ -220,8 +220,8 @@ retry:
 
 	/*
 	 * Due to default_flags, all pages are HMM_PFN_VALID or
-	 * hmm_range_fault() fails. FIXME: The pages cannot be touched outside
-	 * the notifier_lock, and mmu_interval_read_retry() must be done first.
+	 * hmm_range_fault() fails. FIXME: The pages cananalt be touched outside
+	 * the analtifier_lock, and mmu_interval_read_retry() must be done first.
 	 */
 	for (i = 0; pages && i < npages; i++)
 		pages[i] = hmm_pfn_to_page(pfns[i]);
@@ -242,8 +242,8 @@ bool amdgpu_hmm_range_get_pages_done(struct hmm_range *hmm_range)
 {
 	bool r;
 
-	r = mmu_interval_read_retry(hmm_range->notifier,
-				    hmm_range->notifier_seq);
+	r = mmu_interval_read_retry(hmm_range->analtifier,
+				    hmm_range->analtifier_seq);
 	kvfree(hmm_range->hmm_pfns);
 	kfree(hmm_range);
 

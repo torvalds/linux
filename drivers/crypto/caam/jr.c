@@ -109,7 +109,7 @@ wait_quiesce_completion:
 
 /*
  * Flush the job ring, so the jobs running will be stopped, jobs queued will be
- * invalidated and the CAAM will no longer fetch fron input ring.
+ * invalidated and the CAAM will anal longer fetch fron input ring.
  *
  * Must be called with itr disabled
  */
@@ -118,7 +118,7 @@ static int caam_jr_flush(struct device *dev)
 	return caam_jr_stop_processing(dev, JRCR_RESET);
 }
 
-/* The resume can be used after a park or a flush if CAAM has not been reset */
+/* The resume can be used after a park or a flush if CAAM has analt been reset */
 static int caam_jr_restart_processing(struct device *dev)
 {
 	struct caam_drv_private_jr *jrp = dev_get_drvdata(dev);
@@ -206,9 +206,9 @@ static void caam_jr_remove(struct platform_device *pdev)
 	/* Unregister JR-based RNG & crypto algorithms */
 	unregister_algs();
 
-	/* Remove the node from Physical JobR list maintained by driver */
+	/* Remove the analde from Physical JobR list maintained by driver */
 	spin_lock(&driver_data.jr_alloc_lock);
-	list_del(&jrpriv->list_node);
+	list_del(&jrpriv->list_analde);
 	spin_unlock(&driver_data.jr_alloc_lock);
 
 	/* Release ring */
@@ -230,11 +230,11 @@ static irqreturn_t caam_jr_interrupt(int irq, void *st_dev)
 	 */
 	irqstate = rd_reg32(&jrp->rregs->jrintstatus);
 	if (!(irqstate & JRINT_JR_INT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * If JobR error, we got more development work to do
-	 * Flag a bug now, but we really need to shut down and
+	 * Flag a bug analw, but we really need to shut down and
 	 * restart the queue (and fix code).
 	 */
 	if (irqstate & JRINT_JR_ERROR) {
@@ -316,7 +316,7 @@ static void caam_jr_dequeue(unsigned long devarg)
 					   (JOBR_DEPTH - 1);
 
 		/*
-		 * if this job completed out-of-order, do not increment
+		 * if this job completed out-of-order, do analt increment
 		 * the tail.  Otherwise, increment tail by 1 plus the
 		 * number of subsequent jobs already completed out-of-order
 		 */
@@ -348,7 +348,7 @@ static void caam_jr_dequeue(unsigned long devarg)
 struct device *caam_jr_alloc(void)
 {
 	struct caam_drv_private_jr *jrpriv, *min_jrpriv = NULL;
-	struct device *dev = ERR_PTR(-ENODEV);
+	struct device *dev = ERR_PTR(-EANALDEV);
 	int min_tfm_cnt	= INT_MAX;
 	int tfm_cnt;
 
@@ -356,10 +356,10 @@ struct device *caam_jr_alloc(void)
 
 	if (list_empty(&driver_data.jr_list)) {
 		spin_unlock(&driver_data.jr_alloc_lock);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
-	list_for_each_entry(jrpriv, &driver_data.jr_list, list_node) {
+	list_for_each_entry(jrpriv, &driver_data.jr_list, list_analde) {
 		tfm_cnt = atomic_read(&jrpriv->tfm_count);
 		if (tfm_cnt < min_tfm_cnt) {
 			min_tfm_cnt = tfm_cnt;
@@ -394,7 +394,7 @@ EXPORT_SYMBOL(caam_jr_free);
 
 /**
  * caam_jr_enqueue() - Enqueue a job descriptor head. Returns -EINPROGRESS
- * if OK, -ENOSPC if the queue is full, -EIO if it cannot map the caller's
+ * if OK, -EANALSPC if the queue is full, -EIO if it cananalt map the caller's
  * descriptor.
  * @dev:  struct device of the job ring to be used
  * @desc: points to a job descriptor that execute our request. All
@@ -445,7 +445,7 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 	    CIRC_SPACE(head, tail, JOBR_DEPTH) <= 0) {
 		spin_unlock_bh(&jrp->inplock);
 		dma_unmap_single(dev, desc_dma, desc_size, DMA_TO_DEVICE);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	head_entry = &jrp->entinfo[head];
@@ -466,7 +466,7 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 	 * ring be updated before the CAAM starts reading it. So, CAAM will
 	 * process, again, an old descriptor address and will put it in the
 	 * output ring. This will make caam_jr_dequeue() to fail, since this
-	 * old descriptor is not in the software ring.
+	 * old descriptor is analt in the software ring.
 	 * To fix this, use wmb() which works on the full system instead of
 	 * inner/outer shareable domains.
 	 */
@@ -476,7 +476,7 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 
 	/*
 	 * Ensure that all job information has been written before
-	 * notifying CAAM that a new job was added to the input ring
+	 * analtifying CAAM that a new job was added to the input ring
 	 * using a memory barrier. The wr_reg32() uses api iowrite32()
 	 * to do the register write. iowrite32() issues a memory barrier
 	 * before the write operation.
@@ -536,18 +536,18 @@ static int caam_jr_init(struct device *dev)
 					   JOBR_DEPTH, &inpbusaddr,
 					   GFP_KERNEL);
 	if (!jrp->inpring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	jrp->outring = dmam_alloc_coherent(dev, SIZEOF_JR_OUTENTRY *
 					   JOBR_DEPTH, &outbusaddr,
 					   GFP_KERNEL);
 	if (!jrp->outring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	jrp->entinfo = devm_kcalloc(dev, JOBR_DEPTH, sizeof(*jrp->entinfo),
 				    GFP_KERNEL);
 	if (!jrp->entinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < JOBR_DEPTH; i++)
 		jrp->entinfo[i].desc_addr_dma = !0;
@@ -587,7 +587,7 @@ static void caam_jr_irq_dispose_mapping(void *data)
 static int caam_jr_probe(struct platform_device *pdev)
 {
 	struct device *jrdev;
-	struct device_node *nprop;
+	struct device_analde *nprop;
 	struct caam_job_ring __iomem *ctrl;
 	struct caam_drv_private_jr *jrpriv;
 	static int total_jobrs;
@@ -597,26 +597,26 @@ static int caam_jr_probe(struct platform_device *pdev)
 	jrdev = &pdev->dev;
 	jrpriv = devm_kzalloc(jrdev, sizeof(*jrpriv), GFP_KERNEL);
 	if (!jrpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(jrdev, jrpriv);
 
 	/* save ring identity relative to detection */
 	jrpriv->ridx = total_jobrs++;
 
-	nprop = pdev->dev.of_node;
+	nprop = pdev->dev.of_analde;
 	/* Get configuration properties from device tree */
 	/* First, get register page */
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
 		dev_err(jrdev, "platform_get_resource() failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ctrl = devm_ioremap(jrdev, r->start, resource_size(r));
 	if (!ctrl) {
 		dev_err(jrdev, "devm_ioremap() failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	jrpriv->rregs = (struct caam_job_ring __iomem __force *)ctrl;
@@ -633,8 +633,8 @@ static int caam_jr_probe(struct platform_device *pdev)
 							  false,
 							  CRYPTO_ENGINE_MAX_QLEN);
 	if (!jrpriv->engine) {
-		dev_err(jrdev, "Could not init crypto-engine\n");
-		return -ENOMEM;
+		dev_err(jrdev, "Could analt init crypto-engine\n");
+		return -EANALMEM;
 	}
 
 	error = devm_add_action_or_reset(jrdev, caam_jr_crypto_engine_exit,
@@ -645,7 +645,7 @@ static int caam_jr_probe(struct platform_device *pdev)
 	/* Start crypto engine */
 	error = crypto_engine_start(jrpriv->engine);
 	if (error) {
-		dev_err(jrdev, "Could not start crypto-engine\n");
+		dev_err(jrdev, "Could analt start crypto-engine\n");
 		return error;
 	}
 
@@ -661,14 +661,14 @@ static int caam_jr_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
-	/* Now do the platform independent part */
-	error = caam_jr_init(jrdev); /* now turn on hardware */
+	/* Analw do the platform independent part */
+	error = caam_jr_init(jrdev); /* analw turn on hardware */
 	if (error)
 		return error;
 
 	jrpriv->dev = jrdev;
 	spin_lock(&driver_data.jr_alloc_lock);
-	list_add_tail(&jrpriv->list_node, &driver_data.jr_list);
+	list_add_tail(&jrpriv->list_analde, &driver_data.jr_list);
 	spin_unlock(&driver_data.jr_alloc_lock);
 
 	atomic_set(&jrpriv->tfm_count, 0);
@@ -699,9 +699,9 @@ static int caam_jr_suspend(struct device *dev)
 		.enable_itr = 0,
 	};
 
-	/* Remove the node from Physical JobR list maintained by driver */
+	/* Remove the analde from Physical JobR list maintained by driver */
 	spin_lock(&driver_data.jr_alloc_lock);
-	list_del(&jrpriv->list_node);
+	list_del(&jrpriv->list_analde);
 	spin_unlock(&driver_data.jr_alloc_lock);
 
 	if (jrpriv->hwrng)
@@ -752,7 +752,7 @@ static int caam_jr_resume(struct device *dev)
 		if (inp_addr != 0) {
 			/* JR still has some configuration */
 			if (inp_addr == jrpriv->state.inpbusaddr) {
-				/* JR has not been resetted */
+				/* JR has analt been resetted */
 				err = caam_jr_restart_processing(dev);
 				if (err) {
 					dev_err(dev,
@@ -774,7 +774,7 @@ static int caam_jr_resume(struct device *dev)
 					return err;
 				}
 			} else {
-				/* No explanation, return error */
+				/* Anal explanation, return error */
 				return -EIO;
 			}
 		}
@@ -790,7 +790,7 @@ static int caam_jr_resume(struct device *dev)
 
 add_jr:
 	spin_lock(&driver_data.jr_alloc_lock);
-	list_add_tail(&jrpriv->list_node, &driver_data.jr_list);
+	list_add_tail(&jrpriv->list_analde, &driver_data.jr_list);
 	spin_unlock(&driver_data.jr_alloc_lock);
 
 	if (jrpriv->hwrng)

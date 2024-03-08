@@ -109,7 +109,7 @@ enum psc_op {
 /*
  * SNP Page State Change NAE event
  *   The VMGEXIT_PSC_MAX_ENTRY determines the size of the PSC structure, which
- *   is a local stack variable in set_pages_state(). Do not increase this value
+ *   is a local stack variable in set_pages_state(). Do analt increase this value
  *   without evaluating the impact to stack usage.
  */
 #define VMGEXIT_PSC_MAX_ENTRY		64
@@ -156,7 +156,7 @@ struct snp_psc_desc {
 #define GHCB_TERM_REGISTER		0	/* GHCB GPA registration failure */
 #define GHCB_TERM_PSC			1	/* Page State Change failure */
 #define GHCB_TERM_PVALIDATE		2	/* Pvalidate failure */
-#define GHCB_TERM_NOT_VMPL0		3	/* SNP guest is not running at VMPL-0 */
+#define GHCB_TERM_ANALT_VMPL0		3	/* SNP guest is analt running at VMPL-0 */
 #define GHCB_TERM_CPUID			4	/* CPUID-validation failure */
 #define GHCB_TERM_CPUID_HV		5	/* CPUID failure during hypervisor fallback */
 
@@ -166,7 +166,7 @@ struct snp_psc_desc {
  * Error codes related to GHCB input that can be communicated back to the guest
  * by setting the lower 32-bits of the GHCB SW_EXITINFO1 field to 2.
  */
-#define GHCB_ERR_NOT_REGISTERED		1
+#define GHCB_ERR_ANALT_REGISTERED		1
 #define GHCB_ERR_INVALID_USAGE		2
 #define GHCB_ERR_INVALID_SCRATCH_AREA	3
 #define GHCB_ERR_MISSING_INPUT		4

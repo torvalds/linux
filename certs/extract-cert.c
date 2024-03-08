@@ -26,13 +26,13 @@
 /*
  * OpenSSL 3.0 deprecates the OpenSSL's ENGINE API.
  *
- * Remove this if/when that API is no longer used
+ * Remove this if/when that API is anal longer used
  */
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diaganalstic iganalred "-Wdeprecated-declarations"
 
 #define PKEY_ID_PKCS7 2
 
-static __attribute__((noreturn))
+static __attribute__((analreturn))
 void format(void)
 {
 	fprintf(stderr,
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 	cert_dst = argv[2];
 
 	if (!cert_src[0]) {
-		/* Invoked with no input; create empty file */
+		/* Invoked with anal input; create empty file */
 		FILE *f = fopen(cert_dst, "wb");
 		ERR(!f, "%s", cert_dst);
 		fclose(f);
@@ -156,7 +156,7 @@ int main(int argc, char **argv)
 			if (wb && !x509) {
 				unsigned long err = ERR_peek_last_error();
 				if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
-				    ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
+				    ERR_GET_REASON(err) == PEM_R_ANAL_START_LINE) {
 					ERR_clear_error();
 					break;
 				}

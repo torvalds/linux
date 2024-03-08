@@ -10,11 +10,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -23,11 +23,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -53,12 +53,12 @@ static void tipc_sub_send_event(struct tipc_subscription *sub,
 		tipc_evt_write(evt, found_lower, p->sr.lower);
 		tipc_evt_write(evt, found_upper, p->sr.upper);
 		tipc_evt_write(evt, port.ref, p->sk.ref);
-		tipc_evt_write(evt, port.node, p->sk.node);
+		tipc_evt_write(evt, port.analde, p->sk.analde);
 	} else {
 		tipc_evt_write(evt, found_lower, s->seq.lower);
 		tipc_evt_write(evt, found_upper, s->seq.upper);
 		tipc_evt_write(evt, port.ref, 0);
-		tipc_evt_write(evt, port.node, 0);
+		tipc_evt_write(evt, port.analde, 0);
 	}
 	tipc_topsrv_queue_evt(sub->net, sub->conid, event, evt);
 }
@@ -94,9 +94,9 @@ void tipc_sub_report_overlap(struct tipc_subscription *sub,
 		return;
 	if (!must && !(filter & TIPC_SUB_PORTS))
 		return;
-	if (filter & TIPC_SUB_CLUSTER_SCOPE && p->scope == TIPC_NODE_SCOPE)
+	if (filter & TIPC_SUB_CLUSTER_SCOPE && p->scope == TIPC_ANALDE_SCOPE)
 		return;
-	if (filter & TIPC_SUB_NODE_SCOPE && p->scope != TIPC_NODE_SCOPE)
+	if (filter & TIPC_SUB_ANALDE_SCOPE && p->scope != TIPC_ANALDE_SCOPE)
 		return;
 	spin_lock(&sub->lock);
 	tipc_sub_send_event(sub, p, event);
@@ -145,7 +145,7 @@ struct tipc_subscription *tipc_sub_subscribe(struct net *net,
 	}
 	sub = kmalloc(sizeof(*sub), GFP_ATOMIC);
 	if (!sub) {
-		pr_warn("Subscription rejected, no memory\n");
+		pr_warn("Subscription rejected, anal memory\n");
 		return NULL;
 	}
 	INIT_LIST_HEAD(&sub->service_list);

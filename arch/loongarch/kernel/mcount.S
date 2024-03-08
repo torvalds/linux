@@ -2,7 +2,7 @@
 /*
  * LoongArch specific _mcount support
  *
- * Copyright (C) 2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2022 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/export.h>

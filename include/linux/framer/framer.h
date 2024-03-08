@@ -12,7 +12,7 @@
 
 #include <linux/err.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
@@ -58,8 +58,8 @@ struct framer_status {
 };
 
 /**
- * enum framer_event - Event available for notification
- * @FRAMER_EVENT_STATUS: Event notified on framer_status changes
+ * enum framer_event - Event available for analtification
+ * @FRAMER_EVENT_STATUS: Event analtified on framer_status changes
  */
 enum framer_event {
 	FRAMER_EVENT_STATUS,
@@ -74,8 +74,8 @@ enum framer_event {
  * @init_count: used to protect when the framer is used by multiple consumers
  * @power_count: used to protect when the framer is used by multiple consumers
  * @pwr: power regulator associated with the framer
- * @notify_status_work: work structure used for status notifications
- * @notifier_list: notifier list used for notifications
+ * @analtify_status_work: work structure used for status analtifications
+ * @analtifier_list: analtifier list used for analtifications
  * @polling_work: delayed work structure used for the polling task
  * @prev_status: previous read status used by the polling task to detect changes
  */
@@ -87,8 +87,8 @@ struct framer {
 	int				init_count;
 	int				power_count;
 	struct regulator		*pwr;
-	struct work_struct		notify_status_work;
-	struct blocking_notifier_head	notifier_list;
+	struct work_struct		analtify_status_work;
+	struct blocking_analtifier_head	analtifier_list;
 	struct delayed_work		polling_work;
 	struct framer_status		prev_status;
 };
@@ -105,8 +105,8 @@ int framer_power_off(struct framer *framer);
 int framer_get_status(struct framer *framer, struct framer_status *status);
 int framer_get_config(struct framer *framer, struct framer_config *config);
 int framer_set_config(struct framer *framer, const struct framer_config *config);
-int framer_notifier_register(struct framer *framer, struct notifier_block *nb);
-int framer_notifier_unregister(struct framer *framer, struct notifier_block *nb);
+int framer_analtifier_register(struct framer *framer, struct analtifier_block *nb);
+int framer_analtifier_unregister(struct framer *framer, struct analtifier_block *nb);
 
 struct framer *framer_get(struct device *dev, const char *con_id);
 void framer_put(struct device *dev, struct framer *framer);
@@ -116,74 +116,74 @@ struct framer *devm_framer_optional_get(struct device *dev, const char *con_id);
 #else
 static inline int framer_pm_runtime_get(struct framer *framer)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int framer_pm_runtime_get_sync(struct framer *framer)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int framer_pm_runtime_put(struct framer *framer)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int framer_pm_runtime_put_sync(struct framer *framer)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int framer_init(struct framer *framer)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int framer_exit(struct framer *framer)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int framer_power_on(struct framer *framer)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int framer_power_off(struct framer *framer)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int framer_get_status(struct framer *framer, struct framer_status *status)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int framer_get_config(struct framer *framer, struct framer_config *config)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int framer_set_config(struct framer *framer, const struct framer_config *config)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
-static inline int framer_notifier_register(struct framer *framer,
-					   struct notifier_block *nb)
+static inline int framer_analtifier_register(struct framer *framer,
+					   struct analtifier_block *nb)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
-static inline int framer_notifier_unregister(struct framer *framer,
-					     struct notifier_block *nb)
+static inline int framer_analtifier_unregister(struct framer *framer,
+					     struct analtifier_block *nb)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 struct framer *framer_get(struct device *dev, const char *con_id)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 
 void framer_put(struct device *dev, struct framer *framer)
@@ -192,7 +192,7 @@ void framer_put(struct device *dev, struct framer *framer)
 
 static inline struct framer *devm_framer_get(struct device *dev, const char *con_id)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 
 static inline struct framer *devm_framer_optional_get(struct device *dev, const char *con_id)

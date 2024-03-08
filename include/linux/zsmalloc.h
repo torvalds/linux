@@ -19,14 +19,14 @@
 /*
  * zsmalloc mapping modes
  *
- * NOTE: These only make a difference when a mapped object spans pages.
+ * ANALTE: These only make a difference when a mapped object spans pages.
  */
 enum zs_mapmode {
-	ZS_MM_RW, /* normal read-write mapping */
-	ZS_MM_RO, /* read-only (no copy-out at unmap time) */
-	ZS_MM_WO /* write-only (no copy-in at map time) */
+	ZS_MM_RW, /* analrmal read-write mapping */
+	ZS_MM_RO, /* read-only (anal copy-out at unmap time) */
+	ZS_MM_WO /* write-only (anal copy-in at map time) */
 	/*
-	 * NOTE: ZS_MM_WO should only be used for initializing new
+	 * ANALTE: ZS_MM_WO should only be used for initializing new
 	 * (uninitialized) allocations.  Partial writes to already
 	 * initialized allocations should use ZS_MM_RW to preserve the
 	 * existing data.

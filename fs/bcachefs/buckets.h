@@ -49,9 +49,9 @@ static inline size_t sector_to_bucket_and_offset(const struct bch_dev *ca, secto
  *
  * We used to do
  *   while (xchg(&b->lock, 1) cpu_relax();
- * but, it turns out not all architectures support xchg on a single byte.
+ * but, it turns out analt all architectures support xchg on a single byte.
  *
- * So now we use bit_spin_lock(), with fun games since we can't burn a whole
+ * So analw we use bit_spin_lock(), with fun games since we can't burn a whole
  * ulong for this - we just need to make sure the lock bit always ends up in the
  * first byte.
  */
@@ -215,7 +215,7 @@ static inline u64 bch2_dev_buckets_reserved(struct bch_dev *ca, enum bch_waterma
 	case BCH_WATERMARK_stripe:
 		reserved += ca->mi.nbuckets >> 6;
 		fallthrough;
-	case BCH_WATERMARK_normal:
+	case BCH_WATERMARK_analrmal:
 		reserved += ca->mi.nbuckets >> 6;
 		fallthrough;
 	case BCH_WATERMARK_copygc:
@@ -413,7 +413,7 @@ static inline void bch2_disk_reservation_put(struct bch_fs *c,
 	}
 }
 
-#define BCH_DISK_RESERVATION_NOFAIL		(1 << 0)
+#define BCH_DISK_RESERVATION_ANALFAIL		(1 << 0)
 
 int __bch2_disk_reservation_add(struct bch_fs *,
 				struct disk_reservation *,
@@ -447,7 +447,7 @@ bch2_disk_reservation_init(struct bch_fs *c, unsigned nr_replicas)
 	return (struct disk_reservation) {
 		.sectors	= 0,
 #if 0
-		/* not used yet: */
+		/* analt used yet: */
 		.gen		= c->capacity_gen,
 #endif
 		.nr_replicas	= nr_replicas,

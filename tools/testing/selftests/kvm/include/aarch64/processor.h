@@ -34,29 +34,29 @@
  * DEVICE_nGnRnE      0     0000:0000
  * DEVICE_nGnRE       1     0000:0100
  * DEVICE_GRE         2     0000:1100
- * NORMAL_NC          3     0100:0100
- * NORMAL             4     1111:1111
- * NORMAL_WT          5     1011:1011
+ * ANALRMAL_NC          3     0100:0100
+ * ANALRMAL             4     1111:1111
+ * ANALRMAL_WT          5     1011:1011
  */
 
 /* Linux doesn't use these memory types, so let's define them. */
 #define MAIR_ATTR_DEVICE_GRE	UL(0x0c)
-#define MAIR_ATTR_NORMAL_WT	UL(0xbb)
+#define MAIR_ATTR_ANALRMAL_WT	UL(0xbb)
 
 #define MT_DEVICE_nGnRnE	0
 #define MT_DEVICE_nGnRE		1
 #define MT_DEVICE_GRE		2
-#define MT_NORMAL_NC		3
-#define MT_NORMAL		4
-#define MT_NORMAL_WT		5
+#define MT_ANALRMAL_NC		3
+#define MT_ANALRMAL		4
+#define MT_ANALRMAL_WT		5
 
 #define DEFAULT_MAIR_EL1							\
 	(MAIR_ATTRIDX(MAIR_ATTR_DEVICE_nGnRnE, MT_DEVICE_nGnRnE) |		\
 	 MAIR_ATTRIDX(MAIR_ATTR_DEVICE_nGnRE, MT_DEVICE_nGnRE) |		\
 	 MAIR_ATTRIDX(MAIR_ATTR_DEVICE_GRE, MT_DEVICE_GRE) |			\
-	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL_NC, MT_NORMAL_NC) |			\
-	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL, MT_NORMAL) |				\
-	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL_WT, MT_NORMAL_WT))
+	 MAIR_ATTRIDX(MAIR_ATTR_ANALRMAL_NC, MT_ANALRMAL_NC) |			\
+	 MAIR_ATTRIDX(MAIR_ATTR_ANALRMAL, MT_ANALRMAL) |				\
+	 MAIR_ATTRIDX(MAIR_ATTR_ANALRMAL_WT, MT_ANALRMAL_WT))
 
 #define MPIDR_HWID_BITMASK (0xff00fffffful)
 
@@ -104,7 +104,7 @@ enum {
 #define ESR_EC_SHIFT		26
 #define ESR_EC_MASK		(ESR_EC_NUM - 1)
 
-#define ESR_EC_UNKNOWN		0x0
+#define ESR_EC_UNKANALWN		0x0
 #define ESR_EC_SVC64		0x15
 #define ESR_EC_IABT		0x21
 #define ESR_EC_DABT		0x25

@@ -29,7 +29,7 @@ int cx8800_vbi_fmt(struct file *file, void *priv,
 	f->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
 	f->fmt.vbi.offset = 244;
 
-	if (dev->core->tvnorm & V4L2_STD_525_60) {
+	if (dev->core->tvanalrm & V4L2_STD_525_60) {
 		/* ntsc */
 		f->fmt.vbi.sampling_rate = 28636363;
 		f->fmt.vbi.start[0] = 10;
@@ -37,7 +37,7 @@ int cx8800_vbi_fmt(struct file *file, void *priv,
 		f->fmt.vbi.count[0] = VBI_LINE_NTSC_COUNT;
 		f->fmt.vbi.count[1] = VBI_LINE_NTSC_COUNT;
 
-	} else if (dev->core->tvnorm & V4L2_STD_625_50) {
+	} else if (dev->core->tvanalrm & V4L2_STD_625_50) {
 		/* pal */
 		f->fmt.vbi.sampling_rate = 35468950;
 		f->fmt.vbi.start[0] = V4L2_VBI_ITU_625_F1_START + 5;
@@ -119,7 +119,7 @@ static int queue_setup(struct vb2_queue *q,
 	struct cx8800_dev *dev = q->drv_priv;
 
 	*num_planes = 1;
-	if (dev->core->tvnorm & V4L2_STD_525_60)
+	if (dev->core->tvanalrm & V4L2_STD_525_60)
 		sizes[0] = VBI_LINE_NTSC_COUNT * VBI_LINE_LENGTH * 2;
 	else
 		sizes[0] = VBI_LINE_PAL_COUNT * VBI_LINE_LENGTH * 2;
@@ -135,7 +135,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	unsigned int lines;
 	unsigned int size;
 
-	if (dev->core->tvnorm & V4L2_STD_525_60)
+	if (dev->core->tvanalrm & V4L2_STD_525_60)
 		lines = VBI_LINE_NTSC_COUNT;
 	else
 		lines = VBI_LINE_PAL_COUNT;

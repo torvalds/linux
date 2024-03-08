@@ -31,16 +31,16 @@ static int rpmsg_sample_cb(struct rpmsg_device *rpdev, void *data, int len,
 	dev_info(&rpdev->dev, "incoming msg %d (src: 0x%x)\n",
 		 ++idata->rx_count, src);
 
-	print_hex_dump_debug(__func__, DUMP_PREFIX_NONE, 16, 1, data, len,
+	print_hex_dump_debug(__func__, DUMP_PREFIX_ANALNE, 16, 1, data, len,
 			     true);
 
-	/* samples should not live forever */
+	/* samples should analt live forever */
 	if (idata->rx_count >= count) {
 		dev_info(&rpdev->dev, "goodbye!\n");
 		return 0;
 	}
 
-	/* send a new message now */
+	/* send a new message analw */
 	ret = rpmsg_send(rpdev->ept, MSG, strlen(MSG));
 	if (ret)
 		dev_err(&rpdev->dev, "rpmsg_send failed: %d\n", ret);
@@ -58,7 +58,7 @@ static int rpmsg_sample_probe(struct rpmsg_device *rpdev)
 
 	idata = devm_kzalloc(&rpdev->dev, sizeof(*idata), GFP_KERNEL);
 	if (!idata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&rpdev->dev, idata);
 

@@ -254,7 +254,7 @@ struct bfi_fcport_rsp_s {
 struct bfi_fcport_enable_req_s {
 	struct bfi_mhdr_s  mh;		/*  msg header			    */
 	u32	   rsvd1;
-	wwn_t		   nwwn;	/*  node wwn of physical port	    */
+	wwn_t		   nwwn;	/*  analde wwn of physical port	    */
 	wwn_t		   pwwn;	/*  port wwn of physical port	    */
 	struct bfa_port_cfg_s port_cfg; /*  port configuration	    */
 	union bfi_addr_u   stats_dma_addr; /*  DMA address for stats	    */
@@ -347,7 +347,7 @@ struct bfi_fcxp_send_req_s {
 	__be16	vf_id;		/*  vsan tag if applicable	    */
 	u16	rport_fw_hndl;	/*  FW Handle for the remote port  */
 	u8	 class;		/*  FC class used for req/rsp	    */
-	u8	 rsp_timeout;	/*  timeout in secs, 0-no response */
+	u8	 rsp_timeout;	/*  timeout in secs, 0-anal response */
 	u8	 cts;		/*  continue sequence		    */
 	u8	 lp_fwtag;	/*  lport tag			    */
 	struct fchs_s	fchs;	/*  request FC header structure    */
@@ -428,7 +428,7 @@ struct bfi_lps_login_rsp_s {
 	u8		lsrjt_rsn;
 	u8		lsrjt_expl;
 	wwn_t		port_name;
-	wwn_t		node_name;
+	wwn_t		analde_name;
 	__be16		bb_credit;
 	u8		f_port;
 	u8		npiv_en;
@@ -494,7 +494,7 @@ enum bfi_rport_i2h_msgs {
 	BFI_RPORT_I2H_QOS_SCN    = BFA_I2HM(3),
 	BFI_RPORT_I2H_LIP_SCN_ONLINE =	BFA_I2HM(4),
 	BFI_RPORT_I2H_LIP_SCN_OFFLINE = BFA_I2HM(5),
-	BFI_RPORT_I2H_NO_DEV	= BFA_I2HM(6),
+	BFI_RPORT_I2H_ANAL_DEV	= BFA_I2HM(6),
 };
 
 struct bfi_rport_create_req_s {
@@ -590,7 +590,7 @@ struct bfi_itn_create_req_s {
 	u16	fw_handle;	/*  f/w handle for itnim	 */
 	u8	class;		/*  FC class for IO		 */
 	u8	seq_rec;	/*  sequence recovery support	 */
-	u8	msg_no;		/*  seq id of the msg		 */
+	u8	msg_anal;		/*  seq id of the msg		 */
 	u8	role;
 };
 
@@ -644,7 +644,7 @@ enum bfi_ioim_h2i {
 };
 
 enum bfi_ioim_i2h {
-	BFI_IOIM_I2H_IO_RSP = BFA_I2HM(1),	/*  non-fp IO response	 */
+	BFI_IOIM_I2H_IO_RSP = BFA_I2HM(1),	/*  analn-fp IO response	 */
 	BFI_IOIM_I2H_IOABORT_RSP = BFA_I2HM(2),	/*  ABORT rsp	 */
 };
 
@@ -658,9 +658,9 @@ struct bfi_ioim_dif_s {
 /*
  * FCP IO messages overview
  *
- * @note
+ * @analte
  * - Max CDB length supported is 64 bytes.
- * - SCSI Linked commands and SCSI bi-directional Commands not
+ * - SCSI Linked commands and SCSI bi-directional Commands analt
  *	supported.
  *
  */
@@ -695,27 +695,27 @@ struct bfi_ioim_req_s {
  *
  *	BFI_IOIM_STS_HOST_ABORTED	: IO was aborted successfully due to
  *						host request.
- *					- io-tag cannot be reused yet.
+ *					- io-tag cananalt be reused yet.
  *
  *	BFI_IOIM_STS_ABORTED		: IO was aborted successfully
  *						internally by f/w.
- *					- io-tag cannot be reused yet.
+ *					- io-tag cananalt be reused yet.
  *
  *	BFI_IOIM_STS_TIMEDOUT	: IO timedout and ABTS/RRQ is happening
  *					in the firmware and
- *					- io-tag cannot be reused yet.
+ *					- io-tag cananalt be reused yet.
  *
- *	BFI_IOIM_STS_SQER_NEEDED	: Firmware could not recover the IO
+ *	BFI_IOIM_STS_SQER_NEEDED	: Firmware could analt recover the IO
  *					  with sequence level error
  *	logic and hence host needs to retry
  *					  this IO with a different IO tag
- *					- io-tag cannot be used yet.
+ *					- io-tag cananalt be used yet.
  *
  *	BFI_IOIM_STS_NEXUS_ABORT	: Second Level Error Recovery from host
  *					  is required because 2 consecutive ABTS
  *					  timedout and host needs logout and
  *					  re-login with the target
- *					- io-tag cannot be used yet.
+ *					- io-tag cananalt be used yet.
  *
  *	BFI_IOIM_STS_UNDERRUN	: IO completed with SCSI status good,
  *					  but the data tranferred is less than
@@ -740,7 +740,7 @@ struct bfi_ioim_req_s {
  *					  ex target sent more data than
  *					  requested, or there was data frame
  *					  loss and other reasons
- *					- io-tag cannot be used yet.
+ *					- io-tag cananalt be used yet.
  *
  *	BFI_IOIM_STS_DIF_ERR	: Firwmare detected DIF error. ex: DIF
  *					CRC err or Ref Tag err or App tag err.
@@ -750,7 +750,7 @@ struct bfi_ioim_req_s {
  *					  Management command from the host
  *					  - io-tag can be reused.
  *
- *	BFI_IOIM_STS_UTAG		: Firmware does not know about this
+ *	BFI_IOIM_STS_UTAG		: Firmware does analt kanalw about this
  *					  io_tag.
  *					- io-tag can be reused.
  */
@@ -822,10 +822,10 @@ struct bfi_tskim_abortreq_s {
 enum bfi_tskim_status {
 	/*
 	 * Following are FCP-4 spec defined status codes,
-	 * **DO NOT CHANGE THEM **
+	 * **DO ANALT CHANGE THEM **
 	 */
 	BFI_TSKIM_STS_OK	= 0,
-	BFI_TSKIM_STS_NOT_SUPP = 4,
+	BFI_TSKIM_STS_ANALT_SUPP = 4,
 	BFI_TSKIM_STS_FAILED	= 5,
 
 	/*
@@ -833,7 +833,7 @@ enum bfi_tskim_status {
 	 */
 	BFI_TSKIM_STS_TIMEOUT  = 10,	/*  TM request timedout	*/
 	BFI_TSKIM_STS_ABORTED  = 11,	/*  Aborted on host request */
-	BFI_TSKIM_STS_UTAG     = 12,	/*  unknown tag for request */
+	BFI_TSKIM_STS_UTAG     = 12,	/*  unkanalwn tag for request */
 };
 
 struct bfi_tskim_rsp_s {

@@ -15,10 +15,10 @@
 
 /* Switch Profile IDs for Profile related switch rules */
 #define ICE_PROFID_IPV4_GTPC_TEID			41
-#define ICE_PROFID_IPV4_GTPC_NO_TEID			42
+#define ICE_PROFID_IPV4_GTPC_ANAL_TEID			42
 #define ICE_PROFID_IPV4_GTPU_TEID			43
 #define ICE_PROFID_IPV6_GTPC_TEID			44
-#define ICE_PROFID_IPV6_GTPC_NO_TEID			45
+#define ICE_PROFID_IPV6_GTPC_ANAL_TEID			45
 #define ICE_PROFID_IPV6_GTPU_TEID			46
 #define ICE_PROFID_IPV6_GTPU_IPV6_TCP_INNER		70
 
@@ -26,7 +26,7 @@
 #define ICE_SW_RULE_RX_TX_HDR_SIZE(s, l)	struct_size((s), hdr_data, (l))
 #define ICE_SW_RULE_RX_TX_ETH_HDR_SIZE(s)	\
 	ICE_SW_RULE_RX_TX_HDR_SIZE((s), DUMMY_ETH_HDR_LEN)
-#define ICE_SW_RULE_RX_TX_NO_HDR_SIZE(s)	\
+#define ICE_SW_RULE_RX_TX_ANAL_HDR_SIZE(s)	\
 	ICE_SW_RULE_RX_TX_HDR_SIZE((s), 0)
 #define ICE_SW_RULE_LG_ACT_SIZE(s, n)		struct_size((s), act, (n))
 
@@ -63,7 +63,7 @@ enum ice_sw_lkup_type {
 
 /* type of filter src ID */
 enum ice_src_id {
-	ICE_SRC_ID_UNKNOWN = 0,
+	ICE_SRC_ID_UNKANALWN = 0,
 	ICE_SRC_ID_VSI,
 	ICE_SRC_ID_QUEUE,
 	ICE_SRC_ID_LPORT,
@@ -124,7 +124,7 @@ struct ice_fltr_info {
 
 	/* Set to num_queues if action is ICE_FWD_TO_QGRP. This field
 	 * determines the range of queues the packet needs to be forwarded to.
-	 * Note that qgrp_size must be set to a power of 2.
+	 * Analte that qgrp_size must be set to a power of 2.
 	 */
 	u8 qgrp_size;
 
@@ -136,7 +136,7 @@ struct ice_fltr_info {
 struct ice_update_recipe_lkup_idx_params {
 	u16 rid;
 	u16 fv_idx;
-	bool ignore_valid;
+	bool iganalre_valid;
 	u16 mask;
 	bool mask_valid;
 	u8 lkup_idx;
@@ -228,7 +228,7 @@ struct ice_sw_recipe {
 	/* if this recipe is a collection of other recipe */
 	u8 big_recp;
 
-	/* if this recipe is part of another bigger recipe then chain index
+	/* if this recipe is part of aanalther bigger recipe then chain index
 	 * corresponding to this recipe
 	 */
 	u8 chain_idx;
@@ -260,7 +260,7 @@ struct ice_sw_recipe {
 	DECLARE_BITMAP(res_idxs, ICE_MAX_FV_WORDS);
 
 	/* This allows user to specify the recipe priority.
-	 * For now, this becomes 'fwd_priority' when recipe
+	 * For analw, this becomes 'fwd_priority' when recipe
 	 * is created, usually recipes can have 'fwd' and 'join'
 	 * priority.
 	 */

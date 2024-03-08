@@ -130,16 +130,16 @@ struct mv_xor_chan {
 
 /**
  * struct mv_xor_desc_slot - software descriptor
- * @node: node on the mv_xor_chan lists
+ * @analde: analde on the mv_xor_chan lists
  * @hw_desc: virtual address of the hardware descriptor chain
  * @phys: hardware address of the hardware descriptor chain
- * @slot_used: slot in use or not
+ * @slot_used: slot in use or analt
  * @idx: pool index
  * @tx_list: list of slots that make up a multi-descriptor transaction
  * @async_tx: support for the async_tx api
  */
 struct mv_xor_desc_slot {
-	struct list_head	node;
+	struct list_head	analde;
 	struct list_head	sg_tx_list;
 	enum dma_transaction_type	type;
 	void			*hw_desc;

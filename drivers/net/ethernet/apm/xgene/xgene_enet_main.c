@@ -91,13 +91,13 @@ static int xgene_enet_refill_pagepool(struct xgene_enet_desc_ring *buf_pool,
 
 		page = dev_alloc_page();
 		if (unlikely(!page))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dma_addr = dma_map_page(dev, page, 0,
 					PAGE_SIZE, DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(dev, dma_addr))) {
 			put_page(page);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		hw_len = xgene_enet_set_data_len(PAGE_SIZE);
@@ -141,7 +141,7 @@ static int xgene_enet_refill_bufpool(struct xgene_enet_desc_ring *buf_pool,
 
 		skb = netdev_alloc_skb_ip_align(ndev, len);
 		if (unlikely(!skb))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dma_addr = dma_map_single(dev, skb->data, len, DMA_FROM_DEVICE);
 		if (dma_mapping_error(dev, dma_addr)) {
@@ -215,7 +215,7 @@ static irqreturn_t xgene_enet_rx_irq(const int irq, void *data)
 	struct xgene_enet_desc_ring *rx_ring = data;
 
 	if (napi_schedule_prep(&rx_ring->napi)) {
-		disable_irq_nosync(irq);
+		disable_irq_analsync(irq);
 		__napi_schedule(&rx_ring->napi);
 	}
 
@@ -335,7 +335,7 @@ static int xgene_enet_work_msg(struct sk_buff *skb, u64 *hopinfo)
 			hdr_len = ethhdr + ip_hdrlen(skb) + tcp_hdrlen(skb);
 			mss = skb_shinfo(skb)->gso_size;
 
-			if (skb_is_nonlinear(skb)) {
+			if (skb_is_analnlinear(skb)) {
 				len = skb_headlen(skb);
 				nr_frags = skb_shinfo(skb)->nr_frags;
 
@@ -446,7 +446,7 @@ static int xgene_enet_setup_tx_desc(struct xgene_enet_desc_ring *tx_ring,
 				   SET_VAL(BUFDATALEN, hw_len) |
 				   SET_BIT(COHERENT));
 
-	if (!skb_is_nonlinear(skb))
+	if (!skb_is_analnlinear(skb))
 		goto out;
 
 	/* scatter gather */
@@ -752,7 +752,7 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 	rx_ring->npagepool -= skb_shinfo(skb)->nr_frags;
 
 skip_jumbo:
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 	xgene_enet_rx_csum(skb);
 
 	rx_ring->rx_packets++;
@@ -1329,7 +1329,7 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 						      RING_CFGSIZE_16KB,
 						      ring_id);
 		if (!rx_ring) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -1340,7 +1340,7 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 						       RING_CFGSIZE_16KB,
 						       ring_id);
 		if (!buf_pool) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -1351,7 +1351,7 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 						sizeof(struct sk_buff *),
 						GFP_KERNEL);
 		if (!buf_pool->rx_skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -1371,7 +1371,7 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 							RING_CFGSIZE_16KB,
 							ring_id);
 		if (!page_pool) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -1380,7 +1380,7 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 						    sizeof(struct page *),
 						    GFP_KERNEL);
 		if (!page_pool->frag_page) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -1388,7 +1388,7 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 							sizeof(dma_addr_t),
 							GFP_KERNEL);
 		if (!page_pool->frag_dma_addr) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -1404,7 +1404,7 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 						      RING_CFGSIZE_16KB,
 						      ring_id);
 		if (!tx_ring) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -1412,7 +1412,7 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 		exp_bufs = dmam_alloc_coherent(dev, size, &dma_exp_bufs,
 					       GFP_KERNEL | __GFP_ZERO);
 		if (!exp_bufs) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 		tx_ring->exp_bufs = exp_bufs;
@@ -1429,7 +1429,7 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 							      RING_CFGSIZE_16KB,
 							      ring_id);
 			if (!cp_ring) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err;
 			}
 
@@ -1441,7 +1441,7 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 					       sizeof(struct sk_buff *),
 					       GFP_KERNEL);
 		if (!cp_ring->cp_skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -1450,7 +1450,7 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 						      size, GFP_KERNEL);
 		if (!cp_ring->frag_dma_addr) {
 			devm_kfree(dev, cp_ring->cp_skb);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -1569,7 +1569,7 @@ static void xgene_get_port_id_dt(struct device *dev, struct xgene_enet_pdata *pd
 {
 	u32 id = 0;
 
-	of_property_read_u32(dev->of_node, "port-id", &id);
+	of_property_read_u32(dev->of_analde, "port-id", &id);
 
 	pdata->port_id = id & BIT(0);
 
@@ -1695,40 +1695,40 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, RES_ENET_CSR);
 	if (!res) {
-		dev_err(dev, "Resource enet_csr not defined\n");
-		return -ENODEV;
+		dev_err(dev, "Resource enet_csr analt defined\n");
+		return -EANALDEV;
 	}
 	pdata->base_addr = devm_ioremap(dev, res->start, resource_size(res));
 	if (!pdata->base_addr) {
 		dev_err(dev, "Unable to retrieve ENET Port CSR region\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, RES_RING_CSR);
 	if (!res) {
-		dev_err(dev, "Resource ring_csr not defined\n");
-		return -ENODEV;
+		dev_err(dev, "Resource ring_csr analt defined\n");
+		return -EANALDEV;
 	}
 	pdata->ring_csr_addr = devm_ioremap(dev, res->start,
 							resource_size(res));
 	if (!pdata->ring_csr_addr) {
 		dev_err(dev, "Unable to retrieve ENET Ring CSR region\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, RES_RING_CMD);
 	if (!res) {
-		dev_err(dev, "Resource ring_cmd not defined\n");
-		return -ENODEV;
+		dev_err(dev, "Resource ring_cmd analt defined\n");
+		return -EANALDEV;
 	}
 	pdata->ring_cmd_addr = devm_ioremap(dev, res->start,
 							resource_size(res));
 	if (!pdata->ring_cmd_addr) {
 		dev_err(dev, "Unable to retrieve ENET Ring command region\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	if (dev->of_node)
+	if (dev->of_analde)
 		xgene_get_port_id_dt(dev, pdata);
 #ifdef CONFIG_ACPI
 	else
@@ -1749,7 +1749,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	    pdata->phy_mode != PHY_INTERFACE_MODE_SGMII &&
 	    pdata->phy_mode != PHY_INTERFACE_MODE_XGMII) {
 		dev_err(dev, "Incorrect phy-connection-type specified\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = xgene_get_tx_delay(pdata);
@@ -1773,7 +1773,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 			 * retrived. Always abort if the clock is missing on
 			 * DT system as the driver can't cope with this case.
 			 */
-			if (PTR_ERR(pdata->clk) != -ENOENT || dev->of_node)
+			if (PTR_ERR(pdata->clk) != -EANALENT || dev->of_analde)
 				return PTR_ERR(pdata->clk);
 			/* Firmware may have set up the clock already. */
 			dev_info(dev, "clocks have been setup already\n");
@@ -1850,11 +1850,11 @@ static int xgene_enet_init_hw(struct xgene_enet_pdata *pdata)
 	buf_pool = pdata->rx_ring[0]->buf_pool;
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
 		/* Initialize and Enable  PreClassifier Tree */
-		enet_cle->max_nodes = 512;
+		enet_cle->max_analdes = 512;
 		enet_cle->max_dbptrs = 1024;
 		enet_cle->parsers = 3;
 		enet_cle->active_parser = PARSER_ALL;
-		enet_cle->ptree.start_node = 0;
+		enet_cle->ptree.start_analde = 0;
 		enet_cle->ptree.start_dbptr = 0;
 		enet_cle->jump_bytes = 8;
 		ret = pdata->cle_ops->cle_init(pdata);
@@ -1873,7 +1873,7 @@ static int xgene_enet_init_hw(struct xgene_enet_pdata *pdata)
 	}
 
 	ndev->max_mtu = XGENE_ENET_MAX_MTU;
-	pdata->phy_speed = SPEED_UNKNOWN;
+	pdata->phy_speed = SPEED_UNKANALWN;
 	pdata->mac_ops->init(pdata);
 
 	return ret;
@@ -2023,7 +2023,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	ndev = alloc_etherdev_mqs(sizeof(struct xgene_enet_pdata),
 				  XGENE_NUM_TX_RING, XGENE_NUM_RX_RING);
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata = netdev_priv(ndev);
 
@@ -2040,7 +2040,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 
 	pdata->enet_id = (enum xgene_enet_id)device_get_match_data(&pdev->dev);
 	if (!pdata->enet_id) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -2059,7 +2059,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 
 	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret) {
-		netdev_err(ndev, "No usable DMA configuration\n");
+		netdev_err(ndev, "Anal usable DMA configuration\n");
 		goto err;
 	}
 

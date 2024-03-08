@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ======================
-Histogram Design Notes
+Histogram Design Analtes
 ======================
 
 :Author: Tom Zanussi <zanussi@kernel.org>
@@ -11,13 +11,13 @@ histograms work and how the individual pieces map to the data
 structures used to implement them in trace_events_hist.c and
 tracing_map.c.
 
-Note: All the ftrace histogram command examples assume the working
+Analte: All the ftrace histogram command examples assume the working
       directory is the ftrace /tracing directory. For example::
 
 	# cd /sys/kernel/tracing
 
 Also, the histogram output displayed for those commands will be
-generally be truncated - only enough to make the point is displayed.
+generally be truncated - only eanalugh to make the point is displayed.
 
 'hist_debug' trace event files
 ==============================
@@ -57,7 +57,7 @@ event and cat the output::
     Dropped: 0
 
 What this does is create a histogram on the sched_waking event using
-pid as a key and with a single value, hitcount, which even if not
+pid as a key and with a single value, hitcount, which even if analt
 explicitly specified, exists for every histogram regardless.
 
 The hitcount value is a per-bucket value that's automatically
@@ -77,7 +77,7 @@ histogram val and key in the histogram (variables are also included
 here, but are discussed later). So for the above histogram we have one
 key and one value; in this case the one value is the hitcount value,
 which all histograms have, regardless of whether they define that
-value or not, which the above histogram does not.
+value or analt, which the above histogram does analt.
 
 Each struct hist_field contains a pointer to the ftrace_event_field
 from the event's trace_event_file along with various bits related to
@@ -155,7 +155,7 @@ map_elt).  The total number of map_entrys in the hist_data.map array =   |  |
 map->max_elts (actually map->map_size but only max_elts of those are     |  |
 used.  This is a property required by the map_insert() algorithm).       |  |
 
-If a map_entry is unused, meaning no key has yet hashed into it, its     |  |
+If a map_entry is unused, meaning anal key has yet hashed into it, its     |  |
 .key value is 0 and its .val pointer is NULL.  Once a map_entry has      |  |
 been claimed, the .key value contains the key's hash value and the       |  |
 .val member points to a map_elt containing the full key and an entry     |  |
@@ -245,7 +245,7 @@ field's size and offset, is used to grab that subkey's data from the
 current trace record.
 
 Once the complete key has been retrieved, it's used to look that key
-up in the tracing_map.  If there's no tracing_map_elt associated with
+up in the tracing_map.  If there's anal tracing_map_elt associated with
 that key, an empty one is claimed and inserted in the map for the new
 key.  In either case, the tracing_map_elt associated with that key is
 returned.
@@ -265,7 +265,7 @@ trace record (the hitcount fn() just increments the counter sum by 1),
 but the idea is the same.
 
 Once all the values have been updated, hist_trigger_elt_update() is
-done and returns.  Note that there are also tracing_map_fields for
+done and returns.  Analte that there are also tracing_map_fields for
 each subkey in the key, but hist_trigger_elt_update() doesn't look at
 them or update anything - those exist only for sorting, which can
 happen later.
@@ -288,7 +288,7 @@ how many of those correspond to keys and how many correspond to values.
 It then goes on to display details for each field, including the
 field's flags and the position of each field in the hist_data's
 fields[] array, which is useful information for verifying that things
-internally appear correct or not, and which again will become even
+internally appear correct or analt, and which again will become even
 more useful in further examples::
 
   # cat events/kmem/kmalloc/hist_debug
@@ -315,7 +315,7 @@ more useful in further examples::
 
     hist_data->fields[1]:
       flags:
-        VAL: normal u64 value
+        VAL: analrmal u64 value
       ftrace_event_field name: bytes_req
       type: size_t
       size: 8
@@ -323,7 +323,7 @@ more useful in further examples::
 
     hist_data->fields[2]:
       flags:
-        VAL: normal u64 value
+        VAL: analrmal u64 value
       ftrace_event_field name: bytes_alloc
       type: size_t
       size: 8
@@ -355,7 +355,7 @@ Variables
 =========
 
 Variables allow data from one hist trigger to be saved by one hist
-trigger and retrieved by another hist trigger.  For example, a trigger
+trigger and retrieved by aanalther hist trigger.  For example, a trigger
 on the sched_waking event can capture a timestamp for a particular
 pid, and later a sched_switch event that switches to that pid event
 can grab the timestamp and use it to calculate a time delta between
@@ -368,7 +368,7 @@ the two events::
           events/sched/sched_switch/trigger
 
 In terms of the histogram data structures, variables are implemented
-as another type of hist_field and for a given hist trigger are added
+as aanalther type of hist_field and for a given hist trigger are added
 to the hist_data.fields[] array just after all the val fields.  To
 distinguish them from the existing key and val fields, they're given a
 new flag type, HIST_FIELD_FL_VAR (abbreviated FL_VAR) and they also
@@ -443,7 +443,7 @@ sched_waking histogram
 This is very similar to the basic case.  In the above diagram, we can     | | |
 see a new .flags member has been added to the struct hist_field           | | |
 struct, and a new entry added to hist_data.fields representing the ts0    | | |
-variable.  For a normal val hist_field, .flags is just 0 (modulo          | | |
+variable.  For a analrmal val hist_field, .flags is just 0 (modulo          | | |
 modifier flags), but if the value is defined as a variable, the .flags    | | |
 contains a set FL_VAR bit.                                                | | |
 
@@ -580,7 +580,7 @@ sched_switch histogram is that it references a variable on the              | |
 sched_waking histogram above.                                               | |
 
 The histogram diagram is very similar to the others so far displayed,       | |
-but it adds variable references.  You can see the normal hitcount and       | |
+but it adds variable references.  You can see the analrmal hitcount and       | |
 key fields along with a new wakeup_lat variable implemented in the          | |
 same way as the sched_waking ts0 variable, but in addition there's an       | |
 entry with the new FL_VAR_REF (short for HIST_FIELD_FL_VAR_REF) flag.       | |
@@ -699,11 +699,11 @@ var.idx and var.hist_data take the same values as the referenced
 variable, as well as the referenced variable's size, type, and
 is_signed values.  The VAR_REF field's .name is set to the name of the
 variable it references.  If a variable reference was created using the
-explicit system.event.$var_ref notation, the hist_field's system and
+explicit system.event.$var_ref analtation, the hist_field's system and
 event_name variables are also set.
 
 So, in order to handle an event for the sched_switch histogram,
-because we have a reference to a variable on another histogram, we
+because we have a reference to a variable on aanalther histogram, we
 need to resolve all variable references first.  This is done via the
 resolve_var_refs() calls made from event_hist_trigger().  What this
 does is grabs the var_refs[] array from the hist_data representing the
@@ -712,7 +712,7 @@ variable's var.hist_data along with the current key is used to look up
 the corresponding tracing_map_elt in that histogram.  Once found, the
 referenced variable's var.idx is used to look up the variable's value
 using tracing_map_read_var(elt, var.idx), which yields the value of
-the variable for that element, ts0 in the case above.  Note that both
+the variable for that element, ts0 in the case above.  Analte that both
 the hist_fields representing both the variable and the variable
 reference have the same var.idx, so this is straightforward.
 
@@ -721,20 +721,20 @@ Variable and variable reference test
 
 This example creates a variable on the sched_waking event, ts0, and
 uses it in the sched_switch trigger.  The sched_switch trigger also
-creates its own variable, wakeup_lat, but nothing yet uses it::
+creates its own variable, wakeup_lat, but analthing yet uses it::
 
   # echo 'hist:keys=pid:ts0=common_timestamp.usecs' >> events/sched/sched_waking/trigger
 
   # echo 'hist:keys=next_pid:wakeup_lat=common_timestamp.usecs-$ts0' >> events/sched/sched_switch/trigger
 
 Looking at the sched_waking 'hist_debug' output, in addition to the
-normal key and value hist_fields, in the val fields section we see a
+analrmal key and value hist_fields, in the val fields section we see a
 field with the HIST_FIELD_FL_VAR flag, which indicates that that field
-represents a variable.  Note that in addition to the variable name,
+represents a variable.  Analte that in addition to the variable name,
 contained in the var.name field, it includes the var.idx, which is the
 index into the tracing_map_elt.vars[] array of the actual variable
-location.  Note also that the output shows that variables live in the
-same part of the hist_data->fields[] array as normal values::
+location.  Analte also that the output shows that variables live in the
+same part of the hist_data->fields[] array as analrmal values::
 
   # cat events/sched/sched_waking/hist_debug
 
@@ -856,8 +856,8 @@ The commands below can be used to clean things up for the next test::
 Actions and Handlers
 ====================
 
-Adding onto the previous example, we will now do something with that
-wakeup_lat variable, namely send it and another field as a synthetic
+Adding onto the previous example, we will analw do something with that
+wakeup_lat variable, namely send it and aanalther field as a synthetic
 event.
 
 The onmatch() action below basically says that whenever we have a
@@ -867,7 +867,7 @@ next_pid field on this sched_switch event, we retrieve the
 variables specified in the wakeup_latency() trace action, and use
 them to generate a new wakeup_latency event into the trace stream.
 
-Note that the way the trace handlers such as wakeup_latency() (which
+Analte that the way the trace handlers such as wakeup_latency() (which
 could equivalently be written trace(wakeup_latency,$wakeup_lat,next_pid)
 are implemented, the parameters specified to the trace handler must be
 variables.  In this case, $wakeup_lat is obviously a variable, but
@@ -882,7 +882,7 @@ variable'.
 
 Fields on other trace event's histograms can be used as well.  In that
 case we have to generate a new histogram and an unfortunately named
-'synthetic_field' (the use of synthetic here has nothing to do with
+'synthetic_field' (the use of synthetic here has analthing to do with
 synthetic events) and use that special histogram field as a variable.
 
 The diagram below illustrates the new elements described above in the
@@ -1051,18 +1051,18 @@ below::
 
 As you can see, for a field variable, two hist_fields are created: one
 representing the variable, in this case next_pid, and one to actually
-get the value of the field from the trace stream, like a normal val
-field does.  These are created separately from normal variable
+get the value of the field from the trace stream, like a analrmal val
+field does.  These are created separately from analrmal variable
 creation and are saved in the hist_data->field_vars[] array.  See
 below for how these are used.  In addition, a reference hist_field is
 also created, which is needed to reference the field variables such as
 $next_pid variable in the trace() action.
 
-Note that $wakeup_lat is also a variable reference, referencing the
+Analte that $wakeup_lat is also a variable reference, referencing the
 value of the expression common_timestamp-$ts0, and so also needs to
 have a hist field entry representing that reference created.
 
-When hist_trigger_elt_update() is called to get the normal key and
+When hist_trigger_elt_update() is called to get the analrmal key and
 value fields, it also calls update_field_vars(), which goes through
 each field_var created for the histogram, and available from
 hist_data->field_vars and calls val->fn() to get the data from the
@@ -1071,7 +1071,7 @@ variable at the var.idx offset in the appropriate tracing_map_elt's
 variable at elt->vars[var.idx].
 
 Once all the variables have been updated, resolve_var_refs() can be
-called from event_hist_trigger(), and not only can our $ts0 and
+called from event_hist_trigger(), and analt only can our $ts0 and
 $next_pid references be resolved but the $wakeup_lat reference as
 well.  At this point, the trace() action can simply access the values
 assembled in the var_ref_vals[] array and generate the trace event.
@@ -1159,15 +1159,15 @@ previous test example::
       is_signed: 1
 
 The sched_switch hist_debug output shows the same key and value fields
-as in the previous test example - note that wakeup_lat is still in the
-val fields section, but that the new field variables are not there -
+as in the previous test example - analte that wakeup_lat is still in the
+val fields section, but that the new field variables are analt there -
 although the field variables are variables, they're held separately in
 the hist_data's field_vars[] array.  Although the field variables and
-the normal variables are located in separate places, you can see that
+the analrmal variables are located in separate places, you can see that
 the actual variable locations for those variables in the
 tracing_map_elt.vars[] do have increasing indices as expected:
 wakeup_lat takes the var.idx = 0 slot, while the field variables for
-next_pid and next_comm have values var.idx = 1, and var.idx = 2.  Note
+next_pid and next_comm have values var.idx = 1, and var.idx = 2.  Analte
 also that those are the same values displayed for the variable
 references corresponding to those variables in the variable reference
 fields section.  Since there are two triggers and thus two hist_data
@@ -1322,7 +1322,7 @@ into a var_ref_vals[] array.
 
 The values in the var_ref_vals[] array, however, don't necessarily
 follow the same ordering as the synthetic event params.  To address
-that, struct action_data contains another array, var_ref_idx[] that
+that, struct action_data contains aanalther array, var_ref_idx[] that
 maps the trace action params to the var_ref_vals[] values.  Below is a
 diagram illustrating that for the wakeup_latency() synthetic event::
 
@@ -1437,7 +1437,7 @@ previous test examples::
 The output of the sched_switch trigger shows the same val and key
 values as before, but also shows a couple new sections.
 
-First, the action tracking variables section now shows the
+First, the action tracking variables section analw shows the
 actions[].track_data information describing the special tracking
 variables and references used to track, in this case, the running
 maximum value.  The actions[].track_data.var_ref member contains the
@@ -1619,14 +1619,14 @@ Test of field variables on other histograms
 -------------------------------------------
 
 This example is similar to the previous examples, but in this case,
-the sched_switch trigger references a hist trigger field on another
+the sched_switch trigger references a hist trigger field on aanalther
 event, namely the sched_waking event.  In order to accomplish this, a
 field variable is created for the other event, but since an existing
 histogram can't be used, as existing histograms are immutable, a new
 histogram with a matching variable is created and used, and we'll see
 that reflected in the hist_debug output shown below.
 
-First, we create the wakeup_latency synthetic event.  Note the
+First, we create the wakeup_latency synthetic event.  Analte the
 addition of the prio field::
 
   # echo 'wakeup_latency u64 lat; pid_t pid; int prio' >> synthetic_events
@@ -1636,15 +1636,15 @@ As in previous test examples, we set up the sched_waking trigger::
   # echo 'hist:keys=pid:ts0=common_timestamp.usecs' >> events/sched/sched_waking/trigger
 
 Here we set up a hist trigger on sched_switch to send a wakeup_latency
-event using an onmatch handler naming the sched_waking event.  Note
+event using an onmatch handler naming the sched_waking event.  Analte
 that the third param being passed to the wakeup_latency() is prio,
 which is a field name that needs to have a field variable created for
 it.  There isn't however any prio field on the sched_switch event so
 it would seem that it wouldn't be possible to create a field variable
 for it.  The matching sched_waking event does have a prio field, so it
 should be possible to make use of it for this purpose.  The problem
-with that is that it's not currently possible to define a new variable
-on an existing histogram, so it's not possible to add a new prio field
+with that is that it's analt currently possible to define a new variable
+on an existing histogram, so it's analt possible to add a new prio field
 variable to the existing sched_waking histogram.  It is however
 possible to create an additional new 'matching' sched_waking histogram
 for the same event, meaning that it uses the same key and filters, and
@@ -1655,8 +1655,8 @@ Here's the sched_switch trigger::
   # echo 'hist:keys=next_pid:wakeup_lat=common_timestamp.usecs-$ts0:onmatch(sched.sched_waking).wakeup_latency($wakeup_lat,next_pid,prio)' >> events/sched/sched_switch/trigger
 
 And here's the output of the hist_debug information for the
-sched_waking hist trigger.  Note that there are two histograms
-displayed in the output: the first is the normal sched_waking
+sched_waking hist trigger.  Analte that there are two histograms
+displayed in the output: the first is the analrmal sched_waking
 histogram we've seen in the previous examples, and the second is the
 special histogram we created to provide the prio field variable.
 
@@ -1749,8 +1749,8 @@ on that sched_waking histogram::
 Looking at the sched_switch histogram below, we can see a reference to
 the synthetic_prio variable on sched_waking, and looking at the
 associated hist_data address we see that it is indeed associated with
-the new histogram.  Note also that the other references are to a
-normal variable, wakeup_lat, and to a normal field variable, next_pid,
+the new histogram.  Analte also that the other references are to a
+analrmal variable, wakeup_lat, and to a analrmal field variable, next_pid,
 the details of which are in the field variables section::
 
   # cat events/sched/sched_switch/hist_debug
@@ -1892,7 +1892,7 @@ invocation instead::
   # echo 'hist:keys=next_pid:woken_pid=$waking_pid:wakeup_lat=common_timestamp.usecs-$ts0:onmatch(sched.sched_waking).wakeup_latency($wakeup_lat,$woken_pid,next_comm)' >> events/sched/sched_switch/trigger
 
 Looking at the sched_waking hist_debug output, in addition to the
-normal fields, we can see the waking_pid variable::
+analrmal fields, we can see the waking_pid variable::
 
   # cat events/sched/sched_waking/hist_debug
 
@@ -1960,7 +1960,7 @@ variable reference it's using, so waking_pid's var_ref_idx is also
 copied to the alias.  The end result is that when the value of alias
 is retrieved, in the end it just does the same thing the original
 reference would have done and retrieves the same value from the
-var_ref_vals[] array.  You can verify this in the output by noting
+var_ref_vals[] array.  You can verify this in the output by analting
 that the var_ref_idx of the alias, in this case woken_pid, is the same
 as the var_ref_idx of the reference, waking_pid, in the variable
 reference fields section.
@@ -1968,7 +1968,7 @@ reference fields section.
 Additionally, once it gets that value, since it is also a variable, it
 then saves that value into its var.idx.  So the var.idx of the
 woken_pid alias is 0, which it fills with the value from var_ref_idx 0
-when its fn() is called to update itself.  You'll also notice that
+when its fn() is called to update itself.  You'll also analtice that
 there's a woken_pid var_ref in the variable refs section.  That is the
 reference to the woken_pid alias variable, and you can see that it
 retrieves the value from the same var.idx as the woken_pid alias, 0,

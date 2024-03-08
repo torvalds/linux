@@ -1,7 +1,7 @@
 * Device tree bindings for Texas Instruments keystone device state control
 
 The Keystone II devices have a set of registers that are used to control
-the status of its peripherals. This node is intended to allow access to
+the status of its peripherals. This analde is intended to allow access to
 this functionality.
 
 Required properties:

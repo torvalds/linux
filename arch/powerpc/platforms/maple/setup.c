@@ -9,7 +9,7 @@
 #undef DEBUG
 
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -65,11 +65,11 @@
 
 static unsigned long maple_find_nvram_base(void)
 {
-	struct device_node *rtcs;
+	struct device_analde *rtcs;
 	unsigned long result = 0;
 
 	/* find NVRAM device */
-	rtcs = of_find_compatible_node(NULL, "nvram", "AMD8111");
+	rtcs = of_find_compatible_analde(NULL, "nvram", "AMD8111");
 	if (rtcs) {
 		struct resource r;
 		if (of_address_to_resource(rtcs, 0, &r)) {
@@ -85,29 +85,29 @@ static unsigned long maple_find_nvram_base(void)
 	} else
 		printk(KERN_EMERG "Maple: Unable to find NVRAM\n");
  bail:
-	of_node_put(rtcs);
+	of_analde_put(rtcs);
 	return result;
 }
 
-static void __noreturn maple_restart(char *cmd)
+static void __analreturn maple_restart(char *cmd)
 {
 	unsigned int maple_nvram_base;
 	const unsigned int *maple_nvram_offset, *maple_nvram_command;
-	struct device_node *sp;
+	struct device_analde *sp;
 
 	maple_nvram_base = maple_find_nvram_base();
 	if (maple_nvram_base == 0)
 		goto fail;
 
 	/* find service processor device */
-	sp = of_find_node_by_name(NULL, "service-processor");
+	sp = of_find_analde_by_name(NULL, "service-processor");
 	if (!sp) {
 		printk(KERN_EMERG "Maple: Unable to find Service Processor\n");
 		goto fail;
 	}
 	maple_nvram_offset = of_get_property(sp, "restart-addr", NULL);
 	maple_nvram_command = of_get_property(sp, "restart-value", NULL);
-	of_node_put(sp);
+	of_analde_put(sp);
 
 	/* send command */
 	outb_p(*maple_nvram_command, maple_nvram_base + *maple_nvram_offset);
@@ -117,25 +117,25 @@ static void __noreturn maple_restart(char *cmd)
 	for (;;) ;
 }
 
-static void __noreturn maple_power_off(void)
+static void __analreturn maple_power_off(void)
 {
 	unsigned int maple_nvram_base;
 	const unsigned int *maple_nvram_offset, *maple_nvram_command;
-	struct device_node *sp;
+	struct device_analde *sp;
 
 	maple_nvram_base = maple_find_nvram_base();
 	if (maple_nvram_base == 0)
 		goto fail;
 
 	/* find service processor device */
-	sp = of_find_node_by_name(NULL, "service-processor");
+	sp = of_find_analde_by_name(NULL, "service-processor");
 	if (!sp) {
 		printk(KERN_EMERG "Maple: Unable to find Service Processor\n");
 		goto fail;
 	}
 	maple_nvram_offset = of_get_property(sp, "power-off-addr", NULL);
 	maple_nvram_command = of_get_property(sp, "power-off-value", NULL);
-	of_node_put(sp);
+	of_analde_put(sp);
 
 	/* send command */
 	outb_p(*maple_nvram_command, maple_nvram_base + *maple_nvram_offset);
@@ -145,7 +145,7 @@ static void __noreturn maple_power_off(void)
 	for (;;) ;
 }
 
-static void __noreturn maple_halt(void)
+static void __analreturn maple_halt(void)
 {
 	maple_power_off();
 }
@@ -194,36 +194,36 @@ static void __init maple_setup_arch(void)
  */
 static void __init maple_init_IRQ(void)
 {
-	struct device_node *root, *np, *mpic_node = NULL;
+	struct device_analde *root, *np, *mpic_analde = NULL;
 	const unsigned int *opprop;
 	unsigned long openpic_addr = 0;
 	int naddr, n, i, opplen, has_isus = 0;
 	struct mpic *mpic;
 	unsigned int flags = 0;
 
-	/* Locate MPIC in the device-tree. Note that there is a bug
+	/* Locate MPIC in the device-tree. Analte that there is a bug
 	 * in Maple device-tree where the type of the controller is
-	 * open-pic and not interrupt-controller
+	 * open-pic and analt interrupt-controller
 	 */
 
-	for_each_node_by_type(np, "interrupt-controller")
+	for_each_analde_by_type(np, "interrupt-controller")
 		if (of_device_is_compatible(np, "open-pic")) {
-			mpic_node = np;
+			mpic_analde = np;
 			break;
 		}
-	if (mpic_node == NULL)
-		for_each_node_by_type(np, "open-pic") {
-			mpic_node = np;
+	if (mpic_analde == NULL)
+		for_each_analde_by_type(np, "open-pic") {
+			mpic_analde = np;
 			break;
 		}
-	if (mpic_node == NULL) {
+	if (mpic_analde == NULL) {
 		printk(KERN_ERR
 		       "Failed to locate the MPIC interrupt controller\n");
 		return;
 	}
 
 	/* Find address list in /platform-open-pic */
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	naddr = of_n_addr_cells(root);
 	opprop = of_get_property(root, "platform-open-pic", &opplen);
 	if (opprop) {
@@ -244,11 +244,11 @@ static void __init maple_init_IRQ(void)
 	/* All U3/U4 are big-endian, older SLOF firmware doesn't encode this */
 	flags |= MPIC_BIG_ENDIAN;
 
-	/* Setup the openpic driver. More device-tree junks, we hard code no
-	 * ISUs for now. I'll have to revisit some stuffs with the folks doing
+	/* Setup the openpic driver. More device-tree junks, we hard code anal
+	 * ISUs for analw. I'll have to revisit some stuffs with the folks doing
 	 * the firmware for those
 	 */
-	mpic = mpic_alloc(mpic_node, openpic_addr, flags,
+	mpic = mpic_alloc(mpic_analde, openpic_addr, flags,
 			  /*has_isus ? 16 :*/ 0, 0, " MPIC     ");
 	BUG_ON(mpic == NULL);
 
@@ -262,8 +262,8 @@ static void __init maple_init_IRQ(void)
 	/* All ISUs are setup, complete initialization */
 	mpic_init(mpic);
 	ppc_md.get_irq = mpic_get_irq;
-	of_node_put(mpic_node);
-	of_node_put(root);
+	of_analde_put(mpic_analde);
+	of_analde_put(root);
 }
 
 static void __init maple_progress(char *s, unsigned short hex)
@@ -296,40 +296,40 @@ static int __init maple_probe(void)
 static int __init maple_cpc925_edac_setup(void)
 {
 	struct platform_device *pdev;
-	struct device_node *np = NULL;
+	struct device_analde *np = NULL;
 	struct resource r;
 	int ret;
 	volatile void __iomem *mem;
 	u32 rev;
 
-	np = of_find_node_by_type(NULL, "memory-controller");
+	np = of_find_analde_by_type(NULL, "memory-controller");
 	if (!np) {
-		printk(KERN_ERR "%s: Unable to find memory-controller node\n",
+		printk(KERN_ERR "%s: Unable to find memory-controller analde\n",
 			__func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = of_address_to_resource(np, 0, &r);
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (ret < 0) {
 		printk(KERN_ERR "%s: Unable to get memory-controller reg\n",
 			__func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mem = ioremap(r.start, resource_size(&r));
 	if (!mem) {
 		printk(KERN_ERR "%s: Unable to map memory-controller memory\n",
 				__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rev = __raw_readl(mem);
 	iounmap(mem);
 
 	if (rev < 0x34 || rev > 0x3f) { /* U3H */
-		printk(KERN_ERR "%s: Non-CPC925(U3H) bridge revision: %02x\n",
+		printk(KERN_ERR "%s: Analn-CPC925(U3H) bridge revision: %02x\n",
 			__func__, rev);
 		return 0;
 	}

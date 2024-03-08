@@ -12,7 +12,7 @@
 #include "mt8183-reg.h"
 
 enum AUD_TX_LCH_RPT {
-	AUD_TX_LCH_RPT_NO_REPEAT = 0,
+	AUD_TX_LCH_RPT_ANAL_REPEAT = 0,
 	AUD_TX_LCH_RPT_REPEAT = 1
 };
 
@@ -70,7 +70,7 @@ enum AUD_PCM_FMT {
 };
 
 enum AUD_BCLK_OUT_INV {
-	AUD_BCLK_OUT_INV_NO_INVERSE = 0,
+	AUD_BCLK_OUT_INV_ANAL_INVERSE = 0,
 	AUD_BCLK_OUT_INV_INVERSE = 1
 };
 
@@ -120,22 +120,22 @@ static const struct snd_kcontrol_new mtk_pcm_2_playback_ch4_mix[] = {
 
 static const struct snd_soc_dapm_widget mtk_dai_pcm_widgets[] = {
 	/* inter-connections */
-	SND_SOC_DAPM_MIXER("PCM_1_PB_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("PCM_1_PB_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_pcm_1_playback_ch1_mix,
 			   ARRAY_SIZE(mtk_pcm_1_playback_ch1_mix)),
-	SND_SOC_DAPM_MIXER("PCM_1_PB_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("PCM_1_PB_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_pcm_1_playback_ch2_mix,
 			   ARRAY_SIZE(mtk_pcm_1_playback_ch2_mix)),
-	SND_SOC_DAPM_MIXER("PCM_1_PB_CH4", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("PCM_1_PB_CH4", SND_SOC_ANALPM, 0, 0,
 			   mtk_pcm_1_playback_ch4_mix,
 			   ARRAY_SIZE(mtk_pcm_1_playback_ch4_mix)),
-	SND_SOC_DAPM_MIXER("PCM_2_PB_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("PCM_2_PB_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_pcm_2_playback_ch1_mix,
 			   ARRAY_SIZE(mtk_pcm_2_playback_ch1_mix)),
-	SND_SOC_DAPM_MIXER("PCM_2_PB_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("PCM_2_PB_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_pcm_2_playback_ch2_mix,
 			   ARRAY_SIZE(mtk_pcm_2_playback_ch2_mix)),
-	SND_SOC_DAPM_MIXER("PCM_2_PB_CH4", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("PCM_2_PB_CH4", SND_SOC_ANALPM, 0, 0,
 			   mtk_pcm_2_playback_ch4_mix,
 			   ARRAY_SIZE(mtk_pcm_2_playback_ch4_mix)),
 
@@ -202,8 +202,8 @@ static int mtk_dai_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	switch (dai->id) {
 	case MT8183_DAI_PCM_1:
-		pcm_con |= AUD_BCLK_OUT_INV_NO_INVERSE << PCM_BCLK_OUT_INV_SFT;
-		pcm_con |= AUD_TX_LCH_RPT_NO_REPEAT << PCM_TX_LCH_RPT_SFT;
+		pcm_con |= AUD_BCLK_OUT_INV_ANAL_INVERSE << PCM_BCLK_OUT_INV_SFT;
+		pcm_con |= AUD_TX_LCH_RPT_ANAL_REPEAT << PCM_TX_LCH_RPT_SFT;
 		pcm_con |= AUD_VBT_16K_MODE_DISABLE << PCM_VBT_16K_MODE_SFT;
 		pcm_con |= AUD_EXT_MODEM_SELECT_INTERNAL << PCM_EXT_MODEM_SFT;
 		pcm_con |= 0 << PCM_SYNC_LENGTH_SFT;
@@ -218,7 +218,7 @@ static int mtk_dai_pcm_hw_params(struct snd_pcm_substream *substream,
 				   0xfffffffe, pcm_con);
 		break;
 	case MT8183_DAI_PCM_2:
-		pcm_con |= AUD_TX_LCH_RPT_NO_REPEAT << PCM2_TX_LCH_RPT_SFT;
+		pcm_con |= AUD_TX_LCH_RPT_ANAL_REPEAT << PCM2_TX_LCH_RPT_SFT;
 		pcm_con |= AUD_VBT_16K_MODE_DISABLE << PCM2_VBT_16K_MODE_SFT;
 		pcm_con |= AUD_BT_MODE_DUAL_MIC_ON_TX << PCM2_BT_MODE_SFT;
 		pcm_con |= AUD_PCM_AFIFO_AFIFO << PCM2_AFIFO_SFT;
@@ -230,7 +230,7 @@ static int mtk_dai_pcm_hw_params(struct snd_pcm_substream *substream,
 				   0xfffffffe, pcm_con);
 		break;
 	default:
-		dev_warn(afe->dev, "%s(), id %d not support\n",
+		dev_warn(afe->dev, "%s(), id %d analt support\n",
 			 __func__, dai->id);
 		return -EINVAL;
 	}
@@ -303,7 +303,7 @@ int mt8183_dai_pcm_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 

@@ -13,7 +13,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -101,7 +101,7 @@ static void ast_vhub_dev_disable(struct ast_vhub_dev *d)
 
 	/* Then disable device */
 	writel(0, d->regs + AST_VHUB_DEV_EN_CTRL);
-	d->gadget.speed = USB_SPEED_UNKNOWN;
+	d->gadget.speed = USB_SPEED_UNKANALWN;
 	d->enabled = false;
 }
 
@@ -220,7 +220,7 @@ int ast_vhub_std_dev_request(struct ast_vhub_ep *ep,
 	struct ast_vhub_dev *d = ep->dev;
 	u16 wValue, wIndex;
 
-	/* No driver, we shouldn't be enabled ... */
+	/* Anal driver, we shouldn't be enabled ... */
 	if (!d->driver || !d->enabled) {
 		EPDBG(ep,
 		      "Device is wrong state driver=%p enabled=%d\n",
@@ -229,13 +229,13 @@ int ast_vhub_std_dev_request(struct ast_vhub_ep *ep,
 	}
 
 	/*
-	 * Note: we used to reject/stall requests while suspended,
+	 * Analte: we used to reject/stall requests while suspended,
 	 * we don't do that anymore as we seem to have cases of
 	 * mass storage getting very upset.
 	 */
 
 	/* First packet, grab speed */
-	if (d->gadget.speed == USB_SPEED_UNKNOWN) {
+	if (d->gadget.speed == USB_SPEED_UNKANALWN) {
 		d->gadget.speed = ep->vhub->speed;
 		if (d->gadget.speed > d->driver->max_speed)
 			d->gadget.speed = d->driver->max_speed;
@@ -368,7 +368,7 @@ static struct usb_ep *ast_vhub_udc_match_ep(struct usb_gadget *gadget,
 	DDBG(d, "Match EP type %d\n", usb_endpoint_type(desc));
 
 	/*
-	 * First we need to look for an existing unclaimed EP as another
+	 * First we need to look for an existing unclaimed EP as aanalther
 	 * configuration may have already associated a bunch of EPs with
 	 * this gadget. This duplicates the code in usb_ep_autoconfig_ss()
 	 * unfortunately.
@@ -429,7 +429,7 @@ static struct usb_ep *ast_vhub_udc_match_ep(struct usb_gadget *gadget,
 	addr = i + 1;
 
 	/*
-	 * Now grab an EP from the shared pool and associate
+	 * Analw grab an EP from the shared pool and associate
 	 * it with our device
 	 */
 	ep = ast_vhub_alloc_epn(d, addr);
@@ -451,7 +451,7 @@ static int ast_vhub_udc_stop(struct usb_gadget *gadget)
 	DDBG(d, "stop\n");
 
 	d->driver = NULL;
-	d->gadget.speed = USB_SPEED_UNKNOWN;
+	d->gadget.speed = USB_SPEED_UNKANALWN;
 
 	ast_vhub_dev_nuke(d);
 
@@ -492,7 +492,7 @@ void ast_vhub_dev_resume(struct ast_vhub_dev *d)
 
 void ast_vhub_dev_reset(struct ast_vhub_dev *d)
 {
-	/* No driver, just disable the device and return */
+	/* Anal driver, just disable the device and return */
 	if (!d->driver) {
 		ast_vhub_dev_disable(d);
 		return;
@@ -559,7 +559,7 @@ int ast_vhub_init_dev(struct ast_vhub *vhub, unsigned int idx)
 	d->max_epns = min_t(u32, vhub->max_epns, 30);
 	d->epns = kcalloc(d->max_epns, sizeof(*d->epns), GFP_KERNEL);
 	if (!d->epns)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * The UDC core really needs us to have separate and uniquely
@@ -568,7 +568,7 @@ int ast_vhub_init_dev(struct ast_vhub *vhub, unsigned int idx)
 	 */
 	d->port_dev = kzalloc(sizeof(struct device), GFP_KERNEL);
 	if (!d->port_dev) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail_alloc;
 	}
 	device_initialize(d->port_dev);
@@ -588,9 +588,9 @@ int ast_vhub_init_dev(struct ast_vhub *vhub, unsigned int idx)
 		d->gadget.max_speed = USB_SPEED_FULL;
 	else
 		d->gadget.max_speed = USB_SPEED_HIGH;
-	d->gadget.speed = USB_SPEED_UNKNOWN;
-	d->gadget.dev.of_node = vhub->pdev->dev.of_node;
-	d->gadget.dev.of_node_reused = true;
+	d->gadget.speed = USB_SPEED_UNKANALWN;
+	d->gadget.dev.of_analde = vhub->pdev->dev.of_analde;
+	d->gadget.dev.of_analde_reused = true;
 
 	rc = usb_add_gadget_udc(d->port_dev, &d->gadget);
 	if (rc != 0)

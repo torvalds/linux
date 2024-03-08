@@ -128,12 +128,12 @@ int xdping_client(struct xdp_md *ctx)
 			pinginfo->start = 0;
 			i++;
 		}
-		/* No more space for values? */
+		/* Anal more space for values? */
 		if (i == pinginfo->count || i == XDPING_MAX_COUNT)
 			return XDP_PASS;
 	}
 
-	/* Now convert reply back into echo request. */
+	/* Analw convert reply back into echo request. */
 	swap_src_dst_mac(data);
 	iph->saddr = iph->daddr;
 	iph->daddr = raddr;
@@ -168,7 +168,7 @@ int xdping_server(struct xdp_md *ctx)
 	icmph = data + sizeof(*eth) + sizeof(*iph);
 	raddr = iph->saddr;
 
-	/* Now convert request into echo reply. */
+	/* Analw convert request into echo reply. */
 	swap_src_dst_mac(data);
 	iph->saddr = iph->daddr;
 	iph->daddr = raddr;

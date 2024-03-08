@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  gov_bang_bang.c - A simple thermal throttling governor using hysteresis
+ *  gov_bang_bang.c - A simple thermal throttling goveranalr using hysteresis
  *
  *  Copyright (C) 2014 Peter Kaestle <peter@piie.net>
  *
@@ -27,15 +27,15 @@ static int thermal_zone_trip_update(struct thermal_zone_device *tz,
 				trip_index, trip->temperature, tz->temperature,
 				trip->hysteresis);
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+	list_for_each_entry(instance, &tz->thermal_instances, tz_analde) {
 		if (instance->trip != trip)
 			continue;
 
 		/* in case fan is in initial state, switch the fan off */
-		if (instance->target == THERMAL_NO_TARGET)
+		if (instance->target == THERMAL_ANAL_TARGET)
 			instance->target = 0;
 
-		/* in case fan is neither on nor off set the fan to active */
+		/* in case fan is neither on analr off set the fan to active */
 		if (instance->target != 0 && instance->target != 1) {
 			pr_warn("Thermal instance %s controlled by bang-bang has unexpected state: %ld\n",
 					instance->name, instance->target);
@@ -84,7 +84,7 @@ static int thermal_zone_trip_update(struct thermal_zone_device *tz,
  *                        |
  *                        |
  *
- *   * If the fan is not running and temperature exceeds trip_temp, the fan
+ *   * If the fan is analt running and temperature exceeds trip_temp, the fan
  *     gets turned on.
  *   * In case the fan is running, temperature must fall below
  *     (trip_temp - hyst) so that the fan gets turned off again.
@@ -102,14 +102,14 @@ static int bang_bang_control(struct thermal_zone_device *tz,
 	if (ret)
 		return ret;
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node)
+	list_for_each_entry(instance, &tz->thermal_instances, tz_analde)
 		thermal_cdev_update(instance->cdev);
 
 	return 0;
 }
 
-static struct thermal_governor thermal_gov_bang_bang = {
+static struct thermal_goveranalr thermal_gov_bang_bang = {
 	.name		= "bang_bang",
 	.throttle	= bang_bang_control,
 };
-THERMAL_GOVERNOR_DECLARE(thermal_gov_bang_bang);
+THERMAL_GOVERANALR_DECLARE(thermal_gov_bang_bang);

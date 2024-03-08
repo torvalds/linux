@@ -79,7 +79,7 @@ static void rtsx_base_fetch_vendor_settings(struct rtsx_pcr *pcr)
 	pci_read_config_dword(pdev, PCR_SETTING_REG2, &reg);
 	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG2, reg);
 	if (rtsx_check_mmc_support(reg))
-		pcr->extra_caps |= EXTRA_CAPS_NO_MMC;
+		pcr->extra_caps |= EXTRA_CAPS_ANAL_MMC;
 	pcr->sd30_drive_sel_3v3 = rtsx_reg_to_sd30_drive_sel_3v3(reg);
 	if (rtsx_reg_check_reverse_socket(reg))
 		pcr->flags |= PCR_REVERSE_SOCKET;
@@ -164,7 +164,7 @@ static const u32 rts5260_ms_pull_ctl_disable_tbl[] = {
 static int sd_set_sample_push_timing_sd30(struct rtsx_pcr *pcr)
 {
 	rtsx_pci_write_register(pcr, SD_CFG1, SD_MODE_SELECT_MASK
-		| SD_ASYNC_FIFO_NOT_RST, SD_30_MODE | SD_ASYNC_FIFO_NOT_RST);
+		| SD_ASYNC_FIFO_ANALT_RST, SD_30_MODE | SD_ASYNC_FIFO_ANALT_RST);
 	rtsx_pci_write_register(pcr, CLK_CTL, CLK_LOW_FREQ, CLK_LOW_FREQ);
 	rtsx_pci_write_register(pcr, CARD_CLK_SOURCE, 0xFF,
 			CRC_VAR_CLK0 | SD30_FIX_CLK | SAMPLE_VAR_CLK1);
@@ -365,8 +365,8 @@ static void rts5260_process_ocp(struct rtsx_pcr *pcr)
 	rtsx_pci_get_ocpstat(pcr, &pcr->ocp_stat);
 	rts5260_get_ocpstat2(pcr, &pcr->ocp_stat2);
 
-	if ((pcr->ocp_stat & (SD_OC_NOW | SD_OC_EVER)) ||
-		(pcr->ocp_stat2 & (DV3318_OCP_NOW | DV3318_OCP_EVER))) {
+	if ((pcr->ocp_stat & (SD_OC_ANALW | SD_OC_EVER)) ||
+		(pcr->ocp_stat2 & (DV3318_OCP_ANALW | DV3318_OCP_EVER))) {
 		rtsx_pci_card_power_off(pcr, RTSX_SD_CARD);
 		rtsx_pci_write_register(pcr, CARD_OE, SD_OUTPUT_EN, 0);
 		rtsx_pci_clear_ocpstat(pcr);
@@ -473,7 +473,7 @@ static void rts5260_pwr_saving_setting(struct rtsx_pcr *pcr)
 	/*PWMPFM*/
 	rtsx_pci_write_register(pcr, CFG_LP_FPWM_VALUE,
 				0xFF, CFG_LP_FPWM_VALUE_DEFAULT);
-	/*No Power Saving WA*/
+	/*Anal Power Saving WA*/
 	rtsx_pci_write_register(pcr, CFG_L1_0_CRC_MISC_RET_VALUE,
 				0xFF, CFG_L1_0_CRC_MISC_RET_VALUE_DEFAULT);
 }
@@ -500,7 +500,7 @@ static int rts5260_extra_init_hw(struct rtsx_pcr *pcr)
 
 	rts5260_init_from_cfg(pcr);
 
-	/* force no MDIO*/
+	/* force anal MDIO*/
 	rtsx_pci_write_register(pcr, RTS5260_AUTOLOAD_CFG4,
 				0xFF, RTS5260_MIMO_DISABLE);
 	/*Modify SDVCC Tune Default Parameters!*/
@@ -541,7 +541,7 @@ static void rts5260_set_l1off_cfg_sub_d0(struct rtsx_pcr *pcr, int active)
 	if (active) {
 		/* run, latency: 60us */
 		if (aspm_L1_1)
-			val = option->ltr_l1off_snooze_sspwrgate;
+			val = option->ltr_l1off_sanaloze_sspwrgate;
 	} else {
 		/* l1off, latency: 300us */
 		if (aspm_L1_2)
@@ -615,10 +615,10 @@ void rts5260_init_params(struct rtsx_pcr *pcr)
 	option->ltr_active_latency = LTR_ACTIVE_LATENCY_DEF;
 	option->ltr_idle_latency = LTR_IDLE_LATENCY_DEF;
 	option->ltr_l1off_latency = LTR_L1OFF_LATENCY_DEF;
-	option->l1_snooze_delay = L1_SNOOZE_DELAY_DEF;
+	option->l1_sanaloze_delay = L1_SANALOZE_DELAY_DEF;
 	option->ltr_l1off_sspwrgate = LTR_L1OFF_SSPWRGATE_5250_DEF;
-	option->ltr_l1off_snooze_sspwrgate =
-		LTR_L1OFF_SNOOZE_SSPWRGATE_5250_DEF;
+	option->ltr_l1off_sanaloze_sspwrgate =
+		LTR_L1OFF_SANALOZE_SSPWRGATE_5250_DEF;
 
 	option->ocp_en = 1;
 	if (option->ocp_en)

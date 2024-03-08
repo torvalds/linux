@@ -53,7 +53,7 @@ xt_cluster_hash(const struct nf_conn *ct,
 		break;
 	}
 
-	return reciprocal_scale(hash, info->total_nodes);
+	return reciprocal_scale(hash, info->total_analdes);
 }
 
 static inline bool
@@ -84,21 +84,21 @@ xt_cluster_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	enum ip_conntrack_info ctinfo;
 	unsigned long hash;
 
-	/* This match assumes that all nodes see the same packets. This can be
-	 * achieved if the switch that connects the cluster nodes support some
-	 * sort of 'port mirroring'. However, if your switch does not support
-	 * this, your cluster nodes can reply ARP request using a multicast MAC
+	/* This match assumes that all analdes see the same packets. This can be
+	 * achieved if the switch that connects the cluster analdes support some
+	 * sort of 'port mirroring'. However, if your switch does analt support
+	 * this, your cluster analdes can reply ARP request using a multicast MAC
 	 * address. Thus, your switch will flood the same packets to the
-	 * cluster nodes with the same multicast MAC address. Using a multicast
+	 * cluster analdes with the same multicast MAC address. Using a multicast
 	 * link address is a RFC 1812 (section 3.3.2) violation, but this works
 	 * fine in practise.
 	 *
 	 * Unfortunately, if you use the multicast MAC address, the link layer
-	 * sets skbuff's pkt_type to PACKET_MULTICAST, which is not accepted
-	 * by TCP and others for packets coming to this node. For that reason,
+	 * sets skbuff's pkt_type to PACKET_MULTICAST, which is analt accepted
+	 * by TCP and others for packets coming to this analde. For that reason,
 	 * this match mangles skbuff's pkt_type if it detects a packet
-	 * addressed to a unicast address but using PACKET_MULTICAST. Yes, I
-	 * know, matches should not alter packets, but we are doing this here
+	 * addressed to a unicast address but using PACKET_MULTICAST. Anal, I
+	 * kanalw, matches should analt alter packets, but we are doing this here
 	 * because we would need to add a PKTTYPE target for this sole purpose.
 	 */
 	if (!xt_cluster_is_multicast_addr(skb, xt_family(par)) &&
@@ -115,7 +115,7 @@ xt_cluster_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	else
 		hash = xt_cluster_hash(ct, info);
 
-	return !!((1 << hash) & info->node_mask) ^
+	return !!((1 << hash) & info->analde_mask) ^
 	       !!(info->flags & XT_CLUSTER_F_INV);
 }
 
@@ -124,19 +124,19 @@ static int xt_cluster_mt_checkentry(const struct xt_mtchk_param *par)
 	struct xt_cluster_match_info *info = par->matchinfo;
 	int ret;
 
-	if (info->total_nodes > XT_CLUSTER_NODES_MAX) {
-		pr_info_ratelimited("you have exceeded the maximum number of cluster nodes (%u > %u)\n",
-				    info->total_nodes, XT_CLUSTER_NODES_MAX);
+	if (info->total_analdes > XT_CLUSTER_ANALDES_MAX) {
+		pr_info_ratelimited("you have exceeded the maximum number of cluster analdes (%u > %u)\n",
+				    info->total_analdes, XT_CLUSTER_ANALDES_MAX);
 		return -EINVAL;
 	}
-	if (info->node_mask >= (1ULL << info->total_nodes)) {
-		pr_info_ratelimited("node mask cannot exceed total number of nodes\n");
+	if (info->analde_mask >= (1ULL << info->total_analdes)) {
+		pr_info_ratelimited("analde mask cananalt exceed total number of analdes\n");
 		return -EDOM;
 	}
 
 	ret = nf_ct_netns_get(par->net, par->family);
 	if (ret < 0)
-		pr_info_ratelimited("cannot load conntrack support for proto=%u\n",
+		pr_info_ratelimited("cananalt load conntrack support for proto=%u\n",
 				    par->family);
 	return ret;
 }

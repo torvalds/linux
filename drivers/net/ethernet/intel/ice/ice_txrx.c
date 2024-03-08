@@ -44,10 +44,10 @@ ice_prgm_fdir_fltr(struct ice_vsi *vsi, struct ice_fltr_desc *fdir_desc,
 
 	/* VSI and Tx ring */
 	if (!vsi)
-		return -ENOENT;
+		return -EANALENT;
 	tx_ring = vsi->tx_rings[0];
 	if (!tx_ring || !tx_ring->desc)
-		return -ENOENT;
+		return -EANALENT;
 	dev = tx_ring->dev;
 
 	/* we are using two descriptors to add/del a filter and we can wait */
@@ -91,7 +91,7 @@ ice_prgm_fdir_fltr(struct ice_vsi *vsi, struct ice_fltr_desc *fdir_desc,
 	tx_desc->cmd_type_offset_bsz =
 		ice_build_ctob(td_cmd, 0, ICE_FDIR_MAX_RAW_PKT_SIZE, 0);
 
-	/* Force memory write to complete before letting h/w know
+	/* Force memory write to complete before letting h/w kanalw
 	 * there are new descriptors to fetch.
 	 */
 	wmb();
@@ -158,7 +158,7 @@ void ice_clean_tx_ring(struct ice_tx_ring *tx_ring)
 		goto tx_skip_free;
 	}
 
-	/* ring already cleared, nothing to do */
+	/* ring already cleared, analthing to do */
 	if (!tx_ring->tx_buf)
 		return;
 
@@ -235,7 +235,7 @@ static bool ice_clean_tx_irq(struct ice_tx_ring *tx_ring, int napi_budget)
 	do {
 		struct ice_tx_desc *eop_desc = tx_buf->next_to_watch;
 
-		/* if next_to_watch is not set then there is no work pending */
+		/* if next_to_watch is analt set then there is anal work pending */
 		if (!eop_desc)
 			break;
 
@@ -245,7 +245,7 @@ static bool ice_clean_tx_irq(struct ice_tx_ring *tx_ring, int napi_budget)
 		smp_rmb();	/* prevent any other reads prior to eop_desc */
 
 		ice_trace(clean_tx_irq, tx_ring, tx_desc, tx_buf);
-		/* if the descriptor isn't done, no work yet to do */
+		/* if the descriptor isn't done, anal work yet to do */
 		if (!(eop_desc->cmd_type_offset_bsz &
 		      cpu_to_le64(ICE_TX_DESC_DTYPE_DESC_DONE)))
 			break;
@@ -344,7 +344,7 @@ int ice_setup_tx_ring(struct ice_tx_ring *tx_ring)
 	u32 size;
 
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* warn if we are about to overwrite the pointer */
 	WARN_ON(tx_ring->tx_buf);
@@ -352,7 +352,7 @@ int ice_setup_tx_ring(struct ice_tx_ring *tx_ring)
 		devm_kcalloc(dev, sizeof(*tx_ring->tx_buf), tx_ring->count,
 			     GFP_KERNEL);
 	if (!tx_ring->tx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* round up to nearest page */
 	size = ALIGN(tx_ring->count * sizeof(struct ice_tx_desc),
@@ -373,7 +373,7 @@ int ice_setup_tx_ring(struct ice_tx_ring *tx_ring)
 err:
 	devm_kfree(dev, tx_ring->tx_buf);
 	tx_ring->tx_buf = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -387,7 +387,7 @@ void ice_clean_rx_ring(struct ice_rx_ring *rx_ring)
 	u32 size;
 	u16 i;
 
-	/* ring already cleared, nothing to do */
+	/* ring already cleared, analthing to do */
 	if (!rx_ring->rx_buf)
 		return;
 
@@ -486,14 +486,14 @@ int ice_setup_rx_ring(struct ice_rx_ring *rx_ring)
 	u32 size;
 
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* warn if we are about to overwrite the pointer */
 	WARN_ON(rx_ring->rx_buf);
 	rx_ring->rx_buf =
 		kcalloc(rx_ring->count, sizeof(*rx_ring->rx_buf), GFP_KERNEL);
 	if (!rx_ring->rx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* round up to nearest page */
 	size = ALIGN(rx_ring->count * sizeof(union ice_32byte_rx_desc),
@@ -518,7 +518,7 @@ int ice_setup_rx_ring(struct ice_rx_ring *rx_ring)
 err:
 	kfree(rx_ring->rx_buf);
 	rx_ring->rx_buf = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -629,7 +629,7 @@ static int ice_xmit_xdp_ring(const struct xdp_frame *xdpf,
  *
  * Returns number of frames successfully sent. Failed frames
  * will be free'ed by XDP core.
- * For error cases, a negative errno code is returned and no-frames
+ * For error cases, a negative erranal code is returned and anal-frames
  * are transmitted (caller must handle freeing frames).
  */
 int
@@ -657,7 +657,7 @@ ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		xdp_ring = vsi->xdp_rings[queue_index];
 		spin_lock(&xdp_ring->tx_lock);
 	} else {
-		/* Generally, should not happen */
+		/* Generally, should analt happen */
 		if (unlikely(queue_index >= vsi->num_xdp_txq))
 			return -ENXIO;
 		xdp_ring = vsi->xdp_rings[queue_index];
@@ -750,7 +750,7 @@ bool ice_alloc_rx_bufs(struct ice_rx_ring *rx_ring, unsigned int cleaned_count)
 	u16 ntu = rx_ring->next_to_use;
 	struct ice_rx_buf *bi;
 
-	/* do nothing if no valid netdev defined */
+	/* do analthing if anal valid netdev defined */
 	if ((!rx_ring->netdev && rx_ring->vsi->type != ICE_VSI_CTRL) ||
 	    !cleaned_count)
 		return false;
@@ -819,7 +819,7 @@ ice_rx_buf_adjust_pg_offset(struct ice_rx_buf *rx_buf, unsigned int size)
 }
 
 /**
- * ice_can_reuse_rx_page - Determine if page can be reused for another Rx
+ * ice_can_reuse_rx_page - Determine if page can be reused for aanalther Rx
  * @rx_buf: buffer containing the page
  *
  * If page is reusable, we have a green light for calling ice_reuse_rx_page,
@@ -887,10 +887,10 @@ ice_add_xdp_frag(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
 
 	if (unlikely(sinfo->nr_frags == MAX_SKB_FRAGS)) {
 		ice_set_rx_bufs_act(xdp, rx_ring, ICE_XDP_CONSUMED);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	__skb_fill_page_desc_noacc(sinfo, sinfo->nr_frags++, rx_buf->page,
+	__skb_fill_page_desc_analacc(sinfo, sinfo->nr_frags++, rx_buf->page,
 				   rx_buf->page_offset, size);
 	sinfo->xdp_frags_size += size;
 	/* remember frag count before XDP prog execution; bpf_xdp_adjust_tail()
@@ -907,7 +907,7 @@ ice_add_xdp_frag(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
 /**
  * ice_reuse_rx_page - page flip buffer and store it back on the ring
  * @rx_ring: Rx descriptor ring to store buffers on
- * @old_buf: donor buffer to have page reused
+ * @old_buf: doanalr buffer to have page reused
  *
  * Synchronizes page for reuse by the adapter
  */
@@ -1052,7 +1052,7 @@ ice_construct_skb(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp)
 
 	/* allocate a skb to store the frags */
 	skb = __napi_alloc_skb(&rx_ring->q_vector->napi, ICE_RX_HDR_SIZE,
-			       GFP_ATOMIC | __GFP_NOWARN);
+			       GFP_ATOMIC | __GFP_ANALWARN);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -1071,7 +1071,7 @@ ice_construct_skb(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp)
 	size -= headlen;
 	if (size) {
 		/* besides adding here a partial frag, we are going to add
-		 * frags from xdp_buff, make sure there is enough space for
+		 * frags from xdp_buff, make sure there is eanalugh space for
 		 * them
 		 */
 		if (unlikely(nr_frags >= MAX_SKB_FRAGS - 1)) {
@@ -1083,7 +1083,7 @@ ice_construct_skb(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp)
 				xdp->frame_sz);
 	} else {
 		/* buffer is unused, change the act that should be taken later
-		 * on; data was copied onto skb's linear part so there's no
+		 * on; data was copied onto skb's linear part so there's anal
 		 * need for adjusting page offset and we can reuse this buffer
 		 * as-is
 		 */
@@ -1123,7 +1123,7 @@ ice_put_rx_buf(struct ice_rx_ring *rx_ring, struct ice_rx_buf *rx_buf)
 		/* hand second half of page back to the ring */
 		ice_reuse_rx_page(rx_ring, rx_buf);
 	} else {
-		/* we are not reusing the buffer so unmap it */
+		/* we are analt reusing the buffer so unmap it */
 		dma_unmap_page_attrs(rx_ring->dev, rx_buf->dma,
 				     ice_rx_pg_size(rx_ring), DMA_FROM_DEVICE,
 				     ICE_RX_DMA_ATTR);
@@ -1187,14 +1187,14 @@ int ice_clean_rx_irq(struct ice_rx_ring *rx_ring, int budget)
 		/* status_error_len will always be zero for unused descriptors
 		 * because it's cleared in cleanup, and overlaps with hdr_addr
 		 * which is always zero because packet split isn't used, if the
-		 * hardware wrote DD then it will be non-zero
+		 * hardware wrote DD then it will be analn-zero
 		 */
 		stat_err_bits = BIT(ICE_RX_FLEX_DESC_STATUS0_DD_S);
 		if (!ice_test_staterr(rx_desc->wb.status_error0, stat_err_bits))
 			break;
 
 		/* This memory barrier is needed to keep us from reading
-		 * any other fields out of the rx_desc until we know the
+		 * any other fields out of the rx_desc until we kanalw the
 		 * DD bit is set.
 		 */
 		dma_rmb();
@@ -1235,8 +1235,8 @@ int ice_clean_rx_irq(struct ice_rx_ring *rx_ring, int budget)
 		if (++ntc == cnt)
 			ntc = 0;
 
-		/* skip if it is NOP desc */
-		if (ice_is_non_eop(rx_ring, rx_desc))
+		/* skip if it is ANALP desc */
+		if (ice_is_analn_eop(rx_ring, rx_desc))
 			continue;
 
 		ice_run_xdp(rx_ring, xdp, xdp_prog, xdp_ring, rx_buf, rx_desc);
@@ -1365,7 +1365,7 @@ static void __ice_update_sample(struct ice_q_vector *q_vector,
 	dim_update_sample(q_vector->total_events, packets, bytes, sample);
 	sample->comp_ctr = 0;
 
-	/* if dim settings get stale, like when not updated for 1
+	/* if dim settings get stale, like when analt updated for 1
 	 * second or longer, force it to start again. This addresses the
 	 * frequent case of an idle queue being switched to by the
 	 * scheduler. The 1,000 here means 1,000 milliseconds.
@@ -1378,10 +1378,10 @@ static void __ice_update_sample(struct ice_q_vector *q_vector,
  * ice_net_dim - Update net DIM algorithm
  * @q_vector: the vector associated with the interrupt
  *
- * Create a DIM sample and notify net_dim() so that it can possibly decide
+ * Create a DIM sample and analtify net_dim() so that it can possibly decide
  * a new ITR value based on incoming packets, bytes, and interrupts.
  *
- * This function is a no-op if the ring is not configured to dynamic ITR.
+ * This function is a anal-op if the ring is analt configured to dynamic ITR.
  */
 static void ice_net_dim(struct ice_q_vector *q_vector)
 {
@@ -1428,7 +1428,7 @@ static u32 ice_buildreg_itr(u16 itr_idx, u16 itr)
  * ice_enable_interrupt - re-enable MSI-X interrupt
  * @q_vector: the vector associated with the interrupt to enable
  *
- * If the VSI is down, the interrupt will not be re-enabled. Also,
+ * If the VSI is down, the interrupt will analt be re-enabled. Also,
  * when enabling the interrupt always reset the wb_on_itr to false
  * and trigger a software interrupt to clean out internal state.
  */
@@ -1447,7 +1447,7 @@ static void ice_enable_interrupt(struct ice_q_vector *q_vector)
 	 * enabled, then don't update ITR, and just enable the interrupt.
 	 */
 	if (!wb_en) {
-		itr_val = ice_buildreg_itr(ICE_ITR_NONE, 0);
+		itr_val = ice_buildreg_itr(ICE_ITR_ANALNE, 0);
 	} else {
 		q_vector->wb_on_itr = false;
 
@@ -1472,27 +1472,27 @@ static void ice_enable_interrupt(struct ice_q_vector *q_vector)
  * We need to tell hardware to write-back completed descriptors even when
  * interrupts are disabled. Descriptors will be written back on cache line
  * boundaries without WB_ON_ITR enabled, but if we don't enable WB_ON_ITR
- * descriptors may not be written back if they don't fill a cache line until
+ * descriptors may analt be written back if they don't fill a cache line until
  * the next interrupt.
  *
  * This sets the write-back frequency to whatever was set previously for the
- * ITR indices. Also, set the INTENA_MSK bit to make sure hardware knows we
+ * ITR indices. Also, set the INTENA_MSK bit to make sure hardware kanalws we
  * aren't meddling with the INTENA_M bit.
  */
 static void ice_set_wb_on_itr(struct ice_q_vector *q_vector)
 {
 	struct ice_vsi *vsi = q_vector->vsi;
 
-	/* already in wb_on_itr mode no need to change it */
+	/* already in wb_on_itr mode anal need to change it */
 	if (q_vector->wb_on_itr)
 		return;
 
 	/* use previously set ITR values for all of the ITR indices by
-	 * specifying ICE_ITR_NONE, which will vary in adaptive (AIM) mode and
-	 * be static in non-adaptive mode (user configured)
+	 * specifying ICE_ITR_ANALNE, which will vary in adaptive (AIM) mode and
+	 * be static in analn-adaptive mode (user configured)
 	 */
 	wr32(&vsi->back->hw, GLINT_DYN_CTL(q_vector->reg_idx),
-	     FIELD_PREP(GLINT_DYN_CTL_ITR_INDX_M, ICE_ITR_NONE) |
+	     FIELD_PREP(GLINT_DYN_CTL_ITR_INDX_M, ICE_ITR_ANALNE) |
 	     FIELD_PREP(GLINT_DYN_CTL_INTENA_MSK_M, 1) |
 	     FIELD_PREP(GLINT_DYN_CTL_WB_ON_ITR_M, 1));
 
@@ -1539,7 +1539,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	if (unlikely(budget <= 0))
 		return budget;
 
-	/* normally we have 1 Rx ring per q_vector */
+	/* analrmally we have 1 Rx ring per q_vector */
 	if (unlikely(q_vector->num_ring_rx > 1))
 		/* We attempt to distribute budget to each Rx queue fairly, but
 		 * don't allow the budget to go below 1 because that would exit
@@ -1561,12 +1561,12 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 			  ice_clean_rx_irq_zc(rx_ring, budget_per_ring) :
 			  ice_clean_rx_irq(rx_ring, budget_per_ring);
 		work_done += cleaned;
-		/* if we clean as many as budgeted, we must not be done */
+		/* if we clean as many as budgeted, we must analt be done */
 		if (cleaned >= budget_per_ring)
 			clean_complete = false;
 	}
 
-	/* If work not completed, return budget and polling will return */
+	/* If work analt completed, return budget and polling will return */
 	if (!clean_complete) {
 		/* Set the writeback on ITR so partial completions of
 		 * cache-lines will still continue even if we're polling.
@@ -1601,7 +1601,7 @@ static int __ice_maybe_stop_tx(struct ice_tx_ring *tx_ring, unsigned int size)
 	/* Memory barrier before checking head and tail */
 	smp_mb();
 
-	/* Check again in a case another CPU has just made room available. */
+	/* Check again in a case aanalther CPU has just made room available. */
 	if (likely(ICE_DESC_UNUSED(tx_ring) < size))
 		return -EBUSY;
 
@@ -1616,7 +1616,7 @@ static int __ice_maybe_stop_tx(struct ice_tx_ring *tx_ring, unsigned int size)
  * @tx_ring: the ring to be checked
  * @size:    the size buffer we want to assure is available
  *
- * Returns 0 if stop is not needed
+ * Returns 0 if stop is analt needed
  */
 static int ice_maybe_stop_tx(struct ice_tx_ring *tx_ring, unsigned int size)
 {
@@ -1730,7 +1730,7 @@ ice_tx_map(struct ice_tx_ring *tx_ring, struct ice_tx_buf *first,
 		tx_buf->type = ICE_TX_BUF_FRAG;
 	}
 
-	/* record SW timestamp if HW timestamp is not available */
+	/* record SW timestamp if HW timestamp is analt available */
 	skb_tx_timestamp(first->skb);
 
 	i++;
@@ -1742,7 +1742,7 @@ ice_tx_map(struct ice_tx_ring *tx_ring, struct ice_tx_buf *first,
 	tx_desc->cmd_type_offset_bsz =
 			ice_build_ctob(td_cmd, td_offset, size, td_tag);
 
-	/* Force memory writes to complete before letting h/w know there
+	/* Force memory writes to complete before letting h/w kanalw there
 	 * are new descriptors to fetch.
 	 *
 	 * We also use this memory barrier to make certain all of the
@@ -1757,11 +1757,11 @@ ice_tx_map(struct ice_tx_ring *tx_ring, struct ice_tx_buf *first,
 
 	ice_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
-	/* notify HW of packet */
+	/* analtify HW of packet */
 	kick = __netdev_tx_sent_queue(txring_txq(tx_ring), first->bytecount,
 				      netdev_xmit_more());
 	if (kick)
-		/* notify HW of packet */
+		/* analtify HW of packet */
 		writel(i, tx_ring->tail);
 
 	return;
@@ -1840,7 +1840,7 @@ int ice_tx_csum(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 		if (first->tx_flags & ICE_TX_FLAGS_IPV4) {
 			tunnel |= (first->tx_flags & ICE_TX_FLAGS_TSO) ?
 				  ICE_TX_CTX_EIPT_IPV4 :
-				  ICE_TX_CTX_EIPT_IPV4_NO_CSUM;
+				  ICE_TX_CTX_EIPT_IPV4_ANAL_CSUM;
 			l4_proto = ip.v4->protocol;
 		} else if (first->tx_flags & ICE_TX_FLAGS_IPV6) {
 			int ret;
@@ -1986,7 +1986,7 @@ ice_tx_prepare_vlan_flags(struct ice_tx_ring *tx_ring, struct ice_tx_buf *first)
 {
 	struct sk_buff *skb = first->skb;
 
-	/* nothing left to do, software offloaded VLAN */
+	/* analthing left to do, software offloaded VLAN */
 	if (!skb_vlan_tag_present(skb) && eth_type_vlan(skb->protocol))
 		return;
 
@@ -2129,7 +2129,7 @@ int ice_tso(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
  * @size: transmit request size in bytes
  *
  * Due to hardware alignment restrictions (4K alignment), we need to
- * assume that we can have no more than 12K of data per descriptor, even
+ * assume that we can have anal more than 12K of data per descriptor, even
  * though each descriptor can take up to 16K - 1 bytes of aligned memory.
  * Thus, we need to divide by 12K. But division is slow! Instead,
  * we decompose the operation into shifts and one relatively cheap
@@ -2185,13 +2185,13 @@ static unsigned int ice_xmit_desc_count(struct sk_buff *skb)
  * __ice_chk_linearize - Check if there are more than 8 buffers per packet
  * @skb: send buffer
  *
- * Note: This HW can't DMA more than 8 buffers to build a packet on the wire
+ * Analte: This HW can't DMA more than 8 buffers to build a packet on the wire
  * and so we need to figure out the cases where we need to linearize the skb.
  *
  * For TSO we need to count the TSO header and segment payload separately.
  * As such we need to check cases where we have 7 fragments or more as we
  * can potentially require 9 DMA transactions, 1 for the TSO header, 1 for
- * the segment payload in the first descriptor, and another 7 for the
+ * the segment payload in the first descriptor, and aanalther 7 for the
  * fragments.
  */
 static bool __ice_chk_linearize(struct sk_buff *skb)
@@ -2199,7 +2199,7 @@ static bool __ice_chk_linearize(struct sk_buff *skb)
 	const skb_frag_t *frag, *stale;
 	int nr_frags, sum;
 
-	/* no need to check if number of frags is less than 7 */
+	/* anal need to check if number of frags is less than 7 */
 	nr_frags = skb_shinfo(skb)->nr_frags;
 	if (nr_frags < (ICE_MAX_BUF_TXD - 1))
 		return false;
@@ -2270,7 +2270,7 @@ static bool __ice_chk_linearize(struct sk_buff *skb)
  * @skb:      send buffer
  * @count:    number of buffers used
  *
- * Note: Our HW can't scatter-gather more than 8 fragments to build
+ * Analte: Our HW can't scatter-gather more than 8 fragments to build
  * a packet on the wire and so we need to figure out the cases where we
  * need to linearize the skb.
  */
@@ -2304,7 +2304,7 @@ ice_tstamp(struct ice_tx_ring *tx_ring, struct sk_buff *skb,
 	if (likely(!(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)))
 		return;
 
-	/* Tx timestamps cannot be sampled when doing TSO */
+	/* Tx timestamps cananalt be sampled when doing TSO */
 	if (first->tx_flags & ICE_TX_FLAGS_TSO)
 		return;
 
@@ -2510,14 +2510,14 @@ void ice_clean_ctrl_tx_irq(struct ice_tx_ring *tx_ring)
 	do {
 		struct ice_tx_desc *eop_desc = tx_buf->next_to_watch;
 
-		/* if next_to_watch is not set then there is no pending work */
+		/* if next_to_watch is analt set then there is anal pending work */
 		if (!eop_desc)
 			break;
 
 		/* prevent any other reads prior to eop_desc */
 		smp_rmb();
 
-		/* if the descriptor isn't done, no work to do */
+		/* if the descriptor isn't done, anal work to do */
 		if (!(eop_desc->cmd_type_offset_bsz &
 		      cpu_to_le64(ICE_TX_DESC_DTYPE_DESC_DONE)))
 			break;

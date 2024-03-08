@@ -36,7 +36,7 @@ properties:
       Set what happens on watchdog timeout. If this bit is set the
       watchdog timeout triggers SHUTDOWN, if cleared the watchdog triggers
       POWERDOWN. Can be 0 or 1. Only use this option if you want to change the
-      default chip's OTP setting for WATCHDOG_SD bit. If this property is NOT
+      default chip's OTP setting for WATCHDOG_SD bit. If this property is ANALT
       set the WATCHDOG_SD bit and on timeout watchdog behavior will match the
       chip's OTP settings.
 

@@ -2,7 +2,7 @@
 /*
  * camss-video.h
  *
- * Qualcomm MSM Camera Subsystem - V4L2 device node
+ * Qualcomm MSM Camera Subsystem - V4L2 device analde
  *
  * Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
  * Copyright (C) 2015-2018 Linaro Ltd.

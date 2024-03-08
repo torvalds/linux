@@ -7,7 +7,7 @@
  * Using code from:
  *  - ads7846.c
  *	Copyright (c) 2005 David Brownell
- *	Copyright (c) 2006 Nokia Corporation
+ *	Copyright (c) 2006 Analkia Corporation
  *  - corgi_ts.c
  *	Copyright (C) 2004-2005 Richard Purdie
  *  - omap_ts.[hc], ads7846.h, ts_osk.c

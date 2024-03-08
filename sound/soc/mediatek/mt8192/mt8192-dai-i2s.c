@@ -26,7 +26,7 @@ enum {
 };
 
 enum {
-	I2S_HD_NORMAL = 0,
+	I2S_HD_ANALRMAL = 0,
 	I2S_HD_LOW_JITTER = 1,
 };
 
@@ -127,7 +127,7 @@ static struct mtk_afe_i2s_priv *get_i2s_priv_by_name(struct mtk_base_afe *afe,
 
 /* low jitter control */
 static const char * const mt8192_i2s_hd_str[] = {
-	"Normal", "Low_Jitter"
+	"Analrmal", "Low_Jitter"
 };
 
 static SOC_ENUM_SINGLE_EXT_DECL(mt8192_i2s_enum, mt8192_i2s_hd_str);
@@ -204,7 +204,7 @@ static const struct snd_kcontrol_new mtk_dai_i2s_controls[] = {
 /* dai component */
 /* i2s virtual mux to output widget */
 static const char * const i2s_mux_map[] = {
-	"Normal", "Dummy_Widget",
+	"Analrmal", "Dummy_Widget",
 };
 
 static int i2s_mux_map_value[] = {
@@ -212,7 +212,7 @@ static int i2s_mux_map_value[] = {
 };
 
 static SOC_VALUE_ENUM_SINGLE_AUTODISABLE_DECL(i2s_mux_map_enum,
-					      SND_SOC_NOPM,
+					      SND_SOC_ANALPM,
 					      0,
 					      1,
 					      i2s_mux_map,
@@ -249,11 +249,11 @@ enum {
 	TINYCONN_CH2_MUX_DL2 = 0x5,
 	TINYCONN_CH1_MUX_DL3 = 0x6,
 	TINYCONN_CH2_MUX_DL3 = 0x7,
-	TINYCONN_MUX_NONE = 0x1f,
+	TINYCONN_MUX_ANALNE = 0x1f,
 };
 
 static const char * const tinyconn_mux_map[] = {
-	"NONE",
+	"ANALNE",
 	"DL1_CH1",
 	"DL1_CH2",
 	"DL12_CH1",
@@ -265,7 +265,7 @@ static const char * const tinyconn_mux_map[] = {
 };
 
 static int tinyconn_mux_map_value[] = {
-	TINYCONN_MUX_NONE,
+	TINYCONN_MUX_ANALNE,
 	TINYCONN_CH1_MUX_DL1,
 	TINYCONN_CH2_MUX_DL1,
 	TINYCONN_CH1_MUX_DL12,
@@ -318,7 +318,7 @@ static const struct snd_kcontrol_new i2s3_tinyconn_ch2_mux_control =
 
 /* i2s in lpbk */
 static const char * const i2s_lpbk_mux_map[] = {
-	"Normal", "Lpbk",
+	"Analrmal", "Lpbk",
 };
 
 static int i2s_lpbk_mux_map_value[] = {
@@ -732,54 +732,54 @@ static int mtk_mclk_en_event(struct snd_soc_dapm_widget *w,
 static const struct snd_soc_dapm_widget mtk_dai_i2s_widgets[] = {
 	SND_SOC_DAPM_INPUT("CONNSYS"),
 
-	SND_SOC_DAPM_MIXER("I2S1_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S1_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s1_ch1_mix,
 			   ARRAY_SIZE(mtk_i2s1_ch1_mix)),
-	SND_SOC_DAPM_MIXER("I2S1_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S1_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s1_ch2_mix,
 			   ARRAY_SIZE(mtk_i2s1_ch2_mix)),
 
-	SND_SOC_DAPM_MIXER("I2S3_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S3_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s3_ch1_mix,
 			   ARRAY_SIZE(mtk_i2s3_ch1_mix)),
-	SND_SOC_DAPM_MIXER("I2S3_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S3_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s3_ch2_mix,
 			   ARRAY_SIZE(mtk_i2s3_ch2_mix)),
 
-	SND_SOC_DAPM_MIXER("I2S5_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S5_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s5_ch1_mix,
 			   ARRAY_SIZE(mtk_i2s5_ch1_mix)),
-	SND_SOC_DAPM_MIXER("I2S5_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S5_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s5_ch2_mix,
 			   ARRAY_SIZE(mtk_i2s5_ch2_mix)),
 
-	SND_SOC_DAPM_MIXER("I2S7_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S7_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s7_ch1_mix,
 			   ARRAY_SIZE(mtk_i2s7_ch1_mix)),
-	SND_SOC_DAPM_MIXER("I2S7_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S7_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s7_ch2_mix,
 			   ARRAY_SIZE(mtk_i2s7_ch2_mix)),
 
-	SND_SOC_DAPM_MIXER("I2S9_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S9_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s9_ch1_mix,
 			   ARRAY_SIZE(mtk_i2s9_ch1_mix)),
-	SND_SOC_DAPM_MIXER("I2S9_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S9_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s9_ch2_mix,
 			   ARRAY_SIZE(mtk_i2s9_ch2_mix)),
 
-	SND_SOC_DAPM_MUX_E("I2S1_TINYCONN_CH1_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX_E("I2S1_TINYCONN_CH1_MUX", SND_SOC_ANALPM, 0, 0,
 			   &i2s1_tinyconn_ch1_mux_control,
 			   i2s_out_tinyconn_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_MUX_E("I2S1_TINYCONN_CH2_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX_E("I2S1_TINYCONN_CH2_MUX", SND_SOC_ANALPM, 0, 0,
 			   &i2s1_tinyconn_ch2_mux_control,
 			   i2s_out_tinyconn_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_MUX_E("I2S3_TINYCONN_CH1_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX_E("I2S3_TINYCONN_CH1_MUX", SND_SOC_ANALPM, 0, 0,
 			   &i2s3_tinyconn_ch1_mux_control,
 			   i2s_out_tinyconn_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_MUX_E("I2S3_TINYCONN_CH2_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX_E("I2S3_TINYCONN_CH2_MUX", SND_SOC_ANALPM, 0, 0,
 			   &i2s3_tinyconn_ch2_mux_control,
 			   i2s_out_tinyconn_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
@@ -843,76 +843,76 @@ static const struct snd_soc_dapm_widget mtk_dai_i2s_widgets[] = {
 
 	/* i2s mclk en */
 	SND_SOC_DAPM_SUPPLY_S(I2S0_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(I2S1_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(I2S2_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(I2S3_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(I2S5_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(I2S6_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(I2S7_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(I2S8_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(I2S9_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* apll */
 	SND_SOC_DAPM_SUPPLY_S(APLL1_W_NAME, SUPPLY_SEQ_APLL,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_apll_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(APLL2_W_NAME, SUPPLY_SEQ_APLL,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_apll_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* allow i2s on without codec on */
 	SND_SOC_DAPM_OUTPUT("I2S_DUMMY_OUT"),
 	SND_SOC_DAPM_MUX("I2S1_Out_Mux",
-			 SND_SOC_NOPM, 0, 0, &i2s1_out_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &i2s1_out_mux_control),
 	SND_SOC_DAPM_MUX("I2S3_Out_Mux",
-			 SND_SOC_NOPM, 0, 0, &i2s3_out_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &i2s3_out_mux_control),
 	SND_SOC_DAPM_MUX("I2S5_Out_Mux",
-			 SND_SOC_NOPM, 0, 0, &i2s5_out_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &i2s5_out_mux_control),
 	SND_SOC_DAPM_MUX("I2S7_Out_Mux",
-			 SND_SOC_NOPM, 0, 0, &i2s7_out_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &i2s7_out_mux_control),
 	SND_SOC_DAPM_MUX("I2S9_Out_Mux",
-			 SND_SOC_NOPM, 0, 0, &i2s9_out_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &i2s9_out_mux_control),
 
 	SND_SOC_DAPM_INPUT("I2S_DUMMY_IN"),
 	SND_SOC_DAPM_MUX("I2S0_In_Mux",
-			 SND_SOC_NOPM, 0, 0, &i2s0_in_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &i2s0_in_mux_control),
 	SND_SOC_DAPM_MUX("I2S8_In_Mux",
-			 SND_SOC_NOPM, 0, 0, &i2s8_in_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &i2s8_in_mux_control),
 
 	/* i2s in lpbk */
 	SND_SOC_DAPM_MUX("I2S0_Lpbk_Mux",
-			 SND_SOC_NOPM, 0, 0, &i2s0_lpbk_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &i2s0_lpbk_mux_control),
 	SND_SOC_DAPM_MUX("I2S2_Lpbk_Mux",
-			 SND_SOC_NOPM, 0, 0, &i2s2_lpbk_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &i2s2_lpbk_mux_control),
 };
 
 static int mtk_afe_i2s_share_connect(struct snd_soc_dapm_widget *source,
@@ -1538,7 +1538,7 @@ static int mtk_dai_connsys_i2s_hw_params(struct snd_pcm_substream *substream,
 	dev_dbg(afe->dev, "%s(), id %d, stream %d, rate %d\n",
 		__func__, dai->id, substream->stream, rate);
 
-	/* non-inverse, i2s mode, proxy mode, 16bits, from connsys */
+	/* analn-inverse, i2s mode, proxy mode, 16bits, from connsys */
 	i2s_con |= 0 << INV_PAD_CTRL_SFT;
 	i2s_con |= I2S_FMT_I2S << I2S_FMT_SFT;
 	i2s_con |= 1 << I2S_SRC_SFT;
@@ -1577,11 +1577,11 @@ static int mtk_dai_connsys_i2s_hw_params(struct snd_pcm_substream *substream,
 	regmap_write(afe->regmap, AFE_ASRC_2CH_CON6, 0x00007EF4);
 	regmap_write(afe->regmap, AFE_ASRC_2CH_CON5, 0x00FF5986);
 
-	/* 0:Stereo 1:Mono */
+	/* 0:Stereo 1:Moanal */
 	regmap_update_bits(afe->regmap,
 			   AFE_ASRC_2CH_CON2,
-			   CHSET_IS_MONO_MASK_SFT,
-			   0x0 << CHSET_IS_MONO_SFT);
+			   CHSET_IS_MOANAL_MASK_SFT,
+			   0x0 << CHSET_IS_MOANAL_SFT);
 
 	return 0;
 }
@@ -1749,7 +1749,7 @@ static int mtk_dai_i2s_config(struct mtk_base_afe *afe,
 				   0xffffeffe, i2s_con);
 		break;
 	default:
-		dev_warn(afe->dev, "%s(), id %d not support\n",
+		dev_warn(afe->dev, "%s(), id %d analt support\n",
 			 __func__, i2s_id);
 		return -EINVAL;
 	}
@@ -2078,7 +2078,7 @@ int mt8192_dai_i2s_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 

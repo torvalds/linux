@@ -19,7 +19,7 @@
 #include "dst_common.h"
 
 #define DST_CA_ERROR		0
-#define DST_CA_NOTICE		1
+#define DST_CA_ANALTICE		1
 #define DST_CA_INFO		2
 #define DST_CA_DEBUG		3
 
@@ -27,8 +27,8 @@
 	if (z) {									\
 		if	((x > DST_CA_ERROR) && (x > y))					\
 			printk(KERN_ERR "%s: " format "\n", __func__ , ##arg);	\
-		else if	((x > DST_CA_NOTICE) && (x > y))				\
-			printk(KERN_NOTICE "%s: " format "\n", __func__ , ##arg);	\
+		else if	((x > DST_CA_ANALTICE) && (x > y))				\
+			printk(KERN_ANALTICE "%s: " format "\n", __func__ , ##arg);	\
 		else if ((x > DST_CA_INFO) && (x > y))					\
 			printk(KERN_INFO "%s: " format "\n", __func__ , ##arg);	\
 		else if ((x > DST_CA_DEBUG) && (x > y))					\
@@ -43,7 +43,7 @@
 static DEFINE_MUTEX(dst_ca_mutex);
 static unsigned int verbose = 5;
 module_param(verbose, int, 0644);
-MODULE_PARM_DESC(verbose, "verbose startup messages, default is 1 (yes)");
+MODULE_PARM_DESC(verbose, "verbose startup messages, default is 1 (anal)");
 
 static void put_command_and_length(u8 *data, int command, int length)
 {
@@ -70,7 +70,7 @@ static int dst_ci_command(struct dst_state* state, u8 * data, u8 *ca_string, u8 
 	msleep(65);
 
 	if (write_dst(state, data, len)) {
-		dprintk(verbose, DST_CA_INFO, 1, " Write not successful, trying to recover");
+		dprintk(verbose, DST_CA_INFO, 1, " Write analt successful, trying to recover");
 		dst_error_recovery(state);
 		goto error;
 	}
@@ -79,17 +79,17 @@ static int dst_ci_command(struct dst_state* state, u8 * data, u8 *ca_string, u8 
 		goto error;
 	}
 	if (read_dst(state, &reply, GET_ACK) < 0) {
-		dprintk(verbose, DST_CA_INFO, 1, " Read not successful, trying to recover");
+		dprintk(verbose, DST_CA_INFO, 1, " Read analt successful, trying to recover");
 		dst_error_recovery(state);
 		goto error;
 	}
 	if (read) {
 		if (! dst_wait_dst_ready(state, LONG_DELAY)) {
-			dprintk(verbose, DST_CA_NOTICE, 1, " 8820 not ready");
+			dprintk(verbose, DST_CA_ANALTICE, 1, " 8820 analt ready");
 			goto error;
 		}
 		if (read_dst(state, ca_string, 128) < 0) {	/*	Try to make this dynamic	*/
-			dprintk(verbose, DST_CA_INFO, 1, " Read not successful, trying to recover");
+			dprintk(verbose, DST_CA_INFO, 1, " Read analt successful, trying to recover");
 			dst_error_recovery(state);
 			goto error;
 		}
@@ -108,7 +108,7 @@ static int dst_put_ci(struct dst_state *state, u8 *data, int len, u8 *ca_string,
 	u8 dst_ca_comm_err = 0;
 
 	while (dst_ca_comm_err < RETRIES) {
-		dprintk(verbose, DST_CA_NOTICE, 1, " Put Command");
+		dprintk(verbose, DST_CA_ANALTICE, 1, " Put Command");
 		if (dst_ci_command(state, data, ca_string, len, read)) {	// If error
 			dst_error_recovery(state);
 			dst_ca_comm_err++; // work required here.
@@ -218,7 +218,7 @@ static int ca_get_slot_caps(struct dst_state *state, struct ca_caps *p_ca_caps, 
 		dprintk(verbose, DST_CA_ERROR, 1, " -->dst_put_ci FAILED !");
 		return -EIO;
 	}
-	dprintk(verbose, DST_CA_NOTICE, 1, " -->dst_put_ci SUCCESS !");
+	dprintk(verbose, DST_CA_ANALTICE, 1, " -->dst_put_ci SUCCESS !");
 
 	/*	Will implement the rest soon		*/
 
@@ -242,7 +242,7 @@ static int ca_get_slot_caps(struct dst_state *state, struct ca_caps *p_ca_caps, 
 /*	Need some more work	*/
 static int ca_get_slot_descr(struct dst_state *state, struct ca_msg *p_ca_message, void __user *arg)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 
@@ -294,7 +294,7 @@ static int ca_get_message(struct dst_state *state, struct ca_msg *p_ca_message, 
 	if (copy_from_user(p_ca_message, arg, sizeof (struct ca_msg)))
 		return -EFAULT;
 
-	dprintk(verbose, DST_CA_NOTICE, 1, " Message = [%*ph]",
+	dprintk(verbose, DST_CA_ANALTICE, 1, " Message = [%*ph]",
 		3, p_ca_message->msg);
 
 	for (i = 0; i < 3; i++) {
@@ -302,7 +302,7 @@ static int ca_get_message(struct dst_state *state, struct ca_msg *p_ca_message, 
 		if (i < 2)
 			command = command << 8;
 	}
-	dprintk(verbose, DST_CA_NOTICE, 1, " Command=[0x%x]", command);
+	dprintk(verbose, DST_CA_ANALTICE, 1, " Command=[0x%x]", command);
 
 	switch (command) {
 	case CA_APP_INFO:
@@ -340,7 +340,7 @@ static int handle_dst_tag(struct dst_state *state, struct ca_msg *p_ca_message, 
 
 		/*
 		 *	Need to compute length for EN50221 section 8.3.2, for the time being
-		 *	assuming 8.3.2 is not applicable
+		 *	assuming 8.3.2 is analt applicable
 		 */
 		memcpy(&hw_buffer->msg[7], &p_ca_message->msg[4], length);
 	}
@@ -352,11 +352,11 @@ static int write_to_8820(struct dst_state *state, struct ca_msg *hw_buffer, u8 l
 {
 	if ((dst_put_ci(state, hw_buffer->msg, length, hw_buffer->msg, reply)) < 0) {
 		dprintk(verbose, DST_CA_ERROR, 1, " DST-CI Command failed.");
-		dprintk(verbose, DST_CA_NOTICE, 1, " Resetting DST.");
+		dprintk(verbose, DST_CA_ANALTICE, 1, " Resetting DST.");
 		rdc_reset_state(state);
 		return -EIO;
 	}
-	dprintk(verbose, DST_CA_NOTICE, 1, " DST-CI Command success.");
+	dprintk(verbose, DST_CA_ANALTICE, 1, " DST-CI Command success.");
 
 	return 0;
 }
@@ -421,7 +421,7 @@ static int dst_check_ca_pmt(struct dst_state *state, struct ca_msg *p_ca_message
 	int ca_pmt_reply_test = 0;
 
 	/*	Do test board			*/
-	/*	Not there yet but soon		*/
+	/*	Analt there yet but soon		*/
 
 	/*	CA PMT Reply capable		*/
 	if (ca_pmt_reply_test) {
@@ -432,15 +432,15 @@ static int dst_check_ca_pmt(struct dst_state *state, struct ca_msg *p_ca_message
 
 	/*	Process CA PMT Reply		*/
 	/*	will implement soon		*/
-		dprintk(verbose, DST_CA_ERROR, 1, " Not there yet");
+		dprintk(verbose, DST_CA_ERROR, 1, " Analt there yet");
 	}
-	/*	CA PMT Reply not capable	*/
+	/*	CA PMT Reply analt capable	*/
 	if (!ca_pmt_reply_test) {
-		if ((ca_set_pmt(state, p_ca_message, hw_buffer, 0, NO_REPLY)) < 0) {
+		if ((ca_set_pmt(state, p_ca_message, hw_buffer, 0, ANAL_REPLY)) < 0) {
 			dprintk(verbose, DST_CA_ERROR, 1, " ca_set_pmt.. failed !");
 			return -EIO;
 		}
-		dprintk(verbose, DST_CA_NOTICE, 1, " ca_set_pmt.. success !");
+		dprintk(verbose, DST_CA_ANALTICE, 1, " ca_set_pmt.. success !");
 	/*	put a dummy message		*/
 
 	}
@@ -456,7 +456,7 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 
 	hw_buffer = kmalloc(sizeof(*hw_buffer), GFP_KERNEL);
 	if (!hw_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	dprintk(verbose, DST_CA_DEBUG, 1, " ");
 
 	if (copy_from_user(p_ca_message, arg, sizeof (struct ca_msg))) {
@@ -539,11 +539,11 @@ static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioct
 	p_ca_slot_info = kmalloc(sizeof (struct ca_slot_info), GFP_KERNEL);
 	p_ca_caps = kmalloc(sizeof (struct ca_caps), GFP_KERNEL);
 	if (!p_ca_message || !p_ca_slot_info || !p_ca_caps) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto free_mem_and_exit;
 	}
 
-	/*	We have now only the standard ioctl's, the driver is upposed to handle internals.	*/
+	/*	We have analw only the standard ioctl's, the driver is upposed to handle internals.	*/
 	switch (cmd) {
 	case CA_SEND_MSG:
 		dprintk(verbose, DST_CA_INFO, 1, " Sending message");
@@ -597,7 +597,7 @@ static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioct
 		dprintk(verbose, DST_CA_INFO, 1, " -->CA_GET_DESCR_INFO Success !");
 		break;
 	default:
-		result = -EOPNOTSUPP;
+		result = -EOPANALTSUPP;
 	}
  free_mem_and_exit:
 	kfree (p_ca_message);
@@ -608,14 +608,14 @@ static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioct
 	return result;
 }
 
-static int dst_ca_open(struct inode *inode, struct file *file)
+static int dst_ca_open(struct ianalde *ianalde, struct file *file)
 {
 	dprintk(verbose, DST_CA_DEBUG, 1, " Device opened [%p] ", file);
 
 	return 0;
 }
 
-static int dst_ca_release(struct inode *inode, struct file *file)
+static int dst_ca_release(struct ianalde *ianalde, struct file *file)
 {
 	dprintk(verbose, DST_CA_DEBUG, 1, " Device closed.");
 
@@ -643,7 +643,7 @@ static const struct file_operations dst_ca_fops = {
 	.release = dst_ca_release,
 	.read = dst_ca_read,
 	.write = dst_ca_write,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static struct dvb_device dvbdev_ca = {

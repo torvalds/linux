@@ -2,7 +2,7 @@
 
 CFLAGS_init.o := -mcmodel=medany
 ifdef CONFIG_RELOCATABLE
-CFLAGS_init.o += -fno-pie
+CFLAGS_init.o += -fanal-pie
 endif
 
 ifdef CONFIG_FTRACE
@@ -34,5 +34,5 @@ endif
 endif
 
 obj-$(CONFIG_DEBUG_VIRTUAL) += physaddr.o
-obj-$(CONFIG_RISCV_DMA_NONCOHERENT) += dma-noncoherent.o
-obj-$(CONFIG_RISCV_NONSTANDARD_CACHE_OPS) += cache-ops.o
+obj-$(CONFIG_RISCV_DMA_ANALNCOHERENT) += dma-analncoherent.o
+obj-$(CONFIG_RISCV_ANALNSTANDARD_CACHE_OPS) += cache-ops.o

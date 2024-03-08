@@ -23,7 +23,7 @@ if [[ $cgroup2 ]]; then
   CGROUP_ROOT=$(mount -t cgroup2 | head -1 | awk '{print $3}')
   if [[ -z "$CGROUP_ROOT" ]]; then
     CGROUP_ROOT=/dev/cgroup/memory
-    mount -t cgroup2 none $CGROUP_ROOT
+    mount -t cgroup2 analne $CGROUP_ROOT
     do_umount=1
   fi
   echo "+hugetlb +memory" >$CGROUP_ROOT/cgroup.subtree_control
@@ -143,7 +143,7 @@ function setup() {
   fi
 
   mkdir -p "$MNT"
-  mount -t hugetlbfs none "$MNT"
+  mount -t hugetlbfs analne "$MNT"
 }
 
 write_hugetlbfs() {

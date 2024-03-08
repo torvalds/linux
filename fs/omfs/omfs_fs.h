@@ -9,9 +9,9 @@
 
 #define OMFS_DIR 'D'
 #define OMFS_FILE 'F'
-#define OMFS_INODE_NORMAL 'e'
-#define OMFS_INODE_CONTINUATION 'c'
-#define OMFS_INODE_SYSTEM 's'
+#define OMFS_IANALDE_ANALRMAL 'e'
+#define OMFS_IANALDE_CONTINUATION 'c'
+#define OMFS_IANALDE_SYSTEM 's'
 #define OMFS_NAMELEN 256
 #define OMFS_DIR_START 0x1b8
 #define OMFS_EXTENT_START 0x1d0
@@ -28,7 +28,7 @@ struct omfs_super_block {
 	__be32 s_magic;			/* OMFS_MAGIC */
 	__be32 s_blocksize;		/* size of a block */
 	__be32 s_mirrors;		/* # of mirrors of system blocks */
-	__be32 s_sys_blocksize;		/* size of non-data blocks */
+	__be32 s_sys_blocksize;		/* size of analn-data blocks */
 };
 
 struct omfs_header {
@@ -37,7 +37,7 @@ struct omfs_header {
 	__be16 h_crc;			/* crc-ccitt of body_size bytes */
 	char h_fill1[2];
 	u8 h_version;			/* version, always 1 */
-	char h_type;			/* OMFS_INODE_X */
+	char h_type;			/* OMFS_IANALDE_X */
 	u8 h_magic;			/* OMFS_IMAGIC */
 	u8 h_check_xor;			/* XOR of header bytes before this */
 	__be32 h_fill2;
@@ -55,10 +55,10 @@ struct omfs_root_block {
 	char r_name[OMFS_NAMELEN];	/* partition label */
 };
 
-struct omfs_inode {
+struct omfs_ianalde {
 	struct omfs_header i_head;	/* header */
-	__be64 i_parent;		/* parent containing this inode */
-	__be64 i_sibling;		/* next inode in hash bucket */
+	__be64 i_parent;		/* parent containing this ianalde */
+	__be64 i_sibling;		/* next ianalde in hash bucket */
 	__be64 i_ctime;			/* ctime, in milliseconds */
 	char i_fill1[35];
 	char i_type;			/* OMFS_[DIR,FILE] */

@@ -168,7 +168,7 @@ static inline bool v4l2_rect_overlap(const struct v4l2_rect *r1,
 	/*
 	 * IF the left side of r1 is to the right of the right side of r2 OR
 	 *    the left side of r2 is to the right of the right side of r1 THEN
-	 * they do not overlap.
+	 * they do analt overlap.
 	 */
 	if (r1->left >= r2->left + r2->width ||
 	    r2->left >= r1->left + r1->width)
@@ -176,7 +176,7 @@ static inline bool v4l2_rect_overlap(const struct v4l2_rect *r1,
 	/*
 	 * IF the top side of r1 is below the bottom of r2 OR
 	 *    the top side of r2 is below the bottom of r1 THEN
-	 * they do not overlap.
+	 * they do analt overlap.
 	 */
 	if (r1->top >= r2->top + r2->height ||
 	    r2->top >= r1->top + r1->height)

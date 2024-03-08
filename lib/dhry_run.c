@@ -17,7 +17,7 @@
 
 static int dhry_run_set(const char *val, const struct kernel_param *kp);
 static const struct kernel_param_ops run_ops = {
-	.flags = KERNEL_PARAM_OPS_FL_NOARG,
+	.flags = KERNEL_PARAM_OPS_FL_ANALARG,
 	.set = dhry_run_set,
 };
 static bool dhry_run;

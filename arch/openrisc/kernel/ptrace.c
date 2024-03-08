@@ -8,7 +8,7 @@
  *
  * Modifications for the OpenRISC architecture:
  * Copyright (C) 2003 Matjaz Breskvar <phoenix@bsemi.com>
- * Copyright (C) 2005 Gyorgy Jeney <nog@bsemi.com>
+ * Copyright (C) 2005 Gyorgy Jeney <analg@bsemi.com>
  * Copyright (C) 2010-2011 Jonas Bonn <jonas@southpole.se>
  */
 
@@ -18,7 +18,7 @@
 #include <linux/string.h>
 
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ptrace.h>
 #include <linux/audit.h>
 #include <linux/regset.h>
@@ -69,8 +69,8 @@ static int genregs_set(struct task_struct *target,
 	struct pt_regs *regs = task_pt_regs(target);
 	int ret;
 
-	/* ignore r0 */
-	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 0, 4);
+	/* iganalre r0 */
+	user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf, 0, 4);
 	/* r1 - r31 */
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 					 regs->gpr+1, 4, 4*32);
@@ -83,7 +83,7 @@ static int genregs_set(struct task_struct *target,
 	 * the Supervision register
 	 */
 	if (!ret)
-		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 4*33, -1);
+		user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf, 4*33, -1);
 
 	return ret;
 }
@@ -126,7 +126,7 @@ enum or1k_regset {
 
 static const struct user_regset or1k_regsets[] = {
 	[REGSET_GENERAL] = {
-			    .core_note_type = NT_PRSTATUS,
+			    .core_analte_type = NT_PRSTATUS,
 			    .n = ELF_NGREG,
 			    .size = sizeof(long),
 			    .align = sizeof(long),
@@ -134,7 +134,7 @@ static const struct user_regset or1k_regsets[] = {
 			    .set = genregs_set,
 			    },
 	[REGSET_FPU] = {
-			    .core_note_type = NT_PRFPREG,
+			    .core_analte_type = NT_PRFPREG,
 			    .n = sizeof(struct __or1k_fpu_state) / sizeof(long),
 			    .size = sizeof(long),
 			    .align = sizeof(long),
@@ -156,7 +156,7 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 }
 
 /*
- * does not yet catch signals sent when the child dies.
+ * does analt yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
  */
 
@@ -164,7 +164,7 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 /*
  * Called by kernel/ptrace.c when detaching..
  *
- * Make sure the single step bit is not set.
+ * Make sure the single step bit is analt set.
  */
 void ptrace_disable(struct task_struct *child)
 {
@@ -189,7 +189,7 @@ long arch_ptrace(struct task_struct *child, long request, unsigned long addr,
 }
 
 /*
- * Notification of system call entry/exit
+ * Analtification of system call entry/exit
  * - triggered by current->work.syscall_trace
  */
 asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
@@ -199,8 +199,8 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    ptrace_report_syscall_entry(regs))
 		/*
-		 * Tracing decided this syscall should not happen.
-		 * We'll return a bogus call number to get an ENOSYS
+		 * Tracing decided this syscall should analt happen.
+		 * We'll return a bogus call number to get an EANALSYS
 		 * error, but leave the original number in <something>.
 		 */
 		ret = -1L;

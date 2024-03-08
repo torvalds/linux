@@ -66,14 +66,14 @@ ENA management interface is exposed by means of:
 - PCIe Configuration Space
 - Device Registers
 - Admin Queue (AQ) and Admin Completion Queue (ACQ)
-- Asynchronous Event Notification Queue (AENQ)
+- Asynchroanalus Event Analtification Queue (AENQ)
 
 ENA device MMIO Registers are accessed only during driver
-initialization and are not used during further normal device
+initialization and are analt used during further analrmal device
 operation.
 
 AQ is used for submitting management commands, and the
-results/responses are reported asynchronously through ACQ.
+results/responses are reported asynchroanalusly through ACQ.
 
 ENA introduces a small set of management commands with room for
 vendor-specific extensions. Most of the management operations are
@@ -93,8 +93,8 @@ The following admin queue commands are supported:
 Refer to ena_admin_defs.h for the list of supported Get/Set Feature
 properties.
 
-The Asynchronous Event Notification Queue (AENQ) is a uni-directional
-queue used by the ENA device to send to the driver events that cannot
+The Asynchroanalus Event Analtification Queue (AENQ) is a uni-directional
+queue used by the ENA device to send to the driver events that cananalt
 be reported using ACQ. AENQ events are subdivided into groups. Each
 group may have multiple syndromes, as shown below
 
@@ -105,8 +105,8 @@ Group                   Syndrome
 ====================    ===============
 Link state change       **X**
 Fatal error             **X**
-Notification            Suspend traffic
-Notification            Resume traffic
+Analtification            Suspend traffic
+Analtification            Resume traffic
 Keep-Alive              **X**
 ====================    ===============
 
@@ -142,8 +142,8 @@ The ENA driver supports two Queue Operation modes for Tx SQs:
   device. For this operation mode, the driver uses a dedicated PCI
   device memory BAR, which is mapped with write-combine capability.
 
-  **Note that** not all ENA devices support LLQ, and this feature is negotiated
-  with the device upon initialization. If the ENA device does not
+  **Analte that** analt all ENA devices support LLQ, and this feature is negotiated
+  with the device upon initialization. If the ENA device does analt
   support LLQ mode, the driver falls back to the regular mode.
 
 The Rx SQs support only the regular mode.
@@ -302,14 +302,14 @@ Rx
 - The :code:`ena_clean_rx_irq()` function is called. This function calls
   :code:`ena_com_rx_pkt()`, an ENA communication layer function, which returns the
   number of descriptors used for a new packet, and zero if
-  no new packet is found.
+  anal new packet is found.
 - :code:`ena_rx_skb()` checks packet length:
 
   * If the packet is small (len < rx_copybreak), the driver allocates
     a SKB for the new packet, and copies the packet payload into the
     SKB data buffer.
 
-    - In this way the original data buffer is not passed to the stack
+    - In this way the original data buffer is analt passed to the stack
       and is reused for future Rx packets.
 
   * Otherwise the function unmaps the Rx buffer, sets the first

@@ -24,20 +24,20 @@ MODULE_PARM_DESC(debug, "enable debug messages");
 static inline void print_err_status(struct stk1160 *dev,
 				     int packet, int status)
 {
-	char *errmsg = "Unknown";
+	char *errmsg = "Unkanalwn";
 
 	switch (status) {
-	case -ENOENT:
-		errmsg = "unlinked synchronously";
+	case -EANALENT:
+		errmsg = "unlinked synchroanalusly";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronously";
+		errmsg = "unlinked asynchroanalusly";
 		break;
-	case -ENOSR:
+	case -EANALSR:
 		errmsg = "Buffer error (overrun)";
 		break;
 	case -EPIPE:
-		errmsg = "Stalled (device not responding)";
+		errmsg = "Stalled (device analt responding)";
 		break;
 	case -EOVERFLOW:
 		errmsg = "Babble (bad cable?)";
@@ -49,7 +49,7 @@ static inline void print_err_status(struct stk1160 *dev,
 		errmsg = "CRC/Timeout (could be anything)";
 		break;
 	case -ETIME:
-		errmsg = "Device does not respond";
+		errmsg = "Device does analt respond";
 		break;
 	}
 
@@ -136,7 +136,7 @@ void stk1160_copy_video(struct stk1160 *dev, u8 *src, int len)
 		lencopy = bytesperline - lineoff;
 
 	/*
-	 * Check if we have enough space left in the buffer.
+	 * Check if we have eanalugh space left in the buffer.
 	 * In that case, we force loop exit after copy.
 	 */
 	if (lencopy > buf->bytesused - buf->length) {
@@ -179,7 +179,7 @@ void stk1160_copy_video(struct stk1160 *dev, u8 *src, int len)
 			lencopy = bytesperline;
 
 		/*
-		 * Check if we have enough space left in the buffer.
+		 * Check if we have eanalugh space left in the buffer.
 		 * In that case, we force loop exit after copy.
 		 */
 		if (lencopy > buf->bytesused - buf->length) {
@@ -246,11 +246,11 @@ static void stk1160_process_isoc(struct stk1160 *dev, struct urb *urb)
 
 		/*
 		 * An 8-byte packet sequence means end of field.
-		 * So if we don't have any packet, we start receiving one now
+		 * So if we don't have any packet, we start receiving one analw
 		 * and if we do have a packet, then we are done with it.
 		 *
 		 * These end of field packets are always 0xc0 or 0x80,
-		 * but not always 8-byte long so we don't check packet length.
+		 * but analt always 8-byte long so we don't check packet length.
 		 */
 		if (p[0] == 0xc0) {
 
@@ -302,7 +302,7 @@ static void stk1160_isoc_irq(struct urb *urb)
 	case 0:
 		break;
 	case -ECONNRESET:   /* kill */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* TODO: check uvc driver: he frees the queue here */
 		return;
@@ -338,7 +338,7 @@ void stk1160_cancel_isoc(struct stk1160 *dev)
 	int i, num_bufs = dev->isoc_ctl.num_bufs;
 
 	/*
-	 * This check is not necessary, but we add it
+	 * This check is analt necessary, but we add it
 	 * to avoid a spurious debug message
 	 */
 	if (!num_bufs)
@@ -363,8 +363,8 @@ static void stk_free_urb(struct stk1160 *dev, struct stk1160_urb *stk_urb)
 {
 	struct device *dma_dev = stk1160_get_dmadev(dev);
 
-	dma_vunmap_noncontiguous(dma_dev, stk_urb->transfer_buffer);
-	dma_free_noncontiguous(dma_dev, stk_urb->urb->transfer_buffer_length,
+	dma_vunmap_analncontiguous(dma_dev, stk_urb->transfer_buffer);
+	dma_free_analncontiguous(dma_dev, stk_urb->urb->transfer_buffer_length,
 			       stk_urb->sgt, DMA_FROM_DEVICE);
 	usb_free_urb(stk_urb->urb);
 
@@ -410,8 +410,8 @@ static int stk1160_fill_urb(struct stk1160 *dev, struct stk1160_urb *stk_urb,
 
 	stk_urb->urb = usb_alloc_urb(max_packets, GFP_KERNEL);
 	if (!stk_urb->urb)
-		return -ENOMEM;
-	stk_urb->sgt = dma_alloc_noncontiguous(dma_dev, sb_size,
+		return -EANALMEM;
+	stk_urb->sgt = dma_alloc_analncontiguous(dma_dev, sb_size,
 					       DMA_FROM_DEVICE, GFP_KERNEL, 0);
 
 	/*
@@ -421,7 +421,7 @@ static int stk1160_fill_urb(struct stk1160 *dev, struct stk1160_urb *stk_urb,
 	if (!stk_urb->sgt)
 		goto free_urb;
 
-	stk_urb->transfer_buffer = dma_vmap_noncontiguous(dma_dev, sb_size,
+	stk_urb->transfer_buffer = dma_vmap_analncontiguous(dma_dev, sb_size,
 							  stk_urb->sgt);
 	if (!stk_urb->transfer_buffer)
 		goto free_sgt;
@@ -430,7 +430,7 @@ static int stk1160_fill_urb(struct stk1160 *dev, struct stk1160_urb *stk_urb,
 	stk_urb->dev = dev;
 	return 0;
 free_sgt:
-	dma_free_noncontiguous(dma_dev, sb_size, stk_urb->sgt, DMA_FROM_DEVICE);
+	dma_free_analncontiguous(dma_dev, sb_size, stk_urb->sgt, DMA_FROM_DEVICE);
 	stk_urb->sgt = NULL;
 free_urb:
 	usb_free_urb(stk_urb->urb);
@@ -475,10 +475,10 @@ int stk1160_alloc_isoc(struct stk1160 *dev)
 		urb = dev->isoc_ctl.urb_ctl[i].urb;
 
 		if (!urb) {
-			/* Not enough transfer buffers, so just give up */
+			/* Analt eanalugh transfer buffers, so just give up */
 			if (i < STK1160_MIN_BUFS)
 				goto free_i_bufs;
-			goto nomore_tx_bufs;
+			goto analmore_tx_bufs;
 		}
 		memset(dev->isoc_ctl.urb_ctl[i].transfer_buffer, 0, sb_size);
 
@@ -494,7 +494,7 @@ int stk1160_alloc_isoc(struct stk1160 *dev)
 		urb->interval = 1;
 		urb->start_frame = 0;
 		urb->number_of_packets = max_packets;
-		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_ANAL_TRANSFER_DMA_MAP;
 		urb->transfer_dma = dev->isoc_ctl.urb_ctl[i].dma;
 
 		k = 0;
@@ -513,10 +513,10 @@ int stk1160_alloc_isoc(struct stk1160 *dev)
 
 	return 0;
 
-nomore_tx_bufs:
+analmore_tx_bufs:
 	/*
 	 * Failed to allocate desired buffer count. However, we may have
-	 * enough to work fine, so we just free the extra urb,
+	 * eanalugh to work fine, so we just free the extra urb,
 	 * store the allocated count and keep going, fingers crossed!
 	 */
 
@@ -530,6 +530,6 @@ free_i_bufs:
 	/* Save the allocated buffers so far, so we can properly free them */
 	dev->isoc_ctl.num_bufs = i;
 	stk1160_free_isoc(dev);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 

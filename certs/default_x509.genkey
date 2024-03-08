@@ -1,7 +1,7 @@
 [ req ]
 default_bits = 4096
 distinguished_name = req_distinguished_name
-prompt = no
+prompt = anal
 string_mask = utf8only
 x509_extensions = myexts
 

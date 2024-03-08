@@ -106,7 +106,7 @@ static inline u64 xfeatures_mask_independent(void)
  * compacted storage format in addition to XSAVEOPT.
  *
  * Otherwise, if XSAVEOPT is enabled, XSAVEOPT replaces XSAVE because XSAVEOPT
- * supports modified optimization which is not supported by XSAVE.
+ * supports modified optimization which is analt supported by XSAVE.
  *
  * We use XSAVE as a fallback.
  *
@@ -205,7 +205,7 @@ static inline void os_xrstor(struct fpstate *fpstate, u64 mask)
 	XSTATE_XRESTORE(&fpstate->regs.xsave, lmask, hmask);
 }
 
-/* Restore of supervisor state. Does not require XFD */
+/* Restore of supervisor state. Does analt require XFD */
 static inline void os_xrstor_supervisor(struct fpstate *fpstate)
 {
 	u64 mask = xfeatures_mask_supervisor();
@@ -219,7 +219,7 @@ static inline void os_xrstor_supervisor(struct fpstate *fpstate)
  * XSAVE itself always writes all requested xfeatures.  Removing features
  * from the request bitmap reduces the features which are written.
  * Generate a mask of features which must be written to a sigframe.  The
- * unset features can be optimized away and not written.
+ * unset features can be optimized away and analt written.
  *
  * This optimization is user-visible.  Only use for states where
  * uninitialized sigframe contents are tolerable, like dynamic features.
@@ -234,7 +234,7 @@ static inline u64 xfeatures_need_sigframe_write(void)
 	/* In-use features must be written: */
 	xfeaures_to_write = xfeatures_in_use();
 
-	/* Also write all non-optimizable sigframe features: */
+	/* Also write all analn-optimizable sigframe features: */
 	xfeaures_to_write |= XFEATURE_MASK_USER_SUPPORTED &
 			     ~XFEATURE_MASK_SIGFRAME_INITOPT;
 
@@ -252,12 +252,12 @@ static inline u64 xfeatures_need_sigframe_write(void)
  * xsave area.
  *
  * The caller has to zero buf::header before calling this because XSAVE*
- * does not touch the reserved fields in the header.
+ * does analt touch the reserved fields in the header.
  */
 static inline int xsave_to_user_sigframe(struct xregs_state __user *buf)
 {
 	/*
-	 * Include the features which are not xsaved/rstored by the kernel
+	 * Include the features which are analt xsaved/rstored by the kernel
 	 * internally, e.g. PKRU. That's user space ABI and also required
 	 * to allow the signal handler to modify PKRU.
 	 */

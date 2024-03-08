@@ -22,7 +22,7 @@ struct ath10k_spec_scan {
 /* enum ath10k_spectral_mode:
  *
  * @SPECTRAL_DISABLED: spectral mode is disabled
- * @SPECTRAL_BACKGROUND: hardware sends samples when it is not busy with
+ * @SPECTRAL_BACKGROUND: hardware sends samples when it is analt busy with
  *	something else.
  * @SPECTRAL_MANUAL: spectral scan is enabled, triggering for samples
  *	is performed manually.

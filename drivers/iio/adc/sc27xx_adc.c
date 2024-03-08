@@ -71,7 +71,7 @@
 #define SC27XX_VOLT_RATIO(n, d)		\
 	(((n) << SC27XX_RATIO_NUMERATOR_OFFSET) | (d))
 #define SC27XX_RATIO_NUMERATOR_OFFSET	16
-#define SC27XX_RATIO_DENOMINATOR_MASK	GENMASK(15, 0)
+#define SC27XX_RATIO_DEANALMINATOR_MASK	GENMASK(15, 0)
 
 /* ADC specific channel reference voltage 3.5V */
 #define SC27XX_ADC_REFVOL_VDD35		3500000
@@ -588,7 +588,7 @@ static void sc27xx_adc_volt_ratio(struct sc27xx_adc_data *data, int channel, int
 
 	ratio = data->var_data->get_ratio(channel, scale);
 	fract->numerator = ratio >> SC27XX_RATIO_NUMERATOR_OFFSET;
-	fract->denominator = ratio & SC27XX_RATIO_DENOMINATOR_MASK;
+	fract->deanalminator = ratio & SC27XX_RATIO_DEANALMINATOR_MASK;
 }
 
 static int adc_to_volt(struct sc27xx_adc_linear_graph *graph,
@@ -640,7 +640,7 @@ static int sc27xx_adc_convert_volt(struct sc27xx_adc_data *data, int channel,
 
 	sc27xx_adc_volt_ratio(data, channel, scale, &fract);
 
-	return DIV_ROUND_CLOSEST(volt * fract.denominator, fract.numerator);
+	return DIV_ROUND_CLOSEST(volt * fract.deanalminator, fract.numerator);
 }
 
 static int sc27xx_adc_read_processed(struct sc27xx_adc_data *data,
@@ -861,7 +861,7 @@ static const struct sc27xx_adc_variant_data sc2720_data = {
 static int sc27xx_adc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct sc27xx_adc_data *sc27xx_data;
 	const struct sc27xx_adc_variant_data *pdata;
 	struct iio_dev *indio_dev;
@@ -869,20 +869,20 @@ static int sc27xx_adc_probe(struct platform_device *pdev)
 
 	pdata = of_device_get_match_data(dev);
 	if (!pdata) {
-		dev_err(dev, "No matching driver data found\n");
+		dev_err(dev, "Anal matching driver data found\n");
 		return -EINVAL;
 	}
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*sc27xx_data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sc27xx_data = iio_priv(indio_dev);
 
 	sc27xx_data->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!sc27xx_data->regmap) {
 		dev_err(dev, "failed to get ADC regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = of_property_read_u32(np, "reg", &sc27xx_data->base);
@@ -941,7 +941,7 @@ static int sc27xx_adc_probe(struct platform_device *pdev)
 
 	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)
-		dev_err(dev, "could not register iio (ADC)");
+		dev_err(dev, "could analt register iio (ADC)");
 
 	return ret;
 }

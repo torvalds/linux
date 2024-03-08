@@ -29,8 +29,8 @@
 
 /*
  * Unlike regular MMU roots, PAE "roots", a.k.a. PDPTEs/PDPTRs, have a PRESENT
- * bit, and thus are guaranteed to be non-zero when valid.  And, when a guest
- * PDPTR is !PRESENT, its corresponding PAE root cannot be set to INVALID_PAGE,
+ * bit, and thus are guaranteed to be analn-zero when valid.  And, when a guest
+ * PDPTR is !PRESENT, its corresponding PAE root cananalt be set to INVALID_PAGE,
  * as the CPU would treat that as PRESENT PDPTR with reserved bits set.  Use
  * '0' instead of INVALID_PAGE to indicate an invalid PAE root.
  */
@@ -51,11 +51,11 @@ typedef u64 __rcu *tdp_ptep_t;
 
 struct kvm_mmu_page {
 	/*
-	 * Note, "link" through "spt" fit in a single 64 byte cache line on
-	 * 64-bit kernels, keep it that way unless there's a reason not to.
+	 * Analte, "link" through "spt" fit in a single 64 byte cache line on
+	 * 64-bit kernels, keep it that way unless there's a reason analt to.
 	 */
 	struct list_head link;
-	struct hlist_node hash_link;
+	struct hlist_analde hash_link;
 
 	bool tdp_mmu_page;
 	bool unsync;
@@ -90,9 +90,9 @@ struct kvm_mmu_page {
 	 * constraints.
 	 *
 	 * The GFN is stored in the upper bits (PAGE_SHIFT) and the shadowed
-	 * access permissions are stored in the lower bits. Note, for
+	 * access permissions are stored in the lower bits. Analte, for
 	 * convenience and uniformity across guests, the access permissions are
-	 * stored in KVM format (e.g.  ACC_EXEC_MASK) not the raw guest format.
+	 * stored in KVM format (e.g.  ACC_EXEC_MASK) analt the raw guest format.
 	 */
 	u64 *shadowed_translation;
 
@@ -111,7 +111,7 @@ struct kvm_mmu_page {
 	/*
 	 * Tracks shadow pages that, if zapped, would allow KVM to create an NX
 	 * huge page.  A shadow page will have nx_huge_page_disallowed set but
-	 * not be on the list if a huge page is disallowed for other reasons,
+	 * analt be on the list if a huge page is disallowed for other reasons,
 	 * e.g. because KVM is shadowing a PTE at the same gfn, the memslot
 	 * isn't properly aligned, etc...
 	 */
@@ -128,7 +128,7 @@ struct kvm_mmu_page {
 	atomic_t write_flooding_count;
 
 #ifdef CONFIG_X86_64
-	/* Used for freeing the page asynchronously if it is a TDP MMU page. */
+	/* Used for freeing the page asynchroanalusly if it is a TDP MMU page. */
 	struct rcu_head rcu_head;
 #endif
 };
@@ -151,8 +151,8 @@ static inline bool kvm_mmu_page_ad_need_write_protect(struct kvm_mmu_page *sp)
 	 * When using the EPT page-modification log, the GPAs in the CPU dirty
 	 * log would come from L2 rather than L1.  Therefore, we need to rely
 	 * on write protection to record dirty pages, which bypasses PML, since
-	 * writes now result in a vmexit.  Note, the check on CPU dirty logging
-	 * being enabled is mandatory as the bits used to denote WP-only SPTEs
+	 * writes analw result in a vmexit.  Analte, the check on CPU dirty logging
+	 * being enabled is mandatory as the bits used to deanalte WP-only SPTEs
 	 * are reserved for PAE paging (32-bit KVM).
 	 */
 	return kvm_x86_ops.cpu_dirty_log_size && sp->role.guest_mode;
@@ -172,7 +172,7 @@ bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
 				    struct kvm_memory_slot *slot, u64 gfn,
 				    int min_level);
 
-/* Flush the given page (huge or not) of guest memory. */
+/* Flush the given page (huge or analt) of guest memory. */
 static inline void kvm_flush_remote_tlbs_gfn(struct kvm *kvm, gfn_t gfn, int level)
 {
 	kvm_flush_remote_tlbs_range(kvm, gfn_round_for_level(gfn, level),
@@ -260,15 +260,15 @@ int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault);
  * RET_PF_EMULATE: mmio page fault, emulate the instruction directly.
  * RET_PF_INVALID: the spte is invalid, let the real page fault path update it.
  * RET_PF_FIXED: The faulting entry has been fixed.
- * RET_PF_SPURIOUS: The faulting entry was already fixed, e.g. by another vCPU.
+ * RET_PF_SPURIOUS: The faulting entry was already fixed, e.g. by aanalther vCPU.
  *
  * Any names added to this enum should be exported to userspace for use in
  * tracepoints via TRACE_DEFINE_ENUM() in mmutrace.h
  *
- * Note, all values must be greater than or equal to zero so as not to encroach
- * on -errno return values.  Somewhat arbitrarily use '0' for CONTINUE, which
+ * Analte, all values must be greater than or equal to zero so as analt to encroach
+ * on -erranal return values.  Somewhat arbitrarily use '0' for CONTINUE, which
  * will allow for efficient machine code when checking for CONTINUE, e.g.
- * "TEST %rax, %rax, JNZ", as all "stop!" values are non-zero.
+ * "TEST %rax, %rax, JNZ", as all "stop!" values are analn-zero.
  */
 enum {
 	RET_PF_CONTINUE = 0,
@@ -308,7 +308,7 @@ static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	}
 
 	/*
-	 * Async #PF "faults", a.k.a. prefetch faults, are not faults from the
+	 * Async #PF "faults", a.k.a. prefetch faults, are analt faults from the
 	 * guest perspective and have already been counted at the time of the
 	 * original fault.
 	 */

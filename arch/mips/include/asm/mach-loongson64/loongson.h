@@ -21,8 +21,8 @@ enum loongson_fw_interface {
 struct loongson_system_configuration {
 	enum loongson_fw_interface fw_interface;
 	u32 nr_cpus;
-	u32 nr_nodes;
-	int cores_per_node;
+	u32 nr_analdes;
+	int cores_per_analde;
 	int cores_per_package;
 	u16 boot_cpu_id;
 	u16 reserved_cpus_mask;
@@ -49,7 +49,7 @@ extern const struct plat_smp_ops loongson3_smp_ops;
 /* loongson-specific command line, env and memory initialization */
 extern void __init prom_dtb_init_env(void);
 extern void __init prom_lefi_init_env(void);
-extern void __init szmem(unsigned int node);
+extern void __init szmem(unsigned int analde);
 extern void *loongson_fdt_blob;
 
 /* irq operation functions */
@@ -151,7 +151,7 @@ extern int mach_i8259_irq(void);
 #define LOONGSON_GENCFG LOONGSON_REG(LOONGSON_REGBASE + LOONGSON_GENCFG_OFFSET)
 
 #define LOONGSON_GENCFG_DEBUGMODE	0x00000001
-#define LOONGSON_GENCFG_SNOOPEN		0x00000002
+#define LOONGSON_GENCFG_SANALOPEN		0x00000002
 #define LOONGSON_GENCFG_CPUSELFRESET	0x00000004
 
 #define LOONGSON_GENCFG_FORCE_IRQA	0x00000008
@@ -168,7 +168,7 @@ extern int mach_i8259_irq(void);
 #define LOONGSON_GENCFG_CACHESTOP	0x00002000
 #define LOONGSON_GENCFG_MSTRBYTESWAP	0x00004000
 #define LOONGSON_GENCFG_BUSERREN	0x00008000
-#define LOONGSON_GENCFG_NORETRYTIMEOUT	0x00010000
+#define LOONGSON_GENCFG_ANALRETRYTIMEOUT	0x00010000
 #define LOONGSON_GENCFG_SHORTCOPYTIMEOUT	0x00020000
 
 /* PCI address map control */

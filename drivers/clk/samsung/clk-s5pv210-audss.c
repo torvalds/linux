@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2014 Tomasz Figa <t.figa@samsung.com>
  *
- * Based on Exynos Audio Subsystem Clock Controller driver:
+ * Based on Exyanals Audio Subsystem Clock Controller driver:
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  * Author: Padmavathi Venna <padma.v@samsung.com>
@@ -78,7 +78,7 @@ static int s5pv210_audss_clk_probe(struct platform_device *pdev)
 				GFP_KERNEL);
 
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->num = AUDSS_MAX_CLKS;
 	clk_table = clk_data->hws;
@@ -112,7 +112,7 @@ static int s5pv210_audss_clk_probe(struct platform_device *pdev)
 	mout_audss_p[1] = __clk_get_name(pll_in);
 	clk_table[CLK_MOUT_AUDSS] = clk_hw_register_mux(NULL, "mout_audss",
 				mout_audss_p, ARRAY_SIZE(mout_audss_p),
-				CLK_SET_RATE_NO_REPARENT,
+				CLK_SET_RATE_ANAL_REPARENT,
 				reg_base + ASS_CLK_SRC, 0, 1, 0, &lock);
 
 	mout_i2s_p[0] = "mout_audss";
@@ -123,7 +123,7 @@ static int s5pv210_audss_clk_probe(struct platform_device *pdev)
 	mout_i2s_p[2] = __clk_get_name(sclk_audio);
 	clk_table[CLK_MOUT_I2S_A] = clk_hw_register_mux(NULL, "mout_i2s_audss",
 				mout_i2s_p, ARRAY_SIZE(mout_i2s_p),
-				CLK_SET_RATE_NO_REPARENT,
+				CLK_SET_RATE_ANAL_REPARENT,
 				reg_base + ASS_CLK_SRC, 2, 2, 0, &lock);
 
 	clk_table[CLK_DOUT_AUD_BUS] = clk_hw_register_divider(NULL,
@@ -140,22 +140,22 @@ static int s5pv210_audss_clk_probe(struct platform_device *pdev)
 	hclk_p = __clk_get_name(hclk);
 
 	clk_table[CLK_HCLK_I2S] = clk_hw_register_gate(NULL, "hclk_i2s_audss",
-				hclk_p, CLK_IGNORE_UNUSED,
+				hclk_p, CLK_IGANALRE_UNUSED,
 				reg_base + ASS_CLK_GATE, 5, 0, &lock);
 	clk_table[CLK_HCLK_UART] = clk_hw_register_gate(NULL, "hclk_uart_audss",
-				hclk_p, CLK_IGNORE_UNUSED,
+				hclk_p, CLK_IGANALRE_UNUSED,
 				reg_base + ASS_CLK_GATE, 4, 0, &lock);
 	clk_table[CLK_HCLK_HWA] = clk_hw_register_gate(NULL, "hclk_hwa_audss",
-				hclk_p, CLK_IGNORE_UNUSED,
+				hclk_p, CLK_IGANALRE_UNUSED,
 				reg_base + ASS_CLK_GATE, 3, 0, &lock);
 	clk_table[CLK_HCLK_DMA] = clk_hw_register_gate(NULL, "hclk_dma_audss",
-				hclk_p, CLK_IGNORE_UNUSED,
+				hclk_p, CLK_IGANALRE_UNUSED,
 				reg_base + ASS_CLK_GATE, 2, 0, &lock);
 	clk_table[CLK_HCLK_BUF] = clk_hw_register_gate(NULL, "hclk_buf_audss",
-				hclk_p, CLK_IGNORE_UNUSED,
+				hclk_p, CLK_IGANALRE_UNUSED,
 				reg_base + ASS_CLK_GATE, 1, 0, &lock);
 	clk_table[CLK_HCLK_RP] = clk_hw_register_gate(NULL, "hclk_rp_audss",
-				hclk_p, CLK_IGNORE_UNUSED,
+				hclk_p, CLK_IGANALRE_UNUSED,
 				reg_base + ASS_CLK_GATE, 0, 0, &lock);
 
 	for (i = 0; i < clk_data->num; i++) {
@@ -166,7 +166,7 @@ static int s5pv210_audss_clk_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = of_clk_add_hw_provider(pdev->dev.of_node, of_clk_hw_onecell_get,
+	ret = of_clk_add_hw_provider(pdev->dev.of_analde, of_clk_hw_onecell_get,
 				     clk_data);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add clock provider\n");

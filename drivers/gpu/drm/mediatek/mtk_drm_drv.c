@@ -33,7 +33,7 @@
 #define DRIVER_DESC "Mediatek SoC DRM"
 #define DRIVER_DATE "20150513"
 #define DRIVER_MAJOR 1
-#define DRIVER_MINOR 0
+#define DRIVER_MIANALR 0
 
 static const struct drm_mode_config_helper_funcs mtk_drm_mode_config_helpers = {
 	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
@@ -358,21 +358,21 @@ static bool mtk_drm_get_all_drm_priv(struct device *dev)
 	struct mtk_drm_private *drm_priv = dev_get_drvdata(dev);
 	struct mtk_drm_private *all_drm_priv[MAX_CRTC];
 	struct mtk_drm_private *temp_drm_priv;
-	struct device_node *phandle = dev->parent->of_node;
+	struct device_analde *phandle = dev->parent->of_analde;
 	const struct of_device_id *of_id;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct device *drm_dev;
 	unsigned int cnt = 0;
 	int i, j;
 
-	for_each_child_of_node(phandle->parent, node) {
+	for_each_child_of_analde(phandle->parent, analde) {
 		struct platform_device *pdev;
 
-		of_id = of_match_node(mtk_drm_of_ids, node);
+		of_id = of_match_analde(mtk_drm_of_ids, analde);
 		if (!of_id)
 			continue;
 
-		pdev = of_find_device_by_node(node);
+		pdev = of_find_device_by_analde(analde);
 		if (!pdev)
 			continue;
 
@@ -446,7 +446,7 @@ static int mtk_drm_kms_init(struct drm_device *drm)
 	int ret, i, j;
 
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = drmm_mode_config_init(drm);
 	if (ret)
@@ -523,7 +523,7 @@ static int mtk_drm_kms_init(struct drm_device *drm)
 	if (crtc)
 		dma_dev = mtk_drm_crtc_dma_dev_get(crtc);
 	if (!dma_dev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(drm->dev, "Need at least one OVL device\n");
 		goto err_component_unbind;
 	}
@@ -572,7 +572,7 @@ DEFINE_DRM_GEM_FOPS(mtk_drm_fops);
 
 /*
  * We need to override this because the device used to import the memory is
- * not dev->dev, as drm_gem_prime_import() expects.
+ * analt dev->dev, as drm_gem_prime_import() expects.
  */
 static struct drm_gem_object *mtk_drm_gem_prime_import(struct drm_device *dev,
 						       struct dma_buf *dma_buf)
@@ -595,7 +595,7 @@ static const struct drm_driver mtk_drm_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.mianalr = DRIVER_MIANALR,
 };
 
 static int compare_dev(struct device *dev, void *data)
@@ -610,11 +610,11 @@ static int mtk_drm_bind(struct device *dev)
 	struct drm_device *drm;
 	int ret, i;
 
-	pdev = of_find_device_by_node(private->mutex_node);
+	pdev = of_find_device_by_analde(private->mutex_analde);
 	if (!pdev) {
 		dev_err(dev, "Waiting for disp-mutex device %pOF\n",
-			private->mutex_node);
-		of_node_put(private->mutex_node);
+			private->mutex_analde);
+		of_analde_put(private->mutex_analde);
 		return -EPROBE_DEFER;
 	}
 
@@ -797,10 +797,10 @@ static const struct of_device_id mtk_ddp_comp_dt_ids[] = {
 static int mtk_drm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *phandle = dev->parent->of_node;
+	struct device_analde *phandle = dev->parent->of_analde;
 	const struct of_device_id *of_id;
 	struct mtk_drm_private *private;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct component_match *match = NULL;
 	struct platform_device *ovl_adaptor;
 	int ret;
@@ -808,17 +808,17 @@ static int mtk_drm_probe(struct platform_device *pdev)
 
 	private = devm_kzalloc(dev, sizeof(*private), GFP_KERNEL);
 	if (!private)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	private->mmsys_dev = dev->parent;
 	if (!private->mmsys_dev) {
 		dev_err(dev, "Failed to get MMSYS device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	of_id = of_match_node(mtk_drm_of_ids, phandle);
+	of_id = of_match_analde(mtk_drm_of_ids, phandle);
 	if (!of_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	private->data = of_id->data;
 
@@ -826,7 +826,7 @@ static int mtk_drm_probe(struct platform_device *pdev)
 						      sizeof(*private->all_drm_private),
 						      GFP_KERNEL);
 	if (!private->all_drm_private)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Bringup ovl_adaptor */
 	if (mtk_drm_find_mmsys_comp(private, DDP_COMPONENT_DRM_OVL_ADAPTOR)) {
@@ -841,18 +841,18 @@ static int mtk_drm_probe(struct platform_device *pdev)
 	}
 
 	/* Iterate over sibling DISP function blocks */
-	for_each_child_of_node(phandle->parent, node) {
+	for_each_child_of_analde(phandle->parent, analde) {
 		const struct of_device_id *of_id;
 		enum mtk_ddp_comp_type comp_type;
 		int comp_id;
 
-		of_id = of_match_node(mtk_ddp_comp_dt_ids, node);
+		of_id = of_match_analde(mtk_ddp_comp_dt_ids, analde);
 		if (!of_id)
 			continue;
 
-		if (!of_device_is_available(node)) {
+		if (!of_device_is_available(analde)) {
 			dev_dbg(dev, "Skipping disabled component %pOF\n",
-				node);
+				analde);
 			continue;
 		}
 
@@ -861,25 +861,25 @@ static int mtk_drm_probe(struct platform_device *pdev)
 		if (comp_type == MTK_DISP_MUTEX) {
 			int id;
 
-			id = of_alias_get_id(node, "mutex");
+			id = of_alias_get_id(analde, "mutex");
 			if (id < 0 || id == private->data->mmsys_id) {
-				private->mutex_node = of_node_get(node);
+				private->mutex_analde = of_analde_get(analde);
 				dev_dbg(dev, "get mutex for mmsys %d", private->data->mmsys_id);
 			}
 			continue;
 		}
 
-		comp_id = mtk_ddp_comp_get_id(node, comp_type);
+		comp_id = mtk_ddp_comp_get_id(analde, comp_type);
 		if (comp_id < 0) {
-			dev_warn(dev, "Skipping unknown component %pOF\n",
-				 node);
+			dev_warn(dev, "Skipping unkanalwn component %pOF\n",
+				 analde);
 			continue;
 		}
 
 		if (!mtk_drm_find_mmsys_comp(private, comp_id))
 			continue;
 
-		private->comp_node[comp_id] = of_node_get(node);
+		private->comp_analde[comp_id] = of_analde_get(analde);
 
 		/*
 		 * Currently only the AAL, CCORR, COLOR, GAMMA, MERGE, OVL, RDMA, DSI, and DPI
@@ -899,22 +899,22 @@ static int mtk_drm_probe(struct platform_device *pdev)
 		    comp_type == MTK_DPI ||
 		    comp_type == MTK_DSI) {
 			dev_info(dev, "Adding component match for %pOF\n",
-				 node);
+				 analde);
 			drm_of_component_match_add(dev, &match, component_compare_of,
-						   node);
+						   analde);
 		}
 
-		ret = mtk_ddp_comp_init(node, &private->ddp_comp[comp_id], comp_id);
+		ret = mtk_ddp_comp_init(analde, &private->ddp_comp[comp_id], comp_id);
 		if (ret) {
-			of_node_put(node);
-			goto err_node;
+			of_analde_put(analde);
+			goto err_analde;
 		}
 	}
 
-	if (!private->mutex_node) {
-		dev_err(dev, "Failed to find disp-mutex node\n");
-		ret = -ENODEV;
-		goto err_node;
+	if (!private->mutex_analde) {
+		dev_err(dev, "Failed to find disp-mutex analde\n");
+		ret = -EANALDEV;
+		goto err_analde;
 	}
 
 	pm_runtime_enable(dev);
@@ -929,10 +929,10 @@ static int mtk_drm_probe(struct platform_device *pdev)
 
 err_pm:
 	pm_runtime_disable(dev);
-err_node:
-	of_node_put(private->mutex_node);
+err_analde:
+	of_analde_put(private->mutex_analde);
 	for (i = 0; i < DDP_COMPONENT_DRM_ID_MAX; i++)
-		of_node_put(private->comp_node[i]);
+		of_analde_put(private->comp_analde[i]);
 	return ret;
 }
 
@@ -943,9 +943,9 @@ static void mtk_drm_remove(struct platform_device *pdev)
 
 	component_master_del(&pdev->dev, &mtk_drm_ops);
 	pm_runtime_disable(&pdev->dev);
-	of_node_put(private->mutex_node);
+	of_analde_put(private->mutex_analde);
 	for (i = 0; i < DDP_COMPONENT_DRM_ID_MAX; i++)
-		of_node_put(private->comp_node[i]);
+		of_analde_put(private->comp_analde[i]);
 }
 
 static int mtk_drm_sys_prepare(struct device *dev)

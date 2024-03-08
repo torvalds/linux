@@ -4,7 +4,7 @@
  * All the clocks are initialized by the bootloader, so this driver allow only
  * reading of current settings directly from the hardware.
  *
- * Copyright (C) 2018 Nuvoton Technologies tali.perry@nuvoton.com
+ * Copyright (C) 2018 Nuvoton Techanallogies tali.perry@nuvoton.com
  */
 
 #include <linux/module.h>
@@ -76,7 +76,7 @@ npcm7xx_clk_register_pll(void __iomem *pllcon, const char *name,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pr_debug("%s reg, name=%s, p=%s\n", __func__, name, parent_name);
 
@@ -401,7 +401,7 @@ static const struct npcm7xx_clk_div_data npcm7xx_divs[] __initconst = {
 
 static DEFINE_SPINLOCK(npcm7xx_clk_lock);
 
-static void __init npcm7xx_clk_init(struct device_node *clk_np)
+static void __init npcm7xx_clk_init(struct device_analde *clk_np)
 {
 	struct clk_hw_onecell_data *npcm7xx_clk_data;
 	void __iomem *clk_base;
@@ -505,7 +505,7 @@ static void __init npcm7xx_clk_init(struct device_node *clk_np)
 	if (ret)
 		pr_err("failed to add DT provider: %d\n", ret);
 
-	of_node_put(clk_np);
+	of_analde_put(clk_np);
 
 	return;
 
@@ -514,6 +514,6 @@ npcm7xx_init_fail:
 npcm7xx_init_np_err:
 	iounmap(clk_base);
 npcm7xx_init_error:
-	of_node_put(clk_np);
+	of_analde_put(clk_np);
 }
 CLK_OF_DECLARE(npcm7xx_clk_init, "nuvoton,npcm750-clk", npcm7xx_clk_init);

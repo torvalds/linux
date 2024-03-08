@@ -5,7 +5,7 @@
  * Generic driver for MIPI CCS/SMIA/SMIA++ compliant camera sensors
  *
  * Copyright (C) 2020 Intel Corporation
- * Copyright (C) 2010--2012 Nokia Corporation
+ * Copyright (C) 2010--2012 Analkia Corporation
  * Contact: Sakari Ailus <sakari.ailus@linux.intel.com>
  */
 

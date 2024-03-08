@@ -60,7 +60,7 @@
 #define SWRM_INTERRUPT_STATUS_BUS_RESET_FINISHED_V2		BIT(13)
 #define SWRM_INTERRUPT_STATUS_CLK_STOP_FINISHED_V2		BIT(14)
 #define SWRM_INTERRUPT_STATUS_EXT_CLK_STOP_WAKEUP		BIT(16)
-#define SWRM_INTERRUPT_STATUS_CMD_IGNORED_AND_EXEC_CONTINUED	BIT(19)
+#define SWRM_INTERRUPT_STATUS_CMD_IGANALRED_AND_EXEC_CONTINUED	BIT(19)
 #define SWRM_INTERRUPT_MAX					17
 #define SWRM_V1_3_INTERRUPT_MASK_ADDR				0x204
 #define SWRM_V1_3_INTERRUPT_CLEAR				0x208
@@ -78,7 +78,7 @@
 #define SWRM_RD_CMD_FIFO_CNT_MASK				GENMASK(20, 16)
 #define SWRM_WR_CMD_FIFO_CNT_MASK				GENMASK(12, 8)
 #define SWRM_CMD_FIFO_CFG_ADDR					0x314
-#define SWRM_CONTINUE_EXEC_ON_CMD_IGNORE			BIT(31)
+#define SWRM_CONTINUE_EXEC_ON_CMD_IGANALRE			BIT(31)
 #define SWRM_RD_WR_CMD_RETRIES					0x7
 #define SWRM_V1_3_CMD_FIFO_RD_FIFO_ADDR				0x318
 #define SWRM_V2_0_CMD_FIFO_RD_FIFO_ADDR				0x5040
@@ -92,8 +92,8 @@
 #define SWRM_MCP_BUS_CTRL					0x1044
 #define SWRM_MCP_BUS_CLK_START					BIT(1)
 #define SWRM_MCP_CFG_ADDR					0x1048
-#define SWRM_MCP_CFG_MAX_NUM_OF_CMD_NO_PINGS_BMSK		GENMASK(21, 17)
-#define SWRM_DEF_CMD_NO_PINGS					0x1f
+#define SWRM_MCP_CFG_MAX_NUM_OF_CMD_ANAL_PINGS_BMSK		GENMASK(21, 17)
+#define SWRM_DEF_CMD_ANAL_PINGS					0x1f
 #define SWRM_MCP_STATUS						0x104C
 #define SWRM_MCP_STATUS_BANK_NUM_MASK				BIT(0)
 #define SWRM_MCP_SLV_STATUS					0x1090
@@ -160,7 +160,7 @@ struct qcom_swrm_port_config {
 
 /*
  * Internal IDs for different register layouts.  Only few registers differ per
- * each variant, so the list of IDs below does not include all of registers.
+ * each variant, so the list of IDs below does analt include all of registers.
  */
 enum {
 	SWRM_REG_FRAME_GEN_ENABLED,
@@ -211,7 +211,7 @@ struct qcom_swrm_ctrl {
 	u32 slave_status;
 	u32 wr_fifo_depth;
 	u32 rd_fifo_depth;
-	bool clock_stop_not_supported;
+	bool clock_stop_analt_supported;
 };
 
 struct qcom_swrm_data {
@@ -259,7 +259,7 @@ static const struct qcom_swrm_data swrm_v1_6_data = {
 static const unsigned int swrm_v2_0_reg_layout[] = {
 	[SWRM_REG_FRAME_GEN_ENABLED] = SWRM_V2_0_LINK_STATUS,
 	[SWRM_REG_INTERRUPT_STATUS] = SWRM_V2_0_INTERRUPT_STATUS,
-	[SWRM_REG_INTERRUPT_MASK_ADDR] = 0, /* Not present */
+	[SWRM_REG_INTERRUPT_MASK_ADDR] = 0, /* Analt present */
 	[SWRM_REG_INTERRUPT_CLEAR] = SWRM_V2_0_INTERRUPT_CLEAR,
 	[SWRM_REG_INTERRUPT_CPU_EN] = SWRM_V2_0_INTERRUPT_CPU_EN,
 	[SWRM_REG_CMD_FIFO_WR_CMD] = SWRM_V2_0_CMD_FIFO_WR_CMD,
@@ -451,7 +451,7 @@ static int qcom_swrm_cmd_fifo_wr_cmd(struct qcom_swrm_ctrl *ctrl, u8 cmd_data,
 	if (cmd_id == SWR_BROADCAST_CMD_ID)
 		reinit_completion(&ctrl->broadcast);
 
-	/* Its assumed that write is okay as we do not get any status back */
+	/* Its assumed that write is okay as we do analt get any status back */
 	ctrl->reg_write(ctrl, ctrl->reg_layout[SWRM_REG_CMD_FIFO_WR_CMD], val);
 
 	if (ctrl->version <= SWRM_VERSION_1_3_0)
@@ -466,7 +466,7 @@ static int qcom_swrm_cmd_fifo_wr_cmd(struct qcom_swrm_ctrl *ctrl, u8 cmd_data,
 		ret = wait_for_completion_timeout(&ctrl->broadcast,
 						  msecs_to_jiffies(TIMEOUT_MS));
 		if (!ret)
-			ret = SDW_CMD_IGNORED;
+			ret = SDW_CMD_IGANALRED;
 		else
 			ret = SDW_CMD_OK;
 
@@ -526,7 +526,7 @@ static int qcom_swrm_cmd_fifo_rd_cmd(struct qcom_swrm_ctrl *ctrl,
 		dev_num: 0x%x, cmd_data: 0x%x\n",
 		reg_addr, ctrl->rcmd_id, dev_addr, cmd_data);
 
-	return SDW_CMD_IGNORED;
+	return SDW_CMD_IGANALRED;
 }
 
 static int qcom_swrm_get_alert_slave_dev_num(struct qcom_swrm_ctrl *ctrl)
@@ -596,7 +596,7 @@ static int qcom_swrm_enumerate(struct sdw_bus *bus)
 	char *buf1 = (char *)&val1, *buf2 = (char *)&val2;
 
 	for (i = 1; i <= SDW_MAX_DEVICES; i++) {
-		/* do not continue if the status is Not Present  */
+		/* do analt continue if the status is Analt Present  */
 		if (!ctrl->status[i])
 			continue;
 
@@ -615,13 +615,13 @@ static int qcom_swrm_enumerate(struct sdw_bus *bus)
 
 		sdw_extract_slave_id(bus, addr, &id);
 		found = false;
-		ctrl->clock_stop_not_supported = false;
-		/* Now compare with entries */
-		list_for_each_entry_safe(slave, _s, &bus->slaves, node) {
+		ctrl->clock_stop_analt_supported = false;
+		/* Analw compare with entries */
+		list_for_each_entry_safe(slave, _s, &bus->slaves, analde) {
 			if (sdw_compare_devid(slave, id) == 0) {
 				qcom_swrm_set_slave_dev_num(bus, slave, i);
 				if (slave->prop.clk_stop_mode1)
-					ctrl->clock_stop_not_supported = true;
+					ctrl->clock_stop_analt_supported = true;
 
 				found = true;
 				break;
@@ -648,13 +648,13 @@ static irqreturn_t qcom_swrm_wake_irq_handler(int irq, void *dev_id)
 		dev_err_ratelimited(ctrl->dev,
 				    "pm_runtime_get_sync failed in %s, ret %d\n",
 				    __func__, ret);
-		pm_runtime_put_noidle(ctrl->dev);
+		pm_runtime_put_analidle(ctrl->dev);
 		return ret;
 	}
 
 	if (ctrl->wake_irq > 0) {
 		if (!irqd_irq_disabled(irq_get_irq_data(ctrl->wake_irq)))
-			disable_irq_nosync(ctrl->wake_irq);
+			disable_irq_analsync(ctrl->wake_irq);
 	}
 
 	pm_runtime_mark_last_busy(ctrl->dev);
@@ -687,7 +687,7 @@ static irqreturn_t qcom_swrm_irq_handler(int irq, void *dev_id)
 				devnum = qcom_swrm_get_alert_slave_dev_num(ctrl);
 				if (devnum < 0) {
 					dev_err_ratelimited(ctrl->dev,
-					    "no slave alert found.spurious interrupt\n");
+					    "anal slave alert found.spurious interrupt\n");
 				} else {
 					sdw_handle_slave_status(&ctrl->bus, ctrl->status);
 				}
@@ -698,7 +698,7 @@ static irqreturn_t qcom_swrm_irq_handler(int irq, void *dev_id)
 				dev_dbg_ratelimited(ctrl->dev, "SWR new slave attached\n");
 				ctrl->reg_read(ctrl, SWRM_MCP_SLV_STATUS, &slave_status);
 				if (ctrl->slave_status == slave_status) {
-					dev_dbg(ctrl->dev, "Slave status not changed %x\n",
+					dev_dbg(ctrl->dev, "Slave status analt changed %x\n",
 						slave_status);
 				} else {
 					qcom_swrm_get_device_status(ctrl);
@@ -777,12 +777,12 @@ static irqreturn_t qcom_swrm_irq_handler(int irq, void *dev_id)
 				break;
 			case SWRM_INTERRUPT_STATUS_EXT_CLK_STOP_WAKEUP:
 				break;
-			case SWRM_INTERRUPT_STATUS_CMD_IGNORED_AND_EXEC_CONTINUED:
+			case SWRM_INTERRUPT_STATUS_CMD_IGANALRED_AND_EXEC_CONTINUED:
 				ctrl->reg_read(ctrl,
 					       ctrl->reg_layout[SWRM_REG_CMD_FIFO_STATUS],
 					       &value);
 				dev_err(ctrl->dev,
-					"%s: SWR CMD ignored, fifo status %x\n",
+					"%s: SWR CMD iganalred, fifo status %x\n",
 					__func__, value);
 
 				/* Wait 3.5ms to clear */
@@ -790,9 +790,9 @@ static irqreturn_t qcom_swrm_irq_handler(int irq, void *dev_id)
 				break;
 			default:
 				dev_err_ratelimited(ctrl->dev,
-						"%s: SWR unknown interrupt value: %d\n",
+						"%s: SWR unkanalwn interrupt value: %d\n",
 						__func__, value);
-				ret = IRQ_NONE;
+				ret = IRQ_ANALNE;
 				break;
 			}
 		}
@@ -821,7 +821,7 @@ static bool swrm_wait_for_frame_gen_enabled(struct qcom_swrm_ctrl *ctrl)
 		usleep_range(500, 510);
 	} while (retry--);
 
-	dev_err(ctrl->dev, "%s: link status not %s\n", __func__,
+	dev_err(ctrl->dev, "%s: link status analt %s\n", __func__,
 		comp_sts & SWRM_FRM_GEN_ENABLED ? "connected" : "disconnected");
 
 	return false;
@@ -848,9 +848,9 @@ static int qcom_swrm_init(struct qcom_swrm_ctrl *ctrl)
 		ctrl->reg_write(ctrl, ctrl->reg_layout[SWRM_REG_INTERRUPT_MASK_ADDR],
 				SWRM_INTERRUPT_STATUS_RMSK);
 
-	/* Configure No pings */
+	/* Configure Anal pings */
 	ctrl->reg_read(ctrl, SWRM_MCP_CFG_ADDR, &val);
-	u32p_replace_bits(&val, SWRM_DEF_CMD_NO_PINGS, SWRM_MCP_CFG_MAX_NUM_OF_CMD_NO_PINGS_BMSK);
+	u32p_replace_bits(&val, SWRM_DEF_CMD_ANAL_PINGS, SWRM_MCP_CFG_MAX_NUM_OF_CMD_ANAL_PINGS_BMSK);
 	ctrl->reg_write(ctrl, SWRM_MCP_CFG_ADDR, val);
 
 	if (ctrl->version == SWRM_VERSION_1_7_0) {
@@ -869,7 +869,7 @@ static int qcom_swrm_init(struct qcom_swrm_ctrl *ctrl)
 	if (ctrl->version >= SWRM_VERSION_1_5_1) {
 		ctrl->reg_write(ctrl, SWRM_CMD_FIFO_CFG_ADDR,
 				SWRM_RD_WR_CMD_RETRIES |
-				SWRM_CONTINUE_EXEC_ON_CMD_IGNORE);
+				SWRM_CONTINUE_EXEC_ON_CMD_IGANALRE);
 	} else {
 		ctrl->reg_write(ctrl, SWRM_CMD_FIFO_CFG_ADDR,
 				SWRM_RD_WR_CMD_RETRIES);
@@ -932,7 +932,7 @@ static enum sdw_command_response qcom_swrm_xfer_msg(struct sdw_bus *bus,
 							msg->dev_num,
 						       msg->addr + i);
 			if (ret)
-				return SDW_CMD_IGNORED;
+				return SDW_CMD_IGANALRED;
 		}
 	}
 
@@ -1071,22 +1071,22 @@ static int qcom_swrm_compute_params(struct sdw_bus *bus)
 	unsigned int m_port;
 	int i = 1;
 
-	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
-		list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
+	list_for_each_entry(m_rt, &bus->m_rt_list, bus_analde) {
+		list_for_each_entry(p_rt, &m_rt->port_list, port_analde) {
 			pcfg = &ctrl->pconfig[p_rt->num];
 			p_rt->transport_params.port_num = p_rt->num;
 			if (pcfg->word_length != SWR_INVALID_PARAM) {
 				sdw_fill_port_params(&p_rt->port_params,
 					     p_rt->num,  pcfg->word_length + 1,
 					     SDW_PORT_FLOW_MODE_ISOCH,
-					     SDW_PORT_DATA_MODE_NORMAL);
+					     SDW_PORT_DATA_MODE_ANALRMAL);
 			}
 
 		}
 
-		list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
+		list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_analde) {
 			slave = s_rt->slave;
-			list_for_each_entry(p_rt, &s_rt->port_list, port_node) {
+			list_for_each_entry(p_rt, &s_rt->port_list, port_analde) {
 				m_port = slave->m_port_map[p_rt->num];
 				/* port config starts at offset 0 so -1 from actual port number */
 				if (m_port)
@@ -1109,7 +1109,7 @@ static int qcom_swrm_compute_params(struct sdw_bus *bus)
 						     p_rt->num,
 						     pcfg->word_length + 1,
 						     SDW_PORT_FLOW_MODE_ISOCH,
-						     SDW_PORT_DATA_MODE_NORMAL);
+						     SDW_PORT_DATA_MODE_ANALRMAL);
 				}
 				i++;
 			}
@@ -1132,13 +1132,13 @@ static void qcom_swrm_stream_free_ports(struct qcom_swrm_ctrl *ctrl,
 
 	mutex_lock(&ctrl->port_lock);
 
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+	list_for_each_entry(m_rt, &stream->master_list, stream_analde) {
 		if (m_rt->direction == SDW_DATA_DIR_RX)
 			port_mask = &ctrl->dout_port_mask;
 		else
 			port_mask = &ctrl->din_port_mask;
 
-		list_for_each_entry(p_rt, &m_rt->port_list, port_node)
+		list_for_each_entry(p_rt, &m_rt->port_list, port_analde)
 			clear_bit(p_rt->num, port_mask);
 	}
 
@@ -1165,14 +1165,14 @@ static int qcom_swrm_stream_alloc_ports(struct qcom_swrm_ctrl *ctrl,
 	else
 		sconfig.direction = SDW_DATA_DIR_RX;
 
-	/* hw parameters wil be ignored as we only support PDM */
+	/* hw parameters wil be iganalred as we only support PDM */
 	sconfig.ch_count = 1;
 	sconfig.frame_rate = params_rate(params);
 	sconfig.type = stream->type;
 	sconfig.bps = 1;
 
 	mutex_lock(&ctrl->port_lock);
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+	list_for_each_entry(m_rt, &stream->master_list, stream_analde) {
 		if (m_rt->direction == SDW_DATA_DIR_RX) {
 			maxport = ctrl->num_dout_ports;
 			port_mask = &ctrl->dout_port_mask;
@@ -1181,9 +1181,9 @@ static int qcom_swrm_stream_alloc_ports(struct qcom_swrm_ctrl *ctrl,
 			port_mask = &ctrl->din_port_mask;
 		}
 
-		list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
+		list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_analde) {
 			slave = s_rt->slave;
-			list_for_each_entry(p_rt, &s_rt->port_list, port_node) {
+			list_for_each_entry(p_rt, &s_rt->port_list, port_analde) {
 				m_port = slave->m_port_map[p_rt->num];
 				/* Port numbers start from 1 - 14*/
 				if (m_port)
@@ -1268,7 +1268,7 @@ static int qcom_swrm_startup(struct snd_pcm_substream *substream,
 		dev_err_ratelimited(ctrl->dev,
 				    "pm_runtime_get_sync failed in %s, ret %d\n",
 				    __func__, ret);
-		pm_runtime_put_noidle(ctrl->dev);
+		pm_runtime_put_analidle(ctrl->dev);
 		return ret;
 	}
 
@@ -1307,15 +1307,15 @@ static int qcom_swrm_register_dais(struct qcom_swrm_ctrl *ctrl)
 	struct device *dev = ctrl->dev;
 	int i;
 
-	/* PDM dais are only tested for now */
+	/* PDM dais are only tested for analw */
 	dais = devm_kcalloc(dev, num_dais, sizeof(*dais), GFP_KERNEL);
 	if (!dais)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_dais; i++) {
 		dais[i].name = devm_kasprintf(dev, GFP_KERNEL, "SDW Pin%d", i);
 		if (!dais[i].name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (i < ctrl->num_dout_ports)
 			stream = &dais[i].playback;
@@ -1338,7 +1338,7 @@ static int qcom_swrm_register_dais(struct qcom_swrm_ctrl *ctrl)
 
 static int qcom_swrm_get_port_config(struct qcom_swrm_ctrl *ctrl)
 {
-	struct device_node *np = ctrl->dev->of_node;
+	struct device_analde *np = ctrl->dev->of_analde;
 	u8 off1[QCOM_SDW_MAX_PORTS];
 	u8 off2[QCOM_SDW_MAX_PORTS];
 	u16 si[QCOM_SDW_MAX_PORTS];
@@ -1456,7 +1456,7 @@ static int swrm_reg_show(struct seq_file *s_file, void *data)
 		dev_err_ratelimited(ctrl->dev,
 				    "pm_runtime_get_sync failed in %s, ret %d\n",
 				    __func__, ret);
-		pm_runtime_put_noidle(ctrl->dev);
+		pm_runtime_put_analidle(ctrl->dev);
 		return ret;
 	}
 
@@ -1485,7 +1485,7 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 
 	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = of_device_get_match_data(dev);
 	ctrl->max_reg = data->max_reg;
@@ -1519,7 +1519,7 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 		}
 	}
 
-	ctrl->irq = of_irq_get(dev->of_node, 0);
+	ctrl->irq = of_irq_get(dev->of_analde, 0);
 	if (ctrl->irq < 0) {
 		ret = ctrl->irq;
 		goto err_init;
@@ -1577,7 +1577,7 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	ctrl->wake_irq = of_irq_get(dev->of_node, 1);
+	ctrl->wake_irq = of_irq_get(dev->of_analde, 1);
 	if (ctrl->wake_irq > 0) {
 		ret = devm_request_threaded_irq(dev, ctrl->wake_irq, NULL,
 						qcom_swrm_wake_irq_handler,
@@ -1596,7 +1596,7 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 		ctrl->bus.controller_id = val;
 	}
 
-	ret = sdw_bus_master_add(&ctrl->bus, dev, dev->fwnode);
+	ret = sdw_bus_master_add(&ctrl->bus, dev, dev->fwanalde);
 	if (ret) {
 		dev_err(dev, "Failed to register Soundwire controller (%d)\n",
 			ret);
@@ -1653,12 +1653,12 @@ static int __maybe_unused swrm_runtime_resume(struct device *dev)
 
 	if (ctrl->wake_irq > 0) {
 		if (!irqd_irq_disabled(irq_get_irq_data(ctrl->wake_irq)))
-			disable_irq_nosync(ctrl->wake_irq);
+			disable_irq_analsync(ctrl->wake_irq);
 	}
 
 	clk_prepare_enable(ctrl->hclk);
 
-	if (ctrl->clock_stop_not_supported) {
+	if (ctrl->clock_stop_analt_supported) {
 		reinit_completion(&ctrl->enumeration);
 		ctrl->reg_write(ctrl, SWRM_COMP_SW_RESET, 0x01);
 		usleep_range(100, 105);
@@ -1717,7 +1717,7 @@ static int __maybe_unused swrm_runtime_suspend(struct device *dev)
 	int ret;
 
 	swrm_wait_for_wr_fifo_done(ctrl);
-	if (!ctrl->clock_stop_not_supported) {
+	if (!ctrl->clock_stop_analt_supported) {
 		/* Mask bus clash interrupt */
 		ctrl->intr_mask &= ~SWRM_INTERRUPT_STATUS_MASTER_CLASH_DET;
 		if (ctrl->version < SWRM_VERSION_2_0_0)
@@ -1728,13 +1728,13 @@ static int __maybe_unused swrm_runtime_suspend(struct device *dev)
 				ctrl->intr_mask);
 		/* Prepare slaves for clock stop */
 		ret = sdw_bus_prep_clk_stop(&ctrl->bus);
-		if (ret < 0 && ret != -ENODATA) {
+		if (ret < 0 && ret != -EANALDATA) {
 			dev_err(dev, "prepare clock stop failed %d", ret);
 			return ret;
 		}
 
 		ret = sdw_bus_clk_stop(&ctrl->bus);
-		if (ret < 0 && ret != -ENODATA) {
+		if (ret < 0 && ret != -EANALDATA) {
 			dev_err(dev, "bus clock stop failed %d", ret);
 			return ret;
 		}

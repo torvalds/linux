@@ -131,9 +131,9 @@ static int get_all_munits(const struct munit *m)
 		case SAD:
 			/*
 			 * one of these devices per core, including cores
-			 * that don't exist on this SKU. Ignore any that
+			 * that don't exist on this SKU. Iganalre any that
 			 * read a route table of zero, make sure all the
-			 * non-zero values match.
+			 * analn-zero values match.
 			 */
 			pci_read_config_dword(pdev, 0xB4, &reg);
 			if (reg != 0) {
@@ -154,13 +154,13 @@ static int get_all_munits(const struct munit *m)
 	return ndev;
 fail:
 	pci_dev_put(pdev);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static struct res_config skx_cfg = {
 	.type			= SKX,
 	.decs_did		= 0x2016,
-	.busno_cfg_offset	= 0xcc,
+	.busanal_cfg_offset	= 0xcc,
 };
 
 static const struct x86_cpu_id skx_cpuids[] = {
@@ -204,7 +204,7 @@ static int skx_get_dimm_config(struct mem_ctl_info *mci, struct res_config *cfg)
 		}
 		if (ndimms && !skx_check_ecc(mcmtr)) {
 			skx_printk(KERN_ERR, "ECC is disabled on imc %d\n", imc->mc);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -289,7 +289,7 @@ restart:
 		}
 		prev_limit = limit + 1;
 	}
-	edac_dbg(0, "No SAD entry for 0x%llx\n", addr);
+	edac_dbg(0, "Anal SAD entry for 0x%llx\n", addr);
 	return false;
 
 sad_found:
@@ -312,7 +312,7 @@ sad_found:
 
 	tgt = GET_BITFIELD(ilv, 4 * idx, 4 * idx + 3);
 
-	/* If point to another node, find it and start over */
+	/* If point to aanalther analde, find it and start over */
 	if (SKX_ILV_REMOTE(tgt)) {
 		if (remote) {
 			edac_dbg(0, "Double remote!\n");
@@ -323,7 +323,7 @@ sad_found:
 			if (d->imc[0].src_id == SKX_ILV_TARGET(tgt))
 				goto restart;
 		}
-		edac_dbg(0, "Can't find node %d\n", SKX_ILV_TARGET(tgt));
+		edac_dbg(0, "Can't find analde %d\n", SKX_ILV_TARGET(tgt));
 		return false;
 	}
 
@@ -414,7 +414,7 @@ static bool skx_tad_decode(struct decoded_addr *res)
 		if (SKX_TAD_BASE(base) <= res->addr && res->addr <= SKX_TAD_LIMIT(wayness))
 			goto tad_found;
 	}
-	edac_dbg(0, "No TAD entry for 0x%llx\n", res->addr);
+	edac_dbg(0, "Anal TAD entry for 0x%llx\n", res->addr);
 	return false;
 
 tad_found:
@@ -484,7 +484,7 @@ static bool skx_rir_decode(struct decoded_addr *res)
 		}
 		prev_limit = limit;
 	}
-	edac_dbg(0, "No RIR entry for 0x%llx\n", res->addr);
+	edac_dbg(0, "Anal RIR entry for 0x%llx\n", res->addr);
 	return false;
 
 rir_found:
@@ -582,8 +582,8 @@ static bool skx_decode(struct decoded_addr *res)
 		skx_rir_decode(res) && skx_mad_decode(res);
 }
 
-static struct notifier_block skx_mce_dec = {
-	.notifier_call	= skx_mce_check_error,
+static struct analtifier_block skx_mce_dec = {
+	.analtifier_call	= skx_mce_check_error,
 	.priority	= MCE_PRIO_EDAC,
 };
 
@@ -602,7 +602,7 @@ static int debugfs_u64_set(void *data, u64 val)
 	pr_warn_once("Fake error to 0x%llx injected via debugfs\n", val);
 
 	memset(&m, 0, sizeof(m));
-	/* ADDRV + MemRd + Unknown channel */
+	/* ADDRV + MemRd + Unkanalwn channel */
 	m.status = MCI_STATUS_ADDRV + 0x90;
 	/* One corrected error */
 	m.status |= BIT_ULL(MCI_STATUS_CEC_SHIFT);
@@ -648,7 +648,7 @@ static int __init skx_init(void)
 	const struct munit *m;
 	const char *owner;
 	int rc = 0, i, off[3] = {0xd0, 0xd4, 0xd8};
-	u8 mc = 0, src_id, node_id;
+	u8 mc = 0, src_id, analde_id;
 	struct skx_dev *d;
 
 	edac_dbg(2, "\n");
@@ -661,11 +661,11 @@ static int __init skx_init(void)
 		return -EBUSY;
 
 	if (cpu_feature_enabled(X86_FEATURE_HYPERVISOR))
-		return -ENODEV;
+		return -EANALDEV;
 
 	id = x86_match_cpu(skx_cpuids);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cfg = (struct res_config *)id->driver_data;
 
@@ -677,8 +677,8 @@ static int __init skx_init(void)
 	if (rc < 0)
 		goto fail;
 	if (rc == 0) {
-		edac_dbg(2, "No memory controllers found\n");
-		return -ENODEV;
+		edac_dbg(2, "Anal memory controllers found\n");
+		return -EANALDEV;
 	}
 	skx_num_sockets = rc;
 
@@ -689,7 +689,7 @@ static int __init skx_init(void)
 		if (rc != m->per_socket * skx_num_sockets) {
 			edac_dbg(2, "Expected %d, got %d of 0x%x\n",
 				 m->per_socket * skx_num_sockets, rc, m->did);
-			rc = -ENODEV;
+			rc = -EANALDEV;
 			goto fail;
 		}
 	}
@@ -698,15 +698,15 @@ static int __init skx_init(void)
 		rc = skx_get_src_id(d, 0xf0, &src_id);
 		if (rc < 0)
 			goto fail;
-		rc = skx_get_node_id(d, &node_id);
+		rc = skx_get_analde_id(d, &analde_id);
 		if (rc < 0)
 			goto fail;
-		edac_dbg(2, "src_id=%d node_id=%d\n", src_id, node_id);
+		edac_dbg(2, "src_id=%d analde_id=%d\n", src_id, analde_id);
 		for (i = 0; i < SKX_NUM_IMC; i++) {
 			d->imc[i].mc = mc++;
 			d->imc[i].lmc = i;
 			d->imc[i].src_id = src_id;
-			d->imc[i].node_id = node_id;
+			d->imc[i].analde_id = analde_id;
 			rc = skx_register_mci(&d->imc[i], d->imc[i].chan[0].cdev,
 					      "Skylake Socket", EDAC_MOD_STR,
 					      skx_get_dimm_config, cfg);
@@ -717,11 +717,11 @@ static int __init skx_init(void)
 
 	skx_set_decode(skx_decode, skx_show_retry_rd_err_log);
 
-	if (nvdimm_count && skx_adxl_get() != -ENODEV) {
+	if (nvdimm_count && skx_adxl_get() != -EANALDEV) {
 		skx_set_decode(NULL, skx_show_retry_rd_err_log);
 	} else {
 		if (nvdimm_count)
-			skx_printk(KERN_NOTICE, "Only decoding DDR4 address!\n");
+			skx_printk(KERN_ANALTICE, "Only decoding DDR4 address!\n");
 		skx_set_decode(skx_decode, skx_show_retry_rd_err_log);
 	}
 

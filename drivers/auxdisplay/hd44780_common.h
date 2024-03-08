@@ -24,9 +24,9 @@ int hd44780_common_shift_cursor(struct charlcd *lcd,
 		enum charlcd_shift_dir dir);
 int hd44780_common_shift_display(struct charlcd *lcd,
 		enum charlcd_shift_dir dir);
-int hd44780_common_display(struct charlcd *lcd, enum charlcd_onoff on);
-int hd44780_common_cursor(struct charlcd *lcd, enum charlcd_onoff on);
-int hd44780_common_blink(struct charlcd *lcd, enum charlcd_onoff on);
+int hd44780_common_display(struct charlcd *lcd, enum charlcd_oanalff on);
+int hd44780_common_cursor(struct charlcd *lcd, enum charlcd_oanalff on);
+int hd44780_common_blink(struct charlcd *lcd, enum charlcd_oanalff on);
 int hd44780_common_fontsize(struct charlcd *lcd, enum charlcd_fontsize size);
 int hd44780_common_lines(struct charlcd *lcd, enum charlcd_lines lines);
 int hd44780_common_redefine_char(struct charlcd *lcd, char *esc);

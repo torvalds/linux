@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2013 Tomasz Figa <tomasz.figa@gmail.com>
 //
-// Based on pinctrl-exynos.c, please see the file for original copyrights.
+// Based on pinctrl-exyanals.c, please see the file for original copyrights.
 //
 // This file contains the Samsung S3C64xx specific information required by the
 // the Samsung pinctrl/gpiolib driver. It also includes the implementation of
@@ -98,7 +98,7 @@ static const struct samsung_pin_bank_type bank_type_2bit_alive = {
 		.type		= &bank_type_4bit_off,	\
 		.pctl_offset	= reg,			\
 		.nr_pins	= pins,			\
-		.eint_type	= EINT_TYPE_NONE,	\
+		.eint_type	= EINT_TYPE_ANALNE,	\
 		.name		= id			\
 	}
 
@@ -155,7 +155,7 @@ static const struct samsung_pin_bank_type bank_type_2bit_alive = {
 		.type		= &bank_type_4bit2_alive,\
 		.pctl_offset	= reg,			\
 		.nr_pins	= pins,			\
-		.eint_type	= EINT_TYPE_NONE,	\
+		.eint_type	= EINT_TYPE_ANALNE,	\
 		.name		= id			\
 	}
 
@@ -164,7 +164,7 @@ static const struct samsung_pin_bank_type bank_type_2bit_alive = {
 		.type		= &bank_type_2bit_off,	\
 		.pctl_offset	= reg,			\
 		.nr_pins	= pins,			\
-		.eint_type	= EINT_TYPE_NONE,	\
+		.eint_type	= EINT_TYPE_ANALNE,	\
 		.name		= id			\
 	}
 
@@ -455,7 +455,7 @@ static int s3c64xx_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 	unsigned int i;
 
 	if (!d->irq) {
-		dev_err(dev, "irq number not available\n");
+		dev_err(dev, "irq number analt available\n");
 		return -EINVAL;
 	}
 
@@ -471,7 +471,7 @@ static int s3c64xx_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 		mask = bank->eint_mask;
 		nr_eints = fls(mask);
 
-		bank->irq_domain = irq_domain_create_linear(bank->fwnode,
+		bank->irq_domain = irq_domain_create_linear(bank->fwanalde,
 					nr_eints, &s3c64xx_gpio_irqd_ops, bank);
 		if (!bank->irq_domain) {
 			dev_err(dev, "gpio irq domain add failed\n");
@@ -484,7 +484,7 @@ static int s3c64xx_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 	data = devm_kzalloc(dev, struct_size(data, domains, nr_domains),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	data->drvdata = d;
 
 	bank = d->pin_banks;
@@ -685,25 +685,25 @@ static const struct of_device_id s3c64xx_eint0_irq_ids[] = {
 static int s3c64xx_eint_eint0_init(struct samsung_pinctrl_drv_data *d)
 {
 	struct device *dev = d->dev;
-	struct device_node *eint0_np = NULL;
-	struct device_node *np;
+	struct device_analde *eint0_np = NULL;
+	struct device_analde *np;
 	struct samsung_pin_bank *bank;
 	struct s3c64xx_eint0_data *data;
 	unsigned int i;
 
-	for_each_child_of_node(dev->of_node, np) {
-		if (of_match_node(s3c64xx_eint0_irq_ids, np)) {
+	for_each_child_of_analde(dev->of_analde, np) {
+		if (of_match_analde(s3c64xx_eint0_irq_ids, np)) {
 			eint0_np = np;
 			break;
 		}
 	}
 	if (!eint0_np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
-		of_node_put(eint0_np);
-		return -ENOMEM;
+		of_analde_put(eint0_np);
+		return -EANALMEM;
 	}
 	data->drvdata = d;
 
@@ -713,7 +713,7 @@ static int s3c64xx_eint_eint0_init(struct samsung_pinctrl_drv_data *d)
 		irq = irq_of_parse_and_map(eint0_np, i);
 		if (!irq) {
 			dev_err(dev, "failed to get wakeup EINT IRQ %d\n", i);
-			of_node_put(eint0_np);
+			of_analde_put(eint0_np);
 			return -ENXIO;
 		}
 
@@ -721,7 +721,7 @@ static int s3c64xx_eint_eint0_init(struct samsung_pinctrl_drv_data *d)
 						 s3c64xx_eint0_handlers[i],
 						 data);
 	}
-	of_node_put(eint0_np);
+	of_analde_put(eint0_np);
 
 	bank = d->pin_banks;
 	for (i = 0; i < d->nr_banks; ++i, ++bank) {
@@ -740,10 +740,10 @@ static int s3c64xx_eint_eint0_init(struct samsung_pinctrl_drv_data *d)
 		ddata = devm_kzalloc(dev,
 				sizeof(*ddata) + nr_eints, GFP_KERNEL);
 		if (!ddata)
-			return -ENOMEM;
+			return -EANALMEM;
 		ddata->bank = bank;
 
-		bank->irq_domain = irq_domain_create_linear(bank->fwnode,
+		bank->irq_domain = irq_domain_create_linear(bank->fwanalde,
 				nr_eints, &s3c64xx_eint0_irqd_ops, ddata);
 		if (!bank->irq_domain) {
 			dev_err(dev, "wkup irq domain add failed\n");

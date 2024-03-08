@@ -53,7 +53,7 @@ static void rtl8821ae_init_aspm_vars(struct ieee80211_hw *hw)
 	/**
 	 * This setting works for those device with
 	 * backdoor ASPM setting such as EPHY setting.
-	 * 0 - Not support ASPM,
+	 * 0 - Analt support ASPM,
 	 * 1 - Support ASPM,
 	 * 2 - According to chipset.
 	 */
@@ -96,7 +96,7 @@ static int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 				RCR_APP_MIC		|
 				RCR_APP_ICV		|
 				RCR_APP_PHYST_RXFF	|
-				RCR_NONQOS_VHT		|
+				RCR_ANALNQOS_VHT		|
 				RCR_HTC_LOC_CTRL	|
 				RCR_AMF			|
 				RCR_ACF			|
@@ -181,20 +181,20 @@ static int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 	}
 
 	rtlpriv->max_fw_size = 0x8000;
-	/*load normal firmware*/
+	/*load analrmal firmware*/
 	pr_info("Using firmware %s\n", fw_name);
-	err = request_firmware_nowait(THIS_MODULE, 1, fw_name,
+	err = request_firmware_analwait(THIS_MODULE, 1, fw_name,
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl_fw_cb);
 	if (err) {
-		pr_err("Failed to request normal firmware!\n");
+		pr_err("Failed to request analrmal firmware!\n");
 		vfree(rtlpriv->rtlhal.wowlan_firmware);
 		vfree(rtlpriv->rtlhal.pfirmware);
 		return 1;
 	}
 	/*load wowlan firmware*/
 	pr_info("Using firmware %s\n", wowlan_fw_name);
-	err = request_firmware_nowait(THIS_MODULE, 1,
+	err = request_firmware_analwait(THIS_MODULE, 1,
 				      wowlan_fw_name,
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl_wowlan_fw_cb);
@@ -253,7 +253,7 @@ static struct rtl_hal_ops rtl8821ae_hal_ops = {
 	.fill_tx_cmddesc = rtl8821ae_tx_fill_cmddesc,
 	.query_rx_desc = rtl8821ae_rx_query_desc,
 	.set_channel_access = rtl8821ae_update_channel_access_setting,
-	.radio_onoff_checking = rtl8821ae_gpio_radio_on_off_checking,
+	.radio_oanalff_checking = rtl8821ae_gpio_radio_on_off_checking,
 	.set_bw_mode = rtl8821ae_phy_set_bw_mode,
 	.switch_channel = rtl8821ae_phy_sw_chnl,
 	.dm_watchdog = rtl8821ae_dm_watchdog,
@@ -328,7 +328,7 @@ static const struct rtl_hal_cfg rtl8821ae_hal_cfg = {
 	.maps[RCAMO] = REG_CAMREAD,
 	.maps[CAMDBG] = REG_CAMDBG,
 	.maps[SECR] = REG_SECCFG,
-	.maps[SEC_CAM_NONE] = CAM_NONE,
+	.maps[SEC_CAM_ANALNE] = CAM_ANALNE,
 	.maps[SEC_CAM_WEP40] = CAM_WEP40,
 	.maps[SEC_CAM_TKIP] = CAM_TKIP,
 	.maps[SEC_CAM_AES] = CAM_AES,
@@ -420,7 +420,7 @@ module_param_named(disable_watchdog, rtl8821ae_mod_params.disable_watchdog,
 		   bool, 0444);
 module_param_named(int_clear, rtl8821ae_mod_params.int_clear, bool, 0444);
 MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 0)\n");
-MODULE_PARM_DESC(ips, "Set to 0 to not use link power save (default 1)\n");
+MODULE_PARM_DESC(ips, "Set to 0 to analt use link power save (default 1)\n");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 0)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 1)\n");
 MODULE_PARM_DESC(msi, "Set to 1 to use MSI interrupts mode (default 1)\n");

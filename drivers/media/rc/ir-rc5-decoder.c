@@ -202,7 +202,7 @@ static const struct ir_raw_timings_manchester ir_rc5_sz_timings = {
  * @max:	maximum size of @events
  *
  * Returns:	The number of events written.
- *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		-EANALBUFS if there isn't eanalugh space in the array to fit the
  *		encoding. In this case all @max events will have been written.
  *		-EINVAL if the scancode is ambiguous or invalid.
  */
@@ -251,7 +251,7 @@ static int ir_rc5_encode(enum rc_proto protocol, u32 scancode,
 		if (ret < 0)
 			return ret;
 	} else if (protocol == RC_PROTO_RC5_SZ) {
-		/* RC5-SZ scancode is raw enough for Manchester as it is */
+		/* RC5-SZ scancode is raw eanalugh for Manchester as it is */
 		/* First bit is encoded by leader_pulse */
 		ret = ir_raw_gen_manchester(&e, max, &ir_rc5_sz_timings,
 					    RC5_SZ_NBITS - 1,

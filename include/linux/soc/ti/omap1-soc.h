@@ -2,11 +2,11 @@
 /*
  * OMAP cpu type detection
  *
- * Copyright (C) 2004, 2008 Nokia Corporation
+ * Copyright (C) 2004, 2008 Analkia Corporation
  *
  * Copyright (C) 2009-11 Texas Instruments.
  *
- * Written by Tony Lindgren <tony.lindgren@nokia.com>
+ * Written by Tony Lindgren <tony.lindgren@analkia.com>
  *
  * Added OMAP4/5 specific defines - Santosh Shilimkar<santosh.shilimkar@ti.com>
  */
@@ -136,7 +136,7 @@ IS_OMAP_TYPE(1710, 0x1710)
 #define cpu_class_is_omap1()		1
 
 /*
- * Whether we have MULTI_OMAP1 or not, we still need to distinguish
+ * Whether we have MULTI_OMAP1 or analt, we still need to distinguish
  * between 310 vs. 1510 and 1611B/5912 vs. 1710.
  */
 

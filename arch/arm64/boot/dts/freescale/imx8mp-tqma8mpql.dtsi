@@ -47,7 +47,7 @@
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <80000000>;
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <4>;
@@ -101,7 +101,7 @@
 				regulator-ramp-delay = <3125>;
 			};
 
-			/* VCC3V3 -> VMMC, ... must not be changed */
+			/* VCC3V3 -> VMMC, ... must analt be changed */
 			buck4_reg: BUCK4 {
 				regulator-name = "BUCK4";
 				regulator-min-microvolt = <3300000>;
@@ -110,7 +110,7 @@
 				regulator-always-on;
 			};
 
-			/* V_1V8 -> VQMMC, SPI-NOR, ... must not be changed */
+			/* V_1V8 -> VQMMC, SPI-ANALR, ... must analt be changed */
 			buck5_reg: BUCK5 {
 				regulator-name = "BUCK5";
 				regulator-min-microvolt = <1800000>;
@@ -119,7 +119,7 @@
 				regulator-always-on;
 			};
 
-			/* V_1V1 -> RAM, ... must not be changed */
+			/* V_1V1 -> RAM, ... must analt be changed */
 			buck6_reg: BUCK6 {
 				regulator-name = "BUCK6";
 				regulator-min-microvolt = <1100000>;
@@ -189,9 +189,9 @@
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
 	bus-width = <8>;
-	non-removable;
-	no-sd;
-	no-sdio;
+	analn-removable;
+	anal-sd;
+	anal-sdio;
 	vmmc-supply = <&reg_vcc3v3>;
 	vqmmc-supply = <&reg_vcc1v8>;
 	status = "okay";

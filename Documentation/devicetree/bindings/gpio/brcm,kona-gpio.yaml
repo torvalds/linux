@@ -9,7 +9,7 @@ title: Broadcom Kona family GPIO controller
 description:
   The Broadcom GPIO Controller IP can be configured prior to synthesis to
   support up to 8 banks of 32 GPIOs where each bank has its own IRQ. The
-  GPIO controller only supports edge, not level, triggering of interrupts.
+  GPIO controller only supports edge, analt level, triggering of interrupts.
 
 maintainers:
   - Ray Jui <rjui@broadcom.com>

@@ -3,7 +3,7 @@
 #ifndef __ASM_ARCH_PM_H
 #define __ASM_ARCH_PM_H
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include "irqs.h"
 
 #define CLOCK_GATING_CONTROL	(DOVE_PMU_VIRT_BASE + 0x38)

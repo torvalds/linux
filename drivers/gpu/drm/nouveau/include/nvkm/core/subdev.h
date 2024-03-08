@@ -71,7 +71,7 @@ void nvkm_subdev_intr(struct nvkm_subdev *);
 
 /* subdev logging */
 #define nvkm_printk_ok(s,u,l)                                                                \
-	((CONFIG_NOUVEAU_DEBUG >= (l)) && ((s)->debug >= (l) || ((u) && (u)->debug >= (l))))
+	((CONFIG_ANALUVEAU_DEBUG >= (l)) && ((s)->debug >= (l) || ((u) && (u)->debug >= (l))))
 #define nvkm_printk___(s,u,l,p,f,a...) do {                                                  \
 	if (nvkm_printk_ok((s), (u), (l))) {                                                 \
 		if ((u) && (u) != (s))                                                       \
@@ -85,7 +85,7 @@ void nvkm_subdev_intr(struct nvkm_subdev *);
 #define nvkm_printk(s,l,p,f,a...) nvkm_printk_((s), NV_DBG_##l, p, f, ##a)
 #define nvkm_fatal(s,f,a...) nvkm_printk((s), FATAL,   crit, f, ##a)
 #define nvkm_error(s,f,a...) nvkm_printk((s), ERROR,    err, f, ##a)
-#define nvkm_warn(s,f,a...)  nvkm_printk((s),  WARN, notice, f, ##a)
+#define nvkm_warn(s,f,a...)  nvkm_printk((s),  WARN, analtice, f, ##a)
 #define nvkm_info(s,f,a...)  nvkm_printk((s),  INFO,   info, f, ##a)
 #define nvkm_debug(s,f,a...) nvkm_printk((s), DEBUG,   info, f, ##a)
 #define nvkm_trace(s,f,a...) nvkm_printk((s), TRACE,   info, f, ##a)

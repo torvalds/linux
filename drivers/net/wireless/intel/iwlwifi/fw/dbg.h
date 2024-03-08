@@ -93,17 +93,17 @@ iwl_fw_dbg_trigger_stop_conf_match(struct iwl_fw_runtime *fwrt,
 }
 
 static inline bool
-iwl_fw_dbg_no_trig_window(struct iwl_fw_runtime *fwrt, u32 id, u32 dis_usec)
+iwl_fw_dbg_anal_trig_window(struct iwl_fw_runtime *fwrt, u32 id, u32 dis_usec)
 {
 	unsigned long wind_jiff = usecs_to_jiffies(dis_usec);
 
 	/* If this is the first event checked, jump to update start ts */
-	if (fwrt->dump.non_collect_ts_start[id] &&
-	    (time_after(fwrt->dump.non_collect_ts_start[id] + wind_jiff,
+	if (fwrt->dump.analn_collect_ts_start[id] &&
+	    (time_after(fwrt->dump.analn_collect_ts_start[id] + wind_jiff,
 			jiffies)))
 		return true;
 
-	fwrt->dump.non_collect_ts_start[id] = jiffies;
+	fwrt->dump.analn_collect_ts_start[id] = jiffies;
 	return false;
 }
 
@@ -117,8 +117,8 @@ iwl_fw_dbg_trigger_check_stop(struct iwl_fw_runtime *fwrt,
 	if (wdev && !iwl_fw_dbg_trigger_vif_match(trig, wdev))
 		return false;
 
-	if (iwl_fw_dbg_no_trig_window(fwrt, le32_to_cpu(trig->id), usec)) {
-		IWL_WARN(fwrt, "Trigger %d occurred while no-collect window.\n",
+	if (iwl_fw_dbg_anal_trig_window(fwrt, le32_to_cpu(trig->id), usec)) {
+		IWL_WARN(fwrt, "Trigger %d occurred while anal-collect window.\n",
 			 trig->id);
 		return false;
 	}
@@ -316,12 +316,12 @@ static inline void iwl_fwrt_update_fw_versions(struct iwl_fw_runtime *fwrt,
 		fwrt->dump.fw_ver.type = lmac->ver_type;
 		fwrt->dump.fw_ver.subtype = lmac->ver_subtype;
 		fwrt->dump.fw_ver.lmac_major = le32_to_cpu(lmac->ucode_major);
-		fwrt->dump.fw_ver.lmac_minor = le32_to_cpu(lmac->ucode_minor);
+		fwrt->dump.fw_ver.lmac_mianalr = le32_to_cpu(lmac->ucode_mianalr);
 	}
 
 	if (umac) {
 		fwrt->dump.fw_ver.umac_major = le32_to_cpu(umac->umac_major);
-		fwrt->dump.fw_ver.umac_minor = le32_to_cpu(umac->umac_minor);
+		fwrt->dump.fw_ver.umac_mianalr = le32_to_cpu(umac->umac_mianalr);
 	}
 }
 

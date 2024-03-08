@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techanallogy Ltd. All Rights Reserved.
  *
  * @File	ctpcm.c
  *
@@ -121,7 +121,7 @@ static int ct_pcm_playback_open(struct snd_pcm_substream *substream)
 
 	apcm = kzalloc(sizeof(*apcm), GFP_KERNEL);
 	if (!apcm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	apcm->substream = substream;
 	apcm->interrupt = ct_atc_pcm_interrupt;
@@ -147,7 +147,7 @@ static int ct_pcm_playback_open(struct snd_pcm_substream *substream)
 
 	apcm->timer = ct_timer_instance_new(atc->timer, apcm);
 	if (!apcm->timer) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_pcm;
 	}
 	runtime->private_data = apcm;
@@ -164,7 +164,7 @@ static int ct_pcm_playback_close(struct snd_pcm_substream *substream)
 {
 	struct ct_atc *atc = snd_pcm_substream_chip(substream);
 
-	/* TODO: Notify mixer inactive. */
+	/* TODO: Analtify mixer inactive. */
 	if (IEC958 == substream->pcm->device)
 		atc->spdif_out_passthru(atc, 0);
 
@@ -267,7 +267,7 @@ static int ct_pcm_capture_open(struct snd_pcm_substream *substream)
 
 	apcm = kzalloc(sizeof(*apcm), GFP_KERNEL);
 	if (!apcm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	apcm->started = 0;
 	apcm->substream = substream;
@@ -288,7 +288,7 @@ static int ct_pcm_capture_open(struct snd_pcm_substream *substream)
 
 	apcm->timer = ct_timer_instance_new(atc->timer, apcm);
 	if (!apcm->timer) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_pcm;
 	}
 	runtime->private_data = apcm;
@@ -304,7 +304,7 @@ free_pcm:
 static int ct_pcm_capture_close(struct snd_pcm_substream *substream)
 {
 	/* The ct_atc_pcm object will be freed by runtime->private_free */
-	/* TODO: Notify mixer inactive. */
+	/* TODO: Analtify mixer inactive. */
 	return 0;
 }
 
@@ -387,7 +387,7 @@ static const struct snd_pcm_ops ct_pcm_capture_ops = {
 
 static const struct snd_pcm_chmap_elem surround_map[] = {
 	{ .channels = 1,
-	  .map = { SNDRV_CHMAP_MONO } },
+	  .map = { SNDRV_CHMAP_MOANAL } },
 	{ .channels = 2,
 	  .map = { SNDRV_CHMAP_RL, SNDRV_CHMAP_RR } },
 	{ }
@@ -395,7 +395,7 @@ static const struct snd_pcm_chmap_elem surround_map[] = {
 
 static const struct snd_pcm_chmap_elem clfe_map[] = {
 	{ .channels = 1,
-	  .map = { SNDRV_CHMAP_MONO } },
+	  .map = { SNDRV_CHMAP_MOANAL } },
 	{ .channels = 2,
 	  .map = { SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE } },
 	{ }
@@ -403,7 +403,7 @@ static const struct snd_pcm_chmap_elem clfe_map[] = {
 
 static const struct snd_pcm_chmap_elem side_map[] = {
 	{ .channels = 1,
-	  .map = { SNDRV_CHMAP_MONO } },
+	  .map = { SNDRV_CHMAP_MOANAL } },
 	{ .channels = 2,
 	  .map = { SNDRV_CHMAP_SL, SNDRV_CHMAP_SR } },
 	{ }

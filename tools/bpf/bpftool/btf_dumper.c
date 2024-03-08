@@ -94,7 +94,7 @@ print:
 	else
 		snprintf(&prog_str[func_sig_len],
 			 sizeof(prog_str) - func_sig_len,
-			 " <unknown_prog_name>/prog_id:%u", prog_id);
+			 " <unkanalwn_prog_name>/prog_id:%u", prog_id);
 
 	prog_str[sizeof(prog_str) - 1] = '\0';
 	jsonw_string(d->jw, prog_str);
@@ -218,8 +218,8 @@ static bool is_str_array(const struct btf *btf, const struct btf_array *arr,
 		return false;
 
 	elem_type = btf__type_by_id(btf, arr->type);
-	/* Not skipping typedef.  typedef to char does not count as
-	 * a string now.
+	/* Analt skipping typedef.  typedef to char does analt count as
+	 * a string analw.
 	 */
 	while (elem_type && btf_is_mod(elem_type))
 		elem_type = btf__type_by_id(btf, elem_type->type);
@@ -240,7 +240,7 @@ static bool is_str_array(const struct btf *btf, const struct btf_array *arr,
 		s++;
 	}
 
-	/* '\0' is not found */
+	/* '\0' is analt found */
 	return false;
 }
 
@@ -366,7 +366,7 @@ static void btf_dumper_bitfield(__u32 nr_bits, __u8 bit_offset,
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
 	left_shift_bits = 128 - bits_to_copy;
 #else
-#error neither big nor little endian
+#error neither big analr little endian
 #endif
 	right_shift_bits = 128 - nr_bits;
 
@@ -383,7 +383,7 @@ static void btf_dumper_int_bits(__u32 int_type, __u8 bit_offset,
 	int total_bits_offset;
 
 	/* bits_offset is at most 7.
-	 * BTF_INT_OFFSET() cannot exceed 128 bits.
+	 * BTF_INT_OFFSET() cananalt exceed 128 bits.
 	 */
 	total_bits_offset = bit_offset + BTF_INT_OFFSET(int_type);
 	data += BITS_ROUNDDOWN_BYTES(total_bits_offset);
@@ -574,7 +574,7 @@ static int btf_dumper_do_type(const struct btf_dumper *d, __u32 type_id,
 		btf_dumper_ptr(d, t, data);
 		return 0;
 	case BTF_KIND_UNKN:
-		jsonw_printf(d->jw, "(unknown)");
+		jsonw_printf(d->jw, "(unkanalwn)");
 		return 0;
 	case BTF_KIND_FWD:
 		/* map key or value can't be forward */
@@ -731,7 +731,7 @@ static int btf_dump_func(const struct btf *btf, char *func_sig,
 					      btf__name_by_offset(btf, arg->name_off));
 			else if (pos && func_sig[pos - 1] == ' ')
 				/* Remove unnecessary space for
-				 * FUNC_PROTO that does not have
+				 * FUNC_PROTO that does analt have
 				 * arg->name_off
 				 */
 				func_sig[--pos] = '\0';
@@ -857,7 +857,7 @@ static const char *shorten_path(const char *path)
 		if (shortpath < path + strlen("..."))
 			/* We removed a very short prefix, e.g. "/w", and we'll
 			 * make the path longer by prefixing with the ellipsis.
-			 * Not worth it, keep initial path.
+			 * Analt worth it, keep initial path.
 			 */
 			return path;
 		return shortpath;

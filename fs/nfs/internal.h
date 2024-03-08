@@ -11,7 +11,7 @@
 #include <linux/nfs_page.h>
 #include <linux/wait_bit.h>
 
-#define NFS_SB_MASK (SB_RDONLY|SB_NOSUID|SB_NODEV|SB_NOEXEC|SB_SYNCHRONOUS)
+#define NFS_SB_MASK (SB_RDONLY|SB_ANALSUID|SB_ANALDEV|SB_ANALEXEC|SB_SYNCHROANALUS)
 
 extern const struct export_operations nfs_export_ops;
 
@@ -37,7 +37,7 @@ static inline bool nfs_lookup_is_soft_revalidate(const struct dentry *dentry)
 {
 	if (!(NFS_SB(dentry->d_sb)->flags & NFS_MOUNT_SOFTREVAL))
 		return false;
-	if (!d_is_positive(dentry) || !NFS_FH(d_inode(dentry))->size)
+	if (!d_is_positive(dentry) || !NFS_FH(d_ianalde(dentry))->size)
 		return false;
 	return true;
 }
@@ -53,13 +53,13 @@ static inline fmode_t flags_to_mode(int flags)
 }
 
 /*
- * Note: RFC 1813 doesn't limit the number of auth flavors that
+ * Analte: RFC 1813 doesn't limit the number of auth flavors that
  * a server can return, so make something up.
  */
 #define NFS_MAX_SECFLAVORS	(12)
 
 /*
- * Value used if the user did not specify a port value.
+ * Value used if the user did analt specify a port value.
  */
 #define NFS_UNSPEC_PORT		(-1)
 
@@ -70,12 +70,12 @@ struct nfs_client_initdata {
 	unsigned long init_flags;
 	const char *hostname;			/* Hostname of the server */
 	const struct sockaddr_storage *addr;	/* Address of the server */
-	const char *nodename;			/* Hostname of the client */
+	const char *analdename;			/* Hostname of the client */
 	const char *ip_addr;			/* IP address of the client */
 	size_t addrlen;
 	struct nfs_subversion *nfs_mod;
 	int proto;
-	u32 minorversion;
+	u32 mianalrversion;
 	unsigned int nconnect;
 	unsigned int max_connect;
 	struct net *net;
@@ -107,7 +107,7 @@ struct nfs_fs_context {
 	struct xprtsec_parms	xprtsec;
 	char			*client_address;
 	unsigned int		version;
-	unsigned int		minorversion;
+	unsigned int		mianalrversion;
 	char			*fscache_uniq;
 	unsigned short		protofamily;
 	unsigned short		mountfamily;
@@ -191,7 +191,7 @@ struct nfs_mount_request {
 	u32			version;
 	unsigned short		protocol;
 	struct nfs_fh		*fh;
-	int			noresvport;
+	int			analresvport;
 	unsigned int		*auth_flav_len;
 	rpc_authflavor_t	*auth_flavs;
 	struct net		*net;
@@ -243,9 +243,9 @@ extern struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
 					     int ds_addrlen, int ds_proto,
 					     unsigned int ds_timeo,
 					     unsigned int ds_retrans,
-					     u32 minor_version);
+					     u32 mianalr_version);
 extern struct rpc_clnt *nfs4_find_or_create_ds_client(struct nfs_client *,
-						struct inode *);
+						struct ianalde *);
 extern struct nfs_client *nfs3_set_ds_client(struct nfs_server *mds_srv,
 			const struct sockaddr_storage *ds_addr, int ds_addrlen,
 			int ds_proto, unsigned int ds_timeo,
@@ -357,14 +357,14 @@ nfs4_label_copy(struct nfs4_label *dst, struct nfs4_label *src)
 	return dst;
 }
 
-static inline void nfs_zap_label_cache_locked(struct nfs_inode *nfsi)
+static inline void nfs_zap_label_cache_locked(struct nfs_ianalde *nfsi)
 {
-	if (nfs_server_capable(&nfsi->vfs_inode, NFS_CAP_SECURITY_LABEL))
-		nfsi->cache_validity |= NFS_INO_INVALID_LABEL;
+	if (nfs_server_capable(&nfsi->vfs_ianalde, NFS_CAP_SECURITY_LABEL))
+		nfsi->cache_validity |= NFS_IANAL_INVALID_LABEL;
 }
 #else
 static inline struct nfs4_label *nfs4_label_alloc(struct nfs_server *server, gfp_t flags) { return NULL; }
-static inline void nfs_zap_label_cache_locked(struct nfs_inode *nfsi)
+static inline void nfs_zap_label_cache_locked(struct nfs_ianalde *nfsi)
 {
 }
 static inline struct nfs4_label *
@@ -380,27 +380,27 @@ extern struct nfs_client *nfs_init_client(struct nfs_client *clp,
 			   const struct nfs_client_initdata *);
 
 /* dir.c */
-extern void nfs_readdir_record_entry_cache_hit(struct inode *dir);
-extern void nfs_readdir_record_entry_cache_miss(struct inode *dir);
+extern void nfs_readdir_record_entry_cache_hit(struct ianalde *dir);
+extern void nfs_readdir_record_entry_cache_miss(struct ianalde *dir);
 extern unsigned long nfs_access_cache_count(struct shrinker *shrink,
 					    struct shrink_control *sc);
 extern unsigned long nfs_access_cache_scan(struct shrinker *shrink,
 					   struct shrink_control *sc);
-struct dentry *nfs_lookup(struct inode *, struct dentry *, unsigned int);
-void nfs_d_prune_case_insensitive_aliases(struct inode *inode);
-int nfs_create(struct mnt_idmap *, struct inode *, struct dentry *,
+struct dentry *nfs_lookup(struct ianalde *, struct dentry *, unsigned int);
+void nfs_d_prune_case_insensitive_aliases(struct ianalde *ianalde);
+int nfs_create(struct mnt_idmap *, struct ianalde *, struct dentry *,
 	       umode_t, bool);
-int nfs_mkdir(struct mnt_idmap *, struct inode *, struct dentry *,
+int nfs_mkdir(struct mnt_idmap *, struct ianalde *, struct dentry *,
 	      umode_t);
-int nfs_rmdir(struct inode *, struct dentry *);
-int nfs_unlink(struct inode *, struct dentry *);
-int nfs_symlink(struct mnt_idmap *, struct inode *, struct dentry *,
+int nfs_rmdir(struct ianalde *, struct dentry *);
+int nfs_unlink(struct ianalde *, struct dentry *);
+int nfs_symlink(struct mnt_idmap *, struct ianalde *, struct dentry *,
 		const char *);
-int nfs_link(struct dentry *, struct inode *, struct dentry *);
-int nfs_mknod(struct mnt_idmap *, struct inode *, struct dentry *, umode_t,
+int nfs_link(struct dentry *, struct ianalde *, struct dentry *);
+int nfs_mkanald(struct mnt_idmap *, struct ianalde *, struct dentry *, umode_t,
 	      dev_t);
-int nfs_rename(struct mnt_idmap *, struct inode *, struct dentry *,
-	       struct inode *, struct dentry *, unsigned int);
+int nfs_rename(struct mnt_idmap *, struct ianalde *, struct dentry *,
+	       struct ianalde *, struct dentry *, unsigned int);
 
 #ifdef CONFIG_NFS_V4_2
 static inline __u32 nfs_access_xattr_mask(const struct nfs_server *server)
@@ -420,26 +420,26 @@ static inline __u32 nfs_access_xattr_mask(const struct nfs_server *server)
 int nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync);
 loff_t nfs_file_llseek(struct file *, loff_t, int);
 ssize_t nfs_file_read(struct kiocb *, struct iov_iter *);
-ssize_t nfs_file_splice_read(struct file *in, loff_t *ppos, struct pipe_inode_info *pipe,
+ssize_t nfs_file_splice_read(struct file *in, loff_t *ppos, struct pipe_ianalde_info *pipe,
 			     size_t len, unsigned int flags);
 int nfs_file_mmap(struct file *, struct vm_area_struct *);
 ssize_t nfs_file_write(struct kiocb *, struct iov_iter *);
-int nfs_file_release(struct inode *, struct file *);
+int nfs_file_release(struct ianalde *, struct file *);
 int nfs_lock(struct file *, int, struct file_lock *);
 int nfs_flock(struct file *, int, struct file_lock *);
 int nfs_check_flags(int);
 
-/* inode.c */
+/* ianalde.c */
 extern struct workqueue_struct *nfsiod_workqueue;
-extern struct inode *nfs_alloc_inode(struct super_block *sb);
-extern void nfs_free_inode(struct inode *);
-extern int nfs_write_inode(struct inode *, struct writeback_control *);
-extern int nfs_drop_inode(struct inode *);
-extern void nfs_clear_inode(struct inode *);
-extern void nfs_evict_inode(struct inode *);
-extern void nfs_zap_acl_cache(struct inode *inode);
-extern void nfs_set_cache_invalid(struct inode *inode, unsigned long flags);
-extern bool nfs_check_cache_invalid(struct inode *, unsigned long);
+extern struct ianalde *nfs_alloc_ianalde(struct super_block *sb);
+extern void nfs_free_ianalde(struct ianalde *);
+extern int nfs_write_ianalde(struct ianalde *, struct writeback_control *);
+extern int nfs_drop_ianalde(struct ianalde *);
+extern void nfs_clear_ianalde(struct ianalde *);
+extern void nfs_evict_ianalde(struct ianalde *);
+extern void nfs_zap_acl_cache(struct ianalde *ianalde);
+extern void nfs_set_cache_invalid(struct ianalde *ianalde, unsigned long flags);
+extern bool nfs_check_cache_invalid(struct ianalde *, unsigned long);
 extern int nfs_wait_bit_killable(struct wait_bit_key *key, int mode);
 
 /* super.c */
@@ -463,20 +463,20 @@ extern const struct netfs_request_ops nfs_netfs_ops;
 #endif
 
 /* io.c */
-extern void nfs_start_io_read(struct inode *inode);
-extern void nfs_end_io_read(struct inode *inode);
-extern void nfs_start_io_write(struct inode *inode);
-extern void nfs_end_io_write(struct inode *inode);
-extern void nfs_start_io_direct(struct inode *inode);
-extern void nfs_end_io_direct(struct inode *inode);
+extern void nfs_start_io_read(struct ianalde *ianalde);
+extern void nfs_end_io_read(struct ianalde *ianalde);
+extern void nfs_start_io_write(struct ianalde *ianalde);
+extern void nfs_end_io_write(struct ianalde *ianalde);
+extern void nfs_start_io_direct(struct ianalde *ianalde);
+extern void nfs_end_io_direct(struct ianalde *ianalde);
 
-static inline bool nfs_file_io_is_buffered(struct nfs_inode *nfsi)
+static inline bool nfs_file_io_is_buffered(struct nfs_ianalde *nfsi)
 {
-	return test_bit(NFS_INO_ODIRECT, &nfsi->flags) == 0;
+	return test_bit(NFS_IANAL_ODIRECT, &nfsi->flags) == 0;
 }
 
 /* namespace.c */
-#define NFS_PATH_CANONICAL 1
+#define NFS_PATH_CAANALNICAL 1
 extern char *nfs_path(char **p, struct dentry *dentry,
 		      char *buffer, ssize_t buflen, unsigned flags);
 extern struct vfsmount *nfs_d_automount(struct path *path);
@@ -493,7 +493,7 @@ struct nfs_pgio_completion_ops;
 /* read.c */
 extern const struct nfs_pgio_completion_ops nfs_async_read_completion_ops;
 extern void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
-			struct inode *inode, bool force_mds,
+			struct ianalde *ianalde, bool force_mds,
 			const struct nfs_pgio_completion_ops *compl_ops);
 extern bool nfs_read_alloc_scratch(struct nfs_pgio_header *hdr, size_t size);
 extern int nfs_read_add_folio(struct nfs_pageio_descriptor *pgio,
@@ -514,7 +514,7 @@ int  nfs_reconfigure(struct fs_context *);
 
 /* write.c */
 extern void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
-			struct inode *inode, int ioflags, bool force_mds,
+			struct ianalde *ianalde, int ioflags, bool force_mds,
 			const struct nfs_pgio_completion_ops *compl_ops);
 extern void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio);
 extern void nfs_commit_free(struct nfs_commit_data *p);
@@ -531,15 +531,15 @@ extern void nfs_init_commit(struct nfs_commit_data *data,
 int nfs_scan_commit_list(struct list_head *src, struct list_head *dst,
 			 struct nfs_commit_info *cinfo, int max);
 unsigned long nfs_reqs_to_commit(struct nfs_commit_info *);
-int nfs_scan_commit(struct inode *inode, struct list_head *dst,
+int nfs_scan_commit(struct ianalde *ianalde, struct list_head *dst,
 		    struct nfs_commit_info *cinfo);
 void nfs_mark_request_commit(struct nfs_page *req,
 			     struct pnfs_layout_segment *lseg,
 			     struct nfs_commit_info *cinfo,
 			     u32 ds_commit_idx);
 int nfs_write_need_commit(struct nfs_pgio_header *);
-void nfs_writeback_update_inode(struct nfs_pgio_header *hdr);
-int nfs_generic_commit_list(struct inode *inode, struct list_head *head,
+void nfs_writeback_update_ianalde(struct nfs_pgio_header *hdr);
+int nfs_generic_commit_list(struct ianalde *ianalde, struct list_head *head,
 			    int how, struct nfs_commit_info *cinfo);
 void nfs_retry_commit(struct list_head *page_list,
 		      struct pnfs_layout_segment *lseg,
@@ -554,10 +554,10 @@ void nfs_request_add_commit_list_locked(struct nfs_page *req,
 void nfs_request_remove_commit_list(struct nfs_page *req,
 				    struct nfs_commit_info *cinfo);
 void nfs_init_cinfo(struct nfs_commit_info *cinfo,
-		    struct inode *inode,
+		    struct ianalde *ianalde,
 		    struct nfs_direct_req *dreq);
-int nfs_key_timeout_notify(struct file *filp, struct inode *inode);
-bool nfs_ctx_key_to_expire(struct nfs_open_context *ctx, struct inode *inode);
+int nfs_key_timeout_analtify(struct file *filp, struct ianalde *ianalde);
+bool nfs_ctx_key_to_expire(struct nfs_open_context *ctx, struct ianalde *ianalde);
 void nfs_pageio_stop_mirroring(struct nfs_pageio_descriptor *pgio);
 
 int nfs_filemap_write_and_wait_range(struct address_space *mapping,
@@ -616,16 +616,16 @@ nfs_write_match_verf(const struct nfs_writeverf *verf,
 static inline gfp_t nfs_io_gfp_mask(void)
 {
 	if (current->flags & PF_WQ_WORKER)
-		return GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN;
+		return GFP_KERNEL | __GFP_ANALRETRY | __GFP_ANALWARN;
 	return GFP_KERNEL;
 }
 
 /*
- * Special version of should_remove_suid() that ignores capabilities.
+ * Special version of should_remove_suid() that iganalres capabilities.
  */
-static inline int nfs_should_remove_suid(const struct inode *inode)
+static inline int nfs_should_remove_suid(const struct ianalde *ianalde)
 {
-	umode_t mode = inode->i_mode;
+	umode_t mode = ianalde->i_mode;
 	int kill = 0;
 
 	/* suid always must be killed */
@@ -647,10 +647,10 @@ static inline int nfs_should_remove_suid(const struct inode *inode)
 
 /* unlink.c */
 extern struct rpc_task *
-nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
+nfs_async_rename(struct ianalde *old_dir, struct ianalde *new_dir,
 		 struct dentry *old_dentry, struct dentry *new_dentry,
 		 void (*complete)(struct rpc_task *, struct nfs_renamedata *));
-extern int nfs_sillyrename(struct inode *dir, struct dentry *dentry);
+extern int nfs_sillyrename(struct ianalde *dir, struct dentry *dentry);
 
 /* direct.c */
 void nfs_init_cinfo_from_dreq(struct nfs_commit_info *cinfo,
@@ -670,24 +670,24 @@ extern void nfs4_test_session_trunk(struct rpc_clnt *clnt,
 				struct rpc_xprt *xprt,
 				void *data);
 
-static inline struct inode *nfs_igrab_and_active(struct inode *inode)
+static inline struct ianalde *nfs_igrab_and_active(struct ianalde *ianalde)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 
 	if (sb && nfs_sb_active(sb)) {
-		if (igrab(inode))
-			return inode;
+		if (igrab(ianalde))
+			return ianalde;
 		nfs_sb_deactive(sb);
 	}
 	return NULL;
 }
 
-static inline void nfs_iput_and_deactive(struct inode *inode)
+static inline void nfs_iput_and_deactive(struct ianalde *ianalde)
 {
-	if (inode != NULL) {
-		struct super_block *sb = inode->i_sb;
+	if (ianalde != NULL) {
+		struct super_block *sb = ianalde->i_sb;
 
-		iput(inode);
+		iput(ianalde);
 		nfs_sb_deactive(sb);
 	}
 }
@@ -699,7 +699,7 @@ static inline char *nfs_devname(struct dentry *dentry,
 				char *buffer, ssize_t buflen)
 {
 	char *dummy;
-	return nfs_path(&dummy, dentry, buffer, buflen, NFS_PATH_CANONICAL);
+	return nfs_path(&dummy, dentry, buffer, buflen, NFS_PATH_CAANALNICAL);
 }
 
 /*
@@ -774,21 +774,21 @@ void nfs_super_set_maxbytes(struct super_block *sb, __u64 maxfilesize)
 
 /*
  * Record the page as unstable (an extra writeback period) and mark its
- * inode as dirty.
+ * ianalde as dirty.
  */
 static inline void nfs_folio_mark_unstable(struct folio *folio,
 					   struct nfs_commit_info *cinfo)
 {
 	if (folio && !cinfo->dreq) {
-		struct inode *inode = folio_file_mapping(folio)->host;
+		struct ianalde *ianalde = folio_file_mapping(folio)->host;
 		long nr = folio_nr_pages(folio);
 
 		/* This page is really still in write-back - just that the
-		 * writeback is happening on the server now.
+		 * writeback is happening on the server analw.
 		 */
-		node_stat_mod_folio(folio, NR_WRITEBACK, nr);
-		wb_stat_mod(&inode_to_bdi(inode)->wb, WB_WRITEBACK, nr);
-		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+		analde_stat_mod_folio(folio, NR_WRITEBACK, nr);
+		wb_stat_mod(&ianalde_to_bdi(ianalde)->wb, WB_WRITEBACK, nr);
+		__mark_ianalde_dirty(ianalde, I_DIRTY_DATASYNC);
 	}
 }
 
@@ -883,11 +883,11 @@ static inline bool nfs_error_is_fatal(int err)
 	case -EDQUOT:
 	case -EFBIG:
 	case -EIO:
-	case -ENOSPC:
+	case -EANALSPC:
 	case -EROFS:
 	case -ESTALE:
 	case -E2BIG:
-	case -ENOMEM:
+	case -EANALMEM:
 	case -ETIMEDOUT:
 		return true;
 	default:
@@ -901,7 +901,7 @@ static inline bool nfs_error_is_fatal_on_server(int err)
 	case 0:
 	case -ERESTARTSYS:
 	case -EINTR:
-	case -ENOMEM:
+	case -EANALMEM:
 		return false;
 	}
 	return nfs_error_is_fatal(err);
@@ -927,7 +927,7 @@ struct nfs_direct_req {
 	struct nfs_open_context	*ctx;		/* file open context info */
 	struct nfs_lock_context *l_ctx;		/* Lock context info */
 	struct kiocb *		iocb;		/* controlling i/o request */
-	struct inode *		inode;		/* target file of i/o */
+	struct ianalde *		ianalde;		/* target file of i/o */
 
 	/* completion state */
 	atomic_t		io_count;	/* i/os we're waiting for */

@@ -7,7 +7,7 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 #include "bpf_kfuncs.h"
-#include "errno.h"
+#include "erranal.h"
 
 char _license[] SEC("license") = "GPL";
 
@@ -32,7 +32,7 @@ struct {
 	__type(value, __u32);
 } array_map SEC(".maps");
 
-SEC("?tp/syscalls/sys_enter_nanosleep")
+SEC("?tp/syscalls/sys_enter_naanalsleep")
 int test_read_write(void *ctx)
 {
 	char write_data[64] = "hello there, world!!";
@@ -63,7 +63,7 @@ int test_read_write(void *ctx)
 	return 0;
 }
 
-SEC("?tp/syscalls/sys_enter_nanosleep")
+SEC("?tp/syscalls/sys_enter_naanalsleep")
 int test_dynptr_data(void *ctx)
 {
 	__u32 key = 0, val = 235, *map_val;
@@ -133,7 +133,7 @@ static int ringbuf_callback(__u32 index, void *data)
 	return 0;
 }
 
-SEC("?tp/syscalls/sys_enter_nanosleep")
+SEC("?tp/syscalls/sys_enter_naanalsleep")
 int test_ringbuf(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -209,7 +209,7 @@ int test_dynptr_skb_data(struct __sk_buff *skb)
 	return 1;
 }
 
-SEC("tp/syscalls/sys_enter_nanosleep")
+SEC("tp/syscalls/sys_enter_naanalsleep")
 int test_adjust(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -261,7 +261,7 @@ done:
 	return 0;
 }
 
-SEC("tp/syscalls/sys_enter_nanosleep")
+SEC("tp/syscalls/sys_enter_naanalsleep")
 int test_adjust_err(void *ctx)
 {
 	char write_data[45] = "hello there, world!!";
@@ -319,7 +319,7 @@ done:
 	return 0;
 }
 
-SEC("tp/syscalls/sys_enter_nanosleep")
+SEC("tp/syscalls/sys_enter_naanalsleep")
 int test_zero_size_dynptr(void *ctx)
 {
 	char write_data = 'x', read_data;
@@ -340,7 +340,7 @@ int test_zero_size_dynptr(void *ctx)
 		goto done;
 	}
 
-	/* Test that reading + writing non-zero bytes is not ok */
+	/* Test that reading + writing analn-zero bytes is analt ok */
 	if (bpf_dynptr_read(&read_data, sizeof(read_data), &ptr, 0, 0) != -E2BIG) {
 		err = 3;
 		goto done;
@@ -369,7 +369,7 @@ done:
 	return 0;
 }
 
-SEC("tp/syscalls/sys_enter_nanosleep")
+SEC("tp/syscalls/sys_enter_naanalsleep")
 int test_dynptr_is_null(void *ctx)
 {
 	struct bpf_dynptr ptr1;
@@ -397,7 +397,7 @@ int test_dynptr_is_null(void *ctx)
 		goto exit;
 	}
 
-	/* Test that the valid dynptr is not null */
+	/* Test that the valid dynptr is analt null */
 	if (bpf_dynptr_is_null(&ptr2)) {
 		err = 4;
 		goto exit;
@@ -508,7 +508,7 @@ int test_dynptr_clone(struct __sk_buff *skb)
 }
 
 SEC("?cgroup_skb/egress")
-int test_dynptr_skb_no_buff(struct __sk_buff *skb)
+int test_dynptr_skb_anal_buff(struct __sk_buff *skb)
 {
 	struct bpf_dynptr ptr;
 	__u64 *data;

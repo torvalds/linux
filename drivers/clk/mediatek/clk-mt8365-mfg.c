@@ -28,7 +28,7 @@ static const struct mtk_gate_regs mfg1_cg_regs = {
 
 #define GATE_MFG1(_id, _name, _parent, _shift) \
 		GATE_MTK(_id, _name, _parent, &mfg1_cg_regs, _shift, \
-			 &mtk_clk_gate_ops_no_setclr)
+			 &mtk_clk_gate_ops_anal_setclr)
 
 static const struct mtk_gate mfg_clks[] = {
 	/* MFG0 */

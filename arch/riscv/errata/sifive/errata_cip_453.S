@@ -26,7 +26,7 @@ ENTRY(sifive_cip_453_page_fault_trp)
 #ifdef CONFIG_MMU
 	la t0, do_page_fault
 #else
-	la t0, do_trap_unknown
+	la t0, do_trap_unkanalwn
 #endif
 	jr t0
 END(sifive_cip_453_page_fault_trp)

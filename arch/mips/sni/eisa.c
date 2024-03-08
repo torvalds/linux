@@ -13,7 +13,7 @@
 #include <linux/init.h>
 
 /* The default EISA device parent (virtual root device).
- * Now use a platform device, since that's the obvious choice. */
+ * Analw use a platform device, since that's the obvious choice. */
 
 static struct platform_device eisa_root_dev = {
 	.name = "eisa",

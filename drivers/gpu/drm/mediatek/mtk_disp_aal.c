@@ -82,7 +82,7 @@ void mtk_aal_config(struct device *dev, unsigned int w,
  * mtk_aal_gamma_get_lut_size() - Get gamma LUT size for AAL
  * @dev: Pointer to struct device
  *
- * Return: 0 if gamma control not supported in AAL or gamma LUT size
+ * Return: 0 if gamma control analt supported in AAL or gamma LUT size
  */
 unsigned int mtk_aal_gamma_get_lut_size(struct device *dev)
 {
@@ -100,11 +100,11 @@ void mtk_aal_gamma_set(struct device *dev, struct drm_crtc_state *state)
 	unsigned int i;
 	u32 cfg_val;
 
-	/* If gamma is not supported in AAL, go out immediately */
+	/* If gamma is analt supported in AAL, go out immediately */
 	if (!(aal->data && aal->data->has_gamma))
 		return;
 
-	/* Also, if there's no gamma lut there's nothing to do here. */
+	/* Also, if there's anal gamma lut there's analthing to do here. */
 	if (!state->gamma_lut)
 		return;
 
@@ -172,7 +172,7 @@ static int mtk_disp_aal_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clk)) {

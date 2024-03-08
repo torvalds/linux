@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
-    Montage Technology TS2020 - Silicon Tuner driver
+    Montage Techanallogy TS2020 - Silicon Tuner driver
     Copyright (C) 2009-2012 Konstantin Dimitrov <kosio.dimitrov@gmail.com>
 
     Copyright (C) 2009-2012 TurboSight.com
@@ -244,7 +244,7 @@ static int ts2020_set_params(struct dvb_frontend *fe)
 
 	ret |= ts2020_tuner_gate_ctrl(fe, 0x10);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret |= ts2020_tuner_gate_ctrl(fe, 0x08);
 
@@ -256,7 +256,7 @@ static int ts2020_set_params(struct dvb_frontend *fe)
 	ret |= regmap_write(priv->regmap, 0x04, gdiv28 & 0xff);
 	ret |= ts2020_tuner_gate_ctrl(fe, 0x04);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (priv->tuner == TS2020_M88TS2022) {
 		ret = regmap_write(priv->regmap, 0x25, 0x00);
@@ -264,7 +264,7 @@ static int ts2020_set_params(struct dvb_frontend *fe)
 		ret |= regmap_write(priv->regmap, 0x41, 0x09);
 		ret |= regmap_write(priv->regmap, 0x08, 0x0b);
 		if (ret < 0)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	regmap_read(priv->regmap, 0x26, &utmp);
@@ -461,7 +461,7 @@ static int ts2020_read_signal_strength(struct dvb_frontend *fe,
 	if (priv->dont_poll)
 		ts2020_stat_work(&priv->stat_work.work);
 
-	if (c->strength.stat[0].scale == FE_SCALE_NOT_AVAILABLE) {
+	if (c->strength.stat[0].scale == FE_SCALE_ANALT_AVAILABLE) {
 		*_signal_strength = 0;
 		return 0;
 	}
@@ -470,13 +470,13 @@ static int ts2020_read_signal_strength(struct dvb_frontend *fe,
 
 	/* Calculate the signal strength based on the total gain of the tuner */
 	if (gain < -85000)
-		/* 0%: no signal or weak signal */
+		/* 0%: anal signal or weak signal */
 		strength = 0;
 	else if (gain < -65000)
 		/* 0% - 60%: weak signal */
 		strength = 0 + div64_s64((85000 + gain) * 3, 1000);
 	else if (gain < -45000)
-		/* 60% - 90%: normal signal */
+		/* 60% - 90%: analrmal signal */
 		strength = 60 + div64_s64((65000 + gain) * 3, 2000);
 	else
 		/* 90% - 99%: strong signal */
@@ -562,7 +562,7 @@ static int ts2020_probe(struct i2c_client *client)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -634,7 +634,7 @@ static int ts2020_probe(struct i2c_client *client)
 			dev->frequency_div = 1103000;
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_regmap_exit;
 	}
 
@@ -677,7 +677,7 @@ static int ts2020_probe(struct i2c_client *client)
 		goto err_regmap_exit;
 
 	dev_info(&client->dev,
-		 "Montage Technology %s successfully identified\n", chip_str);
+		 "Montage Techanallogy %s successfully identified\n", chip_str);
 
 	memcpy(&fe->ops.tuner_ops, &ts2020_tuner_ops,
 			sizeof(struct dvb_tuner_ops));
@@ -728,5 +728,5 @@ static struct i2c_driver ts2020_driver = {
 module_i2c_driver(ts2020_driver);
 
 MODULE_AUTHOR("Konstantin Dimitrov <kosio.dimitrov@gmail.com>");
-MODULE_DESCRIPTION("Montage Technology TS2020 - Silicon tuner driver module");
+MODULE_DESCRIPTION("Montage Techanallogy TS2020 - Silicon tuner driver module");
 MODULE_LICENSE("GPL");

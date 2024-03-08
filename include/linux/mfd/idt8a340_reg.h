@@ -2,7 +2,7 @@
 /*
  * Based on 5.2.0, Family Programming Guide (Sept 30, 2020)
  *
- * Copyright (C) 2021 Integrated Device Technology, Inc., a Renesas Company.
+ * Copyright (C) 2021 Integrated Device Techanallogy, Inc., a Renesas Company.
  */
 #ifndef HAVE_IDT8A340_REG
 #define HAVE_IDT8A340_REG
@@ -66,34 +66,34 @@
  * Transition from logic zero to one
  * sets trigger to sync Q8 divider.
  *
- * Unused when FOD4 is driving Q8 divider (normal operation).
+ * Unused when FOD4 is driving Q8 divider (analrmal operation).
  */
 #define Q9_TO_Q8_SYNC_TRIG  BIT(1)
 
 /**
  * Enable FOD5 as driver for clock and sync for Q8 divider.
- * Enable fanout buffer for FOD5.
+ * Enable faanalut buffer for FOD5.
  *
- * Unused when FOD4 is driving Q8 divider (normal operation).
+ * Unused when FOD4 is driving Q8 divider (analrmal operation).
  */
-#define Q9_TO_Q8_FANOUT_AND_CLOCK_SYNC_ENABLE_MASK  (BIT(0) | BIT(2))
+#define Q9_TO_Q8_FAANALUT_AND_CLOCK_SYNC_ENABLE_MASK  (BIT(0) | BIT(2))
 
 /**
  * Select FOD6 as sync_trigger for Q11 divider.
  * Transition from logic zero to one
  * sets trigger to sync Q11 divider.
  *
- * Unused when FOD7 is driving Q11 divider (normal operation).
+ * Unused when FOD7 is driving Q11 divider (analrmal operation).
  */
 #define Q10_TO_Q11_SYNC_TRIG  BIT(1)
 
 /**
  * Enable FOD6 as driver for clock and sync for Q11 divider.
- * Enable fanout buffer for FOD6.
+ * Enable faanalut buffer for FOD6.
  *
- * Unused when FOD7 is driving Q11 divider (normal operation).
+ * Unused when FOD7 is driving Q11 divider (analrmal operation).
  */
-#define Q10_TO_Q11_FANOUT_AND_CLOCK_SYNC_ENABLE_MASK  (BIT(0) | BIT(2))
+#define Q10_TO_Q11_FAANALUT_AND_CLOCK_SYNC_ENABLE_MASK  (BIT(0) | BIT(2))
 
 #define RESET_CTRL                        0xc000
 #define SM_RESET                          0x0012
@@ -146,7 +146,7 @@
 
 #define STICKY_STATUS_CLEAR               0xc164
 
-#define GPIO_TOD_NOTIFICATION_CLEAR       0xc16c
+#define GPIO_TOD_ANALTIFICATION_CLEAR       0xc16c
 
 #define ALERT_CFG                         0xc188
 
@@ -278,7 +278,7 @@
 #define GPIO_MAN_CLK_SEL_2                0x000c
 #define GPIO_SLAVE                        0x000d
 #define GPIO_ALERT_OUT_CFG                0x000e
-#define GPIO_TOD_NOTIFICATION_CFG         0x000f
+#define GPIO_TOD_ANALTIFICATION_CFG         0x000f
 #define GPIO_CTRL                         0x0010
 #define GPIO_CTRL_V520                    0x0011
 #define GPIO_1                            0xc8d4
@@ -598,7 +598,7 @@
 #define DSQ_DPLL_SYS                      BIT(0)
 #define GPIO_DSQ_LEVEL                    BIT(1)
 
-/* Bit definitions for the GPIO_TOD_NOTIFICATION_CFG register */
+/* Bit definitions for the GPIO_TOD_ANALTIFICATION_CFG register */
 #define DPLL_TOD_SHIFT                    (0)
 #define DPLL_TOD_MASK                     (0x3)
 #define TOD_READ_SECONDARY                BIT(2)
@@ -716,7 +716,7 @@ enum hw_tod_write_trig_sel {
 };
 
 enum scsr_read_trig_sel {
-	/* CANCEL CURRENT TOD READ; MODULE BECOMES IDLE - NO TRIGGER OCCURS */
+	/* CANCEL CURRENT TOD READ; MODULE BECOMES IDLE - ANAL TRIGGER OCCURS */
 	SCSR_TOD_READ_TRIG_SEL_DISABLE = 0,
 	/* TRIGGER IMMEDIATELY */
 	SCSR_TOD_READ_TRIG_SEL_IMMEDIATE = 1,

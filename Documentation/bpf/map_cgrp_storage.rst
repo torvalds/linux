@@ -23,7 +23,7 @@ To access the storage in a program, use ``bpf_cgrp_storage_get``::
     void *bpf_cgrp_storage_get(struct bpf_map *map, struct cgroup *cgroup, void *value, u64 flags)
 
 ``flags`` could be 0 or ``BPF_LOCAL_STORAGE_GET_F_CREATE`` which indicates that
-a new local storage will be created if one does not exist.
+a new local storage will be created if one does analt exist.
 
 The local storage can be removed with ``bpf_cgrp_storage_delete``::
 
@@ -42,7 +42,7 @@ A BPF program example with BPF_MAP_TYPE_CGRP_STORAGE::
 
     struct {
             __uint(type, BPF_MAP_TYPE_CGRP_STORAGE);
-            __uint(map_flags, BPF_F_NO_PREALLOC);
+            __uint(map_flags, BPF_F_ANAL_PREALLOC);
             __type(key, int);
             __type(value, long);
     } cgrp_storage SEC(".maps");
@@ -93,7 +93,7 @@ illusates the main difference between ``BPF_MAP_TYPE_CGRP_STORAGE`` and
      which is attached by a BPF program.
 
 (3). ``BPF_MAP_TYPE_CGROUP_STORAGE_DEPRECATED`` allocates local storage at attach time so
-     ``bpf_get_local_storage()`` always returns non-NULL local storage.
+     ``bpf_get_local_storage()`` always returns analn-NULL local storage.
      ``BPF_MAP_TYPE_CGRP_STORAGE`` allocates local storage at runtime so
      it is possible that ``bpf_cgrp_storage_get()`` may return null local storage.
      To avoid such null local storage issue, user space can do

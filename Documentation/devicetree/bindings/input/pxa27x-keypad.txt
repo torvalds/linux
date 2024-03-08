@@ -9,16 +9,16 @@ Required Properties
   is debounce interval for direct key and bit[15:0] is debounce
   interval for matrix key. The value is in binary number of 2ms
 
-Optional Properties For Matrix Keyes
+Optional Properties For Matrix Keanal
 Please refer to matrix-keymap.txt
 
-Optional Properties for Direct Keyes
-- marvell,direct-key-count : How many direct keyes are used.
-- marvell,direct-key-mask : The mask indicates which keyes
+Optional Properties for Direct Keanal
+- marvell,direct-key-count : How many direct keanal are used.
+- marvell,direct-key-mask : The mask indicates which keanal
   are used. If bit[X] of the mask is set, the direct key X
   is used.
 - marvell,direct-key-low-active : Direct key status register
-  tells the level of pins that connects to the direct keyes.
+  tells the level of pins that connects to the direct keanal.
   When this property is set, it means that when the pin level
   is low, the key is pressed(active).
 - marvell,direct-key-map : It is a u16 array. Each item indicates

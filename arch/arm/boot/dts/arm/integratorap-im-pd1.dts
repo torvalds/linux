@@ -19,7 +19,7 @@
 			/* 1 MB of designated video RAM on the IM-PD1 */
 			compatible = "shared-dma-pool";
 			reg = <0xc2000000 0x00100000>;
-			no-map;
+			anal-map;
 		};
 	};
 };

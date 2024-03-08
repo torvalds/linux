@@ -9,7 +9,7 @@ config RS780_HPET
 	help
 	  This option enables the hpet timer of AMD RS780/SBX00.
 
-	  Note: This driver is doing some dangerous hack. Please only enable
+	  Analte: This driver is doing some dangerous hack. Please only enable
 	  it on RS780E systems.
 
 endif # MACH_LOONGSON64

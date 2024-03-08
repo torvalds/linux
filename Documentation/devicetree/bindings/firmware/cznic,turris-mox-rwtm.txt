@@ -4,7 +4,7 @@ Required properties:
  - compatible		: Should be "cznic,turris-mox-rwtm"
  - mboxes		: Must contain a reference to associated mailbox
 
-This device tree node should be used on Turris Mox, or potentially another A3700
+This device tree analde should be used on Turris Mox, or potentially aanalther A3700
 compatible device running the Mox's rWTM firmware in the secure processor (for
 example it is possible to flash this firmware into EspressoBin).
 

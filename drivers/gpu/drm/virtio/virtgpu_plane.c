@@ -10,14 +10,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -43,20 +43,20 @@ uint32_t virtio_gpu_translate_format(uint32_t drm_fourcc)
 
 	switch (drm_fourcc) {
 	case DRM_FORMAT_XRGB8888:
-		format = VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM;
+		format = VIRTIO_GPU_FORMAT_B8G8R8X8_UANALRM;
 		break;
 	case DRM_FORMAT_ARGB8888:
-		format = VIRTIO_GPU_FORMAT_B8G8R8A8_UNORM;
+		format = VIRTIO_GPU_FORMAT_B8G8R8A8_UANALRM;
 		break;
 	case DRM_FORMAT_BGRX8888:
-		format = VIRTIO_GPU_FORMAT_X8R8G8B8_UNORM;
+		format = VIRTIO_GPU_FORMAT_X8R8G8B8_UANALRM;
 		break;
 	case DRM_FORMAT_BGRA8888:
-		format = VIRTIO_GPU_FORMAT_A8R8G8B8_UNORM;
+		format = VIRTIO_GPU_FORMAT_A8R8G8B8_UANALRM;
 		break;
 	default:
 		/*
-		 * This should not happen, we handle everything listed
+		 * This should analt happen, we handle everything listed
 		 * in virtio_gpu_formats[].
 		 */
 		format = 0;
@@ -89,12 +89,12 @@ static int virtio_gpu_plane_atomic_check(struct drm_plane *plane,
 		return 0;
 
 	/*
-	 * Ignore damage clips if the framebuffer attached to the plane's state
+	 * Iganalre damage clips if the framebuffer attached to the plane's state
 	 * has changed since the last plane update (page-flip). In this case, a
 	 * full plane update should happen because uploads are done per-buffer.
 	 */
 	if (old_plane_state->fb != new_plane_state->fb)
-		new_plane_state->ignore_damage_clips = true;
+		new_plane_state->iganalre_damage_clips = true;
 
 	crtc_state = drm_atomic_get_crtc_state(state,
 					       new_plane_state->crtc);
@@ -102,8 +102,8 @@ static int virtio_gpu_plane_atomic_check(struct drm_plane *plane,
                 return PTR_ERR(crtc_state);
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  is_cursor, true);
 	return ret;
 }
@@ -152,7 +152,7 @@ static void virtio_gpu_resource_flush(struct drm_plane *plane,
 		virtio_gpu_array_lock_resv(objs);
 		virtio_gpu_cmd_resource_flush(vgdev, bo->hw_res_handle, x, y,
 					      width, height, objs, vgfb->fence);
-		virtio_gpu_notify(vgdev);
+		virtio_gpu_analtify(vgdev);
 
 		dma_fence_wait_timeout(&vgfb->fence->f, true,
 				       msecs_to_jiffies(50));
@@ -161,7 +161,7 @@ static void virtio_gpu_resource_flush(struct drm_plane *plane,
 	} else {
 		virtio_gpu_cmd_resource_flush(vgdev, bo->hw_res_handle, x, y,
 					      width, height, NULL, NULL);
-		virtio_gpu_notify(vgdev);
+		virtio_gpu_analtify(vgdev);
 	}
 }
 
@@ -184,12 +184,12 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 		return;
 
 	if (!plane->state->fb || !output->crtc.state->active) {
-		DRM_DEBUG("nofb\n");
-		virtio_gpu_cmd_set_scanout(vgdev, output->index, 0,
+		DRM_DEBUG("analfb\n");
+		virtio_gpu_cmd_set_scaanalut(vgdev, output->index, 0,
 					   plane->state->src_w >> 16,
 					   plane->state->src_h >> 16,
 					   0, 0);
-		virtio_gpu_notify(vgdev);
+		virtio_gpu_analtify(vgdev);
 		return;
 	}
 
@@ -217,7 +217,7 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 			  plane->state->src_y >> 16);
 
 		if (bo->host3d_blob || bo->guest_blob) {
-			virtio_gpu_cmd_set_scanout_blob
+			virtio_gpu_cmd_set_scaanalut_blob
 						(vgdev, output->index, bo,
 						 plane->state->fb,
 						 plane->state->src_w >> 16,
@@ -225,7 +225,7 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 						 plane->state->src_x >> 16,
 						 plane->state->src_y >> 16);
 		} else {
-			virtio_gpu_cmd_set_scanout(vgdev, output->index,
+			virtio_gpu_cmd_set_scaanalut(vgdev, output->index,
 						   bo->hw_res_handle,
 						   plane->state->src_w >> 16,
 						   plane->state->src_h >> 16,
@@ -261,7 +261,7 @@ static int virtio_gpu_plane_prepare_fb(struct drm_plane *plane,
 		vgfb->fence = virtio_gpu_fence_alloc(vgdev, vgdev->fence_drv.context,
 						     0);
 		if (!vgfb->fence)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -323,7 +323,7 @@ static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,
 			 plane->state->crtc_w,
 			 plane->state->crtc_h,
 			 0, 0, objs, vgfb->fence);
-		virtio_gpu_notify(vgdev);
+		virtio_gpu_analtify(vgdev);
 		dma_fence_wait(&vgfb->fence->f, true);
 		dma_fence_put(&vgfb->fence->f);
 		vgfb->fence = NULL;

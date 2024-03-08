@@ -8,7 +8,7 @@ title: Calxeda Highbank L2 cache ECC
 
 description: |
   Binding for the Calxeda Highbank L2 cache controller ECC device.
-  This does not cover the actual L2 cache controller control registers,
+  This does analt cover the actual L2 cache controller control registers,
   but just the error reporting functionality.
 
 maintainers:

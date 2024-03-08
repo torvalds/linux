@@ -21,8 +21,8 @@ enum btrfs_trim_state {
 };
 
 struct btrfs_free_space {
-	struct rb_node offset_index;
-	struct rb_node bytes_index;
+	struct rb_analde offset_index;
+	struct rb_analde bytes_index;
 	u64 offset;
 	u64 bytes;
 	u64 max_extent_size;
@@ -82,7 +82,7 @@ struct btrfs_io_ctl {
 	struct page *page;
 	struct page **pages;
 	struct btrfs_fs_info *fs_info;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	unsigned long size;
 	int index;
 	int num_pages;
@@ -92,18 +92,18 @@ struct btrfs_io_ctl {
 
 int __init btrfs_free_space_init(void);
 void __cold btrfs_free_space_exit(void);
-struct inode *lookup_free_space_inode(struct btrfs_block_group *block_group,
+struct ianalde *lookup_free_space_ianalde(struct btrfs_block_group *block_group,
 		struct btrfs_path *path);
-int create_free_space_inode(struct btrfs_trans_handle *trans,
+int create_free_space_ianalde(struct btrfs_trans_handle *trans,
 			    struct btrfs_block_group *block_group,
 			    struct btrfs_path *path);
-int btrfs_remove_free_space_inode(struct btrfs_trans_handle *trans,
-				  struct inode *inode,
+int btrfs_remove_free_space_ianalde(struct btrfs_trans_handle *trans,
+				  struct ianalde *ianalde,
 				  struct btrfs_block_group *block_group);
 
 int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 				    struct btrfs_block_group *block_group,
-				    struct inode *inode);
+				    struct ianalde *ianalde);
 int load_free_space_cache(struct btrfs_block_group *block_group);
 int btrfs_wait_cache_io(struct btrfs_trans_handle *trans,
 			struct btrfs_block_group *block_group,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2016-17 Synopsys, Inc. (www.synopsys.com)
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2016-17 Syanalpsys, Inc. (www.syanalpsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 /* ARC700 has two 32bit independent prog Timers: TIMER0 and TIMER1, Each can be
@@ -29,12 +29,12 @@
 
 static unsigned long arc_timer_freq;
 
-static int noinline arc_get_timer_clk(struct device_node *node)
+static int analinline arc_get_timer_clk(struct device_analde *analde)
 {
 	struct clk *clk;
 	int ret;
 
-	clk = of_clk_get(node, 0);
+	clk = of_clk_get(analde, 0);
 	if (IS_ERR(clk)) {
 		pr_err("timer missing clk\n");
 		return PTR_ERR(clk);
@@ -63,7 +63,7 @@ static u64 arc_read_gfrc(struct clocksource *cs)
 	/*
 	 * From a programming model pov, there seems to be just one instance of
 	 * MCIP_CMD/MCIP_READBACK however micro-architecturally there's
-	 * an instance PER ARC CORE (not per cluster), and there are dedicated
+	 * an instance PER ARC CORE (analt per cluster), and there are dedicated
 	 * hardware decode logic (per core) inside ARConnect to handle
 	 * simultaneous read/write accesses from cores via those two registers.
 	 * So several concurrent commands to ARConnect are OK if they are
@@ -87,7 +87,7 @@ static u64 arc_read_gfrc(struct clocksource *cs)
 	return (((u64)h) << 32) | l;
 }
 
-static notrace u64 arc_gfrc_clock_read(void)
+static analtrace u64 arc_gfrc_clock_read(void)
 {
 	return arc_read_gfrc(NULL);
 }
@@ -100,18 +100,18 @@ static struct clocksource arc_counter_gfrc = {
 	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static int __init arc_cs_setup_gfrc(struct device_node *node)
+static int __init arc_cs_setup_gfrc(struct device_analde *analde)
 {
 	struct mcip_bcr mp;
 	int ret;
 
 	READ_BCR(ARC_REG_MCIP_BCR, mp);
 	if (!mp.gfrc) {
-		pr_warn("Global-64-bit-Ctr clocksource not detected\n");
+		pr_warn("Global-64-bit-Ctr clocksource analt detected\n");
 		return -ENXIO;
 	}
 
-	ret = arc_get_timer_clk(node);
+	ret = arc_get_timer_clk(analde);
 	if (ret)
 		return ret;
 
@@ -145,7 +145,7 @@ static u64 arc_read_rtc(struct clocksource *cs)
 	return (((u64)h) << 32) | l;
 }
 
-static notrace u64 arc_rtc_clock_read(void)
+static analtrace u64 arc_rtc_clock_read(void)
 {
 	return arc_read_rtc(NULL);
 }
@@ -158,24 +158,24 @@ static struct clocksource arc_counter_rtc = {
 	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static int __init arc_cs_setup_rtc(struct device_node *node)
+static int __init arc_cs_setup_rtc(struct device_analde *analde)
 {
 	struct bcr_timer timer;
 	int ret;
 
 	READ_BCR(ARC_REG_TIMERS_BCR, timer);
 	if (!timer.rtc) {
-		pr_warn("Local-64-bit-Ctr clocksource not detected\n");
+		pr_warn("Local-64-bit-Ctr clocksource analt detected\n");
 		return -ENXIO;
 	}
 
-	/* Local to CPU hence not usable in SMP */
+	/* Local to CPU hence analt usable in SMP */
 	if (IS_ENABLED(CONFIG_SMP)) {
-		pr_warn("Local-64-bit-Ctr not usable in SMP\n");
+		pr_warn("Local-64-bit-Ctr analt usable in SMP\n");
 		return -EINVAL;
 	}
 
-	ret = arc_get_timer_clk(node);
+	ret = arc_get_timer_clk(analde);
 	if (ret)
 		return ret;
 
@@ -190,7 +190,7 @@ TIMER_OF_DECLARE(arc_rtc, "snps,archs-timer-rtc", arc_cs_setup_rtc);
 #endif
 
 /*
- * 32bit TIMER1 to keep counting monotonically and wraparound
+ * 32bit TIMER1 to keep counting moanaltonically and wraparound
  */
 
 static u64 arc_read_timer1(struct clocksource *cs)
@@ -198,7 +198,7 @@ static u64 arc_read_timer1(struct clocksource *cs)
 	return (u64) read_aux_reg(ARC_REG_TIMER1_CNT);
 }
 
-static notrace u64 arc_timer1_clock_read(void)
+static analtrace u64 arc_timer1_clock_read(void)
 {
 	return arc_read_timer1(NULL);
 }
@@ -211,15 +211,15 @@ static struct clocksource arc_counter_timer1 = {
 	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static int __init arc_cs_setup_timer1(struct device_node *node)
+static int __init arc_cs_setup_timer1(struct device_analde *analde)
 {
 	int ret;
 
-	/* Local to CPU hence not usable in SMP */
+	/* Local to CPU hence analt usable in SMP */
 	if (IS_ENABLED(CONFIG_SMP))
 		return -EINVAL;
 
-	ret = arc_get_timer_clk(node);
+	ret = arc_get_timer_clk(analde);
 	if (ret)
 		return ret;
 
@@ -278,7 +278,7 @@ static DEFINE_PER_CPU(struct clock_event_device, arc_clockevent_device) = {
 static irqreturn_t timer_irq_handler(int irq, void *dev_id)
 {
 	/*
-	 * Note that generic IRQ core could have passed @evt for @dev_id if
+	 * Analte that generic IRQ core could have passed @evt for @dev_id if
 	 * irq_set_chip_and_handler() asked for handle_percpu_devid_irq()
 	 */
 	struct clock_event_device *evt = this_cpu_ptr(&arc_clockevent_device);
@@ -322,18 +322,18 @@ static int arc_timer_dying_cpu(unsigned int cpu)
 /*
  * clockevent setup for boot CPU
  */
-static int __init arc_clockevent_setup(struct device_node *node)
+static int __init arc_clockevent_setup(struct device_analde *analde)
 {
 	struct clock_event_device *evt = this_cpu_ptr(&arc_clockevent_device);
 	int ret;
 
-	arc_timer_irq = irq_of_parse_and_map(node, 0);
+	arc_timer_irq = irq_of_parse_and_map(analde, 0);
 	if (arc_timer_irq <= 0) {
 		pr_err("clockevent: missing irq\n");
 		return -EINVAL;
 	}
 
-	ret = arc_get_timer_clk(node);
+	ret = arc_get_timer_clk(analde);
 	if (ret)
 		return ret;
 
@@ -356,7 +356,7 @@ static int __init arc_clockevent_setup(struct device_node *node)
 	return 0;
 }
 
-static int __init arc_of_timer_init(struct device_node *np)
+static int __init arc_of_timer_init(struct device_analde *np)
 {
 	static int init_count = 0;
 	int ret;

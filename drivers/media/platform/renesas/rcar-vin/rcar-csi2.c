@@ -19,7 +19,7 @@
 #include <media/mipi-csi2.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
 
@@ -110,7 +110,7 @@ struct rcar_csi2;
 #define LINKCNT_REG			0x48
 #define LINKCNT_MONITOR_EN		BIT(31)
 #define LINKCNT_REG_MONI_PACT_EN	BIT(25)
-#define LINKCNT_ICLK_NONSTOP		BIT(24)
+#define LINKCNT_ICLK_ANALNSTOP		BIT(24)
 
 /* Lane Swap */
 #define LSWAP_REG			0x4c
@@ -607,7 +607,7 @@ struct rcar_csi2 {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[NR_OF_RCAR_CSI2_PAD];
 
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct v4l2_subdev *remote;
 	unsigned int remote_pad;
 
@@ -627,9 +627,9 @@ static inline struct rcar_csi2 *sd_to_csi2(struct v4l2_subdev *sd)
 	return container_of(sd, struct rcar_csi2, subdev);
 }
 
-static inline struct rcar_csi2 *notifier_to_csi2(struct v4l2_async_notifier *n)
+static inline struct rcar_csi2 *analtifier_to_csi2(struct v4l2_async_analtifier *n)
 {
-	return container_of(n, struct rcar_csi2, notifier);
+	return container_of(n, struct rcar_csi2, analtifier);
 }
 
 static u32 rcsi2_read(struct rcar_csi2 *priv, unsigned int reg)
@@ -734,14 +734,14 @@ static int rcsi2_calc_mbps(struct rcar_csi2 *priv, unsigned int bpp,
 	u64 mbps;
 
 	if (!priv->remote)
-		return -ENODEV;
+		return -EANALDEV;
 
 	source = priv->remote;
 
 	/* Read the pixel rate control from remote. */
 	ctrl = v4l2_ctrl_find(source->ctrl_handler, V4L2_CID_PIXEL_RATE);
 	if (!ctrl) {
-		dev_err(priv->dev, "no pixel rate control in subdev %s\n",
+		dev_err(priv->dev, "anal pixel rate control in subdev %s\n",
 			source->name);
 		return -EINVAL;
 	}
@@ -771,8 +771,8 @@ static int rcsi2_get_active_lanes(struct rcar_csi2 *priv,
 
 	ret = v4l2_subdev_call(priv->remote, pad, get_mbus_config,
 			       priv->remote_pad, &mbus_config);
-	if (ret == -ENOIOCTLCMD) {
-		dev_dbg(priv->dev, "No remote mbus configuration available\n");
+	if (ret == -EANALIOCTLCMD) {
+		dev_dbg(priv->dev, "Anal remote mbus configuration available\n");
 		return 0;
 	}
 
@@ -818,7 +818,7 @@ static int rcsi2_start_receiver_gen3(struct rcar_csi2 *priv)
 
 	dev_dbg(priv->dev, "Input size (%ux%u%c)\n",
 		priv->mf.width, priv->mf.height,
-		priv->mf.field == V4L2_FIELD_NONE ? 'p' : 'i');
+		priv->mf.field == V4L2_FIELD_ANALNE ? 'p' : 'i');
 
 	/* Code is validated in set_fmt. */
 	format = rcsi2_code_to_fmt(priv->mf.code);
@@ -829,7 +829,7 @@ static int rcsi2_start_receiver_gen3(struct rcar_csi2 *priv)
 	 * Enable all supported CSI-2 channels with virtual channel and
 	 * data type matching.
 	 *
-	 * NOTE: It's not possible to get individual datatype for each
+	 * ANALTE: It's analt possible to get individual datatype for each
 	 *       source virtual channel. Once this is possible in V4L2
 	 *       it should be used here.
 	 */
@@ -920,7 +920,7 @@ static int rcsi2_start_receiver_gen3(struct rcar_csi2 *priv)
 
 	rcsi2_write(priv, PHYCNT_REG, phycnt);
 	rcsi2_write(priv, LINKCNT_REG, LINKCNT_MONITOR_EN |
-		    LINKCNT_REG_MONI_PACT_EN | LINKCNT_ICLK_NONSTOP);
+		    LINKCNT_REG_MONI_PACT_EN | LINKCNT_ICLK_ANALNSTOP);
 	rcsi2_write(priv, FLD_REG, fld);
 	rcsi2_write(priv, PHYCNT_REG, phycnt | PHYCNT_SHUTDOWNZ);
 	rcsi2_write(priv, PHYCNT_REG, phycnt | PHYCNT_SHUTDOWNZ | PHYCNT_RSTZ);
@@ -1026,7 +1026,7 @@ static int rcsi2_c_phy_setting_v4h(struct rcar_csi2 *priv, int msps)
 
 	/*
 	 * Configure pin-swap.
-	 * TODO: This registers is not documented yet, the values should depend
+	 * TODO: This registers is analt documented yet, the values should depend
 	 * on the 'clock-lanes' and 'data-lanes' devicetree properties.
 	 */
 	rcsi2_write16(priv, V4H_CORE_DIG_CLANE_1_RW_CFG_0_REG, 0xf5);
@@ -1151,7 +1151,7 @@ static int rcsi2_s_stream(struct v4l2_subdev *sd, int enable)
 	mutex_lock(&priv->lock);
 
 	if (!priv->remote) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -1267,14 +1267,14 @@ static irqreturn_t rcsi2_irq_thread(int irq, void *data)
  * Async handling and registration of subdevices and links.
  */
 
-static int rcsi2_notify_bound(struct v4l2_async_notifier *notifier,
+static int rcsi2_analtify_bound(struct v4l2_async_analtifier *analtifier,
 			      struct v4l2_subdev *subdev,
 			      struct v4l2_async_connection *asc)
 {
-	struct rcar_csi2 *priv = notifier_to_csi2(notifier);
+	struct rcar_csi2 *priv = analtifier_to_csi2(analtifier);
 	int pad;
 
-	pad = media_entity_get_fwnode_pad(&subdev->entity, asc->match.fwnode,
+	pad = media_entity_get_fwanalde_pad(&subdev->entity, asc->match.fwanalde,
 					  MEDIA_PAD_FL_SOURCE);
 	if (pad < 0) {
 		dev_err(priv->dev, "Failed to find pad for %s\n", subdev->name);
@@ -1292,37 +1292,37 @@ static int rcsi2_notify_bound(struct v4l2_async_notifier *notifier,
 				     MEDIA_LNK_FL_IMMUTABLE);
 }
 
-static void rcsi2_notify_unbind(struct v4l2_async_notifier *notifier,
+static void rcsi2_analtify_unbind(struct v4l2_async_analtifier *analtifier,
 				struct v4l2_subdev *subdev,
 				struct v4l2_async_connection *asc)
 {
-	struct rcar_csi2 *priv = notifier_to_csi2(notifier);
+	struct rcar_csi2 *priv = analtifier_to_csi2(analtifier);
 
 	priv->remote = NULL;
 
 	dev_dbg(priv->dev, "Unbind %s\n", subdev->name);
 }
 
-static const struct v4l2_async_notifier_operations rcar_csi2_notify_ops = {
-	.bound = rcsi2_notify_bound,
-	.unbind = rcsi2_notify_unbind,
+static const struct v4l2_async_analtifier_operations rcar_csi2_analtify_ops = {
+	.bound = rcsi2_analtify_bound,
+	.unbind = rcsi2_analtify_unbind,
 };
 
 static int rcsi2_parse_v4l2(struct rcar_csi2 *priv,
-			    struct v4l2_fwnode_endpoint *vep)
+			    struct v4l2_fwanalde_endpoint *vep)
 {
 	unsigned int i;
 
 	/* Only port 0 endpoint 0 is valid. */
 	if (vep->base.port || vep->base.id)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	priv->lanes = vep->bus.mipi_csi2.num_data_lanes;
 
 	switch (vep->bus_type) {
 	case V4L2_MBUS_CSI2_DPHY:
 		if (!priv->info->support_dphy) {
-			dev_err(priv->dev, "D-PHY not supported\n");
+			dev_err(priv->dev, "D-PHY analt supported\n");
 			return -EINVAL;
 		}
 
@@ -1337,7 +1337,7 @@ static int rcsi2_parse_v4l2(struct rcar_csi2 *priv,
 		break;
 	case V4L2_MBUS_CSI2_CPHY:
 		if (!priv->info->support_cphy) {
-			dev_err(priv->dev, "C-PHY not supported\n");
+			dev_err(priv->dev, "C-PHY analt supported\n");
 			return -EINVAL;
 		}
 
@@ -1372,49 +1372,49 @@ static int rcsi2_parse_v4l2(struct rcar_csi2 *priv,
 static int rcsi2_parse_dt(struct rcar_csi2 *priv)
 {
 	struct v4l2_async_connection *asc;
-	struct fwnode_handle *fwnode;
-	struct fwnode_handle *ep;
-	struct v4l2_fwnode_endpoint v4l2_ep = {
-		.bus_type = V4L2_MBUS_UNKNOWN,
+	struct fwanalde_handle *fwanalde;
+	struct fwanalde_handle *ep;
+	struct v4l2_fwanalde_endpoint v4l2_ep = {
+		.bus_type = V4L2_MBUS_UNKANALWN,
 	};
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(priv->dev), 0, 0, 0);
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(priv->dev), 0, 0, 0);
 	if (!ep) {
-		dev_err(priv->dev, "Not connected to subdevice\n");
+		dev_err(priv->dev, "Analt connected to subdevice\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(ep, &v4l2_ep);
+	ret = v4l2_fwanalde_endpoint_parse(ep, &v4l2_ep);
 	if (ret) {
-		dev_err(priv->dev, "Could not parse v4l2 endpoint\n");
-		fwnode_handle_put(ep);
+		dev_err(priv->dev, "Could analt parse v4l2 endpoint\n");
+		fwanalde_handle_put(ep);
 		return -EINVAL;
 	}
 
 	ret = rcsi2_parse_v4l2(priv, &v4l2_ep);
 	if (ret) {
-		fwnode_handle_put(ep);
+		fwanalde_handle_put(ep);
 		return ret;
 	}
 
-	fwnode = fwnode_graph_get_remote_endpoint(ep);
-	fwnode_handle_put(ep);
+	fwanalde = fwanalde_graph_get_remote_endpoint(ep);
+	fwanalde_handle_put(ep);
 
-	dev_dbg(priv->dev, "Found '%pOF'\n", to_of_node(fwnode));
+	dev_dbg(priv->dev, "Found '%pOF'\n", to_of_analde(fwanalde));
 
-	v4l2_async_subdev_nf_init(&priv->notifier, &priv->subdev);
-	priv->notifier.ops = &rcar_csi2_notify_ops;
+	v4l2_async_subdev_nf_init(&priv->analtifier, &priv->subdev);
+	priv->analtifier.ops = &rcar_csi2_analtify_ops;
 
-	asc = v4l2_async_nf_add_fwnode(&priv->notifier, fwnode,
+	asc = v4l2_async_nf_add_fwanalde(&priv->analtifier, fwanalde,
 				       struct v4l2_async_connection);
-	fwnode_handle_put(fwnode);
+	fwanalde_handle_put(fwanalde);
 	if (IS_ERR(asc))
 		return PTR_ERR(asc);
 
-	ret = v4l2_async_nf_register(&priv->notifier);
+	ret = v4l2_async_nf_register(&priv->analtifier);
 	if (ret)
-		v4l2_async_nf_cleanup(&priv->notifier);
+		v4l2_async_nf_cleanup(&priv->analtifier);
 
 	return ret;
 }
@@ -1422,7 +1422,7 @@ static int rcsi2_parse_dt(struct rcar_csi2 *priv)
 /* -----------------------------------------------------------------------------
  * PHTW initialization sequences.
  *
- * NOTE: Magic values are from the datasheet and lack documentation.
+ * ANALTE: Magic values are from the datasheet and lack documentation.
  */
 
 static int rcsi2_phtw_write(struct rcar_csi2 *priv, u16 data, u16 code)
@@ -1626,14 +1626,14 @@ static int rcsi2_link_setup(struct media_entity *entity,
 	u32 id;
 
 	if (!is_media_entity_v4l2_video_device(remote->entity)) {
-		dev_err(priv->dev, "Remote is not a video device\n");
+		dev_err(priv->dev, "Remote is analt a video device\n");
 		return -EINVAL;
 	}
 
 	vdev = media_entity_to_video_device(remote->entity);
 
-	if (of_property_read_u32(vdev->dev_parent->of_node, "renesas,id", &id)) {
-		dev_err(priv->dev, "No renesas,id, can't configure routing\n");
+	if (of_property_read_u32(vdev->dev_parent->of_analde, "renesas,id", &id)) {
+		dev_err(priv->dev, "Anal renesas,id, can't configure routing\n");
 		return -EINVAL;
 	}
 
@@ -1856,7 +1856,7 @@ static int rcsi2_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->info = of_device_get_match_data(&pdev->dev);
 
@@ -1891,7 +1891,7 @@ static int rcsi2_probe(struct platform_device *pdev)
 	v4l2_set_subdevdata(&priv->subdev, &pdev->dev);
 	snprintf(priv->subdev.name, sizeof(priv->subdev.name), "%s %s",
 		 KBUILD_MODNAME, dev_name(&pdev->dev));
-	priv->subdev.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+	priv->subdev.flags = V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	priv->subdev.entity.function = MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
 	priv->subdev.entity.ops = &rcar_csi2_entity_ops;
@@ -1921,8 +1921,8 @@ static int rcsi2_probe(struct platform_device *pdev)
 	return 0;
 
 error_async:
-	v4l2_async_nf_unregister(&priv->notifier);
-	v4l2_async_nf_cleanup(&priv->notifier);
+	v4l2_async_nf_unregister(&priv->analtifier);
+	v4l2_async_nf_cleanup(&priv->analtifier);
 error_mutex:
 	mutex_destroy(&priv->lock);
 
@@ -1933,8 +1933,8 @@ static void rcsi2_remove(struct platform_device *pdev)
 {
 	struct rcar_csi2 *priv = platform_get_drvdata(pdev);
 
-	v4l2_async_nf_unregister(&priv->notifier);
-	v4l2_async_nf_cleanup(&priv->notifier);
+	v4l2_async_nf_unregister(&priv->analtifier);
+	v4l2_async_nf_cleanup(&priv->analtifier);
 	v4l2_async_unregister_subdev(&priv->subdev);
 
 	pm_runtime_disable(&pdev->dev);

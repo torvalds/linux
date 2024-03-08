@@ -34,7 +34,7 @@ static int dp_debug_show(struct seq_file *seq, void *p)
 	const struct drm_display_mode *drm_mode;
 
 	if (!debug)
-		return -ENODEV;
+		return -EANALDEV;
 
 	drm_mode = &debug->panel->dp_mode.drm_mode;
 
@@ -184,11 +184,11 @@ static int dp_test_active_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int dp_test_active_open(struct inode *inode,
+static int dp_test_active_open(struct ianalde *ianalde,
 		struct file *file)
 {
 	return single_open(file, dp_test_active_show,
-			inode->i_private);
+			ianalde->i_private);
 }
 
 static const struct file_operations test_active_fops = {
@@ -240,7 +240,7 @@ struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
 
 	debug = devm_kzalloc(dev, sizeof(*debug), GFP_KERNEL);
 	if (!debug) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto error;
 	}
 

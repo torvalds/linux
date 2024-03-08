@@ -54,7 +54,7 @@ int ioprio_check_cap(int ioprio)
 			break;
 		case IOPRIO_CLASS_IDLE:
 			break;
-		case IOPRIO_CLASS_NONE:
+		case IOPRIO_CLASS_ANALNE:
 			if (level)
 				return -EINVAL;
 			break;

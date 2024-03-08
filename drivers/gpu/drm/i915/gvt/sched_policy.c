@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -137,7 +137,7 @@ static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 	struct vgpu_sched_data *vgpu_data;
 	ktime_t cur_time;
 
-	/* no need to schedule if next_vgpu is the same with current_vgpu,
+	/* anal need to schedule if next_vgpu is the same with current_vgpu,
 	 * let scheduler chose next_vgpu again by setting it to NULL.
 	 */
 	if (scheduler->next_vgpu == scheduler->current_vgpu) {
@@ -205,7 +205,7 @@ static struct intel_vgpu *find_busy_vgpu(struct gvt_sched_data *sched_data)
 	return vgpu;
 }
 
-/* in nanosecond */
+/* in naanalsecond */
 #define GVT_DEFAULT_TIME_SLICE 1000000
 
 static void tbs_sched_func(struct gvt_sched_data *sched_data)
@@ -215,7 +215,7 @@ static void tbs_sched_func(struct gvt_sched_data *sched_data)
 	struct vgpu_sched_data *vgpu_data;
 	struct intel_vgpu *vgpu = NULL;
 
-	/* no active vgpu or has already had a target */
+	/* anal active vgpu or has already had a target */
 	if (list_empty(&sched_data->lru_runq_head) || scheduler->next_vgpu)
 		goto out;
 
@@ -283,10 +283,10 @@ static int tbs_sched_init(struct intel_gvt *gvt)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&data->lru_runq_head);
-	hrtimer_init(&data->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&data->timer, CLOCK_MOANALTONIC, HRTIMER_MODE_ABS);
 	data->timer.function = tbs_timer_fn;
 	data->period = GVT_DEFAULT_TIME_SLICE;
 	data->gvt = gvt;
@@ -314,7 +314,7 @@ static int tbs_sched_init_vgpu(struct intel_vgpu *vgpu)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->sched_ctl.weight = vgpu->sched_ctl.weight;
 	data->vgpu = vgpu;
@@ -342,13 +342,13 @@ static void tbs_sched_start_schedule(struct intel_vgpu *vgpu)
 {
 	struct gvt_sched_data *sched_data = vgpu->gvt->scheduler.sched_data;
 	struct vgpu_sched_data *vgpu_data = vgpu->sched_data;
-	ktime_t now;
+	ktime_t analw;
 
 	if (!list_empty(&vgpu_data->lru_list))
 		return;
 
-	now = ktime_get();
-	vgpu_data->pri_time = ktime_add(now,
+	analw = ktime_get();
+	vgpu_data->pri_time = ktime_add(analw,
 					ktime_set(GVT_SCHED_VGPU_PRI_TIME, 0));
 	vgpu_data->pri_sched = true;
 

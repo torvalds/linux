@@ -70,7 +70,7 @@ static int reset_simple_reset(struct reset_controller_dev *rcdev,
 	int ret;
 
 	if (!data->reset_us)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = reset_simple_assert(rcdev, id);
 	if (ret)
@@ -106,7 +106,7 @@ EXPORT_SYMBOL_GPL(reset_simple_ops);
 /**
  * struct reset_simple_devdata - simple reset controller properties
  * @reg_offset: offset between base address and first reset register.
- * @nr_resets: number of resets. If not set, default to resource size in bits.
+ * @nr_resets: number of resets. If analt set, default to resource size in bits.
  * @active_low: if true, bits are cleared to assert the reset. Otherwise, bits
  *              are set to assert the reset.
  * @status_active_low: if true, bits read back as cleared while the reset is
@@ -167,7 +167,7 @@ static int reset_simple_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	membase = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(membase))
@@ -178,7 +178,7 @@ static int reset_simple_probe(struct platform_device *pdev)
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = resource_size(res) * BITS_PER_BYTE;
 	data->rcdev.ops = &reset_simple_ops;
-	data->rcdev.of_node = dev->of_node;
+	data->rcdev.of_analde = dev->of_analde;
 
 	if (devdata) {
 		reg_offset = devdata->reg_offset;

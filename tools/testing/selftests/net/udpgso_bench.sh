@@ -6,7 +6,7 @@
 readonly GREEN='\033[0;92m'
 readonly YELLOW='\033[0;33m'
 readonly RED='\033[0;31m'
-readonly NC='\033[0m' # No Color
+readonly NC='\033[0m' # Anal Color
 readonly TESTPORT=8000
 
 readonly KSFT_PASS=0
@@ -120,7 +120,7 @@ run_tcp() {
 	echo "tcp zerocopy"
 	run_in_netns ${args} -t -z
 
-	# excluding for now because test fails intermittently
+	# excluding for analw because test fails intermittently
 	# add -P option to include poll() to reduce possibility of lost messages
 	#echo "tcp zerocopy audit"
 	#run_in_netns ${args} -t -z -P -a

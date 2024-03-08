@@ -56,7 +56,7 @@ int dprtc_open(struct fsl_mc_io *mc_io,
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPRTC object
  *
- * After this function is called, no further operations are
+ * After this function is called, anal further operations are
  * allowed on the object without opening a new control session.
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -83,7 +83,7 @@ int dprtc_close(struct fsl_mc_io *mc_io,
  *
  * Allows GPP software to control when interrupts are generated.
  * Each interrupt can have up to 32 causes.  The enable/disable control's the
- * overall interrupt state. if the interrupt is disabled no causes will cause
+ * overall interrupt state. if the interrupt is disabled anal causes will cause
  * an interrupt.
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -152,7 +152,7 @@ int dprtc_get_irq_enable(struct fsl_mc_io *mc_io,
  * @irq_index:	The interrupt index to configure
  * @mask:	Event mask to trigger interrupt;
  *		each bit:
- *			0 = ignore event
+ *			0 = iganalre event
  *			1 = consider event for asserting IRQ
  *
  * Every interrupt can have up to 32 causes and the interrupt model supports
@@ -227,7 +227,7 @@ int dprtc_get_irq_mask(struct fsl_mc_io *mc_io,
  * @token:	Token of DPRTC object
  * @irq_index:	The interrupt index to configure
  * @status:	Returned interrupts status - one bit per cause:
- *			0 = no interrupt pending
+ *			0 = anal interrupt pending
  *			1 = interrupt pending
  *
  * Return:	'0' on Success; Error code otherwise.

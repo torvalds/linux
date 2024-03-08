@@ -3,7 +3,7 @@
  * soc-card.h
  *
  * Copyright (C) 2019 Renesas Electronics Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  */
 #ifndef __SOC_CARD_H
 #define __SOC_CARD_H
@@ -76,7 +76,7 @@ static inline int snd_soc_card_get_pci_ssid(struct snd_soc_card *card,
 					    unsigned short *device)
 {
 	if (!card->pci_subsystem_set)
-		return -ENOENT;
+		return -EANALENT;
 
 	*vendor = card->pci_subsystem_vendor;
 	*device = card->pci_subsystem_device;
@@ -94,7 +94,7 @@ static inline int snd_soc_card_get_pci_ssid(struct snd_soc_card *card,
 					    unsigned short *vendor,
 					    unsigned short *device)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 #endif /* CONFIG_PCI */
 

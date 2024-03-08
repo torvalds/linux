@@ -154,9 +154,9 @@
 	status = "okay";
 };
 
-&lpc_snoop {
+&lpc_sanalop {
 	status = "okay";
-	snoop-ports = <0x80>;
+	sanalop-ports = <0x80>;
 };
 
 &kcs3 {
@@ -229,7 +229,7 @@
 		/*  V */ "", "", "", "", "", "", "", "",
 		/*  W */ "", "", "", "", "", "", "", "",
 		/*  X */ "", "", "", "", "", "", "", "",
-		/*  Y */ "SLP_S3", "SLP_S4_S5", "NODE_ID_1", "NODE_ID_2", "", "", "", "",
+		/*  Y */ "SLP_S3", "SLP_S4_S5", "ANALDE_ID_1", "ANALDE_ID_2", "", "", "", "",
 		/*  Z */ "", "", "SYSTEM_FAULT_LED_N", "FAST_THROTTLE_N",
 			"", "", "", "",
 		/* AA */ "FM_CPU0_IBMC_THERMTRIP_N", "", "PROCHOT_L_G", "",

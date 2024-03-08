@@ -102,14 +102,14 @@ static const struct kvaser_usb_driver_info kvaser_usb_driver_info_usbcan = {
 };
 
 static const struct kvaser_usb_driver_info kvaser_usb_driver_info_leaf = {
-	.quirks = KVASER_USB_QUIRK_IGNORE_CLK_FREQ,
+	.quirks = KVASER_USB_QUIRK_IGANALRE_CLK_FREQ,
 	.family = KVASER_LEAF,
 	.ops = &kvaser_usb_leaf_dev_ops,
 };
 
 static const struct kvaser_usb_driver_info kvaser_usb_driver_info_leaf_err = {
 	.quirks = KVASER_USB_QUIRK_HAS_TXRX_ERRORS |
-		  KVASER_USB_QUIRK_IGNORE_CLK_FREQ,
+		  KVASER_USB_QUIRK_IGANALRE_CLK_FREQ,
 	.family = KVASER_LEAF,
 	.ops = &kvaser_usb_leaf_dev_ops,
 };
@@ -117,7 +117,7 @@ static const struct kvaser_usb_driver_info kvaser_usb_driver_info_leaf_err = {
 static const struct kvaser_usb_driver_info kvaser_usb_driver_info_leaf_err_listen = {
 	.quirks = KVASER_USB_QUIRK_HAS_TXRX_ERRORS |
 		  KVASER_USB_QUIRK_HAS_SILENT_MODE |
-		  KVASER_USB_QUIRK_IGNORE_CLK_FREQ,
+		  KVASER_USB_QUIRK_IGANALRE_CLK_FREQ,
 	.family = KVASER_LEAF,
 	.ops = &kvaser_usb_leaf_dev_ops,
 };
@@ -276,7 +276,7 @@ int kvaser_usb_send_cmd_async(struct kvaser_usb_net_priv *priv, void *cmd,
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_fill_bulk_urb(urb, dev->udev,
 			  usb_sndbulkpipe(dev->udev,
@@ -306,8 +306,8 @@ int kvaser_usb_can_rx_over_error(struct net_device *netdev)
 	skb = alloc_can_err_skb(netdev, &cf);
 	if (!skb) {
 		stats->rx_dropped++;
-		netdev_warn(netdev, "No memory left for err_skb\n");
-		return -ENOMEM;
+		netdev_warn(netdev, "Anal memory left for err_skb\n");
+		return -EANALMEM;
 	}
 
 	cf->can_id |= CAN_ERR_CRTL;
@@ -328,7 +328,7 @@ static void kvaser_usb_read_bulk_callback(struct urb *urb)
 	switch (urb->status) {
 	case 0:
 		break;
-	case -ENOENT:
+	case -EANALENT:
 	case -EPIPE:
 	case -EPROTO:
 	case -ESHUTDOWN:
@@ -349,7 +349,7 @@ resubmit_urb:
 			  kvaser_usb_read_bulk_callback, dev);
 
 	err = usb_submit_urb(urb, GFP_ATOMIC);
-	if (err == -ENODEV) {
+	if (err == -EANALDEV) {
 		for (i = 0; i < dev->nchannels; i++) {
 			if (!dev->nets[i])
 				continue;
@@ -376,7 +376,7 @@ static int kvaser_usb_setup_rx_urbs(struct kvaser_usb *dev)
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -384,9 +384,9 @@ static int kvaser_usb_setup_rx_urbs(struct kvaser_usb *dev)
 					 GFP_KERNEL, &buf_dma);
 		if (!buf) {
 			dev_warn(&dev->intf->dev,
-				 "No memory left for USB buffer\n");
+				 "Anal memory left for USB buffer\n");
 			usb_free_urb(urb);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -397,7 +397,7 @@ static int kvaser_usb_setup_rx_urbs(struct kvaser_usb *dev)
 				  buf, KVASER_USB_RX_BUFFER_SIZE,
 				  kvaser_usb_read_bulk_callback, dev);
 		urb->transfer_dma = buf_dma;
-		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 		usb_anchor_urb(urb, &dev->rx_submitted);
 
 		err = usb_submit_urb(urb, GFP_KERNEL);
@@ -417,7 +417,7 @@ static int kvaser_usb_setup_rx_urbs(struct kvaser_usb *dev)
 	}
 
 	if (i == 0) {
-		dev_warn(&dev->intf->dev, "Cannot setup read URBs, error %d\n",
+		dev_warn(&dev->intf->dev, "Cananalt setup read URBs, error %d\n",
 			 err);
 		return err;
 	} else if (i < KVASER_USB_MAX_RX_URBS) {
@@ -446,7 +446,7 @@ static int kvaser_usb_open(struct net_device *netdev)
 
 	err = ops->dev_start_chip(priv);
 	if (err) {
-		netdev_warn(netdev, "Cannot start device, error %d\n", err);
+		netdev_warn(netdev, "Cananalt start device, error %d\n", err);
 		goto error;
 	}
 
@@ -470,7 +470,7 @@ static void kvaser_usb_reset_tx_urb_contexts(struct kvaser_usb_net_priv *priv)
 		priv->tx_contexts[i].echo_index = max_tx_urbs;
 }
 
-/* This method might sleep. Do not call it in the atomic context
+/* This method might sleep. Do analt call it in the atomic context
  * of URB completions.
  */
 void kvaser_usb_unlink_tx_urbs(struct kvaser_usb_net_priv *priv)
@@ -508,18 +508,18 @@ static int kvaser_usb_close(struct net_device *netdev)
 
 	err = ops->dev_flush_queue(priv);
 	if (err)
-		netdev_warn(netdev, "Cannot flush queue, error %d\n", err);
+		netdev_warn(netdev, "Cananalt flush queue, error %d\n", err);
 
 	if (ops->dev_reset_chip) {
 		err = ops->dev_reset_chip(dev, priv->channel);
 		if (err)
-			netdev_warn(netdev, "Cannot reset card, error %d\n",
+			netdev_warn(netdev, "Cananalt reset card, error %d\n",
 				    err);
 	}
 
 	err = ops->dev_stop_chip(priv);
 	if (err)
-		netdev_warn(netdev, "Cannot stop device, error %d\n", err);
+		netdev_warn(netdev, "Cananalt stop device, error %d\n", err);
 
 	/* reset tx contexts */
 	kvaser_usb_unlink_tx_urbs(priv);
@@ -561,14 +561,14 @@ static int kvaser_usb_set_bittiming(struct net_device *netdev)
 
 	err = ops->dev_get_busparams(priv);
 	if (err) {
-		/* Treat EOPNOTSUPP as success */
-		if (err == -EOPNOTSUPP)
+		/* Treat EOPANALTSUPP as success */
+		if (err == -EOPANALTSUPP)
 			err = 0;
 		return err;
 	}
 
-	if (memcmp(&busparams, &priv->busparams_nominal,
-		   sizeof(priv->busparams_nominal)) != 0)
+	if (memcmp(&busparams, &priv->busparams_analminal,
+		   sizeof(priv->busparams_analminal)) != 0)
 		err = -EINVAL;
 
 	return err;
@@ -588,7 +588,7 @@ static int kvaser_usb_set_data_bittiming(struct net_device *netdev)
 
 	if (!ops->dev_set_data_bittiming ||
 	    !ops->dev_get_data_busparams)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	busparams.bitrate = cpu_to_le32(dbt->bitrate);
 	busparams.sjw = (u8)sjw;
@@ -678,7 +678,7 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 
 	/* This should never happen; it implies a flow control bug */
 	if (!context) {
-		netdev_warn(netdev, "cannot find free context\n");
+		netdev_warn(netdev, "cananalt find free context\n");
 
 		ret = NETDEV_TX_BUSY;
 		goto freeurb;
@@ -725,7 +725,7 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 
 		stats->tx_dropped++;
 
-		if (err == -ENODEV)
+		if (err == -EANALDEV)
 			netif_device_detach(netdev);
 		else
 			netdev_warn(netdev, "Failed tx_urb %d\n", err);
@@ -805,8 +805,8 @@ static int kvaser_usb_init_one(struct kvaser_usb *dev, int channel)
 	netdev = alloc_candev(struct_size(priv, tx_contexts, dev->max_tx_urbs),
 			      dev->max_tx_urbs);
 	if (!netdev) {
-		dev_err(&dev->intf->dev, "Cannot alloc candev\n");
-		return -ENOMEM;
+		dev_err(&dev->intf->dev, "Cananalt alloc candev\n");
+		return -EANALMEM;
 	}
 
 	priv = netdev_priv(netdev);
@@ -834,7 +834,7 @@ static int kvaser_usb_init_one(struct kvaser_usb *dev, int channel)
 	    (priv->dev->card_data.capabilities & KVASER_USB_CAP_BERR_CAP))
 		priv->can.do_get_berr_counter = ops->dev_get_berr_counter;
 	if (driver_info->quirks & KVASER_USB_QUIRK_HAS_SILENT_MODE)
-		priv->can.ctrlmode_supported |= CAN_CTRLMODE_LISTENONLY;
+		priv->can.ctrlmode_supported |= CAN_CTRLMODE_LISTEANALNLY;
 
 	priv->can.ctrlmode_supported |= dev->card_data.ctrlmode_supported;
 
@@ -891,11 +891,11 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 
 	driver_info = (const struct kvaser_usb_driver_info *)id->driver_info;
 	if (!driver_info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = devm_kzalloc(&intf->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->intf = intf;
 	dev->driver_info = driver_info;
@@ -903,7 +903,7 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 
 	err = ops->dev_setup_endpoints(dev);
 	if (err) {
-		dev_err(&intf->dev, "Cannot get usb endpoint(s)");
+		dev_err(&intf->dev, "Cananalt get usb endpoint(s)");
 		return err;
 	}
 
@@ -925,7 +925,7 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 	err = ops->dev_get_software_info(dev);
 	if (err) {
 		dev_err(&intf->dev,
-			"Cannot get software info, error %d\n", err);
+			"Cananalt get software info, error %d\n", err);
 		return err;
 	}
 
@@ -933,13 +933,13 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 		err = ops->dev_get_software_details(dev);
 		if (err) {
 			dev_err(&intf->dev,
-				"Cannot get software details, error %d\n", err);
+				"Cananalt get software details, error %d\n", err);
 			return err;
 		}
 	}
 
 	if (WARN_ON(!dev->cfg))
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_dbg(&intf->dev, "Firmware version: %d.%d.%d\n",
 		((dev->fw_version >> 24) & 0xff),
@@ -950,7 +950,7 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 
 	err = ops->dev_get_card_info(dev);
 	if (err) {
-		dev_err(&intf->dev, "Cannot get card info, error %d\n", err);
+		dev_err(&intf->dev, "Cananalt get card info, error %d\n", err);
 		return err;
 	}
 
@@ -958,7 +958,7 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 		err = ops->dev_get_capabilities(dev);
 		if (err) {
 			dev_err(&intf->dev,
-				"Cannot get capabilities, error %d\n", err);
+				"Cananalt get capabilities, error %d\n", err);
 			kvaser_usb_remove_interfaces(dev);
 			return err;
 		}

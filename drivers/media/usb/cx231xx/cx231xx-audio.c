@@ -96,7 +96,7 @@ static void cx231xx_audio_isocirq(struct urb *urb)
 	case -ETIMEDOUT:	/* NAK */
 		break;
 	case -ECONNRESET:	/* kill */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	default:		/* error */
@@ -187,7 +187,7 @@ static void cx231xx_audio_bulkirq(struct urb *urb)
 	case -ETIMEDOUT:	/* NAK */
 		break;
 	case -ECONNRESET:	/* kill */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	default:		/* error */
@@ -264,7 +264,7 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 		"%s: Starting ISO AUDIO transfers\n", __func__);
 
 	if (dev->state & DEV_DISCONNECTED)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sb_size = CX231XX_ISO_NUM_AUDIO_PACKETS * dev->adev.max_pkt_size;
 
@@ -274,7 +274,7 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 
 		dev->adev.transfer_buffer[i] = kmalloc(sb_size, GFP_ATOMIC);
 		if (!dev->adev.transfer_buffer[i])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memset(dev->adev.transfer_buffer[i], 0x80, sb_size);
 		urb = usb_alloc_urb(CX231XX_ISO_NUM_AUDIO_PACKETS, GFP_ATOMIC);
@@ -283,7 +283,7 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 				usb_free_urb(dev->adev.urb[j]);
 				kfree(dev->adev.transfer_buffer[j]);
 			}
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		urb->dev = dev->udev;
@@ -325,7 +325,7 @@ static int cx231xx_init_audio_bulk(struct cx231xx *dev)
 		"%s: Starting BULK AUDIO transfers\n", __func__);
 
 	if (dev->state & DEV_DISCONNECTED)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sb_size = CX231XX_NUM_AUDIO_PACKETS * dev->adev.max_pkt_size;
 
@@ -335,7 +335,7 @@ static int cx231xx_init_audio_bulk(struct cx231xx *dev)
 
 		dev->adev.transfer_buffer[i] = kmalloc(sb_size, GFP_ATOMIC);
 		if (!dev->adev.transfer_buffer[i])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memset(dev->adev.transfer_buffer[i], 0x80, sb_size);
 		urb = usb_alloc_urb(CX231XX_NUM_AUDIO_PACKETS, GFP_ATOMIC);
@@ -344,7 +344,7 @@ static int cx231xx_init_audio_bulk(struct cx231xx *dev)
 				usb_free_urb(dev->adev.urb[j]);
 				kfree(dev->adev.transfer_buffer[j]);
 			}
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		urb->dev = dev->udev;
@@ -379,7 +379,7 @@ static const struct snd_pcm_hardware snd_cx231xx_hw_capture = {
 
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 
-	.rates = SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_KNOT,
+	.rates = SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_KANALT,
 
 	.rate_min = 48000,
 	.rate_max = 48000,
@@ -404,7 +404,7 @@ static int snd_cx231xx_capture_open(struct snd_pcm_substream *substream)
 	if (dev->state & DEV_DISCONNECTED) {
 		dev_err(dev->dev,
 			"Can't open. the device was removed.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* set alternate setting for audio interface */
@@ -511,7 +511,7 @@ static int snd_cx231xx_capture_trigger(struct snd_pcm_substream *substream,
 	int retval = 0;
 
 	if (dev->state & DEV_DISCONNECTED)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock(&dev->adev.slock);
 	switch (cmd) {
@@ -567,14 +567,14 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 	int i, isoc_pipe = 0;
 
 	if (dev->has_alsa_audio != 1) {
-		/* This device does not support the extension (in this case
+		/* This device does analt support the extension (in this case
 		   the device is expecting the snd-usb-audio module or
 		   doesn't have analog audio support at all) */
 		return 0;
 	}
 
 	dev_dbg(dev->dev,
-		"probing for cx231xx non standard usbaudio\n");
+		"probing for cx231xx analn standard usbaudio\n");
 
 	err = snd_card_new(dev->dev, index[devnr], "Cx231xx Audio",
 			   THIS_MODULE, 0, &card);
@@ -612,7 +612,7 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 					    audio_index + 1];
 
 	if (uif->altsetting[0].desc.bNumEndpoints < isoc_pipe + 1) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_free_card;
 	}
 
@@ -626,7 +626,7 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 		adev->end_point_addr, adev->num_alt);
 	adev->alt_max_pkt_size = kmalloc_array(32, adev->num_alt, GFP_KERNEL);
 	if (!adev->alt_max_pkt_size) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_card;
 	}
 
@@ -634,7 +634,7 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 		u16 tmp;
 
 		if (uif->altsetting[i].desc.bNumEndpoints < isoc_pipe + 1) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto err_free_pkt_size;
 		}
 
@@ -663,7 +663,7 @@ static int cx231xx_audio_fini(struct cx231xx *dev)
 		return 0;
 
 	if (dev->has_alsa_audio != 1) {
-		/* This device does not support the extension (in this case
+		/* This device does analt support the extension (in this case
 		   the device is expecting the snd-usb-audio module or
 		   doesn't have analog audio support at all) */
 		return 0;

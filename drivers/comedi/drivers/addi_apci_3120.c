@@ -461,7 +461,7 @@ static void apci3120_interrupt_dma(struct comedi_device *dev,
 		dmabuf = &devpriv->dmabuf[devpriv->cur_dmabuf];
 		apci3120_init_dma(dev, dmabuf);
 	} else {
-		/* restart DMA if not using double buffering */
+		/* restart DMA if analt using double buffering */
 		apci3120_init_dma(dev, dmabuf);
 	}
 }
@@ -481,8 +481,8 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 
 	if (!(status & APCI3120_STATUS_INT_MASK) &&
 	    !(int_amcc & ANY_S593X_INT)) {
-		dev_err(dev->class_dev, "IRQ from unknown source\n");
-		return IRQ_NONE;
+		dev_err(dev->class_dev, "IRQ from unkanalwn source\n");
+		return IRQ_ANALNE;
 	}
 
 	outl(int_amcc | AINT_INT_MASK, devpriv->amcc + AMCC_OP_REG_INTCSR);
@@ -512,7 +512,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	if (status & APCI3120_STATUS_TIMER2_INT) {
 		/*
 		 * for safety...
-		 * timer2 interrupts are not enabled in the driver
+		 * timer2 interrupts are analt enabled in the driver
 		 */
 		apci3120_clr_timer2_interrupt(dev);
 	}
@@ -598,12 +598,12 @@ static int apci3120_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_TIMER | TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -637,7 +637,7 @@ static int apci3120_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/*  TRIG_NONE */
+	else	/*  TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -974,13 +974,13 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(apci3120_boardtypes))
 		board = &apci3120_boardtypes[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)

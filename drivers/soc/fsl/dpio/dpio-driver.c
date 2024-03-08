@@ -65,7 +65,7 @@ static int dpaa2_dpio_get_cluster_sdest(struct fsl_mc_device *dpio_dev, int cpu)
 		cluster_base = 0;
 		cluster_size = 2;
 	} else {
-		dev_err(&dpio_dev->dev, "unknown SoC version\n");
+		dev_err(&dpio_dev->dev, "unkanalwn SoC version\n");
 		return -1;
 	}
 
@@ -123,7 +123,7 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	struct dpio_attr dpio_attrs;
 	struct dpaa2_io_desc desc;
 	struct dpio_priv *priv;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct device *dev = &dpio_dev->dev;
 	int possible_next_cpu;
 	int sdest;
@@ -170,7 +170,7 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	}
 
 	/* initialize DPIO descriptor */
-	desc.receives_notifications = dpio_attrs.num_priorities ? 1 : 0;
+	desc.receives_analtifications = dpio_attrs.num_priorities ? 1 : 0;
 	desc.has_8prio = dpio_attrs.num_priorities == 8 ? 1 : 0;
 	desc.dpio_id = dpio_dev->obj_desc.id;
 
@@ -195,11 +195,11 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	}
 
 	if (dpio_dev->obj_desc.region_count < 3) {
-		/* No support for DDR backed portals, use classic mapping */
+		/* Anal support for DDR backed portals, use classic mapping */
 		/*
 		 * Set the CENA regs to be the cache inhibited area of the
 		 * portal to avoid coherency issues if a user migrates to
-		 * another core.
+		 * aanalther core.
 		 */
 		desc.regs_cena = devm_memremap(dev, dpio_dev->regions[1].start,
 					resource_size(&dpio_dev->regions[1]),
@@ -219,7 +219,7 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	desc.regs_cinh = devm_ioremap(dev, dpio_dev->regions[1].start,
 				      resource_size(&dpio_dev->regions[1]));
 	if (!desc.regs_cinh) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(dev, "devm_ioremap failed\n");
 		goto err_allocate_irqs;
 	}
@@ -233,7 +233,7 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	priv->io = dpaa2_io_create(&desc, dev);
 	if (!priv->io) {
 		dev_err(dev, "dpaa2_io_create failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_dpaa2_io_create;
 	}
 
@@ -242,8 +242,8 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 		goto err_register_dpio_irq;
 
 	dev_info(dev, "probed\n");
-	dev_dbg(dev, "   receives_notifications = %d\n",
-		desc.receives_notifications);
+	dev_dbg(dev, "   receives_analtifications = %d\n",
+		desc.receives_analtifications);
 	dpio_close(dpio_dev->mc_io, 0, dpio_dev->mc_handle);
 
 	return 0;
@@ -322,7 +322,7 @@ static struct fsl_mc_driver dpaa2_dpio_driver = {
 static int dpio_driver_init(void)
 {
 	if (!zalloc_cpumask_var(&cpus_unused_mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 	cpumask_copy(cpus_unused_mask, cpu_online_mask);
 
 	return fsl_mc_driver_register(&dpaa2_dpio_driver);

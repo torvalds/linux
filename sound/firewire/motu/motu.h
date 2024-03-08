@@ -66,7 +66,7 @@ struct snd_motu {
 	struct fw_iso_resources rx_resources;
 	unsigned int substreams_counter;
 
-	/* For notification. */
+	/* For analtification. */
 	struct fw_address_handler async_handler;
 	u32 msg;
 
@@ -108,7 +108,7 @@ enum snd_motu_clock_source {
 	SND_MOTU_CLOCK_SOURCE_AESEBU_ON_XLR,
 	SND_MOTU_CLOCK_SOURCE_WORD_ON_BNC,
 	SND_MOTU_CLOCK_SOURCE_SPH,
-	SND_MOTU_CLOCK_SOURCE_UNKNOWN,
+	SND_MOTU_CLOCK_SOURCE_UNKANALWN,
 };
 
 enum snd_motu_protocol_version {

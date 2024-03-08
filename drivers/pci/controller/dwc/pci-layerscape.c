@@ -28,7 +28,7 @@
 /* PEX Internal Configuration Registers */
 #define PCIE_STRFMR1		0x71c /* Symbol Timer & Filter Mask Register1 */
 #define PCIE_ABSERR		0x8d0 /* Bridge Slave Error Response Register */
-#define PCIE_ABSERR_SETTING	0x9401 /* Forward error of non-posted request */
+#define PCIE_ABSERR_SETTING	0x9401 /* Forward error of analn-posted request */
 
 /* PF Message Command Register */
 #define LS_PCIE_PF_MCR		0x2c
@@ -37,7 +37,7 @@
 
 /* LS1021A PEXn PM Write Control Register */
 #define SCFG_PEXPMWRCR(idx)	(0x5c + (idx) * 0x64)
-#define PMXMTTURNOFF		BIT(31)
+#define PMXMTTURANALFF		BIT(31)
 #define SCFG_PEXSFTRSTCR	0x190
 #define PEXSR(idx)		BIT(idx)
 
@@ -102,7 +102,7 @@ static void ls_pcie_drop_msg_tlp(struct ls_pcie *pcie)
 	iowrite32(val, pci->dbi_base + PCIE_STRFMR1);
 }
 
-/* Forward error response of outbound non-posted requests */
+/* Forward error response of outbound analn-posted requests */
 static void ls_pcie_fix_error_response(struct ls_pcie *pcie)
 {
 	struct dw_pcie *pci = pcie->pci;
@@ -126,7 +126,7 @@ static void ls_pcie_pf_lut_writel(struct ls_pcie *pcie, u32 off, u32 val)
 		iowrite32(val, pcie->pf_lut_base + off);
 }
 
-static void ls_pcie_send_turnoff_msg(struct dw_pcie_rp *pp)
+static void ls_pcie_send_turanalff_msg(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct ls_pcie *pcie = to_ls_pcie(pci);
@@ -161,7 +161,7 @@ static int ls_pcie_exit_from_l2(struct dw_pcie_rp *pp)
 	ls_pcie_pf_lut_writel(pcie, LS_PCIE_PF_MCR, val);
 
 	/*
-	 * L2 exit timeout of 10ms is not defined in the specifications,
+	 * L2 exit timeout of 10ms is analt defined in the specifications,
 	 * it was chosen based on empirical observations.
 	 */
 	ret = readx_poll_timeout(ls_pcie_pf_lut_readl_addr, LS_PCIE_PF_MCR,
@@ -190,30 +190,30 @@ static int ls_pcie_host_init(struct dw_pcie_rp *pp)
 	return 0;
 }
 
-static void scfg_pcie_send_turnoff_msg(struct regmap *scfg, u32 reg, u32 mask)
+static void scfg_pcie_send_turanalff_msg(struct regmap *scfg, u32 reg, u32 mask)
 {
 	/* Send PME_Turn_Off message */
 	regmap_write_bits(scfg, reg, mask, mask);
 
 	/*
-	 * There is no specific register to check for PME_To_Ack from endpoint.
+	 * There is anal specific register to check for PME_To_Ack from endpoint.
 	 * So on the safe side, wait for PCIE_PME_TO_L2_TIMEOUT_US.
 	 */
 	mdelay(PCIE_PME_TO_L2_TIMEOUT_US/1000);
 
 	/*
-	 * Layerscape hardware reference manual recommends clearing the PMXMTTURNOFF bit
+	 * Layerscape hardware reference manual recommends clearing the PMXMTTURANALFF bit
 	 * to complete the PME_Turn_Off handshake.
 	 */
 	regmap_write_bits(scfg, reg, mask, 0);
 }
 
-static void ls1021a_pcie_send_turnoff_msg(struct dw_pcie_rp *pp)
+static void ls1021a_pcie_send_turanalff_msg(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct ls_pcie *pcie = to_ls_pcie(pci);
 
-	scfg_pcie_send_turnoff_msg(pcie->scfg, SCFG_PEXPMWRCR(pcie->index), PMXMTTURNOFF);
+	scfg_pcie_send_turanalff_msg(pcie->scfg, SCFG_PEXPMWRCR(pcie->index), PMXMTTURANALFF);
 }
 
 static int scfg_pcie_exit_from_l2(struct regmap *scfg, u32 reg, u32 mask)
@@ -233,12 +233,12 @@ static int ls1021a_pcie_exit_from_l2(struct dw_pcie_rp *pp)
 	return scfg_pcie_exit_from_l2(pcie->scfg, SCFG_PEXSFTRSTCR, PEXSR(pcie->index));
 }
 
-static void ls1043a_pcie_send_turnoff_msg(struct dw_pcie_rp *pp)
+static void ls1043a_pcie_send_turanalff_msg(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct ls_pcie *pcie = to_ls_pcie(pci);
 
-	scfg_pcie_send_turnoff_msg(pcie->scfg, SCFG_PEXPMECR, PEXPME(pcie->index));
+	scfg_pcie_send_turanalff_msg(pcie->scfg, SCFG_PEXPMECR, PEXPME(pcie->index));
 }
 
 static int ls1043a_pcie_exit_from_l2(struct dw_pcie_rp *pp)
@@ -274,12 +274,12 @@ static int ls1043a_pcie_exit_from_l2(struct dw_pcie_rp *pp)
 
 static const struct dw_pcie_host_ops ls_pcie_host_ops = {
 	.init = ls_pcie_host_init,
-	.pme_turn_off = ls_pcie_send_turnoff_msg,
+	.pme_turn_off = ls_pcie_send_turanalff_msg,
 };
 
 static const struct dw_pcie_host_ops ls1021a_pcie_host_ops = {
 	.init = ls_pcie_host_init,
-	.pme_turn_off = ls1021a_pcie_send_turnoff_msg,
+	.pme_turn_off = ls1021a_pcie_send_turanalff_msg,
 };
 
 static const struct ls_pcie_drvdata ls1021a_drvdata = {
@@ -291,7 +291,7 @@ static const struct ls_pcie_drvdata ls1021a_drvdata = {
 
 static const struct dw_pcie_host_ops ls1043a_pcie_host_ops = {
 	.init = ls_pcie_host_init,
-	.pme_turn_off = ls1043a_pcie_send_turnoff_msg,
+	.pme_turn_off = ls1043a_pcie_send_turanalff_msg,
 };
 
 static const struct ls_pcie_drvdata ls1043a_drvdata = {
@@ -333,11 +333,11 @@ static int ls_pcie_probe(struct platform_device *pdev)
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
 	if (!pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie->drvdata = of_device_get_match_data(dev);
 
@@ -350,18 +350,18 @@ static int ls_pcie_probe(struct platform_device *pdev)
 	if (IS_ERR(pci->dbi_base))
 		return PTR_ERR(pci->dbi_base);
 
-	pcie->big_endian = of_property_read_bool(dev->of_node, "big-endian");
+	pcie->big_endian = of_property_read_bool(dev->of_analde, "big-endian");
 
 	pcie->pf_lut_base = pci->dbi_base + pcie->drvdata->pf_lut_off;
 
 	if (pcie->drvdata->scfg_support) {
-		pcie->scfg = syscon_regmap_lookup_by_phandle(dev->of_node, "fsl,pcie-scfg");
+		pcie->scfg = syscon_regmap_lookup_by_phandle(dev->of_analde, "fsl,pcie-scfg");
 		if (IS_ERR(pcie->scfg)) {
-			dev_err(dev, "No syscfg phandle specified\n");
+			dev_err(dev, "Anal syscfg phandle specified\n");
 			return PTR_ERR(pcie->scfg);
 		}
 
-		ret = of_property_read_u32_array(dev->of_node, "fsl,pcie-scfg", index, 2);
+		ret = of_property_read_u32_array(dev->of_analde, "fsl,pcie-scfg", index, 2);
 		if (ret)
 			return ret;
 
@@ -369,24 +369,24 @@ static int ls_pcie_probe(struct platform_device *pdev)
 	}
 
 	if (!ls_pcie_is_bridge(pcie))
-		return -ENODEV;
+		return -EANALDEV;
 
 	platform_set_drvdata(pdev, pcie);
 
 	return dw_pcie_host_init(&pci->pp);
 }
 
-static int ls_pcie_suspend_noirq(struct device *dev)
+static int ls_pcie_suspend_analirq(struct device *dev)
 {
 	struct ls_pcie *pcie = dev_get_drvdata(dev);
 
 	if (!pcie->drvdata->pm_support)
 		return 0;
 
-	return dw_pcie_suspend_noirq(pcie->pci);
+	return dw_pcie_suspend_analirq(pcie->pci);
 }
 
-static int ls_pcie_resume_noirq(struct device *dev)
+static int ls_pcie_resume_analirq(struct device *dev)
 {
 	struct ls_pcie *pcie = dev_get_drvdata(dev);
 	int ret;
@@ -398,11 +398,11 @@ static int ls_pcie_resume_noirq(struct device *dev)
 	if (ret)
 		return ret;
 
-	return dw_pcie_resume_noirq(pcie->pci);
+	return dw_pcie_resume_analirq(pcie->pci);
 }
 
 static const struct dev_pm_ops ls_pcie_pm_ops = {
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(ls_pcie_suspend_noirq, ls_pcie_resume_noirq)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(ls_pcie_suspend_analirq, ls_pcie_resume_analirq)
 };
 
 static struct platform_driver ls_pcie_driver = {

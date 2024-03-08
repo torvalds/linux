@@ -54,8 +54,8 @@ struct drm_privacy_screen {
 	struct mutex lock;
 	/** @list: privacy-screen devices list list-entry. */
 	struct list_head list;
-	/** @notifier_head: privacy-screen notifier head. */
-	struct blocking_notifier_head notifier_head;
+	/** @analtifier_head: privacy-screen analtifier head. */
+	struct blocking_analtifier_head analtifier_head;
 	/**
 	 * @ops: &struct drm_privacy_screen_ops for this privacy-screen.
 	 * This is NULL if the driver has unregistered the privacy-screen.
@@ -90,6 +90,6 @@ struct drm_privacy_screen *drm_privacy_screen_register(
 	void *data);
 void drm_privacy_screen_unregister(struct drm_privacy_screen *priv);
 
-void drm_privacy_screen_call_notifier_chain(struct drm_privacy_screen *priv);
+void drm_privacy_screen_call_analtifier_chain(struct drm_privacy_screen *priv);
 
 #endif

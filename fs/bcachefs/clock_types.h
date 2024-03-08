@@ -9,7 +9,7 @@
 /*
  * Clocks/timers in units of sectors of IO:
  *
- * Note - they use percpu batching, so they're only approximate.
+ * Analte - they use percpu batching, so they're only approximate.
  */
 
 struct io_timer;
@@ -26,7 +26,7 @@ struct io_timer {
 typedef HEAP(struct io_timer *)	io_timer_heap;
 
 struct io_clock {
-	atomic64_t		now;
+	atomic64_t		analw;
 	u16 __percpu		*pcpu_buf;
 	unsigned		max_slop;
 

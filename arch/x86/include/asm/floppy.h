@@ -13,7 +13,7 @@
 #include <linux/vmalloc.h>
 
 /*
- * The DMA channel used by the floppy controller cannot access data at
+ * The DMA channel used by the floppy controller cananalt access data at
  * addresses >= 16MB
  *
  * Went back to the 1MB limit, as some people had problems with the floppy
@@ -43,7 +43,7 @@
 #define fd_dma_mem_alloc(size)	SW._dma_mem_alloc(size)
 #define fd_dma_setup(addr, size, mode, io) SW._dma_setup(addr, size, mode, io)
 
-#define FLOPPY_CAN_FALLBACK_ON_NODMA
+#define FLOPPY_CAN_FALLBACK_ON_ANALDMA
 
 static int virtual_dma_count;
 static int virtual_dma_residue;
@@ -130,7 +130,7 @@ static int vdma_request_dma(unsigned int dmanr, const char *device_id)
 	return 0;
 }
 
-static void vdma_nop(unsigned int dummy)
+static void vdma_analp(unsigned int dummy)
 {
 }
 
@@ -153,7 +153,7 @@ static int fd_request_irq(void)
 
 static unsigned long dma_mem_alloc(unsigned long size)
 {
-	return __get_dma_pages(GFP_KERNEL|__GFP_NORETRY, get_order(size));
+	return __get_dma_pages(GFP_KERNEL|__GFP_ANALRETRY, get_order(size));
 }
 
 
@@ -163,7 +163,7 @@ static unsigned long vdma_mem_alloc(unsigned long size)
 
 }
 
-#define nodma_mem_alloc(size) vdma_mem_alloc(size)
+#define analdma_mem_alloc(size) vdma_mem_alloc(size)
 
 static void _fd_dma_mem_free(unsigned long addr, unsigned long size)
 {
@@ -237,7 +237,7 @@ static struct fd_routine_l {
 	},
 	{
 		._request_dma		= vdma_request_dma,
-		._free_dma		= vdma_nop,
+		._free_dma		= vdma_analp,
 		._get_dma_residue	= vdma_get_dma_residue,
 		._dma_mem_alloc		= vdma_mem_alloc,
 		._dma_setup		= vdma_dma_setup
@@ -251,7 +251,7 @@ static int FDC2 = -1;
 /*
  * Floppy types are stored in the rtc's CMOS RAM and so rtc_lock
  * is needed to prevent corrupted CMOS RAM in case "insmod floppy"
- * coincides with another rtc CMOS user.		Paul G.
+ * coincides with aanalther rtc CMOS user.		Paul G.
  */
 #define FLOPPY0_TYPE					\
 ({							\

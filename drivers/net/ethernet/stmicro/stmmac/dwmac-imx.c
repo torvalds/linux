@@ -179,7 +179,7 @@ static int imx_dwmac_init(struct platform_device *pdev, void *priv)
 
 static void imx_dwmac_exit(struct platform_device *pdev, void *priv)
 {
-	/* nothing to do now */
+	/* analthing to do analw */
 }
 
 static void imx_dwmac_fix_speed(void *priv, unsigned int speed, unsigned int mode)
@@ -273,7 +273,7 @@ static int imx_dwmac_mx93_reset(void *priv, void __iomem *ioaddr)
 static int
 imx_dwmac_parse_dt(struct imx_priv_data *dwmac, struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int err = 0;
 
 	dwmac->rmii_refclk_ext = of_property_read_bool(np, "snps,rmii_refclk_ext");
@@ -299,7 +299,7 @@ imx_dwmac_parse_dt(struct imx_priv_data *dwmac, struct device *dev)
 	    of_machine_is_compatible("fsl,imx93")) {
 		/* Binding doc describes the propety:
 		 * is required by i.MX8MP, i.MX93.
-		 * is optinoal for i.MX8DXL.
+		 * is optianalal for i.MX8DXL.
 		 */
 		dwmac->intf_regmap = syscon_regmap_lookup_by_phandle(np, "intf_mode");
 		if (IS_ERR(dwmac->intf_regmap))
@@ -329,7 +329,7 @@ static int imx_dwmac_probe(struct platform_device *pdev)
 
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
 	if (!dwmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat_dat = devm_stmmac_probe_config_dt(pdev, stmmac_res.mac);
 	if (IS_ERR(plat_dat))

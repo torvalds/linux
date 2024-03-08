@@ -6,12 +6,12 @@
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
- * Copyright (c) 2009 Nokia Corporation
- * Roger Quadros <ext-roger.quadros@nokia.com>
+ * Copyright (c) 2009 Analkia Corporation
+ * Roger Quadros <ext-roger.quadros@analkia.com>
  *
  * This is useful for systems with mixed controllable and
- * non-controllable regulators, as well as for allowing testing on
- * systems with no controllable regulators.
+ * analn-controllable regulators, as well as for allowing testing on
+ * systems with anal controllable regulators.
  */
 
 #include <linux/err.h>
@@ -113,7 +113,7 @@ static irqreturn_t reg_fixed_under_voltage_irq_handler(int irq, void *data)
 	struct fixed_voltage_data *priv = data;
 	struct regulator_dev *rdev = priv->dev;
 
-	regulator_notifier_call_chain(rdev, REGULATOR_EVENT_UNDER_VOLTAGE,
+	regulator_analtifier_call_chain(rdev, REGULATOR_EVENT_UNDER_VOLTAGE,
 				      NULL);
 
 	return IRQ_HANDLED;
@@ -125,8 +125,8 @@ static irqreturn_t reg_fixed_under_voltage_irq_handler(int irq, void *data)
  * @dev: Pointer to the device structure.
  * @priv: Pointer to fixed_voltage_data structure containing private data.
  *
- * This function tries to get the IRQ from the device firmware node.
- * If it's an optional IRQ and not found, it returns 0.
+ * This function tries to get the IRQ from the device firmware analde.
+ * If it's an optional IRQ and analt found, it returns 0.
  * Otherwise, it attempts to request the threaded IRQ.
  *
  * Return: 0 on success, or error code on failure.
@@ -136,8 +136,8 @@ static int reg_fixed_get_irqs(struct device *dev,
 {
 	int ret;
 
-	ret = fwnode_irq_get(dev_fwnode(dev), 0);
-	/* This is optional IRQ. If not found we will get -EINVAL */
+	ret = fwanalde_irq_get(dev_fwanalde(dev), 0);
+	/* This is optional IRQ. If analt found we will get -EINVAL */
 	if (ret == -EINVAL)
 		return 0;
 	if (ret < 0)
@@ -158,7 +158,7 @@ static int reg_fixed_get_irqs(struct device *dev,
  * @desc: regulator description
  *
  * Populates fixed_voltage_config structure by extracting data from device
- * tree node, returns a pointer to the populated structure of NULL if memory
+ * tree analde, returns a pointer to the populated structure of NULL if memory
  * alloc fails.
  */
 static struct fixed_voltage_config *
@@ -166,15 +166,15 @@ of_get_fixed_voltage_config(struct device *dev,
 			    const struct regulator_desc *desc)
 {
 	struct fixed_voltage_config *config;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct regulator_init_data *init_data;
 
 	config = devm_kzalloc(dev, sizeof(struct fixed_voltage_config),
 								 GFP_KERNEL);
 	if (!config)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	config->init_data = of_get_regulator_init_data(dev, dev->of_node, desc);
+	config->init_data = of_get_regulator_init_data(dev, dev->of_analde, desc);
 	if (!config->init_data)
 		return ERR_PTR(-EINVAL);
 
@@ -230,9 +230,9 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct fixed_voltage_data),
 			       GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		config = of_get_fixed_voltage_config(&pdev->dev,
 						     &drvdata->desc);
 		if (IS_ERR(config))
@@ -242,14 +242,14 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 	}
 
 	if (!config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->desc.name = devm_kstrdup(&pdev->dev,
 					  config->supply_name,
 					  GFP_KERNEL);
 	if (drvdata->desc.name == NULL) {
 		dev_err(&pdev->dev, "Failed to allocate supply name\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	drvdata->desc.type = REGULATOR_VOLTAGE;
 	drvdata->desc.owner = THIS_MODULE;
@@ -265,7 +265,7 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 	} else if (drvtype && drvtype->has_performance_state) {
 		drvdata->desc.ops = &fixed_voltage_domain_ops;
 
-		drvdata->performance_state = of_get_required_opp_performance_state(dev->of_node, 0);
+		drvdata->performance_state = of_get_required_opp_performance_state(dev->of_analde, 0);
 		if (drvdata->performance_state < 0) {
 			dev_err(dev, "Can't get performance state from devicetree\n");
 			return drvdata->performance_state;
@@ -282,7 +282,7 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 					    config->input_supply,
 					    GFP_KERNEL);
 		if (!drvdata->desc.supply_name)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (config->microvolts)
@@ -310,10 +310,10 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 	 *
 	 * FIXME: find a better way to deal with this.
 	 */
-	gflags |= GPIOD_FLAGS_BIT_NONEXCLUSIVE;
+	gflags |= GPIOD_FLAGS_BIT_ANALNEXCLUSIVE;
 
 	/*
-	 * Do not use devm* here: the regulator core takes over the
+	 * Do analt use devm* here: the regulator core takes over the
 	 * lifecycle management of the GPIO descriptor.
 	 */
 	cfg.ena_gpiod = gpiod_get_optional(&pdev->dev, NULL, gflags);
@@ -324,7 +324,7 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 	cfg.dev = &pdev->dev;
 	cfg.init_data = config->init_data;
 	cfg.driver_data = drvdata;
-	cfg.of_node = pdev->dev.of_node;
+	cfg.of_analde = pdev->dev.of_analde;
 
 	drvdata->dev = devm_regulator_register(&pdev->dev, &drvdata->desc,
 					       &cfg);
@@ -383,7 +383,7 @@ static struct platform_driver regulator_fixed_voltage_driver = {
 	.probe		= reg_fixed_voltage_probe,
 	.driver		= {
 		.name		= "reg-fixed-voltage",
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(fixed_of_match),
 	},
 };

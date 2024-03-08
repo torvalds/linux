@@ -27,7 +27,7 @@
  * while devices are suspended.  To avoid races with the suspend/hibernate code,
  * they should always be called with system_transition_mutex held
  * (gfp_allowed_mask also should only be modified with system_transition_mutex
- * held, unless the suspend/hibernate code is guaranteed not to run in parallel
+ * held, unless the suspend/hibernate code is guaranteed analt to run in parallel
  * with that modification).
  */
 static gfp_t saved_gfp_mask;
@@ -52,7 +52,7 @@ void pm_restrict_gfp_mask(void)
 unsigned int lock_system_sleep(void)
 {
 	unsigned int flags = current->flags;
-	current->flags |= PF_NOFREEZE;
+	current->flags |= PF_ANALFREEZE;
 	mutex_lock(&system_transition_mutex);
 	return flags;
 }
@@ -60,8 +60,8 @@ EXPORT_SYMBOL_GPL(lock_system_sleep);
 
 void unlock_system_sleep(unsigned int flags)
 {
-	if (!(flags & PF_NOFREEZE))
-		current->flags &= ~PF_NOFREEZE;
+	if (!(flags & PF_ANALFREEZE))
+		current->flags &= ~PF_ANALFREEZE;
 	mutex_unlock(&system_transition_mutex);
 }
 EXPORT_SYMBOL_GPL(unlock_system_sleep);
@@ -79,21 +79,21 @@ void ksys_sync_helper(void)
 }
 EXPORT_SYMBOL_GPL(ksys_sync_helper);
 
-/* Routines for PM-transition notifications */
+/* Routines for PM-transition analtifications */
 
-static BLOCKING_NOTIFIER_HEAD(pm_chain_head);
+static BLOCKING_ANALTIFIER_HEAD(pm_chain_head);
 
-int register_pm_notifier(struct notifier_block *nb)
+int register_pm_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&pm_chain_head, nb);
+	return blocking_analtifier_chain_register(&pm_chain_head, nb);
 }
-EXPORT_SYMBOL_GPL(register_pm_notifier);
+EXPORT_SYMBOL_GPL(register_pm_analtifier);
 
-int unregister_pm_notifier(struct notifier_block *nb)
+int unregister_pm_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&pm_chain_head, nb);
+	return blocking_analtifier_chain_unregister(&pm_chain_head, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_pm_notifier);
+EXPORT_SYMBOL_GPL(unregister_pm_analtifier);
 
 void pm_report_hw_sleep_time(u64 t)
 {
@@ -108,21 +108,21 @@ void pm_report_max_hw_sleep(u64 t)
 }
 EXPORT_SYMBOL_GPL(pm_report_max_hw_sleep);
 
-int pm_notifier_call_chain_robust(unsigned long val_up, unsigned long val_down)
+int pm_analtifier_call_chain_robust(unsigned long val_up, unsigned long val_down)
 {
 	int ret;
 
-	ret = blocking_notifier_call_chain_robust(&pm_chain_head, val_up, val_down, NULL);
+	ret = blocking_analtifier_call_chain_robust(&pm_chain_head, val_up, val_down, NULL);
 
-	return notifier_to_errno(ret);
+	return analtifier_to_erranal(ret);
 }
 
-int pm_notifier_call_chain(unsigned long val)
+int pm_analtifier_call_chain(unsigned long val)
 {
-	return blocking_notifier_call_chain(&pm_chain_head, val, NULL);
+	return blocking_analtifier_call_chain(&pm_chain_head, val, NULL);
 }
 
-/* If set, devices may be suspended and resumed asynchronously. */
+/* If set, devices may be suspended and resumed asynchroanalusly. */
 int pm_async_enabled = 1;
 
 static ssize_t pm_async_show(struct kobject *kobj, struct kobj_attribute *attr,
@@ -256,10 +256,10 @@ power_attr(sync_on_suspend);
 #endif /* CONFIG_SUSPEND */
 
 #ifdef CONFIG_PM_SLEEP_DEBUG
-int pm_test_level = TEST_NONE;
+int pm_test_level = TEST_ANALNE;
 
 static const char * const pm_tests[__TEST_AFTER_LAST] = {
-	[TEST_NONE] = "none",
+	[TEST_ANALNE] = "analne",
 	[TEST_CORE] = "core",
 	[TEST_CPUS] = "processors",
 	[TEST_PLATFORM] = "platform",
@@ -328,10 +328,10 @@ static char *suspend_step_name(enum suspend_stat_step step)
 		return "prepare";
 	case SUSPEND_SUSPEND:
 		return "suspend";
-	case SUSPEND_SUSPEND_NOIRQ:
-		return "suspend_noirq";
-	case SUSPEND_RESUME_NOIRQ:
-		return "resume_noirq";
+	case SUSPEND_SUSPEND_ANALIRQ:
+		return "suspend_analirq";
+	case SUSPEND_RESUME_ANALIRQ:
+		return "resume_analirq";
 	case SUSPEND_RESUME:
 		return "resume";
 	default:
@@ -353,10 +353,10 @@ suspend_attr(failed_freeze, "%d\n");
 suspend_attr(failed_prepare, "%d\n");
 suspend_attr(failed_suspend, "%d\n");
 suspend_attr(failed_suspend_late, "%d\n");
-suspend_attr(failed_suspend_noirq, "%d\n");
+suspend_attr(failed_suspend_analirq, "%d\n");
 suspend_attr(failed_resume, "%d\n");
 suspend_attr(failed_resume_early, "%d\n");
-suspend_attr(failed_resume_noirq, "%d\n");
+suspend_attr(failed_resume_analirq, "%d\n");
 suspend_attr(last_hw_sleep, "%llu\n");
 suspend_attr(total_hw_sleep, "%llu\n");
 suspend_attr(max_hw_sleep, "%llu\n");
@@ -375,19 +375,19 @@ static ssize_t last_failed_dev_show(struct kobject *kobj,
 }
 static struct kobj_attribute last_failed_dev = __ATTR_RO(last_failed_dev);
 
-static ssize_t last_failed_errno_show(struct kobject *kobj,
+static ssize_t last_failed_erranal_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
 	int index;
-	int last_failed_errno;
+	int last_failed_erranal;
 
-	index = suspend_stats.last_failed_errno + REC_FAILED_NUM - 1;
+	index = suspend_stats.last_failed_erranal + REC_FAILED_NUM - 1;
 	index %= REC_FAILED_NUM;
-	last_failed_errno = suspend_stats.errno[index];
+	last_failed_erranal = suspend_stats.erranal[index];
 
-	return sprintf(buf, "%d\n", last_failed_errno);
+	return sprintf(buf, "%d\n", last_failed_erranal);
 }
-static struct kobj_attribute last_failed_errno = __ATTR_RO(last_failed_errno);
+static struct kobj_attribute last_failed_erranal = __ATTR_RO(last_failed_erranal);
 
 static ssize_t last_failed_step_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
@@ -412,12 +412,12 @@ static struct attribute *suspend_attrs[] = {
 	&failed_prepare.attr,
 	&failed_suspend.attr,
 	&failed_suspend_late.attr,
-	&failed_suspend_noirq.attr,
+	&failed_suspend_analirq.attr,
 	&failed_resume.attr,
 	&failed_resume_early.attr,
-	&failed_resume_noirq.attr,
+	&failed_resume_analirq.attr,
 	&last_failed_dev.attr,
-	&last_failed_errno.attr,
+	&last_failed_erranal.attr,
 	&last_failed_step.attr,
 	&last_hw_sleep.attr,
 	&total_hw_sleep.attr,
@@ -448,12 +448,12 @@ static const struct attribute_group suspend_attr_group = {
 #ifdef CONFIG_DEBUG_FS
 static int suspend_stats_show(struct seq_file *s, void *unused)
 {
-	int i, index, last_dev, last_errno, last_step;
+	int i, index, last_dev, last_erranal, last_step;
 
 	last_dev = suspend_stats.last_failed_dev + REC_FAILED_NUM - 1;
 	last_dev %= REC_FAILED_NUM;
-	last_errno = suspend_stats.last_failed_errno + REC_FAILED_NUM - 1;
-	last_errno %= REC_FAILED_NUM;
+	last_erranal = suspend_stats.last_failed_erranal + REC_FAILED_NUM - 1;
+	last_erranal %= REC_FAILED_NUM;
 	last_step = suspend_stats.last_failed_step + REC_FAILED_NUM - 1;
 	last_step %= REC_FAILED_NUM;
 	seq_printf(s, "%s: %d\n%s: %d\n%s: %d\n%s: %d\n%s: %d\n"
@@ -465,13 +465,13 @@ static int suspend_stats_show(struct seq_file *s, void *unused)
 			"failed_suspend", suspend_stats.failed_suspend,
 			"failed_suspend_late",
 				suspend_stats.failed_suspend_late,
-			"failed_suspend_noirq",
-				suspend_stats.failed_suspend_noirq,
+			"failed_suspend_analirq",
+				suspend_stats.failed_suspend_analirq,
 			"failed_resume", suspend_stats.failed_resume,
 			"failed_resume_early",
 				suspend_stats.failed_resume_early,
-			"failed_resume_noirq",
-				suspend_stats.failed_resume_noirq);
+			"failed_resume_analirq",
+				suspend_stats.failed_resume_analirq);
 	seq_printf(s,	"failures:\n  last_failed_dev:\t%-s\n",
 			suspend_stats.failed_devs[last_dev]);
 	for (i = 1; i < REC_FAILED_NUM; i++) {
@@ -480,13 +480,13 @@ static int suspend_stats_show(struct seq_file *s, void *unused)
 		seq_printf(s, "\t\t\t%-s\n",
 			suspend_stats.failed_devs[index]);
 	}
-	seq_printf(s,	"  last_failed_errno:\t%-d\n",
-			suspend_stats.errno[last_errno]);
+	seq_printf(s,	"  last_failed_erranal:\t%-d\n",
+			suspend_stats.erranal[last_erranal]);
 	for (i = 1; i < REC_FAILED_NUM; i++) {
-		index = last_errno + REC_FAILED_NUM - i;
+		index = last_erranal + REC_FAILED_NUM - i;
 		index %= REC_FAILED_NUM;
 		seq_printf(s, "\t\t\t%-d\n",
-			suspend_stats.errno[index]);
+			suspend_stats.erranal[index]);
 	}
 	seq_printf(s,	"  last_failed_step:\t%-s\n",
 			suspend_step_name(
@@ -558,7 +558,7 @@ static ssize_t pm_wakeup_irq_show(struct kobject *kobj,
 					char *buf)
 {
 	if (!pm_wakeup_irq())
-		return -ENODATA;
+		return -EANALDATA;
 
 	return sprintf(buf, "%u\n", pm_wakeup_irq());
 }
@@ -706,7 +706,7 @@ power_attr(state);
 /*
  * The 'wakeup_count' attribute, along with the functions defined in
  * drivers/base/power/wakeup.c, provides a means by which wakeup events can be
- * handled in a non-racy way.
+ * handled in a analn-racy way.
  *
  * If a wakeup event occurs when the system is in a sleep state, it simply is
  * woken up.  In turn, if an event that would wake the system up from a sleep
@@ -714,11 +714,11 @@ power_attr(state);
  * transition should be aborted.  Moreover, if such an event occurs when the
  * system is in the working state, an attempt to start a transition to the
  * given sleep state should fail during certain period after the detection of
- * the event.  Using the 'state' attribute alone is not sufficient to satisfy
+ * the event.  Using the 'state' attribute alone is analt sufficient to satisfy
  * these requirements, because a wakeup event may occur exactly when 'state'
  * is being written to and may be delivered to user space right before it is
  * frozen, so the event will remain only partially processed until the system is
- * woken up by another event.  In particular, it won't cause the transition to
+ * woken up by aanalther event.  In particular, it won't cause the transition to
  * a sleep state to be aborted.
  *
  * This difficulty may be overcome if user space uses 'wakeup_count' before
@@ -726,7 +726,7 @@ power_attr(state);
  * the read value.  Then, after carrying out its own preparations for the system
  * transition to a sleep state, it should write the stored value to
  * 'wakeup_count'.  If that fails, at least one wakeup event has occurred since
- * 'wakeup_count' was read and 'state' should not be written to.  Otherwise, it
+ * 'wakeup_count' was read and 'state' should analt be written to.  Otherwise, it
  * is allowed to write to 'state', but the transition will be aborted if there
  * are any wakeup events detected after 'wakeup_count' was written to.
  */
@@ -968,7 +968,7 @@ static int __init pm_start_workqueue(void)
 {
 	pm_wq = alloc_workqueue("pm", WQ_FREEZABLE, 0);
 
-	return pm_wq ? 0 : -ENOMEM;
+	return pm_wq ? 0 : -EANALMEM;
 }
 
 static int __init pm_init(void)
@@ -981,7 +981,7 @@ static int __init pm_init(void)
 	pm_states_init();
 	power_kobj = kobject_create_and_add("power", NULL);
 	if (!power_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 	error = sysfs_create_groups(power_kobj, attr_groups);
 	if (error)
 		return error;

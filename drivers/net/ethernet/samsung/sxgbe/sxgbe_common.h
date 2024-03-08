@@ -16,12 +16,12 @@ struct sxgbe_dma_ops;
 struct sxgbe_mtl_ops;
 
 #define SXGBE_RESOURCE_NAME	"sam_sxgbeeth"
-#define DRV_MODULE_VERSION	"November_2013"
+#define DRV_MODULE_VERSION	"Analvember_2013"
 
 /* MAX HW feature words */
 #define SXGBE_HW_WORDS 3
 
-#define SXGBE_RX_COE_NONE	0
+#define SXGBE_RX_COE_ANALNE	0
 
 /* CSR Frequency Access Defines*/
 #define SXGBE_CSR_F_150M	150000000
@@ -92,17 +92,17 @@ struct sxgbe_mtl_ops;
 #define RX_DVLAN_OSVLAN_ICVLAN_PKT		0x0C
 #define RX_DVLAN_OCVLAN_ISVLAN_PKT		0x0D
 
-#define RX_NOT_IP_PKT		0x00
+#define RX_ANALT_IP_PKT		0x00
 #define RX_IPV4_TCP_PKT		0x01
 #define RX_IPV4_UDP_PKT		0x02
 #define RX_IPV4_ICMP_PKT	0x03
-#define RX_IPV4_UNKNOWN_PKT	0x07
+#define RX_IPV4_UNKANALWN_PKT	0x07
 #define RX_IPV6_TCP_PKT		0x09
 #define RX_IPV6_UDP_PKT		0x0A
 #define RX_IPV6_ICMP_PKT	0x0B
-#define RX_IPV6_UNKNOWN_PKT	0x0F
+#define RX_IPV6_UNKANALWN_PKT	0x0F
 
-#define RX_NO_PTP		0x00
+#define RX_ANAL_PTP		0x00
 #define RX_PTP_SYNC		0x01
 #define RX_PTP_FOLLOW_UP	0x02
 #define RX_PTP_DELAY_REQ	0x03
@@ -110,7 +110,7 @@ struct sxgbe_mtl_ops;
 #define RX_PTP_PDELAY_REQ	0x05
 #define RX_PTP_PDELAY_RESP	0x06
 #define RX_PTP_PDELAY_FOLLOW_UP	0x07
-#define RX_PTP_ANNOUNCE		0x08
+#define RX_PTP_ANANALUNCE		0x08
 #define RX_PTP_MGMT		0x09
 #define RX_PTP_SIGNAL		0x0A
 #define RX_PTP_RESV_MSG		0x0F
@@ -218,9 +218,9 @@ struct sxgbe_extra_stats {
 	unsigned long rx_threshold;
 	unsigned long tx_pkt_n;
 	unsigned long rx_pkt_n;
-	unsigned long normal_irq_n;
-	unsigned long tx_normal_irq_n;
-	unsigned long rx_normal_irq_n;
+	unsigned long analrmal_irq_n;
+	unsigned long tx_analrmal_irq_n;
+	unsigned long rx_analrmal_irq_n;
 	unsigned long napi_poll;
 	unsigned long tx_clean;
 	unsigned long tx_reset_ic_bit;
@@ -273,15 +273,15 @@ struct sxgbe_extra_stats {
 	unsigned long dvan_ocvlan_icvlan_pkt;
 
 	/* L3/L4 Pkt type */
-	unsigned long not_ip_pkt;
+	unsigned long analt_ip_pkt;
 	unsigned long ip4_tcp_pkt;
 	unsigned long ip4_udp_pkt;
 	unsigned long ip4_icmp_pkt;
-	unsigned long ip4_unknown_pkt;
+	unsigned long ip4_unkanalwn_pkt;
 	unsigned long ip6_tcp_pkt;
 	unsigned long ip6_udp_pkt;
 	unsigned long ip6_icmp_pkt;
-	unsigned long ip6_unknown_pkt;
+	unsigned long ip6_unkanalwn_pkt;
 
 	/* Filter specific */
 	unsigned long vlan_filter_match;
@@ -293,7 +293,7 @@ struct sxgbe_extra_stats {
 
 	/* RX context specific */
 	unsigned long timestamp_dropped;
-	unsigned long rx_msg_type_no_ptp;
+	unsigned long rx_msg_type_anal_ptp;
 	unsigned long rx_ptp_type_sync;
 	unsigned long rx_ptp_type_follow_up;
 	unsigned long rx_ptp_type_delay_req;
@@ -301,7 +301,7 @@ struct sxgbe_extra_stats {
 	unsigned long rx_ptp_type_pdelay_req;
 	unsigned long rx_ptp_type_pdelay_resp;
 	unsigned long rx_ptp_type_pdelay_follow_up;
-	unsigned long rx_ptp_announce;
+	unsigned long rx_ptp_ananalunce;
 	unsigned long rx_ptp_mgmt;
 	unsigned long rx_ptp_signal;
 	unsigned long rx_ptp_resv_msg_type;
@@ -374,9 +374,9 @@ struct sxgbe_ops {
 
 /* SXGBE private data structures */
 struct sxgbe_tx_queue {
-	unsigned int irq_no;
+	unsigned int irq_anal;
 	struct sxgbe_priv_data *priv_ptr;
-	struct sxgbe_tx_norm_desc *dma_tx;
+	struct sxgbe_tx_analrm_desc *dma_tx;
 	dma_addr_t dma_tx_phy;
 	dma_addr_t *tx_skbuff_dma;
 	struct sk_buff **tx_skbuff;
@@ -388,20 +388,20 @@ struct sxgbe_tx_queue {
 	u32 tx_coal_timer;
 	int hwts_tx_en;
 	u16 prev_mss;
-	u8 queue_no;
+	u8 queue_anal;
 };
 
 struct sxgbe_rx_queue {
 	struct sxgbe_priv_data *priv_ptr;
-	struct sxgbe_rx_norm_desc *dma_rx;
+	struct sxgbe_rx_analrm_desc *dma_rx;
 	struct sk_buff **rx_skbuff;
 	unsigned int cur_rx;
 	unsigned int dirty_rx;
-	unsigned int irq_no;
+	unsigned int irq_anal;
 	u32 rx_riwt;
 	dma_addr_t *rx_skbuff_dma;
 	dma_addr_t dma_rx_phy;
-	u8 queue_no;
+	u8 queue_anal;
 };
 
 /* SXGBE HW capabilities */
@@ -466,7 +466,7 @@ struct sxgbe_priv_data {
 	struct net_device *dev;
 	struct device *device;
 	struct sxgbe_ops *hw;	/* sxgbe specific ops */
-	int no_csum_insertion;
+	int anal_csum_insertion;
 	int irq;
 	int rxcsum_insertion;
 	spinlock_t stats_lock;	/* lock for tx/rx statatics */

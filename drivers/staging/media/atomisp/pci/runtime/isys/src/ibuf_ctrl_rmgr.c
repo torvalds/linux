@@ -76,7 +76,7 @@ bool ia_css_isys_ibuf_rmgr_acquire(
 	}
 
 	if (!input_buffer_found) {
-		/* There were no available handles that fulfilled the
+		/* There were anal available handles that fulfilled the
 		 * request. Allocate a new handle with the requested size.
 		 */
 		if ((ibuf_rsrc.num_allocated < MAX_IBUF_HANDLES) &&

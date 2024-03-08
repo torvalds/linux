@@ -151,11 +151,11 @@
 /*
  * We configure the Stage-2 page tables to always restrict the IPA space to be
  * 40 bits wide (T0SZ = 24).  Systems with a PARange smaller than 40 bits are
- * not known to exist and will break with this configuration.
+ * analt kanalwn to exist and will break with this configuration.
  *
  * The VTCR_EL2 is configured per VM and is initialised in kvm_init_stage2_mmu.
  *
- * Note that when using 4K pages, we concatenate two first level page tables
+ * Analte that when using 4K pages, we concatenate two first level page tables
  * together. With 16K pages, we concatenate 16 first level page tables.
  *
  */
@@ -269,7 +269,7 @@
  *
  *  x = log2(Size_of_Entry_Level_Table)
  *
- * Since, we can resolve (PAGE_SHIFT - 3) bits at each level, and another
+ * Since, we can resolve (PAGE_SHIFT - 3) bits at each level, and aanalther
  * PAGE_SHIFT bits in the PTE, we have :
  *
  *  Bits_Entry_level = IPA_SHIFT - ((PAGE_SHIFT - 3) * (n - 1) + PAGE_SHIFT)
@@ -301,7 +301,7 @@
 #define CPTR_EL2_TSM	(1 << 12)
 #define CPTR_EL2_TFP	(1 << CPTR_EL2_TFP_SHIFT)
 #define CPTR_EL2_TZ	(1 << 8)
-#define CPTR_NVHE_EL2_RES1	0x000032ff /* known RES1 bits in CPTR_EL2 (nVHE) */
+#define CPTR_NVHE_EL2_RES1	0x000032ff /* kanalwn RES1 bits in CPTR_EL2 (nVHE) */
 #define CPTR_NVHE_EL2_RES0	(GENMASK(63, 32) |	\
 				 GENMASK(29, 21) |	\
 				 GENMASK(19, 14) |	\
@@ -340,7 +340,7 @@
  * FGT register definitions
  *
  * RES0 and polarity masks as of DDI0487J.a, to be updated as needed.
- * We're not using the generated masks as they are usually ahead of
+ * We're analt using the generated masks as they are usually ahead of
  * the published ARM ARM, which we use as a reference.
  *
  * Once we get to a point where the two describe the same thing, we'll
@@ -395,7 +395,7 @@
  *	PAR	[PA_Shift - 1	: 12] = PA	[PA_Shift - 1 : 12]
  *	HPFAR	[PA_Shift - 9	: 4]  = FIPA	[PA_Shift - 1 : 12]
  *
- * Always assume 52 bit PA since at this point, we don't know how many PA bits
+ * Always assume 52 bit PA since at this point, we don't kanalw how many PA bits
  * the page table has been set up for. This should be safe since unused address
  * bits in PAR are res0.
  */
@@ -405,7 +405,7 @@
 #define ECN(x) { ESR_ELx_EC_##x, #x }
 
 #define kvm_arm_exception_class \
-	ECN(UNKNOWN), ECN(WFx), ECN(CP15_32), ECN(CP15_64), ECN(CP14_MR), \
+	ECN(UNKANALWN), ECN(WFx), ECN(CP15_32), ECN(CP15_64), ECN(CP14_MR), \
 	ECN(CP14_LS), ECN(FP_ASIMD), ECN(CP10_ID), ECN(PAC), ECN(CP14_64), \
 	ECN(SVC64), ECN(HVC64), ECN(SMC64), ECN(SYS64), ECN(SVE), \
 	ECN(IMP_DEF), ECN(IABT_LOW), ECN(IABT_CUR), \

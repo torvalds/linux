@@ -16,7 +16,7 @@ description: |
   specified in the Devicetree Specification.  It is an extension of
   "simple-bus" because the SDMA controller uses this compatible flag to
   determine which peripherals are available to it and the range over which
-  the SDMA can access.  There are no special clocks for the bus, because
+  the SDMA can access.  There are anal special clocks for the bus, because
   the SDMA controller itself has its interrupt and clock assignments.
 
 select:
@@ -28,7 +28,7 @@ select:
     - compatible
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^spba-bus(@[0-9a-f]+)?$"
 
   compatible:

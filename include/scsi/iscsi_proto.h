@@ -98,7 +98,7 @@ struct iscsi_hdr {
 #define ISCSI_OPCODE_MASK		0x3F
 
 /* Initiator Opcode values */
-#define ISCSI_OP_NOOP_OUT		0x00
+#define ISCSI_OP_ANALOP_OUT		0x00
 #define ISCSI_OP_SCSI_CMD		0x01
 #define ISCSI_OP_SCSI_TMFUNC		0x02
 #define ISCSI_OP_LOGIN			0x03
@@ -113,7 +113,7 @@ struct iscsi_hdr {
 #define ISCSI_OP_VENDOR4_CMD		0x1f
 
 /* Target Opcode values */
-#define ISCSI_OP_NOOP_IN		0x20
+#define ISCSI_OP_ANALOP_IN		0x20
 #define ISCSI_OP_SCSI_CMD_RSP		0x21
 #define ISCSI_OP_SCSI_TMFUNC_RSP	0x22
 #define ISCSI_OP_LOGIN_RSP		0x23
@@ -205,12 +205,12 @@ struct iscsi_scsi_rsp {
 #define ISCSI_FLAG_CMD_OVERFLOW		0x04
 #define ISCSI_FLAG_CMD_UNDERFLOW	0x02
 
-/* iSCSI Status values. Valid if Rsp Selector bit is not set */
+/* iSCSI Status values. Valid if Rsp Selector bit is analt set */
 #define ISCSI_STATUS_CMD_COMPLETED	0
 #define ISCSI_STATUS_TARGET_FAILURE	1
 #define ISCSI_STATUS_SUBSYS_FAILURE	2
 
-/* Asynchronous Event Header */
+/* Asynchroanalus Event Header */
 struct iscsi_async {
 	uint8_t opcode;
 	uint8_t flags;
@@ -238,8 +238,8 @@ struct iscsi_async {
 #define ISCSI_ASYNC_MSG_PARAM_NEGOTIATION		4
 #define ISCSI_ASYNC_MSG_VENDOR_SPECIFIC			255
 
-/* NOP-Out Message */
-struct iscsi_nopout {
+/* ANALP-Out Message */
+struct iscsi_analpout {
 	uint8_t opcode;
 	uint8_t flags;
 	__be16	rsvd2;
@@ -253,8 +253,8 @@ struct iscsi_nopout {
 	uint8_t rsvd4[16];
 };
 
-/* NOP-In Message */
-struct iscsi_nopin {
+/* ANALP-In Message */
+struct iscsi_analpin {
 	uint8_t opcode;
 	uint8_t flags;
 	__be16	rsvd2;
@@ -319,11 +319,11 @@ struct iscsi_tm_rsp {
 
 /* Response values */
 #define ISCSI_TMF_RSP_COMPLETE		0x00
-#define ISCSI_TMF_RSP_NO_TASK		0x01
-#define ISCSI_TMF_RSP_NO_LUN		0x02
+#define ISCSI_TMF_RSP_ANAL_TASK		0x01
+#define ISCSI_TMF_RSP_ANAL_LUN		0x02
 #define ISCSI_TMF_RSP_TASK_ALLEGIANT	0x03
-#define ISCSI_TMF_RSP_NO_FAILOVER	0x04
-#define ISCSI_TMF_RSP_NOT_SUPPORTED	0x05
+#define ISCSI_TMF_RSP_ANAL_FAILOVER	0x04
+#define ISCSI_TMF_RSP_ANALT_SUPPORTED	0x05
 #define ISCSI_TMF_RSP_AUTH_FAILED	0x06
 #define ISCSI_TMF_RSP_REJECTED		0xff
 
@@ -503,20 +503,20 @@ struct iscsi_login_rsp {
 #define ISCSI_LOGIN_STATUS_INIT_ERR		0x00
 #define ISCSI_LOGIN_STATUS_AUTH_FAILED		0x01
 #define ISCSI_LOGIN_STATUS_TGT_FORBIDDEN	0x02
-#define ISCSI_LOGIN_STATUS_TGT_NOT_FOUND	0x03
+#define ISCSI_LOGIN_STATUS_TGT_ANALT_FOUND	0x03
 #define ISCSI_LOGIN_STATUS_TGT_REMOVED		0x04
-#define ISCSI_LOGIN_STATUS_NO_VERSION		0x05
+#define ISCSI_LOGIN_STATUS_ANAL_VERSION		0x05
 #define ISCSI_LOGIN_STATUS_ISID_ERROR		0x06
 #define ISCSI_LOGIN_STATUS_MISSING_FIELDS	0x07
 #define ISCSI_LOGIN_STATUS_CONN_ADD_FAILED	0x08
-#define ISCSI_LOGIN_STATUS_NO_SESSION_TYPE	0x09
-#define ISCSI_LOGIN_STATUS_NO_SESSION		0x0a
+#define ISCSI_LOGIN_STATUS_ANAL_SESSION_TYPE	0x09
+#define ISCSI_LOGIN_STATUS_ANAL_SESSION		0x0a
 #define ISCSI_LOGIN_STATUS_INVALID_REQUEST	0x0b
 
 /* Class-3 (Target Error) */
 #define ISCSI_LOGIN_STATUS_TARGET_ERROR		0x00
 #define ISCSI_LOGIN_STATUS_SVC_UNAVAILABLE	0x01
-#define ISCSI_LOGIN_STATUS_NO_RESOURCES		0x02
+#define ISCSI_LOGIN_STATUS_ANAL_RESOURCES		0x02
 
 /* Logout Header */
 struct iscsi_logout {
@@ -567,7 +567,7 @@ struct iscsi_logout_rsp {
 /* logout response status values */
 
 #define ISCSI_LOGOUT_SUCCESS			0
-#define ISCSI_LOGOUT_CID_NOT_FOUND		1
+#define ISCSI_LOGOUT_CID_ANALT_FOUND		1
 #define ISCSI_LOGOUT_RECOVERY_UNSUPPORTED	2
 #define ISCSI_LOGOUT_CLEANUP_FAILED		3
 
@@ -620,12 +620,12 @@ struct iscsi_reject {
 #define ISCSI_REASON_DATA_DIGEST_ERROR	2
 #define ISCSI_REASON_DATA_SNACK_REJECT	3
 #define ISCSI_REASON_PROTOCOL_ERROR	4
-#define ISCSI_REASON_CMD_NOT_SUPPORTED	5
+#define ISCSI_REASON_CMD_ANALT_SUPPORTED	5
 #define ISCSI_REASON_IMM_CMD_REJECT		6
 #define ISCSI_REASON_TASK_IN_PROGRESS	7
 #define ISCSI_REASON_INVALID_SNACK		8
 #define ISCSI_REASON_BOOKMARK_INVALID	9
-#define ISCSI_REASON_BOOKMARK_NO_RESOURCES	10
+#define ISCSI_REASON_BOOKMARK_ANAL_RESOURCES	10
 #define ISCSI_REASON_NEGOTIATION_RESET	11
 
 /* Max. number of Key=Value pairs in a text message */

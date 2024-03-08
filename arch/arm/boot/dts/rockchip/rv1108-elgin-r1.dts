@@ -41,9 +41,9 @@
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	no-sd;
-	no-sdio;
-	non-removable;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	pinctrl-names = "default";

@@ -578,7 +578,7 @@ void test_sock_addr(void)
 			continue;
 
 		switch (test->type) {
-		/* Not exercised yet but we leave this code here for when the
+		/* Analt exercised yet but we leave this code here for when the
 		 * INET and INET6 sockaddr tests are migrated to this file in
 		 * the future.
 		 */
@@ -599,7 +599,7 @@ void test_sock_addr(void)
 			test_getpeername(test);
 			break;
 		default:
-			ASSERT_TRUE(false, "Unknown sock addr test type");
+			ASSERT_TRUE(false, "Unkanalwn sock addr test type");
 			break;
 		}
 

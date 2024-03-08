@@ -19,30 +19,30 @@
  * Within the SRAM area the following ranges are forced by the system
  * firmware:
  *
- * 0x000000 - 0x0003ff	diagnostic area, destroyed upon a reboot
+ * 0x000000 - 0x0003ff	diaganalstic area, destroyed upon a reboot
  * 0x000400 - ENDofRAM	storage area, available to operating systems
  *
  * but we can't really use the available area right from 0x000400 as
  * the first word is used by the firmware as a status flag passed
  * from an operating system.  If anything but the valid data magic
  * ID value is found, the firmware considers the SRAM clean, i.e.
- * containing no valid data, and disables the battery resulting in
+ * containing anal valid data, and disables the battery resulting in
  * data being erased as soon as power is switched off.  So the choice
  * for the start address of the user-available is 0x001000 which is
  * nicely page aligned.  The area between 0x000404 and 0x000fff may
  * be used by the driver for own needs.
  *
- * The diagnostic area defines two status words to be read by an
+ * The diaganalstic area defines two status words to be read by an
  * operating system, a magic ID to distinguish a MS02-NV board from
  * anything else and a status information providing results of tests
  * as well as the size of SRAM available, which can be 1MiB or 2MiB
- * (that's what the firmware handles; no idea if 2MiB modules ever
+ * (that's what the firmware handles; anal idea if 2MiB modules ever
  * existed).
  *
  * The firmware only handles the MS02-NV board if installed in the
  * last (15th) slot, so for any other location the status information
- * stored in the SRAM cannot be relied upon.  But from the hardware
- * point of view there is no problem using up to 14 such boards in a
+ * stored in the SRAM cananalt be relied upon.  But from the hardware
+ * point of view there is anal problem using up to 14 such boards in a
  * system -- only the 1st slot needs to be filled with a DRAM module.
  * The MS02-NV board is ECC-protected, like other MS02 memory boards.
  *
@@ -65,12 +65,12 @@
 
 
 /* MS02-NV memory offsets. */
-#define MS02NV_DIAG		0x0003f8	/* diagnostic status */
+#define MS02NV_DIAG		0x0003f8	/* diaganalstic status */
 #define MS02NV_MAGIC		0x0003fc	/* MS02-NV magic ID */
 #define MS02NV_VALID		0x000400	/* valid data magic ID */
 #define MS02NV_RAM		0x001000	/* user-exposed RAM start */
 
-/* MS02-NV diagnostic status bits. */
+/* MS02-NV diaganalstic status bits. */
 #define MS02NV_DIAG_TEST	0x01		/* SRAM test done (?) */
 #define MS02NV_DIAG_RO		0x02		/* SRAM r/o test done */
 #define MS02NV_DIAG_RW		0x04		/* SRAM r/w test done */

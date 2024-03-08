@@ -22,7 +22,7 @@
 
 #define	TMP102_TEMP_REG			0x00
 #define	TMP102_CONF_REG			0x01
-/* note: these bit definitions are byte swapped */
+/* analte: these bit definitions are byte swapped */
 #define		TMP102_CONF_SD		0x0100
 #define		TMP102_CONF_TM		0x0200
 #define		TMP102_CONF_POL		0x0400
@@ -80,7 +80,7 @@ static int tmp102_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp_input:
 		/* Is it too early to return a conversion ? */
 		if (time_before(jiffies, tmp102->ready_time)) {
-			dev_dbg(dev, "%s: Conversion not ready yet..\n", __func__);
+			dev_dbg(dev, "%s: Conversion analt ready yet..\n", __func__);
 			return -EAGAIN;
 		}
 		reg = TMP102_TEMP_REG;
@@ -92,7 +92,7 @@ static int tmp102_read(struct device *dev, enum hwmon_sensor_types type,
 		reg = TMP102_THIGH_REG;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = regmap_read(tmp102->regmap, reg, &regval);
@@ -117,7 +117,7 @@ static int tmp102_write(struct device *dev, enum hwmon_sensor_types type,
 		reg = TMP102_THIGH_REG;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	temp = clamp_val(temp, -256000, 255000);
@@ -201,12 +201,12 @@ static int tmp102_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_WORD_DATA)) {
 		dev_err(dev,
 			"adapter doesn't support SMBus word transactions\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	tmp102 = devm_kzalloc(dev, sizeof(*tmp102), GFP_KERNEL);
 	if (!tmp102)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, tmp102);
 
@@ -223,7 +223,7 @@ static int tmp102_probe(struct i2c_client *client)
 	if ((regval & ~TMP102_CONFREG_MASK) !=
 	    (TMP102_CONF_R0 | TMP102_CONF_R1)) {
 		dev_err(dev, "unexpected config register value\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	tmp102->config_orig = regval;
@@ -242,7 +242,7 @@ static int tmp102_probe(struct i2c_client *client)
 	}
 
 	/*
-	 * Mark that we are not ready with data until the first
+	 * Mark that we are analt ready with data until the first
 	 * conversion is complete
 	 */
 	tmp102->ready_time = jiffies + msecs_to_jiffies(CONVERSION_TIME_MS);

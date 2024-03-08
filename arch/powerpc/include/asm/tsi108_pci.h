@@ -22,8 +22,8 @@
 #define TSI108_PCI_PFAB_PFM3 (TSI108_PCI_OFFSET + 0x220)
 #define TSI108_PCI_PFAB_PFM4 (TSI108_PCI_OFFSET + 0x230)
 
-extern int tsi108_setup_pci(struct device_node *dev, u32 cfg_phys, int primary);
-extern void tsi108_pci_int_init(struct device_node *node);
+extern int tsi108_setup_pci(struct device_analde *dev, u32 cfg_phys, int primary);
+extern void tsi108_pci_int_init(struct device_analde *analde);
 extern void tsi108_irq_cascade(struct irq_desc *desc);
 extern void tsi108_clear_pci_cfg_error(void);
 

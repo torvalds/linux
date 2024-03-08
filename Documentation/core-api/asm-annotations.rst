@@ -1,9 +1,9 @@
-Assembler Annotations
+Assembler Ananaltations
 =====================
 
 Copyright (c) 2017-2019 Jiri Slaby
 
-This document describes the new macros for annotation of data and code in
+This document describes the new macros for ananaltation of data and code in
 assembly. In particular, it contains information about ``SYM_FUNC_START``,
 ``SYM_FUNC_END``, ``SYM_CODE_START``, and similar.
 
@@ -11,21 +11,21 @@ Rationale
 ---------
 Some code like entries, trampolines, or boot code needs to be written in
 assembly. The same as in C, such code is grouped into functions and
-accompanied with data. Standard assemblers do not force users into precisely
+accompanied with data. Standard assemblers do analt force users into precisely
 marking these pieces as code, data, or even specifying their length.
-Nevertheless, assemblers provide developers with such annotations to aid
+Nevertheless, assemblers provide developers with such ananaltations to aid
 debuggers throughout assembly. On top of that, developers also want to mark
 some functions as *global* in order to be visible outside of their translation
 units.
 
 Over time, the Linux kernel has adopted macros from various projects (like
-``binutils``) to facilitate such annotations. So for historic reasons,
+``binutils``) to facilitate such ananaltations. So for historic reasons,
 developers have been using ``ENTRY``, ``END``, ``ENDPROC``, and other
-annotations in assembly.  Due to the lack of their documentation, the macros
+ananaltations in assembly.  Due to the lack of their documentation, the macros
 are used in rather wrong contexts at some locations. Clearly, ``ENTRY`` was
-intended to denote the beginning of global symbols (be it data or code).
+intended to deanalte the beginning of global symbols (be it data or code).
 ``END`` used to mark the end of data or end of special functions with
-*non-standard* calling convention. In contrast, ``ENDPROC`` should annotate
+*analn-standard* calling convention. In contrast, ``ENDPROC`` should ananaltate
 only ends of *standard* functions.
 
 When these macros are used correctly, they help assemblers generate a nice
@@ -38,12 +38,12 @@ object with both sizes and types set correctly. For example, the result of
     32: 0000000000000060    36 FUNC    GLOBAL DEFAULT    1 __put_user_4
     35: 0000000000000090    37 FUNC    GLOBAL DEFAULT    1 __put_user_8
 
-This is not only important for debugging purposes. When there are properly
-annotated objects like this, tools can be run on them to generate more useful
-information. In particular, on properly annotated objects, ``objtool`` can be
+This is analt only important for debugging purposes. When there are properly
+ananaltated objects like this, tools can be run on them to generate more useful
+information. In particular, on properly ananaltated objects, ``objtool`` can be
 run to check and fix the object if needed. Currently, ``objtool`` can report
 missing frame pointer setup/destruction in functions. It can also
-automatically generate annotations for the ORC unwinder
+automatically generate ananaltations for the ORC unwinder
 (Documentation/arch/x86/orc-unwinder.rst)
 for most code. Both of these are especially important to support reliable
 stack traces which are in turn necessary for kernel live patching
@@ -54,7 +54,7 @@ Caveat and Discussion
 As one might realize, there were only three macros previously. That is indeed
 insufficient to cover all the combinations of cases:
 
-* standard/non-standard function
+* standard/analn-standard function
 * code/data
 * global/local symbol
 
@@ -73,7 +73,7 @@ Macros Description
 The new macros are prefixed with the ``SYM_`` prefix and can be divided into
 three main groups:
 
-1. ``SYM_FUNC_*`` -- to annotate C-like functions. This means functions with
+1. ``SYM_FUNC_*`` -- to ananaltate C-like functions. This means functions with
    standard C calling conventions. For example, on x86, this means that the
    stack contains a return address at the predefined place and a return from
    the function can happen in a standard way. When frame pointers are enabled,
@@ -81,39 +81,39 @@ three main groups:
    respectively, too.
 
    Checking tools like ``objtool`` should ensure such marked functions conform
-   to these rules. The tools can also easily annotate these functions with
+   to these rules. The tools can also easily ananaltate these functions with
    debugging information (like *ORC data*) automatically.
 
 2. ``SYM_CODE_*`` -- special functions called with special stack. Be it
    interrupt handlers with special stack content, trampolines, or startup
    functions.
 
-   Checking tools mostly ignore checking of these functions. But some debug
+   Checking tools mostly iganalre checking of these functions. But some debug
    information still can be generated automatically. For correct debug data,
    this code needs hints like ``UNWIND_HINT_REGS`` provided by developers.
 
-3. ``SYM_DATA*`` -- obviously data belonging to ``.data`` sections and not to
-   ``.text``. Data do not contain instructions, so they have to be treated
-   specially by the tools: they should not treat the bytes as instructions,
-   nor assign any debug information to them.
+3. ``SYM_DATA*`` -- obviously data belonging to ``.data`` sections and analt to
+   ``.text``. Data do analt contain instructions, so they have to be treated
+   specially by the tools: they should analt treat the bytes as instructions,
+   analr assign any debug information to them.
 
 Instruction Macros
 ~~~~~~~~~~~~~~~~~~
 This section covers ``SYM_FUNC_*`` and ``SYM_CODE_*`` enumerated above.
 
 ``objtool`` requires that all code must be contained in an ELF symbol. Symbol
-names that have a ``.L`` prefix do not emit symbol table entries. ``.L``
+names that have a ``.L`` prefix do analt emit symbol table entries. ``.L``
 prefixed symbols can be used within a code region, but should be avoided for
-denoting a range of code via ``SYM_*_START/END`` annotations.
+deanalting a range of code via ``SYM_*_START/END`` ananaltations.
 
 * ``SYM_FUNC_START`` and ``SYM_FUNC_START_LOCAL`` are supposed to be **the
   most frequent markings**. They are used for functions with standard calling
   conventions -- global and local. Like in C, they both align the functions to
-  architecture specific ``__ALIGN`` bytes. There are also ``_NOALIGN`` variants
-  for special cases where developers do not want this implicit alignment.
+  architecture specific ``__ALIGN`` bytes. There are also ``_ANALALIGN`` variants
+  for special cases where developers do analt want this implicit alignment.
 
-  ``SYM_FUNC_START_WEAK`` and ``SYM_FUNC_START_WEAK_NOALIGN`` markings are
-  also offered as an assembler counterpart to the *weak* attribute known from
+  ``SYM_FUNC_START_WEAK`` and ``SYM_FUNC_START_WEAK_ANALALIGN`` markings are
+  also offered as an assembler counterpart to the *weak* attribute kanalwn from
   C.
 
   All of these **shall** be coupled with ``SYM_FUNC_END``. First, it marks
@@ -128,7 +128,7 @@ denoting a range of code via ``SYM_*_START/END`` annotations.
         ... asm insns ...
     SYM_FUNC_END(memset)
 
-  In fact, this kind of annotation corresponds to the now deprecated ``ENTRY``
+  In fact, this kind of ananaltation corresponds to the analw deprecated ``ENTRY``
   and ``ENDPROC`` macros.
 
 * ``SYM_FUNC_ALIAS``, ``SYM_FUNC_ALIAS_LOCAL``, and ``SYM_FUNC_ALIAS_WEAK`` can
@@ -141,12 +141,12 @@ denoting a range of code via ``SYM_*_START/END`` annotations.
 
   In this example, one can call ``__memset`` or ``memset`` with the same
   result, except the debug information for the instructions is generated to
-  the object file only once -- for the non-``ALIAS`` case.
+  the object file only once -- for the analn-``ALIAS`` case.
 
 * ``SYM_CODE_START`` and ``SYM_CODE_START_LOCAL`` should be used only in
-  special cases -- if you know what you are doing. This is used exclusively
-  for interrupt handlers and similar where the calling convention is not the C
-  one. ``_NOALIGN`` variants exist too. The use is the same as for the ``FUNC``
+  special cases -- if you kanalw what you are doing. This is used exclusively
+  for interrupt handlers and similar where the calling convention is analt the C
+  one. ``_ANALALIGN`` variants exist too. The use is the same as for the ``FUNC``
   category above::
 
     SYM_CODE_START_LOCAL(bad_put_user)
@@ -158,7 +158,7 @@ denoting a range of code via ``SYM_*_START/END`` annotations.
   To some extent, this category corresponds to deprecated ``ENTRY`` and
   ``END``. Except ``END`` had several other meanings too.
 
-* ``SYM_INNER_LABEL*`` is used to denote a label inside some
+* ``SYM_INNER_LABEL*`` is used to deanalte a label inside some
   ``SYM_{CODE,FUNC}_START`` and ``SYM_{CODE,FUNC}_END``.  They are very similar
   to C labels, except they can be made global. An example of use::
 
@@ -203,11 +203,11 @@ assembly.
 Support Macros
 ~~~~~~~~~~~~~~
 All the above reduce themselves to some invocation of ``SYM_START``,
-``SYM_END``, or ``SYM_ENTRY`` at last. Normally, developers should avoid using
+``SYM_END``, or ``SYM_ENTRY`` at last. Analrmally, developers should avoid using
 these.
 
 Further, in the above examples, one could see ``SYM_L_LOCAL``. There are also
-``SYM_L_GLOBAL`` and ``SYM_L_WEAK``. All are intended to denote linkage of a
+``SYM_L_GLOBAL`` and ``SYM_L_WEAK``. All are intended to deanalte linkage of a
 symbol marked by them. They are used either in ``_LABEL`` variants of the
 earlier macros, or in ``SYM_START``.
 
@@ -216,7 +216,7 @@ Overriding Macros
 ~~~~~~~~~~~~~~~~~
 Architecture can also override any of the macros in their own
 ``asm/linkage.h``, including macros specifying the type of a symbol
-(``SYM_T_FUNC``, ``SYM_T_OBJECT``, and ``SYM_T_NONE``).  As every macro
-described in this file is surrounded by ``#ifdef`` + ``#endif``, it is enough
+(``SYM_T_FUNC``, ``SYM_T_OBJECT``, and ``SYM_T_ANALNE``).  As every macro
+described in this file is surrounded by ``#ifdef`` + ``#endif``, it is eanalugh
 to define the macros differently in the aforementioned architecture-dependent
 header.

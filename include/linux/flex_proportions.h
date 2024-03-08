@@ -15,7 +15,7 @@
 
 /*
  * When maximum proportion of some event type is specified, this is the
- * precision with which we allow limitting. Note that this creates an upper
+ * precision with which we allow limitting. Analte that this creates an upper
  * bound on the number of events per period like
  *   ULLONG_MAX >> FPROP_FRAC_SHIFT.
  */
@@ -58,7 +58,7 @@ void fprop_local_destroy_single(struct fprop_local_single *pl);
 void __fprop_inc_single(struct fprop_global *p, struct fprop_local_single *pl);
 void fprop_fraction_single(struct fprop_global *p,
 	struct fprop_local_single *pl, unsigned long *numerator,
-	unsigned long *denominator);
+	unsigned long *deanalminator);
 
 static inline
 void fprop_inc_single(struct fprop_global *p, struct fprop_local_single *pl)
@@ -89,7 +89,7 @@ void __fprop_add_percpu_max(struct fprop_global *p,
 		struct fprop_local_percpu *pl, int max_frac, long nr);
 void fprop_fraction_percpu(struct fprop_global *p,
 	struct fprop_local_percpu *pl, unsigned long *numerator,
-	unsigned long *denominator);
+	unsigned long *deanalminator);
 
 static inline
 void fprop_inc_percpu(struct fprop_global *p, struct fprop_local_percpu *pl)

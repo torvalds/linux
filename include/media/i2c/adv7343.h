@@ -23,7 +23,7 @@
  * @dac: array to configure power on/off DAC's 1..6
  *
  * Power mode register (Register 0x0), for more info refer REGISTER MAP ACCESS
- * section of datasheet[1], table 17 page no 30.
+ * section of datasheet[1], table 17 page anal 30.
  *
  * [1] http://www.analog.com/static/imported-files/data_sheets/ADV7342_7343.pdf
  */

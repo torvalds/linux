@@ -86,15 +86,15 @@ struct mei_os_ver {
 	__le16 reserved1;
 	u8  os_type;
 	u8  major;
-	u8  minor;
+	u8  mianalr;
 	u8  reserved2;
 } __packed;
 
 struct mkhi_fw_ver_block {
-	u16 minor;
+	u16 mianalr;
 	u8 major;
 	u8 platform;
-	u16 buildno;
+	u16 buildanal;
 	u16 hotfix;
 } __packed;
 
@@ -151,7 +151,7 @@ static int mei_fwver(struct mei_cl_device *cldev)
 	ret = __mei_cl_send(cldev->cl, (u8 *)&req, sizeof(req), 0,
 			    MEI_CL_IO_TX_BLOCKING);
 	if (ret < 0) {
-		dev_info(&cldev->dev, "Could not send ReqFWVersion cmd ret = %d\n", ret);
+		dev_info(&cldev->dev, "Could analt send ReqFWVersion cmd ret = %d\n", ret);
 		return ret;
 	}
 
@@ -161,9 +161,9 @@ static int mei_fwver(struct mei_cl_device *cldev)
 	if (bytes_recv < 0 || (size_t)bytes_recv < MKHI_FWVER_LEN(1)) {
 		/*
 		 * Should be at least one version block,
-		 * error out if nothing found
+		 * error out if analthing found
 		 */
-		dev_info(&cldev->dev, "Could not read FW version ret = %d\n", bytes_recv);
+		dev_info(&cldev->dev, "Could analt read FW version ret = %d\n", bytes_recv);
 		return -EIO;
 	}
 
@@ -175,14 +175,14 @@ static int mei_fwver(struct mei_cl_device *cldev)
 			break;
 		dev_dbg(&cldev->dev, "FW version%d %d:%d.%d.%d.%d\n",
 			i, fwver->ver[i].platform,
-			fwver->ver[i].major, fwver->ver[i].minor,
-			fwver->ver[i].hotfix, fwver->ver[i].buildno);
+			fwver->ver[i].major, fwver->ver[i].mianalr,
+			fwver->ver[i].hotfix, fwver->ver[i].buildanal);
 
 		cldev->bus->fw_ver[i].platform = fwver->ver[i].platform;
 		cldev->bus->fw_ver[i].major = fwver->ver[i].major;
-		cldev->bus->fw_ver[i].minor = fwver->ver[i].minor;
+		cldev->bus->fw_ver[i].mianalr = fwver->ver[i].mianalr;
 		cldev->bus->fw_ver[i].hotfix = fwver->ver[i].hotfix;
-		cldev->bus->fw_ver[i].buildno = fwver->ver[i].buildno;
+		cldev->bus->fw_ver[i].buildanal = fwver->ver[i].buildanal;
 	}
 	cldev->bus->fw_ver_received = 1;
 
@@ -209,7 +209,7 @@ static void mei_mkhi_fix(struct mei_cl_device *cldev)
 {
 	int ret;
 
-	/* No need to enable the client if nothing is needed from it */
+	/* Anal need to enable the client if analthing is needed from it */
 	if (!cldev->bus->fw_f_fw_ver_supported &&
 	    !cldev->bus->hbm_f_os_supported)
 		return;
@@ -239,8 +239,8 @@ static void mei_gsc_mkhi_ver(struct mei_cl_device *cldev)
 	int ret;
 
 	/*
-	 * No need to enable the client if nothing is needed from it.
-	 * No need to fill in version if it is already filled in by the fix address client.
+	 * Anal need to enable the client if analthing is needed from it.
+	 * Anal need to fill in version if it is already filled in by the fix address client.
 	 */
 	if (!cldev->bus->fw_f_fw_ver_supported || cldev->bus->fw_ver_received)
 		return;
@@ -259,7 +259,7 @@ static void mei_gsc_mkhi_fix_ver(struct mei_cl_device *cldev)
 {
 	int ret;
 
-	/* No need to enable the client if nothing is needed from it */
+	/* Anal need to enable the client if analthing is needed from it */
 	if (!cldev->bus->fw_f_fw_ver_supported &&
 	    cldev->bus->pxp_mode != MEI_DEV_PXP_INIT)
 		return;
@@ -384,7 +384,7 @@ static int mei_nfc_if_version(struct mei_cl *cl,
 	ret = __mei_cl_send(cl, (u8 *)&cmd, sizeof(cmd), 0,
 			    MEI_CL_IO_TX_BLOCKING);
 	if (ret < 0) {
-		dev_err(bus->dev, "Could not send IF version cmd ret = %d\n", ret);
+		dev_err(bus->dev, "Could analt send IF version cmd ret = %d\n", ret);
 		return ret;
 	}
 
@@ -393,13 +393,13 @@ static int mei_nfc_if_version(struct mei_cl *cl,
 
 	reply = kzalloc(if_version_length, GFP_KERNEL);
 	if (!reply)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = 0;
 	bytes_recv = __mei_cl_recv(cl, (u8 *)reply, if_version_length, &vtag,
 				   0, 0);
 	if (bytes_recv < 0 || (size_t)bytes_recv < if_version_length) {
-		dev_err(bus->dev, "Could not read IF version ret = %d\n", bytes_recv);
+		dev_err(bus->dev, "Could analt read IF version ret = %d\n", bytes_recv);
 		ret = -EIO;
 		goto err;
 	}
@@ -467,8 +467,8 @@ static void mei_nfc(struct mei_cl_device *cldev)
 
 	me_cl = mei_me_cl_by_uuid(bus, &mei_nfc_info_guid);
 	if (!me_cl) {
-		ret = -ENOTTY;
-		dev_err(bus->dev, "Cannot find nfc info %d\n", ret);
+		ret = -EANALTTY;
+		dev_err(bus->dev, "Cananalt find nfc info %d\n", ret);
 		goto out;
 	}
 
@@ -488,7 +488,7 @@ static void mei_nfc(struct mei_cl_device *cldev)
 	radio_name = mei_nfc_radio_name(&ver);
 
 	if (!radio_name) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		dev_err(&cldev->dev, "Can't get the NFC interface version ret = %d\n",
 			ret);
 		goto disconnect;

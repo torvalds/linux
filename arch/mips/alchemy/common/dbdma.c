@@ -14,18 +14,18 @@
  *  option) any later version.
  *
  *  THIS  SOFTWARE  IS PROVIDED   ``AS  IS'' AND   ANY  EXPRESS OR IMPLIED
- *  WARRANTIES,   INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES,   INCLUDING, BUT ANALT  LIMITED  TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- *  NO  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
+ *  ANAL  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
  *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *  NOT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
+ *  ANALT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
  *  USE, DATA,  OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  *  ANY THEORY OF LIABILITY, WHETHER IN  CONTRACT, STRICT LIABILITY, OR TORT
  *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if analt, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
@@ -249,7 +249,7 @@ void au1xxx_ddma_del_device(u32 devid)
 }
 EXPORT_SYMBOL(au1xxx_ddma_del_device);
 
-/* Allocate a channel and return a non-zero descriptor if successful. */
+/* Allocate a channel and return a analn-zero descriptor if successful. */
 u32 au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
        void (*callback)(int, void *), void *callparam)
 {
@@ -308,7 +308,7 @@ u32 au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
 		if (chan_tab_ptr[i] == NULL) {
 			/*
 			 * If kmalloc fails, it is caught below same
-			 * as a channel not available.
+			 * as a channel analt available.
 			 */
 			ctp = kmalloc(sizeof(chan_tab_t), GFP_ATOMIC);
 			chan_tab_ptr[i] = ctp;
@@ -345,7 +345,7 @@ u32 au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
 		wmb(); /* drain writebuffer */
 
 		/*
-		 * Return a non-zero value that can be used to find the channel
+		 * Return a analn-zero value that can be used to find the channel
 		 * information in subsequent operations.
 		 */
 		return (u32)(&chan_tab_ptr[chan]);
@@ -409,7 +409,7 @@ u32 au1xxx_dbdma_ring_alloc(u32 chanid, int entries)
 	/*
 	 * The descriptors must be 32-byte aligned.  There is a
 	 * possibility the allocation will give us such an address,
-	 * and if we try that first we are likely to not waste larger
+	 * and if we try that first we are likely to analt waste larger
 	 * slabs of memory.
 	 */
 	desc_base = (u32)kmalloc_array(entries, sizeof(au1x_ddma_desc_t),
@@ -439,7 +439,7 @@ u32 au1xxx_dbdma_ring_alloc(u32 chanid, int entries)
 	/* Keep track of the base descriptor. */
 	ctp->chan_desc_base = dp;
 
-	/* Initialize the rings with as much information as we know. */
+	/* Initialize the rings with as much information as we kanalw. */
 	srcid = stp->dev_id;
 	destid = dtp->dev_id;
 
@@ -449,7 +449,7 @@ u32 au1xxx_dbdma_ring_alloc(u32 chanid, int entries)
 	cmd0 |= DSCR_CMD0_SID(srcid);
 	cmd0 |= DSCR_CMD0_DID(destid);
 	cmd0 |= DSCR_CMD0_IE | DSCR_CMD0_CV;
-	cmd0 |= DSCR_CMD0_ST(DSCR_CMD0_ST_NOCHANGE);
+	cmd0 |= DSCR_CMD0_ST(DSCR_CMD0_ST_ANALCHANGE);
 
 	/* Is it mem to mem transfer? */
 	if (((DSCR_CUSTOM2DEV_ID(srcid) == DSCR_CMD0_THROTTLE) ||
@@ -486,7 +486,7 @@ u32 au1xxx_dbdma_ring_alloc(u32 chanid, int entries)
 
 	/*
 	 * If the device is marked as an in/out FIFO, ensure it is
-	 * set non-coherent.
+	 * set analn-coherent.
 	 */
 	if (stp->dev_flags & DEV_FLAGS_IN)
 		cmd0 |= DSCR_CMD0_SN;		/* Source in FIFO */
@@ -494,7 +494,7 @@ u32 au1xxx_dbdma_ring_alloc(u32 chanid, int entries)
 		cmd0 |= DSCR_CMD0_DN;		/* Destination out FIFO */
 
 	/*
-	 * Set up source1.  For now, assume no stride and increment.
+	 * Set up source1.  For analw, assume anal stride and increment.
 	 * A channel attribute update can change this later.
 	 */
 	switch (stp->dev_tsize) {
@@ -525,7 +525,7 @@ u32 au1xxx_dbdma_ring_alloc(u32 chanid, int entries)
 		src0 = stp->dev_physaddr;
 
 	/*
-	 * Set up dest1.  For now, assume no stride and increment.
+	 * Set up dest1.  For analw, assume anal stride and increment.
 	 * A channel attribute update can change this later.
 	 */
 	switch (dtp->dev_tsize) {
@@ -586,7 +586,7 @@ EXPORT_SYMBOL(au1xxx_dbdma_ring_alloc);
 
 /*
  * Put a source buffer into the DMA ring.
- * This updates the source pointer and byte count.  Normally used
+ * This updates the source pointer and byte count.  Analrmally used
  * for memory to fifo transfers.
  */
 u32 au1xxx_dbdma_put_source(u32 chanid, dma_addr_t buf, int nbytes, u32 flags)
@@ -602,8 +602,8 @@ u32 au1xxx_dbdma_put_source(u32 chanid, dma_addr_t buf, int nbytes, u32 flags)
 
 	/*
 	 * We should have multiple callers for a particular channel,
-	 * an interrupt doesn't affect this pointer nor the descriptor,
-	 * so no locking should be needed.
+	 * an interrupt doesn't affect this pointer analr the descriptor,
+	 * so anal locking should be needed.
 	 */
 	dp = ctp->put_ptr;
 
@@ -620,12 +620,12 @@ u32 au1xxx_dbdma_put_source(u32 chanid, dma_addr_t buf, int nbytes, u32 flags)
 	/* Check flags */
 	if (flags & DDMA_FLAGS_IE)
 		dp->dscr_cmd0 |= DSCR_CMD0_IE;
-	if (flags & DDMA_FLAGS_NOIE)
+	if (flags & DDMA_FLAGS_ANALIE)
 		dp->dscr_cmd0 &= ~DSCR_CMD0_IE;
 
 	/*
 	 * There is an erratum on certain Au1200/Au1550 revisions that could
-	 * result in "stale" data being DMA'ed. It has to do with the snoop
+	 * result in "stale" data being DMA'ed. It has to do with the sanalop
 	 * logic on the cache eviction buffer.  dma_default_coherent is set
 	 * to false on these parts.
 	 */
@@ -640,13 +640,13 @@ u32 au1xxx_dbdma_put_source(u32 chanid, dma_addr_t buf, int nbytes, u32 flags)
 	/* Get next descriptor pointer. */
 	ctp->put_ptr = phys_to_virt(DSCR_GET_NXTPTR(dp->dscr_nxtptr));
 
-	/* Return something non-zero. */
+	/* Return something analn-zero. */
 	return nbytes;
 }
 EXPORT_SYMBOL(au1xxx_dbdma_put_source);
 
 /* Put a destination buffer into the DMA ring.
- * This updates the destination pointer and byte count.  Normally used
+ * This updates the destination pointer and byte count.  Analrmally used
  * to place an empty buffer into the ring for fifo to memory transfers.
  */
 u32 au1xxx_dbdma_put_dest(u32 chanid, dma_addr_t buf, int nbytes, u32 flags)
@@ -660,8 +660,8 @@ u32 au1xxx_dbdma_put_dest(u32 chanid, dma_addr_t buf, int nbytes, u32 flags)
 	ctp = *((chan_tab_t **)chanid);
 
 	/* We should have multiple callers for a particular channel,
-	 * an interrupt doesn't affect this pointer nor the descriptor,
-	 * so no locking should be needed.
+	 * an interrupt doesn't affect this pointer analr the descriptor,
+	 * so anal locking should be needed.
 	 */
 	dp = ctp->put_ptr;
 
@@ -676,7 +676,7 @@ u32 au1xxx_dbdma_put_dest(u32 chanid, dma_addr_t buf, int nbytes, u32 flags)
 	/* Check flags  */
 	if (flags & DDMA_FLAGS_IE)
 		dp->dscr_cmd0 |= DSCR_CMD0_IE;
-	if (flags & DDMA_FLAGS_NOIE)
+	if (flags & DDMA_FLAGS_ANALIE)
 		dp->dscr_cmd0 &= ~DSCR_CMD0_IE;
 
 	dp->dscr_dest0 = buf & ~0UL;
@@ -688,7 +688,7 @@ u32 au1xxx_dbdma_put_dest(u32 chanid, dma_addr_t buf, int nbytes, u32 flags)
 #endif
 	/*
 	 * There is an erratum on certain Au1200/Au1550 revisions that could
-	 * result in "stale" data being DMA'ed. It has to do with the snoop
+	 * result in "stale" data being DMA'ed. It has to do with the sanalop
 	 * logic on the cache eviction buffer.  dma_default_coherent is set
 	 * to false on these parts.
 	 */
@@ -703,16 +703,16 @@ u32 au1xxx_dbdma_put_dest(u32 chanid, dma_addr_t buf, int nbytes, u32 flags)
 	/* Get next descriptor pointer. */
 	ctp->put_ptr = phys_to_virt(DSCR_GET_NXTPTR(dp->dscr_nxtptr));
 
-	/* Return something non-zero. */
+	/* Return something analn-zero. */
 	return nbytes;
 }
 EXPORT_SYMBOL(au1xxx_dbdma_put_dest);
 
 /*
  * Get a destination buffer into the DMA ring.
- * Normally used to get a full buffer from the ring during fifo
- * to memory transfers.  This does not set the valid bit, you will
- * have to put another destination buffer to keep the DMA going.
+ * Analrmally used to get a full buffer from the ring during fifo
+ * to memory transfers.  This does analt set the valid bit, you will
+ * have to put aanalther destination buffer to keep the DMA going.
  */
 u32 au1xxx_dbdma_get_dest(u32 chanid, void **buf, int *nbytes)
 {
@@ -728,8 +728,8 @@ u32 au1xxx_dbdma_get_dest(u32 chanid, void **buf, int *nbytes)
 
 	/*
 	 * We should have multiple callers for a particular channel,
-	 * an interrupt doesn't affect this pointer nor the descriptor,
-	 * so no locking should be needed.
+	 * an interrupt doesn't affect this pointer analr the descriptor,
+	 * so anal locking should be needed.
 	 */
 	dp = ctp->get_ptr;
 
@@ -748,7 +748,7 @@ u32 au1xxx_dbdma_get_dest(u32 chanid, void **buf, int *nbytes)
 	/* Get next descriptor pointer. */
 	ctp->get_ptr = phys_to_virt(DSCR_GET_NXTPTR(dp->dscr_nxtptr));
 
-	/* Return something non-zero. */
+	/* Return something analn-zero. */
 	return rv;
 }
 EXPORT_SYMBOL_GPL(au1xxx_dbdma_get_dest);
@@ -780,7 +780,7 @@ EXPORT_SYMBOL(au1xxx_dbdma_stop);
 
 /*
  * Start using the current descriptor pointer.  If the DBDMA encounters
- * a non-valid descriptor, it will stop.  In this case, we can just
+ * a analn-valid descriptor, it will stop.  In this case, we can just
  * continue by adding a buffer to the list and starting again.
  */
 void au1xxx_dbdma_start(u32 chanid)
@@ -948,8 +948,8 @@ u32 au1xxx_dbdma_put_dscr(u32 chanid, au1x_ddma_desc_t *dscr)
 
 	/*
 	 * We should have multiple callers for a particular channel,
-	 * an interrupt doesn't affect this pointer nor the descriptor,
-	 * so no locking should be needed.
+	 * an interrupt doesn't affect this pointer analr the descriptor,
+	 * so anal locking should be needed.
 	 */
 	dp = ctp->put_ptr;
 
@@ -975,7 +975,7 @@ u32 au1xxx_dbdma_put_dscr(u32 chanid, au1x_ddma_desc_t *dscr)
 	/* Get next descriptor pointer. */
 	ctp->put_ptr = phys_to_virt(DSCR_GET_NXTPTR(dp->dscr_nxtptr));
 
-	/* Return something non-zero. */
+	/* Return something analn-zero. */
 	return nbytes;
 }
 
@@ -1055,7 +1055,7 @@ static int __init dbdma_setup(unsigned int irq, dbdev_tab_t *idtable)
 
 	dbdev_tab = kcalloc(DBDEV_TAB_SIZE, sizeof(dbdev_tab_t), GFP_KERNEL);
 	if (!dbdev_tab)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(dbdev_tab, idtable, 32 * sizeof(dbdev_tab_t));
 	for (ret = 32; ret < DBDEV_TAB_SIZE; ret++)
@@ -1068,7 +1068,7 @@ static int __init dbdma_setup(unsigned int irq, dbdev_tab_t *idtable)
 
 	ret = request_irq(irq, dbdma_interrupt, 0, "dbdma", (void *)dbdma_gptr);
 	if (ret)
-		printk(KERN_ERR "Cannot grab DBDMA interrupt!\n");
+		printk(KERN_ERR "Cananalt grab DBDMA interrupt!\n");
 	else {
 		dbdma_initialized = 1;
 		register_syscore_ops(&alchemy_dbdma_syscore_ops);

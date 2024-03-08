@@ -19,7 +19,7 @@
 
 struct host1x;
 
-/* Reserved for replacing an expired wait with a NOP */
+/* Reserved for replacing an expired wait with a ANALP */
 #define HOST1X_SYNCPT_RESERVED			0
 
 struct host1x_syncpt_base {
@@ -44,7 +44,7 @@ struct host1x_syncpt {
 
 	/*
 	 * If a submission incrementing this syncpoint fails, lock it so that
-	 * further submission cannot be made until application has handled the
+	 * further submission cananalt be made until application has handled the
 	 * failure.
 	 */
 	bool locked;
@@ -69,7 +69,7 @@ unsigned int host1x_syncpt_nb_mlocks(struct host1x *host);
  * Check sync point sanity. If max is larger than min, there have too many
  * sync point increments.
  *
- * Client managed sync point are not tracked.
+ * Client managed sync point are analt tracked.
  * */
 static inline bool host1x_syncpt_check_max(struct host1x_syncpt *sp, u32 real)
 {
@@ -87,7 +87,7 @@ static inline bool host1x_syncpt_client_managed(struct host1x_syncpt *sp)
 }
 
 /*
- * Returns true if syncpoint min == max, which means that there are no
+ * Returns true if syncpoint min == max, which means that there are anal
  * outstanding operations.
  */
 static inline bool host1x_syncpt_idle(struct host1x_syncpt *sp)

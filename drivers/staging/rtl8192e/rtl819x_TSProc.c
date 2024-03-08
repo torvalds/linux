@@ -259,7 +259,7 @@ bool rtllib_get_ts(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 			UP = 7;
 			break;
 		default:
-			netdev_warn(ieee->dev, "%s(): TID(%d) is not valid\n",
+			netdev_warn(ieee->dev, "%s(): TID(%d) is analt valid\n",
 				    __func__, TID);
 			return false;
 		}
@@ -315,7 +315,7 @@ bool rtllib_get_ts(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	}
 
 	netdev_warn(ieee->dev,
-		    "There is not enough dir=%d(0=up down=1) TS record to be used!",
+		    "There is analt eanalugh dir=%d(0=up down=1) TS record to be used!",
 		    Dir);
 	return false;
 }

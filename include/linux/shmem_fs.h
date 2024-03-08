@@ -11,13 +11,13 @@
 #include <linux/fs_parser.h>
 #include <linux/userfaultfd_k.h>
 
-/* inode in-kernel data */
+/* ianalde in-kernel data */
 
 #ifdef CONFIG_TMPFS_QUOTA
 #define SHMEM_MAXQUOTAS 2
 #endif
 
-struct shmem_inode_info {
+struct shmem_ianalde_info {
 	spinlock_t		lock;
 	unsigned int		seals;		/* shmem seals */
 	unsigned long		flags;
@@ -26,7 +26,7 @@ struct shmem_inode_info {
 	union {
 	    struct offset_ctx	dir_offsets;	/* stable directory offsets */
 	    struct {
-		struct list_head shrinklist;	/* shrinkable hpage inodes */
+		struct list_head shrinklist;	/* shrinkable hpage ianaldes */
 		struct list_head swaplist;	/* chain of maybes on swap */
 	    };
 	};
@@ -35,49 +35,49 @@ struct shmem_inode_info {
 	struct simple_xattrs	xattrs;		/* list of xattrs */
 	pgoff_t			fallocend;	/* highest fallocate endindex */
 	unsigned int		fsflags;	/* for FS_IOC_[SG]ETFLAGS */
-	atomic_t		stop_eviction;	/* hold when working on inode */
+	atomic_t		stop_eviction;	/* hold when working on ianalde */
 #ifdef CONFIG_TMPFS_QUOTA
 	struct dquot		*i_dquot[MAXQUOTAS];
 #endif
-	struct inode		vfs_inode;
+	struct ianalde		vfs_ianalde;
 };
 
 #define SHMEM_FL_USER_VISIBLE		FS_FL_USER_VISIBLE
 #define SHMEM_FL_USER_MODIFIABLE \
-	(FS_IMMUTABLE_FL | FS_APPEND_FL | FS_NODUMP_FL | FS_NOATIME_FL)
-#define SHMEM_FL_INHERITED		(FS_NODUMP_FL | FS_NOATIME_FL)
+	(FS_IMMUTABLE_FL | FS_APPEND_FL | FS_ANALDUMP_FL | FS_ANALATIME_FL)
+#define SHMEM_FL_INHERITED		(FS_ANALDUMP_FL | FS_ANALATIME_FL)
 
 struct shmem_quota_limits {
 	qsize_t usrquota_bhardlimit; /* Default user quota block hard limit */
-	qsize_t usrquota_ihardlimit; /* Default user quota inode hard limit */
+	qsize_t usrquota_ihardlimit; /* Default user quota ianalde hard limit */
 	qsize_t grpquota_bhardlimit; /* Default group quota block hard limit */
-	qsize_t grpquota_ihardlimit; /* Default group quota inode hard limit */
+	qsize_t grpquota_ihardlimit; /* Default group quota ianalde hard limit */
 };
 
 struct shmem_sb_info {
 	unsigned long max_blocks;   /* How many blocks are allowed */
 	struct percpu_counter used_blocks;  /* How many are allocated */
-	unsigned long max_inodes;   /* How many inodes are allowed */
+	unsigned long max_ianaldes;   /* How many ianaldes are allowed */
 	unsigned long free_ispace;  /* How much ispace left for allocation */
 	raw_spinlock_t stat_lock;   /* Serialize shmem_sb_info changes */
 	umode_t mode;		    /* Mount mode for root directory */
 	unsigned char huge;	    /* Whether to try for hugepages */
 	kuid_t uid;		    /* Mount uid for root directory */
 	kgid_t gid;		    /* Mount gid for root directory */
-	bool full_inums;	    /* If i_ino should be uint or ino_t */
-	bool noswap;		    /* ignores VM reclaim / swap requests */
-	ino_t next_ino;		    /* The next per-sb inode number to use */
-	ino_t __percpu *ino_batch;  /* The next per-cpu inode number to use */
+	bool full_inums;	    /* If i_ianal should be uint or ianal_t */
+	bool analswap;		    /* iganalres VM reclaim / swap requests */
+	ianal_t next_ianal;		    /* The next per-sb ianalde number to use */
+	ianal_t __percpu *ianal_batch;  /* The next per-cpu ianalde number to use */
 	struct mempolicy *mpol;     /* default memory policy for mappings */
 	spinlock_t shrinklist_lock;   /* Protects shrinklist */
-	struct list_head shrinklist;  /* List of shinkable inodes */
+	struct list_head shrinklist;  /* List of shinkable ianaldes */
 	unsigned long shrinklist_len; /* Length of shrinklist */
 	struct shmem_quota_limits qlimits; /* Default quota limits */
 };
 
-static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
+static inline struct shmem_ianalde_info *SHMEM_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct shmem_inode_info, vfs_inode);
+	return container_of(ianalde, struct shmem_ianalde_info, vfs_ianalde);
 }
 
 /*
@@ -111,10 +111,10 @@ static inline bool shmem_mapping(struct address_space *mapping)
 extern void shmem_unlock_mapping(struct address_space *mapping);
 extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
 					pgoff_t index, gfp_t gfp_mask);
-extern void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);
+extern void shmem_truncate_range(struct ianalde *ianalde, loff_t start, loff_t end);
 int shmem_unuse(unsigned int type);
 
-extern bool shmem_is_huge(struct inode *inode, pgoff_t index, bool shmem_huge_force,
+extern bool shmem_is_huge(struct ianalde *ianalde, pgoff_t index, bool shmem_huge_force,
 			  struct mm_struct *mm, unsigned long vm_flags);
 #ifdef CONFIG_SHMEM
 extern unsigned long shmem_swap_usage(struct vm_area_struct *vma);
@@ -130,13 +130,13 @@ extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,
 /* Flag allocation requirements to shmem_get_folio */
 enum sgp_type {
 	SGP_READ,	/* don't exceed i_size, don't allocate page */
-	SGP_NOALLOC,	/* similar, but fail on hole or use fallocated page */
+	SGP_ANALALLOC,	/* similar, but fail on hole or use fallocated page */
 	SGP_CACHE,	/* don't exceed i_size, may allocate page */
 	SGP_WRITE,	/* may exceed i_size, may allocate !Uptodate page */
 	SGP_FALLOC,	/* like SGP_WRITE, but make existing page Uptodate */
 };
 
-int shmem_get_folio(struct inode *inode, pgoff_t index, struct folio **foliop,
+int shmem_get_folio(struct ianalde *ianalde, pgoff_t index, struct folio **foliop,
 		enum sgp_type sgp);
 struct folio *shmem_read_folio_gfp(struct address_space *mapping,
 		pgoff_t index, gfp_t gfp);
@@ -165,18 +165,18 @@ static inline bool shmem_file(struct file *file)
 
 /*
  * If fallocate(FALLOC_FL_KEEP_SIZE) has been used, there may be pages
- * beyond i_size's notion of EOF, which fallocate has committed to reserving:
- * which split_huge_page() must therefore not delete.  This use of a single
- * "fallocend" per inode errs on the side of not deleting a reservation when
+ * beyond i_size's analtion of EOF, which fallocate has committed to reserving:
+ * which split_huge_page() must therefore analt delete.  This use of a single
+ * "fallocend" per ianalde errs on the side of analt deleting a reservation when
  * in doubt: there are plenty of cases when it preserves unreserved pages.
  */
-static inline pgoff_t shmem_fallocend(struct inode *inode, pgoff_t eof)
+static inline pgoff_t shmem_fallocend(struct ianalde *ianalde, pgoff_t eof)
 {
-	return max(eof, SHMEM_I(inode)->fallocend);
+	return max(eof, SHMEM_I(ianalde)->fallocend);
 }
 
-extern bool shmem_charge(struct inode *inode, long pages);
-extern void shmem_uncharge(struct inode *inode, long pages);
+extern bool shmem_charge(struct ianalde *ianalde, long pages);
+extern void shmem_uncharge(struct ianalde *ianalde, long pages);
 
 #ifdef CONFIG_USERFAULTFD
 #ifdef CONFIG_SHMEM
@@ -198,7 +198,7 @@ extern int shmem_mfill_atomic_pte(pmd_t *dst_pmd,
  * as a limit
  */
 #define SHMEM_QUOTA_MAX_SPC_LIMIT 0x7fffffffffffffffLL /* 2^63-1 */
-#define SHMEM_QUOTA_MAX_INO_LIMIT 0x7fffffffffffffffLL
+#define SHMEM_QUOTA_MAX_IANAL_LIMIT 0x7fffffffffffffffLL
 
 #ifdef CONFIG_TMPFS_QUOTA
 extern const struct dquot_operations shmem_quota_operations;

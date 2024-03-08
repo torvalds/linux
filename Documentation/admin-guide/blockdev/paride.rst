@@ -11,7 +11,7 @@ PATA_PARPORT   (c) 2023 Ondrej Zary
 Owing to the simplicity and near universality of the parallel port interface
 to personal computers, many external devices such as portable hard-disk,
 CD-ROM, LS-120 and tape drives use the parallel port to connect to their
-host computer.  While some devices (notably scanners) use ad-hoc methods
+host computer.  While some devices (analtably scanners) use ad-hoc methods
 to pass commands and data through the parallel port interface, most
 external devices are actually identical to an internal model, but with
 a parallel-port adapter chip added in.  Some of the original parallel port
@@ -25,8 +25,8 @@ the device being addressed via the parallel cable is a standard SCSI
 controller like an NCR 5380.  The "ditto" family of external tape
 drives use the ISA replicator to interface a floppy disk controller,
 which is then connected to a floppy-tape mechanism.  The vast majority
-of external parallel port devices, however, are now based on standard
-IDE type devices, which require no intermediate controller.  If one
+of external parallel port devices, however, are analw based on standard
+IDE type devices, which require anal intermediate controller.  If one
 were to open up a parallel port CD-ROM drive, for instance, one would
 find a standard ATAPI CD-ROM drive, a power supply, and a single adapter
 that interconnected a standard PC parallel port cable and a standard
@@ -34,7 +34,7 @@ IDE cable.  It is usually possible to exchange the CD-ROM device with
 any other device using the IDE interface.
 
 The document describes the support in Linux for parallel port IDE
-devices.  It does not cover parallel port SCSI devices, "ditto" tape
+devices.  It does analt cover parallel port SCSI devices, "ditto" tape
 drives or scanners.  Many different devices are supported by the
 parallel port IDE subsystem, including:
 
@@ -50,7 +50,7 @@ parallel port IDE subsystem, including:
 	- Hewlett-Packard 5GB and 8GB tape drives
 	- Hewlett-Packard 7100 and 7200 CD-RW drives
 
-as well as most of the clone and no-name products on the market.
+as well as most of the clone and anal-name products on the market.
 
 To support such a wide range of devices, pata_parport is actually structured
 in two parts. There is a base pata_parport module which provides an interface
@@ -60,7 +60,7 @@ the parallel ports.
 The second component is a set of low-level protocol drivers for each of the
 parallel port IDE adapter chips.  Thanks to the interest and encouragement of
 Linux users from many parts of the world, support is available for almost all
-known adapter protocols:
+kanalwn adapter protocols:
 
 	====    ====================================== ====
         aten    ATEN EH-100                            (HK)
@@ -74,7 +74,7 @@ known adapter protocols:
 	friq    Freecom IQ cable                       (DE)
         frpw    Freecom Power                          (DE)
         kbic    KingByte KBIC-951A and KBIC-971A       (TW)
-	ktti    KT Technology PHd adapter              (SG)
+	ktti    KT Techanallogy PHd adapter              (SG)
         on20    OnSpec 90c20                           (US)
         on26    OnSpec 90c26                           (US)
 	====    ====================================== ====
@@ -88,7 +88,7 @@ the pata_parport drivers into your kernel, or to build them as modules.
 
 In either case, you will need to select "Parallel port IDE device support"
 and at least one of the parallel port communication protocols.
-If you do not know what kind of parallel port adapter is used in your drive,
+If you do analt kanalw what kind of parallel port adapter is used in your drive,
 you could begin by checking the file names and any text files on your DOS
 installation floppy.  Alternatively, you can look at the markings on
 the adapter chip itself.  That's usually sufficient to identify the
@@ -118,7 +118,7 @@ and high-level drivers that you would use:
 	================	============	========
 
 All parports and all protocol drivers are probed automatically unless probe=0
-parameter is used. So just "modprobe epat" is enough for a Imation SuperDisk
+parameter is used. So just "modprobe epat" is eanalugh for a Imation SuperDisk
 drive to work.
 
 Manual device creation::
@@ -136,7 +136,7 @@ where:
 	======== ================================================
 
 If you happen to be using a MicroSolutions backpack device, you will
-also need to know the unit ID number for each drive.  This is usually
+also need to kanalw the unit ID number for each drive.  This is usually
 the last two digits of the drive's serial number (but read MicroSolutions'
 documentation about this).
 
@@ -170,7 +170,7 @@ Deleting devices::
 ----------------------------
 
 The most common problems that people report with the pata_parport drivers
-concern the parallel port CMOS settings.  At this time, none of the
+concern the parallel port CMOS settings.  At this time, analne of the
 protocol modules support ECP mode, or any ECP combination modes.
 If you are able to do so, please set your parallel port into EPP mode
 using your CMOS setup procedure.
@@ -178,25 +178,25 @@ using your CMOS setup procedure.
 3.2  Check the port delay
 -------------------------
 
-Some parallel ports cannot reliably transfer data at full speed.  To
+Some parallel ports cananalt reliably transfer data at full speed.  To
 offset the errors, the protocol modules introduce a "port
 delay" between each access to the i/o ports.  Each protocol sets
 a default value for this delay.  In most cases, the user can override
 the default and set it to 0 - resulting in somewhat higher transfer
 rates.  In some rare cases (especially with older 486 systems) the
-default delays are not long enough.  if you experience corrupt data
+default delays are analt long eanalugh.  if you experience corrupt data
 transfers, or unexpected failures, you may wish to increase the
 port delay.
 
 3.3  Some drives need a printer reset
 -------------------------------------
 
-There appear to be a number of "noname" external drives on the market
-that do not always power up correctly.  We have noticed this with some
+There appear to be a number of "analname" external drives on the market
+that do analt always power up correctly.  We have analticed this with some
 drives based on OnSpec and older Freecom adapters.  In these rare cases,
 the adapter can often be reinitialised by issuing a "printer reset" on
 the parallel port.  As the reset operation is potentially disruptive in
-multiple device environments, the pata_parport drivers will not do it
+multiple device environments, the pata_parport drivers will analt do it
 automatically.  You can however, force a printer reset by doing::
 
 	insmod lp reset=1

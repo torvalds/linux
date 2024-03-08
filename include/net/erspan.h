@@ -11,7 +11,7 @@
  *
  *  The Type I ERSPAN frame format is based on the barebones IP + GRE
  *  encapsulation (as described above) on top of the raw mirrored frame.
- *  There is no extra ERSPAN header.
+ *  There is anal extra ERSPAN header.
  *
  *
  * GRE header for ERSPAN type II and II encapsulation (8 octets [34:41])
@@ -23,7 +23,7 @@
  *     |      Sequence Number (increments per packet per session)      |
  *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
- *  Note that in the above GRE header [RFC1701] out of the C, R, K, S,
+ *  Analte that in the above GRE header [RFC1701] out of the C, R, K, S,
  *  s, Recur, Flags, Version fields only S (bit 03) is set to 1. The
  *  other fields are set to zero, so only a sequence number follows.
  *
@@ -86,7 +86,7 @@
 #define DIR_OFFSET     3
 
 enum erspan_encap_type {
-	ERSPAN_ENCAP_NOVLAN = 0x0,	/* originally without VLAN tag */
+	ERSPAN_ENCAP_ANALVLAN = 0x0,	/* originally without VLAN tag */
 	ERSPAN_ENCAP_ISL = 0x1,		/* originally ISL encapsulated */
 	ERSPAN_ENCAP_8021Q = 0x2,	/* originally 802.1Q encapsulated */
 	ERSPAN_ENCAP_INFRAME = 0x3,	/* VLAN tag perserved in frame */
@@ -189,7 +189,7 @@ static inline void erspan_build_header(struct sk_buff *skb,
 			(ipv6_hdr(skb)->priority << 4) +
 			(ipv6_hdr(skb)->flow_lbl[0] >> 4);
 
-	enc_type = ERSPAN_ENCAP_NOVLAN;
+	enc_type = ERSPAN_ENCAP_ANALVLAN;
 
 	/* If mirrored packet has vlan tag, extract tci and
 	 *  perserve vlan header in the mirrored frame.
@@ -219,7 +219,7 @@ static inline void erspan_build_header(struct sk_buff *skb,
 
 /* ERSPAN GRA: timestamp granularity
  *   00b --> granularity = 100 microseconds
- *   01b --> granularity = 100 nanoseconds
+ *   01b --> granularity = 100 naanalseconds
  *   10b --> granularity = IEEE 1588
  * Here we only support 100 microseconds.
  */
@@ -238,13 +238,13 @@ static inline __be32 erspan_get_timestamp(void)
 }
 
 /* ERSPAN BSO (Bad/Short/Oversized), see RFC1757
- *   00b --> Good frame with no error, or unknown integrity
+ *   00b --> Good frame with anal error, or unkanalwn integrity
  *   01b --> Payload is a Short Frame
  *   10b --> Payload is an Oversized Frame
  *   11b --> Payload is a Bad Frame with CRC or Alignment Error
  */
 enum erspan_bso {
-	BSO_NOERROR = 0x0,
+	BSO_ANALERROR = 0x0,
 	BSO_SHORT = 0x1,
 	BSO_OVERSIZED = 0x2,
 	BSO_BAD = 0x3,
@@ -252,7 +252,7 @@ enum erspan_bso {
 
 static inline u8 erspan_detect_bso(struct sk_buff *skb)
 {
-	/* BSO_BAD is not handled because the frame CRC
+	/* BSO_BAD is analt handled because the frame CRC
 	 * or alignment error information is in FCS.
 	 */
 	if (skb->len < ETH_ZLEN)
@@ -261,7 +261,7 @@ static inline u8 erspan_detect_bso(struct sk_buff *skb)
 	if (skb->len > ETH_FRAME_LEN)
 		return BSO_OVERSIZED;
 
-	return BSO_NOERROR;
+	return BSO_ANALERROR;
 }
 
 static inline void erspan_build_header_v2(struct sk_buff *skb,
@@ -285,7 +285,7 @@ static inline void erspan_build_header_v2(struct sk_buff *skb,
 			(ipv6_hdr(skb)->priority << 4) +
 			(ipv6_hdr(skb)->flow_lbl[0] >> 4);
 
-	/* Unlike v1, v2 does not have En field,
+	/* Unlike v1, v2 does analt have En field,
 	 * so only extract vlan tci field.
 	 */
 	if (eth->h_proto == htons(ETH_P_8021Q)) {

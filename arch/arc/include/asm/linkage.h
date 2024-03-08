@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef __ASM_LINKAGE_H
@@ -32,7 +32,7 @@
 #endif
 .endm
 
-/* annotation for data we want in DCCM - if enabled in .config */
+/* ananaltation for data we want in DCCM - if enabled in .config */
 .macro ARCFP_DATA nm
 #ifdef CONFIG_ARC_HAS_DCCM
 	.section .data.arcfp
@@ -42,7 +42,7 @@
 	.global \nm
 .endm
 
-/* annotation for data we want in DCCM - if enabled in .config */
+/* ananaltation for data we want in DCCM - if enabled in .config */
 .macro ARCFP_CODE
 #ifdef CONFIG_ARC_HAS_ICCM
 	.section .text.arcfp, "ax",@progbits

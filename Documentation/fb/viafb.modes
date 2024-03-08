@@ -3,11 +3,11 @@
 #   These data are based on the CRTC parameters in
 #
 #       VIA Integration Graphics Chip
-#       (C) 2004 VIA Technologies Inc.
+#       (C) 2004 VIA Techanallogies Inc.
 #
 
 #
-#   640x480, 60 Hz, Non-Interlaced (25.175 MHz dotclock)
+#   640x480, 60 Hz, Analn-Interlaced (25.175 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      640     480
@@ -32,7 +32,7 @@ mode "640x480-60"
 # D: 24.823 MHz, H: 39.780 kHz, V: 60.00 Hz
     geometry 480 640 480 640 32 timings 39722 72 24 19 1 48 3 endmode
 #
-#   640x480, 75 Hz, Non-Interlaced (31.50 MHz dotclock)
+#   640x480, 75 Hz, Analn-Interlaced (31.50 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      640     480
@@ -53,7 +53,7 @@ mode "640x480-60"
 # D: 31.50 MHz, H: 37.500 kHz, V: 75.00 Hz
     geometry 640 480 640 480 32 timings 31747 120 16 16 1 64 3 endmode
 #
-#   640x480, 85 Hz, Non-Interlaced (36.000 MHz dotclock)
+#   640x480, 85 Hz, Analn-Interlaced (36.000 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      640     480
@@ -74,7 +74,7 @@ mode "640x480-60"
 # D: 36.000 MHz, H: 43.269 kHz, V: 85.00 Hz
     geometry 640 480 640 480 32 timings 27777 80 56 25 1 56 3 endmode
 #
-#   640x480, 100 Hz, Non-Interlaced (43.163 MHz dotclock)
+#   640x480, 100 Hz, Analn-Interlaced (43.163 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      640     480
@@ -95,7 +95,7 @@ mode "640x480-60"
 # D: 43.163 MHz, H: 50.900 kHz, V: 100.00 Hz
     geometry 640 480 640 480 32 timings 23168 104 40 25 1 64 3 endmode
 #
-#   640x480, 120 Hz, Non-Interlaced (52.406 MHz dotclock)
+#   640x480, 120 Hz, Analn-Interlaced (52.406 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      640     480
@@ -116,7 +116,7 @@ mode "640x480-60"
 # D: 52.406 MHz, H: 61.800 kHz, V: 120.00 Hz
     geometry 640 480 640 480 32 timings 19081 104 40 31 1 64 3 endmode
 #
-#   720x480, 60 Hz, Non-Interlaced (26.880 MHz dotclock)
+#   720x480, 60 Hz, Analn-Interlaced (26.880 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      720     480
@@ -137,7 +137,7 @@ mode "640x480-60"
 # D: 26.880 MHz, H: 30.000 kHz, V: 60.24 Hz
     geometry 720 480 720 480 32 timings 37202 88 16 14 1 72 3 endmode
 #
-#   800x480, 60 Hz, Non-Interlaced (29.581 MHz dotclock)
+#   800x480, 60 Hz, Analn-Interlaced (29.581 MHz dotclock)
 #
 #               Horizontal    Vertical
 #   Resolution      800         480
@@ -158,7 +158,7 @@ mode "640x480-60"
 # D: 29.500 MHz, H: 29.738 kHz, V: 60.00 Hz
     geometry 800 480 800 480 32 timings 33805 96 24 10 3 72 7 endmode
 #
-#   720x576, 60 Hz, Non-Interlaced (32.668 MHz dotclock)
+#   720x576, 60 Hz, Analn-Interlaced (32.668 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      720     576
@@ -179,7 +179,7 @@ mode "640x480-60"
 # D: 32.668 MHz, H: 35.820 kHz, V: 60.00 Hz
     geometry 720 576 720 576 32 timings 30611 96 24 17 1 72 3 endmode
 #
-#   800x600, 60 Hz, Non-Interlaced (40.00 MHz dotclock)
+#   800x600, 60 Hz, Analn-Interlaced (40.00 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      800     600
@@ -201,7 +201,7 @@ mode "640x480-60"
     geometry 800 600 800 600 32
     timings 25000 88 40 23 1 128 4 hsync high vsync high endmode
 #
-#   800x600, 75 Hz, Non-Interlaced (49.50 MHz dotclock)
+#   800x600, 75 Hz, Analn-Interlaced (49.50 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      800     600
@@ -223,7 +223,7 @@ mode "640x480-60"
     geometry 800 600 800 600 32
     timings 20203 160 16 21 1 80 3 hsync high vsync high endmode
 #
-#   800x600, 85 Hz, Non-Interlaced (56.25 MHz dotclock)
+#   800x600, 85 Hz, Analn-Interlaced (56.25 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      800     600
@@ -245,7 +245,7 @@ mode "640x480-60"
     geometry 800 600 800 600 32
     timings 17777 152 32 27 1 64 3 hsync high vsync high endmode
 #
-#   800x600, 100 Hz, Non-Interlaced (67.50 MHz dotclock)
+#   800x600, 100 Hz, Analn-Interlaced (67.50 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      800     600
@@ -267,7 +267,7 @@ mode "640x480-60"
     geometry 800 600 800 600 32
     timings 14667 216 0 14 7 64 4 hsync high vsync high endmode
 #
-#   800x600, 120 Hz, Non-Interlaced (83.950 MHz dotclock)
+#   800x600, 120 Hz, Analn-Interlaced (83.950 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      800     600
@@ -289,7 +289,7 @@ mode "640x480-60"
     geometry 800 600 800 600 32
     timings 11912 144 56 39 1 88 3 hsync high vsync high endmode
 #
-#   848x480, 60 Hz, Non-Interlaced (31.490 MHz dotclock)
+#   848x480, 60 Hz, Analn-Interlaced (31.490 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      848     480
@@ -311,7 +311,7 @@ mode "640x480-60"
     geometry 848 480 848 480 32
     timings 31746 104 24 12 3 80 5 hsync high vsync high endmode
 #
-#   856x480, 60 Hz, Non-Interlaced (31.728 MHz dotclock)
+#   856x480, 60 Hz, Analn-Interlaced (31.728 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      856     480
@@ -336,7 +336,7 @@ mode "640x480-60"
 # D: 45.250 MHz, H: 37.212 kHz, V: 60.00 Hz
     geometry 960 600 960 600 32 timings 22099 128 32 15 3 96 6 endmode
 #
-#   1000x600, 60 Hz, Non-Interlaced (48.068 MHz dotclock)
+#   1000x600, 60 Hz, Analn-Interlaced (48.068 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1000     600
@@ -366,7 +366,7 @@ mode "640x480-60"
 # D: 52.952 MHz, H: 38.040 kHz, V: 60.00 Hz
     geometry 1088 612 1088 612 32 timings 18877 152 48 16 3 104 5 endmode
 #
-#   1024x512, 60 Hz, Non-Interlaced (41.291 MHz dotclock)
+#   1024x512, 60 Hz, Analn-Interlaced (41.291 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1024    512
@@ -388,7 +388,7 @@ mode "640x480-60"
     geometry 1024 512 1024 512 32
     timings 24218 126 32 15 1 104 3 hsync high vsync high endmode
 #
-#   1024x600, 60 Hz, Non-Interlaced (48.875 MHz dotclock)
+#   1024x600, 60 Hz, Analn-Interlaced (48.875 MHz dotclock)
 #
 #                     Horizontal  Vertical
 #   Resolution          1024        768
@@ -411,7 +411,7 @@ mode "640x480-60"
 #    timings 20460  144 40 18 1 104  3
 # endmode
 #
-#   1024x768, 60 Hz, Non-Interlaced (65.00 MHz dotclock)
+#   1024x768, 60 Hz, Analn-Interlaced (65.00 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1024        768
@@ -432,7 +432,7 @@ mode "640x480-60"
 # D: 65.00 MHz, H: 48.363 kHz, V: 60.00 Hz
     geometry 1024 768 1024 768 32 timings 15385 160 24 29 3 136 6 endmode
 #
-#   1024x768, 75 Hz, Non-Interlaced (78.75 MHz dotclock)
+#   1024x768, 75 Hz, Analn-Interlaced (78.75 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1024        768
@@ -454,7 +454,7 @@ mode "640x480-60"
     geometry 1024 768 1024 768 32
     timings 12699 176 16 28 1 96 3 hsync high vsync high endmode
 #
-#   1024x768, 85 Hz, Non-Interlaced (94.50 MHz dotclock)
+#   1024x768, 85 Hz, Analn-Interlaced (94.50 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1024        768
@@ -476,7 +476,7 @@ mode "640x480-60"
     geometry 1024 768 1024 768 32
     timings 10582 208 48 36 1 96 3 hsync high vsync high endmode
 #
-#   1024x768, 100 Hz, Non-Interlaced (110.0 MHz dotclock)
+#   1024x768, 100 Hz, Analn-Interlaced (110.0 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1024        768
@@ -500,7 +500,7 @@ mode "640x480-60"
 # D: 66.750 MHz, H: 44.859 kHz, V: 60.00 Hz
     geometry 1152 720 1152 720 32 timings 14981 168 56 19 3 112 6 endmode
 #
-#   1152x864, 75 Hz, Non-Interlaced (110.0 MHz dotclock)
+#   1152x864, 75 Hz, Analn-Interlaced (110.0 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1152        864
@@ -534,7 +534,7 @@ mode "640x480-60"
 # D: 65.178 MHz, H: 39.550 kHz, V: 50.00 Hz
     geometry 1280 768 1280 768 32 timings 15342 184 28 19 1 128 3 endmode
 #
-#   1280x768, 60 Hz, Non-Interlaced (80.136 MHz dotclock)
+#   1280x768, 60 Hz, Analn-Interlaced (80.136 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1280    768
@@ -556,7 +556,7 @@ mode "640x480-60"
     geometry 1280 768 1280 768 32
     timings 12480 200 48 23 1 126 3 hsync high vsync high endmode
 #
-#   1280x800, 60 Hz, Non-Interlaced (83.375 MHz dotclock)
+#   1280x800, 60 Hz, Analn-Interlaced (83.375 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1280    800
@@ -577,7 +577,7 @@ mode "640x480-60"
 # D: 83.500 MHz, H: 49.702 kHz, V: 60.00 Hz
     geometry 1280 800 1280 800 32 timings 11994 200 72 22 3 128 6 endmode
 #
-#   1280x960, 60 Hz, Non-Interlaced (108.00 MHz dotclock)
+#   1280x960, 60 Hz, Analn-Interlaced (108.00 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1280    960
@@ -599,7 +599,7 @@ mode "640x480-60"
     geometry 1280 960 1280 960 32
     timings 9259 312 96 36 1 112 3 hsync high vsync high endmode
 #
-#   1280x1024, 60 Hz, Non-Interlaced (108.00 MHz dotclock)
+#   1280x1024, 60 Hz, Analn-Interlaced (108.00 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1280        1024
@@ -621,7 +621,7 @@ mode "640x480-60"
     geometry 1280 1024 1280 1024 32
     timings 9260 248 48 38 1 112 3 hsync high vsync high endmode
 #
-#   1280x1024, 75 Hz, Non-Interlaced (135.00 MHz dotclock)
+#   1280x1024, 75 Hz, Analn-Interlaced (135.00 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1280        1024
@@ -643,7 +643,7 @@ mode "640x480-60"
     geometry 1280 1024 1280 1024 32
     timings 7408 248 16 38 1 144 3 hsync high vsync high endmode
 #
-#   1280x1024, 85 Hz, Non-Interlaced (157.50 MHz dotclock)
+#   1280x1024, 85 Hz, Analn-Interlaced (157.50 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1280        1024
@@ -673,7 +673,7 @@ mode "640x480-60"
     geometry 1440 900 1440 900 32
     timings 7315 248 96 33 3 152 6 hsync high vsync high endmode
 #
-#   1440x1050, 60 Hz, Non-Interlaced (125.10 MHz dotclock)
+#   1440x1050, 60 Hz, Analn-Interlaced (125.10 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1440        1050
@@ -701,7 +701,7 @@ mode "640x480-60"
 # D: 136.358 MHz, H: 63.600 kHz, V: 60.00 Hz
     geometry 1600 1024 1600 1024 32 timings 7315 272 104 32 1 168 3 endmode
 #
-#   1600x1200, 60 Hz, Non-Interlaced (156.00 MHz dotclock)
+#   1600x1200, 60 Hz, Analn-Interlaced (156.00 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1600        1200
@@ -722,7 +722,7 @@ mode "640x480-60"
 # D: 156.00 MHz, H: 76.200 kHz, V: 60.00 Hz
     geometry 1600 1200 1600 1200 32 timings 6172 256 32 52 10 160 8 endmode
 #
-#   1600x1200, 75 Hz, Non-Interlaced (202.50 MHz dotclock)
+#   1600x1200, 75 Hz, Analn-Interlaced (202.50 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1600        1200
@@ -776,7 +776,7 @@ mode "640x480-60"
     geometry 2048 1536 2048 1536 32
     timings 3742 376 152 49 3 224 4 hsync high vsync high endmode
 #
-#   1280x720, 60 Hz, Non-Interlaced (74.481 MHz dotclock)
+#   1280x720, 60 Hz, Analn-Interlaced (74.481 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1280        720
@@ -797,7 +797,7 @@ mode "640x480-60"
 # D: 74.481 MHz, H: 44.760 kHz, V: 60.00 Hz
     geometry 1280 720 1280 720 32 timings 13426 192 64 22 1 136 3 endmode
 #
-#   1920x1080, 60 Hz, Non-Interlaced (172.798 MHz dotclock)
+#   1920x1080, 60 Hz, Analn-Interlaced (172.798 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1920        1080
@@ -818,7 +818,7 @@ mode "640x480-60"
 # D: 74.481 MHz, H: 67.080 kHz, V: 60.00 Hz
     geometry 1920 1080 1920 1080 32 timings 5787 328 120 34 1 208 3 endmode
 #
-#   1400x1050, 60 Hz, Non-Interlaced (122.61 MHz dotclock)
+#   1400x1050, 60 Hz, Analn-Interlaced (122.61 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1400        1050
@@ -842,7 +842,7 @@ mode "640x480-60"
 # D: 156.000 MHz, H: 82.278 kHz, V: 74.867 Hz
     geometry 1400 1050 1408 1050 32 timings 6410 248 104 42 3 144 4 endmode
 #
-#   1366x768, 60 Hz, Non-Interlaced (85.86 MHz dotclock)
+#   1366x768, 60 Hz, Analn-Interlaced (85.86 MHz dotclock)
 #
 #               Horizontal  Vertical
 #   Resolution      1366        768

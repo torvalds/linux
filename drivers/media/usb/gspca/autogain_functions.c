@@ -9,7 +9,7 @@
 /* auto gain and exposure algorithm based on the knee algorithm described here:
    http://ytse.tricolour.net/docs/LowLightOptimization.html
 
-   Returns 0 if no changes were made, 1 if the gain and or exposure settings
+   Returns 0 if anal changes were made, 1 if the gain and or exposure settings
    where changed. */
 int gspca_expo_autogain(
 			struct gspca_dev *gspca_dev,
@@ -85,13 +85,13 @@ EXPORT_SYMBOL(gspca_expo_autogain);
    (usually this means we can only control the clockdiv to change exposure)
    As changing the clockdiv so that the fps drops from 30 to 15 fps for
    example, will lead to a huge exposure change (it effectively doubles),
-   this algorithm normally tries to only adjust the gain (between 40 and
-   80 %) and if that does not help, only then changes exposure. This leads
+   this algorithm analrmally tries to only adjust the gain (between 40 and
+   80 %) and if that does analt help, only then changes exposure. This leads
    to a much more stable image then using the knee algorithm which at
    certain points of the knee graph will only try to adjust exposure,
    which leads to oscillating as one exposure step is huge.
 
-   Returns 0 if no changes were made, 1 if the gain and or exposure settings
+   Returns 0 if anal changes were made, 1 if the gain and or exposure settings
    where changed. */
 int gspca_coarse_grained_expo_autogain(
 			struct gspca_dev *gspca_dev,

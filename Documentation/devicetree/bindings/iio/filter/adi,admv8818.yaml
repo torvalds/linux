@@ -10,7 +10,7 @@ maintainers:
   - Antoniu Miclaus <antoniu.miclaus@analog.com>
 
 description: |
-    Fully monolithic microwave integrated circuit (MMIC) that
+    Fully moanallithic microwave integrated circuit (MMIC) that
     features a digitally selectable frequency of operation.
     The device features four independently controlled high-pass
     filters (HPFs) and four independently controlled low-pass filters

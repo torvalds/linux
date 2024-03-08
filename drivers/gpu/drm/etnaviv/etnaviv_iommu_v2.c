@@ -78,7 +78,7 @@ etnaviv_iommuv2_ensure_stlb(struct etnaviv_iommuv2_context *v2_context,
 				     GFP_KERNEL);
 
 	if (!v2_context->stlb_cpu[stlb])
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset32(v2_context->stlb_cpu[stlb], MMUv2_PTE_EXCEPTION,
 		 SZ_4K / sizeof(u32));
@@ -162,7 +162,7 @@ static void etnaviv_iommuv2_dump(struct etnaviv_iommu_context *context, void *bu
 		}
 }
 
-static void etnaviv_iommuv2_restore_nonsec(struct etnaviv_gpu *gpu,
+static void etnaviv_iommuv2_restore_analnsec(struct etnaviv_gpu *gpu,
 	struct etnaviv_iommu_context *context)
 {
 	struct etnaviv_iommuv2_context *v2_context = to_v2_context(context);
@@ -206,12 +206,12 @@ static void etnaviv_iommuv2_restore_sec(struct etnaviv_gpu *gpu,
 		  upper_32_bits(context->global->v2.pta_dma));
 	gpu_write(gpu, VIVS_MMUv2_PTA_CONTROL, VIVS_MMUv2_PTA_CONTROL_ENABLE);
 
-	gpu_write(gpu, VIVS_MMUv2_NONSEC_SAFE_ADDR_LOW,
+	gpu_write(gpu, VIVS_MMUv2_ANALNSEC_SAFE_ADDR_LOW,
 		  lower_32_bits(context->global->bad_page_dma));
 	gpu_write(gpu, VIVS_MMUv2_SEC_SAFE_ADDR_LOW,
 		  lower_32_bits(context->global->bad_page_dma));
 	gpu_write(gpu, VIVS_MMUv2_SAFE_ADDRESS_CONFIG,
-		  VIVS_MMUv2_SAFE_ADDRESS_CONFIG_NON_SEC_SAFE_ADDR_HIGH(
+		  VIVS_MMUv2_SAFE_ADDRESS_CONFIG_ANALN_SEC_SAFE_ADDR_HIGH(
 		  upper_32_bits(context->global->bad_page_dma)) |
 		  VIVS_MMUv2_SAFE_ADDRESS_CONFIG_SEC_SAFE_ADDR_HIGH(
 		  upper_32_bits(context->global->bad_page_dma)));
@@ -245,8 +245,8 @@ static void etnaviv_iommuv2_restore(struct etnaviv_gpu *gpu,
 				    struct etnaviv_iommu_context *context)
 {
 	switch (gpu->sec_mode) {
-	case ETNA_SEC_NONE:
-		etnaviv_iommuv2_restore_nonsec(gpu, context);
+	case ETNA_SEC_ANALNE:
+		etnaviv_iommuv2_restore_analnsec(gpu, context);
 		break;
 	case ETNA_SEC_KERNEL:
 		etnaviv_iommuv2_restore_sec(gpu, context);

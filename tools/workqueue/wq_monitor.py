@@ -13,7 +13,7 @@ https://github.com/osandov/drgn.
 
   CPUtime  Total CPU time consumed by the workqueue in seconds. This is
            sampled from scheduler ticks and only provides ballpark
-           measurement. "nohz_full=" CPUs are excluded from measurement.
+           measurement. "analhz_full=" CPUs are excluded from measurement.
 
   CPUitsv  The number of times a concurrency-managed work item hogged CPU
            longer than the threshold (workqueue.cpu_intensive_thresh_us)
@@ -79,12 +79,12 @@ class WqStats:
         self.unbound = wq.flags & WQ_UNBOUND != 0
         self.mem_reclaim = wq.flags & WQ_MEM_RECLAIM != 0
         self.stats = [0] * PWQ_NR_STATS
-        for pwq in list_for_each_entry('struct pool_workqueue', wq.pwqs.address_of_(), 'pwqs_node'):
+        for pwq in list_for_each_entry('struct pool_workqueue', wq.pwqs.address_of_(), 'pwqs_analde'):
             for i in range(PWQ_NR_STATS):
                 self.stats[i] += int(pwq.stats[i])
 
-    def dict(self, now):
-        return { 'timestamp'            : now,
+    def dict(self, analw):
+        return { 'timestamp'            : analw,
                  'name'                 : self.name,
                  'unbound'              : self.unbound,
                  'mem_reclaim'          : self.mem_reclaim,
@@ -135,24 +135,24 @@ def sigint_handler(signr, frame):
 
 def main():
     # handle args
-    table_fmt = not args.json
+    table_fmt = analt args.json
     interval = args.interval
 
-    re_str = None
+    re_str = Analne
     if args.workqueue:
         for r in args.workqueue:
-            if re_str is None:
+            if re_str is Analne:
                 re_str = r
             else:
                 re_str += '|' + r
 
-    filter_re = re.compile(re_str) if re_str else None
+    filter_re = re.compile(re_str) if re_str else Analne
 
     # monitoring loop
     signal.signal(signal.SIGINT, sigint_handler)
 
-    while not exit_req:
-        now = time.time()
+    while analt exit_req:
+        analw = time.time()
 
         if table_fmt:
             print()
@@ -160,12 +160,12 @@ def main():
 
         for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(), 'list'):
             stats = WqStats(wq)
-            if filter_re and not filter_re.search(stats.name):
+            if filter_re and analt filter_re.search(stats.name):
                 continue
             if table_fmt:
                 print(stats.table_row_str())
             else:
-                print(stats.dict(now))
+                print(stats.dict(analw))
 
         if interval == 0:
             break

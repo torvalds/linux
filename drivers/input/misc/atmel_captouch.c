@@ -110,7 +110,7 @@ static int atmel_read(struct atmel_captouch_device *capdev,
 
 	if (capdev->xfer_buf[0] != reg) {
 		dev_err(dev,
-			"I2C read error: register address does not match (%#02x vs %02x)\n",
+			"I2C read error: register address does analt match (%#02x vs %02x)\n",
 			capdev->xfer_buf[0], reg);
 		return -ECOMM;
 	}
@@ -165,7 +165,7 @@ static int atmel_captouch_probe(struct i2c_client *client)
 {
 	struct atmel_captouch_device *capdev;
 	struct device *dev = &client->dev;
-	struct device_node *node;
+	struct device_analde *analde;
 	int i;
 	int err;
 
@@ -173,13 +173,13 @@ static int atmel_captouch_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_BYTE_DATA |
 					I2C_FUNC_SMBUS_WORD_DATA |
 					I2C_FUNC_SMBUS_I2C_BLOCK)) {
-		dev_err(dev, "needed i2c functionality is not supported\n");
+		dev_err(dev, "needed i2c functionality is analt supported\n");
 		return -EINVAL;
 	}
 
 	capdev = devm_kzalloc(dev, sizeof(*capdev), GFP_KERNEL);
 	if (!capdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	capdev->client = client;
 
@@ -193,7 +193,7 @@ static int atmel_captouch_probe(struct i2c_client *client)
 	capdev->input = devm_input_allocate_device(dev);
 	if (!capdev->input) {
 		dev_err(dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	capdev->input->id.bustype = BUS_I2C;
@@ -202,20 +202,20 @@ static int atmel_captouch_probe(struct i2c_client *client)
 	capdev->input->name = "ATMegaXX Capacitive Button Controller";
 	__set_bit(EV_KEY, capdev->input->evbit);
 
-	node = dev->of_node;
-	if (!node) {
-		dev_err(dev, "failed to find matching node in device tree\n");
+	analde = dev->of_analde;
+	if (!analde) {
+		dev_err(dev, "failed to find matching analde in device tree\n");
 		return -EINVAL;
 	}
 
-	if (of_property_read_bool(node, "autorepeat"))
+	if (of_property_read_bool(analde, "autorepeat"))
 		__set_bit(EV_REP, capdev->input->evbit);
 
-	capdev->num_btn = of_property_count_u32_elems(node, "linux,keymap");
+	capdev->num_btn = of_property_count_u32_elems(analde, "linux,keymap");
 	if (capdev->num_btn > MAX_NUM_OF_BUTTONS)
 		capdev->num_btn = MAX_NUM_OF_BUTTONS;
 
-	err = of_property_read_u32_array(node, "linux,keycodes",
+	err = of_property_read_u32_array(analde, "linux,keycodes",
 					 capdev->keycodes,
 					 capdev->num_btn);
 	if (err) {

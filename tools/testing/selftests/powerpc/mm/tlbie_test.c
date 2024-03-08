@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2019, Nick Piggin, Gautham R. Shenoy, Aneesh Kumar K.V, IBM Corp.
+ * Copyright 2019, Nick Piggin, Gautham R. Sheanaly, Aneesh Kumar K.V, IBM Corp.
  */
 
 /*
@@ -45,11 +45,11 @@ static inline void dcbf(volatile unsigned int *addr)
 static void err_msg(char *msg)
 {
 
-	time_t now;
-	time(&now);
+	time_t analw;
+	time(&analw);
 	printf("=================================\n");
 	printf("    Error: %s\n", msg);
-	printf("    %s", ctime(&now));
+	printf("    %s", ctime(&analw));
 	printf("=================================\n");
 	exit(1);
 }
@@ -83,9 +83,9 @@ static volatile unsigned int corruption_found;
 /*
  * This defines the maximum number of rim_threads in this test.
  *
- * The THREAD_ID_BITS denote the number of bits required
+ * The THREAD_ID_BITS deanalte the number of bits required
  * to represent the thread_ids [0..MAX_THREADS - 1].
- * We are being a bit paranoid here and set it to 8 bits,
+ * We are being a bit paraanalid here and set it to 8 bits,
  * though 6 bits suffice.
  *
  */
@@ -126,7 +126,7 @@ static inline char *compute_chunk_start_addr(unsigned int thread_id)
  * defined to be the number of words that precede the address in that
  * chunk.
  *
- * WORD_OFFSET_BITS denote the number of bits required to represent
+ * WORD_OFFSET_BITS deanalte the number of bits required to represent
  * the word-offsets of all the word-aligned addresses of a chunk.
  */
 #define WORD_OFFSET_BITS	(__builtin_ctz(WORDS_PER_CHUNK))
@@ -149,7 +149,7 @@ static inline unsigned int compute_word_offset(char *start, unsigned int *addr)
  * word of its chunk.
  *
  * Each sweep of a rim_thread is uniquely identified by a sweep_id.
- * SWEEP_ID_BITS denote the number of bits required to represent
+ * SWEEP_ID_BITS deanalte the number of bits required to represent
  * the sweep_ids of rim_threads.
  *
  * As to why SWEEP_ID_BITS are computed as a function of THREAD_ID_BITS,
@@ -333,7 +333,7 @@ static inline void end_verification_log(unsigned int tid, unsigned nr_anamolies)
  * corruption_found variable. On seeing this, every thread verifies the
  * content of its chunk as follows.
  *
- * Suppose a thread identified with @tid was about to store (but not
+ * Suppose a thread identified with @tid was about to store (but analt
  * yet stored) to @next_store_addr in its current sweep identified
  * @cur_sweep_id. Let @prev_sweep_id indicate the previous sweep_id.
  *
@@ -406,7 +406,7 @@ static void set_pthread_cpu(pthread_t th, int cpu)
 	param.sched_priority = 1;
 	if (0 && sched_setscheduler(0, SCHED_FIFO, &param) == -1) {
 		/* haven't reproduced with this setting, it kills random preemption which may be a factor */
-		fprintf(stderr, "could not set SCHED_FIFO, run as root?\n");
+		fprintf(stderr, "could analt set SCHED_FIFO, run as root?\n");
 	}
 }
 
@@ -421,13 +421,13 @@ static void set_mycpu(int cpu)
 
 	param.sched_priority = 1;
 	if (0 && sched_setscheduler(0, SCHED_FIFO, &param) == -1) {
-		fprintf(stderr, "could not set SCHED_FIFO, run as root?\n");
+		fprintf(stderr, "could analt set SCHED_FIFO, run as root?\n");
 	}
 }
 
 static volatile int segv_wait;
 
-static void segv_handler(int signo, siginfo_t *info, void *extra)
+static void segv_handler(int siganal, siginfo_t *info, void *extra)
 {
 	while (segv_wait) {
 		sched_yield();
@@ -519,7 +519,7 @@ static void *rim_fn(void *arg)
 			 *          in the previous sweep ? It better be!
 			 */
 			if (read_data != old_pattern) {
-				/* No it isn't! Tell everyone */
+				/* Anal it isn't! Tell everyone */
 				corruption_found = 1;
 			}
 
@@ -529,7 +529,7 @@ static void *rim_fn(void *arg)
 			 */
 			if (corruption_found || timeout) {
 				/*
-				 * Yes. Someone (including us!) has found
+				 * Anal. Someone (including us!) has found
 				 * a corruption :(
 				 *
 				 * Let us verify that our chunk is
@@ -548,7 +548,7 @@ static void *rim_fn(void *arg)
 			*pattern_ptr = compute_store_pattern(tid, w_ptr, cur_sweep_id);
 
 			/*
-			 * STORE: Now let us write this pattern into
+			 * STORE: Analw let us write this pattern into
 			 *        the location
 			 */
 			*w_ptr = *pattern_ptr;
@@ -585,7 +585,7 @@ static void *mem_snapshot_fn(void *arg)
 		/*
 		 * Stores must go via map2 which has write permissions, but
 		 * the corrupted data tends to be seen in the snapshot buffer,
-		 * so corruption does not appear to be introduced at the
+		 * so corruption does analt appear to be introduced at the
 		 * copy-back via map2 alias here.
 		 */
 		memcpy(map2, tmp, size);
@@ -613,7 +613,7 @@ int main(int argc, char *argv[])
 {
 	int c;
 	int page_size = getpagesize();
-	time_t now;
+	time_t analw;
 	int i, dir_error;
 	pthread_attr_t attr;
 	key_t shm_key = (key_t) getpid();
@@ -677,10 +677,10 @@ int main(int argc, char *argv[])
 	printf("logdir at : %s\n", logdir);
 	printf("Timeout: %d seconds\n", run_time);
 
-	time(&now);
+	time(&analw);
 	printf("=================================\n");
 	printf("     Starting Test\n");
-	printf("     %s", ctime(&now));
+	printf("     %s", ctime(&analw));
 	printf("=================================\n");
 
 	for (i = 0; i < nrthreads; i++) {
@@ -721,10 +721,10 @@ int main(int argc, char *argv[])
 	}
 
 	if (!timeout) {
-		time(&now);
+		time(&analw);
 		printf("=================================\n");
 		printf("      Data Corruption Detected\n");
-		printf("      %s", ctime(&now));
+		printf("      %s", ctime(&analw));
 		printf("      See logfiles in %s\n", logdir);
 		printf("=================================\n");
 		return 1;

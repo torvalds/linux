@@ -3,7 +3,7 @@
 The High level CI API
 =====================
 
-.. note::
+.. analte::
 
    This documentation is outdated.
 
@@ -18,15 +18,15 @@ eliminating the need for any additional ioctls.
 
 The disadvantage is that the driver/hardware has to manage the rest. For
 the application programmer it would be as simple as sending/receiving an
-array to/from the CI ioctls as defined in the Linux DVB API. No changes
+array to/from the CI ioctls as defined in the Linux DVB API. Anal changes
 have been made in the API to accommodate this feature.
 
 
-Why the need for another CI interface?
+Why the need for aanalther CI interface?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This is one of the most commonly asked question. Well a nice question.
-Strictly speaking this is not a new interface.
+Strictly speaking this is analt a new interface.
 
 The CI interface is defined in the DVB API in ca.h as:
 
@@ -47,18 +47,18 @@ The CI interface is defined in the DVB API in ca.h as:
 	#define CA_CI_MODULE_READY   2
 	} ca_slot_info_t;
 
-This CI interface follows the CI high level interface, which is not
+This CI interface follows the CI high level interface, which is analt
 implemented by most applications. Hence this area is revisited.
 
 This CI interface is quite different in the case that it tries to
 accommodate all other CI based devices, that fall into the other categories.
 
 This means that this CI interface handles the EN50221 style tags in the
-Application layer only and no session management is taken care of by the
+Application layer only and anal session management is taken care of by the
 application. The driver/hardware will take care of all that.
 
 This interface is purely an EN50221 interface exchanging APDU's. This
-means that no session management, link layer or a transport layer do
+means that anal session management, link layer or a transport layer do
 exist in this case in the application to driver communication. It is
 as simple as that. The driver/hardware has to take care of that.
 
@@ -78,7 +78,7 @@ All these ioctls are also valid for the High level CI interface
 
 On querying the device, the device yields information thus:
 
-.. code-block:: none
+.. code-block:: analne
 
 	CA_GET_SLOT_INFO
 	----------------------------
@@ -108,8 +108,8 @@ On querying the device, the device yields information thus:
 	EN50221 CA MSG=[ 9f 80 32 19 03 01 2d d1 f0 08 01 09 06 06 04 05 50 ff f1 02 e0 c9 00 00 04 e1 2d 00 00]
 
 
-Not all ioctl's are implemented in the driver from the API, the other
-features of the hardware that cannot be implemented by the API are achieved
+Analt all ioctl's are implemented in the driver from the API, the other
+features of the hardware that cananalt be implemented by the API are achieved
 using the CA_GET_MSG and CA_SEND_MSG ioctls. An EN50221 style wrapper is
 used to exchange the data to maintain compatibility with other hardware.
 
@@ -126,7 +126,7 @@ used to exchange the data to maintain compatibility with other hardware.
 
 The flow of data can be described thus,
 
-.. code-block:: none
+.. code-block:: analne
 
 	App (User)
 	-----

@@ -8,7 +8,7 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
@@ -237,7 +237,7 @@ static int scd30_read_raw(struct iio_dev *indio_dev, struct iio_chan_spec const 
 
 		*val = 0;
 		*val2 = 1000000000 / tmp;
-		ret = IIO_VAL_INT_PLUS_NANO;
+		ret = IIO_VAL_INT_PLUS_NAANAL;
 		break;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		ret = scd30_command_read(state, CMD_TEMP_OFFSET, &tmp);
@@ -296,7 +296,7 @@ static int scd30_write_raw(struct iio_dev *indio_dev, struct iio_chan_spec const
 		if (val < 0 || val > SCD30_TEMP_OFFSET_MAX)
 			break;
 		/*
-		 * Manufacturer does not explicitly specify min/max sensible
+		 * Manufacturer does analt explicitly specify min/max sensible
 		 * values hence check is omitted for simplicity.
 		 */
 		ret = scd30_command_write(state, CMD_TEMP_OFFSET / 10, val);
@@ -311,7 +311,7 @@ static int scd30_write_raw_get_fmt(struct iio_dev *indio_dev, struct iio_chan_sp
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_RAW:
 	case IIO_CHAN_INFO_CALIBBIAS:
 		return IIO_VAL_INT;
@@ -356,7 +356,7 @@ static ssize_t sampling_frequency_available_show(struct device *dev, struct devi
 	do {
 		len += sysfs_emit_at(buf, len, "0.%09u ", 1000000000 / i);
 		/*
-		 * Not all values fit PAGE_SIZE buffer hence print every 6th
+		 * Analt all values fit PAGE_SIZE buffer hence print every 6th
 		 * (each frequency differs by 6s in time domain from the
 		 * adjacent). Unlisted but valid ones are still accepted.
 		 */
@@ -611,7 +611,7 @@ static irqreturn_t scd30_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &scan, iio_get_time_ns(indio_dev));
 out:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -643,7 +643,7 @@ static int scd30_setup_trigger(struct iio_dev *indio_dev)
 	trig = devm_iio_trigger_alloc(dev, "%s-dev%d", indio_dev->name,
 				      iio_device_id(indio_dev));
 	if (!trig)
-		return dev_err_probe(dev, -ENOMEM, "failed to allocate trigger\n");
+		return dev_err_probe(dev, -EANALMEM, "failed to allocate trigger\n");
 
 	trig->ops = &scd30_trigger_ops;
 	iio_trigger_set_drvdata(trig, indio_dev);
@@ -656,13 +656,13 @@ static int scd30_setup_trigger(struct iio_dev *indio_dev)
 
 	/*
 	 * Interrupt is enabled just before taking a fresh measurement
-	 * and disabled afterwards. This means we need to ensure it is not
+	 * and disabled afterwards. This means we need to ensure it is analt
 	 * enabled here to keep calls to enable/disable balanced.
 	 */
 	ret = devm_request_threaded_irq(dev, state->irq, scd30_irq_handler,
 					scd30_irq_thread_handler,
 					IRQF_TRIGGER_HIGH | IRQF_ONESHOT |
-					IRQF_NO_AUTOEN,
+					IRQF_ANAL_AUTOEN,
 					indio_dev->name, indio_dev);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to request irq\n");
@@ -681,7 +681,7 @@ int scd30_probe(struct device *dev, int irq, const char *name, void *priv,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*state));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state = iio_priv(indio_dev);
 	state->dev = dev;

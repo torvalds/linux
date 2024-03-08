@@ -24,7 +24,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #include "tvp7002_reg.h"
 
@@ -332,7 +332,7 @@ static const struct tvp7002_timings_definition tvp7002_timings[] = {
 		V4L2_DV_BT_CEA_1280X720P60,
 		tvp7002_parms_720P60,
 		V4L2_COLORSPACE_REC709,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		1,
 		0x2EE,
 		135,
@@ -362,7 +362,7 @@ static const struct tvp7002_timings_definition tvp7002_timings[] = {
 		V4L2_DV_BT_CEA_1280X720P50,
 		tvp7002_parms_720P50,
 		V4L2_COLORSPACE_REC709,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		1,
 		0x2EE,
 		163,
@@ -372,7 +372,7 @@ static const struct tvp7002_timings_definition tvp7002_timings[] = {
 		V4L2_DV_BT_CEA_1920X1080P60,
 		tvp7002_parms_1080P60,
 		V4L2_COLORSPACE_REC709,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		1,
 		0x465,
 		90,
@@ -382,7 +382,7 @@ static const struct tvp7002_timings_definition tvp7002_timings[] = {
 		V4L2_DV_BT_CEA_720X480P59_94,
 		tvp7002_parms_480P,
 		V4L2_COLORSPACE_SMPTE170M,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		1,
 		0x20D,
 		0xffff,
@@ -392,7 +392,7 @@ static const struct tvp7002_timings_definition tvp7002_timings[] = {
 		V4L2_DV_BT_CEA_720X576P50,
 		tvp7002_parms_576P,
 		V4L2_COLORSPACE_SMPTE170M,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		1,
 		0x271,
 		0xffff,
@@ -437,7 +437,7 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
  * @addr: TVP7002 register address
  * @dst: pointer to 8-bit destination
  *
- * Returns value read if successful, or non-zero (-1) otherwise.
+ * Returns value read if successful, or analn-zero (-1) otherwise.
  */
 static int tvp7002_read(struct v4l2_subdev *sd, u8 addr, u8 *dst)
 {
@@ -483,7 +483,7 @@ static inline void tvp7002_read_err(struct v4l2_subdev *sd, u8 reg,
  * @value: value to be written to the register
  *
  * Write a value to a register in an TVP7002 decoder device.
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or analn-zero otherwise.
  */
 static int tvp7002_write(struct v4l2_subdev *sd, u8 addr, u8 value)
 {
@@ -602,7 +602,7 @@ static int tvp7002_s_ctrl(struct v4l2_ctrl *ctrl)
  * @sd: pointer to standard V4L2 sub-device structure
  * @index: index into the tvp7002_timings array
  *
- * Returns the current DV timings detected by TVP7002. If no active input is
+ * Returns the current DV timings detected by TVP7002. If anal active input is
  * detected, returns -EINVAL
  */
 static int tvp7002_query_dv(struct v4l2_subdev *sd, int *index)
@@ -617,7 +617,7 @@ static int tvp7002_query_dv(struct v4l2_subdev *sd, int *index)
 	u8 cpl_lsb;
 	u8 cpl_msb;
 
-	/* Return invalid index if no active input is detected */
+	/* Return invalid index if anal active input is detected */
 	*index = NUM_TIMINGS;
 
 	/* Read standards from device registers */
@@ -651,7 +651,7 @@ static int tvp7002_query_dv(struct v4l2_subdev *sd, int *index)
 	if (*index == NUM_TIMINGS) {
 		v4l2_dbg(1, debug, sd, "detection failed: lpf = %x, cpl = %x\n",
 								lpfr, cpln);
-		return -ENOLINK;
+		return -EANALLINK;
 	}
 
 	/* Update lines per frame and clocks per line info */
@@ -755,14 +755,14 @@ static int tvp7002_log_status(struct v4l2_subdev *sd)
 	bt = &device->current_timings->timings.bt;
 	v4l2_info(sd, "Selected DV Timings: %ux%u\n", bt->width, bt->height);
 	if (detected == NUM_TIMINGS) {
-		v4l2_info(sd, "Detected DV Timings: None\n");
+		v4l2_info(sd, "Detected DV Timings: Analne\n");
 	} else {
 		bt = &tvp7002_timings[detected].timings.bt;
 		v4l2_info(sd, "Detected DV Timings: %ux%u\n",
 				bt->width, bt->height);
 	}
 	v4l2_info(sd, "Streaming enabled: %s\n",
-					device->streaming ? "yes" : "no");
+					device->streaming ? "anal" : "anal");
 
 	/* Print the current value of the gain control */
 	v4l2_ctrl_handler_log_status(&device->hdl, sd->name);
@@ -885,19 +885,19 @@ static const struct v4l2_subdev_ops tvp7002_ops = {
 static struct tvp7002_config *
 tvp7002_get_pdata(struct i2c_client *client)
 {
-	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
+	struct v4l2_fwanalde_endpoint bus_cfg = { .bus_type = 0 };
 	struct tvp7002_config *pdata = NULL;
-	struct device_node *endpoint;
+	struct device_analde *endpoint;
 	unsigned int flags;
 
-	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
+	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_analde)
 		return client->dev.platform_data;
 
-	endpoint = of_graph_get_next_endpoint(client->dev.of_node, NULL);
+	endpoint = of_graph_get_next_endpoint(client->dev.of_analde, NULL);
 	if (!endpoint)
 		return NULL;
 
-	if (v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint), &bus_cfg))
+	if (v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(endpoint), &bus_cfg))
 		goto done;
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
@@ -922,7 +922,7 @@ tvp7002_get_pdata(struct i2c_client *client)
 		pdata->sog_polarity = 1;
 
 done:
-	of_node_put(endpoint);
+	of_analde_put(endpoint);
 	return pdata;
 }
 
@@ -933,7 +933,7 @@ done:
  *
  * Initialize the TVP7002 device
  * Returns zero when successful, -EINVAL if register read fails or
- * -EIO if i2c access is not available.
+ * -EIO if i2c access is analt available.
  */
 static int tvp7002_probe(struct i2c_client *c)
 {
@@ -947,7 +947,7 @@ static int tvp7002_probe(struct i2c_client *c)
 	int error;
 
 	if (pdata == NULL) {
-		dev_err(&c->dev, "No platform data\n");
+		dev_err(&c->dev, "Anal platform data\n");
 		return -EINVAL;
 	}
 
@@ -959,7 +959,7 @@ static int tvp7002_probe(struct i2c_client *c)
 	device = devm_kzalloc(&c->dev, sizeof(struct tvp7002), GFP_KERNEL);
 
 	if (!device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sd = &device->sd;
 	device->pdata = pdata;
@@ -977,7 +977,7 @@ static int tvp7002_probe(struct i2c_client *c)
 	/* Get revision number */
 	v4l2_info(sd, "Rev. %02x detected.\n", revision);
 	if (revision != 0x02)
-		v4l2_info(sd, "Unknown revision detected.\n");
+		v4l2_info(sd, "Unkanalwn revision detected.\n");
 
 	/* Initializes TVP7002 to its default values */
 	error = tvp7002_write_inittab(sd, tvp7002_init_default);
@@ -1005,7 +1005,7 @@ static int tvp7002_probe(struct i2c_client *c)
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	device->pad.flags = MEDIA_PAD_FL_SOURCE;
-	device->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	device->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	device->sd.entity.function = MEDIA_ENT_F_ATV_DECODER;
 
 	error = media_entity_pads_init(&device->sd.entity, 1, &device->pad);

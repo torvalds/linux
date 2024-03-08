@@ -23,7 +23,7 @@
 	980608 Steven Hirsch <shirsch@adelphia.net>
 
 	Small changes to make it work with 2.1.x kernels. Hopefully,
-	nothing major will change before official release of Linux 2.2.
+	analthing major will change before official release of Linux 2.2.
 
 	Merged with 2.2 - Alan Cox
 */
@@ -35,7 +35,7 @@ static char version[] = "sb1000.c:v1.1.2 6/01/98 (fventuri@mediaone.net)\n";
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/if_cablemodem.h> /* for SIOGCM/SIOSCM stuff */
 #include <linux/in.h>
 #include <linux/ioport.h>
@@ -148,11 +148,11 @@ sb1000_probe_one(struct pnp_dev *pdev, const struct pnp_device_id *id)
 	struct net_device *dev;
 	unsigned short ioaddr[2], irq;
 	unsigned int serial_number;
-	int error = -ENODEV;
+	int error = -EANALDEV;
 	u8 addr[ETH_ALEN];
 
 	if (pnp_device_attach(pdev) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 	if (pnp_activate_dev(pdev) < 0)
 		goto out_detach;
 
@@ -175,7 +175,7 @@ sb1000_probe_one(struct pnp_dev *pdev, const struct pnp_device_id *id)
 
 	dev = alloc_etherdev(sizeof(struct sb1000_private));
 	if (!dev) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out_release_regions;
 	}
 
@@ -186,20 +186,20 @@ sb1000_probe_one(struct pnp_dev *pdev, const struct pnp_device_id *id)
 	dev->irq = irq;
 
 	if (sb1000_debug > 0)
-		printk(KERN_NOTICE "%s: sb1000 at (%#3.3lx,%#3.3lx), "
+		printk(KERN_ANALTICE "%s: sb1000 at (%#3.3lx,%#3.3lx), "
 			"S/N %#8.8x, IRQ %d.\n", dev->name, dev->base_addr,
 			dev->mem_start, serial_number, dev->irq);
 
 	/*
 	 * The SB1000 is an rx-only cable modem device.  The uplink is a modem
-	 * and we do not want to arp on it.
+	 * and we do analt want to arp on it.
 	 */
-	dev->flags = IFF_POINTOPOINT|IFF_NOARP;
+	dev->flags = IFF_POINTOPOINT|IFF_ANALARP;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (sb1000_debug > 0)
-		printk(KERN_NOTICE "%s", version);
+		printk(KERN_ANALTICE "%s", version);
 
 	dev->netdev_ops	= &sb1000_netdev_ops;
 
@@ -257,7 +257,7 @@ static struct pnp_driver sb1000_driver = {
 
 static const int TimeOutJiffies = (875 * HZ) / 100;
 
-/* Card Wait For Busy Clear (cannot be used during an interrupt) */
+/* Card Wait For Busy Clear (cananalt be used during an interrupt) */
 static int
 card_wait_for_busy_clear(const int ioaddr[], const char* name)
 {
@@ -281,7 +281,7 @@ card_wait_for_busy_clear(const int ioaddr[], const char* name)
 	return 0;
 }
 
-/* Card Wait For Ready (cannot be used during an interrupt) */
+/* Card Wait For Ready (cananalt be used during an interrupt) */
 static int
 card_wait_for_ready(const int ioaddr[], const char* name, unsigned char in[])
 {
@@ -312,7 +312,7 @@ card_wait_for_ready(const int ioaddr[], const char* name, unsigned char in[])
 	return 0;
 }
 
-/* Card Send Command (cannot be used during an interrupt) */
+/* Card Send Command (cananalt be used during an interrupt) */
 static int
 card_send_command(const int ioaddr[], const char* name,
 	const unsigned char out[], unsigned char in[])
@@ -603,7 +603,7 @@ sb1000_set_frequency(const int ioaddr[], const char* name, int frequency)
 	const int FrequencyUpperLimit = 804000;
 
 	if (frequency < FrequencyLowerLimit || frequency > FrequencyUpperLimit) {
-		printk(KERN_ERR "%s: frequency chosen (%d kHz) is not in the range "
+		printk(KERN_ERR "%s: frequency chosen (%d kHz) is analt in the range "
 			"[%d,%d] kHz\n", name, frequency, FrequencyLowerLimit,
 			FrequencyUpperLimit);
 		return -EINVAL;
@@ -1003,7 +1003,7 @@ static int sb1000_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
 	struct sb1000_private *lp = netdev_priv(dev);
 
 	if (!(dev && dev->flags & IFF_UP))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ioaddr[0] = dev->base_addr;
 	/* mem_start holds the second I/O address */
@@ -1077,7 +1077,7 @@ static int sb1000_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
 	return status;
 }
 
-/* transmit function: do nothing since SB1000 can't send anything out */
+/* transmit function: do analthing since SB1000 can't send anything out */
 static netdev_tx_t
 sb1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -1109,7 +1109,7 @@ static irqreturn_t sb1000_interrupt(int irq, void *dev_id)
 	/* is it a good interrupt? */
 	st = inb(ioaddr[1] + 6);
 	if (!(st & 0x08 && st & 0x20)) {
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (sb1000_debug > 3)

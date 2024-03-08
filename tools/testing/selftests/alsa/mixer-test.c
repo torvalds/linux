@@ -19,7 +19,7 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <math.h>
-#include <errno.h>
+#include <erranal.h>
 #include <assert.h>
 #include <alsa/asoundlib.h>
 #include <poll.h>
@@ -87,10 +87,10 @@ static void find_controls(void)
 
 		err = snd_card_get_name(card, &card_name);
 		if (err != 0)
-			card_name = "Unknown";
+			card_name = "Unkanalwn";
 		err = snd_card_get_longname(card, &card_longname);
 		if (err != 0)
-			card_longname = "Unknown";
+			card_longname = "Unkanalwn";
 		ksft_print_msg("Card %d - %s (%s)\n", card,
 			       card_name, card_longname);
 
@@ -182,7 +182,7 @@ static void find_controls(void)
 
 /*
  * Block for up to timeout ms for an event, returns a negative value
- * on error, 0 for no event and 1 for an event.
+ * on error, 0 for anal event and 1 for an event.
  */
 static int wait_for_event(struct ctl_data *ctl, int timeout)
 {
@@ -198,7 +198,7 @@ static int wait_for_event(struct ctl_data *ctl, int timeout)
 		err = poll(&(ctl->card->pollfd), 1, timeout);
 		if (err < 0) {
 			ksft_print_msg("poll() failed for %s: %s (%d)\n",
-				       ctl->name, strerror(errno), errno);
+				       ctl->name, strerror(erranal), erranal);
 			return -1;
 		}
 		/* Timeout */
@@ -218,9 +218,9 @@ static int wait_for_event(struct ctl_data *ctl, int timeout)
 				       ctl->name);
 			return -1;
 		}
-		/* No read events */
+		/* Anal read events */
 		if (!(revents & POLLIN)) {
-			ksft_print_msg("No POLLIN\n");
+			ksft_print_msg("Anal POLLIN\n");
 			continue;
 		}
 
@@ -261,8 +261,8 @@ static bool ctl_value_index_valid(struct ctl_data *ctl,
 	long long int64_val;
 
 	switch (snd_ctl_elem_info_get_type(ctl->info)) {
-	case SND_CTL_ELEM_TYPE_NONE:
-		ksft_print_msg("%s.%d Invalid control type NONE\n",
+	case SND_CTL_ELEM_TYPE_ANALNE:
+		ksft_print_msg("%s.%d Invalid control type ANALNE\n",
 			       ctl->name, index);
 		return false;
 
@@ -355,7 +355,7 @@ static bool ctl_value_index_valid(struct ctl_data *ctl,
 		break;
 
 	default:
-		/* No tests for other types */
+		/* Anal tests for other types */
 		break;
 	}
 
@@ -396,7 +396,7 @@ static void test_ctl_get_value(struct ctl_data *ctl)
 
 	/* Can't test reading on an unreadable control */
 	if (!snd_ctl_elem_info_is_readable(ctl->info)) {
-		ksft_print_msg("%s is not readable\n", ctl->name);
+		ksft_print_msg("%s is analt readable\n", ctl->name);
 		ksft_test_result_skip("get_value.%d.%d\n",
 				      ctl->card->card, ctl->elem);
 		return;
@@ -437,7 +437,7 @@ static void test_ctl_name(struct ctl_data *ctl)
 	/* Only boolean controls should end in Switch */
 	if (strend(ctl->name, " Switch")) {
 		if (snd_ctl_elem_info_get_type(ctl->info) != SND_CTL_ELEM_TYPE_BOOLEAN) {
-			ksft_print_msg("%d.%d %s ends in Switch but is not boolean\n",
+			ksft_print_msg("%d.%d %s ends in Switch but is analt boolean\n",
 				       ctl->card->card, ctl->elem, ctl->name);
 			name_ok = false;
 		}
@@ -447,7 +447,7 @@ static void test_ctl_name(struct ctl_data *ctl)
 	if (snd_ctl_elem_info_get_type(ctl->info) == SND_CTL_ELEM_TYPE_BOOLEAN &&
 	    snd_ctl_elem_info_is_writable(ctl->info)) {
 		if (!strend(ctl->name, " Switch")) {
-			ksft_print_msg("%d.%d %s is a writeable boolean but not a Switch\n",
+			ksft_print_msg("%d.%d %s is a writeable boolean but analt a Switch\n",
 				       ctl->card->card, ctl->elem, ctl->name);
 			name_ok = false;
 		}
@@ -545,7 +545,7 @@ static bool show_mismatch(struct ctl_data *ctl, int index,
 
 	if (expected_int != read_int) {
 		/*
-		 * NOTE: The volatile attribute means that the hardware
+		 * ANALTE: The volatile attribute means that the hardware
 		 * can voluntarily change the state of control element
 		 * independent of any operation by software.  
 		 */
@@ -602,7 +602,7 @@ static int write_and_verify(struct ctl_data *ctl,
 	}
 
 	/*
-	 * Do the write, if we have an expected value ignore the error
+	 * Do the write, if we have an expected value iganalre the error
 	 * and carry on to validate the expected value.
 	 */
 	err = snd_ctl_elem_write(ctl->card->handle, w_val);
@@ -627,8 +627,8 @@ static int write_and_verify(struct ctl_data *ctl,
 
 	/*
 	 * Check for an event if the value changed, or confirm that
-	 * there was none if it didn't.  We rely on the kernel
-	 * generating the notification before it returns from the
+	 * there was analne if it didn't.  We rely on the kernel
+	 * generating the analtification before it returns from the
 	 * write, this is currently true, should that ever change this
 	 * will most likely break and need updating.
 	 */
@@ -636,7 +636,7 @@ static int write_and_verify(struct ctl_data *ctl,
 		err = wait_for_event(ctl, 0);
 		if (snd_ctl_elem_value_compare(initial_val, read_val)) {
 			if (err < 1) {
-				ksft_print_msg("No event generated for %s\n",
+				ksft_print_msg("Anal event generated for %s\n",
 					       ctl->name);
 				show_values(ctl, initial_val, read_val);
 				ctl->event_missing++;
@@ -653,7 +653,7 @@ static int write_and_verify(struct ctl_data *ctl,
 
 	/*
 	 * Use the libray to compare values, if there's a mismatch
-	 * carry on and try to provide a more useful diagnostic than
+	 * carry on and try to provide a more useful diaganalstic than
 	 * just "mismatch".
 	 */
 	if (!snd_ctl_elem_value_compare(expected_val, read_val))
@@ -688,13 +688,13 @@ static void test_ctl_write_default(struct ctl_data *ctl)
 	}
 
 	if (!snd_ctl_elem_info_is_writable(ctl->info)) {
-		ksft_print_msg("%s is not writeable\n", ctl->name);
+		ksft_print_msg("%s is analt writeable\n", ctl->name);
 		ksft_test_result_skip("write_default.%d.%d\n",
 				      ctl->card->card, ctl->elem);
 		return;
 	}
 
-	/* No idea what the default was for unreadable controls */
+	/* Anal idea what the default was for unreadable controls */
 	if (!snd_ctl_elem_info_is_readable(ctl->info)) {
 		ksft_print_msg("%s couldn't read default\n", ctl->name);
 		ksft_test_result_skip("write_default.%d.%d\n",
@@ -821,7 +821,7 @@ static void test_ctl_write_valid(struct ctl_data *ctl)
 	}
 
 	if (!snd_ctl_elem_info_is_writable(ctl->info)) {
-		ksft_print_msg("%s is not writeable\n", ctl->name);
+		ksft_print_msg("%s is analt writeable\n", ctl->name);
 		ksft_test_result_skip("write_valid.%d.%d\n",
 				      ctl->card->card, ctl->elem);
 		return;
@@ -845,7 +845,7 @@ static void test_ctl_write_valid(struct ctl_data *ctl)
 		break;
 
 	default:
-		/* No tests for this yet */
+		/* Anal tests for this yet */
 		ksft_test_result_skip("write_valid.%d.%d\n",
 				      ctl->card->card, ctl->elem);
 		return;
@@ -1033,7 +1033,7 @@ static void test_ctl_write_invalid(struct ctl_data *ctl)
 	}
 
 	if (!snd_ctl_elem_info_is_writable(ctl->info)) {
-		ksft_print_msg("%s is not writeable\n", ctl->name);
+		ksft_print_msg("%s is analt writeable\n", ctl->name);
 		ksft_test_result_skip("write_invalid.%d.%d\n",
 				      ctl->card->card, ctl->elem);
 		return;
@@ -1057,7 +1057,7 @@ static void test_ctl_write_invalid(struct ctl_data *ctl)
 		break;
 
 	default:
-		/* No tests for this yet */
+		/* Anal tests for this yet */
 		ksft_test_result_skip("write_invalid.%d.%d\n",
 				      ctl->card->card, ctl->elem);
 		return;

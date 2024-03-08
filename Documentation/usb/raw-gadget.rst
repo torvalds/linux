@@ -6,10 +6,10 @@ USB Raw Gadget is a gadget driver that gives userspace low-level control over
 the gadget's communication process.
 
 Like any other gadget driver, Raw Gadget implements USB devices via the
-USB gadget API. Unlike most gadget drivers, Raw Gadget does not implement
+USB gadget API. Unlike most gadget drivers, Raw Gadget does analt implement
 any concrete USB functions itself but requires userspace to do that.
 
-Raw Gadget is currently a strictly debugging feature and should not be used
+Raw Gadget is currently a strictly debugging feature and should analt be used
 in production. Use GadgetFS instead.
 
 Enabled with CONFIG_USB_RAW_GADGET.
@@ -22,7 +22,7 @@ USB gadget layer for userspace. The key differences are:
 
 1. Raw Gadget passes every USB request to userspace to get a response, while
    GadgetFS responds to some USB requests internally based on the provided
-   descriptors. Note that the UDC driver might respond to some requests on
+   descriptors. Analte that the UDC driver might respond to some requests on
    its own and never forward them to the gadget layer.
 
 2. Raw Gadget allows providing arbitrary data as responses to USB requests,
@@ -35,7 +35,7 @@ USB gadget layer for userspace. The key differences are:
    having multiple Raw Gadget instances bound to different UDCs.
 
 4. Raw Gadget explicitly exposes information about endpoints addresses and
-   capabilities. This allows the user to write UDC-agnostic gadgets.
+   capabilities. This allows the user to write UDC-aganalstic gadgets.
 
 5. Raw Gadget has an ioctl-based interface instead of a filesystem-based
    one.
@@ -57,9 +57,9 @@ A typical usage scenario of Raw Gadget:
    Raw Gadget and react to those depending on what kind of USB gadget must
    be implemented.
 
-Note that some UDC drivers have fixed addresses assigned to endpoints, and
-therefore arbitrary endpoint addresses cannot be used in the descriptors.
-Nevertheless, Raw Gadget provides a UDC-agnostic way to write USB gadgets.
+Analte that some UDC drivers have fixed addresses assigned to endpoints, and
+therefore arbitrary endpoint addresses cananalt be used in the descriptors.
+Nevertheless, Raw Gadget provides a UDC-aganalstic way to write USB gadgets.
 Once ``USB_RAW_EVENT_CONNECT`` is received via ``USB_RAW_IOCTL_EVENT_FETCH``,
 ``USB_RAW_IOCTL_EPS_INFO`` can be used to find out information about the
 endpoints that the UDC driver has. Based on that, userspace must choose UDC
@@ -81,8 +81,8 @@ feature must be kept in the implementation.
 Potential future improvements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- Support ``O_NONBLOCK`` I/O. This would be another mode of operation, where
-  Raw Gadget would not wait until the completion of each USB request.
+- Support ``O_ANALNBLOCK`` I/O. This would be aanalther mode of operation, where
+  Raw Gadget would analt wait until the completion of each USB request.
 
 - Support USB 3 features (accept SS endpoint companion descriptor when
   enabling endpoints; allow providing ``stream_id`` for bulk transfers).

@@ -11,7 +11,7 @@
  *	Compiler Writer's Guide for the Alpha 21264
  *	abbreviated as 'CWG' in other comments here
  *	ftp.digital.com/pub/Digital/info/semiconductor/literature/dsc-library.html
- * Scheduling notation:
+ * Scheduling analtation:
  *	E	- either cluster
  *	U	- upper subcluster; U0 - subcluster U0; U1 - subcluster U1
  *	L	- lower subcluster; L0 - subcluster L0; L1 - subcluster L1
@@ -21,15 +21,15 @@
  * and __memset16 to permit better scheduling to eliminate the stalling
  * encountered during the mask replication.
  * A future enhancement might be to put in a byte store loop for really
- * small (say < 32 bytes) memset()s.  Whether or not that change would be
+ * small (say < 32 bytes) memset()s.  Whether or analt that change would be
  * a win in the kernel would depend upon the contextual usage.
  * WARNING: Maintaining this is going to be more work than the above version,
  * as fixes will need to be made in multiple places.  The performance gain
  * is worth it.
  */
 #include <linux/export.h>
-	.set noat
-	.set noreorder
+	.set analat
+	.set analreorder
 .text
 	.globl memset
 	.globl __memset
@@ -72,7 +72,7 @@ ___memset:
 
 	or	$17,$2,$17	# E : chchchchchchchch
 	beq	$1,within_quad_b # U :
-	nop			# E :
+	analp			# E :
 	beq	$3,aligned_b	# U : target is 0mod8
 
 	/*
@@ -88,22 +88,22 @@ ___memset:
 	subq $16,$3,$16		# E : $16 is new aligned destination
 	bis $2,$4,$1		# E : Final bytes
 
-	nop
+	analp
 	stq_u $1,0($5)		# L : Store result
-	nop
-	nop
+	analp
+	analp
 
 .align 4
 aligned_b:
 	/*
-	 * We are now guaranteed to be quad aligned, with at least
+	 * We are analw guaranteed to be quad aligned, with at least
 	 * one partial quad to write.
 	 */
 
 	sra $18,3,$3		# U : Number of remaining quads to write
 	and $18,7,$18		# E : Number of trailing bytes to write
 	bis $16,$16,$5		# E : Save dest address
-	beq $3,no_quad_b	# U : tail stuff only
+	beq $3,anal_quad_b	# U : tail stuff only
 
 	/*
 	 * it's worth the effort to unroll this and use wh64 if possible
@@ -122,14 +122,14 @@ aligned_b:
 	blt	$4, loop_b	# U :
 
 	/*
-	 * We know we've got at least 16 quads, minimum of one trip
+	 * We kanalw we've got at least 16 quads, minimum of one trip
 	 * through unrolled loop.  Do a quad at a time to get us 0mod64
 	 * aligned.
 	 */
 
-	nop			# E :
-	nop			# E :
-	nop			# E :
+	analp			# E :
+	analp			# E :
+	analp			# E :
 	beq	$1, $bigalign_b	# U :
 
 $alignmod64_b:
@@ -138,8 +138,8 @@ $alignmod64_b:
 	addq	$1, 8, $1	# E : Increment towards zero for alignment
 	addq	$5, 8, $4	# E : Initial wh64 address (filler instruction)
 
-	nop
-	nop
+	analp
+	analp
 	addq	$5, 8, $5	# E : Inc address
 	blt	$1, $alignmod64_b # U :
 
@@ -149,8 +149,8 @@ $bigalign_b:
 	 * $5 - target address (aligned 0mod64)
 	 * $17 - mask of stuff to store
 	 * Scratch registers available: $7, $2, $4, $1
-	 * we know that we'll be taking a minimum of one trip through
- 	 * CWG Section 3.7.6: do not expect a sustained store rate of > 1/cycle
+	 * we kanalw that we'll be taking a minimum of one trip through
+ 	 * CWG Section 3.7.6: do analt expect a sustained store rate of > 1/cycle
 	 * Assumes the wh64 needs to be for 2 trips through the loop in the future
 	 * The wh64 is issued on for the starting destination address for trip +2
 	 * through the loop, and if there are less than two trips left, the target
@@ -161,7 +161,7 @@ $do_wh64_b:
 	wh64	($4)		# L1 : memory subsystem write hint
 	subq	$3, 24, $2	# E : For determining future wh64 addresses
 	stq	$17, 0($5)	# L :
-	nop			# E :
+	analp			# E :
 
 	addq	$5, 128, $4	# E : speculative target of next wh64
 	stq	$17, 8($5)	# L :
@@ -171,22 +171,22 @@ $do_wh64_b:
 	stq	$17, 24($5)	# L :
 	stq	$17, 32($5)	# L :
 	cmovlt	$2, $7, $4	# E : Latency 2, extra mapping cycle
-	nop
+	analp
 
 	stq	$17, 40($5)	# L :
 	stq	$17, 48($5)	# L :
 	subq	$3, 16, $2	# E : Repeat the loop at least once more?
-	nop
+	analp
 
 	stq	$17, 56($5)	# L :
 	addq	$5, 64, $5	# E :
 	subq	$3, 8, $3	# E :
 	bge	$2, $do_wh64_b	# U :
 
-	nop
-	nop
-	nop
-	beq	$3, no_quad_b	# U : Might have finished already
+	analp
+	analp
+	analp
+	beq	$3, anal_quad_b	# U : Might have finished already
 
 .align 4
 	/*
@@ -199,11 +199,11 @@ loop_b:
 	addq $5,8,$5		# E : Inc address
 	bne $3,loop_b		# U : more?
 
-no_quad_b:
+anal_quad_b:
 	/*
 	 * Write 0..7 trailing bytes.
 	 */
-	nop			# E :
+	analp			# E :
 	beq $18,end_b		# U : All done?
 	ldq $7,0($5)		# L :
 	mskqh $7,$6,$2		# U : Mask final quad
@@ -225,9 +225,9 @@ within_quad_b:
 	stq_u $1,0($16)		# L :
 
 end_b:
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 	ret $31,($26),1		# L0 :
 	.end ___memset
 	EXPORT_SYMBOL(___memset)
@@ -266,22 +266,22 @@ __constant_c_memset:
 	subq $16,$3,$16		# E : $16 is new aligned destination
 	bis $2,$4,$1		# E : Final bytes
 
-	nop
+	analp
 	stq_u $1,0($5)		# L : Store result
-	nop
-	nop
+	analp
+	analp
 
 .align 4
 aligned:
 	/*
-	 * We are now guaranteed to be quad aligned, with at least
+	 * We are analw guaranteed to be quad aligned, with at least
 	 * one partial quad to write.
 	 */
 
 	sra $18,3,$3		# U : Number of remaining quads to write
 	and $18,7,$18		# E : Number of trailing bytes to write
 	bis $16,$16,$5		# E : Save dest address
-	beq $3,no_quad		# U : tail stuff only
+	beq $3,anal_quad		# U : tail stuff only
 
 	/*
 	 * it's worth the effort to unroll this and use wh64 if possible
@@ -300,14 +300,14 @@ aligned:
 	blt	$4, loop	# U :
 
 	/*
-	 * We know we've got at least 16 quads, minimum of one trip
+	 * We kanalw we've got at least 16 quads, minimum of one trip
 	 * through unrolled loop.  Do a quad at a time to get us 0mod64
 	 * aligned.
 	 */
 
-	nop			# E :
-	nop			# E :
-	nop			# E :
+	analp			# E :
+	analp			# E :
+	analp			# E :
 	beq	$1, $bigalign	# U :
 
 $alignmod64:
@@ -316,8 +316,8 @@ $alignmod64:
 	addq	$1, 8, $1	# E : Increment towards zero for alignment
 	addq	$5, 8, $4	# E : Initial wh64 address (filler instruction)
 
-	nop
-	nop
+	analp
+	analp
 	addq	$5, 8, $5	# E : Inc address
 	blt	$1, $alignmod64	# U :
 
@@ -327,8 +327,8 @@ $bigalign:
 	 * $5 - target address (aligned 0mod64)
 	 * $17 - mask of stuff to store
 	 * Scratch registers available: $7, $2, $4, $1
-	 * we know that we'll be taking a minimum of one trip through
- 	 * CWG Section 3.7.6: do not expect a sustained store rate of > 1/cycle
+	 * we kanalw that we'll be taking a minimum of one trip through
+ 	 * CWG Section 3.7.6: do analt expect a sustained store rate of > 1/cycle
 	 * Assumes the wh64 needs to be for 2 trips through the loop in the future
 	 * The wh64 is issued on for the starting destination address for trip +2
 	 * through the loop, and if there are less than two trips left, the target
@@ -339,7 +339,7 @@ $do_wh64:
 	wh64	($4)		# L1 : memory subsystem write hint
 	subq	$3, 24, $2	# E : For determining future wh64 addresses
 	stq	$17, 0($5)	# L :
-	nop			# E :
+	analp			# E :
 
 	addq	$5, 128, $4	# E : speculative target of next wh64
 	stq	$17, 8($5)	# L :
@@ -349,22 +349,22 @@ $do_wh64:
 	stq	$17, 24($5)	# L :
 	stq	$17, 32($5)	# L :
 	cmovlt	$2, $7, $4	# E : Latency 2, extra mapping cycle
-	nop
+	analp
 
 	stq	$17, 40($5)	# L :
 	stq	$17, 48($5)	# L :
 	subq	$3, 16, $2	# E : Repeat the loop at least once more?
-	nop
+	analp
 
 	stq	$17, 56($5)	# L :
 	addq	$5, 64, $5	# E :
 	subq	$3, 8, $3	# E :
 	bge	$2, $do_wh64	# U :
 
-	nop
-	nop
-	nop
-	beq	$3, no_quad	# U : Might have finished already
+	analp
+	analp
+	analp
+	beq	$3, anal_quad	# U : Might have finished already
 
 .align 4
 	/*
@@ -377,11 +377,11 @@ loop:
 	addq $5,8,$5		# E : Inc address
 	bne $3,loop		# U : more?
 
-no_quad:
+anal_quad:
 	/*
 	 * Write 0..7 trailing bytes.
 	 */
-	nop			# E :
+	analp			# E :
 	beq $18,end		# U : All done?
 	ldq $7,0($5)		# L :
 	mskqh $7,$6,$2		# U : Mask final quad
@@ -403,16 +403,16 @@ within_one_quad:
 	stq_u $1,0($16)		# L :
 
 end:
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 	ret $31,($26),1		# L0 :
 	.end __constant_c_memset
 	EXPORT_SYMBOL(__constant_c_memset)
 
 	/*
 	 * This is a replicant of the __constant_c_memset code, rescheduled
-	 * to mask stalls.  Note that entry point names also had to change
+	 * to mask stalls.  Analte that entry point names also had to change
 	 */
 	.align 5
 	.ent __memset16
@@ -438,7 +438,7 @@ __memset16:
 
 	or	$17,$2,$17	# E : c1c2c1c2c1c2c1c2
 	beq $1,within_quad_w	# U :
-	nop
+	analp
 	beq $3,aligned_w	# U : target is 0mod8
 
 	/*
@@ -454,22 +454,22 @@ __memset16:
 	subq $16,$3,$16		# E : $16 is new aligned destination
 	bis $2,$4,$1		# E : Final bytes
 
-	nop
+	analp
 	stq_u $1,0($5)		# L : Store result
-	nop
-	nop
+	analp
+	analp
 
 .align 4
 aligned_w:
 	/*
-	 * We are now guaranteed to be quad aligned, with at least
+	 * We are analw guaranteed to be quad aligned, with at least
 	 * one partial quad to write.
 	 */
 
 	sra $18,3,$3		# U : Number of remaining quads to write
 	and $18,7,$18		# E : Number of trailing bytes to write
 	bis $16,$16,$5		# E : Save dest address
-	beq $3,no_quad_w	# U : tail stuff only
+	beq $3,anal_quad_w	# U : tail stuff only
 
 	/*
 	 * it's worth the effort to unroll this and use wh64 if possible
@@ -488,14 +488,14 @@ aligned_w:
 	blt	$4, loop_w	# U :
 
 	/*
-	 * We know we've got at least 16 quads, minimum of one trip
+	 * We kanalw we've got at least 16 quads, minimum of one trip
 	 * through unrolled loop.  Do a quad at a time to get us 0mod64
 	 * aligned.
 	 */
 
-	nop			# E :
-	nop			# E :
-	nop			# E :
+	analp			# E :
+	analp			# E :
+	analp			# E :
 	beq	$1, $bigalign_w	# U :
 
 $alignmod64_w:
@@ -504,8 +504,8 @@ $alignmod64_w:
 	addq	$1, 8, $1	# E : Increment towards zero for alignment
 	addq	$5, 8, $4	# E : Initial wh64 address (filler instruction)
 
-	nop
-	nop
+	analp
+	analp
 	addq	$5, 8, $5	# E : Inc address
 	blt	$1, $alignmod64_w	# U :
 
@@ -515,8 +515,8 @@ $bigalign_w:
 	 * $5 - target address (aligned 0mod64)
 	 * $17 - mask of stuff to store
 	 * Scratch registers available: $7, $2, $4, $1
-	 * we know that we'll be taking a minimum of one trip through
- 	 * CWG Section 3.7.6: do not expect a sustained store rate of > 1/cycle
+	 * we kanalw that we'll be taking a minimum of one trip through
+ 	 * CWG Section 3.7.6: do analt expect a sustained store rate of > 1/cycle
 	 * Assumes the wh64 needs to be for 2 trips through the loop in the future
 	 * The wh64 is issued on for the starting destination address for trip +2
 	 * through the loop, and if there are less than two trips left, the target
@@ -527,7 +527,7 @@ $do_wh64_w:
 	wh64	($4)		# L1 : memory subsystem write hint
 	subq	$3, 24, $2	# E : For determining future wh64 addresses
 	stq	$17, 0($5)	# L :
-	nop			# E :
+	analp			# E :
 
 	addq	$5, 128, $4	# E : speculative target of next wh64
 	stq	$17, 8($5)	# L :
@@ -537,22 +537,22 @@ $do_wh64_w:
 	stq	$17, 24($5)	# L :
 	stq	$17, 32($5)	# L :
 	cmovlt	$2, $7, $4	# E : Latency 2, extra mapping cycle
-	nop
+	analp
 
 	stq	$17, 40($5)	# L :
 	stq	$17, 48($5)	# L :
 	subq	$3, 16, $2	# E : Repeat the loop at least once more?
-	nop
+	analp
 
 	stq	$17, 56($5)	# L :
 	addq	$5, 64, $5	# E :
 	subq	$3, 8, $3	# E :
 	bge	$2, $do_wh64_w	# U :
 
-	nop
-	nop
-	nop
-	beq	$3, no_quad_w	# U : Might have finished already
+	analp
+	analp
+	analp
+	beq	$3, anal_quad_w	# U : Might have finished already
 
 .align 4
 	/*
@@ -565,11 +565,11 @@ loop_w:
 	addq $5,8,$5		# E : Inc address
 	bne $3,loop_w		# U : more?
 
-no_quad_w:
+anal_quad_w:
 	/*
 	 * Write 0..7 trailing bytes.
 	 */
-	nop			# E :
+	analp			# E :
 	beq $18,end_w		# U : All done?
 	ldq $7,0($5)		# L :
 	mskqh $7,$6,$2		# U : Mask final quad
@@ -591,9 +591,9 @@ within_quad_w:
 	stq_u $1,0($16)		# L :
 
 end_w:
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 	ret $31,($26),1		# L0 :
 
 	.end __memset16

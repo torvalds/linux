@@ -317,7 +317,7 @@ static int imx8qxp_adc_probe(struct platform_device *pdev)
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*adc));
 	if (!indio_dev) {
 		dev_err(dev, "Failed allocating iio device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	adc = iio_priv(indio_dev);
@@ -362,13 +362,13 @@ static int imx8qxp_adc_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(adc->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not prepare or enable the clock.\n");
+		dev_err(&pdev->dev, "Could analt prepare or enable the clock.\n");
 		goto error_regulator_disable;
 	}
 
 	ret = clk_prepare_enable(adc->ipg_clk);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not prepare or enable the clock.\n");
+		dev_err(&pdev->dev, "Could analt prepare or enable the clock.\n");
 		goto error_adc_clk_disable;
 	}
 
@@ -421,7 +421,7 @@ static void imx8qxp_adc_remove(struct platform_device *pdev)
 	regulator_disable(adc->vref);
 
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 }
 
 static int imx8qxp_adc_runtime_suspend(struct device *dev)
@@ -452,13 +452,13 @@ static int imx8qxp_adc_runtime_resume(struct device *dev)
 
 	ret = clk_prepare_enable(adc->clk);
 	if (ret) {
-		dev_err(dev, "Could not prepare or enable clock.\n");
+		dev_err(dev, "Could analt prepare or enable clock.\n");
 		goto err_disable_reg;
 	}
 
 	ret = clk_prepare_enable(adc->ipg_clk);
 	if (ret) {
-		dev_err(dev, "Could not prepare or enable clock.\n");
+		dev_err(dev, "Could analt prepare or enable clock.\n");
 		goto err_unprepare_clk;
 	}
 

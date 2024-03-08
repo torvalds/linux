@@ -58,7 +58,7 @@
 				     printk(x, ## args); } while (0);
 
 struct nfulnl_instance {
-	struct hlist_node hlist;	/* global list of instances */
+	struct hlist_analde hlist;	/* global list of instances */
 	spinlock_t lock;
 	refcount_t use;			/* use count */
 
@@ -128,7 +128,7 @@ instance_lookup_get_rcu(const struct nfnl_log_net *log, u16 group_num)
 	struct nfulnl_instance *inst;
 
 	inst = __instance_lookup(log, group_num);
-	if (inst && !refcount_inc_not_zero(&inst->use))
+	if (inst && !refcount_inc_analt_zero(&inst->use))
 		inst = NULL;
 
 	return inst;
@@ -181,7 +181,7 @@ instance_create(struct net *net, u_int16_t group_num,
 
 	inst = kzalloc(sizeof(*inst), GFP_ATOMIC);
 	if (!inst) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -191,7 +191,7 @@ instance_create(struct net *net, u_int16_t group_num,
 		goto out_unlock;
 	}
 
-	INIT_HLIST_NODE(&inst->hlist);
+	INIT_HLIST_ANALDE(&inst->hlist);
 	spin_lock_init(&inst->lock);
 	/* needs to be two, since we _put() after creation */
 	refcount_set(&inst->use, 2);
@@ -264,7 +264,7 @@ nfulnl_set_mode(struct nfulnl_instance *inst, u_int8_t mode,
 	spin_lock_bh(&inst->lock);
 
 	switch (mode) {
-	case NFULNL_COPY_NONE:
+	case NFULNL_COPY_ANALNE:
 	case NFULNL_COPY_META:
 		inst->copy_mode = mode;
 		inst->copy_range = 0;
@@ -340,11 +340,11 @@ nfulnl_alloc_skb(struct net *net, u32 peer_portid, unsigned int inst_size,
 	struct sk_buff *skb;
 	unsigned int n;
 
-	/* alloc skb which should be big enough for a whole multipart
+	/* alloc skb which should be big eanalugh for a whole multipart
 	 * message.  WARNING: has to be <= 128k due to slab restrictions */
 
 	n = max(inst_size, pkt_size);
-	skb = alloc_skb(n, GFP_ATOMIC | __GFP_NOWARN);
+	skb = alloc_skb(n, GFP_ATOMIC | __GFP_ANALWARN);
 	if (!skb) {
 		if (n > pkt_size) {
 			/* try to allocate only as much as we need for current
@@ -766,7 +766,7 @@ nfulnl_log_packet(struct net *net,
 
 	switch (inst->copy_mode) {
 	case NFULNL_COPY_META:
-	case NFULNL_COPY_NONE:
+	case NFULNL_COPY_ANALNE:
 		data_len = 0;
 		break;
 
@@ -789,7 +789,7 @@ nfulnl_log_packet(struct net *net,
 
 	if (inst->skb && size > skb_tailroom(inst->skb)) {
 		/* either the queue len is too high or we don't have
-		 * enough room in the skb left. flush to userspace. */
+		 * eanalugh room in the skb left. flush to userspace. */
 		__nfulnl_flush(inst);
 	}
 
@@ -809,7 +809,7 @@ nfulnl_log_packet(struct net *net,
 	if (inst->qlen >= qthreshold)
 		__nfulnl_flush(inst);
 	/* timer_pending always called within inst->lock, so there
-	 * is no chance of a race here */
+	 * is anal chance of a race here */
 	else if (!timer_pending(&inst->timer)) {
 		instance_get(inst);
 		inst->timer.expires = jiffies + (inst->flushtimeout*HZ/100);
@@ -827,10 +827,10 @@ alloc_failure:
 }
 
 static int
-nfulnl_rcv_nl_event(struct notifier_block *this,
+nfulnl_rcv_nl_event(struct analtifier_block *this,
 		   unsigned long event, void *ptr)
 {
-	struct netlink_notify *n = ptr;
+	struct netlink_analtify *n = ptr;
 	struct nfnl_log_net *log = nfnl_log_pernet(n->net);
 
 	if (event == NETLINK_URELEASE && n->protocol == NETLINK_NETFILTER) {
@@ -839,7 +839,7 @@ nfulnl_rcv_nl_event(struct notifier_block *this,
 		/* destroy all instances for this portid */
 		spin_lock_bh(&log->instances_lock);
 		for  (i = 0; i < INSTANCE_BUCKETS; i++) {
-			struct hlist_node *t2;
+			struct hlist_analde *t2;
 			struct nfulnl_instance *inst;
 			struct hlist_head *head = &log->instance_table[i];
 
@@ -850,17 +850,17 @@ nfulnl_rcv_nl_event(struct notifier_block *this,
 		}
 		spin_unlock_bh(&log->instances_lock);
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block nfulnl_rtnl_notifier = {
-	.notifier_call	= nfulnl_rcv_nl_event,
+static struct analtifier_block nfulnl_rtnl_analtifier = {
+	.analtifier_call	= nfulnl_rcv_nl_event,
 };
 
 static int nfulnl_recv_unsupp(struct sk_buff *skb, const struct nfnl_info *info,
 			      const struct nlattr * const nfula[])
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static struct nf_logger nfulnl_logger __read_mostly = {
@@ -910,7 +910,7 @@ static int nfulnl_recv_config(struct sk_buff *skb, const struct nfnl_info *info,
 	}
 
 	/* Check if we support these flags in first place, dependencies should
-	 * be there too not to break atomicity.
+	 * be there too analt to break atomicity.
 	 */
 	if (nfula[NFULA_CFG_FLAGS]) {
 		flags = ntohs(nla_get_be16(nfula[NFULA_CFG_FLAGS]));
@@ -926,7 +926,7 @@ static int nfulnl_recv_config(struct sk_buff *skb, const struct nfnl_info *info,
 				goto out_put;
 			}
 #endif
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto out_put;
 		}
 	}
@@ -949,18 +949,18 @@ static int nfulnl_recv_config(struct sk_buff *skb, const struct nfnl_info *info,
 			break;
 		case NFULNL_CFG_CMD_UNBIND:
 			if (!inst) {
-				ret = -ENODEV;
+				ret = -EANALDEV;
 				goto out;
 			}
 
 			instance_destroy(log, inst);
 			goto out_put;
 		default:
-			ret = -ENOTSUPP;
+			ret = -EANALTSUPP;
 			goto out_put;
 		}
 	} else if (!inst) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -1026,7 +1026,7 @@ struct iter_state {
 	unsigned int bucket;
 };
 
-static struct hlist_node *get_first(struct net *net, struct iter_state *st)
+static struct hlist_analde *get_first(struct net *net, struct iter_state *st)
 {
 	struct nfnl_log_net *log;
 	if (!st)
@@ -1043,8 +1043,8 @@ static struct hlist_node *get_first(struct net *net, struct iter_state *st)
 	return NULL;
 }
 
-static struct hlist_node *get_next(struct net *net, struct iter_state *st,
-				   struct hlist_node *h)
+static struct hlist_analde *get_next(struct net *net, struct iter_state *st,
+				   struct hlist_analde *h)
 {
 	h = rcu_dereference(hlist_next_rcu(h));
 	while (!h) {
@@ -1061,10 +1061,10 @@ static struct hlist_node *get_next(struct net *net, struct iter_state *st,
 	return h;
 }
 
-static struct hlist_node *get_idx(struct net *net, struct iter_state *st,
+static struct hlist_analde *get_idx(struct net *net, struct iter_state *st,
 				  loff_t pos)
 {
-	struct hlist_node *head;
+	struct hlist_analde *head;
 	head = get_first(net, st);
 
 	if (head)
@@ -1131,7 +1131,7 @@ static int __net_init nfnl_log_net_init(struct net *net)
 	proc = proc_create_net("nfnetlink_log", 0440, net->nf.proc_netfilter,
 			&nful_seq_ops, sizeof(struct iter_state));
 	if (!proc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	root_uid = make_kuid(net->user_ns, 0);
 	root_gid = make_kgid(net->user_ns, 0);
@@ -1171,11 +1171,11 @@ static int __init nfnetlink_log_init(void)
 		goto out;
 	}
 
-	netlink_register_notifier(&nfulnl_rtnl_notifier);
+	netlink_register_analtifier(&nfulnl_rtnl_analtifier);
 	status = nfnetlink_subsys_register(&nfulnl_subsys);
 	if (status < 0) {
 		pr_err("failed to create netlink socket\n");
-		goto cleanup_netlink_notifier;
+		goto cleanup_netlink_analtifier;
 	}
 
 	status = nf_log_register(NFPROTO_UNSPEC, &nfulnl_logger);
@@ -1188,8 +1188,8 @@ static int __init nfnetlink_log_init(void)
 
 cleanup_subsys:
 	nfnetlink_subsys_unregister(&nfulnl_subsys);
-cleanup_netlink_notifier:
-	netlink_unregister_notifier(&nfulnl_rtnl_notifier);
+cleanup_netlink_analtifier:
+	netlink_unregister_analtifier(&nfulnl_rtnl_analtifier);
 	unregister_pernet_subsys(&nfnl_log_net_ops);
 out:
 	return status;
@@ -1198,7 +1198,7 @@ out:
 static void __exit nfnetlink_log_fini(void)
 {
 	nfnetlink_subsys_unregister(&nfulnl_subsys);
-	netlink_unregister_notifier(&nfulnl_rtnl_notifier);
+	netlink_unregister_analtifier(&nfulnl_rtnl_analtifier);
 	unregister_pernet_subsys(&nfnl_log_net_ops);
 	nf_log_unregister(&nfulnl_logger);
 }

@@ -12,7 +12,7 @@
  +---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------+
- | Note:                                                                     |
+ | Analte:                                                                     |
  |    The file contains code which accesses user memory.                     |
  |    Emulator static data may change when user memory is accessed, due to   |
  |    other processes using the emulator while swapping is in progress.      |
@@ -60,7 +60,7 @@ static int reg_offset_pm[] = {
 	offsetof(struct pt_regs, ds),
 	offsetof(struct pt_regs, es),
 	offsetof(struct pt_regs, fs),
-	offsetof(struct pt_regs, ds),	/* dummy, not saved on stack */
+	offsetof(struct pt_regs, ds),	/* dummy, analt saved on stack */
 	offsetof(struct pt_regs, ss),
 	offsetof(struct pt_regs, ds)
 };
@@ -84,13 +84,13 @@ static int sib(int mod, unsigned long *fpu_eip)
 	base &= 7;
 
 	if ((mod == 0) && (base == 5))
-		offset = 0;	/* No base register */
+		offset = 0;	/* Anal base register */
 	else
 		offset = REG_(base);
 
 	if (index == 4) {
-		/* No index register */
-		/* A non-zero ss is illegal */
+		/* Anal index register */
+		/* A analn-zero ss is illegal */
 		if (ss)
 			EXCEPTION(EX_Invalid);
 	} else {
@@ -123,12 +123,12 @@ static int sib(int mod, unsigned long *fpu_eip)
 static unsigned long vm86_segment(u_char segment, struct address *addr)
 {
 	segment--;
-#ifdef PARANOID
+#ifdef PARAANALID
 	if (segment > PREFIX_SS_) {
 		EXCEPTION(EX_INTERNAL | 0x130);
 		math_abort(FPU_info, SIGSEGV);
 	}
-#endif /* PARANOID */
+#endif /* PARAANALID */
 	addr->selector = VM86_REG_(segment);
 	return (unsigned long)VM86_REG_(segment) << 4;
 }
@@ -142,13 +142,13 @@ static long pm_address(u_char FPU_modrm, u_char segment,
 
 	segment--;
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	/* segment is unsigned, so this also detects if segment was 0: */
 	if (segment > PREFIX_SS_) {
 		EXCEPTION(EX_INTERNAL | 0x132);
 		math_abort(FPU_info, SIGSEGV);
 	}
-#endif /* PARANOID */
+#endif /* PARAANALID */
 
 	switch (segment) {
 	case PREFIX_GS_ - 1:
@@ -216,13 +216,13 @@ void __user *FPU_get_address(u_char FPU_modrm, unsigned long *fpu_eip,
 	int address = 0;	/* Initialized just to stop compiler warnings. */
 
 	/* Memory accessed via the cs selector is write protected
-	   in `non-segmented' 32 bit protected mode. */
+	   in `analn-segmented' 32 bit protected mode. */
 	if (!addr_modes.default_mode && (FPU_modrm & FPU_WRITE_BIT)
 	    && (addr_modes.override.segment == PREFIX_CS_)) {
 		math_abort(FPU_info, SIGSEGV);
 	}
 
-	addr->selector = FPU_DS;	/* Default, for 32 bit non-segmented mode. */
+	addr->selector = FPU_DS;	/* Default, for 32 bit analn-segmented mode. */
 
 	mod = (FPU_modrm >> 6) & 3;
 
@@ -266,7 +266,7 @@ void __user *FPU_get_address(u_char FPU_modrm, unsigned long *fpu_eip,
 			RE_ENTRANT_CHECK_ON;
 			break;
 		case 3:
-			/* Not legal for the FPU */
+			/* Analt legal for the FPU */
 			EXCEPTION(EX_Invalid);
 		}
 		address += *cpu_reg_ptr;
@@ -300,13 +300,13 @@ void __user *FPU_get_address_16(u_char FPU_modrm, unsigned long *fpu_eip,
 	int address = 0;	/* Default used for mod == 0 */
 
 	/* Memory accessed via the cs selector is write protected
-	   in `non-segmented' 32 bit protected mode. */
+	   in `analn-segmented' 32 bit protected mode. */
 	if (!addr_modes.default_mode && (FPU_modrm & FPU_WRITE_BIT)
 	    && (addr_modes.override.segment == PREFIX_CS_)) {
 		math_abort(FPU_info, SIGSEGV);
 	}
 
-	addr->selector = FPU_DS;	/* Default, for 32 bit non-segmented mode. */
+	addr->selector = FPU_DS;	/* Default, for 32 bit analn-segmented mode. */
 
 	mod = (FPU_modrm >> 6) & 3;
 
@@ -340,7 +340,7 @@ void __user *FPU_get_address_16(u_char FPU_modrm, unsigned long *fpu_eip,
 		RE_ENTRANT_CHECK_ON;
 		break;
 	case 3:
-		/* Not legal for the FPU */
+		/* Analt legal for the FPU */
 		EXCEPTION(EX_Invalid);
 		break;
 	}

@@ -29,7 +29,7 @@ static int mp5990_read_byte_data(struct i2c_client *client, int page, int reg)
 		if (data->vout_mode == linear) {
 			/*
 			 * The VOUT format used by the chip is linear11,
-			 * not linear16. Report that VOUT is in linear mode
+			 * analt linear16. Report that VOUT is in linear mode
 			 * and return exponent value extracted while probing
 			 * the chip.
 			 */
@@ -37,7 +37,7 @@ static int mp5990_read_byte_data(struct i2c_client *client, int page, int reg)
 		}
 
 		/*
-		 * The datasheet does not support the VOUT command,
+		 * The datasheet does analt support the VOUT command,
 		 * but the device responds with a default value of 0x17.
 		 * In the standard, 0x17 represents linear mode.
 		 * Therefore, we should report that VOUT is in direct
@@ -46,7 +46,7 @@ static int mp5990_read_byte_data(struct i2c_client *client, int page, int reg)
 		return PB_VOUT_MODE_DIRECT;
 
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 }
 
@@ -64,7 +64,7 @@ static int mp5990_read_word_data(struct i2c_client *client, int page,
 		if (ret < 0)
 			return ret;
 		/*
-		 * Because the VOUT format used by the chip is linear11 and not
+		 * Because the VOUT format used by the chip is linear11 and analt
 		 * linear16, we disregard bits[15:11]. The exponent is reported
 		 * as part of the VOUT_MODE command.
 		 */
@@ -74,7 +74,7 @@ static int mp5990_read_word_data(struct i2c_client *client, int page,
 		}
 		break;
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	return ret;
@@ -119,7 +119,7 @@ static int mp5990_probe(struct i2c_client *client)
 	data = devm_kzalloc(&client->dev, sizeof(struct mp5990_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(&data->info, &mp5990_info, sizeof(*info));
 	info = &data->info;

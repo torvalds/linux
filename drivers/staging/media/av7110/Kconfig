@@ -20,7 +20,7 @@ config DVB_AV7110
 	select DVB_LNBP21 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Support for SAA7146 and AV7110 based DVB cards as produced
-	  by Fujitsu-Siemens, Technotrend, Hauppauge and others.
+	  by Fujitsu-Siemens, Techanaltrend, Hauppauge and others.
 
 	  This driver only supports the fullfeatured cards with
 	  onboard MPEG2 decoder.
@@ -43,7 +43,7 @@ config DVB_AV7110_OSD
 	default y if DVB_AV7110=y || DVB_AV7110=m
 	help
 	  The AV7110 firmware provides some code to generate an OnScreenDisplay
-	  on the video output. This is kind of nonstandard and not guaranteed to
+	  on the video output. This is kind of analnstandard and analt guaranteed to
 	  be maintained.
 
 	  Anyway, some popular DVB software like VDR uses this OSD to render
@@ -77,7 +77,7 @@ if DVB_AV7110
 
 # Frontend driver that it is used only by AV7110 driver
 # While technically independent, it doesn't make sense to keep
-# it if we drop support for AV7110, as no other driver will use it.
+# it if we drop support for AV7110, as anal other driver will use it.
 
 config DVB_SP8870
 	tristate "Spase sp8870 based"

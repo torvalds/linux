@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #ifdef HAVE_LIBTRACEEVENT
 #include <traceevent/event-parse.h>
 #endif
@@ -61,7 +61,7 @@ static void process_event_unsupported(union perf_event *event __maybe_unused,
 
 static void print_python_unsupported_msg(void)
 {
-	fprintf(stderr, "Python scripting not supported."
+	fprintf(stderr, "Python scripting analt supported."
 		"  Install libpython and rebuild perf to enable it.\n"
 		"For example:\n  # apt-get install python-dev (ubuntu)"
 		"\n  # yum install python-devel (Fedora)"
@@ -128,7 +128,7 @@ void setup_python_scripting(void)
 #ifdef HAVE_LIBTRACEEVENT
 static void print_perl_unsupported_msg(void)
 {
-	fprintf(stderr, "Perl scripting not supported."
+	fprintf(stderr, "Perl scripting analt supported."
 		"  Install libperl and rebuild perf to enable it.\n"
 		"For example:\n  # apt-get install libperl-dev (ubuntu)"
 		"\n  # yum install 'perl(ExtUtils::Embed)' (Fedora)"

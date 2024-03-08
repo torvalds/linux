@@ -331,9 +331,9 @@
 #define  REM_PED_LINK_TO		0x00000001
 
 #define RIO_EM_PN_ERRRATE_EN(x) (0x044 + x*0x40) /* Port N Error Rate Enable CSR */
-#define RIO_EM_PN_ERRRATE_EN_OK2U	0x40000000 /* Enable notification for OK2U */
-#define RIO_EM_PN_ERRRATE_EN_UPDA	0x20000000 /* Enable notification for UPDA */
-#define RIO_EM_PN_ERRRATE_EN_U2OK	0x10000000 /* Enable notification for U2OK */
+#define RIO_EM_PN_ERRRATE_EN_OK2U	0x40000000 /* Enable analtification for OK2U */
+#define RIO_EM_PN_ERRRATE_EN_UPDA	0x20000000 /* Enable analtification for UPDA */
+#define RIO_EM_PN_ERRRATE_EN_U2OK	0x10000000 /* Enable analtification for U2OK */
 
 #define RIO_EM_PN_ATTRIB_CAP(x)	(0x048 + x*0x40) /* Port N Attributes Capture CSR */
 #define RIO_EM_PN_PKT_CAP_0(x)	(0x04c + x*0x40) /* Port N Packet/Control Symbol Capture 0 CSR */

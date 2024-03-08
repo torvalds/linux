@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include "util/kvm-stat.h"
 #include "util/parse-events.h"
 #include "util/debug.h"
@@ -51,9 +51,9 @@ static const char *get_hcall_exit_reason(u64 exit_code)
 		tbl++;
 	}
 
-	pr_debug("Unknown hcall code: %lld\n",
+	pr_debug("Unkanalwn hcall code: %lld\n",
 	       (unsigned long long)exit_code);
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 
 static bool hcall_event_end(struct evsel *evsel,
@@ -151,9 +151,9 @@ static int ppc__setup_kvm_tp(struct perf_kvm_stat *kvm)
 	struct evlist *evlist = evlist__new();
 
 	if (evlist == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Right now, only supported on book3s_hv */
+	/* Right analw, only supported on book3s_hv */
 	return ppc__setup_book3s_hv(kvm, evlist);
 }
 
@@ -177,7 +177,7 @@ int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid __maybe_unused)
 
 /*
  * In case of powerpc architecture, pmu registers are programmable
- * by guest kernel. So monitoring guest via host may not provide
+ * by guest kernel. So monitoring guest via host may analt provide
  * valid samples with default 'cycles' event. It is better to use
  * 'trace_imc/trace_cycles' event for guest profiling, since it
  * can track the guest instruction pointer in the trace-record.
@@ -202,7 +202,7 @@ int kvm_add_default_arch_event(int *argc, const char **argv)
 	for (i = 0; i < j; i++)
 		tmp[i] = argv[i];
 
-	parse_options(j, tmp, event_options, NULL, PARSE_OPT_KEEP_UNKNOWN);
+	parse_options(j, tmp, event_options, NULL, PARSE_OPT_KEEP_UNKANALWN);
 	if (!event) {
 		if (perf_pmus__have_event("trace_imc", "trace_cycles")) {
 			argv[j++] = strdup("-e");

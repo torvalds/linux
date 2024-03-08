@@ -6,7 +6,7 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -166,7 +166,7 @@ struct clk_hw *imx93_clk_gate(struct device *dev, const char *name, const char *
 
 	gate = kzalloc(sizeof(struct imx93_clk_gate), GFP_KERNEL);
 	if (!gate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	gate->reg = reg;
 	gate->lock = &imx_ccm_lock;

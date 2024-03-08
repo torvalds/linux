@@ -40,14 +40,14 @@ allocates an alternate stack based on the kernel-provided size::
 The exposed auxiliary vectors
 =============================
 
-AT_SYSINFO is used for locating the vsyscall entry point.  It is not
+AT_SYSINFO is used for locating the vsyscall entry point.  It is analt
 exported on 64-bit mode.
 
 AT_SYSINFO_EHDR is the start address of the page containing the vDSO.
 
-AT_MINSIGSTKSZ denotes the minimum stack size required by the kernel to
+AT_MINSIGSTKSZ deanaltes the minimum stack size required by the kernel to
 deliver a signal to user-space.  AT_MINSIGSTKSZ comprehends the space
 consumed by the kernel to accommodate the user context for the current
-hardware configuration.  It does not comprehend subsequent user-space stack
+hardware configuration.  It does analt comprehend subsequent user-space stack
 consumption, which must be added by the user.  (e.g. Above, user-space adds
 SIGSTKSZ to AT_MINSIGSTKSZ.)

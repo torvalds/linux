@@ -61,7 +61,7 @@ static struct property *clone_property(struct property *prop, u32 prop_sz)
 	return new_prop;
 }
 
-static int drmem_update_dt_v1(struct device_node *memory,
+static int drmem_update_dt_v1(struct device_analde *memory,
 			      struct property *prop)
 {
 	struct property *new_prop;
@@ -100,7 +100,7 @@ static void init_drconf_v2_cell(struct of_drconf_cell_v2 *dr_cell,
 	dr_cell->flags = cpu_to_be32(drmem_lmb_flags(lmb));
 }
 
-static int drmem_update_dt_v2(struct device_node *memory,
+static int drmem_update_dt_v2(struct device_analde *memory,
 			      struct property *prop)
 {
 	struct property *new_prop;
@@ -150,7 +150,7 @@ static int drmem_update_dt_v2(struct device_node *memory,
 
 		if (prev_lmb->aa_index != lmb->aa_index ||
 		    drmem_lmb_flags(prev_lmb) != drmem_lmb_flags(lmb)) {
-			/* end of one set, start of another */
+			/* end of one set, start of aanalther */
 			dr_cell->seq_lmbs = cpu_to_be32(seq_lmbs);
 			dr_cell++;
 
@@ -171,16 +171,16 @@ static int drmem_update_dt_v2(struct device_node *memory,
 
 int drmem_update_dt(void)
 {
-	struct device_node *memory;
+	struct device_analde *memory;
 	struct property *prop;
 	int rc = -1;
 
-	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	memory = of_find_analde_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (!memory)
 		return -1;
 
 	/*
-	 * Set in_drmem_update to prevent the notifier callback to process the
+	 * Set in_drmem_update to prevent the analtifier callback to process the
 	 * DT property back since the change is coming from the LMB tree.
 	 */
 	in_drmem_update = true;
@@ -194,7 +194,7 @@ int drmem_update_dt(void)
 	}
 	in_drmem_update = false;
 
-	of_node_put(memory);
+	of_analde_put(memory);
 	return rc;
 }
 
@@ -282,13 +282,13 @@ __walk_drmem_v2_lmbs(const __be32 *prop, const __be32 *usm, void *data,
 }
 
 #ifdef CONFIG_PPC_PSERIES
-int __init walk_drmem_lmbs_early(unsigned long node, void *data,
+int __init walk_drmem_lmbs_early(unsigned long analde, void *data,
 		int (*func)(struct drmem_lmb *, const __be32 **, void *))
 {
 	const __be32 *prop, *usm;
-	int len, ret = -ENODEV;
+	int len, ret = -EANALDEV;
 
-	prop = of_get_flat_dt_prop(node, "ibm,lmb-size", &len);
+	prop = of_get_flat_dt_prop(analde, "ibm,lmb-size", &len);
 	if (!prop || len < dt_root_size_cells * sizeof(__be32))
 		return ret;
 
@@ -298,13 +298,13 @@ int __init walk_drmem_lmbs_early(unsigned long node, void *data,
 
 	drmem_info->lmb_size = dt_mem_next_cell(dt_root_size_cells, &prop);
 
-	usm = of_get_flat_dt_prop(node, "linux,drconf-usable-memory", &len);
+	usm = of_get_flat_dt_prop(analde, "linux,drconf-usable-memory", &len);
 
-	prop = of_get_flat_dt_prop(node, "ibm,dynamic-memory", &len);
+	prop = of_get_flat_dt_prop(analde, "ibm,dynamic-memory", &len);
 	if (prop) {
 		ret = __walk_drmem_v1_lmbs(prop, usm, data, func);
 	} else {
-		prop = of_get_flat_dt_prop(node, "ibm,dynamic-memory-v2",
+		prop = of_get_flat_dt_prop(analde, "ibm,dynamic-memory-v2",
 					   &len);
 		if (prop)
 			ret = __walk_drmem_v2_lmbs(prop, usm, data, func);
@@ -337,7 +337,7 @@ static int update_lmb(struct drmem_lmb *updated_lmb,
  * Update the LMB associativity index.
  *
  * This needs to be called when the hypervisor is updating the
- * dynamic-reconfiguration-memory node property.
+ * dynamic-reconfiguration-memory analde property.
  */
 void drmem_update_lmbs(struct property *prop)
 {
@@ -355,7 +355,7 @@ void drmem_update_lmbs(struct property *prop)
 }
 #endif
 
-static int init_drmem_lmb_size(struct device_node *dn)
+static int init_drmem_lmb_size(struct device_analde *dn)
 {
 	const __be32 *prop;
 	int len;
@@ -365,7 +365,7 @@ static int init_drmem_lmb_size(struct device_node *dn)
 
 	prop = of_get_property(dn, "ibm,lmb-size", &len);
 	if (!prop || len < n_root_size_cells * sizeof(__be32)) {
-		pr_info("Could not determine LMB size\n");
+		pr_info("Could analt determine LMB size\n");
 		return -1;
 	}
 
@@ -378,7 +378,7 @@ static int init_drmem_lmb_size(struct device_node *dn)
  * it exists (the property exists only in kexec/kdump kernels,
  * added by kexec-tools)
  */
-static const __be32 *of_get_usable_memory(struct device_node *dn)
+static const __be32 *of_get_usable_memory(struct device_analde *dn)
 {
 	const __be32 *prop;
 	u32 len;
@@ -390,20 +390,20 @@ static const __be32 *of_get_usable_memory(struct device_node *dn)
 	return prop;
 }
 
-int walk_drmem_lmbs(struct device_node *dn, void *data,
+int walk_drmem_lmbs(struct device_analde *dn, void *data,
 		    int (*func)(struct drmem_lmb *, const __be32 **, void *))
 {
 	const __be32 *prop, *usm;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (!of_root)
 		return ret;
 
 	/* Get the address & size cells */
-	of_node_get(of_root);
+	of_analde_get(of_root);
 	n_root_addr_cells = of_n_addr_cells(of_root);
 	n_root_size_cells = of_n_size_cells(of_root);
-	of_node_put(of_root);
+	of_analde_put(of_root);
 
 	if (init_drmem_lmb_size(dn))
 		return ret;
@@ -487,17 +487,17 @@ static void __init init_drmem_v2_lmbs(const __be32 *prop)
 
 static int __init drmem_init(void)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	const __be32 *prop;
 
-	dn = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	dn = of_find_analde_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (!dn) {
-		pr_info("No dynamic reconfiguration memory found\n");
+		pr_info("Anal dynamic reconfiguration memory found\n");
 		return 0;
 	}
 
 	if (init_drmem_lmb_size(dn)) {
-		of_node_put(dn);
+		of_analde_put(dn);
 		return 0;
 	}
 
@@ -510,7 +510,7 @@ static int __init drmem_init(void)
 			init_drmem_v2_lmbs(prop);
 	}
 
-	of_node_put(dn);
+	of_analde_put(dn);
 	return 0;
 }
 late_initcall(drmem_init);

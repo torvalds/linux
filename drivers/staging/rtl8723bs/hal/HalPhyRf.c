@@ -18,7 +18,7 @@ void ConfigureTxpowerTrack(struct dm_odm_t *pDM_Odm, struct txpwrtrack_cfg *pCon
 /*  Otherwise the previous compensation is gone, because we record the */
 /*  delta of temperature between two TxPowerTracking watch dogs. */
 /*  */
-/*  NOTE: If Tx BB swing or Tx scaling is varified during run-time, still */
+/*  ANALTE: If Tx BB swing or Tx scaling is varified during run-time, still */
 /*        need to call this function. */
 /*  */
 void ODM_ClearTxPowerTrackingState(struct dm_odm_t *pDM_Odm)
@@ -117,13 +117,13 @@ void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter)
 		}
 	}
 
-	/* Calculate Average ThermalValue after average enough times */
+	/* Calculate Average ThermalValue after average eanalugh times */
 	if (ThermalValue_AVG_count) {
 		ThermalValue = (u8)(ThermalValue_AVG / ThermalValue_AVG_count);
 	}
 
 	/* 4 5. Calculate delta, delta_LCK */
-	/* delta" here is used to determine whether thermal value changes or not. */
+	/* delta" here is used to determine whether thermal value changes or analt. */
 	delta =
 		(ThermalValue > pDM_Odm->RFCalibrateInfo.ThermalValue) ?
 		(ThermalValue - pDM_Odm->RFCalibrateInfo.ThermalValue) :
@@ -247,7 +247,7 @@ void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter)
 
 		pDM_Odm->RFCalibrateInfo.bTxPowerChanged = true; /*  Always true after Tx Power is adjusted by power tracking. */
 		/*  */
-		/*  2012/04/23 MH According to Luke's suggestion, we can not write BB digital */
+		/*  2012/04/23 MH According to Luke's suggestion, we can analt write BB digital */
 		/*  to increase TX power. Otherwise, EVM will be bad. */
 		/*  */
 		/*  2012/04/25 MH Add for tx power tracking to set tx power in tx agc for 88E. */

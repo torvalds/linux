@@ -16,7 +16,7 @@ It features:
 More details:
 
 - Cortex-A7 core running up to @800MHz
-- FMC controller to connect SDRAM, NOR and NAND memories
+- FMC controller to connect SDRAM, ANALR and NAND memories
 - QSPI
 - SD/MMC/SDIO support
 - Ethernet controller

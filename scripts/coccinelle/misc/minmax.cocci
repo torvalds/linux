@@ -6,7 +6,7 @@
 ///
 // Confidence: Medium
 // Copyright: (C) 2021 Denis Efremov ISPRAS
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 //
 // Keywords: min, max
 //

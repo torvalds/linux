@@ -9,7 +9,7 @@ Wakeup In Preemptive monitor
 
 :Manual section: 1
 
-SYNOPSIS
+SYANALPSIS
 ========
 
 **rv mon wip** [*OPTIONS*]

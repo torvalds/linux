@@ -24,7 +24,7 @@ struct usb_req {
 
 enum ce6230_cmd {
 	CONFIG_READ          = 0xd0, /* rd 0 (unclear) */
-	UNKNOWN_WRITE        = 0xc7, /* wr 7 (unclear) */
+	UNKANALWN_WRITE        = 0xc7, /* wr 7 (unclear) */
 	I2C_READ             = 0xd9, /* rd 9 (unclear) */
 	I2C_WRITE            = 0xca, /* wr a */
 	DEMOD_READ           = 0xdb, /* rd b */

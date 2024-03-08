@@ -66,7 +66,7 @@ static int mcp3021_read(struct device *dev, enum hwmon_sensor_types type,
 	int ret;
 
 	if (type != hwmon_in)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = i2c_master_recv(client, (char *)&buf, 2);
 	if (ret < 0)
@@ -121,16 +121,16 @@ static const struct i2c_device_id mcp3021_id[];
 static int mcp3021_probe(struct i2c_client *client)
 {
 	struct mcp3021_data *data = NULL;
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	struct device *hwmon_dev;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(&client->dev, sizeof(struct mcp3021_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 

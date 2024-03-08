@@ -16,7 +16,7 @@
 #include <linux/scatterlist.h>
 #include <linux/irq.h>
 #include <linux/export.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #include <asm/setup.h>
 #include <asm/mpspec_def.h>
@@ -37,7 +37,7 @@ static void intel_mid_power_off(void)
 	/* Shut down South Complex via PWRMU */
 	intel_mid_pwr_power_off();
 
-	/* Only for Tangier, the rest will ignore this command */
+	/* Only for Tangier, the rest will iganalre this command */
 	intel_scu_ipc_dev_simple_command(NULL, IPCMSG_COLD_OFF, 1);
 };
 
@@ -48,7 +48,7 @@ static void intel_mid_reboot(void)
 
 static void __init intel_mid_time_init(void)
 {
-	/* Lapic only, no apbt */
+	/* Lapic only, anal apbt */
 	x86_init.timers.setup_percpu_clockev = setup_boot_APIC_clock;
 	x86_cpuinit.setup_percpu_clockev = setup_secondary_APIC_clock;
 }
@@ -67,7 +67,7 @@ static void intel_mid_arch_setup(void)
 	/*
 	 * Intel MID platforms are using explicitly defined regulators.
 	 *
-	 * Let the regulator core know that we do not have any additional
+	 * Let the regulator core kanalw that we do analt have any additional
 	 * regulators left. This lets it substitute unprovided regulators with
 	 * dummy ones:
 	 */
@@ -75,7 +75,7 @@ static void intel_mid_arch_setup(void)
 }
 
 /*
- * Moorestown does not have external NMI source nor port 0x61 to report
+ * Moorestown does analt have external NMI source analr port 0x61 to report
  * NMI status. The possible NMI sources are from pmu as a result of NMI
  * watchdog or lock debug. Reading io port 0x61 results in 0xff which
  * misled NMI handler.
@@ -91,34 +91,34 @@ static unsigned char intel_mid_get_nmi_reason(void)
  */
 void __init x86_intel_mid_early_setup(void)
 {
-	x86_init.resources.probe_roms = x86_init_noop;
-	x86_init.resources.reserve_resources = x86_init_noop;
+	x86_init.resources.probe_roms = x86_init_analop;
+	x86_init.resources.reserve_resources = x86_init_analop;
 
 	x86_init.timers.timer_init = intel_mid_time_init;
-	x86_init.timers.setup_percpu_clockev = x86_init_noop;
+	x86_init.timers.setup_percpu_clockev = x86_init_analop;
 
-	x86_init.irqs.pre_vector_init = x86_init_noop;
+	x86_init.irqs.pre_vector_init = x86_init_analop;
 
 	x86_init.oem.arch_setup = intel_mid_arch_setup;
 
 	x86_platform.get_nmi_reason = intel_mid_get_nmi_reason;
 
 	x86_init.pci.arch_init = intel_mid_pci_init;
-	x86_init.pci.fixup_irqs = x86_init_noop;
+	x86_init.pci.fixup_irqs = x86_init_analop;
 
 	legacy_pic = &null_legacy_pic;
 
 	/*
-	 * Do nothing for now as everything needed done in
+	 * Do analthing for analw as everything needed done in
 	 * x86_intel_mid_early_setup() below.
 	 */
-	x86_init.acpi.reduced_hw_early_init = x86_init_noop;
+	x86_init.acpi.reduced_hw_early_init = x86_init_analop;
 
 	pm_power_off = intel_mid_power_off;
 	machine_ops.emergency_restart  = intel_mid_reboot;
 
 	/* Avoid searching for BIOS MP tables */
-	x86_init.mpparse.find_smp_config = x86_init_noop;
-	x86_init.mpparse.get_smp_config = x86_init_uint_noop;
-	set_bit(MP_BUS_ISA, mp_bus_not_pci);
+	x86_init.mpparse.find_smp_config = x86_init_analop;
+	x86_init.mpparse.get_smp_config = x86_init_uint_analop;
+	set_bit(MP_BUS_ISA, mp_bus_analt_pci);
 }

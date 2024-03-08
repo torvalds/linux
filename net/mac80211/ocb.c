@@ -36,7 +36,7 @@ enum ocb_deferred_task_flags {
 	OCB_WORK_HOUSEKEEPING,
 };
 
-void ieee80211_ocb_rx_no_sta(struct ieee80211_sub_if_data *sdata,
+void ieee80211_ocb_rx_anal_sta(struct ieee80211_sub_if_data *sdata,
 			     const u8 *bssid, const u8 *addr,
 			     u32 supp_rates)
 {
@@ -51,7 +51,7 @@ void ieee80211_ocb_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 	 *      allow new one to be added.
 	 */
 	if (local->num_sta >= IEEE80211_OCB_MAX_STA_ENTRIES) {
-		net_info_ratelimited("%s: No room for a new OCB STA entry %pM\n",
+		net_info_ratelimited("%s: Anal room for a new OCB STA entry %pM\n",
 				     sdata->name, addr);
 		return;
 	}
@@ -71,7 +71,7 @@ void ieee80211_ocb_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 	if (!sta)
 		return;
 
-	/* Add only mandatory rates for now */
+	/* Add only mandatory rates for analw */
 	sband = local->hw.wiphy->bands[band];
 	sta->sta.deflink.supp_rates[band] = ieee80211_mandatory_rates(sband);
 
@@ -98,7 +98,7 @@ static struct sta_info *ieee80211_ocb_finish_sta(struct sta_info *sta)
 
 	rate_control_rate_init(sta);
 
-	/* If it fails, maybe we raced another insertion? */
+	/* If it fails, maybe we raced aanalther insertion? */
 	if (sta_info_insert_rcu(sta))
 		return sta_info_get(sdata, addr);
 	return sta;
@@ -187,7 +187,7 @@ int ieee80211_ocb_join(struct ieee80211_sub_if_data *sdata,
 	if (err)
 		return err;
 
-	ieee80211_bss_info_change_notify(sdata, changed);
+	ieee80211_bss_info_change_analtify(sdata, changed);
 
 	ifocb->joined = true;
 
@@ -223,7 +223,7 @@ int ieee80211_ocb_leave(struct ieee80211_sub_if_data *sdata)
 
 	netif_carrier_off(sdata->dev);
 	clear_bit(SDATA_STATE_OFFCHANNEL, &sdata->state);
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_OCB);
+	ieee80211_bss_info_change_analtify(sdata, BSS_CHANGED_OCB);
 
 	ieee80211_link_release_channel(&sdata->deflink);
 
@@ -231,9 +231,9 @@ int ieee80211_ocb_leave(struct ieee80211_sub_if_data *sdata)
 
 	del_timer_sync(&sdata->u.ocb.housekeeping_timer);
 	/* If the timer fired while we waited for it, it will have
-	 * requeued the work. Now the work will be running again
-	 * but will not rearm the timer again because it checks
-	 * whether we are connected to the network or not -- at this
+	 * requeued the work. Analw the work will be running again
+	 * but will analt rearm the timer again because it checks
+	 * whether we are connected to the network or analt -- at this
 	 * point we shouldn't be anymore.
 	 */
 

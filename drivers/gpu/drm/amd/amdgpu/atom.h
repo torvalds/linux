@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -95,7 +95,7 @@ struct drm_device;
 #define ATOM_WS_ATTRIBUTES	0x47
 #define ATOM_WS_REGPTR		0x48
 
-#define ATOM_IIO_NOP		0
+#define ATOM_IIO_ANALP		0
 #define ATOM_IIO_START		1
 #define ATOM_IIO_READ		2
 #define ATOM_IIO_WRITE		3
@@ -111,7 +111,7 @@ struct drm_device;
 #define ATOM_IO_SYSIO		2
 #define ATOM_IO_IIO		0x80
 
-#define STRLEN_NORMAL		32
+#define STRLEN_ANALRMAL		32
 #define STRLEN_LONG		64
 #define STRLEN_VERYLONG		254
 
@@ -149,8 +149,8 @@ struct atom_context {
 	uint8_t name[STRLEN_LONG];
 	uint8_t vbios_pn[STRLEN_LONG];
 	uint32_t version;
-	uint8_t vbios_ver_str[STRLEN_NORMAL];
-	uint8_t date[STRLEN_NORMAL];
+	uint8_t vbios_ver_str[STRLEN_ANALRMAL];
+	uint8_t date[STRLEN_ANALRMAL];
 };
 
 extern int amdgpu_atom_debug;

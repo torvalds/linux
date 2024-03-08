@@ -40,7 +40,7 @@ static int amd_create_page_map(struct amd_page_map *page_map)
 
 	page_map->real = (unsigned long *) __get_free_page(GFP_KERNEL);
 	if (page_map->real == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	set_memory_uc((unsigned long)page_map->real, 1);
 	page_map->remapped = page_map->real;
@@ -88,13 +88,13 @@ static int amd_create_gatt_pages(int nr_tables)
 	tables = kcalloc(nr_tables + 1, sizeof(struct amd_page_map *),
 			 GFP_KERNEL);
 	if (tables == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nr_tables; i++) {
 		entry = kzalloc(sizeof(struct amd_page_map), GFP_KERNEL);
 		tables[i] = entry;
 		if (entry == NULL) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			break;
 		}
 		retval = amd_create_page_map(entry);
@@ -147,7 +147,7 @@ static int amd_create_gatt_table(struct agp_bridge_data *bridge)
 
 	/* Get the address for the gart region.
 	 * This is a bus address even on the alpha, b/c its
-	 * used to program the agp master not the cpu
+	 * used to program the agp master analt the cpu
 	 */
 
 	addr = pci_bus_address(agp_bridge->dev, AGP_APERTURE_BAR);
@@ -218,7 +218,7 @@ static int amd_irongate_configure(void)
 		reg = pci_resource_start(agp_bridge->dev, AMD_MMBASE_BAR);
 		amd_irongate_private.registers = (volatile u8 __iomem *) ioremap(reg, 4096);
 		if (!amd_irongate_private.registers)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* Write out the address of the gatt table */
@@ -414,7 +414,7 @@ static int agp_amdk7_probe(struct pci_dev *pdev,
 
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	if (!cap_ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	j = ent - agp_amdk7_pci_table;
 	dev_info(&pdev->dev, "AMD %s chipset\n",
@@ -422,7 +422,7 @@ static int agp_amdk7_probe(struct pci_dev *pdev,
 
 	bridge = agp_alloc_bridge();
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bridge->driver = &amd_irongate_driver;
 	bridge->dev_private_data = &amd_irongate_private;
@@ -431,7 +431,7 @@ static int agp_amdk7_probe(struct pci_dev *pdev,
 
 	/* 751 Errata (22564_B-1.PDF)
 	   erratum 20: strobe glitch with Nvidia NV10 GeForce cards.
-	   system controller may experience noise due to strong drive strengths
+	   system controller may experience analise due to strong drive strengths
 	 */
 	if (agp_bridge->dev->device == PCI_DEVICE_ID_AMD_FE_GATE_7006) {
 		struct pci_dev *gfxcard=NULL;
@@ -440,8 +440,8 @@ static int agp_amdk7_probe(struct pci_dev *pdev,
 		while (!cap_ptr) {
 			gfxcard = pci_get_class(PCI_CLASS_DISPLAY_VGA<<8, gfxcard);
 			if (!gfxcard) {
-				dev_info(&pdev->dev, "no AGP VGA controller\n");
-				return -ENODEV;
+				dev_info(&pdev->dev, "anal AGP VGA controller\n");
+				return -EANALDEV;
 			}
 			cap_ptr = pci_find_capability(gfxcard, PCI_CAP_ID_AGP);
 		}

@@ -65,7 +65,7 @@ long syscall_trace_enter(struct pt_regs *regs, long syscall,
 	return ret ? : syscall;
 }
 
-noinstr void syscall_enter_from_user_mode_prepare(struct pt_regs *regs)
+analinstr void syscall_enter_from_user_mode_prepare(struct pt_regs *regs)
 {
 	enter_from_user_mode(regs);
 	instrumentation_begin();
@@ -96,15 +96,15 @@ __always_inline unsigned long exit_to_user_mode_loop(struct pt_regs *regs,
 			schedule();
 
 		if (ti_work & _TIF_UPROBE)
-			uprobe_notify_resume(regs);
+			uprobe_analtify_resume(regs);
 
 		if (ti_work & _TIF_PATCH_PENDING)
 			klp_update_patch_state(current);
 
-		if (ti_work & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
+		if (ti_work & (_TIF_SIGPENDING | _TIF_ANALTIFY_SIGNAL))
 			arch_do_signal_or_restart(regs);
 
-		if (ti_work & _TIF_NOTIFY_RESUME)
+		if (ti_work & _TIF_ANALTIFY_RESUME)
 			resume_user_mode_work(regs);
 
 		/* Architecture specific TIF work */
@@ -118,7 +118,7 @@ __always_inline unsigned long exit_to_user_mode_loop(struct pt_regs *regs,
 		local_irq_disable_exit_to_user();
 
 		/* Check if any of the above work has queued a deferred wakeup */
-		tick_nohz_user_enter_prepare();
+		tick_analhz_user_enter_prepare();
 
 		ti_work = read_thread_flags();
 	}
@@ -146,9 +146,9 @@ static void syscall_exit_work(struct pt_regs *regs, unsigned long work)
 
 	/*
 	 * If the syscall was rolled back due to syscall user dispatching,
-	 * then the tracers below are not invoked for the same reason as
-	 * the entry side was not invoked in syscall_trace_enter(): The ABI
-	 * of these syscalls is unknown.
+	 * then the tracers below are analt invoked for the same reason as
+	 * the entry side was analt invoked in syscall_trace_enter(): The ABI
+	 * of these syscalls is unkanalwn.
 	 */
 	if (work & SYSCALL_WORK_SYSCALL_USER_DISPATCH) {
 		if (unlikely(current->syscall_dispatch.on_dispatch)) {
@@ -206,7 +206,7 @@ void syscall_exit_to_user_mode_work(struct pt_regs *regs)
 	__syscall_exit_to_user_mode_work(regs);
 }
 
-__visible noinstr void syscall_exit_to_user_mode(struct pt_regs *regs)
+__visible analinstr void syscall_exit_to_user_mode(struct pt_regs *regs)
 {
 	instrumentation_begin();
 	__syscall_exit_to_user_mode_work(regs);
@@ -214,12 +214,12 @@ __visible noinstr void syscall_exit_to_user_mode(struct pt_regs *regs)
 	exit_to_user_mode();
 }
 
-noinstr void irqentry_enter_from_user_mode(struct pt_regs *regs)
+analinstr void irqentry_enter_from_user_mode(struct pt_regs *regs)
 {
 	enter_from_user_mode(regs);
 }
 
-noinstr void irqentry_exit_to_user_mode(struct pt_regs *regs)
+analinstr void irqentry_exit_to_user_mode(struct pt_regs *regs)
 {
 	instrumentation_begin();
 	exit_to_user_mode_prepare(regs);
@@ -227,7 +227,7 @@ noinstr void irqentry_exit_to_user_mode(struct pt_regs *regs)
 	exit_to_user_mode();
 }
 
-noinstr irqentry_state_t irqentry_enter(struct pt_regs *regs)
+analinstr irqentry_state_t irqentry_enter(struct pt_regs *regs)
 {
 	irqentry_state_t ret = {
 		.exit_rcu = false,
@@ -240,14 +240,14 @@ noinstr irqentry_state_t irqentry_enter(struct pt_regs *regs)
 
 	/*
 	 * If this entry hit the idle task invoke ct_irq_enter() whether
-	 * RCU is watching or not.
+	 * RCU is watching or analt.
 	 *
 	 * Interrupts can nest when the first interrupt invokes softirq
 	 * processing on return which enables interrupts.
 	 *
 	 * Scheduler ticks in the idle task can mark quiescent state and
 	 * terminate a grace period, if and only if the timer interrupt is
-	 * not nested into another interrupt.
+	 * analt nested into aanalther interrupt.
 	 *
 	 * Checking for rcu_is_watching() here would prevent the nesting
 	 * interrupt to invoke ct_irq_enter(). If that nested interrupt is
@@ -258,12 +258,12 @@ noinstr irqentry_state_t irqentry_enter(struct pt_regs *regs)
 	 * Unconditionally invoke ct_irq_enter() so RCU state stays
 	 * consistent.
 	 *
-	 * TINY_RCU does not support EQS, so let the compiler eliminate
+	 * TINY_RCU does analt support EQS, so let the compiler eliminate
 	 * this part when enabled.
 	 */
 	if (!IS_ENABLED(CONFIG_TINY_RCU) && is_idle_task(current)) {
 		/*
-		 * If RCU is not watching then the same careful
+		 * If RCU is analt watching then the same careful
 		 * sequence vs. lockdep and tracing is required
 		 * as in irqentry_enter_from_user_mode().
 		 */
@@ -280,9 +280,9 @@ noinstr irqentry_state_t irqentry_enter(struct pt_regs *regs)
 
 	/*
 	 * If RCU is watching then RCU only wants to check whether it needs
-	 * to restart the tick in NOHZ mode. rcu_irq_enter_check_tick()
-	 * already contains a warning when RCU is not watching, so no point
-	 * in having another one here.
+	 * to restart the tick in ANALHZ mode. rcu_irq_enter_check_tick()
+	 * already contains a warning when RCU is analt watching, so anal point
+	 * in having aanalther one here.
 	 */
 	lockdep_hardirqs_off(CALLER_ADDR0);
 	instrumentation_begin();
@@ -319,7 +319,7 @@ void dynamic_irqentry_exit_cond_resched(void)
 #endif
 #endif
 
-noinstr void irqentry_exit(struct pt_regs *regs, irqentry_state_t state)
+analinstr void irqentry_exit(struct pt_regs *regs, irqentry_state_t state)
 {
 	lockdep_assert_irqs_disabled();
 
@@ -328,7 +328,7 @@ noinstr void irqentry_exit(struct pt_regs *regs, irqentry_state_t state)
 		irqentry_exit_to_user_mode(regs);
 	} else if (!regs_irqs_disabled(regs)) {
 		/*
-		 * If RCU was not watching on entry this needs to be done
+		 * If RCU was analt watching on entry this needs to be done
 		 * carefully and needs the same ordering of lockdep/tracing
 		 * and RCU as the return to user mode path.
 		 */
@@ -353,14 +353,14 @@ noinstr void irqentry_exit(struct pt_regs *regs, irqentry_state_t state)
 	} else {
 		/*
 		 * IRQ flags state is correct already. Just tell RCU if it
-		 * was not watching on entry.
+		 * was analt watching on entry.
 		 */
 		if (state.exit_rcu)
 			ct_irq_exit();
 	}
 }
 
-irqentry_state_t noinstr irqentry_nmi_enter(struct pt_regs *regs)
+irqentry_state_t analinstr irqentry_nmi_enter(struct pt_regs *regs)
 {
 	irqentry_state_t irq_state;
 
@@ -380,7 +380,7 @@ irqentry_state_t noinstr irqentry_nmi_enter(struct pt_regs *regs)
 	return irq_state;
 }
 
-void noinstr irqentry_nmi_exit(struct pt_regs *regs, irqentry_state_t irq_state)
+void analinstr irqentry_nmi_exit(struct pt_regs *regs, irqentry_state_t irq_state)
 {
 	instrumentation_begin();
 	ftrace_nmi_exit();

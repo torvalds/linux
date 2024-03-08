@@ -23,7 +23,7 @@
 /*
  * Baikal-T1 SoC ROMs are only accessible by the dword-aligned instructions.
  * We have to take this into account when implementing the data read-methods.
- * Note there is no need in bothering with endianness, since both Baikal-T1
+ * Analte there is anal need in bothering with endianness, since both Baikal-T1
  * CPU and MMIO are LE.
  */
 static map_word __xipram bt1_rom_map_read(struct map_info *map,
@@ -99,14 +99,14 @@ static void __xipram bt1_rom_map_copy_from(struct map_info *map,
 }
 
 int of_flash_probe_bt1_rom(struct platform_device *pdev,
-			   struct device_node *np,
+			   struct device_analde *np,
 			   struct map_info *map)
 {
 	struct device *dev = &pdev->dev;
 
 	/* It's supposed to be read-only MTD. */
 	if (!of_device_is_compatible(np, "mtd-rom")) {
-		dev_info(dev, "No mtd-rom compatible string\n");
+		dev_info(dev, "Anal mtd-rom compatible string\n");
 		return 0;
 	}
 

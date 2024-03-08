@@ -85,7 +85,7 @@ int gb_hd_cport_allocate(struct gb_host_device *hd, int cport_id,
 		ida_start = cport_id;
 		ida_end = cport_id + 1;
 	} else {
-		dev_err(&hd->dev, "cport %d not available\n", cport_id);
+		dev_err(&hd->dev, "cport %d analt available\n", cport_id);
 		return -EINVAL;
 	}
 
@@ -160,7 +160,7 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 
 	hd = kzalloc(sizeof(*hd) + driver->hd_priv_size, GFP_KERNEL);
 	if (!hd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = ida_simple_get(&gb_hd_bus_id_map, 1, 0, GFP_KERNEL);
 	if (ret < 0) {
@@ -190,7 +190,7 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 	if (!hd->svc) {
 		dev_err(&hd->dev, "failed to create svc\n");
 		put_device(&hd->dev);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return hd;

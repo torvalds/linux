@@ -39,7 +39,7 @@ static void tegra20_ac97_codec_reset(struct snd_ac97 *ac97)
 	unsigned long timeout;
 
 	/*
-	 * The reset line is not driven by DAC pad group, have to toggle GPIO.
+	 * The reset line is analt driven by DAC pad group, have to toggle GPIO.
 	 * The RESET line is active low but this is abstracted by the GPIO
 	 * library.
 	 */
@@ -66,7 +66,7 @@ static void tegra20_ac97_codec_warm_reset(struct snd_ac97 *ac97)
 
 	/*
 	 * although sync line is driven by the DAC pad group warm reset using
-	 * the controller cmd is not working, have to toggle sync line
+	 * the controller cmd is analt working, have to toggle sync line
 	 * manually.
 	 */
 	gpiod_direction_output(workdata->sync_gpio, 1);
@@ -308,7 +308,7 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 	ac97 = devm_kzalloc(&pdev->dev, sizeof(struct tegra20_ac97),
 			    GFP_KERNEL);
 	if (!ac97) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	dev_set_drvdata(&pdev->dev, ac97);
@@ -347,7 +347,7 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 					  GPIOD_OUT_LOW);
 	if (IS_ERR(ac97->reset_gpio)) {
 		ret = PTR_ERR(ac97->reset_gpio);
-		dev_err(&pdev->dev, "no RESET GPIO supplied: %d\n", ret);
+		dev_err(&pdev->dev, "anal RESET GPIO supplied: %d\n", ret);
 		goto err_clk_put;
 	}
 	gpiod_set_consumer_name(ac97->reset_gpio, "codec-reset");
@@ -357,7 +357,7 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 					 GPIOD_OUT_LOW);
 	if (IS_ERR(ac97->sync_gpio)) {
 		ret = PTR_ERR(ac97->sync_gpio);
-		dev_err(&pdev->dev, "no codec-sync GPIO supplied: %d\n", ret);
+		dev_err(&pdev->dev, "anal codec-sync GPIO supplied: %d\n", ret);
 		goto err_clk_put;
 	}
 	gpiod_set_consumer_name(ac97->sync_gpio, "codec-sync");
@@ -399,14 +399,14 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 	ret = snd_soc_register_component(&pdev->dev, &tegra20_ac97_component,
 					 &tegra20_ac97_dai, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
-		ret = -ENOMEM;
+		dev_err(&pdev->dev, "Could analt register DAI: %d\n", ret);
+		ret = -EANALMEM;
 		goto err_clk_disable_unprepare;
 	}
 
 	ret = tegra_pcm_platform_register(&pdev->dev);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt register PCM: %d\n", ret);
 		goto err_unregister_component;
 	}
 

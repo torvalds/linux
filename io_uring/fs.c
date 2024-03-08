@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/mm.h>
@@ -83,7 +83,7 @@ int io_renameat(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_rename *ren = io_kiocb_to_cmd(req, struct io_rename);
 	int ret;
 
-	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
+	WARN_ON_ONCE(issue_flags & IO_URING_F_ANALNBLOCK);
 
 	ret = do_renameat2(ren->old_dfd, ren->oldpath, ren->new_dfd,
 				ren->newpath, ren->flags);
@@ -132,7 +132,7 @@ int io_unlinkat(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_unlink *un = io_kiocb_to_cmd(req, struct io_unlink);
 	int ret;
 
-	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
+	WARN_ON_ONCE(issue_flags & IO_URING_F_ANALNBLOCK);
 
 	if (un->flags & AT_REMOVEDIR)
 		ret = do_rmdir(un->dfd, un->filename);
@@ -179,7 +179,7 @@ int io_mkdirat(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_mkdir *mkd = io_kiocb_to_cmd(req, struct io_mkdir);
 	int ret;
 
-	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
+	WARN_ON_ONCE(issue_flags & IO_URING_F_ANALNBLOCK);
 
 	ret = do_mkdirat(mkd->dfd, mkd->filename, mkd->mode);
 
@@ -229,7 +229,7 @@ int io_symlinkat(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_link *sl = io_kiocb_to_cmd(req, struct io_link);
 	int ret;
 
-	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
+	WARN_ON_ONCE(issue_flags & IO_URING_F_ANALNBLOCK);
 
 	ret = do_symlinkat(sl->oldpath, sl->new_dfd, sl->newpath);
 
@@ -274,7 +274,7 @@ int io_linkat(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_link *lnk = io_kiocb_to_cmd(req, struct io_link);
 	int ret;
 
-	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
+	WARN_ON_ONCE(issue_flags & IO_URING_F_ANALNBLOCK);
 
 	ret = do_linkat(lnk->old_dfd, lnk->oldpath, lnk->new_dfd,
 				lnk->newpath, lnk->flags);

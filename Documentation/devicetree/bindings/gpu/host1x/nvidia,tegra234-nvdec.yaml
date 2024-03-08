@@ -16,7 +16,7 @@ maintainers:
   - Mikko Perttunen <mperttunen@nvidia.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^nvdec@[0-9a-f]*$"
 
   compatible:
@@ -65,7 +65,7 @@ properties:
     description:
       phandle to the memory controller for determining information for the NVDEC
       firmware secure carveout. This carveout is configured by the bootloader and
-      not accessible to CPU.
+      analt accessible to CPU.
 
   nvidia,bl-manifest-offset:
     $ref: /schemas/types.yaml#/definitions/uint32

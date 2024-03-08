@@ -25,7 +25,7 @@ void fm_rx_reset_rds_cache(struct fmdev *fmdev)
 
 void fm_rx_reset_station_info(struct fmdev *fmdev)
 {
-	fmdev->rx.stat_info.picode = FM_NO_PI_CODE;
+	fmdev->rx.stat_info.picode = FM_ANAL_PI_CODE;
 	fmdev->rx.stat_info.afcache_size = 0;
 	fmdev->rx.stat_info.af_list_max = 0;
 }
@@ -225,7 +225,7 @@ again:
 		return ret;
 
 	/* Start seek */
-	payload = FM_TUNER_AUTONOMOUS_SEARCH_MODE;
+	payload = FM_TUNER_AUTOANALMOUS_SEARCH_MODE;
 	ret = fmc_send_cmd(fmdev, TUNER_MODE_SET, REG_WR, &payload,
 			sizeof(payload), NULL, NULL);
 	if (ret < 0)
@@ -238,7 +238,7 @@ again:
 	if (!timeleft) {
 		fmerr("Timeout(%d sec),didn't get tune ended int\n",
 			   jiffies_to_msecs(FM_DRV_RX_SEEK_TIMEOUT) / 1000);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	int_reason = fmdev->irq_info.flag & (FM_TUNE_COMPLETE | FM_BAND_LIMIT);
@@ -266,7 +266,7 @@ again:
 			goto again;
 		}
 	} else {
-		/* Read freq to know where operation tune operation stopped */
+		/* Read freq to kanalw where operation tune operation stopped */
 		ret = fmc_send_cmd(fmdev, FREQ_SET, REG_RD, NULL, 2,
 				&curr_frq, &resp_len);
 		if (ret < 0)
@@ -293,7 +293,7 @@ int fm_rx_set_volume(struct fmdev *fmdev, u16 vol_to_set)
 		return -EPERM;
 
 	if (vol_to_set > FM_RX_VOLUME_MAX) {
-		fmerr("Volume is not within(%d-%d) range\n",
+		fmerr("Volume is analt within(%d-%d) range\n",
 			   FM_RX_VOLUME_MIN, FM_RX_VOLUME_MAX);
 		return -EINVAL;
 	}
@@ -317,7 +317,7 @@ int fm_rx_get_volume(struct fmdev *fmdev, u16 *curr_vol)
 
 	if (curr_vol == NULL) {
 		fmerr("Invalid memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	*curr_vol = fmdev->rx.volume / FM_RX_VOLUME_GAIN_STEP;
@@ -377,9 +377,9 @@ int fm_rx_set_region(struct fmdev *fmdev, u8 region_to_set)
 		new_frq = fmdev->rx.region.top_freq;
 
 	if (new_frq) {
-		fmdbg("Current freq is not within band limit boundary,switching to %d KHz\n",
+		fmdbg("Current freq is analt within band limit boundary,switching to %d KHz\n",
 		      new_frq);
-		 /* Current RX frequency is not in range. So, update it */
+		 /* Current RX frequency is analt in range. So, update it */
 		ret = fm_rx_set_freq(fmdev, new_frq);
 	}
 
@@ -394,7 +394,7 @@ int fm_rx_get_mute_mode(struct fmdev *fmdev, u8 *curr_mute_mode)
 
 	if (curr_mute_mode == NULL) {
 		fmerr("Invalid memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	*curr_mute_mode = fmdev->rx.mute_mode;
@@ -464,7 +464,7 @@ int fm_rx_get_rfdepend_softmute(struct fmdev *fmdev, u8 *curr_mute_mode)
 
 	if (curr_mute_mode == NULL) {
 		fmerr("Invalid memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	*curr_mute_mode = fmdev->rx.rf_depend_mute;
@@ -510,7 +510,7 @@ int fm_rx_get_rssi_level(struct fmdev *fmdev, u16 *rssilvl)
 
 	if (rssilvl == NULL) {
 		fmerr("Invalid memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* Read current RSSI level */
 	ret = fmc_send_cmd(fmdev, RSSI_LVL_GET, REG_RD, NULL, 2,
@@ -556,7 +556,7 @@ int fm_rx_get_rssi_threshold(struct fmdev *fmdev, short *curr_rssi_lvl)
 
 	if (curr_rssi_lvl == NULL) {
 		fmerr("Invalid memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	*curr_rssi_lvl = fmdev->rx.rssi_threshold;
@@ -564,18 +564,18 @@ int fm_rx_get_rssi_threshold(struct fmdev *fmdev, short *curr_rssi_lvl)
 	return 0;
 }
 
-/* Sets RX stereo/mono modes */
-int fm_rx_set_stereo_mono(struct fmdev *fmdev, u16 mode)
+/* Sets RX stereo/moanal modes */
+int fm_rx_set_stereo_moanal(struct fmdev *fmdev, u16 mode)
 {
 	u16 payload;
 	int ret;
 
-	if (mode != FM_STEREO_MODE && mode != FM_MONO_MODE) {
+	if (mode != FM_STEREO_MODE && mode != FM_MOANAL_MODE) {
 		fmerr("Invalid mode\n");
 		return -EINVAL;
 	}
 
-	/* Set stereo/mono mode */
+	/* Set stereo/moanal mode */
 	payload = (u16)mode;
 	ret = fmc_send_cmd(fmdev, MOST_MODE_SET, REG_WR, &payload,
 			sizeof(payload), NULL, NULL);
@@ -592,8 +592,8 @@ int fm_rx_set_stereo_mono(struct fmdev *fmdev, u16 mode)
 	return 0;
 }
 
-/* Gets current RX stereo/mono mode */
-int fm_rx_get_stereo_mono(struct fmdev *fmdev, u16 *mode)
+/* Gets current RX stereo/moanal mode */
+int fm_rx_get_stereo_moanal(struct fmdev *fmdev, u16 *mode)
 {
 	__be16 curr_mode;
 	u32 resp_len;
@@ -601,7 +601,7 @@ int fm_rx_get_stereo_mono(struct fmdev *fmdev, u16 *mode)
 
 	if (mode == NULL) {
 		fmerr("Invalid memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = fmc_send_cmd(fmdev, MOST_MODE_SET, REG_RD, NULL, 2,
@@ -648,7 +648,7 @@ int fm_rx_get_deemph_mode(struct fmdev *fmdev, u16 *curr_deemphasis_mode)
 
 	if (curr_deemphasis_mode == NULL) {
 		fmerr("Invalid memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	*curr_deemphasis_mode = fmdev->rx.deemphasis_mode;
@@ -739,7 +739,7 @@ int fm_rx_get_rds_mode(struct fmdev *fmdev, u8 *curr_rds_en_dis)
 
 	if (curr_rds_en_dis == NULL) {
 		fmerr("Invalid memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	*curr_rds_en_dis = fmdev->rx.rds.flag;
@@ -811,7 +811,7 @@ int fm_rx_get_af_switch(struct fmdev *fmdev, u8 *af_mode)
 
 	if (af_mode == NULL) {
 		fmerr("Invalid memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	*af_mode = fmdev->rx.af_mode;

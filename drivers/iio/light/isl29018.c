@@ -313,7 +313,7 @@ static ssize_t in_illuminance_integration_time_available_show
  * proximity count is from -2^(n-1) to 2^(n-1) . The sign bit is extended
  * for resolutions less than 16. While Scheme 0 has wider dynamic
  * range, Scheme 1 proximity detection is less affected by the
- * ambient IR noise variation.
+ * ambient IR analise variation.
  *
  * 0 Sensing IR from LED and ambient
  * 1 Sensing IR from LED with ambient IR rejection
@@ -547,9 +547,9 @@ static int isl29018_chip_init(struct isl29018_chip *chip)
 		id = (id & ISL29035_DEVICE_ID_MASK) >> ISL29035_DEVICE_ID_SHIFT;
 
 		if (id != ISL29035_DEVICE_ID)
-			return -ENODEV;
+			return -EANALDEV;
 
-		/* Clear brownout bit */
+		/* Clear browanalut bit */
 		status = regmap_update_bits(chip->regmap,
 					    ISL29035_REG_DEVICE_ID,
 					    ISL29035_BOUT_MASK, 0);
@@ -558,12 +558,12 @@ static int isl29018_chip_init(struct isl29018_chip *chip)
 	}
 
 	/*
-	 * Code added per Intersil Application Note 1534:
+	 * Code added per Intersil Application Analte 1534:
 	 *     When VDD sinks to approximately 1.8V or below, some of
 	 * the part's registers may change their state. When VDD
 	 * recovers to 2.25V (or greater), the part may thus be in an
-	 * unknown mode of operation. The user can return the part to
-	 * a known mode of operation either by (a) setting VDD = 0V for
+	 * unkanalwn mode of operation. The user can return the part to
+	 * a kanalwn mode of operation either by (a) setting VDD = 0V for
 	 * 1 second or more and then powering back up with a slew rate
 	 * of 0.5V/ms or greater, or (b) via I2C disable all ALS/PROX
 	 * conversions, clear the test registers, and then rewrite all
@@ -722,7 +722,7 @@ static int isl29018_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = iio_priv(indio_dev);
 
@@ -794,7 +794,7 @@ static int isl29018_suspend(struct device *dev)
 	/*
 	 * Since this driver uses only polling commands, we are by default in
 	 * auto shutdown (ie, power-down) mode.
-	 * So we do not have much to do here.
+	 * So we do analt have much to do here.
 	 */
 	chip->suspended = true;
 	ret = regulator_disable(chip->vcc_reg);

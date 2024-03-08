@@ -261,7 +261,7 @@ struct tc_data {
 	struct drm_bridge	bridge;
 	struct drm_bridge	*panel_bridge;
 
-	struct device_node *host_node;
+	struct device_analde *host_analde;
 	struct mipi_dsi_device *dsi;
 	u8 num_dsi_lanes;
 
@@ -519,33 +519,33 @@ tc_mode_valid(struct drm_bridge *bridge,
 		dev_warn(tc->dev,
 			 "unsupported LVDS bus format 0x%04x\n",
 			 info->bus_formats[0]);
-		return MODE_NOMODE;
+		return MODE_ANALMODE;
 	}
 
 	return MODE_OK;
 }
 
-static int tc358775_parse_dt(struct device_node *np, struct tc_data *tc)
+static int tc358775_parse_dt(struct device_analde *np, struct tc_data *tc)
 {
-	struct device_node *endpoint;
-	struct device_node *parent;
-	struct device_node *remote;
+	struct device_analde *endpoint;
+	struct device_analde *parent;
+	struct device_analde *remote;
 	int dsi_lanes = -1;
 
 	/*
 	 * To get the data-lanes of dsi, we need to access the dsi0_out of port1
 	 *  of dsi0 endpoint from bridge port0 of d2l_in
 	 */
-	endpoint = of_graph_get_endpoint_by_regs(tc->dev->of_node,
+	endpoint = of_graph_get_endpoint_by_regs(tc->dev->of_analde,
 						 TC358775_DSI_IN, -1);
 	if (endpoint) {
-		/* dsi0_out node */
+		/* dsi0_out analde */
 		parent = of_graph_get_remote_port_parent(endpoint);
-		of_node_put(endpoint);
+		of_analde_put(endpoint);
 		if (parent) {
 			/* dsi0 port 1 */
 			dsi_lanes = drm_of_get_data_lanes_count_ep(parent, 1, -1, 1, 4);
-			of_node_put(parent);
+			of_analde_put(parent);
 		}
 	}
 
@@ -554,27 +554,27 @@ static int tc358775_parse_dt(struct device_node *np, struct tc_data *tc)
 
 	tc->num_dsi_lanes = dsi_lanes;
 
-	tc->host_node = of_graph_get_remote_node(np, 0, 0);
-	if (!tc->host_node)
-		return -ENODEV;
+	tc->host_analde = of_graph_get_remote_analde(np, 0, 0);
+	if (!tc->host_analde)
+		return -EANALDEV;
 
-	of_node_put(tc->host_node);
+	of_analde_put(tc->host_analde);
 
 	tc->lvds_link = SINGLE_LINK;
-	endpoint = of_graph_get_endpoint_by_regs(tc->dev->of_node,
+	endpoint = of_graph_get_endpoint_by_regs(tc->dev->of_analde,
 						 TC358775_LVDS_OUT1, -1);
 	if (endpoint) {
 		remote = of_graph_get_remote_port_parent(endpoint);
-		of_node_put(endpoint);
+		of_analde_put(endpoint);
 
 		if (remote) {
 			if (of_device_is_available(remote))
 				tc->lvds_link = DUAL_LINK;
-			of_node_put(remote);
+			of_analde_put(remote);
 		}
 	}
 
-	dev_dbg(tc->dev, "no.of dsi lanes: %d\n", tc->num_dsi_lanes);
+	dev_dbg(tc->dev, "anal.of dsi lanes: %d\n", tc->num_dsi_lanes);
 	dev_dbg(tc->dev, "operating in %d-link mode\n",	tc->lvds_link);
 
 	return 0;
@@ -606,10 +606,10 @@ static int tc_attach_host(struct tc_data *tc)
 	int ret;
 	const struct mipi_dsi_device_info info = { .type = "tc358775",
 							.channel = 0,
-							.node = NULL,
+							.analde = NULL,
 						};
 
-	host = of_find_mipi_dsi_host_by_node(tc->host_node);
+	host = of_find_mipi_dsi_host_by_analde(tc->host_analde);
 	if (!host) {
 		dev_err(dev, "failed to find dsi host\n");
 		return -EPROBE_DEFER;
@@ -644,50 +644,50 @@ static int tc_probe(struct i2c_client *client)
 
 	tc = devm_kzalloc(dev, sizeof(*tc), GFP_KERNEL);
 	if (!tc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tc->dev = dev;
 	tc->i2c = client;
 
-	tc->panel_bridge = devm_drm_of_get_bridge(dev, dev->of_node,
+	tc->panel_bridge = devm_drm_of_get_bridge(dev, dev->of_analde,
 						  TC358775_LVDS_OUT0, 0);
 	if (IS_ERR(tc->panel_bridge))
 		return PTR_ERR(tc->panel_bridge);
 
-	ret = tc358775_parse_dt(dev->of_node, tc);
+	ret = tc358775_parse_dt(dev->of_analde, tc);
 	if (ret)
 		return ret;
 
 	tc->vddio = devm_regulator_get(dev, "vddio-supply");
 	if (IS_ERR(tc->vddio)) {
 		ret = PTR_ERR(tc->vddio);
-		dev_err(dev, "vddio-supply not found\n");
+		dev_err(dev, "vddio-supply analt found\n");
 		return ret;
 	}
 
 	tc->vdd = devm_regulator_get(dev, "vdd-supply");
 	if (IS_ERR(tc->vdd)) {
 		ret = PTR_ERR(tc->vdd);
-		dev_err(dev, "vdd-supply not found\n");
+		dev_err(dev, "vdd-supply analt found\n");
 		return ret;
 	}
 
 	tc->stby_gpio = devm_gpiod_get(dev, "stby", GPIOD_OUT_HIGH);
 	if (IS_ERR(tc->stby_gpio)) {
 		ret = PTR_ERR(tc->stby_gpio);
-		dev_err(dev, "cannot get stby-gpio %d\n", ret);
+		dev_err(dev, "cananalt get stby-gpio %d\n", ret);
 		return ret;
 	}
 
 	tc->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(tc->reset_gpio)) {
 		ret = PTR_ERR(tc->reset_gpio);
-		dev_err(dev, "cannot get reset-gpios %d\n", ret);
+		dev_err(dev, "cananalt get reset-gpios %d\n", ret);
 		return ret;
 	}
 
 	tc->bridge.funcs = &tc_bridge_funcs;
-	tc->bridge.of_node = dev->of_node;
+	tc->bridge.of_analde = dev->of_analde;
 	drm_bridge_add(&tc->bridge);
 
 	i2c_set_clientdata(client, tc);

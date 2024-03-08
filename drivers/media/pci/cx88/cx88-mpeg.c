@@ -6,7 +6,7 @@
  *
  *    (c) 2004 Jelle Foks <jelle@foks.us>
  *    (c) 2004 Chris Pascoe <c.pascoe@itee.uq.edu.au>
- *    (c) 2004 Gerd Knorr <kraxel@bytesex.org>
+ *    (c) 2004 Gerd Kanalrr <kraxel@bytesex.org>
  */
 
 #include "cx88.h"
@@ -24,7 +24,7 @@
 MODULE_DESCRIPTION("mpeg driver for cx2388x based TV cards");
 MODULE_AUTHOR("Jelle Foks <jelle@foks.us>");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
-MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
+MODULE_AUTHOR("Gerd Kanalrr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(CX88_VERSION);
 
@@ -110,8 +110,8 @@ int cx8802_start_dma(struct cx8802_dev    *dev,
 		case CX88_BOARD_SAMSUNG_SMT_7020:
 			cx_write(TS_SOP_STAT, 0x00);
 			break;
-		case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
-		case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:
+		case CX88_BOARD_HAUPPAUGE_ANALVASPLUS_S1:
+		case CX88_BOARD_HAUPPAUGE_ANALVASE2_S1:
 			/* Enable MPEG parallel IO and video signal pins */
 			cx_write(MO_PINMUX_IO, 0x88);
 			udelay(100);
@@ -257,7 +257,7 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 
 	} else {
 		buf->risc.cpu[0] |= cpu_to_le32(RISC_IRQ1);
-		dprintk(1, "queue is not empty - append to active\n");
+		dprintk(1, "queue is analt empty - append to active\n");
 		prev = list_entry(cx88q->active.prev, struct cx88_buffer, list);
 		list_add_tail(&buf->list, &cx88q->active);
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
@@ -391,7 +391,7 @@ static int cx8802_init_common(struct cx8802_dev *dev)
 	pci_set_master(dev->pci);
 	err = dma_set_mask(&dev->pci->dev, DMA_BIT_MASK(32));
 	if (err) {
-		pr_err("Oops: no 32bit PCI DMA ???\n");
+		pr_err("Oops: anal 32bit PCI DMA ???\n");
 		return -EIO;
 	}
 
@@ -518,7 +518,7 @@ static int cx8802_request_acquire(struct cx8802_driver *drv)
 	unsigned int	i;
 
 	/* Fail a request for hardware if the device is busy. */
-	if (core->active_type_id != CX88_BOARD_NONE &&
+	if (core->active_type_id != CX88_BOARD_ANALNE &&
 	    core->active_type_id != drv->type_id)
 		return -EBUSY;
 
@@ -538,7 +538,7 @@ static int cx8802_request_acquire(struct cx8802_driver *drv)
 
 	if (drv->advise_acquire) {
 		core->active_ref++;
-		if (core->active_type_id == CX88_BOARD_NONE) {
+		if (core->active_type_id == CX88_BOARD_ANALNE) {
 			core->active_type_id = drv->type_id;
 			drv->advise_acquire(drv);
 		}
@@ -564,7 +564,7 @@ static int cx8802_request_release(struct cx8802_driver *drv)
 		}
 
 		drv->advise_release(drv);
-		core->active_type_id = CX88_BOARD_NONE;
+		core->active_type_id = CX88_BOARD_ANALNE;
 		dprintk(1, "Post release GPIO=%x\n", cx_read(MO_GP0_IO));
 	}
 
@@ -574,7 +574,7 @@ static int cx8802_request_release(struct cx8802_driver *drv)
 static int cx8802_check_driver(struct cx8802_driver *drv)
 {
 	if (!drv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((drv->type_id != CX88_MPEG_DVB) &&
 	    (drv->type_id != CX88_MPEG_BLACKBIRD))
@@ -621,7 +621,7 @@ int cx8802_register_driver(struct cx8802_driver *drv)
 		/* Bring up a new struct for each driver instance */
 		driver = kzalloc(sizeof(*drv), GFP_KERNEL);
 		if (!driver) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 
@@ -644,7 +644,7 @@ int cx8802_register_driver(struct cx8802_driver *drv)
 		mutex_unlock(&drv->core->lock);
 	}
 
-	err = i ? 0 : -ENODEV;
+	err = i ? 0 : -EANALDEV;
 out:
 	mutex_unlock(&cx8802_mutex);
 	return err;
@@ -710,11 +710,11 @@ static int cx8802_probe(struct pci_dev *pci_dev,
 
 	pr_info("cx2388x 8802 Driver Manager\n");
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (!core->board.mpeg)
 		goto fail_core;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		goto fail_core;
@@ -733,7 +733,7 @@ static int cx8802_probe(struct pci_dev *pci_dev,
 	list_add_tail(&dev->devlist, &cx8802_devlist);
 	mutex_unlock(&cx8802_mutex);
 
-	/* now autoload cx88-dvb or cx88-blackbird */
+	/* analw autoload cx88-dvb or cx88-blackbird */
 	request_modules(dev);
 	return 0;
 

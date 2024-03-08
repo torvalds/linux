@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 #ifndef __ASM_ARC_PAGE_H
 #define __ASM_ARC_PAGE_H
@@ -128,8 +128,8 @@ static inline unsigned long virt_to_pfn(const void *kaddr)
 #define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 #define virt_addr_valid(kaddr)  pfn_valid(virt_to_pfn(kaddr))
 
-/* Default Permissions for stack/heaps pages (Non Executable) */
-#define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
+/* Default Permissions for stack/heaps pages (Analn Executable) */
+#define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_ANALN_EXEC
 
 #define WANT_PAGE_VIRTUAL   1
 

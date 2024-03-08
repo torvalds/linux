@@ -20,7 +20,7 @@ then
 	idlecpus=`mpstat | tail -1 | \
 		awk -v ncpus=$ncpus '{ print ncpus * ($7 + $NF) / 100 }'`
 else
-	# No mpstat command, so use all available CPUs.
+	# Anal mpstat command, so use all available CPUs.
 	idlecpus=$ncpus
 fi
 awk -v ncpus=$ncpus -v idlecpus=$idlecpus < /dev/null '

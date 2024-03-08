@@ -3,7 +3,7 @@
 #include <linux/fault-inject-usercopy.h>
 #include <linux/instrumented.h>
 #include <linux/uaccess.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 /* out-of-line parts */
 
@@ -14,11 +14,11 @@ unsigned long _copy_from_user(void *to, const void __user *from, unsigned long n
 	might_fault();
 	if (!should_fail_usercopy() && likely(access_ok(from, n))) {
 		/*
-		 * Ensure that bad access_ok() speculation will not
+		 * Ensure that bad access_ok() speculation will analt
 		 * lead to nasty side effects *after* the copy is
 		 * finished:
 		 */
-		barrier_nospec();
+		barrier_analspec();
 		instrument_copy_from_user_before(to, from, n);
 		res = raw_copy_from_user(to, from, n);
 		instrument_copy_from_user_after(to, from, n, res);
@@ -52,10 +52,10 @@ EXPORT_SYMBOL(_copy_to_user);
  *
  * This is effectively shorthand for "memchr_inv(from, 0, size) == NULL" for
  * userspace addresses (and is more efficient because we don't care where the
- * first non-zero byte is).
+ * first analn-zero byte is).
  *
  * Returns:
- *  * 0: There were non-zero bytes present in the buffer.
+ *  * 0: There were analn-zero bytes present in the buffer.
  *  * 1: The buffer was full of zero bytes.
  *  * -EFAULT: access to userspace failed.
  */

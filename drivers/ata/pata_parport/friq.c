@@ -13,7 +13,7 @@
  * The battery powered drive requires software support to
  * control the power to the drive.  This module enables the
  * drive power when the high level driver (pcd) is loaded
- * and disables it when the module is unloaded.  Note, if
+ * and disables it when the module is unloaded.  Analte, if
  * the friq module is built in to the kernel, the power
  * will never be switched off, so other means should be
  * used to conserve battery power.

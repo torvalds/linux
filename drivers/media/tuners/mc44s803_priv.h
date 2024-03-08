@@ -13,7 +13,7 @@
 
    SPI or I2C Address : 0xc0-0xc6
 
-   Reg.No | Function
+   Reg.Anal | Function
    -------------------------------------------
        00 | Power Down
        01 | Reference Oszillator

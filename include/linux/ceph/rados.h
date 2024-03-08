@@ -4,7 +4,7 @@
 
 /*
  * Data types for the Ceph distributed object storage layer RADOS
- * (Reliable Autonomic Distributed Object Store).
+ * (Reliable Autoanalmic Distributed Object Store).
  */
 
 #include <linux/ceph/msgr.h>
@@ -23,11 +23,11 @@ static inline int ceph_fsid_compare(const struct ceph_fsid *a,
 }
 
 /*
- * ino, object, etc.
+ * ianal, object, etc.
  */
 typedef __le64 ceph_snapid_t;
 #define CEPH_SNAPDIR ((__u64)(-1))  /* reserved for hidden .snap dir */
-#define CEPH_NOSNAP  ((__u64)(-2))  /* "head", "live" revision */
+#define CEPH_ANALSNAP  ((__u64)(-2))  /* "head", "live" revision */
 #define CEPH_MAXSNAP ((__u64)(-3))  /* largest valid snapid */
 
 struct ceph_timespec {
@@ -41,7 +41,7 @@ struct ceph_timespec {
  */
 #define CEPH_OBJECT_LAYOUT_HASH     1
 #define CEPH_OBJECT_LAYOUT_LINEAR   2
-#define CEPH_OBJECT_LAYOUT_HASHINO  3
+#define CEPH_OBJECT_LAYOUT_HASHIANAL  3
 
 /*
  * pg layout -- how PGs are mapped onto (sets of) OSDs
@@ -80,7 +80,7 @@ struct ceph_pg_v1 {
  *
  *  lpgp_num -- as above.
  */
-#define CEPH_NOPOOL  ((__u64) (-1))  /* pool id not defined */
+#define CEPH_ANALPOOL  ((__u64) (-1))  /* pool id analt defined */
 
 #define CEPH_POOL_TYPE_REP     1
 #define CEPH_POOL_TYPE_RAID4   2 /* never implemented */
@@ -143,27 +143,27 @@ extern const char *ceph_osd_state_name(int s);
 /*
  * osd map flag bits
  */
-#define CEPH_OSDMAP_NEARFULL (1<<0)  /* sync writes (near ENOSPC),
-					not set since ~luminous */
-#define CEPH_OSDMAP_FULL     (1<<1)  /* no data writes (ENOSPC),
-					not set since ~luminous */
+#define CEPH_OSDMAP_NEARFULL (1<<0)  /* sync writes (near EANALSPC),
+					analt set since ~lumianalus */
+#define CEPH_OSDMAP_FULL     (1<<1)  /* anal data writes (EANALSPC),
+					analt set since ~lumianalus */
 #define CEPH_OSDMAP_PAUSERD  (1<<2)  /* pause all reads */
 #define CEPH_OSDMAP_PAUSEWR  (1<<3)  /* pause all writes */
 #define CEPH_OSDMAP_PAUSEREC (1<<4)  /* pause recovery */
-#define CEPH_OSDMAP_NOUP     (1<<5)  /* block osd boot */
-#define CEPH_OSDMAP_NODOWN   (1<<6)  /* block osd mark-down/failure */
-#define CEPH_OSDMAP_NOOUT    (1<<7)  /* block osd auto mark-out */
-#define CEPH_OSDMAP_NOIN     (1<<8)  /* block osd auto mark-in */
-#define CEPH_OSDMAP_NOBACKFILL (1<<9) /* block osd backfill */
-#define CEPH_OSDMAP_NORECOVER (1<<10) /* block osd recovery and backfill */
-#define CEPH_OSDMAP_NOSCRUB  (1<<11) /* block periodic scrub */
-#define CEPH_OSDMAP_NODEEP_SCRUB (1<<12) /* block periodic deep-scrub */
-#define CEPH_OSDMAP_NOTIERAGENT (1<<13) /* disable tiering agent */
-#define CEPH_OSDMAP_NOREBALANCE (1<<14) /* block osd backfill unless pg is degraded */
+#define CEPH_OSDMAP_ANALUP     (1<<5)  /* block osd boot */
+#define CEPH_OSDMAP_ANALDOWN   (1<<6)  /* block osd mark-down/failure */
+#define CEPH_OSDMAP_ANALOUT    (1<<7)  /* block osd auto mark-out */
+#define CEPH_OSDMAP_ANALIN     (1<<8)  /* block osd auto mark-in */
+#define CEPH_OSDMAP_ANALBACKFILL (1<<9) /* block osd backfill */
+#define CEPH_OSDMAP_ANALRECOVER (1<<10) /* block osd recovery and backfill */
+#define CEPH_OSDMAP_ANALSCRUB  (1<<11) /* block periodic scrub */
+#define CEPH_OSDMAP_ANALDEEP_SCRUB (1<<12) /* block periodic deep-scrub */
+#define CEPH_OSDMAP_ANALTIERAGENT (1<<13) /* disable tiering agent */
+#define CEPH_OSDMAP_ANALREBALANCE (1<<14) /* block osd backfill unless pg is degraded */
 #define CEPH_OSDMAP_SORTBITWISE (1<<15) /* use bitwise hobject_t sort */
 #define CEPH_OSDMAP_REQUIRE_JEWEL    (1<<16) /* require jewel for booting osds */
 #define CEPH_OSDMAP_REQUIRE_KRAKEN   (1<<17) /* require kraken for booting osds */
-#define CEPH_OSDMAP_REQUIRE_LUMINOUS (1<<18) /* require l for booting osds */
+#define CEPH_OSDMAP_REQUIRE_LUMIANALUS (1<<18) /* require l for booting osds */
 #define CEPH_OSDMAP_RECOVERY_DELETES (1<<19) /* deletes performed during recovery instead of peering */
 
 /*
@@ -175,7 +175,7 @@ extern const char *ceph_osd_state_name(int s);
 /*
  * osd ops
  *
- * WARNING: do not use these op codes directly.  Use the helpers
+ * WARNING: do analt use these op codes directly.  Use the helpers
  * defined below instead.  In certain cases, op code behavior was
  * redefined, resulting in special-cases in the helpers.
  */
@@ -211,8 +211,8 @@ extern const char *ceph_osd_state_name(int s);
 	f(MASKTRUNC,	__CEPH_OSD_OP(RD, DATA, 4),	"masktrunc")	    \
 	f(SPARSE_READ,	__CEPH_OSD_OP(RD, DATA, 5),	"sparse-read")	    \
 									    \
-	f(NOTIFY,	__CEPH_OSD_OP(RD, DATA, 6),	"notify")	    \
-	f(NOTIFY_ACK,	__CEPH_OSD_OP(RD, DATA, 7),	"notify-ack")	    \
+	f(ANALTIFY,	__CEPH_OSD_OP(RD, DATA, 6),	"analtify")	    \
+	f(ANALTIFY_ACK,	__CEPH_OSD_OP(RD, DATA, 7),	"analtify-ack")	    \
 									    \
 	/* versioning */						    \
 	f(ASSERT_VER,	__CEPH_OSD_OP(RD, DATA, 8),	"assert-version")   \
@@ -310,7 +310,7 @@ extern const char *ceph_osd_state_name(int s);
 	f(DNLOCK,	__CEPH_OSD_OP(WR, LOCK, 6),	"dnlock")	    \
 									    \
 	/** exec **/							    \
-	/* note: the RD bit here is wrong; see special-case below in helper */ \
+	/* analte: the RD bit here is wrong; see special-case below in helper */ \
 	f(CALL,		__CEPH_OSD_OP(RD, EXEC, 1),	"call")		    \
 									    \
 	/** pg **/							    \
@@ -365,7 +365,7 @@ static inline int ceph_osd_op_mode_modify(int op)
 }
 
 /*
- * note that the following tmap stuff is also defined in the ceph librados.h
+ * analte that the following tmap stuff is also defined in the ceph librados.h
  * any modification here needs to be updated there
  */
 #define CEPH_OSD_TMAP_HDR 'h'
@@ -392,20 +392,20 @@ enum {
 	CEPH_OSD_FLAG_PEERSTAT_OLD =   0x0080,  /* DEPRECATED msg includes osd_peer_stat */
 	CEPH_OSD_FLAG_BALANCE_READS =  0x0100,
 	CEPH_OSD_FLAG_PARALLELEXEC =   0x0200,  /* execute op in parallel */
-	CEPH_OSD_FLAG_PGOP =           0x0400,  /* pg op, no object */
+	CEPH_OSD_FLAG_PGOP =           0x0400,  /* pg op, anal object */
 	CEPH_OSD_FLAG_EXEC =           0x0800,  /* op may exec */
 	CEPH_OSD_FLAG_EXEC_PUBLIC =    0x1000,  /* DEPRECATED op may exec (public) */
 	CEPH_OSD_FLAG_LOCALIZE_READS = 0x2000,  /* read from nearby replica, if any */
 	CEPH_OSD_FLAG_RWORDERED =      0x4000,  /* order wrt concurrent reads */
-	CEPH_OSD_FLAG_IGNORE_CACHE =   0x8000,  /* ignore cache logic */
+	CEPH_OSD_FLAG_IGANALRE_CACHE =   0x8000,  /* iganalre cache logic */
 	CEPH_OSD_FLAG_SKIPRWLOCKS =   0x10000,  /* skip rw locks */
-	CEPH_OSD_FLAG_IGNORE_OVERLAY = 0x20000, /* ignore pool overlay */
+	CEPH_OSD_FLAG_IGANALRE_OVERLAY = 0x20000, /* iganalre pool overlay */
 	CEPH_OSD_FLAG_FLUSH =         0x40000,  /* this is part of flush */
 	CEPH_OSD_FLAG_MAP_SNAP_CLONE = 0x80000,  /* map snap direct to clone id */
 	CEPH_OSD_FLAG_ENFORCE_SNAPC   = 0x100000,  /* use snapc provided even if
 						      pool uses pool snaps */
 	CEPH_OSD_FLAG_REDIRECTED   = 0x200000,  /* op has been redirected */
-	CEPH_OSD_FLAG_KNOWN_REDIR = 0x400000,  /* redirect bit is authoritative */
+	CEPH_OSD_FLAG_KANALWN_REDIR = 0x400000,  /* redirect bit is authoritative */
 	CEPH_OSD_FLAG_FULL_TRY =    0x800000,  /* try op despite full flag */
 	CEPH_OSD_FLAG_FULL_FORCE = 0x1000000,  /* force op despite full flag */
 };
@@ -417,9 +417,9 @@ enum {
 	CEPH_OSD_OP_FLAG_FADVISE_SEQUENTIAL = 0x8, /* the op is sequential */
 	CEPH_OSD_OP_FLAG_FADVISE_WILLNEED   = 0x10,/* data will be accessed in
 						      the near future */
-	CEPH_OSD_OP_FLAG_FADVISE_DONTNEED   = 0x20,/* data will not be accessed
+	CEPH_OSD_OP_FLAG_FADVISE_DONTNEED   = 0x20,/* data will analt be accessed
 						      in the near future */
-	CEPH_OSD_OP_FLAG_FADVISE_NOCACHE    = 0x40,/* data will be accessed only
+	CEPH_OSD_OP_FLAG_FADVISE_ANALCACHE    = 0x40,/* data will be accessed only
 						      once by this client */
 };
 
@@ -428,7 +428,7 @@ enum {
 
 /* xattr comparison */
 enum {
-	CEPH_OSD_CMPXATTR_OP_NOP = 0,
+	CEPH_OSD_CMPXATTR_OP_ANALP = 0,
 	CEPH_OSD_CMPXATTR_OP_EQ  = 1,
 	CEPH_OSD_CMPXATTR_OP_NE  = 2,
 	CEPH_OSD_CMPXATTR_OP_GT  = 3,
@@ -444,8 +444,8 @@ enum {
 
 enum {
 	CEPH_OSD_COPY_FROM_FLAG_FLUSH = 1,       /* part of a flush operation */
-	CEPH_OSD_COPY_FROM_FLAG_IGNORE_OVERLAY = 2, /* ignore pool overlay */
-	CEPH_OSD_COPY_FROM_FLAG_IGNORE_CACHE = 4,   /* ignore osd cache logic */
+	CEPH_OSD_COPY_FROM_FLAG_IGANALRE_OVERLAY = 2, /* iganalre pool overlay */
+	CEPH_OSD_COPY_FROM_FLAG_IGANALRE_CACHE = 4,   /* iganalre osd cache logic */
 	CEPH_OSD_COPY_FROM_FLAG_MAP_SNAP_CLONE = 8, /* map snap direct to
 						     * cloneid */
 	CEPH_OSD_COPY_FROM_FLAG_RWORDERED = 16,     /* order with write */
@@ -455,7 +455,7 @@ enum {
 enum {
 	CEPH_OSD_WATCH_OP_UNWATCH = 0,
 	CEPH_OSD_WATCH_OP_LEGACY_WATCH = 1,
-	/* note: use only ODD ids to prevent pre-giant code from
+	/* analte: use only ODD ids to prevent pre-giant code from
 	   interpreting the op as UNWATCH */
 	CEPH_OSD_WATCH_OP_WATCH = 3,
 	CEPH_OSD_WATCH_OP_RECONNECT = 5,
@@ -516,13 +516,13 @@ struct ceph_osd_op {
 	        } __attribute__ ((packed)) snap;
 		struct {
 			__le64 cookie;
-			__le64 ver;     /* no longer used */
+			__le64 ver;     /* anal longer used */
 			__u8 op;	/* CEPH_OSD_WATCH_OP_* */
 			__le32 gen;     /* registration generation */
 		} __attribute__ ((packed)) watch;
 		struct {
 			__le64 cookie;
-		} __attribute__ ((packed)) notify;
+		} __attribute__ ((packed)) analtify;
 		struct {
 			__le64 unused;
 			__le64 ver;

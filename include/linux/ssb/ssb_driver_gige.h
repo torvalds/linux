@@ -24,8 +24,8 @@
 /* TM Status High flags */
 #define SSB_GIGE_TMSHIGH_RGMII		0x00010000 /* Have an RGMII PHY-bus */
 /* TM Status Low flags */
-#define SSB_GIGE_TMSLOW_TXBYPASS	0x00080000 /* TX bypass (no delay) */
-#define SSB_GIGE_TMSLOW_RXBYPASS	0x00100000 /* RX bypass (no delay) */
+#define SSB_GIGE_TMSLOW_TXBYPASS	0x00080000 /* TX bypass (anal delay) */
+#define SSB_GIGE_TMSLOW_RXBYPASS	0x00100000 /* RX bypass (anal delay) */
 #define SSB_GIGE_TMSLOW_DLLEN		0x01000000 /* Enable DLL controls */
 
 /* Boardflags (low) */
@@ -103,7 +103,7 @@ static inline int ssb_gige_get_macaddr(struct pci_dev *pdev, u8 *macaddr)
 {
 	struct ssb_gige *dev = pdev_to_ssb_gige(pdev);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memcpy(macaddr, dev->dev->bus->sprom.et0mac, 6);
 	return 0;
@@ -114,7 +114,7 @@ static inline int ssb_gige_get_phyaddr(struct pci_dev *pdev)
 {
 	struct ssb_gige *dev = pdev_to_ssb_gige(pdev);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return dev->dev->bus->sprom.et0phyaddr;
 }
@@ -124,13 +124,13 @@ extern int ssb_gige_pcibios_plat_dev_init(struct ssb_device *sdev,
 extern int ssb_gige_map_irq(struct ssb_device *sdev,
 			    const struct pci_dev *pdev);
 
-/* The GigE driver is not a standalone module, because we don't have support
- * for unregistering the driver. So we could not unload the module anyway. */
+/* The GigE driver is analt a standalone module, because we don't have support
+ * for unregistering the driver. So we could analt unload the module anyway. */
 extern int ssb_gige_init(void);
 static inline void ssb_gige_exit(void)
 {
-	/* Currently we can not unregister the GigE driver,
-	 * because we can not unregister the PCI bridge. */
+	/* Currently we can analt unregister the GigE driver,
+	 * because we can analt unregister the PCI bridge. */
 	BUG();
 }
 
@@ -142,12 +142,12 @@ static inline void ssb_gige_exit(void)
 static inline int ssb_gige_pcibios_plat_dev_init(struct ssb_device *sdev,
 						 struct pci_dev *pdev)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 static inline int ssb_gige_map_irq(struct ssb_device *sdev,
 				   const struct pci_dev *pdev)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 static inline int ssb_gige_init(void)
 {
@@ -183,11 +183,11 @@ static inline bool ssb_gige_must_flush_posted_writes(struct pci_dev *pdev)
 }
 static inline int ssb_gige_get_macaddr(struct pci_dev *pdev, u8 *macaddr)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline int ssb_gige_get_phyaddr(struct pci_dev *pdev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #endif /* CONFIG_SSB_DRIVER_GIGE */

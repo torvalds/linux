@@ -55,7 +55,7 @@ MODULE_LICENSE("GPL");
 
 #define FW_FILE_VERSION				\
 	__stringify(FW_MAJOR_VERSION) "."	\
-	__stringify(FW_MINOR_VERSION) "."	\
+	__stringify(FW_MIANALR_VERSION) "."	\
 	__stringify(FW_REVISION_VERSION) "."	\
 	__stringify(FW_ENGINEERING_VERSION)
 
@@ -282,18 +282,18 @@ static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 
 	rc = pci_enable_device(pdev);
 	if (rc) {
-		DP_NOTICE(cdev, "Cannot enable PCI device\n");
+		DP_ANALTICE(cdev, "Cananalt enable PCI device\n");
 		goto err0;
 	}
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		DP_NOTICE(cdev, "No memory region found in bar #0\n");
+		DP_ANALTICE(cdev, "Anal memory region found in bar #0\n");
 		rc = -EIO;
 		goto err1;
 	}
 
 	if (IS_PF(cdev) && !(pci_resource_flags(pdev, 2) & IORESOURCE_MEM)) {
-		DP_NOTICE(cdev, "No memory region found in bar #2\n");
+		DP_ANALTICE(cdev, "Anal memory region found in bar #2\n");
 		rc = -EIO;
 		goto err1;
 	}
@@ -301,7 +301,7 @@ static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 	if (atomic_read(&pdev->enable_cnt) == 1) {
 		rc = pci_request_regions(pdev, "qed");
 		if (rc) {
-			DP_NOTICE(cdev,
+			DP_ANALTICE(cdev,
 				  "Failed to request PCI memory resources\n");
 			goto err1;
 		}
@@ -311,25 +311,25 @@ static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev_id);
 	if (rev_id == PCI_REVISION_ID_ERROR_VAL) {
-		DP_NOTICE(cdev,
+		DP_ANALTICE(cdev,
 			  "Detected PCI device error [rev_id 0x%x]. Probably due to prior indication. Aborting.\n",
 			  rev_id);
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto err2;
 	}
 	if (!pci_is_pcie(pdev)) {
-		DP_NOTICE(cdev, "The bus is not PCI Express\n");
+		DP_ANALTICE(cdev, "The bus is analt PCI Express\n");
 		rc = -EIO;
 		goto err2;
 	}
 
 	cdev->pci_params.pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
 	if (IS_PF(cdev) && !cdev->pci_params.pm_cap)
-		DP_NOTICE(cdev, "Cannot find power management capability\n");
+		DP_ANALTICE(cdev, "Cananalt find power management capability\n");
 
 	rc = dma_set_mask_and_coherent(&cdev->pdev->dev, DMA_BIT_MASK(64));
 	if (rc) {
-		DP_NOTICE(cdev, "Can't request DMA addresses\n");
+		DP_ANALTICE(cdev, "Can't request DMA addresses\n");
 		rc = -EIO;
 		goto err2;
 	}
@@ -340,8 +340,8 @@ static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 
 	cdev->regview = pci_ioremap_bar(pdev, 0);
 	if (!cdev->regview) {
-		DP_NOTICE(cdev, "Cannot map register space, aborting\n");
-		rc = -ENOMEM;
+		DP_ANALTICE(cdev, "Cananalt map register space, aborting\n");
+		rc = -EANALMEM;
 		goto err2;
 	}
 
@@ -349,7 +349,7 @@ static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 	cdev->db_size = pci_resource_len(cdev->pdev, 2);
 	if (!cdev->db_size) {
 		if (IS_PF(cdev)) {
-			DP_NOTICE(cdev, "No Doorbell bar available\n");
+			DP_ANALTICE(cdev, "Anal Doorbell bar available\n");
 			return -EINVAL;
 		} else {
 			return 0;
@@ -359,8 +359,8 @@ static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 	cdev->doorbells = ioremap_wc(cdev->db_phys_addr, cdev->db_size);
 
 	if (!cdev->doorbells) {
-		DP_NOTICE(cdev, "Cannot map doorbell space\n");
-		return -ENOMEM;
+		DP_ANALTICE(cdev, "Cananalt map doorbell space\n");
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -407,7 +407,7 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 
 	if (IS_PF(cdev)) {
 		dev_info->fw_major = FW_MAJOR_VERSION;
-		dev_info->fw_minor = FW_MINOR_VERSION;
+		dev_info->fw_mianalr = FW_MIANALR_VERSION;
 		dev_info->fw_rev = FW_REVISION_VERSION;
 		dev_info->fw_eng = FW_ENGINEERING_VERSION;
 		dev_info->b_inter_pf_switch = test_bit(QED_MF_INTER_PF_SWITCH,
@@ -424,7 +424,7 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 		dev_info->abs_pf_id = QED_LEADING_HWFN(cdev)->abs_pf_id;
 	} else {
 		qed_vf_get_fw_version(&cdev->hwfns[0], &dev_info->fw_major,
-				      &dev_info->fw_minor, &dev_info->fw_rev,
+				      &dev_info->fw_mianalr, &dev_info->fw_rev,
 				      &dev_info->fw_eng);
 	}
 
@@ -475,7 +475,7 @@ static struct qed_dev *qed_alloc_cdev(struct pci_dev *pdev)
 static int qed_set_power_state(struct qed_dev *cdev, pci_power_t state)
 {
 	if (!cdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	DP_VERBOSE(cdev, NETIF_MSG_DRV, "Omitting Power state change\n");
 	return 0;
@@ -574,7 +574,7 @@ static int qed_enable_msix(struct qed_dev *cdev,
 		 * should be a multiple of the number of hwfns.
 		 */
 		cnt = (rc / cdev->num_hwfns) * cdev->num_hwfns;
-		DP_NOTICE(cdev,
+		DP_ANALTICE(cdev,
 			  "Trying to enable MSI-X with less vectors (%d out of %d)\n",
 			  cnt, int_params->in.num_vectors);
 		rc = pci_enable_msix_exact(cdev->pdev, int_params->msix_table,
@@ -585,7 +585,7 @@ static int qed_enable_msix(struct qed_dev *cdev,
 
 	/* For VFs, we should return with an error in case we didn't get the
 	 * exact number of msix vectors as we requested.
-	 * Not doing that will lead to a crash when starting queues for
+	 * Analt doing that will lead to a crash when starting queues for
 	 * this VF.
 	 */
 	if ((IS_PF(cdev) && rc > 0) || (IS_VF(cdev) && rc == cnt)) {
@@ -594,7 +594,7 @@ static int qed_enable_msix(struct qed_dev *cdev,
 		int_params->out.num_vectors = rc;
 		rc = 0;
 	} else {
-		DP_NOTICE(cdev,
+		DP_ANALTICE(cdev,
 			  "Failed to enable MSI-X [Requested %d vectors][rc %d]\n",
 			  cnt, rc);
 	}
@@ -615,7 +615,7 @@ static int qed_set_int_mode(struct qed_dev *cdev, bool force_mode)
 		cnt = int_params->in.num_vectors;
 		int_params->msix_table = kcalloc(cnt, sizeof(*tbl), GFP_KERNEL);
 		if (!int_params->msix_table) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 
@@ -624,7 +624,7 @@ static int qed_set_int_mode(struct qed_dev *cdev, bool force_mode)
 		if (!rc)
 			goto out;
 
-		DP_NOTICE(cdev, "Failed to enable MSI-X\n");
+		DP_ANALTICE(cdev, "Failed to enable MSI-X\n");
 		kfree(int_params->msix_table);
 		if (force_mode)
 			goto out;
@@ -638,7 +638,7 @@ static int qed_set_int_mode(struct qed_dev *cdev, bool force_mode)
 				goto out;
 			}
 
-			DP_NOTICE(cdev, "Failed to enable MSI\n");
+			DP_ANALTICE(cdev, "Failed to enable MSI\n");
 			if (force_mode)
 				goto out;
 		}
@@ -649,7 +649,7 @@ static int qed_set_int_mode(struct qed_dev *cdev, bool force_mode)
 			rc = 0;
 			goto out;
 	default:
-		DP_NOTICE(cdev, "Unknown int_mode value %d\n",
+		DP_ANALTICE(cdev, "Unkanalwn int_mode value %d\n",
 			  int_params->in.int_mode);
 		rc = -EINVAL;
 	}
@@ -694,7 +694,7 @@ static irqreturn_t qed_single_int(int irq, void *dev_instance)
 {
 	struct qed_dev *cdev = (struct qed_dev *)dev_instance;
 	struct qed_hwfn *hwfn;
-	irqreturn_t rc = IRQ_NONE;
+	irqreturn_t rc = IRQ_ANALNE;
 	u64 status;
 	int i, j;
 
@@ -722,8 +722,8 @@ static irqreturn_t qed_single_int(int irq, void *dev_instance)
 				if (p_handler->func)
 					p_handler->func(p_handler->token);
 				else
-					DP_NOTICE(hwfn,
-						  "Not calling fastpath handler as it is NULL [handler #%d, status 0x%llx]\n",
+					DP_ANALTICE(hwfn,
+						  "Analt calling fastpath handler as it is NULL [handler #%d, status 0x%llx]\n",
 						  j, status);
 
 				status &= ~(0x2ULL << j);
@@ -733,7 +733,7 @@ static irqreturn_t qed_single_int(int irq, void *dev_instance)
 
 		if (unlikely(status))
 			DP_VERBOSE(hwfn, NETIF_MSG_INTR,
-				   "got an unknown interrupt status 0x%llx\n",
+				   "got an unkanalwn interrupt status 0x%llx\n",
 				   status);
 	}
 
@@ -770,7 +770,7 @@ int qed_slowpath_irq_req(struct qed_hwfn *hwfn)
 	}
 
 	if (rc)
-		DP_NOTICE(cdev, "request_irq failed, rc = %d\n", rc);
+		DP_ANALTICE(cdev, "request_irq failed, rc = %d\n", rc);
 	else
 		DP_VERBOSE(hwfn, (NETIF_MSG_INTR | QED_MSG_SP),
 			   "Requested slowpath %s\n",
@@ -884,7 +884,7 @@ static int qed_set_int_fp(struct qed_dev *cdev, u16 cnt)
 		limit = cdev->int_params.fp_msix_cnt;
 
 	if (!limit)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return min_t(int, cnt, limit);
 }
@@ -895,7 +895,7 @@ static int qed_get_int_fp(struct qed_dev *cdev, struct qed_int_info *info)
 
 	if (!cdev->int_params.fp_initialized) {
 		DP_INFO(cdev,
-			"Protocol driver requested interrupt information, but its support is not yet configured\n");
+			"Protocol driver requested interrupt information, but its support is analt yet configured\n");
 		return -EINVAL;
 	}
 
@@ -921,7 +921,7 @@ static int qed_slowpath_setup_int(struct qed_dev *cdev,
 	int i;
 
 	if ((int_mode == QED_INT_MODE_MSI) && (cdev->num_hwfns > 1)) {
-		DP_NOTICE(cdev, "MSI mode is not supported for CMT devices\n");
+		DP_ANALTICE(cdev, "MSI mode is analt supported for CMT devices\n");
 		return -EINVAL;
 	}
 
@@ -1053,11 +1053,11 @@ static int qed_alloc_stream_mem(struct qed_dev *cdev)
 
 		p_hwfn->stream = kzalloc(sizeof(*p_hwfn->stream), GFP_KERNEL);
 		if (!p_hwfn->stream)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		workspace = vzalloc(zlib_inflate_workspacesize());
 		if (!workspace)
-			return -ENOMEM;
+			return -EANALMEM;
 		p_hwfn->stream->workspace = workspace;
 	}
 
@@ -1221,8 +1221,8 @@ static int qed_slowpath_wq_start(struct qed_dev *cdev)
 
 		hwfn->slowpath_wq = alloc_workqueue(name, 0, 0);
 		if (!hwfn->slowpath_wq) {
-			DP_NOTICE(hwfn, "Cannot create slowpath workqueue\n");
-			return -ENOMEM;
+			DP_ANALTICE(hwfn, "Cananalt create slowpath workqueue\n");
+			return -EANALMEM;
 		}
 
 		INIT_DELAYED_WORK(&hwfn->slowpath_task, qed_slowpath_task);
@@ -1254,7 +1254,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 		rc = request_firmware(&cdev->firmware, QED_FW_FILE_NAME,
 				      &cdev->pdev->dev);
 		if (rc) {
-			DP_NOTICE(cdev,
+			DP_ANALTICE(cdev,
 				  "Failed to find fw file - /lib/firmware/%s\n",
 				  QED_FW_FILE_NAME);
 			goto err;
@@ -1265,7 +1265,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 			if (p_ptt) {
 				QED_LEADING_HWFN(cdev)->p_arfs_ptt = p_ptt;
 			} else {
-				DP_NOTICE(cdev,
+				DP_ANALTICE(cdev,
 					  "Failed to acquire PTT for aRFS\n");
 				rc = -EINVAL;
 				goto err;
@@ -1320,7 +1320,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	drv_load_params.is_crash_kernel = is_kdump_kernel();
 	drv_load_params.mfw_timeout_val = QED_LOAD_REQ_LOCK_TO_DEFAULT;
 	drv_load_params.avoid_eng_reset = false;
-	drv_load_params.override_force_load = QED_OVERRIDE_FORCE_LOAD_NONE;
+	drv_load_params.override_force_load = QED_OVERRIDE_FORCE_LOAD_ANALNE;
 	hw_init_params.p_drv_load_params = &drv_load_params;
 
 	rc = qed_hw_init(cdev, &hw_init_params);
@@ -1347,7 +1347,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	if (IS_PF(cdev)) {
 		hwfn = QED_LEADING_HWFN(cdev);
 		drv_version.version = (params->drv_major << 24) |
-				      (params->drv_minor << 16) |
+				      (params->drv_mianalr << 16) |
 				      (params->drv_rev << 8) |
 				      (params->drv_eng);
 		strscpy(drv_version.name, params->name,
@@ -1355,7 +1355,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 		rc = qed_mcp_send_drv_version(hwfn, hwfn->p_main_ptt,
 					      &drv_version);
 		if (rc) {
-			DP_NOTICE(cdev, "Failed sending drv version command\n");
+			DP_ANALTICE(cdev, "Failed sending drv version command\n");
 			goto err4;
 		}
 	}
@@ -1395,7 +1395,7 @@ err:
 static int qed_slowpath_stop(struct qed_dev *cdev)
 {
 	if (!cdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	qed_slowpath_wq_stop(cdev);
 
@@ -1566,8 +1566,8 @@ static void qed_set_ext_speed_params(struct qed_mcp_link_params *link_params,
 	switch (params->forced_speed) {
 	case SPEED_25000:
 		switch (params->fec) {
-		case FEC_FORCE_MODE_NONE:
-			link_params->ext_fec_mode = ETH_EXT_FEC_25G_NONE;
+		case FEC_FORCE_MODE_ANALNE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_25G_ANALNE;
 			break;
 		case FEC_FORCE_MODE_FIRECODE:
 			link_params->ext_fec_mode = ETH_EXT_FEC_25G_BASE_R;
@@ -1578,7 +1578,7 @@ static void qed_set_ext_speed_params(struct qed_mcp_link_params *link_params,
 		case FEC_FORCE_MODE_AUTO:
 			link_params->ext_fec_mode = ETH_EXT_FEC_25G_RS528 |
 						    ETH_EXT_FEC_25G_BASE_R |
-						    ETH_EXT_FEC_25G_NONE;
+						    ETH_EXT_FEC_25G_ANALNE;
 			break;
 		default:
 			break;
@@ -1587,15 +1587,15 @@ static void qed_set_ext_speed_params(struct qed_mcp_link_params *link_params,
 		break;
 	case SPEED_40000:
 		switch (params->fec) {
-		case FEC_FORCE_MODE_NONE:
-			link_params->ext_fec_mode = ETH_EXT_FEC_40G_NONE;
+		case FEC_FORCE_MODE_ANALNE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_40G_ANALNE;
 			break;
 		case FEC_FORCE_MODE_FIRECODE:
 			link_params->ext_fec_mode = ETH_EXT_FEC_40G_BASE_R;
 			break;
 		case FEC_FORCE_MODE_AUTO:
 			link_params->ext_fec_mode = ETH_EXT_FEC_40G_BASE_R |
-						    ETH_EXT_FEC_40G_NONE;
+						    ETH_EXT_FEC_40G_ANALNE;
 			break;
 		default:
 			break;
@@ -1604,8 +1604,8 @@ static void qed_set_ext_speed_params(struct qed_mcp_link_params *link_params,
 		break;
 	case SPEED_50000:
 		switch (params->fec) {
-		case FEC_FORCE_MODE_NONE:
-			link_params->ext_fec_mode = ETH_EXT_FEC_50G_NONE;
+		case FEC_FORCE_MODE_ANALNE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_50G_ANALNE;
 			break;
 		case FEC_FORCE_MODE_FIRECODE:
 			link_params->ext_fec_mode = ETH_EXT_FEC_50G_BASE_R;
@@ -1616,7 +1616,7 @@ static void qed_set_ext_speed_params(struct qed_mcp_link_params *link_params,
 		case FEC_FORCE_MODE_AUTO:
 			link_params->ext_fec_mode = ETH_EXT_FEC_50G_RS528 |
 						    ETH_EXT_FEC_50G_BASE_R |
-						    ETH_EXT_FEC_50G_NONE;
+						    ETH_EXT_FEC_50G_ANALNE;
 			break;
 		default:
 			break;
@@ -1625,8 +1625,8 @@ static void qed_set_ext_speed_params(struct qed_mcp_link_params *link_params,
 		break;
 	case SPEED_100000:
 		switch (params->fec) {
-		case FEC_FORCE_MODE_NONE:
-			link_params->ext_fec_mode = ETH_EXT_FEC_100G_NONE;
+		case FEC_FORCE_MODE_ANALNE:
+			link_params->ext_fec_mode = ETH_EXT_FEC_100G_ANALNE;
 			break;
 		case FEC_FORCE_MODE_FIRECODE:
 			link_params->ext_fec_mode = ETH_EXT_FEC_100G_BASE_R;
@@ -1637,7 +1637,7 @@ static void qed_set_ext_speed_params(struct qed_mcp_link_params *link_params,
 		case FEC_FORCE_MODE_AUTO:
 			link_params->ext_fec_mode = ETH_EXT_FEC_100G_RS528 |
 						    ETH_EXT_FEC_100G_BASE_R |
-						    ETH_EXT_FEC_100G_NONE;
+						    ETH_EXT_FEC_100G_ANALNE;
 			break;
 		default:
 			break;
@@ -1660,13 +1660,13 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 	u32 i;
 
 	if (!cdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* The link should be set only once per PF */
 	hwfn = &cdev->hwfns[0];
 
 	/* When VF wants to set link, force it to read the bulletin instead.
-	 * This mimics the PF behavior, where a noitification [both immediate
+	 * This mimics the PF behavior, where a analitification [both immediate
 	 * and possible later] would be generated when changing properties.
 	 */
 	if (IS_VF(cdev)) {
@@ -1680,7 +1680,7 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 
 	link_params = qed_mcp_get_link_params(hwfn);
 	if (!link_params)
-		return -ENODATA;
+		return -EANALDATA;
 
 	speed = &link_params->speed;
 
@@ -1753,7 +1753,7 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 				ETH_LOOPBACK_INT_PHY_FEA_AH_ONLY;
 			break;
 		default:
-			link_params->loopback_mode = ETH_LOOPBACK_NONE;
+			link_params->loopback_mode = ETH_LOOPBACK_ANALNE;
 			break;
 		}
 	}
@@ -1790,8 +1790,8 @@ static int qed_get_port_type(u32 media_type)
 		port_type = PORT_TP;
 		break;
 	case MEDIA_KR:
-	case MEDIA_NOT_PRESENT:
-		port_type = PORT_NONE;
+	case MEDIA_ANALT_PRESENT:
+		port_type = PORT_ANALNE;
 		break;
 	case MEDIA_UNSPECIFIED:
 	default:
@@ -2039,10 +2039,10 @@ static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 
 		break;
 	case MEDIA_UNSPECIFIED:
-	case MEDIA_NOT_PRESENT:
+	case MEDIA_ANALT_PRESENT:
 	default:
 		DP_VERBOSE(hwfn->cdev, QED_MSG_DEBUG,
-			   "Unknown media and transceiver type;\n");
+			   "Unkanalwn media and transceiver type;\n");
 		break;
 	}
 }
@@ -2081,7 +2081,7 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 
 	/* Prepare source inputs */
 	if (qed_get_link_data(hwfn, &params, &link, &link_caps)) {
-		dev_warn(&hwfn->cdev->pdev->dev, "no link data available\n");
+		dev_warn(&hwfn->cdev->pdev->dev, "anal link data available\n");
 		return;
 	}
 
@@ -2192,7 +2192,7 @@ static void qed_get_current_link(struct qed_dev *cdev,
 			qed_fill_link(hwfn, ptt, if_link);
 			qed_ptt_release(hwfn, ptt);
 		} else {
-			DP_NOTICE(hwfn, "Failed to fill link; No PTT\n");
+			DP_ANALTICE(hwfn, "Failed to fill link; Anal PTT\n");
 		}
 	} else {
 		qed_fill_link(hwfn, NULL, if_link);
@@ -2237,7 +2237,7 @@ static int qed_drain(struct qed_dev *cdev)
 		hwfn = &cdev->hwfns[i];
 		ptt = qed_ptt_acquire(hwfn);
 		if (!ptt) {
-			DP_NOTICE(hwfn, "Failed to drain NIG; No PTT\n");
+			DP_ANALTICE(hwfn, "Failed to drain NIG; Anal PTT\n");
 			return -EBUSY;
 		}
 		rc = qed_mcp_drain(hwfn, ptt);
@@ -2259,7 +2259,7 @@ static u32 qed_nvm_flash_image_access_crc(struct qed_dev *cdev,
 	/* Allocate a buffer for holding the nvram image */
 	buf = kzalloc(nvm_image->length, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Read image into buffer */
 	rc = qed_mcp_nvm_read(cdev, nvm_image->start_addr,
@@ -2275,7 +2275,7 @@ static u32 qed_nvm_flash_image_access_crc(struct qed_dev *cdev,
 	cpu_to_be32_array((__force __be32 *)buf, (const u32 *)buf,
 			  DIV_ROUND_UP(nvm_image->length - 4, 4));
 
-	/* Calc CRC for the "actual" image buffer, i.e. not including
+	/* Calc CRC for the "actual" image buffer, i.e. analt including
 	 * the last 4 CRC bytes.
 	 */
 	*crc = ~crc32(~0U, buf, nvm_image->length - 4);
@@ -2317,7 +2317,7 @@ static int qed_nvm_flash_image_access(struct qed_dev *cdev, const u8 **data,
 	if (i == p_hwfn->nvm_info.num_images) {
 		DP_ERR(cdev, "Failed to find nvram image of type %08x\n",
 		       image_type);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	nvm_image.start_addr = p_hwfn->nvm_info.image_att[i].nvm_start_addr;
@@ -2683,7 +2683,7 @@ static int qed_nvm_flash(struct qed_dev *cdev, const char *name)
 			rc = qed_nvm_flash_cfg_write(cdev, &data);
 			break;
 		default:
-			DP_ERR(cdev, "Unknown command %08x\n", cmd_type);
+			DP_ERR(cdev, "Unkanalwn command %08x\n", cmd_type);
 			rc = -EINVAL;
 			goto exit;
 		}
@@ -2748,7 +2748,7 @@ static const char * const qed_hw_err_type_descr[] = {
 	[QED_HW_ERR_DMAE_FAIL]		= "DMAE Failure",
 	[QED_HW_ERR_RAMROD_FAIL]	= "Ramrod Failure",
 	[QED_HW_ERR_FW_ASSERT]		= "FW Assertion",
-	[QED_HW_ERR_LAST]		= "Unknown",
+	[QED_HW_ERR_LAST]		= "Unkanalwn",
 };
 
 void qed_hw_error_occurred(struct qed_hwfn *p_hwfn,
@@ -2762,10 +2762,10 @@ void qed_hw_error_occurred(struct qed_hwfn *p_hwfn,
 		err_type = QED_HW_ERR_LAST;
 	err_str = qed_hw_err_type_descr[err_type];
 
-	DP_NOTICE(p_hwfn, "HW error occurred [%s]\n", err_str);
+	DP_ANALTICE(p_hwfn, "HW error occurred [%s]\n", err_str);
 
 	/* Call the HW error handler of the protocol driver.
-	 * If it is not available - perform a minimal handling of preventing
+	 * If it is analt available - perform a minimal handling of preventing
 	 * HW attentions from being reasserted.
 	 */
 	if (ops && ops->schedule_hw_err_handler)
@@ -2921,7 +2921,7 @@ qed_get_sb_info(struct qed_dev *cdev, struct qed_sb_info *sb,
 
 	ptt = qed_ptt_acquire(hwfn);
 	if (!ptt) {
-		DP_NOTICE(hwfn, "Can't acquire PTT\n");
+		DP_ANALTICE(hwfn, "Can't acquire PTT\n");
 		return -EAGAIN;
 	}
 
@@ -3176,7 +3176,7 @@ int qed_mfw_fill_tlv_data(struct qed_hwfn *hwfn, enum qed_mfw_tlv_type type,
 
 	ops = cdev->protocol_ops.common;
 	if (!ops || !ops->get_protocol_tlv_data || !ops->get_generic_tlv_data) {
-		DP_NOTICE(hwfn, "Can't collect TLV management info\n");
+		DP_ANALTICE(hwfn, "Can't collect TLV management info\n");
 		return -EINVAL;
 	}
 

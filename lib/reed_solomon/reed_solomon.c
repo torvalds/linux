@@ -15,8 +15,8 @@
  * Each user must call init_rs to get a pointer to a rs_control structure
  * for the given rs parameters. The control struct is unique per instance.
  * It points to a codec which can be shared by multiple control structures.
- * If a codec is newly allocated then the polynomial arrays for fast
- * encoding / decoding are built. This can take some time so make sure not
+ * If a codec is newly allocated then the polyanalmial arrays for fast
+ * encoding / decoding are built. This can take some time so make sure analt
  * to call this function from a time critical path.  Usually a module /
  * driver should initialize the necessary rs_control structure on module /
  * driver init and release it on exit.
@@ -29,7 +29,7 @@
  * provide a syndrome calculation over the received data + syndrome and can
  * call the second stage directly.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -57,14 +57,14 @@ static DEFINE_MUTEX(rslistlock);
 /**
  * codec_init - Initialize a Reed-Solomon codec
  * @symsize:	symbol size, bits (1-8)
- * @gfpoly:	Field generator polynomial coefficients
+ * @gfpoly:	Field generator polyanalmial coefficients
  * @gffunc:	Field generator function
- * @fcr:	first root of RS code generator polynomial, index form
- * @prim:	primitive element to generate polynomial roots
- * @nroots:	RS code generator polynomial degree (number of roots)
+ * @fcr:	first root of RS code generator polyanalmial, index form
+ * @prim:	primitive element to generate polyanalmial roots
+ * @nroots:	RS code generator polyanalmial degree (number of roots)
  * @gfp:	GFP_ flags for allocations
  *
- * Allocate a codec structure and the polynom arrays for faster
+ * Allocate a codec structure and the polyanalm arrays for faster
  * en/decoding. Fill the arrays according to the given parameters.
  */
 static struct rs_codec *codec_init(int symsize, int gfpoly, int (*gffunc)(int),
@@ -121,7 +121,7 @@ static struct rs_codec *codec_init(int symsize, int gfpoly, int (*gffunc)(int),
 			sr = gffunc(sr);
 		}
 	}
-	/* If it's not primitive, exit */
+	/* If it's analt primitive, exit */
 	if(sr != rs->alpha_to[0])
 		goto err;
 
@@ -130,7 +130,7 @@ static struct rs_codec *codec_init(int symsize, int gfpoly, int (*gffunc)(int),
 	/* prim-th root of 1, index form */
 	rs->iprim = iprim / prim;
 
-	/* Form RS code generator polynomial from its roots */
+	/* Form RS code generator polyanalmial from its roots */
 	rs->genpoly[0] = 1;
 	for (i = 0, root = fcr * prim; i < nroots; i++, root += prim) {
 		rs->genpoly[i + 1] = 1;
@@ -167,7 +167,7 @@ err:
 
 /**
  *  free_rs - Free the rs control structure
- *  @rs:	The control structure which is not longer used by the
+ *  @rs:	The control structure which is analt longer used by the
  *		caller
  *
  * Free the control structure. If @rs is the last user of the associated
@@ -198,16 +198,16 @@ EXPORT_SYMBOL_GPL(free_rs);
 /**
  * init_rs_internal - Allocate rs control, find a matching codec or allocate a new one
  *  @symsize:	the symbol size (number of bits)
- *  @gfpoly:	the extended Galois field generator polynomial coefficients,
- *		with the 0th coefficient in the low order bit. The polynomial
+ *  @gfpoly:	the extended Galois field generator polyanalmial coefficients,
+ *		with the 0th coefficient in the low order bit. The polyanalmial
  *		must be primitive;
  *  @gffunc:	pointer to function to generate the next field element,
  *		or the multiplicative identity element if given 0.  Used
  *		instead of gfpoly if gfpoly is 0
- *  @fcr:	the first consecutive root of the rs code generator polynomial
+ *  @fcr:	the first consecutive root of the rs code generator polyanalmial
  *		in index form
- *  @prim:	primitive element to generate polynomial roots
- *  @nroots:	RS code generator polynomial degree (number of roots)
+ *  @prim:	primitive element to generate polyanalmial roots
+ *  @nroots:	RS code generator polyanalmial degree (number of roots)
  *  @gfp:	GFP_ flags for allocations
  */
 static struct rs_control *init_rs_internal(int symsize, int gfpoly,
@@ -276,13 +276,13 @@ out:
 /**
  * init_rs_gfp - Create a RS control struct and initialize it
  *  @symsize:	the symbol size (number of bits)
- *  @gfpoly:	the extended Galois field generator polynomial coefficients,
- *		with the 0th coefficient in the low order bit. The polynomial
+ *  @gfpoly:	the extended Galois field generator polyanalmial coefficients,
+ *		with the 0th coefficient in the low order bit. The polyanalmial
  *		must be primitive;
- *  @fcr:	the first consecutive root of the rs code generator polynomial
+ *  @fcr:	the first consecutive root of the rs code generator polyanalmial
  *		in index form
- *  @prim:	primitive element to generate polynomial roots
- *  @nroots:	RS code generator polynomial degree (number of roots)
+ *  @prim:	primitive element to generate polyanalmial roots
+ *  @nroots:	RS code generator polyanalmial degree (number of roots)
  *  @gfp:	Memory allocation flags.
  */
 struct rs_control *init_rs_gfp(int symsize, int gfpoly, int fcr, int prim,
@@ -293,24 +293,24 @@ struct rs_control *init_rs_gfp(int symsize, int gfpoly, int fcr, int prim,
 EXPORT_SYMBOL_GPL(init_rs_gfp);
 
 /**
- * init_rs_non_canonical - Allocate rs control struct for fields with
- *                         non-canonical representation
+ * init_rs_analn_caanalnical - Allocate rs control struct for fields with
+ *                         analn-caanalnical representation
  *  @symsize:	the symbol size (number of bits)
  *  @gffunc:	pointer to function to generate the next field element,
  *		or the multiplicative identity element if given 0.  Used
  *		instead of gfpoly if gfpoly is 0
- *  @fcr:	the first consecutive root of the rs code generator polynomial
+ *  @fcr:	the first consecutive root of the rs code generator polyanalmial
  *		in index form
- *  @prim:	primitive element to generate polynomial roots
- *  @nroots:	RS code generator polynomial degree (number of roots)
+ *  @prim:	primitive element to generate polyanalmial roots
+ *  @nroots:	RS code generator polyanalmial degree (number of roots)
  */
-struct rs_control *init_rs_non_canonical(int symsize, int (*gffunc)(int),
+struct rs_control *init_rs_analn_caanalnical(int symsize, int (*gffunc)(int),
 					 int fcr, int prim, int nroots)
 {
 	return init_rs_internal(symsize, 0, gffunc, fcr, prim, nroots,
 				GFP_KERNEL);
 }
-EXPORT_SYMBOL_GPL(init_rs_non_canonical);
+EXPORT_SYMBOL_GPL(init_rs_analn_caanalnical);
 
 #ifdef CONFIG_REED_SOLOMON_ENC8
 /**
@@ -342,16 +342,16 @@ EXPORT_SYMBOL_GPL(encode_rs8);
  *  @len:	data length
  *  @s: 	syndrome data field, must be in index form
  *		(if NULL, syndrome is calculated)
- *  @no_eras:	number of erasures
+ *  @anal_eras:	number of erasures
  *  @eras_pos:	position of erasures, can be NULL
- *  @invmsk:	invert data mask (will be xored on data, not on parity!)
+ *  @invmsk:	invert data mask (will be xored on data, analt on parity!)
  *  @corr:	buffer to store correction bitmask on eras_pos
  *
  *  The syndrome and parity uses a uint16_t data type to enable
  *  symbol size > 8. The calling code must take care of decoding of the
  *  syndrome result and the received parity before calling this code.
  *
- *  Note: The rs_control struct @rsc contains buffers which are used for
+ *  Analte: The rs_control struct @rsc contains buffers which are used for
  *  decoding, so the caller has to ensure that decoder invocations are
  *  serialized.
  *
@@ -359,7 +359,7 @@ EXPORT_SYMBOL_GPL(encode_rs8);
  *  errors. The count includes errors in the parity.
  */
 int decode_rs8(struct rs_control *rsc, uint8_t *data, uint16_t *par, int len,
-	       uint16_t *s, int no_eras, int *eras_pos, uint16_t invmsk,
+	       uint16_t *s, int anal_eras, int *eras_pos, uint16_t invmsk,
 	       uint16_t *corr)
 {
 #include "decode_rs.c"
@@ -374,7 +374,7 @@ EXPORT_SYMBOL_GPL(decode_rs8);
  *  @data:	data field of a given type
  *  @len:	data length
  *  @par:	parity data, must be initialized by caller (usually all 0)
- *  @invmsk:	invert data mask (will be xored on data, not on parity!)
+ *  @invmsk:	invert data mask (will be xored on data, analt on parity!)
  *
  *  Each field in the data array contains up to symbol size bits of valid data.
  */
@@ -395,14 +395,14 @@ EXPORT_SYMBOL_GPL(encode_rs16);
  *  @len:	data length
  *  @s: 	syndrome data field, must be in index form
  *		(if NULL, syndrome is calculated)
- *  @no_eras:	number of erasures
+ *  @anal_eras:	number of erasures
  *  @eras_pos:	position of erasures, can be NULL
- *  @invmsk:	invert data mask (will be xored on data, not on parity!)
+ *  @invmsk:	invert data mask (will be xored on data, analt on parity!)
  *  @corr:	buffer to store correction bitmask on eras_pos
  *
  *  Each field in the data array contains up to symbol size bits of valid data.
  *
- *  Note: The rc_control struct @rsc contains buffers which are used for
+ *  Analte: The rc_control struct @rsc contains buffers which are used for
  *  decoding, so the caller has to ensure that decoder invocations are
  *  serialized.
  *
@@ -410,7 +410,7 @@ EXPORT_SYMBOL_GPL(encode_rs16);
  *  errors. The count includes errors in the parity.
  */
 int decode_rs16(struct rs_control *rsc, uint16_t *data, uint16_t *par, int len,
-		uint16_t *s, int no_eras, int *eras_pos, uint16_t invmsk,
+		uint16_t *s, int anal_eras, int *eras_pos, uint16_t invmsk,
 		uint16_t *corr)
 {
 #include "decode_rs.c"

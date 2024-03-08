@@ -56,7 +56,7 @@ struct cctrng_drvdata {
 	u32 active_rosc;
 	/* Sampling interval for each ring oscillator:
 	 * count of ring oscillator cycles between consecutive bits sampling.
-	 * Value of 0 indicates non-valid rosc
+	 * Value of 0 indicates analn-valid rosc
 	 */
 	u32 smpl_ratio[CC_TRNG_NUM_OF_ROSCS];
 
@@ -111,7 +111,7 @@ static int cc_trng_pm_init(struct cctrng_drvdata *drvdata)
 	/* must be before the enabling to avoid redundant suspending */
 	pm_runtime_set_autosuspend_delay(dev, CC_TRNG_SUSPEND_TIMEOUT);
 	pm_runtime_use_autosuspend(dev);
-	/* set us as active - note we won't do PM ops until cc_trng_pm_go()! */
+	/* set us as active - analte we won't do PM ops until cc_trng_pm_go()! */
 	return pm_runtime_set_active(dev);
 }
 
@@ -134,7 +134,7 @@ static void cc_trng_pm_fini(struct cctrng_drvdata *drvdata)
 static inline int cc_trng_parse_sampling_ratio(struct cctrng_drvdata *drvdata)
 {
 	struct device *dev = &(drvdata->pdev->dev);
-	struct device_node *np = drvdata->pdev->dev.of_node;
+	struct device_analde *np = drvdata->pdev->dev.of_analde;
 	int rc;
 	int i;
 	/* ret will be set to 0 if at least one rosc has (sampling ratio > 0) */
@@ -144,7 +144,7 @@ static inline int cc_trng_parse_sampling_ratio(struct cctrng_drvdata *drvdata)
 					drvdata->smpl_ratio,
 					CC_TRNG_NUM_OF_ROSCS);
 	if (rc) {
-		/* arm,rosc-ratio was not found in device tree */
+		/* arm,rosc-ratio was analt found in device tree */
 		return rc;
 	}
 
@@ -209,7 +209,7 @@ static inline size_t circ_buf_space(struct cctrng_drvdata *drvdata)
 
 static int cctrng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 {
-	/* current implementation ignores "wait" */
+	/* current implementation iganalres "wait" */
 
 	struct cctrng_drvdata *drvdata = (struct cctrng_drvdata *)rng->priv;
 	struct device *dev = &(drvdata->pdev->dev);
@@ -220,7 +220,7 @@ static int cctrng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 	size_t left;
 
 	if (!spin_trylock(&drvdata->read_lock)) {
-		/* concurrent consumers from data_buf cannot be served */
+		/* concurrent consumers from data_buf cananalt be served */
 		dev_dbg_ratelimited(dev, "unable to hold lock\n");
 		return 0;
 	}
@@ -307,7 +307,7 @@ static void cc_trng_hw_trigger(struct cctrng_drvdata *drvdata)
 
 	cc_iowrite(drvdata, CC_TRNG_CONFIG_REG_OFFSET, drvdata->active_rosc);
 
-	/* Debug Control register: set to 0 - no bypasses */
+	/* Debug Control register: set to 0 - anal bypasses */
 	cc_iowrite(drvdata, CC_TRNG_DEBUG_CONTROL_REG_OFFSET, 0);
 
 	cc_trng_enable_rnd_source(drvdata);
@@ -332,7 +332,7 @@ static void cc_trng_compwork_handler(struct work_struct *w)
 	dev_dbg(dev, "Got RNG_ISR=0x%08X (EHR_VALID=%u)\n", isr, ehr_valid);
 
 	if (fips_enabled && CC_REG_FLD_GET(RNG_ISR, CRNGT_ERR, isr)) {
-		fips_fail_notify();
+		fips_fail_analtify();
 		/* FIPS error is fatal */
 		panic("Got HW CRNGT error while fips is enabled!\n");
 	}
@@ -349,7 +349,7 @@ static void cc_trng_compwork_handler(struct work_struct *w)
 			goto next_rosc;
 		}
 
-		/* in case of VN error, ignore it */
+		/* in case of VN error, iganalre it */
 	}
 
 	/* read EHR data from registers */
@@ -407,14 +407,14 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 
 	/* if driver suspended return, probably shared interrupt */
 	if (pm_runtime_suspended(dev))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* read the interrupt status */
 	irr = cc_ioread(drvdata, CC_HOST_RGF_IRR_REG_OFFSET);
 	dev_dbg(dev, "Got IRR=0x%08X\n", irr);
 
 	if (irr == 0) /* Probably shared interrupt line */
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* clear interrupt - must be before processing events */
 	cc_iowrite(drvdata, CC_HOST_RGF_ICR_REG_OFFSET, irr);
@@ -438,7 +438,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 
 	if (irr) {
 		dev_dbg_ratelimited(dev,
-				"IRR includes unknown cause bits (0x%08X)\n",
+				"IRR includes unkanalwn cause bits (0x%08X)\n",
 				irr);
 		/* Just warning */
 	}
@@ -469,11 +469,11 @@ static int cctrng_probe(struct platform_device *pdev)
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->rng.name = devm_kstrdup(dev, dev_name(dev), GFP_KERNEL);
 	if (!drvdata->rng.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->rng.read = cctrng_read;
 	drvdata->rng.priv = (unsigned long)drvdata;
@@ -510,7 +510,7 @@ static int cctrng_probe(struct platform_device *pdev)
 	/* register the driver isr function */
 	rc = devm_request_irq(dev, irq, cc_isr, IRQF_SHARED, "cctrng", drvdata);
 	if (rc)
-		return dev_err_probe(dev, rc, "Could not register to interrupt %d\n", irq);
+		return dev_err_probe(dev, rc, "Could analt register to interrupt %d\n", irq);
 	dev_dbg(dev, "Registered to IRQ: %d\n", irq);
 
 	/* Clear all pending interrupts */
@@ -539,7 +539,7 @@ static int cctrng_probe(struct platform_device *pdev)
 	/* registration of the hwrng device */
 	rc = devm_hwrng_register(dev, &drvdata->rng);
 	if (rc) {
-		dev_err(dev, "Could not register hwrng device.\n");
+		dev_err(dev, "Could analt register hwrng device.\n");
 		goto post_pm_err;
 	}
 
@@ -602,7 +602,7 @@ static bool cctrng_wait_for_reset_completion(struct cctrng_drvdata *drvdata)
 		/* allow scheduling other process on the processor */
 		schedule();
 	}
-	/* reset not completed */
+	/* reset analt completed */
 	return false;
 }
 
@@ -621,7 +621,7 @@ static int __maybe_unused cctrng_resume(struct device *dev)
 
 	/* wait for Cryptocell reset completion */
 	if (!cctrng_wait_for_reset_completion(drvdata)) {
-		dev_err(dev, "Cryptocell reset not completed");
+		dev_err(dev, "Cryptocell reset analt completed");
 		return -EBUSY;
 	}
 

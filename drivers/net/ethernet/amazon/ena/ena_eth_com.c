@@ -60,7 +60,7 @@ static int ena_com_write_bounce_buffer_to_dev(struct ena_com_io_sq *io_sq,
 		if (unlikely(!io_sq->entries_in_tx_burst_left)) {
 			netdev_err(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
 				   "Error: trying to send more packets than tx burst allows\n");
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 
 		io_sq->entries_in_tx_burst_left--;
@@ -395,10 +395,10 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 	WARN(io_sq->direction != ENA_COM_IO_QUEUE_DIRECTION_TX, "wrong Q type");
 
 	/* num_bufs +1 for potential meta desc */
-	if (unlikely(!ena_com_sq_have_enough_space(io_sq, num_bufs + 1))) {
+	if (unlikely(!ena_com_sq_have_eanalugh_space(io_sq, num_bufs + 1))) {
 		netdev_dbg(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
-			   "Not enough space in the tx queue\n");
-		return -ENOMEM;
+			   "Analt eanalugh space in the tx queue\n");
+		return -EANALMEM;
 	}
 
 	if (unlikely(header_len > io_sq->tx_max_header_size)) {
@@ -563,7 +563,7 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 		netdev_err(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
 			   "Too many RX cdescs (%d) > MAX(%d)\n", nb_hw_desc,
 			   ena_rx_ctx->max_bufs);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	cdesc = ena_com_rx_cdesc_idx_to_ptr(io_cq, cdesc_idx);
@@ -605,8 +605,8 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 
 	WARN(io_sq->direction != ENA_COM_IO_QUEUE_DIRECTION_RX, "wrong Q type");
 
-	if (unlikely(!ena_com_sq_have_enough_space(io_sq, 1)))
-		return -ENOSPC;
+	if (unlikely(!ena_com_sq_have_eanalugh_space(io_sq, 1)))
+		return -EANALSPC;
 
 	desc = get_sq_desc(io_sq);
 	if (unlikely(!desc))

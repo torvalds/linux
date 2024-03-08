@@ -22,7 +22,7 @@
 
 #define DM_IMA_VERSION_STR "dm_version="	\
 	__dm_ima_str(DM_VERSION_MAJOR) "."	\
-	__dm_ima_str(DM_VERSION_MINOR) "."	\
+	__dm_ima_str(DM_VERSION_MIANALR) "."	\
 	__dm_ima_str(DM_VERSION_PATCHLEVEL) ";"
 
 #ifdef CONFIG_IMA
@@ -30,7 +30,7 @@
 struct dm_ima_device_table_metadata {
 	/*
 	 * Contains data specific to the device which is common across
-	 * all the targets in the table (e.g. name, uuid, major, minor, etc).
+	 * all the targets in the table (e.g. name, uuid, major, mianalr, etc).
 	 * The values are stored in comma separated list of key1=val1,key2=val2;
 	 * pairs delimited by a semicolon at the end of the list.
 	 */

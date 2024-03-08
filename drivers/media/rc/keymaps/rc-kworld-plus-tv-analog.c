@@ -44,7 +44,7 @@ static struct rc_map_table kworld_plus_tv_analog[] = {
 
 	/* Couldn't map key left/key right since those
 	   conflict with '3' and '4' scancodes
-	   I dunno what the original driver does
+	   I dunanal what the original driver does
 	 */
 
 	{ 0x13, KEY_VOLUMEUP },
@@ -54,9 +54,9 @@ static struct rc_map_table kworld_plus_tv_analog[] = {
 	   There are several duplicated keycodes there.
 	   Most of them conflict with digits.
 	   Add mappings just to the unused scancodes.
-	   Somehow, the original driver has a way to know,
+	   Somehow, the original driver has a way to kanalw,
 	   but this doesn't seem to be on some GPIO.
-	   Also, it is not related to the time between keyup
+	   Also, it is analt related to the time between keyup
 	   and keydown.
 	 */
 	{ 0x19, KEY_TIME},		/* Timeshift */
@@ -77,7 +77,7 @@ static struct rc_map_list kworld_plus_tv_analog_map = {
 	.map = {
 		.scan     = kworld_plus_tv_analog,
 		.size     = ARRAY_SIZE(kworld_plus_tv_analog),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_KWORLD_PLUS_TV_ANALOG,
 	}
 };

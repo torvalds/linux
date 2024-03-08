@@ -7,7 +7,7 @@
  *
  * Copyright (c) 2022-2023 Microchip Corporation. All rights reserved.
  *
- * Author: Conor Dooley <conor.dooley@microchip.com>
+ * Author: Coanalr Dooley <coanalr.dooley@microchip.com>
  */
 #include <linux/debugfs.h>
 #include <linux/firmware.h>
@@ -97,7 +97,7 @@ static enum fw_upload_err mpfs_auto_update_prepare(struct fw_upload *fw_uploader
 	 * against the currently programmed image and thus may fail - due to
 	 * either rollback protection (if its an older version than that in use)
 	 * or if the version is the same as that of the in-use image.
-	 * Extracting the information as to why a failure occurred is not
+	 * Extracting the information as to why a failure occurred is analt
 	 * currently possible due to limitations of the system controller
 	 * driver. If those are fixed, verification of the Golden Image should
 	 * be added here.
@@ -110,13 +110,13 @@ static enum fw_upload_err mpfs_auto_update_prepare(struct fw_upload *fw_uploader
 	erase_size = round_up(erase_size, (u64)priv->flash->erasesize);
 
 	/*
-	 * We need to calculate if we have enough space in the flash for the
+	 * We need to calculate if we have eanalugh space in the flash for the
 	 * new image.
 	 * First, chop off the first 1 KiB as it's reserved for the directory.
-	 * The 1 MiB reserved for design info needs to be ignored also.
+	 * The 1 MiB reserved for design info needs to be iganalred also.
 	 * All that remains is carved into 3 & rounded down to the erasesize.
 	 * If this is smaller than the image size, we abort.
-	 * There's also no need to consume more than 20 MiB per image.
+	 * There's also anal need to consume more than 20 MiB per image.
 	 */
 	priv->size_per_bitstream = priv->flash->size - SZ_1K - SZ_1M;
 	priv->size_per_bitstream = round_down(priv->size_per_bitstream / 3, erase_size);
@@ -131,7 +131,7 @@ static enum fw_upload_err mpfs_auto_update_prepare(struct fw_upload *fw_uploader
 
 	priv->cancel_request = false;
 
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 static void mpfs_auto_update_cancel(struct fw_upload *fw_uploader)
@@ -147,7 +147,7 @@ static enum fw_upload_err mpfs_auto_update_poll_complete(struct fw_upload *fw_up
 	int ret;
 
 	/*
-	 * There is no meaningful way to get the status of the programming while
+	 * There is anal meaningful way to get the status of the programming while
 	 * it is in progress, so attempting anything other than waiting for it
 	 * to complete would be misplaced.
 	 */
@@ -156,7 +156,7 @@ static enum fw_upload_err mpfs_auto_update_poll_complete(struct fw_upload *fw_up
 	if (ret)
 		return FW_UPLOAD_ERR_TIMEOUT;
 
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 static int mpfs_auto_update_verify_image(struct fw_upload *fw_uploader)
@@ -170,17 +170,17 @@ static int mpfs_auto_update_verify_image(struct fw_upload *fw_uploader)
 	response_msg = devm_kzalloc(priv->dev, AUTO_UPDATE_FEATURE_RESP_SIZE * sizeof(*response_msg),
 				    GFP_KERNEL);
 	if (!response_msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	response = devm_kzalloc(priv->dev, sizeof(struct mpfs_mss_response), GFP_KERNEL);
 	if (!response) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_response_msg;
 	}
 
 	message = devm_kzalloc(priv->dev, sizeof(struct mpfs_mss_msg), GFP_KERNEL);
 	if (!message) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_response;
 	}
 
@@ -188,7 +188,7 @@ static int mpfs_auto_update_verify_image(struct fw_upload *fw_uploader)
 	 * The system controller can verify that an image in the flash is valid.
 	 * Rather than duplicate the check in this driver, call the relevant
 	 * service from the system controller instead.
-	 * This service has no command data and no response data. It overloads
+	 * This service has anal command data and anal response data. It overloads
 	 * mbox_offset with the image index in the flash's SPI directory where
 	 * the bitstream is located.
 	 */
@@ -235,9 +235,9 @@ static int mpfs_auto_update_set_image_address(struct mpfs_auto_update_priv *priv
 	/*
 	 * We need to write the "SPI DIRECTORY" to the first 1 KiB, telling
 	 * the system controller where to find the actual bitstream. Since
-	 * this is spi-nor, we have to read the first eraseblock, erase that
+	 * this is spi-analr, we have to read the first eraseblock, erase that
 	 * portion of the flash, modify the data and then write it back.
-	 * There's no need to do this though if things are already the way they
+	 * There's anal need to do this though if things are already the way they
 	 * should be, so check and save the write in that case.
 	 */
 	ret = mtd_read(priv->flash, AUTO_UPDATE_DIRECTORY_BASE, erase_size, &bytes_read,
@@ -297,7 +297,7 @@ static int mpfs_auto_update_write_bitstream(struct fw_upload *fw_uploader, const
 
 	buffer = devm_kzalloc(priv->dev, erase_size, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mpfs_auto_update_set_image_address(priv, buffer, image_address, directory_address);
 	if (ret) {
@@ -306,8 +306,8 @@ static int mpfs_auto_update_write_bitstream(struct fw_upload *fw_uploader, const
 	}
 
 	/*
-	 * Now the .spi image itself can be written to the flash. Preservation
-	 * of contents here is not important here, unlike the spi "directory"
+	 * Analw the .spi image itself can be written to the flash. Preservation
+	 * of contents here is analt important here, unlike the spi "directory"
 	 * which must be RMWed.
 	 */
 	erase.len = round_up(size, (size_t)priv->flash->erasesize);
@@ -319,7 +319,7 @@ static int mpfs_auto_update_write_bitstream(struct fw_upload *fw_uploader, const
 		goto out;
 
 	/*
-	 * No parsing etc of the bitstream is required. The system controller
+	 * Anal parsing etc of the bitstream is required. The system controller
 	 * will do all of that itself - including verifying that the bitstream
 	 * is valid.
 	 */
@@ -344,7 +344,7 @@ static enum fw_upload_err mpfs_auto_update_write(struct fw_upload *fw_uploader, 
 						 u32 offset, u32 size, u32 *written)
 {
 	struct mpfs_auto_update_priv *priv = fw_uploader->dd_handle;
-	enum fw_upload_err err = FW_UPLOAD_ERR_NONE;
+	enum fw_upload_err err = FW_UPLOAD_ERR_ANALNE;
 	int ret;
 
 	reinit_completion(&priv->programming_complete);
@@ -388,20 +388,20 @@ static int mpfs_auto_update_available(struct mpfs_auto_update_priv *priv)
 				    AUTO_UPDATE_FEATURE_RESP_SIZE * sizeof(*response_msg),
 				    GFP_KERNEL);
 	if (!response_msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	response = devm_kzalloc(priv->dev, sizeof(struct mpfs_mss_response), GFP_KERNEL);
 	if (!response)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	message = devm_kzalloc(priv->dev, sizeof(struct mpfs_mss_msg), GFP_KERNEL);
 	if (!message)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * To verify that Auto Update is possible, the "Query Security Service
 	 * Request" is performed.
-	 * This service has no command data & does not overload mbox_offset.
+	 * This service has anal command data & does analt overload mbox_offset.
 	 */
 	response->resp_msg = response_msg;
 	response->resp_size = AUTO_UPDATE_FEATURE_RESP_SIZE;
@@ -417,7 +417,7 @@ static int mpfs_auto_update_available(struct mpfs_auto_update_priv *priv)
 		return ret;
 
 	/*
-	 * Currently, the system controller's firmware does not generate any
+	 * Currently, the system controller's firmware does analt generate any
 	 * interrupts for failed services, so mpfs_blocking_transaction() should
 	 * time out & therefore return an error.
 	 * Hitting this check is highly unlikely at present, but if the system
@@ -429,7 +429,7 @@ static int mpfs_auto_update_available(struct mpfs_auto_update_priv *priv)
 
 	/*
 	 * Bit 5 of byte 1 is "UL_Auto Update" & if it is set, Auto Update is
-	 * not possible.
+	 * analt possible.
 	 */
 	if (response_msg[1] & AUTO_UPDATE_FEATURE_ENABLED)
 		return -EPERM;
@@ -446,12 +446,12 @@ static int mpfs_auto_update_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->sys_controller = mpfs_sys_controller_get(dev);
 	if (IS_ERR(priv->sys_controller))
 		return dev_err_probe(dev, PTR_ERR(priv->sys_controller),
-				     "Could not register as a sub device of the system controller\n");
+				     "Could analt register as a sub device of the system controller\n");
 
 	priv->dev = dev;
 	platform_set_drvdata(pdev, priv);
@@ -459,7 +459,7 @@ static int mpfs_auto_update_probe(struct platform_device *pdev)
 	ret = mpfs_auto_update_available(priv);
 	if (ret)
 		return dev_err_probe(dev, ret,
-				     "The current bitstream does not support auto-update\n");
+				     "The current bitstream does analt support auto-update\n");
 
 	init_completion(&priv->programming_complete);
 
@@ -491,5 +491,5 @@ static struct platform_driver mpfs_auto_update_driver = {
 module_platform_driver(mpfs_auto_update_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Conor Dooley <conor.dooley@microchip.com>");
+MODULE_AUTHOR("Coanalr Dooley <coanalr.dooley@microchip.com>");
 MODULE_DESCRIPTION("PolarFire SoC Auto Update FPGA reprogramming");

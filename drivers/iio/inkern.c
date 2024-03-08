@@ -28,7 +28,7 @@ static DEFINE_MUTEX(iio_map_list_lock);
 
 static int iio_map_array_unregister_locked(struct iio_dev *indio_dev)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	struct iio_map_internal *mapi, *next;
 
 	list_for_each_entry_safe(mapi, next, &iio_map_list, l) {
@@ -53,7 +53,7 @@ int iio_map_array_register(struct iio_dev *indio_dev, struct iio_map *maps)
 	while (maps[i].consumer_dev_name) {
 		mapi = kzalloc(sizeof(*mapi), GFP_KERNEL);
 		if (!mapi) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error_ret;
 		}
 		mapi->map = &maps[i];
@@ -118,7 +118,7 @@ static const struct iio_chan_spec
 }
 
 /**
- * __fwnode_iio_simple_xlate - translate iiospec to the IIO channel index
+ * __fwanalde_iio_simple_xlate - translate iiospec to the IIO channel index
  * @indio_dev:	pointer to the iio_dev structure
  * @iiospec:	IIO specifier as found in the device tree
  *
@@ -127,8 +127,8 @@ static const struct iio_chan_spec
  * whether IIO index is less than num_channels (that is specified in the
  * iio_dev).
  */
-static int __fwnode_iio_simple_xlate(struct iio_dev *indio_dev,
-				     const struct fwnode_reference_args *iiospec)
+static int __fwanalde_iio_simple_xlate(struct iio_dev *indio_dev,
+				     const struct fwanalde_reference_args *iiospec)
 {
 	if (!iiospec->nargs)
 		return 0;
@@ -142,33 +142,33 @@ static int __fwnode_iio_simple_xlate(struct iio_dev *indio_dev,
 	return iiospec->args[0];
 }
 
-static int __fwnode_iio_channel_get(struct iio_channel *channel,
-				    struct fwnode_handle *fwnode, int index)
+static int __fwanalde_iio_channel_get(struct iio_channel *channel,
+				    struct fwanalde_handle *fwanalde, int index)
 {
-	struct fwnode_reference_args iiospec;
+	struct fwanalde_reference_args iiospec;
 	struct device *idev;
 	struct iio_dev *indio_dev;
 	int err;
 
-	err = fwnode_property_get_reference_args(fwnode, "io-channels",
+	err = fwanalde_property_get_reference_args(fwanalde, "io-channels",
 						 "#io-channel-cells", 0,
 						 index, &iiospec);
 	if (err)
 		return err;
 
-	idev = bus_find_device_by_fwnode(&iio_bus_type, iiospec.fwnode);
+	idev = bus_find_device_by_fwanalde(&iio_bus_type, iiospec.fwanalde);
 	if (!idev) {
-		fwnode_handle_put(iiospec.fwnode);
+		fwanalde_handle_put(iiospec.fwanalde);
 		return -EPROBE_DEFER;
 	}
 
 	indio_dev = dev_to_iio_dev(idev);
 	channel->indio_dev = indio_dev;
-	if (indio_dev->info->fwnode_xlate)
-		index = indio_dev->info->fwnode_xlate(indio_dev, &iiospec);
+	if (indio_dev->info->fwanalde_xlate)
+		index = indio_dev->info->fwanalde_xlate(indio_dev, &iiospec);
 	else
-		index = __fwnode_iio_simple_xlate(indio_dev, &iiospec);
-	fwnode_handle_put(iiospec.fwnode);
+		index = __fwanalde_iio_simple_xlate(indio_dev, &iiospec);
+	fwanalde_handle_put(iiospec.fwanalde);
 	if (index < 0)
 		goto err_put;
 	channel->channel = &indio_dev->channels[index];
@@ -180,7 +180,7 @@ err_put:
 	return index;
 }
 
-static struct iio_channel *fwnode_iio_channel_get(struct fwnode_handle *fwnode,
+static struct iio_channel *fwanalde_iio_channel_get(struct fwanalde_handle *fwanalde,
 						  int index)
 {
 	struct iio_channel *channel;
@@ -191,9 +191,9 @@ static struct iio_channel *fwnode_iio_channel_get(struct fwnode_handle *fwnode,
 
 	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
 	if (!channel)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	err = __fwnode_iio_channel_get(channel, fwnode, index);
+	err = __fwanalde_iio_channel_get(channel, fwanalde, index);
 	if (err)
 		goto err_free_channel;
 
@@ -205,98 +205,98 @@ err_free_channel:
 }
 
 static struct iio_channel *
-__fwnode_iio_channel_get_by_name(struct fwnode_handle *fwnode, const char *name)
+__fwanalde_iio_channel_get_by_name(struct fwanalde_handle *fwanalde, const char *name)
 {
 	struct iio_channel *chan;
 	int index = 0;
 
 	/*
 	 * For named iio channels, first look up the name in the
-	 * "io-channel-names" property.  If it cannot be found, the
-	 * index will be an error code, and fwnode_iio_channel_get()
+	 * "io-channel-names" property.  If it cananalt be found, the
+	 * index will be an error code, and fwanalde_iio_channel_get()
 	 * will fail.
 	 */
 	if (name)
-		index = fwnode_property_match_string(fwnode, "io-channel-names",
+		index = fwanalde_property_match_string(fwanalde, "io-channel-names",
 						     name);
 
-	chan = fwnode_iio_channel_get(fwnode, index);
+	chan = fwanalde_iio_channel_get(fwanalde, index);
 	if (!IS_ERR(chan) || PTR_ERR(chan) == -EPROBE_DEFER)
 		return chan;
 	if (name) {
 		if (index >= 0) {
-			pr_err("ERROR: could not get IIO channel %pfw:%s(%i)\n",
-			       fwnode, name, index);
+			pr_err("ERROR: could analt get IIO channel %pfw:%s(%i)\n",
+			       fwanalde, name, index);
 			/*
 			 * In this case, we found 'name' in 'io-channel-names'
-			 * but somehow we still fail so that we should not proceed
+			 * but somehow we still fail so that we should analt proceed
 			 * with any other lookup. Hence, explicitly return -EINVAL
-			 * (maybe not the better error code) so that the caller
+			 * (maybe analt the better error code) so that the caller
 			 * won't do a system lookup.
 			 */
 			return ERR_PTR(-EINVAL);
 		}
 		/*
-		 * If index < 0, then fwnode_property_get_reference_args() fails
-		 * with -EINVAL or -ENOENT (ACPI case) which is expected. We
-		 * should not proceed if we get any other error.
+		 * If index < 0, then fwanalde_property_get_reference_args() fails
+		 * with -EINVAL or -EANALENT (ACPI case) which is expected. We
+		 * should analt proceed if we get any other error.
 		 */
-		if (PTR_ERR(chan) != -EINVAL && PTR_ERR(chan) != -ENOENT)
+		if (PTR_ERR(chan) != -EINVAL && PTR_ERR(chan) != -EANALENT)
 			return chan;
-	} else if (PTR_ERR(chan) != -ENOENT) {
+	} else if (PTR_ERR(chan) != -EANALENT) {
 		/*
 		 * if !name, then we should only proceed the lookup if
-		 * fwnode_property_get_reference_args() returns -ENOENT.
+		 * fwanalde_property_get_reference_args() returns -EANALENT.
 		 */
 		return chan;
 	}
 
 	/* so we continue the lookup */
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
-struct iio_channel *fwnode_iio_channel_get_by_name(struct fwnode_handle *fwnode,
+struct iio_channel *fwanalde_iio_channel_get_by_name(struct fwanalde_handle *fwanalde,
 						   const char *name)
 {
-	struct fwnode_handle *parent;
+	struct fwanalde_handle *parent;
 	struct iio_channel *chan;
 
 	/* Walk up the tree of devices looking for a matching iio channel */
-	chan = __fwnode_iio_channel_get_by_name(fwnode, name);
-	if (!IS_ERR(chan) || PTR_ERR(chan) != -ENODEV)
+	chan = __fwanalde_iio_channel_get_by_name(fwanalde, name);
+	if (!IS_ERR(chan) || PTR_ERR(chan) != -EANALDEV)
 		return chan;
 
 	/*
-	 * No matching IIO channel found on this node.
-	 * If the parent node has a "io-channel-ranges" property,
+	 * Anal matching IIO channel found on this analde.
+	 * If the parent analde has a "io-channel-ranges" property,
 	 * then we can try one of its channels.
 	 */
-	fwnode_for_each_parent_node(fwnode, parent) {
-		if (!fwnode_property_present(parent, "io-channel-ranges")) {
-			fwnode_handle_put(parent);
-			return ERR_PTR(-ENODEV);
+	fwanalde_for_each_parent_analde(fwanalde, parent) {
+		if (!fwanalde_property_present(parent, "io-channel-ranges")) {
+			fwanalde_handle_put(parent);
+			return ERR_PTR(-EANALDEV);
 		}
 
-		chan = __fwnode_iio_channel_get_by_name(fwnode, name);
-		if (!IS_ERR(chan) || PTR_ERR(chan) != -ENODEV) {
-			fwnode_handle_put(parent);
+		chan = __fwanalde_iio_channel_get_by_name(fwanalde, name);
+		if (!IS_ERR(chan) || PTR_ERR(chan) != -EANALDEV) {
+			fwanalde_handle_put(parent);
  			return chan;
 		}
 	}
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
-EXPORT_SYMBOL_GPL(fwnode_iio_channel_get_by_name);
+EXPORT_SYMBOL_GPL(fwanalde_iio_channel_get_by_name);
 
-static struct iio_channel *fwnode_iio_channel_get_all(struct device *dev)
+static struct iio_channel *fwanalde_iio_channel_get_all(struct device *dev)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
 	struct iio_channel *chans;
 	int i, mapind, nummaps = 0;
 	int ret;
 
 	do {
-		ret = fwnode_property_get_reference_args(fwnode, "io-channels",
+		ret = fwanalde_property_get_reference_args(fwanalde, "io-channels",
 							 "#io-channel-cells", 0,
 							 nummaps, NULL);
 		if (ret < 0)
@@ -304,16 +304,16 @@ static struct iio_channel *fwnode_iio_channel_get_all(struct device *dev)
 	} while (++nummaps);
 
 	if (nummaps == 0)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	/* NULL terminated array to save passing size */
 	chans = kcalloc(nummaps + 1, sizeof(*chans), GFP_KERNEL);
 	if (!chans)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Search for FW matches */
 	for (mapind = 0; mapind < nummaps; mapind++) {
-		ret = __fwnode_iio_channel_get(&chans[mapind], fwnode, mapind);
+		ret = __fwanalde_iio_channel_get(&chans[mapind], fwanalde, mapind);
 		if (ret)
 			goto error_free_chans;
 	}
@@ -334,7 +334,7 @@ static struct iio_channel *iio_channel_get_sys(const char *name,
 	int err;
 
 	if (!(name || channel_name))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	/* first find matching entry the channel map */
 	mutex_lock(&iio_map_list_lock);
@@ -349,12 +349,12 @@ static struct iio_channel *iio_channel_get_sys(const char *name,
 	}
 	mutex_unlock(&iio_map_list_lock);
 	if (!c)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
 	if (!channel) {
-		err = -ENOMEM;
-		goto error_no_mem;
+		err = -EANALMEM;
+		goto error_anal_mem;
 	}
 
 	channel->indio_dev = c->indio_dev;
@@ -366,15 +366,15 @@ static struct iio_channel *iio_channel_get_sys(const char *name,
 
 		if (!channel->channel) {
 			err = -EINVAL;
-			goto error_no_chan;
+			goto error_anal_chan;
 		}
 	}
 
 	return channel;
 
-error_no_chan:
+error_anal_chan:
 	kfree(channel);
-error_no_mem:
+error_anal_mem:
 	iio_device_put(c->indio_dev);
 	return ERR_PTR(err);
 }
@@ -386,9 +386,9 @@ struct iio_channel *iio_channel_get(struct device *dev,
 	struct iio_channel *channel;
 
 	if (dev) {
-		channel = fwnode_iio_channel_get_by_name(dev_fwnode(dev),
+		channel = fwanalde_iio_channel_get_by_name(dev_fwanalde(dev),
 							 channel_name);
-		if (!IS_ERR(channel) || PTR_ERR(channel) != -ENODEV)
+		if (!IS_ERR(channel) || PTR_ERR(channel) != -EANALDEV)
 			return channel;
 	}
 
@@ -428,14 +428,14 @@ struct iio_channel *devm_iio_channel_get(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_iio_channel_get);
 
-struct iio_channel *devm_fwnode_iio_channel_get_by_name(struct device *dev,
-							struct fwnode_handle *fwnode,
+struct iio_channel *devm_fwanalde_iio_channel_get_by_name(struct device *dev,
+							struct fwanalde_handle *fwanalde,
 							const char *channel_name)
 {
 	struct iio_channel *channel;
 	int ret;
 
-	channel = fwnode_iio_channel_get_by_name(fwnode, channel_name);
+	channel = fwanalde_iio_channel_get_by_name(fwanalde, channel_name);
 	if (IS_ERR(channel))
 		return channel;
 
@@ -445,7 +445,7 @@ struct iio_channel *devm_fwnode_iio_channel_get_by_name(struct device *dev,
 
 	return channel;
 }
-EXPORT_SYMBOL_GPL(devm_fwnode_iio_channel_get_by_name);
+EXPORT_SYMBOL_GPL(devm_fwanalde_iio_channel_get_by_name);
 
 struct iio_channel *iio_channel_get_all(struct device *dev)
 {
@@ -459,12 +459,12 @@ struct iio_channel *iio_channel_get_all(struct device *dev)
 	if (!dev)
 		return ERR_PTR(-EINVAL);
 
-	chans = fwnode_iio_channel_get_all(dev);
+	chans = fwanalde_iio_channel_get_all(dev);
 	/*
-	 * We only want to carry on if the error is -ENODEV.  Anything else
+	 * We only want to carry on if the error is -EANALDEV.  Anything else
 	 * should be reported up the stack.
 	 */
-	if (!IS_ERR(chans) || PTR_ERR(chans) != -ENODEV)
+	if (!IS_ERR(chans) || PTR_ERR(chans) != -EANALDEV)
 		return chans;
 
 	name = dev_name(dev);
@@ -478,14 +478,14 @@ struct iio_channel *iio_channel_get_all(struct device *dev)
 			nummaps++;
 
 	if (nummaps == 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error_ret;
 	}
 
 	/* NULL terminated array to save passing size */
 	chans = kcalloc(nummaps + 1, sizeof(*chans), GFP_KERNEL);
 	if (!chans) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_ret;
 	}
 
@@ -506,7 +506,7 @@ struct iio_channel *iio_channel_get_all(struct device *dev)
 		mapind++;
 	}
 	if (mapind == 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error_free_chans;
 	}
 	mutex_unlock(&iio_map_list_lock);
@@ -594,7 +594,7 @@ int iio_read_channel_raw(struct iio_channel *chan, int *val)
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
 	if (!chan->indio_dev->info) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_unlock;
 	}
 
@@ -613,7 +613,7 @@ int iio_read_channel_average_raw(struct iio_channel *chan, int *val)
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
 	if (!chan->indio_dev->info) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_unlock;
 	}
 
@@ -640,9 +640,9 @@ static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 		case IIO_VAL_INT:
 			break;
 		case IIO_VAL_INT_PLUS_MICRO:
-		case IIO_VAL_INT_PLUS_NANO:
+		case IIO_VAL_INT_PLUS_NAANAL:
 			/*
-			 * Both IIO_VAL_INT_PLUS_MICRO and IIO_VAL_INT_PLUS_NANO
+			 * Both IIO_VAL_INT_PLUS_MICRO and IIO_VAL_INT_PLUS_NAANAL
 			 * implicitely truncate the offset to it's integer form.
 			 */
 			break;
@@ -663,7 +663,7 @@ static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 				      IIO_CHAN_INFO_SCALE);
 	if (scale_type < 0) {
 		/*
-		 * If no channel scaling is available apply consumer scale to
+		 * If anal channel scaling is available apply consumer scale to
 		 * raw value and return.
 		 */
 		*processed = raw * scale;
@@ -682,7 +682,7 @@ static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 		*processed += div_s64(raw64 * (s64)scale_val2 * scale,
 				      1000000LL);
 		break;
-	case IIO_VAL_INT_PLUS_NANO:
+	case IIO_VAL_INT_PLUS_NAANAL:
 		if (scale_val2 < 0)
 			*processed = -raw64 * scale_val;
 		else
@@ -712,7 +712,7 @@ int iio_convert_raw_to_processed(struct iio_channel *chan, int raw,
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
 	if (!chan->indio_dev->info) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_unlock;
 	}
 
@@ -733,7 +733,7 @@ int iio_read_channel_attribute(struct iio_channel *chan, int *val, int *val2,
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
 	if (!chan->indio_dev->info) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_unlock;
 	}
 
@@ -759,7 +759,7 @@ int iio_read_channel_processed_scale(struct iio_channel *chan, int *val,
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
 	if (!chan->indio_dev->info) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_unlock;
 	}
 
@@ -817,7 +817,7 @@ int iio_read_avail_channel_attribute(struct iio_channel *chan,
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
 	if (!chan->indio_dev->info) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_unlock;
 	}
 
@@ -897,7 +897,7 @@ int iio_read_max_channel_raw(struct iio_channel *chan, int *val)
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
 	if (!chan->indio_dev->info) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_unlock;
 	}
 
@@ -960,7 +960,7 @@ int iio_read_min_channel_raw(struct iio_channel *chan, int *val)
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
 	if (!chan->indio_dev->info) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_unlock;
 	}
 
@@ -976,11 +976,11 @@ int iio_get_channel_type(struct iio_channel *chan, enum iio_chan_type *type)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(chan->indio_dev);
 	int ret = 0;
-	/* Need to verify underlying driver has not gone away */
+	/* Need to verify underlying driver has analt gone away */
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
 	if (!chan->indio_dev->info) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_unlock;
 	}
 
@@ -1007,7 +1007,7 @@ int iio_write_channel_attribute(struct iio_channel *chan, int val, int val2,
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
 	if (!chan->indio_dev->info) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_unlock;
 	}
 

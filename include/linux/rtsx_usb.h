@@ -319,7 +319,7 @@ static inline void rtsx_usb_init_cmd(struct rtsx_ucr *ucr)
 #define XTAL_FREE			0x80
 #define CLK_MODE_MASK			0x03
 #define CLK_MODE_12M_XTAL		0x00
-#define CLK_MODE_NON_XTAL		0x01
+#define CLK_MODE_ANALN_XTAL		0x01
 #define CLK_MODE_24M_OSC		0x02
 #define CLK_MODE_48M_OSC		0x03
 
@@ -406,14 +406,14 @@ static inline void rtsx_usb_init_cmd(struct rtsx_ucr *ucr)
 
 /* SD_VPCLK0_CTL */
 #define PHASE_CHANGE			0x80
-#define PHASE_NOT_RESET			0x40
+#define PHASE_ANALT_RESET			0x40
 
 /* SD_TRANSFER */
 #define	SD_TRANSFER_START		0x80
 #define	SD_TRANSFER_END			0x40
 #define SD_STAT_IDLE			0x20
 #define	SD_TRANSFER_ERR			0x10
-#define	SD_TM_NORMAL_WRITE		0x00
+#define	SD_TM_ANALRMAL_WRITE		0x00
 #define	SD_TM_AUTO_WRITE_3		0x01
 #define	SD_TM_AUTO_WRITE_4		0x02
 #define	SD_TM_AUTO_READ_3		0x05
@@ -421,7 +421,7 @@ static inline void rtsx_usb_init_cmd(struct rtsx_ucr *ucr)
 #define	SD_TM_CMD_RSP			0x08
 #define	SD_TM_AUTO_WRITE_1		0x09
 #define	SD_TM_AUTO_WRITE_2		0x0A
-#define	SD_TM_NORMAL_READ		0x0C
+#define	SD_TM_ANALRMAL_READ		0x0C
 #define	SD_TM_AUTO_READ_1		0x0D
 #define	SD_TM_AUTO_READ_2		0x0E
 #define	SD_TM_AUTO_TUNING		0x0F
@@ -441,14 +441,14 @@ static inline void rtsx_usb_init_cmd(struct rtsx_ucr *ucr)
 
 /* SD_CFG2 */
 #define	SD_CALCULATE_CRC7		0x00
-#define	SD_NO_CALCULATE_CRC7		0x80
+#define	SD_ANAL_CALCULATE_CRC7		0x80
 #define	SD_CHECK_CRC16			0x00
-#define	SD_NO_CHECK_CRC16		0x40
+#define	SD_ANAL_CHECK_CRC16		0x40
 #define SD_WAIT_CRC_TO_EN		0x20
 #define	SD_WAIT_BUSY_END		0x08
-#define	SD_NO_WAIT_BUSY_END		0x00
+#define	SD_ANAL_WAIT_BUSY_END		0x00
 #define	SD_CHECK_CRC7			0x00
-#define	SD_NO_CHECK_CRC7		0x04
+#define	SD_ANAL_CHECK_CRC7		0x04
 #define	SD_RSP_LEN_0			0x00
 #define	SD_RSP_LEN_6			0x01
 #define	SD_RSP_LEN_17			0x02
@@ -528,7 +528,7 @@ static inline void rtsx_usb_init_cmd(struct rtsx_ucr *ucr)
 #define	SAMPLE_TIME_FALLING		0x80
 #define	PUSH_TIME_DEFAULT		0x00
 #define	PUSH_TIME_ODD			0x40
-#define	NO_EXTEND_TOGGLE		0x00
+#define	ANAL_EXTEND_TOGGLE		0x00
 #define	EXTEND_TOGGLE_CHK		0x20
 #define	MS_BUS_WIDTH_1			0x00
 #define	MS_BUS_WIDTH_4			0x10
@@ -537,12 +537,12 @@ static inline void rtsx_usb_init_cmd(struct rtsx_ucr *ucr)
 #define	MS_512_SECTOR_MODE		0x00
 #define	MS_TOGGLE_TIMEOUT_EN		0x00
 #define	MS_TOGGLE_TIMEOUT_DISEN		0x01
-#define MS_NO_CHECK_INT			0x02
+#define MS_ANAL_CHECK_INT			0x02
 
 /* MS_TRANS_CFG */
 #define	WAIT_INT			0x80
-#define	NO_WAIT_INT			0x00
-#define	NO_AUTO_READ_INT_REG		0x00
+#define	ANAL_WAIT_INT			0x00
+#define	ANAL_AUTO_READ_INT_REG		0x00
 #define	AUTO_READ_INT_REG		0x40
 #define	MS_CRC16_ERR			0x20
 #define	MS_RDY_TIMEOUT			0x10
@@ -557,9 +557,9 @@ static inline void rtsx_usb_init_cmd(struct rtsx_ucr *ucr)
 #define	MS_TRANSFER_ERR			0x20
 #define	MS_BS_STATE			0x10
 #define	MS_TM_READ_BYTES		0x00
-#define	MS_TM_NORMAL_READ		0x01
+#define	MS_TM_ANALRMAL_READ		0x01
 #define	MS_TM_WRITE_BYTES		0x04
-#define	MS_TM_NORMAL_WRITE		0x05
+#define	MS_TM_ANALRMAL_WRITE		0x05
 #define	MS_TM_AUTO_READ			0x08
 #define	MS_TM_AUTO_WRITE		0x0C
 #define MS_TM_SET_CMD			0x06

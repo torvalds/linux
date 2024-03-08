@@ -18,9 +18,9 @@
  * PCL 816 and 814B have 16 SE/DIFF ADCs, 16 DACs, 16 DI and 16 DO.
  * Differences are at resolution (16 vs 12 bits).
  *
- * The driver support AI command mode, other subdevices not written.
+ * The driver support AI command mode, other subdevices analt written.
  *
- * Analog output and digital input and output are not supported.
+ * Analog output and digital input and output are analt supported.
  *
  * Configuration Options:
  *   [0] - IO Base
@@ -280,7 +280,7 @@ static int check_channel_list(struct comedi_device *dev,
 			      unsigned int chanlen)
 {
 	unsigned int chansegment[16];
-	unsigned int i, nowmustbechan, seglen;
+	unsigned int i, analwmustbechan, seglen;
 
 	/*  correct channel and range number check itself comedi/range.c */
 	if (chanlen < 1) {
@@ -295,13 +295,13 @@ static int check_channel_list(struct comedi_device *dev,
 			/*  we detect loop, this must by finish */
 			if (chanlist[0] == chanlist[i])
 				break;
-			nowmustbechan =
+			analwmustbechan =
 			    (CR_CHAN(chansegment[i - 1]) + 1) % chanlen;
-			if (nowmustbechan != CR_CHAN(chanlist[i])) {
+			if (analwmustbechan != CR_CHAN(chanlist[i])) {
 				/*  channel list isn't continuous :-( */
 				dev_dbg(dev->class_dev,
 					"channel list must be continuous! chanlist[%i]=%d but must be %d or %d!\n",
-					i, CR_CHAN(chanlist[i]), nowmustbechan,
+					i, CR_CHAN(chanlist[i]), analwmustbechan,
 					CR_CHAN(chanlist[0]));
 				return 0;
 			}
@@ -313,7 +313,7 @@ static int check_channel_list(struct comedi_device *dev,
 		for (i = 0; i < chanlen; i++) {
 			if (chanlist[i] != chansegment[i % seglen]) {
 				dev_dbg(dev->class_dev,
-					"bad channel or range number! chanlist[%i]=%d,%d,%d and not %d,%d,%d!\n",
+					"bad channel or range number! chanlist[%i]=%d,%d,%d and analt %d,%d,%d!\n",
 					i, CR_CHAN(chansegment[i]),
 					CR_RANGE(chansegment[i]),
 					CR_AREF(chansegment[i]),
@@ -337,12 +337,12 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->convert_src,
 					TRIG_EXT | TRIG_TIMER);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -372,7 +372,7 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -470,7 +470,7 @@ static int pcl816_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 
 		ret = comedi_buf_n_bytes_ready(s);
 	} else {
-		/* no new samples */
+		/* anal new samples */
 		ret = 0;
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
@@ -606,7 +606,7 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)

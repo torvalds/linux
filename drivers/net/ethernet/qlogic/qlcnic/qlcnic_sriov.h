@@ -99,7 +99,7 @@ enum qlcnic_vf_state {
 };
 
 enum qlcnic_vlan_mode {
-	QLC_NO_VLAN_MODE = 0,
+	QLC_ANAL_VLAN_MODE = 0,
 	QLC_PVID_MODE,
 	QLC_GUEST_VLAN_MODE,
 };

@@ -8,9 +8,9 @@ Introduction and Overview
 The Linux FireWire subsystem adds some interfaces into the Linux system to
  use/maintain+any resource on IEEE 1394 bus.
 
-The main purpose of these interfaces is to access address space on each node
+The main purpose of these interfaces is to access address space on each analde
 on IEEE 1394 bus by ISO/IEC 13213 (IEEE 1212) procedure, and to control
-isochronous resources on the bus by IEEE 1394 procedure.
+isochroanalus resources on the bus by IEEE 1394 procedure.
 
 Two types of interfaces are added, according to consumers of the interface. A
 set of userspace interfaces is available via `firewire character devices`. A set
@@ -40,7 +40,7 @@ Firewire core transaction interfaces
 .. kernel-doc:: drivers/firewire/core-transaction.c
     :export:
 
-Firewire Isochronous I/O interfaces
+Firewire Isochroanalus I/O interfaces
 ===================================
 
 .. kernel-doc:: drivers/firewire/core-iso.c

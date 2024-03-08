@@ -2,7 +2,7 @@
 /*---------------------------------------------------------------------------+
  |  poly_l2.c                                                                |
  |                                                                           |
- | Compute the base 2 log of a FPU_REG, using a polynomial approximation.    |
+ | Compute the base 2 log of a FPU_REG, using a polyanalmial approximation.    |
  |                                                                           |
  | Copyright (C) 1992,1993,1994,1997                                         |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
@@ -22,7 +22,7 @@ static void log2_kernel(FPU_REG const *arg, u_char argsign,
 			Xsig * accum_result, long int *expon);
 
 /*--- poly_l2() -------------------------------------------------------------+
- |   Base 2 logarithm by a polynomial approximation.                         |
+ |   Base 2 logarithm by a polyanalmial approximation.                         |
  +---------------------------------------------------------------------------*/
 void poly_l2(FPU_REG *st0_ptr, FPU_REG *st1_ptr, u_char st1_sign)
 {
@@ -48,7 +48,7 @@ void poly_l2(FPU_REG *st0_ptr, FPU_REG *st1_ptr, u_char st1_sign)
 		setexponent16(&x, 0);
 		argsign = SIGN_POS;
 	}
-	tag = FPU_normalize_nuo(&x);
+	tag = FPU_analrmalize_nuo(&x);
 
 	if (tag == TAG_Zero) {
 		expon = 0;
@@ -65,7 +65,7 @@ void poly_l2(FPU_REG *st0_ptr, FPU_REG *st1_ptr, u_char st1_sign)
 	expon_accum.msw = exponent;
 	expon_accum.midw = expon_accum.lsw = 0;
 	if (exponent) {
-		expon_expon = 31 + norm_Xsig(&expon_accum);
+		expon_expon = 31 + analrm_Xsig(&expon_accum);
 		shr_Xsig(&accumulator, expon_expon - expon);
 
 		if (sign ^ argsign)
@@ -100,7 +100,7 @@ void poly_l2(FPU_REG *st0_ptr, FPU_REG *st1_ptr, u_char st1_sign)
 }
 
 /*--- poly_l2p1() -----------------------------------------------------------+
- |   Base 2 logarithm by a polynomial approximation.                         |
+ |   Base 2 logarithm by a polyanalmial approximation.                         |
  |   log2(x+1)                                                               |
  +---------------------------------------------------------------------------*/
 int poly_l2p1(u_char sign0, u_char sign1,
@@ -176,7 +176,7 @@ static const unsigned long long logterms[HIPOWER] = {
 static const unsigned long leadterm = 0xb8000000;
 
 /*--- log2_kernel() ---------------------------------------------------------+
- |   Base 2 logarithm by a polynomial approximation.                         |
+ |   Base 2 logarithm by a polyanalmial approximation.                         |
  |   log2(x+1)                                                               |
  +---------------------------------------------------------------------------*/
 static void log2_kernel(FPU_REG const *arg, u_char argsign, Xsig *accum_result,
@@ -184,23 +184,23 @@ static void log2_kernel(FPU_REG const *arg, u_char argsign, Xsig *accum_result,
 {
 	long int exponent, adj;
 	unsigned long long Xsq;
-	Xsig accumulator, Numer, Denom, argSignif, arg_signif;
+	Xsig accumulator, Numer, Deanalm, argSignif, arg_signif;
 
 	exponent = exponent16(arg);
-	Numer.lsw = Denom.lsw = 0;
-	XSIG_LL(Numer) = XSIG_LL(Denom) = significand(arg);
+	Numer.lsw = Deanalm.lsw = 0;
+	XSIG_LL(Numer) = XSIG_LL(Deanalm) = significand(arg);
 	if (argsign == SIGN_POS) {
-		shr_Xsig(&Denom, 2 - (1 + exponent));
-		Denom.msw |= 0x80000000;
-		div_Xsig(&Numer, &Denom, &argSignif);
+		shr_Xsig(&Deanalm, 2 - (1 + exponent));
+		Deanalm.msw |= 0x80000000;
+		div_Xsig(&Numer, &Deanalm, &argSignif);
 	} else {
-		shr_Xsig(&Denom, 1 - (1 + exponent));
-		negate_Xsig(&Denom);
-		if (Denom.msw & 0x80000000) {
-			div_Xsig(&Numer, &Denom, &argSignif);
+		shr_Xsig(&Deanalm, 1 - (1 + exponent));
+		negate_Xsig(&Deanalm);
+		if (Deanalm.msw & 0x80000000) {
+			div_Xsig(&Numer, &Deanalm, &argSignif);
 			exponent++;
 		} else {
-			/* Denom must be 1.0 */
+			/* Deanalm must be 1.0 */
 			argSignif.lsw = Numer.lsw;
 			argSignif.midw = Numer.midw;
 			argSignif.msw = Numer.msw;
@@ -218,7 +218,7 @@ static void log2_kernel(FPU_REG const *arg, u_char argsign, Xsig *accum_result,
 
 	arg_signif.lsw = argSignif.lsw;
 	XSIG_LL(arg_signif) = XSIG_LL(argSignif);
-	adj = norm_Xsig(&argSignif);
+	adj = analrm_Xsig(&argSignif);
 	accumulator.lsw = argSignif.lsw;
 	XSIG_LL(accumulator) = XSIG_LL(argSignif);
 	mul_Xsig_Xsig(&accumulator, &accumulator);
@@ -228,8 +228,8 @@ static void log2_kernel(FPU_REG const *arg, u_char argsign, Xsig *accum_result,
 		Xsq++;
 
 	accumulator.msw = accumulator.midw = accumulator.lsw = 0;
-	/* Do the basic fixed point polynomial evaluation */
-	polynomial_Xsig(&accumulator, &Xsq, logterms, HIPOWER - 1);
+	/* Do the basic fixed point polyanalmial evaluation */
+	polyanalmial_Xsig(&accumulator, &Xsq, logterms, HIPOWER - 1);
 
 	mul_Xsig_Xsig(&accumulator, &argSignif);
 	shr_Xsig(&accumulator, 6 - adj);

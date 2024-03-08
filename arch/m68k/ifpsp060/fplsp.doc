@@ -1,5 +1,5 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-MOTOROLA MICROPROCESSOR & MEMORY TECHNOLOGY GROUP
+MOTOROLA MICROPROCESSOR & MEMORY TECHANALLOGY GROUP
 M68000 Hi-Performance Microprocessor Division
 M68060 Software Package
 Production Release P1.00 -- October 10, 1994
@@ -14,16 +14,16 @@ and any warranty against infringement with regard to the SOFTWARE
 (INCLUDING ANY MODIFIED VERSIONS THEREOF) and any accompanying written materials.
 
 To the maximum extent permitted by applicable law,
-IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
+IN ANAL EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
 (INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
 BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
 ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
-Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+Motorola assumes anal responsibility for the maintenance and support of the SOFTWARE.
 
 You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
-so long as this entire notice is retained without alteration in any modified and/or
+so long as this entire analtice is retained without alteration in any modified and/or
 redistributed versions, and that such modified versions are clearly identified as such.
-No licenses are granted by implication, estoppel or otherwise under any patents
+Anal licenses are granted by implication, estoppel or otherwise under any patents
 or trademarks of Motorola, Inc.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -33,8 +33,8 @@ or trademarks of Motorola, Inc.
 The file fplsp.sa contains the "Library version" of the
 68060SP Floating-Point Software Package. The routines
 included in this module can be used to emulate the
-FP instructions not implemented in 68060 hardware. These
-instructions normally take exception vector #11
+FP instructions analt implemented in 68060 hardware. These
+instructions analrmally take exception vector #11
 "FP Unimplemented Instruction".
 
 By re-compiling a program that uses these instructions, and
@@ -65,7 +65,7 @@ documentation purposes.
 Release file structure:
 -----------------------
 The file fplsp.sa contains an "Entry-Point" section and a
-code section. The FPLSP has no "Call-Out" section. The first section
+code section. The FPLSP has anal "Call-Out" section. The first section
 is the "Entry-Point" section. In order to access a function in the
 package, a program must "bsr" or "jsr" to the location listed
 below in "68060FPLSP entry points" that corresponds to the desired
@@ -73,7 +73,7 @@ function. A branch instruction located at the selected entry point
 within the package will then enter the correct emulation code routine.
 
 The entry point addresses at the beginning of the package will remain
-fixed so that a program calling the routines will not have to be
+fixed so that a program calling the routines will analt have to be
 re-compiled with every new 68060FPLSP release.
 
 There are 3 entry-points for each instruction type: single precision,
@@ -91,7 +91,7 @@ extended precision operand if program executes:
 Upon return, fp0 holds the correct result. The FPSR is
 set correctly. The FPCR is unchanged. The FPIAR is undefined.
 
-Another example. This time, a dyadic operation:
+Aanalther example. This time, a dyadic operation:
 
 # frem.s %fp1,%fp0
 
@@ -100,7 +100,7 @@ Another example. This time, a dyadic operation:
 	bsr.l	_060FPLSP_TOP+0x168 # branch to frem routine
 	addq.l	&0x8,%sp	# clear operands from stack
 
-Again, the result is returned in fp0. Note that BOTH operands
+Again, the result is returned in fp0. Analte that BOTH operands
 are passed in single precision format.
 
 Exception reporting:
@@ -117,13 +117,13 @@ to record that the event occurred.
 
 Miscellaneous:
 --------------
-The package does not attempt to correctly emulate instructions
+The package does analt attempt to correctly emulate instructions
 with Signalling NAN inputs. Use of SNANs should be avoided with
 this package.
 
 The fabs/fadd/fdiv/fint/fintrz/fmul/fneg/fsqrt/fsub entry points
 are provided for the convenience of older compilers that make
-subroutine calls for all fp instructions. The code does NOT emulate
+subroutine calls for all fp instructions. The code does ANALT emulate
 the instruction but rather simply executes it.
 
 68060FPLSP entry points:

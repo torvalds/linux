@@ -186,19 +186,19 @@
 	{0x0522, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, \
 		PWR_INTF_ALL_MSK, PWR_BASEADDR_MAC,\
 		PWR_CMD_WRITE, 0xFF, 0x7F},/*Tx Pause*/	\
-	/*Should be zero if no packet is transmitting*/	\
+	/*Should be zero if anal packet is transmitting*/	\
 	{0x05F8, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, \
 		PWR_INTF_ALL_MSK, PWR_BASEADDR_MAC,\
 		PWR_CMD_POLLING, 0xFF, 0},\
-	/*Should be zero if no packet is transmitting*/	\
+	/*Should be zero if anal packet is transmitting*/	\
 	{0x05F9, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, \
 		PWR_INTF_ALL_MSK, PWR_BASEADDR_MAC,\
 		PWR_CMD_POLLING, 0xFF, 0},\
-	/*Should be zero if no packet is transmitting*/	\
+	/*Should be zero if anal packet is transmitting*/	\
 	{0x05FA, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, \
 		PWR_INTF_ALL_MSK, PWR_BASEADDR_MAC,\
 		PWR_CMD_POLLING, 0xFF, 0},\
-	/*Should be zero if no packet is transmitting*/	\
+	/*Should be zero if anal packet is transmitting*/	\
 	{0x05FB, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, \
 		PWR_INTF_ALL_MSK, PWR_BASEADDR_MAC,\
 		PWR_CMD_POLLING, 0xFF, 0},\

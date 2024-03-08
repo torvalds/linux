@@ -20,15 +20,15 @@
  * @options:	options for this descriptor
  * @pages:	the page(s) where we find the bbt, used with option BBT_ABSPAGE
  *		when bbt is searched, then we store the found bbts pages here.
- *		Its an array and supports up to 8 chips now
+ *		Its an array and supports up to 8 chips analw
  * @offs:	offset of the pattern in the oob area of the page
  * @veroffs:	offset of the bbt version counter in the oob are of the page
  * @version:	version read from the bbt page during scan
- * @len:	length of the pattern, if 0 no pattern check is performed
+ * @len:	length of the pattern, if 0 anal pattern check is performed
  * @maxblocks:	maximum number of blocks to search for a bbt. This number of
  *		blocks is reserved at the end of the device where the tables are
  *		written.
- * @reserved_block_code: if non-0, this pattern denotes a reserved (rather than
+ * @reserved_block_code: if analn-0, this pattern deanaltes a reserved (rather than
  *              bad) block in the stored bbt
  * @pattern:	pattern to identify bad block table or factory marked good /
  *		bad blocks, can be NULL, if len = 0
@@ -66,10 +66,10 @@ struct nand_bbt_descr {
 #define NAND_BBT_PERCHIP	0x00000080
 /* bbt has a version counter at offset veroffs */
 #define NAND_BBT_VERSION	0x00000100
-/* Create a bbt if none exists */
+/* Create a bbt if analne exists */
 #define NAND_BBT_CREATE		0x00000200
 /*
- * Create an empty BBT with no vendor information. Vendor's information may be
+ * Create an empty BBT with anal vendor information. Vendor's information may be
  * unavailable, for example, if the NAND controller has a different data and OOB
  * layout or if this information is already purged. Must be used in conjunction
  * with NAND_BBT_CREATE.
@@ -86,19 +86,19 @@ struct nand_bbt_descr {
  */
 #define NAND_BBT_USE_FLASH	0x00020000
 /*
- * Do not store flash based bad block table marker in the OOB area; store it
+ * Do analt store flash based bad block table marker in the OOB area; store it
  * in-band.
  */
-#define NAND_BBT_NO_OOB		0x00040000
+#define NAND_BBT_ANAL_OOB		0x00040000
 /*
- * Do not write new bad block markers to OOB; useful, e.g., when ECC covers
+ * Do analt write new bad block markers to OOB; useful, e.g., when ECC covers
  * entire spare area. Must be used with NAND_BBT_USE_FLASH.
  */
-#define NAND_BBT_NO_OOB_BBM	0x00080000
+#define NAND_BBT_ANAL_OOB_BBM	0x00080000
 
 /*
  * Flag set by nand_create_default_bbt_descr(), marking that the nand_bbt_descr
- * was allocated dynamicaly and must be freed in nand_cleanup(). Has no meaning
+ * was allocated dynamicaly and must be freed in nand_cleanup(). Has anal meaning
  * in nand_chip.bbt_options.
  */
 #define NAND_BBT_DYNAMICSTRUCT	0x80000000

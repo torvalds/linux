@@ -54,8 +54,8 @@ TC_INDIRECT_SCOPE int tcf_bpf_act(struct sk_buff *skb,
 		bpf_compute_data_pointers(skb);
 		filter_res = bpf_prog_run(filter, skb);
 	}
-	if (unlikely(!skb->tstamp && skb->mono_delivery_time))
-		skb->mono_delivery_time = 0;
+	if (unlikely(!skb->tstamp && skb->moanal_delivery_time))
+		skb->moanal_delivery_time = 0;
 	if (skb_sk_is_prefetched(skb) && filter_res != TC_ACT_OK)
 		skb_orphan(skb);
 
@@ -63,10 +63,10 @@ TC_INDIRECT_SCOPE int tcf_bpf_act(struct sk_buff *skb,
 	 * Similarly as in cls_bpf, if filter_res == -1 we use the
 	 * default action specified from tc.
 	 *
-	 * In case a different well-known TC_ACT opcode has been
+	 * In case a different well-kanalwn TC_ACT opcode has been
 	 * returned, it will overwrite the default one.
 	 *
-	 * For everything else that is unknown, TC_ACT_UNSPEC is
+	 * For everything else that is unkanalwn, TC_ACT_UNSPEC is
 	 * returned.
 	 */
 	switch (filter_res) {
@@ -202,7 +202,7 @@ static int tcf_bpf_init_from_ops(struct nlattr **tb, struct tcf_bpf_cfg *cfg)
 
 	bpf_ops = kmemdup(nla_data(tb[TCA_ACT_BPF_OPS]), bpf_size, GFP_KERNEL);
 	if (bpf_ops == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fprog_tmp.len = bpf_num_ops;
 	fprog_tmp.filter = bpf_ops;
@@ -237,7 +237,7 @@ static int tcf_bpf_init_from_efd(struct nlattr **tb, struct tcf_bpf_cfg *cfg)
 		name = nla_memdup(tb[TCA_ACT_BPF_NAME], GFP_KERNEL);
 		if (!name) {
 			bpf_prog_put(fp);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -367,7 +367,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 		tcf_chain_put_by_act(goto_ch);
 
 	if (res != ACT_P_CREATED) {
-		/* make sure the program being replaced is no longer executing */
+		/* make sure the program being replaced is anal longer executing */
 		synchronize_rcu();
 		tcf_bpf_cfg_cleanup(&old);
 	}

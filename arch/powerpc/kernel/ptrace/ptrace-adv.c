@@ -74,7 +74,7 @@ void ppc_gethwdinfo(struct ppc_debug_info *dbginfo)
 int ptrace_get_debugreg(struct task_struct *child, unsigned long addr,
 			unsigned long __user *datalp)
 {
-	/* We only support one DABR and no IABRS at the moment */
+	/* We only support one DABR and anal IABRS at the moment */
 	if (addr > 0)
 		return -EINVAL;
 	return put_user(child->thread.debug.dac1, datalp);
@@ -90,8 +90,8 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr, unsigned l
 	struct perf_event_attr attr;
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 
-	/* For ppc64 we support one DABR and no IABR's at the moment (ppc64).
-	 *  For embedded processors we support one DAC and no IAC's at the
+	/* For ppc64 we support one DABR and anal IABR's at the moment (ppc64).
+	 *  For embedded processors we support one DAC and anal IAC's at the
 	 *  moment.
 	 */
 	if (addr > 0)
@@ -103,7 +103,7 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr, unsigned l
 
 	/* As described above, it was assumed 3 bits were passed with the data
 	 *  address, but we will assume only the mode bits will be passed
-	 *  as to not cause alignment restrictions for DAC-based processors.
+	 *  as to analt cause alignment restrictions for DAC-based processors.
 	 */
 
 	/* DAC's hold the whole address without any mode flags */
@@ -183,7 +183,7 @@ static long set_instruction_bp(struct task_struct *child,
 				dbcr_iac_range(child) |= DBCR_IAC34I;
 #endif
 		} else {
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 	} else {
 		/* We only need one.  If possible leave a pair free in
@@ -192,7 +192,7 @@ static long set_instruction_bp(struct task_struct *child,
 		if (!slot1_in_use) {
 			/*
 			 * Don't use iac1 if iac1-iac2 are free and either
-			 * iac3 or iac4 (but not both) are free
+			 * iac3 or iac4 (but analt both) are free
 			 */
 			if (slot2_in_use || slot3_in_use == slot4_in_use) {
 				slot = 1;
@@ -216,7 +216,7 @@ static long set_instruction_bp(struct task_struct *child,
 			child->thread.debug.dbcr0 |= DBCR0_IAC4;
 #endif
 		} else {
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 	}
 out:
@@ -231,7 +231,7 @@ static int del_instruction_bp(struct task_struct *child, int slot)
 	switch (slot) {
 	case 1:
 		if ((child->thread.debug.dbcr0 & DBCR0_IAC1) == 0)
-			return -ENOENT;
+			return -EANALENT;
 
 		if (dbcr_iac_range(child) & DBCR_IAC12MODE) {
 			/* address range - clear slots 1 & 2 */
@@ -243,7 +243,7 @@ static int del_instruction_bp(struct task_struct *child, int slot)
 		break;
 	case 2:
 		if ((child->thread.debug.dbcr0 & DBCR0_IAC2) == 0)
-			return -ENOENT;
+			return -EANALENT;
 
 		if (dbcr_iac_range(child) & DBCR_IAC12MODE)
 			/* used in a range */
@@ -254,7 +254,7 @@ static int del_instruction_bp(struct task_struct *child, int slot)
 #if CONFIG_PPC_ADV_DEBUG_IACS > 2
 	case 3:
 		if ((child->thread.debug.dbcr0 & DBCR0_IAC3) == 0)
-			return -ENOENT;
+			return -EANALENT;
 
 		if (dbcr_iac_range(child) & DBCR_IAC34MODE) {
 			/* address range - clear slots 3 & 4 */
@@ -266,7 +266,7 @@ static int del_instruction_bp(struct task_struct *child, int slot)
 		break;
 	case 4:
 		if ((child->thread.debug.dbcr0 & DBCR0_IAC4) == 0)
-			return -ENOENT;
+			return -EANALENT;
 
 		if (dbcr_iac_range(child) & DBCR_IAC34MODE)
 			/* Used in a range */
@@ -315,7 +315,7 @@ static int set_dac(struct task_struct *child, struct ppc_hw_breakpoint *bp_info)
 #ifdef CONFIG_PPC_ADV_DEBUG_DAC_RANGE
 	} else if (child->thread.debug.dbcr2 & DBCR2_DAC12MODE) {
 		/* Both dac1 and dac2 are part of a range */
-		return -ENOSPC;
+		return -EANALSPC;
 #endif
 	} else if ((dbcr_dac(child) & (DBCR_DAC2R | DBCR_DAC2W)) == 0) {
 		slot = 2;
@@ -334,7 +334,7 @@ static int set_dac(struct task_struct *child, struct ppc_hw_breakpoint *bp_info)
 		}
 #endif
 	} else {
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	child->thread.debug.dbcr0 |= DBCR0_IDM;
 	regs_set_return_msr(child->thread.regs, child->thread.regs->msr | MSR_DE);
@@ -346,7 +346,7 @@ static int del_dac(struct task_struct *child, int slot)
 {
 	if (slot == 1) {
 		if ((dbcr_dac(child) & (DBCR_DAC1R | DBCR_DAC1W)) == 0)
-			return -ENOENT;
+			return -EANALENT;
 
 		child->thread.debug.dac1 = 0;
 		dbcr_dac(child) &= ~(DBCR_DAC1R | DBCR_DAC1W);
@@ -362,7 +362,7 @@ static int del_dac(struct task_struct *child, int slot)
 #endif
 	} else if (slot == 2) {
 		if ((dbcr_dac(child) & (DBCR_DAC2R | DBCR_DAC2W)) == 0)
-			return -ENOENT;
+			return -EANALENT;
 
 #ifdef CONFIG_PPC_ADV_DEBUG_DAC_RANGE
 		if (child->thread.debug.dbcr2 & DBCR2_DAC12MODE)
@@ -395,7 +395,7 @@ static int set_dac_range(struct task_struct *child,
 	/*
 	 * Best effort to verify the address range.  The user/supervisor bits
 	 * prevent trapping in kernel space, but let's fail on an obvious bad
-	 * range.  The simple test on the mask is not fool-proof, and any
+	 * range.  The simple test on the mask is analt fool-proof, and any
 	 * exclusive range will spill over into kernel space.
 	 */
 	if (bp_info->addr >= TASK_SIZE)
@@ -417,7 +417,7 @@ static int set_dac_range(struct task_struct *child,
 
 	if (child->thread.debug.dbcr0 &
 	    (DBCR0_DAC1R | DBCR0_DAC1W | DBCR0_DAC2R | DBCR0_DAC2W))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_READ)
 		child->thread.debug.dbcr0 |= (DBCR0_DAC1R | DBCR0_IDM);
@@ -440,7 +440,7 @@ static int set_dac_range(struct task_struct *child,
 long ppc_set_hwdebug(struct task_struct *child, struct ppc_hw_breakpoint *bp_info)
 {
 	if (bp_info->version != 1)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	/*
 	 * Check for invalid flags and combinations
 	 */
@@ -453,13 +453,13 @@ long ppc_set_hwdebug(struct task_struct *child, struct ppc_hw_breakpoint *bp_inf
 	       PPC_BREAKPOINT_CONDITION_BE_ALL)))
 		return -EINVAL;
 #if CONFIG_PPC_ADV_DEBUG_DVCS == 0
-	if (bp_info->condition_mode != PPC_BREAKPOINT_CONDITION_NONE)
+	if (bp_info->condition_mode != PPC_BREAKPOINT_CONDITION_ANALNE)
 		return -EINVAL;
 #endif
 
 	if (bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_EXECUTE) {
 		if (bp_info->trigger_type != PPC_BREAKPOINT_TRIGGER_EXECUTE ||
-		    bp_info->condition_mode != PPC_BREAKPOINT_CONDITION_NONE)
+		    bp_info->condition_mode != PPC_BREAKPOINT_CONDITION_ANALNE)
 			return -EINVAL;
 		return set_instruction_bp(child, bp_info);
 	}

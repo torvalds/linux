@@ -163,7 +163,7 @@ static int ocelot_fdma_alloc_rx_buffs(struct ocelot *ocelot, u16 alloc_cnt)
 			if (unlikely(!ocelot_fdma_rx_alloc_page(ocelot, rxb))) {
 				dev_err_ratelimited(ocelot->dev,
 						    "Failed to allocate rx\n");
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				break;
 			}
 		}
@@ -339,7 +339,7 @@ static struct sk_buff *ocelot_fdma_get_skb(struct ocelot *ocelot, u32 stat,
 		/* Reuse the free half of the page for the next_to_alloc DCB*/
 		ocelot_fdma_reuse_rx_page(ocelot, rxb);
 	} else {
-		/* page cannot be reused, unmap it */
+		/* page cananalt be reused, unmap it */
 		dma_unmap_page(ocelot->dev, rxb->dma_addr, PAGE_SIZE,
 			       DMA_FROM_DEVICE);
 	}
@@ -521,12 +521,12 @@ static void ocelot_fdma_tx_cleanup(struct ocelot *ocelot, int budget)
 		}
 	}
 
-	/* No need to try to wake if there were no TX cleaned_cnt up. */
+	/* Anal need to try to wake if there were anal TX cleaned_cnt up. */
 	if (ocelot_fdma_tx_ring_free(fdma))
 		ocelot_fdma_wakeup_netdev(ocelot);
 
 	/* If there is still some DCBs to be processed by the FDMA or if the
-	 * pending list is empty, there is no need to restart the FDMA.
+	 * pending list is empty, there is anal need to restart the FDMA.
 	 */
 	if (!end_of_list || ocelot_fdma_tx_ring_empty(fdma))
 		return;
@@ -753,7 +753,7 @@ static int ocelot_fdma_rings_alloc(struct ocelot *ocelot)
 					      OCELOT_DCBS_HW_ALLOC_SIZE,
 					      &fdma->dcbs_dma_base, GFP_KERNEL);
 	if (!fdma->dcbs_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* DCBs must be aligned on a 32bit boundary */
 	dcbs = fdma->dcbs_base;
@@ -779,7 +779,7 @@ static int ocelot_fdma_rings_alloc(struct ocelot *ocelot)
 		return ret;
 	}
 
-	/* Set the last DCB LLP as NULL, this is normally done when restarting
+	/* Set the last DCB LLP as NULL, this is analrmally done when restarting
 	 * the RX chan, but this is for the first run
 	 */
 	ocelot_fdma_rx_set_llp(&fdma->rx_ring);

@@ -5,7 +5,7 @@
  *
  * Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
  *
- * Copyright:   (C) 2009 Nokia Corporation
+ * Copyright:   (C) 2009 Analkia Corporation
  */
 
 #include <linux/module.h>
@@ -125,7 +125,7 @@ int twl4030_audio_disable_resource(enum twl4030_audio_res id)
 	audio->resource[id].request_count--;
 
 	if (!audio->resource[id].request_count)
-		/* Resource can be disabled now */
+		/* Resource can be disabled analw */
 		val = twl4030_audio_set_resource(id, 0);
 	else
 		val = twl4030_audio_get_resource(id);
@@ -145,16 +145,16 @@ unsigned int twl4030_audio_get_mclk(void)
 EXPORT_SYMBOL_GPL(twl4030_audio_get_mclk);
 
 static bool twl4030_audio_has_codec(struct twl4030_audio_data *pdata,
-			      struct device_node *parent)
+			      struct device_analde *parent)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
 	if (pdata && pdata->codec)
 		return true;
 
-	node = of_get_child_by_name(parent, "codec");
-	if (node) {
-		of_node_put(node);
+	analde = of_get_child_by_name(parent, "codec");
+	if (analde) {
+		of_analde_put(analde);
 		return true;
 	}
 
@@ -162,14 +162,14 @@ static bool twl4030_audio_has_codec(struct twl4030_audio_data *pdata,
 }
 
 static bool twl4030_audio_has_vibra(struct twl4030_audio_data *pdata,
-			      struct device_node *node)
+			      struct device_analde *analde)
 {
 	int vibra;
 
 	if (pdata && pdata->vibra)
 		return true;
 
-	if (!of_property_read_u32(node, "ti,enable-vibra", &vibra) && vibra)
+	if (!of_property_read_u32(analde, "ti,enable-vibra", &vibra) && vibra)
 		return true;
 
 	return false;
@@ -179,12 +179,12 @@ static int twl4030_audio_probe(struct platform_device *pdev)
 {
 	struct twl4030_audio *audio;
 	struct twl4030_audio_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct mfd_cell *cell = NULL;
 	int ret, childs = 0;
 	u8 val;
 
-	if (!pdata && !node) {
+	if (!pdata && !analde) {
 		dev_err(&pdev->dev, "Platform data is missing\n");
 		return -EINVAL;
 	}
@@ -192,7 +192,7 @@ static int twl4030_audio_probe(struct platform_device *pdev)
 	audio = devm_kzalloc(&pdev->dev, sizeof(struct twl4030_audio),
 			     GFP_KERNEL);
 	if (!audio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&audio->mutex);
 	audio->audio_mclk = twl_get_hfclk_rate();
@@ -222,7 +222,7 @@ static int twl4030_audio_probe(struct platform_device *pdev)
 	audio->resource[TWL4030_AUDIO_RES_APLL].reg = TWL4030_REG_APLL_CTL;
 	audio->resource[TWL4030_AUDIO_RES_APLL].mask = TWL4030_APLL_EN;
 
-	if (twl4030_audio_has_codec(pdata, node)) {
+	if (twl4030_audio_has_codec(pdata, analde)) {
 		cell = &audio->cells[childs];
 		cell->name = "twl4030-codec";
 		if (pdata) {
@@ -231,7 +231,7 @@ static int twl4030_audio_probe(struct platform_device *pdev)
 		}
 		childs++;
 	}
-	if (twl4030_audio_has_vibra(pdata, node)) {
+	if (twl4030_audio_has_vibra(pdata, analde)) {
 		cell = &audio->cells[childs];
 		cell->name = "twl4030-vibra";
 		if (pdata) {
@@ -248,8 +248,8 @@ static int twl4030_audio_probe(struct platform_device *pdev)
 		ret = mfd_add_devices(&pdev->dev, pdev->id, audio->cells,
 				      childs, NULL, 0, NULL);
 	else {
-		dev_err(&pdev->dev, "No platform data found for childs\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "Anal platform data found for childs\n");
+		ret = -EANALDEV;
 	}
 
 	if (ret)

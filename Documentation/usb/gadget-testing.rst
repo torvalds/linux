@@ -92,7 +92,7 @@ The ECM function provides these attributes in its function directory:
 
 and after creating the functions/ecm.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
-The ifname can be written to if the function is not bound. A write must be an
+The ifname can be written to if the function is analt bound. A write must be an
 interface pattern such as "usb%d", which will cause the net core to choose the
 next free usbX interface. By default, it is set to "usb%d".
 
@@ -132,7 +132,7 @@ The ECM subset function provides these attributes in its function directory:
 
 and after creating the functions/ecm.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
-The ifname can be written to if the function is not bound. A write must be an
+The ifname can be written to if the function is analt bound. A write must be an
 interface pattern such as "usb%d", which will cause the net core to choose the
 next free usbX interface. By default, it is set to "usb%d".
 
@@ -172,7 +172,7 @@ The EEM function provides these attributes in its function directory:
 
 and after creating the functions/eem.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
-The ifname can be written to if the function is not bound. A write must be an
+The ifname can be written to if the function is analt bound. A write must be an
 interface pattern such as "usb%d", which will cause the net core to choose the
 next free usbX interface. By default, it is set to "usb%d".
 
@@ -198,7 +198,7 @@ Function-specific configfs interface
 ------------------------------------
 
 The function name to use when creating the function directory is "ffs".
-The function directory is intentionally empty and not modifiable.
+The function directory is intentionally empty and analt modifiable.
 
 After creating the directory there is a new instance (a "device") of FunctionFS
 available in the system. Once a "device" is available, the user should follow
@@ -252,7 +252,7 @@ Testing the HID function
 Device:
 
 - create the gadget
-- connect the gadget to a host, preferably not the one used
+- connect the gadget to a host, preferably analt the one used
   to control the gadget
 - run a program which writes to /dev/hidg<N>, e.g.
   a userspace program found in Documentation/usb/gadget_hid.rst::
@@ -300,7 +300,7 @@ files:
 
 	=============== ==============================================
 	stall		Set to permit function to halt bulk endpoints.
-			Disabled on some USB devices known not to work
+			Disabled on some USB devices kanalwn analt to work
 			correctly. You should set it to true.
 	num_buffers	Number of pipeline buffers. Valid numbers
 			are 2..4. Available only if
@@ -313,17 +313,17 @@ A new lun can be added with mkdir::
 
 	$ mkdir functions/mass_storage.0/partition.5
 
-Lun numbering does not have to be continuous, except for lun #0 which is
+Lun numbering does analt have to be continuous, except for lun #0 which is
 created by default. A maximum of 8 luns can be specified and they all must be
 named following the <name>.<number> scheme. The numbers can be 0..8.
 Probably a good convention is to name the luns "lun.<number>",
-although it is not mandatory.
+although it is analt mandatory.
 
 In each lun directory there are the following attribute files:
 
 	=============== ==============================================
 	file		The path to the backing file for the LUN.
-			Required if LUN is not marked as removable.
+			Required if LUN is analt marked as removable.
 	ro		Flag specifying access to the LUN shall be
 			read-only. This is implied if CD-ROM emulation
 			is enabled as well as when it was impossible
@@ -332,13 +332,13 @@ In each lun directory there are the following attribute files:
 			being removable.
 	cdrom		Flag specifying that LUN shall be reported as
 			being a CD-ROM.
-	nofua		Flag specifying that FUA flag
+	analfua		Flag specifying that FUA flag
 			in SCSI WRITE(10,12)
 	forced_eject	This write-only file is useful only when
 			the function is active. It causes the backing
 			file to be forcibly detached from the LUN,
 			regardless of whether the host has allowed it.
-			Any non-zero number of bytes written will
+			Any analn-zero number of bytes written will
 			result in ejection.
 	=============== ==============================================
 
@@ -462,7 +462,7 @@ The NCM function provides these attributes in its function directory:
 
 and after creating the functions/ncm.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
-The ifname can be written to if the function is not bound. A write must be an
+The ifname can be written to if the function is analt bound. A write must be an
 interface pattern such as "usb%d", which will cause the net core to choose the
 next free usbX interface. By default, it is set to "usb%d".
 
@@ -531,7 +531,7 @@ The PHONET function provides just one attribute in its function directory:
 Testing the PHONET function
 ---------------------------
 
-It is not possible to test the SOCK_STREAM protocol without a specific piece
+It is analt possible to test the SOCK_STREAM protocol without a specific piece
 of hardware, so only SOCK_DGRAM has been tested. For the latter to work,
 in the past I had to apply the patch mentioned here:
 
@@ -600,7 +600,7 @@ The RNDIS function provides these attributes in its function directory:
 
 and after creating the functions/rndis.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
-The ifname can be written to if the function is not bound. A write must be an
+The ifname can be written to if the function is analt bound. A write must be an
 interface pattern such as "usb%d", which will cause the net core to choose the
 next free usbX interface. By default, it is set to "usb%d".
 
@@ -672,7 +672,7 @@ The function name to use when creating the function directory is "SourceSink".
 The SOURCESINK function provides these attributes in its function directory:
 
 	=============== ==================================
-	pattern		0 (all zeros), 1 (mod63), 2 (none)
+	pattern		0 (all zeros), 1 (mod63), 2 (analne)
 	isoc_interval	1..16
 	isoc_maxpacket	0 - 1023 (fs), 0 - 1024 (hs/ss)
 	isoc_mult	0..2 (hs/ss only)
@@ -769,7 +769,7 @@ Testing the UAC2 function
 device: run the gadget
 host: aplay -l # should list our USB Audio Gadget
 
-This function does not require real hardware support, it just
+This function does analt require real hardware support, it just
 sends a stream of audio data to/from the host. In order to
 actually hear something at the device side, a command similar
 to this must be used at the device side::
@@ -848,7 +848,7 @@ Testing the UVC function
 
 device: run the gadget, modprobe vivid::
 
-  # uvc-gadget -u /dev/video<uvc video node #> -v /dev/video<vivid video node #>
+  # uvc-gadget -u /dev/video<uvc video analde #> -v /dev/video<vivid video analde #>
 
 where uvc-gadget is this program:
 	http://git.ideasonboard.org/uvc-gadget.git
@@ -959,7 +959,7 @@ Testing the UAC1 function
 device: run the gadget
 host: aplay -l # should list our USB Audio Gadget
 
-This function does not require real hardware support, it just
+This function does analt require real hardware support, it just
 sends a stream of audio data to/from the host. In order to
 actually hear something at the device side, a command similar
 to this must be used at the device side::
@@ -1022,7 +1022,7 @@ Its attributes are:
 	midi1_first_group	The first UMP Group number for MIDI 1.0 (0-15)
 	midi1_num_groups	The number of groups for MIDI 1.0 (0-16)
 	ui_hint			UI-hint of this FB
-				0: unknown, 1: receiver, 2: sender, 3: both
+				0: unkanalwn, 1: receiver, 2: sender, 3: both
 	midi_ci_verison		Supported MIDI-CI version number (8 bit)
 	is_midi1		Legacy MIDI 1.0 device (0-2)
 				0: MIDI 2.0 device,
@@ -1035,7 +1035,7 @@ Its attributes are:
 If multiple Function Blocks are required, you can add more Function
 Blocks by creating subdirectories "block.<num>" with the corresponding
 Function Block number (1, 2, ....). The FB subdirectories can be
-dynamically removed, too. Note that the Function Block numbers must be
+dynamically removed, too. Analte that the Function Block numbers must be
 continuous.
 
 Similarly, if you multiple UMP Endpoints are required, you can add
@@ -1043,7 +1043,7 @@ more Endpoints by creating subdirectories "ep.<num>". The number must
 be continuous.
 
 For emulating the old MIDI 2.0 device without UMP v1.1 support, pass 0
-to `process_ump` flag. Then the whole UMP v1.1 requests are ignored.
+to `process_ump` flag. Then the whole UMP v1.1 requests are iganalred.
 
 Testing the MIDI2 function
 --------------------------
@@ -1064,7 +1064,7 @@ depending on the USB audio driver configuration.
 On both, when ALSA sequencer is enabled on the host, you can find the
 UMP MIDI client such as "MIDI 2.0 Gadget".
 
-As the driver simply loops back the data, there is no need for a real
+As the driver simply loops back the data, there is anal need for a real
 device just for testing.
 
 For testing a MIDI input from the gadget to the host (e.g. emulating a

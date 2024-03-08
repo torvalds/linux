@@ -47,7 +47,7 @@ struct pt_regs {
 
 /*
  * This is the extended stack used by signal handlers and the context
- * switcher: it's pushed after the normal "struct pt_regs".
+ * switcher: it's pushed after the analrmal "struct pt_regs".
  */
 struct switch_stack {
 	unsigned long  r16;	/* r16-r23 Callee-saved GP registers */

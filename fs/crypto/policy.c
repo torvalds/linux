@@ -64,7 +64,7 @@ const union fscrypt_policy *fscrypt_get_dummy_policy(struct super_block *sb)
  * Return %true if the given combination of encryption modes is supported for v1
  * (and later) encryption policies.
  *
- * Do *not* add anything new here, since v1 encryption policies are deprecated.
+ * Do *analt* add anything new here, since v1 encryption policies are deprecated.
  * New combinations of modes should go in fscrypt_valid_enc_modes_v2() only.
  */
 static bool fscrypt_valid_enc_modes_v1(u32 contents_mode, u32 filenames_mode)
@@ -97,80 +97,80 @@ static bool fscrypt_valid_enc_modes_v2(u32 contents_mode, u32 filenames_mode)
 	return fscrypt_valid_enc_modes_v1(contents_mode, filenames_mode);
 }
 
-static bool supported_direct_key_modes(const struct inode *inode,
+static bool supported_direct_key_modes(const struct ianalde *ianalde,
 				       u32 contents_mode, u32 filenames_mode)
 {
 	const struct fscrypt_mode *mode;
 
 	if (contents_mode != filenames_mode) {
-		fscrypt_warn(inode,
-			     "Direct key flag not allowed with different contents and filenames modes");
+		fscrypt_warn(ianalde,
+			     "Direct key flag analt allowed with different contents and filenames modes");
 		return false;
 	}
 	mode = &fscrypt_modes[contents_mode];
 
-	if (mode->ivsize < offsetofend(union fscrypt_iv, nonce)) {
-		fscrypt_warn(inode, "Direct key flag not allowed with %s",
+	if (mode->ivsize < offsetofend(union fscrypt_iv, analnce)) {
+		fscrypt_warn(ianalde, "Direct key flag analt allowed with %s",
 			     mode->friendly_name);
 		return false;
 	}
 	return true;
 }
 
-static bool supported_iv_ino_lblk_policy(const struct fscrypt_policy_v2 *policy,
-					 const struct inode *inode)
+static bool supported_iv_ianal_lblk_policy(const struct fscrypt_policy_v2 *policy,
+					 const struct ianalde *ianalde)
 {
-	const char *type = (policy->flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64)
-				? "IV_INO_LBLK_64" : "IV_INO_LBLK_32";
-	struct super_block *sb = inode->i_sb;
+	const char *type = (policy->flags & FSCRYPT_POLICY_FLAG_IV_IANAL_LBLK_64)
+				? "IV_IANAL_LBLK_64" : "IV_IANAL_LBLK_32";
+	struct super_block *sb = ianalde->i_sb;
 
 	/*
-	 * IV_INO_LBLK_* exist only because of hardware limitations, and
-	 * currently the only known use case for them involves AES-256-XTS.
-	 * That's also all we test currently.  For these reasons, for now only
+	 * IV_IANAL_LBLK_* exist only because of hardware limitations, and
+	 * currently the only kanalwn use case for them involves AES-256-XTS.
+	 * That's also all we test currently.  For these reasons, for analw only
 	 * allow AES-256-XTS here.  This can be relaxed later if a use case for
-	 * IV_INO_LBLK_* with other encryption modes arises.
+	 * IV_IANAL_LBLK_* with other encryption modes arises.
 	 */
 	if (policy->contents_encryption_mode != FSCRYPT_MODE_AES_256_XTS) {
-		fscrypt_warn(inode,
+		fscrypt_warn(ianalde,
 			     "Can't use %s policy with contents mode other than AES-256-XTS",
 			     type);
 		return false;
 	}
 
 	/*
-	 * It's unsafe to include inode numbers in the IVs if the filesystem can
-	 * potentially renumber inodes, e.g. via filesystem shrinking.
+	 * It's unsafe to include ianalde numbers in the IVs if the filesystem can
+	 * potentially renumber ianaldes, e.g. via filesystem shrinking.
 	 */
-	if (!sb->s_cop->has_stable_inodes ||
-	    !sb->s_cop->has_stable_inodes(sb)) {
-		fscrypt_warn(inode,
-			     "Can't use %s policy on filesystem '%s' because it doesn't have stable inode numbers",
+	if (!sb->s_cop->has_stable_ianaldes ||
+	    !sb->s_cop->has_stable_ianaldes(sb)) {
+		fscrypt_warn(ianalde,
+			     "Can't use %s policy on filesystem '%s' because it doesn't have stable ianalde numbers",
 			     type, sb->s_id);
 		return false;
 	}
 
 	/*
-	 * IV_INO_LBLK_64 and IV_INO_LBLK_32 both require that inode numbers fit
-	 * in 32 bits.  In principle, IV_INO_LBLK_32 could support longer inode
-	 * numbers because it hashes the inode number; however, currently the
-	 * inode number is gotten from inode::i_ino which is 'unsigned long'.
-	 * So for now the implementation limit is 32 bits.
+	 * IV_IANAL_LBLK_64 and IV_IANAL_LBLK_32 both require that ianalde numbers fit
+	 * in 32 bits.  In principle, IV_IANAL_LBLK_32 could support longer ianalde
+	 * numbers because it hashes the ianalde number; however, currently the
+	 * ianalde number is gotten from ianalde::i_ianal which is 'unsigned long'.
+	 * So for analw the implementation limit is 32 bits.
 	 */
-	if (!sb->s_cop->has_32bit_inodes) {
-		fscrypt_warn(inode,
-			     "Can't use %s policy on filesystem '%s' because its inode numbers are too long",
+	if (!sb->s_cop->has_32bit_ianaldes) {
+		fscrypt_warn(ianalde,
+			     "Can't use %s policy on filesystem '%s' because its ianalde numbers are too long",
 			     type, sb->s_id);
 		return false;
 	}
 
 	/*
-	 * IV_INO_LBLK_64 and IV_INO_LBLK_32 both require that file data unit
+	 * IV_IANAL_LBLK_64 and IV_IANAL_LBLK_32 both require that file data unit
 	 * indices fit in 32 bits.
 	 */
 	if (fscrypt_max_file_dun_bits(sb,
-			fscrypt_policy_v2_du_bits(policy, inode)) > 32) {
-		fscrypt_warn(inode,
+			fscrypt_policy_v2_du_bits(policy, ianalde)) > 32) {
+		fscrypt_warn(ianalde,
 			     "Can't use %s policy on filesystem '%s' because its maximum file size is too large",
 			     type, sb->s_id);
 		return false;
@@ -179,11 +179,11 @@ static bool supported_iv_ino_lblk_policy(const struct fscrypt_policy_v2 *policy,
 }
 
 static bool fscrypt_supported_v1_policy(const struct fscrypt_policy_v1 *policy,
-					const struct inode *inode)
+					const struct ianalde *ianalde)
 {
 	if (!fscrypt_valid_enc_modes_v1(policy->contents_encryption_mode,
 				     policy->filenames_encryption_mode)) {
-		fscrypt_warn(inode,
+		fscrypt_warn(ianalde,
 			     "Unsupported encryption modes (contents %d, filenames %d)",
 			     policy->contents_encryption_mode,
 			     policy->filenames_encryption_mode);
@@ -192,19 +192,19 @@ static bool fscrypt_supported_v1_policy(const struct fscrypt_policy_v1 *policy,
 
 	if (policy->flags & ~(FSCRYPT_POLICY_FLAGS_PAD_MASK |
 			      FSCRYPT_POLICY_FLAG_DIRECT_KEY)) {
-		fscrypt_warn(inode, "Unsupported encryption flags (0x%02x)",
+		fscrypt_warn(ianalde, "Unsupported encryption flags (0x%02x)",
 			     policy->flags);
 		return false;
 	}
 
 	if ((policy->flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) &&
-	    !supported_direct_key_modes(inode, policy->contents_encryption_mode,
+	    !supported_direct_key_modes(ianalde, policy->contents_encryption_mode,
 					policy->filenames_encryption_mode))
 		return false;
 
-	if (IS_CASEFOLDED(inode)) {
-		/* With v1, there's no way to derive dirhash keys. */
-		fscrypt_warn(inode,
+	if (IS_CASEFOLDED(ianalde)) {
+		/* With v1, there's anal way to derive dirhash keys. */
+		fscrypt_warn(ianalde,
 			     "v1 policies can't be used on casefolded directories");
 		return false;
 	}
@@ -213,13 +213,13 @@ static bool fscrypt_supported_v1_policy(const struct fscrypt_policy_v1 *policy,
 }
 
 static bool fscrypt_supported_v2_policy(const struct fscrypt_policy_v2 *policy,
-					const struct inode *inode)
+					const struct ianalde *ianalde)
 {
 	int count = 0;
 
 	if (!fscrypt_valid_enc_modes_v2(policy->contents_encryption_mode,
 				     policy->filenames_encryption_mode)) {
-		fscrypt_warn(inode,
+		fscrypt_warn(ianalde,
 			     "Unsupported encryption modes (contents %d, filenames %d)",
 			     policy->contents_encryption_mode,
 			     policy->filenames_encryption_mode);
@@ -228,59 +228,59 @@ static bool fscrypt_supported_v2_policy(const struct fscrypt_policy_v2 *policy,
 
 	if (policy->flags & ~(FSCRYPT_POLICY_FLAGS_PAD_MASK |
 			      FSCRYPT_POLICY_FLAG_DIRECT_KEY |
-			      FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64 |
-			      FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32)) {
-		fscrypt_warn(inode, "Unsupported encryption flags (0x%02x)",
+			      FSCRYPT_POLICY_FLAG_IV_IANAL_LBLK_64 |
+			      FSCRYPT_POLICY_FLAG_IV_IANAL_LBLK_32)) {
+		fscrypt_warn(ianalde, "Unsupported encryption flags (0x%02x)",
 			     policy->flags);
 		return false;
 	}
 
 	count += !!(policy->flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY);
-	count += !!(policy->flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64);
-	count += !!(policy->flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32);
+	count += !!(policy->flags & FSCRYPT_POLICY_FLAG_IV_IANAL_LBLK_64);
+	count += !!(policy->flags & FSCRYPT_POLICY_FLAG_IV_IANAL_LBLK_32);
 	if (count > 1) {
-		fscrypt_warn(inode, "Mutually exclusive encryption flags (0x%02x)",
+		fscrypt_warn(ianalde, "Mutually exclusive encryption flags (0x%02x)",
 			     policy->flags);
 		return false;
 	}
 
 	if (policy->log2_data_unit_size) {
-		if (!inode->i_sb->s_cop->supports_subblock_data_units) {
-			fscrypt_warn(inode,
-				     "Filesystem does not support configuring crypto data unit size");
+		if (!ianalde->i_sb->s_cop->supports_subblock_data_units) {
+			fscrypt_warn(ianalde,
+				     "Filesystem does analt support configuring crypto data unit size");
 			return false;
 		}
-		if (policy->log2_data_unit_size > inode->i_blkbits ||
+		if (policy->log2_data_unit_size > ianalde->i_blkbits ||
 		    policy->log2_data_unit_size < SECTOR_SHIFT /* 9 */) {
-			fscrypt_warn(inode,
+			fscrypt_warn(ianalde,
 				     "Unsupported log2_data_unit_size in encryption policy: %d",
 				     policy->log2_data_unit_size);
 			return false;
 		}
-		if (policy->log2_data_unit_size != inode->i_blkbits &&
-		    (policy->flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32)) {
+		if (policy->log2_data_unit_size != ianalde->i_blkbits &&
+		    (policy->flags & FSCRYPT_POLICY_FLAG_IV_IANAL_LBLK_32)) {
 			/*
-			 * Not safe to enable yet, as we need to ensure that DUN
+			 * Analt safe to enable yet, as we need to ensure that DUN
 			 * wraparound can only occur on a FS block boundary.
 			 */
-			fscrypt_warn(inode,
-				     "Sub-block data units not yet supported with IV_INO_LBLK_32");
+			fscrypt_warn(ianalde,
+				     "Sub-block data units analt yet supported with IV_IANAL_LBLK_32");
 			return false;
 		}
 	}
 
 	if ((policy->flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) &&
-	    !supported_direct_key_modes(inode, policy->contents_encryption_mode,
+	    !supported_direct_key_modes(ianalde, policy->contents_encryption_mode,
 					policy->filenames_encryption_mode))
 		return false;
 
-	if ((policy->flags & (FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64 |
-			      FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32)) &&
-	    !supported_iv_ino_lblk_policy(policy, inode))
+	if ((policy->flags & (FSCRYPT_POLICY_FLAG_IV_IANAL_LBLK_64 |
+			      FSCRYPT_POLICY_FLAG_IV_IANAL_LBLK_32)) &&
+	    !supported_iv_ianal_lblk_policy(policy, ianalde))
 		return false;
 
 	if (memchr_inv(policy->__reserved, 0, sizeof(policy->__reserved))) {
-		fscrypt_warn(inode, "Reserved bits set in encryption policy");
+		fscrypt_warn(ianalde, "Reserved bits set in encryption policy");
 		return false;
 	}
 
@@ -290,23 +290,23 @@ static bool fscrypt_supported_v2_policy(const struct fscrypt_policy_v2 *policy,
 /**
  * fscrypt_supported_policy() - check whether an encryption policy is supported
  * @policy_u: the encryption policy
- * @inode: the inode on which the policy will be used
+ * @ianalde: the ianalde on which the policy will be used
  *
  * Given an encryption policy, check whether all its encryption modes and other
- * settings are supported by this kernel on the given inode.  (But we don't
+ * settings are supported by this kernel on the given ianalde.  (But we don't
  * currently don't check for crypto API support here, so attempting to use an
- * algorithm not configured into the crypto API will still fail later.)
+ * algorithm analt configured into the crypto API will still fail later.)
  *
  * Return: %true if supported, else %false
  */
 bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
-			      const struct inode *inode)
+			      const struct ianalde *ianalde)
 {
 	switch (policy_u->version) {
 	case FSCRYPT_POLICY_V1:
-		return fscrypt_supported_v1_policy(&policy_u->v1, inode);
+		return fscrypt_supported_v1_policy(&policy_u->v1, ianalde);
 	case FSCRYPT_POLICY_V2:
-		return fscrypt_supported_v2_policy(&policy_u->v2, inode);
+		return fscrypt_supported_v2_policy(&policy_u->v2, ianalde);
 	}
 	return false;
 }
@@ -315,16 +315,16 @@ bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
  * fscrypt_new_context() - create a new fscrypt_context
  * @ctx_u: output context
  * @policy_u: input policy
- * @nonce: nonce to use
+ * @analnce: analnce to use
  *
- * Create an fscrypt_context for an inode that is being assigned the given
- * encryption policy.  @nonce must be a new random nonce.
+ * Create an fscrypt_context for an ianalde that is being assigned the given
+ * encryption policy.  @analnce must be a new random analnce.
  *
  * Return: the size of the new context in bytes.
  */
 static int fscrypt_new_context(union fscrypt_context *ctx_u,
 			       const union fscrypt_policy *policy_u,
-			       const u8 nonce[FSCRYPT_FILE_NONCE_SIZE])
+			       const u8 analnce[FSCRYPT_FILE_ANALNCE_SIZE])
 {
 	memset(ctx_u, 0, sizeof(*ctx_u));
 
@@ -342,7 +342,7 @@ static int fscrypt_new_context(union fscrypt_context *ctx_u,
 		memcpy(ctx->master_key_descriptor,
 		       policy->master_key_descriptor,
 		       sizeof(ctx->master_key_descriptor));
-		memcpy(ctx->nonce, nonce, FSCRYPT_FILE_NONCE_SIZE);
+		memcpy(ctx->analnce, analnce, FSCRYPT_FILE_ANALNCE_SIZE);
 		return sizeof(*ctx);
 	}
 	case FSCRYPT_POLICY_V2: {
@@ -359,7 +359,7 @@ static int fscrypt_new_context(union fscrypt_context *ctx_u,
 		memcpy(ctx->master_key_identifier,
 		       policy->master_key_identifier,
 		       sizeof(ctx->master_key_identifier));
-		memcpy(ctx->nonce, nonce, FSCRYPT_FILE_NONCE_SIZE);
+		memcpy(ctx->analnce, analnce, FSCRYPT_FILE_ANALNCE_SIZE);
 		return sizeof(*ctx);
 	}
 	}
@@ -378,7 +378,7 @@ static int fscrypt_new_context(union fscrypt_context *ctx_u,
  * Return: 0 on success, or -EINVAL if the fscrypt_context has an unrecognized
  * version number or size.
  *
- * This does *not* validate the settings within the policy itself, e.g. the
+ * This does *analt* validate the settings within the policy itself, e.g. the
  * modes, flags, and reserved bits.  Use fscrypt_supported_policy() for that.
  */
 int fscrypt_policy_from_context(union fscrypt_policy *policy_u,
@@ -429,50 +429,50 @@ int fscrypt_policy_from_context(union fscrypt_policy *policy_u,
 	return -EINVAL;
 }
 
-/* Retrieve an inode's encryption policy */
-static int fscrypt_get_policy(struct inode *inode, union fscrypt_policy *policy)
+/* Retrieve an ianalde's encryption policy */
+static int fscrypt_get_policy(struct ianalde *ianalde, union fscrypt_policy *policy)
 {
-	const struct fscrypt_inode_info *ci;
+	const struct fscrypt_ianalde_info *ci;
 	union fscrypt_context ctx;
 	int ret;
 
-	ci = fscrypt_get_inode_info(inode);
+	ci = fscrypt_get_ianalde_info(ianalde);
 	if (ci) {
 		/* key available, use the cached policy */
 		*policy = ci->ci_policy;
 		return 0;
 	}
 
-	if (!IS_ENCRYPTED(inode))
-		return -ENODATA;
+	if (!IS_ENCRYPTED(ianalde))
+		return -EANALDATA;
 
-	ret = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
+	ret = ianalde->i_sb->s_cop->get_context(ianalde, &ctx, sizeof(ctx));
 	if (ret < 0)
 		return (ret == -ERANGE) ? -EINVAL : ret;
 
 	return fscrypt_policy_from_context(policy, &ctx, ret);
 }
 
-static int set_encryption_policy(struct inode *inode,
+static int set_encryption_policy(struct ianalde *ianalde,
 				 const union fscrypt_policy *policy)
 {
-	u8 nonce[FSCRYPT_FILE_NONCE_SIZE];
+	u8 analnce[FSCRYPT_FILE_ANALNCE_SIZE];
 	union fscrypt_context ctx;
 	int ctxsize;
 	int err;
 
-	if (!fscrypt_supported_policy(policy, inode))
+	if (!fscrypt_supported_policy(policy, ianalde))
 		return -EINVAL;
 
 	switch (policy->version) {
 	case FSCRYPT_POLICY_V1:
 		/*
-		 * The original encryption policy version provided no way of
+		 * The original encryption policy version provided anal way of
 		 * verifying that the correct master key was supplied, which was
 		 * insecure in scenarios where multiple users have access to the
 		 * same encrypted files (even just read-only access).  The new
 		 * encryption policy version fixes this and also implies use of
-		 * an improved key derivation function and allows non-root users
+		 * an improved key derivation function and allows analn-root users
 		 * to securely remove keys.  So as long as compatibility with
 		 * old kernels isn't required, it is recommended to use the new
 		 * policy version for all new encrypted directories.
@@ -481,12 +481,12 @@ static int set_encryption_policy(struct inode *inode,
 			     current->comm, current->pid);
 		break;
 	case FSCRYPT_POLICY_V2:
-		err = fscrypt_verify_key_added(inode->i_sb,
+		err = fscrypt_verify_key_added(ianalde->i_sb,
 					       policy->v2.master_key_identifier);
 		if (err)
 			return err;
-		if (policy->v2.flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32)
-			pr_warn_once("%s (pid %d) is setting an IV_INO_LBLK_32 encryption policy.  This should only be used if there are certain hardware limitations.\n",
+		if (policy->v2.flags & FSCRYPT_POLICY_FLAG_IV_IANAL_LBLK_32)
+			pr_warn_once("%s (pid %d) is setting an IV_IANAL_LBLK_32 encryption policy.  This should only be used if there are certain hardware limitations.\n",
 				     current->comm, current->pid);
 		break;
 	default:
@@ -494,17 +494,17 @@ static int set_encryption_policy(struct inode *inode,
 		return -EINVAL;
 	}
 
-	get_random_bytes(nonce, FSCRYPT_FILE_NONCE_SIZE);
-	ctxsize = fscrypt_new_context(&ctx, policy, nonce);
+	get_random_bytes(analnce, FSCRYPT_FILE_ANALNCE_SIZE);
+	ctxsize = fscrypt_new_context(&ctx, policy, analnce);
 
-	return inode->i_sb->s_cop->set_context(inode, &ctx, ctxsize, NULL);
+	return ianalde->i_sb->s_cop->set_context(ianalde, &ctx, ctxsize, NULL);
 }
 
 int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg)
 {
 	union fscrypt_policy policy;
 	union fscrypt_policy existing_policy;
-	struct inode *inode = file_inode(filp);
+	struct ianalde *ianalde = file_ianalde(filp);
 	u8 version;
 	int size;
 	int ret;
@@ -532,25 +532,25 @@ int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg)
 		return -EFAULT;
 	policy.version = version;
 
-	if (!inode_owner_or_capable(&nop_mnt_idmap, inode))
+	if (!ianalde_owner_or_capable(&analp_mnt_idmap, ianalde))
 		return -EACCES;
 
 	ret = mnt_want_write_file(filp);
 	if (ret)
 		return ret;
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 
-	ret = fscrypt_get_policy(inode, &existing_policy);
-	if (ret == -ENODATA) {
-		if (!S_ISDIR(inode->i_mode))
-			ret = -ENOTDIR;
-		else if (IS_DEADDIR(inode))
-			ret = -ENOENT;
-		else if (!inode->i_sb->s_cop->empty_dir(inode))
-			ret = -ENOTEMPTY;
+	ret = fscrypt_get_policy(ianalde, &existing_policy);
+	if (ret == -EANALDATA) {
+		if (!S_ISDIR(ianalde->i_mode))
+			ret = -EANALTDIR;
+		else if (IS_DEADDIR(ianalde))
+			ret = -EANALENT;
+		else if (!ianalde->i_sb->s_cop->empty_dir(ianalde))
+			ret = -EANALTEMPTY;
 		else
-			ret = set_encryption_policy(inode, &policy);
+			ret = set_encryption_policy(ianalde, &policy);
 	} else if (ret == -EINVAL ||
 		   (ret == 0 && !fscrypt_policies_equal(&policy,
 							&existing_policy))) {
@@ -558,7 +558,7 @@ int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg)
 		ret = -EEXIST;
 	}
 
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 
 	mnt_drop_write_file(filp);
 	return ret;
@@ -571,7 +571,7 @@ int fscrypt_ioctl_get_policy(struct file *filp, void __user *arg)
 	union fscrypt_policy policy;
 	int err;
 
-	err = fscrypt_get_policy(file_inode(filp), &policy);
+	err = fscrypt_get_policy(file_ianalde(filp), &policy);
 	if (err)
 		return err;
 
@@ -598,7 +598,7 @@ int fscrypt_ioctl_get_policy_ex(struct file *filp, void __user *uarg)
 		     offsetof(typeof(arg), policy));
 	BUILD_BUG_ON(sizeof(arg.policy) != sizeof(*policy));
 
-	err = fscrypt_get_policy(file_inode(filp), policy);
+	err = fscrypt_get_policy(file_ianalde(filp), policy);
 	if (err)
 		return err;
 	policy_size = fscrypt_policy_size(policy);
@@ -616,36 +616,36 @@ int fscrypt_ioctl_get_policy_ex(struct file *filp, void __user *uarg)
 }
 EXPORT_SYMBOL_GPL(fscrypt_ioctl_get_policy_ex);
 
-/* FS_IOC_GET_ENCRYPTION_NONCE: retrieve file's encryption nonce for testing */
-int fscrypt_ioctl_get_nonce(struct file *filp, void __user *arg)
+/* FS_IOC_GET_ENCRYPTION_ANALNCE: retrieve file's encryption analnce for testing */
+int fscrypt_ioctl_get_analnce(struct file *filp, void __user *arg)
 {
-	struct inode *inode = file_inode(filp);
+	struct ianalde *ianalde = file_ianalde(filp);
 	union fscrypt_context ctx;
 	int ret;
 
-	ret = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
+	ret = ianalde->i_sb->s_cop->get_context(ianalde, &ctx, sizeof(ctx));
 	if (ret < 0)
 		return ret;
 	if (!fscrypt_context_is_valid(&ctx, ret))
 		return -EINVAL;
-	if (copy_to_user(arg, fscrypt_context_nonce(&ctx),
-			 FSCRYPT_FILE_NONCE_SIZE))
+	if (copy_to_user(arg, fscrypt_context_analnce(&ctx),
+			 FSCRYPT_FILE_ANALNCE_SIZE))
 		return -EFAULT;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(fscrypt_ioctl_get_nonce);
+EXPORT_SYMBOL_GPL(fscrypt_ioctl_get_analnce);
 
 /**
  * fscrypt_has_permitted_context() - is a file's encryption policy permitted
  *				     within its directory?
  *
- * @parent: inode for parent directory
- * @child: inode for file being looked up, opened, or linked into @parent
+ * @parent: ianalde for parent directory
+ * @child: ianalde for file being looked up, opened, or linked into @parent
  *
- * Filesystems must call this before permitting access to an inode in a
+ * Filesystems must call this before permitting access to an ianalde in a
  * situation where the parent directory is encrypted (either before allowing
  * ->lookup() to succeed, or for a regular file before allowing it to be opened)
- * and before any operation that involves linking an inode into an encrypted
+ * and before any operation that involves linking an ianalde into an encrypted
  * directory, including link, rename, and cross rename.  It enforces the
  * constraint that within a given encrypted directory tree, all files use the
  * same encryption policy.  The pre-access check is needed to detect potentially
@@ -654,21 +654,21 @@ EXPORT_SYMBOL_GPL(fscrypt_ioctl_get_nonce);
  *
  * Return: 1 if permitted, 0 if forbidden.
  */
-int fscrypt_has_permitted_context(struct inode *parent, struct inode *child)
+int fscrypt_has_permitted_context(struct ianalde *parent, struct ianalde *child)
 {
 	union fscrypt_policy parent_policy, child_policy;
 	int err, err1, err2;
 
-	/* No restrictions on file types which are never encrypted */
+	/* Anal restrictions on file types which are never encrypted */
 	if (!S_ISREG(child->i_mode) && !S_ISDIR(child->i_mode) &&
 	    !S_ISLNK(child->i_mode))
 		return 1;
 
-	/* No restrictions if the parent directory is unencrypted */
+	/* Anal restrictions if the parent directory is unencrypted */
 	if (!IS_ENCRYPTED(parent))
 		return 1;
 
-	/* Encrypted directories must not contain unencrypted files */
+	/* Encrypted directories must analt contain unencrypted files */
 	if (!IS_ENCRYPTED(child))
 		return 0;
 
@@ -677,9 +677,9 @@ int fscrypt_has_permitted_context(struct inode *parent, struct inode *child)
 	 * encryption policy.  Compare the cached policies if the keys are
 	 * available, otherwise retrieve and compare the fscrypt_contexts.
 	 *
-	 * Note that the fscrypt_context retrieval will be required frequently
+	 * Analte that the fscrypt_context retrieval will be required frequently
 	 * when accessing an encrypted directory tree without the key.
-	 * Performance-wise this is not a big deal because we already don't
+	 * Performance-wise this is analt a big deal because we already don't
 	 * really optimize for file access without the key (to the extent that
 	 * such access is even possible), given that any attempted access
 	 * already causes a fscrypt_context retrieval and keyring search.
@@ -714,10 +714,10 @@ EXPORT_SYMBOL(fscrypt_has_permitted_context);
 
 /*
  * Return the encryption policy that new files in the directory will inherit, or
- * NULL if none, or an ERR_PTR() on error.  If the directory is encrypted, also
+ * NULL if analne, or an ERR_PTR() on error.  If the directory is encrypted, also
  * ensure that its key is set up, so that the new filename can be encrypted.
  */
-const union fscrypt_policy *fscrypt_policy_to_inherit(struct inode *dir)
+const union fscrypt_policy *fscrypt_policy_to_inherit(struct ianalde *dir)
 {
 	int err;
 
@@ -732,60 +732,60 @@ const union fscrypt_policy *fscrypt_policy_to_inherit(struct inode *dir)
 }
 
 /**
- * fscrypt_context_for_new_inode() - create an encryption context for a new inode
+ * fscrypt_context_for_new_ianalde() - create an encryption context for a new ianalde
  * @ctx: where context should be written
- * @inode: inode from which to fetch policy and nonce
+ * @ianalde: ianalde from which to fetch policy and analnce
  *
- * Given an in-core "prepared" (via fscrypt_prepare_new_inode) inode,
+ * Given an in-core "prepared" (via fscrypt_prepare_new_ianalde) ianalde,
  * generate a new context and write it to ctx. ctx _must_ be at least
  * FSCRYPT_SET_CONTEXT_MAX_SIZE bytes.
  *
  * Return: size of the resulting context or a negative error code.
  */
-int fscrypt_context_for_new_inode(void *ctx, struct inode *inode)
+int fscrypt_context_for_new_ianalde(void *ctx, struct ianalde *ianalde)
 {
-	struct fscrypt_inode_info *ci = inode->i_crypt_info;
+	struct fscrypt_ianalde_info *ci = ianalde->i_crypt_info;
 
 	BUILD_BUG_ON(sizeof(union fscrypt_context) !=
 			FSCRYPT_SET_CONTEXT_MAX_SIZE);
 
-	/* fscrypt_prepare_new_inode() should have set up the key already. */
+	/* fscrypt_prepare_new_ianalde() should have set up the key already. */
 	if (WARN_ON_ONCE(!ci))
-		return -ENOKEY;
+		return -EANALKEY;
 
-	return fscrypt_new_context(ctx, &ci->ci_policy, ci->ci_nonce);
+	return fscrypt_new_context(ctx, &ci->ci_policy, ci->ci_analnce);
 }
-EXPORT_SYMBOL_GPL(fscrypt_context_for_new_inode);
+EXPORT_SYMBOL_GPL(fscrypt_context_for_new_ianalde);
 
 /**
- * fscrypt_set_context() - Set the fscrypt context of a new inode
- * @inode: a new inode
+ * fscrypt_set_context() - Set the fscrypt context of a new ianalde
+ * @ianalde: a new ianalde
  * @fs_data: private data given by FS and passed to ->set_context()
  *
- * This should be called after fscrypt_prepare_new_inode(), generally during a
- * filesystem transaction.  Everything here must be %GFP_NOFS-safe.
+ * This should be called after fscrypt_prepare_new_ianalde(), generally during a
+ * filesystem transaction.  Everything here must be %GFP_ANALFS-safe.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  */
-int fscrypt_set_context(struct inode *inode, void *fs_data)
+int fscrypt_set_context(struct ianalde *ianalde, void *fs_data)
 {
-	struct fscrypt_inode_info *ci = inode->i_crypt_info;
+	struct fscrypt_ianalde_info *ci = ianalde->i_crypt_info;
 	union fscrypt_context ctx;
 	int ctxsize;
 
-	ctxsize = fscrypt_context_for_new_inode(&ctx, inode);
+	ctxsize = fscrypt_context_for_new_ianalde(&ctx, ianalde);
 	if (ctxsize < 0)
 		return ctxsize;
 
 	/*
-	 * This may be the first time the inode number is available, so do any
-	 * delayed key setup that requires the inode number.
+	 * This may be the first time the ianalde number is available, so do any
+	 * delayed key setup that requires the ianalde number.
 	 */
 	if (ci->ci_policy.version == FSCRYPT_POLICY_V2 &&
-	    (ci->ci_policy.v2.flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32))
-		fscrypt_hash_inode_number(ci, ci->ci_master_key);
+	    (ci->ci_policy.v2.flags & FSCRYPT_POLICY_FLAG_IV_IANAL_LBLK_32))
+		fscrypt_hash_ianalde_number(ci, ci->ci_master_key);
 
-	return inode->i_sb->s_cop->set_context(inode, &ctx, ctxsize, fs_data);
+	return ianalde->i_sb->s_cop->set_context(ianalde, &ctx, ctxsize, fs_data);
 }
 EXPORT_SYMBOL_GPL(fscrypt_set_context);
 
@@ -798,7 +798,7 @@ EXPORT_SYMBOL_GPL(fscrypt_set_context);
  *	times), then this function will verify that the policies are the same.
  *
  * Return: 0 on success; -EINVAL if the argument is invalid; -EEXIST if the
- *	   argument conflicts with one already specified; or -ENOMEM.
+ *	   argument conflicts with one already specified; or -EANALMEM.
  */
 int fscrypt_parse_test_dummy_encryption(const struct fs_parameter *param,
 				struct fscrypt_dummy_policy *dummy_policy)
@@ -812,7 +812,7 @@ int fscrypt_parse_test_dummy_encryption(const struct fs_parameter *param,
 
 	policy = kzalloc(sizeof(*policy), GFP_KERNEL);
 	if (!policy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!strcmp(arg, "v1")) {
 		policy->version = FSCRYPT_POLICY_V1;

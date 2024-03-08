@@ -3,7 +3,7 @@
  * linux/drivers/video/mmp/panel/tpo_tj032md01bw.c
  * active panel using spi interface to do init
  *
- * Copyright (C) 2012 Marvell Technology Group Ltd.
+ * Copyright (C) 2012 Marvell Techanallogy Group Ltd.
  * Authors:  Guoqing Li <ligq@marvell.com>
  *          Lisa Du <cldu@marvell.com>
  *          Zhou Zhu <zzhu3@marvell.com>
@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
@@ -68,17 +68,17 @@ static u16 poweroff[] = {
 };
 
 struct tpohvga_plat_data {
-	void (*plat_onoff)(int status);
+	void (*plat_oanalff)(int status);
 	struct spi_device *spi;
 };
 
-static void tpohvga_onoff(struct mmp_panel *panel, int status)
+static void tpohvga_oanalff(struct mmp_panel *panel, int status)
 {
 	struct tpohvga_plat_data *plat = panel->plat_data;
 	int ret;
 
 	if (status) {
-		plat->plat_onoff(1);
+		plat->plat_oanalff(1);
 
 		ret = spi_write(plat->spi, init, sizeof(init));
 		if (ret < 0)
@@ -88,7 +88,7 @@ static void tpohvga_onoff(struct mmp_panel *panel, int status)
 		if (ret < 0)
 			dev_warn(panel->dev, "poweroff cmd failed(%d)\n", ret);
 
-		plat->plat_onoff(0);
+		plat->plat_oanalff(0);
 	}
 }
 
@@ -120,7 +120,7 @@ static struct mmp_panel panel_tpohvga = {
 	.name = "tpohvga",
 	.panel_type = PANELTYPE_ACTIVE,
 	.get_modelist = tpohvga_get_modelist,
-	.set_onoff = tpohvga_onoff,
+	.set_oanalff = tpohvga_oanalff,
 };
 
 static int tpohvga_probe(struct spi_device *spi)
@@ -132,7 +132,7 @@ static int tpohvga_probe(struct spi_device *spi)
 	/* get configs from platform data */
 	mi = spi->dev.platform_data;
 	if (mi == NULL) {
-		dev_err(&spi->dev, "%s: no platform data defined\n", __func__);
+		dev_err(&spi->dev, "%s: anal platform data defined\n", __func__);
 		return -EINVAL;
 	}
 
@@ -146,10 +146,10 @@ static int tpohvga_probe(struct spi_device *spi)
 
 	plat_data = kzalloc(sizeof(*plat_data), GFP_KERNEL);
 	if (plat_data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat_data->spi = spi;
-	plat_data->plat_onoff = mi->plat_set_onoff;
+	plat_data->plat_oanalff = mi->plat_set_oanalff;
 	panel_tpohvga.plat_data = plat_data;
 	panel_tpohvga.plat_path_name = mi->plat_path_name;
 	panel_tpohvga.dev = &spi->dev;

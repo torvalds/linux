@@ -7,7 +7,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
@@ -56,7 +56,7 @@
 enum {
 	H5_RX_ESC,		/* SLIP escape mode */
 	H5_TX_ACK_REQ,		/* Pending ack to send */
-	H5_WAKEUP_DISABLE,	/* Device cannot wake host */
+	H5_WAKEUP_DISABLE,	/* Device cananalt wake host */
 	H5_HW_FLOW_CONTROL,	/* Use HW flow control */
 };
 
@@ -221,7 +221,7 @@ static int h5_open(struct hci_uart *hu)
 	} else {
 		h5 = kzalloc(sizeof(*h5), GFP_KERNEL);
 		if (!h5)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	hu->priv = h5;
@@ -471,7 +471,7 @@ static int h5_rx_3wire_hdr(struct hci_uart *hu, unsigned char c)
 
 	if (h5->state != H5_ACTIVE &&
 	    H5_HDR_PKT_TYPE(hdr) != HCI_3WIRE_LINK_PKT) {
-		bt_dev_err(hu->hdev, "Non-link packet received in non-active state");
+		bt_dev_err(hu->hdev, "Analn-link packet received in analn-active state");
 		h5_reset_rx(h5);
 		return 0;
 	}
@@ -496,7 +496,7 @@ static int h5_rx_pkt_start(struct hci_uart *hu, unsigned char c)
 	if (!h5->rx_skb) {
 		bt_dev_err(hu->hdev, "Can't allocate mem for new packet");
 		h5_reset_rx(h5);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	h5->rx_skb->dev = (void *)hu->hdev;
@@ -609,7 +609,7 @@ static int h5_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	}
 
 	if (h5->state != H5_ACTIVE) {
-		bt_dev_err(hu->hdev, "Ignoring HCI data in non-active state");
+		bt_dev_err(hu->hdev, "Iganalring HCI data in analn-active state");
 		kfree_skb(skb);
 		return 0;
 	}
@@ -626,7 +626,7 @@ static int h5_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		break;
 
 	default:
-		bt_dev_err(hu->hdev, "Unknown packet type %u", hci_skb_pkt_type(skb));
+		bt_dev_err(hu->hdev, "Unkanalwn packet type %u", hci_skb_pkt_type(skb));
 		kfree_skb(skb);
 		break;
 	}
@@ -688,7 +688,7 @@ static struct sk_buff *h5_prepare_pkt(struct hci_uart *hu, u8 pkt_type,
 	int i;
 
 	if (!valid_packet_type(pkt_type)) {
-		bt_dev_err(hu->hdev, "Unknown packet type %u", pkt_type);
+		bt_dev_err(hu->hdev, "Unkanalwn packet type %u", pkt_type);
 		return NULL;
 	}
 
@@ -765,7 +765,7 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 		}
 
 		skb_queue_head(&h5->unrel, skb);
-		bt_dev_err(hu->hdev, "Could not dequeue pkt because alloc_skb failed");
+		bt_dev_err(hu->hdev, "Could analt dequeue pkt because alloc_skb failed");
 	}
 
 	spin_lock_irqsave_nested(&h5->unack.lock, flags, SINGLE_DEPTH_NESTING);
@@ -785,7 +785,7 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 		}
 
 		skb_queue_head(&h5->rel, skb);
-		bt_dev_err(hu->hdev, "Could not dequeue pkt because alloc_skb failed");
+		bt_dev_err(hu->hdev, "Could analt dequeue pkt because alloc_skb failed");
 	}
 
 unlock:
@@ -823,7 +823,7 @@ static int h5_serdev_probe(struct serdev_device *serdev)
 
 	h5 = devm_kzalloc(dev, sizeof(*h5), GFP_KERNEL);
 	if (!h5)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	h5->hu = &h5->serdev_hu;
 	h5->serdev_hu.serdev = serdev;
@@ -834,7 +834,7 @@ static int h5_serdev_probe(struct serdev_device *serdev)
 
 		match = acpi_match_device(dev->driver->acpi_match_table, dev);
 		if (!match)
-			return -ENODEV;
+			return -EANALDEV;
 
 		data = (const struct h5_device_data *)match->driver_data;
 		h5->vnd = data->vnd;
@@ -846,7 +846,7 @@ static int h5_serdev_probe(struct serdev_device *serdev)
 	} else {
 		data = of_device_get_match_data(dev);
 		if (!data)
-			return -ENODEV;
+			return -EANALDEV;
 
 		h5->vnd = data->vnd;
 	}
@@ -953,11 +953,11 @@ static void h5_btrtl_open(struct h5 *h5)
 {
 	/*
 	 * Since h5_btrtl_resume() does a device_reprobe() the suspend handling
-	 * done by the hci_suspend_notifier is not necessary; it actually causes
+	 * done by the hci_suspend_analtifier is analt necessary; it actually causes
 	 * delays and a bunch of errors to get logged, so disable it.
 	 */
 	if (test_bit(H5_WAKEUP_DISABLE, &h5->flags))
-		set_bit(HCI_UART_NO_SUSPEND_NOTIFIER, &h5->hu->flags);
+		set_bit(HCI_UART_ANAL_SUSPEND_ANALTIFIER, &h5->hu->flags);
 
 	/* Devices always start with these fixed parameters */
 	serdev_device_set_flow_control(h5->hu->serdev, false);
@@ -1036,7 +1036,7 @@ static int h5_btrtl_resume(struct h5 *h5)
 
 		reprobe = kzalloc(sizeof(*reprobe), GFP_KERNEL);
 		if (!reprobe)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		__module_get(THIS_MODULE);
 

@@ -9,9 +9,9 @@
 #define PUCAN_H
 
 /* uCAN commands opcodes list (low-order 10 bits) */
-#define PUCAN_CMD_NOP			0x000
+#define PUCAN_CMD_ANALP			0x000
 #define PUCAN_CMD_RESET_MODE		0x001
-#define PUCAN_CMD_NORMAL_MODE		0x002
+#define PUCAN_CMD_ANALRMAL_MODE		0x002
 #define PUCAN_CMD_LISTEN_ONLY_MODE	0x003
 #define PUCAN_CMD_TIMING_SLOW		0x004
 #define PUCAN_CMD_TIMING_FAST		0x005

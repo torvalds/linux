@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 // Copyright (C) Harald Geyer <harald@ccbib.org>
-// based on sun50i-a64-olinuxino.dts by Jagan Teki <jteki@openedev.com>
+// based on sun50i-a64-olinuxianal.dts by Jagan Teki <jteki@openedev.com>
 
 /dts-v1/;
 
@@ -171,7 +171,7 @@
 	vqmmc-supply = <&reg_dldo4>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	rtl8723bs: wifi@1 {
@@ -188,7 +188,7 @@
 	vmmc-supply = <&reg_dcdc1>;
 	vqmmc-supply = <&reg_dcdc1>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	cap-mmc-hw-reset;
 	status = "okay";
 };
@@ -201,7 +201,7 @@
 	vcc-pc-supply = <&reg_dcdc1>;
 	vcc-pd-supply = <&reg_dldo2>;
 	vcc-pe-supply = <&reg_aldo1>;
-	vcc-pf-supply = <&reg_dcdc1>;  /* No dedicated supply-pin for this */
+	vcc-pf-supply = <&reg_dcdc1>;  /* Anal dedicated supply-pin for this */
 	vcc-pg-supply = <&reg_aldo2>;
 };
 
@@ -324,9 +324,9 @@
 };
 
 /*
- * The A64 chip cannot work with this regulator off, although
+ * The A64 chip cananalt work with this regulator off, although
  * it seems to be only driving the AR100 core.
- * Maybe we don't still know well about CPUs domain.
+ * Maybe we don't still kanalw well about CPUs domain.
  */
 &reg_fldo2 {
 	regulator-always-on;

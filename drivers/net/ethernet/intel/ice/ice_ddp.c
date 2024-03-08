@@ -39,7 +39,7 @@ static enum ice_ddp_state ice_verify_pkg(struct ice_pkg_hdr *pkg, u32 len)
 		return ICE_DDP_PKG_INVALID_FILE;
 
 	if (pkg->pkg_format_ver.major != ICE_PKG_FMT_VER_MAJ ||
-	    pkg->pkg_format_ver.minor != ICE_PKG_FMT_VER_MNR ||
+	    pkg->pkg_format_ver.mianalr != ICE_PKG_FMT_VER_MNR ||
 	    pkg->pkg_format_ver.update != ICE_PKG_FMT_VER_UPD ||
 	    pkg->pkg_format_ver.draft != ICE_PKG_FMT_VER_DFT)
 		return ICE_DDP_PKG_INVALID_FILE;
@@ -94,7 +94,7 @@ void ice_free_seg(struct ice_hw *hw)
  * @pkg_ver: pointer to a version structure to check
  *
  * Check to make sure that the package about to be downloaded is compatible with
- * the driver. To be compatible, the major and minor components of the package
+ * the driver. To be compatible, the major and mianalr components of the package
  * version must match our ICE_PKG_SUPP_VER_MAJ and ICE_PKG_SUPP_VER_MNR
  * definitions.
  */
@@ -102,11 +102,11 @@ static enum ice_ddp_state ice_chk_pkg_version(struct ice_pkg_ver *pkg_ver)
 {
 	if (pkg_ver->major > ICE_PKG_SUPP_VER_MAJ ||
 	    (pkg_ver->major == ICE_PKG_SUPP_VER_MAJ &&
-	     pkg_ver->minor > ICE_PKG_SUPP_VER_MNR))
+	     pkg_ver->mianalr > ICE_PKG_SUPP_VER_MNR))
 		return ICE_DDP_PKG_FILE_VERSION_TOO_HIGH;
 	else if (pkg_ver->major < ICE_PKG_SUPP_VER_MAJ ||
 		 (pkg_ver->major == ICE_PKG_SUPP_VER_MAJ &&
-		  pkg_ver->minor < ICE_PKG_SUPP_VER_MNR))
+		  pkg_ver->mianalr < ICE_PKG_SUPP_VER_MNR))
 		return ICE_DDP_PKG_FILE_VERSION_TOO_LOW;
 
 	return ICE_DDP_PKG_SUCCESS;
@@ -158,7 +158,7 @@ static struct ice_buf_table *ice_find_buf_table(struct ice_seg *ice_seg)
  * @state: pointer to the enum state
  *
  * This function will enumerate all the buffers in the ice segment. The first
- * call is made with the ice_seg parameter non-NULL; on subsequent calls,
+ * call is made with the ice_seg parameter analn-NULL; on subsequent calls,
  * ice_seg is set to NULL which continues the enumeration. When the function
  * returns a NULL pointer, then the end of the buffers has been reached, or an
  * unexpected value has been detected (for example an invalid section count or
@@ -217,7 +217,7 @@ static bool ice_pkg_advance_sect(struct ice_seg *ice_seg,
  * @sect_type: section type to enumerate
  *
  * This function will enumerate all the sections of a particular type in the
- * ice segment. The first call is made with the ice_seg parameter non-NULL;
+ * ice segment. The first call is made with the ice_seg parameter analn-NULL;
  * on subsequent calls, ice_seg is set to NULL which continues the enumeration.
  * When the function returns a NULL pointer, then the end of the matching
  * sections has been reached.
@@ -272,7 +272,7 @@ void *ice_pkg_enum_section(struct ice_seg *ice_seg, struct ice_pkg_enum *state,
  * @handler: function that handles access to the entries into the section type
  *
  * This function will enumerate all the entries in particular section type in
- * the ice segment. The first call is made with the ice_seg parameter non-NULL;
+ * the ice segment. The first call is made with the ice_seg parameter analn-NULL;
  * on subsequent calls, ice_seg is set to NULL which continues the enumeration.
  * When the function returns a NULL pointer, then the end of the entries has
  * been reached.
@@ -316,7 +316,7 @@ static void *ice_pkg_enum_entry(struct ice_seg *ice_seg,
 	entry = state->handler(state->sect_type, state->sect, state->entry_idx,
 			       offset);
 	if (!entry) {
-		/* end of a section, look for another section of this type */
+		/* end of a section, look for aanalther section of this type */
 		if (!ice_pkg_enum_section(NULL, state, 0))
 			return NULL;
 
@@ -389,7 +389,7 @@ static int ice_get_prof_index_max(struct ice_hw *hw)
 			break;
 		ice_seg = NULL;
 
-		/* in the profile that not be used, the prot_id is set to 0xff
+		/* in the profile that analt be used, the prot_id is set to 0xff
 		 * and the off is set to 0x1ff for all the field vectors.
 		 */
 		for (j = 0; j < hw->blk[ICE_BLK_SW].es.fvw; j++)
@@ -417,7 +417,7 @@ static enum ice_ddp_state ice_get_ddp_pkg_state(struct ice_hw *hw,
 						bool already_loaded)
 {
 	if (hw->pkg_ver.major == hw->active_pkg_ver.major &&
-	    hw->pkg_ver.minor == hw->active_pkg_ver.minor &&
+	    hw->pkg_ver.mianalr == hw->active_pkg_ver.mianalr &&
 	    hw->pkg_ver.update == hw->active_pkg_ver.update &&
 	    hw->pkg_ver.draft == hw->active_pkg_ver.draft &&
 	    !memcmp(hw->pkg_name, hw->active_pkg_name, sizeof(hw->pkg_name))) {
@@ -426,10 +426,10 @@ static enum ice_ddp_state ice_get_ddp_pkg_state(struct ice_hw *hw,
 		else
 			return ICE_DDP_PKG_SUCCESS;
 	} else if (hw->active_pkg_ver.major != ICE_PKG_SUPP_VER_MAJ ||
-		   hw->active_pkg_ver.minor != ICE_PKG_SUPP_VER_MNR) {
-		return ICE_DDP_PKG_ALREADY_LOADED_NOT_SUPPORTED;
+		   hw->active_pkg_ver.mianalr != ICE_PKG_SUPP_VER_MNR) {
+		return ICE_DDP_PKG_ALREADY_LOADED_ANALT_SUPPORTED;
 	} else if (hw->active_pkg_ver.major == ICE_PKG_SUPP_VER_MAJ &&
-		   hw->active_pkg_ver.minor == ICE_PKG_SUPP_VER_MNR) {
+		   hw->active_pkg_ver.mianalr == ICE_PKG_SUPP_VER_MNR) {
 		return ICE_DDP_PKG_COMPATIBLE_ALREADY_LOADED;
 	} else {
 		return ICE_DDP_PKG_ERR;
@@ -515,7 +515,7 @@ static void ice_add_tunnel_hint(struct ice_hw *hw, char *label_name, u16 val)
 			if (strncmp(label_name, tnls[i].label_prefix, len))
 				continue;
 
-			/* Make sure this label matches our PF. Note that the PF
+			/* Make sure this label matches our PF. Analte that the PF
 			 * character ('0' - '7') will be located where our
 			 * prefix string's null terminator is located.
 			 */
@@ -628,12 +628,12 @@ static void *ice_boost_tcam_handler(u32 sect_type, void *section, u32 index,
 
 /**
  * ice_find_boost_entry
- * @ice_seg: pointer to the ice segment (non-NULL)
+ * @ice_seg: pointer to the ice segment (analn-NULL)
  * @addr: Boost TCAM address of entry to search for
  * @entry: returns pointer to the entry
  *
  * Finds a particular Boost TCAM entry and returns a pointer to that entry
- * if it is found. The ice_seg parameter must not be NULL since the first call
+ * if it is found. The ice_seg parameter must analt be NULL since the first call
  * to ice_pkg_enum_entry requires a pointer to an actual ice_segment structure.
  */
 static int ice_find_boost_entry(struct ice_seg *ice_seg, u16 addr,
@@ -684,7 +684,7 @@ bool ice_is_init_pkg_successful(enum ice_ddp_state state)
  * @hw: pointer to the HW structure
  *
  * Allocates a package buffer and returns a pointer to the buffer header.
- * Note: all package contents must be in Little Endian form.
+ * Analte: all package contents must be in Little Endian form.
  */
 struct ice_buf_build *ice_pkg_buf_alloc(struct ice_hw *hw)
 {
@@ -712,9 +712,9 @@ static bool ice_is_gtp_c_profile(u16 prof_idx)
 {
 	switch (prof_idx) {
 	case ICE_PROFID_IPV4_GTPC_TEID:
-	case ICE_PROFID_IPV4_GTPC_NO_TEID:
+	case ICE_PROFID_IPV4_GTPC_ANAL_TEID:
 	case ICE_PROFID_IPV6_GTPC_TEID:
-	case ICE_PROFID_IPV6_GTPC_NO_TEID:
+	case ICE_PROFID_IPV6_GTPC_ANAL_TEID:
 		return true;
 	default:
 		return false;
@@ -749,7 +749,7 @@ static enum ice_prof_type ice_get_sw_prof_type(struct ice_hw *hw,
 			return ICE_PROF_TUN_GRE;
 	}
 
-	return ICE_PROF_NON_TUN;
+	return ICE_PROF_ANALN_TUN;
 }
 
 /**
@@ -802,7 +802,7 @@ void ice_get_sw_fv_bitmap(struct ice_hw *hw, enum ice_prof_type req_profs,
  * a given protocol ID and offset and returns a list of structures of type
  * "ice_sw_fv_list_entry". Every structure in the list has a field vector
  * definition and profile ID information
- * NOTE: The caller of the function is responsible for freeing the memory
+ * ANALTE: The caller of the function is responsible for freeing the memory
  * allocated for every list entry.
  */
 int ice_get_sw_fv_list(struct ice_hw *hw, struct ice_prot_lkup_ext *lkups,
@@ -830,7 +830,7 @@ int ice_get_sw_fv_list(struct ice_hw *hw, struct ice_prot_lkup_ext *lkups,
 			break;
 		ice_seg = NULL;
 
-		/* If field vector is not in the bitmap list, then skip this
+		/* If field vector is analt in the bitmap list, then skip this
 		 * profile.
 		 */
 		if (!test_bit((u16)offset, bm))
@@ -860,7 +860,7 @@ int ice_get_sw_fv_list(struct ice_hw *hw, struct ice_prot_lkup_ext *lkups,
 	} while (fv);
 	if (list_empty(fv_list)) {
 		dev_warn(ice_hw_to_dev(hw),
-			 "Required profiles not found in currently loaded DDP package");
+			 "Required profiles analt found in currently loaded DDP package");
 		return -EIO;
 	}
 
@@ -872,7 +872,7 @@ err:
 		devm_kfree(ice_hw_to_dev(hw), fvl);
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -935,10 +935,10 @@ void ice_pkg_buf_free(struct ice_hw *hw, struct ice_buf_build *bld)
  * Reserves one or more section table entries in a package buffer. This routine
  * can be called multiple times as long as they are made before calling
  * ice_pkg_buf_alloc_section(). Once ice_pkg_buf_alloc_section()
- * is called once, the number of sections that can be allocated will not be able
- * to be increased; not using all reserved sections is fine, but this will
+ * is called once, the number of sections that can be allocated will analt be able
+ * to be increased; analt using all reserved sections is fine, but this will
  * result in some wasted space in the buffer.
- * Note: all package contents must be in Little Endian form.
+ * Analte: all package contents must be in Little Endian form.
  */
 int ice_pkg_buf_reserve_section(struct ice_buf_build *bld, u16 count)
 {
@@ -977,7 +977,7 @@ int ice_pkg_buf_reserve_section(struct ice_buf_build *bld, u16 count)
  * buffers' status accordingly. This routine returns a pointer to the first
  * byte of the section start within the buffer, which is used to fill in the
  * section contents.
- * Note: all package contents must be in Little Endian form.
+ * Analte: all package contents must be in Little Endian form.
  */
 void *ice_pkg_buf_alloc_section(struct ice_buf_build *bld, u32 type, u16 size)
 {
@@ -990,7 +990,7 @@ void *ice_pkg_buf_alloc_section(struct ice_buf_build *bld, u32 type, u16 size)
 
 	buf = (struct ice_buf_hdr *)&bld->buf;
 
-	/* check for enough space left in buffer */
+	/* check for eanalugh space left in buffer */
 	data_end = le16_to_cpu(buf->data_end);
 
 	/* section start must align on 4 byte boundary */
@@ -1015,7 +1015,7 @@ void *ice_pkg_buf_alloc_section(struct ice_buf_build *bld, u32 type, u16 size)
 		return section_ptr;
 	}
 
-	/* no free section table entries */
+	/* anal free section table entries */
 	return NULL;
 }
 
@@ -1027,7 +1027,7 @@ void *ice_pkg_buf_alloc_section(struct ice_buf_build *bld, u32 type, u16 size)
  * @section: returns pointer to the section
  *
  * Allocates a package buffer with a single section.
- * Note: all package contents must be in Little Endian form.
+ * Analte: all package contents must be in Little Endian form.
  */
 struct ice_buf_build *ice_pkg_buf_alloc_single_section(struct ice_hw *hw,
 						       u32 type, u16 size,
@@ -1062,9 +1062,9 @@ ice_pkg_buf_alloc_single_section_err:
  *
  * Returns the number of active sections. Before using the package buffer
  * in an update package command, the caller should make sure that there is at
- * least one active section - otherwise, the buffer is not legal and should
- * not be used.
- * Note: all package contents must be in Little Endian form.
+ * least one active section - otherwise, the buffer is analt legal and should
+ * analt be used.
+ * Analte: all package contents must be in Little Endian form.
  */
 u16 ice_pkg_buf_get_active_sections(struct ice_buf_build *bld)
 {
@@ -1094,7 +1094,7 @@ struct ice_buf *ice_pkg_buf(struct ice_buf_build *bld)
 static enum ice_ddp_state ice_map_aq_err_to_ddp_state(enum ice_aq_err aq_err)
 {
 	switch (aq_err) {
-	case ICE_AQ_RC_ENOSEC:
+	case ICE_AQ_RC_EANALSEC:
 	case ICE_AQ_RC_EBADSIG:
 		return ICE_DDP_PKG_FILE_SIGNATURE_INVALID;
 	case ICE_AQ_RC_ESVN:
@@ -1118,8 +1118,8 @@ static enum ice_ddp_state ice_map_aq_err_to_ddp_state(enum ice_aq_err aq_err)
  *
  * 0         -  Means the caller has acquired the global config lock
  *              and can perform writing of the package.
- * -EALREADY - Indicates another driver has already written the
- *             package or has found that no update was necessary; in
+ * -EALREADY - Indicates aanalther driver has already written the
+ *             package or has found that anal update was necessary; in
  *             this case, the caller can just skip performing any
  *             update of the package.
  */
@@ -1135,7 +1135,7 @@ static int ice_acquire_global_cfg_lock(struct ice_hw *hw,
 		mutex_lock(&ice_global_cfg_lock_sw);
 	else if (status == -EALREADY)
 		ice_debug(hw, ICE_DBG_PKG,
-			  "Global config lock: No work to do\n");
+			  "Global config lock: Anal work to do\n");
 
 	return status;
 }
@@ -1277,7 +1277,7 @@ static bool ice_is_buffer_metadata(struct ice_buf_hdr *buf)
  * @idx: index of the buffer in the current sequence
  * @count: the buffer count in the current sequence
  *
- * Note: this routine should only be called if the buffer is not the last buffer
+ * Analte: this routine should only be called if the buffer is analt the last buffer
  */
 static bool
 ice_is_last_download_buffer(struct ice_buf_hdr *buf, u32 idx, u32 count)
@@ -1296,7 +1296,7 @@ ice_is_last_download_buffer(struct ice_buf_hdr *buf, u32 idx, u32 count)
 }
 
 /**
- * ice_dwnld_cfg_bufs_no_lock
+ * ice_dwnld_cfg_bufs_anal_lock
  * @hw: pointer to the hardware structure
  * @bufs: pointer to an array of buffers
  * @start: buffer index of first buffer to download
@@ -1308,7 +1308,7 @@ ice_is_last_download_buffer(struct ice_buf_hdr *buf, u32 idx, u32 count)
  * of the buffers are all metadata buffers.
  */
 static enum ice_ddp_state
-ice_dwnld_cfg_bufs_no_lock(struct ice_hw *hw, struct ice_buf *bufs, u32 start,
+ice_dwnld_cfg_bufs_anal_lock(struct ice_hw *hw, struct ice_buf *bufs, u32 start,
 			   u32 count, bool indicate_last)
 {
 	enum ice_ddp_state state = ICE_DDP_PKG_SUCCESS;
@@ -1320,7 +1320,7 @@ ice_dwnld_cfg_bufs_no_lock(struct ice_hw *hw, struct ice_buf *bufs, u32 start,
 		return ICE_DDP_PKG_ERR;
 
 	/* If the first buffer's first section has its metadata bit set
-	 * then there are no buffers to be downloaded, and the operation is
+	 * then there are anal buffers to be downloaded, and the operation is
 	 * considered a success.
 	 */
 	bh = (struct ice_buf_hdr *)(bufs + start);
@@ -1363,7 +1363,7 @@ ice_dwnld_cfg_bufs_no_lock(struct ice_hw *hw, struct ice_buf *bufs, u32 start,
 static enum ice_ddp_state
 ice_download_pkg_sig_seg(struct ice_hw *hw, struct ice_sign_seg *seg)
 {
-	return  ice_dwnld_cfg_bufs_no_lock(hw, seg->buf_tbl.buf_array, 0,
+	return  ice_dwnld_cfg_bufs_anal_lock(hw, seg->buf_tbl.buf_array, 0,
 					   le32_to_cpu(seg->buf_tbl.buf_count),
 					   false);
 }
@@ -1376,7 +1376,7 @@ ice_download_pkg_sig_seg(struct ice_hw *hw, struct ice_sign_seg *seg)
  * @start: starting buffer
  * @count: buffer count
  *
- * Note: idx must reference a ICE segment
+ * Analte: idx must reference a ICE segment
  */
 static enum ice_ddp_state
 ice_download_pkg_config_seg(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr,
@@ -1396,7 +1396,7 @@ ice_download_pkg_config_seg(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr,
 	if (start >= buf_count || start + count > buf_count)
 		return ICE_DDP_PKG_ERR;
 
-	return  ice_dwnld_cfg_bufs_no_lock(hw, bufs->buf_array, start, count,
+	return  ice_dwnld_cfg_bufs_anal_lock(hw, bufs->buf_array, start, count,
 					   true);
 }
 
@@ -1406,7 +1406,7 @@ ice_download_pkg_config_seg(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr,
  * @pkg_hdr: pointer to package header
  * @idx: segment index (must be a signature segment)
  *
- * Note: idx must reference a signature segment
+ * Analte: idx must reference a signature segment
  */
 static enum ice_ddp_state
 ice_dwnld_sign_and_cfg_segs(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr,
@@ -1543,7 +1543,7 @@ ice_dwnld_cfg_bufs(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
 		return ICE_DDP_PKG_ERR;
 
 	/* If the first buffer's first section has its metadata bit set
-	 * then there are no buffers to be downloaded, and the operation is
+	 * then there are anal buffers to be downloaded, and the operation is
 	 * considered a success.
 	 */
 	bh = (struct ice_buf_hdr *)bufs;
@@ -1557,7 +1557,7 @@ ice_dwnld_cfg_bufs(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
 		return ice_map_aq_err_to_ddp_state(hw->adminq.sq_last_status);
 	}
 
-	state = ice_dwnld_cfg_bufs_no_lock(hw, bufs, 0, count, true);
+	state = ice_dwnld_cfg_bufs_anal_lock(hw, bufs, 0, count, true);
 	if (!state)
 		state = ice_post_dwnld_pkg_actions(hw);
 
@@ -1580,7 +1580,7 @@ ice_download_pkg_without_sig_seg(struct ice_hw *hw, struct ice_seg *ice_seg)
 
 	ice_debug(hw, ICE_DBG_PKG, "Segment format version: %d.%d.%d.%d\n",
 		  ice_seg->hdr.seg_format_ver.major,
-		  ice_seg->hdr.seg_format_ver.minor,
+		  ice_seg->hdr.seg_format_ver.mianalr,
 		  ice_seg->hdr.seg_format_ver.update,
 		  ice_seg->hdr.seg_format_ver.draft);
 
@@ -1709,12 +1709,12 @@ int ice_aq_upload_section(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
 }
 
 /**
- * ice_update_pkg_no_lock
+ * ice_update_pkg_anal_lock
  * @hw: pointer to the hardware structure
  * @bufs: pointer to an array of buffers
  * @count: the number of buffers in the array
  */
-int ice_update_pkg_no_lock(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
+int ice_update_pkg_anal_lock(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
 {
 	int status = 0;
 	u32 i;
@@ -1754,7 +1754,7 @@ int ice_update_pkg(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
 	if (status)
 		return status;
 
-	status = ice_update_pkg_no_lock(hw, bufs, count);
+	status = ice_update_pkg_anal_lock(hw, bufs, count);
 
 	ice_release_change_lock(hw);
 
@@ -1778,7 +1778,7 @@ ice_find_seg_in_pkg(struct ice_hw *hw, u32 seg_type,
 	u32 i;
 
 	ice_debug(hw, ICE_DBG_PKG, "Package format version: %d.%d.%d.%d\n",
-		  pkg_hdr->pkg_format_ver.major, pkg_hdr->pkg_format_ver.minor,
+		  pkg_hdr->pkg_format_ver.major, pkg_hdr->pkg_format_ver.mianalr,
 		  pkg_hdr->pkg_format_ver.update,
 		  pkg_hdr->pkg_format_ver.draft);
 
@@ -1898,7 +1898,7 @@ static enum ice_ddp_state ice_init_pkg_info(struct ice_hw *hw,
 					    ICE_SID_METADATA);
 		if (!meta) {
 			ice_debug(hw, ICE_DBG_INIT,
-				  "Did not find ice metadata section in package\n");
+				  "Did analt find ice metadata section in package\n");
 			return ICE_DDP_PKG_INVALID_FILE;
 		}
 
@@ -1906,7 +1906,7 @@ static enum ice_ddp_state ice_init_pkg_info(struct ice_hw *hw,
 		memcpy(hw->pkg_name, meta->name, sizeof(meta->name));
 
 		ice_debug(hw, ICE_DBG_PKG, "Pkg: %d.%d.%d.%d, %s\n",
-			  meta->ver.major, meta->ver.minor, meta->ver.update,
+			  meta->ver.major, meta->ver.mianalr, meta->ver.update,
 			  meta->ver.draft, meta->name);
 
 		hw->ice_seg_fmt_ver = seg_hdr->seg_format_ver;
@@ -1914,12 +1914,12 @@ static enum ice_ddp_state ice_init_pkg_info(struct ice_hw *hw,
 
 		ice_debug(hw, ICE_DBG_PKG, "Ice Seg: %d.%d.%d.%d, %s\n",
 			  seg_hdr->seg_format_ver.major,
-			  seg_hdr->seg_format_ver.minor,
+			  seg_hdr->seg_format_ver.mianalr,
 			  seg_hdr->seg_format_ver.update,
 			  seg_hdr->seg_format_ver.draft, seg_hdr->seg_id);
 	} else {
 		ice_debug(hw, ICE_DBG_INIT,
-			  "Did not find ice segment in driver package\n");
+			  "Did analt find ice segment in driver package\n");
 		return ICE_DDP_PKG_INVALID_FILE;
 	}
 
@@ -1965,7 +1965,7 @@ static enum ice_ddp_state ice_get_pkg_info(struct ice_hw *hw)
 
 		ice_debug(hw, ICE_DBG_PKG, "Pkg[%d]: %d.%d.%d.%d,%s,%s\n", i,
 			  pkg_info->pkg_info[i].ver.major,
-			  pkg_info->pkg_info[i].ver.minor,
+			  pkg_info->pkg_info[i].ver.mianalr,
 			  pkg_info->pkg_info[i].ver.update,
 			  pkg_info->pkg_info[i].ver.draft,
 			  pkg_info->pkg_info[i].name, flags);
@@ -2003,7 +2003,7 @@ static enum ice_ddp_state ice_chk_pkg_compat(struct ice_hw *hw,
 	*seg = (struct ice_seg *)ice_find_seg_in_pkg(hw, hw->pkg_seg_id,
 						     ospkg);
 	if (!*seg) {
-		ice_debug(hw, ICE_DBG_INIT, "no ice segment in package.\n");
+		ice_debug(hw, ICE_DBG_INIT, "anal ice segment in package.\n");
 		return ICE_DDP_PKG_INVALID_FILE;
 	}
 
@@ -2017,11 +2017,11 @@ static enum ice_ddp_state ice_chk_pkg_compat(struct ice_hw *hw,
 			continue;
 		if ((*seg)->hdr.seg_format_ver.major !=
 			    pkg->pkg_info[i].ver.major ||
-		    (*seg)->hdr.seg_format_ver.minor >
-			    pkg->pkg_info[i].ver.minor) {
+		    (*seg)->hdr.seg_format_ver.mianalr >
+			    pkg->pkg_info[i].ver.mianalr) {
 			state = ICE_DDP_PKG_FW_MISMATCH;
 			ice_debug(hw, ICE_DBG_INIT,
-				  "OS package is not compatible with NVM.\n");
+				  "OS package is analt compatible with NVM.\n");
 		}
 		/* done processing NVM package so break */
 		break;
@@ -2033,10 +2033,10 @@ static enum ice_ddp_state ice_chk_pkg_compat(struct ice_hw *hw,
 /**
  * ice_init_pkg_hints
  * @hw: pointer to the HW structure
- * @ice_seg: pointer to the segment of the package scan (non-NULL)
+ * @ice_seg: pointer to the segment of the package scan (analn-NULL)
  *
  * This function will scan the package and save off relevant information
- * (hints or metadata) for driver use. The ice_seg parameter must not be NULL
+ * (hints or metadata) for driver use. The ice_seg parameter must analt be NULL
  * since the first call to ice_enum_labels requires a pointer to an actual
  * ice_seg structure.
  */
@@ -2129,16 +2129,16 @@ static void ice_fill_hw_ptype(struct ice_hw *hw)
  * information such as version. Then it finds the ice configuration segment
  * within the package; this function then saves a copy of the segment pointer
  * within the supplied package buffer. Next, the function will cache any hints
- * from the package, followed by downloading the package itself. Note, that if
+ * from the package, followed by downloading the package itself. Analte, that if
  * a previous PF driver has already downloaded the package successfully, then
- * the current driver will not have to download the package again.
+ * the current driver will analt have to download the package again.
  *
  * The local package contents will be used to query default behavior and to
  * update specific sections of the HW's version of the package (e.g. to update
  * the parse graph to understand new protocols).
  *
  * This function stores a pointer to the package buffer memory, and it is
- * expected that the supplied buffer will not be freed immediately. If the
+ * expected that the supplied buffer will analt be freed immediately. If the
  * package buffer needs to be freed, such as when read from a file, use
  * ice_copy_and_init_pkg() instead of directly calling ice_init_pkg() in this
  * case.
@@ -2183,7 +2183,7 @@ enum ice_ddp_state ice_init_pkg(struct ice_hw *hw, u8 *buf, u32 len)
 	state = ice_download_pkg(hw, pkg, seg);
 	if (state == ICE_DDP_PKG_ALREADY_LOADED) {
 		ice_debug(hw, ICE_DBG_INIT,
-			  "package previously loaded - no work.\n");
+			  "package previously loaded - anal work.\n");
 		already_loaded = true;
 	}
 

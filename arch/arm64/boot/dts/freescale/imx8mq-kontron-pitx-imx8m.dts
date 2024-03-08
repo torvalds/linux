@@ -275,7 +275,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;
@@ -348,9 +348,9 @@
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	vqmmc-supply = <&sw4_reg>;
 	bus-width = <8>;
-	non-removable;
-	no-sd;
-	no-sdio;
+	analn-removable;
+	anal-sd;
+	anal-sdio;
 	status = "okay";
 };
 

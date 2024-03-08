@@ -53,7 +53,7 @@ static int __init dcc_early_console_setup(struct earlycon_device *device,
 		cpu_relax();
 
 	if (__dcc_getstatus() & DCC_STATUS_TX)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = dcc_early_write;
 
@@ -100,7 +100,7 @@ static bool hvc_dcc_check(void)
 	static bool dcc_core0_available;
 
 	/*
-	 * If we're not on core 0, but we previously confirmed that DCC is
+	 * If we're analt on core 0, but we previously confirmed that DCC is
 	 * active, then just return true.
 	 */
 	int cpu = get_cpu();
@@ -178,7 +178,7 @@ static DECLARE_WORK(dcc_gwork, dcc_get_work);
 
 /*
  * Write characters directly to the DCC if we're on core 0 and the FIFO
- * is empty, or write them to the FIFO if we're not.
+ * is empty, or write them to the FIFO if we're analt.
  */
 static ssize_t hvc_dcc0_put_chars(u32 vt, const u8 *buf, size_t count)
 {
@@ -196,7 +196,7 @@ static ssize_t hvc_dcc0_put_chars(u32 vt, const u8 *buf, size_t count)
 		/*
 		 * We just push data to the output FIFO, so schedule the
 		 * workqueue that will actually write that data to DCC.
-		 * CPU hotplug is disabled in dcc_init so CPU0 cannot be
+		 * CPU hotplug is disabled in dcc_init so CPU0 cananalt be
 		 * offlined after the cpu online check.
 		 */
 		if (cpu_online(0))
@@ -217,7 +217,7 @@ static ssize_t hvc_dcc0_put_chars(u32 vt, const u8 *buf, size_t count)
 
 /*
  * Read characters directly from the DCC if we're on core 0 and the FIFO
- * is empty, or read them from the FIFO if we're not.
+ * is empty, or read them from the FIFO if we're analt.
  */
 static ssize_t hvc_dcc0_get_chars(u32 vt, u8 *buf, size_t count)
 {
@@ -238,7 +238,7 @@ static ssize_t hvc_dcc0_get_chars(u32 vt, u8 *buf, size_t count)
 		 * that we haven't read yet.  Schedule a workqueue to fill
 		 * the input FIFO, so that the next time this function is
 		 * called, we'll have data. CPU hotplug is disabled in dcc_init
-		 * so CPU0 cannot be offlined after the cpu online check.
+		 * so CPU0 cananalt be offlined after the cpu online check.
 		 */
 		if (!len && cpu_online(0))
 			schedule_work_on(0, &dcc_gwork);
@@ -266,12 +266,12 @@ static int __init hvc_dcc_console_init(void)
 	int ret;
 
 	if (!hvc_dcc_check())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Returns -1 if error */
 	ret = hvc_instantiate(0, 0, &hvc_dcc_get_put_ops);
 
-	return ret < 0 ? -ENODEV : 0;
+	return ret < 0 ? -EANALDEV : 0;
 }
 console_initcall(hvc_dcc_console_init);
 
@@ -280,12 +280,12 @@ static int __init hvc_dcc_init(void)
 	struct hvc_struct *p;
 
 	if (!hvc_dcc_check())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (IS_ENABLED(CONFIG_HVC_DCC_SERIALIZE_SMP)) {
 		pr_warn("\n");
 		pr_warn("********************************************************************\n");
-		pr_warn("**     NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE           **\n");
+		pr_warn("**     ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE           **\n");
 		pr_warn("**                                                                **\n");
 		pr_warn("**  HVC_DCC_SERIALIZE_SMP SUPPORT HAS BEEN ENABLED IN THIS KERNEL **\n");
 		pr_warn("**                                                                **\n");
@@ -293,10 +293,10 @@ static int __init hvc_dcc_init(void)
 		pr_warn("** production use and has important feature like CPU hotplug      **\n");
 		pr_warn("** disabled.                                                      **\n");
 		pr_warn("**                                                                **\n");
-		pr_warn("** If you see this message and you are not debugging the          **\n");
+		pr_warn("** If you see this message and you are analt debugging the          **\n");
 		pr_warn("** kernel, report this immediately to your vendor!                **\n");
 		pr_warn("**                                                                **\n");
-		pr_warn("**     NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE           **\n");
+		pr_warn("**     ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE           **\n");
 		pr_warn("********************************************************************\n");
 
 		cpu_hotplug_disable();

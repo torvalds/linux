@@ -33,7 +33,7 @@ nfsd_proc_getattr(struct svc_rqst *rqstp)
 
 	fh_copy(&resp->fh, &argp->fh);
 	resp->status = fh_verify(rqstp, &resp->fh, 0,
-				 NFSD_MAY_NOP | NFSD_MAY_BYPASS_GSS_ON_ROOT);
+				 NFSD_MAY_ANALP | NFSD_MAY_BYPASS_GSS_ON_ROOT);
 	if (resp->status != nfs_ok)
 		goto out;
 	resp->status = fh_getattr(&resp->fh, &resp->stat);
@@ -63,15 +63,15 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 	fhp = fh_copy(&resp->fh, &argp->fh);
 
 	/*
-	 * NFSv2 does not differentiate between "set-[ac]time-to-now"
+	 * NFSv2 does analt differentiate between "set-[ac]time-to-analw"
 	 * which only requires access, and "set-[ac]time-to-X" which
 	 * requires ownership.
 	 * So if it looks like it might be "set both to the same time which
-	 * is close to now", and if setattr_prepare fails, then we
-	 * convert to "set to now" instead of "set to explicit time"
+	 * is close to analw", and if setattr_prepare fails, then we
+	 * convert to "set to analw" instead of "set to explicit time"
 	 *
 	 * We only call setattr_prepare as the last test as technically
-	 * it is not an interface that we should be using.
+	 * it is analt an interface that we should be using.
 	 */
 #define BOTH_TIME_SET (ATTR_ATIME_SET | ATTR_MTIME_SET)
 #define	MAX_TOUCH_TIME_ERROR (30*60)
@@ -80,24 +80,24 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 		/*
 		 * Looks probable.
 		 *
-		 * Now just make sure time is in the right ballpark.
+		 * Analw just make sure time is in the right ballpark.
 		 * Solaris, at least, doesn't seem to care what the time
-		 * request is.  We require it be within 30 minutes of now.
+		 * request is.  We require it be within 30 minutes of analw.
 		 */
 		time64_t delta = iap->ia_atime.tv_sec - ktime_get_real_seconds();
 
-		resp->status = fh_verify(rqstp, fhp, 0, NFSD_MAY_NOP);
+		resp->status = fh_verify(rqstp, fhp, 0, NFSD_MAY_ANALP);
 		if (resp->status != nfs_ok)
 			goto out;
 
 		if (delta < 0)
 			delta = -delta;
 		if (delta < MAX_TOUCH_TIME_ERROR &&
-		    setattr_prepare(&nop_mnt_idmap, fhp->fh_dentry, iap) != 0) {
+		    setattr_prepare(&analp_mnt_idmap, fhp->fh_dentry, iap) != 0) {
 			/*
 			 * Turn off ATTR_[AM]TIME_SET but leave ATTR_[AM]TIME.
-			 * This will cause notify_change to set these times
-			 * to "now"
+			 * This will cause analtify_change to set these times
+			 * to "analw"
 			 */
 			iap->ia_valid &= ~BOTH_TIME_SET;
 		}
@@ -121,7 +121,7 @@ nfsd_proc_root(struct svc_rqst *rqstp)
 
 /*
  * Look up a path name component
- * Note: the dentry in the resp->fh may be negative if the file
+ * Analte: the dentry in the resp->fh may be negative if the file
  * doesn't exist yet.
  * N.B. After this call resp->fh needs an fh_put
  */
@@ -255,7 +255,7 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 	struct nfsd_attrs attrs = {
 		.na_iattr	= attr,
 	};
-	struct inode	*inode;
+	struct ianalde	*ianalde;
 	struct dentry	*dchild;
 	int		type, mode;
 	int		hosterr;
@@ -276,52 +276,52 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 		goto done;
 	hosterr = fh_want_write(dirfhp);
 	if (hosterr) {
-		resp->status = nfserrno(hosterr);
+		resp->status = nfserranal(hosterr);
 		goto done;
 	}
 
-	inode_lock_nested(dirfhp->fh_dentry->d_inode, I_MUTEX_PARENT);
+	ianalde_lock_nested(dirfhp->fh_dentry->d_ianalde, I_MUTEX_PARENT);
 	dchild = lookup_one_len(argp->name, dirfhp->fh_dentry, argp->len);
 	if (IS_ERR(dchild)) {
-		resp->status = nfserrno(PTR_ERR(dchild));
+		resp->status = nfserranal(PTR_ERR(dchild));
 		goto out_unlock;
 	}
 	fh_init(newfhp, NFS_FHSIZE);
 	resp->status = fh_compose(newfhp, dirfhp->fh_export, dchild, dirfhp);
 	if (!resp->status && d_really_is_negative(dchild))
-		resp->status = nfserr_noent;
+		resp->status = nfserr_analent;
 	dput(dchild);
 	if (resp->status) {
-		if (resp->status != nfserr_noent)
+		if (resp->status != nfserr_analent)
 			goto out_unlock;
 		/*
 		 * If the new file handle wasn't verified, we can't tell
-		 * whether the file exists or not. Time to bail ...
+		 * whether the file exists or analt. Time to bail ...
 		 */
 		resp->status = nfserr_acces;
 		if (!newfhp->fh_dentry) {
 			printk(KERN_WARNING 
-				"nfsd_proc_create: file handle not verified\n");
+				"nfsd_proc_create: file handle analt verified\n");
 			goto out_unlock;
 		}
 	}
 
-	inode = d_inode(newfhp->fh_dentry);
+	ianalde = d_ianalde(newfhp->fh_dentry);
 
 	/* Unfudge the mode bits */
 	if (attr->ia_valid & ATTR_MODE) {
 		type = attr->ia_mode & S_IFMT;
 		mode = attr->ia_mode & ~S_IFMT;
 		if (!type) {
-			/* no type, so if target exists, assume same as that,
+			/* anal type, so if target exists, assume same as that,
 			 * else assume a file */
-			if (inode) {
-				type = inode->i_mode & S_IFMT;
+			if (ianalde) {
+				type = ianalde->i_mode & S_IFMT;
 				switch(type) {
 				case S_IFCHR:
 				case S_IFBLK:
 					/* reserve rdev for later checking */
-					rdev = inode->i_rdev;
+					rdev = ianalde->i_rdev;
 					attr->ia_valid |= ATTR_SIZE;
 
 					fallthrough;
@@ -341,9 +341,9 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 			} else
 				type = S_IFREG;
 		}
-	} else if (inode) {
-		type = inode->i_mode & S_IFMT;
-		mode = inode->i_mode & ~S_IFMT;
+	} else if (ianalde) {
+		type = ianalde->i_mode & S_IFMT;
+		mode = ianalde->i_mode & ~S_IFMT;
 	} else {
 		type = S_IFREG;
 		mode = 0;	/* ??? */
@@ -352,7 +352,7 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 	attr->ia_valid |= ATTR_MODE;
 	attr->ia_mode = mode;
 
-	/* Special treatment for non-regular files according to the
+	/* Special treatment for analn-regular files according to the
 	 * gospel of sun micro
 	 */
 	if (type != S_IFREG) {
@@ -372,19 +372,19 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 
 		/* Make sure the type and device matches */
 		resp->status = nfserr_exist;
-		if (inode && inode_wrong_type(inode, type))
+		if (ianalde && ianalde_wrong_type(ianalde, type))
 			goto out_unlock;
 	}
 
 	resp->status = nfs_ok;
-	if (!inode) {
+	if (!ianalde) {
 		/* File doesn't exist. Create it and set attrs */
 		resp->status = nfsd_create_locked(rqstp, dirfhp, &attrs, type,
 						  rdev, newfhp);
 	} else if (type == S_IFREG) {
 		dprintk("nfsd:   existing %s, valid=%x, size=%ld\n",
 			argp->name, attr->ia_valid, (long) attr->ia_size);
-		/* File already exists. We ignore all attributes except
+		/* File already exists. We iganalre all attributes except
 		 * size, so that creat() behaves exactly like
 		 * open(..., O_CREAT|O_TRUNC|O_WRONLY).
 		 */
@@ -395,7 +395,7 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 	}
 
 out_unlock:
-	inode_unlock(dirfhp->fh_dentry->d_inode);
+	ianalde_unlock(dirfhp->fh_dentry->d_ianalde);
 	fh_drop_write(dirfhp);
 done:
 	fh_put(dirfhp);
@@ -415,7 +415,7 @@ nfsd_proc_remove(struct svc_rqst *rqstp)
 	dprintk("nfsd: REMOVE   %s %.*s\n", SVCFH_fmt(&argp->fh),
 		argp->len, argp->name);
 
-	/* Unlink. -SIFDIR means file must not be a directory */
+	/* Unlink. -SIFDIR means file must analt be a directory */
 	resp->status = nfsd_unlink(rqstp, &argp->fh, -S_IFDIR,
 				   argp->name, argp->len);
 	fh_put(&argp->fh);
@@ -479,7 +479,7 @@ nfsd_proc_symlink(struct svc_rqst *rqstp)
 						page_address(rqstp->rq_arg.pages[0]),
 						argp->tlen);
 	if (IS_ERR(argp->tname)) {
-		resp->status = nfserrno(PTR_ERR(argp->tname));
+		resp->status = nfserranal(PTR_ERR(argp->tname));
 		goto out;
 	}
 
@@ -499,7 +499,7 @@ out:
 }
 
 /*
- * Make directory. This operation is not idempotent.
+ * Make directory. This operation is analt idempotent.
  * N.B. After this call resp->fh needs an fh_put
  */
 static __be32
@@ -612,7 +612,7 @@ nfsd_proc_statfs(struct svc_rqst *rqstp)
 
 /*
  * NFSv2 Server procedures.
- * Only the results of non-idempotent operations are cached.
+ * Only the results of analn-idempotent operations are cached.
  */
 
 #define ST 1		/* status */
@@ -627,7 +627,7 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_argsize = sizeof(struct nfsd_voidargs),
 		.pc_argzero = sizeof(struct nfsd_voidargs),
 		.pc_ressize = sizeof(struct nfsd_voidres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = 0,
 		.pc_name = "NULL",
 	},
@@ -639,7 +639,7 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_argsize = sizeof(struct nfsd_fhandle),
 		.pc_argzero = sizeof(struct nfsd_fhandle),
 		.pc_ressize = sizeof(struct nfsd_attrstat),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+AT,
 		.pc_name = "GETATTR",
 	},
@@ -662,7 +662,7 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_argsize = sizeof(struct nfsd_voidargs),
 		.pc_argzero = sizeof(struct nfsd_voidargs),
 		.pc_ressize = sizeof(struct nfsd_voidres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = 0,
 		.pc_name = "ROOT",
 	},
@@ -674,7 +674,7 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_argsize = sizeof(struct nfsd_diropargs),
 		.pc_argzero = sizeof(struct nfsd_diropargs),
 		.pc_ressize = sizeof(struct nfsd_diropres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+FH+AT,
 		.pc_name = "LOOKUP",
 	},
@@ -685,7 +685,7 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_argsize = sizeof(struct nfsd_fhandle),
 		.pc_argzero = sizeof(struct nfsd_fhandle),
 		.pc_ressize = sizeof(struct nfsd_readlinkres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+1+NFS_MAXPATHLEN/4,
 		.pc_name = "READLINK",
 	},
@@ -697,7 +697,7 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_argsize = sizeof(struct nfsd_readargs),
 		.pc_argzero = sizeof(struct nfsd_readargs),
 		.pc_ressize = sizeof(struct nfsd_readres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+AT+1+NFSSVC_MAXBLKSIZE_V2/4,
 		.pc_name = "READ",
 	},
@@ -708,7 +708,7 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_argsize = sizeof(struct nfsd_voidargs),
 		.pc_argzero = sizeof(struct nfsd_voidargs),
 		.pc_ressize = sizeof(struct nfsd_voidres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = 0,
 		.pc_name = "WRITECACHE",
 	},
@@ -810,7 +810,7 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_argsize = sizeof(struct nfsd_readdirargs),
 		.pc_argzero = sizeof(struct nfsd_readdirargs),
 		.pc_ressize = sizeof(struct nfsd_readdirres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_name = "READDIR",
 	},
 	[NFSPROC_STATFS] = {
@@ -820,7 +820,7 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_argsize = sizeof(struct nfsd_fhandle),
 		.pc_argzero = sizeof(struct nfsd_fhandle),
 		.pc_ressize = sizeof(struct nfsd_statfsres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+5,
 		.pc_name = "STATFS",
 	},

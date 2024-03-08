@@ -13,13 +13,13 @@
 #include <linux/configfs.h>
 
 struct stp_policy;
-struct stp_policy_node;
+struct stp_policy_analde;
 struct stm_protocol_driver;
 
 int stp_configfs_init(void);
 void stp_configfs_exit(void);
 
-void *stp_policy_node_priv(struct stp_policy_node *pn);
+void *stp_policy_analde_priv(struct stp_policy_analde *pn);
 
 struct stp_master {
 	unsigned int	nr_free;
@@ -39,7 +39,7 @@ struct stm_device {
 	struct list_head	link_list;
 	/* framing protocol in use */
 	const struct stm_protocol_driver	*pdrv;
-	const struct config_item_type		*pdrv_node_type;
+	const struct config_item_type		*pdrv_analde_type;
 	/* master allocation */
 	spinlock_t		mc_lock;
 	struct stp_master	*masters[];
@@ -48,17 +48,17 @@ struct stm_device {
 #define to_stm_device(_d)				\
 	container_of((_d), struct stm_device, dev)
 
-struct stp_policy_node *
-stp_policy_node_lookup(struct stm_device *stm, char *s);
-void stp_policy_node_put(struct stp_policy_node *policy_node);
+struct stp_policy_analde *
+stp_policy_analde_lookup(struct stm_device *stm, char *s);
+void stp_policy_analde_put(struct stp_policy_analde *policy_analde);
 void stp_policy_unbind(struct stp_policy *policy);
 
-void stp_policy_node_get_ranges(struct stp_policy_node *policy_node,
+void stp_policy_analde_get_ranges(struct stp_policy_analde *policy_analde,
 				unsigned int *mstart, unsigned int *mend,
 				unsigned int *cstart, unsigned int *cend);
 
 const struct config_item_type *
-get_policy_node_type(struct configfs_attribute **attrs);
+get_policy_analde_type(struct configfs_attribute **attrs);
 
 struct stm_output {
 	spinlock_t		lock;
@@ -89,7 +89,7 @@ struct stm_source_device {
 #define to_stm_source_device(_d)				\
 	container_of((_d), struct stm_source_device, dev)
 
-void *to_pdrv_policy_node(struct config_item *item);
+void *to_pdrv_policy_analde(struct config_item *item);
 
 struct stm_protocol_driver {
 	struct module	*owner;
@@ -97,7 +97,7 @@ struct stm_protocol_driver {
 	ssize_t		(*write)(struct stm_data *data,
 				 struct stm_output *output, unsigned int chan,
 				 const char *buf, size_t count);
-	void		(*policy_node_init)(void *arg);
+	void		(*policy_analde_init)(void *arg);
 	int		(*output_open)(void *priv, struct stm_output *output);
 	void		(*output_close)(struct stm_output *output);
 	ssize_t		priv_sz;

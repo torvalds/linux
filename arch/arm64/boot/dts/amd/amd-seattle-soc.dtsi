@@ -140,7 +140,7 @@
 			#size-cells = <0>;
 		};
 
-		gpio0: gpio@e1040000 { /* Not available to OS for B0 */
+		gpio0: gpio@e1040000 { /* Analt available to OS for B0 */
 			status = "disabled";
 			compatible = "arm,pl061", "arm,primecell";
 			#gpio-cells = <2>;

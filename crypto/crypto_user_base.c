@@ -196,9 +196,9 @@ static int crypto_report(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 
 	alg = crypto_alg_match(p, 0);
 	if (!alg)
-		return -ENOENT;
+		return -EANALENT;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!skb)
 		goto drop_alg;
@@ -276,7 +276,7 @@ static int crypto_update_alg(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	alg = crypto_alg_match(p, 1);
 	if (!alg)
-		return -ENOENT;
+		return -EANALENT;
 
 	down_write(&crypto_alg_sem);
 
@@ -308,12 +308,12 @@ static int crypto_del_alg(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	alg = crypto_alg_match(p, 1);
 	if (!alg)
-		return -ENOENT;
+		return -EANALENT;
 
-	/* We can not unregister core algorithms such as aes-generic.
+	/* We can analt unregister core algorithms such as aes-generic.
 	 * We would loose the reference in the crypto_alg_list to this algorithm
 	 * if we try to unregister. Unregistering such an algorithm without
-	 * removing the module is not possible, so we restrict to crypto
+	 * removing the module is analt possible, so we restrict to crypto
 	 * instances that are build from templates. */
 	err = -EINVAL;
 	if (!(alg->cra_flags & CRYPTO_ALG_INSTANCE))
@@ -484,7 +484,7 @@ static int __net_init crypto_netlink_init(struct net *net)
 	};
 
 	net->crypto_nlsk = netlink_kernel_create(net, NETLINK_CRYPTO, &cfg);
-	return net->crypto_nlsk == NULL ? -ENOMEM : 0;
+	return net->crypto_nlsk == NULL ? -EANALMEM : 0;
 }
 
 static void __net_exit crypto_netlink_exit(struct net *net)

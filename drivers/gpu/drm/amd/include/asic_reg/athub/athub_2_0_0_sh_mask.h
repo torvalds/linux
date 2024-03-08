@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -43,12 +43,12 @@
 #define ATC_ATS_STATUS__CRASHED__SHIFT                                                                        0x1
 #define ATC_ATS_STATUS__DEADLOCK_DETECTION__SHIFT                                                             0x2
 #define ATC_ATS_STATUS__FLUSH_INVALIDATION_OUTSTANDING__SHIFT                                                 0x3
-#define ATC_ATS_STATUS__NONFLUSH_INVALIDATION_OUTSTANDING__SHIFT                                              0x6
+#define ATC_ATS_STATUS__ANALNFLUSH_INVALIDATION_OUTSTANDING__SHIFT                                              0x6
 #define ATC_ATS_STATUS__BUSY_MASK                                                                             0x00000001L
 #define ATC_ATS_STATUS__CRASHED_MASK                                                                          0x00000002L
 #define ATC_ATS_STATUS__DEADLOCK_DETECTION_MASK                                                               0x00000004L
 #define ATC_ATS_STATUS__FLUSH_INVALIDATION_OUTSTANDING_MASK                                                   0x00000038L
-#define ATC_ATS_STATUS__NONFLUSH_INVALIDATION_OUTSTANDING_MASK                                                0x000001C0L
+#define ATC_ATS_STATUS__ANALNFLUSH_INVALIDATION_OUTSTANDING_MASK                                                0x000001C0L
 //ATC_ATS_FAULT_CNTL
 #define ATC_ATS_FAULT_CNTL__FAULT_REGISTER_LOG__SHIFT                                                         0x0
 #define ATC_ATS_FAULT_CNTL__FAULT_INTERRUPT_TABLE__SHIFT                                                      0xa
@@ -233,115 +233,115 @@
 #define ATC_VMID_PASID_MAPPING_UPDATE_STATUS__VMID31_REMAPPING_FINISHED_MASK                                  0x80000000L
 //ATC_VMID0_PASID_MAPPING
 #define ATC_VMID0_PASID_MAPPING__PASID__SHIFT                                                                 0x0
-#define ATC_VMID0_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                       0x1e
+#define ATC_VMID0_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                       0x1e
 #define ATC_VMID0_PASID_MAPPING__VALID__SHIFT                                                                 0x1f
 #define ATC_VMID0_PASID_MAPPING__PASID_MASK                                                                   0x0000FFFFL
-#define ATC_VMID0_PASID_MAPPING__NO_INVALIDATION_MASK                                                         0x40000000L
+#define ATC_VMID0_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                         0x40000000L
 #define ATC_VMID0_PASID_MAPPING__VALID_MASK                                                                   0x80000000L
 //ATC_VMID1_PASID_MAPPING
 #define ATC_VMID1_PASID_MAPPING__PASID__SHIFT                                                                 0x0
-#define ATC_VMID1_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                       0x1e
+#define ATC_VMID1_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                       0x1e
 #define ATC_VMID1_PASID_MAPPING__VALID__SHIFT                                                                 0x1f
 #define ATC_VMID1_PASID_MAPPING__PASID_MASK                                                                   0x0000FFFFL
-#define ATC_VMID1_PASID_MAPPING__NO_INVALIDATION_MASK                                                         0x40000000L
+#define ATC_VMID1_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                         0x40000000L
 #define ATC_VMID1_PASID_MAPPING__VALID_MASK                                                                   0x80000000L
 //ATC_VMID2_PASID_MAPPING
 #define ATC_VMID2_PASID_MAPPING__PASID__SHIFT                                                                 0x0
-#define ATC_VMID2_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                       0x1e
+#define ATC_VMID2_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                       0x1e
 #define ATC_VMID2_PASID_MAPPING__VALID__SHIFT                                                                 0x1f
 #define ATC_VMID2_PASID_MAPPING__PASID_MASK                                                                   0x0000FFFFL
-#define ATC_VMID2_PASID_MAPPING__NO_INVALIDATION_MASK                                                         0x40000000L
+#define ATC_VMID2_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                         0x40000000L
 #define ATC_VMID2_PASID_MAPPING__VALID_MASK                                                                   0x80000000L
 //ATC_VMID3_PASID_MAPPING
 #define ATC_VMID3_PASID_MAPPING__PASID__SHIFT                                                                 0x0
-#define ATC_VMID3_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                       0x1e
+#define ATC_VMID3_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                       0x1e
 #define ATC_VMID3_PASID_MAPPING__VALID__SHIFT                                                                 0x1f
 #define ATC_VMID3_PASID_MAPPING__PASID_MASK                                                                   0x0000FFFFL
-#define ATC_VMID3_PASID_MAPPING__NO_INVALIDATION_MASK                                                         0x40000000L
+#define ATC_VMID3_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                         0x40000000L
 #define ATC_VMID3_PASID_MAPPING__VALID_MASK                                                                   0x80000000L
 //ATC_VMID4_PASID_MAPPING
 #define ATC_VMID4_PASID_MAPPING__PASID__SHIFT                                                                 0x0
-#define ATC_VMID4_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                       0x1e
+#define ATC_VMID4_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                       0x1e
 #define ATC_VMID4_PASID_MAPPING__VALID__SHIFT                                                                 0x1f
 #define ATC_VMID4_PASID_MAPPING__PASID_MASK                                                                   0x0000FFFFL
-#define ATC_VMID4_PASID_MAPPING__NO_INVALIDATION_MASK                                                         0x40000000L
+#define ATC_VMID4_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                         0x40000000L
 #define ATC_VMID4_PASID_MAPPING__VALID_MASK                                                                   0x80000000L
 //ATC_VMID5_PASID_MAPPING
 #define ATC_VMID5_PASID_MAPPING__PASID__SHIFT                                                                 0x0
-#define ATC_VMID5_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                       0x1e
+#define ATC_VMID5_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                       0x1e
 #define ATC_VMID5_PASID_MAPPING__VALID__SHIFT                                                                 0x1f
 #define ATC_VMID5_PASID_MAPPING__PASID_MASK                                                                   0x0000FFFFL
-#define ATC_VMID5_PASID_MAPPING__NO_INVALIDATION_MASK                                                         0x40000000L
+#define ATC_VMID5_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                         0x40000000L
 #define ATC_VMID5_PASID_MAPPING__VALID_MASK                                                                   0x80000000L
 //ATC_VMID6_PASID_MAPPING
 #define ATC_VMID6_PASID_MAPPING__PASID__SHIFT                                                                 0x0
-#define ATC_VMID6_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                       0x1e
+#define ATC_VMID6_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                       0x1e
 #define ATC_VMID6_PASID_MAPPING__VALID__SHIFT                                                                 0x1f
 #define ATC_VMID6_PASID_MAPPING__PASID_MASK                                                                   0x0000FFFFL
-#define ATC_VMID6_PASID_MAPPING__NO_INVALIDATION_MASK                                                         0x40000000L
+#define ATC_VMID6_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                         0x40000000L
 #define ATC_VMID6_PASID_MAPPING__VALID_MASK                                                                   0x80000000L
 //ATC_VMID7_PASID_MAPPING
 #define ATC_VMID7_PASID_MAPPING__PASID__SHIFT                                                                 0x0
-#define ATC_VMID7_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                       0x1e
+#define ATC_VMID7_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                       0x1e
 #define ATC_VMID7_PASID_MAPPING__VALID__SHIFT                                                                 0x1f
 #define ATC_VMID7_PASID_MAPPING__PASID_MASK                                                                   0x0000FFFFL
-#define ATC_VMID7_PASID_MAPPING__NO_INVALIDATION_MASK                                                         0x40000000L
+#define ATC_VMID7_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                         0x40000000L
 #define ATC_VMID7_PASID_MAPPING__VALID_MASK                                                                   0x80000000L
 //ATC_VMID8_PASID_MAPPING
 #define ATC_VMID8_PASID_MAPPING__PASID__SHIFT                                                                 0x0
-#define ATC_VMID8_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                       0x1e
+#define ATC_VMID8_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                       0x1e
 #define ATC_VMID8_PASID_MAPPING__VALID__SHIFT                                                                 0x1f
 #define ATC_VMID8_PASID_MAPPING__PASID_MASK                                                                   0x0000FFFFL
-#define ATC_VMID8_PASID_MAPPING__NO_INVALIDATION_MASK                                                         0x40000000L
+#define ATC_VMID8_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                         0x40000000L
 #define ATC_VMID8_PASID_MAPPING__VALID_MASK                                                                   0x80000000L
 //ATC_VMID9_PASID_MAPPING
 #define ATC_VMID9_PASID_MAPPING__PASID__SHIFT                                                                 0x0
-#define ATC_VMID9_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                       0x1e
+#define ATC_VMID9_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                       0x1e
 #define ATC_VMID9_PASID_MAPPING__VALID__SHIFT                                                                 0x1f
 #define ATC_VMID9_PASID_MAPPING__PASID_MASK                                                                   0x0000FFFFL
-#define ATC_VMID9_PASID_MAPPING__NO_INVALIDATION_MASK                                                         0x40000000L
+#define ATC_VMID9_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                         0x40000000L
 #define ATC_VMID9_PASID_MAPPING__VALID_MASK                                                                   0x80000000L
 //ATC_VMID10_PASID_MAPPING
 #define ATC_VMID10_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID10_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID10_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID10_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID10_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID10_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID10_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID10_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID11_PASID_MAPPING
 #define ATC_VMID11_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID11_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID11_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID11_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID11_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID11_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID11_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID11_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID12_PASID_MAPPING
 #define ATC_VMID12_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID12_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID12_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID12_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID12_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID12_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID12_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID12_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID13_PASID_MAPPING
 #define ATC_VMID13_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID13_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID13_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID13_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID13_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID13_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID13_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID13_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID14_PASID_MAPPING
 #define ATC_VMID14_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID14_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID14_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID14_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID14_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID14_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID14_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID14_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID15_PASID_MAPPING
 #define ATC_VMID15_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID15_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID15_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID15_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID15_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID15_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID15_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID15_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_ATS_VMID_STATUS
 #define ATC_ATS_VMID_STATUS__VMID0_OUTSTANDING__SHIFT                                                         0x0
@@ -609,115 +609,115 @@
 #define ATHUB_IH_CREDIT__IH_CLIENT_ID_MASK                                                                    0x00FF0000L
 //ATC_VMID16_PASID_MAPPING
 #define ATC_VMID16_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID16_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID16_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID16_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID16_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID16_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID16_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID16_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID17_PASID_MAPPING
 #define ATC_VMID17_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID17_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID17_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID17_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID17_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID17_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID17_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID17_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID18_PASID_MAPPING
 #define ATC_VMID18_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID18_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID18_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID18_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID18_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID18_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID18_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID18_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID19_PASID_MAPPING
 #define ATC_VMID19_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID19_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID19_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID19_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID19_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID19_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID19_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID19_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID20_PASID_MAPPING
 #define ATC_VMID20_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID20_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID20_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID20_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID20_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID20_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID20_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID20_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID21_PASID_MAPPING
 #define ATC_VMID21_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID21_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID21_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID21_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID21_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID21_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID21_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID21_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID22_PASID_MAPPING
 #define ATC_VMID22_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID22_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID22_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID22_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID22_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID22_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID22_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID22_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID23_PASID_MAPPING
 #define ATC_VMID23_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID23_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID23_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID23_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID23_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID23_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID23_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID23_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID24_PASID_MAPPING
 #define ATC_VMID24_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID24_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID24_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID24_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID24_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID24_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID24_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID24_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID25_PASID_MAPPING
 #define ATC_VMID25_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID25_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID25_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID25_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID25_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID25_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID25_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID25_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID26_PASID_MAPPING
 #define ATC_VMID26_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID26_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID26_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID26_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID26_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID26_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID26_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID26_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID27_PASID_MAPPING
 #define ATC_VMID27_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID27_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID27_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID27_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID27_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID27_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID27_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID27_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID28_PASID_MAPPING
 #define ATC_VMID28_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID28_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID28_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID28_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID28_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID28_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID28_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID28_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID29_PASID_MAPPING
 #define ATC_VMID29_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID29_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID29_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID29_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID29_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID29_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID29_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID29_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID30_PASID_MAPPING
 #define ATC_VMID30_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID30_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID30_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID30_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID30_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID30_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID30_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID30_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_VMID31_PASID_MAPPING
 #define ATC_VMID31_PASID_MAPPING__PASID__SHIFT                                                                0x0
-#define ATC_VMID31_PASID_MAPPING__NO_INVALIDATION__SHIFT                                                      0x1e
+#define ATC_VMID31_PASID_MAPPING__ANAL_INVALIDATION__SHIFT                                                      0x1e
 #define ATC_VMID31_PASID_MAPPING__VALID__SHIFT                                                                0x1f
 #define ATC_VMID31_PASID_MAPPING__PASID_MASK                                                                  0x0000FFFFL
-#define ATC_VMID31_PASID_MAPPING__NO_INVALIDATION_MASK                                                        0x40000000L
+#define ATC_VMID31_PASID_MAPPING__ANAL_INVALIDATION_MASK                                                        0x40000000L
 #define ATC_VMID31_PASID_MAPPING__VALID_MASK                                                                  0x80000000L
 //ATC_ATS_MMHUB_ATCL2_STATUS
 #define ATC_ATS_MMHUB_ATCL2_STATUS__POWERED_DOWN__SHIFT                                                       0x0
@@ -1200,7 +1200,7 @@
 //XPB_P2P_BAR_CFG
 #define XPB_P2P_BAR_CFG__ADDR_SIZE__SHIFT                                                                     0x0
 #define XPB_P2P_BAR_CFG__SEND_BAR__SHIFT                                                                      0x4
-#define XPB_P2P_BAR_CFG__SNOOP__SHIFT                                                                         0x6
+#define XPB_P2P_BAR_CFG__SANALOP__SHIFT                                                                         0x6
 #define XPB_P2P_BAR_CFG__SEND_DIS__SHIFT                                                                      0x7
 #define XPB_P2P_BAR_CFG__COMPRESS_DIS__SHIFT                                                                  0x8
 #define XPB_P2P_BAR_CFG__UPDATE_DIS__SHIFT                                                                    0x9
@@ -1209,7 +1209,7 @@
 #define XPB_P2P_BAR_CFG__ATC_TRANSLATED__SHIFT                                                                0xc
 #define XPB_P2P_BAR_CFG__ADDR_SIZE_MASK                                                                       0x0000000FL
 #define XPB_P2P_BAR_CFG__SEND_BAR_MASK                                                                        0x00000030L
-#define XPB_P2P_BAR_CFG__SNOOP_MASK                                                                           0x00000040L
+#define XPB_P2P_BAR_CFG__SANALOP_MASK                                                                           0x00000040L
 #define XPB_P2P_BAR_CFG__SEND_DIS_MASK                                                                        0x00000080L
 #define XPB_P2P_BAR_CFG__COMPRESS_DIS_MASK                                                                    0x00000100L
 #define XPB_P2P_BAR_CFG__UPDATE_DIS_MASK                                                                      0x00000200L
@@ -1462,23 +1462,23 @@
 #define XPB_INTF_CFG__RPB_WRREQ_CRD__SHIFT                                                                    0x0
 #define XPB_INTF_CFG__MC_WRRET_ASK__SHIFT                                                                     0x8
 #define XPB_INTF_CFG__XSP_REQ_CRD__SHIFT                                                                      0x10
-#define XPB_INTF_CFG__BIF_REG_SNOOP_SEL__SHIFT                                                                0x17
-#define XPB_INTF_CFG__BIF_REG_SNOOP_VAL__SHIFT                                                                0x18
-#define XPB_INTF_CFG__BIF_MEM_SNOOP_SEL__SHIFT                                                                0x19
-#define XPB_INTF_CFG__BIF_MEM_SNOOP_VAL__SHIFT                                                                0x1a
-#define XPB_INTF_CFG__XSP_SNOOP_SEL__SHIFT                                                                    0x1b
-#define XPB_INTF_CFG__XSP_SNOOP_VAL__SHIFT                                                                    0x1d
+#define XPB_INTF_CFG__BIF_REG_SANALOP_SEL__SHIFT                                                                0x17
+#define XPB_INTF_CFG__BIF_REG_SANALOP_VAL__SHIFT                                                                0x18
+#define XPB_INTF_CFG__BIF_MEM_SANALOP_SEL__SHIFT                                                                0x19
+#define XPB_INTF_CFG__BIF_MEM_SANALOP_VAL__SHIFT                                                                0x1a
+#define XPB_INTF_CFG__XSP_SANALOP_SEL__SHIFT                                                                    0x1b
+#define XPB_INTF_CFG__XSP_SANALOP_VAL__SHIFT                                                                    0x1d
 #define XPB_INTF_CFG__XSP_ORDERING_SEL__SHIFT                                                                 0x1e
 #define XPB_INTF_CFG__XSP_ORDERING_VAL__SHIFT                                                                 0x1f
 #define XPB_INTF_CFG__RPB_WRREQ_CRD_MASK                                                                      0x000000FFL
 #define XPB_INTF_CFG__MC_WRRET_ASK_MASK                                                                       0x0000FF00L
 #define XPB_INTF_CFG__XSP_REQ_CRD_MASK                                                                        0x007F0000L
-#define XPB_INTF_CFG__BIF_REG_SNOOP_SEL_MASK                                                                  0x00800000L
-#define XPB_INTF_CFG__BIF_REG_SNOOP_VAL_MASK                                                                  0x01000000L
-#define XPB_INTF_CFG__BIF_MEM_SNOOP_SEL_MASK                                                                  0x02000000L
-#define XPB_INTF_CFG__BIF_MEM_SNOOP_VAL_MASK                                                                  0x04000000L
-#define XPB_INTF_CFG__XSP_SNOOP_SEL_MASK                                                                      0x18000000L
-#define XPB_INTF_CFG__XSP_SNOOP_VAL_MASK                                                                      0x20000000L
+#define XPB_INTF_CFG__BIF_REG_SANALOP_SEL_MASK                                                                  0x00800000L
+#define XPB_INTF_CFG__BIF_REG_SANALOP_VAL_MASK                                                                  0x01000000L
+#define XPB_INTF_CFG__BIF_MEM_SANALOP_SEL_MASK                                                                  0x02000000L
+#define XPB_INTF_CFG__BIF_MEM_SANALOP_VAL_MASK                                                                  0x04000000L
+#define XPB_INTF_CFG__XSP_SANALOP_SEL_MASK                                                                      0x18000000L
+#define XPB_INTF_CFG__XSP_SANALOP_VAL_MASK                                                                      0x20000000L
 #define XPB_INTF_CFG__XSP_ORDERING_SEL_MASK                                                                   0x40000000L
 #define XPB_INTF_CFG__XSP_ORDERING_VAL_MASK                                                                   0x80000000L
 //XPB_INTF_STS
@@ -1567,13 +1567,13 @@
 //XPB_MAP_INVERT_FLUSH_NUM_LSB
 #define XPB_MAP_INVERT_FLUSH_NUM_LSB__ALTER_FLUSH_NUM__SHIFT                                                  0x0
 #define XPB_MAP_INVERT_FLUSH_NUM_LSB__ALTER_FLUSH_NUM_MASK                                                    0x0000FFFFL
-//XPB_PERF_KNOBS
-#define XPB_PERF_KNOBS__CNS_FIFO_DEPTH__SHIFT                                                                 0x0
-#define XPB_PERF_KNOBS__WCB_HST_FIFO_DEPTH__SHIFT                                                             0x6
-#define XPB_PERF_KNOBS__WCB_SID_FIFO_DEPTH__SHIFT                                                             0xc
-#define XPB_PERF_KNOBS__CNS_FIFO_DEPTH_MASK                                                                   0x0000003FL
-#define XPB_PERF_KNOBS__WCB_HST_FIFO_DEPTH_MASK                                                               0x00000FC0L
-#define XPB_PERF_KNOBS__WCB_SID_FIFO_DEPTH_MASK                                                               0x0003F000L
+//XPB_PERF_KANALBS
+#define XPB_PERF_KANALBS__CNS_FIFO_DEPTH__SHIFT                                                                 0x0
+#define XPB_PERF_KANALBS__WCB_HST_FIFO_DEPTH__SHIFT                                                             0x6
+#define XPB_PERF_KANALBS__WCB_SID_FIFO_DEPTH__SHIFT                                                             0xc
+#define XPB_PERF_KANALBS__CNS_FIFO_DEPTH_MASK                                                                   0x0000003FL
+#define XPB_PERF_KANALBS__WCB_HST_FIFO_DEPTH_MASK                                                               0x00000FC0L
+#define XPB_PERF_KANALBS__WCB_SID_FIFO_DEPTH_MASK                                                               0x0003F000L
 //XPB_STICKY
 #define XPB_STICKY__BITS__SHIFT                                                                               0x0
 #define XPB_STICKY__BITS_MASK                                                                                 0xFFFFFFFFL

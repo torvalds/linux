@@ -60,9 +60,9 @@
 static void __init test_bitfields_constants(struct kunit *context)
 {
 	/*
-	 * NOTE
+	 * ANALTE
 	 * This whole function compiles (or at least should, if everything
-	 * is going according to plan) to nothing after optimisation.
+	 * is going according to plan) to analthing after optimisation.
 	 */
 
 	CHECK_ENC_GET(16,  1, 0x000f, 0x0001);

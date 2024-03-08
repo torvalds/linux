@@ -64,7 +64,7 @@
 
 &mmc0 {
 	vmmc-supply = <&reg_dldo1>;
-	/* Card detection pin is not connected */
+	/* Card detection pin is analt connected */
 	broken-cd;
 	bus-width = <4>;
 	status = "okay";
@@ -75,7 +75,7 @@
 	vqmmc-supply = <&reg_vcc_wifi_io>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	mmc-ddr-1_8v;
 	status = "okay";
 

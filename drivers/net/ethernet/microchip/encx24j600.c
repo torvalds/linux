@@ -7,7 +7,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/interrupt.h>
@@ -26,7 +26,7 @@
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 static int debug = -1;
 module_param(debug, int, 0000);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Debug level (0=analne,...,16=all)");
 
 /* SRAM memory layout:
  *
@@ -39,7 +39,7 @@ MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 #define ENC_SRAM_SIZE    0x6000U
 
 enum {
-	RXFILTER_NORMAL,
+	RXFILTER_ANALRMAL,
 	RXFILTER_MULTI,
 	RXFILTER_PROMISC
 };
@@ -82,16 +82,16 @@ static void encx24j600_dump_rsv(struct encx24j600_priv *priv, const char *msg,
 	netdev_dbg(dev, "CRCErr:%d, LenChkErr: %d, LenOutOfRange: %d\n",
 		   RSV_GETBIT(rsv->rxstat, RSV_CRCERROR),
 		   RSV_GETBIT(rsv->rxstat, RSV_LENCHECKERR),
-		   RSV_GETBIT(rsv->rxstat, RSV_LENOUTOFRANGE));
+		   RSV_GETBIT(rsv->rxstat, RSV_LEANALUTOFRANGE));
 	netdev_dbg(dev, "Multicast: %d, Broadcast: %d, LongDropEvent: %d, CarrierEvent: %d\n",
 		   RSV_GETBIT(rsv->rxstat, RSV_RXMULTICAST),
 		   RSV_GETBIT(rsv->rxstat, RSV_RXBROADCAST),
 		   RSV_GETBIT(rsv->rxstat, RSV_RXLONGEVDROPEV),
 		   RSV_GETBIT(rsv->rxstat, RSV_CARRIEREV));
-	netdev_dbg(dev, "ControlFrame: %d, PauseFrame: %d, UnknownOp: %d, VLanTagFrame: %d\n",
+	netdev_dbg(dev, "ControlFrame: %d, PauseFrame: %d, UnkanalwnOp: %d, VLanTagFrame: %d\n",
 		   RSV_GETBIT(rsv->rxstat, RSV_RXCONTROLFRAME),
 		   RSV_GETBIT(rsv->rxstat, RSV_RXPAUSEFRAME),
-		   RSV_GETBIT(rsv->rxstat, RSV_RXUNKNOWNOPCODE),
+		   RSV_GETBIT(rsv->rxstat, RSV_RXUNKANALWANALPCODE),
 		   RSV_GETBIT(rsv->rxstat, RSV_RXTYPEVLAN));
 }
 
@@ -228,7 +228,7 @@ static int encx24j600_wait_for_autoneg(struct encx24j600_priv *priv)
 		if (time_after(jiffies, timeout)) {
 			u16 phstat3;
 
-			netif_notice(priv, drv, dev, "timeout waiting for autoneg done\n");
+			netif_analtice(priv, drv, dev, "timeout waiting for autoneg done\n");
 
 			priv->autoneg = AUTONEG_DISABLE;
 			phstat3 = encx24j600_read_phy(priv, PHSTAT3);
@@ -236,7 +236,7 @@ static int encx24j600_wait_for_autoneg(struct encx24j600_priv *priv)
 				      ? SPEED_100 : SPEED_10;
 			priv->full_duplex = (phstat3 & PHY3DPX) ? 1 : 0;
 			encx24j600_update_phcon1(priv);
-			netif_notice(priv, drv, dev, "Using parallel detection: %s/%s",
+			netif_analtice(priv, drv, dev, "Using parallel detection: %s/%s",
 				     priv->speed == SPEED_100 ? "100" : "10",
 				     priv->full_duplex ? "Full" : "Half");
 
@@ -277,7 +277,7 @@ static void encx24j600_check_link_status(struct encx24j600_priv *priv)
 	} else {
 		netif_info(priv, ifdown, dev, "link down\n");
 
-		/* Re-enable autoneg since we won't know what we might be
+		/* Re-enable autoneg since we won't kanalw what we might be
 		 * connected to when the link is brought back up again.
 		 */
 		priv->autoneg  = AUTONEG_ENABLE;
@@ -335,7 +335,7 @@ static int encx24j600_receive_packet(struct encx24j600_priv *priv,
 	if (!skb) {
 		pr_err_ratelimited("RX: OOM: packet dropped\n");
 		dev->stats.rx_dropped++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	skb_reserve(skb, NET_IP_ALIGN);
 	encx24j600_raw_read(priv, RRXDATA, skb_put(skb, rsv->len), rsv->len);
@@ -589,13 +589,13 @@ static void encx24j600_set_rxfilter_mode(struct encx24j600_priv *priv)
 	switch (priv->rxfilter) {
 	case RXFILTER_PROMISC:
 		encx24j600_set_bits(priv, MACON1, PASSALL);
-		encx24j600_write_reg(priv, ERXFCON, UCEN | MCEN | NOTMEEN);
+		encx24j600_write_reg(priv, ERXFCON, UCEN | MCEN | ANALTMEEN);
 		break;
 	case RXFILTER_MULTI:
 		encx24j600_clr_bits(priv, MACON1, PASSALL);
 		encx24j600_write_reg(priv, ERXFCON, UCEN | CRCEN | BCEN | MCEN);
 		break;
-	case RXFILTER_NORMAL:
+	case RXFILTER_ANALRMAL:
 	default:
 		encx24j600_clr_bits(priv, MACON1, PASSALL);
 		encx24j600_write_reg(priv, ERXFCON, UCEN | CRCEN | BCEN);
@@ -633,7 +633,7 @@ static void encx24j600_hw_init(struct encx24j600_priv *priv)
 
 	encx24j600_set_bits(priv, MACON2, macon2);
 
-	priv->rxfilter = RXFILTER_NORMAL;
+	priv->rxfilter = RXFILTER_ANALRMAL;
 	encx24j600_set_rxfilter_mode(priv);
 
 	/* Program the Maximum frame length */
@@ -683,7 +683,7 @@ static int encx24j600_setlink(struct net_device *dev, u8 autoneg, u16 speed,
 	int ret = 0;
 
 	if (!priv->hw_enabled) {
-		/* link is in low power mode now; duplex setting
+		/* link is in low power mode analw; duplex setting
 		 * will take effect on next encx24j600_hw_init()
 		 */
 		if (speed == SPEED_10 || speed == SPEED_100) {
@@ -693,8 +693,8 @@ static int encx24j600_setlink(struct net_device *dev, u8 autoneg, u16 speed,
 		} else {
 			netif_warn(priv, link, dev, "unsupported link speed setting\n");
 			/*speeds other than SPEED_10 and SPEED_100 */
-			/*are not supported by chip */
-			ret = -EOPNOTSUPP;
+			/*are analt supported by chip */
+			ret = -EOPANALTSUPP;
 		}
 	} else {
 		netif_warn(priv, link, dev, "Warning: hw must be disabled to set link mode\n");
@@ -759,7 +759,7 @@ static int encx24j600_set_mac_address(struct net_device *dev, void *addr)
 	if (netif_running(dev))
 		return -EBUSY;
 	if (!is_valid_ether_addr(address->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(dev, address->sa_data);
 	return encx24j600_set_hw_macaddr(dev);
@@ -818,8 +818,8 @@ static void encx24j600_set_multicast_list(struct net_device *dev)
 			  (dev->flags & IFF_ALLMULTI) ? "all-" : "");
 		priv->rxfilter = RXFILTER_MULTI;
 	} else {
-		netif_dbg(priv, link, dev, "normal mode\n");
-		priv->rxfilter = RXFILTER_NORMAL;
+		netif_dbg(priv, link, dev, "analrmal mode\n");
+		priv->rxfilter = RXFILTER_ANALRMAL;
 	}
 
 	if (oldfilter != priv->rxfilter)
@@ -915,7 +915,7 @@ static void encx24j600_get_regs(struct net_device *dev,
 	mutex_lock(&priv->lock);
 	for (reg = 0; reg < SFR_REG_COUNT; reg += 2) {
 		unsigned int val = 0;
-		/* ignore errors for unreadable registers */
+		/* iganalre errors for unreadable registers */
 		regmap_read(priv->ctx.regmap, reg, &val);
 		buff[reg] = val & 0xffff;
 	}
@@ -1006,7 +1006,7 @@ static int encx24j600_spi_probe(struct spi_device *spi)
 	ndev = alloc_etherdev(sizeof(struct encx24j600_priv));
 
 	if (!ndev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_out;
 	}
 
@@ -1036,7 +1036,7 @@ static int encx24j600_spi_probe(struct spi_device *spi)
 	/* Reset device and check if it is connected */
 	if (encx24j600_hw_reset(priv)) {
 		netif_err(priv, probe, ndev,
-			  DRV_NAME ": Chip is not detected\n");
+			  DRV_NAME ": Chip is analt detected\n");
 		ret = -EIO;
 		goto out_free;
 	}

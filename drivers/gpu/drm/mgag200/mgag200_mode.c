@@ -130,7 +130,7 @@ static inline void mga_wait_busy(struct mga_device *mdev)
 /*
  * This is how the framebuffer base address is stored in g200 cards:
  *   * Assume @offset is the gpu_addr variable of the framebuffer object
- *   * Then addr is the number of _pixels_ (not bytes) from the start of
+ *   * Then addr is the number of _pixels_ (analt bytes) from the start of
  *     VRAM to the first pixel we want to display. (divided by 2 for 32bit
  *     framebuffers)
  *   * addr is stored in the CRTCEXT0, CRTCC and CRTCD registers
@@ -152,7 +152,7 @@ static void mgag200_set_startadd(struct mga_device *mdev,
 	startadd = offset / 8;
 
 	if (startadd > 0)
-		drm_WARN_ON_ONCE(dev, mdev->info->bug_no_startadd);
+		drm_WARN_ON_ONCE(dev, mdev->info->bug_anal_startadd);
 
 	/*
 	 * Can't store addresses any higher than that, but we also
@@ -470,8 +470,8 @@ int mgag200_primary_plane_helper_atomic_check(struct drm_plane *plane,
 		new_crtc_state = drm_atomic_get_new_crtc_state(new_state, new_crtc);
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  false, true);
 	if (ret)
 		return ret;
@@ -507,7 +507,7 @@ void mgag200_primary_plane_helper_atomic_update(struct drm_plane *plane,
 		mgag200_handle_damage(mdev, shadow_plane_state->data, fb, &damage);
 	}
 
-	/* Always scanout image at VRAM offset 0 */
+	/* Always scaanalut image at VRAM offset 0 */
 	mgag200_set_startadd(mdev, (u32)0);
 	mgag200_set_offset(mdev, fb);
 }
@@ -796,7 +796,7 @@ static enum drm_mode_status mgag200_mode_config_mode_valid(struct drm_device *de
 
 	/*
 	 * Test the mode's required memory bandwidth if the device
-	 * specifies a maximum. Not all devices do though.
+	 * specifies a maximum. Analt all devices do though.
 	 */
 	if (info->max_mem_bandwidth) {
 		uint32_t mode_bandwidth = mgag200_calculate_mode_bandwidth(mode, max_bpp * 8);

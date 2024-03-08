@@ -12,7 +12,7 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define SUN8I_A83T_MIPI_CSI2_NAME	"sun8i-a83t-mipi-csi2"
 
@@ -31,8 +31,8 @@ struct sun8i_a83t_mipi_csi2_format {
 struct sun8i_a83t_mipi_csi2_bridge {
 	struct v4l2_subdev		subdev;
 	struct media_pad		pads[SUN8I_A83T_MIPI_CSI2_PAD_COUNT];
-	struct v4l2_fwnode_endpoint	endpoint;
-	struct v4l2_async_notifier	notifier;
+	struct v4l2_fwanalde_endpoint	endpoint;
+	struct v4l2_async_analtifier	analtifier;
 	struct v4l2_mbus_framefmt	mbus_format;
 	struct mutex			lock; /* Mbus format lock. */
 

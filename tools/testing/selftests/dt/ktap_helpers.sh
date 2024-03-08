@@ -4,7 +4,7 @@
 #
 # Helpers for outputting in KTAP format
 #
-KTAP_TESTNO=1
+KTAP_TESTANAL=1
 KTAP_CNT_PASS=0
 KTAP_CNT_FAIL=0
 KTAP_CNT_SKIP=0
@@ -32,9 +32,9 @@ __ktap_test() {
 	local directive_str=
 	[[ ! -z "$directive" ]] && directive_str="# $directive"
 
-	echo $result $KTAP_TESTNO $description $directive_str
+	echo $result $KTAP_TESTANAL $description $directive_str
 
-	KTAP_TESTNO=$((KTAP_TESTNO+1))
+	KTAP_TESTANAL=$((KTAP_TESTANAL+1))
 }
 
 ktap_test_pass() {
@@ -59,7 +59,7 @@ ktap_test_skip() {
 ktap_test_fail() {
 	description="$1"
 
-	result="not ok"
+	result="analt ok"
 	__ktap_test "$result" "$description"
 
 	KTAP_CNT_FAIL=$((KTAP_CNT_FAIL+1))

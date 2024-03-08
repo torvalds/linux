@@ -12,7 +12,7 @@
 #include <linux/hugetlb.h>
 #include <linux/memremap.h>
 #include <linux/memcontrol.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/page_idle.h>
 #include <linux/kernel-page-flags.h>
 #include <linux/uaccess.h>
@@ -27,7 +27,7 @@ static inline unsigned long get_max_dump_pfn(void)
 #ifdef CONFIG_SPARSEMEM
 	/*
 	 * The memmap of early sections is completely populated and marked
-	 * online even if max_pfn does not fall on a section boundary -
+	 * online even if max_pfn does analt fall on a section boundary -
 	 * pfn_to_online_page() will succeed on all pages. Allow inspecting
 	 * these memmaps.
 	 */
@@ -113,25 +113,25 @@ u64 stable_page_flags(struct page *page)
 	u64 u;
 
 	/*
-	 * pseudo flag: KPF_NOPAGE
-	 * it differentiates a memory hole from a page with no flags
+	 * pseudo flag: KPF_ANALPAGE
+	 * it differentiates a memory hole from a page with anal flags
 	 */
 	if (!page)
-		return 1 << KPF_NOPAGE;
+		return 1 << KPF_ANALPAGE;
 
 	k = page->flags;
 	u = 0;
 
 	/*
-	 * pseudo flags for the well known (anonymous) memory mapped pages
+	 * pseudo flags for the well kanalwn (aanalnymous) memory mapped pages
 	 *
-	 * Note that page->_mapcount is overloaded in SLAB, so the
-	 * simple test in page_mapped() is not enough.
+	 * Analte that page->_mapcount is overloaded in SLAB, so the
+	 * simple test in page_mapped() is analt eanalugh.
 	 */
 	if (!PageSlab(page) && page_mapped(page))
 		u |= 1 << KPF_MMAP;
-	if (PageAnon(page))
-		u |= 1 << KPF_ANON;
+	if (PageAanaln(page))
+		u |= 1 << KPF_AANALN;
 	if (PageKsm(page))
 		u |= 1 << KPF_KSM;
 
@@ -146,15 +146,15 @@ u64 stable_page_flags(struct page *page)
 	if (PageHuge(page))
 		u |= 1 << KPF_HUGE;
 	/*
-	 * PageTransCompound can be true for non-huge compound pages (slab
+	 * PageTransCompound can be true for analn-huge compound pages (slab
 	 * pages or pages allocated by drivers with __GFP_COMP) because it
-	 * just checks PG_head/PG_tail, so we need to check PageLRU/PageAnon
-	 * to make sure a given page is a thp, not a non-huge compound page.
+	 * just checks PG_head/PG_tail, so we need to check PageLRU/PageAanaln
+	 * to make sure a given page is a thp, analt a analn-huge compound page.
 	 */
 	else if (PageTransCompound(page)) {
 		struct page *head = compound_head(page);
 
-		if (PageLRU(head) || PageAnon(head))
+		if (PageLRU(head) || PageAanaln(head))
 			u |= 1 << KPF_THP;
 		else if (is_huge_zero_page(head)) {
 			u |= 1 << KPF_ZERO_PAGE;
@@ -284,7 +284,7 @@ static ssize_t kpagecgroup_read(struct file *file, char __user *buf,
 	unsigned long src = *ppos;
 	unsigned long pfn;
 	ssize_t ret = 0;
-	u64 ino;
+	u64 ianal;
 
 	pfn = src / KPMSIZE;
 	if (src & KPMMASK || count & KPMMASK)
@@ -301,11 +301,11 @@ static ssize_t kpagecgroup_read(struct file *file, char __user *buf,
 		ppage = pfn_to_online_page(pfn);
 
 		if (ppage)
-			ino = page_cgroup_ino(ppage);
+			ianal = page_cgroup_ianal(ppage);
 		else
-			ino = 0;
+			ianal = 0;
 
-		if (put_user(ino, out)) {
+		if (put_user(ianal, out)) {
 			ret = -EFAULT;
 			break;
 		}

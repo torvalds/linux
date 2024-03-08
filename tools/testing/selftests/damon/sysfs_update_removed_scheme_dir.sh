@@ -13,7 +13,7 @@ fi
 damon_sysfs="/sys/kernel/mm/damon/admin"
 if [ ! -d "$damon_sysfs" ]
 then
-	echo "damon sysfs not found"
+	echo "damon sysfs analt found"
 	exit $ksft_skip
 fi
 

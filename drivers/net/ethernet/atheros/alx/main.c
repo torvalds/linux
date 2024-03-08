@@ -12,20 +12,20 @@
  *  General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with this program.  If analt, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission analtice:
  *
  * Copyright (c) 2012 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -233,7 +233,7 @@ static int alx_clean_rx_irq(struct alx_rx_queue *rxq, int budget)
 		if (ALX_GET_FIELD(le32_to_cpu(rrd->word0),
 				  RRD_SI) != rxq->read_idx ||
 		    ALX_GET_FIELD(le32_to_cpu(rrd->word0),
-				  RRD_NOR) != 1) {
+				  RRD_ANALR) != 1) {
 			alx_schedule_reset(alx);
 			return work;
 		}
@@ -259,7 +259,7 @@ static int alx_clean_rx_irq(struct alx_rx_queue *rxq, int budget)
 		skb_put(skb, length);
 		skb->protocol = eth_type_trans(skb, rxq->netdev);
 
-		skb_checksum_none_assert(skb);
+		skb_checksum_analne_assert(skb);
 		if (alx->dev->features & NETIF_F_RXCSUM &&
 		    !(rrd->word3 & (cpu_to_le32(1 << RRD_ERR_L4_SHIFT) |
 				    cpu_to_le32(1 << RRD_ERR_IPV4_SHIFT)))) {
@@ -437,7 +437,7 @@ static irqreturn_t alx_intr_legacy(int irq, void *data)
 	intr = alx_read_mem32(hw, ALX_ISR);
 
 	if (intr & ALX_ISR_DIS || !(intr & alx->int_mask))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	return alx_intr_handle(alx, intr);
 }
@@ -549,7 +549,7 @@ static int alx_reinit_rings(struct alx_priv *alx)
 	alx_init_ring_ptrs(alx);
 
 	if (!alx_refill_rx_ring(alx, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -601,7 +601,7 @@ static int alx_set_mac_address(struct net_device *netdev, void *data)
 	struct sockaddr *addr = data;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	if (netdev->addr_assign_type & NET_ADDR_RANDOM)
 		netdev->addr_assign_type ^= NET_ADDR_RANDOM;
@@ -618,7 +618,7 @@ static int alx_alloc_tx_ring(struct alx_priv *alx, struct alx_tx_queue *txq,
 {
 	txq->bufs = kcalloc(txq->count, sizeof(struct alx_buffer), GFP_KERNEL);
 	if (!txq->bufs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	txq->tpd = alx->descmem.virt + offset;
 	txq->tpd_dma = alx->descmem.dma + offset;
@@ -632,7 +632,7 @@ static int alx_alloc_rx_ring(struct alx_priv *alx, struct alx_rx_queue *rxq,
 {
 	rxq->bufs = kcalloc(rxq->count, sizeof(struct alx_buffer), GFP_KERNEL);
 	if (!rxq->bufs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rxq->rrd = alx->descmem.virt + offset;
 	rxq->rrd_dma = alx->descmem.dma + offset;
@@ -651,7 +651,7 @@ static int alx_alloc_rings(struct alx_priv *alx)
 
 	/* physical tx/rx ring descriptors
 	 *
-	 * Allocate them as a single chunk because they must not cross a
+	 * Allocate them as a single chunk because they must analt cross a
 	 * 4G boundary (hardware has a single register for high 32 bits
 	 * of addresses only)
 	 */
@@ -663,7 +663,7 @@ static int alx_alloc_rings(struct alx_priv *alx)
 					       alx->descmem.size,
 					       &alx->descmem.dma, GFP_KERNEL);
 	if (!alx->descmem.virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* alignment requirements */
 	BUILD_BUG_ON(sizeof(struct alx_txd) % 8);
@@ -673,14 +673,14 @@ static int alx_alloc_rings(struct alx_priv *alx)
 		offset = alx_alloc_tx_ring(alx, alx->qnapi[i]->txq, offset);
 		if (offset < 0) {
 			netdev_err(alx->dev, "Allocation of tx buffer failed!\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
 	offset = alx_alloc_rx_ring(alx, alx->qnapi[0]->rxq, offset);
 	if (offset < 0) {
 		netdev_err(alx->dev, "Allocation of rx buffer failed!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -793,7 +793,7 @@ static int alx_alloc_napis(struct alx_priv *alx)
 err_out:
 	netdev_err(alx->dev, "error allocating internal structures\n");
 	alx_free_napis(alx);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static const int txq_vec_mapping_shift[] = {
@@ -1072,8 +1072,8 @@ static int alx_init_sw(struct alx_priv *alx)
 	alx->int_mask = ALX_ISR_MISC;
 	hw->dma_chnl = hw->max_dma_chnl;
 	hw->ith_tpd = alx->tx_ringsz / 3;
-	hw->link_speed = SPEED_UNKNOWN;
-	hw->duplex = DUPLEX_UNKNOWN;
+	hw->link_speed = SPEED_UNKANALWN;
+	hw->duplex = DUPLEX_UNKANALWN;
 	hw->adv_cfg = ADVERTISED_Autoneg |
 		      ADVERTISED_10baseT_Half |
 		      ADVERTISED_10baseT_Full |
@@ -1125,8 +1125,8 @@ static void alx_halt(struct alx_priv *alx)
 	lockdep_assert_held(&alx->mtx);
 
 	alx_netif_stop(alx);
-	hw->link_speed = SPEED_UNKNOWN;
-	hw->duplex = DUPLEX_UNKNOWN;
+	hw->link_speed = SPEED_UNKANALWN;
+	hw->duplex = DUPLEX_UNKANALWN;
 
 	alx_reset_mac(hw);
 
@@ -1282,7 +1282,7 @@ static const char *alx_speed_desc(struct alx_hw *hw)
 	case ADVERTISED_10baseT_Half:
 		return "10 Mbps Half";
 	default:
-		return "Unknown speed";
+		return "Unkanalwn speed";
 	}
 }
 
@@ -1313,17 +1313,17 @@ static void alx_check_link(struct alx_priv *alx)
 	if (old_speed == hw->link_speed)
 		return;
 
-	if (hw->link_speed != SPEED_UNKNOWN) {
+	if (hw->link_speed != SPEED_UNKANALWN) {
 		netif_info(alx, link, alx->dev,
 			   "NIC Up: %s\n", alx_speed_desc(hw));
 		alx_post_phy_link(hw);
 		alx_enable_aspm(hw, true, true);
 		alx_start_mac(hw);
 
-		if (old_speed == SPEED_UNKNOWN)
+		if (old_speed == SPEED_UNKANALWN)
 			alx_netif_start(alx);
 	} else {
-		/* link is now down */
+		/* link is analw down */
 		alx_netif_stop(alx);
 		netif_info(alx, link, alx->dev, "Link Down\n");
 		err = alx_reset_mac(hw);
@@ -1525,7 +1525,7 @@ err_dma:
 		if (++f == txq->count)
 			f = 0;
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static netdev_tx_t alx_start_xmit_ring(struct sk_buff *skb,
@@ -1595,7 +1595,7 @@ static int alx_mdio_read(struct net_device *netdev,
 	if (prtad != hw->mdio.prtad)
 		return -EINVAL;
 
-	if (devad == MDIO_DEVAD_NONE)
+	if (devad == MDIO_DEVAD_ANALNE)
 		err = alx_read_phy_reg(hw, addr, &val);
 	else
 		err = alx_read_phy_ext(hw, devad, addr, &val);
@@ -1614,7 +1614,7 @@ static int alx_mdio_write(struct net_device *netdev,
 	if (prtad != hw->mdio.prtad)
 		return -EINVAL;
 
-	if (devad == MDIO_DEVAD_NONE)
+	if (devad == MDIO_DEVAD_ANALNE)
 		return alx_write_phy_reg(hw, addr, val);
 
 	return alx_write_phy_ext(hw, devad, addr, val);
@@ -1732,7 +1732,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else {
 		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			dev_err(&pdev->dev, "No usable DMA config, aborting\n");
+			dev_err(&pdev->dev, "Anal usable DMA config, aborting\n");
 			goto out_pci_disable;
 		}
 	}
@@ -1756,7 +1756,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev = alloc_etherdev_mqs(sizeof(*alx),
 				    ALX_MAX_TX_QUEUES, 1);
 	if (!netdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_pci_release;
 	}
 
@@ -1774,7 +1774,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	hw->hw_addr = pci_ioremap_bar(pdev, 0);
 	if (!hw->hw_addr) {
-		dev_err(&pdev->dev, "cannot map device registers\n");
+		dev_err(&pdev->dev, "cananalt map device registers\n");
 		err = -EIO;
 		goto out_free_netdev;
 	}
@@ -1808,7 +1808,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_unlock;
 	}
 
-	/* setup link to put it in a known good starting state */
+	/* setup link to put it in a kanalwn good starting state */
 	if (!phy_configured) {
 		err = alx_setup_speed_duplex(hw, hw->adv_cfg, hw->flowctrl);
 		if (err) {

@@ -72,7 +72,7 @@ static int ufs_sprd_get_reset_ctrl(struct device *dev, struct ufs_sprd_rst *rci)
 
 static int ufs_sprd_get_syscon_reg(struct device *dev, struct ufs_sprd_syscon *sysci)
 {
-	sysci->regmap = syscon_regmap_lookup_by_phandle(dev->of_node, sysci->name);
+	sysci->regmap = syscon_regmap_lookup_by_phandle(dev->of_analde, sysci->name);
 	if (IS_ERR(sysci->regmap)) {
 		dev_err(dev, "failed to get ufs syscon:%s\n", sysci->name);
 		return PTR_ERR(sysci->regmap);
@@ -139,9 +139,9 @@ static int ufs_sprd_common_init(struct ufs_hba *hba)
 
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	of_id = of_match_node(ufs_sprd_of_match, pdev->dev.of_node);
+	of_id = of_match_analde(ufs_sprd_of_match, pdev->dev.of_analde);
 	if (of_id->data != NULL)
 		host->priv = container_of(of_id->data, struct ufs_sprd_priv,
 					  ufs_hba_sprd_vops);
@@ -159,8 +159,8 @@ static int ufs_sprd_common_init(struct ufs_hba *hba)
 	return ret;
 }
 
-static int sprd_ufs_pwr_change_notify(struct ufs_hba *hba,
-				      enum ufs_notify_change_status status,
+static int sprd_ufs_pwr_change_analtify(struct ufs_hba *hba,
+				      enum ufs_analtify_change_status status,
 				      struct ufs_pa_layer_attr *dev_max_params,
 				      struct ufs_pa_layer_attr *dev_req_params)
 {
@@ -178,7 +178,7 @@ static int sprd_ufs_pwr_change_notify(struct ufs_hba *hba,
 }
 
 static int ufs_sprd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
-			    enum ufs_notify_change_status status)
+			    enum ufs_analtify_change_status status)
 {
 	unsigned long flags;
 
@@ -261,7 +261,7 @@ static int ufs_sprd_n6_init(struct ufs_hba *hba)
 
 	ret = regulator_enable(priv->vregi[SPRD_UFS_VDD_MPHY].vreg);
 	if (ret)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (hba->caps & UFSHCD_CAP_CRYPTO)
 		ufs_sprd_n6_key_acc_enable(hba);
@@ -319,8 +319,8 @@ out:
 }
 
 
-static int sprd_ufs_n6_hce_enable_notify(struct ufs_hba *hba,
-					 enum ufs_notify_change_status status)
+static int sprd_ufs_n6_hce_enable_analtify(struct ufs_hba *hba,
+					 enum ufs_analtify_change_status status)
 {
 	int err = 0;
 	struct ufs_sprd_priv *priv = ufs_sprd_get_priv_data(hba);
@@ -350,9 +350,9 @@ out:
 	return err;
 }
 
-static void sprd_ufs_n6_h8_notify(struct ufs_hba *hba,
+static void sprd_ufs_n6_h8_analtify(struct ufs_hba *hba,
 				  enum uic_cmd_dme cmd,
-				  enum ufs_notify_change_status status)
+				  enum ufs_analtify_change_status status)
 {
 	struct ufs_sprd_priv *priv = ufs_sprd_get_priv_data(hba);
 
@@ -397,9 +397,9 @@ static struct ufs_sprd_priv n6_ufs = {
 	.ufs_hba_sprd_vops = {
 		.name = "sprd,ums9620-ufs",
 		.init = ufs_sprd_n6_init,
-		.hce_enable_notify = sprd_ufs_n6_hce_enable_notify,
-		.pwr_change_notify = sprd_ufs_pwr_change_notify,
-		.hibern8_notify = sprd_ufs_n6_h8_notify,
+		.hce_enable_analtify = sprd_ufs_n6_hce_enable_analtify,
+		.pwr_change_analtify = sprd_ufs_pwr_change_analtify,
+		.hibern8_analtify = sprd_ufs_n6_h8_analtify,
 		.device_reset = ufs_sprd_n6_device_reset,
 		.suspend = ufs_sprd_suspend,
 	},
@@ -417,7 +417,7 @@ static int ufs_sprd_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *of_id;
 
-	of_id = of_match_node(ufs_sprd_of_match, dev->of_node);
+	of_id = of_match_analde(ufs_sprd_of_match, dev->of_analde);
 	err = ufshcd_pltfrm_init(pdev, of_id->data);
 	if (err)
 		dev_err(dev, "ufshcd_pltfrm_init() failed %d\n", err);

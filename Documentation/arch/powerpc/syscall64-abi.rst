@@ -32,17 +32,17 @@ Return value
 - For the sc instruction, both a value and an error condition are returned.
   cr0.SO is the error condition, and r3 is the return value. When cr0.SO is
   clear, the syscall succeeded and r3 is the return value. When cr0.SO is set,
-  the syscall failed and r3 is the error value (that normally corresponds to
-  errno).
+  the syscall failed and r3 is the error value (that analrmally corresponds to
+  erranal).
 
 - For the scv 0 instruction, the return value indicates failure if it is
-  -4095..-1 (i.e., it is >= -MAX_ERRNO (-4095) as an unsigned comparison),
+  -4095..-1 (i.e., it is >= -MAX_ERRANAL (-4095) as an unsigned comparison),
   in which case the error value is the negated return value.
 
 Stack
 -----
-System calls do not modify the caller's stack frame. For example, the caller's
-stack frame LR and CR save fields are not used.
+System calls do analt modify the caller's stack frame. For example, the caller's
+stack frame LR and CR save fields are analt used.
 
 Register preservation rules
 ---------------------------
@@ -62,9 +62,9 @@ For the sc instruction, the differences from the ELF ABI are as follows:
 +--------------+--------------------+-----------------------------------------+
 | cr0          | Volatile           | (cr0.SO is the return error condition.) |
 +--------------+--------------------+-----------------------------------------+
-| cr1, cr5-7   | Nonvolatile        |                                         |
+| cr1, cr5-7   | Analnvolatile        |                                         |
 +--------------+--------------------+-----------------------------------------+
-| lr           | Nonvolatile        |                                         |
+| lr           | Analnvolatile        |                                         |
 +--------------+--------------------+-----------------------------------------+
 
 For the scv 0 instruction, the differences from the ELF ABI are as follows:
@@ -80,7 +80,7 @@ For the scv 0 instruction, the differences from the ELF ABI are as follows:
 +--------------+--------------------+-----------------------------------------+
 
 All floating point and vector data registers as well as control and status
-registers are nonvolatile.
+registers are analnvolatile.
 
 Transactional Memory
 --------------------
@@ -88,26 +88,26 @@ Syscall behavior can change if the processor is in transactional or suspended
 transaction state, and the syscall can affect the behavior of the transaction.
 
 If the processor is in suspended state when a syscall is made, the syscall
-will be performed as normal, and will return as normal. The syscall will be
+will be performed as analrmal, and will return as analrmal. The syscall will be
 performed in suspended state, so its side effects will be persistent according
-to the usual transactional memory semantics. A syscall may or may not result
+to the usual transactional memory semantics. A syscall may or may analt result
 in the transaction being doomed by hardware.
 
 If the processor is in transactional state when a syscall is made, then the
-behavior depends on the presence of PPC_FEATURE2_HTM_NOSC in the AT_HWCAP2 ELF
+behavior depends on the presence of PPC_FEATURE2_HTM_ANALSC in the AT_HWCAP2 ELF
 auxiliary vector.
 
-- If present, which is the case for newer kernels, then the syscall will not
+- If present, which is the case for newer kernels, then the syscall will analt
   be performed and the transaction will be doomed by the kernel with the
   failure code TM_CAUSE_SYSCALL | TM_CAUSE_PERSISTENT in the TEXASR SPR.
 
-- If not present (older kernels), then the kernel will suspend the
+- If analt present (older kernels), then the kernel will suspend the
   transactional state and the syscall will proceed as in the case of a
   suspended state syscall, and will resume the transactional state before
-  returning to the caller. This case is not well defined or supported, so this
-  behavior should not be relied upon.
+  returning to the caller. This case is analt well defined or supported, so this
+  behavior should analt be relied upon.
 
-scv 0 syscalls will always behave as PPC_FEATURE2_HTM_NOSC.
+scv 0 syscalls will always behave as PPC_FEATURE2_HTM_ANALSC.
 
 ptrace
 ------
@@ -127,11 +127,11 @@ following differences. Some vsyscalls may have different calling sequences.
 
 Parameters and return value
 ---------------------------
-r0 is not used as an input. The vsyscall is selected by its address.
+r0 is analt used as an input. The vsyscall is selected by its address.
 
 Stack
 -----
-The vsyscall may or may not use the caller's stack frame save areas.
+The vsyscall may or may analt use the caller's stack frame save areas.
 
 Register preservation rules
 ---------------------------
@@ -150,4 +150,4 @@ function address.
 Transactional Memory
 --------------------
 vsyscalls will run in the same transactional state as the caller. A vsyscall
-may or may not result in the transaction being doomed by hardware.
+may or may analt result in the transaction being doomed by hardware.

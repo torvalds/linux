@@ -21,7 +21,7 @@
 
 /*
  * Number of EC preamble bytes we read at a time. Since it takes
- * about 400-500us for the EC to respond there is not a lot of
+ * about 400-500us for the EC to respond there is analt a lot of
  * point in tuning this. If the EC could respond faster then
  * we could increase this so that might expect the preamble and
  * message to occur in a single transaction. However, the maximum
@@ -38,15 +38,15 @@
  *  10 us/bit * ~10 bits/byte * ~256 bytes = ~25ms
  *
  * We'll wait 8 times that to handle clock stretching and other
- * paranoia.  Note that some battery gas gauge ICs claim to have a
+ * paraanalia.  Analte that some battery gas gauge ICs claim to have a
  * clock stretch of 144ms in rare situations.  That's incentive for
- * not directly passing i2c through, but it's too late for that for
+ * analt directly passing i2c through, but it's too late for that for
  * existing hardware.
  *
  * It's pretty unlikely that we'll really see a 249 byte tunnel in
  * anything other than testing.  If this was more common we might
  * consider having slow commands like this require a GET_STATUS
- * wait loop.  The 'flash write' command would be another candidate
+ * wait loop.  The 'flash write' command would be aanalther candidate
  * for this, clocking in at 2-3ms.
  */
 #define EC_MSG_DEADLINE_MS		200
@@ -54,7 +54,7 @@
 /*
   * Time between raising the SPI chip select (for the end of a
   * transaction) and dropping it again (for the next transaction).
-  * If we go too fast, the EC will miss the transaction. We know that we
+  * If we go too fast, the EC will miss the transaction. We kanalw that we
   * need at least 70 us with the 16 MHz STM32 EC, so go with 200 us to be
   * safe.
   */
@@ -229,7 +229,7 @@ static int cros_ec_spi_receive_packet(struct cros_ec_device *ec_dev,
 	}
 
 	/*
-	 * ptr now points to the header byte. Copy any valid data to the
+	 * ptr analw points to the header byte. Copy any valid data to the
 	 * start of our buffer
 	 */
 	todo = end - ++ptr;
@@ -260,7 +260,7 @@ static int cros_ec_spi_receive_packet(struct cros_ec_device *ec_dev,
 		/*
 		 * We can't support transfers larger than the SPI FIFO size
 		 * unless we have DMA. We don't have DMA on the ISP SPI ports
-		 * for Exynos. We need a way of asking SPI driver for
+		 * for Exyanals. We need a way of asking SPI driver for
 		 * maximum-supported transfer size.
 		 */
 		todo = min(need_len, 256);
@@ -337,7 +337,7 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 	}
 
 	/*
-	 * ptr now points to the header byte. Copy any valid data to the
+	 * ptr analw points to the header byte. Copy any valid data to the
 	 * start of our buffer
 	 */
 	todo = end - ++ptr;
@@ -353,7 +353,7 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 		/*
 		 * We can't support transfers larger than the SPI FIFO size
 		 * unless we have DMA. We don't have DMA on the ISP SPI ports
-		 * for Exynos. We need a way of asking SPI driver for
+		 * for Exyanals. We need a way of asking SPI driver for
 		 * maximum-supported transfer size.
 		 */
 		todo = min(need_len, 256);
@@ -400,14 +400,14 @@ static int do_cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
 		return len;
 	dev_dbg(ec_dev->dev, "prepared, len=%d\n", len);
 
-	/* If it's too soon to do another transaction, wait */
+	/* If it's too soon to do aanalther transaction, wait */
 	delay = ktime_get_ns() - ec_spi->last_transfer_ns;
 	if (delay < EC_SPI_RECOVERY_TIME_NS)
 		ndelay(EC_SPI_RECOVERY_TIME_NS - delay);
 
 	rx_buf = kzalloc(len, GFP_KERNEL);
 	if (!rx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_bus_lock(ec_spi->spi->master);
 
@@ -438,7 +438,7 @@ static int do_cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
 		for (i = 0; i < len; i++) {
 			rx_byte = rx_buf[i];
 			/*
-			 * Seeing the PAST_END, RX_BAD_DATA, or NOT_READY
+			 * Seeing the PAST_END, RX_BAD_DATA, or ANALT_READY
 			 * markers are all signs that the EC didn't fully
 			 * receive our command. e.g., if the EC is flashing
 			 * itself, it can't respond to any commands and instead
@@ -454,7 +454,7 @@ static int do_cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
 			 */
 			if (rx_byte == EC_SPI_PAST_END  ||
 			    rx_byte == EC_SPI_RX_BAD_DATA ||
-			    rx_byte == EC_SPI_NOT_READY) {
+			    rx_byte == EC_SPI_ANALT_READY) {
 				ret = -EAGAIN;
 				break;
 			}
@@ -545,14 +545,14 @@ static int do_cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 		return len;
 	dev_dbg(ec_dev->dev, "prepared, len=%d\n", len);
 
-	/* If it's too soon to do another transaction, wait */
+	/* If it's too soon to do aanalther transaction, wait */
 	delay = ktime_get_ns() - ec_spi->last_transfer_ns;
 	if (delay < EC_SPI_RECOVERY_TIME_NS)
 		ndelay(EC_SPI_RECOVERY_TIME_NS - delay);
 
 	rx_buf = kzalloc(len, GFP_KERNEL);
 	if (!rx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_bus_lock(ec_spi->spi->master);
 
@@ -575,7 +575,7 @@ static int do_cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 			/* See comments in cros_ec_pkt_xfer_spi() */
 			if (rx_byte == EC_SPI_PAST_END  ||
 			    rx_byte == EC_SPI_RX_BAD_DATA ||
-			    rx_byte == EC_SPI_NOT_READY) {
+			    rx_byte == EC_SPI_ANALT_READY) {
 				ret = -EAGAIN;
 				break;
 			}
@@ -610,7 +610,7 @@ static int do_cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 	if (len > ec_msg->insize) {
 		dev_err(ec_dev->dev, "packet too long (%d bytes, expected %d)",
 			len, ec_msg->insize);
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto exit;
 	}
 
@@ -666,7 +666,7 @@ static int cros_ec_xfer_high_pri(struct cros_ec_device *ec_dev,
 	 * This looks a bit ridiculous.  Why do the work on a
 	 * different thread if we're just going to block waiting for
 	 * the thread to finish?  The key here is that the thread is
-	 * running at high priority but the calling context might not
+	 * running at high priority but the calling context might analt
 	 * be.  We need to be at high priority to avoid getting
 	 * context switched out for too long and the EC giving up on
 	 * the transfer.
@@ -691,7 +691,7 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 
 static void cros_ec_spi_dt_probe(struct cros_ec_spi *ec_spi, struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	u32 val;
 	int ret;
 
@@ -747,11 +747,11 @@ static int cros_ec_spi_probe(struct spi_device *spi)
 
 	ec_spi = devm_kzalloc(dev, sizeof(*ec_spi), GFP_KERNEL);
 	if (ec_spi == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	ec_spi->spi = spi;
 	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
 	if (!ec_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Check for any DT properties */
 	cros_ec_spi_dt_probe(ec_spi, dev);
@@ -776,7 +776,7 @@ static int cros_ec_spi_probe(struct spi_device *spi)
 
 	err = cros_ec_register(ec_dev);
 	if (err) {
-		dev_err(dev, "cannot register EC\n");
+		dev_err(dev, "cananalt register EC\n");
 		return err;
 	}
 
@@ -828,7 +828,7 @@ static struct spi_driver cros_ec_driver_spi = {
 		.name	= "cros-ec-spi",
 		.of_match_table = cros_ec_spi_of_match,
 		.pm	= &cros_ec_spi_pm_ops,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe		= cros_ec_spi_probe,
 	.remove		= cros_ec_spi_remove,

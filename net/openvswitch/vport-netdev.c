@@ -79,13 +79,13 @@ struct vport *ovs_netdev_link(struct vport *vport, const char *name)
 
 	vport->dev = dev_get_by_name(ovs_dp_get_net(vport->dp), name);
 	if (!vport->dev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto error_free_vport;
 	}
 	netdev_tracker_alloc(vport->dev, &vport->dev_tracker, GFP_KERNEL);
 	if (vport->dev->flags & IFF_LOOPBACK ||
 	    (vport->dev->type != ARPHRD_ETHER &&
-	     vport->dev->type != ARPHRD_NONE) ||
+	     vport->dev->type != ARPHRD_ANALNE) ||
 	    ovs_is_internal_dev(vport->dev)) {
 		err = -EINVAL;
 		goto error_put;
@@ -169,7 +169,7 @@ void ovs_netdev_tunnel_destroy(struct vport *vport)
 
 	/* We can be invoked by both explicit vport deletion and
 	 * underlying netdev deregistration; delete the link only
-	 * if it's not already shutting down.
+	 * if it's analt already shutting down.
 	 */
 	if (vport->dev->reg_state == NETREG_REGISTERED)
 		rtnl_delete_link(vport->dev, 0, NULL);
@@ -181,7 +181,7 @@ void ovs_netdev_tunnel_destroy(struct vport *vport)
 }
 EXPORT_SYMBOL_GPL(ovs_netdev_tunnel_destroy);
 
-/* Returns null if this device is not attached to a datapath. */
+/* Returns null if this device is analt attached to a datapath. */
 struct vport *ovs_netdev_get_vport(struct net_device *dev)
 {
 	if (likely(netif_is_ovs_port(dev)))

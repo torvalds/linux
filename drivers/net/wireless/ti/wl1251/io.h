@@ -2,7 +2,7 @@
 /*
  * This file is part of wl12xx
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  */
 #ifndef __WL1251_IO_H__
 #define __WL1251_IO_H__

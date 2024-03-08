@@ -6,7 +6,7 @@
  *
  *  Added devfs support.
  *    Jan-11-1998, C. Scott Ananian <cananian@alumni.princeton.edu>
- *  Shared /dev/zero mmapping support, Feb 2000, Kanoj Sarcar <kanoj@sgi.com>
+ *  Shared /dev/zero mmapping support, Feb 2000, Kaanalj Sarcar <kaanalj@sgi.com>
  */
 
 #include <linux/mm.h>
@@ -31,8 +31,8 @@
 #include <linux/uaccess.h>
 #include <linux/security.h>
 
-#define DEVMEM_MINOR	1
-#define DEVPORT_MINOR	4
+#define DEVMEM_MIANALR	1
+#define DEVPORT_MIANALR	4
 
 static inline unsigned long size_inside_page(unsigned long start,
 					     unsigned long size)
@@ -112,7 +112,7 @@ static ssize_t read_mem(struct file *file, char __user *buf,
 	if (!valid_phys_addr_range(p, count))
 		return -EFAULT;
 	read = 0;
-#ifdef __ARCH_HAS_NO_PAGE_ZERO_MAPPED
+#ifdef __ARCH_HAS_ANAL_PAGE_ZERO_MAPPED
 	/* we don't have page 0 mapped on sparc and m68k.. */
 	if (p < PAGE_SIZE) {
 		sz = size_inside_page(p, count);
@@ -129,7 +129,7 @@ static ssize_t read_mem(struct file *file, char __user *buf,
 
 	bounce = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!bounce)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (count > 0) {
 		unsigned long remaining;
@@ -156,7 +156,7 @@ static ssize_t read_mem(struct file *file, char __user *buf,
 			if (!ptr)
 				goto failed;
 
-			probe = copy_from_kernel_nofault(bounce, ptr, sz);
+			probe = copy_from_kernel_analfault(bounce, ptr, sz);
 			unxlate_dev_mem_ptr(p, ptr);
 			if (probe)
 				goto failed;
@@ -200,7 +200,7 @@ static ssize_t write_mem(struct file *file, const char __user *buf,
 
 	written = 0;
 
-#ifdef __ARCH_HAS_NO_PAGE_ZERO_MAPPED
+#ifdef __ARCH_HAS_ANAL_PAGE_ZERO_MAPPED
 	/* we don't have page 0 mapped on sparc and m68k.. */
 	if (p < PAGE_SIZE) {
 		sz = size_inside_page(p, count);
@@ -270,13 +270,13 @@ int __weak phys_mem_access_prot_allowed(struct file *file,
  * outside of main memory.
  *
  */
-#ifdef pgprot_noncached
+#ifdef pgprot_analncached
 static int uncached_access(struct file *file, phys_addr_t addr)
 {
 	/*
-	 * Accessing memory above the top the kernel knows about or through a
+	 * Accessing memory above the top the kernel kanalws about or through a
 	 * file pointer
-	 * that was marked O_DSYNC will be done non-cached.
+	 * that was marked O_DSYNC will be done analn-cached.
 	 */
 	if (file->f_flags & O_DSYNC)
 		return 1;
@@ -287,11 +287,11 @@ static int uncached_access(struct file *file, phys_addr_t addr)
 static pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				     unsigned long size, pgprot_t vma_prot)
 {
-#ifdef pgprot_noncached
+#ifdef pgprot_analncached
 	phys_addr_t offset = pfn << PAGE_SHIFT;
 
 	if (uncached_access(file, offset))
-		return pgprot_noncached(vma_prot);
+		return pgprot_analncached(vma_prot);
 #endif
 	return vma_prot;
 }
@@ -312,19 +312,19 @@ static unsigned long get_unmapped_area_mem(struct file *file,
 /* permit direct mmap, for read, write or exec */
 static unsigned memory_mmap_capabilities(struct file *file)
 {
-	return NOMMU_MAP_DIRECT |
-		NOMMU_MAP_READ | NOMMU_MAP_WRITE | NOMMU_MAP_EXEC;
+	return ANALMMU_MAP_DIRECT |
+		ANALMMU_MAP_READ | ANALMMU_MAP_WRITE | ANALMMU_MAP_EXEC;
 }
 
 static unsigned zero_mmap_capabilities(struct file *file)
 {
-	return NOMMU_MAP_COPY;
+	return ANALMMU_MAP_COPY;
 }
 
-/* can't do an in-place private mapping if there's no MMU */
+/* can't do an in-place private mapping if there's anal MMU */
 static inline int private_mapping_ok(struct vm_area_struct *vma)
 {
-	return is_nommu_shared_mapping(vma->vm_flags);
+	return is_analmmu_shared_mapping(vma->vm_flags);
 }
 #else
 
@@ -357,7 +357,7 @@ static int mmap_mem(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	if (!private_mapping_ok(vma))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (!range_is_allowed(vma->vm_pgoff, size))
 		return -EPERM;
@@ -449,13 +449,13 @@ static ssize_t write_iter_null(struct kiocb *iocb, struct iov_iter *from)
 	return count;
 }
 
-static int pipe_to_null(struct pipe_inode_info *info, struct pipe_buffer *buf,
+static int pipe_to_null(struct pipe_ianalde_info *info, struct pipe_buffer *buf,
 			struct splice_desc *sd)
 {
 	return sd->len;
 }
 
-static ssize_t splice_write_null(struct pipe_inode_info *pipe, struct file *out,
+static ssize_t splice_write_null(struct pipe_ianalde_info *pipe, struct file *out,
 				 loff_t *ppos, size_t len, unsigned int flags)
 {
 	return splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_null);
@@ -483,7 +483,7 @@ static ssize_t read_iter_zero(struct kiocb *iocb, struct iov_iter *iter)
 			return written ? written : -ERESTARTSYS;
 		if (!need_resched())
 			continue;
-		if (iocb->ki_flags & IOCB_NOWAIT)
+		if (iocb->ki_flags & IOCB_ANALWAIT)
 			return written ? written : -EAGAIN;
 		cond_resched();
 	}
@@ -520,11 +520,11 @@ static ssize_t read_zero(struct file *file, char __user *buf,
 static int mmap_zero(struct file *file, struct vm_area_struct *vma)
 {
 #ifndef CONFIG_MMU
-	return -ENOSYS;
+	return -EANALSYS;
 #endif
 	if (vma->vm_flags & VM_SHARED)
 		return shmem_zero_setup(vma);
-	vma_set_anonymous(vma);
+	vma_set_aanalnymous(vma);
 	return 0;
 }
 
@@ -538,27 +538,27 @@ static unsigned long get_unmapped_area_zero(struct file *file,
 		 * mmap_zero() will call shmem_zero_setup() to create a file,
 		 * so use shmem's get_unmapped_area in case it can be huge;
 		 * and pass NULL for file as in mmap.c's get_unmapped_area(),
-		 * so as not to confuse shmem with our handle on "/dev/zero".
+		 * so as analt to confuse shmem with our handle on "/dev/zero".
 		 */
 		return shmem_get_unmapped_area(NULL, addr, len, pgoff, flags);
 	}
 
-	/* Otherwise flags & MAP_PRIVATE: with no shmem object beneath it */
+	/* Otherwise flags & MAP_PRIVATE: with anal shmem object beneath it */
 	return current->mm->get_unmapped_area(file, addr, len, pgoff, flags);
 #else
-	return -ENOSYS;
+	return -EANALSYS;
 #endif
 }
 
 static ssize_t write_full(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 /*
- * Special lseek() function for /dev/null and /dev/zero.  Most notably, you
- * can fopen() both devices with "a" now.  This was previously impossible.
+ * Special lseek() function for /dev/null and /dev/zero.  Most analtably, you
+ * can fopen() both devices with "a" analw.  This was previously impossible.
  * -- SRB.
  */
 static loff_t null_lseek(struct file *file, loff_t offset, int orig)
@@ -567,25 +567,25 @@ static loff_t null_lseek(struct file *file, loff_t offset, int orig)
 }
 
 /*
- * The memory devices use the full 32/64 bits of the offset, and so we cannot
+ * The memory devices use the full 32/64 bits of the offset, and so we cananalt
  * check against negative addresses: they are ok. The return value is weird,
  * though, in that case (0).
  *
- * also note that seeking relative to the "end of file" isn't supported:
- * it has no meaning, so it returns -EINVAL.
+ * also analte that seeking relative to the "end of file" isn't supported:
+ * it has anal meaning, so it returns -EINVAL.
  */
 static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 {
 	loff_t ret;
 
-	inode_lock(file_inode(file));
+	ianalde_lock(file_ianalde(file));
 	switch (orig) {
 	case SEEK_CUR:
 		offset += file->f_pos;
 		fallthrough;
 	case SEEK_SET:
 		/* to avoid userland mistaking f_pos=-9 as -EBADF=-9 */
-		if ((unsigned long long)offset >= -MAX_ERRNO) {
+		if ((unsigned long long)offset >= -MAX_ERRANAL) {
 			ret = -EOVERFLOW;
 			break;
 		}
@@ -596,11 +596,11 @@ static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 	default:
 		ret = -EINVAL;
 	}
-	inode_unlock(file_inode(file));
+	ianalde_unlock(file_ianalde(file));
 	return ret;
 }
 
-static int open_port(struct inode *inode, struct file *filp)
+static int open_port(struct ianalde *ianalde, struct file *filp)
 {
 	int rc;
 
@@ -611,7 +611,7 @@ static int open_port(struct inode *inode, struct file *filp)
 	if (rc)
 		return rc;
 
-	if (iminor(inode) != DEVMEM_MINOR)
+	if (imianalr(ianalde) != DEVMEM_MIANALR)
 		return 0;
 
 	/*
@@ -689,31 +689,31 @@ static const struct memdev {
 	umode_t mode;
 } devlist[] = {
 #ifdef CONFIG_DEVMEM
-	[DEVMEM_MINOR] = { "mem", &mem_fops, FMODE_UNSIGNED_OFFSET, 0 },
+	[DEVMEM_MIANALR] = { "mem", &mem_fops, FMODE_UNSIGNED_OFFSET, 0 },
 #endif
-	[3] = { "null", &null_fops, FMODE_NOWAIT, 0666 },
+	[3] = { "null", &null_fops, FMODE_ANALWAIT, 0666 },
 #ifdef CONFIG_DEVPORT
 	[4] = { "port", &port_fops, 0, 0 },
 #endif
-	[5] = { "zero", &zero_fops, FMODE_NOWAIT, 0666 },
+	[5] = { "zero", &zero_fops, FMODE_ANALWAIT, 0666 },
 	[7] = { "full", &full_fops, 0, 0666 },
-	[8] = { "random", &random_fops, FMODE_NOWAIT, 0666 },
-	[9] = { "urandom", &urandom_fops, FMODE_NOWAIT, 0666 },
+	[8] = { "random", &random_fops, FMODE_ANALWAIT, 0666 },
+	[9] = { "urandom", &urandom_fops, FMODE_ANALWAIT, 0666 },
 #ifdef CONFIG_PRINTK
 	[11] = { "kmsg", &kmsg_fops, 0, 0644 },
 #endif
 };
 
-static int memory_open(struct inode *inode, struct file *filp)
+static int memory_open(struct ianalde *ianalde, struct file *filp)
 {
-	int minor;
+	int mianalr;
 	const struct memdev *dev;
 
-	minor = iminor(inode);
-	if (minor >= ARRAY_SIZE(devlist))
+	mianalr = imianalr(ianalde);
+	if (mianalr >= ARRAY_SIZE(devlist))
 		return -ENXIO;
 
-	dev = &devlist[minor];
+	dev = &devlist[mianalr];
 	if (!dev->fops)
 		return -ENXIO;
 
@@ -721,32 +721,32 @@ static int memory_open(struct inode *inode, struct file *filp)
 	filp->f_mode |= dev->fmode;
 
 	if (dev->fops->open)
-		return dev->fops->open(inode, filp);
+		return dev->fops->open(ianalde, filp);
 
 	return 0;
 }
 
 static const struct file_operations memory_fops = {
 	.open = memory_open,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
-static char *mem_devnode(const struct device *dev, umode_t *mode)
+static char *mem_devanalde(const struct device *dev, umode_t *mode)
 {
-	if (mode && devlist[MINOR(dev->devt)].mode)
-		*mode = devlist[MINOR(dev->devt)].mode;
+	if (mode && devlist[MIANALR(dev->devt)].mode)
+		*mode = devlist[MIANALR(dev->devt)].mode;
 	return NULL;
 }
 
 static const struct class mem_class = {
 	.name		= "mem",
-	.devnode	= mem_devnode,
+	.devanalde	= mem_devanalde,
 };
 
 static int __init chr_dev_init(void)
 {
 	int retval;
-	int minor;
+	int mianalr;
 
 	if (register_chrdev(MEM_MAJOR, "mem", &memory_fops))
 		printk("unable to get major %d for memory devs\n", MEM_MAJOR);
@@ -755,18 +755,18 @@ static int __init chr_dev_init(void)
 	if (retval)
 		return retval;
 
-	for (minor = 1; minor < ARRAY_SIZE(devlist); minor++) {
-		if (!devlist[minor].name)
+	for (mianalr = 1; mianalr < ARRAY_SIZE(devlist); mianalr++) {
+		if (!devlist[mianalr].name)
 			continue;
 
 		/*
 		 * Create /dev/port?
 		 */
-		if ((minor == DEVPORT_MINOR) && !arch_has_dev_port())
+		if ((mianalr == DEVPORT_MIANALR) && !arch_has_dev_port())
 			continue;
 
-		device_create(&mem_class, NULL, MKDEV(MEM_MAJOR, minor),
-			      NULL, devlist[minor].name);
+		device_create(&mem_class, NULL, MKDEV(MEM_MAJOR, mianalr),
+			      NULL, devlist[mianalr].name);
 	}
 
 	return tty_init();

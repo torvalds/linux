@@ -87,7 +87,7 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 		goto invalid_fld;
 	/* check protocol */
 	switch ((save_cmnd[1] >> 1) & 0xf) {
-	case 3: /*no DATA */
+	case 3: /*anal DATA */
 	case 4: /* PIO in */
 	case 5: /* PIO out */
 		break;
@@ -151,7 +151,7 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 	if (srb->result == SAM_STAT_CHECK_CONDITION &&
 			memcmp(srb->sense_buffer, usb_stor_sense_invalidCDB,
 				sizeof(usb_stor_sense_invalidCDB)) == 0) {
-		usb_stor_dbg(us, "cypress atacb not supported ???\n");
+		usb_stor_dbg(us, "cypress atacb analt supported ???\n");
 		goto end;
 	}
 
@@ -173,7 +173,7 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 
 		/*
 		 * we use the same command as before, but we set
-		 * the read taskfile bit, for not executing atacb command,
+		 * the read taskfile bit, for analt executing atacb command,
 		 * but reading register selected in srb->cmnd[4]
 		 */
 		srb->cmd_len = 16;
@@ -251,7 +251,7 @@ static int cypress_probe(struct usb_interface *intf,
 		return result;
 
 	/*
-	 * Among CY7C68300 chips, the A revision does not support Cypress ATACB
+	 * Among CY7C68300 chips, the A revision does analt support Cypress ATACB
 	 * Filter out this revision from EEPROM default descriptor values
 	 */
 	device = interface_to_usbdev(intf);
@@ -280,7 +280,7 @@ static struct usb_driver cypress_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	cypress_usb_ids,
 	.soft_unbind =	1,
-	.no_dynamic_id = 1,
+	.anal_dynamic_id = 1,
 };
 
 module_usb_stor_driver(cypress_driver, cypress_host_template, DRV_NAME);

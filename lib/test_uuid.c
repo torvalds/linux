@@ -34,9 +34,9 @@ static const struct test_uuid_data test_uuid_test_data[] = {
 };
 
 static const char * const test_uuid_wrong_data[] = {
-	"c33f4995-3701-450e-9fbf206a2e98e576 ",	/* no hyphen(s) */
+	"c33f4995-3701-450e-9fbf206a2e98e576 ",	/* anal hyphen(s) */
 	"64b4371c-77c1-48f9-8221-29f054XX023b",	/* invalid character(s) */
-	"0cb4ddff-a545-4401-9d06-688af53e",	/* not enough data */
+	"0cb4ddff-a545-4401-9d06-688af53e",	/* analt eanalugh data */
 };
 
 static unsigned total_tests __initdata;
@@ -125,7 +125,7 @@ module_init(test_uuid_init);
 
 static void __exit test_uuid_exit(void)
 {
-	/* do nothing */
+	/* do analthing */
 }
 module_exit(test_uuid_exit);
 

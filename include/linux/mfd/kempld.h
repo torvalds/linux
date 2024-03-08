@@ -16,7 +16,7 @@
 #define KEMPLD_VERSION			0x00
 #define KEMPLD_VERSION_LSB		0x00
 #define KEMPLD_VERSION_MSB		0x01
-#define KEMPLD_VERSION_GET_MINOR(x)	(x & 0x1f)
+#define KEMPLD_VERSION_GET_MIANALR(x)	(x & 0x1f)
 #define KEMPLD_VERSION_GET_MAJOR(x)	((x >> 5) & 0x1f)
 #define KEMPLD_VERSION_GET_NUMBER(x)	((x >> 10) & 0xf)
 #define KEMPLD_VERSION_GET_TYPE(x)	((x >> 14) & 0x3)
@@ -34,7 +34,7 @@
 #define KEMPLD_FEATURE_BIT_SMI		(1 << 9)
 #define KEMPLD_FEATURE_BIT_SCI		(1 << 10)
 #define KEMPLD_SPEC			0x06
-#define KEMPLD_SPEC_GET_MINOR(x)	(x & 0x0f)
+#define KEMPLD_SPEC_GET_MIANALR(x)	(x & 0x0f)
 #define KEMPLD_SPEC_GET_MAJOR(x)	((x >> 4) & 0x0f)
 #define KEMPLD_IRQ_GPIO			0x35
 #define KEMPLD_IRQ_I2C			0x36
@@ -53,22 +53,22 @@
 /**
  * struct kempld_info - PLD device information structure
  * @major:	PLD major revision
- * @minor:	PLD minor revision
+ * @mianalr:	PLD mianalr revision
  * @buildnr:	PLD build number
  * @number:	PLD board specific index
  * @type:	PLD type
  * @spec_major:	PLD FW specification major revision
- * @spec_minor:	PLD FW specification minor revision
+ * @spec_mianalr:	PLD FW specification mianalr revision
  * @version:	PLD version string
  */
 struct kempld_info {
 	unsigned int major;
-	unsigned int minor;
+	unsigned int mianalr;
 	unsigned int buildnr;
 	unsigned int number;
 	unsigned int type;
 	unsigned int spec_major;
-	unsigned int spec_minor;
+	unsigned int spec_mianalr;
 	char version[KEMPLD_VERSION_LEN];
 };
 

@@ -108,7 +108,7 @@ extern unsigned long pmeg_vaddr[SUN3_PMEGS_NUM];
 extern unsigned char pmeg_alloc[SUN3_PMEGS_NUM];
 extern unsigned char pmeg_ctx[SUN3_PMEGS_NUM];
 
-/* Flush all userspace mappings one by one...  (why no flush command,
+/* Flush all userspace mappings one by one...  (why anal flush command,
    sun?) */
 static inline void flush_tlb_all(void)
 {

@@ -240,7 +240,7 @@ int pnp_add_card(struct pnp_card *card)
 	card->dev.release = &pnp_release_card;
 	error = device_register(&card->dev);
 	if (error) {
-		dev_err(&card->dev, "could not register (err=%d)\n", error);
+		dev_err(&card->dev, "could analt register (err=%d)\n", error);
 		put_device(&card->dev);
 		return error;
 	}
@@ -251,7 +251,7 @@ int pnp_add_card(struct pnp_card *card)
 	list_add_tail(&card->protocol_list, &card->protocol->cards);
 	mutex_unlock(&pnp_lock);
 
-	/* we wait until now to add devices in order to ensure the drivers
+	/* we wait until analw to add devices in order to ensure the drivers
 	 * will be able to use all of the related devices on the card
 	 * without waiting an unreasonable length of time */
 	list_for_each(pos, &card->devices) {
@@ -321,7 +321,7 @@ void pnp_remove_card_device(struct pnp_dev *dev)
 
 /**
  * pnp_request_card_device - Searches for a PnP device under the specified card
- * @clink: pointer to the card link, cannot be NULL
+ * @clink: pointer to the card link, cananalt be NULL
  * @id: pointer to a PnP ID structure that explains the rules for finding the device
  * @from: Starting place to search from. If NULL it will start from the beginning.
  */
@@ -372,7 +372,7 @@ err_out:
 EXPORT_SYMBOL(pnp_request_card_device);
 
 /**
- * pnp_release_card_device - call this when the driver no longer needs the device
+ * pnp_release_card_device - call this when the driver anal longer needs the device
  * @dev: pointer to the PnP device structure
  */
 void pnp_release_card_device(struct pnp_dev *dev)

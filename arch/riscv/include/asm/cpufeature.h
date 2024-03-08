@@ -10,7 +10,7 @@
 #include <linux/jump_label.h>
 #include <asm/hwcap.h>
 #include <asm/alternative-macros.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 /*
  * These are probed via a device_initcall(), via either the SBI or directly
@@ -81,18 +81,18 @@ riscv_has_extension_likely(const unsigned long ext)
 
 	if (IS_ENABLED(CONFIG_RISCV_ALTERNATIVE)) {
 		asm goto(
-		ALTERNATIVE("j	%l[l_no]", "nop", 0, %[ext], 1)
+		ALTERNATIVE("j	%l[l_anal]", "analp", 0, %[ext], 1)
 		:
 		: [ext] "i" (ext)
 		:
-		: l_no);
+		: l_anal);
 	} else {
 		if (!__riscv_isa_extension_available(NULL, ext))
-			goto l_no;
+			goto l_anal;
 	}
 
 	return true;
-l_no:
+l_anal:
 	return false;
 }
 
@@ -104,18 +104,18 @@ riscv_has_extension_unlikely(const unsigned long ext)
 
 	if (IS_ENABLED(CONFIG_RISCV_ALTERNATIVE)) {
 		asm goto(
-		ALTERNATIVE("nop", "j	%l[l_yes]", 0, %[ext], 1)
+		ALTERNATIVE("analp", "j	%l[l_anal]", 0, %[ext], 1)
 		:
 		: [ext] "i" (ext)
 		:
-		: l_yes);
+		: l_anal);
 	} else {
 		if (__riscv_isa_extension_available(NULL, ext))
-			goto l_yes;
+			goto l_anal;
 	}
 
 	return false;
-l_yes:
+l_anal:
 	return true;
 }
 

@@ -59,7 +59,7 @@ void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 
 	skb_scrub_packet(skb, xnet);
 
-	skb_clear_hash_if_not_l4(skb);
+	skb_clear_hash_if_analt_l4(skb);
 	skb_dst_set(skb, &rt->dst);
 	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 
@@ -93,7 +93,7 @@ int __iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
 			   __be16 inner_proto, bool raw_proto, bool xnet)
 {
 	if (unlikely(!pskb_may_pull(skb, hdr_len)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_pull_rcsum(skb, hdr_len);
 
@@ -101,7 +101,7 @@ int __iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
 		struct ethhdr *eh;
 
 		if (unlikely(!pskb_may_pull(skb, ETH_HLEN)))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		eh = (struct ethhdr *)skb->data;
 		if (likely(eth_proto_is_802_3(eh->h_proto)))
@@ -113,7 +113,7 @@ int __iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
 		skb->protocol = inner_proto;
 	}
 
-	skb_clear_hash_if_not_l4(skb);
+	skb_clear_hash_if_analt_l4(skb);
 	__vlan_hwaccel_clear_tag(skb);
 	skb_set_queue_mapping(skb, 0);
 	skb_scrub_packet(skb, xnet);
@@ -172,7 +172,7 @@ int iptunnel_handle_offloads(struct sk_buff *skb,
 	}
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 		/* We clear encapsulation here to prevent badly-written
 		 * drivers potentially deciding to offload an inner checksum
 		 * if we set CHECKSUM_PARTIAL on the outer header.
@@ -243,7 +243,7 @@ static int iptunnel_pmtud_build_icmp(struct sk_buff *skb, int mtu)
 	ip_send_check(niph);
 	skb_reset_network_header(skb);
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	eth_header(skb, skb->dev, ntohs(eh.h_proto), eh.h_source, eh.h_dest, 0);
 	skb_reset_mac_header(skb);
@@ -256,7 +256,7 @@ static int iptunnel_pmtud_build_icmp(struct sk_buff *skb, int mtu)
  * @skb:	Buffer being sent by encapsulation, L2 headers expected
  * @mtu:	Network MTU for path
  *
- * Return: 0 for no ICMP reply, length if built, negative value on error.
+ * Return: 0 for anal ICMP reply, length if built, negative value on error.
  */
 static int iptunnel_pmtud_check_icmp(struct sk_buff *skb, int mtu)
 {
@@ -336,7 +336,7 @@ static int iptunnel_pmtud_build_icmpv6(struct sk_buff *skb, int mtu)
 	icmp6h->icmp6_cksum = csum_ipv6_magic(&nip6h->saddr, &nip6h->daddr, len,
 					      IPPROTO_ICMPV6, csum);
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	eth_header(skb, skb->dev, ntohs(eh.h_proto), eh.h_source, eh.h_dest, 0);
 	skb_reset_mac_header(skb);
@@ -349,7 +349,7 @@ static int iptunnel_pmtud_build_icmpv6(struct sk_buff *skb, int mtu)
  * @skb:	Buffer being sent by encapsulation, L2 headers expected
  * @mtu:	Network MTU for path
  *
- * Return: 0 for no ICMPv6 reply, length if built, negative value on error.
+ * Return: 0 for anal ICMPv6 reply, length if built, negative value on error.
  */
 static int iptunnel_pmtud_check_icmpv6(struct sk_buff *skb, int mtu)
 {
@@ -402,7 +402,7 @@ static int iptunnel_pmtud_check_icmpv6(struct sk_buff *skb, int mtu)
  *
  * For routable interfaces, we just need to update the PMTU for the destination.
  *
- * Return: 0 if ICMP error not needed, length if built, negative value on error
+ * Return: 0 if ICMP error analt needed, length if built, negative value on error
  */
 int skb_tunnel_check_pmtu(struct sk_buff *skb, struct dst_entry *encap_dst,
 			  int headroom, bool reply)
@@ -413,7 +413,7 @@ int skb_tunnel_check_pmtu(struct sk_buff *skb, struct dst_entry *encap_dst,
 	    (!skb_is_gso(skb) && (skb->len - skb_network_offset(skb)) <= mtu))
 		return 0;
 
-	skb_dst_update_pmtu_no_confirm(skb, mtu);
+	skb_dst_update_pmtu_anal_confirm(skb, mtu);
 
 	if (!reply || skb->pkt_type == PACKET_HOST)
 		return 0;
@@ -670,7 +670,7 @@ static int ip_tun_build_state(struct net *net, struct nlattr *attr,
 
 	new_state = lwtunnel_state_alloc(sizeof(*tun_info) + opt_len);
 	if (!new_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_state->type = LWTUNNEL_ENCAP_IP;
 
@@ -734,9 +734,9 @@ static int ip_tun_fill_encap_opts_geneve(struct sk_buff *skb,
 	struct nlattr *nest;
 	int offset = 0;
 
-	nest = nla_nest_start_noflag(skb, LWTUNNEL_IP_OPTS_GENEVE);
+	nest = nla_nest_start_analflag(skb, LWTUNNEL_IP_OPTS_GENEVE);
 	if (!nest)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (tun_info->options_len > offset) {
 		opt = ip_tunnel_info_opts(tun_info) + offset;
@@ -746,7 +746,7 @@ static int ip_tun_fill_encap_opts_geneve(struct sk_buff *skb,
 		    nla_put(skb, LWTUNNEL_IP_OPT_GENEVE_DATA, opt->length * 4,
 			    opt->opt_data)) {
 			nla_nest_cancel(skb, nest);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		offset += sizeof(*opt) + opt->length * 4;
 	}
@@ -761,14 +761,14 @@ static int ip_tun_fill_encap_opts_vxlan(struct sk_buff *skb,
 	struct vxlan_metadata *md;
 	struct nlattr *nest;
 
-	nest = nla_nest_start_noflag(skb, LWTUNNEL_IP_OPTS_VXLAN);
+	nest = nla_nest_start_analflag(skb, LWTUNNEL_IP_OPTS_VXLAN);
 	if (!nest)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	md = ip_tunnel_info_opts(tun_info);
 	if (nla_put_u32(skb, LWTUNNEL_IP_OPT_VXLAN_GBP, md->gbp)) {
 		nla_nest_cancel(skb, nest);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	nla_nest_end(skb, nest);
@@ -781,9 +781,9 @@ static int ip_tun_fill_encap_opts_erspan(struct sk_buff *skb,
 	struct erspan_metadata *md;
 	struct nlattr *nest;
 
-	nest = nla_nest_start_noflag(skb, LWTUNNEL_IP_OPTS_ERSPAN);
+	nest = nla_nest_start_analflag(skb, LWTUNNEL_IP_OPTS_ERSPAN);
 	if (!nest)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	md = ip_tunnel_info_opts(tun_info);
 	if (nla_put_u8(skb, LWTUNNEL_IP_OPT_ERSPAN_VER, md->version))
@@ -803,7 +803,7 @@ static int ip_tun_fill_encap_opts_erspan(struct sk_buff *skb,
 	return 0;
 err:
 	nla_nest_cancel(skb, nest);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int ip_tun_fill_encap_opts(struct sk_buff *skb, int type,
@@ -815,9 +815,9 @@ static int ip_tun_fill_encap_opts(struct sk_buff *skb, int type,
 	if (!(tun_info->key.tun_flags & TUNNEL_OPTIONS_PRESENT))
 		return 0;
 
-	nest = nla_nest_start_noflag(skb, type);
+	nest = nla_nest_start_analflag(skb, type);
 	if (!nest)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (tun_info->key.tun_flags & TUNNEL_GENEVE_OPT)
 		err = ip_tun_fill_encap_opts_geneve(skb, tun_info);
@@ -848,7 +848,7 @@ static int ip_tun_fill_encap_info(struct sk_buff *skb,
 	    nla_put_u8(skb, LWTUNNEL_IP_TTL, tun_info->key.ttl) ||
 	    nla_put_be16(skb, LWTUNNEL_IP_FLAGS, tun_info->key.tun_flags) ||
 	    ip_tun_fill_encap_opts(skb, LWTUNNEL_IP_OPTS, tun_info))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -957,7 +957,7 @@ static int ip6_tun_build_state(struct net *net, struct nlattr *attr,
 
 	new_state = lwtunnel_state_alloc(sizeof(*tun_info) + opt_len);
 	if (!new_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_state->type = LWTUNNEL_ENCAP_IP6;
 
@@ -1010,7 +1010,7 @@ static int ip6_tun_fill_encap_info(struct sk_buff *skb,
 	    nla_put_u8(skb, LWTUNNEL_IP6_HOPLIMIT, tun_info->key.ttl) ||
 	    nla_put_be16(skb, LWTUNNEL_IP6_FLAGS, tun_info->key.tun_flags) ||
 	    ip_tun_fill_encap_opts(skb, LWTUNNEL_IP6_OPTS, tun_info))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

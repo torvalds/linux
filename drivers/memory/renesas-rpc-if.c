@@ -159,8 +159,8 @@ static const struct regmap_range rpcif_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table rpcif_volatile_table = {
-	.yes_ranges	= rpcif_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(rpcif_volatile_ranges),
+	.anal_ranges	= rpcif_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(rpcif_volatile_ranges),
 };
 
 struct rpcif_info {
@@ -346,7 +346,7 @@ int rpcif_hw_init(struct device *dev, bool hyperflash)
 	regmap_update_bits(rpc->regmap, RPCIF_PHYCNT, RPCIF_PHYCNT_PHYMEM_MASK,
 			   RPCIF_PHYCNT_PHYMEM(hyperflash ? 3 : 0));
 
-	/* DMA Transfer is not supported */
+	/* DMA Transfer is analt supported */
 	regmap_update_bits(rpc->regmap, RPCIF_PHYCNT, RPCIF_PHYCNT_HS, 0);
 
 	regmap_update_bits(rpc->regmap, RPCIF_PHYCNT,
@@ -710,32 +710,32 @@ static int rpcif_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct platform_device *vdev;
-	struct device_node *flash;
+	struct device_analde *flash;
 	struct rpcif_priv *rpc;
 	struct resource *res;
 	const char *name;
 	int ret;
 
-	flash = of_get_next_child(dev->of_node, NULL);
+	flash = of_get_next_child(dev->of_analde, NULL);
 	if (!flash) {
-		dev_warn(dev, "no flash node found\n");
-		return -ENODEV;
+		dev_warn(dev, "anal flash analde found\n");
+		return -EANALDEV;
 	}
 
-	if (of_device_is_compatible(flash, "jedec,spi-nor")) {
+	if (of_device_is_compatible(flash, "jedec,spi-analr")) {
 		name = "rpc-if-spi";
 	} else if (of_device_is_compatible(flash, "cfi-flash")) {
 		name = "rpc-if-hyperflash";
 	} else	{
-		of_node_put(flash);
-		dev_warn(dev, "unknown flash type\n");
-		return -ENODEV;
+		of_analde_put(flash);
+		dev_warn(dev, "unkanalwn flash type\n");
+		return -EANALDEV;
 	}
-	of_node_put(flash);
+	of_analde_put(flash);
 
 	rpc = devm_kzalloc(dev, sizeof(*rpc), GFP_KERNEL);
 	if (!rpc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rpc->base = devm_platform_ioremap_resource_byname(pdev, "regs");
 	if (IS_ERR(rpc->base))
@@ -761,7 +761,7 @@ static int rpcif_probe(struct platform_device *pdev)
 
 	vdev = platform_device_alloc(name, pdev->id);
 	if (!vdev)
-		return -ENOMEM;
+		return -EANALMEM;
 	vdev->dev.parent = dev;
 
 	rpc->dev = dev;

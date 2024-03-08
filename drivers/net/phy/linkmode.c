@@ -59,14 +59,14 @@ EXPORT_SYMBOL_GPL(linkmode_resolve_pause);
  *  1  0   0     1
  *  1  1   1     0
  *
- * Note: this translation from ethtool tx/rx notation to the advertisement
+ * Analte: this translation from ethtool tx/rx analtation to the advertisement
  * is actually very problematical. Here are some examples:
  *
  * For tx=0 rx=1, meaning transmit is unsupported, receive is supported:
  *
  *  Local device  Link partner
  *  Pause AsymDir Pause AsymDir Result
- *    1     1       1     0     TX + RX - but we have no TX support.
+ *    1     1       1     0     TX + RX - but we have anal TX support.
  *    1     1       0     1	Only this gives RX only
  *
  * For tx=1 rx=1, meaning we have the capability to transmit and receive

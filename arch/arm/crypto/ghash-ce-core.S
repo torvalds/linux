@@ -98,9 +98,9 @@
 	.endm
 
 	/*
-	 * This implementation of 64x64 -> 128 bit polynomial multiplication
+	 * This implementation of 64x64 -> 128 bit polyanalmial multiplication
 	 * using vmull.p8 instructions (8x8 -> 16) is taken from the paper
-	 * "Fast Software Polynomial Multiplication on ARM Processors Using
+	 * "Fast Software Polyanalmial Multiplication on ARM Processors Using
 	 * the NEON Engine" by Danilo Camara, Conrado Gouvea, Julio Lopez and
 	 * Ricardo Dahab (https://hal.inria.fr/hal-01506572)
 	 *

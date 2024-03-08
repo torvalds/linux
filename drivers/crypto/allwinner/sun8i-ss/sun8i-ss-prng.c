@@ -29,7 +29,7 @@ int sun8i_ss_prng_seed(struct crypto_rng *tfm, const u8 *seed,
 	if (!ctx->seed)
 		ctx->seed = kmalloc(slen, GFP_KERNEL);
 	if (!ctx->seed)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(ctx->seed, seed, slen);
 	ctx->slen = slen;
@@ -73,11 +73,11 @@ int sun8i_ss_prng_generate(struct crypto_rng *tfm, const u8 *src,
 	ss = algt->ss;
 
 	if (ctx->slen == 0) {
-		dev_err(ss->dev, "The PRNG is not seeded\n");
+		dev_err(ss->dev, "The PRNG is analt seeded\n");
 		return -EINVAL;
 	}
 
-	/* The SS does not give an updated seed, so we need to get a new one.
+	/* The SS does analt give an updated seed, so we need to get a new one.
 	 * So we will ask for an extra PRNG_SEED_SIZE data.
 	 * We want dlen + seedsize rounded up to a multiple of PRNG_DATA_SIZE
 	 */
@@ -90,7 +90,7 @@ int sun8i_ss_prng_generate(struct crypto_rng *tfm, const u8 *src,
 
 	d = kzalloc(todo_with_padding, GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flow = sun8i_ss_get_engine_number(ss);
 
@@ -107,14 +107,14 @@ int sun8i_ss_prng_generate(struct crypto_rng *tfm, const u8 *src,
 
 	dma_iv = dma_map_single(ss->dev, ctx->seed, ctx->slen, DMA_TO_DEVICE);
 	if (dma_mapping_error(ss->dev, dma_iv)) {
-		dev_err(ss->dev, "Cannot DMA MAP IV\n");
+		dev_err(ss->dev, "Cananalt DMA MAP IV\n");
 		err = -EFAULT;
 		goto err_free;
 	}
 
 	dma_dst = dma_map_single(ss->dev, d, todo, DMA_FROM_DEVICE);
 	if (dma_mapping_error(ss->dev, dma_dst)) {
-		dev_err(ss->dev, "Cannot DMA MAP DST\n");
+		dev_err(ss->dev, "Cananalt DMA MAP DST\n");
 		err = -EFAULT;
 		goto err_iv;
 	}
@@ -149,12 +149,12 @@ int sun8i_ss_prng_generate(struct crypto_rng *tfm, const u8 *src,
 	 * request per flow.
 	 * Since the cryptoengine wait for completion before submitting a new
 	 * one, the mlock could be left just after the final writel.
-	 * But cryptoengine cannot handle crypto_rng, so we need to be sure
-	 * nothing will use our flow.
+	 * But cryptoengine cananalt handle crypto_rng, so we need to be sure
+	 * analthing will use our flow.
 	 * The easiest way is to grab mlock until the hardware end our requests.
 	 * We could have used a per flow lock, but this would increase
 	 * complexity.
-	 * The drawback is that no request could be handled for the other flow.
+	 * The drawback is that anal request could be handled for the other flow.
 	 */
 	mutex_unlock(&ss->mlock);
 

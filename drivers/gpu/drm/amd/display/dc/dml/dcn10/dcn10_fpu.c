@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -40,11 +40,11 @@
  * in a single place. Code in this file follows the following code pattern:
  *
  * 1. Functions that use FPU operations should be isolated in static functions.
- * 2. The FPU functions should have the noinline attribute to ensure anything
+ * 2. The FPU functions should have the analinline attribute to ensure anything
  *    that deals with FP register is contained within this call.
  * 3. All function that needs to be accessed outside this file requires a
- *    public interface that not uses any FPU reference.
- * 4. Developers **must not** use DC_FP_START/END in this file, but they need
+ *    public interface that analt uses any FPU reference.
+ * 4. Developers **must analt** use DC_FP_START/END in this file, but they need
  *    to ensure that the caller invokes it before access any function available
  *    in this file. For this reason, public functions in this file must invoke
  *    dc_assert_fp_enabled();
@@ -52,13 +52,13 @@
  * Let's expand a little bit more the idea in the code pattern. To fully
  * isolate FPU operations in a single place, we must avoid situations where
  * compilers spill FP values to registers due to FP enable in a specific C
- * file. Note that even if we isolate all FPU functions in a single file and
+ * file. Analte that even if we isolate all FPU functions in a single file and
  * call its interface from other files, the compiler might enable the use of
  * FPU before we call DC_FP_START. Nevertheless, it is the programmer's
  * responsibility to invoke DC_FP_START/END in the correct place. To highlight
  * situations where developers forgot to use the FP protection before calling
  * the DC FPU interface functions, we introduce a helper that checks if the
- * function is invoked under FP protection. If not, it will trigger a kernel
+ * function is invoked under FP protection. If analt, it will trigger a kernel
  * warning.
  */
 
@@ -150,7 +150,7 @@ void dcn10_resource_construct_fp(struct dc *dc)
 
 	if (dc->dcn_soc->number_of_channels == 1) {
 		dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 = 19.2f;
-		dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8 = 17.066f;
+		dc->dcn_soc->fabric_and_dram_bandwidth_vanalm0p8 = 17.066f;
 		dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 = 14.933f;
 		dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 = 12.8f;
 		if (ASICREV_IS_RV1_F0(dc->ctx->asic_id.hw_internal_rev))

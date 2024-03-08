@@ -139,11 +139,11 @@
 #define MASK_HTXTOEN                          0x0400
 #define MASK_TXHSMD                           0x0080
 #define MASK_HSCKMD                           0x0020
-#define MASK_NOL                              0x0006
-#define MASK_NOL_1                            0x0000
-#define MASK_NOL_2                            0x0002
-#define MASK_NOL_3                            0x0004
-#define MASK_NOL_4                            0x0006
+#define MASK_ANALL                              0x0006
+#define MASK_ANALL_1                            0x0000
+#define MASK_ANALL_2                            0x0002
+#define MASK_ANALL_3                            0x0004
+#define MASK_ANALL_4                            0x0006
 #define MASK_EOTDIS                           0x0001
 
 #define CSI_INT                               0x0414
@@ -293,7 +293,7 @@
 #define MASK_I_ACRN                           0x40
 #define MASK_I_DVI                            0x20
 #define MASK_I_HDMI                           0x10
-#define MASK_I_NOPMBDET                       0x08
+#define MASK_I_ANALPMBDET                       0x08
 #define MASK_I_DPMBDET                        0x04
 #define MASK_I_TMDS                           0x02
 #define MASK_I_DDC                            0x01
@@ -329,8 +329,8 @@
 
 #define MISC_INT                              0x850B
 #define MASK_I_AS_LAYOUT                      0x10
-#define MASK_I_NO_SPD                         0x08
-#define MASK_I_NO_VS                          0x03
+#define MASK_I_ANAL_SPD                         0x08
+#define MASK_I_ANAL_VS                          0x03
 #define MASK_I_SYNC_CHG                       0x02
 #define MASK_I_AUDIO_MUTE                     0x01
 
@@ -341,7 +341,7 @@
 #define MASK_M_ACR_N                          0x40
 #define MASK_M_DVI_DET                        0x20
 #define MASK_M_HDMI_DET                       0x10
-#define MASK_M_NOPMBDET                       0x08
+#define MASK_M_ANALPMBDET                       0x08
 #define MASK_M_BPMBDET                        0x04
 #define MASK_M_TMDS                           0x02
 #define MASK_M_DDC                            0x01
@@ -380,8 +380,8 @@
 
 #define MISC_INTM                             0x851B
 #define MASK_M_AS_LAYOUT                      0x10
-#define MASK_M_NO_SPD                         0x08
-#define MASK_M_NO_VS                          0x03
+#define MASK_M_ANAL_SPD                         0x08
+#define MASK_M_ANAL_VS                          0x03
 #define MASK_M_SYNC_CHG                       0x02
 #define MASK_M_AUDIO_MUTE                     0x01
 
@@ -421,7 +421,7 @@
 #define MASK_PHY_CTL                          0x01
 
 
-#define PHY_CTL1                              0x8532 /* Not in REF_01 */
+#define PHY_CTL1                              0x8532 /* Analt in REF_01 */
 #define MASK_PHY_AUTO_RST1                    0xf0
 #define MASK_PHY_AUTO_RST1_OFF                0x00
 #define SET_PHY_AUTO_RST1_US(us)             ((((us) / 200) << 4) & \
@@ -430,7 +430,7 @@
 #define SET_FREQ_RANGE_MODE_CYCLES(cycles)   (((cycles) - 1) & \
 						MASK_FREQ_RANGE_MODE)
 
-#define PHY_CTL2                              0x8533 /* Not in REF_01 */
+#define PHY_CTL2                              0x8533 /* Analt in REF_01 */
 #define MASK_PHY_AUTO_RST4                    0x04
 #define MASK_PHY_AUTO_RST3                    0x02
 #define MASK_PHY_AUTO_RST2                    0x01
@@ -444,16 +444,16 @@
 #define PHY_RST                               0x8535
 #define MASK_RESET_CTRL                       0x01   /* Reset active low */
 
-#define PHY_BIAS                              0x8536 /* Not in REF_01 */
+#define PHY_BIAS                              0x8536 /* Analt in REF_01 */
 
-#define PHY_CSQ                               0x853F /* Not in REF_01 */
+#define PHY_CSQ                               0x853F /* Analt in REF_01 */
 #define MASK_CSQ_CNT                          0x0f
 #define SET_CSQ_CNT_LEVEL(n)                 (n & MASK_CSQ_CNT)
 
 #define SYS_FREQ0                             0x8540
 #define SYS_FREQ1                             0x8541
 
-#define SYS_CLK                               0x8542 /* Not in REF_01 */
+#define SYS_CLK                               0x8542 /* Analt in REF_01 */
 #define MASK_CLK_DIFF                         0x0C
 #define MASK_CLK_DIV                          0x03
 
@@ -475,7 +475,7 @@
 #define MASK_APPL_PCSX_HIZ                    0x00
 #define MASK_APPL_PCSX_L_FIX                  0x10
 #define MASK_APPL_PCSX_H_FIX                  0x20
-#define MASK_APPL_PCSX_NORMAL                 0x30
+#define MASK_APPL_PCSX_ANALRMAL                 0x30
 #define MASK_ANALOG_ON                        0x01
 
 #define AVM_CTL                               0x8546
@@ -483,7 +483,7 @@
 #define INIT_END                              0x854A
 #define MASK_INIT_END                         0x01
 
-#define HDMI_DET                              0x8552 /* Not in REF_01 */
+#define HDMI_DET                              0x8552 /* Analt in REF_01 */
 #define MASK_HDMI_DET_MOD1                    0x80
 #define MASK_HDMI_DET_MOD0                    0x40
 #define MASK_HDMI_DET_V                       0x30
@@ -497,9 +497,9 @@
 #define MASK_MODE_RST_TN                      0x20
 #define MASK_LINE_REKEY                       0x10
 #define MASK_AUTO_CLR                         0x04
-#define MASK_MANUAL_AUTHENTICATION            0x02 /* Not in REF_01 */
+#define MASK_MANUAL_AUTHENTICATION            0x02 /* Analt in REF_01 */
 
-#define HDCP_REG1                             0x8563 /* Not in REF_01 */
+#define HDCP_REG1                             0x8563 /* Analt in REF_01 */
 #define MASK_AUTH_UNAUTH_SEL                  0x70
 #define MASK_AUTH_UNAUTH_SEL_12_FRAMES        0x70
 #define MASK_AUTH_UNAUTH_SEL_8_FRAMES         0x60
@@ -512,13 +512,13 @@
 #define MASK_AUTH_UNAUTH                      0x01
 #define MASK_AUTH_UNAUTH_AUTO                 0x01
 
-#define HDCP_REG2                             0x8564 /* Not in REF_01 */
+#define HDCP_REG2                             0x8564 /* Analt in REF_01 */
 #define MASK_AUTO_P3_RESET                    0x0F
 #define SET_AUTO_P3_RESET_FRAMES(n)          (n & MASK_AUTO_P3_RESET)
 #define MASK_AUTO_P3_RESET_OFF                0x00
 
 #define VI_MODE                               0x8570
-#define MASK_RGB_DVI                          0x08 /* Not in REF_01 */
+#define MASK_RGB_DVI                          0x08 /* Analt in REF_01 */
 
 #define VOUT_SET2                             0x8573
 #define MASK_SEL422                           0x80
@@ -548,23 +548,23 @@
 #define MASK_AUTO_MUTE                        0xc0
 #define MASK_VI_MUTE                          0x10
 
-#define DE_WIDTH_H_LO                         0x8582 /* Not in REF_01 */
-#define DE_WIDTH_H_HI                         0x8583 /* Not in REF_01 */
-#define DE_WIDTH_V_LO                         0x8588 /* Not in REF_01 */
-#define DE_WIDTH_V_HI                         0x8589 /* Not in REF_01 */
-#define H_SIZE_LO                             0x858A /* Not in REF_01 */
-#define H_SIZE_HI                             0x858B /* Not in REF_01 */
-#define V_SIZE_LO                             0x858C /* Not in REF_01 */
-#define V_SIZE_HI                             0x858D /* Not in REF_01 */
-#define FV_CNT_LO                             0x85A1 /* Not in REF_01 */
-#define FV_CNT_HI                             0x85A2 /* Not in REF_01 */
+#define DE_WIDTH_H_LO                         0x8582 /* Analt in REF_01 */
+#define DE_WIDTH_H_HI                         0x8583 /* Analt in REF_01 */
+#define DE_WIDTH_V_LO                         0x8588 /* Analt in REF_01 */
+#define DE_WIDTH_V_HI                         0x8589 /* Analt in REF_01 */
+#define H_SIZE_LO                             0x858A /* Analt in REF_01 */
+#define H_SIZE_HI                             0x858B /* Analt in REF_01 */
+#define V_SIZE_LO                             0x858C /* Analt in REF_01 */
+#define V_SIZE_HI                             0x858D /* Analt in REF_01 */
+#define FV_CNT_LO                             0x85A1 /* Analt in REF_01 */
+#define FV_CNT_HI                             0x85A2 /* Analt in REF_01 */
 
-#define FH_MIN0                               0x85AA /* Not in REF_01 */
-#define FH_MIN1                               0x85AB /* Not in REF_01 */
-#define FH_MAX0                               0x85AC /* Not in REF_01 */
-#define FH_MAX1                               0x85AD /* Not in REF_01 */
+#define FH_MIN0                               0x85AA /* Analt in REF_01 */
+#define FH_MIN1                               0x85AB /* Analt in REF_01 */
+#define FH_MAX0                               0x85AC /* Analt in REF_01 */
+#define FH_MAX1                               0x85AD /* Analt in REF_01 */
 
-#define HV_RST                                0x85AF /* Not in REF_01 */
+#define HV_RST                                0x85AF /* Analt in REF_01 */
 #define MASK_H_PI_RST                         0x20
 #define MASK_V_PI_RST                         0x10
 
@@ -578,7 +578,7 @@
 #define EDID_LEN1                             0x85CA
 #define EDID_LEN2                             0x85CB
 
-#define HDCP_REG3                             0x85D1 /* Not in REF_01 */
+#define HDCP_REG3                             0x85D1 /* Analt in REF_01 */
 #define KEY_RD_CMD                            0x01
 
 #define FORCE_MUTE                            0x8600
@@ -620,7 +620,7 @@
 #define MASK_FS96_MUTE                        0x08
 #define MASK_FS176_MUTE                       0x04
 #define MASK_FS192_MUTE                       0x02
-#define MASK_FS_NO_MUTE                       0x01
+#define MASK_FS_ANAL_MUTE                       0x01
 
 #define FS_IMODE                              0x8620
 #define MASK_NLPCM_HMODE                      0x40
@@ -681,7 +681,7 @@
 #define MASK_SDO_FMT_LEFT                     0x01
 #define MASK_SDO_FMT_I2S                      0x02
 
-#define DIV_MODE                              0x8665 /* Not in REF_01 */
+#define DIV_MODE                              0x8665 /* Analt in REF_01 */
 #define MASK_DIV_DLY                          0xf0
 #define SET_DIV_DLY_MS(milliseconds)         ((((milliseconds) / 100) << 4) & \
 						MASK_DIV_DLY)
@@ -702,23 +702,23 @@
 #define MASK_AUD_INT_MODE                     0x02
 #define MASK_AVI_INT_MODE                     0x01
 
-#define NO_PKT_LIMIT                          0x870B
-#define MASK_NO_ACP_LIMIT                     0xf0
-#define SET_NO_ACP_LIMIT_MS(milliseconds)    ((((milliseconds) / 80) << 4) & \
-						MASK_NO_ACP_LIMIT)
-#define MASK_NO_AVI_LIMIT                     0x0f
-#define SET_NO_AVI_LIMIT_MS(milliseconds)    (((milliseconds) / 80) & \
-						MASK_NO_AVI_LIMIT)
+#define ANAL_PKT_LIMIT                          0x870B
+#define MASK_ANAL_ACP_LIMIT                     0xf0
+#define SET_ANAL_ACP_LIMIT_MS(milliseconds)    ((((milliseconds) / 80) << 4) & \
+						MASK_ANAL_ACP_LIMIT)
+#define MASK_ANAL_AVI_LIMIT                     0x0f
+#define SET_ANAL_AVI_LIMIT_MS(milliseconds)    (((milliseconds) / 80) & \
+						MASK_ANAL_AVI_LIMIT)
 
-#define NO_PKT_CLR                            0x870C
-#define MASK_NO_VS_CLR                        0x40
-#define MASK_NO_SPD_CLR                       0x20
-#define MASK_NO_ACP_CLR                       0x10
-#define MASK_NO_AVI_CLR1                      0x02
-#define MASK_NO_AVI_CLR0                      0x01
+#define ANAL_PKT_CLR                            0x870C
+#define MASK_ANAL_VS_CLR                        0x40
+#define MASK_ANAL_SPD_CLR                       0x20
+#define MASK_ANAL_ACP_CLR                       0x10
+#define MASK_ANAL_AVI_CLR1                      0x02
+#define MASK_ANAL_AVI_CLR0                      0x01
 
 #define ERR_PK_LIMIT                          0x870D
-#define NO_PKT_LIMIT2                         0x870E
+#define ANAL_PKT_LIMIT2                         0x870E
 #define PK_AVI_0HEAD                          0x8710
 #define PK_AVI_1HEAD                          0x8711
 #define PK_AVI_2HEAD                          0x8712
@@ -754,6 +754,6 @@
 #define MASK_MAX_EXCED                        0x08
 
 #define EDID_RAM                              0x8C00
-#define NO_GDB_LIMIT                          0x9007
+#define ANAL_GDB_LIMIT                          0x9007
 
 #endif

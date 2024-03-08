@@ -23,7 +23,7 @@
 /*
  * Priority definitions according 802.1D
  */
-#define	PRIO_8021D_NONE		2
+#define	PRIO_8021D_ANALNE		2
 #define	PRIO_8021D_BK		1
 #define	PRIO_8021D_BE		0
 #define	PRIO_8021D_EE		3
@@ -54,7 +54,7 @@
 /* some countries don't support any channel */
 #define WL_RADIO_COUNTRY_DISABLE	(1<<3)
 
-/* Override bit for SET_TXPWR.  if set, ignore other level limits */
+/* Override bit for SET_TXPWR.  if set, iganalre other level limits */
 #define WL_TXPWR_OVERRIDE	(1U<<31)
 
 /* band types */

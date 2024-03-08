@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,8 +29,8 @@
 int smu7_fan_ctrl_get_fan_speed_info(struct pp_hwmgr *hwmgr,
 		struct phm_fan_speed_info *fan_speed_info)
 {
-	if (hwmgr->thermal_controller.fanInfo.bNoFan)
-		return -ENODEV;
+	if (hwmgr->thermal_controller.fanInfo.bAnalFan)
+		return -EANALDEV;
 
 	fan_speed_info->supports_percent_read = true;
 	fan_speed_info->supports_percent_write = true;
@@ -58,8 +58,8 @@ int smu7_fan_ctrl_get_fan_speed_pwm(struct pp_hwmgr *hwmgr,
 	uint32_t duty;
 	uint64_t tmp64;
 
-	if (hwmgr->thermal_controller.fanInfo.bNoFan)
-		return -ENODEV;
+	if (hwmgr->thermal_controller.fanInfo.bAnalFan)
+		return -EANALDEV;
 
 	duty100 = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 			CG_FDO_CTRL1, FMAX_DUTY100);
@@ -82,9 +82,9 @@ int smu7_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed)
 	uint32_t tach_period;
 	uint32_t crystal_clock_freq;
 
-	if (hwmgr->thermal_controller.fanInfo.bNoFan ||
+	if (hwmgr->thermal_controller.fanInfo.bAnalFan ||
 	    !hwmgr->thermal_controller.fanInfo.ucTachometerPulsesPerRevolution)
-		return -ENODEV;
+		return -EANALDEV;
 
 	tach_period = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 			CG_TACH_STATUS, TACH_PERIOD);
@@ -207,7 +207,7 @@ int smu7_fan_ctrl_set_fan_speed_pwm(struct pp_hwmgr *hwmgr,
 	uint32_t duty;
 	uint64_t tmp64;
 
-	if (hwmgr->thermal_controller.fanInfo.bNoFan)
+	if (hwmgr->thermal_controller.fanInfo.bAnalFan)
 		return 0;
 
 	speed = min_t(uint32_t, speed, 255);
@@ -240,7 +240,7 @@ int smu7_fan_ctrl_reset_fan_speed_to_default(struct pp_hwmgr *hwmgr)
 {
 	int result;
 
-	if (hwmgr->thermal_controller.fanInfo.bNoFan)
+	if (hwmgr->thermal_controller.fanInfo.bAnalFan)
 		return 0;
 
 	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl)) {
@@ -257,14 +257,14 @@ int smu7_fan_ctrl_reset_fan_speed_to_default(struct pp_hwmgr *hwmgr)
  * smu7_fan_ctrl_set_fan_speed_rpm - Set Fan Speed in RPM.
  * @hwmgr: the address of the powerplay hardware manager.
  * @speed: is the percentage value (min - max) to be set.
- * Exception: Fails is the speed not lie between min and max.
+ * Exception: Fails is the speed analt lie between min and max.
  */
 int smu7_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 {
 	uint32_t tach_period;
 	uint32_t crystal_clock_freq;
 
-	if (hwmgr->thermal_controller.fanInfo.bNoFan ||
+	if (hwmgr->thermal_controller.fanInfo.bAnalFan ||
 			(hwmgr->thermal_controller.fanInfo.
 			ucTachometerPulsesPerRevolution == 0) ||
 			speed == 0 ||
@@ -314,7 +314,7 @@ int smu7_thermal_get_temperature(struct pp_hwmgr *hwmgr)
  * @hwmgr: The address of the hardware manager.
  * @low_temp: Temperature to be programmed for high alert signals
  * @high_temp: Temperature to be programmed for low alert signals
- * Exception: PP_Result_BadInput if the input data is not valid.
+ * Exception: PP_Result_BadInput if the input data is analt valid.
  */
 static int smu7_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 		int low_temp, int high_temp)
@@ -410,7 +410,7 @@ int smu7_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 {
 	int result = smu7_thermal_disable_alert(hwmgr);
 
-	if (!hwmgr->thermal_controller.fanInfo.bNoFan)
+	if (!hwmgr->thermal_controller.fanInfo.bAnalFan)
 		smu7_fan_ctrl_set_default_mode(hwmgr);
 
 	return result;
@@ -467,7 +467,7 @@ int smu7_start_thermal_controller(struct pp_hwmgr *hwmgr,
 
 int smu7_thermal_ctrl_uninitialize_thermal_controller(struct pp_hwmgr *hwmgr)
 {
-	if (!hwmgr->thermal_controller.fanInfo.bNoFan)
+	if (!hwmgr->thermal_controller.fanInfo.bAnalFan)
 		smu7_fan_ctrl_set_default_mode(hwmgr);
 	return 0;
 }

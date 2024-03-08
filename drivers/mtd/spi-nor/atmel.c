@@ -4,7 +4,7 @@
  * Copyright (C) 2014, Freescale Semiconductor, Inc.
  */
 
-#include <linux/mtd/spi-nor.h>
+#include <linux/mtd/spi-analr.h>
 
 #include "core.h"
 
@@ -16,80 +16,80 @@
  * is to unlock the whole flash array on startup. Therefore, we have to support
  * exactly this operation.
  */
-static int at25fs_nor_lock(struct spi_nor *nor, loff_t ofs, u64 len)
+static int at25fs_analr_lock(struct spi_analr *analr, loff_t ofs, u64 len)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
-static int at25fs_nor_unlock(struct spi_nor *nor, loff_t ofs, u64 len)
+static int at25fs_analr_unlock(struct spi_analr *analr, loff_t ofs, u64 len)
 {
 	int ret;
 
 	/* We only support unlocking the whole flash array */
-	if (ofs || len != nor->params->size)
+	if (ofs || len != analr->params->size)
 		return -EINVAL;
 
 	/* Write 0x00 to the status register to disable write protection */
-	ret = spi_nor_write_sr_and_check(nor, 0);
+	ret = spi_analr_write_sr_and_check(analr, 0);
 	if (ret)
-		dev_dbg(nor->dev, "unable to clear BP bits, WP# asserted?\n");
+		dev_dbg(analr->dev, "unable to clear BP bits, WP# asserted?\n");
 
 	return ret;
 }
 
-static int at25fs_nor_is_locked(struct spi_nor *nor, loff_t ofs, u64 len)
+static int at25fs_analr_is_locked(struct spi_analr *analr, loff_t ofs, u64 len)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
-static const struct spi_nor_locking_ops at25fs_nor_locking_ops = {
-	.lock = at25fs_nor_lock,
-	.unlock = at25fs_nor_unlock,
-	.is_locked = at25fs_nor_is_locked,
+static const struct spi_analr_locking_ops at25fs_analr_locking_ops = {
+	.lock = at25fs_analr_lock,
+	.unlock = at25fs_analr_unlock,
+	.is_locked = at25fs_analr_is_locked,
 };
 
-static int at25fs_nor_late_init(struct spi_nor *nor)
+static int at25fs_analr_late_init(struct spi_analr *analr)
 {
-	nor->params->locking_ops = &at25fs_nor_locking_ops;
+	analr->params->locking_ops = &at25fs_analr_locking_ops;
 
 	return 0;
 }
 
-static const struct spi_nor_fixups at25fs_nor_fixups = {
-	.late_init = at25fs_nor_late_init,
+static const struct spi_analr_fixups at25fs_analr_fixups = {
+	.late_init = at25fs_analr_late_init,
 };
 
 /**
- * atmel_nor_set_global_protection - Do a Global Protect or Unprotect command
- * @nor:	pointer to 'struct spi_nor'
+ * atmel_analr_set_global_protection - Do a Global Protect or Unprotect command
+ * @analr:	pointer to 'struct spi_analr'
  * @ofs:	offset in bytes
  * @len:	len in bytes
  * @is_protect:	if true do a Global Protect otherwise it is a Global Unprotect
  *
  * Return: 0 on success, -error otherwise.
  */
-static int atmel_nor_set_global_protection(struct spi_nor *nor, loff_t ofs,
+static int atmel_analr_set_global_protection(struct spi_analr *analr, loff_t ofs,
 					   u64 len, bool is_protect)
 {
 	int ret;
 	u8 sr;
 
 	/* We only support locking the whole flash array */
-	if (ofs || len != nor->params->size)
+	if (ofs || len != analr->params->size)
 		return -EINVAL;
 
-	ret = spi_nor_read_sr(nor, nor->bouncebuf);
+	ret = spi_analr_read_sr(analr, analr->bouncebuf);
 	if (ret)
 		return ret;
 
-	sr = nor->bouncebuf[0];
+	sr = analr->bouncebuf[0];
 
 	/* SRWD bit needs to be cleared, otherwise the protection doesn't change */
 	if (sr & SR_SRWD) {
 		sr &= ~SR_SRWD;
-		ret = spi_nor_write_sr_and_check(nor, sr);
+		ret = spi_analr_write_sr_and_check(analr, sr);
 		if (ret) {
-			dev_dbg(nor->dev, "unable to clear SRWD bit, WP# asserted?\n");
+			dev_dbg(analr->dev, "unable to clear SRWD bit, WP# asserted?\n");
 			return ret;
 		}
 	}
@@ -100,7 +100,7 @@ static int atmel_nor_set_global_protection(struct spi_nor *nor, loff_t ofs,
 		 * Set the SRWD bit again as soon as we are protecting
 		 * anything. This will ensure that the WP# pin is working
 		 * correctly. By doing this we also behave the same as
-		 * spi_nor_sr_lock(), which sets SRWD if any block protection
+		 * spi_analr_sr_lock(), which sets SRWD if any block protection
 		 * is active.
 		 */
 		sr |= SR_SRWD;
@@ -108,141 +108,141 @@ static int atmel_nor_set_global_protection(struct spi_nor *nor, loff_t ofs,
 		sr &= ~ATMEL_SR_GLOBAL_PROTECT_MASK;
 	}
 
-	nor->bouncebuf[0] = sr;
+	analr->bouncebuf[0] = sr;
 
 	/*
-	 * We cannot use the spi_nor_write_sr_and_check() because this command
+	 * We cananalt use the spi_analr_write_sr_and_check() because this command
 	 * isn't really setting any bits, instead it is an pseudo command for
 	 * "Global Unprotect" or "Global Protect"
 	 */
-	return spi_nor_write_sr(nor, nor->bouncebuf, 1);
+	return spi_analr_write_sr(analr, analr->bouncebuf, 1);
 }
 
-static int atmel_nor_global_protect(struct spi_nor *nor, loff_t ofs, u64 len)
+static int atmel_analr_global_protect(struct spi_analr *analr, loff_t ofs, u64 len)
 {
-	return atmel_nor_set_global_protection(nor, ofs, len, true);
+	return atmel_analr_set_global_protection(analr, ofs, len, true);
 }
 
-static int atmel_nor_global_unprotect(struct spi_nor *nor, loff_t ofs, u64 len)
+static int atmel_analr_global_unprotect(struct spi_analr *analr, loff_t ofs, u64 len)
 {
-	return atmel_nor_set_global_protection(nor, ofs, len, false);
+	return atmel_analr_set_global_protection(analr, ofs, len, false);
 }
 
-static int atmel_nor_is_global_protected(struct spi_nor *nor, loff_t ofs,
+static int atmel_analr_is_global_protected(struct spi_analr *analr, loff_t ofs,
 					 u64 len)
 {
 	int ret;
 
-	if (ofs >= nor->params->size || (ofs + len) > nor->params->size)
+	if (ofs >= analr->params->size || (ofs + len) > analr->params->size)
 		return -EINVAL;
 
-	ret = spi_nor_read_sr(nor, nor->bouncebuf);
+	ret = spi_analr_read_sr(analr, analr->bouncebuf);
 	if (ret)
 		return ret;
 
-	return ((nor->bouncebuf[0] & ATMEL_SR_GLOBAL_PROTECT_MASK) == ATMEL_SR_GLOBAL_PROTECT_MASK);
+	return ((analr->bouncebuf[0] & ATMEL_SR_GLOBAL_PROTECT_MASK) == ATMEL_SR_GLOBAL_PROTECT_MASK);
 }
 
-static const struct spi_nor_locking_ops atmel_nor_global_protection_ops = {
-	.lock = atmel_nor_global_protect,
-	.unlock = atmel_nor_global_unprotect,
-	.is_locked = atmel_nor_is_global_protected,
+static const struct spi_analr_locking_ops atmel_analr_global_protection_ops = {
+	.lock = atmel_analr_global_protect,
+	.unlock = atmel_analr_global_unprotect,
+	.is_locked = atmel_analr_is_global_protected,
 };
 
-static int atmel_nor_global_protection_late_init(struct spi_nor *nor)
+static int atmel_analr_global_protection_late_init(struct spi_analr *analr)
 {
-	nor->params->locking_ops = &atmel_nor_global_protection_ops;
+	analr->params->locking_ops = &atmel_analr_global_protection_ops;
 
 	return 0;
 }
 
-static const struct spi_nor_fixups atmel_nor_global_protection_fixups = {
-	.late_init = atmel_nor_global_protection_late_init,
+static const struct spi_analr_fixups atmel_analr_global_protection_fixups = {
+	.late_init = atmel_analr_global_protection_late_init,
 };
 
-static const struct flash_info atmel_nor_parts[] = {
+static const struct flash_info atmel_analr_parts[] = {
 	{
-		.id = SNOR_ID(0x1f, 0x04, 0x00),
+		.id = SANALR_ID(0x1f, 0x04, 0x00),
 		.name = "at26f004",
 		.size = SZ_512K,
-		.no_sfdp_flags = SECT_4K,
+		.anal_sfdp_flags = SECT_4K,
 	}, {
-		.id = SNOR_ID(0x1f, 0x25, 0x00),
+		.id = SANALR_ID(0x1f, 0x25, 0x00),
 		.name = "at45db081d",
 		.size = SZ_1M,
-		.no_sfdp_flags = SECT_4K,
+		.anal_sfdp_flags = SECT_4K,
 	}, {
-		.id = SNOR_ID(0x1f, 0x42, 0x16),
+		.id = SANALR_ID(0x1f, 0x42, 0x16),
 		.name = "at25sl321",
 		.size = SZ_4M,
-		.no_sfdp_flags = SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
+		.anal_sfdp_flags = SECT_4K | SPI_ANALR_DUAL_READ | SPI_ANALR_QUAD_READ,
 	}, {
-		.id = SNOR_ID(0x1f, 0x44, 0x01),
+		.id = SANALR_ID(0x1f, 0x44, 0x01),
 		.name = "at25df041a",
 		.size = SZ_512K,
-		.flags = SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE,
-		.no_sfdp_flags = SECT_4K,
-		.fixups = &atmel_nor_global_protection_fixups,
+		.flags = SPI_ANALR_HAS_LOCK | SPI_ANALR_SWP_IS_VOLATILE,
+		.anal_sfdp_flags = SECT_4K,
+		.fixups = &atmel_analr_global_protection_fixups,
 	}, {
-		.id = SNOR_ID(0x1f, 0x45, 0x01),
+		.id = SANALR_ID(0x1f, 0x45, 0x01),
 		.name = "at26df081a",
 		.size = SZ_1M,
-		.flags = SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE,
-		.no_sfdp_flags = SECT_4K,
-		.fixups = &atmel_nor_global_protection_fixups
+		.flags = SPI_ANALR_HAS_LOCK | SPI_ANALR_SWP_IS_VOLATILE,
+		.anal_sfdp_flags = SECT_4K,
+		.fixups = &atmel_analr_global_protection_fixups
 	}, {
-		.id = SNOR_ID(0x1f, 0x46, 0x01),
+		.id = SANALR_ID(0x1f, 0x46, 0x01),
 		.name = "at26df161a",
 		.size = SZ_2M,
-		.flags = SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE,
-		.no_sfdp_flags = SECT_4K,
-		.fixups = &atmel_nor_global_protection_fixups
+		.flags = SPI_ANALR_HAS_LOCK | SPI_ANALR_SWP_IS_VOLATILE,
+		.anal_sfdp_flags = SECT_4K,
+		.fixups = &atmel_analr_global_protection_fixups
 	}, {
-		.id = SNOR_ID(0x1f, 0x47, 0x00),
+		.id = SANALR_ID(0x1f, 0x47, 0x00),
 		.name = "at25df321",
 		.size = SZ_4M,
-		.flags = SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE,
-		.no_sfdp_flags = SECT_4K,
-		.fixups = &atmel_nor_global_protection_fixups
+		.flags = SPI_ANALR_HAS_LOCK | SPI_ANALR_SWP_IS_VOLATILE,
+		.anal_sfdp_flags = SECT_4K,
+		.fixups = &atmel_analr_global_protection_fixups
 	}, {
-		.id = SNOR_ID(0x1f, 0x47, 0x01),
+		.id = SANALR_ID(0x1f, 0x47, 0x01),
 		.name = "at25df321a",
 		.size = SZ_4M,
-		.flags = SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE,
-		.no_sfdp_flags = SECT_4K,
-		.fixups = &atmel_nor_global_protection_fixups
+		.flags = SPI_ANALR_HAS_LOCK | SPI_ANALR_SWP_IS_VOLATILE,
+		.anal_sfdp_flags = SECT_4K,
+		.fixups = &atmel_analr_global_protection_fixups
 	}, {
-		.id = SNOR_ID(0x1f, 0x47, 0x08),
+		.id = SANALR_ID(0x1f, 0x47, 0x08),
 		.name = "at25ff321a",
-		.flags = SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE,
-		.fixups = &atmel_nor_global_protection_fixups
+		.flags = SPI_ANALR_HAS_LOCK | SPI_ANALR_SWP_IS_VOLATILE,
+		.fixups = &atmel_analr_global_protection_fixups
 	}, {
-		.id = SNOR_ID(0x1f, 0x48, 0x00),
+		.id = SANALR_ID(0x1f, 0x48, 0x00),
 		.name = "at25df641",
 		.size = SZ_8M,
-		.flags = SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE,
-		.no_sfdp_flags = SECT_4K,
-		.fixups = &atmel_nor_global_protection_fixups
+		.flags = SPI_ANALR_HAS_LOCK | SPI_ANALR_SWP_IS_VOLATILE,
+		.anal_sfdp_flags = SECT_4K,
+		.fixups = &atmel_analr_global_protection_fixups
 	}, {
-		.id = SNOR_ID(0x1f, 0x66, 0x01),
+		.id = SANALR_ID(0x1f, 0x66, 0x01),
 		.name = "at25fs010",
 		.sector_size = SZ_32K,
 		.size = SZ_128K,
-		.flags = SPI_NOR_HAS_LOCK,
-		.no_sfdp_flags = SECT_4K,
-		.fixups = &at25fs_nor_fixups
+		.flags = SPI_ANALR_HAS_LOCK,
+		.anal_sfdp_flags = SECT_4K,
+		.fixups = &at25fs_analr_fixups
 	}, {
-		.id = SNOR_ID(0x1f, 0x66, 0x04),
+		.id = SANALR_ID(0x1f, 0x66, 0x04),
 		.name = "at25fs040",
 		.size = SZ_512K,
-		.flags = SPI_NOR_HAS_LOCK,
-		.no_sfdp_flags = SECT_4K,
-		.fixups = &at25fs_nor_fixups
+		.flags = SPI_ANALR_HAS_LOCK,
+		.anal_sfdp_flags = SECT_4K,
+		.fixups = &at25fs_analr_fixups
 	},
 };
 
-const struct spi_nor_manufacturer spi_nor_atmel = {
+const struct spi_analr_manufacturer spi_analr_atmel = {
 	.name = "atmel",
-	.parts = atmel_nor_parts,
-	.nparts = ARRAY_SIZE(atmel_nor_parts),
+	.parts = atmel_analr_parts,
+	.nparts = ARRAY_SIZE(atmel_analr_parts),
 };

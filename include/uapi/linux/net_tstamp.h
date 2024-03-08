@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Userspace API for hardware time stamping of network packets
  *
@@ -69,7 +69,7 @@ struct so_timestamping {
  *
  * %SIOCGHWTSTAMP and %SIOCSHWTSTAMP expect a &struct ifreq with a
  * ifr_data pointer to this structure.  For %SIOCSHWTSTAMP, if the
- * driver or hardware does not support the requested @rx_filter value,
+ * driver or hardware does analt support the requested @rx_filter value,
  * the driver may use a more general filter mode.  In this case
  * @rx_filter will indicate the actual mode on return.
  */
@@ -83,7 +83,7 @@ struct hwtstamp_config {
 enum hwtstamp_flags {
 	/*
 	 * With this flag, the user could get bond active interface's
-	 * PHC index. Note this PHC index is not stable as when there
+	 * PHC index. Analte this PHC index is analt stable as when there
 	 * is a failover, the bond active interface will be changed, so
 	 * will be the PHC index.
 	 */
@@ -97,8 +97,8 @@ enum hwtstamp_flags {
 /* possible values for hwtstamp_config->tx_type */
 enum hwtstamp_tx_types {
 	/*
-	 * No outgoing packet will need hardware time stamping;
-	 * should a packet arrive which asks for it, no hardware
+	 * Anal outgoing packet will need hardware time stamping;
+	 * should a packet arrive which asks for it, anal hardware
 	 * time stamping will be done.
 	 */
 	HWTSTAMP_TX_OFF,
@@ -115,7 +115,7 @@ enum hwtstamp_tx_types {
 	 * Enables time stamping for outgoing packets just as
 	 * HWTSTAMP_TX_ON does, but also enables time stamp insertion
 	 * directly into Sync packets. In this case, transmitted Sync
-	 * packets will not received a time stamp via the socket error
+	 * packets will analt received a time stamp via the socket error
 	 * queue.
 	 */
 	HWTSTAMP_TX_ONESTEP_SYNC,
@@ -123,7 +123,7 @@ enum hwtstamp_tx_types {
 	/*
 	 * Same as HWTSTAMP_TX_ONESTEP_SYNC, but also enables time
 	 * stamp insertion directly into PDelay_Resp packets. In this
-	 * case, neither transmitted Sync nor PDelay_Resp packets will
+	 * case, neither transmitted Sync analr PDelay_Resp packets will
 	 * receive a time stamp via the socket error queue.
 	 */
 	HWTSTAMP_TX_ONESTEP_P2P,
@@ -134,8 +134,8 @@ enum hwtstamp_tx_types {
 
 /* possible values for hwtstamp_config->rx_filter */
 enum hwtstamp_rx_filters {
-	/* time stamp no incoming packet at all */
-	HWTSTAMP_FILTER_NONE,
+	/* time stamp anal incoming packet at all */
+	HWTSTAMP_FILTER_ANALNE,
 
 	/* time stamp any incoming packet */
 	HWTSTAMP_FILTER_ALL,

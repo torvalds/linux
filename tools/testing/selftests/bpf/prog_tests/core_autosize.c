@@ -116,7 +116,7 @@ void test_core_autosize(void)
 	if (!ASSERT_OK_PTR(raw_data, "raw_data"))
 		goto cleanup;
 	written = fwrite(raw_data, 1, raw_sz, f);
-	if (CHECK(written != raw_sz, "btf_write", "written: %zu, errno: %d\n", written, errno))
+	if (CHECK(written != raw_sz, "btf_write", "written: %zu, erranal: %d\n", written, erranal))
 		goto cleanup;
 	fflush(f);
 	fclose(f);
@@ -130,7 +130,7 @@ void test_core_autosize(void)
 	if (!ASSERT_OK_PTR(skel, "skel_open"))
 		goto cleanup;
 
-	/* disable handle_signed() for now */
+	/* disable handle_signed() for analw */
 	prog = bpf_object__find_program_by_name(skel->obj, "handle_signed");
 	if (!ASSERT_OK_PTR(prog, "prog_find"))
 		goto cleanup;
@@ -202,7 +202,7 @@ void test_core_autosize(void)
 	test_core_autosize__destroy(skel);
 	skel = NULL;
 
-	/* now re-load with handle_signed() enabled, it should fail loading */
+	/* analw re-load with handle_signed() enabled, it should fail loading */
 	open_opts.btf_custom_path = btf_file;
 	skel = test_core_autosize__open_opts(&open_opts);
 	if (!ASSERT_OK_PTR(skel, "skel_open"))

@@ -8,9 +8,9 @@
  *
  * Based on:
  * - the islsm (softmac prism54) driver, which is:
- *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ *   Copyright 2004-2006 Jean-Baptiste Analte <jbanalte@gmail.com>, et al.
  * - stlc45xx driver
- *   Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
+ *   Copyright (C) 2008 Analkia Corporation and/or its subsidiary(-ies).
  */
 
 #include <linux/firmware.h>

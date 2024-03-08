@@ -18,7 +18,7 @@ HPI Operating System function implementation for Linux
 void hpios_delay_micro_seconds(u32 num_micro_sec)
 {
 	if ((usecs_to_jiffies(num_micro_sec) > 1) && !in_interrupt()) {
-		/* MUST NOT SCHEDULE IN INTERRUPT CONTEXT! */
+		/* MUST ANALT SCHEDULE IN INTERRUPT CONTEXT! */
 		schedule_timeout_uninterruptible(usecs_to_jiffies
 			(num_micro_sec));
 	} else if (num_micro_sec <= 2000)

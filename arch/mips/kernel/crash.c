@@ -13,7 +13,7 @@
 
 /* This keeps a track of which one is crashing cpu. */
 static int crashing_cpu = -1;
-static cpumask_t cpus_in_crash = CPU_MASK_NONE;
+static cpumask_t cpus_in_crash = CPU_MASK_ANALNE;
 
 #ifdef CONFIG_SMP
 static void crash_shutdown_secondary(void *passed_regs)
@@ -24,7 +24,7 @@ static void crash_shutdown_secondary(void *passed_regs)
 	/*
 	 * If we are passed registers, use those.  Otherwise get the
 	 * regs from the last interrupt, which should be correct, as
-	 * we are in an interrupt.  But if the regs are not there,
+	 * we are in an interrupt.  But if the regs are analt there,
 	 * pull them from the top of the stack.  They are probably
 	 * wrong, but we need something to keep from crashing again.
 	 */
@@ -49,7 +49,7 @@ static void crash_shutdown_secondary(void *passed_regs)
 
 	kexec_reboot();
 
-	/* NOTREACHED */
+	/* ANALTREACHED */
 }
 
 static void crash_kexec_prepare_cpus(void)

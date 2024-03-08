@@ -4,7 +4,7 @@
  *
  * Copyright 2013 - 2022 CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
- * Pinout, Schematics and Altium hardware design files are open source
+ * Pianalut, Schematics and Altium hardware design files are open source
  * and available at: https://docs.turris.cz/hw/turris-1x/turris-1x/
  */
 
@@ -254,12 +254,12 @@
 	lbc: localbus@ffe05000 {
 		reg = <0 0xffe05000 0 0x1000>;
 
-		ranges = <0x0 0x0 0x0 0xef000000 0x01000000>, /* NOR */
+		ranges = <0x0 0x0 0x0 0xef000000 0x01000000>, /* ANALR */
 			 <0x1 0x0 0x0 0xff800000 0x00040000>, /* NAND */
 			 <0x3 0x0 0x0 0xffa00000 0x00020000>; /* CPLD */
 
-		/* S29GL128P90TFIR10 NOR */
-		nor@0,0 {
+		/* S29GL128P90TFIR10 ANALR */
+		analr@0,0 {
 			compatible = "cfi-flash";
 			reg = <0x0 0x0 0x01000000>;
 			bank-width = <2>;
@@ -369,14 +369,14 @@
 			reboot@d {
 				/*
 				 * CPLD firmware which manages system reset and
-				 * watchdog registers has bugs. It does not
+				 * watchdog registers has bugs. It does analt
 				 * autoclear system reset register after change
-				 * and watchdog ignores reset line on immediate
+				 * and watchdog iganalres reset line on immediate
 				 * succeeding reset cycle triggered by watchdog.
 				 * These bugs have to be workarounded in U-Boot
 				 * bootloader. So use system reset via syscon as
 				 * a last resort because older U-Boot versions
-				 * do not have workaround for watchdog.
+				 * do analt have workaround for watchdog.
 				 *
 				 * Reset method via rstcr's global-utilities
 				 * (the preferred one) has priority level 128,
@@ -401,7 +401,7 @@
 				/*
 				 * LEDs are controlled by CPLD firmware.
 				 * All five LAN LEDs share common RGB settings
-				 * and so it is not possible to set different
+				 * and so it is analt possible to set different
 				 * colors on different LAN ports.
 				 */
 				compatible = "cznic,turris1x-leds";
@@ -469,15 +469,15 @@
 		/*
 		 * PCIe bus for on-board TUSB7340RKM USB 3.0 xHCI controller.
 		 * This xHCI controller is available only on Turris 1.1 boards.
-		 * Turris 1.0 boards have nothing connected to this PCIe bus,
+		 * Turris 1.0 boards have analthing connected to this PCIe bus,
 		 * so system would see only PCIe Root Port of this PCIe Root
 		 * Complex. TUSB7340RKM xHCI controller has four SuperSpeed
 		 * channels. Channel 0 is connected to the front USB 3.0 port,
 		 * channel 1 (but only USB 2.0 subset) to USB 2.0 pins on mPCIe
 		 * slot 1 (CN5), channels 2 and 3 to connector P600.
 		 *
-		 * P2020 PCIe Root Port does not use PCIe MEM and xHCI controller
-		 * uses 64kB + 8kB of PCIe MEM. No PCIe IO is used or required.
+		 * P2020 PCIe Root Port does analt use PCIe MEM and xHCI controller
+		 * uses 64kB + 8kB of PCIe MEM. Anal PCIe IO is used or required.
 		 * So allocate 128kB of PCIe MEM for this PCIe bus.
 		 */
 		reg = <0 0xffe08000 0 0x1000>;

@@ -7,7 +7,7 @@ static int find_map(void **start, void **end, const char *name)
 
 	maps = fopen("/proc/self/maps", "r");
 	if (!maps) {
-		fprintf(stderr, "cannot open maps\n");
+		fprintf(stderr, "cananalt open maps\n");
 		return -1;
 	}
 

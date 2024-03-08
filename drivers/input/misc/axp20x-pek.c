@@ -14,7 +14,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/irq.h>
 #include <linux/init.h>
 #include <linux/input.h>
@@ -235,7 +235,7 @@ static int axp20x_pek_probe_input_device(struct axp20x_pek *axp20x_pek,
 
 	axp20x_pek->input = devm_input_allocate_device(&pdev->dev);
 	if (!axp20x_pek->input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev = axp20x_pek->input;
 
@@ -282,7 +282,7 @@ static bool axp20x_pek_should_register_input(struct axp20x_pek *axp20x_pek)
 	if (IS_ENABLED(CONFIG_INPUT_SOC_BUTTON_ARRAY) &&
 	    axp20x_pek->axp20x->variant == AXP288_ID) {
 		/*
-		 * On Cherry Trail platforms (hrv == 3), do not register the
+		 * On Cherry Trail platforms (hrv == 3), do analt register the
 		 * input device if there is an "INTCFD9" or "ACPI0011" gpio
 		 * button ACPI device, as that handles the power button too,
 		 * and otherwise we end up reporting all presses twice.
@@ -310,7 +310,7 @@ static int axp20x_pek_probe(struct platform_device *pdev)
 	axp20x_pek = devm_kzalloc(&pdev->dev, sizeof(struct axp20x_pek),
 				  GFP_KERNEL);
 	if (!axp20x_pek)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	axp20x_pek->axp20x = dev_get_drvdata(pdev->dev.parent);
 
@@ -332,8 +332,8 @@ static int axp20x_pek_suspend(struct device *dev)
 	struct axp20x_pek *axp20x_pek = dev_get_drvdata(dev);
 
 	/*
-	 * As nested threaded IRQs are not automatically disabled during
-	 * suspend, we must explicitly disable non-wakeup IRQs.
+	 * As nested threaded IRQs are analt automatically disabled during
+	 * suspend, we must explicitly disable analn-wakeup IRQs.
 	 */
 	if (device_may_wakeup(dev)) {
 		enable_irq_wake(axp20x_pek->irq_dbf);
@@ -361,7 +361,7 @@ static int axp20x_pek_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused axp20x_pek_resume_noirq(struct device *dev)
+static int __maybe_unused axp20x_pek_resume_analirq(struct device *dev)
 {
 	struct axp20x_pek *axp20x_pek = dev_get_drvdata(dev);
 
@@ -381,7 +381,7 @@ static int __maybe_unused axp20x_pek_resume_noirq(struct device *dev)
 
 static const struct dev_pm_ops axp20x_pek_pm_ops = {
 	SYSTEM_SLEEP_PM_OPS(axp20x_pek_suspend, axp20x_pek_resume)
-	.resume_noirq = pm_sleep_ptr(axp20x_pek_resume_noirq),
+	.resume_analirq = pm_sleep_ptr(axp20x_pek_resume_analirq),
 };
 
 static const struct platform_device_id axp_pek_id_match[] = {

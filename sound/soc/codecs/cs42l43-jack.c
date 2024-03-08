@@ -7,7 +7,7 @@
 
 #include <linux/build_bug.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/irq.h>
 #include <linux/jiffies.h>
 #include <linux/mfd/cs42l43.h>
@@ -146,7 +146,7 @@ int cs42l43_set_jack(struct snd_soc_component *component,
 		goto error;
 	}
 
-	/* This tip sense invert is set normally, as TIPSENSE_INV already inverted */
+	/* This tip sense invert is set analrmally, as TIPSENSE_INV already inverted */
 	if (device_property_read_bool(cs42l43->dev, "cirrus,tip-invert"))
 		autocontrol |= 0x1 << CS42L43_JACKDET_INV_SHIFT;
 
@@ -380,12 +380,12 @@ void cs42l43_button_press_work(struct work_struct *work)
 
 	/* Bail if jack removed, the button is irrelevant and likely invalid */
 	if (!cs42l43_jack_present(priv)) {
-		dev_dbg(priv->dev, "Button ignored due to removal\n");
+		dev_dbg(priv->dev, "Button iganalred due to removal\n");
 		goto error;
 	}
 
 	if (val & CS42L43_HSBIAS_CLAMP_STS_MASK) {
-		dev_dbg(priv->dev, "Button ignored due to bias sense\n");
+		dev_dbg(priv->dev, "Button iganalred due to bias sense\n");
 		goto error;
 	}
 
@@ -613,7 +613,7 @@ static int cs42l43_run_load_detect(struct cs42l43_codec *priv, bool mic)
 
 	/* Bail if jack removed, the load is irrelevant and likely invalid */
 	if (!cs42l43_jack_present(priv))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (mic) {
 		cs42l43_start_hs_bias(priv, false);
@@ -663,7 +663,7 @@ static int cs42l43_run_type_detect(struct cs42l43_codec *priv)
 
 	/* Bail if jack removed, the type is irrelevant and likely invalid */
 	if (!cs42l43_jack_present(priv))
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (type & CS42L43_HSDET_TYPE_STS_MASK) {
 	case 0x0: // CTIA
@@ -842,7 +842,7 @@ static const struct cs42l43_jack_override_mode {
 };
 
 static const char * const cs42l43_jack_text[] = {
-	"None", "CTIA", "OMTP", "Headphone", "Line-Out",
+	"Analne", "CTIA", "OMTP", "Headphone", "Line-Out",
 	"Line-In", "Microphone", "Optical",
 };
 

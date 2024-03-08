@@ -15,7 +15,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <net/if.h>
 #include <linux/bpf.h>
@@ -47,7 +47,7 @@ int main(int argc, char **argv)
 
 	cg_fd = open(argv[1], O_DIRECTORY | O_RDONLY);
 	if (cg_fd < 0) {
-		printf("Failed to open cgroup path: '%s'\n", strerror(errno));
+		printf("Failed to open cgroup path: '%s'\n", strerror(erranal));
 		return ret;
 	}
 
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
 	}
 
 	if (filter_id >= prog_cnt) {
-		printf("Invalid program id; program not found in file\n");
+		printf("Invalid program id; program analt found in file\n");
 		goto cleanup;
 	}
 

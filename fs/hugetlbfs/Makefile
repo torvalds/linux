@@ -5,4 +5,4 @@
 
 obj-$(CONFIG_HUGETLBFS) += hugetlbfs.o
 
-hugetlbfs-objs := inode.o
+hugetlbfs-objs := ianalde.o

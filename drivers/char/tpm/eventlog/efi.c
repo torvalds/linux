@@ -27,17 +27,17 @@ int tpm_read_log_efi(struct tpm_chip *chip)
 	int ret;
 
 	if (!(chip->flags & TPM_CHIP_FLAG_TPM2))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (efi.tpm_log == EFI_INVALID_TABLE_ADDR)
-		return -ENODEV;
+		return -EANALDEV;
 
 	log = &chip->log;
 
 	log_tbl = memremap(efi.tpm_log, sizeof(*log_tbl), MEMREMAP_WB);
 	if (!log_tbl) {
-		pr_err("Could not map UEFI TPM log table !\n");
-		return -ENOMEM;
+		pr_err("Could analt map UEFI TPM log table !\n");
+		return -EANALMEM;
 	}
 
 	log_size = log_tbl->size;
@@ -51,14 +51,14 @@ int tpm_read_log_efi(struct tpm_chip *chip)
 	log_tbl = memremap(efi.tpm_log, sizeof(*log_tbl) + log_size,
 			   MEMREMAP_WB);
 	if (!log_tbl) {
-		pr_err("Could not map UEFI TPM log table payload!\n");
-		return -ENOMEM;
+		pr_err("Could analt map UEFI TPM log table payload!\n");
+		return -EANALMEM;
 	}
 
 	/* malloc EventLog space */
 	log->bios_event_log = devm_kmemdup(&chip->dev, log_tbl->log, log_size, GFP_KERNEL);
 	if (!log->bios_event_log) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -76,9 +76,9 @@ int tpm_read_log_efi(struct tpm_chip *chip)
 			     sizeof(*final_tbl) + final_events_log_size,
 			     MEMREMAP_WB);
 	if (!final_tbl) {
-		pr_err("Could not map UEFI TPM final log\n");
+		pr_err("Could analt map UEFI TPM final log\n");
 		devm_kfree(&chip->dev, log->bios_event_log);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -97,7 +97,7 @@ int tpm_read_log_efi(struct tpm_chip *chip)
 			    GFP_KERNEL);
 	if (!tmp) {
 		devm_kfree(&chip->dev, log->bios_event_log);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

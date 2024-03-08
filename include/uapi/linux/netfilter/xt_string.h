@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _XT_STRING_H
 #define _XT_STRING_H
 
@@ -9,7 +9,7 @@
 
 enum {
 	XT_STRING_FLAG_INVERT		= 0x01,
-	XT_STRING_FLAG_IGNORECASE	= 0x02
+	XT_STRING_FLAG_IGANALRECASE	= 0x02
 };
 
 struct xt_string_info {

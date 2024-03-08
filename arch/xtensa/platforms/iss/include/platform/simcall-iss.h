@@ -8,7 +8,7 @@
  *  System call like services offered by the simulator host.
  */
 
-#define SYS_nop		0	/* unused */
+#define SYS_analp		0	/* unused */
 #define SYS_exit	1	/*x*/
 #define SYS_fork	2
 #define SYS_read	3	/*x*/
@@ -17,12 +17,12 @@
 #define SYS_close	6	/*x*/
 #define SYS_rename	7	/*x 38 - waitpid */
 #define SYS_creat	8	/*x*/
-#define SYS_link	9	/*x (not implemented on WIN32) */
+#define SYS_link	9	/*x (analt implemented on WIN32) */
 #define SYS_unlink	10	/*x*/
 #define SYS_execv	11	/* n/a - execve */
 #define SYS_execve	12	/* 11 - chdir */
 #define SYS_pipe	13	/* 42 - time */
-#define SYS_stat	14	/* 106 - mknod */
+#define SYS_stat	14	/* 106 - mkanald */
 #define SYS_chmod	15
 #define SYS_chown	16	/* 202 - lchown */
 #define SYS_utime	17	/* 30 - break */
@@ -32,12 +32,12 @@
 #define SYS_isatty	21	/* n/a - mount */
 #define SYS_fstat	22	/* 108 - oldumount */
 #define SYS_time	23	/* 13 - setuid */
-#define SYS_gettimeofday 24	/*x 78 - getuid (not implemented on WIN32) */
+#define SYS_gettimeofday 24	/*x 78 - getuid (analt implemented on WIN32) */
 #define SYS_times	25	/*X 43 - stime (Xtensa-specific implementation) */
 #define SYS_socket      26
 #define SYS_sendto      27
 #define SYS_recvfrom    28
-#define SYS_select_one  29      /* not compatible select, one file descriptor at the time */
+#define SYS_select_one  29      /* analt compatible select, one file descriptor at the time */
 #define SYS_bind        30
 #define SYS_ioctl	31
 
@@ -53,7 +53,7 @@
 #define  XTISS_SELECT_ONE_WRITE   2
 #define  XTISS_SELECT_ONE_EXCEPT  3
 
-static int errno;
+static int erranal;
 
 static inline int __simc(int a, int b, int c, int d)
 {
@@ -66,7 +66,7 @@ static inline int __simc(int a, int b, int c, int d)
 			: "+r"(a1), "+r"(b1)
 			: "r"(c1), "r"(d1)
 			: "memory");
-	errno = b1;
+	erranal = b1;
 	return a1;
 }
 

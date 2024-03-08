@@ -4,7 +4,7 @@
  * Copyright (C) 2020 Google LLC.
  */
 
-#include <asm-generic/errno-base.h>
+#include <asm-generic/erranal-base.h>
 #include <sys/stat.h>
 #include <test_progs.h>
 #include <linux/limits.h>
@@ -16,7 +16,7 @@
 #define TEST_STORAGE_VALUE 0xbeefdead
 
 struct storage {
-	void *inode;
+	void *ianalde;
 	unsigned int value;
 };
 
@@ -31,8 +31,8 @@ static int run_self_unlink(struct local_storage *skel, const char *rm_path)
 	child_pid = fork();
 	if (child_pid == 0) {
 		null_fd = open("/dev/null", O_WRONLY);
-		dup2(null_fd, STDOUT_FILENO);
-		dup2(null_fd, STDERR_FILENO);
+		dup2(null_fd, STDOUT_FILEANAL);
+		dup2(null_fd, STDERR_FILEANAL);
 		close(null_fd);
 
 		skel->bss->monitored_pid = getpid();
@@ -41,7 +41,7 @@ static int run_self_unlink(struct local_storage *skel, const char *rm_path)
 		 */
 		ret = execlp(rm_path, rm_path, rm_path, NULL);
 		if (ret)
-			exit(errno);
+			exit(erranal);
 	} else if (child_pid > 0) {
 		waitpid(child_pid, &child_status, 0);
 		ASSERT_EQ(skel->data->task_storage_result, 0, "task_storage_result");
@@ -59,11 +59,11 @@ static bool check_syscall_operations(int map_fd, int obj_fd)
 
 	/* Looking up an existing element should fail initially */
 	err = bpf_map_lookup_elem_flags(map_fd, &obj_fd, &lookup_val, 0);
-	if (!ASSERT_EQ(err, -ENOENT, "bpf_map_lookup_elem"))
+	if (!ASSERT_EQ(err, -EANALENT, "bpf_map_lookup_elem"))
 		return false;
 
 	/* Create a new element */
-	err = bpf_map_update_elem(map_fd, &obj_fd, &val, BPF_NOEXIST);
+	err = bpf_map_update_elem(map_fd, &obj_fd, &val, BPF_ANALEXIST);
 	if (!ASSERT_OK(err, "bpf_map_update_elem"))
 		return false;
 
@@ -80,9 +80,9 @@ static bool check_syscall_operations(int map_fd, int obj_fd)
 	if (!ASSERT_OK(err, "bpf_map_delete_elem()"))
 		return false;
 
-	/* The lookup should fail, now that the element has been deleted */
+	/* The lookup should fail, analw that the element has been deleted */
 	err = bpf_map_lookup_elem_flags(map_fd, &obj_fd, &lookup_val, 0);
-	if (!ASSERT_EQ(err, -ENOENT, "bpf_map_lookup_elem"))
+	if (!ASSERT_EQ(err, -EANALENT, "bpf_map_lookup_elem"))
 		return false;
 
 	return true;
@@ -125,7 +125,7 @@ void test_test_local_storage(void)
 	if (!ASSERT_GE(rm_fd, 0, "open(tmp_exec_path)"))
 		goto close_prog_rmdir;
 
-	if (!check_syscall_operations(bpf_map__fd(skel->maps.inode_storage_map),
+	if (!check_syscall_operations(bpf_map__fd(skel->maps.ianalde_storage_map),
 				      rm_fd))
 		goto close_prog_rmdir;
 
@@ -142,14 +142,14 @@ void test_test_local_storage(void)
 	skel->bss->monitored_pid = getpid();
 
 	/* Move copy_of_rm to a new location so that it triggers the
-	 * inode_rename LSM hook with a new_dentry that has a NULL inode ptr.
+	 * ianalde_rename LSM hook with a new_dentry that has a NULL ianalde ptr.
 	 */
 	snprintf(cmd, sizeof(cmd), "mv %s/copy_of_rm %s/check_null_ptr",
 		 tmp_dir_path, tmp_dir_path);
 	if (!ASSERT_OK(system(cmd), "system(mv)"))
 		goto close_prog_rmdir;
 
-	ASSERT_EQ(skel->data->inode_storage_result, 0, "inode_storage_result");
+	ASSERT_EQ(skel->data->ianalde_storage_result, 0, "ianalde_storage_result");
 
 	serv_sk = start_server(AF_INET6, SOCK_STREAM, NULL, 0, 0);
 	if (!ASSERT_GE(serv_sk, 0, "start_server"))

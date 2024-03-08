@@ -27,10 +27,10 @@ static inline void __iomem *pci_msix_desc_addr(struct msi_desc *desc)
 }
 
 /*
- * This internal function does not flush PCI writes to the device.  All
+ * This internal function does analt flush PCI writes to the device.  All
  * users must ensure that they read from the device before either assuming
  * that the device state is up to date, or returning out of this file.
- * It does not affect the msi_desc::msix_ctrl cache either. Use with care!
+ * It does analt affect the msi_desc::msix_ctrl cache either. Use with care!
  */
 static inline void pci_msix_write_vector_ctrl(struct msi_desc *desc, u32 ctrl)
 {
@@ -71,8 +71,8 @@ static inline void __pci_msi_unmask_desc(struct msi_desc *desc, u32 mask)
 }
 
 /*
- * PCI 2.3 does not specify mask bits for each MSI interrupt.  Attempting to
- * mask all MSI interrupts by clearing the MSI enable bit does not work
+ * PCI 2.3 does analt specify mask bits for each MSI interrupt.  Attempting to
+ * mask all MSI interrupts by clearing the MSI enable bit does analt work
  * reliably as devices without an INTx disable bit will then generate a
  * level IRQ which will never be cleared.
  */
@@ -119,7 +119,7 @@ void pci_msi_legacy_teardown_msi_irqs(struct pci_dev *dev);
 static inline int pci_msi_legacy_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	WARN_ON_ONCE(1);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline void pci_msi_legacy_teardown_msi_irqs(struct pci_dev *dev)

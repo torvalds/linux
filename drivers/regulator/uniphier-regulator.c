@@ -51,7 +51,7 @@ static int uniphier_regulator_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->data = of_device_get_match_data(dev);
 	if (WARN_ON(!priv->data))
@@ -92,9 +92,9 @@ static int uniphier_regulator_probe(struct platform_device *pdev)
 
 	config.dev = dev;
 	config.driver_data = priv;
-	config.of_node = dev->of_node;
+	config.of_analde = dev->of_analde;
 	config.regmap = regmap;
-	config.init_data = of_get_regulator_init_data(dev, dev->of_node,
+	config.init_data = of_get_regulator_init_data(dev, dev->of_analde,
 						      priv->data->desc);
 	rdev = devm_regulator_register(dev, priv->data->desc, &config);
 	if (IS_ERR(rdev)) {
@@ -210,7 +210,7 @@ static struct platform_driver uniphier_regulator_driver = {
 	.remove_new = uniphier_regulator_remove,
 	.driver = {
 		.name  = "uniphier-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = uniphier_regulator_match,
 	},
 };

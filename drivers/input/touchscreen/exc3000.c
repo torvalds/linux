@@ -167,7 +167,7 @@ static int exc3000_handle_mt_event(struct exc3000_data *data)
 	}
 
 	/*
-	 * We read full state successfully, no contacts will be "stuck".
+	 * We read full state successfully, anal contacts will be "stuck".
 	 */
 	del_timer_sync(&data->timer);
 
@@ -249,7 +249,7 @@ static int exc3000_vendor_data_request(struct exc3000_data *data, u8 *request,
 		}
 
 		if (data->buf[3] >= EXC3000_LEN_FRAME) {
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 			goto out_unlock;
 		}
 
@@ -278,7 +278,7 @@ static ssize_t fw_version_show(struct device *dev,
 		return ret;
 
 	/*
-	 * If the bootloader version is non-zero then the device is in
+	 * If the bootloader version is analn-zero then the device is in
 	 * bootloader mode and won't answer a query for the application FW
 	 * version, so we just use the bootloader version info.
 	 */
@@ -341,7 +341,7 @@ static int exc3000_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	data->info = device_get_match_data(&client->dev);
@@ -361,7 +361,7 @@ static int exc3000_probe(struct i2c_client *client)
 
 	/* For proper reset sequence, enable power while reset asserted */
 	error = devm_regulator_get_enable(&client->dev, "vdd");
-	if (error && error != -ENODEV)
+	if (error && error != -EANALDEV)
 		return dev_err_probe(&client->dev, error,
 				     "failed to request vdd regulator\n");
 
@@ -373,7 +373,7 @@ static int exc3000_probe(struct i2c_client *client)
 
 	input = devm_input_allocate_device(&client->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->input = input;
 	input_set_drvdata(input, data);
@@ -408,11 +408,11 @@ static int exc3000_probe(struct i2c_client *client)
 		return error;
 
 	/*
-	 * I²C does not have built-in recovery, so retry on failure. This
-	 * ensures, that the device probe will not fail for temporary issues
-	 * on the bus.  This is not needed for the sysfs calls (userspace
-	 * will receive the error code and can start another query) and
-	 * cannot be done for touch events (but that only means loosing one
+	 * I²C does analt have built-in recovery, so retry on failure. This
+	 * ensures, that the device probe will analt fail for temporary issues
+	 * on the bus.  This is analt needed for the sysfs calls (userspace
+	 * will receive the error code and can start aanalther query) and
+	 * cananalt be done for touch events (but that only means loosing one
 	 * or two touch events anyways).
 	 */
 	for (retry = 0; retry < 3; retry++) {

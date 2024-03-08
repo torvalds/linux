@@ -115,7 +115,7 @@ void __init pmsav8_adjust_lowmem_bounds(void)
 			 * all blocks afterwards in one go (we can't remove
 			 * blocks separately while iterating)
 			 */
-			pr_notice("Ignoring RAM after %pa, memory at %pa ignored\n",
+			pr_analtice("Iganalring RAM after %pa, memory at %pa iganalred\n",
 				  &mem_end, &reg_start);
 			memblock_remove(reg_start, 0 - reg_start);
 			break;
@@ -142,7 +142,7 @@ static int __init __pmsav8_setup_region(unsigned int number, u32 bar, u32 lar)
 {
 	if (number > mpu_max_regions
 	    || number >= MPU_MAX_REGIONS)
-		return -ENOENT;
+		return -EANALENT;
 
 	dsb();
 	prsel_write(number);
@@ -169,7 +169,7 @@ static int __init pmsav8_setup_ram(unsigned int number, phys_addr_t start,phys_a
 	lar = (end - 1) & ~(PMSAv8_MINALIGN - 1);
 
 	bar |= PMSAv8_AP_PL1RW_PL0RW | PMSAv8_RGN_SHARED;
-	lar |= PMSAv8_LAR_IDX(PMSAv8_RGN_NORMAL) | PMSAv8_LAR_EN;
+	lar |= PMSAv8_LAR_IDX(PMSAv8_RGN_ANALRMAL) | PMSAv8_LAR_EN;
 
 	return __pmsav8_setup_region(number, bar, lar);
 }
@@ -201,7 +201,7 @@ static int __init pmsav8_setup_fixed(unsigned int number, phys_addr_t start,phys
 	lar = (end - 1) & ~(PMSAv8_MINALIGN - 1);
 
 	bar |= PMSAv8_AP_PL1RW_PL0NA | PMSAv8_RGN_SHARED;
-	lar |= PMSAv8_LAR_IDX(PMSAv8_RGN_NORMAL) | PMSAv8_LAR_EN;
+	lar |= PMSAv8_LAR_IDX(PMSAv8_RGN_ANALRMAL) | PMSAv8_LAR_EN;
 
 	prsel_write(number);
 	isb();
@@ -230,7 +230,7 @@ static int __init pmsav8_setup_vector(unsigned int number, phys_addr_t start,phy
 	lar = (end - 1) & ~(PMSAv8_MINALIGN - 1);
 
 	bar |= PMSAv8_AP_PL1RW_PL0NA | PMSAv8_RGN_SHARED;
-	lar |= PMSAv8_LAR_IDX(PMSAv8_RGN_NORMAL) | PMSAv8_LAR_EN;
+	lar |= PMSAv8_LAR_IDX(PMSAv8_RGN_ANALRMAL) | PMSAv8_LAR_EN;
 
 	return __pmsav8_setup_region(number, bar, lar);
 }
@@ -270,7 +270,7 @@ void __init pmsav8_setup(void)
 	for (i = 0; i < ARRAY_SIZE(mem); i++)
 		subtract_range(io, ARRAY_SIZE(io), mem[i].start, mem[i].end);
 
-	/* Now program MPU */
+	/* Analw program MPU */
 
 #ifdef CONFIG_XIP_KERNEL
 	/* ROM */

@@ -37,8 +37,8 @@
 
 #define UNSET (-1U)
 
-#define DM1105_BOARD_NOAUTO			UNSET
-#define DM1105_BOARD_UNKNOWN			0
+#define DM1105_BOARD_ANALAUTO			UNSET
+#define DM1105_BOARD_UNKANALWN			0
 #define DM1105_BOARD_DVBWORLD_2002		1
 #define DM1105_BOARD_DVBWORLD_2004		2
 #define DM1105_BOARD_AXESS_DM05			3
@@ -110,7 +110,7 @@
 #define DM1105_SYSTEMCODE			0x6c
 #define DM1105_IRCODE				0x70
 
-/* Unknown Values */
+/* Unkanalwn Values */
 #define DM1105_ENCRYPT				0x74
 #define DM1105_VER				0x7c
 
@@ -128,7 +128,7 @@
 #define INTMAK_ALLMASK				(INTMAK_TSIRQM | \
 						INTMAK_HIRQM | \
 						INTMAK_IRM)
-#define INTMAK_NONEMASK				0x00
+#define INTMAK_ANALNEMASK				0x00
 
 /* Interrupt Status Bits */
 #define INTSTS_TSIRQ				0x01
@@ -206,8 +206,8 @@ struct dm1105_subid {
 };
 
 static const struct dm1105_board dm1105_boards[] = {
-	[DM1105_BOARD_UNKNOWN] = {
-		.name		= "UNKNOWN/GENERIC",
+	[DM1105_BOARD_UNKANALWN] = {
+		.name		= "UNKANALWN/GENERIC",
 		.lnb = {
 			.mask = DM1105_LNB_MASK,
 			.off = DM1105_LNB_OFF,
@@ -286,7 +286,7 @@ static void dm1105_card_list(struct pci_dev *pci)
 	if (0 == pci->subsystem_vendor &&
 			0 == pci->subsystem_device) {
 		printk(KERN_ERR
-			"dm1105: Your board has no valid PCI Subsystem ID\n"
+			"dm1105: Your board has anal valid PCI Subsystem ID\n"
 			"dm1105: and thus can't be autodetected\n"
 			"dm1105: Please pass card=<n> insmod option to\n"
 			"dm1105: workaround that.  Redirect complaints to\n"
@@ -294,7 +294,7 @@ static void dm1105_card_list(struct pci_dev *pci)
 			"dm1105: -- tux\n");
 	} else {
 		printk(KERN_ERR
-			"dm1105: Your board isn't known (yet) to the driver.\n"
+			"dm1105: Your board isn't kanalwn (yet) to the driver.\n"
 			"dm1105: You can try to pick one of the existing\n"
 			"dm1105: card configs via card=<n> insmod option.\n"
 			"dm1105: Updating to the latest version might help\n"
@@ -375,7 +375,7 @@ struct dm1105_dev {
 
 /* The chip has 18 GPIOs. In HOST mode GPIO's used as 15 bit address lines,
  so we can use only 3 GPIO's from GPIO15 to GPIO17.
- Here I don't check whether HOST is enebled as it is not implemented yet.
+ Here I don't check whether HOST is enebled as it is analt implemented yet.
  */
 static void dm1105_gpio_set(struct dm1105_dev *dev, u32 mask)
 {
@@ -661,8 +661,8 @@ static void dm1105_emit_key(struct work_struct *work)
 
 	data = (ircom >> 8) & 0x7f;
 
-	/* FIXME: UNKNOWN because we don't generate a full NEC scancode (yet?) */
-	rc_keydown(ir->dev, RC_PROTO_UNKNOWN, data, 0);
+	/* FIXME: UNKANALWN because we don't generate a full NEC scancode (yet?) */
+	rc_keydown(ir->dev, RC_PROTO_UNKANALWN, data, 0);
 }
 
 /* work handler */
@@ -724,11 +724,11 @@ static irqreturn_t dm1105_irq(int irq, void *dev_id)
 static int dm1105_ir_init(struct dm1105_dev *dm1105)
 {
 	struct rc_dev *dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(dm1105->ir.input_phys, sizeof(dm1105->ir.input_phys),
 		"pci-%s/ir0", pci_name(dm1105->pdev));
@@ -797,7 +797,7 @@ static void dm1105_hw_exit(struct dm1105_dev *dev)
 
 	/* IR disable */
 	dm_writeb(DM1105_IRCTR, 0);
-	dm_writeb(DM1105_INTMAK, INTMAK_NONEMASK);
+	dm_writeb(DM1105_INTMAK, INTMAK_ANALNEMASK);
 
 	dm1105_dma_unmap(dev);
 }
@@ -926,8 +926,8 @@ static int frontend_init(struct dm1105_dev *dev)
 	}
 
 	if (!dev->fe) {
-		dev_err(&dev->pdev->dev, "could not attach frontend\n");
-		return -ENODEV;
+		dev_err(&dev->pdev->dev, "could analt attach frontend\n");
+		return -EANALDEV;
 	}
 
 	ret = dvb_register_frontend(&dev->dvb_adapter, dev->fe);
@@ -970,15 +970,15 @@ static int dm1105_probe(struct pci_dev *pdev,
 	struct dvb_adapter *dvb_adapter;
 	struct dvb_demux *dvbdemux;
 	struct dmx_demux *dmx;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	int i;
 
 	if (dm1105_devcount >= ARRAY_SIZE(card))
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = kzalloc(sizeof(struct dm1105_dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* board config */
 	dev->nr = dm1105_devcount;
@@ -994,7 +994,7 @@ static int dm1105_probe(struct pci_dev *pdev,
 			dev->boardnr = dm1105_subids[i].card;
 
 	if (UNSET == dev->boardnr) {
-		dev->boardnr = DM1105_BOARD_UNKNOWN;
+		dev->boardnr = DM1105_BOARD_UNKANALWN;
 		dm1105_card_list(pdev);
 	}
 
@@ -1125,7 +1125,7 @@ static int dm1105_probe(struct pci_dev *pdev,
 	sprintf(dev->wqn, "%s/%d", dvb_adapter->name, dvb_adapter->num);
 	dev->wq = create_singlethread_workqueue(dev->wqn);
 	if (!dev->wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_dvb_net;
 	}
 

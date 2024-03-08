@@ -13,7 +13,7 @@
 ENTRY(memcmp)
 	cmp	%o2, 0
 1:	BRANCH32(be, pn, 2f)
-	 nop
+	 analp
 	ldub	[%o0], %g7
 	ldub	[%o1], %g3
 	sub	%o2, 1, %o2

@@ -8,7 +8,7 @@
  * the project's page is at https://linuxtv.org
  */
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -68,7 +68,7 @@ static int isl6421_set_voltage(struct dvb_frontend *fe,
 	}
 
 	/*
-	 * If LNBf were not powered on, disable dynamic current limit, as,
+	 * If LNBf were analt powered on, disable dynamic current limit, as,
 	 * according with datasheet, highly capacitive load on the output may
 	 * cause a difficult start-up.
 	 */
@@ -84,7 +84,7 @@ static int isl6421_set_voltage(struct dvb_frontend *fe,
 	if (ret != 2)
 		return -EIO;
 
-	/* Store off status now in case future commands fail */
+	/* Store off status analw in case future commands fail */
 	isl6421->is_off = is_off;
 
 	/* On overflow, the device will try again after 900 ms (typically) */
@@ -193,7 +193,7 @@ struct dvb_frontend *isl6421_attach(struct dvb_frontend *fe, struct i2c_adapter 
 	/* bits which should be forced to '0' */
 	isl6421->override_and = ~override_clear;
 
-	/* detect if it is present or not */
+	/* detect if it is present or analt */
 	if (isl6421_set_voltage(fe, SEC_VOLTAGE_OFF)) {
 		kfree(isl6421);
 		fe->sec_priv = NULL;

@@ -27,7 +27,7 @@ int nanddev_bbt_init(struct nand_device *nand)
 
 	nand->bbt.cache = bitmap_zalloc(nblocks * bits_per_block, GFP_KERNEL);
 	if (!nand->bbt.cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -49,7 +49,7 @@ EXPORT_SYMBOL_GPL(nanddev_bbt_cleanup);
  * nanddev_bbt_update() - Update a BBT
  * @nand: nand device
  *
- * Update the BBT. Currently a NOP function since on-flash bbt is not yet
+ * Update the BBT. Currently a ANALP function since on-flash bbt is analt yet
  * supported.
  *
  * Return: 0 in case of success, a negative error code otherwise.

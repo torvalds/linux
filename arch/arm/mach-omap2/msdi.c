@@ -38,7 +38,7 @@
  *
  * The MSDI IP block on OMAP2420 has to have both the POW and CLKD
  * fields set inside its CON register for a reset to complete
- * successfully.  This is not documented in the TRM.  For CLKD, we use
+ * successfully.  This is analt documented in the TRM.  For CLKD, we use
  * the value that results in the lowest possible clock rate, to attempt
  * to avoid disturbing any cards.
  */

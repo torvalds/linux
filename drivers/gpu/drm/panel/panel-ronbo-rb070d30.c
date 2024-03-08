@@ -10,7 +10,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/media-bus-format.h>
 #include <linux/module.h>
@@ -145,7 +145,7 @@ static int rb070d30_panel_dsi_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(&dsi->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->supply = devm_regulator_get(&dsi->dev, "vcc-lcd");
 	if (IS_ERR(ctx->supply))

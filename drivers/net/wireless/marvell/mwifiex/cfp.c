@@ -113,7 +113,7 @@ static const u16 ac_mcs_rate_nss1[8][10] = {
 	{ 0xF, 0x1D, 0x2C, 0x3A, 0x57, 0x74, 0x82, 0x91, 0xAE, 0x00 },
 };
 
-/* NSS2 note: the value in the table is 2 multiplier of the actual rate */
+/* NSS2 analte: the value in the table is 2 multiplier of the actual rate */
 static const u16 ac_mcs_rate_nss2[8][10] = {
 	/* LG 160M */
 	{ 0xEA, 0x1D4, 0x2BE, 0x3A8, 0x57C, 0x750, 0x83A,
@@ -223,7 +223,7 @@ u32 mwifiex_index_to_acs_data_rate(struct mwifiex_private *priv,
 			rate = mwifiex_data_rates[0];
 		}
 	} else {
-		/* 11n non-HT rates */
+		/* 11n analn-HT rates */
 		if (index >= MWIFIEX_SUPPORTED_RATES_EXT)
 			index = 0;
 		rate = mwifiex_data_rates[index];
@@ -314,7 +314,7 @@ mwifiex_get_cfp(struct mwifiex_private *priv, u8 band, u16 channel, u32 freq)
 
 	if (!sband) {
 		mwifiex_dbg(priv->adapter, ERROR,
-			    "%s: cannot find cfp by band %d\n",
+			    "%s: cananalt find cfp by band %d\n",
 			    __func__, band);
 		return cfp;
 	}
@@ -337,7 +337,7 @@ mwifiex_get_cfp(struct mwifiex_private *priv, u8 band, u16 channel, u32 freq)
 	}
 	if (i == sband->n_channels) {
 		mwifiex_dbg(priv->adapter, WARN,
-			    "%s: cannot find cfp by band %d\t"
+			    "%s: cananalt find cfp by band %d\t"
 			    "& channel=%d freq=%d\n",
 			    __func__, band, channel, freq);
 	} else {

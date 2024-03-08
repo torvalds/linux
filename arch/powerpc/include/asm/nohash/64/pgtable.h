@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_NOHASH_64_PGTABLE_H
-#define _ASM_POWERPC_NOHASH_64_PGTABLE_H
+#ifndef _ASM_POWERPC_ANALHASH_64_PGTABLE_H
+#define _ASM_POWERPC_ANALHASH_64_PGTABLE_H
 /*
  * This file contains the functions and defines necessary to modify and use
- * the ppc64 non-hashed page table.
+ * the ppc64 analn-hashed page table.
  */
 
 #include <linux/sizes.h>
 
-#include <asm/nohash/64/pgtable-4k.h>
+#include <asm/analhash/64/pgtable-4k.h>
 #include <asm/barrier.h>
 #include <asm/asm-const.h>
 
@@ -23,7 +23,7 @@
 #define PUD_CACHE_INDEX PUD_INDEX_SIZE
 
 /*
- * Define the address range of the kernel non-linear virtual area
+ * Define the address range of the kernel analn-linear virtual area
  */
 #define KERN_VIRT_START ASM_CONST(0xc000100000000000)
 #define KERN_VIRT_SIZE	ASM_CONST(0x0000100000000000)
@@ -71,7 +71,7 @@
 /*
  * Include the PTE bits definitions
  */
-#include <asm/nohash/pte-e500.h>
+#include <asm/analhash/pte-e500.h>
 
 #define PTE_RPN_MASK	(~((1UL << PTE_RPN_SHIFT) - 1))
 
@@ -98,10 +98,10 @@ static inline pte_t pmd_pte(pmd_t pmd)
 	return __pte(pmd_val(pmd));
 }
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
+#define pmd_analne(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		(!is_kernel_addr(pmd_val(pmd)) \
 				 || (pmd_val(pmd) & PMD_BAD_BITS))
-#define	pmd_present(pmd)	(!pmd_none(pmd))
+#define	pmd_present(pmd)	(!pmd_analne(pmd))
 #define pmd_page_vaddr(pmd)	((const void *)(pmd_val(pmd) & ~PMD_MASKED_BITS))
 extern struct page *pmd_page(pmd_t pmd);
 #define pmd_pfn(pmd)		(page_to_pfn(pmd_page(pmd)))
@@ -116,7 +116,7 @@ static inline void pud_clear(pud_t *pudp)
 	*pudp = __pud(0);
 }
 
-#define pud_none(pud)		(!pud_val(pud))
+#define pud_analne(pud)		(!pud_val(pud))
 #define	pud_bad(pud)		(!is_kernel_addr(pud_val(pud)) \
 				 || (pud_val(pud) & PUD_BAD_BITS))
 #define pud_present(pud)	(pud_val(pud) != 0)
@@ -166,7 +166,7 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTEs:
  *
@@ -178,7 +178,7 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
  *   2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
  *   --------------> <----------- zero ------------> E < type -> 0 0
  *
- * E is the exclusive marker that is not stored in swap entries.
+ * E is the exclusive marker that is analt stored in swap entries.
  */
 #define MAX_SWAPFILES_CHECK() do { \
 	BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS); \
@@ -211,4 +211,4 @@ void __patch_exception(int exc, unsigned long addr);
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* _ASM_POWERPC_NOHASH_64_PGTABLE_H */
+#endif /* _ASM_POWERPC_ANALHASH_64_PGTABLE_H */

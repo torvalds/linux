@@ -8,7 +8,7 @@
 
 enum probe_insn {
 	INSN_REJECTED,
-	INSN_GOOD_NO_SLOT,
+	INSN_GOOD_ANAL_SLOT,
 	INSN_GOOD,
 };
 

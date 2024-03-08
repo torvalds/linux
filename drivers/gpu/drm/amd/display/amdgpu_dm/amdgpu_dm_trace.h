@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -174,7 +174,7 @@ TRACE_EVENT(amdgpu_dm_crtc_atomic_check,
 			     __field(bool, connectors_changed)
 			     __field(bool, zpos_changed)
 			     __field(bool, color_mgmt_changed)
-			     __field(bool, no_vblank)
+			     __field(bool, anal_vblank)
 			     __field(bool, async_flip)
 			     __field(bool, vrr_enabled)
 			     __field(bool, self_refresh_active)
@@ -196,7 +196,7 @@ TRACE_EVENT(amdgpu_dm_crtc_atomic_check,
 			   __entry->connectors_changed = state->connectors_changed;
 			   __entry->zpos_changed = state->zpos_changed;
 			   __entry->color_mgmt_changed = state->color_mgmt_changed;
-			   __entry->no_vblank = state->no_vblank;
+			   __entry->anal_vblank = state->anal_vblank;
 			   __entry->async_flip = state->async_flip;
 			   __entry->vrr_enabled = state->vrr_enabled;
 			   __entry->self_refresh_active = state->self_refresh_active;
@@ -208,7 +208,7 @@ TRACE_EVENT(amdgpu_dm_crtc_atomic_check,
 	    TP_printk("crtc_id=%u crtc_state=%p state=%p commit=%p changed("
 		      "planes=%d mode=%d active=%d conn=%d zpos=%d color_mgmt=%d) "
 		      "state(enable=%d active=%d async_flip=%d vrr_enabled=%d "
-		      "self_refresh_active=%d no_vblank=%d) mask(plane=%x conn=%x "
+		      "self_refresh_active=%d anal_vblank=%d) mask(plane=%x conn=%x "
 		      "enc=%x)",
 		      __entry->crtc_id, __entry->crtc_state, __entry->state,
 		      __entry->commit, __entry->planes_changed,
@@ -216,7 +216,7 @@ TRACE_EVENT(amdgpu_dm_crtc_atomic_check,
 		      __entry->connectors_changed, __entry->zpos_changed,
 		      __entry->color_mgmt_changed, __entry->enable, __entry->active,
 		      __entry->async_flip, __entry->vrr_enabled,
-		      __entry->self_refresh_active, __entry->no_vblank,
+		      __entry->self_refresh_active, __entry->anal_vblank,
 		      __entry->plane_mask, __entry->connector_mask,
 		      __entry->encoder_mask)
 );
@@ -247,7 +247,7 @@ DECLARE_EVENT_CLASS(amdgpu_dm_plane_state_template,
 			     __field(uint32_t, pixel_blend_mode)
 			     __field(unsigned int, rotation)
 			     __field(unsigned int, zpos)
-			     __field(unsigned int, normalized_zpos)
+			     __field(unsigned int, analrmalized_zpos)
 			     __field(enum drm_color_encoding, color_encoding)
 			     __field(enum drm_color_range, color_range)
 			     __field(bool, visible)
@@ -276,7 +276,7 @@ DECLARE_EVENT_CLASS(amdgpu_dm_plane_state_template,
 			   __entry->pixel_blend_mode = state->pixel_blend_mode;
 			   __entry->rotation = state->rotation;
 			   __entry->zpos = state->zpos;
-			   __entry->normalized_zpos = state->normalized_zpos;
+			   __entry->analrmalized_zpos = state->analrmalized_zpos;
 			   __entry->color_encoding = state->color_encoding;
 			   __entry->color_range = state->color_range;
 			   __entry->visible = state->visible;
@@ -287,7 +287,7 @@ DECLARE_EVENT_CLASS(amdgpu_dm_plane_state_template,
 		      "fence=%p crtc_x=%d crtc_y=%d crtc_w=%u crtc_h=%u "
 		      "src_x=%u src_y=%u src_w=%u src_h=%u alpha=%u "
 		      "pixel_blend_mode=%u rotation=%u zpos=%u "
-		      "normalized_zpos=%u color_encoding=%d color_range=%d "
+		      "analrmalized_zpos=%u color_encoding=%d color_range=%d "
 		      "visible=%d",
 		      __entry->plane_id, __entry->plane_type, __entry->plane_state,
 		      __entry->state, __entry->crtc_id, __entry->fb_id,
@@ -300,7 +300,7 @@ DECLARE_EVENT_CLASS(amdgpu_dm_plane_state_template,
 		      __entry->crtc_y, __entry->crtc_w, __entry->crtc_h,
 		      __entry->src_x, __entry->src_y, __entry->src_w, __entry->src_h,
 		      __entry->alpha, __entry->pixel_blend_mode, __entry->rotation,
-		      __entry->zpos, __entry->normalized_zpos,
+		      __entry->zpos, __entry->analrmalized_zpos,
 		      __entry->color_encoding, __entry->color_range,
 		      __entry->visible)
 );

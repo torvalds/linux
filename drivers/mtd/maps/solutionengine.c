@@ -14,7 +14,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 static struct mtd_info *flash_mtd;
 static struct mtd_info *eprom_mtd;
@@ -43,11 +43,11 @@ static int __init init_soleng_maps(void)
 	simple_map_init(&soleng_eprom_map);
 	simple_map_init(&soleng_flash_map);
 
-	printk(KERN_NOTICE "Probing for flash chips at 0x00000000:\n");
+	printk(KERN_ANALTICE "Probing for flash chips at 0x00000000:\n");
 	flash_mtd = do_map_probe("cfi_probe", &soleng_flash_map);
 	if (!flash_mtd) {
-		/* Not there. Try swapping */
-		printk(KERN_NOTICE "Probing for flash chips at 0x01000000:\n");
+		/* Analt there. Try swapping */
+		printk(KERN_ANALTICE "Probing for flash chips at 0x01000000:\n");
 		soleng_flash_map.phys = 0x01000000;
 		soleng_flash_map.virt = P2SEGADDR(0x01000000);
 		soleng_eprom_map.phys = 0;
@@ -55,11 +55,11 @@ static int __init init_soleng_maps(void)
 		flash_mtd = do_map_probe("cfi_probe", &soleng_flash_map);
 		if (!flash_mtd) {
 			/* Eep. */
-			printk(KERN_NOTICE "Flash chips not detected at either possible location.\n");
+			printk(KERN_ANALTICE "Flash chips analt detected at either possible location.\n");
 			return -ENXIO;
 		}
 	}
-	printk(KERN_NOTICE "Solution Engine: Flash at 0x%pap, EPROM at 0x%pap\n",
+	printk(KERN_ANALTICE "Solution Engine: Flash at 0x%pap, EPROM at 0x%pap\n",
 	       &soleng_flash_map.phys,
 	       &soleng_eprom_map.phys);
 	flash_mtd->owner = THIS_MODULE;

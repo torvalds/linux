@@ -180,8 +180,8 @@
 	assigned-clock-rates = <0>, <198000000>;
 	bus-width = <8>;
 	keep-power-in-suspend;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	vmmc-supply = <&reg_module_3v3>;
 	status = "okay";
 };

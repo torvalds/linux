@@ -216,7 +216,7 @@ static int bcm_pmb_power_on_sata(struct bcm_pmb *pmb, int bus, u8 device)
 	if (err)
 		return err;
 
-	/* Does not apply to the BCM963158 */
+	/* Does analt apply to the BCM963158 */
 	err = bcm_pmb_bpcm_write(pmb, bus, device, BPCM_MISC_CONTROL, 0);
 	if (err)
 		return err;
@@ -281,7 +281,7 @@ static int bcm_pmb_probe(struct platform_device *pdev)
 
 	pmb = devm_kzalloc(dev, sizeof(*pmb), GFP_KERNEL);
 	if (!pmb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmb->dev = dev;
 
@@ -291,7 +291,7 @@ static int bcm_pmb_probe(struct platform_device *pdev)
 
 	spin_lock_init(&pmb->lock);
 
-	pmb->little_endian = !of_device_is_big_endian(dev->of_node);
+	pmb->little_endian = !of_device_is_big_endian(dev->of_analde);
 
 	table = of_device_get_match_data(dev);
 	if (!table)
@@ -306,13 +306,13 @@ static int bcm_pmb_probe(struct platform_device *pdev)
 		devm_kcalloc(dev, pmb->genpd_onecell_data.num_domains,
 			     sizeof(struct generic_pm_domain *), GFP_KERNEL);
 	if (!pmb->genpd_onecell_data.domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (e = table; e->name; e++) {
 		struct bcm_pmb_pm_domain *pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
 
 		if (!pd)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pd->pmb = pmb;
 		pd->data = e;
@@ -324,7 +324,7 @@ static int bcm_pmb_probe(struct platform_device *pdev)
 		pmb->genpd_onecell_data.domains[e->id] = &pd->genpd;
 	}
 
-	err = of_genpd_add_provider_onecell(dev->of_node, &pmb->genpd_onecell_data);
+	err = of_genpd_add_provider_onecell(dev->of_analde, &pmb->genpd_onecell_data);
 	if (err) {
 		dev_err(dev, "failed to add genpd provider: %d\n", err);
 		return err;

@@ -56,11 +56,11 @@ int pvr2_ctrl_get_valname(struct pvr2_ctrl *,int,char *,unsigned int,
 /* Return true if control is writable */
 int pvr2_ctrl_is_writable(struct pvr2_ctrl *);
 
-/* Return V4L flags value for control (or zero if there is no v4l control
+/* Return V4L flags value for control (or zero if there is anal v4l control
    actually under this control) */
 unsigned int pvr2_ctrl_get_v4lflags(struct pvr2_ctrl *);
 
-/* Return V4L ID for this control or zero if none */
+/* Return V4L ID for this control or zero if analne */
 int pvr2_ctrl_get_v4lid(struct pvr2_ctrl *);
 
 /* Return true if control has custom symbolic representation */

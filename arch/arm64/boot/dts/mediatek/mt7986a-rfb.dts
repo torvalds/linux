@@ -91,9 +91,9 @@
 	hs400-ds-delay = <0x14014>;
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_1p8v>;
-	non-removable;
-	no-sd;
-	no-sdio;
+	analn-removable;
+	anal-sd;
+	anal-sdio;
 };
 
 &pcie {

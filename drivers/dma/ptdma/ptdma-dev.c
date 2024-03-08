@@ -155,7 +155,7 @@ void pt_check_status_trans(struct pt_device *pt, struct pt_cmd_queue *cmd_q)
 		if ((status & INT_ERROR) && !cmd_q->cmd_error)
 			cmd_q->cmd_error = CMD_Q_ERROR(cmd_q->q_status);
 
-		/* Acknowledge the completion */
+		/* Ackanalwledge the completion */
 		iowrite32(status, cmd_q->reg_control + 0x0010);
 		pt_do_cmd_complete((ulong)&pt->tdata);
 	}
@@ -189,7 +189,7 @@ int pt_core_init(struct pt_device *pt)
 				   PT_DMAPOOL_MAX_SIZE,
 				   PT_DMAPOOL_ALIGN, 0);
 	if (!dma_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* ptdma core initialisation */
 	iowrite32(CMD_CONFIG_VHB_EN, pt->io_regs + CMD_CONFIG_OFFSET);
@@ -209,7 +209,7 @@ int pt_core_init(struct pt_device *pt)
 					  GFP_KERNEL);
 	if (!cmd_q->qbase) {
 		dev_err(dev, "unable to allocate command queue\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto e_destroy_pool;
 	}
 
@@ -221,7 +221,7 @@ int pt_core_init(struct pt_device *pt)
 	/* Turn off the queues and disable interrupts until ready */
 	pt_core_disable_queue_interrupts(pt);
 
-	cmd_q->qcontrol = 0; /* Start with nothing */
+	cmd_q->qcontrol = 0; /* Start with analthing */
 	iowrite32(cmd_q->qcontrol, cmd_q->reg_control);
 
 	ioread32(cmd_q->reg_control + 0x0104);
@@ -304,6 +304,6 @@ void pt_core_destroy(struct pt_device *pt)
 		/* Invoke the callback directly with an error code */
 		cmd = list_first_entry(&pt->cmd, struct pt_cmd, entry);
 		list_del(&cmd->entry);
-		cmd->pt_cmd_callback(cmd->data, -ENODEV);
+		cmd->pt_cmd_callback(cmd->data, -EANALDEV);
 	}
 }

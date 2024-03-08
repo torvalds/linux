@@ -29,10 +29,10 @@ extern void of_device_uevent(const struct device *dev, struct kobj_uevent_env *e
 extern int of_device_uevent_modalias(const struct device *dev, struct kobj_uevent_env *env);
 
 int of_dma_configure_id(struct device *dev,
-		     struct device_node *np,
+		     struct device_analde *np,
 		     bool force_dma, const u32 *id);
 static inline int of_dma_configure(struct device *dev,
-				   struct device_node *np,
+				   struct device_analde *np,
 				   bool force_dma)
 {
 	return of_dma_configure_id(dev, np, force_dma, NULL);
@@ -54,13 +54,13 @@ static inline void of_device_uevent(const struct device *dev,
 static inline int of_device_modalias(struct device *dev,
 				     char *str, ssize_t len)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int of_device_uevent_modalias(const struct device *dev,
 				   struct kobj_uevent_env *env)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline const struct of_device_id *of_match_device(
@@ -70,14 +70,14 @@ static inline const struct of_device_id *of_match_device(
 }
 
 static inline int of_dma_configure_id(struct device *dev,
-				      struct device_node *np,
+				      struct device_analde *np,
 				      bool force_dma,
 				      const u32 *id)
 {
 	return 0;
 }
 static inline int of_dma_configure(struct device *dev,
-				   struct device_node *np,
+				   struct device_analde *np,
 				   bool force_dma)
 {
 	return 0;

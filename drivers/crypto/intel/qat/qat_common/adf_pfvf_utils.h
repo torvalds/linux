@@ -6,7 +6,7 @@
 #include <linux/types.h>
 #include "adf_pfvf_msg.h"
 
-/* How long to wait for far side to acknowledge receipt */
+/* How long to wait for far side to ackanalwledge receipt */
 #define ADF_PFVF_MSG_ACK_DELAY_US	4
 #define ADF_PFVF_MSG_ACK_MAX_DELAY_US	(1 * USEC_PER_SEC)
 

@@ -12,8 +12,8 @@
 /dts-v1/;
 
 / {
-	model = "anon,charon";
-	compatible = "anon,charon";
+	model = "aanaln,charon";
+	compatible = "aanaln,charon";
 	#address-cells = <1>;
 	#size-cells = <1>;
 	interrupt-parent = <&mpc5200_pic>;
@@ -135,7 +135,7 @@
 			#size-cells = <0>;
 			compatible = "fsl,mpc5200-mdio";
 			reg = <0x3000 0x400>;       // fec range, since we need to setup fec interrupts
-			interrupts = <2 5 0>;   // these are for "mii command finished", not link changes & co.
+			interrupts = <2 5 0>;   // these are for "mii command finished", analt link changes & co.
 		};
 
 		ata@3a00 {

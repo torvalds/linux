@@ -138,7 +138,7 @@ static int hts221_check_whoami(struct hts221_hw *hw)
 	if (data != HTS221_REG_WHOAMI_VAL) {
 		dev_err(hw->dev, "wrong whoami {%02x vs %02x}\n",
 			data, HTS221_REG_WHOAMI_VAL);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -364,7 +364,7 @@ static int hts221_get_sensor_scale(struct hts221_hw *hw,
 	*val = tmp;
 	*val2 = rem;
 
-	return IIO_VAL_INT_PLUS_NANO;
+	return IIO_VAL_INT_PLUS_NAANAL;
 }
 
 static int hts221_get_sensor_offset(struct hts221_hw *hw,
@@ -393,7 +393,7 @@ static int hts221_get_sensor_offset(struct hts221_hw *hw,
 	*val = tmp;
 	*val2 = rem;
 
-	return IIO_VAL_INT_PLUS_NANO;
+	return IIO_VAL_INT_PLUS_NAANAL;
 }
 
 static int hts221_read_oneshot(struct hts221_hw *hw, u8 addr, int *val)
@@ -571,7 +571,7 @@ int hts221_probe(struct device *dev, int irq, const char *name,
 
 	iio_dev = devm_iio_device_alloc(dev, sizeof(*hw));
 	if (!iio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, (void *)iio_dev);
 

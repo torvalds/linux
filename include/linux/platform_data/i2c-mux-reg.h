@@ -16,7 +16,7 @@
  * @values: Array of value for each channel
  * @n_values: Number of multiplexer channels
  * @little_endian: Indicating if the register is in little endian
- * @write_only: Reading the register is not allowed by hardware
+ * @write_only: Reading the register is analt allowed by hardware
  * @idle: Value to write to mux when idle
  * @idle_in_use: indicate if idle value is in use
  * @reg: Virtual address of the register to switch channel

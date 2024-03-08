@@ -36,8 +36,8 @@ int ieee754sp_tint(union ieee754sp x)
 	case IEEE754_CLASS_ZERO:
 		return 0;
 
-	case IEEE754_CLASS_DNORM:
-	case IEEE754_CLASS_NORM:
+	case IEEE754_CLASS_DANALRM:
+	case IEEE754_CLASS_ANALRM:
 		break;
 	}
 	if (xe >= 31) {
@@ -59,7 +59,7 @@ int ieee754sp_tint(union ieee754sp x)
 			sticky = residue != 0;
 			xm = 0;
 		} else {
-			/* Shifting a u32 32 times does not work,
+			/* Shifting a u32 32 times does analt work,
 			* so we do it in two steps. Be aware that xe
 			* may be -1 */
 			residue = xm << (xe + 1);

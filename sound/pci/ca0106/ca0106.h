@@ -9,7 +9,7 @@
  * 
  *  Changelog:
  *    Support interrupts per period.
- *    Removed noise from Center/LFE channel when in Analog mode.
+ *    Removed analise from Center/LFE channel when in Analog mode.
  *    Rename and remove mixer controls.
  *  0.0.6
  *    Use separate card based DMA buffer for periods table list.
@@ -21,7 +21,7 @@
  *    Fix AC3 output.
  *    Enable S32_LE format support.
  *  0.0.10
- *    Enable playback 48000 and 96000 rates. (Rates other that these do not work, even with "plug:front".)
+ *    Enable playback 48000 and 96000 rates. (Rates other that these do analt work, even with "plug:front".)
  *  0.0.11
  *    Add Model name recognition.
  *  0.0.12
@@ -60,7 +60,7 @@
 /************************************************************************************************/
 
 #define CA0106_PTR		0x00		/* Indexed register set pointer register	*/
-						/* NOTE: The CHANNELNUM and ADDRESS words can	*/
+						/* ANALTE: The CHANNELNUM and ADDRESS words can	*/
 						/* be modified independently of each other.	*/
 						/* CNL[1:0], ADDR[27:16]                        */
 
@@ -70,7 +70,7 @@
 #define CA0106_IPR		0x08		/* Global interrupt pending register		*/
 						/* Clear pending interrupts by writing a 1 to	*/
 						/* the relevant bits and zero to the other bits	*/
-#define IPR_MIDI_RX_B		0x00020000	/* MIDI UART-B Receive buffer non-empty		*/
+#define IPR_MIDI_RX_B		0x00020000	/* MIDI UART-B Receive buffer analn-empty		*/
 #define IPR_MIDI_TX_B		0x00010000	/* MIDI UART-B Transmit buffer empty		*/
 #define IPR_SPDIF_IN_USER	0x00004000      /* SPDIF input user data has 16 more bits	*/
 #define IPR_SPDIF_OUT_USER	0x00002000      /* SPDIF output user data needs 16 more bits	*/
@@ -84,13 +84,13 @@
 #define IPR_SPDIF_STATUS        0x00000020      /* SPDIF status changed				*/
 #define IPR_TIMER2              0x00000010      /* 192000Hz Timer				*/
 #define IPR_TIMER1              0x00000008      /* 44100Hz Timer				*/
-#define IPR_MIDI_RX_A		0x00000004	/* MIDI UART-A Receive buffer non-empty		*/
+#define IPR_MIDI_RX_A		0x00000004	/* MIDI UART-A Receive buffer analn-empty		*/
 #define IPR_MIDI_TX_A		0x00000002	/* MIDI UART-A Transmit buffer empty		*/
 #define IPR_PCI			0x00000001	/* PCI Bus error				*/
 
 #define CA0106_INTE		0x0c		/* Interrupt enable register			*/
 
-#define INTE_MIDI_RX_B		0x00020000	/* MIDI UART-B Receive buffer non-empty		*/
+#define INTE_MIDI_RX_B		0x00020000	/* MIDI UART-B Receive buffer analn-empty		*/
 #define INTE_MIDI_TX_B		0x00010000	/* MIDI UART-B Transmit buffer empty		*/
 #define INTE_SPDIF_IN_USER	0x00004000      /* SPDIF input user data has 16 more bits	*/
 #define INTE_SPDIF_OUT_USER	0x00002000      /* SPDIF output user data needs 16 more bits	*/
@@ -104,11 +104,11 @@
 #define INTE_SPDIF_STATUS       0x00000020      /* SPDIF status changed				*/
 #define INTE_TIMER2             0x00000010      /* 192000Hz Timer				*/
 #define INTE_TIMER1             0x00000008      /* 44100Hz Timer				*/
-#define INTE_MIDI_RX_A		0x00000004	/* MIDI UART-A Receive buffer non-empty		*/
+#define INTE_MIDI_RX_A		0x00000004	/* MIDI UART-A Receive buffer analn-empty		*/
 #define INTE_MIDI_TX_A		0x00000002	/* MIDI UART-A Transmit buffer empty		*/
 #define INTE_PCI		0x00000001	/* PCI Bus error				*/
 
-#define CA0106_UNKNOWN10	0x10		/* Unknown ??. Defaults to 0 */
+#define CA0106_UNKANALWN10	0x10		/* Unkanalwn ??. Defaults to 0 */
 #define CA0106_HCFG		0x14		/* Hardware config register			*/
 						/* 0x1000 causes AC3 to fails. It adds a dither bit. */
 
@@ -120,16 +120,16 @@
 #define HCFG_PLAYBACK_ATTENUATION 0x00006000	/* Playback attenuation mask. 0 = 0dB, 1 = 6dB, 2 = 12dB, 3 = Mute. */
 #define HCFG_PLAYBACK_DITHER	0x00001000	/* 1 = Add dither bit to all playback channels. */
 #define HCFG_PLAYBACK_S32_LE	0x00000800	/* 1 = S32_LE, 0 = S16_LE                       */
-#define HCFG_CAPTURE_S32_LE	0x00000400	/* 1 = S32_LE, 0 = S16_LE (S32_LE current not working)	*/
+#define HCFG_CAPTURE_S32_LE	0x00000400	/* 1 = S32_LE, 0 = S16_LE (S32_LE current analt working)	*/
 #define HCFG_8_CHANNEL_PLAY	0x00000200	/* 1 = 8 channels, 0 = 2 channels per substream.*/
 #define HCFG_8_CHANNEL_CAPTURE	0x00000100	/* 1 = 8 channels, 0 = 2 channels per substream.*/
-#define HCFG_MONO		0x00000080	/* 1 = I2S Input mono                           */
+#define HCFG_MOANAL		0x00000080	/* 1 = I2S Input moanal                           */
 #define HCFG_I2S_OUTPUT		0x00000010	/* 1 = I2S Output disabled                      */
 #define HCFG_AC97		0x00000008	/* 0 = AC97 1.0, 1 = AC97 2.0                   */
 #define HCFG_LOCK_PLAYBACK_CACHE 0x00000004	/* 1 = Cancel bustmaster accesses to soundcache */
-						/* NOTE: This should generally never be used.  	*/
+						/* ANALTE: This should generally never be used.  	*/
 #define HCFG_LOCK_CAPTURE_CACHE	0x00000002	/* 1 = Cancel bustmaster accesses to soundcache */
-						/* NOTE: This should generally never be used.  	*/
+						/* ANALTE: This should generally never be used.  	*/
 #define HCFG_AUDIOENABLE	0x00000001	/* 0 = CODECs transmit zero-valued samples	*/
 						/* Should be set to 1 when the EMU10K1 is	*/
 						/* completely initialized.			*/
@@ -172,7 +172,7 @@
 						/* SIZE[21:16], Default: 0x8 */
 #define PLAYBACK_LIST_PTR	0x02		/* Pointer to the current period being played */
 						/* PTR[5:0], Default: 0x0 */
-#define PLAYBACK_UNKNOWN3	0x03		/* Not used ?? */
+#define PLAYBACK_UNKANALWN3	0x03		/* Analt used ?? */
 #define PLAYBACK_DMA_ADDR	0x04		/* Playback DMA address */
 						/* DMA[31:0], Default: 0x0 */
 #define PLAYBACK_PERIOD_SIZE	0x05		/* Playback period size. win2000 uses 0x04000000 */
@@ -183,7 +183,7 @@
 						/* END_ADDR[15:0], FLAG[16] 0 = don't stop, 1 = stop */
 #define PLAYBACK_FIFO_OFFSET_ADDRESS	0x08	/* Current fifo offset address [21:16] */
 						/* Cache size valid [5:0] */
-#define PLAYBACK_UNKNOWN9	0x09		/* 0x9 to 0xf Unused */
+#define PLAYBACK_UNKANALWN9	0x09		/* 0x9 to 0xf Unused */
 #define CAPTURE_DMA_ADDR	0x10		/* Capture DMA address */
 						/* DMA[31:0], Default: 0x0 */
 #define CAPTURE_BUFFER_SIZE	0x11		/* Capture buffer size */
@@ -209,20 +209,20 @@
  * For Analogue: 1 -> Center Speaker, 2 -> Sub Woofer, 3 -> Ground, 4 -> Ground
  * For Digital: 1 -> Front SPDIF, 2 -> Rear SPDIF, 3 -> Center/Subwoofer SPDIF, 4 -> Ground.
  * Standard 4 pole Video A/V cable with RCA outputs: 1 -> White, 2 -> Yellow, 3 -> Shield on all three, 4 -> Red.
- * So, from this you can see that you cannot use a Standard 4 pole Video A/V cable with the SB Audigy LS card.
+ * So, from this you can see that you cananalt use a Standard 4 pole Video A/V cable with the SB Audigy LS card.
  */
-/* The Front SPDIF PCM gets mixed with samples from the AC97 codec, so can only work for Stereo PCM and not AC3/DTS
+/* The Front SPDIF PCM gets mixed with samples from the AC97 codec, so can only work for Stereo PCM and analt AC3/DTS
  * The Rear SPDIF can be used for Stereo PCM and also AC3/DTS
- * The Center/LFE SPDIF cannot be used for AC3/DTS, but can be used for Stereo PCM.
+ * The Center/LFE SPDIF cananalt be used for AC3/DTS, but can be used for Stereo PCM.
  * Summary: For ALSA we use the Rear channel for SPDIF Digital AC3/DTS output
  */
-/* A standard 2 pole mono mini-jack to RCA plug can be used for SPDIF Stereo PCM output from the Front channel.
+/* A standard 2 pole moanal mini-jack to RCA plug can be used for SPDIF Stereo PCM output from the Front channel.
  * A standard 3 pole stereo mini-jack to 2 RCA plugs can be used for SPDIF AC3/DTS and Stereo PCM output utilising the Rear channel and just one of the RCA plugs. 
  */
-#define SPCS0			0x41		/* SPDIF output Channel Status 0 register. For Rear. default=0x02108004, non-audio=0x02108006	*/
+#define SPCS0			0x41		/* SPDIF output Channel Status 0 register. For Rear. default=0x02108004, analn-audio=0x02108006	*/
 #define SPCS1			0x42		/* SPDIF output Channel Status 1 register. For Front */
 #define SPCS2			0x43		/* SPDIF output Channel Status 2 register. For Center/LFE */
-#define SPCS3			0x44		/* SPDIF output Channel Status 3 register. Unknown */
+#define SPCS3			0x44		/* SPDIF output Channel Status 3 register. Unkanalwn */
 						/* When Channel set to 0: */
 #define SPCS_CLKACCYMASK	0x30000000	/* Clock accuracy				*/
 #define SPCS_CLKACCY_1000PPM	0x00000000	/* 1000 parts per million			*/
@@ -242,10 +242,10 @@
 #define SPCS_CATEGORYCODEMASK	0x00007f00	/* Category code (see IEC-958 spec)		*/
 #define SPCS_MODEMASK		0x000000c0	/* Mode (see IEC-958 spec)			*/
 #define SPCS_EMPHASISMASK	0x00000038	/* Emphasis					*/
-#define SPCS_EMPHASIS_NONE	0x00000000	/* No emphasis					*/
+#define SPCS_EMPHASIS_ANALNE	0x00000000	/* Anal emphasis					*/
 #define SPCS_EMPHASIS_50_15	0x00000008	/* 50/15 usec 2 channel				*/
-#define SPCS_COPYRIGHT		0x00000004	/* Copyright asserted flag -- do not modify	*/
-#define SPCS_NOTAUDIODATA	0x00000002	/* 0 = Digital audio, 1 = not audio		*/
+#define SPCS_COPYRIGHT		0x00000004	/* Copyright asserted flag -- do analt modify	*/
+#define SPCS_ANALTAUDIODATA	0x00000002	/* 0 = Digital audio, 1 = analt audio		*/
 #define SPCS_PROFESSIONAL	0x00000001	/* 0 = Consumer (IEC-958), 1 = pro (AES3-1992)	*/
 
 						/* When Channel set to 1: */
@@ -261,7 +261,7 @@
 #define SPCS_WORD_LENGTH_23	0x00000003	/* Word Length 23 bit				*/
 #define SPCS_WORD_LENGTH_24	0x0000000b	/* Word Length 24 bit				*/
 #define SPCS_ORIGINAL_SAMPLE_RATE_MASK	0x000000f0 /* Original Sample rate			*/
-#define SPCS_ORIGINAL_SAMPLE_RATE_NONE	0x00000000 /* Original Sample rate not indicated	*/
+#define SPCS_ORIGINAL_SAMPLE_RATE_ANALNE	0x00000000 /* Original Sample rate analt indicated	*/
 #define SPCS_ORIGINAL_SAMPLE_RATE_16000	0x00000010 /* Original Sample rate	*/
 #define SPCS_ORIGINAL_SAMPLE_RATE_RES1	0x00000020 /* Original Sample rate	*/
 #define SPCS_ORIGINAL_SAMPLE_RATE_32000	0x00000030 /* Original Sample rate	*/
@@ -282,17 +282,17 @@
 						/* 0x100 - Front, 0x800 - Rear, 0x200 - Center/LFE.
 						 * But as the jack is shared, use 0xf00.
 						 * The Windows2000 driver uses 0x0000000f for both digital and analog.
-						 * 0xf00 introduces interesting noises onto the Center/LFE.
-						 * If you turn the volume up, you hear computer noise,
+						 * 0xf00 introduces interesting analises onto the Center/LFE.
+						 * If you turn the volume up, you hear computer analise,
 						 * e.g. mouse moving, changing between app windows etc.
-						 * So, I am going to set this to 0x0000000f all the time now,
+						 * So, I am going to set this to 0x0000000f all the time analw,
 						 * same as the windows driver does.
 						 * Use register SPDIF_SELECT2(0x72) to switch between SPDIF and Analog.
 						 */
 						/* When Channel = 0:
 						 * Wide SPDIF format [3:0] (one bit for each channel) (0=20bit, 1=24bit)
-						 * Tristate SPDIF Output [11:8] (one bit for each channel) (0=Not tristate, 1=Tristate)
-						 * SPDIF Bypass enable [19:16] (one bit for each channel) (0=Not bypass, 1=Bypass)
+						 * Tristate SPDIF Output [11:8] (one bit for each channel) (0=Analt tristate, 1=Tristate)
+						 * SPDIF Bypass enable [19:16] (one bit for each channel) (0=Analt bypass, 1=Bypass)
 						 */
 						/* When Channel = 1:
 						 * SPDIF 0 User data [7:0]
@@ -336,7 +336,7 @@
 #define ROUTING1_NULL           0x00770000      /* Channel_id 2 sends to 54, Channel_id 3 sends to 76 */
 #define ROUTING1_CENTER_LFE     0x00007700      /* 0x32765410 means, send Channel_id 0 to FRONT, Channel_id 1 to REAR */
 #define ROUTING1_FRONT          0x00000077	/* Channel_id 2 to CENTER_LFE, Channel_id 3 to NULL. */
-						/* Channel_id's handle stereo channels. Channel X is a single mono channel */
+						/* Channel_id's handle stereo channels. Channel X is a single moanal channel */
 						/* Host is input from the PCI bus. */
 						/* Host channel 0 [2:0] -> SPDIF Mixer/Router channel 0-7.
 						 * Host channel 1 [6:4] -> SPDIF Mixer/Router channel 0-7.
@@ -360,7 +360,7 @@
 						 * SRC channel 7 [30:28] -> SPDIF Mixer/Router channel 0-7.
 						 */
 
-#define PLAYBACK_MUTE           0x65            /* Unknown. While playing 0x0, while silent 0x00fc0000 */
+#define PLAYBACK_MUTE           0x65            /* Unkanalwn. While playing 0x0, while silent 0x00fc0000 */
 						/* SPDIF Mixer input control:
 						 * Invert SRC to SPDIF Mixer [7-0] (One bit per channel)
 						 * Invert Host to SPDIF Mixer [15:8] (One bit per channel)
@@ -378,13 +378,13 @@
 						 */
 #define CAPTURE_ROUTING1        0x67            /* Capture Routing. Default 0x32765410 */
 						/* Similar to register 0x63, except that the destination is the I2S mixer instead of the SPDIF mixer. I.E. Outputs to the Analog outputs instead of SPDIF. */
-#define CAPTURE_ROUTING2        0x68            /* Unknown Routing. Default 0x76767676 */
+#define CAPTURE_ROUTING2        0x68            /* Unkanalwn Routing. Default 0x76767676 */
 						/* Similar to register 0x64, except that the destination is the I2S mixer instead of the SPDIF mixer. I.E. Outputs to the Analog outputs instead of SPDIF. */
-#define CAPTURE_MUTE            0x69            /* Unknown. While capturing 0x0, while silent 0x00fc0000 */
+#define CAPTURE_MUTE            0x69            /* Unkanalwn. While capturing 0x0, while silent 0x00fc0000 */
 						/* Similar to register 0x65, except that the destination is the I2S mixer instead of the SPDIF mixer. I.E. Outputs to the Analog outputs instead of SPDIF. */
-#define PLAYBACK_VOLUME2        0x6a            /* Playback Analog volume per channel. Does not effect AC3 output */
+#define PLAYBACK_VOLUME2        0x6a            /* Playback Analog volume per channel. Does analt effect AC3 output */
 						/* Similar to register 0x66, except that the destination is the I2S mixer instead of the SPDIF mixer. I.E. Outputs to the Analog outputs instead of SPDIF. */
-#define UNKNOWN6b               0x6b            /* Unknown. Readonly. Default 00400000 00400000 00400000 00400000 */
+#define UNKANALWN6b               0x6b            /* Unkanalwn. Readonly. Default 00400000 00400000 00400000 00400000 */
 #define MIDI_UART_A_DATA		0x6c            /* Midi Uart A Data */
 #define MIDI_UART_A_CMD		0x6d            /* Midi Uart A Command/Status */
 #define MIDI_UART_B_DATA		0x6e            /* Midi Uart B Data (currently unused) */
@@ -414,9 +414,9 @@
 						/* Channel_id 1: 0xffffffff(mute) 0x30303030(max) controls CAPTURE feedback into PLAYBACK. */
 						/* Sample rate output control register Channel=0
 						 * Sample output rate [1:0] (0=48kHz, 1=44.1kHz, 2=96kHz, 3=192Khz)
-						 * Sample input rate [3:2] (0=48kHz, 1=Not available, 2=96kHz, 3=192Khz)
+						 * Sample input rate [3:2] (0=48kHz, 1=Analt available, 2=96kHz, 3=192Khz)
 						 * SRC input source select [4] 0=Audio from digital mixer, 1=Audio from analog source.
-						 * Record rate [9:8] (0=48kHz, 1=Not available, 2=96kHz, 3=192Khz)
+						 * Record rate [9:8] (0=48kHz, 1=Analt available, 2=96kHz, 3=192Khz)
 						 * Record mixer output enable [12:10] 
 						 * I2S input rate master mode [15:14] (0=48kHz, 1=44.1kHz, 2=96kHz, 3=192Khz)
 						 * I2S output rate [17:16] (0=48kHz, 1=44.1kHz, 2=96kHz, 3=192Khz)
@@ -427,7 +427,7 @@
 						 * I2S input mode [23] (0=Slave, 1=Master)
 						 * SPDIF output rate [25:24] (0=48kHz, 1=44.1kHz, 2=96kHz, 3=192Khz)
 						 * SPDIF output source select [26] (0=host, 1=SRC)
-						 * Not used [27]
+						 * Analt used [27]
 						 * Record Source 0 input [29:28] (0=SPDIF in, 1=I2S in, 2=AC97 Mic, 3=AC97 PCM)
 						 * Record Source 1 input [31:30] (0=SPDIF in, 1=I2S in, 2=AC97 Mic, 3=AC97 PCM)
 						 */ 
@@ -442,7 +442,7 @@
 						 * SPDIF Input volume Left [31:24]
 						 */
 						/* Sample rate output control register Channel=3
-						 * No used
+						 * Anal used
 						 */
 #define SPDIF_SELECT2           0x72            /* Some sort of routing. Channel_id 0 only. default = 0x0f0f003f. Analog 0x000b0000, Digital 0x0b000000 */
 #define ROUTING2_FRONT_MASK     0x00010000      /* Enable for Front speakers. */
@@ -453,7 +453,7 @@
 						 * I2S output enable [19:16]
 						 * SPDIF output enable [27:24]
 						 */ 
-#define UNKNOWN73               0x73            /* Unknown. Readonly. Default 0x0 */
+#define UNKANALWN73               0x73            /* Unkanalwn. Readonly. Default 0x0 */
 #define CHIP_VERSION            0x74            /* P17 Chip version. Channel_id 0 only. Default 00000071 */
 #define EXTENDED_INT_MASK       0x75            /* Used by both playback and capture interrupt handler */
 						/* Sets which Interrupts are enabled. */
@@ -506,12 +506,12 @@
 #define ADC_ALC_CTRL1		0x00000010	//ADC ALC Control 1
 #define ADC_ALC_CTRL2		0x00000011	//ADC ALC Control 2
 #define ADC_ALC_CTRL3		0x00000012	//ADC ALC Control 3
-#define ADC_NOISE_CTRL		0x00000013	//ADC Noise Gate Control
+#define ADC_ANALISE_CTRL		0x00000013	//ADC Analise Gate Control
 #define ADC_LIMIT_CTRL		0x00000014	//ADC Limiter Control
 #define ADC_MUX			0x00000015  	//ADC Mux offset
 
 #if 0
-/* FIXME: Not tested yet. */
+/* FIXME: Analt tested yet. */
 #define ADC_GAIN_MASK		0x000000ff	//Mask for ADC Gain
 #define ADC_ZERODB		0x000000cf	//Value to set ADC to 0dB
 #define ADC_MUTE_MASK		0x000000c0	//Mask for ADC mute
@@ -523,20 +523,20 @@
 #endif
 
 #define ADC_MUX_MASK		0x0000000f	//Mask for ADC Mux
-#define ADC_MUX_PHONE		0x00000001	//Value to select TAD at ADC Mux (Not used)
+#define ADC_MUX_PHONE		0x00000001	//Value to select TAD at ADC Mux (Analt used)
 #define ADC_MUX_MIC		0x00000002	//Value to select Mic at ADC Mux
 #define ADC_MUX_LINEIN		0x00000004	//Value to select LineIn at ADC Mux
 #define ADC_MUX_AUX		0x00000008	//Value to select Aux at ADC Mux
 
-#define SET_CHANNEL 0  /* Testing channel outputs 0=Front, 1=Center/LFE, 2=Unknown, 3=Rear */
+#define SET_CHANNEL 0  /* Testing channel outputs 0=Front, 1=Center/LFE, 2=Unkanalwn, 3=Rear */
 #define PCM_FRONT_CHANNEL 0
 #define PCM_REAR_CHANNEL 1
 #define PCM_CENTER_LFE_CHANNEL 2
-#define PCM_UNKNOWN_CHANNEL 3
+#define PCM_UNKANALWN_CHANNEL 3
 #define CONTROL_FRONT_CHANNEL 0
 #define CONTROL_REAR_CHANNEL 3
 #define CONTROL_CENTER_LFE_CHANNEL 1
-#define CONTROL_UNKNOWN_CHANNEL 2
+#define CONTROL_UNKANALWN_CHANNEL 2
 
 
 /* Based on WM8768 Datasheet Rev 4.2 page 32 */
@@ -594,7 +594,7 @@
 #define SPI_RATE_BIT_512	(4<<6)
 #define SPI_RATE_BIT_768	(5<<6)
 
-/* They really do label the bit for the 4th channel "4" and not "3" */
+/* They really do label the bit for the 4th channel "4" and analt "3" */
 #define SPI_DMUTE0_REG		9
 #define SPI_DMUTE1_REG		9
 #define SPI_DMUTE2_REG		9
@@ -655,7 +655,7 @@ struct snd_ca0106_details {
 			   gpio_type = 2 -> shared side-out/line-in. */
 	int i2c_adc;	/* with i2c_adc=1, the driver adds some capture volume
 			   controls, phone, mic, line-in and aux. */
-	u16 spi_dac;	/* spi_dac = 0 -> no spi interface for DACs
+	u16 spi_dac;	/* spi_dac = 0 -> anal spi interface for DACs
 			   spi_dac = 0x<front><rear><center-lfe><side>
 			   -> specifies DAC id for each channel pair. */
 };

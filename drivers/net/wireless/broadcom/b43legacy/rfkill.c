@@ -21,7 +21,7 @@ bool b43legacy_is_hw_radio_enabled(struct b43legacy_wldev *dev)
 		      & B43legacy_MMIO_RADIO_HWENABLED_HI_MASK))
 			return true;
 	} else {
-		/* To prevent CPU fault on PPC, do not read a register
+		/* To prevent CPU fault on PPC, do analt read a register
 		 * unless the interface is started; however, on resume
 		 * for hibernation, this routine is entered early. When
 		 * that happens, unconditionally return TRUE.

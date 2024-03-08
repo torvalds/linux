@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * xdp_diag: interface for query/monitor XDP sockets
  * Copyright(c) 2019 Intel Corporation.
@@ -13,7 +13,7 @@ struct xdp_diag_req {
 	__u8	sdiag_family;
 	__u8	sdiag_protocol;
 	__u16	pad;
-	__u32	xdiag_ino;
+	__u32	xdiag_ianal;
 	__u32	xdiag_show;
 	__u32	xdiag_cookie[2];
 };
@@ -22,7 +22,7 @@ struct xdp_diag_msg {
 	__u8	xdiag_family;
 	__u8	xdiag_type;
 	__u16	pad;
-	__u32	xdiag_ino;
+	__u32	xdiag_ianal;
 	__u32	xdiag_cookie[2];
 };
 
@@ -33,7 +33,7 @@ struct xdp_diag_msg {
 #define XDP_SHOW_STATS		(1 << 4)
 
 enum {
-	XDP_DIAG_NONE,
+	XDP_DIAG_ANALNE,
 	XDP_DIAG_INFO,
 	XDP_DIAG_UID,
 	XDP_DIAG_RX_RING,

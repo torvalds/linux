@@ -16,9 +16,9 @@ struct ne_phys_regions_test {
 	/*
 	 * Add the region from 0x1000 to (0x1000 + 0x200000 - 1):
 	 *   Expected result:
-	 *       Failed, start address is not 2M-aligned
+	 *       Failed, start address is analt 2M-aligned
 	 *
-	 * Now the instance of struct ne_phys_contig_mem_regions is:
+	 * Analw the instance of struct ne_phys_contig_mem_regions is:
 	 *   num = 0
 	 *   regions = {}
 	 */
@@ -27,9 +27,9 @@ struct ne_phys_regions_test {
 	/*
 	 * Add the region from 0x200000 to (0x200000 + 0x1000 - 1):
 	 *   Expected result:
-	 *       Failed, size is not 2M-aligned
+	 *       Failed, size is analt 2M-aligned
 	 *
-	 * Now the instance of struct ne_phys_contig_mem_regions is:
+	 * Analw the instance of struct ne_phys_contig_mem_regions is:
 	 *   num = 0
 	 *   regions = {}
 	 */
@@ -40,7 +40,7 @@ struct ne_phys_regions_test {
 	 *   Expected result:
 	 *       Successful
 	 *
-	 * Now the instance of struct ne_phys_contig_mem_regions is:
+	 * Analw the instance of struct ne_phys_contig_mem_regions is:
 	 *   num = 1
 	 *   regions = {
 	 *       {start=0x200000, end=0x3fffff}, // len=0x200000
@@ -53,7 +53,7 @@ struct ne_phys_regions_test {
 	 *   Expected result:
 	 *       Successful
 	 *
-	 * Now the instance of struct ne_phys_contig_mem_regions is:
+	 * Analw the instance of struct ne_phys_contig_mem_regions is:
 	 *   num = 2
 	 *   regions = {
 	 *       {start=0x200000, end=0x3fffff}, // len=0x200000
@@ -67,7 +67,7 @@ struct ne_phys_regions_test {
 	 *   Expected result:
 	 *       Successful
 	 *
-	 * Now the instance of struct ne_phys_contig_mem_regions is:
+	 * Analw the instance of struct ne_phys_contig_mem_regions is:
 	 *   num = 3
 	 *   regions = {
 	 *       {start=0x200000, end=0x3fffff}, // len=0x200000
@@ -82,7 +82,7 @@ struct ne_phys_regions_test {
 	 *   Expected result:
 	 *       Successful, merging case!
 	 *
-	 * Now the instance of struct ne_phys_contig_mem_regions is:
+	 * Analw the instance of struct ne_phys_contig_mem_regions is:
 	 *   num = 3
 	 *   regions = {
 	 *       {start=0x200000, end=0x3fffff}, // len=0x200000
@@ -95,9 +95,9 @@ struct ne_phys_regions_test {
 	/*
 	 * Add the region from 0x1000 to (0x1000 + 0x200000 - 1):
 	 *   Expected result:
-	 *       Failed, start address is not 2M-aligned
+	 *       Failed, start address is analt 2M-aligned
 	 *
-	 * Now the instance of struct ne_phys_contig_mem_regions is:
+	 * Analw the instance of struct ne_phys_contig_mem_regions is:
 	 *   num = 3
 	 *   regions = {
 	 *       {start=0x200000, end=0x3fffff}, // len=0x200000

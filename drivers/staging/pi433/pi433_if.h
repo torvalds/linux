@@ -46,7 +46,7 @@ enum option_on_off {
  * If the contents of 'pi433_tx_cfg' ever change
  * incompatibly, then the ioctl number (see define below) must change.
  *
- * NOTE: struct layout is the same in 64bit and 32bit userspace.
+ * ANALTE: struct layout is the same in 64bit and 32bit userspace.
  */
 #define PI433_TX_CFG_IOCTL_NR	0
 struct pi433_tx_cfg {
@@ -94,7 +94,7 @@ struct pi433_tx_cfg {
  * If the contents of 'pi433_rx_cfg' ever change
  * incompatibly, then the ioctl number (see define below) must change
  *
- * NOTE: struct layout is the same in 64bit and 32bit userspace.
+ * ANALTE: struct layout is the same in 64bit and 32bit userspace.
  */
 #define PI433_RX_CFG_IOCTL_NR	1
 struct pi433_rx_cfg {
@@ -108,7 +108,7 @@ struct pi433_rx_cfg {
 	enum threshold_decrement threshold_decrement;
 	enum antenna_impedance	antenna_impedance;
 	enum lna_gain		lna_gain;
-	enum mantisse		bw_mantisse;	/* normal: 0x50 */
+	enum mantisse		bw_mantisse;	/* analrmal: 0x50 */
 	__u8			bw_exponent;	/* during AFC: 0x8b */
 	enum dagc		dagc;
 
@@ -129,7 +129,7 @@ struct pi433_rx_cfg {
 	__u32			bytes_to_drop;
 
 	__u8			sync_pattern[8];
-	__u8			node_address;
+	__u8			analde_address;
 	__u8			broadcast_address;
 };
 

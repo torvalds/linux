@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -63,7 +63,7 @@
 #define MAX_LINK_LEVEL        (NUM_LINK_LEVELS        - 1)
 #define MAX_XGMI_LEVEL        (NUM_XGMI_LEVELS        - 1)
 
-#define PPSMC_GeminiModeNone   0
+#define PPSMC_GeminiModeAnalne   0
 #define PPSMC_GeminiModeMaster 1
 #define PPSMC_GeminiModeSlave  2
 
@@ -261,7 +261,7 @@ typedef enum {
 } I2cControllerName_e;
 
 typedef enum {
-  I2C_CONTROLLER_THROTTLER_TYPE_NONE = 0,
+  I2C_CONTROLLER_THROTTLER_TYPE_ANALNE = 0,
   I2C_CONTROLLER_THROTTLER_VR_GFX,
   I2C_CONTROLLER_THROTTLER_VR_SOC,
   I2C_CONTROLLER_THROTTLER_VR_VDDCI,

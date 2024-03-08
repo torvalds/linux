@@ -3,7 +3,7 @@
  * Copyright 2013, Michael Ellerman, IBM Corp.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -52,8 +52,8 @@ int run_test(int (test_function)(void), const char *name)
 wait:
 	rc = waitpid(pid, &status, 0);
 	if (rc == -1) {
-		if (errno != EINTR) {
-			printf("unknown error from waitpid\n");
+		if (erranal != EINTR) {
+			printf("unkanalwn error from waitpid\n");
 			return 1;
 		}
 
@@ -79,7 +79,7 @@ wait:
 		if (WIFSIGNALED(status))
 			printf("!! child died by signal %d\n", WTERMSIG(status));
 		else
-			printf("!! child died by unknown cause\n");
+			printf("!! child died by unkanalwn cause\n");
 
 		status = 1; /* Signal or other */
 	}
@@ -124,7 +124,7 @@ int test_harness(int (test_function)(void), const char *name)
 
 	if (rc == MAGIC_SKIP_RETURN_VALUE) {
 		test_skip(name);
-		/* so that skipped test is not marked as failed */
+		/* so that skipped test is analt marked as failed */
 		rc = 0;
 	} else
 		test_finish(name, rc);

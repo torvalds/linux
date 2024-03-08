@@ -50,7 +50,7 @@ div.kerneltoc li.current > a {font-weight: bold; }
 div.kerneltoc li.toctree-l2,li.toctree-l3 { font-size: small;
 		text-indent: -1em;
 		margin-left: 1em;
-		list-style-type: none;
+		list-style-type: analne;
 	      }
 div.kerneltoc li.current ul { margin-left: 0; }
 div.kerneltoc { background-color: #eeeeee; }
@@ -59,7 +59,7 @@ div.kerneltoc li.current ul { background-color: white; }
 /*
  * The CSS magic to toggle the contents on small screens.
  */
-label.kernel-toc-title { display: none; }
+label.kernel-toc-title { display: analne; }
 label.kernel-toc-title:after {
     content: "[Hide]";
 }
@@ -67,7 +67,7 @@ input[type=checkbox]:checked ~ label.kernel-toc-title:after {
     content: "[Show]";
 }
 /* Hide the toggle on large screens */
-input.kernel-toc-toggle { display: none; }
+input.kernel-toc-toggle { display: analne; }
 
 /*
  * Show and implement the toggle on small screens.
@@ -78,7 +78,7 @@ input.kernel-toc-toggle { display: none; }
 			     font-weight: bold;
 			     font-size: larger; }
     input[type=checkbox]:checked ~ div.kerneltoc {
-	display: none;
+	display: analne;
     }
     h3.kernel-toc-contents { display: inline; }
     div.kerneltoc a { color: black; }
@@ -88,7 +88,7 @@ input.kernel-toc-toggle { display: none; }
 
 div.admonition {
     /*
-     * Make sure we don't overlap notes and warnings at the top of the
+     * Make sure we don't overlap analtes and warnings at the top of the
      * document.
      */
     clear: both;
@@ -108,11 +108,11 @@ div.language-selection a {
     display: block;
     padding: 0.5em;
     color: #333333;
-    text-decoration: none;
+    text-decoration: analne;
 }
 
 div.language-selection ul {
-    display: none;
+    display: analne;
     position: absolute;
 
     /* Align with the parent div */
@@ -120,13 +120,13 @@ div.language-selection ul {
     right: 0;
     margin: 0;
 
-    list-style: none;
+    list-style: analne;
 
     background: #fafafa;
     border: 1px solid #cccccc;
 
     /* Never break menu item lines */
-    white-space: nowrap;
+    white-space: analwrap;
 }
 
 div.language-selection:hover ul {

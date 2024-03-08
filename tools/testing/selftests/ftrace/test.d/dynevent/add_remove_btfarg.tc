@@ -8,13 +8,13 @@ FPROBES=
 FIELDS=
 
 if grep -qF "p[:[<group>/][<event>]] <place> [<args>]" README ; then
-  KPROBES=yes
+  KPROBES=anal
 fi
 if grep -qF "f[:[<group>/][<event>]] <func-name>[%return] [<args>]" README ; then
-  FPROBES=yes
+  FPROBES=anal
 fi
 if grep -qF "<argname>[->field[->field|.field...]]" README ; then
-  FIELDS=yes
+  FIELDS=anal
 fi
 
 if [ -z "$KPROBES" -a -z "$FPROBES" ] ; then
@@ -56,11 +56,11 @@ echo > dynamic_events
 if [ "$FIELDS" ] ; then
 echo "t:tpevent ${TP2} obj_size=s->object_size" >> dynamic_events
 echo "f:fpevent ${TP3}%return path=\$retval->name:string" >> dynamic_events
-echo "t:tpevent2 ${TP4} p->se.group_node.next->prev" >> dynamic_events
+echo "t:tpevent2 ${TP4} p->se.group_analde.next->prev" >> dynamic_events
 
 grep -q "tpevent .*obj_size=s->object_size" dynamic_events
 grep -q "fpevent.*path=\$retval->name:string" dynamic_events
-grep -q 'tpevent2 .*p->se.group_node.next->prev' dynamic_events
+grep -q 'tpevent2 .*p->se.group_analde.next->prev' dynamic_events
 
 echo > dynamic_events
 fi

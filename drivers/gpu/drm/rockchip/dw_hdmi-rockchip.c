@@ -208,7 +208,7 @@ static const struct dw_hdmi_phy_config rockchip_phy_config[] = {
 
 static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 {
-	struct device_node *np = hdmi->dev->of_node;
+	struct device_analde *np = hdmi->dev->of_analde;
 
 	hdmi->regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(hdmi->regmap)) {
@@ -228,7 +228,7 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 	}
 
 	hdmi->grf_clk = devm_clk_get(hdmi->dev, "grf");
-	if (PTR_ERR(hdmi->grf_clk) == -ENOENT) {
+	if (PTR_ERR(hdmi->grf_clk) == -EANALENT) {
 		hdmi->grf_clk = NULL;
 	} else if (PTR_ERR(hdmi->grf_clk) == -EPROBE_DEFER) {
 		return -EPROBE_DEFER;
@@ -263,7 +263,7 @@ dw_hdmi_rockchip_mode_valid(struct dw_hdmi *dw_hdmi, void *data,
 		int rpclk = clk_round_rate(hdmi->ref_clk, pclk);
 
 		if (abs(rpclk - pclk) > pclk / 1000)
-			return MODE_NOCLOCK;
+			return MODE_ANALCLOCK;
 	}
 
 	for (i = 0; mpll_cfg[i].mpixelclock != (~0UL); i++) {
@@ -274,7 +274,7 @@ dw_hdmi_rockchip_mode_valid(struct dw_hdmi *dw_hdmi, void *data,
 		if (exact_match && pclk == mpll_cfg[i].mpixelclock)
 			return MODE_OK;
 		/*
-		 * The Synopsys phy can work with pixelclocks up to the value given
+		 * The Syanalpsys phy can work with pixelclocks up to the value given
 		 * in the corresponding mpll_cfg entry.
 		 */
 		if (!exact_match && pclk <= mpll_cfg[i].mpixelclock)
@@ -314,7 +314,7 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	if (hdmi->chip_data->lcdsel_grf_reg < 0)
 		return;
 
-	ret = drm_of_encoder_active_endpoint_id(hdmi->dev->of_node, encoder);
+	ret = drm_of_encoder_active_endpoint_id(hdmi->dev->of_analde, encoder);
 	if (ret)
 		val = hdmi->chip_data->lcdsel_lit;
 	else
@@ -328,7 +328,7 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 
 	ret = regmap_write(hdmi->regmap, hdmi->chip_data->lcdsel_grf_reg, val);
 	if (ret != 0)
-		DRM_DEV_ERROR(hdmi->dev, "Could not write to GRF: %d\n", ret);
+		DRM_DEV_ERROR(hdmi->dev, "Could analt write to GRF: %d\n", ret);
 
 	clk_disable_unprepare(hdmi->grf_clk);
 	DRM_DEV_DEBUG(hdmi->dev, "vop %s output to hdmi\n",
@@ -455,7 +455,7 @@ static const struct dw_hdmi_plat_data rk3228_hdmi_drv_data = {
 	.phy_config = rockchip_phy_config,
 	.phy_data = &rk3228_chip_data,
 	.phy_ops = &rk3228_hdmi_phy_ops,
-	.phy_name = "inno_dw_hdmi_phy2",
+	.phy_name = "inanal_dw_hdmi_phy2",
 	.phy_force_vendor = true,
 };
 
@@ -492,7 +492,7 @@ static const struct dw_hdmi_plat_data rk3328_hdmi_drv_data = {
 	.phy_config = rockchip_phy_config,
 	.phy_data = &rk3328_chip_data,
 	.phy_ops = &rk3328_hdmi_phy_ops,
-	.phy_name = "inno_dw_hdmi_phy2",
+	.phy_name = "inanal_dw_hdmi_phy2",
 	.phy_force_vendor = true,
 	.use_drm_infoframe = true,
 };
@@ -556,18 +556,18 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	struct rockchip_hdmi *hdmi;
 	int ret;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
 	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	match = of_match_node(dw_hdmi_rockchip_dt_ids, pdev->dev.of_node);
+	match = of_match_analde(dw_hdmi_rockchip_dt_ids, pdev->dev.of_analde);
 	plat_data = devm_kmemdup(&pdev->dev, match->data,
 					     sizeof(*plat_data), GFP_KERNEL);
 	if (!plat_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdmi->dev = &pdev->dev;
 	hdmi->plat_data = plat_data;
@@ -576,14 +576,14 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	plat_data->priv_data = hdmi;
 	encoder = &hdmi->encoder.encoder;
 
-	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
+	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_analde);
 	rockchip_drm_encoder_set_crtc_endpoint_id(&hdmi->encoder,
-						  dev->of_node, 0, 0);
+						  dev->of_analde, 0, 0);
 
 	/*
 	 * If we failed to find the CRTC(s) which this encoder is
 	 * supposed to be connected to, it's because the CRTC has
-	 * not been registered yet.  Defer probing, and hope that
+	 * analt been registered yet.  Defer probing, and hope that
 	 * the required CRTC is added later.
 	 */
 	if (encoder->possible_crtcs == 0)

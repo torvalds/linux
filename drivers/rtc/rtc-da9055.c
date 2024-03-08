@@ -271,7 +271,7 @@ static int da9055_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(struct da9055_rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->da9055 = dev_get_drvdata(pdev->dev.parent);
 	pdata = dev_get_platdata(rtc->da9055->dev);
@@ -314,7 +314,7 @@ err_rtc:
 }
 
 #ifdef CONFIG_PM
-/* Turn off the alarm if it should not be a wake source. */
+/* Turn off the alarm if it should analt be a wake source. */
 static int da9055_rtc_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);

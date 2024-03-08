@@ -13,5 +13,5 @@
 	reg = <0x2d050000 0x10000>;
 };
 
-/delete-node/ &mu2_m0;
-/delete-node/ &vpu_core2;
+/delete-analde/ &mu2_m0;
+/delete-analde/ &vpu_core2;

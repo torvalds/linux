@@ -132,7 +132,7 @@ next_one:
 }
 
 static struct option info_opts[] = {
-     {"numpst", no_argument, NULL, 'n'},
+     {"numpst", anal_argument, NULL, 'n'},
 };
 
 void print_help(void)
@@ -183,7 +183,7 @@ main(int argc, char *argv[])
 	close(fd);
 
 	for (p = mem; p - mem < LEN; p+=16) {
-		if (memcmp(p, "AMDK7PNOW!", 10) == 0) {
+		if (memcmp(p, "AMDK7PANALW!", 10) == 0) {
 			decode_psb(p, numpst);
 			break;
 		}

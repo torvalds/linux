@@ -3,7 +3,7 @@
  * Device handling thread implementation for mac80211 ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  *
  * Based on:
  * ST-Ericsson UMAC CW1200 driver, which is
@@ -27,7 +27,7 @@
 static int cw1200_bh(void *arg);
 
 #define DOWNLOAD_BLOCK_SIZE_WR	(0x1000 - 4)
-/* an SPI message cannot be bigger than (2"12-1)*2 bytes
+/* an SPI message cananalt be bigger than (2"12-1)*2 bytes
  * "*2" to cvt to bytes
  */
 #define MAX_SZ_RD_WR_BUFFERS	(DOWNLOAD_BLOCK_SIZE_WR*2)
@@ -58,7 +58,7 @@ int cw1200_register_bh(struct cw1200_common *priv)
 				| WQ_CPU_INTENSIVE, 1);
 
 	if (!priv->bh_workqueue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&priv->bh_work, cw1200_bh_work);
 
@@ -96,7 +96,7 @@ void cw1200_irq_handler(struct cw1200_common *priv)
 	pr_debug("[BH] irq.\n");
 
 	/* Disable Interrupts! */
-	/* NOTE:  hwbus_ops->lock already held */
+	/* ANALTE:  hwbus_ops->lock already held */
 	__cw1200_irq_enable(priv, 0);
 
 	if (/* WARN_ON */(priv->bh_error))
@@ -246,7 +246,7 @@ static int cw1200_bh_rx_helper(struct cw1200_common *priv,
 
 	read_len = (*ctrl_reg & ST90TDS_CONT_NEXT_LEN_MASK) * 2;
 	if (!read_len)
-		return 0; /* No more work */
+		return 0; /* Anal more work */
 
 	if (WARN_ON((read_len < sizeof(struct wsm_hdr)) ||
 		    (read_len > EFFECTIVE_BUF_SIZE))) {
@@ -263,7 +263,7 @@ static int cw1200_bh_rx_helper(struct cw1200_common *priv,
 	alloc_len = priv->hwbus_ops->align_size(
 		priv->hwbus_priv, read_len);
 
-	/* Check if not exceeding CW1200 capabilities */
+	/* Check if analt exceeding CW1200 capabilities */
 	if (WARN_ON_ONCE(alloc_len > EFFECTIVE_BUF_SIZE)) {
 		pr_debug("Read aligned len: %zu\n",
 			 alloc_len);
@@ -295,7 +295,7 @@ static int cw1200_bh_rx_helper(struct cw1200_common *priv,
 
 	if (priv->wsm_enable_wsm_dumps)
 		print_hex_dump_bytes("<-- ",
-				     DUMP_PREFIX_NONE,
+				     DUMP_PREFIX_ANALNE,
 				     data, wsm_len);
 
 	wsm_id  = __le16_to_cpu(wsm->id) & 0xFFF;
@@ -352,7 +352,7 @@ static int cw1200_bh_tx_helper(struct cw1200_common *priv,
 			return 0;
 		} else if (ret) { /* Woke up */
 			priv->device_can_sleep = false;
-		} else { /* Did not awake */
+		} else { /* Did analt awake */
 			*pending_tx = 1;
 			return 0;
 		}
@@ -364,7 +364,7 @@ static int cw1200_bh_tx_helper(struct cw1200_common *priv,
 		wsm_release_tx_buffer(priv, 1);
 		if (WARN_ON(ret < 0))
 			return ret; /* Error */
-		return 0; /* No work */
+		return 0; /* Anal work */
 	}
 
 	wsm = (struct wsm_hdr *)data;
@@ -376,7 +376,7 @@ static int cw1200_bh_tx_helper(struct cw1200_common *priv,
 	tx_len = priv->hwbus_ops->align_size(
 		priv->hwbus_priv, tx_len);
 
-	/* Check if not exceeding CW1200 capabilities */
+	/* Check if analt exceeding CW1200 capabilities */
 	if (WARN_ON_ONCE(tx_len > EFFECTIVE_BUF_SIZE))
 		pr_debug("Write aligned len: %zu\n", tx_len);
 
@@ -391,7 +391,7 @@ static int cw1200_bh_tx_helper(struct cw1200_common *priv,
 
 	if (priv->wsm_enable_wsm_dumps)
 		print_hex_dump_bytes("--> ",
-				     DUMP_PREFIX_NONE,
+				     DUMP_PREFIX_ANALNE,
 				     data,
 				     __le16_to_cpu(wsm->len));
 
@@ -424,7 +424,7 @@ static int cw1200_bh(void *arg)
 		    !priv->device_can_sleep &&
 		    !atomic_read(&priv->recent_scan)) {
 			status = 1 * HZ;
-			pr_debug("[BH] Device wakedown. No data.\n");
+			pr_debug("[BH] Device wakedown. Anal data.\n");
 			cw1200_reg_write_16(priv, ST90TDS_CONTROL_REG_ID, 0);
 			priv->device_can_sleep = true;
 		} else if (priv->hw_bufs_used) {

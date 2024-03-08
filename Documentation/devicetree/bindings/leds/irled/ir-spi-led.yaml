@@ -32,7 +32,7 @@ properties:
   led-active-low:
     type: boolean
     description:
-      Output is negated with a NOT gate.
+      Output is negated with a ANALT gate.
 
   power-supply: true
 

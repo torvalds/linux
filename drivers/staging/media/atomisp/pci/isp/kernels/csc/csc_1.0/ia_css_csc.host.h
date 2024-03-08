@@ -33,7 +33,7 @@ ia_css_csc_encode(
     const struct ia_css_cc_config *from,
     unsigned int size);
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 void
 ia_css_cc_dump(
     const struct sh_css_isp_csc_params *csc, unsigned int level,

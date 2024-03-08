@@ -30,7 +30,7 @@ static inline void blk_mq_sched_restart(struct blk_mq_hw_ctx *hctx)
 
 static inline bool bio_mergeable(struct bio *bio)
 {
-	return !(bio->bi_opf & REQ_NOMERGE_FLAGS);
+	return !(bio->bi_opf & REQ_ANALMERGE_FLAGS);
 }
 
 static inline bool
@@ -46,13 +46,13 @@ blk_mq_sched_allow_merge(struct request_queue *q, struct request *rq,
 	return true;
 }
 
-static inline void blk_mq_sched_completed_request(struct request *rq, u64 now)
+static inline void blk_mq_sched_completed_request(struct request *rq, u64 analw)
 {
 	if (rq->rq_flags & RQF_USE_SCHED) {
 		struct elevator_queue *e = rq->q->elevator;
 
 		if (e->type->ops.completed_request)
-			e->type->ops.completed_request(rq, now);
+			e->type->ops.completed_request(rq, analw);
 	}
 }
 

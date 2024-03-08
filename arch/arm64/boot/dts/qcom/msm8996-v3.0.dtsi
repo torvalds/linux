@@ -13,7 +13,7 @@
   * This revision seems to have differ GPU CPR
   * parameters, GPU frequencies and some differences
   * when it comes to voltage delivery to.. once again
-  * the GPU. Funnily enough, it's simpler to make it an
+  * the GPU. Funnily eanalugh, it's simpler to make it an
   * overlay on top of 3.1 (the final one) than vice versa.
   * The differences will show here as more and more
   * features get enabled upstream.

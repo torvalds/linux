@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-ccflags-y	:= $(NO_MINIMAL_TOC)
+ccflags-y	:= $(ANAL_MINIMAL_TOC)
 
 obj-y				+= mmu_context.o pgtable.o trace.o
 ifdef CONFIG_PPC_64S_HASH_MMU
@@ -26,7 +26,7 @@ obj-$(CONFIG_PPC_PKEY)	+= pkeys.o
 KCOV_INSTRUMENT_slb.o := n
 
 # Parts of these can run in real mode and therefore are
-# not safe with the current outline KASAN implementation
+# analt safe with the current outline KASAN implementation
 KASAN_SANITIZE_mmu_context.o := n
 KASAN_SANITIZE_pgtable.o := n
 KASAN_SANITIZE_radix_pgtable.o := n

@@ -12,7 +12,7 @@ Table parameters for each path: [<repeat_count>]
 
 	<repeat_count>: The number of I/Os to dispatch using the selected
 			path before switching to the next path.
-			If not given, internal default is used. To check
+			If analt given, internal default is used. To check
 			the default value, see the activated table.
 
 Status for each path: <status> <fail-count> <in-flight>

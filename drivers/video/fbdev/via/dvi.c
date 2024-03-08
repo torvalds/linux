@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -126,7 +126,7 @@ bool viafb_tmds_trasmitter_identify(void)
 	}
 
 	viaparinfo->chip_info->
-		tmds_chip_info.tmds_chip_name = NON_TMDS_TRANSMITTER;
+		tmds_chip_info.tmds_chip_name = ANALN_TMDS_TRANSMITTER;
 	viaparinfo->chip_info->tmds_chip_info.
 		tmds_chip_slave_addr = VT1632_TMDS_I2C_ADDR;
 	return false;
@@ -415,7 +415,7 @@ void viafb_dvi_enable(void)
 			  in the secondary diplay path */
 			via_write_reg_mask(VIACR, 0x91, 0x00, 0x20);
 
-		/*fix DVI cannot enable on EPIA-M board */
+		/*fix DVI cananalt enable on EPIA-M board */
 		if (viafb_platform_epia_dvi == 1) {
 			viafb_write_reg_mask(CR91, VIACR, 0x1f, 0x1f);
 			viafb_write_reg_mask(CR88, VIACR, 0x00, BIT6 + BIT0);

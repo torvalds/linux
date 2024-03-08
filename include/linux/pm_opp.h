@@ -3,7 +3,7 @@
  * Generic OPP Interface
  *
  * Copyright (C) 2009-2010 Texas Instruments Incorporated.
- *	Nishanth Menon
+ *	Nishanth Meanaln
  *	Romit Dasgupta
  *	Kevin Hilman
  */
@@ -13,7 +13,7 @@
 
 #include <linux/energy_model.h>
 #include <linux/err.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 struct clk;
 struct regulator;
@@ -174,8 +174,8 @@ int dev_pm_opp_enable(struct device *dev, unsigned long freq);
 
 int dev_pm_opp_disable(struct device *dev, unsigned long freq);
 
-int dev_pm_opp_register_notifier(struct device *dev, struct notifier_block *nb);
-int dev_pm_opp_unregister_notifier(struct device *dev, struct notifier_block *nb);
+int dev_pm_opp_register_analtifier(struct device *dev, struct analtifier_block *nb);
+int dev_pm_opp_unregister_analtifier(struct device *dev, struct analtifier_block *nb);
 
 int dev_pm_opp_set_config(struct device *dev, struct dev_pm_opp_config *config);
 int devm_pm_opp_set_config(struct device *dev, struct dev_pm_opp_config *config);
@@ -196,12 +196,12 @@ int dev_pm_opp_sync_regulators(struct device *dev);
 #else
 static inline struct opp_table *dev_pm_opp_get_opp_table(struct device *dev)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline struct opp_table *dev_pm_opp_get_opp_table_indexed(struct device *dev, int index)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline void dev_pm_opp_put_opp_table(struct opp_table *opp_table) {}
@@ -213,7 +213,7 @@ static inline unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp)
 
 static inline int dev_pm_opp_get_supplies(struct dev_pm_opp *opp, struct dev_pm_opp_supply *supplies)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline unsigned long dev_pm_opp_get_power(struct dev_pm_opp *opp)
@@ -271,68 +271,68 @@ static inline unsigned long dev_pm_opp_get_suspend_opp_freq(struct device *dev)
 static inline struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 					unsigned long freq, bool available)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline struct dev_pm_opp *
 dev_pm_opp_find_freq_exact_indexed(struct device *dev, unsigned long freq,
 				   u32 index, bool available)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 					unsigned long *freq)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline struct dev_pm_opp *
 dev_pm_opp_find_freq_floor_indexed(struct device *dev, unsigned long *freq, u32 index)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline struct dev_pm_opp *dev_pm_opp_find_freq_ceil(struct device *dev,
 					unsigned long *freq)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline struct dev_pm_opp *
 dev_pm_opp_find_freq_ceil_indexed(struct device *dev, unsigned long *freq, u32 index)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline struct dev_pm_opp *dev_pm_opp_find_level_exact(struct device *dev,
 					unsigned int level)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline struct dev_pm_opp *dev_pm_opp_find_level_ceil(struct device *dev,
 					unsigned int *level)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline struct dev_pm_opp *dev_pm_opp_find_level_floor(struct device *dev,
 							     unsigned int *level)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline struct dev_pm_opp *dev_pm_opp_find_bw_ceil(struct device *dev,
 					unsigned int *bw, int index)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline struct dev_pm_opp *dev_pm_opp_find_bw_floor(struct device *dev,
 					unsigned int *bw, int index)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline void dev_pm_opp_put(struct dev_pm_opp *opp) {}
@@ -340,7 +340,7 @@ static inline void dev_pm_opp_put(struct dev_pm_opp *opp) {}
 static inline int
 dev_pm_opp_add_dynamic(struct device *dev, struct dev_pm_opp_data *opp)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void dev_pm_opp_remove(struct device *dev, unsigned long freq)
@@ -369,24 +369,24 @@ static inline int dev_pm_opp_disable(struct device *dev, unsigned long freq)
 	return 0;
 }
 
-static inline int dev_pm_opp_register_notifier(struct device *dev, struct notifier_block *nb)
+static inline int dev_pm_opp_register_analtifier(struct device *dev, struct analtifier_block *nb)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
-static inline int dev_pm_opp_unregister_notifier(struct device *dev, struct notifier_block *nb)
+static inline int dev_pm_opp_unregister_analtifier(struct device *dev, struct analtifier_block *nb)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int dev_pm_opp_set_config(struct device *dev, struct dev_pm_opp_config *config)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int devm_pm_opp_set_config(struct device *dev, struct dev_pm_opp_config *config)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void dev_pm_opp_clear_config(int token) {}
@@ -395,33 +395,33 @@ static inline int dev_pm_opp_config_clks_simple(struct device *dev,
 		struct opp_table *opp_table, struct dev_pm_opp *opp, void *data,
 		bool scaling_down)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline struct dev_pm_opp *dev_pm_opp_xlate_required_opp(struct opp_table *src_table,
 				struct opp_table *dst_table, struct dev_pm_opp *src_opp)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline int dev_pm_opp_xlate_performance_state(struct opp_table *src_table, struct opp_table *dst_table, unsigned int pstate)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int dev_pm_opp_set_opp(struct device *dev, struct dev_pm_opp *opp)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev, const struct cpumask *cpumask)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
@@ -439,7 +439,7 @@ static inline void dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask
 
 static inline int dev_pm_opp_sync_regulators(struct device *dev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 #endif		/* CONFIG_PM_OPP */
@@ -453,9 +453,9 @@ int devm_pm_opp_of_add_table(struct device *dev);
 int dev_pm_opp_of_cpumask_add_table(const struct cpumask *cpumask);
 void dev_pm_opp_of_cpumask_remove_table(const struct cpumask *cpumask);
 int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask);
-struct device_node *dev_pm_opp_of_get_opp_desc_node(struct device *dev);
-struct device_node *dev_pm_opp_get_of_node(struct dev_pm_opp *opp);
-int of_get_required_opp_performance_state(struct device_node *np, int index);
+struct device_analde *dev_pm_opp_of_get_opp_desc_analde(struct device *dev);
+struct device_analde *dev_pm_opp_get_of_analde(struct dev_pm_opp *opp);
+int of_get_required_opp_performance_state(struct device_analde *np, int index);
 int dev_pm_opp_of_find_icc_paths(struct device *dev, struct opp_table *opp_table);
 int dev_pm_opp_of_register_em(struct device *dev, struct cpumask *cpus);
 static inline void dev_pm_opp_of_unregister_em(struct device *dev)
@@ -465,17 +465,17 @@ static inline void dev_pm_opp_of_unregister_em(struct device *dev)
 #else
 static inline int dev_pm_opp_of_add_table(struct device *dev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int dev_pm_opp_of_add_table_indexed(struct device *dev, int index)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int devm_pm_opp_of_add_table_indexed(struct device *dev, int index)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void dev_pm_opp_of_remove_table(struct device *dev)
@@ -484,12 +484,12 @@ static inline void dev_pm_opp_of_remove_table(struct device *dev)
 
 static inline int devm_pm_opp_of_add_table(struct device *dev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int dev_pm_opp_of_cpumask_add_table(const struct cpumask *cpumask)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void dev_pm_opp_of_cpumask_remove_table(const struct cpumask *cpumask)
@@ -498,15 +498,15 @@ static inline void dev_pm_opp_of_cpumask_remove_table(const struct cpumask *cpum
 
 static inline int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
-static inline struct device_node *dev_pm_opp_of_get_opp_desc_node(struct device *dev)
+static inline struct device_analde *dev_pm_opp_of_get_opp_desc_analde(struct device *dev)
 {
 	return NULL;
 }
 
-static inline struct device_node *dev_pm_opp_get_of_node(struct dev_pm_opp *opp)
+static inline struct device_analde *dev_pm_opp_get_of_analde(struct dev_pm_opp *opp)
 {
 	return NULL;
 }
@@ -514,21 +514,21 @@ static inline struct device_node *dev_pm_opp_get_of_node(struct dev_pm_opp *opp)
 static inline int dev_pm_opp_of_register_em(struct device *dev,
 					    struct cpumask *cpus)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void dev_pm_opp_of_unregister_em(struct device *dev)
 {
 }
 
-static inline int of_get_required_opp_performance_state(struct device_node *np, int index)
+static inline int of_get_required_opp_performance_state(struct device_analde *np, int index)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int dev_pm_opp_of_find_icc_paths(struct device *dev, struct opp_table *opp_table)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 

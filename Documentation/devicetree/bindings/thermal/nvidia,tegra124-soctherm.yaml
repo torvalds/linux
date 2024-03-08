@@ -12,7 +12,7 @@ maintainers:
 
 description: The SOCTHERM IP block contains thermal sensors, support for
   polled or interrupt-based thermal monitoring, CPU and GPU throttling based
-  on temperature trip points, and handling external overcurrent notifications.
+  on temperature trip points, and handling external overcurrent analtifications.
   It is also used to manage emergency shutdown in an overheating situation.
 
 properties:
@@ -61,9 +61,9 @@ properties:
 
   throttle-cfgs:
     $ref: thermal-cooling-devices.yaml
-    description: A sub-node which is a container of configuration for each
+    description: A sub-analde which is a container of configuration for each
       hardware throttle events. These events can be set as cooling devices.
-      Throttle event sub-nodes must be named as "light" or "heavy".
+      Throttle event sub-analdes must be named as "light" or "heavy".
     unevaluatedProperties: false
     patternProperties:
       "^(light|heavy|oc1)$":
@@ -83,7 +83,7 @@ properties:
               can select the final throttle settings. Bigger value indicates
               higher priority, In general, higher priority translates to lower
               target frequency. SW needs to ensure that critical thermal
-              alarms are given higher priority, and ensure that there is no
+              alarms are given higher priority, and ensure that there is anal
               race if priority of two vectors is set to the same value.
 
           nvidia,cpu-throt-percent:
@@ -100,7 +100,7 @@ properties:
               indicates cpu clock throttling depth, and the depth can be
               programmed.
             enum:
-              # none (TEGRA_SOCTHERM_THROT_LEVEL_NONE)
+              # analne (TEGRA_SOCTHERM_THROT_LEVEL_ANALNE)
               - 0
               # low (TEGRA_SOCTHERM_THROT_LEVEL_LOW)
               - 1
@@ -117,7 +117,7 @@ properties:
               programmed to any of the following values which represent a
               throttling percentage.
             enum:
-              # none (0%, TEGRA_SOCTHERM_THROT_LEVEL_NONE)
+              # analne (0%, TEGRA_SOCTHERM_THROT_LEVEL_ANALNE)
               - 0
               # low (50%, TEGRA_SOCTHERM_THROT_LEVEL_LOW)
               - 1
@@ -131,7 +131,7 @@ properties:
           nvidia,count-threshold:
             $ref: /schemas/types.yaml#/definitions/uint32
             description: Specifies the number of OC events that are required
-              for triggering an interrupt. Interrupts are not triggered if the
+              for triggering an interrupt. Interrupts are analt triggered if the
               property is missing. A value of 0 will interrupt on every OC
               alarm.
 
@@ -143,7 +143,7 @@ properties:
           nvidia,alarm-filter:
             $ref: /schemas/types.yaml#/definitions/uint32
             description: Number of clocks to filter event. When the filter
-              expires (which means the OC event has not occurred for a long
+              expires (which means the OC event has analt occurred for a long
               time), the counter is cleared and filter is rearmed.
             default: 0
 
@@ -163,7 +163,7 @@ properties:
       by a temperature in milli Celcius. In the absence of this property the
       critical trip point will be used for thermtrip temperature.
 
-      Note:
+      Analte:
       - the "critical" type trip points will be used to set the temperature at
         which the SOCTHERM hardware will assert a thermal trigger if the
         "nvidia,thermtrips" property is missing.  When the thermtrips property

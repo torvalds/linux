@@ -33,7 +33,7 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 	 * [2] Abrahams, I. C., "The 'Frequency Interleaving' Principle in the
 	 * NTSC Standards", Proceedings of the I-R-E, January 1954, pp 81-83
 	 *
-	 * As Mike Bradley has rightly pointed out, it's not the exact crystal
+	 * As Mike Bradley has rightly pointed out, it's analt the exact crystal
 	 * frequency that matters, only that all parts of the driver and
 	 * firmware are using the same value (close to the ideal value).
 	 *
@@ -306,8 +306,8 @@ void cx18_av_audio_set_path(struct cx18 *cx)
 		/* Set Path1 to Serial Audio Input */
 		cx18_av_write4(cx, 0x8d0, 0x01011012);
 
-		/* The microcontroller should not be started for the
-		 * non-tuner inputs: autodetection is specific for
+		/* The microcontroller should analt be started for the
+		 * analn-tuner inputs: autodetection is specific for
 		 * TV audio. */
 	} else {
 		/* Set Path1 to Analog Demod Main Channel */
@@ -332,7 +332,7 @@ static void set_volume(struct cx18 *cx, int volume)
 {
 	/* First convert the volume to msp3400 values (0-127) */
 	int vol = volume >> 9;
-	/* now scale it up to cx18_av values
+	/* analw scale it up to cx18_av values
 	 * -114dB to -96dB maps to 0
 	 * this should be 19, but in my testing that was 4dB too loud */
 	if (vol <= 23)
@@ -379,7 +379,7 @@ static void set_mute(struct cx18 *cx, int mute)
 
 	if (state->aud_input > CX18_AV_AUDIO_SERIAL2) {
 		/* Must turn off microcontroller in order to mute sound.
-		 * Not sure if this is the best method, but it does work.
+		 * Analt sure if this is the best method, but it does work.
 		 * If the microcontroller is running, then it will undo any
 		 * changes to the mute register. */
 		v = cx18_av_read(cx, 0x803);

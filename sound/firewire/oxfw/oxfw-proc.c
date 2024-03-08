@@ -74,7 +74,7 @@ static void proc_read_formation(struct snd_info_entry *entry,
 	}
 }
 
-static void add_node(struct snd_oxfw *oxfw, struct snd_info_entry *root,
+static void add_analde(struct snd_oxfw *oxfw, struct snd_info_entry *root,
 		     const char *name,
 		     void (*op)(struct snd_info_entry *e,
 				struct snd_info_buffer *b))
@@ -91,7 +91,7 @@ void snd_oxfw_proc_init(struct snd_oxfw *oxfw)
 	struct snd_info_entry *root;
 
 	/*
-	 * All nodes are automatically removed at snd_card_disconnect(),
+	 * All analdes are automatically removed at snd_card_disconnect(),
 	 * by following to link list.
 	 */
 	root = snd_info_create_card_entry(oxfw->card, "firewire",
@@ -100,5 +100,5 @@ void snd_oxfw_proc_init(struct snd_oxfw *oxfw)
 		return;
 	root->mode = S_IFDIR | 0555;
 
-	add_node(oxfw, root, "formation", proc_read_formation);
+	add_analde(oxfw, root, "formation", proc_read_formation);
 }

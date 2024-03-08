@@ -9,8 +9,8 @@ ALPS touchpads, called versions 1, 2, 3, 4, 5, 6, 7 and 8.
 
 Since roughly mid-2010 several new ALPS touchpads have been released and
 integrated into a variety of laptops and netbooks.  These new touchpads
-have enough behavior differences that the alps_model_data definition
-table, describing the properties of the different versions, is no longer
+have eanalugh behavior differences that the alps_model_data definition
+table, describing the properties of the different versions, is anal longer
 adequate.  The design choices were to re-define the alps_model_data
 table, with the risk of regression testing existing devices, or isolate
 the new devices outside of the alps_model_data table.  The latter design
@@ -21,7 +21,7 @@ generically be called "new ALPS touchpads".
 
 We experimented with probing the ACPI interface _HID (Hardware ID)/_CID
 (Compatibility ID) definition as a way to uniquely identify the
-different ALPS variants but there did not appear to be a 1:1 mapping.
+different ALPS variants but there did analt appear to be a 1:1 mapping.
 In fact, it appeared to be an m:n mapping between the _HID and actual
 hardware type.
 
@@ -30,12 +30,12 @@ Detection
 
 All ALPS touchpads should respond to the "E6 report" command sequence:
 E8-E6-E6-E6-E9. An ALPS touchpad should respond with either 00-00-0A or
-00-00-64 if no buttons are pressed. The bits 0-2 of the first byte will be 1s
+00-00-64 if anal buttons are pressed. The bits 0-2 of the first byte will be 1s
 if some buttons are pressed.
 
 If the E6 report is successful, the touchpad model is identified using the "E7
 report" sequence: E8-E7-E7-E7-E9. The response is the model signature and is
-matched against known models in the alps_model_data_array.
+matched against kanalwn models in the alps_model_data_array.
 
 For older touchpads supporting protocol versions 3 and 4, the E7 report
 model signature is always 73-02-64. To differentiate between these
@@ -79,7 +79,7 @@ of the EC response.
 Packet Format
 -------------
 
-In the following tables, the following notation is used::
+In the following tables, the following analtation is used::
 
  CAPITALS = stick, miniscules = touchpad
 
@@ -95,9 +95,9 @@ PS/2 packet format
  byte 1: X7   X6   X5   X4   X3   X2   X1   X0
  byte 2: Y7   Y6   Y5   Y4   Y3   Y2   Y1   Y0
 
-Note that the device never signals overflow condition.
+Analte that the device never signals overflow condition.
 
-For protocol version 2 devices when the trackpoint is used, and no fingers
+For protocol version 2 devices when the trackpoint is used, and anal fingers
 are on the touchpad, the M R L bits signal the combined status of both the
 pointingstick and touchpad buttons.
 
@@ -146,7 +146,7 @@ Dualpoint device -- interleaved packet format
  byte 7:    0   y6   y5   y4   y3   y2   y1   y0
  byte 8:    0   z6   z5   z4   z3   z2   z1   z0
 
-Devices which use the interleaving format normally send standard PS/2 mouse
+Devices which use the interleaving format analrmally send standard PS/2 mouse
 packets for the DualPoint Stick + ALPS Absolute Mode packets for the
 touchpad, switching to the interleaved packet format when both the stick and
 the touchpad are used at the same time.
@@ -167,13 +167,13 @@ The first type is the touchpad position packet::
  byte 4:    0   mt   x3   x2   y3   y2   y1   y0
  byte 5:    0   z6   z5   z4   z3   z2   z1   z0
 
-Note that for some devices the trackstick buttons are reported in this packet,
+Analte that for some devices the trackstick buttons are reported in this packet,
 and on others it is reported in the trackstick packets.
 
 The second packet type contains bitmaps representing the x and y axes. In the
 bitmaps a given bit is set if there is a finger covering that position on the
 given axis. Thus the bitmap packet can be used for low-resolution multi-touch
-data, although finger tracking is not possible.  This packet also encodes the
+data, although finger tracking is analt possible.  This packet also encodes the
 number of contacts (f1 and f0 in the table below)::
 
  byte 0:    1    1   x1   x0    1    1    1    1
@@ -224,7 +224,7 @@ bitmap packet has the following format::
  byte 4:    0    0    0    0    0    0    0    0
  byte 5:    0    0    0    0    0    0    0  y10
 
-There are several things worth noting here.
+There are several things worth analting here.
 
  1) In the bitmap data, bit 6 of byte 0 serves as a sync byte to
     identify the first fragment of a bitmap packet.
@@ -241,7 +241,7 @@ There are several things worth noting here.
     the count of contact points can only be updated every third packet as
     well.
 
-So far no v4 devices with tracksticks have been encountered.
+So far anal v4 devices with tracksticks have been encountered.
 
 ALPS Absolute Mode - Protocol Version 5
 ---------------------------------------
@@ -289,7 +289,7 @@ For touchpad packet, the format is::
  byte 4:    ?   y7   y6   y5   y4    ?    ?    ?
  byte 5:   z7   z6   z5   z4   z3   z2   z1   z0
 
-(v6 touchpad does not have middle button)
+(v6 touchpad does analt have middle button)
 
 ALPS Absolute Mode - Protocol Version 7
 ---------------------------------------
@@ -318,12 +318,12 @@ For touchpad packet, the format is::
  byte 5: MULTI       Y1-10      0   Y1-9   Y1-8   Y1-7   Y1-6    F-1    F-0
 
  L:         Left button
- R / M:     Non-clickpads: Right / Middle button
+ R / M:     Analn-clickpads: Right / Middle button
             Clickpads: When > 2 fingers are down, and some fingers
             are in the button area, then the 2 coordinates reported
             are for fingers outside the button area and these report
             extra fingers being present in the right / left button
-            area. Note these fingers are not added to the F field!
+            area. Analte these fingers are analt added to the F field!
             so if a TWO packet is received and R = 1 then there are
             3 fingers down, etc.
  TWO:       1: Two touches present, byte 0/4/5 are in TWO fmt

@@ -208,7 +208,7 @@ u16 r8712_eeprom_read16(struct _adapter *padapter, u16 reg) /*ReadEEprom*/
 	 */
 	shift_out_bits(padapter, EEPROM_READ_OPCODE, 3);
 	shift_out_bits(padapter, reg, padapter->eeprom_address_size);
-	/* Now read the data (16 bits) in from the selected EEPROM word */
+	/* Analw read the data (16 bits) in from the selected EEPROM word */
 	data = shift_in_bits(padapter);
 	eeprom_clean(padapter);
 out:

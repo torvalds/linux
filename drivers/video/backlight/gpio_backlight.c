@@ -48,7 +48,7 @@ static int gpio_backlight_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct gpio_backlight_platform_data *pdata = dev_get_platdata(dev);
-	struct device_node *of_node = dev->of_node;
+	struct device_analde *of_analde = dev->of_analde;
 	struct backlight_properties props;
 	struct backlight_device *bl;
 	struct gpio_backlight *gbl;
@@ -56,7 +56,7 @@ static int gpio_backlight_probe(struct platform_device *pdev)
 
 	gbl = devm_kzalloc(dev, sizeof(*gbl), GFP_KERNEL);
 	if (gbl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pdata)
 		gbl->dev = pdata->dev;
@@ -83,8 +83,8 @@ static int gpio_backlight_probe(struct platform_device *pdev)
 	}
 
 	/* Set the initial power state */
-	if (!of_node || !of_node->phandle)
-		/* Not booted with device tree or no phandle link to the node */
+	if (!of_analde || !of_analde->phandle)
+		/* Analt booted with device tree or anal phandle link to the analde */
 		bl->props.power = def_value ? FB_BLANK_UNBLANK
 					    : FB_BLANK_POWERDOWN;
 	else if (gpiod_get_value_cansleep(gbl->gpiod) == 0)

@@ -31,10 +31,10 @@ struct rdc_host_priv {
  *	@ap: Port for which cable detect info is desired
  *
  *	Read 80c cable indicator from ATA PCI device's PCI config
- *	register.  This register is normally set by firmware (BIOS).
+ *	register.  This register is analrmally set by firmware (BIOS).
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static int rdc_pata_cable_detect(struct ata_port *ap)
@@ -43,7 +43,7 @@ static int rdc_pata_cable_detect(struct ata_port *ap)
 	u8 mask;
 
 	/* check BIOS cable detect results */
-	mask = 0x30 << (2 * ap->port_no);
+	mask = 0x30 << (2 * ap->port_anal);
 	if ((hpriv->saved_iocfg & mask) == 0)
 		return ATA_CBL_PATA40;
 	return ATA_CBL_PATA80;
@@ -55,7 +55,7 @@ static int rdc_pata_cable_detect(struct ata_port *ap)
  *	@deadline: deadline jiffies for the operation
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 static int rdc_pata_prereset(struct ata_link *link, unsigned long deadline)
 {
@@ -67,8 +67,8 @@ static int rdc_pata_prereset(struct ata_link *link, unsigned long deadline)
 		{ 0x43U, 1U, 0x80UL, 0x80UL },	/* port 1 */
 	};
 
-	if (!pci_test_config_bits(pdev, &rdc_enable_bits[ap->port_no]))
-		return -ENOENT;
+	if (!pci_test_config_bits(pdev, &rdc_enable_bits[ap->port_anal]))
+		return -EANALENT;
 	return ata_sff_prereset(link, deadline);
 }
 
@@ -82,7 +82,7 @@ static DEFINE_SPINLOCK(rdc_lock);
  *	Set PIO mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void rdc_set_piomode(struct ata_port *ap, struct ata_device *adev)
@@ -90,8 +90,8 @@ static void rdc_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	unsigned int pio	= adev->pio_mode - XFER_PIO_0;
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
 	unsigned long flags;
-	unsigned int is_slave	= (adev->devno != 0);
-	unsigned int master_port= ap->port_no ? 0x42 : 0x40;
+	unsigned int is_slave	= (adev->devanal != 0);
+	unsigned int master_port= ap->port_anal ? 0x42 : 0x40;
 	unsigned int slave_port	= 0x44;
 	u16 master_data;
 	u8 slave_data;
@@ -128,10 +128,10 @@ static void rdc_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		/* enable PPE1, IE1 and TIME1 as needed */
 		master_data |= (control << 4);
 		pci_read_config_byte(dev, slave_port, &slave_data);
-		slave_data &= (ap->port_no ? 0x0f : 0xf0);
+		slave_data &= (ap->port_anal ? 0x0f : 0xf0);
 		/* Load the timing nibble for this slave */
 		slave_data |= ((timings[pio][0] << 2) | timings[pio][1])
-						<< (ap->port_no ? 4 : 0);
+						<< (ap->port_anal ? 4 : 0);
 	} else {
 		/* clear ISP|RCT|TIME0|IE0|PPE0|DTE0 */
 		master_data &= 0xccf0;
@@ -150,7 +150,7 @@ static void rdc_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	   UDMA is selected */
 
 	pci_read_config_byte(dev, 0x48, &udma_enable);
-	udma_enable &= ~(1 << (2 * ap->port_no + adev->devno));
+	udma_enable &= ~(1 << (2 * ap->port_anal + adev->devanal));
 	pci_write_config_byte(dev, 0x48, udma_enable);
 
 	spin_unlock_irqrestore(&rdc_lock, flags);
@@ -164,17 +164,17 @@ static void rdc_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	Set UDMA mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void rdc_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
 	unsigned long flags;
-	u8 master_port		= ap->port_no ? 0x42 : 0x40;
+	u8 master_port		= ap->port_anal ? 0x42 : 0x40;
 	u16 master_data;
 	u8 speed		= adev->dma_mode;
-	int devid		= adev->devno + 2 * ap->port_no;
+	int devid		= adev->devanal + 2 * ap->port_anal;
 	u8 udma_enable		= 0;
 
 	static const	 /* ISP  RTC */
@@ -246,13 +246,13 @@ static void rdc_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 			/* Enable DMA timing only */
 			control |= 8;	/* PIO cycles in PIO0 */
 
-		if (adev->devno) {	/* Slave */
+		if (adev->devanal) {	/* Slave */
 			master_data &= 0xFF4F;  /* Mask out IORDY|TIME1|DMAONLY */
 			master_data |= control << 4;
 			pci_read_config_byte(dev, 0x44, &slave_data);
-			slave_data &= (ap->port_no ? 0x0f : 0xf0);
+			slave_data &= (ap->port_anal ? 0x0f : 0xf0);
 			/* Load the matching timing */
-			slave_data |= ((timings[pio][0] << 2) | timings[pio][1]) << (ap->port_no ? 4 : 0);
+			slave_data |= ((timings[pio][0] << 2) | timings[pio][1]) << (ap->port_anal ? 4 : 0);
 			pci_write_config_byte(dev, 0x44, slave_data);
 		} else { 	/* Master */
 			master_data &= 0xCCF4;	/* Mask out IORDY|TIME1|DMAONLY
@@ -304,7 +304,7 @@ static const struct scsi_host_template rdc_sht = {
  *	Inherited from PCI layer (may sleep).
  *
  *	RETURNS:
- *	Zero on success, or -ERRNO value.
+ *	Zero on success, or -ERRANAL value.
  */
 
 static int rdc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -328,7 +328,7 @@ static int rdc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Save IOCFG, this will be used for cable detection, quirk
 	 * detection and restoration on detach.

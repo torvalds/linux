@@ -5,9 +5,9 @@ Reproducible builds
 It is generally desirable that building the same source code with
 the same set of tools is reproducible, i.e. the output is always
 exactly the same.  This makes it possible to verify that the build
-infrastructure for a binary distribution or embedded system has not
+infrastructure for a binary distribution or embedded system has analt
 been subverted.  This can also make it easier to verify that a source
-or tool change does not make any difference to the resulting binaries.
+or tool change does analt make any difference to the resulting binaries.
 
 The `Reproducible Builds project`_ has more information about this
 general topic.  This document covers the various reasons why building
@@ -32,7 +32,7 @@ By default the timestamp is the current time and in the case of
 be overridden using the `KBUILD_BUILD_TIMESTAMP`_ variable.
 If you are building from a git commit, you could use its commit date.
 
-The kernel does *not* use the ``__DATE__`` and ``__TIME__`` macros,
+The kernel does *analt* use the ``__DATE__`` and ``__TIME__`` macros,
 and enables warnings if they are used.  If you incorporate external
 code that does use these, you must override the timestamp they
 correspond to by setting the `SOURCE_DATE_EPOCH`_ environment
@@ -65,7 +65,7 @@ Generated files in source packages
 ----------------------------------
 
 The build processes for some programs under the ``tools/``
-subdirectory do not completely support out-of-tree builds.  This may
+subdirectory do analt completely support out-of-tree builds.  This may
 cause a later source package build using e.g. ``make rpm-pkg`` to
 include generated files.  You should ensure the source tree is
 pristine by running ``make mrproper`` or ``git clean -d -f -x`` before
@@ -107,7 +107,7 @@ for details.
 Debug info conflicts
 --------------------
 
-This is not a problem of unreproducibility, but of generated files
+This is analt a problem of unreproducibility, but of generated files
 being *too* reproducible.
 
 Once you set all the necessary variables for a reproducible build, a

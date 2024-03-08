@@ -60,7 +60,7 @@ test_buffer() {
 	echo size = $size
 	echo meta size = $marker_meta
 
-	# Now add a little more the meta data overhead will overflow
+	# Analw add a little more the meta data overhead will overflow
 
 	str=`write_buffer $size`
 

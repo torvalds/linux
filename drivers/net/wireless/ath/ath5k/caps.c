@@ -5,11 +5,11 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -55,7 +55,7 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 		 * XXX The transceiver supports frequencies from 4920 to 6100MHz
 		 * XXX and from 2312 to 2732MHz. There are problems with the
 		 * XXX current ieee80211 implementation because the IEEE
-		 * XXX channel mapping does not support negative channel
+		 * XXX channel mapping does analt support negative channel
 		 * XXX numbers (2312MHz is channel -19). Of course, this
 		 * XXX doesn't matter because these channels are out of the
 		 * XXX legal range.
@@ -86,7 +86,7 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 			caps->cap_range.range_2ghz_max = 2732;
 
 			/* Override 2GHz modes on SoCs that need it
-			 * NOTE: cap_needs_2GHz_ovr gets set from
+			 * ANALTE: cap_needs_2GHz_ovr gets set from
 			 * ath_ahb_probe */
 			if (!caps->cap_needs_2GHz_ovr) {
 				if (AR5K_EEPROM_HDR_11B(ee_header))
@@ -106,7 +106,7 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 
 	/* Set number of supported TX queues */
 	if (ah->ah_version == AR5K_AR5210)
-		caps->cap_queues.q_tx_num = AR5K_NUM_TX_QUEUES_NOQCU;
+		caps->cap_queues.q_tx_num = AR5K_NUM_TX_QUEUES_ANALQCU;
 	else
 		caps->cap_queues.q_tx_num = AR5K_NUM_TX_QUEUES;
 
@@ -135,7 +135,7 @@ int ath5k_hw_enable_pspoll(struct ath5k_hw *ah, u8 *bssid,
 {
 	if (ah->ah_version == AR5K_AR5210) {
 		AR5K_REG_DISABLE_BITS(ah, AR5K_STA_ID1,
-			AR5K_STA_ID1_NO_PSPOLL | AR5K_STA_ID1_DEFAULT_ANTENNA);
+			AR5K_STA_ID1_ANAL_PSPOLL | AR5K_STA_ID1_DEFAULT_ANTENNA);
 		return 0;
 	}
 
@@ -146,7 +146,7 @@ int ath5k_hw_disable_pspoll(struct ath5k_hw *ah)
 {
 	if (ah->ah_version == AR5K_AR5210) {
 		AR5K_REG_ENABLE_BITS(ah, AR5K_STA_ID1,
-			AR5K_STA_ID1_NO_PSPOLL | AR5K_STA_ID1_DEFAULT_ANTENNA);
+			AR5K_STA_ID1_ANAL_PSPOLL | AR5K_STA_ID1_DEFAULT_ANTENNA);
 		return 0;
 	}
 

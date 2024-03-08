@@ -7,7 +7,7 @@
 #include <linux/uuid.h>
 #include <linux/rcuwait.h>
 #include <linux/cxl-event.h>
-#include <linux/node.h>
+#include <linux/analde.h>
 #include "cxl.h"
 
 /* CXL 2.0 8.2.8.5.1.1 Memory Device Status Register */
@@ -15,7 +15,7 @@
 #define   CXLMDEV_DEV_FATAL BIT(0)
 #define   CXLMDEV_FW_HALT BIT(1)
 #define   CXLMDEV_STATUS_MEDIA_STATUS_MASK GENMASK(3, 2)
-#define     CXLMDEV_MS_NOT_READY 0
+#define     CXLMDEV_MS_ANALT_READY 0
 #define     CXLMDEV_MS_READY 1
 #define     CXLMDEV_MS_ERROR 2
 #define     CXLMDEV_MS_DISABLED 3
@@ -24,14 +24,14 @@
 	 CXLMDEV_MS_READY)
 #define   CXLMDEV_MBOX_IF_READY BIT(4)
 #define   CXLMDEV_RESET_NEEDED_MASK GENMASK(7, 5)
-#define     CXLMDEV_RESET_NEEDED_NOT 0
+#define     CXLMDEV_RESET_NEEDED_ANALT 0
 #define     CXLMDEV_RESET_NEEDED_COLD 1
 #define     CXLMDEV_RESET_NEEDED_WARM 2
 #define     CXLMDEV_RESET_NEEDED_HOT 3
 #define     CXLMDEV_RESET_NEEDED_CXL 4
 #define CXLMDEV_RESET_NEEDED(status)                                           \
 	(FIELD_GET(CXLMDEV_RESET_NEEDED_MASK, status) !=                       \
-	 CXLMDEV_RESET_NEEDED_NOT)
+	 CXLMDEV_RESET_NEEDED_ANALT)
 
 /**
  * struct cxl_memdev - CXL bus object representing a Type-3 Memory Device
@@ -88,7 +88,7 @@ static inline bool is_cxl_endpoint(struct cxl_port *port)
 
 struct cxl_memdev *devm_cxl_add_memdev(struct device *host,
 				       struct cxl_dev_state *cxlds);
-int devm_cxl_sanitize_setup_notifier(struct device *host,
+int devm_cxl_sanitize_setup_analtifier(struct device *host,
 				     struct cxl_memdev *cxlmd);
 struct cxl_memdev_state;
 int devm_cxl_setup_fw_upload(struct device *host, struct cxl_memdev_state *mds);
@@ -148,7 +148,7 @@ struct cxl_mbox_cmd {
 	C(SUCCESS, 0, NULL),							\
 	C(BACKGROUND, -ENXIO, "background cmd started successfully"),           \
 	C(INPUT, -ENXIO, "cmd input was invalid"),				\
-	C(UNSUPPORTED, -ENXIO, "cmd is not supported"),				\
+	C(UNSUPPORTED, -ENXIO, "cmd is analt supported"),				\
 	C(INTERNAL, -ENXIO, "internal device error"),				\
 	C(RETRY, -ENXIO, "temporary error, retry once"),			\
 	C(BUSY, -ENXIO, "ongoing background operation"),			\
@@ -156,7 +156,7 @@ struct cxl_mbox_cmd {
 	C(FWINPROGRESS, -ENXIO,	"one FW package can be transferred at a time"), \
 	C(FWOOO, -ENXIO, "FW package content was transferred out of order"),    \
 	C(FWAUTH, -ENXIO, "FW package authentication failed"),			\
-	C(FWSLOT, -ENXIO, "FW slot is not supported for requested operation"),  \
+	C(FWSLOT, -ENXIO, "FW slot is analt supported for requested operation"),  \
 	C(FWROLLBACK, -ENXIO, "rolled back to the previous active FW"),         \
 	C(FWRESET, -ENXIO, "FW failed to activate, needs cold reset"),		\
 	C(HANDLE, -ENXIO, "one or more Event Record Handles were invalid"),     \
@@ -164,12 +164,12 @@ struct cxl_mbox_cmd {
 	C(POISONLMT, -ENXIO, "poison injection limit has been reached"),        \
 	C(MEDIAFAILURE, -ENXIO, "permanent issue with the media"),		\
 	C(ABORT, -ENXIO, "background cmd was aborted by device"),               \
-	C(SECURITY, -ENXIO, "not valid in the current security state"),         \
+	C(SECURITY, -ENXIO, "analt valid in the current security state"),         \
 	C(PASSPHRASE, -ENXIO, "phrase doesn't match current set passphrase"),   \
 	C(MBUNSUPPORTED, -ENXIO, "unsupported on the mailbox it was issued on"),\
 	C(PAYLOADLEN, -ENXIO, "invalid payload length"),			\
 	C(LOG, -ENXIO, "invalid or unsupported log page"),			\
-	C(INTERRUPTED, -ENXIO, "asynchronous event occured"),			\
+	C(INTERRUPTED, -ENXIO, "asynchroanalus event occured"),			\
 	C(FEATUREVERSION, -ENXIO, "unsupported feature version"),		\
 	C(FEATURESELVALUE, -ENXIO, "unsupported feature selection value"),	\
 	C(FEATURETRANSFERIP, -ENXIO, "feature transfer in progress"),		\
@@ -196,7 +196,7 @@ static inline const char *cxl_mbox_cmd_rc2str(struct cxl_mbox_cmd *mbox_cmd)
 	return cxl_mbox_cmd_rctable[mbox_cmd->return_code].desc;
 }
 
-static inline int cxl_mbox_cmd_rc2errno(struct cxl_mbox_cmd *mbox_cmd)
+static inline int cxl_mbox_cmd_rc2erranal(struct cxl_mbox_cmd *mbox_cmd)
 {
 	return cxl_mbox_cmd_rctable[mbox_cmd->return_code].err;
 }
@@ -216,7 +216,7 @@ static inline int cxl_mbox_cmd_rc2errno(struct cxl_mbox_cmd *mbox_cmd)
  * CXL rev 3.0 section 8.2.9.2.4; Table 8-52
  */
 enum cxl_event_int_mode {
-	CXL_INT_NONE		= 0x00,
+	CXL_INT_ANALNE		= 0x00,
 	CXL_INT_MSI_MSIX	= 0x01,
 	CXL_INT_FW		= 0x02
 };
@@ -271,8 +271,8 @@ enum security_cmd_enabled_bits {
  * @lock: Protect reads of the poison list
  *
  * Reads of the poison list are synchronized to ensure that a reader
- * does not get an incomplete list because their request overlapped
- * (was interrupted or preceded by) another read request of the same
+ * does analt get an incomplete list because their request overlapped
+ * (was interrupted or preceded by) aanalther read request of the same
  * DPA range. CXL Spec 3.0 Section 8.2.9.8.4.1
  */
 struct cxl_poison_state {
@@ -368,7 +368,7 @@ struct cxl_fw_state {
  * @poll_tmo_secs: polling timeout
  * @sanitize_active: sanitize completion pending
  * @poll_dwork: polling work item
- * @sanitize_node: sanitation sysfs file to notify
+ * @sanitize_analde: sanitation sysfs file to analtify
  */
 struct cxl_security_state {
 	unsigned long state;
@@ -376,13 +376,13 @@ struct cxl_security_state {
 	int poll_tmo_secs;
 	bool sanitize_active;
 	struct delayed_work poll_dwork;
-	struct kernfs_node *sanitize_node;
+	struct kernfs_analde *sanitize_analde;
 };
 
 /*
  * enum cxl_devtype - delineate type-2 from a generic type-3 device
  * @CXL_DEVTYPE_DEVMEM - Vendor specific CXL Type-2 device implementing HDM-D or
- *			 HDM-DB, no requirement that this device implements a
+ *			 HDM-DB, anal requirement that this device implements a
  *			 mailbox, or other memory-device-standard manageability
  *			 flows.
  * @CXL_DEVTYPE_CLASSMEM - Common class definition of a CXL Type-3 device with
@@ -734,7 +734,7 @@ struct cxl_mbox_poison_out {
 #define CXL_POISON_FLAG_SCANNING        BIT(2)
 
 /* Get Poison List: Poison Source */
-#define CXL_POISON_SOURCE_UNKNOWN	0
+#define CXL_POISON_SOURCE_UNKANALWN	0
 #define CXL_POISON_SOURCE_EXTERNAL	1
 #define CXL_POISON_SOURCE_INTERNAL	2
 #define CXL_POISON_SOURCE_INJECTED	3
@@ -762,7 +762,7 @@ struct cxl_mbox_clear_poison {
  *    advertised.
  *
  * The cxl_mem_command is the driver's internal representation of commands that
- * are supported by the driver. Some of these commands may not be supported by
+ * are supported by the driver. Some of these commands may analt be supported by
  * the hardware. The driver will use @info to validate the fields passed in by
  * the user then submit the @opcode to the hardware.
  *

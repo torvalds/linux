@@ -100,7 +100,7 @@ static void fb_set_logo(struct fb_info *info,
 {
 	int i, j, k;
 	const u8 *src = logo->data;
-	u8 xor = (info->fix.visual == FB_VISUAL_MONO01) ? 0xff : 0;
+	u8 xor = (info->fix.visual == FB_VISUAL_MOANAL01) ? 0xff : 0;
 	u8 fg = 1, d;
 
 	switch (fb_get_color_depth(&info->var, &info->fix)) {
@@ -115,8 +115,8 @@ static void fb_set_logo(struct fb_info *info,
 		break;
 	}
 
-	if (info->fix.visual == FB_VISUAL_MONO01 ||
-	    info->fix.visual == FB_VISUAL_MONO10)
+	if (info->fix.visual == FB_VISUAL_MOANAL01 ||
+	    info->fix.visual == FB_VISUAL_MOANAL10)
 		fg = ~((u8) (0xfff << info->var.green.length));
 
 	switch (depth) {
@@ -147,7 +147,7 @@ static void fb_set_logo(struct fb_info *info,
 
 /*
  * Three (3) kinds of logo maps exist.  linux_logo_clut224 (>16 colors),
- * linux_logo_vga16 (16 colors) and linux_logo_mono (2 colors).  Depending on
+ * linux_logo_vga16 (16 colors) and linux_logo_moanal (2 colors).  Depending on
  * the visual format and color depth of the framebuffer, the DAC, the
  * pseudo_palette, and the logo data will be adjusted accordingly.
  *
@@ -160,13 +160,13 @@ static void fb_set_logo(struct fb_info *info,
  * will be set.
  *
  * Case 2 - linux_logo_vga16:
- * The number of colors just matches the console colors, thus there is no need
+ * The number of colors just matches the console colors, thus there is anal need
  * to set the DAC or the pseudo_palette.  However, the bitmap is packed, ie,
  * each byte contains color information for two pixels (upper and lower nibble).
  * To be consistent with fb_imageblit() usage, we therefore separate the two
  * nibbles into separate bytes. The "depth" flag will be set to 4.
  *
- * Case 3 - linux_logo_mono:
+ * Case 3 - linux_logo_moanal:
  * This is similar with Case 2.  Each byte contains information for 8 pixels.
  * We isolate each bit and expand each into a byte. The "depth" flag will
  * be set to 1.
@@ -283,7 +283,7 @@ static int fb_show_logo_line(struct fb_info *info, int rotate,
 	unsigned char *logo_new = NULL, *logo_rotate = NULL;
 	struct fb_image image;
 
-	/* Return if the frame buffer is not mapped or suspended */
+	/* Return if the frame buffer is analt mapped or suspended */
 	if (logo == NULL || info->state != FBINFO_STATE_RUNNING ||
 	    info->fbops->owner)
 		return 0;
@@ -440,7 +440,7 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 		depth = 4;
 	}
 
-	/* Return if no suitable logo was found */
+	/* Return if anal suitable logo was found */
 	fb_logo.logo = fb_find_logo(depth);
 
 	if (!fb_logo.logo)

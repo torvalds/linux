@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2020 Arm Ltd.
  * based on the H6 pinctrl driver
- *   Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
+ *   Copyright (C) 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
  */
 
 #include <linux/module.h>
@@ -857,7 +857,7 @@ static const struct sunxi_desc_pin h616_pins[] = {
 		  SUNXI_FUNCTION(0x2, "emac0"),		/* MDIO */
 		  SUNXI_FUNCTION(0x3, "uart4"),		/* RTS */
 		  SUNXI_FUNCTION(0x4, "ts0"),		/* D6 */
-		  SUNXI_FUNCTION(0x5, "clock"),		/* CLK_FANOUT0 */
+		  SUNXI_FUNCTION(0x5, "clock"),		/* CLK_FAANALUT0 */
 		  SUNXI_FUNCTION_IRQ_BANK(0x6, 7, 15)),	/* PI_EINT15 */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(I, 16),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
@@ -865,7 +865,7 @@ static const struct sunxi_desc_pin h616_pins[] = {
 		  SUNXI_FUNCTION(0x2, "emac0"),		/* EPHY_CLK */
 		  SUNXI_FUNCTION(0x3, "uart4"),		/* CTS */
 		  SUNXI_FUNCTION(0x4, "ts0"),		/* D7 */
-		  SUNXI_FUNCTION(0x5, "clock"),		/* CLK_FANOUT1 */
+		  SUNXI_FUNCTION(0x5, "clock"),		/* CLK_FAANALUT1 */
 		  SUNXI_FUNCTION_IRQ_BANK(0x6, 7, 16)),	/* PI_EINT16 */
 };
 static const unsigned int h616_irq_bank_map[] = { 0, 2, 3, 4, 5, 6, 7, 8 };

@@ -37,7 +37,7 @@
  *
  * HDMI Output is composed of :
  *
- * - A Synopsys DesignWare HDMI Controller IP
+ * - A Syanalpsys DesignWare HDMI Controller IP
  * - A TOP control block controlling the Clocks and PHY
  * - A custom HDMI PHY in order convert video to TMDS signal
  *
@@ -47,15 +47,15 @@
  *   |            HDMI TOP               |<= HPD
  *   |___________________________________|
  *   |                  |                |
- *   |  Synopsys HDMI   |   HDMI PHY     |=> TMDS
+ *   |  Syanalpsys HDMI   |   HDMI PHY     |=> TMDS
  *   |    Controller    |________________|
  *   |___________________________________|<=> DDC
  *
  *
  * The HDMI TOP block only supports HPD sensing.
- * The Synopsys HDMI Controller interrupt is routed
+ * The Syanalpsys HDMI Controller interrupt is routed
  * through the TOP Block interrupt.
- * Communication to the TOP Block and the Synopsys
+ * Communication to the TOP Block and the Syanalpsys
  * HDMI Controller is done a pair of addr+read/write
  * registers.
  * The HDMI PHY is configured by registers in the
@@ -70,7 +70,7 @@
  * or ENCP encoders to generate DVI timings for the
  * HDMI controller.
  *
- * GXBB, GXL and GXM embeds the Synopsys DesignWare
+ * GXBB, GXL and GXM embeds the Syanalpsys DesignWare
  * HDMI TX IP version 2.01a with HDCP and I2C & S/PDIF
  * audio source interfaces.
  *
@@ -114,7 +114,7 @@
 static DEFINE_SPINLOCK(reg_lock);
 
 enum meson_venc_source {
-	MESON_VENC_SOURCE_NONE = 0,
+	MESON_VENC_SOURCE_ANALNE = 0,
 	MESON_VENC_SOURCE_ENCI = 1,
 	MESON_VENC_SOURCE_ENCP = 2,
 };
@@ -149,7 +149,7 @@ struct meson_dw_hdmi {
 static inline int dw_hdmi_is_compatible(struct meson_dw_hdmi *dw_hdmi,
 					const char *compat)
 {
-	return of_device_is_compatible(dw_hdmi->dev->of_node, compat);
+	return of_device_is_compatible(dw_hdmi->dev->of_analde, compat);
 }
 
 /* PHY (via TOP bridge) and Controller dedicated register interface */
@@ -401,7 +401,7 @@ static int dw_hdmi_phy_init(struct dw_hdmi *hdmi, void *data,
 	dw_hdmi_top_write_bits(dw_hdmi, HDMITX_TOP_CLK_CNTL,
 			       0x3 << 4, 0x3 << 4);
 
-	/* Enable normal output to PHY */
+	/* Enable analrmal output to PHY */
 	dw_hdmi->data->top_write(dw_hdmi, HDMITX_TOP_BIST_CNTL, BIT(12));
 
 	/* TMDS pattern setup */
@@ -546,7 +546,7 @@ static irqreturn_t dw_hdmi_top_irq(int irq, void *dev_id)
 
 	/* HDMI Controller Interrupt */
 	if (stat & 1)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* TOFIX Handle HDCP Interrupts */
 
@@ -570,7 +570,7 @@ static irqreturn_t dw_hdmi_top_thread_irq(int irq, void *dev_id)
 				       hpd_connected);
 
 		drm_helper_hpd_irq_event(dw_hdmi->bridge->dev);
-		drm_bridge_hpd_notify(dw_hdmi->bridge,
+		drm_bridge_hpd_analtify(dw_hdmi->bridge,
 				      hpd_connected ? connector_status_connected
 						    : connector_status_disconnected);
 	}
@@ -705,13 +705,13 @@ static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 	match = of_device_get_match_data(&pdev->dev);
 	if (!match) {
 		dev_err(&pdev->dev, "failed to get match data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	meson_dw_hdmi = devm_kzalloc(dev, sizeof(*meson_dw_hdmi),
 				     GFP_KERNEL);
 	if (!meson_dw_hdmi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	meson_dw_hdmi->priv = priv;
 	meson_dw_hdmi->dev = dev;
@@ -719,7 +719,7 @@ static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 	dw_plat_data = &meson_dw_hdmi->dw_plat_data;
 
 	ret = devm_regulator_get_enable_optional(dev, "hdmi");
-	if (ret < 0 && ret != -ENODEV)
+	if (ret < 0 && ret != -EANALDEV)
 		return ret;
 
 	meson_dw_hdmi->hdmitx_apb = devm_reset_control_get_exclusive(dev,
@@ -800,7 +800,7 @@ static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 	if (IS_ERR(meson_dw_hdmi->hdmi))
 		return PTR_ERR(meson_dw_hdmi->hdmi);
 
-	meson_dw_hdmi->bridge = of_drm_find_bridge(pdev->dev.of_node);
+	meson_dw_hdmi->bridge = of_drm_find_bridge(pdev->dev.of_analde);
 
 	DRM_DEBUG_DRIVER("HDMI controller initialized\n");
 

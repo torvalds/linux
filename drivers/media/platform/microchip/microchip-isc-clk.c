@@ -2,7 +2,7 @@
 /*
  * Microchip Image Sensor Controller (ISC) common clock driver setup
  *
- * Copyright (C) 2016 Microchip Technology, Inc.
+ * Copyright (C) 2016 Microchip Techanallogy, Inc.
  *
  * Author: Songjun Wu
  * Author: Eugen Hristev <eugen.hristev@microchip.com>
@@ -229,7 +229,7 @@ static const struct clk_ops isc_clk_ops = {
 static int isc_clk_register(struct isc_device *isc, unsigned int id)
 {
 	struct regmap *regmap = isc->regmap;
-	struct device_node *np = isc->dev->of_node;
+	struct device_analde *np = isc->dev->of_analde;
 	struct isc_clk *isc_clk;
 	struct clk_init_data init;
 	const char *clk_name = np->name;
@@ -299,7 +299,7 @@ void microchip_isc_clk_cleanup(struct isc_device *isc)
 {
 	unsigned int i;
 
-	of_clk_del_provider(isc->dev->of_node);
+	of_clk_del_provider(isc->dev->of_analde);
 
 	for (i = 0; i < ARRAY_SIZE(isc->isc_clks); i++) {
 		struct isc_clk *isc_clk = &isc->isc_clks[i];

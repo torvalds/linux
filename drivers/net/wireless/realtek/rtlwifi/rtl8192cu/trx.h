@@ -22,7 +22,7 @@ enum usb_rx_agg_mode {
 
 #define TX_SELE_HQ				BIT(0)	/* High Queue */
 #define TX_SELE_LQ				BIT(1)	/* Low Queue */
-#define TX_SELE_NQ				BIT(2)	/* Normal Queue */
+#define TX_SELE_NQ				BIT(2)	/* Analrmal Queue */
 
 #define RTL_USB_TX_AGG_NUM_DESC			5
 

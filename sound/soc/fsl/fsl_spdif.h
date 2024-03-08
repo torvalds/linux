@@ -83,7 +83,7 @@
 #define SCR_TXFIFO_CTRL_OFFSET		10
 #define SCR_TXFIFO_CTRL_MASK		(0x3 << SCR_TXFIFO_CTRL_OFFSET)
 #define SCR_TXFIFO_CTRL_ZERO		(0x0 << SCR_TXFIFO_CTRL_OFFSET)
-#define SCR_TXFIFO_CTRL_NORMAL		(0x1 << SCR_TXFIFO_CTRL_OFFSET)
+#define SCR_TXFIFO_CTRL_ANALRMAL		(0x1 << SCR_TXFIFO_CTRL_OFFSET)
 #define SCR_TXFIFO_CTRL_ONESAMPLE	(0x2 << SCR_TXFIFO_CTRL_OFFSET)
 #define SCR_DMA_RX_EN_OFFSET		9
 #define SCR_DMA_RX_EN_MASK		(1 << SCR_DMA_RX_EN_OFFSET)
@@ -98,10 +98,10 @@
 #define SCR_TXSEL_MASK			(0x7 << SCR_TXSEL_OFFSET)
 #define SCR_TXSEL_OFF			(0 << SCR_TXSEL_OFFSET)
 #define SCR_TXSEL_RX			(1 << SCR_TXSEL_OFFSET)
-#define SCR_TXSEL_NORMAL		(0x5 << SCR_TXSEL_OFFSET)
+#define SCR_TXSEL_ANALRMAL		(0x5 << SCR_TXSEL_OFFSET)
 #define SCR_USRC_SEL_OFFSET		0x0
 #define SCR_USRC_SEL_MASK		(0x3 << SCR_USRC_SEL_OFFSET)
-#define SCR_USRC_SEL_NONE		(0x0 << SCR_USRC_SEL_OFFSET)
+#define SCR_USRC_SEL_ANALNE		(0x0 << SCR_USRC_SEL_OFFSET)
 #define SCR_USRC_SEL_RECV		(0x1 << SCR_USRC_SEL_OFFSET)
 #define SCR_USRC_SEL_CHIP		(0x3 << SCR_USRC_SEL_OFFSET)
 
@@ -138,10 +138,10 @@ enum spdif_gainsel {
 
 /* SPDIF interrupt mask define */
 #define INT_DPLL_LOCKED			(1 << 20)
-#define INT_TXFIFO_UNOV			(1 << 19)
+#define INT_TXFIFO_UANALV			(1 << 19)
 #define INT_TXFIFO_RESYNC		(1 << 18)
 #define INT_CNEW			(1 << 17)
-#define INT_VAL_NOGOOD			(1 << 16)
+#define INT_VAL_ANALGOOD			(1 << 16)
 #define INT_SYM_ERR			(1 << 15)
 #define INT_BIT_ERR			(1 << 14)
 #define INT_URX_FUL			(1 << 10)
@@ -150,7 +150,7 @@ enum spdif_gainsel {
 #define INT_QRX_OV			(1 << 7)
 #define INT_UQ_SYNC			(1 << 6)
 #define INT_UQ_ERR			(1 << 5)
-#define INT_RXFIFO_UNOV			(1 << 4)
+#define INT_RXFIFO_UANALV			(1 << 4)
 #define INT_RXFIFO_RESYNC		(1 << 3)
 #define INT_LOSS_LOCK			(1 << 2)
 #define INT_TX_EM			(1 << 1)

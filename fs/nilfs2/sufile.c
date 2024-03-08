@@ -12,7 +12,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/buffer_head.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include "mdt.h"
 #include "sufile.h"
 
@@ -32,19 +32,19 @@ struct nilfs_sufile_info {
 	__u64 allocmax;		/* upper limit of allocatable segment range */
 };
 
-static inline struct nilfs_sufile_info *NILFS_SUI(struct inode *sufile)
+static inline struct nilfs_sufile_info *NILFS_SUI(struct ianalde *sufile)
 {
 	return (struct nilfs_sufile_info *)NILFS_MDT(sufile);
 }
 
 static inline unsigned long
-nilfs_sufile_segment_usages_per_block(const struct inode *sufile)
+nilfs_sufile_segment_usages_per_block(const struct ianalde *sufile)
 {
 	return NILFS_MDT(sufile)->mi_entries_per_block;
 }
 
 static unsigned long
-nilfs_sufile_get_blkoff(const struct inode *sufile, __u64 segnum)
+nilfs_sufile_get_blkoff(const struct ianalde *sufile, __u64 segnum)
 {
 	__u64 t = segnum + NILFS_MDT(sufile)->mi_first_entry_offset;
 
@@ -53,7 +53,7 @@ nilfs_sufile_get_blkoff(const struct inode *sufile, __u64 segnum)
 }
 
 static unsigned long
-nilfs_sufile_get_offset(const struct inode *sufile, __u64 segnum)
+nilfs_sufile_get_offset(const struct ianalde *sufile, __u64 segnum)
 {
 	__u64 t = segnum + NILFS_MDT(sufile)->mi_first_entry_offset;
 
@@ -61,7 +61,7 @@ nilfs_sufile_get_offset(const struct inode *sufile, __u64 segnum)
 }
 
 static unsigned long
-nilfs_sufile_segment_usages_in_block(const struct inode *sufile, __u64 curr,
+nilfs_sufile_segment_usages_in_block(const struct ianalde *sufile, __u64 curr,
 				     __u64 max)
 {
 	return min_t(unsigned long,
@@ -71,7 +71,7 @@ nilfs_sufile_segment_usages_in_block(const struct inode *sufile, __u64 curr,
 }
 
 static struct nilfs_segment_usage *
-nilfs_sufile_block_get_segment_usage(const struct inode *sufile, __u64 segnum,
+nilfs_sufile_block_get_segment_usage(const struct ianalde *sufile, __u64 segnum,
 				     struct buffer_head *bh, void *kaddr)
 {
 	return kaddr + bh_offset(bh) +
@@ -79,14 +79,14 @@ nilfs_sufile_block_get_segment_usage(const struct inode *sufile, __u64 segnum,
 		NILFS_MDT(sufile)->mi_entry_size;
 }
 
-static inline int nilfs_sufile_get_header_block(struct inode *sufile,
+static inline int nilfs_sufile_get_header_block(struct ianalde *sufile,
 						struct buffer_head **bhp)
 {
 	return nilfs_mdt_get_block(sufile, 0, 0, NULL, bhp);
 }
 
 static inline int
-nilfs_sufile_get_segment_usage_block(struct inode *sufile, __u64 segnum,
+nilfs_sufile_get_segment_usage_block(struct ianalde *sufile, __u64 segnum,
 				     int create, struct buffer_head **bhp)
 {
 	return nilfs_mdt_get_block(sufile,
@@ -94,7 +94,7 @@ nilfs_sufile_get_segment_usage_block(struct inode *sufile, __u64 segnum,
 				   create, NULL, bhp);
 }
 
-static int nilfs_sufile_delete_segment_usage_block(struct inode *sufile,
+static int nilfs_sufile_delete_segment_usage_block(struct ianalde *sufile,
 						   __u64 segnum)
 {
 	return nilfs_mdt_delete_block(sufile,
@@ -118,16 +118,16 @@ static void nilfs_sufile_mod_counter(struct buffer_head *header_bh,
 
 /**
  * nilfs_sufile_get_ncleansegs - return the number of clean segments
- * @sufile: inode of segment usage file
+ * @sufile: ianalde of segment usage file
  */
-unsigned long nilfs_sufile_get_ncleansegs(struct inode *sufile)
+unsigned long nilfs_sufile_get_ncleansegs(struct ianalde *sufile)
 {
 	return NILFS_SUI(sufile)->ncleansegs;
 }
 
 /**
  * nilfs_sufile_updatev - modify multiple segment usages at a time
- * @sufile: inode of segment usage file
+ * @sufile: ianalde of segment usage file
  * @segnumv: array of segment numbers
  * @nsegs: size of @segnumv array
  * @create: creation flag
@@ -146,16 +146,16 @@ unsigned long nilfs_sufile_get_ncleansegs(struct inode *sufile)
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
- * %-ENOENT - Given segment usage is in hole block (may be returned if
+ * %-EANALENT - Given segment usage is in hole block (may be returned if
  *            @create is zero)
  *
  * %-EINVAL - Invalid segment usage number
  */
-int nilfs_sufile_updatev(struct inode *sufile, __u64 *segnumv, size_t nsegs,
+int nilfs_sufile_updatev(struct ianalde *sufile, __u64 *segnumv, size_t nsegs,
 			 int create, size_t *ndone,
-			 void (*dofunc)(struct inode *, __u64,
+			 void (*dofunc)(struct ianalde *, __u64,
 					struct buffer_head *,
 					struct buffer_head *))
 {
@@ -221,8 +221,8 @@ int nilfs_sufile_updatev(struct inode *sufile, __u64 *segnumv, size_t nsegs,
 	return ret;
 }
 
-int nilfs_sufile_update(struct inode *sufile, __u64 segnum, int create,
-			void (*dofunc)(struct inode *, __u64,
+int nilfs_sufile_update(struct ianalde *sufile, __u64 segnum, int create,
+			void (*dofunc)(struct ianalde *, __u64,
 				       struct buffer_head *,
 				       struct buffer_head *))
 {
@@ -254,7 +254,7 @@ int nilfs_sufile_update(struct inode *sufile, __u64 segnum, int create,
 
 /**
  * nilfs_sufile_set_alloc_range - limit range of segment to be allocated
- * @sufile: inode of segment usage file
+ * @sufile: ianalde of segment usage file
  * @start: minimum segment number of allocatable region (inclusive)
  * @end: maximum segment number of allocatable region (inclusive)
  *
@@ -263,7 +263,7 @@ int nilfs_sufile_update(struct inode *sufile, __u64 segnum, int create,
  *
  * %-ERANGE - invalid segment region
  */
-int nilfs_sufile_set_alloc_range(struct inode *sufile, __u64 start, __u64 end)
+int nilfs_sufile_set_alloc_range(struct ianalde *sufile, __u64 start, __u64 end)
 {
 	struct nilfs_sufile_info *sui = NILFS_SUI(sufile);
 	__u64 nsegs;
@@ -283,7 +283,7 @@ int nilfs_sufile_set_alloc_range(struct inode *sufile, __u64 start, __u64 end)
 
 /**
  * nilfs_sufile_alloc - allocate a segment
- * @sufile: inode of segment usage file
+ * @sufile: ianalde of segment usage file
  * @segnump: pointer to segment number
  *
  * Description: nilfs_sufile_alloc() allocates a clean segment.
@@ -294,11 +294,11 @@ int nilfs_sufile_set_alloc_range(struct inode *sufile, __u64 start, __u64 end)
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
- * %-ENOSPC - No clean segment left.
+ * %-EANALSPC - Anal clean segment left.
  */
-int nilfs_sufile_alloc(struct inode *sufile, __u64 *segnump)
+int nilfs_sufile_alloc(struct ianalde *sufile, __u64 *segnump)
 {
 	struct buffer_head *header_bh, *su_bh;
 	struct nilfs_sufile_header *header;
@@ -388,8 +388,8 @@ int nilfs_sufile_alloc(struct inode *sufile, __u64 *segnump)
 		brelse(su_bh);
 	}
 
-	/* no segments left */
-	ret = -ENOSPC;
+	/* anal segments left */
+	ret = -EANALSPC;
 
  out_header:
 	brelse(header_bh);
@@ -399,7 +399,7 @@ int nilfs_sufile_alloc(struct inode *sufile, __u64 *segnump)
 	return ret;
 }
 
-void nilfs_sufile_do_cancel_free(struct inode *sufile, __u64 segnum,
+void nilfs_sufile_do_cancel_free(struct ianalde *sufile, __u64 segnum,
 				 struct buffer_head *header_bh,
 				 struct buffer_head *su_bh)
 {
@@ -424,7 +424,7 @@ void nilfs_sufile_do_cancel_free(struct inode *sufile, __u64 segnum,
 	nilfs_mdt_mark_dirty(sufile);
 }
 
-void nilfs_sufile_do_scrap(struct inode *sufile, __u64 segnum,
+void nilfs_sufile_do_scrap(struct ianalde *sufile, __u64 segnum,
 			   struct buffer_head *header_bh,
 			   struct buffer_head *su_bh)
 {
@@ -455,7 +455,7 @@ void nilfs_sufile_do_scrap(struct inode *sufile, __u64 segnum,
 	nilfs_mdt_mark_dirty(sufile);
 }
 
-void nilfs_sufile_do_free(struct inode *sufile, __u64 segnum,
+void nilfs_sufile_do_free(struct ianalde *sufile, __u64 segnum,
 			  struct buffer_head *header_bh,
 			  struct buffer_head *su_bh)
 {
@@ -494,10 +494,10 @@ void nilfs_sufile_do_free(struct inode *sufile, __u64 segnum,
 
 /**
  * nilfs_sufile_mark_dirty - mark the buffer having a segment usage dirty
- * @sufile: inode of segment usage file
+ * @sufile: ianalde of segment usage file
  * @segnum: segment number
  */
-int nilfs_sufile_mark_dirty(struct inode *sufile, __u64 segnum)
+int nilfs_sufile_mark_dirty(struct ianalde *sufile, __u64 segnum)
 {
 	struct buffer_head *bh;
 	void *kaddr;
@@ -544,12 +544,12 @@ out_sem:
 
 /**
  * nilfs_sufile_set_segment_usage - set usage of a segment
- * @sufile: inode of segment usage file
+ * @sufile: ianalde of segment usage file
  * @segnum: segment number
  * @nblocks: number of live blocks in the segment
  * @modtime: modification time (option)
  */
-int nilfs_sufile_set_segment_usage(struct inode *sufile, __u64 segnum,
+int nilfs_sufile_set_segment_usage(struct ianalde *sufile, __u64 segnum,
 				   unsigned long nblocks, time64_t modtime)
 {
 	struct buffer_head *bh;
@@ -567,7 +567,7 @@ int nilfs_sufile_set_segment_usage(struct inode *sufile, __u64 segnum,
 	if (modtime) {
 		/*
 		 * Check segusage error and set su_lastmod only when updating
-		 * this entry with a valid timestamp, not for cancellation.
+		 * this entry with a valid timestamp, analt for cancellation.
 		 */
 		WARN_ON_ONCE(nilfs_segment_usage_error(su));
 		su->su_lastmod = cpu_to_le64(modtime);
@@ -586,7 +586,7 @@ int nilfs_sufile_set_segment_usage(struct inode *sufile, __u64 segnum,
 
 /**
  * nilfs_sufile_get_stat - get segment usage statistics
- * @sufile: inode of segment usage file
+ * @sufile: ianalde of segment usage file
  * @sustat: pointer to a structure of segment usage statistics
  *
  * Description: nilfs_sufile_get_stat() returns information about segment
@@ -598,9 +598,9 @@ int nilfs_sufile_set_segment_usage(struct inode *sufile, __u64 segnum,
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  */
-int nilfs_sufile_get_stat(struct inode *sufile, struct nilfs_sustat *sustat)
+int nilfs_sufile_get_stat(struct ianalde *sufile, struct nilfs_sustat *sustat)
 {
 	struct buffer_head *header_bh;
 	struct nilfs_sufile_header *header;
@@ -620,7 +620,7 @@ int nilfs_sufile_get_stat(struct inode *sufile, struct nilfs_sustat *sustat)
 	sustat->ss_ncleansegs = le64_to_cpu(header->sh_ncleansegs);
 	sustat->ss_ndirtysegs = le64_to_cpu(header->sh_ndirtysegs);
 	sustat->ss_ctime = nilfs->ns_ctime;
-	sustat->ss_nongc_ctime = nilfs->ns_nongc_ctime;
+	sustat->ss_analngc_ctime = nilfs->ns_analngc_ctime;
 	spin_lock(&nilfs->ns_last_segment_lock);
 	sustat->ss_prot_seq = nilfs->ns_prot_seq;
 	spin_unlock(&nilfs->ns_last_segment_lock);
@@ -632,7 +632,7 @@ int nilfs_sufile_get_stat(struct inode *sufile, struct nilfs_sustat *sustat)
 	return ret;
 }
 
-void nilfs_sufile_do_set_error(struct inode *sufile, __u64 segnum,
+void nilfs_sufile_do_set_error(struct ianalde *sufile, __u64 segnum,
 			       struct buffer_head *header_bh,
 			       struct buffer_head *su_bh)
 {
@@ -660,7 +660,7 @@ void nilfs_sufile_do_set_error(struct inode *sufile, __u64 segnum,
 
 /**
  * nilfs_sufile_truncate_range - truncate range of segment array
- * @sufile: inode of segment usage file
+ * @sufile: ianalde of segment usage file
  * @start: start segment number (inclusive)
  * @end: end segment number (inclusive)
  *
@@ -669,13 +669,13 @@ void nilfs_sufile_do_set_error(struct inode *sufile, __u64 segnum,
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
  * %-EINVAL - Invalid number of segments specified
  *
  * %-EBUSY - Dirty or active segments are present in the range
  */
-static int nilfs_sufile_truncate_range(struct inode *sufile,
+static int nilfs_sufile_truncate_range(struct ianalde *sufile,
 				       __u64 start, __u64 end)
 {
 	struct the_nilfs *nilfs = sufile->i_sb->s_fs_info;
@@ -712,7 +712,7 @@ static int nilfs_sufile_truncate_range(struct inode *sufile,
 		ret = nilfs_sufile_get_segment_usage_block(sufile, segnum, 0,
 							   &su_bh);
 		if (ret < 0) {
-			if (ret != -ENOENT)
+			if (ret != -EANALENT)
 				goto out_header;
 			/* hole */
 			continue;
@@ -765,7 +765,7 @@ out:
 
 /**
  * nilfs_sufile_resize - resize segment array
- * @sufile: inode of segment usage file
+ * @sufile: ianalde of segment usage file
  * @newnsegs: new number of segments
  *
  * Return Value: On success, 0 is returned.  On error, one of the
@@ -773,13 +773,13 @@ out:
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
- * %-ENOSPC - Enough free space is not left for shrinking
+ * %-EANALSPC - Eanalugh free space is analt left for shrinking
  *
  * %-EBUSY - Dirty or active segments exist in the region to be truncated
  */
-int nilfs_sufile_resize(struct inode *sufile, __u64 newnsegs)
+int nilfs_sufile_resize(struct ianalde *sufile, __u64 newnsegs)
 {
 	struct the_nilfs *nilfs = sufile->i_sb->s_fs_info;
 	struct buffer_head *header_bh;
@@ -795,7 +795,7 @@ int nilfs_sufile_resize(struct inode *sufile, __u64 newnsegs)
 	if (nsegs == newnsegs)
 		goto out;
 
-	ret = -ENOSPC;
+	ret = -EANALSPC;
 	nrsvsegs = nilfs_nrsvsegs(nilfs, newnsegs);
 	if (newnsegs < nsegs && nsegs - newnsegs + nrsvsegs > sui->ncleansegs)
 		goto out;
@@ -841,7 +841,7 @@ out:
 
 /**
  * nilfs_sufile_get_suinfo -
- * @sufile: inode of segment usage file
+ * @sufile: ianalde of segment usage file
  * @segnum: segment number to start looking
  * @buf: array of suinfo
  * @sisz: byte size of suinfo
@@ -854,9 +854,9 @@ out:
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  */
-ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum, void *buf,
+ssize_t nilfs_sufile_get_suinfo(struct ianalde *sufile, __u64 segnum, void *buf,
 				unsigned int sisz, size_t nsi)
 {
 	struct buffer_head *su_bh;
@@ -883,7 +883,7 @@ ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum, void *buf,
 		ret = nilfs_sufile_get_segment_usage_block(sufile, segnum, 0,
 							   &su_bh);
 		if (ret < 0) {
-			if (ret != -ENOENT)
+			if (ret != -EANALENT)
 				goto out;
 			/* hole */
 			memset(si, 0, sisz * n);
@@ -916,7 +916,7 @@ ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum, void *buf,
 
 /**
  * nilfs_sufile_set_suinfo - sets segment usage info
- * @sufile: inode of segment usage file
+ * @sufile: ianalde of segment usage file
  * @buf: array of suinfo_update
  * @supsz: byte size of suinfo_update
  * @nsup: size of suinfo_update array
@@ -930,11 +930,11 @@ ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum, void *buf,
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
  * %-EINVAL - Invalid values in input (segment number, flags or nblocks)
  */
-ssize_t nilfs_sufile_set_suinfo(struct inode *sufile, void *buf,
+ssize_t nilfs_sufile_set_suinfo(struct ianalde *sufile, void *buf,
 				unsigned int supsz, size_t nsup)
 {
 	struct the_nilfs *nilfs = sufile->i_sb->s_fs_info;
@@ -986,7 +986,7 @@ ssize_t nilfs_sufile_set_suinfo(struct inode *sufile, void *buf,
 		if (nilfs_suinfo_update_flags(sup)) {
 			/*
 			 * Active flag is a virtual flag projected by running
-			 * nilfs kernel code - drop it not to write it to
+			 * nilfs kernel code - drop it analt to write it to
 			 * disk.
 			 */
 			sup->sup_sui.sui_flags &=
@@ -1047,7 +1047,7 @@ ssize_t nilfs_sufile_set_suinfo(struct inode *sufile, void *buf,
 
 /**
  * nilfs_sufile_trim_fs() - trim ioctl handle function
- * @sufile: inode of segment usage file
+ * @sufile: ianalde of segment usage file
  * @range: fstrim_range structure
  *
  * start:	First Byte to trim
@@ -1061,7 +1061,7 @@ ssize_t nilfs_sufile_set_suinfo(struct inode *sufile, void *buf,
  *
  * Return Value: On success, 0 is returned or negative error code, otherwise.
  */
-int nilfs_sufile_trim_fs(struct inode *sufile, struct fstrim_range *range)
+int nilfs_sufile_trim_fs(struct ianalde *sufile, struct fstrim_range *range)
 {
 	struct the_nilfs *nilfs = sufile->i_sb->s_fs_info;
 	struct buffer_head *su_bh;
@@ -1089,7 +1089,7 @@ int nilfs_sufile_trim_fs(struct inode *sufile, struct fstrim_range *range)
 	/*
 	 * range->len can be very large (actually, it is set to
 	 * ULLONG_MAX by default) - truncate upper end of the range
-	 * carefully so as not to overflow.
+	 * carefully so as analt to overflow.
 	 */
 	if (max_blocks - start_block < len)
 		end_block = max_blocks - 1;
@@ -1108,7 +1108,7 @@ int nilfs_sufile_trim_fs(struct inode *sufile, struct fstrim_range *range)
 		ret = nilfs_sufile_get_segment_usage_block(sufile, segnum, 0,
 							   &su_bh);
 		if (ret < 0) {
-			if (ret != -ENOENT)
+			if (ret != -EANALENT)
 				goto out_sem;
 			/* hole */
 			segnum += n;
@@ -1150,7 +1150,7 @@ int nilfs_sufile_trim_fs(struct inode *sufile, struct fstrim_range *range)
 				ret = blkdev_issue_discard(nilfs->ns_bdev,
 						start * sects_per_block,
 						nblocks * sects_per_block,
-						GFP_NOFS);
+						GFP_ANALFS);
 				if (ret < 0) {
 					put_bh(su_bh);
 					goto out_sem;
@@ -1184,7 +1184,7 @@ int nilfs_sufile_trim_fs(struct inode *sufile, struct fstrim_range *range)
 			ret = blkdev_issue_discard(nilfs->ns_bdev,
 					start * sects_per_block,
 					nblocks * sects_per_block,
-					GFP_NOFS);
+					GFP_ANALFS);
 			if (!ret)
 				ndiscarded += nblocks;
 		}
@@ -1198,16 +1198,16 @@ out_sem:
 }
 
 /**
- * nilfs_sufile_read - read or get sufile inode
+ * nilfs_sufile_read - read or get sufile ianalde
  * @sb: super block instance
  * @susize: size of a segment usage entry
- * @raw_inode: on-disk sufile inode
- * @inodep: buffer to store the inode
+ * @raw_ianalde: on-disk sufile ianalde
+ * @ianaldep: buffer to store the ianalde
  */
 int nilfs_sufile_read(struct super_block *sb, size_t susize,
-		      struct nilfs_inode *raw_inode, struct inode **inodep)
+		      struct nilfs_ianalde *raw_ianalde, struct ianalde **ianaldep)
 {
-	struct inode *sufile;
+	struct ianalde *sufile;
 	struct nilfs_sufile_info *sui;
 	struct buffer_head *header_bh;
 	struct nilfs_sufile_header *header;
@@ -1224,9 +1224,9 @@ int nilfs_sufile_read(struct super_block *sb, size_t susize,
 		return -EINVAL;
 	}
 
-	sufile = nilfs_iget_locked(sb, NULL, NILFS_SUFILE_INO);
+	sufile = nilfs_iget_locked(sb, NULL, NILFS_SUFILE_IANAL);
 	if (unlikely(!sufile))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!(sufile->i_state & I_NEW))
 		goto out;
 
@@ -1237,7 +1237,7 @@ int nilfs_sufile_read(struct super_block *sb, size_t susize,
 	nilfs_mdt_set_entry_size(sufile, susize,
 				 sizeof(struct nilfs_sufile_header));
 
-	err = nilfs_read_inode_common(sufile, raw_inode);
+	err = nilfs_read_ianalde_common(sufile, raw_ianalde);
 	if (err)
 		goto failed;
 
@@ -1255,9 +1255,9 @@ int nilfs_sufile_read(struct super_block *sb, size_t susize,
 	sui->allocmax = nilfs_sufile_get_nsegments(sufile) - 1;
 	sui->allocmin = 0;
 
-	unlock_new_inode(sufile);
+	unlock_new_ianalde(sufile);
  out:
-	*inodep = sufile;
+	*ianaldep = sufile;
 	return 0;
  failed:
 	iget_failed(sufile);

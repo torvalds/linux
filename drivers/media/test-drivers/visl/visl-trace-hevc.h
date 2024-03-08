@@ -234,19 +234,19 @@ DECLARE_EVENT_CLASS(v4l2_hevc_pred_weight_table_tmpl,
 		  "luma_offset_l1 %s\n"
 		  "delta_chroma_weight_l1 {%s}\n"
 		  "chroma_offset_l1 {%s}\n"
-		  "luma_log2_weight_denom %d\n"
-		  "delta_chroma_log2_weight_denom %d\n",
+		  "luma_log2_weight_deanalm %d\n"
+		  "delta_chroma_log2_weight_deanalm %d\n",
 		  __print_array(__entry->p.delta_luma_weight_l0,
 				ARRAY_SIZE(__entry->p.delta_luma_weight_l0),
 				sizeof(__entry->p.delta_luma_weight_l0[0])),
 		  __print_array(__entry->p.luma_offset_l0,
 				ARRAY_SIZE(__entry->p.luma_offset_l0),
 				sizeof(__entry->p.luma_offset_l0[0])),
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->p.delta_chroma_weight_l0,
 				   sizeof(__entry->p.delta_chroma_weight_l0),
 				   false),
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->p.chroma_offset_l0,
 				   sizeof(__entry->p.chroma_offset_l0),
 				   false),
@@ -256,16 +256,16 @@ DECLARE_EVENT_CLASS(v4l2_hevc_pred_weight_table_tmpl,
 		  __print_array(__entry->p.luma_offset_l1,
 				ARRAY_SIZE(__entry->p.luma_offset_l1),
 				sizeof(__entry->p.luma_offset_l1[0])),
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->p.delta_chroma_weight_l1,
 				   sizeof(__entry->p.delta_chroma_weight_l1),
 				   false),
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->p.chroma_offset_l1,
 				   sizeof(__entry->p.chroma_offset_l1),
 				   false),
-		__entry->p.luma_log2_weight_denom,
-		__entry->p.delta_chroma_log2_weight_denom
+		__entry->p.luma_log2_weight_deanalm,
+		__entry->p.delta_chroma_log2_weight_deanalm
 
 	))
 
@@ -280,19 +280,19 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_hevc_scaling_matrix_tmpl,
 		  "scaling_list_32x32 {%s}\n"
 		  "scaling_list_dc_coef_16x16 %s\n"
 		  "scaling_list_dc_coef_32x32 %s\n",
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->s.scaling_list_4x4,
 				   sizeof(__entry->s.scaling_list_4x4),
 				   false),
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->s.scaling_list_8x8,
 				   sizeof(__entry->s.scaling_list_8x8),
 				   false),
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->s.scaling_list_16x16,
 				   sizeof(__entry->s.scaling_list_16x16),
 				   false),
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->s.scaling_list_32x32,
 				   sizeof(__entry->s.scaling_list_32x32),
 				   false),
@@ -339,7 +339,7 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_hevc_decode_params_tmpl,
 		  __print_flags(__entry->d.flags, "|",
 		  {V4L2_HEVC_DECODE_PARAM_FLAG_IRAP_PIC, "IRAP_PIC"},
 		  {V4L2_HEVC_DECODE_PARAM_FLAG_IDR_PIC, "IDR_PIC"},
-		  {V4L2_HEVC_DECODE_PARAM_FLAG_NO_OUTPUT_OF_PRIOR, "NO_OUTPUT_OF_PRIOR"}
+		  {V4L2_HEVC_DECODE_PARAM_FLAG_ANAL_OUTPUT_OF_PRIOR, "ANAL_OUTPUT_OF_PRIOR"}
 	))
 );
 

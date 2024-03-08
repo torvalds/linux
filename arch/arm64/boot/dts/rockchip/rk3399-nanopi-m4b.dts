@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * FriendlyElec NanoPi M4B board device tree source
+ * FriendlyElec NaanalPi M4B board device tree source
  *
  * Copyright (c) 2020 Chen-Yu Tsai <wens@csie.org>
  */
 
 /dts-v1/;
-#include "rk3399-nanopi-m4.dts"
+#include "rk3399-naanalpi-m4.dts"
 
 / {
-	model = "FriendlyElec NanoPi M4B";
-	compatible = "friendlyarm,nanopi-m4b", "rockchip,rk3399";
+	model = "FriendlyElec NaanalPi M4B";
+	compatible = "friendlyarm,naanalpi-m4b", "rockchip,rk3399";
 
 	adc-keys {
 		compatible = "adc-keys";
@@ -27,8 +27,8 @@
 	};
 };
 
-/* No USB type-C PD power manager */
-/delete-node/ &fusb0;
+/* Anal USB type-C PD power manager */
+/delete-analde/ &fusb0;
 
 &i2c4 {
 	status = "disabled";

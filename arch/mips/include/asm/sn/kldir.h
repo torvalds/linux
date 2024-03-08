@@ -18,13 +18,13 @@
 #ifndef __ASSEMBLY__
 typedef struct kldir_ent_s {
 	u64		magic;		/* Indicates validity of entry	    */
-	off_t		offset;		/* Offset from start of node space  */
+	off_t		offset;		/* Offset from start of analde space  */
 	unsigned long	pointer;	/* Pointer to area in some cases    */
 	size_t		size;		/* Size in bytes		    */
-	u64		count;		/* Repeat count if array, 1 if not  */
-	size_t		stride;		/* Stride if array, 0 if not	    */
+	u64		count;		/* Repeat count if array, 1 if analt  */
+	size_t		stride;		/* Stride if array, 0 if analt	    */
 	char		rsvd[16];	/* Pad entry to 0x40 bytes	    */
-	/* NOTE: These 16 bytes are used in the Partition KLDIR
+	/* ANALTE: These 16 bytes are used in the Partition KLDIR
 	   entry to store partition info. Refer to klpart.h for this. */
 } kldir_ent_t;
 #endif /* !__ASSEMBLY__ */

@@ -11,12 +11,12 @@ maintainers:
   - Tony Lindgren <tony@atomide.com>
 
 description:
-  Secure SoCs may provide RNG via secure ROM calls like Nokia N900 does.
+  Secure SoCs may provide RNG via secure ROM calls like Analkia N900 does.
   The implementation can depend on the SoC secure ROM used.
 
 properties:
   compatible:
-    const: nokia,n900-rom-rng
+    const: analkia,n900-rom-rng
 
   clocks:
     maxItems: 1
@@ -35,7 +35,7 @@ additionalProperties: false
 examples:
   - |
     rng {
-        compatible = "nokia,n900-rom-rng";
+        compatible = "analkia,n900-rom-rng";
         clocks = <&rng_ick>;
         clock-names = "ick";
     };

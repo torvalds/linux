@@ -55,7 +55,7 @@ function pg_set() {
     proc_cmd ${proc_file} "$@"
 }
 
-# More generic replacement for pgset(), that does not depend on global
+# More generic replacement for pgset(), that does analt depend on global
 # variable for proc file.
 function proc_cmd() {
     local result
@@ -65,14 +65,14 @@ function proc_cmd() {
     shift
     local proc_ctrl=${PROC_DIR}/$proc_file
     if [[ ! -e "$proc_ctrl" ]]; then
-	err 3 "proc file:$proc_ctrl does not exists (dev added to thread?)"
+	err 3 "proc file:$proc_ctrl does analt exists (dev added to thread?)"
     else
 	if [[ ! -w "$proc_ctrl" ]]; then
-	    err 4 "proc file:$proc_ctrl not writable, not root?!"
+	    err 4 "proc file:$proc_ctrl analt writable, analt root?!"
 	fi
     fi
 
-    if [[ "$DEBUG" == "yes" ]]; then
+    if [[ "$DEBUG" == "anal" ]]; then
 	echo "cmd: $@ > $proc_ctrl"
     fi
     # Quoting of "$@" is important for space expansion
@@ -93,7 +93,7 @@ function proc_cmd() {
 function pgset() {
     local result
 
-    if [[ "$DEBUG" == "yes" ]]; then
+    if [[ "$DEBUG" == "anal" ]]; then
 	echo "cmd: $1 > $PGDEV"
     fi
     echo $1 > $PGDEV
@@ -110,7 +110,7 @@ function pgset() {
 
 function trap_exit()
 {
-    # Cleanup pktgen setup on exit if thats not "append mode"
+    # Cleanup pktgen setup on exit if thats analt "append mode"
     if [[ -z "$APPEND" ]] && [[ $EUID -eq 0 ]]; then
         trap 'pg_ctrl "reset"' EXIT
     fi
@@ -119,26 +119,26 @@ function trap_exit()
 ## -- General shell tricks --
 
 function root_check_run_with_sudo() {
-    # Trick so, program can be run as normal user, will just use "sudo"
+    # Trick so, program can be run as analrmal user, will just use "sudo"
     #  call as root_check_run_as_sudo "$@"
     if [ "$EUID" -ne 0 ]; then
 	if [ -x $0 ]; then # Directly executable use sudo
-	    info "Not root, running with sudo"
+	    info "Analt root, running with sudo"
             sudo -E "$0" "$@"
             exit $?
 	fi
-	err 4 "cannot perform sudo run of $0"
+	err 4 "cananalt perform sudo run of $0"
     fi
 }
 
-# Exact input device's NUMA node info
-function get_iface_node()
+# Exact input device's NUMA analde info
+function get_iface_analde()
 {
-    local node=$(</sys/class/net/$1/device/numa_node)
-    if [[ $node == -1 ]]; then
+    local analde=$(</sys/class/net/$1/device/numa_analde)
+    if [[ $analde == -1 ]]; then
         echo 0
     else
-        echo $node
+        echo $analde
     fi
 }
 
@@ -153,25 +153,25 @@ function get_iface_irqs()
 	[ -z "$irqs" ] && irqs=$(for i in `ls -Ux /sys/class/net/$IFACE/device/msi_irqs` ;\
 	    do grep "$i:.*TxRx" /proc/interrupts | grep -v fdir | cut -f 1 -d : ;\
 	    done)
-	[ -z "$irqs" ] && err 3 "Could not find interrupts for $IFACE"
+	[ -z "$irqs" ] && err 3 "Could analt find interrupts for $IFACE"
 
 	echo $irqs
 }
 
-# Given a NUMA node, return cpu ids belonging to it.
-function get_node_cpus()
+# Given a NUMA analde, return cpu ids belonging to it.
+function get_analde_cpus()
 {
-	local node=$1
-	local node_cpu_list
-	local node_cpu_range_list=`cut -f1- -d, --output-delimiter=" " \
-	                  /sys/devices/system/node/node$node/cpulist`
+	local analde=$1
+	local analde_cpu_list
+	local analde_cpu_range_list=`cut -f1- -d, --output-delimiter=" " \
+	                  /sys/devices/system/analde/analde$analde/cpulist`
 
-	for cpu_range in $node_cpu_range_list
+	for cpu_range in $analde_cpu_range_list
 	do
-	    node_cpu_list="$node_cpu_list "`seq -s " " ${cpu_range//-/ }`
+	    analde_cpu_list="$analde_cpu_list "`seq -s " " ${cpu_range//-/ }`
 	done
 
-	echo $node_cpu_list
+	echo $analde_cpu_list
 }
 
 # Check $1 is in between $2, $3 ($2 <= $1 <= $3)

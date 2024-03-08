@@ -6,7 +6,7 @@
  * SSMB - SPU3 Switch Management Board
  * DTU - Digital Tapping Unit
  *
- * Copyright (C) 2015-2019 Zodiac Inflight Innovations
+ * Copyright (C) 2015-2019 Zodiac Inflight Inanalvations
  *
  * Based on an original 'vf610-twr.dts' which is Copyright 2015,
  * Freescale Semiconductor, Inc.
@@ -78,11 +78,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc0>;
 	bus-width = <8>;
-	non-removable;
-	no-1-8-v;
+	analn-removable;
+	anal-1-8-v;
 	keep-power-in-suspend;
-	no-sdio;
-	no-sd;
+	anal-sdio;
+	anal-sd;
 	status = "okay";
 };
 
@@ -90,7 +90,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
-	no-sdio;
+	anal-sdio;
 	status = "okay";
 };
 

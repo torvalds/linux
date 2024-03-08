@@ -40,7 +40,7 @@ struct snd_opl3_drum_voice {
 	unsigned char wave_select;
 };
 
-struct snd_opl3_drum_note {
+struct snd_opl3_drum_analte {
 	int voice;
 	unsigned char fnum;
 	unsigned char octave_f;
@@ -49,15 +49,15 @@ struct snd_opl3_drum_note {
 
 static const struct snd_opl3_drum_voice bass_op0 = {6, 0, 0x00, 0x32, 0xf8, 0x66, 0x30, 0x00};
 static const struct snd_opl3_drum_voice bass_op1 = {6, 1, 0x00, 0x03, 0xf6, 0x57, 0x30, 0x00};
-static const struct snd_opl3_drum_note bass_note = {6, 0x90, 0x09};
+static const struct snd_opl3_drum_analte bass_analte = {6, 0x90, 0x09};
 
 static const struct snd_opl3_drum_voice hihat = {7, 0, 0x00, 0x03, 0xf0, 0x06, 0x20, 0x00};
 
 static const struct snd_opl3_drum_voice snare = {7, 1, 0x00, 0x03, 0xf0, 0x07, 0x20, 0x02};
-static const struct snd_opl3_drum_note snare_note = {7, 0xf4, 0x0d};
+static const struct snd_opl3_drum_analte snare_analte = {7, 0xf4, 0x0d};
 
 static const struct snd_opl3_drum_voice tomtom = {8, 0, 0x02, 0x03, 0xf0, 0x06, 0x10, 0x00};
-static const struct snd_opl3_drum_note tomtom_note = {8, 0xf4, 0x09};
+static const struct snd_opl3_drum_analte tomtom_analte = {8, 0xf4, 0x09};
 
 static const struct snd_opl3_drum_voice cymbal = {8, 1, 0x04, 0x03, 0xf0, 0x06, 0x10, 0x00};
 
@@ -99,8 +99,8 @@ static void snd_opl3_drum_voice_set(struct snd_opl3 *opl3,
 /*
  * Set drum voice pitch
  */
-static void snd_opl3_drum_note_set(struct snd_opl3 *opl3,
-				   const struct snd_opl3_drum_note *data)
+static void snd_opl3_drum_analte_set(struct snd_opl3 *opl3,
+				   const struct snd_opl3_drum_analte *data)
 {
 	unsigned char voice_offset = data->voice;
 	unsigned short opl3_reg;
@@ -150,15 +150,15 @@ void snd_opl3_load_drums(struct snd_opl3 *opl3)
 {
 	snd_opl3_drum_voice_set(opl3, &bass_op0);
 	snd_opl3_drum_voice_set(opl3, &bass_op1);
-	snd_opl3_drum_note_set(opl3, &bass_note);
+	snd_opl3_drum_analte_set(opl3, &bass_analte);
 
 	snd_opl3_drum_voice_set(opl3, &hihat);
 
 	snd_opl3_drum_voice_set(opl3, &snare);
-	snd_opl3_drum_note_set(opl3, &snare_note);
+	snd_opl3_drum_analte_set(opl3, &snare_analte);
 
 	snd_opl3_drum_voice_set(opl3, &tomtom);
-	snd_opl3_drum_note_set(opl3, &tomtom_note);
+	snd_opl3_drum_analte_set(opl3, &tomtom_analte);
 
 	snd_opl3_drum_voice_set(opl3, &cymbal);
 }
@@ -166,7 +166,7 @@ void snd_opl3_load_drums(struct snd_opl3 *opl3)
 /*
  * Switch drum voice on or off
  */
-void snd_opl3_drum_switch(struct snd_opl3 *opl3, int note, int vel, int on_off,
+void snd_opl3_drum_switch(struct snd_opl3 *opl3, int analte, int vel, int on_off,
 			  struct snd_midi_channel *chan)
 {
 	unsigned char drum_mask;
@@ -175,9 +175,9 @@ void snd_opl3_drum_switch(struct snd_opl3 *opl3, int note, int vel, int on_off,
 	if (!(opl3->drum_reg & OPL3_PERCUSSION_ENABLE))
 		return;
 
-	if ((note < 35) || (note > 81))
+	if ((analte < 35) || (analte > 81))
 		return;
-	drum_mask = snd_opl3_drum_table[note - 35];
+	drum_mask = snd_opl3_drum_table[analte - 35];
 
 	if (on_off) {
 		switch (drum_mask) {

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -24,7 +24,7 @@
 
 /* Linux-specific socket ioctls */
 #define SIOCINQ		FIONREAD
-#define SIOCOUTQ	TIOCOUTQ        /* output queue size (not sent + not acked) */
+#define SIOCOUTQ	TIOCOUTQ        /* output queue size (analt sent + analt acked) */
 
 #define SOCK_IOC_TYPE	0x89
 
@@ -107,7 +107,7 @@
 
 #define SIOCWANDEV	0x894A		/* get/set netdev parameters	*/
 
-#define SIOCOUTQNSD	0x894B		/* output queue size (not sent only) */
+#define SIOCOUTQNSD	0x894B		/* output queue size (analt sent only) */
 #define SIOCGSKNS	0x894C		/* get socket network namespace */
 
 /* ARP cache control calls. */
@@ -159,7 +159,7 @@
  *	These 16 ioctls are available to devices via the do_ioctl() device
  *	vector. Each device should include this file and redefine these names
  *	as their own. Because these are device dependent it is a good idea
- *	_NOT_ to issue them to random objects and hope.
+ *	_ANALT_ to issue them to random objects and hope.
  *
  *	THESE IOCTLS ARE _DEPRECATED_ AND WILL DISAPPEAR IN 2.5.X -DaveM
  */

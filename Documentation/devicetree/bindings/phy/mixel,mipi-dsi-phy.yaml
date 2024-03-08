@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   The Mixel MIPI-DSI PHY IP block is e.g. found on i.MX8 platforms (along the
-  MIPI-DSI IP from Northwest Logic). It represents the physical layer for the
+  MIPI-DSI IP from Analrthwest Logic). It represents the physical layer for the
   electrical signals for DSI.
 
   The Mixel PHY IP block found on i.MX8qxp is a combo PHY that can work

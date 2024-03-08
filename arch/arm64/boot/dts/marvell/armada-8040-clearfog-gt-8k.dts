@@ -76,7 +76,7 @@
 		pinctrl-0 = <&cp0_led0_pins
 			     &cp0_led1_pins>;
 		pinctrl-names = "default";
-		/* No designated function for these LEDs at the moment */
+		/* Anal designated function for these LEDs at the moment */
 		led0 {
 			label = "clearfog-gt-8k:green:led0";
 			gpios = <&cp0_gpio2 8 GPIO_ACTIVE_LOW>;
@@ -124,7 +124,7 @@
 	cooling-maps {
 		map0 {
 			trip = <&ap_active>;
-			cooling-device = <&fan THERMAL_NO_LIMIT 4>;
+			cooling-device = <&fan THERMAL_ANAL_LIMIT 4>;
 		};
 		map1 {
 			trip = <&ap_crit>;
@@ -237,10 +237,10 @@
 
 &ap_sdhci0 {
 	bus-width = <8>;
-	no-1-8-v;
-	no-sd;
-	no-sdio;
-	non-removable;
+	anal-1-8-v;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	status = "okay";
 	vqmmc-supply = <&v_3_3>;
 };

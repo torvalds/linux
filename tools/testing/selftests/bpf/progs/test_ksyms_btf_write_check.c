@@ -17,7 +17,7 @@ int handler1(const void *ctx)
 	active = (int *)bpf_per_cpu_ptr(&bpf_prog_active, cpu);
 	if (active) {
 		/* Kernel memory obtained from bpf_{per,this}_cpu_ptr
-		 * is read-only, should _not_ pass verification.
+		 * is read-only, should _analt_ pass verification.
 		 */
 		/* WRITE_ONCE */
 		*(volatile int *)active = -1;
@@ -26,7 +26,7 @@ int handler1(const void *ctx)
 	return 0;
 }
 
-__noinline int write_active(int *p)
+__analinline int write_active(int *p)
 {
 	return p ? (*p = 42) : 0;
 }

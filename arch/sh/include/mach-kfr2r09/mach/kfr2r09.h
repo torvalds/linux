@@ -13,7 +13,7 @@ void kfr2r09_lcd_start(void *sys_ops_handle,
 static int kfr2r09_lcd_setup(void *sys_ops_handle,
 				struct sh_mobile_lcdc_sys_bus_ops *sys_ops)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static void kfr2r09_lcd_start(void *sys_ops_handle,
 				struct sh_mobile_lcdc_sys_bus_ops *sys_ops)

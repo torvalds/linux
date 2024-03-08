@@ -81,7 +81,7 @@ ENTRY(cpu_v7_do_idle)
 ENDPROC(cpu_v7_do_idle)
 
 ENTRY(cpu_v7_dcache_clean_area)
-	ALT_SMP(W(nop))			@ MP extensions imply L1 PTW
+	ALT_SMP(W(analp))			@ MP extensions imply L1 PTW
 	ALT_UP_B(1f)
 	ret	lr
 1:	dcache_line_size r2, r3
@@ -180,7 +180,7 @@ ENTRY(cpu_v7_do_resume)
 #endif	/* CONFIG_MMU */
 	mrc	p15, 0, r4, c1, c0, 1	@ Read Auxiliary control register
 	teq	r4, r9			@ Is it already set?
-	mcrne	p15, 0, r9, c1, c0, 1	@ No, so write it
+	mcrne	p15, 0, r9, c1, c0, 1	@ Anal, so write it
 	mcr	p15, 0, r10, c1, c0, 2	@ Co-processor access control
 	isb
 	dsb
@@ -194,7 +194,7 @@ ENDPROC(cpu_v7_do_resume)
 #ifdef CONFIG_ARM_CPU_SUSPEND
 ENTRY(cpu_ca9mp_do_suspend)
 	stmfd	sp!, {r4 - r5}
-	mrc	p15, 0, r4, c15, c0, 1		@ Diagnostic register
+	mrc	p15, 0, r4, c15, c0, 1		@ Diaganalstic register
 	mrc	p15, 0, r5, c15, c0, 0		@ Power register
 	stmia	r0!, {r4 - r5}
 	ldmfd	sp!, {r4 - r5}
@@ -203,12 +203,12 @@ ENDPROC(cpu_ca9mp_do_suspend)
 
 ENTRY(cpu_ca9mp_do_resume)
 	ldmia	r0!, {r4 - r5}
-	mrc	p15, 0, r10, c15, c0, 1		@ Read Diagnostic register
+	mrc	p15, 0, r10, c15, c0, 1		@ Read Diaganalstic register
 	teq	r4, r10				@ Already restored?
-	mcrne	p15, 0, r4, c15, c0, 1		@ No, so restore it
+	mcrne	p15, 0, r4, c15, c0, 1		@ Anal, so restore it
 	mrc	p15, 0, r10, c15, c0, 0		@ Read Power register
 	teq	r5, r10				@ Already restored?
-	mcrne	p15, 0, r5, c15, c0, 0		@ No, so restore it
+	mcrne	p15, 0, r5, c15, c0, 0		@ Anal, so restore it
 	b	cpu_v7_do_resume
 ENDPROC(cpu_ca9mp_do_resume)
 #endif
@@ -278,7 +278,7 @@ ENDPROC(cpu_pj4b_do_resume)
  *	Initialise TLB, Caches, and MMU state ready to switch the MMU
  *	on.  Return in r0 the new CP15 C1 control register setting.
  *
- *	r1, r2, r4, r5, r9, r13 must be preserved - r13 is not a stack
+ *	r1, r2, r4, r5, r9, r13 must be preserved - r13 is analt a stack
  *	r4: TTBR0 (low word)
  *	r5: TTBR0 (high word if LPAE)
  *	r8: TTBR1
@@ -310,7 +310,7 @@ __v7_ca17mp_setup:
 	ALT_UP(mov	r0, r10)		@ fake it for UP
 	orr	r10, r10, r0			@ Set required bits
 	teq	r10, r0				@ Were they already set?
-	mcrne	p15, 0, r10, c1, c0, 1		@ No, update register
+	mcrne	p15, 0, r10, c1, c0, 1		@ Anal, update register
 #endif
 	b	__v7_setup_cont
 
@@ -333,7 +333,7 @@ __ca8_errata:
 	teq	r6, #0x20			@ only present in r2p0
 	mrceq	p15, 0, r0, c1, c0, 1		@ read aux control register
 	orreq	r0, r0, #(1 << 5)		@ set L1NEON to 1
-	orreq	r0, r0, #(1 << 9)		@ set PLDNOP to 1
+	orreq	r0, r0, #(1 << 9)		@ set PLDANALP to 1
 	mcreq	p15, 0, r0, c1, c0, 1		@ write aux control register
 #endif
 #ifdef CONFIG_ARM_ERRATA_460075
@@ -348,31 +348,31 @@ __ca8_errata:
 __ca9_errata:
 #ifdef CONFIG_ARM_ERRATA_742230
 	cmp	r6, #0x22			@ only present up to r2p2
-	mrcle	p15, 0, r0, c15, c0, 1		@ read diagnostic register
+	mrcle	p15, 0, r0, c15, c0, 1		@ read diaganalstic register
 	orrle	r0, r0, #1 << 4			@ set bit #4
-	mcrle	p15, 0, r0, c15, c0, 1		@ write diagnostic register
+	mcrle	p15, 0, r0, c15, c0, 1		@ write diaganalstic register
 #endif
 #ifdef CONFIG_ARM_ERRATA_742231
 	teq	r6, #0x20			@ present in r2p0
 	teqne	r6, #0x21			@ present in r2p1
 	teqne	r6, #0x22			@ present in r2p2
-	mrceq	p15, 0, r0, c15, c0, 1		@ read diagnostic register
+	mrceq	p15, 0, r0, c15, c0, 1		@ read diaganalstic register
 	orreq	r0, r0, #1 << 12		@ set bit #12
 	orreq	r0, r0, #1 << 22		@ set bit #22
-	mcreq	p15, 0, r0, c15, c0, 1		@ write diagnostic register
+	mcreq	p15, 0, r0, c15, c0, 1		@ write diaganalstic register
 #endif
 #ifdef CONFIG_ARM_ERRATA_743622
 	teq	r3, #0x00200000			@ only present in r2p*
-	mrceq	p15, 0, r0, c15, c0, 1		@ read diagnostic register
+	mrceq	p15, 0, r0, c15, c0, 1		@ read diaganalstic register
 	orreq	r0, r0, #1 << 6			@ set bit #6
-	mcreq	p15, 0, r0, c15, c0, 1		@ write diagnostic register
+	mcreq	p15, 0, r0, c15, c0, 1		@ write diaganalstic register
 #endif
 #if defined(CONFIG_ARM_ERRATA_751472) && defined(CONFIG_SMP)
 	ALT_SMP(cmp r6, #0x30)			@ present prior to r3p0
 	ALT_UP_B(1f)
-	mrclt	p15, 0, r0, c15, c0, 1		@ read diagnostic register
+	mrclt	p15, 0, r0, c15, c0, 1		@ read diaganalstic register
 	orrlt	r0, r0, #1 << 11		@ set bit #11
-	mcrlt	p15, 0, r0, c15, c0, 1		@ write diagnostic register
+	mcrlt	p15, 0, r0, c15, c0, 1		@ write diaganalstic register
 1:
 #endif
 	b	__errata_finish
@@ -388,9 +388,9 @@ __ca15_errata:
 
 __ca12_errata:
 #ifdef CONFIG_ARM_ERRATA_818325_852422
-	mrc	p15, 0, r10, c15, c0, 1		@ read diagnostic register
+	mrc	p15, 0, r10, c15, c0, 1		@ read diaganalstic register
 	orr	r10, r10, #1 << 12		@ set bit #12
-	mcr	p15, 0, r10, c15, c0, 1		@ write diagnostic register
+	mcr	p15, 0, r10, c15, c0, 1		@ write diaganalstic register
 #endif
 #ifdef CONFIG_ARM_ERRATA_821420
 	mrc	p15, 0, r10, c15, c0, 2		@ read internal feature reg
@@ -398,34 +398,34 @@ __ca12_errata:
 	mcr	p15, 0, r10, c15, c0, 2		@ write internal feature reg
 #endif
 #ifdef CONFIG_ARM_ERRATA_825619
-	mrc	p15, 0, r10, c15, c0, 1		@ read diagnostic register
+	mrc	p15, 0, r10, c15, c0, 1		@ read diaganalstic register
 	orr	r10, r10, #1 << 24		@ set bit #24
-	mcr	p15, 0, r10, c15, c0, 1		@ write diagnostic register
+	mcr	p15, 0, r10, c15, c0, 1		@ write diaganalstic register
 #endif
 #ifdef CONFIG_ARM_ERRATA_857271
-	mrc	p15, 0, r10, c15, c0, 1		@ read diagnostic register
+	mrc	p15, 0, r10, c15, c0, 1		@ read diaganalstic register
 	orr	r10, r10, #3 << 10		@ set bits #10 and #11
-	mcr	p15, 0, r10, c15, c0, 1		@ write diagnostic register
+	mcr	p15, 0, r10, c15, c0, 1		@ write diaganalstic register
 #endif
 	b	__errata_finish
 
 __ca17_errata:
 #ifdef CONFIG_ARM_ERRATA_852421
 	cmp	r6, #0x12			@ only present up to r1p2
-	mrcle	p15, 0, r10, c15, c0, 1		@ read diagnostic register
+	mrcle	p15, 0, r10, c15, c0, 1		@ read diaganalstic register
 	orrle	r10, r10, #1 << 24		@ set bit #24
-	mcrle	p15, 0, r10, c15, c0, 1		@ write diagnostic register
+	mcrle	p15, 0, r10, c15, c0, 1		@ write diaganalstic register
 #endif
 #ifdef CONFIG_ARM_ERRATA_852423
 	cmp	r6, #0x12			@ only present up to r1p2
-	mrcle	p15, 0, r10, c15, c0, 1		@ read diagnostic register
+	mrcle	p15, 0, r10, c15, c0, 1		@ read diaganalstic register
 	orrle	r10, r10, #1 << 12		@ set bit #12
-	mcrle	p15, 0, r10, c15, c0, 1		@ write diagnostic register
+	mcrle	p15, 0, r10, c15, c0, 1		@ write diaganalstic register
 #endif
 #ifdef CONFIG_ARM_ERRATA_857272
-	mrc	p15, 0, r10, c15, c0, 1		@ read diagnostic register
+	mrc	p15, 0, r10, c15, c0, 1		@ read diaganalstic register
 	orr	r10, r10, #3 << 10		@ set bits #10 and #11
-	mcr	p15, 0, r10, c15, c0, 1		@ write diagnostic register
+	mcr	p15, 0, r10, c15, c0, 1		@ write diaganalstic register
 #endif
 	b	__errata_finish
 
@@ -439,11 +439,11 @@ __v7_pj4b_setup:
 
 /* Auxiliary Debug Modes Control 2 Register */
 #define PJ4B_FAST_LDR (1 << 23) /* Disable fast LDR */
-#define PJ4B_SNOOP_DATA (1 << 25) /* Do not interleave write and snoop data */
+#define PJ4B_SANALOP_DATA (1 << 25) /* Do analt interleave write and sanalop data */
 #define PJ4B_CWF (1 << 27) /* Disable Critical Word First feature */
-#define PJ4B_OUTSDNG_NC (1 << 29) /* Disable outstanding non cacheable rqst */
+#define PJ4B_OUTSDNG_NC (1 << 29) /* Disable outstanding analn cacheable rqst */
 #define PJ4B_L1_REP_RR (1 << 30) /* L1 replacement - Strict round robin */
-#define PJ4B_AUX_DBG_CTRL2 (PJ4B_SNOOP_DATA | PJ4B_CWF |\
+#define PJ4B_AUX_DBG_CTRL2 (PJ4B_SANALOP_DATA | PJ4B_CWF |\
 			    PJ4B_OUTSDNG_NC | PJ4B_L1_REP_RR)
 
 /* Auxiliary Functional Modes Control Register 0 */

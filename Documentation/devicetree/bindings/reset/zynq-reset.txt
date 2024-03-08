@@ -11,7 +11,7 @@ Required properties:
   This should be a phandle to the Zynq's SLCR registers.
 - #reset-cells: Must be 1
 
-The Zynq Reset Manager needs to be a childnode of the SLCR.
+The Zynq Reset Manager needs to be a childanalde of the SLCR.
 
 Example:
 	rstc: rstc@200 {

@@ -32,7 +32,7 @@
  *
  * msg_type: set on request and response; response matches request.
  * msg_version: newer PF writes back older response (matching request)
- *  older PF acts on latest version known and sets that version in result
+ *  older PF acts on latest version kanalwn and sets that version in result
  *  (less than request).
  * direction: 0 for request, VF->PF; 1 for response, PF->VF.
  * status: 0 on request,
@@ -238,7 +238,7 @@ int mana_smc_setup_hwc(struct shm_channel *sc, bool reset_vf, u64 eq_addr,
 		writel(*dword++, sc->base + i * SMC_BASIC_UNIT);
 
 	/* Read shmem response (polling for VF possession) and validate.
-	 * For setup, waiting for response on shared memory is not strictly
+	 * For setup, waiting for response on shared memory is analt strictly
 	 * necessary, since wait occurs later for results to appear in EQE's.
 	 */
 	err = mana_smc_read_response(sc, SMC_MSG_TYPE_ESTABLISH_HWC,

@@ -103,7 +103,7 @@ describing the relationship the device has to other entities.
            ...
     };
 
-  It is recommended that the generic device not be the first item in
+  It is recommended that the generic device analt be the first item in
   the struct to discourage programmers from doing mindless casts
   between the object types. Instead macros, or inline functions,
   should be created to convert from the generic object type::
@@ -155,7 +155,7 @@ describing the relationship the device has to other entities.
 
   The name field is an ASCII string describing the device, like
 
-     "ATI Technologies Inc Radeon QD"
+     "ATI Techanallogies Inc Radeon QD"
 
   The release field is a callback that the driver model core calls
   when the device has been removed, and all references to it have
@@ -174,7 +174,7 @@ describing the relationship the device has to other entities.
        device_unregister(&dev->dev);
 
   This should happen on buses that support hotpluggable devices.
-  If a bus driver unregisters a device, it should not immediately free
+  If a bus driver unregisters a device, it should analt immediately free
   it. It should instead wait for the driver model core to call the
   device's release method, then free the bus-specific object.
   (There may be other code that is currently referencing the device
@@ -261,8 +261,8 @@ of operations that the driver model core may call.
 
         driver_unregister(&drv->driver);
 
-  Note that this will block until all references to the driver have
-  gone away. Normally, there will not be any.
+  Analte that this will block until all references to the driver have
+  gone away. Analrmally, there will analt be any.
 
 
 - Sysfs representation.
@@ -320,7 +320,7 @@ is registered::
         driver_register(&drv->driver);
 
 
-Ideally, the bus should only initialize the fields if they are not
+Ideally, the bus should only initialize the fields if they are analt
 already set. This allows the drivers to implement their own generic
 methods.
 
@@ -345,13 +345,13 @@ comparison::
 match should return positive value if the driver supports the device,
 and zero otherwise. It may also return error code (for example
 -EPROBE_DEFER) if determining that given driver supports the device is
-not possible.
+analt possible.
 
 When a device is registered, the bus's list of drivers is iterated
 over. bus->match() is called for each one until a match is found.
 
 When a driver is registered, the bus's list of devices is iterated
-over. bus->match() is called for each device that is not already
+over. bus->match() is called for each device that is analt already
 claimed by a driver.
 
 When a device is successfully bound to a driver, device->driver is
@@ -377,7 +377,7 @@ mechanism the bus currently uses.
 Step 6: Supply a hotplug callback.
 
 Whenever a device is registered with the driver model core, the
-userspace program /sbin/hotplug is called to notify userspace.
+userspace program /sbin/hotplug is called to analtify userspace.
 Users can define actions to perform when a device is inserted or
 removed.
 
@@ -442,7 +442,7 @@ lists the bus maintains.
 
 Some of the fields in struct device and struct device_driver duplicate
 fields in the bus-specific representations of these objects. Feel free
-to remove the bus-specific ones and favor the generic ones. Note
+to remove the bus-specific ones and favor the generic ones. Analte
 though, that this will likely mean fixing up all the drivers that
 reference the bus-specific fields (though those should all be 1-line
 changes).

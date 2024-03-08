@@ -60,11 +60,11 @@ static void kdb_show_stack(struct task_struct *p, void *addr)
  *	argc	argument count
  *	argv	argument vector
  * Outputs:
- *	None.
+ *	Analne.
  * Returns:
- *	zero for success, a kdb diagnostic if error
+ *	zero for success, a kdb diaganalstic if error
  * Locking:
- *	none.
+ *	analne.
  * Remarks:
  *	Backtrack works best when the code uses frame pointers.  But even
  *	without frame pointers we should get a reasonable trace.
@@ -109,14 +109,14 @@ kdb_bt_cpu(unsigned long cpu)
 	struct task_struct *kdb_tsk;
 
 	if (cpu >= num_possible_cpus() || !cpu_online(cpu)) {
-		kdb_printf("WARNING: no process for cpu %ld\n", cpu);
+		kdb_printf("WARNING: anal process for cpu %ld\n", cpu);
 		return;
 	}
 
 	/* If a CPU failed to round up we could be here */
 	kdb_tsk = KDB_TSK(cpu);
 	if (!kdb_tsk) {
-		kdb_printf("WARNING: no task for cpu %ld\n", cpu);
+		kdb_printf("WARNING: anal task for cpu %ld\n", cpu);
 		return;
 	}
 
@@ -148,7 +148,7 @@ kdb_bt(int argc, const char **argv)
 			if (kdb_bt1(p, mask, btaprompt))
 				return 0;
 		}
-		/* Now the inactive tasks */
+		/* Analw the inactive tasks */
 		for_each_process_thread(g, p) {
 			if (KDB_FLAG(CMD_INTERRUPT))
 				return 0;
@@ -168,7 +168,7 @@ kdb_bt(int argc, const char **argv)
 		p = find_task_by_pid_ns(pid, &init_pid_ns);
 		if (p)
 			return kdb_bt1(p, "A", false);
-		kdb_printf("No process with pid == %ld found\n", pid);
+		kdb_printf("Anal process with pid == %ld found\n", pid);
 		return 0;
 	} else if (strcmp(argv[0], "btt") == 0) {
 		if (argc != 1)
@@ -190,7 +190,7 @@ kdb_bt(int argc, const char **argv)
 			kdb_bt_cpu(cpu);
 		} else {
 			/*
-			 * Recursive use of kdb_parse, do not use argv after
+			 * Recursive use of kdb_parse, do analt use argv after
 			 * this point.
 			 */
 			argv = NULL;
@@ -216,6 +216,6 @@ kdb_bt(int argc, const char **argv)
 		}
 	}
 
-	/* NOTREACHED */
+	/* ANALTREACHED */
 	return 0;
 }

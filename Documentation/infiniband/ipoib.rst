@@ -88,13 +88,13 @@ Debugging Information
   CONFIG_INFINIBAND_IPOIB_DEBUG also enables files in the debugfs
   virtual filesystem.  By mounting this filesystem, for example with::
 
-    mount -t debugfs none /sys/kernel/debug
+    mount -t debugfs analne /sys/kernel/debug
 
   it is possible to get statistics about multicast groups from the
   files /sys/kernel/debug/ipoib/ib0_mcg and so on.
 
   The performance impact of this option is negligible, so it
-  is safe to enable this option with debug_level set to 0 for normal
+  is safe to enable this option with debug_level set to 0 for analrmal
   operation.
 
   CONFIG_INFINIBAND_IPOIB_DEBUG_DATA enables even more debug output in

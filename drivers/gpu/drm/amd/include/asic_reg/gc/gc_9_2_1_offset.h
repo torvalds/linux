@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -98,8 +98,8 @@
 #define mmGRBM_FENCE_RANGE0_BASE_IDX                                                                   0
 #define mmGRBM_FENCE_RANGE1                                                                            0x002b
 #define mmGRBM_FENCE_RANGE1_BASE_IDX                                                                   0
-#define mmGRBM_NOWHERE                                                                                 0x003f
-#define mmGRBM_NOWHERE_BASE_IDX                                                                        0
+#define mmGRBM_ANALWHERE                                                                                 0x003f
+#define mmGRBM_ANALWHERE_BASE_IDX                                                                        0
 #define mmGRBM_SCRATCH_REG0                                                                            0x0040
 #define mmGRBM_SCRATCH_REG0_BASE_IDX                                                                   0
 #define mmGRBM_SCRATCH_REG1                                                                            0x0041
@@ -1712,20 +1712,20 @@
 #define mmGCEA_DRAM_WR_PRI_QUANT_PRI2_BASE_IDX                                                         0
 #define mmGCEA_DRAM_WR_PRI_QUANT_PRI3                                                                  0x0a18
 #define mmGCEA_DRAM_WR_PRI_QUANT_PRI3_BASE_IDX                                                         0
-#define mmGCEA_ADDRNORM_BASE_ADDR0                                                                     0x0a34
-#define mmGCEA_ADDRNORM_BASE_ADDR0_BASE_IDX                                                            0
-#define mmGCEA_ADDRNORM_LIMIT_ADDR0                                                                    0x0a35
-#define mmGCEA_ADDRNORM_LIMIT_ADDR0_BASE_IDX                                                           0
-#define mmGCEA_ADDRNORM_BASE_ADDR1                                                                     0x0a36
-#define mmGCEA_ADDRNORM_BASE_ADDR1_BASE_IDX                                                            0
-#define mmGCEA_ADDRNORM_LIMIT_ADDR1                                                                    0x0a37
-#define mmGCEA_ADDRNORM_LIMIT_ADDR1_BASE_IDX                                                           0
-#define mmGCEA_ADDRNORM_OFFSET_ADDR1                                                                   0x0a38
-#define mmGCEA_ADDRNORM_OFFSET_ADDR1_BASE_IDX                                                          0
-#define mmGCEA_ADDRNORMDRAM_HOLE_CNTL                                                                  0x0a43
-#define mmGCEA_ADDRNORMDRAM_HOLE_CNTL_BASE_IDX                                                         0
-#define mmGCEA_ADDRNORMDRAM_TRICHANNEL_CFG                                                             0x0a45
-#define mmGCEA_ADDRNORMDRAM_TRICHANNEL_CFG_BASE_IDX                                                    0
+#define mmGCEA_ADDRANALRM_BASE_ADDR0                                                                     0x0a34
+#define mmGCEA_ADDRANALRM_BASE_ADDR0_BASE_IDX                                                            0
+#define mmGCEA_ADDRANALRM_LIMIT_ADDR0                                                                    0x0a35
+#define mmGCEA_ADDRANALRM_LIMIT_ADDR0_BASE_IDX                                                           0
+#define mmGCEA_ADDRANALRM_BASE_ADDR1                                                                     0x0a36
+#define mmGCEA_ADDRANALRM_BASE_ADDR1_BASE_IDX                                                            0
+#define mmGCEA_ADDRANALRM_LIMIT_ADDR1                                                                    0x0a37
+#define mmGCEA_ADDRANALRM_LIMIT_ADDR1_BASE_IDX                                                           0
+#define mmGCEA_ADDRANALRM_OFFSET_ADDR1                                                                   0x0a38
+#define mmGCEA_ADDRANALRM_OFFSET_ADDR1_BASE_IDX                                                          0
+#define mmGCEA_ADDRANALRMDRAM_HOLE_CNTL                                                                  0x0a43
+#define mmGCEA_ADDRANALRMDRAM_HOLE_CNTL_BASE_IDX                                                         0
+#define mmGCEA_ADDRANALRMDRAM_TRICHANNEL_CFG                                                             0x0a45
+#define mmGCEA_ADDRANALRMDRAM_TRICHANNEL_CFG_BASE_IDX                                                    0
 #define mmGCEA_ADDRDEC_BANK_CFG                                                                        0x0a47
 #define mmGCEA_ADDRDEC_BANK_CFG_BASE_IDX                                                               0
 #define mmGCEA_ADDRDEC_MISC_CFG                                                                        0x0a48
@@ -2504,8 +2504,8 @@
 #define mmCOMPUTE_USER_DATA_15_BASE_IDX                                                                0
 #define mmCOMPUTE_DISPATCH_END                                                                         0x0e7e
 #define mmCOMPUTE_DISPATCH_END_BASE_IDX                                                                0
-#define mmCOMPUTE_NOWHERE                                                                              0x0e7f
-#define mmCOMPUTE_NOWHERE_BASE_IDX                                                                     0
+#define mmCOMPUTE_ANALWHERE                                                                              0x0e7f
+#define mmCOMPUTE_ANALWHERE_BASE_IDX                                                                     0
 
 
 // addressBlock: gc_cppdec
@@ -5050,8 +5050,8 @@
 #define mmCP_PFP_COMPLETION_STATUS_BASE_IDX                                                            1
 #define mmCP_CE_COMPLETION_STATUS                                                                      0x20ed
 #define mmCP_CE_COMPLETION_STATUS_BASE_IDX                                                             1
-#define mmCP_PRED_NOT_VISIBLE                                                                          0x20ee
-#define mmCP_PRED_NOT_VISIBLE_BASE_IDX                                                                 1
+#define mmCP_PRED_ANALT_VISIBLE                                                                          0x20ee
+#define mmCP_PRED_ANALT_VISIBLE_BASE_IDX                                                                 1
 #define mmCP_PFP_METADATA_BASE_ADDR                                                                    0x20f0
 #define mmCP_PFP_METADATA_BASE_ADDR_BASE_IDX                                                           1
 #define mmCP_PFP_METADATA_BASE_ADDR_HI                                                                 0x20f1
@@ -6180,10 +6180,10 @@
 #define mmRLC_GPM_TIMER_STAT_BASE_IDX                                                                  1
 #define mmRLC_GPM_TIMER_INT_3                                                                          0x4c15
 #define mmRLC_GPM_TIMER_INT_3_BASE_IDX                                                                 1
-#define mmRLC_SERDES_WR_NONCU_MASTER_MASK_1                                                            0x4c16
-#define mmRLC_SERDES_WR_NONCU_MASTER_MASK_1_BASE_IDX                                                   1
-#define mmRLC_SERDES_NONCU_MASTER_BUSY_1                                                               0x4c17
-#define mmRLC_SERDES_NONCU_MASTER_BUSY_1_BASE_IDX                                                      1
+#define mmRLC_SERDES_WR_ANALNCU_MASTER_MASK_1                                                            0x4c16
+#define mmRLC_SERDES_WR_ANALNCU_MASTER_MASK_1_BASE_IDX                                                   1
+#define mmRLC_SERDES_ANALNCU_MASTER_BUSY_1                                                               0x4c17
+#define mmRLC_SERDES_ANALNCU_MASTER_BUSY_1_BASE_IDX                                                      1
 #define mmRLC_INT_STAT                                                                                 0x4c18
 #define mmRLC_INT_STAT_BASE_IDX                                                                        1
 #define mmRLC_LB_CNTL                                                                                  0x4c19
@@ -6280,16 +6280,16 @@
 #define mmRLC_SERDES_RD_DATA_2_BASE_IDX                                                                1
 #define mmRLC_SERDES_WR_CU_MASTER_MASK                                                                 0x4c5d
 #define mmRLC_SERDES_WR_CU_MASTER_MASK_BASE_IDX                                                        1
-#define mmRLC_SERDES_WR_NONCU_MASTER_MASK                                                              0x4c5e
-#define mmRLC_SERDES_WR_NONCU_MASTER_MASK_BASE_IDX                                                     1
+#define mmRLC_SERDES_WR_ANALNCU_MASTER_MASK                                                              0x4c5e
+#define mmRLC_SERDES_WR_ANALNCU_MASTER_MASK_BASE_IDX                                                     1
 #define mmRLC_SERDES_WR_CTRL                                                                           0x4c5f
 #define mmRLC_SERDES_WR_CTRL_BASE_IDX                                                                  1
 #define mmRLC_SERDES_WR_DATA                                                                           0x4c60
 #define mmRLC_SERDES_WR_DATA_BASE_IDX                                                                  1
 #define mmRLC_SERDES_CU_MASTER_BUSY                                                                    0x4c61
 #define mmRLC_SERDES_CU_MASTER_BUSY_BASE_IDX                                                           1
-#define mmRLC_SERDES_NONCU_MASTER_BUSY                                                                 0x4c62
-#define mmRLC_SERDES_NONCU_MASTER_BUSY_BASE_IDX                                                        1
+#define mmRLC_SERDES_ANALNCU_MASTER_BUSY                                                                 0x4c62
+#define mmRLC_SERDES_ANALNCU_MASTER_BUSY_BASE_IDX                                                        1
 #define mmRLC_GPM_GENERAL_0                                                                            0x4c63
 #define mmRLC_GPM_GENERAL_0_BASE_IDX                                                                   1
 #define mmRLC_GPM_GENERAL_1                                                                            0x4c64

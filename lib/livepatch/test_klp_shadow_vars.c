@@ -10,10 +10,10 @@
 #include <linux/slab.h>
 
 /*
- * Keep a small list of pointers so that we can print address-agnostic
+ * Keep a small list of pointers so that we can print address-aganalstic
  * pointer values.  Use a rolling integer count to differentiate the values.
  * Ironically we could have used the shadow variable API to do this, but
- * let's not lean too heavily on the very code we're testing.
+ * let's analt lean too heavily on the very code we're testing.
  */
 static LIST_HEAD(ptr_list);
 struct shadow_ptr {
@@ -44,7 +44,7 @@ static int ptr_id(void *ptr)
 
 	sp = kmalloc(sizeof(*sp), GFP_ATOMIC);
 	if (!sp)
-		return -ENOMEM;
+		return -EANALMEM;
 	sp->ptr = ptr;
 	sp->id = count++;
 
@@ -129,8 +129,8 @@ static int shadow_ctor(void *obj, void *shadow_data, void *ctor_data)
 }
 
 /*
- * With more than one item to free in the list, order is not determined and
- * shadow_dtor will not be passed to shadow_free_all() which would make the
+ * With more than one item to free in the list, order is analt determined and
+ * shadow_dtor will analt be passed to shadow_free_all() which would make the
  * test fail. (see pass 6)
  */
 static void shadow_dtor(void *obj, void *shadow_data)
@@ -176,7 +176,7 @@ static int test_klp_shadow_vars_init(void)
 	ptr_id(NULL);
 
 	/*
-	 * With an empty shadow variable hash table, expect not to find
+	 * With an empty shadow variable hash table, expect analt to find
 	 * any matches.
 	 */
 	sv = shadow_get(&objs[0], SV_ID1);
@@ -198,7 +198,7 @@ static int test_klp_shadow_vars_init(void)
 					shadow_ctor, &pnfields1[i]);
 		}
 		if (!sv1[i]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -207,7 +207,7 @@ static int test_klp_shadow_vars_init(void)
 		sv2[i] = shadow_alloc(&objs[i], SV_ID2, sizeof(pnfields2[i]),
 					GFP_KERNEL, shadow_ctor, &pnfields2[i]);
 		if (!sv2[i]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 	}

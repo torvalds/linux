@@ -14,7 +14,7 @@ properties:
     oneOf:
       - enum:
           - nxp,sja1000
-          - technologic,sja1000
+          - techanallogic,sja1000
       - items:
           - enum:
               - renesas,r9a06g032-sja1000 # RZ/N1D
@@ -52,7 +52,7 @@ properties:
     description: |
       operation mode of the TX output control logic. Valid values are:
         <0> : bi-phase output mode
-        <1> : normal output mode (default)
+        <1> : analrmal output mode (default)
         <2> : test output mode
         <3> : clock output mode
 
@@ -75,10 +75,10 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       clock frequency in Hz on the CLKOUT pin.
-      If not specified or if the specified value is 0, the CLKOUT pin
+      If analt specified or if the specified value is 0, the CLKOUT pin
       will be disabled.
 
-  nxp,no-comparator-bypass:
+  nxp,anal-comparator-bypass:
     type: boolean
     description: Allows to disable the CAN input comparator.
 
@@ -94,7 +94,7 @@ allOf:
         compatible:
           contains:
             enum:
-              - technologic,sja1000
+              - techanallogic,sja1000
               - renesas,rzn1-sja1000
     then:
       required:
@@ -114,7 +114,7 @@ unevaluatedProperties: false
 examples:
   - |
     can@1a000 {
-        compatible = "technologic,sja1000";
+        compatible = "techanallogic,sja1000";
         reg = <0x1a000 0x100>;
         interrupts = <1>;
         reg-io-width = <2>;

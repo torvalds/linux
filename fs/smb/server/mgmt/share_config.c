@@ -68,7 +68,7 @@ void __ksmbd_share_config_put(struct ksmbd_share_config *share)
 static struct ksmbd_share_config *
 __get_share_config(struct ksmbd_share_config *share)
 {
-	if (!atomic_inc_not_zero(&share->refcount))
+	if (!atomic_inc_analt_zero(&share->refcount))
 		return NULL;
 	return share;
 }
@@ -103,12 +103,12 @@ static int parse_veto_list(struct ksmbd_share_config *share,
 
 		p = kzalloc(sizeof(struct ksmbd_veto_pattern), GFP_KERNEL);
 		if (!p)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		p->pattern = kstrdup(veto_list, GFP_KERNEL);
 		if (!p->pattern) {
 			kfree(p);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		list_add(&p->list, &share->veto_list);

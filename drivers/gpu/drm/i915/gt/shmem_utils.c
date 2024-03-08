@@ -18,7 +18,7 @@ struct file *shmem_create_from_data(const char *name, void *data, size_t len)
 	struct file *file;
 	int err;
 
-	file = shmem_file_setup(name, PAGE_ALIGN(len), VM_NORESERVE);
+	file = shmem_file_setup(name, PAGE_ALIGN(len), VM_ANALRESERVE);
 	if (IS_ERR(file))
 		return file;
 

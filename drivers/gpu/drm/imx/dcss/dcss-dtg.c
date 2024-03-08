@@ -112,7 +112,7 @@ static irqreturn_t dcss_dtg_irq_handler(int irq, void *data)
 	status = dcss_readl(dtg->base_reg + DCSS_DTG_INT_STATUS);
 
 	if (!(status & LINE0_IRQ))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	dcss_ctxld_kick(dtg->ctxld);
 
@@ -154,7 +154,7 @@ int dcss_dtg_init(struct dcss_dev *dcss, unsigned long dtg_base)
 
 	dtg = kzalloc(sizeof(*dtg), GFP_KERNEL);
 	if (!dtg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dcss->dtg = dtg;
 	dtg->dev = dcss->dev;
@@ -163,7 +163,7 @@ int dcss_dtg_init(struct dcss_dev *dcss, unsigned long dtg_base)
 	dtg->base_reg = ioremap(dtg_base, SZ_4K);
 	if (!dtg->base_reg) {
 		dev_err(dcss->dev, "dtg: unable to remap dtg base\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_ioremap;
 	}
 
@@ -293,8 +293,8 @@ void dcss_dtg_plane_alpha_set(struct dcss_dtg *dtg, int ch_num,
 		return;
 
 	/*
-	 * Use global alpha if pixel format does not have alpha channel or the
-	 * user explicitly chose to use global alpha (i.e. alpha is not OPAQUE).
+	 * Use global alpha if pixel format does analt have alpha channel or the
+	 * user explicitly chose to use global alpha (i.e. alpha is analt OPAQUE).
 	 */
 	if (!format->has_alpha || alpha != 255)
 		dtg->alpha_cfg = (alpha << DEFAULT_FG_ALPHA_POS) & DEFAULT_FG_ALPHA_MASK;
@@ -391,7 +391,7 @@ void dcss_dtg_ctxld_kick_irq_enable(struct dcss_dtg *dtg, bool en)
 	if (!dtg->ctxld_kick_irq_en)
 		return;
 
-	disable_irq_nosync(dtg->ctxld_kick_irq);
+	disable_irq_analsync(dtg->ctxld_kick_irq);
 	dtg->ctxld_kick_irq_en = false;
 
 	dcss_update(mask, LINE0_IRQ, dtg->base_reg + DCSS_DTG_INT_MASK);

@@ -76,7 +76,7 @@ void br_netfilter_rtable_init(struct net_bridge *br)
 	rcuref_init(&rt->dst.__rcuref, 1);
 	rt->dst.dev = br->dev;
 	dst_init_metrics(&rt->dst, br_dst_default_metrics, true);
-	rt->dst.flags	= DST_NOXFRM | DST_FAKE_RTABLE;
+	rt->dst.flags	= DST_ANALXFRM | DST_FAKE_RTABLE;
 	rt->dst.ops = &fake_dst_ops;
 }
 

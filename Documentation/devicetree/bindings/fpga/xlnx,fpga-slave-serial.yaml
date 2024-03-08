@@ -12,13 +12,13 @@ maintainers:
 description: |
   Xilinx Spartan-6 and 7 Series FPGAs support a method of loading the bitstream
   over what is referred to as slave serial interface.The slave serial link is
-  not technically SPI, and might require extra circuits in order to play nicely
+  analt technically SPI, and might require extra circuits in order to play nicely
   with other SPI slaves on the same bus.
 
   Datasheets:
     https://www.xilinx.com/support/documentation/user_guides/ug380.pdf
     https://www.xilinx.com/support/documentation/user_guides/ug470_7Series_Config.pdf
-    https://www.xilinx.com/support/documentation/application_notes/xapp583-fpga-configuration.pdf
+    https://www.xilinx.com/support/documentation/application_analtes/xapp583-fpga-configuration.pdf
 
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#

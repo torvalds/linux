@@ -48,7 +48,7 @@ static struct crypto_aead *alloc_aead(int id)
 		tfm = crypto_alloc_aead("ccm(aes)", 0, 0);
 		break;
 	default:
-		pr_err("Does not support encrypt ahead(id : %d)\n", id);
+		pr_err("Does analt support encrypt ahead(id : %d)\n", id);
 		return NULL;
 	}
 
@@ -260,7 +260,7 @@ int ksmbd_crypto_create(void)
 
 	ctx = kzalloc(sizeof(struct ksmbd_crypto_ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	list_add(&ctx->list, &ctx_list.idle_ctx);
 	return 0;
 }

@@ -232,10 +232,10 @@ static irqreturn_t cptlf_misc_intr_handler(int __always_unused irq, void *arg)
 
 	} else {
 		dev_err(dev, "Unhandled interrupt in CPT LF %d\n", lf->slot);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
-	/* Acknowledge interrupts */
+	/* Ackanalwledge interrupts */
 	otx2_cpt_write64(lf->lfs->reg_base, lf->lfs->blkaddr, lf->slot,
 			 OTX2_CPT_LF_MISC_INT, irq_misc_ack.u);
 
@@ -253,16 +253,16 @@ static irqreturn_t cptlf_done_intr_handler(int irq, void *arg)
 	if (irq_cnt) {
 		done_wait.u = otx2_cpt_read64(lf->lfs->reg_base, lf->lfs->blkaddr,
 					      lf->slot, OTX2_CPT_LF_DONE_WAIT);
-		/* Acknowledge the number of completed requests */
+		/* Ackanalwledge the number of completed requests */
 		otx2_cpt_write64(lf->lfs->reg_base, lf->lfs->blkaddr, lf->slot,
 				 OTX2_CPT_LF_DONE_ACK, irq_cnt);
 
 		otx2_cpt_write64(lf->lfs->reg_base, lf->lfs->blkaddr, lf->slot,
 				 OTX2_CPT_LF_DONE_WAIT, done_wait.u);
 		if (unlikely(!lf->wqe)) {
-			dev_err(&lf->lfs->pdev->dev, "No work for LF %d\n",
+			dev_err(&lf->lfs->pdev->dev, "Anal work for LF %d\n",
 				lf->slot);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 
 		/* Schedule processing of completed requests */
@@ -401,12 +401,12 @@ int otx2_cptlf_set_irqs_affinity(struct otx2_cptlfs_info *lfs)
 		if (!zalloc_cpumask_var(&lf[slot].affinity_mask, GFP_KERNEL)) {
 			dev_err(&lfs->pdev->dev,
 				"cpumask allocation failed for LF %d", slot);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_affinity_mask;
 		}
 
 		cpumask_set_cpu(cpumask_local_spread(slot,
-				dev_to_node(&lfs->pdev->dev)),
+				dev_to_analde(&lfs->pdev->dev)),
 				lf[slot].affinity_mask);
 
 		for (offs = 0; offs < OTX2_CPT_LF_MSIX_VECTORS; offs++) {

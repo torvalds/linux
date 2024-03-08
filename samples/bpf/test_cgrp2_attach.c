@@ -24,7 +24,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 
 #include <linux/bpf.h>
@@ -43,7 +43,7 @@ char bpf_log_buf[BPF_LOG_BUF_SIZE];
 static int prog_load(int map_fd, int verdict)
 {
 	struct bpf_insn prog[] = {
-		BPF_MOV64_REG(BPF_REG_6, BPF_REG_1), /* save r6 so it's not clobbered by BPF_CALL */
+		BPF_MOV64_REG(BPF_REG_6, BPF_REG_1), /* save r6 so it's analt clobbered by BPF_CALL */
 
 		/* Count packets */
 		BPF_MOV64_IMM(BPF_REG_0, MAP_KEY_PACKETS), /* r0 = 0 */
@@ -98,7 +98,7 @@ static int attach_filter(int cg_fd, int type, int verdict)
 				sizeof(key), sizeof(byte_cnt),
 				256, NULL);
 	if (map_fd < 0) {
-		printf("Failed to create map: '%s'\n", strerror(errno));
+		printf("Failed to create map: '%s'\n", strerror(erranal));
 		return EXIT_FAILURE;
 	}
 
@@ -106,14 +106,14 @@ static int attach_filter(int cg_fd, int type, int verdict)
 	printf("Output from kernel verifier:\n%s\n-------\n", bpf_log_buf);
 
 	if (prog_fd < 0) {
-		printf("Failed to load prog: '%s'\n", strerror(errno));
+		printf("Failed to load prog: '%s'\n", strerror(erranal));
 		return EXIT_FAILURE;
 	}
 
 	ret = bpf_prog_attach(prog_fd, cg_fd, type, 0);
 	if (ret < 0) {
 		printf("Failed to attach prog to cgroup: '%s'\n",
-		       strerror(errno));
+		       strerror(erranal));
 		return EXIT_FAILURE;
 	}
 	while (1) {
@@ -162,14 +162,14 @@ int main(int argc, char **argv)
 
 	cg_fd = open(argv[optind], O_DIRECTORY | O_RDONLY);
 	if (cg_fd < 0) {
-		printf("Failed to open cgroup path: '%s'\n", strerror(errno));
+		printf("Failed to open cgroup path: '%s'\n", strerror(erranal));
 		return EXIT_FAILURE;
 	}
 
 	if (detach_only) {
 		ret = bpf_prog_detach(cg_fd, type);
 		printf("bpf_prog_detach() returned '%s' (%d)\n",
-		       strerror(errno), errno);
+		       strerror(erranal), erranal);
 	} else
 		ret = attach_filter(cg_fd, type, verdict);
 

@@ -23,7 +23,7 @@ enum adv7842_ain_sel {
  * outputs RGB.
  */
 enum adv7842_bus_order {
-	ADV7842_BUS_ORDER_RGB,		/* No operation	*/
+	ADV7842_BUS_ORDER_RGB,		/* Anal operation	*/
 	ADV7842_BUS_ORDER_GRB,		/* Swap 1-2	*/
 	ADV7842_BUS_ORDER_RBG,		/* Swap 2-3	*/
 	ADV7842_BUS_ORDER_BGR,		/* Swap 1-3	*/
@@ -178,9 +178,9 @@ struct adv7842_platform_data {
 
 	/* HDMI free run, CP-reg 0xBA */
 	unsigned hdmi_free_run_enable:1;
-	/* 0 = Mode 0: run when there is no TMDS clock
-	   1 = Mode 1: run when there is no TMDS clock or the
-	       video resolution does not match programmed one. */
+	/* 0 = Mode 0: run when there is anal TMDS clock
+	   1 = Mode 1: run when there is anal TMDS clock or the
+	       video resolution does analt match programmed one. */
 	unsigned hdmi_free_run_mode:1;
 
 	/* SDP free run, CP-reg 0xDD */

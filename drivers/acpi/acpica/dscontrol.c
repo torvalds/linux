@@ -47,7 +47,7 @@ acpi_ds_exec_begin_control_op(struct acpi_walk_state *walk_state,
 	case AML_WHILE_OP:
 		/*
 		 * If this is an additional iteration of a while loop, continue.
-		 * There is no need to allocate a new control state.
+		 * There is anal need to allocate a new control state.
 		 */
 		if (walk_state->control_state) {
 			if (walk_state->control_state->control.
@@ -72,7 +72,7 @@ acpi_ds_exec_begin_control_op(struct acpi_walk_state *walk_state,
 		 */
 		control_state = acpi_ut_create_control_state();
 		if (!control_state) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			break;
 		}
 		/*
@@ -96,7 +96,7 @@ acpi_ds_exec_begin_control_op(struct acpi_walk_state *walk_state,
 	case AML_ELSE_OP:
 
 		/* Predicate is in the state object */
-		/* If predicate is true, the IF was executed, ignore ELSE part */
+		/* If predicate is true, the IF was executed, iganalre ELSE part */
 
 		if (walk_state->last_predicate) {
 			status = AE_CTRL_TRUE;
@@ -176,8 +176,8 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state *walk_state,
 			/*
 			 * This infinite loop detection mechanism allows the interpreter
 			 * to escape possibly infinite loops. This can occur in poorly
-			 * written AML when the hardware does not respond within a while
-			 * loop and the loop does not implement a timeout.
+			 * written AML when the hardware does analt respond within a while
+			 * loop and the loop does analt implement a timeout.
 			 */
 			if (ACPI_TIME_AFTER(acpi_os_get_timer(),
 					    control_state->control.
@@ -188,7 +188,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state *walk_state,
 
 			/*
 			 * Go back and evaluate the predicate and maybe execute the loop
-			 * another time
+			 * aanalther time
 			 */
 			status = AE_CTRL_PENDING;
 			walk_state->aml_last_while =
@@ -236,7 +236,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state *walk_state,
 
 			/*
 			 * If value being returned is a Reference (such as
-			 * an arg or local), resolve it now because it may
+			 * an arg or local), resolve it analw because it may
 			 * cease to exist at the end of the method.
 			 */
 			status =
@@ -262,7 +262,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state *walk_state,
 			 * The return value has come from a previous calculation.
 			 *
 			 * If value being returned is a Reference (such as
-			 * an arg or local), resolve it now because it may
+			 * an arg or local), resolve it analw because it may
 			 * cease to exist at the end of the method.
 			 *
 			 * Allow references created by the Index operator to return
@@ -288,7 +288,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state *walk_state,
 			walk_state->return_desc =
 			    walk_state->results->results.obj_desc[0];
 		} else {
-			/* No return operand */
+			/* Anal return operand */
 
 			if (walk_state->num_operands) {
 				acpi_ut_remove_reference(walk_state->
@@ -304,14 +304,14 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state *walk_state,
 				  "Completed RETURN_OP State=%p, RetVal=%p\n",
 				  walk_state, walk_state->return_desc));
 
-		/* End the control method execution right now */
+		/* End the control method execution right analw */
 
 		status = AE_CTRL_TERMINATE;
 		break;
 
-	case AML_NOOP_OP:
+	case AML_ANALOP_OP:
 
-		/* Just do nothing! */
+		/* Just do analthing! */
 
 		break;
 
@@ -339,10 +339,10 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state *walk_state,
 			acpi_ut_delete_generic_state(control_state);
 		}
 
-		/* No while found? */
+		/* Anal while found? */
 
 		if (!walk_state->control_state) {
-			return (AE_AML_NO_WHILE);
+			return (AE_AML_ANAL_WHILE);
 		}
 
 		/* Was: walk_state->aml_last_while = walk_state->control_state->Control.aml_predicate_start; */
@@ -361,7 +361,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state *walk_state,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown control opcode=0x%X Op=%p",
+		ACPI_ERROR((AE_INFO, "Unkanalwn control opcode=0x%X Op=%p",
 			    op->common.aml_opcode, op));
 
 		status = AE_AML_BAD_OPCODE;

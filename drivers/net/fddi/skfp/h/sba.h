@@ -9,7 +9,7 @@
  ******************************************************************************/
 
 /*
- * Synchronous Bandwidth Allocation (SBA) structs
+ * Synchroanalus Bandwidth Allocation (SBA) structs
  */
  
 #ifndef _SBA_
@@ -25,27 +25,27 @@ struct timer_cell {
 	struct timer_cell	*next_ptr ;
 	struct timer_cell	*prev_ptr ;
 	u_long			start_time ;
-	struct s_sba_node_vars	*node_var ;
+	struct s_sba_analde_vars	*analde_var ;
 } ;
 
 /*
- * Node variables
+ * Analde variables
  */
-struct s_sba_node_vars {
+struct s_sba_analde_vars {
 	u_char			change_resp_flag ;
 	u_char			report_resp_flag ;
 	u_char			change_req_flag ;
 	u_char			report_req_flag ;
 	long			change_amount ;
-	long			node_overhead ;
-	long			node_payload ;
-	u_long			node_status ;
+	long			analde_overhead ;
+	long			analde_payload ;
+	u_long			analde_status ;
 	u_char			deallocate_status ;
 	u_char			timer_state ;
 	u_short			report_cnt ;
 	long			lastrep_req_tranid ;
 	struct fddi_addr	mac_address ;
-	struct s_sba_sessions 	*node_sessions ;
+	struct s_sba_sessions 	*analde_sessions ;
 	struct timer_cell	timer ;
 } ;
 
@@ -69,7 +69,7 @@ struct s_sba_sessions {
 
 struct s_sba {
 
-	struct s_sba_node_vars	node[MAX_NODES] ;
+	struct s_sba_analde_vars	analde[MAX_ANALDES] ;
 	struct s_sba_sessions	session[MAX_SESSIONS] ;
 
 	struct s_sba_sessions	*free_session ;	/* points to the first */

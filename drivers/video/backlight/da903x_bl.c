@@ -103,7 +103,7 @@ static int da903x_backlight_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (pdev->id) {
 	case DA9030_ID_WLED:

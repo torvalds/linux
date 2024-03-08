@@ -531,7 +531,7 @@ static int max31335_read_temp(struct device *dev, enum hwmon_sensor_types type,
 	int ret;
 
 	if (type != hwmon_temp || attr != hwmon_temp_input)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = regmap_bulk_read(max31335->regmap, MAX31335_TEMP_DATA_MSB,
 			       reg, 2);
@@ -584,17 +584,17 @@ static int max31335_clkout_register(struct device *dev)
 
 	ret = devm_clk_hw_register(dev, &max31335->clkout);
 	if (ret)
-		return dev_err_probe(dev, ret, "cannot register clock\n");
+		return dev_err_probe(dev, ret, "cananalt register clock\n");
 
 	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get,
 					  &max31335->clkout);
 	if (ret)
-		return dev_err_probe(dev, ret, "cannot add hw provider\n");
+		return dev_err_probe(dev, ret, "cananalt add hw provider\n");
 
 	max31335->clkout.clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(max31335->clkout.clk))
 		return dev_err_probe(dev, PTR_ERR(max31335->clkout.clk),
-				     "cannot enable clkout\n");
+				     "cananalt enable clkout\n");
 
 	return 0;
 }
@@ -609,7 +609,7 @@ static int max31335_probe(struct i2c_client *client)
 
 	max31335 = devm_kzalloc(&client->dev, sizeof(*max31335), GFP_KERNEL);
 	if (!max31335)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	max31335->regmap = devm_regmap_init_i2c(client, &regmap_config);
 	if (IS_ERR(max31335->regmap))
@@ -649,7 +649,7 @@ static int max31335_probe(struct i2c_client *client)
 	ret = devm_rtc_nvmem_register(max31335->rtc, &max31335_nvmem_cfg);
 	if (ret)
 		return dev_err_probe(&client->dev, ret,
-				     "cannot register rtc nvmem\n");
+				     "cananalt register rtc nvmem\n");
 
 #if IS_REACHABLE(HWMON)
 	hwmon = devm_hwmon_device_register_with_info(&client->dev, client->name,
@@ -658,7 +658,7 @@ static int max31335_probe(struct i2c_client *client)
 						     NULL);
 	if (IS_ERR(hwmon))
 		return dev_err_probe(&client->dev, PTR_ERR(hwmon),
-				     "cannot register hwmon device\n");
+				     "cananalt register hwmon device\n");
 #endif
 
 	ret = max31335_trickle_charger_setup(&client->dev, max31335);

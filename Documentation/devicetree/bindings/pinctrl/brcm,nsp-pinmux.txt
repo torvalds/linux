@@ -1,4 +1,4 @@
-Broadcom NSP (Northstar plus) IOMUX Controller
+Broadcom NSP (Analrthstar plus) IOMUX Controller
 
 The NSP IOMUX controller supports group based mux configuration. In
 addition, certain pins can be muxed to GPIO function individually.
@@ -11,7 +11,7 @@ Required properties:
     Should contain the register physical address and length for each of
     GPIO_CONTROL0, GP_AUX_SEL and IPROC_CONFIG IOMUX registers
 
-Properties in subnodes:
+Properties in subanaldes:
 - function:
     The mux function to select
 
@@ -48,7 +48,7 @@ For example:
 		};
 	};
 
-List of supported functions and groups in Northstar Plus:
+List of supported functions and groups in Analrthstar Plus:
 
 "spi": "spi_grp"
 

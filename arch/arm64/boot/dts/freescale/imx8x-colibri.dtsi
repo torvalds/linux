@@ -332,9 +332,9 @@
 /* On-module eMMC */
 &usdhc1 {
 	bus-width = <8>;
-	non-removable;
-	no-sd;
-	no-sdio;
+	analn-removable;
+	anal-sd;
+	anal-sdio;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
@@ -353,7 +353,7 @@
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_gpio>;
 	pinctrl-3 = <&pinctrl_usdhc2_sleep>, <&pinctrl_usdhc2_gpio_sleep>;
 	disable-wp;
-	no-1-8-v;
+	anal-1-8-v;
 };
 
 /* TODO USB Client/Host */
@@ -377,7 +377,7 @@
 	};
 
 	/* Atmel MXT touchsceen + Capacitive Touch Adapter */
-	/* NOTE: This pingroup conflicts with pingroups
+	/* ANALTE: This pingroup conflicts with pingroups
 	 * pinctrl_pwm_b/pinctrl_pwm_c. Don't enable them
 	 * simultaneously.
 	 */
@@ -770,9 +770,9 @@
 	};
 };
 
-/* Delete peripherals which are not present on SOC, but are defined in imx8-ss-*.dtsi */
+/* Delete peripherals which are analt present on SOC, but are defined in imx8-ss-*.dtsi */
 
-/delete-node/ &adc1;
-/delete-node/ &adc1_lpcg;
-/delete-node/ &dsp;
-/delete-node/ &dsp_lpcg;
+/delete-analde/ &adc1;
+/delete-analde/ &adc1_lpcg;
+/delete-analde/ &dsp;
+/delete-analde/ &dsp_lpcg;

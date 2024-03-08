@@ -24,7 +24,7 @@ else
 	$(CONFIG_SHELL) $(srctree)/arch/powerpc/tools/relocs_check.sh "$(OBJDUMP)" "$(NM)" "$@"
 endif
 
-# `@true` prevents complaint when there is nothing to be done
+# `@true` prevents complaint when there is analthing to be done
 
 vmlinux: FORCE
 	@true

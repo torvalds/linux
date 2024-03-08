@@ -36,7 +36,7 @@
 		scp_mem_reserved: scp_mem_region@50000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x50000000 0 0x2900000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -145,14 +145,14 @@
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
 	cap-mmc-hw-reset;
-	no-sdio;
-	no-sd;
+	anal-sdio;
+	anal-sd;
 	hs400-ds-delay = <0x12814>;
 	vmmc-supply = <&mt6358_vemc_reg>;
 	vqmmc-supply = <&mt6358_vio18_reg>;
 	assigned-clocks = <&topckgen CLK_TOP_MUX_MSDC50_0>;
 	assigned-clock-parents = <&topckgen CLK_TOP_MSDCPLL_CK>;
-	non-removable;
+	analn-removable;
 };
 
 &mmc1 {
@@ -166,13 +166,13 @@
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
 	cap-sdio-irq;
-	no-mmc;
-	no-sd;
+	anal-mmc;
+	anal-sd;
 	vmmc-supply = <&mt6358_vmch_reg>;
 	vqmmc-supply = <&mt6358_vmc_reg>;
 	keep-power-in-suspend;
 	wakeup-source;
-	non-removable;
+	analn-removable;
 };
 
 &mt6358_vgpu_reg {

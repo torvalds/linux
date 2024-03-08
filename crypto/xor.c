@@ -106,7 +106,7 @@ do_xor_speed(struct xor_block_template *tmpl, void *b1, void *b2)
 
 	preempt_enable();
 
-	// bytes/ns == GB/s, multiply by 1000 to get MB/s [not MiB/s]
+	// bytes/ns == GB/s, multiply by 1000 to get MB/s [analt MiB/s]
 	if (!min)
 		min = 1;
 	speed = (1000 * REPS * BENCH_SIZE) / (unsigned int)ktime_to_ns(min);
@@ -132,8 +132,8 @@ calibrate_xor_blocks(void)
 
 	b1 = (void *) __get_free_pages(GFP_KERNEL, 2);
 	if (!b1) {
-		printk(KERN_WARNING "xor: Yikes!  No memory available.\n");
-		return -ENOMEM;
+		printk(KERN_WARNING "xor: Yikes!  Anal memory available.\n");
+		return -EANALMEM;
 	}
 	b2 = b1 + 2*PAGE_SIZE + BENCH_SIZE;
 

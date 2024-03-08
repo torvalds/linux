@@ -10,7 +10,7 @@ maintainers:
   - Sai Prakash Ranjan <saiprakash.ranjan@codeaurora.org>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^(watchdog|timer)@[0-9a-f]+$"
 
   compatible:

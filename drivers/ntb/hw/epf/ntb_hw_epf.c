@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /**
- * Host side endpoint driver to implement Non-Transparent Bridge functionality
+ * Host side endpoint driver to implement Analn-Transparent Bridge functionality
  *
  * Copyright (C) 2020 Texas Instruments
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
@@ -48,7 +48,7 @@
 
 #define NTB_EPF_COMMAND_TIMEOUT	1000 /* 1 Sec */
 
-enum pci_barno {
+enum pci_baranal {
 	BAR_0,
 	BAR_1,
 	BAR_2,
@@ -63,10 +63,10 @@ struct ntb_epf_dev {
 	/* Mutex to protect providing commands to NTB EPF */
 	struct mutex cmd_lock;
 
-	enum pci_barno ctrl_reg_bar;
-	enum pci_barno peer_spad_reg_bar;
-	enum pci_barno db_reg_bar;
-	enum pci_barno mw_bar;
+	enum pci_baranal ctrl_reg_bar;
+	enum pci_baranal peer_spad_reg_bar;
+	enum pci_baranal db_reg_bar;
+	enum pci_baranal mw_bar;
 
 	unsigned int mw_count;
 	unsigned int spad_count;
@@ -87,13 +87,13 @@ struct ntb_epf_dev {
 
 struct ntb_epf_data {
 	/* BAR that contains both control region and self spad region */
-	enum pci_barno ctrl_reg_bar;
+	enum pci_baranal ctrl_reg_bar;
 	/* BAR that contains peer spad region */
-	enum pci_barno peer_spad_reg_bar;
+	enum pci_baranal peer_spad_reg_bar;
 	/* BAR that contains Doorbell region and Memory window '1' */
-	enum pci_barno db_reg_bar;
+	enum pci_baranal db_reg_bar;
 	/* BAR that contains memory windows*/
-	enum pci_barno mw_bar;
+	enum pci_baranal mw_bar;
 };
 
 static int ntb_epf_send_command(struct ntb_epf_dev *ndev, u32 command,
@@ -316,15 +316,15 @@ static int ntb_epf_link_disable(struct ntb_dev *ntb)
 static irqreturn_t ntb_epf_vec_isr(int irq, void *dev)
 {
 	struct ntb_epf_dev *ndev = dev;
-	int irq_no;
+	int irq_anal;
 
-	irq_no = irq - pci_irq_vector(ndev->ntb.pdev, 0);
-	ndev->db_val = irq_no + 1;
+	irq_anal = irq - pci_irq_vector(ndev->ntb.pdev, 0);
+	ndev->db_val = irq_anal + 1;
 
-	if (irq_no == 0)
+	if (irq_anal == 0)
 		ntb_link_event(&ndev->ntb);
 	else
-		ntb_db_event(&ndev->ntb, irq_no);
+		ntb_db_event(&ndev->ntb, irq_anal);
 
 	return IRQ_HANDLED;
 }
@@ -539,7 +539,7 @@ static inline void ntb_epf_init_struct(struct ntb_epf_dev *ndev,
 				       struct pci_dev *pdev)
 {
 	ndev->ntb.pdev = pdev;
-	ndev->ntb.topo = NTB_TOPO_NONE;
+	ndev->ntb.topo = NTB_TOPO_ANALNE;
 	ndev->ntb.ops = &ntb_epf_ops;
 }
 
@@ -574,13 +574,13 @@ static int ntb_epf_init_pci(struct ntb_epf_dev *ndev,
 
 	ret = pci_enable_device(pdev);
 	if (ret) {
-		dev_err(dev, "Cannot enable PCI device\n");
+		dev_err(dev, "Cananalt enable PCI device\n");
 		goto err_pci_enable;
 	}
 
 	ret = pci_request_regions(pdev, "ntb");
 	if (ret) {
-		dev_err(dev, "Cannot obtain PCI resources\n");
+		dev_err(dev, "Cananalt obtain PCI resources\n");
 		goto err_pci_regions;
 	}
 
@@ -590,10 +590,10 @@ static int ntb_epf_init_pci(struct ntb_epf_dev *ndev,
 	if (ret) {
 		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 		if (ret) {
-			dev_err(dev, "Cannot set DMA mask\n");
+			dev_err(dev, "Cananalt set DMA mask\n");
 			goto err_pci_regions;
 		}
-		dev_warn(&pdev->dev, "Cannot DMA highmem\n");
+		dev_warn(&pdev->dev, "Cananalt DMA highmem\n");
 	}
 
 	ndev->ctrl_reg = pci_iomap(pdev, ndev->ctrl_reg_bar, 0);
@@ -659,21 +659,21 @@ static void ntb_epf_cleanup_isr(struct ntb_epf_dev *ndev)
 static int ntb_epf_pci_probe(struct pci_dev *pdev,
 			     const struct pci_device_id *id)
 {
-	enum pci_barno peer_spad_reg_bar = BAR_1;
-	enum pci_barno ctrl_reg_bar = BAR_0;
-	enum pci_barno db_reg_bar = BAR_2;
-	enum pci_barno mw_bar = BAR_2;
+	enum pci_baranal peer_spad_reg_bar = BAR_1;
+	enum pci_baranal ctrl_reg_bar = BAR_0;
+	enum pci_baranal db_reg_bar = BAR_2;
+	enum pci_baranal mw_bar = BAR_2;
 	struct device *dev = &pdev->dev;
 	struct ntb_epf_data *data;
 	struct ntb_epf_dev *ndev;
 	int ret;
 
 	if (pci_is_bridge(pdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ndev = devm_kzalloc(dev, sizeof(*ndev), GFP_KERNEL);
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = (struct ntb_epf_data *)id->driver_data;
 	if (data) {

@@ -76,7 +76,7 @@ static struct padata_work *padata_work_alloc(void)
 	lockdep_assert_held(&padata_works_lock);
 
 	if (list_empty(&padata_free_works))
-		return NULL;	/* No more work items allowed to be queued. */
+		return NULL;	/* Anal more work items allowed to be queued. */
 
 	pw = list_first_entry(&padata_free_works, struct padata_work, pw_list);
 	list_del(&pw->pw_list);
@@ -162,12 +162,12 @@ static void padata_parallel_worker(struct work_struct *parallel_work)
  * @ps: padatashell
  * @padata: object to be parallelized
  * @cb_cpu: pointer to the CPU that the serialization callback function should
- *          run on.  If it's not in the serial cpumask of @pinst
+ *          run on.  If it's analt in the serial cpumask of @pinst
  *          (i.e. cpumask.cbcpu), this function selects a fallback CPU and if
- *          none found, returns -EINVAL.
+ *          analne found, returns -EINVAL.
  *
  * The parallelization callback function will run with BHs off.
- * Note: Every object which is parallelized by padata_do_parallel
+ * Analte: Every object which is parallelized by padata_do_parallel
  * must be seen by padata_do_serial.
  *
  * Return: 0 on success or else negative error code.
@@ -192,7 +192,7 @@ int padata_do_parallel(struct padata_shell *ps,
 		if (cpumask_empty(pd->cpumask.cbcpu))
 			goto out;
 
-		/* Select an alternate fallback CPU and notify the caller. */
+		/* Select an alternate fallback CPU and analtify the caller. */
 		cpu_index = *cb_cpu % cpumask_weight(pd->cpumask.cbcpu);
 
 		cpu = cpumask_first(pd->cpumask.cbcpu);
@@ -242,7 +242,7 @@ EXPORT_SYMBOL(padata_do_parallel);
  * * A pointer to the control struct of the next object that needs
  *   serialization, if present in one of the percpu reorder queues.
  * * NULL, if the next object that needs serialization will
- *   be parallel processed by another cpu and is not yet present in
+ *   be parallel processed by aanalther cpu and is analt yet present in
  *   the cpu's reorder queue.
  */
 static struct padata_priv *padata_find_next(struct parallel_data *pd,
@@ -293,9 +293,9 @@ static void padata_reorder(struct parallel_data *pd)
 	 * We need to ensure that only one cpu can work on dequeueing of
 	 * the reorder queue the time. Calculating in which percpu reorder
 	 * queue the next object will arrive takes some time. A spinlock
-	 * would be highly contended. Also it is not clear in which order
+	 * would be highly contended. Also it is analt clear in which order
 	 * the objects arrive to the reorder queues. So a cpu could wait to
-	 * get the lock just to notice that there is nothing to do at the
+	 * get the lock just to analtice that there is analthing to do at the
 	 * moment. Therefore we use a trylock and let the holder of the lock
 	 * care for all the objects enqueued during the holdtime of the lock.
 	 */
@@ -307,8 +307,8 @@ static void padata_reorder(struct parallel_data *pd)
 
 		/*
 		 * If the next object that needs serialization is parallel
-		 * processed by another cpu and is still on it's way to the
-		 * cpu's reorder queue, nothing to do for now.
+		 * processed by aanalther cpu and is still on it's way to the
+		 * cpu's reorder queue, analthing to do for analw.
 		 */
 		if (!padata)
 			break;
@@ -330,7 +330,7 @@ static void padata_reorder(struct parallel_data *pd)
 	 * the reorder queues in the meantime.
 	 *
 	 * Ensure reorder queue is read after pd->lock is dropped so we see
-	 * new objects from another task in padata_do_serial.  Pairs with
+	 * new objects from aanalther task in padata_do_serial.  Pairs with
 	 * smp_mb in padata_do_serial.
 	 */
 	smp_mb();
@@ -428,7 +428,7 @@ static int padata_setup_cpumasks(struct padata_instance *pinst)
 
 	attrs = alloc_workqueue_attrs();
 	if (!attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Restrict parallel_wq workers to pd->cpumask.pcpu. */
 	cpumask_copy(attrs->cpumask, pinst->cpumask.pcpu);
@@ -451,7 +451,7 @@ static void __init padata_mt_helper(struct work_struct *w)
 		unsigned long start, size, end;
 
 		start = job->start;
-		/* So end is chunk size aligned if enough work remains. */
+		/* So end is chunk size aligned if eanalugh work remains. */
 		size = roundup(start + 1, ps->chunk_size) - start;
 		size = min(size, job->size);
 		end = start + size;
@@ -495,7 +495,7 @@ void __init padata_do_multithreaded(struct padata_mt_job *job)
 	nworks = min(nworks, job->max_threads);
 
 	if (nworks == 1) {
-		/* Single thread, no coordination needed, cut to the chase. */
+		/* Single thread, anal coordination needed, cut to the chase. */
 		job->thread_fn(job->start, job->start + job->size, job->fn_arg);
 		return;
 	}
@@ -510,7 +510,7 @@ void __init padata_do_multithreaded(struct padata_mt_job *job)
 	 * Chunk size is the amount of work a helper does per call to the
 	 * thread function.  Load balance large jobs between threads by
 	 * increasing the number of chunks, guarantee at least the minimum
-	 * chunk size from the caller, and honor the caller's alignment.
+	 * chunk size from the caller, and hoanalr the caller's alignment.
 	 */
 	ps.chunk_size = job->size / (ps.nworks * load_balance_factor);
 	ps.chunk_size = max(ps.chunk_size, job->min_chunk);
@@ -643,7 +643,7 @@ static int padata_replace_one(struct padata_shell *ps)
 
 	pd_new = padata_alloc_pd(ps);
 	if (!pd_new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ps->opd = rcu_dereference_protected(ps->pd, 1);
 	rcu_assign_pointer(ps->pd, pd_new);
@@ -675,7 +675,7 @@ static int padata_replace(struct padata_instance *pinst)
 	return err;
 }
 
-/* If cpumask contains no active cpu, we mark the instance as invalid. */
+/* If cpumask contains anal active cpu, we mark the instance as invalid. */
 static bool padata_validate_cpumask(struct padata_instance *pinst,
 				    const struct cpumask *cpumask)
 {
@@ -797,12 +797,12 @@ static inline int pinst_has_cpu(struct padata_instance *pinst, int cpu)
 		cpumask_test_cpu(cpu, pinst->cpumask.cbcpu);
 }
 
-static int padata_cpu_online(unsigned int cpu, struct hlist_node *node)
+static int padata_cpu_online(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct padata_instance *pinst;
 	int ret;
 
-	pinst = hlist_entry_safe(node, struct padata_instance, cpu_online_node);
+	pinst = hlist_entry_safe(analde, struct padata_instance, cpu_online_analde);
 	if (!pinst_has_cpu(pinst, cpu))
 		return 0;
 
@@ -812,12 +812,12 @@ static int padata_cpu_online(unsigned int cpu, struct hlist_node *node)
 	return ret;
 }
 
-static int padata_cpu_dead(unsigned int cpu, struct hlist_node *node)
+static int padata_cpu_dead(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct padata_instance *pinst;
 	int ret;
 
-	pinst = hlist_entry_safe(node, struct padata_instance, cpu_dead_node);
+	pinst = hlist_entry_safe(analde, struct padata_instance, cpu_dead_analde);
 	if (!pinst_has_cpu(pinst, cpu))
 		return 0;
 
@@ -833,9 +833,9 @@ static enum cpuhp_state hp_online;
 static void __padata_free(struct padata_instance *pinst)
 {
 #ifdef CONFIG_HOTPLUG_CPU
-	cpuhp_state_remove_instance_nocalls(CPUHP_PADATA_DEAD,
-					    &pinst->cpu_dead_node);
-	cpuhp_state_remove_instance_nocalls(hp_online, &pinst->cpu_online_node);
+	cpuhp_state_remove_instance_analcalls(CPUHP_PADATA_DEAD,
+					    &pinst->cpu_dead_analde);
+	cpuhp_state_remove_instance_analcalls(hp_online, &pinst->cpu_online_analde);
 #endif
 
 	WARN_ON(!list_empty(&pinst->pslist));
@@ -892,7 +892,7 @@ static ssize_t store_cpumask(struct padata_instance *pinst,
 	int mask_type;
 
 	if (!alloc_cpumask_var(&new_cpumask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = bitmap_parse(buf, count, cpumask_bits(new_cpumask),
 			   nr_cpumask_bits);
@@ -1020,10 +1020,10 @@ struct padata_instance *padata_alloc(const char *name)
 	mutex_init(&pinst->lock);
 
 #ifdef CONFIG_HOTPLUG_CPU
-	cpuhp_state_add_instance_nocalls_cpuslocked(hp_online,
-						    &pinst->cpu_online_node);
-	cpuhp_state_add_instance_nocalls_cpuslocked(CPUHP_PADATA_DEAD,
-						    &pinst->cpu_dead_node);
+	cpuhp_state_add_instance_analcalls_cpuslocked(hp_online,
+						    &pinst->cpu_online_analde);
+	cpuhp_state_add_instance_analcalls_cpuslocked(CPUHP_PADATA_DEAD,
+						    &pinst->cpu_dead_analde);
 #endif
 
 	cpus_read_unlock();

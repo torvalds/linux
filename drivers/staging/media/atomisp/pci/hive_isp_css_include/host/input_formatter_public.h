@@ -23,7 +23,7 @@
 
  \param	ID[in]				INPUT_FORMATTER identifier
 
- \return none, reset(INPUT_FORMATTER[ID])
+ \return analne, reset(INPUT_FORMATTER[ID])
  */
 void input_formatter_rst(
     const input_formatter_ID_t		ID);
@@ -40,7 +40,7 @@ void input_formatter_rst(
 	  enabling blocking the inputformatter will wait on the first presented
 	  frame, thus avoiding race in the simulation setup.
 
- \return none, INPUT_FORMATTER[ID].blocking_mode = enable
+ \return analne, INPUT_FORMATTER[ID].blocking_mode = enable
  */
 void input_formatter_set_fifo_blocking_mode(
     const input_formatter_ID_t		ID,
@@ -60,7 +60,7 @@ unsigned int input_formatter_get_alignment(
  \param	ID[in]				INPUT_FORMATTER identifier
  \param	state[out]			input formatter switch state structure
 
- \return none, state = INPUT_FORMATTER[ID].switch_state
+ \return analne, state = INPUT_FORMATTER[ID].switch_state
  */
 void input_formatter_get_switch_state(
     const input_formatter_ID_t		ID,
@@ -71,7 +71,7 @@ void input_formatter_get_switch_state(
  \param	ID[in]				INPUT_FORMATTER identifier
  \param	state[out]			input formatter state structure
 
- \return none, state = INPUT_FORMATTER[ID].state
+ \return analne, state = INPUT_FORMATTER[ID].state
  */
 void input_formatter_get_state(
     const input_formatter_ID_t		ID,
@@ -82,7 +82,7 @@ void input_formatter_get_state(
  \param	ID[in]				INPUT_FORMATTER identifier
  \param	state[out]			input formatter state structure
 
- \return none, state = INPUT_FORMATTER[ID].state
+ \return analne, state = INPUT_FORMATTER[ID].state
  */
 void input_formatter_bin_get_state(
     const input_formatter_ID_t		ID,
@@ -94,7 +94,7 @@ void input_formatter_bin_get_state(
  \param	reg_addr[in]		register byte address
  \param value[in]			The data to be written
 
- \return none, INPUT_FORMATTER[ID].ctrl[reg] = value
+ \return analne, INPUT_FORMATTER[ID].ctrl[reg] = value
  */
 STORAGE_CLASS_INPUT_FORMATTER_H void input_formatter_reg_store(
     const input_formatter_ID_t	ID,

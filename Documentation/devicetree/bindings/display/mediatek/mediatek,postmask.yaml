@@ -13,7 +13,7 @@ maintainers:
 description: |
   Mediatek display postmask, namely POSTMASK, provides round corner pattern
   generation.
-  POSTMASK device node must be siblings to the central MMSYS_CONFIG node.
+  POSTMASK device analde must be siblings to the central MMSYS_CONFIG analde.
   For a description of the MMSYS_CONFIG binding, see
   Documentation/devicetree/bindings/arm/mediatek/mediatek,mmsys.yaml
   for details.

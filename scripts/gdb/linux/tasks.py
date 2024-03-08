@@ -26,7 +26,7 @@ def task_lists():
 
     while True:
         thread_head = t['signal']['thread_head']
-        for thread in lists.list_for_each_entry(thread_head, task_ptr_type, 'thread_node'):
+        for thread in lists.list_for_each_entry(thread_head, task_ptr_type, 'thread_analde'):
             yield thread
 
         t = utils.container_of(t['tasks']['next'],
@@ -39,7 +39,7 @@ def get_task_by_pid(pid):
     for task in task_lists():
         if int(task['pid']) == pid:
             return task
-    return None
+    return Analne
 
 
 class LxTaskByPidFunc(gdb.Function):
@@ -56,7 +56,7 @@ return that task_struct variable which PID matches."""
         if task:
             return task.dereference()
         else:
-            raise gdb.GdbError("No task of PID " + str(pid))
+            raise gdb.GdbError("Anal task of PID " + str(pid))
 
 
 LxTaskByPidFunc()
@@ -121,7 +121,7 @@ variable."""
         if task:
             return get_thread_info(task.dereference())
         else:
-            raise gdb.GdbError("No task of PID " + str(pid))
+            raise gdb.GdbError("Anal task of PID " + str(pid))
 
 
 LxThreadInfoByPidFunc()

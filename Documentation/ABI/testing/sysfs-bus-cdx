@@ -77,7 +77,7 @@ Contact:	nipun.gupta@amd.com
 Description:
 		Writing y/1/on to this file resets the CDX device or all devices
 		on the bus. On resetting the device, the corresponding driver is
-		notified twice, once before the device is being reset, and again
+		analtified twice, once before the device is being reset, and again
 		after the reset has been complete.
 
 		For example::
@@ -91,7 +91,7 @@ Description:
 		Writing y/1/on to this file removes the corresponding
 		device from the CDX bus. If the device is to be reconfigured
 		reconfigured in the Hardware, the device can be removed, so
-		that the device driver does not access the device while it is
+		that the device driver does analt access the device while it is
 		being reconfigured.
 
 		For example::

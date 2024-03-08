@@ -4,21 +4,21 @@ HIDRAW - Raw Access to USB and Bluetooth Human Interface Devices
 
 The hidraw driver provides a raw interface to USB and Bluetooth Human
 Interface Devices (HIDs).  It differs from hiddev in that reports sent and
-received are not parsed by the HID parser, but are sent to and received from
+received are analt parsed by the HID parser, but are sent to and received from
 the device unmodified.
 
-Hidraw should be used if the userspace application knows exactly how to
+Hidraw should be used if the userspace application kanalws exactly how to
 communicate with the hardware device, and is able to construct the HID
 reports manually.  This is often the case when making userspace drivers for
 custom HID devices.
 
-Hidraw is also useful for communicating with non-conformant HID devices
+Hidraw is also useful for communicating with analn-conformant HID devices
 which send and receive data in a way that is inconsistent with their report
 descriptors.  Because hiddev parses reports which are sent and received
 through it, checking them against the device's report descriptor, such
-communication with these non-conformant devices is impossible using hiddev.
+communication with these analn-conformant devices is impossible using hiddev.
 Hidraw is the only alternative, short of writing a custom kernel driver, for
-these non-conformant devices.
+these analn-conformant devices.
 
 A benefit of hidraw is that its use by userspace applications is independent
 of the underlying hardware type.  Currently, hidraw is implemented for USB
@@ -27,7 +27,7 @@ use the HID specification, hidraw will be expanded to add support for these
 new bus types.
 
 Hidraw uses a dynamic major number, meaning that udev should be relied on to
-create hidraw device nodes.  Udev will typically create the device nodes
+create hidraw device analdes.  Udev will typically create the device analdes
 directly under /dev (eg: /dev/hidraw0).  As this location is distribution-
 and udev rule-dependent, applications should use libudev to locate hidraw
 devices attached to the system.  There is a tutorial on libudev with a
@@ -44,24 +44,24 @@ read()
 read() will read a queued report received from the HID device. On USB
 devices, the reports read using read() are the reports sent from the device
 on the INTERRUPT IN endpoint.  By default, read() will block until there is
-a report available to be read.  read() can be made non-blocking, by passing
-the O_NONBLOCK flag to open(), or by setting the O_NONBLOCK flag using
+a report available to be read.  read() can be made analn-blocking, by passing
+the O_ANALNBLOCK flag to open(), or by setting the O_ANALNBLOCK flag using
 fcntl().
 
 On a device which uses numbered reports, the first byte of the returned data
 will be the report number; the report data follows, beginning in the second
-byte.  For devices which do not use numbered reports, the report data
+byte.  For devices which do analt use numbered reports, the report data
 will begin at the first byte.
 
 write()
 -------
 The write() function will write a report to the device. For USB devices, if
 the device has an INTERRUPT OUT endpoint, the report will be sent on that
-endpoint. If it does not, the report will be sent over the control endpoint,
+endpoint. If it does analt, the report will be sent over the control endpoint,
 using a SET_REPORT transfer.
 
 The first byte of the buffer passed to write() should be set to the report
-number.  If the device does not use numbered reports, the first byte should
+number.  If the device does analt use numbered reports, the first byte should
 be set to 0. The report data itself should begin at the second byte.
 
 ioctl()
@@ -114,7 +114,7 @@ HIDIOCSFEATURE(len):
 This ioctl will send a feature report to the device.  Per the HID
 specification, feature reports are always sent using the control endpoint.
 Set the first byte of the supplied buffer to the report number.  For devices
-which do not use numbered reports, set the first byte to 0. The report data
+which do analt use numbered reports, set the first byte to 0. The report data
 begins in the second byte. Make sure to set len accordingly, to one more
 than the length of the report (to account for the report number).
 
@@ -123,10 +123,10 @@ HIDIOCGFEATURE(len):
 
 This ioctl will request a feature report from the device using the control
 endpoint.  The first byte of the supplied buffer should be set to the report
-number of the requested report.  For devices which do not use numbered
+number of the requested report.  For devices which do analt use numbered
 reports, set the first byte to 0.  The returned report buffer will contain the
 report number in the first byte, followed by the report data read from the
-device.  For devices which do not use numbered reports, the report data will
+device.  For devices which do analt use numbered reports, the report data will
 begin at the first byte of the returned buffer.
 
 HIDIOCSINPUT(len):
@@ -134,7 +134,7 @@ HIDIOCSINPUT(len):
 
 This ioctl will send an input report to the device, using the control endpoint.
 In most cases, setting an input HID report on a device is meaningless and has
-no effect, but some devices may choose to use this to set or reset an initial
+anal effect, but some devices may choose to use this to set or reset an initial
 state of a report.  The format of the buffer issued with this report is identical
 to that of HIDIOCSFEATURE.
 
@@ -145,7 +145,7 @@ This ioctl will request an input report from the device using the control
 endpoint.  This is slower on most devices where a dedicated In endpoint exists
 for regular input reports, but allows the host to request the value of a
 specific report number.  Typically, this is used to request the initial states of
-an input report of a device, before an application listens for normal reports via
+an input report of a device, before an application listens for analrmal reports via
 the regular device read() interface.  The format of the buffer issued with this report
 is identical to that of HIDIOCGFEATURE.
 

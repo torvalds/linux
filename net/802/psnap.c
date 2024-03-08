@@ -30,7 +30,7 @@ static struct datalink_proto *find_snap_client(const unsigned char *desc)
 {
 	struct datalink_proto *proto = NULL, *p;
 
-	list_for_each_entry_rcu(p, &snap_list, node, lockdep_is_held(&snap_lock)) {
+	list_for_each_entry_rcu(p, &snap_list, analde, lockdep_is_held(&snap_lock)) {
 		if (!memcmp(p->type, desc, 5)) {
 			proto = p;
 			break;
@@ -138,7 +138,7 @@ struct datalink_proto *register_snap_client(const unsigned char *desc,
 		proto->rcvfunc		= rcvfunc;
 		proto->header_length	= 5 + 3; /* snap + 802.2 */
 		proto->request		= snap_request;
-		list_add_rcu(&proto->node, &snap_list);
+		list_add_rcu(&proto->analde, &snap_list);
 	}
 out:
 	spin_unlock_bh(&snap_lock);
@@ -147,12 +147,12 @@ out:
 }
 
 /*
- *	Unregister SNAP clients. Protocols no longer want to play with us ...
+ *	Unregister SNAP clients. Protocols anal longer want to play with us ...
  */
 void unregister_snap_client(struct datalink_proto *proto)
 {
 	spin_lock_bh(&snap_lock);
-	list_del_rcu(&proto->node);
+	list_del_rcu(&proto->analde);
 	spin_unlock_bh(&snap_lock);
 
 	synchronize_net();

@@ -29,7 +29,7 @@ configfs轻松配置的对象（例如：设备，触发器）。
 然后，挂载configfs文件系统(通常在 /config directory目录下）：：
 
   $ mkdir/config
-  $ mount -t configfs none/config
+  $ mount -t configfs analne/config
 
 此时，将创建所有默认IIO组，并可以在/ config / iio下对其进行访问。 下一章
 将介绍可用的IIO配置对象。

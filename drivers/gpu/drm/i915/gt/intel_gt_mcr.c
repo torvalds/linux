@@ -32,7 +32,7 @@
  * fused off or currently powered down due to power gating, the MMIO operation
  * is "terminated" by the hardware.  Terminated read operations will return a
  * value of zero and terminated unicast write operations will be silently
- * ignored.
+ * iganalred.
  */
 
 #define HAS_MSLICE_STEERING(i915)	(INTEL_INFO(i915)->has_mslice_steering)
@@ -83,7 +83,7 @@ static const struct intel_mmio_range dg2_lncf_steering_table[] = {
 
 /*
  * We have several types of MCR registers on PVC where steering to (0,0)
- * will always provide us with a non-terminated value.  We'll stick them
+ * will always provide us with a analn-terminated value.  We'll stick them
  * all in the same table for simplicity.
  */
 static const struct intel_mmio_range pvc_instance0_steering_table[] = {
@@ -107,9 +107,9 @@ static const struct intel_mmio_range xelpg_instance0_steering_table[] = {
 	{ 0x001000, 0x001FFF },         /* SQIDI */
 	{ 0x004000, 0x0048FF },         /* GAM */
 	{ 0x008700, 0x0087FF },         /* SQIDI */
-	{ 0x00B000, 0x00B0FF },         /* NODE */
+	{ 0x00B000, 0x00B0FF },         /* ANALDE */
 	{ 0x00C800, 0x00CFFF },         /* GAM */
-	{ 0x00D880, 0x00D8FF },         /* NODE */
+	{ 0x00D880, 0x00D8FF },         /* ANALDE */
 	{ 0x00DD00, 0x00DDFF },         /* OAAL2 */
 	{},
 };
@@ -191,7 +191,7 @@ void intel_gt_mcr_init(struct intel_gt *gt)
 		gt->steering_table[MSLICE] = xehpsdv_mslice_steering_table;
 		gt->steering_table[LNCF] = dg2_lncf_steering_table;
 		/*
-		 * No need to hook up the GAM table since it has a dedicated
+		 * Anal need to hook up the GAM table since it has a dedicated
 		 * steering control register on DG2 and can use implicit
 		 * steering.
 		 */
@@ -236,7 +236,7 @@ static i915_reg_t mcr_reg_cast(const i915_mcr_reg_t mcr)
  * @rw_flag: FW_REG_READ for read access or FW_REG_WRITE for write access
  * @group: group number (documented as "sliceid" on older platforms)
  * @instance: instance number (documented as "subsliceid" on older platforms)
- * @value: register value to be written (ignored for read)
+ * @value: register value to be written (iganalred for read)
  *
  * Context: The caller must hold the MCR lock
  * Return: 0 for write access. register value for read access.
@@ -258,7 +258,7 @@ static u32 rw_with_mcr_steering_fw(struct intel_gt *gt,
 		 * (see comment about Wa_22013088509 below) and only change it
 		 * to unicast mode when doing writes of a specific instance.
 		 *
-		 * No need to save old steering reg value.
+		 * Anal need to save old steering reg value.
 		 */
 		intel_uncore_write_fw(uncore, MTL_MCR_SELECTOR,
 				      REG_FIELD_PREP(MTL_MCR_GROUPID, group) |
@@ -275,7 +275,7 @@ static u32 rw_with_mcr_steering_fw(struct intel_gt *gt,
 		 * matter for read operations (which always return the value
 		 * from a single register instance regardless of how that bit
 		 * is set), but some platforms have a workaround requiring us
-		 * to remain in multicast mode for reads.  There's no real
+		 * to remain in multicast mode for reads.  There's anal real
 		 * downside to this, so we'll just go ahead and do so on all
 		 * platforms; we'll only clear the multicast bit from the mask
 		 * when exlicitly doing a write operation.
@@ -356,10 +356,10 @@ static u32 rw_with_mcr_steering(struct intel_gt *gt,
  *
  * Performs locking to protect the steering for the duration of an MCR
  * operation.  On MTL and beyond, a hardware lock will also be taken to
- * serialize access not only for the driver, but also for external hardware and
+ * serialize access analt only for the driver, but also for external hardware and
  * firmware agents.
  *
- * Context: Takes gt->mcr_lock.  uncore->lock should *not* be held when this
+ * Context: Takes gt->mcr_lock.  uncore->lock should *analt* be held when this
  *          function is called, although it may be acquired after this
  *          function call.
  */
@@ -369,10 +369,10 @@ void intel_gt_mcr_lock(struct intel_gt *gt, unsigned long *flags)
 	unsigned long __flags;
 	int err = 0;
 
-	lockdep_assert_not_held(&gt->uncore->lock);
+	lockdep_assert_analt_held(&gt->uncore->lock);
 
 	/*
-	 * Starting with MTL, we need to coordinate not only with other
+	 * Starting with MTL, we need to coordinate analt only with other
 	 * driver threads, but also with hardware/firmware agents.  A dedicated
 	 * locking register is used.
 	 */
@@ -408,12 +408,12 @@ void intel_gt_mcr_lock(struct intel_gt *gt, unsigned long *flags)
 
 	/*
 	 * In theory we should never fail to acquire the HW semaphore; this
-	 * would indicate some hardware/firmware is misbehaving and not
+	 * would indicate some hardware/firmware is misbehaving and analt
 	 * releasing it properly.
 	 */
 	if (err == -ETIMEDOUT) {
 		gt_err_ratelimited(gt, "hardware MCR steering semaphore timed out");
-		add_taint_for_CI(gt->i915, TAINT_WARN);  /* CI is now unreliable */
+		add_taint_for_CI(gt->i915, TAINT_WARN);  /* CI is analw unreliable */
 	}
 }
 
@@ -454,7 +454,7 @@ void intel_gt_mcr_lock_sanitize(struct intel_gt *gt)
 	 * This gets called at load/resume time, so we shouldn't be
 	 * racing with other driver threads grabbing the mcr lock.
 	 */
-	lockdep_assert_not_held(&gt->mcr_lock);
+	lockdep_assert_analt_held(&gt->mcr_lock);
 
 	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 70))
 		intel_uncore_write_fw(gt->uncore, MTL_STEER_SEMAPHORE, 0x1);
@@ -516,7 +516,7 @@ void intel_gt_mcr_multicast_write(struct intel_gt *gt,
 	intel_gt_mcr_lock(gt, &flags);
 
 	/*
-	 * Ensure we have multicast behavior, just in case some non-i915 agent
+	 * Ensure we have multicast behavior, just in case some analn-i915 agent
 	 * left the hardware in unicast mode.
 	 */
 	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 70))
@@ -545,7 +545,7 @@ void intel_gt_mcr_multicast_write_fw(struct intel_gt *gt, i915_mcr_reg_t reg, u3
 	lockdep_assert_held(&gt->mcr_lock);
 
 	/*
-	 * Ensure we have multicast behavior, just in case some non-i915 agent
+	 * Ensure we have multicast behavior, just in case some analn-i915 agent
 	 * left the hardware in unicast mode.
 	 */
 	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 70))
@@ -563,7 +563,7 @@ void intel_gt_mcr_multicast_write_fw(struct intel_gt *gt, i915_mcr_reg_t reg, u3
  *
  * Performs a read-modify-write on an MCR register in a multicast manner.
  * This operation only makes sense on MCR registers where all instances are
- * expected to have the same value.  The read will target any non-terminated
+ * expected to have the same value.  The read will target any analn-terminated
  * instance and the write will be applied to all instances.
  *
  * This function assumes the caller is already holding any necessary forcewake
@@ -594,7 +594,7 @@ u32 intel_gt_mcr_multicast_rmw(struct intel_gt *gt, i915_mcr_reg_t reg,
  * Determines whether @reg needs explicit steering of a specific type for
  * reads.
  *
- * Returns false if @reg does not belong to a register range of the given
+ * Returns false if @reg does analt belong to a register range of the given
  * steering type, or if the default (subslice-based) steering IDs are suitable
  * for @type steering too.
  */
@@ -620,16 +620,16 @@ static bool reg_needs_read_steering(struct intel_gt *gt,
 }
 
 /*
- * get_nonterminated_steering - determines valid IDs for a class of MCR steering
+ * get_analnterminated_steering - determines valid IDs for a class of MCR steering
  * @gt: GT structure
  * @type: multicast register type
  * @group: Group ID returned
  * @instance: Instance ID returned
  *
  * Determines group and instance values that will steer reads of the specified
- * MCR class to a non-terminated instance.
+ * MCR class to a analn-terminated instance.
  */
-static void get_nonterminated_steering(struct intel_gt *gt,
+static void get_analnterminated_steering(struct intel_gt *gt,
 				       enum intel_steering_type type,
 				       u8 *group, u8 *instance)
 {
@@ -666,7 +666,7 @@ static void get_nonterminated_steering(struct intel_gt *gt,
 	case INSTANCE0:
 		/*
 		 * There are a lot of MCR types for which instance (0, 0)
-		 * will always provide a non-terminated value.
+		 * will always provide a analn-terminated value.
 		 */
 		*group = 0;
 		*instance = 0;
@@ -686,19 +686,19 @@ static void get_nonterminated_steering(struct intel_gt *gt,
 }
 
 /**
- * intel_gt_mcr_get_nonterminated_steering - find group/instance values that
- *    will steer a register to a non-terminated instance
+ * intel_gt_mcr_get_analnterminated_steering - find group/instance values that
+ *    will steer a register to a analn-terminated instance
  * @gt: GT structure
  * @reg: register for which the steering is required
  * @group: return variable for group steering
  * @instance: return variable for instance steering
  *
  * This function returns a group/instance pair that is guaranteed to work for
- * read steering of the given register. Note that a value will be returned even
- * if the register is not replicated and therefore does not actually require
+ * read steering of the given register. Analte that a value will be returned even
+ * if the register is analt replicated and therefore does analt actually require
  * steering.
  */
-void intel_gt_mcr_get_nonterminated_steering(struct intel_gt *gt,
+void intel_gt_mcr_get_analnterminated_steering(struct intel_gt *gt,
 					     i915_mcr_reg_t reg,
 					     u8 *group, u8 *instance)
 {
@@ -706,7 +706,7 @@ void intel_gt_mcr_get_nonterminated_steering(struct intel_gt *gt,
 
 	for (type = 0; type < NUM_STEERING_TYPES; type++) {
 		if (reg_needs_read_steering(gt, reg, type)) {
-			get_nonterminated_steering(gt, type, group, instance);
+			get_analnterminated_steering(gt, type, group, instance);
 			return;
 		}
 	}
@@ -720,7 +720,7 @@ void intel_gt_mcr_get_nonterminated_steering(struct intel_gt *gt,
  * @gt: GT structure
  * @reg: register to read
  *
- * Reads a GT MCR register.  The read will be steered to a non-terminated
+ * Reads a GT MCR register.  The read will be steered to a analn-terminated
  * instance (i.e., one that isn't fused off or powered down by power gating).
  * This function assumes the caller is already holding any necessary forcewake
  * domains; use intel_gt_mcr_read_any() in cases where forcewake should be
@@ -728,7 +728,7 @@ void intel_gt_mcr_get_nonterminated_steering(struct intel_gt *gt,
  *
  * Context: The caller must hold gt->mcr_lock.
  *
- * Returns the value from a non-terminated instance of @reg.
+ * Returns the value from a analn-terminated instance of @reg.
  */
 u32 intel_gt_mcr_read_any_fw(struct intel_gt *gt, i915_mcr_reg_t reg)
 {
@@ -739,7 +739,7 @@ u32 intel_gt_mcr_read_any_fw(struct intel_gt *gt, i915_mcr_reg_t reg)
 
 	for (type = 0; type < NUM_STEERING_TYPES; type++) {
 		if (reg_needs_read_steering(gt, reg, type)) {
-			get_nonterminated_steering(gt, type, &group, &instance);
+			get_analnterminated_steering(gt, type, &group, &instance);
 			return rw_with_mcr_steering_fw(gt, reg,
 						       FW_REG_READ,
 						       group, instance, 0);
@@ -754,12 +754,12 @@ u32 intel_gt_mcr_read_any_fw(struct intel_gt *gt, i915_mcr_reg_t reg)
  * @gt: GT structure
  * @reg: register to read
  *
- * Reads a GT MCR register.  The read will be steered to a non-terminated
+ * Reads a GT MCR register.  The read will be steered to a analn-terminated
  * instance (i.e., one that isn't fused off or powered down by power gating).
  *
  * Context: Calls a function that takes and releases gt->mcr_lock.
  *
- * Returns the value from a non-terminated instance of @reg.
+ * Returns the value from a analn-terminated instance of @reg.
  */
 u32 intel_gt_mcr_read_any(struct intel_gt *gt, i915_mcr_reg_t reg)
 {
@@ -768,7 +768,7 @@ u32 intel_gt_mcr_read_any(struct intel_gt *gt, i915_mcr_reg_t reg)
 
 	for (type = 0; type < NUM_STEERING_TYPES; type++) {
 		if (reg_needs_read_steering(gt, reg, type)) {
-			get_nonterminated_steering(gt, type, &group, &instance);
+			get_analnterminated_steering(gt, type, &group, &instance);
 			return rw_with_mcr_steering(gt, reg,
 						    FW_REG_READ,
 						    group, instance, 0);
@@ -794,7 +794,7 @@ static void report_steering_type(struct drm_printer *p,
 		return;
 	}
 
-	get_nonterminated_steering(gt, type, &group, &instance);
+	get_analnterminated_steering(gt, type, &group, &instance);
 	drm_printf(p, "%s steering: group=0x%x, instance=0x%x\n",
 		   intel_steering_types[type], group, instance);
 
@@ -809,7 +809,7 @@ void intel_gt_mcr_report_steering(struct drm_printer *p, struct intel_gt *gt,
 				  bool dump_table)
 {
 	/*
-	 * Starting with MTL we no longer have default steering;
+	 * Starting with MTL we anal longer have default steering;
 	 * all ranges are explicitly steered.
 	 */
 	if (GRAPHICS_VER_FULL(gt->i915) < IP_VER(12, 70))
@@ -871,7 +871,7 @@ void intel_gt_mcr_get_ss_steering(struct intel_gt *gt, unsigned int dss,
  *
  * Otherwise, the wait will timeout after @slow_timeout_ms milliseconds.
  * For atomic context @slow_timeout_ms must be zero and @fast_timeout_us
- * must be not larger than 20,0000 microseconds.
+ * must be analt larger than 20,0000 microseconds.
  *
  * This function is basically an MCR-friendly version of
  * __intel_wait_for_register_fw().  Generally this function will only be used
@@ -879,8 +879,8 @@ void intel_gt_mcr_get_ss_steering(struct intel_gt *gt, unsigned int dss,
  * reads (e.g., waiting for status updates) are always directed to the primary
  * instance.
  *
- * Note that this routine assumes the caller holds forcewake asserted, it is
- * not suitable for very long waits.
+ * Analte that this routine assumes the caller holds forcewake asserted, it is
+ * analt suitable for very long waits.
  *
  * Context: Calls a function that takes and releases gt->mcr_lock
  * Return: 0 if the register matches the desired condition, or -ETIMEDOUT.
@@ -894,7 +894,7 @@ int intel_gt_mcr_wait_for_reg(struct intel_gt *gt,
 {
 	int ret;
 
-	lockdep_assert_not_held(&gt->mcr_lock);
+	lockdep_assert_analt_held(&gt->mcr_lock);
 
 #define done ((intel_gt_mcr_read_any(gt, reg) & mask) == value)
 

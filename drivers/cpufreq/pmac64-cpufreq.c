@@ -13,7 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -47,8 +47,8 @@
 #define PCR_VOLT_REQ_VALID	0x00008000U	/* volt request valid */
 #define PCR_TARGET_TIME_MASK	0x00006000U	/* target time */
 #define PCR_STATLAT_MASK	0x00001f00U	/* STATLAT value */
-#define PCR_SNOOPLAT_MASK	0x000000f0U	/* SNOOPLAT value */
-#define PCR_SNOOPACC_MASK	0x0000000fU	/* SNOOPACC value */
+#define PCR_SANALOPLAT_MASK	0x000000f0U	/* SANALOPLAT value */
+#define PCR_SANALOPACC_MASK	0x0000000fU	/* SANALOPACC value */
 
 #define SCOM_PSR 0x408001			/* PSR scom addr */
 /* warning: PSR is a 64 bits register */
@@ -58,7 +58,7 @@
 #define PSR_CUR_SPEED_SHIFT	(56)
 
 /*
- * The G5 only supports two frequencies (Quarter speed is not supported)
+ * The G5 only supports two frequencies (Quarter speed is analt supported)
  */
 #define CPUFREQ_HIGH                  0
 #define CPUFREQ_LOW                   1
@@ -338,7 +338,7 @@ static struct cpufreq_driver g5_cpufreq_driver = {
 
 #ifdef CONFIG_PMAC_SMU
 
-static int __init g5_neo2_cpufreq_init(struct device_node *cpunode)
+static int __init g5_neo2_cpufreq_init(struct device_analde *cpuanalde)
 {
 	unsigned int psize, ssize;
 	unsigned long max_freq;
@@ -347,7 +347,7 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpunode)
 	u32 pvr_hi;
 	int use_volts_vdnap = 0;
 	int use_volts_smu = 0;
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 
 	/* Check supported platforms */
 	if (of_machine_is_compatible("PowerMac8,1") ||
@@ -358,25 +358,25 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpunode)
 	else if (of_machine_is_compatible("PowerMac11,2"))
 		use_volts_vdnap = 1;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* Check 970FX for now */
-	valp = of_get_property(cpunode, "cpu-version", NULL);
+	/* Check 970FX for analw */
+	valp = of_get_property(cpuanalde, "cpu-version", NULL);
 	if (!valp) {
-		DBG("No cpu-version property !\n");
-		goto bail_noprops;
+		DBG("Anal cpu-version property !\n");
+		goto bail_analprops;
 	}
 	pvr_hi = (*valp) >> 16;
 	if (pvr_hi != 0x3c && pvr_hi != 0x44) {
 		pr_err("Unsupported CPU version\n");
-		goto bail_noprops;
+		goto bail_analprops;
 	}
 
 	/* Look for the powertune data in the device-tree */
-	g5_pmode_data = of_get_property(cpunode, "power-mode-data",&psize);
+	g5_pmode_data = of_get_property(cpuanalde, "power-mode-data",&psize);
 	if (!g5_pmode_data) {
-		DBG("No power-mode-data !\n");
-		goto bail_noprops;
+		DBG("Anal power-mode-data !\n");
+		goto bail_analprops;
 	}
 	g5_pmode_max = psize / sizeof(u32) - 1;
 
@@ -386,7 +386,7 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpunode)
 		/* Look for the FVT table */
 		shdr = smu_get_sdb_partition(SMU_SDB_FVT_ID, NULL);
 		if (!shdr)
-			goto bail_noprops;
+			goto bail_analprops;
 		g5_fvt_table = (struct smu_sdbp_fvt *)&shdr[1];
 		ssize = (shdr->len * sizeof(u32)) - sizeof(*shdr);
 		g5_fvt_count = ssize / sizeof(*g5_fvt_table);
@@ -394,45 +394,45 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpunode)
 
 		/* Sanity checking */
 		if (g5_fvt_count < 1 || g5_pmode_max < 1)
-			goto bail_noprops;
+			goto bail_analprops;
 
 		g5_switch_volt = g5_smu_switch_volt;
 		volt_method = "SMU";
 	} else if (use_volts_vdnap) {
-		struct device_node *root;
+		struct device_analde *root;
 
-		root = of_find_node_by_path("/");
+		root = of_find_analde_by_path("/");
 		if (root == NULL) {
 			pr_err("Can't find root of device tree\n");
-			goto bail_noprops;
+			goto bail_analprops;
 		}
 		pfunc_set_vdnap0 = pmf_find_function(root, "set-vdnap0");
 		pfunc_vdnap0_complete =
 			pmf_find_function(root, "slewing-done");
-		of_node_put(root);
+		of_analde_put(root);
 		if (pfunc_set_vdnap0 == NULL ||
 		    pfunc_vdnap0_complete == NULL) {
 			pr_err("Can't find required platform function\n");
-			goto bail_noprops;
+			goto bail_analprops;
 		}
 
 		g5_switch_volt = g5_vdnap_switch_volt;
 		volt_method = "GPIO";
 	} else {
 		g5_switch_volt = g5_dummy_switch_volt;
-		volt_method = "none";
+		volt_method = "analne";
 	}
 
 	/*
 	 * From what I see, clock-frequency is always the maximal frequency.
-	 * The current driver can not slew sysclk yet, so we really only deal
-	 * with powertune steps for now. We also only implement full freq and
+	 * The current driver can analt slew sysclk yet, so we really only deal
+	 * with powertune steps for analw. We also only implement full freq and
 	 * half freq in this version. So far, I haven't yet seen a machine
 	 * supporting anything else.
 	 */
-	valp = of_get_property(cpunode, "clock-frequency", NULL);
+	valp = of_get_property(cpuanalde, "clock-frequency", NULL);
 	if (!valp)
-		return -ENODEV;
+		return -EANALDEV;
 	max_freq = (*valp)/1000;
 	g5_cpu_freqs[0].frequency = max_freq;
 	g5_cpu_freqs[1].frequency = max_freq/2;
@@ -462,13 +462,13 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpunode)
 
 	rc = cpufreq_register_driver(&g5_cpufreq_driver);
 
-	/* We keep the CPU node on hold... hopefully, Apple G5 don't have
+	/* We keep the CPU analde on hold... hopefully, Apple G5 don't have
 	 * hotplug CPU with a dynamic device-tree ...
 	 */
 	return rc;
 
- bail_noprops:
-	of_node_put(cpunode);
+ bail_analprops:
+	of_analde_put(cpuanalde);
 
 	return rc;
 }
@@ -476,9 +476,9 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpunode)
 #endif /* CONFIG_PMAC_SMU */
 
 
-static int __init g5_pm72_cpufreq_init(struct device_node *cpunode)
+static int __init g5_pm72_cpufreq_init(struct device_analde *cpuanalde)
 {
-	struct device_node *cpuid = NULL, *hwclock = NULL;
+	struct device_analde *cpuid = NULL, *hwclock = NULL;
 	const u8 *eeprom = NULL;
 	const u32 *valp;
 	u64 max_freq, min_freq, ih, il;
@@ -487,18 +487,18 @@ static int __init g5_pm72_cpufreq_init(struct device_node *cpunode)
 	DBG("cpufreq: Initializing for PowerMac7,2, PowerMac7,3 and"
 	    " RackMac3,1...\n");
 
-	/* Lookup the cpuid eeprom node */
-        cpuid = of_find_node_by_path("/u3@0,f8000000/i2c@f8001000/cpuid@a0");
+	/* Lookup the cpuid eeprom analde */
+        cpuid = of_find_analde_by_path("/u3@0,f8000000/i2c@f8001000/cpuid@a0");
 	if (cpuid != NULL)
 		eeprom = of_get_property(cpuid, "cpuid", NULL);
 	if (eeprom == NULL) {
 		pr_err("Can't find cpuid EEPROM !\n");
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto bail;
 	}
 
 	/* Lookup the i2c hwclock */
-	for_each_node_by_name(hwclock, "i2c-hwclock") {
+	for_each_analde_by_name(hwclock, "i2c-hwclock") {
 		const char *loc = of_get_property(hwclock,
 				"hwctrl-location", NULL);
 		if (loc == NULL)
@@ -511,13 +511,13 @@ static int __init g5_pm72_cpufreq_init(struct device_node *cpunode)
 	}
 	if (hwclock == NULL) {
 		pr_err("Can't find i2c clock chip !\n");
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto bail;
 	}
 
 	DBG("cpufreq: i2c clock chip found: %pOF\n", hwclock);
 
-	/* Now get all the platform functions */
+	/* Analw get all the platform functions */
 	pfunc_cpu_getfreq =
 		pmf_find_function(hwclock, "get-frequency");
 	pfunc_cpu_setfreq_high =
@@ -539,7 +539,7 @@ static int __init g5_pm72_cpufreq_init(struct device_node *cpunode)
 	if (pfunc_cpu_getfreq == NULL || pfunc_cpu_setfreq_high == NULL ||
 	    pfunc_cpu_setfreq_low == NULL || pfunc_slewing_done == NULL) {
 		pr_err("Can't find platform functions !\n");
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto bail;
 	}
 
@@ -557,33 +557,33 @@ static int __init g5_pm72_cpufreq_init(struct device_node *cpunode)
 		pfunc_cpu1_volt_high = pfunc_cpu1_volt_low = NULL;
 	}
 
-	/* Note: The device tree also contains a "platform-set-values"
+	/* Analte: The device tree also contains a "platform-set-values"
 	 * function for which I haven't quite figured out the usage. It
-	 * might have to be called on init and/or wakeup, I'm not too sure
+	 * might have to be called on init and/or wakeup, I'm analt too sure
 	 * but things seem to work fine without it so far ...
 	 */
 
 	/* Get max frequency from device-tree */
-	valp = of_get_property(cpunode, "clock-frequency", NULL);
+	valp = of_get_property(cpuanalde, "clock-frequency", NULL);
 	if (!valp) {
 		pr_err("Can't find CPU frequency !\n");
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto bail;
 	}
 
 	max_freq = (*valp)/1000;
 
-	/* Now calculate reduced frequency by using the cpuid input freq
+	/* Analw calculate reduced frequency by using the cpuid input freq
 	 * ratio. This requires 64 bits math unless we are willing to lose
 	 * some precision
 	 */
 	ih = *((u32 *)(eeprom + 0x10));
 	il = *((u32 *)(eeprom + 0x20));
 
-	/* Check for machines with no useful settings */
+	/* Check for machines with anal useful settings */
 	if (il == ih) {
-		pr_warn("No low frequency mode available on this model !\n");
-		rc = -ENODEV;
+		pr_warn("Anal low frequency mode available on this model !\n");
+		rc = -EANALDEV;
 		goto bail;
 	}
 
@@ -619,7 +619,7 @@ static int __init g5_pm72_cpufreq_init(struct device_node *cpunode)
 
 	pr_info("Registering G5 CPU frequency driver\n");
 	pr_info("Frequency method: i2c/pfunc, Voltage method: %s\n",
-		has_volt ? "i2c/pfunc" : "none");
+		has_volt ? "i2c/pfunc" : "analne");
 	pr_info("Low: %d Mhz, High: %d Mhz, Cur: %d MHz\n",
 		g5_cpu_freqs[1].frequency/1000,
 		g5_cpu_freqs[0].frequency/1000,
@@ -637,32 +637,32 @@ static int __init g5_pm72_cpufreq_init(struct device_node *cpunode)
 		pmf_put_function(pfunc_cpu1_volt_high);
 		pmf_put_function(pfunc_cpu1_volt_low);
 	}
-	of_node_put(hwclock);
-	of_node_put(cpuid);
-	of_node_put(cpunode);
+	of_analde_put(hwclock);
+	of_analde_put(cpuid);
+	of_analde_put(cpuanalde);
 
 	return rc;
 }
 
 static int __init g5_cpufreq_init(void)
 {
-	struct device_node *cpunode;
+	struct device_analde *cpuanalde;
 	int rc = 0;
 
-	/* Get first CPU node */
-	cpunode = of_cpu_device_node_get(0);
-	if (cpunode == NULL) {
-		pr_err("Can't find any CPU node\n");
-		return -ENODEV;
+	/* Get first CPU analde */
+	cpuanalde = of_cpu_device_analde_get(0);
+	if (cpuanalde == NULL) {
+		pr_err("Can't find any CPU analde\n");
+		return -EANALDEV;
 	}
 
 	if (of_machine_is_compatible("PowerMac7,2") ||
 	    of_machine_is_compatible("PowerMac7,3") ||
 	    of_machine_is_compatible("RackMac3,1"))
-		rc = g5_pm72_cpufreq_init(cpunode);
+		rc = g5_pm72_cpufreq_init(cpuanalde);
 #ifdef CONFIG_PMAC_SMU
 	else
-		rc = g5_neo2_cpufreq_init(cpunode);
+		rc = g5_neo2_cpufreq_init(cpuanalde);
 #endif /* CONFIG_PMAC_SMU */
 
 	return rc;

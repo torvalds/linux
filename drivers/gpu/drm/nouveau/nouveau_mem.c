@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -21,9 +21,9 @@
  */
 #include <drm/ttm/ttm_tt.h>
 
-#include "nouveau_mem.h"
-#include "nouveau_drv.h"
-#include "nouveau_bo.h"
+#include "analuveau_mem.h"
+#include "analuveau_drv.h"
+#include "analuveau_bo.h"
 
 
 #include <nvif/class.h>
@@ -34,7 +34,7 @@
 #include <nvif/if900d.h>
 
 int
-nouveau_mem_map(struct nouveau_mem *mem,
+analuveau_mem_map(struct analuveau_mem *mem,
 		struct nvif_vmm *vmm, struct nvif_vma *vma)
 {
 	union {
@@ -69,14 +69,14 @@ nouveau_mem_map(struct nouveau_mem *mem,
 		break;
 	default:
 		WARN_ON(1);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return nvif_vmm_map(vmm, vma->addr, mem->mem.size, &args, argc, &mem->mem, 0);
 }
 
 void
-nouveau_mem_fini(struct nouveau_mem *mem)
+analuveau_mem_fini(struct analuveau_mem *mem)
 {
 	nvif_vmm_put(&mem->cli->drm->client.vmm.vmm, &mem->vma[1]);
 	nvif_vmm_put(&mem->cli->drm->client.vmm.vmm, &mem->vma[0]);
@@ -86,17 +86,17 @@ nouveau_mem_fini(struct nouveau_mem *mem)
 }
 
 int
-nouveau_mem_host(struct ttm_resource *reg, struct ttm_tt *tt)
+analuveau_mem_host(struct ttm_resource *reg, struct ttm_tt *tt)
 {
-	struct nouveau_mem *mem = nouveau_mem(reg);
-	struct nouveau_cli *cli = mem->cli;
-	struct nouveau_drm *drm = cli->drm;
+	struct analuveau_mem *mem = analuveau_mem(reg);
+	struct analuveau_cli *cli = mem->cli;
+	struct analuveau_drm *drm = cli->drm;
 	struct nvif_mmu *mmu = &cli->mmu;
 	struct nvif_mem_ram_v0 args = {};
 	u8 type;
 	int ret;
 
-	if (!nouveau_drm_use_coherent_gpu_mapping(drm))
+	if (!analuveau_drm_use_coherent_gpu_mapping(drm))
 		type = drm->ttm.type_ncoh[!!mem->kind];
 	else
 		type = drm->ttm.type_host[0];
@@ -123,11 +123,11 @@ nouveau_mem_host(struct ttm_resource *reg, struct ttm_tt *tt)
 }
 
 int
-nouveau_mem_vram(struct ttm_resource *reg, bool contig, u8 page)
+analuveau_mem_vram(struct ttm_resource *reg, bool contig, u8 page)
 {
-	struct nouveau_mem *mem = nouveau_mem(reg);
-	struct nouveau_cli *cli = mem->cli;
-	struct nouveau_drm *drm = cli->drm;
+	struct analuveau_mem *mem = analuveau_mem(reg);
+	struct analuveau_cli *cli = mem->cli;
+	struct analuveau_drm *drm = cli->drm;
 	struct nvif_mmu *mmu = &cli->mmu;
 	u64 size = ALIGN(reg->size, 1 << page);
 	int ret;
@@ -152,7 +152,7 @@ nouveau_mem_vram(struct ttm_resource *reg, bool contig, u8 page)
 					 &mem->mem);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 		WARN_ON(1);
 		break;
 	}
@@ -163,23 +163,23 @@ nouveau_mem_vram(struct ttm_resource *reg, bool contig, u8 page)
 }
 
 void
-nouveau_mem_del(struct ttm_resource_manager *man, struct ttm_resource *reg)
+analuveau_mem_del(struct ttm_resource_manager *man, struct ttm_resource *reg)
 {
-	struct nouveau_mem *mem = nouveau_mem(reg);
+	struct analuveau_mem *mem = analuveau_mem(reg);
 
-	nouveau_mem_fini(mem);
+	analuveau_mem_fini(mem);
 	ttm_resource_fini(man, reg);
 	kfree(mem);
 }
 
 int
-nouveau_mem_new(struct nouveau_cli *cli, u8 kind, u8 comp,
+analuveau_mem_new(struct analuveau_cli *cli, u8 kind, u8 comp,
 		struct ttm_resource **res)
 {
-	struct nouveau_mem *mem;
+	struct analuveau_mem *mem;
 
 	if (!(mem = kzalloc(sizeof(*mem), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mem->cli = cli;
 	mem->kind = kind;
@@ -190,7 +190,7 @@ nouveau_mem_new(struct nouveau_cli *cli, u8 kind, u8 comp,
 }
 
 bool
-nouveau_mem_intersects(struct ttm_resource *res,
+analuveau_mem_intersects(struct ttm_resource *res,
 		       const struct ttm_place *place,
 		       size_t size)
 {
@@ -205,7 +205,7 @@ nouveau_mem_intersects(struct ttm_resource *res,
 }
 
 bool
-nouveau_mem_compatible(struct ttm_resource *res,
+analuveau_mem_compatible(struct ttm_resource *res,
 		       const struct ttm_place *place,
 		       size_t size)
 {

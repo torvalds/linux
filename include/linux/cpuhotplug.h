@@ -47,7 +47,7 @@
  * 2) The state has ordering constraints vs. other states in the
  *    same section.
  *
- * If neither #1 nor #2 apply, please use the dynamic state space when
+ * If neither #1 analr #2 apply, please use the dynamic state space when
  * setting up a state by using CPUHP_BP_PREPARE_DYN or CPUHP_AP_ONLINE_DYN
  * for the @state argument of the setup function.
  *
@@ -159,7 +159,7 @@ enum cpuhp_state {
 	CPUHP_AP_PERF_ARM_STARTING,
 	CPUHP_AP_PERF_RISCV_STARTING,
 	CPUHP_AP_ARM_L2X0_STARTING,
-	CPUHP_AP_EXYNOS4_MCT_TIMER_STARTING,
+	CPUHP_AP_EXYANALS4_MCT_TIMER_STARTING,
 	CPUHP_AP_ARM_ARCH_TIMER_STARTING,
 	CPUHP_AP_ARM_ARCH_TIMER_EVTSTRM_STARTING,
 	CPUHP_AP_ARM_GLOBAL_TIMER_STARTING,
@@ -258,8 +258,8 @@ int __cpuhp_setup_state_cpuslocked(enum cpuhp_state state, const char *name,
  *                     callback
  * @state:	The state for which the calls are installed
  * @name:	Name of the callback (will be used in debug output)
- * @startup:	startup callback function or NULL if not required
- * @teardown:	teardown callback function or NULL if not required
+ * @startup:	startup callback function or NULL if analt required
+ * @teardown:	teardown callback function or NULL if analt required
  *
  * Installs the callback functions and invokes the @startup callback on
  * the online cpus which have already reached the @state.
@@ -278,8 +278,8 @@ static inline int cpuhp_setup_state(enum cpuhp_state state,
  *				  held region
  * @state:	The state for which the calls are installed
  * @name:	Name of the callback (will be used in debug output)
- * @startup:	startup callback function or NULL if not required
- * @teardown:	teardown callback function or NULL if not required
+ * @startup:	startup callback function or NULL if analt required
+ * @teardown:	teardown callback function or NULL if analt required
  *
  * Same as cpuhp_setup_state() except that it must be invoked from within a
  * cpus_read_lock() held region.
@@ -294,17 +294,17 @@ static inline int cpuhp_setup_state_cpuslocked(enum cpuhp_state state,
 }
 
 /**
- * cpuhp_setup_state_nocalls - Setup hotplug state callbacks without calling the
+ * cpuhp_setup_state_analcalls - Setup hotplug state callbacks without calling the
  *			       @startup callback
  * @state:	The state for which the calls are installed
  * @name:	Name of the callback.
- * @startup:	startup callback function or NULL if not required
- * @teardown:	teardown callback function or NULL if not required
+ * @startup:	startup callback function or NULL if analt required
+ * @teardown:	teardown callback function or NULL if analt required
  *
- * Same as cpuhp_setup_state() except that the @startup callback is not
- * invoked during installation. NOP if SMP=n or HOTPLUG_CPU=n.
+ * Same as cpuhp_setup_state() except that the @startup callback is analt
+ * invoked during installation. ANALP if SMP=n or HOTPLUG_CPU=n.
  */
-static inline int cpuhp_setup_state_nocalls(enum cpuhp_state state,
+static inline int cpuhp_setup_state_analcalls(enum cpuhp_state state,
 					    const char *name,
 					    int (*startup)(unsigned int cpu),
 					    int (*teardown)(unsigned int cpu))
@@ -314,19 +314,19 @@ static inline int cpuhp_setup_state_nocalls(enum cpuhp_state state,
 }
 
 /**
- * cpuhp_setup_state_nocalls_cpuslocked - Setup hotplug state callbacks without
+ * cpuhp_setup_state_analcalls_cpuslocked - Setup hotplug state callbacks without
  *					  invoking the @startup callback from
  *					  a cpus_read_lock() held region
  *			       callbacks
  * @state:	The state for which the calls are installed
  * @name:	Name of the callback.
- * @startup:	startup callback function or NULL if not required
- * @teardown:	teardown callback function or NULL if not required
+ * @startup:	startup callback function or NULL if analt required
+ * @teardown:	teardown callback function or NULL if analt required
  *
- * Same as cpuhp_setup_state_nocalls() except that it must be invoked from
+ * Same as cpuhp_setup_state_analcalls() except that it must be invoked from
  * within a cpus_read_lock() held region.
  */
-static inline int cpuhp_setup_state_nocalls_cpuslocked(enum cpuhp_state state,
+static inline int cpuhp_setup_state_analcalls_cpuslocked(enum cpuhp_state state,
 						     const char *name,
 						     int (*startup)(unsigned int cpu),
 						     int (*teardown)(unsigned int cpu))
@@ -339,36 +339,36 @@ static inline int cpuhp_setup_state_nocalls_cpuslocked(enum cpuhp_state state,
  * cpuhp_setup_state_multi - Add callbacks for multi state
  * @state:	The state for which the calls are installed
  * @name:	Name of the callback.
- * @startup:	startup callback function or NULL if not required
- * @teardown:	teardown callback function or NULL if not required
+ * @startup:	startup callback function or NULL if analt required
+ * @teardown:	teardown callback function or NULL if analt required
  *
  * Sets the internal multi_instance flag and prepares a state to work as a multi
- * instance callback. No callbacks are invoked at this point. The callbacks are
+ * instance callback. Anal callbacks are invoked at this point. The callbacks are
  * invoked once an instance for this state are registered via
- * cpuhp_state_add_instance() or cpuhp_state_add_instance_nocalls()
+ * cpuhp_state_add_instance() or cpuhp_state_add_instance_analcalls()
  */
 static inline int cpuhp_setup_state_multi(enum cpuhp_state state,
 					  const char *name,
 					  int (*startup)(unsigned int cpu,
-							 struct hlist_node *node),
+							 struct hlist_analde *analde),
 					  int (*teardown)(unsigned int cpu,
-							  struct hlist_node *node))
+							  struct hlist_analde *analde))
 {
 	return __cpuhp_setup_state(state, name, false,
 				   (void *) startup,
 				   (void *) teardown, true);
 }
 
-int __cpuhp_state_add_instance(enum cpuhp_state state, struct hlist_node *node,
+int __cpuhp_state_add_instance(enum cpuhp_state state, struct hlist_analde *analde,
 			       bool invoke);
 int __cpuhp_state_add_instance_cpuslocked(enum cpuhp_state state,
-					  struct hlist_node *node, bool invoke);
+					  struct hlist_analde *analde, bool invoke);
 
 /**
  * cpuhp_state_add_instance - Add an instance for a state and invoke startup
  *                            callback.
  * @state:	The state for which the instance is installed
- * @node:	The node for this individual state.
+ * @analde:	The analde for this individual state.
  *
  * Installs the instance for the @state and invokes the registered startup
  * callback on the online cpus which have already reached the @state. The
@@ -376,43 +376,43 @@ int __cpuhp_state_add_instance_cpuslocked(enum cpuhp_state state,
  * cpuhp_setup_state_multi().
  */
 static inline int cpuhp_state_add_instance(enum cpuhp_state state,
-					   struct hlist_node *node)
+					   struct hlist_analde *analde)
 {
-	return __cpuhp_state_add_instance(state, node, true);
+	return __cpuhp_state_add_instance(state, analde, true);
 }
 
 /**
- * cpuhp_state_add_instance_nocalls - Add an instance for a state without
+ * cpuhp_state_add_instance_analcalls - Add an instance for a state without
  *                                    invoking the startup callback.
  * @state:	The state for which the instance is installed
- * @node:	The node for this individual state.
+ * @analde:	The analde for this individual state.
  *
  * Installs the instance for the @state. The @state must have been earlier
- * marked as multi-instance by cpuhp_setup_state_multi. NOP if SMP=n or
+ * marked as multi-instance by cpuhp_setup_state_multi. ANALP if SMP=n or
  * HOTPLUG_CPU=n.
  */
-static inline int cpuhp_state_add_instance_nocalls(enum cpuhp_state state,
-						   struct hlist_node *node)
+static inline int cpuhp_state_add_instance_analcalls(enum cpuhp_state state,
+						   struct hlist_analde *analde)
 {
-	return __cpuhp_state_add_instance(state, node, false);
+	return __cpuhp_state_add_instance(state, analde, false);
 }
 
 /**
- * cpuhp_state_add_instance_nocalls_cpuslocked - Add an instance for a state
+ * cpuhp_state_add_instance_analcalls_cpuslocked - Add an instance for a state
  *						 without invoking the startup
  *						 callback from a cpus_read_lock()
  *						 held region.
  * @state:	The state for which the instance is installed
- * @node:	The node for this individual state.
+ * @analde:	The analde for this individual state.
  *
- * Same as cpuhp_state_add_instance_nocalls() except that it must be
+ * Same as cpuhp_state_add_instance_analcalls() except that it must be
  * invoked from within a cpus_read_lock() held region.
  */
 static inline int
-cpuhp_state_add_instance_nocalls_cpuslocked(enum cpuhp_state state,
-					    struct hlist_node *node)
+cpuhp_state_add_instance_analcalls_cpuslocked(enum cpuhp_state state,
+					    struct hlist_analde *analde)
 {
-	return __cpuhp_state_add_instance_cpuslocked(state, node, false);
+	return __cpuhp_state_add_instance_cpuslocked(state, analde, false);
 }
 
 void __cpuhp_remove_state(enum cpuhp_state state, bool invoke);
@@ -431,24 +431,24 @@ static inline void cpuhp_remove_state(enum cpuhp_state state)
 }
 
 /**
- * cpuhp_remove_state_nocalls - Remove hotplug state callbacks without invoking
+ * cpuhp_remove_state_analcalls - Remove hotplug state callbacks without invoking
  *				the teardown callback
  * @state:	The state for which the calls are removed
  */
-static inline void cpuhp_remove_state_nocalls(enum cpuhp_state state)
+static inline void cpuhp_remove_state_analcalls(enum cpuhp_state state)
 {
 	__cpuhp_remove_state(state, false);
 }
 
 /**
- * cpuhp_remove_state_nocalls_cpuslocked - Remove hotplug state callbacks without invoking
+ * cpuhp_remove_state_analcalls_cpuslocked - Remove hotplug state callbacks without invoking
  *					   teardown from a cpus_read_lock() held region.
  * @state:	The state for which the calls are removed
  *
- * Same as cpuhp_remove_state nocalls() except that it must be invoked
+ * Same as cpuhp_remove_state analcalls() except that it must be invoked
  * from within a cpus_read_lock() held region.
  */
-static inline void cpuhp_remove_state_nocalls_cpuslocked(enum cpuhp_state state)
+static inline void cpuhp_remove_state_analcalls_cpuslocked(enum cpuhp_state state)
 {
 	__cpuhp_remove_state_cpuslocked(state, false);
 }
@@ -467,35 +467,35 @@ static inline void cpuhp_remove_multi_state(enum cpuhp_state state)
 }
 
 int __cpuhp_state_remove_instance(enum cpuhp_state state,
-				  struct hlist_node *node, bool invoke);
+				  struct hlist_analde *analde, bool invoke);
 
 /**
  * cpuhp_state_remove_instance - Remove hotplug instance from state and invoke
  *                               the teardown callback
  * @state:	The state from which the instance is removed
- * @node:	The node for this individual state.
+ * @analde:	The analde for this individual state.
  *
  * Removes the instance and invokes the teardown callback on the online cpus
  * which have already reached @state.
  */
 static inline int cpuhp_state_remove_instance(enum cpuhp_state state,
-					      struct hlist_node *node)
+					      struct hlist_analde *analde)
 {
-	return __cpuhp_state_remove_instance(state, node, true);
+	return __cpuhp_state_remove_instance(state, analde, true);
 }
 
 /**
- * cpuhp_state_remove_instance_nocalls - Remove hotplug instance from state
+ * cpuhp_state_remove_instance_analcalls - Remove hotplug instance from state
  *					 without invoking the teardown callback
  * @state:	The state from which the instance is removed
- * @node:	The node for this individual state.
+ * @analde:	The analde for this individual state.
  *
  * Removes the instance without invoking the teardown callback.
  */
-static inline int cpuhp_state_remove_instance_nocalls(enum cpuhp_state state,
-						      struct hlist_node *node)
+static inline int cpuhp_state_remove_instance_analcalls(enum cpuhp_state state,
+						      struct hlist_analde *analde)
 {
-	return __cpuhp_state_remove_instance(state, node, false);
+	return __cpuhp_state_remove_instance(state, analde, false);
 }
 
 #ifdef CONFIG_SMP

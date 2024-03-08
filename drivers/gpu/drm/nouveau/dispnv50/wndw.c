@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -36,8 +36,8 @@
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_fourcc.h>
 
-#include "nouveau_bo.h"
-#include "nouveau_gem.h"
+#include "analuveau_bo.h"
+#include "analuveau_gem.h"
 
 static void
 nv50_wndw_ctxdma_del(struct nv50_wndw_ctxdma *ctxdma)
@@ -50,7 +50,7 @@ nv50_wndw_ctxdma_del(struct nv50_wndw_ctxdma *ctxdma)
 static struct nv50_wndw_ctxdma *
 nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct drm_framebuffer *fb)
 {
-	struct nouveau_drm *drm = nouveau_drm(fb->dev);
+	struct analuveau_drm *drm = analuveau_drm(fb->dev);
 	struct nv50_wndw_ctxdma *ctxdma;
 	u32 handle;
 	u32 unused;
@@ -66,7 +66,7 @@ nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct drm_framebuffer *fb)
 	u32 argc = sizeof(args.base);
 	int ret;
 
-	nouveau_framebuffer_get_layout(fb, &unused, &kind);
+	analuveau_framebuffer_get_layout(fb, &unused, &kind);
 	handle = NV50_DISP_HANDLE_WNDW_CTX(kind);
 
 	list_for_each_entry(ctxdma, &wndw->ctxdma.list, head) {
@@ -75,7 +75,7 @@ nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct drm_framebuffer *fb)
 	}
 
 	if (!(ctxdma = kzalloc(sizeof(*ctxdma), GFP_KERNEL)))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	list_add(&ctxdma->head, &wndw->ctxdma.list);
 
 	args.base.target = NV_DMA_V0_TARGET_VRAM;
@@ -144,7 +144,7 @@ nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 *interlock,
 		    struct nv50_wndw_atom *asyw)
 {
 	if (interlock[NV50_DISP_INTERLOCK_CORE]) {
-		asyw->image.mode = NV507C_SET_PRESENT_CONTROL_BEGIN_MODE_NON_TEARING;
+		asyw->image.mode = NV507C_SET_PRESENT_CONTROL_BEGIN_MODE_ANALN_TEARING;
 		asyw->image.interval = 1;
 	}
 
@@ -195,7 +195,7 @@ nv50_wndw_atomic_check_release(struct nv50_wndw *wndw,
 			       struct nv50_wndw_atom *asyw,
 			       struct nv50_head_atom *asyh)
 {
-	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
+	struct analuveau_drm *drm = analuveau_drm(wndw->plane.dev);
 	NV_ATOMIC(drm, "%s release\n", wndw->plane.name);
 	wndw->func->release(wndw, asyw, asyh);
 	asyw->ntfy.handle = 0;
@@ -272,7 +272,7 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 			       struct nv50_head_atom *asyh)
 {
 	struct drm_framebuffer *fb = asyw->state.fb;
-	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
+	struct analuveau_drm *drm = analuveau_drm(wndw->plane.dev);
 	uint8_t kind;
 	uint32_t tile_mode;
 	int ret;
@@ -280,7 +280,7 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 	NV_ATOMIC(drm, "%s acquire\n", wndw->plane.name);
 
 	if (fb != armw->state.fb || !armw->visible || modeset) {
-		nouveau_framebuffer_get_layout(fb, &tile_mode, &kind);
+		analuveau_framebuffer_get_layout(fb, &tile_mode, &kind);
 
 		asyw->image.w = fb->width;
 		asyw->image.h = fb->height;
@@ -314,7 +314,7 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 			asyw->image.interval = 0;
 
 		if (asyw->image.interval)
-			asyw->image.mode = NV507C_SET_PRESENT_CONTROL_BEGIN_MODE_NON_TEARING;
+			asyw->image.mode = NV507C_SET_PRESENT_CONTROL_BEGIN_MODE_ANALN_TEARING;
 		else
 			asyw->image.mode = NV507C_SET_PRESENT_CONTROL_BEGIN_MODE_IMMEDIATE;
 
@@ -333,7 +333,7 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 	}
 
 	if (wndw->func->blend_set) {
-		asyw->blend.depth = 255 - asyw->state.normalized_zpos;
+		asyw->blend.depth = 255 - asyw->state.analrmalized_zpos;
 		asyw->blend.k1 = asyw->state.alpha >> 8;
 		switch (asyw->state.pixel_blend_mode) {
 		case DRM_MODE_BLEND_PREMULTI:
@@ -344,7 +344,7 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 			asyw->blend.src_color = NVC37E_SET_COMPOSITION_FACTOR_SELECT_SRC_COLOR_FACTOR_MATCH_SELECT_K1_TIMES_SRC;
 			asyw->blend.dst_color = NVC37E_SET_COMPOSITION_FACTOR_SELECT_DST_COLOR_FACTOR_MATCH_SELECT_NEG_K1_TIMES_SRC;
 			break;
-		case DRM_MODE_BLEND_PIXEL_NONE:
+		case DRM_MODE_BLEND_PIXEL_ANALNE:
 		default:
 			asyw->blend.src_color = NVC37E_SET_COMPOSITION_FACTOR_SELECT_SRC_COLOR_FACTOR_MATCH_SELECT_K1;
 			asyw->blend.dst_color = NVC37E_SET_COMPOSITION_FACTOR_SELECT_DST_COLOR_FACTOR_MATCH_SELECT_NEG_K1;
@@ -372,10 +372,10 @@ nv50_wndw_atomic_check_lut(struct nv50_wndw *wndw,
 {
 	struct drm_property_blob *ilut = asyh->state.degamma_lut;
 
-	/* I8 format without an input LUT makes no sense, and the
+	/* I8 format without an input LUT makes anal sense, and the
 	 * HW error-checks for this.
 	 *
-	 * In order to handle legacy gamma, when there's no input
+	 * In order to handle legacy gamma, when there's anal input
 	 * LUT we need to steal the output LUT and use it instead.
 	 */
 	if (!ilut && asyw->state.fb->format->format == DRM_FORMAT_C8) {
@@ -439,7 +439,7 @@ nv50_wndw_atomic_check(struct drm_plane *plane,
 {
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
-	struct nouveau_drm *drm = nouveau_drm(plane->dev);
+	struct analuveau_drm *drm = analuveau_drm(plane->dev);
 	struct nv50_wndw *wndw = nv50_wndw(plane);
 	struct nv50_wndw_atom *armw = nv50_wndw_atom(wndw->plane.state);
 	struct nv50_wndw_atom *asyw = nv50_wndw_atom(new_plane_state);
@@ -517,25 +517,25 @@ nv50_wndw_atomic_check(struct drm_plane *plane,
 static void
 nv50_wndw_cleanup_fb(struct drm_plane *plane, struct drm_plane_state *old_state)
 {
-	struct nouveau_drm *drm = nouveau_drm(plane->dev);
-	struct nouveau_bo *nvbo;
+	struct analuveau_drm *drm = analuveau_drm(plane->dev);
+	struct analuveau_bo *nvbo;
 
 	NV_ATOMIC(drm, "%s cleanup: %p\n", plane->name, old_state->fb);
 	if (!old_state->fb)
 		return;
 
-	nvbo = nouveau_gem_object(old_state->fb->obj[0]);
-	nouveau_bo_unpin(nvbo);
+	nvbo = analuveau_gem_object(old_state->fb->obj[0]);
+	analuveau_bo_unpin(nvbo);
 }
 
 static int
 nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->fb;
-	struct nouveau_drm *drm = nouveau_drm(plane->dev);
+	struct analuveau_drm *drm = analuveau_drm(plane->dev);
 	struct nv50_wndw *wndw = nv50_wndw(plane);
 	struct nv50_wndw_atom *asyw = nv50_wndw_atom(state);
-	struct nouveau_bo *nvbo;
+	struct analuveau_bo *nvbo;
 	struct nv50_head_atom *asyh;
 	struct nv50_wndw_ctxdma *ctxdma;
 	int ret;
@@ -544,15 +544,15 @@ nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 	if (!asyw->state.fb)
 		return 0;
 
-	nvbo = nouveau_gem_object(fb->obj[0]);
-	ret = nouveau_bo_pin(nvbo, NOUVEAU_GEM_DOMAIN_VRAM, true);
+	nvbo = analuveau_gem_object(fb->obj[0]);
+	ret = analuveau_bo_pin(nvbo, ANALUVEAU_GEM_DOMAIN_VRAM, true);
 	if (ret)
 		return ret;
 
 	if (wndw->ctxdma.parent) {
 		ctxdma = nv50_wndw_ctxdma_new(wndw, fb);
 		if (IS_ERR(ctxdma)) {
-			nouveau_bo_unpin(nvbo);
+			analuveau_bo_unpin(nvbo);
 			return PTR_ERR(ctxdma);
 		}
 
@@ -660,7 +660,7 @@ nv50_wndw_destroy(struct drm_plane *plane)
 static bool nv50_plane_format_mod_supported(struct drm_plane *plane,
 					    u32 format, u64 modifier)
 {
-	struct nouveau_drm *drm = nouveau_drm(plane->dev);
+	struct analuveau_drm *drm = analuveau_drm(plane->dev);
 	uint8_t i;
 
 	if (drm->client.device.info.chipset < 0xc0) {
@@ -699,7 +699,7 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 	       enum nv50_disp_interlock_type interlock_type, u32 interlock_data,
 	       struct nv50_wndw **pwndw)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvif_mmu *mmu = &drm->client.mmu;
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_wndw *wndw;
@@ -708,7 +708,7 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 	int ret;
 
 	if (!(wndw = *pwndw = kzalloc(sizeof(*wndw), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	wndw->func = func;
 	wndw->id = index;
 	wndw->interlock.type = interlock_type;
@@ -722,7 +722,7 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 	if (type == DRM_PLANE_TYPE_CURSOR)
 		format_modifiers = nv50_cursor_format_modifiers;
 	else
-		format_modifiers = nouveau_display(dev)->format_modifiers;
+		format_modifiers = analuveau_display(dev)->format_modifiers;
 
 	ret = drm_universal_plane_init(dev, &wndw->plane, heads, &nv50_wndw, format, nformat,
 				       format_modifiers, type, "%s-%d", name, index);
@@ -751,7 +751,7 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 			return ret;
 
 		ret = drm_plane_create_blend_mode_property(&wndw->plane,
-				BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+				BIT(DRM_MODE_BLEND_PIXEL_ANALNE) |
 				BIT(DRM_MODE_BLEND_PREMULTI) |
 				BIT(DRM_MODE_BLEND_COVERAGE));
 		if (ret)
@@ -767,13 +767,13 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 }
 
 int
-nv50_wndw_new(struct nouveau_drm *drm, enum drm_plane_type type, int index,
+nv50_wndw_new(struct analuveau_drm *drm, enum drm_plane_type type, int index,
 	      struct nv50_wndw **pwndw)
 {
 	struct {
 		s32 oclass;
 		int version;
-		int (*new)(struct nouveau_drm *, enum drm_plane_type,
+		int (*new)(struct analuveau_drm *, enum drm_plane_type,
 			   int, s32, struct nv50_wndw **);
 	} wndws[] = {
 		{ GA102_DISP_WINDOW_CHANNEL_DMA, 0, wndwc67e_new },
@@ -786,7 +786,7 @@ nv50_wndw_new(struct nouveau_drm *drm, enum drm_plane_type type, int index,
 
 	cid = nvif_mclass(&disp->disp->object, wndws);
 	if (cid < 0) {
-		NV_ERROR(drm, "No supported window class\n");
+		NV_ERROR(drm, "Anal supported window class\n");
 		return cid;
 	}
 

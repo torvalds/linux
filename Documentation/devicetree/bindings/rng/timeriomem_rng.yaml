@@ -23,7 +23,7 @@ properties:
     description:
       Estimated number of bits of true entropy per 1024 bits read from the rng.
       Defaults to zero which causes the kernel's default quality to be used
-      instead.  Note that the default quality is usually zero which disables
+      instead.  Analte that the default quality is usually zero which disables
       using this rng to automatically fill the kernel's entropy pool.
 
   reg:

@@ -7,12 +7,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -223,7 +223,7 @@ struct dce110_clk_src_regs {
 	uint32_t PLL_CNTL;
 
 	/* below are for DTO.
-	 * todo: should probably use different struct to not waste space
+	 * todo: should probably use different struct to analt waste space
 	 */
 	uint32_t PHASE[MAX_PIPES];
 	uint32_t MODULO[MAX_PIPES];
@@ -307,7 +307,7 @@ bool dcn31_clk_src_construct(
 	const struct dce110_clk_src_shift *cs_shift,
 	const struct dce110_clk_src_mask *cs_mask);
 
-/* this table is use to find *1.001 and /1.001 pixel rates from non-precise pixel rate */
+/* this table is use to find *1.001 and /1.001 pixel rates from analn-precise pixel rate */
 struct pixel_rate_range_table_entry {
 	unsigned int range_min_khz;
 	unsigned int range_max_khz;

@@ -7,7 +7,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -469,13 +469,13 @@ static const struct usb_device_id ipaq_id_table[] = {
 	{ USB_DEVICE(0x3340, 0x1326) }, /* Itautec USB Sync */
 	{ USB_DEVICE(0x3340, 0x191C) }, /* YAKUMO USB Sync */
 	{ USB_DEVICE(0x3340, 0x2326) }, /* Vobis USB Sync */
-	{ USB_DEVICE(0x3340, 0x3326) }, /* MEDION Winodws Moble USB Sync */
+	{ USB_DEVICE(0x3340, 0x3326) }, /* MEDION Wianaldws Moble USB Sync */
 	{ USB_DEVICE(0x3708, 0x20CE) }, /* Legend USB Sync */
-	{ USB_DEVICE(0x3708, 0x21CE) }, /* Lenovo USB Sync */
-	{ USB_DEVICE(0x4113, 0x0210) }, /* Mobile Media Technology USB Sync */
-	{ USB_DEVICE(0x4113, 0x0211) }, /* Mobile Media Technology USB Sync */
-	{ USB_DEVICE(0x4113, 0x0400) }, /* Mobile Media Technology USB Sync */
-	{ USB_DEVICE(0x4113, 0x0410) }, /* Mobile Media Technology USB Sync */
+	{ USB_DEVICE(0x3708, 0x21CE) }, /* Leanalvo USB Sync */
+	{ USB_DEVICE(0x4113, 0x0210) }, /* Mobile Media Techanallogy USB Sync */
+	{ USB_DEVICE(0x4113, 0x0211) }, /* Mobile Media Techanallogy USB Sync */
+	{ USB_DEVICE(0x4113, 0x0400) }, /* Mobile Media Techanallogy USB Sync */
+	{ USB_DEVICE(0x4113, 0x0410) }, /* Mobile Media Techanallogy USB Sync */
 	{ USB_DEVICE(0x413C, 0x4001) }, /* Dell Axim USB Sync */
 	{ USB_DEVICE(0x413C, 0x4002) }, /* Dell Axim USB Sync */
 	{ USB_DEVICE(0x413C, 0x4003) }, /* Dell Axim USB Sync */
@@ -522,7 +522,7 @@ static int ipaq_open(struct tty_struct *tty,
 	msleep(1000*initial_wait);
 
 	/*
-	 * Send out control message observed in win98 sniffs. Not sure what
+	 * Send out control message observed in win98 sniffs. Analt sure what
 	 * it does, but from empirical observations, it seems that the device
 	 * will start the chat sequence once one of these messages gets
 	 * through. Since this has a reasonably high failure rate, we retry
@@ -556,7 +556,7 @@ static int ipaq_calc_num_ports(struct usb_serial *serial,
 	 * some obviously invalid possibilities.
 	 */
 	if (epds->num_bulk_in == 0 || epds->num_bulk_out == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * A few devices have four endpoints, seemingly Yakuma devices, and
@@ -587,7 +587,7 @@ static int ipaq_startup(struct usb_serial *serial)
 
 		dev_err(&serial->dev->dev, "active config #%d != 1 ??\n",
 			serial->dev->actconfig->desc.bConfigurationValue);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return usb_reset_configuration(serial->dev);

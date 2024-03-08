@@ -65,7 +65,7 @@ Protocol
 Each connector message can include one or more w1_netlink_msg with
 zero or more attached w1_netlink_cmd messages.
 
-For event messages there are no w1_netlink_cmd embedded structures,
+For event messages there are anal w1_netlink_cmd embedded structures,
 only connector header and w1_netlink_msg structure with "len" field
 being zero and filled type (one of event types) and id:
 either 8 bytes of slave unique id in host order,
@@ -74,7 +74,7 @@ when it is added to w1 core.
 
 Currently replies to userspace commands are only generated for read
 command request. One reply is generated exactly for one w1_netlink_cmd
-read request. Replies are not combined when sent - i.e. typical reply
+read request. Replies are analt combined when sent - i.e. typical reply
 messages looks like the following::
 
   [cn_msg][w1_netlink_msg][w1_netlink_cmd]
@@ -139,12 +139,12 @@ Command status replies
 
 Each command (either root, master or slave with or without w1_netlink_cmd
 structure) will be 'acked' by the w1 core. Format of the reply is the same
-as request message except that length parameters do not account for data
-requested by the user, i.e. read/write/touch IO requests will not contain
+as request message except that length parameters do analt account for data
+requested by the user, i.e. read/write/touch IO requests will analt contain
 data, so w1_netlink_cmd.len will be 0, w1_netlink_msg.len will be size
 of the w1_netlink_cmd structure and cn_msg.len will be equal to the sum
 of the sizeof(struct w1_netlink_msg) and sizeof(struct w1_netlink_cmd).
-If reply is generated for master or root command (which do not have
+If reply is generated for master or root command (which do analt have
 w1_netlink_cmd attached), reply will contain only cn_msg and w1_netlink_msg
 structures.
 
@@ -155,7 +155,7 @@ All other fields in every structure will mirror the same parameters in the
 request message (except lengths as described above).
 
 Status reply is generated for every w1_netlink_cmd embedded in the
-w1_netlink_msg, if there are no w1_netlink_cmd structures,
+w1_netlink_msg, if there are anal w1_netlink_cmd structures,
 reply will be generated for the w1_netlink_msg.
 
 All w1_netlink_cmd command structures are handled in every w1_netlink_msg,
@@ -184,12 +184,12 @@ Connector [1] specific documentation
 
 Each connector message includes two u32 fields as "address".
 w1 uses CN_W1_IDX and CN_W1_VAL defined in include/linux/connector.h header.
-Each message also includes sequence and acknowledge numbers.
+Each message also includes sequence and ackanalwledge numbers.
 Sequence number for event messages is appropriate bus master sequence number
 increased with each event message sent "through" this master.
 Sequence number for userspace requests is set by userspace application.
 Sequence number for reply is the same as was in request, and
-acknowledge number is set to seq+1.
+ackanalwledge number is set to seq+1.
 
 
 Additional documentation, source code examples

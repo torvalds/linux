@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  arch/arm/include/asm/pgtable-nommu.h
+ *  arch/arm/include/asm/pgtable-analmmu.h
  *
  *  Copyright (C) 1995-2002 Russell King
  *  Copyright (C) 2004  Hyok S. Choi
  */
-#ifndef _ASMARM_PGTABLE_NOMMU_H
-#define _ASMARM_PGTABLE_NOMMU_H
+#ifndef _ASMARM_PGTABLE_ANALMMU_H
+#define _ASMARM_PGTABLE_ANALMMU_H
 
 #ifndef __ASSEMBLY__
 
@@ -18,7 +18,7 @@
  * Trivial page table functions.
  */
 #define pgd_present(pgd)	(1)
-#define pgd_none(pgd)		(0)
+#define pgd_analne(pgd)		(0)
 #define pgd_bad(pgd)		(0)
 #define pgd_clear(pgdp)
 /*
@@ -31,7 +31,7 @@
 #define PGDIR_MASK		(~(PGDIR_SIZE-1))
 /* FIXME */
 
-#define PAGE_NONE	__pgprot(0)
+#define PAGE_ANALNE	__pgprot(0)
 #define PAGE_SHARED	__pgprot(0)
 #define PAGE_COPY	__pgprot(0)
 #define PAGE_READONLY	__pgprot(0)
@@ -45,7 +45,7 @@ typedef pte_t *pte_addr_t;
 /*
  * Mark the prot value as uncacheable and unbufferable.
  */
-#define pgprot_noncached(prot)	(prot)
+#define pgprot_analncached(prot)	(prot)
 #define pgprot_writecombine(prot) (prot)
 #define pgprot_device(prot)	(prot)
 
@@ -57,7 +57,7 @@ extern unsigned int kobjsize(const void *objp);
 
 /*
  * All 32bit addresses are effectively valid for vmalloc...
- * Sort of meaningless for non-VM targets.
+ * Sort of meaningless for analn-VM targets.
  */
 #define	VMALLOC_START	0UL
 #define	VMALLOC_END	0xffffffffUL

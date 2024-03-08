@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #ifndef _MLXSW_SPECTRUM_H
 #define _MLXSW_SPECTRUM_H
@@ -14,7 +14,7 @@
 #include <linux/list.h>
 #include <linux/dcbnl.h>
 #include <linux/in6.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/net_namespace.h>
 #include <linux/spinlock.h>
 #include <net/psample.h>
@@ -179,7 +179,7 @@ struct mlxsw_sp {
 	struct mlxsw_sp_port_range_core *pr_core;
 	struct mlxsw_sp_kvdl *kvdl;
 	struct mlxsw_sp_nve *nve;
-	struct notifier_block netdevice_nb;
+	struct analtifier_block netdevice_nb;
 	struct mlxsw_sp_ptp_clock *clock;
 	struct mlxsw_sp_ptp_state *ptp_state;
 	struct mlxsw_sp_counter_pool *counter_pool;
@@ -223,13 +223,13 @@ struct mlxsw_sp_ptp_ops {
 	struct mlxsw_sp_ptp_state *(*init)(struct mlxsw_sp *mlxsw_sp);
 	void (*fini)(struct mlxsw_sp_ptp_state *ptp_state);
 
-	/* Notify a driver that a packet that might be PTP was received. Driver
+	/* Analtify a driver that a packet that might be PTP was received. Driver
 	 * is responsible for freeing the passed-in SKB.
 	 */
 	void (*receive)(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 			u16 local_port);
 
-	/* Notify a driver that a timestamped packet was transmitted. Driver
+	/* Analtify a driver that a timestamped packet was transmitted. Driver
 	 * is responsible for freeing the passed-in SKB.
 	 */
 	void (*transmitted)(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
@@ -280,7 +280,7 @@ enum mlxsw_sp_sample_trigger_type {
 
 struct mlxsw_sp_sample_trigger {
 	enum mlxsw_sp_sample_trigger_type type;
-	u16 local_port; /* Reserved when trigger type is not ingress / egress. */
+	u16 local_port; /* Reserved when trigger type is analt ingress / egress. */
 };
 
 struct mlxsw_sp_sample_params {
@@ -299,10 +299,10 @@ struct mlxsw_sp_port_vlan {
 	struct mlxsw_sp_fid *fid;
 	u16 vid;
 	struct mlxsw_sp_bridge_port *bridge_port;
-	struct list_head bridge_vlan_node;
+	struct list_head bridge_vlan_analde;
 };
 
-/* No need an internal lock; At worse - miss a single periodic iteration */
+/* Anal need an internal lock; At worse - miss a single periodic iteration */
 struct mlxsw_sp_port_xstats {
 	u64 ecn;
 	u64 tc_ecn[TC_MAX_QUEUE];
@@ -412,7 +412,7 @@ mlxsw_sp_port_bitmap_init(struct mlxsw_sp *mlxsw_sp,
 	ports_bm->nbits = nbits;
 	ports_bm->bitmap = bitmap_zalloc(nbits, GFP_KERNEL);
 	if (!ports_bm->bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -514,7 +514,7 @@ enum mlxsw_sp_flood_type {
 	MLXSW_SP_FLOOD_TYPE_BC,
 	MLXSW_SP_FLOOD_TYPE_MC,
 	/* For RSP FIDs in CFF mode. */
-	MLXSW_SP_FLOOD_TYPE_NOT_UC,
+	MLXSW_SP_FLOOD_TYPE_ANALT_UC,
 	/* For NVE traffic. */
 	MLXSW_SP_FLOOD_TYPE_ANY,
 };
@@ -578,7 +578,7 @@ struct mlxsw_sp_hdroom {
 		 */
 		u32 size_cells;
 		/* Space reserved in the headroom for the internal buffer. Port
-		 * buffers are not allowed to grow into this space.
+		 * buffers are analt allowed to grow into this space.
 		 */
 		u32 reserve_cells;
 		bool enable;
@@ -678,10 +678,10 @@ int mlxsw_sp_bridge_vxlan_join(struct mlxsw_sp *mlxsw_sp,
 			       struct netlink_ext_ack *extack);
 void mlxsw_sp_bridge_vxlan_leave(struct mlxsw_sp *mlxsw_sp,
 				 const struct net_device *vxlan_dev);
-extern struct notifier_block mlxsw_sp_switchdev_notifier;
+extern struct analtifier_block mlxsw_sp_switchdev_analtifier;
 
 /* spectrum.c */
-void mlxsw_sp_rx_listener_no_mark_func(struct sk_buff *skb,
+void mlxsw_sp_rx_listener_anal_mark_func(struct sk_buff *skb,
 				       u16 local_port, void *priv);
 void mlxsw_sp_ptp_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 			  u16 local_port);
@@ -1062,7 +1062,7 @@ int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
 int mlxsw_sp_acl_rulei_act_fid_set(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_acl_rule_info *rulei,
 				   u16 fid, struct netlink_ext_ack *extack);
-int mlxsw_sp_acl_rulei_act_ignore(struct mlxsw_sp *mlxsw_sp,
+int mlxsw_sp_acl_rulei_act_iganalre(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_rule_info *rulei,
 				  bool disable_learning, bool disable_security);
 int mlxsw_sp_acl_rulei_act_sample(struct mlxsw_sp *mlxsw_sp,

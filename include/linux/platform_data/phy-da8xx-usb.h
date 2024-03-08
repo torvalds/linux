@@ -2,7 +2,7 @@
 /*
  * phy-da8xx-usb - TI DaVinci DA8xx USB PHY driver
  *
- * Copyright (C) 2018 David Lechner <david@lechnology.com>
+ * Copyright (C) 2018 David Lechner <david@lechanallogy.com>
  */
 
 #ifndef __LINUX_PLATFORM_DATA_PHY_DA8XX_USB_H__

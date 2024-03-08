@@ -18,12 +18,12 @@
  * nfsd_file_get and nfsd_file_put. There are two varieties of nfsd_file
  * object:
  *
- *  * non-garbage-collected: When a consumer wants to precisely control
- *    the lifetime of a file's open state, it acquires a non-garbage-
+ *  * analn-garbage-collected: When a consumer wants to precisely control
+ *    the lifetime of a file's open state, it acquires a analn-garbage-
  *    collected nfsd_file. The final nfsd_file_put releases the open
  *    state immediately.
  *
- *  * garbage-collected: When a consumer does not control the lifetime
+ *  * garbage-collected: When a consumer does analt control the lifetime
  *    of open state, it acquires a garbage-collected nfsd_file. The
  *    final nfsd_file_put allows the open state to linger for a period
  *    during which it may be re-used.
@@ -35,8 +35,8 @@
 #include <linux/pagemap.h>
 #include <linux/sched.h>
 #include <linux/list_lru.h>
-#include <linux/fsnotify_backend.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify_backend.h>
+#include <linux/fsanaltify.h>
 #include <linux/seq_file.h>
 #include <linux/rhashtable.h>
 
@@ -72,7 +72,7 @@ static struct kmem_cache		*nfsd_file_slab;
 static struct kmem_cache		*nfsd_file_mark_slab;
 static struct list_lru			nfsd_file_lru;
 static unsigned long			nfsd_file_flags;
-static struct fsnotify_group		*nfsd_file_fsnotify_group;
+static struct fsanaltify_group		*nfsd_file_fsanaltify_group;
 static struct delayed_work		nfsd_filecache_laundrette;
 static struct rhltable			nfsd_file_rhltable
 						____cacheline_aligned_in_smp;
@@ -98,8 +98,8 @@ nfsd_match_cred(const struct cred *c1, const struct cred *c2)
 }
 
 static const struct rhashtable_params nfsd_file_rhash_params = {
-	.key_len		= sizeof_field(struct nfsd_file, nf_inode),
-	.key_offset		= offsetof(struct nfsd_file, nf_inode),
+	.key_len		= sizeof_field(struct nfsd_file, nf_ianalde),
+	.key_offset		= offsetof(struct nfsd_file, nf_ianalde),
 	.head_offset		= offsetof(struct nfsd_file, nf_rlist),
 
 	/*
@@ -128,7 +128,7 @@ nfsd_file_slab_free(struct rcu_head *rcu)
 }
 
 static void
-nfsd_file_mark_free(struct fsnotify_mark *mark)
+nfsd_file_mark_free(struct fsanaltify_mark *mark)
 {
 	struct nfsd_file_mark *nfm = container_of(mark, struct nfsd_file_mark,
 						  nfm_mark);
@@ -139,7 +139,7 @@ nfsd_file_mark_free(struct fsnotify_mark *mark)
 static struct nfsd_file_mark *
 nfsd_file_mark_get(struct nfsd_file_mark *nfm)
 {
-	if (!refcount_inc_not_zero(&nfm->nfm_ref))
+	if (!refcount_inc_analt_zero(&nfm->nfm_ref))
 		return NULL;
 	return nfm;
 }
@@ -148,68 +148,68 @@ static void
 nfsd_file_mark_put(struct nfsd_file_mark *nfm)
 {
 	if (refcount_dec_and_test(&nfm->nfm_ref)) {
-		fsnotify_destroy_mark(&nfm->nfm_mark, nfsd_file_fsnotify_group);
-		fsnotify_put_mark(&nfm->nfm_mark);
+		fsanaltify_destroy_mark(&nfm->nfm_mark, nfsd_file_fsanaltify_group);
+		fsanaltify_put_mark(&nfm->nfm_mark);
 	}
 }
 
 static struct nfsd_file_mark *
-nfsd_file_mark_find_or_create(struct nfsd_file *nf, struct inode *inode)
+nfsd_file_mark_find_or_create(struct nfsd_file *nf, struct ianalde *ianalde)
 {
 	int			err;
-	struct fsnotify_mark	*mark;
+	struct fsanaltify_mark	*mark;
 	struct nfsd_file_mark	*nfm = NULL, *new;
 
 	do {
-		fsnotify_group_lock(nfsd_file_fsnotify_group);
-		mark = fsnotify_find_mark(&inode->i_fsnotify_marks,
-					  nfsd_file_fsnotify_group);
+		fsanaltify_group_lock(nfsd_file_fsanaltify_group);
+		mark = fsanaltify_find_mark(&ianalde->i_fsanaltify_marks,
+					  nfsd_file_fsanaltify_group);
 		if (mark) {
 			nfm = nfsd_file_mark_get(container_of(mark,
 						 struct nfsd_file_mark,
 						 nfm_mark));
-			fsnotify_group_unlock(nfsd_file_fsnotify_group);
+			fsanaltify_group_unlock(nfsd_file_fsanaltify_group);
 			if (nfm) {
-				fsnotify_put_mark(mark);
+				fsanaltify_put_mark(mark);
 				break;
 			}
 			/* Avoid soft lockup race with nfsd_file_mark_put() */
-			fsnotify_destroy_mark(mark, nfsd_file_fsnotify_group);
-			fsnotify_put_mark(mark);
+			fsanaltify_destroy_mark(mark, nfsd_file_fsanaltify_group);
+			fsanaltify_put_mark(mark);
 		} else {
-			fsnotify_group_unlock(nfsd_file_fsnotify_group);
+			fsanaltify_group_unlock(nfsd_file_fsanaltify_group);
 		}
 
 		/* allocate a new nfm */
 		new = kmem_cache_alloc(nfsd_file_mark_slab, GFP_KERNEL);
 		if (!new)
 			return NULL;
-		fsnotify_init_mark(&new->nfm_mark, nfsd_file_fsnotify_group);
+		fsanaltify_init_mark(&new->nfm_mark, nfsd_file_fsanaltify_group);
 		new->nfm_mark.mask = FS_ATTRIB|FS_DELETE_SELF;
 		refcount_set(&new->nfm_ref, 1);
 
-		err = fsnotify_add_inode_mark(&new->nfm_mark, inode, 0);
+		err = fsanaltify_add_ianalde_mark(&new->nfm_mark, ianalde, 0);
 
 		/*
 		 * If the add was successful, then return the object.
 		 * Otherwise, we need to put the reference we hold on the
-		 * nfm_mark. The fsnotify code will take a reference and put
+		 * nfm_mark. The fsanaltify code will take a reference and put
 		 * it on failure, so we can't just free it directly. It's also
-		 * not safe to call fsnotify_destroy_mark on it as the
+		 * analt safe to call fsanaltify_destroy_mark on it as the
 		 * mark->group will be NULL. Thus, we can't let the nfm_ref
 		 * counter drive the destruction at this point.
 		 */
 		if (likely(!err))
 			nfm = new;
 		else
-			fsnotify_put_mark(&new->nfm_mark);
+			fsanaltify_put_mark(&new->nfm_mark);
 	} while (unlikely(err == -EEXIST));
 
 	return nfm;
 }
 
 static struct nfsd_file *
-nfsd_file_alloc(struct net *net, struct inode *inode, unsigned char need,
+nfsd_file_alloc(struct net *net, struct ianalde *ianalde, unsigned char need,
 		bool want_gc)
 {
 	struct nfsd_file *nf;
@@ -226,7 +226,7 @@ nfsd_file_alloc(struct net *net, struct inode *inode, unsigned char need,
 	nf->nf_flags = want_gc ?
 		BIT(NFSD_FILE_HASHED) | BIT(NFSD_FILE_PENDING) | BIT(NFSD_FILE_GC) :
 		BIT(NFSD_FILE_HASHED) | BIT(NFSD_FILE_PENDING);
-	nf->nf_inode = inode;
+	nf->nf_ianalde = ianalde;
 	refcount_set(&nf->nf_ref, 1);
 	nf->nf_may = need;
 	nf->nf_mark = NULL;
@@ -302,15 +302,15 @@ nfsd_file_check_writeback(struct nfsd_file *nf)
 	struct file *file = nf->nf_file;
 	struct address_space *mapping;
 
-	/* File not open for write? */
+	/* File analt open for write? */
 	if (!(file->f_mode & FMODE_WRITE))
 		return false;
 
 	/*
 	 * Some filesystems (e.g. NFS) flush all dirty data on close.
-	 * On others, there is no need to wait for writeback.
+	 * On others, there is anal need to wait for writeback.
 	 */
-	if (!(file_inode(file)->i_sb->s_export_op->flags & EXPORT_OP_FLUSH_ON_CLOSE))
+	if (!(file_ianalde(file)->i_sb->s_export_op->flags & EXPORT_OP_FLUSH_ON_CLOSE))
 		return false;
 
 	mapping = file->f_mapping;
@@ -341,7 +341,7 @@ static bool nfsd_file_lru_remove(struct nfsd_file *nf)
 struct nfsd_file *
 nfsd_file_get(struct nfsd_file *nf)
 {
-	if (nf && refcount_inc_not_zero(&nf->nf_ref))
+	if (nf && refcount_inc_analt_zero(&nf->nf_ref))
 		return nf;
 	return NULL;
 }
@@ -350,7 +350,7 @@ nfsd_file_get(struct nfsd_file *nf)
  * nfsd_file_put - put the reference to a nfsd_file
  * @nf: nfsd_file of which to put the reference
  *
- * Put a reference to a nfsd_file. In the non-GC case, we just put the
+ * Put a reference to a nfsd_file. In the analn-GC case, we just put the
  * reference immediately. In the GC case, if the reference would be
  * the last one, the put it on the LRU instead to be cleaned up later.
  */
@@ -366,7 +366,7 @@ nfsd_file_put(struct nfsd_file *nf)
 		 * If this is the last reference (nf_ref == 1), then try to
 		 * transfer it to the LRU.
 		 */
-		if (refcount_dec_not_one(&nf->nf_ref))
+		if (refcount_dec_analt_one(&nf->nf_ref))
 			return;
 
 		/* Try to add it to the LRU.  If that fails, decrement. */
@@ -435,7 +435,7 @@ nfsd_file_dispose_list_delayed(struct list_head *dispose)
  * Return values:
  *   %LRU_REMOVED: @item was removed from the LRU
  *   %LRU_ROTATE: @item is to be moved to the LRU tail
- *   %LRU_SKIP: @item cannot be evicted
+ *   %LRU_SKIP: @item cananalt be evicted
  */
 static enum lru_status
 nfsd_file_lru_cb(struct list_head *item, struct list_lru_one *lru,
@@ -466,7 +466,7 @@ nfsd_file_lru_cb(struct list_head *item, struct list_lru_one *lru,
 
 	/*
 	 * Put the reference held on behalf of the LRU. If it wasn't the last
-	 * one, then just remove it from the LRU and ignore it.
+	 * one, then just remove it from the LRU and iganalre it.
 	 */
 	if (!refcount_dec_and_test(&nf->nf_ref)) {
 		trace_nfsd_file_gc_in_use(nf);
@@ -537,11 +537,11 @@ nfsd_file_cond_queue(struct nfsd_file *nf, struct list_head *dispose)
 {
 	int decrement = 1;
 
-	/* If we raced with someone else unhashing, ignore it */
+	/* If we raced with someone else unhashing, iganalre it */
 	if (!nfsd_file_unhash(nf))
 		return;
 
-	/* If we can't get a reference, ignore it */
+	/* If we can't get a reference, iganalre it */
 	if (!nfsd_file_get(nf))
 		return;
 
@@ -557,8 +557,8 @@ nfsd_file_cond_queue(struct nfsd_file *nf, struct list_head *dispose)
 }
 
 /**
- * nfsd_file_queue_for_close: try to close out any open nfsd_files for an inode
- * @inode:   inode on which to close out nfsd_files
+ * nfsd_file_queue_for_close: try to close out any open nfsd_files for an ianalde
+ * @ianalde:   ianalde on which to close out nfsd_files
  * @dispose: list on which to gather nfsd_files to close out
  *
  * An nfsd_file represents a struct file being held open on behalf of nfsd.
@@ -570,16 +570,16 @@ nfsd_file_cond_queue(struct nfsd_file *nf, struct list_head *dispose)
  *
  * Populates the dispose list with entries that have already had their
  * refcounts go to zero. The actual free of an nfsd_file can be expensive,
- * so we leave it up to the caller whether it wants to wait or not.
+ * so we leave it up to the caller whether it wants to wait or analt.
  */
 static void
-nfsd_file_queue_for_close(struct inode *inode, struct list_head *dispose)
+nfsd_file_queue_for_close(struct ianalde *ianalde, struct list_head *dispose)
 {
 	struct rhlist_head *tmp, *list;
 	struct nfsd_file *nf;
 
 	rcu_read_lock();
-	list = rhltable_lookup(&nfsd_file_rhltable, &inode,
+	list = rhltable_lookup(&nfsd_file_rhltable, &ianalde,
 			       nfsd_file_rhash_params);
 	rhl_for_each_entry_rcu(nf, tmp, list, nf_rlist) {
 		if (!test_bit(NFSD_FILE_GC, &nf->nf_flags))
@@ -590,42 +590,42 @@ nfsd_file_queue_for_close(struct inode *inode, struct list_head *dispose)
 }
 
 /**
- * nfsd_file_close_inode - attempt a delayed close of a nfsd_file
- * @inode: inode of the file to attempt to remove
+ * nfsd_file_close_ianalde - attempt a delayed close of a nfsd_file
+ * @ianalde: ianalde of the file to attempt to remove
  *
- * Close out any open nfsd_files that can be reaped for @inode. The
+ * Close out any open nfsd_files that can be reaped for @ianalde. The
  * actual freeing is deferred to the dispose_list_delayed infrastructure.
  *
- * This is used by the fsnotify callbacks and setlease notifier.
+ * This is used by the fsanaltify callbacks and setlease analtifier.
  */
 static void
-nfsd_file_close_inode(struct inode *inode)
+nfsd_file_close_ianalde(struct ianalde *ianalde)
 {
 	LIST_HEAD(dispose);
 
-	nfsd_file_queue_for_close(inode, &dispose);
+	nfsd_file_queue_for_close(ianalde, &dispose);
 	nfsd_file_dispose_list_delayed(&dispose);
 }
 
 /**
- * nfsd_file_close_inode_sync - attempt to forcibly close a nfsd_file
- * @inode: inode of the file to attempt to remove
+ * nfsd_file_close_ianalde_sync - attempt to forcibly close a nfsd_file
+ * @ianalde: ianalde of the file to attempt to remove
  *
- * Close out any open nfsd_files that can be reaped for @inode. The
- * nfsd_files are closed out synchronously.
+ * Close out any open nfsd_files that can be reaped for @ianalde. The
+ * nfsd_files are closed out synchroanalusly.
  *
  * This is called from nfsd_rename and nfsd_unlink to avoid silly-renames
  * when reexporting NFS.
  */
 void
-nfsd_file_close_inode_sync(struct inode *inode)
+nfsd_file_close_ianalde_sync(struct ianalde *ianalde)
 {
 	struct nfsd_file *nf;
 	LIST_HEAD(dispose);
 
-	trace_nfsd_file_close(inode);
+	trace_nfsd_file_close(ianalde);
 
-	nfsd_file_queue_for_close(inode, &dispose);
+	nfsd_file_queue_for_close(ianalde, &dispose);
 	while (!list_empty(&dispose)) {
 		nf = list_first_entry(&dispose, struct nfsd_file, nf_lru);
 		list_del_init(&nf->nf_lru);
@@ -656,50 +656,50 @@ nfsd_file_delayed_close(struct work_struct *work)
 }
 
 static int
-nfsd_file_lease_notifier_call(struct notifier_block *nb, unsigned long arg,
+nfsd_file_lease_analtifier_call(struct analtifier_block *nb, unsigned long arg,
 			    void *data)
 {
 	struct file_lock *fl = data;
 
 	/* Only close files for F_SETLEASE leases */
 	if (fl->fl_flags & FL_LEASE)
-		nfsd_file_close_inode(file_inode(fl->fl_file));
+		nfsd_file_close_ianalde(file_ianalde(fl->fl_file));
 	return 0;
 }
 
-static struct notifier_block nfsd_file_lease_notifier = {
-	.notifier_call = nfsd_file_lease_notifier_call,
+static struct analtifier_block nfsd_file_lease_analtifier = {
+	.analtifier_call = nfsd_file_lease_analtifier_call,
 };
 
 static int
-nfsd_file_fsnotify_handle_event(struct fsnotify_mark *mark, u32 mask,
-				struct inode *inode, struct inode *dir,
+nfsd_file_fsanaltify_handle_event(struct fsanaltify_mark *mark, u32 mask,
+				struct ianalde *ianalde, struct ianalde *dir,
 				const struct qstr *name, u32 cookie)
 {
-	if (WARN_ON_ONCE(!inode))
+	if (WARN_ON_ONCE(!ianalde))
 		return 0;
 
-	trace_nfsd_file_fsnotify_handle_event(inode, mask);
+	trace_nfsd_file_fsanaltify_handle_event(ianalde, mask);
 
-	/* Should be no marks on non-regular files */
-	if (!S_ISREG(inode->i_mode)) {
+	/* Should be anal marks on analn-regular files */
+	if (!S_ISREG(ianalde->i_mode)) {
 		WARN_ON_ONCE(1);
 		return 0;
 	}
 
-	/* don't close files if this was not the last link */
+	/* don't close files if this was analt the last link */
 	if (mask & FS_ATTRIB) {
-		if (inode->i_nlink)
+		if (ianalde->i_nlink)
 			return 0;
 	}
 
-	nfsd_file_close_inode(inode);
+	nfsd_file_close_ianalde(ianalde);
 	return 0;
 }
 
 
-static const struct fsnotify_ops nfsd_file_fsnotify_ops = {
-	.handle_inode_event = nfsd_file_fsnotify_handle_event,
+static const struct fsanaltify_ops nfsd_file_fsanaltify_ops = {
+	.handle_ianalde_event = nfsd_file_fsanaltify_handle_event,
 	.free_mark = nfsd_file_mark_free,
 };
 
@@ -716,7 +716,7 @@ nfsd_file_cache_init(void)
 	if (ret)
 		return ret;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	nfsd_filecache_wq = alloc_workqueue("nfsd_filecache", WQ_UNBOUND, 0);
 	if (!nfsd_filecache_wq)
 		goto out;
@@ -744,7 +744,7 @@ nfsd_file_cache_init(void)
 
 	nfsd_file_shrinker = shrinker_alloc(0, "nfsd-filecache");
 	if (!nfsd_file_shrinker) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		pr_err("nfsd: failed to allocate nfsd_file_shrinker\n");
 		goto out_lru;
 	}
@@ -755,27 +755,27 @@ nfsd_file_cache_init(void)
 
 	shrinker_register(nfsd_file_shrinker);
 
-	ret = lease_register_notifier(&nfsd_file_lease_notifier);
+	ret = lease_register_analtifier(&nfsd_file_lease_analtifier);
 	if (ret) {
-		pr_err("nfsd: unable to register lease notifier: %d\n", ret);
+		pr_err("nfsd: unable to register lease analtifier: %d\n", ret);
 		goto out_shrinker;
 	}
 
-	nfsd_file_fsnotify_group = fsnotify_alloc_group(&nfsd_file_fsnotify_ops,
-							FSNOTIFY_GROUP_NOFS);
-	if (IS_ERR(nfsd_file_fsnotify_group)) {
-		pr_err("nfsd: unable to create fsnotify group: %ld\n",
-			PTR_ERR(nfsd_file_fsnotify_group));
-		ret = PTR_ERR(nfsd_file_fsnotify_group);
-		nfsd_file_fsnotify_group = NULL;
-		goto out_notifier;
+	nfsd_file_fsanaltify_group = fsanaltify_alloc_group(&nfsd_file_fsanaltify_ops,
+							FSANALTIFY_GROUP_ANALFS);
+	if (IS_ERR(nfsd_file_fsanaltify_group)) {
+		pr_err("nfsd: unable to create fsanaltify group: %ld\n",
+			PTR_ERR(nfsd_file_fsanaltify_group));
+		ret = PTR_ERR(nfsd_file_fsanaltify_group);
+		nfsd_file_fsanaltify_group = NULL;
+		goto out_analtifier;
 	}
 
 	INIT_DELAYED_WORK(&nfsd_filecache_laundrette, nfsd_file_gc_worker);
 out:
 	return ret;
-out_notifier:
-	lease_unregister_notifier(&nfsd_file_lease_notifier);
+out_analtifier:
+	lease_unregister_analtifier(&nfsd_file_lease_analtifier);
 out_shrinker:
 	shrinker_free(nfsd_file_shrinker);
 out_lru:
@@ -861,7 +861,7 @@ nfsd_file_cache_start_net(struct net *net)
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	nn->fcache_disposal = nfsd_alloc_fcache_disposal();
-	return nn->fcache_disposal ? 0 : -ENOMEM;
+	return nn->fcache_disposal ? 0 : -EANALMEM;
 }
 
 /**
@@ -893,7 +893,7 @@ nfsd_file_cache_shutdown(void)
 	if (test_and_clear_bit(NFSD_FILE_CACHE_UP, &nfsd_file_flags) == 0)
 		return;
 
-	lease_unregister_notifier(&nfsd_file_lease_notifier);
+	lease_unregister_analtifier(&nfsd_file_lease_analtifier);
 	shrinker_free(nfsd_file_shrinker);
 	/*
 	 * make sure all callers of nfsd_file_lru_cb are done before
@@ -903,11 +903,11 @@ nfsd_file_cache_shutdown(void)
 	__nfsd_file_cache_purge(NULL);
 	list_lru_destroy(&nfsd_file_lru);
 	rcu_barrier();
-	fsnotify_put_group(nfsd_file_fsnotify_group);
-	nfsd_file_fsnotify_group = NULL;
+	fsanaltify_put_group(nfsd_file_fsanaltify_group);
+	nfsd_file_fsanaltify_group = NULL;
 	kmem_cache_destroy(nfsd_file_slab);
 	nfsd_file_slab = NULL;
-	fsnotify_wait_marks_destroyed();
+	fsanaltify_wait_marks_destroyed();
 	kmem_cache_destroy(nfsd_file_mark_slab);
 	nfsd_file_mark_slab = NULL;
 	destroy_workqueue(nfsd_filecache_wq);
@@ -925,13 +925,13 @@ nfsd_file_cache_shutdown(void)
 
 static struct nfsd_file *
 nfsd_file_lookup_locked(const struct net *net, const struct cred *cred,
-			struct inode *inode, unsigned char need,
+			struct ianalde *ianalde, unsigned char need,
 			bool want_gc)
 {
 	struct rhlist_head *tmp, *list;
 	struct nfsd_file *nf;
 
-	list = rhltable_lookup(&nfsd_file_rhltable, &inode,
+	list = rhltable_lookup(&nfsd_file_rhltable, &ianalde,
 			       nfsd_file_rhash_params);
 	rhl_for_each_entry_rcu(nf, tmp, list, nf_rlist) {
 		if (nf->nf_may != need)
@@ -953,25 +953,25 @@ nfsd_file_lookup_locked(const struct net *net, const struct cred *cred,
 }
 
 /**
- * nfsd_file_is_cached - are there any cached open files for this inode?
- * @inode: inode to check
+ * nfsd_file_is_cached - are there any cached open files for this ianalde?
+ * @ianalde: ianalde to check
  *
- * The lookup matches inodes in all net namespaces and is atomic wrt
+ * The lookup matches ianaldes in all net namespaces and is atomic wrt
  * nfsd_file_acquire().
  *
  * Return values:
- *   %true: filecache contains at least one file matching this inode
- *   %false: filecache contains no files matching this inode
+ *   %true: filecache contains at least one file matching this ianalde
+ *   %false: filecache contains anal files matching this ianalde
  */
 bool
-nfsd_file_is_cached(struct inode *inode)
+nfsd_file_is_cached(struct ianalde *ianalde)
 {
 	struct rhlist_head *tmp, *list;
 	struct nfsd_file *nf;
 	bool ret = false;
 
 	rcu_read_lock();
-	list = rhltable_lookup(&nfsd_file_rhltable, &inode,
+	list = rhltable_lookup(&nfsd_file_rhltable, &ianalde,
 			       nfsd_file_rhash_params);
 	rhl_for_each_entry_rcu(nf, tmp, list, nf_rlist)
 		if (test_bit(NFSD_FILE_GC, &nf->nf_flags)) {
@@ -980,7 +980,7 @@ nfsd_file_is_cached(struct inode *inode)
 		}
 	rcu_read_unlock();
 
-	trace_nfsd_file_is_cached(inode, (int)ret);
+	trace_nfsd_file_is_cached(ianalde, (int)ret);
 	return ret;
 }
 
@@ -994,7 +994,7 @@ nfsd_file_do_acquire(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	struct nfsd_file *new, *nf;
 	bool stale_retry = true;
 	bool open_retry = true;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	__be32 status;
 	int ret;
 
@@ -1003,34 +1003,34 @@ retry:
 				may_flags|NFSD_MAY_OWNER_OVERRIDE);
 	if (status != nfs_ok)
 		return status;
-	inode = d_inode(fhp->fh_dentry);
+	ianalde = d_ianalde(fhp->fh_dentry);
 
 	rcu_read_lock();
-	nf = nfsd_file_lookup_locked(net, current_cred(), inode, need, want_gc);
+	nf = nfsd_file_lookup_locked(net, current_cred(), ianalde, need, want_gc);
 	rcu_read_unlock();
 
 	if (nf) {
 		/*
 		 * If the nf is on the LRU then it holds an extra reference
-		 * that must be put if it's removed. It had better not be
-		 * the last one however, since we should hold another.
+		 * that must be put if it's removed. It had better analt be
+		 * the last one however, since we should hold aanalther.
 		 */
 		if (nfsd_file_lru_remove(nf))
 			WARN_ON_ONCE(refcount_dec_and_test(&nf->nf_ref));
 		goto wait_for_construction;
 	}
 
-	new = nfsd_file_alloc(net, inode, need, want_gc);
+	new = nfsd_file_alloc(net, ianalde, need, want_gc);
 	if (!new) {
 		status = nfserr_jukebox;
 		goto out;
 	}
 
 	rcu_read_lock();
-	spin_lock(&inode->i_lock);
-	nf = nfsd_file_lookup_locked(net, current_cred(), inode, need, want_gc);
+	spin_lock(&ianalde->i_lock);
+	nf = nfsd_file_lookup_locked(net, current_cred(), ianalde, need, want_gc);
 	if (unlikely(nf)) {
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ianalde->i_lock);
 		rcu_read_unlock();
 		nfsd_file_slab_free(&new->nf_rcu);
 		goto wait_for_construction;
@@ -1038,14 +1038,14 @@ retry:
 	nf = new;
 	ret = rhltable_insert(&nfsd_file_rhltable, &nf->nf_rlist,
 			      nfsd_file_rhash_params);
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ianalde->i_lock);
 	rcu_read_unlock();
 	if (likely(ret == 0))
 		goto open_file;
 
 	if (ret == -EEXIST)
 		goto retry;
-	trace_nfsd_file_insert_err(rqstp, inode, may_flags, ret);
+	trace_nfsd_file_insert_err(rqstp, ianalde, may_flags, ret);
 	status = nfserr_jukebox;
 	goto construction_err;
 
@@ -1054,7 +1054,7 @@ wait_for_construction:
 
 	/* Did construction of this file fail? */
 	if (!test_bit(NFSD_FILE_HASHED, &nf->nf_flags)) {
-		trace_nfsd_file_cons_err(rqstp, inode, may_flags, nf);
+		trace_nfsd_file_cons_err(rqstp, ianalde, may_flags, nf);
 		if (!open_retry) {
 			status = nfserr_jukebox;
 			goto construction_err;
@@ -1065,7 +1065,7 @@ wait_for_construction:
 	}
 	this_cpu_inc(nfsd_file_cache_hits);
 
-	status = nfserrno(nfsd_open_break_lease(file_inode(nf->nf_file), may_flags));
+	status = nfserranal(nfsd_open_break_lease(file_ianalde(nf->nf_file), may_flags));
 	if (status != nfs_ok) {
 		nfsd_file_put(nf);
 		nf = NULL;
@@ -1077,12 +1077,12 @@ out:
 		nfsd_file_check_write_error(nf);
 		*pnf = nf;
 	}
-	trace_nfsd_file_acquire(rqstp, inode, may_flags, nf, status);
+	trace_nfsd_file_acquire(rqstp, ianalde, may_flags, nf, status);
 	return status;
 
 open_file:
 	trace_nfsd_file_alloc(nf);
-	nf->nf_mark = nfsd_file_mark_find_or_create(nf, inode);
+	nf->nf_mark = nfsd_file_mark_find_or_create(nf, ianalde);
 	if (nf->nf_mark) {
 		if (file) {
 			get_file(file);
@@ -1103,7 +1103,7 @@ open_file:
 				fh_put(fhp);
 				goto retry;
 			}
-			status = nfserrno(ret);
+			status = nfserranal(ret);
 			trace_nfsd_file_open(nf, status);
 		}
 	} else
@@ -1112,7 +1112,7 @@ open_file:
 	 * If construction failed, or we raced with a call to unlink()
 	 * then unhash.
 	 */
-	if (status != nfs_ok || inode->i_nlink == 0)
+	if (status != nfs_ok || ianalde->i_nlink == 0)
 		nfsd_file_unhash(nf);
 	clear_and_wake_up_bit(NFSD_FILE_PENDING, &nf->nf_flags);
 	if (status == nfs_ok)
@@ -1158,7 +1158,7 @@ nfsd_file_acquire_gc(struct svc_rqst *rqstp, struct svc_fh *fhp,
  * @pnf: OUT: new or found "struct nfsd_file" object
  *
  * The nfsd_file_object returned by this API is reference-counted
- * but not garbage-collected. The object is unhashed after the
+ * but analt garbage-collected. The object is unhashed after the
  * final nfsd_file_put().
  *
  * Return values:
@@ -1182,8 +1182,8 @@ nfsd_file_acquire(struct svc_rqst *rqstp, struct svc_fh *fhp,
  * @file: cached, already-open file (may be NULL)
  * @pnf: OUT: new or found "struct nfsd_file" object
  *
- * Acquire a nfsd_file object that is not GC'ed. If one doesn't already exist,
- * and @file is non-NULL, use it to instantiate a new nfsd_file instead of
+ * Acquire a nfsd_file object that is analt GC'ed. If one doesn't already exist,
+ * and @file is analn-NULL, use it to instantiate a new nfsd_file instead of
  * opening a new one.
  *
  * Return values:
@@ -1201,7 +1201,7 @@ nfsd_file_acquire_opened(struct svc_rqst *rqstp, struct svc_fh *fhp,
 }
 
 /*
- * Note that fields may be added, removed or reordered in the future. Programs
+ * Analte that fields may be added, removed or reordered in the future. Programs
  * scraping this file for info should test the labels to ensure they're
  * getting the correct field.
  */
@@ -1237,7 +1237,7 @@ int nfsd_file_cache_stats_show(struct seq_file *m, void *v)
 		evictions += per_cpu(nfsd_file_evictions, i);
 	}
 
-	seq_printf(m, "total inodes:  %u\n", count);
+	seq_printf(m, "total ianaldes:  %u\n", count);
 	seq_printf(m, "hash buckets:  %u\n", buckets);
 	seq_printf(m, "lru entries:   %lu\n", lru);
 	seq_printf(m, "cache hits:    %lu\n", hits);

@@ -9,7 +9,7 @@
  *    Copyright 2002-2005 MontaVista Software Inc.
  *
  *    Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
- *    Copyright (c) 2003-2005 Zultys Technologies
+ *    Copyright (c) 2003-2005 Zultys Techanallogies
  *
  *    Rewritten and ported to the merged powerpc tree:
  *    Copyright 2007 David Gibson <dwg@au1.ibm.com>, IBM Corporation.
@@ -48,10 +48,10 @@ machine_device_initcall(iss4xx, iss4xx_device_probe);
 /* We can have either UICs or MPICs */
 static void __init iss4xx_init_irq(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	/* Find top level interrupt controller */
-	for_each_node_with_property(np, "interrupt-controller") {
+	for_each_analde_with_property(np, "interrupt-controller") {
 		if (!of_property_present(np, "interrupts"))
 			break;
 	}
@@ -67,7 +67,7 @@ static void __init iss4xx_init_irq(void)
 		/* The MPIC driver will get everything it needs from the
 		 * device-tree, just pass 0 to all arguments
 		 */
-		struct mpic *mpic = mpic_alloc(np, 0, MPIC_NO_RESET, 0, 0, " MPIC     ");
+		struct mpic *mpic = mpic_alloc(np, 0, MPIC_ANAL_RESET, 0, 0, " MPIC     ");
 		BUG_ON(mpic == NULL);
 		mpic_init(mpic);
 		ppc_md.get_irq = mpic_get_irq;
@@ -84,26 +84,26 @@ static void smp_iss4xx_setup_cpu(int cpu)
 
 static int smp_iss4xx_kick_cpu(int cpu)
 {
-	struct device_node *cpunode = of_get_cpu_node(cpu, NULL);
+	struct device_analde *cpuanalde = of_get_cpu_analde(cpu, NULL);
 	const u64 *spin_table_addr_prop;
 	u32 *spin_table;
 	extern void start_secondary_47x(void);
 
-	BUG_ON(cpunode == NULL);
+	BUG_ON(cpuanalde == NULL);
 
 	/* Assume spin table. We could test for the enable-method in
 	 * the device-tree but currently there's little point as it's
 	 * our only supported method
 	 */
-	spin_table_addr_prop = of_get_property(cpunode, "cpu-release-addr",
+	spin_table_addr_prop = of_get_property(cpuanalde, "cpu-release-addr",
 					       NULL);
 	if (spin_table_addr_prop == NULL) {
 		pr_err("CPU%d: Can't start, missing cpu-release-addr !\n", cpu);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* Assume it's mapped as part of the linear mapping. This is a bit
-	 * fishy but will work fine for now
+	 * fishy but will work fine for analw
 	 */
 	spin_table = (u32 *)__va(*spin_table_addr_prop);
 	pr_debug("CPU%d: Spin table mapped at %p\n", cpu, spin_table);

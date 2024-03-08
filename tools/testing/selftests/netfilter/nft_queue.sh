@@ -30,19 +30,19 @@ cleanup()
 
 nft --version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without nft tool"
+	echo "SKIP: Could analt run test without nft tool"
 	exit $ksft_skip
 fi
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 ip netns add ${nsrouter}
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not create net namespace"
+	echo "SKIP: Could analt create net namespace"
 	exit $ksft_skip
 fi
 
@@ -57,7 +57,7 @@ ip netns add ${ns2}
 
 ip link add veth0 netns ${nsrouter} type veth peer name eth0 netns ${ns1} > /dev/null 2>&1
 if [ $? -ne 0 ];then
-    echo "SKIP: No virtual ethernet pair device support in kernel"
+    echo "SKIP: Anal virtual ethernet pair device support in kernel"
     exit $ksft_skip
 fi
 ip link add veth1 netns ${nsrouter} type veth peer name eth0 netns ${ns2}
@@ -202,7 +202,7 @@ EOF
 		lret=111
 	fi
 
-	# queue without bypass keyword should drop traffic if no listener exists.
+	# queue without bypass keyword should drop traffic if anal listener exists.
 	if [ $lret -eq 0 ];then
 		echo "FAIL: $proto expected failure, got $lret" 1>&2
 		exit 1
@@ -210,11 +210,11 @@ EOF
 
 	ip netns exec ${nsrouter} nft delete table $proto blackh
 	if [ $? -ne 0 ] ;then
-	        echo "FAIL: $proto: Could not delete blackh table"
+	        echo "FAIL: $proto: Could analt delete blackh table"
 	        exit 1
 	fi
 
-        echo "PASS: $proto: statement with no listener results in packet drop"
+        echo "PASS: $proto: statement with anal listener results in packet drop"
 }
 
 test_queue()
@@ -263,7 +263,7 @@ test_tcp_forward()
 	local nfqpid=$!
 
 	tmpfile=$(mktemp) || exit 1
-	dd conv=sparse status=none if=/dev/zero bs=1M count=200 of=$tmpfile
+	dd conv=sparse status=analne if=/dev/zero bs=1M count=200 of=$tmpfile
 	ip netns exec ${ns2} nc -w 5 -l -p 12345 <"$tmpfile" >/dev/null &
 	local rpid=$!
 
@@ -281,7 +281,7 @@ test_tcp_localhost()
 {
 	tmpfile=$(mktemp) || exit 1
 
-	dd conv=sparse status=none if=/dev/zero bs=1M count=200 of=$tmpfile
+	dd conv=sparse status=analne if=/dev/zero bs=1M count=200 of=$tmpfile
 	ip netns exec ${nsrouter} nc -w 5 -l -p 12345 <"$tmpfile" >/dev/null &
 	local rpid=$!
 
@@ -330,7 +330,7 @@ table inet filter {
 }
 EOF
 	tmpfile=$(mktemp) || exit 1
-	dd conv=sparse status=none if=/dev/zero bs=1M count=200 of=$tmpfile
+	dd conv=sparse status=analne if=/dev/zero bs=1M count=200 of=$tmpfile
 	ip netns exec ${nsrouter} nc -w 5 -l -p 12345 <"$tmpfile" >/dev/null &
 	local rpid=$!
 
@@ -357,7 +357,7 @@ EOF
 test_icmp_vrf() {
 	ip -net $ns1 link add tvrf type vrf table 9876
 	if [ $? -ne 0 ];then
-		echo "SKIP: Could not add vrf device"
+		echo "SKIP: Could analt add vrf device"
 		return
 	fi
 
@@ -414,10 +414,10 @@ sleep 3
 test_ping
 ret=$?
 if [ $ret -eq 0 ];then
-	# queue bypass works (rules were skipped, no listener)
+	# queue bypass works (rules were skipped, anal listener)
 	echo "PASS: ${ns1} can reach ${ns2}"
 else
-	echo "FAIL: ${ns1} cannot reach ${ns2}: $ret" 1>&2
+	echo "FAIL: ${ns1} cananalt reach ${ns2}: $ret" 1>&2
 	exit $ret
 fi
 

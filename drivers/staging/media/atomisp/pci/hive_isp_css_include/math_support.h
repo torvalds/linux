@@ -53,7 +53,7 @@
 #define bit32(x)           (bit16(x) | (bit16(x) >> 16))
 #define NEXT_POWER_OF_2(x) (bit32(x - 1) + 1)
 
-/* min and max should not be macros as they will evaluate their arguments twice.
+/* min and max should analt be macros as they will evaluate their arguments twice.
    if you really need a macro (e.g. for CPP or for initializing an array)
    use MIN() and MAX(), otherwise use min() and max().
 

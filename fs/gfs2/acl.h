@@ -11,8 +11,8 @@
 
 #define GFS2_ACL_MAX_ENTRIES(sdp) ((300 << (sdp)->sd_sb.sb_bsize_shift) >> 12)
 
-struct posix_acl *gfs2_get_acl(struct inode *inode, int type, bool rcu);
-int __gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type);
+struct posix_acl *gfs2_get_acl(struct ianalde *ianalde, int type, bool rcu);
+int __gfs2_set_acl(struct ianalde *ianalde, struct posix_acl *acl, int type);
 int gfs2_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct posix_acl *acl, int type);
 

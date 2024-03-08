@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  HID driver for Waltop devices not fully compliant with HID standard
+ *  HID driver for Waltop devices analt fully compliant with HID standard
  *
  *  Copyright (c) 2010 Nikolai Kondrashov
  */
@@ -23,14 +23,14 @@
  * tablet input mode, switching it between "default", "tablet" and "ink".
  *
  * This driver only uses "default" mode for all the supported tablets. This
- * mode tries to be HID-compatible (not very successfully), but cripples the
+ * mode tries to be HID-compatible (analt very successfully), but cripples the
  * resolution of some tablets.
  *
  * The "tablet" mode uses some proprietary, yet decipherable protocol, which
  * represents the correct resolution, but is possibly HID-incompatible (i.e.
  * indescribable by a report descriptor).
  *
- * The purpose of the "ink" mode is unknown.
+ * The purpose of the "ink" mode is unkanalwn.
  *
  * The feature reports needed for switching to each mode are these:
  *
@@ -571,7 +571,7 @@ static __u8 sirius_battery_free_tablet_rdesc_fixed[] = {
 	0x75, 0x08,         /*      Report Size (8),                */
 	0x95, 0x01,         /*      Report Count (1),               */
 	0x81, 0x01,         /*      Input (Constant),               */
-	0x18,               /*      Usage Minimum (None),           */
+	0x18,               /*      Usage Minimum (Analne),           */
 	0x29, 0x65,         /*      Usage Maximum (KB Application), */
 	0x14,               /*      Logical Minimum (0),            */
 	0x25, 0x65,         /*      Logical Maximum (101),          */
@@ -655,7 +655,7 @@ static int waltop_raw_event(struct hid_device *hdev, struct hid_report *report,
 	/* If this is a pen input report */
 	if (report->type == HID_INPUT_REPORT && report->id == 16 && size >= 8) {
 		/*
-		 * Ignore reported pressure when a barrel button is pressed,
+		 * Iganalre reported pressure when a barrel button is pressed,
 		 * because it is rarely correct.
 		 */
 

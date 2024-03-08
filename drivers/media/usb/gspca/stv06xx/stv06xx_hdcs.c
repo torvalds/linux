@@ -24,7 +24,7 @@ static struct v4l2_pix_format hdcs1x00_mode[] = {
 		HDCS_1X00_DEF_WIDTH,
 		HDCS_1X00_DEF_HEIGHT,
 		V4L2_PIX_FMT_SGRBG8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage =
 			HDCS_1X00_DEF_WIDTH * HDCS_1X00_DEF_HEIGHT,
 		.bytesperline = HDCS_1X00_DEF_WIDTH,
@@ -38,7 +38,7 @@ static struct v4l2_pix_format hdcs1020_mode[] = {
 		HDCS_1020_DEF_WIDTH,
 		HDCS_1020_DEF_HEIGHT,
 		V4L2_PIX_FMT_SGRBG8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage =
 			HDCS_1020_DEF_WIDTH * HDCS_1020_DEF_HEIGHT,
 		.bytesperline = HDCS_1020_DEF_WIDTH,
@@ -53,7 +53,7 @@ enum hdcs_power_state {
 	HDCS_STATE_RUN
 };
 
-/* no lock? */
+/* anal lock? */
 struct hdcs {
 	enum hdcs_power_state state;
 	int w, h;
@@ -361,7 +361,7 @@ static int hdcs_probe_1x00(struct sd *sd)
 
 	ret = stv06xx_read_sensor(sd, HDCS_IDENT, &sensor);
 	if (ret < 0 || sensor != 0x08)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("HDCS-1000/1100 sensor detected\n");
 
@@ -370,7 +370,7 @@ static int hdcs_probe_1x00(struct sd *sd)
 
 	hdcs = kmalloc(sizeof(struct hdcs), GFP_KERNEL);
 	if (!hdcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdcs->array.left = 8;
 	hdcs->array.top = 8;
@@ -418,7 +418,7 @@ static int hdcs_probe_1020(struct sd *sd)
 
 	ret = stv06xx_read_sensor(sd, HDCS_IDENT, &sensor);
 	if (ret < 0 || sensor != 0x10)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("HDCS-1020 sensor detected\n");
 
@@ -427,7 +427,7 @@ static int hdcs_probe_1020(struct sd *sd)
 
 	hdcs = kmalloc(sizeof(struct hdcs), GFP_KERNEL);
 	if (!hdcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * From Andrey's test image: looks like HDCS-1020 upper-left

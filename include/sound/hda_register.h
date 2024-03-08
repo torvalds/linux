@@ -222,7 +222,7 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define AZX_REG_PP_PPCTL		0x04
 #define AZX_PPCTL_PIE			(1<<31)
 #define AZX_PPCTL_GPROCEN		(1<<30)
-/* _X_ = dma engine # and cannot * exceed 29 (per spec max 30 dma engines) */
+/* _X_ = dma engine # and cananalt * exceed 29 (per spec max 30 dma engines) */
 #define AZX_PPCTL_PROCEN(_X_)		(1<<(_X_))
 
 #define AZX_REG_PP_PPSTS		0x08

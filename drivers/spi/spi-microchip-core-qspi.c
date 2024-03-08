@@ -2,7 +2,7 @@
 /*
  * Microchip coreQSPI QSPI controller driver
  *
- * Copyright (C) 2018-2022 Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) 2018-2022 Microchip Techanallogy Inc. and its subsidiaries
  *
  * Author: Naga Sureshkumar Relli <nagasuresh.relli@microchip.com>
  *
@@ -129,8 +129,8 @@ static int mchp_coreqspi_set_mode(struct mchp_coreqspi *qspi, const struct spi_m
 
 	/*
 	 * The operating mode can be configured based on the command that needs to be send.
-	 * bits[15:14]: Sets whether multiple bit SPI operates in normal, extended or full modes.
-	 *		00: Normal (single DQ0 TX and single DQ1 RX lines)
+	 * bits[15:14]: Sets whether multiple bit SPI operates in analrmal, extended or full modes.
+	 *		00: Analrmal (single DQ0 TX and single DQ1 RX lines)
 	 *		01: Extended RO (command and address bytes on DQ0 only)
 	 *		10: Extended RW (command byte on DQ0 only)
 	 *		11: Full. (command and address are on all DQ lines)
@@ -239,7 +239,7 @@ static void mchp_coreqspi_disable_ints(struct mchp_coreqspi *qspi)
 static irqreturn_t mchp_coreqspi_isr(int irq, void *dev_id)
 {
 	struct mchp_coreqspi *qspi = (struct mchp_coreqspi *)dev_id;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	int intfield = readl_relaxed(qspi->regs + REG_STATUS) & STATUS_MASK;
 
 	if (intfield == 0)
@@ -277,7 +277,7 @@ static int mchp_coreqspi_setup_clock(struct mchp_coreqspi *qspi, struct spi_devi
 	baud_rate_val = DIV_ROUND_UP(clk_hz, 2 * spi->max_speed_hz);
 	if (baud_rate_val > MAX_DIVIDER || baud_rate_val < MIN_DIVIDER) {
 		dev_err(&spi->dev,
-			"could not configure the clock for spi clock %d Hz & system clock %ld Hz\n",
+			"could analt configure the clock for spi clock %d Hz & system clock %ld Hz\n",
 			spi->max_speed_hz, clk_hz);
 		return -EINVAL;
 	}
@@ -469,8 +469,8 @@ static bool mchp_coreqspi_supports_op(struct spi_mem *mem, const struct spi_mem_
 		 * address on DQ0.
 		 * i.e. The control register[15:13] :EX_RO(read only) is
 		 * meant only for the command and address are on DQ0 but
-		 * not to write data, it is just to read.
-		 * Ex: 0x34h is Quad Load Program Data which is not
+		 * analt to write data, it is just to read.
+		 * Ex: 0x34h is Quad Load Program Data which is analt
 		 * supported. Then the spi-mem layer will iterate over
 		 * each command and it will chose the supported one.
 		 */
@@ -502,12 +502,12 @@ static int mchp_coreqspi_probe(struct platform_device *pdev)
 	struct spi_controller *ctlr;
 	struct mchp_coreqspi *qspi;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	ctlr = devm_spi_alloc_host(&pdev->dev, sizeof(*qspi));
 	if (!ctlr)
-		return dev_err_probe(&pdev->dev, -ENOMEM,
+		return dev_err_probe(&pdev->dev, -EANALMEM,
 				     "unable to allocate host for QSPI controller\n");
 
 	qspi = spi_controller_get_devdata(ctlr);
@@ -521,7 +521,7 @@ static int mchp_coreqspi_probe(struct platform_device *pdev)
 	qspi->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(qspi->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(qspi->clk),
-				     "could not get clock\n");
+				     "could analt get clock\n");
 
 	init_completion(&qspi->data_completion);
 	mutex_init(&qspi->op_lock);
@@ -542,7 +542,7 @@ static int mchp_coreqspi_probe(struct platform_device *pdev)
 	ctlr->setup = mchp_coreqspi_setup_op;
 	ctlr->mode_bits = SPI_CPOL | SPI_CPHA | SPI_RX_DUAL | SPI_RX_QUAD |
 			  SPI_TX_DUAL | SPI_TX_QUAD;
-	ctlr->dev.of_node = np;
+	ctlr->dev.of_analde = np;
 
 	ret = devm_spi_register_controller(&pdev->dev, ctlr);
 	if (ret)

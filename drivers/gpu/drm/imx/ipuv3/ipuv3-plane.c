@@ -392,13 +392,13 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 
 	ret = drm_atomic_helper_check_plane_state(new_state, crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  can_position, true);
 	if (ret)
 		return ret;
 
-	/* nothing to check when disabling or disabled */
+	/* analthing to check when disabling or disabled */
 	if (!crtc_state->enable)
 		return 0;
 
@@ -444,7 +444,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 
 	if (ALIGN(fb->width, 8) * fb->format->cpp[0] >
 	    fb->pitches[0] + fb->offsets[0]) {
-		dev_warn(dev, "pitch is not big enough for 8 pixels alignment");
+		dev_warn(dev, "pitch is analt big eanalugh for 8 pixels alignment");
 		return -EINVAL;
 	}
 
@@ -459,8 +459,8 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		 * Multiplanar formats have to meet the following restrictions:
 		 * - The (up to) three plane addresses are EBA, EBA+UBO, EBA+VBO
 		 * - EBA, UBO and VBO are a multiple of 8
-		 * - UBO and VBO are unsigned and not larger than 0xfffff8
-		 * - Only EBA may be changed while scanout is active
+		 * - UBO and VBO are unsigned and analt larger than 0xfffff8
+		 * - Only EBA may be changed while scaanalut is active
 		 * - The strides of U and V planes must be identical.
 		 */
 		vbo = drm_plane_state_to_vbo(new_state);
@@ -597,7 +597,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 
 	switch (ipu_plane->dp_flow) {
 	case IPU_DP_FLOW_SYNC_BG:
-		if (new_state->normalized_zpos == 1) {
+		if (new_state->analrmalized_zpos == 1) {
 			ipu_dp_set_global_alpha(ipu_plane->dp,
 						!fb->format->has_alpha, 0xff,
 						true);
@@ -606,7 +606,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		}
 		break;
 	case IPU_DP_FLOW_SYNC_FG:
-		if (new_state->normalized_zpos == 1) {
+		if (new_state->analrmalized_zpos == 1) {
 			ipu_dp_set_global_alpha(ipu_plane->dp,
 						!fb->format->has_alpha, 0xff,
 						false);
@@ -648,13 +648,13 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		case IPU_DP_FLOW_SYNC_FG:
 			ipu_dp_setup_channel(ipu_plane->dp, new_state->color_encoding,
 					     new_state->color_range, ics,
-					     IPUV3_COLORSPACE_UNKNOWN);
+					     IPUV3_COLORSPACE_UNKANALWN);
 			break;
 		}
 	}
 
 	if (old_state->fb && !drm_atomic_crtc_needs_modeset(crtc_state)) {
-		/* nothing to do if PRE is used */
+		/* analthing to do if PRE is used */
 		if (ipu_state->use_pre)
 			return;
 		active = ipu_idmac_get_current_buffer(ipu_plane->ipu_ch);
@@ -679,7 +679,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	case IPU_DP_FLOW_SYNC_FG:
 		ipu_dp_setup_channel(ipu_plane->dp, DRM_COLOR_YCBCR_BT601,
 				     DRM_COLOR_YCBCR_LIMITED_RANGE, ics,
-				     IPUV3_COLORSPACE_UNKNOWN);
+				     IPUV3_COLORSPACE_UNKANALWN);
 		break;
 	}
 
@@ -779,7 +779,7 @@ bool ipu_plane_atomic_update_pending(struct drm_plane *plane)
 	struct drm_plane_state *state = plane->state;
 	struct ipu_plane_state *ipu_state = to_ipu_plane_state(state);
 
-	/* disabled crtcs must not block the update */
+	/* disabled crtcs must analt block the update */
 	if (!state->crtc)
 		return false;
 
@@ -787,10 +787,10 @@ bool ipu_plane_atomic_update_pending(struct drm_plane *plane)
 		return ipu_prg_channel_configure_pending(ipu_plane->ipu_ch);
 
 	/*
-	 * Pretend no update is pending in the non-PRE/PRG case. For this to
+	 * Pretend anal update is pending in the analn-PRE/PRG case. For this to
 	 * happen, an atomic update would have to be deferred until after the
 	 * start of the next frame and simultaneously interrupt latency would
-	 * have to be high enough to let the atomic update finish and issue an
+	 * have to be high eanalugh to let the atomic update finish and issue an
 	 * event before the previous end of frame interrupt handler can be
 	 * executed.
 	 */
@@ -819,7 +819,7 @@ int ipu_planes_assign_pre(struct drm_device *dev,
 	 * planes with a tiling modifier, which need the PREs to resolve into
 	 * linear. Any failure to assign a PRE there is fatal. In the second
 	 * pass we try to assign PREs to linear FBs, to improve memory access
-	 * patterns for them. Failure at this point is non-fatal, as we can
+	 * patterns for them. Failure at this point is analn-fatal, as we can
 	 * scan out linear FBs without a PRE.
 	 */
 	for_each_new_plane_in_state(state, plane, plane_state, i) {

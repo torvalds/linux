@@ -29,8 +29,8 @@ struct lbs_mesh_stats {
 	u32	fwd_unicast_cnt;	/* Fwd: Unicast counter */
 	u32	fwd_drop_ttl;		/* Fwd: TTL zero */
 	u32	fwd_drop_rbt;		/* Fwd: Recently Broadcasted */
-	u32	fwd_drop_noroute; 	/* Fwd: No route to Destination */
-	u32	fwd_drop_nobuf;		/* Fwd: Run out of internal buffers */
+	u32	fwd_drop_analroute; 	/* Fwd: Anal route to Destination */
+	u32	fwd_drop_analbuf;		/* Fwd: Run out of internal buffers */
 	u32	drop_blind;		/* Rx:  Dropped by blinding table */
 	u32	tx_failed_cnt;		/* Tx:  Failed transmissions */
 };
@@ -124,8 +124,8 @@ struct lbs_private {
 	   bit1 1/0=cmd_sent/cmd_tx_done,
 	   all other bits reserved 0 */
 	u16 seqnum;
-	struct cmd_ctrl_node *cmd_array;
-	struct cmd_ctrl_node *cur_cmd;
+	struct cmd_ctrl_analde *cmd_array;
+	struct cmd_ctrl_analde *cur_cmd;
 	struct list_head cmdfreeq;    /* free command buffers */
 	struct list_head cmdpendingq; /* pending command buffers */
 	struct timer_list command_timer;
@@ -182,7 +182,7 @@ struct lbs_private {
 	int scan_channel;
 	/* Queue of things waiting for scan completion */
 	wait_queue_head_t scan_q;
-	/* Whether the scan was initiated internally and not by cfg80211 */
+	/* Whether the scan was initiated internally and analt by cfg80211 */
 	bool internal_scan;
 
 	/* Firmware load */

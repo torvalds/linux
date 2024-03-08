@@ -276,7 +276,7 @@ static inline int shpc_wait_cmd(struct controller *ctrl)
 						!is_ctrl_busy(ctrl), timeout);
 	if (!rc && is_ctrl_busy(ctrl)) {
 		retval = -EIO;
-		ctrl_err(ctrl, "Command not completed in 1000 msec\n");
+		ctrl_err(ctrl, "Command analt completed in 1000 msec\n");
 	} else if (rc < 0) {
 		retval = -EINTR;
 		ctrl_info(ctrl, "Command was interrupted by a signal\n");
@@ -456,7 +456,7 @@ static int hpc_get_adapter_speed(struct slot *slot, enum pci_bus_speed *value)
 		pcix_cap = (slot_reg & PCIX_CAP_MASK_PI2) >> PCIX_CAP_SHIFT;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ctrl_dbg(ctrl, "%s: slot_reg = %x, pcix_cap = %x, m66_cap = %x\n",
@@ -480,8 +480,8 @@ static int hpc_get_adapter_speed(struct slot *slot, enum pci_bus_speed *value)
 		break;
 	case 0x2:
 	default:
-		*value = PCI_SPEED_UNKNOWN;
-		retval = -ENODEV;
+		*value = PCI_SPEED_UNKANALWN;
+		retval = -EANALDEV;
 		break;
 	}
 
@@ -494,7 +494,7 @@ static int hpc_query_power_fault(struct slot *slot)
 	struct controller *ctrl = slot->ctrl;
 	u32 slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
 
-	/* Note: Logic 0 => fault */
+	/* Analte: Logic 0 => fault */
 	return !(slot_reg & POWER_FAULT);
 }
 
@@ -616,13 +616,13 @@ static int shpc_get_cur_bus_speed(struct controller *ctrl)
 {
 	int retval = 0;
 	struct pci_bus *bus = ctrl->pci_dev->subordinate;
-	enum pci_bus_speed bus_speed = PCI_SPEED_UNKNOWN;
+	enum pci_bus_speed bus_speed = PCI_SPEED_UNKANALWN;
 	u16 sec_bus_reg = shpc_readw(ctrl, SEC_BUS_CONFIG);
 	u8 pi = shpc_readb(ctrl, PROG_INTERFACE);
 	u8 speed_mode = (pi == 2) ? (sec_bus_reg & 0xF) : (sec_bus_reg & 0x7);
 
 	if ((pi == 1) && (speed_mode > 4)) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto out;
 	}
 
@@ -670,7 +670,7 @@ static int shpc_get_cur_bus_speed(struct controller *ctrl)
 		bus_speed = PCI_SPEED_133MHz_PCIX_533;
 		break;
 	default:
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		break;
 	}
 
@@ -756,14 +756,14 @@ static irqreturn_t shpc_isr(int irq, void *dev_id)
 	/* Check to see if it was our interrupt */
 	intr_loc = shpc_readl(ctrl, INTR_LOC);
 	if (!intr_loc)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	ctrl_dbg(ctrl, "%s: intr_loc = %x\n", __func__, intr_loc);
 
 	if (!shpchp_poll_mode) {
 		/*
 		 * Mask Global Interrupt Mask - see implementation
-		 * note on p. 139 of SHPC spec rev 1.0
+		 * analte on p. 139 of SHPC spec rev 1.0
 		 */
 		serr_int = shpc_readl(ctrl, SERR_INTR_ENABLE);
 		serr_int |= GLOBAL_INTR_MASK;
@@ -830,7 +830,7 @@ static int shpc_get_max_bus_speed(struct controller *ctrl)
 {
 	int retval = 0;
 	struct pci_bus *bus = ctrl->pci_dev->subordinate;
-	enum pci_bus_speed bus_speed = PCI_SPEED_UNKNOWN;
+	enum pci_bus_speed bus_speed = PCI_SPEED_UNKANALWN;
 	u8 pi = shpc_readb(ctrl, PROG_INTERFACE);
 	u32 slot_avail1 = shpc_readl(ctrl, SLOT_AVAIL1);
 	u32 slot_avail2 = shpc_readl(ctrl, SLOT_AVAIL2);
@@ -850,7 +850,7 @@ static int shpc_get_max_bus_speed(struct controller *ctrl)
 			bus_speed = PCI_SPEED_66MHz_PCIX_266;
 	}
 
-	if (bus_speed == PCI_SPEED_UNKNOWN) {
+	if (bus_speed == PCI_SPEED_UNKANALWN) {
 		if (slot_avail1 & SLOT_133MHZ_PCIX)
 			bus_speed = PCI_SPEED_133MHz_PCIX;
 		else if (slot_avail1 & SLOT_100MHZ_PCIX)
@@ -862,7 +862,7 @@ static int shpc_get_max_bus_speed(struct controller *ctrl)
 		else if (slot_avail1 & SLOT_33MHZ)
 			bus_speed = PCI_SPEED_33MHz;
 		else
-			retval = -ENODEV;
+			retval = -EANALDEV;
 	}
 
 	bus->max_bus_speed = bus_speed;
@@ -912,20 +912,20 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev)
 	} else {
 		ctrl->cap_offset = pci_find_capability(pdev, PCI_CAP_ID_SHPC);
 		if (!ctrl->cap_offset) {
-			ctrl_err(ctrl, "Cannot find PCI capability\n");
+			ctrl_err(ctrl, "Cananalt find PCI capability\n");
 			goto abort;
 		}
 		ctrl_dbg(ctrl, " cap_offset = %x\n", ctrl->cap_offset);
 
 		rc = shpc_indirect_read(ctrl, 0, &shpc_base_offset);
 		if (rc) {
-			ctrl_err(ctrl, "Cannot read base_offset\n");
+			ctrl_err(ctrl, "Cananalt read base_offset\n");
 			goto abort;
 		}
 
 		rc = shpc_indirect_read(ctrl, 3, &tempdword);
 		if (rc) {
-			ctrl_err(ctrl, "Cannot read slot config\n");
+			ctrl_err(ctrl, "Cananalt read slot config\n");
 			goto abort;
 		}
 		num_slots = tempdword & SLOT_NUM;
@@ -934,7 +934,7 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev)
 		for (i = 0; i < 9 + num_slots; i++) {
 			rc = shpc_indirect_read(ctrl, i, &tempdword);
 			if (rc) {
-				ctrl_err(ctrl, "Cannot read creg (index = %d)\n",
+				ctrl_err(ctrl, "Cananalt read creg (index = %d)\n",
 					 i);
 				goto abort;
 			}
@@ -957,14 +957,14 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev)
 	}
 
 	if (!request_mem_region(ctrl->mmio_base, ctrl->mmio_size, MY_NAME)) {
-		ctrl_err(ctrl, "Cannot reserve MMIO region\n");
+		ctrl_err(ctrl, "Cananalt reserve MMIO region\n");
 		rc = -1;
 		goto abort;
 	}
 
 	ctrl->creg = ioremap(ctrl->mmio_base, ctrl->mmio_size);
 	if (!ctrl->creg) {
-		ctrl_err(ctrl, "Cannot remap MMIO region %lx @ %lx\n",
+		ctrl_err(ctrl, "Cananalt remap MMIO region %lx @ %lx\n",
 			 ctrl->mmio_size, ctrl->mmio_base);
 		release_mem_region(ctrl->mmio_base, ctrl->mmio_size);
 		rc = -1;

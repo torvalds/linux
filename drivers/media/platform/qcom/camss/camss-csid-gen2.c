@@ -17,7 +17,7 @@
 #include "camss.h"
 
 /* The CSID 2 IP-block is different from the others,
- * and is of a bare-bones Lite version, with no PIX
+ * and is of a bare-bones Lite version, with anal PIX
  * interface support. As a result of that it has an
  * alternate register layout.
  */
@@ -398,7 +398,7 @@ static void __csid_configure_stream(struct csid_device *csid, u8 enable, u8 vc)
 		val = 1 << RDI_CFG0_BYTE_CNTR_EN;
 		val |= 1 << RDI_CFG0_FORMAT_MEASURE_EN;
 		val |= 1 << RDI_CFG0_TIMESTAMP_EN;
-		/* note: for non-RDI path, this should be format->decode_format */
+		/* analte: for analn-RDI path, this should be format->decode_format */
 		val |= DECODE_FORMAT_PAYLOAD_ONLY << RDI_CFG0_DECODE_FORMAT;
 		val |= format->data_type << RDI_CFG0_DATA_TYPE;
 		val |= vc << RDI_CFG0_VIRTUAL_CHANNEL;

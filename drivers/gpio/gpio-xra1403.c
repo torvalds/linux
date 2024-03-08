@@ -155,12 +155,12 @@ static int xra1403_probe(struct spi_device *spi)
 
 	xra = devm_kzalloc(&spi->dev, sizeof(*xra), GFP_KERNEL);
 	if (!xra)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* bring the chip out of reset if reset pin is provided*/
 	reset_gpio = devm_gpiod_get_optional(&spi->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(reset_gpio))
-		dev_warn(&spi->dev, "Could not get reset-gpios\n");
+		dev_warn(&spi->dev, "Could analt get reset-gpios\n");
 
 	xra->chip.direction_input = xra1403_direction_input;
 	xra->chip.direction_output = xra1403_direction_output;

@@ -10,8 +10,8 @@ maintainers:
   - Rob Herring <robh@kernel.org>
 
 description:
-  A USB connector node represents a physical USB connector. It should be a child
-  of a USB interface controller or a separate node when it is attached to both
+  A USB connector analde represents a physical USB connector. It should be a child
+  of a USB interface controller or a separate analde when it is attached to both
   MUX and USB interface controller.
 
 properties:
@@ -38,7 +38,7 @@ properties:
 
   type:
     description: Size of the connector, should be specified in case of
-      non-fullsize 'usb-a-connector' or 'usb-b-connector' compatible
+      analn-fullsize 'usb-a-connector' or 'usb-b-connector' compatible
       connectors.
     $ref: /schemas/types.yaml#/definitions/string
 
@@ -97,14 +97,14 @@ properties:
 
   typec-power-opmode:
     description: Determines the power operation mode that the Type C connector
-      will support and will advertise through CC pins when it has no power
+      will support and will advertise through CC pins when it has anal power
       delivery support.
       - "default" corresponds to default USB voltage and current defined by the
         USB 2.0 and USB 3.2 specifications, 5V 500mA for USB 2.0 ports and
         5V 900mA or 1500mA for USB 3.2 ports in single-lane or dual-lane
         operation respectively.
       - "1.5A" and "3.0A", 5V 1.5A and 5V 3.0A respectively, as defined in USB
-        Type-C Cable and Connector specification, when Power Delivery is not
+        Type-C Cable and Connector specification, when Power Delivery is analt
         supported.
     $ref: /schemas/types.yaml#/definitions/string
     enum:
@@ -113,7 +113,7 @@ properties:
       - 3.0A
 
   pd-disable:
-    description: Set this property if the Type-C connector has no power delivery support.
+    description: Set this property if the Type-C connector has anal power delivery support.
     type: boolean
 
   # The following are optional properties for "usb-c-connector" with power
@@ -144,19 +144,19 @@ properties:
   accessory-mode-audio:
     type: boolean
     description: Whether the device supports Audio Adapter Accessory Mode. This
-      is only necessary if there are no other means to discover supported
+      is only necessary if there are anal other means to discover supported
       alternative modes (e.g. through the UCSI firmware interface).
 
   accessory-mode-debug:
     type: boolean
     description: Whether the device supports Debug Accessory Mode. This
-      is only necessary if there are no other means to discover supported
+      is only necessary if there are anal other means to discover supported
       alternative modes (e.g. through the UCSI firmware interface).
 
   altmodes:
     type: object
     description: List of Alternative Modes supported by the schematics on the
-      particular device. This is only necessary if there are no other means to
+      particular device. This is only necessary if there are anal other means to
       discover supported alternative modes (e.g. through the UCSI firmware
       interface).
 
@@ -189,7 +189,7 @@ properties:
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
     description: OF graph bindings modeling any data bus to the connector
-      unless the bus is between parent node and the connector. Since a single
+      unless the bus is between parent analde and the connector. Since a single
       connector can have multiple data buses every bus has an assigned OF graph
       port number as described below.
 
@@ -230,22 +230,22 @@ properties:
     enum: [1, 2, 3]
 
   slow-charger-loop:
-    description: Allows PMIC charger loops which are slow(i.e. cannot meet the 15ms deadline) to
+    description: Allows PMIC charger loops which are slow(i.e. cananalt meet the 15ms deadline) to
       still comply to pSnkStby i.e Maximum power that can be consumed by sink while in Sink Standby
       state as defined in 7.4.2 Sink Electrical Parameters of USB Power Delivery Specification
       Revision 3.0, Version 1.2. When the property is set, the port requests pSnkStby(2.5W -
       5V@500mA) upon entering SNK_DISCOVERY(instead of 3A or the 1.5A, Rp current advertised, during
       SNK_DISCOVERY) and the actual current limit after reception of PS_Ready for PD link or during
-      SNK_READY for non-pd link.
+      SNK_READY for analn-pd link.
     type: boolean
 
   capabilities:
-    description: A child node to contain all the selectable USB Power Delivery capabilities.
+    description: A child analde to contain all the selectable USB Power Delivery capabilities.
     type: object
 
     patternProperties:
       "^caps-[0-9]+$":
-        description: Child nodes under "capabilities" node. Each node contains a selectable USB
+        description: Child analdes under "capabilities" analde. Each analde contains a selectable USB
           Power Delivery capability.
         type: object
         $ref: "#/$defs/capabilities"
@@ -319,7 +319,7 @@ allOf:
           const: micro
 
 anyOf:
-  - not:
+  - analt:
       required:
         - typec-power-opmode
         - new-source-frs-typec-current
@@ -450,7 +450,7 @@ examples:
     };
 
   # Micro-USB connector with HS lines routed via controller (MUIC) and MHL
-  # lines connected to HDMI-MHL bridge (sii8620) on Samsung Exynos5433-based
+  # lines connected to HDMI-MHL bridge (sii8620) on Samsung Exyanals5433-based
   # mobile phone
   - |
     muic-max77843 {

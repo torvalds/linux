@@ -94,7 +94,7 @@ struct pkt_attrib {
 	u16	seqnum;
 	u16	ether_type;
 	u16	pktlen;		/* the original 802.3 pkt raw_data len
-				 * (not include ether_hdr data)
+				 * (analt include ether_hdr data)
 				 */
 	u16	last_txcmdsz;
 
@@ -108,7 +108,7 @@ struct pkt_attrib {
 	u8	qsel;
 
 	u8	priority;
-	u8	encrypt;	/* when 0 indicate no encrypt. when non-zero,
+	u8	encrypt;	/* when 0 indicate anal encrypt. when analn-zero,
 				 * indicate the encrypt algorithm
 				 */
 	u8	iv_len;

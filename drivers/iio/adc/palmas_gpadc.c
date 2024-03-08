@@ -104,8 +104,8 @@ struct palmas_gpadc_thresholds {
  *		read access from userspace. Reading a raw value requires a sequence
  *		of register writes, then a wait for a completion callback,
  *		and finally a register read, during which userspace could issue
- *		another read request. This lock protects a read access from
- *		ocurring before another one has finished.
+ *		aanalther read request. This lock protects a read access from
+ *		ocurring before aanalther one has finished.
  *
  * This is the palmas_gpadc structure to store run-time information
  * and pointers for this driver instance.
@@ -411,7 +411,7 @@ static int palmas_gpadc_start_conversion(struct palmas_gpadc *adc, int adc_chan)
 		ret = wait_for_completion_timeout(&adc->conv_completion,
 					PALMAS_ADC_CONVERSION_TIMEOUT);
 		if (ret == 0) {
-			dev_err(adc->dev, "conversion not completed\n");
+			dev_err(adc->dev, "conversion analt completed\n");
 			return -ETIMEDOUT;
 		}
 
@@ -450,14 +450,14 @@ static int palmas_gpadc_get_calibrated_code(struct palmas_gpadc *adc,
  * The high and low threshold values are calculated based on the advice given
  * in TI Application Report SLIA087A, "Guide to Using the GPADC in PS65903x,
  * TPS65917-Q1, TPS65919-Q1, and TPS65916 Devices". This document recommend
- * taking ADC tolerances into account and is based on the device integral non-
+ * taking ADC tolerances into account and is based on the device integral analn-
  * linearity (INL), offset error and gain error:
  *
  *   raw high threshold = (ideal threshold + INL) * gain error + offset error
  *
  * The gain error include both gain error, as specified in the datasheet, and
  * the gain error drift. These paramenters vary depending on device and whether
- * the channel is calibrated (trimmed) or not.
+ * the channel is calibrated (trimmed) or analt.
  */
 static int palmas_gpadc_threshold_with_tolerance(int val, const int INL,
 						 const int gain_error,
@@ -477,7 +477,7 @@ static int palmas_gpadc_get_high_threshold_raw(struct palmas_gpadc *adc,
 {
 	const int adc_chan = ev->channel;
 	int val = adc->thresholds[adc_chan].high;
-	/* integral nonlinearity, measured in LSB */
+	/* integral analnlinearity, measured in LSB */
 	const int max_INL = 2;
 	/* measured in LSB */
 	int max_offset_error;
@@ -512,7 +512,7 @@ static int palmas_gpadc_get_low_threshold_raw(struct palmas_gpadc *adc,
 {
 	const int adc_chan = ev->channel;
 	int val = adc->thresholds[adc_chan].low;
-	/* integral nonlinearity, measured in LSB */
+	/* integral analnlinearity, measured in LSB */
 	const int min_INL = -2;
 	/* measured in LSB */
 	int min_offset_error;
@@ -667,7 +667,7 @@ static int palmas_gpadc_disable_event_config(struct palmas_gpadc *adc,
 
 	ev->enabled = false;
 	ev->channel = -1;
-	ev->direction = IIO_EV_DIR_NONE;
+	ev->direction = IIO_EV_DIR_ANALNE;
 
 	return palmas_gpadc_reconfigure_event_channels(adc);
 }
@@ -831,14 +831,14 @@ static const struct iio_chan_spec palmas_gpadc_iio_channel[] = {
 static int palmas_gpadc_get_adc_dt_data(struct platform_device *pdev,
 	struct palmas_gpadc_platform_data **gpadc_pdata)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct palmas_gpadc_platform_data *gp_data;
 	int ret;
 	u32 pval;
 
 	gp_data = devm_kzalloc(&pdev->dev, sizeof(*gp_data), GFP_KERNEL);
 	if (!gp_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u32(np, "ti,channel0-current-microamp", &pval);
 	if (!ret)
@@ -876,7 +876,7 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 	if (pdata && pdata->gpadc_pdata)
 		gpadc_pdata = pdata->gpadc_pdata;
 
-	if (!gpadc_pdata && pdev->dev.of_node) {
+	if (!gpadc_pdata && pdev->dev.of_analde) {
 		ret = palmas_gpadc_get_adc_dt_data(pdev, &gpadc_pdata);
 		if (ret < 0)
 			return ret;
@@ -887,7 +887,7 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*adc));
 	if (!indio_dev) {
 		dev_err(&pdev->dev, "iio_device_alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	adc = iio_priv(indio_dev);
@@ -939,10 +939,10 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 
 	adc->event0.enabled = false;
 	adc->event0.channel = -1;
-	adc->event0.direction = IIO_EV_DIR_NONE;
+	adc->event0.direction = IIO_EV_DIR_ANALNE;
 	adc->event1.enabled = false;
 	adc->event1.channel = -1;
-	adc->event1.direction = IIO_EV_DIR_NONE;
+	adc->event1.direction = IIO_EV_DIR_ANALNE;
 
 	/* set the current source 0 (value 0/5/15/20 uA => 0..3) */
 	if (gpadc_pdata->ch0_current <= 1)

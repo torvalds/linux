@@ -8,12 +8,12 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/compat.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <sound/core.h>
 #include <sound/hda_codec.h>
 #include "hda_local.h"
 #include <sound/hda_hwdep.h>
-#include <sound/minors.h>
+#include <sound/mianalrs.h>
 
 /*
  * write/read an out-of-bound verb
@@ -39,14 +39,14 @@ static int get_wcap_ioctl(struct hda_codec *codec,
 	
 	if (get_user(verb, &arg->verb))
 		return -EFAULT;
-	/* open-code get_wcaps(verb>>24) with nospec */
+	/* open-code get_wcaps(verb>>24) with analspec */
 	verb >>= 24;
 	if (verb < codec->core.start_nid ||
-	    verb >= codec->core.start_nid + codec->core.num_nodes) {
+	    verb >= codec->core.start_nid + codec->core.num_analdes) {
 		res = 0;
 	} else {
 		verb -= codec->core.start_nid;
-		verb = array_index_nospec(verb, codec->core.num_nodes);
+		verb = array_index_analspec(verb, codec->core.num_analdes);
 		res = codec->wcaps[verb];
 	}
 	if (put_user(res, &arg->res))
@@ -71,7 +71,7 @@ static int hda_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 	case HDA_IOCTL_GET_WCAP:
 		return get_wcap_ioctl(codec, argp);
 	}
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 #ifdef CONFIG_COMPAT

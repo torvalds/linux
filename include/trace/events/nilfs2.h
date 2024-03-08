@@ -97,14 +97,14 @@ TRACE_EVENT(nilfs2_transaction_transition,
 );
 
 TRACE_EVENT(nilfs2_segment_usage_check,
-	    TP_PROTO(struct inode *sufile,
+	    TP_PROTO(struct ianalde *sufile,
 		     __u64 segnum,
 		     unsigned long cnt),
 
 	    TP_ARGS(sufile, segnum, cnt),
 
 	    TP_STRUCT__entry(
-		    __field(struct inode *, sufile)
+		    __field(struct ianalde *, sufile)
 		    __field(__u64, segnum)
 		    __field(unsigned long, cnt)
 	    ),
@@ -122,13 +122,13 @@ TRACE_EVENT(nilfs2_segment_usage_check,
 );
 
 TRACE_EVENT(nilfs2_segment_usage_allocated,
-	    TP_PROTO(struct inode *sufile,
+	    TP_PROTO(struct ianalde *sufile,
 		     __u64 segnum),
 
 	    TP_ARGS(sufile, segnum),
 
 	    TP_STRUCT__entry(
-		    __field(struct inode *, sufile)
+		    __field(struct ianalde *, sufile)
 		    __field(__u64, segnum)
 	    ),
 
@@ -143,13 +143,13 @@ TRACE_EVENT(nilfs2_segment_usage_allocated,
 );
 
 TRACE_EVENT(nilfs2_segment_usage_freed,
-	    TP_PROTO(struct inode *sufile,
+	    TP_PROTO(struct ianalde *sufile,
 		     __u64 segnum),
 
 	    TP_ARGS(sufile, segnum),
 
 	    TP_STRUCT__entry(
-		    __field(struct inode *, sufile)
+		    __field(struct ianalde *, sufile)
 		    __field(__u64, segnum)
 	    ),
 
@@ -164,55 +164,55 @@ TRACE_EVENT(nilfs2_segment_usage_freed,
 );
 
 TRACE_EVENT(nilfs2_mdt_insert_new_block,
-	    TP_PROTO(struct inode *inode,
-		     unsigned long ino,
+	    TP_PROTO(struct ianalde *ianalde,
+		     unsigned long ianal,
 		     unsigned long block),
 
-	    TP_ARGS(inode, ino, block),
+	    TP_ARGS(ianalde, ianal, block),
 
 	    TP_STRUCT__entry(
-		    __field(struct inode *, inode)
-		    __field(unsigned long, ino)
+		    __field(struct ianalde *, ianalde)
+		    __field(unsigned long, ianal)
 		    __field(unsigned long, block)
 	    ),
 
 	    TP_fast_assign(
-		    __entry->inode = inode;
-		    __entry->ino = ino;
+		    __entry->ianalde = ianalde;
+		    __entry->ianal = ianal;
 		    __entry->block = block;
 		    ),
 
-	    TP_printk("inode = %p ino = %lu block = %lu",
-		      __entry->inode,
-		      __entry->ino,
+	    TP_printk("ianalde = %p ianal = %lu block = %lu",
+		      __entry->ianalde,
+		      __entry->ianal,
 		      __entry->block)
 );
 
 TRACE_EVENT(nilfs2_mdt_submit_block,
-	    TP_PROTO(struct inode *inode,
-		     unsigned long ino,
+	    TP_PROTO(struct ianalde *ianalde,
+		     unsigned long ianal,
 		     unsigned long blkoff,
 		     enum req_op mode),
 
-	    TP_ARGS(inode, ino, blkoff, mode),
+	    TP_ARGS(ianalde, ianal, blkoff, mode),
 
 	    TP_STRUCT__entry(
-		    __field(struct inode *, inode)
-		    __field(unsigned long, ino)
+		    __field(struct ianalde *, ianalde)
+		    __field(unsigned long, ianal)
 		    __field(unsigned long, blkoff)
 		    __field(enum req_op, mode)
 	    ),
 
 	    TP_fast_assign(
-		    __entry->inode = inode;
-		    __entry->ino = ino;
+		    __entry->ianalde = ianalde;
+		    __entry->ianal = ianal;
 		    __entry->blkoff = blkoff;
 		    __entry->mode = mode;
 		    ),
 
-	    TP_printk("inode = %p ino = %lu blkoff = %lu mode = %x",
-		      __entry->inode,
-		      __entry->ino,
+	    TP_printk("ianalde = %p ianal = %lu blkoff = %lu mode = %x",
+		      __entry->ianalde,
+		      __entry->ianal,
 		      __entry->blkoff,
 		      __entry->mode)
 );

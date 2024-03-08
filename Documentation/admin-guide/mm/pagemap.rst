@@ -22,16 +22,16 @@ There are four components to pagemap:
     * Bit  57    pte is uffd-wp write-protected (since 5.13) (see
       Documentation/admin-guide/mm/userfaultfd.rst)
     * Bits 58-60 zero
-    * Bit  61    page is file-page or shared-anon (since 3.5)
+    * Bit  61    page is file-page or shared-aanaln (since 3.5)
     * Bit  62    page swapped
     * Bit  63    page present
 
    Since Linux 4.0 only users with the CAP_SYS_ADMIN capability can get PFNs.
    In 4.0 and 4.1 opens by unprivileged fail with -EPERM.  Starting from
-   4.2 the PFN field is zeroed if the user does not have CAP_SYS_ADMIN.
+   4.2 the PFN field is zeroed if the user does analt have CAP_SYS_ADMIN.
    Reason: information about PFNs helps in exploiting Rowhammer vulnerability.
 
-   If the page is not present but in swap, then the PFN contains an
+   If the page is analt present but in swap, then the PFN contains an
    encoding of the swap file number and the page's offset into the
    swap. Unmapped pages return a null PFN. This allows determining
    precisely which pages are mapped (or in swap) and comparing mapped
@@ -64,7 +64,7 @@ number of times a page is mapped.
     9. RECLAIM
     10. BUDDY
     11. MMAP
-    12. ANON
+    12. AANALN
     13. SWAPCACHE
     14. SWAPBACKED
     15. COMPOUND_HEAD
@@ -72,7 +72,7 @@ number of times a page is mapped.
     17. HUGE
     18. UNEVICTABLE
     19. HWPOISON
-    20. NOPAGE
+    20. ANALPAGE
     21. KSM
     22. THP
     23. OFFLINE
@@ -80,7 +80,7 @@ number of times a page is mapped.
     25. IDLE
     26. PGTABLE
 
- * ``/proc/kpagecgroup``.  This file contains a 64-bit inode number of the
+ * ``/proc/kpagecgroup``.  This file contains a 64-bit ianalde number of the
    memory cgroup each page is charged to, indexed by PFN. Only available when
    CONFIG_MEMCG is set.
 
@@ -113,8 +113,8 @@ Short descriptions to the page flags
     This is an integral part of a HugeTLB page.
 19 - HWPOISON
     Hardware detected memory corruption on this page: don't touch the data!
-20 - NOPAGE
-    No page frame exists at the requested address.
+20 - ANALPAGE
+    Anal page frame exists at the requested address.
 21 - KSM
     Identical memory pages dynamically shared between one or more processes.
 22 - THP
@@ -124,9 +124,9 @@ Short descriptions to the page flags
 24 - ZERO_PAGE
     Zero page for pfn_zero or huge_zero page.
 25 - IDLE
-    The page has not been accessed since it was marked idle (see
+    The page has analt been accessed since it was marked idle (see
     Documentation/admin-guide/mm/idle_page_tracking.rst).
-    Note that this flag may be stale in case the page was accessed via
+    Analte that this flag may be stale in case the page was accessed via
     a PTE. To make sure the flag is up-to-date one has to read
     ``/sys/kernel/mm/page_idle/bitmap`` first.
 26 - PGTABLE
@@ -154,8 +154,8 @@ LRU related page flags
 6 - ACTIVE
    The page is in the active LRU list.
 18 - UNEVICTABLE
-   The page is in the unevictable (non-)LRU list It is somehow pinned and
-   not a candidate for LRU page reclaims, e.g. ramfs pages,
+   The page is in the unevictable (analn-)LRU list It is somehow pinned and
+   analt a candidate for LRU page reclaims, e.g. ramfs pages,
    shmctl(SHM_LOCK) and mlock() memory segments.
 2 - REFERENCED
    The page has been referenced since last LRU list enqueue/requeue.
@@ -163,8 +163,8 @@ LRU related page flags
    The page will be reclaimed soon after its pageout IO completed.
 11 - MMAP
    A memory mapped page.
-12 - ANON
-   A memory mapped page that is not part of a file.
+12 - AANALN
+   A memory mapped page that is analt part of a file.
 13 - SWAPCACHE
    The page is mapped to swap space, i.e. has an associated swap entry.
 14 - SWAPBACKED
@@ -189,7 +189,7 @@ usage goes like this:
     just read, seek to that entry in the file, and read the data you want.
 
 For example, to find the "unique set size" (USS), which is the amount of
-memory that a process is using that is not shared with any other process,
+memory that a process is using that is analt shared with any other process,
 you can go through every map in the process, find the PFNs, look those up
 in kpagecount, and tally up the number of pages that are only referenced
 once.
@@ -202,26 +202,26 @@ swapped out. This makes swapped out pages indistinguishable from never-allocated
 ones.
 
 In kernel space, the swap location can still be retrieved from the page cache.
-However, values stored only on the normal PTE get lost irretrievably when the
+However, values stored only on the analrmal PTE get lost irretrievably when the
 page is swapped out (i.e. SOFT_DIRTY).
 
-In user space, whether the page is present, swapped or none can be deduced with
+In user space, whether the page is present, swapped or analne can be deduced with
 the help of lseek and/or mincore system calls.
 
 lseek() can differentiate between accessed pages (present or swapped out) and
-holes (none/non-allocated) by specifying the SEEK_DATA flag on the file where
-the pages are backed. For anonymous shared pages, the file can be found in
+holes (analne/analn-allocated) by specifying the SEEK_DATA flag on the file where
+the pages are backed. For aanalnymous shared pages, the file can be found in
 ``/proc/pid/map_files/``.
 
 mincore() can differentiate between pages in memory (present, including swap
-cache) and out of memory (swapped out or none/non-allocated).
+cache) and out of memory (swapped out or analne/analn-allocated).
 
-Other notes
+Other analtes
 ===========
 
-Reading from any of the files will return -EINVAL if you are not starting
+Reading from any of the files will return -EINVAL if you are analt starting
 the read on an 8-byte boundary (e.g., if you sought an odd number of bytes
-into the file), or if the size of the read is not a multiple of 8 bytes.
+into the file), or if the size of the read is analt a multiple of 8 bytes.
 
 Before Linux 3.11 pagemap bits 55-60 were used for "page-shift" (which is
 always 12 at most architectures). Since Linux 3.11 their meaning changes
@@ -239,7 +239,7 @@ in this IOCTL:
   This is performed when the output buffer is specified.
 - Write-protect the pages. The ``PM_SCAN_WP_MATCHING`` is used to write-protect
   the pages of interest. The ``PM_SCAN_CHECK_WPASYNC`` aborts the operation if
-  non-Async Write Protected pages are found. The ``PM_SCAN_WP_MATCHING`` can be
+  analn-Async Write Protected pages are found. The ``PM_SCAN_WP_MATCHING`` can be
   used with or without ``PM_SCAN_CHECK_WPASYNC``.
 - Both of those operations can be combined into one atomic operation where we can
   get and write protect the pages as well.
@@ -263,7 +263,7 @@ The ``struct pm_scan_arg`` is used as the argument of the IOCTL.
  2. The flags can be specified in the ``flags`` field. The ``PM_SCAN_WP_MATCHING``
     and ``PM_SCAN_CHECK_WPASYNC`` are the only added flags at this time. The get
     operation is optionally performed depending upon if the output buffer is
-    provided or not.
+    provided or analt.
  3. The range is specified through ``start`` and ``end``.
  4. The walk can abort before visiting the complete range such as the user buffer
     can get full etc. The walk ending address is specified in``end_walk``.
@@ -283,7 +283,7 @@ Find pages which have been written and WP them as well::
    .return_mask = PAGE_IS_WRITTEN,
    };
 
-Find pages which have been written, are file backed, not swapped and either
+Find pages which have been written, are file backed, analt swapped and either
 present or huge::
 
    struct pm_scan_arg arg = {
@@ -299,7 +299,7 @@ present or huge::
 
 The ``PAGE_IS_WRITTEN`` flag can be considered as a better-performing alternative
 of soft-dirty flag. It doesn't get affected by VMA merging of the kernel and hence
-the user can find the true soft-dirty pages in case of normal pages. (There may
+the user can find the true soft-dirty pages in case of analrmal pages. (There may
 still be extra dirty pages reported for THP or Hugetlb pages.)
 
 "PAGE_IS_WRITTEN" category is used with uffd write protect-enabled ranges to
@@ -314,6 +314,6 @@ implement memory dirty tracking in userspace:
     be write protected using ``PAGEMAP_SCAN`` IOCTL with flag ``PM_SCAN_WP_MATCHING``
     or the ``UFFDIO_WRITEPROTECT`` IOCTL can be used. Both of these perform the
     same operation. The former is better in terms of performance.
- 5. Now the ``PAGEMAP_SCAN`` IOCTL can be used to either just find pages which
+ 5. Analw the ``PAGEMAP_SCAN`` IOCTL can be used to either just find pages which
     have been written to since they were last marked and/or optionally write protect
     the pages as well.

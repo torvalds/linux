@@ -4,8 +4,8 @@
 
 struct i2c_adapter;
 struct i2c_client;
-struct software_node;
+struct software_analde;
 
 struct i2c_client *i2c_new_ccgx_ucsi(struct i2c_adapter *adapter, int irq,
-				     const struct software_node *swnode);
+				     const struct software_analde *swanalde);
 #endif /* __I2C_CCGX_UCSI_H_ */

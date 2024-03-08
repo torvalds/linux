@@ -135,7 +135,7 @@ nsim_set_fecparam(struct net_device *dev, struct ethtool_fecparam *fecparam)
 	fec = fecparam->fec;
 	if (fec == ETHTOOL_FEC_AUTO)
 		fec |= ETHTOOL_FEC_OFF;
-	fec |= ETHTOOL_FEC_NONE;
+	fec |= ETHTOOL_FEC_ANALNE;
 	ns->ethtool.fec.active_fec = 1 << (fls(fec) - 1);
 	return 0;
 }
@@ -182,8 +182,8 @@ void nsim_ethtool_init(struct netdevsim *ns)
 
 	nsim_ethtool_ring_init(ns);
 
-	ns->ethtool.fec.fec = ETHTOOL_FEC_NONE;
-	ns->ethtool.fec.active_fec = ETHTOOL_FEC_NONE;
+	ns->ethtool.fec.fec = ETHTOOL_FEC_ANALNE;
+	ns->ethtool.fec.active_fec = ETHTOOL_FEC_ANALNE;
 
 	ns->ethtool.channels = ns->nsim_bus_dev->num_queues;
 

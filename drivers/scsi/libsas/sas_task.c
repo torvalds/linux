@@ -16,7 +16,7 @@ void sas_ssp_task_response(struct device *dev, struct sas_task *task,
 	tstat->resp = SAS_TASK_COMPLETE;
 
 	switch (iu->datapres) {
-	case SAS_DATAPRES_NO_DATA:
+	case SAS_DATAPRES_ANAL_DATA:
 		tstat->stat = iu->status;
 		break;
 	case SAS_DATAPRES_RESPONSE_DATA:
@@ -30,11 +30,11 @@ void sas_ssp_task_response(struct device *dev, struct sas_task *task,
 		memcpy(tstat->buf, iu->sense_data, tstat->buf_valid_size);
 
 		if (iu->status != SAM_STAT_CHECK_CONDITION)
-			dev_warn(dev, "dev %016llx sent sense data, but stat(0x%x) is not CHECK CONDITION\n",
+			dev_warn(dev, "dev %016llx sent sense data, but stat(0x%x) is analt CHECK CONDITION\n",
 				 SAS_ADDR(task->dev->sas_addr), iu->status);
 		break;
 	default:
-		/* when datapres contains corrupt/unknown value... */
+		/* when datapres contains corrupt/unkanalwn value... */
 		tstat->stat = SAS_SAM_STAT_CHECK_CONDITION;
 	}
 }

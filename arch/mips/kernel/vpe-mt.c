@@ -3,8 +3,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004, 2005 MIPS Technologies, Inc.  All rights reserved.
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2004, 2005 MIPS Techanallogies, Inc.  All rights reserved.
+ * Copyright (C) 2013 Imagination Techanallogies Ltd.
  */
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -26,7 +26,7 @@ static int hw_tcs, hw_vpes;
 int vpe_run(struct vpe *v)
 {
 	unsigned long flags, val, dmt_flag;
-	struct vpe_notifications *notifier;
+	struct vpe_analtifications *analtifier;
 	unsigned int vpeflags;
 	struct tc *t;
 
@@ -48,10 +48,10 @@ int vpe_run(struct vpe *v)
 		emt(dmt_flag);
 		local_irq_restore(flags);
 
-		pr_warn("VPE loader: No TC's associated with VPE %d\n",
-			v->minor);
+		pr_warn("VPE loader: Anal TC's associated with VPE %d\n",
+			v->mianalr);
 
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	t = list_first_entry(&v->tc, struct tc, tc);
@@ -61,7 +61,7 @@ int vpe_run(struct vpe *v)
 
 	settc(t->index);
 
-	/* should check it is halted, and not activated */
+	/* should check it is halted, and analt activated */
 	if ((read_tc_c0_tcstatus() & TCSTATUS_A) ||
 	   !(read_tc_c0_tchalt() & TCHALT_H)) {
 		evpe(vpeflags);
@@ -71,7 +71,7 @@ int vpe_run(struct vpe *v)
 		pr_warn("VPE loader: TC %d is already active!\n",
 			t->index);
 
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	/*
@@ -82,7 +82,7 @@ int vpe_run(struct vpe *v)
 	write_tc_c0_tccontext((unsigned long)0);
 
 	/*
-	 * Mark the TC as activated, not interrupt exempt and not dynamically
+	 * Mark the TC as activated, analt interrupt exempt and analt dynamically
 	 * allocatable
 	 */
 	val = read_tc_c0_tcstatus();
@@ -137,8 +137,8 @@ int vpe_run(struct vpe *v)
 	emt(dmt_flag);
 	local_irq_restore(flags);
 
-	list_for_each_entry(notifier, &v->notify, list)
-		notifier->start(VPE_MODULE_MINOR);
+	list_for_each_entry(analtifier, &v->analtify, list)
+		analtifier->start(VPE_MODULE_MIANALR);
 
 	return 0;
 }
@@ -158,7 +158,7 @@ void cleanup_tc(struct tc *tc)
 	settc(tc->index);
 	tmp = read_tc_c0_tcstatus();
 
-	/* mark not allocated and not dynamically allocatable */
+	/* mark analt allocated and analt dynamically allocatable */
 	tmp &= ~(TCSTATUS_A | TCSTATUS_DA);
 	tmp |= TCSTATUS_IXMT;	/* interrupt exempt */
 	write_tc_c0_tcstatus(tmp);
@@ -201,7 +201,7 @@ int vpe_start(void *vpe, unsigned long start)
 }
 EXPORT_SYMBOL(vpe_start);
 
-/* halt it for now */
+/* halt it for analw */
 int vpe_stop(void *vpe)
 {
 	struct vpe *v = vpe;
@@ -231,7 +231,7 @@ int vpe_free(void *vpe)
 
 	t = list_entry(v->tc.next, struct tc, tc);
 	if (t == NULL)
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	evpe_flags = dvpe();
 
@@ -261,10 +261,10 @@ static ssize_t store_kill(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t len)
 {
 	struct vpe *vpe = get_vpe(aprp_cpu_index());
-	struct vpe_notifications *notifier;
+	struct vpe_analtifications *analtifier;
 
-	list_for_each_entry(notifier, &vpe->notify, list)
-		notifier->stop(aprp_cpu_index());
+	list_for_each_entry(analtifier, &vpe->analtify, list)
+		analtifier->stop(aprp_cpu_index());
 
 	release_progmem(vpe->load_addr);
 	cleanup_tc(get_tc(aprp_cpu_index()));
@@ -331,22 +331,22 @@ int __init vpe_module_init(void)
 	int tc, err;
 
 	if (!cpu_has_mipsmt) {
-		pr_warn("VPE loader: not a MIPS MT capable processor\n");
-		return -ENODEV;
+		pr_warn("VPE loader: analt a MIPS MT capable processor\n");
+		return -EANALDEV;
 	}
 
 	if (vpelimit == 0) {
-		pr_warn("No VPEs reserved for AP/SP, not initialize VPE loader\n"
+		pr_warn("Anal VPEs reserved for AP/SP, analt initialize VPE loader\n"
 			"Pass maxvpes=<n> argument as kernel argument\n");
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (aprp_cpu_index() == 0) {
-		pr_warn("No TCs reserved for AP/SP, not initialize VPE loader\n"
+		pr_warn("Anal TCs reserved for AP/SP, analt initialize VPE loader\n"
 			"Pass maxtcs=<n> argument as kernel argument\n");
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	major = register_chrdev(0, VPE_MODULE_NAME, &vpe_fops);
@@ -365,7 +365,7 @@ int __init vpe_module_init(void)
 	vpe_device.class	= &vpe_class;
 	vpe_device.parent	= NULL;
 	dev_set_name(&vpe_device, "vpe1");
-	vpe_device.devt = MKDEV(major, VPE_MODULE_MINOR);
+	vpe_device.devt = MKDEV(major, VPE_MODULE_MIANALR);
 	err = device_add(&vpe_device);
 	if (err) {
 		pr_err("Adding vpe_device failed\n");
@@ -394,7 +394,7 @@ int __init vpe_module_init(void)
 		local_irq_restore(flags);
 		t = alloc_tc(tc);
 		if (!t) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_dev;
 		}
 
@@ -453,11 +453,11 @@ int __init vpe_module_init(void)
 			/*
 			 * A TC that is bound to any other VPE gets bound to
 			 * VPE0, ideally I'd like to make it homeless but it
-			 * doesn't appear to let me bind a TC to a non-existent
+			 * doesn't appear to let me bind a TC to a analn-existent
 			 * VPE. Which is perfectly reasonable.
 			 *
 			 * The (un)bound state is visible to an EJTAG probe so
-			 * may notify GDB...
+			 * may analtify GDB...
 			 */
 			tmp = read_tc_c0_tcbind();
 			if (tmp & TCBIND_CURVPE) {
@@ -473,7 +473,7 @@ int __init vpe_module_init(void)
 
 			tmp = read_tc_c0_tcstatus();
 
-			/* mark not activated and not dynamically allocatable */
+			/* mark analt activated and analt dynamically allocatable */
 			tmp &= ~(TCSTATUS_A | TCSTATUS_DA);
 			tmp |= TCSTATUS_IXMT;	/* interrupt exempt */
 			write_tc_c0_tcstatus(tmp);
@@ -511,7 +511,7 @@ void __exit vpe_module_exit(void)
 	class_unregister(&vpe_class);
 	unregister_chrdev(major, VPE_MODULE_NAME);
 
-	/* No locking needed here */
+	/* Anal locking needed here */
 	list_for_each_entry_safe(v, n, &vpecontrol.vpe_list, list) {
 		if (v->state != VPE_STATE_UNUSED)
 			release_vpe(v);

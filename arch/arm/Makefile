@@ -10,7 +10,7 @@
 #
 # Copyright (C) 1995-2001 by Russell King
 
-LDFLAGS_vmlinux	:= --no-undefined -X --pic-veneer -z norelro
+LDFLAGS_vmlinux	:= --anal-undefined -X --pic-veneer -z analrelro
 ifeq ($(CONFIG_CPU_ENDIAN_BE8),y)
 LDFLAGS_vmlinux	+= --be8
 KBUILD_LDFLAGS_MODULE	+= --be8
@@ -20,24 +20,24 @@ GZFLAGS		:=-9
 #KBUILD_CFLAGS	+=-pipe
 
 # Never generate .eh_frame
-KBUILD_CFLAGS	+= $(call cc-option,-fno-dwarf2-cfi-asm)
+KBUILD_CFLAGS	+= $(call cc-option,-fanal-dwarf2-cfi-asm)
 
 # Disable FDPIC ABI
-KBUILD_CFLAGS	+= $(call cc-option,-mno-fdpic)
+KBUILD_CFLAGS	+= $(call cc-option,-manal-fdpic)
 
 # This should work on most of the modern platforms
 KBUILD_DEFCONFIG := multi_v7_defconfig
 
 # defines filename extension depending memory management type.
 ifeq ($(CONFIG_MMU),)
-MMUEXT		:= -nommu
-KBUILD_CFLAGS	+= $(call cc-option,-mno-unaligned-access)
+MMUEXT		:= -analmmu
+KBUILD_CFLAGS	+= $(call cc-option,-manal-unaligned-access)
 endif
 
 ifeq ($(CONFIG_FRAME_POINTER),y)
-KBUILD_CFLAGS	+=-fno-omit-frame-pointer
+KBUILD_CFLAGS	+=-fanal-omit-frame-pointer
 ifeq ($(CONFIG_CC_IS_GCC),y)
-KBUILD_CFLAGS += -mapcs -mno-sched-prolog
+KBUILD_CFLAGS += -mapcs -manal-sched-prolog
 endif
 endif
 
@@ -57,7 +57,7 @@ endif
 # char struct members incorrectly. So disable it.
 # (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=65932)
 #
-KBUILD_CFLAGS	+= $(call cc-option,-fno-ipa-sra)
+KBUILD_CFLAGS	+= $(call cc-option,-fanal-ipa-sra)
 
 # This selects which instruction set is used.
 arch-$(CONFIG_CPU_32v7M)	:=-march=armv7-m
@@ -73,7 +73,7 @@ arch-$(CONFIG_CPU_32v4T)	:=-march=armv4t
 arch-$(CONFIG_CPU_32v4)		:=-march=armv4
 arch-$(CONFIG_CPU_32v3)		:=-march=armv3m
 
-# Note that GCC does not numerically define an architecture version
+# Analte that GCC does analt numerically define an architecture version
 # macro, but instead defines a whole series of macros which makes
 # testing for a specific architecture or later rather impossible.
 cpp-$(CONFIG_CPU_32v7M)		:=-D__LINUX_ARM_ARCH__=7
@@ -112,7 +112,7 @@ tune-$(CONFIG_CPU_V6K)		:=-mtune=arm1136j-s
 ifeq ($(CONFIG_AEABI),y)
 CFLAGS_ABI	:=-mabi=aapcs-linux -mfpu=vfp
 else
-CFLAGS_ABI	:=$(call cc-option,-mapcs-32,-mabi=apcs-gnu) $(call cc-option,-mno-thumb-interwork,)
+CFLAGS_ABI	:=$(call cc-option,-mapcs-32,-mabi=apcs-gnu) $(call cc-option,-manal-thumb-interwork,)
 endif
 
 ifeq ($(CONFIG_ARM_UNWIND),y)
@@ -128,14 +128,14 @@ KBUILD_CFLAGS	+= -mtp=cp15
 endif
 
 # Accept old syntax despite ".syntax unified"
-AFLAGS_NOWARN	:=$(call as-option,-Wa$(comma)-mno-warn-deprecated,-Wa$(comma)-W)
+AFLAGS_ANALWARN	:=$(call as-option,-Wa$(comma)-manal-warn-deprecated,-Wa$(comma)-W)
 
 ifeq ($(CONFIG_THUMB2_KERNEL),y)
-CFLAGS_ISA	:=-Wa,-mimplicit-it=always $(AFLAGS_NOWARN)
+CFLAGS_ISA	:=-Wa,-mimplicit-it=always $(AFLAGS_ANALWARN)
 AFLAGS_ISA	:=$(CFLAGS_ISA) -Wa$(comma)-mthumb
 CFLAGS_ISA	+=-mthumb
 else
-CFLAGS_ISA	:=$(call cc-option,-marm,) $(AFLAGS_NOWARN)
+CFLAGS_ISA	:=$(call cc-option,-marm,) $(AFLAGS_ANALWARN)
 AFLAGS_ISA	:=$(CFLAGS_ISA)
 endif
 
@@ -148,7 +148,7 @@ CHECKFLAGS	+= -D__arm__
 
 # Text offset. This list is sorted numerically by address in order to
 # provide a means to avoid/resolve conflicts in multi-arch kernels.
-# Note: the 32kB below this value is reserved for use by the kernel
+# Analte: the 32kB below this value is reserved for use by the kernel
 # during boot, and this offset is critical to the functioning of
 # kexec-tools.
 textofs-y	:= 0x00008000
@@ -179,7 +179,7 @@ machine-$(CONFIG_ARCH_DAVINCI)		+= davinci
 machine-$(CONFIG_ARCH_DIGICOLOR)	+= digicolor
 machine-$(CONFIG_ARCH_DOVE)		+= dove
 machine-$(CONFIG_ARCH_EP93XX)		+= ep93xx
-machine-$(CONFIG_ARCH_EXYNOS)		+= exynos
+machine-$(CONFIG_ARCH_EXYANALS)		+= exyanals
 machine-$(CONFIG_ARCH_FOOTBRIDGE)	+= footbridge
 machine-$(CONFIG_ARCH_GEMINI)		+= gemini
 machine-$(CONFIG_ARCH_HIGHBANK)		+= highbank
@@ -198,7 +198,7 @@ machine-$(CONFIG_ARCH_MEDIATEK)		+= mediatek
 machine-$(CONFIG_ARCH_MILBEAUT)		+= milbeaut
 machine-$(CONFIG_ARCH_MXS)		+= mxs
 machine-$(CONFIG_ARCH_MSTARV7)		+= mstar
-machine-$(CONFIG_ARCH_NOMADIK)		+= nomadik
+machine-$(CONFIG_ARCH_ANALMADIK)		+= analmadik
 machine-$(CONFIG_ARCH_NPCM)		+= npcm
 machine-$(CONFIG_ARCH_OMAP1)		+= omap1
 machine-$(CONFIG_ARCH_OMAP2PLUS)	+= omap2
@@ -272,7 +272,7 @@ stack_protector_prepare: prepare0
 endif
 endif
 
-all:	$(notdir $(KBUILD_IMAGE))
+all:	$(analtdir $(KBUILD_IMAGE))
 
 
 archheaders:

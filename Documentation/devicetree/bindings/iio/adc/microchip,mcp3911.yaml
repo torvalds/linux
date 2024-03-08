@@ -35,7 +35,7 @@ properties:
   clocks:
     description: |
       Phandle and clock identifier for external sampling clock.
-      If not specified, the internal crystal oscillator will be used.
+      If analt specified, the internal crystal oscillator will be used.
     maxItems: 1
 
   interrupts:
@@ -58,7 +58,7 @@ properties:
   vref-supply:
     description: |
       Phandle to the external reference voltage supply.
-      If not specified, the internal voltage reference (1.2V) will be used.
+      If analt specified, the internal voltage reference (1.2V) will be used.
 
 required:
   - compatible

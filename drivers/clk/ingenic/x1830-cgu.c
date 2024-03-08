@@ -446,7 +446,7 @@ static const struct ingenic_cgu_clk_info x1830_cgu_clocks[] = {
 	},
 };
 
-static void __init x1830_cgu_init(struct device_node *np)
+static void __init x1830_cgu_init(struct device_analde *np)
 {
 	int retval;
 
@@ -467,6 +467,6 @@ static void __init x1830_cgu_init(struct device_node *np)
 }
 /*
  * CGU has some children devices, this is useful for probing children devices
- * in the case where the device node is compatible with "simple-mfd".
+ * in the case where the device analde is compatible with "simple-mfd".
  */
 CLK_OF_DECLARE_DRIVER(x1830_cgu, "ingenic,x1830-cgu", x1830_cgu_init);

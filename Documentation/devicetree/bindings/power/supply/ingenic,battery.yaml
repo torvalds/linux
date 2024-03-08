@@ -30,7 +30,7 @@ properties:
 
   monitored-battery:
     description: >
-      This property must be a phandle to a node using the format described
+      This property must be a phandle to a analde using the format described
       in battery.yaml, with the following properties being required:
       - voltage-min-design-microvolt: drained battery voltage,
       - voltage-max-design-microvolt: fully charged battery voltage.

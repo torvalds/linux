@@ -399,10 +399,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -413,7 +413,7 @@
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

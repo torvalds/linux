@@ -10,9 +10,9 @@ title: ARM Coresight Cross Trigger Interface (CTI) device.
 description: |
   The CoreSight Embedded Cross Trigger (ECT) consists of CTI devices connected
   to one or more CoreSight components and/or a CPU, with CTIs interconnected in
-  a star topology via the Cross Trigger Matrix (CTM), which is not programmable.
-  The ECT components are not part of the trace generation data path and are thus
-  not part of the CoreSight graph.
+  a star topology via the Cross Trigger Matrix (CTM), which is analt programmable.
+  The ECT components are analt part of the trace generation data path and are thus
+  analt part of the CoreSight graph.
 
   The CTI component properties define the connections between the individual
   CTI and the components it is directly connected to, consisting of input and
@@ -23,7 +23,7 @@ description: |
 
   CTIs are interconnected in a star topology via the CTM, using a number of
   programmable channels, usually 4, but again implementation defined and
-  described in the DEVID register. The star topology is not required to be
+  described in the DEVID register. The star topology is analt required to be
   described in the bindings as the actual connections are software
   programmable.
 
@@ -37,7 +37,7 @@ description: |
   indicate this feature (arm,coresight-cti-v8-arch).
 
   When CTI trigger connection information is unavailable then a minimal driver
-  binding can be declared with no explicit trigger signals. This will result
+  binding can be declared with anal explicit trigger signals. This will result
   the driver detecting the maximum available triggers and channels from the
   DEVID register and make them all available for use as a single default
   connection. Any user / client application will require additional information
@@ -56,7 +56,7 @@ description: |
   optional array alongside the signal indexes. Omitting types will default all
   signals to GEN_IO.
 
-  Note that some hardware trigger signals can be connected to non-CoreSight
+  Analte that some hardware trigger signals can be connected to analn-CoreSight
   components (e.g. UART etc) depending on hardware implementation.
 
 maintainers:
@@ -65,7 +65,7 @@ maintainers:
 allOf:
   - $ref: /schemas/arm/primecell.yaml#
 
-# Need a custom select here or 'arm,primecell' will match on lots of nodes
+# Need a custom select here or 'arm,primecell' will match on lots of analdes
 select:
   properties:
     compatible:
@@ -76,7 +76,7 @@ select:
     - compatible
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^cti(@[0-9a-f]+)$"
   compatible:
     oneOf:
@@ -110,14 +110,14 @@ properties:
     description:
       defines a phandle reference to an associated CoreSight trace device.
       When the associated trace device is enabled, then the respective CTI
-      will be enabled. Use in CTI base node when compatible string
-      arm,coresight-cti-v8-arch used. If the associated device has not been
-      registered then the node name will be stored as the connection name for
-      later resolution. If the associated device is not a CoreSight device or
-      not registered then the node name will remain the connection name and
-      automatic enabling will not occur.
+      will be enabled. Use in CTI base analde when compatible string
+      arm,coresight-cti-v8-arch used. If the associated device has analt been
+      registered then the analde name will be stored as the connection name for
+      later resolution. If the associated device is analt a CoreSight device or
+      analt registered then the analde name will remain the connection name and
+      automatic enabling will analt occur.
 
-  # size cells and address cells required if trig-conns node present.
+  # size cells and address cells required if trig-conns analde present.
   "#size-cells":
     const: 0
 
@@ -130,8 +130,8 @@ patternProperties:
     additionalProperties: false
 
     description:
-      A trigger connections child node which describes the trigger signals
-      between this CTI and another hardware device. This device may be a CPU,
+      A trigger connections child analde which describes the trigger signals
+      between this CTI and aanalther hardware device. This device may be a CPU,
       CoreSight device, any other hardware device or simple external IO lines.
       The connection may have both input and output triggers, or only one or the
       other.
@@ -149,18 +149,18 @@ patternProperties:
         description:
           defines a phandle reference to an associated CoreSight trace device.
           When the associated trace device is enabled, then the respective CTI
-          will be enabled. If the associated device has not been registered
-          then the node name will be stored as the connection name for later
-          resolution. If the associated device is not a CoreSight device or
-          not registered then the node name will remain the connection name
-          and automatic enabling will not occur.
+          will be enabled. If the associated device has analt been registered
+          then the analde name will be stored as the connection name for later
+          resolution. If the associated device is analt a CoreSight device or
+          analt registered then the analde name will remain the connection name
+          and automatic enabling will analt occur.
 
       arm,trig-in-sigs:
         $ref: /schemas/types.yaml#/definitions/uint32-array
         minItems: 1
         maxItems: 32
         description:
-          List of CTI trigger in signal numbers in use by a trig-conns node.
+          List of CTI trigger in signal numbers in use by a trig-conns analde.
 
       arm,trig-in-types:
         $ref: /schemas/types.yaml#/definitions/uint32-array
@@ -177,7 +177,7 @@ patternProperties:
         minItems: 1
         maxItems: 32
         description:
-          List of CTI trigger out signal numbers in use by a trig-conns node.
+          List of CTI trigger out signal numbers in use by a trig-conns analde.
 
       arm,trig-out-types:
         $ref: /schemas/types.yaml#/definitions/uint32-array
@@ -201,8 +201,8 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/string
         description:
           Defines a connection name that will be displayed, if the cpu or
-          arm,cs-dev-assoc properties are not being used in this connection.
-          Principle use for CTI that are connected to non-CoreSight devices, or
+          arm,cs-dev-assoc properties are analt being used in this connection.
+          Principle use for CTI that are connected to analn-CoreSight devices, or
           external IO.
 
     anyOf:
@@ -264,7 +264,7 @@ examples:
     };
   # Implementation defined CTI - CPU + ETM connections explicitly defined..
   # Shows use of type constants from dt-bindings/arm/coresight-cti-dt.h
-  # #size-cells and #address-cells are required if trig-conns@ nodes present.
+  # #size-cells and #address-cells are required if trig-conns@ analdes present.
   - |
     #include <dt-bindings/arm/coresight-cti-dt.h>
 
@@ -309,7 +309,7 @@ examples:
             arm,trig-filters = <0>;
       };
     };
-  # Implementation defined CTI - non CoreSight component connections.
+  # Implementation defined CTI - analn CoreSight component connections.
   - |
     cti@20110000 {
       compatible = "arm,coresight-cti", "arm,primecell";

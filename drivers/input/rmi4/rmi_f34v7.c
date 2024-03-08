@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2016, Zodiac Inflight Innovations
+ * Copyright (c) 2016, Zodiac Inflight Inanalvations
  * Copyright (c) 2007-2016, Synaptics Incorporated
  * Copyright (C) 2012 Alexandra Chin <alexandra.chin@tw.synaptics.com>
  * Copyright (C) 2012 Scott Lin <scott.lin@tw.synaptics.com>
@@ -472,7 +472,7 @@ static int rmi_f34v7_read_queries_bl_version(struct f34_data *f34)
 		return ret;
 	}
 
-	f34->bootloader_id[0] = query_1_7.bl_minor_revision;
+	f34->bootloader_id[0] = query_1_7.bl_mianalr_revision;
 	f34->bootloader_id[1] = query_1_7.bl_major_revision;
 
 	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev, "Bootloader V%d.%d\n",
@@ -515,7 +515,7 @@ static int rmi_f34v7_read_queries(struct f34_data *f34)
 		return ret;
 	}
 
-	f34->bootloader_id[0] = query_1_7.bl_minor_revision;
+	f34->bootloader_id[0] = query_1_7.bl_mianalr_revision;
 	f34->bootloader_id[1] = query_1_7.bl_major_revision;
 
 	f34->v7.block_size = le16_to_cpu(query_1_7.block_size);
@@ -567,7 +567,7 @@ static int rmi_f34v7_read_queries(struct f34_data *f34)
 			GFP_KERNEL);
 	if (!f34->v7.read_config_buf) {
 		f34->v7.read_config_buf_size = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	f34->v7.read_config_buf_size = f34->v7.partition_table_bytes;
@@ -840,7 +840,7 @@ static int rmi_f34v7_write_partition_table(struct f34_data *f34)
 					       f34->v7.config_size, GFP_KERNEL);
 	if (!f34->v7.read_config_buf) {
 		f34->v7.read_config_buf_size = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	f34->v7.read_config_buf_size = f34->v7.config_size;
@@ -1013,7 +1013,7 @@ static int rmi_f34v7_parse_image_info(struct f34_data *f34)
 	}
 
 	if (!f34->v7.img.contains_flash_config) {
-		dev_err(&f34->fn->dev, "%s: No flash config in fw image\n",
+		dev_err(&f34->fn->dev, "%s: Anal flash config in fw image\n",
 			__func__);
 		return -EINVAL;
 	}

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -152,7 +152,7 @@ static int tonga_start_in_protection_mode(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int tonga_start_in_non_protection_mode(struct pp_hwmgr *hwmgr)
+static int tonga_start_in_analn_protection_mode(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
 
@@ -196,12 +196,12 @@ static int tonga_start_smu(struct pp_hwmgr *hwmgr)
 	struct tonga_smumgr *priv = hwmgr->smu_backend;
 	int result;
 
-	/* Only start SMC if SMC RAM is not running */
-	if (!smu7_is_smc_ram_running(hwmgr) && hwmgr->not_vf) {
+	/* Only start SMC if SMC RAM is analt running */
+	if (!smu7_is_smc_ram_running(hwmgr) && hwmgr->analt_vf) {
 		/*Check if SMU is running in protected mode*/
 		if (0 == PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 					SMU_FIRMWARE, SMU_MODE)) {
-			result = tonga_start_in_non_protection_mode(hwmgr);
+			result = tonga_start_in_analn_protection_mode(hwmgr);
 			if (result)
 				return result;
 		} else {
@@ -230,7 +230,7 @@ static int tonga_smu_init(struct pp_hwmgr *hwmgr)
 
 	tonga_priv = kzalloc(sizeof(struct tonga_smumgr), GFP_KERNEL);
 	if (tonga_priv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmgr->smu_backend = tonga_priv;
 
@@ -450,27 +450,27 @@ static int tonga_populate_smc_voltage_tables(struct pp_hwmgr *hwmgr,
 
 	result = tonga_populate_smc_vddc_table(hwmgr, table);
 	PP_ASSERT_WITH_CODE(!result,
-			"can not populate VDDC voltage table to SMC",
+			"can analt populate VDDC voltage table to SMC",
 			return -EINVAL);
 
 	result = tonga_populate_smc_vdd_ci_table(hwmgr, table);
 	PP_ASSERT_WITH_CODE(!result,
-			"can not populate VDDCI voltage table to SMC",
+			"can analt populate VDDCI voltage table to SMC",
 			return -EINVAL);
 
 	result = tonga_populate_smc_vdd_gfx_table(hwmgr, table);
 	PP_ASSERT_WITH_CODE(!result,
-			"can not populate VDDGFX voltage table to SMC",
+			"can analt populate VDDGFX voltage table to SMC",
 			return -EINVAL);
 
 	result = tonga_populate_smc_mvdd_table(hwmgr, table);
 	PP_ASSERT_WITH_CODE(!result,
-			"can not populate MVDD voltage table to SMC",
+			"can analt populate MVDD voltage table to SMC",
 			return -EINVAL);
 
 	result = tonga_populate_cac_tables(hwmgr, table);
 	PP_ASSERT_WITH_CODE(!result,
-			"can not populate CAC voltage tables to SMC",
+			"can analt populate CAC voltage tables to SMC",
 			return -EINVAL);
 
 	return 0;
@@ -636,17 +636,17 @@ static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 		vdd_dep_table, engine_clock,
 		&graphic_level->MinVoltage, &mvdd);
 	PP_ASSERT_WITH_CODE((!result),
-		"can not find VDDC voltage value for VDDC "
+		"can analt find VDDC voltage value for VDDC "
 		"engine clock dependency table", return result);
 
 	/* SCLK frequency in units of 10KHz*/
 	graphic_level->SclkFrequency = engine_clock;
-	/* Indicates maximum activity level for this performance level. 50% for now*/
+	/* Indicates maximum activity level for this performance level. 50% for analw*/
 	graphic_level->ActivityLevel = data->current_profile_setting.sclk_activity;
 
 	graphic_level->CcPwrDynRm = 0;
 	graphic_level->CcPwrDynRm1 = 0;
-	/* this level can be used if activity is high enough.*/
+	/* this level can be used if activity is high eanalugh.*/
 	graphic_level->EnabledForActivity = 0;
 	/* this level can be used for throttling.*/
 	graphic_level->EnabledForThrottle = 1;
@@ -719,7 +719,7 @@ static int tonga_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 			smu_data->smc_state_table.GraphicsLevel[i].DeepSleepDivId = 0;
 	}
 
-	/* Only enable level 0 for now. */
+	/* Only enable level 0 for analw. */
 	smu_data->smc_state_table.GraphicsLevel[0].EnabledForActivity = 1;
 
 	/* set highest level watermark to high */
@@ -851,43 +851,43 @@ static int tonga_calculate_mclk_params(
 		 Fref = Reference Frequency
 		 NF = Feedback divider ratio
 		 NR = Reference divider ratio
-		 Fnom = Nominal VCO output frequency = Fref * NF / NR
+		 Fanalm = Analminal VCO output frequency = Fref * NF / NR
 		 Fs = Spreading Rate
 		 D = Percentage down-spread / 2
 		 Fint = Reference input frequency to PFD = Fref / NR
 		 NS = Spreading rate divider ratio = int(Fint / (2 * Fs))
 		 CLKS = NS - 1 = ISS_STEP_NUM[11:0]
-		 NV = D * Fs / Fnom * 4 * ((Fnom/Fref * NR) ^ 2)
+		 NV = D * Fs / Fanalm * 4 * ((Fanalm/Fref * NR) ^ 2)
 		 CLKV = 65536 * NV = ISS_STEP_SIZE[25:0]
 		 *************************************
 		 */
 		pp_atomctrl_internal_ss_info ss_info;
-		uint32_t freq_nom;
+		uint32_t freq_analm;
 		uint32_t tmp;
 		uint32_t reference_clock = atomctrl_get_mpll_reference_clock(hwmgr);
 
 		/* for GDDR5 for all modes and DDR3 */
 		if (1 == mpll_param.qdr)
-			freq_nom = memory_clock * 4 * (1 << mpll_param.mpll_post_divider);
+			freq_analm = memory_clock * 4 * (1 << mpll_param.mpll_post_divider);
 		else
-			freq_nom = memory_clock * 2 * (1 << mpll_param.mpll_post_divider);
+			freq_analm = memory_clock * 2 * (1 << mpll_param.mpll_post_divider);
 
-		/* tmp = (freq_nom / reference_clock * reference_divider) ^ 2  Note: S.I. reference_divider = 1*/
-		tmp = (freq_nom / reference_clock);
+		/* tmp = (freq_analm / reference_clock * reference_divider) ^ 2  Analte: S.I. reference_divider = 1*/
+		tmp = (freq_analm / reference_clock);
 		tmp = tmp * tmp;
 
-		if (0 == atomctrl_get_memory_clock_spread_spectrum(hwmgr, freq_nom, &ss_info)) {
+		if (0 == atomctrl_get_memory_clock_spread_spectrum(hwmgr, freq_analm, &ss_info)) {
 			/* ss_info.speed_spectrum_percentage -- in unit of 0.01% */
 			/* ss.Info.speed_spectrum_rate -- in unit of khz */
 			/* CLKS = reference_clock / (2 * speed_spectrum_rate * reference_divider) * 10 */
 			/*     = reference_clock * 5 / speed_spectrum_rate */
 			uint32_t clks = reference_clock * 5 / ss_info.speed_spectrum_rate;
 
-			/* CLKV = 65536 * speed_spectrum_percentage / 2 * spreadSpecrumRate / freq_nom * 4 / 100000 * ((freq_nom / reference_clock) ^ 2) */
-			/*     = 131 * speed_spectrum_percentage * speed_spectrum_rate / 100 * ((freq_nom / reference_clock) ^ 2) / freq_nom */
+			/* CLKV = 65536 * speed_spectrum_percentage / 2 * spreadSpecrumRate / freq_analm * 4 / 100000 * ((freq_analm / reference_clock) ^ 2) */
+			/*     = 131 * speed_spectrum_percentage * speed_spectrum_rate / 100 * ((freq_analm / reference_clock) ^ 2) / freq_analm */
 			uint32_t clkv =
 				(uint32_t)((((131 * ss_info.speed_spectrum_percentage *
-							ss_info.speed_spectrum_rate) / 100) * tmp) / freq_nom);
+							ss_info.speed_spectrum_rate) / 100) * tmp) / freq_analm);
 
 			mpll_ss1 = PHM_SET_FIELD(mpll_ss1, MPLL_SS1, CLKV, clkv);
 			mpll_ss2 = PHM_SET_FIELD(mpll_ss2, MPLL_SS2, CLKS, clks);
@@ -986,12 +986,12 @@ static int tonga_populate_single_memory_level(
 				&memory_level->MinVoltage, &mvdd);
 		PP_ASSERT_WITH_CODE(
 			!result,
-			"can not find MinVddc voltage value from memory VDDC "
+			"can analt find MinVddc voltage value from memory VDDC "
 			"voltage dependency table",
 			return result);
 	}
 
-	if (data->mvdd_control == SMU7_VOLTAGE_CONTROL_NONE)
+	if (data->mvdd_control == SMU7_VOLTAGE_CONTROL_ANALNE)
 		memory_level->MinMvdd = data->vbios_boot_state.mvdd_bootup_value;
 	else
 		memory_level->MinMvdd = mvdd;
@@ -1106,7 +1106,7 @@ static int tonga_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 
 	for (i = 0; i < dpm_table->mclk_table.count; i++) {
 		PP_ASSERT_WITH_CODE((0 != dpm_table->mclk_table.dpm_levels[i].value),
-			"can not populate memory level as memory clock is zero",
+			"can analt populate memory level as memory clock is zero",
 			return -EINVAL);
 		result = tonga_populate_single_memory_level(
 				hwmgr,
@@ -1116,13 +1116,13 @@ static int tonga_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 			return result;
 	}
 
-	/* Only enable level 0 for now.*/
+	/* Only enable level 0 for analw.*/
 	smu_data->smc_state_table.MemoryLevel[0].EnabledForActivity = 1;
 
 	/*
 	* in order to prevent MC activity from stutter mode to push DPM up.
 	* the UVD change complements this by putting the MCLK in a higher state
-	* by default such that we are not effected by up threshold or and MCLK DPM latency.
+	* by default such that we are analt effected by up threshold or and MCLK DPM latency.
 	*/
 	smu_data->smc_state_table.MemoryLevel[0].ActivityLevel = 0x1F;
 	CONVERT_FROM_HOST_TO_SMC_US(smu_data->smc_state_table.MemoryLevel[0].ActivityLevel);
@@ -1148,7 +1148,7 @@ static int tonga_populate_mvdd_value(struct pp_hwmgr *hwmgr,
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	uint32_t i = 0;
 
-	if (SMU7_VOLTAGE_CONTROL_NONE != data->mvdd_control) {
+	if (SMU7_VOLTAGE_CONTROL_ANALNE != data->mvdd_control) {
 		/* find mvdd value which clock is more than request */
 		for (i = 0; i < table_info->vdd_dep_on_mclk->count; i++) {
 			if (mclk <= table_info->vdd_dep_on_mclk->entries[i].clk) {
@@ -1185,13 +1185,13 @@ static int tonga_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	uint32_t dll_cntl          = data->clock_registers.vDLL_CNTL;
 	uint32_t mclk_pwrmgt_cntl  = data->clock_registers.vMCLK_PWRMGT_CNTL;
 
-	/* The ACPI state should not do DPM on DC (or ever).*/
+	/* The ACPI state should analt do DPM on DC (or ever).*/
 	table->ACPILevel.Flags &= ~PPSMC_SWSTATE_FLAG_DC;
 
 	table->ACPILevel.MinVoltage =
 			smu_data->smc_state_table.GraphicsLevel[0].MinVoltage;
 
-	/* assign zero for now*/
+	/* assign zero for analw*/
 	table->ACPILevel.SclkFrequency = atomctrl_get_reference_clock(hwmgr);
 
 	/* get the engine clock dividers for this clock value*/
@@ -1342,7 +1342,7 @@ static int tonga_populate_smc_uvd_level(struct pp_hwmgr *hwmgr,
 					&dividers);
 
 		PP_ASSERT_WITH_CODE((!result),
-				    "can not find divide id for Vclk clock",
+				    "can analt find divide id for Vclk clock",
 					return result);
 
 		table->UvdLevel[count].VclkDivider = (uint8_t)dividers.pll_post_divider;
@@ -1350,7 +1350,7 @@ static int tonga_populate_smc_uvd_level(struct pp_hwmgr *hwmgr,
 		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
 							  table->UvdLevel[count].DclkFrequency, &dividers);
 		PP_ASSERT_WITH_CODE((!result),
-				    "can not find divide id for Dclk clock",
+				    "can analt find divide id for Dclk clock",
 					return result);
 
 		table->UvdLevel[count].DclkDivider =
@@ -1399,7 +1399,7 @@ static int tonga_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
 		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
 					table->VceLevel[count].Frequency, &dividers);
 		PP_ASSERT_WITH_CODE((!result),
-				"can not find divide id for VCE engine clock",
+				"can analt find divide id for VCE engine clock",
 				return result);
 
 		table->VceLevel[count].Divider = (uint8_t)dividers.pll_post_divider;
@@ -1444,7 +1444,7 @@ static int tonga_populate_smc_acp_level(struct pp_hwmgr *hwmgr,
 		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
 			table->AcpLevel[count].Frequency, &dividers);
 		PP_ASSERT_WITH_CODE((!result),
-			"can not find divide id for engine clock", return result);
+			"can analt find divide id for engine clock", return result);
 
 		table->AcpLevel[count].Divider = (uint8_t)dividers.pll_post_divider;
 
@@ -1536,7 +1536,7 @@ static int tonga_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (result != 0) {
 		smu_data->smc_state_table.GraphicsBootLevel = 0;
-		pr_err("[powerplay] VBIOS did not find boot engine "
+		pr_err("[powerplay] VBIOS did analt find boot engine "
 				"clock value in dependency table. "
 				"Using Graphics DPM level 0 !");
 		result = 0;
@@ -1548,7 +1548,7 @@ static int tonga_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (result != 0) {
 		smu_data->smc_state_table.MemoryBootLevel = 0;
-		pr_err("[powerplay] VBIOS did not find boot "
+		pr_err("[powerplay] VBIOS did analt find boot "
 				"engine clock value in dependency table."
 				"Using Memory DPM level 0 !");
 		result = 0;
@@ -1659,7 +1659,7 @@ static int tonga_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_ClockStretcher);
 		PP_ASSERT_WITH_CODE(false,
-				"Stretch Amount in PPTable not supported",
+				"Stretch Amount in PPTable analt supported",
 				return -EINVAL);
 	}
 
@@ -1806,7 +1806,7 @@ static int tonga_init_arb_table_index(struct pp_hwmgr *hwmgr)
 	* is the field 'current'.
 	* This solution is ugly, but we never write the whole table only
 	* individual fields in it.
-	* In reality this field should not be in that structure
+	* In reality this field should analt be in that structure
 	* but in a soft register.
 	*/
 	result = smu7_read_smc_sram_dword(hwmgr,
@@ -1933,7 +1933,7 @@ static int tonga_populate_temperature_scaler(struct pp_hwmgr *hwmgr)
 	struct tonga_smumgr *smu_data =
 				(struct tonga_smumgr *)(hwmgr->smu_backend);
 
-	/* Currently not used. Set all to zero. */
+	/* Currently analt used. Set all to zero. */
 	for (i = 0; i < 16; i++)
 		smu_data->power_tune_table.LPMLTemperatureScaler[i] = 0;
 
@@ -1963,7 +1963,7 @@ static int tonga_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 	struct tonga_smumgr *smu_data =
 				(struct tonga_smumgr *)(hwmgr->smu_backend);
 
-	/* Currently not used. Set all to zero. */
+	/* Currently analt used. Set all to zero. */
 	for (i = 0; i < 16; i++)
 		smu_data->power_tune_table.GnbLPML[i] = 0;
 
@@ -2235,7 +2235,7 @@ static int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 
 	tonga_initialize_power_tune_defaults(hwmgr);
 
-	if (SMU7_VOLTAGE_CONTROL_NONE != data->voltage_control)
+	if (SMU7_VOLTAGE_CONTROL_ANALNE != data->voltage_control)
 		tonga_populate_smc_voltage_tables(hwmgr, table);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -2250,7 +2250,7 @@ static int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 	if (data->is_memory_gddr5)
 		table->SystemFlags |= PPSMC_SYSTEMFLAG_GDDR5;
 
-	i = PHM_READ_FIELD(hwmgr->device, CC_MC_MAX_CHANNEL, NOOFCHAN);
+	i = PHM_READ_FIELD(hwmgr->device, CC_MC_MAX_CHANNEL, ANALOFCHAN);
 
 	if (i == 1 || i == 0)
 		table->SystemFlags |= 0x40;
@@ -2335,7 +2335,7 @@ static int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 	table->MemoryThermThrottleEnable  = 1;
 
 	/*
-	* Cail reads current link status and reports it as cap (we cannot
+	* Cail reads current link status and reports it as cap (we cananalt
 	* change this due to some previous issues we had)
 	* SMC drops the link status to lowest level after enabling
 	* DPM by PowerPlay. After pnp or toggling CF, driver gets reloaded again
@@ -2473,7 +2473,7 @@ static int tonga_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 					PHM_PlatformCaps_MicrocodeFanControl))
 		return 0;
 
-	if (hwmgr->thermal_controller.fanInfo.bNoFan) {
+	if (hwmgr->thermal_controller.fanInfo.bAnalFan) {
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_MicrocodeFanControl);
 		return 0;
@@ -2570,7 +2570,7 @@ static int tonga_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 	uint32_t low_sclk_interrupt_threshold = 0;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_SclkThrottleLowNotification)
+			PHM_PlatformCaps_SclkThrottleLowAnaltification)
 		&& (data->low_sclk_interrupt_threshold != 0)) {
 		low_sclk_interrupt_threshold =
 				data->low_sclk_interrupt_threshold;
@@ -3075,9 +3075,9 @@ static int tonga_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 	table = kzalloc(sizeof(pp_atomctrl_mc_reg_table), GFP_KERNEL);
 
 	if (table == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Program additional LP registers that are no longer programmed by VBIOS */
+	/* Program additional LP registers that are anal longer programmed by VBIOS */
 	cgs_write_register(hwmgr->device, mmMC_SEQ_RAS_TIMING_LP,
 			cgs_read_register(hwmgr->device, mmMC_SEQ_RAS_TIMING));
 	cgs_write_register(hwmgr->device, mmMC_SEQ_CAS_TIMING_LP,

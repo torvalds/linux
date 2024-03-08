@@ -9,7 +9,7 @@
  *
  * Based on the arch/ppc version of the driver:
  *
- * Copyright (c) 2004, 2005 Zultys Technologies
+ * Copyright (c) 2004, 2005 Zultys Techanallogies
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
  */
 #ifndef __IBM_NEWEMAC_DEBUG_H
@@ -26,7 +26,7 @@
 #endif
 
 #define EMAC_DBG(d, name, fmt, arg...) \
-	printk(KERN_DEBUG #name "%pOF: " fmt, d->ofdev->dev.of_node, ## arg)
+	printk(KERN_DEBUG #name "%pOF: " fmt, d->ofdev->dev.of_analde, ## arg)
 
 #if DBG_LEVEL > 0
 #  define DBG(d,f,x...)		EMAC_DBG(d, emac, f, ##x)

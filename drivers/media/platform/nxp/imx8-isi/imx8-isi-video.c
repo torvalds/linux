@@ -10,7 +10,7 @@
 
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/media-bus-format.h>
 #include <linux/minmax.h>
@@ -424,7 +424,7 @@ mxc_isi_format_try(struct mxc_isi_pipe *pipe, struct v4l2_pix_format_mplane *pix
 	pix->width = clamp(pix->width, MXC_ISI_MIN_WIDTH, max_width);
 	pix->height = clamp(pix->height, MXC_ISI_MIN_HEIGHT, MXC_ISI_MAX_HEIGHT);
 	pix->pixelformat = fmt->fourcc;
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 
 	if (pix->colorspace == V4L2_COLORSPACE_DEFAULT) {
 		pix->colorspace = MXC_ISI_DEF_COLOR_SPACE;
@@ -508,7 +508,7 @@ static void mxc_isi_video_frame_write_done(struct mxc_isi_pipe *pipe,
 	 *
 	 * The hardware keeps track of which buffer is being written to and
 	 * automatically switches to the other buffer at frame end, copying the
-	 * corresponding address to another set of shadow registers that track
+	 * corresponding address to aanalther set of shadow registers that track
 	 * the address being written to. The active buffer tracking bits are
 	 * accessible through the CHNL_STS register.
 	 *
@@ -520,16 +520,16 @@ static void mxc_isi_video_frame_write_done(struct mxc_isi_pipe *pipe,
 	 * +----+             |           |
 	 * | B0 |             |           |
 	 * +----+             |           |
-	 *             +----+ | FRM IRQ 0 | B0 complete, BUF2 now active
+	 *             +----+ | FRM IRQ 0 | B0 complete, BUF2 analw active
 	 *             | B1 | |           | Program B2 in BUF1
 	 *             +----+ |           |
-	 * +----+             | FRM IRQ 1 | B1 complete, BUF1 now active
+	 * +----+             | FRM IRQ 1 | B1 complete, BUF1 analw active
 	 * | B2 |             |           | Program B3 in BUF2
 	 * +----+             |           |
-	 *             +----+ | FRM IRQ 2 | B2 complete, BUF2 now active
+	 *             +----+ | FRM IRQ 2 | B2 complete, BUF2 analw active
 	 *             | B3 | |           | Program B4 in BUF1
 	 *             +----+ |           |
-	 * +----+             | FRM IRQ 3 | B3 complete, BUF1 now active
+	 * +----+             | FRM IRQ 3 | B3 complete, BUF1 analw active
 	 * | B4 |             |           | Program B5 in BUF2
 	 * +----+             |           |
 	 *        ...         |           |
@@ -538,13 +538,13 @@ static void mxc_isi_video_frame_write_done(struct mxc_isi_pipe *pipe,
 	 * detected by checking if a frame end interrupt occurred after
 	 * programming the addresses.
 	 *
-	 * As none of the shadow registers are accessible, races can occur
+	 * As analne of the shadow registers are accessible, races can occur
 	 * between address programming and buffer switching. It is possible to
 	 * detect the race condition by checking if a frame end interrupt
 	 * occurred after programming the addresses, but impossible to
 	 * determine if the race has been won or lost.
 	 *
-	 * In addition to this, we need to use discard buffers if no pending
+	 * In addition to this, we need to use discard buffers if anal pending
 	 * buffers are available. To simplify handling of discard buffer, we
 	 * need to allocate three of them, as two can be active concurrently
 	 * and we need to still be able to get hold of a next buffer. The logic
@@ -574,10 +574,10 @@ static void mxc_isi_video_frame_write_done(struct mxc_isi_pipe *pipe,
 	 *
 	 * For instance, if IRQ1 is lost and we handle IRQ2, both B1 and B2
 	 * have been completed, but B3 hasn't been programmed, BUF2 still
-	 * addresses B1 and the ISI is now writing in B1 instead of B3. We
+	 * addresses B1 and the ISI is analw writing in B1 instead of B3. We
 	 * can't complete B2 as that would result in out-of-order completion.
 	 *
-	 * The only option is to ignore this interrupt and try again. When IRQ3
+	 * The only option is to iganalre this interrupt and try again. When IRQ3
 	 * will be handled, we will complete B1 and be in sync again.
 	 */
 	if (buf->id != buf_id) {
@@ -586,7 +586,7 @@ static void mxc_isi_video_frame_write_done(struct mxc_isi_pipe *pipe,
 
 		/*
 		 * Increment the frame count by two to account for the missed
-		 * and the ignored interrupts.
+		 * and the iganalred interrupts.
 		 */
 		video->frame_count += 2;
 		goto done;
@@ -615,7 +615,7 @@ static void mxc_isi_video_frame_write_done(struct mxc_isi_pipe *pipe,
 	 * using the previous buffer. We must assume the latter as that is the
 	 * worst case.
 	 *
-	 * For instance, if we are handling IRQ1 and now detect the FRM
+	 * For instance, if we are handling IRQ1 and analw detect the FRM
 	 * interrupt, assume B2 has completed and the ISI has switched to BUF2
 	 * using B1 just before we programmed B3. Unlike in the previous race
 	 * condition, B3 has been programmed and will be written to the next
@@ -680,7 +680,7 @@ static int mxc_isi_video_alloc_discard_buffers(struct mxc_isi_video *video)
 					       &buf->dma, GFP_DMA | GFP_KERNEL);
 		if (!buf->addr) {
 			mxc_isi_video_free_discard_buffers(video);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dev_dbg(video->pipe->isi->dev,
@@ -775,7 +775,7 @@ static void mxc_isi_video_queue_first_buffers(struct mxc_isi_video *video)
 	lockdep_assert_held(&video->buf_lock);
 
 	/*
-	 * Queue two ISI channel output buffers. We are not guaranteed to have
+	 * Queue two ISI channel output buffers. We are analt guaranteed to have
 	 * any buffer in the pending list when this function is called from the
 	 * system resume handler. Use pending buffers as much as possible, and
 	 * use discard buffers to fill the remaining slots.
@@ -1156,9 +1156,9 @@ static int mxc_isi_video_streamon(struct file *file, void *priv,
 		return -EBUSY;
 
 	/*
-	 * Get a pipeline for the video node and start it. This must be done
-	 * here and not in the queue .start_streaming() handler, so that
-	 * pipeline start errors can be reported from VIDIOC_STREAMON and not
+	 * Get a pipeline for the video analde and start it. This must be done
+	 * here and analt in the queue .start_streaming() handler, so that
+	 * pipeline start errors can be reported from VIDIOC_STREAMON and analt
 	 * delayed until subsequent VIDIOC_QBUF calls.
 	 */
 	mutex_lock(&mdev->graph_mutex);
@@ -1268,7 +1268,7 @@ static int mxc_isi_video_enum_framesizes(struct file *file, void *priv,
 
 	/*
 	 * The width can be further restricted due to line buffer sharing
-	 * between pipelines when scaling, but we have no way to know here if
+	 * between pipelines when scaling, but we have anal way to kanalw here if
 	 * the scaler will be used.
 	 */
 
@@ -1410,7 +1410,7 @@ int mxc_isi_video_register(struct mxc_isi_pipe *pipe,
 	struct v4l2_pix_format_mplane *pix = &video->pix;
 	struct video_device *vdev = &video->vdev;
 	struct vb2_queue *q = &video->vb2_q;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	video->pipe = pipe;
 
@@ -1432,7 +1432,7 @@ int mxc_isi_video_register(struct mxc_isi_pipe *pipe,
 	vdev->fops	= &mxc_isi_video_fops;
 	vdev->ioctl_ops	= &mxc_isi_video_ioctl_ops;
 	vdev->v4l2_dev	= v4l2_dev;
-	vdev->minor	= -1;
+	vdev->mianalr	= -1;
 	vdev->release	= video_device_release_empty;
 	vdev->queue	= q;
 	vdev->lock	= &video->lock;
@@ -1452,7 +1452,7 @@ int mxc_isi_video_register(struct mxc_isi_pipe *pipe,
 	q->ops = &mxc_isi_vb2_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct mxc_isi_buffer);
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->min_queued_buffers = 2;
 	q->lock = &video->lock;
 	q->dev = pipe->isi->dev;

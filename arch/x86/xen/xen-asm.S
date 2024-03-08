@@ -6,7 +6,7 @@
  * operations here; the indirect forms are better handled in C.
  */
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/asm-offsets.h>
 #include <asm/percpu.h>
 #include <asm/processor-flags.h>
@@ -22,10 +22,10 @@
 #include <linux/linkage.h>
 #include <../entry/calling.h>
 
-.pushsection .noinstr.text, "ax"
+.pushsection .analinstr.text, "ax"
 /*
  * Disabling events is simply a matter of making the event mask
- * non-zero.
+ * analn-zero.
  */
 SYM_FUNC_START(xen_irq_disable_direct)
 	movb $1, PER_CPU_VAR(xen_vcpu_info) + XEN_vcpu_info_mask
@@ -127,7 +127,7 @@ SYM_CODE_START(xen_\name)
 	pop %r11
 	jmp  \name
 SYM_CODE_END(xen_\name)
-_ASM_NOKPROBE(xen_\name)
+_ASM_ANALKPROBE(xen_\name)
 .endm
 
 xen_pv_trap asm_exc_divide_error
@@ -137,11 +137,11 @@ xen_pv_trap asm_xenpv_exc_nmi
 xen_pv_trap asm_exc_overflow
 xen_pv_trap asm_exc_bounds
 xen_pv_trap asm_exc_invalid_op
-xen_pv_trap asm_exc_device_not_available
+xen_pv_trap asm_exc_device_analt_available
 xen_pv_trap asm_xenpv_exc_double_fault
 xen_pv_trap asm_exc_coproc_segment_overrun
 xen_pv_trap asm_exc_invalid_tss
-xen_pv_trap asm_exc_segment_not_present
+xen_pv_trap asm_exc_segment_analt_present
 xen_pv_trap asm_exc_stack_segment
 xen_pv_trap asm_exc_general_protection
 xen_pv_trap asm_exc_page_fault
@@ -158,7 +158,7 @@ xen_pv_trap asm_exc_simd_coprocessor_error
 #ifdef CONFIG_IA32_EMULATION
 xen_pv_trap asm_int80_emulation
 #endif
-xen_pv_trap asm_exc_xen_unknown_trap
+xen_pv_trap asm_exc_xen_unkanalwn_trap
 xen_pv_trap asm_exc_xen_hypervisor_callback
 
 	__INIT
@@ -194,7 +194,7 @@ hypercall_iret = hypercall_page + __HYPERVISOR_iret * 32
  */
 SYM_CODE_START(xen_iret)
 	UNWIND_HINT_UNDEFINED
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	pushq $0
 	jmp hypercall_iret
 SYM_CODE_END(xen_iret)
@@ -212,7 +212,7 @@ SYM_CODE_START(xenpv_restore_regs_and_return_to_usermode)
 	POP_REGS
 
 	/* stackleak_erase() can work safely on the kernel stack. */
-	STACKLEAK_ERASE_NOCLOBBER
+	STACKLEAK_ERASE_ANALCLOBBER
 
 	addq	$8, %rsp	/* skip regs->orig_ax */
 	jmp xen_iret
@@ -233,7 +233,7 @@ SYM_CODE_END(xenpv_restore_regs_and_return_to_usermode)
  * rsp->rcx
  */
 
-/* Normal 64-bit system call target */
+/* Analrmal 64-bit system call target */
 SYM_CODE_START(xen_entry_SYSCALL_64)
 	UNWIND_HINT_ENTRY
 	ENDBR
@@ -241,7 +241,7 @@ SYM_CODE_START(xen_entry_SYSCALL_64)
 	popq %r11
 
 	/*
-	 * Neither Xen nor the kernel really knows what the old SS and
+	 * Neither Xen analr the kernel really kanalws what the old SS and
 	 * CS were.  The kernel expects __USER_DS and __USER_CS, so
 	 * report those values even though Xen will guess its own values.
 	 */
@@ -261,7 +261,7 @@ SYM_CODE_START(xen_entry_SYSCALL_compat)
 	popq %r11
 
 	/*
-	 * Neither Xen nor the kernel really knows what the old SS and
+	 * Neither Xen analr the kernel really kanalws what the old SS and
 	 * CS were.  The kernel expects __USER_DS and __USER32_CS, so
 	 * report those values even though Xen will guess its own values.
 	 */
@@ -283,7 +283,7 @@ SYM_CODE_START(xen_entry_SYSENTER_compat)
 	popq %r11
 
 	/*
-	 * Neither Xen nor the kernel really knows what the old SS and
+	 * Neither Xen analr the kernel really kanalws what the old SS and
 	 * CS were.  The kernel expects __USER_DS and __USER32_CS, so
 	 * report those values even though Xen will guess its own values.
 	 */
@@ -300,7 +300,7 @@ SYM_CODE_START(xen_entry_SYSENTER_compat)
 	UNWIND_HINT_ENTRY
 	ENDBR
 	lea 16(%rsp), %rsp	/* strip %rcx, %r11 */
-	mov $-ENOSYS, %rax
+	mov $-EANALSYS, %rax
 	pushq $0
 	jmp hypercall_iret
 SYM_CODE_END(xen_entry_SYSENTER_compat)

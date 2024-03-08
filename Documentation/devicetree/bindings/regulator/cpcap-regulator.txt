@@ -1,7 +1,7 @@
 Motorola CPCAP PMIC voltage regulators
 ------------------------------------
 
-Requires node properties:
+Requires analde properties:
 - "compatible" value one of:
     "motorola,cpcap-regulator"
     "motorola,mapphone-cpcap-regulator"

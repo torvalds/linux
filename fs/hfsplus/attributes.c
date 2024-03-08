@@ -22,7 +22,7 @@ int __init hfsplus_create_attr_tree_cache(void)
 			sizeof(hfsplus_attr_entry), 0,
 			SLAB_HWCACHE_ALIGN, NULL);
 	if (!hfsplus_attr_tree_cachep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -66,7 +66,7 @@ int hfsplus_attr_build_key(struct super_block *sb, hfsplus_btree_key *key,
 		len = 0;
 	}
 
-	/* The length of the key, as stored in key_len field, does not include
+	/* The length of the key, as stored in key_len field, does analt include
 	 * the size of the key_len field itself.
 	 * So, offsetof(hfsplus_attr_key, key_name) is a trick because
 	 * it takes into consideration key_len field (__be16) of
@@ -99,14 +99,14 @@ static int hfsplus_attr_build_record(hfsplus_attr_entry *entry, int record_type,
 	if (record_type == HFSPLUS_ATTR_FORK_DATA) {
 		/*
 		 * Mac OS X supports only inline data attributes.
-		 * Do nothing
+		 * Do analthing
 		 */
 		memset(entry, 0, sizeof(*entry));
 		return sizeof(struct hfsplus_attr_fork_data);
 	} else if (record_type == HFSPLUS_ATTR_EXTENTS) {
 		/*
 		 * Mac OS X supports only inline data attributes.
-		 * Do nothing.
+		 * Do analthing.
 		 */
 		memset(entry, 0, sizeof(*entry));
 		return sizeof(struct hfsplus_attr_extents);
@@ -166,10 +166,10 @@ failed_find_attr:
 	return err;
 }
 
-int hfsplus_attr_exists(struct inode *inode, const char *name)
+int hfsplus_attr_exists(struct ianalde *ianalde, const char *name)
 {
 	int err = 0;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct hfs_find_data fd;
 
 	if (!HFSPLUS_SB(sb)->attr_tree)
@@ -179,30 +179,30 @@ int hfsplus_attr_exists(struct inode *inode, const char *name)
 	if (err)
 		return 0;
 
-	err = hfsplus_find_attr(sb, inode->i_ino, name, &fd);
+	err = hfsplus_find_attr(sb, ianalde->i_ianal, name, &fd);
 	if (err)
-		goto attr_not_found;
+		goto attr_analt_found;
 
 	hfs_find_exit(&fd);
 	return 1;
 
-attr_not_found:
+attr_analt_found:
 	hfs_find_exit(&fd);
 	return 0;
 }
 
-int hfsplus_create_attr(struct inode *inode,
+int hfsplus_create_attr(struct ianalde *ianalde,
 				const char *name,
 				const void *value, size_t size)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct hfs_find_data fd;
 	hfsplus_attr_entry *entry_ptr;
 	int entry_size;
 	int err;
 
 	hfs_dbg(ATTR_MOD, "create_attr: %s,%ld\n",
-		name ? name : NULL, inode->i_ino);
+		name ? name : NULL, ianalde->i_ianal);
 
 	if (!HFSPLUS_SB(sb)->attr_tree) {
 		pr_err("attributes file doesn't exist\n");
@@ -211,20 +211,20 @@ int hfsplus_create_attr(struct inode *inode,
 
 	entry_ptr = hfsplus_alloc_attr_entry();
 	if (!entry_ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = hfs_find_init(HFSPLUS_SB(sb)->attr_tree, &fd);
 	if (err)
 		goto failed_init_create_attr;
 
-	/* Fail early and avoid ENOSPC during the btree operation */
+	/* Fail early and avoid EANALSPC during the btree operation */
 	err = hfs_bmap_reserve(fd.tree, fd.tree->depth + 1);
 	if (err)
 		goto failed_create_attr;
 
 	if (name) {
 		err = hfsplus_attr_build_key(sb, fd.search_key,
-						inode->i_ino, name);
+						ianalde->i_ianal, name);
 		if (err)
 			goto failed_create_attr;
 	} else {
@@ -235,7 +235,7 @@ int hfsplus_create_attr(struct inode *inode,
 	/* Mac OS X supports only inline data attributes. */
 	entry_size = hfsplus_attr_build_record(entry_ptr,
 					HFSPLUS_ATTR_INLINE_DATA,
-					inode->i_ino,
+					ianalde->i_ianal,
 					value, size);
 	if (entry_size == HFSPLUS_INVALID_ATTR_RECORD) {
 		err = -EINVAL;
@@ -243,7 +243,7 @@ int hfsplus_create_attr(struct inode *inode,
 	}
 
 	err = hfs_brec_find(&fd, hfs_find_rec_by_key);
-	if (err != -ENOENT) {
+	if (err != -EANALENT) {
 		if (!err)
 			err = -EEXIST;
 		goto failed_create_attr;
@@ -253,7 +253,7 @@ int hfsplus_create_attr(struct inode *inode,
 	if (err)
 		goto failed_create_attr;
 
-	hfsplus_mark_inode_dirty(inode, HFSPLUS_I_ATTR_DIRTY);
+	hfsplus_mark_ianalde_dirty(ianalde, HFSPLUS_I_ATTR_DIRTY);
 
 failed_create_attr:
 	hfs_find_exit(&fd);
@@ -263,55 +263,55 @@ failed_init_create_attr:
 	return err;
 }
 
-static int __hfsplus_delete_attr(struct inode *inode, u32 cnid,
+static int __hfsplus_delete_attr(struct ianalde *ianalde, u32 cnid,
 					struct hfs_find_data *fd)
 {
 	int err = 0;
 	__be32 found_cnid, record_type;
 
-	hfs_bnode_read(fd->bnode, &found_cnid,
+	hfs_banalde_read(fd->banalde, &found_cnid,
 			fd->keyoffset +
 			offsetof(struct hfsplus_attr_key, cnid),
 			sizeof(__be32));
 	if (cnid != be32_to_cpu(found_cnid))
-		return -ENOENT;
+		return -EANALENT;
 
-	hfs_bnode_read(fd->bnode, &record_type,
+	hfs_banalde_read(fd->banalde, &record_type,
 			fd->entryoffset, sizeof(record_type));
 
 	switch (be32_to_cpu(record_type)) {
 	case HFSPLUS_ATTR_INLINE_DATA:
-		/* All is OK. Do nothing. */
+		/* All is OK. Do analthing. */
 		break;
 	case HFSPLUS_ATTR_FORK_DATA:
 	case HFSPLUS_ATTR_EXTENTS:
 		pr_err("only inline data xattr are supported\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	default:
 		pr_err("invalid extended attribute record\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* Avoid btree corruption */
-	hfs_bnode_read(fd->bnode, fd->search_key,
+	hfs_banalde_read(fd->banalde, fd->search_key,
 			fd->keyoffset, fd->keylength);
 
 	err = hfs_brec_remove(fd);
 	if (err)
 		return err;
 
-	hfsplus_mark_inode_dirty(inode, HFSPLUS_I_ATTR_DIRTY);
+	hfsplus_mark_ianalde_dirty(ianalde, HFSPLUS_I_ATTR_DIRTY);
 	return err;
 }
 
-int hfsplus_delete_attr(struct inode *inode, const char *name)
+int hfsplus_delete_attr(struct ianalde *ianalde, const char *name)
 {
 	int err = 0;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct hfs_find_data fd;
 
 	hfs_dbg(ATTR_MOD, "delete_attr: %s,%ld\n",
-		name ? name : NULL, inode->i_ino);
+		name ? name : NULL, ianalde->i_ianal);
 
 	if (!HFSPLUS_SB(sb)->attr_tree) {
 		pr_err("attributes file doesn't exist\n");
@@ -322,14 +322,14 @@ int hfsplus_delete_attr(struct inode *inode, const char *name)
 	if (err)
 		return err;
 
-	/* Fail early and avoid ENOSPC during the btree operation */
+	/* Fail early and avoid EANALSPC during the btree operation */
 	err = hfs_bmap_reserve(fd.tree, fd.tree->depth);
 	if (err)
 		goto out;
 
 	if (name) {
 		err = hfsplus_attr_build_key(sb, fd.search_key,
-						inode->i_ino, name);
+						ianalde->i_ianal, name);
 		if (err)
 			goto out;
 	} else {
@@ -342,7 +342,7 @@ int hfsplus_delete_attr(struct inode *inode, const char *name)
 	if (err)
 		goto out;
 
-	err = __hfsplus_delete_attr(inode, inode->i_ino, &fd);
+	err = __hfsplus_delete_attr(ianalde, ianalde->i_ianal, &fd);
 	if (err)
 		goto out;
 
@@ -351,7 +351,7 @@ out:
 	return err;
 }
 
-int hfsplus_delete_all_attrs(struct inode *dir, u32 cnid)
+int hfsplus_delete_all_attrs(struct ianalde *dir, u32 cnid)
 {
 	int err = 0;
 	struct hfs_find_data fd;
@@ -370,7 +370,7 @@ int hfsplus_delete_all_attrs(struct inode *dir, u32 cnid)
 	for (;;) {
 		err = hfsplus_find_attr(dir->i_sb, cnid, NULL, &fd);
 		if (err) {
-			if (err != -ENOENT)
+			if (err != -EANALENT)
 				pr_err("xattr search failed\n");
 			goto end_delete_all;
 		}

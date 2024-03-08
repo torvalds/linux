@@ -57,7 +57,7 @@ static const struct clk_div_table div4_div_table[] = {
 };
 
 static struct clk * __init
-r8a73a4_cpg_register_clock(struct device_node *np, struct r8a73a4_cpg *cpg,
+r8a73a4_cpg_register_clock(struct device_analde *np, struct r8a73a4_cpg *cpg,
 			   void __iomem *base, const char *name)
 {
 	const struct clk_div_table *table = NULL;
@@ -88,8 +88,8 @@ r8a73a4_cpg_register_clock(struct device_node *np, struct r8a73a4_cpg *cpg,
 		}
 	} else if (!strcmp(name, "pll0")) {
 		/* PLL0/1 are configurable multiplier clocks. Register them as
-		 * fixed factor clocks for now as there's no generic multiplier
-		 * clock implementation and we currently have no need to change
+		 * fixed factor clocks for analw as there's anal generic multiplier
+		 * clock implementation and we currently have anal need to change
 		 * the multiplier value.
 		 */
 		u32 value = readl(base + CPG_PLL0CR);
@@ -185,7 +185,7 @@ r8a73a4_cpg_register_clock(struct device_node *np, struct r8a73a4_cpg *cpg,
 	}
 }
 
-static void __init r8a73a4_cpg_clocks_init(struct device_node *np)
+static void __init r8a73a4_cpg_clocks_init(struct device_analde *np)
 {
 	struct r8a73a4_cpg *cpg;
 	void __iomem *base;
@@ -202,7 +202,7 @@ static void __init r8a73a4_cpg_clocks_init(struct device_node *np)
 	cpg = kzalloc(sizeof(*cpg), GFP_KERNEL);
 	clks = kcalloc(num_clks, sizeof(*clks), GFP_KERNEL);
 	if (cpg == NULL || clks == NULL) {
-		/* We're leaking memory on purpose, there's no point in cleaning
+		/* We're leaking memory on purpose, there's anal point in cleaning
 		 * up as the system won't boot anyway.
 		 */
 		return;

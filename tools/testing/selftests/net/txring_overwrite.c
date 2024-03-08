@@ -10,7 +10,7 @@
 #include <arpa/inet.h>
 #include <assert.h>
 #include <error.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/filter.h>
 #include <linux/if_packet.h>
@@ -78,7 +78,7 @@ static int setup_rx(void)
 
 	fdr = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_IP));
 	if (fdr == -1)
-		error(1, errno, "socket r");
+		error(1, erranal, "socket r");
 
 	return fdr;
 }
@@ -91,16 +91,16 @@ static int setup_tx(char **ring)
 
 	fdt = socket(PF_PACKET, SOCK_RAW, 0);
 	if (fdt == -1)
-		error(1, errno, "socket t");
+		error(1, erranal, "socket t");
 
 	laddr.sll_family = AF_PACKET;
 	laddr.sll_protocol = htons(0);
 	laddr.sll_ifindex = if_nametoindex("lo");
 	if (!laddr.sll_ifindex)
-		error(1, errno, "if_nametoindex");
+		error(1, erranal, "if_nametoindex");
 
 	if (bind(fdt, (void *)&laddr, sizeof(laddr)))
-		error(1, errno, "bind fdt");
+		error(1, erranal, "bind fdt");
 
 	req.tp_block_size = getpagesize();
 	req.tp_block_nr   = 1;
@@ -109,12 +109,12 @@ static int setup_tx(char **ring)
 
 	if (setsockopt(fdt, SOL_PACKET, PACKET_TX_RING,
 		       (void *)&req, sizeof(req)))
-		error(1, errno, "setsockopt ring");
+		error(1, erranal, "setsockopt ring");
 
 	*ring = mmap(0, req.tp_block_size * req.tp_block_nr,
 		     PROT_READ | PROT_WRITE, MAP_SHARED, fdt, 0);
 	if (*ring == MAP_FAILED)
-		error(1, errno, "mmap");
+		error(1, erranal, "mmap");
 
 	return fdt;
 }
@@ -134,7 +134,7 @@ static void send_pkt(int fdt, void *slot, char payload_char)
 
 	ret = sendto(fdt, NULL, 0, 0, NULL, 0);
 	if (ret == -1)
-		error(1, errno, "kick tx");
+		error(1, erranal, "kick tx");
 }
 
 static int read_verify_pkt(int fdr, char payload_char)
@@ -144,7 +144,7 @@ static int read_verify_pkt(int fdr, char payload_char)
 
 	ret = read(fdr, buf, sizeof(buf));
 	if (ret != sizeof(buf))
-		error(1, errno, "read");
+		error(1, erranal, "read");
 
 	if (buf[60] != payload_char) {
 		printf("wrong pattern: 0x%x != 0x%x\n", buf[60], payload_char);
@@ -171,9 +171,9 @@ int main(int argc, char **argv)
 	ret |= read_verify_pkt(fdr, payload_patterns[1]);
 
 	if (close(fdt))
-		error(1, errno, "close t");
+		error(1, erranal, "close t");
 	if (close(fdr))
-		error(1, errno, "close r");
+		error(1, erranal, "close r");
 
 	return ret;
 }

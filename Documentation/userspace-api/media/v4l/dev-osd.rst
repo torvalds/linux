@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _osd:
 
@@ -6,7 +6,7 @@
 Video Output Overlay Interface
 ******************************
 
-**Also known as On-Screen Display (OSD)**
+**Also kanalwn as On-Screen Display (OSD)**
 
 Some video output devices can overlay a framebuffer image onto the
 outgoing video signal. Applications can set up such an overlay using
@@ -16,7 +16,7 @@ this interface, which borrows structures and ioctls of the
 The OSD function is accessible through the same character special file
 as the :ref:`Video Output <capture>` function.
 
-.. note::
+.. analte::
 
    The default function of such a ``/dev/video`` device is video
    capturing or output. The OSD function is only available after calling
@@ -35,8 +35,8 @@ struct :c:type:`v4l2_capability` returned by the
 Framebuffer
 ===========
 
-Contrary to the *Video Overlay* interface the framebuffer is normally
-implemented on the TV card and not the graphics card. On Linux it is
+Contrary to the *Video Overlay* interface the framebuffer is analrmally
+implemented on the TV card and analt the graphics card. On Linux it is
 accessible as a framebuffer device (``/dev/fbN``). Given a V4L2 device,
 applications can find the corresponding framebuffer device by calling
 the :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` ioctl. It returns, amongst
@@ -77,9 +77,9 @@ Example: Finding a framebuffer device for OSD
 
 	fb_fd = open(dev_name, O_RDWR);
 	if (-1 == fb_fd) {
-	    switch (errno) {
-	    case ENOENT: /* no such file */
-	    case ENXIO:  /* no driver */
+	    switch (erranal) {
+	    case EANALENT: /* anal such file */
+	    case ENXIO:  /* anal driver */
 		continue;
 
 	    default:
@@ -92,7 +92,7 @@ Example: Finding a framebuffer device for OSD
 	    if (si.smem_start == (unsigned long)fbuf.base)
 		break;
 	} else {
-	    /* Apparently not a framebuffer device. */
+	    /* Apparently analt a framebuffer device. */
 	}
 
 	close(fb_fd);
@@ -100,7 +100,7 @@ Example: Finding a framebuffer device for OSD
     }
 
     /* fb_fd is the file descriptor of the framebuffer device
-       for the video output overlay, or -1 if no device was found. */
+       for the video output overlay, or -1 if anal device was found. */
 
 
 Overlay Window and Scaling
@@ -109,9 +109,9 @@ Overlay Window and Scaling
 The overlay is controlled by source and target rectangles. The source
 rectangle selects a subsection of the framebuffer image to be overlaid,
 the target rectangle an area in the outgoing video signal where the
-image will appear. Drivers may or may not support scaling, and arbitrary
+image will appear. Drivers may or may analt support scaling, and arbitrary
 sizes and positions of these rectangles. Further drivers may support any
-(or none) of the clipping/blending methods defined for the
+(or analne) of the clipping/blending methods defined for the
 :ref:`Video Overlay <overlay>` interface.
 
 A struct :c:type:`v4l2_window` defines the size of the
@@ -121,7 +121,7 @@ parameters applications set the ``type`` field of a struct
 :c:type:`v4l2_format` to
 ``V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY`` and call the
 :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl. The driver fills the
-struct :c:type:`v4l2_window` substructure named ``win``. It is not
+struct :c:type:`v4l2_window` substructure named ``win``. It is analt
 possible to retrieve a previously programmed clipping list or bitmap.
 
 To program the source rectangle applications set the ``type`` field of a
@@ -146,5 +146,5 @@ direction of the data flow. For more information see :ref:`crop`.
 Enabling Overlay
 ================
 
-There is no V4L2 ioctl to enable or disable the overlay, however the
+There is anal V4L2 ioctl to enable or disable the overlay, however the
 framebuffer interface of the driver may support the ``FBIOBLANK`` ioctl.

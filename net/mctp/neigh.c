@@ -3,7 +3,7 @@
  * Management Component Transport Protocol (MCTP) - routing
  * implementation.
  *
- * This is currently based on a simple routing table, with no dst cache. The
+ * This is currently based on a simple routing table, with anal dst cache. The
  * number of routes should stay fairly small, so the lookup cost is small.
  *
  * Copyright (c) 2021 Code Construct
@@ -42,7 +42,7 @@ static int mctp_neigh_add(struct mctp_dev *mdev, mctp_eid_t eid,
 
 	neigh = kzalloc(sizeof(*neigh), GFP_KERNEL);
 	if (!neigh) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 	INIT_LIST_HEAD(&neigh->list);
@@ -104,7 +104,7 @@ static int mctp_neigh_remove(struct mctp_dev *mdev, mctp_eid_t eid,
 	}
 
 	mutex_unlock(&net->mctp.neigh_lock);
-	return dropped ? 0 : -ENOENT;
+	return dropped ? 0 : -EANALENT;
 }
 
 static const struct nla_policy nd_mctp_policy[NDA_MAX + 1] = {
@@ -155,11 +155,11 @@ static int mctp_rtm_newneigh(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	dev = __dev_get_by_index(net, ndm->ndm_ifindex);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mdev = mctp_dev_get_rtnl(dev);
 	if (!mdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (lladdr_len != dev->addr_len) {
 		NL_SET_ERR_MSG(extack, "Wrong lladdr length");
@@ -197,11 +197,11 @@ static int mctp_rtm_delneigh(struct sk_buff *skb, struct nlmsghdr *nlh,
 	ndm = nlmsg_data(nlh);
 	dev = __dev_get_by_index(net, ndm->ndm_ifindex);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mdev = mctp_dev_get_rtnl(dev);
 	if (!mdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return mctp_neigh_remove(mdev, eid, MCTP_NEIGH_STATIC);
 }
@@ -280,7 +280,7 @@ int mctp_neigh_lookup(struct mctp_dev *mdev, mctp_eid_t eid, void *ret_hwaddr)
 {
 	struct net *net = dev_net(mdev->dev);
 	struct mctp_neigh *neigh;
-	int rc = -EHOSTUNREACH; // TODO: or ENOENT?
+	int rc = -EHOSTUNREACH; // TODO: or EANALENT?
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(neigh, &net->mctp.neighbours, list) {

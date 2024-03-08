@@ -7,7 +7,7 @@
  *
  *  Copyright (c) 2009-2010 Atheros Communications Inc.
  *
- *  Acknowledgements:
+ *  Ackanalwledgements:
  *  This file is based on hci_h4.c, which was written
  *  by Maxim Krasnyansky and Marcel Holtmann.
  */
@@ -18,7 +18,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioctl.h>
 #include <linux/skbuff.h>
 
@@ -99,11 +99,11 @@ static int ath_open(struct hci_uart *hu)
 	BT_DBG("hu %p", hu);
 
 	if (!hci_uart_has_flow_control(hu))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ath = kzalloc(sizeof(*ath), GFP_KERNEL);
 	if (!ath)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_queue_head_init(&ath->txq);
 

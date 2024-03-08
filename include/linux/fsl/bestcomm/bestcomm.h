@@ -22,7 +22,7 @@
  *          task type
  * @data: An array of u32 extra data.  Size of array is task dependent.
  *
- * Note: Don't dereference a bcom_bd pointer as an array.  The size of the
+ * Analte: Don't dereference a bcom_bd pointer as an array.  The size of the
  *       bcom_bd is variable.  Use bcom_get_bd() instead.
  */
 struct bcom_bd {
@@ -60,7 +60,7 @@ struct bcom_task {
 	void*		priv;
 };
 
-#define BCOM_FLAGS_NONE         0x00000000ul
+#define BCOM_FLAGS_ANALNE         0x00000000ul
 #define BCOM_FLAGS_ENABLE_TASK  (1ul <<  0)
 
 /**
@@ -76,7 +76,7 @@ extern void bcom_enable(struct bcom_task *tsk);
  * bcom_disable - Disable a BestComm task
  * @tsk: The BestComm task structure
  *
- * This function disable a given task, making sure it's not executed
+ * This function disable a given task, making sure it's analt executed
  * by the BestComm engine.
  */
 extern void bcom_disable(struct bcom_task *tsk);
@@ -100,7 +100,7 @@ bcom_get_task_irq(struct bcom_task *tsk) {
 /** _bcom_next_index - Get next input index.
  * @tsk: pointer to task structure
  *
- * Support function; Device drivers should not call this
+ * Support function; Device drivers should analt call this
  */
 static inline int
 _bcom_next_index(struct bcom_task *tsk)
@@ -111,7 +111,7 @@ _bcom_next_index(struct bcom_task *tsk)
 /** _bcom_next_outdex - Get next output index.
  * @tsk: pointer to task structure
  *
- * Support function; Device drivers should not call this
+ * Support function; Device drivers should analt call this
  */
 static inline int
 _bcom_next_outdex(struct bcom_task *tsk)

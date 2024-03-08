@@ -31,7 +31,7 @@ Construction Parameters
 <dev>
     This is the device containing data, the integrity of which needs to be
     checked.  It may be specified as a path, like /dev/sdaX, or a device number,
-    <major>:<minor>.
+    <major>:<mianalr>.
 
 <hash_dev>
     This is the device that supplies the hash tree data.  It may be
@@ -61,36 +61,36 @@ Construction Parameters
 
 <digest>
     The hexadecimal encoding of the cryptographic hash of the root hash block
-    and the salt.  This hash should be trusted as there is no other authenticity
+    and the salt.  This hash should be trusted as there is anal other authenticity
     beyond this point.
 
 <salt>
     The hexadecimal encoding of the salt value.
 
 <#opt_params>
-    Number of optional parameters. If there are no optional parameters,
+    Number of optional parameters. If there are anal optional parameters,
     the optional parameters section can be skipped or #opt_params can be zero.
     Otherwise #opt_params is the number of following arguments.
 
     Example of optional parameters section:
-        1 ignore_corruption
+        1 iganalre_corruption
 
-ignore_corruption
-    Log corrupted blocks, but allow read operations to proceed normally.
+iganalre_corruption
+    Log corrupted blocks, but allow read operations to proceed analrmally.
 
 restart_on_corruption
     Restart the system when a corrupted block is discovered. This option is
-    not compatible with ignore_corruption and requires user space support to
+    analt compatible with iganalre_corruption and requires user space support to
     avoid restart loops.
 
 panic_on_corruption
     Panic the device when a corrupted block is discovered. This option is
-    not compatible with ignore_corruption and restart_on_corruption.
+    analt compatible with iganalre_corruption and restart_on_corruption.
 
-ignore_zero_blocks
-    Do not verify blocks that are expected to contain zeroes and always return
+iganalre_zero_blocks
+    Do analt verify blocks that are expected to contain zeroes and always return
     zeroes instead. This may be useful if the partition contains unused blocks
-    that are not guaranteed to contain zeroes.
+    that are analt guaranteed to contain zeroes.
 
 use_fec_from_device <fec_dev>
     Use forward error correction (FEC) to recover from corruption if hash
@@ -101,7 +101,7 @@ use_fec_from_device <fec_dev>
     If the encoding data covers additional metadata, it must be accessible
     on the hash device after the hash blocks.
 
-    Note: block sizes for data and hash devices must match. Also, if the
+    Analte: block sizes for data and hash devices must match. Also, if the
     verity <dev> is encrypted the <fec_dev> should be too.
 
 fec_roots <num>
@@ -122,11 +122,11 @@ check_at_most_once
     rather than every time.  This reduces the overhead of dm-verity so that it
     can be used on systems that are memory and/or CPU constrained.  However, it
     provides a reduced level of security because only offline tampering of the
-    data device's content will be detected, not online tampering.
+    data device's content will be detected, analt online tampering.
 
     Hash blocks are still verified each time they are read from the hash device,
     since verification of hash blocks is less performance critical than data
-    blocks, and a hash block will not be verified any more after all the data
+    blocks, and a hash block will analt be verified any more after all the data
     blocks it covers have been verified anyway.
 
 root_hash_sig_key_desc <key_description>
@@ -150,12 +150,12 @@ Theory of operation
 
 dm-verity is meant to be set up as part of a verified boot path.  This
 may be anything ranging from a boot using tboot or trustedgrub to just
-booting from a known-good device (like a USB drive or CD).
+booting from a kanalwn-good device (like a USB drive or CD).
 
 When a dm-verity device is configured, it is expected that the caller
 has been authenticated in some way (cryptographic signatures, etc).
 After instantiation, all hashes will be verified on-demand during
-disk access.  If they cannot be verified up to the root node of the
+disk access.  If they cananalt be verified up to the root analde of the
 tree, the root hash, then the I/O will fail.  This should detect
 tampering with any data on the device and the hash data.
 
@@ -172,15 +172,15 @@ integrity checking is essential.
 Hash Tree
 ---------
 
-Each node in the tree is a cryptographic hash.  If it is a leaf node, the hash
-of some data block on disk is calculated. If it is an intermediary node,
-the hash of a number of child nodes is calculated.
+Each analde in the tree is a cryptographic hash.  If it is a leaf analde, the hash
+of some data block on disk is calculated. If it is an intermediary analde,
+the hash of a number of child analdes is calculated.
 
-Each entry in the tree is a collection of neighboring nodes that fit in one
+Each entry in the tree is a collection of neighboring analdes that fit in one
 block.  The number is determined based on block_size and the size of the
 selected cryptographic digest algorithm.  The hashes are linearly-ordered in
-this entry and any unaligned trailing space is ignored but included when
-calculating the parent node.
+this entry and any unaligned trailing space is iganalred but included when
+calculating the parent analde.
 
 The tree looks something like:
 
@@ -200,7 +200,7 @@ The tree looks something like:
 On-disk format
 ==============
 
-The verity kernel code does not read the verity metadata on-disk header.
+The verity kernel code does analt read the verity metadata on-disk header.
 It only reads the hash blocks which directly follow the header.
 It is expected that a user-space tool will verify the integrity of the
 verity header.

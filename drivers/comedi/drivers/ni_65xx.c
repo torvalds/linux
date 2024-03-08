@@ -26,14 +26,14 @@
  *   PCI-6528 (pci-6528), PXI-6528 (pxi-6528)
  * Updated: Mon, 21 Jul 2014 12:49:58 +0000
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: analt applicable, uses PCI auto config
  *
  * Based on the PCI-6527 driver by ds.
  * The interrupt subdevice (subdevice 3) is probably broken for all
  * boards except maybe the 6514.
  *
  * This driver previously inverted the outputs on PCI-6513 through to
- * PCI-6519 and on PXI-6513 through to PXI-6515.  It no longer inverts
+ * PCI-6519 and on PXI-6513 through to PXI-6515.  It anal longer inverts
  * outputs on those cards by default as it didn't make much sense.  If
  * you require the outputs to be inverted on those cards for legacy
  * reasons, set the module parameter "legacy_invert_outputs=true" when
@@ -55,7 +55,7 @@
  * PCI BAR1 Register Map
  */
 
-/* Non-recurring Registers (8-bit except where noted) */
+/* Analn-recurring Registers (8-bit except where analted) */
 #define NI_65XX_ID_REG			0x00
 #define NI_65XX_CLR_REG			0x01
 #define NI_65XX_CLR_WDOG_INT		BIT(6)
@@ -357,7 +357,7 @@ static int ni_65xx_dio_insn_config(struct comedi_device *dev,
 	switch (data[0]) {
 	case INSN_CONFIG_FILTER:
 		/*
-		 * The deglitch filter interval is specified in nanoseconds.
+		 * The deglitch filter interval is specified in naanalseconds.
 		 * The hardware supports intervals in 200ns increments. Round
 		 * the user values up and return the actual interval.
 		 */
@@ -367,7 +367,7 @@ static int ni_65xx_dio_insn_config(struct comedi_device *dev,
 		data[1] = interval * 200;
 
 		/*
-		 * Enable/disable the channel for deglitch filtering. Note
+		 * Enable/disable the channel for deglitch filtering. Analte
 		 * that the filter interval is never set to '0'. This is done
 		 * because other channels might still be enabled for filtering.
 		 */
@@ -475,9 +475,9 @@ static irqreturn_t ni_65xx_interrupt(int irq, void *d)
 
 	status = readb(dev->mmio + NI_65XX_STATUS_REG);
 	if ((status & NI_65XX_STATUS_INT) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	if ((status & NI_65XX_STATUS_EDGE_INT) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	writeb(NI_65XX_CLR_EDGE_INT | NI_65XX_CLR_OVERFLOW_INT,
 	       dev->mmio + NI_65XX_CLR_REG);
@@ -496,7 +496,7 @@ static int ni_65xx_intr_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_OTHER);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
@@ -562,7 +562,7 @@ static int ni_65xx_intr_insn_config(struct comedi_device *dev,
 				    unsigned int *data)
 {
 	switch (data[0]) {
-	case INSN_CONFIG_CHANGE_NOTIFY:
+	case INSN_CONFIG_CHANGE_ANALTIFY:
 		/* add instruction to check_insn_config_length() */
 		if (insn->n != 3)
 			return -EINVAL;
@@ -614,7 +614,7 @@ static int ni_65xx_mite_init(struct pci_dev *pcidev)
 	/* ioremap the MITE registers (BAR 0) temporarily */
 	mite_base = pci_ioremap_bar(pcidev, 0);
 	if (!mite_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* set data window to main registers (BAR 1) */
 	main_phys_addr = pci_resource_start(pcidev, 1);
@@ -637,7 +637,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(ni_65xx_boards))
 		board = &ni_65xx_boards[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
@@ -651,7 +651,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 
 	dev->mmio = pci_ioremap_bar(pcidev, 1);
 	if (!dev->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	writeb(NI_65XX_CLR_EDGE_INT | NI_65XX_CLR_OVERFLOW_INT,
 	       dev->mmio + NI_65XX_CLR_REG);

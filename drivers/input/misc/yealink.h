@@ -78,14 +78,14 @@ struct yld_ctl_packet {
  */
 #define CMD_RING_VOLUME		0x11
 
-/* Set ringtone notes
+/* Set ringtone analtes
  *
  * cmd		0x02
  * size		1-11
  * offset	0->
  * data		binary representation LE16(-freq), LE16(duration) ....
  */
-#define CMD_RING_NOTE		0x02
+#define CMD_RING_ANALTE		0x02
 
 /* Sound ringtone via the speaker on the back
  *
@@ -134,7 +134,7 @@ struct yld_ctl_packet {
 #define LCD_LINE1_OFFSET	0
 #define LCD_LINE1_SIZE		17
 
-/* Note: first g then f =>			       !      !      */
+/* Analte: first g then f =>			       !      !      */
 /* _SEG(    type    a      b      c      d      e      g      f   )  */
 	_SEG('1',  0,0 , 22,2 , 22,2 ,  0,0 ,  0,0 ,  0,0 ,  0,0	),
 	_SEG('8', 20,1 , 20,2 , 20,4 , 20,8 , 21,4 , 21,2 , 21,1	),

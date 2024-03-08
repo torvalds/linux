@@ -52,7 +52,7 @@
 #define OMAP_VOUT_MAX_BUF_SIZE (VID_MAX_WIDTH*VID_MAX_HEIGHT*4)
 
 enum dma_channel_state {
-	DMA_CHAN_NOT_ALLOTED,
+	DMA_CHAN_ANALT_ALLOTED,
 	DMA_CHAN_ALLOTED,
 };
 
@@ -68,13 +68,13 @@ enum dss_rotation {
 };
 
 /* Enum for choosing rotation type for vout
- * DSS2 doesn't understand no rotation as an
+ * DSS2 doesn't understand anal rotation as an
  * option while V4L2 driver doesn't support
- * rotation in the case where VRFB is not built in
+ * rotation in the case where VRFB is analt built in
  * the kernel
  */
 enum vout_rotaion_type {
-	VOUT_ROT_NONE	= 0,
+	VOUT_ROT_ANALNE	= 0,
 	VOUT_ROT_VRFB	= 1,
 };
 
@@ -137,7 +137,7 @@ struct omap_vout_device {
 	struct v4l2_ctrl_handler ctrl_handler;
 	int vid;
 
-	/* allow to reuse previously allocated buffer which is big enough */
+	/* allow to reuse previously allocated buffer which is big eanalugh */
 	int buffer_size;
 	enum omap_color_mode dss_mode;
 

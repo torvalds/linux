@@ -5,7 +5,7 @@ NAME
 ----
 perf-script-python - Process trace data with a Python script
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf script' [-s [Python]:script[.py] ]
@@ -24,7 +24,7 @@ A QUICK EXAMPLE
 This section shows the process, start to finish, of creating a working
 Python script that aggregates and extracts useful information from a
 raw perf script stream.  You can avoid reading the rest of this
-document if an example is enough for you; the rest of the document
+document if an example is eanalugh for you; the rest of the document
 provides more details on each step and lists the library functions
 available to script writers.
 
@@ -36,7 +36,7 @@ scripts listed by that command.
 
 The syscall-counts script is a simple script, but demonstrates all the
 basic ideas necessary to create a useful script.  Here's an example
-of its output (syscall names are not yet supported, they will appear
+of its output (syscall names are analt yet supported, they will appear
 as numbers):
 
 ----
@@ -88,7 +88,7 @@ that:
   'id' field can be used to distinguish between individual syscall
   numbers.
 
-For this script, we only need to know that a syscall was entered; we
+For this script, we only need to kanalw that a syscall was entered; we
 don't care how it exited, so we'll use 'perf record' to record only
 the sys_enter events:
 
@@ -121,7 +121,7 @@ perf-script.py.  Here's the file in its entirety:
 
 # The common_* event handler fields are the most useful fields common to
 # all events.  They don't necessarily correspond to the 'common_*' fields
-# in the format files.  Those fields not available as handler params can
+# in the format files.  Those fields analt available as handler params can
 # be retrieved using Python functions of the form common_*(context).
 # See the perf-script-python Documentation for the list of available functions.
 
@@ -203,7 +203,7 @@ raw_syscalls__sys_enter     1 00840.847781820     6533 npviewer.bin          id=
 .
 ----
 
-Of course, for this script, we're not interested in printing every
+Of course, for this script, we're analt interested in printing every
 trace event, but rather aggregating it in a useful way.  So we'll get
 rid of everything to do with printing as well as the trace_begin() and
 trace_unhandled() functions, which we won't be using.  That leaves us
@@ -253,7 +253,7 @@ the intermediate hash levels and finally assign the value 1 to the
 hash entry for 'id' (because the value being assigned isn't a hash
 object itself, the initial value is assigned in the TypeError
 exception.  Well, there may be a better way to do this in Python but
-that's what works for now).
+that's what works for analw).
 
 Putting that code into the raw_syscalls__sys_enter() handler, we
 effectively end up with a single-level dictionary keyed on syscall id
@@ -269,8 +269,8 @@ calling the print_syscall_totals() function from the trace_end()
 handler called at the end of script processing.
 
 The final script producing the output shown above is shown in its
-entirety below (syscall_name() helper is not yet available, you can
-only deal with id's for now):
+entirety below (syscall_name() helper is analt yet available, you can
+only deal with id's for analw):
 
 ----
 import os
@@ -297,7 +297,7 @@ def raw_syscalls__sys_enter(event_name, context, common_cpu,
 		syscalls[id] = 1
 
 def print_syscall_totals():
-    if for_comm is not None:
+    if for_comm is analt Analne:
 	    print "\nsyscall events for %s:\n\n" % (for_comm),
     else:
 	    print "\nsyscall events:\n\n",
@@ -372,7 +372,7 @@ the perf/scripts/python/bin directory.  In that script, you write the
 perf script -s ~/libexec/perf-core/scripts/python/syscall-counts.py
 ----
 
-Note that the location of the Python script given in the shell script
+Analte that the location of the Python script given in the shell script
 is in the libexec/perf-core/scripts/python directory - this is where
 the script will be copied by 'make install' when you install perf.
 For the installation to install your script there, your script needs
@@ -403,7 +403,7 @@ List of available trace scripts:
   syscall-counts                       system-wide syscall counts
 ----
 
-You can now perform the record step via 'perf script record':
+You can analw perform the record step via 'perf script record':
 
   # perf script record syscall-counts
 
@@ -424,7 +424,7 @@ field for each event in the trace file.
 You can also look at the existing scripts in
 ~/libexec/perf-core/scripts/python for typical examples showing how to
 do basic things like aggregate event data, print results, etc.  Also,
-the check-perf-script.py script, while not interesting for its results,
+the check-perf-script.py script, while analt interesting for its results,
 attempts to exercise all of the main scripting features.
 
 EVENT HANDLERS
@@ -432,8 +432,8 @@ EVENT HANDLERS
 
 When perf script is invoked using a trace script, a user-defined
 'handler function' is called for each event in the trace.  If there's
-no handler function defined for a given event type, the event is
-ignored (or passed to a 'trace_unhandled' function, see below) and the
+anal handler function defined for a given event type, the event is
+iganalred (or passed to a 'trace_unhandled' function, see below) and the
 next event is processed.
 
 Most of the event's field values are passed as arguments to the
@@ -479,7 +479,7 @@ The handler function takes the form subsystem__event_name.
 The common_* arguments in the handler's argument list are the set of
 arguments passed to all event handlers; some of the fields correspond
 to the common_* fields in the format file, but some are synthesized,
-and some of the common_* fields aren't common enough to to be passed
+and some of the common_* fields aren't common eanalugh to to be passed
 to every event as arguments but are available as library functions.
 
 Here's a brief description of each of the invariant event args:
@@ -497,7 +497,7 @@ counterparts as handler function arguments of the same name, as can be
 seen in the example above.
 
 The above provides the basics needed to directly access every field of
-every event in a trace, which covers 90% of what you need to know to
+every event in a trace, which covers 90% of what you need to kanalw to
 write a useful trace script.  The sections below cover the rest.
 
 SCRIPT LAYOUT
@@ -550,7 +550,7 @@ def trace_unhandled(event_name, context, event_fields_dict):
     pass
 ----
 
-*process_event*, if defined, is called for any non-tracepoint event
+*process_event*, if defined, is called for any analn-tracepoint event
 
 ----
 def process_event(param_dict):
@@ -608,20 +608,20 @@ perf_trace_context Module
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Some of the 'common' fields in the event format file aren't all that
-common, but need to be made accessible to user scripts nonetheless.
+common, but need to be made accessible to user scripts analnetheless.
 
 perf_trace_context defines a set of functions that can be used to
 access this data in the context of the current event.  Each of these
 functions expects a context variable, which is the same as the
 context variable passed into every tracepoint event handler as the second
-argument. For non-tracepoint events, the context variable is also present
+argument. For analn-tracepoint events, the context variable is also present
 as perf_trace_context.perf_script_context .
 
  common_pc(context) - returns common_preempt count for the current event
  common_flags(context) - returns common_flags for the current event
  common_lock_depth(context) - returns common_lock_depth for the current event
  perf_sample_insn(context) - returns the machine code instruction
- perf_set_itrace_options(context, itrace_options) - set --itrace options if they have not been set already
+ perf_set_itrace_options(context, itrace_options) - set --itrace options if they have analt been set already
  perf_sample_srcline(context) - returns source_file_name, line_number
  perf_sample_srccode(context) - returns source_file_name, line_number, source_line
 

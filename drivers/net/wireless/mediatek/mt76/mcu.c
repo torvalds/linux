@@ -63,7 +63,7 @@ int mt76_mcu_send_and_get_msg(struct mt76_dev *dev, int cmd, const void *data,
 
 	skb = mt76_mcu_msg_alloc(dev, data, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return mt76_mcu_skb_send_and_get_msg(dev, skb, cmd, wait_resp, ret_skb);
 }

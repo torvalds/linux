@@ -10,8 +10,8 @@ static void test_global_func_args0(struct bpf_object *obj)
 	const char *map_name = "values";
 
 	map_fd = bpf_find_map(__func__, obj, map_name);
-	if (CHECK(map_fd < 0, "bpf_find_map", "cannot find BPF map %s: %s\n",
-		map_name, strerror(errno)))
+	if (CHECK(map_fd < 0, "bpf_find_map", "cananalt find BPF map %s: %s\n",
+		map_name, strerror(erranal)))
 		return;
 
 	struct {

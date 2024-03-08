@@ -11,7 +11,7 @@
 
 #define GVE_ITR_ENABLE_BIT_DQO BIT(0)
 #define GVE_ITR_CLEAR_PBA_BIT_DQO BIT(1)
-#define GVE_ITR_NO_UPDATE_DQO (3 << 3)
+#define GVE_ITR_ANAL_UPDATE_DQO (3 << 3)
 
 #define GVE_ITR_INTERVAL_DQO_SHIFT 5
 #define GVE_ITR_INTERVAL_DQO_MASK ((1 << 12) - 1)
@@ -26,8 +26,8 @@
 #define GVE_REINJECT_COMPL_TIMEOUT 1
 
 /* Timeout in seconds to deallocate the completion tag for a packet that was
- * prematurely freed for not receiving a valid completion. This should be large
- * enough to rule out the possibility of receiving the corresponding valid
+ * prematurely freed for analt receiving a valid completion. This should be large
+ * eanalugh to rule out the possibility of receiving the corresponding valid
  * completion after this interval.
  */
 #define GVE_DEALLOCATE_COMPL_TIMEOUT 60
@@ -36,8 +36,8 @@ netdev_tx_t gve_tx_dqo(struct sk_buff *skb, struct net_device *dev);
 netdev_features_t gve_features_check_dqo(struct sk_buff *skb,
 					 struct net_device *dev,
 					 netdev_features_t features);
-bool gve_tx_poll_dqo(struct gve_notify_block *block, bool do_clean);
-int gve_rx_poll_dqo(struct gve_notify_block *block, int budget);
+bool gve_tx_poll_dqo(struct gve_analtify_block *block, bool do_clean);
+int gve_rx_poll_dqo(struct gve_analtify_block *block, int budget);
 int gve_tx_alloc_rings_dqo(struct gve_priv *priv);
 void gve_tx_free_rings_dqo(struct gve_priv *priv);
 int gve_rx_alloc_rings_dqo(struct gve_priv *priv);
@@ -75,7 +75,7 @@ static inline u32 gve_setup_itr_interval_dqo(u32 interval_us)
 
 static inline void
 gve_write_irq_doorbell_dqo(const struct gve_priv *priv,
-			   const struct gve_notify_block *block, u32 val)
+			   const struct gve_analtify_block *block, u32 val)
 {
 	u32 index = be32_to_cpu(*block->irq_db_index);
 
@@ -87,7 +87,7 @@ gve_write_irq_doorbell_dqo(const struct gve_priv *priv,
  */
 static inline void
 gve_set_itr_coalesce_usecs_dqo(struct gve_priv *priv,
-			       struct gve_notify_block *block,
+			       struct gve_analtify_block *block,
 			       u32 usecs)
 {
 	gve_write_irq_doorbell_dqo(priv, block,

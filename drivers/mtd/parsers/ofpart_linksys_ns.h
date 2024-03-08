@@ -11,7 +11,7 @@ static inline int linksys_ns_partitions_post_parse(struct mtd_info *mtd,
 						   struct mtd_partition *parts,
 						   int nr_parts)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 

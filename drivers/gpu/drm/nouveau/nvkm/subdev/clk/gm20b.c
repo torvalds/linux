@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -102,7 +102,7 @@ static const struct gm20b_clk_dvfs_params gm20b_dvfs_params = {
 };
 
 /*
- * base.n is now the *integer* part of the N factor.
+ * base.n is analw the *integer* part of the N factor.
  * sdm_din contains n's decimal part.
  */
 struct gm20b_pll {
@@ -219,7 +219,7 @@ gm20b_dvfs_calc_det_coeff(struct gm20b_clk *clk, s32 uv,
  * n_eff = n_int + 1/2 + (SDM_DIN / 2^(SDM_DIN_RANGE + 1)) +
  *         (DVFS_COEFF * DVFS_DET_DELTA) / 2^DFS_DET_RANGE
  *
- * The SDM_DIN LSB is finally shifted out, since it is not accessible by sw.
+ * The SDM_DIN LSB is finally shifted out, since it is analt accessible by sw.
  */
 static void
 gm20b_dvfs_calc_ndiv(struct gm20b_clk *clk, u32 n_eff, u32 *n_int, u32 *sdm_din)
@@ -276,7 +276,7 @@ gm20b_pllg_slide(struct gm20b_clk *clk, u32 n)
 
 	/* get old coefficients */
 	gm20b_pllg_read_mnp(clk, &pll);
-	/* do nothing if NDIV is the same */
+	/* do analthing if NDIV is the same */
 	if (n_int == pll.base.n && sdm_din == pll.sdm_din)
 		return 0;
 
@@ -326,7 +326,7 @@ gm20b_pllg_enable(struct gm20b_clk *clk)
 	nvkm_mask(device, GPCPLL_CFG, GPCPLL_CFG_ENABLE, GPCPLL_CFG_ENABLE);
 	nvkm_rd32(device, GPCPLL_CFG);
 
-	/* In DVFS mode lock cannot be used - so just delay */
+	/* In DVFS mode lock cananalt be used - so just delay */
 	udelay(40);
 
 	/* set SYNC_MODE for glitchless switch out of bypass */
@@ -372,7 +372,7 @@ gm20b_pllg_program_mnp(struct gm20b_clk *clk, const struct gk20a_pll *pll)
 	pdiv_only = cur_pll.base.n == n_int && cur_pll.sdm_din == sdm_din &&
 		    cur_pll.base.m == pll->m;
 
-	/* need full sequence if clock not enabled yet */
+	/* need full sequence if clock analt enabled yet */
 	if (!gk20a_pllg_is_enabled(&clk->base))
 		pdiv_only = false;
 
@@ -391,7 +391,7 @@ gm20b_pllg_program_mnp(struct gm20b_clk *clk, const struct gk20a_pll *pll)
 
 		/*
 		 * we can do a glitchless transition only if the old and new PL
-		 * parameters share at least one bit set to 1. If this is not
+		 * parameters share at least one bit set to 1. If this is analt
 		 * the case, calculate and program an interim PL that will allow
 		 * us to respect that rule.
 		 */
@@ -438,7 +438,7 @@ gm20b_pllg_program_mnp_slide(struct gm20b_clk *clk, const struct gk20a_pll *pll)
 	if (gk20a_pllg_is_enabled(&clk->base)) {
 		gk20a_pllg_read_mnp(&clk->base, &cur_pll);
 
-		/* just do NDIV slide if there is no change to M and PL */
+		/* just do NDIV slide if there is anal change to M and PL */
 		if (pll->m == cur_pll.m && pll->pl == cur_pll.pl)
 			return gm20b_pllg_slide(clk, pll->n);
 
@@ -575,12 +575,12 @@ gm20b_clk_prog(struct nvkm_clk *base)
 	u32 cur_freq;
 	int ret;
 
-	/* No change in DVFS settings? */
+	/* Anal change in DVFS settings? */
 	if (clk->uv == clk->new_uv)
 		goto prog;
 
 	/*
-	 * Interim step for changing DVFS detection settings: low enough
+	 * Interim step for changing DVFS detection settings: low eanalugh
 	 * frequency to be safe at DVFS coeff = 0.
 	 *
 	 * 1. If voltage is increasing:
@@ -595,7 +595,7 @@ gm20b_clk_prog(struct nvkm_clk *base)
 	 * - Voltage is also old, it will be lowered by volt afterwards
 	 *
 	 * Interim step can be skipped if old frequency is below safe minimum,
-	 * i.e., it is low enough to be safe at any voltage in operating range
+	 * i.e., it is low eanalugh to be safe at any voltage in operating range
 	 * with zero DVFS coefficient.
 	 */
 	cur_freq = nvkm_clk_read(&clk->base.base, nv_clk_src_gpc);
@@ -758,7 +758,7 @@ gm20b_clk_init_dvfs(struct gm20b_clk *clk)
 		      clk->dvfs_params->vco_ctrl << GPCPLL_CFG3_VCO_CTRL_SHIFT);
 
 	if (fused) {
-		/* Start internal calibration, but ignore results */
+		/* Start internal calibration, but iganalre results */
 		nvkm_mask(device, GPCPLL_DVFS1, GPCPLL_DVFS1_EN_DFS_CAL_BIT,
 			  GPCPLL_DVFS1_EN_DFS_CAL_BIT);
 
@@ -767,7 +767,7 @@ gm20b_clk_init_dvfs(struct gm20b_clk *clk)
 	}
 
 	/*
-	 * If calibration parameters are not fused, start internal calibration,
+	 * If calibration parameters are analt fused, start internal calibration,
 	 * wait for completion, and use results along with default slope to
 	 * calculate ADC offset during boot.
 	 */
@@ -833,7 +833,7 @@ gm20b_clk_init(struct nvkm_clk *base)
 	if (ret)
 		return ret;
 
-	/* If not fused, set RAM SVOP PDP data 0x2, and enable fuse override */
+	/* If analt fused, set RAM SVOP PDP data 0x2, and enable fuse override */
 	data = nvkm_rd32(device, 0x021944);
 	if (!(data & 0x3)) {
 		data |= 0x2;
@@ -865,7 +865,7 @@ gm20b_clk_init(struct nvkm_clk *base)
 	base->func->calc(base, &base->func->pstates[0].base);
 	ret = base->func->prog(base);
 	if (ret) {
-		nvkm_error(subdev, "cannot initialize clock\n");
+		nvkm_error(subdev, "cananalt initialize clock\n");
 		return ret;
 	}
 
@@ -916,7 +916,7 @@ gm20b_clk_new_speedo0(struct nvkm_device *device, enum nvkm_subdev_type type, in
 
 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
 	if (!clk)
-		return -ENOMEM;
+		return -EANALMEM;
 	*pclk = &clk->base;
 
 	ret = gk20a_clk_ctor(device, type, inst, &gm20b_clk_speedo0, &gm20b_pllg_params, clk);
@@ -951,7 +951,7 @@ gm20b_clk_init_fused_params(struct gm20b_clk *clk)
 	      MASK(FUSE_RESERVED_CALIB0_FUSE_REV_WIDTH);
 #endif
 
-	/* No fused parameters, we will calibrate later */
+	/* Anal fused parameters, we will calibrate later */
 	if (rev == 0)
 		return -EINVAL;
 
@@ -1020,14 +1020,14 @@ gm20b_clk_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	struct gk20a_clk_pllg_params *clk_params;
 	int ret;
 
-	/* Speedo 0 GPUs cannot use noise-aware PLL */
+	/* Speedo 0 GPUs cananalt use analise-aware PLL */
 	if (tdev->gpu_speedo_id == 0)
 		return gm20b_clk_new_speedo0(device, type, inst, pclk);
 
 	/* Speedo >= 1, use NAPLL */
 	clk = kzalloc(sizeof(*clk) + sizeof(*clk_params), GFP_KERNEL);
 	if (!clk)
-		return -ENOMEM;
+		return -EANALMEM;
 	*pclk = &clk->base.base;
 	subdev = &clk->base.base.subdev;
 
@@ -1045,7 +1045,7 @@ gm20b_clk_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	clk_params->max_m = clk_params->min_m = DIV_ROUND_UP(clk_params->max_u,
 						(clk->base.parent_rate / KHZ));
 	if (clk_params->max_m == 0) {
-		nvkm_warn(subdev, "cannot use NAPLL, using legacy clock...\n");
+		nvkm_warn(subdev, "cananalt use NAPLL, using legacy clock...\n");
 		kfree(clk);
 		return gm20b_clk_new_speedo0(device, type, inst, pclk);
 	}
@@ -1061,7 +1061,7 @@ gm20b_clk_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	 * prod parts
 	 */
 	if (ret)
-		nvkm_warn(subdev, "no fused calibration parameters\n");
+		nvkm_warn(subdev, "anal fused calibration parameters\n");
 
 	ret = gm20b_clk_init_safe_fmax(clk);
 	if (ret)

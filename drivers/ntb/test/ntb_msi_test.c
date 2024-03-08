@@ -353,12 +353,12 @@ static int ntb_msit_probe(struct ntb_client *client, struct ntb_dev *ntb)
 
 	nm = devm_kzalloc(&ntb->dev, struct_size(nm, peers, peers), GFP_KERNEL);
 	if (!nm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nm->isr_ctx = devm_kcalloc(&ntb->dev, num_irqs, sizeof(*nm->isr_ctx),
 				   GFP_KERNEL);
 	if (!nm->isr_ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&nm->setup_work, ntb_msit_setup_work);
 	nm->ntb = ntb;
@@ -370,7 +370,7 @@ static int ntb_msit_probe(struct ntb_client *client, struct ntb_dev *ntb)
 		goto remove_dbgfs;
 
 	if (!nm->isr_ctx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto remove_dbgfs;
 	}
 

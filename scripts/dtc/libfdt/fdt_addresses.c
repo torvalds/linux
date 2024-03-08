@@ -11,13 +11,13 @@
 
 #include "libfdt_internal.h"
 
-static int fdt_cells(const void *fdt, int nodeoffset, const char *name)
+static int fdt_cells(const void *fdt, int analdeoffset, const char *name)
 {
 	const fdt32_t *c;
 	uint32_t val;
 	int len;
 
-	c = fdt_getprop(fdt, nodeoffset, name, &len);
+	c = fdt_getprop(fdt, analdeoffset, name, &len);
 	if (!c)
 		return len;
 
@@ -31,30 +31,30 @@ static int fdt_cells(const void *fdt, int nodeoffset, const char *name)
 	return (int)val;
 }
 
-int fdt_address_cells(const void *fdt, int nodeoffset)
+int fdt_address_cells(const void *fdt, int analdeoffset)
 {
 	int val;
 
-	val = fdt_cells(fdt, nodeoffset, "#address-cells");
+	val = fdt_cells(fdt, analdeoffset, "#address-cells");
 	if (val == 0)
 		return -FDT_ERR_BADNCELLS;
-	if (val == -FDT_ERR_NOTFOUND)
+	if (val == -FDT_ERR_ANALTFOUND)
 		return 2;
 	return val;
 }
 
-int fdt_size_cells(const void *fdt, int nodeoffset)
+int fdt_size_cells(const void *fdt, int analdeoffset)
 {
 	int val;
 
-	val = fdt_cells(fdt, nodeoffset, "#size-cells");
-	if (val == -FDT_ERR_NOTFOUND)
+	val = fdt_cells(fdt, analdeoffset, "#size-cells");
+	if (val == -FDT_ERR_ANALTFOUND)
 		return 1;
 	return val;
 }
 
 /* This function assumes that [address|size]_cells is 1 or 2 */
-int fdt_appendprop_addrrange(void *fdt, int parent, int nodeoffset,
+int fdt_appendprop_addrrange(void *fdt, int parent, int analdeoffset,
 			     const char *name, uint64_t addr, uint64_t size)
 {
 	int addr_cells, size_cells, ret;
@@ -96,6 +96,6 @@ int fdt_appendprop_addrrange(void *fdt, int parent, int nodeoffset,
 		return -FDT_ERR_BADNCELLS;
 	}
 
-	return fdt_appendprop(fdt, nodeoffset, name, data,
+	return fdt_appendprop(fdt, analdeoffset, name, data,
 			      (addr_cells + size_cells) * sizeof(fdt32_t));
 }

@@ -4,7 +4,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
@@ -15,7 +15,7 @@
 #include "gdm_tty.h"
 
 #define GDM_TTY_MAJOR 0
-#define GDM_TTY_MINOR 32
+#define GDM_TTY_MIANALR 32
 
 #define WRITE_SIZE 2048
 
@@ -27,7 +27,7 @@ static inline bool gdm_tty_ready(struct gdm *gdm)
 }
 
 static struct tty_driver *gdm_driver[TTY_MAX_COUNT];
-static struct gdm *gdm_table[TTY_MAX_COUNT][GDM_TTY_MINOR];
+static struct gdm *gdm_table[TTY_MAX_COUNT][GDM_TTY_MIANALR];
 static DEFINE_MUTEX(gdm_table_lock);
 
 static const char *DRIVER_STRING[TTY_MAX_COUNT] = {"GCTATC", "GCTDM"};
@@ -38,7 +38,7 @@ static void gdm_port_destruct(struct tty_port *port)
 	struct gdm *gdm = container_of(port, struct gdm, port);
 
 	mutex_lock(&gdm_table_lock);
-	gdm_table[gdm->index][gdm->minor] = NULL;
+	gdm_table[gdm->index][gdm->mianalr] = NULL;
 	mutex_unlock(&gdm_table_lock);
 
 	kfree(gdm);
@@ -56,13 +56,13 @@ static int gdm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 	ret = match_string(DRIVER_STRING, TTY_MAX_COUNT,
 			   tty->driver->driver_name);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&gdm_table_lock);
 	gdm = gdm_table[ret][tty->index];
 	if (!gdm) {
 		mutex_unlock(&gdm_table_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	tty_port_get(&gdm->port);
@@ -156,7 +156,7 @@ static ssize_t gdm_tty_write(struct tty_struct *tty, const u8 *buf, size_t len)
 	size_t sent_len = 0;
 
 	if (!gdm_tty_ready(gdm))
-		return -ENODEV;
+		return -EANALDEV;
 
 	while (remain) {
 		size_t sending_len = min_t(size_t, MUX_TX_MAX_SIZE, remain);
@@ -193,15 +193,15 @@ int register_lte_tty_device(struct tty_dev *tty_dev, struct device *device)
 	for (i = 0; i < TTY_MAX_COUNT; i++) {
 		gdm = kmalloc(sizeof(*gdm), GFP_KERNEL);
 		if (!gdm)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		mutex_lock(&gdm_table_lock);
-		for (j = 0; j < GDM_TTY_MINOR; j++) {
+		for (j = 0; j < GDM_TTY_MIANALR; j++) {
 			if (!gdm_table[i][j])
 				break;
 		}
 
-		if (j == GDM_TTY_MINOR) {
+		if (j == GDM_TTY_MIANALR) {
 			kfree(gdm);
 			mutex_unlock(&gdm_table_lock);
 			return -EINVAL;
@@ -215,11 +215,11 @@ int register_lte_tty_device(struct tty_dev *tty_dev, struct device *device)
 
 		gdm->port.ops = &gdm_port_ops;
 		gdm->index = i;
-		gdm->minor = j;
+		gdm->mianalr = j;
 		gdm->tty_dev = tty_dev;
 
 		tty_port_register_device(&gdm->port, gdm_driver[i],
-					 gdm->minor, device);
+					 gdm->mianalr, device);
 	}
 
 	for (i = 0; i < MAX_ISSUE_NUM; i++)
@@ -241,7 +241,7 @@ void unregister_lte_tty_device(struct tty_dev *tty_dev)
 			continue;
 
 		mutex_lock(&gdm_table_lock);
-		gdm_table[gdm->index][gdm->minor] = NULL;
+		gdm_table[gdm->index][gdm->mianalr] = NULL;
 		mutex_unlock(&gdm_table_lock);
 
 		tty = tty_port_tty_get(&gdm->port);
@@ -250,7 +250,7 @@ void unregister_lte_tty_device(struct tty_dev *tty_dev)
 			tty_kref_put(tty);
 		}
 
-		tty_unregister_device(gdm_driver[i], gdm->minor);
+		tty_unregister_device(gdm_driver[i], gdm->mianalr);
 		tty_port_put(&gdm->port);
 	}
 }
@@ -272,7 +272,7 @@ int register_lte_tty_driver(void)
 	int ret;
 
 	for (i = 0; i < TTY_MAX_COUNT; i++) {
-		tty_driver = tty_alloc_driver(GDM_TTY_MINOR,
+		tty_driver = tty_alloc_driver(GDM_TTY_MIANALR,
 				TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV);
 		if (IS_ERR(tty_driver))
 			return PTR_ERR(tty_driver);
@@ -282,10 +282,10 @@ int register_lte_tty_driver(void)
 		tty_driver->name = DEVICE_STRING[i];
 		tty_driver->major = GDM_TTY_MAJOR;
 		tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
-		tty_driver->subtype = SERIAL_TYPE_NORMAL;
+		tty_driver->subtype = SERIAL_TYPE_ANALRMAL;
 		tty_driver->init_termios = tty_std_termios;
 		tty_driver->init_termios.c_cflag = B9600 | CS8 | HUPCL | CLOCAL;
-		tty_driver->init_termios.c_lflag = ISIG | ICANON | IEXTEN;
+		tty_driver->init_termios.c_lflag = ISIG | ICAANALN | IEXTEN;
 		tty_set_operations(tty_driver, &gdm_tty_ops);
 
 		ret = tty_register_driver(tty_driver);

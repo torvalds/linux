@@ -4,7 +4,7 @@
 
 #include <linux/mmzone.h>
 #include <linux/spinlock.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/bug.h>
 
 struct page;
@@ -16,53 +16,53 @@ struct resource;
 struct vmem_altmap;
 struct dev_pagemap;
 
-#ifdef CONFIG_HAVE_ARCH_NODEDATA_EXTENSION
+#ifdef CONFIG_HAVE_ARCH_ANALDEDATA_EXTENSION
 /*
- * For supporting node-hotadd, we have to allocate a new pgdat.
+ * For supporting analde-hotadd, we have to allocate a new pgdat.
  *
- * If an arch has generic style NODE_DATA(),
- * node_data[nid] = kzalloc() works well. But it depends on the architecture.
+ * If an arch has generic style ANALDE_DATA(),
+ * analde_data[nid] = kzalloc() works well. But it depends on the architecture.
  *
- * In general, generic_alloc_nodedata() is used.
+ * In general, generic_alloc_analdedata() is used.
  *
  */
-extern pg_data_t *arch_alloc_nodedata(int nid);
-extern void arch_refresh_nodedata(int nid, pg_data_t *pgdat);
+extern pg_data_t *arch_alloc_analdedata(int nid);
+extern void arch_refresh_analdedata(int nid, pg_data_t *pgdat);
 
-#else /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
+#else /* CONFIG_HAVE_ARCH_ANALDEDATA_EXTENSION */
 
-#define arch_alloc_nodedata(nid)	generic_alloc_nodedata(nid)
+#define arch_alloc_analdedata(nid)	generic_alloc_analdedata(nid)
 
 #ifdef CONFIG_NUMA
 /*
- * XXX: node aware allocation can't work well to get new node's memory at this time.
- *	Because, pgdat for the new node is not allocated/initialized yet itself.
- *	To use new node's memory, more consideration will be necessary.
+ * XXX: analde aware allocation can't work well to get new analde's memory at this time.
+ *	Because, pgdat for the new analde is analt allocated/initialized yet itself.
+ *	To use new analde's memory, more consideration will be necessary.
  */
-#define generic_alloc_nodedata(nid)				\
+#define generic_alloc_analdedata(nid)				\
 ({								\
 	memblock_alloc(sizeof(*pgdat), SMP_CACHE_BYTES);	\
 })
 
-extern pg_data_t *node_data[];
-static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
+extern pg_data_t *analde_data[];
+static inline void arch_refresh_analdedata(int nid, pg_data_t *pgdat)
 {
-	node_data[nid] = pgdat;
+	analde_data[nid] = pgdat;
 }
 
 #else /* !CONFIG_NUMA */
 
 /* never called */
-static inline pg_data_t *generic_alloc_nodedata(int nid)
+static inline pg_data_t *generic_alloc_analdedata(int nid)
 {
 	BUG();
 	return NULL;
 }
-static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
+static inline void arch_refresh_analdedata(int nid, pg_data_t *pgdat)
 {
 }
 #endif /* CONFIG_NUMA */
-#endif /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
+#endif /* CONFIG_HAVE_ARCH_ANALDEDATA_EXTENSION */
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 struct page *pfn_to_online_page(unsigned long pfn);
@@ -73,7 +73,7 @@ enum {
 	MMOP_OFFLINE = 0,
 	/* Online the memory. Zone depends, see default_zone_for_pfn(). */
 	MMOP_ONLINE,
-	/* Online the memory to ZONE_NORMAL. */
+	/* Online the memory to ZONE_ANALRMAL. */
 	MMOP_ONLINE_KERNEL,
 	/* Online the memory to ZONE_MOVABLE. */
 	MMOP_ONLINE_MOVABLE,
@@ -82,12 +82,12 @@ enum {
 /* Flags for add_memory() and friends to specify memory hotplug details. */
 typedef int __bitwise mhp_t;
 
-/* No special request */
-#define MHP_NONE		((__force mhp_t)0)
+/* Anal special request */
+#define MHP_ANALNE		((__force mhp_t)0)
 /*
  * Allow merging of the added System RAM resource with adjacent,
  * mergeable resources. After a successful call to add_memory_resource()
- * with this flag set, the resource pointer must no longer be used as it
+ * with this flag set, the resource pointer must anal longer be used as it
  * might be stale, or the resource might have changed.
  */
 #define MHP_MERGE_RESOURCE	((__force mhp_t)BIT(0))
@@ -97,13 +97,13 @@ typedef int __bitwise mhp_t;
  * To do so, we will use the beginning of the hot-added range to build
  * the page tables for the memmap array that describes the entire range.
  * Only selected architectures support it with SPARSE_VMEMMAP.
- * This is only a hint, the core kernel can decide to not do this based on
+ * This is only a hint, the core kernel can decide to analt do this based on
  * different alignment checks.
  */
 #define MHP_MEMMAP_ON_MEMORY   ((__force mhp_t)BIT(1))
 /*
  * The nid field specifies a memory group id (mgid) instead. The memory group
- * implies the node id (nid).
+ * implies the analde id (nid).
  */
 #define MHP_NID_IS_MGID		((__force mhp_t)BIT(2))
 
@@ -125,7 +125,7 @@ struct range mhp_get_pluggable_range(bool need_mapping);
 /*
  * Zone resizing functions
  *
- * Note: any attempt to resize a zone should has pgdat_resize_lock()
+ * Analte: any attempt to resize a zone should has pgdat_resize_lock()
  * zone_span_writelock() both held. This ensure the size of a zone
  * can't be changed while pgdat_resize_lock() held.
  */
@@ -167,7 +167,7 @@ extern void generic_online_page(struct page *page, unsigned int order);
 extern int set_online_page_callback(online_page_callback_t callback);
 extern int restore_online_page_callback(online_page_callback_t callback);
 
-extern int try_online_node(int nid);
+extern int try_online_analde(int nid);
 
 extern int arch_add_memory(int nid, u64 start, u64 size,
 			   struct mhp_params *params);
@@ -177,11 +177,11 @@ extern int mhp_online_type_from_str(const char *str);
 
 /* Default online_type (MMOP_*) when new memory blocks are added. */
 extern int mhp_default_online_type;
-/* If movable_node boot option specified */
-extern bool movable_node_enabled;
-static inline bool movable_node_is_enabled(void)
+/* If movable_analde boot option specified */
+extern bool movable_analde_enabled;
+static inline bool movable_analde_is_enabled(void)
 {
-	return movable_node_enabled;
+	return movable_analde_enabled;
 }
 
 extern void arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap);
@@ -246,7 +246,7 @@ static inline void zone_span_writelock(struct zone *zone) {}
 static inline void zone_span_writeunlock(struct zone *zone) {}
 static inline void zone_seqlock_init(struct zone *zone) {}
 
-static inline int try_online_node(int nid)
+static inline int try_online_analde(int nid)
 {
 	return 0;
 }
@@ -257,7 +257,7 @@ static inline void put_online_mems(void) {}
 static inline void mem_hotplug_begin(void) {}
 static inline void mem_hotplug_done(void) {}
 
-static inline bool movable_node_is_enabled(void)
+static inline bool movable_analde_is_enabled(void)
 {
 	return false;
 }
@@ -270,7 +270,7 @@ static inline void pgdat_kswapd_lock_init(pg_data_t *pgdat) {}
 /*
  * Keep this declaration outside CONFIG_MEMORY_HOTPLUG as some
  * platforms might override and use arch_get_mappable_range()
- * for internal non memory hotplug purposes.
+ * for internal analn memory hotplug purposes.
  */
 struct range arch_get_mappable_range(void);
 
@@ -281,17 +281,17 @@ struct range arch_get_mappable_range(void);
 static inline
 void pgdat_resize_lock(struct pglist_data *pgdat, unsigned long *flags)
 {
-	spin_lock_irqsave(&pgdat->node_size_lock, *flags);
+	spin_lock_irqsave(&pgdat->analde_size_lock, *flags);
 }
 static inline
 void pgdat_resize_unlock(struct pglist_data *pgdat, unsigned long *flags)
 {
-	spin_unlock_irqrestore(&pgdat->node_size_lock, *flags);
+	spin_unlock_irqrestore(&pgdat->analde_size_lock, *flags);
 }
 static inline
 void pgdat_resize_init(struct pglist_data *pgdat)
 {
-	spin_lock_init(&pgdat->node_size_lock);
+	spin_lock_init(&pgdat->analde_size_lock);
 }
 #else /* !(CONFIG_MEMORY_HOTPLUG || CONFIG_DEFERRED_STRUCT_PAGE_INIT) */
 /*
@@ -304,7 +304,7 @@ static inline void pgdat_resize_init(struct pglist_data *pgdat) {}
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
 
-extern void try_offline_node(int nid);
+extern void try_offline_analde(int nid);
 extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages,
 			 struct zone *zone, struct memory_group *group);
 extern int remove_memory(u64 start, u64 size);
@@ -312,7 +312,7 @@ extern void __remove_memory(u64 start, u64 size);
 extern int offline_and_remove_memory(u64 start, u64 size);
 
 #else
-static inline void try_offline_node(int nid) {}
+static inline void try_offline_analde(int nid) {}
 
 static inline int offline_pages(unsigned long start_pfn, unsigned long nr_pages,
 				struct zone *zone, struct memory_group *group)

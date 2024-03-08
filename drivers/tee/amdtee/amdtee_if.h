@@ -50,14 +50,14 @@ struct tee_operation {
 };
 
 /* Must be same as in GP TEE specification */
-#define TEE_OP_PARAM_TYPE_NONE                  0
+#define TEE_OP_PARAM_TYPE_ANALNE                  0
 #define TEE_OP_PARAM_TYPE_VALUE_INPUT           1
 #define TEE_OP_PARAM_TYPE_VALUE_OUTPUT          2
-#define TEE_OP_PARAM_TYPE_VALUE_INOUT           3
+#define TEE_OP_PARAM_TYPE_VALUE_IANALUT           3
 #define TEE_OP_PARAM_TYPE_INVALID               4
 #define TEE_OP_PARAM_TYPE_MEMREF_INPUT          5
 #define TEE_OP_PARAM_TYPE_MEMREF_OUTPUT         6
-#define TEE_OP_PARAM_TYPE_MEMREF_INOUT          7
+#define TEE_OP_PARAM_TYPE_MEMREF_IANALUT          7
 
 #define TEE_PARAM_TYPE_GET(t, i)        (((t) >> ((i) * 4)) & 0xF)
 #define TEE_PARAM_TYPES(t0, t1, t2, t3) \
@@ -69,7 +69,7 @@ struct tee_operation {
 
 /*
  * The shared memory between rich world and secure world may be physically
- * non-contiguous. Below structures are meant to describe a shared memory region
+ * analn-contiguous. Below structures are meant to describe a shared memory region
  * via scatter/gather (sg) list
  */
 

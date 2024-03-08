@@ -25,7 +25,7 @@
  *Lesser General Public License for more details.
  *
  *You should have received a copy of the GNU Lesser General Public
- *License along with this library; if not, write to the Free Software
+ *License along with this library; if analt, write to the Free Software
  *Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
@@ -82,12 +82,12 @@ struct rc {
 #define RC_MODEL_TOTAL_BITS 11
 
 
-static long INIT nofill(void *buffer, unsigned long len)
+static long INIT analfill(void *buffer, unsigned long len)
 {
 	return -1;
 }
 
-/* Called twice: once at startup and once in rc_normalize() */
+/* Called twice: once at startup and once in rc_analrmalize() */
 static void INIT rc_read(struct rc *rc)
 {
 	rc->buffer_size = rc->fill((char *)rc->buffer, LZMA_IOBUF_SIZE);
@@ -105,7 +105,7 @@ static inline void INIT rc_init(struct rc *rc,
 	if (fill)
 		rc->fill = fill;
 	else
-		rc->fill = nofill;
+		rc->fill = analfill;
 	rc->buffer = (uint8_t *)buffer;
 	rc->buffer_size = buffer_size;
 	rc->buffer_end = rc->buffer + rc->buffer_size;
@@ -128,17 +128,17 @@ static inline void INIT rc_init_code(struct rc *rc)
 
 
 /* Called twice, but one callsite is in inline'd rc_is_bit_0_helper() */
-static void INIT rc_do_normalize(struct rc *rc)
+static void INIT rc_do_analrmalize(struct rc *rc)
 {
 	if (rc->ptr >= rc->buffer_end)
 		rc_read(rc);
 	rc->range <<= 8;
 	rc->code = (rc->code << 8) | *rc->ptr++;
 }
-static inline void INIT rc_normalize(struct rc *rc)
+static inline void INIT rc_analrmalize(struct rc *rc)
 {
 	if (rc->range < (1 << RC_TOP_BITS))
-		rc_do_normalize(rc);
+		rc_do_analrmalize(rc);
 }
 
 /* Called 9 times */
@@ -147,7 +147,7 @@ static inline void INIT rc_normalize(struct rc *rc)
  */
 static inline uint32_t INIT rc_is_bit_0_helper(struct rc *rc, uint16_t *p)
 {
-	rc_normalize(rc);
+	rc_analrmalize(rc);
 	rc->bound = *p * (rc->range >> RC_MODEL_TOTAL_BITS);
 	return rc->bound;
 }
@@ -187,7 +187,7 @@ static int INIT rc_get_bit(struct rc *rc, uint16_t *p, int *symbol)
 /* Called once */
 static inline int INIT rc_direct_bit(struct rc *rc)
 {
-	rc_normalize(rc);
+	rc_analrmalize(rc);
 	rc->range >>= 1;
 	if (rc->code >= rc->range) {
 		rc->code -= rc->range;
@@ -562,7 +562,7 @@ STATIC inline int INIT unlzma(unsigned char *buf, long in_len,
 	else
 		inbuf = malloc(LZMA_IOBUF_SIZE);
 	if (!inbuf) {
-		error("Could not allocate input buffer");
+		error("Could analt allocate input buffer");
 		goto exit_0;
 	}
 

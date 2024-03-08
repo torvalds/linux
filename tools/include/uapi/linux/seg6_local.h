@@ -32,7 +32,7 @@ enum {
 
 enum {
 	SEG6_LOCAL_ACTION_UNSPEC	= 0,
-	/* node segment */
+	/* analde segment */
 	SEG6_LOCAL_ACTION_END		= 1,
 	/* adjacency segment (IPv6 cross-connect) */
 	SEG6_LOCAL_ACTION_END_X		= 2,

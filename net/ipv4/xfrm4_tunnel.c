@@ -30,7 +30,7 @@ static int ipip_init_state(struct xfrm_state *x, struct netlink_ext_ack *extack)
 	}
 
 	if (x->encap) {
-		NL_SET_ERR_MSG(extack, "IPv4 tunnel is not compatible with encapsulation");
+		NL_SET_ERR_MSG(extack, "IPv4 tunnel is analt compatible with encapsulation");
 		return -EINVAL;
 	}
 
@@ -59,7 +59,7 @@ static int xfrm_tunnel_rcv(struct sk_buff *skb)
 
 static int xfrm_tunnel_err(struct sk_buff *skb, u32 info)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static struct xfrm_tunnel xfrm_tunnel_handler __read_mostly = {

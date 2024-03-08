@@ -6,7 +6,7 @@
 #include "btree_update.h"
 #include "checksum.h"
 #include "error.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "siphash.h"
 #include "subvolume.h"
 #include "super.h"
@@ -52,12 +52,12 @@ struct bch_hash_info {
 };
 
 static inline struct bch_hash_info
-bch2_hash_info_init(struct bch_fs *c, const struct bch_inode_unpacked *bi)
+bch2_hash_info_init(struct bch_fs *c, const struct bch_ianalde_unpacked *bi)
 {
 	/* XXX ick */
 	struct bch_hash_info info = {
-		.type = (bi->bi_flags >> INODE_STR_HASH_OFFSET) &
-			~(~0U << INODE_STR_HASH_BITS),
+		.type = (bi->bi_flags >> IANALDE_STR_HASH_OFFSET) &
+			~(~0U << IANALDE_STR_HASH_BITS),
 		.siphash_key = { .k0 = bi->bi_hash_seed }
 	};
 
@@ -170,7 +170,7 @@ bch2_hash_lookup_in_snapshot(struct btree_trans *trans,
 	struct bkey_s_c k;
 	int ret;
 
-	for_each_btree_key_upto_norestart(trans, *iter, desc.btree_id,
+	for_each_btree_key_upto_analrestart(trans, *iter, desc.btree_id,
 			   SPOS(inum.inum, desc.hash_key(info, key), snapshot),
 			   POS(inum.inum, U64_MAX),
 			   BTREE_ITER_SLOTS|flags, k, ret) {
@@ -180,13 +180,13 @@ bch2_hash_lookup_in_snapshot(struct btree_trans *trans,
 		} else if (k.k->type == KEY_TYPE_hash_whiteout) {
 			;
 		} else {
-			/* hole, not found */
+			/* hole, analt found */
 			break;
 		}
 	}
 	bch2_trans_iter_exit(trans, iter);
 
-	return ret ?: -BCH_ERR_ENOENT_str_hash_lookup;
+	return ret ?: -BCH_ERR_EANALENT_str_hash_lookup;
 }
 
 static __always_inline int
@@ -217,7 +217,7 @@ bch2_hash_hole(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	for_each_btree_key_upto_norestart(trans, *iter, desc.btree_id,
+	for_each_btree_key_upto_analrestart(trans, *iter, desc.btree_id,
 			   SPOS(inum.inum, desc.hash_key(info, key), snapshot),
 			   POS(inum.inum, U64_MAX),
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret)
@@ -225,7 +225,7 @@ bch2_hash_hole(struct btree_trans *trans,
 			return 0;
 	bch2_trans_iter_exit(trans, iter);
 
-	return ret ?: -BCH_ERR_ENOSPC_str_hash_create;
+	return ret ?: -BCH_ERR_EANALSPC_str_hash_create;
 }
 
 static __always_inline
@@ -242,7 +242,7 @@ int bch2_hash_needs_whiteout(struct btree_trans *trans,
 
 	bch2_btree_iter_advance(&iter);
 
-	for_each_btree_key_continue_norestart(iter, BTREE_ITER_SLOTS, k, ret) {
+	for_each_btree_key_continue_analrestart(iter, BTREE_ITER_SLOTS, k, ret) {
 		if (k.k->type != desc.key_type &&
 		    k.k->type != KEY_TYPE_hash_whiteout)
 			break;
@@ -272,11 +272,11 @@ int bch2_hash_set_snapshot(struct btree_trans *trans,
 	bool found = false;
 	int ret;
 
-	for_each_btree_key_upto_norestart(trans, iter, desc.btree_id,
-			   SPOS(insert->k.p.inode,
+	for_each_btree_key_upto_analrestart(trans, iter, desc.btree_id,
+			   SPOS(insert->k.p.ianalde,
 				desc.hash_bkey(info, bkey_i_to_s_c(insert)),
 				snapshot),
-			   POS(insert->k.p.inode, U64_MAX),
+			   POS(insert->k.p.ianalde, U64_MAX),
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
 		if (is_visible_key(desc, inum, k)) {
 			if (!desc.cmp_bkey(k, bkey_i_to_s_c(insert)))
@@ -291,11 +291,11 @@ int bch2_hash_set_snapshot(struct btree_trans *trans,
 			bch2_trans_copy_iter(&slot, &iter);
 
 		if (k.k->type != KEY_TYPE_hash_whiteout)
-			goto not_found;
+			goto analt_found;
 	}
 
 	if (!ret)
-		ret = -BCH_ERR_ENOSPC_str_hash_create;
+		ret = -BCH_ERR_EANALSPC_str_hash_create;
 out:
 	bch2_trans_iter_exit(trans, &slot);
 	bch2_trans_iter_exit(trans, &iter);
@@ -303,10 +303,10 @@ out:
 	return ret;
 found:
 	found = true;
-not_found:
+analt_found:
 
 	if (!found && (str_hash_flags & BCH_HASH_SET_MUST_REPLACE)) {
-		ret = -BCH_ERR_ENOENT_str_hash_set_must_replace;
+		ret = -BCH_ERR_EANALENT_str_hash_set_must_replace;
 	} else if (found && (str_hash_flags & BCH_HASH_SET_MUST_CREATE)) {
 		ret = -EEXIST;
 	} else {
@@ -335,7 +335,7 @@ int bch2_hash_set(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	insert->k.p.inode = inum.inum;
+	insert->k.p.ianalde = inum.inum;
 
 	return bch2_hash_set_snapshot(trans, desc, info, inum,
 				      snapshot, insert, str_hash_flags, 0);

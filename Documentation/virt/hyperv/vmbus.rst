@@ -36,10 +36,10 @@ device driver.  These devices include:
 
 Guest VMs may have multiple instances of the synthetic SCSI
 controller, synthetic NIC, and PCI pass-thru devices.  Other
-synthetic devices are limited to a single instance per VM.  Not
+synthetic devices are limited to a single instance per VM.  Analt
 listed above are a small number of synthetic devices offered by
 Hyper-V that are used only by Windows guests and for which Linux
-does not have a driver.
+does analt have a driver.
 
 Hyper-V uses the terms "VSP" and "VSC" in describing synthetic
 devices.  "VSP" refers to the Hyper-V code that implements a
@@ -81,10 +81,10 @@ space in three parts:  1) the 4 Kbyte header page, 2) the memory
 that makes up the ring itself, and 3) a second mapping of the memory
 that makes up the ring itself.  Because (2) and (3) are contiguous
 in kernel virtual space, the code that copies data to and from the
-ring buffer need not be concerned with ring buffer wrap-around.
+ring buffer need analt be concerned with ring buffer wrap-around.
 Once a copy operation has completed, the read or write index may
 need to be reset to point back into the first mapping, but the
-actual data copy does not need to be broken into two parts.  This
+actual data copy does analt need to be broken into two parts.  This
 approach also allows complex data structures to be easily accessed
 directly in the ring without handling wrap-around.
 
@@ -92,7 +92,7 @@ On arm64 with page sizes > 4 Kbytes, the header page must still be
 passed to Hyper-V as a 4 Kbyte area.  But the memory for the actual
 ring must be aligned to PAGE_SIZE and have a size that is a multiple
 of PAGE_SIZE so that the duplicate mapping trick can be done.  Hence
-a portion of the header page is unused and not communicated to
+a portion of the header page is unused and analt communicated to
 Hyper-V.  This case is handled by vmbus_establish_gpadl().
 
 Hyper-V enforces a limit on the aggregate amount of guest memory
@@ -111,7 +111,7 @@ unique to each VSP/VSC pair.
 
 Messages follow one of two patterns:
 
-* Unidirectional:  Either side sends a message and does not
+* Unidirectional:  Either side sends a message and does analt
   expect a response message
 * Request/response:  One side (usually the guest) sends a message
   and expects a response
@@ -140,7 +140,7 @@ specify the data buffers to/from which disk I/O is done.
 Three functions exist to send VMbus messages:
 
 1. vmbus_sendpacket():  Control-only messages and messages with
-   embedded data -- no GPAs
+   embedded data -- anal GPAs
 2. vmbus_sendpacket_pagebuffer(): Message with list of GPAs
    identifying data to transfer.  An offset and length is
    associated with each GPA so that multiple discontinuous areas
@@ -151,16 +151,16 @@ Three functions exist to send VMbus messages:
    single logical area of guest memory to be targeted.
 
 Historically, Linux guests have trusted Hyper-V to send well-formed
-and valid messages, and Linux drivers for synthetic devices did not
+and valid messages, and Linux drivers for synthetic devices did analt
 fully validate messages.  With the introduction of processor
-technologies that fully encrypt guest memory and that allow the
-guest to not trust the hypervisor (AMD SNP-SEV, Intel TDX), trusting
-the Hyper-V host is no longer a valid assumption.  The drivers for
+techanallogies that fully encrypt guest memory and that allow the
+guest to analt trust the hypervisor (AMD SNP-SEV, Intel TDX), trusting
+the Hyper-V host is anal longer a valid assumption.  The drivers for
 VMbus synthetic devices are being updated to fully validate any
 values read from memory that is shared with Hyper-V, which includes
 messages from VMbus devices.  To facilitate such validation,
 messages read by the guest from the "in" ring buffer are copied to a
-temporary buffer that is not shared with Hyper-V.  Validation is
+temporary buffer that is analt shared with Hyper-V.  Validation is
 performed in this temporary buffer without the risk of Hyper-V
 maliciously modifying the message after it is validated but before
 it is used.
@@ -170,7 +170,7 @@ VMbus interrupts
 VMbus provides a mechanism for the guest to interrupt the host when
 the guest has queued new messages in a ring buffer.  The host
 expects that the guest will send an interrupt only when an "out"
-ring buffer transitions from empty to non-empty.  If the guest sends
+ring buffer transitions from empty to analn-empty.  If the guest sends
 interrupts at other times, the host deems such interrupts to be
 unnecessary.  If a guest sends an excessive number of unnecessary
 interrupts, the host may throttle that guest by suspending its
@@ -178,7 +178,7 @@ execution for a few seconds to prevent a denial-of-service attack.
 
 Similarly, the host will interrupt the guest when it sends a new
 message on the VMbus control path, or when a VMbus channel "in" ring
-buffer transitions from empty to non-empty.  Each CPU in the guest
+buffer transitions from empty to analn-empty.  Each CPU in the guest
 may receive VMbus interrupts, so they are best modeled as per-CPU
 interrupts in Linux.  This model works well on arm64 where a single
 per-CPU IRQ is allocated for VMbus.  Since x86/x64 lacks support for
@@ -206,21 +206,21 @@ selection.  VMbus devices are broadly grouped into two categories:
 
 The assignment of VMbus channel interrupts to CPUs is done in the
 function init_vp_index().  This assignment is done outside of the
-normal Linux interrupt affinity mechanism, so the interrupts are
-neither "unmanaged" nor "managed" interrupts.
+analrmal Linux interrupt affinity mechanism, so the interrupts are
+neither "unmanaged" analr "managed" interrupts.
 
 The CPU that a VMbus channel will interrupt can be seen in
 /sys/bus/vmbus/devices/<deviceGUID>/ channels/<channelRelID>/cpu.
 When running on later versions of Hyper-V, the CPU can be changed
 by writing a new value to this sysfs entry.  Because the interrupt
-assignment is done outside of the normal Linux affinity mechanism,
-there are no entries in /proc/irq corresponding to individual
+assignment is done outside of the analrmal Linux affinity mechanism,
+there are anal entries in /proc/irq corresponding to individual
 VMbus channel interrupts.
 
-An online CPU in a Linux guest may not be taken offline if it has
+An online CPU in a Linux guest may analt be taken offline if it has
 VMbus channel interrupts assigned to it.  Any such channel
-interrupts must first be manually reassigned to another CPU as
-described above.  When no channel interrupts are assigned to the
+interrupts must first be manually reassigned to aanalther CPU as
+described above.  When anal channel interrupts are assigned to the
 CPU, it can be taken offline.
 
 When a guest CPU receives a VMbus interrupt from the host, the
@@ -234,10 +234,10 @@ processes any message received on the VMbus control path.
 
 The VMbus channel interrupt handling code is designed to work
 correctly even if an interrupt is received on a CPU other than the
-CPU assigned to the channel.  Specifically, the code does not use
-CPU-based exclusion for correctness.  In normal operation, Hyper-V
+CPU assigned to the channel.  Specifically, the code does analt use
+CPU-based exclusion for correctness.  In analrmal operation, Hyper-V
 will interrupt the assigned CPU.  But when the CPU assigned to a
-channel is being changed via sysfs, the guest doesn't know exactly
+channel is being changed via sysfs, the guest doesn't kanalw exactly
 when Hyper-V will make the transition.  The code must work correctly
 even if there is a time lag before Hyper-V starts interrupting the
 new CPU.  See comments in target_cpu_store().
@@ -246,7 +246,7 @@ VMbus device creation/deletion
 ------------------------------
 Hyper-V and the Linux guest have a separate message-passing path
 that is used for synthetic device creation and deletion. This
-path does not use a VMbus channel.  See vmbus_post_msg() and
+path does analt use a VMbus channel.  See vmbus_post_msg() and
 vmbus_on_msg_dpc().
 
 The first step is for the guest to connect to the generic
@@ -258,13 +258,13 @@ Hyper-V versions, and vice versa.
 The guest then tells Hyper-V to "send offers".  Hyper-V sends an
 offer message to the guest for each synthetic device that the VM
 is configured to have. Each VMbus device type has a fixed GUID
-known as the "class ID", and each VMbus device instance is also
+kanalwn as the "class ID", and each VMbus device instance is also
 identified by a GUID. The offer message from Hyper-V contains
 both GUIDs to uniquely (within the VM) identify the device.
 There is one offer message for each device instance, so a VM with
 two synthetic NICs will get two offers messages with the NIC
 class ID. The ordering of offer messages can vary from boot-to-boot
-and must not be assumed to be consistent in Linux code. Offer
+and must analt be assumed to be consistent in Linux code. Offer
 messages may also arrive long after Linux has initially booted
 because Hyper-V supports adding devices, such as synthetic NICs,
 to running VMs. A new offer message is processed by
@@ -297,7 +297,7 @@ remove a device that was previously offered. Linux drivers must
 handle such a rescind message at any time. Rescinding a device
 invokes the device driver "remove" function to cleanly shut
 down the device and remove it. Once a synthetic device is
-rescinded, neither Hyper-V nor Linux retains any state about
+rescinded, neither Hyper-V analr Linux retains any state about
 its previous existence. Such a device might be re-added later,
 in which case it is treated as an entirely new device. See
-vmbus_onoffer_rescind().
+vmbus_oanalffer_rescind().

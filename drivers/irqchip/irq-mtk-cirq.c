@@ -146,11 +146,11 @@ static int mtk_cirq_domain_translate(struct irq_domain *d,
 				     unsigned long *hwirq,
 				     unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_analde(fwspec->fwanalde)) {
 		if (fwspec->param_count != 3)
 			return -EINVAL;
 
-		/* No PPI should point to this domain */
+		/* Anal PPI should point to this domain */
 		if (fwspec->param[0] != 0)
 			return -EINVAL;
 
@@ -187,7 +187,7 @@ static int mtk_cirq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 				      &mtk_cirq_chip,
 				      domain->host_data);
 
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwanalde = domain->parent->fwanalde;
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs,
 					    &parent_fwspec);
 }
@@ -209,7 +209,7 @@ static int mtk_cirq_suspend(void)
 
 	/*
 	 * When external interrupts happened, CIRQ will record the status
-	 * even CIRQ is not enabled. When execute flush command, CIRQ will
+	 * even CIRQ is analt enabled. When execute flush command, CIRQ will
 	 * resend the signals according to the status. So if don't clear the
 	 * status, CIRQ will resend the wrong signals.
 	 *
@@ -293,8 +293,8 @@ static const struct of_device_id mtk_cirq_of_match[] = {
 	{ /* sentinel */ }
 };
 
-static int __init mtk_cirq_of_init(struct device_node *node,
-				   struct device_node *parent)
+static int __init mtk_cirq_of_init(struct device_analde *analde,
+				   struct device_analde *parent)
 {
 	struct irq_domain *domain, *domain_parent;
 	const struct of_device_id *match;
@@ -303,44 +303,44 @@ static int __init mtk_cirq_of_init(struct device_node *node,
 
 	domain_parent = irq_find_host(parent);
 	if (!domain_parent) {
-		pr_err("mtk_cirq: interrupt-parent not found\n");
+		pr_err("mtk_cirq: interrupt-parent analt found\n");
 		return -EINVAL;
 	}
 
 	cirq_data = kzalloc(sizeof(*cirq_data), GFP_KERNEL);
 	if (!cirq_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	cirq_data->base = of_iomap(node, 0);
+	cirq_data->base = of_iomap(analde, 0);
 	if (!cirq_data->base) {
 		pr_err("mtk_cirq: unable to map cirq register\n");
 		ret = -ENXIO;
 		goto out_free;
 	}
 
-	ret = of_property_read_u32_index(node, "mediatek,ext-irq-range", 0,
+	ret = of_property_read_u32_index(analde, "mediatek,ext-irq-range", 0,
 					 &cirq_data->ext_irq_start);
 	if (ret)
 		goto out_unmap;
 
-	ret = of_property_read_u32_index(node, "mediatek,ext-irq-range", 1,
+	ret = of_property_read_u32_index(analde, "mediatek,ext-irq-range", 1,
 					 &cirq_data->ext_irq_end);
 	if (ret)
 		goto out_unmap;
 
-	match = of_match_node(mtk_cirq_of_match, node);
+	match = of_match_analde(mtk_cirq_of_match, analde);
 	if (!match) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_unmap;
 	}
 	cirq_data->offsets = match->data;
 
 	irq_num = cirq_data->ext_irq_end - cirq_data->ext_irq_start + 1;
 	domain = irq_domain_add_hierarchy(domain_parent, 0,
-					  irq_num, node,
+					  irq_num, analde,
 					  &cirq_domain_ops, cirq_data);
 	if (!domain) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unmap;
 	}
 	cirq_data->domain = domain;

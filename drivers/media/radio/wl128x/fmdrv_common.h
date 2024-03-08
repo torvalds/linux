@@ -87,7 +87,7 @@ struct fm_reg_table {
 #define PUPD_SET                 91
 #define AUDIO_IO_SET             63
 #define PREMPH_SET               64
-#define MONO_SET                 66
+#define MOANAL_SET                 66
 #define MUTE                     92
 #define MPX_LMT_ENABLE           67
 #define PI_SET                   93
@@ -193,7 +193,7 @@ struct fm_event_msg_hdr {
 /* Tunner modes */
 #define FM_TUNER_STOP_SEARCH_MODE	0
 #define FM_TUNER_PRESET_MODE		1
-#define FM_TUNER_AUTONOMOUS_SEARCH_MODE	2
+#define FM_TUNER_AUTOANALMOUS_SEARCH_MODE	2
 #define FM_TUNER_AF_JUMP_MODE		3
 
 /* Min and Max volume */
@@ -223,9 +223,9 @@ struct fm_event_msg_hdr {
 #define FM_RX_RSSI_THRESHOLD_MIN	-128
 #define FM_RX_RSSI_THRESHOLD_MAX	127
 
-/* Stereo/Mono mode */
+/* Stereo/Moanal mode */
 #define FM_STEREO_MODE		0
-#define FM_MONO_MODE		1
+#define FM_MOANAL_MODE		1
 #define FM_STEREO_SOFT_BLEND	1
 
 /* FM RX De-emphasis filter modes */
@@ -236,7 +236,7 @@ struct fm_event_msg_hdr {
 #define FM_RDS_DISABLE	0
 #define FM_RDS_ENABLE	1
 
-#define FM_NO_PI_CODE	0
+#define FM_ANAL_PI_CODE	0
 
 /* FM and RX RDS block enable/disable  */
 #define FM_RX_PWR_SET_FM_ON_RDS_OFF		0x1
@@ -260,7 +260,7 @@ struct fm_event_msg_hdr {
 #define FM_RDS_BLK_IDX_B		1
 #define FM_RDS_BLK_IDX_C		2
 #define FM_RDS_BLK_IDX_D		3
-#define FM_RDS_BLK_IDX_UNKNOWN	0xF0
+#define FM_RDS_BLK_IDX_UNKANALWN	0xF0
 
 #define FM_RDS_STATUS_ERR_MASK	0x18
 
@@ -370,7 +370,7 @@ int fmc_set_freq(struct fmdev *, u32);
 int fmc_set_mode(struct fmdev *, u8);
 int fmc_set_region(struct fmdev *, u8);
 int fmc_set_mute_mode(struct fmdev *, u8);
-int fmc_set_stereo_mono(struct fmdev *, u16);
+int fmc_set_stereo_moanal(struct fmdev *, u16);
 int fmc_set_rds_mode(struct fmdev *, u8);
 
 int fmc_get_freq(struct fmdev *, u32 *);

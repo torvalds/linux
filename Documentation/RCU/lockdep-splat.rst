@@ -6,7 +6,7 @@ Lockdep-RCU Splat
 
 Lockdep-RCU was added to the Linux kernel in early 2010
 (http://lwn.net/Articles/371986/).  This facility checks for some common
-misuses of the RCU API, most notably using one of the rcu_dereference()
+misuses of the RCU API, most analtably using one of the rcu_dereference()
 family to access an RCU-protected pointer without the proper protection.
 When such misuse is detected, an lockdep-RCU splat is emitted.
 
@@ -37,7 +37,7 @@ other info that might help us debug this::
     cfq_exit_queue+0x43/0x190
 
     stack backtrace:
-    Pid: 1552, comm: scsi_scan_6 Not tainted 3.0.0-rc5 #17
+    Pid: 1552, comm: scsi_scan_6 Analt tainted 3.0.0-rc5 #17
     Call Trace:
     [<ffffffff810abb9b>] lockdep_rcu_dereference+0xbb/0xc0
     [<ffffffff812b6139>] __cfq_exit_single_io_context+0xe9/0x120
@@ -70,7 +70,7 @@ Line 2776 of block/cfq-iosched.c in v3.0-rc5 is as follows::
 	if (rcu_dereference(ioc->ioc_data) == cic) {
 
 This form says that it must be in a plain vanilla RCU read-side critical
-section, but the "other info" list above shows that this is not the
+section, but the "other info" list above shows that this is analt the
 case.  Instead, we hold three locks, one of which might be RCU related.
 And maybe that lock really does protect this reference.  If so, the fix
 is to inform RCU, perhaps by changing __cfq_exit_single_io_context() to
@@ -80,7 +80,7 @@ which would permit us to invoke rcu_dereference_protected as follows::
 	if (rcu_dereference_protected(ioc->ioc_data,
 				      lockdep_is_held(&q->queue_lock)) == cic) {
 
-With this change, there would be no lockdep-RCU splat emitted if this
+With this change, there would be anal lockdep-RCU splat emitted if this
 code was invoked either from within an RCU read-side critical section
 or with the ->queue_lock held.  In particular, this would have suppressed
 the above lockdep-RCU splat because ->queue_lock is held (see #2 in the

@@ -438,10 +438,10 @@ struct v4l2_ioctl_ops {
 		/*
 		 * Standard handling
 		 *
-		 * Note: ENUMSTD is handled by videodev.c
+		 * Analte: ENUMSTD is handled by videodev.c
 		 */
-	int (*vidioc_g_std)(struct file *file, void *fh, v4l2_std_id *norm);
-	int (*vidioc_s_std)(struct file *file, void *fh, v4l2_std_id norm);
+	int (*vidioc_g_std)(struct file *file, void *fh, v4l2_std_id *analrm);
+	int (*vidioc_s_std)(struct file *file, void *fh, v4l2_std_id analrm);
 	int (*vidioc_querystd)(struct file *file, void *fh, v4l2_std_id *a);
 
 		/* Input handling */
@@ -588,7 +588,7 @@ struct v4l2_ioctl_ops {
 };
 
 
-/* v4l debugging and diagnostics */
+/* v4l debugging and diaganalstics */
 
 /* Device debug flags to be used with the video device debug attribute */
 
@@ -608,15 +608,15 @@ struct v4l2_ioctl_ops {
 /*  Video standard functions  */
 
 /**
- * v4l2_norm_to_name - Ancillary routine to analog TV standard name from its ID.
+ * v4l2_analrm_to_name - Ancillary routine to analog TV standard name from its ID.
  *
  * @id:	analog TV standard ID.
  *
  * Return: returns a string with the name of the analog TV standard.
- * If the standard is not found or if @id points to multiple standard,
- * it returns "Unknown".
+ * If the standard is analt found or if @id points to multiple standard,
+ * it returns "Unkanalwn".
  */
-const char *v4l2_norm_to_name(v4l2_std_id id);
+const char *v4l2_analrm_to_name(v4l2_std_id id);
 
 /**
  * v4l2_video_std_frame_period - Ancillary routine that fills a
@@ -636,7 +636,7 @@ void v4l2_video_std_frame_period(int id, struct v4l2_fract *frameperiod);
  * @id: analog TV standard ID.
  * @name: name of the standard to be used
  *
- * .. note::
+ * .. analte::
  *
  *    This ancillary routine is obsolete. Shouldn't be used on newer drivers.
  */
@@ -661,7 +661,7 @@ int v4l_video_std_enumstd(struct v4l2_standard *vs, v4l2_std_id id);
  * @prefix: prefix to be added at the ioctl prints.
  * @cmd: ioctl name
  *
- * .. note::
+ * .. analte::
  *
  *    If prefix != %NULL, then it will issue a
  *    ``printk(KERN_DEBUG "%s: ", prefix)`` first.
@@ -714,7 +714,7 @@ typedef long (*v4l2_kioctl)(struct file *file, unsigned int cmd, void *arg);
  * @arg: Ioctl argument.
  * @func: function that will handle the ioctl
  *
- * .. note::
+ * .. analte::
  *
  *    This routine should be used only inside the V4L2 core.
  */

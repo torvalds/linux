@@ -49,17 +49,17 @@ MODULE_DEVICE_TABLE(of, atmel_pdmic_of_match);
 
 static struct atmel_pdmic_pdata *atmel_pdmic_dt_init(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct atmel_pdmic_pdata *pdata;
 
 	if (!np) {
-		dev_err(dev, "device node not found\n");
+		dev_err(dev, "device analde analt found\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (of_property_read_string(np, "atmel,model", &pdata->card_name))
 		pdata->card_name = "PDMIC";
@@ -78,7 +78,7 @@ static struct atmel_pdmic_pdata *atmel_pdmic_dt_init(struct device *dev)
 
 	if (pdata->mic_max_freq < pdata->mic_min_freq) {
 		dev_err(dev,
-			"mic-max-freq should not be less than mic-min-freq\n");
+			"mic-max-freq should analt be less than mic-min-freq\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -468,7 +468,7 @@ static struct snd_soc_dai_driver atmel_pdmic_cpu_dai = {
 		.stream_name	= "Capture",
 		.channels_min	= 1,
 		.channels_max	= 1,
-		.rates		= SNDRV_PCM_RATE_KNOT,
+		.rates		= SNDRV_PCM_RATE_KANALT,
 		.formats	= ATMEL_PDMIC_FORMATS,
 	},
 	.ops = &atmel_pdmic_cpu_dai_ops,
@@ -494,11 +494,11 @@ static int atmel_pdmic_asoc_card_init(struct device *dev,
 
 	dai_link = devm_kzalloc(dev, sizeof(*dai_link), GFP_KERNEL);
 	if (!dai_link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	comp = devm_kzalloc(dev, sizeof(*comp), GFP_KERNEL);
 	if (!comp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dai_link->cpus		= comp;
 	dai_link->codecs	= &snd_soc_dummy_dlc;
@@ -541,7 +541,7 @@ static irqreturn_t atmel_pdmic_interrupt(int irq, void *dev_id)
 {
 	struct atmel_pdmic *dd = (struct atmel_pdmic *)dev_id;
 	u32 pdmic_isr;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	regmap_read(dd->regmap, PDMIC_ISR, &pdmic_isr);
 
@@ -583,7 +583,7 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 
 	dd = devm_kzalloc(dev, sizeof(*dd), GFP_KERNEL);
 	if (!dd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dd->pdata = pdata;
 	dd->dev = dev;
@@ -647,7 +647,7 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 					      &atmel_pdmic_cpu_dai_component,
 					      &atmel_pdmic_cpu_dai, 1);
 	if (ret) {
-		dev_err(dev, "could not register CPU DAI: %d\n", ret);
+		dev_err(dev, "could analt register CPU DAI: %d\n", ret);
 		return ret;
 	}
 
@@ -656,14 +656,14 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 					     &atmel_pdmic_dmaengine_pcm_config,
 					     0);
 	if (ret) {
-		dev_err(dev, "could not register platform: %d\n", ret);
+		dev_err(dev, "could analt register platform: %d\n", ret);
 		return ret;
 	}
 
 	/* register sound card */
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unregister_codec;
 	}
 

@@ -6,7 +6,7 @@
  *
  * The algorithm to search a zero bit string is geared towards its application.
  * We expect a couple of fixed sizes of requests, so a rotating counter, reset
- * by align size, should provide fast enough search while maintaining low
+ * by align size, should provide fast eanalugh search while maintaining low
  * fragmentation.
  */
 
@@ -23,7 +23,7 @@
  *
  * Returns offset in the map or -1 if out of space.
  *
- * Not safe to call from an interrupt (uses spin_lock).
+ * Analt safe to call from an interrupt (uses spin_lock).
  */
 int bit_map_string_get(struct bit_map *t, int len, int align)
 {

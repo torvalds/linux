@@ -130,7 +130,7 @@ static void set_phy_ffe_tuning(struct mvs_info *mvi, int phy_id,
 	tmp = mvs_read_port_vsr_data(mvi, phy_id);
 	tmp &= ~0x40001;
 	/* Hard coding */
-	/* No defines in HBA_Info_Page */
+	/* Anal defines in HBA_Info_Page */
 	tmp |= (0 << 18);
 	mvs_write_port_vsr_data(mvi, phy_id, tmp);
 
@@ -143,7 +143,7 @@ static void set_phy_ffe_tuning(struct mvs_info *mvi, int phy_id,
 	tmp = mvs_read_port_vsr_data(mvi, phy_id);
 	tmp &= ~0xFFF;
 	/* Hard coding */
-	/* No defines in HBA_Info_Page */
+	/* Anal defines in HBA_Info_Page */
 	tmp |= ((0x3F << 6) | (0x0 << 0));
 	mvs_write_port_vsr_data(mvi, phy_id, tmp);
 
@@ -155,12 +155,12 @@ static void set_phy_ffe_tuning(struct mvs_info *mvi, int phy_id,
 	tmp = mvs_read_port_vsr_data(mvi, phy_id);
 	tmp &= ~0x8;
 	/* Hard coding */
-	/* No defines in HBA_Info_Page */
+	/* Anal defines in HBA_Info_Page */
 	tmp |= (0 << 3);
 	mvs_write_port_vsr_data(mvi, phy_id, tmp);
 }
 
-/*Notice: this function must be called when phy is disabled*/
+/*Analtice: this function must be called when phy is disabled*/
 static void set_phy_rate(struct mvs_info *mvi, int phy_id, u8 rate)
 {
 	union reg_phy_cfg phy_cfg, phy_cfg_tmp;
@@ -426,7 +426,7 @@ static int mvs_94xx_init(struct mvs_info *mvi)
 	/* init phys */
 	mvs_phy_hacks(mvi);
 
-	/* disable non data frame retry */
+	/* disable analn data frame retry */
 	tmp = mvs_cr32(mvi, CMD_SAS_CTL1);
 	if ((revision == VANIR_A0_REV) ||
 		(revision == VANIR_B0_REV) ||
@@ -534,7 +534,7 @@ static int mvs_94xx_init(struct mvs_info *mvi)
 
 	/* enable completion queue interrupt */
 	tmp = (CINT_PORT_MASK | CINT_DONE | CINT_MEM | CINT_SRS | CINT_CI_STOP |
-		CINT_DMA_PCIE | CINT_NON_SPEC_NCQ_ERROR);
+		CINT_DMA_PCIE | CINT_ANALN_SPEC_NCQ_ERROR);
 	tmp |= CINT_PHY_MASK;
 	mw32(MVS_INT_MASK, tmp);
 
@@ -555,7 +555,7 @@ static int mvs_94xx_init(struct mvs_info *mvi)
 	 * set bit8 to 1 for performance tuning */
 	tmp = mvs_cr32(mvi, CMD_SL_MODE0);
 	tmp |= 0x00000300;
-	/* set bit0 to 0 to enable retry for no_dest reject case */
+	/* set bit0 to 0 to enable retry for anal_dest reject case */
 	tmp &= 0xFFFFFFFE;
 	mvs_cw32(mvi, CMD_SL_MODE0, tmp);
 
@@ -709,17 +709,17 @@ static void mvs_94xx_issue_stop(struct mvs_info *mvi, enum mvs_port_type type,
 	mw32(MVS_PCS, tmp);
 }
 
-static void mvs_94xx_non_spec_ncq_error(struct mvs_info *mvi)
+static void mvs_94xx_analn_spec_ncq_error(struct mvs_info *mvi)
 {
 	void __iomem *regs = mvi->regs;
 	u32 err_0, err_1;
 	u8 i;
 	struct mvs_device *device;
 
-	err_0 = mr32(MVS_NON_NCQ_ERR_0);
-	err_1 = mr32(MVS_NON_NCQ_ERR_1);
+	err_0 = mr32(MVS_ANALN_NCQ_ERR_0);
+	err_1 = mr32(MVS_ANALN_NCQ_ERR_1);
 
-	mv_dprintk("non specific ncq error err_0:%x,err_1:%x.\n",
+	mv_dprintk("analn specific ncq error err_0:%x,err_1:%x.\n",
 			err_0, err_1);
 	for (i = 0; i < 32; i++) {
 		if (err_0 & bit(i)) {
@@ -734,8 +734,8 @@ static void mvs_94xx_non_spec_ncq_error(struct mvs_info *mvi)
 		}
 	}
 
-	mw32(MVS_NON_NCQ_ERR_0, err_0);
-	mw32(MVS_NON_NCQ_ERR_1, err_1);
+	mw32(MVS_ANALN_NCQ_ERR_0, err_0);
+	mw32(MVS_ANALN_NCQ_ERR_1, err_1);
 }
 
 static void mvs_94xx_free_reg_set(struct mvs_info *mvi, u8 *tfs)
@@ -743,7 +743,7 @@ static void mvs_94xx_free_reg_set(struct mvs_info *mvi, u8 *tfs)
 	void __iomem *regs = mvi->regs;
 	u8 reg_set = *tfs;
 
-	if (*tfs == MVS_ID_NOT_MAPPED)
+	if (*tfs == MVS_ID_ANALT_MAPPED)
 		return;
 
 	mvi->sata_reg_set &= ~bit(reg_set);
@@ -752,7 +752,7 @@ static void mvs_94xx_free_reg_set(struct mvs_info *mvi, u8 *tfs)
 	else
 		w_reg_set_enable(reg_set, (u32)(mvi->sata_reg_set >> 32));
 
-	*tfs = MVS_ID_NOT_MAPPED;
+	*tfs = MVS_ID_ANALT_MAPPED;
 
 	return;
 }
@@ -762,7 +762,7 @@ static u8 mvs_94xx_assign_reg_set(struct mvs_info *mvi, u8 *tfs)
 	int i;
 	void __iomem *regs = mvi->regs;
 
-	if (*tfs != MVS_ID_NOT_MAPPED)
+	if (*tfs != MVS_ID_ANALT_MAPPED)
 		return 0;
 
 	i = mv_ffc64(mvi->sata_reg_set);
@@ -777,7 +777,7 @@ static u8 mvs_94xx_assign_reg_set(struct mvs_info *mvi, u8 *tfs)
 		*tfs = i;
 		return 0;
 	}
-	return MVS_ID_NOT_MAPPED;
+	return MVS_ID_ANALT_MAPPED;
 }
 
 static void mvs_94xx_make_prd(struct scatterlist *scatter, int nr, void *prd)
@@ -1122,7 +1122,7 @@ static int mvs_94xx_gpio_write(struct mvs_prv_info *mvs_prv,
 		}
 		return reg_count;
 	}
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 const struct mvs_dispatch mvs_94xx_dispatch = {
@@ -1176,7 +1176,7 @@ const struct mvs_dispatch mvs_94xx_dispatch = {
 	mvs_94xx_spi_waitdataready,
 	mvs_94xx_fix_dma,
 	mvs_94xx_tune_interrupt,
-	mvs_94xx_non_spec_ncq_error,
+	mvs_94xx_analn_spec_ncq_error,
 	mvs_94xx_gpio_write,
 };
 

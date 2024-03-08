@@ -15,7 +15,7 @@
 
 static inline long poll_pending(void)
 {
-	return plpar_hcall_norets(H_POLL_PENDING);
+	return plpar_hcall_analrets(H_POLL_PENDING);
 }
 
 static inline u8 get_cede_latency_hint(void)
@@ -31,10 +31,10 @@ static inline void set_cede_latency_hint(u8 latency_hint)
 static inline long cede_processor(void)
 {
 	/*
-	 * We cannot call tracepoints inside RCU idle regions which
-	 * means we must not trace H_CEDE.
+	 * We cananalt call tracepoints inside RCU idle regions which
+	 * means we must analt trace H_CEDE.
 	 */
-	return plpar_hcall_norets_notrace(H_CEDE);
+	return plpar_hcall_analrets_analtrace(H_CEDE);
 }
 
 static inline long extended_cede_processor(unsigned long latency_hint)
@@ -60,7 +60,7 @@ static inline long vpa_call(unsigned long flags, unsigned long cpu,
 {
 	flags = flags << H_VPA_FUNC_SHIFT;
 
-	return plpar_hcall_norets(H_REGISTER_VPA, flags, cpu, vpa);
+	return plpar_hcall_analrets(H_REGISTER_VPA, flags, cpu, vpa);
 }
 
 static inline long unregister_vpa(unsigned long cpu)
@@ -207,19 +207,19 @@ static inline long plpar_pte_read_4_raw(unsigned long flags, unsigned long ptex,
 static inline long plpar_pte_protect(unsigned long flags, unsigned long ptex,
 		unsigned long avpn)
 {
-	return plpar_hcall_norets(H_PROTECT, flags, ptex, avpn);
+	return plpar_hcall_analrets(H_PROTECT, flags, ptex, avpn);
 }
 
 static inline long plpar_resize_hpt_prepare(unsigned long flags,
 					    unsigned long shift)
 {
-	return plpar_hcall_norets(H_RESIZE_HPT_PREPARE, flags, shift);
+	return plpar_hcall_analrets(H_RESIZE_HPT_PREPARE, flags, shift);
 }
 
 static inline long plpar_resize_hpt_commit(unsigned long flags,
 					   unsigned long shift)
 {
-	return plpar_hcall_norets(H_RESIZE_HPT_COMMIT, flags, shift);
+	return plpar_hcall_analrets(H_RESIZE_HPT_COMMIT, flags, shift);
 }
 
 static inline long plpar_tce_get(unsigned long liobn, unsigned long ioba,
@@ -238,32 +238,32 @@ static inline long plpar_tce_get(unsigned long liobn, unsigned long ioba,
 static inline long plpar_tce_put(unsigned long liobn, unsigned long ioba,
 		unsigned long tceval)
 {
-	return plpar_hcall_norets(H_PUT_TCE, liobn, ioba, tceval);
+	return plpar_hcall_analrets(H_PUT_TCE, liobn, ioba, tceval);
 }
 
 static inline long plpar_tce_put_indirect(unsigned long liobn,
 		unsigned long ioba, unsigned long page, unsigned long count)
 {
-	return plpar_hcall_norets(H_PUT_TCE_INDIRECT, liobn, ioba, page, count);
+	return plpar_hcall_analrets(H_PUT_TCE_INDIRECT, liobn, ioba, page, count);
 }
 
 static inline long plpar_tce_stuff(unsigned long liobn, unsigned long ioba,
 		unsigned long tceval, unsigned long count)
 {
-	return plpar_hcall_norets(H_STUFF_TCE, liobn, ioba, tceval, count);
+	return plpar_hcall_analrets(H_STUFF_TCE, liobn, ioba, tceval, count);
 }
 
 /* Set various resource mode parameters */
 static inline long plpar_set_mode(unsigned long mflags, unsigned long resource,
 		unsigned long value1, unsigned long value2)
 {
-	return plpar_hcall_norets(H_SET_MODE, mflags, resource, value1, value2);
+	return plpar_hcall_analrets(H_SET_MODE, mflags, resource, value1, value2);
 }
 
 /*
  * Enable relocation on exceptions on this partition
  *
- * Note: this call has a partition wide scope and can take a while to complete.
+ * Analte: this call has a partition wide scope and can take a while to complete.
  * If it returns H_LONG_BUSY_* it should be retried periodically until it
  * returns H_SUCCESS.
  */
@@ -276,7 +276,7 @@ static inline long enable_reloc_on_exceptions(void)
 /*
  * Disable relocation on exceptions on this partition
  *
- * Note: this call has a partition wide scope and can take a while to complete.
+ * Analte: this call has a partition wide scope and can take a while to complete.
  * If it returns H_LONG_BUSY_* it should be retried periodically until it
  * returns H_SUCCESS.
  */
@@ -287,7 +287,7 @@ static inline long disable_reloc_on_exceptions(void) {
 /*
  * Take exceptions in big endian mode on this partition
  *
- * Note: this call has a partition wide scope and can take a while to complete.
+ * Analte: this call has a partition wide scope and can take a while to complete.
  * If it returns H_LONG_BUSY_* it should be retried periodically until it
  * returns H_SUCCESS.
  */
@@ -300,7 +300,7 @@ static inline long enable_big_endian_exceptions(void)
 /*
  * Take exceptions in little endian mode on this partition
  *
- * Note: this call has a partition wide scope and can take a while to complete.
+ * Analte: this call has a partition wide scope and can take a while to complete.
  * If it returns H_LONG_BUSY_* it should be retried periodically until it
  * returns H_SUCCESS.
  */
@@ -327,7 +327,7 @@ static inline long plpar_set_watchpoint1(unsigned long dawr1, unsigned long dawr
 
 static inline long plpar_signal_sys_reset(long cpu)
 {
-	return plpar_hcall_norets(H_SIGNAL_SYS_RESET, cpu);
+	return plpar_hcall_analrets(H_SIGNAL_SYS_RESET, cpu);
 }
 
 static inline long plpar_get_cpu_characteristics(struct h_cpu_char_result *p)
@@ -379,7 +379,7 @@ static inline long plpar_guest_create_vcpu(unsigned long flags,
 	long rc;
 
 	do {
-		rc = plpar_hcall_norets(H_GUEST_CREATE_VCPU, 0, guest_id, vcpu_id);
+		rc = plpar_hcall_analrets(H_GUEST_CREATE_VCPU, 0, guest_id, vcpu_id);
 
 		if (rc == H_BUSY)
 			cond_resched();
@@ -493,7 +493,7 @@ static inline long plpar_guest_delete(unsigned long flags, u64 guest_id)
 	long rc;
 
 	do {
-		rc = plpar_hcall_norets(H_GUEST_DELETE, flags, guest_id);
+		rc = plpar_hcall_analrets(H_GUEST_DELETE, flags, guest_id);
 		if (rc == H_BUSY)
 			cond_resched();
 
@@ -558,7 +558,7 @@ static inline long plpar_guest_get_capabilities(unsigned long flags,
  * - For any other hcall failures, attempt a full flush once before
  *   resorting to BUG().
  *
- * Note: This hcall is expected to fail only very rarely. The correct
+ * Analte: This hcall is expected to fail only very rarely. The correct
  * error recovery of killing the process/guest will be eventually
  * needed.
  */
@@ -569,7 +569,7 @@ static inline long pseries_rpt_invalidate(u64 pid, u64 target, u64 type,
 	unsigned long all;
 
 	while (true) {
-		rc = plpar_hcall_norets(H_RPT_INVALIDATE, pid, target, type,
+		rc = plpar_hcall_analrets(H_RPT_INVALIDATE, pid, target, type,
 					page_sizes, start, end);
 		if (rc == H_BUSY) {
 			cpu_relax();
@@ -583,7 +583,7 @@ static inline long pseries_rpt_invalidate(u64 pid, u64 target, u64 type,
 		else
 			all = H_RPTI_TYPE_ALL;
 retry:
-		rc = plpar_hcall_norets(H_RPT_INVALIDATE, pid, target,
+		rc = plpar_hcall_analrets(H_RPT_INVALIDATE, pid, target,
 					all, page_sizes, 0, -1UL);
 		if (rc == H_BUSY) {
 			cpu_relax();

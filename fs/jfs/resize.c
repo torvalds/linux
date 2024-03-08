@@ -10,7 +10,7 @@
 #include "jfs_incore.h"
 #include "jfs_filsys.h"
 #include "jfs_metapage.h"
-#include "jfs_dinode.h"
+#include "jfs_dianalde.h"
 #include "jfs_imap.h"
 #include "jfs_dmap.h"
 #include "jfs_superblock.h"
@@ -45,15 +45,15 @@
  * 2. compute new FSCKSize from new LVSize;
  * 3. set new FSSize as MIN(FSSize, LVSize-(LogSize+FSCKSize)) where
  *    assert(new FSSize >= old FSSize),
- *    i.e., file system must not be shrunk;
+ *    i.e., file system must analt be shrunk;
  */
 int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 {
 	int rc = 0;
 	struct jfs_sb_info *sbi = JFS_SBI(sb);
-	struct inode *ipbmap = sbi->ipbmap;
-	struct inode *ipbmap2;
-	struct inode *ipimap = sbi->ipimap;
+	struct ianalde *ipbmap = sbi->ipbmap;
+	struct ianalde *ipbmap2;
+	struct ianalde *ipimap = sbi->ipimap;
 	struct jfs_log *log = sbi->log;
 	struct bmap *bmp = sbi->bmap;
 	s64 newLogAddress, newFSCKAddress;
@@ -66,13 +66,13 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	int newNpages = 0, nPages, newPage, xlen, t32;
 	int tid;
 	int log_formatted = 0;
-	struct inode *iplist[1];
+	struct ianalde *iplist[1];
 	struct jfs_superblock *j_sb, *j_sb2;
 	s64 old_agsize;
 	int agsizechanged = 0;
 	struct buffer_head *bh, *bh2;
 
-	/* If the volume hasn't grown, get out now */
+	/* If the volume hasn't grown, get out analw */
 
 	if (sbi->mntflag & JFS_INLINELOG)
 		oldLVSize = addressPXD(&sbi->logpxd) + lengthPXD(&sbi->logpxd);
@@ -116,7 +116,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	 *	reconfigure LV spaces
 	 *	---------------------
 	 *
-	 * validate new size, or, if not specified, determine new size
+	 * validate new size, or, if analt specified, determine new size
 	 */
 
 	/*
@@ -125,7 +125,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	if ((sbi->mntflag & JFS_INLINELOG)) {
 		if (newLogSize == 0) {
 			/*
-			 * no size specified: default to 1/256 of aggregate
+			 * anal size specified: default to 1/256 of aggregate
 			 * size; rounded up to a megabyte boundary;
 			 */
 			newLogSize = newLVSize >> 8;
@@ -153,7 +153,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	 *
 	 * configure it to the end of the logical volume regardless of
 	 * whether file system extends to the end of the aggregate;
-	 * Need enough 4k pages to cover:
+	 * Need eanalugh 4k pages to cover:
 	 *  - 1 bit per block in aggregate rounded up to BPERDMAP boundary
 	 *  - 1 extra page to handle control page and intermediate level pages
 	 *  - 50 extra pages for the chkdsk service log
@@ -169,14 +169,14 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	 */
 	newFSSize = newLVSize - newLogSize - newFSCKSize;
 
-	/* file system cannot be shrunk */
+	/* file system cananalt be shrunk */
 	if (newFSSize < bmp->db_mapsize) {
 		rc = -EINVAL;
 		goto out;
 	}
 
 	/*
-	 * If we're expanding enough that the inline log does not overlap
+	 * If we're expanding eanalugh that the inline log does analt overlap
 	 * the old one, we can format the new log before we quiesce the
 	 * filesystem.
 	 */
@@ -193,12 +193,12 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	 * block any new transactions and wait for completion of
 	 * all wip transactions and flush modified pages s.t.
 	 * on-disk file system is in consistent state and
-	 * log is not required for recovery.
+	 * log is analt required for recovery.
 	 */
 	txQuiesce(sb);
 
-	/* Reset size of direct inode */
-	sbi->direct_inode->i_size = bdev_nr_bytes(sb->s_bdev);
+	/* Reset size of direct ianalde */
+	sbi->direct_ianalde->i_size = bdev_nr_bytes(sb->s_bdev);
 
 	if (sbi->mntflag & JFS_INLINELOG) {
 		/*
@@ -211,7 +211,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 		 *
 		 * update on-disk superblock for the new space configuration
 		 * of inline log space and fsck work space descriptors:
-		 * N.B. FS descriptor is NOT updated;
+		 * N.B. FS descriptor is ANALT updated;
 		 *
 		 * crash recovery:
 		 * logredo(): if FM_EXTENDFS, return to fsck() for cleanup;
@@ -233,13 +233,13 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 		PXDaddress(&j_sb->s_xlogpxd, newLogAddress);
 		PXDlength(&j_sb->s_xlogpxd, newLogSize);
 
-		/* synchronously update superblock */
+		/* synchroanalusly update superblock */
 		mark_buffer_dirty(bh);
 		sync_dirty_buffer(bh);
 		brelse(bh);
 
 		/*
-		 * format new inline log synchronously;
+		 * format new inline log synchroanalusly;
 		 *
 		 * crash recovery: if log move in progress,
 		 * reformat log and exit success;
@@ -263,7 +263,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	 *
 	 * extendfs() for new extension, retry after crash recovery;
 	 *
-	 * note: both logredo() and fsck() rebuild map from
+	 * analte: both logredo() and fsck() rebuild map from
 	 * the bitmap and configuration parameter from superblock
 	 * (disregarding all other control information in the map);
 	 *
@@ -273,7 +273,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	/*
 	 *	compute the new block allocation map configuration
 	 *
-	 * map dinode:
+	 * map dianalde:
 	 *  di_size: map file size in byte;
 	 *  di_nblocks: number of blocks allocated for map file;
 	 *  di_mapsize: number of blocks in aggregate (covered by map);
@@ -300,7 +300,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	mapSize = bmp->db_mapsize;
 	XAddress = mapSize;	/* eXtension Address */
 	XSize = newMapSize - mapSize;	/* eXtension Size */
-	old_agsize = bmp->db_agsize;	/* We need to know if this changes */
+	old_agsize = bmp->db_agsize;	/* We need to kanalw if this changes */
 
 	/* compute number of blocks that can be extended by current mapfile */
 	t64 = dbMapFileSizeToMapSize(ipbmap);
@@ -325,7 +325,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	agsizechanged |= (bmp->db_agsize != old_agsize);
 
 	/*
-	 * the map now has extended to cover additional nblocks:
+	 * the map analw has extended to cover additional nblocks:
 	 * dn_mapsize = oldMapsize + nblocks;
 	 */
 	/* ipbmap->i_mapsize += nblocks; */
@@ -356,14 +356,14 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	 */
 	/*
 	 * journal map file growth as if a regular file growth:
-	 * (note: bmap is created with di_mode = IFJOURNAL|IFREG);
+	 * (analte: bmap is created with di_mode = IFJOURNAL|IFREG);
 	 *
-	 * journaling of bmap file growth is not required since
-	 * logredo() do/can not use log records of bmap file growth
+	 * journaling of bmap file growth is analt required since
+	 * logredo() do/can analt use log records of bmap file growth
 	 * but it provides careful write semantics, pmap update, etc.;
 	 */
-	/* synchronous write of data pages: bmap data pages are
-	 * cached in meta-data cache, and not written out
+	/* synchroanalus write of data pages: bmap data pages are
+	 * cached in meta-data cache, and analt written out
 	 * by txCommit();
 	 */
 	rc = filemap_fdatawait(ipbmap->i_mapping);
@@ -390,7 +390,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	}
 	/* update bmap file size */
 	ipbmap->i_size += xlen << sbi->l2bsize;
-	inode_add_bytes(ipbmap, xlen << sbi->l2bsize);
+	ianalde_add_bytes(ipbmap, xlen << sbi->l2bsize);
 
 	iplist[0] = ipbmap;
 	rc = txCommit(tid, 1, &iplist[0], COMMIT_FORCE);
@@ -401,13 +401,13 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 		goto error_out;
 
 	/*
-	 * map file has been grown now to cover extension to further out;
+	 * map file has been grown analw to cover extension to further out;
 	 * di_size = new map file size;
 	 *
 	 * if huge extension, the previous extension based on previous
-	 * map file size may not have been sufficient to cover whole extension
+	 * map file size may analt have been sufficient to cover whole extension
 	 * (it could have been used up for new map pages),
-	 * but the newly grown map file now covers lot bigger new free space
+	 * but the newly grown map file analw covers lot bigger new free space
 	 * available for further extension of map;
 	 */
 	/* any more blocks to extend ? */
@@ -419,11 +419,11 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	dbFinalizeBmap(ipbmap);
 
 	/*
-	 *	update inode allocation map
+	 *	update ianalde allocation map
 	 *	---------------------------
 	 *
 	 * move iag lists from old to new iag;
-	 * agstart field is not updated for logredo() to reconstruct
+	 * agstart field is analt updated for logredo() to reconstruct
 	 * iag lists if system crash occurs.
 	 * (computation of ag number from agstart based on agsize
 	 * will correctly identify the new ag);
@@ -451,7 +451,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	/* lmLogSync(log, 1); */
 
 	/*
-	 * synchronous write bmap global control page;
+	 * synchroanalus write bmap global control page;
 	 * for crash before completion of write
 	 * logredo() will recover to pre-extendfs state;
 	 * for crash after completion of write,
@@ -461,7 +461,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 		goto error_out;
 
 	/*
-	 * copy primary bmap inode to secondary bmap inode
+	 * copy primary bmap ianalde to secondary bmap ianalde
 	 */
 
 	ipbmap2 = diReadSpecial(sb, BMAP_I, 1);

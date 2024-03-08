@@ -23,8 +23,8 @@ static struct libefc_function_template efct_libefc_templ = {
 
 	.new_nport = efct_scsi_tgt_new_nport,
 	.del_nport = efct_scsi_tgt_del_nport,
-	.scsi_new_node = efct_scsi_new_initiator,
-	.scsi_del_node = efct_scsi_del_initiator,
+	.scsi_new_analde = efct_scsi_new_initiator,
+	.scsi_del_analde = efct_scsi_del_initiator,
 	.hw_seq_free = efct_efc_hw_sequence_free,
 };
 
@@ -63,7 +63,7 @@ efct_device_alloc(u32 nid)
 {
 	struct efct *efct = NULL;
 
-	efct = kzalloc_node(sizeof(*efct), GFP_KERNEL, nid);
+	efct = kzalloc_analde(sizeof(*efct), GFP_KERNEL, nid);
 	if (!efct)
 		return efct;
 
@@ -95,7 +95,7 @@ efct_efclib_config(struct efct *efct, struct libefc_function_template *tt)
 
 	efc = kzalloc(sizeof(*efc), GFP_KERNEL);
 	if (!efc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	efct->efcport = efc;
 
@@ -129,7 +129,7 @@ efct_pci_model(u16 device)
 	switch (device) {
 	case EFCT_DEVICE_LANCER_G6:	return "LPE31004";
 	case EFCT_DEVICE_LANCER_G7:	return "LPE36000";
-	default:			return "unknown";
+	default:			return "unkanalwn";
 	}
 }
 
@@ -158,7 +158,7 @@ efct_device_attach(struct efct *efct)
 	efct->xport = efct_xport_alloc(efct);
 	if (!efct->xport) {
 		efc_log_err(efct, "failed to allocate transport object\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -207,7 +207,7 @@ efct_device_detach(struct efct *efct)
 	int i;
 
 	if (!efct || !efct->attached) {
-		pr_err("Device is not attached\n");
+		pr_err("Device is analt attached\n");
 		return -EIO;
 	}
 
@@ -264,7 +264,7 @@ efct_firmware_write(struct efct *efct, const u8 *buf, size_t buf_len,
 	dma.virt = dma_alloc_coherent(&efct->pci->dev,
 				      dma.size, &dma.phys, GFP_KERNEL);
 	if (!dma.virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (bytes_left > 0) {
 		if (bytes_left > FW_WRITE_BUFSIZE)
@@ -317,7 +317,7 @@ efct_fw_reset(struct efct *efct)
 		return -EIO;
 	}
 
-	efc_log_info(efct, "successfully reset firmware.Now resetting port\n");
+	efc_log_info(efct, "successfully reset firmware.Analw resetting port\n");
 
 	efct_device_detach(efct);
 	return efct_device_attach(efct);
@@ -335,7 +335,7 @@ efct_request_firmware_update(struct efct *efct)
 
 	rc = request_firmware(&fw, file_name, &efct->pci->dev);
 	if (rc) {
-		efc_log_debug(efct, "Firmware file(%s) not found.\n", file_name);
+		efc_log_debug(efct, "Firmware file(%s) analt found.\n", file_name);
 		return rc;
 	}
 
@@ -428,7 +428,7 @@ efct_setup_msix(struct efct *efct, u32 num_intrs)
 
 	if (!pci_find_capability(efct->pci, PCI_CAP_ID_MSIX)) {
 		dev_err(&efct->pci->dev,
-			"%s : MSI-X not available\n", __func__);
+			"%s : MSI-X analt available\n", __func__);
 		return -EIO;
 	}
 
@@ -505,10 +505,10 @@ efct_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto req_regions_out;
 	}
 
-	/* Fetch the Numa node id for this device */
-	nid = dev_to_node(&pdev->dev);
+	/* Fetch the Numa analde id for this device */
+	nid = dev_to_analde(&pdev->dev);
 	if (nid < 0) {
-		dev_err(&pdev->dev, "Warning Numa node ID is %d\n", nid);
+		dev_err(&pdev->dev, "Warning Numa analde ID is %d\n", nid);
 		nid = 0;
 	}
 
@@ -516,12 +516,12 @@ efct_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	efct = efct_device_alloc(nid);
 	if (!efct) {
 		dev_err(&pdev->dev, "Failed to allocate efct\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto alloc_out;
 	}
 
 	efct->pci = pdev;
-	efct->numa_node = nid;
+	efct->numa_analde = nid;
 
 	/* Map all memory BARs */
 	for (i = 0, r = 0; i < EFCT_PCI_MAX_REGS; i++) {
@@ -556,7 +556,7 @@ efct_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/*
-	 * Initialize MSIX interrupts, note,
+	 * Initialize MSIX interrupts, analte,
 	 * efct_setup_msix() enables the interrupt
 	 */
 	rc = efct_setup_msix(efct, num_interrupts);
@@ -564,7 +564,7 @@ efct_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "Can't setup msix\n");
 		goto dma_mask_out;
 	}
-	/* Disable interrupt for now */
+	/* Disable interrupt for analw */
 	for (i = 0; i < efct->n_msix_vec; i++) {
 		efc_log_debug(efct, "irq %d disabled\n", i);
 		disable_irq(pci_irq_vector(efct->pci, i));
@@ -657,7 +657,7 @@ efct_device_prep_for_recover(struct efct *efct)
  *
  * Return codes
  * PCI_ERS_RESULT_NEED_RESET - need to reset before recovery
- * PCI_ERS_RESULT_DISCONNECT - device could not be recovered
+ * PCI_ERS_RESULT_DISCONNECT - device could analt be recovered
  */
 static pci_ers_result_t
 efct_pci_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
@@ -666,7 +666,7 @@ efct_pci_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	pci_ers_result_t rc;
 
 	switch (state) {
-	case pci_channel_io_normal:
+	case pci_channel_io_analrmal:
 		efct_device_prep_for_recover(efct);
 		rc = PCI_ERS_RESULT_CAN_RECOVER;
 		break;
@@ -679,7 +679,7 @@ efct_pci_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		rc = PCI_ERS_RESULT_DISCONNECT;
 		break;
 	default:
-		efc_log_debug(efct, "Unknown PCI error state:0x%x\n", state);
+		efc_log_debug(efct, "Unkanalwn PCI error state:0x%x\n", state);
 		efct_device_prep_for_reset(efct, pdev);
 		rc = PCI_ERS_RESULT_NEED_RESET;
 		break;

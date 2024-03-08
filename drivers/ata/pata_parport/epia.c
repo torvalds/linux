@@ -2,8 +2,8 @@
 /*
  * (c) 1997-1998  Grant R. Guenther <grant@torque.net>
  *
- * epia.c is a low-level protocol driver for Shuttle Technologies
- * EPIA parallel to IDE adapter chip.  This device is now obsolete
+ * epia.c is a low-level protocol driver for Shuttle Techanallogies
+ * EPIA parallel to IDE adapter chip.  This device is analw obsolete
  * and has been replaced with the EPAT chip, which is supported
  * by epat.c, however, some devices based on EPIA are still
  * available.
@@ -96,7 +96,7 @@ static void epia_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 /*
  * The use of register 0x84 is entirely unclear - it seems to control
- * some EPP counters ...  currently we know about 3 different block
+ * some EPP counters ...  currently we kanalw about 3 different block
  * sizes:  the standard 512 byte reads and writes, 12 byte writes and
  * 2048 byte reads (the last two being used in the CDrom drivers.
  */
@@ -307,6 +307,6 @@ static struct pi_protocol epia = {
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Grant R. Guenther <grant@torque.net>");
-MODULE_DESCRIPTION("Shuttle Technologies EPIA parallel port IDE adapter "
+MODULE_DESCRIPTION("Shuttle Techanallogies EPIA parallel port IDE adapter "
 		   "protocol driver");
 module_pata_parport_driver(epia);

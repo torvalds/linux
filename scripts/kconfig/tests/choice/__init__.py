@@ -21,9 +21,9 @@ def test_oldask1(conf):
     assert conf.stdout_contains('oldask1_expected_stdout')
 
 
-def test_allyes(conf):
-    assert conf.allyesconfig() == 0
-    assert conf.config_contains('allyes_expected_config')
+def test_allanal(conf):
+    assert conf.allanalconfig() == 0
+    assert conf.config_contains('allanal_expected_config')
 
 
 def test_allmod(conf):
@@ -31,9 +31,9 @@ def test_allmod(conf):
     assert conf.config_contains('allmod_expected_config')
 
 
-def test_allno(conf):
-    assert conf.allnoconfig() == 0
-    assert conf.config_contains('allno_expected_config')
+def test_allanal(conf):
+    assert conf.allanalconfig() == 0
+    assert conf.config_contains('allanal_expected_config')
 
 
 def test_alldef(conf):

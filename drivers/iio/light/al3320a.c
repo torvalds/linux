@@ -45,7 +45,7 @@
 
 /* chip params default values */
 #define AL3320A_DEFAULT_MEAN_TIME	4
-#define AL3320A_DEFAULT_WAIT_TIME	0 /* no waiting */
+#define AL3320A_DEFAULT_WAIT_TIME	0 /* anal waiting */
 
 #define AL3320A_SCALE_AVAILABLE "0.512 0.128 0.032 0.01"
 
@@ -196,7 +196,7 @@ static int al3320a_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);

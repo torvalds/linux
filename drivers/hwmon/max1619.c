@@ -23,7 +23,7 @@
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short analrmal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
 
 /*
@@ -210,7 +210,7 @@ static struct attribute *max1619_attrs[] = {
 };
 ATTRIBUTE_GROUPS(max1619);
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int max1619_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
@@ -218,7 +218,7 @@ static int max1619_detect(struct i2c_client *client,
 	u8 reg_config, reg_convrate, reg_status, man_id, chip_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* detection */
 	reg_config = i2c_smbus_read_byte_data(client, MAX1619_REG_R_CONFIG);
@@ -228,7 +228,7 @@ static int max1619_detect(struct i2c_client *client,
 	 || reg_convrate > 0x07 || (reg_status & 0x61) != 0x00) {
 		dev_dbg(&adapter->dev, "MAX1619 detection failed at 0x%02x\n",
 			client->addr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* identification */
@@ -238,7 +238,7 @@ static int max1619_detect(struct i2c_client *client,
 		dev_info(&adapter->dev,
 			 "Unsupported chip (man_id=0x%02X, chip_id=0x%02X).\n",
 			 man_id, chip_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	strscpy(info->type, "max1619", I2C_NAME_SIZE);
@@ -269,7 +269,7 @@ static int max1619_probe(struct i2c_client *new_client)
 	data = devm_kzalloc(&new_client->dev, sizeof(struct max1619_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = new_client;
 	mutex_init(&data->update_lock);
@@ -308,7 +308,7 @@ static struct i2c_driver max1619_driver = {
 	.probe		= max1619_probe,
 	.id_table	= max1619_id,
 	.detect		= max1619_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(max1619_driver);

@@ -20,7 +20,7 @@ ACPI_MODULE_NAME("rsdumpinfo")
  *
  * Resource Descriptor info tables
  *
- * Note: The first table entry must be a Title or Literal and must contain
+ * Analte: The first table entry must be a Title or Literal and must contain
  * the table length (number of table entries)
  *
  ******************************************************************************/

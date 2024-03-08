@@ -31,7 +31,7 @@ struct power_state {
 	u32 saved_state;
 	u32 saved_logic_state;
 #endif
-	struct list_head node;
+	struct list_head analde;
 };
 
 /**
@@ -56,13 +56,13 @@ static int omap4_pm_suspend(void)
 	u32 cpu_id = smp_processor_id();
 
 	/* Save current powerdomain state */
-	list_for_each_entry(pwrst, &pwrst_list, node) {
+	list_for_each_entry(pwrst, &pwrst_list, analde) {
 		pwrst->saved_state = pwrdm_read_next_pwrst(pwrst->pwrdm);
 		pwrst->saved_logic_state = pwrdm_read_logic_retst(pwrst->pwrdm);
 	}
 
 	/* Set targeted power domain states by suspend */
-	list_for_each_entry(pwrst, &pwrst_list, node) {
+	list_for_each_entry(pwrst, &pwrst_list, analde) {
 		omap_set_pwrdm_state(pwrst->pwrdm, pwrst->next_state);
 		pwrdm_set_logic_retst(pwrst->pwrdm, pwrst->next_logic_state);
 	}
@@ -70,16 +70,16 @@ static int omap4_pm_suspend(void)
 	/*
 	 * For MPUSS to hit power domain retention(CSWR or OSWR),
 	 * CPU0 and CPU1 power domains need to be in OFF or DORMANT state,
-	 * since CPU power domain CSWR is not supported by hardware
+	 * since CPU power domain CSWR is analt supported by hardware
 	 * Only master CPU follows suspend path. All other CPUs follow
 	 * CPU hotplug path in system wide suspend. On OMAP4, CPU power
-	 * domain CSWR is not supported by hardware.
+	 * domain CSWR is analt supported by hardware.
 	 * More details can be found in OMAP4430 TRM section 4.3.4.2.
 	 */
 	omap4_enter_lowpower(cpu_id, cpu_suspend_state, false);
 
 	/* Restore next powerdomain state */
-	list_for_each_entry(pwrst, &pwrst_list, node) {
+	list_for_each_entry(pwrst, &pwrst_list, analde) {
 		state = pwrdm_read_prev_pwrst(pwrst->pwrdm);
 		if (state > pwrst->next_state) {
 			pr_info("Powerdomain (%s) didn't enter target state %d\n",
@@ -90,7 +90,7 @@ static int omap4_pm_suspend(void)
 		pwrdm_set_logic_retst(pwrst->pwrdm, pwrst->saved_logic_state);
 	}
 	if (ret) {
-		pr_crit("Could not enter target state in pm_suspend\n");
+		pr_crit("Could analt enter target state in pm_suspend\n");
 		/*
 		 * OMAP4 chip PM currently works only with certain (newer)
 		 * versions of bootloaders. This is due to missing code in the
@@ -134,7 +134,7 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 
 	pwrst = kmalloc(sizeof(struct power_state), GFP_ATOMIC);
 	if (!pwrst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pwrst->pwrdm = pwrdm;
 	pwrst->next_state = pwrdm_get_valid_lp_state(pwrdm, false,
@@ -142,7 +142,7 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 	pwrst->next_logic_state = pwrdm_get_valid_lp_state(pwrdm, true,
 							   PWRDM_POWER_OFF);
 
-	list_add(&pwrst->node, &pwrst_list);
+	list_add(&pwrst->analde, &pwrst_list);
 
 	return omap_set_pwrdm_state(pwrst->pwrdm, pwrst->next_state);
 }
@@ -244,8 +244,8 @@ int __init omap4_pm_init(void)
 	int ret = 0;
 
 	if (omap_rev() == OMAP4430_REV_ES1_0) {
-		WARN(1, "Power Management not supported on OMAP4430 ES1.0\n");
-		return -ENODEV;
+		WARN(1, "Power Management analt supported on OMAP4430 ES1.0\n");
+		return -EANALDEV;
 	}
 
 	pr_info("Power Management for TI OMAP4+ devices.\n");

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Regulator uapi header
  *
@@ -15,7 +15,7 @@
 #endif
 
 /*
- * Regulator notifier events.
+ * Regulator analtifier events.
  *
  * UNDER_VOLTAGE  Regulator output is under voltage.
  * OVER_CURRENT   Regulator output current is too high.
@@ -33,7 +33,7 @@
  * PRE_DISABLE    Regulator is about to be disabled
  * ABORT_DISABLE  Regulator disable failed for some reason
  *
- * NOTE: These events can be OR'ed together when passed into handler.
+ * ANALTE: These events can be OR'ed together when passed into handler.
  */
 
 #define REGULATOR_EVENT_UNDER_VOLTAGE		0x01
@@ -50,7 +50,7 @@
 #define REGULATOR_EVENT_ABORT_DISABLE		0x800
 #define REGULATOR_EVENT_ENABLE			0x1000
 /*
- * Following notifications should be emitted only if detected condition
+ * Following analtifications should be emitted only if detected condition
  * is such that the HW is likely to still be working but consumers should
  * take a recovery action to prevent problems escalating into errors.
  */
@@ -77,7 +77,7 @@ enum {
 /* commands supported by the reg_genl_family */
 enum {
 	REG_GENL_CMD_UNSPEC,
-	REG_GENL_CMD_EVENT,	/* kernel->user notifications for reg events */
+	REG_GENL_CMD_EVENT,	/* kernel->user analtifications for reg events */
 	__REG_GENL_CMD_MAX,
 };
 

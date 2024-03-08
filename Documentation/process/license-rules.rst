@@ -8,10 +8,10 @@ Linux kernel licensing rules
 The Linux Kernel is provided under the terms of the GNU General Public
 License version 2 only (GPL-2.0), as provided in LICENSES/preferred/GPL-2.0,
 with an explicit syscall exception described in
-LICENSES/exceptions/Linux-syscall-note, as described in the COPYING file.
+LICENSES/exceptions/Linux-syscall-analte, as described in the COPYING file.
 
 This documentation file provides a description of how each source file
-should be annotated to make its license clear and unambiguous.
+should be ananaltated to make its license clear and unambiguous.
 It doesn't replace the Kernel's license.
 
 The license described in the COPYING file applies to the kernel source
@@ -31,8 +31,8 @@ permissive license like BSD, MIT etc.
 
 The User-space API (UAPI) header files, which describe the interface of
 user-space programs to the kernel are a special case.  According to the
-note in the kernel COPYING file, the syscall interface is a clear boundary,
-which does not extend the GPL requirements to any software which uses it to
+analte in the kernel COPYING file, the syscall interface is a clear boundary,
+which does analt extend the GPL requirements to any software which uses it to
 communicate with the kernel.  Because the UAPI headers must be includable
 into any source files which create an executable running on the Linux
 kernel, the exception must be documented by a special license expression.
@@ -80,12 +80,12 @@ License identifier syntax
       .rst:	.. SPDX-License-Identifier: <SPDX License Expression>
       .dts{i}:	// SPDX-License-Identifier: <SPDX License Expression>
 
-   If a specific tool cannot handle the standard comment style, then the
+   If a specific tool cananalt handle the standard comment style, then the
    appropriate comment mechanism which the tool accepts shall be used. This
    is the reason for having the "/\* \*/" style comment in C header
    files. There was build breakage observed with generated .lds files where
-   'ld' failed to parse the C++ comment. This has been fixed by now, but
-   there are still older assembler tools which cannot handle C++ style
+   'ld' failed to parse the C++ comment. This has been fixed by analw, but
+   there are still older assembler tools which cananalt handle C++ style
    comments.
 
 |
@@ -108,8 +108,8 @@ License identifier syntax
    WITH should be used when there is a modifier to a license needed.
    For example, the linux kernel UAPI files use the expression::
 
-      // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
-      // SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note
+      // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte
+      // SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte
 
    Other examples using WITH exceptions found in the kernel are::
 
@@ -133,17 +133,17 @@ License identifier syntax
       // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
       // SPDX-License-Identifier: GPL-2.0 OR Apache-2.0
       // SPDX-License-Identifier: GPL-2.0 OR MPL-1.1
-      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT
+      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-analte) OR MIT
       // SPDX-License-Identifier: GPL-1.0+ OR BSD-3-Clause OR OpenSSL
 
    AND should be used if the file has multiple licenses whose terms all
-   apply to use the file. For example, if code is inherited from another
+   apply to use the file. For example, if code is inherited from aanalther
    project and permission has been given to put it in the kernel, but the
    original license terms need to remain in effect::
 
-      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) AND MIT
+      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-analte) AND MIT
 
-   Another other example where both sets of license terms need to be
+   Aanalther other example where both sets of license terms need to be
    adhered to is::
 
       // SPDX-License-Identifier: GPL-1.0+ AND LGPL-2.1+
@@ -156,7 +156,7 @@ kernel, can be broken down into:
 
 1. _`Preferred licenses`:
 
-   Whenever possible these licenses should be used as they are known to be
+   Whenever possible these licenses should be used as they are kanalwn to be
    fully compatible and widely used.  These licenses are available from the
    directory::
 
@@ -283,7 +283,7 @@ kernel, can be broken down into:
 
 3. Dual Licensing Only
 
-   These licenses should only be used to dual license code with another
+   These licenses should only be used to dual license code with aanalther
    license in addition to a preferred license.  These licenses are available
    from the directory::
 
@@ -317,7 +317,7 @@ kernel, can be broken down into:
       Valid-License-Identifier: MPL-1.1
       SPDX-URL: https://spdx.org/licenses/MPL-1.1.html
       Usage-Guide:
-        Do NOT use. The MPL-1.1 is not GPL2 compatible. It may only be used for
+        Do ANALT use. The MPL-1.1 is analt GPL2 compatible. It may only be used for
         dual-licensed files where the other license is GPL2 compatible.
         If you end up using this it MUST be used together with a GPL2 compatible
         license using "OR".
@@ -333,7 +333,7 @@ kernel, can be broken down into:
 4. _`Exceptions`:
 
    Some licenses can be amended with exceptions which grant certain rights
-   which the original license does not.  These exceptions are available
+   which the original license does analt.  These exceptions are available
    from the directory::
 
       LICENSES/exceptions/
@@ -343,18 +343,18 @@ kernel, can be broken down into:
 
    Examples::
 
-      LICENSES/exceptions/Linux-syscall-note
+      LICENSES/exceptions/Linux-syscall-analte
 
    Contains the Linux syscall exception as documented in the COPYING
    file of the Linux kernel, which is used for UAPI header files.
-   e.g. /\* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note \*/::
+   e.g. /\* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte \*/::
 
       LICENSES/exceptions/GCC-exception-2.0
 
    Contains the GCC 'linking exception' which allows to link any binary
    independent of its license against the compiled version of a file marked
    with this exception. This is required for creating runnable executables
-   from source code which is not compatible with the GPL.
+   from source code which is analt compatible with the GPL.
 
    _`Exception Metatags`:
 
@@ -387,16 +387,16 @@ kernel, can be broken down into:
 
    File format examples::
 
-      SPDX-Exception-Identifier: Linux-syscall-note
-      SPDX-URL: https://spdx.org/licenses/Linux-syscall-note.html
+      SPDX-Exception-Identifier: Linux-syscall-analte
+      SPDX-URL: https://spdx.org/licenses/Linux-syscall-analte.html
       SPDX-Licenses: GPL-2.0, GPL-2.0+, GPL-1.0+, LGPL-2.0, LGPL-2.0+, LGPL-2.1, LGPL-2.1+
       Usage-Guidance:
         This exception is used together with one of the above SPDX-Licenses
 	to mark user-space API (uapi) header files so they can be included
-	into non GPL compliant user-space application code.
+	into analn GPL compliant user-space application code.
         To use this exception add it with the keyword WITH to one of the
 	identifiers in the SPDX-Licenses tag:
-	  SPDX-License-Identifier: <SPDX-License> WITH Linux-syscall-note
+	  SPDX-License-Identifier: <SPDX-License> WITH Linux-syscall-analte
       Exception-Text:
         Full exception text
 
@@ -427,7 +427,7 @@ _`MODULE_LICENSE`
 
    Loadable kernel modules also require a MODULE_LICENSE() tag. This tag is
    neither a replacement for proper source code license information
-   (SPDX-License-Identifier) nor in any way relevant for expressing or
+   (SPDX-License-Identifier) analr in any way relevant for expressing or
    determining the exact license under which the source code of the module
    is provided.
 
@@ -439,7 +439,7 @@ _`MODULE_LICENSE`
 
     ============================= =============================================
     "GPL"			  Module is licensed under GPL version 2. This
-				  does not express any distinction between
+				  does analt express any distinction between
 				  GPL-2.0-only or GPL-2.0-or-later. The exact
 				  license information can only be determined
 				  via the license information in the
@@ -451,7 +451,7 @@ _`MODULE_LICENSE`
     "GPL and additional rights"   Historical variant of expressing that the
 				  module source is dual licensed under a
 				  GPL v2 variant and MIT license. Please do
-				  not use in new code.
+				  analt use in new code.
 
     "Dual MIT/GPL"		  The correct way of expressing that the
 				  module is dual licensed under a GPL v2
@@ -472,7 +472,7 @@ _`MODULE_LICENSE`
 
     "Proprietary"		  The module is under a proprietary license.
 				  This string is solely for proprietary third
-				  party modules and cannot be used for modules
+				  party modules and cananalt be used for modules
 				  which have their source code in the kernel
 				  tree. Modules tagged that way are tainting
 				  the kernel with the 'P' flag when loaded and

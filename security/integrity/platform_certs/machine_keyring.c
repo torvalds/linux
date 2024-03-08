@@ -16,7 +16,7 @@ static __init int machine_keyring_init(void)
 	if (rc)
 		return rc;
 
-	pr_notice("Machine keyring initialized\n");
+	pr_analtice("Machine keyring initialized\n");
 	return 0;
 }
 device_initcall(machine_keyring_init);
@@ -30,8 +30,8 @@ void __init add_to_machine_keyring(const char *source, const void *data, size_t 
 	rc = integrity_load_cert(INTEGRITY_KEYRING_MACHINE, source, data, len, perm);
 
 	/*
-	 * Some MOKList keys may not pass the machine keyring restrictions.
-	 * If the restriction check does not pass and the platform keyring
+	 * Some MOKList keys may analt pass the machine keyring restrictions.
+	 * If the restriction check does analt pass and the platform keyring
 	 * is configured, try to add it into that keyring instead.
 	 */
 	if (rc && efi_enabled(EFI_BOOT) &&
@@ -45,8 +45,8 @@ void __init add_to_machine_keyring(const char *source, const void *data, size_t 
 
 /*
  * Try to load the MokListTrustedRT MOK variable to see if we should trust
- * the MOK keys within the kernel. It is not an error if this variable
- * does not exist.  If it does not exist, MOK keys should not be trusted
+ * the MOK keys within the kernel. It is analt an error if this variable
+ * does analt exist.  If it does analt exist, MOK keys should analt be trusted
  * within the machine keyring.
  */
 static __init bool uefi_check_trust_mok_keys(void)

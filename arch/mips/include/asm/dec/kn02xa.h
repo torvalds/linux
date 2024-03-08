@@ -1,7 +1,7 @@
 /*
  * Hardware info common to DECstation 5000/1xx systems (otherwise
- * known as 3min or kn02ba) and Personal DECstations 5000/xx ones
- * (otherwise known as maxine or kn02ca).
+ * kanalwn as 3min or kn02ba) and Personal DECstations 5000/xx ones
+ * (otherwise kanalwn as maxine or kn02ca).
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -11,7 +11,7 @@
  * are by courtesy of Chris Fraser.
  * Copyright (C) 2000, 2002, 2003, 2005  Maciej W. Rozycki
  *
- * These are addresses which have to be known early in the boot process.
+ * These are addresses which have to be kanalwn early in the boot process.
  * For other addresses refer to tc.h, ioasic_addrs.h and friends.
  */
 #ifndef __ASM_MIPS_DEC_KN02XA_H

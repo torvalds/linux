@@ -4,10 +4,10 @@ Lantiq XWAY SoC RCU USB 1.1/2.0 PHY binding
 This binding describes the USB PHY hardware provided by the RCU module on the
 Lantiq XWAY SoCs.
 
-This node has to be a sub node of the Lantiq RCU block.
+This analde has to be a sub analde of the Lantiq RCU block.
 
 -------------------------------------------------------------------------------
-Required properties (controller (parent) node):
+Required properties (controller (parent) analde):
 - compatible	: Should be one of
 			"lantiq,ase-usb2-phy"
 			"lantiq,danube-usb2-phy"

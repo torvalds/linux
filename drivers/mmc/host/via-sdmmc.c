@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  drivers/mmc/host/via-sdmmc.c - VIA SD/MMC Card Reader driver
- *  Copyright (c) 2008, VIA Technologies Inc. All Rights Reserved.
+ *  Copyright (c) 2008, VIA Techanallogies Inc. All Rights Reserved.
  */
 
 #include <linux/pci.h>
@@ -44,7 +44,7 @@
 #define VIA_CRDR_SDCTRL_MULTI_RD	0x40
 #define VIA_CRDR_SDCTRL_STOP		0x70
 
-#define VIA_CRDR_SDCTRL_RSP_NONE	0x0
+#define VIA_CRDR_SDCTRL_RSP_ANALNE	0x0
 #define VIA_CRDR_SDCTRL_RSP_R1		0x10000
 #define VIA_CRDR_SDCTRL_RSP_R2		0x20000
 #define VIA_CRDR_SDCTRL_RSP_R3		0x30000
@@ -219,7 +219,7 @@
  * 3V3 : Pad power select
  * 0 : 1.8V
  * 1 : 3.3V
- * NOTE : No mater what the actual value should be, this bit always
+ * ANALTE : Anal mater what the actual value should be, this bit always
  * read as 0. This is a hardware bug.
  */
 #define VIA_CRDR_PCICLKGATT_3V3	0x10
@@ -227,7 +227,7 @@
  * PAD_PWRON : Pad Power on/off select
  * 0 : Power off
  * 1 : Power on
-  * NOTE : No mater what the actual value should be, this bit always
+  * ANALTE : Anal mater what the actual value should be, this bit always
  * read as 0. This is a hardware bug.
  */
 #define VIA_CRDR_PCICLKGATT_PAD_PWRON	0x20
@@ -244,7 +244,7 @@
 #define VIA_CRDR_PCIINTSTATUS_SDC	0x04
 
 #define  VIA_CRDR_PCITMOCTRL	0xa
-#define VIA_CRDR_PCITMOCTRL_NO		0x0
+#define VIA_CRDR_PCITMOCTRL_ANAL		0x0
 #define VIA_CRDR_PCITMOCTRL_32US	0x1
 #define VIA_CRDR_PCITMOCTRL_256US	0x2
 #define VIA_CRDR_PCITMOCTRL_1024US	0x3
@@ -465,7 +465,7 @@ static void via_set_ddma(struct via_crdr_mmc_host *host,
 	writel(ctrl_data, addrbase + VIA_CRDR_DMACTRL);
 	writel(0x01, addrbase + VIA_CRDR_DMASTART);
 
-	/* It seems that our DMA can not work normally with 375kHz clock */
+	/* It seems that our DMA can analt work analrmally with 375kHz clock */
 	/* FIXME: don't brute-force 8MHz but use PIO at 375kHz !! */
 	addrbase = host->pcictrl_mmiobase;
 	if (readb(addrbase + VIA_CRDR_PCISDCCLK) == PCI_CLK_375K) {
@@ -569,8 +569,8 @@ static void via_sdc_send_command(struct via_crdr_mmc_host *host,
 
 	/*Response type*/
 	switch (mmc_resp_type(cmd)) {
-	case MMC_RSP_NONE:
-		cmdctrl |= VIA_CRDR_SDCTRL_RSP_NONE;
+	case MMC_RSP_ANALNE:
+		cmdctrl |= VIA_CRDR_SDCTRL_RSP_ANALNE;
 		break;
 	case MMC_RSP_R1:
 		cmdctrl |= VIA_CRDR_SDCTRL_RSP_R1;
@@ -585,12 +585,12 @@ static void via_sdc_send_command(struct via_crdr_mmc_host *host,
 		cmdctrl |= VIA_CRDR_SDCTRL_RSP_R3;
 		break;
 	default:
-		pr_err("%s: cmd->flag is not valid\n", mmc_hostname(host->mmc));
+		pr_err("%s: cmd->flag is analt valid\n", mmc_hostname(host->mmc));
 		break;
 	}
 
 	if (!(cmd->data))
-		goto nodata;
+		goto analdata;
 
 	via_sdc_preparedata(host, data);
 
@@ -611,7 +611,7 @@ static void via_sdc_send_command(struct via_crdr_mmc_host *host,
 		}
 	}
 
-nodata:
+analdata:
 	if (cmd == host->mrq->stop)
 		cmdctrl |= VIA_CRDR_SDCTRL_STOP;
 
@@ -681,7 +681,7 @@ static void via_sdc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	status = readw(host->sdhc_mmiobase + VIA_CRDR_SDSTATUS);
 	if (!(status & VIA_CRDR_SDSTS_SLOTG) || host->reject) {
-		host->mrq->cmd->error = -ENOMEDIUM;
+		host->mrq->cmd->error = -EANALMEDIUM;
 		tasklet_schedule(&host->finish_tasklet);
 	} else {
 		via_sdc_send_command(host, mrq->cmd);
@@ -837,7 +837,7 @@ static void via_sdc_cmd_isr(struct via_crdr_mmc_host *host, u16 intmask)
 
 	if (!host->cmd) {
 		pr_err("%s: Got command interrupt 0x%x even "
-		       "though no command operation was in progress.\n",
+		       "though anal command operation was in progress.\n",
 		       mmc_hostname(host->mmc), intmask);
 		return;
 	}
@@ -877,14 +877,14 @@ static irqreturn_t via_sdc_isr(int irq, void *dev_id)
 	irqreturn_t result;
 
 	if (!sdhost)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&sdhost->lock);
 
 	addrbase = sdhost->pcictrl_mmiobase;
 	pci_status = readb(addrbase + VIA_CRDR_PCIINTSTATUS);
 	if (!(pci_status & VIA_CRDR_PCIINTSTATUS_SDC)) {
-		result = IRQ_NONE;
+		result = IRQ_ANALNE;
 		goto out;
 	}
 
@@ -893,7 +893,7 @@ static irqreturn_t via_sdc_isr(int irq, void *dev_id)
 	sd_status &= VIA_CRDR_SDSTS_INT_MASK;
 	sd_status &= ~VIA_CRDR_SDSTS_IGN_MASK;
 	if (!sd_status) {
-		result = IRQ_NONE;
+		result = IRQ_ANALNE;
 		goto out;
 	}
 
@@ -1004,7 +1004,7 @@ static void via_sdc_card_detect(struct work_struct *work)
 		if (host->mrq) {
 			pr_err("%s: Card removed during transfer!\n",
 			       mmc_hostname(host->mmc));
-			host->mrq->cmd->error = -ENOMEDIUM;
+			host->mrq->cmd->error = -EANALMEDIUM;
 			tasklet_schedule(&host->finish_tasklet);
 		}
 
@@ -1040,7 +1040,7 @@ static void via_init_mmc_host(struct via_crdr_mmc_host *host)
 	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SD_HIGHSPEED;
 	mmc->ops = &via_sdc_ops;
 
-	/*Hardware cannot do scatter lists*/
+	/*Hardware cananalt do scatter lists*/
 	mmc->max_segs = 1;
 
 	mmc->max_blk_size = VIA_CRDR_MAX_BLOCK_LENGTH;
@@ -1101,7 +1101,7 @@ static int via_sd_probe(struct pci_dev *pcidev,
 
 	mmc = mmc_alloc_host(sizeof(struct via_crdr_mmc_host), &pcidev->dev);
 	if (!mmc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release;
 	}
 
@@ -1113,7 +1113,7 @@ static int via_sd_probe(struct pci_dev *pcidev,
 	base = pci_resource_start(pcidev, 0);
 	sdhost->mmiobase = ioremap(base, len);
 	if (!sdhost->mmiobase) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_mmc_host;
 	}
 
@@ -1147,7 +1147,7 @@ static int via_sd_probe(struct pci_dev *pcidev,
 	       sdhost->pcictrl_mmiobase + VIA_CRDR_PCITMOCTRL);
 
 	/* device-specific quirks */
-	if (pcidev->subsystem_vendor == PCI_VENDOR_ID_LENOVO &&
+	if (pcidev->subsystem_vendor == PCI_VENDOR_ID_LEANALVO &&
 	    pcidev->subsystem_device == 0x3891)
 		sdhost->quirks = VIA_CRDR_QUIRK_300MS_PWRDELAY;
 
@@ -1190,9 +1190,9 @@ static void via_sd_remove(struct pci_dev *pcidev)
 		/* make sure all DMA is stopped */
 		writel(VIA_CRDR_DMACTRL_SFTRST,
 			sdhost->ddma_mmiobase + VIA_CRDR_DMACTRL);
-		sdhost->mrq->cmd->error = -ENOMEDIUM;
+		sdhost->mrq->cmd->error = -EANALMEDIUM;
 		if (sdhost->mrq->stop)
-			sdhost->mrq->stop->error = -ENOMEDIUM;
+			sdhost->mrq->stop->error = -EANALMEDIUM;
 		tasklet_schedule(&sdhost->finish_tasklet);
 	}
 	spin_unlock_irqrestore(&sdhost->lock, flags);
@@ -1310,5 +1310,5 @@ static struct pci_driver via_sd_driver = {
 module_pci_driver(via_sd_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("VIA Technologies Inc.");
+MODULE_AUTHOR("VIA Techanallogies Inc.");
 MODULE_DESCRIPTION("VIA SD/MMC Card Interface driver");

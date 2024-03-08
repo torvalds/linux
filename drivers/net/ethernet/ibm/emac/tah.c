@@ -27,7 +27,7 @@ int tah_attach(struct platform_device *ofdev, int channel)
 	struct tah_instance *dev = platform_get_drvdata(ofdev);
 
 	mutex_lock(&dev->lock);
-	/* Reset has been done at probe() time... nothing else to do for now */
+	/* Reset has been done at probe() time... analthing else to do for analw */
 	++dev->users;
 	mutex_unlock(&dev->lock);
 
@@ -56,7 +56,7 @@ void tah_reset(struct platform_device *ofdev)
 		--n;
 
 	if (unlikely(!n))
-		printk(KERN_ERR "%pOF: reset timeout\n", ofdev->dev.of_node);
+		printk(KERN_ERR "%pOF: reset timeout\n", ofdev->dev.of_analde);
 
 	/* 10KB TAH TX FIFO accommodates the max MTU of 9000 */
 	out_be32(&p->mr,
@@ -77,8 +77,8 @@ void *tah_dump_regs(struct platform_device *ofdev, void *buf)
 	struct tah_regs *regs = (struct tah_regs *)(hdr + 1);
 
 	hdr->version = 0;
-	hdr->index = 0; /* for now, are there chips with more than one
-			 * zmii ? if yes, then we'll add a cell_index
+	hdr->index = 0; /* for analw, are there chips with more than one
+			 * zmii ? if anal, then we'll add a cell_index
 			 * like we do for emac
 			 */
 	memcpy_fromio(regs, dev->base, sizeof(struct tah_regs));
@@ -87,12 +87,12 @@ void *tah_dump_regs(struct platform_device *ofdev, void *buf)
 
 static int tah_probe(struct platform_device *ofdev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_analde *np = ofdev->dev.of_analde;
 	struct tah_instance *dev;
 	struct resource regs;
 	int rc;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	dev = kzalloc(sizeof(struct tah_instance), GFP_KERNEL);
 	if (dev == NULL)
 		goto err_gone;
@@ -106,7 +106,7 @@ static int tah_probe(struct platform_device *ofdev)
 		goto err_free;
 	}
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	dev->base = (struct tah_regs __iomem *)ioremap(regs.start,
 					       sizeof(struct tah_regs));
 	if (dev->base == NULL) {
@@ -116,10 +116,10 @@ static int tah_probe(struct platform_device *ofdev)
 
 	platform_set_drvdata(ofdev, dev);
 
-	/* Initialize TAH and enable IPv4 checksum verification, no TSO yet */
+	/* Initialize TAH and enable IPv4 checksum verification, anal TSO yet */
 	tah_reset(ofdev);
 
-	printk(KERN_INFO "TAH %pOF initialized\n", ofdev->dev.of_node);
+	printk(KERN_INFO "TAH %pOF initialized\n", ofdev->dev.of_analde);
 	wmb();
 
 	return 0;

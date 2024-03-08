@@ -30,7 +30,7 @@ properties:
     $ref: /schemas/graph.yaml#/$defs/port-base
     unevaluatedProperties: false
     description:
-      DCMIPP supports a single port node with parallel bus.
+      DCMIPP supports a single port analde with parallel bus.
 
     properties:
       endpoint:

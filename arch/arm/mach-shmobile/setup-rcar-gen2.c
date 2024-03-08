@@ -35,23 +35,23 @@ static const struct of_device_id cpg_matches[] __initconst = {
 static unsigned int __init get_extal_freq(void)
 {
 	const struct of_device_id *match;
-	struct device_node *cpg, *extal;
+	struct device_analde *cpg, *extal;
 	u32 freq = 20000000;
 	int idx = 0;
 
-	cpg = of_find_matching_node_and_match(NULL, cpg_matches, &match);
+	cpg = of_find_matching_analde_and_match(NULL, cpg_matches, &match);
 	if (!cpg)
 		return freq;
 
 	if (match->data)
 		idx = of_property_match_string(cpg, "clock-names", match->data);
 	extal = of_parse_phandle(cpg, "clocks", idx);
-	of_node_put(cpg);
+	of_analde_put(cpg);
 	if (!extal)
 		return freq;
 
 	of_property_read_u32(extal, "clock-frequency", &freq);
-	of_node_put(extal);
+	of_analde_put(extal);
 	return freq;
 }
 
@@ -67,7 +67,7 @@ static void __init rcar_gen2_timer_init(void)
 	/*
 	 * If PSCI is available then most likely we are running on PSCI-enabled
 	 * U-Boot which, we assume, has already taken care of resetting CNTVOFF
-	 * and updating counter module before switching to non-secure mode
+	 * and updating counter module before switching to analn-secure mode
 	 * and we don't need to.
 	 */
 #ifdef CONFIG_ARM_PSCI_FW
@@ -99,10 +99,10 @@ static void __init rcar_gen2_timer_init(void)
 	base = ioremap(0xe6080000, PAGE_SIZE);
 
 	/*
-	 * Update the timer if it is either not running, or is not at the
+	 * Update the timer if it is either analt running, or is analt at the
 	 * right frequency. The timer is only configurable in secure mode
 	 * so this avoids an abort if the loader started the timer and
-	 * entered the kernel in non-secure mode.
+	 * entered the kernel in analn-secure mode.
 	 */
 
 	if ((ioread32(base + CNTCR) & 1) == 0 ||
@@ -127,22 +127,22 @@ struct memory_reserve_config {
 	u64 base, size;
 };
 
-static int __init rcar_gen2_scan_mem(unsigned long node, const char *uname,
+static int __init rcar_gen2_scan_mem(unsigned long analde, const char *uname,
 				     int depth, void *data)
 {
-	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const char *type = of_get_flat_dt_prop(analde, "device_type", NULL);
 	const __be32 *reg, *endp;
 	int l;
 	struct memory_reserve_config *mrc = data;
 	u64 lpae_start = 1ULL << 32;
 
-	/* We are scanning "memory" nodes only */
+	/* We are scanning "memory" analdes only */
 	if (type == NULL || strcmp(type, "memory"))
 		return 0;
 
-	reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
+	reg = of_get_flat_dt_prop(analde, "linux,usable-memory", &l);
 	if (reg == NULL)
-		reg = of_get_flat_dt_prop(node, "reg", &l);
+		reg = of_get_flat_dt_prop(analde, "reg", &l);
 	if (reg == NULL)
 		return 0;
 

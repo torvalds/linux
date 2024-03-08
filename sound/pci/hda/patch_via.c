@@ -4,7 +4,7 @@
  *
  * HD audio interface patch for VIA VT17xx/VT18xx/VT20xx codec
  *
- *  (C) 2006-2009 VIA Technology, Inc.
+ *  (C) 2006-2009 VIA Techanallogy, Inc.
  *  (C) 2006-2008 Takashi Iwai <tiwai@suse.de>
  */
 
@@ -50,7 +50,7 @@
 #define VT1708_CD_PIN_NID	0x24
 
 enum VIA_HDA_CODEC {
-	UNKNOWN = -1,
+	UNKANALWN = -1,
 	VT1708,
 	VT1709_10CH,
 	VT1709_6CH,
@@ -116,7 +116,7 @@ static struct via_spec *via_new_spec(struct hda_codec *codec)
 	spec->gen.dac_min_mute = 1;
 	spec->gen.pcm_playback_hook = via_playback_pcm_hook;
 	spec->gen.add_stereo_mix_input = HDA_HINT_STEREO_MIX_AUTO;
-	codec->power_save_node = 1;
+	codec->power_save_analde = 1;
 	spec->gen.power_down_unused = 1;
 	codec->patch_ops = via_patch_ops;
 	return spec;
@@ -131,7 +131,7 @@ static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec)
 
 	/* get codec type */
 	if (ven_id != 0x1106)
-		codec_type = UNKNOWN;
+		codec_type = UNKANALWN;
 	else if (dev_id >= 0x1708 && dev_id <= 0x170b)
 		codec_type = VT1708;
 	else if (dev_id >= 0xe710 && dev_id <= 0xe713)
@@ -170,7 +170,7 @@ static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec)
 	else if (dev_id == 0x4761 || dev_id == 0x4762)
 		codec_type = VT1808;
 	else
-		codec_type = UNKNOWN;
+		codec_type = UNKANALWN;
 	return codec_type;
 };
 
@@ -235,7 +235,7 @@ static int via_pin_power_ctl_put(struct snd_kcontrol *kcontrol,
 
 	if (val == spec->gen.power_down_unused)
 		return 0;
-	/* codec->power_save_node = val; */ /* widget PM seems yet broken */
+	/* codec->power_save_analde = val; */ /* widget PM seems yet broken */
 	spec->gen.power_down_unused = val;
 	analog_low_current_mode(codec);
 	return 1;
@@ -252,8 +252,8 @@ static const struct snd_kcontrol_new via_pin_power_ctl_enum = {
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
 /* additional beep mixers; the actual parameters are overwritten at build */
 static const struct snd_kcontrol_new via_beep_mixer[] = {
-	HDA_CODEC_VOLUME_MONO("Beep Playback Volume", 0, 1, 0, HDA_OUTPUT),
-	HDA_CODEC_MUTE_BEEP_MONO("Beep Playback Switch", 0, 1, 0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MOANAL("Beep Playback Volume", 0, 1, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE_BEEP_MOANAL("Beep Playback Switch", 0, 1, 0, HDA_OUTPUT),
 };
 
 static int set_beep_amp(struct via_spec *spec, hda_nid_t nid,
@@ -268,7 +268,7 @@ static int set_beep_amp(struct via_spec *spec, hda_nid_t nid,
 		knew = snd_hda_gen_add_kctl(&spec->gen, NULL,
 					    &via_beep_mixer[i]);
 		if (!knew)
-			return -ENOMEM;
+			return -EANALMEM;
 		knew->private_value = beep_amp;
 	}
 	return 0;
@@ -279,7 +279,7 @@ static int auto_parse_beep(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 	hda_nid_t nid;
 
-	for_each_hda_codec_node(nid, codec)
+	for_each_hda_codec_analde(nid, codec)
 		if (get_wcaps_type(get_wcaps(codec, nid)) == AC_WID_BEEP)
 			return set_beep_amp(spec, nid, 0, HDA_OUTPUT);
 	return 0;
@@ -316,7 +316,7 @@ static void __analog_low_current_mode(struct hda_codec *codec, bool force)
 	bool enable;
 	unsigned int verb, parm;
 
-	if (!codec->power_save_node)
+	if (!codec->power_save_analde)
 		enable = false;
 	else
 		enable = is_aa_path_mute(codec) && !spec->gen.active_streams;
@@ -353,7 +353,7 @@ static void __analog_low_current_mode(struct hda_codec *codec, bool force)
 		parm = enable ? 0x00 : 0xe0;  /* 0x00: 4/40x, 0xe0: 1x */
 		break;
 	default:
-		return;		/* other codecs are not supported */
+		return;		/* other codecs are analt supported */
 	}
 	/* send verb */
 	snd_hda_codec_write(codec, codec->core.afg, 0, verb, parm);
@@ -385,7 +385,7 @@ static int via_suspend(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 	vt1708_stop_hp_work(codec);
 
-	/* Fix pop noise on headphones */
+	/* Fix pop analise on headphones */
 	if (spec->codec_type == VT1802)
 		snd_hda_shutup_pins(codec);
 
@@ -444,7 +444,7 @@ static void vt1708_set_pinconfig_connect(struct hda_codec *codec, hda_nid_t nid)
 	def_conf = snd_hda_codec_get_pincfg(codec, nid);
 	seqassoc = (unsigned char) get_defcfg_association(def_conf);
 	seqassoc = (seqassoc << 4) | get_defcfg_sequence(def_conf);
-	if (get_defcfg_connect(def_conf) == AC_JACK_PORT_NONE
+	if (get_defcfg_connect(def_conf) == AC_JACK_PORT_ANALNE
 	    && (seqassoc == 0xf0 || seqassoc == 0xff)) {
 		def_conf = def_conf & (~(AC_JACK_PORT_BOTH << 30));
 		snd_hda_codec_set_pincfg(codec, nid, def_conf);
@@ -484,22 +484,22 @@ static const struct snd_kcontrol_new vt1708_jack_detect_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Jack Detect",
 	.count = 1,
-	.info = snd_ctl_boolean_mono_info,
+	.info = snd_ctl_boolean_moanal_info,
 	.get = vt1708_jack_detect_get,
 	.put = vt1708_jack_detect_put,
 };
 
 static const struct badness_table via_main_out_badness = {
-	.no_primary_dac = 0x10000,
-	.no_dac = 0x4000,
+	.anal_primary_dac = 0x10000,
+	.anal_dac = 0x4000,
 	.shared_primary = 0x10000,
 	.shared_surr = 0x20,
 	.shared_clfe = 0x20,
 	.shared_surr_main = 0x20,
 };
 static const struct badness_table via_extra_out_badness = {
-	.no_primary_dac = 0x4000,
-	.no_dac = 0x4000,
+	.anal_primary_dac = 0x4000,
+	.anal_dac = 0x4000,
 	.shared_primary = 0x12,
 	.shared_surr = 0x20,
 	.shared_clfe = 0x20,
@@ -527,10 +527,10 @@ static int via_parse_auto_config(struct hda_codec *codec)
 		return err;
 
 	if (!snd_hda_gen_add_kctl(&spec->gen, NULL, &via_pin_power_ctl_enum))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* disable widget PM at start for compatibility */
-	codec->power_save_node = 0;
+	codec->power_save_analde = 0;
 	spec->gen.power_down_unused = 0;
 	return 0;
 }
@@ -549,7 +549,7 @@ static int via_init(struct hda_codec *codec)
 
 static int vt1708_build_controls(struct hda_codec *codec)
 {
-	/* In order not to create "Phantom Jack" controls,
+	/* In order analt to create "Phantom Jack" controls,
 	   temporary enable jackpoll */
 	int err;
 	int old_interval = codec->jackpoll_interval;
@@ -568,7 +568,7 @@ static int vt1708_build_pcms(struct hda_codec *codec)
 	if (err < 0 || codec->core.vendor_id != 0x11061708)
 		return err;
 
-	/* We got noisy outputs on the right channel on VT1708 when
+	/* We got analisy outputs on the right channel on VT1708 when
 	 * 24bit samples are used.  Until any workaround is found,
 	 * disable the 24bit format, so far.
 	 */
@@ -594,7 +594,7 @@ static int patch_vt1708(struct hda_codec *codec)
 	/* create a codec specific record */
 	spec = via_new_spec(codec);
 	if (spec == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* override some patch_ops */
 	codec->patch_ops.build_controls = vt1708_build_controls;
@@ -626,7 +626,7 @@ static int patch_vt1708(struct hda_codec *codec)
 
 	/* add jack detect on/off control */
 	if (!snd_hda_gen_add_kctl(&spec->gen, NULL, &vt1708_jack_detect_ctl)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -648,7 +648,7 @@ static int patch_vt1709(struct hda_codec *codec)
 	/* create a codec specific record */
 	spec = via_new_spec(codec);
 	if (spec == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spec->gen.mixer_nid = 0x18;
 
@@ -675,7 +675,7 @@ static int patch_vt1708B(struct hda_codec *codec)
 	/* create a codec specific record */
 	spec = via_new_spec(codec);
 	if (spec == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spec->gen.mixer_nid = 0x16;
 
@@ -720,7 +720,7 @@ static int patch_vt1708S(struct hda_codec *codec)
 	/* create a codec specific record */
 	spec = via_new_spec(codec);
 	if (spec == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spec->gen.mixer_nid = 0x16;
 	override_mic_boost(codec, 0x1a, 0, 3, 40);
@@ -767,7 +767,7 @@ static int patch_vt1702(struct hda_codec *codec)
 	/* create a codec specific record */
 	spec = via_new_spec(codec);
 	if (spec == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spec->gen.mixer_nid = 0x1a;
 
@@ -828,7 +828,7 @@ static int add_secret_dac_path(struct hda_codec *codec)
 	}
 
 	/* find the primary DAC and add to the connection list */
-	for_each_hda_codec_node(nid, codec) {
+	for_each_hda_codec_analde(nid, codec) {
 		unsigned int caps = get_wcaps(codec, nid);
 		if (get_wcaps_type(caps) == AC_WID_AUD_OUT &&
 		    !(caps & AC_WCAP_DIGITAL)) {
@@ -850,7 +850,7 @@ static int patch_vt1718S(struct hda_codec *codec)
 	/* create a codec specific record */
 	spec = via_new_spec(codec);
 	if (spec == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spec->gen.mixer_nid = 0x21;
 	override_mic_boost(codec, 0x2b, 0, 3, 40);
@@ -925,16 +925,16 @@ static const struct snd_kcontrol_new vt1716s_dmic_mixer_sw = {
 };
 
 
-/* mono-out mixer elements */
-static const struct snd_kcontrol_new vt1716S_mono_out_mixer =
-	HDA_CODEC_MUTE("Mono Playback Switch", 0x2a, 0x0, HDA_OUTPUT);
+/* moanal-out mixer elements */
+static const struct snd_kcontrol_new vt1716S_moanal_out_mixer =
+	HDA_CODEC_MUTE("Moanal Playback Switch", 0x2a, 0x0, HDA_OUTPUT);
 
 static const struct hda_verb vt1716S_init_verbs[] = {
 	/* Enable Boost Volume backdoor */
 	{0x1, 0xf8a, 0x80},
 	/* don't bybass mixer */
 	{0x1, 0xf88, 0xc0},
-	/* Enable mono output */
+	/* Enable moanal output */
 	{0x1, 0xf90, 0x08},
 	{ }
 };
@@ -947,7 +947,7 @@ static int patch_vt1716S(struct hda_codec *codec)
 	/* create a codec specific record */
 	spec = via_new_spec(codec);
 	if (spec == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spec->gen.mixer_nid = 0x16;
 	override_mic_boost(codec, 0x1a, 0, 3, 40);
@@ -964,8 +964,8 @@ static int patch_vt1716S(struct hda_codec *codec)
 
 	if (!snd_hda_gen_add_kctl(&spec->gen, NULL, &vt1716s_dmic_mixer_vol) ||
 	    !snd_hda_gen_add_kctl(&spec->gen, NULL, &vt1716s_dmic_mixer_sw) ||
-	    !snd_hda_gen_add_kctl(&spec->gen, NULL, &vt1716S_mono_out_mixer)) {
-		err = -ENOMEM;
+	    !snd_hda_gen_add_kctl(&spec->gen, NULL, &vt1716S_moanal_out_mixer)) {
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -1018,7 +1018,7 @@ static void via_fixup_power_save(struct hda_codec *codec,
 				 const struct hda_fixup *fix, int action)
 {
 	if (action == HDA_FIXUP_ACT_PRE_PROBE)
-		codec->power_save_node = 0;
+		codec->power_save_analde = 0;
 }
 
 static const struct hda_fixup via_fixups[] = {
@@ -1049,7 +1049,7 @@ static const struct snd_pci_quirk vt2002p_fixups[] = {
 	{}
 };
 
-/* NIDs 0x24 and 0x33 on VT1802 have connections to non-existing NID 0x3e
+/* NIDs 0x24 and 0x33 on VT1802 have connections to analn-existing NID 0x3e
  * Replace this with mixer NID 0x1c
  */
 static void fix_vt1802_connections(struct hda_codec *codec)
@@ -1070,7 +1070,7 @@ static int patch_vt2002P(struct hda_codec *codec)
 	/* create a codec specific record */
 	spec = via_new_spec(codec);
 	if (spec == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spec->gen.mixer_nid = 0x21;
 	override_mic_boost(codec, 0x2b, 0, 3, 40);
@@ -1120,7 +1120,7 @@ static int patch_vt1812(struct hda_codec *codec)
 	/* create a codec specific record */
 	spec = via_new_spec(codec);
 	if (spec == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spec->gen.mixer_nid = 0x21;
 	override_mic_boost(codec, 0x2b, 0, 3, 40);
@@ -1163,7 +1163,7 @@ static int patch_vt3476(struct hda_codec *codec)
 	/* create a codec specific record */
 	spec = via_new_spec(codec);
 	if (spec == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spec->gen.mixer_nid = 0x3f;
 	add_secret_dac_path(codec);

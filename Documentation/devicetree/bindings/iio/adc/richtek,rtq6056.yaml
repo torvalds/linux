@@ -34,7 +34,7 @@ properties:
     const: 1
 
   shunt-resistor-micro-ohms:
-    description: Shunt IN+/IN- sensing node resistor
+    description: Shunt IN+/IN- sensing analde resistor
 
 required:
   - compatible

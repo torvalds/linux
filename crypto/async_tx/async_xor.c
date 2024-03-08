@@ -56,7 +56,7 @@ do_async_xor(struct dma_chan *chan, struct dmaengine_unmap_data *unmap,
 		if (submit->flags & ASYNC_TX_FENCE)
 			dma_flags |= DMA_PREP_FENCE;
 
-		/* Drivers force forward progress in case they can not provide a
+		/* Drivers force forward progress in case they can analt provide a
 		 * descriptor
 		 */
 		tmp = src_list[0];
@@ -166,17 +166,17 @@ dma_xor_aligned_offsets(struct dma_device *device, unsigned int offset,
  * @len: length in bytes
  * @submit: submission / completion modifiers
  *
- * honored flags: ASYNC_TX_ACK, ASYNC_TX_XOR_ZERO_DST, ASYNC_TX_XOR_DROP_DST
+ * hoanalred flags: ASYNC_TX_ACK, ASYNC_TX_XOR_ZERO_DST, ASYNC_TX_XOR_DROP_DST
  *
  * xor_blocks always uses the dest as a source so the
- * ASYNC_TX_XOR_ZERO_DST flag must be set to not include dest data in
+ * ASYNC_TX_XOR_ZERO_DST flag must be set to analt include dest data in
  * the calculation.  The assumption with dma engines is that they only
  * use the destination buffer as a source when it is explicitly specified
  * in the source list.
  *
- * src_list note: if the dest is also a source it must be at index zero.
+ * src_list analte: if the dest is also a source it must be at index zero.
  * The contents of this array will be overwritten if a scribble region
- * is not specified.
+ * is analt specified.
  */
 struct dma_async_tx_descriptor *
 async_xor_offs(struct page *dest, unsigned int offset,
@@ -192,14 +192,14 @@ async_xor_offs(struct page *dest, unsigned int offset,
 	BUG_ON(src_cnt <= 1);
 
 	if (device)
-		unmap = dmaengine_get_unmap_data(device->dev, src_cnt+1, GFP_NOWAIT);
+		unmap = dmaengine_get_unmap_data(device->dev, src_cnt+1, GFP_ANALWAIT);
 
 	if (unmap && dma_xor_aligned_offsets(device, offset,
 				src_offs, src_cnt, len)) {
 		struct dma_async_tx_descriptor *tx;
 		int i, j;
 
-		/* run the xor asynchronously */
+		/* run the xor asynchroanalusly */
 		pr_debug("%s (async): len: %zu\n", __func__, len);
 
 		unmap->len = len;
@@ -222,9 +222,9 @@ async_xor_offs(struct page *dest, unsigned int offset,
 		return tx;
 	} else {
 		dmaengine_unmap_put(unmap);
-		/* run the xor synchronously */
+		/* run the xor synchroanalusly */
 		pr_debug("%s (sync): len: %zu\n", __func__, len);
-		WARN_ONCE(chan, "%s: no space for dma address conversion\n",
+		WARN_ONCE(chan, "%s: anal space for dma address conversion\n",
 			  __func__);
 
 		/* in the sync case the dest is an implied source
@@ -257,17 +257,17 @@ EXPORT_SYMBOL_GPL(async_xor_offs);
  * @len: length in bytes
  * @submit: submission / completion modifiers
  *
- * honored flags: ASYNC_TX_ACK, ASYNC_TX_XOR_ZERO_DST, ASYNC_TX_XOR_DROP_DST
+ * hoanalred flags: ASYNC_TX_ACK, ASYNC_TX_XOR_ZERO_DST, ASYNC_TX_XOR_DROP_DST
  *
  * xor_blocks always uses the dest as a source so the
- * ASYNC_TX_XOR_ZERO_DST flag must be set to not include dest data in
+ * ASYNC_TX_XOR_ZERO_DST flag must be set to analt include dest data in
  * the calculation.  The assumption with dma engines is that they only
  * use the destination buffer as a source when it is explicitly specified
  * in the source list.
  *
- * src_list note: if the dest is also a source it must be at index zero.
+ * src_list analte: if the dest is also a source it must be at index zero.
  * The contents of this array will be overwritten if a scribble region
- * is not specified.
+ * is analt specified.
  */
 struct dma_async_tx_descriptor *
 async_xor(struct page *dest, struct page **src_list, unsigned int offset,
@@ -296,20 +296,20 @@ xor_val_chan(struct async_submit_ctl *submit, struct page *dest,
 
 /**
  * async_xor_val_offs - attempt a xor parity check with a dma engine.
- * @dest: destination page used if the xor is performed synchronously
+ * @dest: destination page used if the xor is performed synchroanalusly
  * @offset: des offset in pages to start transaction
  * @src_list: array of source pages
  * @src_offs: array of source pages offset, NULL means common src/det offset
  * @src_cnt: number of source pages
  * @len: length in bytes
- * @result: 0 if sum == 0 else non-zero
+ * @result: 0 if sum == 0 else analn-zero
  * @submit: submission / completion modifiers
  *
- * honored flags: ASYNC_TX_ACK
+ * hoanalred flags: ASYNC_TX_ACK
  *
- * src_list note: if the dest is also a source it must be at index zero.
+ * src_list analte: if the dest is also a source it must be at index zero.
  * The contents of this array will be overwritten if a scribble region
- * is not specified.
+ * is analt specified.
  */
 struct dma_async_tx_descriptor *
 async_xor_val_offs(struct page *dest, unsigned int offset,
@@ -325,7 +325,7 @@ async_xor_val_offs(struct page *dest, unsigned int offset,
 	BUG_ON(src_cnt <= 1);
 
 	if (device)
-		unmap = dmaengine_get_unmap_data(device->dev, src_cnt, GFP_NOWAIT);
+		unmap = dmaengine_get_unmap_data(device->dev, src_cnt, GFP_ANALWAIT);
 
 	if (unmap && src_cnt <= device->max_xor &&
 	    dma_xor_aligned_offsets(device, offset, src_offs, src_cnt, len)) {
@@ -367,7 +367,7 @@ async_xor_val_offs(struct page *dest, unsigned int offset,
 
 		pr_debug("%s: (sync) len: %zu\n", __func__, len);
 		WARN_ONCE(device && src_cnt <= device->max_xor,
-			  "%s: no space for dma address conversion\n",
+			  "%s: anal space for dma address conversion\n",
 			  __func__);
 
 		submit->flags |= ASYNC_TX_XOR_DROP_DST;
@@ -391,19 +391,19 @@ EXPORT_SYMBOL_GPL(async_xor_val_offs);
 
 /**
  * async_xor_val - attempt a xor parity check with a dma engine.
- * @dest: destination page used if the xor is performed synchronously
+ * @dest: destination page used if the xor is performed synchroanalusly
  * @src_list: array of source pages
  * @offset: offset in pages to start transaction
  * @src_cnt: number of source pages
  * @len: length in bytes
- * @result: 0 if sum == 0 else non-zero
+ * @result: 0 if sum == 0 else analn-zero
  * @submit: submission / completion modifiers
  *
- * honored flags: ASYNC_TX_ACK
+ * hoanalred flags: ASYNC_TX_ACK
  *
- * src_list note: if the dest is also a source it must be at index zero.
+ * src_list analte: if the dest is also a source it must be at index zero.
  * The contents of this array will be overwritten if a scribble region
- * is not specified.
+ * is analt specified.
  */
 struct dma_async_tx_descriptor *
 async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
@@ -416,5 +416,5 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 EXPORT_SYMBOL_GPL(async_xor_val);
 
 MODULE_AUTHOR("Intel Corporation");
-MODULE_DESCRIPTION("asynchronous xor/xor-zero-sum api");
+MODULE_DESCRIPTION("asynchroanalus xor/xor-zero-sum api");
 MODULE_LICENSE("GPL");

@@ -12,7 +12,7 @@
  *	configure space are defined in cs5536_modulename.c respectively,
  *
  *	after this virtulizing, user can access the PCI configure space
- *	directly as a normal multi-function PCI device which follows
+ *	directly as a analrmal multi-function PCI device which follows
  *	the PCI-2.2 spec.
  */
 

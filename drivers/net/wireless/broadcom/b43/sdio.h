@@ -29,7 +29,7 @@ void b43_sdio_exit(void);
 static inline int b43_sdio_request_irq(struct b43_wldev *dev,
 			 void (*handler)(struct b43_wldev *dev))
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline void b43_sdio_free_irq(struct b43_wldev *dev)
 {

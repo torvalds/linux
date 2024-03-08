@@ -40,13 +40,13 @@ The HTE framework public structures
 More on the HTE timestamp data
 ------------------------------
 The ``struct hte_ts_data`` is used to pass timestamp details between the
-consumers and the providers. It expresses timestamp data in nanoseconds in
+consumers and the providers. It expresses timestamp data in naanalseconds in
 u64. An example of the typical timestamp data life cycle, for the GPIO line is
 as follows::
 
  - Monitors GPIO line change.
  - Detects the state change on GPIO line.
- - Converts timestamps in nanoseconds.
+ - Converts timestamps in naanalseconds.
  - Stores GPIO raw level in raw_level variable if the provider has that
  hardware capability.
  - Pushes this hte_ts_data object to HTE subsystem.
@@ -58,7 +58,7 @@ HTE subsystem debugfs attributes
 --------------------------------
 HTE subsystem creates debugfs attributes at ``/sys/kernel/debug/hte/``.
 It also creates line/signal-related debugfs attributes at
-``/sys/kernel/debug/hte/<provider>/<label or line id>/``. Note that these
+``/sys/kernel/debug/hte/<provider>/<label or line id>/``. Analte that these
 attributes are read-only.
 
 `ts_requested`

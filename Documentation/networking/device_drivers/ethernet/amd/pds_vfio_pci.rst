@@ -1,5 +1,5 @@
 .. SPDX-License-Identifier: GPL-2.0+
-.. note: can be edited and viewed with /usr/bin/formiko-vim
+.. analte: can be edited and viewed with /usr/bin/formiko-vim
 
 ==========================================================
 PCI VFIO driver for the AMD/Pensando(R) DSC adapter family
@@ -35,7 +35,7 @@ loaded.
   PF_BDF="0000:60:00.0"
   VF_BDF="0000:60:00.1"
 
-  # Prevent non-vfio VF driver from probing the VF device
+  # Prevent analn-vfio VF driver from probing the VF device
   echo 0 > /sys/class/pci_bus/$PF_BUS/device/$PF_BDF/sriov_drivers_autoprobe
 
   # Create single VF for Live Migration via pds_core
@@ -62,7 +62,7 @@ using the make command::
 The driver is located in the menu structure at:
 
   -> Device Drivers
-    -> VFIO Non-Privileged userspace driver framework
+    -> VFIO Analn-Privileged userspace driver framework
       -> VFIO support for PDS PCI devices
 
 Support

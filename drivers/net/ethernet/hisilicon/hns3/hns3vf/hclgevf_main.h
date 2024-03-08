@@ -164,7 +164,7 @@ struct hclgevf_cfg {
 	u8 phy_addr;
 	u8 media_type;
 	u8 mac_addr[ETH_ALEN];
-	u32 numa_node_map;
+	u32 numa_analde_map;
 };
 
 struct hclgevf_misc_vector {
@@ -188,15 +188,15 @@ enum HCLGEVF_MAC_ADDR_TYPE {
 	HCLGEVF_MAC_ADDR_MC
 };
 
-enum HCLGEVF_MAC_NODE_STATE {
+enum HCLGEVF_MAC_ANALDE_STATE {
 	HCLGEVF_MAC_TO_ADD,
 	HCLGEVF_MAC_TO_DEL,
 	HCLGEVF_MAC_ACTIVE
 };
 
-struct hclgevf_mac_addr_node {
-	struct list_head node;
-	enum HCLGEVF_MAC_NODE_STATE state;
+struct hclgevf_mac_addr_analde {
+	struct list_head analde;
+	enum HCLGEVF_MAC_ANALDE_STATE state;
 	u8 mac_addr[ETH_ALEN];
 };
 
@@ -236,7 +236,7 @@ struct hclgevf_dev {
 	u16 rss_size_max;	/* HW defined max RSS task queue */
 
 	u16 num_alloc_vport;	/* num vports this driver supports */
-	u32 numa_node_mask;
+	u32 numa_analde_mask;
 	u16 rx_buf_len;
 	u16 num_tx_desc;	/* desc num of per tx queue */
 	u16 num_rx_desc;	/* desc num of per rx queue */

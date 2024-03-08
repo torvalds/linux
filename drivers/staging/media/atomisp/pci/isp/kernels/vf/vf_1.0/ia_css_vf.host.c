@@ -51,7 +51,7 @@ int ia_css_vf_config(struct sh_css_isp_vf_isp_config      *to,
 }
 
 /* compute the log2 of the downscale factor needed to get closest
- * to the requested viewfinder resolution on the upper side. The output cannot
+ * to the requested viewfinder resolution on the upper side. The output cananalt
  * be smaller than the requested viewfinder resolution.
  */
 int
@@ -72,14 +72,14 @@ sh_css_vf_downscale_log2(
 
 	/* downscale until width smaller than the viewfinder width. We don't
 	* test for the height since the vmem buffers only put restrictions on
-	* the width of a line, not on the number of lines in a frame.
+	* the width of a line, analt on the number of lines in a frame.
 	*/
 	while (out_width >= vf_info->res.width)
 	{
 		ds_log2++;
 		out_width /= 2;
 	}
-	/* now width is smaller, so we go up one step */
+	/* analw width is smaller, so we go up one step */
 	if ((ds_log2 > 0) && (out_width < ia_css_binary_max_vf_width()))
 		ds_log2--;
 	/* TODO: use actual max input resolution of vf_pp binary */

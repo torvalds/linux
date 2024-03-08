@@ -45,7 +45,7 @@ struct ieee80211_mesh_fast_tx;
 #define AP_MAX_BC_BUFFER 128
 
 /* Maximum number of frames buffered to all STAs, including multicast frames.
- * Note: increasing this limit increases the potential memory requirement. Each
+ * Analte: increasing this limit increases the potential memory requirement. Each
  * frame can be up to about 2 kB long. */
 #define TOTAL_MAX_TX_BUFFER 512
 
@@ -59,12 +59,12 @@ struct ieee80211_mesh_fast_tx;
 /*
  * Some APs experience problems when working with U-APSD. Decreasing the
  * probability of that happening by using legacy mode for all ACs but VO isn't
- * enough.
+ * eanalugh.
  *
  * Cisco 4410N originally forced us to enable VO by default only because it
- * treated non-VO ACs as legacy.
+ * treated analn-VO ACs as legacy.
  *
- * However some APs (notably Netgear R7000) silently reclassify packets to
+ * However some APs (analtably Netgear R7000) silently reclassify packets to
  * different ACs. Since u-APSD ACs require trigger frames for frame retrieval
  * clients would never see some frames (e.g. ARP responses) or would fetch them
  * accidentally after a long time.
@@ -145,9 +145,9 @@ enum ieee80211_bss_corrupt_data_flags {
 
 /**
  * enum ieee80211_valid_data_flags - BSS valid data flags
- * @IEEE80211_BSS_VALID_WMM: WMM/UAPSD data was gathered from non-corrupt IE
- * @IEEE80211_BSS_VALID_RATES: Supported rates were gathered from non-corrupt IE
- * @IEEE80211_BSS_VALID_ERP: ERP flag was gathered from non-corrupt IE
+ * @IEEE80211_BSS_VALID_WMM: WMM/UAPSD data was gathered from analn-corrupt IE
+ * @IEEE80211_BSS_VALID_RATES: Supported rates were gathered from analn-corrupt IE
+ * @IEEE80211_BSS_VALID_ERP: ERP flag was gathered from analn-corrupt IE
  *
  * These are bss flags that are attached to a bss in the
  * @valid_data field of &struct ieee80211_bss.  They show which parts
@@ -224,16 +224,16 @@ struct ieee80211_rx_data {
 
 	/*
 	 * Index into sequence numbers array, 0..16
-	 * since the last (16) is used for non-QoS,
-	 * will be 16 on non-QoS frames.
+	 * since the last (16) is used for analn-QoS,
+	 * will be 16 on analn-QoS frames.
 	 */
-	int seqno_idx;
+	int seqanal_idx;
 
 	/*
 	 * Index into the security IV/PN arrays, 0..16
 	 * since the last (16) is used for CCMP-encrypted
 	 * management frames, will be set to 16 on mgmt
-	 * frames and 0 on non-QoS frames.
+	 * frames and 0 on analn-QoS frames.
 	 */
 	int security_idx;
 
@@ -297,11 +297,11 @@ struct unsol_bcast_probe_resp_data {
 };
 
 struct ps_data {
-	/* yes, this looks ugly, but guarantees that we can later use
+	/* anal, this looks ugly, but guarantees that we can later use
 	 * bitmap_empty :)
 	 * NB: don't touch this bitmap, use sta_info_{set,clear}_tim_bit */
 	u8 tim[sizeof(unsigned long) * BITS_TO_LONGS(IEEE80211_MAX_AID + 1)]
-			__aligned(__alignof__(unsigned long));
+			__aligned(__aliganalf__(unsigned long));
 	struct sk_buff_head bc_buf;
 	atomic_t num_sta_ps; /* number of stations in PS mode */
 	int dtim_count;
@@ -330,8 +330,8 @@ struct mesh_stats {
 	__u32 fwded_mcast;		/* Mesh forwarded multicast frames */
 	__u32 fwded_unicast;		/* Mesh forwarded unicast frames */
 	__u32 fwded_frames;		/* Mesh total forwarded frames */
-	__u32 dropped_frames_ttl;	/* Not transmitted since mesh_ttl == 0*/
-	__u32 dropped_frames_no_route;	/* Not transmitted, no route found */
+	__u32 dropped_frames_ttl;	/* Analt transmitted since mesh_ttl == 0*/
+	__u32 dropped_frames_anal_route;	/* Analt transmitted, anal route found */
 };
 
 #define PREQ_Q_F_START		0x1
@@ -349,7 +349,7 @@ struct ieee80211_roc_work {
 
 	struct ieee80211_channel *chan;
 
-	bool started, abort, hw_begun, notified;
+	bool started, abort, hw_begun, analtified;
 	bool on_channel;
 
 	unsigned long start_time;
@@ -425,7 +425,7 @@ struct ieee80211_mgd_assoc_data {
 
 	u8 ap_addr[ETH_ALEN] __aligned(2);
 
-	/* this is for a workaround, so we use it only for non-MLO */
+	/* this is for a workaround, so we use it only for analn-MLO */
 	const u8 *supp_rates;
 	u8 supp_rates_len;
 
@@ -444,7 +444,7 @@ struct ieee80211_mgd_assoc_data {
 
 	unsigned int assoc_link_id;
 
-	u8 fils_nonces[2 * FILS_NONCE_LEN];
+	u8 fils_analnces[2 * FILS_ANALNCE_LEN];
 	u8 fils_kek[FILS_MAX_KEK_LEN];
 	size_t fils_kek_len;
 
@@ -464,7 +464,7 @@ struct ieee80211_sta_tx_tspec {
 	/* consumed TX time in microseconds in the time slice */
 	u32 consumed_tx_time;
 	enum {
-		TX_TSPEC_ACTION_NONE = 0,
+		TX_TSPEC_ACTION_ANALNE = 0,
 		TX_TSPEC_ACTION_DOWNGRADE,
 		TX_TSPEC_ACTION_STOP_DOWNGRADE,
 	} action;
@@ -474,12 +474,12 @@ struct ieee80211_sta_tx_tspec {
 /* Advertised TID-to-link mapping info */
 struct ieee80211_adv_ttlm_info {
 	/* time in TUs at which the new mapping is established, or 0 if there is
-	 * no planned advertised TID-to-link mapping
+	 * anal planned advertised TID-to-link mapping
 	 */
 	u16 switch_time;
 	u32 duration; /* duration of the planned T2L map in TUs */
 	u16 map; /* map of usable links for all TIDs */
-	bool active; /* whether the advertised mapping is active or not */
+	bool active; /* whether the advertised mapping is active or analt */
 };
 
 DECLARE_EWMA(beacon_signal, 4, 4)
@@ -666,16 +666,16 @@ struct mesh_csa_settings {
 /**
  * struct mesh_table
  *
- * @known_gates: list of known mesh gates and their mpaths by the station. The
- * gate's mpath may or may not be resolved and active.
- * @gates_lock: protects updates to known_gates
+ * @kanalwn_gates: list of kanalwn mesh gates and their mpaths by the station. The
+ * gate's mpath may or may analt be resolved and active.
+ * @gates_lock: protects updates to kanalwn_gates
  * @rhead: the rhashtable containing struct mesh_paths, keyed by dest addr
  * @walk_head: linked list containing all mesh_path objects
  * @walk_lock: lock protecting walk_head
  * @entries: number of entries in the table
  */
 struct mesh_table {
-	struct hlist_head known_gates;
+	struct hlist_head kanalwn_gates;
 	spinlock_t gates_lock;
 	struct rhashtable rhead;
 	struct hlist_head walk_head;
@@ -743,7 +743,7 @@ struct ieee80211_if_mesh {
 	const u8 *ie;
 	u8 ie_len;
 	enum {
-		IEEE80211_MESH_SEC_NONE = 0x0,
+		IEEE80211_MESH_SEC_ANALNE = 0x0,
 		IEEE80211_MESH_SEC_AUTHED = 0x1,
 		IEEE80211_MESH_SEC_SECURED = 0x2,
 	} security;
@@ -753,14 +753,14 @@ struct ieee80211_if_mesh {
 	s64 sync_offset_clockdrift_max;
 	spinlock_t sync_offset_lock;
 	/* mesh power save */
-	enum nl80211_mesh_power_mode nonpeer_pm;
+	enum nl80211_mesh_power_mode analnpeer_pm;
 	int ps_peers_light_sleep;
 	int ps_peers_deep_sleep;
 	struct ps_data ps;
 	/* Channel Switching Support */
 	struct mesh_csa_settings __rcu *csa;
 	enum {
-		IEEE80211_MESH_CSA_ROLE_NONE,
+		IEEE80211_MESH_CSA_ROLE_ANALNE,
 		IEEE80211_MESH_CSA_ROLE_INIT,
 		IEEE80211_MESH_CSA_ROLE_REPEATER,
 	} csa_role;
@@ -828,7 +828,7 @@ enum ieee80211_sdata_state_bits {
  *	multiple interfaces
  * @IEEE80211_CHANCTX_EXCLUSIVE: channel context can be used
  *	only by a single interface. This can be used for example for
- *	non-fixed channel IBSS.
+ *	analn-fixed channel IBSS.
  */
 enum ieee80211_chanctx_mode {
 	IEEE80211_CHANCTX_SHARED,
@@ -841,14 +841,14 @@ enum ieee80211_chanctx_mode {
  * This is used for channel context in-place reservations that require channel
  * context switch/swap.
  *
- * @IEEE80211_CHANCTX_REPLACE_NONE: no replacement is taking place
+ * @IEEE80211_CHANCTX_REPLACE_ANALNE: anal replacement is taking place
  * @IEEE80211_CHANCTX_WILL_BE_REPLACED: this channel context will be replaced
- *	by a (not yet registered) channel context pointed by %replace_ctx.
- * @IEEE80211_CHANCTX_REPLACES_OTHER: this (not yet registered) channel context
+ *	by a (analt yet registered) channel context pointed by %replace_ctx.
+ * @IEEE80211_CHANCTX_REPLACES_OTHER: this (analt yet registered) channel context
  *	replaces an existing channel context pointed to by %replace_ctx.
  */
 enum ieee80211_chanctx_replace_state {
-	IEEE80211_CHANCTX_REPLACE_NONE,
+	IEEE80211_CHANCTX_REPLACE_ANALNE,
 	IEEE80211_CHANCTX_WILL_BE_REPLACED,
 	IEEE80211_CHANCTX_REPLACES_OTHER,
 };
@@ -877,7 +877,7 @@ struct mac80211_qos_map {
 enum txq_info_flags {
 	IEEE80211_TXQ_STOP,
 	IEEE80211_TXQ_AMPDU,
-	IEEE80211_TXQ_NO_AMSDU,
+	IEEE80211_TXQ_ANAL_AMSDU,
 	IEEE80211_TXQ_DIRTY,
 };
 
@@ -940,7 +940,7 @@ struct ieee80211_link_data_managed {
 
 	ieee80211_conn_flags_t conn_flags;
 
-	s16 p2p_noa_index;
+	s16 p2p_anala_index;
 
 	bool tdls_chan_switch_prohibited;
 
@@ -950,7 +950,7 @@ struct ieee80211_link_data_managed {
 	bool operating_11g_mode;
 
 	bool csa_waiting_bcn;
-	bool csa_ignored_same_chan;
+	bool csa_iganalred_same_chan;
 	struct wiphy_delayed_work chswitch_work;
 
 	struct wiphy_work request_smps_work;
@@ -974,7 +974,7 @@ struct ieee80211_link_data_managed {
 
 	/*
 	 * Last Beacon frame signal strength average (ave_beacon_signal / 16)
-	 * that triggered a cqm event. 0 indicates that no event has been
+	 * that triggered a cqm event. 0 indicates that anal event has been
 	 * generated for the current association.
 	 */
 	int last_cqm_event_signal;
@@ -1076,8 +1076,8 @@ struct ieee80211_sub_if_data {
 
 	struct ieee80211_fragment_cache frags;
 
-	/* TID bitmap for NoAck policy */
-	u16 noack_map;
+	/* TID bitmap for AnalAck policy */
+	u16 analack_map;
 
 	/* bit field of ACM bits (BIT(802.1D tag)) */
 	u8 wmm_acm;
@@ -1088,8 +1088,8 @@ struct ieee80211_sub_if_data {
 	u16 sequence_number;
 	u16 mld_mcast_seq;
 	__be16 control_port_protocol;
-	bool control_port_no_encrypt;
-	bool control_port_no_preauth;
+	bool control_port_anal_encrypt;
+	bool control_port_anal_preauth;
 	bool control_port_over_nl80211;
 
 	atomic_t num_tx_queued;
@@ -1106,7 +1106,7 @@ struct ieee80211_sub_if_data {
 	 */
 	struct ieee80211_if_ap *bss;
 
-	/* bitmap of allowed (non-MCS) rate indexes for rate control */
+	/* bitmap of allowed (analn-MCS) rate indexes for rate control */
 	u32 rc_rateidx_mask[NUM_NL80211_BANDS];
 
 	bool rc_has_mcs_mask[NUM_NL80211_BANDS];
@@ -1115,7 +1115,7 @@ struct ieee80211_sub_if_data {
 	bool rc_has_vht_mcs_mask[NUM_NL80211_BANDS];
 	u16 rc_rateidx_vht_mcs_mask[NUM_NL80211_BANDS][NL80211_VHT_NSS_MAX];
 
-	/* Beacon frame (non-MCS) rate (as a bitmap) */
+	/* Beacon frame (analn-MCS) rate (as a bitmap) */
 	u32 beacon_rateidx_mask[NUM_NL80211_BANDS];
 	bool beacon_rate_set;
 
@@ -1232,19 +1232,19 @@ struct tpt_led_trigger {
  *
  * @SCAN_SW_SCANNING: We're currently in the process of scanning but may as
  *	well be on the operating channel
- * @SCAN_HW_SCANNING: The hardware is scanning for us, we have no way to
- *	determine if we are on the operating channel or not
+ * @SCAN_HW_SCANNING: The hardware is scanning for us, we have anal way to
+ *	determine if we are on the operating channel or analt
  * @SCAN_ONCHANNEL_SCANNING:  Do a software scan on only the current operating
- *	channel. This should not interrupt normal traffic.
+ *	channel. This should analt interrupt analrmal traffic.
  * @SCAN_COMPLETED: Set for our scan work function when the driver reported
  *	that the scan completed.
  * @SCAN_ABORTED: Set for our scan work function when the driver reported
  *	a scan complete for an aborted scan.
  * @SCAN_HW_CANCELLED: Set for our scan work function when the scan is being
  *	cancelled.
- * @SCAN_BEACON_WAIT: Set whenever we're passive scanning because of radar/no-IR
+ * @SCAN_BEACON_WAIT: Set whenever we're passive scanning because of radar/anal-IR
  *	and could send a probe request after receiving a beacon.
- * @SCAN_BEACON_DONE: Beacon received, we can now send a probe request
+ * @SCAN_BEACON_DONE: Beacon received, we can analw send a probe request
  */
 enum mac80211_scan_flags {
 	SCAN_SW_SCANNING,
@@ -1284,7 +1284,7 @@ DECLARE_STATIC_KEY_FALSE(aql_disable);
 struct ieee80211_local {
 	/* embed the driver visible part.
 	 * don't cast (use the static inlines below), but we keep
-	 * it first anyway so they become a no-op */
+	 * it first anyway so they become a anal-op */
 	struct ieee80211_hw hw;
 
 	struct fq fq;
@@ -1345,7 +1345,7 @@ struct ieee80211_local {
 
 	/*
 	 * suspended is true if we finished all the suspend _and_ we have
-	 * not yet come up from resume. This is to be used by mac80211
+	 * analt yet come up from resume. This is to be used by mac80211
 	 * to ensure driver sanity during suspend and mac80211's own
 	 * sanity. It can eventually be used for WoW as well.
 	 */
@@ -1456,7 +1456,7 @@ struct ieee80211_local {
 	enum mac80211_scan_state next_scan_state;
 	struct wiphy_delayed_work scan_work;
 	struct ieee80211_sub_if_data __rcu *scan_sdata;
-	/* For backward compatibility only -- do not use */
+	/* For backward compatibility only -- do analt use */
 	struct cfg80211_chan_def _oper_chandef;
 
 	/* Temporary remain-on-channel for off-channel operations */
@@ -1490,7 +1490,7 @@ struct ieee80211_local {
 	unsigned int tx_handlers_drop;
 	unsigned int tx_handlers_queued;
 	unsigned int tx_handlers_drop_wep;
-	unsigned int tx_handlers_drop_not_assoc;
+	unsigned int tx_handlers_drop_analt_assoc;
 	unsigned int tx_handlers_drop_unauth_port;
 	unsigned int rx_handlers_drop;
 	unsigned int rx_handlers_queued;
@@ -1520,8 +1520,8 @@ struct ieee80211_local {
 	struct wiphy_work dynamic_ps_enable_work;
 	struct wiphy_work dynamic_ps_disable_work;
 	struct timer_list dynamic_ps_timer;
-	struct notifier_block ifa_notifier;
-	struct notifier_block ifa6_notifier;
+	struct analtifier_block ifa_analtifier;
+	struct analtifier_block ifa6_analtifier;
 
 	/*
 	 * The dynamic ps timeout configured from user space via WEXT -
@@ -1680,7 +1680,7 @@ struct ieee802_11_elems {
 	const u8 *pwr_constr_elem;
 	const u8 *cisco_dtpc_elem;
 	const struct ieee80211_timeout_interval_ie *timeout_int;
-	const u8 *opmode_notif;
+	const u8 *opmode_analtif;
 	const struct ieee80211_sec_chan_offs_ie *sec_chan_offs;
 	struct ieee80211_mesh_chansw_params_ie *mesh_chansw_params_ie;
 	const struct ieee80211_bss_max_idle_period_ie *max_idle_period_ie;
@@ -1723,7 +1723,7 @@ struct ieee802_11_elems {
 	u8 tx_pwr_env_num;
 	u8 eht_cap_len;
 
-	/* mult-link element can be de-fragmented and thus u8 is not sufficient */
+	/* mult-link element can be de-fragmented and thus u8 is analt sufficient */
 	size_t ml_basic_len;
 	size_t ml_reconf_len;
 
@@ -1783,8 +1783,8 @@ void ieee80211_vif_inc_num_mcast(struct ieee80211_sub_if_data *sdata);
 void ieee80211_vif_dec_num_mcast(struct ieee80211_sub_if_data *sdata);
 
 /* This function returns the number of multicast stations connected to this
- * interface. It returns -1 if that number is not tracked, that is for netdevs
- * not in AP or AP_VLAN mode or when using 4addr.
+ * interface. It returns -1 if that number is analt tracked, that is for netdevs
+ * analt in AP or AP_VLAN mode or when using 4addr.
  */
 static inline int
 ieee80211_vif_get_num_mcast_if(struct ieee80211_sub_if_data *sdata)
@@ -1802,11 +1802,11 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 				     unsigned int mpdu_offset);
 int ieee80211_hw_config(struct ieee80211_local *local, u32 changed);
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx);
-void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
+void ieee80211_bss_info_change_analtify(struct ieee80211_sub_if_data *sdata,
 				      u64 changed);
-void ieee80211_vif_cfg_change_notify(struct ieee80211_sub_if_data *sdata,
+void ieee80211_vif_cfg_change_analtify(struct ieee80211_sub_if_data *sdata,
 				     u64 changed);
-void ieee80211_link_info_change_notify(struct ieee80211_sub_if_data *sdata,
+void ieee80211_link_info_change_analtify(struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211_link_data *link,
 				       u64 changed);
 void ieee80211_configure_filter(struct ieee80211_local *local);
@@ -1858,9 +1858,9 @@ void ieee80211_mgd_stop_link(struct ieee80211_link_data *link);
 void ieee80211_mgd_set_link_qos_params(struct ieee80211_link_data *link);
 
 /* IBSS code */
-void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local);
+void ieee80211_ibss_analtify_scan_completed(struct ieee80211_local *local);
 void ieee80211_ibss_setup_sdata(struct ieee80211_sub_if_data *sdata);
-void ieee80211_ibss_rx_no_sta(struct ieee80211_sub_if_data *sdata,
+void ieee80211_ibss_rx_anal_sta(struct ieee80211_sub_if_data *sdata,
 			      const u8 *bssid, const u8 *addr, u32 supp_rates);
 int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 			struct cfg80211_ibss_params *params);
@@ -1877,7 +1877,7 @@ void ieee80211_ibss_stop(struct ieee80211_sub_if_data *sdata);
 
 /* OCB code */
 void ieee80211_ocb_work(struct ieee80211_sub_if_data *sdata);
-void ieee80211_ocb_rx_no_sta(struct ieee80211_sub_if_data *sdata,
+void ieee80211_ocb_rx_anal_sta(struct ieee80211_sub_if_data *sdata,
 			     const u8 *bssid, const u8 *addr, u32 supp_rates);
 void ieee80211_ocb_setup_sdata(struct ieee80211_sub_if_data *sdata);
 int ieee80211_ocb_join(struct ieee80211_sub_if_data *sdata,
@@ -1909,7 +1909,7 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb);
 void ieee80211_inform_bss(struct wiphy *wiphy, struct cfg80211_bss *bss,
 			  const struct cfg80211_bss_ies *ies, void *data);
 
-void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local);
+void ieee80211_mlme_analtify_scan_completed(struct ieee80211_local *local);
 struct ieee80211_bss *
 ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_rx_status *rx_status,
@@ -2167,12 +2167,12 @@ void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
  * @current_band: indicates the current band
  * @vht_cap_info: VHT capabilities of the transmitter
  * @conn_flags: contains information about own capabilities and restrictions
- *	to decide which channel switch announcements can be accepted, using
+ *	to decide which channel switch ananaluncements can be accepted, using
  *	flags from &enum ieee80211_conn_flags.
  * @bssid: the currently connected bssid (for reporting)
  * @csa_ie: parsed 802.11 csa elements on count, mode, chandef and mesh ttl.
  *	All of them will be filled with if success only.
- * Return: 0 on success, <0 on error and >0 if there is nothing to parse.
+ * Return: 0 on success, <0 on error and >0 if there is analthing to parse.
  */
 int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				 struct ieee802_11_elems *elems,
@@ -2208,7 +2208,7 @@ void ieee80211_regulatory_limit_wmm_params(struct ieee80211_sub_if_data *sdata,
 					   struct ieee80211_tx_queue_params *qparam,
 					   int ac);
 void ieee80211_set_wmm_default(struct ieee80211_link_data *link,
-			       bool bss_notify, bool enable_qos);
+			       bool bss_analtify, bool enable_qos);
 void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 		    struct sta_info *sta, struct sk_buff *skb);
 
@@ -2250,11 +2250,11 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
  *	the element CRC
  * @crc: CRC starting value
  * @bss: the BSS to parse this as, for multi-BSSID cases this can
- *	represent a non-transmitting BSS in which case the data
- *	for that non-transmitting BSS is returned
+ *	represent a analn-transmitting BSS in which case the data
+ *	for that analn-transmitting BSS is returned
  * @link_id: the link ID to parse elements for, if a STA profile
- *	is present in the multi-link element, or -1 to ignore;
- *	note that the code currently assumes parsing an association
+ *	is present in the multi-link element, or -1 to iganalre;
+ *	analte that the code currently assumes parsing an association
  *	(or re-association) response frame if this is given
  * @from_ap: frame is received from an AP (currently used only
  *	for EHT capabilities parsing)
@@ -2315,7 +2315,7 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 			     bool powersave);
 void ieee80211_send_4addr_nullfunc(struct ieee80211_local *local,
 				   struct ieee80211_sub_if_data *sdata);
-void ieee80211_sta_tx_notify(struct ieee80211_sub_if_data *sdata,
+void ieee80211_sta_tx_analtify(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_hdr *hdr, bool ack, u16 tx_time);
 
 void ieee80211_wake_queues_by_reason(struct ieee80211_hw *hw,
@@ -2580,10 +2580,10 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       struct ieee80211_sta *pubsta,
 				       int len, bool ampdu);
-#ifdef CONFIG_MAC80211_NOINLINE
-#define debug_noinline noinline
+#ifdef CONFIG_MAC80211_ANALINLINE
+#define debug_analinline analinline
 #else
-#define debug_noinline
+#define debug_analinline
 #endif
 
 void ieee80211_init_frag_cache(struct ieee80211_fragment_cache *cache);

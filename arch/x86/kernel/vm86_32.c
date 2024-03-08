@@ -6,7 +6,7 @@
  *                stack - Manfred Spraul <manfred@colorfullife.com>
  *
  *  22 mar 2002 - Manfred detected the stackfaults, but didn't handle
- *                them correctly. Now the emulation will be in a
+ *                them correctly. Analw the emulation will be in a
  *                consistent state after stackfaults - Kasper Dupont
  *                <kasperd@daimi.au.dk>
  *
@@ -32,7 +32,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/syscalls.h>
 #include <linux/sched.h>
@@ -58,9 +58,9 @@
 #include <asm/switch_to.h>
 
 /*
- * Known problems:
+ * Kanalwn problems:
  *
- * Interrupt handling is not guaranteed:
+ * Interrupt handling is analt guaranteed:
  * - a real x86 will disable all interrupts for one instruction
  *   after a "mov ss,xx" to make stack handling atomic even without
  *   the 'lss' instruction. We can't guarantee this in v86 mode,
@@ -69,7 +69,7 @@
  *   past the 'sti' that enables them. We don't bother with all the
  *   details yet.
  *
- * Let's hope these problems do not actually matter for anything.
+ * Let's hope these problems do analt actually matter for anything.
  */
 
 
@@ -159,7 +159,7 @@ exit_vm86:
 Efault_end:
 	user_access_end();
 Efault:
-	pr_alert("could not access userspace vm86 info\n");
+	pr_alert("could analt access userspace vm86 info\n");
 	force_exit_sig(SIGSEGV);
 	goto exit_vm86;
 }
@@ -183,7 +183,7 @@ SYSCALL_DEFINE2(vm86, unsigned long, cmd, unsigned long, arg)
 		return do_vm86_irq_handling(cmd, (int)arg);
 	case VM86_PLUS_INSTALL_CHECK:
 		/*
-		 * NOTE: on old vm86 stuff this will return the error
+		 * ANALTE: on old vm86 stuff this will return the error
 		 *  from access_ok(), because the subfunction is
 		 *  interpreted as (invalid) address to vm86_struct.
 		 *  So the installation check works.
@@ -191,7 +191,7 @@ SYSCALL_DEFINE2(vm86, unsigned long, cmd, unsigned long, arg)
 		return 0;
 	}
 
-	/* we come here only for functions VM86_ENTER, VM86_ENTER_NO_BYPASS */
+	/* we come here only for functions VM86_ENTER, VM86_ENTER_ANAL_BYPASS */
 	return do_sys_vm86((struct vm86plus_struct __user *) arg, true);
 }
 
@@ -208,7 +208,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	err = security_mmap_addr(0);
 	if (err) {
 		/*
-		 * vm86 cannot virtualize the address space, so vm86 users
+		 * vm86 cananalt virtualize the address space, so vm86 users
 		 * need to manage the low 1MB themselves using mmap.  Given
 		 * that BIOS places important data in the first page, vm86
 		 * is essentially useless if mmap_min_addr != 0.  DOSEMU,
@@ -216,13 +216,13 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 		 * can't map a page at virtual address 0.
 		 *
 		 * To reduce the available kernel attack surface, simply
-		 * disallow vm86(old) for users who cannot mmap at va 0.
+		 * disallow vm86(old) for users who cananalt mmap at va 0.
 		 *
 		 * The implementation of security_mmap_addr will allow
 		 * suitably privileged users to map va 0 even if
 		 * vm.mmap_min_addr is set above 0, and we want this
 		 * behavior for vm86 as well, as it ensures that legacy
-		 * tools like vbetool will not fail just because of
+		 * tools like vbetool will analt fail just because of
 		 * vm.mmap_min_addr.
 		 */
 		pr_info_once("Denied a call to vm86(old) from %s[%d] (uid: %d).  Set the vm.mmap_min_addr sysctl to 0 and/or adjust LSM mmap_min_addr policy to enable vm86 if you are using a vm86-based DOS emulator.\n",
@@ -233,7 +233,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 
 	if (!vm86) {
 		if (!(vm86 = kzalloc(sizeof(*vm86), GFP_KERNEL)))
-			return -ENOMEM;
+			return -EANALMEM;
 		tsk->thread.vm86 = vm86;
 	}
 	if (vm86->saved_sp0)
@@ -244,11 +244,11 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 		return -EFAULT;
 
 
-	/* VM86_SCREEN_BITMAP had numerous bugs and appears to have no users. */
+	/* VM86_SCREEN_BITMAP had numerous bugs and appears to have anal users. */
 	if (v.flags & VM86_SCREEN_BITMAP) {
 		char comm[TASK_COMM_LEN];
 
-		pr_info_once("vm86: '%s' uses VM86_SCREEN_BITMAP, which is no longer supported\n", get_task_comm(comm, current));
+		pr_info_once("vm86: '%s' uses VM86_SCREEN_BITMAP, which is anal longer supported\n", get_task_comm(comm, current));
 		return -EINVAL;
 	}
 
@@ -295,7 +295,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	vm86->user_vm86 = user_vm86;
 
 /*
- * The flags register is also special: we cannot trust that the user
+ * The flags register is also special: we cananalt trust that the user
  * has set it up safely, so this makes sure interrupt etc flags are
  * inherited from protected mode.
  */
@@ -371,7 +371,7 @@ static inline void clear_AC(struct kernel_vm86_regs *regs)
  * end up with interrupts disabled, but you ended up with
  * interrupts enabled.
  *  ( I was testing my own changes, but the only bug I
- *    could find was in a function I had not changed. )
+ *    could find was in a function I had analt changed. )
  * [KD]
  */
 
@@ -488,7 +488,7 @@ static inline int is_revectored(int nr, struct revectored_struct *bitmap)
 	})
 
 /* There are so many possible reasons for this function to return
- * VM86_INTx, so adding another doesn't bother me. We can expect
+ * VM86_INTx, so adding aanalther doesn't bother me. We can expect
  * userspace programs to be able to handle it. (Getting a problem
  * in userspace is always better than an Oops anyway.) [KD]
  */
@@ -500,19 +500,19 @@ static void do_int(struct kernel_vm86_regs *regs, int i,
 	struct vm86 *vm86 = current->thread.vm86;
 
 	if (regs->pt.cs == BIOSSEG)
-		goto cannot_handle;
+		goto cananalt_handle;
 	if (is_revectored(i, &vm86->int_revectored))
-		goto cannot_handle;
+		goto cananalt_handle;
 	if (i == 0x21 && is_revectored(AH(regs), &vm86->int21_revectored))
-		goto cannot_handle;
+		goto cananalt_handle;
 	intr_ptr = (unsigned long __user *) (i << 2);
 	if (get_user(segoffs, intr_ptr))
-		goto cannot_handle;
+		goto cananalt_handle;
 	if ((segoffs >> 16) == BIOSSEG)
-		goto cannot_handle;
-	pushw(ssp, sp, get_vflags(regs), cannot_handle);
-	pushw(ssp, sp, regs->pt.cs, cannot_handle);
-	pushw(ssp, sp, IP(regs), cannot_handle);
+		goto cananalt_handle;
+	pushw(ssp, sp, get_vflags(regs), cananalt_handle);
+	pushw(ssp, sp, regs->pt.cs, cananalt_handle);
+	pushw(ssp, sp, IP(regs), cananalt_handle);
 	regs->pt.cs = segoffs >> 16;
 	SP(regs) -= 6;
 	IP(regs) = segoffs & 0xffff;
@@ -521,25 +521,25 @@ static void do_int(struct kernel_vm86_regs *regs, int i,
 	clear_AC(regs);
 	return;
 
-cannot_handle:
+cananalt_handle:
 	save_v86_state(regs, VM86_INTx + (i << 8));
 }
 
-int handle_vm86_trap(struct kernel_vm86_regs *regs, long error_code, int trapno)
+int handle_vm86_trap(struct kernel_vm86_regs *regs, long error_code, int trapanal)
 {
 	struct vm86 *vm86 = current->thread.vm86;
 
 	if (vm86->vm86plus.is_vm86pus) {
-		if ((trapno == 3) || (trapno == 1)) {
-			save_v86_state(regs, VM86_TRAP + (trapno << 8));
+		if ((trapanal == 3) || (trapanal == 1)) {
+			save_v86_state(regs, VM86_TRAP + (trapanal << 8));
 			return 0;
 		}
-		do_int(regs, trapno, (unsigned char __user *) (regs->pt.ss << 4), SP(regs));
+		do_int(regs, trapanal, (unsigned char __user *) (regs->pt.ss << 4), SP(regs));
 		return 0;
 	}
-	if (trapno != 1)
+	if (trapanal != 1)
 		return 1; /* we let this handle by the calling routine */
-	current->thread.trap_nr = trapno;
+	current->thread.trap_nr = trapanal;
 	current->thread.error_code = error_code;
 	force_sig(SIGTRAP);
 	return 0;
@@ -620,15 +620,15 @@ void handle_vm86_fault(struct kernel_vm86_regs *regs, long error_code)
 
 	/* int xx */
 	case 0xcd: {
-		int intno = popb(csp, ip, simulate_sigsegv);
+		int intanal = popb(csp, ip, simulate_sigsegv);
 		IP(regs) = ip;
 		if (vmpi->vm86dbg_active) {
-			if ((1 << (intno & 7)) & vmpi->vm86dbg_intxxtab[intno >> 3]) {
-				save_v86_state(regs, VM86_INTx + (intno << 8));
+			if ((1 << (intanal & 7)) & vmpi->vm86dbg_intxxtab[intanal >> 3]) {
+				save_v86_state(regs, VM86_INTx + (intanal << 8));
 				return;
 			}
 		}
-		do_int(regs, intno, ssp, sp);
+		do_int(regs, intanal, ssp, sp);
 		return;
 	}
 
@@ -669,7 +669,7 @@ void handle_vm86_fault(struct kernel_vm86_regs *regs, long error_code)
 	/* sti */
 	/*
 	 * Damn. This is incorrect: the 'sti' instruction should actually
-	 * enable interrupts after the /next/ instruction. Not good.
+	 * enable interrupts after the /next/ instruction. Analt good.
 	 *
 	 * Probably needs some horsing around with the TF flag. Aiee..
 	 */
@@ -679,7 +679,7 @@ void handle_vm86_fault(struct kernel_vm86_regs *regs, long error_code)
 		goto check_vip;
 
 	default:
-		save_v86_state(regs, VM86_UNKNOWN);
+		save_v86_state(regs, VM86_UNKANALWN);
 	}
 
 	return;
@@ -711,7 +711,7 @@ simulate_sigsegv:
 	 *        should be a mixture of the two, but how do we
 	 *        get the information? [KD]
 	 */
-	save_v86_state(regs, VM86_UNKNOWN);
+	save_v86_state(regs, VM86_UNKANALWN);
 }
 
 /* ---------------- vm86 special IRQ passing stuff ----------------- */
@@ -730,29 +730,29 @@ static int irqbits;
 	| (1 << SIGUSR1) | (1 << SIGUSR2) | (1 << SIGIO)  | (1 << SIGURG) \
 	| (1 << SIGUNUSED))
 
-static irqreturn_t irq_handler(int intno, void *dev_id)
+static irqreturn_t irq_handler(int intanal, void *dev_id)
 {
 	int irq_bit;
 	unsigned long flags;
 
 	spin_lock_irqsave(&irqbits_lock, flags);
-	irq_bit = 1 << intno;
-	if ((irqbits & irq_bit) || !vm86_irqs[intno].tsk)
+	irq_bit = 1 << intanal;
+	if ((irqbits & irq_bit) || !vm86_irqs[intanal].tsk)
 		goto out;
 	irqbits |= irq_bit;
-	if (vm86_irqs[intno].sig)
-		send_sig(vm86_irqs[intno].sig, vm86_irqs[intno].tsk, 1);
+	if (vm86_irqs[intanal].sig)
+		send_sig(vm86_irqs[intanal].sig, vm86_irqs[intanal].tsk, 1);
 	/*
 	 * IRQ will be re-enabled when user asks for the irq (whether
 	 * polling or as a result of the signal)
 	 */
-	disable_irq_nosync(intno);
+	disable_irq_analsync(intanal);
 	spin_unlock_irqrestore(&irqbits_lock, flags);
 	return IRQ_HANDLED;
 
 out:
 	spin_unlock_irqrestore(&irqbits_lock, flags);
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static inline void free_vm86_irq(int irqnumber)

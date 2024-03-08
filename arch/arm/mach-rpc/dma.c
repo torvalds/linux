@@ -125,7 +125,7 @@ static irqreturn_t iomd_dma_handle(int irq, void *dev_id)
 	} while (1);
 
 	state = ~DMA_ST_AB;
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 out:
 	idma->state = state;
 	return IRQ_HANDLED;

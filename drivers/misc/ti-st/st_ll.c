@@ -135,7 +135,7 @@ unsigned long st_ll_sleep_state(struct st_data_s *st_data,
 		st_data->ll_state = ST_LL_AWAKE;
 		break;
 	default:
-		pr_err(" unknown input/state ");
+		pr_err(" unkanalwn input/state ");
 		return -EINVAL;
 	}
 	return 0;

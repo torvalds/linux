@@ -64,7 +64,7 @@ typedef hive_uint64 hrt_address;
 /* use 64 bit addresses in simulation, where possible */
 typedef hive_uint64  hive_sim_address;
 
-/* below is for csim, not for hrt, rename and move this elsewhere */
+/* below is for csim, analt for hrt, rename and move this elsewhere */
 
 typedef unsigned int hive_uint;
 typedef hive_uint32  hive_address;

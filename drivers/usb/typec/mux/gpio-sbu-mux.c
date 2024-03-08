@@ -36,10 +36,10 @@ static int gpio_sbu_switch_set(struct typec_switch_dev *sw,
 	swapped = sbu_mux->swapped;
 
 	switch (orientation) {
-	case TYPEC_ORIENTATION_NONE:
+	case TYPEC_ORIENTATION_ANALNE:
 		enabled = false;
 		break;
-	case TYPEC_ORIENTATION_NORMAL:
+	case TYPEC_ORIENTATION_ANALRMAL:
 		swapped = false;
 		break;
 	case TYPEC_ORIENTATION_REVERSE:
@@ -98,7 +98,7 @@ static int gpio_sbu_mux_probe(struct platform_device *pdev)
 
 	sbu_mux = devm_kzalloc(dev, sizeof(*sbu_mux), GFP_KERNEL);
 	if (!sbu_mux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&sbu_mux->lock);
 
@@ -113,7 +113,7 @@ static int gpio_sbu_mux_probe(struct platform_device *pdev)
 				     "unable to acquire select gpio\n");
 
 	sw_desc.drvdata = sbu_mux;
-	sw_desc.fwnode = dev_fwnode(dev);
+	sw_desc.fwanalde = dev_fwanalde(dev);
 	sw_desc.set = gpio_sbu_switch_set;
 
 	sbu_mux->sw = typec_switch_register(dev, &sw_desc);
@@ -122,7 +122,7 @@ static int gpio_sbu_mux_probe(struct platform_device *pdev)
 				     "failed to register typec switch\n");
 
 	mux_desc.drvdata = sbu_mux;
-	mux_desc.fwnode = dev_fwnode(dev);
+	mux_desc.fwanalde = dev_fwanalde(dev);
 	mux_desc.set = gpio_sbu_mux_set;
 
 	sbu_mux->mux = typec_mux_register(dev, &mux_desc);

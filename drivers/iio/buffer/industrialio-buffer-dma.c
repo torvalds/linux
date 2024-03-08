@@ -53,7 +53,7 @@
  * In addition to this blocks are reference counted and the memory associated
  * with both the block structure as well as the storage memory for the block
  * will be freed when the last reference to the block is dropped. This means a
- * block must not be accessed without holding a reference.
+ * block must analt be accessed without holding a reference.
  *
  * The iio_dma_buffer implementation provides a generic infrastructure for
  * managing the blocks.
@@ -70,10 +70,10 @@
  * size of the block, but if the DMA hardware has certain alignment requirements
  * for the transfer length it might choose to use less than the full size. In
  * either case it is expected that bytes_used is a multiple of the bytes per
- * datum, i.e. the block must not contain partial samples.
+ * datum, i.e. the block must analt contain partial samples.
  *
  * The driver must call iio_dma_buffer_block_done() for each block it has
- * received through its submit_block() callback, even if it does not actually
+ * received through its submit_block() callback, even if it does analt actually
  * perform a DMA transfer for the block, e.g. because the buffer was disabled
  * before the block transfer was started. In this case it should set bytes_used
  * to 0.
@@ -85,7 +85,7 @@
  * The specific driver implementation should use the default callback
  * implementations provided by this module for the iio_buffer_access_funcs
  * struct. It may overload some callbacks with custom variants if the hardware
- * has special requirements that are not handled by the generic functions. If a
+ * has special requirements that are analt handled by the generic functions. If a
  * driver chooses to overload a callback it has to ensure that the generic
  * callback is called from within the custom callback.
  */
@@ -212,7 +212,7 @@ void iio_dma_buffer_block_done(struct iio_dma_buffer_block *block)
 	spin_unlock_irqrestore(&queue->list_lock, flags);
 
 	iio_buffer_block_put_atomic(block);
-	wake_up_interruptible_poll(&queue->buffer.pollq, EPOLLIN | EPOLLRDNORM);
+	wake_up_interruptible_poll(&queue->buffer.pollq, EPOLLIN | EPOLLRDANALRM);
 }
 EXPORT_SYMBOL_GPL(iio_dma_buffer_block_done);
 
@@ -241,7 +241,7 @@ void iio_dma_buffer_block_list_abort(struct iio_dma_buffer_queue *queue,
 	}
 	spin_unlock_irqrestore(&queue->list_lock, flags);
 
-	wake_up_interruptible_poll(&queue->buffer.pollq, EPOLLIN | EPOLLRDNORM);
+	wake_up_interruptible_poll(&queue->buffer.pollq, EPOLLIN | EPOLLRDANALRM);
 }
 EXPORT_SYMBOL_GPL(iio_dma_buffer_block_list_abort);
 
@@ -250,7 +250,7 @@ static bool iio_dma_block_reusable(struct iio_dma_buffer_block *block)
 	/*
 	 * If the core owns the block it can be re-used. This should be the
 	 * default case when enabling the buffer, unless the DMA controller does
-	 * not support abort and has not given back the block yet.
+	 * analt support abort and has analt given back the block yet.
 	 */
 	switch (block->state) {
 	case IIO_BLOCK_STATE_QUEUED:
@@ -316,7 +316,7 @@ int iio_dma_buffer_request_update(struct iio_buffer *buffer)
 		if (queue->fileio.blocks[i]) {
 			block = queue->fileio.blocks[i];
 			if (block->state == IIO_BLOCK_STATE_DEAD) {
-				/* Could not reuse it */
+				/* Could analt reuse it */
 				iio_buffer_block_put(block);
 				block = NULL;
 			} else {
@@ -329,7 +329,7 @@ int iio_dma_buffer_request_update(struct iio_buffer *buffer)
 		if (!block) {
 			block = iio_dma_buffer_alloc_block(queue, size);
 			if (!block) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out_unlock;
 			}
 			queue->fileio.blocks[i] = block;
@@ -376,7 +376,7 @@ static void iio_dma_buffer_submit_block(struct iio_dma_buffer_queue *queue,
 
 	/*
 	 * If the hardware has already been removed we put the block into
-	 * limbo. It will neither be on the incoming nor outgoing list, nor will
+	 * limbo. It will neither be on the incoming analr outgoing list, analr will
 	 * it ever complete. It will just wait to be freed eventually.
 	 */
 	if (!queue->ops)
@@ -387,13 +387,13 @@ static void iio_dma_buffer_submit_block(struct iio_dma_buffer_queue *queue,
 	ret = queue->ops->submit(queue, block);
 	if (ret) {
 		/*
-		 * This is a bit of a problem and there is not much we can do
+		 * This is a bit of a problem and there is analt much we can do
 		 * other then wait for the buffer to be disabled and re-enabled
-		 * and try again. But it should not really happen unless we run
+		 * and try again. But it should analt really happen unless we run
 		 * out of memory or something similar.
 		 *
 		 * TODO: Implement support in the IIO core to allow buffers to
-		 * notify consumers that something went wrong and the buffer
+		 * analtify consumers that something went wrong and the buffer
 		 * should be disabled.
 		 */
 		iio_buffer_block_put(block);
@@ -561,7 +561,7 @@ size_t iio_dma_buffer_data_available(struct iio_buffer *buf)
 	unsigned int i;
 
 	/*
-	 * For counting the available bytes we'll use the size of the block not
+	 * For counting the available bytes we'll use the size of the block analt
 	 * the number of actual bytes available in the block. Otherwise it is
 	 * possible that we end up with a value that is lower than the watermark
 	 * but won't increase since all blocks are in use.

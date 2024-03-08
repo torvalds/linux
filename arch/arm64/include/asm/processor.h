@@ -10,7 +10,7 @@
 
 /*
  * On arm64 systems, unaligned accesses by the CPU are cheap, and so there is
- * no point in shifting all network buffers by 2 bytes just to make some IP
+ * anal point in shifting all network buffers by 2 bytes just to make some IP
  * header fields appear aligned in memory, potentially sacrificing some DMA
  * performance on some platforms.
  */
@@ -149,7 +149,7 @@ struct thread_struct {
 
 	/*
 	 * Whitelisted fields for hardened usercopy:
-	 * Maintainers must ensure manually that this contains no
+	 * Maintainers must ensure manually that this contains anal
 	 * implicit padding.
 	 */
 	struct {
@@ -249,7 +249,7 @@ static inline void task_set_sve_vl_onexec(struct task_struct *task,
 static inline void arch_thread_struct_whitelist(unsigned long *offset,
 						unsigned long *size)
 {
-	/* Verify that there is no padding among the whitelisted fields: */
+	/* Verify that there is anal padding among the whitelisted fields: */
 	BUILD_BUG_ON(sizeof_field(struct thread_struct, uw) !=
 		     sizeof_field(struct thread_struct, uw.tp_value) +
 		     sizeof_field(struct thread_struct, uw.tp2_value) +
@@ -282,9 +282,9 @@ void tls_preserve_current_state(void);
 
 static inline void start_thread_common(struct pt_regs *regs, unsigned long pc)
 {
-	s32 previous_syscall = regs->syscallno;
+	s32 previous_syscall = regs->syscallanal;
 	memset(regs, 0, sizeof(*regs));
-	regs->syscallno = previous_syscall;
+	regs->syscallanal = previous_syscall;
 	regs->pc = pc;
 
 	if (system_uses_irq_prio_masking())
@@ -366,7 +366,7 @@ extern unsigned long __ro_after_init signal_minsigstksz; /* sigframe size */
 extern void __init minsigstksz_setup(void);
 
 /*
- * Not at the top of the file due to a direct #include cycle between
+ * Analt at the top of the file due to a direct #include cycle between
  * <asm/fpsimd.h> and <asm/processor.h>.  Deferring this #include
  * ensures that contents of processor.h are visible to fpsimd.h even if
  * processor.h is included first.

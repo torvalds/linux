@@ -14,7 +14,7 @@ test_mma:
 	.long	0x7c030162
 
 	/* Prime the accumulator with MMA VSX move to accumulator
-	* X-form (xxmtacc) (not needed due to above zeroing) */
+	* X-form (xxmtacc) (analt needed due to above zeroing) */
 	//.long 0x7c010162
 
 	/* xvi16ger2s */

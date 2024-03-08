@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  step_wise.c - A step-by-step Thermal throttling governor
+ *  step_wise.c - A step-by-step Thermal throttling goveranalr
  *
  *  Copyright (C) 2012 Intel Corp
  *  Copyright (C) 2012 Durgadoss R <durgadoss.r@intel.com>
@@ -20,9 +20,9 @@
  * If the temperature is higher than a trip point,
  *    a. if the trend is THERMAL_TREND_RAISING, use higher cooling
  *       state for this trip point
- *    b. if the trend is THERMAL_TREND_DROPPING, do nothing
+ *    b. if the trend is THERMAL_TREND_DROPPING, do analthing
  * If the temperature is lower than a trip point,
- *    a. if the trend is THERMAL_TREND_RAISING, do nothing
+ *    a. if the trend is THERMAL_TREND_RAISING, do analthing
  *    b. if the trend is THERMAL_TREND_DROPPING, use lower cooling
  *       state for this trip point, if the cooling state already
  *       equals lower limit, deactivate the thermal instance
@@ -47,7 +47,7 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 		if (throttle) {
 			next_target = clamp((cur_state + 1), instance->lower, instance->upper);
 		} else {
-			next_target = THERMAL_NO_TARGET;
+			next_target = THERMAL_ANAL_TARGET;
 		}
 
 		return next_target;
@@ -59,7 +59,7 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 	} else {
 		if (trend == THERMAL_TREND_DROPPING) {
 			if (cur_state <= instance->lower)
-				next_target = THERMAL_NO_TARGET;
+				next_target = THERMAL_ANAL_TARGET;
 			else
 				next_target = clamp((cur_state - 1), instance->lower, instance->upper);
 		}
@@ -87,7 +87,7 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz,
 	dev_dbg(&tz->device, "Trip%d[type=%d,temp=%d]:trend=%d,throttle=%d\n",
 		trip_id, trip->type, trip->temperature, trend, throttle);
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+	list_for_each_entry(instance, &tz->thermal_instances, tz_analde) {
 		if (instance->trip != trip)
 			continue;
 
@@ -99,13 +99,13 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz,
 		if (instance->initialized && old_target == instance->target)
 			continue;
 
-		if (old_target == THERMAL_NO_TARGET &&
-		    instance->target != THERMAL_NO_TARGET) {
+		if (old_target == THERMAL_ANAL_TARGET &&
+		    instance->target != THERMAL_ANAL_TARGET) {
 			/* Activate a passive thermal instance */
 			if (trip->type == THERMAL_TRIP_PASSIVE)
 				tz->passive++;
-		} else if (old_target != THERMAL_NO_TARGET &&
-			   instance->target == THERMAL_NO_TARGET) {
+		} else if (old_target != THERMAL_ANAL_TARGET &&
+			   instance->target == THERMAL_ANAL_TARGET) {
 			/* Deactivate a passive thermal instance */
 			if (trip->type == THERMAL_TRIP_PASSIVE)
 				tz->passive--;
@@ -138,14 +138,14 @@ static int step_wise_throttle(struct thermal_zone_device *tz,
 
 	thermal_zone_trip_update(tz, trip);
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node)
+	list_for_each_entry(instance, &tz->thermal_instances, tz_analde)
 		thermal_cdev_update(instance->cdev);
 
 	return 0;
 }
 
-static struct thermal_governor thermal_gov_step_wise = {
+static struct thermal_goveranalr thermal_gov_step_wise = {
 	.name		= "step_wise",
 	.throttle	= step_wise_throttle,
 };
-THERMAL_GOVERNOR_DECLARE(thermal_gov_step_wise);
+THERMAL_GOVERANALR_DECLARE(thermal_gov_step_wise);

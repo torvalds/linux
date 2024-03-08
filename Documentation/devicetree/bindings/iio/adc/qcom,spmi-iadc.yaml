@@ -30,7 +30,7 @@ properties:
 
   qcom,external-resistor-micro-ohms:
     description:
-      Sensor resistor value. If not defined value of 10000 micro Ohms
+      Sensor resistor value. If analt defined value of 10000 micro Ohms
       will be used.
 
   interrupts:

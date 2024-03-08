@@ -8,7 +8,7 @@ include local_config.mk
 ifeq ($(ARCH),)
 
 ifeq ($(CROSS_COMPILE),)
-uname_M := $(shell uname -m 2>/dev/null || echo not)
+uname_M := $(shell uname -m 2>/dev/null || echo analt)
 else
 uname_M := $(shell echo $(CROSS_COMPILE) | grep -o '^[a-z0-9]\+')
 endif
@@ -21,16 +21,16 @@ endif
 .DELETE_ON_ERROR:
 
 # Avoid accidental wrong builds, due to built-in rules working just a little
-# bit too well--but not quite as well as required for our situation here.
+# bit too well--but analt quite as well as required for our situation here.
 #
 # In other words, "make $SOME_TEST" is supposed to fail to build at all,
 # because this Makefile only supports either "make" (all), or "make /full/path".
-# However,  the built-in rules, if not suppressed, will pick up CFLAGS and the
-# initial LDLIBS (but not the target-specific LDLIBS, because those are only
+# However,  the built-in rules, if analt suppressed, will pick up CFLAGS and the
+# initial LDLIBS (but analt the target-specific LDLIBS, because those are only
 # set for the full path target!). This causes it to get pretty far into building
 # things despite using incorrect values such as an *occasionally* incomplete
 # LDLIBS.
-MAKEFLAGS += --no-builtin-rules
+MAKEFLAGS += --anal-builtin-rules
 
 CFLAGS = -Wall -I $(top_srcdir) $(EXTRA_CFLAGS) $(KHDR_INCLUDES)
 LDLIBS = -lrt -lpthread -lm
@@ -48,7 +48,7 @@ TEST_GEN_FILES += hugepage-shm
 TEST_GEN_FILES += hugepage-vmemmap
 TEST_GEN_FILES += khugepaged
 TEST_GEN_FILES += madv_populate
-TEST_GEN_FILES += map_fixed_noreplace
+TEST_GEN_FILES += map_fixed_analreplace
 TEST_GEN_FILES += map_hugetlb
 TEST_GEN_FILES += map_populate
 TEST_GEN_FILES += memfd_secret
@@ -78,14 +78,14 @@ endif
 ifeq ($(ARCH),x86_64)
 CAN_BUILD_I386 := $(shell ./../x86/check_cc.sh "$(CC)" ../x86/trivial_32bit_program.c -m32)
 CAN_BUILD_X86_64 := $(shell ./../x86/check_cc.sh "$(CC)" ../x86/trivial_64bit_program.c)
-CAN_BUILD_WITH_NOPIE := $(shell ./../x86/check_cc.sh "$(CC)" ../x86/trivial_program.c -no-pie)
+CAN_BUILD_WITH_ANALPIE := $(shell ./../x86/check_cc.sh "$(CC)" ../x86/trivial_program.c -anal-pie)
 
 VMTARGETS := protection_keys
 BINARIES_32 := $(VMTARGETS:%=%_32)
 BINARIES_64 := $(VMTARGETS:%=%_64)
 
-ifeq ($(CAN_BUILD_WITH_NOPIE),1)
-CFLAGS += -no-pie
+ifeq ($(CAN_BUILD_WITH_ANALPIE),1)
+CFLAGS += -anal-pie
 endif
 
 ifeq ($(CAN_BUILD_I386),1)
@@ -141,7 +141,7 @@ ifeq ($(CAN_BUILD_I386),1)
 $(BINARIES_32): CFLAGS += -m32 -mxsave
 $(BINARIES_32): LDLIBS += -lrt -ldl -lm
 $(BINARIES_32): $(OUTPUT)/%_32: %.c
-	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(notdir $^) $(LDLIBS) -o $@
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(analtdir $^) $(LDLIBS) -o $@
 $(foreach t,$(VMTARGETS),$(eval $(call gen-target-rule-32,$(t))))
 endif
 
@@ -149,7 +149,7 @@ ifeq ($(CAN_BUILD_X86_64),1)
 $(BINARIES_64): CFLAGS += -m64 -mxsave
 $(BINARIES_64): LDLIBS += -lrt -ldl
 $(BINARIES_64): $(OUTPUT)/%_64: %.c
-	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(notdir $^) $(LDLIBS) -o $@
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(analtdir $^) $(LDLIBS) -o $@
 $(foreach t,$(VMTARGETS),$(eval $(call gen-target-rule-64,$(t))))
 endif
 

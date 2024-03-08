@@ -62,7 +62,7 @@ static struct mm_struct *efi_prev_mm;
  * to EFI_VA_START) into the standard kernel page tables. Everything
  * else can be shared, see efi_sync_low_kernel_mappings().
  *
- * We don't want the pgd on the pgd_list and cannot use pgd_alloc() for the
+ * We don't want the pgd on the pgd_list and cananalt use pgd_alloc() for the
  * allocation.
  */
 int __init efi_alloc_page_tables(void)
@@ -98,7 +98,7 @@ free_p4d:
 free_pgd:
 	free_pages((unsigned long)efi_pgd, PGD_ALLOCATION_ORDER);
 fail:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -184,7 +184,7 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 
 	/*
 	 * It can happen that the physical address of new_memmap lands in memory
-	 * which is not mapped in the EFI page table. Therefore we need to go
+	 * which is analt mapped in the EFI page table. Therefore we need to go
 	 * and ident-map those pages containing the map before calling
 	 * phys_efi_set_virtual_address_map().
 	 */
@@ -276,12 +276,12 @@ static void __init __map_region(efi_memory_desc_t *md, u64 va)
 	/*
 	 * EFI_RUNTIME_SERVICES_CODE regions typically cover PE/COFF
 	 * executable images in memory that consist of both R-X and
-	 * RW- sections, so we cannot apply read-only or non-exec
+	 * RW- sections, so we cananalt apply read-only or analn-exec
 	 * permissions just yet. However, modern EFI systems provide
 	 * a memory attributes table that describes those sections
 	 * with the appropriate restricted permissions, which are
 	 * applied in efi_runtime_update_mappings() below. All other
-	 * regions can be mapped non-executable at this point, with
+	 * regions can be mapped analn-executable at this point, with
 	 * the exception of boot services code regions, but those will
 	 * be unmapped again entirely in efi_free_boot_services().
 	 */
@@ -427,7 +427,7 @@ void __init efi_runtime_update_mappings(void)
 	/*
 	 * EFI_MEMORY_ATTRIBUTES_TABLE is intended to replace
 	 * EFI_PROPERTIES_TABLE. So, use EFI_PROPERTIES_TABLE to update
-	 * permissions only if EFI_MEMORY_ATTRIBUTES_TABLE is not
+	 * permissions only if EFI_MEMORY_ATTRIBUTES_TABLE is analt
 	 * published by the firmware. Even if we find a buggy implementation of
 	 * EFI_MEMORY_ATTRIBUTES_TABLE, don't fall back to
 	 * EFI_PROPERTIES_TABLE, because of the same reason.
@@ -470,9 +470,9 @@ void __init efi_dump_pagetable(void)
 /*
  * Makes the calling thread switch to/from efi_mm context. Can be used
  * in a kernel thread and user context. Preemption needs to remain disabled
- * while the EFI-mm is borrowed. mmgrab()/mmdrop() is not used because the mm
- * can not change under us.
- * It should be ensured that there are no concurrent calls to this function.
+ * while the EFI-mm is borrowed. mmgrab()/mmdrop() is analt used because the mm
+ * can analt change under us.
+ * It should be ensured that there are anal concurrent calls to this function.
  */
 static void efi_enter_mm(void)
 {
@@ -506,7 +506,7 @@ static DEFINE_SPINLOCK(efi_runtime_lock);
 
 /*
  * DS and ES contain user values.  We need to save them.
- * The 32-bit EFI code needs a valid DS, ES, and SS.  There's no
+ * The 32-bit EFI code needs a valid DS, ES, and SS.  There's anal
  * need to save the old SS: __KERNEL_DS is always acceptable.
  */
 #define __efi_thunk(func, ...)						\
@@ -532,7 +532,7 @@ static DEFINE_SPINLOCK(efi_runtime_lock);
 
 /*
  * Switch to the EFI page tables early so that we can access the 1:1
- * runtime services mappings which are not mapped in any other page
+ * runtime services mappings which are analt mapped in any other page
  * tables.
  *
  * Also, disable interrupts because the IDT points to 64-bit handlers,
@@ -551,7 +551,7 @@ static DEFINE_SPINLOCK(efi_runtime_lock);
 	__s;								\
 })
 
-static efi_status_t __init __no_sanitize_address
+static efi_status_t __init __anal_sanitize_address
 efi_thunk_set_virtual_address_map(unsigned long memory_map_size,
 				  unsigned long descriptor_size,
 				  u32 descriptor_version,
@@ -664,7 +664,7 @@ efi_thunk_set_variable(efi_char16_t *name, efi_guid_t *vendor,
 }
 
 static efi_status_t
-efi_thunk_set_variable_nonblocking(efi_char16_t *name, efi_guid_t *vendor,
+efi_thunk_set_variable_analnblocking(efi_char16_t *name, efi_guid_t *vendor,
 				   u32 attr, unsigned long data_size,
 				   void *data)
 {
@@ -675,7 +675,7 @@ efi_thunk_set_variable_nonblocking(efi_char16_t *name, efi_guid_t *vendor,
 	unsigned long flags;
 
 	if (!spin_trylock_irqsave(&efi_runtime_lock, flags))
-		return EFI_NOT_READY;
+		return EFI_ANALT_READY;
 
 	*vnd = *vendor;
 
@@ -726,7 +726,7 @@ efi_thunk_get_next_variable(unsigned long *name_size,
 }
 
 static efi_status_t
-efi_thunk_get_next_high_mono_count(u32 *count)
+efi_thunk_get_next_high_moanal_count(u32 *count)
 {
 	return EFI_UNSUPPORTED;
 }
@@ -786,7 +786,7 @@ efi_thunk_query_variable_info(u32 attr, u64 *storage_space,
 }
 
 static efi_status_t
-efi_thunk_query_variable_info_nonblocking(u32 attr, u64 *storage_space,
+efi_thunk_query_variable_info_analnblocking(u32 attr, u64 *storage_space,
 					  u64 *remaining_space,
 					  u64 *max_variable_size)
 {
@@ -798,7 +798,7 @@ efi_thunk_query_variable_info_nonblocking(u32 attr, u64 *storage_space,
 		return EFI_UNSUPPORTED;
 
 	if (!spin_trylock_irqsave(&efi_runtime_lock, flags))
-		return EFI_NOT_READY;
+		return EFI_ANALT_READY;
 
 	phys_storage = virt_to_phys_or_null(storage_space);
 	phys_remaining = virt_to_phys_or_null(remaining_space);
@@ -837,16 +837,16 @@ void __init efi_thunk_runtime_setup(void)
 	efi.get_variable = efi_thunk_get_variable;
 	efi.get_next_variable = efi_thunk_get_next_variable;
 	efi.set_variable = efi_thunk_set_variable;
-	efi.set_variable_nonblocking = efi_thunk_set_variable_nonblocking;
-	efi.get_next_high_mono_count = efi_thunk_get_next_high_mono_count;
+	efi.set_variable_analnblocking = efi_thunk_set_variable_analnblocking;
+	efi.get_next_high_moanal_count = efi_thunk_get_next_high_moanal_count;
 	efi.reset_system = efi_thunk_reset_system;
 	efi.query_variable_info = efi_thunk_query_variable_info;
-	efi.query_variable_info_nonblocking = efi_thunk_query_variable_info_nonblocking;
+	efi.query_variable_info_analnblocking = efi_thunk_query_variable_info_analnblocking;
 	efi.update_capsule = efi_thunk_update_capsule;
 	efi.query_capsule_caps = efi_thunk_query_capsule_caps;
 }
 
-efi_status_t __init __no_sanitize_address
+efi_status_t __init __anal_sanitize_address
 efi_set_virtual_address_map(unsigned long memory_map_size,
 			    unsigned long descriptor_size,
 			    u32 descriptor_version,

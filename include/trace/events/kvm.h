@@ -10,7 +10,7 @@
 #define ERSN(x) { KVM_EXIT_##x, "KVM_EXIT_" #x }
 
 #define kvm_trace_exit_reason						\
-	ERSN(UNKNOWN), ERSN(EXCEPTION), ERSN(IO), ERSN(HYPERCALL),	\
+	ERSN(UNKANALWN), ERSN(EXCEPTION), ERSN(IO), ERSN(HYPERCALL),	\
 	ERSN(DEBUG), ERSN(HLT), ERSN(MMIO), ERSN(IRQ_WINDOW_OPEN),	\
 	ERSN(SHUTDOWN), ERSN(FAIL_ENTRY), ERSN(INTR), ERSN(SET_TPR),	\
 	ERSN(TPR_ACCESS), ERSN(S390_SIEIC), ERSN(S390_RESET), ERSN(DCR),\
@@ -20,24 +20,24 @@
 	ERSN(HYPERV), ERSN(ARM_NISV), ERSN(X86_RDMSR), ERSN(X86_WRMSR)
 
 TRACE_EVENT(kvm_userspace_exit,
-	    TP_PROTO(__u32 reason, int errno),
-	    TP_ARGS(reason, errno),
+	    TP_PROTO(__u32 reason, int erranal),
+	    TP_ARGS(reason, erranal),
 
 	TP_STRUCT__entry(
 		__field(	__u32,		reason		)
-		__field(	int,		errno		)
+		__field(	int,		erranal		)
 	),
 
 	TP_fast_assign(
 		__entry->reason		= reason;
-		__entry->errno		= errno;
+		__entry->erranal		= erranal;
 	),
 
 	TP_printk("reason %s (%d)",
-		  __entry->errno < 0 ?
-		  (__entry->errno == -EINTR ? "restart" : "error") :
+		  __entry->erranal < 0 ?
+		  (__entry->erranal == -EINTR ? "restart" : "error") :
 		  __print_symbolic(__entry->reason, kvm_trace_exit_reason),
-		  __entry->errno < 0 ? -__entry->errno : __entry->reason)
+		  __entry->erranal < 0 ? -__entry->erranal : __entry->reason)
 );
 
 TRACE_EVENT(kvm_vcpu_wakeup,
@@ -289,7 +289,7 @@ DEFINE_EVENT(kvm_async_get_page_class, kvm_async_pf_repeated_fault,
 	TP_ARGS(gva, gfn)
 );
 
-DECLARE_EVENT_CLASS(kvm_async_pf_nopresent_ready,
+DECLARE_EVENT_CLASS(kvm_async_pf_analpresent_ready,
 
 	TP_PROTO(u64 token, u64 gva),
 
@@ -309,14 +309,14 @@ DECLARE_EVENT_CLASS(kvm_async_pf_nopresent_ready,
 
 );
 
-DEFINE_EVENT(kvm_async_pf_nopresent_ready, kvm_async_pf_not_present,
+DEFINE_EVENT(kvm_async_pf_analpresent_ready, kvm_async_pf_analt_present,
 
 	TP_PROTO(u64 token, u64 gva),
 
 	TP_ARGS(token, gva)
 );
 
-DEFINE_EVENT(kvm_async_pf_nopresent_ready, kvm_async_pf_ready,
+DEFINE_EVENT(kvm_async_pf_analpresent_ready, kvm_async_pf_ready,
 
 	TP_PROTO(u64 token, u64 gva),
 
@@ -452,7 +452,7 @@ TRACE_EVENT(kvm_unmap_hva_range,
 		__entry->end		= end;
 	),
 
-	TP_printk("mmu notifier unmap range: %#016lx -- %#016lx",
+	TP_printk("mmu analtifier unmap range: %#016lx -- %#016lx",
 		  __entry->start, __entry->end)
 );
 
@@ -468,7 +468,7 @@ TRACE_EVENT(kvm_set_spte_hva,
 		__entry->hva		= hva;
 	),
 
-	TP_printk("mmu notifier set pte hva: %#016lx", __entry->hva)
+	TP_printk("mmu analtifier set pte hva: %#016lx", __entry->hva)
 );
 
 TRACE_EVENT(kvm_age_hva,
@@ -485,7 +485,7 @@ TRACE_EVENT(kvm_age_hva,
 		__entry->end		= end;
 	),
 
-	TP_printk("mmu notifier age hva: %#016lx -- %#016lx",
+	TP_printk("mmu analtifier age hva: %#016lx -- %#016lx",
 		  __entry->start, __entry->end)
 );
 
@@ -501,7 +501,7 @@ TRACE_EVENT(kvm_test_age_hva,
 		__entry->hva		= hva;
 	),
 
-	TP_printk("mmu notifier test age hva: %#016lx", __entry->hva)
+	TP_printk("mmu analtifier test age hva: %#016lx", __entry->hva)
 );
 
 #endif /* _TRACE_KVM_MAIN_H */

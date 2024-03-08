@@ -96,11 +96,11 @@ const struct kvm_stats_header kvm_vcpu_stats_header = {
 };
 
 static inline void kvmppc_update_int_pending(struct kvm_vcpu *vcpu,
-			unsigned long pending_now, unsigned long old_pending)
+			unsigned long pending_analw, unsigned long old_pending)
 {
 	if (is_kvmppc_hv_enabled(vcpu->kvm))
 		return;
-	if (pending_now)
+	if (pending_analw)
 		kvmppc_set_int_pending(vcpu, 1);
 	else if (old_pending)
 		kvmppc_set_int_pending(vcpu, 0);
@@ -251,11 +251,11 @@ void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
 	 * This case (KVM_INTERRUPT_SET) should never actually arise for
 	 * a pseries guest (because pseries guests expect their interrupt
 	 * controllers to continue asserting an external interrupt request
-	 * until it is acknowledged at the interrupt controller), but is
+	 * until it is ackanalwledged at the interrupt controller), but is
 	 * included to avoid ABI breakage and potentially for other
 	 * sorts of guest.
 	 *
-	 * There is a subtlety here: HV KVM does not test the
+	 * There is a subtlety here: HV KVM does analt test the
 	 * external_oneshot flag in the code that synthesizes
 	 * external interrupts for the guest just before entering
 	 * the guest.  That is OK even if userspace did do a
@@ -356,7 +356,7 @@ static int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu,
 		break;
 	default:
 		deliver = 0;
-		printk(KERN_ERR "KVM: Unknown interrupt: 0x%x\n", priority);
+		printk(KERN_ERR "KVM: Unkanalwn interrupt: 0x%x\n", priority);
 		break;
 	}
 
@@ -383,7 +383,7 @@ static bool clear_irqprio(struct kvm_vcpu *vcpu, unsigned int priority)
 			/*
 			 * External interrupts get cleared by userspace
 			 * except when set by the KVM_INTERRUPT ioctl with
-			 * KVM_INTERRUPT_SET (not KVM_INTERRUPT_SET_LEVEL).
+			 * KVM_INTERRUPT_SET (analt KVM_INTERRUPT_SET_LEVEL).
 			 */
 			if (vcpu->arch.external_oneshot) {
 				vcpu->arch.external_oneshot = 0;
@@ -610,12 +610,12 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 
 int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id,
@@ -927,7 +927,7 @@ void kvmppc_core_destroy_vm(struct kvm *kvm)
 
 #ifdef CONFIG_KVM_XICS
 	/*
-	 * Free the XIVE and XICS devices which are not directly freed by the
+	 * Free the XIVE and XICS devices which are analt directly freed by the
 	 * device 'release' method
 	 */
 	kfree(kvm->arch.xive_devices.native);
@@ -1108,6 +1108,6 @@ module_exit(kvmppc_book3s_exit);
 
 /* On 32bit this is our one and only kernel module */
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER
-MODULE_ALIAS_MISCDEV(KVM_MINOR);
+MODULE_ALIAS_MISCDEV(KVM_MIANALR);
 MODULE_ALIAS("devname:kvm");
 #endif

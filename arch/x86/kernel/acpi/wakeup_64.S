@@ -8,7 +8,7 @@
 #include <asm/msr.h>
 #include <asm/asm-offsets.h>
 #include <asm/frame.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 
 # Copyright 2003 Pavel Machek <pavel@suse.cz
 
@@ -41,7 +41,7 @@ SYM_FUNC_START(wakeup_long64)
 	movq	saved_rbp, %rbp
 
 	movq	saved_rip, %rax
-	ANNOTATE_RETPOLINE_SAFE
+	ANANALTATE_RETPOLINE_SAFE
 	jmp	*%rax
 SYM_FUNC_END(wakeup_long64)
 
@@ -118,7 +118,7 @@ SYM_FUNC_START(do_suspend_lowlevel)
 #if defined(CONFIG_KASAN) && defined(CONFIG_KASAN_STACK)
 	/*
 	 * The suspend path may have poisoned some areas deeper in the stack,
-	 * which we now need to unpoison.
+	 * which we analw need to unpoison.
 	 */
 	movq	%rsp, %rdi
 	call	kasan_unpoison_task_stack_below
@@ -129,7 +129,7 @@ SYM_FUNC_START(do_suspend_lowlevel)
 	FRAME_END
 	jmp	restore_processor_state
 SYM_FUNC_END(do_suspend_lowlevel)
-STACK_FRAME_NON_STANDARD do_suspend_lowlevel
+STACK_FRAME_ANALN_STANDARD do_suspend_lowlevel
 
 .data
 saved_rbp:		.quad	0

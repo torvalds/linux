@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -232,7 +232,7 @@ struct brcmuart_priv {
 	u64		dma_rx_partial_buf;
 	u64		dma_rx_full_buf;
 	u32		rx_bad_timeout_late_char;
-	u32		rx_bad_timeout_no_char;
+	u32		rx_bad_timeout_anal_char;
 	u32		rx_missing_close_timeout;
 	u32		rx_err;
 	u32		rx_timeout;
@@ -281,7 +281,7 @@ static void udma_unset(struct brcmuart_priv *priv,
 
 /*
  * The UART DMA engine hardware can be used by multiple UARTS, but
- * only one at a time. Sharing is not currently supported so
+ * only one at a time. Sharing is analt currently supported so
  * the first UART to request the DMA engine will get it and any
  * subsequent requests by other UARTS will fail.
  */
@@ -339,7 +339,7 @@ static void brcmuart_init_dma_hardware(struct brcmuart_priv *priv)
 	daddr = priv->rx_addr;
 	for (x = 0; x < RX_BUFS_COUNT; x++) {
 
-		/* Set RX transfer length to 0 for unknown */
+		/* Set RX transfer length to 0 for unkanalwn */
 		udma_writel(priv, REGS_DMA_RX, UDMA_RX_TRANSFER_LEN, 0);
 
 		udma_writel(priv, REGS_DMA_RX, UDMA_RX_BUFx_PTR_LO(x),
@@ -408,7 +408,7 @@ static int stop_tx_dma(struct uart_8250_port *p)
 }
 
 /*
- * NOTE: printk's in this routine will hang the system if this is
+ * ANALTE: printk's in this routine will hang the system if this is
  * the console tty
  */
 static int brcmuart_tx_dma(struct uart_8250_port *p)
@@ -452,7 +452,7 @@ static void brcmuart_rx_buf_done_isr(struct uart_port *up, int index)
 	length = udma_readl(priv, REGS_DMA_RX, UDMA_RX_BUFx_DATA_LEN(index));
 
 	if ((status & UDMA_RX_BUFX_STATUS_DATA_RDY) == 0) {
-		dev_err(up->dev, "RX done interrupt but DATA_RDY not found\n");
+		dev_err(up->dev, "RX done interrupt but DATA_RDY analt found\n");
 		return;
 	}
 	if (status & (UDMA_RX_BUFX_STATUS_OVERRUN_ERR |
@@ -524,7 +524,7 @@ static void brcmuart_rx_isr(struct uart_port *up, u32 rx_isr)
 				priv->rx_abort++;
 			priv->rx_running = false;
 		}
-		/* If not ABORT, re-enable RX buffer */
+		/* If analt ABORT, re-enable RX buffer */
 		if (!(rx_isr & UDMA_INTR_RX_ABORT))
 			udma_unset(priv, REGS_DMA_RX,
 				   UDMA_RX_BUFx_STATUS(priv->rx_next_buf),
@@ -565,7 +565,7 @@ static irqreturn_t brcmuart_isr(int irq, void *dev_id)
 
 	interrupts = udma_readl(priv, REGS_DMA_ISR, UDMA_INTR_STATUS);
 	if (interrupts == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	uart_port_lock_irqsave(up, &flags);
 
@@ -594,7 +594,7 @@ static int brcmuart_startup(struct uart_port *port)
 	priv->shutdown = false;
 
 	/*
-	 * prevent serial8250_do_startup() from allocating non-existent
+	 * prevent serial8250_do_startup() from allocating analn-existent
 	 * DMA resources
 	 */
 	up->dma = NULL;
@@ -650,7 +650,7 @@ static void brcmuart_shutdown(struct uart_port *port)
 }
 
 /*
- * Not all clocks run at the exact specified rate, so set each requested
+ * Analt all clocks run at the exact specified rate, so set each requested
  * rate and then get the actual rate.
  */
 static void init_real_clk_rates(struct device *dev, struct brcmuart_priv *priv)
@@ -692,7 +692,7 @@ static void set_clock_mux(struct uart_port *up, struct brcmuart_priv *priv,
 	int i;
 	int real_baud;
 
-	/* If the Baud Mux Clock was not specified, just return */
+	/* If the Baud Mux Clock was analt specified, just return */
 	if (priv->baud_mux_clk == NULL)
 		return;
 
@@ -747,7 +747,7 @@ static void set_clock_mux(struct uart_port *up, struct brcmuart_priv *priv,
 	dev_dbg(up->dev, "Requested baud: %u, Actual baud: %u\n",
 		baud, real_baud);
 
-	/* calc nanoseconds for 1.5 characters time at the given baud rate */
+	/* calc naanalseconds for 1.5 characters time at the given baud rate */
 	i = NSEC_PER_SEC / real_baud / 10;
 	i += (i / 2);
 	priv->char_wait = ns_to_ktime(i);
@@ -785,7 +785,7 @@ static int brcmuart_handle_irq(struct uart_port *p)
 
 	/*
 	 * There's a bug in some 8250 cores where we get a timeout
-	 * interrupt but there is no data ready.
+	 * interrupt but there is anal data ready.
 	 */
 	if (((iir & UART_IIR_ID) == UART_IIR_RX_TIMEOUT) && !(priv->shutdown)) {
 		uart_port_lock_irqsave(p, &flags);
@@ -829,18 +829,18 @@ static enum hrtimer_restart brcmuart_hrtimer_func(struct hrtimer *t)
 	unsigned long flags;
 
 	if (priv->shutdown)
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
 	uart_port_lock_irqsave(p, &flags);
 	status = serial_port_in(p, UART_LSR);
 
 	/*
-	 * If a character did not arrive after the timeout, clear the false
+	 * If a character did analt arrive after the timeout, clear the false
 	 * receive timeout.
 	 */
 	if ((status & UART_LSR_DR) == 0) {
 		serial_port_in(p, UART_RX);
-		priv->rx_bad_timeout_no_char++;
+		priv->rx_bad_timeout_anal_char++;
 	} else {
 		priv->rx_bad_timeout_late_char++;
 	}
@@ -856,7 +856,7 @@ static enum hrtimer_restart brcmuart_hrtimer_func(struct hrtimer *t)
 		serial_port_out(p, UART_MCR, status);
 	}
 	uart_port_unlock_irqrestore(p, flags);
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static const struct of_device_id brcmuart_dt_ids[] = {
@@ -910,8 +910,8 @@ static int debugfs_stats_show(struct seq_file *s, void *unused)
 		   priv->rx_abort);
 	seq_printf(s, "rx_bad_timeout_late_char:\t%u\n",
 		   priv->rx_bad_timeout_late_char);
-	seq_printf(s, "rx_bad_timeout_no_char:\t\t%u\n",
-		   priv->rx_bad_timeout_no_char);
+	seq_printf(s, "rx_bad_timeout_anal_char:\t\t%u\n",
+		   priv->rx_bad_timeout_anal_char);
 	seq_printf(s, "rx_missing_close_timeout:\t%u\n",
 		   priv->rx_missing_close_timeout);
 	if (priv->dma_enabled) {
@@ -936,7 +936,7 @@ static void brcmuart_init_debugfs(struct brcmuart_priv *priv,
 static int brcmuart_probe(struct platform_device *pdev)
 {
 	struct resource *regs;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct of_device_id *of_id = NULL;
 	struct uart_8250_port *new_port;
 	struct device *dev = &pdev->dev;
@@ -960,9 +960,9 @@ static int brcmuart_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(dev, sizeof(struct brcmuart_priv),
 			GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	of_id = of_match_node(brcmuart_dt_ids, np);
+	of_id = of_match_analde(brcmuart_dt_ids, np);
 	if (!of_id || !of_id->data)
 		priv->rate_table = brcmstb_rate_table;
 	else
@@ -976,7 +976,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 		priv->regs[x] =	devm_ioremap(dev, regs->start,
 					     resource_size(regs));
 		if (!priv->regs[x])
-			return -ENOMEM;
+			return -EANALMEM;
 		if (x == REGS_8250) {
 			mapbase = regs->start;
 			membase = priv->regs[x];
@@ -985,7 +985,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 
 	/* We should have just the uart base registers or all the registers */
 	if (x != 1 && x != REGS_MAX)
-		return dev_err_probe(dev, -EINVAL, "%s registers not specified\n",
+		return dev_err_probe(dev, -EINVAL, "%s registers analt specified\n",
 				     reg_names[x]);
 
 	/* if the DMA registers were specified, try to enable DMA */
@@ -1026,15 +1026,15 @@ static int brcmuart_probe(struct platform_device *pdev)
 		init_real_clk_rates(dev, priv);
 		clk_rate = priv->default_mux_rate;
 	} else {
-		dev_dbg(dev, "BAUD MUX clock not specified\n");
+		dev_dbg(dev, "BAUD MUX clock analt specified\n");
 	}
 
 	if (clk_rate == 0) {
-		ret = dev_err_probe(dev, -EINVAL, "clock-frequency or clk not defined\n");
+		ret = dev_err_probe(dev, -EINVAL, "clock-frequency or clk analt defined\n");
 		goto release_dma;
 	}
 
-	dev_dbg(dev, "DMA is %senabled\n", priv->dma_enabled ? "" : "not ");
+	dev_dbg(dev, "DMA is %senabled\n", priv->dma_enabled ? "" : "analt ");
 
 	memset(&up, 0, sizeof(up));
 	up.port.type = PORT_BCM7271;
@@ -1058,7 +1058,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 		up.port.line = ret;
 
 	/* setup HR timer */
-	hrtimer_init(&priv->hrt, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&priv->hrt, CLOCK_MOANALTONIC, HRTIMER_MODE_ABS);
 	priv->hrt.function = brcmuart_hrtimer_func;
 
 	up.port.shutdown = brcmuart_shutdown;
@@ -1073,7 +1073,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 						   priv->rx_size,
 						   &priv->rx_addr, GFP_KERNEL);
 		if (!priv->rx_bufs) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 		priv->tx_size = UART_XMIT_SIZE;
@@ -1081,7 +1081,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 						  priv->tx_size,
 						  &priv->tx_addr, GFP_KERNEL);
 		if (!priv->tx_buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 	}
@@ -1097,7 +1097,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 	if (priv->dma_enabled) {
 		dma_irq = platform_get_irq_byname(pdev,  "dma");
 		if (dma_irq < 0) {
-			ret = dev_err_probe(dev, dma_irq, "no IRQ resource info\n");
+			ret = dev_err_probe(dev, dma_irq, "anal IRQ resource info\n");
 			goto err1;
 		}
 		ret = devm_request_irq(dev, dma_irq, brcmuart_isr,

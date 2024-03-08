@@ -46,7 +46,7 @@ static unsigned long ccu_mp_find_best_with_parent_adj(struct clk_hw *hw,
 						      unsigned int max_p)
 {
 	unsigned long parent_rate_saved;
-	unsigned long parent_rate, now;
+	unsigned long parent_rate, analw;
 	unsigned long best_rate = 0;
 	unsigned int _m, _p, div;
 	unsigned long maxdiv;
@@ -79,13 +79,13 @@ static unsigned long ccu_mp_find_best_with_parent_adj(struct clk_hw *hw,
 			}
 
 			parent_rate = clk_hw_round_rate(hw, rate * div);
-			now = parent_rate / div;
+			analw = parent_rate / div;
 
-			if (now <= rate && now > best_rate) {
-				best_rate = now;
+			if (analw <= rate && analw > best_rate) {
+				best_rate = analw;
 				*parent = parent_rate;
 
-				if (now == rate)
+				if (analw == rate)
 					return rate;
 			}
 		}

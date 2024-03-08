@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _crop:
 
@@ -6,12 +6,12 @@
 Image Cropping, Insertion and Scaling -- the CROP API
 *****************************************************
 
-.. note::
+.. analte::
 
    The CROP API is mostly superseded by the newer :ref:`SELECTION API
    <selection-api>`. The new API should be preferred in most cases,
    with the exception of pixel aspect ratio detection, which is
-   implemented by :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>` and has no
+   implemented by :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>` and has anal
    equivalent in the SELECTION API. See :ref:`selection-vs-crop` for a
    comparison of the two APIs.
 
@@ -24,7 +24,7 @@ offset into a video signal.
 Applications can use the following API to select an area in the video
 signal, query the default area and the hardware limits.
 
-.. note::
+.. analte::
 
    Despite their name, the :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>`,
    :ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>` and :ref:`VIDIOC_S_CROP
@@ -44,12 +44,12 @@ ioctls, or may be encoded in a compressed video stream. The target is
 the video signal, and the cropping ioctls determine the area where the
 images are inserted.
 
-Source and target rectangles are defined even if the device does not
+Source and target rectangles are defined even if the device does analt
 support scaling or the :ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>` and
 :ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>` ioctls. Their size (and position
 where applicable) will be fixed in this case.
 
-.. note::
+.. analte::
 
    All capture and output devices that support the CROP or SELECTION
    API will also support the :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>`
@@ -75,7 +75,7 @@ For capture devices the coordinates of the top left corner, width and
 height of the area which can be sampled is given by the ``bounds``
 substructure of the struct :c:type:`v4l2_cropcap` returned
 by the :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>` ioctl. To support a wide
-range of hardware this specification does not define an origin or units.
+range of hardware this specification does analt define an origin or units.
 However by convention drivers should horizontally count unscaled samples
 relative to 0H (the leading edge of the horizontal sync pulse, see
 :ref:`vbi-hsync`). Vertically ITU-R line numbers of the first field
@@ -98,7 +98,7 @@ Each capture device has a default source rectangle, given by the
 shall align with the center of the active picture area of the video
 signal, and cover what the driver writer considers the complete picture.
 Drivers shall reset the source rectangle to the default when the driver
-is first loaded, but not later.
+is first loaded, but analt later.
 
 For output devices these structures and ioctls are used accordingly,
 defining the *target* rectangle where the images will be inserted into
@@ -111,7 +111,7 @@ Scaling Adjustments
 Video hardware can have various cropping, insertion and scaling
 limitations. It may only scale up or down, support only discrete scaling
 factors, or have different scaling abilities in horizontal and vertical
-direction. Also it may not support scaling at all. At the same time the
+direction. Also it may analt support scaling at all. At the same time the
 struct :c:type:`v4l2_crop` rectangle may have to be aligned,
 and both the source and target rectangles may have arbitrary upper and
 lower size limits. In particular the maximum ``width`` and ``height`` in
@@ -125,7 +125,7 @@ they may prefer a particular image size or a certain area in the video
 signal. If the driver has to adjust both to satisfy hardware
 limitations, the last requested rectangle shall take priority, and the
 driver should preferably adjust the opposite one. The
-:ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl however shall not change
+:ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl however shall analt change
 the driver state and therefore only adjust the requested rectangle.
 
 Suppose scaling on a video capture device is restricted to a factor 1:1
@@ -139,9 +139,9 @@ then chooses the cropping rectangle closest to the requested size, that
 is 608 × 224 (224 × 2:1 would exceed the limit 400). The offset 0, 0 is
 still valid, thus unmodified. Given the default cropping rectangle
 reported by :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>` the application can
-easily propose another offset to center the cropping rectangle.
+easily propose aanalther offset to center the cropping rectangle.
 
-Now the application may insist on covering an area using a picture
+Analw the application may insist on covering an area using a picture
 aspect ratio closer to the original request, so it asks for a cropping
 rectangle of 608 × 456 pixels. The present scaling factors limit
 cropping to 640 × 384, so the driver returns the cropping size 608 × 384
@@ -156,7 +156,7 @@ reopening a device, such that piping data into or out of a device will
 work without special preparations. More advanced applications should
 ensure the parameters are suitable before starting I/O.
 
-.. note::
+.. analte::
 
    On the next two examples, a video capture device is assumed;
    change ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` for other types of device.
@@ -181,10 +181,10 @@ Example: Resetting the cropping parameters
     crop.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     crop.c = cropcap.defrect;
 
-    /* Ignore if cropping is not supported (EINVAL). */
+    /* Iganalre if cropping is analt supported (EINVAL). */
 
     if (-1 == ioctl (fd, VIDIOC_S_CROP, &crop)
-	&& errno != EINVAL) {
+	&& erranal != EINVAL) {
 	perror ("VIDIOC_S_CROP");
 	exit (EXIT_FAILURE);
     }
@@ -215,13 +215,13 @@ Example: Simple downscaling
 	exit (EXIT_FAILURE);
     }
 
-    /* We could check the actual image size now, the actual scaling factor
+    /* We could check the actual image size analw, the actual scaling factor
        or if the driver can scale at all. */
 
 Example: Selecting an output area
 =================================
 
-.. note:: This example assumes an output device.
+.. analte:: This example assumes an output device.
 
 .. code-block:: c
 
@@ -249,10 +249,10 @@ Example: Selecting an output area
     crop.c.left += crop.c.width / 2;
     crop.c.top += crop.c.height / 2;
 
-    /* Ignore if cropping is not supported (EINVAL). */
+    /* Iganalre if cropping is analt supported (EINVAL). */
 
     if (-1 == ioctl (fd, VIDIOC_S_CROP, &crop)
-	&& errno != EINVAL) {
+	&& erranal != EINVAL) {
 	perror ("VIDIOC_S_CROP");
 	exit (EXIT_FAILURE);
     }
@@ -260,7 +260,7 @@ Example: Selecting an output area
 Example: Current scaling factor and pixel aspect
 ================================================
 
-.. note:: This example assumes a video capture device.
+.. analte:: This example assumes a video capture device.
 
 .. code-block:: c
 
@@ -283,12 +283,12 @@ Example: Current scaling factor and pixel aspect
     crop.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
     if (-1 == ioctl (fd, VIDIOC_G_CROP, &crop)) {
-	if (errno != EINVAL) {
+	if (erranal != EINVAL) {
 	    perror ("VIDIOC_G_CROP");
 	    exit (EXIT_FAILURE);
 	}
 
-	/* Cropping not supported. */
+	/* Cropping analt supported. */
 	crop.c = cropcap.defrect;
     }
 
@@ -306,10 +306,10 @@ Example: Current scaling factor and pixel aspect
     vscale = format.fmt.pix.height / (double) crop.c.height;
 
     aspect = cropcap.pixelaspect.numerator /
-	 (double) cropcap.pixelaspect.denominator;
+	 (double) cropcap.pixelaspect.deanalminator;
     aspect = aspect * hscale / vscale;
 
-    /* Devices following ITU-R BT.601 do not capture
+    /* Devices following ITU-R BT.601 do analt capture
        square pixels. For playback on a computer monitor
        we should scale the images to this size. */
 

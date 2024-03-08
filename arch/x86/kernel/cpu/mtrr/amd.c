@@ -54,7 +54,7 @@ amd_get_mtrr(unsigned int reg, unsigned long *base,
  * @size The size of the region. If this is 0 the region is disabled.
  * @type The type of the region.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void
 amd_set_mtrr(unsigned int reg, unsigned long base, unsigned long size, mtrr_type type)

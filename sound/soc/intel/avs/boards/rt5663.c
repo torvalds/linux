@@ -67,7 +67,7 @@ static int avs_rt5663_codec_init(struct snd_soc_pcm_runtime *runtime)
 
 	pins = devm_kmemdup(card->dev, card_headset_pins, sizeof(*pins) * num_pins, GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_soc_card_jack_new_pins(card, "Headset Jack", SND_JACK_HEADSET | SND_JACK_BTN_0 |
 					 SND_JACK_BTN_1 | SND_JACK_BTN_2 | SND_JACK_BTN_3, jack,
@@ -105,7 +105,7 @@ avs_rt5663_be_fixup(struct snd_soc_pcm_runtime *runtime, struct snd_pcm_hw_param
 	channels->min = channels->max = 2;
 
 	/* set SSPN to 24 bit */
-	snd_mask_none(fmt);
+	snd_mask_analne(fmt);
 	snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
 
 	return 0;
@@ -142,7 +142,7 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl = devm_kzalloc(dev, sizeof(*dl), GFP_KERNEL);
 	platform = devm_kzalloc(dev, sizeof(*platform), GFP_KERNEL);
 	if (!dl || !platform)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform->name = platform_name;
 
@@ -151,14 +151,14 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl->cpus = devm_kzalloc(dev, sizeof(*dl->cpus), GFP_KERNEL);
 	dl->codecs = devm_kzalloc(dev, sizeof(*dl->codecs), GFP_KERNEL);
 	if (!dl->name || !dl->cpus || !dl->codecs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dl->cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
 					    AVS_STRING_FMT("SSP", " Pin", ssp_port, tdm_slot));
 	dl->codecs->name = devm_kasprintf(dev, GFP_KERNEL, "i2c-10EC5663:00");
 	dl->codecs->dai_name = devm_kasprintf(dev, GFP_KERNEL, RT5663_CODEC_DAI);
 	if (!dl->cpus->dai_name || !dl->codecs->name || !dl->codecs->dai_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dl->num_cpus = 1;
 	dl->num_codecs = 1;
@@ -169,8 +169,8 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl->init = avs_rt5663_codec_init;
 	dl->exit = avs_rt5663_codec_exit;
 	dl->be_hw_params_fixup = avs_rt5663_be_fixup;
-	dl->nonatomic = 1;
-	dl->no_pcm = 1;
+	dl->analnatomic = 1;
+	dl->anal_pcm = 1;
 	dl->dpcm_capture = 1;
 	dl->dpcm_playback = 1;
 	dl->ops = &avs_rt5663_ops;
@@ -221,7 +221,7 @@ static int avs_rt5663_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!priv || !card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->name = "avs_rt5663";
 	card->dev = dev;

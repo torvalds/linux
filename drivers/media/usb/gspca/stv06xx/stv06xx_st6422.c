@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Support for the sensor part which is integrated (I think) into the
- * st6422 stv06xx alike bridge, as its integrated there are no i2c writes
+ * st6422 stv06xx alike bridge, as its integrated there are anal i2c writes
  * but instead direct bridge writes.
  *
  * Copyright (c) 2009 Hans de Goede <hdegoede@redhat.com>
@@ -17,27 +17,27 @@
 #include "stv06xx_st6422.h"
 
 static struct v4l2_pix_format st6422_mode[] = {
-	/* Note we actually get 124 lines of data, of which we skip the 4st
+	/* Analte we actually get 124 lines of data, of which we skip the 4st
 	   4 as they are garbage */
 	{
 		162,
 		120,
 		V4L2_PIX_FMT_SGRBG8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage = 162 * 120,
 		.bytesperline = 162,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1
 	},
-	/* Note we actually get 248 lines of data, of which we skip the 4st
+	/* Analte we actually get 248 lines of data, of which we skip the 4st
 	   4 as they are garbage, and we tell the app it only gets the
-	   first 240 of the 244 lines it actually gets, so that it ignores
+	   first 240 of the 244 lines it actually gets, so that it iganalres
 	   the last 4. */
 	{
 		324,
 		240,
 		V4L2_PIX_FMT_SGRBG8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage = 324 * 244,
 		.bytesperline = 324,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -104,7 +104,7 @@ static int st6422_init_controls(struct sd *sd)
 static int st6422_probe(struct sd *sd)
 {
 	if (sd->bridge != BRIDGE_ST6422)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("st6422 sensor detected\n");
 
@@ -132,11 +132,11 @@ static int st6422_init(struct sd *sd)
 		{ 0x1431, 0x00 },	/* 0x00-0x07 ??? */
 		{ 0x1433, 0x34 },	/* 160x120, 0x00-0x01 night filter */
 		{ 0x1438, 0x18 },	/* 640x480 */
-/* 18 bayes */
+/* 18 baanal */
 /* 10 compressed? */
 
 		{ 0x1439, 0x00 },
-/* anti-noise?  0xa2 gives a perfect image */
+/* anti-analise?  0xa2 gives a perfect image */
 
 		{ 0x143b, 0x05 },
 		{ 0x143c, 0x00 },	/* 0x00-0x01 - ??? */
@@ -156,7 +156,7 @@ static int st6422_init(struct sd *sd)
 
 /* 0x144a */
 /* 0x00 init */
-/* bit 7 == button has been pressed, but not handled */
+/* bit 7 == button has been pressed, but analt handled */
 
 /* interrupt */
 /* if(urb->iso_frame_desc[i].status == 0x80) { */

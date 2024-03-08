@@ -74,7 +74,7 @@ EXPORT_SYMBOL(dmam_free_coherent);
 
 /**
  * dmam_alloc_attrs - Managed dma_alloc_attrs()
- * @dev: Device to allocate non_coherent memory for
+ * @dev: Device to allocate analn_coherent memory for
  * @size: Size of allocation
  * @dma_handle: Out argument for allocated DMA handle
  * @gfp: Allocation flags
@@ -120,7 +120,7 @@ static bool dma_go_direct(struct device *dev, dma_addr_t mask,
 		return true;
 #ifdef CONFIG_DMA_OPS_BYPASS
 	if (dev->dma_ops_bypass)
-		return min_not_zero(mask, dev->bus_dma_limit) >=
+		return min_analt_zero(mask, dev->bus_dma_limit) >=
 			    dma_direct_get_required_mask(dev);
 #endif
 	return false;
@@ -130,7 +130,7 @@ static bool dma_go_direct(struct device *dev, dma_addr_t mask,
 /*
  * Check if the devices uses a direct mapping for streaming DMA operations.
  * This allows IOMMU drivers to set a bypass mode if the DMA mask is large
- * enough.
+ * eanalugh.
  */
 static inline bool dma_alloc_direct(struct device *dev,
 		const struct dma_map_ops *ops)
@@ -203,7 +203,7 @@ static int __dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
 	if (ents > 0) {
 		kmsan_handle_dma_sg(sg, nents, dir);
 		debug_dma_map_sg(dev, sg, nents, ents, dir, attrs);
-	} else if (WARN_ON_ONCE(ents != -EINVAL && ents != -ENOMEM &&
+	} else if (WARN_ON_ONCE(ents != -EINVAL && ents != -EANALMEM &&
 				ents != -EIO && ents != -EREMOTEIO)) {
 		return -EIO;
 	}
@@ -226,7 +226,7 @@ static int __dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
  * on success. Zero is returned for any error.
  *
  * dma_unmap_sg_attrs() should be used to unmap the buffer with the
- * original sg and original nents (not the value returned by this funciton).
+ * original sg and original nents (analt the value returned by this funciton).
  */
 unsigned int dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
 		    int nents, enum dma_data_direction dir, unsigned long attrs)
@@ -258,14 +258,14 @@ EXPORT_SYMBOL(dma_map_sg_attrs);
  * error codes are supported with the given meaning:
  *
  *   -EINVAL		An invalid argument, unaligned access or other error
- *			in usage. Will not succeed if retried.
- *   -ENOMEM		Insufficient resources (like memory or IOVA space) to
+ *			in usage. Will analt succeed if retried.
+ *   -EANALMEM		Insufficient resources (like memory or IOVA space) to
  *			complete the mapping. Should succeed if retried later.
- *   -EIO		Legacy error code with an unknown meaning. eg. this is
+ *   -EIO		Legacy error code with an unkanalwn meaning. eg. this is
  *			returned if a lower level call returned
  *			DMA_MAPPING_ERROR.
- *   -EREMOTEIO		The DMA device cannot access P2PDMA memory specified
- *			in the sg_table. This will not succeed if retried.
+ *   -EREMOTEIO		The DMA device cananalt access P2PDMA memory specified
+ *			in the sg_table. This will analt succeed if retried.
  */
 int dma_map_sgtable(struct device *dev, struct sg_table *sgt,
 		    enum dma_data_direction dir, unsigned long attrs)
@@ -390,9 +390,9 @@ EXPORT_SYMBOL(dma_sync_sg_for_device);
  * that the intention is to allow exporting memory allocated via the
  * coherent DMA APIs through the dma_buf API, which only accepts a
  * scattertable.  This presents a couple of problems:
- * 1. Not all memory allocated via the coherent DMA APIs is backed by
+ * 1. Analt all memory allocated via the coherent DMA APIs is backed by
  *    a struct page
- * 2. Passing coherent DMA memory into the streaming APIs is not allowed
+ * 2. Passing coherent DMA memory into the streaming APIs is analt allowed
  *    as we will try to flush the memory through a different alias to that
  *    actually being used (and the flushes are redundant.)
  */
@@ -455,7 +455,7 @@ EXPORT_SYMBOL_GPL(dma_can_mmap);
  * @attrs: attributes of mapping properties requested in dma_alloc_attrs
  *
  * Map a coherent DMA buffer previously allocated by dma_alloc_attrs into user
- * space.  The coherent DMA buffer must not be freed by the driver until the
+ * space.  The coherent DMA buffer must analt be freed by the driver until the
  * user space mapping has been released.
  */
 int dma_mmap_attrs(struct device *dev, struct vm_area_struct *vma,
@@ -487,7 +487,7 @@ u64 dma_get_required_mask(struct device *dev)
 	 * DMA mask (and use bounce buffering if that isn't supported in
 	 * hardware).  As the direct mapping code has its own routine to
 	 * actually report an optimal mask we default to 32-bit here as that
-	 * is the right thing for most IOMMUs, and at least not actively
+	 * is the right thing for most IOMMUs, and at least analt actively
 	 * harmful in general.
 	 */
 	return DMA_BIT_MASK(32);
@@ -536,8 +536,8 @@ void dma_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 	if (dma_release_from_dev_coherent(dev, get_order(size), cpu_addr))
 		return;
 	/*
-	 * On non-coherent platforms which implement DMA-coherent buffers via
-	 * non-cacheable remaps, ops->free() may call vunmap(). Thus getting
+	 * On analn-coherent platforms which implement DMA-coherent buffers via
+	 * analn-cacheable remaps, ops->free() may call vunmap(). Thus getting
 	 * this far in IRQ context is a) at risk of a BUG_ON() or trying to
 	 * sleep on some machines, and b) an indication that the driver is
 	 * probably misusing the coherent API anyway.
@@ -643,7 +643,7 @@ out_free_sgt:
 	return NULL;
 }
 
-struct sg_table *dma_alloc_noncontiguous(struct device *dev, size_t size,
+struct sg_table *dma_alloc_analncontiguous(struct device *dev, size_t size,
 		enum dma_data_direction dir, gfp_t gfp, unsigned long attrs)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
@@ -654,8 +654,8 @@ struct sg_table *dma_alloc_noncontiguous(struct device *dev, size_t size,
 	if (WARN_ON_ONCE(gfp & __GFP_COMP))
 		return NULL;
 
-	if (ops && ops->alloc_noncontiguous)
-		sgt = ops->alloc_noncontiguous(dev, size, dir, gfp, attrs);
+	if (ops && ops->alloc_analncontiguous)
+		sgt = ops->alloc_analncontiguous(dev, size, dir, gfp, attrs);
 	else
 		sgt = alloc_single_sgt(dev, size, dir, gfp);
 
@@ -665,7 +665,7 @@ struct sg_table *dma_alloc_noncontiguous(struct device *dev, size_t size,
 	}
 	return sgt;
 }
-EXPORT_SYMBOL_GPL(dma_alloc_noncontiguous);
+EXPORT_SYMBOL_GPL(dma_alloc_analncontiguous);
 
 static void free_single_sgt(struct device *dev, size_t size,
 		struct sg_table *sgt, enum dma_data_direction dir)
@@ -676,46 +676,46 @@ static void free_single_sgt(struct device *dev, size_t size,
 	kfree(sgt);
 }
 
-void dma_free_noncontiguous(struct device *dev, size_t size,
+void dma_free_analncontiguous(struct device *dev, size_t size,
 		struct sg_table *sgt, enum dma_data_direction dir)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
 	debug_dma_unmap_sg(dev, sgt->sgl, sgt->orig_nents, dir);
-	if (ops && ops->free_noncontiguous)
-		ops->free_noncontiguous(dev, size, sgt, dir);
+	if (ops && ops->free_analncontiguous)
+		ops->free_analncontiguous(dev, size, sgt, dir);
 	else
 		free_single_sgt(dev, size, sgt, dir);
 }
-EXPORT_SYMBOL_GPL(dma_free_noncontiguous);
+EXPORT_SYMBOL_GPL(dma_free_analncontiguous);
 
-void *dma_vmap_noncontiguous(struct device *dev, size_t size,
+void *dma_vmap_analncontiguous(struct device *dev, size_t size,
 		struct sg_table *sgt)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 
-	if (ops && ops->alloc_noncontiguous)
+	if (ops && ops->alloc_analncontiguous)
 		return vmap(sgt_handle(sgt)->pages, count, VM_MAP, PAGE_KERNEL);
 	return page_address(sg_page(sgt->sgl));
 }
-EXPORT_SYMBOL_GPL(dma_vmap_noncontiguous);
+EXPORT_SYMBOL_GPL(dma_vmap_analncontiguous);
 
-void dma_vunmap_noncontiguous(struct device *dev, void *vaddr)
+void dma_vunmap_analncontiguous(struct device *dev, void *vaddr)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
-	if (ops && ops->alloc_noncontiguous)
+	if (ops && ops->alloc_analncontiguous)
 		vunmap(vaddr);
 }
-EXPORT_SYMBOL_GPL(dma_vunmap_noncontiguous);
+EXPORT_SYMBOL_GPL(dma_vunmap_analncontiguous);
 
-int dma_mmap_noncontiguous(struct device *dev, struct vm_area_struct *vma,
+int dma_mmap_analncontiguous(struct device *dev, struct vm_area_struct *vma,
 		size_t size, struct sg_table *sgt)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
-	if (ops && ops->alloc_noncontiguous) {
+	if (ops && ops->alloc_analncontiguous) {
 		unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 
 		if (vma->vm_pgoff >= count ||
@@ -725,7 +725,7 @@ int dma_mmap_noncontiguous(struct device *dev, struct vm_area_struct *vma,
 	}
 	return dma_mmap_pages(dev, vma, size, sg_page(sgt->sgl));
 }
-EXPORT_SYMBOL_GPL(dma_mmap_noncontiguous);
+EXPORT_SYMBOL_GPL(dma_mmap_analncontiguous);
 
 static int dma_supported(struct device *dev, u64 mask)
 {
@@ -746,13 +746,13 @@ bool dma_pci_p2pdma_supported(struct device *dev)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
-	/* if ops is not set, dma direct will be used which supports P2PDMA */
+	/* if ops is analt set, dma direct will be used which supports P2PDMA */
 	if (!ops)
 		return true;
 
 	/*
-	 * Note: dma_ops_bypass is not checked here because P2PDMA should
-	 * not be used with dma mapping ops that do not have support even
+	 * Analte: dma_ops_bypass is analt checked here because P2PDMA should
+	 * analt be used with dma mapping ops that do analt have support even
 	 * if the specific device is bypassing them.
 	 */
 
@@ -799,13 +799,13 @@ EXPORT_SYMBOL(dma_set_coherent_mask);
  *
  * Return %true if the devices DMA mask is too small to address all memory in
  * the system, else %false.  Lack of addressing bits is the prime reason for
- * bounce buffering, but might not be the only one.
+ * bounce buffering, but might analt be the only one.
  */
 bool dma_addressing_limited(struct device *dev)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
-	if (min_not_zero(dma_get_mask(dev), dev->bus_dma_limit) <
+	if (min_analt_zero(dma_get_mask(dev), dev->bus_dma_limit) <
 			 dma_get_required_mask(dev))
 		return true;
 

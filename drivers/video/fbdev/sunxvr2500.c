@@ -21,7 +21,7 @@ struct s3d_info {
 	char __iomem		*fb_base;
 	unsigned long		fb_base_phys;
 
-	struct device_node	*of_node;
+	struct device_analde	*of_analde;
 
 	unsigned int		width;
 	unsigned int		height;
@@ -33,9 +33,9 @@ struct s3d_info {
 
 static int s3d_get_props(struct s3d_info *sp)
 {
-	sp->width = of_getintprop_default(sp->of_node, "width", 0);
-	sp->height = of_getintprop_default(sp->of_node, "height", 0);
-	sp->depth = of_getintprop_default(sp->of_node, "depth", 8);
+	sp->width = of_getintprop_default(sp->of_analde, "width", 0);
+	sp->height = of_getintprop_default(sp->of_analde, "height", 0);
+	sp->depth = of_getintprop_default(sp->of_analde, "depth", 8);
 
 	if (!sp->width || !sp->height) {
 		printk(KERN_ERR "s3d: Critical properties missing for %s\n",
@@ -46,19 +46,19 @@ static int s3d_get_props(struct s3d_info *sp)
 	return 0;
 }
 
-static int s3d_setcolreg(unsigned regno,
+static int s3d_setcolreg(unsigned reganal,
 			 unsigned red, unsigned green, unsigned blue,
 			 unsigned transp, struct fb_info *info)
 {
 	u32 value;
 
-	if (regno < 16) {
+	if (reganal < 16) {
 		red >>= 8;
 		green >>= 8;
 		blue >>= 8;
 
 		value = (blue << 24) | (green << 16) | (red << 8);
-		((u32 *)info->pseudo_palette)[regno] = value;
+		((u32 *)info->pseudo_palette)[reganal] = value;
 	}
 
 	return 0;
@@ -107,8 +107,8 @@ static int s3d_set_fbinfo(struct s3d_info *sp)
 	var->transp.length = 0;
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0)) {
-		printk(KERN_ERR "s3d: Cannot allocate color map.\n");
-		return -ENOMEM;
+		printk(KERN_ERR "s3d: Cananalt allocate color map.\n");
+		return -EANALMEM;
 	}
 
         return 0;
@@ -127,25 +127,25 @@ static int s3d_pci_register(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err < 0) {
-		printk(KERN_ERR "s3d: Cannot enable PCI device %s\n",
+		printk(KERN_ERR "s3d: Cananalt enable PCI device %s\n",
 		       pci_name(pdev));
 		goto err_out;
 	}
 
 	info = framebuffer_alloc(sizeof(struct s3d_info), &pdev->dev);
 	if (!info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_disable;
 	}
 
 	sp = info->par;
 	sp->info = info;
 	sp->pdev = pdev;
-	sp->of_node = pci_device_to_OF_node(pdev);
-	if (!sp->of_node) {
-		printk(KERN_ERR "s3d: Cannot find OF node of %s\n",
+	sp->of_analde = pci_device_to_OF_analde(pdev);
+	if (!sp->of_analde) {
+		printk(KERN_ERR "s3d: Cananalt find OF analde of %s\n",
 		       pci_name(pdev));
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_release_fb;
 	}
 
@@ -153,7 +153,7 @@ static int s3d_pci_register(struct pci_dev *pdev,
 
 	err = pci_request_region(pdev, 1, "s3d framebuffer");
 	if (err < 0) {
-		printk("s3d: Cannot request region 1 for %s\n",
+		printk("s3d: Cananalt request region 1 for %s\n",
 		       pci_name(pdev));
 		goto err_release_fb;
 	}
@@ -163,7 +163,7 @@ static int s3d_pci_register(struct pci_dev *pdev,
 		goto err_release_pci;
 
 	/* XXX 'linebytes' is often wrong, it is equal to the width
-	 * XXX with depth of 32 on my XVR-2500 which is clearly not
+	 * XXX with depth of 32 on my XVR-2500 which is clearly analt
 	 * XXX right.  So we don't try to use it.
 	 */
 	switch (sp->depth) {
@@ -184,7 +184,7 @@ static int s3d_pci_register(struct pci_dev *pdev,
 
 	sp->fb_base = ioremap(sp->fb_base_phys, sp->fb_size);
 	if (!sp->fb_base) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_release_pci;
 	}
 
@@ -198,7 +198,7 @@ static int s3d_pci_register(struct pci_dev *pdev,
 
 	err = register_framebuffer(info);
 	if (err < 0) {
-		printk(KERN_ERR "s3d: Could not register framebuffer %s\n",
+		printk(KERN_ERR "s3d: Could analt register framebuffer %s\n",
 		       pci_name(pdev));
 		goto err_unmap_fb;
 	}
@@ -245,10 +245,10 @@ static struct pci_driver s3d_driver = {
 static int __init s3d_init(void)
 {
 	if (fb_modesetting_disabled("s3d"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fb_get_options("s3d", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return pci_register_driver(&s3d_driver);
 }

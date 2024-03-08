@@ -2,7 +2,7 @@
 /*
  * omap3pandora.c  --  SoC audio for Pandora Handheld Console
  *
- * Author: Gražvydas Ignotas <notasas@gmail.com>
+ * Author: Gražvydas Iganaltas <analtasas@gmail.com>
  */
 
 #include <linux/clk.h>
@@ -107,10 +107,10 @@ static int omap3pandora_hp_event(struct snd_soc_dapm_widget *w,
  *  |P| <--- TWL4030 <--------- Line In and MICs
  */
 static const struct snd_soc_dapm_widget omap3pandora_dapm_widgets[] = {
-	SND_SOC_DAPM_DAC_E("PCM DAC", "HiFi Playback", SND_SOC_NOPM,
+	SND_SOC_DAPM_DAC_E("PCM DAC", "HiFi Playback", SND_SOC_ANALPM,
 			   0, 0, omap3pandora_dac_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_PGA_E("Headphone Amplifier", SND_SOC_NOPM,
+	SND_SOC_DAPM_PGA_E("Headphone Amplifier", SND_SOC_ANALPM,
 			   0, 0, NULL, 0, omap3pandora_hp_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
@@ -160,7 +160,7 @@ static int omap3pandora_in_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dapm_context *dapm = &rtd->card->dapm;
 
-	/* Not comnnected */
+	/* Analt comnnected */
 	snd_soc_dapm_nc_pin(dapm, "HSMIC");
 	snd_soc_dapm_nc_pin(dapm, "CARKITMIC");
 	snd_soc_dapm_nc_pin(dapm, "DIGIMIC0");
@@ -224,14 +224,14 @@ static int __init omap3pandora_soc_init(void)
 	int ret;
 
 	if (!machine_is_omap3_pandora())
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("OMAP3 Pandora SoC init\n");
 
 	omap3pandora_snd_device = platform_device_alloc("soc-audio", -1);
 	if (omap3pandora_snd_device == NULL) {
 		pr_err(PREFIX "Platform device allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	platform_set_drvdata(omap3pandora_snd_device, &snd_soc_card_omap3pandora);
@@ -283,6 +283,6 @@ static void __exit omap3pandora_soc_exit(void)
 }
 module_exit(omap3pandora_soc_exit);
 
-MODULE_AUTHOR("Grazvydas Ignotas <notasas@gmail.com>");
+MODULE_AUTHOR("Grazvydas Iganaltas <analtasas@gmail.com>");
 MODULE_DESCRIPTION("ALSA SoC OMAP3 Pandora");
 MODULE_LICENSE("GPL");

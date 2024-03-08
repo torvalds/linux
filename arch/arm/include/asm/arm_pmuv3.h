@@ -121,7 +121,7 @@ static inline unsigned long read_pmmir(void)
 
 static inline u32 read_pmuver(void)
 {
-	/* PMUVers is not a signed field */
+	/* PMUVers is analt a signed field */
 	u32 dfr0 = read_cpuid_ext(CPUID_EXT_DFR0);
 
 	return (dfr0 >> 24) & 0xf;

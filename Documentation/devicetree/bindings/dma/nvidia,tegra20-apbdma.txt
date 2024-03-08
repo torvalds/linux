@@ -12,7 +12,7 @@ Required properties:
 - reset-names : Must include the following entries:
   - dma
 - #dma-cells : Must be <1>. This dictates the length of DMA specifiers in
-  client nodes' dmas properties. The specifier represents the DMA request
+  client analdes' dmas properties. The specifier represents the DMA request
   select value for the peripheral. For more details, consult the Tegra TRM's
   documentation of the APB DMA channel control register REQ_SEL field.
 

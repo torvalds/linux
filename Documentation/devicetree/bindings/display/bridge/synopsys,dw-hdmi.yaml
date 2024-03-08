@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/display/bridge/synopsys,dw-hdmi.yaml#
+$id: http://devicetree.org/schemas/display/bridge/syanalpsys,dw-hdmi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Common Properties for Synopsys DesignWare HDMI TX Controller
+title: Common Properties for Syanalpsys DesignWare HDMI TX Controller
 
 maintainers:
   - Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
 
 description: |
-  This document defines device tree properties for the Synopsys DesignWare HDMI
+  This document defines device tree properties for the Syanalpsys DesignWare HDMI
   TX controller (DWC HDMI TX) IP core. It doesn't constitute a full device tree
   binding specification by itself but is meant to be referenced by device tree
   bindings for the platform-specific integrations of the DWC HDMI TX.

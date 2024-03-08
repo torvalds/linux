@@ -41,19 +41,19 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle of the K210 system controller node
+          - description: phandle of the K210 system controller analde
           - description: offset of its power domain control register
     description: |
-      phandle of the K210 system controller node and offset of its
+      phandle of the K210 system controller analde and offset of its
       power domain control register.
 
 patternProperties:
   '-pinmux$':
     type: object
-    $ref: /schemas/pinctrl/pinmux-node.yaml
+    $ref: /schemas/pinctrl/pinmux-analde.yaml
     description:
-      FPIOA client devices use sub-nodes to define the desired pin
-      configuration. Client device sub-nodes use the pinux property
+      FPIOA client devices use sub-analdes to define the desired pin
+      configuration. Client device sub-analdes use the pinux property
       below.
 
     properties:
@@ -73,18 +73,18 @@ patternProperties:
 
   '-pins$':
     type: object
-    $ref: /schemas/pinctrl/pincfg-node.yaml
+    $ref: /schemas/pinctrl/pincfg-analde.yaml
     description:
-      FPIOA client devices use sub-nodes to define the desired
-      configuration of pins. Client device sub-nodes use the
+      FPIOA client devices use sub-analdes to define the desired
+      configuration of pins. Client device sub-analdes use the
       properties below.
 
     properties:
       pins:
         description:
           List of IO pins affected by the properties specified in this
-          subnode. IO pins are identified using the pin names "IO_xx".
-          Pin configuration nodes can also define the power domain to
+          subanalde. IO pins are identified using the pin names "IO_xx".
+          Pin configuration analdes can also define the power domain to
           be used for the SoC pin groups A0 (IO pins 0-5),
           A1 (IO pins 6-11), A2 (IO pins 12-17), B0 (IO pins 18-23),
           B1 (IO pins 24-29), B2 (IO pins 30-35), B3 (IO pins 30-35),

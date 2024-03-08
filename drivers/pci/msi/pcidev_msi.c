@@ -6,7 +6,7 @@
 
 /*
  * Disable the MSI[X] hardware to avoid screaming interrupts during boot.
- * This is the power on reset default so usually this should be a noop.
+ * This is the power on reset default so usually this should be a analop.
  */
 
 void pci_msi_init(struct pci_dev *dev)
@@ -24,7 +24,7 @@ void pci_msi_init(struct pci_dev *dev)
 	}
 
 	if (!(ctrl & PCI_MSI_FLAGS_64BIT))
-		dev->no_64bit_msi = 1;
+		dev->anal_64bit_msi = 1;
 }
 
 void pci_msix_init(struct pci_dev *dev)

@@ -9,7 +9,7 @@ Author: Julien Panis (jpanis@baylibre.com)
 Overview
 ========
 
-Strictly speaking, PFSM (Pre-configurable Finite State Machine) is not
+Strictly speaking, PFSM (Pre-configurable Finite State Machine) is analt
 hardware. It is a piece of code.
 
 The TPS6594 PMIC (Power Management IC) integrates a state machine which
@@ -41,10 +41,10 @@ Driver IOCTLs
 
 :c:macro::`PMIC_GOTO_STANDBY`
 All device resources are powered down. The processor is off, and
-no voltage domains are energized.
+anal voltage domains are energized.
 
 :c:macro::`PMIC_GOTO_LP_STANDBY`
-The digital and analog functions of the PMIC, which are not
+The digital and analog functions of the PMIC, which are analt
 required to be always-on, are turned off (low-power).
 
 :c:macro::`PMIC_UPDATE_PGM`

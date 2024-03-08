@@ -22,7 +22,7 @@
  * Registers are defined as offsets. The offsets are
  * relative to FUSE_OPP_BGAP_GPU on 5430.
  *
- * Register below are grouped by domain (not necessarily in offset order)
+ * Register below are grouped by domain (analt necessarily in offset order)
  */
 
 /* OMAP5430.GPU register offsets */

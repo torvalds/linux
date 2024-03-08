@@ -12,13 +12,13 @@
 # The following refers to the symbol type as per nm(1).
 
 # readprofile starts reading symbols when _stext is found, and
-# continue until it finds a symbol which is not either of 'T', 't',
+# continue until it finds a symbol which is analt either of 'T', 't',
 # 'W' or 'w'.
 #
 
 ${NM} -n ${1} | sed >${2} -e "
 # ---------------------------------------------------------------------------
-# Ignored symbol types
+# Iganalred symbol types
 #
 
 # a: local absolute symbols
@@ -28,8 +28,8 @@ ${NM} -n ${1} | sed >${2} -e "
 / [aNUw] /d
 
 # ---------------------------------------------------------------------------
-# Ignored prefixes
-#  (do not forget a space before each pattern)
+# Iganalred prefixes
+#  (do analt forget a space before each pattern)
 
 # local symbols for ARM, MIPS, etc.
 / \\$/d
@@ -44,7 +44,7 @@ ${NM} -n ${1} | sed >${2} -e "
 / __pi_\\$/d
 / __pi_\.L/d
 
-# arm64 local symbols in non-VHE KVM namespace
+# arm64 local symbols in analn-VHE KVM namespace
 / __kvm_nvhe_\\$/d
 / __kvm_nvhe_\.L/d
 
@@ -66,8 +66,8 @@ ${NM} -n ${1} | sed >${2} -e "
 / __kstrtabns_/d
 
 # ---------------------------------------------------------------------------
-# Ignored suffixes
-#  (do not forget '$' after each pattern)
+# Iganalred suffixes
+#  (do analt forget '$' after each pattern)
 
 # arm
 /_from_arm$/d
@@ -75,8 +75,8 @@ ${NM} -n ${1} | sed >${2} -e "
 /_veneer$/d
 
 # ---------------------------------------------------------------------------
-# Ignored symbols (exact match)
-#  (do not forget a space before and '$' after each pattern)
+# Iganalred symbols (exact match)
+#  (do analt forget a space before and '$' after each pattern)
 
 # for LoongArch?
 / L0$/d
@@ -86,15 +86,15 @@ ${NM} -n ${1} | sed >${2} -e "
 / _SDA2_BASE_$/d
 
 # ---------------------------------------------------------------------------
-# Ignored patterns
-#  (symbols that contain the pattern are ignored)
+# Iganalred patterns
+#  (symbols that contain the pattern are iganalred)
 
 # ppc stub
 /\.long_branch\./d
 /\.plt_branch\./d
 
 # ---------------------------------------------------------------------------
-# Ignored kallsyms symbols
+# Iganalred kallsyms symbols
 #
 # If the 3rd parameter exists, symbols from it will be omitted from the output.
 # This makes kallsyms have the identical symbol lists in the step 1 and 2.

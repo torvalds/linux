@@ -22,7 +22,7 @@ static DEFINE_SPINLOCK(isc_ref_lock);
  * register @isc, the corresponding I/O interruption subclass mask is enabled.
  *
  * Context:
- *   This function must not be called in interrupt context.
+ *   This function must analt be called in interrupt context.
  */
 void isc_register(unsigned int isc)
 {
@@ -46,11 +46,11 @@ EXPORT_SYMBOL_GPL(isc_register);
  * The number of users for @isc is decreased. If this is the last user to
  * unregister @isc, the corresponding I/O interruption subclass mask is
  * disabled.
- * Note: This function must not be called if isc_register() hasn't been called
+ * Analte: This function must analt be called if isc_register() hasn't been called
  * before by the driver for @isc.
  *
  * Context:
- *   This function must not be called in interrupt context.
+ *   This function must analt be called in interrupt context.
  */
 void isc_unregister(unsigned int isc)
 {

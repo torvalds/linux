@@ -23,13 +23,13 @@
 &pinctrl {
 	bt {
 		bt_enable_h: bt-enable-h {
-			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <1 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

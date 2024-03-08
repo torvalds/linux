@@ -2,7 +2,7 @@
 /*
  * Parade TrueTouch(TM) Standard Product V5 Module.
  *
- * Copyright (C) 2015 Parade Technologies
+ * Copyright (C) 2015 Parade Techanallogies
  * Copyright (C) 2012-2015 Cypress Semiconductor
  * Copyright (C) 2018 Bootlin
  *
@@ -150,7 +150,7 @@ enum cyttsp5_tch_abs {	/* for ordering within the extracted touch data array */
 	CY_TCH_P,	/* P (Z) */
 	CY_TCH_T,	/* TOUCH ID */
 	CY_TCH_MAJ,	/* TOUCH_MAJOR */
-	CY_TCH_MIN,	/* TOUCH_MINOR */
+	CY_TCH_MIN,	/* TOUCH_MIANALR */
 	CY_TCH_NUM_ABS
 };
 
@@ -211,7 +211,7 @@ struct cyttsp5 {
 };
 
 /*
- * For what is understood in the datasheet, the register does not
+ * For what is understood in the datasheet, the register does analt
  * matter. For consistency, use the Input Register address
  * but it does mean anything to the device. The important data
  * to send is the I2C address
@@ -313,7 +313,7 @@ static void cyttsp5_get_mt_touches(struct cyttsp5 *ts,
 		tch_addr = ts->input_buf + offset + (i * TOUCH_REPORT_SIZE);
 		cyttsp5_get_touch_record(ts, tch, tch_addr);
 
-		/* Convert MAJOR/MINOR from mm to resolution */
+		/* Convert MAJOR/MIANALR from mm to resolution */
 		tmp = tch->abs[CY_TCH_MAJ] * 100 * si->sensing_conf_data.res_x;
 		tch->abs[CY_TCH_MAJ] = tmp / si->sensing_conf_data.len_x;
 		tmp = tch->abs[CY_TCH_MIN] * 100 * si->sensing_conf_data.res_x;
@@ -334,7 +334,7 @@ static void cyttsp5_get_mt_touches(struct cyttsp5 *ts,
 		/* Get the extended touch fields */
 		input_report_abs(ts->input, ABS_MT_TOUCH_MAJOR,
 				 tch->abs[CY_TCH_MAJ]);
-		input_report_abs(ts->input, ABS_MT_TOUCH_MINOR,
+		input_report_abs(ts->input, ABS_MT_TOUCH_MIANALR,
 				 tch->abs[CY_TCH_MIN]);
 	}
 
@@ -391,7 +391,7 @@ static int cyttsp5_setup_input_device(struct device *dev)
 	input_set_abs_params(ts->input, ABS_MT_PRESSURE, 0, max_p, 0, 0);
 
 	input_set_abs_params(ts->input, ABS_MT_TOUCH_MAJOR, 0, MAX_AREA, 0, 0);
-	input_set_abs_params(ts->input, ABS_MT_TOUCH_MINOR, 0, MAX_AREA, 0, 0);
+	input_set_abs_params(ts->input, ABS_MT_TOUCH_MIANALR, 0, MAX_AREA, 0, 0);
 
 	error = input_mt_init_slots(ts->input, si->tch_abs[CY_TCH_T].max,
 				    INPUT_MT_DROP_UNUSED | INPUT_MT_DIRECT);
@@ -673,7 +673,7 @@ static int cyttsp5_get_hid_descriptor(struct cyttsp5 *ts,
 	if (le16_to_cpu(desc->hid_desc_len) != sizeof(*desc) ||
 	    le16_to_cpu(desc->bcd_version) != HID_VERSION) {
 		dev_err(dev, "Unsupported HID version\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -725,7 +725,7 @@ static irqreturn_t cyttsp5_handle_irq(int irq, void *handle)
 		complete(&ts->cmd_done);
 		break;
 	default:
-		/* It is not an input but a command response */
+		/* It is analt an input but a command response */
 		memcpy(ts->response_buf, ts->input_buf, size);
 		complete(&ts->cmd_done);
 	}
@@ -779,7 +779,7 @@ static int cyttsp5_startup(struct cyttsp5 *ts)
 	error = cyttsp5_deassert_int(ts);
 	if (error) {
 		dev_err(ts->dev, "Error on deassert int r=%d\n", error);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -829,7 +829,7 @@ static int cyttsp5_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize device info */
 	ts->regmap = regmap;
@@ -862,7 +862,7 @@ static int cyttsp5_probe(struct device *dev, struct regmap *regmap, int irq,
 	ts->input = devm_input_allocate_device(dev);
 	if (!ts->input) {
 		dev_err(dev, "Error, failed to allocate input device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ts->input->name = "cyttsp5";

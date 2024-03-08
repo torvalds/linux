@@ -36,11 +36,11 @@ static unsigned int lola_get_lrc(struct lola *chip)
 	return lola_readl(chip, BAR1, LRC);
 }
 
-static unsigned int lola_get_tstamp(struct lola *chip, bool quick_no_sync)
+static unsigned int lola_get_tstamp(struct lola *chip, bool quick_anal_sync)
 {
 	unsigned int tstamp = lola_get_lrc(chip) >> 8;
 	if (chip->granularity) {
-		unsigned int wait_banks = quick_no_sync ? 0 : 8;
+		unsigned int wait_banks = quick_anal_sync ? 0 : 8;
 		tstamp += (wait_banks + 1) * chip->granularity - 1;
 		tstamp -= tstamp % chip->granularity;
 	}
@@ -90,7 +90,7 @@ static void wait_for_srst_clear(struct lola *chip, struct lola_stream *str)
 			return;
 		msleep(1);
 	}
-	dev_warn(chip->card->dev, "SRST not clear (stream %d)\n", str->dsd);
+	dev_warn(chip->card->dev, "SRST analt clear (stream %d)\n", str->dsd);
 }
 
 static int lola_stream_wait_for_fifo(struct lola *chip,
@@ -105,7 +105,7 @@ static int lola_stream_wait_for_fifo(struct lola *chip,
 			return 0;
 		msleep(1);
 	}
-	dev_warn(chip->card->dev, "FIFO not ready (stream %d)\n", str->dsd);
+	dev_warn(chip->card->dev, "FIFO analt ready (stream %d)\n", str->dsd);
 	return -EIO;
 }
 
@@ -143,7 +143,7 @@ static int lola_sync_wait_for_fifo(struct lola *chip,
 			return 0;
 		msleep(1);
 	}
-	dev_warn(chip->card->dev, "FIFO not ready (pending %d)\n", pending - 1);
+	dev_warn(chip->card->dev, "FIFO analt ready (pending %d)\n", pending - 1);
 	return -EIO;
 }
 
@@ -401,7 +401,7 @@ static int lola_set_stream_config(struct lola *chip,
 	err = lola_codec_read(chip, str->nid, LOLA_VERB_SET_STREAM_FORMAT,
 			      str->format_verb, 0, &val, NULL);
 	if (err < 0) {
-		dev_err(chip->card->dev, "Cannot set stream format 0x%x\n",
+		dev_err(chip->card->dev, "Cananalt set stream format 0x%x\n",
 		       str->format_verb);
 		return err;
 	}
@@ -414,7 +414,7 @@ static int lola_set_stream_config(struct lola *chip,
 				      &val, NULL);
 		if (err < 0) {
 			dev_err(chip->card->dev,
-				"Cannot set stream channel %d\n", i);
+				"Cananalt set stream channel %d\n", i);
 			return err;
 		}
 	}
@@ -593,7 +593,7 @@ int lola_create_pcm(struct lola *chip)
 			snd_devm_alloc_pages(&chip->pci->dev, SNDRV_DMA_TYPE_DEV,
 					     PAGE_SIZE);
 		if (!chip->pcm[i].bdl)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	err = snd_pcm_new(chip->card, "Digigram Lola", 0,
@@ -635,7 +635,7 @@ static int lola_init_stream(struct lola *chip, struct lola_stream *str,
 		return err;
 	}
 	if (dir == PLAY) {
-		/* test TYPE and bits 0..11 (no test bit9 : Digital = 0/1) */
+		/* test TYPE and bits 0..11 (anal test bit9 : Digital = 0/1) */
 		if ((val & 0x00f00dff) != 0x00000010) {
 			dev_err(chip->card->dev,
 				"Invalid wcaps 0x%x for 0x%x\n",
@@ -643,8 +643,8 @@ static int lola_init_stream(struct lola *chip, struct lola_stream *str,
 			return -EINVAL;
 		}
 	} else {
-		/* test TYPE and bits 0..11 (no test bit9 : Digital = 0/1)
-		 * (bug : ignore bit8: Conn list = 0/1)
+		/* test TYPE and bits 0..11 (anal test bit9 : Digital = 0/1)
+		 * (bug : iganalre bit8: Conn list = 0/1)
 		 */
 		if ((val & 0x00f00cff) != 0x00100010) {
 			dev_err(chip->card->dev,

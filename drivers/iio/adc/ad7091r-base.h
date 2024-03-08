@@ -81,7 +81,7 @@ struct ad7091r_chip_info {
 
 struct ad7091r_init_info {
 	const struct ad7091r_chip_info *info_irq;
-	const struct ad7091r_chip_info *info_no_irq;
+	const struct ad7091r_chip_info *info_anal_irq;
 	const struct regmap_config *regmap_config;
 	void (*init_adc_regmap)(struct ad7091r_state *st,
 				const struct regmap_config *regmap_conf);

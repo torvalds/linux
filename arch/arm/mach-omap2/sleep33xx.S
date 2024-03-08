@@ -20,7 +20,7 @@
 #define AM33XX_CM_CLKCTRL_MODULEMODE_DISABLE			0x0003
 #define AM33XX_CM_CLKCTRL_MODULEMODE_ENABLE			0x0002
 
-/* replicated define because linux/bitops.h cannot be included in assembly */
+/* replicated define because linux/bitops.h cananalt be included in assembly */
 #define BIT(nr)			(1 << (nr))
 
 	.arm
@@ -36,7 +36,7 @@ ENTRY(am33xx_do_wfi)
 	ldr	r2, [r3, #AMX3_PM_RO_SRAM_DATA_VIRT_OFFSET]
 	str	r4, [r2, #AMX3_PM_WFI_FLAGS_OFFSET]
 
-	/* Only flush cache is we know we are losing MPU context */
+	/* Only flush cache is we kanalw we are losing MPU context */
 	tst	r4, #WFI_FLAG_FLUSH_CACHE
 	beq	cache_skip_flush
 
@@ -50,7 +50,7 @@ ENTRY(am33xx_do_wfi)
 	/*
 	 * Clear the SCTLR.C bit to prevent further data cache
 	 * allocation. Clearing SCTLR.C would make all the data accesses
-	 * strongly ordered and would not hit the cache.
+	 * strongly ordered and would analt hit the cache.
 	 */
 	mrc	p15, 0, r0, c1, c0, 0
 	bic	r0, r0, #(1 << 2)	@ Disable the C bit
@@ -136,24 +136,24 @@ wkup_m3_skip:
 	 * Execute a WFI instruction and wait until the
 	 * STANDBYWFI output is asserted to indicate that the
 	 * CPU is in idle and low power state. CPU can specualatively
-	 * prefetch the instructions so add NOPs after WFI. Thirteen
-	 * NOPs as per Cortex-A8 pipeline.
+	 * prefetch the instructions so add ANALPs after WFI. Thirteen
+	 * ANALPs as per Cortex-A8 pipeline.
 	 */
 	wfi
 
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 
 	/* We come here in case of an abort due to a late interrupt */
 
@@ -192,7 +192,7 @@ emif_skip_exit_sr_abt:
 	isb
 
 cache_skip_restore:
-	/* Let the suspend code know about the abort */
+	/* Let the suspend code kanalw about the abort */
 	mov	r0, #1
 	ldmfd	sp!, {r4 - r11, pc}	@ restore regs and return
 ENDPROC(am33xx_do_wfi)

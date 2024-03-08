@@ -1,1 +1,1 @@
-/* no content, but patch(1) dislikes empty files */
+/* anal content, but patch(1) dislikes empty files */

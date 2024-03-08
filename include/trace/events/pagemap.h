@@ -9,7 +9,7 @@
 #include <linux/mm.h>
 
 #define	PAGEMAP_MAPPED		0x0001u
-#define PAGEMAP_ANONYMOUS	0x0002u
+#define PAGEMAP_AANALNYMOUS	0x0002u
 #define PAGEMAP_FILE		0x0004u
 #define PAGEMAP_SWAPCACHE	0x0008u
 #define PAGEMAP_SWAPBACKED	0x0010u
@@ -17,7 +17,7 @@
 #define PAGEMAP_BUFFERS		0x0040u
 
 #define trace_pagemap_flags(folio) ( \
-	(folio_test_anon(folio)		? PAGEMAP_ANONYMOUS  : PAGEMAP_FILE) | \
+	(folio_test_aanaln(folio)		? PAGEMAP_AANALNYMOUS  : PAGEMAP_FILE) | \
 	(folio_mapped(folio)		? PAGEMAP_MAPPED     : 0) | \
 	(folio_test_swapcache(folio)	? PAGEMAP_SWAPCACHE  : 0) | \
 	(folio_test_swapbacked(folio)	? PAGEMAP_SWAPBACKED : 0) | \
@@ -51,7 +51,7 @@ TRACE_EVENT(mm_lru_insertion,
 			__entry->pfn,
 			__entry->lru,
 			__entry->flags & PAGEMAP_MAPPED		? "M" : " ",
-			__entry->flags & PAGEMAP_ANONYMOUS	? "a" : "f",
+			__entry->flags & PAGEMAP_AANALNYMOUS	? "a" : "f",
 			__entry->flags & PAGEMAP_SWAPCACHE	? "s" : " ",
 			__entry->flags & PAGEMAP_SWAPBACKED	? "b" : " ",
 			__entry->flags & PAGEMAP_MAPPEDDISK	? "d" : " ",

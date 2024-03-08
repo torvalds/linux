@@ -43,7 +43,7 @@ void __init save_bootinfo(const struct bi_record *bi)
 	}
 
 	if (size > sizeof(bootinfo_tmp)) {
-		pr_err("Cannot save %zu bytes of bootinfo\n", size);
+		pr_err("Cananalt save %zu bytes of bootinfo\n", size);
 		return;
 	}
 
@@ -55,7 +55,7 @@ void __init save_bootinfo(const struct bi_record *bi)
 static int __init init_bootinfo_procfs(void)
 {
 	/*
-	 * This cannot go into save_bootinfo() because kmalloc and proc don't
+	 * This cananalt go into save_bootinfo() because kmalloc and proc don't
 	 * work yet when it is called.
 	 */
 	struct proc_dir_entry *pde;
@@ -65,12 +65,12 @@ static int __init init_bootinfo_procfs(void)
 
 	bootinfo_copy = kmemdup(bootinfo_tmp, bootinfo_size, GFP_KERNEL);
 	if (!bootinfo_copy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pde = proc_create_data("bootinfo", 0400, NULL, &bootinfo_proc_ops, NULL);
 	if (!pde) {
 		kfree(bootinfo_copy);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

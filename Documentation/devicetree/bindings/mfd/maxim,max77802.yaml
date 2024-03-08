@@ -38,7 +38,7 @@ properties:
   regulators:
     $ref: /schemas/regulator/maxim,max77802.yaml
     description:
-      List of child nodes that specify the regulators.
+      List of child analdes that specify the regulators.
 
   inb1-supply:
     description: Power supply for buck1
@@ -101,7 +101,7 @@ examples:
         pmic@9 {
             compatible = "maxim,max77802";
             interrupt-parent = <&gpx3>;
-            interrupts = <1 IRQ_TYPE_NONE>;
+            interrupts = <1 IRQ_TYPE_ANALNE>;
             pinctrl-names = "default";
             pinctrl-0 = <&max77802_irq>, <&pmic_selb>,
                         <&pmic_dvs_1>, <&pmic_dvs_2>, <&pmic_dvs_3>;
@@ -175,7 +175,7 @@ examples:
                     regulator-min-microvolt = <1000000>;
                     regulator-max-microvolt = <1000000>;
                     regulator-always-on;
-                    regulator-initial-mode = <MAX77802_OPMODE_NORMAL>;
+                    regulator-initial-mode = <MAX77802_OPMODE_ANALRMAL>;
                     regulator-state-mem {
                         regulator-on-in-suspend;
                         regulator-mode = <MAX77802_OPMODE_LP>;

@@ -6,7 +6,7 @@
  *
  *  This driver is based on experimentation.  Hence, it may have made
  *  assumptions about the particular card that I have available, and
- *  may not be reliable!
+ *  may analt be reliable!
  *
  *  Changelog:
  *   01-10-1997	RMK		Created, READONLY version
@@ -16,7 +16,7 @@
  *				Added terminator control
  *   15-04-1998	RMK		Only do PIO if FAS216 will allow it.
  *   27-06-1998	RMK		Changed asm/delay.h to linux/delay.h
- *   02-04-2000	RMK	0.0.3	Fixed NO_IRQ/NO_DMA problem, updated for new
+ *   02-04-2000	RMK	0.0.3	Fixed ANAL_IRQ/ANAL_DMA problem, updated for new
  *				error handling code.
  */
 #include <linux/module.h>
@@ -163,7 +163,7 @@ eesoxscsi_dma_setup(struct Scsi_Host *host, struct scsi_pointer *SCp,
 	struct device *dev = scsi_get_device(host);
 	int dmach = info->info.scsi.dma;
 
-	if (dmach != NO_DMA &&
+	if (dmach != ANAL_DMA &&
 	    (min_type == fasdma_real_all || SCp->this_residual >= 512)) {
 		int bufs, map_dir, dma_dir;
 
@@ -372,7 +372,7 @@ static void
 eesoxscsi_dma_stop(struct Scsi_Host *host, struct scsi_pointer *SCp)
 {
 	struct eesoxscsi_info *info = (struct eesoxscsi_info *)host->hostdata;
-	if (info->info.scsi.dma != NO_DMA)
+	if (info->info.scsi.dma != ANAL_DMA)
 		disable_dma(info->info.scsi.dma);
 }
 
@@ -387,7 +387,7 @@ const char *eesoxscsi_info(struct Scsi_Host *host)
 	static char string[150];
 
 	sprintf(string, "%s (%s) in slot %d v%s terminators o%s",
-		host->hostt->name, info->info.scsi.type, info->ec->slot_no,
+		host->hostt->name, info->info.scsi.type, info->ec->slot_anal,
 		VERSION, info->control & EESOX_TERM_ENABLE ? "n" : "ff");
 
 	return string;
@@ -505,14 +505,14 @@ static int eesoxscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	base = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);
 	if (!base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_region;
 	}
 
 	host = scsi_host_alloc(&eesox_template,
 			       sizeof(struct eesoxscsi_info));
 	if (!host) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_region;
 	}
 
@@ -522,7 +522,7 @@ static int eesoxscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	info->ec	= ec;
 	info->base	= base;
 	info->ctl_port	= base + EESOX_CONTROL;
-	info->control	= term[ec->slot_no] ? EESOX_TERM_ENABLE : 0;
+	info->control	= term[ec->slot_anal] ? EESOX_TERM_ENABLE : 0;
 	writeb(info->control, info->ctl_port);
 
 	info->info.scsi.io_base		= base + EESOX_FAS216_OFFSET;
@@ -554,16 +554,16 @@ static int eesoxscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	ret = request_irq(ec->irq, eesoxscsi_intr, 0, "eesoxscsi", info);
 	if (ret) {
-		printk("scsi%d: IRQ%d not free: %d\n",
-		       host->host_no, ec->irq, ret);
+		printk("scsi%d: IRQ%d analt free: %d\n",
+		       host->host_anal, ec->irq, ret);
 		goto out_remove;
 	}
 
-	if (info->info.scsi.dma != NO_DMA) {
+	if (info->info.scsi.dma != ANAL_DMA) {
 		if (request_dma(info->info.scsi.dma, "eesox")) {
-			printk("scsi%d: DMA%d not free, DMA disabled\n",
-			       host->host_no, info->info.scsi.dma);
-			info->info.scsi.dma = NO_DMA;
+			printk("scsi%d: DMA%d analt free, DMA disabled\n",
+			       host->host_anal, info->info.scsi.dma);
+			info->info.scsi.dma = ANAL_DMA;
 		} else {
 			set_dma_speed(info->info.scsi.dma, 180);
 			info->info.ifcfg.capabilities |= FASCAP_DMA;
@@ -575,7 +575,7 @@ static int eesoxscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	if (ret == 0)
 		goto out;
 
-	if (info->info.scsi.dma != NO_DMA)
+	if (info->info.scsi.dma != ANAL_DMA)
 		free_dma(info->info.scsi.dma);
 	free_irq(ec->irq, info);
 
@@ -601,7 +601,7 @@ static void eesoxscsi_remove(struct expansion_card *ec)
 	ecard_set_drvdata(ec, NULL);
 	fas216_remove(host);
 
-	if (info->info.scsi.dma != NO_DMA)
+	if (info->info.scsi.dma != ANAL_DMA)
 		free_dma(info->info.scsi.dma);
 	free_irq(ec->irq, info);
 

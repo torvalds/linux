@@ -30,7 +30,7 @@ properties:
   interrupt-names:
     description:
       Data ready is only available on INT1, but events can use either or
-      both pins.  If not specified, first element assumed to correspond
+      both pins.  If analt specified, first element assumed to correspond
       to INT1 and second (where present) to INT2.
     minItems: 1
     maxItems: 2

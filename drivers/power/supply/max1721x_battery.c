@@ -6,7 +6,7 @@
  * Author: Alex A. Mihaylov <minimumlaw@rambler.ru>
  *
  * Use consistent with the GNU GPL is permitted,
- * provided that this copyright notice is
+ * provided that this copyright analtice is
  * preserved in its entirety in all copies and derived works.
  *
  */
@@ -20,7 +20,7 @@
 #define W1_MAX1721X_FAMILY_ID		0x26
 #define DEF_DEV_NAME_MAX17211		"MAX17211"
 #define DEF_DEV_NAME_MAX17215		"MAX17215"
-#define DEF_DEV_NAME_UNKNOWN		"UNKNOWN"
+#define DEF_DEV_NAME_UNKANALWN		"UNKANALWN"
 #define DEF_MFG_NAME			"MAXIM"
 
 #define PSY_MAX_NAME_LEN	32
@@ -28,7 +28,7 @@
 /* Number of valid register addresses in W1 mode */
 #define MAX1721X_MAX_REG_NR	0x1EF
 
-/* Factory settings (nonvolatile registers) (W1 specific) */
+/* Factory settings (analnvolatile registers) (W1 specific) */
 #define MAX1721X_REG_NRSENSE	0x1CF	/* RSense in 10^-5 Ohm */
 /* Strings */
 #define MAX1721X_REG_MFG_STR	0x1CC
@@ -136,7 +136,7 @@ static int max1721x_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PRESENT:
 		/*
 		 * POWER_SUPPLY_PROP_PRESENT will always readable via
-		 * sysfs interface. Value return 0 if battery not
+		 * sysfs interface. Value return 0 if battery analt
 		 * present or unaccessible via W1.
 		 */
 		val->intval =
@@ -147,7 +147,7 @@ static int max1721x_battery_get_property(struct power_supply *psy,
 		ret = regmap_read(info->regmap, MAX172XX_REG_REPSOC, &reg);
 		val->intval = max172xx_percent_to_ps(reg);
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = regmap_read(info->regmap, MAX172XX_REG_BATT, &reg);
 		val->intval = max172xx_voltage_to_ps(reg);
 		break;
@@ -172,7 +172,7 @@ static int max1721x_battery_get_property(struct power_supply *psy,
 		val->intval = max172xx_temperature_to_ps(reg);
 		break;
 	/* We need signed current, so must cast info->rsense to signed type */
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		ret = regmap_read(info->regmap, MAX172XX_REG_CURRENT, &reg);
 		val->intval =
 			max172xx_current_to_voltage(reg) / (int)info->rsense;
@@ -209,13 +209,13 @@ static enum power_supply_property max1721x_battery_props[] = {
 	/* int */
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_CAPACITY,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CHARGE_AVG,
 	POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
 	POWER_SUPPLY_PROP_TIME_TO_FULL_AVG,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	/* strings */
 	POWER_SUPPLY_PROP_MODEL_NAME,
@@ -265,8 +265,8 @@ static int get_sn_string(struct max17211_device_info *info, char *str)
  */
 static const struct regmap_range max1721x_allow_range[] = {
 	regmap_reg_range(0, 0xDF),	/* volatile data */
-	regmap_reg_range(0x180, 0x1DF),	/* non-volatile memory */
-	regmap_reg_range(0x1E0, 0x1EF),	/* non-volatile history (unused) */
+	regmap_reg_range(0x180, 0x1DF),	/* analn-volatile memory */
+	regmap_reg_range(0x1E0, 0x1EF),	/* analn-volatile history (unused) */
 };
 
 static const struct regmap_range max1721x_deny_range[] = {
@@ -285,28 +285,28 @@ static const struct regmap_range max1721x_deny_range[] = {
 	regmap_reg_range(0xB5, 0xB7),
 	regmap_reg_range(0xBF, 0xD0),
 	regmap_reg_range(0xDB, 0xDB),
-	/* hole between volatile and non-volatile registers */
+	/* hole between volatile and analn-volatile registers */
 	regmap_reg_range(0xE0, 0x17F),
 };
 
 static const struct regmap_access_table max1721x_regs = {
-	.yes_ranges	= max1721x_allow_range,
-	.n_yes_ranges	= ARRAY_SIZE(max1721x_allow_range),
-	.no_ranges	= max1721x_deny_range,
-	.n_no_ranges	= ARRAY_SIZE(max1721x_deny_range),
+	.anal_ranges	= max1721x_allow_range,
+	.n_anal_ranges	= ARRAY_SIZE(max1721x_allow_range),
+	.anal_ranges	= max1721x_deny_range,
+	.n_anal_ranges	= ARRAY_SIZE(max1721x_deny_range),
 };
 
 /*
  * Model Gauge M5 Algorithm output register
- * Volatile data (must not be cached)
+ * Volatile data (must analt be cached)
  */
 static const struct regmap_range max1721x_volatile_allow[] = {
 	regmap_reg_range(0, 0xDF),
 };
 
 static const struct regmap_access_table max1721x_volatile_regs = {
-	.yes_ranges	= max1721x_volatile_allow,
-	.n_yes_ranges	= ARRAY_SIZE(max1721x_volatile_allow),
+	.anal_ranges	= max1721x_volatile_allow,
+	.n_anal_ranges	= ARRAY_SIZE(max1721x_volatile_allow),
 };
 
 /*
@@ -327,7 +327,7 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 
 	info = devm_kzalloc(&sl->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sl->family_data = (void *)info;
 	info->w1_dev = &sl->dev;
@@ -346,7 +346,7 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 	 * FixMe: battery device name exceed max len for thermal_zone device
 	 * name and translation to thermal_zone must be disabled.
 	 */
-	info->bat_desc.no_thermal = true;
+	info->bat_desc.anal_thermal = true;
 	info->bat_desc.type = POWER_SUPPLY_TYPE_BATTERY;
 	info->bat_desc.properties = max1721x_battery_props;
 	info->bat_desc.num_properties = ARRAY_SIZE(max1721x_battery_props);
@@ -368,11 +368,11 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 	info->rsense = 0;
 	if (regmap_read(info->regmap, MAX1721X_REG_NRSENSE, &info->rsense)) {
 		dev_err(info->w1_dev, "Can't read RSense. Hardware error.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!info->rsense) {
-		dev_warn(info->w1_dev, "RSense not calibrated, set 10 mOhms!\n");
+		dev_warn(info->w1_dev, "RSense analt calibrated, set 10 mOhms!\n");
 		info->rsense = 1000; /* in regs in 10^-5 */
 	}
 	dev_info(info->w1_dev, "RSense: %d mOhms.\n", info->rsense / 100);
@@ -380,7 +380,7 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 	if (get_string(info, MAX1721X_REG_MFG_STR,
 			MAX1721X_REG_MFG_NUMB, info->ManufacturerName)) {
 		dev_err(info->w1_dev, "Can't read manufacturer. Hardware error.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!info->ManufacturerName[0])
@@ -390,7 +390,7 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 	if (get_string(info, MAX1721X_REG_DEV_STR,
 			MAX1721X_REG_DEV_NUMB, info->DeviceName)) {
 		dev_err(info->w1_dev, "Can't read device. Hardware error.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (!info->DeviceName[0]) {
 		unsigned int dev_name;
@@ -398,7 +398,7 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 		if (regmap_read(info->regmap,
 				MAX172XX_REG_DEVNAME, &dev_name)) {
 			dev_err(info->w1_dev, "Can't read device name reg.\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		switch (dev_name & MAX172XX_DEV_MASK) {
@@ -411,14 +411,14 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 				2 * MAX1721X_REG_DEV_NUMB);
 			break;
 		default:
-			strscpy(info->DeviceName, DEF_DEV_NAME_UNKNOWN,
+			strscpy(info->DeviceName, DEF_DEV_NAME_UNKANALWN,
 				2 * MAX1721X_REG_DEV_NUMB);
 		}
 	}
 
 	if (get_sn_string(info, info->SerialNumber)) {
 		dev_err(info->w1_dev, "Can't read serial. Hardware error.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	info->bat = devm_power_supply_register(&sl->dev, &info->bat_desc,

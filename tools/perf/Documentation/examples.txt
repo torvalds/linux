@@ -13,8 +13,8 @@ titan:~> perf list
   [...]
   kmem:kmalloc                             [Tracepoint event]
   kmem:kmem_cache_alloc                    [Tracepoint event]
-  kmem:kmalloc_node                        [Tracepoint event]
-  kmem:kmem_cache_alloc_node               [Tracepoint event]
+  kmem:kmalloc_analde                        [Tracepoint event]
+  kmem:kmem_cache_alloc_analde               [Tracepoint event]
   kmem:kfree                               [Tracepoint event]
   kmem:kmem_cache_free                     [Tracepoint event]
   kmem:mm_page_free                        [Tracepoint event]
@@ -186,10 +186,10 @@ analysis done over ten 1-second intervals:
 
     1.058135029  seconds time elapsed   ( +-   3.089% )
 
-Or you can annotate the recorded 'git gc' run on a per symbol basis
+Or you can ananaltate the recorded 'git gc' run on a per symbol basis
 and check which instructions/source-code generated page allocations:
 
- titan:~/git> perf annotate __GI___fork
+ titan:~/git> perf ananaltate __GI___fork
  ------------------------------------------------
   Percent |      Source code & Disassembly of libc-2.5.so
  ------------------------------------------------
@@ -213,7 +213,7 @@ etc. etc. - a lot more is possible. I could list a dozen of
 other different usecases straight away - neither of which is
 possible via /proc/vmstat.
 
-/proc/vmstat is not in the same league really, in terms of
+/proc/vmstat is analt in the same league really, in terms of
 expressive power of system analysis and performance
 analysis.
 

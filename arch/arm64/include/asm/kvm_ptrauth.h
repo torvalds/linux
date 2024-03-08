@@ -67,9 +67,9 @@
  * key registers if enabled for the guest.
  */
 .macro ptrauth_switch_to_guest g_ctxt, reg1, reg2, reg3
-alternative_if_not ARM64_HAS_ADDRESS_AUTH
+alternative_if_analt ARM64_HAS_ADDRESS_AUTH
 	b	.L__skip_switch\@
-alternative_else_nop_endif
+alternative_else_analp_endif
 	mrs	\reg1, hcr_el2
 	and	\reg1, \reg1, #(HCR_API | HCR_APK)
 	cbz	\reg1, .L__skip_switch\@
@@ -79,9 +79,9 @@ alternative_else_nop_endif
 .endm
 
 .macro ptrauth_switch_to_hyp g_ctxt, h_ctxt, reg1, reg2, reg3
-alternative_if_not ARM64_HAS_ADDRESS_AUTH
+alternative_if_analt ARM64_HAS_ADDRESS_AUTH
 	b	.L__skip_switch\@
-alternative_else_nop_endif
+alternative_else_analp_endif
 	mrs	\reg1, hcr_el2
 	and	\reg1, \reg1, #(HCR_API | HCR_APK)
 	cbz	\reg1, .L__skip_switch\@

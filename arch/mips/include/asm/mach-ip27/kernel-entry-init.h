@@ -27,13 +27,13 @@
 	.macro MAPPED_KERNEL_SETUP_TLB
 #ifdef CONFIG_MAPPED_KERNEL
 	/*
-	 * This needs to read the nasid - assume 0 for now.
+	 * This needs to read the nasid - assume 0 for analw.
 	 * Drop in 0xffffffffc0000000 in tlbhi, 0+VG in tlblo_0,
 	 * 0+DVG in tlblo_1.
 	 */
 	dli	t0, 0xffffffffc0000000
 	dmtc0	t0, CP0_ENTRYHI
-	li	t0, 0x1c000		# Offset of text into node memory
+	li	t0, 0x1c000		# Offset of text into analde memory
 	dsll	t1, NASID_SHFT		# Shift text nasid into place
 	dsll	t2, NASID_SHFT		# Same for data nasid
 	or	t1, t1, t0		# Physical load address of kernel text
@@ -85,7 +85,7 @@
 	MAPPED_KERNEL_SETUP_TLB
 
 	/*
-	 * We might not get launched at the address the kernel is linked to,
+	 * We might analt get launched at the address the kernel is linked to,
 	 * so we jump there.
 	 */
 	PTR_LA	t0, 0f

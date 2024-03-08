@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -68,7 +68,7 @@ static const uint8_t dp_hdmi_dongle_signature_str[] = "DP-HDMI ADAPTOR";
 
 static enum ddc_transaction_type get_ddc_transaction_type(enum signal_type sink_signal)
 {
-	enum ddc_transaction_type transaction_type = DDC_TRANSACTION_TYPE_NONE;
+	enum ddc_transaction_type transaction_type = DDC_TRANSACTION_TYPE_ANALNE;
 
 	switch (sink_signal) {
 	case SIGNAL_TYPE_DVI_SINGLE_LINK:
@@ -85,7 +85,7 @@ static enum ddc_transaction_type get_ddc_transaction_type(enum signal_type sink_
 		break;
 
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
-		/* MST does not use I2COverAux, but there is the
+		/* MST does analt use I2COverAux, but there is the
 		 * SPECIAL use case for "immediate dwnstrm device
 		 * access" (EPR#370830).
 		 */
@@ -144,7 +144,7 @@ static enum signal_type get_basic_signal_type(struct graphics_object_id encoder,
 		case CONNECTOR_ID_EDP:
 			return SIGNAL_TYPE_EDP;
 		default:
-			return SIGNAL_TYPE_NONE;
+			return SIGNAL_TYPE_ANALNE;
 		}
 	} else if (downstream.type == OBJECT_TYPE_ENCODER) {
 		switch (downstream.id) {
@@ -152,11 +152,11 @@ static enum signal_type get_basic_signal_type(struct graphics_object_id encoder,
 		case ENCODER_ID_EXTERNAL_TRAVIS:
 			return SIGNAL_TYPE_DISPLAY_PORT;
 		default:
-			return SIGNAL_TYPE_NONE;
+			return SIGNAL_TYPE_ANALNE;
 		}
 	}
 
-	return SIGNAL_TYPE_NONE;
+	return SIGNAL_TYPE_ANALNE;
 }
 
 /*
@@ -170,7 +170,7 @@ static enum signal_type link_detect_sink_signal_type(struct dc_link *link,
 	struct graphics_object_id enc_id;
 
 	if (link->is_dig_mapping_flexible)
-		enc_id = (struct graphics_object_id){.id = ENCODER_ID_UNKNOWN};
+		enc_id = (struct graphics_object_id){.id = ENCODER_ID_UNKANALWN};
 	else
 		enc_id = link->link_enc->id;
 	result = get_basic_signal_type(enc_id, link->link_id);
@@ -199,7 +199,7 @@ static enum signal_type link_detect_sink_signal_type(struct dc_link *link,
 	switch (link->link_id.id) {
 	case CONNECTOR_ID_HDMI_TYPE_A: {
 		/* check audio support:
-		 * if native HDMI is not supported, switch to DVI
+		 * if native HDMI is analt supported, switch to DVI
 		 */
 		struct audio_support *aud_support =
 					&link->dc->res_pool->audio_support;
@@ -211,11 +211,11 @@ static enum signal_type link_detect_sink_signal_type(struct dc_link *link,
 	break;
 	case CONNECTOR_ID_DISPLAY_PORT:
 	case CONNECTOR_ID_USBC: {
-		/* DP HPD short pulse. Passive DP dongle will not
+		/* DP HPD short pulse. Passive DP dongle will analt
 		 * have short pulse
 		 */
 		if (reason != DETECT_REASON_HPDRX) {
-			/* Check whether DP signal detected: if not -
+			/* Check whether DP signal detected: if analt -
 			 * we assume signal is DVI; it could be corrected
 			 * to HDMI after dongle detection
 			 */
@@ -234,7 +234,7 @@ static enum signal_type link_detect_sink_signal_type(struct dc_link *link,
 static enum signal_type decide_signal_from_strap_and_dongle_type(enum display_dongle_type dongle_type,
 								 struct audio_support *audio_support)
 {
-	enum signal_type signal = SIGNAL_TYPE_NONE;
+	enum signal_type signal = SIGNAL_TYPE_ANALNE;
 
 	switch (dongle_type) {
 	case DISPLAY_DONGLE_DP_HDMI_DONGLE:
@@ -253,7 +253,7 @@ static enum signal_type decide_signal_from_strap_and_dongle_type(enum display_do
 			signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
 		break;
 	default:
-		signal = SIGNAL_TYPE_NONE;
+		signal = SIGNAL_TYPE_ANALNE;
 		break;
 	}
 
@@ -326,11 +326,11 @@ static void query_dp_dual_mode_adaptor(
 	struct dp_hdmi_dongle_signature_data *dongle_signature;
 	struct dc_link *link = ddc->link;
 
-	/* Assume we have no valid DP passive dongle connected */
-	*dongle = DISPLAY_DONGLE_NONE;
+	/* Assume we have anal valid DP passive dongle connected */
+	*dongle = DISPLAY_DONGLE_ANALNE;
 	sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_HDMI_SAFE_MAX_TMDS_CLK;
 
-	/* Read DP-HDMI dongle I2c (no response interpreted as DP-DVI dongle)*/
+	/* Read DP-HDMI dongle I2c (anal response interpreted as DP-DVI dongle)*/
 	if (!i2c_read(
 		ddc,
 		DP_HDMI_DONGLE_ADDRESS,
@@ -372,7 +372,7 @@ static void query_dp_dual_mode_adaptor(
 
 	/* Check signature */
 	for (i = 0; i < sizeof(dongle_signature->id); ++i) {
-		/* If its not the right signature,
+		/* If its analt the right signature,
 		 * skip mismatch in subversion byte.*/
 		if (dongle_signature->id[i] !=
 			dp_hdmi_dongle_signature_str[i] && i != 3) {
@@ -413,7 +413,7 @@ static void query_dp_dual_mode_adaptor(
 
 				CONN_DATA_DETECT(ddc->link, type2_dongle_buf,
 						sizeof(type2_dongle_buf),
-						"Type 2 DP-HDMI passive dongle (no signature) %dMhz: ",
+						"Type 2 DP-HDMI passive dongle (anal signature) %dMhz: ",
 						max_tmds_clk);
 
 			}
@@ -437,7 +437,7 @@ static void query_dp_dual_mode_adaptor(
 
 			CONN_DATA_DETECT(ddc->link, type2_dongle_buf,
 					sizeof(type2_dongle_buf),
-					"Type 1 DP-HDMI passive dongle (no signature) %dMhz: ",
+					"Type 1 DP-HDMI passive dongle (anal signature) %dMhz: ",
 					sink_cap->max_hdmi_pixel_clock / 1000);
 		}
 		sink_cap->is_dongle_type_one = true;
@@ -529,7 +529,7 @@ static void read_current_link_settings_on_detect(struct dc_link *link)
 					     &lane_count_set.raw,
 					     sizeof(lane_count_set));
 		/* First DPCD read after VDD ON can fail if the particular board
-		 * does not have HPD pin wired correctly. So if DPCD read fails,
+		 * does analt have HPD pin wired correctly. So if DPCD read fails,
 		 * which it should never happen, retry a few times. Target worst
 		 * case scenario of 80 ms.
 		 */
@@ -548,7 +548,7 @@ static void read_current_link_settings_on_detect(struct dc_link *link)
 
 	if (link_bw_set == 0) {
 		if (link->connector_signal == SIGNAL_TYPE_EDP) {
-			/* If standard link rates are not being used,
+			/* If standard link rates are analt being used,
 			 * Read DPCD 00115h to find the edp link rate set used
 			 */
 			core_link_read_dpcd(link, DP_LINK_RATE_SET,
@@ -562,7 +562,7 @@ static void read_current_link_settings_on_detect(struct dc_link *link)
 				link->cur_link_settings.use_link_rate_set = true;
 			}
 		} else {
-			// Link Rate not found. Seamless boot may not work.
+			// Link Rate analt found. Seamless boot may analt work.
 			ASSERT(false);
 		}
 	} else {
@@ -704,7 +704,7 @@ static bool discover_dp_mst_topology(struct dc_link *link, enum dc_detect_reason
 {
 	DC_LOGGER_INIT(link->ctx->logger);
 
-	LINK_INFO("link=%d, mst branch is now Connected\n",
+	LINK_INFO("link=%d, mst branch is analw Connected\n",
 		  link->link_index);
 
 	link->type = dc_connection_mst_branch;
@@ -725,7 +725,7 @@ bool link_reset_cur_dp_mst_topology(struct dc_link *link)
 {
 	DC_LOGGER_INIT(link->ctx->logger);
 
-	LINK_INFO("link=%d, mst branch is now Disconnected\n",
+	LINK_INFO("link=%d, mst branch is analw Disconnected\n",
 		  link->link_index);
 
 	revert_dpia_mst_dsc_always_on_wa(link);
@@ -770,11 +770,11 @@ static void verify_link_capability_destructive(struct dc_link *link,
 		prepare_phy_clocks_for_destructive_link_verification(link->dc);
 
 	if (dc_is_dp_signal(link->local_sink->sink_signal)) {
-		struct dc_link_settings known_limit_link_setting =
+		struct dc_link_settings kanalwn_limit_link_setting =
 				dp_get_max_link_cap(link);
 		link_set_all_streams_dpms_off_for_link(link);
 		dp_verify_link_cap_with_retries(
-				link, &known_limit_link_setting,
+				link, &kanalwn_limit_link_setting,
 				LINK_TRAINING_MAX_VERIFY_RETRY);
 	} else {
 		ASSERT(0);
@@ -784,13 +784,13 @@ static void verify_link_capability_destructive(struct dc_link *link,
 		restore_phy_clocks_for_destructive_link_verification(link->dc);
 }
 
-static void verify_link_capability_non_destructive(struct dc_link *link)
+static void verify_link_capability_analn_destructive(struct dc_link *link)
 {
 	if (dc_is_dp_signal(link->local_sink->sink_signal)) {
 		if (dc_is_embedded_signal(link->local_sink->sink_signal) ||
 				link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
 			/* TODO - should we check link encoder's max link caps here?
-			 * How do we know which link encoder to check from?
+			 * How do we kanalw which link encoder to check from?
 			 */
 			link->verified_link_cap = link->reported_link_cap;
 		else
@@ -836,7 +836,7 @@ static void verify_link_capability(struct dc_link *link, struct dc_sink *sink,
 	if (should_verify_link_capability_destructively(link, reason))
 		verify_link_capability_destructive(link, sink, reason);
 	else
-		verify_link_capability_non_destructive(link);
+		verify_link_capability_analn_destructive(link);
 }
 
 /*
@@ -844,7 +844,7 @@ static void verify_link_capability(struct dc_link *link, struct dc_sink *sink,
  *
  * link->local_sink is created or destroyed as needed.
  *
- * This does not create remote sinks.
+ * This does analt create remote sinks.
  */
 static bool detect_link_and_local_sink(struct dc_link *link,
 				  enum dc_detect_reason reason)
@@ -861,7 +861,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 	struct dc_sink *sink = NULL;
 	struct dc_sink *prev_sink = NULL;
 	struct dpcd_caps prev_dpcd_caps;
-	enum dc_connection_type new_connection_type = dc_connection_none;
+	enum dc_connection_type new_connection_type = dc_connection_analne;
 	enum dc_connection_type pre_connection_type = link->type;
 	const uint32_t post_oui_delay = 30; // 30ms
 
@@ -897,7 +897,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 	}
 
 	link_disconnect_sink(link);
-	if (new_connection_type != dc_connection_none) {
+	if (new_connection_type != dc_connection_analne) {
 		link->type = new_connection_type;
 		link->link_state_valid = false;
 
@@ -941,7 +941,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 				link->dpcd_caps.sink_dev_id == DP_BRANCH_DEVICE_ID_0022B9 &&
 				memcmp(&link->dpcd_caps.branch_dev_name, DP_SINK_BRANCH_DEV_NAME_7580,
 					sizeof(link->dpcd_caps.branch_dev_name)) == 0) {
-				dc->config.edp_no_power_sequencing = true;
+				dc->config.edp_anal_power_sequencing = true;
 
 				if (!link->dpcd_caps.set_power_state_capable_edp)
 					link->wa_flags.dp_keep_receiver_powered = true;
@@ -980,7 +980,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 				return true;
 			}
 
-			/* disable audio for non DP to HDMI active sst converter */
+			/* disable audio for analn DP to HDMI active sst converter */
 			if (link->type == dc_connection_sst_branch &&
 					is_dp_active_dongle(link) &&
 					(link->dpcd_caps.dongle_type !=
@@ -1041,14 +1041,14 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		case EDID_PARTIAL_VALID:
 			DC_LOG_ERROR("Partial EDID valid, abandon invalid blocks.\n");
 			break;
-		case EDID_NO_RESPONSE:
-			DC_LOG_ERROR("No EDID read.\n");
+		case EDID_ANAL_RESPONSE:
+			DC_LOG_ERROR("Anal EDID read.\n");
 			/*
-			 * Abort detection for non-DP connectors if we have
-			 * no EDID
+			 * Abort detection for analn-DP connectors if we have
+			 * anal EDID
 			 *
 			 * DP needs to report as connected if HDP is high
-			 * even if we have no EDID in order to go to
+			 * even if we have anal EDID in order to go to
 			 * fail-safe mode
 			 */
 			if (dc_is_hdmi_signal(link->connector_signal) ||
@@ -1171,7 +1171,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			dm_helpers_override_panel_settings(dc_ctx, &link->panel_config);
 
 			//sink only can use supported link rate table, we are foreced to enable it
-			if (link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)
+			if (link->reported_link_cap.link_rate == LINK_RATE_UNKANALWN)
 				link->panel_config.ilr.optimize_edp_link_rate = true;
 			if (edp_is_ilr_optimization_enabled(link))
 				link->reported_link_cap.link_rate = get_max_link_rate_from_ilr_table(link);
@@ -1179,11 +1179,11 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 
 	} else {
 		/* From Connected-to-Disconnected. */
-		link->type = dc_connection_none;
-		sink_caps.signal = SIGNAL_TYPE_NONE;
+		link->type = dc_connection_analne;
+		sink_caps.signal = SIGNAL_TYPE_ANALNE;
 		memset(&link->hdcp_caps, 0, sizeof(struct hdcp_caps));
 		/* When we unplug a passive DP-HDMI dongle connection, dongle_max_pix_clk
-		 *  is not cleared. If we emulate a DP signal on this connection, it thinks
+		 *  is analt cleared. If we emulate a DP signal on this connection, it thinks
 		 *  the dongle is still there and limits the number of modes we can emulate.
 		 *  Clear dongle_max_pix_clk on disconnect to fix this
 		 */
@@ -1193,10 +1193,10 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		dp_trace_reset(link);
 	}
 
-	LINK_INFO("link=%d, dc_sink_in=%p is now %s prev_sink=%p edid same=%d\n",
+	LINK_INFO("link=%d, dc_sink_in=%p is analw %s prev_sink=%p edid same=%d\n",
 		  link->link_index, sink,
 		  (sink_caps.signal ==
-		   SIGNAL_TYPE_NONE ? "Disconnected" : "Connected"),
+		   SIGNAL_TYPE_ANALNE ? "Disconnected" : "Connected"),
 		  prev_sink, same_edid);
 
 	if (prev_sink)
@@ -1209,7 +1209,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
  * link_detect_connection_type() - Determine if there is a sink connected
  *
  * @type: Returned connection type
- * Does not detect downstream devices, such as MST sinks
+ * Does analt detect downstream devices, such as MST sinks
  * or display connected through active dongles
  */
 bool link_detect_connection_type(struct dc_link *link, enum dc_connection_type *type)
@@ -1222,16 +1222,16 @@ bool link_detect_connection_type(struct dc_link *link, enum dc_connection_type *
 	}
 
 	if (link->connector_signal == SIGNAL_TYPE_EDP) {
-		/*in case it is not on*/
-		if (!link->dc->config.edp_no_power_sequencing)
+		/*in case it is analt on*/
+		if (!link->dc->config.edp_anal_power_sequencing)
 			link->dc->hwss.edp_power_control(link, true);
 		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 	}
 
-	/* Link may not have physical HPD pin. */
+	/* Link may analt have physical HPD pin. */
 	if (link->ep_type != DISPLAY_ENDPOINT_PHY) {
 		if (link->is_hpd_pending || !dpia_query_hpd_status(link))
-			*type = dc_connection_none;
+			*type = dc_connection_analne;
 		else
 			*type = dc_connection_single;
 
@@ -1246,10 +1246,10 @@ bool link_detect_connection_type(struct dc_link *link, enum dc_connection_type *
 		*type = dc_connection_single;
 		/* TODO: need to do the actual detection */
 	} else {
-		*type = dc_connection_none;
+		*type = dc_connection_analne;
 		if (link->connector_signal == SIGNAL_TYPE_EDP) {
-			/* eDP is not connected, power down it */
-			if (!link->dc->config.edp_no_power_sequencing)
+			/* eDP is analt connected, power down it */
+			if (!link->dc->config.edp_anal_power_sequencing)
 				link->dc->hwss.edp_power_control(link, false);
 		}
 	}
@@ -1308,7 +1308,7 @@ bool link_is_hdcp14(struct dc_link *link, enum signal_type signal)
 	case SIGNAL_TYPE_HDMI_TYPE_A:
 	/* HDMI doesn't tell us its HDCP(1.4) capability, so assume to always be capable,
 	 * we can poll for bksv but some displays have an issue with this. Since its so rare
-	 * for a display to not be 1.4 capable, this assumtion is ok
+	 * for a display to analt be 1.4 capable, this assumtion is ok
 	 */
 		ret = true;
 		break;
@@ -1405,7 +1405,7 @@ struct dc_sink *link_add_remote_sink(
 			&dc_sink->edid_caps);
 
 	/*
-	 * Treat device as no EDID device if EDID
+	 * Treat device as anal EDID device if EDID
 	 * parsing fails
 	 */
 	if (edid_status != EDID_OK && edid_status != EDID_PARTIAL_VALID) {

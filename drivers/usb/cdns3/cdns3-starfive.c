@@ -2,7 +2,7 @@
 /*
  * cdns3-starfive.c - StarFive specific Glue layer for Cadence USB Controller
  *
- * Copyright (C) 2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2023 StarFive Techanallogy Co., Ltd.
  *
  * Author:	Minda Chen <minda.chen@starfivetech.com>
  */
@@ -113,12 +113,12 @@ static int cdns_starfive_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = dev;
 
 	data->stg_syscon =
-		syscon_regmap_lookup_by_phandle_args(pdev->dev.of_node,
+		syscon_regmap_lookup_by_phandle_args(pdev->dev.of_analde,
 						     "starfive,stg-syscon", 1, &args);
 
 	if (IS_ERR(data->stg_syscon))
@@ -129,7 +129,7 @@ static int cdns_starfive_probe(struct platform_device *pdev)
 
 	data->num_clks = devm_clk_bulk_get_all(data->dev, &data->clks);
 	if (data->num_clks < 0)
-		return dev_err_probe(data->dev, -ENODEV,
+		return dev_err_probe(data->dev, -EANALDEV,
 				     "Failed to get clocks\n");
 
 	data->resets = devm_reset_control_array_get_exclusive(data->dev);
@@ -142,7 +142,7 @@ static int cdns_starfive_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	ret = of_platform_populate(dev->of_analde, NULL, NULL, dev);
 	if (ret) {
 		dev_err(dev, "Failed to create children\n");
 		cdns_clk_rst_deinit(data);
@@ -175,7 +175,7 @@ static void cdns_starfive_remove(struct platform_device *pdev)
 	device_for_each_child(dev, NULL, cdns_starfive_remove_core);
 
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	cdns_clk_rst_deinit(data);
 	platform_set_drvdata(pdev, NULL);
 }

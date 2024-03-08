@@ -17,7 +17,7 @@
 #define __IA_CSS_XNR3_TYPES_H
 
 /* @file
-* CSS-API header file for Extra Noise Reduction (XNR) parameters.
+* CSS-API header file for Extra Analise Reduction (XNR) parameters.
 */
 
 /**

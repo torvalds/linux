@@ -91,7 +91,7 @@ static int amd_disable_sdw_manager(struct amd_sdw_manager *amd_manager)
 	/*
 	 * After invoking manager disable sequence, check whether
 	 * manager has executed clock stop sequence. In this case,
-	 * manager should ignore checking enable status register.
+	 * manager should iganalre checking enable status register.
 	 */
 	val = readl(amd_manager->mmio + ACP_SW_CLK_RESUME_CTRL);
 	if (val)
@@ -252,9 +252,9 @@ amd_program_scp_addr(struct amd_sdw_manager *amd_manager, struct sdw_msg *msg)
 						    msg->dev_num);
 				return SDW_CMD_FAIL;
 			}
-			dev_dbg_ratelimited(amd_manager->dev, "SCP_addrpage ignored for Slave %d\n",
+			dev_dbg_ratelimited(amd_manager->dev, "SCP_addrpage iganalred for Slave %d\n",
 					    msg->dev_num);
-			return SDW_CMD_IGNORED;
+			return SDW_CMD_IGANALRED;
 		}
 	}
 	return SDW_CMD_OK;
@@ -300,9 +300,9 @@ static enum sdw_command_response amd_sdw_fill_msg_resp(struct amd_sdw_manager *a
 					    msg->dev_num);
 			return SDW_CMD_FAIL;
 		}
-		dev_err_ratelimited(amd_manager->dev, "command is ignored for Slave %d\n",
+		dev_err_ratelimited(amd_manager->dev, "command is iganalred for Slave %d\n",
 				    msg->dev_num);
-		return SDW_CMD_IGNORED;
+		return SDW_CMD_IGANALRED;
 	}
 	return SDW_CMD_OK;
 }
@@ -404,11 +404,11 @@ static int amd_sdw_compute_params(struct sdw_bus *bus)
 	t_data.hstop = hstop;
 	t_data.hstart = hstart;
 
-	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
+	list_for_each_entry(m_rt, &bus->m_rt_list, bus_analde) {
 		rate = m_rt->stream->params.rate;
 		bps = m_rt->stream->params.bps;
 		sample_int = (bus->params.curr_dr_freq / rate);
-		list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
+		list_for_each_entry(p_rt, &m_rt->port_list, port_analde) {
 			port_bo = (p_rt->num * 64) + 1;
 			dev_dbg(bus->dev, "p_rt->num=%d hstart=%d hstop=%d port_bo=%d\n",
 				p_rt->num, hstart, hstop, port_bo);
@@ -552,7 +552,7 @@ static int amd_sdw_port_enable(struct sdw_bus *bus,
 static int sdw_master_read_amd_prop(struct sdw_bus *bus)
 {
 	struct amd_sdw_manager *amd_manager = to_amd_sdw(bus);
-	struct fwnode_handle *link;
+	struct fwanalde_handle *link;
 	struct sdw_master_prop *prop;
 	u32 quirk_mask = 0;
 	u32 wake_en_mask = 0;
@@ -562,20 +562,20 @@ static int sdw_master_read_amd_prop(struct sdw_bus *bus)
 	prop = &bus->prop;
 	/* Find manager handle */
 	snprintf(name, sizeof(name), "mipi-sdw-link-%d-subproperties", bus->link_id);
-	link = device_get_named_child_node(bus->dev, name);
+	link = device_get_named_child_analde(bus->dev, name);
 	if (!link) {
-		dev_err(bus->dev, "Manager node %s not found\n", name);
+		dev_err(bus->dev, "Manager analde %s analt found\n", name);
 		return -EIO;
 	}
-	fwnode_property_read_u32(link, "amd-sdw-enable", &quirk_mask);
+	fwanalde_property_read_u32(link, "amd-sdw-enable", &quirk_mask);
 	if (!(quirk_mask & AMD_SDW_QUIRK_MASK_BUS_ENABLE))
 		prop->hw_disabled = true;
 	prop->quirks = SDW_MASTER_QUIRKS_CLEAR_INITIAL_CLASH |
 		       SDW_MASTER_QUIRKS_CLEAR_INITIAL_PARITY;
 
-	fwnode_property_read_u32(link, "amd-sdw-wakeup-enable", &wake_en_mask);
+	fwanalde_property_read_u32(link, "amd-sdw-wakeup-enable", &wake_en_mask);
 	amd_manager->wake_en_mask = wake_en_mask;
-	fwnode_property_read_u32(link, "amd-sdw-power-mode", &power_mode_mask);
+	fwanalde_property_read_u32(link, "amd-sdw-power-mode", &power_mode_mask);
 	amd_manager->power_mode_mask = power_mode_mask;
 	return 0;
 }
@@ -631,7 +631,7 @@ static int amd_sdw_hw_params(struct snd_pcm_substream *substream,
 	/* Port configuration */
 	pconfig = kzalloc(sizeof(*pconfig), GFP_KERNEL);
 	if (!pconfig) {
-		ret =  -ENOMEM;
+		ret =  -EANALMEM;
 		goto error;
 	}
 
@@ -671,7 +671,7 @@ static int amd_set_sdw_stream(struct snd_soc_dai *dai, void *stream, int directi
 
 	dai_runtime = amd_manager->dai_runtime_array[dai->id];
 	if (stream) {
-		/* first paranoia check */
+		/* first paraanalia check */
 		if (dai_runtime) {
 			dev_err(dai->dev, "dai_runtime already allocated for dai %s\n",	dai->name);
 			return -EINVAL;
@@ -680,16 +680,16 @@ static int amd_set_sdw_stream(struct snd_soc_dai *dai, void *stream, int directi
 		/* allocate and set dai_runtime info */
 		dai_runtime = kzalloc(sizeof(*dai_runtime), GFP_KERNEL);
 		if (!dai_runtime)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dai_runtime->stream_type = SDW_STREAM_PCM;
 		dai_runtime->bus = &amd_manager->bus;
 		dai_runtime->stream = stream;
 		amd_manager->dai_runtime_array[dai->id] = dai_runtime;
 	} else {
-		/* second paranoia check */
+		/* second paraanalia check */
 		if (!dai_runtime) {
-			dev_err(dai->dev, "dai_runtime not allocated for dai %s\n", dai->name);
+			dev_err(dai->dev, "dai_runtime analt allocated for dai %s\n", dai->name);
 			return -EINVAL;
 		}
 
@@ -740,19 +740,19 @@ static int amd_sdw_register_dais(struct amd_sdw_manager *amd_manager)
 	num_dais = amd_manager->num_dout_ports + amd_manager->num_din_ports;
 	dais = devm_kcalloc(dev, num_dais, sizeof(*dais), GFP_KERNEL);
 	if (!dais)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dai_runtime_array = devm_kcalloc(dev, num_dais,
 					 sizeof(struct sdw_amd_dai_runtime *),
 					 GFP_KERNEL);
 	if (!dai_runtime_array)
-		return -ENOMEM;
+		return -EANALMEM;
 	amd_manager->dai_runtime_array = dai_runtime_array;
 	for (i = 0; i < num_dais; i++) {
 		dais[i].name = devm_kasprintf(dev, GFP_KERNEL, "SDW%d Pin%d", amd_manager->instance,
 					      i);
 		if (!dais[i].name)
-			return -ENOMEM;
+			return -EANALMEM;
 		if (i < amd_manager->num_dout_ports)
 			stream = &dais[i].playback;
 		else
@@ -903,16 +903,16 @@ static int amd_sdw_manager_probe(struct platform_device *pdev)
 
 	amd_manager = devm_kzalloc(dev, sizeof(struct amd_sdw_manager), GFP_KERNEL);
 	if (!amd_manager)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	amd_manager->acp_mmio = devm_ioremap(dev, res->start, resource_size(res));
 	if (!amd_manager->acp_mmio) {
-		dev_err(dev, "mmio not found\n");
-		return -ENOMEM;
+		dev_err(dev, "mmio analt found\n");
+		return -EANALMEM;
 	}
 	amd_manager->instance = pdata->instance;
 	amd_manager->mmio = amd_manager->acp_mmio +
@@ -958,7 +958,7 @@ static int amd_sdw_manager_probe(struct platform_device *pdev)
 	prop->mclk_freq = AMD_SDW_BUS_BASE_FREQ;
 	prop->max_clk_freq = AMD_SDW_DEFAULT_CLK_FREQ;
 
-	ret = sdw_bus_master_add(&amd_manager->bus, dev, dev->fwnode);
+	ret = sdw_bus_master_add(&amd_manager->bus, dev, dev->fwanalde);
 	if (ret) {
 		dev_err(dev, "Failed to register SoundWire manager(%d)\n", ret);
 		return ret;
@@ -1000,12 +1000,12 @@ static int amd_sdw_clock_stop(struct amd_sdw_manager *amd_manager)
 	int ret;
 
 	ret = sdw_bus_prep_clk_stop(&amd_manager->bus);
-	if (ret < 0 && ret != -ENODATA) {
+	if (ret < 0 && ret != -EANALDATA) {
 		dev_err(amd_manager->dev, "prepare clock stop failed %d", ret);
 		return 0;
 	}
 	ret = sdw_bus_clk_stop(&amd_manager->bus);
-	if (ret < 0 && ret != -ENODATA) {
+	if (ret < 0 && ret != -EANALDATA) {
 		dev_err(amd_manager->dev, "bus clock stop failed %d", ret);
 		return 0;
 	}
@@ -1060,7 +1060,7 @@ static int amd_resume_child_device(struct device *dev, void *data)
 	int ret;
 
 	if (!slave->probed) {
-		dev_dbg(dev, "skipping device, no probed driver\n");
+		dev_dbg(dev, "skipping device, anal probed driver\n");
 		return 0;
 	}
 	if (!slave->dev_num_sticky) {
@@ -1082,13 +1082,13 @@ static int __maybe_unused amd_pm_prepare(struct device *dev)
 	int ret;
 
 	if (bus->prop.hw_disabled) {
-		dev_dbg(bus->dev, "SoundWire manager %d is disabled, ignoring\n",
+		dev_dbg(bus->dev, "SoundWire manager %d is disabled, iganalring\n",
 			bus->link_id);
 		return 0;
 	}
 	/*
 	 * When multiple peripheral devices connected over the same link, if SoundWire manager
-	 * device is not in runtime suspend state, observed that device alerts are missing
+	 * device is analt in runtime suspend state, observed that device alerts are missing
 	 * without pm_prepare on AMD platforms in clockstop mode0.
 	 */
 	if (amd_manager->power_mode_mask & AMD_SDW_CLK_STOP_MODE) {
@@ -1116,7 +1116,7 @@ static int __maybe_unused amd_suspend(struct device *dev)
 	int ret;
 
 	if (bus->prop.hw_disabled) {
-		dev_dbg(bus->dev, "SoundWire manager %d is disabled, ignoring\n",
+		dev_dbg(bus->dev, "SoundWire manager %d is disabled, iganalring\n",
 			bus->link_id);
 		return 0;
 	}
@@ -1166,7 +1166,7 @@ static int __maybe_unused amd_resume_runtime(struct device *dev)
 	u32 val;
 
 	if (bus->prop.hw_disabled) {
-		dev_dbg(bus->dev, "SoundWire manager %d is disabled, ignoring\n",
+		dev_dbg(bus->dev, "SoundWire manager %d is disabled, iganalring\n",
 			bus->link_id);
 		return 0;
 	}

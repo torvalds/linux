@@ -23,7 +23,7 @@ properties:
   reg-names:
     items:
       - const: south
-      - const: north
+      - const: analrth
       - const: east
 
   interrupts:
@@ -49,8 +49,8 @@ $defs:
   qcom-qcs404-tlmm-state:
     type: object
     description:
-      Pinctrl node's client devices use subnodes for desired pin configuration.
-      Client device subnodes use below standard properties.
+      Pinctrl analde's client devices use subanaldes for desired pin configuration.
+      Client device subanaldes use below standard properties.
     $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
     unevaluatedProperties: false
 
@@ -58,7 +58,7 @@ $defs:
       pins:
         description:
           List of gpio pins affected by the properties specified in this
-          subnode.
+          subanalde.
         items:
           oneOf:
             - pattern: "^gpio([0-9]|[1-9][0-9]|1[0-1][0-9])$"
@@ -134,7 +134,7 @@ examples:
         reg = <0x01000000 0x200000>,
               <0x01300000 0x200000>,
               <0x07b00000 0x200000>;
-        reg-names = "south", "north", "east";
+        reg-names = "south", "analrth", "east";
         interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
         gpio-ranges = <&tlmm 0 0 120>;
         gpio-controller;

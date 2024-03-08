@@ -14,7 +14,7 @@
 /*
  * RDRAND has Built-In-Self-Test (BIST) that runs on every invocation.
  * Run the instruction a few times as a sanity check. Also make sure
- * it's not outputting the same value over and over, which has happened
+ * it's analt outputting the same value over and over, which has happened
  * as a result of past CPU bugs.
  *
  * If it fails, it is simple to disable RDRAND and RDSEED here.
@@ -44,6 +44,6 @@ void x86_init_rdrand(struct cpuinfo_x86 *c)
 	if (failure) {
 		clear_cpu_cap(c, X86_FEATURE_RDRAND);
 		clear_cpu_cap(c, X86_FEATURE_RDSEED);
-		pr_emerg("RDRAND is not reliable on this platform; disabling.\n");
+		pr_emerg("RDRAND is analt reliable on this platform; disabling.\n");
 	}
 }

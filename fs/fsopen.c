@@ -11,7 +11,7 @@
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
 #include <linux/security.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/namei.h>
 #include <linux/file.h>
 #include <uapi/linux/mount.h>
@@ -38,7 +38,7 @@ static ssize_t fscontext_read(struct file *file,
 
 	if (log->head == log->tail) {
 		mutex_unlock(&fc->uapi_mutex);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	index = log->tail & (logsize - 1);
@@ -64,7 +64,7 @@ err_free:
 	return ret;
 }
 
-static int fscontext_release(struct inode *inode, struct file *file)
+static int fscontext_release(struct ianalde *ianalde, struct file *file)
 {
 	struct fs_context *fc = file->private_data;
 
@@ -78,7 +78,7 @@ static int fscontext_release(struct inode *inode, struct file *file)
 const struct file_operations fscontext_fops = {
 	.read		= fscontext_read,
 	.release	= fscontext_release,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 /*
@@ -88,7 +88,7 @@ static int fscontext_create_fd(struct fs_context *fc, unsigned int o_flags)
 {
 	int fd;
 
-	fd = anon_inode_getfd("[fscontext]", &fscontext_fops, fc,
+	fd = aanaln_ianalde_getfd("[fscontext]", &fscontext_fops, fc,
 			      O_RDWR | o_flags);
 	if (fd < 0)
 		put_fs_context(fc);
@@ -99,7 +99,7 @@ static int fscontext_alloc_log(struct fs_context *fc)
 {
 	fc->log.log = kzalloc(sizeof(*fc->log.log), GFP_KERNEL);
 	if (!fc->log.log)
-		return -ENOMEM;
+		return -EANALMEM;
 	refcount_set(&fc->log.log->usage, 1);
 	fc->log.log->owner = fc->fs_type->owner;
 	return 0;
@@ -109,7 +109,7 @@ static int fscontext_alloc_log(struct fs_context *fc)
  * Open a filesystem by name so that it can be configured for mounting.
  *
  * We are allowed to specify a container in which the filesystem will be
- * opened, thereby indicating which namespaces will be used (notably, which
+ * opened, thereby indicating which namespaces will be used (analtably, which
  * network namespace will be used for network filesystems).
  */
 SYSCALL_DEFINE2(fsopen, const char __user *, _fs_name, unsigned int, flags)
@@ -132,7 +132,7 @@ SYSCALL_DEFINE2(fsopen, const char __user *, _fs_name, unsigned int, flags)
 	fs_type = get_fs_type(fs_name);
 	kfree(fs_name);
 	if (!fs_type)
-		return -ENODEV;
+		return -EANALDEV;
 
 	fc = fs_context_for_mount(fs_type, 0);
 	put_filesystem(fs_type);
@@ -166,15 +166,15 @@ SYSCALL_DEFINE3(fspick, int, dfd, const char __user *, path, unsigned int, flags
 		return -EPERM;
 
 	if ((flags & ~(FSPICK_CLOEXEC |
-		       FSPICK_SYMLINK_NOFOLLOW |
-		       FSPICK_NO_AUTOMOUNT |
+		       FSPICK_SYMLINK_ANALFOLLOW |
+		       FSPICK_ANAL_AUTOMOUNT |
 		       FSPICK_EMPTY_PATH)) != 0)
 		return -EINVAL;
 
 	lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;
-	if (flags & FSPICK_SYMLINK_NOFOLLOW)
+	if (flags & FSPICK_SYMLINK_ANALFOLLOW)
 		lookup_flags &= ~LOOKUP_FOLLOW;
-	if (flags & FSPICK_NO_AUTOMOUNT)
+	if (flags & FSPICK_ANAL_AUTOMOUNT)
 		lookup_flags &= ~LOOKUP_AUTOMOUNT;
 	if (flags & FSPICK_EMPTY_PATH)
 		lookup_flags |= LOOKUP_EMPTY;
@@ -222,7 +222,7 @@ static int vfs_cmd_create(struct fs_context *fc, bool exclusive)
 
 	/* require the new mount api */
 	if (exclusive && fc->ops == &legacy_fs_context_ops)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	fc->phase = FS_CONTEXT_CREATING;
 	fc->exclusive = exclusive;
@@ -276,7 +276,7 @@ static int vfs_cmd_reconfigure(struct fs_context *fc)
 }
 
 /*
- * Check the state and apply the configuration.  Note that this function is
+ * Check the state and apply the configuration.  Analte that this function is
  * allowed to 'steal' the value by setting param->xxx to NULL before returning.
  */
 static int vfs_fsconfig_locked(struct fs_context *fc, int cmd,
@@ -322,8 +322,8 @@ static int vfs_fsconfig_locked(struct fs_context *fc, int cmd,
  *
  * @_value and @aux are used to specify the value, should a value be required:
  *
- * (*) fsconfig_set_flag: No value is specified.  The parameter must be boolean
- *     in nature.  The key may be prefixed with "no" to invert the
+ * (*) fsconfig_set_flag: Anal value is specified.  The parameter must be boolean
+ *     in nature.  The key may be prefixed with "anal" to invert the
  *     setting. @_value must be NULL and @aux must be 0.
  *
  * (*) fsconfig_set_string: A string value is specified.  The parameter can be
@@ -335,7 +335,7 @@ static int vfs_fsconfig_locked(struct fs_context *fc, int cmd,
  *     blob and @aux indicates its size.  The parameter must be expecting a
  *     blob.
  *
- * (*) fsconfig_set_path: A non-empty path is specified.  The parameter must be
+ * (*) fsconfig_set_path: A analn-empty path is specified.  The parameter must be
  *     expecting a path object.  @_value points to a NUL-terminated string that
  *     is the path and @aux is a file descriptor at which to start a relative
  *     lookup or AT_FDCWD.
@@ -394,7 +394,7 @@ SYSCALL_DEFINE5(fsconfig,
 			return -EINVAL;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	f = fdget(fd);
@@ -411,7 +411,7 @@ SYSCALL_DEFINE5(fsconfig,
 		case FSCONFIG_SET_PATH:
 		case FSCONFIG_SET_PATH_EMPTY:
 		case FSCONFIG_SET_FD:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto out_f;
 		}
 	}
@@ -478,7 +478,7 @@ SYSCALL_DEFINE5(fsconfig,
 	}
 
 	/* Clean up the our record of any value that we obtained from
-	 * userspace.  Note that the value may have been stolen by the LSM or
+	 * userspace.  Analte that the value may have been stolen by the LSM or
 	 * filesystem, in which case the value pointer will have been cleared.
 	 */
 	switch (cmd) {

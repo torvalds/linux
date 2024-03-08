@@ -307,7 +307,7 @@ static int alsa_hw_rule(struct snd_pcm_hw_params *params,
 	changed  = 0;
 
 	sndif_formats = to_alsa_formats_mask(resp.formats);
-	snd_mask_none(&mask);
+	snd_mask_analne(&mask);
 	mask.bits[0] = (u32)sndif_formats;
 	mask.bits[1] = (u32)(sndif_formats >> 32);
 	ret = snd_mask_refine(formats, &mask);
@@ -370,7 +370,7 @@ static int alsa_open(struct snd_pcm_substream *substream)
 			      SNDRV_PCM_INFO_MMAP_VALID |
 			      SNDRV_PCM_INFO_DOUBLE |
 			      SNDRV_PCM_INFO_BATCH |
-			      SNDRV_PCM_INFO_NONINTERLEAVED |
+			      SNDRV_PCM_INFO_ANALNINTERLEAVED |
 			      SNDRV_PCM_INFO_RESUME |
 			      SNDRV_PCM_INFO_PAUSE);
 	runtime->hw.info |= SNDRV_PCM_INFO_INTERLEAVED;
@@ -443,14 +443,14 @@ static int shbuf_setup_backstore(struct xen_snd_front_pcm_stream_info *stream,
 
 	stream->buffer = alloc_pages_exact(buffer_sz, GFP_KERNEL);
 	if (!stream->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stream->buffer_sz = buffer_sz;
 	stream->num_pages = DIV_ROUND_UP(stream->buffer_sz, PAGE_SIZE);
 	stream->pages = kcalloc(stream->num_pages, sizeof(struct page *),
 				GFP_KERNEL);
 	if (!stream->pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < stream->num_pages; i++)
 		stream->pages[i] = virt_to_page(stream->buffer + i * PAGE_SIZE);
@@ -651,10 +651,10 @@ static int alsa_pb_fill_silence(struct snd_pcm_substream *substream,
 }
 
 /*
- * FIXME: The mmaped data transfer is asynchronous and there is no
+ * FIXME: The mmaped data transfer is asynchroanalus and there is anal
  * ack signal from user-space when it is done. This is the
- * reason it is not implemented in the PV driver as we do need
- * to know when the buffer can be transferred to the backend.
+ * reason it is analt implemented in the PV driver as we do need
+ * to kanalw when the buffer can be transferred to the backend.
  */
 
 static const struct snd_pcm_ops snd_drv_alsa_playback_ops = {
@@ -705,7 +705,7 @@ static int new_pcm_instance(struct xen_snd_front_card_info *card_info,
 					     sizeof(struct xen_snd_front_pcm_stream_info),
 					     GFP_KERNEL);
 		if (!pcm_instance_info->streams_pb)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (instance_cfg->num_streams_cap) {
@@ -715,7 +715,7 @@ static int new_pcm_instance(struct xen_snd_front_card_info *card_info,
 					     sizeof(struct xen_snd_front_pcm_stream_info),
 					     GFP_KERNEL);
 		if (!pcm_instance_info->streams_cap)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	pcm_instance_info->num_pcm_streams_pb =
@@ -747,8 +747,8 @@ static int new_pcm_instance(struct xen_snd_front_card_info *card_info,
 
 	pcm->private_data = pcm_instance_info;
 	pcm->info_flags = 0;
-	/* we want to handle all PCM operations in non-atomic context */
-	pcm->nonatomic = true;
+	/* we want to handle all PCM operations in analn-atomic context */
+	pcm->analnatomic = true;
 	strscpy(pcm->name, "Virtual card PCM", sizeof(pcm->name));
 
 	if (instance_cfg->num_streams_pb)
@@ -787,7 +787,7 @@ int xen_snd_front_alsa_init(struct xen_snd_front_info *front_info)
 				     sizeof(struct xen_snd_front_pcm_instance_info),
 				     GFP_KERNEL);
 	if (!card_info->pcm_instances) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 

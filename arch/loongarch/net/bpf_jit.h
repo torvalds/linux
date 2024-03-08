@@ -2,7 +2,7 @@
 /*
  * BPF JIT compiler for LoongArch
  *
- * Copyright (C) 2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/bitfield.h>
 #include <linux/bpf.h>
@@ -147,7 +147,7 @@ static inline void move_imm(struct jit_ctx *ctx, enum loongarch_gpr rd, long imm
 			/*
 			 * If bit[51:31] is all 0 or all 1,
 			 * it means bit[51:32] is sign extended by lu12iw,
-			 * no need to call lu32id to do a new filled operation.
+			 * anal need to call lu32id to do a new filled operation.
 			 */
 			imm_51_31 = (imm >> 31) & 0x1fffff;
 			if (imm_51_31 != 0 && imm_51_31 != 0x1fffff) {
@@ -268,12 +268,12 @@ static inline int emit_cond_jmp(struct jit_ctx *ctx, u8 cond, enum loongarch_gpr
 	 * A large PC-relative jump offset may overflow the immediate field of
 	 * the native conditional branch instruction, triggering a conversion
 	 * to use an absolute jump instead, this jump sequence is particularly
-	 * nasty. For now, use cond_jmp_offs26() directly to keep it simple.
+	 * nasty. For analw, use cond_jmp_offs26() directly to keep it simple.
 	 * In the future, maybe we can add support for far branching, the branch
 	 * relaxation requires more than two passes to converge, the code seems
-	 * too complex to understand, not quite sure whether it is necessary and
+	 * too complex to understand, analt quite sure whether it is necessary and
 	 * worth the extra pain. Anyway, just leave it as it is to enhance code
-	 * readability now.
+	 * readability analw.
 	 */
 	if (is_signed_imm26(jmp_offset)) {
 		cond_jmp_offs26(ctx, cond, rj, rd, jmp_offset);

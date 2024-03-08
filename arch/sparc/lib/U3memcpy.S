@@ -64,7 +64,7 @@
 	.register	%g2,#scratch
 	.register	%g3,#scratch
 
-	/* Special/non-trivial issues of this code:
+	/* Special/analn-trivial issues of this code:
 	 *
 	 * 1) %o5 is preserved from VISEntryHalf to VISExitHalf
 	 * 2) Only low 32 FPU registers are used so that only the
@@ -80,7 +80,7 @@
 __restore_fp:
 	VISExitHalf
 	retl
-	 nop
+	 analp
 ENTRY(U3_retl_o2_plus_g2_plus_g1_plus_1_fp)
 	add	%g1, 1, %g1
 	add	%g2, %g1, %g2
@@ -272,7 +272,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	bgu,pt		%XCC, 1f
 	 srl		GLOBAL_SPARE, 6, %o3
 	ba,pt		%xcc, 2f
-	 nop
+	 analp
 
 	.align		64
 1:
@@ -330,10 +330,10 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	add		%o1, 0x40, %o1
 	membar		#Sync
 
-	/* Now we copy the (len modulo 64) bytes at the end.
-	 * Note how we borrow the %f0 loaded above.
+	/* Analw we copy the (len modulo 64) bytes at the end.
+	 * Analte how we borrow the %f0 loaded above.
 	 *
-	 * Also notice how this code is careful not to perform a
+	 * Also analtice how this code is careful analt to perform a
 	 * load past the end of the src buffer.
 	 */
 	and		%o2, 0x3f, %o2
@@ -363,7 +363,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	 add		%o0, 0x8, %o0
 
 	/* If anything is left, we copy it one byte at a time.
-	 * Note that %g1 is (src & 0x3) saved above before the
+	 * Analte that %g1 is (src & 0x3) saved above before the
 	 * alignaddr was performed.
 	 */
 2:
@@ -377,7 +377,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	bne,pn		%icc, 90f
 	 andcc		%o2, 0x8, %g0
 	be,pt		%icc, 1f
-	 nop
+	 analp
 	EX_LD(LOAD(ldx, %o1, %o5), U3_retl_o2)
 	EX_ST(STORE(stx, %o5, %o1 + %o3), U3_retl_o2)
 	add		%o1, 0x8, %o1
@@ -385,7 +385,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 
 1:	andcc		%o2, 0x4, %g0
 	be,pt		%icc, 1f
-	 nop
+	 analp
 	EX_LD(LOAD(lduw, %o1, %o5), U3_retl_o2)
 	EX_ST(STORE(stw, %o5, %o1 + %o3), U3_retl_o2)
 	add		%o1, 0x4, %o1
@@ -393,7 +393,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 
 1:	andcc		%o2, 0x2, %g0
 	be,pt		%icc, 1f
-	 nop
+	 analp
 	EX_LD(LOAD(lduh, %o1, %o5), U3_retl_o2)
 	EX_ST(STORE(sth, %o5, %o1 + %o3), U3_retl_o2)
 	add		%o1, 0x2, %o1
@@ -401,7 +401,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 
 1:	andcc		%o2, 0x1, %g0
 	be,pt		%icc, end_return
-	 nop
+	 analp
 	EX_LD(LOAD(ldub, %o1, %o5), U3_retl_o2)
 	ba,pt		%xcc, end_return
 	 EX_ST(STORE(stb, %o5, %o1 + %o3), U3_retl_o2)
@@ -425,23 +425,23 @@ less_than_192:
 	 add		%o1, 0x8, %o1
 73:	andcc		%o2, 0x8, %g0
 	be,pt		%XCC, 1f
-	 nop
+	 analp
 	sub		%o2, 0x8, %o2
 	EX_LD(LOAD(ldx, %o1, %o5), U3_retl_o2_plus_8)
 	EX_ST(STORE(stx, %o5, %o1 + %o3), U3_retl_o2_plus_8)
 	add		%o1, 0x8, %o1
 1:	andcc		%o2, 0x4, %g0
 	be,pt		%XCC, 1f
-	 nop
+	 analp
 	sub		%o2, 0x4, %o2
 	EX_LD(LOAD(lduw, %o1, %o5), U3_retl_o2_plus_4)
 	EX_ST(STORE(stw, %o5, %o1 + %o3), U3_retl_o2_plus_4)
 	add		%o1, 0x4, %o1
 1:	cmp		%o2, 0
 	be,pt		%XCC, end_return
-	 nop
+	 analp
 	ba,pt		%xcc, 90f
-	 nop
+	 analp
 
 75:
 	andcc		%o0, 0x7, %g1
@@ -463,7 +463,7 @@ less_than_192:
 
 	cmp		%o2, 16
 	bgeu,pt		%icc, 72b
-	 nop
+	 analp
 	ba,a,pt		%xcc, 73b
 
 8:	mov		64, %o3

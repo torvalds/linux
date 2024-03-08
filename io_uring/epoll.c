@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
@@ -47,10 +47,10 @@ int io_epoll_ctl(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_epoll *ie = io_kiocb_to_cmd(req, struct io_epoll);
 	int ret;
-	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
+	bool force_analnblock = issue_flags & IO_URING_F_ANALNBLOCK;
 
-	ret = do_epoll_ctl(ie->epfd, ie->op, ie->fd, &ie->event, force_nonblock);
-	if (force_nonblock && ret == -EAGAIN)
+	ret = do_epoll_ctl(ie->epfd, ie->op, ie->fd, &ie->event, force_analnblock);
+	if (force_analnblock && ret == -EAGAIN)
 		return -EAGAIN;
 
 	if (ret < 0)

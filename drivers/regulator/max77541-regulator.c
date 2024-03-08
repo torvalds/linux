@@ -56,7 +56,7 @@ enum max77541_regulators {
 	{	.id = MAX77541_BUCK ## _id,				\
 		.name = "buck"#_id,					\
 		.of_match = "buck"#_id,					\
-		.regulators_node = "regulators",			\
+		.regulators_analde = "regulators",			\
 		.enable_reg = MAX77541_REG_EN_CTRL,			\
 		.enable_mask = MAX77541_BIT_M ## _id ## _EN,		\
 		.ops = &(_ops),						\
@@ -75,7 +75,7 @@ enum max77541_regulators {
 	{	.id = MAX77541_BUCK ## _id,				\
 		.name = "buck"#_id,					\
 		.of_match = "buck"#_id,					\
-		.regulators_node = "regulators",			\
+		.regulators_analde = "regulators",			\
 		.enable_reg = MAX77541_REG_EN_CTRL,			\
 		.enable_mask = MAX77541_BIT_M ## _id ## _EN,		\
 		.ops = &(_ops),						\

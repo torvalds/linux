@@ -16,8 +16,8 @@ prep_admin_req_msg(struct rl_sla *sla, dma_addr_t dma_addr,
 	req->cmd_id = is_update ? ICP_QAT_FW_RL_UPDATE : ICP_QAT_FW_RL_ADD;
 	req->init_cfg_ptr = dma_addr;
 	req->init_cfg_sz = sizeof(*fw_params);
-	req->node_id = sla->node_id;
-	req->node_type = sla->type;
+	req->analde_id = sla->analde_id;
+	req->analde_type = sla->type;
 	req->rp_count = sla->ring_pairs_cnt;
 	req->svc_type = sla->srv;
 }
@@ -78,7 +78,7 @@ int adf_rl_send_admin_add_update_msg(struct adf_accel_dev *accel_dev,
 	fw_params = dma_alloc_coherent(&GET_DEV(accel_dev), sizeof(*fw_params),
 				       &dma_addr, GFP_KERNEL);
 	if (!fw_params)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	prep_admin_req_params(accel_dev, sla, fw_params);
 	prep_admin_req_msg(sla, dma_addr, fw_params, &req, is_update);
@@ -90,8 +90,8 @@ int adf_rl_send_admin_add_update_msg(struct adf_accel_dev *accel_dev,
 	return ret;
 }
 
-int adf_rl_send_admin_delete_msg(struct adf_accel_dev *accel_dev, u16 node_id,
-				 u8 node_type)
+int adf_rl_send_admin_delete_msg(struct adf_accel_dev *accel_dev, u16 analde_id,
+				 u8 analde_type)
 {
-	return adf_send_admin_rl_delete(accel_dev, node_id, node_type);
+	return adf_send_admin_rl_delete(accel_dev, analde_id, analde_type);
 }

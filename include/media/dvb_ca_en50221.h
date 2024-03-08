@@ -47,13 +47,13 @@
  * @slot_shutdown:	function to shutdown a CAM slot
  * @slot_ts_enable:	function to enable the Transport Stream on a CAM slot
  * @poll_slot_status:	function to poll slot status. Only necessary if
- *			DVB_CA_FLAG_EN50221_IRQ_CAMCHANGE is not set.
+ *			DVB_CA_FLAG_EN50221_IRQ_CAMCHANGE is analt set.
  * @data:		private data, used by caller.
- * @private:		Opaque data used by the dvb_ca core. Do not modify!
+ * @private:		Opaque data used by the dvb_ca core. Do analt modify!
  *
- * NOTE: the read_*, write_* and poll_slot_status functions will be
+ * ANALTE: the read_*, write_* and poll_slot_status functions will be
  * called for different slots concurrently and need to use locks where
- * and if appropriate. There will be no concurrent access to one slot.
+ * and if appropriate. There will be anal concurrent access to one slot.
  */
 struct dvb_ca_en50221 {
 	struct module *owner;
@@ -126,7 +126,7 @@ void dvb_ca_en50221_frda_irq(struct dvb_ca_en50221 *ca, int slot);
  * @flags: Flags describing the CA device (DVB_CA_EN50221_FLAG_*).
  * @slot_count: Number of slots supported.
  *
- * @return 0 on success, nonzero on failure
+ * @return 0 on success, analnzero on failure
  */
 int dvb_ca_en50221_init(struct dvb_adapter *dvb_adapter,
 			struct dvb_ca_en50221 *ca, int flags,

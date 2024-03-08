@@ -2,7 +2,7 @@
  *
  * Programmable Interrupt Controller functions for the Freescale MPC52xx.
  *
- * Copyright (C) 2008 Secret Lab Technologies Ltd.
+ * Copyright (C) 2008 Secret Lab Techanallogies Ltd.
  * Copyright (C) 2006 bplan GmbH
  * Copyright (C) 2004 Sylvain Munaut <tnt@246tNt.com>
  * Copyright (C) 2003 Montavista Software, Inc
@@ -32,7 +32,7 @@
  * virqs
  * -----
  * The Linux IRQ subsystem requires that each irq source be assigned a
- * system wide unique IRQ number starting at 1 (0 means no irq).  Since
+ * system wide unique IRQ number starting at 1 (0 means anal irq).  Since
  * systems can have multiple interrupt controllers, the virtual IRQ (virq)
  * infrastructure lets each interrupt controller to define a local set
  * of IRQ numbers and the virq infrastructure maps those numbers into
@@ -48,7 +48,7 @@
  * For example, the TMR0 interrupt is irq 9 in the main group.  The
  * virq for TMR0 is calculated by ((1 << MPC52xx_IRQ_L1_OFFSET) | 9).
  *
- * The observant reader will also notice that this driver defines a 4th
+ * The observant reader will also analtice that this driver defines a 4th
  * interrupt group called 'bestcomm'.  The bestcomm group isn't physically
  * part of the MPC5200 interrupt controller, but it is used here to assign
  * a separate virq number for each bestcomm task (since any of the 16
@@ -67,14 +67,14 @@
  * of registers for controlling the irq, it makes sense to divide up the
  * hooks along those lines.
  *
- * You'll notice that there is not an irq_chip for the critical group and
- * you'll also notice that there is an irq_chip defined for external
- * interrupts even though there is no external interrupt group.  The reason
+ * You'll analtice that there is analt an irq_chip for the critical group and
+ * you'll also analtice that there is an irq_chip defined for external
+ * interrupts even though there is anal external interrupt group.  The reason
  * for this is that the four external interrupts are all managed with the same
  * register even though one of the external IRQs is in the critical group and
  * the other three are in the main group.  For this reason it makes sense for
  * the 4 external irqs to be managed using a separate set of hooks.  The
- * reason there is no crit irq_chip is that of the 3 irqs in the critical
+ * reason there is anal crit irq_chip is that of the 3 irqs in the critical
  * group, only external interrupt is actually support at this time by this
  * driver and since external interrupt is the only one used, it can just
  * be directed to make use of the external irq irq_chip.
@@ -87,7 +87,7 @@
  * number in the group, and the third cell is the sense type (level/edge).
  * For reference, the following is a list of the interrupt property values
  * associated with external interrupt sources on the MPC5200 (just because
- * it is non-obvious to determine what the interrupts property should be
+ * it is analn-obvious to determine what the interrupts property should be
  * when reading the mpc5200 manual and it is a frequently asked question).
  *
  * External interrupts:
@@ -143,14 +143,14 @@ static unsigned char mpc52xx_map_senses[4] = {
 };
 
 /* Utility functions */
-static inline void io_be_setbit(u32 __iomem *addr, int bitno)
+static inline void io_be_setbit(u32 __iomem *addr, int bitanal)
 {
-	out_be32(addr, in_be32(addr) | (1 << bitno));
+	out_be32(addr, in_be32(addr) | (1 << bitanal));
 }
 
-static inline void io_be_clrbit(u32 __iomem *addr, int bitno)
+static inline void io_be_clrbit(u32 __iomem *addr, int bitanal)
 {
-	out_be32(addr, in_be32(addr) & ~(1 << bitno));
+	out_be32(addr, in_be32(addr) & ~(1 << bitanal));
 }
 
 /*
@@ -215,7 +215,7 @@ static struct irq_chip mpc52xx_extirq_irqchip = {
  */
 static int mpc52xx_null_set_type(struct irq_data *d, unsigned int flow_type)
 {
-	return 0; /* Do nothing so that the sense mask will get updated */
+	return 0; /* Do analthing so that the sense mask will get updated */
 }
 
 static void mpc52xx_main_mask(struct irq_data *d)
@@ -302,7 +302,7 @@ static int mpc52xx_is_extirq(int l1, int l2)
 /**
  * mpc52xx_irqhost_xlate - translate virq# from device tree interrupts property
  */
-static int mpc52xx_irqhost_xlate(struct irq_domain *h, struct device_node *ct,
+static int mpc52xx_irqhost_xlate(struct irq_domain *h, struct device_analde *ct,
 				 const u32 *intspec, unsigned int intsize,
 				 irq_hw_number_t *out_hwirq,
 				 unsigned int *out_flags)
@@ -374,9 +374,9 @@ static int mpc52xx_irqhost_map(struct irq_domain *h, unsigned int virq,
 	case MPC52xx_IRQ_L1_PERP: irqchip = &mpc52xx_periph_irqchip; break;
 	case MPC52xx_IRQ_L1_SDMA: irqchip = &mpc52xx_sdma_irqchip; break;
 	case MPC52xx_IRQ_L1_CRIT:
-		pr_warn("%s: Critical IRQ #%d is unsupported! Nopping it.\n",
+		pr_warn("%s: Critical IRQ #%d is unsupported! Analpping it.\n",
 			__func__, l2irq);
-		irq_set_chip(virq, &no_irq_chip);
+		irq_set_chip(virq, &anal_irq_chip);
 		return 0;
 	}
 
@@ -403,22 +403,22 @@ static const struct irq_domain_ops mpc52xx_irqhost_ops = {
 void __init mpc52xx_init_irq(void)
 {
 	u32 intr_ctrl;
-	struct device_node *picnode;
-	struct device_node *np;
+	struct device_analde *picanalde;
+	struct device_analde *np;
 
 	/* Remap the necessary zones */
-	picnode = of_find_matching_node(NULL, mpc52xx_pic_ids);
-	intr = of_iomap(picnode, 0);
+	picanalde = of_find_matching_analde(NULL, mpc52xx_pic_ids);
+	intr = of_iomap(picanalde, 0);
 	if (!intr)
 		panic(__FILE__	": find_and_map failed on 'mpc5200-pic'. "
-				"Check node !");
+				"Check analde !");
 
-	np = of_find_matching_node(NULL, mpc52xx_sdma_ids);
+	np = of_find_matching_analde(NULL, mpc52xx_sdma_ids);
 	sdma = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!sdma)
 		panic(__FILE__	": find_and_map failed on 'mpc5200-bestcomm'. "
-				"Check node !");
+				"Check analde !");
 
 	pr_debug("MPC5200 IRQ controller mapped to 0x%p\n", intr);
 
@@ -432,7 +432,7 @@ void __init mpc52xx_init_irq(void)
 	intr_ctrl |=	0x0f000000 |	/* clear IRQ 0-3 */
 			0x00001000 |	/* MEE master external enable */
 			0x00000000 |	/* 0 means disable IRQ 0-3 */
-			0x00000001;	/* CEb route critical normally */
+			0x00000001;	/* CEb route critical analrmally */
 	out_be32(&intr->ctrl, intr_ctrl);
 
 	/* Zero a bunch of the priority settings. */
@@ -446,12 +446,12 @@ void __init mpc52xx_init_irq(void)
 	 * As last step, add an irq host to translate the real
 	 * hw irq information provided by the ofw to linux virq
 	 */
-	mpc52xx_irqhost = irq_domain_add_linear(picnode,
+	mpc52xx_irqhost = irq_domain_add_linear(picanalde,
 	                                 MPC52xx_IRQ_HIGHTESTHWIRQ,
 	                                 &mpc52xx_irqhost_ops, NULL);
 
 	if (!mpc52xx_irqhost)
-		panic(__FILE__ ": Cannot allocate the IRQ host\n");
+		panic(__FILE__ ": Cananalt allocate the IRQ host\n");
 
 	irq_set_default_host(mpc52xx_irqhost);
 

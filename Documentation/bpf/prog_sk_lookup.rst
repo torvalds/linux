@@ -21,7 +21,7 @@ binding sockets to an address with ``bind()`` socket call is impractical, such
 as:
 
 1. receiving connections on a range of IP addresses, e.g. 192.0.2.0/24, when
-   binding to a wildcard address ``INADRR_ANY`` is not possible due to a port
+   binding to a wildcard address ``INADRR_ANY`` is analt possible due to a port
    conflict,
 2. receiving connections on all or a wide range of ports, i.e. an L7 proxy use
    case.
@@ -69,9 +69,9 @@ codes of all the programs according to the following rules:
    is used as the result of the socket lookup.
 2. If more than one program returned ``SK_PASS`` and selected a socket, the last
    selection takes effect.
-3. If any program returned ``SK_DROP``, and no program returned ``SK_PASS`` and
+3. If any program returned ``SK_DROP``, and anal program returned ``SK_PASS`` and
    selected a socket, socket lookup fails.
-4. If all programs returned ``SK_PASS`` and none of them selected a socket,
+4. If all programs returned ``SK_PASS`` and analne of them selected a socket,
    socket lookup continues on.
 
 API

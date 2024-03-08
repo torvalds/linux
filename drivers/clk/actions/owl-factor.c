@@ -159,7 +159,7 @@ unsigned long owl_factor_helper_recalc_rate(struct owl_clk_common *common,
 	_get_table_div_mul(clkt, val, &mul, &div);
 	if (!div) {
 		WARN(!(factor_hw->fct_flags & CLK_DIVIDER_ALLOW_ZERO),
-			"%s: Zero divisor and CLK_DIVIDER_ALLOW_ZERO not set\n",
+			"%s: Zero divisor and CLK_DIVIDER_ALLOW_ZERO analt set\n",
 			__clk_get_name(common->hw.clk));
 		return parent_rate;
 	}

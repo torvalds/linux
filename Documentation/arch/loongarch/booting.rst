@@ -5,7 +5,7 @@ Booting Linux/LoongArch
 =======================
 
 :Author: Yanteng Si <siyanteng@loongson.cn>
-:Date:   18 Nov 2022
+:Date:   18 Analv 2022
 
 Information passed from BootLoader to kernel
 ============================================

@@ -55,7 +55,7 @@ parse_edp(struct drm_psb_private *dev_priv, struct bdb_header *bdb)
 	dev_priv->edp.bpp = 18;
 	if (!edp) {
 		if (dev_priv->edp.support) {
-			DRM_DEBUG_KMS("No eDP BDB found but eDP panel supported, assume %dbpp panel color depth.\n",
+			DRM_DEBUG_KMS("Anal eDP BDB found but eDP panel supported, assume %dbpp panel color depth.\n",
 				      dev_priv->edp.bpp);
 		}
 		return;
@@ -260,7 +260,7 @@ static void parse_lfp_panel_data(struct drm_psb_private *dev_priv,
 		dev_priv->lfp_lvds_vbt_mode = panel_fixed_mode;
 		drm_mode_debug_printmodeline(panel_fixed_mode);
 	} else {
-		dev_dbg(dev_priv->dev.dev, "ignoring invalid LVDS VBT\n");
+		dev_dbg(dev_priv->dev.dev, "iganalring invalid LVDS VBT\n");
 		dev_priv->lvds_vbt = 0;
 		kfree(panel_fixed_mode);
 	}
@@ -332,7 +332,7 @@ parse_sdvo_device_mapping(struct drm_psb_private *dev_priv,
 
 	p_defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!p_defs) {
-		DRM_DEBUG_KMS("No general definition block is found, unable to construct sdvo mapping.\n");
+		DRM_DEBUG_KMS("Anal general definition block is found, unable to construct sdvo mapping.\n");
 		return;
 	}
 	/* judge whether the size of child device meets the requirements.
@@ -341,7 +341,7 @@ parse_sdvo_device_mapping(struct drm_psb_private *dev_priv,
 	 * parsing of sdvo device info
 	 */
 	if (p_defs->child_dev_size != sizeof(*p_child)) {
-		/* different child dev size . Ignore it */
+		/* different child dev size . Iganalre it */
 		DRM_DEBUG_KMS("different child size is found. Invalid.\n");
 		return;
 	}
@@ -360,8 +360,8 @@ parse_sdvo_device_mapping(struct drm_psb_private *dev_priv,
 		if (p_child->slave_addr != SLAVE_ADDR1 &&
 			p_child->slave_addr != SLAVE_ADDR2) {
 			/*
-			 * If the slave address is neither 0x70 nor 0x72,
-			 * it is not a SDVO device. Skip it.
+			 * If the slave address is neither 0x70 analr 0x72,
+			 * it is analt a SDVO device. Skip it.
 			 */
 			continue;
 		}
@@ -396,7 +396,7 @@ parse_sdvo_device_mapping(struct drm_psb_private *dev_priv,
 		}
 		if (p_child->slave2_addr) {
 			/* Maybe this is a SDVO device with multiple inputs */
-			/* And the mapping info is not added */
+			/* And the mapping info is analt added */
 			DRM_DEBUG_KMS("there exists the slave2_addr. Maybe this"
 				" is a SDVO device with multiple inputs.\n");
 		}
@@ -404,8 +404,8 @@ parse_sdvo_device_mapping(struct drm_psb_private *dev_priv,
 	}
 
 	if (!count) {
-		/* No SDVO device info is found */
-		DRM_DEBUG_KMS("No SDVO device info is found in VBT\n");
+		/* Anal SDVO device info is found */
+		DRM_DEBUG_KMS("Anal SDVO device info is found in VBT\n");
 	}
 	return;
 }
@@ -427,7 +427,7 @@ parse_driver_features(struct drm_psb_private *dev_priv,
 	dev_priv->lvds_enabled_in_vbt = driver->lvds_config != 0;
 	DRM_DEBUG_KMS("LVDS VBT config bits: 0x%x\n", driver->lvds_config);
 
-	/* This bit means to use 96Mhz for DPLL_A or not */
+	/* This bit means to use 96Mhz for DPLL_A or analt */
 	if (driver->primary_lfp_id)
 		dev_priv->dplla_96mhz = true;
 	else
@@ -445,7 +445,7 @@ parse_device_mapping(struct drm_psb_private *dev_priv,
 
 	p_defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!p_defs) {
-		DRM_DEBUG_KMS("No general definition block is found, no devices defined.\n");
+		DRM_DEBUG_KMS("Anal general definition block is found, anal devices defined.\n");
 		return;
 	}
 	/* judge whether the size of child device meets the requirements.
@@ -454,7 +454,7 @@ parse_device_mapping(struct drm_psb_private *dev_priv,
 	 * parsing of sdvo device info
 	 */
 	if (p_defs->child_dev_size != sizeof(*p_child)) {
-		/* different child dev size . Ignore it */
+		/* different child dev size . Iganalre it */
 		DRM_DEBUG_KMS("different child size is found. Invalid.\n");
 		return;
 	}
@@ -474,12 +474,12 @@ parse_device_mapping(struct drm_psb_private *dev_priv,
 		count++;
 	}
 	if (!count) {
-		DRM_DEBUG_KMS("no child dev is parsed from VBT\n");
+		DRM_DEBUG_KMS("anal child dev is parsed from VBT\n");
 		return;
 	}
 	dev_priv->child_dev = kcalloc(count, sizeof(*p_child), GFP_KERNEL);
 	if (!dev_priv->child_dev) {
-		DRM_DEBUG_KMS("No memory space for child devices\n");
+		DRM_DEBUG_KMS("Anal memory space for child devices\n");
 		return;
 	}
 
@@ -508,11 +508,11 @@ parse_device_mapping(struct drm_psb_private *dev_priv,
  * to appropriate values.
  *
  * VBT existence is a sanity check that is relied on by other i830_bios.c code.
- * Note that it would be better to use a BIOS call to get the VBT, as BIOSes may
+ * Analte that it would be better to use a BIOS call to get the VBT, as BIOSes may
  * feed an updated VBT back through that, compared to what we'll fetch using
  * this method of groping around in the BIOS data.
  *
- * Returns 0 on success, nonzero on failure.
+ * Returns 0 on success, analnzero on failure.
  */
 int psb_intel_init_bios(struct drm_device *dev)
 {

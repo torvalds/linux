@@ -28,7 +28,7 @@
 #define Index_Load_Tag			0x04
 #define Index_Store_Tag			0x08
 #define Hit_Invalidate			0x10
-#define Hit_Writeback_Inv		0x14	/* not with Cache_I though */
+#define Hit_Writeback_Inv		0x14	/* analt with Cache_I though */
 #define Hit_Writeback			0x18
 
 /*

@@ -9,7 +9,7 @@ Optional properties:
 			See Documentation/devicetree/bindings/gpio/gpio.txt
 - led-sources		: List of enabled channels from 0 to 5.
 			See Documentation/devicetree/bindings/leds/common.txt
-- skyworks,ignore-pwm	: Ignore both PWM input
+- skyworks,iganalre-pwm	: Iganalre both PWM input
 - skyworks,dpwm-mode	: Enable DPWM dimming mode, otherwise Analog dimming.
 - skyworks,phase-shift	: Enable phase shift mode
 - skyworks,short-detection-threshold-volt
@@ -23,7 +23,7 @@ Example:
 		compatible = "skyworks,sky81452-backlight";
 		name = "pwm-backlight";
 		led-sources = <0 1 2 5>;
-		skyworks,ignore-pwm;
+		skyworks,iganalre-pwm;
 		skyworks,phase-shift;
 		skyworks,current-limit-mA = <2300>;
 	};

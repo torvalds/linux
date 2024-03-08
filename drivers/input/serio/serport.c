@@ -84,7 +84,7 @@ static int serport_ldisc_open(struct tty_struct *tty)
 
 	serport = kzalloc(sizeof(struct serport), GFP_KERNEL);
 	if (!serport)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	serport->tty = tty;
 	spin_lock_init(&serport->lock);
@@ -169,7 +169,7 @@ static ssize_t serport_ldisc_read(struct tty_struct * tty, struct file * file,
 
 	serport->serio = serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!serio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strscpy(serio->name, "Serial port", sizeof(serio->name));
 	snprintf(serio->phys, sizeof(serio->phys), "%s/serio0", tty_name(tty));

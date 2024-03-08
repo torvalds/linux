@@ -14,7 +14,7 @@
 #include <linux/types.h>
 
 enum rpcif_data_dir {
-	RPCIF_NO_DATA,
+	RPCIF_ANAL_DATA,
 	RPCIF_DATA_IN,
 	RPCIF_DATA_OUT,
 };

@@ -10,7 +10,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/module.h>
 #include <net/netlink.h>
@@ -127,7 +127,7 @@ static int mqprio_parse_opt(struct net_device *dev, struct tc_mqprio_qopt *qopt,
 
 	/* If hardware offload is requested, we will leave 3 options to the
 	 * device driver:
-	 * - populate the queue counts itself (and ignore what was requested)
+	 * - populate the queue counts itself (and iganalre what was requested)
 	 * - validate the provided queue counts by itself (and apply them)
 	 * - request queue count validation here (and apply them)
 	 */
@@ -137,12 +137,12 @@ static int mqprio_parse_opt(struct net_device *dev, struct tc_mqprio_qopt *qopt,
 	if (err)
 		return err;
 
-	/* If ndo_setup_tc is not present then hardware doesn't support offload
+	/* If ndo_setup_tc is analt present then hardware doesn't support offload
 	 * and we should return an error.
 	 */
 	if (qopt->hw && !dev->netdev_ops->ndo_setup_tc) {
 		NL_SET_ERR_MSG(extack,
-			       "Device does not support hardware offload");
+			       "Device does analt support hardware offload");
 		return -EINVAL;
 	}
 
@@ -231,8 +231,8 @@ static int mqprio_parse_tc_entries(struct Qdisc *sch, struct nlattr *nlattr_opt,
 	}
 
 	if (have_preemption && !ethtool_dev_mm_supported(dev)) {
-		NL_SET_ERR_MSG(extack, "Device does not support preemption");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(extack, "Device does analt support preemption");
+		return -EOPANALTSUPP;
 	}
 out:
 	return err;
@@ -351,7 +351,7 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt,
 	struct mqprio_sched *priv = qdisc_priv(sch);
 	struct netdev_queue *dev_queue;
 	struct Qdisc *qdisc;
-	int i, err = -EOPNOTSUPP;
+	int i, err = -EOPANALTSUPP;
 	struct tc_mqprio_qopt *qopt = NULL;
 	struct tc_mqprio_caps caps;
 	int len, tc;
@@ -360,14 +360,14 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt,
 	BUILD_BUG_ON(TC_BITMASK != TC_QOPT_BITMASK);
 
 	if (sch->parent != TC_H_ROOT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!netif_is_multiqueue(dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* make certain can allocate enough classids to handle queues */
+	/* make certain can allocate eanalugh classids to handle queues */
 	if (dev->num_tx_queues >= TC_H_MIN_PRIORITY)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!opt || nla_len(opt) < sizeof(*qopt))
 		return -EINVAL;
@@ -393,7 +393,7 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt,
 	priv->qdiscs = kcalloc(dev->num_tx_queues, sizeof(priv->qdiscs[0]),
 			       GFP_KERNEL);
 	if (!priv->qdiscs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		dev_queue = netdev_get_tx_queue(dev, i);
@@ -402,10 +402,10 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt,
 					  TC_H_MAKE(TC_H_MAJ(sch->handle),
 						    TC_H_MIN(i + 1)), extack);
 		if (!qdisc)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		priv->qdiscs[i] = qdisc;
-		qdisc->flags |= TCQ_F_ONETXQUEUE | TCQ_F_NOPARENT;
+		qdisc->flags |= TCQ_F_ONETXQUEUE | TCQ_F_ANALPARENT;
 	}
 
 	/* If the mqprio options indicate that hardware should own
@@ -477,7 +477,7 @@ static int mqprio_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
 	*old = dev_graft_qdisc(dev_queue, new);
 
 	if (new)
-		new->flags |= TCQ_F_ONETXQUEUE | TCQ_F_NOPARENT;
+		new->flags |= TCQ_F_ONETXQUEUE | TCQ_F_ANALPARENT;
 
 	if (dev->flags & IFF_UP)
 		dev_activate(dev);
@@ -492,7 +492,7 @@ static int dump_rates(struct mqprio_sched *priv,
 	int i;
 
 	if (priv->flags & TC_MQPRIO_F_MIN_RATE) {
-		nest = nla_nest_start_noflag(skb, TCA_MQPRIO_MIN_RATE64);
+		nest = nla_nest_start_analflag(skb, TCA_MQPRIO_MIN_RATE64);
 		if (!nest)
 			goto nla_put_failure;
 
@@ -506,7 +506,7 @@ static int dump_rates(struct mqprio_sched *priv,
 	}
 
 	if (priv->flags & TC_MQPRIO_F_MAX_RATE) {
-		nest = nla_nest_start_noflag(skb, TCA_MQPRIO_MAX_RATE64);
+		nest = nla_nest_start_analflag(skb, TCA_MQPRIO_MAX_RATE64);
 		if (!nest)
 			goto nla_put_failure;
 
@@ -566,7 +566,7 @@ static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 	memset(&sch->qstats, 0, sizeof(sch->qstats));
 
 	/* MQ supports lockless qdiscs. However, statistics accounting needs
-	 * to account for all, none, or a mix of locked and unlocked child
+	 * to account for all, analne, or a mix of locked and unlocked child
 	 * qdiscs. Percpu stats are added to counters in-band and locking
 	 * qdisc totals are added at end.
 	 */

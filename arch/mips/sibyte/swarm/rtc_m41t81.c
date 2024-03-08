@@ -141,11 +141,11 @@ int m41t81_set_time(time64_t t)
 	struct rtc_time tm;
 	unsigned long flags;
 
-	/* Note we don't care about the century */
+	/* Analte we don't care about the century */
 	rtc_time64_to_tm(t, &tm);
 
 	/*
-	 * Note the write order matters as it ensures the correctness.
+	 * Analte the write order matters as it ensures the correctness.
 	 * When we write sec, 10th sec is clear.  It is reasonable to
 	 * believe we should finish writing min within a second.
 	 */
@@ -220,7 +220,7 @@ int m41t81_probe(void)
 {
 	unsigned int tmp;
 
-	/* enable chip if it is not enabled yet */
+	/* enable chip if it is analt enabled yet */
 	tmp = m41t81_read(M41T81REG_SC);
 	m41t81_write(M41T81REG_SC, tmp & 0x7f);
 

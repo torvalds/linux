@@ -110,8 +110,8 @@ ACPI_GLOBAL(struct acpi_rw_lock, acpi_gbl_namespace_rw_lock);
 
 ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_namespace_cache);
 ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_state_cache);
-ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_ps_node_cache);
-ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_ps_node_ext_cache);
+ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_ps_analde_cache);
+ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_ps_analde_ext_cache);
 ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_operand_cache);
 
 /* System */
@@ -122,7 +122,7 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_early_initialization, TRUE);
 
 /* Global handlers */
 
-ACPI_GLOBAL(struct acpi_global_notify_handler, acpi_gbl_global_notify[2]);
+ACPI_GLOBAL(struct acpi_global_analtify_handler, acpi_gbl_global_analtify[2]);
 ACPI_GLOBAL(acpi_exception_handler, acpi_gbl_exception_handler);
 ACPI_GLOBAL(acpi_init_handler, acpi_gbl_init_handler);
 ACPI_GLOBAL(acpi_table_handler, acpi_gbl_table_handler);
@@ -169,7 +169,7 @@ extern const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES];
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 ACPI_GLOBAL(struct acpi_memory_list *, acpi_gbl_global_list);
-ACPI_GLOBAL(struct acpi_memory_list *, acpi_gbl_ns_node_list);
+ACPI_GLOBAL(struct acpi_memory_list *, acpi_gbl_ns_analde_list);
 ACPI_GLOBAL(u8, acpi_gbl_display_final_mem_stats);
 ACPI_GLOBAL(u8, acpi_gbl_disable_mem_tracking);
 ACPI_GLOBAL(u8, acpi_gbl_verbose_leak_dump);
@@ -183,18 +183,18 @@ ACPI_GLOBAL(u8, acpi_gbl_verbose_leak_dump);
 
 #define NUM_PREDEFINED_NAMES            10
 
-ACPI_GLOBAL(struct acpi_namespace_node, acpi_gbl_root_node_struct);
-ACPI_GLOBAL(struct acpi_namespace_node *, acpi_gbl_root_node);
-ACPI_GLOBAL(struct acpi_namespace_node *, acpi_gbl_fadt_gpe_device);
+ACPI_GLOBAL(struct acpi_namespace_analde, acpi_gbl_root_analde_struct);
+ACPI_GLOBAL(struct acpi_namespace_analde *, acpi_gbl_root_analde);
+ACPI_GLOBAL(struct acpi_namespace_analde *, acpi_gbl_fadt_gpe_device);
 
 extern const u8 acpi_gbl_ns_properties[ACPI_NUM_NS_TYPES];
 extern const struct acpi_predefined_names
     acpi_gbl_pre_defined_names[NUM_PREDEFINED_NAMES];
 
 #ifdef ACPI_DEBUG_OUTPUT
-ACPI_GLOBAL(u32, acpi_gbl_current_node_count);
-ACPI_GLOBAL(u32, acpi_gbl_current_node_size);
-ACPI_GLOBAL(u32, acpi_gbl_max_concurrent_node_count);
+ACPI_GLOBAL(u32, acpi_gbl_current_analde_count);
+ACPI_GLOBAL(u32, acpi_gbl_current_analde_size);
+ACPI_GLOBAL(u32, acpi_gbl_max_concurrent_analde_count);
 ACPI_GLOBAL(acpi_size *, acpi_gbl_entry_stack_pointer);
 ACPI_GLOBAL(acpi_size *, acpi_gbl_lowest_stack_pointer);
 ACPI_GLOBAL(u32, acpi_gbl_deepest_nesting);
@@ -216,7 +216,7 @@ ACPI_INIT_GLOBAL(union acpi_parse_object, *acpi_gbl_current_scope, NULL);
 /* ASL/ASL+ converter */
 
 ACPI_INIT_GLOBAL(u8, acpi_gbl_capture_comments, FALSE);
-ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_last_list_head, NULL);
+ACPI_INIT_GLOBAL(struct acpi_comment_analde, *acpi_gbl_last_list_head, NULL);
 
 /*****************************************************************************
  *
@@ -278,10 +278,10 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_db_output_flags, ACPI_DB_CONSOLE_OUTPUT);
 
 #ifdef ACPI_DISASSEMBLER
 
-/* Do not disassemble buffers to resource descriptors */
+/* Do analt disassemble buffers to resource descriptors */
 
-ACPI_INIT_GLOBAL(u8, acpi_gbl_no_resource_disassembly, FALSE);
-ACPI_INIT_GLOBAL(u8, acpi_gbl_ignore_noop_operator, FALSE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_anal_resource_disassembly, FALSE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_iganalre_analop_operator, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_cstyle_disassembly, TRUE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_force_aml_disassembly, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_dm_opt_verbose, TRUE);
@@ -302,14 +302,14 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_abort_method, FALSE);
 ACPI_INIT_GLOBAL(acpi_thread_id, acpi_gbl_db_thread_id, ACPI_INVALID_THREAD_ID);
 ACPI_INIT_GLOBAL(u32, acpi_gbl_next_cmd_num, 1);
 
-ACPI_GLOBAL(u8, acpi_gbl_db_opt_no_ini_methods);
-ACPI_GLOBAL(u8, acpi_gbl_db_opt_no_region_support);
+ACPI_GLOBAL(u8, acpi_gbl_db_opt_anal_ini_methods);
+ACPI_GLOBAL(u8, acpi_gbl_db_opt_anal_region_support);
 ACPI_GLOBAL(u8, acpi_gbl_db_output_to_file);
 ACPI_GLOBAL(char *, acpi_gbl_db_buffer);
 ACPI_GLOBAL(char *, acpi_gbl_db_filename);
 ACPI_GLOBAL(u32, acpi_gbl_db_debug_level);
 ACPI_GLOBAL(u32, acpi_gbl_db_console_debug_level);
-ACPI_GLOBAL(struct acpi_namespace_node *, acpi_gbl_db_scope_node);
+ACPI_GLOBAL(struct acpi_namespace_analde *, acpi_gbl_db_scope_analde);
 ACPI_GLOBAL(u8, acpi_gbl_db_terminate_loop);
 ACPI_GLOBAL(u8, acpi_gbl_db_threads_terminated);
 ACPI_GLOBAL(char *, acpi_gbl_db_args[ACPI_DEBUGGER_MAX_ARGS]);
@@ -324,10 +324,10 @@ ACPI_GLOBAL(char, acpi_gbl_db_debug_filename[ACPI_DB_LINE_BUFFER_SIZE]);
 /* Statistics globals */
 
 ACPI_GLOBAL(u16, acpi_gbl_obj_type_count[ACPI_TOTAL_TYPES]);
-ACPI_GLOBAL(u16, acpi_gbl_node_type_count[ACPI_TOTAL_TYPES]);
+ACPI_GLOBAL(u16, acpi_gbl_analde_type_count[ACPI_TOTAL_TYPES]);
 ACPI_GLOBAL(u16, acpi_gbl_obj_type_count_misc);
-ACPI_GLOBAL(u16, acpi_gbl_node_type_count_misc);
-ACPI_GLOBAL(u32, acpi_gbl_num_nodes);
+ACPI_GLOBAL(u16, acpi_gbl_analde_type_count_misc);
+ACPI_GLOBAL(u32, acpi_gbl_num_analdes);
 ACPI_GLOBAL(u32, acpi_gbl_num_objects);
 #endif				/* ACPI_DEBUGGER */
 
@@ -349,7 +349,7 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_disasm_flag, FALSE);
 
 #ifdef ACPI_ASL_COMPILER
 ACPI_INIT_GLOBAL(char *, acpi_gbl_current_inline_comment, NULL);
-ACPI_INIT_GLOBAL(char *, acpi_gbl_current_end_node_comment, NULL);
+ACPI_INIT_GLOBAL(char *, acpi_gbl_current_end_analde_comment, NULL);
 ACPI_INIT_GLOBAL(char *, acpi_gbl_current_open_brace_comment, NULL);
 ACPI_INIT_GLOBAL(char *, acpi_gbl_current_close_brace_comment, NULL);
 
@@ -358,26 +358,26 @@ ACPI_INIT_GLOBAL(char *, acpi_gbl_current_filename, NULL);
 ACPI_INIT_GLOBAL(char *, acpi_gbl_current_parent_filename, NULL);
 ACPI_INIT_GLOBAL(char *, acpi_gbl_current_include_filename, NULL);
 
-ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_def_blk_comment_list_head,
+ACPI_INIT_GLOBAL(struct acpi_comment_analde, *acpi_gbl_def_blk_comment_list_head,
 		 NULL);
-ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_def_blk_comment_list_tail,
+ACPI_INIT_GLOBAL(struct acpi_comment_analde, *acpi_gbl_def_blk_comment_list_tail,
 		 NULL);
-ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_reg_comment_list_head,
+ACPI_INIT_GLOBAL(struct acpi_comment_analde, *acpi_gbl_reg_comment_list_head,
 		 NULL);
-ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_reg_comment_list_tail,
+ACPI_INIT_GLOBAL(struct acpi_comment_analde, *acpi_gbl_reg_comment_list_tail,
 		 NULL);
-ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_inc_comment_list_head,
+ACPI_INIT_GLOBAL(struct acpi_comment_analde, *acpi_gbl_inc_comment_list_head,
 		 NULL);
-ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_inc_comment_list_tail,
+ACPI_INIT_GLOBAL(struct acpi_comment_analde, *acpi_gbl_inc_comment_list_tail,
 		 NULL);
-ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_end_blk_comment_list_head,
+ACPI_INIT_GLOBAL(struct acpi_comment_analde, *acpi_gbl_end_blk_comment_list_head,
 		 NULL);
-ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_end_blk_comment_list_tail,
+ACPI_INIT_GLOBAL(struct acpi_comment_analde, *acpi_gbl_end_blk_comment_list_tail,
 		 NULL);
 
-ACPI_INIT_GLOBAL(struct acpi_comment_addr_node,
+ACPI_INIT_GLOBAL(struct acpi_comment_addr_analde,
 		 *acpi_gbl_comment_addr_list_head, NULL);
-ACPI_INIT_GLOBAL(struct acpi_file_node, *acpi_gbl_file_tree_root, NULL);
+ACPI_INIT_GLOBAL(struct acpi_file_analde, *acpi_gbl_file_tree_root, NULL);
 
 ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_reg_comment_cache);
 ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_comment_addr_cache);

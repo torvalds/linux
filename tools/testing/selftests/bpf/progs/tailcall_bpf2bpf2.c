@@ -10,7 +10,7 @@ struct {
 	__uint(value_size, sizeof(__u32));
 } jmp_table SEC(".maps");
 
-static __noinline
+static __analinline
 int subprog_tail(struct __sk_buff *skb)
 {
 	if (load_byte(skb, 0))

@@ -18,7 +18,7 @@
  * Updated: Fri, 25 Aug 2017 07:23:06 +0300
  * Status: untested
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: analt applicable, uses PCI auto config
  */
 
 #include <linux/module.h>
@@ -263,9 +263,9 @@ static irqreturn_t pci_dio_interrupt(int irq, void *p_device)
 	int i;
 
 	if (!dev->attached) {
-		/* Ignore interrupt before device fully attached. */
-		/* Might not even have allocated subdevices yet! */
-		return IRQ_NONE;
+		/* Iganalre interrupt before device fully attached. */
+		/* Might analt even have allocated subdevices yet! */
+		return IRQ_ANALNE;
 	}
 
 	/* Check if we are source of interrupt */
@@ -273,7 +273,7 @@ static irqreturn_t pci_dio_interrupt(int irq, void *p_device)
 	irqflags = inb(dev->iobase + PCI173X_INT_FLAG_REG);
 	if (!(irqflags & 0x0F)) {
 		spin_unlock_irqrestore(&dev->spinlock, cpu_flags);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* clear all current interrupt flags */
@@ -297,11 +297,11 @@ static int pci_dio_asy_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -314,7 +314,7 @@ static int pci_dio_asy_cmdtest(struct comedi_device *dev,
 	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 	/*
 	 * For scan_begin_arg, the trigger number must be 0 and the only
-	 * allowed flags are CR_EDGE and CR_INVERT.  CR_EDGE is ignored,
+	 * allowed flags are CR_EDGE and CR_INVERT.  CR_EDGE is iganalred,
 	 * CR_INVERT sets the trigger to falling edge.
 	 */
 	if (cmd->scan_begin_arg & ~(CR_EDGE | CR_INVERT)) {
@@ -556,13 +556,13 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(boardtypes))
 		board = &boardtypes[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
 	dev_private = comedi_alloc_devpriv(dev, sizeof(*dev_private));
 	if (!dev_private)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -688,7 +688,7 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 			s->insn_bits	= pci_dio_insn_bits_dirq_b;
 			sd_priv = comedi_alloc_spriv(s, sizeof(*sd_priv));
 			if (!sd_priv)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			spin_lock_init(&sd_priv->subd_slock);
 			sd_priv->port_offset = d->addr;
@@ -742,7 +742,7 @@ static unsigned long pci_dio_override_cardtype(struct pci_dev *pcidev,
 		/*
 		 * This test is based on Advantech's "advdaq" driver source
 		 * (which declares its module licence as "GPL" although the
-		 * driver source does not include a "COPYING" file).
+		 * driver source does analt include a "COPYING" file).
 		 */
 		unsigned long reg = pci_resource_start(pcidev, 2) + 53;
 

@@ -139,7 +139,7 @@ static int vsc73xx_spi_probe(struct spi_device *spi)
 
 	vsc_spi = devm_kzalloc(dev, sizeof(*vsc_spi), GFP_KERNEL);
 	if (!vsc_spi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, vsc_spi);
 	vsc_spi->spi = spi_dev_get(spi);

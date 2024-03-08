@@ -52,7 +52,7 @@ typedef enum {
 	OP_ADD_FUNCS,
 	OP_COUNT_NR_FUNC_GRPS,
 	OP_ADD_FUNC_GRPS,
-	OP_NONE,
+	OP_ANALNE,
 } funcs_util_ops;
 
 /**
@@ -95,12 +95,12 @@ struct eqbr_pin_bank {
 	u32			aval_pinmap;
 };
 
-struct fwnode_handle;
+struct fwanalde_handle;
 
 /**
  * struct eqbr_gpio_ctrl: represent a gpio controller.
  * @chip: gpio chip.
- * @fwnode: firmware node of gpio controller.
+ * @fwanalde: firmware analde of gpio controller.
  * @bank: pointer to corresponding pin bank.
  * @membase: base address of the gpio controller.
  * @name: gpio chip name.
@@ -109,7 +109,7 @@ struct fwnode_handle;
  */
 struct eqbr_gpio_ctrl {
 	struct gpio_chip	chip;
-	struct fwnode_handle	*fwnode;
+	struct fwanalde_handle	*fwanalde;
 	struct eqbr_pin_bank	*bank;
 	void __iomem		*membase;
 	const char		*name;

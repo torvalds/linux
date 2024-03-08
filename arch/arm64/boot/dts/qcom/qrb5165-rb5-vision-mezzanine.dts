@@ -17,7 +17,7 @@
 	status = "okay";
 
 	ports {
-		/* The port index denotes CSIPHY id i.e. csiphy2 */
+		/* The port index deanaltes CSIPHY id i.e. csiphy2 */
 		port@2 {
 			csiphy2_ep: endpoint {
 				clock-lanes = <7>;

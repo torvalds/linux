@@ -6,9 +6,9 @@
 #include "uncore.h"
 #include "uncore_discovery.h"
 
-static bool uncore_no_discover;
-module_param(uncore_no_discover, bool, 0);
-MODULE_PARM_DESC(uncore_no_discover, "Don't enable the Intel uncore PerfMon discovery mechanism "
+static bool uncore_anal_discover;
+module_param(uncore_anal_discover, bool, 0);
+MODULE_PARM_DESC(uncore_anal_discover, "Don't enable the Intel uncore PerfMon discovery mechanism "
 				     "(default: enable the discovery mechanism).");
 struct intel_uncore_type *empty_uncore[] = { NULL, };
 struct intel_uncore_type **uncore_msr_uncores = empty_uncore;
@@ -67,13 +67,13 @@ int uncore_die_to_segment(int die)
 
 int uncore_device_to_die(struct pci_dev *dev)
 {
-	int node = pcibus_to_node(dev->bus);
+	int analde = pcibus_to_analde(dev->bus);
 	int cpu;
 
 	for_each_cpu(cpu, cpumask_of_pcibus(dev->bus)) {
 		struct cpuinfo_x86 *c = &cpu_data(cpu);
 
-		if (c->initialized && cpu_to_node(cpu) == node)
+		if (c->initialized && cpu_to_analde(cpu) == analde)
 			return c->topo.logical_die_id;
 	}
 
@@ -139,7 +139,7 @@ struct intel_uncore_box *uncore_pmu_to_box(struct intel_uncore_pmu *pmu, int cpu
 	unsigned int dieid = topology_logical_die_id(cpu);
 
 	/*
-	 * The unsigned check also catches the '-1' return value for non
+	 * The unsigned check also catches the '-1' return value for analn
 	 * existent mappings in the topology map.
 	 */
 	return dieid < uncore_max_dies() ? pmu->boxes[dieid] : NULL;
@@ -186,10 +186,10 @@ uncore_get_constraint(struct intel_uncore_box *box, struct perf_event *event)
 
 	/*
 	 * reg->alloc can be set due to existing state, so for fake box we
-	 * need to ignore this, otherwise we might fail to allocate proper
+	 * need to iganalre this, otherwise we might fail to allocate proper
 	 * fake state for this extra reg constraint.
 	 */
-	if (reg1->idx == EXTRA_REG_NONE ||
+	if (reg1->idx == EXTRA_REG_ANALNE ||
 	    (!uncore_box_is_fake(box) && reg1->alloc))
 		return NULL;
 
@@ -220,7 +220,7 @@ void uncore_put_constraint(struct intel_uncore_box *box, struct perf_event *even
 
 	/*
 	 * Only put constraint if extra reg was actually allocated. Also
-	 * takes care of event which do not use an extra shared reg.
+	 * takes care of event which do analt use an extra shared reg.
 	 *
 	 * Also, if this is a fake box we shouldn't touch any event state
 	 * (reg->alloc) and we don't care about leaving inconsistent box
@@ -306,7 +306,7 @@ static enum hrtimer_restart uncore_pmu_hrtimer(struct hrtimer *hrtimer)
 
 	box = container_of(hrtimer, struct intel_uncore_box, hrtimer);
 	if (!box->n_active || box->cpu != smp_processor_id())
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 	/*
 	 * disable local interrupt to prevent uncore_pmu_event_start/stop
 	 * to interrupt the update process
@@ -326,7 +326,7 @@ static enum hrtimer_restart uncore_pmu_hrtimer(struct hrtimer *hrtimer)
 
 	local_irq_restore(flags);
 
-	hrtimer_forward_now(hrtimer, ns_to_ktime(box->hrtimer_duration));
+	hrtimer_forward_analw(hrtimer, ns_to_ktime(box->hrtimer_duration));
 	return HRTIMER_RESTART;
 }
 
@@ -343,19 +343,19 @@ void uncore_pmu_cancel_hrtimer(struct intel_uncore_box *box)
 
 static void uncore_pmu_init_hrtimer(struct intel_uncore_box *box)
 {
-	hrtimer_init(&box->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&box->hrtimer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	box->hrtimer.function = uncore_pmu_hrtimer;
 }
 
 static struct intel_uncore_box *uncore_alloc_box(struct intel_uncore_type *type,
-						 int node)
+						 int analde)
 {
 	int i, size, numshared = type->num_shared_regs ;
 	struct intel_uncore_box *box;
 
 	size = sizeof(*box) + numshared * sizeof(struct intel_uncore_extra_reg);
 
-	box = kzalloc_node(size, GFP_KERNEL, node);
+	box = kzalloc_analde(size, GFP_KERNEL, analde);
 	if (!box)
 		return NULL;
 
@@ -480,11 +480,11 @@ static int uncore_assign_events(struct intel_uncore_box *box, int assign[], int 
 		if (hwc->idx == -1)
 			break;
 
-		/* constraint still honored */
+		/* constraint still hoanalred */
 		if (!test_bit(hwc->idx, c->idxmsk))
 			break;
 
-		/* not already used */
+		/* analt already used */
 		if (test_bit(hwc->idx, used_mask))
 			break;
 
@@ -515,7 +515,7 @@ void uncore_pmu_event_start(struct perf_event *event, int flags)
 	/*
 	 * Free running counter is read-only and always active.
 	 * Use the current counter value as start point.
-	 * There is no overflow interrupt for free running counter.
+	 * There is anal overflow interrupt for free running counter.
 	 * Use hrtimer to periodically poll the counter to avoid overflow.
 	 */
 	if (uncore_pmc_freerunning(event->hw.idx)) {
@@ -547,7 +547,7 @@ void uncore_pmu_event_stop(struct perf_event *event, int flags)
 	struct intel_uncore_box *box = uncore_event_to_box(event);
 	struct hw_perf_event *hwc = &event->hw;
 
-	/* Cannot disable free running counter which is read-only */
+	/* Cananalt disable free running counter which is read-only */
 	if (uncore_pmc_freerunning(hwc->idx)) {
 		list_del(&event->active_entry);
 		if (--box->n_active == 0)
@@ -585,7 +585,7 @@ int uncore_pmu_event_add(struct perf_event *event, int flags)
 	int i, n, ret;
 
 	if (!box)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * The free funning counter is assigned in event_init().
@@ -657,7 +657,7 @@ void uncore_pmu_event_del(struct perf_event *event, int flags)
 	uncore_pmu_event_stop(event, PERF_EF_UPDATE);
 
 	/*
-	 * The event for free running counter is not tracked by event_list.
+	 * The event for free running counter is analt tracked by event_list.
 	 * It doesn't need to force event->hw.idx = -1 to reassign the counter.
 	 * Because the event and the free running counter are 1:1 mapped.
 	 */
@@ -701,13 +701,13 @@ static int uncore_validate_group(struct intel_uncore_pmu *pmu,
 	if (uncore_pmc_freerunning(event->hw.idx))
 		return 0;
 
-	fake_box = uncore_alloc_box(pmu->type, NUMA_NO_NODE);
+	fake_box = uncore_alloc_box(pmu->type, NUMA_ANAL_ANALDE);
 	if (!fake_box)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fake_box->pmu = pmu;
 	/*
-	 * the event is not yet connected with its
+	 * the event is analt yet connected with its
 	 * siblings therefore we must first collect
 	 * existing siblings, then add the new event
 	 * before we can simulate the scheduling
@@ -737,14 +737,14 @@ static int uncore_pmu_event_init(struct perf_event *event)
 	int ret;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	pmu = uncore_event_to_pmu(event);
-	/* no device found for this pmu */
+	/* anal device found for this pmu */
 	if (pmu->func_id < 0)
-		return -ENOENT;
+		return -EANALENT;
 
-	/* Sampling not supported yet */
+	/* Sampling analt supported yet */
 	if (hwc->sample_period)
 		return -EINVAL;
 
@@ -764,11 +764,11 @@ static int uncore_pmu_event_init(struct perf_event *event)
 
 	event->hw.idx = -1;
 	event->hw.last_tag = ~0ULL;
-	event->hw.extra_reg.idx = EXTRA_REG_NONE;
-	event->hw.branch_reg.idx = EXTRA_REG_NONE;
+	event->hw.extra_reg.idx = EXTRA_REG_ANALNE;
+	event->hw.branch_reg.idx = EXTRA_REG_ANALNE;
 
 	if (event->attr.config == UNCORE_FIXED_EVENT) {
-		/* no fixed counter */
+		/* anal fixed counter */
 		if (!pmu->type->fixed_ctl)
 			return -EINVAL;
 		/*
@@ -880,7 +880,7 @@ static void uncore_get_pmu_name(struct intel_uncore_pmu *pmu)
 	struct intel_uncore_type *type = pmu->type;
 
 	/*
-	 * No uncore block name in discovery table.
+	 * Anal uncore block name in discovery table.
 	 * Use uncore_type_&typeid_&boxid as name.
 	 */
 	if (!type->name) {
@@ -919,7 +919,7 @@ static int uncore_pmu_register(struct intel_uncore_pmu *pmu)
 			.stop		= uncore_pmu_event_stop,
 			.read		= uncore_pmu_event_read,
 			.module		= THIS_MODULE,
-			.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+			.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 			.attr_update	= pmu->type->attr_update,
 		};
 	} else {
@@ -991,7 +991,7 @@ static int __init uncore_type_init(struct intel_uncore_type *type, bool setid)
 
 	pmus = kcalloc(type->num_boxes, sizeof(*pmus), GFP_KERNEL);
 	if (!pmus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = uncore_max_dies() * sizeof(struct intel_uncore_box *);
 
@@ -1042,7 +1042,7 @@ err:
 		kfree(pmus[i].boxes);
 	kfree(pmus);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int __init
@@ -1150,9 +1150,9 @@ static int uncore_pci_pmu_register(struct pci_dev *pdev,
 	if (WARN_ON_ONCE(pmu->boxes[die] != NULL))
 		return -EINVAL;
 
-	box = uncore_alloc_box(type, NUMA_NO_NODE);
+	box = uncore_alloc_box(type, NUMA_ANAL_ANALDE);
 	if (!box)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pmu->func_id < 0)
 		pmu->func_id = pdev->devfn;
@@ -1212,7 +1212,7 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 
 		pmu = uncore_pci_find_dev_pmu(pdev, pci_drv->id_table);
 		if (pmu == NULL)
-			return -ENODEV;
+			return -EANALDEV;
 	} else {
 		/*
 		 * for performance monitoring unit with multiple boxes,
@@ -1272,7 +1272,7 @@ static void uncore_pci_remove(struct pci_dev *pdev)
 	uncore_pci_pmu_unregister(pmu, die);
 }
 
-static int uncore_bus_notify(struct notifier_block *nb,
+static int uncore_bus_analtify(struct analtifier_block *nb,
 			     unsigned long action, void *data,
 			     const struct pci_device_id *ids)
 {
@@ -1282,30 +1282,30 @@ static int uncore_bus_notify(struct notifier_block *nb,
 	int die;
 
 	/* Unregister the PMU when the device is going to be deleted. */
-	if (action != BUS_NOTIFY_DEL_DEVICE)
-		return NOTIFY_DONE;
+	if (action != BUS_ANALTIFY_DEL_DEVICE)
+		return ANALTIFY_DONE;
 
 	pmu = uncore_pci_find_dev_pmu(pdev, ids);
 	if (!pmu)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (uncore_pci_get_dev_die_info(pdev, &die))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	uncore_pci_pmu_unregister(pmu, die);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static int uncore_pci_sub_bus_notify(struct notifier_block *nb,
+static int uncore_pci_sub_bus_analtify(struct analtifier_block *nb,
 				     unsigned long action, void *data)
 {
-	return uncore_bus_notify(nb, action, data,
+	return uncore_bus_analtify(nb, action, data,
 				 uncore_pci_sub_driver->id_table);
 }
 
-static struct notifier_block uncore_pci_sub_notifier = {
-	.notifier_call = uncore_pci_sub_bus_notify,
+static struct analtifier_block uncore_pci_sub_analtifier = {
+	.analtifier_call = uncore_pci_sub_bus_analtify,
 };
 
 static void uncore_pci_sub_driver_init(void)
@@ -1314,7 +1314,7 @@ static void uncore_pci_sub_driver_init(void)
 	struct intel_uncore_type *type;
 	struct intel_uncore_pmu *pmu;
 	struct pci_dev *pci_sub_dev;
-	bool notify = false;
+	bool analtify = false;
 	unsigned int devfn;
 	int die;
 
@@ -1341,26 +1341,26 @@ static void uncore_pci_sub_driver_init(void)
 
 			if (!uncore_pci_pmu_register(pci_sub_dev, type, pmu,
 						     die))
-				notify = true;
+				analtify = true;
 		}
 		ids++;
 	}
 
-	if (notify && bus_register_notifier(&pci_bus_type, &uncore_pci_sub_notifier))
-		notify = false;
+	if (analtify && bus_register_analtifier(&pci_bus_type, &uncore_pci_sub_analtifier))
+		analtify = false;
 
-	if (!notify)
+	if (!analtify)
 		uncore_pci_sub_driver = NULL;
 }
 
-static int uncore_pci_bus_notify(struct notifier_block *nb,
+static int uncore_pci_bus_analtify(struct analtifier_block *nb,
 				     unsigned long action, void *data)
 {
-	return uncore_bus_notify(nb, action, data, NULL);
+	return uncore_bus_analtify(nb, action, data, NULL);
 }
 
-static struct notifier_block uncore_pci_notifier = {
-	.notifier_call = uncore_pci_bus_notify,
+static struct analtifier_block uncore_pci_analtifier = {
+	.analtifier_call = uncore_pci_bus_analtify,
 };
 
 
@@ -1392,7 +1392,7 @@ static void uncore_pci_pmus_register(void)
 		}
 	}
 
-	bus_register_notifier(&pci_bus_type, &uncore_pci_notifier);
+	bus_register_analtifier(&pci_bus_type, &uncore_pci_analtifier);
 }
 
 static int __init uncore_pci_init(void)
@@ -1403,7 +1403,7 @@ static int __init uncore_pci_init(void)
 	size = uncore_max_dies() * sizeof(struct pci_extra_dev);
 	uncore_extra_pci_dev = kzalloc(size, GFP_KERNEL);
 	if (!uncore_extra_pci_dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1442,11 +1442,11 @@ static void uncore_pci_exit(void)
 	if (pcidrv_registered) {
 		pcidrv_registered = false;
 		if (uncore_pci_sub_driver)
-			bus_unregister_notifier(&pci_bus_type, &uncore_pci_sub_notifier);
+			bus_unregister_analtifier(&pci_bus_type, &uncore_pci_sub_analtifier);
 		if (uncore_pci_driver)
 			pci_unregister_driver(uncore_pci_driver);
 		else
-			bus_unregister_notifier(&pci_bus_type, &uncore_pci_notifier);
+			bus_unregister_analtifier(&pci_bus_type, &uncore_pci_analtifier);
 		uncore_types_exit(uncore_pci_uncores);
 		kfree(uncore_extra_pci_dev);
 		uncore_free_pcibus_map();
@@ -1552,7 +1552,7 @@ static int allocate_boxes(struct intel_uncore_type **types,
 		for (i = 0; i < type->num_boxes; i++, pmu++) {
 			if (pmu->boxes[die])
 				continue;
-			box = uncore_alloc_box(type, cpu_to_node(cpu));
+			box = uncore_alloc_box(type, cpu_to_analde(cpu));
 			if (!box)
 				goto cleanup;
 			box->pmu = pmu;
@@ -1572,7 +1572,7 @@ cleanup:
 		list_del_init(&box->active_list);
 		kfree(box);
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int uncore_box_ref(struct intel_uncore_type **types,
@@ -1607,7 +1607,7 @@ static int uncore_event_cpu_online(unsigned int cpu)
 	msr_ret = uncore_box_ref(uncore_msr_uncores, die, cpu);
 	mmio_ret = uncore_box_ref(uncore_mmio_uncores, die, cpu);
 	if (msr_ret && mmio_ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Check if there is an online cpu in the package
@@ -1697,8 +1697,8 @@ struct intel_uncore_init_fun {
 	void	(*mmio_init)(void);
 	/* Discovery table is required */
 	bool	use_discovery;
-	/* The units in the discovery table should be ignored. */
-	int	*uncore_units_ignore;
+	/* The units in the discovery table should be iganalred. */
+	int	*uncore_units_iganalre;
 };
 
 static const struct intel_uncore_init_fun nhm_uncore_init __initconst = {
@@ -1811,7 +1811,7 @@ static const struct intel_uncore_init_fun spr_uncore_init __initconst = {
 	.pci_init = spr_uncore_pci_init,
 	.mmio_init = spr_uncore_mmio_init,
 	.use_discovery = true,
-	.uncore_units_ignore = spr_uncore_units_ignore,
+	.uncore_units_iganalre = spr_uncore_units_iganalre,
 };
 
 static const struct intel_uncore_init_fun gnr_uncore_init __initconst = {
@@ -1819,7 +1819,7 @@ static const struct intel_uncore_init_fun gnr_uncore_init __initconst = {
 	.pci_init = gnr_uncore_pci_init,
 	.mmio_init = gnr_uncore_mmio_init,
 	.use_discovery = true,
-	.uncore_units_ignore = gnr_uncore_units_ignore,
+	.uncore_units_iganalre = gnr_uncore_units_iganalre,
 };
 
 static const struct intel_uncore_init_fun generic_uncore_init __initconst = {
@@ -1890,24 +1890,24 @@ static int __init intel_uncore_init(void)
 	int pret = 0, cret = 0, mret = 0, ret;
 
 	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
-		return -ENODEV;
+		return -EANALDEV;
 
 	__uncore_max_dies =
 		topology_max_packages() * topology_max_die_per_package();
 
 	id = x86_match_cpu(intel_uncore_match);
 	if (!id) {
-		if (!uncore_no_discover && intel_uncore_has_discovery_tables(NULL))
+		if (!uncore_anal_discover && intel_uncore_has_discovery_tables(NULL))
 			uncore_init = (struct intel_uncore_init_fun *)&generic_uncore_init;
 		else
-			return -ENODEV;
+			return -EANALDEV;
 	} else {
 		uncore_init = (struct intel_uncore_init_fun *)id->driver_data;
-		if (uncore_no_discover && uncore_init->use_discovery)
-			return -ENODEV;
+		if (uncore_anal_discover && uncore_init->use_discovery)
+			return -EANALDEV;
 		if (uncore_init->use_discovery &&
-		    !intel_uncore_has_discovery_tables(uncore_init->uncore_units_ignore))
-			return -ENODEV;
+		    !intel_uncore_has_discovery_tables(uncore_init->uncore_units_iganalre))
+			return -EANALDEV;
 	}
 
 	if (uncore_init->pci_init) {
@@ -1927,7 +1927,7 @@ static int __init intel_uncore_init(void)
 	}
 
 	if (cret && pret && mret) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free_discovery;
 	}
 

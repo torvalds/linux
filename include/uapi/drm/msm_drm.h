@@ -9,13 +9,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -31,9 +31,9 @@
 extern "C" {
 #endif
 
-/* Please note that modifications to all structs defined here are
+/* Please analte that modifications to all structs defined here are
  * subject to backwards-compatibility constraints:
- *  1) Do not use pointers, use __u64 instead for 32 bit / 64 bit
+ *  1) Do analt use pointers, use __u64 instead for 32 bit / 64 bit
  *     user/kernel compatibility
  *  2) Keep fields aligned to their size
  *  3) Because of how drm_ioctl() works, we can add new fields at
@@ -44,7 +44,7 @@ extern "C" {
  *     fields.. so that has to be somehow ok.
  */
 
-#define MSM_PIPE_NONE        0x00
+#define MSM_PIPE_ANALNE        0x00
 #define MSM_PIPE_2D0         0x01
 #define MSM_PIPE_2D1         0x02
 #define MSM_PIPE_3D0         0x10
@@ -58,13 +58,13 @@ extern "C" {
 #define MSM_PIPE_ID(x)       ((x) & MSM_PIPE_ID_MASK)
 #define MSM_PIPE_FLAGS(x)    ((x) & ~MSM_PIPE_ID_MASK)
 
-/* timeouts are specified in clock-monotonic absolute times (to simplify
+/* timeouts are specified in clock-moanaltonic absolute times (to simplify
  * restarting interrupted ioctls).  The following struct is logically the
  * same as 'struct timespec' but 32/64b ABI safe.
  */
 struct drm_msm_timespec {
 	__s64 tv_sec;          /* seconds */
-	__s64 tv_nsec;         /* nanoseconds */
+	__s64 tv_nsec;         /* naanalseconds */
 };
 
 /* Below "RO" indicates a read-only param, "WO" indicates write-only, and
@@ -100,7 +100,7 @@ struct drm_msm_param {
 	__u32 pipe;           /* in, MSM_PIPE_x */
 	__u32 param;          /* in, MSM_PARAM_x */
 	__u64 value;          /* out (get_param) or in (set_param) */
-	__u32 len;            /* zero for non-pointer params */
+	__u32 len;            /* zero for analn-pointer params */
 	__u32 pad;            /* must be zero */
 };
 
@@ -108,7 +108,7 @@ struct drm_msm_param {
  * GEM buffers:
  */
 
-#define MSM_BO_SCANOUT       0x00000001     /* scanout capable */
+#define MSM_BO_SCAANALUT       0x00000001     /* scaanalut capable */
 #define MSM_BO_GPU_READONLY  0x00000002
 #define MSM_BO_CACHE_MASK    0x000f0000
 /* cache modes */
@@ -117,7 +117,7 @@ struct drm_msm_param {
 #define MSM_BO_UNCACHED      0x00040000 /* deprecated, use MSM_BO_WC */
 #define MSM_BO_CACHED_COHERENT 0x080000
 
-#define MSM_BO_FLAGS         (MSM_BO_SCANOUT | \
+#define MSM_BO_FLAGS         (MSM_BO_SCAANALUT | \
                               MSM_BO_GPU_READONLY | \
                               MSM_BO_CACHE_MASK)
 
@@ -153,12 +153,12 @@ struct drm_msm_gem_info {
 
 #define MSM_PREP_READ        0x01
 #define MSM_PREP_WRITE       0x02
-#define MSM_PREP_NOSYNC      0x04
+#define MSM_PREP_ANALSYNC      0x04
 #define MSM_PREP_BOOST       0x08
 
 #define MSM_PREP_FLAGS       (MSM_PREP_READ | \
 			      MSM_PREP_WRITE | \
-			      MSM_PREP_NOSYNC | \
+			      MSM_PREP_ANALSYNC | \
 			      MSM_PREP_BOOST | \
 			      0)
 
@@ -184,7 +184,7 @@ struct drm_msm_gem_cpu_fini {
  * with this by emit'ing two reloc entries with appropriate shift
  * values.  Or a new MSM_SUBMIT_CMD_x type would also be an option.
  *
- * NOTE that reloc's must be sorted by order of increasing submit_offset,
+ * ANALTE that reloc's must be sorted by order of increasing submit_offset,
  * otherwise EINVAL.
  */
 struct drm_msm_gem_submit_reloc {
@@ -200,9 +200,9 @@ struct drm_msm_gem_submit_reloc {
 };
 
 /* submit-types:
- *   BUF - this cmd buffer is executed normally.
+ *   BUF - this cmd buffer is executed analrmally.
  *   IB_TARGET_BUF - this cmd buffer is an IB target.  Reloc's are
- *      processed normally, but the kernel does not setup an IB to
+ *      processed analrmally, but the kernel does analt setup an IB to
  *      this buffer in the first-level ringbuffer
  *   CTX_RESTORE_BUF - only executed if there has been a GPU context
  *      switch since the last SUBMIT ioctl
@@ -234,12 +234,12 @@ struct drm_msm_gem_submit_cmd {
 #define MSM_SUBMIT_BO_READ             0x0001
 #define MSM_SUBMIT_BO_WRITE            0x0002
 #define MSM_SUBMIT_BO_DUMP             0x0004
-#define MSM_SUBMIT_BO_NO_IMPLICIT      0x0008
+#define MSM_SUBMIT_BO_ANAL_IMPLICIT      0x0008
 
 #define MSM_SUBMIT_BO_FLAGS            (MSM_SUBMIT_BO_READ | \
 					MSM_SUBMIT_BO_WRITE | \
 					MSM_SUBMIT_BO_DUMP | \
-					MSM_SUBMIT_BO_NO_IMPLICIT)
+					MSM_SUBMIT_BO_ANAL_IMPLICIT)
 
 struct drm_msm_gem_submit_bo {
 	__u32 flags;          /* in, mask of MSM_SUBMIT_BO_x */
@@ -248,15 +248,15 @@ struct drm_msm_gem_submit_bo {
 };
 
 /* Valid submit ioctl flags: */
-#define MSM_SUBMIT_NO_IMPLICIT   0x80000000 /* disable implicit sync */
+#define MSM_SUBMIT_ANAL_IMPLICIT   0x80000000 /* disable implicit sync */
 #define MSM_SUBMIT_FENCE_FD_IN   0x40000000 /* enable input fence_fd */
 #define MSM_SUBMIT_FENCE_FD_OUT  0x20000000 /* enable output fence_fd */
 #define MSM_SUBMIT_SUDO          0x10000000 /* run submitted cmds from RB */
 #define MSM_SUBMIT_SYNCOBJ_IN    0x08000000 /* enable input syncobj */
 #define MSM_SUBMIT_SYNCOBJ_OUT   0x04000000 /* enable output syncobj */
-#define MSM_SUBMIT_FENCE_SN_IN   0x02000000 /* userspace passes in seqno fence */
+#define MSM_SUBMIT_FENCE_SN_IN   0x02000000 /* userspace passes in seqanal fence */
 #define MSM_SUBMIT_FLAGS                ( \
-		MSM_SUBMIT_NO_IMPLICIT   | \
+		MSM_SUBMIT_ANAL_IMPLICIT   | \
 		MSM_SUBMIT_FENCE_FD_IN   | \
 		MSM_SUBMIT_FENCE_FD_OUT  | \
 		MSM_SUBMIT_SUDO          | \
@@ -303,7 +303,7 @@ struct drm_msm_gem_submit {
 		MSM_WAIT_FENCE_BOOST | \
 		0)
 
-/* The normal way to synchronize with the GPU is just to CPU_PREP on
+/* The analrmal way to synchronize with the GPU is just to CPU_PREP on
  * a buffer if you need to access it from the CPU (other cmdstream
  * submission from same or other contexts, PAGE_FLIP ioctl, etc, all
  * handle the required synchronization under the hood).  This ioctl
@@ -329,7 +329,7 @@ struct drm_msm_wait_fence {
  * backing pages still exist.
  */
 #define MSM_MADV_WILLNEED 0       /* backing pages are needed, status returned in 'retained' */
-#define MSM_MADV_DONTNEED 1       /* backing pages not needed */
+#define MSM_MADV_DONTNEED 1       /* backing pages analt needed */
 #define __MSM_MADV_PURGED 2       /* internal state */
 
 struct drm_msm_gem_madvise {

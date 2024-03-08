@@ -2,7 +2,7 @@
 /*
  * rseq-x86-thread-pointer.h
  *
- * (C) Copyright 2021 - Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * (C) Copyright 2021 - Mathieu Desanalyers <mathieu.desanalyers@efficios.com>
  */
 
 #ifndef _RSEQ_X86_THREAD_POINTER

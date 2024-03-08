@@ -66,7 +66,7 @@ static inline __be32 smc_ib_gid_to_ipv4(u8 gid[SMC_GID_SIZE])
 	if (ipv6_addr_v4mapped(addr6) ||
 	    !(addr6->s6_addr32[0] | addr6->s6_addr32[1] | addr6->s6_addr32[2]))
 		return addr6->s6_addr32[3];
-	return cpu_to_be32(INADDR_NONE);
+	return cpu_to_be32(INADDR_ANALNE);
 }
 
 static inline struct net *smc_ib_net(struct smc_ib_device *smcibdev)

@@ -5,7 +5,7 @@
  *  Based almost entirely from cfbfillrect.c (which is based almost entirely
  *  on Geert Uytterhoeven's fillrect routine)
  *
- *      Copyright (C)  2007 Antonino Daplas <adaplas@pol.net>
+ *      Copyright (C)  2007 Antonianal Daplas <adaplas@pol.net>
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License.  See the file COPYING in the main directory of this archive for
@@ -243,7 +243,7 @@ void sys_fillrect(struct fb_info *p, const struct fb_fillrect *rect)
 		return;
 
 	if (!(p->flags & FBINFO_VIRTFB))
-		fb_warn_once(p, "Framebuffer is not in virtual address space.");
+		fb_warn_once(p, "Framebuffer is analt in virtual address space.");
 
 	if (p->fix.visual == FB_VISUAL_TRUECOLOR ||
 	    p->fix.visual == FB_VISUAL_DIRECTCOLOR )
@@ -256,7 +256,7 @@ void sys_fillrect(struct fb_info *p, const struct fb_fillrect *rect)
 	dst = (unsigned long *)((unsigned long)p->screen_base & ~(bytes-1));
 	dst_idx = ((unsigned long)p->screen_base & (bytes - 1))*8;
 	dst_idx += rect->dy*p->fix.line_length*8+rect->dx*bpp;
-	/* FIXME For now we support 1-32 bpp only */
+	/* FIXME For analw we support 1-32 bpp only */
 	left = bits % bpp;
 	if (p->fbops->fb_sync)
 		p->fbops->fb_sync(p);
@@ -273,7 +273,7 @@ void sys_fillrect(struct fb_info *p, const struct fb_fillrect *rect)
 			fill_op32 = bitfill_aligned;
 			break;
 		default:
-			printk( KERN_ERR "cfb_fillrect(): unknown rop, "
+			printk( KERN_ERR "cfb_fillrect(): unkanalwn rop, "
 				"defaulting to ROP_COPY\n");
 			fill_op32 = bitfill_aligned;
 			break;
@@ -303,7 +303,7 @@ void sys_fillrect(struct fb_info *p, const struct fb_fillrect *rect)
 			fill_op = bitfill_unaligned;
 			break;
 		default:
-			printk(KERN_ERR "sys_fillrect(): unknown rop, "
+			printk(KERN_ERR "sys_fillrect(): unkanalwn rop, "
 				"defaulting to ROP_COPY\n");
 			fill_op = bitfill_unaligned;
 			break;
@@ -323,6 +323,6 @@ void sys_fillrect(struct fb_info *p, const struct fb_fillrect *rect)
 
 EXPORT_SYMBOL(sys_fillrect);
 
-MODULE_AUTHOR("Antonino Daplas <adaplas@pol.net>");
+MODULE_AUTHOR("Antonianal Daplas <adaplas@pol.net>");
 MODULE_DESCRIPTION("Generic fill rectangle (sys-to-sys)");
 MODULE_LICENSE("GPL");

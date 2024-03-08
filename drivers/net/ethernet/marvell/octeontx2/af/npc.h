@@ -174,7 +174,7 @@ enum npc_interface_type {
 	NPC_INTF_MODE_DEF,
 };
 
-/* list of known and supported fields in packet header and
+/* list of kanalwn and supported fields in packet header and
  * fields present in key structure.
  */
 enum key_fields {
@@ -243,8 +243,8 @@ enum key_fields {
 	NPC_VLAN_TAG2,
 	/* inner vlan tci for double tagged frame */
 	NPC_VLAN_TAG3,
-	/* other header fields programmed to extract but not of our interest */
-	NPC_UNKNOWN,
+	/* other header fields programmed to extract but analt of our interest */
+	NPC_UNKANALWN,
 	NPC_KEY_FIELDS_MAX,
 };
 
@@ -495,7 +495,7 @@ struct npc_coalesced_kpu_prfl {
 	__le64 signature; /* "npcprof\0" (8 bytes/ASCII characters) */
 	u8 name[NPC_NAME_LEN]; /* KPU Profile name */
 	u64 version; /* KPU firmware/profile version */
-	u8 num_prfl; /* No of NPC profiles. */
+	u8 num_prfl; /* Anal of NPC profiles. */
 	u16 prfl_sz[];
 };
 
@@ -551,7 +551,7 @@ struct npc_lt_def_color {
 	u8	ltype_mask;
 	u8	ltype_match;
 	u8	lid;
-	u8	noffset;
+	u8	analffset;
 	u8	offset;
 } __packed;
 

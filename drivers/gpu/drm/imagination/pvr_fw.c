@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_ccb.h"
 #include "pvr_device.h"
@@ -121,7 +121,7 @@ pvr_fw_validate(struct pvr_device *pvr_dev)
 	    header->fw_version_major > FW_MAX_SUPPORTED_MAJOR_VERSION ||
 	    header->fw_version_major == 0) {
 		drm_err(drm_dev, "Unsupported FW version %u.%u (build: %u%s)\n",
-			header->fw_version_major, header->fw_version_minor,
+			header->fw_version_major, header->fw_version_mianalr,
 			header->fw_version_build,
 			(header->flags & PVR_FW_FLAGS_OPEN_SOURCE) ? " OS" : "");
 		return -EINVAL;
@@ -155,10 +155,10 @@ pvr_fw_validate(struct pvr_device *pvr_dev)
 	fw_offset = (firmware->size - SZ_4K) - header->device_info_size;
 
 	drm_info(drm_dev, "FW version v%u.%u (build %u OS)\n", header->fw_version_major,
-		 header->fw_version_minor, header->fw_version_build);
+		 header->fw_version_mianalr, header->fw_version_build);
 
 	pvr_dev->fw_version.major = header->fw_version_major;
-	pvr_dev->fw_version.minor = header->fw_version_minor;
+	pvr_dev->fw_version.mianalr = header->fw_version_mianalr;
 
 	pvr_dev->fw_dev.header = header;
 	pvr_dev->fw_dev.layout_entries = layout_entries;
@@ -219,7 +219,7 @@ layout_get_sizes(struct pvr_device *pvr_dev)
 			fw_mem->core_data_alloc_size +=
 				layout_entries[entry].alloc_size;
 			break;
-		case NONE:
+		case ANALNE:
 			break;
 		}
 	}
@@ -235,7 +235,7 @@ pvr_fw_find_mmu_segment(struct pvr_device *pvr_dev, u32 addr, u32 size, void *fw
 	u32 end_addr = addr + size;
 	int entry = 0;
 
-	/* Ensure requested range is not zero, and size is not causing addr to overflow. */
+	/* Ensure requested range is analt zero, and size is analt causing addr to overflow. */
 	if (end_addr <= addr)
 		return -EINVAL;
 
@@ -398,7 +398,7 @@ fw_sysinit_init(void *cpu_ptr, void *priv)
 
 	fwif_sysinit->filter_flags = 0;
 	fwif_sysinit->hw_perf_filter = 0;
-	fwif_sysinit->firmware_perf = FW_PERF_CONF_NONE;
+	fwif_sysinit->firmware_perf = FW_PERF_CONF_ANALNE;
 	fwif_sysinit->initial_core_clock_speed = clock_speed_hz;
 	fwif_sysinit->active_pm_latency_ms = 0;
 	fwif_sysinit->gpio_validation_mode = ROGUE_FWIF_GPIO_VAL_OFF;
@@ -723,7 +723,7 @@ pvr_fw_process(struct pvr_device *pvr_dev)
 	if (!fw_mem->code || !fw_mem->data ||
 	    (!fw_mem->core_code && fw_mem->core_code_alloc_size) ||
 	    (!fw_mem->core_data && fw_mem->core_data_alloc_size)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_kdata;
 	}
 
@@ -920,7 +920,7 @@ pvr_fw_validate_init_device_info(struct pvr_device *pvr_dev)
  * Returns:
  *  * 0 on success,
  *  * -%EINVAL on invalid firmware image,
- *  * -%ENOMEM on out of memory, or
+ *  * -%EANALMEM on out of memory, or
  *  * -%ETIMEDOUT if firmware processor fails to boot or on register poll timeout.
  */
 int
@@ -1034,7 +1034,7 @@ pvr_fw_fini(struct pvr_device *pvr_dev)
 
 	/*
 	 * Ensure FWCCB worker has finished executing before destroying FWCCB. The IRQ handler has
-	 * been unregistered at this point so no new work should be being submitted.
+	 * been unregistered at this point so anal new work should be being submitted.
 	 */
 	pvr_ccb_fini(&pvr_dev->fwccb);
 	pvr_kccb_fini(pvr_dev);
@@ -1150,7 +1150,7 @@ err_up_read:
  *
  * Returns:
  *  * 0 on success, or
- *  * -%EINVAL if @fw_obj is already mapped but has no references, or
+ *  * -%EINVAL if @fw_obj is already mapped but has anal references, or
  *  * Any error returned by DRM.
  */
 static int
@@ -1164,7 +1164,7 @@ pvr_fw_object_fw_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj, u
 
 	spin_lock(&fw_dev->fw_mm_lock);
 
-	if (drm_mm_node_allocated(&fw_obj->fw_mm_node)) {
+	if (drm_mm_analde_allocated(&fw_obj->fw_mm_analde)) {
 		err = -EINVAL;
 		goto err_unlock;
 	}
@@ -1174,7 +1174,7 @@ pvr_fw_object_fw_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj, u
 		 * Allocate from the main heap only (firmware heap minus
 		 * config space).
 		 */
-		err = drm_mm_insert_node_in_range(&fw_dev->fw_mm, &fw_obj->fw_mm_node,
+		err = drm_mm_insert_analde_in_range(&fw_dev->fw_mm, &fw_obj->fw_mm_analde,
 						  gem_obj->size, 0, 0,
 						  fw_dev->fw_heap_info.gpu_addr,
 						  fw_dev->fw_heap_info.gpu_addr +
@@ -1182,9 +1182,9 @@ pvr_fw_object_fw_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj, u
 		if (err)
 			goto err_unlock;
 	} else {
-		fw_obj->fw_mm_node.start = dev_addr;
-		fw_obj->fw_mm_node.size = gem_obj->size;
-		err = drm_mm_reserve_node(&fw_dev->fw_mm, &fw_obj->fw_mm_node);
+		fw_obj->fw_mm_analde.start = dev_addr;
+		fw_obj->fw_mm_analde.size = gem_obj->size;
+		err = drm_mm_reserve_analde(&fw_dev->fw_mm, &fw_obj->fw_mm_analde);
 		if (err)
 			goto err_unlock;
 	}
@@ -1194,15 +1194,15 @@ pvr_fw_object_fw_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj, u
 	/* Map object on GPU. */
 	err = fw_dev->defs->vm_map(pvr_dev, fw_obj);
 	if (err)
-		goto err_remove_node;
+		goto err_remove_analde;
 
-	fw_obj->fw_addr_offset = (u32)(fw_obj->fw_mm_node.start - fw_dev->fw_mm_base);
+	fw_obj->fw_addr_offset = (u32)(fw_obj->fw_mm_analde.start - fw_dev->fw_mm_base);
 
 	return 0;
 
-err_remove_node:
+err_remove_analde:
 	spin_lock(&fw_dev->fw_mm_lock);
-	drm_mm_remove_node(&fw_obj->fw_mm_node);
+	drm_mm_remove_analde(&fw_obj->fw_mm_analde);
 
 err_unlock:
 	spin_unlock(&fw_dev->fw_mm_lock);
@@ -1216,7 +1216,7 @@ err_unlock:
  *
  * Returns:
  *  * 0 on success, or
- *  * -%EINVAL if object is not currently mapped.
+ *  * -%EINVAL if object is analt currently mapped.
  */
 static int
 pvr_fw_object_fw_unmap(struct pvr_fw_object *fw_obj)
@@ -1230,12 +1230,12 @@ pvr_fw_object_fw_unmap(struct pvr_fw_object *fw_obj)
 
 	spin_lock(&fw_dev->fw_mm_lock);
 
-	if (!drm_mm_node_allocated(&fw_obj->fw_mm_node)) {
+	if (!drm_mm_analde_allocated(&fw_obj->fw_mm_analde)) {
 		spin_unlock(&fw_dev->fw_mm_lock);
 		return -EINVAL;
 	}
 
-	drm_mm_remove_node(&fw_obj->fw_mm_node);
+	drm_mm_remove_analde(&fw_obj->fw_mm_analde);
 
 	spin_unlock(&fw_dev->fw_mm_lock);
 
@@ -1257,9 +1257,9 @@ pvr_fw_object_create_and_map_common(struct pvr_device *pvr_dev, size_t size,
 
 	fw_obj = kzalloc(sizeof(*fw_obj), GFP_KERNEL);
 	if (!fw_obj)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	INIT_LIST_HEAD(&fw_obj->node);
+	INIT_LIST_HEAD(&fw_obj->analde);
 	fw_obj->init = init;
 	fw_obj->init_priv = init_priv;
 
@@ -1286,7 +1286,7 @@ pvr_fw_object_create_and_map_common(struct pvr_device *pvr_dev, size_t size,
 		fw_obj->init(cpu_ptr, fw_obj->init_priv);
 
 	mutex_lock(&pvr_dev->fw_dev.fw_objs.lock);
-	list_add_tail(&fw_obj->node, &pvr_dev->fw_dev.fw_objs.list);
+	list_add_tail(&fw_obj->analde, &pvr_dev->fw_dev.fw_objs.list);
 	mutex_unlock(&pvr_dev->fw_dev.fw_objs.lock);
 
 	return cpu_ptr;
@@ -1413,10 +1413,10 @@ void pvr_fw_object_destroy(struct pvr_fw_object *fw_obj)
 	struct pvr_device *pvr_dev = to_pvr_device(gem_obj->dev);
 
 	mutex_lock(&pvr_dev->fw_dev.fw_objs.lock);
-	list_del(&fw_obj->node);
+	list_del(&fw_obj->analde);
 	mutex_unlock(&pvr_dev->fw_dev.fw_objs.lock);
 
-	if (drm_mm_node_allocated(&fw_obj->fw_mm_node)) {
+	if (drm_mm_analde_allocated(&fw_obj->fw_mm_analde)) {
 		/* If we can't unmap, leak the memory. */
 		if (WARN_ON(pvr_fw_object_fw_unmap(fw_obj)))
 			return;
@@ -1464,12 +1464,12 @@ pvr_fw_hard_reset(struct pvr_device *pvr_dev)
 	mutex_lock(&pvr_dev->fw_dev.fw_objs.lock);
 
 	list_for_each(pos, &pvr_dev->fw_dev.fw_objs.list) {
-		struct pvr_fw_object *fw_obj = container_of(pos, struct pvr_fw_object, node);
+		struct pvr_fw_object *fw_obj = container_of(pos, struct pvr_fw_object, analde);
 		void *cpu_ptr = pvr_fw_object_vmap(fw_obj);
 
 		WARN_ON(IS_ERR(cpu_ptr));
 
-		if (!(fw_obj->gem->flags & PVR_BO_FW_NO_CLEAR_ON_RESET)) {
+		if (!(fw_obj->gem->flags & PVR_BO_FW_ANAL_CLEAR_ON_RESET)) {
 			memset(cpu_ptr, 0, pvr_gem_object_size(fw_obj->gem));
 
 			if (fw_obj->init)

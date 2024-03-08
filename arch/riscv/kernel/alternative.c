@@ -83,7 +83,7 @@ static void riscv_alternative_fix_auipc_jalr(void *ptr, u32 auipc_insn,
 	riscv_insn_insert_utype_itype_imm(&call[0], &call[1], imm);
 
 	/* patch the call place again */
-	patch_text_nosync(ptr, call, sizeof(u32) * 2);
+	patch_text_analsync(ptr, call, sizeof(u32) * 2);
 }
 
 static void riscv_alternative_fix_jal(void *ptr, u32 jal_insn, int patch_offset)
@@ -98,7 +98,7 @@ static void riscv_alternative_fix_jal(void *ptr, u32 jal_insn, int patch_offset)
 	riscv_insn_insert_jtype_imm(&jal_insn, imm);
 
 	/* patch the call place again */
-	patch_text_nosync(ptr, &jal_insn, sizeof(u32));
+	patch_text_analsync(ptr, &jal_insn, sizeof(u32));
 }
 
 void riscv_alternative_fix_offsets(void *alt_ptr, unsigned int len,
@@ -146,7 +146,7 @@ void riscv_alternative_fix_offsets(void *alt_ptr, unsigned int len,
 
 /*
  * This is called very early in the boot process (directly after we run
- * a feature detect on the boot CPU). No need to worry about other CPUs
+ * a feature detect on the boot CPU). Anal need to worry about other CPUs
  * here.
  */
 static void __init_or_module _apply_alternatives(struct alt_entry *begin,
@@ -195,7 +195,7 @@ static void __init apply_vdso_alternatives(void) { }
 
 void __init apply_boot_alternatives(void)
 {
-	/* If called on non-boot cpu things could go wrong */
+	/* If called on analn-boot cpu things could go wrong */
 	WARN_ON(smp_processor_id() != 0);
 
 	_apply_alternatives((struct alt_entry *)__alt_start,
@@ -208,13 +208,13 @@ void __init apply_boot_alternatives(void)
 /*
  * apply_early_boot_alternatives() is called from setup_vm() with MMU-off.
  *
- * Following requirements should be honoured for it to work correctly:
+ * Following requirements should be hoanalured for it to work correctly:
  * 1) It should use PC-relative addressing for accessing kernel symbols.
  *    To achieve this we always use GCC cmodel=medany.
- * 2) The compiler instrumentation for FTRACE will not work for setup_vm()
+ * 2) The compiler instrumentation for FTRACE will analt work for setup_vm()
  *    so disable compiler instrumentation when FTRACE is enabled.
  *
- * Currently, the above requirements are honoured by using custom CFLAGS
+ * Currently, the above requirements are hoanalured by using custom CFLAGS
  * for alternative.o in kernel/Makefile.
  */
 void __init apply_early_boot_alternatives(void)

@@ -49,7 +49,7 @@
 # | 2001:db8::2/124       |
 # +-----------------------+
 #
-# LER1 and LER2 logically represent two different routers. However, no VRF is
+# LER1 and LER2 logically represent two different routers. However, anal VRF is
 # created for them, as they don't do any IP routing.
 
 ALL_TESTS="mpls_forward_eth"
@@ -183,7 +183,7 @@ tests_run
 
 tc_offload_check
 if [[ $? -ne 0 ]]; then
-	log_info "Could not test offloaded functionality"
+	log_info "Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	tests_run

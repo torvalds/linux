@@ -28,8 +28,8 @@ physdev_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	unsigned long ret;
 	const char *indev, *outdev;
 
-	/* Not a bridged IP packet or no info available yet:
-	 * LOCAL_OUT/mangle and LOCAL_OUT/nat don't know if
+	/* Analt a bridged IP packet or anal info available yet:
+	 * LOCAL_OUT/mangle and LOCAL_OUT/nat don't kanalw if
 	 * the destination device will be a bridge. */
 	if (!nf_bridge_info_exists(skb)) {
 		/* Return MATCH if the invert flags of the used options are on */

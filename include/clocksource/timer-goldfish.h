@@ -14,7 +14,7 @@
  * TIMER_ALARM_HIGH	 set high bits of next alarm
  * TIMER_IRQ_ENABLED	 enable alarm interrupt
  * TIMER_CLEAR_ALARM	 disarm an existing alarm
- * TIMER_ALARM_STATUS	 alarm status (running or not)
+ * TIMER_ALARM_STATUS	 alarm status (running or analt)
  * TIMER_CLEAR_INTERRUPT clear interrupt
  */
 #define TIMER_TIME_LOW		0x00

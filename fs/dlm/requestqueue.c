@@ -19,32 +19,32 @@
 struct rq_entry {
 	struct list_head list;
 	uint32_t recover_seq;
-	int nodeid;
+	int analdeid;
 	struct dlm_message request;
 };
 
 /*
  * Requests received while the lockspace is in recovery get added to the
  * request queue and processed when recovery is complete.  This happens when
- * the lockspace is suspended on some nodes before it is on others, or the
+ * the lockspace is suspended on some analdes before it is on others, or the
  * lockspace is enabled on some while still suspended on others.
  */
 
-void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid,
+void dlm_add_requestqueue(struct dlm_ls *ls, int analdeid,
 			  const struct dlm_message *ms)
 {
 	struct rq_entry *e;
 	int length = le16_to_cpu(ms->m_header.h_length) -
 		sizeof(struct dlm_message);
 
-	e = kmalloc(sizeof(struct rq_entry) + length, GFP_NOFS);
+	e = kmalloc(sizeof(struct rq_entry) + length, GFP_ANALFS);
 	if (!e) {
 		log_print("dlm_add_requestqueue: out of memory len %d", length);
 		return;
 	}
 
 	e->recover_seq = ls->ls_recover_seq & 0xFFFFFFFF;
-	e->nodeid = nodeid;
+	e->analdeid = analdeid;
 	memcpy(&e->request, ms, sizeof(*ms));
 	memcpy(&e->request.m_extra, ms->m_extra, length);
 
@@ -55,13 +55,13 @@ void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid,
 }
 
 /*
- * Called by dlm_recoverd to process normal messages saved while recovery was
- * happening.  Normal locking has been enabled before this is called.  dlm_recv
+ * Called by dlm_recoverd to process analrmal messages saved while recovery was
+ * happening.  Analrmal locking has been enabled before this is called.  dlm_recv
  * upon receiving a message, will wait for all saved messages to be drained
  * here before processing the message it got.  If a new dlm_ls_stop() arrives
  * while we're processing these saved messages, it may block trying to suspend
  * dlm_recv if dlm_recv is waiting for us in dlm_wait_requestqueue.  In that
- * case, we don't abort since locking_stopped is still 0.  If dlm_recv is not
+ * case, we don't abort since locking_stopped is still 0.  If dlm_recv is analt
  * waiting for us, then this processing may be aborted due to locking_stopped.
  */
 
@@ -87,9 +87,9 @@ int dlm_process_requestqueue(struct dlm_ls *ls)
 		log_limit(ls, "dlm_process_requestqueue msg %d from %d "
 			  "lkid %x remid %x result %d seq %u",
 			  le32_to_cpu(ms->m_type),
-			  le32_to_cpu(ms->m_header.h_nodeid),
+			  le32_to_cpu(ms->m_header.h_analdeid),
 			  le32_to_cpu(ms->m_lkid), le32_to_cpu(ms->m_remid),
-			  from_dlm_errno(le32_to_cpu(ms->m_result)),
+			  from_dlm_erranal(le32_to_cpu(ms->m_result)),
 			  e->recover_seq);
 
 		dlm_receive_message_saved(ls, &e->request, e->recover_seq);
@@ -115,7 +115,7 @@ int dlm_process_requestqueue(struct dlm_ls *ls)
 /*
  * After recovery is done, locking is resumed and dlm_recoverd takes all the
  * saved requests and processes them as they would have been by dlm_recv.  At
- * the same time, dlm_recv will start receiving new requests from remote nodes.
+ * the same time, dlm_recv will start receiving new requests from remote analdes.
  * We want to delay dlm_recv processing new requests until dlm_recoverd has
  * finished processing the old saved requests.  We don't check for locking
  * stopped here because dlm_ls_stop won't stop locking until it's suspended us
@@ -128,7 +128,7 @@ void dlm_wait_requestqueue(struct dlm_ls *ls)
 		   atomic_read(&ls->ls_requestqueue_cnt) == 0);
 }
 
-static int purge_request(struct dlm_ls *ls, struct dlm_message *ms, int nodeid)
+static int purge_request(struct dlm_ls *ls, struct dlm_message *ms, int analdeid)
 {
 	__le32 type = ms->m_type;
 
@@ -136,7 +136,7 @@ static int purge_request(struct dlm_ls *ls, struct dlm_message *ms, int nodeid)
 	if (!atomic_read(&ls->ls_count))
 		return 1;
 
-	if (dlm_is_removed(ls, nodeid))
+	if (dlm_is_removed(ls, analdeid))
 		return 1;
 
 	/* directory operations are always purged because the directory is
@@ -147,7 +147,7 @@ static int purge_request(struct dlm_ls *ls, struct dlm_message *ms, int nodeid)
 	    type == cpu_to_le32(DLM_MSG_LOOKUP_REPLY))
 		return 1;
 
-	if (!dlm_no_directory(ls))
+	if (!dlm_anal_directory(ls))
 		return 0;
 
 	return 1;
@@ -162,7 +162,7 @@ void dlm_purge_requestqueue(struct dlm_ls *ls)
 	list_for_each_entry_safe(e, safe, &ls->ls_requestqueue, list) {
 		ms =  &e->request;
 
-		if (purge_request(ls, ms, e->nodeid)) {
+		if (purge_request(ls, ms, e->analdeid)) {
 			list_del(&e->list);
 			if (atomic_dec_and_test(&ls->ls_requestqueue_cnt))
 				wake_up(&ls->ls_requestqueue_wait);

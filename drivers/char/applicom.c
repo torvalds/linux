@@ -11,9 +11,9 @@
 /* LoopCount n'etait pas initialise a 0.                                     */
 /* F LAFORSE 04/07/95 version V2.6.0 lecture bidon apres acces a une carte   */
 /*           pour liberer le bus                                             */
-/* J.PAGET 19/11/95 version V2.6.1 Nombre, addresse,irq n'est plus configure */
+/* J.PAGET 19/11/95 version V2.6.1 Analmbre, addresse,irq n'est plus configure */
 /* et passe en argument a acinit, mais est scrute sur le bus pour s'adapter  */
-/* au nombre de cartes presentes sur le bus. IOCL code 6 affichait V2.4.3    */
+/* au analmbre de cartes presentes sur le bus. IOCL code 6 affichait V2.4.3    */
 /* F.LAFORSE 28/11/95 creation de fichiers acXX.o avec les differentes       */
 /* addresses de base des cartes, IOCTL 6 plus complet                         */
 /* J.PAGET le 19/08/96 copie de la version V2.6 en V2.8.0 sans modification  */
@@ -26,14 +26,14 @@
 #include <linux/interrupt.h>
 #include <linux/sched/signal.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mutex.h>
 #include <linux/miscdevice.h>
 #include <linux/pci.h>
 #include <linux/wait.h>
 #include <linux/init.h>
 #include <linux/fs.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include <asm/io.h>
 #include <linux/uaccess.h>
@@ -41,7 +41,7 @@
 #include "applicom.h"
 
 
-/* NOTE: We use for loops with {write,read}b() instead of 
+/* ANALTE: We use for loops with {write,read}b() instead of 
    memcpy_{from,to}io throughout this driver. This is because
    the board doesn't correctly handle word accesses - only
    bytes. 
@@ -79,7 +79,7 @@ MODULE_DEVICE_TABLE(pci, applicom_pci_tbl);
 MODULE_AUTHOR("David Woodhouse & Applicom International");
 MODULE_DESCRIPTION("Driver for Applicom Profibus card");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(AC_MINOR);
+MODULE_ALIAS_MISCDEV(AC_MIANALR);
 
 static struct applicom_board {
 	unsigned long PhysIO;
@@ -111,14 +111,14 @@ static irqreturn_t ac_interrupt(int, void *);
 
 static const struct file_operations ac_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.read = ac_read,
 	.write = ac_write,
 	.unlocked_ioctl = ac_ioctl,
 };
 
 static struct miscdevice ac_miscdev = {
-	AC_MINOR,
+	AC_MIANALR,
 	"ac",
 	&ac_fops
 };
@@ -126,7 +126,7 @@ static struct miscdevice ac_miscdev = {
 static int dummy;	/* dev_id for request_irq() */
 
 static int ac_register_board(unsigned long physloc, void __iomem *loc, 
-		      unsigned char boardno)
+		      unsigned char boardanal)
 {
 	volatile unsigned char byte_reset_it;
 
@@ -136,31 +136,31 @@ static int ac_register_board(unsigned long physloc, void __iomem *loc,
 	   (readb(loc + CONF_END_TEST + 3) != 0xFF))
 		return 0;
 
-	if (!boardno)
-		boardno = readb(loc + NUMCARD_OWNER_TO_PC);
+	if (!boardanal)
+		boardanal = readb(loc + NUMCARD_OWNER_TO_PC);
 
-	if (!boardno || boardno > MAX_BOARD) {
+	if (!boardanal || boardanal > MAX_BOARD) {
 		printk(KERN_WARNING "Board #%d (at 0x%lx) is out of range (1 <= x <= %d).\n",
-		       boardno, physloc, MAX_BOARD);
+		       boardanal, physloc, MAX_BOARD);
 		return 0;
 	}
 
-	if (apbs[boardno - 1].RamIO) {
+	if (apbs[boardanal - 1].RamIO) {
 		printk(KERN_WARNING "Board #%d (at 0x%lx) conflicts with previous board #%d (at 0x%lx)\n", 
-		       boardno, physloc, boardno, apbs[boardno-1].PhysIO);
+		       boardanal, physloc, boardanal, apbs[boardanal-1].PhysIO);
 		return 0;
 	}
 
-	boardno--;
+	boardanal--;
 
-	apbs[boardno].PhysIO = physloc;
-	apbs[boardno].RamIO = loc;
-	init_waitqueue_head(&apbs[boardno].FlagSleepSend);
-	spin_lock_init(&apbs[boardno].mutex);
+	apbs[boardanal].PhysIO = physloc;
+	apbs[boardanal].RamIO = loc;
+	init_waitqueue_head(&apbs[boardanal].FlagSleepSend);
+	spin_lock_init(&apbs[boardanal].mutex);
 	byte_reset_it = readb(loc + RAM_IT_TO_PC);
 
 	numboards++;
-	return boardno + 1;
+	return boardanal + 1;
 }
 
 static void __exit applicom_exit(void)
@@ -186,11 +186,11 @@ static int __init applicom_init(void)
 	int i, numisa = 0;
 	struct pci_dev *dev = NULL;
 	void __iomem *RamIO;
-	int boardno, ret;
+	int boardanal, ret;
 
 	printk(KERN_INFO "Applicom driver: $Id: ac.c,v 1.30 2000/03/22 16:03:57 dwmw2 Exp $\n");
 
-	/* No mem and irq given - check for a PCI card */
+	/* Anal mem and irq given - check for a PCI card */
 
 	while ( (dev = pci_get_class(PCI_CLASS_OTHERS << 16, dev))) {
 
@@ -218,9 +218,9 @@ static int __init applicom_init(void)
 			   (unsigned long long)pci_resource_start(dev, 0),
 		       dev->irq);
 
-		boardno = ac_register_board(pci_resource_start(dev, 0),
+		boardanal = ac_register_board(pci_resource_start(dev, 0),
 				RamIO, 0);
-		if (!boardno) {
+		if (!boardanal) {
 			printk(KERN_INFO "ac.o: PCI Applicom device doesn't have correct signature.\n");
 			iounmap(RamIO);
 			pci_disable_device(dev);
@@ -228,34 +228,34 @@ static int __init applicom_init(void)
 		}
 
 		if (request_irq(dev->irq, &ac_interrupt, IRQF_SHARED, "Applicom PCI", &dummy)) {
-			printk(KERN_INFO "Could not allocate IRQ %d for PCI Applicom device.\n", dev->irq);
+			printk(KERN_INFO "Could analt allocate IRQ %d for PCI Applicom device.\n", dev->irq);
 			iounmap(RamIO);
 			pci_disable_device(dev);
-			apbs[boardno - 1].RamIO = NULL;
+			apbs[boardanal - 1].RamIO = NULL;
 			continue;
 		}
 
 		/* Enable interrupts. */
 
-		writeb(0x40, apbs[boardno - 1].RamIO + RAM_IT_FROM_PC);
+		writeb(0x40, apbs[boardanal - 1].RamIO + RAM_IT_FROM_PC);
 
-		apbs[boardno - 1].irq = dev->irq;
+		apbs[boardanal - 1].irq = dev->irq;
 	}
 
-	/* Finished with PCI cards. If none registered, 
-	 * and there was no mem/irq specified, exit */
+	/* Finished with PCI cards. If analne registered, 
+	 * and there was anal mem/irq specified, exit */
 
 	if (!mem || !irq) {
 		if (numboards)
 			goto fin;
 		else {
-			printk(KERN_INFO "ac.o: No PCI boards found.\n");
+			printk(KERN_INFO "ac.o: Anal PCI boards found.\n");
 			printk(KERN_INFO "ac.o: For an ISA board you must supply memory and irq parameters.\n");
 			return -ENXIO;
 		}
 	}
 
-	/* Now try the specified ISA cards */
+	/* Analw try the specified ISA cards */
 
 	for (i = 0; i < MAX_ISA_BOARD; i++) {
 		RamIO = ioremap(mem + (LEN_RAM_IO * i), LEN_RAM_IO);
@@ -265,31 +265,31 @@ static int __init applicom_init(void)
 			continue;
 		}
 
-		if (!(boardno = ac_register_board((unsigned long)mem+ (LEN_RAM_IO*i),
+		if (!(boardanal = ac_register_board((unsigned long)mem+ (LEN_RAM_IO*i),
 						  RamIO,i+1))) {
 			iounmap(RamIO);
 			continue;
 		}
 
-		printk(KERN_NOTICE "Applicom ISA card found at mem 0x%lx, irq %d\n", mem + (LEN_RAM_IO*i), irq);
+		printk(KERN_ANALTICE "Applicom ISA card found at mem 0x%lx, irq %d\n", mem + (LEN_RAM_IO*i), irq);
 
 		if (!numisa) {
 			if (request_irq(irq, &ac_interrupt, IRQF_SHARED, "Applicom ISA", &dummy)) {
-				printk(KERN_WARNING "Could not allocate IRQ %d for ISA Applicom device.\n", irq);
+				printk(KERN_WARNING "Could analt allocate IRQ %d for ISA Applicom device.\n", irq);
 				iounmap(RamIO);
-				apbs[boardno - 1].RamIO = NULL;
+				apbs[boardanal - 1].RamIO = NULL;
 			}
 			else
-				apbs[boardno - 1].irq = irq;
+				apbs[boardanal - 1].irq = irq;
 		}
 		else
-			apbs[boardno - 1].irq = 0;
+			apbs[boardanal - 1].irq = 0;
 
 		numisa++;
 	}
 
 	if (!numisa)
-		printk(KERN_WARNING "ac.o: No valid ISA Applicom boards found "
+		printk(KERN_WARNING "ac.o: Anal valid ISA Applicom boards found "
 				"at mem 0x%lx\n", mem);
 
  fin:
@@ -389,7 +389,7 @@ static ssize_t ac_write(struct file *file, const char __user *buf, size_t count,
 
 	if (IndexCard >= MAX_BOARD)
 		return -EINVAL;
-	IndexCard = array_index_nospec(IndexCard, MAX_BOARD);
+	IndexCard = array_index_analspec(IndexCard, MAX_BOARD);
 
 	if (!apbs[IndexCard].RamIO)
 		return -EINVAL;
@@ -452,14 +452,14 @@ static ssize_t ac_write(struct file *file, const char __user *buf, size_t count,
 		set_current_state(TASK_INTERRUPTIBLE);
 	}
 
-	/* We may not have actually slept */
+	/* We may analt have actually slept */
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&apbs[IndexCard].FlagSleepSend, &wait);
 
 	writeb(1, apbs[IndexCard].RamIO + DATA_FROM_PC_READY);
 
 	/* Which is best - lock down the pages with rawio and then
-	   copy directly, or use bounce buffers? For now we do the latter 
+	   copy directly, or use bounce buffers? For analw we do the latter 
 	   because it works with 2.2 still */
 	{
 		unsigned char *from = (unsigned char *) &tmpmailbox;
@@ -545,7 +545,7 @@ static ssize_t ac_read (struct file *filp, char __user *buf, size_t count, loff_
 #ifdef DEBUG
 	int loopcount=0;
 #endif
-	/* No need to ratelimit this. Only root can trigger it anyway */
+	/* Anal need to ratelimit this. Only root can trigger it anyway */
 	if (count != sizeof(struct st_ram_io) + sizeof(struct mailbox)) {
 		printk( KERN_WARNING "Hmmm. read() of Applicom card, length %zd != expected %zd\n",
 			count,sizeof(struct st_ram_io) + sizeof(struct mailbox));
@@ -597,13 +597,13 @@ static ssize_t ac_read (struct file *filp, char __user *buf, size_t count, loff_
 				return -EIO;
 			}
 			
-			/* Nothing for us. Try the next board */
+			/* Analthing for us. Try the next board */
 			Dummy = readb(apbs[i].RamIO + VERS);
 			spin_unlock_irqrestore(&apbs[i].mutex, flags);
 			
 		} /* per board */
 
-		/* OK - No boards had data for us. Sleep now */
+		/* OK - Anal boards had data for us. Sleep analw */
 
 		schedule();
 		remove_wait_queue(&FlagSleepRec, &wait);
@@ -678,7 +678,7 @@ static irqreturn_t ac_interrupt(int vec, void *dev_instance)
 			Dummy = readb(apbs[i].RamIO + VERS);
 
 			if(readb(apbs[i].RamIO + RAM_IT_TO_PC)) {
-				/* There's another int waiting on this card */
+				/* There's aanalther int waiting on this card */
 				spin_unlock(&apbs[i].mutex);
 				i--;
 			} else {
@@ -707,7 +707,7 @@ static long ac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct st_ram_io *adgl;
 	void __user *argp = (void __user *)arg;
 
-	/* In general, the device is only openable by root anyway, so we're not
+	/* In general, the device is only openable by root anyway, so we're analt
 	   particularly concerned that bogus ioctls can flood the console. */
 
 	adgl = memdup_user(argp, sizeof(struct st_ram_io));
@@ -719,7 +719,7 @@ static long ac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	 
 	if (cmd != 6 && IndexCard >= MAX_BOARD)
 		goto err;
-	IndexCard = array_index_nospec(IndexCard, MAX_BOARD);
+	IndexCard = array_index_analspec(IndexCard, MAX_BOARD);
 
 	if (cmd != 6 && !apbs[IndexCard].RamIO)
 		goto err;
@@ -833,7 +833,7 @@ static long ac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		break;
 	}
 	Dummy = readb(apbs[IndexCard].RamIO + VERS);

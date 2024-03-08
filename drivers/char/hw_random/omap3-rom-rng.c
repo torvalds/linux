@@ -1,7 +1,7 @@
 /*
  * omap3-rom-rng.c - RNG driver for TI OMAP3 CPU family
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  * Author: Juha Yrjola <juha.yrjola@solidboot.com>
  *
  * Copyright (C) 2013 Pali Rohár <pali@kernel.org>
@@ -44,7 +44,7 @@ static int omap3_rom_rng_read(struct hwrng *rng, void *data, size_t max, bool w)
 
 	r = pm_runtime_get_sync(ddata->dev);
 	if (r < 0) {
-		pm_runtime_put_noidle(ddata->dev);
+		pm_runtime_put_analidle(ddata->dev);
 
 		return r;
 	}
@@ -115,7 +115,7 @@ static int omap3_rom_rng_probe(struct platform_device *pdev)
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddata->dev = &pdev->dev;
 	ddata->ops.priv = (unsigned long)ddata;
@@ -125,7 +125,7 @@ static int omap3_rom_rng_probe(struct platform_device *pdev)
 	if (!ddata->ops.read) {
 		dev_err(&pdev->dev, "missing rom code handler\n");
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev_set_drvdata(ddata->dev, ddata);
 
@@ -154,7 +154,7 @@ static int omap3_rom_rng_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id omap_rom_rng_match[] = {
-	{ .compatible = "nokia,n900-rom-rng", .data = omap3_rom_rng_read, },
+	{ .compatible = "analkia,n900-rom-rng", .data = omap3_rom_rng_read, },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, omap_rom_rng_match);

@@ -40,7 +40,7 @@
 
 #define VADC_MODE_CTL				0x40
 #define VADC_OP_MODE_SHIFT			3
-#define VADC_OP_MODE_NORMAL			0
+#define VADC_OP_MODE_ANALRMAL			0
 #define VADC_AMUX_TRIM_EN			BIT(1)
 #define VADC_ADC_TRIM_EN			BIT(0)
 
@@ -107,7 +107,7 @@ struct vadc_channel_prop {
  * @iio_chans: array of IIO channels specification.
  * @are_ref_measured: are reference points measured.
  * @poll_eoc: use polling instead of interrupt.
- * @complete: VADC result notification after interrupt is received.
+ * @complete: VADC result analtification after interrupt is received.
  * @graph: store parameters for calibration.
  * @lock: ADC lock for access to the peripheral.
  */
@@ -126,14 +126,14 @@ struct vadc_priv {
 };
 
 static const struct u32_fract vadc_prescale_ratios[] = {
-	{ .numerator =  1, .denominator =  1 },
-	{ .numerator =  1, .denominator =  3 },
-	{ .numerator =  1, .denominator =  4 },
-	{ .numerator =  1, .denominator =  6 },
-	{ .numerator =  1, .denominator = 20 },
-	{ .numerator =  1, .denominator =  8 },
-	{ .numerator = 10, .denominator = 81 },
-	{ .numerator =  1, .denominator = 10 },
+	{ .numerator =  1, .deanalminator =  1 },
+	{ .numerator =  1, .deanalminator =  3 },
+	{ .numerator =  1, .deanalminator =  4 },
+	{ .numerator =  1, .deanalminator =  6 },
+	{ .numerator =  1, .deanalminator = 20 },
+	{ .numerator =  1, .deanalminator =  8 },
+	{ .numerator = 10, .deanalminator = 81 },
+	{ .numerator =  1, .deanalminator = 10 },
 };
 
 static int vadc_read(struct vadc_priv *vadc, u16 offset, u8 *data)
@@ -214,7 +214,7 @@ static int vadc_configure(struct vadc_priv *vadc,
 	int ret;
 
 	/* Mode selection */
-	mode_ctrl = (VADC_OP_MODE_NORMAL << VADC_OP_MODE_SHIFT) |
+	mode_ctrl = (VADC_OP_MODE_ANALRMAL << VADC_OP_MODE_SHIFT) |
 		     VADC_ADC_TRIM_EN | VADC_AMUX_TRIM_EN;
 	ret = vadc_write(vadc, VADC_MODE_CTL, mode_ctrl);
 	if (ret)
@@ -295,7 +295,7 @@ static struct vadc_channel_prop *vadc_get_channel(struct vadc_priv *vadc,
 		if (vadc->chan_props[i].channel == num)
 			return &vadc->chan_props[i];
 
-	dev_dbg(vadc->dev, "no such channel %02x\n", num);
+	dev_dbg(vadc->dev, "anal such channel %02x\n", num);
 
 	return NULL;
 }
@@ -407,13 +407,13 @@ err:
 	return ret;
 }
 
-static int vadc_prescaling_from_dt(u32 numerator, u32 denominator)
+static int vadc_prescaling_from_dt(u32 numerator, u32 deanalminator)
 {
 	unsigned int pre;
 
 	for (pre = 0; pre < ARRAY_SIZE(vadc_prescale_ratios); pre++)
 		if (vadc_prescale_ratios[pre].numerator == numerator &&
-		    vadc_prescale_ratios[pre].denominator == denominator)
+		    vadc_prescale_ratios[pre].deanalminator == deanalminator)
 			break;
 
 	if (pre == ARRAY_SIZE(vadc_prescale_ratios))
@@ -484,8 +484,8 @@ static int vadc_read_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static int vadc_fwnode_xlate(struct iio_dev *indio_dev,
-			     const struct fwnode_reference_args *iiospec)
+static int vadc_fwanalde_xlate(struct iio_dev *indio_dev,
+			     const struct fwanalde_reference_args *iiospec)
 {
 	struct vadc_priv *vadc = iio_priv(indio_dev);
 	unsigned int i;
@@ -509,7 +509,7 @@ static int vadc_read_label(struct iio_dev *indio_dev,
 static const struct iio_info vadc_info = {
 	.read_raw = vadc_read_raw,
 	.read_label = vadc_read_label,
-	.fwnode_xlate = vadc_fwnode_xlate,
+	.fwanalde_xlate = vadc_fwanalde_xlate,
 };
 
 struct vadc_channels {
@@ -529,7 +529,7 @@ struct vadc_channels {
 		.scale_fn_type = _scale					\
 	},								\
 
-#define VADC_NO_CHAN(_dname, _type, _mask, _pre)			\
+#define VADC_ANAL_CHAN(_dname, _type, _mask, _pre)			\
 	[VADC_##_dname] = {						\
 		.datasheet_name = __stringify(_dname),			\
 		.prescale_index = _pre,					\
@@ -547,8 +547,8 @@ struct vadc_channels {
 		  BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_PROCESSED),\
 		  _pre, _scale)						\
 
-#define VADC_CHAN_NO_SCALE(_dname, _pre)				\
-	VADC_NO_CHAN(_dname, IIO_VOLTAGE,				\
+#define VADC_CHAN_ANAL_SCALE(_dname, _pre)				\
+	VADC_ANAL_CHAN(_dname, IIO_VOLTAGE,				\
 		  BIT(IIO_CHAN_INFO_RAW),				\
 		  _pre)							\
 
@@ -560,115 +560,115 @@ struct vadc_channels {
 static const struct vadc_channels vadc_chans[] = {
 	VADC_CHAN_VOLT(USBIN, 4, SCALE_DEFAULT)
 	VADC_CHAN_VOLT(DCIN, 4, SCALE_DEFAULT)
-	VADC_CHAN_NO_SCALE(VCHG_SNS, 3)
-	VADC_CHAN_NO_SCALE(SPARE1_03, 1)
-	VADC_CHAN_NO_SCALE(USB_ID_MV, 1)
+	VADC_CHAN_ANAL_SCALE(VCHG_SNS, 3)
+	VADC_CHAN_ANAL_SCALE(SPARE1_03, 1)
+	VADC_CHAN_ANAL_SCALE(USB_ID_MV, 1)
 	VADC_CHAN_VOLT(VCOIN, 1, SCALE_DEFAULT)
-	VADC_CHAN_NO_SCALE(VBAT_SNS, 1)
+	VADC_CHAN_ANAL_SCALE(VBAT_SNS, 1)
 	VADC_CHAN_VOLT(VSYS, 1, SCALE_DEFAULT)
 	VADC_CHAN_TEMP(DIE_TEMP, 0, SCALE_PMIC_THERM)
 	VADC_CHAN_VOLT(REF_625MV, 0, SCALE_DEFAULT)
 	VADC_CHAN_VOLT(REF_1250MV, 0, SCALE_DEFAULT)
-	VADC_CHAN_NO_SCALE(CHG_TEMP, 0)
-	VADC_CHAN_NO_SCALE(SPARE1, 0)
+	VADC_CHAN_ANAL_SCALE(CHG_TEMP, 0)
+	VADC_CHAN_ANAL_SCALE(SPARE1, 0)
 	VADC_CHAN_TEMP(SPARE2, 0, SCALE_PMI_CHG_TEMP)
 	VADC_CHAN_VOLT(GND_REF, 0, SCALE_DEFAULT)
 	VADC_CHAN_VOLT(VDD_VADC, 0, SCALE_DEFAULT)
 
-	VADC_CHAN_NO_SCALE(P_MUX1_1_1, 0)
-	VADC_CHAN_NO_SCALE(P_MUX2_1_1, 0)
-	VADC_CHAN_NO_SCALE(P_MUX3_1_1, 0)
-	VADC_CHAN_NO_SCALE(P_MUX4_1_1, 0)
-	VADC_CHAN_NO_SCALE(P_MUX5_1_1, 0)
-	VADC_CHAN_NO_SCALE(P_MUX6_1_1, 0)
-	VADC_CHAN_NO_SCALE(P_MUX7_1_1, 0)
-	VADC_CHAN_NO_SCALE(P_MUX8_1_1, 0)
-	VADC_CHAN_NO_SCALE(P_MUX9_1_1, 0)
-	VADC_CHAN_NO_SCALE(P_MUX10_1_1, 0)
-	VADC_CHAN_NO_SCALE(P_MUX11_1_1, 0)
-	VADC_CHAN_NO_SCALE(P_MUX12_1_1, 0)
-	VADC_CHAN_NO_SCALE(P_MUX13_1_1, 0)
-	VADC_CHAN_NO_SCALE(P_MUX14_1_1, 0)
-	VADC_CHAN_NO_SCALE(P_MUX15_1_1, 0)
-	VADC_CHAN_NO_SCALE(P_MUX16_1_1, 0)
+	VADC_CHAN_ANAL_SCALE(P_MUX1_1_1, 0)
+	VADC_CHAN_ANAL_SCALE(P_MUX2_1_1, 0)
+	VADC_CHAN_ANAL_SCALE(P_MUX3_1_1, 0)
+	VADC_CHAN_ANAL_SCALE(P_MUX4_1_1, 0)
+	VADC_CHAN_ANAL_SCALE(P_MUX5_1_1, 0)
+	VADC_CHAN_ANAL_SCALE(P_MUX6_1_1, 0)
+	VADC_CHAN_ANAL_SCALE(P_MUX7_1_1, 0)
+	VADC_CHAN_ANAL_SCALE(P_MUX8_1_1, 0)
+	VADC_CHAN_ANAL_SCALE(P_MUX9_1_1, 0)
+	VADC_CHAN_ANAL_SCALE(P_MUX10_1_1, 0)
+	VADC_CHAN_ANAL_SCALE(P_MUX11_1_1, 0)
+	VADC_CHAN_ANAL_SCALE(P_MUX12_1_1, 0)
+	VADC_CHAN_ANAL_SCALE(P_MUX13_1_1, 0)
+	VADC_CHAN_ANAL_SCALE(P_MUX14_1_1, 0)
+	VADC_CHAN_ANAL_SCALE(P_MUX15_1_1, 0)
+	VADC_CHAN_ANAL_SCALE(P_MUX16_1_1, 0)
 
-	VADC_CHAN_NO_SCALE(P_MUX1_1_3, 1)
-	VADC_CHAN_NO_SCALE(P_MUX2_1_3, 1)
-	VADC_CHAN_NO_SCALE(P_MUX3_1_3, 1)
-	VADC_CHAN_NO_SCALE(P_MUX4_1_3, 1)
-	VADC_CHAN_NO_SCALE(P_MUX5_1_3, 1)
-	VADC_CHAN_NO_SCALE(P_MUX6_1_3, 1)
-	VADC_CHAN_NO_SCALE(P_MUX7_1_3, 1)
-	VADC_CHAN_NO_SCALE(P_MUX8_1_3, 1)
-	VADC_CHAN_NO_SCALE(P_MUX9_1_3, 1)
-	VADC_CHAN_NO_SCALE(P_MUX10_1_3, 1)
-	VADC_CHAN_NO_SCALE(P_MUX11_1_3, 1)
-	VADC_CHAN_NO_SCALE(P_MUX12_1_3, 1)
-	VADC_CHAN_NO_SCALE(P_MUX13_1_3, 1)
-	VADC_CHAN_NO_SCALE(P_MUX14_1_3, 1)
-	VADC_CHAN_NO_SCALE(P_MUX15_1_3, 1)
-	VADC_CHAN_NO_SCALE(P_MUX16_1_3, 1)
+	VADC_CHAN_ANAL_SCALE(P_MUX1_1_3, 1)
+	VADC_CHAN_ANAL_SCALE(P_MUX2_1_3, 1)
+	VADC_CHAN_ANAL_SCALE(P_MUX3_1_3, 1)
+	VADC_CHAN_ANAL_SCALE(P_MUX4_1_3, 1)
+	VADC_CHAN_ANAL_SCALE(P_MUX5_1_3, 1)
+	VADC_CHAN_ANAL_SCALE(P_MUX6_1_3, 1)
+	VADC_CHAN_ANAL_SCALE(P_MUX7_1_3, 1)
+	VADC_CHAN_ANAL_SCALE(P_MUX8_1_3, 1)
+	VADC_CHAN_ANAL_SCALE(P_MUX9_1_3, 1)
+	VADC_CHAN_ANAL_SCALE(P_MUX10_1_3, 1)
+	VADC_CHAN_ANAL_SCALE(P_MUX11_1_3, 1)
+	VADC_CHAN_ANAL_SCALE(P_MUX12_1_3, 1)
+	VADC_CHAN_ANAL_SCALE(P_MUX13_1_3, 1)
+	VADC_CHAN_ANAL_SCALE(P_MUX14_1_3, 1)
+	VADC_CHAN_ANAL_SCALE(P_MUX15_1_3, 1)
+	VADC_CHAN_ANAL_SCALE(P_MUX16_1_3, 1)
 
-	VADC_CHAN_NO_SCALE(LR_MUX1_BAT_THERM, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX1_BAT_THERM, 0)
 	VADC_CHAN_VOLT(LR_MUX2_BAT_ID, 0, SCALE_DEFAULT)
-	VADC_CHAN_NO_SCALE(LR_MUX3_XO_THERM, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX4_AMUX_THM1, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX5_AMUX_THM2, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX6_AMUX_THM3, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX7_HW_ID, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX8_AMUX_THM4, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX9_AMUX_THM5, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX10_USB_ID, 0)
-	VADC_CHAN_NO_SCALE(AMUX_PU1, 0)
-	VADC_CHAN_NO_SCALE(AMUX_PU2, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX3_BUF_XO_THERM, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX3_XO_THERM, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX4_AMUX_THM1, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX5_AMUX_THM2, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX6_AMUX_THM3, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX7_HW_ID, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX8_AMUX_THM4, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX9_AMUX_THM5, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX10_USB_ID, 0)
+	VADC_CHAN_ANAL_SCALE(AMUX_PU1, 0)
+	VADC_CHAN_ANAL_SCALE(AMUX_PU2, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX3_BUF_XO_THERM, 0)
 
-	VADC_CHAN_NO_SCALE(LR_MUX1_PU1_BAT_THERM, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX2_PU1_BAT_ID, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX3_PU1_XO_THERM, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX1_PU1_BAT_THERM, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX2_PU1_BAT_ID, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX3_PU1_XO_THERM, 0)
 	VADC_CHAN_TEMP(LR_MUX4_PU1_AMUX_THM1, 0, SCALE_THERM_100K_PULLUP)
 	VADC_CHAN_TEMP(LR_MUX5_PU1_AMUX_THM2, 0, SCALE_THERM_100K_PULLUP)
 	VADC_CHAN_TEMP(LR_MUX6_PU1_AMUX_THM3, 0, SCALE_THERM_100K_PULLUP)
-	VADC_CHAN_NO_SCALE(LR_MUX7_PU1_AMUX_HW_ID, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX7_PU1_AMUX_HW_ID, 0)
 	VADC_CHAN_TEMP(LR_MUX8_PU1_AMUX_THM4, 0, SCALE_THERM_100K_PULLUP)
 	VADC_CHAN_TEMP(LR_MUX9_PU1_AMUX_THM5, 0, SCALE_THERM_100K_PULLUP)
-	VADC_CHAN_NO_SCALE(LR_MUX10_PU1_AMUX_USB_ID, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX10_PU1_AMUX_USB_ID, 0)
 	VADC_CHAN_TEMP(LR_MUX3_BUF_PU1_XO_THERM, 0, SCALE_XOTHERM)
 
-	VADC_CHAN_NO_SCALE(LR_MUX1_PU2_BAT_THERM, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX2_PU2_BAT_ID, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX3_PU2_XO_THERM, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX4_PU2_AMUX_THM1, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX5_PU2_AMUX_THM2, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX6_PU2_AMUX_THM3, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX7_PU2_AMUX_HW_ID, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX8_PU2_AMUX_THM4, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX9_PU2_AMUX_THM5, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX10_PU2_AMUX_USB_ID, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX3_BUF_PU2_XO_THERM, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX1_PU2_BAT_THERM, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX2_PU2_BAT_ID, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX3_PU2_XO_THERM, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX4_PU2_AMUX_THM1, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX5_PU2_AMUX_THM2, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX6_PU2_AMUX_THM3, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX7_PU2_AMUX_HW_ID, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX8_PU2_AMUX_THM4, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX9_PU2_AMUX_THM5, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX10_PU2_AMUX_USB_ID, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX3_BUF_PU2_XO_THERM, 0)
 
-	VADC_CHAN_NO_SCALE(LR_MUX1_PU1_PU2_BAT_THERM, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX2_PU1_PU2_BAT_ID, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX3_PU1_PU2_XO_THERM, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX4_PU1_PU2_AMUX_THM1, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX5_PU1_PU2_AMUX_THM2, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX6_PU1_PU2_AMUX_THM3, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX7_PU1_PU2_AMUX_HW_ID, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX8_PU1_PU2_AMUX_THM4, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX9_PU1_PU2_AMUX_THM5, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX10_PU1_PU2_AMUX_USB_ID, 0)
-	VADC_CHAN_NO_SCALE(LR_MUX3_BUF_PU1_PU2_XO_THERM, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX1_PU1_PU2_BAT_THERM, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX2_PU1_PU2_BAT_ID, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX3_PU1_PU2_XO_THERM, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX4_PU1_PU2_AMUX_THM1, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX5_PU1_PU2_AMUX_THM2, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX6_PU1_PU2_AMUX_THM3, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX7_PU1_PU2_AMUX_HW_ID, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX8_PU1_PU2_AMUX_THM4, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX9_PU1_PU2_AMUX_THM5, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX10_PU1_PU2_AMUX_USB_ID, 0)
+	VADC_CHAN_ANAL_SCALE(LR_MUX3_BUF_PU1_PU2_XO_THERM, 0)
 };
 
 static int vadc_get_fw_channel_data(struct device *dev,
 				    struct vadc_channel_prop *prop,
-				    struct fwnode_handle *fwnode)
+				    struct fwanalde_handle *fwanalde)
 {
-	const char *name = fwnode_get_name(fwnode), *label;
+	const char *name = fwanalde_get_name(fwanalde), *label;
 	u32 chan, value, varr[2];
 	int ret;
 
-	ret = fwnode_property_read_u32(fwnode, "reg", &chan);
+	ret = fwanalde_property_read_u32(fwanalde, "reg", &chan);
 	if (ret) {
 		dev_err(dev, "invalid channel number %s\n", name);
 		return ret;
@@ -679,7 +679,7 @@ static int vadc_get_fw_channel_data(struct device *dev,
 		return -EINVAL;
 	}
 
-	ret = fwnode_property_read_string(fwnode, "label", &label);
+	ret = fwanalde_property_read_string(fwanalde, "label", &label);
 	if (ret)
 		label = vadc_chans[chan].datasheet_name;
 	prop->channel_name = label;
@@ -687,7 +687,7 @@ static int vadc_get_fw_channel_data(struct device *dev,
 	/* the channel has DT description */
 	prop->channel = chan;
 
-	ret = fwnode_property_read_u32(fwnode, "qcom,decimation", &value);
+	ret = fwanalde_property_read_u32(fwanalde, "qcom,decimation", &value);
 	if (!ret) {
 		ret = qcom_vadc_decimation_from_dt(value);
 		if (ret < 0) {
@@ -700,7 +700,7 @@ static int vadc_get_fw_channel_data(struct device *dev,
 		prop->decimation = VADC_DEF_DECIMATION;
 	}
 
-	ret = fwnode_property_read_u32_array(fwnode, "qcom,pre-scaling", varr, 2);
+	ret = fwanalde_property_read_u32_array(fwanalde, "qcom,pre-scaling", varr, 2);
 	if (!ret) {
 		ret = vadc_prescaling_from_dt(varr[0], varr[1]);
 		if (ret < 0) {
@@ -713,7 +713,7 @@ static int vadc_get_fw_channel_data(struct device *dev,
 		prop->prescale = vadc_chans[prop->channel].prescale_index;
 	}
 
-	ret = fwnode_property_read_u32(fwnode, "qcom,hw-settle-time", &value);
+	ret = fwanalde_property_read_u32(fwanalde, "qcom,hw-settle-time", &value);
 	if (!ret) {
 		ret = vadc_hw_settle_time_from_dt(value);
 		if (ret < 0) {
@@ -726,7 +726,7 @@ static int vadc_get_fw_channel_data(struct device *dev,
 		prop->hw_settle_time = VADC_DEF_HW_SETTLE_TIME;
 	}
 
-	ret = fwnode_property_read_u32(fwnode, "qcom,avg-samples", &value);
+	ret = fwanalde_property_read_u32(fwanalde, "qcom,avg-samples", &value);
 	if (!ret) {
 		ret = vadc_avg_samples_from_dt(value);
 		if (ret < 0) {
@@ -739,7 +739,7 @@ static int vadc_get_fw_channel_data(struct device *dev,
 		prop->avg_samples = VADC_DEF_AVG_SAMPLES;
 	}
 
-	if (fwnode_property_read_bool(fwnode, "qcom,ratiometric"))
+	if (fwanalde_property_read_bool(fwanalde, "qcom,ratiometric"))
 		prop->calibration = VADC_CALIB_RATIOMETRIC;
 	else
 		prop->calibration = VADC_CALIB_ABSOLUTE;
@@ -754,30 +754,30 @@ static int vadc_get_fw_data(struct vadc_priv *vadc)
 	const struct vadc_channels *vadc_chan;
 	struct iio_chan_spec *iio_chan;
 	struct vadc_channel_prop prop;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	unsigned int index = 0;
 	int ret;
 
-	vadc->nchannels = device_get_child_node_count(vadc->dev);
+	vadc->nchannels = device_get_child_analde_count(vadc->dev);
 	if (!vadc->nchannels)
 		return -EINVAL;
 
 	vadc->iio_chans = devm_kcalloc(vadc->dev, vadc->nchannels,
 				       sizeof(*vadc->iio_chans), GFP_KERNEL);
 	if (!vadc->iio_chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vadc->chan_props = devm_kcalloc(vadc->dev, vadc->nchannels,
 					sizeof(*vadc->chan_props), GFP_KERNEL);
 	if (!vadc->chan_props)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iio_chan = vadc->iio_chans;
 
-	device_for_each_child_node(vadc->dev, child) {
+	device_for_each_child_analde(vadc->dev, child) {
 		ret = vadc_get_fw_channel_data(vadc->dev, &prop, child);
 		if (ret) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ret;
 		}
 
@@ -799,22 +799,22 @@ static int vadc_get_fw_data(struct vadc_priv *vadc)
 	/* These channels are mandatory, they are used as reference points */
 	if (!vadc_get_channel(vadc, VADC_REF_1250MV)) {
 		dev_err(vadc->dev, "Please define 1.25V channel\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!vadc_get_channel(vadc, VADC_REF_625MV)) {
 		dev_err(vadc->dev, "Please define 0.625V channel\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!vadc_get_channel(vadc, VADC_VDD_VADC)) {
 		dev_err(vadc->dev, "Please define VDD channel\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!vadc_get_channel(vadc, VADC_GND_REF)) {
 		dev_err(vadc->dev, "Please define GND channel\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -839,8 +839,8 @@ static int vadc_check_revision(struct vadc_priv *vadc)
 		return ret;
 
 	if (val < VADC_PERPH_TYPE_ADC) {
-		dev_err(vadc->dev, "%d is not ADC\n", val);
-		return -ENODEV;
+		dev_err(vadc->dev, "%d is analt ADC\n", val);
+		return -EANALDEV;
 	}
 
 	ret = vadc_read(vadc, VADC_PERPH_SUBTYPE, &val);
@@ -848,8 +848,8 @@ static int vadc_check_revision(struct vadc_priv *vadc)
 		return ret;
 
 	if (val < VADC_PERPH_SUBTYPE_VADC) {
-		dev_err(vadc->dev, "%d is not VADC\n", val);
-		return -ENODEV;
+		dev_err(vadc->dev, "%d is analt VADC\n", val);
+		return -EANALDEV;
 	}
 
 	ret = vadc_read(vadc, VADC_REVISION2, &val);
@@ -857,8 +857,8 @@ static int vadc_check_revision(struct vadc_priv *vadc)
 		return ret;
 
 	if (val < VADC_REVISION2_SUPPORTED_VADC) {
-		dev_err(vadc->dev, "revision %d not supported\n", val);
-		return -ENODEV;
+		dev_err(vadc->dev, "revision %d analt supported\n", val);
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -875,7 +875,7 @@ static int vadc_probe(struct platform_device *pdev)
 
 	regmap = dev_get_regmap(dev->parent, NULL);
 	if (!regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = device_property_read_u32(dev, "reg", &reg);
 	if (ret < 0)
@@ -883,7 +883,7 @@ static int vadc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*vadc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vadc = iio_priv(indio_dev);
 	vadc->regmap = regmap;
@@ -950,5 +950,5 @@ module_platform_driver(vadc_driver);
 MODULE_ALIAS("platform:qcom-spmi-vadc");
 MODULE_DESCRIPTION("Qualcomm SPMI PMIC voltage ADC driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Stanimir Varbanov <svarbanov@mm-sol.com>");
-MODULE_AUTHOR("Ivan T. Ivanov <iivanov@mm-sol.com>");
+MODULE_AUTHOR("Stanimir Varbaanalv <svarbaanalv@mm-sol.com>");
+MODULE_AUTHOR("Ivan T. Ivaanalv <iivaanalv@mm-sol.com>");

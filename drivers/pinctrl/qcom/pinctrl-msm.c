@@ -43,7 +43,7 @@
  * @pctrl:          pinctrl handle.
  * @chip:           gpiochip handle.
  * @desc:           pin controller descriptor
- * @restart_nb:     restart notifier block.
+ * @restart_nb:     restart analtifier block.
  * @irq:            parent irq for the TLMM irq_chip.
  * @intr_target_use_scm: route irq to application cpu using scm calls
  * @lock:           Spinlock to protect register resources as well
@@ -63,7 +63,7 @@ struct msm_pinctrl {
 	struct pinctrl_dev *pctrl;
 	struct gpio_chip chip;
 	struct pinctrl_desc desc;
-	struct notifier_block restart_nb;
+	struct analtifier_block restart_nb;
 
 	int irq;
 
@@ -139,7 +139,7 @@ static const struct pinctrl_ops msm_pinctrl_ops = {
 	.get_groups_count	= msm_get_groups_count,
 	.get_group_name		= msm_get_group_name,
 	.get_group_pins		= msm_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_group,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -210,7 +210,7 @@ static int msm_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	 * the pin twiddle even when we're muxed away.
 	 *
 	 * When we see a pin with an interrupt setup on it then we'll disable
-	 * (mask) interrupts on it when we mux away until we mux back.  Note
+	 * (mask) interrupts on it when we mux away until we mux back.  Analte
 	 * that disable_irq() refcounts and interrupts are disabled as long as
 	 * at least one disable_irq() has been called.
 	 */
@@ -224,7 +224,7 @@ static int msm_pinmux_set_mux(struct pinctrl_dev *pctldev,
 
 	/*
 	 * If this is the first time muxing to GPIO and the direction is
-	 * output, make sure that we're not going to be glitching the pin
+	 * output, make sure that we're analt going to be glitching the pin
 	 * by reading the current state of the pin and setting it as the
 	 * output.
 	 */
@@ -259,7 +259,7 @@ static int msm_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	if (d && i == gpio_func &&
 	    test_and_clear_bit(d->hwirq, pctrl->disabled_for_mux)) {
 		/*
-		 * Clear interrupts detected while not GPIO since we only
+		 * Clear interrupts detected while analt GPIO since we only
 		 * masked things.
 		 */
 		if (d->parent_data && test_bit(d->hwirq, pctrl->skip_wake_irqs))
@@ -280,7 +280,7 @@ static int msm_pinmux_request_gpio(struct pinctrl_dev *pctldev,
 	struct msm_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	const struct msm_pingroup *g = &pctrl->soc->groups[offset];
 
-	/* No funcs? Probably ACPI so can't do anything here */
+	/* Anal funcs? Probably ACPI so can't do anything here */
 	if (!g->nfuncs)
 		return 0;
 
@@ -327,16 +327,16 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 		*mask = 1;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
 }
 
-#define MSM_NO_PULL		0
+#define MSM_ANAL_PULL		0
 #define MSM_PULL_DOWN		1
 #define MSM_KEEPER		2
-#define MSM_PULL_UP_NO_KEEPER	2
+#define MSM_PULL_UP_ANAL_KEEPER	2
 #define MSM_PULL_UP		3
 #define MSM_I2C_STRONG_PULL_UP	2200
 
@@ -374,7 +374,7 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 	/* Convert register value to pinconf value */
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
-		if (arg != MSM_NO_PULL)
+		if (arg != MSM_ANAL_PULL)
 			return -EINVAL;
 		arg = 1;
 		break;
@@ -384,16 +384,16 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 		arg = 1;
 		break;
 	case PIN_CONFIG_BIAS_BUS_HOLD:
-		if (pctrl->soc->pull_no_keeper)
-			return -ENOTSUPP;
+		if (pctrl->soc->pull_anal_keeper)
+			return -EANALTSUPP;
 
 		if (arg != MSM_KEEPER)
 			return -EINVAL;
 		arg = 1;
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
-		if (pctrl->soc->pull_no_keeper)
-			arg = arg == MSM_PULL_UP_NO_KEEPER;
+		if (pctrl->soc->pull_anal_keeper)
+			arg = arg == MSM_PULL_UP_ANAL_KEEPER;
 		else if (arg & BIT(g->i2c_pull_bit))
 			arg = MSM_I2C_STRONG_PULL_UP;
 		else
@@ -402,7 +402,7 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		break;
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-		/* Pin is not open-drain */
+		/* Pin is analt open-drain */
 		if (!arg)
 			return -EINVAL;
 		arg = 1;
@@ -411,7 +411,7 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 		arg = msm_regval_to_drive(arg);
 		break;
 	case PIN_CONFIG_OUTPUT:
-		/* Pin is not output */
+		/* Pin is analt output */
 		if (!arg)
 			return -EINVAL;
 
@@ -423,7 +423,7 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -460,20 +460,20 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 		/* Convert pinconf values to register values */
 		switch (param) {
 		case PIN_CONFIG_BIAS_DISABLE:
-			arg = MSM_NO_PULL;
+			arg = MSM_ANAL_PULL;
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 			arg = MSM_PULL_DOWN;
 			break;
 		case PIN_CONFIG_BIAS_BUS_HOLD:
-			if (pctrl->soc->pull_no_keeper)
-				return -ENOTSUPP;
+			if (pctrl->soc->pull_anal_keeper)
+				return -EANALTSUPP;
 
 			arg = MSM_KEEPER;
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
-			if (pctrl->soc->pull_no_keeper)
-				arg = MSM_PULL_UP_NO_KEEPER;
+			if (pctrl->soc->pull_anal_keeper)
+				arg = MSM_PULL_UP_ANAL_KEEPER;
 			else if (g->i2c_pull_bit && arg == MSM_I2C_STRONG_PULL_UP)
 				arg = BIT(g->i2c_pull_bit) | MSM_PULL_UP;
 			else
@@ -506,28 +506,28 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 		case PIN_CONFIG_INPUT_ENABLE:
 			/*
 			 * According to pinctrl documentation this should
-			 * actually be a no-op.
+			 * actually be a anal-op.
 			 *
-			 * The docs are explicit that "this does not affect
+			 * The docs are explicit that "this does analt affect
 			 * the pin's ability to drive output" but what we do
 			 * here is to modify the output enable bit. Thus, to
 			 * follow the docs we should remove that.
 			 *
 			 * The docs say that we should enable any relevant
-			 * input buffer, but TLMM there is no input buffer that
+			 * input buffer, but TLMM there is anal input buffer that
 			 * can be enabled/disabled. It's always on.
 			 *
 			 * The points above, explain why this _should_ be a
-			 * no-op. However, for historical reasons and to
+			 * anal-op. However, for historical reasons and to
 			 * support old device trees, we'll violate the docs
 			 * and still affect the output.
 			 *
-			 * It should further be noted that this old historical
+			 * It should further be analted that this old historical
 			 * behavior actually overrides arg to 0. That means
 			 * that "input-enable" and "input-disable" in a device
 			 * tree would _both_ disable the output. We'll
 			 * continue to preserve this behavior as well since
-			 * we have no other use for this attribute.
+			 * we have anal other use for this attribute.
 			 */
 			arg = 0;
 			break;
@@ -676,14 +676,14 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 	u32 ctl_reg, io_reg;
 
 	static const char * const pulls_keeper[] = {
-		"no pull",
+		"anal pull",
 		"pull down",
 		"keeper",
 		"pull up"
 	};
 
-	static const char * const pulls_no_keeper[] = {
-		"no pull",
+	static const char * const pulls_anal_keeper[] = {
+		"anal pull",
 		"pull down",
 		"pull up",
 	};
@@ -716,8 +716,8 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 	seq_printf(s, " %-8s: %-3s", g->grp.name, is_out ? "out" : "in");
 	seq_printf(s, " %-4s func%d", val ? "high" : "low", func);
 	seq_printf(s, " %dmA", msm_regval_to_drive(drive));
-	if (pctrl->soc->pull_no_keeper)
-		seq_printf(s, " %s", pulls_no_keeper[pull]);
+	if (pctrl->soc->pull_anal_keeper)
+		seq_printf(s, " %s", pulls_anal_keeper[pull]);
 	else
 		seq_printf(s, " %s", pulls_keeper[pull]);
 	seq_puts(s, "\n");
@@ -769,11 +769,11 @@ static int msm_gpio_init_valid_mask(struct gpio_chip *gc,
 
 	tmp = kmalloc_array(len, sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = device_property_read_u16_array(pctrl->dev, "gpios", tmp, len);
 	if (ret < 0) {
-		dev_err(pctrl->dev, "could not read list of GPIOs\n");
+		dev_err(pctrl->dev, "could analt read list of GPIOs\n");
 		goto out;
 	}
 
@@ -797,7 +797,7 @@ static const struct gpio_chip msm_gpio_template = {
 	.dbg_show         = msm_gpio_dbg_show,
 };
 
-/* For dual-edge interrupts in software, since some hardware has no
+/* For dual-edge interrupts in software, since some hardware has anal
  * such support:
  *
  * At appropriate moments, this function may be called to flip the polarity
@@ -808,7 +808,7 @@ static const struct gpio_chip msm_gpio_template = {
  * - the input value of the gpio doesn't change during the attempt.
  * If the value changes twice during the process, that would cause the first
  * test to fail but would force the second, as two opposite
- * transitions would cause a detection no matter the polarity setting.
+ * transitions would cause a detection anal matter the polarity setting.
  *
  * The do-loop tries to sledge-hammer closed the timing hole between
  * the initial value-read and the polarity-write - if the line value changes
@@ -865,7 +865,7 @@ static void msm_gpio_irq_mask(struct irq_data *d)
 	 * RAW_STATUS_EN bit causes the level or edge sensed on the line to be
 	 * latched into the interrupt status register when the hardware detects
 	 * an irq that it's configured for (either edge for edge type or level
-	 * for level type irq). The 'non-raw' status enable bit causes the
+	 * for level type irq). The 'analn-raw' status enable bit causes the
 	 * hardware to assert the summary interrupt to the CPU if the latched
 	 * status bit is set. There's a bug though, the edge detection logic
 	 * seems to have a problem where toggling the RAW_STATUS_EN bit may
@@ -952,7 +952,7 @@ static void msm_gpio_irq_disable(struct irq_data *d)
  * @d: The irq dta.
  *
  * This is much like msm_gpio_update_dual_edge_pos() but for IRQs that are
- * normally handled by the parent irqchip.  The logic here is slightly
+ * analrmally handled by the parent irqchip.  The logic here is slightly
  * different due to what's easy to do with our parent, but in principle it's
  * the same.
  */
@@ -1185,7 +1185,7 @@ static int msm_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 	struct msm_pinctrl *pctrl = gpiochip_get_data(gc);
 
 	/*
-	 * While they may not wake up when the TLMM is powered off,
+	 * While they may analt wake up when the TLMM is powered off,
 	 * some GPIOs would like to wakeup the system from suspend
 	 * when TLMM is powered on. To allow that, enable the GPIO
 	 * summary line to be wakeup capable at GIC.
@@ -1205,7 +1205,7 @@ static int msm_gpio_irq_reqres(struct irq_data *d)
 	int ret;
 
 	if (!try_module_get(gc->owner))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = msm_pinmux_request_gpio(pctrl->pctrl, NULL, d->hwirq);
 	if (ret)
@@ -1222,7 +1222,7 @@ static int msm_gpio_irq_reqres(struct irq_data *d)
 
 	/*
 	 * The disable / clear-enable workaround we do in msm_pinmux_set_mux()
-	 * only works if disable is not lazy since we only clear any bogus
+	 * only works if disable is analt lazy since we only clear any bogus
 	 * interrupt in hardware. Explicitly mark the interrupt as UNLAZY.
 	 */
 	irq_set_status_flags(d->irq, IRQ_DISABLE_UNLAZY);
@@ -1329,7 +1329,7 @@ static void msm_gpio_irq_handler(struct irq_desc *desc)
 		}
 	}
 
-	/* No interrupts were flagged */
+	/* Anal interrupts were flagged */
 	if (handled == 0)
 		handle_bad_irq(desc);
 
@@ -1346,7 +1346,7 @@ static int msm_gpio_wakeirq(struct gpio_chip *gc,
 	const struct msm_gpio_wakeirq_map *map;
 	int i;
 
-	*parent = GPIO_NO_WAKE_IRQ;
+	*parent = GPIO_ANAL_WAKE_IRQ;
 	*parent_type = IRQ_TYPE_EDGE_RISING;
 
 	for (i = 0; i < pctrl->soc->nwakeirq_map; i++) {
@@ -1394,7 +1394,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	struct gpio_irq_chip *girq;
 	int i, ret;
 	unsigned gpio, ngpio = pctrl->soc->ngpios;
-	struct device_node *np;
+	struct device_analde *np;
 	bool skip;
 
 	if (WARN_ON(ngpio > MAX_NR_GPIO))
@@ -1409,11 +1409,11 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	if (msm_gpio_needs_valid_mask(pctrl))
 		chip->init_valid_mask = msm_gpio_init_valid_mask;
 
-	np = of_parse_phandle(pctrl->dev->of_node, "wakeup-parent", 0);
+	np = of_parse_phandle(pctrl->dev->of_analde, "wakeup-parent", 0);
 	if (np) {
 		chip->irq.parent_domain = irq_find_matching_host(np,
 						 DOMAIN_BUS_WAKEUP);
-		of_node_put(np);
+		of_analde_put(np);
 		if (!chip->irq.parent_domain)
 			return -EPROBE_DEFER;
 		chip->irq.child_to_parent_hwirq = msm_gpio_wakeirq;
@@ -1431,13 +1431,13 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	girq = &chip->irq;
 	gpio_irq_chip_set_chip(girq, &msm_gpio_irq_chip);
 	girq->parent_handler = msm_gpio_irq_handler;
-	girq->fwnode = dev_fwnode(pctrl->dev);
+	girq->fwanalde = dev_fwanalde(pctrl->dev);
 	girq->num_parents = 1;
 	girq->parents = devm_kcalloc(pctrl->dev, 1, sizeof(*girq->parents),
 				     GFP_KERNEL);
 	if (!girq->parents)
-		return -ENOMEM;
-	girq->default_type = IRQ_TYPE_NONE;
+		return -EANALMEM;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_bad_irq;
 	girq->parents[0] = pctrl->irq;
 
@@ -1449,7 +1449,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 
 	/*
 	 * For DeviceTree-supported systems, the gpio core checks the
-	 * pinctrl's device node for the "gpio-ranges" property.
+	 * pinctrl's device analde for the "gpio-ranges" property.
 	 * If it is present, it takes care of adding the pin ranges
 	 * for the driver. In this case the driver can skip ahead.
 	 *
@@ -1457,7 +1457,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	 * files which don't set the "gpio-ranges" property or systems that
 	 * utilize ACPI the driver has to call gpiochip_add_pin_range().
 	 */
-	if (!of_property_read_bool(pctrl->dev->of_node, "gpio-ranges")) {
+	if (!of_property_read_bool(pctrl->dev->of_analde, "gpio-ranges")) {
 		ret = gpiochip_add_pin_range(&pctrl->chip,
 			dev_name(pctrl->dev), 0, 0, chip->ngpio);
 		if (ret) {
@@ -1470,14 +1470,14 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	return 0;
 }
 
-static int msm_ps_hold_restart(struct notifier_block *nb, unsigned long action,
+static int msm_ps_hold_restart(struct analtifier_block *nb, unsigned long action,
 			       void *data)
 {
 	struct msm_pinctrl *pctrl = container_of(nb, struct msm_pinctrl, restart_nb);
 
 	writel(0, pctrl->regs[0] + PS_HOLD_OFFSET);
 	mdelay(1000);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static struct msm_pinctrl *poweroff_pctrl;
@@ -1494,7 +1494,7 @@ static void msm_pinctrl_setup_pm_reset(struct msm_pinctrl *pctrl)
 
 	for (i = 0; i < pctrl->soc->nfunctions; i++)
 		if (!strcmp(func[i].name, "ps_hold")) {
-			pctrl->restart_nb.notifier_call = msm_ps_hold_restart;
+			pctrl->restart_nb.analtifier_call = msm_ps_hold_restart;
 			pctrl->restart_nb.priority = 128;
 			if (register_restart_handler(&pctrl->restart_nb))
 				dev_err(pctrl->dev,
@@ -1534,13 +1534,13 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 
 	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctrl->dev = &pdev->dev;
 	pctrl->soc = soc_data;
 	pctrl->chip = msm_gpio_template;
 	pctrl->intr_target_use_scm = of_device_is_compatible(
-					pctrl->dev->of_node,
+					pctrl->dev->of_analde,
 					"qcom,ipq8064-pinctrl");
 
 	raw_spin_lock_init(&pctrl->lock);
@@ -1603,5 +1603,5 @@ void msm_pinctrl_remove(struct platform_device *pdev)
 }
 EXPORT_SYMBOL(msm_pinctrl_remove);
 
-MODULE_DESCRIPTION("Qualcomm Technologies, Inc. TLMM driver");
+MODULE_DESCRIPTION("Qualcomm Techanallogies, Inc. TLMM driver");
 MODULE_LICENSE("GPL v2");

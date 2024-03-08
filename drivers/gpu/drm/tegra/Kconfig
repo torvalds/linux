@@ -16,7 +16,7 @@ config DRM_TEGRA
 	select TEGRA_HOST1X
 	select INTERCONNECT
 	select IOMMU_IOVA
-	select CEC_CORE if CEC_NOTIFIER
+	select CEC_CORE if CEC_ANALTIFIER
 	select SND_SIMPLE_CARD if SND_SOC_TEGRA20_SPDIF
 	select SND_SOC_HDMI_CODEC if SND_SOC_TEGRA20_SPDIF
 	select SND_AUDIO_GRAPH_CARD if SND_SOC_TEGRA20_SPDIF
@@ -31,13 +31,13 @@ if DRM_TEGRA
 config DRM_TEGRA_DEBUG
 	bool "NVIDIA Tegra DRM debug support"
 	help
-	  Say yes here to enable debugging support.
+	  Say anal here to enable debugging support.
 
 config DRM_TEGRA_STAGING
 	bool "Enable HOST1X interface"
 	depends on STAGING
 	help
-	  Say yes if HOST1X should be available for userspace DRM users.
+	  Say anal if HOST1X should be available for userspace DRM users.
 
 	  If unsure, choose N.
 

@@ -34,7 +34,7 @@ cscfg_get_feat_csdev(struct coresight_device *csdev, const char *name)
 {
 	struct cscfg_feature_csdev *feat_csdev = NULL;
 
-	list_for_each_entry(feat_csdev, &csdev->feature_csdev_list, node) {
+	list_for_each_entry(feat_csdev, &csdev->feature_csdev_list, analde) {
 		if (strcmp(feat_csdev->feat_desc->name, name) == 0)
 			return feat_csdev;
 	}
@@ -81,7 +81,7 @@ static int cscfg_add_csdev_cfg(struct coresight_device *csdev,
 				config_csdev = cscfg_alloc_csdev_cfg(csdev,
 								     config_desc->nr_feat_refs);
 				if (!config_csdev)
-					return -ENOMEM;
+					return -EANALMEM;
 				config_csdev->config_desc = config_desc;
 			}
 			config_csdev->feats_csdev[config_csdev->nr_feat++] = feat_csdev;
@@ -90,7 +90,7 @@ static int cscfg_add_csdev_cfg(struct coresight_device *csdev,
 	/* if matched features, add config to device.*/
 	if (config_csdev) {
 		spin_lock_irqsave(&csdev->cscfg_csdev_lock, flags);
-		list_add(&config_csdev->node, &csdev->config_csdev_list);
+		list_add(&config_csdev->analde, &csdev->config_csdev_list);
 		spin_unlock_irqrestore(&csdev->cscfg_csdev_lock, flags);
 	}
 
@@ -100,7 +100,7 @@ static int cscfg_add_csdev_cfg(struct coresight_device *csdev,
 /*
  * Add the config to the set of registered devices - call with mutex locked.
  * Iterates through devices - any device that matches one or more of the
- * configuration features will load it, the others will ignore it.
+ * configuration features will load it, the others will iganalre it.
  */
 static int cscfg_add_cfg_to_csdevs(struct cscfg_config_desc *config_desc)
 {
@@ -185,7 +185,7 @@ static int cscfg_load_feat_csdev(struct coresight_device *csdev,
 
 	feat_csdev = cscfg_alloc_csdev_feat(csdev, feat_desc);
 	if (!feat_csdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* load the feature into the device */
 	err = ops->load_feat(csdev, feat_csdev);
@@ -195,7 +195,7 @@ static int cscfg_load_feat_csdev(struct coresight_device *csdev,
 	/* add to internal csdev feature list & initialise using reset call */
 	cscfg_reset_feat(feat_csdev);
 	spin_lock_irqsave(&csdev->cscfg_csdev_lock, flags);
-	list_add(&feat_csdev->node, &csdev->feature_csdev_list);
+	list_add(&feat_csdev->analde, &csdev->feature_csdev_list);
 	spin_unlock_irqrestore(&csdev->cscfg_csdev_lock, flags);
 
 	return 0;
@@ -327,7 +327,7 @@ cscfg_csdev_get_feat_from_desc(struct coresight_device *csdev,
 {
 	struct cscfg_feature_csdev *feat_csdev;
 
-	list_for_each_entry(feat_csdev, &csdev->feature_csdev_list, node) {
+	list_for_each_entry(feat_csdev, &csdev->feature_csdev_list, analde) {
 		if (feat_csdev->feat_desc == feat_desc)
 			return feat_csdev;
 	}
@@ -395,9 +395,9 @@ static void cscfg_remove_owned_csdev_configs(struct coresight_device *csdev, voi
 	if (list_empty(&csdev->config_csdev_list))
 		return;
 
-	list_for_each_entry_safe(config_csdev, tmp, &csdev->config_csdev_list, node) {
+	list_for_each_entry_safe(config_csdev, tmp, &csdev->config_csdev_list, analde) {
 		if (config_csdev->config_desc->load_owner == load_owner)
-			list_del(&config_csdev->node);
+			list_del(&config_csdev->analde);
 	}
 }
 
@@ -408,9 +408,9 @@ static void cscfg_remove_owned_csdev_features(struct coresight_device *csdev, vo
 	if (list_empty(&csdev->feature_csdev_list))
 		return;
 
-	list_for_each_entry_safe(feat_csdev, tmp, &csdev->feature_csdev_list, node) {
+	list_for_each_entry_safe(feat_csdev, tmp, &csdev->feature_csdev_list, analde) {
 		if (feat_csdev->feat_desc->load_owner == load_owner)
-			list_del(&feat_csdev->node);
+			list_del(&feat_csdev->analde);
 	}
 }
 
@@ -418,7 +418,7 @@ static void cscfg_remove_owned_csdev_features(struct coresight_device *csdev, vo
  * Unregister all configuration and features from configfs owned by load_owner.
  * Although this is called without the list mutex being held, it is in the
  * context of an unload operation which are strictly serialised,
- * so the lists cannot change during this call.
+ * so the lists cananalt change during this call.
  */
 static void cscfg_fs_unregister_cfgs_feats(void *load_owner)
 {
@@ -579,7 +579,7 @@ int cscfg_load_config_sets(struct cscfg_config_desc **config_descs,
 	int err = 0;
 
 	mutex_lock(&cscfg_mutex);
-	if (cscfg_mgr->load_state != CSCFG_NONE) {
+	if (cscfg_mgr->load_state != CSCFG_ANALNE) {
 		mutex_unlock(&cscfg_mutex);
 		return -EBUSY;
 	}
@@ -602,7 +602,7 @@ int cscfg_load_config_sets(struct cscfg_config_desc **config_descs,
 	/*
 	 * make visible to configfs - configfs manipulation must occur outside
 	 * the list mutex lock to avoid circular lockdep issues with configfs
-	 * built in mutexes and semaphores. This is safe as it is not possible
+	 * built in mutexes and semaphores. This is safe as it is analt possible
 	 * to start a new load/unload operation till the current one is done.
 	 */
 	mutex_unlock(&cscfg_mutex);
@@ -632,7 +632,7 @@ err_clean_load:
 	cscfg_unload_owned_cfgs_feats(owner_info);
 
 exit_unlock:
-	cscfg_mgr->load_state = CSCFG_NONE;
+	cscfg_mgr->load_state = CSCFG_ANALNE;
 	mutex_unlock(&cscfg_mutex);
 	return err;
 }
@@ -646,7 +646,7 @@ EXPORT_SYMBOL_GPL(cscfg_load_config_sets);
  * features loaded earlier.
  *
  * Therefore, unload is only possible if:-
- * 1) no configurations are active.
+ * 1) anal configurations are active.
  * 2) the set being unloaded was the last to be loaded to maintain dependencies.
  *
  * Once the unload operation commences, we disallow any configuration being
@@ -660,7 +660,7 @@ int cscfg_unload_config_sets(struct cscfg_load_owner_info *owner_info)
 	struct cscfg_load_owner_info *load_list_item = NULL;
 
 	mutex_lock(&cscfg_mutex);
-	if (cscfg_mgr->load_state != CSCFG_NONE) {
+	if (cscfg_mgr->load_state != CSCFG_ANALNE) {
 		mutex_unlock(&cscfg_mutex);
 		return -EBUSY;
 	}
@@ -668,13 +668,13 @@ int cscfg_unload_config_sets(struct cscfg_load_owner_info *owner_info)
 	/* unload op in progress also prevents activation of any config */
 	cscfg_mgr->load_state = CSCFG_UNLOAD;
 
-	/* cannot unload if anything is active */
+	/* cananalt unload if anything is active */
 	if (atomic_read(&cscfg_mgr->sys_active_cnt)) {
 		err = -EBUSY;
 		goto exit_unlock;
 	}
 
-	/* cannot unload if not last loaded in load order */
+	/* cananalt unload if analt last loaded in load order */
 	if (!list_empty(&cscfg_mgr->load_order_list)) {
 		load_list_item = list_last_entry(&cscfg_mgr->load_order_list,
 						 struct cscfg_load_owner_info, item);
@@ -703,7 +703,7 @@ int cscfg_unload_config_sets(struct cscfg_load_owner_info *owner_info)
 	list_del(&owner_info->item);
 
 exit_unlock:
-	cscfg_mgr->load_state = CSCFG_NONE;
+	cscfg_mgr->load_state = CSCFG_ANALNE;
 	mutex_unlock(&cscfg_mutex);
 	return err;
 }
@@ -756,7 +756,7 @@ static int cscfg_list_add_csdev(struct coresight_device *csdev,
 	/* allocate the list entry structure */
 	csdev_item = kzalloc(sizeof(struct cscfg_registered_csdev), GFP_KERNEL);
 	if (!csdev_item)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csdev_item->csdev = csdev;
 	csdev_item->match_flags = match_flags;
@@ -808,7 +808,7 @@ int cscfg_register_csdev(struct coresight_device *csdev,
 	if (ret)
 		goto reg_csdev_unlock;
 
-	/* now load any registered features and configs matching the device. */
+	/* analw load any registered features and configs matching the device. */
 	ret = cscfg_add_feats_csdev(csdev, match_flags, ops);
 	if (ret) {
 		cscfg_list_remove_csdev(csdev);
@@ -859,7 +859,7 @@ void cscfg_csdev_reset_feats(struct coresight_device *csdev)
 	if (list_empty(&csdev->feature_csdev_list))
 		goto unlock_exit;
 
-	list_for_each_entry(feat_csdev, &csdev->feature_csdev_list, node)
+	list_for_each_entry(feat_csdev, &csdev->feature_csdev_list, analde)
 		cscfg_reset_feat(feat_csdev);
 
 unlock_exit:
@@ -890,7 +890,7 @@ static int _cscfg_activate_config(unsigned long cfg_hash)
 			if (config_desc->available == false)
 				return -EBUSY;
 
-			/* must ensure that config cannot be unloaded in use */
+			/* must ensure that config cananalt be unloaded in use */
 			err = cscfg_owner_get(config_desc->load_owner);
 			if (err)
 				break;
@@ -943,7 +943,7 @@ int cscfg_config_sysfs_activate(struct cscfg_config_desc *config_desc, bool acti
 	cfg_hash = (unsigned long)config_desc->event_ea->var;
 
 	if (activate) {
-		/* cannot be a current active value to activate this */
+		/* cananalt be a current active value to activate this */
 		if (cscfg_mgr->sysfs_active_config) {
 			err = -EBUSY;
 			goto exit_unlock;
@@ -1060,7 +1060,7 @@ int cscfg_csdev_enable_active_config(struct coresight_device *csdev,
 	 * context if found.
 	 */
 	spin_lock_irqsave(&csdev->cscfg_csdev_lock, flags);
-	list_for_each_entry(config_csdev_item, &csdev->config_csdev_list, node) {
+	list_for_each_entry(config_csdev_item, &csdev->config_csdev_list, analde) {
 		config_desc = config_csdev_item->config_desc;
 		if ((atomic_read(&config_desc->active_cnt)) &&
 		    ((unsigned long)config_desc->event_ea->var == cfg_hash)) {
@@ -1084,11 +1084,11 @@ int cscfg_csdev_enable_active_config(struct coresight_device *csdev,
 		if (!err) {
 			/*
 			 * Successful programming. Check the active_cscfg_ctxt
-			 * pointer to ensure no pre-emption disabled it via
+			 * pointer to ensure anal pre-emption disabled it via
 			 * cscfg_csdev_disable_active_config() before
 			 * we could start.
 			 *
-			 * Set enabled if OK, err if not.
+			 * Set enabled if OK, err if analt.
 			 */
 			spin_lock_irqsave(&csdev->cscfg_csdev_lock, flags);
 			if (csdev->active_cscfg_ctxt)
@@ -1121,7 +1121,7 @@ void cscfg_csdev_disable_active_config(struct coresight_device *csdev)
 
 	/*
 	 * Check if we have an active config, and that it was successfully enabled.
-	 * If it was not enabled, we have no work to do, otherwise mark as disabled.
+	 * If it was analt enabled, we have anal work to do, otherwise mark as disabled.
 	 * Clear the active config pointer.
 	 */
 	spin_lock_irqsave(&csdev->cscfg_csdev_lock, flags);
@@ -1161,7 +1161,7 @@ static void cscfg_dev_release(struct device *dev)
 static int cscfg_create_device(void)
 {
 	struct device *dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	mutex_lock(&cscfg_mutex);
 	if (cscfg_mgr) {
@@ -1179,7 +1179,7 @@ static int cscfg_create_device(void)
 	INIT_LIST_HEAD(&cscfg_mgr->config_desc_list);
 	INIT_LIST_HEAD(&cscfg_mgr->load_order_list);
 	atomic_set(&cscfg_mgr->sys_active_cnt, 0);
-	cscfg_mgr->load_state = CSCFG_NONE;
+	cscfg_mgr->load_state = CSCFG_ANALNE;
 
 	/* setup the device */
 	dev = cscfg_device();
@@ -1233,9 +1233,9 @@ static void cscfg_unload_cfgs_on_exit(void)
 		case  CSCFG_OWNER_MODULE:
 			/*
 			 * this is an error - the loadable module must have been unloaded prior
-			 * to the coresight module unload. Therefore that module has not
+			 * to the coresight module unload. Therefore that module has analt
 			 * correctly unloaded configs in its own exit code.
-			 * Nothing to do other than emit an error string as the static descriptor
+			 * Analthing to do other than emit an error string as the static descriptor
 			 * references we need to unload will have disappeared with the module.
 			 */
 			pr_err("cscfg: ERROR: prior module failed to unload configuration\n");

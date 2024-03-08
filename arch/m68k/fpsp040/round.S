@@ -1,7 +1,7 @@
 |
 |	round.sa 3.4 7/29/91
 |
-|	handle rounding and normalization tasks
+|	handle rounding and analrmalization tasks
 |
 |
 |
@@ -34,7 +34,7 @@
 |
 |	On return the value pointed to by a0 is correctly rounded,
 |	a0 is preserved and the g-r-s bits in d0 are cleared.
-|	The result is not typed - the tag field is invalid.  The
+|	The result is analt typed - the tag field is invalid.  The
 |	result is still in the internal extended format.
 |
 |	The INEX bit of USER_FPSR will be set if the rounded result was
@@ -110,7 +110,7 @@ rnd_zero:
 |	ROUND NEAREST
 |
 |	If (g=1), then add 1 to l and if (r=s=0), then clear l
-|	Note that this will round to even in case of a tie.
+|	Analte that this will round to even in case of a tie.
 |
 rnd_near:
 	swap	%d1			|set up d1 for round prec.
@@ -131,7 +131,7 @@ rnd_near:
 | only.  All registers except d0 are kept intact. d0 becomes an
 | updated guard,round,sticky in d0{31:29}
 |
-| Notes: the ext_grs uses the round PREC, and therefore has to swap d1
+| Analtes: the ext_grs uses the round PREC, and therefore has to swap d1
 |	 prior to usage, and needs to restore d1 to original.
 |
 ext_grs:
@@ -192,7 +192,7 @@ add_to_l:
 |
 add_sgl:
 	addl	#ad_1_sgl,LOCAL_HI(%a0)
-	bccs	scc_clr			|no mantissa overflow
+	bccs	scc_clr			|anal mantissa overflow
 	roxrw  LOCAL_HI(%a0)		|shift v-bit back in
 	roxrw  LOCAL_HI+2(%a0)		|shift v-bit back in
 	addw	#0x1,LOCAL_EX(%a0)	|and incr exponent
@@ -266,9 +266,9 @@ end_rnd:
 	rts
 
 |
-|	NORMALIZE
+|	ANALRMALIZE
 |
-| These routines (nrm_zero & nrm_set) normalize the unnorm.  This
+| These routines (nrm_zero & nrm_set) analrmalize the unanalrm.  This
 | is done by shifting the mantissa left while decrementing the
 | exponent.
 |
@@ -277,12 +277,12 @@ end_rnd:
 |
 | NRM_ZERO shifts and decrements until there is a 1 set in the integer
 | bit of the mantissa (msb in d1) unless this would mean the exponent
-| would go less than 0.  In that case the number becomes a denorm - the
-| exponent (d0) is set to 0 and the mantissa (d1 & d2) is not
-| normalized.
+| would go less than 0.  In that case the number becomes a deanalrm - the
+| exponent (d0) is set to 0 and the mantissa (d1 & d2) is analt
+| analrmalized.
 |
-| Note that both routines have been optimized (for the worst case) and
-| therefore do not have the easy to follow decrement/shift loop.
+| Analte that both routines have been optimized (for the worst case) and
+| therefore do analt have the easy to follow decrement/shift loop.
 |
 |	NRM_ZERO
 |
@@ -314,7 +314,7 @@ d0_less:
 
 	bfffo	%d1{#0:#32},%d3	|get the distance to the first 1
 |				;in ms mant
-	beqs	ms_clr		|branch if no bits were set
+	beqs	ms_clr		|branch if anal bits were set
 	cmpw	%d3,%d0		|of X>Y
 	bmis	greater		|then exp will go past 0 (neg) if
 |				;it is just shifted
@@ -326,7 +326,7 @@ greater:
 	lsll	%d0,%d2		|shift ls mant by count
 	lsll	%d0,%d1		|shift ms mant by count
 	movel	#32,%d5
-	subl	%d0,%d5		|make op a denorm by shifting bits
+	subl	%d0,%d5		|make op a deanalrm by shifting bits
 	lsrl	%d5,%d6		|by the number in the exp, then
 |				;set exp = 0.
 	orl	%d6,%d1		|shift the ls mant bits into the ms mant
@@ -339,7 +339,7 @@ greater:
 	rts
 ms_clr:
 	bfffo	%d2{#0:#32},%d3	|check if any bits set in ls mant
-	beqs	all_clr		|branch if none set
+	beqs	all_clr		|branch if analne set
 	addw	#32,%d3
 	cmpw	%d3,%d0		|if X>Y
 	bmis	greater		|then branch
@@ -347,7 +347,7 @@ ms_clr:
 	moveml	(%a7)+,%d2/%d3/%d5/%d6
 	rts
 all_clr:
-	movew	#0,LOCAL_EX(%a0)	|no mantissa bits set. Set exp = 0.
+	movew	#0,LOCAL_EX(%a0)	|anal mantissa bits set. Set exp = 0.
 	moveml	(%a7)+,%d2/%d3/%d5/%d6
 	rts
 |
@@ -380,7 +380,7 @@ nrm_set:
 
 |
 | We get here if ms mant was = 0, and we assume ls mant has bits
-| set (otherwise this would have been tagged a zero not a denorm).
+| set (otherwise this would have been tagged a zero analt a deanalrm).
 |
 lower:
 	movew	LOCAL_EX(%a0),%d0	|d0 has exponent
@@ -395,44 +395,44 @@ lower:
 	movel	(%a7)+,%d7
 	rts
 |
-|	denorm --- denormalize an intermediate result
+|	deanalrm --- deanalrmalize an intermediate result
 |
 |	Used by underflow.
 |
 | Input:
-|	a0	 points to the operand to be denormalized
+|	a0	 points to the operand to be deanalrmalized
 |		 (in the internal extended format)
 |
 |	d0:	 rounding precision
 | Output:
-|	a0	 points to the denormalized result
+|	a0	 points to the deanalrmalized result
 |		 (in the internal extended format)
 |
 |	d0	is guard,round,sticky
 |
 | d0 comes into this routine with the rounding precision. It
-| is then loaded with the denormalized exponent threshold for the
+| is then loaded with the deanalrmalized exponent threshold for the
 | rounding precision.
 |
 
-	.global	denorm
-denorm:
+	.global	deanalrm
+deanalrm:
 	btstb	#6,LOCAL_EX(%a0)	|check for exponents between $7fff-$4000
-	beqs	no_sgn_ext
+	beqs	anal_sgn_ext
 	bsetb	#7,LOCAL_EX(%a0)	|sign extend if it is so
-no_sgn_ext:
+anal_sgn_ext:
 
 	cmpib	#0,%d0		|if 0 then extended precision
-	bnes	not_ext		|else branch
+	bnes	analt_ext		|else branch
 
 	clrl	%d1		|load d1 with ext threshold
 	clrl	%d0		|clear the sticky flag
-	bsr	dnrm_lp		|denormalize the number
+	bsr	dnrm_lp		|deanalrmalize the number
 	tstb	%d1		|check for inex
-	beq	no_inex		|if clr, no inex
+	beq	anal_inex		|if clr, anal inex
 	bras	dnrm_inex	|if set, set inex
 
-not_ext:
+analt_ext:
 	cmpil	#1,%d0		|if 1 then single precision
 	beqs	load_sgl	|else must be 2, double prec
 
@@ -442,11 +442,11 @@ load_dbl:
 	subw	LOCAL_EX(%a0),%d0	|diff = threshold - exp
 	cmpw	#67,%d0		|if diff > 67 (mant + grs bits)
 	bpls	chk_stky	|then branch (all bits would be
-|				; shifted off in denorm routine)
+|				; shifted off in deanalrm routine)
 	clrl	%d0		|else clear the sticky flag
-	bsr	dnrm_lp		|denormalize the number
+	bsr	dnrm_lp		|deanalrmalize the number
 	tstb	%d1		|check flag
-	beqs	no_inex		|if clr, no inex
+	beqs	anal_inex		|if clr, anal inex
 	bras	dnrm_inex	|if set, set inex
 
 load_sgl:
@@ -455,11 +455,11 @@ load_sgl:
 	subw	LOCAL_EX(%a0),%d0	|diff = threshold - exp
 	cmpw	#67,%d0		|if diff > 67 (mant + grs bits)
 	bpls	chk_stky	|then branch (all bits would be
-|				; shifted off in denorm routine)
+|				; shifted off in deanalrm routine)
 	clrl	%d0		|else clear the sticky flag
-	bsr	dnrm_lp		|denormalize the number
+	bsr	dnrm_lp		|deanalrmalize the number
 	tstb	%d1		|check flag
-	beqs	no_inex		|if clr, no inex
+	beqs	anal_inex		|if clr, anal inex
 	bras	dnrm_inex	|if set, set inex
 
 chk_stky:
@@ -478,52 +478,52 @@ clr_mant:
 	rts
 dnrm_inex:
 	orl	#inx2a_mask,USER_FPSR(%a6) |set inex2/ainex
-no_inex:
+anal_inex:
 	rts
 
 |
-|	dnrm_lp --- normalize exponent/mantissa to specified threshold
+|	dnrm_lp --- analrmalize exponent/mantissa to specified threshold
 |
 | Input:
-|	a0		points to the operand to be denormalized
+|	a0		points to the operand to be deanalrmalized
 |	d0{31:29}	initial guard,round,sticky
-|	d1{15:0}	denormalization threshold
+|	d1{15:0}	deanalrmalization threshold
 | Output:
-|	a0		points to the denormalized operand
+|	a0		points to the deanalrmalized operand
 |	d0{31:29}	final guard,round,sticky
 |	d1.b		inexact flag:  all ones means inexact result
 |
 | The LOCAL_LO and LOCAL_GRS parts of the value are copied to FP_SCR2
 | so that bfext can be used to extract the new low part of the mantissa.
 | Dnrm_lp can be called with a0 pointing to ETEMP or WBTEMP and there
-| is no LOCAL_GRS scratch word following it on the fsave frame.
+| is anal LOCAL_GRS scratch word following it on the fsave frame.
 |
 	.global	dnrm_lp
 dnrm_lp:
 	movel	%d2,-(%sp)		|save d2 for temp use
 	btstb	#E3,E_BYTE(%a6)		|test for type E3 exception
-	beqs	not_E3			|not type E3 exception
+	beqs	analt_E3			|analt type E3 exception
 	bfextu	WBTEMP_GRS(%a6){#6:#3},%d2	|extract guard,round, sticky  bit
 	movel	#29,%d0
 	lsll	%d0,%d2			|shift g,r,s to their positions
 	movel	%d2,%d0
-not_E3:
+analt_E3:
 	movel	(%sp)+,%d2		|restore d2
 	movel	LOCAL_LO(%a0),FP_SCR2+LOCAL_LO(%a6)
 	movel	%d0,FP_SCR2+LOCAL_GRS(%a6)
-	movel	%d1,%d0			|copy the denorm threshold
+	movel	%d1,%d0			|copy the deanalrm threshold
 	subw	LOCAL_EX(%a0),%d1		|d1 = threshold - uns exponent
-	bles	no_lp			|d1 <= 0
+	bles	anal_lp			|d1 <= 0
 	cmpw	#32,%d1
 	blts	case_1			|0 = d1 < 32
 	cmpw	#64,%d1
 	blts	case_2			|32 <= d1 < 64
 	bra	case_3			|d1 >= 64
 |
-| No normalization necessary
+| Anal analrmalization necessary
 |
-no_lp:
-	clrb	%d1			|set no inex2 reported
+anal_lp:
+	clrb	%d1			|set anal inex2 reported
 	movel	FP_SCR2+LOCAL_GRS(%a6),%d0	|restore original g,r,s
 	rts
 |
@@ -531,7 +531,7 @@ no_lp:
 |
 case_1:
 	movel	%d2,-(%sp)
-	movew	%d0,LOCAL_EX(%a0)		|exponent = denorm threshold
+	movew	%d0,LOCAL_EX(%a0)		|exponent = deanalrm threshold
 	movel	#32,%d0
 	subw	%d1,%d0			|d0 = 32 - d1
 	bfextu	LOCAL_EX(%a0){%d0:#32},%d2
@@ -561,7 +561,7 @@ grs_clear:
 case_2:
 	movel	%d2,-(%sp)
 	movew	%d0,LOCAL_EX(%a0)		|unsigned exponent = threshold
-	subw	#32,%d1			|d1 now between 0 and 32
+	subw	#32,%d1			|d1 analw between 0 and 32
 	movel	#32,%d0
 	subw	%d1,%d0			|d0 = 32 - d1
 	bfextu	LOCAL_EX(%a0){%d0:#32},%d2
@@ -591,7 +591,7 @@ clear_grs:
 	movel	(%sp)+,%d2
 	rts
 |
-| d1 >= 64 Force the exponent to be the denorm threshold with the
+| d1 >= 64 Force the exponent to be the deanalrm threshold with the
 | correct sign.
 |
 case_3:

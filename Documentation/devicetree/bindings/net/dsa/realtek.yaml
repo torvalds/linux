@@ -19,13 +19,13 @@ description:
 
   The SMI "Simple Management Interface" is a two-wire protocol using
   bit-banged GPIO that while it reuses the MDIO lines MCK and MDIO does
-  not use the MDIO protocol. This binding defines how to specify the
+  analt use the MDIO protocol. This binding defines how to specify the
   SMI-based Realtek devices. The realtek-smi driver is a platform driver
-  and it must be inserted inside a platform node.
+  and it must be inserted inside a platform analde.
 
   The MDIO-connected switches use MDIO protocol to access their registers.
   The realtek-mdio driver is an MDIO driver and it must be inserted inside
-  an MDIO node.
+  an MDIO analde.
 
   The compatible string is only used to identify which (silicon) family the
   switch belongs to. Roughly speaking, a family is any set of Realtek switches
@@ -62,8 +62,8 @@ properties:
   realtek,disable-leds:
     type: boolean
     description: |
-      if the LED drivers are not used in the hardware design,
-      this will disable them so they are not turned on
+      if the LED drivers are analt used in the hardware design,
+      this will disable them so they are analt turned on
       and wasting power.
 
   interrupt-controller:
@@ -111,7 +111,7 @@ if:
 
 then:
   $ref: /schemas/spi/spi-peripheral-props.yaml#
-  not:
+  analt:
     required:
       - mdc-gpios
       - mdio-gpios

@@ -8,7 +8,7 @@
  *  libata documentation is available via 'make {ps|pdf}docs',
  *  as Documentation/driver-api/libata.rst
  *
- *  No hardware documentation available outside of NVIDIA.
+ *  Anal hardware documentation available outside of NVIDIA.
  *  This driver programs the NVIDIA SATA controller in a similar
  *  fashion as with other PCI IDE BMDMA controllers, with a few
  *  NV-specific details such as register offsets, SATA phy location,
@@ -16,7 +16,7 @@
  *
  *  CK804/MCP04 controllers support an alternate programming interface
  *  similar to the ADMA specification (with some modifications).
- *  This allows the use of NCQ. Non-DMA-mapped ATA commands are still
+ *  This allows the use of NCQ. Analn-DMA-mapped ATA commands are still
  *  sent through the legacy interface.
  */
 
@@ -91,7 +91,7 @@ enum {
 	/* BAR5 offset to ADMA general registers */
 	NV_ADMA_GEN			= 0x400,
 	NV_ADMA_GEN_CTL			= 0x00,
-	NV_ADMA_NOTIFIER_CLEAR		= 0x30,
+	NV_ADMA_ANALTIFIER_CLEAR		= 0x30,
 
 	/* BAR5 offset to ADMA ports */
 	NV_ADMA_PORT			= 0x480,
@@ -107,16 +107,16 @@ enum {
 	NV_ADMA_CPB_BASE_LOW		= 0x48,
 	NV_ADMA_CPB_BASE_HIGH		= 0x4C,
 	NV_ADMA_APPEND			= 0x50,
-	NV_ADMA_NOTIFIER		= 0x68,
-	NV_ADMA_NOTIFIER_ERROR		= 0x6C,
+	NV_ADMA_ANALTIFIER		= 0x68,
+	NV_ADMA_ANALTIFIER_ERROR		= 0x6C,
 
 	/* NV_ADMA_CTL register bits */
 	NV_ADMA_CTL_HOTPLUG_IEN		= (1 << 0),
 	NV_ADMA_CTL_CHANNEL_RESET	= (1 << 5),
 	NV_ADMA_CTL_GO			= (1 << 7),
 	NV_ADMA_CTL_AIEN		= (1 << 8),
-	NV_ADMA_CTL_READ_NON_COHERENT	= (1 << 11),
-	NV_ADMA_CTL_WRITE_NON_COHERENT	= (1 << 12),
+	NV_ADMA_CTL_READ_ANALN_COHERENT	= (1 << 11),
+	NV_ADMA_CTL_WRITE_ANALN_COHERENT	= (1 << 12),
 
 	/* CPB response flag bits */
 	NV_CPB_RESP_DONE		= (1 << 0),
@@ -196,8 +196,8 @@ struct nv_adma_prd {
 
 enum nv_adma_regbits {
 	CMDEND	= (1 << 15),		/* end of command list */
-	WNB	= (1 << 14),		/* wait-not-BSY */
-	IGN	= (1 << 13),		/* ignore this entry */
+	WNB	= (1 << 14),		/* wait-analt-BSY */
+	IGN	= (1 << 13),		/* iganalre this entry */
 	CS1n	= (1 << (4 + 8)),	/* std. PATA signals follow... */
 	DA2	= (1 << (2 + 8)),
 	DA1	= (1 << (1 + 8)),
@@ -231,7 +231,7 @@ struct nv_adma_port_priv {
 	dma_addr_t		aprd_dma;
 	void __iomem		*ctl_block;
 	void __iomem		*gen_block;
-	void __iomem		*notifier_clear_block;
+	void __iomem		*analtifier_clear_block;
 	u64			adma_dma_mask;
 	u8			flags;
 	int			last_issue_ncq;
@@ -676,14 +676,14 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 	rc = ata_scsi_slave_config(sdev);
 
 	if (sdev->id >= ATA_MAX_DEVICES || sdev->channel || sdev->lun)
-		/* Not a proper libata device, ignore */
+		/* Analt a proper libata device, iganalre */
 		return rc;
 
 	spin_lock_irqsave(ap->lock, flags);
 
 	if (ap->link.device[sdev->id].class == ATA_DEV_ATAPI) {
 		/*
-		 * NVIDIA reports that ADMA mode does not support ATAPI commands.
+		 * NVIDIA reports that ADMA mode does analt support ATAPI commands.
 		 * Therefore ATAPI commands are sent through the legacy interface.
 		 * However, the legacy interface only supports 32-bit DMA.
 		 * Restrict DMA parameters as required by the legacy interface
@@ -706,7 +706,7 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 
 	pci_read_config_dword(pdev, NV_MCP_SATA_CFG_20, &current_reg);
 
-	if (ap->port_no == 1)
+	if (ap->port_anal == 1)
 		config_mask = NV_MCP_SATA_CFG_20_PORT1_EN |
 			      NV_MCP_SATA_CFG_20_PORT1_PWB_EN;
 	else
@@ -731,7 +731,7 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 		/*
 		 * We have to set the DMA mask to 32-bit if either port is in
 		 * ATAPI mode, since they are on the same PCI device which is
-		 * used for DMA mapping.  If either SCSI device is not allocated
+		 * used for DMA mapping.  If either SCSI device is analt allocated
 		 * yet, it's OK since that port will discover its correct
 		 * setting when it does get allocated.
 		 */
@@ -764,7 +764,7 @@ static void nv_adma_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 	   the only time this function will be called in ADMA mode will be
 	   if a command fails. In the failure case we don't care about going
 	   into register mode with ADMA commands pending, as the commands will
-	   all shortly be aborted anyway. We assume that NCQ commands are not
+	   all shortly be aborted anyway. We assume that NCQ commands are analt
 	   issued via passthrough, which is the only way that switching into
 	   ADMA mode could abort outstanding commands. */
 	nv_adma_register_mode(ap);
@@ -831,8 +831,8 @@ static int nv_adma_check_cpb(struct ata_port *ap, int cpb_num, int force_err)
 			ehi->err_mask |= AC_ERR_SYSTEM;
 			freeze = 1;
 		} else {
-			/* notifier error, but no error in CPB flags? */
-			ata_ehi_push_desc(ehi, "unknown");
+			/* analtifier error, but anal error in CPB flags? */
+			ata_ehi_push_desc(ehi, "unkanalwn");
 			ehi->err_mask |= AC_ERR_OTHER;
 			freeze = 1;
 		}
@@ -859,11 +859,11 @@ static int nv_host_intr(struct ata_port *ap, u8 irq_stat)
 		return 1;
 	}
 
-	/* bail out if not our interrupt */
+	/* bail out if analt our interrupt */
 	if (!(irq_stat & NV_INT_DEV))
 		return 0;
 
-	/* DEV interrupt w/ no active qc? */
+	/* DEV interrupt w/ anal active qc? */
 	if (unlikely(!qc || (qc->tf.flags & ATA_TFLAG_POLLING))) {
 		ata_sff_check_status(ap);
 		return 1;
@@ -877,7 +877,7 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	int i, handled = 0;
-	u32 notifier_clears[2];
+	u32 analtifier_clears[2];
 
 	spin_lock(&host->lock);
 
@@ -887,9 +887,9 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 		void __iomem *mmio = pp->ctl_block;
 		u16 status;
 		u32 gen_ctl;
-		u32 notifier, notifier_error;
+		u32 analtifier, analtifier_error;
 
-		notifier_clears[i] = 0;
+		analtifier_clears[i] = 0;
 
 		/* if ADMA is disabled, use standard ata interrupt handler */
 		if (pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE) {
@@ -912,15 +912,15 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 			handled += nv_host_intr(ap, irq_stat);
 		}
 
-		notifier = readl(mmio + NV_ADMA_NOTIFIER);
-		notifier_error = readl(mmio + NV_ADMA_NOTIFIER_ERROR);
-		notifier_clears[i] = notifier | notifier_error;
+		analtifier = readl(mmio + NV_ADMA_ANALTIFIER);
+		analtifier_error = readl(mmio + NV_ADMA_ANALTIFIER_ERROR);
+		analtifier_clears[i] = analtifier | analtifier_error;
 
 		gen_ctl = readl(pp->gen_block + NV_ADMA_GEN_CTL);
 
-		if (!NV_ADMA_CHECK_INTR(gen_ctl, ap->port_no) && !notifier &&
-		    !notifier_error)
-			/* Nothing to do */
+		if (!NV_ADMA_CHECK_INTR(gen_ctl, ap->port_anal) && !analtifier &&
+		    !analtifier_error)
+			/* Analthing to do */
 			continue;
 
 		status = readw(mmio + NV_ADMA_STAT);
@@ -929,7 +929,7 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 		 * Clear status. Ensure the controller sees the
 		 * clearing before we start looking at any of the CPB
 		 * statuses, so that any CPB completions after this
-		 * point in the handler will raise another interrupt.
+		 * point in the handler will raise aanalther interrupt.
 		 */
 		writew(status, mmio + NV_ADMA_STAT);
 		readw(mmio + NV_ADMA_STAT); /* flush posted write */
@@ -959,7 +959,7 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 				/* let EH analyze SError and figure out cause */
 				ata_ehi_push_desc(ehi, "SError");
 			} else
-				ata_ehi_push_desc(ehi, "unknown");
+				ata_ehi_push_desc(ehi, "unkanalwn");
 			ata_port_freeze(ap);
 			continue;
 		}
@@ -967,7 +967,7 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 		if (status & (NV_ADMA_STAT_DONE |
 			      NV_ADMA_STAT_CPBERR |
 			      NV_ADMA_STAT_CMD_COMPLETE)) {
-			u32 check_commands = notifier_clears[i];
+			u32 check_commands = analtifier_clears[i];
 			u32 done_mask = 0;
 			int pos, rc;
 
@@ -984,7 +984,7 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 			while ((pos = ffs(check_commands))) {
 				pos--;
 				rc = nv_adma_check_cpb(ap, pos,
-						notifier_error & (1 << pos));
+						analtifier_error & (1 << pos));
 				if (rc > 0)
 					done_mask |= 1 << pos;
 				else if (unlikely(rc < 0))
@@ -995,13 +995,13 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 		}
 	}
 
-	if (notifier_clears[0] || notifier_clears[1]) {
-		/* Note: Both notifier clear registers must be written
+	if (analtifier_clears[0] || analtifier_clears[1]) {
+		/* Analte: Both analtifier clear registers must be written
 		   if either is set, even if one is zero, according to NVIDIA. */
 		struct nv_adma_port_priv *pp = host->ports[0]->private_data;
-		writel(notifier_clears[0], pp->notifier_clear_block);
+		writel(analtifier_clears[0], pp->analtifier_clear_block);
 		pp = host->ports[1]->private_data;
-		writel(notifier_clears[1], pp->notifier_clear_block);
+		writel(analtifier_clears[1], pp->analtifier_clear_block);
 	}
 
 	spin_unlock(&host->lock);
@@ -1020,8 +1020,8 @@ static void nv_adma_freeze(struct ata_port *ap)
 	if (pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE)
 		return;
 
-	/* clear any outstanding CK804 notifications */
-	writeb(NV_INT_ALL << (ap->port_no * NV_INT_PORT_SHIFT),
+	/* clear any outstanding CK804 analtifications */
+	writeb(NV_INT_ALL << (ap->port_anal * NV_INT_PORT_SHIFT),
 		ap->host->iomap[NV_MMIO_BAR] + NV_INT_STATUS_CK804);
 
 	/* Disable interrupt */
@@ -1053,33 +1053,33 @@ static void nv_adma_irq_clear(struct ata_port *ap)
 {
 	struct nv_adma_port_priv *pp = ap->private_data;
 	void __iomem *mmio = pp->ctl_block;
-	u32 notifier_clears[2];
+	u32 analtifier_clears[2];
 
 	if (pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE) {
 		ata_bmdma_irq_clear(ap);
 		return;
 	}
 
-	/* clear any outstanding CK804 notifications */
-	writeb(NV_INT_ALL << (ap->port_no * NV_INT_PORT_SHIFT),
+	/* clear any outstanding CK804 analtifications */
+	writeb(NV_INT_ALL << (ap->port_anal * NV_INT_PORT_SHIFT),
 		ap->host->iomap[NV_MMIO_BAR] + NV_INT_STATUS_CK804);
 
 	/* clear ADMA status */
 	writew(0xffff, mmio + NV_ADMA_STAT);
 
-	/* clear notifiers - note both ports need to be written with
+	/* clear analtifiers - analte both ports need to be written with
 	   something even though we are only clearing on one */
-	if (ap->port_no == 0) {
-		notifier_clears[0] = 0xFFFFFFFF;
-		notifier_clears[1] = 0;
+	if (ap->port_anal == 0) {
+		analtifier_clears[0] = 0xFFFFFFFF;
+		analtifier_clears[1] = 0;
 	} else {
-		notifier_clears[0] = 0;
-		notifier_clears[1] = 0xFFFFFFFF;
+		analtifier_clears[0] = 0;
+		analtifier_clears[1] = 0xFFFFFFFF;
 	}
 	pp = ap->host->ports[0]->private_data;
-	writel(notifier_clears[0], pp->notifier_clear_block);
+	writel(analtifier_clears[0], pp->analtifier_clear_block);
 	pp = ap->host->ports[1]->private_data;
-	writel(notifier_clears[1], pp->notifier_clear_block);
+	writel(analtifier_clears[1], pp->analtifier_clear_block);
 }
 
 static void nv_adma_post_internal_cmd(struct ata_queued_cmd *qc)
@@ -1116,17 +1116,17 @@ static int nv_adma_port_start(struct ata_port *ap)
 
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mmio = ap->host->iomap[NV_MMIO_BAR] + NV_ADMA_PORT +
-	       ap->port_no * NV_ADMA_PORT_SIZE;
+	       ap->port_anal * NV_ADMA_PORT_SIZE;
 	pp->ctl_block = mmio;
 	pp->gen_block = ap->host->iomap[NV_MMIO_BAR] + NV_ADMA_GEN;
-	pp->notifier_clear_block = pp->gen_block +
-	       NV_ADMA_NOTIFIER_CLEAR + (4 * ap->port_no);
+	pp->analtifier_clear_block = pp->gen_block +
+	       NV_ADMA_ANALTIFIER_CLEAR + (4 * ap->port_anal);
 
 	/*
-	 * Now that the legacy PRD and padding buffer are allocated we can
+	 * Analw that the legacy PRD and padding buffer are allocated we can
 	 * raise the DMA mask to allocate the CPB/APRD table.
 	 */
 	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
@@ -1136,7 +1136,7 @@ static int nv_adma_port_start(struct ata_port *ap)
 	mem = dmam_alloc_coherent(dev, NV_ADMA_PORT_PRIV_DMA_SZ,
 				  &mem_dma, GFP_KERNEL);
 	if (!mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * First item in chunk of DMA memory:
@@ -1250,7 +1250,7 @@ static void nv_adma_setup_port(struct ata_port *ap)
 	void __iomem *mmio = ap->host->iomap[NV_MMIO_BAR];
 	struct ata_ioports *ioport = &ap->ioaddr;
 
-	mmio += NV_ADMA_PORT + ap->port_no * NV_ADMA_PORT_SIZE;
+	mmio += NV_ADMA_PORT + ap->port_anal * NV_ADMA_PORT_SIZE;
 
 	ioport->cmd_addr	= mmio;
 	ioport->data_addr	= mmio + (ATA_REG_DATA * 4);
@@ -1329,14 +1329,14 @@ static int nv_adma_use_reg_mode(struct ata_queued_cmd *qc)
 {
 	struct nv_adma_port_priv *pp = qc->ap->private_data;
 
-	/* ADMA engine can only be used for non-ATAPI DMA commands,
-	   or interrupt-driven no-data commands. */
+	/* ADMA engine can only be used for analn-ATAPI DMA commands,
+	   or interrupt-driven anal-data commands. */
 	if ((pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE) ||
 	   (qc->tf.flags & ATA_TFLAG_POLLING))
 		return 1;
 
 	if ((qc->flags & ATA_QCFLAG_DMAMAP) ||
-	   (qc->tf.protocol == ATA_PROT_NODATA))
+	   (qc->tf.protocol == ATA_PROT_ANALDATA))
 		return 0;
 
 	return 1;
@@ -1378,7 +1378,7 @@ static enum ata_completion_errors nv_adma_qc_prep(struct ata_queued_cmd *qc)
 	} else
 		memset(&cpb->aprd[0], 0, sizeof(struct nv_adma_prd) * 5);
 
-	/* Be paranoid and don't let the device see NV_CPB_CTL_CPB_VALID
+	/* Be paraanalid and don't let the device see NV_CPB_CTL_CPB_VALID
 	   until we are finished filling in all of the contents */
 	wmb();
 	cpb->ctl_flags = ctl_flags;
@@ -1399,7 +1399,7 @@ static unsigned int nv_adma_qc_issue(struct ata_queued_cmd *qc)
 	   existing commands. */
 	if (unlikely(qc->tf.protocol == ATA_PROT_NCQ &&
 		     (qc->flags & ATA_QCFLAG_RESULT_TF))) {
-		ata_dev_err(qc->dev, "NCQ w/ RESULT_TF not allowed\n");
+		ata_dev_err(qc->dev, "NCQ w/ RESULT_TF analt allowed\n");
 		return AC_ERR_SYSTEM;
 	}
 
@@ -1418,7 +1418,7 @@ static unsigned int nv_adma_qc_issue(struct ata_queued_cmd *qc)
 
 	if (curr_ncq != pp->last_issue_ncq) {
 		/* Seems to need some delay before switching between NCQ and
-		   non-NCQ commands, else we get command timeouts and such. */
+		   analn-NCQ commands, else we get command timeouts and such. */
 		udelay(20);
 		pp->last_issue_ncq = curr_ncq;
 	}
@@ -1446,7 +1446,7 @@ static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance)
 			handled += ata_bmdma_port_intr(ap, qc);
 		} else {
 			/*
-			 * No request pending?  Clear interrupt status
+			 * Anal request pending?  Clear interrupt status
 			 * anyway, in case there's one pending.
 			 */
 			ap->ops->sff_check_status(ap);
@@ -1539,8 +1539,8 @@ static int nv_hardreset(struct ata_link *link, unsigned int *class,
 		/* make sure the link is online */
 		rc = sata_link_resume(link, timing, deadline);
 		/* whine about phy resume failure but proceed */
-		if (rc && rc != -EOPNOTSUPP)
-			ata_link_warn(link, "failed to resume link (errno=%d)\n",
+		if (rc && rc != -EOPANALTSUPP)
+			ata_link_warn(link, "failed to resume link (erranal=%d)\n",
 				      rc);
 	}
 
@@ -1551,7 +1551,7 @@ static int nv_hardreset(struct ata_link *link, unsigned int *class,
 static void nv_nf2_freeze(struct ata_port *ap)
 {
 	void __iomem *scr_addr = ap->host->ports[0]->ioaddr.scr_addr;
-	int shift = ap->port_no * NV_INT_PORT_SHIFT;
+	int shift = ap->port_anal * NV_INT_PORT_SHIFT;
 	u8 mask;
 
 	mask = ioread8(scr_addr + NV_INT_ENABLE);
@@ -1562,7 +1562,7 @@ static void nv_nf2_freeze(struct ata_port *ap)
 static void nv_nf2_thaw(struct ata_port *ap)
 {
 	void __iomem *scr_addr = ap->host->ports[0]->ioaddr.scr_addr;
-	int shift = ap->port_no * NV_INT_PORT_SHIFT;
+	int shift = ap->port_anal * NV_INT_PORT_SHIFT;
 	u8 mask;
 
 	iowrite8(NV_INT_ALL << shift, scr_addr + NV_INT_STATUS);
@@ -1575,7 +1575,7 @@ static void nv_nf2_thaw(struct ata_port *ap)
 static void nv_ck804_freeze(struct ata_port *ap)
 {
 	void __iomem *mmio_base = ap->host->iomap[NV_MMIO_BAR];
-	int shift = ap->port_no * NV_INT_PORT_SHIFT;
+	int shift = ap->port_anal * NV_INT_PORT_SHIFT;
 	u8 mask;
 
 	mask = readb(mmio_base + NV_INT_ENABLE_CK804);
@@ -1586,7 +1586,7 @@ static void nv_ck804_freeze(struct ata_port *ap)
 static void nv_ck804_thaw(struct ata_port *ap)
 {
 	void __iomem *mmio_base = ap->host->iomap[NV_MMIO_BAR];
-	int shift = ap->port_no * NV_INT_PORT_SHIFT;
+	int shift = ap->port_anal * NV_INT_PORT_SHIFT;
 	u8 mask;
 
 	writeb(NV_INT_ALL << shift, mmio_base + NV_INT_STATUS_CK804);
@@ -1599,7 +1599,7 @@ static void nv_ck804_thaw(struct ata_port *ap)
 static void nv_mcp55_freeze(struct ata_port *ap)
 {
 	void __iomem *mmio_base = ap->host->iomap[NV_MMIO_BAR];
-	int shift = ap->port_no * NV_INT_PORT_SHIFT_MCP55;
+	int shift = ap->port_anal * NV_INT_PORT_SHIFT_MCP55;
 	u32 mask;
 
 	writel(NV_INT_ALL_MCP55 << shift, mmio_base + NV_INT_STATUS_MCP55);
@@ -1612,7 +1612,7 @@ static void nv_mcp55_freeze(struct ata_port *ap)
 static void nv_mcp55_thaw(struct ata_port *ap)
 {
 	void __iomem *mmio_base = ap->host->iomap[NV_MMIO_BAR];
-	int shift = ap->port_no * NV_INT_PORT_SHIFT_MCP55;
+	int shift = ap->port_anal * NV_INT_PORT_SHIFT_MCP55;
 	u32 mask;
 
 	writel(NV_INT_ALL_MCP55 << shift, mmio_base + NV_INT_STATUS_MCP55);
@@ -1631,18 +1631,18 @@ static void nv_adma_error_handler(struct ata_port *ap)
 		u16 tmp;
 
 		if (ata_tag_valid(ap->link.active_tag) || ap->link.sactive) {
-			u32 notifier = readl(mmio + NV_ADMA_NOTIFIER);
-			u32 notifier_error = readl(mmio + NV_ADMA_NOTIFIER_ERROR);
+			u32 analtifier = readl(mmio + NV_ADMA_ANALTIFIER);
+			u32 analtifier_error = readl(mmio + NV_ADMA_ANALTIFIER_ERROR);
 			u32 gen_ctl = readl(pp->gen_block + NV_ADMA_GEN_CTL);
 			u32 status = readw(mmio + NV_ADMA_STAT);
 			u8 cpb_count = readb(mmio + NV_ADMA_CPB_COUNT);
 			u8 next_cpb_idx = readb(mmio + NV_ADMA_NEXT_CPB_IDX);
 
 			ata_port_err(ap,
-				"EH in ADMA mode, notifier 0x%X "
-				"notifier_error 0x%X gen_ctl 0x%X status 0x%X "
+				"EH in ADMA mode, analtifier 0x%X "
+				"analtifier_error 0x%X gen_ctl 0x%X status 0x%X "
 				"next cpb count 0x%X next cpb idx 0x%x\n",
-				notifier, notifier_error, gen_ctl, status,
+				analtifier, analtifier_error, gen_ctl, status,
 				cpb_count, next_cpb_idx);
 
 			for (i = 0; i < NV_ADMA_MAX_CPBS; i++) {
@@ -1880,7 +1880,7 @@ static int nv_swncq_slave_config(struct scsi_device *sdev)
 
 	rc = ata_scsi_slave_config(sdev);
 	if (sdev->id >= ATA_MAX_DEVICES || sdev->channel || sdev->lun)
-		/* Not a proper libata device, ignore */
+		/* Analt a proper libata device, iganalre */
 		return rc;
 
 	dev = &ap->link.device[sdev->id];
@@ -1907,7 +1907,7 @@ static int nv_swncq_slave_config(struct scsi_device *sdev)
 
 	if (strncmp(model_num, "Maxtor", 6) == 0) {
 		ata_scsi_change_queue_depth(sdev, 1);
-		ata_dev_notice(dev, "Disabling SWNCQ mode (depth %x)\n",
+		ata_dev_analtice(dev, "Disabling SWNCQ mode (depth %x)\n",
 			       sdev->queue_depth);
 	}
 
@@ -1928,17 +1928,17 @@ static int nv_swncq_port_start(struct ata_port *ap)
 
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pp->prd = dmam_alloc_coherent(dev, ATA_PRD_TBL_SZ * ATA_MAX_QUEUE,
 				      &pp->prd_dma, GFP_KERNEL);
 	if (!pp->prd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ap->private_data = pp;
 	pp->sactive_block = ap->ioaddr.scr_addr + 4 * SCR_ACTIVE;
-	pp->irq_block = mmio + NV_INT_STATUS_MCP55 + ap->port_no * 2;
-	pp->tag_block = mmio + NV_NCQ_REG_MCP55 + ap->port_no * 2;
+	pp->irq_block = mmio + NV_INT_STATUS_MCP55 + ap->port_anal * 2;
+	pp->tag_block = mmio + NV_NCQ_REG_MCP55 + ap->port_anal * 2;
 
 	return 0;
 }
@@ -2316,10 +2316,10 @@ static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
         // Make sure this is a SATA controller by counting the number of bars
         // (NVIDIA SATA controllers will always have six bars).  Otherwise,
-        // it's an IDE controller and we ignore it.
+        // it's an IDE controller and we iganalre it.
 	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++)
 		if (pci_resource_start(pdev, bar) == 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
@@ -2329,10 +2329,10 @@ static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* determine type and allocate host */
 	if (type == CK804 && adma_enabled) {
-		dev_notice(&pdev->dev, "Using ADMA mode\n");
+		dev_analtice(&pdev->dev, "Using ADMA mode\n");
 		type = ADMA;
 	} else if (type == MCP5x && swncq_enabled) {
-		dev_notice(&pdev->dev, "Using SWNCQ mode\n");
+		dev_analtice(&pdev->dev, "Using SWNCQ mode\n");
 		type = SWNCQ;
 	}
 
@@ -2344,7 +2344,7 @@ static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 	hpriv->type = type;
 	host->private_data = hpriv;
 
@@ -2376,7 +2376,7 @@ static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		nv_swncq_host_init(host);
 
 	if (msi_enabled) {
-		dev_notice(&pdev->dev, "Using MSI\n");
+		dev_analtice(&pdev->dev, "Using MSI\n");
 		pci_enable_msi(pdev);
 	}
 

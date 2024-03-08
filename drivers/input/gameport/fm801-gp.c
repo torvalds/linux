@@ -7,7 +7,7 @@
 
 #include <asm/io.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -72,7 +72,7 @@ static int fm801_gp_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	port = gameport_allocate_port();
 	if (!gp || !port) {
 		printk(KERN_ERR "fm801-gp: Memory allocation failed\n");
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_out_free;
 	}
 

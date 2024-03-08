@@ -6,7 +6,7 @@
  * Copyright (C) 2002-2006 Krzysztof Halasa <khc@pm.waw.pl>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/etherdevice.h>
 #include <linux/gfp.h>
 #include <linux/hdlc.h>
@@ -64,7 +64,7 @@ static int raw_eth_ioctl(struct net_device *dev, struct if_settings *ifs)
 		ifs->type = IF_PROTO_HDLC_ETH;
 		if (ifs->size < size) {
 			ifs->size = size; /* data size wanted */
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 		if (copy_to_user(raw_s, hdlc->state, size))
 			return -EFAULT;
@@ -101,7 +101,7 @@ static int raw_eth_ioctl(struct net_device *dev, struct if_settings *ifs)
 		dev->tx_queue_len = old_qlen;
 		dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 		eth_hw_addr_random(dev);
-		call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev);
+		call_netdevice_analtifiers(NETDEV_POST_TYPE_CHANGE, dev);
 		netif_dormant_off(dev);
 		return 0;
 	}

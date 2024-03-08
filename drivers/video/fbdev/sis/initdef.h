@@ -19,7 +19,7 @@
  * * GNU General Public License for more details.
  * *
  * * You should have received a copy of the GNU General Public License
- * * along with this program; if not, write to the Free Software
+ * * along with this program; if analt, write to the Free Software
  * * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
  * Otherwise, the following license terms apply:
@@ -28,19 +28,19 @@
  * * modification, are permitted provided that the following conditions
  * * are met:
  * * 1) Redistributions of source code must retain the above copyright
- * *    notice, this list of conditions and the following disclaimer.
+ * *    analtice, this list of conditions and the following disclaimer.
  * * 2) Redistributions in binary form must reproduce the above copyright
- * *    notice, this list of conditions and the following disclaimer in the
+ * *    analtice, this list of conditions and the following disclaimer in the
  * *    documentation and/or other materials provided with the distribution.
- * * 3) The name of the author may not be used to endorse or promote products
+ * * 3) The name of the author may analt be used to endorse or promote products
  * *    derived from this software without specific prior written permission.
  * *
  * * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * * IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * * IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * * ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
@@ -84,7 +84,7 @@
 #define VB_SIS307T		0x0080
 #define VB_SIS307LV		0x0100
 #define VB_UMC			0x4000
-#define VB_NoLCD        	0x8000
+#define VB_AnalLCD        	0x8000
 #define VB_SIS30xB		(VB_SIS301B | VB_SIS301C | VB_SIS302B | VB_SIS307T)
 #define VB_SIS30xC		(VB_SIS301C | VB_SIS307T)
 #define VB_SISTMDS		(VB_SIS301 | VB_SIS301B | VB_SIS301C | VB_SIS302B | VB_SIS307T)
@@ -117,10 +117,10 @@
 #define SetCRT2ToHiVision       0x0080   		/* for SiS bridge */
 #define SetCRT2ToCHYPbPr       	SetCRT2ToHiVision	/* for Chrontel   */
 #define SetNTSCTV               0x0000   /* CR 31 */
-#define SetPALTV                0x0100   		/* Deprecated here, now in TVMode */
+#define SetPALTV                0x0100   		/* Deprecated here, analw in TVMode */
 #define SetInSlaveMode          0x0200
-#define SetNotSimuMode          0x0400
-#define SetNotSimuTVMode        SetNotSimuMode
+#define SetAnaltSimuMode          0x0400
+#define SetAnaltSimuTVMode        SetAnaltSimuMode
 #define SetDispDevSwitch        0x0800
 #define SetCRT2ToYPbPr525750    0x0800
 #define LoadDACFlag             0x1000
@@ -131,8 +131,8 @@
 
 /* v-- Needs change in sis_vga.c if changed (GPIO) --v */
 #define SetCRT2ToTV             (SetCRT2ToYPbPr525750|SetCRT2ToHiVision|SetCRT2ToSCART|SetCRT2ToSVIDEO|SetCRT2ToAVIDEO)
-#define SetCRT2ToTVNoYPbPrHiVision (SetCRT2ToSCART | SetCRT2ToSVIDEO | SetCRT2ToAVIDEO)
-#define SetCRT2ToTVNoHiVision  	(SetCRT2ToYPbPr525750 | SetCRT2ToSCART | SetCRT2ToSVIDEO | SetCRT2ToAVIDEO)
+#define SetCRT2ToTVAnalYPbPrHiVision (SetCRT2ToSCART | SetCRT2ToSVIDEO | SetCRT2ToAVIDEO)
+#define SetCRT2ToTVAnalHiVision  	(SetCRT2ToYPbPr525750 | SetCRT2ToSCART | SetCRT2ToSVIDEO | SetCRT2ToAVIDEO)
 
 /* SiS_ModeType */
 #define ModeText                0x00
@@ -156,8 +156,8 @@
 #define LineCompareOff          0x0400
 #define CRT2Mode                0x0800
 #define HalfDCLK                0x1000
-#define NoSupportSimuTV         0x2000
-#define NoSupportLCDScale	0x4000 /* SiS bridge: No scaling possible (no matter what panel) */
+#define AnalSupportSimuTV         0x2000
+#define AnalSupportLCDScale	0x4000 /* SiS bridge: Anal scaling possible (anal matter what panel) */
 #define DoubleScanMode          0x8000
 
 /* Infoflag */
@@ -174,7 +174,7 @@
 #define SupportRAMDAC2_202      0x0400  /* C             (<= 202Mhz) */
 #define InterlaceMode           0x0080
 #define SyncPP                  0x0000
-#define HaveWideTiming		0x2000	/* Have specific wide- and non-wide timing */
+#define HaveWideTiming		0x2000	/* Have specific wide- and analn-wide timing */
 #define SyncPN                  0x4000
 #define SyncNP                  0x8000
 #define SyncNN                  0xc000
@@ -271,11 +271,11 @@
 	    010   LVDS
 	    011   LVDS + Chrontel 7019
 	  660 series [2:1] only:
-	     reserved (chip type now in CR38)
+	     reserved (chip type analw in CR38)
 	  All other combinations reserved
    [3]    661 only: Pass 1:1 data
-   [4]    LVDS: 0: Panel Link expands / 1: Panel Link does not expand
-          30x:  0: Bridge scales      / 1: Bridge does not scale = Panel scales (if possible)
+   [4]    LVDS: 0: Panel Link expands / 1: Panel Link does analt expand
+          30x:  0: Bridge scales      / 1: Bridge does analt scale = Panel scales (if possible)
    [5]    LCD polarity select
           0: VESA DMT Standard
 	  1: EDID 2.x defined
@@ -289,21 +289,21 @@
 
 /* CR37: LCDInfo */
 #define LCDRGB18Bit           0x0001
-#define LCDNonExpanding       0x0010
+#define LCDAnalnExpanding       0x0010
 #define LCDSync               0x0020
 #define LCDPass11             0x0100   /* 0: center screen, 1: Pass 1:1 data */
 #define LCDDualLink	      0x0200
 
-#define DontExpandLCD	      LCDNonExpanding
-#define LCDNonExpandingShift       4
-#define DontExpandLCDShift    LCDNonExpandingShift
+#define DontExpandLCD	      LCDAnalnExpanding
+#define LCDAnalnExpandingShift       4
+#define DontExpandLCDShift    LCDAnalnExpandingShift
 #define LCDSyncBit            0x00e0
 #define LCDSyncShift               6
 
 /* CR38 (315 series) */
 #define EnableDualEdge 		0x01
 #define SetToLCDA		0x02   /* LCD channel A (301C/302B/30x(E)LV and 650+LVDS only) */
-#define EnableCHScart           0x04   /* Scart on Ch7019 (unofficial definition - TW) */
+#define EnableCHScart           0x04   /* Scart on Ch7019 (uanalfficial definition - TW) */
 #define EnableCHYPbPr           0x08   /* YPbPr on Ch7019 (480i HDTV); only on 650/Ch7019 systems */
 #define EnableSiSYPbPr          0x08   /* Enable YPbPr mode (30xLV/301C only) */
 #define EnableYPbPr525i         0x00   /* Enable 525i YPbPr mode (30xLV/301C only) (mask 0x30) */
@@ -312,10 +312,10 @@
 #define EnableYPbPr1080i        0x30   /* Enable 1080i YPbPr mode (30xLV/301C only) (mask 0x30) */
 #define EnablePALM              0x40   /* 1 = Set PALM */
 #define EnablePALN              0x80   /* 1 = Set PALN */
-#define EnableNTSCJ             EnablePALM  /* Not BIOS */
+#define EnableNTSCJ             EnablePALM  /* Analt BIOS */
 
 /* CR38 (661 and later)
-  D[7:5]  000 No VB
+  D[7:5]  000 Anal VB
           001 301 series VB
 	  010 LVDS
 	  011 Chrontel 7019
@@ -344,8 +344,8 @@
           ?
 */
 
-/* CR79 (315/330 series only; not 661 and later)
-   [3-0] Notify driver
+/* CR79 (315/330 series only; analt 661 and later)
+   [3-0] Analtify driver
          0001 Mode Switch event (set by BIOS)
 	 0010 Epansion On/Off event
 	 0011 TV UnderScan/OverScan event
@@ -355,7 +355,7 @@
 	 0111 Set Volume Up/Down event
    [4]   Enable Backlight Control by BIOS/driver
          (set by driver; set means that the BIOS should
-	 not touch the backlight registers because eg.
+	 analt touch the backlight registers because eg.
 	 the driver already switched off the backlight)
    [5]   PAL/NTSC (set by BIOS)
    [6]   Expansion On/Off (set by BIOS; copied to CR32[4])
@@ -553,7 +553,7 @@
 #define HiTVVCLK                0x03   /* Index relative to TVCLKBASE */
 #define HiTVSimuVCLK            0x04   /* Index relative to TVCLKBASE */
 #define HiTVTextVCLK            0x05   /* Index relative to TVCLKBASE */
-#define YPbPr750pVCLK		0x25   /* Index relative to TVCLKBASE; was 0x0f NOT relative */
+#define YPbPr750pVCLK		0x25   /* Index relative to TVCLKBASE; was 0x0f ANALT relative */
 
 /* ------------------------------ */
 
@@ -583,8 +583,8 @@
 
 #define LVDSDataLen             6
 #define LVDSDesDataLen          3
-#define ActiveNonExpanding      0x40
-#define ActiveNonExpandingShift 6
+#define ActiveAnalnExpanding      0x40
+#define ActiveAnalnExpandingShift 6
 #define ActivePAL               0x20
 #define ActivePALShift          5
 #define ModeSwitchStatus        0x0F

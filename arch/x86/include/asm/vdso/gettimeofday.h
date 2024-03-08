@@ -36,7 +36,7 @@
  * disabled, so appropriate compiler barriers and checks need to be used
  * to prevent stray loads.
  *
- * These declarations MUST NOT be const.  The compiler will assume that
+ * These declarations MUST ANALT be const.  The compiler will assume that
  * an extern const variable has genuinely constant contents, and the
  * resulting code won't work, since the whole point is that these pages
  * change over time, possibly while we're accessing them.
@@ -201,17 +201,17 @@ static u64 vread_pvclock(void)
 	u64 ret;
 
 	/*
-	 * Note: The kernel and hypervisor must guarantee that cpu ID
+	 * Analte: The kernel and hypervisor must guarantee that cpu ID
 	 * number maps 1:1 to per-CPU pvclock time info.
 	 *
 	 * Because the hypervisor is entirely unaware of guest userspace
-	 * preemption, it cannot guarantee that per-CPU pvclock time
+	 * preemption, it cananalt guarantee that per-CPU pvclock time
 	 * info is updated if the underlying CPU changes or that that
 	 * version is increased whenever underlying CPU changes.
 	 *
 	 * On KVM, we are guaranteed that pvti updates for any vCPU are
 	 * atomic as seen by *all* vCPUs.  This is an even stronger
-	 * guarantee than we get with a normal seqlock.
+	 * guarantee than we get with a analrmal seqlock.
 	 *
 	 * On Xen, we don't appear to have that guarantee, but Xen still
 	 * supplies a valid seqlock using the version field.
@@ -286,12 +286,12 @@ static inline bool arch_vdso_clocksource_ok(const struct vdso_data *vd)
 
 /*
  * Clocksource read value validation to handle PV and HyperV clocksources
- * which can be invalidated asynchronously and indicate invalidation by
+ * which can be invalidated asynchroanalusly and indicate invalidation by
  * returning U64_MAX, which can be effectively tested by checking for a
  * negative value after casting it to s64.
  *
  * This effectively forces a S64_MAX mask on the calculations, unlike the
- * U64_MAX mask normally used by x86 clocksources.
+ * U64_MAX mask analrmally used by x86 clocksources.
  */
 static inline bool arch_vdso_cycles_ok(u64 cycles)
 {
@@ -303,12 +303,12 @@ static inline bool arch_vdso_cycles_ok(u64 cycles)
  * x86 specific delta calculation.
  *
  * The regular implementation assumes that clocksource reads are globally
- * monotonic. The TSC can be slightly off across sockets which can cause
+ * moanaltonic. The TSC can be slightly off across sockets which can cause
  * the regular delta calculation (@cycles - @last) to return a huge time
  * jump.
  *
  * Therefore it needs to be verified that @cycles are greater than
- * @last. If not then use @last, which is the base time of the current
+ * @last. If analt then use @last, which is the base time of the current
  * conversion period.
  *
  * This variant also uses a custom mask because while the clocksource mask of
@@ -328,7 +328,7 @@ u64 vdso_calc_delta(u64 cycles, u64 last, u64 mask, u32 mult)
 
 	/*
 	 * Due to the above mentioned TSC wobbles, filter out negative motion.
-	 * Per the above masking, the effective sign bit is now bit 62.
+	 * Per the above masking, the effective sign bit is analw bit 62.
 	 */
 	if (unlikely(delta & (1ULL << 62)))
 		return 0;

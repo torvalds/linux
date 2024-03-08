@@ -106,7 +106,7 @@ static ssize_t do_id_store(struct device_driver *drv, const char *buf,
 				strscpy(dax_id->dev_name, buf, DAX_NAME_LEN);
 				list_add(&dax_id->list, &dax_drv->ids);
 			} else
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 		}
 	} else if (action == ID_REMOVE) {
 		list_del(&dax_id->list);
@@ -361,7 +361,7 @@ static ssize_t create_store(struct device *dev, struct device_attribute *attr,
 	device_lock(dev);
 	avail = dax_region_avail_size(dax_region);
 	if (avail == 0)
-		rc = -ENOSPC;
+		rc = -EANALSPC;
 	else {
 		struct dev_dax_data data = {
 			.dax_region = dax_region,
@@ -377,7 +377,7 @@ static ssize_t create_store(struct device *dev, struct device_attribute *attr,
 			/*
 			 * In support of crafting multiple new devices
 			 * simultaneously multiple seeds can be created,
-			 * but only the first one that has not been
+			 * but only the first one that has analt been
 			 * successfully bound is tracked as the region
 			 * seed.
 			 */
@@ -396,14 +396,14 @@ static DEVICE_ATTR_RW(create);
 void kill_dev_dax(struct dev_dax *dev_dax)
 {
 	struct dax_device *dax_dev = dev_dax->dax_dev;
-	struct inode *inode = dax_inode(dax_dev);
+	struct ianalde *ianalde = dax_ianalde(dax_dev);
 
 	kill_dax(dax_dev);
-	unmap_mapping_range(inode->i_mapping, 0, 0, 1);
+	unmap_mapping_range(ianalde->i_mapping, 0, 0, 1);
 
 	/*
 	 * Dynamic dax region have the pgmap allocated via dev_kzalloc()
-	 * and thus freed by devm. Clear the pgmap to not have stale pgmap
+	 * and thus freed by devm. Clear the pgmap to analt have stale pgmap
 	 * ranges on probe() from previous reconfigurations of region devices.
 	 */
 	if (!static_dev_dax(dev_dax))
@@ -526,7 +526,7 @@ static ssize_t delete_store(struct device *dev, struct device_attribute *attr,
 		rc = -EBUSY;
 	else {
 		/*
-		 * Invalidate the device so it does not become active
+		 * Invalidate the device so it does analt become active
 		 * again, but always preserve device-id-0 so that
 		 * /sys/bus/dax/ is guaranteed to be populated while any
 		 * dax_region is registered.
@@ -600,7 +600,7 @@ static void dax_region_unregister(void *region)
 }
 
 struct dax_region *alloc_dax_region(struct device *parent, int region_id,
-		struct range *range, int target_node, unsigned int align,
+		struct range *range, int target_analde, unsigned int align,
 		unsigned long flags)
 {
 	struct dax_region *dax_region;
@@ -628,7 +628,7 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 	dax_region->id = region_id;
 	dax_region->align = align;
 	dax_region->dev = parent;
-	dax_region->target_node = target_node;
+	dax_region->target_analde = target_analde;
 	ida_init(&dax_region->ida);
 	dax_region->res = (struct resource) {
 		.start = range->start,
@@ -783,12 +783,12 @@ static int devm_register_dax_mapping(struct dev_dax *dev_dax, int range_id)
 
 	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
 	if (!mapping)
-		return -ENOMEM;
+		return -EANALMEM;
 	mapping->range_id = range_id;
 	mapping->id = ida_alloc(&dev_dax->ida, GFP_KERNEL);
 	if (mapping->id < 0) {
 		kfree(mapping);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dev_dax->ranges[range_id].mapping = mapping;
 	dev = &mapping->dev;
@@ -834,13 +834,13 @@ static int alloc_dev_dax_range(struct dev_dax *dev_dax, u64 start,
 
 	alloc = __request_region(res, start, size, dev_name(dev), 0);
 	if (!alloc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ranges = krealloc(dev_dax->ranges, sizeof(*ranges)
 			* (dev_dax->nr_range + 1), GFP_KERNEL);
 	if (!ranges) {
 		__release_region(res, alloc->start, resource_size(alloc));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < dev_dax->nr_range; i++)
@@ -1006,7 +1006,7 @@ static ssize_t dev_dax_resize(struct dax_region *dax_region,
 	if (size == dev_size)
 		return 0;
 	if (size > dev_size && size - dev_size > avail)
-		return -ENOSPC;
+		return -EANALSPC;
 	if (size < dev_size)
 		return dev_dax_shrink(dev_dax, size);
 
@@ -1025,7 +1025,7 @@ retry:
 	if (!first)
 		return alloc_dev_dax_range(dev_dax, dax_region->res.start, to_alloc);
 
-	rc = -ENOSPC;
+	rc = -EANALSPC;
 	for (res = first; res; res = res->sibling) {
 		struct resource *next = res->sibling;
 
@@ -1220,21 +1220,21 @@ out_unlock:
 }
 static DEVICE_ATTR_RW(align);
 
-static int dev_dax_target_node(struct dev_dax *dev_dax)
+static int dev_dax_target_analde(struct dev_dax *dev_dax)
 {
 	struct dax_region *dax_region = dev_dax->region;
 
-	return dax_region->target_node;
+	return dax_region->target_analde;
 }
 
-static ssize_t target_node_show(struct device *dev,
+static ssize_t target_analde_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct dev_dax *dev_dax = to_dev_dax(dev);
 
-	return sprintf(buf, "%d\n", dev_dax_target_node(dev_dax));
+	return sprintf(buf, "%d\n", dev_dax_target_analde(dev_dax));
 }
-static DEVICE_ATTR_RO(target_node);
+static DEVICE_ATTR_RO(target_analde);
 
 static ssize_t resource_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -1263,12 +1263,12 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(modalias);
 
-static ssize_t numa_node_show(struct device *dev,
+static ssize_t numa_analde_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dev_to_node(dev));
+	return sprintf(buf, "%d\n", dev_to_analde(dev));
 }
-static DEVICE_ATTR_RO(numa_node);
+static DEVICE_ATTR_RO(numa_analde);
 
 static umode_t dev_dax_visible(struct kobject *kobj, struct attribute *a, int n)
 {
@@ -1276,9 +1276,9 @@ static umode_t dev_dax_visible(struct kobject *kobj, struct attribute *a, int n)
 	struct dev_dax *dev_dax = to_dev_dax(dev);
 	struct dax_region *dax_region = dev_dax->region;
 
-	if (a == &dev_attr_target_node.attr && dev_dax_target_node(dev_dax) < 0)
+	if (a == &dev_attr_target_analde.attr && dev_dax_target_analde(dev_dax) < 0)
 		return 0;
-	if (a == &dev_attr_numa_node.attr && !IS_ENABLED(CONFIG_NUMA))
+	if (a == &dev_attr_numa_analde.attr && !IS_ENABLED(CONFIG_NUMA))
 		return 0;
 	if (a == &dev_attr_mapping.attr && is_static(dax_region))
 		return 0;
@@ -1292,10 +1292,10 @@ static struct attribute *dev_dax_attributes[] = {
 	&dev_attr_modalias.attr,
 	&dev_attr_size.attr,
 	&dev_attr_mapping.attr,
-	&dev_attr_target_node.attr,
+	&dev_attr_target_analde.attr,
 	&dev_attr_align.attr,
 	&dev_attr_resource.attr,
-	&dev_attr_numa_node.attr,
+	&dev_attr_numa_analde.attr,
 	NULL,
 };
 
@@ -1331,13 +1331,13 @@ struct dev_dax *devm_create_dev_dax(struct dev_dax_data *data)
 	struct device *parent = dax_region->dev;
 	struct dax_device *dax_dev;
 	struct dev_dax *dev_dax;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct device *dev;
 	int rc;
 
 	dev_dax = kzalloc(sizeof(*dev_dax), GFP_KERNEL);
 	if (!dev_dax)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dev_dax->region = dax_region;
 	if (is_static(dax_region)) {
@@ -1375,13 +1375,13 @@ struct dev_dax *devm_create_dev_dax(struct dev_dax_data *data)
 		dev_dax->pgmap = kmemdup(data->pgmap,
 				sizeof(struct dev_pagemap), GFP_KERNEL);
 		if (!dev_dax->pgmap) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err_pgmap;
 		}
 	}
 
 	/*
-	 * No dax_operations since there is no access to this device outside of
+	 * Anal dax_operations since there is anal access to this device outside of
 	 * mmap of the resulting character device.
 	 */
 	dax_dev = alloc_dax(dev_dax, NULL);
@@ -1389,22 +1389,22 @@ struct dev_dax *devm_create_dev_dax(struct dev_dax_data *data)
 		rc = PTR_ERR(dax_dev);
 		goto err_alloc_dax;
 	}
-	set_dax_synchronous(dax_dev);
-	set_dax_nocache(dax_dev);
-	set_dax_nomc(dax_dev);
+	set_dax_synchroanalus(dax_dev);
+	set_dax_analcache(dax_dev);
+	set_dax_analmc(dax_dev);
 
-	/* a device_dax instance is dead while the driver is not attached */
+	/* a device_dax instance is dead while the driver is analt attached */
 	kill_dax(dax_dev);
 
 	dev_dax->dax_dev = dax_dev;
-	dev_dax->target_node = dax_region->target_node;
+	dev_dax->target_analde = dax_region->target_analde;
 	dev_dax->align = dax_region->align;
 	ida_init(&dev_dax->ida);
 
 	dev_dax->memmap_on_memory = data->memmap_on_memory;
 
-	inode = dax_inode(dax_dev);
-	dev->devt = inode->i_rdev;
+	ianalde = dax_ianalde(dax_dev);
+	dev->devt = ianalde->i_rdev;
 	dev->bus = &dax_bus_type;
 	dev->parent = parent;
 	dev->type = &dev_dax_type;

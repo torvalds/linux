@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -33,7 +33,7 @@
 #include <uapi/linux/kfd_ioctl.h>
 
 enum hqd_dequeue_request_type {
-	NO_ACTION = 0,
+	ANAL_ACTION = 0,
 	DRAIN_PIPE,
 	RESET_WAVES,
 	SAVE_WAVES
@@ -206,7 +206,7 @@ static int hqd_load_v11(struct amdgpu_device *adev, void *mqd, uint32_t pipe_id,
 
 	if (wptr) {
 		/* Don't read wptr with get_user because the user
-		 * context may not be accessible (if this function
+		 * context may analt be accessible (if this function
 		 * runs in a work queue). Instead trigger a one-shot
 		 * polling read from memory in the CP. This assumes
 		 * that wptr is GPU-accessible in the queue's VMID via
@@ -291,7 +291,7 @@ static int hiq_mqd_load_v11(struct amdgpu_device *adev, void *mqd,
 			  PACKET3_MAP_QUEUES_QUEUE(queue_id) |
 			  PACKET3_MAP_QUEUES_PIPE(pipe) |
 			  PACKET3_MAP_QUEUES_ME((mec - 1)) |
-			  PACKET3_MAP_QUEUES_QUEUE_TYPE(0) | /*queue_type: normal compute queue */
+			  PACKET3_MAP_QUEUES_QUEUE_TYPE(0) | /*queue_type: analrmal compute queue */
 			  PACKET3_MAP_QUEUES_ALLOC_FORMAT(0) | /* alloc format: all_on_one_pipe */
 			  PACKET3_MAP_QUEUES_ENGINE_SEL(1) | /* engine_sel: hiq */
 			  PACKET3_MAP_QUEUES_NUM_QUEUES(1)); /* num_queues: must be 1 */
@@ -325,7 +325,7 @@ static int hqd_dump_v11(struct amdgpu_device *adev,
 
 	*dump = kmalloc(HQD_N_REGS*2*sizeof(uint32_t), GFP_KERNEL);
 	if (*dump == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	acquire_queue(adev, pipe_id, queue_id);
 
@@ -364,7 +364,7 @@ static int hqd_sdma_load_v11(struct amdgpu_device *adev, void *mqd,
 		if (data & SDMA0_QUEUE0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC analt idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -381,7 +381,7 @@ static int hqd_sdma_load_v11(struct amdgpu_device *adev, void *mqd,
 	WREG32(sdma_rlc_reg_offset + regSDMA0_QUEUE0_RB_RPTR_HI,
 				m->sdmax_rlcx_rb_rptr_hi);
 
-	WREG32(sdma_rlc_reg_offset + regSDMA0_QUEUE0_MINOR_PTR_UPDATE, 1);
+	WREG32(sdma_rlc_reg_offset + regSDMA0_QUEUE0_MIANALR_PTR_UPDATE, 1);
 	if (read_user_wptr(mm, wptr64, data64)) {
 		WREG32(sdma_rlc_reg_offset + regSDMA0_QUEUE0_RB_WPTR,
 		       lower_32_bits(data64));
@@ -393,7 +393,7 @@ static int hqd_sdma_load_v11(struct amdgpu_device *adev, void *mqd,
 		WREG32(sdma_rlc_reg_offset + regSDMA0_QUEUE0_RB_WPTR_HI,
 		       m->sdmax_rlcx_rb_rptr_hi);
 	}
-	WREG32(sdma_rlc_reg_offset + regSDMA0_QUEUE0_MINOR_PTR_UPDATE, 0);
+	WREG32(sdma_rlc_reg_offset + regSDMA0_QUEUE0_MIANALR_PTR_UPDATE, 0);
 
 	WREG32(sdma_rlc_reg_offset + regSDMA0_QUEUE0_RB_BASE, m->sdmax_rlcx_rb_base);
 	WREG32(sdma_rlc_reg_offset + regSDMA0_QUEUE0_RB_BASE_HI,
@@ -422,7 +422,7 @@ static int hqd_sdma_dump_v11(struct amdgpu_device *adev,
 
 	*dump = kmalloc(HQD_N_REGS*2*sizeof(uint32_t), GFP_KERNEL);
 	if (*dump == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (reg = regSDMA0_QUEUE0_RB_CNTL;
 	     reg <= regSDMA0_QUEUE0_RB_WPTR_HI; reg++)
@@ -553,7 +553,7 @@ static int hqd_sdma_destroy_v11(struct amdgpu_device *adev, void *mqd,
 		if (temp & SDMA0_QUEUE0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC analt idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -611,9 +611,9 @@ static void set_vm_context_page_table_base_v11(struct amdgpu_device *adev,
 /*
  * Returns TRAP_EN, EXCP_EN and EXCP_REPLACE.
  *
- * restore_dbg_registers is ignored here but is a general interface requirement
+ * restore_dbg_registers is iganalred here but is a general interface requirement
  * for devices that support GFXOFF and where the RLC save/restore list
- * does not support hw registers for debugging i.e. the driver has to manually
+ * does analt support hw registers for debugging i.e. the driver has to manually
  * initialize the debug mode registers after it has disabled GFX off during the
  * debug session.
  */
@@ -649,7 +649,7 @@ static int kgd_gfx_v11_validate_trap_override_request(struct amdgpu_device *adev
 							uint32_t *trap_mask_supported)
 {
 	*trap_mask_supported &= KFD_DBG_TRAP_MASK_FP_INVALID |
-				KFD_DBG_TRAP_MASK_FP_INPUT_DENORMAL |
+				KFD_DBG_TRAP_MASK_FP_INPUT_DEANALRMAL |
 				KFD_DBG_TRAP_MASK_FP_DIVIDE_BY_ZERO |
 				KFD_DBG_TRAP_MASK_FP_OVERFLOW |
 				KFD_DBG_TRAP_MASK_FP_UNDERFLOW |
@@ -674,7 +674,7 @@ static uint32_t trap_mask_map_sw_to_hw(uint32_t mask)
 	uint32_t trap_on_start = (mask & KFD_DBG_TRAP_MASK_TRAP_ON_WAVE_START) ? 1 : 0;
 	uint32_t trap_on_end = (mask & KFD_DBG_TRAP_MASK_TRAP_ON_WAVE_END) ? 1 : 0;
 	uint32_t excp_en = mask & (KFD_DBG_TRAP_MASK_FP_INVALID |
-			KFD_DBG_TRAP_MASK_FP_INPUT_DENORMAL |
+			KFD_DBG_TRAP_MASK_FP_INPUT_DEANALRMAL |
 			KFD_DBG_TRAP_MASK_FP_DIVIDE_BY_ZERO |
 			KFD_DBG_TRAP_MASK_FP_OVERFLOW |
 			KFD_DBG_TRAP_MASK_FP_UNDERFLOW |

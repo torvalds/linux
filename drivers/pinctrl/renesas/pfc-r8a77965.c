@@ -12,7 +12,7 @@
  * Copyright (C) 2015  Renesas Electronics Corporation
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 
 #include "sh_pfc.h"
@@ -33,49 +33,49 @@
 	PORT_GP_CFG_32(6, fn, sfx, CFG_FLAGS),	\
 	PORT_GP_CFG_4(7, fn, sfx, CFG_FLAGS)
 
-#define CPU_ALL_NOGP(fn)						\
-	PIN_NOGP_CFG(ASEBRK, "ASEBRK", fn, CFG_FLAGS),			\
-	PIN_NOGP_CFG(AVB_MDIO, "AVB_MDIO", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(AVB_RD0, "AVB_RD0", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(AVB_RD1, "AVB_RD1", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(AVB_RD2, "AVB_RD2", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(AVB_RD3, "AVB_RD3", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(AVB_RXC, "AVB_RXC", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(AVB_RX_CTL, "AVB_RX_CTL", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(AVB_TD0, "AVB_TD0", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(AVB_TD1, "AVB_TD1", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(AVB_TD2, "AVB_TD2", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(AVB_TD3, "AVB_TD3", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(AVB_TXC, "AVB_TXC", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(AVB_TXCREFCLK, "AVB_TXCREFCLK", fn, CFG_FLAGS),	\
-	PIN_NOGP_CFG(AVB_TX_CTL, "AVB_TX_CTL", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(DU_DOTCLKIN0, "DU_DOTCLKIN0", fn, CFG_FLAGS),	\
-	PIN_NOGP_CFG(DU_DOTCLKIN1, "DU_DOTCLKIN1", fn, CFG_FLAGS),	\
-	PIN_NOGP_CFG(DU_DOTCLKIN3, "DU_DOTCLKIN3", fn, CFG_FLAGS),	\
-	PIN_NOGP_CFG(EXTALR, "EXTALR", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),\
-	PIN_NOGP_CFG(FSCLKST, "FSCLKST", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(MLB_REF, "MLB_REF", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(PRESETOUT_N, "PRESETOUT#", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(QSPI0_IO2, "QSPI0_IO2", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(QSPI0_IO3, "QSPI0_IO3", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(QSPI0_MISO_IO1, "QSPI0_MISO_IO1", fn, CFG_FLAGS),	\
-	PIN_NOGP_CFG(QSPI0_MOSI_IO0, "QSPI0_MOSI_IO0", fn, CFG_FLAGS),	\
-	PIN_NOGP_CFG(QSPI0_SPCLK, "QSPI0_SPCLK", fn, CFG_FLAGS),	\
-	PIN_NOGP_CFG(QSPI0_SSL, "QSPI0_SSL", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(QSPI1_IO2, "QSPI1_IO2", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(QSPI1_IO3, "QSPI1_IO3", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(QSPI1_MISO_IO1, "QSPI1_MISO_IO1", fn, CFG_FLAGS),	\
-	PIN_NOGP_CFG(QSPI1_MOSI_IO0, "QSPI1_MOSI_IO0", fn, CFG_FLAGS),	\
-	PIN_NOGP_CFG(QSPI1_SPCLK, "QSPI1_SPCLK", fn, CFG_FLAGS),	\
-	PIN_NOGP_CFG(QSPI1_SSL, "QSPI1_SSL", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(RPC_INT_N, "RPC_INT#", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(RPC_RESET_N, "RPC_RESET#", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(RPC_WP_N, "RPC_WP#", fn, CFG_FLAGS),		\
-	PIN_NOGP_CFG(TCK, "TCK", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
-	PIN_NOGP_CFG(TDI, "TDI", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
-	PIN_NOGP_CFG(TDO, "TDO", fn, SH_PFC_PIN_CFG_DRIVE_STRENGTH),	\
-	PIN_NOGP_CFG(TMS, "TMS", fn, CFG_FLAGS),			\
-	PIN_NOGP_CFG(TRST_N, "TRST#", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN)
+#define CPU_ALL_ANALGP(fn)						\
+	PIN_ANALGP_CFG(ASEBRK, "ASEBRK", fn, CFG_FLAGS),			\
+	PIN_ANALGP_CFG(AVB_MDIO, "AVB_MDIO", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(AVB_RD0, "AVB_RD0", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(AVB_RD1, "AVB_RD1", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(AVB_RD2, "AVB_RD2", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(AVB_RD3, "AVB_RD3", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(AVB_RXC, "AVB_RXC", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(AVB_RX_CTL, "AVB_RX_CTL", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(AVB_TD0, "AVB_TD0", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(AVB_TD1, "AVB_TD1", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(AVB_TD2, "AVB_TD2", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(AVB_TD3, "AVB_TD3", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(AVB_TXC, "AVB_TXC", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(AVB_TXCREFCLK, "AVB_TXCREFCLK", fn, CFG_FLAGS),	\
+	PIN_ANALGP_CFG(AVB_TX_CTL, "AVB_TX_CTL", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(DU_DOTCLKIN0, "DU_DOTCLKIN0", fn, CFG_FLAGS),	\
+	PIN_ANALGP_CFG(DU_DOTCLKIN1, "DU_DOTCLKIN1", fn, CFG_FLAGS),	\
+	PIN_ANALGP_CFG(DU_DOTCLKIN3, "DU_DOTCLKIN3", fn, CFG_FLAGS),	\
+	PIN_ANALGP_CFG(EXTALR, "EXTALR", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),\
+	PIN_ANALGP_CFG(FSCLKST, "FSCLKST", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(MLB_REF, "MLB_REF", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(PRESETOUT_N, "PRESETOUT#", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(QSPI0_IO2, "QSPI0_IO2", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(QSPI0_IO3, "QSPI0_IO3", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(QSPI0_MISO_IO1, "QSPI0_MISO_IO1", fn, CFG_FLAGS),	\
+	PIN_ANALGP_CFG(QSPI0_MOSI_IO0, "QSPI0_MOSI_IO0", fn, CFG_FLAGS),	\
+	PIN_ANALGP_CFG(QSPI0_SPCLK, "QSPI0_SPCLK", fn, CFG_FLAGS),	\
+	PIN_ANALGP_CFG(QSPI0_SSL, "QSPI0_SSL", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(QSPI1_IO2, "QSPI1_IO2", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(QSPI1_IO3, "QSPI1_IO3", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(QSPI1_MISO_IO1, "QSPI1_MISO_IO1", fn, CFG_FLAGS),	\
+	PIN_ANALGP_CFG(QSPI1_MOSI_IO0, "QSPI1_MOSI_IO0", fn, CFG_FLAGS),	\
+	PIN_ANALGP_CFG(QSPI1_SPCLK, "QSPI1_SPCLK", fn, CFG_FLAGS),	\
+	PIN_ANALGP_CFG(QSPI1_SSL, "QSPI1_SSL", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(RPC_INT_N, "RPC_INT#", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(RPC_RESET_N, "RPC_RESET#", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(RPC_WP_N, "RPC_WP#", fn, CFG_FLAGS),		\
+	PIN_ANALGP_CFG(TCK, "TCK", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_ANALGP_CFG(TDI, "TDI", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN),	\
+	PIN_ANALGP_CFG(TDO, "TDO", fn, SH_PFC_PIN_CFG_DRIVE_STRENGTH),	\
+	PIN_ANALGP_CFG(TMS, "TMS", fn, CFG_FLAGS),			\
+	PIN_ANALGP_CFG(TRST_N, "TRST#", fn, SH_PFC_PIN_CFG_PULL_UP_DOWN)
 
 /*
  * F_() : just information
@@ -584,7 +584,7 @@ MOD_SEL0_4_3		MOD_SEL1_4 \
 			MOD_SEL1_0		MOD_SEL2_0
 
 /*
- * These pins are not able to be muxed but have other properties
+ * These pins are analt able to be muxed but have other properties
  * that can be set, such as drive-strength or pull-up/pull-down enable.
  */
 #define PINMUX_STATIC \
@@ -1547,7 +1547,7 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_MSEL(IP18_7_4,	FMIN_D,			SEL_FM_3),
 
 /*
- * Static pins can not be muxed between different functions but
+ * Static pins can analt be muxed between different functions but
  * still need mark entries in the pinmux list. Add each static
  * pin to the list without an associated function. The sh-pfc
  * core will do the right thing and skip trying to mux the pin
@@ -1559,16 +1559,16 @@ static const u16 pinmux_data[] = {
 };
 
 /*
- * Pins not associated with a GPIO port.
+ * Pins analt associated with a GPIO port.
  */
 enum {
 	GP_ASSIGN_LAST(),
-	NOGP_ALL(),
+	ANALGP_ALL(),
 };
 
 static const struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_GPIO_GP_ALL(),
-	PINMUX_NOGP_ALL(),
+	PINMUX_ANALGP_ALL(),
 };
 
 /* - AUDIO CLOCK ------------------------------------------------------------ */
@@ -6187,7 +6187,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[31] = PIN_DU_DOTCLKIN1,	/* DU_DOTCLKIN1 */
 	} },
 	{ PINMUX_BIAS_REG("PUEN3", 0xe606040c, "PUD3", 0xe606044c) {
-		[ 0] = SH_PFC_PIN_NONE,
+		[ 0] = SH_PFC_PIN_ANALNE,
 		[ 1] = PIN_DU_DOTCLKIN3,	/* DU_DOTCLKIN3 */
 		[ 2] = PIN_FSCLKST,		/* FSCLKST */
 		[ 3] = PIN_EXTALR,		/* EXTALR*/
@@ -6195,7 +6195,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[ 5] = PIN_TCK,			/* TCK */
 		[ 6] = PIN_TMS,			/* TMS */
 		[ 7] = PIN_TDI,			/* TDI */
-		[ 8] = SH_PFC_PIN_NONE,
+		[ 8] = SH_PFC_PIN_ANALNE,
 		[ 9] = PIN_ASEBRK,		/* ASEBRK */
 		[10] = RCAR_GP_PIN(3,  0),	/* SD0_CLK */
 		[11] = RCAR_GP_PIN(3,  1),	/* SD0_CMD */
@@ -6296,31 +6296,31 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[ 4] = RCAR_GP_PIN(6, 29),	/* USB30_OVC */
 		[ 5] = RCAR_GP_PIN(6, 30),	/* GP6_30 */
 		[ 6] = RCAR_GP_PIN(6, 31),	/* GP6_31 */
-		[ 7] = SH_PFC_PIN_NONE,
-		[ 8] = SH_PFC_PIN_NONE,
-		[ 9] = SH_PFC_PIN_NONE,
-		[10] = SH_PFC_PIN_NONE,
-		[11] = SH_PFC_PIN_NONE,
-		[12] = SH_PFC_PIN_NONE,
-		[13] = SH_PFC_PIN_NONE,
-		[14] = SH_PFC_PIN_NONE,
-		[15] = SH_PFC_PIN_NONE,
-		[16] = SH_PFC_PIN_NONE,
-		[17] = SH_PFC_PIN_NONE,
-		[18] = SH_PFC_PIN_NONE,
-		[19] = SH_PFC_PIN_NONE,
-		[20] = SH_PFC_PIN_NONE,
-		[21] = SH_PFC_PIN_NONE,
-		[22] = SH_PFC_PIN_NONE,
-		[23] = SH_PFC_PIN_NONE,
-		[24] = SH_PFC_PIN_NONE,
-		[25] = SH_PFC_PIN_NONE,
-		[26] = SH_PFC_PIN_NONE,
-		[27] = SH_PFC_PIN_NONE,
-		[28] = SH_PFC_PIN_NONE,
-		[29] = SH_PFC_PIN_NONE,
-		[30] = SH_PFC_PIN_NONE,
-		[31] = SH_PFC_PIN_NONE,
+		[ 7] = SH_PFC_PIN_ANALNE,
+		[ 8] = SH_PFC_PIN_ANALNE,
+		[ 9] = SH_PFC_PIN_ANALNE,
+		[10] = SH_PFC_PIN_ANALNE,
+		[11] = SH_PFC_PIN_ANALNE,
+		[12] = SH_PFC_PIN_ANALNE,
+		[13] = SH_PFC_PIN_ANALNE,
+		[14] = SH_PFC_PIN_ANALNE,
+		[15] = SH_PFC_PIN_ANALNE,
+		[16] = SH_PFC_PIN_ANALNE,
+		[17] = SH_PFC_PIN_ANALNE,
+		[18] = SH_PFC_PIN_ANALNE,
+		[19] = SH_PFC_PIN_ANALNE,
+		[20] = SH_PFC_PIN_ANALNE,
+		[21] = SH_PFC_PIN_ANALNE,
+		[22] = SH_PFC_PIN_ANALNE,
+		[23] = SH_PFC_PIN_ANALNE,
+		[24] = SH_PFC_PIN_ANALNE,
+		[25] = SH_PFC_PIN_ANALNE,
+		[26] = SH_PFC_PIN_ANALNE,
+		[27] = SH_PFC_PIN_ANALNE,
+		[28] = SH_PFC_PIN_ANALNE,
+		[29] = SH_PFC_PIN_ANALNE,
+		[30] = SH_PFC_PIN_ANALNE,
+		[31] = SH_PFC_PIN_ANALNE,
 	} },
 	{ /* sentinel */ }
 };

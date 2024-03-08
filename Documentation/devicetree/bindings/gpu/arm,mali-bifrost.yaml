@@ -10,7 +10,7 @@ maintainers:
   - Rob Herring <robh@kernel.org>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^gpu@[a-f0-9]+$'
 
   compatible:

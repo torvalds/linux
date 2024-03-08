@@ -4,7 +4,7 @@
 # Installs a probe on libc's inet_pton function, that will use uprobes,
 # then use 'perf trace' on a ping to localhost asking for just one packet
 # with the a backtrace 3 levels deep, check that it is what we expect.
-# This needs no debuginfo package, all is done using the libc ELF symtab
+# This needs anal debuginfo package, all is done using the libc ELF symtab
 # and the CFI info in the binaries.
 
 # SPDX-License-Identifier: GPL-2.0
@@ -26,7 +26,7 @@ add_libc_inet_pton_event() {
 			grep -P -o "$event_pattern(?=[[:space:]]\(on inet_pton in $libc\))")
 
 	if [ $? -ne 0 ] || [ -z "$event_name" ] ; then
-		printf "FAIL: could not add event\n"
+		printf "FAIL: could analt add event\n"
 		return 1
 	fi
 }
@@ -50,11 +50,11 @@ trace_libc_inet_pton_backtrace() {
 			echo "gaih_inet.*\+0x[[:xdigit:]]+[[:space:]]\($libc\)$" >> $expected
 		fi
 		echo "getaddrinfo\+0x[[:xdigit:]]+[[:space:]]\($libc\)$" >> $expected
-		echo ".*(\+0x[[:xdigit:]]+|\[unknown\])[[:space:]]\(.*/bin/ping.*\)$" >> $expected
+		echo ".*(\+0x[[:xdigit:]]+|\[unkanalwn\])[[:space:]]\(.*/bin/ping.*\)$" >> $expected
 		;;
 	*)
 		eventattr='max-stack=3'
-		echo ".*(\+0x[[:xdigit:]]+|\[unknown\])[[:space:]]\(.*/bin/ping.*\)$" >> $expected
+		echo ".*(\+0x[[:xdigit:]]+|\[unkanalwn\])[[:space:]]\(.*/bin/ping.*\)$" >> $expected
 		;;
 	esac
 
@@ -62,7 +62,7 @@ trace_libc_inet_pton_backtrace() {
 	perf_script=`mktemp -u /tmp/perf.script.XXX`
 
 	# Check presence of libtraceevent support to run perf record
-	skip_no_probe_record_support "$event_name/$eventattr/"
+	skip_anal_probe_record_support "$event_name/$eventattr/"
 	[ $? -eq 2 ] && return 2
 
 	perf record -e $event_name/$eventattr/ -o $perf_data ping -6 -c 1 ::1 > /dev/null 2>&1
@@ -88,7 +88,7 @@ trace_libc_inet_pton_backtrace() {
 	# If any statements are executed from this point onwards,
 	# the exit code of the last among these will be reflected
 	# in err below. If the exit code is 0, the test will pass
-	# even if the perf script output does not match.
+	# even if the perf script output does analt match.
 }
 
 delete_libc_inet_pton_event() {
@@ -101,7 +101,7 @@ delete_libc_inet_pton_event() {
 # Check for IPv6 interface existence
 ip a sh lo | grep -F -q inet6 || exit 2
 
-skip_if_no_perf_probe && \
+skip_if_anal_perf_probe && \
 add_libc_inet_pton_event && \
 trace_libc_inet_pton_backtrace
 err=$?

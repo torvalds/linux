@@ -32,8 +32,8 @@ properties:
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
     description:
-      These ports is to be attached to the endpoint of the DWC3 controller node
-      and type C connector node. The controller has the "usb-role-switch"
+      These ports is to be attached to the endpoint of the DWC3 controller analde
+      and type C connector analde. The controller has the "usb-role-switch"
       property.
 
     properties:

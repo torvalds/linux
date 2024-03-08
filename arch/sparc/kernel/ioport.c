@@ -10,14 +10,14 @@
  * 2000/01/29
  * <rth> zait: as long as pci_alloc_consistent produces something addressable, 
  *	things are ok.
- * <zaitcev> rth: no, it is relevant, because get_free_pages returns you a
+ * <zaitcev> rth: anal, it is relevant, because get_free_pages returns you a
  *	pointer into the big page mapping
  * <rth> zait: so what?
  * <rth> zait: remap_it_my_way(virt_to_phys(get_free_page()))
  * <zaitcev> Hmm
  * <zaitcev> Suppose I did this remap_it_my_way(virt_to_phys(get_free_page())).
  *	So far so good.
- * <zaitcev> Now, driver calls pci_free_consistent(with result of
+ * <zaitcev> Analw, driver calls pci_free_consistent(with result of
  *	remap_it_my_way()).
  * <zaitcev> How do you find the address to pass to free_pages()?
  * <rth> zait: walk the page tables?  It's only two or three level after all.
@@ -29,7 +29,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
@@ -53,7 +53,7 @@
 #include <asm/leon.h>
 
 static void __iomem *_sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz);
-static void __iomem *_sparc_alloc_io(unsigned int busno, unsigned long phys,
+static void __iomem *_sparc_alloc_io(unsigned int busanal, unsigned long phys,
     unsigned long size, char *name);
 static void _sparc_free_io(struct resource *res);
 
@@ -132,7 +132,7 @@ void iounmap(volatile void __iomem *virtual)
 	 * This probably warrants some sort of hashing.
 	*/
 	if ((res = lookup_resource(&sparc_iomap, vaddr)) == NULL) {
-		printk("free_io/iounmap: cannot free %lx\n", vaddr);
+		printk("free_io/iounmap: cananalt free %lx\n", vaddr);
 		return;
 	}
 	_sparc_free_io(res);
@@ -163,7 +163,7 @@ EXPORT_SYMBOL(of_iounmap);
 /*
  * Meat of mapping
  */
-static void __iomem *_sparc_alloc_io(unsigned int busno, unsigned long phys,
+static void __iomem *_sparc_alloc_io(unsigned int busanal, unsigned long phys,
     unsigned long size, char *name)
 {
 	static int printed_full;
@@ -194,8 +194,8 @@ static void __iomem *_sparc_alloc_io(unsigned int busno, unsigned long phys,
 	strscpy(tack, name, XNMLN+1);
 	res->name = tack;
 
-	va = _sparc_ioremap(res, busno, phys, size);
-	/* printk("ioremap(0x%x:%08lx[0x%lx])=%p\n", busno, phys, size, va); */ /* P3 diag */
+	va = _sparc_ioremap(res, busanal, phys, size);
+	/* printk("ioremap(0x%x:%08lx[0x%lx])=%p\n", busanal, phys, size, va); */ /* P3 diag */
 	return va;
 }
 
@@ -209,8 +209,8 @@ _sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz)
 	if (allocate_resource(&sparc_iomap, res,
 	    (offset + sz + PAGE_SIZE-1) & PAGE_MASK,
 	    sparc_iomap.start, sparc_iomap.end, PAGE_SIZE, NULL, NULL) != 0) {
-		/* Usually we cannot see printks in this case. */
-		prom_printf("alloc_io_res(%s): cannot occupy\n",
+		/* Usually we cananalt see printks in this case. */
+		prom_printf("alloc_io_res(%s): cananalt occupy\n",
 		    (res->name != NULL)? res->name: "???");
 		prom_halt();
 	}
@@ -241,11 +241,11 @@ unsigned long sparc_dma_alloc_resource(struct device *dev, size_t len)
 	res = kzalloc(sizeof(*res), GFP_KERNEL);
 	if (!res)
 		return 0;
-	res->name = dev->of_node->full_name;
+	res->name = dev->of_analde->full_name;
 
 	if (allocate_resource(&_sparc_dvma, res, len, _sparc_dvma.start,
 			      _sparc_dvma.end, PAGE_SIZE, NULL, NULL) != 0) {
-		printk("%s: cannot occupy 0x%zx", __func__, len);
+		printk("%s: cananalt occupy 0x%zx", __func__, len);
 		kfree(res);
 		return 0;
 	}
@@ -260,7 +260,7 @@ bool sparc_dma_free_resource(void *cpu_addr, size_t size)
 
 	res = lookup_resource(&_sparc_dvma, addr);
 	if (!res) {
-		printk("%s: cannot free %p\n", __func__, cpu_addr);
+		printk("%s: cananalt free %p\n", __func__, cpu_addr);
 		return false;
 	}
 
@@ -301,9 +301,9 @@ arch_initcall(sparc_register_ioport);
 #endif /* CONFIG_SBUS */
 
 /*
- * IIep is write-through, not flushing on cpu to device transfer.
+ * IIep is write-through, analt flushing on cpu to device transfer.
  *
- * On LEON systems without cache snooping, the entire D-CACHE must be flushed to
+ * On LEON systems without cache sanaloping, the entire D-CACHE must be flushed to
  * make DMA to cacheable memory coherent.
  */
 void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
@@ -311,7 +311,7 @@ void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
 {
 	if (dir != DMA_TO_DEVICE &&
 	    sparc_cpu_model == sparc_leon &&
-	    !sparc_leon3_snooping_enabled())
+	    !sparc_leon3_sanaloping_enabled())
 		leon_flush_dcache_all();
 }
 

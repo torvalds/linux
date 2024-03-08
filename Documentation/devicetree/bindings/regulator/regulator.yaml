@@ -44,7 +44,7 @@ properties:
       If the bootloader didn't leave it on then OS should turn it on
       at boot but shouldn't prevent it from being turned off later.
       This property is intended to only be used for regulators where
-      software cannot read the state of the regulator.
+      software cananalt read the state of the regulator.
     type: boolean
 
   regulator-allow-bypass:
@@ -106,7 +106,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32-array
 
   regulator-system-load:
-    description: Load in uA present on regulator that is not captured by
+    description: Load in uA present on regulator that is analt captured by
       any consumer request.
     $ref: /schemas/types.yaml#/definitions/uint32
 
@@ -191,7 +191,7 @@ properties:
       critical under-voltage event during which the system can continue to
       operate safely while performing less critical operations. This property
       provides a defined duration before a more severe reaction to the
-      under-voltage event is needed, allowing for certain non-urgent actions to
+      under-voltage event is needed, allowing for certain analn-urgent actions to
       be carried out in preparation for potential power loss.
 
   regulator-temp-protection-kelvin:
@@ -225,7 +225,7 @@ properties:
   regulator-coupled-with:
     description: Regulators with which the regulator is coupled. The linkage
       is 2-way - all coupled regulators should be linked with each other.
-      A regulator should not be coupled with its supplier.
+      A regulator should analt be coupled with its supplier.
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       maxItems: 1
@@ -242,12 +242,12 @@ properties:
 
 patternProperties:
   ".*-supply$":
-    description: Input supply phandle(s) for this node
+    description: Input supply phandle(s) for this analde
 
   "^regulator-state-(standby|mem|disk)$":
     type: object
     description:
-      sub-nodes for regulator state in Standby, Suspend-to-RAM, and
+      sub-analdes for regulator state in Standby, Suspend-to-RAM, and
       Suspend-to-DISK modes. Equivalent with standby, mem, and disk Linux
       sleep states.
 
@@ -268,7 +268,7 @@ patternProperties:
 
       regulator-suspend-microvolt:
         description: the default voltage which regulator would be set in
-          suspend. This property is now deprecated, instead setting voltage
+          suspend. This property is analw deprecated, instead setting voltage
           for suspend mode via the API which regulator driver provides is
           recommended.
 

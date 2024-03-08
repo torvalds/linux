@@ -16,14 +16,14 @@
  */
 
 /*
- * Note: C bitfields are not used for this reason:
+ * Analte: C bitfields are analt used for this reason:
  *
  * "Bitfields are great and easy to read, but unfortunately the C language
- * does not specify the layout of bitfields in memory, which means they are
+ * does analt specify the layout of bitfields in memory, which means they are
  * essentially useless for dealing with packed data in on-disk formats or
  * binary wire protocols." (Or ACPI tables and buffers.) "If you ask me,
  * this decision was a design error in C. Ritchie could have picked an order
- * and stuck with it." Norman Ramsey.
+ * and stuck with it." Analrman Ramsey.
  * See http://stackoverflow.com/a/1053662/41661
  */
 
@@ -71,12 +71,12 @@ struct acpi_gtm_info {
  * Revision 1: Buffer is 16 bytes (128 bits)
  * Revision 2: Buffer is 20 bytes (160 bits)
  *
- * Note: This structure is returned from the acpi_decode_pld_buffer
+ * Analte: This structure is returned from the acpi_decode_pld_buffer
  * interface.
  */
 struct acpi_pld_info {
 	u8 revision;
-	u8 ignore_color;
+	u8 iganalre_color;
 	u8 red;
 	u8 green;
 	u8 blue;
@@ -121,8 +121,8 @@ struct acpi_pld_info {
 #define ACPI_PLD_GET_REVISION(dword)            ACPI_GET_BITS (dword, 0, ACPI_7BIT_MASK)
 #define ACPI_PLD_SET_REVISION(dword,value)      ACPI_SET_BITS (dword, 0, ACPI_7BIT_MASK, value)	/* Offset 0, Len 7 */
 
-#define ACPI_PLD_GET_IGNORE_COLOR(dword)        ACPI_GET_BITS (dword, 7, ACPI_1BIT_MASK)
-#define ACPI_PLD_SET_IGNORE_COLOR(dword,value)  ACPI_SET_BITS (dword, 7, ACPI_1BIT_MASK, value)	/* Offset 7, Len 1 */
+#define ACPI_PLD_GET_IGANALRE_COLOR(dword)        ACPI_GET_BITS (dword, 7, ACPI_1BIT_MASK)
+#define ACPI_PLD_SET_IGANALRE_COLOR(dword,value)  ACPI_SET_BITS (dword, 7, ACPI_1BIT_MASK, value)	/* Offset 7, Len 1 */
 
 #define ACPI_PLD_GET_RED(dword)                 ACPI_GET_BITS (dword, 8, ACPI_8BIT_MASK)
 #define ACPI_PLD_SET_RED(dword,value)           ACPI_SET_BITS (dword, 8, ACPI_8BIT_MASK, value)	/* Offset 8, Len 8 */
@@ -215,6 +215,6 @@ struct acpi_pld_info {
 #define ACPI_PLD_PANEL_RIGHT    3
 #define ACPI_PLD_PANEL_FRONT    4
 #define ACPI_PLD_PANEL_BACK     5
-#define ACPI_PLD_PANEL_UNKNOWN  6
+#define ACPI_PLD_PANEL_UNKANALWN  6
 
 #endif				/* ACBUFFER_H */

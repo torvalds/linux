@@ -1,10 +1,10 @@
 Regulator of AMS AS3722 PMIC.
-Name of the regulator subnode must be "regulators".
+Name of the regulator subanalde must be "regulators".
 
 Optional properties:
 --------------------
 The input supply of regulators are the optional properties on the
-regulator node. The AS3722 is having 7 DCDC step-down regulators as
+regulator analde. The AS3722 is having 7 DCDC step-down regulators as
 sd[0-6], 10 LDOs as ldo[0-7], ldo[9-11]. The input supply of these
 regulators are provided through following properties:
 vsup-sd2-supply: Input supply for SD2.
@@ -18,21 +18,21 @@ vin-ldo3-4-supply: Input supply for LDO3 and LDO4.
 vin-ldo9-10-supply: Input supply for LDO9 and LDO10.
 vin-ldo11-supply: Input supply for LDO11.
 
-Optional nodes:
+Optional analdes:
 --------------
-- regulators : Must contain a sub-node per regulator from the list below.
-	       Each sub-node should contain the constraints and initialization
+- regulators : Must contain a sub-analde per regulator from the list below.
+	       Each sub-analde should contain the constraints and initialization
 	       information for that regulator. See regulator.txt for a
-	       description of standard properties for these sub-nodes.
+	       description of standard properties for these sub-analdes.
 	       Additional custom properties  are listed below.
 	       sd[0-6], ldo[0-7], ldo[9-11].
 
-	       Optional sub-node properties:
+	       Optional sub-analde properties:
 	       ----------------------------
 		ams,ext-control: External control of the rail. The option of
 			this properties will tell which external input is
 			controlling this rail. Valid values are 0, 1, 2 ad 3.
-			0: There is no external control of this rail.
+			0: There is anal external control of this rail.
 			1: Rail is controlled by ENABLE1 input pin.
 			2: Rail is controlled by ENABLE2 input pin.
 			3: Rail is controlled by ENABLE3 input pin.

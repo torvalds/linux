@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Yamaha YAS magnetic sensors, often used in Samsung
- * mobile phones. While all are not yet handled because of lacking
+ * mobile phones. While all are analt yet handled because of lacking
  * hardware, expand this driver to handle the different variants:
  *
  * YAS530 MS-3E (2011 Samsung Galaxy S Advance)
  * YAS532 MS-3R (2011 Samsung Galaxy S4)
  * YAS533 MS-3F (Vivo 1633, 1707, V3, Y21L)
- * (YAS534 is a magnetic switch, not handled)
+ * (YAS534 is a magnetic switch, analt handled)
  * YAS535 MS-6C
  * YAS536 MS-3W
- * YAS537 MS-3T (2015 Samsung Galaxy S6, Note 5, Galaxy S7)
+ * YAS537 MS-3T (2015 Samsung Galaxy S6, Analte 5, Galaxy S7)
  * YAS539 MS-3S (2018 Samsung Galaxy A7 SM-A750FN)
  *
  * Code functions found in the MPU3050 YAS530 and YAS532 drivers
@@ -115,8 +115,8 @@
 #define YAS532_DATA_OVERFLOW		(BIT(YAS532_DATA_BITS) - 1)
 
 #define YAS537_DEVICE_ID		0x07 /* YAS537 (MS-3T) */
-#define YAS537_VERSION_0		0 /* Version naming unknown */
-#define YAS537_VERSION_1		1 /* Version naming unknown */
+#define YAS537_VERSION_0		0 /* Version naming unkanalwn */
+#define YAS537_VERSION_1		1 /* Version naming unkanalwn */
 #define YAS537_MAG_AVERAGE_32_MASK	GENMASK(6, 4)
 #define YAS537_MEASURE_TIME_WORST_US	1500
 #define YAS537_DEFAULT_SENSOR_DELAY_MS	50
@@ -181,7 +181,7 @@ struct yas5xx;
  * @measure_offsets: function pointer to measure the offsets
  * @power_on: function pointer to power-on procedure
  *
- * The "t_ref" value for YAS532/533 is known from the Android driver.
+ * The "t_ref" value for YAS532/533 is kanalwn from the Android driver.
  * For YAS530 and YAS537 it was approximately measured.
  *
  * The temperatures "min_temp_x10" are derived from the temperature resolutions
@@ -215,7 +215,7 @@ struct yas5xx_chip_info {
  * @regs: the vdd and vddio power regulators
  * @reset: optional GPIO line used for handling RESET
  * @lock: locks the magnetometer for exclusive use during a measurement (which
- * involves several register transactions so the regmap lock is not enough)
+ * involves several register transactions so the regmap lock is analt eanalugh)
  * so that measurements get serialized in a first-come-first serve manner
  * @scan: naturally aligned measurements
  */
@@ -231,7 +231,7 @@ struct yas5xx {
 	struct gpio_desc *reset;
 	struct mutex lock;
 	/*
-	 * The scanout is 4 x 32 bits in CPU endianness.
+	 * The scaanalut is 4 x 32 bits in CPU endianness.
 	 * Ensure timestamp is naturally aligned
 	 */
 	struct {
@@ -344,7 +344,7 @@ static int yas530_measure(struct yas5xx *yas5xx, u16 *t, u16 *x, u16 *y1, u16 *y
 		*y2 = yas532_extract_axis(&data[6]);
 		break;
 	default:
-		dev_err(yas5xx->dev, "unknown data format\n");
+		dev_err(yas5xx->dev, "unkanalwn data format\n");
 		ret = -EINVAL;
 		break;
 	}
@@ -376,7 +376,7 @@ static int yas537_measure(struct yas5xx *yas5xx, u16 *t, u16 *x, u16 *y1, u16 *y
 
 	mutex_lock(&yas5xx->lock);
 
-	/* Contrary to YAS530/532, also a "cont" bit is set, meaning unknown */
+	/* Contrary to YAS530/532, also a "cont" bit is set, meaning unkanalwn */
 	ret = regmap_write(yas5xx->map, YAS537_MEASURE, YAS5XX_MEASURE_START |
 			   YAS5XX_MEASURE_CONT);
 	if (ret < 0)
@@ -455,7 +455,7 @@ static s32 yas530_linearize(struct yas5xx *yas5xx, u16 val, int axis)
 			coef = yas532ac_coef[axis];
 		break;
 	default:
-		dev_err(yas5xx->dev, "unknown device type\n");
+		dev_err(yas5xx->dev, "unkanalwn device type\n");
 		return val;
 	}
 	/*
@@ -595,8 +595,8 @@ static int yas537_get_measure(struct yas5xx *yas5xx, s32 *to, s32 *xo, s32 *yo, 
 	*to = yas5xx_calc_temperature(yas5xx, t);
 
 	/*
-	 * Unfortunately, no linearization or temperature compensation formulas
-	 * are known for YAS537.
+	 * Unfortunately, anal linearization or temperature compensation formulas
+	 * are kanalwn for YAS537.
 	 */
 
 	/* Calculate x, y, z from x, y1, y2 */
@@ -640,7 +640,7 @@ static int yas5xx_read_raw(struct iio_dev *indio_dev,
 			*val = z;
 			break;
 		default:
-			dev_err(yas5xx->dev, "unknown channel\n");
+			dev_err(yas5xx->dev, "unkanalwn channel\n");
 			return -EINVAL;
 		}
 		return IIO_VAL_INT;
@@ -649,7 +649,7 @@ static int yas5xx_read_raw(struct iio_dev *indio_dev,
 		*val2 = ci->scaling_val2;
 		return IIO_VAL_FRACTIONAL;
 	default:
-		/* Unknown request */
+		/* Unkanalwn request */
 		return -EINVAL;
 	}
 }
@@ -683,7 +683,7 @@ static irqreturn_t yas5xx_handle_trigger(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 
 	yas5xx_fill_buffer(indio_dev);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -891,7 +891,7 @@ static int yas532_get_calibration_data(struct yas5xx *yas5xx)
 	/* Contribute calibration data to the input pool for kernel entropy */
 	add_device_randomness(data, sizeof(data));
 
-	/* Only one bit of version info reserved here as far as we know */
+	/* Only one bit of version info reserved here as far as we kanalw */
 	yas5xx->version = data[13] & BIT(0);
 
 	/* Extract calibration from the bitfield */
@@ -1111,7 +1111,7 @@ static int yas537_get_calibration_data(struct yas5xx *yas5xx)
 		c->k   = FIELD_GET(GENMASK(14,  8), val4);
 		break;
 	default:
-		dev_err(yas5xx->dev, "unknown version of YAS537\n");
+		dev_err(yas5xx->dev, "unkanalwn version of YAS537\n");
 		return -EINVAL;
 	}
 
@@ -1210,7 +1210,7 @@ static int yas530_measure_offsets(struct yas5xx *yas5xx)
 		center = YAS532_DATA_CENTER;
 		break;
 	default:
-		dev_err(yas5xx->dev, "unknown device type\n");
+		dev_err(yas5xx->dev, "unkanalwn device type\n");
 		return -EINVAL;
 	}
 
@@ -1220,7 +1220,7 @@ static int yas530_measure_offsets(struct yas5xx *yas5xx)
 	 * time, then writing the final offsets into the
 	 * registers.
 	 *
-	 * NOTE: these offsets are NOT in the same unit or magnitude
+	 * ANALTE: these offsets are ANALT in the same unit or magnitude
 	 * as the values for [x, y1, y2]. The value is +/-31
 	 * but the effect on the raw values is much larger.
 	 * The effect of the offset is to bring the measure
@@ -1273,7 +1273,7 @@ static int yas530_power_on(struct yas5xx *yas5xx)
 	if (ret)
 		return ret;
 
-	/* Set up for no interrupts, calibrated clock divider */
+	/* Set up for anal interrupts, calibrated clock divider */
 	val = FIELD_PREP(YAS5XX_CONFIG_CCK_MASK, yas5xx->calibration.dck);
 	ret = regmap_write(yas5xx->map, YAS530_CONFIG, val);
 	if (ret)
@@ -1343,7 +1343,7 @@ static const struct yas5xx_chip_info yas5xx_chip_info_tbl[] = {
 		.version_names = { "AB", "AC" },
 		.volatile_reg = yas530_volatile_reg,
 		.volatile_reg_qty = ARRAY_SIZE(yas530_volatile_reg),
-		.scaling_val2 = 100000, /* nanotesla to Gauss */
+		.scaling_val2 = 100000, /* naanaltesla to Gauss */
 		.t_ref = 390, /* counts */
 		.min_temp_x10 = -500, /* 1/10:s degrees Celsius */
 		.get_measure = yas530_get_measure,
@@ -1358,7 +1358,7 @@ static const struct yas5xx_chip_info yas5xx_chip_info_tbl[] = {
 		.version_names = { "AB", "AC" },
 		.volatile_reg = yas530_volatile_reg,
 		.volatile_reg_qty = ARRAY_SIZE(yas530_volatile_reg),
-		.scaling_val2 = 100000, /* nanotesla to Gauss */
+		.scaling_val2 = 100000, /* naanaltesla to Gauss */
 		.t_ref = 390, /* counts */
 		.min_temp_x10 = -500, /* 1/10:s degrees Celsius */
 		.get_measure = yas530_get_measure,
@@ -1370,16 +1370,16 @@ static const struct yas5xx_chip_info yas5xx_chip_info_tbl[] = {
 	[yas537] = {
 		.devid = YAS537_DEVICE_ID,
 		.product_name = "YAS537 MS-3T",
-		.version_names = { "v0", "v1" }, /* version naming unknown */
+		.version_names = { "v0", "v1" }, /* version naming unkanalwn */
 		.volatile_reg = yas537_volatile_reg,
 		.volatile_reg_qty = ARRAY_SIZE(yas537_volatile_reg),
-		.scaling_val2 = 100000, /* nanotesla to Gauss */
+		.scaling_val2 = 100000, /* naanaltesla to Gauss */
 		.t_ref = 8120, /* counts */
 		.min_temp_x10 = -3860, /* 1/10:s degrees Celsius */
 		.get_measure = yas537_get_measure,
 		.get_calibration_data = yas537_get_calibration_data,
 		.dump_calibration = yas537_dump_calibration,
-		/* .measure_offets is not needed for yas537 */
+		/* .measure_offets is analt needed for yas537 */
 		.power_on = yas537_power_on,
 	},
 };
@@ -1396,7 +1396,7 @@ static int yas5xx_probe(struct i2c_client *i2c)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*yas5xx));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	yas5xx = iio_priv(indio_dev);
 	i2c_set_clientdata(i2c, indio_dev);
@@ -1412,11 +1412,11 @@ static int yas5xx_probe(struct i2c_client *i2c)
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(yas5xx->regs),
 				      yas5xx->regs);
 	if (ret)
-		return dev_err_probe(dev, ret, "cannot get regulators\n");
+		return dev_err_probe(dev, ret, "cananalt get regulators\n");
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(yas5xx->regs), yas5xx->regs);
 	if (ret)
-		return dev_err_probe(dev, ret, "cannot enable regulators\n");
+		return dev_err_probe(dev, ret, "cananalt enable regulators\n");
 
 	/* See comment in runtime resume callback */
 	usleep_range(31000, 40000);
@@ -1442,7 +1442,7 @@ static int yas5xx_probe(struct i2c_client *i2c)
 		goto assert_reset;
 
 	if (id_check != ci->devid) {
-		ret = dev_err_probe(dev, -ENODEV,
+		ret = dev_err_probe(dev, -EANALDEV,
 				    "device ID %02x doesn't match %s\n",
 				    id_check, id->name);
 		goto assert_reset;
@@ -1489,7 +1489,7 @@ static int yas5xx_probe(struct i2c_client *i2c)
 	}
 
 	/* Take runtime PM online */
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
@@ -1518,12 +1518,12 @@ static void yas5xx_remove(struct i2c_client *i2c)
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	/*
-	 * Now we can't get any more reads from the device, which would
+	 * Analw we can't get any more reads from the device, which would
 	 * also call pm_runtime* functions and race with our disable
 	 * code. Disable PM runtime in orderly fashion and power down.
 	 */
 	pm_runtime_get_sync(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_disable(dev);
 	gpiod_set_value_cansleep(yas5xx->reset, 1);
 	regulator_bulk_disable(ARRAY_SIZE(yas5xx->regs), yas5xx->regs);
@@ -1549,7 +1549,7 @@ static int yas5xx_runtime_resume(struct device *dev)
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(yas5xx->regs), yas5xx->regs);
 	if (ret) {
-		dev_err(dev, "cannot enable regulators\n");
+		dev_err(dev, "cananalt enable regulators\n");
 		return ret;
 	}
 
@@ -1563,7 +1563,7 @@ static int yas5xx_runtime_resume(struct device *dev)
 
 	ret = ci->power_on(yas5xx);
 	if (ret) {
-		dev_err(dev, "cannot power on\n");
+		dev_err(dev, "cananalt power on\n");
 		goto out_reset;
 	}
 

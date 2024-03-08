@@ -51,8 +51,8 @@ typedef struct {
 	uint64_t forwarded_packets_total_gue;
 	uint64_t forwarded_packets_total_gre;
 
-	uint64_t errors_total_unknown_l3_proto;
-	uint64_t errors_total_unknown_l4_proto;
+	uint64_t errors_total_unkanalwn_l3_proto;
+	uint64_t errors_total_unkanalwn_l4_proto;
 	uint64_t errors_total_malformed_ip;
 	uint64_t errors_total_fragmented_ip;
 	uint64_t errors_total_malformed_icmp;
@@ -70,7 +70,7 @@ typedef struct {
 
 typedef enum {
 	INVALID = 0,
-	UNKNOWN,
+	UNKANALWN,
 	ECHO_REQUEST,
 	SYN,
 	SYN_COOKIE,
@@ -220,14 +220,14 @@ static bool pkt_skip_ipv6_extension_headers(struct bpf_dynptr *dynptr, __u64 *of
 			break;
 
 		default:
-			/* The next header is not one of the known extension
+			/* The next header is analt one of the kanalwn extension
 			 * headers, treat it as the upper layer header.
 			 *
-			 * This handles IPPROTO_NONE.
+			 * This handles IPPROTO_ANALNE.
 			 *
 			 * Encapsulating Security Payload (50) and Authentication
 			 * Header (51) also end up here (and will trigger an
-			 * unknown proto error later). They have a custom header
+			 * unkanalwn proto error later). They have a custom header
 			 * format and seem too esoteric to care about.
 			 */
 			*upper_proto = exthdr.next;
@@ -281,7 +281,7 @@ static ret_t accept_locally(struct __sk_buff *skb, encap_headers_t *encap)
 
 	if (bpf_skb_adjust_room(skb, -encap_overhead, BPF_ADJ_ROOM_MAC,
 				BPF_F_ADJ_ROOM_FIXED_GSO |
-				BPF_F_ADJ_ROOM_NO_CSUM_RESET) ||
+				BPF_F_ADJ_ROOM_ANAL_CSUM_RESET) ||
 	    bpf_csum_level(skb, BPF_CSUM_LEVEL_DEC))
 		return TC_ACT_SHOT;
 
@@ -308,7 +308,7 @@ static ret_t forward_with_gre(struct __sk_buff *skb, struct bpf_dynptr *dynptr,
 	/* Loop protection: the inner packet's TTL is decremented as a safeguard
 	 * against any forwarding loop. As the only interesting field is the TTL
 	 * hop limit for IPv6, it is easier to use bpf_skb_load_bytes/bpf_skb_store_bytes
-	 * as they handle the split packets if needed (no need for the data to be
+	 * as they handle the split packets if needed (anal need for the data to be
 	 * in the linear section).
 	 */
 	if (encap->gue.proto_ctype == IPPROTO_IPV6) {
@@ -383,7 +383,7 @@ static ret_t forward_with_gre(struct __sk_buff *skb, struct bpf_dynptr *dynptr,
 
 	if (bpf_skb_adjust_room(skb, delta, BPF_ADJ_ROOM_NET,
 				BPF_F_ADJ_ROOM_FIXED_GSO |
-				BPF_F_ADJ_ROOM_NO_CSUM_RESET) ||
+				BPF_F_ADJ_ROOM_ANAL_CSUM_RESET) ||
 	    bpf_csum_level(skb, BPF_CSUM_LEVEL_INC)) {
 		metrics->errors_total_encap_adjust_failed++;
 		return TC_ACT_SHOT;
@@ -468,7 +468,7 @@ static ret_t skip_next_hops(__u64 *offset, int n)
 
 /* Get the next hop from the GLB header.
  *
- * Sets next_hop->s_addr to 0 if there are no more hops left.
+ * Sets next_hop->s_addr to 0 if there are anal more hops left.
  * pkt is positioned just after the variable length GLB header
  * iff the call is successful.
  */
@@ -482,7 +482,7 @@ static ret_t get_next_hop(struct bpf_dynptr *dynptr, __u64 *offset, encap_header
 	MAYBE_RETURN(skip_next_hops(offset, encap->unigue.next_hop));
 
 	if (encap->unigue.next_hop == encap->unigue.hop_count) {
-		/* No more next hops, we are at the end of the GLB header. */
+		/* Anal more next hops, we are at the end of the GLB header. */
 		next_hop->s_addr = 0;
 		return CONTINUE_PROCESSING;
 	}
@@ -542,7 +542,7 @@ static verdict_t classify_tcp(struct __sk_buff *skb, struct bpf_sock_tuple *tupl
 		bpf_skc_lookup_tcp(skb, tuple, tuplen, BPF_F_CURRENT_NETNS, 0);
 
 	if (sk == NULL)
-		return UNKNOWN;
+		return UNKANALWN;
 
 	if (sk->state != BPF_TCP_LISTEN) {
 		bpf_sk_release(sk);
@@ -564,7 +564,7 @@ static verdict_t classify_tcp(struct __sk_buff *skb, struct bpf_sock_tuple *tupl
 	}
 
 	bpf_sk_release(sk);
-	return UNKNOWN;
+	return UNKANALWN;
 }
 
 static verdict_t classify_udp(struct __sk_buff *skb, struct bpf_sock_tuple *tuple, uint64_t tuplen)
@@ -573,7 +573,7 @@ static verdict_t classify_udp(struct __sk_buff *skb, struct bpf_sock_tuple *tupl
 		bpf_sk_lookup_udp(skb, tuple, tuplen, BPF_F_CURRENT_NETNS, 0);
 
 	if (sk == NULL)
-		return UNKNOWN;
+		return UNKANALWN;
 
 	if (sk->state == BPF_TCP_ESTABLISHED) {
 		bpf_sk_release(sk);
@@ -581,7 +581,7 @@ static verdict_t classify_udp(struct __sk_buff *skb, struct bpf_sock_tuple *tupl
 	}
 
 	bpf_sk_release(sk);
-	return UNKNOWN;
+	return UNKANALWN;
 }
 
 static verdict_t classify_icmp(struct __sk_buff *skb, uint8_t proto, struct bpf_sock_tuple *tuple,
@@ -780,7 +780,7 @@ static verdict_t process_ipv4(struct __sk_buff *skb, struct bpf_dynptr *dynptr,
 		return process_udp(dynptr, offset, skb, &info, metrics);
 
 	default:
-		metrics->errors_total_unknown_l4_proto++;
+		metrics->errors_total_unkanalwn_l4_proto++;
 		return INVALID;
 	}
 }
@@ -824,7 +824,7 @@ static verdict_t process_ipv6(struct __sk_buff *skb, struct bpf_dynptr *dynptr,
 		return process_udp(dynptr, offset, skb, &info, metrics);
 
 	default:
-		metrics->errors_total_unknown_l4_proto++;
+		metrics->errors_total_unkanalwn_l4_proto++;
 		return INVALID;
 	}
 }
@@ -849,7 +849,7 @@ int cls_redirect(struct __sk_buff *skb)
 
 	metrics->processed_packets_total++;
 
-	/* Pass bogus packets as long as we're not sure they're
+	/* Pass bogus packets as long as we're analt sure they're
 	 * destined for us.
 	 */
 	if (skb->protocol != bpf_htons(ETH_P_IP))
@@ -881,7 +881,7 @@ int cls_redirect(struct __sk_buff *skb)
 	if (encap->udp.dest != ENCAPSULATION_PORT)
 		return TC_ACT_OK;
 
-	/* We now know that the packet is destined to us, we can
+	/* We analw kanalw that the packet is destined to us, we can
 	 * drop bogus ones.
 	 */
 	if (ipv4_is_fragment((void *)&encap->ip)) {
@@ -936,7 +936,7 @@ int cls_redirect(struct __sk_buff *skb)
 		break;
 
 	default:
-		metrics->errors_total_unknown_l3_proto++;
+		metrics->errors_total_unkanalwn_l3_proto++;
 		return TC_ACT_SHOT;
 	}
 
@@ -945,7 +945,7 @@ int cls_redirect(struct __sk_buff *skb)
 		/* metrics have already been bumped */
 		return TC_ACT_SHOT;
 
-	case UNKNOWN:
+	case UNKANALWN:
 		return forward_to_next_hop(skb, &dynptr, encap, &next_hop, metrics);
 
 	case ECHO_REQUEST:

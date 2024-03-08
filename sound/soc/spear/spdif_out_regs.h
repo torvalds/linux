@@ -31,7 +31,7 @@
 	#define SPDIF_OPMODE_MUTE_PAUSE	(2 << 0)
 	#define SPDIF_OPMODE_AUD_DATA	(3 << 0)
 	#define SPDIF_OPMODE_ENCODE	(4 << 0)
-	#define SPDIF_STATE_NORMAL	(1 << 3)
+	#define SPDIF_STATE_ANALRMAL	(1 << 3)
 	#define SPDIF_DIVIDER_MASK	(0xff << 5)
 	#define SPDIF_DIVIDER_SHIFT	(5)
 	#define SPDIF_SAMPLEREAD_MASK	(0x1ffff << 15)

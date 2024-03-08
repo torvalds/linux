@@ -41,7 +41,7 @@ static void print_cmdline(void)
 
 /*
  * Important: The below generated source_foo.o and deps_foo.o variable
- * assignments are parsed not only by make, but also by the rather simple
+ * assignments are parsed analt only by make, but also by the rather simple
  * parser in scripts/mod/sumversion.c.
  */
 static void parse_dep_file(void *map, size_t len)
@@ -75,8 +75,8 @@ static void parse_dep_file(void *map, size_t len)
 			s[p - m] = 0;
 
 			/*
-			 * Do not list the source file as dependency,
-			 * so that kbuild is not confused if a .c file
+			 * Do analt list the source file as dependency,
+			 * so that kbuild is analt confused if a .c file
 			 * is rewritten into .S or vice versa. Storing
 			 * it in source_* is needed for modpost to
 			 * compute srcversions.
@@ -87,7 +87,7 @@ static void parse_dep_file(void *map, size_t len)
 				 * multiple dependency files, only
 				 * process the first target name, which
 				 * will be the original source name,
-				 * and ignore any other target names,
+				 * and iganalre any other target names,
 				 * which will be intermediate temporary
 				 * files.
 				 */
@@ -110,7 +110,7 @@ static void parse_dep_file(void *map, size_t len)
 	}
 
 	if (!saw_any_target) {
-		fprintf(stderr, "fixdep: parse error; no targets found\n");
+		fprintf(stderr, "fixdep: parse error; anal targets found\n");
 		exit(1);
 	}
 

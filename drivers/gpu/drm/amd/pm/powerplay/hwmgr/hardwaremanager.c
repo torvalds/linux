@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -21,7 +21,7 @@
  *
  */
 #include "pp_debug.h"
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include "hwmgr.h"
 #include "hardwaremanager.h"
 #include "power_state.h"
@@ -100,7 +100,7 @@ int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (!hwmgr->not_vf)
+	if (!hwmgr->analt_vf)
 		return 0;
 
 	if (!smum_is_dpm_running(hwmgr)) {
@@ -190,12 +190,12 @@ int phm_display_configuration_changed(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
+int phm_analtify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (NULL != hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment)
-			hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment(hwmgr);
+	if (NULL != hwmgr->hwmgr_func->analtify_smc_display_config_after_ps_adjustment)
+			hwmgr->hwmgr_func->analtify_smc_display_config_after_ps_adjustment(hwmgr);
 
 	return 0;
 }
@@ -204,7 +204,7 @@ int phm_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (!hwmgr->not_vf)
+	if (!hwmgr->analt_vf)
 		return 0;
 
 	if (hwmgr->hwmgr_func->stop_thermal_controller == NULL)
@@ -245,7 +245,7 @@ int phm_start_thermal_controller(struct pp_hwmgr *hwmgr)
 		0};
 	struct amdgpu_device *adev = hwmgr->adev;
 
-	if (!hwmgr->not_vf)
+	if (!hwmgr->analt_vf)
 		return 0;
 
 	if (hwmgr->hwmgr_func->get_thermal_temperature_range)
@@ -315,7 +315,7 @@ int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 	if (NULL != hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk)
 		hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk(hwmgr, display_config->min_dcef_deep_sleep_set_clk);
 
-	for (index = 0; index < display_config->num_path_including_non_display; index++) {
+	for (index = 0; index < display_config->num_path_including_analn_display; index++) {
 		if (display_config->displays[index].controller_id != 0)
 			number_of_active_display++;
 	}
@@ -400,7 +400,7 @@ int phm_get_clock_info(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *s
 
 	pclock_info->min_mem_clk = performance_level.memory_clock;
 	pclock_info->min_eng_clk = performance_level.coreClock;
-	pclock_info->min_bus_bandwidth = performance_level.nonLocalMemoryFreq * performance_level.nonLocalMemoryWidth;
+	pclock_info->min_bus_bandwidth = performance_level.analnLocalMemoryFreq * performance_level.analnLocalMemoryWidth;
 
 
 	result = phm_get_performance_level(hwmgr, state, designation,
@@ -410,7 +410,7 @@ int phm_get_clock_info(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *s
 
 	pclock_info->max_mem_clk = performance_level.memory_clock;
 	pclock_info->max_eng_clk = performance_level.coreClock;
-	pclock_info->max_bus_bandwidth = performance_level.nonLocalMemoryFreq * performance_level.nonLocalMemoryWidth;
+	pclock_info->max_bus_bandwidth = performance_level.analnLocalMemoryFreq * performance_level.analnLocalMemoryWidth;
 
 	return 0;
 }
@@ -500,7 +500,7 @@ int phm_disable_smc_firmware_ctf(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (!hwmgr->not_vf)
+	if (!hwmgr->analt_vf)
 		return 0;
 
 	if (hwmgr->hwmgr_func->disable_smc_firmware_ctf == NULL)

@@ -9,7 +9,7 @@
 #include <sound/soc.h>
 
 /*
- * The everest 7134 is a very simple DA converter with no register
+ * The everest 7134 is a very simple DA converter with anal register
  */
 
 struct es7134_clock_mode {
@@ -57,7 +57,7 @@ static int es7134_check_mclk(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
-	/* should not happen */
+	/* should analt happen */
 	dev_err(dai->dev, "unsupported rate: %u\n", rate);
 	return -EINVAL;
 }
@@ -68,7 +68,7 @@ static int es7134_hw_params(struct snd_pcm_substream *substream,
 {
 	struct es7134_data *priv = snd_soc_dai_get_drvdata(dai);
 
-	/* mclk has not been provided, assume it is OK */
+	/* mclk has analt been provided, assume it is OK */
 	if (!priv->mclk)
 		return 0;
 
@@ -85,7 +85,7 @@ static int es7134_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		return 0;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int es7134_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
@@ -194,7 +194,7 @@ static const struct es7134_chip es7134_chip __maybe_unused = {
 static const struct snd_soc_dapm_widget es7134_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("AOUTL"),
 	SND_SOC_DAPM_OUTPUT("AOUTR"),
-	SND_SOC_DAPM_DAC("DAC", "Playback", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC", "Playback", SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("VDD", 0, 0),
 };
 
@@ -277,13 +277,13 @@ static int es7134_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, priv);
 
 	priv->chip = of_device_get_match_data(dev);
 	if (!priv->chip) {
 		dev_err(dev, "failed to match device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return devm_snd_soc_register_component(&pdev->dev,

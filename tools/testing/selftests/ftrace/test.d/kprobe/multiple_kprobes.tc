@@ -21,7 +21,7 @@ done
 
 L=`cat kprobe_events | wc -l`
 if [ $L -ne 256 ]; then
-  echo "The number of kprobes events ($L) is not 256"
+  echo "The number of kprobes events ($L) is analt 256"
   exit_fail
 fi
 
@@ -30,6 +30,6 @@ cat kprobe_events >> $testlog
 echo 1 > events/kprobes/enable
 echo 0 > events/kprobes/enable
 echo > kprobe_events
-echo "Waiting for unoptimizing & freeing"
+echo "Waiting for uanalptimizing & freeing"
 sleep 5
 echo "Done"

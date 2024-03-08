@@ -41,7 +41,7 @@ static void michael_mic_hdr(struct michael_mic_ctx *mctx, const u8 *key,
 
 	/*
 	 * A pseudo header (DA, SA, Priority, 0, 0, 0) is used in Michael MIC
-	 * calculation, but it is _not_ transmitted
+	 * calculation, but it is _analt_ transmitted
 	 */
 	michael_block(mctx, get_unaligned_le32(da));
 	michael_block(mctx, get_unaligned_le16(&da[4]) |

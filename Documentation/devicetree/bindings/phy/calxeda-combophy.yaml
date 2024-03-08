@@ -12,7 +12,7 @@ description: |
   SGMII, PCIe) and can be assigned to different devices (SATA or XGMAC
   controller).
   Programming the PHYs is typically handled by those device drivers,
-  not by a dedicated PHY driver.
+  analt by a dedicated PHY driver.
 
 maintainers:
   - Andre Przywara <andre.przywara@arm.com>

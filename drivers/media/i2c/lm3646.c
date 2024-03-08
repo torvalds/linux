@@ -82,7 +82,7 @@ static int lm3646_mode_ctrl(struct lm3646_flash *flash,
 			    enum v4l2_flash_led_mode led_mode)
 {
 	switch (led_mode) {
-	case V4L2_FLASH_LED_MODE_NONE:
+	case V4L2_FLASH_LED_MODE_ANALNE:
 		return regmap_write(flash->regmap,
 				    REG_ENABLE, flash->mode_reg | MODE_SHDN);
 	case V4L2_FLASH_LED_MODE_TORCH:
@@ -142,7 +142,7 @@ static int lm3646_set_ctrl(struct v4l2_ctrl *ctrl)
 		if (ctrl->val != V4L2_FLASH_LED_MODE_FLASH)
 			return lm3646_mode_ctrl(flash, ctrl->val);
 		/* switch to SHDN mode before flash strobe on */
-		return lm3646_mode_ctrl(flash, V4L2_FLASH_LED_MODE_NONE);
+		return lm3646_mode_ctrl(flash, V4L2_FLASH_LED_MODE_ANALNE);
 
 	case V4L2_CID_FLASH_STROBE_SOURCE:
 		return regmap_update_bits(flash->regmap,
@@ -170,7 +170,7 @@ static int lm3646_set_ctrl(struct v4l2_ctrl *ctrl)
 			return rval;
 		if ((reg_val & MASK_ENABLE) == MODE_FLASH)
 			return lm3646_mode_ctrl(flash,
-						V4L2_FLASH_LED_MODE_NONE);
+						V4L2_FLASH_LED_MODE_ANALNE);
 		return rval;
 
 	case V4L2_CID_FLASH_TIMEOUT:
@@ -210,7 +210,7 @@ static int lm3646_init_controls(struct lm3646_flash *flash)
 	/* flash mode */
 	v4l2_ctrl_new_std_menu(hdl, ops, V4L2_CID_FLASH_LED_MODE,
 			       V4L2_FLASH_LED_MODE_TORCH, ~0x7,
-			       V4L2_FLASH_LED_MODE_NONE);
+			       V4L2_FLASH_LED_MODE_ANALNE);
 
 	/* flash source */
 	v4l2_ctrl_new_std_menu(hdl, ops, V4L2_CID_FLASH_STROBE_SOURCE,
@@ -274,7 +274,7 @@ static int lm3646_subdev_init(struct lm3646_flash *flash)
 	int rval;
 
 	v4l2_i2c_subdev_init(&flash->subdev_led, client, &lm3646_ops);
-	flash->subdev_led.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	flash->subdev_led.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	strscpy(flash->subdev_led.name, LM3646_NAME,
 		sizeof(flash->subdev_led.name));
 	rval = lm3646_init_controls(flash);
@@ -303,7 +303,7 @@ static int lm3646_init_device(struct lm3646_flash *flash)
 	flash->mode_reg = reg_val & 0xfc;
 
 	/* output disable */
-	rval = lm3646_mode_ctrl(flash, V4L2_FLASH_LED_MODE_NONE);
+	rval = lm3646_mode_ctrl(flash, V4L2_FLASH_LED_MODE_ANALNE);
 	if (rval < 0)
 		return rval;
 
@@ -342,20 +342,20 @@ static int lm3646_probe(struct i2c_client *client)
 
 	flash = devm_kzalloc(&client->dev, sizeof(*flash), GFP_KERNEL);
 	if (flash == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flash->regmap = devm_regmap_init_i2c(client, &lm3646_regmap);
 	if (IS_ERR(flash->regmap))
 		return PTR_ERR(flash->regmap);
 
-	/* check device tree if there is no platform data */
+	/* check device tree if there is anal platform data */
 	if (pdata == NULL) {
 		pdata = devm_kzalloc(&client->dev,
 				     sizeof(struct lm3646_platform_data),
 				     GFP_KERNEL);
 		if (pdata == NULL)
-			return -ENOMEM;
-		/* use default data in case of no platform data */
+			return -EANALMEM;
+		/* use default data in case of anal platform data */
 		pdata->flash_timeout = LM3646_FLASH_TOUT_MAX;
 		pdata->led1_torch_brt = LM3646_LED1_TORCH_BRT_MAX;
 		pdata->led1_flash_brt = LM3646_LED1_FLASH_BRT_MAX;

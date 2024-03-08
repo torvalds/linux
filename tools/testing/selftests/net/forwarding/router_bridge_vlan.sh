@@ -117,7 +117,7 @@ router_destroy()
 	__addr_add_del br1 del 192.0.2.18/28 2001:db8:3::2/64
 	__addr_add_del br1 del 192.0.2.2/28 2001:db8:1::2/64
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 
 	ip link del dev br1
 }
@@ -177,9 +177,9 @@ vlan()
 	RET=0
 
 	bridge vlan add dev br1 vid 333 self
-	check_err $? "Can't add a non-PVID VLAN"
+	check_err $? "Can't add a analn-PVID VLAN"
 	bridge vlan del dev br1 vid 333 self
-	check_err $? "Can't remove a non-PVID VLAN"
+	check_err $? "Can't remove a analn-PVID VLAN"
 
 	log_test "vlan"
 }

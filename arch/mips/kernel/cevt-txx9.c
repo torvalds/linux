@@ -8,7 +8,7 @@
  *
  * Copyright 2001 MontaVista Software Inc.
  * Copyright (C) 2000-2001 Toshiba Corporation
- * Copyright (C) 2007 MIPS Technologies, Inc.
+ * Copyright (C) 2007 MIPS Techanallogies, Inc.
  * Copyright (C) 2007 Ralf Baechle <ralf@linux-mips.org>
  */
 #include <linux/init.h>
@@ -47,7 +47,7 @@ static struct txx9_clocksource txx9_clocksource = {
 	},
 };
 
-static u64 notrace txx9_read_sched_clock(void)
+static u64 analtrace txx9_read_sched_clock(void)
 {
 	return __raw_readl(&txx9_clocksource.tmrptr->trr);
 }

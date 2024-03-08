@@ -15,7 +15,7 @@
 
 #include <linux/stddef.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
@@ -32,7 +32,7 @@
 #define DEBUG_PROLOG_ENTRY -1
 
 #define ALL_AREAS 0 /* copy all debug areas */
-#define NO_AREAS  1 /* copy no debug areas */
+#define ANAL_AREAS  1 /* copy anal debug areas */
 
 /* typedefs */
 
@@ -63,15 +63,15 @@ typedef struct {
 	long args[];
 } debug_sprintf_entry_t;
 
-/* internal function prototyes */
+/* internal function prototanal */
 
 static int debug_init(void);
 static ssize_t debug_output(struct file *file, char __user *user_buf,
 			    size_t user_len, loff_t *offset);
 static ssize_t debug_input(struct file *file, const char __user *user_buf,
 			   size_t user_len, loff_t *offset);
-static int debug_open(struct inode *inode, struct file *file);
-static int debug_close(struct inode *inode, struct file *file);
+static int debug_open(struct ianalde *ianalde, struct file *file);
+static int debug_close(struct ianalde *ianalde, struct file *file);
 static debug_info_t *debug_info_create(const char *name, int pages_per_area,
 				       int nr_areas, int buf_size, umode_t mode);
 static void debug_info_get(debug_info_t *);
@@ -163,7 +163,7 @@ static const struct file_operations debug_file_ops = {
 	.write	 = debug_input,
 	.open	 = debug_open,
 	.release = debug_close,
-	.llseek  = no_llseek,
+	.llseek  = anal_llseek,
 };
 
 static struct dentry *debug_debugfs_root_entry;
@@ -185,10 +185,10 @@ static debug_entry_t ***debug_areas_alloc(int pages_per_area, int nr_areas)
 	if (!areas)
 		goto fail_malloc_areas;
 	for (i = 0; i < nr_areas; i++) {
-		/* GFP_NOWARN to avoid user triggerable WARN, we handle fails */
+		/* GFP_ANALWARN to avoid user triggerable WARN, we handle fails */
 		areas[i] = kmalloc_array(pages_per_area,
 					 sizeof(debug_entry_t *),
-					 GFP_KERNEL | __GFP_NOWARN);
+					 GFP_KERNEL | __GFP_ANALWARN);
 		if (!areas[i])
 			goto fail_malloc_areas2;
 		for (j = 0; j < pages_per_area; j++) {
@@ -345,7 +345,7 @@ static debug_info_t *debug_info_copy(debug_info_t *in, int mode)
 		debug_info_free(rc);
 	} while (1);
 
-	if (mode == NO_AREAS)
+	if (mode == ANAL_AREAS)
 		goto out;
 
 	for (i = 0; i < in->nr_areas; i++) {
@@ -527,14 +527,14 @@ static ssize_t debug_input(struct file *file, const char __user *user_buf,
  * - copies formated output to private_data area of the file
  *   handle
  */
-static int debug_open(struct inode *inode, struct file *file)
+static int debug_open(struct ianalde *ianalde, struct file *file)
 {
 	debug_info_t *debug_info, *debug_info_snapshot;
 	file_private_info_t *p_info;
 	int i, rc = 0;
 
 	mutex_lock(&debug_mutex);
-	debug_info = file_inode(file)->i_private;
+	debug_info = file_ianalde(file)->i_private;
 	/* find debug view */
 	for (i = 0; i < DEBUG_MAX_VIEWS; i++) {
 		if (!debug_info->views[i])
@@ -542,7 +542,7 @@ static int debug_open(struct inode *inode, struct file *file)
 		else if (debug_info->debugfs_entries[i] == file->f_path.dentry)
 			goto found; /* found view ! */
 	}
-	/* no entry found */
+	/* anal entry found */
 	rc = -EINVAL;
 	goto out;
 
@@ -553,18 +553,18 @@ found:
 	/* formats the debug areas. */
 
 	if (!debug_info->views[i]->format_proc && !debug_info->views[i]->header_proc)
-		debug_info_snapshot = debug_info_copy(debug_info, NO_AREAS);
+		debug_info_snapshot = debug_info_copy(debug_info, ANAL_AREAS);
 	else
 		debug_info_snapshot = debug_info_copy(debug_info, ALL_AREAS);
 
 	if (!debug_info_snapshot) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 	p_info = kmalloc(sizeof(file_private_info_t), GFP_KERNEL);
 	if (!p_info) {
 		debug_info_free(debug_info_snapshot);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 	p_info->offset = 0;
@@ -577,7 +577,7 @@ found:
 	p_info->act_entry_offset = 0;
 	file->private_data = p_info;
 	debug_info_get(debug_info);
-	nonseekable_open(inode, file);
+	analnseekable_open(ianalde, file);
 out:
 	mutex_unlock(&debug_mutex);
 	return rc;
@@ -588,7 +588,7 @@ out:
  * - called for user close()
  * - deletes  private_data area of the file handle
  */
-static int debug_close(struct inode *inode, struct file *file)
+static int debug_close(struct ianalde *ianalde, struct file *file)
 {
 	file_private_info_t *p_info;
 
@@ -641,7 +641,7 @@ static void _debug_register(debug_info_t *id)
  * - %NULL if register failed
  *
  * Allocates memory for a debug log.
- * Must not be called within an interrupt handler.
+ * Must analt be called within an interrupt handler.
  */
 debug_info_t *debug_register_mode(const char *name, int pages_per_area,
 				  int nr_areas, int buf_size, umode_t mode,
@@ -649,8 +649,8 @@ debug_info_t *debug_register_mode(const char *name, int pages_per_area,
 {
 	debug_info_t *rc = NULL;
 
-	/* Since debugfs currently does not support uid/gid other than root, */
-	/* we do not allow gid/uid != 0 until we get support for that. */
+	/* Since debugfs currently does analt support uid/gid other than root, */
+	/* we do analt allow gid/uid != 0 until we get support for that. */
 	if ((uid != 0) || (gid != 0))
 		pr_warn("Root becomes the owner of all s390dbf files in sysfs\n");
 	BUG_ON(!initialized);
@@ -682,7 +682,7 @@ EXPORT_SYMBOL(debug_register_mode);
  *
  * Allocates memory for a debug log.
  * The debugfs file mode access permissions are read and write for user.
- * Must not be called within an interrupt handler.
+ * Must analt be called within an interrupt handler.
  */
 debug_info_t *debug_register(const char *name, int pages_per_area,
 			     int nr_areas, int buf_size)
@@ -701,7 +701,7 @@ EXPORT_SYMBOL(debug_register);
  *
  * Register debug_info_t defined using DEFINE_STATIC_DEBUG_INFO.
  *
- * Note: This function is called automatically via an initcall generated by
+ * Analte: This function is called automatically via an initcall generated by
  *	 DEFINE_STATIC_DEBUG_INFO.
  */
 void debug_register_static(debug_info_t *id, int pages_per_area, int nr_areas)
@@ -774,7 +774,7 @@ static void _debug_unregister(debug_info_t *id)
  * @id:		handle for debug log
  *
  * Return:
- *    none
+ *    analne
  */
 void debug_unregister(debug_info_t *id)
 {
@@ -805,7 +805,7 @@ static int debug_set_size(debug_info_t *id, int nr_areas, int pages_per_area)
 	if (!new_id) {
 		pr_info("Allocating memory for %i pages failed\n",
 			pages_per_area);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock_irqsave(&id->lock, flags);
@@ -825,7 +825,7 @@ static int debug_set_size(debug_info_t *id, int nr_areas, int pages_per_area)
  * @new_level:	new debug level
  *
  * Return:
- *    none
+ *    analne
  */
 void debug_set_level(debug_info_t *id, int new_level)
 {
@@ -986,7 +986,7 @@ static struct ctl_table_header *s390dbf_sysctl_header;
  * debug_stop_all() - stops the debug feature if stopping is allowed.
  *
  * Return:
- * -   none
+ * -   analne
  *
  * Currently used in case of a kernel oops.
  */
@@ -1001,12 +1001,12 @@ EXPORT_SYMBOL(debug_stop_all);
  * debug_set_critical() - event/exception functions try lock instead of spin.
  *
  * Return:
- * -   none
+ * -   analne
  *
  * Currently used in case of stopping all CPUs but the current one.
  * Once in this state, functions to write a debug entry for an
- * event or exception no longer spin on the debug area lock,
- * but only try to get it and fail if they do not get the lock.
+ * event or exception anal longer spin on the debug area lock,
+ * but only try to get it and fail if they do analt get the lock.
  */
 void debug_set_critical(void)
 {
@@ -1259,12 +1259,12 @@ static inline char *debug_get_user_string(const char __user *user_buf,
 
 	buffer = kmalloc(user_len + 1, GFP_KERNEL);
 	if (!buffer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	if (copy_from_user(buffer, user_buf, user_len) != 0) {
 		kfree(buffer);
 		return ERR_PTR(-EFAULT);
 	}
-	/* got the string, now strip linefeed. */
+	/* got the string, analw strip linefeed. */
 	if (buffer[user_len - 1] == '\n')
 		buffer[user_len - 1] = 0;
 	else
@@ -1382,7 +1382,7 @@ static int debug_input_level_fn(debug_info_t *id, struct debug_view *view,
 		new_level = debug_get_uint(str);
 	}
 	if (new_level < 0) {
-		pr_warn("%s is not a valid level for a debug feature\n", str);
+		pr_warn("%s is analt a valid level for a debug feature\n", str);
 		rc = -EINVAL;
 	} else {
 		debug_set_level(id, new_level);
@@ -1454,7 +1454,7 @@ static int debug_input_flush_fn(debug_info_t *id, struct debug_view *view,
 		goto out;
 	}
 
-	pr_info("Flushing debug data failed because %c is not a valid "
+	pr_info("Flushing debug data failed because %c is analt a valid "
 		 "area\n", input_buf[0]);
 
 out:
@@ -1533,7 +1533,7 @@ static int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
 	if (num_longs < 1)
 		goto out; /* bufsize of entry too small */
 	if (num_longs == 1) {
-		/* no args, we use only the string */
+		/* anal args, we use only the string */
 		strcpy(out_buf, curr_event->string);
 		rc = strlen(curr_event->string);
 		goto out;

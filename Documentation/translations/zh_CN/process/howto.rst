@@ -114,7 +114,7 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
 
         https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html
 
-  :ref:`Documentation/translations/zh_CN/process/stable-api-nonsense.rst <cn_stable_api_nonsense>`
+  :ref:`Documentation/translations/zh_CN/process/stable-api-analnsense.rst <cn_stable_api_analnsense>`
     论证内核为什么特意不包括稳定的内核内部API，也就是说不包括像这样的特
     性：
 
@@ -485,8 +485,8 @@ Linux内核社区并不喜欢一下接收大段的代码。修改需要被恰当
 (http://www.kerneltravel.net/newbie/2.6-development_process)，感谢Randy
 Dunlap和Gerrit Huizenga完善了应该说和不该说的列表。感谢Pat Mochel, Hanna
 Linder, Randy Dunlap, Kay Sievers, Vojtech Pavlik, Jan Kara, Josh Boyer,
-Kees Cook, Andrew Morton, Andi Kleen, Vadim Lobanov, Jesper Juhl, Adrian
-Bunk, Keri Harris, Frans Pop, David A. Wheeler, Junio Hamano, Michael
+Kees Cook, Andrew Morton, Andi Kleen, Vadim Lobaanalv, Jesper Juhl, Adrian
+Bunk, Keri Harris, Frans Pop, David A. Wheeler, Junio Hamaanal, Michael
 Kerrisk和Alex Shepard的评审、建议和贡献。没有他们的帮助，这篇文档是不可
 能完成的。
 

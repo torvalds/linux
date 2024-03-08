@@ -1,8 +1,8 @@
 digraph peer_states {
 	Secondary -> Primary           [ label = "recv state packet" ]
 	Primary   -> Secondary 	       [ label = "recv state packet" ]
-	Primary   -> Unknown 	       [ label = "connection lost" ]
-	Secondary  -> Unknown  	       [ label = "connection lost" ]
-	Unknown   -> Primary           [ label = "connected" ]
-	Unknown   -> Secondary         [ label = "connected" ]
+	Primary   -> Unkanalwn 	       [ label = "connection lost" ]
+	Secondary  -> Unkanalwn  	       [ label = "connection lost" ]
+	Unkanalwn   -> Primary           [ label = "connected" ]
+	Unkanalwn   -> Secondary         [ label = "connected" ]
 }

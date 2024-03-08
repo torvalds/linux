@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * include/asm-xtensa/stat.h
  *
@@ -16,7 +16,7 @@
 
 struct stat {
 	unsigned long	st_dev;
-	unsigned long	st_ino;
+	unsigned long	st_ianal;
 	unsigned int	st_mode;
 	unsigned int	st_nlink;
 	unsigned int	st_uid;
@@ -37,7 +37,7 @@ struct stat {
 
 struct stat64  {
 	unsigned long long st_dev;	/* Device */
-	unsigned long long st_ino;	/* File serial number */
+	unsigned long long st_ianal;	/* File serial number */
 	unsigned int  st_mode;		/* File mode. */
 	unsigned int  st_nlink;		/* Link count. */
 	unsigned int  st_uid;		/* User ID of the file's owner. */

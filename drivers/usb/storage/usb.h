@@ -15,9 +15,9 @@
  * mind when they created this document.  The commands are all very
  * similar to commands in the SCSI-II and ATAPI specifications.
  *
- * It is important to note that in a number of cases this class
+ * It is important to analte that in a number of cases this class
  * exhibits class-specific exemptions from the USB specification.
- * Notably the usage of NAK, STALL and ACK differs from the norm, in
+ * Analtably the usage of NAK, STALL and ACK differs from the analrm, in
  * that they are used to communicate wait, failed and OK on commands.
  *
  * Also, for certain devices, the interrupt endpoint is used to convey
@@ -58,7 +58,7 @@ struct us_unusual_dev {
 #define US_FLIDX_DISCONNECTING	3	/* disconnect in progress   */
 #define US_FLIDX_RESETTING	4	/* device reset in progress */
 #define US_FLIDX_TIMED_OUT	5	/* SCSI midlayer timed out  */
-#define US_FLIDX_SCAN_PENDING	6	/* scanning not yet done    */
+#define US_FLIDX_SCAN_PENDING	6	/* scanning analt yet done    */
 #define US_FLIDX_REDO_READ10	7	/* redo READ(10) command    */
 #define US_FLIDX_READ10_WORKED	8	/* previous READ(10) succeeded */
 
@@ -87,7 +87,7 @@ typedef void (*pm_hook)(struct us_data *, int);	/* power management hook */
 struct us_data {
 	/*
 	 * The device we're working with
-	 * It's important to note:
+	 * It's important to analte:
 	 *    (o) you must hold dev_mutex to change pusb_dev
 	 */
 	struct mutex		dev_mutex;	 /* protect pusb_dev */
@@ -134,7 +134,7 @@ struct us_data {
 
 	/* mutual exclusion and synchronization structures */
 	struct completion	cmnd_ready;	 /* to sleep thread on	    */
-	struct completion	notify;		 /* thread begin/end	    */
+	struct completion	analtify;		 /* thread begin/end	    */
 	wait_queue_head_t	delay_wait;	 /* wait during reset	    */
 	struct delayed_work	scan_dwork;	 /* for async scanning      */
 

@@ -417,7 +417,7 @@ static const struct ltk050h3146w_desc ltk050h3146w_data = {
 	.mode = &ltk050h3146w_mode,
 	.init = ltk050h3146w_init_sequence,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-		MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET,
+		MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_ANAL_EOT_PACKET,
 };
 
 static int ltk050h3146w_a2_select_page(struct ltk050h3146w *ctx, int page)
@@ -513,7 +513,7 @@ static const struct ltk050h3146w_desc ltk050h3146w_a2_data = {
 	.mode = &ltk050h3146w_a2_mode,
 	.init = ltk050h3146w_a2_init_sequence,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-		MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET,
+		MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_ANAL_EOT_PACKET,
 };
 
 static int ltk050h3146w_unprepare(struct drm_panel *panel)
@@ -613,7 +613,7 @@ static int ltk050h3146w_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, ctx->panel_desc->mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_set_name(mode);
 
@@ -639,7 +639,7 @@ static int ltk050h3146w_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->panel_desc = of_device_get_match_data(dev);
 	if (!ctx->panel_desc)
@@ -647,7 +647,7 @@ static int ltk050h3146w_probe(struct mipi_dsi_device *dsi)
 
 	ctx->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio)) {
-		dev_err(dev, "cannot get reset gpio\n");
+		dev_err(dev, "cananalt get reset gpio\n");
 		return PTR_ERR(ctx->reset_gpio);
 	}
 

@@ -12,13 +12,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -69,7 +69,7 @@ static int mipi_dsi_uevent(const struct device *dev, struct kobj_uevent_env *env
 	int err;
 
 	err = of_device_uevent_modalias(dev, env);
-	if (err != -ENODEV)
+	if (err != -EANALDEV)
 		return err;
 
 	add_uevent_var(env, "MODALIAS=%s%s", MIPI_DSI_MODULE_PREFIX,
@@ -97,28 +97,28 @@ static struct bus_type mipi_dsi_bus_type = {
 };
 
 /**
- * of_find_mipi_dsi_device_by_node() - find the MIPI DSI device matching a
- *    device tree node
- * @np: device tree node
+ * of_find_mipi_dsi_device_by_analde() - find the MIPI DSI device matching a
+ *    device tree analde
+ * @np: device tree analde
  *
- * Return: A pointer to the MIPI DSI device corresponding to @np or NULL if no
- *    such device exists (or has not been registered yet).
+ * Return: A pointer to the MIPI DSI device corresponding to @np or NULL if anal
+ *    such device exists (or has analt been registered yet).
  */
-struct mipi_dsi_device *of_find_mipi_dsi_device_by_node(struct device_node *np)
+struct mipi_dsi_device *of_find_mipi_dsi_device_by_analde(struct device_analde *np)
 {
 	struct device *dev;
 
-	dev = bus_find_device_by_of_node(&mipi_dsi_bus_type, np);
+	dev = bus_find_device_by_of_analde(&mipi_dsi_bus_type, np);
 
 	return dev ? to_mipi_dsi_device(dev) : NULL;
 }
-EXPORT_SYMBOL(of_find_mipi_dsi_device_by_node);
+EXPORT_SYMBOL(of_find_mipi_dsi_device_by_analde);
 
 static void mipi_dsi_dev_release(struct device *dev)
 {
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
 
-	of_node_put(dev->of_node);
+	of_analde_put(dev->of_analde);
 	kfree(dsi);
 }
 
@@ -132,7 +132,7 @@ static struct mipi_dsi_device *mipi_dsi_device_alloc(struct mipi_dsi_host *host)
 
 	dsi = kzalloc(sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dsi->host = host;
 	dsi->dev.bus = &mipi_dsi_bus_type;
@@ -155,34 +155,34 @@ static int mipi_dsi_device_add(struct mipi_dsi_device *dsi)
 
 #if IS_ENABLED(CONFIG_OF)
 static struct mipi_dsi_device *
-of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
+of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_analde *analde)
 {
 	struct mipi_dsi_device_info info = { };
 	int ret;
 	u32 reg;
 
-	if (of_alias_from_compatible(node, info.type, sizeof(info.type)) < 0) {
-		drm_err(host, "modalias failure on %pOF\n", node);
+	if (of_alias_from_compatible(analde, info.type, sizeof(info.type)) < 0) {
+		drm_err(host, "modalias failure on %pOF\n", analde);
 		return ERR_PTR(-EINVAL);
 	}
 
-	ret = of_property_read_u32(node, "reg", &reg);
+	ret = of_property_read_u32(analde, "reg", &reg);
 	if (ret) {
-		drm_err(host, "device node %pOF has no valid reg property: %d\n",
-			node, ret);
+		drm_err(host, "device analde %pOF has anal valid reg property: %d\n",
+			analde, ret);
 		return ERR_PTR(-EINVAL);
 	}
 
 	info.channel = reg;
-	info.node = of_node_get(node);
+	info.analde = of_analde_get(analde);
 
 	return mipi_dsi_device_register_full(host, &info);
 }
 #else
 static struct mipi_dsi_device *
-of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
+of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_analde *analde)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 #endif
 
@@ -222,7 +222,7 @@ mipi_dsi_device_register_full(struct mipi_dsi_host *host,
 		return dsi;
 	}
 
-	device_set_node(&dsi->dev, of_fwnode_handle(info->node));
+	device_set_analde(&dsi->dev, of_fwanalde_handle(info->analde));
 	dsi->channel = info->channel;
 	strscpy(dsi->name, info->type, sizeof(dsi->name));
 
@@ -297,22 +297,22 @@ static DEFINE_MUTEX(host_lock);
 static LIST_HEAD(host_list);
 
 /**
- * of_find_mipi_dsi_host_by_node() - find the MIPI DSI host matching a
- *				     device tree node
- * @node: device tree node
+ * of_find_mipi_dsi_host_by_analde() - find the MIPI DSI host matching a
+ *				     device tree analde
+ * @analde: device tree analde
  *
  * Returns:
- * A pointer to the MIPI DSI host corresponding to @node or NULL if no
- * such device exists (or has not been registered yet).
+ * A pointer to the MIPI DSI host corresponding to @analde or NULL if anal
+ * such device exists (or has analt been registered yet).
  */
-struct mipi_dsi_host *of_find_mipi_dsi_host_by_node(struct device_node *node)
+struct mipi_dsi_host *of_find_mipi_dsi_host_by_analde(struct device_analde *analde)
 {
 	struct mipi_dsi_host *host;
 
 	mutex_lock(&host_lock);
 
 	list_for_each_entry(host, &host_list, list) {
-		if (host->dev->of_node == node) {
+		if (host->dev->of_analde == analde) {
 			mutex_unlock(&host_lock);
 			return host;
 		}
@@ -322,17 +322,17 @@ struct mipi_dsi_host *of_find_mipi_dsi_host_by_node(struct device_node *node)
 
 	return NULL;
 }
-EXPORT_SYMBOL(of_find_mipi_dsi_host_by_node);
+EXPORT_SYMBOL(of_find_mipi_dsi_host_by_analde);
 
 int mipi_dsi_host_register(struct mipi_dsi_host *host)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
-	for_each_available_child_of_node(host->dev->of_node, node) {
-		/* skip nodes without reg property */
-		if (!of_property_present(node, "reg"))
+	for_each_available_child_of_analde(host->dev->of_analde, analde) {
+		/* skip analdes without reg property */
+		if (!of_property_present(analde, "reg"))
 			continue;
-		of_mipi_dsi_device_add(host, node);
+		of_mipi_dsi_device_add(host, analde);
 	}
 
 	mutex_lock(&host_lock);
@@ -374,7 +374,7 @@ int mipi_dsi_attach(struct mipi_dsi_device *dsi)
 	int ret;
 
 	if (!ops || !ops->attach)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	ret = ops->attach(dsi->host, dsi);
 	if (ret)
@@ -398,7 +398,7 @@ int mipi_dsi_detach(struct mipi_dsi_device *dsi)
 		return -EINVAL;
 
 	if (!ops || !ops->detach)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	dsi->attached = false;
 
@@ -447,7 +447,7 @@ static ssize_t mipi_dsi_device_transfer(struct mipi_dsi_device *dsi,
 	const struct mipi_dsi_host_ops *ops = dsi->host->ops;
 
 	if (!ops || !ops->transfer)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (dsi->mode_flags & MIPI_DSI_MODE_LPM)
 		msg->flags |= MIPI_DSI_MSG_USE_LPM;
@@ -551,7 +551,7 @@ int mipi_dsi_create_packet(struct mipi_dsi_packet *packet,
 	memset(packet, 0, sizeof(*packet));
 	packet->header[0] = ((msg->channel & 0x3) << 6) | (msg->type & 0x3f);
 
-	/* TODO: compute ECC if hardware support is not available */
+	/* TODO: compute ECC if hardware support is analt available */
 
 	/*
 	 * Long write packets contain the word count in header bytes 1 and 2.
@@ -656,7 +656,7 @@ EXPORT_SYMBOL(mipi_dsi_set_maximum_return_packet_size);
  */
 ssize_t mipi_dsi_compression_mode(struct mipi_dsi_device *dsi, bool enable)
 {
-	/* Note: Needs updating for non-default PPS or algorithm */
+	/* Analte: Needs updating for analn-default PPS or algorithm */
 	u8 tx[2] = { enable << 0, 0 };
 	struct mipi_dsi_msg msg = {
 		.channel = dsi->channel,
@@ -850,7 +850,7 @@ ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, u8 cmd,
 	if (len > ARRAY_SIZE(stack_tx) - 1) {
 		tx = kmalloc(size, GFP_KERNEL);
 		if (!tx)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		tx = stack_tx;
 	}
@@ -895,22 +895,22 @@ ssize_t mipi_dsi_dcs_read(struct mipi_dsi_device *dsi, u8 cmd, void *data,
 EXPORT_SYMBOL(mipi_dsi_dcs_read);
 
 /**
- * mipi_dsi_dcs_nop() - send DCS nop packet
+ * mipi_dsi_dcs_analp() - send DCS analp packet
  * @dsi: DSI peripheral device
  *
  * Return: 0 on success or a negative error code on failure.
  */
-int mipi_dsi_dcs_nop(struct mipi_dsi_device *dsi)
+int mipi_dsi_dcs_analp(struct mipi_dsi_device *dsi)
 {
 	ssize_t err;
 
-	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_NOP, NULL, 0);
+	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_ANALP, NULL, 0);
 	if (err < 0)
 		return err;
 
 	return 0;
 }
-EXPORT_SYMBOL(mipi_dsi_dcs_nop);
+EXPORT_SYMBOL(mipi_dsi_dcs_analp);
 
 /**
  * mipi_dsi_dcs_soft_reset() - perform a software reset of the display module
@@ -946,7 +946,7 @@ int mipi_dsi_dcs_get_power_mode(struct mipi_dsi_device *dsi, u8 *mode)
 				sizeof(*mode));
 	if (err <= 0) {
 		if (err == 0)
-			err = -ENODATA;
+			err = -EANALDATA;
 
 		return err;
 	}
@@ -971,7 +971,7 @@ int mipi_dsi_dcs_get_pixel_format(struct mipi_dsi_device *dsi, u8 *format)
 				sizeof(*format));
 	if (err <= 0) {
 		if (err == 0)
-			err = -ENODATA;
+			err = -EANALDATA;
 
 		return err;
 	}
@@ -1229,7 +1229,7 @@ int mipi_dsi_dcs_get_display_brightness(struct mipi_dsi_device *dsi,
 				brightness, sizeof(*brightness));
 	if (err <= 0) {
 		if (err == 0)
-			err = -ENODATA;
+			err = -EANALDATA;
 
 		return err;
 	}
@@ -1279,7 +1279,7 @@ int mipi_dsi_dcs_get_display_brightness_large(struct mipi_dsi_device *dsi,
 				brightness_be, sizeof(brightness_be));
 	if (err <= 0) {
 		if (err == 0)
-			err = -ENODATA;
+			err = -EANALDATA;
 
 		return err;
 	}

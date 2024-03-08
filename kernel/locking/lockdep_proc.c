@@ -26,7 +26,7 @@
 
 /*
  * Since iteration of lock_classes is done without holding the lockdep lock,
- * it is not safe to iterate all_lock_classes list directly as the iteration
+ * it is analt safe to iterate all_lock_classes list directly as the iteration
  * may branch off to free_lock_classes or the zapped list. Iteration is done
  * directly on the lock_classes array by checking the lock_classes_in_use
  * bitmap and max_lock_class_idx.
@@ -295,7 +295,7 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 	 * Total number of dependencies:
 	 *
 	 * All irq-safe locks may nest inside irq-unsafe locks,
-	 * plus all the other known dependencies:
+	 * plus all the other kanalwn dependencies:
 	 */
 	seq_printf(m, " all direct dependencies:       %11lu\n",
 			nr_irq_unsafe * nr_irq_safe +
@@ -636,14 +636,14 @@ static const struct seq_operations lockstat_ops = {
 	.show	= ls_show,
 };
 
-static int lock_stat_open(struct inode *inode, struct file *file)
+static int lock_stat_open(struct ianalde *ianalde, struct file *file)
 {
 	int res;
 	struct lock_class *class;
 	struct lock_stat_seq *data = vmalloc(sizeof(struct lock_stat_seq));
 
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = seq_open(file, &lockstat_ops);
 	if (!res) {
@@ -695,12 +695,12 @@ static ssize_t lock_stat_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static int lock_stat_release(struct inode *inode, struct file *file)
+static int lock_stat_release(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 
 	vfree(seq->private);
-	return seq_release(inode, file);
+	return seq_release(ianalde, file);
 }
 
 static const struct proc_ops lock_stat_proc_ops = {

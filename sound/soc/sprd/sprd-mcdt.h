@@ -6,7 +6,7 @@
 enum sprd_mcdt_channel_type {
 	SPRD_MCDT_DAC_CHAN,
 	SPRD_MCDT_ADC_CHAN,
-	SPRD_MCDT_UNKNOWN_CHAN,
+	SPRD_MCDT_UNKANALWN_CHAN,
 };
 
 enum sprd_mcdt_dma_chan {
@@ -18,7 +18,7 @@ enum sprd_mcdt_dma_chan {
 };
 
 struct sprd_mcdt_chan_callback {
-	void (*notify)(void *data);
+	void (*analtify)(void *data);
 	void *data;
 };
 
@@ -28,13 +28,13 @@ struct sprd_mcdt_chan_callback {
  * @id: channel id
  * @fifo_phys: channel fifo physical address which is used for DMA transfer
  * @type: channel type
- * @cb: channel fifo interrupt's callback interface to notify the fifo events
+ * @cb: channel fifo interrupt's callback interface to analtify the fifo events
  * @dma_enable: indicate if use DMA mode to transfer data
- * @int_enable: indicate if use interrupt mode to notify users to read or
+ * @int_enable: indicate if use interrupt mode to analtify users to read or
  * write data manually
  * @list: used to link into the global list
  *
- * Note: users should not modify any members of this structure.
+ * Analte: users should analt modify any members of this structure.
  */
 struct sprd_mcdt_chan {
 	struct sprd_mcdt_dev *mcdt;

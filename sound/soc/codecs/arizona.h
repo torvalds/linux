@@ -11,7 +11,7 @@
 #define _ASOC_ARIZONA_H
 
 #include <linux/completion.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/mfd/arizona/core.h>
 
 #include <sound/soc.h>
@@ -31,7 +31,7 @@
 #define ARIZONA_CLK_SRC_AIF2BCLK 0x9
 #define ARIZONA_CLK_SRC_AIF3BCLK 0xa
 
-#define ARIZONA_FLL_SRC_NONE      -1
+#define ARIZONA_FLL_SRC_ANALNE      -1
 #define ARIZONA_FLL_SRC_MCLK1      0
 #define ARIZONA_FLL_SRC_MCLK2      1
 #define ARIZONA_FLL_SRC_SLIMCLK    3
@@ -62,8 +62,8 @@
 #define ARIZONA_DVFS_SR1_RQ	0x001
 #define ARIZONA_DVFS_ADSP1_RQ	0x100
 
-/* Notifier events */
-#define ARIZONA_NOTIFY_VOICE_TRIGGER   0x1
+/* Analtifier events */
+#define ARIZONA_ANALTIFY_VOICE_TRIGGER   0x1
 
 struct wm_adsp;
 
@@ -184,7 +184,7 @@ extern unsigned int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MUX_ENUMS(name##_aux6, base_reg + 40)
 
 #define ARIZONA_MUX(name, ctrl) \
-	SND_SOC_DAPM_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
+	SND_SOC_DAPM_MUX(name, SND_SOC_ANALPM, 0, 0, ctrl)
 
 #define ARIZONA_MUX_WIDGETS(name, name_str) \
 	ARIZONA_MUX(name_str " Input", &name##_mux)
@@ -194,7 +194,7 @@ extern unsigned int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MUX(name_str " Input 2", &name##_in2_mux), \
 	ARIZONA_MUX(name_str " Input 3", &name##_in3_mux), \
 	ARIZONA_MUX(name_str " Input 4", &name##_in4_mux), \
-	SND_SOC_DAPM_MIXER(name_str " Mixer", SND_SOC_NOPM, 0, 0, NULL, 0)
+	SND_SOC_DAPM_MIXER(name_str " Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0)
 
 #define ARIZONA_DSP_WIDGETS(name, name_str) \
 	ARIZONA_MIXER_WIDGETS(name##L, name_str "L"), \
@@ -347,7 +347,7 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 
 int arizona_init_spk(struct snd_soc_component *component);
 int arizona_init_gpio(struct snd_soc_component *component);
-int arizona_init_mono(struct snd_soc_component *component);
+int arizona_init_moanal(struct snd_soc_component *component);
 
 int arizona_init_common(struct arizona *arizona);
 int arizona_init_vol_limit(struct arizona *arizona);
@@ -364,27 +364,27 @@ bool arizona_input_analog(struct snd_soc_component *component, int shift);
 
 const char *arizona_sample_rate_val_to_name(unsigned int rate_val);
 
-static inline int arizona_register_notifier(struct snd_soc_component *component,
-					    struct notifier_block *nb,
-					    int (*notify)
-					    (struct notifier_block *nb,
+static inline int arizona_register_analtifier(struct snd_soc_component *component,
+					    struct analtifier_block *nb,
+					    int (*analtify)
+					    (struct analtifier_block *nb,
 					    unsigned long action, void *data))
 {
 	struct arizona_priv *priv = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = priv->arizona;
 
-	nb->notifier_call = notify;
+	nb->analtifier_call = analtify;
 
-	return blocking_notifier_chain_register(&arizona->notifier, nb);
+	return blocking_analtifier_chain_register(&arizona->analtifier, nb);
 }
 
-static inline int arizona_unregister_notifier(struct snd_soc_component *component,
-					      struct notifier_block *nb)
+static inline int arizona_unregister_analtifier(struct snd_soc_component *component,
+					      struct analtifier_block *nb)
 {
 	struct arizona_priv *priv = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = priv->arizona;
 
-	return blocking_notifier_chain_unregister(&arizona->notifier, nb);
+	return blocking_analtifier_chain_unregister(&arizona->analtifier, nb);
 }
 
 int arizona_of_get_audio_pdata(struct arizona *arizona);

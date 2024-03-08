@@ -47,7 +47,7 @@ move_bucket_in_flight_add(struct buckets_in_flight *list, struct move_bucket b)
 	int ret;
 
 	if (!new)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	new->bucket = b;
 
@@ -79,7 +79,7 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 	int ret;
 
 	if (bch2_bucket_is_open(trans->c,
-				b->k.bucket.inode,
+				b->k.bucket.ianalde,
 				b->k.bucket.offset))
 		return 0;
 
@@ -146,7 +146,7 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 	struct btree_trans *trans = ctxt->trans;
 	struct bch_fs *c = trans->c;
 	size_t nr_to_get = max_t(size_t, 16U, buckets_in_flight->nr / 4);
-	size_t saw = 0, in_flight = 0, not_movable = 0, sectors = 0;
+	size_t saw = 0, in_flight = 0, analt_movable = 0, sectors = 0;
 	int ret;
 
 	move_buckets_wait(ctxt, buckets_in_flight, false);
@@ -173,7 +173,7 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 			goto err;
 
 		if (!ret2)
-			not_movable++;
+			analt_movable++;
 		else if (bucket_in_flight(buckets_in_flight, b.k))
 			in_flight++;
 		else {
@@ -188,14 +188,14 @@ err:
 		ret2;
 	}));
 
-	pr_debug("have: %zu (%zu) saw %zu in flight %zu not movable %zu got %zu (%zu)/%zu buckets ret %i",
+	pr_debug("have: %zu (%zu) saw %zu in flight %zu analt movable %zu got %zu (%zu)/%zu buckets ret %i",
 		 buckets_in_flight->nr, buckets_in_flight->sectors,
-		 saw, in_flight, not_movable, buckets->nr, sectors, nr_to_get, ret);
+		 saw, in_flight, analt_movable, buckets->nr, sectors, nr_to_get, ret);
 
 	return ret < 0 ? ret : 0;
 }
 
-noinline
+analinline
 static int bch2_copygc(struct moving_context *ctxt,
 		       struct buckets_in_flight *buckets_in_flight,
 		       bool *did_work)
@@ -224,7 +224,7 @@ static int bch2_copygc(struct moving_context *ctxt,
 			ret = 0;
 			continue;
 		}
-		if (ret == -ENOMEM) { /* flush IO, continue later */
+		if (ret == -EANALMEM) { /* flush IO, continue later */
 			ret = 0;
 			break;
 		}
@@ -239,8 +239,8 @@ static int bch2_copygc(struct moving_context *ctxt,
 err:
 	darray_exit(&buckets);
 
-	/* no entries in LRU btree found, or got to end: */
-	if (bch2_err_matches(ret, ENOENT))
+	/* anal entries in LRU btree found, or got to end: */
+	if (bch2_err_matches(ret, EANALENT))
 		ret = 0;
 
 	if (ret < 0 && !bch2_err_matches(ret, EROFS))
@@ -290,12 +290,12 @@ void bch2_copygc_wait_to_text(struct printbuf *out, struct bch_fs *c)
 {
 	prt_printf(out, "Currently waiting for:     ");
 	prt_human_readable_u64(out, max(0LL, c->copygc_wait -
-					atomic64_read(&c->io_clock[WRITE].now)) << 9);
+					atomic64_read(&c->io_clock[WRITE].analw)) << 9);
 	prt_newline(out);
 
 	prt_printf(out, "Currently waiting since:   ");
 	prt_human_readable_u64(out, max(0LL,
-					atomic64_read(&c->io_clock[WRITE].now) -
+					atomic64_read(&c->io_clock[WRITE].analw) -
 					c->copygc_wait_at) << 9);
 	prt_newline(out);
 
@@ -316,7 +316,7 @@ static int bch2_copygc_thread(void *arg)
 
 	buckets = kzalloc(sizeof(struct buckets_in_flight), GFP_KERNEL);
 	if (!buckets)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = rhashtable_init(&buckets->table, &bch_move_bucket_params);
 	bch_err_msg(c, ret, "allocating copygc buckets in flight");
 	if (ret) {
@@ -349,7 +349,7 @@ static int bch2_copygc_thread(void *arg)
 			continue;
 		}
 
-		last = atomic64_read(&clock->now);
+		last = atomic64_read(&clock->analw);
 		wait = bch2_copygc_wait_amount(c);
 
 		if (wait > clock->max_slop) {
@@ -409,11 +409,11 @@ int bch2_copygc_start(struct bch_fs *c)
 	if (c->copygc_thread)
 		return 0;
 
-	if (c->opts.nochanges)
+	if (c->opts.analchanges)
 		return 0;
 
 	if (bch2_fs_init_fault("copygc_start"))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t = kthread_create(bch2_copygc_thread, c, "bch-copygc/%s", c->name);
 	ret = PTR_ERR_OR_ZERO(t);

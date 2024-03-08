@@ -10,12 +10,12 @@ obj-y				+= ptrace-fpu.o
 obj-$(CONFIG_COMPAT)		+= ptrace32.o
 obj-$(CONFIG_VSX)		+= ptrace-vsx.o
 ifneq ($(CONFIG_VSX),y)
-obj-y				+= ptrace-novsx.o
+obj-y				+= ptrace-analvsx.o
 endif
 obj-$(CONFIG_ALTIVEC)		+= ptrace-altivec.o
 obj-$(CONFIG_SPE)		+= ptrace-spe.o
 obj-$(CONFIG_PPC_TRANSACTIONAL_MEM)	+= ptrace-tm.o
 obj-$(CONFIG_PPC_ADV_DEBUG_REGS)	+= ptrace-adv.o
 ifneq ($(CONFIG_PPC_ADV_DEBUG_REGS),y)
-obj-y				+= ptrace-noadv.o
+obj-y				+= ptrace-analadv.o
 endif

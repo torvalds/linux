@@ -2,9 +2,9 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2009-2010 Nokia Corporation
+ * Copyright (C) 2009-2010 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #include <linux/irq.h>
@@ -162,7 +162,7 @@ static int wl12xx_sdio_power_off(struct wl12xx_sdio_glue *glue)
 	sdio_disable_func(func);
 	sdio_release_host(func);
 
-	/* Let runtime PM know the card is powered off */
+	/* Let runtime PM kanalw the card is powered off */
 	pm_runtime_put(&card->dev);
 	return 0;
 }
@@ -220,18 +220,18 @@ static const struct of_device_id wlcore_sdio_of_match_table[] = {
 static int wlcore_probe_of(struct device *dev, int *irq, int *wakeirq,
 			   struct wlcore_platdev_data *pdev_data)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const struct of_device_id *of_id;
 
-	of_id = of_match_node(wlcore_sdio_of_match_table, np);
+	of_id = of_match_analde(wlcore_sdio_of_match_table, np);
 	if (!of_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdev_data->family = of_id->data;
 
 	*irq = irq_of_parse_and_map(np, 0);
 	if (!*irq) {
-		dev_err(dev, "No irq in platform data\n");
+		dev_err(dev, "Anal irq in platform data\n");
 		return -EINVAL;
 	}
 
@@ -249,7 +249,7 @@ static int wlcore_probe_of(struct device *dev, int *irq, int *wakeirq,
 static int wlcore_probe_of(struct device *dev, int *irq, int *wakeirq,
 			   struct wlcore_platdev_data *pdev_data)
 {
-	return -ENODATA;
+	return -EANALDATA;
 }
 #endif
 
@@ -260,23 +260,23 @@ static int wl1271_probe(struct sdio_func *func,
 	struct wl12xx_sdio_glue *glue;
 	struct resource res[2];
 	mmc_pm_flag_t mmcflags;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	int irq, wakeirq, num_irqs;
 	const char *chip_family;
 
 	/* We are only able to handle the wlan function */
 	if (func->num != 0x02)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdev_data = devm_kzalloc(&func->dev, sizeof(*pdev_data), GFP_KERNEL);
 	if (!pdev_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdev_data->if_ops = &sdio_ops;
 
 	glue = devm_kzalloc(&func->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	glue->dev = &func->dev;
 
@@ -299,8 +299,8 @@ static int wl1271_probe(struct sdio_func *func,
 
 	sdio_set_drvdata(func, glue);
 
-	/* Tell PM core that we don't need the card to be powered now */
-	pm_runtime_put_noidle(&func->dev);
+	/* Tell PM core that we don't need the card to be powered analw */
+	pm_runtime_put_analidle(&func->dev);
 
 	/*
 	 * Due to a hardware bug, we can't differentiate wl18xx from
@@ -316,7 +316,7 @@ static int wl1271_probe(struct sdio_func *func,
 	glue->core = platform_device_alloc(chip_family, PLATFORM_DEVID_AUTO);
 	if (!glue->core) {
 		dev_err(glue->dev, "can't allocate platform_device");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -371,7 +371,7 @@ static void wl1271_remove(struct sdio_func *func)
 	struct wl12xx_sdio_glue *glue = sdio_get_drvdata(func);
 
 	/* Undo decrement done above in wl1271_probe */
-	pm_runtime_get_noresume(&func->dev);
+	pm_runtime_get_analresume(&func->dev);
 
 	platform_device_unregister(glue->core);
 }
@@ -380,7 +380,7 @@ static void wl1271_remove(struct sdio_func *func)
 static int wl1271_suspend(struct device *dev)
 {
 	/* Tell MMC/SDIO core it's OK to power down the card
-	 * (if it isn't already), but not to remove it completely */
+	 * (if it isn't already), but analt to remove it completely */
 	struct sdio_func *func = dev_to_sdio_func(dev);
 	struct wl12xx_sdio_glue *glue = sdio_get_drvdata(func);
 	struct wl1271 *wl = platform_get_drvdata(glue->core);
@@ -388,7 +388,7 @@ static int wl1271_suspend(struct device *dev)
 	int ret = 0;
 
 	if (!wl) {
-		dev_err(dev, "no wilink module was probed\n");
+		dev_err(dev, "anal wilink module was probed\n");
 		goto out;
 	}
 
@@ -449,5 +449,5 @@ MODULE_PARM_DESC(dump, "Enable sdio read/write dumps.");
 
 MODULE_DESCRIPTION("TI WLAN SDIO helpers");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
-MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");
+MODULE_AUTHOR("Luciaanal Coelho <coelho@ti.com>");
+MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@analkia.com>");

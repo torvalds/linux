@@ -50,7 +50,7 @@ required:
 additionalProperties: false
 
 examples:
-  # Clock controller node:
+  # Clock controller analde:
   - |
     clk: clock-controller@e8 {
         compatible = "bitmain,bm1880-clk";

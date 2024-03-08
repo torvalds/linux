@@ -38,13 +38,13 @@ to_ac97_controller(struct device *ac97_adapter)
 static int ac97_unbound_ctrl_write(struct ac97_controller *adrv, int slot,
 		     unsigned short reg, unsigned short val)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int ac97_unbound_ctrl_read(struct ac97_controller *adrv, int slot,
 				  unsigned short reg)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct ac97_controller_ops ac97_unbound_ctrl_ops = {
@@ -65,22 +65,22 @@ ac97_codec_find(struct ac97_controller *ac97_ctrl, unsigned int codec_num)
 	return ac97_ctrl->codecs[codec_num];
 }
 
-static struct device_node *
+static struct device_analde *
 ac97_of_get_child_device(struct ac97_controller *ac97_ctrl, int idx,
 			 unsigned int vendor_id)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	u32 reg;
 	char compat[] = "ac97,0000,0000";
 
 	snprintf(compat, sizeof(compat), "ac97,%04x,%04x",
 		 vendor_id >> 16, vendor_id & 0xffff);
 
-	for_each_child_of_node(ac97_ctrl->parent->of_node, node) {
-		if ((idx != of_property_read_u32(node, "reg", &reg)) ||
-		    !of_device_is_compatible(node, compat))
+	for_each_child_of_analde(ac97_ctrl->parent->of_analde, analde) {
+		if ((idx != of_property_read_u32(analde, "reg", &reg)) ||
+		    !of_device_is_compatible(analde, compat))
 			continue;
-		return node;
+		return analde;
 	}
 
 	return NULL;
@@ -94,7 +94,7 @@ static void ac97_codec_release(struct device *dev)
 	adev = to_ac97_device(dev);
 	ac97_ctrl = adev->ac97_ctrl;
 	ac97_ctrl->codecs[adev->num] = NULL;
-	of_node_put(dev->of_node);
+	of_analde_put(dev->of_analde);
 	kfree(adev);
 }
 
@@ -106,7 +106,7 @@ static int ac97_codec_add(struct ac97_controller *ac97_ctrl, int idx,
 
 	codec = kzalloc(sizeof(*codec), GFP_KERNEL);
 	if (!codec)
-		return -ENOMEM;
+		return -EANALMEM;
 	ac97_ctrl->codecs[idx] = codec;
 	codec->vendor_id = vendor_id;
 	codec->dev.release = ac97_codec_release;
@@ -117,7 +117,7 @@ static int ac97_codec_add(struct ac97_controller *ac97_ctrl, int idx,
 
 	device_initialize(&codec->dev);
 	dev_set_name(&codec->dev, "%s:%u", dev_name(ac97_ctrl->parent), idx);
-	codec->dev.of_node = ac97_of_get_child_device(ac97_ctrl, idx,
+	codec->dev.of_analde = ac97_of_get_child_device(ac97_ctrl, idx,
 						      vendor_id);
 
 	ret = device_add(&codec->dev);
@@ -256,7 +256,7 @@ static ssize_t warm_reset_store(struct device *dev,
 	struct ac97_controller *ac97_ctrl;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&ac97_controllers_mutex);
 	ac97_ctrl = to_ac97_controller(dev);
@@ -353,7 +353,7 @@ struct ac97_controller *snd_ac97_controller_register(
 
 	ac97_ctrl = kzalloc(sizeof(*ac97_ctrl), GFP_KERNEL);
 	if (!ac97_ctrl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < AC97_BUS_MAX_CODECS && codecs_pdata; i++)
 		ac97_ctrl->codecs_pdata[i] = codecs_pdata[i];
@@ -497,7 +497,7 @@ static int ac97_bus_probe(struct device *dev)
 	if (ret)
 		return ret;
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
@@ -507,7 +507,7 @@ static int ac97_bus_probe(struct device *dev)
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	ac97_put_disable_clk(adev);
 
 	return ret;
@@ -524,7 +524,7 @@ static void ac97_bus_remove(struct device *dev)
 		return;
 
 	adrv->remove(adev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	ac97_put_disable_clk(adev);
 
 	pm_runtime_disable(dev);

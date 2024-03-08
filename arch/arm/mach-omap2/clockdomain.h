@@ -3,7 +3,7 @@
  * OMAP2/3 clockdomain framework functions
  *
  * Copyright (C) 2008, 2012 Texas Instruments, Inc.
- * Copyright (C) 2008-2011 Nokia Corporation
+ * Copyright (C) 2008-2011 Analkia Corporation
  *
  * Paul Walmsley
  */
@@ -21,20 +21,20 @@
  *
  * XXX Document CLKDM_CAN_* flags
  *
- * CLKDM_NO_AUTODEPS: Prevent "autodeps" from being added/removed from this
+ * CLKDM_ANAL_AUTODEPS: Prevent "autodeps" from being added/removed from this
  *     clockdomain.  (Currently, this applies to OMAP3 clockdomains only.)
  * CLKDM_ACTIVE_WITH_MPU: The PRCM guarantees that this clockdomain is
  *     active whenever the MPU is active.  True for interconnects and
  *     the WKUP clockdomains.
  * CLKDM_MISSING_IDLE_REPORTING: The idle status of the IP blocks and
- *     clocks inside this clockdomain are not taken into account by
+ *     clocks inside this clockdomain are analt taken into account by
  *     the PRCM when determining whether the clockdomain is idle.
  *     Without this flag, if the clockdomain is set to
  *     hardware-supervised idle mode, the PRCM may transition the
  *     enclosing powerdomain to a low power state, even when devices
  *     inside the clockdomain and powerdomain are in use.  (An example
  *     of such a clockdomain is the EMU clockdomain on OMAP3/4.)  If
- *     this flag is set, and the clockdomain does not support the
+ *     this flag is set, and the clockdomain does analt support the
  *     force-sleep mode, then the HW_AUTO mode will be used to put the
  *     clockdomain to sleep.  Similarly, if the clockdomain supports
  *     the force-wakeup mode, then it will be used whenever a clock or
@@ -45,7 +45,7 @@
 #define CLKDM_CAN_FORCE_WAKEUP			(1 << 1)
 #define CLKDM_CAN_ENABLE_AUTO			(1 << 2)
 #define CLKDM_CAN_DISABLE_AUTO			(1 << 3)
-#define CLKDM_NO_AUTODEPS			(1 << 4)
+#define CLKDM_ANAL_AUTODEPS			(1 << 4)
 #define CLKDM_ACTIVE_WITH_MPU			(1 << 5)
 #define CLKDM_MISSING_IDLE_REPORTING		(1 << 6)
 
@@ -80,7 +80,7 @@ struct clkdm_autodep {
  * @sleepdep_usecount: Number of sleep deps that could prevent clkdm from idle
  *
  * Statically defined.  @clkdm is resolved from @clkdm_name at runtime and
- * should not be pre-initialized.
+ * should analt be pre-initialized.
  *
  * XXX Should also include hardware (fixed) dependencies.
  */
@@ -112,7 +112,7 @@ struct omap_hwmod;
  * @sleepdep_srcs: Clockdomains that can be told to keep this clkdm from inact
  * @usecount: Usecount tracking
  * @forcewake_count: Usecount for forcing the domain active
- * @node: list_head to link all clockdomains together
+ * @analde: list_head to link all clockdomains together
  *
  * @prcm_partition should be a macro from mach-omap2/prcm44xx.h (OMAP4 only)
  * @cm_inst should be a macro ending in _INST from the OMAP4 CM instance
@@ -137,7 +137,7 @@ struct clockdomain {
 	struct clkdm_dep *sleepdep_srcs;
 	int usecount;
 	int forcewake_count;
-	struct list_head node;
+	struct list_head analde;
 	u32 context;
 };
 
@@ -199,9 +199,9 @@ int clkdm_del_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
 int clkdm_read_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
 int clkdm_clear_all_sleepdeps(struct clockdomain *clkdm);
 
-void clkdm_allow_idle_nolock(struct clockdomain *clkdm);
+void clkdm_allow_idle_anallock(struct clockdomain *clkdm);
 void clkdm_allow_idle(struct clockdomain *clkdm);
-void clkdm_deny_idle_nolock(struct clockdomain *clkdm);
+void clkdm_deny_idle_anallock(struct clockdomain *clkdm);
 void clkdm_deny_idle(struct clockdomain *clkdm);
 
 int clkdm_wakeup(struct clockdomain *clkdm);

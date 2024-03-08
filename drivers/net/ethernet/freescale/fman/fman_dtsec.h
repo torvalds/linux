@@ -11,7 +11,7 @@
 struct mac_device;
 
 int dtsec_initialization(struct mac_device *mac_dev,
-			 struct device_node *mac_node,
+			 struct device_analde *mac_analde,
 			 struct fman_mac_params *params);
 
 #endif /* __DTSEC_H */

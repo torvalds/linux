@@ -468,7 +468,7 @@ static inline u32 vc4_hdmi_read(struct vc4_hdmi *hdmi,
 	base = __vc4_hdmi_get_field_base(hdmi, field->reg);
 	if (!base) {
 		dev_warn(&hdmi->pdev->dev,
-			 "Unknown register ID %u\n", reg);
+			 "Unkanalwn register ID %u\n", reg);
 		return 0;
 	}
 

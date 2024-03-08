@@ -24,7 +24,7 @@ config SW_SYNC
 	depends on DEBUG_FS
 	help
 	  A sync object driver that uses a 32bit counter to coordinate
-	  synchronization.  Useful when there is no hardware primitive backing
+	  synchronization.  Useful when there is anal hardware primitive backing
 	  the synchronization.
 
 	  WARNING: improper use of this can result in deadlocking kernel
@@ -39,8 +39,8 @@ config UDMABUF
 	  A driver to let userspace turn memfd regions into dma-bufs.
 	  Qemu can use this to create host dmabufs for guest framebuffers.
 
-config DMABUF_MOVE_NOTIFY
-	bool "Move notify between drivers (EXPERIMENTAL)"
+config DMABUF_MOVE_ANALTIFY
+	bool "Move analtify between drivers (EXPERIMENTAL)"
 	default n
 	depends on DMA_SHARED_BUFFER
 	help
@@ -57,7 +57,7 @@ config DMABUF_DEBUG
 	default y if DMA_API_DEBUG
 	help
 	  This option enables additional checks for DMA-BUF importers and
-	  exporters. Specifically it validates that importers do not peek at the
+	  exporters. Specifically it validates that importers do analt peek at the
 	  underlying struct page when they import a buffer.
 
 config DMABUF_SELFTESTS
@@ -81,9 +81,9 @@ menuconfig DMABUF_SYSFS_STATS
 	   Choose this option to enable DMA-BUF sysfs statistics
 	   in location /sys/kernel/dmabuf/buffers.
 
-	   /sys/kernel/dmabuf/buffers/<inode_number> will contain
-	   statistics for the DMA-BUF with the unique inode number
-	   <inode_number>.
+	   /sys/kernel/dmabuf/buffers/<ianalde_number> will contain
+	   statistics for the DMA-BUF with the unique ianalde number
+	   <ianalde_number>.
 
 	   This option is deprecated and should sooner or later be removed.
 	   Android is the only user of this and it turned out that this resulted

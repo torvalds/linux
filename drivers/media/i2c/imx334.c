@@ -13,7 +13,7 @@
 #include <linux/pm_runtime.h>
 
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 /* Streaming Mode */
@@ -853,11 +853,11 @@ static void imx334_fill_pad_format(struct imx334 *imx334,
 {
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 	fmt->format.colorspace = V4L2_COLORSPACE_RAW;
 	fmt->format.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	fmt->format.quantization = V4L2_QUANTIZATION_DEFAULT;
-	fmt->format.xfer_func = V4L2_XFER_FUNC_NONE;
+	fmt->format.xfer_func = V4L2_XFER_FUNC_ANALNE;
 }
 
 /**
@@ -1078,7 +1078,7 @@ error_unlock:
  * imx334_detect() - Detect imx334 sensor
  * @imx334: pointer to imx334 device
  *
- * Return: 0 if successful, -EIO if sensor id does not match
+ * Return: 0 if successful, -EIO if sensor id does analt match
  */
 static int imx334_detect(struct imx334 *imx334)
 {
@@ -1106,16 +1106,16 @@ static int imx334_detect(struct imx334 *imx334)
  */
 static int imx334_parse_hw_config(struct imx334 *imx334)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(imx334->dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *fwanalde = dev_fwanalde(imx334->dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	unsigned long rate;
 	unsigned int i, j;
 	int ret;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return -ENXIO;
 
 	/* Request optional reset pin */
@@ -1130,7 +1130,7 @@ static int imx334_parse_hw_config(struct imx334 *imx334)
 	/* Get sensor input clock */
 	imx334->inclk = devm_clk_get(imx334->dev, NULL);
 	if (IS_ERR(imx334->inclk)) {
-		dev_err(imx334->dev, "could not get inclk");
+		dev_err(imx334->dev, "could analt get inclk");
 		return PTR_ERR(imx334->inclk);
 	}
 
@@ -1140,25 +1140,25 @@ static int imx334_parse_hw_config(struct imx334 *imx334)
 		return -EINVAL;
 	}
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep)
 		return -ENXIO;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return ret;
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != IMX334_NUM_DATA_LANES) {
 		dev_err(imx334->dev,
-			"number of CSI2 data lanes %d is not supported",
+			"number of CSI2 data lanes %d is analt supported",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto done_endpoint_free;
 	}
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(imx334->dev, "no link frequencies defined");
+		dev_err(imx334->dev, "anal link frequencies defined");
 		ret = -EINVAL;
 		goto done_endpoint_free;
 	}
@@ -1173,13 +1173,13 @@ static int imx334_parse_hw_config(struct imx334 *imx334)
 
 		if (j == ARRAY_SIZE(link_freq)) {
 			ret = dev_err_probe(imx334->dev, -EINVAL,
-					    "no supported link freq found\n");
+					    "anal supported link freq found\n");
 			goto done_endpoint_free;
 		}
 	}
 
 done_endpoint_free:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -1356,7 +1356,7 @@ static int imx334_probe(struct i2c_client *client)
 
 	imx334 = devm_kzalloc(&client->dev, sizeof(*imx334), GFP_KERNEL);
 	if (!imx334)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	imx334->dev = &client->dev;
 
@@ -1366,7 +1366,7 @@ static int imx334_probe(struct i2c_client *client)
 
 	ret = imx334_parse_hw_config(imx334);
 	if (ret) {
-		dev_err(imx334->dev, "HW configuration is not supported");
+		dev_err(imx334->dev, "HW configuration is analt supported");
 		return ret;
 	}
 
@@ -1397,7 +1397,7 @@ static int imx334_probe(struct i2c_client *client)
 	}
 
 	/* Initialize subdev */
-	imx334->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	imx334->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	imx334->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	/* Initialize source pad */

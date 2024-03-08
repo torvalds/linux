@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -24,7 +24,7 @@
 /**
  * DOC: Shader validator for VC4.
  *
- * Since the VC4 has no IOMMU between it and system memory, a user
+ * Since the VC4 has anal IOMMU between it and system memory, a user
  * with access to execute shaders could escalate privilege by
  * overwriting system memory (using the VPM write address register in
  * the general-purpose DMA mode) or reading system memory it shouldn't
@@ -36,7 +36,7 @@
  * accesses are made so that we can do relocations for them in the
  * uniform stream.
  *
- * Shader BO are immutable for their lifetimes (enforced by not
+ * Shader BO are immutable for their lifetimes (enforced by analt
  * allowing mmaps, GEM prime export, or rendering to from a CL), so
  * this validation is only performed at BO creation time.
  */
@@ -50,7 +50,7 @@ struct vc4_shader_validation_state {
 	/* Current IP being validated. */
 	uint32_t ip;
 
-	/* IP at the end of the BO, do not read shader[max_ip] */
+	/* IP at the end of the BO, do analt read shader[max_ip] */
 	uint32_t max_ip;
 
 	uint64_t *shader;
@@ -323,13 +323,13 @@ validate_uniform_address_write(struct vc4_validated_shader_info *validated_shade
 	 * of its uniform reads.
 	 *
 	 * One could potentially emit more efficient QPU code, by
-	 * noticing that (say) an if statement does uniform control
+	 * analticing that (say) an if statement does uniform control
 	 * flow for all threads and that the if reads the same number
 	 * of uniforms on each side.  However, this scheme is easy to
-	 * validate so it's all we allow for now.
+	 * validate so it's all we allow for analw.
 	 */
 	switch (QPU_GET_FIELD(inst, QPU_SIG)) {
-	case QPU_SIG_NONE:
+	case QPU_SIG_ANALNE:
 	case QPU_SIG_SCOREBOARD_UNLOCK:
 	case QPU_SIG_COLOR_LOAD:
 	case QPU_SIG_LOAD_TMU0:
@@ -337,7 +337,7 @@ validate_uniform_address_write(struct vc4_validated_shader_info *validated_shade
 		break;
 	default:
 		DRM_DEBUG("uniforms address change must be "
-			  "normal math\n");
+			  "analrmal math\n");
 		return false;
 	}
 
@@ -351,9 +351,9 @@ validate_uniform_address_write(struct vc4_validated_shader_info *validated_shade
 		return false;
 	}
 
-	if (QPU_GET_FIELD(inst, QPU_PACK) != QPU_PACK_A_NOP &&
+	if (QPU_GET_FIELD(inst, QPU_PACK) != QPU_PACK_A_ANALP &&
 	    !(inst & QPU_PM)) {
-		DRM_DEBUG("No packing allowed on uniforms reset\n");
+		DRM_DEBUG("Anal packing allowed on uniforms reset\n");
 		return false;
 	}
 
@@ -401,7 +401,7 @@ check_reg_write(struct vc4_validated_shader_info *validated_shader,
 		uint32_t cond_mul = QPU_GET_FIELD(inst, QPU_COND_MUL);
 
 		if (sig == QPU_SIG_LOAD_IMM &&
-		    QPU_GET_FIELD(inst, QPU_PACK) == QPU_PACK_A_NOP &&
+		    QPU_GET_FIELD(inst, QPU_PACK) == QPU_PACK_A_ANALP &&
 		    ((is_mul && cond_mul == QPU_COND_ALWAYS) ||
 		     (!is_mul && cond_add == QPU_COND_ALWAYS))) {
 			validation_state->live_immediates[lri] =
@@ -429,7 +429,7 @@ check_reg_write(struct vc4_validated_shader_info *validated_shader,
 	case QPU_W_TLB_COLOR_MS:
 	case QPU_W_TLB_COLOR_ALL:
 	case QPU_W_TLB_Z:
-		/* These only interact with the tile buffer, not main memory,
+		/* These only interact with the tile buffer, analt main memory,
 		 * so they're safe.
 		 */
 		return true;
@@ -446,11 +446,11 @@ check_reg_write(struct vc4_validated_shader_info *validated_shader,
 				       is_mul);
 
 	case QPU_W_HOST_INT:
-	case QPU_W_TMU_NOSWAP:
+	case QPU_W_TMU_ANALSWAP:
 	case QPU_W_TLB_ALPHA_MASK:
 	case QPU_W_MUTEX_RELEASE:
 		/* XXX: I haven't thought about these, so don't support them
-		 * for now.
+		 * for analw.
 		 */
 		DRM_DEBUG("Unsupported waddr %d\n", waddr);
 		return false;
@@ -510,13 +510,13 @@ track_live_clamps(struct vc4_validated_shader_info *validated_shader,
 		validation_state->live_max_clamp_regs[lri_add] = false;
 		validation_state->live_min_clamp_offsets[lri_add] = ~0;
 	} else {
-		/* Nothing further to do for live tracking, since only ADDs
+		/* Analthing further to do for live tracking, since only ADDs
 		 * generate new live clamp registers.
 		 */
 		return;
 	}
 
-	/* Now, handle remaining live clamp tracking for the ADD operation. */
+	/* Analw, handle remaining live clamp tracking for the ADD operation. */
 
 	if (cond_add != QPU_COND_ALWAYS)
 		return;
@@ -585,9 +585,9 @@ check_branch(uint64_t inst,
 		validation_state->needs_uniform_address_for_loop = true;
 
 	/* We don't want to have to worry about validation of this, and
-	 * there's no need for it.
+	 * there's anal need for it.
 	 */
-	if (waddr_add != QPU_W_NOP || waddr_mul != QPU_W_NOP) {
+	if (waddr_add != QPU_W_ANALP || waddr_mul != QPU_W_ANALP) {
 		DRM_DEBUG("branch instruction at %d wrote a register.\n",
 			  validation_state->ip);
 		return false;
@@ -629,7 +629,7 @@ check_instruction_reads(struct vc4_validated_shader_info *validated_shader,
 }
 
 /* Make sure that all branches are absolute and point within the shader, and
- * note their targets for later.
+ * analte their targets for later.
  */
 static bool
 vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
@@ -667,7 +667,7 @@ vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
 
 		if (inst & QPU_BRANCH_REG) {
 			DRM_DEBUG("branching from register relative "
-				  "not supported\n");
+				  "analt supported\n");
 			return false;
 		}
 
@@ -678,11 +678,11 @@ vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
 
 		/* The actual branch target is the instruction after the delay
 		 * slots, plus whatever byte offset is in the low 32 bits of
-		 * the instruction.  Make sure we're not branching beyond the
+		 * the instruction.  Make sure we're analt branching beyond the
 		 * end of the shader object.
 		 */
 		if (branch_imm % sizeof(inst) != 0) {
-			DRM_DEBUG("branch target not aligned\n");
+			DRM_DEBUG("branch target analt aligned\n");
 			return false;
 		}
 
@@ -695,7 +695,7 @@ vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
 		}
 		set_bit(branch_target_ip, validation_state->branch_targets);
 
-		/* Make sure that the non-branching path is also not outside
+		/* Make sure that the analn-branching path is also analt outside
 		 * the shader.
 		 */
 		if (after_delay_ip >= validation_state->max_ip) {
@@ -716,7 +716,7 @@ vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
 	return true;
 }
 
-/* Resets any known state for the shader, used when we may be branched to from
+/* Resets any kanalwn state for the shader, used when we may be branched to from
  * multiple locations in the program (or at shader start).
  */
 static void
@@ -829,7 +829,7 @@ vc4_validate_shader(struct drm_gem_dma_object *shader_obj)
 		}
 
 		switch (sig) {
-		case QPU_SIG_NONE:
+		case QPU_SIG_ANALNE:
 		case QPU_SIG_WAIT_FOR_SCOREBOARD:
 		case QPU_SIG_SCOREBOARD_UNLOCK:
 		case QPU_SIG_COLOR_LOAD:
@@ -931,7 +931,7 @@ vc4_validate_shader(struct drm_gem_dma_object *shader_obj)
 		validated_shader->uniforms_size += 4;
 	}
 
-	/* Again, no chance of integer overflow here because the worst case
+	/* Again, anal chance of integer overflow here because the worst case
 	 * scenario is 8 bytes of uniforms plus handles per 8-byte
 	 * instruction.
 	 */

@@ -5,7 +5,7 @@
  * (C) Copyright 2020 Toshiba Electronic Devices & Storage Corporation
  * (C) Copyright 2020 TOSHIBA CORPORATION
  *
- * Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+ * Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp>
  */
 
 #include <linux/gpio/driver.h>
@@ -111,7 +111,7 @@ static int visconti_gpio_populate_parent_fwspec(struct gpio_chip *chip,
 {
 	struct irq_fwspec *fwspec = &gfwspec->fwspec;
 
-	fwspec->fwnode = chip->irq.parent_domain->fwnode;
+	fwspec->fwanalde = chip->irq.parent_domain->fwanalde;
 	fwspec->param_count = 3;
 	fwspec->param[0] = 0;
 	fwspec->param[1] = parent_hwirq;
@@ -161,12 +161,12 @@ static int visconti_gpio_probe(struct platform_device *pdev)
 	struct visconti_gpio *priv;
 	struct gpio_irq_chip *girq;
 	struct irq_domain *parent;
-	struct device_node *irq_parent;
+	struct device_analde *irq_parent;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->lock);
 	priv->dev = dev;
@@ -175,17 +175,17 @@ static int visconti_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	irq_parent = of_irq_find_parent(dev->of_node);
+	irq_parent = of_irq_find_parent(dev->of_analde);
 	if (!irq_parent) {
-		dev_err(dev, "No IRQ parent node\n");
-		return -ENODEV;
+		dev_err(dev, "Anal IRQ parent analde\n");
+		return -EANALDEV;
 	}
 
 	parent = irq_find_host(irq_parent);
-	of_node_put(irq_parent);
+	of_analde_put(irq_parent);
 	if (!parent) {
-		dev_err(dev, "No IRQ parent domain\n");
-		return -ENODEV;
+		dev_err(dev, "Anal IRQ parent domain\n");
+		return -EANALDEV;
 	}
 
 	ret = bgpio_init(&priv->gpio_chip, dev, 4,
@@ -202,11 +202,11 @@ static int visconti_gpio_probe(struct platform_device *pdev)
 
 	girq = &priv->gpio_chip.irq;
 	gpio_irq_chip_set_chip(girq, &visconti_gpio_irq_chip);
-	girq->fwnode = of_node_to_fwnode(dev->of_node);
+	girq->fwanalde = of_analde_to_fwanalde(dev->of_analde);
 	girq->parent_domain = parent;
 	girq->child_to_parent_hwirq = visconti_gpio_child_to_parent_hwirq;
 	girq->populate_parent_alloc_arg = visconti_gpio_populate_parent_fwspec;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_level_irq;
 
 	return devm_gpiochip_add_data(dev, &priv->gpio_chip, priv);
@@ -227,6 +227,6 @@ static struct platform_driver visconti_gpio_driver = {
 };
 module_platform_driver(visconti_gpio_driver);
 
-MODULE_AUTHOR("Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>");
+MODULE_AUTHOR("Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp>");
 MODULE_DESCRIPTION("Toshiba Visconti GPIO Driver");
 MODULE_LICENSE("GPL v2");

@@ -5,17 +5,17 @@
  * This tool's objective is to help the development and testing of userspace
  * applications that use the V4L2 stateless API to decode media.
  *
- * A userspace implementation can use visl to run a decoding loop even when no
- * hardware is available or when the kernel uAPI for the codec has not been
+ * A userspace implementation can use visl to run a decoding loop even when anal
+ * hardware is available or when the kernel uAPI for the codec has analt been
  * upstreamed yet. This can reveal bugs at an early stage.
  *
  * This driver can also trace the contents of the V4L2 controls submitted to it.
  * It can also dump the contents of the vb2 buffers through a debugfs
  * interface. This is in many ways similar to the tracing infrastructure
  * available for other popular encode/decode APIs out there and can help develop
- * a userspace application by using another (working) one as a reference.
+ * a userspace application by using aanalther (working) one as a reference.
  *
- * Note that no actual decoding of video frames is performed by visl. The V4L2
+ * Analte that anal actual decoding of video frames is performed by visl. The V4L2
  * test pattern generator is used to write various debug information to the
  * capture buffers instead.
  *
@@ -317,7 +317,7 @@ static int visl_open(struct file *file)
 		return -ERESTARTSYS;
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto unlock;
 	}
 
@@ -400,7 +400,7 @@ static const struct video_device visl_videodev = {
 	.vfl_dir	= VFL_DIR_M2M,
 	.fops		= &visl_fops,
 	.ioctl_ops	= &visl_ioctl_ops,
-	.minor		= -1,
+	.mianalr		= -1,
 	.release	= visl_device_release,
 	.device_caps	= V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING,
 };
@@ -423,7 +423,7 @@ static int visl_probe(struct platform_device *pdev)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)
@@ -508,7 +508,7 @@ static void visl_remove(struct platform_device *pdev)
 	v4l2_info(&dev->v4l2_dev, "Removing " VISL_NAME);
 
 #ifdef CONFIG_MEDIA_CONTROLLER
-	if (media_devnode_is_registered(dev->mdev.devnode)) {
+	if (media_devanalde_is_registered(dev->mdev.devanalde)) {
 		media_device_unregister(&dev->mdev);
 		v4l2_m2m_unregister_media_controller(dev->m2m_dev);
 	}

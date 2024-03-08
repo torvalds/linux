@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * DAVID J. MCKAY BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
  * OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -152,7 +152,7 @@
 #define NV_PCRTC_INTR_EN_0				0x00600140
 #define NV_PCRTC_START					0x00600800
 #define NV_PCRTC_CONFIG					0x00600804
-#	define NV_PCRTC_CONFIG_START_ADDRESS_NON_VGA		(1 << 0)
+#	define NV_PCRTC_CONFIG_START_ADDRESS_ANALN_VGA		(1 << 0)
 #	define NV04_PCRTC_CONFIG_START_ADDRESS_HSYNC		(4 << 0)
 #	define NV10_PCRTC_CONFIG_START_ADDRESS_HSYNC		(2 << 0)
 #define NV_PCRTC_CURSOR_CONFIG				0x00600810
@@ -165,7 +165,7 @@
 #	define NV_PCRTC_CURSOR_CONFIG_CUR_LINES_64		(4 << 24)
 #	define NV_PCRTC_CURSOR_CONFIG_CUR_BLEND_ALPHA		(1 << 28)
 
-/* note: PCRTC_GPIO is not available on nv10, and in fact aliases 0x600810 */
+/* analte: PCRTC_GPIO is analt available on nv10, and in fact aliases 0x600810 */
 #define NV_PCRTC_GPIO					0x00600818
 #define NV_PCRTC_GPIO_EXT				0x0060081c
 #define NV_PCRTC_830					0x00600830
@@ -205,8 +205,8 @@
 #		define NV_CIO_CR_OVL_VDT_9		5:5
 #		define NV_CIO_CR_OVL_VDE_9		6:6
 #		define NV_CIO_CR_OVL_VRS_9		7:7
-#	define NV_CIO_CR_RSAL_INDEX		0x08	/* normally "preset row scan" */
-#	define NV_CIO_CR_CELL_HT_INDEX		0x09	/* cell height?! normally "max scan line" */
+#	define NV_CIO_CR_RSAL_INDEX		0x08	/* analrmally "preset row scan" */
+#	define NV_CIO_CR_CELL_HT_INDEX		0x09	/* cell height?! analrmally "max scan line" */
 #		define NV_CIO_CR_CELL_HT_VBS_9		5:5
 #		define NV_CIO_CR_CELL_HT_SCANDBL	7:7
 #	define NV_CIO_CR_CURS_ST_INDEX		0x0a	/* cursor start */
@@ -350,7 +350,7 @@
 #	define NV_PRAMDAC_TEST_CONTROL_PWRDWN_DAC_OFF		(1 << 16)
 #	define NV_PRAMDAC_TEST_CONTROL_SENSEB_ALLHI		(1 << 28)
 #define NV_PRAMDAC_TESTPOINT_DATA			0x00680610
-#	define NV_PRAMDAC_TESTPOINT_DATA_NOTBLANK		(8 << 28)
+#	define NV_PRAMDAC_TESTPOINT_DATA_ANALTBLANK		(8 << 28)
 #define NV_PRAMDAC_630					0x00680630
 #define NV_PRAMDAC_634					0x00680634
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -151,7 +151,7 @@ typedef enum {
 } I2cControllerPort_e;
 
 typedef enum {
-  I2C_CONTROLLER_THROTTLER_TYPE_NONE,
+  I2C_CONTROLLER_THROTTLER_TYPE_ANALNE,
   I2C_CONTROLLER_THROTTLER_VR_GFX0,
   I2C_CONTROLLER_THROTTLER_VR_GFX1,
   I2C_CONTROLLER_THROTTLER_VR_SOC,
@@ -320,12 +320,12 @@ typedef struct {
   uint8_t  StartupVidGpu0Svi0Plane0; //VDDCR_GFX0
   uint8_t  StartupVidGpu0Svi0Plane1; //VDDCR_SOC
   uint8_t  StartupVidGpu0Svi1Plane0; //VDDCR_HBM
-  uint8_t  StartupVidGpu0Svi1Plane1; //UNUSED [0 = plane is not used and should not be programmed]
+  uint8_t  StartupVidGpu0Svi1Plane1; //UNUSED [0 = plane is analt used and should analt be programmed]
 
   uint8_t  StartupVidGpu1Svi0Plane0; //VDDCR_GFX1
-  uint8_t  StartupVidGpu1Svi0Plane1; //UNUSED [0 = plane is not used and should not be programmed]
-  uint8_t  StartupVidGpu1Svi1Plane0; //UNUSED [0 = plane is not used and should not be programmed]
-  uint8_t  StartupVidGpu1Svi1Plane1; //UNUSED [0 = plane is not used and should not be programmed]
+  uint8_t  StartupVidGpu1Svi0Plane1; //UNUSED [0 = plane is analt used and should analt be programmed]
+  uint8_t  StartupVidGpu1Svi1Plane0; //UNUSED [0 = plane is analt used and should analt be programmed]
+  uint8_t  StartupVidGpu1Svi1Plane1; //UNUSED [0 = plane is analt used and should analt be programmed]
 
   // GFXCLK DPM
   uint16_t GfxclkFmax;   // In MHz
@@ -464,7 +464,7 @@ typedef struct {
   uint16_t     SocketPowerLpfTau;
 
   uint32_t     Spare[8];
-  // Padding - ignore
+  // Padding - iganalre
   uint32_t     MmHubPadding[8]; // SMU internal use
 } DriverSmuConfig_t;
 
@@ -499,7 +499,7 @@ typedef struct {
   uint32_t TimeStampLow          ; //10ns resolution
   uint32_t TimeStampHigh         ;
 
-  // Padding - ignore
+  // Padding - iganalre
   uint32_t     MmHubPadding[8]; // SMU internal use
 } SmuMetrics_t;
 

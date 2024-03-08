@@ -30,7 +30,7 @@ static const struct snd_kcontrol_new aiu_spdif_encode_mux =
 	SOC_DAPM_ENUM("SPDIF Buffer Src", aiu_spdif_encode_sel_enum);
 
 static const struct snd_soc_dapm_widget aiu_cpu_dapm_widgets[] = {
-	SND_SOC_DAPM_MUX("SPDIF SRC SEL", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("SPDIF SRC SEL", SND_SOC_ANALPM, 0, 0,
 			 &aiu_spdif_encode_mux),
 };
 
@@ -182,7 +182,7 @@ static int aiu_clk_bulk_get(struct device *dev,
 
 	clks = devm_kcalloc(dev, num, sizeof(*clks), GFP_KERNEL);
 	if (!clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++)
 		clks[i].id = ids[i];
@@ -258,11 +258,11 @@ static int aiu_probe(struct platform_device *pdev)
 
 	aiu = devm_kzalloc(dev, sizeof(*aiu), GFP_KERNEL);
 	if (!aiu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aiu->platform = device_get_match_data(dev);
 	if (!aiu->platform)
-		return -ENODEV;
+		return -EANALDEV;
 
 	platform_set_drvdata(pdev, aiu);
 

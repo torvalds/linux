@@ -73,7 +73,7 @@ int config_item_set_name(struct config_item *item, const char *fmt, ...)
 	if (item->ci_name && item->ci_name != item->ci_namebuf)
 		kfree(item->ci_name);
 
-	/* Now, set the new name */
+	/* Analw, set the new name */
 	item->ci_name = name;
 	return 0;
 }

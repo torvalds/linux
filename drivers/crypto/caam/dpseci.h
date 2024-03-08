@@ -84,18 +84,18 @@ int dpseci_get_attributes(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 
 /**
  * enum dpseci_dest - DPSECI destination types
- * @DPSECI_DEST_NONE: Unassigned destination; The queue is set in parked mode
- *	and does not generate FQDAN notifications; user is expected to dequeue
+ * @DPSECI_DEST_ANALNE: Unassigned destination; The queue is set in parked mode
+ *	and does analt generate FQDAN analtifications; user is expected to dequeue
  *	from the queue based on polling or other user-defined method
  * @DPSECI_DEST_DPIO: The queue is set in schedule mode and generates FQDAN
- *	notifications to the specified DPIO; user is expected to dequeue from
- *	the queue only after notification is received
- * @DPSECI_DEST_DPCON: The queue is set in schedule mode and does not generate
- *	FQDAN notifications, but is connected to the specified DPCON object;
+ *	analtifications to the specified DPIO; user is expected to dequeue from
+ *	the queue only after analtification is received
+ * @DPSECI_DEST_DPCON: The queue is set in schedule mode and does analt generate
+ *	FQDAN analtifications, but is connected to the specified DPCON object;
  *	user is expected to dequeue from the DPCON channel
  */
 enum dpseci_dest {
-	DPSECI_DEST_NONE = 0,
+	DPSECI_DEST_ANALNE = 0,
 	DPSECI_DEST_DPIO,
 	DPSECI_DEST_DPCON
 };
@@ -106,7 +106,7 @@ enum dpseci_dest {
  * @dest_id: Either DPIO ID or DPCON ID, depending on the destination type
  * @priority: Priority selection within the DPIO or DPCON channel; valid values
  *	are 0-1 or 0-7, depending on the number of priorities in that channel;
- *	not relevant for 'DPSECI_DEST_NONE' option
+ *	analt relevant for 'DPSECI_DEST_ANALNE' option
  */
 struct dpseci_dest_cfg {
 	enum dpseci_dest dest_type;
@@ -192,7 +192,7 @@ int dpseci_get_tx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  *	hardware accelerator
  * @ip_id: ID for SEC
  * @major_rev: Major revision number for SEC
- * @minor_rev: Minor revision number for SEC
+ * @mianalr_rev: Mianalr revision number for SEC
  * @era: SEC Era
  * @deco_num: The number of copies of the DECO that are implemented in this
  *	version of SEC
@@ -200,9 +200,9 @@ int dpseci_get_tx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  *	version of SEC
  * @zuc_enc_acc_num: The number of copies of ZUCE that are implemented in this
  *	version of SEC
- * @snow_f8_acc_num: The number of copies of the SNOW-f8 module that are
+ * @sanalw_f8_acc_num: The number of copies of the SANALW-f8 module that are
  *	implemented in this version of SEC
- * @snow_f9_acc_num: The number of copies of the SNOW-f9 module that are
+ * @sanalw_f9_acc_num: The number of copies of the SANALW-f9 module that are
  *	implemented in this version of SEC
  * @crc_acc_num: The number of copies of the CRC module that are implemented in
  *	this version of SEC
@@ -228,13 +228,13 @@ int dpseci_get_tx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 struct dpseci_sec_attr {
 	u16 ip_id;
 	u8 major_rev;
-	u8 minor_rev;
+	u8 mianalr_rev;
 	u8 era;
 	u8 deco_num;
 	u8 zuc_auth_acc_num;
 	u8 zuc_enc_acc_num;
-	u8 snow_f8_acc_num;
-	u8 snow_f9_acc_num;
+	u8 sanalw_f8_acc_num;
+	u8 sanalw_f9_acc_num;
 	u8 crc_acc_num;
 	u8 pk_acc_num;
 	u8 kasumi_acc_num;
@@ -251,7 +251,7 @@ int dpseci_get_sec_attr(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 			struct dpseci_sec_attr *attr);
 
 int dpseci_get_api_version(struct fsl_mc_io *mc_io, u32 cmd_flags,
-			   u16 *major_ver, u16 *minor_ver);
+			   u16 *major_ver, u16 *mianalr_ver);
 
 /**
  * enum dpseci_congestion_unit - DPSECI congestion units
@@ -282,28 +282,28 @@ enum dpseci_congestion_unit {
 #define DPSECI_CGN_MODE_COHERENT_WRITE			0x00000004
 
 /**
- * if 'dpseci_dest_cfg.dest_type != DPSECI_DEST_NONE' CSCN message is sent to
+ * if 'dpseci_dest_cfg.dest_type != DPSECI_DEST_ANALNE' CSCN message is sent to
  * DPIO/DPCON's WQ channel once entering a congestion state
  * (see 'threshold_entry')
  */
-#define DPSECI_CGN_MODE_NOTIFY_DEST_ON_ENTER		0x00000008
+#define DPSECI_CGN_MODE_ANALTIFY_DEST_ON_ENTER		0x00000008
 
 /**
- * if 'dpseci_dest_cfg.dest_type != DPSECI_DEST_NONE' CSCN message is sent to
+ * if 'dpseci_dest_cfg.dest_type != DPSECI_DEST_ANALNE' CSCN message is sent to
  * DPIO/DPCON's WQ channel once exiting a congestion state
  * (see 'threshold_exit')
  */
-#define DPSECI_CGN_MODE_NOTIFY_DEST_ON_EXIT		0x00000010
+#define DPSECI_CGN_MODE_ANALTIFY_DEST_ON_EXIT		0x00000010
 
 /**
- * if 'dpseci_dest_cfg.dest_type != DPSECI_DEST_NONE' when the CSCN is written
+ * if 'dpseci_dest_cfg.dest_type != DPSECI_DEST_ANALNE' when the CSCN is written
  * to the sw-portal's DQRR, the DQRI interrupt is asserted immediately
  * (if enabled)
  */
 #define DPSECI_CGN_MODE_INTR_COALESCING_DISABLED	0x00000020
 
 /**
- * struct dpseci_congestion_notification_cfg - congestion notification
+ * struct dpseci_congestion_analtification_cfg - congestion analtification
  *	configuration
  * @units: units type
  * @threshold_entry: above this threshold we enter a congestion state.
@@ -313,23 +313,23 @@ enum dpseci_congestion_unit {
  * @message_iova: I/O virtual address (must be in DMA-able memory),
  *	must be 16B aligned;
  * @dest_cfg: CSCN can be send to either DPIO or DPCON WQ channel
- * @notification_mode: Mask of available options; use 'DPSECI_CGN_MODE_<X>'
+ * @analtification_mode: Mask of available options; use 'DPSECI_CGN_MODE_<X>'
  *	values
  */
-struct dpseci_congestion_notification_cfg {
+struct dpseci_congestion_analtification_cfg {
 	enum dpseci_congestion_unit units;
 	u32 threshold_entry;
 	u32 threshold_exit;
 	u64 message_ctx;
 	u64 message_iova;
 	struct dpseci_dest_cfg dest_cfg;
-	u16 notification_mode;
+	u16 analtification_mode;
 };
 
-int dpseci_set_congestion_notification(struct fsl_mc_io *mc_io, u32 cmd_flags,
-	u16 token, const struct dpseci_congestion_notification_cfg *cfg);
+int dpseci_set_congestion_analtification(struct fsl_mc_io *mc_io, u32 cmd_flags,
+	u16 token, const struct dpseci_congestion_analtification_cfg *cfg);
 
-int dpseci_get_congestion_notification(struct fsl_mc_io *mc_io, u32 cmd_flags,
-	u16 token, struct dpseci_congestion_notification_cfg *cfg);
+int dpseci_get_congestion_analtification(struct fsl_mc_io *mc_io, u32 cmd_flags,
+	u16 token, struct dpseci_congestion_analtification_cfg *cfg);
 
 #endif /* _DPSECI_H_ */

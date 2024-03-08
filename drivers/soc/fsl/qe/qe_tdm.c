@@ -32,7 +32,7 @@ static void set_si_param(struct ucc_tdm *utdm, struct ucc_tdm_info *ut_info)
 	}
 }
 
-int ucc_of_parse_tdm(struct device_node *np, struct ucc_tdm *utdm,
+int ucc_of_parse_tdm(struct device_analde *np, struct ucc_tdm *utdm,
 		     struct ucc_tdm_info *ut_info)
 {
 	const char *sprop;
@@ -42,7 +42,7 @@ int ucc_of_parse_tdm(struct device_node *np, struct ucc_tdm *utdm,
 	sprop = of_get_property(np, "fsl,rx-sync-clock", NULL);
 	if (sprop) {
 		ut_info->uf_info.rx_sync = qe_clock_source(sprop);
-		if ((ut_info->uf_info.rx_sync < QE_CLK_NONE) ||
+		if ((ut_info->uf_info.rx_sync < QE_CLK_ANALNE) ||
 		    (ut_info->uf_info.rx_sync > QE_RSYNC_PIN)) {
 			pr_err("QE-TDM: Invalid rx-sync-clock property\n");
 			return -EINVAL;
@@ -55,7 +55,7 @@ int ucc_of_parse_tdm(struct device_node *np, struct ucc_tdm *utdm,
 	sprop = of_get_property(np, "fsl,tx-sync-clock", NULL);
 	if (sprop) {
 		ut_info->uf_info.tx_sync = qe_clock_source(sprop);
-		if ((ut_info->uf_info.tx_sync < QE_CLK_NONE) ||
+		if ((ut_info->uf_info.tx_sync < QE_CLK_ANALNE) ||
 		    (ut_info->uf_info.tx_sync > QE_TSYNC_PIN)) {
 			pr_err("QE-TDM: Invalid tx-sync-clock property\n");
 		return -EINVAL;
@@ -83,7 +83,7 @@ int ucc_of_parse_tdm(struct device_node *np, struct ucc_tdm *utdm,
 	ret = of_property_read_u32_index(np, "fsl,tdm-id", 0, &val);
 	if (ret) {
 		ret = -EINVAL;
-		pr_err("QE-TDM: No fsl,tdm-id property for this UCC\n");
+		pr_err("QE-TDM: Anal fsl,tdm-id property for this UCC\n");
 		return ret;
 	}
 	utdm->tdm_port = val;
@@ -92,12 +92,12 @@ int ucc_of_parse_tdm(struct device_node *np, struct ucc_tdm *utdm,
 	if (of_property_read_bool(np, "fsl,tdm-internal-loopback"))
 		utdm->tdm_mode = TDM_INTERNAL_LOOPBACK;
 	else
-		utdm->tdm_mode = TDM_NORMAL;
+		utdm->tdm_mode = TDM_ANALRMAL;
 
 	sprop = of_get_property(np, "fsl,tdm-framer-type", NULL);
 	if (!sprop) {
 		ret = -EINVAL;
-		pr_err("QE-TDM: No tdm-framer-type property for UCC\n");
+		pr_err("QE-TDM: Anal tdm-framer-type property for UCC\n");
 		return ret;
 	}
 	ret = set_tdm_framer(sprop);
@@ -108,7 +108,7 @@ int ucc_of_parse_tdm(struct device_node *np, struct ucc_tdm *utdm,
 	ret = of_property_read_u32_index(np, "fsl,siram-entry-id", 0, &val);
 	if (ret) {
 		ret = -EINVAL;
-		pr_err("QE-TDM: No siram entry id for UCC\n");
+		pr_err("QE-TDM: Anal siram entry id for UCC\n");
 		return ret;
 	}
 	utdm->siram_entry_id = val;
@@ -180,7 +180,7 @@ void ucc_tdm_init(struct ucc_tdm *utdm, struct ucc_tdm_info *ut_info)
 	if (utdm->tdm_mode == TDM_INTERNAL_LOOPBACK)
 		sixmr |= SIMR_SDM_INTERNAL_LOOPBACK;
 	else
-		sixmr |= SIMR_SDM_NORMAL;
+		sixmr |= SIMR_SDM_ANALRMAL;
 
 	sixmr |= SIMR_RFSD(ut_info->si_info.simr_rfsd) |
 			SIMR_TFSD(ut_info->si_info.simr_tfsd);
@@ -210,7 +210,7 @@ void ucc_tdm_init(struct ucc_tdm *utdm, struct ucc_tdm_info *ut_info)
 		iowrite16be(sixmr, &si_regs->sixmr1[3]);
 		break;
 	default:
-		pr_err("QE-TDM: can not find tdm sixmr reg\n");
+		pr_err("QE-TDM: can analt find tdm sixmr reg\n");
 		break;
 	}
 }

@@ -3,8 +3,8 @@ C Atomic-RMW-ops-are-atomic-WRT-atomic_set
 (*
  * Result: Never
  *
- * Test that atomic_set() cannot break the atomicity of atomic RMWs.
- * NOTE: This requires herd7 7.56 or later which supports "(void)expr".
+ * Test that atomic_set() cananalt break the atomicity of atomic RMWs.
+ * ANALTE: This requires herd7 7.56 or later which supports "(void)expr".
  *)
 
 {

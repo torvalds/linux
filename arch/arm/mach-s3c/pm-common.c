@@ -39,7 +39,7 @@ void s3c_pm_do_save(struct sleep_save *ptr, int count)
  *
  * Restore the register values saved from s3c_pm_do_save().
  *
- * Note, we do not use S3C_PMDBG() in here, as the system may not have
+ * Analte, we do analt use S3C_PMDBG() in here, as the system may analt have
  * restore the UARTs state yet
 */
 
@@ -62,7 +62,7 @@ void s3c_pm_do_restore(const struct sleep_save *ptr, int count)
  * side effects of the function in case registers that hardware might need
  * to work has been restored.
  *
- * WARNING: Do not put any debug in here that may effect memory or use
+ * WARNING: Do analt put any debug in here that may effect memory or use
  * peripherals, as things may be changing!
 */
 

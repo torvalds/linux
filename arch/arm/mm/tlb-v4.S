@@ -5,7 +5,7 @@
  *  Copyright (C) 1997-2002 Russell King
  *
  *  ARM architecture version 4 TLB handling functions.
- *  These assume a split I/D TLBs, and no write buffer.
+ *  These assume a split I/D TLBs, and anal write buffer.
  *
  * Processors: ARM720T
  */
@@ -31,7 +31,7 @@ ENTRY(v4_flush_user_tlb_range)
 	vma_vm_mm ip, r2
 	act_mm	r3				@ get current->active_mm
 	eors	r3, ip, r3				@ == mm ?
-	retne	lr				@ no, we dont do anything
+	retne	lr				@ anal, we dont do anything
 .v4_flush_kern_tlb_range:
 	bic	r0, r0, #0x0ff
 	bic	r0, r0, #0xf00
@@ -47,8 +47,8 @@ ENTRY(v4_flush_user_tlb_range)
  *	Invalidate a range of TLB entries in the specified kernel
  *	address range.
  *
- *	- start - virtual address (may not be aligned)
- *	- end   - virtual address (may not be aligned)
+ *	- start - virtual address (may analt be aligned)
+ *	- end   - virtual address (may analt be aligned)
  */
 .globl v4_flush_kern_tlb_range
 .equ v4_flush_kern_tlb_range, .v4_flush_kern_tlb_range

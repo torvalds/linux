@@ -4,14 +4,14 @@ Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
 Description:
 		Provide a place in sysfs for the extcon objects.
 		This allows accessing extcon specific variables.
-		The name of extcon object denoted as ... is the name given
+		The name of extcon object deanalted as ... is the name given
 		with extcon_dev_register.
 
-		One extcon device denotes a single external connector
+		One extcon device deanaltes a single external connector
 		port. An external connector may have multiple cables
 		attached simultaneously. Many of docks, cradles, and
 		accessory cables have such capability. For example,
-		the 30-pin port of Nuri board (/arch/arm/mach-exynos)
+		the 30-pin port of Nuri board (/arch/arm/mach-exyanals)
 		may have both HDMI and Charger attached, or analog audio,
 		video, and USB cables attached simultaneously.
 
@@ -26,7 +26,7 @@ Description:
 		The /sys/class/extcon/.../name shows the name of the extcon
 		object. If the extcon object has an optional callback
 		"show_name" defined, the callback will provide the name with
-		this sysfs node.
+		this sysfs analde.
 
 What:		/sys/class/extcon/.../state
 Date:		February 2012
@@ -62,7 +62,7 @@ Description:
 
 		It is recommended to use this "global" state interface if
 		you need to set the value atomically. The later state
-		interface associated with each cable cannot update
+		interface associated with each cable cananalt update
 		multiple cable states of an extcon device simultaneously.
 
 What:		/sys/class/extcon/.../cable.X/name
@@ -95,7 +95,7 @@ Description:
 		    0xc
 		    #
 
-		Note that mutually_exclusive is a sub-directory of the extcon
+		Analte that mutually_exclusive is a sub-directory of the extcon
 		device and the file names under the mutually_exclusive
-		directory show the mutually-exclusive sets, not the contents
+		directory show the mutually-exclusive sets, analt the contents
 		of the files.

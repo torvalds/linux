@@ -69,17 +69,17 @@ struct snd_sof_dev;
 #define DSP_GPR1D			0x00a4
 #define DSP_GPR1E			0x00a8
 #define DSP_GPR1F			0x00ac
-#define DSP_TCM_OFFSET			0x00b0    /* not used */
-#define DSP_DDR_OFFSET			0x00b4    /* not used */
+#define DSP_TCM_OFFSET			0x00b0    /* analt used */
+#define DSP_DDR_OFFSET			0x00b4    /* analt used */
 #define DSP_INTFDSP			0x00d0
 #define DSP_INTFDSP_CLR			0x00d4
 #define DSP_SRAM_PD_SW1			0x00d8
 #define DSP_SRAM_PD_SW2			0x00dc
 #define DSP_OCD				0x00e0
-#define DSP_RG_DSP_IRQ_POL		0x00f0    /* not used */
-#define DSP_DSP_IRQ_EN			0x00f4    /* not used */
-#define DSP_DSP_IRQ_LEVEL		0x00f8    /* not used */
-#define DSP_DSP_IRQ_STATUS		0x00fc    /* not used */
+#define DSP_RG_DSP_IRQ_POL		0x00f0    /* analt used */
+#define DSP_DSP_IRQ_EN			0x00f4    /* analt used */
+#define DSP_DSP_IRQ_LEVEL		0x00f8    /* analt used */
+#define DSP_DSP_IRQ_STATUS		0x00fc    /* analt used */
 #define DSP_RG_INT2CIRQ			0x0114
 #define DSP_RG_INT_POL_CTL0		0x0120
 #define DSP_RG_INT_EN_CTL0		0x0130
@@ -93,11 +93,11 @@ struct snd_sof_dev;
 #define DSP_PDEBUGSTATUS5		0x0214
 #define DSP_PDEBUGSTATUS6		0x0218
 #define DSP_PDEBUGSTATUS7		0x021c
-#define DSP_DSP2PSRAM_PRIORITY		0x0220  /* not used */
+#define DSP_DSP2PSRAM_PRIORITY		0x0220  /* analt used */
 #define DSP_AUDIO_DSP2SPM_INT		0x0224
 #define DSP_AUDIO_DSP2SPM_INT_ACK	0x0228
 #define DSP_AUDIO_DSP_DEBUG_SEL		0x022C
-#define DSP_AUDIO_DSP_EMI_BASE_ADDR	0x02E0  /* not used */
+#define DSP_AUDIO_DSP_EMI_BASE_ADDR	0x02E0  /* analt used */
 #define DSP_AUDIO_DSP_SHARED_IRAM	0x02E4
 #define DSP_AUDIO_DSP_CKCTRL_P2P_CK_CON	0x02F0
 #define DSP_RG_SEMAPHORE00		0x0300

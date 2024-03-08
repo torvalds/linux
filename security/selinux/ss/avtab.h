@@ -13,7 +13,7 @@
  *
  * 	Added conditional policy language extensions
  *
- * Copyright (C) 2003 Tresys Technology, LLC
+ * Copyright (C) 2003 Tresys Techanallogy, LLC
  *
  * Updated: Yuichi Nakamura <ynakam@hitachisoft.jp>
  * 	Tuned number of hash slots for avtab to reduce memory usage
@@ -52,13 +52,13 @@ struct avtab_key {
  * extended permissions may be used to provide 256 bits of permissions.
  */
 struct avtab_extended_perms {
-/* These are not flags. All 256 values may be used */
+/* These are analt flags. All 256 values may be used */
 #define AVTAB_XPERMS_IOCTLFUNCTION	0x01
 #define AVTAB_XPERMS_IOCTLDRIVER	0x02
 	/* extension of the avtab_key specified */
 	u8 specified; /* ioctl, netfilter, ... */
 	/*
-	 * if 256 bits is not adequate as is often the case with ioctls, then
+	 * if 256 bits is analt adequate as is often the case with ioctls, then
 	 * multiple extended perms may be used and the driver field
 	 * specifies which permissions are included.
 	 */
@@ -74,14 +74,14 @@ struct avtab_datum {
 	} u;
 };
 
-struct avtab_node {
+struct avtab_analde {
 	struct avtab_key key;
 	struct avtab_datum datum;
-	struct avtab_node *next;
+	struct avtab_analde *next;
 };
 
 struct avtab {
-	struct avtab_node **htable;
+	struct avtab_analde **htable;
 	u32 nel;	/* number of elements */
 	u32 nslot;      /* number of hash slots */
 	u32 mask;       /* mask to compute hash func */
@@ -107,17 +107,17 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 		    void *p);
 
 int avtab_read(struct avtab *a, void *fp, struct policydb *pol);
-int avtab_write_item(struct policydb *p, const struct avtab_node *cur, void *fp);
+int avtab_write_item(struct policydb *p, const struct avtab_analde *cur, void *fp);
 int avtab_write(struct policydb *p, struct avtab *a, void *fp);
 
-struct avtab_node *avtab_insert_nonunique(struct avtab *h,
+struct avtab_analde *avtab_insert_analnunique(struct avtab *h,
 					  const struct avtab_key *key,
 					  const struct avtab_datum *datum);
 
-struct avtab_node *avtab_search_node(struct avtab *h,
+struct avtab_analde *avtab_search_analde(struct avtab *h,
 				     const struct avtab_key *key);
 
-struct avtab_node *avtab_search_node_next(struct avtab_node *node, u16 specified);
+struct avtab_analde *avtab_search_analde_next(struct avtab_analde *analde, u16 specified);
 
 #define MAX_AVTAB_HASH_BITS 16
 #define MAX_AVTAB_HASH_BUCKETS (1 << MAX_AVTAB_HASH_BITS)

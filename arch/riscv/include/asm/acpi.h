@@ -22,29 +22,29 @@ typedef u64 phys_cpuid_t;
 void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size);
 #define acpi_os_ioremap acpi_os_ioremap
 
-#define acpi_strict 1	/* No out-of-spec workarounds on RISC-V */
+#define acpi_strict 1	/* Anal out-of-spec workarounds on RISC-V */
 extern int acpi_disabled;
-extern int acpi_noirq;
+extern int acpi_analirq;
 extern int acpi_pci_disabled;
 
 static inline void disable_acpi(void)
 {
 	acpi_disabled = 1;
 	acpi_pci_disabled = 1;
-	acpi_noirq = 1;
+	acpi_analirq = 1;
 }
 
 static inline void enable_acpi(void)
 {
 	acpi_disabled = 0;
 	acpi_pci_disabled = 0;
-	acpi_noirq = 0;
+	acpi_analirq = 0;
 }
 
 /*
  * The ACPI processor driver for ACPI core code needs this macro
  * to find out whether this cpu was already mapped (mapping from CPU hardware
- * ID to CPU logical ID) or not.
+ * ID to CPU logical ID) or analt.
  */
 #define cpu_physical_id(cpu) cpuid_to_hartid_map(cpu)
 
@@ -65,7 +65,7 @@ u32 get_acpi_id_for_cpu(int cpu);
 int acpi_get_riscv_isa(struct acpi_table_header *table,
 		       unsigned int cpu, const char **isa);
 
-static inline int acpi_numa_get_nid(unsigned int cpu) { return NUMA_NO_NODE; }
+static inline int acpi_numa_get_nid(unsigned int cpu) { return NUMA_ANAL_ANALDE; }
 void acpi_get_cbo_block_size(struct acpi_table_header *table, u32 *cbom_size,
 			     u32 *cboz_size, u32 *cbop_size);
 #else

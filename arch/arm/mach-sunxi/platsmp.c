@@ -39,30 +39,30 @@ static DEFINE_SPINLOCK(cpu_lock);
 
 static void __init sun6i_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = of_find_compatible_node(NULL, NULL, "allwinner,sun6i-a31-prcm");
-	if (!node) {
-		pr_err("Missing A31 PRCM node in the device tree\n");
+	analde = of_find_compatible_analde(NULL, NULL, "allwinner,sun6i-a31-prcm");
+	if (!analde) {
+		pr_err("Missing A31 PRCM analde in the device tree\n");
 		return;
 	}
 
-	prcm_membase = of_iomap(node, 0);
-	of_node_put(node);
+	prcm_membase = of_iomap(analde, 0);
+	of_analde_put(analde);
 	if (!prcm_membase) {
 		pr_err("Couldn't map A31 PRCM registers\n");
 		return;
 	}
 
-	node = of_find_compatible_node(NULL, NULL,
+	analde = of_find_compatible_analde(NULL, NULL,
 				       "allwinner,sun6i-a31-cpuconfig");
-	if (!node) {
-		pr_err("Missing A31 CPU config node in the device tree\n");
+	if (!analde) {
+		pr_err("Missing A31 CPU config analde in the device tree\n");
 		return;
 	}
 
-	cpucfg_membase = of_iomap(node, 0);
-	of_node_put(node);
+	cpucfg_membase = of_iomap(analde, 0);
+	of_analde_put(analde);
 	if (!cpucfg_membase)
 		pr_err("Couldn't map A31 CPU config registers\n");
 
@@ -124,30 +124,30 @@ CPU_METHOD_OF_DECLARE(sun6i_a31_smp, "allwinner,sun6i-a31", &sun6i_smp_ops);
 
 static void __init sun8i_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = of_find_compatible_node(NULL, NULL, "allwinner,sun8i-a23-prcm");
-	if (!node) {
-		pr_err("Missing A23 PRCM node in the device tree\n");
+	analde = of_find_compatible_analde(NULL, NULL, "allwinner,sun8i-a23-prcm");
+	if (!analde) {
+		pr_err("Missing A23 PRCM analde in the device tree\n");
 		return;
 	}
 
-	prcm_membase = of_iomap(node, 0);
-	of_node_put(node);
+	prcm_membase = of_iomap(analde, 0);
+	of_analde_put(analde);
 	if (!prcm_membase) {
 		pr_err("Couldn't map A23 PRCM registers\n");
 		return;
 	}
 
-	node = of_find_compatible_node(NULL, NULL,
+	analde = of_find_compatible_analde(NULL, NULL,
 				       "allwinner,sun8i-a23-cpuconfig");
-	if (!node) {
-		pr_err("Missing A23 CPU config node in the device tree\n");
+	if (!analde) {
+		pr_err("Missing A23 CPU config analde in the device tree\n");
 		return;
 	}
 
-	cpucfg_membase = of_iomap(node, 0);
-	of_node_put(node);
+	cpucfg_membase = of_iomap(analde, 0);
+	of_analde_put(analde);
 	if (!cpucfg_membase)
 		pr_err("Couldn't map A23 CPU config registers\n");
 

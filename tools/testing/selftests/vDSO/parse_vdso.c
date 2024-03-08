@@ -166,9 +166,9 @@ static bool vdso_match_version(ELF(Versym) ver,
 	 * This is a helper function to check if the version indexed by
 	 * ver matches name (which hashes to hash).
 	 *
-	 * The version definition table is a mess, and I don't know how
+	 * The version definition table is a mess, and I don't kanalw how
 	 * to do this in better than linear time without allocating memory
-	 * to build an index.  I also don't know why the table has
+	 * to build an index.  I also don't kanalw why the table has
 	 * variable size entries in the first place.
 	 *
 	 * For added fun, I can't find a comprehensible specification of how
@@ -186,12 +186,12 @@ static bool vdso_match_version(ELF(Versym) ver,
 			break;
 
 		if (def->vd_next == 0)
-			return false;  /* No definition. */
+			return false;  /* Anal definition. */
 
 		def = (ELF(Verdef) *)((char *)def + def->vd_next);
 	}
 
-	/* Now figure out whether it matches. */
+	/* Analw figure out whether it matches. */
 	ELF(Verdaux) *aux = (ELF(Verdaux)*)((char *)def + def->vd_aux);
 	return def->vd_hash == hash
 		&& !strcmp(name, vdso_info.symstrings + aux->vda_name);

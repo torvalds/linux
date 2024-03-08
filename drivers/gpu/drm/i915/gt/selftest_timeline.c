@@ -36,7 +36,7 @@ static unsigned long hwsp_cacheline(struct intel_timeline *tl)
 {
 	unsigned long address = (unsigned long)page_address(hwsp_page(tl));
 
-	return (address + offset_in_page(tl->hwsp_offset)) / TIMELINE_SEQNO_BYTES;
+	return (address + offset_in_page(tl->hwsp_offset)) / TIMELINE_SEQANAL_BYTES;
 }
 
 static int selftest_tl_pin(struct intel_timeline *tl)
@@ -59,8 +59,8 @@ retry:
 	return err;
 }
 
-/* Only half of seqno's are usable, see __intel_timeline_get_seqno() */
-#define CACHELINES_PER_PAGE (PAGE_SIZE / TIMELINE_SEQNO_BYTES / 2)
+/* Only half of seqanal's are usable, see __intel_timeline_get_seqanal() */
+#define CACHELINES_PER_PAGE (PAGE_SIZE / TIMELINE_SEQANAL_BYTES / 2)
 
 struct mock_hwsp_freelist {
 	struct intel_gt *gt;
@@ -156,7 +156,7 @@ static int mock_hwsp_freelist(void *arg)
 
 	i915 = mock_gem_device();
 	if (!i915)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_RADIX_TREE(&state.cachelines, GFP_KERNEL);
 	state.prng = I915_RND_STATE_INITIALIZER(i915_selftest.random_seed);
@@ -164,7 +164,7 @@ static int mock_hwsp_freelist(void *arg)
 	state.gt = to_gt(i915);
 
 	/*
-	 * Create a bunch of timelines and check that their HWSP do not overlap.
+	 * Create a bunch of timelines and check that their HWSP do analt overlap.
 	 * Free some, and try again.
 	 */
 
@@ -172,7 +172,7 @@ static int mock_hwsp_freelist(void *arg)
 	state.count = 0;
 	state.history = kcalloc(state.max, sizeof(*state.history), GFP_KERNEL);
 	if (!state.history) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_put;
 	}
 
@@ -196,7 +196,7 @@ err_put:
 
 struct __igt_sync {
 	const char *name;
-	u32 seqno;
+	u32 seqanal;
 	bool expected;
 	bool set;
 };
@@ -208,14 +208,14 @@ static int __igt_sync(struct intel_timeline *tl,
 {
 	int ret;
 
-	if (__intel_timeline_sync_is_later(tl, ctx, p->seqno) != p->expected) {
-		pr_err("%s: %s(ctx=%llu, seqno=%u) expected passed %s but failed\n",
-		       name, p->name, ctx, p->seqno, str_yes_no(p->expected));
+	if (__intel_timeline_sync_is_later(tl, ctx, p->seqanal) != p->expected) {
+		pr_err("%s: %s(ctx=%llu, seqanal=%u) expected passed %s but failed\n",
+		       name, p->name, ctx, p->seqanal, str_anal_anal(p->expected));
 		return -EINVAL;
 	}
 
 	if (p->set) {
-		ret = __intel_timeline_sync_set(tl, ctx, p->seqno);
+		ret = __intel_timeline_sync_set(tl, ctx, p->seqanal);
 		if (ret)
 			return ret;
 	}
@@ -245,7 +245,7 @@ static int igt_sync(void *arg)
 	}, *p;
 	struct intel_timeline tl;
 	int order, offset;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	mock_timeline_init(&tl, 0);
 	for (p = pass; p->name; p++) {
@@ -393,10 +393,10 @@ static int bench_sync(void *arg)
 	end_time = jiffies + HZ/10;
 	do {
 		u32 id = random_engine(&prng);
-		u32 seqno = prandom_u32_state(&prng);
+		u32 seqanal = prandom_u32_state(&prng);
 
-		if (!__intel_timeline_sync_is_later(&tl, id, seqno))
-			__intel_timeline_sync_set(&tl, id, seqno);
+		if (!__intel_timeline_sync_is_later(&tl, id, seqanal))
+			__intel_timeline_sync_set(&tl, id, seqanal);
 
 		count++;
 	} while (!time_after(jiffies, end_time));
@@ -407,7 +407,7 @@ static int bench_sync(void *arg)
 	mock_timeline_fini(&tl);
 	cond_resched();
 
-	/* Benchmark searching for a known context id and changing the seqno */
+	/* Benchmark searching for a kanalwn context id and changing the seqanal */
 	for (last_order = 1, order = 1; order < 32;
 	     ({ int tmp = last_order; last_order = order; order += tmp; })) {
 		unsigned int mask = BIT(order) - 1;
@@ -473,7 +473,7 @@ static int emit_ggtt_store_dw(struct i915_request *rq, u32 addr, u32 value)
 		*cs++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
 		*cs++ = addr;
 		*cs++ = value;
-		*cs++ = MI_NOOP;
+		*cs++ = MI_ANALOP;
 	}
 
 	intel_ring_advance(rq, cs);
@@ -493,9 +493,9 @@ checked_tl_write(struct intel_timeline *tl, struct intel_engine_cs *engine, u32 
 		goto out;
 	}
 
-	if (READ_ONCE(*tl->hwsp_seqno) != tl->seqno) {
+	if (READ_ONCE(*tl->hwsp_seqanal) != tl->seqanal) {
 		pr_err("Timeline created with incorrect breadcrumb, found %x, expected %x\n",
-		       *tl->hwsp_seqno, tl->seqno);
+		       *tl->hwsp_seqanal, tl->seqanal);
 		intel_timeline_unpin(tl);
 		return ERR_PTR(-EINVAL);
 	}
@@ -540,7 +540,7 @@ static int live_hwsp_engine(void *arg)
 				   sizeof(*timelines),
 				   GFP_KERNEL);
 	if (!timelines)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	count = 0;
 	for_each_engine(engine, gt, id) {
@@ -581,9 +581,9 @@ static int live_hwsp_engine(void *arg)
 	for (n = 0; n < count; n++) {
 		struct intel_timeline *tl = timelines[n];
 
-		if (!err && READ_ONCE(*tl->hwsp_seqno) != n) {
-			GEM_TRACE_ERR("Invalid seqno:%lu stored in timeline %llu @ %x, found 0x%x\n",
-				      n, tl->fence_context, tl->hwsp_offset, *tl->hwsp_seqno);
+		if (!err && READ_ONCE(*tl->hwsp_seqanal) != n) {
+			GEM_TRACE_ERR("Invalid seqanal:%lu stored in timeline %llu @ %x, found 0x%x\n",
+				      n, tl->fence_context, tl->hwsp_offset, *tl->hwsp_seqanal);
 			GEM_TRACE_DUMP();
 			err = -EINVAL;
 		}
@@ -615,7 +615,7 @@ static int live_hwsp_alternate(void *arg)
 				   sizeof(*timelines),
 				   GFP_KERNEL);
 	if (!timelines)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	count = 0;
 	for (n = 0; n < NUM_TIMELINES; n++) {
@@ -653,9 +653,9 @@ out:
 	for (n = 0; n < count; n++) {
 		struct intel_timeline *tl = timelines[n];
 
-		if (!err && READ_ONCE(*tl->hwsp_seqno) != n) {
-			GEM_TRACE_ERR("Invalid seqno:%lu stored in timeline %llu @ %x, found 0x%x\n",
-				      n, tl->fence_context, tl->hwsp_offset, *tl->hwsp_seqno);
+		if (!err && READ_ONCE(*tl->hwsp_seqanal) != n) {
+			GEM_TRACE_ERR("Invalid seqanal:%lu stored in timeline %llu @ %x, found 0x%x\n",
+				      n, tl->fence_context, tl->hwsp_offset, *tl->hwsp_seqanal);
 			GEM_TRACE_DUMP();
 			err = -EINVAL;
 		}
@@ -676,7 +676,7 @@ static int live_hwsp_wrap(void *arg)
 	int err = 0;
 
 	/*
-	 * Across a seqno wrap, we need to keep the old cacheline alive for
+	 * Across a seqanal wrap, we need to keep the old cacheline alive for
 	 * foreign GPU references.
 	 */
 
@@ -692,9 +692,9 @@ static int live_hwsp_wrap(void *arg)
 		goto out_free;
 
 	for_each_engine(engine, gt, id) {
-		const u32 *hwsp_seqno[2];
+		const u32 *hwsp_seqanal[2];
 		struct i915_request *rq;
-		u32 seqno[2];
+		u32 seqanal[2];
 
 		if (!intel_engine_can_store_dword(engine))
 			continue;
@@ -705,45 +705,45 @@ static int live_hwsp_wrap(void *arg)
 			goto out;
 		}
 
-		tl->seqno = -4u;
+		tl->seqanal = -4u;
 
 		mutex_lock_nested(&tl->mutex, SINGLE_DEPTH_NESTING);
-		err = intel_timeline_get_seqno(tl, rq, &seqno[0]);
+		err = intel_timeline_get_seqanal(tl, rq, &seqanal[0]);
 		mutex_unlock(&tl->mutex);
 		if (err) {
 			i915_request_add(rq);
 			goto out;
 		}
-		pr_debug("seqno[0]:%08x, hwsp_offset:%08x\n",
-			 seqno[0], tl->hwsp_offset);
+		pr_debug("seqanal[0]:%08x, hwsp_offset:%08x\n",
+			 seqanal[0], tl->hwsp_offset);
 
-		err = emit_ggtt_store_dw(rq, tl->hwsp_offset, seqno[0]);
+		err = emit_ggtt_store_dw(rq, tl->hwsp_offset, seqanal[0]);
 		if (err) {
 			i915_request_add(rq);
 			goto out;
 		}
-		hwsp_seqno[0] = tl->hwsp_seqno;
+		hwsp_seqanal[0] = tl->hwsp_seqanal;
 
 		mutex_lock_nested(&tl->mutex, SINGLE_DEPTH_NESTING);
-		err = intel_timeline_get_seqno(tl, rq, &seqno[1]);
+		err = intel_timeline_get_seqanal(tl, rq, &seqanal[1]);
 		mutex_unlock(&tl->mutex);
 		if (err) {
 			i915_request_add(rq);
 			goto out;
 		}
-		pr_debug("seqno[1]:%08x, hwsp_offset:%08x\n",
-			 seqno[1], tl->hwsp_offset);
+		pr_debug("seqanal[1]:%08x, hwsp_offset:%08x\n",
+			 seqanal[1], tl->hwsp_offset);
 
-		err = emit_ggtt_store_dw(rq, tl->hwsp_offset, seqno[1]);
+		err = emit_ggtt_store_dw(rq, tl->hwsp_offset, seqanal[1]);
 		if (err) {
 			i915_request_add(rq);
 			goto out;
 		}
-		hwsp_seqno[1] = tl->hwsp_seqno;
+		hwsp_seqanal[1] = tl->hwsp_seqanal;
 
 		/* With wrap should come a new hwsp */
-		GEM_BUG_ON(seqno[1] >= seqno[0]);
-		GEM_BUG_ON(hwsp_seqno[0] == hwsp_seqno[1]);
+		GEM_BUG_ON(seqanal[1] >= seqanal[0]);
+		GEM_BUG_ON(hwsp_seqanal[0] == hwsp_seqanal[1]);
 
 		i915_request_add(rq);
 
@@ -753,11 +753,11 @@ static int live_hwsp_wrap(void *arg)
 			goto out;
 		}
 
-		if (READ_ONCE(*hwsp_seqno[0]) != seqno[0] ||
-		    READ_ONCE(*hwsp_seqno[1]) != seqno[1]) {
+		if (READ_ONCE(*hwsp_seqanal[0]) != seqanal[0] ||
+		    READ_ONCE(*hwsp_seqanal[1]) != seqanal[1]) {
 			pr_err("Bad timeline values: found (%x, %x), expected (%x, %x)\n",
-			       *hwsp_seqno[0], *hwsp_seqno[1],
-			       seqno[0], seqno[1]);
+			       *hwsp_seqanal[0], *hwsp_seqanal[1],
+			       seqanal[0], seqanal[1]);
 			err = -EINVAL;
 			goto out;
 		}
@@ -776,7 +776,7 @@ out_free:
 }
 
 static int emit_read_hwsp(struct i915_request *rq,
-			  u32 seqno, u32 hwsp,
+			  u32 seqanal, u32 hwsp,
 			  u32 *addr)
 {
 	const u32 gpr = i915_mmio_reg_offset(GEN8_RING_CS_GPR(rq->engine->mmio_base, 0));
@@ -789,7 +789,7 @@ static int emit_read_hwsp(struct i915_request *rq,
 	*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 	*cs++ = *addr;
 	*cs++ = 0;
-	*cs++ = seqno;
+	*cs++ = seqanal;
 	*addr += 4;
 
 	*cs++ = MI_LOAD_REGISTER_MEM_GEN8 | MI_USE_GGTT;
@@ -894,7 +894,7 @@ static int create_watcher(struct hwsp_watcher *w,
 }
 
 static int check_watcher(struct hwsp_watcher *w, const char *name,
-			 bool (*op)(u32 hwsp, u32 seqno))
+			 bool (*op)(u32 hwsp, u32 seqanal))
 {
 	struct i915_request *rq = fetch_and_zero(&w->rq);
 	u32 offset, end;
@@ -916,7 +916,7 @@ static int check_watcher(struct hwsp_watcher *w, const char *name,
 	end = (w->addr - i915_ggtt_offset(w->vma)) / sizeof(*w->map);
 	while (offset < end) {
 		if (!op(w->map[offset + 1], w->map[offset])) {
-			pr_err("Watcher '%s' found HWSP value %x for seqno %x\n",
+			pr_err("Watcher '%s' found HWSP value %x for seqanal %x\n",
 			       name, w->map[offset + 1], w->map[offset]);
 			err = -EINVAL;
 		}
@@ -957,9 +957,9 @@ static struct i915_request *wrap_timeline(struct i915_request *rq)
 {
 	struct intel_context *ce = rq->context;
 	struct intel_timeline *tl = ce->timeline;
-	u32 seqno = rq->fence.seqno;
+	u32 seqanal = rq->fence.seqanal;
 
-	while (tl->seqno >= seqno) { /* Cause a wrap */
+	while (tl->seqanal >= seqanal) { /* Cause a wrap */
 		i915_request_put(rq);
 		rq = intel_context_create_request(ce);
 		if (IS_ERR(rq))
@@ -1033,7 +1033,7 @@ static int live_hwsp_read(void *arg)
 
 			submit = heap_fence_create(GFP_KERNEL);
 			if (!submit) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto out;
 			}
 
@@ -1057,11 +1057,11 @@ static int live_hwsp_read(void *arg)
 			}
 
 			/*
-			 * Start at a new wrap, and set seqno right before another wrap,
-			 * saving 30 minutes of nops
+			 * Start at a new wrap, and set seqanal right before aanalther wrap,
+			 * saving 30 minutes of analps
 			 */
-			tl->seqno = -12u + 2 * (count & 3);
-			__intel_timeline_get_seqno(tl, &dummy);
+			tl->seqanal = -12u + 2 * (count & 3);
+			__intel_timeline_get_seqanal(tl, &dummy);
 
 			rq = i915_request_create(ce);
 			if (IS_ERR(rq)) {
@@ -1085,7 +1085,7 @@ static int live_hwsp_read(void *arg)
 			err = intel_timeline_read_hwsp(rq, watcher[0].rq, &hwsp);
 			if (err == 0)
 				err = emit_read_hwsp(watcher[0].rq, /* before */
-						     rq->fence.seqno, hwsp,
+						     rq->fence.seqanal, hwsp,
 						     &watcher[0].addr);
 			switch_tl_lock(watcher[0].rq, rq);
 			if (err) {
@@ -1099,7 +1099,7 @@ static int live_hwsp_read(void *arg)
 			err = intel_timeline_read_hwsp(rq, watcher[1].rq, &hwsp);
 			if (err == 0)
 				err = emit_read_hwsp(watcher[1].rq, /* after */
-						     rq->fence.seqno, hwsp,
+						     rq->fence.seqanal, hwsp,
 						     &watcher[1].addr);
 			switch_tl_lock(watcher[1].rq, rq);
 			if (err) {
@@ -1154,7 +1154,7 @@ static int live_hwsp_read(void *arg)
 				break;
 
 		} while (!__igt_timeout(end_time, NULL) &&
-			 count < (PAGE_SIZE / TIMELINE_SEQNO_BYTES - 1) / 2);
+			 count < (PAGE_SIZE / TIMELINE_SEQANAL_BYTES - 1) / 2);
 
 		pr_info("%s: simulated %lu wraps\n", engine->name, count);
 		err = check_watcher(&watcher[1], "after", cmp_gte);
@@ -1184,8 +1184,8 @@ static int live_hwsp_rollover_kernel(void *arg)
 	int err = 0;
 
 	/*
-	 * Run the host for long enough, and even the kernel context will
-	 * see a seqno rollover.
+	 * Run the host for long eanalugh, and even the kernel context will
+	 * see a seqanal rollover.
 	 */
 
 	for_each_engine(engine, gt, id) {
@@ -1201,8 +1201,8 @@ static int live_hwsp_rollover_kernel(void *arg)
 		}
 
 		GEM_BUG_ON(i915_active_fence_isset(&tl->last_request));
-		tl->seqno = -2u;
-		WRITE_ONCE(*(u32 *)tl->hwsp_seqno, tl->seqno);
+		tl->seqanal = -2u;
+		WRITE_ONCE(*(u32 *)tl->hwsp_seqanal, tl->seqanal);
 
 		for (i = 0; i < ARRAY_SIZE(rq); i++) {
 			struct i915_request *this;
@@ -1215,7 +1215,7 @@ static int live_hwsp_rollover_kernel(void *arg)
 
 			pr_debug("%s: create fence.seqnp:%d\n",
 				 engine->name,
-				 lower_32_bits(this->fence.seqno));
+				 lower_32_bits(this->fence.seqanal));
 
 			GEM_BUG_ON(rcu_access_pointer(this->timeline) != tl);
 
@@ -1224,7 +1224,7 @@ static int live_hwsp_rollover_kernel(void *arg)
 		}
 
 		/* We expected a wrap! */
-		GEM_BUG_ON(rq[2]->fence.seqno > rq[0]->fence.seqno);
+		GEM_BUG_ON(rq[2]->fence.seqanal > rq[0]->fence.seqanal);
 
 		if (i915_request_wait(rq[2], 0, HZ / 5) < 0) {
 			pr_err("Wait for timeline wrap timed out!\n");
@@ -1234,7 +1234,7 @@ static int live_hwsp_rollover_kernel(void *arg)
 
 		for (i = 0; i < ARRAY_SIZE(rq); i++) {
 			if (!i915_request_completed(rq[i])) {
-				pr_err("Pre-wrap request not completed!\n");
+				pr_err("Pre-wrap request analt completed!\n");
 				err = -EINVAL;
 				goto out;
 			}
@@ -1262,7 +1262,7 @@ static int live_hwsp_rollover_user(void *arg)
 	int err = 0;
 
 	/*
-	 * Simulate a long running user context, and force the seqno wrap
+	 * Simulate a long running user context, and force the seqanal wrap
 	 * on the user's timeline.
 	 */
 
@@ -1288,8 +1288,8 @@ static int live_hwsp_rollover_user(void *arg)
 		if (err)
 			goto out;
 
-		tl->seqno = -4u;
-		WRITE_ONCE(*(u32 *)tl->hwsp_seqno, tl->seqno);
+		tl->seqanal = -4u;
+		WRITE_ONCE(*(u32 *)tl->hwsp_seqanal, tl->seqanal);
 
 		for (i = 0; i < ARRAY_SIZE(rq); i++) {
 			struct i915_request *this;
@@ -1302,7 +1302,7 @@ static int live_hwsp_rollover_user(void *arg)
 
 			pr_debug("%s: create fence.seqnp:%d\n",
 				 engine->name,
-				 lower_32_bits(this->fence.seqno));
+				 lower_32_bits(this->fence.seqanal));
 
 			GEM_BUG_ON(rcu_access_pointer(this->timeline) != tl);
 
@@ -1311,7 +1311,7 @@ static int live_hwsp_rollover_user(void *arg)
 		}
 
 		/* We expected a wrap! */
-		GEM_BUG_ON(rq[2]->fence.seqno > rq[0]->fence.seqno);
+		GEM_BUG_ON(rq[2]->fence.seqanal > rq[0]->fence.seqanal);
 
 		if (i915_request_wait(rq[2], 0, HZ / 5) < 0) {
 			pr_err("Wait for timeline wrap timed out!\n");
@@ -1321,7 +1321,7 @@ static int live_hwsp_rollover_user(void *arg)
 
 		for (i = 0; i < ARRAY_SIZE(rq); i++) {
 			if (!i915_request_completed(rq[i])) {
-				pr_err("Pre-wrap request not completed!\n");
+				pr_err("Pre-wrap request analt completed!\n");
 				err = -EINVAL;
 				goto out_unpin;
 			}
@@ -1351,7 +1351,7 @@ static int live_hwsp_recycle(void *arg)
 	int err = 0;
 
 	/*
-	 * Check seqno writes into one timeline at a time. We expect to
+	 * Check seqanal writes into one timeline at a time. We expect to
 	 * recycle the breadcrumb slot between iterations and neither
 	 * want to confuse ourselves or the GPU.
 	 */
@@ -1390,10 +1390,10 @@ static int live_hwsp_recycle(void *arg)
 				break;
 			}
 
-			if (READ_ONCE(*tl->hwsp_seqno) != count) {
-				GEM_TRACE_ERR("Invalid seqno:%lu stored in timeline %llu @ %x found 0x%x\n",
+			if (READ_ONCE(*tl->hwsp_seqanal) != count) {
+				GEM_TRACE_ERR("Invalid seqanal:%lu stored in timeline %llu @ %x found 0x%x\n",
 					      count, tl->fence_context,
-					      tl->hwsp_offset, *tl->hwsp_seqno);
+					      tl->hwsp_offset, *tl->hwsp_seqanal);
 				GEM_TRACE_DUMP();
 				err = -EINVAL;
 			}

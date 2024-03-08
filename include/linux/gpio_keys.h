@@ -9,7 +9,7 @@ struct device;
 /**
  * struct gpio_keys_button - configuration parameters
  * @code:		input event code (KEY_*, SW_*)
- * @gpio:		%-1 if this key does not support gpio
+ * @gpio:		%-1 if this key does analt support gpio
  * @active_low:		%true indicates that button is considered
  *			depressed when gpio is low
  * @desc:		label that will be attached to button's gpio

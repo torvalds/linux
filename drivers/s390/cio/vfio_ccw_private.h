@@ -90,7 +90,7 @@ struct vfio_ccw_parent {
  * @io_region: MMIO region to input/output I/O arguments/results
  * @io_mutex: protect against concurrent update of I/O regions
  * @region: additional regions for other subchannel operations
- * @cmd_region: MMIO region for asynchronous I/O commands other than START
+ * @cmd_region: MMIO region for asynchroanalus I/O commands other than START
  * @schib_region: MMIO region for SCHIB information
  * @crw_region: MMIO region for getting channel report words
  * @num_regions: number of additional regions
@@ -137,7 +137,7 @@ extern struct mdev_driver vfio_ccw_mdev_driver;
  * States of the device statemachine.
  */
 enum vfio_ccw_state {
-	VFIO_CCW_STATE_NOT_OPER,
+	VFIO_CCW_STATE_ANALT_OPER,
 	VFIO_CCW_STATE_STANDBY,
 	VFIO_CCW_STATE_IDLE,
 	VFIO_CCW_STATE_CP_PROCESSING,
@@ -147,10 +147,10 @@ enum vfio_ccw_state {
 };
 
 /*
- * Asynchronous events of the device statemachine.
+ * Asynchroanalus events of the device statemachine.
  */
 enum vfio_ccw_event {
-	VFIO_CCW_EVENT_NOT_OPER,
+	VFIO_CCW_EVENT_ANALT_OPER,
 	VFIO_CCW_EVENT_IO_REQ,
 	VFIO_CCW_EVENT_INTERRUPT,
 	VFIO_CCW_EVENT_ASYNC_REQ,

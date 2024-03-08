@@ -62,7 +62,7 @@ properties:
     maxItems: 2
     description:
       Watchdog timeout in milliseconds. If single value is given it is
-      the maximum timeout. Eg. if pinging watchdog is not done within this time
+      the maximum timeout. Eg. if pinging watchdog is analt done within this time
       limit the watchdog will be triggered. If two values are given watchdog
       is configured in "window mode". Then first value is limit for short-ping
       Eg. if watchdog is pinged sooner than that the watchdog will trigger.
@@ -73,7 +73,7 @@ properties:
   regulators:
     $ref: ../regulator/rohm,bd9576-regulator.yaml
     description:
-      List of child nodes that specify the regulators.
+      List of child analdes that specify the regulators.
 
 required:
   - compatible

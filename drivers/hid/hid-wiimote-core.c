@@ -26,11 +26,11 @@ static int wiimote_hid_send(struct hid_device *hdev, __u8 *buffer,
 	int ret;
 
 	if (!hdev->ll_driver->output_report)
-		return -ENODEV;
+		return -EANALDEV;
 
 	buf = kmemdup(buffer, count, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_hw_output_report(hdev, buf, count);
 
@@ -85,7 +85,7 @@ static void wiimote_queue(struct wiimote_data *wdata, const __u8 *buffer,
 	 * queue is full. If it is full, discard this request.
 	 * If it is empty we need to start a new worker that will
 	 * send out the buffer to the hid device.
-	 * If the queue is not empty, then there must be a worker
+	 * If the queue is analt empty, then there must be a worker
 	 * that is currently sending out our buffer and this worker
 	 * will reschedule itself until the queue is empty.
 	 */
@@ -177,17 +177,17 @@ void wiiproto_req_leds(struct wiimote_data *wdata, int leds)
  * active and select a proper DRM that supports all of
  * the requested data inputs.
  *
- * Not all combinations are actually supported. The following
+ * Analt all combinations are actually supported. The following
  * combinations work only with limitations:
  *  - IR cam in extended or full mode disables any data transmission
- *    of extension controllers. There is no DRM mode that supports
+ *    of extension controllers. There is anal DRM mode that supports
  *    extension bytes plus extended/full IR.
- *  - IR cam with accelerometer and extension *_EXT8 is not supported.
+ *  - IR cam with accelerometer and extension *_EXT8 is analt supported.
  *    However, all extensions that need *_EXT8 are devices that don't
- *    support IR cameras. Hence, this shouldn't happen under normal
+ *    support IR cameras. Hence, this shouldn't happen under analrmal
  *    operation.
  *  - *_EXT16 is only supported in combination with buttons and
- *    accelerometer. No IR or similar can be active simultaneously. As
+ *    accelerometer. Anal IR or similar can be active simultaneously. As
  *    above, all modules that require it are mutually exclusive with
  *    IR/etc. so this doesn't matter.
  */
@@ -210,7 +210,7 @@ static __u8 select_drm(struct wiimote_data *wdata)
 	if (ir == WIIPROTO_FLAG_IR_BASIC) {
 		if (wdata->state.flags & WIIPROTO_FLAG_ACCEL) {
 			/* GEN10 and ealier devices bind IR formats to DRMs.
-			 * Hence, we cannot use DRM_KAI here as it might be
+			 * Hence, we cananalt use DRM_KAI here as it might be
 			 * bound to IR_EXT. Use DRM_KAIE unconditionally so we
 			 * work with all devices and our parsers can use the
 			 * fixed formats, too. */
@@ -436,13 +436,13 @@ static __u8 wiimote_cmd_read_ext(struct wiimote_data *wdata, __u8 *rmem)
 	/* read extension ID */
 	ret = wiimote_cmd_read(wdata, 0xa400fa, rmem, 6);
 	if (ret != 6)
-		return WIIMOTE_EXT_NONE;
+		return WIIMOTE_EXT_ANALNE;
 
 	hid_dbg(wdata->hdev, "extension ID: %6phC\n", rmem);
 
 	if (rmem[0] == 0xff && rmem[1] == 0xff && rmem[2] == 0xff &&
 	    rmem[3] == 0xff && rmem[4] == 0xff && rmem[5] == 0xff)
-		return WIIMOTE_EXT_NONE;
+		return WIIMOTE_EXT_ANALNE;
 
 	if (rmem[4] == 0x00 && rmem[5] == 0x00)
 		return WIIMOTE_EXT_NUNCHUK;
@@ -462,7 +462,7 @@ static __u8 wiimote_cmd_read_ext(struct wiimote_data *wdata, __u8 *rmem)
 	    rmem[4] == 0x01 && rmem[5] == 0x03)
 		return WIIMOTE_EXT_TURNTABLE;
 
-	return WIIMOTE_EXT_UNKNOWN;
+	return WIIMOTE_EXT_UNKANALWN;
 }
 
 /* requires the cmd-mutex to be held */
@@ -525,7 +525,7 @@ static bool wiimote_cmd_read_mp(struct wiimote_data *wdata, __u8 *rmem)
 	if (rmem[5] == 0x05)
 		return true;
 
-	hid_info(wdata->hdev, "unknown motion plus ID: %6phC\n", rmem);
+	hid_info(wdata->hdev, "unkanalwn motion plus ID: %6phC\n", rmem);
 
 	return false;
 }
@@ -539,13 +539,13 @@ static __u8 wiimote_cmd_read_mp_mapped(struct wiimote_data *wdata)
 	/* read motion plus ID */
 	ret = wiimote_cmd_read(wdata, 0xa400fa, rmem, 6);
 	if (ret != 6)
-		return WIIMOTE_MP_NONE;
+		return WIIMOTE_MP_ANALNE;
 
 	hid_dbg(wdata->hdev, "mapped motion plus ID: %6phC\n", rmem);
 
 	if (rmem[0] == 0xff && rmem[1] == 0xff && rmem[2] == 0xff &&
 	    rmem[3] == 0xff && rmem[4] == 0xff && rmem[5] == 0xff)
-		return WIIMOTE_MP_NONE;
+		return WIIMOTE_MP_ANALNE;
 
 	if (rmem[4] == 0x04 && rmem[5] == 0x05)
 		return WIIMOTE_MP_SINGLE;
@@ -554,7 +554,7 @@ static __u8 wiimote_cmd_read_mp_mapped(struct wiimote_data *wdata)
 	else if (rmem[4] == 0x07 && rmem[5] == 0x05)
 		return WIIMOTE_MP_PASSTHROUGH_CLASSIC;
 
-	return WIIMOTE_MP_UNKNOWN;
+	return WIIMOTE_MP_UNKANALWN;
 }
 
 /* device module handling */
@@ -563,8 +563,8 @@ static const __u8 * const wiimote_devtype_mods[WIIMOTE_DEV_NUM] = {
 	[WIIMOTE_DEV_PENDING] = (const __u8[]){
 		WIIMOD_NULL,
 	},
-	[WIIMOTE_DEV_UNKNOWN] = (const __u8[]){
-		WIIMOD_NO_MP,
+	[WIIMOTE_DEV_UNKANALWN] = (const __u8[]){
+		WIIMOD_ANAL_MP,
 		WIIMOD_NULL,
 	},
 	[WIIMOTE_DEV_GENERIC] = (const __u8[]){
@@ -607,7 +607,7 @@ static const __u8 * const wiimote_devtype_mods[WIIMOTE_DEV_NUM] = {
 	[WIIMOTE_DEV_BALANCE_BOARD] = (const __u8[]) {
 		WIIMOD_BATTERY,
 		WIIMOD_LED1,
-		WIIMOD_NO_MP,
+		WIIMOD_ANAL_MP,
 		WIIMOD_NULL,
 	},
 	[WIIMOTE_DEV_PRO_CONTROLLER] = (const __u8[]) {
@@ -616,7 +616,7 @@ static const __u8 * const wiimote_devtype_mods[WIIMOTE_DEV_NUM] = {
 		WIIMOD_LED2,
 		WIIMOD_LED3,
 		WIIMOD_LED4,
-		WIIMOD_NO_MP,
+		WIIMOD_ANAL_MP,
 		WIIMOD_NULL,
 	},
 };
@@ -695,7 +695,7 @@ static void wiimote_modules_unload(struct wiimote_data *wdata)
 	mods = wiimote_devtype_mods[wdata->state.devtype];
 
 	spin_lock_irqsave(&wdata->state.lock, flags);
-	wdata->state.devtype = WIIMOTE_DEV_UNKNOWN;
+	wdata->state.devtype = WIIMOTE_DEV_UNKANALWN;
 	spin_unlock_irqrestore(&wdata->state.lock, flags);
 
 	/* find end of list */
@@ -732,7 +732,7 @@ static void wiimote_ext_load(struct wiimote_data *wdata, unsigned int ext)
 	if (ops->probe) {
 		ret = ops->probe(ops, wdata);
 		if (ret)
-			ext = WIIMOTE_EXT_UNKNOWN;
+			ext = WIIMOTE_EXT_UNKANALWN;
 	}
 
 	spin_lock_irqsave(&wdata->state.lock, flags);
@@ -748,7 +748,7 @@ static void wiimote_ext_unload(struct wiimote_data *wdata)
 	ops = wiimod_ext_table[wdata->state.exttype];
 
 	spin_lock_irqsave(&wdata->state.lock, flags);
-	wdata->state.exttype = WIIMOTE_EXT_UNKNOWN;
+	wdata->state.exttype = WIIMOTE_EXT_UNKANALWN;
 	wdata->state.flags &= ~WIIPROTO_FLAG_EXT_USED;
 	spin_unlock_irqrestore(&wdata->state.lock, flags);
 
@@ -798,7 +798,7 @@ static void wiimote_mp_unload(struct wiimote_data *wdata)
 
 static const char *wiimote_devtype_names[WIIMOTE_DEV_NUM] = {
 	[WIIMOTE_DEV_PENDING] = "Pending",
-	[WIIMOTE_DEV_UNKNOWN] = "Unknown",
+	[WIIMOTE_DEV_UNKANALWN] = "Unkanalwn",
 	[WIIMOTE_DEV_GENERIC] = "Generic",
 	[WIIMOTE_DEV_GEN10] = "Nintendo Wii Remote (Gen 1)",
 	[WIIMOTE_DEV_GEN20] = "Nintendo Wii Remote Plus (Gen 2)",
@@ -808,7 +808,7 @@ static const char *wiimote_devtype_names[WIIMOTE_DEV_NUM] = {
 
 /* Try to guess the device type based on all collected information. We
  * first try to detect by static extension types, then VID/PID and the
- * device name. If we cannot detect the device, we use
+ * device name. If we cananalt detect the device, we use
  * WIIMOTE_DEV_GENERIC so all modules will get probed on the device. */
 static void wiimote_init_set_type(struct wiimote_data *wdata,
 				  __u8 exttype)
@@ -855,7 +855,7 @@ static void wiimote_init_set_type(struct wiimote_data *wdata,
 
 done:
 	if (devtype == WIIMOTE_DEV_GENERIC)
-		hid_info(wdata->hdev, "cannot detect device; NAME: %s VID: %04x PID: %04x EXT: %04x\n",
+		hid_info(wdata->hdev, "cananalt detect device; NAME: %s VID: %04x PID: %04x EXT: %04x\n",
 			name, vendor, product, exttype);
 	else
 		hid_info(wdata->hdev, "detected device: %s\n",
@@ -866,19 +866,19 @@ done:
 
 static void wiimote_init_detect(struct wiimote_data *wdata)
 {
-	__u8 exttype = WIIMOTE_EXT_NONE, extdata[6];
+	__u8 exttype = WIIMOTE_EXT_ANALNE, extdata[6];
 	bool ext;
 	int ret;
 
-	wiimote_cmd_acquire_noint(wdata);
+	wiimote_cmd_acquire_analint(wdata);
 
 	spin_lock_irq(&wdata->state.lock);
-	wdata->state.devtype = WIIMOTE_DEV_UNKNOWN;
+	wdata->state.devtype = WIIMOTE_DEV_UNKANALWN;
 	wiimote_cmd_set(wdata, WIIPROTO_REQ_SREQ, 0);
 	wiiproto_req_status(wdata);
 	spin_unlock_irq(&wdata->state.lock);
 
-	ret = wiimote_cmd_wait_noint(wdata);
+	ret = wiimote_cmd_wait_analint(wdata);
 	if (ret)
 		goto out_release;
 
@@ -899,13 +899,13 @@ out_release:
 	/* schedule MP timer */
 	spin_lock_irq(&wdata->state.lock);
 	if (!(wdata->state.flags & WIIPROTO_FLAG_BUILTIN_MP) &&
-	    !(wdata->state.flags & WIIPROTO_FLAG_NO_MP))
+	    !(wdata->state.flags & WIIPROTO_FLAG_ANAL_MP))
 		mod_timer(&wdata->timer, jiffies + HZ * 4);
 	spin_unlock_irq(&wdata->state.lock);
 }
 
 /*
- * MP hotplug events are not generated by the wiimote. Therefore, we need
+ * MP hotplug events are analt generated by the wiimote. Therefore, we need
  * polling to detect it. We use a 4s interval for polling MP registers. This
  * seems reasonable considering applications can trigger it manually via
  * sysfs requests.
@@ -915,7 +915,7 @@ static void wiimote_init_poll_mp(struct wiimote_data *wdata)
 	bool mp;
 	__u8 mpdata[6];
 
-	wiimote_cmd_acquire_noint(wdata);
+	wiimote_cmd_acquire_analint(wdata);
 	wiimote_cmd_init_mp(wdata);
 	mp = wiimote_cmd_read_mp(wdata, mpdata);
 	wiimote_cmd_release(wdata);
@@ -937,8 +937,8 @@ static void wiimote_init_poll_mp(struct wiimote_data *wdata)
  * Check whether the wiimote is in the expected state. The extension registers
  * may change during hotplug and initialization so we might get hotplug events
  * that we caused by remapping some memory.
- * We use some heuristics here to check known states. If the wiimote is in the
- * expected state, we can ignore the hotplug event.
+ * We use some heuristics here to check kanalwn states. If the wiimote is in the
+ * expected state, we can iganalre the hotplug event.
  *
  * Returns "true" if the device is in expected state, "false" if we should
  * redo hotplug handling and extension initialization.
@@ -953,16 +953,16 @@ static bool wiimote_init_check(struct wiimote_data *wdata)
 	flags = wdata->state.flags;
 	spin_unlock_irq(&wdata->state.lock);
 
-	wiimote_cmd_acquire_noint(wdata);
+	wiimote_cmd_acquire_analint(wdata);
 
-	/* If MP is used and active, but the extension is not, we expect:
+	/* If MP is used and active, but the extension is analt, we expect:
 	 *   read_mp_mapped() == WIIMOTE_MP_SINGLE
 	 *   state.flags == !EXT_ACTIVE && !MP_PLUGGED && MP_ACTIVE
-	 * We do not check EXT_PLUGGED because it might change during
+	 * We do analt check EXT_PLUGGED because it might change during
 	 * initialization of MP without extensions.
 	 *  - If MP is unplugged/replugged, read_mp_mapped() fails
 	 *  - If EXT is plugged, MP_PLUGGED will get set */
-	if (wdata->state.exttype == WIIMOTE_EXT_NONE &&
+	if (wdata->state.exttype == WIIMOTE_EXT_ANALNE &&
 	    wdata->state.mp > 0 && (flags & WIIPROTO_FLAG_MP_USED)) {
 		type = wiimote_cmd_read_mp_mapped(wdata);
 		ret = type == WIIMOTE_MP_SINGLE;
@@ -988,7 +988,7 @@ static bool wiimote_init_check(struct wiimote_data *wdata)
 	 * - If MP is plugged/unplugged, our timer detects it
 	 * - If EXT is unplugged/replugged, EXT_ACTIVE will become unset */
 	if (!(flags & WIIPROTO_FLAG_MP_USED) &&
-	    wdata->state.exttype != WIIMOTE_EXT_NONE) {
+	    wdata->state.exttype != WIIMOTE_EXT_ANALNE) {
 		type = wiimote_cmd_read_ext(wdata, data);
 		ret = type == wdata->state.exttype;
 
@@ -1006,15 +1006,15 @@ static bool wiimote_init_check(struct wiimote_data *wdata)
 		goto out_release;
 	}
 
-	/* If neither MP nor an extension are used, we expect:
-	 *   read_ext() == WIIMOTE_EXT_NONE
+	/* If neither MP analr an extension are used, we expect:
+	 *   read_ext() == WIIMOTE_EXT_ANALNE
 	 *   state.flags == !MP_ACTIVE && !EXT_ACTIVE && !EXT_PLUGGED
-	 * No need to perform any action in this case as everything is
+	 * Anal need to perform any action in this case as everything is
 	 * disabled already.
 	 * - If MP is plugged/unplugged, our timer detects it
 	 * - If EXT is plugged, EXT_PLUGGED will be set */
 	if (!(flags & WIIPROTO_FLAG_MP_USED) &&
-	    wdata->state.exttype == WIIMOTE_EXT_NONE) {
+	    wdata->state.exttype == WIIMOTE_EXT_ANALNE) {
 		type = wiimote_cmd_read_ext(wdata, data);
 		ret = type == wdata->state.exttype;
 
@@ -1033,19 +1033,19 @@ static bool wiimote_init_check(struct wiimote_data *wdata)
 		goto out_release;
 	}
 
-	/* The trickiest part is if both EXT and MP are active. We cannot read
+	/* The trickiest part is if both EXT and MP are active. We cananalt read
 	 * the EXT ID, anymore, because MP is mapped over it. However, we use
 	 * a handy trick here:
 	 *   - EXT_ACTIVE is unset whenever !MP_PLUGGED is sent
 	 * MP_PLUGGED might be re-sent again before we are scheduled, but
 	 * EXT_ACTIVE will stay unset.
-	 * So it is enough to check for mp_mapped() and MP_ACTIVE and
+	 * So it is eanalugh to check for mp_mapped() and MP_ACTIVE and
 	 * EXT_ACTIVE. EXT_PLUGGED is a sanity check. */
-	if (wdata->state.exttype != WIIMOTE_EXT_NONE &&
+	if (wdata->state.exttype != WIIMOTE_EXT_ANALNE &&
 	    wdata->state.mp > 0 && (flags & WIIPROTO_FLAG_MP_USED)) {
 		type = wiimote_cmd_read_mp_mapped(wdata);
-		ret = type != WIIMOTE_MP_NONE;
-		ret = ret && type != WIIMOTE_MP_UNKNOWN;
+		ret = type != WIIMOTE_MP_ANALNE;
+		ret = ret && type != WIIMOTE_MP_UNKANALWN;
 		ret = ret && type != WIIMOTE_MP_SINGLE;
 
 		spin_lock_irq(&wdata->state.lock);
@@ -1063,7 +1063,7 @@ static bool wiimote_init_check(struct wiimote_data *wdata)
 		goto out_release;
 	}
 
-	/* unknown state */
+	/* unkanalwn state */
 	ret = false;
 
 out_release:
@@ -1071,15 +1071,15 @@ out_release:
 
 	/* only poll for MP if requested and if state didn't change */
 	if (ret && poll_mp && !(flags & WIIPROTO_FLAG_BUILTIN_MP) &&
-	    !(flags & WIIPROTO_FLAG_NO_MP))
+	    !(flags & WIIPROTO_FLAG_ANAL_MP))
 		wiimote_init_poll_mp(wdata);
 
 	return ret;
 }
 
 static const char *wiimote_exttype_names[WIIMOTE_EXT_NUM] = {
-	[WIIMOTE_EXT_NONE] = "None",
-	[WIIMOTE_EXT_UNKNOWN] = "Unknown",
+	[WIIMOTE_EXT_ANALNE] = "Analne",
+	[WIIMOTE_EXT_UNKANALWN] = "Unkanalwn",
 	[WIIMOTE_EXT_NUNCHUK] = "Nintendo Wii Nunchuk",
 	[WIIMOTE_EXT_CLASSIC_CONTROLLER] = "Nintendo Wii Classic Controller",
 	[WIIMOTE_EXT_BALANCE_BOARD] = "Nintendo Wii Balance Board",
@@ -1105,7 +1105,7 @@ static void wiimote_init_hotplug(struct wiimote_data *wdata)
 
 	hid_dbg(wdata->hdev, "detect extensions..\n");
 
-	wiimote_cmd_acquire_noint(wdata);
+	wiimote_cmd_acquire_analint(wdata);
 
 	spin_lock_irq(&wdata->state.lock);
 
@@ -1120,7 +1120,7 @@ static void wiimote_init_hotplug(struct wiimote_data *wdata)
 
 	/* init extension and MP (deactivates current extension or MP) */
 	wiimote_cmd_init_ext(wdata);
-	if (flags & WIIPROTO_FLAG_NO_MP) {
+	if (flags & WIIPROTO_FLAG_ANAL_MP) {
 		mp = false;
 	} else {
 		wiimote_cmd_init_mp(wdata);
@@ -1135,12 +1135,12 @@ static void wiimote_init_hotplug(struct wiimote_data *wdata)
 		/* unload previous extension */
 		wiimote_ext_unload(wdata);
 
-		if (exttype == WIIMOTE_EXT_UNKNOWN) {
-			hid_info(wdata->hdev, "cannot detect extension; %6phC\n",
+		if (exttype == WIIMOTE_EXT_UNKANALWN) {
+			hid_info(wdata->hdev, "cananalt detect extension; %6phC\n",
 				 extdata);
-		} else if (exttype == WIIMOTE_EXT_NONE) {
+		} else if (exttype == WIIMOTE_EXT_ANALNE) {
 			spin_lock_irq(&wdata->state.lock);
-			wdata->state.exttype = WIIMOTE_EXT_NONE;
+			wdata->state.exttype = WIIMOTE_EXT_ANALNE;
 			spin_unlock_irq(&wdata->state.lock);
 		} else {
 			hid_info(wdata->hdev, "detected extension: %s\n",
@@ -1160,13 +1160,13 @@ static void wiimote_init_hotplug(struct wiimote_data *wdata)
 		wiimote_mp_unload(wdata);
 	}
 
-	/* if MP is not used, do not map or activate it */
+	/* if MP is analt used, do analt map or activate it */
 	if (!(flags & WIIPROTO_FLAG_MP_USED))
 		mp = false;
 
 	/* map MP into main extension registers if used */
 	if (mp) {
-		wiimote_cmd_acquire_noint(wdata);
+		wiimote_cmd_acquire_analint(wdata);
 		wiimote_cmd_map_mp(wdata, exttype);
 		wiimote_cmd_release(wdata);
 
@@ -1175,7 +1175,7 @@ static void wiimote_init_hotplug(struct wiimote_data *wdata)
 	} else {
 		/* reschedule MP hotplug timer */
 		if (!(flags & WIIPROTO_FLAG_BUILTIN_MP) &&
-		    !(flags & WIIPROTO_FLAG_NO_MP))
+		    !(flags & WIIPROTO_FLAG_ANAL_MP))
 			mod_timer(&wdata->timer, jiffies + HZ * 4);
 	}
 
@@ -1184,7 +1184,7 @@ static void wiimote_init_hotplug(struct wiimote_data *wdata)
 	/* enable data forwarding again and set expected hotplug state */
 	if (mp) {
 		wdata->state.flags |= WIIPROTO_FLAG_MP_ACTIVE;
-		if (wdata->state.exttype == WIIMOTE_EXT_NONE) {
+		if (wdata->state.exttype == WIIMOTE_EXT_ANALNE) {
 			wdata->state.flags &= ~WIIPROTO_FLAG_EXT_PLUGGED;
 			wdata->state.flags &= ~WIIPROTO_FLAG_MP_PLUGGED;
 		} else {
@@ -1192,7 +1192,7 @@ static void wiimote_init_hotplug(struct wiimote_data *wdata)
 			wdata->state.flags |= WIIPROTO_FLAG_MP_PLUGGED;
 			wdata->state.flags |= WIIPROTO_FLAG_EXT_ACTIVE;
 		}
-	} else if (wdata->state.exttype != WIIMOTE_EXT_NONE) {
+	} else if (wdata->state.exttype != WIIMOTE_EXT_ANALNE) {
 		wdata->state.flags |= WIIPROTO_FLAG_EXT_ACTIVE;
 	}
 
@@ -1346,7 +1346,7 @@ static void handler_ext(struct wiimote_data *wdata, const __u8 *payload,
 		is_mp = false;
 	}
 
-	/* ignore EXT events if no extension is active */
+	/* iganalre EXT events if anal extension is active */
 	if (!(wdata->state.flags & WIIPROTO_FLAG_EXT_ACTIVE) && !is_mp)
 		return;
 
@@ -1660,8 +1660,8 @@ static ssize_t wiimote_ext_show(struct device *dev,
 	spin_unlock_irqrestore(&wdata->state.lock, flags);
 
 	switch (type) {
-	case WIIMOTE_EXT_NONE:
-		return sprintf(buf, "none\n");
+	case WIIMOTE_EXT_ANALNE:
+		return sprintf(buf, "analne\n");
 	case WIIMOTE_EXT_NUNCHUK:
 		return sprintf(buf, "nunchuk\n");
 	case WIIMOTE_EXT_CLASSIC_CONTROLLER:
@@ -1676,9 +1676,9 @@ static ssize_t wiimote_ext_show(struct device *dev,
 		return sprintf(buf, "guitar\n");
 	case WIIMOTE_EXT_TURNTABLE:
 		return sprintf(buf, "turntable\n");
-	case WIIMOTE_EXT_UNKNOWN:
+	case WIIMOTE_EXT_UNKANALWN:
 	default:
-		return sprintf(buf, "unknown\n");
+		return sprintf(buf, "unkanalwn\n");
 	}
 }
 
@@ -1725,9 +1725,9 @@ static ssize_t wiimote_dev_show(struct device *dev,
 		return sprintf(buf, "procontroller\n");
 	case WIIMOTE_DEV_PENDING:
 		return sprintf(buf, "pending\n");
-	case WIIMOTE_DEV_UNKNOWN:
+	case WIIMOTE_DEV_UNKANALWN:
 	default:
-		return sprintf(buf, "unknown\n");
+		return sprintf(buf, "unkanalwn\n");
 	}
 }
 
@@ -1792,12 +1792,12 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 	struct wiimote_data *wdata;
 	int ret;
 
-	hdev->quirks |= HID_QUIRK_NO_INIT_REPORTS;
+	hdev->quirks |= HID_QUIRK_ANAL_INIT_REPORTS;
 
 	wdata = wiimote_create(hdev);
 	if (!wdata) {
 		hid_err(hdev, "Can't alloc device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = hid_parse(hdev);
@@ -1814,19 +1814,19 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 
 	ret = hid_hw_open(hdev);
 	if (ret) {
-		hid_err(hdev, "cannot start hardware I/O\n");
+		hid_err(hdev, "cananalt start hardware I/O\n");
 		goto err_stop;
 	}
 
 	ret = device_create_file(&hdev->dev, &dev_attr_extension);
 	if (ret) {
-		hid_err(hdev, "cannot create sysfs attribute\n");
+		hid_err(hdev, "cananalt create sysfs attribute\n");
 		goto err_close;
 	}
 
 	ret = device_create_file(&hdev->dev, &dev_attr_devtype);
 	if (ret) {
-		hid_err(hdev, "cannot create sysfs attribute\n");
+		hid_err(hdev, "cananalt create sysfs attribute\n");
 		goto err_ext;
 	}
 

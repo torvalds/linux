@@ -2,7 +2,7 @@
 /*
  *  sama7g5.dtsi - Device Tree Include file for SAMA7G5 family SoC
  *
- *  Copyright (C) 2020 Microchip Technology, Inc. and its subsidiaries
+ *  Copyright (C) 2020 Microchip Techanallogy, Inc. and its subsidiaries
  *
  *  Author: Eugen Hristev <eugen.hristev@microchip.com>
  *  Author: Claudiu Beznea <claudiu.beznea@microchip.com>
@@ -83,7 +83,7 @@
 			thermal-sensors = <&thermal_sensor>;
 
 			trips {
-				cpu_normal: cpu-alert0 {
+				cpu_analrmal: cpu-alert0 {
 					temperature = <90000>;
 					hysteresis = <0>;
 					type = "passive";
@@ -104,13 +104,13 @@
 
 			cooling-maps {
 				map0 {
-					trip = <&cpu_normal>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					trip = <&cpu_analrmal>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 
 				map1 {
 					trip = <&cpu_hot>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -167,7 +167,7 @@
 
 		nfc_sram: sram@600000 {
 			compatible = "mmio-sram";
-			no-memory-wc;
+			anal-memory-wc;
 			reg = <0x00600000 0x2400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -211,7 +211,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0xe0000000 0x4000>;
-			no-memory-wc;
+			anal-memory-wc;
 		};
 
 		secumod: secumod@e0004000 {

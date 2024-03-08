@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -31,7 +31,7 @@ static int ath12k_core_rfkill_config(struct ath12k_base *ab)
 		ar = ab->pdevs[i].ar;
 
 		ret = ath12k_mac_rfkill_config(ar);
-		if (ret && ret != -EOPNOTSUPP) {
+		if (ret && ret != -EOPANALTSUPP) {
 			ath12k_warn(ab, "failed to configure rfkill: %d", ret);
 			return ret;
 		}
@@ -45,9 +45,9 @@ int ath12k_core_suspend(struct ath12k_base *ab)
 	int ret;
 
 	if (!ab->hw_params->supports_suspend)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* TODO: there can frames in queues so for now add delay as a hack.
+	/* TODO: there can frames in queues so for analw add delay as a hack.
 	 * Need to implement to handle and remove this delay.
 	 */
 	msleep(500);
@@ -83,7 +83,7 @@ int ath12k_core_resume(struct ath12k_base *ab)
 	int ret;
 
 	if (!ab->hw_params->supports_suspend)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = ath12k_hif_resume(ab);
 	if (ret) {
@@ -133,11 +133,11 @@ const struct firmware *ath12k_core_firmware_request(struct ath12k_base *ab,
 	int ret;
 
 	if (!file)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	ath12k_core_create_firmware_path(ab, file, path, sizeof(path));
 
-	ret = firmware_request_nowarn(&fw, path, ab->dev);
+	ret = firmware_request_analwarn(&fw, path, ab->dev);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -205,7 +205,7 @@ static int ath12k_core_parse_bd_ie_board(struct ath12k_base *ab,
 			break;
 		case ATH12K_BD_IE_BOARD_DATA:
 			if (!name_match_found)
-				/* no match found */
+				/* anal match found */
 				break;
 
 			ath12k_dbg(ab, ATH12K_DBG_BOOT,
@@ -217,7 +217,7 @@ static int ath12k_core_parse_bd_ie_board(struct ath12k_base *ab,
 			ret = 0;
 			goto out;
 		default:
-			ath12k_warn(ab, "unknown ATH12K_BD_IE_BOARD found: %d\n",
+			ath12k_warn(ab, "unkanalwn ATH12K_BD_IE_BOARD found: %d\n",
 				    board_ie_id);
 			break;
 		}
@@ -229,8 +229,8 @@ static int ath12k_core_parse_bd_ie_board(struct ath12k_base *ab,
 		buf += board_ie_len;
 	}
 
-	/* no match found */
-	ret = -ENOENT;
+	/* anal match found */
+	ret = -EANALENT;
 
 out:
 	return ret;
@@ -309,8 +309,8 @@ static int ath12k_core_fetch_board_data_api_n(struct ath12k_base *ab,
 							    ie_len,
 							    boardname,
 							    ATH12K_BD_IE_BOARD);
-			if (ret == -ENOENT)
-				/* no match found, continue */
+			if (ret == -EANALENT)
+				/* anal match found, continue */
 				break;
 			else if (ret)
 				/* there was an error, bail out */
@@ -331,7 +331,7 @@ out:
 		ath12k_err(ab,
 			   "failed to fetch board data for %s from %s\n",
 			   boardname, filepath);
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		goto err;
 	}
 
@@ -422,14 +422,14 @@ static void ath12k_core_check_bdfext(const struct dmi_header *hdr, void *data)
 	}
 
 	if (!smbios->bdf_enabled) {
-		ath12k_dbg(ab, ATH12K_DBG_BOOT, "bdf variant name not found.\n");
+		ath12k_dbg(ab, ATH12K_DBG_BOOT, "bdf variant name analt found.\n");
 		return;
 	}
 
 	/* Only one string exists (per spec) */
 	if (memcmp(smbios->bdf_ext, magic, strlen(magic)) != 0) {
 		ath12k_dbg(ab, ATH12K_DBG_BOOT,
-			   "bdf variant magic does not match.\n");
+			   "bdf variant magic does analt match.\n");
 		return;
 	}
 
@@ -438,7 +438,7 @@ static void ath12k_core_check_bdfext(const struct dmi_header *hdr, void *data)
 	for (i = 0; i < len; i++) {
 		if (!isascii(smbios->bdf_ext[i]) || !isprint(smbios->bdf_ext[i])) {
 			ath12k_dbg(ab, ATH12K_DBG_BOOT,
-				   "bdf variant name contains non ascii chars.\n");
+				   "bdf variant name contains analn ascii chars.\n");
 			return;
 		}
 	}
@@ -463,7 +463,7 @@ int ath12k_core_check_smbios(struct ath12k_base *ab)
 	dmi_walk(ath12k_core_check_bdfext, ab);
 
 	if (ab->qmi.target.bdf_ext[0] == '\0')
-		return -ENODATA;
+		return -EANALDATA;
 
 	return 0;
 }
@@ -663,7 +663,7 @@ int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab)
 {
 	int ret;
 
-	ret = ath12k_core_start_firmware(ab, ATH12K_FIRMWARE_MODE_NORMAL);
+	ret = ath12k_core_start_firmware(ab, ATH12K_FIRMWARE_MODE_ANALRMAL);
 	if (ret) {
 		ath12k_err(ab, "failed to start firmware: %d\n", ret);
 		return ret;
@@ -682,7 +682,7 @@ int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab)
 	}
 
 	mutex_lock(&ab->core_lock);
-	ret = ath12k_core_start(ab, ATH12K_FIRMWARE_MODE_NORMAL);
+	ret = ath12k_core_start(ab, ATH12K_FIRMWARE_MODE_ANALRMAL);
 	if (ret) {
 		ath12k_err(ab, "failed to start core: %d\n", ret);
 		goto err_dp_free;
@@ -696,7 +696,7 @@ int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab)
 	ath12k_hif_irq_enable(ab);
 
 	ret = ath12k_core_rfkill_config(ab);
-	if (ret && ret != -EOPNOTSUPP) {
+	if (ret && ret != -EOPANALTSUPP) {
 		ath12k_err(ab, "failed to config rfkill: %d\n", ret);
 		goto err_core_pdev_destroy;
 	}
@@ -860,7 +860,7 @@ static void ath12k_core_post_reconfigure_recovery(struct ath12k_base *ab)
 			break;
 		case ATH12K_STATE_OFF:
 			ath12k_warn(ab,
-				    "cannot restart radio %d that hasn't been started\n",
+				    "cananalt restart radio %d that hasn't been started\n",
 				    i);
 			break;
 		case ATH12K_STATE_RESTARTING:
@@ -870,7 +870,7 @@ static void ath12k_core_post_reconfigure_recovery(struct ath12k_base *ab)
 			fallthrough;
 		case ATH12K_STATE_WEDGED:
 			ath12k_warn(ab,
-				    "device is wedged, will not restart radio %d\n", i);
+				    "device is wedged, will analt restart radio %d\n", i);
 			break;
 		}
 		mutex_unlock(&ar->conf_mutex);
@@ -906,12 +906,12 @@ static void ath12k_core_reset(struct work_struct *work)
 	long time_left;
 
 	if (!(test_bit(ATH12K_FLAG_REGISTERED, &ab->dev_flags))) {
-		ath12k_warn(ab, "ignore reset dev flags 0x%lx\n", ab->dev_flags);
+		ath12k_warn(ab, "iganalre reset dev flags 0x%lx\n", ab->dev_flags);
 		return;
 	}
 
 	/* Sometimes the recovery will fail and then the next all recovery fail,
-	 * this is to avoid infinite recovery since it can not recovery success
+	 * this is to avoid infinite recovery since it can analt recovery success
 	 */
 	fail_cont_count = atomic_read(&ab->fail_cont_count);
 
@@ -925,7 +925,7 @@ static void ath12k_core_reset(struct work_struct *work)
 	reset_count = atomic_inc_return(&ab->reset_count);
 
 	if (reset_count > 1) {
-		/* Sometimes it happened another reset worker before the previous one
+		/* Sometimes it happened aanalther reset worker before the previous one
 		 * completed, then the second reset worker will destroy the previous one,
 		 * thus below is to avoid that.
 		 */

@@ -12,7 +12,7 @@ description:
   Gen 1 specification. The USB5744 also supports Full Speed (FS) and Low Speed
   (LS) USB signaling, offering complete coverage of all defined USB operating
   speeds. The new SuperSpeed hubs operate in parallel with the USB 2.0
-  controller, so 5 Gbps SuperSpeed data transfers are not affected by slower
+  controller, so 5 Gbps SuperSpeed data transfers are analt affected by slower
   USB 2.0 traffic.
 
 maintainers:

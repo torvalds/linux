@@ -13,7 +13,7 @@
  * This file handles the architecture-dependent parts of initialization
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -56,13 +56,13 @@ static void __init setup_memory(void)
 	memory_end = memblock_end_of_DRAM();
 
 	if (!memory_end) {
-		panic("No memory!");
+		panic("Anal memory!");
 	}
 
 	ram_start_pfn = PFN_UP(memory_start);
 	ram_end_pfn = PFN_DOWN(memblock_end_of_DRAM());
 
-	/* setup bootmem globals (we use no_bootmem, but mm still depends on this) */
+	/* setup bootmem globals (we use anal_bootmem, but mm still depends on this) */
 	min_low_pfn = ram_start_pfn;
 	max_low_pfn = ram_end_pfn;
 	max_pfn = ram_end_pfn;
@@ -109,7 +109,7 @@ static void print_cpuinfo(void)
 
 	if (!(upr & SPR_UPR_UP)) {
 		printk(KERN_INFO
-		       "-- no UPR register... unable to detect configuration\n");
+		       "-- anal UPR register... unable to detect configuration\n");
 		return;
 	}
 
@@ -154,13 +154,13 @@ static void print_cpuinfo(void)
 
 void __init setup_cpuinfo(void)
 {
-	struct device_node *cpu;
+	struct device_analde *cpu;
 	unsigned long iccfgr, dccfgr;
 	unsigned long cache_set_size;
 	int cpu_id = smp_processor_id();
 	struct cpuinfo_or1k *cpuinfo = &cpuinfo_or1k[cpu_id];
 
-	cpu = of_get_cpu_node(cpu_id, NULL);
+	cpu = of_get_cpu_analde(cpu_id, NULL);
 	if (!cpu)
 		panic("Couldn't find CPU%d in device tree...\n", cpu_id);
 
@@ -183,12 +183,12 @@ void __init setup_cpuinfo(void)
 		printk(KERN_WARNING
 		       "Device tree missing CPU 'clock-frequency' parameter."
 		       "Assuming frequency 25MHZ"
-		       "This is probably not what you want.");
+		       "This is probably analt what you want.");
 	}
 
 	cpuinfo->coreid = mfspr(SPR_COREID);
 
-	of_node_put(cpu);
+	of_analde_put(cpu);
 
 	print_cpuinfo();
 }
@@ -240,17 +240,17 @@ static inline unsigned long extract_value(unsigned long reg, unsigned long mask)
 void calibrate_delay(void)
 {
 	const int *val;
-	struct device_node *cpu = of_get_cpu_node(smp_processor_id(), NULL);
+	struct device_analde *cpu = of_get_cpu_analde(smp_processor_id(), NULL);
 
 	val = of_get_property(cpu, "clock-frequency", NULL);
 	if (!val)
-		panic("no cpu 'clock-frequency' parameter in device tree");
+		panic("anal cpu 'clock-frequency' parameter in device tree");
 	loops_per_jiffy = *val / HZ;
 	pr_cont("%lu.%02lu BogoMIPS (lpj=%lu)\n",
 		loops_per_jiffy / (500000 / HZ),
 		(loops_per_jiffy / (5000 / HZ)) % 100, loops_per_jiffy);
 
-	of_node_put(cpu);
+	of_analde_put(cpu);
 }
 
 void __init setup_arch(char **cmdline_p)
@@ -268,7 +268,7 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start == initrd_end) {
-		printk(KERN_INFO "Initial ramdisk not found\n");
+		printk(KERN_INFO "Initial ramdisk analt found\n");
 		initrd_start = 0;
 		initrd_end = 0;
 	} else {

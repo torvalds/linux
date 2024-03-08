@@ -7,7 +7,7 @@
  * the Free Software Foundation.
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -55,7 +55,7 @@ struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
 	txbd->tx_bd_opaque = SET_TX_OPAQUE(bp, txr, prod, 1 + num_frags);
 	txbd->tx_bd_haddr = cpu_to_le64(mapping);
 
-	/* now let us fill up the frags into the next buffers */
+	/* analw let us fill up the frags into the next buffers */
 	for (i = 0; i < num_frags ; i++) {
 		skb_frag_t *frag = &sinfo->frags[i];
 		struct bnxt_sw_tx_bd *frag_tx_buf;
@@ -249,7 +249,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 	act = bpf_prog_run_xdp(xdp_prog, &xdp);
 
 	tx_avail = bnxt_tx_avail(bp, txr);
-	/* If the tx ring is not full, we must not update the rx producer yet
+	/* If the tx ring is analt full, we must analt update the rx producer yet
 	 * because we may still be transmitting on some BDs.
 	 */
 	if (tx_avail != bp->tx_ring_size)
@@ -293,7 +293,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 		bnxt_reuse_rx_data(rxr, cons, page);
 		return true;
 	case XDP_REDIRECT:
-		/* if we are calling this here then we know that the
+		/* if we are calling this here then we kanalw that the
 		 * redirect is coming from a frame received by the
 		 * bnxt_en driver.
 		 */
@@ -398,11 +398,11 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 	    bp->dev->mtu > BNXT_MAX_PAGE_MODE_MTU) {
 		netdev_warn(dev, "MTU %d larger than %d without XDP frag support.\n",
 			    bp->dev->mtu, BNXT_MAX_PAGE_MODE_MTU);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (!(bp->flags & BNXT_FLAG_SHARED_RINGS)) {
 		netdev_warn(dev, "ethtool rx/tx channels must be combined to support XDP.\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (prog)
 		tx_xdp = bp->rx_nr_rings;
@@ -413,7 +413,7 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 	rc = bnxt_check_rings(bp, bp->tx_nr_rings_per_tc, bp->rx_nr_rings,
 			      true, tc, tx_xdp);
 	if (rc) {
-		netdev_warn(dev, "Unable to reserve enough TX rings to support XDP.\n");
+		netdev_warn(dev, "Unable to reserve eanalugh TX rings to support XDP.\n");
 		return rc;
 	}
 	if (netif_running(dev))
@@ -433,7 +433,7 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 		bnxt_set_rx_skb_mode(bp, false);
 		bnxt_get_max_rings(bp, &rx, &tx, true);
 		if (rx > 1) {
-			bp->flags &= ~BNXT_FLAG_NO_AGG_RINGS;
+			bp->flags &= ~BNXT_FLAG_ANAL_AGG_RINGS;
 			bp->dev->hw_features |= NETIF_F_LRO;
 		}
 	}
@@ -475,7 +475,7 @@ bnxt_xdp_build_skb(struct bnxt *bp, struct sk_buff *skb, u8 num_frags,
 
 	if (!skb)
 		return NULL;
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 	if (RX_CMP_L4_CS_OK(rxcmp1)) {
 		if (bp->dev->features & NETIF_F_RXCSUM) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;

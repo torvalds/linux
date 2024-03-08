@@ -18,7 +18,7 @@
 
 /* Be sure that virtual mapping is defined right */
 #ifndef __ASM_ARCH_HARDWARE_H
-#error You must include hardware.h not SA-1100.h
+#error You must include hardware.h analt SA-1100.h
 #endif
 
 #include "bitfield.h"
@@ -164,7 +164,7 @@
 #define UDCCS1_RPE	0x00000004	/* Receive Packet Error (read)     */
 #define UDCCS1_SST	0x00000008	/* Sent STall                      */
 #define UDCCS1_FST	0x00000010	/* Force STall                     */
-#define UDCCS1_RNE	0x00000020	/* Receive FIFO Not Empty (read)   */
+#define UDCCS1_RNE	0x00000020	/* Receive FIFO Analt Empty (read)   */
 
 #define UDCCS2_TFS	0x00000001	/* Transmit FIFO 8-bytes or less   */
                 	        	/* Service request (read)          */
@@ -189,73 +189,73 @@
 
 
 /*
- * Universal Asynchronous Receiver/Transmitter (UART) control registers
+ * Universal Asynchroanalus Receiver/Transmitter (UART) control registers
  *
  * Registers
- *    Ser1UTCR0 	Serial port 1 Universal Asynchronous
+ *    Ser1UTCR0 	Serial port 1 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Control Register 0
  *              	(read/write).
- *    Ser1UTCR1 	Serial port 1 Universal Asynchronous
+ *    Ser1UTCR1 	Serial port 1 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Control Register 1
  *              	(read/write).
- *    Ser1UTCR2 	Serial port 1 Universal Asynchronous
+ *    Ser1UTCR2 	Serial port 1 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Control Register 2
  *              	(read/write).
- *    Ser1UTCR3 	Serial port 1 Universal Asynchronous
+ *    Ser1UTCR3 	Serial port 1 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Control Register 3
  *              	(read/write).
- *    Ser1UTDR  	Serial port 1 Universal Asynchronous
+ *    Ser1UTDR  	Serial port 1 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Data Register
  *              	(read/write).
- *    Ser1UTSR0 	Serial port 1 Universal Asynchronous
+ *    Ser1UTSR0 	Serial port 1 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Status Register 0
  *              	(read/write).
- *    Ser1UTSR1 	Serial port 1 Universal Asynchronous
+ *    Ser1UTSR1 	Serial port 1 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Status Register 1 (read).
  *
- *    Ser2UTCR0 	Serial port 2 Universal Asynchronous
+ *    Ser2UTCR0 	Serial port 2 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Control Register 0
  *              	(read/write).
- *    Ser2UTCR1 	Serial port 2 Universal Asynchronous
+ *    Ser2UTCR1 	Serial port 2 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Control Register 1
  *              	(read/write).
- *    Ser2UTCR2 	Serial port 2 Universal Asynchronous
+ *    Ser2UTCR2 	Serial port 2 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Control Register 2
  *              	(read/write).
- *    Ser2UTCR3 	Serial port 2 Universal Asynchronous
+ *    Ser2UTCR3 	Serial port 2 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Control Register 3
  *              	(read/write).
- *    Ser2UTCR4 	Serial port 2 Universal Asynchronous
+ *    Ser2UTCR4 	Serial port 2 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Control Register 4
  *              	(read/write).
- *    Ser2UTDR  	Serial port 2 Universal Asynchronous
+ *    Ser2UTDR  	Serial port 2 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Data Register
  *              	(read/write).
- *    Ser2UTSR0 	Serial port 2 Universal Asynchronous
+ *    Ser2UTSR0 	Serial port 2 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Status Register 0
  *              	(read/write).
- *    Ser2UTSR1 	Serial port 2 Universal Asynchronous
+ *    Ser2UTSR1 	Serial port 2 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Status Register 1 (read).
  *
- *    Ser3UTCR0 	Serial port 3 Universal Asynchronous
+ *    Ser3UTCR0 	Serial port 3 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Control Register 0
  *              	(read/write).
- *    Ser3UTCR1 	Serial port 3 Universal Asynchronous
+ *    Ser3UTCR1 	Serial port 3 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Control Register 1
  *              	(read/write).
- *    Ser3UTCR2 	Serial port 3 Universal Asynchronous
+ *    Ser3UTCR2 	Serial port 3 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Control Register 2
  *              	(read/write).
- *    Ser3UTCR3 	Serial port 3 Universal Asynchronous
+ *    Ser3UTCR3 	Serial port 3 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Control Register 3
  *              	(read/write).
- *    Ser3UTDR  	Serial port 3 Universal Asynchronous
+ *    Ser3UTDR  	Serial port 3 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Data Register
  *              	(read/write).
- *    Ser3UTSR0 	Serial port 3 Universal Asynchronous
+ *    Ser3UTSR0 	Serial port 3 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Status Register 0
  *              	(read/write).
- *    Ser3UTSR1 	Serial port 3 Universal Asynchronous
+ *    Ser3UTSR1 	Serial port 3 Universal Asynchroanalus
  *              	Receiver/Transmitter (UART) Status Register 1 (read).
  *
  * Clocks
@@ -369,7 +369,7 @@
 
 #define UTCR4_HSE	0x00000001	/* Hewlett-Packard Serial InfraRed */
                 	        	/* (HP-SIR) modulation Enable      */
-#define UTCR4_NRZ	(UTCR4_HSE*0)	/*  Non-Return to Zero modulation  */
+#define UTCR4_NRZ	(UTCR4_HSE*0)	/*  Analn-Return to Zero modulation  */
 #define UTCR4_HPSIR	(UTCR4_HSE*1)	/*  HP-SIR modulation              */
 #define UTCR4_LPM	0x00000002	/* Low-Power Mode                  */
 #define UTCR4_Z3_16Bit	(UTCR4_LPM*0)	/*  Zero pulse = 3/16 Bit time     */
@@ -392,32 +392,32 @@
 #define UTSR0_EIF	0x00000020	/* Error In FIFO (read)            */
 
 #define UTSR1_TBY	0x00000001	/* Transmitter BusY (read)         */
-#define UTSR1_RNE	0x00000002	/* Receive FIFO Not Empty (read)   */
-#define UTSR1_TNF	0x00000004	/* Transmit FIFO Not Full (read)   */
+#define UTSR1_RNE	0x00000002	/* Receive FIFO Analt Empty (read)   */
+#define UTSR1_TNF	0x00000004	/* Transmit FIFO Analt Full (read)   */
 #define UTSR1_PRE	0x00000008	/* receive PaRity Error (read)     */
 #define UTSR1_FRE	0x00000010	/* receive FRaming Error (read)    */
 #define UTSR1_ROR	0x00000020	/* Receive FIFO Over-Run (read)    */
 
 
 /*
- * Synchronous Data Link Controller (SDLC) control registers
+ * Synchroanalus Data Link Controller (SDLC) control registers
  *
  * Registers
- *    Ser1SDCR0 	Serial port 1 Synchronous Data Link Controller (SDLC)
+ *    Ser1SDCR0 	Serial port 1 Synchroanalus Data Link Controller (SDLC)
  *              	Control Register 0 (read/write).
- *    Ser1SDCR1 	Serial port 1 Synchronous Data Link Controller (SDLC)
+ *    Ser1SDCR1 	Serial port 1 Synchroanalus Data Link Controller (SDLC)
  *              	Control Register 1 (read/write).
- *    Ser1SDCR2 	Serial port 1 Synchronous Data Link Controller (SDLC)
+ *    Ser1SDCR2 	Serial port 1 Synchroanalus Data Link Controller (SDLC)
  *              	Control Register 2 (read/write).
- *    Ser1SDCR3 	Serial port 1 Synchronous Data Link Controller (SDLC)
+ *    Ser1SDCR3 	Serial port 1 Synchroanalus Data Link Controller (SDLC)
  *              	Control Register 3 (read/write).
- *    Ser1SDCR4 	Serial port 1 Synchronous Data Link Controller (SDLC)
+ *    Ser1SDCR4 	Serial port 1 Synchroanalus Data Link Controller (SDLC)
  *              	Control Register 4 (read/write).
- *    Ser1SDDR  	Serial port 1 Synchronous Data Link Controller (SDLC)
+ *    Ser1SDDR  	Serial port 1 Synchroanalus Data Link Controller (SDLC)
  *              	Data Register (read/write).
- *    Ser1SDSR0 	Serial port 1 Synchronous Data Link Controller (SDLC)
+ *    Ser1SDSR0 	Serial port 1 Synchroanalus Data Link Controller (SDLC)
  *              	Status Register 0 (read/write).
- *    Ser1SDSR1 	Serial port 1 Synchronous Data Link Controller (SDLC)
+ *    Ser1SDSR1 	Serial port 1 Synchroanalus Data Link Controller (SDLC)
  *              	Status Register 1 (read/write).
  *
  * Clocks
@@ -444,7 +444,7 @@
 #define SDCR0_LBM	0x00000004	/* Look-Back Mode                  */
 #define SDCR0_BMS	0x00000008	/* Bit Modulation Select           */
 #define SDCR0_FM0	(SDCR0_BMS*0)	/*  Freq. Modulation zero (0)      */
-#define SDCR0_NRZ	(SDCR0_BMS*1)	/*  Non-Return to Zero modulation  */
+#define SDCR0_NRZ	(SDCR0_BMS*1)	/*  Analn-Return to Zero modulation  */
 #define SDCR0_SCE	0x00000010	/* Sample Clock Enable (GPIO [16]) */
 #define SDCR0_SCD	0x00000020	/* Sample Clock Direction select   */
                 	        	/* (GPIO [16])                     */
@@ -511,8 +511,8 @@
 
 #define SDSR1_RSY	0x00000001	/* Receiver SYnchronized (read)    */
 #define SDSR1_TBY	0x00000002	/* Transmitter BusY (read)         */
-#define SDSR1_RNE	0x00000004	/* Receive FIFO Not Empty (read)   */
-#define SDSR1_TNF	0x00000008	/* Transmit FIFO Not Full (read)   */
+#define SDSR1_RNE	0x00000004	/* Receive FIFO Analt Empty (read)   */
+#define SDSR1_TNF	0x00000008	/* Transmit FIFO Analt Full (read)   */
 #define SDSR1_RTD	0x00000010	/* Receive Transition Detected     */
 #define SDSR1_EOF	0x00000020	/* receive End-Of-Frame (read)     */
 #define SDSR1_CRE	0x00000040	/* receive CRC Error (read)        */
@@ -582,8 +582,8 @@
 
 #define HSSR1_RSY	0x00000001	/* Receiver SYnchronized (read)    */
 #define HSSR1_TBY	0x00000002	/* Transmitter BusY (read)         */
-#define HSSR1_RNE	0x00000004	/* Receive FIFO Not Empty (read)   */
-#define HSSR1_TNF	0x00000008	/* Transmit FIFO Not Full (read)   */
+#define HSSR1_RNE	0x00000004	/* Receive FIFO Analt Empty (read)   */
+#define HSSR1_TNF	0x00000008	/* Transmit FIFO Analt Full (read)   */
 #define HSSR1_EOF	0x00000010	/* receive End-Of-Frame (read)     */
 #define HSSR1_CRE	0x00000020	/* receive CRC Error (read)        */
 #define HSSR1_ROR	0x00000040	/* Receive FIFO Over-Run (read)    */
@@ -592,12 +592,12 @@
 #define HSCR2_TrDataL	(HSCR2_TXP*0)	/*  Transmit Data active Low       */
                 	        	/*  (inverted)                     */
 #define HSCR2_TrDataH	(HSCR2_TXP*1)	/*  Transmit Data active High      */
-                	        	/*  (non-inverted)                 */
+                	        	/*  (analn-inverted)                 */
 #define HSCR2_RXP	0x00080000	/* Receive data Polarity (RXD_2)   */
 #define HSCR2_RcDataL	(HSCR2_RXP*0)	/*  Receive Data active Low        */
                 	        	/*  (inverted)                     */
 #define HSCR2_RcDataH	(HSCR2_RXP*1)	/*  Receive Data active High       */
-                	        	/*  (non-inverted)                 */
+                	        	/*  (analn-inverted)                 */
 
 
 /*
@@ -707,13 +707,13 @@
 #define MCSR_ARO	0x00000020	/* Audio Receive FIFO Over-run     */
 #define MCSR_TTU	0x00000040	/* Telecom Transmit FIFO Under-run */
 #define MCSR_TRO	0x00000080	/* Telecom Receive FIFO Over-run   */
-#define MCSR_ANF	0x00000100	/* Audio transmit FIFO Not Full    */
+#define MCSR_ANF	0x00000100	/* Audio transmit FIFO Analt Full    */
                 	        	/* (read)                          */
-#define MCSR_ANE	0x00000200	/* Audio receive FIFO Not Empty    */
+#define MCSR_ANE	0x00000200	/* Audio receive FIFO Analt Empty    */
                 	        	/* (read)                          */
-#define MCSR_TNF	0x00000400	/* Telecom transmit FIFO Not Full  */
+#define MCSR_TNF	0x00000400	/* Telecom transmit FIFO Analt Full  */
                 	        	/* (read)                          */
-#define MCSR_TNE	0x00000800	/* Telecom receive FIFO Not Empty  */
+#define MCSR_TNE	0x00000800	/* Telecom receive FIFO Analt Empty  */
                 	        	/* (read)                          */
 #define MCSR_CWC	0x00001000	/* CODEC register Write Completed  */
                 	        	/* (read)                          */
@@ -730,18 +730,18 @@
 
 
 /*
- * Synchronous Serial Port (SSP) control registers
+ * Synchroanalus Serial Port (SSP) control registers
  *
  * Registers
- *    Ser4SSCR0 	Serial port 4 Synchronous Serial Port (SSP) Control
+ *    Ser4SSCR0 	Serial port 4 Synchroanalus Serial Port (SSP) Control
  *              	Register 0 (read/write).
- *    Ser4SSCR1 	Serial port 4 Synchronous Serial Port (SSP) Control
+ *    Ser4SSCR1 	Serial port 4 Synchroanalus Serial Port (SSP) Control
  *              	Register 1 (read/write).
  *              	[Bits SPO and SP are only implemented in versions 2.0
  *              	(rev. = 8) and higher of the StrongARM SA-1100.]
- *    Ser4SSDR  	Serial port 4 Synchronous Serial Port (SSP) Data
+ *    Ser4SSDR  	Serial port 4 Synchroanalus Serial Port (SSP) Data
  *              	Register (read/write).
- *    Ser4SSSR  	Serial port 4 Synchronous Serial Port (SSP) Status
+ *    Ser4SSSR  	Serial port 4 Synchroanalus Serial Port (SSP) Status
  *              	Register (read/write).
  *
  * Clocks
@@ -762,7 +762,7 @@
 #define SSCR0_Motorola	        	/*  Motorola Serial Peripheral     */ \
                 	        	/*  Interface (SPI) format         */ \
                 	(0 << FShft (SSCR0_FRF))
-#define SSCR0_TI	        	/*  Texas Instruments Synchronous  */ \
+#define SSCR0_TI	        	/*  Texas Instruments Synchroanalus  */ \
                 	        	/*  Serial format                  */ \
                 	(1 << FShft (SSCR0_FRF))
 #define SSCR0_National	        	/*  National Microwire format      */ \
@@ -799,8 +799,8 @@
 
 #define SSDR_DATA	Fld (16, 0)	/* receive/transmit DATA FIFOs     */
 
-#define SSSR_TNF	0x00000002	/* Transmit FIFO Not Full (read)   */
-#define SSSR_RNE	0x00000004	/* Receive FIFO Not Empty (read)   */
+#define SSSR_TNF	0x00000002	/* Transmit FIFO Analt Full (read)   */
+#define SSSR_RNE	0x00000004	/* Receive FIFO Analt Empty (read)   */
 #define SSSR_BSY	0x00000008	/* SSP BuSY (read)                 */
 #define SSSR_TFS	0x00000010	/* Transmit FIFO 1/2-full or less  */
                 	        	/* Service request (read)          */
@@ -1048,7 +1048,7 @@
                 	        	/* Check                           */
 #define TUCR_PMD	0x00000200	/* Power Management Disable        */
 #define TUCR_MR 	0x00000400	/* Memory Request mode             */
-#define TUCR_NoMB	(TUCR_MR*0)	/*  No Memory Bus request & grant  */
+#define TUCR_AnalMB	(TUCR_MR*0)	/*  Anal Memory Bus request & grant  */
 #define TUCR_MBGPIO	(TUCR_MR*1)	/*  Memory Bus request (MBREQ) &   */
                 	        	/*  grant (MBGNT) on GPIO [22:21]  */
 #define TUCR_CTB	Fld (3, 20)	/* Clock Test Bits                 */
@@ -1173,7 +1173,7 @@
                 	        	/* ser. port 4:                    */
 #define GPIO_MCP_CLK	GPIO_GPIO (21)	/*  MCP CLocK (I)                  */
                 	        	/* test controller:                */
-#define GPIO_TIC_ACK	GPIO_GPIO (21)	/*  TIC ACKnowledge (O)            */
+#define GPIO_TIC_ACK	GPIO_GPIO (21)	/*  TIC ACKanalwledge (O)            */
 #define GPIO_MBGNT	GPIO_GPIO (21)	/*  Memory Bus GraNT (O)           */
 #define GPIO_TREQA	GPIO_GPIO (22)	/*  TIC REQuest A (I)              */
 #define GPIO_MBREQ	GPIO_GPIO (22)	/*  Memory Bus REQuest (I)         */
@@ -1203,7 +1203,7 @@
  *    ICPR      	Interrupt Controller (IC) Pending Register (read).
  *              	[The ICPR register is active low (inverted) in
  *              	versions 1.0 (rev. = 1) and 1.1 (rev. = 2) of the
- *              	StrongARM SA-1100, it is active high (non-inverted) in
+ *              	StrongARM SA-1100, it is active high (analn-inverted) in
  *              	versions 2.0 (rev. = 8) and higher.]
  */
 
@@ -1259,8 +1259,8 @@
 #define ICCR_DIM	0x00000001	/* Disable Idle-mode interrupt     */
                 	        	/* Mask                            */
 #define ICCR_IdleAllInt	(ICCR_DIM*0)	/*  Idle-mode All Interrupt enable */
-                	        	/*  (ICMR ignored)                 */
-#define ICCR_IdleMskInt	(ICCR_DIM*1)	/*  Idle-mode non-Masked Interrupt */
+                	        	/*  (ICMR iganalred)                 */
+#define ICCR_IdleMskInt	(ICCR_DIM*1)	/*  Idle-mode analn-Masked Interrupt */
                 	        	/*  enable (ICMR used)             */
 
 
@@ -1442,7 +1442,7 @@
 
 #define MSC0		__REG(0xa0000010)  /* Static memory Control reg. 0 */
 #define MSC1		__REG(0xa0000014)  /* Static memory Control reg. 1 */
-#define MSC2		__REG(0xa000002c)  /* Static memory Control reg. 2, not contiguous   */
+#define MSC2		__REG(0xa000002c)  /* Static memory Control reg. 2, analt contiguous   */
 
 #define MSC_Bnk(Nb)	        	/* static memory Bank [0..3]       */ \
                 	Fld (16, ((Nb) Modulo 2)*16)
@@ -1452,7 +1452,7 @@
 #define MSC1_Bnk3	MSC_Bnk (3)	/* static memory Bank 3            */
 
 #define MSC_RT  	Fld (2, 0)	/* ROM/static memory Type          */
-#define MSC_NonBrst	        	/*  Non-Burst static memory        */ \
+#define MSC_AnalnBrst	        	/*  Analn-Burst static memory        */ \
                 	(0 << FShft (MSC_RT))
 #define MSC_SRAM	        	/*  32-bit byte-writable SRAM      */ \
                 	(1 << FShft (MSC_RT))
@@ -1470,7 +1470,7 @@
                 	((((Tcpu) - 3)/2) << FShft (MSC_RDF))
 #define MSC_Ceil1stRdAcc(Tcpu)  	/*  Ceil. of 1stRdAcc [3..65 Tcpu] */ \
                 	((((Tcpu) - 2)/2) << FShft (MSC_RDF))
-#define MSC_RdAcc(Tcpu)	        	/*  Read Access time (non-burst    */ \
+#define MSC_RdAcc(Tcpu)	        	/*  Read Access time (analn-burst    */ \
                 	        	/*  static memory) [2..64 Tcpu]    */ \
                 	((((Tcpu) - 2)/2) << FShft (MSC_RDF))
 #define MSC_CeilRdAcc(Tcpu)     	/*  Ceil. of RdAcc [2..64 Tcpu]    */ \
@@ -1482,7 +1482,7 @@
                 	((((Tcpu) - 2)/2) << FShft (MSC_RDN))
 #define MSC_CeilNxtRdAcc(Tcpu)  	/*  Ceil. of NxtRdAcc [2..64 Tcpu] */ \
                 	((((Tcpu) - 1)/2) << FShft (MSC_RDN))
-#define MSC_WrAcc(Tcpu)	        	/*  Write Access time (non-burst   */ \
+#define MSC_WrAcc(Tcpu)	        	/*  Write Access time (analn-burst   */ \
                 	        	/*  static memory) [2..64 Tcpu]    */ \
                 	((((Tcpu) - 2)/2) << FShft (MSC_RDN))
 #define MSC_CeilWrAcc(Tcpu)     	/*  Ceil. of WrAcc [2..64 Tcpu]    */ \
@@ -1656,9 +1656,9 @@
                 	        	/* (Alternative)                   */
 
 #define LCCR0_LEN	0x00000001	/* LCD ENable                      */
-#define LCCR0_CMS	0x00000002	/* Color/Monochrome display Select */
+#define LCCR0_CMS	0x00000002	/* Color/Moanalchrome display Select */
 #define LCCR0_Color	(LCCR0_CMS*0)	/*  Color display                  */
-#define LCCR0_Mono	(LCCR0_CMS*1)	/*  Monochrome display             */
+#define LCCR0_Moanal	(LCCR0_CMS*1)	/*  Moanalchrome display             */
 #define LCCR0_SDS	0x00000004	/* Single/Dual panel display       */
                 	        	/* Select                          */
 #define LCCR0_Sngl	(LCCR0_SDS*0)	/*  Single panel display           */
@@ -1676,11 +1676,11 @@
 #define LCCR0_BLE	0x00000100	/* Big/Little Endian select        */
 #define LCCR0_LtlEnd	(LCCR0_BLE*0)	/*  Little Endian frame buffer     */
 #define LCCR0_BigEnd	(LCCR0_BLE*1)	/*  Big Endian frame buffer        */
-#define LCCR0_DPD	0x00000200	/* Double Pixel Data (monochrome   */
+#define LCCR0_DPD	0x00000200	/* Double Pixel Data (moanalchrome   */
                 	        	/* display mode)                   */
-#define LCCR0_4PixMono	(LCCR0_DPD*0)	/*  4-Pixel/clock Monochrome       */
+#define LCCR0_4PixMoanal	(LCCR0_DPD*0)	/*  4-Pixel/clock Moanalchrome       */
                 	        	/*  display                        */
-#define LCCR0_8PixMono	(LCCR0_DPD*1)	/*  8-Pixel/clock Monochrome       */
+#define LCCR0_8PixMoanal	(LCCR0_DPD*1)	/*  8-Pixel/clock Moanalchrome       */
                 	        	/*  display                        */
 #define LCCR0_PDD	Fld (8, 12)	/* Palette DMA request Delay       */
                 	        	/* [Tmem]                          */

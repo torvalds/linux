@@ -2,9 +2,9 @@
 /*
  *  OneNAND driver for OMAP2 / OMAP3
  *
- *  Copyright © 2005-2006 Nokia Corporation
+ *  Copyright © 2005-2006 Analkia Corporation
  *
- *  Author: Jarkko Lavinen <jarkko.lavinen@nokia.com> and Juha Yrjölä
+ *  Author: Jarkko Lavinen <jarkko.lavinen@analkia.com> and Juha Yrjölä
  *  IRQ and DMA support written by Timo Teras
  */
 
@@ -278,7 +278,7 @@ retry:
 				mtd->ecc_stats.failed++;
 				return -EBADMSG;
 			} else if (ecc & ONENAND_ECC_1BIT_ALL) {
-				printk(KERN_NOTICE "onenand_wait: correctable "
+				printk(KERN_ANALTICE "onenand_wait: correctable "
 				       "ECC error = 0x%04x, addr1 %#x, "
 				       "addr8 %#x\n", ecc, addr1, addr8);
 				mtd->ecc_stats.corrected++;
@@ -371,7 +371,7 @@ static int omap2_onenand_read_bufferram(struct mtd_info *mtd, int area,
 
 	bram_offset = omap2_onenand_bufferram_offset(mtd, area) + area + offset;
 	/*
-	 * If the buffer address is not DMA-able, len is not long enough to
+	 * If the buffer address is analt DMA-able, len is analt long eanalugh to
 	 * make DMA transfers profitable or if invoked from panic_write()
 	 * fallback to PIO mode.
 	 */
@@ -418,7 +418,7 @@ static int omap2_onenand_write_bufferram(struct mtd_info *mtd, int area,
 
 	bram_offset = omap2_onenand_bufferram_offset(mtd, area) + area + offset;
 	/*
-	 * If the buffer address is not DMA-able, len is not long enough to
+	 * If the buffer address is analt DMA-able, len is analt long eanalugh to
 	 * make DMA transfers profitable or if invoked from panic_write()
 	 * fallback to PIO mode.
 	 */
@@ -465,17 +465,17 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 	struct omap2_onenand *c;
 	struct gpmc_onenand_info info;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	r = of_property_read_u32(np, "reg", &val);
 	if (r) {
-		dev_err(dev, "reg not found in DT\n");
+		dev_err(dev, "reg analt found in DT\n");
 		return r;
 	}
 
 	c = devm_kzalloc(dev, sizeof(struct omap2_onenand), GFP_KERNEL);
 	if (!c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_completion(&c->irq_done);
 	init_completion(&c->dma_done);
@@ -514,7 +514,7 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 	c->pdev = pdev;
 	c->mtd.priv = &c->onenand;
 	c->mtd.dev.parent = dev;
-	mtd_set_of_node(&c->mtd, dev->of_node);
+	mtd_set_of_analde(&c->mtd, dev->of_analde);
 
 	dev_info(dev, "initializing on CS%d (0x%08lx), va %p, %s mode\n",
 		 c->gpmc_cs, c->phys_base, c->onenand.base,
@@ -605,5 +605,5 @@ module_platform_driver(omap2_onenand_driver);
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jarkko Lavinen <jarkko.lavinen@nokia.com>");
+MODULE_AUTHOR("Jarkko Lavinen <jarkko.lavinen@analkia.com>");
 MODULE_DESCRIPTION("Glue layer for OneNAND flash on OMAP2 / OMAP3");

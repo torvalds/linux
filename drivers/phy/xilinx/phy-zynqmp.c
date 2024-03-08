@@ -9,7 +9,7 @@
  * Author: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *
  * This driver is tested for USB, SGMII, SATA and Display Port currently.
- * PCIe should also work but that is experimental as of now.
+ * PCIe should also work but that is experimental as of analw.
  */
 
 #include <linux/clk.h>
@@ -576,7 +576,7 @@ static int xpsgtr_phy_init(struct phy *phy)
 	if (clk_prepare_enable(gtr_dev->clk[gtr_phy->lane]))
 		goto out;
 
-	/* Skip initialization if not required. */
+	/* Skip initialization if analt required. */
 	if (!xpsgtr_phy_init_required(gtr_phy))
 		goto out;
 
@@ -635,7 +635,7 @@ static int xpsgtr_phy_power_on(struct phy *phy)
 	struct xpsgtr_phy *gtr_phy = phy_get_drvdata(phy);
 	int ret = 0;
 
-	/* Skip initialization if not required. */
+	/* Skip initialization if analt required. */
 	if (!xpsgtr_phy_init_required(gtr_phy))
 		return ret;
 	/*
@@ -791,7 +791,7 @@ static struct phy *xpsgtr_xlate(struct device *dev,
 	phy_lane = args->args[0];
 	if (phy_lane >= ARRAY_SIZE(gtr_dev->phys)) {
 		dev_err(dev, "Invalid lane number %u\n", phy_lane);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	gtr_phy = &gtr_dev->phys[phy_lane];
@@ -850,7 +850,7 @@ static int xpsgtr_runtime_resume(struct device *dev)
 	icm_cfg0 = xpsgtr_read(gtr_dev, ICM_CFG0);
 	icm_cfg1 = xpsgtr_read(gtr_dev, ICM_CFG1);
 
-	/* Return if no GT lanes got configured before suspend. */
+	/* Return if anal GT lanes got configured before suspend. */
 	if (!gtr_dev->saved_icm_cfg0 && !gtr_dev->saved_icm_cfg1)
 		return 0;
 
@@ -926,7 +926,7 @@ static int xpsgtr_get_ref_clocks(struct xpsgtr_dev *gtr_dev)
 
 static int xpsgtr_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct xpsgtr_dev *gtr_dev;
 	struct phy_provider *provider;
 	unsigned int port;
@@ -934,7 +934,7 @@ static int xpsgtr_probe(struct platform_device *pdev)
 
 	gtr_dev = devm_kzalloc(&pdev->dev, sizeof(*gtr_dev), GFP_KERNEL);
 	if (!gtr_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gtr_dev->dev = &pdev->dev;
 	platform_set_drvdata(pdev, gtr_dev);
@@ -1000,7 +1000,7 @@ static int xpsgtr_remove(struct platform_device *pdev)
 	struct xpsgtr_dev *gtr_dev = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(gtr_dev->dev);
-	pm_runtime_put_noidle(gtr_dev->dev);
+	pm_runtime_put_analidle(gtr_dev->dev);
 	pm_runtime_set_suspended(gtr_dev->dev);
 
 	return 0;

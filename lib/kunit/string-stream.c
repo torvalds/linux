@@ -20,12 +20,12 @@ static struct string_stream_fragment *alloc_string_stream_fragment(int len, gfp_
 
 	frag = kzalloc(sizeof(*frag), gfp);
 	if (!frag)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	frag->fragment = kmalloc(len, gfp);
 	if (!frag->fragment) {
 		kfree(frag);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return frag;
@@ -33,7 +33,7 @@ static struct string_stream_fragment *alloc_string_stream_fragment(int len, gfp_
 
 static void string_stream_fragment_destroy(struct string_stream_fragment *frag)
 {
-	list_del(&frag->node);
+	list_del(&frag->analde);
 	kfree(frag->fragment);
 	kfree(frag);
 }
@@ -81,7 +81,7 @@ int string_stream_vadd(struct string_stream *stream,
 
 	spin_lock(&stream->lock);
 	stream->length += result_len;
-	list_add_tail(&frag_container->node, &stream->fragments);
+	list_add_tail(&frag_container->analde, &stream->fragments);
 	spin_unlock(&stream->lock);
 
 	return 0;
@@ -107,7 +107,7 @@ void string_stream_clear(struct string_stream *stream)
 	list_for_each_entry_safe(frag_container,
 				 frag_container_safe,
 				 &stream->fragments,
-				 node) {
+				 analde) {
 		string_stream_fragment_destroy(frag_container);
 	}
 	stream->length = 0;
@@ -125,7 +125,7 @@ char *string_stream_get_string(struct string_stream *stream)
 		return NULL;
 
 	spin_lock(&stream->lock);
-	list_for_each_entry(frag_container, &stream->fragments, node)
+	list_for_each_entry(frag_container, &stream->fragments, analde)
 		strlcat(buf, frag_container->fragment, buf_len);
 	spin_unlock(&stream->lock);
 
@@ -141,7 +141,7 @@ int string_stream_append(struct string_stream *stream,
 	other_content = string_stream_get_string(other);
 
 	if (!other_content)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = string_stream_add(stream, other_content);
 	kfree(other_content);
@@ -160,7 +160,7 @@ struct string_stream *alloc_string_stream(gfp_t gfp)
 
 	stream = kzalloc(sizeof(*stream), gfp);
 	if (!stream)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	stream->gfp = gfp;
 	INIT_LIST_HEAD(&stream->fragments);
@@ -196,7 +196,7 @@ struct string_stream *kunit_alloc_string_stream(struct kunit *test, gfp_t gfp)
 		return stream;
 
 	if (kunit_add_action_or_reset(test, resource_free_string_stream, stream) != 0)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return stream;
 }

@@ -128,7 +128,7 @@ static void brcmf_feat_firmware_overrides(struct brcmf_pub *drv)
 
 struct brcmf_feat_wlcfeat {
 	u16 min_ver_major;
-	u16 min_ver_minor;
+	u16 min_ver_mianalr;
 	u32 feat_flags;
 };
 
@@ -143,22 +143,22 @@ static void brcmf_feat_wlc_version_overrides(struct brcmf_pub *drv)
 	const struct brcmf_feat_wlcfeat *e;
 	struct brcmf_wlc_version_le ver;
 	u32 feat_flags = 0;
-	int i, err, major, minor;
+	int i, err, major, mianalr;
 
 	err = brcmf_fil_iovar_data_get(ifp, "wlc_ver", &ver, sizeof(ver));
 	if (err)
 		return;
 
 	major = le16_to_cpu(ver.wlc_ver_major);
-	minor = le16_to_cpu(ver.wlc_ver_minor);
+	mianalr = le16_to_cpu(ver.wlc_ver_mianalr);
 
-	brcmf_dbg(INFO, "WLC version: %d.%d\n", major, minor);
+	brcmf_dbg(INFO, "WLC version: %d.%d\n", major, mianalr);
 
 	for (i = 0; i < ARRAY_SIZE(brcmf_feat_wlcfeat_map); i++) {
 		e = &brcmf_feat_wlcfeat_map[i];
 		if (major > e->min_ver_major ||
 		    (major == e->min_ver_major &&
-		     minor >= e->min_ver_minor)) {
+		     mianalr >= e->min_ver_mianalr)) {
 			feat_flags |= e->feat_flags;
 		}
 	}
@@ -186,7 +186,7 @@ static void brcmf_feat_iovar_int_get(struct brcmf_if *ifp,
 	u32 data;
 	int err;
 
-	/* we need to know firmware error */
+	/* we need to kanalw firmware error */
 	ifp->fwil_fwerr = true;
 
 	err = brcmf_fil_iovar_int_get(ifp, name, &data);
@@ -207,7 +207,7 @@ static void brcmf_feat_iovar_data_set(struct brcmf_if *ifp,
 {
 	int err;
 
-	/* we need to know firmware error */
+	/* we need to kanalw firmware error */
 	ifp->fwil_fwerr = true;
 
 	err = brcmf_fil_iovar_data_set(ifp, name, data, len);
@@ -232,7 +232,7 @@ static void brcmf_feat_firmware_capabilities(struct brcmf_if *ifp)
 
 	err = brcmf_fil_iovar_data_get(ifp, "cap", caps, sizeof(caps));
 	if (err) {
-		bphy_err(drvr, "could not get firmware cap (%d)\n", err);
+		bphy_err(drvr, "could analt get firmware cap (%d)\n", err);
 		return;
 	}
 
@@ -265,7 +265,7 @@ static int brcmf_feat_fwcap_debugfs_read(struct seq_file *seq, void *data)
 
 	err = brcmf_fil_iovar_data_get(ifp, "cap", caps, sizeof(caps));
 	if (err) {
-		bphy_err(drvr, "could not get firmware cap (%d)\n", err);
+		bphy_err(drvr, "could analt get firmware cap (%d)\n", err);
 		return err;
 	}
 
@@ -287,7 +287,7 @@ static int brcmf_feat_fwcap_debugfs_read(struct seq_file *seq, void *data)
 void brcmf_feat_attach(struct brcmf_pub *drvr)
 {
 	struct brcmf_if *ifp = brcmf_get_ifp(drvr, 0);
-	struct brcmf_pno_macaddr_le pfn_mac;
+	struct brcmf_panal_macaddr_le pfn_mac;
 	struct brcmf_gscan_config gscan_cfg;
 	u32 wowl_cap;
 	s32 err;
@@ -301,7 +301,7 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 		brcmf_feat_iovar_data_set(ifp, BRCMF_FEAT_GSCAN,
 					  "pfn_gscan_cfg",
 					  &gscan_cfg, sizeof(gscan_cfg));
-	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_PNO, "pfn");
+	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_PANAL, "pfn");
 	if (drvr->bus_if->wowl_supported)
 		brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_WOWL, "wowl");
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL)) {
@@ -316,7 +316,7 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 					BIT(BRCMF_FEAT_WOWL_GTK);
 		}
 	}
-	/* MBSS does not work for all chips */
+	/* MBSS does analt work for all chips */
 	switch (drvr->bus_if->chip) {
 	case BRCM_CC_4330_CHIP_ID:
 	case BRCM_CC_43362_CHIP_ID:
@@ -358,7 +358,7 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 		drvr->chip_quirks |= BIT(BRCMF_FEAT_QUIRK_NEED_MPC);
 		break;
 	default:
-		/* no quirks */
+		/* anal quirks */
 		break;
 	}
 }

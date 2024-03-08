@@ -93,7 +93,7 @@ EXPORT_SYMBOL(memmove)
 	retl
 	 mov		%g7, %o0
 
-/* NOTE: This code is executed just for the cases,
+/* ANALTE: This code is executed just for the cases,
          where %src (=%o1) & 3 is != 0.
 	 We need to align it to 4. So, for (%src & 3)
 	 1 we need to do ldub,lduh
@@ -216,7 +216,7 @@ EXPORT_SYMBOL(memcpy)
 	add		%o0, 2, %o0
 1:
 	be		1f
-	 nop
+	 analp
 
 	ldub		[%o1], %g2
 	stb		%g2, [%o0]
@@ -281,7 +281,7 @@ EXPORT_SYMBOL(memcpy)
 	add		%o0, 2, %o0
 1:
 	be		1f
-	 nop
+	 analp
 
 	ldub		[%o1], %g2
 	stb		%g2, [%o0]
@@ -289,10 +289,10 @@ EXPORT_SYMBOL(memcpy)
 	retl
 	 mov		%g7, %o0
 
-86:	/* non_aligned */
+86:	/* analn_aligned */
 	cmp		%o2, 6
 	bleu		88f
-	 nop
+	 analp
 
 	save		%sp, -96, %sp
 	andcc		%i0, 3, %g0
@@ -407,7 +407,7 @@ EXPORT_SYMBOL(memcpy)
 	stb		%g2, [%i0 + 3]
 1:
 	be		1f
-	 nop
+	 analp
 	ldub		[%i1], %g2
 	stb		%g2, [%i0 + 4]
 1:
@@ -437,7 +437,7 @@ EXPORT_SYMBOL(memcpy)
 89:	/* short_table_end */
 
 	be		1f
-	 nop
+	 analp
 
 	ldub		[%o1], %g2
 	stb		%g2, [%o0]

@@ -107,7 +107,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	if (copy_siginfo_to_user(&frame->info, &ksig->info))
 		return -EFAULT;
 
-	/* The on-stack signal trampoline is no longer executed;
+	/* The on-stack signal trampoline is anal longer executed;
 	 * however, the libgcc signal frame unwinding code checks for
 	 * the presence of these two numeric magic values.
 	 */
@@ -146,7 +146,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	if (regs->syscall_nr >= 0) {
 		switch (regs->r00) {
 		case -ERESTART_RESTARTBLOCK:
-		case -ERESTARTNOHAND:
+		case -ERESTARTANALHAND:
 			regs->r00 = -EINTR;
 			break;
 		case -ERESTARTSYS:
@@ -155,7 +155,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 				break;
 			}
 			fallthrough;
-		case -ERESTARTNOINTR:
+		case -ERESTARTANALINTR:
 			regs->r06 = regs->syscall_nr;
 			pt_set_elr(regs, pt_elr(regs) - 4);
 			regs->r00 = regs->restart_r0;
@@ -166,10 +166,10 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	}
 
 	/*
-	 * Set up the stack frame; not doing the SA_SIGINFO thing.  We
+	 * Set up the stack frame; analt doing the SA_SIGINFO thing.  We
 	 * only set up the rt_frame flavor.
 	 */
-	/* If there was an error on setup, no signal was delivered. */
+	/* If there was an error on setup, anal signal was delivered. */
 	ret = setup_rt_frame(ksig, sigmask_to_save(), regs);
 
 	signal_setup_done(ret, ksig, test_thread_flag(TIF_SINGLESTEP));
@@ -191,28 +191,28 @@ void do_signal(struct pt_regs *regs)
 	}
 
 	/*
-	 * No (more) signals; if we came from a system call, handle the restart.
+	 * Anal (more) signals; if we came from a system call, handle the restart.
 	 */
 
 	if (regs->syscall_nr >= 0) {
 		switch (regs->r00) {
-		case -ERESTARTNOHAND:
+		case -ERESTARTANALHAND:
 		case -ERESTARTSYS:
-		case -ERESTARTNOINTR:
+		case -ERESTARTANALINTR:
 			regs->r06 = regs->syscall_nr;
 			break;
 		case -ERESTART_RESTARTBLOCK:
 			regs->r06 = __NR_restart_syscall;
 			break;
 		default:
-			goto no_restart;
+			goto anal_restart;
 		}
 		pt_set_elr(regs, pt_elr(regs) - 4);
 		regs->r00 = regs->restart_r0;
 	}
 
-no_restart:
-	/* If there's no signal to deliver, put the saved sigmask back */
+anal_restart:
+	/* If there's anal signal to deliver, put the saved sigmask back */
 	restore_saved_sigmask();
 }
 
@@ -227,7 +227,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	sigset_t blocked;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	frame = (struct rt_sigframe __user *)pt_psp(regs);
 	if (!access_ok(frame, sizeof(*frame)))

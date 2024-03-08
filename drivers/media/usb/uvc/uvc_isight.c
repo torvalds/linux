@@ -17,7 +17,7 @@
 /*
  * Built-in iSight webcams implements most of UVC 1.0 except a
  * different packet format. Instead of sending a header at the
- * beginning of each isochronous transfer payload, the webcam sends a
+ * beginning of each isochroanalus transfer payload, the webcam sends a
  * single header per image (on its own in a packet), followed by
  * packets containing data only.
  *
@@ -27,9 +27,9 @@
  * 0x01	1	Flags (UVC-compliant)
  * 0x02	4	Always equal to '11223344'
  * 0x06	8	Always equal to 'deadbeefdeadface'
- * 0x0e	16	Unknown
+ * 0x0e	16	Unkanalwn
  *
- * The header can be prefixed by an optional, unknown-purpose byte.
+ * The header can be prefixed by an optional, unkanalwn-purpose byte.
  */
 
 static int isight_decode(struct uvc_video_queue *queue, struct uvc_buffer *buf,
@@ -79,7 +79,7 @@ static int isight_decode(struct uvc_video_queue *queue, struct uvc_buffer *buf,
 
 	/*
 	 * Copy the video data to the buffer. Skip header packets, as they
-	 * contain no data.
+	 * contain anal data.
 	 */
 	if (!is_header) {
 		maxlen = buf->length - buf->bytesused;
@@ -108,7 +108,7 @@ void uvc_video_decode_isight(struct uvc_urb *uvc_urb, struct uvc_buffer *buf,
 	for (i = 0; i < urb->number_of_packets; ++i) {
 		if (urb->iso_frame_desc[i].status < 0) {
 			uvc_dbg(stream->dev, FRAME,
-				"USB isochronous frame lost (%d)\n",
+				"USB isochroanalus frame lost (%d)\n",
 				urb->iso_frame_desc[i].status);
 		}
 

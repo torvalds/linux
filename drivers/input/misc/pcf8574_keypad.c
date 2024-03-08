@@ -88,17 +88,17 @@ static int pcf8574_kp_probe(struct i2c_client *client)
 
 	if (i2c_smbus_write_byte(client, 240) < 0) {
 		dev_err(&client->dev, "probe: write fail\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	lp = kzalloc(sizeof(*lp), GFP_KERNEL);
 	if (!lp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev = input_allocate_device();
 	if (!idev) {
 		dev_err(&client->dev, "Can't allocate input device\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_allocate;
 	}
 
@@ -134,7 +134,7 @@ static int pcf8574_kp_probe(struct i2c_client *client)
 				   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 				   DRV_NAME, lp);
 	if (ret) {
-		dev_err(&client->dev, "IRQ %d is not free\n", client->irq);
+		dev_err(&client->dev, "IRQ %d is analt free\n", client->irq);
 		goto fail_free_device;
 	}
 

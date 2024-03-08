@@ -36,7 +36,7 @@ void dev_addr_flush(struct net_device *dev);
 int dev_addr_init(struct net_device *dev);
 void dev_addr_check(struct net_device *dev);
 
-/* sysctls not referred to from outside net/core/ */
+/* sysctls analt referred to from outside net/core/ */
 extern int		netdev_budget;
 extern unsigned int	netdev_budget_usecs;
 extern unsigned int	sysctl_skb_defer_max;
@@ -51,8 +51,8 @@ extern struct list_head net_todo_list;
 void netdev_run_todo(void);
 
 /* netdev management, shared between various uAPI entry points */
-struct netdev_name_node {
-	struct hlist_node hlist;
+struct netdev_name_analde {
+	struct hlist_analde hlist;
 	struct list_head list;
 	struct net_device *dev;
 	const char *name;
@@ -61,14 +61,14 @@ struct netdev_name_node {
 int netdev_get_name(struct net *net, char *name, int ifindex);
 int dev_change_name(struct net_device *dev, const char *newname);
 
-#define netdev_for_each_altname(dev, namenode)				\
-	list_for_each_entry((namenode), &(dev)->name_node->list, list)
-#define netdev_for_each_altname_safe(dev, namenode, next)		\
-	list_for_each_entry_safe((namenode), (next), &(dev)->name_node->list, \
+#define netdev_for_each_altname(dev, nameanalde)				\
+	list_for_each_entry((nameanalde), &(dev)->name_analde->list, list)
+#define netdev_for_each_altname_safe(dev, nameanalde, next)		\
+	list_for_each_entry_safe((nameanalde), (next), &(dev)->name_analde->list, \
 				 list)
 
-int netdev_name_node_alt_create(struct net_device *dev, const char *name);
-int netdev_name_node_alt_destroy(struct net_device *dev, const char *name);
+int netdev_name_analde_alt_create(struct net_device *dev, const char *name);
+int netdev_name_analde_alt_destroy(struct net_device *dev, const char *name);
 
 int dev_validate_mtu(struct net_device *dev, int mtu,
 		     struct netlink_ext_ack *extack);
@@ -94,11 +94,11 @@ int dev_change_carrier(struct net_device *dev, bool new_carrier);
 
 void __dev_set_rx_mode(struct net_device *dev);
 
-void __dev_notify_flags(struct net_device *dev, unsigned int old_flags,
+void __dev_analtify_flags(struct net_device *dev, unsigned int old_flags,
 			unsigned int gchanges, u32 portid,
 			const struct nlmsghdr *nlh);
 
-void unregister_netdevice_many_notify(struct list_head *head,
+void unregister_netdevice_many_analtify(struct list_head *head,
 				      u32 portid, const struct nlmsghdr *nlh);
 
 static inline void netif_set_gso_max_size(struct net_device *dev,

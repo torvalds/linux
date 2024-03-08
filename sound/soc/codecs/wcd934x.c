@@ -93,7 +93,7 @@
 #define DSD_DISABLED   BIT(DSD_DISABLED_MASK)
 #define SLNQ_DISABLED  BIT(SLNQ_DISABLED_MASK)
 
-/* As fine version info cannot be retrieved before wcd probe.
+/* As fine version info cananalt be retrieved before wcd probe.
  * Define three coarse versions for possible future use before wcd probe.
  */
 #define WCD_VERSION_WCD9340_1_0     0x400
@@ -318,7 +318,7 @@ enum {
 	INTERP_HPHR,
 	INTERP_LO1,
 	INTERP_LO2,
-	INTERP_LO3_NA, /* LO3 not avalible in Tavil */
+	INTERP_LO3_NA, /* LO3 analt avalible in Tavil */
 	INTERP_LO4_NA,
 	INTERP_SPKR1, /*INT7 WSA Speakers via soundwire */
 	INTERP_SPKR2, /*INT8 WSA Speakers via soundwire */
@@ -426,8 +426,8 @@ enum {
 	COMPANDER_2, /* HPH_R */
 	COMPANDER_3, /* LO1_DIFF */
 	COMPANDER_4, /* LO2_DIFF */
-	COMPANDER_5, /* LO3_SE - not used in Tavil */
-	COMPANDER_6, /* LO4_SE - not used in Tavil */
+	COMPANDER_5, /* LO3_SE - analt used in Tavil */
+	COMPANDER_6, /* LO4_SE - analt used in Tavil */
 	COMPANDER_7, /* SWR SPK CH1 */
 	COMPANDER_8, /* SWR SPK CH2 */
 	COMPANDER_MAX,
@@ -501,7 +501,7 @@ static struct interp_sample_rate sr_val_tbl[] = {
 
 struct wcd934x_mbhc_zdet_param {
 	u16 ldo_ctl;
-	u16 noff;
+	u16 analff;
 	u16 nshift;
 	u16 btn5;
 	u16 btn6;
@@ -634,7 +634,7 @@ static const char * const iir_inp_mux_text[] = {
 };
 
 static const char * const rx_int_dem_inp_mux_text[] = {
-	"NORMAL_DSM_OUT", "CLSH_DSM_OUT",
+	"ANALRMAL_DSM_OUT", "CLSH_DSM_OUT",
 };
 
 static const char * const rx_int0_1_interp_mux_text[] = {
@@ -1058,49 +1058,49 @@ static const struct soc_enum tx_adc_mux8_enum =
 			ARRAY_SIZE(adc_mux_text), adc_mux_text);
 
 static const struct soc_enum rx_int0_1_interp_mux_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM,	0, 2,
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM,	0, 2,
 			rx_int0_1_interp_mux_text);
 
 static const struct soc_enum rx_int1_1_interp_mux_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM,	0, 2,
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM,	0, 2,
 			rx_int1_1_interp_mux_text);
 
 static const struct soc_enum rx_int2_1_interp_mux_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM,	0, 2,
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM,	0, 2,
 			rx_int2_1_interp_mux_text);
 
 static const struct soc_enum rx_int3_1_interp_mux_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM,	0, 2, rx_int3_1_interp_mux_text);
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM,	0, 2, rx_int3_1_interp_mux_text);
 
 static const struct soc_enum rx_int4_1_interp_mux_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM,	0, 2, rx_int4_1_interp_mux_text);
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM,	0, 2, rx_int4_1_interp_mux_text);
 
 static const struct soc_enum rx_int7_1_interp_mux_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM,	0, 2, rx_int7_1_interp_mux_text);
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM,	0, 2, rx_int7_1_interp_mux_text);
 
 static const struct soc_enum rx_int8_1_interp_mux_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM,	0, 2, rx_int8_1_interp_mux_text);
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM,	0, 2, rx_int8_1_interp_mux_text);
 
 static const struct soc_enum rx_int0_2_interp_mux_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM,	0, 2, rx_int0_2_interp_mux_text);
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM,	0, 2, rx_int0_2_interp_mux_text);
 
 static const struct soc_enum rx_int1_2_interp_mux_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM,	0, 2, rx_int1_2_interp_mux_text);
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM,	0, 2, rx_int1_2_interp_mux_text);
 
 static const struct soc_enum rx_int2_2_interp_mux_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM,	0, 2, rx_int2_2_interp_mux_text);
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM,	0, 2, rx_int2_2_interp_mux_text);
 
 static const struct soc_enum rx_int3_2_interp_mux_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM,	0, 2, rx_int3_2_interp_mux_text);
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM,	0, 2, rx_int3_2_interp_mux_text);
 
 static const struct soc_enum rx_int4_2_interp_mux_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM,	0, 2, rx_int4_2_interp_mux_text);
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM,	0, 2, rx_int4_2_interp_mux_text);
 
 static const struct soc_enum rx_int7_2_interp_mux_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM,	0, 2, rx_int7_2_interp_mux_text);
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM,	0, 2, rx_int7_2_interp_mux_text);
 
 static const struct soc_enum rx_int8_2_interp_mux_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM,	0, 2, rx_int8_2_interp_mux_text);
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM,	0, 2, rx_int8_2_interp_mux_text);
 
 static const struct soc_enum tx_dmic_mux0_enum =
 	SOC_ENUM_SINGLE(WCD934X_CDC_TX_INP_MUX_ADC_MUX0_CFG0, 3, 7,
@@ -1417,14 +1417,14 @@ static int wcd934x_get_version(struct wcd934x_codec *wcd)
 {
 	int val1, val2, ver, ret;
 	struct regmap *regmap;
-	u16 id_minor;
+	u16 id_mianalr;
 	u32 version_mask = 0;
 
 	regmap = wcd->regmap;
 	ver = 0;
 
 	ret = regmap_bulk_read(regmap, WCD934X_CHIP_TIER_CTRL_CHIP_ID_BYTE0,
-			       (u8 *)&id_minor, sizeof(u16));
+			       (u8 *)&id_mianalr, sizeof(u16));
 
 	if (ret)
 		return ret;
@@ -1437,21 +1437,21 @@ static int wcd934x_get_version(struct wcd934x_codec *wcd)
 
 	switch (version_mask) {
 	case DSD_DISABLED | SLNQ_DISABLED:
-		if (id_minor == 0)
+		if (id_mianalr == 0)
 			ver = WCD_VERSION_WCD9340_1_0;
-		else if (id_minor == 0x01)
+		else if (id_mianalr == 0x01)
 			ver = WCD_VERSION_WCD9340_1_1;
 		break;
 	case SLNQ_DISABLED:
-		if (id_minor == 0)
+		if (id_mianalr == 0)
 			ver = WCD_VERSION_WCD9341_1_0;
-		else if (id_minor == 0x01)
+		else if (id_mianalr == 0x01)
 			ver = WCD_VERSION_WCD9341_1_1;
 		break;
 	}
 
 	wcd->version = ver;
-	dev_info(wcd->dev, "WCD934X Minor:0x%x Version:0x%x\n", id_minor, ver);
+	dev_info(wcd->dev, "WCD934X Mianalr:0x%x Version:0x%x\n", id_mianalr, ver);
 
 	return 0;
 }
@@ -1480,7 +1480,7 @@ static void wcd934x_enable_efuse_sensing(struct wcd934x_codec *wcd)
 	rc = regmap_read(wcd->regmap,
 			 WCD934X_CHIP_TIER_CTRL_EFUSE_STATUS, &val);
 	if (rc || (!(val & 0x01)))
-		WARN(1, "%s: Efuse sense is not complete val=%x, ret=%d\n",
+		WARN(1, "%s: Efuse sense is analt complete val=%x, ret=%d\n",
 		     __func__, val, rc);
 
 	__wcd934x_cdc_mclk_enable(wcd, false);
@@ -1521,7 +1521,7 @@ static int wcd934x_set_prim_interpolator_rate(struct snd_soc_dai *dai,
 		 * is connected
 		 */
 		for (j = 0; j < WCD934X_NUM_INTERPOLATORS; j++) {
-			/* Interpolators 5 and 6 are not aviliable in Tavil */
+			/* Interpolators 5 and 6 are analt aviliable in Tavil */
 			if (j == INTERP_LO3_NA || j == INTERP_LO4_NA)
 				continue;
 
@@ -1541,13 +1541,13 @@ static int wcd934x_set_prim_interpolator_rate(struct snd_soc_dai *dai,
 			    (inp2_sel == inp)) {
 				/* rate is in Hz */
 				/*
-				 * Ear and speaker primary path does not support
+				 * Ear and speaker primary path does analt support
 				 * native sample rates
 				 */
 				if ((j == INTERP_EAR || j == INTERP_SPKR1 ||
 				     j == INTERP_SPKR2) && rate == 44100)
 					dev_err(wcd->dev,
-						"Cannot set 44.1KHz on INT%d\n",
+						"Cananalt set 44.1KHz on INT%d\n",
 						j);
 				else
 					snd_soc_component_update_bits(comp,
@@ -1571,7 +1571,7 @@ static int wcd934x_set_mix_interpolator_rate(struct snd_soc_dai *dai,
 
 	list_for_each_entry(ch, &wcd->dai[dai->id].slim_ch_list, list) {
 		for (j = 0; j < WCD934X_NUM_INTERPOLATORS; j++) {
-			/* Interpolators 5 and 6 are not aviliable in Tavil */
+			/* Interpolators 5 and 6 are analt aviliable in Tavil */
 			if (j == INTERP_LO3_NA || j == INTERP_LO4_NA)
 				continue;
 			val = snd_soc_component_read(component,
@@ -1734,7 +1734,7 @@ static int wcd934x_slim_set_hw_params(struct wcd934x_codec *wcd,
 
 	cfg->chs = kcalloc(cfg->ch_count, sizeof(unsigned int), GFP_KERNEL);
 	if (!cfg->chs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	list_for_each_entry(ch, slim_ch_list, list) {
@@ -1803,7 +1803,7 @@ static int wcd934x_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_STREAM_PLAYBACK:
 		ret = wcd934x_set_interpolator_rate(dai, params_rate(params));
 		if (ret) {
-			dev_err(wcd->dev, "cannot set sample rate: %u\n",
+			dev_err(wcd->dev, "cananalt set sample rate: %u\n",
 				params_rate(params));
 			return ret;
 		}
@@ -1851,7 +1851,7 @@ static int wcd934x_hw_params(struct snd_pcm_substream *substream,
 		ret = wcd934x_set_decimator_rate(dai, tx_fs_rate,
 						 params_rate(params));
 		if (ret < 0) {
-			dev_err(wcd->dev, "Cannot set TX Decimator rate\n");
+			dev_err(wcd->dev, "Cananalt set TX Decimator rate\n");
 			return ret;
 		}
 		switch (params_width(params)) {
@@ -2154,7 +2154,7 @@ static struct clk *wcd934x_register_mclk_output(struct wcd934x_codec *wcd)
 {
 	struct clk *parent = wcd->extclk;
 	struct device *dev = wcd->dev;
-	struct device_node *np = dev->parent->of_node;
+	struct device_analde *np = dev->parent->of_analde;
 	const char *parent_clk_name = NULL;
 	const char *clk_name = "mclk";
 	struct clk_hw *hw;
@@ -2192,8 +2192,8 @@ static int wcd934x_get_micbias_val(struct device *dev, const char *micbias,
 {
 	int mv;
 
-	if (of_property_read_u32(dev->parent->of_node, micbias, &mv)) {
-		dev_err(dev, "%s value not found, using default\n", micbias);
+	if (of_property_read_u32(dev->parent->of_analde, micbias, &mv)) {
+		dev_err(dev, "%s value analt found, using default\n", micbias);
 		mv = WCD934X_DEF_MICBIAS_MV;
 	} else {
 		/* convert it to milli volts */
@@ -2201,7 +2201,7 @@ static int wcd934x_get_micbias_val(struct device *dev, const char *micbias,
 	}
 
 	if (mv < 1000 || mv > 2850) {
-		dev_err(dev, "%s value not in valid range, using default\n",
+		dev_err(dev, "%s value analt in valid range, using default\n",
 			micbias);
 		mv = WCD934X_DEF_MICBIAS_MV;
 	}
@@ -2282,7 +2282,7 @@ static irqreturn_t wcd934x_slim_irq_handler(int irq, void *data)
 	unsigned long status = 0;
 	int i, j, port_id;
 	unsigned int val, int_val = 0;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	bool tx;
 	unsigned short reg = 0;
 
@@ -2465,12 +2465,12 @@ static int wcd934x_micbias_control(struct snd_soc_component *component,
 						      WCD934X_ANA_MICB_EN_MASK,
 						      WCD934X_MICB_ENABLE);
 			if (micb_num  == MIC_BIAS_2)
-				wcd_mbhc_event_notify(wcd934x->mbhc,
+				wcd_mbhc_event_analtify(wcd934x->mbhc,
 						      WCD_EVENT_POST_MICBIAS_2_ON);
 		}
 
 		if (micb_num  == MIC_BIAS_2 && is_dapm)
-			wcd_mbhc_event_notify(wcd934x->mbhc,
+			wcd_mbhc_event_analtify(wcd934x->mbhc,
 					      WCD_EVENT_POST_DAPM_MICBIAS_2_ON);
 		break;
 	case MICB_DISABLE:
@@ -2485,17 +2485,17 @@ static int wcd934x_micbias_control(struct snd_soc_component *component,
 		else if ((wcd934x->micb_ref[micb_index] == 0) &&
 			 (wcd934x->pullup_ref[micb_index] == 0)) {
 			if (micb_num  == MIC_BIAS_2)
-				wcd_mbhc_event_notify(wcd934x->mbhc,
+				wcd_mbhc_event_analtify(wcd934x->mbhc,
 						      WCD_EVENT_PRE_MICBIAS_2_OFF);
 
 			snd_soc_component_write_field(component, micb_reg,
 						      WCD934X_ANA_MICB_EN_MASK, 0);
 			if (micb_num  == MIC_BIAS_2)
-				wcd_mbhc_event_notify(wcd934x->mbhc,
+				wcd_mbhc_event_analtify(wcd934x->mbhc,
 						      WCD_EVENT_POST_MICBIAS_2_OFF);
 		}
 		if (is_dapm && micb_num  == MIC_BIAS_2)
-			wcd_mbhc_event_notify(wcd934x->mbhc,
+			wcd_mbhc_event_analtify(wcd934x->mbhc,
 					      WCD_EVENT_POST_DAPM_MICBIAS_2_OFF);
 		break;
 	}
@@ -2629,7 +2629,7 @@ static int wcd934x_mbhc_micb_ctrl_threshold_mic(struct snd_soc_component *compon
 	/*
 	 * If device tree micbias level is already above the minimum
 	 * voltage needed to detect threshold microphone, then do
-	 * not change the micbias, just return.
+	 * analt change the micbias, just return.
 	 */
 	if (wcd934x->micb2_mv >= WCD_MBHC_THR_HS_MICB_MV)
 		return 0;
@@ -2642,14 +2642,14 @@ static int wcd934x_mbhc_micb_ctrl_threshold_mic(struct snd_soc_component *compon
 }
 
 static void wcd934x_mbhc_get_result_params(struct wcd934x_codec *wcd934x,
-						s16 *d1_a, u16 noff,
+						s16 *d1_a, u16 analff,
 						int32_t *zdet)
 {
 	int i;
 	int val, val1;
 	s16 c1;
 	s32 x1, d1;
-	int32_t denom;
+	int32_t deanalm;
 	int minCode_param[] = {
 			3277, 1639, 820, 410, 205, 103, 52, 26
 	};
@@ -2666,7 +2666,7 @@ static void wcd934x_mbhc_get_result_params(struct wcd934x_codec *wcd934x,
 	regmap_update_bits(wcd934x->regmap, WCD934X_ANA_MBHC_ZDET, 0x20, 0x00);
 	x1 = WCD934X_MBHC_GET_X1(val);
 	c1 = WCD934X_MBHC_GET_C1(val);
-	/* If ramp is not complete, give additional 5ms */
+	/* If ramp is analt complete, give additional 5ms */
 	if ((c1 < 2) && x1)
 		usleep_range(5000, 5050);
 
@@ -2676,10 +2676,10 @@ static void wcd934x_mbhc_get_result_params(struct wcd934x_codec *wcd934x,
 		goto ramp_down;
 	}
 	d1 = d1_a[c1];
-	denom = (x1 * d1) - (1 << (14 - noff));
-	if (denom > 0)
-		*zdet = (WCD934X_MBHC_ZDET_CONST * 1000) / denom;
-	else if (x1 < minCode_param[noff])
+	deanalm = (x1 * d1) - (1 << (14 - analff));
+	if (deanalm > 0)
+		*zdet = (WCD934X_MBHC_ZDET_CONST * 1000) / deanalm;
+	else if (x1 < minCode_param[analff])
 		*zdet = WCD934X_ZDET_FLOATING_IMPEDANCE;
 
 	dev_dbg(wcd934x->dev, "%s: d1=%d, c1=%d, x1=0x%x, z_val=%di (milliohm)\n",
@@ -2715,7 +2715,7 @@ static void wcd934x_mbhc_zdet_ramp(struct snd_soc_component *component,
 	snd_soc_component_update_bits(component, WCD934X_ANA_MBHC_BTN7,
 				     WCD934X_VTH_MASK, zdet_param->btn7);
 	snd_soc_component_write_field(component, WCD934X_MBHC_NEW_ZDET_ANA_CTL,
-				WCD934X_ZDET_RANGE_CTL_MASK, zdet_param->noff);
+				WCD934X_ZDET_RANGE_CTL_MASK, zdet_param->analff);
 	snd_soc_component_update_bits(component, WCD934X_MBHC_NEW_ZDET_RAMP_CTL,
 				0x0F, zdet_param->nshift);
 
@@ -2723,7 +2723,7 @@ static void wcd934x_mbhc_zdet_ramp(struct snd_soc_component *component,
 		goto z_right;
 	/* Start impedance measurement for HPH_L */
 	regmap_update_bits(wcd934x->regmap, WCD934X_ANA_MBHC_ZDET, 0x80, 0x80);
-	wcd934x_mbhc_get_result_params(wcd934x, d1_a, zdet_param->noff, &zdet);
+	wcd934x_mbhc_get_result_params(wcd934x, d1_a, zdet_param->analff, &zdet);
 	regmap_update_bits(wcd934x->regmap, WCD934X_ANA_MBHC_ZDET, 0x80, 0x00);
 
 	*zl = zdet;
@@ -2733,7 +2733,7 @@ z_right:
 		return;
 	/* Start impedance measurement for HPH_R */
 	regmap_update_bits(wcd934x->regmap, WCD934X_ANA_MBHC_ZDET, 0x40, 0x40);
-	wcd934x_mbhc_get_result_params(wcd934x, d1_a, zdet_param->noff, &zdet);
+	wcd934x_mbhc_get_result_params(wcd934x, d1_a, zdet_param->analff, &zdet);
 	regmap_update_bits(wcd934x->regmap, WCD934X_ANA_MBHC_ZDET, 0x40, 0x00);
 
 	*zr = zdet;
@@ -2765,7 +2765,7 @@ static void wcd934x_wcd_mbhc_calc_impedance(struct snd_soc_component *component,
 	struct wcd934x_codec *wcd934x = dev_get_drvdata(component->dev);
 	s16 reg0, reg1, reg2, reg3, reg4;
 	int32_t z1L, z1R, z1Ls;
-	int zMono, z_diff1, z_diff2;
+	int zMoanal, z_diff1, z_diff2;
 	bool is_fsm_disable = false;
 	struct wcd934x_mbhc_zdet_param zdet_param[] = {
 		{4, 0, 4, 0x08, 0x14, 0x18}, /* < 32ohm */
@@ -2793,7 +2793,7 @@ static void wcd934x_wcd_mbhc_calc_impedance(struct snd_soc_component *component,
 		regmap_update_bits(wcd934x->regmap, WCD934X_ANA_MBHC_ELECT, 0x80, 0x00);
 	}
 
-	/* For NO-jack, disable L_DET_EN before Z-det measurements */
+	/* For ANAL-jack, disable L_DET_EN before Z-det measurements */
 	if (wcd934x->mbhc_cfg.hphl_swh)
 		regmap_update_bits(wcd934x->regmap, WCD934X_ANA_MBHC_MECH, 0x80, 0x00);
 
@@ -2839,7 +2839,7 @@ left_ch_impedance:
 	wcd934x_mbhc_zdet_ramp(component, zdet_param_ptr, NULL, &z1R, d1);
 	if (WCD934X_MBHC_IS_SECOND_RAMP_REQUIRED(z1R)) {
 		if (((z1R > WCD934X_ZDET_VAL_1200) &&
-			(zdet_param_ptr->noff == 0x6)) ||
+			(zdet_param_ptr->analff == 0x6)) ||
 			((*zl) != WCD934X_ZDET_FLOATING_IMPEDANCE))
 			goto right_ch_impedance;
 		/* Second ramp for right ch */
@@ -2867,7 +2867,7 @@ right_ch_impedance:
 	dev_err(component->dev, "%s: impedance on HPH_R = %d(ohms)\n",
 		__func__, *zr);
 
-	/* Mono/stereo detection */
+	/* Moanal/stereo detection */
 	if ((*zl == WCD934X_ZDET_FLOATING_IMPEDANCE) &&
 		(*zr == WCD934X_ZDET_FLOATING_IMPEDANCE)) {
 		dev_dbg(component->dev,
@@ -2877,12 +2877,12 @@ right_ch_impedance:
 	}
 	if ((*zl == WCD934X_ZDET_FLOATING_IMPEDANCE) ||
 	    (*zr == WCD934X_ZDET_FLOATING_IMPEDANCE) ||
-	    ((*zl < WCD_MONO_HS_MIN_THR) && (*zr > WCD_MONO_HS_MIN_THR)) ||
-	    ((*zl > WCD_MONO_HS_MIN_THR) && (*zr < WCD_MONO_HS_MIN_THR))) {
+	    ((*zl < WCD_MOANAL_HS_MIN_THR) && (*zr > WCD_MOANAL_HS_MIN_THR)) ||
+	    ((*zl > WCD_MOANAL_HS_MIN_THR) && (*zr < WCD_MOANAL_HS_MIN_THR))) {
 		dev_dbg(component->dev,
-			"%s: Mono plug type with one ch floating or shorted to GND\n",
+			"%s: Moanal plug type with one ch floating or shorted to GND\n",
 			__func__);
-		wcd_mbhc_set_hph_type(wcd934x->mbhc, WCD_MBHC_HPH_MONO);
+		wcd_mbhc_set_hph_type(wcd934x->mbhc, WCD_MBHC_HPH_MOANAL);
 		goto zdet_complete;
 	}
 	snd_soc_component_write_field(component, WCD934X_HPH_R_ATEST,
@@ -2900,17 +2900,17 @@ right_ch_impedance:
 	z1Ls /= 1000;
 	wcd934x_wcd_mbhc_qfuse_cal(component, &z1Ls, 0);
 	/* Parallel of left Z and 9 ohm pull down resistor */
-	zMono = ((*zl) * 9) / ((*zl) + 9);
-	z_diff1 = (z1Ls > zMono) ? (z1Ls - zMono) : (zMono - z1Ls);
+	zMoanal = ((*zl) * 9) / ((*zl) + 9);
+	z_diff1 = (z1Ls > zMoanal) ? (z1Ls - zMoanal) : (zMoanal - z1Ls);
 	z_diff2 = ((*zl) > z1Ls) ? ((*zl) - z1Ls) : (z1Ls - (*zl));
-	if ((z_diff1 * (*zl + z1Ls)) > (z_diff2 * (z1Ls + zMono))) {
+	if ((z_diff1 * (*zl + z1Ls)) > (z_diff2 * (z1Ls + zMoanal))) {
 		dev_err(component->dev, "%s: stereo plug type detected\n",
 			__func__);
 		wcd_mbhc_set_hph_type(wcd934x->mbhc, WCD_MBHC_HPH_STEREO);
 	} else {
-		dev_err(component->dev, "%s: MONO plug type detected\n",
+		dev_err(component->dev, "%s: MOANAL plug type detected\n",
 			__func__);
-		wcd_mbhc_set_hph_type(wcd934x->mbhc, WCD_MBHC_HPH_MONO);
+		wcd_mbhc_set_hph_type(wcd934x->mbhc, WCD_MBHC_HPH_MOANAL);
 	}
 
 zdet_complete:
@@ -2920,7 +2920,7 @@ zdet_complete:
 	/* Turn on 100k pull down on HPHL */
 	regmap_update_bits(wcd934x->regmap, WCD934X_ANA_MBHC_MECH, 0x01, 0x01);
 
-	/* For NO-jack, re-enable L_DET_EN after Z-det measurements */
+	/* For ANAL-jack, re-enable L_DET_EN after Z-det measurements */
 	if (wcd934x->mbhc_cfg.hphl_swh)
 		regmap_update_bits(wcd934x->regmap, WCD934X_ANA_MBHC_MECH, 0x80, 0x80);
 
@@ -3116,7 +3116,7 @@ static uint32_t get_iir_band_coeff(struct snd_soc_component *component,
 	u32 value = 0;
 	int reg, b2_reg;
 
-	/* Address does not automatically update if reading */
+	/* Address does analt automatically update if reading */
 	reg = WCD934X_CDC_SIDETONE_IIR0_IIR_COEF_B1_CTL + 16 * iir_idx;
 	b2_reg = WCD934X_CDC_SIDETONE_IIR0_IIR_COEF_B2_CTL + 16 * iir_idx;
 
@@ -3395,7 +3395,7 @@ static int slim_rx_mux_put(struct snd_kcontrol *kc,
 		break;
 
 	default:
-		dev_err(wcd->dev, "Unknown AIF %d\n", mux_idx);
+		dev_err(wcd->dev, "Unkanalwn AIF %d\n", mux_idx);
 		goto err;
 	}
 
@@ -3482,7 +3482,7 @@ static int wcd934x_dec_enum_put(struct snd_kcontrol *kcontrol,
 			mic_sel_reg = WCD934X_CDC_TX7_TX_PATH_CFG0;
 		break;
 	default:
-		dev_err(comp->dev, "%s: e->reg: 0x%x not expected\n",
+		dev_err(comp->dev, "%s: e->reg: 0x%x analt expected\n",
 			__func__, e->reg);
 		return -EINVAL;
 	}
@@ -3636,19 +3636,19 @@ static const struct snd_kcontrol_new slim_rx_mux[WCD934X_RX_MAX] = {
 };
 
 static const struct snd_kcontrol_new rx_int1_asrc_switch[] = {
-	SOC_DAPM_SINGLE("HPHL Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("HPHL Switch", SND_SOC_ANALPM, 0, 1, 0),
 };
 
 static const struct snd_kcontrol_new rx_int2_asrc_switch[] = {
-	SOC_DAPM_SINGLE("HPHR Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("HPHR Switch", SND_SOC_ANALPM, 0, 1, 0),
 };
 
 static const struct snd_kcontrol_new rx_int3_asrc_switch[] = {
-	SOC_DAPM_SINGLE("LO1 Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("LO1 Switch", SND_SOC_ANALPM, 0, 1, 0),
 };
 
 static const struct snd_kcontrol_new rx_int4_asrc_switch[] = {
-	SOC_DAPM_SINGLE("LO2 Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("LO2 Switch", SND_SOC_ANALPM, 0, 1, 0),
 };
 
 static const struct snd_kcontrol_new rx_int0_dem_inp_mux =
@@ -3851,7 +3851,7 @@ static int slim_tx_mixer_put(struct snd_kcontrol *kc,
 	int dai_id = widget->shift;
 	int port_id = mixer->shift;
 
-	/* only add to the list if value not set */
+	/* only add to the list if value analt set */
 	if (enable == wcd->tx_port_value[port_id])
 		return 0;
 
@@ -3884,89 +3884,89 @@ static int slim_tx_mixer_put(struct snd_kcontrol *kc,
 }
 
 static const struct snd_kcontrol_new aif1_slim_cap_mixer[] = {
-	SOC_SINGLE_EXT("SLIM TX0", SND_SOC_NOPM, WCD934X_TX0, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX0", SND_SOC_ANALPM, WCD934X_TX0, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX1", SND_SOC_NOPM, WCD934X_TX1, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX1", SND_SOC_ANALPM, WCD934X_TX1, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX2", SND_SOC_NOPM, WCD934X_TX2, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX2", SND_SOC_ANALPM, WCD934X_TX2, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX3", SND_SOC_NOPM, WCD934X_TX3, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX3", SND_SOC_ANALPM, WCD934X_TX3, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX4", SND_SOC_NOPM, WCD934X_TX4, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX4", SND_SOC_ANALPM, WCD934X_TX4, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX5", SND_SOC_NOPM, WCD934X_TX5, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX5", SND_SOC_ANALPM, WCD934X_TX5, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX6", SND_SOC_NOPM, WCD934X_TX6, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX6", SND_SOC_ANALPM, WCD934X_TX6, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX7", SND_SOC_NOPM, WCD934X_TX7, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX7", SND_SOC_ANALPM, WCD934X_TX7, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX8", SND_SOC_NOPM, WCD934X_TX8, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX8", SND_SOC_ANALPM, WCD934X_TX8, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX9", SND_SOC_NOPM, WCD934X_TX9, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX9", SND_SOC_ANALPM, WCD934X_TX9, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX10", SND_SOC_NOPM, WCD934X_TX10, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX10", SND_SOC_ANALPM, WCD934X_TX10, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX11", SND_SOC_NOPM, WCD934X_TX11, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX11", SND_SOC_ANALPM, WCD934X_TX11, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX13", SND_SOC_NOPM, WCD934X_TX13, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX13", SND_SOC_ANALPM, WCD934X_TX13, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
 };
 
 static const struct snd_kcontrol_new aif2_slim_cap_mixer[] = {
-	SOC_SINGLE_EXT("SLIM TX0", SND_SOC_NOPM, WCD934X_TX0, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX0", SND_SOC_ANALPM, WCD934X_TX0, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX1", SND_SOC_NOPM, WCD934X_TX1, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX1", SND_SOC_ANALPM, WCD934X_TX1, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX2", SND_SOC_NOPM, WCD934X_TX2, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX2", SND_SOC_ANALPM, WCD934X_TX2, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX3", SND_SOC_NOPM, WCD934X_TX3, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX3", SND_SOC_ANALPM, WCD934X_TX3, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX4", SND_SOC_NOPM, WCD934X_TX4, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX4", SND_SOC_ANALPM, WCD934X_TX4, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX5", SND_SOC_NOPM, WCD934X_TX5, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX5", SND_SOC_ANALPM, WCD934X_TX5, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX6", SND_SOC_NOPM, WCD934X_TX6, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX6", SND_SOC_ANALPM, WCD934X_TX6, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX7", SND_SOC_NOPM, WCD934X_TX7, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX7", SND_SOC_ANALPM, WCD934X_TX7, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX8", SND_SOC_NOPM, WCD934X_TX8, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX8", SND_SOC_ANALPM, WCD934X_TX8, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX9", SND_SOC_NOPM, WCD934X_TX9, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX9", SND_SOC_ANALPM, WCD934X_TX9, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX10", SND_SOC_NOPM, WCD934X_TX10, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX10", SND_SOC_ANALPM, WCD934X_TX10, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX11", SND_SOC_NOPM, WCD934X_TX11, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX11", SND_SOC_ANALPM, WCD934X_TX11, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX13", SND_SOC_NOPM, WCD934X_TX13, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX13", SND_SOC_ANALPM, WCD934X_TX13, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
 };
 
 static const struct snd_kcontrol_new aif3_slim_cap_mixer[] = {
-	SOC_SINGLE_EXT("SLIM TX0", SND_SOC_NOPM, WCD934X_TX0, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX0", SND_SOC_ANALPM, WCD934X_TX0, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX1", SND_SOC_NOPM, WCD934X_TX1, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX1", SND_SOC_ANALPM, WCD934X_TX1, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX2", SND_SOC_NOPM, WCD934X_TX2, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX2", SND_SOC_ANALPM, WCD934X_TX2, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX3", SND_SOC_NOPM, WCD934X_TX3, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX3", SND_SOC_ANALPM, WCD934X_TX3, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX4", SND_SOC_NOPM, WCD934X_TX4, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX4", SND_SOC_ANALPM, WCD934X_TX4, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX5", SND_SOC_NOPM, WCD934X_TX5, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX5", SND_SOC_ANALPM, WCD934X_TX5, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX6", SND_SOC_NOPM, WCD934X_TX6, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX6", SND_SOC_ANALPM, WCD934X_TX6, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX7", SND_SOC_NOPM, WCD934X_TX7, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX7", SND_SOC_ANALPM, WCD934X_TX7, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX8", SND_SOC_NOPM, WCD934X_TX8, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX8", SND_SOC_ANALPM, WCD934X_TX8, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX9", SND_SOC_NOPM, WCD934X_TX9, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX9", SND_SOC_ANALPM, WCD934X_TX9, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX10", SND_SOC_NOPM, WCD934X_TX10, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX10", SND_SOC_ANALPM, WCD934X_TX10, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX11", SND_SOC_NOPM, WCD934X_TX11, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX11", SND_SOC_ANALPM, WCD934X_TX11, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
-	SOC_SINGLE_EXT("SLIM TX13", SND_SOC_NOPM, WCD934X_TX13, 1, 0,
+	SOC_SINGLE_EXT("SLIM TX13", SND_SOC_ANALPM, WCD934X_TX13, 1, 0,
 		       slim_tx_mixer_get, slim_tx_mixer_put),
 };
 
@@ -4125,17 +4125,17 @@ static const struct snd_kcontrol_new wcd934x_snd_controls[] = {
 	WCD_IIR_FILTER_CTL("IIR1 Band4", IIR1, BAND4),
 	WCD_IIR_FILTER_CTL("IIR1 Band5", IIR1, BAND5),
 
-	SOC_SINGLE_EXT("COMP1 Switch", SND_SOC_NOPM, COMPANDER_1, 1, 0,
+	SOC_SINGLE_EXT("COMP1 Switch", SND_SOC_ANALPM, COMPANDER_1, 1, 0,
 		       wcd934x_compander_get, wcd934x_compander_set),
-	SOC_SINGLE_EXT("COMP2 Switch", SND_SOC_NOPM, COMPANDER_2, 1, 0,
+	SOC_SINGLE_EXT("COMP2 Switch", SND_SOC_ANALPM, COMPANDER_2, 1, 0,
 		       wcd934x_compander_get, wcd934x_compander_set),
-	SOC_SINGLE_EXT("COMP3 Switch", SND_SOC_NOPM, COMPANDER_3, 1, 0,
+	SOC_SINGLE_EXT("COMP3 Switch", SND_SOC_ANALPM, COMPANDER_3, 1, 0,
 		       wcd934x_compander_get, wcd934x_compander_set),
-	SOC_SINGLE_EXT("COMP4 Switch", SND_SOC_NOPM, COMPANDER_4, 1, 0,
+	SOC_SINGLE_EXT("COMP4 Switch", SND_SOC_ANALPM, COMPANDER_4, 1, 0,
 		       wcd934x_compander_get, wcd934x_compander_set),
-	SOC_SINGLE_EXT("COMP7 Switch", SND_SOC_NOPM, COMPANDER_7, 1, 0,
+	SOC_SINGLE_EXT("COMP7 Switch", SND_SOC_ANALPM, COMPANDER_7, 1, 0,
 		       wcd934x_compander_get, wcd934x_compander_set),
-	SOC_SINGLE_EXT("COMP8 Switch", SND_SOC_NOPM, COMPANDER_8, 1, 0,
+	SOC_SINGLE_EXT("COMP8 Switch", SND_SOC_ANALPM, COMPANDER_8, 1, 0,
 		       wcd934x_compander_get, wcd934x_compander_set),
 };
 
@@ -4261,7 +4261,7 @@ static int wcd934x_config_compander(struct snd_soc_component *comp,
 	int compander;
 	u16 comp_ctl0_reg, rx_path_cfg0_reg;
 
-	/* EAR does not have compander */
+	/* EAR does analt have compander */
 	if (!interp_n)
 		return 0;
 
@@ -4450,12 +4450,12 @@ static int wcd934x_codec_ear_dac_event(struct snd_soc_dapm_widget *w,
 				      WCD934X_HPH_NEW_INT_HPH_TIMER1,
 				      WCD934X_HPH_AUTOCHOP_TIMER_EN_MASK, 0x0);
 		wcd_clsh_ctrl_set_state(wcd->clsh_ctrl, WCD_CLSH_EVENT_PRE_DAC,
-					WCD_CLSH_STATE_EAR, CLS_H_NORMAL);
+					WCD_CLSH_STATE_EAR, CLS_H_ANALRMAL);
 
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		wcd_clsh_ctrl_set_state(wcd->clsh_ctrl, WCD_CLSH_EVENT_POST_PA,
-					WCD_CLSH_STATE_EAR, CLS_H_NORMAL);
+					WCD_CLSH_STATE_EAR, CLS_H_ANALRMAL);
 		break;
 	}
 
@@ -4622,7 +4622,7 @@ static int wcd934x_codec_enable_hphl_pa(struct snd_soc_dapm_widget *w,
 				WCD934X_CDC_RX_PGA_MUTE_EN_MASK, 0x00);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		wcd_mbhc_event_notify(wcd->mbhc, WCD_EVENT_POST_HPHL_PA_OFF);
+		wcd_mbhc_event_analtify(wcd->mbhc, WCD_EVENT_POST_HPHL_PA_OFF);
 		/* Enable DSD Mute before PA disable */
 		snd_soc_component_update_bits(comp, WCD934X_HPH_L_TEST,
 					      WCD934X_HPH_OCP_DET_MASK,
@@ -4641,7 +4641,7 @@ static int wcd934x_codec_enable_hphl_pa(struct snd_soc_dapm_widget *w,
 		 * disabled, then 20ms delay is needed after PA disable.
 		 */
 		usleep_range(20000, 20100);
-		wcd_mbhc_event_notify(wcd->mbhc, WCD_EVENT_POST_HPHL_PA_OFF);
+		wcd_mbhc_event_analtify(wcd->mbhc, WCD_EVENT_POST_HPHL_PA_OFF);
 		break;
 	}
 
@@ -4688,7 +4688,7 @@ static int wcd934x_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 					      WCD934X_CDC_RX_PGA_MUTE_DISABLE);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		wcd_mbhc_event_notify(wcd->mbhc, WCD_EVENT_PRE_HPHR_PA_OFF);
+		wcd_mbhc_event_analtify(wcd->mbhc, WCD_EVENT_PRE_HPHR_PA_OFF);
 		snd_soc_component_update_bits(comp, WCD934X_HPH_R_TEST,
 					      WCD934X_HPH_OCP_DET_MASK,
 					      WCD934X_HPH_OCP_DET_DISABLE);
@@ -4706,7 +4706,7 @@ static int wcd934x_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 		 * disabled, then 20ms delay is needed after PA disable.
 		 */
 		usleep_range(20000, 20100);
-		wcd_mbhc_event_notify(wcd->mbhc, WCD_EVENT_POST_HPHR_PA_OFF);
+		wcd_mbhc_event_analtify(wcd->mbhc, WCD_EVENT_POST_HPHR_PA_OFF);
 		break;
 	}
 
@@ -4773,7 +4773,7 @@ static u8 wcd934x_get_dmic_clk_val(struct snd_soc_component *comp,
 
 	if (dmic_clk_rate == 0) {
 		dev_err(comp->dev,
-			"%s: dmic_sample_rate cannot be 0\n",
+			"%s: dmic_sample_rate cananalt be 0\n",
 			__func__);
 		goto done;
 	}
@@ -4825,7 +4825,7 @@ static int wcd934x_codec_enable_dmic(struct snd_soc_dapm_widget *w,
 
 	wname = strpbrk(w->name, "012345");
 	if (!wname) {
-		dev_err(comp->dev, "%s: widget not found\n", __func__);
+		dev_err(comp->dev, "%s: widget analt found\n", __func__);
 		return -EINVAL;
 	}
 
@@ -4991,7 +4991,7 @@ static int wcd934x_codec_enable_dec(struct snd_soc_dapm_widget *w,
 
 	widget_name = kstrndup(w->name, 15, GFP_KERNEL);
 	if (!widget_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wname = widget_name;
 	dec_adc_mux_name = strsep(&widget_name, " ");
@@ -5005,7 +5005,7 @@ static int wcd934x_codec_enable_dec(struct snd_soc_dapm_widget *w,
 
 	dec = strpbrk(dec_adc_mux_name, "012345678");
 	if (!dec) {
-		dev_err(comp->dev, "%s: decimator index not found\n",
+		dev_err(comp->dev, "%s: decimator index analt found\n",
 			__func__);
 		ret =  -EINVAL;
 		goto out;
@@ -5196,152 +5196,152 @@ static const struct snd_soc_dapm_widget wcd934x_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("WDMA3_OUT"),
 	SND_SOC_DAPM_OUTPUT("MAD_CPE_OUT1"),
 	SND_SOC_DAPM_OUTPUT("MAD_CPE_OUT2"),
-	SND_SOC_DAPM_AIF_IN_E("AIF1 PB", "AIF1 Playback", 0, SND_SOC_NOPM,
+	SND_SOC_DAPM_AIF_IN_E("AIF1 PB", "AIF1 Playback", 0, SND_SOC_ANALPM,
 			      AIF1_PB, 0, wcd934x_codec_enable_slim,
 			      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_AIF_IN_E("AIF2 PB", "AIF2 Playback", 0, SND_SOC_NOPM,
+	SND_SOC_DAPM_AIF_IN_E("AIF2 PB", "AIF2 Playback", 0, SND_SOC_ANALPM,
 			      AIF2_PB, 0, wcd934x_codec_enable_slim,
 			      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_AIF_IN_E("AIF3 PB", "AIF3 Playback", 0, SND_SOC_NOPM,
+	SND_SOC_DAPM_AIF_IN_E("AIF3 PB", "AIF3 Playback", 0, SND_SOC_ANALPM,
 			      AIF3_PB, 0, wcd934x_codec_enable_slim,
 			      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_AIF_IN_E("AIF4 PB", "AIF4 Playback", 0, SND_SOC_NOPM,
+	SND_SOC_DAPM_AIF_IN_E("AIF4 PB", "AIF4 Playback", 0, SND_SOC_ANALPM,
 			      AIF4_PB, 0, wcd934x_codec_enable_slim,
 			      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MUX("SLIM RX0 MUX", SND_SOC_NOPM, WCD934X_RX0, 0,
+	SND_SOC_DAPM_MUX("SLIM RX0 MUX", SND_SOC_ANALPM, WCD934X_RX0, 0,
 			 &slim_rx_mux[WCD934X_RX0]),
-	SND_SOC_DAPM_MUX("SLIM RX1 MUX", SND_SOC_NOPM, WCD934X_RX1, 0,
+	SND_SOC_DAPM_MUX("SLIM RX1 MUX", SND_SOC_ANALPM, WCD934X_RX1, 0,
 			 &slim_rx_mux[WCD934X_RX1]),
-	SND_SOC_DAPM_MUX("SLIM RX2 MUX", SND_SOC_NOPM, WCD934X_RX2, 0,
+	SND_SOC_DAPM_MUX("SLIM RX2 MUX", SND_SOC_ANALPM, WCD934X_RX2, 0,
 			 &slim_rx_mux[WCD934X_RX2]),
-	SND_SOC_DAPM_MUX("SLIM RX3 MUX", SND_SOC_NOPM, WCD934X_RX3, 0,
+	SND_SOC_DAPM_MUX("SLIM RX3 MUX", SND_SOC_ANALPM, WCD934X_RX3, 0,
 			 &slim_rx_mux[WCD934X_RX3]),
-	SND_SOC_DAPM_MUX("SLIM RX4 MUX", SND_SOC_NOPM, WCD934X_RX4, 0,
+	SND_SOC_DAPM_MUX("SLIM RX4 MUX", SND_SOC_ANALPM, WCD934X_RX4, 0,
 			 &slim_rx_mux[WCD934X_RX4]),
-	SND_SOC_DAPM_MUX("SLIM RX5 MUX", SND_SOC_NOPM, WCD934X_RX5, 0,
+	SND_SOC_DAPM_MUX("SLIM RX5 MUX", SND_SOC_ANALPM, WCD934X_RX5, 0,
 			 &slim_rx_mux[WCD934X_RX5]),
-	SND_SOC_DAPM_MUX("SLIM RX6 MUX", SND_SOC_NOPM, WCD934X_RX6, 0,
+	SND_SOC_DAPM_MUX("SLIM RX6 MUX", SND_SOC_ANALPM, WCD934X_RX6, 0,
 			 &slim_rx_mux[WCD934X_RX6]),
-	SND_SOC_DAPM_MUX("SLIM RX7 MUX", SND_SOC_NOPM, WCD934X_RX7, 0,
+	SND_SOC_DAPM_MUX("SLIM RX7 MUX", SND_SOC_ANALPM, WCD934X_RX7, 0,
 			 &slim_rx_mux[WCD934X_RX7]),
 
-	SND_SOC_DAPM_MIXER("SLIM RX0", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM RX1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM RX2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM RX3", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM RX4", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM RX5", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM RX6", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM RX7", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM RX0", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM RX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM RX2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM RX3", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM RX4", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM RX5", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM RX6", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM RX7", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MUX_E("RX INT0_2 MUX", SND_SOC_NOPM, INTERP_EAR, 0,
+	SND_SOC_DAPM_MUX_E("RX INT0_2 MUX", SND_SOC_ANALPM, INTERP_EAR, 0,
 			   &rx_int0_2_mux, wcd934x_codec_enable_mix_path,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT1_2 MUX", SND_SOC_NOPM, INTERP_HPHL, 0,
+	SND_SOC_DAPM_MUX_E("RX INT1_2 MUX", SND_SOC_ANALPM, INTERP_HPHL, 0,
 			   &rx_int1_2_mux, wcd934x_codec_enable_mix_path,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT2_2 MUX", SND_SOC_NOPM, INTERP_HPHR, 0,
+	SND_SOC_DAPM_MUX_E("RX INT2_2 MUX", SND_SOC_ANALPM, INTERP_HPHR, 0,
 			   &rx_int2_2_mux, wcd934x_codec_enable_mix_path,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT3_2 MUX", SND_SOC_NOPM, INTERP_LO1, 0,
+	SND_SOC_DAPM_MUX_E("RX INT3_2 MUX", SND_SOC_ANALPM, INTERP_LO1, 0,
 			   &rx_int3_2_mux, wcd934x_codec_enable_mix_path,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT4_2 MUX", SND_SOC_NOPM, INTERP_LO2, 0,
+	SND_SOC_DAPM_MUX_E("RX INT4_2 MUX", SND_SOC_ANALPM, INTERP_LO2, 0,
 			   &rx_int4_2_mux, wcd934x_codec_enable_mix_path,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT7_2 MUX", SND_SOC_NOPM, INTERP_SPKR1, 0,
+	SND_SOC_DAPM_MUX_E("RX INT7_2 MUX", SND_SOC_ANALPM, INTERP_SPKR1, 0,
 			   &rx_int7_2_mux, wcd934x_codec_enable_mix_path,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT8_2 MUX", SND_SOC_NOPM, INTERP_SPKR2, 0,
+	SND_SOC_DAPM_MUX_E("RX INT8_2 MUX", SND_SOC_ANALPM, INTERP_SPKR2, 0,
 			   &rx_int8_2_mux, wcd934x_codec_enable_mix_path,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MUX("RX INT0_1 MIX1 INP0", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT0_1 MIX1 INP0", SND_SOC_ANALPM, 0, 0,
 			 &rx_int0_1_mix_inp0_mux),
-	SND_SOC_DAPM_MUX("RX INT0_1 MIX1 INP1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT0_1 MIX1 INP1", SND_SOC_ANALPM, 0, 0,
 			 &rx_int0_1_mix_inp1_mux),
-	SND_SOC_DAPM_MUX("RX INT0_1 MIX1 INP2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT0_1 MIX1 INP2", SND_SOC_ANALPM, 0, 0,
 			 &rx_int0_1_mix_inp2_mux),
-	SND_SOC_DAPM_MUX("RX INT1_1 MIX1 INP0", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT1_1 MIX1 INP0", SND_SOC_ANALPM, 0, 0,
 			 &rx_int1_1_mix_inp0_mux),
-	SND_SOC_DAPM_MUX("RX INT1_1 MIX1 INP1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT1_1 MIX1 INP1", SND_SOC_ANALPM, 0, 0,
 			 &rx_int1_1_mix_inp1_mux),
-	SND_SOC_DAPM_MUX("RX INT1_1 MIX1 INP2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT1_1 MIX1 INP2", SND_SOC_ANALPM, 0, 0,
 			 &rx_int1_1_mix_inp2_mux),
-	SND_SOC_DAPM_MUX("RX INT2_1 MIX1 INP0", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT2_1 MIX1 INP0", SND_SOC_ANALPM, 0, 0,
 			 &rx_int2_1_mix_inp0_mux),
-	SND_SOC_DAPM_MUX("RX INT2_1 MIX1 INP1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT2_1 MIX1 INP1", SND_SOC_ANALPM, 0, 0,
 			 &rx_int2_1_mix_inp1_mux),
-	SND_SOC_DAPM_MUX("RX INT2_1 MIX1 INP2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT2_1 MIX1 INP2", SND_SOC_ANALPM, 0, 0,
 			 &rx_int2_1_mix_inp2_mux),
-	SND_SOC_DAPM_MUX("RX INT3_1 MIX1 INP0", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT3_1 MIX1 INP0", SND_SOC_ANALPM, 0, 0,
 			 &rx_int3_1_mix_inp0_mux),
-	SND_SOC_DAPM_MUX("RX INT3_1 MIX1 INP1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT3_1 MIX1 INP1", SND_SOC_ANALPM, 0, 0,
 			 &rx_int3_1_mix_inp1_mux),
-	SND_SOC_DAPM_MUX("RX INT3_1 MIX1 INP2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT3_1 MIX1 INP2", SND_SOC_ANALPM, 0, 0,
 			 &rx_int3_1_mix_inp2_mux),
-	SND_SOC_DAPM_MUX("RX INT4_1 MIX1 INP0", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT4_1 MIX1 INP0", SND_SOC_ANALPM, 0, 0,
 			 &rx_int4_1_mix_inp0_mux),
-	SND_SOC_DAPM_MUX("RX INT4_1 MIX1 INP1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT4_1 MIX1 INP1", SND_SOC_ANALPM, 0, 0,
 			 &rx_int4_1_mix_inp1_mux),
-	SND_SOC_DAPM_MUX("RX INT4_1 MIX1 INP2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT4_1 MIX1 INP2", SND_SOC_ANALPM, 0, 0,
 			 &rx_int4_1_mix_inp2_mux),
-	SND_SOC_DAPM_MUX("RX INT7_1 MIX1 INP0", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT7_1 MIX1 INP0", SND_SOC_ANALPM, 0, 0,
 			   &rx_int7_1_mix_inp0_mux),
-	SND_SOC_DAPM_MUX("RX INT7_1 MIX1 INP1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT7_1 MIX1 INP1", SND_SOC_ANALPM, 0, 0,
 			   &rx_int7_1_mix_inp1_mux),
-	SND_SOC_DAPM_MUX("RX INT7_1 MIX1 INP2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT7_1 MIX1 INP2", SND_SOC_ANALPM, 0, 0,
 			   &rx_int7_1_mix_inp2_mux),
-	SND_SOC_DAPM_MUX("RX INT8_1 MIX1 INP0", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT8_1 MIX1 INP0", SND_SOC_ANALPM, 0, 0,
 			   &rx_int8_1_mix_inp0_mux),
-	SND_SOC_DAPM_MUX("RX INT8_1 MIX1 INP1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT8_1 MIX1 INP1", SND_SOC_ANALPM, 0, 0,
 			   &rx_int8_1_mix_inp1_mux),
-	SND_SOC_DAPM_MUX("RX INT8_1 MIX1 INP2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT8_1 MIX1 INP2", SND_SOC_ANALPM, 0, 0,
 			   &rx_int8_1_mix_inp2_mux),
-	SND_SOC_DAPM_MIXER("RX INT0_1 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT0 SEC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT1_1 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT1 SEC MIX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("RX INT0_1 MIX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT0 SEC MIX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT1_1 MIX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT1 SEC MIX", SND_SOC_ANALPM, 0, 0,
 			   rx_int1_asrc_switch,
 			   ARRAY_SIZE(rx_int1_asrc_switch)),
-	SND_SOC_DAPM_MIXER("RX INT2_1 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT2 SEC MIX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("RX INT2_1 MIX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT2 SEC MIX", SND_SOC_ANALPM, 0, 0,
 			   rx_int2_asrc_switch,
 			   ARRAY_SIZE(rx_int2_asrc_switch)),
-	SND_SOC_DAPM_MIXER("RX INT3_1 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT3 SEC MIX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("RX INT3_1 MIX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT3 SEC MIX", SND_SOC_ANALPM, 0, 0,
 			   rx_int3_asrc_switch,
 			   ARRAY_SIZE(rx_int3_asrc_switch)),
-	SND_SOC_DAPM_MIXER("RX INT4_1 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT4 SEC MIX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("RX INT4_1 MIX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT4 SEC MIX", SND_SOC_ANALPM, 0, 0,
 			   rx_int4_asrc_switch,
 			   ARRAY_SIZE(rx_int4_asrc_switch)),
-	SND_SOC_DAPM_MIXER("RX INT7_1 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT7 SEC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT8_1 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT8 SEC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT0 MIX2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT1 MIX2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT1 MIX3", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT2 MIX2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT2 MIX3", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT3 MIX2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT3 MIX3", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT4 MIX2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX INT4 MIX3", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT7_1 MIX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT7 SEC MIX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT8_1 MIX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT8 SEC MIX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT0 MIX2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT1 MIX2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT1 MIX3", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT2 MIX2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT2 MIX3", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT3 MIX2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT3 MIX3", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT4 MIX2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX INT4 MIX3", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MIXER("RX INT7 MIX2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER_E("RX INT7 CHAIN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("RX INT7 MIX2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER_E("RX INT7 CHAIN", SND_SOC_ANALPM, 0, 0,
 			     NULL, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER_E("RX INT8 CHAIN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER_E("RX INT8 CHAIN", SND_SOC_ANALPM, 0, 0,
 			     NULL, 0, NULL, 0),
 	SND_SOC_DAPM_MUX_E("RX INT0 MIX2 INP", WCD934X_CDC_RX0_RX_PATH_CFG0, 4,
 			   0,  &rx_int0_mix2_inp_mux, NULL,
@@ -5362,14 +5362,14 @@ static const struct snd_soc_dapm_widget wcd934x_dapm_widgets[] = {
 			   0, &rx_int7_mix2_inp_mux, NULL,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MUX("IIR0 INP0 MUX", SND_SOC_NOPM, 0, 0, &iir0_inp0_mux),
-	SND_SOC_DAPM_MUX("IIR0 INP1 MUX", SND_SOC_NOPM, 0, 0, &iir0_inp1_mux),
-	SND_SOC_DAPM_MUX("IIR0 INP2 MUX", SND_SOC_NOPM, 0, 0, &iir0_inp2_mux),
-	SND_SOC_DAPM_MUX("IIR0 INP3 MUX", SND_SOC_NOPM, 0, 0, &iir0_inp3_mux),
-	SND_SOC_DAPM_MUX("IIR1 INP0 MUX", SND_SOC_NOPM, 0, 0, &iir1_inp0_mux),
-	SND_SOC_DAPM_MUX("IIR1 INP1 MUX", SND_SOC_NOPM, 0, 0, &iir1_inp1_mux),
-	SND_SOC_DAPM_MUX("IIR1 INP2 MUX", SND_SOC_NOPM, 0, 0, &iir1_inp2_mux),
-	SND_SOC_DAPM_MUX("IIR1 INP3 MUX", SND_SOC_NOPM, 0, 0, &iir1_inp3_mux),
+	SND_SOC_DAPM_MUX("IIR0 INP0 MUX", SND_SOC_ANALPM, 0, 0, &iir0_inp0_mux),
+	SND_SOC_DAPM_MUX("IIR0 INP1 MUX", SND_SOC_ANALPM, 0, 0, &iir0_inp1_mux),
+	SND_SOC_DAPM_MUX("IIR0 INP2 MUX", SND_SOC_ANALPM, 0, 0, &iir0_inp2_mux),
+	SND_SOC_DAPM_MUX("IIR0 INP3 MUX", SND_SOC_ANALPM, 0, 0, &iir0_inp3_mux),
+	SND_SOC_DAPM_MUX("IIR1 INP0 MUX", SND_SOC_ANALPM, 0, 0, &iir1_inp0_mux),
+	SND_SOC_DAPM_MUX("IIR1 INP1 MUX", SND_SOC_ANALPM, 0, 0, &iir1_inp1_mux),
+	SND_SOC_DAPM_MUX("IIR1 INP2 MUX", SND_SOC_ANALPM, 0, 0, &iir1_inp2_mux),
+	SND_SOC_DAPM_MUX("IIR1 INP3 MUX", SND_SOC_ANALPM, 0, 0, &iir1_inp3_mux),
 
 	SND_SOC_DAPM_PGA_E("IIR0", WCD934X_CDC_SIDETONE_IIR0_IIR_GAIN_B1_CTL,
 			   0, 0, NULL, 0, wcd934x_codec_set_iir_gain,
@@ -5381,64 +5381,64 @@ static const struct snd_soc_dapm_widget wcd934x_dapm_widgets[] = {
 			   4, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("SRC1", WCD934X_CDC_SIDETONE_SRC1_ST_SRC_PATH_CTL,
 			   4, 0, NULL, 0),
-	SND_SOC_DAPM_MUX("RX INT0 DEM MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT0 DEM MUX", SND_SOC_ANALPM, 0, 0,
 			 &rx_int0_dem_inp_mux),
-	SND_SOC_DAPM_MUX("RX INT1 DEM MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT1 DEM MUX", SND_SOC_ANALPM, 0, 0,
 			 &rx_int1_dem_inp_mux),
-	SND_SOC_DAPM_MUX("RX INT2 DEM MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT2 DEM MUX", SND_SOC_ANALPM, 0, 0,
 			 &rx_int2_dem_inp_mux),
 
-	SND_SOC_DAPM_MUX_E("RX INT0_1 INTERP", SND_SOC_NOPM, INTERP_EAR, 0,
+	SND_SOC_DAPM_MUX_E("RX INT0_1 INTERP", SND_SOC_ANALPM, INTERP_EAR, 0,
 			   &rx_int0_1_interp_mux,
 			   wcd934x_codec_enable_main_path,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT1_1 INTERP", SND_SOC_NOPM, INTERP_HPHL, 0,
+	SND_SOC_DAPM_MUX_E("RX INT1_1 INTERP", SND_SOC_ANALPM, INTERP_HPHL, 0,
 			   &rx_int1_1_interp_mux,
 			   wcd934x_codec_enable_main_path,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT2_1 INTERP", SND_SOC_NOPM, INTERP_HPHR, 0,
+	SND_SOC_DAPM_MUX_E("RX INT2_1 INTERP", SND_SOC_ANALPM, INTERP_HPHR, 0,
 			   &rx_int2_1_interp_mux,
 			   wcd934x_codec_enable_main_path,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT3_1 INTERP", SND_SOC_NOPM, INTERP_LO1, 0,
+	SND_SOC_DAPM_MUX_E("RX INT3_1 INTERP", SND_SOC_ANALPM, INTERP_LO1, 0,
 			   &rx_int3_1_interp_mux,
 			   wcd934x_codec_enable_main_path,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT4_1 INTERP", SND_SOC_NOPM, INTERP_LO2, 0,
+	SND_SOC_DAPM_MUX_E("RX INT4_1 INTERP", SND_SOC_ANALPM, INTERP_LO2, 0,
 			   &rx_int4_1_interp_mux,
 			   wcd934x_codec_enable_main_path,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT7_1 INTERP", SND_SOC_NOPM, INTERP_SPKR1, 0,
+	SND_SOC_DAPM_MUX_E("RX INT7_1 INTERP", SND_SOC_ANALPM, INTERP_SPKR1, 0,
 			   &rx_int7_1_interp_mux,
 			   wcd934x_codec_enable_main_path,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX INT8_1 INTERP", SND_SOC_NOPM, INTERP_SPKR2, 0,
+	SND_SOC_DAPM_MUX_E("RX INT8_1 INTERP", SND_SOC_ANALPM, INTERP_SPKR2, 0,
 			   &rx_int8_1_interp_mux,
 			   wcd934x_codec_enable_main_path,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MUX("RX INT0_2 INTERP", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT0_2 INTERP", SND_SOC_ANALPM, 0, 0,
 			 &rx_int0_2_interp_mux),
-	SND_SOC_DAPM_MUX("RX INT1_2 INTERP", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT1_2 INTERP", SND_SOC_ANALPM, 0, 0,
 			 &rx_int1_2_interp_mux),
-	SND_SOC_DAPM_MUX("RX INT2_2 INTERP", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT2_2 INTERP", SND_SOC_ANALPM, 0, 0,
 			 &rx_int2_2_interp_mux),
-	SND_SOC_DAPM_MUX("RX INT3_2 INTERP", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT3_2 INTERP", SND_SOC_ANALPM, 0, 0,
 			 &rx_int3_2_interp_mux),
-	SND_SOC_DAPM_MUX("RX INT4_2 INTERP", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT4_2 INTERP", SND_SOC_ANALPM, 0, 0,
 			 &rx_int4_2_interp_mux),
-	SND_SOC_DAPM_MUX("RX INT7_2 INTERP", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT7_2 INTERP", SND_SOC_ANALPM, 0, 0,
 			 &rx_int7_2_interp_mux),
-	SND_SOC_DAPM_MUX("RX INT8_2 INTERP", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX INT8_2 INTERP", SND_SOC_ANALPM, 0, 0,
 			 &rx_int8_2_interp_mux),
-	SND_SOC_DAPM_DAC_E("RX INT0 DAC", NULL, SND_SOC_NOPM,
+	SND_SOC_DAPM_DAC_E("RX INT0 DAC", NULL, SND_SOC_ANALPM,
 			   0, 0, wcd934x_codec_ear_dac_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
@@ -5450,10 +5450,10 @@ static const struct snd_soc_dapm_widget wcd934x_dapm_widgets[] = {
 			   4, 0, wcd934x_codec_hphr_dac_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_DAC_E("RX INT3 DAC", NULL, SND_SOC_NOPM,
+	SND_SOC_DAPM_DAC_E("RX INT3 DAC", NULL, SND_SOC_ANALPM,
 			   0, 0, wcd934x_codec_lineout_dac_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_DAC_E("RX INT4 DAC", NULL, SND_SOC_NOPM,
+	SND_SOC_DAPM_DAC_E("RX INT4 DAC", NULL, SND_SOC_ANALPM,
 			   0, 0, wcd934x_codec_lineout_dac_event,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_PGA_E("EAR PA", WCD934X_ANA_EAR, 7, 0, NULL, 0, NULL, 0),
@@ -5479,25 +5479,25 @@ static const struct snd_soc_dapm_widget wcd934x_dapm_widgets[] = {
 			 0, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("SBOOST1_CLK", WCD934X_CDC_BOOST1_BOOST_PATH_CTL,
 			    0, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("INT0_CLK", SND_SOC_NOPM, INTERP_EAR, 0,
+	SND_SOC_DAPM_SUPPLY("INT0_CLK", SND_SOC_ANALPM, INTERP_EAR, 0,
 			    wcd934x_codec_enable_interp_clk,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("INT1_CLK", SND_SOC_NOPM, INTERP_HPHL, 0,
+	SND_SOC_DAPM_SUPPLY("INT1_CLK", SND_SOC_ANALPM, INTERP_HPHL, 0,
 			    wcd934x_codec_enable_interp_clk,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("INT2_CLK", SND_SOC_NOPM, INTERP_HPHR, 0,
+	SND_SOC_DAPM_SUPPLY("INT2_CLK", SND_SOC_ANALPM, INTERP_HPHR, 0,
 			    wcd934x_codec_enable_interp_clk,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("INT3_CLK", SND_SOC_NOPM, INTERP_LO1, 0,
+	SND_SOC_DAPM_SUPPLY("INT3_CLK", SND_SOC_ANALPM, INTERP_LO1, 0,
 			    wcd934x_codec_enable_interp_clk,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("INT4_CLK", SND_SOC_NOPM, INTERP_LO2, 0,
+	SND_SOC_DAPM_SUPPLY("INT4_CLK", SND_SOC_ANALPM, INTERP_LO2, 0,
 			    wcd934x_codec_enable_interp_clk,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("INT7_CLK", SND_SOC_NOPM, INTERP_SPKR1, 0,
+	SND_SOC_DAPM_SUPPLY("INT7_CLK", SND_SOC_ANALPM, INTERP_SPKR1, 0,
 			    wcd934x_codec_enable_interp_clk,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("INT8_CLK", SND_SOC_NOPM, INTERP_SPKR2, 0,
+	SND_SOC_DAPM_SUPPLY("INT8_CLK", SND_SOC_ANALPM, INTERP_SPKR2, 0,
 			    wcd934x_codec_enable_interp_clk,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY("DSMDEM0_CLK", WCD934X_CDC_RX0_RX_PATH_DSMDEM_CTL,
@@ -5514,7 +5514,7 @@ static const struct snd_soc_dapm_widget wcd934x_dapm_widgets[] = {
 			    0, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("DSMDEM8_CLK", WCD934X_CDC_RX8_RX_PATH_DSMDEM_CTL,
 			    0, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("MCLK", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("MCLK", SND_SOC_ANALPM, 0, 0,
 			    wcd934x_codec_enable_mclk,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
@@ -5531,67 +5531,67 @@ static const struct snd_soc_dapm_widget wcd934x_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("DMIC4 Pin"),
 	SND_SOC_DAPM_INPUT("DMIC5 Pin"),
 
-	SND_SOC_DAPM_AIF_OUT_E("AIF1 CAP", "AIF1 Capture", 0, SND_SOC_NOPM,
+	SND_SOC_DAPM_AIF_OUT_E("AIF1 CAP", "AIF1 Capture", 0, SND_SOC_ANALPM,
 			       AIF1_CAP, 0, wcd934x_codec_enable_slim,
 			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_AIF_OUT_E("AIF2 CAP", "AIF2 Capture", 0, SND_SOC_NOPM,
+	SND_SOC_DAPM_AIF_OUT_E("AIF2 CAP", "AIF2 Capture", 0, SND_SOC_ANALPM,
 			       AIF2_CAP, 0, wcd934x_codec_enable_slim,
 			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_AIF_OUT_E("AIF3 CAP", "AIF3 Capture", 0, SND_SOC_NOPM,
+	SND_SOC_DAPM_AIF_OUT_E("AIF3 CAP", "AIF3 Capture", 0, SND_SOC_ANALPM,
 			       AIF3_CAP, 0, wcd934x_codec_enable_slim,
 			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MIXER("SLIM TX0", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM TX1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM TX2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM TX3", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM TX4", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM TX5", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM TX6", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM TX7", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM TX8", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM TX9", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM TX10", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM TX11", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("SLIM TX13", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM TX0", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM TX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM TX2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM TX3", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM TX4", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM TX5", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM TX6", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM TX7", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM TX8", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM TX9", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM TX10", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM TX11", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SLIM TX13", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* Digital Mic Inputs */
-	SND_SOC_DAPM_ADC_E("DMIC0", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("DMIC0", NULL, SND_SOC_ANALPM, 0, 0,
 			   wcd934x_codec_enable_dmic,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_ADC_E("DMIC1", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("DMIC1", NULL, SND_SOC_ANALPM, 0, 0,
 			   wcd934x_codec_enable_dmic,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_ADC_E("DMIC2", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("DMIC2", NULL, SND_SOC_ANALPM, 0, 0,
 			   wcd934x_codec_enable_dmic,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_ADC_E("DMIC3", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("DMIC3", NULL, SND_SOC_ANALPM, 0, 0,
 			   wcd934x_codec_enable_dmic,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_ADC_E("DMIC4", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("DMIC4", NULL, SND_SOC_ANALPM, 0, 0,
 			   wcd934x_codec_enable_dmic,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_ADC_E("DMIC5", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("DMIC5", NULL, SND_SOC_ANALPM, 0, 0,
 			   wcd934x_codec_enable_dmic,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX("DMIC MUX0", SND_SOC_NOPM, 0, 0, &tx_dmic_mux0),
-	SND_SOC_DAPM_MUX("DMIC MUX1", SND_SOC_NOPM, 0, 0, &tx_dmic_mux1),
-	SND_SOC_DAPM_MUX("DMIC MUX2", SND_SOC_NOPM, 0, 0, &tx_dmic_mux2),
-	SND_SOC_DAPM_MUX("DMIC MUX3", SND_SOC_NOPM, 0, 0, &tx_dmic_mux3),
-	SND_SOC_DAPM_MUX("DMIC MUX4", SND_SOC_NOPM, 0, 0, &tx_dmic_mux4),
-	SND_SOC_DAPM_MUX("DMIC MUX5", SND_SOC_NOPM, 0, 0, &tx_dmic_mux5),
-	SND_SOC_DAPM_MUX("DMIC MUX6", SND_SOC_NOPM, 0, 0, &tx_dmic_mux6),
-	SND_SOC_DAPM_MUX("DMIC MUX7", SND_SOC_NOPM, 0, 0, &tx_dmic_mux7),
-	SND_SOC_DAPM_MUX("DMIC MUX8", SND_SOC_NOPM, 0, 0, &tx_dmic_mux8),
-	SND_SOC_DAPM_MUX("AMIC MUX0", SND_SOC_NOPM, 0, 0, &tx_amic_mux0),
-	SND_SOC_DAPM_MUX("AMIC MUX1", SND_SOC_NOPM, 0, 0, &tx_amic_mux1),
-	SND_SOC_DAPM_MUX("AMIC MUX2", SND_SOC_NOPM, 0, 0, &tx_amic_mux2),
-	SND_SOC_DAPM_MUX("AMIC MUX3", SND_SOC_NOPM, 0, 0, &tx_amic_mux3),
-	SND_SOC_DAPM_MUX("AMIC MUX4", SND_SOC_NOPM, 0, 0, &tx_amic_mux4),
-	SND_SOC_DAPM_MUX("AMIC MUX5", SND_SOC_NOPM, 0, 0, &tx_amic_mux5),
-	SND_SOC_DAPM_MUX("AMIC MUX6", SND_SOC_NOPM, 0, 0, &tx_amic_mux6),
-	SND_SOC_DAPM_MUX("AMIC MUX7", SND_SOC_NOPM, 0, 0, &tx_amic_mux7),
-	SND_SOC_DAPM_MUX("AMIC MUX8", SND_SOC_NOPM, 0, 0, &tx_amic_mux8),
+	SND_SOC_DAPM_MUX("DMIC MUX0", SND_SOC_ANALPM, 0, 0, &tx_dmic_mux0),
+	SND_SOC_DAPM_MUX("DMIC MUX1", SND_SOC_ANALPM, 0, 0, &tx_dmic_mux1),
+	SND_SOC_DAPM_MUX("DMIC MUX2", SND_SOC_ANALPM, 0, 0, &tx_dmic_mux2),
+	SND_SOC_DAPM_MUX("DMIC MUX3", SND_SOC_ANALPM, 0, 0, &tx_dmic_mux3),
+	SND_SOC_DAPM_MUX("DMIC MUX4", SND_SOC_ANALPM, 0, 0, &tx_dmic_mux4),
+	SND_SOC_DAPM_MUX("DMIC MUX5", SND_SOC_ANALPM, 0, 0, &tx_dmic_mux5),
+	SND_SOC_DAPM_MUX("DMIC MUX6", SND_SOC_ANALPM, 0, 0, &tx_dmic_mux6),
+	SND_SOC_DAPM_MUX("DMIC MUX7", SND_SOC_ANALPM, 0, 0, &tx_dmic_mux7),
+	SND_SOC_DAPM_MUX("DMIC MUX8", SND_SOC_ANALPM, 0, 0, &tx_dmic_mux8),
+	SND_SOC_DAPM_MUX("AMIC MUX0", SND_SOC_ANALPM, 0, 0, &tx_amic_mux0),
+	SND_SOC_DAPM_MUX("AMIC MUX1", SND_SOC_ANALPM, 0, 0, &tx_amic_mux1),
+	SND_SOC_DAPM_MUX("AMIC MUX2", SND_SOC_ANALPM, 0, 0, &tx_amic_mux2),
+	SND_SOC_DAPM_MUX("AMIC MUX3", SND_SOC_ANALPM, 0, 0, &tx_amic_mux3),
+	SND_SOC_DAPM_MUX("AMIC MUX4", SND_SOC_ANALPM, 0, 0, &tx_amic_mux4),
+	SND_SOC_DAPM_MUX("AMIC MUX5", SND_SOC_ANALPM, 0, 0, &tx_amic_mux5),
+	SND_SOC_DAPM_MUX("AMIC MUX6", SND_SOC_ANALPM, 0, 0, &tx_amic_mux6),
+	SND_SOC_DAPM_MUX("AMIC MUX7", SND_SOC_ANALPM, 0, 0, &tx_amic_mux7),
+	SND_SOC_DAPM_MUX("AMIC MUX8", SND_SOC_ANALPM, 0, 0, &tx_amic_mux8),
 	SND_SOC_DAPM_MUX_E("ADC MUX0", WCD934X_CDC_TX0_TX_PATH_CTL, 5, 0,
 			   &tx_adc_mux0_mux, wcd934x_codec_enable_dec,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
@@ -5636,57 +5636,57 @@ static const struct snd_soc_dapm_widget wcd934x_dapm_widgets[] = {
 			   wcd934x_codec_enable_adc, SND_SOC_DAPM_PRE_PMU),
 	SND_SOC_DAPM_ADC_E("ADC4", NULL, WCD934X_ANA_AMIC4, 7, 0,
 			   wcd934x_codec_enable_adc, SND_SOC_DAPM_PRE_PMU),
-	SND_SOC_DAPM_SUPPLY("MIC BIAS1", SND_SOC_NOPM, MIC_BIAS_1, 0,
+	SND_SOC_DAPM_SUPPLY("MIC BIAS1", SND_SOC_ANALPM, MIC_BIAS_1, 0,
 			    wcd934x_codec_enable_micbias, SND_SOC_DAPM_PRE_PMU |
 			    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("MIC BIAS2", SND_SOC_NOPM, MIC_BIAS_2, 0,
+	SND_SOC_DAPM_SUPPLY("MIC BIAS2", SND_SOC_ANALPM, MIC_BIAS_2, 0,
 			    wcd934x_codec_enable_micbias, SND_SOC_DAPM_PRE_PMU |
 			    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("MIC BIAS3", SND_SOC_NOPM, MIC_BIAS_3, 0,
+	SND_SOC_DAPM_SUPPLY("MIC BIAS3", SND_SOC_ANALPM, MIC_BIAS_3, 0,
 			    wcd934x_codec_enable_micbias, SND_SOC_DAPM_PRE_PMU |
 			    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("MIC BIAS4", SND_SOC_NOPM, MIC_BIAS_4, 0,
+	SND_SOC_DAPM_SUPPLY("MIC BIAS4", SND_SOC_ANALPM, MIC_BIAS_4, 0,
 			    wcd934x_codec_enable_micbias, SND_SOC_DAPM_PRE_PMU |
 			    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MUX("AMIC4_5 SEL", SND_SOC_NOPM, 0, 0, &tx_amic4_5),
-	SND_SOC_DAPM_MUX("CDC_IF TX0 MUX", SND_SOC_NOPM, WCD934X_TX0, 0,
+	SND_SOC_DAPM_MUX("AMIC4_5 SEL", SND_SOC_ANALPM, 0, 0, &tx_amic4_5),
+	SND_SOC_DAPM_MUX("CDC_IF TX0 MUX", SND_SOC_ANALPM, WCD934X_TX0, 0,
 			 &cdc_if_tx0_mux),
-	SND_SOC_DAPM_MUX("CDC_IF TX1 MUX", SND_SOC_NOPM, WCD934X_TX1, 0,
+	SND_SOC_DAPM_MUX("CDC_IF TX1 MUX", SND_SOC_ANALPM, WCD934X_TX1, 0,
 			 &cdc_if_tx1_mux),
-	SND_SOC_DAPM_MUX("CDC_IF TX2 MUX", SND_SOC_NOPM, WCD934X_TX2, 0,
+	SND_SOC_DAPM_MUX("CDC_IF TX2 MUX", SND_SOC_ANALPM, WCD934X_TX2, 0,
 			 &cdc_if_tx2_mux),
-	SND_SOC_DAPM_MUX("CDC_IF TX3 MUX", SND_SOC_NOPM, WCD934X_TX3, 0,
+	SND_SOC_DAPM_MUX("CDC_IF TX3 MUX", SND_SOC_ANALPM, WCD934X_TX3, 0,
 			 &cdc_if_tx3_mux),
-	SND_SOC_DAPM_MUX("CDC_IF TX4 MUX", SND_SOC_NOPM, WCD934X_TX4, 0,
+	SND_SOC_DAPM_MUX("CDC_IF TX4 MUX", SND_SOC_ANALPM, WCD934X_TX4, 0,
 			 &cdc_if_tx4_mux),
-	SND_SOC_DAPM_MUX("CDC_IF TX5 MUX", SND_SOC_NOPM, WCD934X_TX5, 0,
+	SND_SOC_DAPM_MUX("CDC_IF TX5 MUX", SND_SOC_ANALPM, WCD934X_TX5, 0,
 			 &cdc_if_tx5_mux),
-	SND_SOC_DAPM_MUX("CDC_IF TX6 MUX", SND_SOC_NOPM, WCD934X_TX6, 0,
+	SND_SOC_DAPM_MUX("CDC_IF TX6 MUX", SND_SOC_ANALPM, WCD934X_TX6, 0,
 			 &cdc_if_tx6_mux),
-	SND_SOC_DAPM_MUX("CDC_IF TX7 MUX", SND_SOC_NOPM, WCD934X_TX7, 0,
+	SND_SOC_DAPM_MUX("CDC_IF TX7 MUX", SND_SOC_ANALPM, WCD934X_TX7, 0,
 			 &cdc_if_tx7_mux),
-	SND_SOC_DAPM_MUX("CDC_IF TX8 MUX", SND_SOC_NOPM, WCD934X_TX8, 0,
+	SND_SOC_DAPM_MUX("CDC_IF TX8 MUX", SND_SOC_ANALPM, WCD934X_TX8, 0,
 			 &cdc_if_tx8_mux),
-	SND_SOC_DAPM_MUX("CDC_IF TX9 MUX", SND_SOC_NOPM, WCD934X_TX9, 0,
+	SND_SOC_DAPM_MUX("CDC_IF TX9 MUX", SND_SOC_ANALPM, WCD934X_TX9, 0,
 			 &cdc_if_tx9_mux),
-	SND_SOC_DAPM_MUX("CDC_IF TX10 MUX", SND_SOC_NOPM, WCD934X_TX10, 0,
+	SND_SOC_DAPM_MUX("CDC_IF TX10 MUX", SND_SOC_ANALPM, WCD934X_TX10, 0,
 			 &cdc_if_tx10_mux),
-	SND_SOC_DAPM_MUX("CDC_IF TX11 MUX", SND_SOC_NOPM, WCD934X_TX11, 0,
+	SND_SOC_DAPM_MUX("CDC_IF TX11 MUX", SND_SOC_ANALPM, WCD934X_TX11, 0,
 			 &cdc_if_tx11_mux),
-	SND_SOC_DAPM_MUX("CDC_IF TX11 INP1 MUX", SND_SOC_NOPM, WCD934X_TX11, 0,
+	SND_SOC_DAPM_MUX("CDC_IF TX11 INP1 MUX", SND_SOC_ANALPM, WCD934X_TX11, 0,
 			 &cdc_if_tx11_inp1_mux),
-	SND_SOC_DAPM_MUX("CDC_IF TX13 MUX", SND_SOC_NOPM, WCD934X_TX13, 0,
+	SND_SOC_DAPM_MUX("CDC_IF TX13 MUX", SND_SOC_ANALPM, WCD934X_TX13, 0,
 			 &cdc_if_tx13_mux),
-	SND_SOC_DAPM_MUX("CDC_IF TX13 INP1 MUX", SND_SOC_NOPM, WCD934X_TX13, 0,
+	SND_SOC_DAPM_MUX("CDC_IF TX13 INP1 MUX", SND_SOC_ANALPM, WCD934X_TX13, 0,
 			 &cdc_if_tx13_inp1_mux),
-	SND_SOC_DAPM_MIXER("AIF1_CAP Mixer", SND_SOC_NOPM, AIF1_CAP, 0,
+	SND_SOC_DAPM_MIXER("AIF1_CAP Mixer", SND_SOC_ANALPM, AIF1_CAP, 0,
 			   aif1_slim_cap_mixer,
 			   ARRAY_SIZE(aif1_slim_cap_mixer)),
-	SND_SOC_DAPM_MIXER("AIF2_CAP Mixer", SND_SOC_NOPM, AIF2_CAP, 0,
+	SND_SOC_DAPM_MIXER("AIF2_CAP Mixer", SND_SOC_ANALPM, AIF2_CAP, 0,
 			   aif2_slim_cap_mixer,
 			   ARRAY_SIZE(aif2_slim_cap_mixer)),
-	SND_SOC_DAPM_MIXER("AIF3_CAP Mixer", SND_SOC_NOPM, AIF3_CAP, 0,
+	SND_SOC_DAPM_MIXER("AIF3_CAP Mixer", SND_SOC_ANALPM, AIF3_CAP, 0,
 			   aif3_slim_cap_mixer,
 			   ARRAY_SIZE(aif3_slim_cap_mixer)),
 };
@@ -5830,7 +5830,7 @@ static int wcd934x_codec_set_jack(struct snd_soc_component *comp,
 	int ret = 0;
 
 	if (!wcd->mbhc)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (jack && !wcd->mbhc_started) {
 		ret = wcd_mbhc_start(wcd->mbhc, &wcd->mbhc_cfg, jack);
@@ -5861,16 +5861,16 @@ static int wcd934x_codec_parse_data(struct wcd934x_codec *wcd)
 {
 	struct device *dev = &wcd->sdev->dev;
 	struct wcd_mbhc_config *cfg = &wcd->mbhc_cfg;
-	struct device_node *ifc_dev_np;
+	struct device_analde *ifc_dev_np;
 
-	ifc_dev_np = of_parse_phandle(dev->of_node, "slim-ifc-dev", 0);
+	ifc_dev_np = of_parse_phandle(dev->of_analde, "slim-ifc-dev", 0);
 	if (!ifc_dev_np) {
-		dev_err(dev, "No Interface device found\n");
+		dev_err(dev, "Anal Interface device found\n");
 		return -EINVAL;
 	}
 
 	wcd->sidev = of_slim_get_device(wcd->sdev->ctrl, ifc_dev_np);
-	of_node_put(ifc_dev_np);
+	of_analde_put(ifc_dev_np);
 	if (!wcd->sidev) {
 		dev_err(dev, "Unable to get SLIM Interface device\n");
 		return -EINVAL;
@@ -5883,7 +5883,7 @@ static int wcd934x_codec_parse_data(struct wcd934x_codec *wcd)
 		return dev_err_probe(dev, PTR_ERR(wcd->if_regmap),
 				     "Failed to allocate ifc register map\n");
 
-	of_property_read_u32(dev->parent->of_node, "qcom,dmic-sample-rate",
+	of_property_read_u32(dev->parent->of_analde, "qcom,dmic-sample-rate",
 			     &wcd->dmic_sample_rate);
 
 	cfg->mbhc_micbias = MIC_BIAS_2;
@@ -5910,7 +5910,7 @@ static int wcd934x_codec_probe(struct platform_device *pdev)
 
 	wcd = devm_kzalloc(dev, sizeof(*wcd), GFP_KERNEL);
 	if (!wcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wcd->dev = dev;
 	wcd->regmap = data->regmap;

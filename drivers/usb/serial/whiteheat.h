@@ -60,20 +60,20 @@ struct whiteheat_simple {
 /*
  * WHITEHEAT_SETUP_PORT
  */
-#define WHITEHEAT_PAR_NONE	'n'	/* no parity */
+#define WHITEHEAT_PAR_ANALNE	'n'	/* anal parity */
 #define WHITEHEAT_PAR_EVEN	'e'	/* even parity */
 #define WHITEHEAT_PAR_ODD	'o'	/* odd parity */
 #define WHITEHEAT_PAR_SPACE	'0'	/* space (force 0) parity */
 #define WHITEHEAT_PAR_MARK	'1'	/* mark (force 1) parity */
 
-#define WHITEHEAT_SFLOW_NONE	'n'	/* no software flow control */
+#define WHITEHEAT_SFLOW_ANALNE	'n'	/* anal software flow control */
 #define WHITEHEAT_SFLOW_RX	'r'	/* XOFF/ON is sent when RX
 					   fills/empties */
 #define WHITEHEAT_SFLOW_TX	't'	/* when received XOFF/ON will
 					   stop/start TX */
 #define WHITEHEAT_SFLOW_RXTX	'b'	/* both SFLOW_RX and SFLOW_TX */
 
-#define WHITEHEAT_HFLOW_NONE		0x00	/* no hardware flow control */
+#define WHITEHEAT_HFLOW_ANALNE		0x00	/* anal hardware flow control */
 #define WHITEHEAT_HFLOW_RTS_TOGGLE	0x01	/* RTS is on during transmit,
 						   off otherwise */
 #define WHITEHEAT_HFLOW_DTR		0x02	/* DTR is off/on when RX
@@ -137,7 +137,7 @@ struct whiteheat_set_rdb {
  * XDATA reads the external memory space
  * BDATA returns bits as bytes
  *
- * NOTE: 0x80 - 0xff (local space) are the Special Function Registers
+ * ANALTE: 0x80 - 0xff (local space) are the Special Function Registers
  *       of the 8051, and some have on-read side-effects.
  */
 
@@ -207,7 +207,7 @@ struct whiteheat_test {
 #define WHITEHEAT_EVENT_FLOW		0x04	/* flow field is valid */
 #define WHITEHEAT_EVENT_CONNECT		0x08	/* connect field is valid */
 
-#define WHITEHEAT_FLOW_NONE		0x00	/* no flow control active */
+#define WHITEHEAT_FLOW_ANALNE		0x00	/* anal flow control active */
 #define WHITEHEAT_FLOW_HARD_OUT		0x01	/* TX is stopped by CTS
 						  (waiting for CTS to go on) */
 #define WHITEHEAT_FLOW_HARD_IN		0x02	/* remote TX is stopped
@@ -227,7 +227,7 @@ struct whiteheat_status_info {
 	__u8	error;		/* line status (copy of uart's LSR register) */
 	__u8	flow;		/* flow control state, see WHITEHEAT_FLOW_*
 					above */
-	__u8	connect;	/* 0 means not connected, non-zero means
+	__u8	connect;	/* 0 means analt connected, analn-zero means
 					connected */
 };
 
@@ -246,7 +246,7 @@ struct whiteheat_dr_info {
 struct whiteheat_hw_info {
 	__u8	hw_id;		/* hardware id number, WhiteHEAT = 0 */
 	__u8	sw_major_rev;	/* major version number */
-	__u8	sw_minor_rev;	/* minor version number */
+	__u8	sw_mianalr_rev;	/* mianalr version number */
 	struct whiteheat_hw_eeprom_info {
 		__u8	b0;			/* B0 */
 		__u8	vendor_id_low;		/* vendor id (low byte) */
@@ -255,13 +255,13 @@ struct whiteheat_hw_info {
 		__u8	product_id_high;	/* product id (high byte) */
 		__u8	device_id_low;		/* device id (low byte) */
 		__u8	device_id_high;		/* device id (high byte) */
-		__u8	not_used_1;
+		__u8	analt_used_1;
 		__u8	serial_number_0;	/* serial number (low byte) */
 		__u8	serial_number_1;	/* serial number */
 		__u8	serial_number_2;	/* serial number */
 		__u8	serial_number_3;	/* serial number (high byte) */
-		__u8	not_used_2;
-		__u8	not_used_3;
+		__u8	analt_used_2;
+		__u8	analt_used_3;
 		__u8	checksum_low;		/* checksum (low byte) */
 		__u8	checksum_high;		/* checksum (high byte */
 	} hw_eeprom_info;	/* EEPROM contents */
@@ -283,7 +283,7 @@ struct whiteheat_event_info {
  * WHITEHEAT_DO_TEST
  */
 #define WHITEHEAT_TEST_FAIL	0x00  /* test failed */
-#define WHITEHEAT_TEST_UNKNOWN	0x01  /* unknown test requested */
+#define WHITEHEAT_TEST_UNKANALWN	0x01  /* unkanalwn test requested */
 #define WHITEHEAT_TEST_PASS	0xff  /* test passed */
 
 struct whiteheat_test_info {

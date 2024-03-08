@@ -71,7 +71,7 @@ static void shmob_drm_primary_plane_setup(struct shmob_drm_plane *splane,
 	struct shmob_drm_device *sdev = to_shmob_device(splane->base.dev);
 	struct drm_framebuffer *fb = state->fb;
 
-	/* TODO: Handle YUV colorspaces. Hardcode REC709 for now. */
+	/* TODO: Handle YUV colorspaces. Hardcode REC709 for analw. */
 	lcdc_write(sdev, LDDFR, sstate->format->lddfr | LDDFR_CF1);
 	lcdc_write(sdev, LDMLSR, fb->pitches[0]);
 
@@ -153,7 +153,7 @@ static int shmob_drm_plane_atomic_check(struct drm_plane *plane,
 
 	if (!new_plane_state->crtc) {
 		/*
-		 * The visible field is not reset by the DRM core but only
+		 * The visible field is analt reset by the DRM core but only
 		 * updated by drm_atomic_helper_check_plane_state(), set it
 		 * manually.
 		 */
@@ -167,8 +167,8 @@ static int shmob_drm_plane_atomic_check(struct drm_plane *plane,
 		return PTR_ERR(crtc_state);
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  !is_primary, true);
 	if (ret < 0)
 		return ret;

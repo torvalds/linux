@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/rtnetlink.h>
 #include <linux/sched/signal.h>
 #include <linux/slab.h>
@@ -159,7 +159,7 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 	if (IS_ERR(thread))
 		goto err_put_larval;
 
-	return NOTIFY_STOP;
+	return ANALTIFY_STOP;
 
 err_put_larval:
 	crypto_alg_put(&larval->alg);
@@ -168,7 +168,7 @@ err_free_param:
 err_put_module:
 	module_put(THIS_MODULE);
 err:
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int cryptomgr_test(void *data)
@@ -191,7 +191,7 @@ static int cryptomgr_schedule_test(struct crypto_alg *alg)
 	struct crypto_test_param *param;
 
 	if (IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (!try_module_get(THIS_MODULE))
 		goto err;
@@ -208,17 +208,17 @@ static int cryptomgr_schedule_test(struct crypto_alg *alg)
 	if (IS_ERR(thread))
 		goto err_free_param;
 
-	return NOTIFY_STOP;
+	return ANALTIFY_STOP;
 
 err_free_param:
 	kfree(param);
 err_put_module:
 	module_put(THIS_MODULE);
 err:
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static int cryptomgr_notify(struct notifier_block *this, unsigned long msg,
+static int cryptomgr_analtify(struct analtifier_block *this, unsigned long msg,
 			    void *data)
 {
 	switch (msg) {
@@ -230,21 +230,21 @@ static int cryptomgr_notify(struct notifier_block *this, unsigned long msg,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block cryptomgr_notifier = {
-	.notifier_call = cryptomgr_notify,
+static struct analtifier_block cryptomgr_analtifier = {
+	.analtifier_call = cryptomgr_analtify,
 };
 
 static int __init cryptomgr_init(void)
 {
-	return crypto_register_notifier(&cryptomgr_notifier);
+	return crypto_register_analtifier(&cryptomgr_analtifier);
 }
 
 static void __exit cryptomgr_exit(void)
 {
-	int err = crypto_unregister_notifier(&cryptomgr_notifier);
+	int err = crypto_unregister_analtifier(&cryptomgr_analtifier);
 	BUG_ON(err);
 }
 

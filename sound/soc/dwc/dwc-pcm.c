@@ -1,10 +1,10 @@
 /*
- * ALSA SoC Synopsys PIO PCM for I2S driver
+ * ALSA SoC Syanalpsys PIO PCM for I2S driver
  *
  * sound/soc/dwc/designware_pcm.c
  *
- * Copyright (C) 2016 Synopsys
- * Jose Abreu <joabreu@synopsys.com>
+ * Copyright (C) 2016 Syanalpsys
+ * Jose Abreu <joabreu@syanalpsys.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any

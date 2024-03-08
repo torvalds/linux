@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * tas2552.c - ALSA SoC Texas Instruments TAS2552 Mono Audio Amplifier
+ * tas2552.c - ALSA SoC Texas Instruments TAS2552 Moanal Audio Amplifier
  *
  * Copyright (C) 2014 Texas Instruments Incorporated -  https://www.ti.com
  *
@@ -8,7 +8,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
@@ -115,11 +115,11 @@ static const struct snd_soc_dapm_widget tas2552_dapm_widgets[] =
 	SND_SOC_DAPM_INPUT("IN"),
 
 	/* MUX Controls */
-	SND_SOC_DAPM_MUX("Input selection", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Input selection", SND_SOC_ANALPM, 0, 0,
 			 &tas2552_input_mux_control),
 
-	SND_SOC_DAPM_AIF_IN("DAC IN", "DAC Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DAC IN", "DAC Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_OUT_DRV("ClassD", TAS2552_CFG_2, 7, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("PLL", TAS2552_CFG_2, 3, 0, NULL, 0),
 	SND_SOC_DAPM_POST("Post Event", tas2552_post_event),
@@ -259,7 +259,7 @@ static int tas2552_hw_params(struct snd_pcm_substream *substream,
 		cpf = 64 + tas2552->tdm_delay;
 		break;
 	default:
-		dev_err(component->dev, "Not supported sample size: %d\n",
+		dev_err(component->dev, "Analt supported sample size: %d\n",
 			params_width(params));
 		return -EINVAL;
 	}
@@ -308,7 +308,7 @@ static int tas2552_hw_params(struct snd_pcm_substream *substream,
 		wclk_rate = TAS2552_WCLK_FREQ_176_192KHZ;
 		break;
 	default:
-		dev_err(component->dev, "Not supported sample rate: %d\n",
+		dev_err(component->dev, "Analt supported sample rate: %d\n",
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -361,7 +361,7 @@ static int tas2552_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		serial_format = (TAS2552_BCLKDIR | TAS2552_WCLKDIR);
 		break;
 	default:
-		dev_vdbg(component->dev, "DAI Format master is not found\n");
+		dev_vdbg(component->dev, "DAI Format master is analt found\n");
 		return -EINVAL;
 	}
 
@@ -380,7 +380,7 @@ static int tas2552_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		serial_format |= TAS2552_DATAFORMAT_LEFT_J;
 		break;
 	default:
-		dev_vdbg(component->dev, "DAI Format is not found\n");
+		dev_vdbg(component->dev, "DAI Format is analt found\n");
 		return -EINVAL;
 	}
 	tas2552->dai_fmt = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
@@ -445,7 +445,7 @@ static int tas2552_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	unsigned int lsb;
 
 	if (unlikely(!tx_mask)) {
-		dev_err(component->dev, "tx masks need to be non 0\n");
+		dev_err(component->dev, "tx masks need to be analn 0\n");
 		return -EINVAL;
 	}
 
@@ -520,7 +520,7 @@ static const struct snd_soc_dai_ops tas2552_speaker_dai_ops = {
 	.set_fmt	= tas2552_set_dai_fmt,
 	.set_tdm_slot	= tas2552_set_dai_tdm_slot,
 	.mute_stream	= tas2552_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 /* Formats supported by TAS2552 driver. */
@@ -603,7 +603,7 @@ static int tas2552_component_probe(struct snd_soc_component *component)
 	return 0;
 
 probe_fail:
-	pm_runtime_put_noidle(component->dev);
+	pm_runtime_put_analidle(component->dev);
 	gpiod_set_value(tas2552->enable_gpio, 0);
 
 	regulator_bulk_disable(ARRAY_SIZE(tas2552->supplies),
@@ -690,7 +690,7 @@ static int tas2552_probe(struct i2c_client *client)
 	dev = &client->dev;
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->enable_gpio = devm_gpiod_get_optional(dev, "enable",
 						    GPIOD_OUT_LOW);
@@ -730,7 +730,7 @@ static int tas2552_probe(struct i2c_client *client)
 				      tas2552_dai, ARRAY_SIZE(tas2552_dai));
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to register component: %d\n", ret);
-		pm_runtime_get_noresume(&client->dev);
+		pm_runtime_get_analresume(&client->dev);
 	}
 
 	return ret;

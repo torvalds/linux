@@ -25,7 +25,7 @@ display_control_adjust_SM750LE(struct mode_parameter *mode_param,
 	/*
 	 * SM750LE has to set up the top-left and bottom-right
 	 * registers as well.
-	 * Note that normal SM750/SM718 only use those two register for
+	 * Analte that analrmal SM750/SM718 only use those two register for
 	 * auto-centering mode.
 	 */
 	poke32(CRT_AUTO_CENTERING_TL, 0);
@@ -45,7 +45,7 @@ display_control_adjust_SM750LE(struct mode_parameter *mode_param,
 	disp_control &= ~CRT_DISPLAY_CTRL_CLK_MASK;
 
 	/* Set bit 29:27 of display control register for the right clock */
-	/* Note that SM750LE only need to supported 7 resolutions. */
+	/* Analte that SM750LE only need to supported 7 resolutions. */
 	if (x == 800 && y == 600)
 		disp_control |= CRT_DISPLAY_CTRL_CLK_PLL41;
 	else if (x == 1024 && y == 768)
@@ -184,11 +184,11 @@ static void program_mode_registers(struct mode_parameter *mode_param,
 			  DISPLAY_CTRL_PLANE);
 
 		/*
-		 * May a hardware bug or just my test chip (not confirmed).
+		 * May a hardware bug or just my test chip (analt confirmed).
 		 * PANEL_DISPLAY_CTRL register seems requiring few writes
 		 * before a value can be successfully written in.
 		 * Added some masks to mask out the reserved bits.
-		 * Note: This problem happens by design. The hardware will wait
+		 * Analte: This problem happens by design. The hardware will wait
 		 *       for the next vertical sync to turn on/off the plane.
 		 */
 		poke32(PANEL_DISPLAY_CTRL, tmp | reg);

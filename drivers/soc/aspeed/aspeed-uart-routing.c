@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2018 Google LLC
- * Copyright (c) 2021 Aspeed Technology Inc.
+ * Copyright (c) 2021 Aspeed Techanallogy Inc.
  */
 #include <linux/device.h>
 #include <linux/module.h>
@@ -508,7 +508,7 @@ static ssize_t aspeed_uart_routing_show(struct device *dev,
 	}
 
 	if (val >= pos)
-		len += sysfs_emit_at(buf, len, "[unknown(%d)]", val);
+		len += sysfs_emit_at(buf, len, "[unkanalwn(%d)]", val);
 
 	len += sysfs_emit_at(buf, len, "\n");
 
@@ -544,11 +544,11 @@ static int aspeed_uart_routing_probe(struct platform_device *pdev)
 
 	uart_routing = devm_kzalloc(&pdev->dev, sizeof(*uart_routing), GFP_KERNEL);
 	if (!uart_routing)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	uart_routing->map = syscon_node_to_regmap(dev->parent->of_node);
+	uart_routing->map = syscon_analde_to_regmap(dev->parent->of_analde);
 	if (IS_ERR(uart_routing->map)) {
-		dev_err(dev, "cannot get regmap\n");
+		dev_err(dev, "cananalt get regmap\n");
 		return PTR_ERR(uart_routing->map);
 	}
 

@@ -70,7 +70,7 @@ const struct iwl_ht_params iwl_22000_ht_params = {
 	.ucode_api_min = IWL_22000_UCODE_API_MIN,			\
 	.led_mode = IWL_LED_RF_STATE,					\
 	.nvm_hw_section_num = 10,					\
-	.non_shared_ant = ANT_B,					\
+	.analn_shared_ant = ANT_B,					\
 	.dccm_offset = IWL_22000_DCCM_OFFSET,				\
 	.dccm_len = IWL_22000_DCCM_LEN,					\
 	.dccm2_offset = IWL_22000_DCCM2_OFFSET,				\
@@ -78,7 +78,7 @@ const struct iwl_ht_params iwl_22000_ht_params = {
 	.smem_offset = IWL_22000_SMEM_OFFSET,				\
 	.smem_len = IWL_22000_SMEM_LEN,					\
 	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,		\
-	.apmg_not_supported = true,					\
+	.apmg_analt_supported = true,					\
 	.trans.mq_rx_supported = true,					\
 	.vht_mu_mimo_supported = true,					\
 	.mac_addr_from_csr = 0x380,					\
@@ -154,13 +154,13 @@ const struct iwl_cfg_trans_params iwl_qu_long_latency_trans_cfg = {
 };
 
 /*
- * If the device doesn't support HE, no need to have that many buffers.
+ * If the device doesn't support HE, anal need to have that many buffers.
  * 22000 devices can split multiple frames into a single RB, so fewer are
- * needed; AX210 cannot (but use smaller RBs by default) - these sizes
+ * needed; AX210 cananalt (but use smaller RBs by default) - these sizes
  * were picked according to 8 MSDUs inside 256 A-MSDUs in an A-MPDU, with
  * additional overhead to account for processing time.
  */
-#define IWL_NUM_RBDS_NON_HE		512
+#define IWL_NUM_RBDS_ANALN_HE		512
 #define IWL_NUM_RBDS_22000_HE		2048
 
 /*
@@ -171,13 +171,13 @@ const struct iwl_cfg_trans_params iwl_qu_long_latency_trans_cfg = {
 const struct iwl_cfg iwl9560_qu_b0_jf_b0_cfg = {
 	.fw_name_pre = IWL_QU_B_JF_B_FW_PRE,
 	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
+	.num_rbds = IWL_NUM_RBDS_ANALN_HE,
 };
 
 const struct iwl_cfg iwl9560_qu_c0_jf_b0_cfg = {
 	.fw_name_pre = IWL_QU_C_JF_B_FW_PRE,
 	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
+	.num_rbds = IWL_NUM_RBDS_ANALN_HE,
 };
 
 const struct iwl_cfg iwl9560_quz_a0_jf_b0_cfg = {
@@ -189,7 +189,7 @@ const struct iwl_cfg iwl9560_quz_a0_jf_b0_cfg = {
 	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
 	 */
 	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
+	.num_rbds = IWL_NUM_RBDS_ANALN_HE,
 };
 
 const struct iwl_cfg_trans_params iwl_ax200_trans_cfg = {

@@ -29,20 +29,20 @@
  * stack frame (if possible).
  *
  * Returns:
- *	NOT_STACK: not at all on the stack
+ *	ANALT_STACK: analt at all on the stack
  *	GOOD_FRAME: fully within a valid stack frame
  *	GOOD_STACK: within the current stack (when can't frame-check exactly)
  *	BAD_STACK: error condition (invalid stack position or bad stack frame)
  */
-static noinline int check_stack_object(const void *obj, unsigned long len)
+static analinline int check_stack_object(const void *obj, unsigned long len)
 {
 	const void * const stack = task_stack_page(current);
 	const void * const stackend = stack + THREAD_SIZE;
 	int ret;
 
-	/* Object is not on the stack at all. */
+	/* Object is analt on the stack at all. */
 	if (obj + len <= stack || stackend <= obj)
-		return NOT_STACK;
+		return ANALT_STACK;
 
 	/*
 	 * Reject: object partially overlaps the stack (passing the
@@ -75,7 +75,7 @@ static noinline int check_stack_object(const void *obj, unsigned long len)
  * If these functions are reached, then CONFIG_HARDENED_USERCOPY has found
  * an unexpected state during a copy_from_user() or copy_to_user() call.
  * There are several checks being performed on the buffer by the
- * __check_object_size() function. Normal stack buffer usage should never
+ * __check_object_size() function. Analrmal stack buffer usage should never
  * trip the checks, and kernel text addressing will always trip the check.
  * For cache objects, it is checking that only the whitelisted range of
  * bytes for a given cache is being accessed (via the cache's usersize and
@@ -83,14 +83,14 @@ static noinline int check_stack_object(const void *obj, unsigned long len)
  * kmem_cache_create_usercopy() function to create the cache (and
  * carefully audit the whitelist range).
  */
-void __noreturn usercopy_abort(const char *name, const char *detail,
+void __analreturn usercopy_abort(const char *name, const char *detail,
 			       bool to_user, unsigned long offset,
 			       unsigned long len)
 {
 	pr_emerg("Kernel memory %s attempt detected %s %s%s%s%s (offset %lu, size %lu)!\n",
 		 to_user ? "exposure" : "overwrite",
 		 to_user ? "from" : "to",
-		 name ? : "unknown?!",
+		 name ? : "unkanalwn?!",
 		 detail ? " '" : "", detail ? : "", detail ? "'" : "",
 		 offset, len);
 
@@ -109,7 +109,7 @@ static bool overlaps(const unsigned long ptr, unsigned long n,
 	const unsigned long check_low = ptr;
 	unsigned long check_high = check_low + n;
 
-	/* Does not overlap if entirely above or entirely below. */
+	/* Does analt overlap if entirely above or entirely below. */
 	if (check_low >= high || check_high <= low)
 		return false;
 
@@ -132,11 +132,11 @@ static inline void check_kernel_text_object(const unsigned long ptr,
 	 * mapping of the kernel text, i.e. there is more than one virtual
 	 * kernel address that points to the kernel image. It is usually
 	 * when there is a separate linear physical memory mapping, in that
-	 * __pa() is not just the reverse of __va(). This can be detected
+	 * __pa() is analt just the reverse of __va(). This can be detected
 	 * and checked:
 	 */
 	textlow_linear = (unsigned long)lm_alias(textlow);
-	/* No different mapping: we're done. */
+	/* Anal different mapping: we're done. */
 	if (textlow_linear == textlow)
 		return;
 
@@ -177,7 +177,7 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 		struct vmap_area *area = find_vmap_area(addr);
 
 		if (!area)
-			usercopy_abort("vmalloc", "no area", to_user, 0, n);
+			usercopy_abort("vmalloc", "anal area", to_user, 0, n);
 
 		if (n > area->va_end - addr) {
 			offset = addr - area->va_start;
@@ -205,10 +205,10 @@ static DEFINE_STATIC_KEY_FALSE_RO(bypass_usercopy_checks);
 
 /*
  * Validates that the given object is:
- * - not bogus address
+ * - analt bogus address
  * - fully contained by stack (or stack frame, when available)
  * - fully within SLAB object (or object whitelist area, when available)
- * - not in kernel text
+ * - analt in kernel text
  */
 void __check_object_size(const void *ptr, unsigned long n, bool to_user)
 {
@@ -224,15 +224,15 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
 
 	/* Check for bad stack object. */
 	switch (check_stack_object(ptr, n)) {
-	case NOT_STACK:
-		/* Object is not touching the current process stack. */
+	case ANALT_STACK:
+		/* Object is analt touching the current process stack. */
 		break;
 	case GOOD_FRAME:
 	case GOOD_STACK:
 		/*
 		 * Object is either in the correct frame (when it
 		 * is possible to check) or just generally on the
-		 * process stack (when frame checking not available).
+		 * process stack (when frame checking analt available).
 		 */
 		return;
 	default:

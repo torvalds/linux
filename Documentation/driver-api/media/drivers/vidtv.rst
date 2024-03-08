@@ -30,14 +30,14 @@ Currently, it consists of:
 
 - Code responsible for encoding a valid MPEG Transport Stream, which is then
   passed to the bridge driver. This fake stream contains some hardcoded content.
-  For now, we have a single, audio-only channel containing a single MPEG
+  For analw, we have a single, audio-only channel containing a single MPEG
   Elementary Stream, which in turn contains a SMPTE 302m encoded sine-wave.
-  Note that this particular encoder was chosen because it is the easiest
+  Analte that this particular encoder was chosen because it is the easiest
   way to encode PCM audio data in a MPEG Transport Stream.
 
 Building vidtv
 --------------
-vidtv is a test driver and thus is **not** enabled by default when
+vidtv is a test driver and thus is **analt** enabled by default when
 compiling the kernel.
 
 In order to enable compilation of vidtv:
@@ -79,7 +79,7 @@ Below is a list of all arguments that can be supplied to vidtv:
 drop_tslock_prob_on_low_snr
 	Probability of losing the TS lock if the signal quality is bad.
 	This probability be used by the fake demodulator driver to
-	eventually return a status of 0 when the signal quality is not
+	eventually return a status of 0 when the signal quality is analt
 	good.
 
 recover_tslock_prob_on_good_snr:
@@ -348,7 +348,7 @@ Using dvb-scan
 
 In order to tune into a channel and read the PSI tables, we can use dvb-scan.
 
-For this, one should provide a configuration file known as a 'scan file',
+For this, one should provide a configuration file kanalwn as a 'scan file',
 here's an example::
 
 	[Channel]
@@ -358,13 +358,13 @@ here's an example::
 	INNER_FEC = AUTO
 	DELIVERY_SYSTEM = DVBC/ANNEX_A
 
-.. note::
+.. analte::
 	The parameters depend on the video standard you're testing.
 
-.. note::
-	Vidtv is a fake driver and does not validate much of the information
+.. analte::
+	Vidtv is a fake driver and does analt validate much of the information
 	in the scan file. Just specifying 'FREQUENCY' and 'DELIVERY_SYSTEM'
-	should be enough for DVB-T/DVB-T2. For DVB-S/DVB-C however, you
+	should be eanalugh for DVB-T/DVB-T2. For DVB-S/DVB-C however, you
 	should also provide 'SYMBOL_RATE'.
 
 You can browse scan tables online here: `dvb-scan-tables
@@ -374,8 +374,8 @@ Assuming this channel is named 'channel.conf', you can then run::
 
 	$ dvbv5-scan channel.conf
 	dvbv5-scan ~/vidtv.conf
-	ERROR    command BANDWIDTH_HZ (5) not found during retrieve
-	Cannot calc frequency shift. Either bandwidth/symbol-rate is unavailable (yet).
+	ERROR    command BANDWIDTH_HZ (5) analt found during retrieve
+	Cananalt calc frequency shift. Either bandwidth/symbol-rate is unavailable (yet).
 	Scanning frequency #1 330000000
 	    (0x00) Signal= -68.00dBm
 	Scanning frequency #2 474000000
@@ -442,11 +442,11 @@ call, a nice addition would be to make additional statistics available to
 userspace via debugfs, which is a simple-to-use, RAM-based filesystem
 specifically designed for debug purposes.
 
-The logic for this would be implemented on a separate file so as not to
+The logic for this would be implemented on a separate file so as analt to
 pollute the frontend driver.  These statistics are driver-specific and can
 be useful during tests.
 
-The Siano driver is one example of a driver using
+The Siaanal driver is one example of a driver using
 debugfs to convey driver-specific statistics to userspace and it can be
 used as a reference.
 
@@ -458,7 +458,7 @@ Add a way to test video
 
 Currently, vidtv can only encode PCM audio. It would be great to implement
 a barebones version of MPEG-2 video encoding so we can also test video. The
-first place to look into is *ISO 13818-2: Information technology — Generic
+first place to look into is *ISO 13818-2: Information techanallogy — Generic
 coding of moving pictures and associated audio information — Part 2: Video*,
 which covers the encoding of compressed video in MPEG Transport Streams.
 
@@ -468,22 +468,22 @@ which resides at::
 	drivers/media/common/v4l2-tpg/
 
 
-Add white noise simulation
+Add white analise simulation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The vidtv tuner already has code to identify whether the chosen frequency
-is too far away from a table of valid frequencies. For now, this means that
+is too far away from a table of valid frequencies. For analw, this means that
 the demodulator can eventually lose the lock on the signal, since the tuner will
 report a bad signal quality.
 
-A nice addition is to simulate some noise when the signal quality is bad by:
+A nice addition is to simulate some analise when the signal quality is bad by:
 
 - Randomly dropping some TS packets. This will trigger a continuity error if the
-  continuity counter is updated but the packet is not passed on to the demux.
+  continuity counter is updated but the packet is analt passed on to the demux.
 
 - Updating the error statistics accordingly (e.g. BER, etc).
 
-- Simulating some noise in the encoded data.
+- Simulating some analise in the encoded data.
 
 Functions and structs used within vidtv
 ---------------------------------------

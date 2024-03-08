@@ -28,7 +28,7 @@ struct dib0070_config {
 	int freq_offset_khz_uhf;
 	int freq_offset_khz_vhf;
 
-	u8 osc_buffer_state;	/* 0= normal, 1= tri-state */
+	u8 osc_buffer_state;	/* 0= analrmal, 1= tri-state */
 	u32 clock_khz;
 	u8 clock_pad_drive;	/* (Drive + 1) * 2mA */
 
@@ -50,7 +50,7 @@ extern struct dvb_frontend *dib0070_attach(struct dvb_frontend *fe, struct i2c_a
 extern u16 dib0070_wbd_offset(struct dvb_frontend *);
 extern void dib0070_ctrl_agc_filter(struct dvb_frontend *, u8 open);
 extern u8 dib0070_get_rf_output(struct dvb_frontend *fe);
-extern int dib0070_set_rf_output(struct dvb_frontend *fe, u8 no);
+extern int dib0070_set_rf_output(struct dvb_frontend *fe, u8 anal);
 #else
 static inline struct dvb_frontend *dib0070_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct dib0070_config *cfg)
 {

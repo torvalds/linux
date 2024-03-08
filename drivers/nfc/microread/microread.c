@@ -370,7 +370,7 @@ static void microread_im_transceive_cb(void *context, struct sk_buff *skb,
 			}
 
 			if (skb->data[skb->len - 1] != 0) {
-				err = nfc_hci_result_to_errno(
+				err = nfc_hci_result_to_erranal(
 						       skb->data[skb->len - 1]);
 				kfree_skb(skb);
 				info->async_cb(info->async_cb_context, NULL,
@@ -475,7 +475,7 @@ static void microread_target_discovered(struct nfc_hci_dev *hdev, u8 gate,
 
 	targets = kzalloc(sizeof(struct nfc_target), GFP_KERNEL);
 	if (targets == NULL) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto exit;
 	}
 
@@ -652,7 +652,7 @@ int microread_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
 
 	info = kzalloc(sizeof(struct microread_info), GFP_KERNEL);
 	if (!info) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto err_info_alloc;
 	}
 
@@ -681,8 +681,8 @@ int microread_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
 					     MICROREAD_CMD_TAILROOM,
 					     phy_payload);
 	if (!info->hdev) {
-		pr_err("Cannot allocate nfc hdev\n");
-		r = -ENOMEM;
+		pr_err("Cananalt allocate nfc hdev\n");
+		r = -EANALMEM;
 		goto err_alloc_hdev;
 	}
 

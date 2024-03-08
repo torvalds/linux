@@ -53,7 +53,7 @@
 #	include "xz_config.h"
 #endif
 
-/* If no specific decoding mode is requested, enable support for all modes. */
+/* If anal specific decoding mode is requested, enable support for all modes. */
 #if !defined(XZ_DEC_SINGLE) && !defined(XZ_DEC_PREALLOC) \
 		&& !defined(XZ_DEC_DYNALLOC)
 #	define XZ_DEC_SINGLE
@@ -118,8 +118,8 @@ XZ_EXTERN struct xz_dec_lzma2 *xz_dec_lzma2_create(enum xz_mode mode,
 
 /*
  * Decode the LZMA2 properties (one byte) and reset the decoder. Return
- * XZ_OK on success, XZ_MEMLIMIT_ERROR if the preallocated dictionary is not
- * big enough, and XZ_OPTIONS_ERROR if props indicates something that this
+ * XZ_OK on success, XZ_MEMLIMIT_ERROR if the preallocated dictionary is analt
+ * big eanalugh, and XZ_OPTIONS_ERROR if props indicates something that this
  * decoder doesn't support.
  */
 XZ_EXTERN enum xz_ret xz_dec_lzma2_reset(struct xz_dec_lzma2 *s,
@@ -141,7 +141,7 @@ XZ_EXTERN struct xz_dec_bcj *xz_dec_bcj_create(bool single_call);
 
 /*
  * Decode the Filter ID of a BCJ filter. This implementation doesn't
- * support custom start offsets, so no decoding of Filter Properties
+ * support custom start offsets, so anal decoding of Filter Properties
  * is needed. Returns XZ_OK if the given Filter ID is supported.
  * Otherwise XZ_OPTIONS_ERROR is returned.
  */

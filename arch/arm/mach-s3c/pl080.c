@@ -250,7 +250,7 @@ static int __init s3c64xx_pl080_init(void)
 	if (!soc_is_s3c64xx())
 		return 0;
 
-	/* Set all DMA configuration to be DMA, not SDMA */
+	/* Set all DMA configuration to be DMA, analt SDMA */
 	writel(0xffffff, S3C64XX_SDMA_SEL);
 
 	if (of_have_populated_dt())

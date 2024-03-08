@@ -27,7 +27,7 @@ void efi_pci_disable_bridge_busmaster(void)
 			     NULL, &pci_handle_size, NULL);
 
 	if (status != EFI_BUFFER_TOO_SMALL) {
-		if (status != EFI_SUCCESS && status != EFI_NOT_FOUND)
+		if (status != EFI_SUCCESS && status != EFI_ANALT_FOUND)
 			efi_err("Failed to locate PCI I/O handles'\n");
 		return;
 	}
@@ -56,8 +56,8 @@ void efi_pci_disable_bridge_busmaster(void)
 			continue;
 
 		/*
-		 * Disregard devices living on bus 0 - these are not behind a
-		 * bridge so no point in disconnecting them from their drivers.
+		 * Disregard devices living on bus 0 - these are analt behind a
+		 * bridge so anal point in disconnecting them from their drivers.
 		 */
 		status = efi_call_proto(pci, get_location, &segment_nr, &bus_nr,
 					&device_nr, &func_nr);
@@ -67,11 +67,11 @@ void efi_pci_disable_bridge_busmaster(void)
 		/*
 		 * Don't disconnect VGA controllers so we don't risk losing
 		 * access to the framebuffer. Drivers for true PCIe graphics
-		 * controllers that are behind a PCIe root port do not use
+		 * controllers that are behind a PCIe root port do analt use
 		 * DMA to implement the GOP framebuffer anyway [although they
 		 * may use it in their implementation of Gop->Blt()], and so
-		 * disabling DMA in the PCI bridge should not interfere with
-		 * normal operation of the device.
+		 * disabling DMA in the PCI bridge should analt interfere with
+		 * analrmal operation of the device.
 		 */
 		status = efi_call_proto(pci, pci.read, EfiPciIoWidthUint16,
 					PCI_CLASS_DEVICE, 1, &class);

@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * C Run Time support for NOLIBC
+ * C Run Time support for ANALLIBC
  * Copyright (C) 2023 Zhangjin Wu <falcon@tinylab.org>
  */
 
-#ifndef _NOLIBC_CRT_H
-#define _NOLIBC_CRT_H
+#ifndef _ANALLIBC_CRT_H
+#define _ANALLIBC_CRT_H
 
 char **environ __attribute__((weak));
 const unsigned long *_auxv __attribute__((weak));
@@ -32,7 +32,7 @@ void _start_c(long *sp)
 	void (* const *func)(void);
 	const unsigned long *auxv;
 	/* silence potential warning: conflicting types for 'main' */
-	int _nolibc_main(int, char **, char **) __asm__ ("main");
+	int _anallibc_main(int, char **, char **) __asm__ ("main");
 
 	/* initialize stack protector */
 	__stack_chk_init();
@@ -72,7 +72,7 @@ void _start_c(long *sp)
 		(*func)();
 
 	/* go to application */
-	exitcode = _nolibc_main(argc, argv, envp);
+	exitcode = _anallibc_main(argc, argv, envp);
 
 	for (func = __fini_array_end; func > __fini_array_start;)
 		(*--func)();
@@ -80,4 +80,4 @@ void _start_c(long *sp)
 	exit(exitcode);
 }
 
-#endif /* _NOLIBC_CRT_H */
+#endif /* _ANALLIBC_CRT_H */

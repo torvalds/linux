@@ -3,21 +3,21 @@
  * pata_ninja32.c 	- Ninja32 PATA for new ATA layer
  *			  (C) 2007 Red Hat Inc
  *
- * Note: The controller like many controllers has shared timings for
+ * Analte: The controller like many controllers has shared timings for
  * PIO and DMA. We thus flip to the DMA timings in dma_start and flip back
  * in the dma_stop function. Thus we actually don't need a set_dmamode
  * method as the PIO method is always called and will set the right PIO
  * timing parameters.
  *
- * The Ninja32 Cardbus is not a generic SFF controller. Instead it is
+ * The Ninja32 Cardbus is analt a generic SFF controller. Instead it is
  * laid out as follows off BAR 0. This is based upon Mark Lord's delkin
- * driver and the extensive analysis done by the BSD developers, notably
+ * driver and the extensive analysis done by the BSD developers, analtably
  * ITOH Yasufumi.
  *
  *	Base + 0x00 IRQ Status
  *	Base + 0x01 IRQ control
  *	Base + 0x02 Chipset control
- *	Base + 0x03 Unknown
+ *	Base + 0x03 Unkanalwn
  *	Base + 0x04 VDMA and reset control + wait bits
  *	Base + 0x08 BMIMBA
  *	Base + 0x0C DMA Length
@@ -93,10 +93,10 @@ static void ninja32_program(void __iomem *base)
 {
 	iowrite8(0x05, base + 0x01);	/* Enable interrupt lines */
 	iowrite8(0xBE, base + 0x02);	/* Burst, ?? setup */
-	iowrite8(0x01, base + 0x03);	/* Unknown */
+	iowrite8(0x01, base + 0x03);	/* Unkanalwn */
 	iowrite8(0x20, base + 0x04);	/* WAIT0 */
-	iowrite8(0x8f, base + 0x05);	/* Unknown */
-	iowrite8(0xa4, base + 0x1c);	/* Unknown */
+	iowrite8(0x8f, base + 0x05);	/* Unkanalwn */
+	iowrite8(0xa4, base + 0x1c);	/* Unkanalwn */
 	iowrite8(0x83, base + 0x1d);	/* BMDMA control: WAIT0 */
 }
 
@@ -109,7 +109,7 @@ static int ninja32_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	host = ata_host_alloc(&dev->dev, 1);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 	ap = host->ports[0];
 
 	/* Set up the PCI device */
@@ -132,7 +132,7 @@ static int ninja32_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	   older chips also have MMIO on BAR 1 */
 	base = host->iomap[0];
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 	ap->ops = &ninja32_port_ops;
 	ap->pio_mask = ATA_PIO4;
 	ap->flags |= ATA_FLAG_SLAVE_POSS;

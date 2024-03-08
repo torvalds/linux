@@ -20,7 +20,7 @@
 #include <asm/cacheflush.h>
 
 /*
- * Write back the dirty D-caches, but not invalidate them.
+ * Write back the dirty D-caches, but analt invalidate them.
  *
  * Is this really worth it, or should we just alias this routine
  * to __flush_purge_region too?
@@ -93,7 +93,7 @@ void __init sh3_cache_init(void)
 	__flush_purge_region = sh3__flush_purge_region;
 
 	/*
-	 * No write back please
+	 * Anal write back please
 	 *
 	 * Except I don't think there's any way to avoid the writeback.
 	 * So we just alias it to sh3__flush_purge_region(). dwmw2.

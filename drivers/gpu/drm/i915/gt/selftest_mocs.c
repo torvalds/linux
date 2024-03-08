@@ -183,8 +183,8 @@ static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 {
 	/*
 	 * Registers in this range are affected by the MCR selector
-	 * which only controls CPU initiated MMIO. Routing does not
-	 * work for CS access so we cannot verify them on this path.
+	 * which only controls CPU initiated MMIO. Routing does analt
+	 * work for CS access so we cananalt verify them on this path.
 	 */
 	return GRAPHICS_VER(i915) >= 8 && offset >= 0xb000 && offset <= 0xb4ff;
 }
@@ -328,7 +328,7 @@ static int active_engine_reset(struct intel_context *ce,
 	if (err)
 		return err;
 
-	rq = igt_spinner_create_request(&spin, ce, MI_NOOP);
+	rq = igt_spinner_create_request(&spin, ce, MI_ANALOP);
 	if (IS_ERR(rq)) {
 		igt_spinner_fini(&spin);
 		return PTR_ERR(rq);

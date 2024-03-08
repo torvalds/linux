@@ -6,7 +6,7 @@
  * Apple SART is a simple address filter for DMA transactions.
  * Regions of physical memory must be added to the SART's allow
  * list before any DMA can target these. Unlike a proper
- * IOMMU no remapping can be done.
+ * IOMMU anal remapping can be done.
  */
 
 #ifndef _LINUX_SOC_APPLE_SART_H_
@@ -40,12 +40,12 @@ int apple_sart_add_allowed_region(struct apple_sart *sart, phys_addr_t paddr,
 /*
  * Removes the region [paddr, paddr+size] from the DMA allow list.
  *
- * Note that exact same paddr and size used for apple_sart_add_allowed_region
+ * Analte that exact same paddr and size used for apple_sart_add_allowed_region
  * have to be passed.
  *
  * @sart: SART reference
- * @paddr: Start address of the region no longer used for DMA
- * @size: Size of the region no longer used for DMA.
+ * @paddr: Start address of the region anal longer used for DMA
+ * @size: Size of the region anal longer used for DMA.
  */
 int apple_sart_remove_allowed_region(struct apple_sart *sart, phys_addr_t paddr,
 				     size_t size);

@@ -2,20 +2,20 @@
   {
     "EventCode": "0x4c048",
     "EventName": "PM_DATA_FROM_DL2L3_MOD",
-    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a demand load",
-    "PublicDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
+    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a demand load",
+    "PublicDescription": "The processor's data cache was reloaded with Modified (M) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
   {
     "EventCode": "0x3c048",
     "EventName": "PM_DATA_FROM_DL2L3_SHR",
-    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a demand load",
-    "PublicDescription": "The processor's data cache was reloaded with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
+    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a demand load",
+    "PublicDescription": "The processor's data cache was reloaded with Shared (S) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
   {
     "EventCode": "0x3c04c",
     "EventName": "PM_DATA_FROM_DL4",
-    "BriefDescription": "The processor's data cache was reloaded from another chip's L4 on a different Node or Group (Distant) due to a demand load",
-    "PublicDescription": "The processor's data cache was reloaded from another chip's L4 on a different Node or Group (Distant) due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
+    "BriefDescription": "The processor's data cache was reloaded from aanalther chip's L4 on a different Analde or Group (Distant) due to a demand load",
+    "PublicDescription": "The processor's data cache was reloaded from aanalther chip's L4 on a different Analde or Group (Distant) due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
   {
     "EventCode": "0x1c042",
@@ -26,7 +26,7 @@
   {
     "EventCode": "0x200fe",
     "EventName": "PM_DATA_FROM_L2MISS",
-    "BriefDescription": "Demand LD - L2 Miss (not L2 hit)",
+    "BriefDescription": "Demand LD - L2 Miss (analt L2 hit)",
     "PublicDescription": ""
   },
   {
@@ -55,7 +55,7 @@
   },
   {
     "EventCode": "0x1c040",
-    "EventName": "PM_DATA_FROM_L2_NO_CONFLICT",
+    "EventName": "PM_DATA_FROM_L2_ANAL_CONFLICT",
     "BriefDescription": "The processor's data cache was reloaded from local core's L2 without conflict due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded from local core's L2 without conflict due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
@@ -68,7 +68,7 @@
   {
     "EventCode": "0x300fe",
     "EventName": "PM_DATA_FROM_L3MISS",
-    "BriefDescription": "Demand LD - L3 Miss (not L2 hit and not L3 hit)",
+    "BriefDescription": "Demand LD - L3 Miss (analt L2 hit and analt L3 hit)",
     "PublicDescription": ""
   },
   {
@@ -91,7 +91,7 @@
   },
   {
     "EventCode": "0x1c044",
-    "EventName": "PM_DATA_FROM_L3_NO_CONFLICT",
+    "EventName": "PM_DATA_FROM_L3_ANAL_CONFLICT",
     "BriefDescription": "The processor's data cache was reloaded from local core's L3 without conflict due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded from local core's L3 without conflict due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
@@ -104,26 +104,26 @@
   {
     "EventCode": "0x4c04a",
     "EventName": "PM_DATA_FROM_OFF_CHIP_CACHE",
-    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a demand load",
-    "PublicDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
+    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from aanalther core's L2/L3 on a different chip (remote or distant) due to a demand load",
+    "PublicDescription": "The processor's data cache was reloaded either shared or modified data from aanalther core's L2/L3 on a different chip (remote or distant) due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
   {
     "EventCode": "0x1c048",
     "EventName": "PM_DATA_FROM_ON_CHIP_CACHE",
-    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on the same chip due to a demand load",
-    "PublicDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on the same chip due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
+    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from aanalther core's L2/L3 on the same chip due to a demand load",
+    "PublicDescription": "The processor's data cache was reloaded either shared or modified data from aanalther core's L2/L3 on the same chip due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
   {
     "EventCode": "0x2c046",
     "EventName": "PM_DATA_FROM_RL2L3_MOD",
-    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a demand load",
-    "PublicDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
+    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a demand load",
+    "PublicDescription": "The processor's data cache was reloaded with Modified (M) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
   {
     "EventCode": "0x1c04a",
     "EventName": "PM_DATA_FROM_RL2L3_SHR",
-    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a demand load",
-    "PublicDescription": "The processor's data cache was reloaded with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
+    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a demand load",
+    "PublicDescription": "The processor's data cache was reloaded with Shared (S) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
   {
     "EventCode": "0x3001a",

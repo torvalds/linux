@@ -9,10 +9,10 @@
 #include "bus.h"
 
 /*
- * The 3s value for autosuspend will only be used if there are no
+ * The 3s value for autosuspend will only be used if there are anal
  * devices physically attached on a bus segment. In practice enabling
  * the bus operation will result in children devices become active and
- * the master device will only suspend when all its children are no
+ * the master device will only suspend when all its children are anal
  * longer active.
  */
 #define SDW_MASTER_SUSPEND_DELAY_MS 3000
@@ -85,7 +85,7 @@ static ssize_t clock_gears_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(clock_gears);
 
-static struct attribute *master_node_attrs[] = {
+static struct attribute *master_analde_attrs[] = {
 	&dev_attr_revision.attr,
 	&dev_attr_clk_stop_modes.attr,
 	&dev_attr_max_clk_freq.attr,
@@ -98,7 +98,7 @@ static struct attribute *master_node_attrs[] = {
 	&dev_attr_clock_gears.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(master_node);
+ATTRIBUTE_GROUPS(master_analde);
 
 static void sdw_master_device_release(struct device *dev)
 {
@@ -122,10 +122,10 @@ struct device_type sdw_master_type = {
  * sdw_master_device_add() - create a Linux Master Device representation.
  * @bus: SDW bus instance
  * @parent: parent device
- * @fwnode: firmware node handle
+ * @fwanalde: firmware analde handle
  */
 int sdw_master_device_add(struct sdw_bus *bus, struct device *parent,
-			  struct fwnode_handle *fwnode)
+			  struct fwanalde_handle *fwanalde)
 {
 	struct sdw_master_device *md;
 	int ret;
@@ -135,14 +135,14 @@ int sdw_master_device_add(struct sdw_bus *bus, struct device *parent,
 
 	md = kzalloc(sizeof(*md), GFP_KERNEL);
 	if (!md)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	md->dev.bus = &sdw_bus_type;
 	md->dev.type = &sdw_master_type;
 	md->dev.parent = parent;
-	md->dev.groups = master_node_groups;
-	md->dev.of_node = parent->of_node;
-	md->dev.fwnode = fwnode;
+	md->dev.groups = master_analde_groups;
+	md->dev.of_analde = parent->of_analde;
+	md->dev.fwanalde = fwanalde;
 	md->dev.dma_mask = parent->dma_mask;
 
 	dev_set_name(&md->dev, "sdw-master-%d-%d", bus->controller_id, bus->link_id);

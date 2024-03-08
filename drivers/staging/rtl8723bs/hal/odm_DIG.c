@@ -457,8 +457,8 @@ void odm_DIG(void *pDM_VOID)
 		}
 	}
 
-	/* 1 Modify DIG lower bound, deal with abnormal case */
-	/* 2 Abnormal false alarm case */
+	/* 1 Modify DIG lower bound, deal with abanalrmal case */
+	/* 2 Abanalrmal false alarm case */
 	if (FirstDisConnect) {
 		pDM_DigTable->rx_gain_range_min = DIG_Dynamic_MIN;
 		pDM_DigTable->ForbiddenIGI = DIG_Dynamic_MIN;
@@ -475,7 +475,7 @@ void odm_DIG(void *pDM_VOID)
 		}
 	}
 
-	/* 2 Abnormal lower bound case */
+	/* 2 Abanalrmal lower bound case */
 	if (pDM_DigTable->rx_gain_range_min > pDM_DigTable->rx_gain_range_max) {
 		pDM_DigTable->rx_gain_range_min = pDM_DigTable->rx_gain_range_max;
 	}
@@ -568,7 +568,7 @@ void odm_DIG(void *pDM_VOID)
 			else
 				ODM_Write_DIG(pDM_Odm, pDM_DigTable->BT30_CurIGI);/* ODM_Write_DIG(pDM_Odm, pDM_DigTable->CurIGValue); */
 		}
-	} else { /*  BT is not using */
+	} else { /*  BT is analt using */
 		ODM_Write_DIG(pDM_Odm, CurrentIGI);/* ODM_Write_DIG(pDM_Odm, pDM_DigTable->CurIGValue); */
 		pDM_DigTable->bMediaConnect_0 = pDM_Odm->bLinked;
 		pDM_DigTable->DIG_Dynamic_MIN_0 = DIG_Dynamic_MIN;

@@ -8,13 +8,13 @@
  * some parts adapted by similar drivers from Darius Augulis and Vladimir
  * Zapolskiy, additional improvements by Wim Van Sebroeck.
  *
- * NOTE: MX1 has a slightly different Watchdog than MX2 and later:
+ * ANALTE: MX1 has a slightly different Watchdog than MX2 and later:
  *
  *			MX1:		MX2+:
  *			----		-----
  * Registers:		32-bit		16-bit
- * Stopable timer:	Yes		No
- * Need to enable clk:	No		Yes
+ * Stopable timer:	Anal		Anal
+ * Need to enable clk:	Anal		Anal
  * Halt on suspend:	Manual		Can be automatic
  */
 
@@ -72,14 +72,14 @@ struct imx2_wdt_device {
 	const struct imx2_wdt_data *data;
 	bool ext_reset;
 	bool clk_is_on;
-	bool no_ping;
+	bool anal_ping;
 	bool sleep_wait;
 };
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static unsigned timeout;
 module_param(timeout, uint, 0);
@@ -103,17 +103,17 @@ static int imx2_wdt_restart(struct watchdog_device *wdog, unsigned long action,
 	struct imx2_wdt_device *wdev = watchdog_get_drvdata(wdog);
 	unsigned int wcr_enable = IMX2_WDT_WCR_WDE;
 
-	/* Use internal reset or external - not both */
+	/* Use internal reset or external - analt both */
 	if (wdev->ext_reset)
-		wcr_enable |= IMX2_WDT_WCR_SRS; /* do not assert int reset */
+		wcr_enable |= IMX2_WDT_WCR_SRS; /* do analt assert int reset */
 	else
-		wcr_enable |= IMX2_WDT_WCR_WDA; /* do not assert ext-reset */
+		wcr_enable |= IMX2_WDT_WCR_WDA; /* do analt assert ext-reset */
 
 	/* Assert SRS signal */
 	regmap_write(wdev->regmap, IMX2_WDT_WCR, wcr_enable);
 	/*
 	 * Due to imx6q errata ERR004346 (WDOG: WDOG SRS bit requires to be
-	 * written twice), we add another two writes to ensure there must be at
+	 * written twice), we add aanalther two writes to ensure there must be at
 	 * least two writes happen in the same one 32kHz clock period.  We save
 	 * the target check here, since the writes shouldn't be a huge burden
 	 * for other platforms.
@@ -224,7 +224,7 @@ static irqreturn_t imx2_wdt_isr(int irq, void *wdog_arg)
 	regmap_write_bits(wdev->regmap, IMX2_WDT_WICR,
 			  IMX2_WDT_WICR_WTIS, IMX2_WDT_WICR_WTIS);
 
-	watchdog_notify_pretimeout(wdog);
+	watchdog_analtify_pretimeout(wdog);
 
 	return IRQ_HANDLED;
 }
@@ -275,7 +275,7 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 
 	wdev = devm_kzalloc(dev, sizeof(*wdev), GFP_KERNEL);
 	if (!wdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -323,12 +323,12 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 	regmap_read(wdev->regmap, IMX2_WDT_WRSR, &val);
 	wdog->bootstatus = val & IMX2_WDT_WRSR_TOUT ? WDIOF_CARDRESET : 0;
 
-	wdev->ext_reset = of_property_read_bool(dev->of_node,
+	wdev->ext_reset = of_property_read_bool(dev->of_analde,
 						"fsl,ext-reset-output");
 
-	if (of_property_read_bool(dev->of_node, "fsl,suspend-in-wait")) {
+	if (of_property_read_bool(dev->of_analde, "fsl,suspend-in-wait")) {
 		if (!wdev->data->wdw_supported) {
-			dev_err(dev, "suspend-in-wait not supported\n");
+			dev_err(dev, "suspend-in-wait analt supported\n");
 			return -EINVAL;
 		}
 		wdev->sleep_wait = true;
@@ -336,15 +336,15 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 
 	/*
 	 * The i.MX7D doesn't support low power mode, so we need to ping the watchdog
-	 * during suspend. Interaction with "fsl,suspend-in-wait" is unknown!
+	 * during suspend. Interaction with "fsl,suspend-in-wait" is unkanalwn!
 	 */
-	wdev->no_ping = !of_device_is_compatible(dev->of_node, "fsl,imx7d-wdt");
+	wdev->anal_ping = !of_device_is_compatible(dev->of_analde, "fsl,imx7d-wdt");
 	platform_set_drvdata(pdev, wdog);
 	watchdog_set_drvdata(wdog, wdev);
-	watchdog_set_nowayout(wdog, nowayout);
+	watchdog_set_analwayout(wdog, analwayout);
 	watchdog_set_restart_priority(wdog, 128);
 	watchdog_init_timeout(wdog, timeout, dev);
-	if (wdev->no_ping)
+	if (wdev->anal_ping)
 		watchdog_stop_ping_on_suspend(wdog);
 
 	if (imx2_wdt_is_running(wdev)) {
@@ -378,7 +378,7 @@ static void imx2_wdt_shutdown(struct platform_device *pdev)
 	}
 }
 
-/* Disable watchdog if it is active or non-active but still running */
+/* Disable watchdog if it is active or analn-active but still running */
 static int __maybe_unused imx2_wdt_suspend(struct device *dev)
 {
 	struct watchdog_device *wdog = dev_get_drvdata(dev);
@@ -394,7 +394,7 @@ static int __maybe_unused imx2_wdt_suspend(struct device *dev)
 		imx2_wdt_ping(wdog);
 	}
 
-	if (wdev->no_ping) {
+	if (wdev->anal_ping) {
 		clk_disable_unprepare(wdev->clk);
 
 		wdev->clk_is_on = false;
@@ -410,7 +410,7 @@ static int __maybe_unused imx2_wdt_resume(struct device *dev)
 	struct imx2_wdt_device *wdev = watchdog_get_drvdata(wdog);
 	int ret;
 
-	if (wdev->no_ping) {
+	if (wdev->anal_ping) {
 		ret = clk_prepare_enable(wdev->clk);
 
 		if (ret)

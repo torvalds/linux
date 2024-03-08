@@ -7,7 +7,7 @@ int main(void)
 	Dwarf_Addr base, start, end;
 	Dwarf_Attribute attr;
 	Dwarf_Op *op;
-        size_t nops;
+        size_t analps;
 	ptrdiff_t offset = 0;
-        return (int)dwarf_getlocations(&attr, offset, &base, &start, &end, &op, &nops);
+        return (int)dwarf_getlocations(&attr, offset, &base, &start, &end, &op, &analps);
 }

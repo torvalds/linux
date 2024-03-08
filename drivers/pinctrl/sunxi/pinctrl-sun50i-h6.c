@@ -2,7 +2,7 @@
 /*
  * Allwinner H6 SoC pinctrl driver.
  *
- * Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
  */
 
 #include <linux/module.h>

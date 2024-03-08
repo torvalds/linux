@@ -175,7 +175,7 @@ static int ingenic_rproc_probe(struct platform_device *pdev)
 	rproc = devm_rproc_alloc(dev, "ingenic-vpu",
 				 &ingenic_rproc_ops, NULL, sizeof(*vpu));
 	if (!rproc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rproc->auto_boot = auto_boot;
 
@@ -218,7 +218,7 @@ static int ingenic_rproc_probe(struct platform_device *pdev)
 	if (vpu->irq < 0)
 		return vpu->irq;
 
-	ret = devm_request_irq(dev, vpu->irq, vpu_interrupt, IRQF_NO_AUTOEN,
+	ret = devm_request_irq(dev, vpu->irq, vpu_interrupt, IRQF_ANAL_AUTOEN,
 			       "VPU", rproc);
 	if (ret < 0) {
 		dev_err(dev, "Failed to request IRQ\n");

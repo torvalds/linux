@@ -25,7 +25,7 @@ skl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_peri
 	size = struct_size(info, logs_core, num_cores);
 	info = kzalloc(size, GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->core_mask = resource_mask;
 	if (enable)
@@ -54,7 +54,7 @@ int skl_log_buffer_offset(struct avs_dev *adev, u32 core)
 #define FW_REGS_DBG_LOG_WP(core) (0x30 + 0x4 * core)
 
 static int
-skl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg)
+skl_log_buffer_status(struct avs_dev *adev, union avs_analtify_msg *msg)
 {
 	void __iomem *buf;
 	u16 size, write, offset;
@@ -74,13 +74,13 @@ skl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg)
 	return 0;
 }
 
-static int skl_coredump(struct avs_dev *adev, union avs_notify_msg *msg)
+static int skl_coredump(struct avs_dev *adev, union avs_analtify_msg *msg)
 {
 	u8 *dump;
 
 	dump = vzalloc(AVS_FW_REGS_SIZE);
 	if (!dump)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy_fromio(dump, avs_sram_addr(adev, AVS_FW_REGS_WINDOW), AVS_FW_REGS_SIZE);
 	dev_coredumpv(adev->dev, dump, AVS_FW_REGS_SIZE, GFP_KERNEL);

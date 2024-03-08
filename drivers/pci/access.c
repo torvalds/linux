@@ -33,7 +33,7 @@ DEFINE_RAW_SPINLOCK(pci_lock);
 #endif
 
 #define PCI_OP_READ(size, type, len) \
-int noinline pci_bus_read_config_##size \
+int analinline pci_bus_read_config_##size \
 	(struct pci_bus *bus, unsigned int devfn, int pos, type *value)	\
 {									\
 	int res;							\
@@ -51,7 +51,7 @@ int noinline pci_bus_read_config_##size \
 }
 
 #define PCI_OP_WRITE(size, type, len) \
-int noinline pci_bus_write_config_##size \
+int analinline pci_bus_write_config_##size \
 	(struct pci_bus *bus, unsigned int devfn, int pos, type value)	\
 {									\
 	int res;							\
@@ -84,7 +84,7 @@ int pci_generic_config_read(struct pci_bus *bus, unsigned int devfn,
 
 	addr = bus->ops->map_bus(bus, devfn, where);
 	if (!addr)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	if (size == 1)
 		*val = readb(addr);
@@ -104,7 +104,7 @@ int pci_generic_config_write(struct pci_bus *bus, unsigned int devfn,
 
 	addr = bus->ops->map_bus(bus, devfn, where);
 	if (!addr)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	if (size == 1)
 		writeb(val, addr);
@@ -124,7 +124,7 @@ int pci_generic_config_read32(struct pci_bus *bus, unsigned int devfn,
 
 	addr = bus->ops->map_bus(bus, devfn, where & ~0x3);
 	if (!addr)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	*val = readl(addr);
 
@@ -143,7 +143,7 @@ int pci_generic_config_write32(struct pci_bus *bus, unsigned int devfn,
 
 	addr = bus->ops->map_bus(bus, devfn, where & ~0x3);
 	if (!addr)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	if (size == 4) {
 		writel(val, addr);
@@ -152,7 +152,7 @@ int pci_generic_config_write32(struct pci_bus *bus, unsigned int devfn,
 
 	/*
 	 * In general, hardware that supports only 32-bit writes on PCI is
-	 * not spec-compliant.  For example, software may perform a 16-bit
+	 * analt spec-compliant.  For example, software may perform a 16-bit
 	 * write.  If the hardware only supports 32-bit accesses, we must
 	 * do a 32-bit read, merge in the 16 bits we intend to write,
 	 * followed by a 32-bit write.  If the 16 bits we *don't* intend to
@@ -205,7 +205,7 @@ EXPORT_SYMBOL(pci_bus_set_ops);
  */
 static DECLARE_WAIT_QUEUE_HEAD(pci_cfg_wait);
 
-static noinline void pci_wait_cfg(struct pci_dev *dev)
+static analinline void pci_wait_cfg(struct pci_dev *dev)
 	__must_hold(&pci_lock)
 {
 	do {
@@ -234,7 +234,7 @@ int pci_user_read_config_##size						\
 		PCI_SET_ERROR_RESPONSE(val);				\
 	else								\
 		*val = (type)data;					\
-	return pcibios_err_to_errno(ret);				\
+	return pcibios_err_to_erranal(ret);				\
 }									\
 EXPORT_SYMBOL_GPL(pci_user_read_config_##size);
 
@@ -252,7 +252,7 @@ int pci_user_write_config_##size					\
 	ret = dev->bus->ops->write(dev->bus, dev->devfn,		\
 					pos, sizeof(type), val);	\
 	raw_spin_unlock_irq(&pci_lock);				\
-	return pcibios_err_to_errno(ret);				\
+	return pcibios_err_to_erranal(ret);				\
 }									\
 EXPORT_SYMBOL_GPL(pci_user_write_config_##size);
 
@@ -406,8 +406,8 @@ static bool pcie_capability_reg_implemented(struct pci_dev *dev, int pos)
 }
 
 /*
- * Note that these accessor functions are only for the "PCI Express
- * Capability" (see PCIe spec r3.0, sec 7.8).  They do not apply to the
+ * Analte that these accessor functions are only for the "PCI Express
+ * Capability" (see PCIe spec r3.0, sec 7.8).  They do analt apply to the
  * other "PCI Express Extended Capabilities" (AER, VC, ACS, MFVC, etc.)
  */
 int pcie_capability_read_word(struct pci_dev *dev, int pos, u16 *val)
@@ -431,7 +431,7 @@ int pcie_capability_read_word(struct pci_dev *dev, int pos, u16 *val)
 	}
 
 	/*
-	 * For Functions that do not implement the Slot Capabilities,
+	 * For Functions that do analt implement the Slot Capabilities,
 	 * Slot Status, and Slot Control registers, these spaces must
 	 * be hardwired to 0b, with the exception of the Presence Detect
 	 * State bit in the Slot Status register of Downstream Ports,
@@ -547,7 +547,7 @@ int pci_read_config_byte(const struct pci_dev *dev, int where, u8 *val)
 {
 	if (pci_dev_is_disconnected(dev)) {
 		PCI_SET_ERROR_RESPONSE(val);
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	}
 	return pci_bus_read_config_byte(dev->bus, dev->devfn, where, val);
 }
@@ -557,7 +557,7 @@ int pci_read_config_word(const struct pci_dev *dev, int where, u16 *val)
 {
 	if (pci_dev_is_disconnected(dev)) {
 		PCI_SET_ERROR_RESPONSE(val);
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	}
 	return pci_bus_read_config_word(dev->bus, dev->devfn, where, val);
 }
@@ -568,7 +568,7 @@ int pci_read_config_dword(const struct pci_dev *dev, int where,
 {
 	if (pci_dev_is_disconnected(dev)) {
 		PCI_SET_ERROR_RESPONSE(val);
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	}
 	return pci_bus_read_config_dword(dev->bus, dev->devfn, where, val);
 }
@@ -577,7 +577,7 @@ EXPORT_SYMBOL(pci_read_config_dword);
 int pci_write_config_byte(const struct pci_dev *dev, int where, u8 val)
 {
 	if (pci_dev_is_disconnected(dev))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	return pci_bus_write_config_byte(dev->bus, dev->devfn, where, val);
 }
 EXPORT_SYMBOL(pci_write_config_byte);
@@ -585,7 +585,7 @@ EXPORT_SYMBOL(pci_write_config_byte);
 int pci_write_config_word(const struct pci_dev *dev, int where, u16 val)
 {
 	if (pci_dev_is_disconnected(dev))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	return pci_bus_write_config_word(dev->bus, dev->devfn, where, val);
 }
 EXPORT_SYMBOL(pci_write_config_word);
@@ -594,7 +594,7 @@ int pci_write_config_dword(const struct pci_dev *dev, int where,
 					 u32 val)
 {
 	if (pci_dev_is_disconnected(dev))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	return pci_bus_write_config_dword(dev->bus, dev->devfn, where, val);
 }
 EXPORT_SYMBOL(pci_write_config_dword);

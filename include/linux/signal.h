@@ -41,7 +41,7 @@ enum siginfo_layout {
 	SIL_TIMER,
 	SIL_POLL,
 	SIL_FAULT,
-	SIL_FAULT_TRAPNO,
+	SIL_FAULT_TRAPANAL,
 	SIL_FAULT_MCEERR,
 	SIL_FAULT_BNDERR,
 	SIL_FAULT_PKUERR,
@@ -60,7 +60,7 @@ enum siginfo_layout siginfo_layout(unsigned sig, int si_code);
 #ifndef __HAVE_ARCH_SIG_BITOPS
 #include <linux/bitops.h>
 
-/* We don't use <linux/bitops.h> for these because there is no need to
+/* We don't use <linux/bitops.h> for these because there is anal need to
    be atomic.  */
 static inline void sigaddset(sigset_t *set, int _sig)
 {
@@ -128,7 +128,7 @@ static inline int sigequalsets(const sigset_t *set1, const sigset_t *set2)
 
 #ifndef __HAVE_ARCH_SIG_SETOPS
 
-#define _SIG_SET_BINOP(name, op)					\
+#define _SIG_SET_BIANALP(name, op)					\
 static inline void name(sigset_t *r, const sigset_t *a, const sigset_t *b) \
 {									\
 	unsigned long a0, a1, a2, a3, b0, b1, b2, b3;			\
@@ -154,15 +154,15 @@ static inline void name(sigset_t *r, const sigset_t *a, const sigset_t *b) \
 }
 
 #define _sig_or(x,y)	((x) | (y))
-_SIG_SET_BINOP(sigorsets, _sig_or)
+_SIG_SET_BIANALP(sigorsets, _sig_or)
 
 #define _sig_and(x,y)	((x) & (y))
-_SIG_SET_BINOP(sigandsets, _sig_and)
+_SIG_SET_BIANALP(sigandsets, _sig_and)
 
 #define _sig_andn(x,y)	((x) & ~(y))
-_SIG_SET_BINOP(sigandnsets, _sig_andn)
+_SIG_SET_BIANALP(sigandnsets, _sig_andn)
 
-#undef _SIG_SET_BINOP
+#undef _SIG_SET_BIANALP
 #undef _sig_or
 #undef _sig_and
 #undef _sig_andn
@@ -183,11 +183,11 @@ static inline void name(sigset_t *set)					\
 	}								\
 }
 
-#define _sig_not(x)	(~(x))
-_SIG_SET_OP(signotset, _sig_not)
+#define _sig_analt(x)	(~(x))
+_SIG_SET_OP(siganaltset, _sig_analt)
 
 #undef _SIG_SET_OP
-#undef _sig_not
+#undef _sig_analt
 
 static inline void sigemptyset(sigset_t *set)
 {
@@ -302,7 +302,7 @@ static inline void allow_signal(int sig)
 {
 	/*
 	 * Kernel threads handle their own signals. Let the signal code
-	 * know it'll be handled, so that they don't get converted to
+	 * kanalw it'll be handled, so that they don't get converted to
 	 * SIGKILL or just silently dropped.
 	 */
 	kernel_sigaction(sig, SIG_KTHREAD);
@@ -312,7 +312,7 @@ static inline void allow_kernel_signal(int sig)
 {
 	/*
 	 * Kernel threads handle their own signals. Let the signal code
-	 * know signals sent by the kernel will be handled, so that they
+	 * kanalw signals sent by the kernel will be handled, so that they
 	 * don't get silently dropped.
 	 */
 	kernel_sigaction(sig, SIG_KTHREAD_KERNEL);
@@ -333,11 +333,11 @@ extern bool unhandled_signal(struct task_struct *tsk, int sig);
  * is sent determines whether it's to one thread or the whole group,
  * which determines which signal mask(s) are involved in blocking it
  * from being delivered until later.  When the signal is delivered,
- * either it's caught or ignored by a user handler or it has a default
+ * either it's caught or iganalred by a user handler or it has a default
  * effect that applies to the whole thread group (POSIX process).
  *
  * The possible effects an unblocked signal set to SIG_DFL can have are:
- *   ignore	- Nothing Happens
+ *   iganalre	- Analthing Happens
  *   terminate	- kill the process, i.e. all threads in the group,
  * 		  similar to exit_group.  The group leader (only) reports
  *		  WIFSIGNALED status to its parent.
@@ -345,8 +345,8 @@ extern bool unhandled_signal(struct task_struct *tsk, int sig);
  *		  the same mm and then kill all those threads
  *   stop 	- stop all the threads in the group, i.e. TASK_STOPPED state
  *
- * SIGKILL and SIGSTOP cannot be caught, blocked, or ignored.
- * Other signals when not blocked and set to SIG_DFL behaves as follows.
+ * SIGKILL and SIGSTOP cananalt be caught, blocked, or iganalred.
+ * Other signals when analt blocked and set to SIG_DFL behaves as follows.
  * The job control signals also have other special effects.
  *
  *	+--------------------+------------------+
@@ -367,13 +367,13 @@ extern bool unhandled_signal(struct task_struct *tsk, int sig);
  *	|  SIGPIPE           |	terminate	|
  *	|  SIGALRM           |	terminate	|
  *	|  SIGTERM           |	terminate	|
- *	|  SIGCHLD           |	ignore   	|
- *	|  SIGCONT           |	ignore(*)	|
+ *	|  SIGCHLD           |	iganalre   	|
+ *	|  SIGCONT           |	iganalre(*)	|
  *	|  SIGSTOP           |	stop(*)(+)  	|
  *	|  SIGTSTP           |	stop(*)  	|
  *	|  SIGTTIN           |	stop(*)  	|
  *	|  SIGTTOU           |	stop(*)  	|
- *	|  SIGURG            |	ignore   	|
+ *	|  SIGURG            |	iganalre   	|
  *	|  SIGXCPU           |	coredump 	|
  *	|  SIGXFSZ           |	coredump 	|
  *	|  SIGVTALRM         |	terminate	|
@@ -381,23 +381,23 @@ extern bool unhandled_signal(struct task_struct *tsk, int sig);
  *	|  SIGPOLL/SIGIO     |	terminate	|
  *	|  SIGSYS/SIGUNUSED  |	coredump 	|
  *	|  SIGSTKFLT         |	terminate	|
- *	|  SIGWINCH          |	ignore   	|
+ *	|  SIGWINCH          |	iganalre   	|
  *	|  SIGPWR            |	terminate	|
  *	|  SIGRTMIN-SIGRTMAX |	terminate       |
  *	+--------------------+------------------+
- *	|  non-POSIX signal  |  default action  |
+ *	|  analn-POSIX signal  |  default action  |
  *	+--------------------+------------------+
  *	|  SIGEMT            |  coredump	|
  *	+--------------------+------------------+
  *
- * (+) For SIGKILL and SIGSTOP the action is "always", not just "default".
+ * (+) For SIGKILL and SIGSTOP the action is "always", analt just "default".
  * (*) Special job control effects:
  * When SIGCONT is sent, it resumes the process (all threads in the group)
  * from TASK_STOPPED state and also clears any pending/queued stop signals
  * (any of those marked with "stop(*)").  This happens regardless of blocking,
- * catching, or ignoring SIGCONT.  When any stop signal is sent, it clears
+ * catching, or iganalring SIGCONT.  When any stop signal is sent, it clears
  * any pending/queued SIGCONT signals; this happens regardless of blocking,
- * catching, or ignored the stop signal, though (except for SIGSTOP) the
+ * catching, or iganalred the stop signal, though (except for SIGSTOP) the
  * default action of stopping the process may happen later or never.
  */
 
@@ -431,7 +431,7 @@ extern bool unhandled_signal(struct task_struct *tsk, int sig);
         rt_sigmask(SIGXCPU)   |  rt_sigmask(SIGXFSZ)   | \
 	SIGEMT_MASK				       )
 
-#define SIG_KERNEL_IGNORE_MASK (\
+#define SIG_KERNEL_IGANALRE_MASK (\
         rt_sigmask(SIGCONT)   |  rt_sigmask(SIGCHLD)   | \
 	rt_sigmask(SIGWINCH)  |  rt_sigmask(SIGURG)    )
 
@@ -444,12 +444,12 @@ extern bool unhandled_signal(struct task_struct *tsk, int sig);
 
 #define sig_kernel_only(sig)		siginmask(sig, SIG_KERNEL_ONLY_MASK)
 #define sig_kernel_coredump(sig)	siginmask(sig, SIG_KERNEL_COREDUMP_MASK)
-#define sig_kernel_ignore(sig)		siginmask(sig, SIG_KERNEL_IGNORE_MASK)
+#define sig_kernel_iganalre(sig)		siginmask(sig, SIG_KERNEL_IGANALRE_MASK)
 #define sig_kernel_stop(sig)		siginmask(sig, SIG_KERNEL_STOP_MASK)
 #define sig_specific_sicodes(sig)	siginmask(sig, SIG_SPECIFIC_SICODES_MASK)
 
 #define sig_fatal(t, signr) \
-	(!siginmask(signr, SIG_KERNEL_IGNORE_MASK|SIG_KERNEL_STOP_MASK) && \
+	(!siginmask(signr, SIG_KERNEL_IGANALRE_MASK|SIG_KERNEL_STOP_MASK) && \
 	 (t)->sighand->action[(signr)-1].sa.sa_handler == SIG_DFL)
 
 void signals_init(void);
@@ -480,7 +480,7 @@ extern void render_sigset_t(struct seq_file *, const char *, sigset_t *);
 /*
  * Given a fault address and a signal and si_code which correspond to the
  * _sigfault union member, returns the address that must appear in si_addr if
- * the signal handler does not have SA_EXPOSE_TAGBITS enabled in sa_flags.
+ * the signal handler does analt have SA_EXPOSE_TAGBITS enabled in sa_flags.
  */
 static inline void __user *arch_untagged_si_addr(void __user *addr,
 						 unsigned long sig,

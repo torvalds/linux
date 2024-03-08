@@ -12,7 +12,7 @@ Driver device table
 
 .. kernel-doc:: include/linux/mod_devicetable.h
    :internal:
-   :no-identifiers: pci_device_id
+   :anal-identifiers: pci_device_id
 
 
 Delaying and scheduling routines
@@ -113,11 +113,11 @@ Kernel utility functions
 
 .. kernel-doc:: include/linux/kernel.h
    :internal:
-   :no-identifiers: kstrtol kstrtoul
+   :anal-identifiers: kstrtol kstrtoul
 
 .. kernel-doc:: kernel/printk/printk.c
    :export:
-   :no-identifiers: printk
+   :anal-identifiers: printk
 
 .. kernel-doc:: kernel/panic.c
    :export:

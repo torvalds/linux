@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-analte */
 /*
  * j1939.h
  *
@@ -18,14 +18,14 @@
 
 #define J1939_MAX_UNICAST_ADDR 0xfd
 #define J1939_IDLE_ADDR 0xfe
-#define J1939_NO_ADDR 0xff		/* == broadcast or no addr */
-#define J1939_NO_NAME 0
+#define J1939_ANAL_ADDR 0xff		/* == broadcast or anal addr */
+#define J1939_ANAL_NAME 0
 #define J1939_PGN_REQUEST 0x0ea00		/* Request PG */
 #define J1939_PGN_ADDRESS_CLAIMED 0x0ee00	/* Address Claimed */
 #define J1939_PGN_ADDRESS_COMMANDED 0x0fed8	/* Commanded Address */
 #define J1939_PGN_PDU1_MAX 0x3ff00
 #define J1939_PGN_MAX 0x3ffff
-#define J1939_NO_PGN 0x40000
+#define J1939_ANAL_PGN 0x40000
 
 /* J1939 Parameter Group Number
  *
@@ -87,7 +87,7 @@ enum {
 };
 
 enum {
-	J1939_EE_INFO_NONE,
+	J1939_EE_INFO_ANALNE,
 	J1939_EE_INFO_TX_ABORT,
 	J1939_EE_INFO_RX_RTS,
 	J1939_EE_INFO_RX_DPO,

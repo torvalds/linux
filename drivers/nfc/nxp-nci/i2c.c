@@ -38,7 +38,7 @@ struct nxp_nci_i2c_phy {
 
 	int hard_fault; /*
 			 * < 0 if hardware error occurred (e.g. i2c err)
-			 * and prevents normal operation.
+			 * and prevents analrmal operation.
 			 */
 };
 
@@ -81,7 +81,7 @@ static int nxp_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 			r, skb->len);
 		r = -EREMOTEIO;
 	} else {
-		/* Success but return 0 and not number of bytes */
+		/* Success but return 0 and analt number of bytes */
 		r = 0;
 	}
 
@@ -115,7 +115,7 @@ static int nxp_nci_i2c_fw_read(struct nxp_nci_i2c_phy *phy,
 
 	*skb = alloc_skb(NXP_NCI_FW_HDR_LEN + frame_len, GFP_KERNEL);
 	if (*skb == NULL) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto fw_read_exit;
 	}
 
@@ -158,7 +158,7 @@ static int nxp_nci_i2c_nci_read(struct nxp_nci_i2c_phy *phy,
 
 	*skb = alloc_skb(NCI_CTRL_HDR_SIZE + header.plen, GFP_KERNEL);
 	if (*skb == NULL) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto nci_read_exit;
 	}
 
@@ -196,17 +196,17 @@ static irqreturn_t nxp_nci_i2c_irq_thread_fn(int irq, void *phy_id)
 	int r = 0;
 
 	if (!phy || !phy->ndev)
-		goto exit_irq_none;
+		goto exit_irq_analne;
 
 	client = phy->i2c_dev;
 
 	if (!client || irq != client->irq)
-		goto exit_irq_none;
+		goto exit_irq_analne;
 
 	info = nci_get_drvdata(phy->ndev);
 
 	if (!info)
-		goto exit_irq_none;
+		goto exit_irq_analne;
 
 	mutex_lock(&info->info_lock);
 
@@ -249,9 +249,9 @@ static irqreturn_t nxp_nci_i2c_irq_thread_fn(int irq, void *phy_id)
 exit_irq_handled:
 	mutex_unlock(&info->info_lock);
 	return IRQ_HANDLED;
-exit_irq_none:
+exit_irq_analne:
 	WARN_ON_ONCE(1);
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static const struct acpi_gpio_params firmware_gpios = { 1, 0, false };
@@ -271,13 +271,13 @@ static int nxp_nci_i2c_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		nfc_err(&client->dev, "Need I2C_FUNC_I2C\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	phy = devm_kzalloc(&client->dev, sizeof(struct nxp_nci_i2c_phy),
 			   GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->i2c_dev = client;
 	i2c_set_clientdata(client, phy);

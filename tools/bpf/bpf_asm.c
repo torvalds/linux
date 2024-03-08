@@ -7,13 +7,13 @@
  * close to Steven McCanne and Van Jacobson's original BPF paper).
  * In particular for BPF JIT implementors, JIT security auditors, or
  * just for defining BPF expressions that contain extensions which are
- * not supported by compilers.
+ * analt supported by compilers.
  *
  * How to get into it:
  *
  * 1) read Documentation/networking/filter.rst
  * 2) Run `bpf_asm [-c] <filter-prog file>` to translate into binary
- *    blob that is loadable with xt_bpf, cls_bpf et al. Note: -c will
+ *    blob that is loadable with xt_bpf, cls_bpf et al. Analte: -c will
  *    pretty print a C-like construct.
  *
  * Copyright 2013 Daniel Borkmann <borkmann@redhat.com>

@@ -77,7 +77,7 @@ static bool sg_dwiter_get_next_block(struct sg_mapping_iter *miter, uint32_t **p
  * Description:
  *   Returns 32-bit word starting at byte pointed to by @miter@
  *   handling any alignment issues.  Bytes past the buffer's end
- *   are not accessed (read) but are returned as zeroes.  @miter@
+ *   are analt accessed (read) but are returned as zeroes.  @miter@
  *   is advanced by 4 bytes or to the end of buffer whichever is
  *   closer.
  *

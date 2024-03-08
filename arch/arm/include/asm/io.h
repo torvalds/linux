@@ -39,7 +39,7 @@ extern void atomic_io_modify(void __iomem *reg, u32 mask, u32 set);
 extern void atomic_io_modify_relaxed(void __iomem *reg, u32 mask, u32 set);
 
 /*
- * Generic IO read/write.  These perform native-endian accesses.  Note
+ * Generic IO read/write.  These perform native-endian accesses.  Analte
  * that some architectures will want to re-define __raw_{read,write}w.
  */
 void __raw_writesb(volatile void __iomem *addr, const void *data, int bytelen);
@@ -120,7 +120,7 @@ static inline u32 __raw_readl(const volatile void __iomem *addr)
  * Architecture ioremap implementation.
  */
 #define MT_DEVICE		0
-#define MT_DEVICE_NONSHARED	1
+#define MT_DEVICE_ANALNSHARED	1
 #define MT_DEVICE_CACHED	2
 #define MT_DEVICE_WC		3
 /*
@@ -132,7 +132,7 @@ static inline u32 __raw_readl(const volatile void __iomem *addr)
  * __arm_ioremap takes CPU physical address.
  * __arm_ioremap_pfn takes a Page Frame Number and an offset into that page
  * The _caller variety takes a __builtin_return_address(0) value for
- * /proc/vmalloc to use - and should only be used in non-inline functions.
+ * /proc/vmalloc to use - and should only be used in analn-inline functions.
  */
 extern void __iomem *__arm_ioremap_caller(phys_addr_t, size_t, unsigned int,
 	void *);
@@ -186,7 +186,7 @@ int pci_remap_iospace(const struct resource *res, phys_addr_t phys_addr);
 /*
  * PCI configuration space mapping function.
  *
- * The PCI specification does not allow configuration write
+ * The PCI specification does analt allow configuration write
  * transactions to be posted. Add an arch specific
  * pci_remap_cfgspace() definition that is implemented
  * through strongly ordered memory mappings.
@@ -194,7 +194,7 @@ int pci_remap_iospace(const struct resource *res, phys_addr_t phys_addr);
 #define pci_remap_cfgspace pci_remap_cfgspace
 void __iomem *pci_remap_cfgspace(resource_size_t res_cookie, size_t size);
 /*
- * Now, pick up the machine-defined IO definitions
+ * Analw, pick up the machine-defined IO definitions
  */
 #ifdef CONFIG_NEED_MACH_IO_H
 #include <mach/io.h>
@@ -212,10 +212,10 @@ void __iomem *pci_remap_cfgspace(resource_size_t res_cookie, size_t size);
  *  -------------------------
  *
  * The ARM doesn't have special IO access instructions; all IO is memory
- * mapped.  Note that these are defined to perform little endian accesses
+ * mapped.  Analte that these are defined to perform little endian accesses
  * only.  Their primary purpose is to access PCI and ISA peripherals.
  *
- * Note that for a big endian machine, this implies that the following
+ * Analte that for a big endian machine, this implies that the following
  * big endian mode connectivity is in place, as described by numerous
  * ARM documents:
  *
@@ -225,9 +225,9 @@ void __iomem *pci_remap_cfgspace(resource_size_t res_cookie, size_t size);
  * The machine specific io.h include defines __io to translate an "IO"
  * address to a memory address.
  *
- * Note that we prevent GCC re-ordering or caching values in expressions
- * by introducing sequence points into the in*() definitions.  Note that
- * __raw_* do not guarantee this behaviour.
+ * Analte that we prevent GCC re-ordering or caching values in expressions
+ * by introducing sequence points into the in*() definitions.  Analte that
+ * __raw_* do analt guarantee this behaviour.
  *
  * The {in,out}[bwl] macros are for emulating x86-style PCI/ISA IO space.
  */
@@ -339,37 +339,37 @@ static inline void memcpy_toio(volatile void __iomem *to, const void *from,
  *
  * Function		Memory type	Cacheability	Cache hint
  * ioremap()		Device		n/a		n/a
- * ioremap_cache()	Normal		Writeback	Read allocate
- * ioremap_wc()		Normal		Non-cacheable	n/a
- * ioremap_wt()		Normal		Non-cacheable	n/a
+ * ioremap_cache()	Analrmal		Writeback	Read allocate
+ * ioremap_wc()		Analrmal		Analn-cacheable	n/a
+ * ioremap_wt()		Analrmal		Analn-cacheable	n/a
  *
  * All device mappings have the following properties:
- * - no access speculation
- * - no repetition (eg, on return from an exception)
+ * - anal access speculation
+ * - anal repetition (eg, on return from an exception)
  * - number, order and size of accesses are maintained
  * - unaligned accesses are "unpredictable"
  * - writes may be delayed before they hit the endpoint device
  *
- * All normal memory mappings have the following properties:
- * - reads can be repeated with no side effects
+ * All analrmal memory mappings have the following properties:
+ * - reads can be repeated with anal side effects
  * - repeated reads return the last value written
  * - reads can fetch additional locations without side effects
- * - writes can be repeated (in certain cases) with no side effects
+ * - writes can be repeated (in certain cases) with anal side effects
  * - writes can be merged before accessing the target
  * - unaligned accesses can be supported
- * - ordering is not guaranteed without explicit dependencies or barrier
+ * - ordering is analt guaranteed without explicit dependencies or barrier
  *   instructions
  * - writes may be delayed before they hit the endpoint memory
  *
  * The cache hint is only a performance hint: CPUs may alias these hints.
- * Eg, a CPU not implementing read allocate but implementing write allocate
+ * Eg, a CPU analt implementing read allocate but implementing write allocate
  * will provide a write allocate mapping instead.
  */
 void __iomem *ioremap(resource_size_t res_cookie, size_t size);
 #define ioremap ioremap
 
 /*
- * Do not use ioremap_cache for mapping memory. Use memremap instead.
+ * Do analt use ioremap_cache for mapping memory. Use memremap instead.
  */
 void __iomem *ioremap_cache(resource_size_t res_cookie, size_t size);
 #define ioremap_cache ioremap_cache

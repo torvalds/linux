@@ -27,15 +27,15 @@
 #
 # Add AVX512F+VL+BW code path.
 #
-# November 2017
+# Analvember 2017
 #
 # Convert AVX512F+VL+BW code path to pure AVX512F, so that it can be
 # executed even on Knights Landing. Trigger for modification was
 # observation that AVX512 code paths can negatively affect overall
 # Skylake-X system performance. Since we are likely to suppress
 # AVX512F capability flag [at least on Skylake-X], conversion serves
-# as kind of "investment protection". Note that next *lake processor,
-# Cannonlake, has AVX512IFMA code path to execute...
+# as kind of "investment protection". Analte that next *lake processor,
+# Cananalnlake, has AVX512IFMA code path to execute...
 #
 # Numbers are cycles per processed byte with poly1305_blocks alone,
 # measured with rdtsc at fixed clock frequency.
@@ -50,7 +50,7 @@
 # Silvermont	2.83/+95%	-
 # Knights L	3.60/?		1.65		1.10	0.41(***)
 # Goldmont	1.70/+180%	-
-# VIA Nano	1.82/+150%	-
+# VIA Naanal	1.82/+150%	-
 # Sledgehammer	1.38/+160%	-
 # Bulldozer	2.30/+130%	0.97
 # Ryzen		1.15/+200%	1.08		1.18
@@ -58,12 +58,12 @@
 # (*)	improvement coefficients relative to clang are more modest and
 #	are ~50% on most processors, in both cases we are comparing to
 #	__int128 code;
-# (**)	SSE2 implementation was attempted, but among non-AVX processors
+# (**)	SSE2 implementation was attempted, but among analn-AVX processors
 #	it was faster than integer-only code only on older Intel P4 and
 #	Core processors, 50-30%, less newer processor is, but slower on
 #	contemporary ones, for example almost 2x slower on Atom, and as
 #	former are naturally disappearing, SSE2 is deemed unnecessary;
-# (***)	strangely enough performance seems to vary from core to core,
+# (***)	strangely eanalugh performance seems to vary from core to core,
 #	listed result is best case;
 
 $flavour = shift;
@@ -175,7 +175,7 @@ $code.=<<___ if (!$kernel);
 ___
 
 my ($ctx,$inp,$len,$padbit)=("%rdi","%rsi","%rdx","%rcx");
-my ($mac,$nonce)=($inp,$len);	# *_emit arguments
+my ($mac,$analnce)=($inp,$len);	# *_emit arguments
 my ($d1,$d2,$d3, $r0,$r1,$s1)=("%r8","%r9","%rdi","%r11","%r12","%r13");
 my ($h0,$h1,$h2)=("%r14","%rbx","%r10");
 
@@ -251,7 +251,7 @@ $code.=<<___;
 	mov	%rax,16($ctx)
 
 	test	$inp,$inp
-	je	.Lno_key
+	je	.Lanal_key
 ___
 $code.=<<___ if (!$kernel);
 	lea	poly1305_blocks_x86_64(%rip),%r10
@@ -295,7 +295,7 @@ $code.=<<___	if (!$kernel && $flavour =~ /elf32/);
 ___
 $code.=<<___;
 	mov	\$1,%eax
-.Lno_key:
+.Lanal_key:
 	RET
 ___
 &end_function("poly1305_init_x86_64");
@@ -305,7 +305,7 @@ $code.=<<___;
 .cfi_startproc
 .Lblocks:
 	shr	\$4,$len
-	jz	.Lno_data		# too short
+	jz	.Lanal_data		# too short
 
 	push	%rbx
 .cfi_push	%rbx
@@ -370,7 +370,7 @@ $code.=<<___;
 .cfi_restore	%rbx
 	lea	48(%rsp),%rsp
 .cfi_adjust_cfa_offset	-48
-.Lno_data:
+.Lanal_data:
 .Lblocks_epilogue:
 	RET
 .cfi_endproc
@@ -393,8 +393,8 @@ $code.=<<___;
 	cmovnz	%r8,%rax
 	cmovnz	%r9,%rcx
 
-	add	0($nonce),%rax	# accumulate nonce
-	adc	8($nonce),%rcx
+	add	0($analnce),%rax	# accumulate analnce
+	adc	8($analnce),%rcx
 	mov	%rax,0($mac)	# write result
 	mov	%rcx,8($mac)
 
@@ -608,7 +608,7 @@ $code.=<<___;
 
 .Lblocks_avx:
 	and	\$-16,$len
-	jz	.Lno_data_avx
+	jz	.Lanal_data_avx
 
 	vzeroupper
 
@@ -720,7 +720,7 @@ $code.=<<___;
 .Lstore_base2_64_avx:
 	mov	$h0,0($ctx)
 	mov	$h1,8($ctx)
-	mov	$h2,16($ctx)		# note that is_base2_26 is zeroed
+	mov	$h2,16($ctx)		# analte that is_base2_26 is zeroed
 	jmp	.Ldone_avx
 
 .align	16
@@ -744,7 +744,7 @@ $code.=<<___;
 .cfi_restore	%rbx
 	pop 		%rbp
 .cfi_restore	%rbp
-.Lno_data_avx:
+.Lanal_data_avx:
 .Lblocks_avx_epilogue:
 	RET
 .cfi_endproc
@@ -901,7 +901,7 @@ $code.=<<___;
 	vpsrlq		\$30,$T3,$T3
 	vpand		$MASK,$T2,$T2		# 2
 	vpand		$MASK,$T3,$T3		# 3
-	vpor		32(%rcx),$T4,$T4	# padbit, yes, always
+	vpor		32(%rcx),$T4,$T4	# padbit, anal, always
 
 	jbe		.Lskip_loop_avx
 
@@ -964,7 +964,7 @@ $code.=<<___;
 	# ((inp[1]*r^4+inp[3]*r^2+inp[5])*r^4+inp[7]*r^2+inp[9])*r
 	#   \___________________/ \____________________/
 	#
-	# Note that we start with inp[2:3]*r^2. This is because it
+	# Analte that we start with inp[2:3]*r^2. This is because it
 	# doesn't depend on reduction in previous iteration.
 	################################################################
 	# d4 = h4*r0 + h3*r1   + h2*r2   + h1*r3   + h0*r4
@@ -973,7 +973,7 @@ $code.=<<___;
 	# d1 = h1*r0 + h0*r1   + h4*5*r2 + h3*5*r3 + h2*5*r4
 	# d0 = h0*r0 + h4*5*r1 + h3*5*r2 + h2*5*r3 + h1*5*r4
 	#
-	# though note that $Tx and $Hx are "reversed" in this section,
+	# though analte that $Tx and $Hx are "reversed" in this section,
 	# and $D4 is preloaded with r0^2...
 
 	vpmuludq	$T0,$D4,$D0		# d0 = h0*r0
@@ -1056,7 +1056,7 @@ $code.=<<___;
 	vpsrlq		\$30,$H3,$H3
 	vpand		$MASK,$H2,$H2		# 2
 	vpand		$MASK,$H3,$H3		# 3
-	vpor		32(%rcx),$H4,$H4	# padbit, yes, always
+	vpor		32(%rcx),$H4,$H4	# padbit, anal, always
 
 	vpaddq		0x00(%r11),$H0,$H0	# add hash value
 	vpaddq		0x10(%r11),$H1,$H1
@@ -1070,7 +1070,7 @@ $code.=<<___;
 	cmovc		%rax,$inp
 
 	################################################################
-	# Now we accumulate (inp[0:1]+hash)*r^4
+	# Analw we accumulate (inp[0:1]+hash)*r^4
 	################################################################
 	# d4 = h4*r0 + h3*r1   + h2*r2   + h1*r3   + h0*r4
 	# d3 = h3*r0 + h2*r1   + h1*r2   + h0*r3   + h4*5*r4
@@ -1158,7 +1158,7 @@ $code.=<<___;
 	vpsrlq		\$30,$T3,$T3
 	vpand		$MASK,$T2,$T2		# 2
 	vpand		$MASK,$T3,$T3		# 3
-	vpor		32(%rcx),$T4,$T4	# padbit, yes, always
+	vpor		32(%rcx),$T4,$T4	# padbit, anal, always
 
 	################################################################
 	# lazy reduction as discussed in "NEON crypto" by D.J. Bernstein
@@ -1301,7 +1301,7 @@ $code.=<<___;
 	vpsrlq		\$30,$H3,$H3
 	vpand		$MASK,$H2,$H2		# 2
 	vpand		$MASK,$H3,$H3		# 3
-	vpor		32(%rcx),$H4,$H4	# padbit, yes, always
+	vpor		32(%rcx),$H4,$H4	# padbit, anal, always
 
 	vpshufd		\$0x32,`16*0-64`($ctx),$T4	# r0^n, 34xx -> x3x4
 	vpaddq		0x00(%r11),$H0,$H0
@@ -1502,8 +1502,8 @@ $code.=<<___;
 	cmovnz	%r8,%rax
 	cmovnz	%r9,%rcx
 
-	add	0($nonce),%rax	# accumulate nonce
-	adc	8($nonce),%rcx
+	add	0($analnce),%rax	# accumulate analnce
+	adc	8($analnce),%rcx
 	mov	%rax,0($mac)	# write result
 	mov	%rcx,8($mac)
 
@@ -1530,7 +1530,7 @@ $code.=<<___;
 
 .Lblocks_avx2$suffix:
 	and	\$-16,$len
-	jz	.Lno_data_avx2$suffix
+	jz	.Lanal_data_avx2$suffix
 
 	vzeroupper
 
@@ -1648,7 +1648,7 @@ $code.=<<___;
 .Lstore_base2_64_avx2$suffix:
 	mov	$h0,0($ctx)
 	mov	$h1,8($ctx)
-	mov	$h2,16($ctx)		# note that is_base2_26 is zeroed
+	mov	$h2,16($ctx)		# analte that is_base2_26 is zeroed
 	jmp	.Ldone_avx2$suffix
 
 .align	16
@@ -1672,7 +1672,7 @@ $code.=<<___;
 .cfi_restore	%rbx
 	pop 		%rbp
 .cfi_restore 	%rbp
-.Lno_data_avx2$suffix:
+.Lanal_data_avx2$suffix:
 .Lblocks_avx2_epilogue$suffix:
 	RET
 .cfi_endproc
@@ -1884,7 +1884,7 @@ $code.=<<___;
 	vpand		$MASK,$T0,$T0		# 0
 	vpand		$MASK,$T1,$T1		# 1
 	vpand		$MASK,$T3,$T3		# 3
-	vpor		32(%rcx),$T4,$T4	# padbit, yes, always
+	vpor		32(%rcx),$T4,$T4	# padbit, anal, always
 
 	vpaddq		$H2,$T2,$H2		# accumulate input
 	sub		\$64,$len
@@ -1917,7 +1917,7 @@ $code.=<<___;
 	# d1 = h1*r0 + h0*r1   + h4*5*r2 + h3*5*r3 + h2*5*r4
 	# d0 = h0*r0 + h4*5*r1 + h3*5*r2 + h2*5*r3 + h1*5*r4
 	#
-	# however, as h2 is "chronologically" first one available pull
+	# however, as h2 is "chroanallogically" first one available pull
 	# corresponding operations up, so it's
 	#
 	# d4 = h2*r2   + h4*r0 + h3*r1             + h1*r3   + h0*r4
@@ -2037,7 +2037,7 @@ $code.=<<___;
 	 vpand		$MASK,$T0,$T0		# 0
 	 vpand		$MASK,$T1,$T1		# 1
 	 vpand		$MASK,$T3,$T3		# 3
-	 vpor		32(%rcx),$T4,$T4	# padbit, yes, always
+	 vpor		32(%rcx),$T4,$T4	# padbit, anal, always
 
 	sub		\$64,$len
 	jnz		.Loop_avx2$suffix
@@ -2429,7 +2429,7 @@ $code.=<<___;
 	vpandq		$MASK,$T0,$T0		# 0
 	#vpandq		$MASK,$T1,$T1		# 1
 	#vpandq		$MASK,$T3,$T3		# 3
-	#vporq		$PADBIT,$T4,$T4		# padbit, yes, always
+	#vporq		$PADBIT,$T4,$T4		# padbit, anal, always
 
 	vpaddq		$H2,$T2,$H2		# accumulate input
 	sub		\$192,$len
@@ -2457,7 +2457,7 @@ $code.=<<___;
 	# d1 = h1*r0 + h0*r1   + h4*5*r2 + h3*5*r3 + h2*5*r4
 	# d0 = h0*r0 + h4*5*r1 + h3*5*r2 + h2*5*r3 + h1*5*r4
 	#
-	# however, as h2 is "chronologically" first one available pull
+	# however, as h2 is "chroanallogically" first one available pull
 	# corresponding operations up, so it's
 	#
 	# d3 = h2*r1   + h0*r3 + h1*r2   + h3*r0 + h4*5*r4
@@ -2473,7 +2473,7 @@ $code.=<<___;
 	vpmuludq	$H2,$S3,$D0		# d0 = h2*s3
 	 vpandq		$MASK,$T3,$T3		# 3
 	vpmuludq	$H2,$S4,$D1		# d1 = h2*s4
-	 vporq		$PADBIT,$T4,$T4		# padbit, yes, always
+	 vporq		$PADBIT,$T4,$T4		# padbit, anal, always
 	vpmuludq	$H2,$R0,$D2		# d2 = h2*r0
 	 vpaddq		$H1,$T1,$H1		# accumulate input
 	 vpaddq		$H3,$T3,$H3
@@ -2581,7 +2581,7 @@ $code.=<<___;
 	 vpandq		$MASK,$T0,$T0		# 0
 	 #vpandq	$MASK,$T1,$T1		# 1
 	 #vpandq	$MASK,$T3,$T3		# 3
-	 #vporq		$PADBIT,$T4,$T4		# padbit, yes, always
+	 #vporq		$PADBIT,$T4,$T4		# padbit, anal, always
 
 	sub		\$128,$len
 	ja		.Loop_avx512
@@ -2616,7 +2616,7 @@ $code.=<<___;
 	vpmuludq	$H2,$S4,$D1		# d1 = h2*s4
 	 vpandq		$MASK,$T3,$T3		# 3
 	vpmuludq	$H2,$R0,$D2		# d2 = h2*r0
-	 vporq		$PADBIT,$T4,$T4		# padbit, yes, always
+	 vporq		$PADBIT,$T4,$T4		# padbit, anal, always
 	 vpaddq		$H1,$T1,$H1		# accumulate input
 	 vpaddq		$H3,$T3,$H3
 	 vpaddq		$H4,$T4,$H4
@@ -2757,7 +2757,7 @@ $code.=<<___;
 	vpsrlq		\$26,$H3,$D3
 	vpand		$MASK,$H3,$H3
 	 vpand		$MASK,$T3,$T3		# 3
-	 vpor		32(%rcx),$T4,$T4	# padbit, yes, always
+	 vpor		32(%rcx),$T4,$T4	# padbit, anal, always
 	vpaddq		$D3,$H4,$H4		# h3 -> h4
 
 	lea		0x90(%rsp),%rax		# size optimization for .Ltail_avx2
@@ -2806,9 +2806,9 @@ poly1305_blocks_avxN(0);
 #######################################################################
 if ($avx>2) {
 # On entry we have input length divisible by 64. But since inner loop
-# processes 128 bytes per iteration, cases when length is not divisible
+# processes 128 bytes per iteration, cases when length is analt divisible
 # by 128 are handled by passing tail 64 bytes to .Ltail_avx2. For this
-# reason stack layout is kept identical to poly1305_blocks_avx2. If not
+# reason stack layout is kept identical to poly1305_blocks_avx2. If analt
 # for this tail, we wouldn't have to even allocate stack frame...
 
 if($kernel) {
@@ -2845,7 +2845,7 @@ if (!$kernel && $avx>3) {
 #	unsigned __int64 r[3];		# key value base 2^44
 #	struct { unsigned __int64 r^1, r^3, r^2, r^4; } R[4];
 #					# r^n positions reflect
-#					# placement in register, not
+#					# placement in register, analt
 #					# memory, R[3] is R[1]*20
 
 $code.=<<___;
@@ -2905,12 +2905,12 @@ $code.=<<___;
 .align	32
 poly1305_blocks_vpmadd52:
 	shr	\$4,$len
-	jz	.Lno_data_vpmadd52		# too short
+	jz	.Lanal_data_vpmadd52		# too short
 
 	shl	\$40,$padbit
 	mov	64($ctx),%r8			# peek on power of the key
 
-	# if powers of the key are not calculated yet, process up to 3
+	# if powers of the key are analt calculated yet, process up to 3
 	# blocks with this single-block subroutine, otherwise ensure that
 	# length is divisible by 2 blocks and pass the rest down to next
 	# subroutine...
@@ -2984,7 +2984,7 @@ poly1305_blocks_vpmadd52:
 
 	vpermq		\$0b10010011,$Dhi,$Dhi	# 0 in lowest qword
 
-	vpaddq		$Dhi,$Dlo,$Dlo		# note topmost qword :-)
+	vpaddq		$Dhi,$Dlo,$Dlo		# analte topmost qword :-)
 
 	vpsrlvq		$reduc_rght,$Dlo,$T0	# 0 in topmost word
 	vpandq		$reduc_mask,$Dlo,$Dlo
@@ -3008,7 +3008,7 @@ poly1305_blocks_vpmadd52:
 	test		$len,$len
 	jnz		.Lblocks_vpmadd52_4x
 
-.Lno_data_vpmadd52:
+.Lanal_data_vpmadd52:
 	RET
 .size	poly1305_blocks_vpmadd52,.-poly1305_blocks_vpmadd52
 ___
@@ -3028,7 +3028,7 @@ $code.=<<___;
 .align	32
 poly1305_blocks_vpmadd52_4x:
 	shr	\$4,$len
-	jz	.Lno_data_vpmadd52_4x		# too short
+	jz	.Lanal_data_vpmadd52_4x		# too short
 
 	shl	\$40,$padbit
 	mov	64($ctx),%r8			# peek on power of the key
@@ -3449,7 +3449,7 @@ poly1305_blocks_vpmadd52_4x:
 	vmovq		%x#$H2,16($ctx)
 	vzeroall
 
-.Lno_data_vpmadd52_4x:
+.Lanal_data_vpmadd52_4x:
 	RET
 .size	poly1305_blocks_vpmadd52_4x,.-poly1305_blocks_vpmadd52_4x
 ___
@@ -3470,7 +3470,7 @@ $code.=<<___;
 .align	32
 poly1305_blocks_vpmadd52_8x:
 	shr	\$4,$len
-	jz	.Lno_data_vpmadd52_8x		# too short
+	jz	.Lanal_data_vpmadd52_8x		# too short
 
 	shl	\$40,$padbit
 	mov	64($ctx),%r8			# peek on power of the key
@@ -3822,7 +3822,7 @@ $code.=<<___;
 	vmovq		%x#$H2,16($ctx)
 	vzeroall
 
-.Lno_data_vpmadd52_8x:
+.Lanal_data_vpmadd52_8x:
 	RET
 .size	poly1305_blocks_vpmadd52_8x,.-poly1305_blocks_vpmadd52_8x
 ___
@@ -3855,8 +3855,8 @@ poly1305_emit_base2_44:
 	cmovnz	%r8,%rax
 	cmovnz	%r9,%rcx
 
-	add	0($nonce),%rax	# accumulate nonce
-	adc	8($nonce),%rcx
+	add	0($analnce),%rax	# accumulate analnce
+	adc	8($analnce),%rcx
 	mov	%rax,0($mac)	# write result
 	mov	%rcx,8($mac)
 
@@ -3880,7 +3880,7 @@ xor128_encrypt_n_pad:
 	mov	$len,%r10		# put len aside
 	shr	\$4,$len		# len / 16
 	jz	.Ltail_enc
-	nop
+	analp
 .Loop_enc_xmm:
 	movdqu	($inp,$otp),%xmm0
 	pxor	($otp),%xmm0
@@ -3927,7 +3927,7 @@ xor128_decrypt_n_pad:
 	mov	$len,%r10		# put len aside
 	shr	\$4,$len		# len / 16
 	jz	.Ltail_dec
-	nop
+	analp
 .Loop_dec_xmm:
 	movdqu	($inp,$otp),%xmm0
 	movdqa	($otp),%xmm1

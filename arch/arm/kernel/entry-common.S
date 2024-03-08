@@ -41,7 +41,7 @@ ret_fast_syscall:
 __ret_fast_syscall:
  UNWIND(.fnstart	)
  UNWIND(.cantunwind	)
-	disable_irq_notrace			@ disable interrupts
+	disable_irq_analtrace			@ disable interrupts
 	ldr	r1, [tsk, #TI_FLAGS]		@ re-check for syscall tracing
 	movs	r1, r1, lsl #16
 	bne	fast_work_pending
@@ -71,10 +71,10 @@ __ret_fast_syscall:
 	mov	r0, sp				@ 'regs'
 	bl	do_rseq_syscall
 #endif
-	disable_irq_notrace			@ disable interrupts
+	disable_irq_analtrace			@ disable interrupts
 	ldr	r1, [tsk, #TI_FLAGS]		@ re-check for syscall tracing
 	movs	r1, r1, lsl #16
-	beq	no_work_pending
+	beq	anal_work_pending
  UNWIND(.fnend		)
 ENDPROC(ret_fast_syscall)
 
@@ -82,39 +82,39 @@ ENDPROC(ret_fast_syscall)
 #endif
 
 	tst	r1, #_TIF_SYSCALL_WORK
-	bne	__sys_trace_return_nosave
+	bne	__sys_trace_return_analsave
 slow_work_pending:
 	mov	r0, sp				@ 'regs'
 	mov	r2, why				@ 'syscall'
 	bl	do_work_pending
 	cmp	r0, #0
-	beq	no_work_pending
-	movlt	scno, #(__NR_restart_syscall - __NR_SYSCALL_BASE)
-	str	scno, [tsk, #TI_ABI_SYSCALL]	@ make sure tracers see update
+	beq	anal_work_pending
+	movlt	scanal, #(__NR_restart_syscall - __NR_SYSCALL_BASE)
+	str	scanal, [tsk, #TI_ABI_SYSCALL]	@ make sure tracers see update
 	ldmia	sp, {r0 - r6}			@ have to reload r0 - r6
 	b	local_restart			@ ... and off we go
 ENDPROC(ret_fast_syscall)
 
 /*
  * "slow" syscall return path.  "why" tells us if this was a real syscall.
- * IRQs may be enabled here, so always disable them.  Note that we use the
- * "notrace" version to avoid calling into the tracing code unnecessarily.
+ * IRQs may be enabled here, so always disable them.  Analte that we use the
+ * "analtrace" version to avoid calling into the tracing code unnecessarily.
  * do_work_pending() will update this state if necessary.
  */
 ENTRY(ret_to_user)
 ret_slow_syscall:
 #if IS_ENABLED(CONFIG_DEBUG_RSEQ)
 	/* do_rseq_syscall needs interrupts enabled. */
-	enable_irq_notrace			@ enable interrupts
+	enable_irq_analtrace			@ enable interrupts
 	mov	r0, sp				@ 'regs'
 	bl	do_rseq_syscall
 #endif
-	disable_irq_notrace			@ disable interrupts
+	disable_irq_analtrace			@ disable interrupts
 ENTRY(ret_to_user_from_irq)
 	ldr	r1, [tsk, #TI_FLAGS]
 	movs	r1, r1, lsl #16
 	bne	slow_work_pending
-no_work_pending:
+anal_work_pending:
 	asm_trace_hardirqs_on save = 0
 
 	ct_user_enter save = 0
@@ -176,7 +176,7 @@ ENTRY(vector_swi)
  ARM(	stmdb	r8, {sp, lr}^		)	@ Calling sp, lr
  THUMB(	mov	r8, sp			)
  THUMB(	store_user_sp_lr r8, r10, S_SP	)	@ calling sp, lr
-	mrs	saved_psr, spsr			@ called from non-FIQ mode, so ok.
+	mrs	saved_psr, spsr			@ called from analn-FIQ mode, so ok.
  TRACE(	mov	saved_pc, lr		)
 	str	saved_pc, [sp, #S_PC]		@ Save calling PC
 	str	saved_psr, [sp, #S_PSR]		@ Save CPSR
@@ -186,7 +186,7 @@ ENTRY(vector_swi)
 	zero_fp
 	alignment_trap r10, ip, cr_alignment
 	asm_trace_hardirqs_on save=0
-	enable_irq_notrace
+	enable_irq_analtrace
 	ct_user_exit save=0
 
 	/*
@@ -201,7 +201,7 @@ ENTRY(vector_swi)
 	 */
 #ifdef CONFIG_ARM_THUMB
 	tst	saved_psr, #PSR_T_BIT
-	movne	r10, #0				@ no thumb OABI emulation
+	movne	r10, #0				@ anal thumb OABI emulation
  USER(	ldreq	r10, [saved_pc, #-4]	)	@ get SWI instruction
 #else
  USER(	ldr	r10, [saved_pc, #-4]	)	@ get SWI instruction
@@ -211,20 +211,20 @@ ENTRY(vector_swi)
 #elif defined(CONFIG_AEABI)
 
 	/*
-	 * Pure EABI user space always put syscall number into scno (r7).
+	 * Pure EABI user space always put syscall number into scanal (r7).
 	 */
 #elif defined(CONFIG_ARM_THUMB)
 	/* Legacy ABI only, possibly thumb mode. */
 	tst	saved_psr, #PSR_T_BIT		@ this is SPSR from save_user_regs
-	addne	scno, r7, #__NR_SYSCALL_BASE	@ put OS number in
- USER(	ldreq	scno, [saved_pc, #-4]	)
+	addne	scanal, r7, #__NR_SYSCALL_BASE	@ put OS number in
+ USER(	ldreq	scanal, [saved_pc, #-4]	)
 
 #else
 	/* Legacy ABI only. */
- USER(	ldr	scno, [saved_pc, #-4]	)	@ get SWI instruction
+ USER(	ldr	scanal, [saved_pc, #-4]	)	@ get SWI instruction
 #endif
 
-	/* saved_psr and saved_pc are now dead */
+	/* saved_psr and saved_pc are analw dead */
 
 	uaccess_disable tbl
 	get_thread_info tsk
@@ -233,22 +233,22 @@ ENTRY(vector_swi)
 
 #if defined(CONFIG_OABI_COMPAT)
 	/*
-	 * If the swi argument is zero, this is an EABI call and we do nothing.
+	 * If the swi argument is zero, this is an EABI call and we do analthing.
 	 *
-	 * If this is an old ABI call, get the syscall number into scno and
+	 * If this is an old ABI call, get the syscall number into scanal and
 	 * get the old ABI syscall table address.
 	 */
 	bics	r10, r10, #0xff000000
 	strne	r10, [tsk, #TI_ABI_SYSCALL]
-	streq	scno, [tsk, #TI_ABI_SYSCALL]
-	eorne	scno, r10, #__NR_OABI_SYSCALL_BASE
+	streq	scanal, [tsk, #TI_ABI_SYSCALL]
+	eorne	scanal, r10, #__NR_OABI_SYSCALL_BASE
 	ldrne	tbl, =sys_oabi_call_table
 #elif !defined(CONFIG_AEABI)
-	bic	scno, scno, #0xff000000		@ mask off SWI op-code
-	str	scno, [tsk, #TI_ABI_SYSCALL]
-	eor	scno, scno, #__NR_SYSCALL_BASE	@ check OS number
+	bic	scanal, scanal, #0xff000000		@ mask off SWI op-code
+	str	scanal, [tsk, #TI_ABI_SYSCALL]
+	eor	scanal, scanal, #__NR_SYSCALL_BASE	@ check OS number
 #else
-	str	scno, [tsk, #TI_ABI_SYSCALL]
+	str	scanal, [tsk, #TI_ABI_SYSCALL]
 #endif
 	/*
 	 * Reload the registers that may have been corrupted on entry to
@@ -263,19 +263,19 @@ local_restart:
 	tst	r10, #_TIF_SYSCALL_WORK		@ are we tracing syscalls?
 	bne	__sys_trace
 
-	invoke_syscall tbl, scno, r10, __ret_fast_syscall
+	invoke_syscall tbl, scanal, r10, __ret_fast_syscall
 
 	add	r1, sp, #S_OFF
-2:	cmp	scno, #(__ARM_NR_BASE - __NR_SYSCALL_BASE)
-	eor	r0, scno, #__NR_SYSCALL_BASE	@ put OS number back
+2:	cmp	scanal, #(__ARM_NR_BASE - __NR_SYSCALL_BASE)
+	eor	r0, scanal, #__NR_SYSCALL_BASE	@ put OS number back
 	bcs	arm_syscall
-	mov	why, #0				@ no longer a real syscall
-	b	sys_ni_syscall			@ not private func
+	mov	why, #0				@ anal longer a real syscall
+	b	sys_ni_syscall			@ analt private func
 
 #if defined(CONFIG_OABI_COMPAT) || !defined(CONFIG_AEABI)
 	/*
 	 * We failed to handle a fault trying to access the page
-	 * containing the swi instruction, but we're not really in a
+	 * containing the swi instruction, but we're analt really in a
 	 * position to return -EFAULT. Instead, return back to the
 	 * instruction and re-enter the user fault handling path trying
 	 * to page it in. This will likely result in sending SEGV to the
@@ -297,14 +297,14 @@ ENDPROC(vector_swi)
 __sys_trace:
 	add	r0, sp, #S_OFF
 	bl	syscall_trace_enter
-	mov	scno, r0
-	invoke_syscall tbl, scno, r10, __sys_trace_return, reload=1
-	cmp	scno, #-1			@ skip the syscall?
+	mov	scanal, r0
+	invoke_syscall tbl, scanal, r10, __sys_trace_return, reload=1
+	cmp	scanal, #-1			@ skip the syscall?
 	bne	2b
 	add	sp, sp, #S_OFF			@ restore stack
 
-__sys_trace_return_nosave:
-	enable_irq_notrace
+__sys_trace_return_analsave:
+	enable_irq_analtrace
 	mov	r0, sp
 	bl	syscall_trace_exit
 	b	ret_slow_syscall
@@ -323,7 +323,7 @@ ENTRY(\sym)
 
 	.macro	syscall, nr, func
 	.ifgt	__sys_nr - \nr
-	.error	"Duplicated/unorded system call entry"
+	.error	"Duplicated/uanalrded system call entry"
 	.endif
 	.rept	\nr - __sys_nr
 	.long	sys_ni_syscall
@@ -363,11 +363,11 @@ ENTRY(\sym)
 @ r0 = syscall number
 @ r8 = syscall table
 sys_syscall:
-		bic	scno, r0, #__NR_OABI_SYSCALL_BASE
-		cmp	scno, #__NR_syscall - __NR_SYSCALL_BASE
-		cmpne	scno, #NR_syscalls	@ check range
+		bic	scanal, r0, #__NR_OABI_SYSCALL_BASE
+		cmp	scanal, #__NR_syscall - __NR_SYSCALL_BASE
+		cmpne	scanal, #NR_syscalls	@ check range
 #ifdef CONFIG_CPU_SPECTRE
-		movhs	scno, #0
+		movhs	scanal, #0
 		csdb
 #endif
 		stmialo	sp, {r5, r6}		@ shuffle args
@@ -375,7 +375,7 @@ sys_syscall:
 		movlo	r1, r2
 		movlo	r2, r3
 		movlo	r3, r4
-		ldrlo	pc, [tbl, scno, lsl #2]
+		ldrlo	pc, [tbl, scanal, lsl #2]
 		b	sys_ni_syscall
 ENDPROC(sys_syscall)
 
@@ -404,7 +404,7 @@ sys_fstatfs64_wrapper:
 ENDPROC(sys_fstatfs64_wrapper)
 
 /*
- * Note: off_4k (r5) is always units of 4K.  If we can't do the requested
+ * Analte: off_4k (r5) is always units of 4K.  If we can't do the requested
  * offset, we return EINVAL.
  */
 sys_mmap2:

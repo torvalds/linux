@@ -34,7 +34,7 @@ static bool is_frag_v4(struct iphdr *iph)
 
 static bool is_frag_v6(struct ipv6hdr *ip6h)
 {
-	/* Simplifying assumption that there are no extension headers
+	/* Simplifying assumption that there are anal extension headers
 	 * between fixed header and fragmentation header. This assumption
 	 * is only valid in this test case. It saves us the hassle of
 	 * searching all potential extension headers.

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -46,11 +46,11 @@
 #define ICMP_PORT_UNREACH	3	/* Port Unreachable		*/
 #define ICMP_FRAG_NEEDED	4	/* Fragmentation Needed/DF set	*/
 #define ICMP_SR_FAILED		5	/* Source Route failed		*/
-#define ICMP_NET_UNKNOWN	6
-#define ICMP_HOST_UNKNOWN	7
+#define ICMP_NET_UNKANALWN	6
+#define ICMP_HOST_UNKANALWN	7
 #define ICMP_HOST_ISOLATED	8
-#define ICMP_NET_ANO		9
-#define ICMP_HOST_ANO		10
+#define ICMP_NET_AANAL		9
+#define ICMP_HOST_AANAL		10
 #define ICMP_NET_UNR_TOS	11
 #define ICMP_HOST_UNR_TOS	12
 #define ICMP_PKT_FILTERED	13	/* Packet filtered */
@@ -72,8 +72,8 @@
 #define ICMP_EXT_ECHO			42
 #define ICMP_EXT_ECHOREPLY		43
 #define ICMP_EXT_CODE_MAL_QUERY		1	/* Malformed Query */
-#define ICMP_EXT_CODE_NO_IF		2	/* No such Interface */
-#define ICMP_EXT_CODE_NO_TABLE_ENT	3	/* No such Table Entry */
+#define ICMP_EXT_CODE_ANAL_IF		2	/* Anal such Interface */
+#define ICMP_EXT_CODE_ANAL_TABLE_ENT	3	/* Anal such Table Entry */
 #define ICMP_EXT_CODE_MULT_IFS		4	/* Multiple Interfaces Satisfy Query */
 
 /* Constants for EXT_ECHO (PROBE) */

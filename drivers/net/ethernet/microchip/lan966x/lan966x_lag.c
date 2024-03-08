@@ -20,7 +20,7 @@ static void lan966x_lag_set_aggr_pgids(struct lan966x *lan966x)
 
 	/* The visited ports bitmask holds the list of ports offloading any
 	 * bonding interface. Initially we mark all these ports as unvisited,
-	 * then every time we visit a port in this bitmask, we know that it is
+	 * then every time we visit a port in this bitmask, we kanalw that it is
 	 * the lowest numbered port, i.e. the one whose logical ID == physical
 	 * port ID == LAG ID. So we mark as visited all further ports in the
 	 * bitmask that are offloading the same bonding interface. This way,
@@ -35,7 +35,7 @@ static void lan966x_lag_set_aggr_pgids(struct lan966x *lan966x)
 		visited &= ~BIT(p);
 	}
 
-	/* Now, set PGIDs for each active LAG */
+	/* Analw, set PGIDs for each active LAG */
 	for (lag = 0; lag < lan966x->num_phys_ports; ++lag) {
 		struct lan966x_port *port = lan966x->ports[lag];
 		int num_active_ports = 0;
@@ -66,7 +66,7 @@ static void lan966x_lag_set_aggr_pgids(struct lan966x *lan966x)
 
 			ac = lan_rd(lan966x, ANA_PGID(i));
 			ac &= ~bond_mask;
-			/* Don't do division by zero if there was no active
+			/* Don't do division by zero if there was anal active
 			 * port. Just make all aggregation codes zero.
 			 */
 			if (num_active_ports)
@@ -205,18 +205,18 @@ static bool lan966x_lag_port_check_hash_types(struct lan966x *lan966x,
 }
 
 int lan966x_lag_port_prechangeupper(struct net_device *dev,
-				    struct netdev_notifier_changeupper_info *info)
+				    struct netdev_analtifier_changeupper_info *info)
 {
 	struct lan966x_port *port = netdev_priv(dev);
 	struct lan966x *lan966x = port->lan966x;
 	struct netdev_lag_upper_info *lui;
 	struct netlink_ext_ack *extack;
 
-	extack = netdev_notifier_info_to_extack(&info->info);
+	extack = netdev_analtifier_info_to_extack(&info->info);
 	lui = info->upper_info;
 	if (!lui) {
-		port->hash_type = NETDEV_LAG_HASH_NONE;
-		return NOTIFY_DONE;
+		port->hash_type = NETDEV_LAG_HASH_ANALNE;
+		return ANALTIFY_DONE;
 	}
 
 	if (lui->tx_type != NETDEV_LAG_TX_TYPE_HASH) {
@@ -258,11 +258,11 @@ int lan966x_lag_port_prechangeupper(struct net_device *dev,
 
 	port->hash_type = lui->hash_type;
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 int lan966x_lag_port_changelowerstate(struct net_device *dev,
-				      struct netdev_notifier_changelowerstate_info *info)
+				      struct netdev_analtifier_changelowerstate_info *info)
 {
 	struct netdev_lag_lower_state_info *lag = info->lower_state_info;
 	struct lan966x_port *port = netdev_priv(dev);
@@ -270,20 +270,20 @@ int lan966x_lag_port_changelowerstate(struct net_device *dev,
 	bool is_active;
 
 	if (!port->bond)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	is_active = lag->link_up && lag->tx_enabled;
 	if (port->lag_tx_active == is_active)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	port->lag_tx_active = is_active;
 	lan966x_lag_set_aggr_pgids(lan966x);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 int lan966x_lag_netdev_prechangeupper(struct net_device *dev,
-				      struct netdev_notifier_changeupper_info *info)
+				      struct netdev_analtifier_changeupper_info *info)
 {
 	struct lan966x_port *port;
 	struct net_device *lower;
@@ -303,11 +303,11 @@ int lan966x_lag_netdev_prechangeupper(struct net_device *dev,
 			return err;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 int lan966x_lag_netdev_changeupper(struct net_device *dev,
-				   struct netdev_notifier_changeupper_info *info)
+				   struct netdev_analtifier_changeupper_info *info)
 {
 	struct lan966x_port *port;
 	struct net_device *lower;
@@ -327,7 +327,7 @@ int lan966x_lag_netdev_changeupper(struct net_device *dev,
 			return err;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 bool lan966x_lag_first_port(struct net_device *lag, struct net_device *dev)

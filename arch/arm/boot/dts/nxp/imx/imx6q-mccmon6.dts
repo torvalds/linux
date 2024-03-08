@@ -68,7 +68,7 @@
 	};
 
 	panel-lvds0 {
-		compatible = "innolux,g121x1-l03";
+		compatible = "inanallux,g121x1-l03";
 		backlight = <&backlight_lvds>;
 		power-supply = <&reg_lvds>;
 
@@ -89,7 +89,7 @@
 	s25sl032p: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <40000000>;
 		reg = <0>;
 	};
@@ -269,17 +269,17 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
 &weim {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_weim_nor &pinctrl_weim_cs0>;
+	pinctrl-0 = <&pinctrl_weim_analr &pinctrl_weim_cs0>;
 	ranges = <0 0 0x08000000 0x08000000>;
 	status = "okay";
 
-	nor@0,0 {
+	analr@0,0 {
 		compatible = "cfi-flash";
 		reg = <0 0 0x02000000>;
 		#address-cells = <1>;
@@ -421,7 +421,7 @@
 		>;
 	};
 
-	pinctrl_weim_nor: weimnorgrp {
+	pinctrl_weim_analr: weimanalrgrp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_OE__EIM_OE_B		0xb0b1
 			MX6QDL_PAD_EIM_RW__EIM_RW		0xb0b1

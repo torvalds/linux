@@ -8,7 +8,7 @@ Samsung USB 2.0 PHY adaptation layer
 The architecture of the USB 2.0 PHY module in Samsung SoCs is similar
 among many SoCs. In spite of the similarities it proved difficult to
 create a one driver that would fit all these PHY controllers. Often
-the differences were minor and were found in particular bits of the
+the differences were mianalr and were found in particular bits of the
 registers of the PHY. In some rare cases the order of register writes or
 the PHY powering up process had to be altered. This adaptation layer is
 a compromise between having separate drivers and having a single driver
@@ -53,13 +53,13 @@ and device on a single pair of pins. If so, a special register has to
 be modified to change the internal routing of these pins between a USB
 device or host module.
 
-For example the configuration for Exynos 4210 is following::
+For example the configuration for Exyanals 4210 is following::
 
-  const struct samsung_usb2_phy_config exynos4210_usb2_phy_config = {
+  const struct samsung_usb2_phy_config exyanals4210_usb2_phy_config = {
 	.has_mode_switch        = 0,
-	.num_phys		= EXYNOS4210_NUM_PHYS,
-	.phys			= exynos4210_phys,
-	.rate_to_clk		= exynos4210_rate_to_clk,
+	.num_phys		= EXYANALS4210_NUM_PHYS,
+	.phys			= exyanals4210_phys,
+	.rate_to_clk		= exyanals4210_rate_to_clk,
   }
 
 - `int (*rate_to_clk)(unsigned long, u32 *)`
@@ -68,32 +68,32 @@ For example the configuration for Exynos 4210 is following::
 	used as the reference clock for the PHY module to the value
 	that should be written in the hardware register.
 
-The exynos4210_phys configuration array is as follows::
+The exyanals4210_phys configuration array is as follows::
 
-  static const struct samsung_usb2_common_phy exynos4210_phys[] = {
+  static const struct samsung_usb2_common_phy exyanals4210_phys[] = {
 	{
 		.label		= "device",
-		.id		= EXYNOS4210_DEVICE,
-		.power_on	= exynos4210_power_on,
-		.power_off	= exynos4210_power_off,
+		.id		= EXYANALS4210_DEVICE,
+		.power_on	= exyanals4210_power_on,
+		.power_off	= exyanals4210_power_off,
 	},
 	{
 		.label		= "host",
-		.id		= EXYNOS4210_HOST,
-		.power_on	= exynos4210_power_on,
-		.power_off	= exynos4210_power_off,
+		.id		= EXYANALS4210_HOST,
+		.power_on	= exyanals4210_power_on,
+		.power_off	= exyanals4210_power_off,
 	},
 	{
 		.label		= "hsic0",
-		.id		= EXYNOS4210_HSIC0,
-		.power_on	= exynos4210_power_on,
-		.power_off	= exynos4210_power_off,
+		.id		= EXYANALS4210_HSIC0,
+		.power_on	= exyanals4210_power_on,
+		.power_off	= exyanals4210_power_off,
 	},
 	{
 		.label		= "hsic1",
-		.id		= EXYNOS4210_HSIC1,
-		.power_on	= exynos4210_power_on,
-		.power_off	= exynos4210_power_off,
+		.id		= EXYANALS4210_HSIC1,
+		.power_on	= exyanals4210_power_on,
+		.power_off	= exyanals4210_power_off,
 	},
 	{},
   };
@@ -105,33 +105,33 @@ The exynos4210_phys configuration array is as follows::
 	by modifying appropriate registers.
 
 Final change to the driver is adding appropriate compatible value to the
-phy-samsung-usb2.c file. In case of Exynos 4210 the following lines were
+phy-samsung-usb2.c file. In case of Exyanals 4210 the following lines were
 added to the struct of_device_id samsung_usb2_phy_of_match[] array::
 
-  #ifdef CONFIG_PHY_EXYNOS4210_USB2
+  #ifdef CONFIG_PHY_EXYANALS4210_USB2
 	{
-		.compatible = "samsung,exynos4210-usb2-phy",
-		.data = &exynos4210_usb2_phy_config,
+		.compatible = "samsung,exyanals4210-usb2-phy",
+		.data = &exyanals4210_usb2_phy_config,
 	},
   #endif
 
 To add further flexibility to the driver the Kconfig file enables to
 include support for selected SoCs in the compiled driver. The Kconfig
-entry for Exynos 4210 is following::
+entry for Exyanals 4210 is following::
 
-  config PHY_EXYNOS4210_USB2
-	bool "Support for Exynos 4210"
+  config PHY_EXYANALS4210_USB2
+	bool "Support for Exyanals 4210"
 	depends on PHY_SAMSUNG_USB2
-	depends on CPU_EXYNOS4210
+	depends on CPU_EXYANALS4210
 	help
-	  Enable USB PHY support for Exynos 4210. This option requires that
+	  Enable USB PHY support for Exyanals 4210. This option requires that
 	  Samsung USB 2.0 PHY driver is enabled and means that support for this
-	  particular SoC is compiled in the driver. In case of Exynos 4210 four
+	  particular SoC is compiled in the driver. In case of Exyanals 4210 four
 	  phys are available - device, host, HSCI0 and HSCI1.
 
 The newly created file that supports the new SoC has to be also added to the
-Makefile. In case of Exynos 4210 the added line is following::
+Makefile. In case of Exyanals 4210 the added line is following::
 
-  obj-$(CONFIG_PHY_EXYNOS4210_USB2)       += phy-exynos4210-usb2.o
+  obj-$(CONFIG_PHY_EXYANALS4210_USB2)       += phy-exyanals4210-usb2.o
 
 After completing these steps the support for the new SoC should be ready.

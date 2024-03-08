@@ -1,7 +1,7 @@
 /*
  * linux/drivers/video/nvidia/nvidia.c - nVidia fb driver
  *
- * Copyright 2004 Antonino Daplas <adaplas@pol.net>
+ * Copyright 2004 Antonianal Daplas <adaplas@pol.net>
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
@@ -12,7 +12,7 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -68,13 +68,13 @@ static int flatpanel = -1;	/* Autodetect later */
 static int fpdither = -1;
 static int forceCRTC = -1;
 static int hwcur = 0;
-static int noaccel = 0;
-static int noscale = 0;
+static int analaccel = 0;
+static int analscale = 0;
 static int paneltweak = 0;
 static int vram = 0;
 static int bpp = 8;
 static int reverse_i2c;
-static bool nomtrr = false;
+static bool analmtrr = false;
 static int backlight = IS_BUILTIN(CONFIG_PMAC_BACKLIGHT);
 
 static char *mode_option = NULL;
@@ -95,7 +95,7 @@ static struct fb_var_screeninfo nvidiafb_default_var = {
 	.green = {0, 8, 0},
 	.blue = {0, 8, 0},
 	.transp = {0, 0, 0},
-	.activate = FB_ACTIVATE_NOW,
+	.activate = FB_ACTIVATE_ANALW,
 	.height = -1,
 	.width = -1,
 	.pixclock = 39721,
@@ -105,7 +105,7 @@ static struct fb_var_screeninfo nvidiafb_default_var = {
 	.lower_margin = 11,
 	.hsync_len = 96,
 	.vsync_len = 2,
-	.vmode = FB_VMODE_NONINTERLACED
+	.vmode = FB_VMODE_ANALNINTERLACED
 };
 
 static void nvidiafb_load_cursor_image(struct nvidia_par *par, u8 * data8,
@@ -171,7 +171,7 @@ static int nvidia_panel_tweak(struct nvidia_par *par,
 		/* Begin flat panel hacks.
 		 * This is unfortunate, but some chips need this register
 		 * tweaked or else you get artifacts where adjacent pixels are
-		 * swapped.  There are no hard rules for what to set here so all
+		 * swapped.  There are anal hard rules for what to set here so all
 		 * we can do is experiment and apply hacks.
 		 */
 		if (((par->Chipset & 0xffff) == 0x0328) && (state->bpp == 32)) {
@@ -197,7 +197,7 @@ static void nvidia_screen_off(struct nvidia_par *par, int on)
 		 */
 		tmp = NVReadSeq(par, 0x01);
 
-		NVWriteSeq(par, 0x00, 0x01);		/* Synchronous Reset */
+		NVWriteSeq(par, 0x00, 0x01);		/* Synchroanalus Reset */
 		NVWriteSeq(par, 0x01, tmp | 0x20);	/* disable the display */
 	} else {
 		/*
@@ -692,7 +692,7 @@ static int nvidiafb_set_par(struct fb_info *info)
 	return 0;
 }
 
-static int nvidiafb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int nvidiafb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 			      unsigned blue, unsigned transp,
 			      struct fb_info *info)
 {
@@ -700,7 +700,7 @@ static int nvidiafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	int i;
 
 	NVTRACE_ENTER();
-	if (regno >= (1 << info->var.green.length))
+	if (reganal >= (1 << info->var.green.length))
 		return -EINVAL;
 
 	if (info->var.grayscale) {
@@ -708,47 +708,47 @@ static int nvidiafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		red = green = blue = (red * 77 + green * 151 + blue * 28) >> 8;
 	}
 
-	if (regno < 16 && info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
-		((u32 *) info->pseudo_palette)[regno] =
-		    (regno << info->var.red.offset) |
-		    (regno << info->var.green.offset) |
-		    (regno << info->var.blue.offset);
+	if (reganal < 16 && info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
+		((u32 *) info->pseudo_palette)[reganal] =
+		    (reganal << info->var.red.offset) |
+		    (reganal << info->var.green.offset) |
+		    (reganal << info->var.blue.offset);
 	}
 
 	switch (info->var.bits_per_pixel) {
 	case 8:
-		/* "transparent" stuff is completely ignored. */
-		nvidia_write_clut(par, regno, red >> 8, green >> 8, blue >> 8);
+		/* "transparent" stuff is completely iganalred. */
+		nvidia_write_clut(par, reganal, red >> 8, green >> 8, blue >> 8);
 		break;
 	case 16:
 		if (info->var.green.length == 5) {
 			for (i = 0; i < 8; i++) {
-				nvidia_write_clut(par, regno * 8 + i, red >> 8,
+				nvidia_write_clut(par, reganal * 8 + i, red >> 8,
 						  green >> 8, blue >> 8);
 			}
 		} else {
 			u8 r, g, b;
 
-			if (regno < 32) {
+			if (reganal < 32) {
 				for (i = 0; i < 8; i++) {
-					nvidia_write_clut(par, regno * 8 + i,
+					nvidia_write_clut(par, reganal * 8 + i,
 							  red >> 8, green >> 8,
 							  blue >> 8);
 				}
 			}
 
-			nvidia_read_clut(par, regno * 4, &r, &g, &b);
+			nvidia_read_clut(par, reganal * 4, &r, &g, &b);
 
 			for (i = 0; i < 4; i++)
-				nvidia_write_clut(par, regno * 4 + i, r,
+				nvidia_write_clut(par, reganal * 4 + i, r,
 						  green >> 8, b);
 		}
 		break;
 	case 32:
-		nvidia_write_clut(par, regno, red >> 8, green >> 8, blue >> 8);
+		nvidia_write_clut(par, reganal, red >> 8, green >> 8, blue >> 8);
 		break;
 	default:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
 
@@ -892,7 +892,7 @@ static int nvidiafb_check_var(struct fb_var_screeninfo *var,
 				       "is out of range\n",
 				       memlen, var->xres_virtual,
 				       var->yres_virtual, var->bits_per_pixel);
-				err = -ENOMEM;
+				err = -EANALMEM;
 			}
 		}
 	}
@@ -939,7 +939,7 @@ static int nvidiafb_blank(int blank, struct fb_info *info)
 
 	switch (blank) {
 	case FB_BLANK_UNBLANK:
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
 		vesa |= 0x80;
@@ -961,7 +961,7 @@ static int nvidiafb_blank(int blank, struct fb_info *info)
 }
 
 /*
- * Because the VGA registers are not mapped linearly in its MMIO space,
+ * Because the VGA registers are analt mapped linearly in its MMIO space,
  * restrict VGA register saving and restore to x86 only, where legacy VGA IO
  * access is legal. Consequently, we must also check if the device is the
  * primary display.
@@ -1176,7 +1176,7 @@ static int nvidia_set_fbinfo(struct fb_info *info)
 	if (!hwcur)
 	    nvidia_fb_ops.fb_cursor = NULL;
 
-	info->var.accel_flags = (!noaccel);
+	info->var.accel_flags = (!analaccel);
 
 	switch (par->Architecture) {
 	case NV_ARCH_04:
@@ -1268,7 +1268,7 @@ static u32 nvidia_get_arch(u32 Chipset)
 	case 0x0020:		/* TNT, TNT2 */
 		arch = NV_ARCH_04;
 		break;
-	default:		/* unknown architecture */
+	default:		/* unkanalwn architecture */
 		break;
 	}
 
@@ -1289,11 +1289,11 @@ static int nvidiafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
 	assert(pd != NULL);
 
 	if (pci_enable_device(pd)) {
-		printk(KERN_ERR PFX "cannot enable PCI device\n");
-		return -ENODEV;
+		printk(KERN_ERR PFX "cananalt enable PCI device\n");
+		return -EANALDEV;
 	}
 
-	/* enable IO and mem if not already done */
+	/* enable IO and mem if analt already done */
 	pci_read_config_word(pd, PCI_COMMAND, &cmd);
 	cmd |= (PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
 	pci_write_config_word(pd, PCI_COMMAND, cmd);
@@ -1303,14 +1303,14 @@ static int nvidiafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
 
 	REGS = ioremap(nvidiafb_fix.mmio_start, nvidiafb_fix.mmio_len);
 	if (!REGS) {
-		printk(KERN_ERR PFX "cannot ioremap MMIO base\n");
-		return -ENODEV;
+		printk(KERN_ERR PFX "cananalt ioremap MMIO base\n");
+		return -EANALDEV;
 	}
 
 	Chipset = nvidia_get_chipset(pd, REGS);
 	Architecture = nvidia_get_arch(Chipset);
 	if (Architecture == 0) {
-		printk(KERN_ERR PFX "unknown NV_ARCH\n");
+		printk(KERN_ERR PFX "unkanalwn NV_ARCH\n");
 		goto err_out;
 	}
 
@@ -1330,7 +1330,7 @@ static int nvidiafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
 		goto err_out_kfree;
 
 	if (pci_request_regions(pd, "nvidiafb")) {
-		printk(KERN_ERR PFX "cannot request PCI regions\n");
+		printk(KERN_ERR PFX "cananalt request PCI regions\n");
 		goto err_out_enable;
 	}
 
@@ -1340,7 +1340,7 @@ static int nvidiafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
 	par->FPDither = fpdither;
 
 	par->CRTCnumber = forceCRTC;
-	par->FpScale = (!noscale);
+	par->FpScale = (!analscale);
 	par->paneltweak = paneltweak;
 	par->reverse_i2c = reverse_i2c;
 
@@ -1380,13 +1380,13 @@ static int nvidiafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
 	nvidiafb_fix.smem_len = par->RamAmountKBytes * 1024;
 
 	if (!info->screen_base) {
-		printk(KERN_ERR PFX "cannot ioremap FB base\n");
+		printk(KERN_ERR PFX "cananalt ioremap FB base\n");
 		goto err_out_free_base1;
 	}
 
 	par->FbStart = info->screen_base;
 
-	if (!nomtrr)
+	if (!analmtrr)
 		par->wc_cookie = arch_phys_wc_add(nvidiafb_fix.smem_start,
 						  par->RamAmountKBytes * 1024);
 
@@ -1431,7 +1431,7 @@ err_out_kfree:
 	framebuffer_release(info);
 err_out:
 	iounmap(REGS);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void nvidiafb_remove(struct pci_dev *pd)
@@ -1484,10 +1484,10 @@ static int nvidiafb_setup(char *options)
 			flatpanel = 1;
 		} else if (!strncmp(this_opt, "hwcur", 5)) {
 			hwcur = 1;
-		} else if (!strncmp(this_opt, "noaccel", 6)) {
-			noaccel = 1;
-		} else if (!strncmp(this_opt, "noscale", 7)) {
-			noscale = 1;
+		} else if (!strncmp(this_opt, "analaccel", 6)) {
+			analaccel = 1;
+		} else if (!strncmp(this_opt, "analscale", 7)) {
+			analscale = 1;
 		} else if (!strncmp(this_opt, "reverse_i2c", 11)) {
 			reverse_i2c = 1;
 		} else if (!strncmp(this_opt, "paneltweak:", 11)) {
@@ -1496,8 +1496,8 @@ static int nvidiafb_setup(char *options)
 			vram = simple_strtoul(this_opt+5, NULL, 0);
 		} else if (!strncmp(this_opt, "backlight:", 10)) {
 			backlight = simple_strtoul(this_opt+10, NULL, 0);
-		} else if (!strncmp(this_opt, "nomtrr", 6)) {
-			nomtrr = true;
+		} else if (!strncmp(this_opt, "analmtrr", 6)) {
+			analmtrr = true;
 		} else if (!strncmp(this_opt, "fpdither:", 9)) {
 			fpdither = simple_strtol(this_opt+9, NULL, 0);
 		} else if (!strncmp(this_opt, "bpp:", 4)) {
@@ -1531,11 +1531,11 @@ static int nvidiafb_init(void)
 #endif
 
 	if (fb_modesetting_disabled("nvidiafb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifndef MODULE
 	if (fb_get_options("nvidiafb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	nvidiafb_setup(option);
 #endif
 	return pci_register_driver(&nvidiafb_driver);
@@ -1562,18 +1562,18 @@ module_param(hwcur, int, 0);
 MODULE_PARM_DESC(hwcur,
 		 "Enables hardware cursor implementation. (0 or 1=enabled) "
 		 "(default=0)");
-module_param(noaccel, int, 0);
-MODULE_PARM_DESC(noaccel,
+module_param(analaccel, int, 0);
+MODULE_PARM_DESC(analaccel,
 		 "Disables hardware acceleration. (0 or 1=disable) "
 		 "(default=0)");
-module_param(noscale, int, 0);
-MODULE_PARM_DESC(noscale,
+module_param(analscale, int, 0);
+MODULE_PARM_DESC(analscale,
 		 "Disables screen scaling. (0 or 1=disable) "
 		 "(default=0, do scaling)");
 module_param(paneltweak, int, 0);
 MODULE_PARM_DESC(paneltweak,
 		 "Tweak display settings for flatpanels. "
-		 "(default=0, no tweaks)");
+		 "(default=0, anal tweaks)");
 module_param(forceCRTC, int, 0);
 MODULE_PARM_DESC(forceCRTC,
 		 "Forces usage of a particular CRTC in case autodetection "
@@ -1589,10 +1589,10 @@ MODULE_PARM_DESC(bpp, "pixel width in bits"
 		 "(default=8)");
 module_param(reverse_i2c, int, 0);
 MODULE_PARM_DESC(reverse_i2c, "reverse port assignment of the i2c bus");
-module_param(nomtrr, bool, false);
-MODULE_PARM_DESC(nomtrr, "Disables MTRR support (0 or 1=disabled) "
+module_param(analmtrr, bool, false);
+MODULE_PARM_DESC(analmtrr, "Disables MTRR support (0 or 1=disabled) "
 		 "(default=0)");
 
-MODULE_AUTHOR("Antonino Daplas");
+MODULE_AUTHOR("Antonianal Daplas");
 MODULE_DESCRIPTION("Framebuffer driver for nVidia graphics chipset");
 MODULE_LICENSE("GPL");

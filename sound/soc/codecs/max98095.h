@@ -119,7 +119,7 @@
 #define M98095_068_LVL_SPK_R                0x68
 #define M98095_069_MICAGC_CFG               0x69
 #define M98095_06A_MICAGC_THRESH            0x6A
-#define M98095_06B_SPK_NOISEGATE            0x6B
+#define M98095_06B_SPK_ANALISEGATE            0x6B
 #define M98095_06C_DAI1_ALC1_TIME           0x6C
 #define M98095_06D_DAI1_ALC1_COMP           0x6D
 #define M98095_06E_DAI1_ALC1_EXPN           0x6E
@@ -144,7 +144,7 @@
 #define M98095_081_DAI2_ALC3_COMP           0x81
 #define M98095_082_DAI2_ALC3_EXPN           0x82
 #define M98095_083_DAI2_ALC3_GAIN           0x83
-#define M98095_084_HP_NOISE_GATE            0x84
+#define M98095_084_HP_ANALISE_GATE            0x84
 #define M98095_085_AUX_ADC                  0x85
 #define M98095_086_CFG_LINE                 0x86
 #define M98095_087_CFG_MIC                  0x87
@@ -207,16 +207,16 @@
 	#define M98095_DAI_DOSR_DIV4            (1<<5)
 
 /* M98095_02C_DAI1_IOCFG, M98095_036_DAI2_IOCFG, M98095_040_DAI3_IOCFG */
-	#define M98095_S1NORMAL                 (1<<6)
-	#define M98095_S2NORMAL                 (2<<6)
-	#define M98095_S3NORMAL                 (3<<6)
+	#define M98095_S1ANALRMAL                 (1<<6)
+	#define M98095_S2ANALRMAL                 (2<<6)
+	#define M98095_S3ANALRMAL                 (3<<6)
 	#define M98095_SDATA                    (3<<0)
 
 /* M98095_02E_DAI1_FILTERS, M98095_038_DAI2_FILTERS, M98095_042_DAI3_FILTERS */
 	#define M98095_DAI_DHF                  (1<<3)
 
 /* M98095_045_DSP_CFG */
-	#define M98095_DSPNORMAL                (5<<4)
+	#define M98095_DSPANALRMAL                (5<<4)
 
 /* M98095_048_MIX_DAC_LR */
 	#define M98095_DAI1L_TO_DACR            (1<<7)
@@ -234,7 +234,7 @@
 	#define M98095_DAI3M_TO_DACM            (1<<0)
 
 /* M98095_04E_MIX_HP_CFG */
-	#define M98095_HPNORMAL                 (3<<4)
+	#define M98095_HPANALRMAL                 (3<<4)
 
 /* M98095_05F_LVL_MIC1, M98095_060_LVL_MIC2 */
 	#define M98095_MICPRE_MASK              (3<<5)

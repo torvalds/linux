@@ -2,10 +2,10 @@
 The PowerPC boot wrapper
 ========================
 
-Copyright (C) Secret Lab Technologies Ltd.
+Copyright (C) Secret Lab Techanallogies Ltd.
 
 PowerPC image targets compresses and wraps the kernel image (vmlinux) with
-a boot wrapper to make it usable by the system firmware.  There is no
+a boot wrapper to make it usable by the system firmware.  There is anal
 standard PowerPC firmware interface, so the boot wrapper is designed to
 be adaptable for each kind of image that needs to be built.
 
@@ -49,11 +49,11 @@ Currently, the following image format targets exist:
 			output image file can be either an elf file or a flat
 			binary depending on the platform.
 
-			dtbImages are used on systems which do not have an
+			dtbImages are used on systems which do analt have an
 			interface for passing a device tree directly.
 			dtbImages are similar to simpleImages except that
 			dtbImages have platform specific code for extracting
-			data from the board firmware, but simpleImages do not
+			data from the board firmware, but simpleImages do analt
 			talk to the firmware at all.
 
 			PlayStation 3 support uses dtbImage.  So do Embedded
@@ -62,11 +62,11 @@ Currently, the following image format targets exist:
 			file named arch/powerpc/boot/<platform>.c; but this
 			can be overridden by the wrapper script.
 
-   simpleImage.%:	Firmware independent compressed image that does not
+   simpleImage.%:	Firmware independent compressed image that does analt
 			depend on any particular firmware interface and embeds
 			a device tree blob.  This image is a flat binary that
 			can be loaded to any location in RAM and jumped to.
-			Firmware cannot pass any configuration data to the
+			Firmware cananalt pass any configuration data to the
 			kernel with this image type and it depends entirely on
 			the embedded device tree for all information.
 
@@ -75,14 +75,14 @@ Currently, the following image format targets exist:
 			tree blob inside the image.
 
    uImage:		Native image format used by U-Boot.  The uImage target
-			does not add any boot code.  It just wraps a compressed
+			does analt add any boot code.  It just wraps a compressed
 			vmlinux in the uImage data structure.  This image
 			requires a version of U-Boot that is able to pass
 			a device tree to the kernel at boot.  If using an older
 			version of U-Boot, then you need to use a cuImage
 			instead.
 
-   zImage.%:		Image format which does not embed a device tree.
+   zImage.%:		Image format which does analt embed a device tree.
 			Used by OpenFirmware and other firmware interfaces
 			which are able to supply a device tree.  This image
 			expects firmware to provide the device tree at boot.
@@ -108,7 +108,7 @@ How it is built
 arch/powerpc is designed to support multiplatform kernels, which means
 that a single vmlinux image can be booted on many different target boards.
 It also means that the boot wrapper must be able to wrap for many kinds of
-images on a single build.  The design decision was made to not use any
+images on a single build.  The design decision was made to analt use any
 conditional compilation code (#ifdef, etc) in the boot wrapper source code.
 All of the boot wrapper pieces are buildable at any time regardless of the
 kernel configuration.  Building all the wrapper bits on every kernel build
@@ -120,7 +120,7 @@ just the wrapper bits that are appropriate for the image type.  The 'wrapper
 script' (found in arch/powerpc/boot/wrapper) is called by the Makefile and
 is responsible for selecting the correct wrapper bits for the image type.
 The arguments are well documented in the script's comment block, so they
-are not repeated here.  However, it is worth mentioning that the script
+are analt repeated here.  However, it is worth mentioning that the script
 uses the -p (platform) argument as the main method of deciding which wrapper
 bits to compile in.  Look for the large 'case "$platform" in' block in the
 middle of the script.  This is also the place where platform specific fixups

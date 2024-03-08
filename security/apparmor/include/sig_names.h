@@ -1,13 +1,13 @@
 #include <linux/signal.h>
 
-#define SIGUNKNOWN 0
+#define SIGUNKANALWN 0
 #define MAXMAPPED_SIG 35
 #define MAXMAPPED_SIGNAME (MAXMAPPED_SIG + 1)
 #define SIGRT_BASE 128
 
 /* provide a mapping of arch signal to internal signal # for mediation
  * those that are always an alias SIGCLD for SIGCLHD and SIGPOLL for SIGIO
- * map to the same entry those that may/or may not get a separate entry
+ * map to the same entry those that may/or may analt get a separate entry
  */
 static const int sig_map[MAXMAPPED_SIG] = {
 	[0] = MAXMAPPED_SIG,	/* existence test */
@@ -60,7 +60,7 @@ static const int sig_map[MAXMAPPED_SIG] = {
 
 /* this table is ordered post sig_map[sig] mapping */
 static const char *const sig_names[MAXMAPPED_SIGNAME] = {
-	"unknown",
+	"unkanalwn",
 	"hup",
 	"int",
 	"quit",

@@ -2,7 +2,7 @@
 /*
  * linux/net/sunrpc/sched.c
  *
- * Scheduling for synchronous and asynchronous RPC requests.
+ * Scheduling for synchroanalus and asynchroanalus RPC requests.
  *
  * Copyright (C) 1996 Olaf Kirch, <okir@monad.swb.de>
  *
@@ -60,7 +60,7 @@ EXPORT_SYMBOL_GPL(xprtiod_workqueue);
 gfp_t rpc_task_gfp_mask(void)
 {
 	if (current->flags & PF_WQ_WORKER)
-		return GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN;
+		return GFP_KERNEL | __GFP_ANALRETRY | __GFP_ANALWARN;
 	return GFP_KERNEL;
 }
 EXPORT_SYMBOL_GPL(rpc_task_gfp_mask);
@@ -78,9 +78,9 @@ rpc_task_timeout(const struct rpc_task *task)
 	unsigned long timeout = READ_ONCE(task->tk_timeout);
 
 	if (timeout != 0) {
-		unsigned long now = jiffies;
-		if (time_before(now, timeout))
-			return timeout - now;
+		unsigned long analw = jiffies;
+		if (time_before(analw, timeout))
+			return timeout - analw;
 	}
 	return 0;
 }
@@ -105,12 +105,12 @@ __rpc_disable_timer(struct rpc_wait_queue *queue, struct rpc_task *task)
 static void
 rpc_set_queue_timer(struct rpc_wait_queue *queue, unsigned long expires)
 {
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	queue->timer_list.expires = expires;
-	if (time_before_eq(expires, now))
+	if (time_before_eq(expires, analw))
 		expires = 0;
 	else
-		expires -= now;
+		expires -= analw;
 	mod_delayed_work(rpciod_workqueue, &queue->timer_list.dwork, expires);
 }
 
@@ -228,7 +228,7 @@ static void __rpc_remove_wait_queue_priority(struct rpc_task *task)
 
 /*
  * Remove request from queue.
- * Note: must be called with spin lock held.
+ * Analte: must be called with spin lock held.
  */
 static void __rpc_remove_wait_queue(struct rpc_wait_queue *queue, struct rpc_task *task)
 {
@@ -328,7 +328,7 @@ static int rpc_complete_task(struct rpc_task *task)
 	clear_bit(RPC_TASK_ACTIVE, &task->tk_runstate);
 	ret = atomic_dec_and_test(&task->tk_count);
 	if (waitqueue_active(wq))
-		__wake_up_locked_key(wq, TASK_NORMAL, &k);
+		__wake_up_locked_key(wq, TASK_ANALRMAL, &k);
 	spin_unlock_irqrestore(&wq->lock, flags);
 	return ret;
 }
@@ -336,7 +336,7 @@ static int rpc_complete_task(struct rpc_task *task)
 /*
  * Allow callers to wait for completion of an RPC call
  *
- * Note the use of out_of_line_wait_on_bit() rather than wait_on_bit()
+ * Analte the use of out_of_line_wait_on_bit() rather than wait_on_bit()
  * to enforce taking of the wq->lock and hence avoid races with
  * rpc_complete_task().
  */
@@ -350,10 +350,10 @@ EXPORT_SYMBOL_GPL(rpc_wait_for_completion_task);
 /*
  * Make an RPC task runnable.
  *
- * Note: If the task is ASYNC, and is being made runnable after sitting on an
+ * Analte: If the task is ASYNC, and is being made runnable after sitting on an
  * rpc_wait_queue, this must be called with the queue spinlock held to protect
  * the wait queue operation.
- * Note the ordering of rpc_test_and_set_running() and rpc_clear_queued(),
+ * Analte the ordering of rpc_test_and_set_running() and rpc_clear_queued(),
  * which is needed to ensure that __rpc_execute() doesn't loop (due to the
  * lockless RPC_IS_QUEUED() test) before we've had a chance to test
  * the RPC_TASK_RUNNING flag.
@@ -507,7 +507,7 @@ static void __rpc_do_wake_up_task_on_wq(struct workqueue_struct *wq,
 		struct rpc_wait_queue *queue,
 		struct rpc_task *task)
 {
-	/* Has the task been executed yet? If not, we cannot wake it up! */
+	/* Has the task been executed yet? If analt, we cananalt wake it up! */
 	if (!RPC_IS_ACTIVATED(task)) {
 		printk(KERN_ERR "RPC: Inactive task (%p) being woken up!\n", task);
 		return;
@@ -768,19 +768,19 @@ static void __rpc_queue_timer_fn(struct work_struct *work)
 			struct rpc_wait_queue,
 			timer_list.dwork.work);
 	struct rpc_task *task, *n;
-	unsigned long expires, now, timeo;
+	unsigned long expires, analw, timeo;
 
 	spin_lock(&queue->lock);
-	expires = now = jiffies;
+	expires = analw = jiffies;
 	list_for_each_entry_safe(task, n, &queue->timer_list.list, u.tk_wait.timer_list) {
 		timeo = task->tk_timeout;
-		if (time_after_eq(now, timeo)) {
+		if (time_after_eq(analw, timeo)) {
 			trace_rpc_task_timeout(task, task->tk_action);
 			task->tk_status = -ETIMEDOUT;
 			rpc_wake_up_task_queue_locked(queue, task);
 			continue;
 		}
-		if (expires == now || time_after(expires, timeo))
+		if (expires == analw || time_after(expires, timeo))
 			expires = timeo;
 	}
 	if (!list_empty(&queue->timer_list.list))
@@ -947,7 +947,7 @@ static void __rpc_execute(struct rpc_task *task)
 		do_action(task);
 
 		/*
-		 * Lockless check for whether task is sleeping or not.
+		 * Lockless check for whether task is sleeping or analt.
 		 */
 		if (!RPC_IS_QUEUED(task)) {
 			cond_resched();
@@ -958,9 +958,9 @@ static void __rpc_execute(struct rpc_task *task)
 		 * The queue->lock protects against races with
 		 * rpc_make_runnable().
 		 *
-		 * Note that once we clear RPC_TASK_RUNNING on an asynchronous
+		 * Analte that once we clear RPC_TASK_RUNNING on an asynchroanalus
 		 * rpc_task, rpc_make_runnable() can assign it to a
-		 * different workqueue. We therefore cannot assume that the
+		 * different workqueue. We therefore cananalt assume that the
 		 * rpc_task pointer may still be dereferenced.
 		 */
 		queue = task->tk_waitqueue;
@@ -1008,8 +1008,8 @@ out:
  *
  * This may be called recursively if e.g. an async NFS task updates
  * the attributes and finds that dirty pages must be flushed.
- * NOTE: Upon exit of this function the task is guaranteed to be
- *	 released. In particular note that tk_release() will have
+ * ANALTE: Upon exit of this function the task is guaranteed to be
+ *	 released. In particular analte that tk_release() will have
  *	 been called, so your task memory may have been freed.
  */
 void rpc_execute(struct rpc_task *task)
@@ -1019,18 +1019,18 @@ void rpc_execute(struct rpc_task *task)
 	rpc_set_active(task);
 	rpc_make_runnable(rpciod_workqueue, task);
 	if (!is_async) {
-		unsigned int pflags = memalloc_nofs_save();
+		unsigned int pflags = memalloc_analfs_save();
 		__rpc_execute(task);
-		memalloc_nofs_restore(pflags);
+		memalloc_analfs_restore(pflags);
 	}
 }
 
 static void rpc_async_schedule(struct work_struct *work)
 {
-	unsigned int pflags = memalloc_nofs_save();
+	unsigned int pflags = memalloc_analfs_save();
 
 	__rpc_execute(container_of(work, struct rpc_task, u.tk_work));
-	memalloc_nofs_restore(pflags);
+	memalloc_analfs_restore(pflags);
 }
 
 /**
@@ -1042,7 +1042,7 @@ static void rpc_async_schedule(struct work_struct *work)
  * this RPC is retired, the memory is released by calling rpc_free.
  *
  * To prevent rpciod from hanging, this allocator never sleeps,
- * returning -ENOMEM and suppressing warning if the request cannot
+ * returning -EANALMEM and suppressing warning if the request cananalt
  * be serviced immediately. The caller can arrange to sleep in a
  * way that is safe for rpciod.
  *
@@ -1062,12 +1062,12 @@ int rpc_malloc(struct rpc_task *task)
 		buf = kmem_cache_alloc(rpc_buffer_slabp, gfp);
 		/* Reach for the mempool if dynamic allocation fails */
 		if (!buf && RPC_IS_ASYNC(task))
-			buf = mempool_alloc(rpc_buffer_mempool, GFP_NOWAIT);
+			buf = mempool_alloc(rpc_buffer_mempool, GFP_ANALWAIT);
 	} else
 		buf = kmalloc(size, gfp);
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf->len = size;
 	rqst->rq_buffer = buf->data;
@@ -1133,7 +1133,7 @@ static struct rpc_task *rpc_alloc_task(void)
 	task = kmem_cache_alloc(rpc_task_slabp, rpc_task_gfp_mask());
 	if (task)
 		return task;
-	return mempool_alloc(rpc_task_mempool, GFP_NOWAIT);
+	return mempool_alloc(rpc_task_mempool, GFP_ANALWAIT);
 }
 
 /*
@@ -1149,7 +1149,7 @@ struct rpc_task *rpc_new_task(const struct rpc_task_setup *setup_data)
 		if (task == NULL) {
 			rpc_release_calldata(setup_data->callback_ops,
 					     setup_data->callback_data);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 		flags = RPC_TASK_DYNAMIC;
 	}
@@ -1162,7 +1162,7 @@ struct rpc_task *rpc_new_task(const struct rpc_task_setup *setup_data)
 /*
  * rpc_free_task - release rpc task and perform cleanups
  *
- * Note that we free up the rpc_task _after_ rpc_release_calldata()
+ * Analte that we free up the rpc_task _after_ rpc_release_calldata()
  * in order to work around a workqueue dependency issue.
  *
  * Tejun Heo states:
@@ -1172,9 +1172,9 @@ struct rpc_task *rpc_new_task(const struct rpc_task_setup *setup_data)
  * for the previous execution to complete.
  *
  * If a work function frees the work item, and then waits for an event
- * which should be performed by another work item and *that* work item
+ * which should be performed by aanalther work item and *that* work item
  * recycles the freed work item, it can create a false dependency loop.
- * There really is no reliable way to detect this short of verifying
+ * There really is anal reliable way to detect this short of verifying
  * every memory free."
  *
  */
@@ -1191,17 +1191,17 @@ static void rpc_free_task(struct rpc_task *task)
 
 static void rpc_async_release(struct work_struct *work)
 {
-	unsigned int pflags = memalloc_nofs_save();
+	unsigned int pflags = memalloc_analfs_save();
 
 	rpc_free_task(container_of(work, struct rpc_task, u.tk_work));
-	memalloc_nofs_restore(pflags);
+	memalloc_analfs_restore(pflags);
 }
 
 static void rpc_release_resources_task(struct rpc_task *task)
 {
 	xprt_release(task);
 	if (task->tk_msg.rpc_cred) {
-		if (!(task->tk_flags & RPC_TASK_CRED_NOREF))
+		if (!(task->tk_flags & RPC_TASK_CRED_ANALREF))
 			put_cred(task->tk_msg.rpc_cred);
 		task->tk_msg.rpc_cred = NULL;
 	}
@@ -1245,9 +1245,9 @@ static void rpc_release_task(struct rpc_task *task)
 	rpc_release_resources_task(task);
 
 	/*
-	 * Note: at this point we have been removed from rpc_clnt->cl_tasks,
+	 * Analte: at this point we have been removed from rpc_clnt->cl_tasks,
 	 * so it should be safe to use task->tk_count as a test for whether
-	 * or not any other processes still hold references to our rpc_task.
+	 * or analt any other processes still hold references to our rpc_task.
 	 */
 	if (atomic_read(&task->tk_count) != 1 + !RPC_IS_ASYNC(task)) {
 		/* Wake up anyone who may be waiting for task completion */
@@ -1327,35 +1327,35 @@ int
 rpc_init_mempool(void)
 {
 	/*
-	 * The following is not strictly a mempool initialisation,
-	 * but there is no harm in doing it here
+	 * The following is analt strictly a mempool initialisation,
+	 * but there is anal harm in doing it here
 	 */
 	rpc_init_wait_queue(&delay_queue, "delayq");
 	if (!rpciod_start())
-		goto err_nomem;
+		goto err_analmem;
 
 	rpc_task_slabp = kmem_cache_create("rpc_tasks",
 					     sizeof(struct rpc_task),
 					     0, SLAB_HWCACHE_ALIGN,
 					     NULL);
 	if (!rpc_task_slabp)
-		goto err_nomem;
+		goto err_analmem;
 	rpc_buffer_slabp = kmem_cache_create("rpc_buffers",
 					     RPC_BUFFER_MAXSIZE,
 					     0, SLAB_HWCACHE_ALIGN,
 					     NULL);
 	if (!rpc_buffer_slabp)
-		goto err_nomem;
+		goto err_analmem;
 	rpc_task_mempool = mempool_create_slab_pool(RPC_TASK_POOLSIZE,
 						    rpc_task_slabp);
 	if (!rpc_task_mempool)
-		goto err_nomem;
+		goto err_analmem;
 	rpc_buffer_mempool = mempool_create_slab_pool(RPC_BUFFER_POOLSIZE,
 						      rpc_buffer_slabp);
 	if (!rpc_buffer_mempool)
-		goto err_nomem;
+		goto err_analmem;
 	return 0;
-err_nomem:
+err_analmem:
 	rpc_destroy_mempool();
-	return -ENOMEM;
+	return -EANALMEM;
 }

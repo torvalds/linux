@@ -35,13 +35,13 @@
  *	initialised by driver and can be updated by fw upon reception of
  *	action frames that can change the channel width. When cleared the fw
  *	will send all the frames in 20MHz even when FAT channel is requested.
- * @STA_FLG_FAT_EN_20MHZ: no wide channels are supported, only 20 MHz
+ * @STA_FLG_FAT_EN_20MHZ: anal wide channels are supported, only 20 MHz
  * @STA_FLG_FAT_EN_40MHZ: wide channels up to 40 MHz supported
  * @STA_FLG_FAT_EN_80MHZ: wide channels up to 80 MHz supported
  * @STA_FLG_FAT_EN_160MHZ: wide channels up to 160 MHz supported
  * @STA_FLG_MIMO_EN_MSK: support for MIMO. This flag is initialised by the
  *	driver and can be updated by fw upon reception of action frames.
- * @STA_FLG_MIMO_EN_SISO: no support for MIMO
+ * @STA_FLG_MIMO_EN_SISO: anal support for MIMO
  * @STA_FLG_MIMO_EN_MIMO2: 2 streams supported
  * @STA_FLG_MIMO_EN_MIMO3: 3 streams supported
  * @STA_FLG_AGG_MPDU_DENS_MSK: A-MPDU density (mask)
@@ -98,40 +98,40 @@ enum iwl_sta_flags {
 
 /**
  * enum iwl_sta_key_flag - key flags for the ADD_STA host command
- * @STA_KEY_FLG_NO_ENC: no encryption
+ * @STA_KEY_FLG_ANAL_ENC: anal encryption
  * @STA_KEY_FLG_WEP: WEP encryption algorithm
  * @STA_KEY_FLG_CCM: CCMP encryption algorithm
  * @STA_KEY_FLG_TKIP: TKIP encryption algorithm
  * @STA_KEY_FLG_EXT: extended cipher algorithm (depends on the FW support)
  * @STA_KEY_FLG_GCMP: GCMP encryption algorithm
  * @STA_KEY_FLG_CMAC: CMAC encryption algorithm
- * @STA_KEY_FLG_ENC_UNKNOWN: unknown encryption algorithm
+ * @STA_KEY_FLG_ENC_UNKANALWN: unkanalwn encryption algorithm
  * @STA_KEY_FLG_EN_MSK: mask for encryption algorithmi value
  * @STA_KEY_FLG_WEP_KEY_MAP: wep is either a group key (0 - legacy WEP) or from
  *	station info array (1 - n 1X mode)
  * @STA_KEY_FLG_KEYID_MSK: the index of the key
  * @STA_KEY_FLG_KEYID_POS: key index bit position
- * @STA_KEY_NOT_VALID: key is invalid
+ * @STA_KEY_ANALT_VALID: key is invalid
  * @STA_KEY_FLG_WEP_13BYTES: set for 13 bytes WEP key
- * @STA_KEY_FLG_KEY_32BYTES: for non-wep key set for 32 bytes key
+ * @STA_KEY_FLG_KEY_32BYTES: for analn-wep key set for 32 bytes key
  * @STA_KEY_MULTICAST: set for multical key
  * @STA_KEY_MFP: key is used for Management Frame Protection
  */
 enum iwl_sta_key_flag {
-	STA_KEY_FLG_NO_ENC		= (0 << 0),
+	STA_KEY_FLG_ANAL_ENC		= (0 << 0),
 	STA_KEY_FLG_WEP			= (1 << 0),
 	STA_KEY_FLG_CCM			= (2 << 0),
 	STA_KEY_FLG_TKIP		= (3 << 0),
 	STA_KEY_FLG_EXT			= (4 << 0),
 	STA_KEY_FLG_GCMP		= (5 << 0),
 	STA_KEY_FLG_CMAC		= (6 << 0),
-	STA_KEY_FLG_ENC_UNKNOWN		= (7 << 0),
+	STA_KEY_FLG_ENC_UNKANALWN		= (7 << 0),
 	STA_KEY_FLG_EN_MSK		= (7 << 0),
 
 	STA_KEY_FLG_WEP_KEY_MAP		= BIT(3),
 	STA_KEY_FLG_KEYID_POS		 = 8,
 	STA_KEY_FLG_KEYID_MSK		= (3 << STA_KEY_FLG_KEYID_POS),
-	STA_KEY_NOT_VALID		= BIT(11),
+	STA_KEY_ANALT_VALID		= BIT(11),
 	STA_KEY_FLG_WEP_13BYTES		= BIT(12),
 	STA_KEY_FLG_KEY_32BYTES		= BIT(12),
 	STA_KEY_MULTICAST		= BIT(14),
@@ -262,7 +262,7 @@ struct iwl_mvm_add_sta_cmd_v7 {
 /**
  * enum iwl_sta_type - FW station types
  * ( REPLY_ADD_STA = 0x18 )
- * @IWL_STA_LINK: Link station - normal RX and TX traffic.
+ * @IWL_STA_LINK: Link station - analrmal RX and TX traffic.
  * @IWL_STA_GENERAL_PURPOSE: General purpose. In AP mode used for beacons
  *	and probe responses.
  * @IWL_STA_MULTICAST: multicast traffic,
@@ -387,7 +387,7 @@ struct iwl_mvm_add_sta_key_cmd_v1 {
  * @tx_mic_key: TKIP TX key
  * @transmit_seq_cnt: TSC, transmit packet number
  *
- * Note: This is used for both v2 and v3, the difference being
+ * Analte: This is used for both v2 and v3, the difference being
  * in the way the common.rx_secur_seq_cnt is used, in v2 that's
  * the strange hole format, in v3 it's just a u64.
  */
@@ -401,16 +401,16 @@ struct iwl_mvm_add_sta_key_cmd {
 /**
  * enum iwl_mvm_add_sta_rsp_status - status in the response to ADD_STA command
  * @ADD_STA_SUCCESS: operation was executed successfully
- * @ADD_STA_STATIONS_OVERLOAD: no room left in the fw's station table
+ * @ADD_STA_STATIONS_OVERLOAD: anal room left in the fw's station table
  * @ADD_STA_IMMEDIATE_BA_FAILURE: can't add Rx block ack session
- * @ADD_STA_MODIFY_NON_EXISTING_STA: driver requested to modify a station that
+ * @ADD_STA_MODIFY_ANALN_EXISTING_STA: driver requested to modify a station that
  *	doesn't exist.
  */
 enum iwl_mvm_add_sta_rsp_status {
 	ADD_STA_SUCCESS			= 0x1,
 	ADD_STA_STATIONS_OVERLOAD	= 0x2,
 	ADD_STA_IMMEDIATE_BA_FAILURE	= 0x4,
-	ADD_STA_MODIFY_NON_EXISTING_STA	= 0x8,
+	ADD_STA_MODIFY_ANALN_EXISTING_STA	= 0x8,
 };
 
 /**
@@ -481,12 +481,12 @@ struct iwl_mvm_wep_key_cmd {
 } __packed; /* SEC_CURR_WEP_KEY_CMD_API_S_VER_2 */
 
 /**
- * struct iwl_mvm_eosp_notification - EOSP notification from firmware
- * @remain_frame_count: # of frames remaining, non-zero if SP was cut
+ * struct iwl_mvm_eosp_analtification - EOSP analtification from firmware
+ * @remain_frame_count: # of frames remaining, analn-zero if SP was cut
  *	short by GO absence
  * @sta_id: station ID
  */
-struct iwl_mvm_eosp_notification {
+struct iwl_mvm_eosp_analtification {
 	__le32 remain_frame_count;
 	__le32 sta_id;
 } __packed; /* UAPSD_EOSP_NTFY_API_S_VER_1 */

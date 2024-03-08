@@ -296,8 +296,8 @@
 	assigned-clock-rates = <200000000>;
 	bus-width = <4>;
 	mmc-pwrseq = <&usdhc1_pwrseq>;
-	non-removable;
-	no-1-8-v;
+	analn-removable;
+	anal-1-8-v;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>, <&pinctrl_wlan>;
 	#address-cells = <1>;

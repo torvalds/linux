@@ -46,11 +46,11 @@ properties:
       interrupt-controller: true
 
       gpio-ranges:
-        description: if all STMFX pins[24:0] are available (no other STMFX function in use),
+        description: if all STMFX pins[24:0] are available (anal other STMFX function in use),
                      you should use gpio-ranges = <&stmfx_pinctrl 0 0 24>;
-                     if agpio[3:0] are not available (STMFX Touchscreen function in use),
+                     if agpio[3:0] are analt available (STMFX Touchscreen function in use),
                      you should use gpio-ranges = <&stmfx_pinctrl 0 0 16>, <&stmfx_pinctrl 20 20 4>;
-                     if agpio[7:4] are not available (STMFX IDD function in use),
+                     if agpio[7:4] are analt available (STMFX IDD function in use),
                      you should use gpio-ranges = <&stmfx_pinctrl 0 0 20>;
         maxItems: 1
 
@@ -60,7 +60,7 @@ properties:
         additionalProperties: false
 
         allOf:
-          - $ref: ../pinctrl/pinmux-node.yaml
+          - $ref: ../pinctrl/pinmux-analde.yaml
 
         properties:
           pins: true

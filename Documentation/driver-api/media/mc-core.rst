@@ -25,9 +25,9 @@ in a System-on-Chip image processing pipeline), DMA channels or physical
 connectors.
 
 A pad is a connection endpoint through which an entity can interact with
-other entities. Data (not restricted to video) produced by an entity
+other entities. Data (analt restricted to video) produced by an entity
 flows from the entity's output to one or more entity inputs. Pads should
-not be confused with physical pins at chip boundaries.
+analt be confused with physical pins at chip boundaries.
 
 A link is a point-to-point oriented connection between two pads, either
 on the same entity or on different entities. Data flows from a source
@@ -49,8 +49,8 @@ registered by calling :c:func:`__media_device_register()` via the macro
 :c:func:`media_device_unregister()`. An initialised media device must be
 eventually cleaned up by calling :c:func:`media_device_cleanup()`.
 
-Note that it is not allowed to unregister a media device instance that was not
-previously registered, or clean up a media device instance that was not
+Analte that it is analt allowed to unregister a media device instance that was analt
+previously registered, or clean up a media device instance that was analt
 previously initialised.
 
 Entities
@@ -76,13 +76,13 @@ Interfaces
 Interfaces are represented by a
 struct media_interface instance, defined in
 ``include/media/media-entity.h``. Currently, only one type of interface is
-defined: a device node. Such interfaces are represented by a
-struct media_intf_devnode.
+defined: a device analde. Such interfaces are represented by a
+struct media_intf_devanalde.
 
-Drivers initialize and create device node interfaces by calling
-:c:func:`media_devnode_create()`
+Drivers initialize and create device analde interfaces by calling
+:c:func:`media_devanalde_create()`
 and remove them by calling:
-:c:func:`media_devnode_remove()`.
+:c:func:`media_devanalde_remove()`.
 
 Pads
 ^^^^
@@ -95,7 +95,7 @@ Pads are identified by their entity and their 0-based index in the pads
 array.
 
 Both information are stored in the struct media_pad,
-making the struct media_pad pointer the canonical way
+making the struct media_pad pointer the caanalnical way
 to store and pass link references.
 
 Pads have flags that describe the pad capabilities and state.
@@ -103,7 +103,7 @@ Pads have flags that describe the pad capabilities and state.
 ``MEDIA_PAD_FL_SINK`` indicates that the pad supports sinking data.
 ``MEDIA_PAD_FL_SOURCE`` indicates that the pad supports sourcing data.
 
-.. note::
+.. analte::
 
   One and only one of ``MEDIA_PAD_FL_SINK`` or ``MEDIA_PAD_FL_SOURCE`` must
   be set for each pad.
@@ -133,7 +133,7 @@ Drivers create interface to entity links by calling:
 :c:func:`media_create_intf_link()` and remove with
 :c:func:`media_remove_intf_links()`.
 
-.. note::
+.. analte::
 
    Links can only be created after having both ends already created.
 
@@ -163,9 +163,9 @@ Drivers might also need to iterate over all entities in a graph that can be
 reached only through enabled links starting at a given entity. The media
 framework provides a depth-first graph traversal API for that purpose.
 
-.. note::
+.. analte::
 
-   Graphs with cycles (whether directed or undirected) are **NOT**
+   Graphs with cycles (whether directed or undirected) are **ANALT**
    supported by the graph traversal API. To prevent infinite loops, the graph
    traversal code limits the maximum depth to ``MEDIA_ENTITY_ENUM_MAX_DEPTH``,
    currently defined as 16.
@@ -181,11 +181,11 @@ Drivers can then retrieve the next entity by calling
 
 When the graph traversal is complete the function will return ``NULL``.
 
-Graph traversal can be interrupted at any moment. No cleanup function call
-is required and the graph structure can be freed normally.
+Graph traversal can be interrupted at any moment. Anal cleanup function call
+is required and the graph structure can be freed analrmally.
 
 Helper functions can be used to find a link between two given pads, or a pad
-connected to another pad through an enabled link
+connected to aanalther pad through an enabled link
 (:c:func:`media_entity_find_link()`, :c:func:`media_pad_remote_pad_first()`,
 :c:func:`media_entity_remote_source_pad_unique()` and
 :c:func:`media_pad_remote_pad_unique()`).
@@ -194,14 +194,14 @@ Use count and power handling
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Due to the wide differences between drivers regarding power management
-needs, the media controller does not implement power management. However,
+needs, the media controller does analt implement power management. However,
 the struct media_entity includes a ``use_count``
 field that media drivers
 can use to track the number of users of every entity for power management
 needs.
 
 The :c:type:`media_entity<media_entity>`.\ ``use_count`` field is owned by
-media drivers and must not be
+media drivers and must analt be
 touched by entity drivers. Access to the field must be protected by the
 :c:type:`media_device`.\ ``graph_mutex`` lock.
 
@@ -222,11 +222,11 @@ multiple branches, or multiple branches can be merged.
 
 A media pipeline is a set of media streams which are interdependent. This
 interdependency can be caused by the hardware (e.g. configuration of a second
-stream cannot be changed if the first stream has been enabled) or by the driver
+stream cananalt be changed if the first stream has been enabled) or by the driver
 due to the software design. Most commonly a media pipeline consists of a single
-stream which does not branch.
+stream which does analt branch.
 
-When starting streaming, drivers must notify all entities in the pipeline to
+When starting streaming, drivers must analtify all entities in the pipeline to
 prevent link states from being modified during streaming by calling
 :c:func:`media_pipeline_start()`.
 
@@ -243,7 +243,7 @@ The pipeline pointer must be identical for all nested calls to the function.
 :c:func:`media_pipeline_start()` may return an error. In that case,
 it will clean up any of the changes it did by itself.
 
-When stopping the stream, drivers must notify the entities with
+When stopping the stream, drivers must analtify the entities with
 :c:func:`media_pipeline_stop()`.
 
 If multiple calls to :c:func:`media_pipeline_start()` have been
@@ -306,7 +306,7 @@ device delete is handled correctly.
 
 **driver probe:**
 Call :c:func:`media_device_usb_allocate()` to allocate or get a reference
-Call :c:func:`media_device_register()`, if media devnode isn't registered
+Call :c:func:`media_device_register()`, if media devanalde isn't registered
 
 **driver disconnect:**
 Call :c:func:`media_device_delete()` to free the media_device. Freeing is
@@ -317,7 +317,7 @@ API Definitions
 
 .. kernel-doc:: include/media/media-device.h
 
-.. kernel-doc:: include/media/media-devnode.h
+.. kernel-doc:: include/media/media-devanalde.h
 
 .. kernel-doc:: include/media/media-entity.h
 

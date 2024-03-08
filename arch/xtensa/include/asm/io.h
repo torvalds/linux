@@ -40,7 +40,7 @@ static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 		return (void*)(offset-XCHAL_KIO_PADDR+XCHAL_KIO_BYPASS_VADDR);
 	else
 		return ioremap_prot(offset, size,
-			pgprot_val(pgprot_noncached(PAGE_KERNEL)));
+			pgprot_val(pgprot_analncached(PAGE_KERNEL)));
 }
 #define ioremap ioremap
 

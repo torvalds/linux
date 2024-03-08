@@ -24,7 +24,7 @@
 struct cell_edac_priv
 {
 	struct cbe_mic_tm_regs __iomem	*regs;
-	int				node;
+	int				analde;
 	int				chanmask;
 #ifdef DEBUG
 	u64				prev_fir;
@@ -37,8 +37,8 @@ static void cell_edac_count_ce(struct mem_ctl_info *mci, int chan, u64 ar)
 	struct csrow_info		*csrow = mci->csrows[0];
 	unsigned long			address, pfn, offset, syndrome;
 
-	dev_dbg(mci->pdev, "ECC CE err on node %d, channel %d, ar = 0x%016llx\n",
-		priv->node, chan, ar);
+	dev_dbg(mci->pdev, "ECC CE err on analde %d, channel %d, ar = 0x%016llx\n",
+		priv->analde, chan, ar);
 
 	/* Address decoding is likely a bit bogus, to dbl check */
 	address = (ar & 0xffffffffe0000000ul) >> 29;
@@ -60,8 +60,8 @@ static void cell_edac_count_ue(struct mem_ctl_info *mci, int chan, u64 ar)
 	struct csrow_info		*csrow = mci->csrows[0];
 	unsigned long			address, pfn, offset;
 
-	dev_dbg(mci->pdev, "ECC UE err on node %d, channel %d, ar = 0x%016llx\n",
-		priv->node, chan, ar);
+	dev_dbg(mci->pdev, "ECC UE err on analde %d, channel %d, ar = 0x%016llx\n",
+		priv->analde, chan, ar);
 
 	/* Address decoding is likely a bit bogus, to dbl check */
 	address = (ar & 0xffffffffe0000000ul) >> 29;
@@ -130,20 +130,20 @@ static void cell_edac_init_csrows(struct mem_ctl_info *mci)
 	struct csrow_info		*csrow = mci->csrows[0];
 	struct dimm_info		*dimm;
 	struct cell_edac_priv		*priv = mci->pvt_info;
-	struct device_node		*np;
+	struct device_analde		*np;
 	int				j;
 	u32				nr_pages;
 
-	for_each_node_by_name(np, "memory") {
+	for_each_analde_by_name(np, "memory") {
 		struct resource r;
 
-		/* We "know" that the Cell firmware only creates one entry
-		 * in the "memory" nodes. If that changes, this code will
+		/* We "kanalw" that the Cell firmware only creates one entry
+		 * in the "memory" analdes. If that changes, this code will
 		 * need to be adapted.
 		 */
 		if (of_address_to_resource(np, 0, &r))
 			continue;
-		if (of_node_to_nid(np) != priv->node)
+		if (of_analde_to_nid(np) != priv->analde)
 			continue;
 		csrow->first_page = r.start >> PAGE_SHIFT;
 		nr_pages = resource_size(&r) >> PAGE_SHIFT;
@@ -156,13 +156,13 @@ static void cell_edac_init_csrows(struct mem_ctl_info *mci)
 			dimm->nr_pages = nr_pages / csrow->nr_channels;
 		}
 		dev_dbg(mci->pdev,
-			"Initialized on node %d, chanmask=0x%x,"
+			"Initialized on analde %d, chanmask=0x%x,"
 			" first_page=0x%lx, nr_pages=0x%x\n",
-			priv->node, priv->chanmask,
+			priv->analde, priv->chanmask,
 			csrow->first_page, nr_pages);
 		break;
 	}
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 static int cell_edac_probe(struct platform_device *pdev)
@@ -174,9 +174,9 @@ static int cell_edac_probe(struct platform_device *pdev)
 	u64				reg;
 	int				rc, chanmask, num_chans;
 
-	regs = cbe_get_cpu_mic_tm_regs(cbe_node_to_cpu(pdev->id));
+	regs = cbe_get_cpu_mic_tm_regs(cbe_analde_to_cpu(pdev->id));
 	if (regs == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	edac_op_state = EDAC_OPSTATE_POLL;
 
@@ -190,8 +190,8 @@ static int cell_edac_probe(struct platform_device *pdev)
 		chanmask |= 0x2;
 	if (chanmask == 0) {
 		dev_warn(&pdev->dev,
-			 "Yuck ! No channel populated ? Aborting !\n");
-		return -ENODEV;
+			 "Yuck ! Anal channel populated ? Aborting !\n");
+		return -EANALDEV;
 	}
 	dev_dbg(&pdev->dev, "Initial FIR = 0x%016llx\n",
 		in_be64(&regs->mic_fir));
@@ -208,14 +208,14 @@ static int cell_edac_probe(struct platform_device *pdev)
 	mci = edac_mc_alloc(pdev->id, ARRAY_SIZE(layers), layers,
 			    sizeof(struct cell_edac_priv));
 	if (mci == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv = mci->pvt_info;
 	priv->regs = regs;
-	priv->node = pdev->id;
+	priv->analde = pdev->id;
 	priv->chanmask = chanmask;
 	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_XDR;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	mci->mod_name = "cell_edac";
 	mci->ctl_name = "MIC";

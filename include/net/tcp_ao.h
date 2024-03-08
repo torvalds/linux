@@ -22,13 +22,13 @@ struct tcp_ao_hdr {
 struct tcp_ao_counters {
 	atomic64_t	pkt_good;
 	atomic64_t	pkt_bad;
-	atomic64_t	key_not_found;
+	atomic64_t	key_analt_found;
 	atomic64_t	ao_required;
 	atomic64_t	dropped_icmp;
 };
 
 struct tcp_ao_key {
-	struct hlist_node	node;
+	struct hlist_analde	analde;
 	union tcp_ao_addr	addr;
 	u8			key[TCP_AO_MAXKEYLEN] __tcp_ao_key_align;
 	unsigned int		tcp_sigpool_id;
@@ -113,13 +113,13 @@ struct tcp_ao_info {
 	 * when SEQ rolls over or provide decremented SNE when there's
 	 * a retransmitted segment from before-rolling over.
 	 * - for request sockets such basis is rcv_isn/snt_isn, which seems
-	 *   good enough as it's unexpected to receive 4 Gbytes on reqsk.
+	 *   good eanalugh as it's unexpected to receive 4 Gbytes on reqsk.
 	 * - for full sockets the basis is rcv_nxt/snd_una. snd_una is
 	 *   taken instead of snd_nxt as currently it's easier to track
 	 *   in tcp_snd_una_update(), rather than updating SNE in all
 	 *   WRITE_ONCE(tp->snd_nxt, ...)
 	 * - for time-wait sockets the basis is tw_rcv_nxt/tw_snd_nxt.
-	 *   tw_snd_nxt is not expected to change, while tw_rcv_nxt may.
+	 *   tw_snd_nxt is analt expected to change, while tw_rcv_nxt may.
 	 */
 	u32			snd_sne;
 	u32			rcv_sne;
@@ -223,7 +223,7 @@ int tcp_ao_calc_traffic_key(struct tcp_ao_key *mkt, u8 *key, void *ctx,
 			    unsigned int len, struct tcp_sigpool *hp);
 void tcp_ao_destroy_sock(struct sock *sk, bool twsk);
 void tcp_ao_time_wait(struct tcp_timewait_sock *tcptw, struct tcp_sock *tp);
-bool tcp_ao_ignore_icmp(const struct sock *sk, int family, int type, int code);
+bool tcp_ao_iganalre_icmp(const struct sock *sk, int family, int type, int code);
 int tcp_ao_get_mkts(struct sock *sk, sockptr_t optval, sockptr_t optlen);
 int tcp_ao_get_sock_info(struct sock *sk, sockptr_t optval, sockptr_t optlen);
 int tcp_ao_get_repair(struct sock *sk, sockptr_t optval, sockptr_t optlen);
@@ -306,7 +306,7 @@ static inline void tcp_ao_syncookie(struct sock *sk, const struct sk_buff *skb,
 {
 }
 
-static inline bool tcp_ao_ignore_icmp(const struct sock *sk, int family,
+static inline bool tcp_ao_iganalre_icmp(const struct sock *sk, int family,
 				      int type, int code)
 {
 	return false;
@@ -317,7 +317,7 @@ static inline enum skb_drop_reason tcp_inbound_ao_hash(struct sock *sk,
 		const struct request_sock *req, int l3index,
 		const struct tcp_ao_hdr *aoh)
 {
-	return SKB_NOT_DROPPED_YET;
+	return SKB_ANALT_DROPPED_YET;
 }
 
 static inline struct tcp_ao_key *tcp_ao_do_lookup(const struct sock *sk,
@@ -350,24 +350,24 @@ static inline void tcp_ao_connect_init(struct sock *sk)
 
 static inline int tcp_ao_get_mkts(struct sock *sk, sockptr_t optval, sockptr_t optlen)
 {
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 }
 
 static inline int tcp_ao_get_sock_info(struct sock *sk, sockptr_t optval, sockptr_t optlen)
 {
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 }
 
 static inline int tcp_ao_get_repair(struct sock *sk,
 				    sockptr_t optval, sockptr_t optlen)
 {
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 }
 
 static inline int tcp_ao_set_repair(struct sock *sk,
 				    sockptr_t optval, unsigned int optlen)
 {
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 }
 #endif
 

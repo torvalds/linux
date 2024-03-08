@@ -8,7 +8,7 @@
 #include <linux/blkdev.h>
 #include <linux/export.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/file.h>
 #include <linux/highuid.h>
 #include <linux/fs.h>
@@ -27,119 +27,119 @@
 #include "mount.h"
 
 /**
- * generic_fillattr - Fill in the basic attributes from the inode struct
- * @idmap:		idmap of the mount the inode was found from
+ * generic_fillattr - Fill in the basic attributes from the ianalde struct
+ * @idmap:		idmap of the mount the ianalde was found from
  * @request_mask:	statx request_mask
- * @inode:		Inode to use as the source
+ * @ianalde:		Ianalde to use as the source
  * @stat:		Where to fill in the attributes
  *
  * Fill in the basic attributes in the kstat structure from data that's to be
- * found on the VFS inode structure.  This is the default if no getattr inode
+ * found on the VFS ianalde structure.  This is the default if anal getattr ianalde
  * operation is supplied.
  *
- * If the inode has been found through an idmapped mount the idmap of
+ * If the ianalde has been found through an idmapped mount the idmap of
  * the vfsmount must be passed through @idmap. This function will then
- * take care to map the inode according to @idmap before filling in the
- * uid and gid filds. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply pass @nop_mnt_idmap.
+ * take care to map the ianalde according to @idmap before filling in the
+ * uid and gid filds. On analn-idmapped mounts or if permission checking is to be
+ * performed on the raw ianalde simply pass @analp_mnt_idmap.
  */
 void generic_fillattr(struct mnt_idmap *idmap, u32 request_mask,
-		      struct inode *inode, struct kstat *stat)
+		      struct ianalde *ianalde, struct kstat *stat)
 {
-	vfsuid_t vfsuid = i_uid_into_vfsuid(idmap, inode);
-	vfsgid_t vfsgid = i_gid_into_vfsgid(idmap, inode);
+	vfsuid_t vfsuid = i_uid_into_vfsuid(idmap, ianalde);
+	vfsgid_t vfsgid = i_gid_into_vfsgid(idmap, ianalde);
 
-	stat->dev = inode->i_sb->s_dev;
-	stat->ino = inode->i_ino;
-	stat->mode = inode->i_mode;
-	stat->nlink = inode->i_nlink;
+	stat->dev = ianalde->i_sb->s_dev;
+	stat->ianal = ianalde->i_ianal;
+	stat->mode = ianalde->i_mode;
+	stat->nlink = ianalde->i_nlink;
 	stat->uid = vfsuid_into_kuid(vfsuid);
 	stat->gid = vfsgid_into_kgid(vfsgid);
-	stat->rdev = inode->i_rdev;
-	stat->size = i_size_read(inode);
-	stat->atime = inode_get_atime(inode);
-	stat->mtime = inode_get_mtime(inode);
-	stat->ctime = inode_get_ctime(inode);
-	stat->blksize = i_blocksize(inode);
-	stat->blocks = inode->i_blocks;
+	stat->rdev = ianalde->i_rdev;
+	stat->size = i_size_read(ianalde);
+	stat->atime = ianalde_get_atime(ianalde);
+	stat->mtime = ianalde_get_mtime(ianalde);
+	stat->ctime = ianalde_get_ctime(ianalde);
+	stat->blksize = i_blocksize(ianalde);
+	stat->blocks = ianalde->i_blocks;
 
-	if ((request_mask & STATX_CHANGE_COOKIE) && IS_I_VERSION(inode)) {
+	if ((request_mask & STATX_CHANGE_COOKIE) && IS_I_VERSION(ianalde)) {
 		stat->result_mask |= STATX_CHANGE_COOKIE;
-		stat->change_cookie = inode_query_iversion(inode);
+		stat->change_cookie = ianalde_query_iversion(ianalde);
 	}
 
 }
 EXPORT_SYMBOL(generic_fillattr);
 
 /**
- * generic_fill_statx_attr - Fill in the statx attributes from the inode flags
- * @inode:	Inode to use as the source
+ * generic_fill_statx_attr - Fill in the statx attributes from the ianalde flags
+ * @ianalde:	Ianalde to use as the source
  * @stat:	Where to fill in the attribute flags
  *
  * Fill in the STATX_ATTR_* flags in the kstat structure for properties of the
- * inode that are published on i_flags and enforced by the VFS.
+ * ianalde that are published on i_flags and enforced by the VFS.
  */
-void generic_fill_statx_attr(struct inode *inode, struct kstat *stat)
+void generic_fill_statx_attr(struct ianalde *ianalde, struct kstat *stat)
 {
-	if (inode->i_flags & S_IMMUTABLE)
+	if (ianalde->i_flags & S_IMMUTABLE)
 		stat->attributes |= STATX_ATTR_IMMUTABLE;
-	if (inode->i_flags & S_APPEND)
+	if (ianalde->i_flags & S_APPEND)
 		stat->attributes |= STATX_ATTR_APPEND;
 	stat->attributes_mask |= KSTAT_ATTR_VFS_FLAGS;
 }
 EXPORT_SYMBOL(generic_fill_statx_attr);
 
 /**
- * vfs_getattr_nosec - getattr without security checks
+ * vfs_getattr_analsec - getattr without security checks
  * @path: file to get attributes from
  * @stat: structure to return attributes in
  * @request_mask: STATX_xxx flags indicating what the caller wants
  * @query_flags: Query mode (AT_STATX_SYNC_TYPE)
  *
- * Get attributes without calling security_inode_getattr.
+ * Get attributes without calling security_ianalde_getattr.
  *
  * Currently the only caller other than vfs_getattr is internal to the
- * filehandle lookup code, which uses only the inode number and returns no
+ * filehandle lookup code, which uses only the ianalde number and returns anal
  * attributes to any user.  Any other code probably wants vfs_getattr.
  */
-int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
+int vfs_getattr_analsec(const struct path *path, struct kstat *stat,
 		      u32 request_mask, unsigned int query_flags)
 {
 	struct mnt_idmap *idmap;
-	struct inode *inode = d_backing_inode(path->dentry);
+	struct ianalde *ianalde = d_backing_ianalde(path->dentry);
 
 	memset(stat, 0, sizeof(*stat));
 	stat->result_mask |= STATX_BASIC_STATS;
 	query_flags &= AT_STATX_SYNC_TYPE;
 
 	/* allow the fs to override these if it really wants to */
-	/* SB_NOATIME means filesystem supplies dummy atime value */
-	if (inode->i_sb->s_flags & SB_NOATIME)
+	/* SB_ANALATIME means filesystem supplies dummy atime value */
+	if (ianalde->i_sb->s_flags & SB_ANALATIME)
 		stat->result_mask &= ~STATX_ATIME;
 
 	/*
-	 * Note: If you add another clause to set an attribute flag, please
+	 * Analte: If you add aanalther clause to set an attribute flag, please
 	 * update attributes_mask below.
 	 */
-	if (IS_AUTOMOUNT(inode))
+	if (IS_AUTOMOUNT(ianalde))
 		stat->attributes |= STATX_ATTR_AUTOMOUNT;
 
-	if (IS_DAX(inode))
+	if (IS_DAX(ianalde))
 		stat->attributes |= STATX_ATTR_DAX;
 
 	stat->attributes_mask |= (STATX_ATTR_AUTOMOUNT |
 				  STATX_ATTR_DAX);
 
 	idmap = mnt_idmap(path->mnt);
-	if (inode->i_op->getattr)
-		return inode->i_op->getattr(idmap, path, stat,
+	if (ianalde->i_op->getattr)
+		return ianalde->i_op->getattr(idmap, path, stat,
 					    request_mask,
-					    query_flags | AT_GETATTR_NOSEC);
+					    query_flags | AT_GETATTR_ANALSEC);
 
-	generic_fillattr(idmap, request_mask, inode, stat);
+	generic_fillattr(idmap, request_mask, ianalde, stat);
 	return 0;
 }
-EXPORT_SYMBOL(vfs_getattr_nosec);
+EXPORT_SYMBOL(vfs_getattr_analsec);
 
 /*
  * vfs_getattr - Get the enhanced basic attributes of a file
@@ -156,8 +156,8 @@ EXPORT_SYMBOL(vfs_getattr_nosec);
  * suppress the update by passing AT_STATX_DONT_SYNC.
  *
  * Bits must have been set in request_mask to indicate which attributes the
- * caller wants retrieving.  Any such attribute not requested may be returned
- * anyway, but the value may be approximate, and, if remote, may not have been
+ * caller wants retrieving.  Any such attribute analt requested may be returned
+ * anyway, but the value may be approximate, and, if remote, may analt have been
  * synchronised with the server.
  *
  * 0 will be returned on success, and a -ve error code if unsuccessful.
@@ -167,13 +167,13 @@ int vfs_getattr(const struct path *path, struct kstat *stat,
 {
 	int retval;
 
-	if (WARN_ON_ONCE(query_flags & AT_GETATTR_NOSEC))
+	if (WARN_ON_ONCE(query_flags & AT_GETATTR_ANALSEC))
 		return -EPERM;
 
-	retval = security_inode_getattr(path);
+	retval = security_ianalde_getattr(path);
 	if (retval)
 		return retval;
-	return vfs_getattr_nosec(path, stat, request_mask, query_flags);
+	return vfs_getattr_analsec(path, stat, request_mask, query_flags);
 }
 EXPORT_SYMBOL(vfs_getattr);
 
@@ -204,9 +204,9 @@ int getname_statx_lookup_flags(int flags)
 {
 	int lookup_flags = 0;
 
-	if (!(flags & AT_SYMLINK_NOFOLLOW))
+	if (!(flags & AT_SYMLINK_ANALFOLLOW))
 		lookup_flags |= LOOKUP_FOLLOW;
-	if (!(flags & AT_NO_AUTOMOUNT))
+	if (!(flags & AT_ANAL_AUTOMOUNT))
 		lookup_flags |= LOOKUP_AUTOMOUNT;
 	if (flags & AT_EMPTY_PATH)
 		lookup_flags |= LOOKUP_EMPTY;
@@ -224,7 +224,7 @@ int getname_statx_lookup_flags(int flags)
  *
  * This function is a wrapper around vfs_getattr().  The main difference is
  * that it uses a filename and base directory to determine the file location.
- * Additionally, the use of AT_SYMLINK_NOFOLLOW in flags will prevent a symlink
+ * Additionally, the use of AT_SYMLINK_ANALFOLLOW in flags will prevent a symlink
  * at the given name from being referenced.
  *
  * 0 will be returned on success, and a -ve error code if unsuccessful.
@@ -236,7 +236,7 @@ static int vfs_statx(int dfd, struct filename *filename, int flags,
 	unsigned int lookup_flags = getname_statx_lookup_flags(flags);
 	int error;
 
-	if (flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT | AT_EMPTY_PATH |
+	if (flags & ~(AT_SYMLINK_ANALFOLLOW | AT_ANAL_AUTOMOUNT | AT_EMPTY_PATH |
 		      AT_STATX_SYNC_TYPE))
 		return -EINVAL;
 
@@ -261,10 +261,10 @@ retry:
 
 	/* Handle STATX_DIOALIGN for block devices. */
 	if (request_mask & STATX_DIOALIGN) {
-		struct inode *inode = d_backing_inode(path.dentry);
+		struct ianalde *ianalde = d_backing_ianalde(path.dentry);
 
-		if (S_ISBLK(inode->i_mode))
-			bdev_statx_dioalign(inode, stat);
+		if (S_ISBLK(ianalde->i_mode))
+			bdev_statx_dioalign(ianalde, stat);
 	}
 
 	path_put(&path);
@@ -280,7 +280,7 @@ int vfs_fstatat(int dfd, const char __user *filename,
 			      struct kstat *stat, int flags)
 {
 	int ret;
-	int statx_flags = flags | AT_NO_AUTOMOUNT;
+	int statx_flags = flags | AT_ANAL_AUTOMOUNT;
 	struct filename *name;
 
 	/*
@@ -329,8 +329,8 @@ static int cp_old_stat(struct kstat *stat, struct __old_kernel_stat __user * sta
 
 	memset(&tmp, 0, sizeof(struct __old_kernel_stat));
 	tmp.st_dev = old_encode_dev(stat->dev);
-	tmp.st_ino = stat->ino;
-	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
+	tmp.st_ianal = stat->ianal;
+	if (sizeof(tmp.st_ianal) < sizeof(stat->ianal) && tmp.st_ianal != stat->ianal)
 		return -EOVERFLOW;
 	tmp.st_mode = stat->mode;
 	tmp.st_nlink = stat->nlink;
@@ -340,7 +340,7 @@ static int cp_old_stat(struct kstat *stat, struct __old_kernel_stat __user * sta
 	SET_GID(tmp.st_gid, from_kgid_munged(current_user_ns(), stat->gid));
 	tmp.st_rdev = old_encode_dev(stat->rdev);
 #if BITS_PER_LONG == 32
-	if (stat->size > MAX_NON_LFS)
+	if (stat->size > MAX_ANALN_LFS)
 		return -EOVERFLOW;
 #endif
 	tmp.st_size = stat->size;
@@ -404,14 +404,14 @@ static int cp_new_stat(struct kstat *stat, struct stat __user *statbuf)
 	if (sizeof(tmp.st_rdev) < 4 && !old_valid_dev(stat->rdev))
 		return -EOVERFLOW;
 #if BITS_PER_LONG == 32
-	if (stat->size > MAX_NON_LFS)
+	if (stat->size > MAX_ANALN_LFS)
 		return -EOVERFLOW;
 #endif
 
 	INIT_STRUCT_STAT_PADDING(tmp);
 	tmp.st_dev = new_encode_dev(stat->dev);
-	tmp.st_ino = stat->ino;
-	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
+	tmp.st_ianal = stat->ianal;
+	if (sizeof(tmp.st_ianal) < sizeof(stat->ianal) && tmp.st_ianal != stat->ianal)
 		return -EOVERFLOW;
 	tmp.st_mode = stat->mode;
 	tmp.st_nlink = stat->nlink;
@@ -498,14 +498,14 @@ static int do_readlinkat(int dfd, const char __user *pathname,
 retry:
 	error = user_path_at_empty(dfd, pathname, lookup_flags, &path, &empty);
 	if (!error) {
-		struct inode *inode = d_backing_inode(path.dentry);
+		struct ianalde *ianalde = d_backing_ianalde(path.dentry);
 
-		error = empty ? -ENOENT : -EINVAL;
+		error = empty ? -EANALENT : -EINVAL;
 		/*
-		 * AFS mountpoints allow readlink(2) but are not symlinks
+		 * AFS mountpoints allow readlink(2) but are analt symlinks
 		 */
-		if (d_is_symlink(path.dentry) || inode->i_op->readlink) {
-			error = security_inode_readlink(path.dentry);
+		if (d_is_symlink(path.dentry) || ianalde->i_op->readlink) {
+			error = security_ianalde_readlink(path.dentry);
 			if (!error) {
 				touch_atime(&path);
 				error = vfs_readlink(path.dentry, buf, bufsiz);
@@ -553,11 +553,11 @@ static long cp_new_stat64(struct kstat *stat, struct stat64 __user *statbuf)
 	tmp.st_dev = huge_encode_dev(stat->dev);
 	tmp.st_rdev = huge_encode_dev(stat->rdev);
 #endif
-	tmp.st_ino = stat->ino;
-	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
+	tmp.st_ianal = stat->ianal;
+	if (sizeof(tmp.st_ianal) < sizeof(stat->ianal) && tmp.st_ianal != stat->ianal)
 		return -EOVERFLOW;
-#ifdef STAT64_HAS_BROKEN_ST_INO
-	tmp.__st_ino = stat->ino;
+#ifdef STAT64_HAS_BROKEN_ST_IANAL
+	tmp.__st_ianal = stat->ianal;
 #endif
 	tmp.st_mode = stat->mode;
 	tmp.st_nlink = stat->nlink;
@@ -623,23 +623,23 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, const char __user *, filename,
 }
 #endif /* __ARCH_WANT_STAT64 || __ARCH_WANT_COMPAT_STAT64 */
 
-static noinline_for_stack int
+static analinline_for_stack int
 cp_statx(const struct kstat *stat, struct statx __user *buffer)
 {
 	struct statx tmp;
 
 	memset(&tmp, 0, sizeof(tmp));
 
-	/* STATX_CHANGE_COOKIE is kernel-only for now */
+	/* STATX_CHANGE_COOKIE is kernel-only for analw */
 	tmp.stx_mask = stat->result_mask & ~STATX_CHANGE_COOKIE;
 	tmp.stx_blksize = stat->blksize;
-	/* STATX_ATTR_CHANGE_MONOTONIC is kernel-only for now */
-	tmp.stx_attributes = stat->attributes & ~STATX_ATTR_CHANGE_MONOTONIC;
+	/* STATX_ATTR_CHANGE_MOANALTONIC is kernel-only for analw */
+	tmp.stx_attributes = stat->attributes & ~STATX_ATTR_CHANGE_MOANALTONIC;
 	tmp.stx_nlink = stat->nlink;
 	tmp.stx_uid = from_kuid_munged(current_user_ns(), stat->uid);
 	tmp.stx_gid = from_kgid_munged(current_user_ns(), stat->gid);
 	tmp.stx_mode = stat->mode;
-	tmp.stx_ino = stat->ino;
+	tmp.stx_ianal = stat->ianal;
 	tmp.stx_size = stat->size;
 	tmp.stx_blocks = stat->blocks;
 	tmp.stx_attributes_mask = stat->attributes_mask;
@@ -652,9 +652,9 @@ cp_statx(const struct kstat *stat, struct statx __user *buffer)
 	tmp.stx_mtime.tv_sec = stat->mtime.tv_sec;
 	tmp.stx_mtime.tv_nsec = stat->mtime.tv_nsec;
 	tmp.stx_rdev_major = MAJOR(stat->rdev);
-	tmp.stx_rdev_minor = MINOR(stat->rdev);
+	tmp.stx_rdev_mianalr = MIANALR(stat->rdev);
 	tmp.stx_dev_major = MAJOR(stat->dev);
-	tmp.stx_dev_minor = MINOR(stat->dev);
+	tmp.stx_dev_mianalr = MIANALR(stat->dev);
 	tmp.stx_mnt_id = stat->mnt_id;
 	tmp.stx_dio_mem_align = stat->dio_mem_align;
 	tmp.stx_dio_offset_align = stat->dio_offset_align;
@@ -673,7 +673,7 @@ int do_statx(int dfd, struct filename *filename, unsigned int flags,
 	if ((flags & AT_STATX_SYNC_TYPE) == AT_STATX_SYNC_TYPE)
 		return -EINVAL;
 
-	/* STATX_CHANGE_COOKIE is kernel-only for now. Ignore requests
+	/* STATX_CHANGE_COOKIE is kernel-only for analw. Iganalre requests
 	 * from userland.
 	 */
 	mask &= ~STATX_CHANGE_COOKIE;
@@ -693,7 +693,7 @@ int do_statx(int dfd, struct filename *filename, unsigned int flags,
  * @mask: Parts of statx struct actually required.
  * @buffer: Result buffer.
  *
- * Note that fstat() can be emulated by setting dfd to the fd of interest,
+ * Analte that fstat() can be emulated by setting dfd to the fd of interest,
  * supplying "" as the filename and setting AT_EMPTY_PATH in the flags.
  */
 SYSCALL_DEFINE5(statx,
@@ -723,8 +723,8 @@ static int cp_compat_stat(struct kstat *stat, struct compat_stat __user *ubuf)
 
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.st_dev = new_encode_dev(stat->dev);
-	tmp.st_ino = stat->ino;
-	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
+	tmp.st_ianal = stat->ianal;
+	if (sizeof(tmp.st_ianal) < sizeof(stat->ianal) && tmp.st_ianal != stat->ianal)
 		return -EOVERFLOW;
 	tmp.st_mode = stat->mode;
 	tmp.st_nlink = stat->nlink;
@@ -733,7 +733,7 @@ static int cp_compat_stat(struct kstat *stat, struct compat_stat __user *ubuf)
 	SET_UID(tmp.st_uid, from_kuid_munged(current_user_ns(), stat->uid));
 	SET_GID(tmp.st_gid, from_kgid_munged(current_user_ns(), stat->gid));
 	tmp.st_rdev = new_encode_dev(stat->rdev);
-	if ((u64) stat->size > MAX_NON_LFS)
+	if ((u64) stat->size > MAX_ANALN_LFS)
 		return -EOVERFLOW;
 	tmp.st_size = stat->size;
 	tmp.st_atime = stat->atime.tv_sec;
@@ -798,68 +798,68 @@ COMPAT_SYSCALL_DEFINE2(newfstat, unsigned int, fd,
 }
 #endif
 
-/* Caller is here responsible for sufficient locking (ie. inode->i_lock) */
-void __inode_add_bytes(struct inode *inode, loff_t bytes)
+/* Caller is here responsible for sufficient locking (ie. ianalde->i_lock) */
+void __ianalde_add_bytes(struct ianalde *ianalde, loff_t bytes)
 {
-	inode->i_blocks += bytes >> 9;
+	ianalde->i_blocks += bytes >> 9;
 	bytes &= 511;
-	inode->i_bytes += bytes;
-	if (inode->i_bytes >= 512) {
-		inode->i_blocks++;
-		inode->i_bytes -= 512;
+	ianalde->i_bytes += bytes;
+	if (ianalde->i_bytes >= 512) {
+		ianalde->i_blocks++;
+		ianalde->i_bytes -= 512;
 	}
 }
-EXPORT_SYMBOL(__inode_add_bytes);
+EXPORT_SYMBOL(__ianalde_add_bytes);
 
-void inode_add_bytes(struct inode *inode, loff_t bytes)
+void ianalde_add_bytes(struct ianalde *ianalde, loff_t bytes)
 {
-	spin_lock(&inode->i_lock);
-	__inode_add_bytes(inode, bytes);
-	spin_unlock(&inode->i_lock);
+	spin_lock(&ianalde->i_lock);
+	__ianalde_add_bytes(ianalde, bytes);
+	spin_unlock(&ianalde->i_lock);
 }
 
-EXPORT_SYMBOL(inode_add_bytes);
+EXPORT_SYMBOL(ianalde_add_bytes);
 
-void __inode_sub_bytes(struct inode *inode, loff_t bytes)
+void __ianalde_sub_bytes(struct ianalde *ianalde, loff_t bytes)
 {
-	inode->i_blocks -= bytes >> 9;
+	ianalde->i_blocks -= bytes >> 9;
 	bytes &= 511;
-	if (inode->i_bytes < bytes) {
-		inode->i_blocks--;
-		inode->i_bytes += 512;
+	if (ianalde->i_bytes < bytes) {
+		ianalde->i_blocks--;
+		ianalde->i_bytes += 512;
 	}
-	inode->i_bytes -= bytes;
+	ianalde->i_bytes -= bytes;
 }
 
-EXPORT_SYMBOL(__inode_sub_bytes);
+EXPORT_SYMBOL(__ianalde_sub_bytes);
 
-void inode_sub_bytes(struct inode *inode, loff_t bytes)
+void ianalde_sub_bytes(struct ianalde *ianalde, loff_t bytes)
 {
-	spin_lock(&inode->i_lock);
-	__inode_sub_bytes(inode, bytes);
-	spin_unlock(&inode->i_lock);
+	spin_lock(&ianalde->i_lock);
+	__ianalde_sub_bytes(ianalde, bytes);
+	spin_unlock(&ianalde->i_lock);
 }
 
-EXPORT_SYMBOL(inode_sub_bytes);
+EXPORT_SYMBOL(ianalde_sub_bytes);
 
-loff_t inode_get_bytes(struct inode *inode)
+loff_t ianalde_get_bytes(struct ianalde *ianalde)
 {
 	loff_t ret;
 
-	spin_lock(&inode->i_lock);
-	ret = __inode_get_bytes(inode);
-	spin_unlock(&inode->i_lock);
+	spin_lock(&ianalde->i_lock);
+	ret = __ianalde_get_bytes(ianalde);
+	spin_unlock(&ianalde->i_lock);
 	return ret;
 }
 
-EXPORT_SYMBOL(inode_get_bytes);
+EXPORT_SYMBOL(ianalde_get_bytes);
 
-void inode_set_bytes(struct inode *inode, loff_t bytes)
+void ianalde_set_bytes(struct ianalde *ianalde, loff_t bytes)
 {
 	/* Caller is here responsible for sufficient locking
-	 * (ie. inode->i_lock) */
-	inode->i_blocks = bytes >> 9;
-	inode->i_bytes = bytes & 511;
+	 * (ie. ianalde->i_lock) */
+	ianalde->i_blocks = bytes >> 9;
+	ianalde->i_bytes = bytes & 511;
 }
 
-EXPORT_SYMBOL(inode_set_bytes);
+EXPORT_SYMBOL(ianalde_set_bytes);

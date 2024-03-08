@@ -17,7 +17,7 @@ char atl1e_driver_name[] = "ATL1E";
  * Last entry must be all 0s
  *
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
- *   Class, Class Mask, private data (not used) }
+ *   Class, Class Mask, private data (analt used) }
  */
 static const struct pci_device_id atl1e_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L1E)},
@@ -80,7 +80,7 @@ static inline void atl1e_irq_enable(struct atl1e_adapter *adapter)
 {
 	if (likely(atomic_dec_and_test(&adapter->irq_sem))) {
 		AT_WRITE_REG(&adapter->hw, REG_ISR, 0);
-		AT_WRITE_REG(&adapter->hw, REG_IMR, IMR_NORMAL_MASK);
+		AT_WRITE_REG(&adapter->hw, REG_IMR, IMR_ANALRMAL_MASK);
 		AT_WRITE_FLUSH(&adapter->hw);
 	}
 }
@@ -218,7 +218,7 @@ static void atl1e_link_chg_event(struct atl1e_adapter *adapter)
 	atl1e_read_phy_reg(&adapter->hw, MII_BMSR, &phy_data);
 	spin_unlock(&adapter->mdio_lock);
 	link_up = phy_data & BMSR_LSTATUS;
-	/* notify upper layer link down ASAP */
+	/* analtify upper layer link down ASAP */
 	if (!link_up) {
 		if (netif_carrier_ok(netdev)) {
 			/* old link state: Up */
@@ -369,7 +369,7 @@ static int atl1e_set_mac_addr(struct net_device *netdev, void *p)
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	if (netif_running(netdev))
 		return -EBUSY;
@@ -386,7 +386,7 @@ static netdev_features_t atl1e_fix_features(struct net_device *netdev,
 	netdev_features_t features)
 {
 	/*
-	 * Since there is no support for separate rx/tx vlan accel
+	 * Since there is anal support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)
@@ -501,7 +501,7 @@ static int atl1e_mii_ioctl(struct net_device *netdev,
 		break;
 
 	default:
-		retval = -EOPNOTSUPP;
+		retval = -EOPANALTSUPP;
 		break;
 	}
 out:
@@ -518,7 +518,7 @@ static int atl1e_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	case SIOCSMIIREG:
 		return atl1e_mii_ioctl(netdev, ifr, cmd);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -534,7 +534,7 @@ static void atl1e_setup_pcicmd(struct pci_dev *pdev)
 	/*
 	 * some motherboards BIOS(PXE/EFI) driver may set PME
 	 * while they transfer control to OS (Windows/Linux)
-	 * so we should clear this bit before NIC work normally
+	 * so we should clear this bit before NIC work analrmally
 	 */
 	pci_write_config_dword(pdev, REG_PM_CTRLSTAT, 0);
 	msleep(1);
@@ -622,7 +622,7 @@ static int atl1e_sw_init(struct atl1e_adapter *adapter)
 
 	if (atl1e_alloc_queues(adapter)) {
 		netdev_err(adapter->netdev, "Unable to allocate memory for queues\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	atomic_set(&adapter->irq_sem, 1);
@@ -817,7 +817,7 @@ static int atl1e_setup_ring_resources(struct atl1e_adapter *adapter)
 	if (adapter->ring_vir_addr == NULL) {
 		netdev_err(adapter->netdev,
 			   "dma_alloc_coherent failed, size = D%d\n", size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rx_page_desc = rx_ring->rx_page_desc;
@@ -829,7 +829,7 @@ static int atl1e_setup_ring_resources(struct atl1e_adapter *adapter)
 	size = sizeof(struct atl1e_tx_buffer) * (tx_ring->count);
 	tx_ring->tx_buffer = kzalloc(size, GFP_KERNEL);
 	if (tx_ring->tx_buffer == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failed;
 	}
 
@@ -1280,12 +1280,12 @@ static irqreturn_t atl1e_intr(int irq, void *data)
 	struct atl1e_adapter *adapter = netdev_priv(netdev);
 	struct atl1e_hw *hw = &adapter->hw;
 	int max_ints = AT_MAX_INT_WORK;
-	int handled = IRQ_NONE;
+	int handled = IRQ_ANALNE;
 	u32 status;
 
 	do {
 		status = AT_READ_REG(hw, REG_ISR);
-		if ((status & IMR_NORMAL_MASK) == 0 ||
+		if ((status & IMR_ANALRMAL_MASK) == 0 ||
 				(status & ISR_DIS_INT) != 0) {
 			if (max_ints != AT_MAX_INT_WORK)
 				handled = IRQ_HANDLED;
@@ -1340,7 +1340,7 @@ static irqreturn_t atl1e_intr(int irq, void *data)
 			 * the synchronize_irq bit
 			 */
 			AT_WRITE_REG(hw, REG_IMR,
-				     IMR_NORMAL_MASK & ~ISR_RX_EVENT);
+				     IMR_ANALRMAL_MASK & ~ISR_RX_EVENT);
 			AT_WRITE_FLUSH(hw);
 			if (likely(napi_schedule_prep(
 				   &adapter->napi)))
@@ -1362,7 +1362,7 @@ static inline void atl1e_rx_checksum(struct atl1e_adapter *adapter,
 	u16 pkt_flags;
 	u16 err_flags;
 
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 	pkt_flags = prrs->pkt_flag;
 	err_flags = prrs->err_flag;
 	if (((pkt_flags & RRS_IS_IPV4) || (pkt_flags & RRS_IS_IPV6)) &&
@@ -1470,7 +1470,7 @@ static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 			napi_gro_receive(&adapter->napi, skb);
 
 skip_pkt:
-	/* skip current packet whether it's ok or not. */
+	/* skip current packet whether it's ok or analt. */
 			rx_page->read_offset +=
 				(((u32)((prrs->word1 >> RRS_PKT_SIZE_SHIFT) &
 				RRS_PKT_SIZE_MASK) +
@@ -1520,7 +1520,7 @@ static int atl1e_clean(struct napi_struct *napi, int budget)
 
 	atl1e_clean_rx_irq(adapter, 0, &work_done, budget);
 
-	/* If no Tx and not enough Rx work done, exit the polling mode */
+	/* If anal Tx and analt eanalugh Rx work done, exit the polling mode */
 	if (work_done < budget) {
 quit_polling:
 		napi_complete_done(napi, work_done);
@@ -1543,7 +1543,7 @@ quit_polling:
 
 /*
  * Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
+ * without having to re-enable interrupts. It's analt called while
  * the interrupt routine is executing.
  */
 static void atl1e_netpoll(struct net_device *netdev)
@@ -1572,8 +1572,8 @@ static inline u16 atl1e_tpd_avail(struct atl1e_adapter *adapter)
 
 /*
  * get next usable tpd
- * Note: should call atl1e_tdp_avail to make sure
- * there is enough tpd to use
+ * Analte: should call atl1e_tdp_avail to make sure
+ * there is eanalugh tpd to use
  */
 static struct atl1e_tpd_desc *atl1e_get_tpd(struct atl1e_adapter *adapter)
 {
@@ -1684,7 +1684,7 @@ check_sum:
 		cso = skb_checksum_start_offset(skb);
 		if (unlikely(cso & 0x1)) {
 			netdev_err(adapter->netdev,
-				   "payload offset should not ant event number\n");
+				   "payload offset should analt ant event number\n");
 			return -1;
 		} else {
 			css = cso + skb->csum_offset;
@@ -1728,7 +1728,7 @@ static int atl1e_tx_map(struct atl1e_adapter *adapter,
 						skb->data, hdr_len,
 						DMA_TO_DEVICE);
 		if (dma_mapping_error(&adapter->pdev->dev, tx_buffer->dma))
-			return -ENOSPC;
+			return -EANALSPC;
 
 		ATL1E_SET_PCIMAP_TYPE(tx_buffer, ATL1E_TX_PCIMAP_SINGLE);
 		mapped_len += map_len;
@@ -1772,7 +1772,7 @@ static int atl1e_tx_map(struct atl1e_adapter *adapter,
 			}
 			/* Reset the tx rings next pointer */
 			adapter->tx_ring.next_to_use = ring_start;
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 
 		ATL1E_SET_PCIMAP_TYPE(tx_buffer, ATL1E_TX_PCIMAP_SINGLE);
@@ -1823,7 +1823,7 @@ static int atl1e_tx_map(struct atl1e_adapter *adapter,
 
 				/* Reset the ring next to use pointer */
 				adapter->tx_ring.next_to_use = ring_start;
-				return -ENOSPC;
+				return -EANALSPC;
 			}
 
 			ATL1E_SET_PCIMAP_TYPE(tx_buffer, ATL1E_TX_PCIMAP_PAGE);
@@ -1835,7 +1835,7 @@ static int atl1e_tx_map(struct atl1e_adapter *adapter,
 	}
 
 	if ((tpd->word3 >> TPD_SEGMENT_EN_SHIFT) & TPD_SEGMENT_EN_MASK)
-		/* note this one is a tcp header */
+		/* analte this one is a tcp header */
 		tpd->word3 |= 1 << TPD_HDRFLAG_SHIFT;
 	/* The last tpd */
 
@@ -1851,7 +1851,7 @@ static void atl1e_tx_queue(struct atl1e_adapter *adapter, u16 count,
 {
 	struct atl1e_tx_ring *tx_ring = &adapter->tx_ring;
 	/* Force memory writes to complete before letting h/w
-	 * know there are new descriptors to fetch.  (Only
+	 * kanalw there are new descriptors to fetch.  (Only
 	 * applicable for weak-ordered memory model archs,
 	 * such as IA-64). */
 	wmb();
@@ -1877,7 +1877,7 @@ static netdev_tx_t atl1e_xmit_frame(struct sk_buff *skb,
 	tpd_req = atl1e_cal_tdp_req(skb);
 
 	if (atl1e_tpd_avail(adapter) < tpd_req) {
-		/* no enough descriptor, just stop queue */
+		/* anal eanalugh descriptor, just stop queue */
 		netif_stop_queue(netdev);
 		return NETDEV_TX_BUSY;
 	}
@@ -1976,7 +1976,7 @@ void atl1e_down(struct atl1e_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
-	/* signal that we're down so the interrupt handler does not
+	/* signal that we're down so the interrupt handler does analt
 	 * reschedule our watchdog timer */
 	set_bit(__AT_DOWN, &adapter->flags);
 
@@ -2007,7 +2007,7 @@ void atl1e_down(struct atl1e_adapter *adapter)
  * active by the system (IFF_UP).  At this point all resources needed
  * for transmit and receive operations are allocated, the interrupt
  * handler is registered with the OS, the watchdog timer is started,
- * and the stack is notified that the interface is ready.
+ * and the stack is analtified that the interface is ready.
  */
 static int atl1e_open(struct net_device *netdev)
 {
@@ -2047,7 +2047,7 @@ err_req_irq:
  * atl1e_close - Disables a network interface
  * @netdev: network interface device structure
  *
- * Returns 0, this is not allowed to fail
+ * Returns 0, this is analt allowed to fail
  *
  * The close entry point is called when an interface is de-activated
  * by the OS.  The hardware is still under the drivers control, but
@@ -2207,7 +2207,7 @@ static int atl1e_resume(struct pci_dev *pdev)
 	err = pci_enable_device(pdev);
 	if (err) {
 		netdev_err(adapter->netdev,
-			   "Cannot enable PCI device from suspend\n");
+			   "Cananalt enable PCI device from suspend\n");
 		return err;
 	}
 
@@ -2278,7 +2278,7 @@ static int atl1e_init_netdev(struct net_device *netdev, struct pci_dev *pdev)
 	netdev->hw_features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_TSO |
 			      NETIF_F_HW_VLAN_CTAG_RX;
 	netdev->features = netdev->hw_features | NETIF_F_HW_VLAN_CTAG_TX;
-	/* not enabled by default */
+	/* analt enabled by default */
 	netdev->hw_features |= NETIF_F_RXALL | NETIF_F_RXFCS;
 	return 0;
 }
@@ -2304,7 +2304,7 @@ static int atl1e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_enable_device(pdev);
 	if (err)
-		return dev_err_probe(&pdev->dev, err, "cannot enable PCI device\n");
+		return dev_err_probe(&pdev->dev, err, "cananalt enable PCI device\n");
 
 	/*
 	 * The atl1e chip can DMA to 64-bit addresses, but it uses a single
@@ -2318,13 +2318,13 @@ static int atl1e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (err) {
-		dev_err(&pdev->dev, "No usable DMA configuration,aborting\n");
+		dev_err(&pdev->dev, "Anal usable DMA configuration,aborting\n");
 		goto err_dma;
 	}
 
 	err = pci_request_regions(pdev, atl1e_driver_name);
 	if (err) {
-		dev_err(&pdev->dev, "cannot obtain PCI resources\n");
+		dev_err(&pdev->dev, "cananalt obtain PCI resources\n");
 		goto err_pci_reg;
 	}
 
@@ -2332,7 +2332,7 @@ static int atl1e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netdev = alloc_etherdev(sizeof(struct atl1e_adapter));
 	if (netdev == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_etherdev;
 	}
 
@@ -2349,7 +2349,7 @@ static int atl1e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->hw.hw_addr = pci_iomap(pdev, BAR_0, 0);
 	if (!adapter->hw.hw_addr) {
 		err = -EIO;
-		netdev_err(netdev, "cannot map device registers\n");
+		netdev_err(netdev, "cananalt map device registers\n");
 		goto err_ioremap;
 	}
 
@@ -2383,7 +2383,7 @@ static int atl1e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Init GPHY as early as possible due to power saving issue  */
 	atl1e_phy_init(&adapter->hw);
 	/* reset the controller to
-	 * put the device in a known good starting state */
+	 * put the device in a kanalwn good starting state */
 	err = atl1e_reset_hw(&adapter->hw);
 	if (err) {
 		err = -EIO;
@@ -2408,7 +2408,7 @@ static int atl1e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_register;
 	}
 
-	/* assume we have no link for now */
+	/* assume we have anal link for analw */
 	netif_stop_queue(netdev);
 	netif_carrier_off(netdev);
 
@@ -2506,7 +2506,7 @@ static pci_ers_result_t atl1e_io_slot_reset(struct pci_dev *pdev)
 
 	if (pci_enable_device(pdev)) {
 		netdev_err(adapter->netdev,
-			   "Cannot re-enable PCI device after reset\n");
+			   "Cananalt re-enable PCI device after reset\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 	pci_set_master(pdev);
@@ -2524,7 +2524,7 @@ static pci_ers_result_t atl1e_io_slot_reset(struct pci_dev *pdev)
  * @pdev: Pointer to PCI device
  *
  * This callback is called when the error recovery driver tells us that
- * its OK to resume normal operation. Implementation resembles the
+ * its OK to resume analrmal operation. Implementation resembles the
  * second-half of the atl1e_resume routine.
  */
 static void atl1e_io_resume(struct pci_dev *pdev)

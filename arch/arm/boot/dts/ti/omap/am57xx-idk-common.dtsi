@@ -270,7 +270,7 @@
 
 				ldo1_reg: ldo1 {
 					/* VDDSHV8 - VSDMMC  */
-					/* NOTE: on rev 1.3a, data supply */
+					/* ANALTE: on rev 1.3a, data supply */
 					regulator-name = "ldo1";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <3300000>;
@@ -501,7 +501,7 @@
 	vqmmc-supply = <&ldo1_reg>;
 	bus-width = <4>;
 	cd-gpios = <&gpio6 27 GPIO_ACTIVE_LOW>; /* gpio 219 */
-	no-1-8-v;
+	anal-1-8-v;
 };
 
 &mmc2 {
@@ -509,9 +509,9 @@
 	vmmc-supply = <&v3_3d>;
 	vqmmc-supply = <&v3_3d>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	max-frequency = <96000000>;
-	no-1-8-v;
+	anal-1-8-v;
 };
 
 &dcan1 {
@@ -527,7 +527,7 @@
 
 	spi-max-frequency = <76800000>;
 	flash@0 {
-		compatible = "s25fl256s1", "jedec,spi-nor";
+		compatible = "s25fl256s1", "jedec,spi-analr";
 		spi-max-frequency = <76800000>;
 		reg = <0>;
 		spi-tx-bus-width = <1>;

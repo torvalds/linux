@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef DEBUG_HTT_STATS_H
@@ -125,7 +125,7 @@ enum htt_tlv_tag_t {
 #define HTT_TX_HWQ_MAX_FES_RESULT_STATS      10
 
 enum htt_tx_pdev_underrun_enum {
-	HTT_STATS_TX_PDEV_NO_DATA_UNDERRUN           = 0,
+	HTT_STATS_TX_PDEV_ANAL_DATA_UNDERRUN           = 0,
 	HTT_STATS_TX_PDEV_DATA_UNDERRUN_BETWEEN_MPDU = 1,
 	HTT_STATS_TX_PDEV_DATA_UNDERRUN_WITHIN_MPDU  = 2,
 	HTT_TX_PDEV_MAX_URRN_STATS                   = 3,
@@ -206,31 +206,31 @@ struct htt_tx_pdev_stats_cmn_tlv {
 	u32 tx_active_dur_us_high;
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_tx_pdev_stats_urrn_tlv_v {
 	/* HTT_TX_PDEV_MAX_URRN_STATS */
 	DECLARE_FLEX_ARRAY(u32, urrn_stats);
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_tx_pdev_stats_flush_tlv_v {
 	/* HTT_TX_PDEV_MAX_FLUSH_REASON_STATS */
 	DECLARE_FLEX_ARRAY(u32, flush_errs);
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_tx_pdev_stats_sifs_tlv_v {
 	/* HTT_TX_PDEV_MAX_SIFS_BURST_STATS */
 	DECLARE_FLEX_ARRAY(u32, sifs_status);
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_tx_pdev_stats_phy_err_tlv_v {
 	/* HTT_TX_PDEV_MAX_PHY_ERR_STATS */
 	DECLARE_FLEX_ARRAY(u32, phy_errs);
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_tx_pdev_stats_sifs_hist_tlv_v {
 	/* HTT_TX_PDEV_SIFS_BURST_HIST_STATS */
 	DECLARE_FLEX_ARRAY(u32, sifs_hist_status);
@@ -244,12 +244,12 @@ struct htt_tx_pdev_stats_tx_ppdu_stats_tlv_v {
 	u32 num_data_ppdus_ax_su_txbf;
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size .
+/* ANALTE: Variable length TLV, use length spec to infer array size .
  *
  *  Tried_mpdu_cnt_hist is the histogram of MPDUs tries per HWQ.
  *  The tries here is the count of the  MPDUS within a PPDU that the
  *  HW had attempted to transmit on  air, for the HWSCH Schedule
- *  command submitted by FW.It is not the retry attempts.
+ *  command submitted by FW.It is analt the retry attempts.
  *  The histogram bins are  0-29, 30-59, 60-89 and so on. The are
  *   10 bins in this histogram. They are defined in FW using the
  *  following macros
@@ -303,13 +303,13 @@ struct htt_hw_stats_whal_tx_tlv {
 	u32 hwsch_dev_reset_war;
 	u32 hwsch_delayed_pause;
 	u32 hwsch_long_delayed_pause;
-	u32 sch_rx_ppdu_no_response;
+	u32 sch_rx_ppdu_anal_response;
 	u32 sch_selfgen_response;
 	u32 sch_rx_sifs_resp_trigger;
 };
 
 /* ============ PEER STATS ============ */
-#define	HTT_MSDU_FLOW_STATS_TX_FLOW_NO	GENMASK(15, 0)
+#define	HTT_MSDU_FLOW_STATS_TX_FLOW_ANAL	GENMASK(15, 0)
 #define	HTT_MSDU_FLOW_STATS_TID_NUM	GENMASK(19, 16)
 #define	HTT_MSDU_FLOW_STATS_DROP_RULE	BIT(20)
 
@@ -320,7 +320,7 @@ struct htt_msdu_flow_stats_tlv {
 	u32 total_processed_msdu_count;
 	u32 cur_msdu_count_in_flowq;
 	u32 sw_peer_id;
-	u32 tx_flow_no__tid_num__drop_rule;
+	u32 tx_flow_anal__tid_num__drop_rule;
 	u32 last_cycle_enqueue_count;
 	u32 last_cycle_dequeue_count;
 	u32 last_cycle_drop_count;
@@ -494,9 +494,9 @@ struct htt_rx_peer_rate_stats_tlv {
 	/* Number of rx rts packets */
 	u32 rts_cnt;
 
-	u32 rssi_mgmt; /* units = dB above noise floor */
-	u32 rssi_data; /* units = dB above noise floor */
-	u32 rssi_comb; /* units = dB above noise floor */
+	u32 rssi_mgmt; /* units = dB above analise floor */
+	u32 rssi_data; /* units = dB above analise floor */
+	u32 rssi_comb; /* units = dB above analise floor */
 	u32 rx_mcs[HTT_RX_PEER_STATS_NUM_MCS_COUNTERS];
 	/* element 0,1, ...7 -> NSS 1,2, ...8 */
 	u32 rx_nss[HTT_RX_PEER_STATS_NUM_SPATIAL_STREAMS];
@@ -505,7 +505,7 @@ struct htt_rx_peer_rate_stats_tlv {
 	/* element 0: 20 MHz, 1: 40 MHz, 2: 80 MHz, 3: 160 and 80+80 MHz */
 	u32 rx_bw[HTT_RX_PEER_STATS_NUM_BW_COUNTERS];
 	u32 rx_pream[HTT_RX_PEER_STATS_NUM_PREAMBLE_TYPES];
-	/* units = dB above noise floor */
+	/* units = dB above analise floor */
 	u8 rssi_chain[HTT_RX_PEER_STATS_NUM_SPATIAL_STREAMS]
 		     [HTT_RX_PEER_STATS_NUM_BW_COUNTERS];
 
@@ -515,7 +515,7 @@ struct htt_rx_peer_rate_stats_tlv {
 };
 
 enum htt_peer_stats_req_mode {
-	HTT_PEER_STATS_REQ_MODE_NO_QUERY,
+	HTT_PEER_STATS_REQ_MODE_ANAL_QUERY,
 	HTT_PEER_STATS_REQ_MODE_QUERY_TQM,
 	HTT_PEER_STATS_REQ_MODE_FLUSH_TQM,
 };
@@ -545,7 +545,7 @@ struct htt_tx_hwq_mu_mimo_mpdu_stats_tlv {
 	u32 mu_mimo_mpdus_tried_usr;
 	u32 mu_mimo_mpdus_failed_usr;
 	u32 mu_mimo_mpdus_requeued_usr;
-	u32 mu_mimo_err_no_ba_usr;
+	u32 mu_mimo_err_anal_ba_usr;
 	u32 mu_mimo_mpdu_underrun_usr;
 	u32 mu_mimo_ampdu_underrun_usr;
 };
@@ -571,7 +571,7 @@ struct htt_tx_hwq_stats_cmn_tlv {
 	u32 ack_tlv_proc;
 	u32 sched_id_proc;
 	u32 null_mpdu_tx_count;
-	u32 mpdu_bmap_not_recvd;
+	u32 mpdu_bmap_analt_recvd;
 
 	/* Selfgen stats per hwQ */
 	u32 num_bar;
@@ -589,37 +589,37 @@ struct htt_tx_hwq_stats_cmn_tlv {
 	u32 txq_timeout;
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_tx_hwq_difs_latency_stats_tlv_v {
 	u32 hist_intvl;
 	/* histogram of ppdu post to hwsch - > cmd status received */
 	u32 difs_latency_hist[]; /* HTT_TX_HWQ_MAX_DIFS_LATENCY_BINS */
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_tx_hwq_cmd_result_stats_tlv_v {
 	/* Histogram of sched cmd result, HTT_TX_HWQ_MAX_CMD_RESULT_STATS */
 	DECLARE_FLEX_ARRAY(u32, cmd_result);
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_tx_hwq_cmd_stall_stats_tlv_v {
 	/* Histogram of various pause conitions, HTT_TX_HWQ_MAX_CMD_STALL_STATS */
 	DECLARE_FLEX_ARRAY(u32, cmd_stall_status);
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_tx_hwq_fes_result_stats_tlv_v {
 	/* Histogram of number of user fes result, HTT_TX_HWQ_MAX_FES_RESULT_STATS */
 	DECLARE_FLEX_ARRAY(u32, fes_result);
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size
+/* ANALTE: Variable length TLV, use length spec to infer array size
  *
  *  The hwq_tried_mpdu_cnt_hist is a  histogram of MPDUs tries per HWQ.
  *  The tries here is the count of the  MPDUS within a PPDU that the HW
  *  had attempted to transmit on  air, for the HWSCH Schedule command
- *  submitted by FW in this HWQ .It is not the retry attempts. The
+ *  submitted by FW in this HWQ .It is analt the retry attempts. The
  *  histogram bins are  0-29, 30-59, 60-89 and so on. The are 10 bins
  *  in this histogram.
  *  they are defined in FW using the following macros
@@ -632,7 +632,7 @@ struct htt_tx_hwq_tried_mpdu_cnt_hist_tlv_v {
 	u32 tried_mpdu_cnt_hist[]; /* HTT_TX_HWQ_TRIED_MPDU_CNT_HIST */
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size
+/* ANALTE: Variable length TLV, use length spec to infer array size
  *
  * The txop_used_cnt_hist is the histogram of txop per burst. After
  * completing the burst, we identify the txop used in the burst and
@@ -771,7 +771,7 @@ struct htt_tx_pdev_mu_mimo_mpdu_stats_tlv {
 	u32 mu_mimo_mpdus_tried_usr;
 	u32 mu_mimo_mpdus_failed_usr;
 	u32 mu_mimo_mpdus_requeued_usr;
-	u32 mu_mimo_err_no_ba_usr;
+	u32 mu_mimo_err_anal_ba_usr;
 	u32 mu_mimo_mpdu_underrun_usr;
 	u32 mu_mimo_ampdu_underrun_usr;
 
@@ -779,7 +779,7 @@ struct htt_tx_pdev_mu_mimo_mpdu_stats_tlv {
 	u32 ax_mu_mimo_mpdus_tried_usr;
 	u32 ax_mu_mimo_mpdus_failed_usr;
 	u32 ax_mu_mimo_mpdus_requeued_usr;
-	u32 ax_mu_mimo_err_no_ba_usr;
+	u32 ax_mu_mimo_err_anal_ba_usr;
 	u32 ax_mu_mimo_mpdu_underrun_usr;
 	u32 ax_mu_mimo_ampdu_underrun_usr;
 
@@ -787,7 +787,7 @@ struct htt_tx_pdev_mu_mimo_mpdu_stats_tlv {
 	u32 ax_ofdma_mpdus_tried_usr;
 	u32 ax_ofdma_mpdus_failed_usr;
 	u32 ax_ofdma_mpdus_requeued_usr;
-	u32 ax_ofdma_err_no_ba_usr;
+	u32 ax_ofdma_err_anal_ba_usr;
 	u32 ax_ofdma_mpdu_underrun_usr;
 	u32 ax_ofdma_ampdu_underrun_usr;
 };
@@ -802,7 +802,7 @@ struct htt_tx_pdev_mpdu_stats_tlv {
 	u32 mpdus_tried_usr;
 	u32 mpdus_failed_usr;
 	u32 mpdus_requeued_usr;
-	u32 err_no_ba_usr;
+	u32 err_anal_ba_usr;
 	u32 mpdu_underrun_usr;
 	u32 ampdu_underrun_usr;
 	u32 user_index;
@@ -810,19 +810,19 @@ struct htt_tx_pdev_mpdu_stats_tlv {
 };
 
 /* == TX SCHED STATS == */
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_sched_txq_cmd_posted_tlv_v {
 	/* HTT_TX_PDEV_SCHED_TX_MODE_MAX */
 	DECLARE_FLEX_ARRAY(u32, sched_cmd_posted);
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_sched_txq_cmd_reaped_tlv_v {
 	/* HTT_TX_PDEV_SCHED_TX_MODE_MAX */
 	DECLARE_FLEX_ARRAY(u32, sched_cmd_reaped);
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_sched_txq_sched_order_su_tlv_v {
 	/* HTT_TX_PDEV_NUM_SCHED_ORDER_LOG */
 	DECLARE_FLEX_ARRAY(u32, sched_order_su);
@@ -830,19 +830,19 @@ struct htt_sched_txq_sched_order_su_tlv_v {
 
 enum htt_sched_txq_sched_ineligibility_tlv_enum {
 	HTT_SCHED_TID_SKIP_SCHED_MASK_DISABLED = 0,
-	HTT_SCHED_TID_SKIP_NOTIFY_MPDU,
+	HTT_SCHED_TID_SKIP_ANALTIFY_MPDU,
 	HTT_SCHED_TID_SKIP_MPDU_STATE_INVALID,
 	HTT_SCHED_TID_SKIP_SCHED_DISABLED,
 	HTT_SCHED_TID_SKIP_TQM_BYPASS_CMD_PENDING,
 	HTT_SCHED_TID_SKIP_SECOND_SU_SCHEDULE,
 
-	HTT_SCHED_TID_SKIP_CMD_SLOT_NOT_AVAIL,
-	HTT_SCHED_TID_SKIP_NO_ENQ,
+	HTT_SCHED_TID_SKIP_CMD_SLOT_ANALT_AVAIL,
+	HTT_SCHED_TID_SKIP_ANAL_ENQ,
 	HTT_SCHED_TID_SKIP_LOW_ENQ,
 	HTT_SCHED_TID_SKIP_PAUSED,
 	HTT_SCHED_TID_SKIP_UL,
 	HTT_SCHED_TID_REMOVE_PAUSED,
-	HTT_SCHED_TID_REMOVE_NO_ENQ,
+	HTT_SCHED_TID_REMOVE_ANAL_ENQ,
 	HTT_SCHED_TID_REMOVE_UL,
 	HTT_SCHED_TID_QUERY,
 	HTT_SCHED_TID_SU_ONLY,
@@ -850,7 +850,7 @@ enum htt_sched_txq_sched_ineligibility_tlv_enum {
 	HTT_SCHED_INELIGIBILITY_MAX,
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_sched_txq_sched_ineligibility_tlv_v {
 	/* indexed by htt_sched_txq_sched_ineligibility_tlv_enum */
 	DECLARE_FLEX_ARRAY(u32, sched_ineligibility);
@@ -879,7 +879,7 @@ struct htt_tx_pdev_stats_sched_per_txq_tlv {
 	u32 num_de_sched_algo_trigger;
 	u32 num_rt_sched_algo_trigger;
 	u32 num_tqm_sched_algo_trigger;
-	u32 notify_sched;
+	u32 analtify_sched;
 	u32 dur_based_sendn_term;
 };
 
@@ -897,19 +897,19 @@ struct htt_stats_tx_sched_cmn_tlv {
 #define HTT_TX_TQM_MAX_LIST_MPDU_END_REASON         16
 #define HTT_TX_TQM_MAX_LIST_MPDU_CNT_HISTOGRAM_BINS 16
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_tx_tqm_gen_mpdu_stats_tlv_v {
 	/* HTT_TX_TQM_MAX_GEN_MPDU_END_REASON */
 	DECLARE_FLEX_ARRAY(u32, gen_mpdu_end_reason);
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_tx_tqm_list_mpdu_stats_tlv_v {
 	 /* HTT_TX_TQM_MAX_LIST_MPDU_END_REASON */
 	DECLARE_FLEX_ARRAY(u32, list_mpdu_end_reason);
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_tx_tqm_list_mpdu_cnt_tlv_v {
 	/* HTT_TX_TQM_MAX_LIST_MPDU_CNT_HISTOGRAM_BINS */
 	DECLARE_FLEX_ARRAY(u32, list_mpdu_cnt_hist);
@@ -923,7 +923,7 @@ struct htt_tx_tqm_pdev_stats_tlv_v {
 	u32 remove_msdu_ttl;
 	u32 send_bar;
 	u32 bar_sync;
-	u32 notify_mpdu;
+	u32 analtify_mpdu;
 	u32 sync_cmd;
 	u32 write_cmd;
 	u32 hwsch_trigger;
@@ -940,25 +940,25 @@ struct htt_tx_tqm_pdev_stats_tlv_v {
 	u32 flush_cache_cmd;
 	u32 update_mpduq_cmd;
 	u32 enqueue;
-	u32 enqueue_notify;
-	u32 notify_mpdu_at_head;
-	u32 notify_mpdu_state_valid;
+	u32 enqueue_analtify;
+	u32 analtify_mpdu_at_head;
+	u32 analtify_mpdu_state_valid;
 	/*
-	 * On receiving TQM_FLOW_NOT_EMPTY_STATUS from TQM, (on MSDUs being enqueued
-	 * the flow is non empty), if the number of MSDUs is greater than the threshold,
-	 * notify is incremented. UDP_THRESH counters are for UDP MSDUs, and NONUDP are
-	 * for non-UDP MSDUs.
-	 * MSDUQ_SWNOTIFY_UDP_THRESH1 threshold    - sched_udp_notify1 is incremented
-	 * MSDUQ_SWNOTIFY_UDP_THRESH2 threshold    - sched_udp_notify2 is incremented
-	 * MSDUQ_SWNOTIFY_NONUDP_THRESH1 threshold - sched_nonudp_notify1 is incremented
-	 * MSDUQ_SWNOTIFY_NONUDP_THRESH2 threshold - sched_nonudp_notify2 is incremented
+	 * On receiving TQM_FLOW_ANALT_EMPTY_STATUS from TQM, (on MSDUs being enqueued
+	 * the flow is analn empty), if the number of MSDUs is greater than the threshold,
+	 * analtify is incremented. UDP_THRESH counters are for UDP MSDUs, and ANALNUDP are
+	 * for analn-UDP MSDUs.
+	 * MSDUQ_SWANALTIFY_UDP_THRESH1 threshold    - sched_udp_analtify1 is incremented
+	 * MSDUQ_SWANALTIFY_UDP_THRESH2 threshold    - sched_udp_analtify2 is incremented
+	 * MSDUQ_SWANALTIFY_ANALNUDP_THRESH1 threshold - sched_analnudp_analtify1 is incremented
+	 * MSDUQ_SWANALTIFY_ANALNUDP_THRESH2 threshold - sched_analnudp_analtify2 is incremented
 	 *
-	 * Notify signifies that we trigger the scheduler.
+	 * Analtify signifies that we trigger the scheduler.
 	 */
-	u32 sched_udp_notify1;
-	u32 sched_udp_notify2;
-	u32 sched_nonudp_notify1;
-	u32 sched_nonudp_notify2;
+	u32 sched_udp_analtify1;
+	u32 sched_udp_analtify2;
+	u32 sched_analnudp_analtify1;
+	u32 sched_analnudp_analtify2;
 };
 
 struct htt_tx_tqm_cmn_stats_tlv {
@@ -969,15 +969,15 @@ struct htt_tx_tqm_cmn_stats_tlv {
 	/* Global stats */
 	u32 add_msdu;
 	u32 q_empty;
-	u32 q_not_empty;
-	u32 drop_notification;
+	u32 q_analt_empty;
+	u32 drop_analtification;
 	u32 desc_threshold;
 };
 
 struct htt_tx_tqm_error_stats_tlv {
 	/* Error stats */
 	u32 q_empty_failure;
-	u32 q_not_empty_failure;
+	u32 q_analt_empty_failure;
 	u32 add_msdu_failure;
 };
 
@@ -1012,19 +1012,19 @@ struct htt_tx_de_eapol_packets_stats_tlv {
 };
 
 struct htt_tx_de_classify_failed_stats_tlv {
-	u32 ap_bss_peer_not_found;
-	u32 ap_bcast_mcast_no_peer;
+	u32 ap_bss_peer_analt_found;
+	u32 ap_bcast_mcast_anal_peer;
 	u32 sta_delete_in_progress;
-	u32 ibss_no_bss_peer;
+	u32 ibss_anal_bss_peer;
 	u32 invalid_vdev_type;
 	u32 invalid_ast_peer_entry;
 	u32 peer_entry_invalid;
-	u32 ethertype_not_ip;
+	u32 ethertype_analt_ip;
 	u32 eapol_lookup_failed;
-	u32 qpeer_not_allow_data;
+	u32 qpeer_analt_allow_data;
 	u32 fse_tid_override;
 	u32 ipv6_jumbogram_zero_length;
-	u32 qos_to_non_qos_in_prog;
+	u32 qos_to_analn_qos_in_prog;
 };
 
 struct htt_tx_de_classify_stats_tlv {
@@ -1042,7 +1042,7 @@ struct htt_tx_de_classify_stats_tlv {
 	u32 htt_valid_bw_info;
 	u32 htt_valid_power;
 	u32 htt_valid_key_flags;
-	u32 htt_valid_no_encryption;
+	u32 htt_valid_anal_encryption;
 	u32 fse_entry_count;
 	u32 fse_priority_be;
 	u32 fse_priority_high;
@@ -1061,11 +1061,11 @@ struct htt_tx_de_classify_stats_tlv {
 	u32 htt_learning_frame;
 	u32 fse_invalid_peer;
 	/*
-	 * mec_notify is HTT TX WBM multicast echo check notification
+	 * mec_analtify is HTT TX WBM multicast echo check analtification
 	 * from firmware to host.  FW sends SA addresses to host for all
 	 * multicast/broadcast packets received on STA side.
 	 */
-	u32    mec_notify;
+	u32    mec_analtify;
 };
 
 struct htt_tx_de_classify_status_stats_tlv {
@@ -1074,7 +1074,7 @@ struct htt_tx_de_classify_status_stats_tlv {
 	u32 lookup_failed;
 	u32 send_host_dhcp;
 	u32 send_host_mcast;
-	u32 send_host_unknown_dest;
+	u32 send_host_unkanalwn_dest;
 	u32 send_host;
 	u32 status_invalid;
 };
@@ -1094,7 +1094,7 @@ struct htt_tx_de_enqueue_discard_stats_tlv {
 struct htt_tx_de_compl_stats_tlv {
 	u32 tcl_dummy_frame;
 	u32 tqm_dummy_frame;
-	u32 tqm_notify_frame;
+	u32 tqm_analtify_frame;
 	u32 fw2wbm_enq;
 	u32 tqm_bypass_frame;
 };
@@ -1102,7 +1102,7 @@ struct htt_tx_de_compl_stats_tlv {
 /*
  *  The htt_tx_de_fw2wbm_ring_full_hist_tlv is a histogram of time we waited
  *  for the fw2wbm ring buffer.  we are requesting a buffer in FW2WBM release
- *  ring,which may fail, due to non availability of buffer. Hence we sleep for
+ *  ring,which may fail, due to analn availability of buffer. Hence we sleep for
  *  200us & again request for it. This is a histogram of time we wait, with
  *  bin of 200ms & there are 10 bin (2 seconds max)
  *  They are defined by the following macros in FW
@@ -1119,7 +1119,7 @@ struct htt_tx_de_cmn_stats_tlv {
 
 	/* Global Stats */
 	u32   tcl2fw_entry_count;
-	u32   not_to_fw;
+	u32   analt_to_fw;
 	u32   invalid_pdev_vdev_peer;
 	u32   tcl_res_invalid_addrx;
 	u32   wbm2fw_entry_count;
@@ -1161,7 +1161,7 @@ struct htt_ring_if_cmn_tlv {
 };
 
 /* == SFM STATS == */
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_sfm_client_user_tlv_v {
 	/* Number of DWORDS used per user and per client */
 	DECLARE_FLEX_ARRAY(u32, dwords_used_by_user_n);
@@ -1191,7 +1191,7 @@ struct htt_sfm_cmn_tlv {
 	 */
 	u32 buf_total;
 	/* Indicates for certain client or all the clients
-	 * there is no dowrd saved in SFM, refer to SFM_R1_MEM_EMPTY
+	 * there is anal dowrd saved in SFM, refer to SFM_R1_MEM_EMPTY
 	 */
 	u32 mem_empty;
 	/* DEALLOCATE_BUFFERS, refer to register SFM_R0_DEALLOCATE_BUFFERS */
@@ -1250,7 +1250,7 @@ struct htt_tx_pdev_rate_stats_tlv {
 	u32 mac_id__word;
 	u32 tx_ldpc;
 	u32 rts_cnt;
-	/* RSSI value of last ack packet (units = dB above noise floor) */
+	/* RSSI value of last ack packet (units = dB above analise floor) */
 	u32 ack_rssi;
 
 	u32 tx_mcs[HTT_TX_PDEV_STATS_NUM_MCS_COUNTERS];
@@ -1272,7 +1272,7 @@ struct htt_tx_pdev_rate_stats_tlv {
 
 	/* Counters to track packets in dcm mcs (MCS 0, 1, 3, 4) */
 	u32 tx_dcm[HTT_TX_PDEV_STATS_NUM_DCM_COUNTERS];
-	/* Number of CTS-acknowledged RTS packets */
+	/* Number of CTS-ackanalwledged RTS packets */
 	u32 rts_success;
 
 	/*
@@ -1342,9 +1342,9 @@ struct htt_rx_pdev_rate_stats_tlv {
 	u32 rx_ldpc;
 	u32 rts_cnt;
 
-	u32 rssi_mgmt; /* units = dB above noise floor */
-	u32 rssi_data; /* units = dB above noise floor */
-	u32 rssi_comb; /* units = dB above noise floor */
+	u32 rssi_mgmt; /* units = dB above analise floor */
+	u32 rssi_data; /* units = dB above analise floor */
+	u32 rssi_comb; /* units = dB above analise floor */
 	u32 rx_mcs[HTT_RX_PDEV_STATS_NUM_MCS_COUNTERS];
 	/* element 0,1, ...7 -> NSS 1,2, ...8 */
 	u32 rx_nss[HTT_RX_PDEV_STATS_NUM_SPATIAL_STREAMS];
@@ -1355,7 +1355,7 @@ struct htt_rx_pdev_rate_stats_tlv {
 	u32 rx_pream[HTT_RX_PDEV_STATS_NUM_PREAMBLE_TYPES];
 	u8 rssi_chain[HTT_RX_PDEV_STATS_NUM_SPATIAL_STREAMS]
 		     [HTT_RX_PDEV_STATS_NUM_BW_COUNTERS];
-					/* units = dB above noise floor */
+					/* units = dB above analise floor */
 
 	/* Counters to track number of rx packets
 	 * in each GI in each mcs (0-11)
@@ -1384,7 +1384,7 @@ struct htt_rx_pdev_rate_stats_tlv {
 	u32 ul_ofdma_rx_ldpc;
 
 	/* record the stats for each user index */
-	u32 rx_ulofdma_non_data_ppdu[HTT_RX_PDEV_MAX_OFDMA_NUM_USER]; /* ppdu level */
+	u32 rx_ulofdma_analn_data_ppdu[HTT_RX_PDEV_MAX_OFDMA_NUM_USER]; /* ppdu level */
 	u32 rx_ulofdma_data_ppdu[HTT_RX_PDEV_MAX_OFDMA_NUM_USER];     /* ppdu level */
 	u32 rx_ulofdma_mpdu_ok[HTT_RX_PDEV_MAX_OFDMA_NUM_USER];       /* mpdu level */
 	u32 rx_ulofdma_mpdu_fail[HTT_RX_PDEV_MAX_OFDMA_NUM_USER];     /* mpdu level */
@@ -1421,11 +1421,11 @@ struct htt_rx_pdev_rate_stats_tlv {
 	u32 rx_11ax_dl_ofdma_mcs[HTT_RX_PDEV_STATS_NUM_MCS_COUNTERS];
 	u32 rx_11ax_dl_ofdma_ru[HTT_RX_PDEV_STATS_NUM_RU_SIZE_COUNTERS];
 
-	u32 rx_ulmumimo_non_data_ppdu[HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER];
+	u32 rx_ulmumimo_analn_data_ppdu[HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER];
 	u32 rx_ulmumimo_data_ppdu[HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER];
 	u32 rx_ulmumimo_mpdu_ok[HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER];
 	u32 rx_ulmumimo_mpdu_fail[HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER];
-	u32 rx_ulofdma_non_data_nusers[HTT_RX_PDEV_MAX_OFDMA_NUM_USER];
+	u32 rx_ulofdma_analn_data_nusers[HTT_RX_PDEV_MAX_OFDMA_NUM_USER];
 	u32 rx_ulofdma_data_nusers[HTT_RX_PDEV_MAX_OFDMA_NUM_USER];
 };
 
@@ -1447,13 +1447,13 @@ struct htt_rx_soc_fw_stats_tlv {
 	u32 target_refill_ring_recycle_cnt;
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_rx_soc_fw_refill_ring_empty_tlv_v {
 	/* HTT_RX_STATS_REFILL_MAX_RING */
 	DECLARE_FLEX_ARRAY(u32, refill_ring_empty_cnt);
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_rx_soc_fw_refill_ring_num_refill_tlv_v {
 	/* HTT_RX_STATS_REFILL_MAX_RING */
 	DECLARE_FLEX_ARRAY(u32, refill_ring_num_refill);
@@ -1478,7 +1478,7 @@ enum htt_rx_rxdma_error_code_enum {
 	HTT_RX_RXDMA_ERR_CODE_RVSD0                         = 14,
 	HTT_RX_RXDMA_ERR_CODE_RVSD1                         = 15,
 
-	/* This MAX_ERR_CODE should not be used in any host/target messages,
+	/* This MAX_ERR_CODE should analt be used in any host/target messages,
 	 * so that even though it is defined within a host/target interface
 	 * definition header file, it isn't actually part of the host/target
 	 * interface, and thus can be modified.
@@ -1486,7 +1486,7 @@ enum htt_rx_rxdma_error_code_enum {
 	HTT_RX_RXDMA_MAX_ERR_CODE
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_rx_soc_fw_refill_ring_num_rxdma_err_tlv_v {
 	DECLARE_FLEX_ARRAY(u32, rxdma_err); /* HTT_RX_RXDMA_MAX_ERR_CODE */
 };
@@ -1494,15 +1494,15 @@ struct htt_rx_soc_fw_refill_ring_num_rxdma_err_tlv_v {
 /* REO error code from WBM released packets */
 enum htt_rx_reo_error_code_enum {
 	HTT_RX_REO_QUEUE_DESC_ADDR_ZERO                     = 0,
-	HTT_RX_REO_QUEUE_DESC_NOT_VALID                     = 1,
-	HTT_RX_AMPDU_IN_NON_BA                              = 2,
-	HTT_RX_NON_BA_DUPLICATE                             = 3,
+	HTT_RX_REO_QUEUE_DESC_ANALT_VALID                     = 1,
+	HTT_RX_AMPDU_IN_ANALN_BA                              = 2,
+	HTT_RX_ANALN_BA_DUPLICATE                             = 3,
 	HTT_RX_BA_DUPLICATE                                 = 4,
 	HTT_RX_REGULAR_FRAME_2K_JUMP                        = 5,
 	HTT_RX_BAR_FRAME_2K_JUMP                            = 6,
 	HTT_RX_REGULAR_FRAME_OOR                            = 7,
 	HTT_RX_BAR_FRAME_OOR                                = 8,
-	HTT_RX_BAR_FRAME_NO_BA_SESSION                      = 9,
+	HTT_RX_BAR_FRAME_ANAL_BA_SESSION                      = 9,
 	HTT_RX_BAR_FRAME_SN_EQUALS_SSN                      = 10,
 	HTT_RX_PN_CHECK_FAILED                              = 11,
 	HTT_RX_2K_ERROR_HANDLING_FLAG_SET                   = 12,
@@ -1510,7 +1510,7 @@ enum htt_rx_reo_error_code_enum {
 	HTT_RX_QUEUE_DESCRIPTOR_BLOCKED_SET                 = 14,
 	HTT_RX_REO_ERR_CODE_RVSD                            = 15,
 
-	/* This MAX_ERR_CODE should not be used in any host/target messages,
+	/* This MAX_ERR_CODE should analt be used in any host/target messages,
 	 * so that even though it is defined within a host/target interface
 	 * definition header file, it isn't actually part of the host/target
 	 * interface, and thus can be modified.
@@ -1518,7 +1518,7 @@ enum htt_rx_reo_error_code_enum {
 	HTT_RX_REO_MAX_ERR_CODE
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_rx_soc_fw_refill_ring_num_reo_err_tlv_v {
 	DECLARE_FLEX_ARRAY(u32, reo_err); /* HTT_RX_REO_MAX_ERR_CODE */
 };
@@ -1547,8 +1547,8 @@ struct htt_rx_pdev_fw_stats_tlv {
 	u32 ofld_local_data_buf_recycle_cnt;
 	u32 drx_local_data_ind_cnt;
 	u32 drx_local_data_buf_recycle_cnt;
-	u32 local_nondata_ind_cnt;
-	u32 local_nondata_buf_recycle_cnt;
+	u32 local_analndata_ind_cnt;
+	u32 local_analndata_buf_recycle_cnt;
 
 	u32 fw_status_buf_ring_refill_cnt;
 	u32 fw_status_buf_ring_empty_cnt;
@@ -1634,13 +1634,13 @@ struct htt_rx_pdev_fw_stats_phy_err_tlv {
 	u32 phy_err[HTT_STATS_PHY_ERR_MAX];
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_rx_pdev_fw_ring_mpdu_err_tlv_v {
 	/* Num error MPDU for each RxDMA error type  */
 	DECLARE_FLEX_ARRAY(u32, fw_ring_mpdu_err); /* HTT_RX_STATS_RXDMA_MAX_ERR */
 };
 
-/* NOTE: Variable length TLV, use length spec to infer array size */
+/* ANALTE: Variable length TLV, use length spec to infer array size */
 struct htt_rx_pdev_fw_mpdu_drop_tlv_v {
 	/* Num MPDU dropped  */
 	DECLARE_FLEX_ARRAY(u32, fw_mpdu_drop); /* HTT_RX_STATS_FW_DROP_REASON_MAX */
@@ -1689,7 +1689,7 @@ struct htt_pdev_stats_twt_session_tlv {
 	u32 flow_id_flags;
 
 	/* TWT_DIALOG_ID_UNAVAILABLE is used
-	 * when TWT session is not initiated by host
+	 * when TWT session is analt initiated by host
 	 */
 	u32 dialog_id;
 	u32 wake_dura_us;
@@ -1728,12 +1728,12 @@ struct htt_rx_reo_resource_stats_tlv_v {
 	u32 total_max;
 	u32 total_avg;
 	u32 total_sample;
-	u32 non_zeros_avg;
-	u32 non_zeros_sample;
-	u32 last_non_zeros_max;
-	u32 last_non_zeros_min;
-	u32 last_non_zeros_avg;
-	u32 last_non_zeros_sample;
+	u32 analn_zeros_avg;
+	u32 analn_zeros_sample;
+	u32 last_analn_zeros_max;
+	u32 last_analn_zeros_min;
+	u32 last_analn_zeros_avg;
+	u32 last_analn_zeros_sample;
 };
 
 /* == TX SOUNDING STATS == */
@@ -1776,9 +1776,9 @@ struct htt_pdev_obss_pd_stats_tlv {
 	u32 num_obss_tx_ppdu_failure;
 	u32 num_sr_tx_transmissions;
 	u32 num_spatial_reuse_opportunities;
-	u32 num_non_srg_opportunities;
-	u32 num_non_srg_ppdu_tried;
-	u32 num_non_srg_ppdu_success;
+	u32 num_analn_srg_opportunities;
+	u32 num_analn_srg_ppdu_tried;
+	u32 num_analn_srg_ppdu_success;
 	u32 num_srg_opportunities;
 	u32 num_srg_ppdu_tried;
 	u32 num_srg_ppdu_success;
@@ -1916,8 +1916,8 @@ struct htt_phy_counters_tlv {
 	u32 phyrx_defer_abort_cnt;
 	/* number of sizing events generated at LSTF */
 	u32 rx_gain_adj_lstf_event_cnt;
-	/* number of sizing events generated at non-legacy LTF */
-	u32 rx_gain_adj_non_legacy_cnt;
+	/* number of sizing events generated at analn-legacy LTF */
+	u32 rx_gain_adj_analn_legacy_cnt;
 	/* rx_pkt_cnt -
 	 * Received EOP (end-of-packet) count per packet type;
 	 * [0] = 11a; [1] = 11b; [2] = 11n; [3] = 11ac; [4] = 11ax; [5] = GF
@@ -1932,7 +1932,7 @@ struct htt_phy_counters_tlv {
 	u32 rx_pkt_crc_pass_cnt[HTT_MAX_RX_PKT_CRC_PASS_CNT];
 	/* per_blk_err_cnt -
 	 * Error count per error source;
-	 * [0] = unknown; [1] = LSIG; [2] = HTSIG; [3] = VHTSIG; [4] = HESIG;
+	 * [0] = unkanalwn; [1] = LSIG; [2] = HTSIG; [3] = VHTSIG; [4] = HESIG;
 	 * [5] = RXTD_OTA; [6] = RXTD_FATAL; [7] = DEMF; [8] = ROBE;
 	 * [9] = PMI; [10] = TXFD; [11] = TXTD; [12] = PHYRF
 	 * [13-19]=RSVD
@@ -1950,16 +1950,16 @@ struct htt_phy_counters_tlv {
 };
 
 struct htt_phy_stats_tlv {
-	/* per chain hw noise floor values in dBm */
+	/* per chain hw analise floor values in dBm */
 	s32 nf_chain[HTT_STATS_MAX_CHAINS];
 	/* number of false radars detected */
 	u32 false_radar_cnt;
 	/* number of channel switches happened due to radar detection */
 	u32 radar_cs_cnt;
 	/* ani_level -
-	 * ANI level (noise interference) corresponds to the channel
+	 * ANI level (analise interference) corresponds to the channel
 	 * the desense levels range from -5 to 15 in dB units,
-	 * higher values indicating more noise interference.
+	 * higher values indicating more analise interference.
 	 */
 	s32 ani_level;
 	/* running time in minutes since FW boot */

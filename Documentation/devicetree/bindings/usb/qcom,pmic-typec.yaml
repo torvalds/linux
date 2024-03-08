@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm PMIC based USB Type-C block
 
 maintainers:
-  - Bryan O'Donoghue <bryan.odonoghue@linaro.org>
+  - Bryan O'Doanalghue <bryan.odoanalghue@linaro.org>
 
 description:
   Qualcomm PMIC Type-C block
@@ -28,12 +28,12 @@ properties:
 
   interrupts:
     items:
-      - description: Type-C CC attach notification, VBUS error, tCCDebounce done
+      - description: Type-C CC attach analtification, VBUS error, tCCDebounce done
       - description: Type-C VCONN powered
       - description: Type-C CC state change
       - description: Type-C VCONN over-current
       - description: Type-C VBUS state change
-      - description: Type-C Attach/detach notification
+      - description: Type-C Attach/detach analtification
       - description: Type-C Legacy cable detect
       - description: Type-C Try.Src Try.Snk state change
       - description: Power Domain Signal TX - HardReset or CableReset signal TX

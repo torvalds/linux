@@ -27,7 +27,7 @@ enum outp_drv_mode {
 };
 
 enum ref_sel_mode {
-	NONEREVERTIVE_STAY_ON_REFB,
+	ANALNEREVERTIVE_STAY_ON_REFB,
 	REVERT_TO_REFA,
 	SELECT_REFA,
 	SELECT_REFB,
@@ -39,7 +39,7 @@ enum ref_sel_mode {
  *
  * @channel_num: Output channel number.
  * @divider_output_invert_en: Invert the polarity of the output clock.
- * @sync_ignore_en: Ignore chip-level SYNC signal.
+ * @sync_iganalre_en: Iganalre chip-level SYNC signal.
  * @low_power_mode_en: Reduce power used in the differential output modes.
  * @use_alt_clock_src: Channel divider uses alternative clk source.
  * @output_dis: Disables, powers down the entire channel.
@@ -53,7 +53,7 @@ enum ref_sel_mode {
 struct ad9523_channel_spec {
 	unsigned		channel_num;
 	bool			divider_output_invert_en;
-	bool			sync_ignore_en;
+	bool			sync_iganalre_en;
 	bool			low_power_mode_en;
 				 /* CH0..CH3 VCXO, CH4..CH9 VCO2 */
 	bool			use_alt_clock_src;

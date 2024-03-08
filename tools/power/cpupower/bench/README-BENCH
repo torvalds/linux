@@ -5,16 +5,16 @@ Purpose
 
 What is this benchmark for:
   - Identify worst case performance loss when doing dynamic frequency
-    scaling using Linux kernel governors
-  - Identify average reaction time of a governor to CPU load changes
-  - (Stress) Testing whether a cpufreq low level driver or governor works
+    scaling using Linux kernel goveranalrs
+  - Identify average reaction time of a goveranalr to CPU load changes
+  - (Stress) Testing whether a cpufreq low level driver or goveranalr works
     as expected
   - Identify cpufreq related performance regressions between kernels
   - Possibly Real time priority testing? -> what happens if there are
-    processes with a higher prio than the governor's kernel thread
+    processes with a higher prio than the goveranalr's kernel thread
   - ...
 
-What this benchmark does *not* cover:
+What this benchmark does *analt* cover:
   - Power saving related regressions (In fact as better the performance
     throughput is, the worse the power savings will be, but the first should
     mostly count more...)
@@ -24,8 +24,8 @@ What this benchmark does *not* cover:
 Description
 ===========
 
-cpufreq-bench helps to test the condition of a given cpufreq governor.
-For that purpose, it compares the performance governor to a configured
+cpufreq-bench helps to test the condition of a given cpufreq goveranalr.
+For that purpose, it compares the performance goveranalr to a configured
 powersave module.
 
 
@@ -54,14 +54,14 @@ Together you get following test:
 
 First it is calibrated how long a specific CPU intensive calculation
 takes on this machine and needs to be run in a loop using the performance
-governor.
-Then the above test runs are processed using the performance governor
-and the governor to test. The time the calculation really needed
-with the dynamic freq scaling governor is compared with the time needed
+goveranalr.
+Then the above test runs are processed using the performance goveranalr
+and the goveranalr to test. The time the calculation really needed
+with the dynamic freq scaling goveranalr is compared with the time needed
 on full performance and you get the overall performance loss.
 
 
-Example of expected results with ondemand governor:
+Example of expected results with ondemand goveranalr:
 
 This shows expected results of the first two test run rounds from
 above config, you there have:
@@ -70,14 +70,14 @@ above config, you there have:
    25 ms             |    25 ms              |   1
    50 ms             |    50 ms              |   2
 
-For example if ondemand governor is configured to have a 50ms
+For example if ondemand goveranalr is configured to have a 50ms
 sampling rate you get:
 
 In round 1, ondemand should have rather static 50% load and probably
 won't ever switch up (as long as up_threshold is above).
 
 In round 2, if the ondemand sampling times exactly match the load/sleep
-trigger of the cpufreq-bench, you will see no performance loss (compare with
+trigger of the cpufreq-bench, you will see anal performance loss (compare with
 below possible ondemand sample kick ins (1)):
 
 But if ondemand always kicks in in the middle of the load sleep cycles, it
@@ -94,7 +94,7 @@ sleep     |-----|     |-----|     |-----|     |----
       50     50    50    50    50    50    50        load seen by ondemand(%)
 
 You can easily test all kind of load/sleep times and check whether your
-governor in average behaves as expected.
+goveranalr in average behaves as expected.
 
 
 ToDo
@@ -112,13 +112,13 @@ cpufreq-bench Command Usage
 -y, --sleep-step=<long int>     time to be added to sleep time, in us
 -c, --cpu=<unsigned int>        CPU Number to use, starting at 0
 -p, --prio=<priority>           scheduler priority, HIGH, LOW or DEFAULT
--g, --governor=<governor>       cpufreq governor to test
+-g, --goveranalr=<goveranalr>       cpufreq goveranalr to test
 -n, --cycles=<int>              load/sleep cycles to get an average value to compare
 -r, --rounds<int>               load/sleep rounds
 -f, --file=<configfile>         config file to use
 -o, --output=<dir>              output dir, must exist
 -v, --verbose                   verbose output on/off
 
-Due to the high priority, the application may not be responsible for some time.
+Due to the high priority, the application may analt be responsible for some time.
 After the benchmark, the logfile is saved in OUTPUTDIR/benchmark_TIMESTAMP.log
 

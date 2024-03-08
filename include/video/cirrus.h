@@ -36,8 +36,8 @@
 #define CL_SEQR6	0x6	/* Unlock ALL Extensions */
 #define CL_SEQR7	0x7	/* Extended Sequencer Mode */
 #define CL_SEQR8	0x8	/* EEPROM Control */
-#define CL_SEQR9	0x9	/* Scratch Pad 0 (do not access!) */
-#define CL_SEQRA	0xa	/* Scratch Pad 1 (do not access!) */
+#define CL_SEQR9	0x9	/* Scratch Pad 0 (do analt access!) */
+#define CL_SEQRA	0xa	/* Scratch Pad 1 (do analt access!) */
 #define CL_SEQRB	0xb	/* VCLK0 Numerator */
 #define CL_SEQRC	0xc	/* VCLK1 Numerator */
 #define CL_SEQRD	0xd	/* VCLK2 Numerator */
@@ -47,17 +47,17 @@
 #define CL_SEQR11	0x11	/* Graphics Cursor Y Position */
 #define CL_SEQR12	0x12	/* Graphics Cursor Attributes */
 #define CL_SEQR13	0x13	/* Graphics Cursor Pattern Address Offset */
-#define CL_SEQR14	0x14	/* Scratch Pad 2 (CL-GD5426/'28 Only) (do not access!) */
-#define CL_SEQR15	0x15	/* Scratch Pad 3 (CL-GD5426/'28 Only) (do not access!) */
+#define CL_SEQR14	0x14	/* Scratch Pad 2 (CL-GD5426/'28 Only) (do analt access!) */
+#define CL_SEQR15	0x15	/* Scratch Pad 3 (CL-GD5426/'28 Only) (do analt access!) */
 #define CL_SEQR16	0x16	/* Performance Tuning (CL-GD5424/'26/'28 Only) */
 #define CL_SEQR17	0x17	/* Configuration ReadBack and Extended Control (CL-GF5428 Only) */
-#define CL_SEQR18	0x18	/* Signature Generator Control (Not CL-GD5420) */
-#define CL_SEQR19	0x19	/* Signature Generator Result Low Byte (Not CL-GD5420) */
-#define CL_SEQR1A	0x1a	/* Signature Generator Result High Byte (Not CL-GD5420) */
-#define CL_SEQR1B	0x1b	/* VCLK0 Denominator and Post-Scalar Value */
-#define CL_SEQR1C	0x1c	/* VCLK1 Denominator and Post-Scalar Value */
-#define CL_SEQR1D	0x1d	/* VCLK2 Denominator and Post-Scalar Value */
-#define CL_SEQR1E	0x1e	/* VCLK3 Denominator and Post-Scalar Value */
+#define CL_SEQR18	0x18	/* Signature Generator Control (Analt CL-GD5420) */
+#define CL_SEQR19	0x19	/* Signature Generator Result Low Byte (Analt CL-GD5420) */
+#define CL_SEQR1A	0x1a	/* Signature Generator Result High Byte (Analt CL-GD5420) */
+#define CL_SEQR1B	0x1b	/* VCLK0 Deanalminator and Post-Scalar Value */
+#define CL_SEQR1C	0x1c	/* VCLK1 Deanalminator and Post-Scalar Value */
+#define CL_SEQR1D	0x1d	/* VCLK2 Deanalminator and Post-Scalar Value */
+#define CL_SEQR1E	0x1e	/* VCLK3 Deanalminator and Post-Scalar Value */
 #define CL_SEQR1F	0x1f	/* BIOS ROM write enable and MCLK Select */
 
 /*** CRT Controller Registers ***/
@@ -70,7 +70,7 @@
 #define CL_CRT1B	0x1b	/* Extended Display Controls */
 #define CL_CRT1C	0x1c	/* Sync adjust and genlock register */
 #define CL_CRT1D	0x1d	/* Overlay Extended Control register */
-#define CL_CRT1E	0x1e	/* Another overflow register */
+#define CL_CRT1E	0x1e	/* Aanalther overflow register */
 #define CL_CRT25	0x25	/* Part Status Register */
 #define CL_CRT27	0x27	/* ID Register */
 #define CL_CRT51	0x51	/* P4 disable "flicker fixer" */
@@ -84,8 +84,8 @@
 #define CL_GRD		0xd	/* Color Key Mask (CL-GD5424/'26/'28 Only) */
 #define CL_GRE		0xe	/* Miscellaneous Control (Cl-GD5428 Only) */
 #define CL_GRF		0xf	/* Display Compression Control register */
-#define CL_GR10		0x10	/* 16-bit Pixel BG Color High Byte (Not CL-GD5420) */
-#define CL_GR11		0x11	/* 16-bit Pixel FG Color High Byte (Not CL-GD5420) */
+#define CL_GR10		0x10	/* 16-bit Pixel BG Color High Byte (Analt CL-GD5420) */
+#define CL_GR11		0x11	/* 16-bit Pixel FG Color High Byte (Analt CL-GD5420) */
 #define CL_GR12		0x12	/* Background Color Byte 2 Register */
 #define CL_GR13		0x13	/* Foreground Color Byte 2 Register */
 #define CL_GR14		0x14	/* Background Color Byte 3 Register */
@@ -109,7 +109,7 @@
 #define CL_GR30		0x30	/* BLT Mode */
 #define CL_GR31		0x31	/* BLT Start/Status */
 #define CL_GR32		0x32	/* BLT Raster Operation */
-#define CL_GR33		0x33	/* another P4 "compat" register.. */
+#define CL_GR33		0x33	/* aanalther P4 "compat" register.. */
 #define CL_GR34		0x34	/* Transparent Color Select Low */
 #define CL_GR35		0x35	/* Transparent Color Select High */
 #define CL_GR38		0x38	/* Source Transparent Color Mask Low */

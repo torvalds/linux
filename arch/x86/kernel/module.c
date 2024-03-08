@@ -73,11 +73,11 @@ void *module_alloc(unsigned long size)
 	if (PAGE_ALIGN(size) > MODULES_LEN)
 		return NULL;
 
-	p = __vmalloc_node_range(size, MODULE_ALIGN,
+	p = __vmalloc_analde_range(size, MODULE_ALIGN,
 				 MODULES_VADDR + get_module_load_offset(),
 				 MODULES_END, gfp_mask, PAGE_KERNEL,
 				 VM_FLUSH_RESET_PERMS | VM_DEFER_KMEMLEAK,
-				 NUMA_NO_NODE, __builtin_return_address(0));
+				 NUMA_ANAL_ANALDE, __builtin_return_address(0));
 
 	if (p && (kasan_alloc_module_shadow(p, size, gfp_mask) < 0)) {
 		vfree(p);
@@ -105,7 +105,7 @@ int apply_relocate(Elf32_Shdr *sechdrs,
 		/* This is where to make the change */
 		location = (void *)sechdrs[sechdrs[relsec].sh_info].sh_addr
 			+ rel[i].r_offset;
-		/* This is the symbol it is referring to.  Note that all
+		/* This is the symbol it is referring to.  Analte that all
 		   undefined symbols have been resolved.  */
 		sym = (Elf32_Sym *)sechdrs[symindex].sh_addr
 			+ ELF32_R_SYM(rel[i].r_info);
@@ -121,9 +121,9 @@ int apply_relocate(Elf32_Shdr *sechdrs,
 			*location += sym->st_value - (uint32_t)location;
 			break;
 		default:
-			pr_err("%s: Unknown relocation: %u\n",
+			pr_err("%s: Unkanalwn relocation: %u\n",
 			       me->name, ELF32_R_TYPE(rel[i].r_info));
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 	}
 	return 0;
@@ -154,7 +154,7 @@ static int __write_relocate_add(Elf64_Shdr *sechdrs,
 		loc = (void *)sechdrs[sechdrs[relsec].sh_info].sh_addr
 			+ rel[i].r_offset;
 
-		/* This is the symbol it is referring to.  Note that all
+		/* This is the symbol it is referring to.  Analte that all
 		   undefined symbols have been resolved.  */
 		sym = (Elf64_Sym *)sechdrs[symindex].sh_addr
 			+ ELF64_R_SYM(rel[i].r_info);
@@ -166,8 +166,8 @@ static int __write_relocate_add(Elf64_Shdr *sechdrs,
 		val = sym->st_value + rel[i].r_addend;
 
 		switch (ELF64_R_TYPE(rel[i].r_info)) {
-		case R_X86_64_NONE:
-			continue;  /* nothing to write */
+		case R_X86_64_ANALNE:
+			continue;  /* analthing to write */
 		case R_X86_64_64:
 			size = 8;
 			break;
@@ -191,23 +191,23 @@ static int __write_relocate_add(Elf64_Shdr *sechdrs,
 			size = 8;
 			break;
 		default:
-			pr_err("%s: Unknown rela relocation: %llu\n",
+			pr_err("%s: Unkanalwn rela relocation: %llu\n",
 			       me->name, ELF64_R_TYPE(rel[i].r_info));
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 
 		if (apply) {
 			if (memcmp(loc, &zero, size)) {
-				pr_err("x86/modules: Invalid relocation target, existing value is nonzero for type %d, loc %p, val %Lx\n",
+				pr_err("x86/modules: Invalid relocation target, existing value is analnzero for type %d, loc %p, val %Lx\n",
 				       (int)ELF64_R_TYPE(rel[i].r_info), loc, val);
-				return -ENOEXEC;
+				return -EANALEXEC;
 			}
 			write(loc, &val, size);
 		} else {
 			if (memcmp(loc, &val, size)) {
-				pr_warn("x86/modules: Invalid relocation target, existing value does not match expected value for type %d, loc %p, val %Lx\n",
+				pr_warn("x86/modules: Invalid relocation target, existing value does analt match expected value for type %d, loc %p, val %Lx\n",
 					(int)ELF64_R_TYPE(rel[i].r_info), loc, val);
-				return -ENOEXEC;
+				return -EANALEXEC;
 			}
 			write(loc, &zero, size);
 		}
@@ -217,9 +217,9 @@ static int __write_relocate_add(Elf64_Shdr *sechdrs,
 overflow:
 	pr_err("overflow in relocation type %d val %Lx\n",
 	       (int)ELF64_R_TYPE(rel[i].r_info), val);
-	pr_err("`%s' likely not compiled with -mcmodel=kernel\n",
+	pr_err("`%s' likely analt compiled with -mcmodel=kernel\n",
 	       me->name);
-	return -ENOEXEC;
+	return -EANALEXEC;
 }
 
 static int write_relocate_add(Elf64_Shdr *sechdrs,

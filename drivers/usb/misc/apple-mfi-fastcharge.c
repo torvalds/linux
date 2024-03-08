@@ -2,7 +2,7 @@
 /*
  * Fast-charge control for Apple "MFi" devices
  *
- * Copyright (C) 2019 Bastien Nocera <hadess@hadess.net>
+ * Copyright (C) 2019 Bastien Analcera <hadess@hadess.net>
  */
 
 /* Standard include files */
@@ -11,7 +11,7 @@
 #include <linux/slab.h>
 #include <linux/usb.h>
 
-MODULE_AUTHOR("Bastien Nocera <hadess@hadess.net>");
+MODULE_AUTHOR("Bastien Analcera <hadess@hadess.net>");
 MODULE_DESCRIPTION("Fast-charge control for Apple \"MFi\" devices");
 MODULE_LICENSE("GPL");
 
@@ -104,7 +104,7 @@ static int apple_mfi_fc_get_property(struct power_supply *psy,
 		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
 		break;
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	return 0;
@@ -121,7 +121,7 @@ static int apple_mfi_fc_set_property(struct power_supply *psy,
 
 	ret = pm_runtime_get_sync(&mfi->udev->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&mfi->udev->dev);
+		pm_runtime_put_analidle(&mfi->udev->dev);
 		return ret;
 	}
 
@@ -181,11 +181,11 @@ static int mfi_fc_probe(struct usb_device *udev)
 	int err;
 
 	if (!mfi_fc_match(udev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mfi = kzalloc(sizeof(struct mfi_device), GFP_KERNEL);
 	if (!mfi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	battery_cfg.drv_data = mfi;
 

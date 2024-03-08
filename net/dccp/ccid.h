@@ -138,14 +138,14 @@ void ccid_hc_tx_delete(struct ccid *ccid, struct sock *sk);
  * queued packet may be sent, using the return code of ccid_hc_tx_send_packet().
  * The following modes are supported via the symbolic constants below:
  * - timer-based pacing    (CCID returns a delay value in milliseconds);
- * - autonomous dequeueing (CCID internally schedules dccps_xmitlet).
+ * - autoanalmous dequeueing (CCID internally schedules dccps_xmitlet).
  */
 
 enum ccid_dequeueing_decision {
-	CCID_PACKET_SEND_AT_ONCE =	 0x00000,  /* "green light": no delay */
+	CCID_PACKET_SEND_AT_ONCE =	 0x00000,  /* "green light": anal delay */
 	CCID_PACKET_DELAY_MAX =		 0x0FFFF,  /* maximum delay in msecs  */
 	CCID_PACKET_DELAY =		 0x10000,  /* CCID msec-delay mode */
-	CCID_PACKET_WILL_DEQUEUE_LATER = 0x20000,  /* CCID autonomous mode */
+	CCID_PACKET_WILL_DEQUEUE_LATER = 0x20000,  /* CCID autoanalmous mode */
 	CCID_PACKET_ERR =		 0xF0000,  /* error condition */
 };
 
@@ -242,7 +242,7 @@ static inline int ccid_hc_rx_getsockopt(struct ccid *ccid, struct sock *sk,
 					const int optname, int len,
 					u32 __user *optval, int __user *optlen)
 {
-	int rc = -ENOPROTOOPT;
+	int rc = -EANALPROTOOPT;
 	if (ccid != NULL && ccid->ccid_ops->ccid_hc_rx_getsockopt != NULL)
 		rc = ccid->ccid_ops->ccid_hc_rx_getsockopt(sk, optname, len,
 						 optval, optlen);
@@ -253,7 +253,7 @@ static inline int ccid_hc_tx_getsockopt(struct ccid *ccid, struct sock *sk,
 					const int optname, int len,
 					u32 __user *optval, int __user *optlen)
 {
-	int rc = -ENOPROTOOPT;
+	int rc = -EANALPROTOOPT;
 	if (ccid != NULL && ccid->ccid_ops->ccid_hc_tx_getsockopt != NULL)
 		rc = ccid->ccid_ops->ccid_hc_tx_getsockopt(sk, optname, len,
 						 optval, optlen);

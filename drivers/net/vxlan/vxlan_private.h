@@ -21,12 +21,12 @@ struct vxlan_net {
 	struct list_head  vxlan_list;
 	struct hlist_head sock_list[PORT_HASH_SIZE];
 	spinlock_t	  sock_lock;
-	struct notifier_block nexthop_notifier_block;
+	struct analtifier_block nexthop_analtifier_block;
 };
 
 /* Forwarding table entry */
 struct vxlan_fdb {
-	struct hlist_node hlist;	/* linked list of entries */
+	struct hlist_analde hlist;	/* linked list of entries */
 	struct rcu_head	  rcu;
 	unsigned long	  updated;	/* jiffies */
 	unsigned long	  used;
@@ -57,7 +57,7 @@ static inline struct hlist_head *vs_head(struct net *net, __be16 port)
 }
 
 /* First remote destination for a forwarding entry.
- * Guaranteed to be non-NULL because remotes are never deleted.
+ * Guaranteed to be analn-NULL because remotes are never deleted.
  */
 static inline struct vxlan_rdst *first_remote_rcu(struct vxlan_fdb *fdb)
 {
@@ -97,7 +97,7 @@ static inline int vxlan_nla_get_addr(union vxlan_addr *ip,
 		ip->sa.sa_family = AF_INET;
 		return 0;
 	} else {
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 	}
 }
 
@@ -130,13 +130,13 @@ static inline int vxlan_nla_get_addr(union vxlan_addr *ip,
 				     const struct nlattr *nla)
 {
 	if (nla_len(nla) >= sizeof(struct in6_addr)) {
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 	} else if (nla_len(nla) >= sizeof(__be32)) {
 		ip->sin.sin_addr.s_addr = nla_get_in_addr(nla);
 		ip->sa.sa_family = AF_INET;
 		return 0;
 	} else {
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 	}
 }
 
@@ -161,7 +161,7 @@ static inline size_t vxlan_addr_size(const union vxlan_addr *ip)
 		return sizeof(__be32);
 }
 
-static inline struct vxlan_vni_node *
+static inline struct vxlan_vni_analde *
 vxlan_vnifilter_lookup(struct vxlan_dev *vxlan, __be32 vni)
 {
 	struct vxlan_vni_group *vg;
@@ -184,7 +184,7 @@ int vxlan_fdb_create(struct vxlan_dev *vxlan,
 int __vxlan_fdb_delete(struct vxlan_dev *vxlan,
 		       const unsigned char *addr, union vxlan_addr ip,
 		       __be16 port, __be32 src_vni, __be32 vni,
-		       u32 ifindex, bool swdev_notify);
+		       u32 ifindex, bool swdev_analtify);
 u32 eth_vni_hash(const unsigned char *addr, __be32 vni);
 u32 fdb_head_index(struct vxlan_dev *vxlan, const u8 *mac, __be32 vni);
 int vxlan_fdb_update(struct vxlan_dev *vxlan,
@@ -192,7 +192,7 @@ int vxlan_fdb_update(struct vxlan_dev *vxlan,
 		     __u16 state, __u16 flags,
 		     __be16 port, __be32 src_vni, __be32 vni,
 		     __u32 ifindex, __u16 ndm_flags, u32 nhid,
-		     bool swdev_notify, struct netlink_ext_ack *extack);
+		     bool swdev_analtify, struct netlink_ext_ack *extack);
 void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		    __be32 default_vni, struct vxlan_rdst *rdst, bool did_rsc);
 int vxlan_vni_in_use(struct net *src_net, struct vxlan_dev *vxlan,
@@ -205,7 +205,7 @@ void vxlan_vnigroup_uninit(struct vxlan_dev *vxlan);
 void vxlan_vnifilter_init(void);
 void vxlan_vnifilter_uninit(void);
 void vxlan_vnifilter_count(struct vxlan_dev *vxlan, __be32 vni,
-			   struct vxlan_vni_node *vninode,
+			   struct vxlan_vni_analde *vnianalde,
 			   int type, unsigned int len);
 
 void vxlan_vs_add_vnigrp(struct vxlan_dev *vxlan,

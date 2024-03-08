@@ -4,7 +4,7 @@ Writecache target
 
 The writecache target caches writes on persistent memory or on SSD. It
 doesn't cache reads because reads are supposed to be cached in page cache
-in normal RAM.
+in analrmal RAM.
 
 When the device is constructed, the first sector should be zeroed or the
 first sector should contain valid superblock from previous invocation.
@@ -39,22 +39,22 @@ Constructor parameters:
 		committed
 	autocommit_time ms	(default: 1000)
 		autocommit time in milliseconds. The data is automatically
-		committed if this time passes and no FLUSH request is
+		committed if this time passes and anal FLUSH request is
 		received
 	fua			(by default on)
 		applicable only to persistent memory - use the FUA flag
 		when writing data from persistent memory back to the
 		underlying device
-	nofua
+	analfua
 		applicable only to persistent memory - don't use the FUA
 		flag when writing back data and send the FLUSH request
 		afterwards
 
 		- some underlying devices perform better with fua, some
-		  with nofua. The user should test it
+		  with analfua. The user should test it
 	cleaner
 		when this option is activated (either in the constructor
-		arguments or by a message), the cache will not promote
+		arguments or by a message), the cache will analt promote
 		new writes (however, writes to already cached blocks are
 		promoted, to avoid data corruption due to misordered
 		writes) and it will gradually writeback any cached
@@ -76,7 +76,7 @@ Constructor parameters:
 
 Status:
 
-1. error indicator - 0 if there was no error, otherwise error number
+1. error indicator - 0 if there was anal error, otherwise error number
 2. the number of blocks
 3. the number of free blocks
 4. the number of blocks under writeback
@@ -104,10 +104,10 @@ Messages:
 		2. load an inactive table with a linear target that maps
 		   to the underlying device
 		3. suspend the device
-		4. ask for status and verify that there are no errors
+		4. ask for status and verify that there are anal errors
 		5. resume the device, so that it will use the linear
 		   target
-		6. the cache device is now inactive and it can be deleted
+		6. the cache device is analw inactive and it can be deleted
 	cleaner
 		See above "cleaner" constructor documentation.
 	clear_stats

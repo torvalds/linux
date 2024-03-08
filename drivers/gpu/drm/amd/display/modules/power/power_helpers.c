@@ -7,12 +7,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -150,7 +150,7 @@ static const struct custom_backlight_profile custom_backlight_profiles[] = {
 #define IRAM_RESERVE_AREA_END_V2_2 0xFF  // reserve 0xF0~0xFF are write by DMCU only
 
 #pragma pack(push, 1)
-/* NOTE: iRAM is 256B in size */
+/* ANALTE: iRAM is 256B in size */
 struct iram_table_v_2 {
 	/* flags                      */
 	uint16_t min_abm_backlight;					/* 0x00 U16  */
@@ -855,7 +855,7 @@ bool is_psr_su_specific_panel(struct dc_link *link)
  * @link: [input] dc link pointer
  * @stream: [input] dc stream state pointer
  *
- * calculate and update the psr configuration fields that are not DM specific, i.e. such
+ * calculate and update the psr configuration fields that are analt DM specific, i.e. such
  * fields which are based on DPCD caps or timing information. To setup PSR in DMUB FW,
  * this helper is assumed to be called before the call of the DC helper dc_link_setup_psr().
  *
@@ -868,7 +868,7 @@ bool is_psr_su_specific_panel(struct dc_link *link)
  * - psr_frame_capture_indication_req
  * - psr_exit_link_training_required
  *
- * PSR config fields that are DM specific and NOT updated within the helper:
+ * PSR config fields that are DM specific and ANALT updated within the helper:
  * - allow_smu_optimizations
  * - allow_multi_disp_optimizations
  */
@@ -925,7 +925,7 @@ void mod_power_calc_psr_configs(struct psr_config *psr_config,
 	psr_config->su_granularity_required = dpcd_caps->psr_info.psr_dpcd_caps.bits.SU_GRANULARITY_REQUIRED;
 	psr_config->psr_frame_capture_indication_req = link->psr_settings.psr_frame_capture_indication_req;
 	psr_config->psr_exit_link_training_required =
-		!link->dpcd_caps.psr_info.psr_dpcd_caps.bits.LINK_TRAINING_ON_EXIT_NOT_REQUIRED;
+		!link->dpcd_caps.psr_info.psr_dpcd_caps.bits.LINK_TRAINING_ON_EXIT_ANALT_REQUIRED;
 }
 
 void init_replay_config(struct dc_link *link, struct replay_config *pr_config)
@@ -1006,24 +1006,24 @@ void calculate_replay_link_off_frame_count(struct dc_link *link,
 
 }
 
-bool fill_custom_backlight_caps(unsigned int config_no, struct dm_acpi_atif_backlight_caps *caps)
+bool fill_custom_backlight_caps(unsigned int config_anal, struct dm_acpi_atif_backlight_caps *caps)
 {
 	unsigned int data_points_size;
 
-	if (config_no >= ARRAY_SIZE(custom_backlight_profiles))
+	if (config_anal >= ARRAY_SIZE(custom_backlight_profiles))
 		return false;
 
-	data_points_size = custom_backlight_profiles[config_no].num_data_points
-			* sizeof(custom_backlight_profiles[config_no].data_points[0]);
+	data_points_size = custom_backlight_profiles[config_anal].num_data_points
+			* sizeof(custom_backlight_profiles[config_anal].data_points[0]);
 
 	caps->size = sizeof(struct dm_acpi_atif_backlight_caps) - sizeof(caps->data_points) + data_points_size;
 	caps->flags = 0;
 	caps->error_code = 0;
-	caps->ac_level_percentage = custom_backlight_profiles[config_no].ac_level_percentage;
-	caps->dc_level_percentage = custom_backlight_profiles[config_no].dc_level_percentage;
-	caps->min_input_signal = custom_backlight_profiles[config_no].min_input_signal;
-	caps->max_input_signal = custom_backlight_profiles[config_no].max_input_signal;
-	caps->num_data_points = custom_backlight_profiles[config_no].num_data_points;
-	memcpy(caps->data_points, custom_backlight_profiles[config_no].data_points, data_points_size);
+	caps->ac_level_percentage = custom_backlight_profiles[config_anal].ac_level_percentage;
+	caps->dc_level_percentage = custom_backlight_profiles[config_anal].dc_level_percentage;
+	caps->min_input_signal = custom_backlight_profiles[config_anal].min_input_signal;
+	caps->max_input_signal = custom_backlight_profiles[config_anal].max_input_signal;
+	caps->num_data_points = custom_backlight_profiles[config_anal].num_data_points;
+	memcpy(caps->data_points, custom_backlight_profiles[config_anal].data_points, data_points_size);
 	return true;
 }

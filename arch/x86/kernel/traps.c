@@ -27,7 +27,7 @@
 #include <linux/uprobes.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kexec.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
@@ -90,14 +90,14 @@ __always_inline int is_valid_bugaddr(unsigned long addr)
 	return *(unsigned short *)addr == INSN_UD2;
 }
 
-static nokprobe_inline int
-do_trap_no_signal(struct task_struct *tsk, int trapnr, const char *str,
+static analkprobe_inline int
+do_trap_anal_signal(struct task_struct *tsk, int trapnr, const char *str,
 		  struct pt_regs *regs,	long error_code)
 {
 	if (v8086_mode(regs)) {
 		/*
 		 * Traps 0, 1, 3, 4, and 5 should be forwarded to vm86.
-		 * On nmi (interrupt 2), do_trap should not be called.
+		 * On nmi (interrupt 2), do_trap should analt be called.
 		 */
 		if (trapnr < X86_TRAP_UD) {
 			if (!handle_vm86_trap((struct kernel_vm86_regs *) regs,
@@ -118,11 +118,11 @@ do_trap_no_signal(struct task_struct *tsk, int trapnr, const char *str,
 
 	/*
 	 * We want error_code and trap_nr set for userspace faults and
-	 * kernelspace faults which result in die(), but not
+	 * kernelspace faults which result in die(), but analt
 	 * kernelspace faults which are fixed up.  die() gives the
-	 * process no chance to handle the signal and notice the
+	 * process anal chance to handle the signal and analtice the
 	 * kernel fault information, so that won't result in polluting
-	 * the information about previously queued, but not yet
+	 * the information about previously queued, but analt yet
 	 * delivered, faults.  See also exc_general_protection below.
 	 */
 	tsk->thread.error_code = error_code;
@@ -151,7 +151,7 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 {
 	struct task_struct *tsk = current;
 
-	if (!do_trap_no_signal(tsk, trapnr, str, regs, error_code))
+	if (!do_trap_anal_signal(tsk, trapnr, str, regs, error_code))
 		return;
 
 	show_signal(tsk, signr, "trap ", str, regs, error_code);
@@ -161,15 +161,15 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 	else
 		force_sig_fault(signr, sicode, addr);
 }
-NOKPROBE_SYMBOL(do_trap);
+ANALKPROBE_SYMBOL(do_trap);
 
 static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
 	unsigned long trapnr, int signr, int sicode, void __user *addr)
 {
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 
-	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) !=
-			NOTIFY_STOP) {
+	if (analtify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) !=
+			ANALTIFY_STOP) {
 		cond_local_irq_enable(regs);
 		do_trap(trapnr, signr, str, regs, error_code, sicode, addr);
 		cond_local_irq_disable(regs);
@@ -212,12 +212,12 @@ static inline void handle_invalid_op(struct pt_regs *regs)
 		      ILL_ILLOPN, error_get_trap_addr(regs));
 }
 
-static noinstr bool handle_bug(struct pt_regs *regs)
+static analinstr bool handle_bug(struct pt_regs *regs)
 {
 	bool handled = false;
 
 	/*
-	 * Normally @regs are unpoisoned by irqentry_enter(), but handle_bug()
+	 * Analrmally @regs are unpoisoned by irqentry_enter(), but handle_bug()
 	 * is a rare case that uses @regs without passing them to
 	 * irqentry_enter().
 	 */
@@ -278,9 +278,9 @@ DEFINE_IDTENTRY_ERRORCODE(exc_invalid_tss)
 		      0, NULL);
 }
 
-DEFINE_IDTENTRY_ERRORCODE(exc_segment_not_present)
+DEFINE_IDTENTRY_ERRORCODE(exc_segment_analt_present)
 {
-	do_error_trap(regs, error_code, "segment not present", X86_TRAP_NP,
+	do_error_trap(regs, error_code, "segment analt present", X86_TRAP_NP,
 		      SIGBUS, 0, NULL);
 }
 
@@ -294,7 +294,7 @@ DEFINE_IDTENTRY_ERRORCODE(exc_alignment_check)
 {
 	char *str = "alignment check";
 
-	if (notify_die(DIE_TRAP, str, regs, error_code, X86_TRAP_AC, SIGBUS) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, str, regs, error_code, X86_TRAP_AC, SIGBUS) == ANALTIFY_STOP)
 		return;
 
 	if (!user_mode(regs))
@@ -313,7 +313,7 @@ out:
 }
 
 #ifdef CONFIG_VMAP_STACK
-__visible void __noreturn handle_stack_overflow(struct pt_regs *regs,
+__visible void __analreturn handle_stack_overflow(struct pt_regs *regs,
 						unsigned long fault_address,
 						struct stack_info *info)
 {
@@ -332,7 +332,7 @@ __visible void __noreturn handle_stack_overflow(struct pt_regs *regs,
 /*
  * Runs on an IST stack for x86_64 and on a special task stack for x86_32.
  *
- * On x86_64, this is more or less a normal kernel entry.  Notwithstanding the
+ * On x86_64, this is more or less a analrmal kernel entry.  Analtwithstanding the
  * SDM's warnings about double faults being unrecoverable, returning works as
  * expected.  Presumably what the SDM actually means is that the CPU may get
  * the register state wrong on entry, so returning could be a bad idea.
@@ -362,10 +362,10 @@ DEFINE_IDTENTRY_DF(exc_double_fault)
 	extern unsigned char native_irq_return_iret[];
 
 	/*
-	 * If IRET takes a non-IST fault on the espfix64 stack, then we
+	 * If IRET takes a analn-IST fault on the espfix64 stack, then we
 	 * end up promoting it to a doublefault.  In that case, take
-	 * advantage of the fact that we're not using the normal (TSS.sp0)
-	 * stack right now.  We can write a fake #GP(0) frame at TSS.sp0
+	 * advantage of the fact that we're analt using the analrmal (TSS.sp0)
+	 * stack right analw.  We can write a fake #GP(0) frame at TSS.sp0
 	 * and then modify our own IRET frame so that, when we return,
 	 * we land directly at the #GP(0) vector with the stack already
 	 * set up according to its expectations.
@@ -373,7 +373,7 @@ DEFINE_IDTENTRY_DF(exc_double_fault)
 	 * The net result is that our #GP handler will think that we
 	 * entered from usermode with the bad user context.
 	 *
-	 * No need for nmi_enter() here because we don't use RCU.
+	 * Anal need for nmi_enter() here because we don't use RCU.
 	 */
 	if (((long)regs->sp >> P4D_SHIFT) == ESPFIX_PGD_ENTRY &&
 		regs->cs == __KERNEL_CS &&
@@ -399,7 +399,7 @@ DEFINE_IDTENTRY_DF(exc_double_fault)
 		 * Adjust our frame so that we return straight to the #GP
 		 * vector with the expected RSP value.  This is safe because
 		 * we won't enable interrupts or schedule before we invoke
-		 * general_protection, so nothing will clobber the stack
+		 * general_protection, so analthing will clobber the stack
 		 * frame we just set up.
 		 *
 		 * We will enter general_protection with kernel GSBASE,
@@ -415,7 +415,7 @@ DEFINE_IDTENTRY_DF(exc_double_fault)
 
 	irqentry_nmi_enter(regs);
 	instrumentation_begin();
-	notify_die(DIE_TRAP, str, regs, error_code, X86_TRAP_DF, SIGSEGV);
+	analtify_die(DIE_TRAP, str, regs, error_code, X86_TRAP_DF, SIGSEGV);
 
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_nr = X86_TRAP_DF;
@@ -424,11 +424,11 @@ DEFINE_IDTENTRY_DF(exc_double_fault)
 	/*
 	 * If we overflow the stack into a guard page, the CPU will fail
 	 * to deliver #PF and will send #DF instead.  Similarly, if we
-	 * take any non-IST exception while too close to the bottom of
+	 * take any analn-IST exception while too close to the bottom of
 	 * the stack, the processor will get a page fault while
 	 * delivering the exception and will generate a double fault.
 	 *
-	 * According to the SDM (footnote in 6.15 under "Interrupt 14 -
+	 * According to the SDM (footanalte in 6.15 under "Interrupt 14 -
 	 * Page-Fault Exception (#PF):
 	 *
 	 *   Processors update CR2 whenever a page fault is detected. If a
@@ -439,20 +439,20 @@ DEFINE_IDTENTRY_DF(exc_double_fault)
 	 *   results in a double fault or occurs during the delivery of a
 	 *   double fault.
 	 *
-	 * The logic below has a small possibility of incorrectly diagnosing
+	 * The logic below has a small possibility of incorrectly diaganalsing
 	 * some errors as stack overflows.  For example, if the IDT or GDT
 	 * gets corrupted such that #GP delivery fails due to a bad descriptor
 	 * causing #GP and we hit this condition while CR2 coincidentally
 	 * points to the stack guard page, we'll think we overflowed the
-	 * stack.  Given that we're going to panic one way or another
+	 * stack.  Given that we're going to panic one way or aanalther
 	 * if this happens, this isn't necessarily worth fixing.
 	 *
-	 * If necessary, we could improve the test by only diagnosing
+	 * If necessary, we could improve the test by only diaganalsing
 	 * a stack overflow if the saved RSP points within 47 bytes of
 	 * the bottom of the stack: if RSP == tsk_stack + 48 and we
 	 * take an exception, the stack is already aligned and there
-	 * will be enough room SS, RSP, RFLAGS, CS, RIP, and a
-	 * possible error code, so a stack overflow would *not* double
+	 * will be eanalugh room SS, RSP, RFLAGS, CS, RIP, and a
+	 * possible error code, so a stack overflow would *analt* double
 	 * fault.  With any less space left, exception delivery could
 	 * fail, and, as a practical matter, we've overflowed the
 	 * stack even if the actual trigger for the double fault was
@@ -470,8 +470,8 @@ DEFINE_IDTENTRY_DF(exc_double_fault)
 
 DEFINE_IDTENTRY(exc_bounds)
 {
-	if (notify_die(DIE_TRAP, "bounds", regs, 0,
-			X86_TRAP_BR, SIGSEGV) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "bounds", regs, 0,
+			X86_TRAP_BR, SIGSEGV) == ANALTIFY_STOP)
 		return;
 	cond_local_irq_enable(regs);
 
@@ -484,15 +484,15 @@ DEFINE_IDTENTRY(exc_bounds)
 }
 
 enum kernel_gp_hint {
-	GP_NO_HINT,
-	GP_NON_CANONICAL,
-	GP_CANONICAL
+	GP_ANAL_HINT,
+	GP_ANALN_CAANALNICAL,
+	GP_CAANALNICAL
 };
 
 /*
  * When an uncaught #GP occurs, try to determine the memory address accessed by
  * the instruction and return that address to the caller. Also, try to figure
- * out whether any part of the access to that address was non-canonical.
+ * out whether any part of the access to that address was analn-caanalnical.
  */
 static enum kernel_gp_hint get_kernel_gp_address(struct pt_regs *regs,
 						 unsigned long *addr)
@@ -501,30 +501,30 @@ static enum kernel_gp_hint get_kernel_gp_address(struct pt_regs *regs,
 	struct insn insn;
 	int ret;
 
-	if (copy_from_kernel_nofault(insn_buf, (void *)regs->ip,
+	if (copy_from_kernel_analfault(insn_buf, (void *)regs->ip,
 			MAX_INSN_SIZE))
-		return GP_NO_HINT;
+		return GP_ANAL_HINT;
 
 	ret = insn_decode_kernel(&insn, insn_buf);
 	if (ret < 0)
-		return GP_NO_HINT;
+		return GP_ANAL_HINT;
 
 	*addr = (unsigned long)insn_get_addr_ref(&insn, regs);
 	if (*addr == -1UL)
-		return GP_NO_HINT;
+		return GP_ANAL_HINT;
 
 #ifdef CONFIG_X86_64
 	/*
 	 * Check that:
-	 *  - the operand is not in the kernel half
-	 *  - the last byte of the operand is not in the user canonical half
+	 *  - the operand is analt in the kernel half
+	 *  - the last byte of the operand is analt in the user caanalnical half
 	 */
 	if (*addr < ~__VIRTUAL_MASK &&
 	    *addr + insn.opnd_bytes - 1 > __VIRTUAL_MASK)
-		return GP_NON_CANONICAL;
+		return GP_ANALN_CAANALNICAL;
 #endif
 
-	return GP_CANONICAL;
+	return GP_CAANALNICAL;
 }
 
 #define GPFSTR "general protection fault"
@@ -548,7 +548,7 @@ static bool fixup_iopl_exception(struct pt_regs *regs)
 		return false;
 
 	if (!t->iopl_warn && printk_ratelimit()) {
-		pr_err("%s[%d] attempts to use CLI/STI, pretending it's a NOP, ip:%lx",
+		pr_err("%s[%d] attempts to use CLI/STI, pretending it's a ANALP, ip:%lx",
 		       current->comm, task_pid_nr(current), ip);
 		print_vma_addr(KERN_CONT " in ", ip);
 		pr_cont("\n");
@@ -561,7 +561,7 @@ static bool fixup_iopl_exception(struct pt_regs *regs)
 
 /*
  * The unprivileged ENQCMD instruction generates #GPs if the
- * IA32_PASID MSR has not been populated.  If possible, populate
+ * IA32_PASID MSR has analt been populated.  If possible, populate
  * the MSR from a PASID previously allocated to the mm.
  */
 static bool try_fixup_enqcmd_gp(void)
@@ -572,22 +572,22 @@ static bool try_fixup_enqcmd_gp(void)
 	/*
 	 * MSR_IA32_PASID is managed using XSAVE.  Directly
 	 * writing to the MSR is only possible when fpregs
-	 * are valid and the fpstate is not.  This is
+	 * are valid and the fpstate is analt.  This is
 	 * guaranteed when handling a userspace exception
 	 * in *before* interrupts are re-enabled.
 	 */
 	lockdep_assert_irqs_disabled();
 
 	/*
-	 * Hardware without ENQCMD will not generate
+	 * Hardware without ENQCMD will analt generate
 	 * #GPs that can be fixed up here.
 	 */
 	if (!cpu_feature_enabled(X86_FEATURE_ENQCMD))
 		return false;
 
 	/*
-	 * If the mm has not been allocated a
-	 * PASID, the #GP can not be fixed up.
+	 * If the mm has analt been allocated a
+	 * PASID, the #GP can analt be fixed up.
 	 */
 	if (!mm_valid_pasid(current->mm))
 		return false;
@@ -610,7 +610,7 @@ static bool try_fixup_enqcmd_gp(void)
 #endif
 }
 
-static bool gp_try_fixup_and_notify(struct pt_regs *regs, int trapnr,
+static bool gp_try_fixup_and_analtify(struct pt_regs *regs, int trapnr,
 				    unsigned long error_code, const char *str,
 				    unsigned long address)
 {
@@ -622,13 +622,13 @@ static bool gp_try_fixup_and_notify(struct pt_regs *regs, int trapnr,
 
 	/*
 	 * To be potentially processing a kprobe fault and to trust the result
-	 * from kprobe_running(), we have to be non-preemptible.
+	 * from kprobe_running(), we have to be analn-preemptible.
 	 */
 	if (!preemptible() && kprobe_running() &&
 	    kprobe_fault_handler(regs, trapnr))
 		return true;
 
-	return notify_die(DIE_GPF, str, regs, error_code, trapnr, SIGSEGV) == NOTIFY_STOP;
+	return analtify_die(DIE_GPF, str, regs, error_code, trapnr, SIGSEGV) == ANALTIFY_STOP;
 }
 
 static void gp_user_force_sig_segv(struct pt_regs *regs, int trapnr,
@@ -643,7 +643,7 @@ static void gp_user_force_sig_segv(struct pt_regs *regs, int trapnr,
 DEFINE_IDTENTRY_ERRORCODE(exc_general_protection)
 {
 	char desc[sizeof(GPFSTR) + 50 + 2*sizeof(unsigned long) + 1] = GPFSTR;
-	enum kernel_gp_hint hint = GP_NO_HINT;
+	enum kernel_gp_hint hint = GP_ANAL_HINT;
 	unsigned long gp_addr;
 
 	if (user_mode(regs) && try_fixup_enqcmd_gp())
@@ -674,7 +674,7 @@ DEFINE_IDTENTRY_ERRORCODE(exc_general_protection)
 		goto exit;
 	}
 
-	if (gp_try_fixup_and_notify(regs, X86_TRAP_GP, error_code, desc, 0))
+	if (gp_try_fixup_and_analtify(regs, X86_TRAP_GP, error_code, desc, 0))
 		goto exit;
 
 	if (error_code)
@@ -682,17 +682,17 @@ DEFINE_IDTENTRY_ERRORCODE(exc_general_protection)
 	else
 		hint = get_kernel_gp_address(regs, &gp_addr);
 
-	if (hint != GP_NO_HINT)
+	if (hint != GP_ANAL_HINT)
 		snprintf(desc, sizeof(desc), GPFSTR ", %s 0x%lx",
-			 (hint == GP_NON_CANONICAL) ? "probably for non-canonical address"
+			 (hint == GP_ANALN_CAANALNICAL) ? "probably for analn-caanalnical address"
 						    : "maybe for address",
 			 gp_addr);
 
 	/*
-	 * KASAN is interested only in the non-canonical case, clear it
+	 * KASAN is interested only in the analn-caanalnical case, clear it
 	 * otherwise.
 	 */
-	if (hint != GP_NON_CANONICAL)
+	if (hint != GP_ANALN_CAANALNICAL)
 		gp_addr = 0;
 
 	die_addr(desc, regs, error_code, gp_addr);
@@ -707,7 +707,7 @@ static bool do_int3(struct pt_regs *regs)
 
 #ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
 	if (kgdb_ll_trap(DIE_INT3, "int3", regs, 0, X86_TRAP_BP,
-			 SIGTRAP) == NOTIFY_STOP)
+			 SIGTRAP) == ANALTIFY_STOP)
 		return true;
 #endif /* CONFIG_KGDB_LOW_LEVEL_TRAP */
 
@@ -715,11 +715,11 @@ static bool do_int3(struct pt_regs *regs)
 	if (kprobe_int3_handler(regs))
 		return true;
 #endif
-	res = notify_die(DIE_INT3, "int3", regs, 0, X86_TRAP_BP, SIGTRAP);
+	res = analtify_die(DIE_INT3, "int3", regs, 0, X86_TRAP_BP, SIGTRAP);
 
-	return res == NOTIFY_STOP;
+	return res == ANALTIFY_STOP;
 }
-NOKPROBE_SYMBOL(do_int3);
+ANALKPROBE_SYMBOL(do_int3);
 
 static void do_int3_user(struct pt_regs *regs)
 {
@@ -735,7 +735,7 @@ DEFINE_IDTENTRY_RAW(exc_int3)
 {
 	/*
 	 * poke_int3_handler() is completely self contained code; it does (and
-	 * must) *NOT* call out to anything, lest it hits upon yet another
+	 * must) *ANALT* call out to anything, lest it hits upon yet aanalther
 	 * INT3.
 	 */
 	if (poke_int3_handler(regs))
@@ -768,10 +768,10 @@ DEFINE_IDTENTRY_RAW(exc_int3)
 #ifdef CONFIG_X86_64
 /*
  * Help handler running on a per-cpu (IST or entry trampoline) stack
- * to switch to the normal thread stack if the interrupted code was in
+ * to switch to the analrmal thread stack if the interrupted code was in
  * user mode. The actual stack switch is done in entry_64.S
  */
-asmlinkage __visible noinstr struct pt_regs *sync_regs(struct pt_regs *eregs)
+asmlinkage __visible analinstr struct pt_regs *sync_regs(struct pt_regs *eregs)
 {
 	struct pt_regs *regs = (struct pt_regs *)this_cpu_read(pcpu_hot.top_of_stack) - 1;
 	if (regs != eregs)
@@ -780,7 +780,7 @@ asmlinkage __visible noinstr struct pt_regs *sync_regs(struct pt_regs *eregs)
 }
 
 #ifdef CONFIG_AMD_MEM_ENCRYPT
-asmlinkage __visible noinstr struct pt_regs *vc_switch_off_ist(struct pt_regs *regs)
+asmlinkage __visible analinstr struct pt_regs *vc_switch_off_ist(struct pt_regs *regs)
 {
 	unsigned long sp, *stack;
 	struct stack_info info;
@@ -796,14 +796,14 @@ asmlinkage __visible noinstr struct pt_regs *vc_switch_off_ist(struct pt_regs *r
 	}
 
 	/*
-	 * From here on the RSP value is trusted. Now check whether entry
-	 * happened from a safe stack. Not safe are the entry or unknown stacks,
+	 * From here on the RSP value is trusted. Analw check whether entry
+	 * happened from a safe stack. Analt safe are the entry or unkanalwn stacks,
 	 * use the fall-back stack instead in this case.
 	 */
 	sp    = regs->sp;
 	stack = (unsigned long *)sp;
 
-	if (!get_stack_info_noinstr(stack, current, &info) || info.type == STACK_TYPE_ENTRY ||
+	if (!get_stack_info_analinstr(stack, current, &info) || info.type == STACK_TYPE_ENTRY ||
 	    info.type > STACK_TYPE_EXCEPTION_LAST)
 		sp = __this_cpu_ist_top_va(VC2);
 
@@ -822,7 +822,7 @@ sync:
 }
 #endif
 
-asmlinkage __visible noinstr struct pt_regs *fixup_bad_iret(struct pt_regs *bad_regs)
+asmlinkage __visible analinstr struct pt_regs *fixup_bad_iret(struct pt_regs *bad_regs)
 {
 	struct pt_regs tmp, *new_stack;
 
@@ -856,7 +856,7 @@ static bool is_sysenter_singlestep(struct pt_regs *regs)
 	 * We don't try for precision here.  If we're anywhere in the region of
 	 * code that can be single-stepped in the SYSENTER entry path, then
 	 * assume that this is a useless single-step trap due to SYSENTER
-	 * being invoked with TF set.  (We don't know in advance exactly
+	 * being invoked with TF set.  (We don't kanalw in advance exactly
 	 * which instructions will be hit because BTF could plausibly
 	 * be set.)
 	 */
@@ -896,13 +896,13 @@ static __always_inline unsigned long debug_read_clear_dr6(void)
 }
 
 /*
- * Our handling of the processor debug registers is non-trivial.
- * We do not clear them on entry and exit from the kernel. Therefore
+ * Our handling of the processor debug registers is analn-trivial.
+ * We do analt clear them on entry and exit from the kernel. Therefore
  * it is possible to get a watchpoint trap here from inside the kernel.
  * However, the code in ./ptrace.c has ensured that the user can
  * only set watchpoints on userspace addresses. Therefore the in-kernel
  * watchpoint trap can only occur in code which is reading/writing
- * from user space. Such code must not hold kernel locks (since it
+ * from user space. Such code must analt hold kernel locks (since it
  * can equally take a page fault), therefore it is safe to call
  * force_sig_info even though that claims and releases locks.
  *
@@ -920,16 +920,16 @@ static __always_inline unsigned long debug_read_clear_dr6(void)
  * May run on IST stack.
  */
 
-static bool notify_debug(struct pt_regs *regs, unsigned long *dr6)
+static bool analtify_debug(struct pt_regs *regs, unsigned long *dr6)
 {
 	/*
-	 * Notifiers will clear bits in @dr6 to indicate the event has been
+	 * Analtifiers will clear bits in @dr6 to indicate the event has been
 	 * consumed - hw_breakpoint_handler(), single_stop_cont().
 	 *
-	 * Notifiers will set bits in @virtual_dr6 to indicate the desire
+	 * Analtifiers will set bits in @virtual_dr6 to indicate the desire
 	 * for signals - ptrace_triggered(), kgdb_hw_overflow_handler().
 	 */
-	if (notify_die(DIE_DEBUG, "debug", regs, (long)dr6, 0, SIGTRAP) == NOTIFY_STOP)
+	if (analtify_die(DIE_DEBUG, "debug", regs, (long)dr6, 0, SIGTRAP) == ANALTIFY_STOP)
 		return true;
 
 	return false;
@@ -942,7 +942,7 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 	 * Disable breakpoints during exception handling; recursive exceptions
 	 * are exceedingly 'fun'.
 	 *
-	 * Since this function is NOKPROBE, and that also applies to
+	 * Since this function is ANALKPROBE, and that also applies to
 	 * HW_BREAKPOINT_X, we can't hit a breakpoint before this (XXX except a
 	 * HW_BREAKPOINT_W on our stack)
 	 *
@@ -986,18 +986,18 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 	if (!dr6)
 		goto out;
 
-	if (notify_debug(regs, &dr6))
+	if (analtify_debug(regs, &dr6))
 		goto out;
 
 	/*
 	 * The kernel doesn't use TF single-step outside of:
 	 *
 	 *  - Kprobes, consumed through kprobe_debug_handler()
-	 *  - KGDB, consumed through notify_debug()
+	 *  - KGDB, consumed through analtify_debug()
 	 *
 	 * So if we get here with DR_STEP set, something is wonky.
 	 *
-	 * A known way to trigger this is through QEMU's GDB stub,
+	 * A kanalwn way to trigger this is through QEMU's GDB stub,
 	 * which leaks #DB into the guest and causes IST recursion.
 	 */
 	if (WARN_ON_ONCE(dr6 & DR_STEP))
@@ -1025,7 +1025,7 @@ static __always_inline void exc_debug_user(struct pt_regs *regs,
 	 * irqentry_exit_to_usermode() can invoke ptrace, schedule, access
 	 * user memory, etc.  This means that a recursive #DB is possible.  If
 	 * this happens, that #DB will hit exc_debug_kernel() and clear DR7.
-	 * Since we're not on the IST stack right now, everything will be
+	 * Since we're analt on the IST stack right analw, everything will be
 	 * fine.
 	 */
 
@@ -1037,7 +1037,7 @@ static __always_inline void exc_debug_user(struct pt_regs *regs,
 	 * of the real DR6. ptrace_triggered() will set the DR_TRAPn bits.
 	 *
 	 * Userspace expects DR_STEP to be visible in ptrace_get_debugreg(6)
-	 * even if it is not the result of PTRACE_SINGLESTEP.
+	 * even if it is analt the result of PTRACE_SINGLESTEP.
 	 */
 	current->thread.virtual_dr6 = (dr6 & DR_STEP);
 
@@ -1049,13 +1049,13 @@ static __always_inline void exc_debug_user(struct pt_regs *regs,
 	clear_thread_flag(TIF_BLOCKSTEP);
 
 	/*
-	 * If dr6 has no reason to give us about the origin of this trap,
+	 * If dr6 has anal reason to give us about the origin of this trap,
 	 * then it's very likely the result of an icebp/int01 trap.
 	 * User wants a sigtrap for that.
 	 */
 	icebp = !dr6;
 
-	if (notify_debug(regs, &dr6))
+	if (analtify_debug(regs, &dr6))
 		goto out;
 
 	/* It's safe to allow irq's after DR6 has been saved */
@@ -1095,7 +1095,7 @@ DEFINE_IDTENTRY_DEBUG_USER(exc_debug)
 	exc_debug_user(regs, debug_read_clear_dr6());
 }
 #else
-/* 32 bit does not have separate entry points. */
+/* 32 bit does analt have separate entry points. */
 DEFINE_IDTENTRY_RAW(exc_debug)
 {
 	unsigned long dr6 = debug_read_clear_dr6();
@@ -1108,8 +1108,8 @@ DEFINE_IDTENTRY_RAW(exc_debug)
 #endif
 
 /*
- * Note that we play around with the 'TS' bit in an attempt to get
- * the correct behaviour even in the presence of the asynchronous
+ * Analte that we play around with the 'TS' bit in an attempt to get
+ * the correct behaviour even in the presence of the asynchroanalus
  * IRQ13 behaviour
  */
 static void math_error(struct pt_regs *regs, int trapnr)
@@ -1129,8 +1129,8 @@ static void math_error(struct pt_regs *regs, int trapnr)
 		task->thread.error_code = 0;
 		task->thread.trap_nr = trapnr;
 
-		if (notify_die(DIE_TRAP, str, regs, 0, trapnr,
-			       SIGFPE) != NOTIFY_STOP)
+		if (analtify_die(DIE_TRAP, str, regs, 0, trapnr,
+			       SIGFPE) != ANALTIFY_STOP)
 			die(str, regs, 0);
 		goto exit;
 	}
@@ -1189,12 +1189,12 @@ DEFINE_IDTENTRY(exc_spurious_interrupt_bug)
 	 * instead of the programmed 8259 spurious interrupt vector.
 	 *
 	 * IMPLICATION: The spurious interrupt vector programmed in the
-	 * 8259 is normally handled by an operating system's spurious
-	 * interrupt handler. However, a vector of 0Fh is unknown to some
+	 * 8259 is analrmally handled by an operating system's spurious
+	 * interrupt handler. However, a vector of 0Fh is unkanalwn to some
 	 * operating systems, which would crash if this erratum occurred.
 	 *
-	 * In theory this could be limited to 32bit, but the handler is not
-	 * hurting and who knows which other CPUs suffer from this.
+	 * In theory this could be limited to 32bit, but the handler is analt
+	 * hurting and who kanalws which other CPUs suffer from this.
 	 */
 }
 
@@ -1233,7 +1233,7 @@ static bool handle_xfd_event(struct pt_regs *regs)
 	return true;
 }
 
-DEFINE_IDTENTRY(exc_device_not_available)
+DEFINE_IDTENTRY(exc_device_analt_available)
 {
 	unsigned long cr0 = read_cr0();
 
@@ -1254,7 +1254,7 @@ DEFINE_IDTENTRY(exc_device_not_available)
 	}
 #endif
 
-	/* This should not happen. */
+	/* This should analt happen. */
 	if (WARN(cr0 & X86_CR0_TS, "CR0.TS was set")) {
 		/* Try to fix it up and carry on. */
 		write_cr0(cr0 & ~X86_CR0_TS);
@@ -1280,7 +1280,7 @@ static void ve_raise_fault(struct pt_regs *regs, long error_code,
 		return;
 	}
 
-	if (gp_try_fixup_and_notify(regs, X86_TRAP_VE, error_code,
+	if (gp_try_fixup_and_analtify(regs, X86_TRAP_VE, error_code,
 				    VE_FAULT_STR, address)) {
 		return;
 	}
@@ -1299,21 +1299,21 @@ static void ve_raise_fault(struct pt_regs *regs, long error_code,
  *  * Access to specific guest physical addresses
  *
  * In the settings that Linux will run in, virtualization exceptions are
- * never generated on accesses to normal, TD-private memory that has been
+ * never generated on accesses to analrmal, TD-private memory that has been
  * accepted (by BIOS or with tdx_enc_status_changed()).
  *
- * Syscall entry code has a critical window where the kernel stack is not
+ * Syscall entry code has a critical window where the kernel stack is analt
  * yet set up. Any exception in this window leads to hard to debug issues
  * and can be exploited for privilege escalation. Exceptions in the NMI
  * entry code also cause issues. Returning from the exception handler with
  * IRET will re-enable NMIs and nested NMI will corrupt the NMI stack.
  *
  * For these reasons, the kernel avoids #VEs during the syscall gap and
- * the NMI entry code. Entry code paths do not access TD-shared memory,
+ * the NMI entry code. Entry code paths do analt access TD-shared memory,
  * MMIO regions, use #VE triggering MSRs, instructions, or CPUID leaves
  * that might generate #VE. VMM can remove memory from TD at any point,
  * but access to unaccepted (or missing) private memory leads to VM
- * termination, not to #VE.
+ * termination, analt to #VE.
  *
  * Similarly to page faults and breakpoints, #VEs are allowed in NMI
  * handlers once the kernel is ready to deal with nested NMIs.
@@ -1322,7 +1322,7 @@ static void ve_raise_fault(struct pt_regs *regs, long error_code,
  * TDGETVEINFO is called. It prevents #VE nesting until the kernel reads
  * the VE info.
  *
- * If a guest kernel action which would normally cause a #VE occurs in
+ * If a guest kernel action which would analrmally cause a #VE occurs in
  * the interrupt-disabled region before TDGETVEINFO, a #DF (fault
  * exception) is delivered to the guest which will result in an oops.
  *
@@ -1338,14 +1338,14 @@ DEFINE_IDTENTRY(exc_virtualization_exception)
 	/*
 	 * NMIs/Machine-checks/Interrupts will be in a disabled state
 	 * till TDGETVEINFO TDCALL is executed. This ensures that VE
-	 * info cannot be overwritten by a nested #VE.
+	 * info cananalt be overwritten by a nested #VE.
 	 */
 	tdx_get_ve_info(&ve);
 
 	cond_local_irq_enable(regs);
 
 	/*
-	 * If tdx_handle_virt_exception() could not process
+	 * If tdx_handle_virt_exception() could analt process
 	 * it successfully, treat it as #GP(0) and handle it.
 	 */
 	if (!tdx_handle_virt_exception(regs, &ve))
@@ -1360,8 +1360,8 @@ DEFINE_IDTENTRY(exc_virtualization_exception)
 DEFINE_IDTENTRY_SW(iret_error)
 {
 	local_irq_enable();
-	if (notify_die(DIE_TRAP, "iret exception", regs, 0,
-			X86_TRAP_IRET, SIGILL) != NOTIFY_STOP) {
+	if (analtify_die(DIE_TRAP, "iret exception", regs, 0,
+			X86_TRAP_IRET, SIGILL) != ANALTIFY_STOP) {
 		do_trap(X86_TRAP_IRET, SIGILL, "iret exception", regs, 0,
 			ILL_BADSTK, (void __user *)NULL);
 	}

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * DigitalNow TinyTwin remote controller keytable
+ * DigitalAnalw TinyTwin remote controller keytable
  *
  * Copyright (C) 2010 Antti Palosaari <crope@iki.fi>
  */
@@ -8,7 +8,7 @@
 #include <media/rc-map.h>
 #include <linux/module.h>
 
-static struct rc_map_table digitalnow_tinytwin[] = {
+static struct rc_map_table digitalanalw_tinytwin[] = {
 	{ 0x0000, KEY_MUTE },            /* [symbol speaker] */
 	{ 0x0001, KEY_VOLUMEUP },
 	{ 0x0002, KEY_POWER2 },          /* TV [power button] */
@@ -60,28 +60,28 @@ static struct rc_map_table digitalnow_tinytwin[] = {
 	{ 0x005a, KEY_PREVIOUS },        /* REPLAY */
 };
 
-static struct rc_map_list digitalnow_tinytwin_map = {
+static struct rc_map_list digitalanalw_tinytwin_map = {
 	.map = {
-		.scan     = digitalnow_tinytwin,
-		.size     = ARRAY_SIZE(digitalnow_tinytwin),
+		.scan     = digitalanalw_tinytwin,
+		.size     = ARRAY_SIZE(digitalanalw_tinytwin),
 		.rc_proto = RC_PROTO_NEC,
-		.name     = RC_MAP_DIGITALNOW_TINYTWIN,
+		.name     = RC_MAP_DIGITALANALW_TINYTWIN,
 	}
 };
 
-static int __init init_rc_map_digitalnow_tinytwin(void)
+static int __init init_rc_map_digitalanalw_tinytwin(void)
 {
-	return rc_map_register(&digitalnow_tinytwin_map);
+	return rc_map_register(&digitalanalw_tinytwin_map);
 }
 
-static void __exit exit_rc_map_digitalnow_tinytwin(void)
+static void __exit exit_rc_map_digitalanalw_tinytwin(void)
 {
-	rc_map_unregister(&digitalnow_tinytwin_map);
+	rc_map_unregister(&digitalanalw_tinytwin_map);
 }
 
-module_init(init_rc_map_digitalnow_tinytwin)
-module_exit(exit_rc_map_digitalnow_tinytwin)
+module_init(init_rc_map_digitalanalw_tinytwin)
+module_exit(exit_rc_map_digitalanalw_tinytwin)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
-MODULE_DESCRIPTION("DigitalNow TinyTwin remote controller keytable");
+MODULE_DESCRIPTION("DigitalAnalw TinyTwin remote controller keytable");

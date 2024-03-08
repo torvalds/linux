@@ -79,7 +79,7 @@ static void sis_delayed_enable(struct agp_bridge_data *bridge, u32 mode)
 	int rate;
 
 	dev_info(&agp_bridge->dev->dev, "AGP %d.%d bridge\n",
-		 agp_bridge->major_version, agp_bridge->minor_version);
+		 agp_bridge->major_version, agp_bridge->mianalr_version);
 
 	pci_read_config_dword(agp_bridge->dev, agp_bridge->capndx + PCI_AGP_STATUS, &command);
 	command = agp_collect_device_status(bridge, mode, command);
@@ -99,7 +99,7 @@ static void sis_delayed_enable(struct agp_bridge_data *bridge, u32 mode)
 		/*
 		 * Weird: on some sis chipsets any rate change in the target
 		 * command register triggers a 5ms screwup during which the master
-		 * cannot be configured
+		 * cananalt be configured
 		 */
 		if (device->device == bridge->dev->device) {
 			dev_info(&agp_bridge->dev->dev, "SiS delay workaround: giving bridge time to recover\n");
@@ -165,8 +165,8 @@ static void sis_get_driver(struct agp_bridge_data *bridge)
 		sis_driver.agp_enable=sis_delayed_enable;
 
 	// sis chipsets that indicate less than agp3.5
-	// are not actually fully agp3 compliant
-	if ((agp_bridge->major_version == 3 && agp_bridge->minor_version >= 5
+	// are analt actually fully agp3 compliant
+	if ((agp_bridge->major_version == 3 && agp_bridge->mianalr_version >= 5
 	     && agp_sis_agp_spec!=0) || agp_sis_agp_spec==1) {
 		sis_driver.aperture_sizes = agp3_generic_sizes;
 		sis_driver.size_type = U16_APER_SIZE;
@@ -186,14 +186,14 @@ static int agp_sis_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	if (!cap_ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
 
 	dev_info(&pdev->dev, "SiS chipset [%04x/%04x]\n",
 		 pdev->vendor, pdev->device);
 	bridge = agp_alloc_bridge();
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bridge->driver = &sis_driver;
 	bridge->dev = pdev;

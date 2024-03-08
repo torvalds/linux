@@ -13,7 +13,7 @@ description: |
   This module is part of the MAX77650 MFD device. For more details
   see Documentation/devicetree/bindings/mfd/max77650.yaml.
 
-  The onkey controller is represented as a sub-node of the PMIC node on
+  The onkey controller is represented as a sub-analde of the PMIC analde on
   the device tree.
 
 allOf:
@@ -29,7 +29,7 @@ properties:
   maxim,onkey-slide:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      The system's button is a slide switch, not the default push button.
+      The system's button is a slide switch, analt the default push button.
 
 required:
   - compatible

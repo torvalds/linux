@@ -10,7 +10,7 @@
 
 #include <linux/linkage.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <asm/pil.h>
 #include <asm/ptrace.h>
@@ -22,10 +22,10 @@
 #define IMAP_TID_SHIFT		26
 #define IMAP_AID_SAFARI		0x7c000000UL	/* Safari AgentID	*/
 #define IMAP_AID_SHIFT		26
-#define IMAP_NID_SAFARI		0x03e00000UL	/* Safari NodeID	*/
+#define IMAP_NID_SAFARI		0x03e00000UL	/* Safari AnaldeID	*/
 #define IMAP_NID_SHIFT		21
 #define IMAP_IGN		0x000007c0UL	/* IRQ Group Number	*/
-#define IMAP_INO		0x0000003fUL	/* IRQ Number		*/
+#define IMAP_IANAL		0x0000003fUL	/* IRQ Number		*/
 #define IMAP_INR		0x000007ffUL	/* Full interrupt number*/
 
 #define ICLR_IDLE		0x00000000UL	/* Idle state		*/
@@ -34,31 +34,31 @@
 
 /* The largest number of unique interrupt sources we support.
  * If this needs to ever be larger than 255, you need to change
- * the type of ino_bucket->irq as appropriate.
+ * the type of ianal_bucket->irq as appropriate.
  *
- * ino_bucket->irq allocation is made during {sun4v_,}build_irq().
+ * ianal_bucket->irq allocation is made during {sun4v_,}build_irq().
  */
 #define NR_IRQS		(2048)
 
 void irq_install_pre_handler(int irq,
 			     void (*func)(unsigned int, void *, void *),
 			     void *arg1, void *arg2);
-#define irq_canonicalize(irq)	(irq)
-unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap);
-unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino);
-unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino);
+#define irq_caanalnicalize(irq)	(irq)
+unsigned int build_irq(int ianalfixup, unsigned long iclr, unsigned long imap);
+unsigned int sun4v_build_irq(u32 devhandle, unsigned int devianal);
+unsigned int sun4v_build_virq(u32 devhandle, unsigned int devianal);
 unsigned int sun4v_build_msi(u32 devhandle, unsigned int *irq_p,
-			     unsigned int msi_devino_start,
-			     unsigned int msi_devino_end);
+			     unsigned int msi_devianal_start,
+			     unsigned int msi_devianal_end);
 void sun4v_destroy_msi(unsigned int irq);
 unsigned int sun4u_build_msi(u32 portid, unsigned int *irq_p,
-			     unsigned int msi_devino_start,
-			     unsigned int msi_devino_end,
+			     unsigned int msi_devianal_start,
+			     unsigned int msi_devianal_end,
 			     unsigned long imap_base,
 			     unsigned long iclr_base);
 void sun4u_destroy_msi(unsigned int irq);
 
-unsigned int irq_alloc(unsigned int dev_handle, unsigned int dev_ino);
+unsigned int irq_alloc(unsigned int dev_handle, unsigned int dev_ianal);
 void irq_free(unsigned int irq);
 
 void fixup_irqs(void);
@@ -66,14 +66,14 @@ void fixup_irqs(void);
 static inline void set_softint(unsigned long bits)
 {
 	__asm__ __volatile__("wr	%0, 0x0, %%set_softint"
-			     : /* No outputs */
+			     : /* Anal outputs */
 			     : "r" (bits));
 }
 
 static inline void clear_softint(unsigned long bits)
 {
 	__asm__ __volatile__("wr	%0, 0x0, %%clear_softint"
-			     : /* No outputs */
+			     : /* Anal outputs */
 			     : "r" (bits));
 }
 
@@ -93,6 +93,6 @@ void arch_trigger_cpumask_backtrace(const struct cpumask *mask,
 extern void *hardirq_stack[NR_CPUS];
 extern void *softirq_stack[NR_CPUS];
 
-#define NO_IRQ		0xffffffff
+#define ANAL_IRQ		0xffffffff
 
 #endif

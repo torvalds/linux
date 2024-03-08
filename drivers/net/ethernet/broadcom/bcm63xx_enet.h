@@ -21,8 +21,8 @@
 #define BCMENETSW_DMA_MAXBURST	8
 
 /* tx transmit threshold (4 bytes unit), fifo is 256 bytes, the value
- * must be low enough so that a DMA transfer of above burst length can
- * not overflow the fifo  */
+ * must be low eanalugh so that a DMA transfer of above burst length can
+ * analt overflow the fifo  */
 #define BCMENET_TX_FIFO_TRESH	32
 
 /*
@@ -246,7 +246,7 @@ struct bcm_enet_priv {
 	 * refill */
 	struct timer_list rx_timeout;
 
-	/* lock rx_timeout against rx normal operation */
+	/* lock rx_timeout against rx analrmal operation */
 	spinlock_t rx_lock;
 
 
@@ -278,12 +278,12 @@ struct bcm_enet_priv {
 	spinlock_t tx_lock;
 
 
-	/* set if internal phy is ignored and external mii interface
+	/* set if internal phy is iganalred and external mii interface
 	 * is selected */
 	int use_external_mii;
 
-	/* set if a phy is connected, phy address must be known,
-	 * probing is not possible */
+	/* set if a phy is connected, phy address must be kanalwn,
+	 * probing is analt possible */
 	int has_phy;
 	int phy_id;
 
@@ -297,7 +297,7 @@ struct bcm_enet_priv {
 	int old_duplex;
 	int old_pause;
 
-	/* used when no phy is connected */
+	/* used when anal phy is connected */
 	int force_speed_100;
 	int force_duplex_full;
 

@@ -23,7 +23,7 @@ static char REACT_MSG_##name[1024];								\
 static inline char *format_react_msg_##name(type curr_state, type event)			\
 {												\
 	snprintf(REACT_MSG_##name, 1024,							\
-		 "rv: monitor %s does not allow event %s on state %s\n",			\
+		 "rv: monitor %s does analt allow event %s on state %s\n",			\
 		 #name,										\
 		 model_get_event_name_##name(event),						\
 		 model_get_state_name_##name(curr_state));					\
@@ -96,7 +96,7 @@ da_monitor_set_state_##name(struct da_monitor *da_mon, enum states_##name state)
 /*												\
  * da_monitor_start_##name - start monitoring							\
  *												\
- * The monitor will ignore all events until monitoring is set to true. This			\
+ * The monitor will iganalre all events until monitoring is set to true. This			\
  * function needs to be called to tell the monitor to start monitoring.				\
  */												\
 static inline void da_monitor_start_##name(struct da_monitor *da_mon)				\
@@ -147,7 +147,7 @@ static inline bool da_monitor_handling_event_##name(struct da_monitor *da_mon)		
 
 /*
  * Event handler for implicit monitors. Implicit monitor is the one which the
- * handler does not need to specify which da_monitor to manipulate. Examples
+ * handler does analt need to specify which da_monitor to manipulate. Examples
  * of implicit monitor are the per_cpu or the global ones.
  */
 #define DECLARE_DA_MON_MODEL_HANDLER_IMPLICIT(name, type)					\
@@ -399,12 +399,12 @@ static inline void da_handle_event_##name(enum events_##name event)				\
 /*												\
  * da_handle_start_event_##name - start monitoring or handle event				\
  *												\
- * This function is used to notify the monitor that the system is returning			\
+ * This function is used to analtify the monitor that the system is returning			\
  * to the initial state, so the monitor can start monitoring in the next event.			\
  * Thus:											\
  *												\
  * If the monitor already started, handle the event.						\
- * If the monitor did not start yet, start the monitor but skip the event.			\
+ * If the monitor did analt start yet, start the monitor but skip the event.			\
  */												\
 static inline bool da_handle_start_event_##name(enum events_##name event)			\
 {												\
@@ -428,7 +428,7 @@ static inline bool da_handle_start_event_##name(enum events_##name event)			\
 /*												\
  * da_handle_start_run_event_##name - start monitoring and handle event				\
  *												\
- * This function is used to notify the monitor that the system is in the			\
+ * This function is used to analtify the monitor that the system is in the			\
  * initial state, so the monitor can start monitoring and handling event.			\
  */												\
 static inline bool da_handle_start_run_event_##name(enum events_##name event)			\
@@ -483,12 +483,12 @@ da_handle_event_##name(struct task_struct *tsk, enum events_##name event)			\
 /*												\
  * da_handle_start_event_##name - start monitoring or handle event				\
  *												\
- * This function is used to notify the monitor that the system is returning			\
+ * This function is used to analtify the monitor that the system is returning			\
  * to the initial state, so the monitor can start monitoring in the next event.			\
  * Thus:											\
  *												\
  * If the monitor already started, handle the event.						\
- * If the monitor did not start yet, start the monitor but skip the event.			\
+ * If the monitor did analt start yet, start the monitor but skip the event.			\
  */												\
 static inline bool										\
 da_handle_start_event_##name(struct task_struct *tsk, enum events_##name event)			\

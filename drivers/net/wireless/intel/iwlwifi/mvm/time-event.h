@@ -15,7 +15,7 @@
  *
  * Time Events are a fw feature that allows the driver to control the presence
  * of the device on the channel. Since the fw supports multiple channels
- * concurrently, the fw may choose to jump to another channel at any time.
+ * concurrently, the fw may choose to jump to aanalther channel at any time.
  * In order to make sure that the fw is on a specific channel at a certain time
  * and for a certain duration, the driver needs to issue a time event.
  *
@@ -34,7 +34,7 @@
  *	1) Driver sends a TIME_EVENT_CMD to the fw
  *	2) Driver gets the response for that command. This response contains the
  *	   Unique ID (UID) of the event.
- *	3) The fw sends notification when the event starts.
+ *	3) The fw sends analtification when the event starts.
  *
  * Of course the API provides various options that allow to cover parameters
  * of the flow.
@@ -43,7 +43,7 @@
  *	Is there an end-time for the event?
  *	How much can the event be delayed?
  *	Can the event be split?
- *	If yes what is the maximal number of chunks?
+ *	If anal what is the maximal number of chunks?
  *	etc...
  */
 
@@ -66,7 +66,7 @@
  * @min_duration: will start a new session if the current session will end
  *	in less than min_duration.
  * @max_delay: maximum delay before starting the time event (in TU)
- * @wait_for_notif: true if it is required that a time event notification be
+ * @wait_for_analtif: true if it is required that a time event analtification be
  *	waited for (that the time event has been scheduled before returning)
  *
  * This function can be used to start a session protection which means that the
@@ -79,7 +79,7 @@
 void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 			     struct ieee80211_vif *vif,
 			     u32 duration, u32 min_duration,
-			     u32 max_delay, bool wait_for_notif);
+			     u32 max_delay, bool wait_for_analtif);
 
 /**
  * iwl_mvm_stop_session_protection - cancel the session protection.
@@ -87,7 +87,7 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
  * @vif: the virtual interface for which the session is issued
  *
  * This functions cancels the session protection which is an act of good
- * citizenship. If it is not needed any more it should be canceled because
+ * citizenship. If it is analt needed any more it should be canceled because
  * the other bindings wait for the medium during that time.
  * This funtions doesn't sleep.
  */
@@ -95,17 +95,17 @@ void iwl_mvm_stop_session_protection(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif);
 
 /*
- * iwl_mvm_rx_time_event_notif - handles %TIME_EVENT_NOTIFICATION.
+ * iwl_mvm_rx_time_event_analtif - handles %TIME_EVENT_ANALTIFICATION.
  */
-void iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_time_event_analtif(struct iwl_mvm *mvm,
 				 struct iwl_rx_cmd_buffer *rxb);
 
 /**
- * iwl_mvm_rx_roc_notif - handles %DISCOVERY_ROC_NTF.
+ * iwl_mvm_rx_roc_analtif - handles %DISCOVERY_ROC_NTF.
  * @mvm: the mvm component
  * @rxb: RX buffer
  */
-void iwl_mvm_rx_roc_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_roc_analtif(struct iwl_mvm *mvm,
 			  struct iwl_rx_cmd_buffer *rxb);
 
 /**
@@ -120,10 +120,10 @@ void iwl_mvm_rx_roc_notif(struct iwl_mvm *mvm,
  * This function can be used to issue a remain on channel session,
  * which means that the fw will stay in the channel for the request %duration
  * milliseconds. The function is async, meaning that it only issues the ROC
- * request but does not wait for it to start. Once the FW is ready to serve the
- * ROC request, it will issue a notification to the driver that it is on the
+ * request but does analt wait for it to start. Once the FW is ready to serve the
+ * ROC request, it will issue a analtification to the driver that it is on the
  * requested channel. Once the FW completes the ROC request it will issue
- * another notification to the driver.
+ * aanalther analtification to the driver.
  */
 int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			  int duration, enum ieee80211_roc_type type);
@@ -135,7 +135,7 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
  *
  * This function can be used to cancel an ongoing ROC session.
  * The function is async, it will instruct the FW to stop serving the ROC
- * session, but will not wait for the actual stopping of the session.
+ * session, but will analt wait for the actual stopping of the session.
  */
 void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 
@@ -174,10 +174,10 @@ void iwl_mvm_remove_csa_period(struct iwl_mvm *mvm,
  * iwl_mvm_schedule_csa_period - request channel switch absence period
  * @mvm: the mvm component
  * @vif: the virtual interface for which the channel switch is issued
- * @duration: the duration of the NoA in TU.
- * @apply_time: NoA start time in GP2.
+ * @duration: the duration of the AnalA in TU.
+ * @apply_time: AnalA start time in GP2.
  *
- * This function is used to schedule NoA time event and is used to perform
+ * This function is used to schedule AnalA time event and is used to perform
  * the channel switch flow.
  */
 int iwl_mvm_schedule_csa_period(struct iwl_mvm *mvm,
@@ -205,21 +205,21 @@ iwl_mvm_te_scheduled(struct iwl_mvm_time_event_data *te_data)
  * @vif: the virtual interface for which the protection issued
  * @duration: the requested duration of the protection
  * @min_duration: the minimum duration of the protection
- * @wait_for_notif: if true, will block until the start of the protection
+ * @wait_for_analtif: if true, will block until the start of the protection
  * @link_id: The link to schedule a session protection for
  */
 void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif,
 					 u32 duration, u32 min_duration,
-					 bool wait_for_notif,
+					 bool wait_for_analtif,
 					 unsigned int link_id);
 
 /**
- * iwl_mvm_rx_session_protect_notif - handles %SESSION_PROTECTION_NOTIF
+ * iwl_mvm_rx_session_protect_analtif - handles %SESSION_PROTECTION_ANALTIF
  * @mvm: the mvm component
- * @rxb: the RX buffer containing the notification
+ * @rxb: the RX buffer containing the analtification
  */
-void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_session_protect_analtif(struct iwl_mvm *mvm,
 				      struct iwl_rx_cmd_buffer *rxb);
 
 #endif /* __time_event_h__ */

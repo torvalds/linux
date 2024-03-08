@@ -39,7 +39,7 @@ extern char *e820__memory_setup_default(void);
 extern void e820__setup_pci_gap(void);
 
 extern void e820__reallocate_tables(void);
-extern void e820__register_nosave_regions(unsigned long limit_pfn);
+extern void e820__register_analsave_regions(unsigned long limit_pfn);
 
 extern int  e820__get_entry_type(u64 start, u64 end);
 

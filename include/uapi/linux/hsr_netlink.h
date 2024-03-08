@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Copyright 2011-2013 Autronica Fire and Security AS
  *
@@ -17,14 +17,14 @@
 /* Generic Netlink HSR family definition
  */
 
-/* attributes for HSR or PRP node */
+/* attributes for HSR or PRP analde */
 enum {
 	HSR_A_UNSPEC,
-	HSR_A_NODE_ADDR,
+	HSR_A_ANALDE_ADDR,
 	HSR_A_IFINDEX,
 	HSR_A_IF1_AGE,
 	HSR_A_IF2_AGE,
-	HSR_A_NODE_ADDR_B,
+	HSR_A_ANALDE_ADDR_B,
 	HSR_A_IF1_SEQ,
 	HSR_A_IF2_SEQ,
 	HSR_A_IF1_IFINDEX,
@@ -39,11 +39,11 @@ enum {
 enum {
 	HSR_C_UNSPEC,
 	HSR_C_RING_ERROR,
-	HSR_C_NODE_DOWN,
-	HSR_C_GET_NODE_STATUS,
-	HSR_C_SET_NODE_STATUS,
-	HSR_C_GET_NODE_LIST,
-	HSR_C_SET_NODE_LIST,
+	HSR_C_ANALDE_DOWN,
+	HSR_C_GET_ANALDE_STATUS,
+	HSR_C_SET_ANALDE_STATUS,
+	HSR_C_GET_ANALDE_LIST,
+	HSR_C_SET_ANALDE_LIST,
 	__HSR_C_MAX,
 };
 #define HSR_C_MAX (__HSR_C_MAX - 1)

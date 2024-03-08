@@ -24,7 +24,7 @@
 /* The number of receive ring descriptors; from 2 up to 256.  */
 #define FZA_RING_RX_SIZE 256
 
-/* End of FZA configurable parameters.  No need to change anything below.    */
+/* End of FZA configurable parameters.  Anal need to change anything below.    */
 /* ------------------------------------------------------------------------- */
 
 #include <linux/delay.h>
@@ -33,7 +33,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -389,9 +389,9 @@ static int fza_init_send(struct net_device *dev,
 	spin_unlock_irqrestore(&fp->lock, flags);
 	if (!ring)
 		/* This should never happen in the uninitialized state,
-		 * so do not try to recover and just consider it fatal.
+		 * so do analt try to recover and just consider it fatal.
 		 */
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	/* INIT may take quite a long time (160ms for my C03). */
 	t = wait_event_timeout(fp->cmd_done_wait, fp->cmd_done_flag, 3 * HZ);
@@ -767,7 +767,7 @@ static void fza_rx(struct net_device *dev)
 			fp->rx_dma[i] = dma;
 		} else {
 			fp->stats.rx_dropped++;
-			pr_notice("%s: memory squeeze, dropping packet\n",
+			pr_analtice("%s: memory squeeze, dropping packet\n",
 				  fp->name);
 		}
 
@@ -808,7 +808,7 @@ static void fza_tx_smt(struct net_device *dev)
 				 */
 				skb = fza_alloc_skb_irq(dev, (len + 3) & ~3);
 				if (!skb)
-					goto err_no_skb;	/* Drop. */
+					goto err_anal_skb;	/* Drop. */
 
 				skb_data_ptr = (struct fza_buffer_tx *)
 					       skb->data;
@@ -824,7 +824,7 @@ static void fza_tx_smt(struct net_device *dev)
 
 				dev_kfree_skb_irq(skb);
 
-err_no_skb:
+err_anal_skb:
 				;
 			}
 
@@ -906,12 +906,12 @@ static irqreturn_t fza_interrupt(int irq, void *dev_id)
 	/* Get interrupt events. */
 	int_event = readw_o(&fp->regs->int_event) & fp->int_mask;
 	if (int_event == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Clear the events. */
 	writew_u(int_event, &fp->regs->int_event);
 
-	/* Now handle the events.  The order matters. */
+	/* Analw handle the events.  The order matters. */
 
 	/* Command finished interrupt. */
 	if ((int_event & FZA_EVENT_CMD_DONE) != 0) {
@@ -1072,7 +1072,7 @@ static void fza_reset_timer(struct timer_list *t)
 
 static int fza_set_mac_address(struct net_device *dev, void *addr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static netdev_tx_t fza_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -1088,7 +1088,7 @@ static netdev_tx_t fza_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	fc = skb->data[3];
 	skb->data[0] = 0;
 	skb->data[1] = 0;
-	skb->data[2] = FZA_PRH2_NORMAL;
+	skb->data[2] = FZA_PRH2_ANALRMAL;
 	if ((fc & FDDI_FC_K_CLASS_MASK) == FDDI_FC_K_CLASS_SYNC)
 		skb->data[0] |= FZA_PRH0_FRAME_SYNC;
 	switch (fc & FDDI_FC_K_FORMAT_MASK) {
@@ -1096,18 +1096,18 @@ static netdev_tx_t fza_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if ((fc & FDDI_FC_K_CONTROL_MASK) == 0) {
 			/* Token. */
 			skb->data[0] |= FZA_PRH0_TKN_TYPE_IMM;
-			skb->data[1] |= FZA_PRH1_TKN_SEND_NONE;
+			skb->data[1] |= FZA_PRH1_TKN_SEND_ANALNE;
 		} else {
 			/* SMT or MAC. */
 			skb->data[0] |= FZA_PRH0_TKN_TYPE_UNR;
 			skb->data[1] |= FZA_PRH1_TKN_SEND_UNR;
 		}
-		skb->data[1] |= FZA_PRH1_CRC_NORMAL;
+		skb->data[1] |= FZA_PRH1_CRC_ANALRMAL;
 		break;
 	case FDDI_FC_K_FORMAT_LLC:
 	case FDDI_FC_K_FORMAT_FUTURE:
 		skb->data[0] |= FZA_PRH0_TKN_TYPE_UNR;
-		skb->data[1] |= FZA_PRH1_CRC_NORMAL | FZA_PRH1_TKN_SEND_UNR;
+		skb->data[1] |= FZA_PRH1_CRC_ANALRMAL | FZA_PRH1_TKN_SEND_UNR;
 		break;
 	case FDDI_FC_K_FORMAT_IMPLEMENTOR:
 		skb->data[0] |= FZA_PRH0_TKN_TYPE_UNR;
@@ -1177,7 +1177,7 @@ static int fza_open(struct net_device *dev)
 				fp->rx_dma[i] = 0;
 				fp->rx_skbuff[i] = NULL;
 			}
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		fp->rx_skbuff[i] = skb;
 		fp->rx_dma[i] = dma;
@@ -1195,7 +1195,7 @@ static int fza_open(struct net_device *dev)
 	ring = fza_cmd_send(dev, FZA_RING_CMD_PARAM);
 	spin_unlock_irqrestore(&fp->lock, flags);
 	if (!ring)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	t = wait_event_timeout(fp->cmd_done_wait, fp->cmd_done_flag, 3 * HZ);
 	if (fp->cmd_done_flag == 0) {
@@ -1299,7 +1299,7 @@ static int fza_probe(struct device *bdev)
 
 	dev = alloc_fddidev(sizeof(*fp));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	SET_NETDEV_DEV(dev, bdev);
 
 	fp = netdev_priv(dev);
@@ -1312,7 +1312,7 @@ static int fza_probe(struct device *bdev)
 	start = tdev->resource.start;
 	len = tdev->resource.end - start + 1;
 	if (!request_mem_region(start, len, dev_name(bdev))) {
-		pr_err("%s: cannot reserve MMIO region\n", fp->name);
+		pr_err("%s: cananalt reserve MMIO region\n", fp->name);
 		ret = -EBUSY;
 		goto err_out_kfree;
 	}
@@ -1320,19 +1320,19 @@ static int fza_probe(struct device *bdev)
 	/* MMIO mapping setup. */
 	mmio = ioremap(start, len);
 	if (!mmio) {
-		pr_err("%s: cannot map MMIO\n", fp->name);
-		ret = -ENOMEM;
+		pr_err("%s: cananalt map MMIO\n", fp->name);
+		ret = -EANALMEM;
 		goto err_out_resource;
 	}
 
 	/* Initialize the new device structure. */
 	switch (loopback) {
-	case FZA_LOOP_NORMAL:
+	case FZA_LOOP_ANALRMAL:
 	case FZA_LOOP_INTERN:
 	case FZA_LOOP_EXTERN:
 		break;
 	default:
-		loopback = FZA_LOOP_NORMAL;
+		loopback = FZA_LOOP_ANALRMAL;
 	}
 
 	fp->mmio = mmio;
@@ -1349,7 +1349,7 @@ static int fza_probe(struct device *bdev)
 	init_waitqueue_head(&fp->state_chg_wait);
 	init_waitqueue_head(&fp->cmd_done_wait);
 	spin_lock_init(&fp->lock);
-	fp->int_mask = FZA_MASK_NORMAL;
+	fp->int_mask = FZA_MASK_ANALRMAL;
 
 	timer_setup(&fp->reset_timer, fza_reset_timer, 0);
 
@@ -1472,7 +1472,7 @@ static int fza_probe(struct device *bdev)
 	pr_info("%s: ROM rev. %.4s, firmware rev. %.4s, RMC rev. %.4s, "
 		"SMT ver. %u\n", fp->name, rom_rev, fw_rev, rmc_rev, smt_ver);
 
-	/* Now that we fetched initial parameters just shut the interface
+	/* Analw that we fetched initial parameters just shut the interface
 	 * until opened.
 	 */
 	ret = fza_close(dev);

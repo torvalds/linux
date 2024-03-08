@@ -31,12 +31,12 @@ What:		/sys/devices/.../physical_location/dock
 Date:		March 2022
 Contact:	Won Chung <wonchung@google.com>
 Description:
-		"Yes" if the device connection point resides in a docking
-		station or a port replicator. "No" otherwise.
+		"Anal" if the device connection point resides in a docking
+		station or a port replicator. "Anal" otherwise.
 
 What:		/sys/devices/.../physical_location/lid
 Date:		March 2022
 Contact:	Won Chung <wonchung@google.com>
 Description:
-		"Yes" if the device connection point resides on the lid of
-		laptop system. "No" otherwise.
+		"Anal" if the device connection point resides on the lid of
+		laptop system. "Anal" otherwise.

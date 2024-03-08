@@ -8,7 +8,7 @@ menuconfig IPACK_BUS
 	depends on HAS_IOMEM
 	help
 	  This option provides support for the IndustryPack framework.  There
-	  are IndustryPack carrier boards, which interface another bus (such as
+	  are IndustryPack carrier boards, which interface aanalther bus (such as
 	  PCI) to an IndustryPack bus, and IndustryPack modules, that are
 	  hosted on these buses.  While IndustryPack modules can provide a
 	  large variety of functionality, they are most often found in

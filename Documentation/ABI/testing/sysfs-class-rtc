@@ -63,7 +63,7 @@ Date:		March 2006
 KernelVersion:	2.6.17
 Contact:	linux-rtc@vger.kernel.org
 Description:
-		(RO) RTC-provided time in 24-hour notation (hh:mm:ss)
+		(RO) RTC-provided time in 24-hour analtation (hh:mm:ss)
 
 What:		/sys/class/rtc/rtcX/offset
 Date:		February 2016

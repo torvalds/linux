@@ -3,7 +3,7 @@
  * R8A7740 processor support
  *
  * Copyright (C) 2011  Renesas Solutions Corp.
- * Copyright (C) 2011  Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Copyright (C) 2011  Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  */
 #include <linux/kernel.h>
 #include <linux/init.h>

@@ -60,7 +60,7 @@ static int mctp_bind(struct socket *sock, struct sockaddr *addr, int addrlen)
 		return -EINVAL;
 
 	if (addr->sa_family != AF_MCTP)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	if (!capable(CAP_NET_BIND_SERVICE))
 		return -EACCES;
@@ -80,7 +80,7 @@ static int mctp_bind(struct socket *sock, struct sockaddr *addr, int addrlen)
 	}
 	msk->bind_net = smctp->smctp_network;
 	msk->bind_addr = smctp->smctp_addr.s_addr;
-	msk->bind_type = smctp->smctp_type & 0x7f; /* ignore the IC bit */
+	msk->bind_type = smctp->smctp_type & 0x7f; /* iganalre the IC bit */
 
 	rc = sk->sk_prot->hash(sk);
 
@@ -113,7 +113,7 @@ static int mctp_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 			return -EINVAL;
 		if (addr->smctp_tag & ~tagbits)
 			return -EINVAL;
-		/* can't preallocate a non-owned tag */
+		/* can't preallocate a analn-owned tag */
 		if (addr->smctp_tag & MCTP_TAG_PREALLOC &&
 		    !(addr->smctp_tag & MCTP_TAG_OWNER))
 			return -EINVAL;
@@ -214,7 +214,7 @@ static int mctp_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	int rc;
 
 	if (flags & ~(MSG_DONTWAIT | MSG_TRUNC | MSG_PEEK))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	skb = skb_recv_datagram(sk, flags, &rc);
 	if (!skb)
@@ -323,7 +323,7 @@ static int mctp_setsockopt(struct socket *sock, int level, int optname,
 		return 0;
 	}
 
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 }
 
 static int mctp_getsockopt(struct socket *sock, int level, int optname,
@@ -398,7 +398,7 @@ static int mctp_ioctl_droptag(struct mctp_sock *msk, unsigned long arg)
 	struct mctp_ioc_tag_ctl ctl;
 	unsigned long flags, fl2;
 	struct mctp_sk_key *key;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int rc;
 	u8 tag;
 
@@ -417,7 +417,7 @@ static int mctp_ioctl_droptag(struct mctp_sock *msk, unsigned long arg)
 
 	spin_lock_irqsave(&net->mctp.keys_lock, flags);
 	hlist_for_each_entry_safe(key, tmp, &msk->keys, sklist) {
-		/* we do an irqsave here, even though we know the irq state,
+		/* we do an irqsave here, even though we kanalw the irq state,
 		 * so we have the flags to pass to __mctp_key_remove
 		 */
 		spin_lock_irqsave(&key->lock, fl2);
@@ -463,7 +463,7 @@ static int mctp_compat_ioctl(struct socket *sock, unsigned int cmd,
 		return mctp_ioctl(sock, cmd, (unsigned long)argp);
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 #endif
 
@@ -471,20 +471,20 @@ static const struct proto_ops mctp_dgram_ops = {
 	.family		= PF_MCTP,
 	.release	= mctp_release,
 	.bind		= mctp_bind,
-	.connect	= sock_no_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
-	.getname	= sock_no_getname,
+	.connect	= sock_anal_connect,
+	.socketpair	= sock_anal_socketpair,
+	.accept		= sock_anal_accept,
+	.getname	= sock_anal_getname,
 	.poll		= datagram_poll,
 	.ioctl		= mctp_ioctl,
 	.gettstamp	= sock_gettstamp,
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
+	.listen		= sock_anal_listen,
+	.shutdown	= sock_anal_shutdown,
 	.setsockopt	= mctp_setsockopt,
 	.getsockopt	= mctp_getsockopt,
 	.sendmsg	= mctp_sendmsg,
 	.recvmsg	= mctp_recvmsg,
-	.mmap		= sock_no_mmap,
+	.mmap		= sock_anal_mmap,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= mctp_compat_ioctl,
 #endif
@@ -497,13 +497,13 @@ static void mctp_sk_expire_keys(struct timer_list *timer)
 	struct net *net = sock_net(&msk->sk);
 	unsigned long next_expiry, flags, fl2;
 	struct mctp_sk_key *key;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	bool next_expiry_valid = false;
 
 	spin_lock_irqsave(&net->mctp.keys_lock, flags);
 
 	hlist_for_each_entry_safe(key, tmp, &msk->keys, sklist) {
-		/* don't expire. manual_alloc is immutable, no locking
+		/* don't expire. manual_alloc is immutable, anal locking
 		 * required.
 		 */
 		if (key->manual_alloc)
@@ -551,7 +551,7 @@ static int mctp_sk_hash(struct sock *sk)
 	struct net *net = sock_net(sk);
 
 	mutex_lock(&net->mctp.bind_lock);
-	sk_add_node_rcu(sk, &net->mctp.binds);
+	sk_add_analde_rcu(sk, &net->mctp.binds);
 	mutex_unlock(&net->mctp.bind_lock);
 
 	return 0;
@@ -563,11 +563,11 @@ static void mctp_sk_unhash(struct sock *sk)
 	struct net *net = sock_net(sk);
 	unsigned long flags, fl2;
 	struct mctp_sk_key *key;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 
 	/* remove from any type-based binds */
 	mutex_lock(&net->mctp.bind_lock);
-	sk_del_node_init_rcu(sk);
+	sk_del_analde_init_rcu(sk);
 	mutex_unlock(&net->mctp.bind_lock);
 
 	/* remove tag allocations */
@@ -579,9 +579,9 @@ static void mctp_sk_unhash(struct sock *sk)
 	sock_set_flag(sk, SOCK_DEAD);
 	spin_unlock_irqrestore(&net->mctp.keys_lock, flags);
 
-	/* Since there are no more tag allocations (we have removed all of the
-	 * keys), stop any pending expiry events. the timer cannot be re-queued
-	 * as the sk is no longer observable
+	/* Since there are anal more tag allocations (we have removed all of the
+	 * keys), stop any pending expiry events. the timer cananalt be re-queued
+	 * as the sk is anal longer observable
 	 */
 	del_timer_sync(&msk->key_expiry);
 }
@@ -610,11 +610,11 @@ static int mctp_pf_create(struct net *net, struct socket *sock,
 	int rc;
 
 	if (protocol)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	/* only datagram sockets are supported */
 	if (sock->type != SOCK_DGRAM)
-		return -ESOCKTNOSUPPORT;
+		return -ESOCKTANALSUPPORT;
 
 	proto = &mctp_proto;
 	ops = &mctp_dgram_ops;
@@ -624,7 +624,7 @@ static int mctp_pf_create(struct net *net, struct socket *sock,
 
 	sk = sk_alloc(net, PF_MCTP, GFP_KERNEL, proto, kern);
 	if (!sk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sock_init_data(sock, sk);
 	sk->sk_destruct = mctp_sk_destruct;

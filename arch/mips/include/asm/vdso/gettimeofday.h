@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2018 ARM Limited
- * Copyright (C) 2015 Imagination Technologies
+ * Copyright (C) 2015 Imagination Techanallogies
  * Author: Alex Smith <alex.smith@imgtec.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -196,7 +196,7 @@ static __always_inline u64 __arch_get_hw_counter(s32 clock_mode,
 #endif
 	/*
 	 * Core checks mode already. So this raced against a concurrent
-	 * update. Return something. Core will do another round see the
+	 * update. Return something. Core will do aanalther round see the
 	 * change and fallback to syscall.
 	 */
 	return 0;

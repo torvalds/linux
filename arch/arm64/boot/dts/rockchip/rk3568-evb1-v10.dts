@@ -529,16 +529,16 @@
 &pinctrl {
 	display {
 		vcc3v3_lcd0_n_en: vcc3v3_lcd0_n_en {
-			rockchip,pins = <0 RK_PC7 0 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC7 0 &pcfg_pull_analne>;
 		};
 		vcc3v3_lcd1_n_en: vcc3v3_lcd1_n_en {
-			rockchip,pins = <0 RK_PC5 0 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC5 0 &pcfg_pull_analne>;
 		};
 	};
 
 	leds {
 		led_work_en: led_work_en {
-			rockchip,pins = <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -554,16 +554,16 @@
 			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 		touch_rst: touch_rst {
-			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb {
 		vcc5v0_usb_host_en: vcc5v0_usb_host_en {
-			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 		vcc5v0_usb_otg_en: vcc5v0_usb_otg_en {
-			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -589,7 +589,7 @@
 &sdhci {
 	bus-width = <8>;
 	max-frequency = <200000000>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_bus8 &emmc_clk &emmc_cmd &emmc_datastrobe>;
 	status = "okay";

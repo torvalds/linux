@@ -28,8 +28,8 @@ int mxl111sf_init_tuner_demod(struct mxl111sf_state *state)
 		{0x00, 0xff, 0x01}, /* Change to page 1 */
 		{0x81, 0xff, 0x11}, /* DSM_FERR_BYPASS = 1 */
 		{0xf4, 0xff, 0x07}, /* DIG_FREQ_CORR = 1 */
-		{0xd4, 0x1f, 0x0f}, /* SPUR_TEST_NOISE_TH = 15 */
-		{0xd6, 0xff, 0x0c}, /* SPUR_TEST_NOISE_PAPR = 12 */
+		{0xd4, 0x1f, 0x0f}, /* SPUR_TEST_ANALISE_TH = 15 */
+		{0xd6, 0xff, 0x0c}, /* SPUR_TEST_ANALISE_PAPR = 12 */
 		{0x00, 0xff, 0x00}, /* Change to page 0 */
 		{0,    0,    0}
 	};
@@ -68,9 +68,9 @@ int mxl1x1sf_set_device_mode(struct mxl111sf_state *state, int mode)
 
 	ret = mxl111sf_write_reg_mask(state,
 				      0x7d, 0x40, MXL_SOC_MODE == mode ?
-				      0x00 : /* enable impulse noise filter,
+				      0x00 : /* enable impulse analise filter,
 						INF_BYP = 0 */
-				      0x40); /* disable impulse noise filter,
+				      0x40); /* disable impulse analise filter,
 						INF_BYP = 1 */
 	if (mxl_fail(ret))
 		goto fail;
@@ -81,11 +81,11 @@ fail:
 }
 
 /* power up tuner */
-int mxl1x1sf_top_master_ctrl(struct mxl111sf_state *state, int onoff)
+int mxl1x1sf_top_master_ctrl(struct mxl111sf_state *state, int oanalff)
 {
-	mxl_debug("(%d)", onoff);
+	mxl_debug("(%d)", oanalff);
 
-	return mxl111sf_write_reg(state, 0x01, onoff ? 0x01 : 0x00);
+	return mxl111sf_write_reg(state, 0x01, oanalff ? 0x01 : 0x00);
 }
 
 int mxl111sf_disable_656_port(struct mxl111sf_state *state)
@@ -123,7 +123,7 @@ int mxl111sf_config_mpeg_in(struct mxl111sf_state *state,
 	/* Configure MPEG Clock phase */
 	mxl111sf_read_reg(state, V6_MPEG_IN_CLK_INV_REG, &mode);
 
-	if (clock_phase == TSIF_NORMAL)
+	if (clock_phase == TSIF_ANALRMAL)
 		mode &= ~V6_INVERTED_CLK_PHASE;
 	else
 		mode |= V6_INVERTED_CLK_PHASE;
@@ -153,7 +153,7 @@ int mxl111sf_config_mpeg_in(struct mxl111sf_state *state,
 		/* If serial interface is chosen, configure
 		   MSB or LSB order in transmission */
 		ret = mxl111sf_read_reg(state,
-					V6_MPEG_INOUT_BIT_ORDER_CTRL_REG,
+					V6_MPEG_IANALUT_BIT_ORDER_CTRL_REG,
 					&tmp);
 		mxl_fail(ret);
 
@@ -163,13 +163,13 @@ int mxl111sf_config_mpeg_in(struct mxl111sf_state *state,
 			tmp &= ~V6_MPEG_SER_MSB_FIRST;
 
 		ret = mxl111sf_write_reg(state,
-					 V6_MPEG_INOUT_BIT_ORDER_CTRL_REG,
+					 V6_MPEG_IANALUT_BIT_ORDER_CTRL_REG,
 					 tmp);
 		mxl_fail(ret);
 	}
 
 	/* MPEG Sync polarity */
-	if (mpeg_sync_pol == TSIF_NORMAL)
+	if (mpeg_sync_pol == TSIF_ANALRMAL)
 		mode &= ~V6_INVERTED_MPEG_SYNC;
 	else
 		mode |= V6_INVERTED_MPEG_SYNC;
@@ -193,7 +193,7 @@ int mxl111sf_init_i2s_port(struct mxl111sf_state *state, u8 sample_size)
 		{0x15, 0x60, 0x60}, /* Enable I2S */
 		{0x17, 0xe0, 0x20}, /* Input, MPEG MODE USB,
 				       Inverted 656 Clock, I2S_SOFT_RESET,
-				       0 : Normal operation, 1 : Reset State */
+				       0 : Analrmal operation, 1 : Reset State */
 #if 0
 		{0x12, 0x01, 0x00}, /* AUDIO_IRQ_CLR (Overflow Indicator) */
 #endif
@@ -258,12 +258,12 @@ fail:
 	return ret;
 }
 
-int mxl111sf_config_spi(struct mxl111sf_state *state, int onoff)
+int mxl111sf_config_spi(struct mxl111sf_state *state, int oanalff)
 {
 	u8 val;
 	int ret;
 
-	mxl_debug("(%d)", onoff);
+	mxl_debug("(%d)", oanalff);
 
 	ret = mxl111sf_write_reg(state, 0x00, 0x02);
 	if (mxl_fail(ret))
@@ -273,7 +273,7 @@ int mxl111sf_config_spi(struct mxl111sf_state *state, int onoff)
 	if (mxl_fail(ret))
 		goto fail;
 
-	if (onoff)
+	if (oanalff)
 		val |= 0x04;
 	else
 		val &= ~0x04;

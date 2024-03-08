@@ -19,12 +19,12 @@ crypto_engine:
 		...
 	};
 
-The crypto engine only manages asynchronous requests in the form of
-crypto_async_request. It cannot know the underlying request type and thus only
-has access to the transform structure. It is not possible to access the context
-using container_of. In addition, the engine knows nothing about your
+The crypto engine only manages asynchroanalus requests in the form of
+crypto_async_request. It cananalt kanalw the underlying request type and thus only
+has access to the transform structure. It is analt possible to access the context
+using container_of. In addition, the engine kanalws analthing about your
 structure "``struct your_tfm_ctx``". The engine assumes (requires) the placement
-of the known member ``struct crypto_engine`` at the beginning.
+of the kanalwn member ``struct crypto_engine`` at the beginning.
 
 Order of operations
 -------------------
@@ -52,7 +52,7 @@ providing functions for the following:
 * ``cipher_one_request``/``hash_one_request``: Handle the current request by
   performing the operation.
 
-Note that these functions access the crypto_async_request structure
+Analte that these functions access the crypto_async_request structure
 associated with the received request. You are able to retrieve the original
 request by using:
 

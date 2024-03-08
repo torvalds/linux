@@ -10,7 +10,7 @@
 #define FW_8192C_PAGE_SIZE			4096
 #define FW_8192C_POLLING_DELAY			5
 #define FW_8192C_POLLING_TIMEOUT_COUNT		100
-#define NORMAL_CHIP				BIT(4)
+#define ANALRMAL_CHIP				BIT(4)
 #define H2C_92C_KEEP_ALIVE_CTRL			48
 
 #define IS_FW_HEADER_EXIST(_pfwhdr)	\
@@ -26,8 +26,8 @@
 	((version) & RF_TYPE_MASK)
 #define GET_CVID_CUT_VERSION(version) \
 	((version) & CUT_VERSION_MASK)
-#define IS_NORMAL_CHIP(version)	\
-	((version & NORMAL_CHIP) ? true : false)
+#define IS_ANALRMAL_CHIP(version)	\
+	((version & ANALRMAL_CHIP) ? true : false)
 #define IS_2T2R(version) \
 	(((GET_CVID_RF_TYPE(version)) == \
 	CHIP_92C_BITMASK) ? true : false)

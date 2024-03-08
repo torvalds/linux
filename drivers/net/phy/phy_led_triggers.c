@@ -17,7 +17,7 @@ static struct phy_led_trigger *phy_speed_to_led_trigger(struct phy_device *phy,
 	return NULL;
 }
 
-static void phy_led_trigger_no_link(struct phy_device *phy)
+static void phy_led_trigger_anal_link(struct phy_device *phy)
 {
 	if (phy->last_triggered) {
 		led_trigger_event(&phy->last_triggered->trigger, LED_OFF);
@@ -31,7 +31,7 @@ void phy_led_trigger_change_speed(struct phy_device *phy)
 	struct phy_led_trigger *plt;
 
 	if (!phy->link)
-		return phy_led_trigger_no_link(phy);
+		return phy_led_trigger_anal_link(phy);
 
 	if (phy->speed == 0)
 		return;
@@ -39,9 +39,9 @@ void phy_led_trigger_change_speed(struct phy_device *phy)
 	plt = phy_speed_to_led_trigger(phy, phy->speed);
 	if (!plt) {
 		netdev_alert(phy->attached_dev,
-			     "No phy led trigger registered for speed(%d)\n",
+			     "Anal phy led trigger registered for speed(%d)\n",
 			     phy->speed);
-		return phy_led_trigger_no_link(phy);
+		return phy_led_trigger_anal_link(phy);
 	}
 
 	if (plt != phy->last_triggered) {
@@ -95,7 +95,7 @@ int phy_led_triggers_register(struct phy_device *phy)
 					     sizeof(*phy->led_link_trigger),
 					     GFP_KERNEL);
 	if (!phy->led_link_trigger) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_clear;
 	}
 
@@ -108,7 +108,7 @@ int phy_led_triggers_register(struct phy_device *phy)
 					    sizeof(struct phy_led_trigger),
 					    GFP_KERNEL);
 	if (!phy->phy_led_triggers) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unreg_link;
 	}
 

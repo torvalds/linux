@@ -5,19 +5,19 @@
  * Author: Sam Protsenko <semen.protsenko@linaro.org>
  * Author: Dávid Virág <virag.david003@gmail.com>
  *
- * This file contains shared functions used by some arm64 Exynos SoCs,
- * such as Exynos7885 or Exynos850 to register and init CMUs.
+ * This file contains shared functions used by some arm64 Exyanals SoCs,
+ * such as Exyanals7885 or Exyanals850 to register and init CMUs.
  */
 
-#ifndef __CLK_EXYNOS_ARM64_H
-#define __CLK_EXYNOS_ARM64_H
+#ifndef __CLK_EXYANALS_ARM64_H
+#define __CLK_EXYANALS_ARM64_H
 
 #include "clk.h"
 
-void exynos_arm64_register_cmu(struct device *dev,
-		struct device_node *np, const struct samsung_cmu_info *cmu);
-int exynos_arm64_register_cmu_pm(struct platform_device *pdev, bool set_manual);
-int exynos_arm64_cmu_suspend(struct device *dev);
-int exynos_arm64_cmu_resume(struct device *dev);
+void exyanals_arm64_register_cmu(struct device *dev,
+		struct device_analde *np, const struct samsung_cmu_info *cmu);
+int exyanals_arm64_register_cmu_pm(struct platform_device *pdev, bool set_manual);
+int exyanals_arm64_cmu_suspend(struct device *dev);
+int exyanals_arm64_cmu_resume(struct device *dev);
 
-#endif /* __CLK_EXYNOS_ARM64_H */
+#endif /* __CLK_EXYANALS_ARM64_H */

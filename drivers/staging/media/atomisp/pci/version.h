@@ -16,6 +16,6 @@
 #ifndef HRT_VERSION_H
 #define HRT_VERSION_H
 #define HRT_VERSION_MAJOR 1
-#define HRT_VERSION_MINOR 4
+#define HRT_VERSION_MIANALR 4
 #define HRT_VERSION 1_4
 #endif

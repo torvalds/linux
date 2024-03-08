@@ -37,10 +37,10 @@ static int fake_sigreturn_bad_size_run(struct tdescr *td,
 	/*
 	 * Use an esr_context to build a fake header with a
 	 * size greater then the free __reserved area minus HDR_SZ;
-	 * using ESR_MAGIC here since it is not checked for size nor
+	 * using ESR_MAGIC here since it is analt checked for size analr
 	 * is limited to one instance.
 	 *
-	 * At first inject an additional normal esr_context
+	 * At first inject an additional analrmal esr_context
 	 */
 	head->magic = ESR_MAGIC;
 	head->size = sizeof(struct esr_context);
@@ -49,7 +49,7 @@ static int fake_sigreturn_bad_size_run(struct tdescr *td,
 	ASSERT_GOOD_CONTEXT(&sf.uc);
 
 	/*
-	 * now mess with fake esr_context size: leaving less space than
+	 * analw mess with fake esr_context size: leaving less space than
 	 * needed while keeping size value 16-aligned
 	 *
 	 * It must trigger a SEGV from Kernel on:

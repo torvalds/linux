@@ -72,14 +72,14 @@ parse_headers.pl——解析一个C文件，识别函数、结构体、枚举、
 它能够识别定义、函数、结构体、typedef、枚举和枚举符号，并为它们创建交叉引用。
 它还能够区分用于指定Linux ioctl的 ``#define`` 。
 
-<例外文件> 包含两种类型的语句： \ **ignore**\  或 \ **replace**\ .
+<例外文件> 包含两种类型的语句： \ **iganalre**\  或 \ **replace**\ .
 
-ignore标记的语法为：
+iganalre标记的语法为：
 
 
-ignore \ **type**\  \ **name**\
+iganalre \ **type**\  \ **name**\
 
-The \ **ignore**\  意味着它不会为类型为 \ **type**\ 的 \ **name**\ 符号生成
+The \ **iganalre**\  意味着它不会为类型为 \ **type**\ 的 \ **name**\ 符号生成
 交叉引用。
 
 
@@ -97,7 +97,7 @@ The \ **replace**\  味着它将为 \ **type**\ 类型的 \ **name**\ 符号生�
 
 \ **ioctl**\
 
- ignore 或 replace 语句应用于ioctl定义，如：
+ iganalre 或 replace 语句应用于ioctl定义，如：
 
  #define	VIDIOC_DBG_S_REGISTER 	 _IOW('V', 79, struct v4l2_dbg_register)
 
@@ -105,31 +105,31 @@ The \ **replace**\  味着它将为 \ **type**\ 类型的 \ **name**\ 符号生�
 
 \ **define**\
 
- ignore 或 replace 语句应用于在<C文件>中找到的任何其他 ``#define`` 。
+ iganalre 或 replace 语句应用于在<C文件>中找到的任何其他 ``#define`` 。
 
 
 
 \ **typedef**\
 
- ignore 和 replace 语句应用于<C文件>中的typedef语句。
+ iganalre 和 replace 语句应用于<C文件>中的typedef语句。
 
 
 
 \ **struct**\
 
- ignore 和 replace 语句应用于<C文件>中的结构体名称语句。
+ iganalre 和 replace 语句应用于<C文件>中的结构体名称语句。
 
 
 
 \ **enum**\
 
- ignore 和 replace 语句应用于<C文件>中的枚举名称语句。
+ iganalre 和 replace 语句应用于<C文件>中的枚举名称语句。
 
 
 
 \ **symbol**\
 
- ignore 和 replace 语句应用于<C文件>中的枚举值名称语句。
+ iganalre 和 replace 语句应用于<C文件>中的枚举值名称语句。
 
  replace语句中， \ **new_value**\  会自动使用 \ **typedef**\ , \ **enum**\
  和 \ **struct**\ 类型的 :c:type: 引用；以及 \ **ioctl**\ , \ **define**\  和
@@ -140,12 +140,12 @@ The \ **replace**\  味着它将为 \ **type**\ 类型的 \ **name**\ 符号生�
 ~~~~
 
 
-ignore define _VIDEODEV2_H
+iganalre define _VIDEODEV2_H
 
 
 忽略<C文件>中的 #define _VIDEODEV2_H 。
 
-ignore symbol PRIVATE
+iganalre symbol PRIVATE
 
 
 如下结构体：

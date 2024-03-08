@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -307,12 +307,12 @@
 #define mmMMEA0_DRAM_WR_PRI_QUANT_PRI1_DEFAULT                                   0x3f3f3f3f
 #define mmMMEA0_DRAM_WR_PRI_QUANT_PRI2_DEFAULT                                   0x7f7f7f7f
 #define mmMMEA0_DRAM_WR_PRI_QUANT_PRI3_DEFAULT                                   0xffffffff
-#define mmMMEA0_ADDRNORM_BASE_ADDR0_DEFAULT                                      0x00000000
-#define mmMMEA0_ADDRNORM_LIMIT_ADDR0_DEFAULT                                     0x00000000
-#define mmMMEA0_ADDRNORM_BASE_ADDR1_DEFAULT                                      0x00000000
-#define mmMMEA0_ADDRNORM_LIMIT_ADDR1_DEFAULT                                     0x00000000
-#define mmMMEA0_ADDRNORM_OFFSET_ADDR1_DEFAULT                                    0x00000000
-#define mmMMEA0_ADDRNORM_HOLE_CNTL_DEFAULT                                       0x00000000
+#define mmMMEA0_ADDRANALRM_BASE_ADDR0_DEFAULT                                      0x00000000
+#define mmMMEA0_ADDRANALRM_LIMIT_ADDR0_DEFAULT                                     0x00000000
+#define mmMMEA0_ADDRANALRM_BASE_ADDR1_DEFAULT                                      0x00000000
+#define mmMMEA0_ADDRANALRM_LIMIT_ADDR1_DEFAULT                                     0x00000000
+#define mmMMEA0_ADDRANALRM_OFFSET_ADDR1_DEFAULT                                    0x00000000
+#define mmMMEA0_ADDRANALRM_HOLE_CNTL_DEFAULT                                       0x00000000
 #define mmMMEA0_ADDRDEC_BANK_CFG_DEFAULT                                         0x000001ef
 #define mmMMEA0_ADDRDEC_MISC_CFG_DEFAULT                                         0x3ffff000
 #define mmMMEA0_ADDRDECDRAM_ADDR_HASH_BANK0_DEFAULT                              0x00000000
@@ -452,12 +452,12 @@
 #define mmMMEA1_DRAM_WR_PRI_QUANT_PRI1_DEFAULT                                   0x3f3f3f3f
 #define mmMMEA1_DRAM_WR_PRI_QUANT_PRI2_DEFAULT                                   0x7f7f7f7f
 #define mmMMEA1_DRAM_WR_PRI_QUANT_PRI3_DEFAULT                                   0xffffffff
-#define mmMMEA1_ADDRNORM_BASE_ADDR0_DEFAULT                                      0x00000000
-#define mmMMEA1_ADDRNORM_LIMIT_ADDR0_DEFAULT                                     0x00000000
-#define mmMMEA1_ADDRNORM_BASE_ADDR1_DEFAULT                                      0x00000000
-#define mmMMEA1_ADDRNORM_LIMIT_ADDR1_DEFAULT                                     0x00000000
-#define mmMMEA1_ADDRNORM_OFFSET_ADDR1_DEFAULT                                    0x00000000
-#define mmMMEA1_ADDRNORM_HOLE_CNTL_DEFAULT                                       0x00000000
+#define mmMMEA1_ADDRANALRM_BASE_ADDR0_DEFAULT                                      0x00000000
+#define mmMMEA1_ADDRANALRM_LIMIT_ADDR0_DEFAULT                                     0x00000000
+#define mmMMEA1_ADDRANALRM_BASE_ADDR1_DEFAULT                                      0x00000000
+#define mmMMEA1_ADDRANALRM_LIMIT_ADDR1_DEFAULT                                     0x00000000
+#define mmMMEA1_ADDRANALRM_OFFSET_ADDR1_DEFAULT                                    0x00000000
+#define mmMMEA1_ADDRANALRM_HOLE_CNTL_DEFAULT                                       0x00000000
 #define mmMMEA1_ADDRDEC_BANK_CFG_DEFAULT                                         0x000001ef
 #define mmMMEA1_ADDRDEC_MISC_CFG_DEFAULT                                         0x3ffff000
 #define mmMMEA1_ADDRDECDRAM_ADDR_HASH_BANK0_DEFAULT                              0x00000000
@@ -578,7 +578,7 @@
 #define mmPCTL_MISC_DEFAULT                                                      0x00000889
 #define mmPCTL_MMHUB_DEEPSLEEP_DEFAULT                                           0x00000000
 #define mmPCTL_MMHUB_DEEPSLEEP_OVERRIDE_DEFAULT                                  0x00000000
-#define mmPCTL_PG_IGNORE_DEEPSLEEP_DEFAULT                                       0x00000000
+#define mmPCTL_PG_IGANALRE_DEEPSLEEP_DEFAULT                                       0x00000000
 #define mmPCTL_PG_DAGB_DEFAULT                                                   0x00000000
 #define mmPCTL0_RENG_RAM_INDEX_DEFAULT                                           0x00000000
 #define mmPCTL0_RENG_RAM_DATA_DEFAULT                                            0x00000000

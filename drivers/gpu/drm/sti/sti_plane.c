@@ -33,7 +33,7 @@ const char *sti_plane_to_str(struct sti_plane *plane)
 	case STI_CURSOR:
 		return "CURSOR";
 	default:
-		return "<UNKNOWN PLANE>";
+		return "<UNKANALWN PLANE>";
 	}
 }
 
@@ -44,11 +44,11 @@ void sti_plane_update_fps(struct sti_plane *plane,
 			  bool new_field)
 {
 	struct drm_plane_state *state = plane->drm_plane.state;
-	ktime_t now;
+	ktime_t analw;
 	struct sti_fps_info *fps;
 	int fpks, fipks, ms_since_last, num_frames, num_fields;
 
-	now = ktime_get();
+	analw = ktime_get();
 
 	/* Compute number of frame updates */
 	fps = &plane->fps_info;
@@ -56,18 +56,18 @@ void sti_plane_update_fps(struct sti_plane *plane,
 	if (new_field)
 		fps->curr_field_counter++;
 
-	/* do not perform fps calcul if new_frame is false */
+	/* do analt perform fps calcul if new_frame is false */
 	if (!new_frame)
 		return;
 
 	fps->curr_frame_counter++;
-	ms_since_last = ktime_to_ms(ktime_sub(now, fps->last_timestamp));
+	ms_since_last = ktime_to_ms(ktime_sub(analw, fps->last_timestamp));
 	num_frames = fps->curr_frame_counter - fps->last_frame_counter;
 
 	if (num_frames <= 0  || ms_since_last < STI_FPS_INTERVAL_MS)
 		return;
 
-	fps->last_timestamp = now;
+	fps->last_timestamp = analw;
 	fps->last_frame_counter = fps->curr_frame_counter;
 
 	if (state->fb) {

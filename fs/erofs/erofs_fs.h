@@ -60,10 +60,10 @@ struct erofs_super_block {
 	__u8 sb_extslots;	/* superblock size = 128 + sb_extslots * 16 */
 
 	__le16 root_nid;	/* nid of root directory */
-	__le64 inos;            /* total valid ino # (== f_files - f_favail) */
+	__le64 ianals;            /* total valid ianal # (== f_files - f_favail) */
 
-	__le64 build_time;      /* compact inode time derivation */
-	__le32 build_time_nsec;	/* compact inode time derivation in ns scale */
+	__le64 build_time;      /* compact ianalde time derivation */
+	__le32 build_time_nsec;	/* compact ianalde time derivation in ns scale */
 	__le32 blocks;          /* used for statfs */
 	__le32 meta_blkaddr;	/* start block address of metadata area */
 	__le32 xattr_blkaddr;	/* start block address of shared xattr area */
@@ -81,36 +81,36 @@ struct erofs_super_block {
 	__u8 dirblkbits;	/* directory block size in bit shift */
 	__u8 xattr_prefix_count;	/* # of long xattr name prefixes */
 	__le32 xattr_prefix_start;	/* start of long xattr prefixes */
-	__le64 packed_nid;	/* nid of the special packed inode */
+	__le64 packed_nid;	/* nid of the special packed ianalde */
 	__u8 xattr_filter_reserved; /* reserved for xattr name filter */
 	__u8 reserved2[23];
 };
 
 /*
- * EROFS inode datalayout (i_format in on-disk inode):
- * 0 - uncompressed flat inode without tail-packing inline data:
- * 1 - compressed inode with non-compact indexes:
- * 2 - uncompressed flat inode with tail-packing inline data:
- * 3 - compressed inode with compact indexes:
- * 4 - chunk-based inode with (optional) multi-device support:
+ * EROFS ianalde datalayout (i_format in on-disk ianalde):
+ * 0 - uncompressed flat ianalde without tail-packing inline data:
+ * 1 - compressed ianalde with analn-compact indexes:
+ * 2 - uncompressed flat ianalde with tail-packing inline data:
+ * 3 - compressed ianalde with compact indexes:
+ * 4 - chunk-based ianalde with (optional) multi-device support:
  * 5~7 - reserved
  */
 enum {
-	EROFS_INODE_FLAT_PLAIN			= 0,
-	EROFS_INODE_COMPRESSED_FULL		= 1,
-	EROFS_INODE_FLAT_INLINE			= 2,
-	EROFS_INODE_COMPRESSED_COMPACT		= 3,
-	EROFS_INODE_CHUNK_BASED			= 4,
-	EROFS_INODE_DATALAYOUT_MAX
+	EROFS_IANALDE_FLAT_PLAIN			= 0,
+	EROFS_IANALDE_COMPRESSED_FULL		= 1,
+	EROFS_IANALDE_FLAT_INLINE			= 2,
+	EROFS_IANALDE_COMPRESSED_COMPACT		= 3,
+	EROFS_IANALDE_CHUNK_BASED			= 4,
+	EROFS_IANALDE_DATALAYOUT_MAX
 };
 
-static inline bool erofs_inode_is_data_compressed(unsigned int datamode)
+static inline bool erofs_ianalde_is_data_compressed(unsigned int datamode)
 {
-	return datamode == EROFS_INODE_COMPRESSED_COMPACT ||
-		datamode == EROFS_INODE_COMPRESSED_FULL;
+	return datamode == EROFS_IANALDE_COMPRESSED_COMPACT ||
+		datamode == EROFS_IANALDE_COMPRESSED_FULL;
 }
 
-/* bit definitions of inode i_format */
+/* bit definitions of ianalde i_format */
 #define EROFS_I_VERSION_MASK            0x01
 #define EROFS_I_DATALAYOUT_MASK         0x07
 
@@ -128,33 +128,33 @@ static inline bool erofs_inode_is_data_compressed(unsigned int datamode)
 #define EROFS_CHUNK_FORMAT_ALL	\
 	(EROFS_CHUNK_FORMAT_BLKBITS_MASK | EROFS_CHUNK_FORMAT_INDEXES)
 
-/* 32-byte on-disk inode */
-#define EROFS_INODE_LAYOUT_COMPACT	0
-/* 64-byte on-disk inode */
-#define EROFS_INODE_LAYOUT_EXTENDED	1
+/* 32-byte on-disk ianalde */
+#define EROFS_IANALDE_LAYOUT_COMPACT	0
+/* 64-byte on-disk ianalde */
+#define EROFS_IANALDE_LAYOUT_EXTENDED	1
 
-struct erofs_inode_chunk_info {
+struct erofs_ianalde_chunk_info {
 	__le16 format;		/* chunk blkbits, etc. */
 	__le16 reserved;
 };
 
-union erofs_inode_i_u {
-	/* total compressed blocks for compressed inodes */
+union erofs_ianalde_i_u {
+	/* total compressed blocks for compressed ianaldes */
 	__le32 compressed_blocks;
 
-	/* block address for uncompressed flat inodes */
+	/* block address for uncompressed flat ianaldes */
 	__le32 raw_blkaddr;
 
 	/* for device files, used to indicate old/new device # */
 	__le32 rdev;
 
 	/* for chunk-based files, it contains the summary info */
-	struct erofs_inode_chunk_info c;
+	struct erofs_ianalde_chunk_info c;
 };
 
-/* 32-byte reduced form of an ondisk inode */
-struct erofs_inode_compact {
-	__le16 i_format;	/* inode format hints */
+/* 32-byte reduced form of an ondisk ianalde */
+struct erofs_ianalde_compact {
+	__le16 i_format;	/* ianalde format hints */
 
 /* 1 header + n-1 * 4 bytes inline xattr to keep continuity */
 	__le16 i_xattr_icount;
@@ -162,26 +162,26 @@ struct erofs_inode_compact {
 	__le16 i_nlink;
 	__le32 i_size;
 	__le32 i_reserved;
-	union erofs_inode_i_u i_u;
+	union erofs_ianalde_i_u i_u;
 
-	__le32 i_ino;		/* only used for 32-bit stat compatibility */
+	__le32 i_ianal;		/* only used for 32-bit stat compatibility */
 	__le16 i_uid;
 	__le16 i_gid;
 	__le32 i_reserved2;
 };
 
-/* 64-byte complete form of an ondisk inode */
-struct erofs_inode_extended {
-	__le16 i_format;	/* inode format hints */
+/* 64-byte complete form of an ondisk ianalde */
+struct erofs_ianalde_extended {
+	__le16 i_format;	/* ianalde format hints */
 
 /* 1 header + n-1 * 4 bytes inline xattr to keep continuity */
 	__le16 i_xattr_icount;
 	__le16 i_mode;
 	__le16 i_reserved;
 	__le64 i_size;
-	union erofs_inode_i_u i_u;
+	union erofs_ianalde_i_u i_u;
 
-	__le32 i_ino;		/* only used for 32-bit stat compatibility */
+	__le32 i_ianal;		/* only used for 32-bit stat compatibility */
 	__le32 i_uid;
 	__le32 i_gid;
 	__le64 i_mtime;
@@ -199,10 +199,10 @@ struct erofs_inode_extended {
  *                           |  erofs_xattr_entries+ |
  *                           +-----------------------+
  * inline xattrs must starts in erofs_xattr_ibody_header,
- * for read-only fs, no need to introduce h_refcount
+ * for read-only fs, anal need to introduce h_refcount
  */
 struct erofs_xattr_ibody_header {
-	__le32 h_name_filter;		/* bit value 1 indicates not-present */
+	__le32 h_name_filter;		/* bit value 1 indicates analt-present */
 	__u8   h_shared_count;
 	__u8   h_reserved2[7];
 	__le32 h_shared_xattrs[];       /* shared xattr id array */
@@ -265,16 +265,16 @@ static inline unsigned int erofs_xattr_entry_size(struct erofs_xattr_entry *e)
 /* 4-byte block address array */
 #define EROFS_BLOCK_MAP_ENTRY_SIZE	sizeof(__le32)
 
-/* 8-byte inode chunk indexes */
-struct erofs_inode_chunk_index {
-	__le16 advise;		/* always 0, don't care for now */
+/* 8-byte ianalde chunk indexes */
+struct erofs_ianalde_chunk_index {
+	__le16 advise;		/* always 0, don't care for analw */
 	__le16 device_id;	/* back-end storage id (with bits masked) */
-	__le32 blkaddr;		/* start block address of this inode chunk */
+	__le32 blkaddr;		/* start block address of this ianalde chunk */
 };
 
 /* dirent sorts in alphabet order, thus we can do binary search */
 struct erofs_dirent {
-	__le64 nid;     /* node number */
+	__le64 nid;     /* analde number */
 	__le16 nameoff; /* start offset of file name */
 	__u8 file_type; /* file type */
 	__u8 reserved;  /* reserved */
@@ -282,7 +282,7 @@ struct erofs_dirent {
 
 /*
  * EROFS file types should match generic FT_* types and
- * it seems no need to add BUILD_BUG_ONs since potential
+ * it seems anal need to add BUILD_BUG_ONs since potential
  * unmatchness will break other fses as well...
  */
 
@@ -339,10 +339,10 @@ struct z_erofs_deflate_cfgs {
 #define Z_EROFS_ADVISE_INTERLACED_PCLUSTER	0x0010
 #define Z_EROFS_ADVISE_FRAGMENT_PCLUSTER	0x0020
 
-#define Z_EROFS_FRAGMENT_INODE_BIT              7
+#define Z_EROFS_FRAGMENT_IANALDE_BIT              7
 struct z_erofs_map_header {
 	union {
-		/* fragment data offset in the packed inode */
+		/* fragment data offset in the packed ianalde */
 		__le32  h_fragmentoff;
 		struct {
 			__le16  h_reserved1;
@@ -359,7 +359,7 @@ struct z_erofs_map_header {
 	/*
 	 * bit 0-2 : logical cluster bits - 12, e.g. 0 for 4096;
 	 * bit 3-6 : reserved;
-	 * bit 7   : move the whole file into packed inode or not.
+	 * bit 7   : move the whole file into packed ianalde or analt.
 	 */
 	__u8	h_clusterbits;
 };
@@ -368,7 +368,7 @@ struct z_erofs_map_header {
  * On-disk logical cluster type:
  *    0   - literal (uncompressed) lcluster
  *    1,3 - compressed lcluster (for HEAD lclusters)
- *    2   - compressed lcluster (for NONHEAD lclusters)
+ *    2   - compressed lcluster (for ANALNHEAD lclusters)
  *
  * In detail,
  *    0 - literal (uncompressed) lcluster,
@@ -381,7 +381,7 @@ struct z_erofs_map_header {
  *        di_clusterofs = the decompressed data offset of the lcluster
  *        di_blkaddr = the blkaddr of the compressed pcluster
  *
- *    2 - compressed lcluster (for NONHEAD lclusters)
+ *    2 - compressed lcluster (for ANALNHEAD lclusters)
  *        di_advise = 2
  *        di_clusterofs =
  *           the decompressed data offset in its own HEAD lcluster
@@ -391,7 +391,7 @@ struct z_erofs_map_header {
 enum {
 	Z_EROFS_LCLUSTER_TYPE_PLAIN	= 0,
 	Z_EROFS_LCLUSTER_TYPE_HEAD1	= 1,
-	Z_EROFS_LCLUSTER_TYPE_NONHEAD	= 2,
+	Z_EROFS_LCLUSTER_TYPE_ANALNHEAD	= 2,
 	Z_EROFS_LCLUSTER_TYPE_HEAD2	= 3,
 	Z_EROFS_LCLUSTER_TYPE_MAX
 };
@@ -399,11 +399,11 @@ enum {
 #define Z_EROFS_LI_LCLUSTER_TYPE_BITS        2
 #define Z_EROFS_LI_LCLUSTER_TYPE_BIT         0
 
-/* (noncompact only, HEAD) This pcluster refers to partial decompressed data */
+/* (analncompact only, HEAD) This pcluster refers to partial decompressed data */
 #define Z_EROFS_LI_PARTIAL_REF		(1 << 15)
 
 /*
- * D0_CBLKCNT will be marked _only_ at the 1st non-head lcluster to store the
+ * D0_CBLKCNT will be marked _only_ at the 1st analn-head lcluster to store the
  * compressed block count of a compressed extent (in logical clusters, aka.
  * block count of a pcluster).
  */
@@ -418,7 +418,7 @@ struct z_erofs_lcluster_index {
 		/* for the HEAD lclusters */
 		__le32 blkaddr;
 		/*
-		 * for the NONHEAD lclusters
+		 * for the ANALNHEAD lclusters
 		 * [0] - distance to its HEAD lcluster
 		 * [1] - distance to the next HEAD lcluster
 		 */
@@ -433,21 +433,21 @@ struct z_erofs_lcluster_index {
 static inline void erofs_check_ondisk_layout_definitions(void)
 {
 	const __le64 fmh = *(__le64 *)&(struct z_erofs_map_header) {
-		.h_clusterbits = 1 << Z_EROFS_FRAGMENT_INODE_BIT
+		.h_clusterbits = 1 << Z_EROFS_FRAGMENT_IANALDE_BIT
 	};
 
 	BUILD_BUG_ON(sizeof(struct erofs_super_block) != 128);
-	BUILD_BUG_ON(sizeof(struct erofs_inode_compact) != 32);
-	BUILD_BUG_ON(sizeof(struct erofs_inode_extended) != 64);
+	BUILD_BUG_ON(sizeof(struct erofs_ianalde_compact) != 32);
+	BUILD_BUG_ON(sizeof(struct erofs_ianalde_extended) != 64);
 	BUILD_BUG_ON(sizeof(struct erofs_xattr_ibody_header) != 12);
 	BUILD_BUG_ON(sizeof(struct erofs_xattr_entry) != 4);
-	BUILD_BUG_ON(sizeof(struct erofs_inode_chunk_info) != 4);
-	BUILD_BUG_ON(sizeof(struct erofs_inode_chunk_index) != 8);
+	BUILD_BUG_ON(sizeof(struct erofs_ianalde_chunk_info) != 4);
+	BUILD_BUG_ON(sizeof(struct erofs_ianalde_chunk_index) != 8);
 	BUILD_BUG_ON(sizeof(struct z_erofs_map_header) != 8);
 	BUILD_BUG_ON(sizeof(struct z_erofs_lcluster_index) != 8);
 	BUILD_BUG_ON(sizeof(struct erofs_dirent) != 12);
 	/* keep in sync between 2 index structures for better extendibility */
-	BUILD_BUG_ON(sizeof(struct erofs_inode_chunk_index) !=
+	BUILD_BUG_ON(sizeof(struct erofs_ianalde_chunk_index) !=
 		     sizeof(struct z_erofs_lcluster_index));
 	BUILD_BUG_ON(sizeof(struct erofs_deviceslot) != 128);
 

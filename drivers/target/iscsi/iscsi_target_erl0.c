@@ -26,7 +26,7 @@
 /*
  *	Used to set values in struct iscsit_cmd that iscsit_dataout_check_sequence()
  *	checks against to determine a PDU's Offset+Length is within the current
- *	DataOUT Sequence.  Used for DataSequenceInOrder=Yes only.
+ *	DataOUT Sequence.  Used for DataSequenceInOrder=Anal only.
  */
 void iscsit_set_dataout_sequence_values(
 	struct iscsit_cmd *cmd)
@@ -34,7 +34,7 @@ void iscsit_set_dataout_sequence_values(
 	struct iscsit_conn *conn = cmd->conn;
 	/*
 	 * Still set seq_start_offset and seq_end_offset for Unsolicited
-	 * DataOUT, even if DataSequenceInOrder=No.
+	 * DataOUT, even if DataSequenceInOrder=Anal.
 	 */
 	if (cmd->unsolicited_data) {
 		cmd->seq_start_offset = cmd->write_data_done;
@@ -74,11 +74,11 @@ static int iscsit_dataout_within_command_recovery_check(
 	 * We do the within-command recovery checks here as it is
 	 * the first function called in iscsi_check_pre_dataout().
 	 * Basically, if we are in within-command recovery and
-	 * the PDU does not contain the offset the sequence needs,
+	 * the PDU does analt contain the offset the sequence needs,
 	 * dump the payload.
 	 *
-	 * This only applies to DataPDUInOrder=Yes, for
-	 * DataPDUInOrder=No we only re-request the failed PDU
+	 * This only applies to DataPDUInOrder=Anal, for
+	 * DataPDUInOrder=Anal we only re-request the failed PDU
 	 * and check that all PDUs in a sequence are received
 	 * upon end of sequence.
 	 */
@@ -94,7 +94,7 @@ static int iscsit_dataout_within_command_recovery_check(
 		seq = iscsit_get_seq_holder(cmd, be32_to_cpu(hdr->offset),
 					    payload_length);
 		if (!seq)
-			return DATAOUT_CANNOT_RECOVER;
+			return DATAOUT_CANANALT_RECOVER;
 		/*
 		 * Set the struct iscsi_seq pointer to reuse later.
 		 */
@@ -120,7 +120,7 @@ static int iscsit_dataout_within_command_recovery_check(
 			seq->status = 0;
 	}
 
-	return DATAOUT_NORMAL;
+	return DATAOUT_ANALRMAL;
 
 dump:
 	pr_err("Dumping DataOUT PDU Offset: %u Length: %d DataSN:"
@@ -142,10 +142,10 @@ static int iscsit_dataout_check_unsolicited_sequence(
 	   ((be32_to_cpu(hdr->offset) + payload_length) > cmd->seq_end_offset)) {
 		pr_err("Command ITT: 0x%08x with Offset: %u,"
 		" Length: %u outside of Unsolicited Sequence %u:%u while"
-		" DataSequenceInOrder=Yes.\n", cmd->init_task_tag,
+		" DataSequenceInOrder=Anal.\n", cmd->init_task_tag,
 		be32_to_cpu(hdr->offset), payload_length, cmd->seq_start_offset,
 			cmd->seq_end_offset);
-		return DATAOUT_CANNOT_RECOVER;
+		return DATAOUT_CANANALT_RECOVER;
 	}
 
 	first_burst_len = (cmd->first_burst_len + payload_length);
@@ -156,7 +156,7 @@ static int iscsit_dataout_check_unsolicited_sequence(
 			first_burst_len, conn->sess->sess_ops->FirstBurstLength);
 		transport_send_check_condition_and_sense(&cmd->se_cmd,
 				TCM_INCORRECT_AMOUNT_OF_DATA, 0);
-		return DATAOUT_CANNOT_RECOVER;
+		return DATAOUT_CANANALT_RECOVER;
 	}
 
 	/*
@@ -165,42 +165,42 @@ static int iscsit_dataout_check_unsolicited_sequence(
 	 */
 	if (hdr->flags & ISCSI_FLAG_CMD_FINAL) {
 		/*
-		 * Ignore ISCSI_FLAG_CMD_FINAL checks while DataPDUInOrder=No, end of
+		 * Iganalre ISCSI_FLAG_CMD_FINAL checks while DataPDUInOrder=Anal, end of
 		 * sequence checks are handled in
-		 * iscsit_dataout_datapduinorder_no_fbit().
+		 * iscsit_dataout_datapduianalrder_anal_fbit().
 		 */
 		if (!conn->sess->sess_ops->DataPDUInOrder)
 			goto out;
 
 		if ((first_burst_len != cmd->se_cmd.data_length) &&
 		    (first_burst_len != conn->sess->sess_ops->FirstBurstLength)) {
-			pr_err("Unsolicited non-immediate data"
-			" received %u does not equal FirstBurstLength: %u, and"
-			" does not equal ExpXferLen %u.\n", first_burst_len,
+			pr_err("Unsolicited analn-immediate data"
+			" received %u does analt equal FirstBurstLength: %u, and"
+			" does analt equal ExpXferLen %u.\n", first_burst_len,
 				conn->sess->sess_ops->FirstBurstLength,
 				cmd->se_cmd.data_length);
 			transport_send_check_condition_and_sense(&cmd->se_cmd,
 					TCM_INCORRECT_AMOUNT_OF_DATA, 0);
-			return DATAOUT_CANNOT_RECOVER;
+			return DATAOUT_CANANALT_RECOVER;
 		}
 	} else {
 		if (first_burst_len == conn->sess->sess_ops->FirstBurstLength) {
 			pr_err("Command ITT: 0x%08x reached"
-			" FirstBurstLength: %u, but ISCSI_FLAG_CMD_FINAL is not set. protocol"
+			" FirstBurstLength: %u, but ISCSI_FLAG_CMD_FINAL is analt set. protocol"
 				" error.\n", cmd->init_task_tag,
 				conn->sess->sess_ops->FirstBurstLength);
-			return DATAOUT_CANNOT_RECOVER;
+			return DATAOUT_CANANALT_RECOVER;
 		}
 		if (first_burst_len == cmd->se_cmd.data_length) {
 			pr_err("Command ITT: 0x%08x reached"
-			" ExpXferLen: %u, but ISCSI_FLAG_CMD_FINAL is not set. protocol"
+			" ExpXferLen: %u, but ISCSI_FLAG_CMD_FINAL is analt set. protocol"
 			" error.\n", cmd->init_task_tag, cmd->se_cmd.data_length);
-			return DATAOUT_CANNOT_RECOVER;
+			return DATAOUT_CANANALT_RECOVER;
 		}
 	}
 
 out:
-	return DATAOUT_NORMAL;
+	return DATAOUT_ANALRMAL;
 }
 
 static int iscsit_dataout_check_sequence(
@@ -214,10 +214,10 @@ static int iscsit_dataout_check_sequence(
 	u32 payload_length = ntoh24(hdr->dlength);
 
 	/*
-	 * For DataSequenceInOrder=Yes: Check that the offset and offset+length
+	 * For DataSequenceInOrder=Anal: Check that the offset and offset+length
 	 * is within range as defined by iscsi_set_dataout_sequence_values().
 	 *
-	 * For DataSequenceInOrder=No: Check that an struct iscsi_seq exists for
+	 * For DataSequenceInOrder=Anal: Check that an struct iscsi_seq exists for
 	 * offset+length tuple.
 	 */
 	if (conn->sess->sess_ops->DataSequenceInOrder) {
@@ -230,12 +230,12 @@ static int iscsit_dataout_check_sequence(
 		   ((be32_to_cpu(hdr->offset) + payload_length) > cmd->seq_end_offset)) {
 			pr_err("Command ITT: 0x%08x with Offset: %u,"
 			" Length: %u outside of Sequence %u:%u while"
-			" DataSequenceInOrder=Yes.\n", cmd->init_task_tag,
+			" DataSequenceInOrder=Anal.\n", cmd->init_task_tag,
 			be32_to_cpu(hdr->offset), payload_length, cmd->seq_start_offset,
 				cmd->seq_end_offset);
 
 			if (iscsit_dump_data_payload(conn, payload_length, 1) < 0)
-				return DATAOUT_CANNOT_RECOVER;
+				return DATAOUT_CANANALT_RECOVER;
 			return DATAOUT_WITHIN_COMMAND_RECOVERY;
 		}
 
@@ -244,7 +244,7 @@ static int iscsit_dataout_check_sequence(
 		seq = iscsit_get_seq_holder(cmd, be32_to_cpu(hdr->offset),
 					    payload_length);
 		if (!seq)
-			return DATAOUT_CANNOT_RECOVER;
+			return DATAOUT_CANANALT_RECOVER;
 		/*
 		 * Set the struct iscsi_seq pointer to reuse later.
 		 */
@@ -252,7 +252,7 @@ static int iscsit_dataout_check_sequence(
 
 		if (seq->status == DATAOUT_SEQUENCE_COMPLETE) {
 			if (iscsit_dump_data_payload(conn, payload_length, 1) < 0)
-				return DATAOUT_CANNOT_RECOVER;
+				return DATAOUT_CANANALT_RECOVER;
 			return DATAOUT_WITHIN_COMMAND_RECOVERY;
 		}
 
@@ -265,7 +265,7 @@ static int iscsit_dataout_check_sequence(
 			" error.\n", cmd->init_task_tag,
 			(next_burst_len - payload_length),
 			payload_length, conn->sess->sess_ops->MaxBurstLength);
-		return DATAOUT_CANNOT_RECOVER;
+		return DATAOUT_CANANALT_RECOVER;
 	}
 
 	/*
@@ -274,9 +274,9 @@ static int iscsit_dataout_check_sequence(
 	 */
 	if (hdr->flags & ISCSI_FLAG_CMD_FINAL) {
 		/*
-		 * Ignore ISCSI_FLAG_CMD_FINAL checks while DataPDUInOrder=No, end of
+		 * Iganalre ISCSI_FLAG_CMD_FINAL checks while DataPDUInOrder=Anal, end of
 		 * sequence checks are handled in
-		 * iscsit_dataout_datapduinorder_no_fbit().
+		 * iscsit_dataout_datapduianalrder_anal_fbit().
 		 */
 		if (!conn->sess->sess_ops->DataPDUInOrder)
 			goto out;
@@ -289,14 +289,14 @@ static int iscsit_dataout_check_sequence(
 				pr_err("Command ITT: 0x%08x set ISCSI_FLAG_CMD_FINAL"
 				" before end of DataOUT sequence, protocol"
 				" error.\n", cmd->init_task_tag);
-				return DATAOUT_CANNOT_RECOVER;
+				return DATAOUT_CANANALT_RECOVER;
 			}
 		} else {
 			if (next_burst_len < seq->xfer_len) {
 				pr_err("Command ITT: 0x%08x set ISCSI_FLAG_CMD_FINAL"
 				" before end of DataOUT sequence, protocol"
 				" error.\n", cmd->init_task_tag);
-				return DATAOUT_CANNOT_RECOVER;
+				return DATAOUT_CANANALT_RECOVER;
 			}
 		}
 	} else {
@@ -305,31 +305,31 @@ static int iscsit_dataout_check_sequence(
 					conn->sess->sess_ops->MaxBurstLength) {
 				pr_err("Command ITT: 0x%08x reached"
 				" MaxBurstLength: %u, but ISCSI_FLAG_CMD_FINAL is"
-				" not set, protocol error.", cmd->init_task_tag,
+				" analt set, protocol error.", cmd->init_task_tag,
 					conn->sess->sess_ops->MaxBurstLength);
-				return DATAOUT_CANNOT_RECOVER;
+				return DATAOUT_CANANALT_RECOVER;
 			}
 			if ((cmd->write_data_done + payload_length) ==
 					cmd->se_cmd.data_length) {
 				pr_err("Command ITT: 0x%08x reached"
 				" last DataOUT PDU in sequence but ISCSI_FLAG_"
-				"CMD_FINAL is not set, protocol error.\n",
+				"CMD_FINAL is analt set, protocol error.\n",
 					cmd->init_task_tag);
-				return DATAOUT_CANNOT_RECOVER;
+				return DATAOUT_CANANALT_RECOVER;
 			}
 		} else {
 			if (next_burst_len == seq->xfer_len) {
 				pr_err("Command ITT: 0x%08x reached"
 				" last DataOUT PDU in sequence but ISCSI_FLAG_"
-				"CMD_FINAL is not set, protocol error.\n",
+				"CMD_FINAL is analt set, protocol error.\n",
 					cmd->init_task_tag);
-				return DATAOUT_CANNOT_RECOVER;
+				return DATAOUT_CANANALT_RECOVER;
 			}
 		}
 	}
 
 out:
-	return DATAOUT_NORMAL;
+	return DATAOUT_ANALRMAL;
 }
 
 static int iscsit_dataout_check_datasn(
@@ -342,9 +342,9 @@ static int iscsit_dataout_check_datasn(
 	u32 payload_length = ntoh24(hdr->dlength);
 
 	/*
-	 * Considering the target has no method of re-requesting DataOUT
+	 * Considering the target has anal method of re-requesting DataOUT
 	 * by DataSN, if we receieve a greater DataSN than expected we
-	 * assume the functions for DataPDUInOrder=[Yes,No] below will
+	 * assume the functions for DataPDUInOrder=[Anal,Anal] below will
 	 * handle it.
 	 *
 	 * If the DataSN is less than expected, dump the payload.
@@ -368,22 +368,22 @@ static int iscsit_dataout_check_datasn(
 		goto dump;
 	}
 
-	return DATAOUT_NORMAL;
+	return DATAOUT_ANALRMAL;
 
 recover:
 	if (!conn->sess->sess_ops->ErrorRecoveryLevel) {
 		pr_err("Unable to perform within-command recovery"
 				" while ERL=0.\n");
-		return DATAOUT_CANNOT_RECOVER;
+		return DATAOUT_CANANALT_RECOVER;
 	}
 dump:
 	if (iscsit_dump_data_payload(conn, payload_length, 1) < 0)
-		return DATAOUT_CANNOT_RECOVER;
+		return DATAOUT_CANANALT_RECOVER;
 
 	return DATAOUT_WITHIN_COMMAND_RECOVERY;
 }
 
-static int iscsit_dataout_pre_datapduinorder_yes(
+static int iscsit_dataout_pre_datapduianalrder_anal(
 	struct iscsit_cmd *cmd,
 	unsigned char *buf)
 {
@@ -393,12 +393,12 @@ static int iscsit_dataout_pre_datapduinorder_yes(
 	u32 payload_length = ntoh24(hdr->dlength);
 
 	/*
-	 * For DataSequenceInOrder=Yes: If the offset is greater than the global
-	 * DataPDUInOrder=Yes offset counter in struct iscsit_cmd a protcol error has
+	 * For DataSequenceInOrder=Anal: If the offset is greater than the global
+	 * DataPDUInOrder=Anal offset counter in struct iscsit_cmd a protcol error has
 	 * occurred and fail the connection.
 	 *
-	 * For DataSequenceInOrder=No: If the offset is greater than the per
-	 * sequence DataPDUInOrder=Yes offset counter in struct iscsi_seq a protocol
+	 * For DataSequenceInOrder=Anal: If the offset is greater than the per
+	 * sequence DataPDUInOrder=Anal offset counter in struct iscsi_seq a protocol
 	 * error has occurred and fail the connection.
 	 */
 	if (conn->sess->sess_ops->DataSequenceInOrder) {
@@ -428,24 +428,24 @@ static int iscsit_dataout_pre_datapduinorder_yes(
 		}
 	}
 
-	return DATAOUT_NORMAL;
+	return DATAOUT_ANALRMAL;
 
 recover:
 	if (!conn->sess->sess_ops->ErrorRecoveryLevel) {
 		pr_err("Unable to perform within-command recovery"
 				" while ERL=0.\n");
-		return DATAOUT_CANNOT_RECOVER;
+		return DATAOUT_CANANALT_RECOVER;
 	}
 dump:
 	if (iscsit_dump_data_payload(conn, payload_length, 1) < 0)
-		return DATAOUT_CANNOT_RECOVER;
+		return DATAOUT_CANANALT_RECOVER;
 
 	return (recovery) ? iscsit_recover_dataout_sequence(cmd,
 		be32_to_cpu(hdr->offset), payload_length) :
-	       (dump) ? DATAOUT_WITHIN_COMMAND_RECOVERY : DATAOUT_NORMAL;
+	       (dump) ? DATAOUT_WITHIN_COMMAND_RECOVERY : DATAOUT_ANALRMAL;
 }
 
-static int iscsit_dataout_pre_datapduinorder_no(
+static int iscsit_dataout_pre_datapduianalrder_anal(
 	struct iscsit_cmd *cmd,
 	unsigned char *buf)
 {
@@ -456,12 +456,12 @@ static int iscsit_dataout_pre_datapduinorder_no(
 	pdu = iscsit_get_pdu_holder(cmd, be32_to_cpu(hdr->offset),
 				    payload_length);
 	if (!pdu)
-		return DATAOUT_CANNOT_RECOVER;
+		return DATAOUT_CANANALT_RECOVER;
 
 	cmd->pdu_ptr = pdu;
 
 	switch (pdu->status) {
-	case ISCSI_PDU_NOT_RECEIVED:
+	case ISCSI_PDU_ANALT_RECEIVED:
 	case ISCSI_PDU_CRC_FAILED:
 	case ISCSI_PDU_TIMED_OUT:
 		break;
@@ -471,10 +471,10 @@ static int iscsit_dataout_pre_datapduinorder_no(
 				be32_to_cpu(hdr->offset), payload_length);
 		return iscsit_dump_data_payload(cmd->conn, payload_length, 1);
 	default:
-		return DATAOUT_CANNOT_RECOVER;
+		return DATAOUT_CANANALT_RECOVER;
 	}
 
-	return DATAOUT_NORMAL;
+	return DATAOUT_ANALRMAL;
 }
 
 static int iscsit_dataout_update_r2t(struct iscsit_cmd *cmd, u32 offset, u32 length)
@@ -496,7 +496,7 @@ static int iscsit_dataout_update_r2t(struct iscsit_cmd *cmd, u32 offset, u32 len
 	return 0;
 }
 
-static int iscsit_dataout_update_datapduinorder_no(
+static int iscsit_dataout_update_datapduianalrder_anal(
 	struct iscsit_cmd *cmd,
 	u32 data_sn,
 	int f_bit)
@@ -507,7 +507,7 @@ static int iscsit_dataout_update_datapduinorder_no(
 	pdu->data_sn = data_sn;
 
 	switch (pdu->status) {
-	case ISCSI_PDU_NOT_RECEIVED:
+	case ISCSI_PDU_ANALT_RECEIVED:
 		pdu->status = ISCSI_PDU_RECEIVED_OK;
 		break;
 	case ISCSI_PDU_CRC_FAILED:
@@ -517,16 +517,16 @@ static int iscsit_dataout_update_datapduinorder_no(
 		pdu->status = ISCSI_PDU_RECEIVED_OK;
 		break;
 	default:
-		return DATAOUT_CANNOT_RECOVER;
+		return DATAOUT_CANANALT_RECOVER;
 	}
 
 	if (f_bit) {
-		ret = iscsit_dataout_datapduinorder_no_fbit(cmd, pdu);
-		if (ret == DATAOUT_CANNOT_RECOVER)
+		ret = iscsit_dataout_datapduianalrder_anal_fbit(cmd, pdu);
+		if (ret == DATAOUT_CANANALT_RECOVER)
 			return ret;
 	}
 
-	return DATAOUT_NORMAL;
+	return DATAOUT_ANALRMAL;
 }
 
 static int iscsit_dataout_post_crc_passed(
@@ -544,15 +544,15 @@ static int iscsit_dataout_post_crc_passed(
 		     conn->sess->sess_ops->FirstBurstLength) {
 			if (iscsit_dataout_update_r2t(cmd, be32_to_cpu(hdr->offset),
 					payload_length) < 0)
-				return DATAOUT_CANNOT_RECOVER;
+				return DATAOUT_CANANALT_RECOVER;
 			send_r2t = 1;
 		}
 
 		if (!conn->sess->sess_ops->DataPDUInOrder) {
-			ret = iscsit_dataout_update_datapduinorder_no(cmd,
+			ret = iscsit_dataout_update_datapduianalrder_anal(cmd,
 				be32_to_cpu(hdr->datasn),
 				(hdr->flags & ISCSI_FLAG_CMD_FINAL));
-			if (ret == DATAOUT_CANNOT_RECOVER)
+			if (ret == DATAOUT_CANANALT_RECOVER)
 				return ret;
 		}
 
@@ -579,15 +579,15 @@ static int iscsit_dataout_post_crc_passed(
 				if (iscsit_dataout_update_r2t(cmd,
 						be32_to_cpu(hdr->offset),
 						payload_length) < 0)
-					return DATAOUT_CANNOT_RECOVER;
+					return DATAOUT_CANANALT_RECOVER;
 				send_r2t = 1;
 			}
 
 			if (!conn->sess->sess_ops->DataPDUInOrder) {
-				ret = iscsit_dataout_update_datapduinorder_no(
+				ret = iscsit_dataout_update_datapduianalrder_anal(
 						cmd, be32_to_cpu(hdr->datasn),
 						(hdr->flags & ISCSI_FLAG_CMD_FINAL));
-				if (ret == DATAOUT_CANNOT_RECOVER)
+				if (ret == DATAOUT_CANANALT_RECOVER)
 					return ret;
 			}
 
@@ -604,15 +604,15 @@ static int iscsit_dataout_post_crc_passed(
 				if (iscsit_dataout_update_r2t(cmd,
 						be32_to_cpu(hdr->offset),
 						payload_length) < 0)
-					return DATAOUT_CANNOT_RECOVER;
+					return DATAOUT_CANANALT_RECOVER;
 				send_r2t = 1;
 			}
 
 			if (!conn->sess->sess_ops->DataPDUInOrder) {
-				ret = iscsit_dataout_update_datapduinorder_no(
+				ret = iscsit_dataout_update_datapduianalrder_anal(
 						cmd, be32_to_cpu(hdr->datasn),
 						(hdr->flags & ISCSI_FLAG_CMD_FINAL));
-				if (ret == DATAOUT_CANNOT_RECOVER)
+				if (ret == DATAOUT_CANANALT_RECOVER)
 					return ret;
 			}
 
@@ -637,7 +637,7 @@ static int iscsit_dataout_post_crc_passed(
 	else if (send_r2t)
 		return DATAOUT_SEND_R2T;
 	else
-		return DATAOUT_NORMAL;
+		return DATAOUT_ANALRMAL;
 }
 
 static int iscsit_dataout_post_crc_failed(
@@ -652,12 +652,12 @@ static int iscsit_dataout_post_crc_failed(
 	if (conn->sess->sess_ops->DataPDUInOrder)
 		goto recover;
 	/*
-	 * The rest of this function is only called when DataPDUInOrder=No.
+	 * The rest of this function is only called when DataPDUInOrder=Anal.
 	 */
 	pdu = cmd->pdu_ptr;
 
 	switch (pdu->status) {
-	case ISCSI_PDU_NOT_RECEIVED:
+	case ISCSI_PDU_ANALT_RECEIVED:
 		pdu->status = ISCSI_PDU_CRC_FAILED;
 		break;
 	case ISCSI_PDU_CRC_FAILED:
@@ -666,7 +666,7 @@ static int iscsit_dataout_post_crc_failed(
 		pdu->status = ISCSI_PDU_CRC_FAILED;
 		break;
 	default:
-		return DATAOUT_CANNOT_RECOVER;
+		return DATAOUT_CANANALT_RECOVER;
 	}
 
 recover:
@@ -687,29 +687,29 @@ int iscsit_check_pre_dataout(
 
 	ret = iscsit_dataout_within_command_recovery_check(cmd, buf);
 	if ((ret == DATAOUT_WITHIN_COMMAND_RECOVERY) ||
-	    (ret == DATAOUT_CANNOT_RECOVER))
+	    (ret == DATAOUT_CANANALT_RECOVER))
 		return ret;
 
 	ret = iscsit_dataout_check_datasn(cmd, buf);
 	if ((ret == DATAOUT_WITHIN_COMMAND_RECOVERY) ||
-	    (ret == DATAOUT_CANNOT_RECOVER))
+	    (ret == DATAOUT_CANANALT_RECOVER))
 		return ret;
 
 	if (cmd->unsolicited_data) {
 		ret = iscsit_dataout_check_unsolicited_sequence(cmd, buf);
 		if ((ret == DATAOUT_WITHIN_COMMAND_RECOVERY) ||
-		    (ret == DATAOUT_CANNOT_RECOVER))
+		    (ret == DATAOUT_CANANALT_RECOVER))
 			return ret;
 	} else {
 		ret = iscsit_dataout_check_sequence(cmd, buf);
 		if ((ret == DATAOUT_WITHIN_COMMAND_RECOVERY) ||
-		    (ret == DATAOUT_CANNOT_RECOVER))
+		    (ret == DATAOUT_CANANALT_RECOVER))
 			return ret;
 	}
 
 	return (conn->sess->sess_ops->DataPDUInOrder) ?
-		iscsit_dataout_pre_datapduinorder_yes(cmd, buf) :
-		iscsit_dataout_pre_datapduinorder_no(cmd, buf);
+		iscsit_dataout_pre_datapduianalrder_anal(cmd, buf) :
+		iscsit_dataout_pre_datapduianalrder_anal(cmd, buf);
 }
 
 /*
@@ -733,7 +733,7 @@ int iscsit_check_post_dataout(
 				" failure while ERL=0, closing session.\n");
 			iscsit_reject_cmd(cmd, ISCSI_REASON_DATA_DIGEST_ERROR,
 					  buf);
-			return DATAOUT_CANNOT_RECOVER;
+			return DATAOUT_CANANALT_RECOVER;
 		}
 
 		iscsit_reject_cmd(cmd, ISCSI_REASON_DATA_DIGEST_ERROR, buf);
@@ -773,7 +773,7 @@ void iscsit_start_time2retain_handler(struct iscsit_session *sess)
 	int tpg_active;
 	/*
 	 * Only start Time2Retain timer when the associated TPG is still in
-	 * an ACTIVE (eg: not disabled or shutdown) state.
+	 * an ACTIVE (eg: analt disabled or shutdown) state.
 	 */
 	spin_lock(&sess->tpg->tpg_state_lock);
 	tpg_active = (sess->tpg->tpg_state == TPG_STATE_ACTIVE);

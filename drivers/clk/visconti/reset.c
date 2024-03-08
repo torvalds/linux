@@ -5,7 +5,7 @@
  * Copyright (c) 2021 TOSHIBA CORPORATION
  * Copyright (c) 2021 Toshiba Electronic Devices & Storage Corporation
  *
- * Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+ * Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp>
  */
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -94,13 +94,13 @@ int visconti_register_reset_controller(struct device *dev,
 
 	reset = devm_kzalloc(dev, sizeof(*reset), GFP_KERNEL);
 	if (!reset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reset->regmap = regmap;
 	reset->resets = resets;
 	reset->rcdev.ops = reset_ops;
 	reset->rcdev.nr_resets = num_resets;
-	reset->rcdev.of_node = dev->of_node;
+	reset->rcdev.of_analde = dev->of_analde;
 	reset->lock = lock;
 
 	return devm_reset_controller_register(dev, &reset->rcdev);

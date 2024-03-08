@@ -13,8 +13,8 @@ Optional properties:
   (see interrupt binding[0]).
 - ti,max-rt: maximum pressure.
 - ti,fuzzx: specifies the absolute input fuzz x value.
-  If set, it will permit noise in the data up to +- the value given to the fuzz
-  parameter, that is used to filter noise from the event stream.
+  If set, it will permit analise in the data up to +- the value given to the fuzz
+  parameter, that is used to filter analise from the event stream.
 - ti,fuzzy: specifies the absolute input fuzz y value.
 - ti,fuzzz: specifies the absolute input fuzz z value.
 - ti,poll-period: how much time to wait (in milliseconds) before reading again the

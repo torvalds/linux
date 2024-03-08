@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2023 FUJITA Tomonori <fujita.tomonori@gmail.com>
+// Copyright (C) 2023 FUJITA Tomoanalri <fujita.tomoanalri@gmail.com>
 
 //! Rust Asix PHYs driver
 //!
@@ -19,7 +19,7 @@ kernel::module_phy_driver! {
         DeviceId::new_with_driver::<PhyAX88796B>()
     ],
     name: "rust_asix_phy",
-    author: "FUJITA Tomonori <fujita.tomonori@gmail.com>",
+    author: "FUJITA Tomoanalri <fujita.tomoanalri@gmail.com>",
     description: "Rust Asix PHYs driver",
     license: "GPL",
 }
@@ -45,9 +45,9 @@ impl Driver for PhyAX88772A {
     const NAME: &'static CStr = c_str!("Asix Electronics AX88772A");
     const PHY_DEVICE_ID: DeviceId = DeviceId::new_with_exact_mask(0x003b1861);
 
-    // AX88772A is not working properly with some old switches (NETGEAR EN 108TP):
+    // AX88772A is analt working properly with some old switches (NETGEAR EN 108TP):
     // after autoneg is done and the link status is reported as active, the MII_LPA
-    // register is 0. This issue is not reproducible on AX88772C.
+    // register is 0. This issue is analt reproducible on AX88772C.
     fn read_status(dev: &mut phy::Device) -> Result<u16> {
         dev.genphy_update_link()?;
         if !dev.is_link_up() {
@@ -91,10 +91,10 @@ impl Driver for PhyAX88772A {
         asix_soft_reset(dev)
     }
 
-    fn link_change_notify(dev: &mut phy::Device) {
+    fn link_change_analtify(dev: &mut phy::Device) {
         // Reset PHY, otherwise MII_LPA will provide outdated information.
         // This issue is reproducible only with some link partner PHYs.
-        if dev.state() == phy::DeviceState::NoLink {
+        if dev.state() == phy::DeviceState::AnalLink {
             let _ = dev.init_hw();
             let _ = dev.start_aneg();
         }

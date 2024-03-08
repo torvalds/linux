@@ -199,39 +199,39 @@ static const struct clk_proto_t clk_proto[LPC32XX_CLK_CCF_MAX] __initconst = {
 	LPC32XX_CLK_DEFINE(XTAL_32K, "xtal_32k", 0x0),
 
 	LPC32XX_CLK_DEFINE(RTC, "rtc", 0x0, LPC32XX_CLK_XTAL_32K),
-	LPC32XX_CLK_DEFINE(OSC, "osc", CLK_IGNORE_UNUSED, LPC32XX_CLK_XTAL),
-	LPC32XX_CLK_DEFINE(SYS, "sys", CLK_IGNORE_UNUSED,
+	LPC32XX_CLK_DEFINE(OSC, "osc", CLK_IGANALRE_UNUSED, LPC32XX_CLK_XTAL),
+	LPC32XX_CLK_DEFINE(SYS, "sys", CLK_IGANALRE_UNUSED,
 		LPC32XX_CLK_OSC, LPC32XX_CLK_PLL397X),
-	LPC32XX_CLK_DEFINE(PLL397X, "pll_397x", CLK_IGNORE_UNUSED,
+	LPC32XX_CLK_DEFINE(PLL397X, "pll_397x", CLK_IGANALRE_UNUSED,
 		LPC32XX_CLK_RTC),
-	LPC32XX_CLK_DEFINE(HCLK_PLL, "hclk_pll", CLK_IGNORE_UNUSED,
+	LPC32XX_CLK_DEFINE(HCLK_PLL, "hclk_pll", CLK_IGANALRE_UNUSED,
 		LPC32XX_CLK_SYS),
 	LPC32XX_CLK_DEFINE(HCLK_DIV_PERIPH, "hclk_div_periph",
-		CLK_IGNORE_UNUSED, LPC32XX_CLK_HCLK_PLL),
-	LPC32XX_CLK_DEFINE(HCLK_DIV, "hclk_div", CLK_IGNORE_UNUSED,
+		CLK_IGANALRE_UNUSED, LPC32XX_CLK_HCLK_PLL),
+	LPC32XX_CLK_DEFINE(HCLK_DIV, "hclk_div", CLK_IGANALRE_UNUSED,
 		LPC32XX_CLK_HCLK_PLL),
-	LPC32XX_CLK_DEFINE(HCLK, "hclk", CLK_IGNORE_UNUSED,
+	LPC32XX_CLK_DEFINE(HCLK, "hclk", CLK_IGANALRE_UNUSED,
 		LPC32XX_CLK_PERIPH_HCLK_MUX),
-	LPC32XX_CLK_DEFINE(PERIPH, "pclk", CLK_IGNORE_UNUSED,
+	LPC32XX_CLK_DEFINE(PERIPH, "pclk", CLK_IGANALRE_UNUSED,
 		LPC32XX_CLK_SYSCLK_PERIPH_MUX),
-	LPC32XX_CLK_DEFINE(ARM, "arm", CLK_IGNORE_UNUSED,
+	LPC32XX_CLK_DEFINE(ARM, "arm", CLK_IGANALRE_UNUSED,
 		LPC32XX_CLK_PERIPH_ARM_MUX),
 
 	LPC32XX_CLK_DEFINE(PERIPH_HCLK_MUX, "periph_hclk_mux",
-		CLK_IGNORE_UNUSED,
+		CLK_IGANALRE_UNUSED,
 		LPC32XX_CLK_SYSCLK_HCLK_MUX, LPC32XX_CLK_SYSCLK_PERIPH_MUX),
-	LPC32XX_CLK_DEFINE(PERIPH_ARM_MUX, "periph_arm_mux", CLK_IGNORE_UNUSED,
+	LPC32XX_CLK_DEFINE(PERIPH_ARM_MUX, "periph_arm_mux", CLK_IGANALRE_UNUSED,
 		LPC32XX_CLK_SYSCLK_ARM_MUX, LPC32XX_CLK_SYSCLK_PERIPH_MUX),
 	LPC32XX_CLK_DEFINE(SYSCLK_PERIPH_MUX, "sysclk_periph_mux",
-		CLK_IGNORE_UNUSED,
+		CLK_IGANALRE_UNUSED,
 		LPC32XX_CLK_SYS, LPC32XX_CLK_HCLK_DIV_PERIPH),
 	LPC32XX_CLK_DEFINE(SYSCLK_HCLK_MUX, "sysclk_hclk_mux",
-		CLK_IGNORE_UNUSED,
+		CLK_IGANALRE_UNUSED,
 		LPC32XX_CLK_SYS, LPC32XX_CLK_HCLK_DIV),
-	LPC32XX_CLK_DEFINE(SYSCLK_ARM_MUX, "sysclk_arm_mux", CLK_IGNORE_UNUSED,
+	LPC32XX_CLK_DEFINE(SYSCLK_ARM_MUX, "sysclk_arm_mux", CLK_IGANALRE_UNUSED,
 		LPC32XX_CLK_SYS, LPC32XX_CLK_HCLK_PLL),
 
-	LPC32XX_CLK_DEFINE(ARM_VFP, "vfp9", CLK_IGNORE_UNUSED,
+	LPC32XX_CLK_DEFINE(ARM_VFP, "vfp9", CLK_IGANALRE_UNUSED,
 		LPC32XX_CLK_ARM),
 	LPC32XX_CLK_DEFINE(USB_PLL, "usb_pll",
 		CLK_SET_RATE_GATE | CLK_SET_RATE_PARENT, LPC32XX_CLK_USB_DIV),
@@ -243,22 +243,22 @@ static const struct clk_proto_t clk_proto[LPC32XX_CLK_CCF_MAX] __initconst = {
 	LPC32XX_CLK_DEFINE(LCD, "lcd", 0x0, LPC32XX_CLK_HCLK),
 	LPC32XX_CLK_DEFINE(MAC, "mac", 0x0, LPC32XX_CLK_HCLK),
 	LPC32XX_CLK_DEFINE(SD, "sd", 0x0, LPC32XX_CLK_ARM),
-	LPC32XX_CLK_DEFINE(DDRAM, "ddram", CLK_GET_RATE_NOCACHE,
+	LPC32XX_CLK_DEFINE(DDRAM, "ddram", CLK_GET_RATE_ANALCACHE,
 		LPC32XX_CLK_SYSCLK_ARM_MUX),
 	LPC32XX_CLK_DEFINE(SSP0, "ssp0", 0x0, LPC32XX_CLK_HCLK),
 	LPC32XX_CLK_DEFINE(SSP1, "ssp1", 0x0, LPC32XX_CLK_HCLK),
 
 	/*
-	 * CLK_GET_RATE_NOCACHE is needed, if UART clock is disabled, its
-	 * divider register does not contain information about selected rate.
+	 * CLK_GET_RATE_ANALCACHE is needed, if UART clock is disabled, its
+	 * divider register does analt contain information about selected rate.
 	 */
-	LPC32XX_CLK_DEFINE(UART3, "uart3", CLK_GET_RATE_NOCACHE,
+	LPC32XX_CLK_DEFINE(UART3, "uart3", CLK_GET_RATE_ANALCACHE,
 		LPC32XX_CLK_PERIPH, LPC32XX_CLK_HCLK),
-	LPC32XX_CLK_DEFINE(UART4, "uart4", CLK_GET_RATE_NOCACHE,
+	LPC32XX_CLK_DEFINE(UART4, "uart4", CLK_GET_RATE_ANALCACHE,
 		LPC32XX_CLK_PERIPH, LPC32XX_CLK_HCLK),
-	LPC32XX_CLK_DEFINE(UART5, "uart5", CLK_GET_RATE_NOCACHE,
+	LPC32XX_CLK_DEFINE(UART5, "uart5", CLK_GET_RATE_ANALCACHE,
 		LPC32XX_CLK_PERIPH, LPC32XX_CLK_HCLK),
-	LPC32XX_CLK_DEFINE(UART6, "uart6", CLK_GET_RATE_NOCACHE,
+	LPC32XX_CLK_DEFINE(UART6, "uart6", CLK_GET_RATE_ANALCACHE,
 		LPC32XX_CLK_PERIPH, LPC32XX_CLK_HCLK),
 	LPC32XX_CLK_DEFINE(IRDA, "irda", 0x0, LPC32XX_CLK_PERIPH),
 	LPC32XX_CLK_DEFINE(I2C1, "i2c1", 0x0, LPC32XX_CLK_HCLK),
@@ -311,12 +311,12 @@ struct lpc32xx_clk {
 };
 
 enum clk_pll_mode {
-	PLL_UNKNOWN,
+	PLL_UNKANALWN,
 	PLL_DIRECT,
 	PLL_BYPASS,
 	PLL_DIRECT_BYPASS,
 	PLL_INTEGER,
-	PLL_NON_INTEGER,
+	PLL_ANALN_INTEGER,
 };
 
 struct lpc32xx_pll_clk {
@@ -509,7 +509,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 			clk->mode = PLL_INTEGER;
 		} else {
 			rate /= (1 << clk->p_div);
-			clk->mode = PLL_NON_INTEGER;
+			clk->mode = PLL_ANALN_INTEGER;
 		}
 	}
 
@@ -522,7 +522,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 	    !(pll_is_valid(parent_rate, 1, 1000000, 20000000)
 	      && pll_is_valid(cco_rate, 1, 156000000, 320000000)
 	      && pll_is_valid(ref_rate, 1, 1000000, 27000000)))
-		pr_err("%s: PLL clocks are not in valid ranges: %lu/%lu/%lu\n",
+		pr_err("%s: PLL clocks are analt in valid ranges: %lu/%lu/%lu\n",
 		       clk_hw_get_name(hw),
 		       parent_rate, cco_rate, ref_rate);
 
@@ -560,7 +560,7 @@ static int clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		val |= (clk->p_div - 1) << 11;
 		new_rate = (parent_rate * clk->m_div) / clk->n_div;
 		break;
-	case PLL_NON_INTEGER:
+	case PLL_ANALN_INTEGER:
 		val = 0x0;
 		val |= (clk->m_div - 1) << 1;
 		val |= (clk->n_div - 1) << 9;
@@ -615,7 +615,7 @@ static long clk_hclk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	}
 
 	if (d == (u64)rate << 6) {
-		pr_err("%s: %lu: no valid PLL parameters are found\n",
+		pr_err("%s: %lu: anal valid PLL parameters are found\n",
 		       clk_hw_get_name(hw), rate);
 		return -EINVAL;
 	}
@@ -624,11 +624,11 @@ static long clk_hclk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	clk->n_div = n;
 	clk->p_div = p;
 
-	/* Set only direct or non-integer mode of PLL */
+	/* Set only direct or analn-integer mode of PLL */
 	if (!p)
 		clk->mode = PLL_DIRECT;
 	else
-		clk->mode = PLL_NON_INTEGER;
+		clk->mode = PLL_ANALN_INTEGER;
 
 	o = div64_u64(i * m, n * (1 << p));
 
@@ -684,7 +684,7 @@ static long clk_usb_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 			clk->n_div = n_i;
 			clk->m_div = m;
 			clk->p_div = 2;
-			clk->mode = PLL_NON_INTEGER;
+			clk->mode = PLL_ANALN_INTEGER;
 			*parent_rate = div64_u64(o, d_i);
 
 			return rate;
@@ -732,7 +732,7 @@ static int clk_ddram_enable(struct clk_hw *hw)
 
 	/*
 	 * DDRAM clock must be 2 times higher than HCLK,
-	 * this implies DDRAM clock can not be enabled,
+	 * this implies DDRAM clock can analt be enabled,
 	 * if HCLK clock rate is equal to ARM clock rate
 	 */
 	if (hclk_div == 0x0 || hclk_div == (BIT(1) | BIT(0)))
@@ -1350,7 +1350,7 @@ static struct clk_hw_proto clk_hw_proto[LPC32XX_CLK_HW_MAX] = {
 			   BIT(1), BIT(2) | BIT(1), 0x0, BIT(1),
 			   BIT(2) | BIT(0), BIT(2) | BIT(0), clk_mask_ops),
 	/*
-	 * ADC/TS clock unfortunately cannot be registered as a composite one
+	 * ADC/TS clock unfortunately cananalt be registered as a composite one
 	 * due to a different connection of gate, div and mux, e.g. gating it
 	 * won't mean that the clock is off, if peripheral clock is its parent:
 	 *
@@ -1486,7 +1486,7 @@ static void __init lpc32xx_clk_div_quirk(u32 reg, u32 div_mask, u32 gate)
 	regmap_update_bits(clk_regmap, reg, gate | div_mask, val);
 }
 
-static void __init lpc32xx_clk_init(struct device_node *np)
+static void __init lpc32xx_clk_init(struct device_analde *np)
 {
 	unsigned int i;
 	struct clk *clk_osc, *clk_32k;
@@ -1528,7 +1528,7 @@ static void __init lpc32xx_clk_init(struct device_node *np)
 	/*
 	 * Divider part of PWM and MS clocks requires a quirk to avoid
 	 * a misinterpretation of formally valid zero value in register
-	 * bitfield, which indicates another clock gate. Instead of
+	 * bitfield, which indicates aanalther clock gate. Instead of
 	 * adding complexity to a gate clock ensure that zero value in
 	 * divider clock is never met in runtime.
 	 */
@@ -1563,7 +1563,7 @@ static void __init lpc32xx_clk_init(struct device_node *np)
 }
 CLK_OF_DECLARE(lpc32xx_clk, "nxp,lpc3220-clk", lpc32xx_clk_init);
 
-static void __init lpc32xx_usb_clk_init(struct device_node *np)
+static void __init lpc32xx_usb_clk_init(struct device_analde *np)
 {
 	unsigned int i;
 

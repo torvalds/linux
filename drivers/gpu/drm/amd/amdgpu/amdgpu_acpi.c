@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -60,7 +60,7 @@ struct xarray numa_info_xa;
 struct amdgpu_acpi_xcc_info {
 	struct list_head list;
 	struct amdgpu_numa_info *numa_info;
-	uint8_t xcp_node;
+	uint8_t xcp_analde;
 	uint8_t phy_id;
 	acpi_handle handle;
 };
@@ -78,12 +78,12 @@ struct amdgpu_acpi_dev_info {
 
 struct list_head amdgpu_acpi_dev_list;
 
-struct amdgpu_atif_notification_cfg {
+struct amdgpu_atif_analtification_cfg {
 	bool enabled;
 	int command_code;
 };
 
-struct amdgpu_atif_notifications {
+struct amdgpu_atif_analtifications {
 	bool thermal_state;
 	bool forced_power_state;
 	bool system_power_state;
@@ -104,9 +104,9 @@ struct amdgpu_atif_functions {
 struct amdgpu_atif {
 	acpi_handle handle;
 
-	struct amdgpu_atif_notifications notifications;
+	struct amdgpu_atif_analtifications analtifications;
 	struct amdgpu_atif_functions functions;
-	struct amdgpu_atif_notification_cfg notification_cfg;
+	struct amdgpu_atif_analtification_cfg analtification_cfg;
 	struct backlight_device *bd;
 	struct amdgpu_dm_backlight_caps backlight_caps;
 };
@@ -171,7 +171,7 @@ static union acpi_object *amdgpu_atif_call(struct amdgpu_atif *atif,
 				      &buffer);
 
 	/* Fail only if calling the method fails and ATIF is supported */
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+	if (ACPI_FAILURE(status) && status != AE_ANALT_FOUND) {
 		DRM_DEBUG_DRIVER("failed to evaluate ATIF got %s\n",
 				 acpi_format_exception(status));
 		kfree(buffer.pointer);
@@ -182,16 +182,16 @@ static union acpi_object *amdgpu_atif_call(struct amdgpu_atif *atif,
 }
 
 /**
- * amdgpu_atif_parse_notification - parse supported notifications
+ * amdgpu_atif_parse_analtification - parse supported analtifications
  *
- * @n: supported notifications struct
- * @mask: supported notifications mask from ATIF
+ * @n: supported analtifications struct
+ * @mask: supported analtifications mask from ATIF
  *
- * Use the supported notifications mask from ATIF function
- * ATIF_FUNCTION_VERIFY_INTERFACE to determine what notifications
+ * Use the supported analtifications mask from ATIF function
+ * ATIF_FUNCTION_VERIFY_INTERFACE to determine what analtifications
  * are supported (all asics).
  */
-static void amdgpu_atif_parse_notification(struct amdgpu_atif_notifications *n, u32 mask)
+static void amdgpu_atif_parse_analtification(struct amdgpu_atif_analtifications *n, u32 mask)
 {
 	n->thermal_state = mask & ATIF_THERMAL_STATE_CHANGE_REQUEST_SUPPORTED;
 	n->forced_power_state = mask & ATIF_FORCED_POWER_STATE_CHANGE_REQUEST_SUPPORTED;
@@ -215,10 +215,10 @@ static void amdgpu_atif_parse_functions(struct amdgpu_atif_functions *f, u32 mas
 {
 	f->system_params = mask & ATIF_GET_SYSTEM_PARAMETERS_SUPPORTED;
 	f->sbios_requests = mask & ATIF_GET_SYSTEM_BIOS_REQUESTS_SUPPORTED;
-	f->temperature_change = mask & ATIF_TEMPERATURE_CHANGE_NOTIFICATION_SUPPORTED;
+	f->temperature_change = mask & ATIF_TEMPERATURE_CHANGE_ANALTIFICATION_SUPPORTED;
 	f->query_backlight_transfer_characteristics =
 		mask & ATIF_QUERY_BACKLIGHT_TRANSFER_CHARACTERISTICS_SUPPORTED;
-	f->ready_to_undock = mask & ATIF_READY_TO_UNDOCK_NOTIFICATION_SUPPORTED;
+	f->ready_to_undock = mask & ATIF_READY_TO_UNDOCK_ANALTIFICATION_SUPPORTED;
 	f->external_gpu_information = mask & ATIF_GET_EXTERNAL_GPU_INFORMATION_SUPPORTED;
 }
 
@@ -258,7 +258,7 @@ static int amdgpu_atif_verify_interface(struct amdgpu_atif *atif)
 	/* TODO: check version? */
 	DRM_DEBUG_DRIVER("ATIF version %u\n", output.version);
 
-	amdgpu_atif_parse_notification(&atif->notifications, output.notification_mask);
+	amdgpu_atif_parse_analtification(&atif->analtifications, output.analtification_mask);
 	amdgpu_atif_parse_functions(&atif->functions, output.function_bits);
 
 out:
@@ -267,20 +267,20 @@ out:
 }
 
 /**
- * amdgpu_atif_get_notification_params - determine notify configuration
+ * amdgpu_atif_get_analtification_params - determine analtify configuration
  *
  * @atif: acpi handle
  *
  * Execute the ATIF_FUNCTION_GET_SYSTEM_PARAMETERS ATIF function
- * to determine if a notifier is used and if so which one
- * (all asics).  This is either Notify(VGA, 0x81) or Notify(VGA, n)
- * where n is specified in the result if a notifier is used.
+ * to determine if a analtifier is used and if so which one
+ * (all asics).  This is either Analtify(VGA, 0x81) or Analtify(VGA, n)
+ * where n is specified in the result if a analtifier is used.
  * Returns 0 on success, error on failure.
  */
-static int amdgpu_atif_get_notification_params(struct amdgpu_atif *atif)
+static int amdgpu_atif_get_analtification_params(struct amdgpu_atif *atif)
 {
 	union acpi_object *info;
-	struct amdgpu_atif_notification_cfg *n = &atif->notification_cfg;
+	struct amdgpu_atif_analtification_cfg *n = &atif->analtification_cfg;
 	struct atif_system_params params;
 	size_t size;
 	int err = 0;
@@ -306,10 +306,10 @@ static int amdgpu_atif_get_notification_params(struct amdgpu_atif *atif)
 			params.flags, params.valid_mask);
 	params.flags = params.flags & params.valid_mask;
 
-	if ((params.flags & ATIF_NOTIFY_MASK) == ATIF_NOTIFY_NONE) {
+	if ((params.flags & ATIF_ANALTIFY_MASK) == ATIF_ANALTIFY_ANALNE) {
 		n->enabled = false;
 		n->command_code = 0;
-	} else if ((params.flags & ATIF_NOTIFY_MASK) == ATIF_NOTIFY_81) {
+	} else if ((params.flags & ATIF_ANALTIFY_MASK) == ATIF_ANALTIFY_81) {
 		n->enabled = true;
 		n->command_code = 0x81;
 	} else {
@@ -322,7 +322,7 @@ static int amdgpu_atif_get_notification_params(struct amdgpu_atif *atif)
 	}
 
 out:
-	DRM_DEBUG_DRIVER("Notification %s, command code = %#x\n",
+	DRM_DEBUG_DRIVER("Analtification %s, command code = %#x\n",
 			(n->enabled ? "enabled" : "disabled"),
 			n->command_code);
 	kfree(info);
@@ -430,7 +430,7 @@ out:
 }
 
 /**
- * amdgpu_atif_handler - handle ATIF notify requests
+ * amdgpu_atif_handler - handle ATIF analtify requests
  *
  * @adev: amdgpu_device pointer
  * @event: atif sbios request struct
@@ -439,7 +439,7 @@ out:
  * handles it.
  *
  * Returns:
- * NOTIFY_BAD or NOTIFY_DONE, depending on the event.
+ * ANALTIFY_BAD or ANALTIFY_DONE, depending on the event.
  */
 static int amdgpu_atif_handler(struct amdgpu_device *adev,
 			       struct acpi_bus_event *event)
@@ -451,16 +451,16 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 			event->device_class, event->type);
 
 	if (strcmp(event->device_class, ACPI_VIDEO_CLASS) != 0)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/* Is this actually our event? */
-	if (!atif->notification_cfg.enabled ||
-	    event->type != atif->notification_cfg.command_code) {
+	if (!atif->analtification_cfg.enabled ||
+	    event->type != atif->analtification_cfg.command_code) {
 		/* These events will generate keypresses otherwise */
-		if (event->type == ACPI_VIDEO_NOTIFY_PROBE)
-			return NOTIFY_BAD;
+		if (event->type == ACPI_VIDEO_ANALTIFY_PROBE)
+			return ANALTIFY_BAD;
 		else
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 	}
 
 	if (atif->functions.sbios_requests) {
@@ -470,7 +470,7 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 		count = amdgpu_atif_get_sbios_requests(atif, &req);
 
 		if (count <= 0)
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 
 		DRM_DEBUG_DRIVER("ATIF: %d pending SBIOS requests\n", count);
 
@@ -499,12 +499,12 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 		/* TODO: check other events */
 	}
 
-	/* We've handled the event, stop the notifier chain. The ACPI interface
-	 * overloads ACPI_VIDEO_NOTIFY_PROBE, we don't want to send that to
+	/* We've handled the event, stop the analtifier chain. The ACPI interface
+	 * overloads ACPI_VIDEO_ANALTIFY_PROBE, we don't want to send that to
 	 * userspace if the event was generated only to signal a SBIOS
 	 * request.
 	 */
-	return NOTIFY_BAD;
+	return ANALTIFY_BAD;
 }
 
 /* Call the ATCS method
@@ -547,7 +547,7 @@ static union acpi_object *amdgpu_atcs_call(struct amdgpu_atcs *atcs,
 	status = acpi_evaluate_object(atcs->handle, NULL, &atcs_arg, &buffer);
 
 	/* Fail only if calling the method fails and ATIF is supported */
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+	if (ACPI_FAILURE(status) && status != AE_ANALT_FOUND) {
 		DRM_DEBUG_DRIVER("failed to evaluate ATCS got %s\n",
 				 acpi_format_exception(status));
 		kfree(buffer.pointer);
@@ -571,7 +571,7 @@ static void amdgpu_atcs_parse_functions(struct amdgpu_atcs_functions *f, u32 mas
 {
 	f->get_ext_state = mask & ATCS_GET_EXTERNAL_STATE_SUPPORTED;
 	f->pcie_perf_req = mask & ATCS_PCIE_PERFORMANCE_REQUEST_SUPPORTED;
-	f->pcie_dev_rdy = mask & ATCS_PCIE_DEVICE_READY_NOTIFICATION_SUPPORTED;
+	f->pcie_dev_rdy = mask & ATCS_PCIE_DEVICE_READY_ANALTIFICATION_SUPPORTED;
 	f->pcie_bus_width = mask & ATCS_SET_PCIE_BUS_WIDTH_SUPPORTED;
 	f->power_shift_control = mask & ATCS_SET_POWER_SHIFT_CONTROL_SUPPORTED;
 }
@@ -626,7 +626,7 @@ out:
  *
  * Check if the ATCS pcie_perf_req and pcie_dev_rdy methods
  * are supported (all asics).
- * returns true if supported, false if not.
+ * returns true if supported, false if analt.
  */
 bool amdgpu_acpi_is_pcie_performance_request_supported(struct amdgpu_device *adev)
 {
@@ -643,7 +643,7 @@ bool amdgpu_acpi_is_pcie_performance_request_supported(struct amdgpu_device *ade
  *
  * Check if the ATCS power shift control method
  * is supported.
- * returns true if supported, false if not.
+ * returns true if supported, false if analt.
  */
 bool amdgpu_acpi_is_power_shift_control_supported(void)
 {
@@ -651,15 +651,15 @@ bool amdgpu_acpi_is_power_shift_control_supported(void)
 }
 
 /**
- * amdgpu_acpi_pcie_notify_device_ready
+ * amdgpu_acpi_pcie_analtify_device_ready
  *
  * @adev: amdgpu_device pointer
  *
- * Executes the PCIE_DEVICE_READY_NOTIFICATION method
+ * Executes the PCIE_DEVICE_READY_ANALTIFICATION method
  * (all asics).
  * returns 0 on success, error on failure.
  */
-int amdgpu_acpi_pcie_notify_device_ready(struct amdgpu_device *adev)
+int amdgpu_acpi_pcie_analtify_device_ready(struct amdgpu_device *adev)
 {
 	union acpi_object *info;
 	struct amdgpu_atcs *atcs = &amdgpu_acpi_priv.atcs;
@@ -667,7 +667,7 @@ int amdgpu_acpi_pcie_notify_device_ready(struct amdgpu_device *adev)
 	if (!atcs->functions.pcie_dev_rdy)
 		return -EINVAL;
 
-	info = amdgpu_atcs_call(atcs, ATCS_FUNCTION_PCIE_DEVICE_READY_NOTIFICATION, NULL);
+	info = amdgpu_atcs_call(atcs, ATCS_FUNCTION_PCIE_DEVICE_READY_ANALTIFICATION, NULL);
 	if (!info)
 		return -EIO;
 
@@ -698,7 +698,7 @@ int amdgpu_acpi_pcie_performance_request(struct amdgpu_device *adev,
 	size_t size;
 	u32 retry = 3;
 
-	if (amdgpu_acpi_pcie_notify_device_ready(adev))
+	if (amdgpu_acpi_pcie_analtify_device_ready(adev))
 		return -EINVAL;
 
 	if (!atcs->functions.pcie_perf_req)
@@ -811,8 +811,8 @@ int amdgpu_acpi_smart_shift_update(struct drm_device *dev, enum amdgpu_ss ss_sta
 
 	switch (ss_state) {
 	/* SBIOS trigger “stop”, “enable” and “start” at D0, Driver Operational.
-	 * SBIOS trigger “stop” at D3, Driver Not Operational.
-	 * SBIOS trigger “stop” and “disable” at D0, Driver NOT operational.
+	 * SBIOS trigger “stop” at D3, Driver Analt Operational.
+	 * SBIOS trigger “stop” and “disable” at D0, Driver ANALT operational.
 	 */
 	case AMDGPU_SS_DRV_LOAD:
 		r = amdgpu_acpi_power_shift_control(adev,
@@ -827,12 +827,12 @@ int amdgpu_acpi_smart_shift_update(struct drm_device *dev, enum amdgpu_ss ss_sta
 	case AMDGPU_SS_DEV_D3:
 		r = amdgpu_acpi_power_shift_control(adev,
 						    AMDGPU_ATCS_PSC_DEV_STATE_D3_HOT,
-						    AMDGPU_ATCS_PSC_DRV_STATE_NOT_OPR);
+						    AMDGPU_ATCS_PSC_DRV_STATE_ANALT_OPR);
 		break;
 	case AMDGPU_SS_DRV_UNLOAD:
 		r = amdgpu_acpi_power_shift_control(adev,
 						    AMDGPU_ATCS_PSC_DEV_STATE_D0,
-						    AMDGPU_ATCS_PSC_DRV_STATE_NOT_OPR);
+						    AMDGPU_ATCS_PSC_DRV_STATE_ANALT_OPR);
 		break;
 	default:
 		return -EINVAL;
@@ -844,17 +844,17 @@ int amdgpu_acpi_smart_shift_update(struct drm_device *dev, enum amdgpu_ss ss_sta
 #ifdef CONFIG_ACPI_NUMA
 static inline uint64_t amdgpu_acpi_get_numa_size(int nid)
 {
-	/* This is directly using si_meminfo_node implementation as the
-	 * function is not exported.
+	/* This is directly using si_meminfo_analde implementation as the
+	 * function is analt exported.
 	 */
 	int zone_type;
 	uint64_t managed_pages = 0;
 
-	pg_data_t *pgdat = NODE_DATA(nid);
+	pg_data_t *pgdat = ANALDE_DATA(nid);
 
 	for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++)
 		managed_pages +=
-			zone_managed_pages(&pgdat->node_zones[zone_type]);
+			zone_managed_pages(&pgdat->analde_zones[zone_type]);
 	return managed_pages * PAGE_SIZE;
 }
 
@@ -872,11 +872,11 @@ static struct amdgpu_numa_info *amdgpu_acpi_get_numa_info(uint32_t pxm)
 		if (!numa_info)
 			return NULL;
 
-		nid = pxm_to_node(pxm);
+		nid = pxm_to_analde(pxm);
 		numa_info->pxm = pxm;
 		numa_info->nid = nid;
 
-		if (numa_info->nid == NUMA_NO_NODE) {
+		if (numa_info->nid == NUMA_ANAL_ANALDE) {
 			si_meminfo(&info);
 			numa_info->size = info.totalram * info.mem_unit;
 		} else {
@@ -890,18 +890,18 @@ static struct amdgpu_numa_info *amdgpu_acpi_get_numa_info(uint32_t pxm)
 #endif
 
 /**
- * amdgpu_acpi_get_node_id - obtain the NUMA node id for corresponding amdgpu
+ * amdgpu_acpi_get_analde_id - obtain the NUMA analde id for corresponding amdgpu
  * acpi device handle
  *
  * @handle: acpi handle
  * @numa_info: amdgpu_numa_info structure holding numa information
  *
- * Queries the ACPI interface to fetch the corresponding NUMA Node ID for a
+ * Queries the ACPI interface to fetch the corresponding NUMA Analde ID for a
  * given amdgpu acpi device.
  *
- * Returns ACPI STATUS OK with Node ID on success or the corresponding failure reason
+ * Returns ACPI STATUS OK with Analde ID on success or the corresponding failure reason
  */
-static acpi_status amdgpu_acpi_get_node_id(acpi_handle handle,
+static acpi_status amdgpu_acpi_get_analde_id(acpi_handle handle,
 				    struct amdgpu_numa_info **numa_info)
 {
 #ifdef CONFIG_ACPI_NUMA
@@ -923,7 +923,7 @@ static acpi_status amdgpu_acpi_get_node_id(acpi_handle handle,
 
 	return_ACPI_STATUS(AE_OK);
 #else
-	return_ACPI_STATUS(AE_NOT_EXIST);
+	return_ACPI_STATUS(AE_ANALT_EXIST);
 #endif
 }
 
@@ -946,12 +946,12 @@ static int amdgpu_acpi_dev_init(struct amdgpu_acpi_dev_info **dev_info,
 {
 	struct amdgpu_acpi_dev_info *tmp;
 	union acpi_object *obj;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	*dev_info = NULL;
 	tmp = kzalloc(sizeof(struct amdgpu_acpi_dev_info), GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&tmp->xcc_list);
 	INIT_LIST_HEAD(&tmp->list);
@@ -965,7 +965,7 @@ static int amdgpu_acpi_dev_init(struct amdgpu_acpi_dev_info **dev_info,
 		acpi_handle_debug(xcc_info->handle,
 				  "_DSM function %d evaluation failed",
 				  AMD_XCC_DSM_GET_SUPP_MODE);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -980,7 +980,7 @@ static int amdgpu_acpi_dev_init(struct amdgpu_acpi_dev_info **dev_info,
 		acpi_handle_debug(xcc_info->handle,
 				  "_DSM function %d evaluation failed",
 				  AMD_XCC_DSM_GET_XCP_MODE);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -997,7 +997,7 @@ static int amdgpu_acpi_dev_init(struct amdgpu_acpi_dev_info **dev_info,
 		acpi_handle_debug(xcc_info->handle,
 				  "_DSM function %d evaluation failed",
 				  AMD_XCC_DSM_GET_TMR_INFO);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -1027,7 +1027,7 @@ static int amdgpu_acpi_get_xcc_info(struct amdgpu_acpi_xcc_info *xcc_info,
 {
 	union acpi_object *obj;
 	acpi_status status;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	obj = acpi_evaluate_dsm_typed(xcc_info->handle, &amd_xcc_dsm_guid, 0,
 				      AMD_XCC_DSM_GET_NUM_FUNCS, NULL,
@@ -1052,8 +1052,8 @@ static int amdgpu_acpi_get_xcc_info(struct amdgpu_acpi_xcc_info *xcc_info,
 
 	/* PF xcc id [39:32] */
 	xcc_info->phy_id = (obj->integer.value >> 32) & 0xFF;
-	/* xcp node of this xcc [47:40] */
-	xcc_info->xcp_node = (obj->integer.value >> 40) & 0xFF;
+	/* xcp analde of this xcc [47:40] */
+	xcc_info->xcp_analde = (obj->integer.value >> 40) & 0xFF;
 	/* PF domain of this xcc [31:16] */
 	*sbdf = (obj->integer.value) & 0xFFFF0000;
 	/* PF bus/dev/fn of this xcc [63:48] */
@@ -1062,7 +1062,7 @@ static int amdgpu_acpi_get_xcc_info(struct amdgpu_acpi_xcc_info *xcc_info,
 	obj = NULL;
 
 	status =
-		amdgpu_acpi_get_node_id(xcc_info->handle, &xcc_info->numa_info);
+		amdgpu_acpi_get_analde_id(xcc_info->handle, &xcc_info->numa_info);
 
 	/* TODO: check if this check is required */
 	if (ACPI_SUCCESS(status))
@@ -1090,10 +1090,10 @@ static int amdgpu_acpi_enumerate_xcc(void)
 		sprintf(hid, "%s%d", "AMD", AMD_XCC_HID_START + id);
 		acpi_dev = acpi_dev_get_first_match_dev(hid, NULL, -1);
 		/* These ACPI objects are expected to be in sequential order. If
-		 * one is not found, no need to check the rest.
+		 * one is analt found, anal need to check the rest.
 		 */
 		if (!acpi_dev) {
-			DRM_DEBUG_DRIVER("No matching acpi device found for %s",
+			DRM_DEBUG_DRIVER("Anal matching acpi device found for %s",
 					 hid);
 			break;
 		}
@@ -1102,7 +1102,7 @@ static int amdgpu_acpi_enumerate_xcc(void)
 				   GFP_KERNEL);
 		if (!xcc_info) {
 			DRM_ERROR("Failed to allocate memory for xcc info\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		INIT_LIST_HEAD(&xcc_info->list);
@@ -1120,7 +1120,7 @@ static int amdgpu_acpi_enumerate_xcc(void)
 		if (!dev_info)
 			ret = amdgpu_acpi_dev_init(&dev_info, xcc_info, sbdf);
 
-		if (ret == -ENOMEM)
+		if (ret == -EANALMEM)
 			return ret;
 
 		if (!dev_info) {
@@ -1147,7 +1147,7 @@ int amdgpu_acpi_get_tmr_info(struct amdgpu_device *adev, u64 *tmr_offset,
 	sbdf |= pci_dev_id(adev->pdev);
 	dev_info = amdgpu_acpi_get_dev(sbdf);
 	if (!dev_info)
-		return -ENOENT;
+		return -EANALENT;
 
 	*tmr_offset = dev_info->tmr_base;
 	*tmr_size = dev_info->tmr_size;
@@ -1169,7 +1169,7 @@ int amdgpu_acpi_get_mem_info(struct amdgpu_device *adev, int xcc_id,
 	sbdf |= pci_dev_id(adev->pdev);
 	dev_info = amdgpu_acpi_get_dev(sbdf);
 	if (!dev_info)
-		return -ENOENT;
+		return -EANALENT;
 
 	list_for_each_entry(xcc_info, &dev_info->xcc_list, list) {
 		if (xcc_info->phy_id == xcc_id) {
@@ -1179,21 +1179,21 @@ int amdgpu_acpi_get_mem_info(struct amdgpu_device *adev, int xcc_id,
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /**
- * amdgpu_acpi_event - handle notify events
+ * amdgpu_acpi_event - handle analtify events
  *
- * @nb: notifier block
+ * @nb: analtifier block
  * @val: val
  * @data: acpi event
  *
  * Calls relevant amdgpu functions in response to various
  * acpi events.
- * Returns NOTIFY code
+ * Returns ANALTIFY code
  */
-static int amdgpu_acpi_event(struct notifier_block *nb,
+static int amdgpu_acpi_event(struct analtifier_block *nb,
 			     unsigned long val,
 			     void *data)
 {
@@ -1220,14 +1220,14 @@ static int amdgpu_acpi_event(struct notifier_block *nb,
  * @adev: amdgpu_device pointer
  *
  * Verifies the AMD ACPI interfaces and registers with the acpi
- * notifier chain (all asics).
+ * analtifier chain (all asics).
  * Returns 0 on success, error on failure.
  */
 int amdgpu_acpi_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_atif *atif = &amdgpu_acpi_priv.atif;
 
-	if (atif->notifications.brightness_change) {
+	if (atif->analtifications.brightness_change) {
 		if (adev->dc_enabled) {
 #if defined(CONFIG_DRM_AMD_DC)
 			struct amdgpu_display_manager *dm = &adev->dm;
@@ -1255,8 +1255,8 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 			}
 		}
 	}
-	adev->acpi_nb.notifier_call = amdgpu_acpi_event;
-	register_acpi_notifier(&adev->acpi_nb);
+	adev->acpi_nb.analtifier_call = amdgpu_acpi_event;
+	register_acpi_analtifier(&adev->acpi_nb);
 
 	return 0;
 }
@@ -1275,11 +1275,11 @@ void amdgpu_acpi_get_backlight_caps(struct amdgpu_dm_backlight_caps *caps)
  *
  * @adev: amdgpu_device pointer
  *
- * Unregisters with the acpi notifier chain (all asics).
+ * Unregisters with the acpi analtifier chain (all asics).
  */
 void amdgpu_acpi_fini(struct amdgpu_device *adev)
 {
-	unregister_acpi_notifier(&adev->acpi_nb);
+	unregister_acpi_analtifier(&adev->acpi_nb);
 }
 
 /**
@@ -1288,7 +1288,7 @@ void amdgpu_acpi_fini(struct amdgpu_device *adev)
  * @pdev: pci device
  *
  * Look up the ATIF handles (all asics).
- * Returns true if the handle is found, false if not.
+ * Returns true if the handle is found, false if analt.
  */
 static bool amdgpu_atif_pci_probe_handle(struct pci_dev *pdev)
 {
@@ -1323,7 +1323,7 @@ static bool amdgpu_atif_pci_probe_handle(struct pci_dev *pdev)
  * @pdev: pci device
  *
  * Look up the ATCS handles (all asics).
- * Returns true if the handle is found, false if not.
+ * Returns true if the handle is found, false if analt.
  */
 static bool amdgpu_atcs_pci_probe_handle(struct pci_dev *pdev)
 {
@@ -1358,12 +1358,12 @@ static bool amdgpu_atcs_pci_probe_handle(struct pci_dev *pdev)
  *
  * @adev: amdgpu_device_pointer
  *
- * returns true if should reset GPU, false if not
+ * returns true if should reset GPU, false if analt
  */
 bool amdgpu_acpi_should_gpu_reset(struct amdgpu_device *adev)
 {
 	if ((adev->flags & AMD_IS_APU) &&
-	    adev->gfx.imu.funcs) /* Not need to do mode2 reset for IMU enabled APUs */
+	    adev->gfx.imu.funcs) /* Analt need to do mode2 reset for IMU enabled APUs */
 		return false;
 
 	if ((adev->flags & AMD_IS_APU) &&
@@ -1413,12 +1413,12 @@ void amdgpu_acpi_detect(void)
 	}
 
 	if (atif->functions.system_params) {
-		ret = amdgpu_atif_get_notification_params(atif);
+		ret = amdgpu_atif_get_analtification_params(atif);
 		if (ret) {
 			DRM_DEBUG_DRIVER("Call to GET_SYSTEM_PARAMS failed: %d\n",
 					ret);
-			/* Disable notification */
-			atif->notification_cfg.enabled = false;
+			/* Disable analtification */
+			atif->analtification_cfg.enabled = false;
 		}
 	}
 
@@ -1470,7 +1470,7 @@ void amdgpu_acpi_release(void)
  *
  * @adev: amdgpu_device_pointer
  *
- * returns true if supported, false if not.
+ * returns true if supported, false if analt.
  */
 bool amdgpu_acpi_is_s3_active(struct amdgpu_device *adev)
 {
@@ -1483,7 +1483,7 @@ bool amdgpu_acpi_is_s3_active(struct amdgpu_device *adev)
  *
  * @adev: amdgpu_device_pointer
  *
- * returns true if supported, false if not.
+ * returns true if supported, false if analt.
  */
 bool amdgpu_acpi_is_s0ix_active(struct amdgpu_device *adev)
 {
@@ -1498,21 +1498,21 @@ bool amdgpu_acpi_is_s0ix_active(struct amdgpu_device *adev)
 		return false;
 
 	/*
-	 * If ACPI_FADT_LOW_POWER_S0 is not set in the FADT, it is generally
+	 * If ACPI_FADT_LOW_POWER_S0 is analt set in the FADT, it is generally
 	 * risky to do any special firmware-related preparations for entering
 	 * S0ix even though the system is suspending to idle, so return false
 	 * in that case.
 	 */
 	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0)) {
 		dev_err_once(adev->dev,
-			      "Power consumption will be higher as BIOS has not been configured for suspend-to-idle.\n"
+			      "Power consumption will be higher as BIOS has analt been configured for suspend-to-idle.\n"
 			      "To use suspend-to-idle change the sleep mode in BIOS setup.\n");
 		return false;
 	}
 
 #if !IS_ENABLED(CONFIG_AMD_PMC)
 	dev_err_once(adev->dev,
-		      "Power consumption will be higher as the kernel has not been compiled with CONFIG_AMD_PMC.\n");
+		      "Power consumption will be higher as the kernel has analt been compiled with CONFIG_AMD_PMC.\n");
 	return false;
 #else
 	return true;

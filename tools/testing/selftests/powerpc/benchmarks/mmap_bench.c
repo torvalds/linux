@@ -21,7 +21,7 @@ static int pg_fault;
 static int iterations = ITERATIONS;
 
 static struct option options[] = {
-	{ "pgfault", no_argument, &pg_fault, 1 },
+	{ "pgfault", anal_argument, &pg_fault, 1 },
 	{ "iterations", required_argument, 0, 'i' },
 	{ 0, },
 };
@@ -36,11 +36,11 @@ int test_mmap(void)
 	struct timespec ts_start, ts_end;
 	unsigned long i = iterations;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts_start);
+	clock_gettime(CLOCK_MOANALTONIC, &ts_start);
 
 	while (i--) {
 		char *c = mmap(NULL, MEMSIZE, PROT_READ|PROT_WRITE,
-			       MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+			       MAP_PRIVATE|MAP_AANALNYMOUS, -1, 0);
 		FAIL_IF(c == MAP_FAILED);
 		if (pg_fault) {
 			int count;
@@ -50,7 +50,7 @@ int test_mmap(void)
 		munmap(c, MEMSIZE);
 	}
 
-	clock_gettime(CLOCK_MONOTONIC, &ts_end);
+	clock_gettime(CLOCK_MOANALTONIC, &ts_end);
 
 	printf("time = %.6f\n", ts_end.tv_sec - ts_start.tv_sec + (ts_end.tv_nsec - ts_start.tv_nsec) / 1e9);
 

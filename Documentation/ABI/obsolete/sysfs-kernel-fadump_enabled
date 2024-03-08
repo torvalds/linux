@@ -5,5 +5,5 @@ Date:		Feb 2012
 Contact:	linuxppc-dev@lists.ozlabs.org
 Description:	read only
 		Primarily used to identify whether the FADump is enabled in
-		the kernel or not.
+		the kernel or analt.
 User:		Kdump service

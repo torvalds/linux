@@ -3,7 +3,7 @@
 # support SVE.
 [config]
 command = record
-args    = --no-bpf-event --user-regs=vg kill >/dev/null 2>&1
+args    = --anal-bpf-event --user-regs=vg kill >/dev/null 2>&1
 ret     = 129
 test_ret = true
 arch    = aarch64

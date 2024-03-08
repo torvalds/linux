@@ -26,10 +26,10 @@
  *    gpio_direction_input()
  * 3) read the GPIO's current value
  * 4) undo step 2 by enabling alternate function (in this
- *    mode the GPIO direction is fixed, so no change needed)
+ *    mode the GPIO direction is fixed, so anal change needed)
  * 5) turn on uart again
  * The GPIO value occurs to be inverted, so pin high means
- * button is not pressed.
+ * button is analt pressed.
  */
 static bool rb532_button_pressed(void)
 {
@@ -59,7 +59,7 @@ static int rb532_button_probe(struct platform_device *pdev)
 
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->name = "rb532 button";
 	input->phys = "rb532/button0";

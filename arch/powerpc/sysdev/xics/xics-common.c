@@ -22,7 +22,7 @@
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/rtas.h>
 #include <asm/xics.h>
 #include <asm/firmware.h>
@@ -43,13 +43,13 @@ static struct ics *xics_ics;
 void xics_update_irq_servers(void)
 {
 	int i, j;
-	struct device_node *np;
+	struct device_analde *np;
 	u32 ilen;
 	const __be32 *ireg;
 	u32 hcpuid;
 
 	/* Find the server numbers for the boot cpu. */
-	np = of_get_cpu_node(boot_cpuid, NULL);
+	np = of_get_cpu_analde(boot_cpuid, NULL);
 	BUG_ON(!np);
 
 	hcpuid = get_hard_smp_processor_id(boot_cpuid);
@@ -59,7 +59,7 @@ void xics_update_irq_servers(void)
 
 	ireg = of_get_property(np, "ibm,ppc-interrupt-gserver#s", &ilen);
 	if (!ireg) {
-		of_node_put(np);
+		of_analde_put(np);
 		return;
 	}
 
@@ -78,7 +78,7 @@ void xics_update_irq_servers(void)
 	}
 	pr_devel("xics: xics_default_distrib_server = 0x%x\n",
 		 xics_default_distrib_server);
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 /* GIQ stuff, currently only supported on RTAS setups, will have
@@ -109,13 +109,13 @@ void xics_setup_cpu(void)
 	xics_set_cpu_giq(xics_default_distrib_server, 1);
 }
 
-void xics_mask_unknown_vec(unsigned int vec)
+void xics_mask_unkanalwn_vec(unsigned int vec)
 {
 	pr_err("Interrupt 0x%x (real) is invalid, disabling it.\n", vec);
 
 	if (WARN_ON(!xics_ics))
 		return;
-	xics_ics->mask_unknown(xics_ics, vec);
+	xics_ics->mask_unkanalwn(xics_ics, vec);
 }
 
 
@@ -132,7 +132,7 @@ static void __init xics_request_ipi(void)
 	 * IPIs are marked IRQF_PERCPU. The handler was set in map.
 	 */
 	BUG_ON(request_irq(ipi, icp_ops->ipi_action,
-			   IRQF_NO_DEBUG | IRQF_PERCPU | IRQF_NO_THREAD, "IPI", NULL));
+			   IRQF_ANAL_DEBUG | IRQF_PERCPU | IRQF_ANAL_THREAD, "IPI", NULL));
 }
 
 void __init xics_smp_probe(void)
@@ -146,20 +146,20 @@ void __init xics_smp_probe(void)
 
 #endif /* CONFIG_SMP */
 
-noinstr void xics_teardown_cpu(void)
+analinstr void xics_teardown_cpu(void)
 {
 	struct xics_cppr *os_cppr = this_cpu_ptr(&xics_cppr);
 
 	/*
 	 * we have to reset the cppr index to 0 because we're
-	 * not going to return from the IPI
+	 * analt going to return from the IPI
 	 */
 	os_cppr->index = 0;
 	icp_ops->set_priority(0);
 	icp_ops->teardown_cpu();
 }
 
-noinstr void xics_kexec_teardown_cpu(int secondary)
+analinstr void xics_kexec_teardown_cpu(int secondary)
 {
 	xics_teardown_cpu();
 
@@ -269,7 +269,7 @@ unlock:
  * For the moment we only implement delivery to all cpus or one cpu.
  *
  * If the requested affinity is cpu_all_mask, we set global affinity.
- * If not we set it to the first cpu in the mask, even if multiple cpus
+ * If analt we set it to the first cpu in the mask, even if multiple cpus
  * are set. This is so things like irqbalance (which set core and package
  * wide affinities) do the right thing.
  *
@@ -304,12 +304,12 @@ int xics_get_irq_server(unsigned int virq, const struct cpumask *cpumask,
 }
 #endif /* CONFIG_SMP */
 
-static int xics_host_match(struct irq_domain *h, struct device_node *node,
+static int xics_host_match(struct irq_domain *h, struct device_analde *analde,
 			   enum irq_domain_bus_token bus_token)
 {
 	if (WARN_ON(!xics_ics))
 		return 0;
-	return xics_ics->host_match(xics_ics, node) ? 1 : 0;
+	return xics_ics->host_match(xics_ics, analde) ? 1 : 0;
 }
 
 /* Dummies */
@@ -355,7 +355,7 @@ static int xics_host_map(struct irq_domain *domain, unsigned int virq,
 	return 0;
 }
 
-static int xics_host_xlate(struct irq_domain *h, struct device_node *ct,
+static int xics_host_xlate(struct irq_domain *h, struct device_analde *ct,
 			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
@@ -380,13 +380,13 @@ static int xics_host_xlate(struct irq_domain *h, struct device_node *ct,
 int xics_set_irq_type(struct irq_data *d, unsigned int flow_type)
 {
 	/*
-	 * We only support these. This has really no effect other than setting
+	 * We only support these. This has really anal effect other than setting
 	 * the corresponding descriptor bits mind you but those will in turn
 	 * affect the resend function when re-enabling an edge interrupt.
 	 *
 	 * Set set the default to edge as explained in map().
 	 */
-	if (flow_type == IRQ_TYPE_DEFAULT || flow_type == IRQ_TYPE_NONE)
+	if (flow_type == IRQ_TYPE_DEFAULT || flow_type == IRQ_TYPE_ANALNE)
 		flow_type = IRQ_TYPE_EDGE_RISING;
 
 	if (flow_type != IRQ_TYPE_EDGE_RISING &&
@@ -395,7 +395,7 @@ int xics_set_irq_type(struct irq_data *d, unsigned int flow_type)
 
 	irqd_set_trigger_type(d, flow_type);
 
-	return IRQ_SET_MASK_OK_NOCOPY;
+	return IRQ_SET_MASK_OK_ANALCOPY;
 }
 
 int xics_retrigger(struct irq_data *data)
@@ -415,7 +415,7 @@ int xics_retrigger(struct irq_data *data)
 static int xics_host_domain_translate(struct irq_domain *d, struct irq_fwspec *fwspec,
 				      unsigned long *hwirq, unsigned int *type)
 {
-	return xics_host_xlate(d, to_of_node(fwspec->fwnode), fwspec->param,
+	return xics_host_xlate(d, to_of_analde(fwspec->fwanalde), fwspec->param,
 			       fwspec->param_count, hwirq, type);
 }
 
@@ -424,7 +424,7 @@ static int xics_host_domain_alloc(struct irq_domain *domain, unsigned int virq,
 {
 	struct irq_fwspec *fwspec = arg;
 	irq_hw_number_t hwirq;
-	unsigned int type = IRQ_TYPE_NONE;
+	unsigned int type = IRQ_TYPE_ANALNE;
 	int i, rc;
 
 	rc = xics_host_domain_translate(domain, fwspec, &hwirq, &type);
@@ -460,16 +460,16 @@ static const struct irq_domain_ops xics_host_ops = {
 
 static int __init xics_allocate_domain(void)
 {
-	struct fwnode_handle *fn;
+	struct fwanalde_handle *fn;
 
-	fn = irq_domain_alloc_named_fwnode("XICS");
+	fn = irq_domain_alloc_named_fwanalde("XICS");
 	if (!fn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xics_host = irq_domain_create_tree(fn, &xics_host_ops, NULL);
 	if (!xics_host) {
-		irq_domain_free_fwnode(fn);
-		return -ENOMEM;
+		irq_domain_free_fwanalde(fn);
+		return -EANALMEM;
 	}
 
 	irq_set_default_host(xics_host);
@@ -485,13 +485,13 @@ void __init xics_register_ics(struct ics *ics)
 
 static void __init xics_get_server_size(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const __be32 *isize;
 
-	/* We fetch the interrupt server size from the first ICS node
+	/* We fetch the interrupt server size from the first ICS analde
 	 * we find if any
 	 */
-	np = of_find_compatible_node(NULL, NULL, "ibm,ppc-xics");
+	np = of_find_compatible_analde(NULL, NULL, "ibm,ppc-xics");
 	if (!np)
 		return;
 
@@ -499,7 +499,7 @@ static void __init xics_get_server_size(void)
 	if (isize)
 		xics_interrupt_server_size = be32_to_cpu(*isize);
 
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 void __init xics_init(void)
@@ -511,11 +511,11 @@ void __init xics_init(void)
 		rc = icp_hv_init();
 	if (rc < 0) {
 		rc = icp_native_init();
-		if (rc == -ENODEV)
+		if (rc == -EANALDEV)
 		    rc = icp_opal_init();
 	}
 	if (rc < 0) {
-		pr_warn("XICS: Cannot find a Presentation Controller !\n");
+		pr_warn("XICS: Cananalt find a Presentation Controller !\n");
 		return;
 	}
 
@@ -525,14 +525,14 @@ void __init xics_init(void)
 	/* Patch up IPI chip EOI */
 	xics_ipi_chip.irq_eoi = icp_ops->eoi;
 
-	/* Now locate ICS */
+	/* Analw locate ICS */
 	rc = ics_rtas_init();
 	if (rc < 0)
 		rc = ics_opal_init();
 	if (rc < 0)
 		rc = ics_native_init();
 	if (rc < 0)
-		pr_warn("XICS: Cannot find a Source Controller !\n");
+		pr_warn("XICS: Cananalt find a Source Controller !\n");
 
 	/* Initialize common bits */
 	xics_get_server_size();

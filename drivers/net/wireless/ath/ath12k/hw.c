@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/types.h>
@@ -176,10 +176,10 @@ static const struct ce_pipe_config ath12k_target_ce_config_wlan_qcn9274[] = {
 		.reserved = __cpu_to_le32(0),
 	},
 
-	/* CE6: Reserved for target autonomous hif_memcpy */
+	/* CE6: Reserved for target autoanalmous hif_memcpy */
 	{
 		.pipenum = __cpu_to_le32(6),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT),
 		.nentries = __cpu_to_le32(32),
 		.nbytes_max = __cpu_to_le32(16384),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS),
@@ -196,10 +196,10 @@ static const struct ce_pipe_config ath12k_target_ce_config_wlan_qcn9274[] = {
 		.reserved = __cpu_to_le32(0),
 	},
 
-	/* CE8: Reserved for target autonomous hif_memcpy */
+	/* CE8: Reserved for target autoanalmous hif_memcpy */
 	{
 		.pipenum = __cpu_to_le32(8),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT),
 		.nentries = __cpu_to_le32(32),
 		.nbytes_max = __cpu_to_le32(16384),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS),
@@ -303,10 +303,10 @@ static const struct ce_pipe_config ath12k_target_ce_config_wlan_wcn7850[] = {
 		.reserved = __cpu_to_le32(0),
 	},
 
-	/* CE6: Reserved for target autonomous hif_memcpy */
+	/* CE6: Reserved for target autoanalmous hif_memcpy */
 	{
 		.pipenum = __cpu_to_le32(6),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT),
 		.nentries = __cpu_to_le32(32),
 		.nbytes_max = __cpu_to_le32(16384),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS),
@@ -316,7 +316,7 @@ static const struct ce_pipe_config ath12k_target_ce_config_wlan_wcn7850[] = {
 	/* CE7 used only by Host */
 	{
 		.pipenum = __cpu_to_le32(7),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT_H2H),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT_H2H),
 		.nentries = __cpu_to_le32(0),
 		.nbytes_max = __cpu_to_le32(0),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS | CE_ATTR_DIS_INTR),
@@ -326,7 +326,7 @@ static const struct ce_pipe_config ath12k_target_ce_config_wlan_wcn7850[] = {
 	/* CE8 target->host used only by IPA */
 	{
 		.pipenum = __cpu_to_le32(8),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT),
 		.nentries = __cpu_to_le32(32),
 		.nbytes_max = __cpu_to_le32(16384),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS),
@@ -971,7 +971,7 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.hal_ops = &hal_wcn7850_ops,
 
 		.qmi_cnss_feature_bitmap = BIT(CNSS_QDSS_CFG_MISS_V01) |
-					   BIT(CNSS_PCIE_PERST_NO_PULL_V01),
+					   BIT(CNSS_PCIE_PERST_ANAL_PULL_V01),
 
 		.rfkill_pin = 48,
 		.rfkill_cfg = 0,

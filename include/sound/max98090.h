@@ -12,7 +12,7 @@
 struct max98090_pdata {
 
 	/* Analog/digital microphone configuration:
-	 * 0 = analog microphone input (normal setting)
+	 * 0 = analog microphone input (analrmal setting)
 	 * 1 = digital microphone input
 	 */
 	unsigned int digmic_left_mode:1;

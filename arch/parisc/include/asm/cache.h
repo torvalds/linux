@@ -11,7 +11,7 @@
 /*
  * PA 2.0 processors have 64 and 128-byte L2 cachelines; PA 1.1 processors
  * have 32-byte cachelines.  The L1 length appears to be 16 bytes but this
- * is not clearly documented.
+ * is analt clearly documented.
  */
 #define L1_CACHE_BYTES 16
 #define L1_CACHE_SHIFT 4
@@ -41,20 +41,20 @@ extern struct pdc_btlb_info btlb_info;
 void parisc_setup_cache_timing(void);
 
 #define pdtlb(sr, addr)	asm volatile("pdtlb 0(%%sr%0,%1)" \
-			ALTERNATIVE(ALT_COND_NO_SMP, INSN_PxTLB) \
+			ALTERNATIVE(ALT_COND_ANAL_SMP, INSN_PxTLB) \
 			: : "i"(sr), "r" (addr) : "memory")
 #define pitlb(sr, addr)	asm volatile("pitlb 0(%%sr%0,%1)" \
-			ALTERNATIVE(ALT_COND_NO_SMP, INSN_PxTLB) \
-			ALTERNATIVE(ALT_COND_NO_SPLIT_TLB, INSN_NOP) \
+			ALTERNATIVE(ALT_COND_ANAL_SMP, INSN_PxTLB) \
+			ALTERNATIVE(ALT_COND_ANAL_SPLIT_TLB, INSN_ANALP) \
 			: : "i"(sr), "r" (addr) : "memory")
 
 #define asm_io_fdc(addr) asm volatile("fdc %%r0(%0)" \
-			ALTERNATIVE(ALT_COND_NO_DCACHE, INSN_NOP) \
-			ALTERNATIVE(ALT_COND_NO_IOC_FDC, INSN_NOP) \
+			ALTERNATIVE(ALT_COND_ANAL_DCACHE, INSN_ANALP) \
+			ALTERNATIVE(ALT_COND_ANAL_IOC_FDC, INSN_ANALP) \
 			: : "r" (addr) : "memory")
 #define asm_io_sync()	asm volatile("sync" \
-			ALTERNATIVE(ALT_COND_NO_DCACHE, INSN_NOP) \
-			ALTERNATIVE(ALT_COND_NO_IOC_FDC, INSN_NOP) :::"memory")
+			ALTERNATIVE(ALT_COND_ANAL_DCACHE, INSN_ANALP) \
+			ALTERNATIVE(ALT_COND_ANAL_IOC_FDC, INSN_ANALP) :::"memory")
 #define asm_syncdma()	asm volatile("syncdma" :::"memory")
 
 #endif /* ! __ASSEMBLY__ */

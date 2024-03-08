@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2001-2003 Patrick Mochel <mochel@osdl.org>
  * Copyright (c) 2004-2009 Greg Kroah-Hartman <gregkh@suse.de>
- * Copyright (c) 2008-2009 Novell Inc.
+ * Copyright (c) 2008-2009 Analvell Inc.
  * Copyright (c) 2012-2019 Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  * Copyright (c) 2012-2019 Linux Foundation
  *
@@ -20,7 +20,7 @@
 #include <linux/device/bus.h>
 
 struct device;
-struct fwnode_handle;
+struct fwanalde_handle;
 
 /**
  * struct class - device classes
@@ -30,7 +30,7 @@ struct fwnode_handle;
  * @dev_uevent:	Called when a device is added, removed from this class, or a
  *		few other things that generate uevents to add the environment
  *		variables.
- * @devnode:	Callback to provide the devtmpfs.
+ * @devanalde:	Callback to provide the devtmpfs.
  * @class_release: Called to release this class.
  * @dev_release: Called to release the device.
  * @shutdown_pre: Called at shut-down time before driver shutdown.
@@ -54,7 +54,7 @@ struct class {
 	const struct attribute_group	**dev_groups;
 
 	int (*dev_uevent)(const struct device *dev, struct kobj_uevent_env *env);
-	char *(*devnode)(const struct device *dev, umode_t *mode);
+	char *(*devanalde)(const struct device *dev, umode_t *mode);
 
 	void (*class_release)(const struct class *class);
 	void (*dev_release)(struct device *dev);
@@ -110,27 +110,27 @@ static inline struct device *class_find_device_by_name(const struct class *class
 }
 
 /**
- * class_find_device_by_of_node : device iterator for locating a particular device
- * matching the of_node.
+ * class_find_device_by_of_analde : device iterator for locating a particular device
+ * matching the of_analde.
  * @class: class type
- * @np: of_node of the device to match.
+ * @np: of_analde of the device to match.
  */
-static inline struct device *class_find_device_by_of_node(const struct class *class,
-							  const struct device_node *np)
+static inline struct device *class_find_device_by_of_analde(const struct class *class,
+							  const struct device_analde *np)
 {
-	return class_find_device(class, NULL, np, device_match_of_node);
+	return class_find_device(class, NULL, np, device_match_of_analde);
 }
 
 /**
- * class_find_device_by_fwnode : device iterator for locating a particular device
- * matching the fwnode.
+ * class_find_device_by_fwanalde : device iterator for locating a particular device
+ * matching the fwanalde.
  * @class: class type
- * @fwnode: fwnode of the device to match.
+ * @fwanalde: fwanalde of the device to match.
  */
-static inline struct device *class_find_device_by_fwnode(const struct class *class,
-							 const struct fwnode_handle *fwnode)
+static inline struct device *class_find_device_by_fwanalde(const struct class *class,
+							 const struct fwanalde_handle *fwanalde)
 {
-	return class_find_device(class, NULL, fwnode, device_match_fwnode);
+	return class_find_device(class, NULL, fwanalde, device_match_fwanalde);
 }
 
 /**
@@ -215,7 +215,7 @@ ssize_t show_class_attr_string(const struct class *class, const struct class_att
 			       char *buf);
 
 struct class_interface {
-	struct list_head	node;
+	struct list_head	analde;
 	const struct class	*class;
 
 	int (*add_dev)		(struct device *dev);

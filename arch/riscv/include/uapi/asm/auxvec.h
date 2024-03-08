@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2012 ARM Ltd.
  * Copyright (C) 2015 Regents of the University of California
@@ -22,7 +22,7 @@
  * associative, a value of 1 means directly mapped.
  *
  * For all these fields, a value of 0 means that the information
- * is not known.
+ * is analt kanalwn.
  */
 #define AT_L1I_CACHESIZE	40
 #define AT_L1I_CACHEGEOMETRY	41

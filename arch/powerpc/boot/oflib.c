@@ -102,8 +102,8 @@ static int string_match(const char *s1, const char *s2)
 
 /*
  * Older OF's require that when claiming a specific range of addresses,
- * we claim the physical space in the /memory node and the virtual
- * space in the chosen mmu node, and then do a map operation to
+ * we claim the physical space in the /memory analde and the virtual
+ * space in the chosen mmu analde, and then do a map operation to
  * map virtual to physical.
  */
 static int need_map = -1;
@@ -129,19 +129,19 @@ static int check_of_version(void)
 	if (chosen == (phandle) -1) {
 		chosen = of_finddevice("/chosen@0");
 		if (chosen == (phandle) -1) {
-			printf("no chosen\n");
+			printf("anal chosen\n");
 			return 0;
 		}
 	}
 	if (of_getprop(chosen, "mmu", &chosen_mmu, sizeof(chosen_mmu)) <= 0) {
-		printf("no mmu\n");
+		printf("anal mmu\n");
 		return 0;
 	}
 	memory = of_call_prom("open", 1, 1, "/memory");
 	if (memory == PROM_ERROR) {
 		memory = of_call_prom("open", 1, 1, "/memory@0");
 		if (memory == PROM_ERROR) {
-			printf("no memory node\n");
+			printf("anal memory analde\n");
 			return 0;
 		}
 	}
@@ -179,7 +179,7 @@ void *of_vmlinux_alloc(unsigned long size)
 	void *p;
 
 	/* With some older POWER4 firmware we need to claim the area the kernel
-	 * will reside in.  Newer firmwares don't need this so we just ignore
+	 * will reside in.  Newer firmwares don't need this so we just iganalre
 	 * the return value.
 	 */
 	addr = (unsigned long) of_claim(start, end - start, 0);

@@ -15,13 +15,13 @@ description:
   Device tree bindings for MSM Mobile Display Subsystem(MDSS) that encapsulates
   sub-blocks like DPU display controller, DSI and DP interfaces etc.
 
-# Do not select this by default, otherwise it is also selected for qcom,mdss
+# Do analt select this by default, otherwise it is also selected for qcom,mdss
 # devices.
 select:
   false
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^display-subsystem@[0-9a-f]+$"
 
   reg:
@@ -56,12 +56,12 @@ properties:
   iommus:
     minItems: 1
     items:
-      - description: Phandle to apps_smmu node with SID mask for Hard-Fail port0
-      - description: Phandle to apps_smmu node with SID mask for Hard-Fail port1
+      - description: Phandle to apps_smmu analde with SID mask for Hard-Fail port0
+      - description: Phandle to apps_smmu analde with SID mask for Hard-Fail port1
 
   ranges: true
 
-  # This is not a perfect description, but it's impossible to discern and match
+  # This is analt a perfect description, but it's impossible to discern and match
   # the entries like we do with interconnect-names
   interconnects:
     minItems: 1
@@ -90,7 +90,7 @@ properties:
   memory-region:
     maxItems: 1
     description:
-      Phandle to a node describing a reserved framebuffer memory region.
+      Phandle to a analde describing a reserved framebuffer memory region.
       For example, the splash memory region set up by the bootloader.
 
 required:

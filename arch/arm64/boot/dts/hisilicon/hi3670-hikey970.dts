@@ -57,11 +57,11 @@
 
 /*
  * Legend: proper name = the GPIO line is used as GPIO
- *         NC = not connected (pin out but not routed from the chip to
+ *         NC = analt connected (pin out but analt routed from the chip to
  *              anything the board)
- *         "[PER]" = pin is muxed for [peripheral] (not GPIO)
- *         "" = no idea, schematic doesn't say, could be
- *              unrouted (not connected to any external pin)
+ *         "[PER]" = pin is muxed for [peripheral] (analt GPIO)
+ *         "" = anal idea, schematic doesn't say, could be
+ *              unrouted (analt connected to any external pin)
  *         LSEC = Low Speed External Connector
  *         HSEC = High Speed External Connector
  *
@@ -393,7 +393,7 @@
 
 &dwmmc2 { /* WIFI */
 	bus-width = <0x4>;
-	non-removable;
+	analn-removable;
 	broken-cd;
 	cap-power-off-card;
 	pinctrl-names = "default";

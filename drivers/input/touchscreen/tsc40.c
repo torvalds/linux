@@ -86,7 +86,7 @@ static int tsc_connect(struct serio *serio, struct serio_driver *drv)
 	ptsc = kzalloc(sizeof(struct tsc_ser), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!ptsc || !input_dev) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail1;
 	}
 

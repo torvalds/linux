@@ -3,7 +3,7 @@
  * Driver for Video Capture/Differentiation Engine (VCD) and Encoding
  * Compression Engine (ECE) present on Nuvoton NPCM SoCs.
  *
- * Copyright (C) 2022 Nuvoton Technologies
+ * Copyright (C) 2022 Nuvoton Techanallogies
  */
 
 #include <linux/atomic.h>
@@ -492,7 +492,7 @@ static int npcm_video_find_rect(struct npcm_video *video,
 		info->list = npcm_video_new_rect(video, offset, info->index);
 		if (!info->list) {
 			dev_err(video->dev, "Failed to allocate rect_list\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		npcm_video_merge_rect(video, info);
@@ -669,7 +669,7 @@ static void npcm_video_kvm_bw(struct npcm_video *video, bool set_bw)
 static unsigned int npcm_video_pclk(struct npcm_video *video)
 {
 	struct regmap *gfxi = video->gfx_regmap;
-	unsigned int tmp, pllfbdiv, pllinotdiv, gpllfbdiv;
+	unsigned int tmp, pllfbdiv, pllianaltdiv, gpllfbdiv;
 	unsigned int gpllfbdv109, gpllfbdv8, gpllindiv;
 	unsigned int gpllst_pllotdiv1, gpllst_pllotdiv2;
 
@@ -686,11 +686,11 @@ static unsigned int npcm_video_pclk(struct npcm_video *video)
 	gpllfbdiv = FIELD_GET(GPLLFBDIV_MASK, tmp);
 
 	pllfbdiv = (512 * gpllfbdv109 + 256 * gpllfbdv8 + gpllfbdiv);
-	pllinotdiv = (gpllindiv * gpllst_pllotdiv1 * gpllst_pllotdiv2);
-	if (pllfbdiv == 0 || pllinotdiv == 0)
+	pllianaltdiv = (gpllindiv * gpllst_pllotdiv1 * gpllst_pllotdiv2);
+	if (pllfbdiv == 0 || pllianaltdiv == 0)
 		return 0;
 
-	return ((pllfbdiv * 25000) / pllinotdiv) * 1000;
+	return ((pllfbdiv * 25000) / pllianaltdiv) * 1000;
 }
 
 static unsigned int npcm_video_get_bpp(struct npcm_video *video)
@@ -709,7 +709,7 @@ static unsigned int npcm_video_get_bpp(struct npcm_video *video)
 
 /*
  * Pitch must be a power of 2, >= linebytes,
- * at least 512, and no more than 4096.
+ * at least 512, and anal more than 4096.
  */
 static void npcm_video_set_linepitch(struct npcm_video *video,
 				     unsigned int linebytes)
@@ -785,7 +785,7 @@ static int npcm_video_start_frame(struct npcm_video *video)
 	int ret;
 
 	if (video->v4l2_input_status) {
-		dev_dbg(video->dev, "No video signal; skip capture frame\n");
+		dev_dbg(video->dev, "Anal video signal; skip capture frame\n");
 		return 0;
 	}
 
@@ -801,7 +801,7 @@ static int npcm_video_start_frame(struct npcm_video *video)
 				       struct npcm_video_buffer, link);
 	if (!buf) {
 		mutex_unlock(&video->buffer_lock);
-		dev_dbg(video->dev, "No empty buffers; skip capture frame\n");
+		dev_dbg(video->dev, "Anal empty buffers; skip capture frame\n");
 		return 0;
 	}
 
@@ -863,7 +863,7 @@ static void npcm_video_detect_resolution(struct npcm_video *video)
 	struct regmap *gfxi = video->gfx_regmap;
 	unsigned int dispst;
 
-	video->v4l2_input_status = V4L2_IN_ST_NO_SIGNAL;
+	video->v4l2_input_status = V4L2_IN_ST_ANAL_SIGNAL;
 	det->width = npcm_video_hres(video);
 	det->height = npcm_video_vres(video);
 
@@ -981,7 +981,7 @@ static void npcm_video_stop(struct npcm_video *video)
 		npcm_video_free_fb(video, &video->src);
 
 	npcm_video_free_diff_table(video);
-	video->v4l2_input_status = V4L2_IN_ST_NO_SIGNAL;
+	video->v4l2_input_status = V4L2_IN_ST_ANAL_SIGNAL;
 	video->flags = 0;
 	video->ctrl_cmd = VCD_CMD_OPERATION_CAPTURE;
 
@@ -1064,7 +1064,7 @@ static irqreturn_t npcm_video_irq(int irq, void *arg)
 
 	if (test_bit(VIDEO_STOPPED, &video->flags) ||
 	    !test_bit(VIDEO_STREAMING, &video->flags))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (status & VCD_STAT_DONE) {
 		regmap_write(vcd, VCD_INTE, 0);
@@ -1074,7 +1074,7 @@ static irqreturn_t npcm_video_irq(int irq, void *arg)
 					       struct npcm_video_buffer, link);
 		if (!buf) {
 			mutex_unlock(&video->buffer_lock);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 
 		addr = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
@@ -1091,13 +1091,13 @@ static irqreturn_t npcm_video_irq(int irq, void *arg)
 			break;
 		default:
 			mutex_unlock(&video->buffer_lock);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 
 		vb2_set_plane_payload(&buf->vb.vb2_buf, 0, size);
 		buf->vb.vb2_buf.timestamp = ktime_get_ns();
 		buf->vb.sequence = video->sequence++;
-		buf->vb.field = V4L2_FIELD_NONE;
+		buf->vb.field = V4L2_FIELD_ANALNE;
 
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		list_del(&buf->link);
@@ -1160,11 +1160,11 @@ static int npcm_video_try_format(struct file *file, void *fh,
 
 	fmt = npcm_video_find_format(f);
 
-	/* If format not found or HEXTILE not supported, use RGB565 as default */
+	/* If format analt found or HEXTILE analt supported, use RGB565 as default */
 	if (!fmt || (fmt->fourcc == V4L2_PIX_FMT_HEXTILE && !video->ece.enable))
 		f->fmt.pix.pixelformat = npcm_fmt_list[0].fourcc;
 
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
 	f->fmt.pix.quantization = V4L2_QUANTIZATION_FULL_RANGE;
 	f->fmt.pix.width = video->pix_fmt.width;
@@ -1278,7 +1278,7 @@ static int npcm_video_query_dv_timings(struct file *file, void *fh,
 	timings->type = V4L2_DV_BT_656_1120;
 	timings->bt = video->detected_timings;
 
-	return video->v4l2_input_status ? -ENOLINK : 0;
+	return video->v4l2_input_status ? -EANALLINK : 0;
 }
 
 static int npcm_video_enum_dv_timings(struct file *file, void *fh,
@@ -1579,10 +1579,10 @@ static int npcm_video_setup_video(struct npcm_video *video)
 	else
 		video->pix_fmt.pixelformat = V4L2_PIX_FMT_RGB565;
 
-	video->pix_fmt.field = V4L2_FIELD_NONE;
+	video->pix_fmt.field = V4L2_FIELD_ANALNE;
 	video->pix_fmt.colorspace = V4L2_COLORSPACE_SRGB;
 	video->pix_fmt.quantization = V4L2_QUANTIZATION_FULL_RANGE;
-	video->v4l2_input_status = V4L2_IN_ST_NO_SIGNAL;
+	video->v4l2_input_status = V4L2_IN_ST_ANAL_SIGNAL;
 
 	rc = v4l2_device_register(video->dev, v4l2_dev);
 	if (rc) {
@@ -1611,7 +1611,7 @@ static int npcm_video_setup_video(struct npcm_video *video)
 	vbq->mem_ops = &vb2_dma_contig_memops;
 	vbq->drv_priv = video;
 	vbq->buf_struct_size = sizeof(struct npcm_video_buffer);
-	vbq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vbq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	vbq->min_queued_buffers = 3;
 
 	rc = vb2_queue_init(vbq);
@@ -1651,27 +1651,27 @@ rel_ctrl_handler:
 static int npcm_video_ece_init(struct npcm_video *video)
 {
 	struct device *dev = video->dev;
-	struct device_node *ece_node;
+	struct device_analde *ece_analde;
 	struct platform_device *ece_pdev;
 	void __iomem *regs;
 
-	ece_node = of_parse_phandle(video->dev->of_node, "nuvoton,ece", 0);
-	if (!ece_node) {
+	ece_analde = of_parse_phandle(video->dev->of_analde, "nuvoton,ece", 0);
+	if (!ece_analde) {
 		dev_err(dev, "Failed to get ECE phandle in DTS\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	video->ece.enable = of_device_is_available(ece_node);
+	video->ece.enable = of_device_is_available(ece_analde);
 
 	if (video->ece.enable) {
 		dev_info(dev, "Support HEXTILE pixel format\n");
 
-		ece_pdev = of_find_device_by_node(ece_node);
+		ece_pdev = of_find_device_by_analde(ece_analde);
 		if (IS_ERR(ece_pdev)) {
 			dev_err(dev, "Failed to find ECE device\n");
 			return PTR_ERR(ece_pdev);
 		}
-		of_node_put(ece_node);
+		of_analde_put(ece_analde);
 
 		regs = devm_platform_ioremap_resource(ece_pdev, 0);
 		if (IS_ERR(regs)) {
@@ -1701,10 +1701,10 @@ static int npcm_video_init(struct npcm_video *video)
 	struct device *dev = video->dev;
 	int irq, rc;
 
-	irq = irq_of_parse_and_map(dev->of_node, 0);
+	irq = irq_of_parse_and_map(dev->of_analde, 0);
 	if (!irq) {
 		dev_err(dev, "Failed to find VCD IRQ\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rc = devm_request_threaded_irq(dev, irq, NULL, npcm_video_irq,
@@ -1737,7 +1737,7 @@ static int npcm_video_probe(struct platform_device *pdev)
 	void __iomem *regs;
 
 	if (!video)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	video->dev = &pdev->dev;
 	mutex_init(&video->video_lock);
@@ -1763,12 +1763,12 @@ static int npcm_video_probe(struct platform_device *pdev)
 		return PTR_ERR(video->reset);
 	}
 
-	video->gcr_regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	video->gcr_regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 							    "nuvoton,sysgcr");
 	if (IS_ERR(video->gcr_regmap))
 		return PTR_ERR(video->gcr_regmap);
 
-	video->gfx_regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	video->gfx_regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 							    "nuvoton,sysgfxi");
 	if (IS_ERR(video->gfx_regmap))
 		return PTR_ERR(video->gfx_regmap);

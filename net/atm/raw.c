@@ -44,7 +44,7 @@ static void atm_pop_raw(struct atm_vcc *vcc, struct sk_buff *skb)
 static int atm_send_aal0(struct atm_vcc *vcc, struct sk_buff *skb)
 {
 	/*
-	 * Note that if vpi/vci are _ANY or _UNSPEC the below will
+	 * Analte that if vpi/vci are _ANY or _UNSPEC the below will
 	 * still work
 	 */
 	if (!capable(CAP_NET_ADMIN) &&
@@ -52,7 +52,7 @@ static int atm_send_aal0(struct atm_vcc *vcc, struct sk_buff *skb)
 	    ((vcc->vpi << ATM_HDR_VPI_SHIFT) |
 	     (vcc->vci << ATM_HDR_VCI_SHIFT))) {
 		kfree_skb(skb);
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	}
 	if (vcc->dev->ops->send_bh)
 		return vcc->dev->ops->send_bh(vcc, skb);

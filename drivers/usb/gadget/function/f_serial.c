@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2003 Al Borchers (alborchers@steinerpoint.com)
  * Copyright (C) 2008 by David Brownell
- * Copyright (C) 2008 by Nokia Corporation
+ * Copyright (C) 2008 by Analkia Corporation
  */
 
 #include <linux/slab.h>
@@ -16,10 +16,10 @@
 
 
 /*
- * This function packages a simple "generic serial" port with no real
+ * This function packages a simple "generic serial" port with anal real
  * control mechanisms, just raw data transfer over two bulk endpoints.
  *
- * Because it's not standardized, this isn't as interoperable as the
+ * Because it's analt standardized, this isn't as interoperable as the
  * CDC ACM driver.  However, for many purposes it's just as functional
  * if you can arrange appropriate host side drivers.
  */
@@ -148,7 +148,7 @@ static int gser_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	struct f_gser		*gser = func_to_gser(f);
 	struct usb_composite_dev *cdev = f->config->cdev;
 
-	/* we know alt == 0, so this is an activation or a reset */
+	/* we kanalw alt == 0, so this is an activation or a reset */
 
 	if (gser->port.in->enabled) {
 		dev_dbg(&cdev->gadget->dev,
@@ -209,7 +209,7 @@ static int gser_bind(struct usb_configuration *c, struct usb_function *f)
 	gser->data_id = status;
 	gser_interface_desc.bInterfaceNumber = status;
 
-	status = -ENODEV;
+	status = -EANALDEV;
 
 	/* allocate instance-specific endpoints */
 	ep = usb_ep_autoconfig(cdev->gadget, &gser_fs_in_desc);
@@ -319,7 +319,7 @@ static struct usb_function_instance *gser_alloc_inst(void)
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	opts->func_inst.free_func_inst = gser_free_inst;
 	ret = gserial_alloc_line(&opts->port_num);
@@ -372,7 +372,7 @@ static struct usb_function *gser_alloc(struct usb_function_instance *fi)
 	/* allocate and initialize one new instance */
 	gser = kzalloc(sizeof(*gser), GFP_KERNEL);
 	if (!gser)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	opts = container_of(fi, struct f_serial_opts, func_inst);
 

@@ -76,7 +76,7 @@ static int tricn_init(adapter_t *adapter)
 	int i, sme = 1;
 
 	if (!(readl(adapter->regs + A_ESPI_RX_RESET)  & F_RX_CLK_STATUS)) {
-		pr_err("%s: ESPI clock not ready\n", adapter->name);
+		pr_err("%s: ESPI clock analt ready\n", adapter->name);
 		return -1;
 	}
 
@@ -110,11 +110,11 @@ void t1_espi_intr_enable(struct peespi *espi)
 	u32 enable, pl_intr = readl(espi->adapter->regs + A_PL_ENABLE);
 
 	/*
-	 * Cannot enable ESPI interrupts on T1B because HW asserts the
+	 * Cananalt enable ESPI interrupts on T1B because HW asserts the
 	 * interrupt incorrectly, namely the driver gets ESPI interrupts
-	 * but no data is actually dropped (can verify this reading the ESPI
+	 * but anal data is actually dropped (can verify this reading the ESPI
 	 * drop registers).  Also, once the ESPI interrupt is asserted it
-	 * cannot be cleared (HW bug).
+	 * cananalt be cleared (HW bug).
 	 */
 	enable = t1_is_T1B(espi->adapter) ? 0 : ESPI_INTR_MASK;
 	writel(enable, espi->adapter->regs + A_ESPI_INTR_ENABLE);
@@ -204,7 +204,7 @@ static void espi_setup_for_vsc7321(adapter_t *adapter)
 }
 
 /*
- * Note that T1B requires at least 2 ports for IXF1010 due to a HW bug.
+ * Analte that T1B requires at least 2 ports for IXF1010 due to a HW bug.
  */
 static void espi_setup_for_ixf1010(adapter_t *adapter, int nports)
 {
@@ -331,7 +331,7 @@ u32 t1_espi_get_mon(adapter_t *adapter, u32 addr, u8 wait)
 /*
  * This function is for T204 only.
  * compare with t1_espi_get_mon(), it reads espiInTxSop[0 ~ 3] in
- * one shot, since there is no per port counter on the out side.
+ * one shot, since there is anal per port counter on the out side.
  */
 int t1_espi_get_mon_t204(adapter_t *adapter, u32 *valp, u8 wait)
 {

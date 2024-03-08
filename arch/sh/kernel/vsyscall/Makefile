@@ -5,11 +5,11 @@ $(obj)/vsyscall-syscall.o: $(obj)/vsyscall-trapa.so
 
 # Teach kbuild about targets
 targets += vsyscall-trapa.o vsyscall-traps.so
-targets += vsyscall-note.o vsyscall.lds vsyscall-dummy.o
+targets += vsyscall-analte.o vsyscall.lds vsyscall-dummy.o
 
 # The DSO images are built using a special linker script
 quiet_cmd_syscall = SYSCALL $@
-      cmd_syscall = $(CC) -nostdlib $(SYSCFLAGS_$(@F)) \
+      cmd_syscall = $(CC) -analstdlib $(SYSCFLAGS_$(@F)) \
 			   -Wl,-T,$(filter-out FORCE,$^) -o $@
 
 export CPPFLAGS_vsyscall.lds += -P -C -Ush
@@ -27,7 +27,7 @@ $(obj)/vsyscall-%.so: $(src)/vsyscall.lds $(obj)/vsyscall-%.o FORCE
 # these symbols in the kernel code rather than hand-coded addresses.
 SYSCFLAGS_vsyscall-dummy.o = -r
 $(obj)/vsyscall-dummy.o: $(src)/vsyscall.lds \
-			$(obj)/vsyscall-trapa.o $(obj)/vsyscall-note.o FORCE
+			$(obj)/vsyscall-trapa.o $(obj)/vsyscall-analte.o FORCE
 	$(call if_changed,syscall)
 
 LDFLAGS_vsyscall-syms.o := -r -R

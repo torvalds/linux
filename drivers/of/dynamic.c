@@ -4,7 +4,7 @@
  *
  * On some platforms, the device tree can be manipulated at runtime.
  * The routines in this section support adding, removing and changing
- * device tree nodes.
+ * device tree analdes.
  */
 
 #define pr_fmt(fmt)	"OF: " fmt
@@ -17,90 +17,90 @@
 
 #include "of_private.h"
 
-static struct device_node *kobj_to_device_node(struct kobject *kobj)
+static struct device_analde *kobj_to_device_analde(struct kobject *kobj)
 {
-	return container_of(kobj, struct device_node, kobj);
+	return container_of(kobj, struct device_analde, kobj);
 }
 
 /**
- * of_node_get() - Increment refcount of a node
- * @node:	Node to inc refcount, NULL is supported to simplify writing of
+ * of_analde_get() - Increment refcount of a analde
+ * @analde:	Analde to inc refcount, NULL is supported to simplify writing of
  *		callers
  *
- * Return: The node with refcount incremented.
+ * Return: The analde with refcount incremented.
  */
-struct device_node *of_node_get(struct device_node *node)
+struct device_analde *of_analde_get(struct device_analde *analde)
 {
-	if (node)
-		kobject_get(&node->kobj);
-	return node;
+	if (analde)
+		kobject_get(&analde->kobj);
+	return analde;
 }
-EXPORT_SYMBOL(of_node_get);
+EXPORT_SYMBOL(of_analde_get);
 
 /**
- * of_node_put() - Decrement refcount of a node
- * @node:	Node to dec refcount, NULL is supported to simplify writing of
+ * of_analde_put() - Decrement refcount of a analde
+ * @analde:	Analde to dec refcount, NULL is supported to simplify writing of
  *		callers
  */
-void of_node_put(struct device_node *node)
+void of_analde_put(struct device_analde *analde)
 {
-	if (node)
-		kobject_put(&node->kobj);
+	if (analde)
+		kobject_put(&analde->kobj);
 }
-EXPORT_SYMBOL(of_node_put);
+EXPORT_SYMBOL(of_analde_put);
 
-static BLOCKING_NOTIFIER_HEAD(of_reconfig_chain);
+static BLOCKING_ANALTIFIER_HEAD(of_reconfig_chain);
 
-int of_reconfig_notifier_register(struct notifier_block *nb)
+int of_reconfig_analtifier_register(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&of_reconfig_chain, nb);
+	return blocking_analtifier_chain_register(&of_reconfig_chain, nb);
 }
-EXPORT_SYMBOL_GPL(of_reconfig_notifier_register);
+EXPORT_SYMBOL_GPL(of_reconfig_analtifier_register);
 
-int of_reconfig_notifier_unregister(struct notifier_block *nb)
+int of_reconfig_analtifier_unregister(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&of_reconfig_chain, nb);
+	return blocking_analtifier_chain_unregister(&of_reconfig_chain, nb);
 }
-EXPORT_SYMBOL_GPL(of_reconfig_notifier_unregister);
+EXPORT_SYMBOL_GPL(of_reconfig_analtifier_unregister);
 
 static const char *action_names[] = {
 	[0] = "INVALID",
-	[OF_RECONFIG_ATTACH_NODE] = "ATTACH_NODE",
-	[OF_RECONFIG_DETACH_NODE] = "DETACH_NODE",
+	[OF_RECONFIG_ATTACH_ANALDE] = "ATTACH_ANALDE",
+	[OF_RECONFIG_DETACH_ANALDE] = "DETACH_ANALDE",
 	[OF_RECONFIG_ADD_PROPERTY] = "ADD_PROPERTY",
 	[OF_RECONFIG_REMOVE_PROPERTY] = "REMOVE_PROPERTY",
 	[OF_RECONFIG_UPDATE_PROPERTY] = "UPDATE_PROPERTY",
 };
 
-#define _do_print(func, prefix, action, node, prop, ...) ({	\
+#define _do_print(func, prefix, action, analde, prop, ...) ({	\
 	func("changeset: " prefix "%-15s %pOF%s%s\n",		\
-	     ##__VA_ARGS__, action_names[action], node,		\
+	     ##__VA_ARGS__, action_names[action], analde,		\
 	     prop ? ":" : "", prop ? prop->name : "");		\
 })
 #define of_changeset_action_err(...) _do_print(pr_err, __VA_ARGS__)
 #define of_changeset_action_debug(...) _do_print(pr_debug, __VA_ARGS__)
 
-int of_reconfig_notify(unsigned long action, struct of_reconfig_data *p)
+int of_reconfig_analtify(unsigned long action, struct of_reconfig_data *p)
 {
 	int rc;
 	struct of_reconfig_data *pr = p;
 
-	of_changeset_action_debug("notify: ", action, pr->dn, pr->prop);
+	of_changeset_action_debug("analtify: ", action, pr->dn, pr->prop);
 
-	rc = blocking_notifier_call_chain(&of_reconfig_chain, action, p);
-	return notifier_to_errno(rc);
+	rc = blocking_analtifier_call_chain(&of_reconfig_chain, action, p);
+	return analtifier_to_erranal(rc);
 }
 
 /*
  * of_reconfig_get_state_change()	- Returns new state of device
- * @action	- action of the of notifier
- * @arg		- argument of the of notifier
+ * @action	- action of the of analtifier
+ * @arg		- argument of the of analtifier
  *
- * Returns the new state of a device based on the notifier used.
+ * Returns the new state of a device based on the analtifier used.
  *
  * Return: OF_RECONFIG_CHANGE_REMOVE on device going from enabled to
  * disabled, OF_RECONFIG_CHANGE_ADD on device going from disabled to
- * enabled and OF_RECONFIG_NO_CHANGE on no change.
+ * enabled and OF_RECONFIG_ANAL_CHANGE on anal change.
  */
 int of_reconfig_get_state_change(unsigned long action, struct of_reconfig_data *pr)
 {
@@ -109,8 +109,8 @@ int of_reconfig_get_state_change(unsigned long action, struct of_reconfig_data *
 
 	/* figure out if a device should be created or destroyed */
 	switch (action) {
-	case OF_RECONFIG_ATTACH_NODE:
-	case OF_RECONFIG_DETACH_NODE:
+	case OF_RECONFIG_ATTACH_ANALDE:
+	case OF_RECONFIG_DETACH_ANALDE:
 		prop = of_find_property(pr->dn, "status", NULL);
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
@@ -122,7 +122,7 @@ int of_reconfig_get_state_change(unsigned long action, struct of_reconfig_data *
 		old_prop = pr->old_prop;
 		break;
 	default:
-		return OF_RECONFIG_NO_CHANGE;
+		return OF_RECONFIG_ANAL_CHANGE;
 	}
 
 	is_status = 0;
@@ -141,19 +141,19 @@ int of_reconfig_get_state_change(unsigned long action, struct of_reconfig_data *
 	}
 
 	switch (action) {
-	case OF_RECONFIG_ATTACH_NODE:
+	case OF_RECONFIG_ATTACH_ANALDE:
 		prev_state = 0;
 		/* -1 & 0 status either missing or okay */
 		new_state = status_state != 0;
 		break;
-	case OF_RECONFIG_DETACH_NODE:
+	case OF_RECONFIG_DETACH_ANALDE:
 		/* -1 & 0 status either missing or okay */
 		prev_state = status_state != 0;
 		new_state = 0;
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
 		if (is_status) {
-			/* no status property -> enabled (legacy) */
+			/* anal status property -> enabled (legacy) */
 			prev_state = 1;
 			new_state = status_state;
 		}
@@ -161,7 +161,7 @@ int of_reconfig_get_state_change(unsigned long action, struct of_reconfig_data *
 	case OF_RECONFIG_REMOVE_PROPERTY:
 		if (is_status) {
 			prev_state = status_state;
-			/* no status property -> enabled (legacy) */
+			/* anal status property -> enabled (legacy) */
 			new_state = 1;
 		}
 		break;
@@ -174,28 +174,28 @@ int of_reconfig_get_state_change(unsigned long action, struct of_reconfig_data *
 	}
 
 	if (prev_state == new_state)
-		return OF_RECONFIG_NO_CHANGE;
+		return OF_RECONFIG_ANAL_CHANGE;
 
 	return new_state ? OF_RECONFIG_CHANGE_ADD : OF_RECONFIG_CHANGE_REMOVE;
 }
 EXPORT_SYMBOL_GPL(of_reconfig_get_state_change);
 
-int of_property_notify(int action, struct device_node *np,
+int of_property_analtify(int action, struct device_analde *np,
 		       struct property *prop, struct property *oldprop)
 {
 	struct of_reconfig_data pr;
 
-	/* only call notifiers if the node is attached */
-	if (!of_node_is_attached(np))
+	/* only call analtifiers if the analde is attached */
+	if (!of_analde_is_attached(np))
 		return 0;
 
 	pr.dn = np;
 	pr.prop = prop;
 	pr.old_prop = oldprop;
-	return of_reconfig_notify(action, &pr);
+	return of_reconfig_analtify(action, &pr);
 }
 
-static void __of_attach_node(struct device_node *np)
+static void __of_attach_analde(struct device_analde *np)
 {
 	const __be32 *phandle;
 	int sz;
@@ -203,7 +203,7 @@ static void __of_attach_node(struct device_node *np)
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 
-	if (!of_node_check_flag(np, OF_OVERLAY)) {
+	if (!of_analde_check_flag(np, OF_OVERLAY)) {
 		np->name = __of_get_property(np, "name", NULL);
 		if (!np->name)
 			np->name = "<NULL>";
@@ -222,19 +222,19 @@ static void __of_attach_node(struct device_node *np)
 	np->child = NULL;
 	np->sibling = np->parent->child;
 	np->parent->child = np;
-	of_node_clear_flag(np, OF_DETACHED);
-	np->fwnode.flags |= FWNODE_FLAG_NOT_DEVICE;
+	of_analde_clear_flag(np, OF_DETACHED);
+	np->fwanalde.flags |= FWANALDE_FLAG_ANALT_DEVICE;
 
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 
-	__of_attach_node_sysfs(np);
+	__of_attach_analde_sysfs(np);
 }
 
 /**
- * of_attach_node() - Plug a device node into the tree and global list.
- * @np:		Pointer to the caller's Device Node
+ * of_attach_analde() - Plug a device analde into the tree and global list.
+ * @np:		Pointer to the caller's Device Analde
  */
-int of_attach_node(struct device_node *np)
+int of_attach_analde(struct device_analde *np)
 {
 	struct of_reconfig_data rd;
 
@@ -242,23 +242,23 @@ int of_attach_node(struct device_node *np)
 	rd.dn = np;
 
 	mutex_lock(&of_mutex);
-	__of_attach_node(np);
+	__of_attach_analde(np);
 	mutex_unlock(&of_mutex);
 
-	of_reconfig_notify(OF_RECONFIG_ATTACH_NODE, &rd);
+	of_reconfig_analtify(OF_RECONFIG_ATTACH_ANALDE, &rd);
 
 	return 0;
 }
 
-void __of_detach_node(struct device_node *np)
+void __of_detach_analde(struct device_analde *np)
 {
-	struct device_node *parent;
+	struct device_analde *parent;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 
 	parent = np->parent;
-	if (WARN_ON(of_node_check_flag(np, OF_DETACHED) || !parent)) {
+	if (WARN_ON(of_analde_check_flag(np, OF_DETACHED) || !parent)) {
 		raw_spin_unlock_irqrestore(&devtree_lock, flags);
 		return;
 	}
@@ -266,7 +266,7 @@ void __of_detach_node(struct device_node *np)
 	if (parent->child == np)
 		parent->child = np->sibling;
 	else {
-		struct device_node *prevsib;
+		struct device_analde *prevsib;
 		for (prevsib = np->parent->child;
 		     prevsib->sibling != np;
 		     prevsib = prevsib->sibling)
@@ -274,21 +274,21 @@ void __of_detach_node(struct device_node *np)
 		prevsib->sibling = np->sibling;
 	}
 
-	of_node_set_flag(np, OF_DETACHED);
+	of_analde_set_flag(np, OF_DETACHED);
 
-	/* race with of_find_node_by_phandle() prevented by devtree_lock */
+	/* race with of_find_analde_by_phandle() prevented by devtree_lock */
 	__of_phandle_cache_inv_entry(np->phandle);
 
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 
-	__of_detach_node_sysfs(np);
+	__of_detach_analde_sysfs(np);
 }
 
 /**
- * of_detach_node() - "Unplug" a node from the device tree.
- * @np:		Pointer to the caller's Device Node
+ * of_detach_analde() - "Unplug" a analde from the device tree.
+ * @np:		Pointer to the caller's Device Analde
  */
-int of_detach_node(struct device_node *np)
+int of_detach_analde(struct device_analde *np)
 {
 	struct of_reconfig_data rd;
 
@@ -296,14 +296,14 @@ int of_detach_node(struct device_node *np)
 	rd.dn = np;
 
 	mutex_lock(&of_mutex);
-	__of_detach_node(np);
+	__of_detach_analde(np);
 	mutex_unlock(&of_mutex);
 
-	of_reconfig_notify(OF_RECONFIG_DETACH_NODE, &rd);
+	of_reconfig_analtify(OF_RECONFIG_DETACH_ANALDE, &rd);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(of_detach_node);
+EXPORT_SYMBOL_GPL(of_detach_analde);
 
 static void property_list_free(struct property *prop_list)
 {
@@ -318,74 +318,74 @@ static void property_list_free(struct property *prop_list)
 }
 
 /**
- * of_node_release() - release a dynamically allocated node
- * @kobj: kernel object of the node to be released
+ * of_analde_release() - release a dynamically allocated analde
+ * @kobj: kernel object of the analde to be released
  *
- * In of_node_put() this function is passed to kref_put() as the destructor.
+ * In of_analde_put() this function is passed to kref_put() as the destructor.
  */
-void of_node_release(struct kobject *kobj)
+void of_analde_release(struct kobject *kobj)
 {
-	struct device_node *node = kobj_to_device_node(kobj);
+	struct device_analde *analde = kobj_to_device_analde(kobj);
 
 	/*
-	 * can not use '"%pOF", node' in pr_err() calls from this function
-	 * because an of_node_get(node) when refcount is already zero
+	 * can analt use '"%pOF", analde' in pr_err() calls from this function
+	 * because an of_analde_get(analde) when refcount is already zero
 	 * will result in an error and a stack dump
 	 */
 
-	/* We should never be releasing nodes that haven't been detached. */
-	if (!of_node_check_flag(node, OF_DETACHED)) {
+	/* We should never be releasing analdes that haven't been detached. */
+	if (!of_analde_check_flag(analde, OF_DETACHED)) {
 
-		pr_err("ERROR: %s() detected bad of_node_put() on %pOF/%s\n",
-			__func__, node->parent, node->full_name);
+		pr_err("ERROR: %s() detected bad of_analde_put() on %pOF/%s\n",
+			__func__, analde->parent, analde->full_name);
 
 		/*
-		 * of unittests will test this path.  Do not print the stack
+		 * of unittests will test this path.  Do analt print the stack
 		 * trace when the error is caused by unittest so that we do
-		 * not display what a normal developer might reasonably
+		 * analt display what a analrmal developer might reasonably
 		 * consider a real bug.
 		 */
 		if (!IS_ENABLED(CONFIG_OF_UNITTEST) ||
-		    strcmp(node->parent->full_name, "testcase-data")) {
+		    strcmp(analde->parent->full_name, "testcase-data")) {
 			dump_stack();
-			pr_err("ERROR: next of_node_put() on this node will result in a kobject warning 'refcount_t: underflow; use-after-free.'\n");
+			pr_err("ERROR: next of_analde_put() on this analde will result in a kobject warning 'refcount_t: underflow; use-after-free.'\n");
 		}
 
 		return;
 	}
-	if (!of_node_check_flag(node, OF_DYNAMIC))
+	if (!of_analde_check_flag(analde, OF_DYNAMIC))
 		return;
 
-	if (of_node_check_flag(node, OF_OVERLAY)) {
+	if (of_analde_check_flag(analde, OF_OVERLAY)) {
 
-		if (!of_node_check_flag(node, OF_OVERLAY_FREE_CSET)) {
-			/* premature refcount of zero, do not free memory */
+		if (!of_analde_check_flag(analde, OF_OVERLAY_FREE_CSET)) {
+			/* premature refcount of zero, do analt free memory */
 			pr_err("ERROR: memory leak before free overlay changeset,  %pOF\n",
-			       node);
+			       analde);
 			return;
 		}
 
 		/*
-		 * If node->properties non-empty then properties were added
-		 * to this node either by different overlay that has not
-		 * yet been removed, or by a non-overlay mechanism.
+		 * If analde->properties analn-empty then properties were added
+		 * to this analde either by different overlay that has analt
+		 * yet been removed, or by a analn-overlay mechanism.
 		 */
-		if (node->properties)
+		if (analde->properties)
 			pr_err("ERROR: %s(), unexpected properties in %pOF\n",
-			       __func__, node);
+			       __func__, analde);
 	}
 
-	if (node->child)
+	if (analde->child)
 		pr_err("ERROR: %s() unexpected children for %pOF/%s\n",
-			__func__, node->parent, node->full_name);
+			__func__, analde->parent, analde->full_name);
 
-	property_list_free(node->properties);
-	property_list_free(node->deadprops);
-	fwnode_links_purge(of_fwnode_handle(node));
+	property_list_free(analde->properties);
+	property_list_free(analde->deadprops);
+	fwanalde_links_purge(of_fwanalde_handle(analde));
 
-	kfree(node->full_name);
-	kfree(node->data);
-	kfree(node);
+	kfree(analde->full_name);
+	kfree(analde->data);
+	kfree(analde);
 }
 
 /**
@@ -396,7 +396,7 @@ void of_node_release(struct kobject *kobj)
  * Copy a property by dynamically allocating the memory of both the
  * property structure and the property name & contents. The property's
  * flags have the OF_DYNAMIC bit set so that we can differentiate between
- * dynamically allocated properties and not.
+ * dynamically allocated properties and analt.
  *
  * Return: The newly allocated property or NULL on out of memory error.
  */
@@ -409,7 +409,7 @@ struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags)
 		return NULL;
 
 	/*
-	 * NOTE: There is no check for zero length value.
+	 * ANALTE: There is anal check for zero length value.
 	 * In case of a boolean property, this will allocate a value
 	 * of zero bytes. We do this to work around the use
 	 * of of_get_property() calls on boolean values.
@@ -433,43 +433,43 @@ struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags)
 }
 
 /**
- * __of_node_dup() - Duplicate or create an empty device node dynamically.
- * @np:		if not NULL, contains properties to be duplicated in new node
- * @full_name:	string value to be duplicated into new node's full_name field
+ * __of_analde_dup() - Duplicate or create an empty device analde dynamically.
+ * @np:		if analt NULL, contains properties to be duplicated in new analde
+ * @full_name:	string value to be duplicated into new analde's full_name field
  *
- * Create a device tree node, optionally duplicating the properties of
- * another node.  The node data are dynamically allocated and all the node
+ * Create a device tree analde, optionally duplicating the properties of
+ * aanalther analde.  The analde data are dynamically allocated and all the analde
  * flags have the OF_DYNAMIC & OF_DETACHED bits set.
  *
- * Return: The newly allocated node or NULL on out of memory error.  Use
- * of_node_put() on it when done to free the memory allocated for it.
+ * Return: The newly allocated analde or NULL on out of memory error.  Use
+ * of_analde_put() on it when done to free the memory allocated for it.
  */
-struct device_node *__of_node_dup(const struct device_node *np,
+struct device_analde *__of_analde_dup(const struct device_analde *np,
 				  const char *full_name)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
+	analde = kzalloc(sizeof(*analde), GFP_KERNEL);
+	if (!analde)
 		return NULL;
-	node->full_name = kstrdup(full_name, GFP_KERNEL);
-	if (!node->full_name) {
-		kfree(node);
+	analde->full_name = kstrdup(full_name, GFP_KERNEL);
+	if (!analde->full_name) {
+		kfree(analde);
 		return NULL;
 	}
 
-	of_node_set_flag(node, OF_DYNAMIC);
-	of_node_set_flag(node, OF_DETACHED);
-	of_node_init(node);
+	of_analde_set_flag(analde, OF_DYNAMIC);
+	of_analde_set_flag(analde, OF_DETACHED);
+	of_analde_init(analde);
 
 	/* Iterate over and duplicate all properties */
 	if (np) {
 		struct property *pp, *new_pp;
-		for_each_property_of_node(np, pp) {
+		for_each_property_of_analde(np, pp) {
 			new_pp = __of_prop_dup(pp, GFP_KERNEL);
 			if (!new_pp)
 				goto err_prop;
-			if (__of_add_property(node, new_pp)) {
+			if (__of_add_property(analde, new_pp)) {
 				kfree(new_pp->name);
 				kfree(new_pp->value);
 				kfree(new_pp);
@@ -477,59 +477,59 @@ struct device_node *__of_node_dup(const struct device_node *np,
 			}
 		}
 	}
-	return node;
+	return analde;
 
  err_prop:
-	of_node_put(node); /* Frees the node and properties */
+	of_analde_put(analde); /* Frees the analde and properties */
 	return NULL;
 }
 
 /**
- * of_changeset_create_node - Dynamically create a device node and attach to
+ * of_changeset_create_analde - Dynamically create a device analde and attach to
  * a given changeset.
  *
  * @ocs: Pointer to changeset
- * @parent: Pointer to parent device node
- * @full_name: Node full name
+ * @parent: Pointer to parent device analde
+ * @full_name: Analde full name
  *
- * Return: Pointer to the created device node or NULL in case of an error.
+ * Return: Pointer to the created device analde or NULL in case of an error.
  */
-struct device_node *of_changeset_create_node(struct of_changeset *ocs,
-					     struct device_node *parent,
+struct device_analde *of_changeset_create_analde(struct of_changeset *ocs,
+					     struct device_analde *parent,
 					     const char *full_name)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
-	np = __of_node_dup(NULL, full_name);
+	np = __of_analde_dup(NULL, full_name);
 	if (!np)
 		return NULL;
 	np->parent = parent;
 
-	ret = of_changeset_attach_node(ocs, np);
+	ret = of_changeset_attach_analde(ocs, np);
 	if (ret) {
-		of_node_put(np);
+		of_analde_put(np);
 		return NULL;
 	}
 
 	return np;
 }
-EXPORT_SYMBOL(of_changeset_create_node);
+EXPORT_SYMBOL(of_changeset_create_analde);
 
 static void __of_changeset_entry_destroy(struct of_changeset_entry *ce)
 {
-	if (ce->action == OF_RECONFIG_ATTACH_NODE &&
-	    of_node_check_flag(ce->np, OF_OVERLAY)) {
+	if (ce->action == OF_RECONFIG_ATTACH_ANALDE &&
+	    of_analde_check_flag(ce->np, OF_OVERLAY)) {
 		if (kref_read(&ce->np->kobj.kref) > 1) {
-			pr_err("ERROR: memory leak, expected refcount 1 instead of %d, of_node_get()/of_node_put() unbalanced - destroy cset entry: attach overlay node %pOF\n",
+			pr_err("ERROR: memory leak, expected refcount 1 instead of %d, of_analde_get()/of_analde_put() unbalanced - destroy cset entry: attach overlay analde %pOF\n",
 			       kref_read(&ce->np->kobj.kref), ce->np);
 		} else {
-			of_node_set_flag(ce->np, OF_OVERLAY_FREE_CSET);
+			of_analde_set_flag(ce->np, OF_OVERLAY_FREE_CSET);
 		}
 	}
 
-	of_node_put(ce->np);
-	list_del(&ce->node);
+	of_analde_put(ce->np);
+	list_del(&ce->analde);
 	kfree(ce);
 }
 
@@ -539,11 +539,11 @@ static void __of_changeset_entry_invert(struct of_changeset_entry *ce,
 	memcpy(rce, ce, sizeof(*rce));
 
 	switch (ce->action) {
-	case OF_RECONFIG_ATTACH_NODE:
-		rce->action = OF_RECONFIG_DETACH_NODE;
+	case OF_RECONFIG_ATTACH_ANALDE:
+		rce->action = OF_RECONFIG_DETACH_ANALDE;
 		break;
-	case OF_RECONFIG_DETACH_NODE:
-		rce->action = OF_RECONFIG_ATTACH_NODE;
+	case OF_RECONFIG_DETACH_ANALDE:
+		rce->action = OF_RECONFIG_ATTACH_ANALDE;
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
 		rce->action = OF_RECONFIG_REMOVE_PROPERTY;
@@ -554,7 +554,7 @@ static void __of_changeset_entry_invert(struct of_changeset_entry *ce,
 	case OF_RECONFIG_UPDATE_PROPERTY:
 		rce->old_prop = ce->prop;
 		rce->prop = ce->old_prop;
-		/* update was used but original property did not exist */
+		/* update was used but original property did analt exist */
 		if (!rce->prop) {
 			rce->action = OF_RECONFIG_REMOVE_PROPERTY;
 			rce->prop = ce->prop;
@@ -563,7 +563,7 @@ static void __of_changeset_entry_invert(struct of_changeset_entry *ce,
 	}
 }
 
-static int __of_changeset_entry_notify(struct of_changeset_entry *ce,
+static int __of_changeset_entry_analtify(struct of_changeset_entry *ce,
 		bool revert)
 {
 	struct of_reconfig_data rd;
@@ -576,16 +576,16 @@ static int __of_changeset_entry_notify(struct of_changeset_entry *ce,
 	}
 
 	switch (ce->action) {
-	case OF_RECONFIG_ATTACH_NODE:
-	case OF_RECONFIG_DETACH_NODE:
+	case OF_RECONFIG_ATTACH_ANALDE:
+	case OF_RECONFIG_DETACH_ANALDE:
 		memset(&rd, 0, sizeof(rd));
 		rd.dn = ce->np;
-		ret = of_reconfig_notify(ce->action, &rd);
+		ret = of_reconfig_analtify(ce->action, &rd);
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
 	case OF_RECONFIG_REMOVE_PROPERTY:
 	case OF_RECONFIG_UPDATE_PROPERTY:
-		ret = of_property_notify(ce->action, ce->np, ce->prop, ce->old_prop);
+		ret = of_property_analtify(ce->action, ce->np, ce->prop, ce->old_prop);
 		break;
 	default:
 		pr_err("invalid devicetree changeset action: %i\n",
@@ -594,7 +594,7 @@ static int __of_changeset_entry_notify(struct of_changeset_entry *ce,
 	}
 
 	if (ret)
-		pr_err("changeset notifier error @%pOF\n", ce->np);
+		pr_err("changeset analtifier error @%pOF\n", ce->np);
 	return ret;
 }
 
@@ -605,11 +605,11 @@ static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
 	of_changeset_action_debug("apply: ", ce->action, ce->np, ce->prop);
 
 	switch (ce->action) {
-	case OF_RECONFIG_ATTACH_NODE:
-		__of_attach_node(ce->np);
+	case OF_RECONFIG_ATTACH_ANALDE:
+		__of_attach_analde(ce->np);
 		break;
-	case OF_RECONFIG_DETACH_NODE:
-		__of_detach_node(ce->np);
+	case OF_RECONFIG_DETACH_ANALDE:
+		__of_detach_analde(ce->np);
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
 		ret = __of_add_property(ce->np, ce->prop);
@@ -660,14 +660,14 @@ EXPORT_SYMBOL_GPL(of_changeset_init);
  *
  * @ocs:	changeset pointer
  *
- * Destroys a changeset. Note that if a changeset is applied,
- * its changes to the tree cannot be reverted.
+ * Destroys a changeset. Analte that if a changeset is applied,
+ * its changes to the tree cananalt be reverted.
  */
 void of_changeset_destroy(struct of_changeset *ocs)
 {
 	struct of_changeset_entry *ce, *cen;
 
-	list_for_each_entry_safe_reverse(ce, cen, &ocs->entries, node)
+	list_for_each_entry_safe_reverse(ce, cen, &ocs->entries, analde)
 		__of_changeset_entry_destroy(ce);
 }
 EXPORT_SYMBOL_GPL(of_changeset_destroy);
@@ -688,12 +688,12 @@ int __of_changeset_apply_entries(struct of_changeset *ocs, int *ret_revert)
 	int ret, ret_tmp;
 
 	pr_debug("changeset: applying...\n");
-	list_for_each_entry(ce, &ocs->entries, node) {
+	list_for_each_entry(ce, &ocs->entries, analde) {
 		ret = __of_changeset_entry_apply(ce);
 		if (ret) {
 			pr_err("Error applying changeset (%d)\n", ret);
 			list_for_each_entry_continue_reverse(ce, &ocs->entries,
-							     node) {
+							     analde) {
 				ret_tmp = __of_changeset_entry_revert(ce);
 				if (ret_tmp)
 					*ret_revert = ret_tmp;
@@ -708,25 +708,25 @@ int __of_changeset_apply_entries(struct of_changeset *ocs, int *ret_revert)
 /*
  * Returns 0 on success, a negative error value in case of an error.
  *
- * If multiple changeset entry notification errors occur then only the
- * final notification error is reported.
+ * If multiple changeset entry analtification errors occur then only the
+ * final analtification error is reported.
  */
-int __of_changeset_apply_notify(struct of_changeset *ocs)
+int __of_changeset_apply_analtify(struct of_changeset *ocs)
 {
 	struct of_changeset_entry *ce;
 	int ret = 0, ret_tmp;
 
-	pr_debug("changeset: emitting notifiers.\n");
+	pr_debug("changeset: emitting analtifiers.\n");
 
-	/* drop the global lock while emitting notifiers */
+	/* drop the global lock while emitting analtifiers */
 	mutex_unlock(&of_mutex);
-	list_for_each_entry(ce, &ocs->entries, node) {
-		ret_tmp = __of_changeset_entry_notify(ce, 0);
+	list_for_each_entry(ce, &ocs->entries, analde) {
+		ret_tmp = __of_changeset_entry_analtify(ce, 0);
 		if (ret_tmp)
 			ret = ret_tmp;
 	}
 	mutex_lock(&of_mutex);
-	pr_debug("changeset: notifiers sent.\n");
+	pr_debug("changeset: analtifiers sent.\n");
 
 	return ret;
 }
@@ -736,8 +736,8 @@ int __of_changeset_apply_notify(struct of_changeset *ocs)
  *
  * If a changeset entry apply fails, an attempt is made to revert any
  * previous entries in the changeset.  If any of the reverts fails,
- * that failure is not reported.  Thus the state of the device tree
- * is unknown if an apply error occurs.
+ * that failure is analt reported.  Thus the state of the device tree
+ * is unkanalwn if an apply error occurs.
  */
 static int __of_changeset_apply(struct of_changeset *ocs)
 {
@@ -745,7 +745,7 @@ static int __of_changeset_apply(struct of_changeset *ocs)
 
 	ret = __of_changeset_apply_entries(ocs, &ret_revert);
 	if (!ret)
-		ret = __of_changeset_apply_notify(ocs);
+		ret = __of_changeset_apply_analtify(ocs);
 
 	return ret;
 }
@@ -792,11 +792,11 @@ int __of_changeset_revert_entries(struct of_changeset *ocs, int *ret_apply)
 	int ret, ret_tmp;
 
 	pr_debug("changeset: reverting...\n");
-	list_for_each_entry_reverse(ce, &ocs->entries, node) {
+	list_for_each_entry_reverse(ce, &ocs->entries, analde) {
 		ret = __of_changeset_entry_revert(ce);
 		if (ret) {
 			pr_err("Error reverting changeset (%d)\n", ret);
-			list_for_each_entry_continue(ce, &ocs->entries, node) {
+			list_for_each_entry_continue(ce, &ocs->entries, analde) {
 				ret_tmp = __of_changeset_entry_apply(ce);
 				if (ret_tmp)
 					*ret_apply = ret_tmp;
@@ -809,25 +809,25 @@ int __of_changeset_revert_entries(struct of_changeset *ocs, int *ret_apply)
 }
 
 /*
- * If multiple changeset entry notification errors occur then only the
- * final notification error is reported.
+ * If multiple changeset entry analtification errors occur then only the
+ * final analtification error is reported.
  */
-int __of_changeset_revert_notify(struct of_changeset *ocs)
+int __of_changeset_revert_analtify(struct of_changeset *ocs)
 {
 	struct of_changeset_entry *ce;
 	int ret = 0, ret_tmp;
 
-	pr_debug("changeset: emitting notifiers.\n");
+	pr_debug("changeset: emitting analtifiers.\n");
 
-	/* drop the global lock while emitting notifiers */
+	/* drop the global lock while emitting analtifiers */
 	mutex_unlock(&of_mutex);
-	list_for_each_entry_reverse(ce, &ocs->entries, node) {
-		ret_tmp = __of_changeset_entry_notify(ce, 1);
+	list_for_each_entry_reverse(ce, &ocs->entries, analde) {
+		ret_tmp = __of_changeset_entry_analtify(ce, 1);
 		if (ret_tmp)
 			ret = ret_tmp;
 	}
 	mutex_lock(&of_mutex);
-	pr_debug("changeset: notifiers sent.\n");
+	pr_debug("changeset: analtifiers sent.\n");
 
 	return ret;
 }
@@ -840,7 +840,7 @@ static int __of_changeset_revert(struct of_changeset *ocs)
 	ret = __of_changeset_revert_entries(ocs, &ret_reply);
 
 	if (!ret)
-		ret = __of_changeset_revert_notify(ocs);
+		ret = __of_changeset_revert_analtify(ocs);
 
 	return ret;
 }
@@ -874,12 +874,12 @@ EXPORT_SYMBOL_GPL(of_changeset_revert);
  *
  * @ocs:	changeset pointer
  * @action:	action to perform
- * @np:		Pointer to device node
+ * @np:		Pointer to device analde
  * @prop:	Pointer to property
  *
  * On action being one of:
- * + OF_RECONFIG_ATTACH_NODE
- * + OF_RECONFIG_DETACH_NODE,
+ * + OF_RECONFIG_ATTACH_ANALDE
+ * + OF_RECONFIG_DETACH_ANALDE,
  * + OF_RECONFIG_ADD_PROPERTY
  * + OF_RECONFIG_REMOVE_PROPERTY,
  * + OF_RECONFIG_UPDATE_PROPERTY
@@ -887,7 +887,7 @@ EXPORT_SYMBOL_GPL(of_changeset_revert);
  * Return: 0 on success, a negative error value in case of an error.
  */
 int of_changeset_action(struct of_changeset *ocs, unsigned long action,
-		struct device_node *np, struct property *prop)
+		struct device_analde *np, struct property *prop)
 {
 	struct of_changeset_entry *ce;
 
@@ -896,21 +896,21 @@ int of_changeset_action(struct of_changeset *ocs, unsigned long action,
 
 	ce = kzalloc(sizeof(*ce), GFP_KERNEL);
 	if (!ce)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* get a reference to the node */
+	/* get a reference to the analde */
 	ce->action = action;
-	ce->np = of_node_get(np);
+	ce->np = of_analde_get(np);
 	ce->prop = prop;
 
 	/* add it to the list */
-	list_add_tail(&ce->node, &ocs->entries);
+	list_add_tail(&ce->analde, &ocs->entries);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_changeset_action);
 
 static int of_changeset_add_prop_helper(struct of_changeset *ocs,
-					struct device_node *np,
+					struct device_analde *np,
 					const struct property *pp)
 {
 	struct property *new_pp;
@@ -918,7 +918,7 @@ static int of_changeset_add_prop_helper(struct of_changeset *ocs,
 
 	new_pp = __of_prop_dup(pp, GFP_KERNEL);
 	if (!new_pp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_changeset_add_property(ocs, np, new_pp);
 	if (ret) {
@@ -934,7 +934,7 @@ static int of_changeset_add_prop_helper(struct of_changeset *ocs,
  * of_changeset_add_prop_string - Add a string property to a changeset
  *
  * @ocs:	changeset pointer
- * @np:		device node pointer
+ * @np:		device analde pointer
  * @prop_name:	name of the property to be added
  * @str:	pointer to null terminated string
  *
@@ -943,7 +943,7 @@ static int of_changeset_add_prop_helper(struct of_changeset *ocs,
  * Return: 0 on success, a negative error value in case of an error.
  */
 int of_changeset_add_prop_string(struct of_changeset *ocs,
-				 struct device_node *np,
+				 struct device_analde *np,
 				 const char *prop_name, const char *str)
 {
 	struct property prop;
@@ -961,7 +961,7 @@ EXPORT_SYMBOL_GPL(of_changeset_add_prop_string);
  * a changeset
  *
  * @ocs:	changeset pointer
- * @np:		device node pointer
+ * @np:		device analde pointer
  * @prop_name:	name of the property to be added
  * @str_array:	pointer to an array of null terminated strings
  * @sz:		number of string array elements
@@ -971,7 +971,7 @@ EXPORT_SYMBOL_GPL(of_changeset_add_prop_string);
  * Return: 0 on success, a negative error value in case of an error.
  */
 int of_changeset_add_prop_string_array(struct of_changeset *ocs,
-				       struct device_node *np,
+				       struct device_analde *np,
 				       const char *prop_name,
 				       const char **str_array, size_t sz)
 {
@@ -987,7 +987,7 @@ int of_changeset_add_prop_string_array(struct of_changeset *ocs,
 
 	prop.value = kmalloc(prop.length, GFP_KERNEL);
 	if (!prop.value)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vp = prop.value;
 	for (i = 0; i < sz; i++) {
@@ -1006,7 +1006,7 @@ EXPORT_SYMBOL_GPL(of_changeset_add_prop_string_array);
  * property to a changeset
  *
  * @ocs:	changeset pointer
- * @np:		device node pointer
+ * @np:		device analde pointer
  * @prop_name:	name of the property to be added
  * @array:	pointer to an array of 32 bit integers
  * @sz:		number of array elements
@@ -1016,7 +1016,7 @@ EXPORT_SYMBOL_GPL(of_changeset_add_prop_string_array);
  * Return: 0 on success, a negative error value in case of an error.
  */
 int of_changeset_add_prop_u32_array(struct of_changeset *ocs,
-				    struct device_node *np,
+				    struct device_analde *np,
 				    const char *prop_name,
 				    const u32 *array, size_t sz)
 {
@@ -1026,7 +1026,7 @@ int of_changeset_add_prop_u32_array(struct of_changeset *ocs,
 
 	val = kcalloc(sz, sizeof(__be32), GFP_KERNEL);
 	if (!val)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < sz; i++)
 		val[i] = cpu_to_be32(array[i]);

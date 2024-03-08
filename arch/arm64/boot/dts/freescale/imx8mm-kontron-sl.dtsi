@@ -63,7 +63,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "mxicy,mx25r1635f", "jedec,spi-nor";
+		compatible = "mxicy,mx25r1635f", "jedec,spi-analr";
 		spi-max-frequency = <80000000>;
 		reg = <0>;
 
@@ -214,7 +214,7 @@
 	vmmc-supply = <&reg_vdd_3v3>;
 	vqmmc-supply = <&reg_vdd_1v8>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

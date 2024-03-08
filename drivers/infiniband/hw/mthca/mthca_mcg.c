@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -57,7 +57,7 @@ static const u8 zero_gid[16];	/* automatically initialized to 0 */
  * if GID is found in AMGM, *index = index in AMGM, *prev = index of
  * previous entry in hash chain and *mgm holds AMGM entry.
  *
- * If no AMGM exists for given gid, *index = -1, *prev = index of last
+ * If anal AMGM exists for given gid, *index = -1, *prev = index of last
  * entry in hash chain and *mgm holds end of hash chain.
  */
 static int find_mgm(struct mthca_dev *dev,
@@ -71,7 +71,7 @@ static int find_mgm(struct mthca_dev *dev,
 
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
 	if (IS_ERR(mailbox))
-		return -ENOMEM;
+		return -EANALMEM;
 	mgid = mailbox->buf;
 
 	memcpy(mgid, gid, 16);
@@ -147,8 +147,8 @@ int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 
 		index = mthca_alloc(&dev->mcg_table.alloc);
 		if (index == -1) {
-			mthca_err(dev, "No AMGM entries left\n");
-			err = -ENOMEM;
+			mthca_err(dev, "Anal AMGM entries left\n");
+			err = -EANALMEM;
 			goto out;
 		}
 
@@ -174,7 +174,7 @@ int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 
 	if (i == MTHCA_QP_PER_MGM) {
 		mthca_err(dev, "MGM at index %x is full.\n", index);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -233,7 +233,7 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		goto out;
 
 	if (index == -1) {
-		mthca_err(dev, "MGID %pI6 not found\n", gid->raw);
+		mthca_err(dev, "MGID %pI6 analt found\n", gid->raw);
 		err = -EINVAL;
 		goto out;
 	}
@@ -246,7 +246,7 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	}
 
 	if (loc == -1) {
-		mthca_err(dev, "QP %06x not found in MGM\n", ibqp->qp_num);
+		mthca_err(dev, "QP %06x analt found in MGM\n", ibqp->qp_num);
 		err = -EINVAL;
 		goto out;
 	}

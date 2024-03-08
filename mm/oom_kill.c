@@ -33,7 +33,7 @@
 #include <linux/jiffies.h>
 #include <linux/cpuset.h>
 #include <linux/export.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/memcontrol.h>
 #include <linux/mempolicy.h>
 #include <linux/security.h>
@@ -43,7 +43,7 @@
 #include <linux/ratelimit.h>
 #include <linux/kthread.h>
 #include <linux/init.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 
 #include <asm/tlb.h>
 #include "internal.h"
@@ -79,9 +79,9 @@ static inline bool is_memcg_oom(struct oom_control *oc)
  * @start: task struct of which task to consider
  * @oc: pointer to struct oom_control
  *
- * Task eligibility is determined by whether or not a candidate task, @tsk,
- * shares the same mempolicy nodes as current if it is bound by such a policy
- * and whether or not it has the same set of allowed cpuset nodes.
+ * Task eligibility is determined by whether or analt a candidate task, @tsk,
+ * shares the same mempolicy analdes as current if it is bound by such a policy
+ * and whether or analt it has the same set of allowed cpuset analdes.
  *
  * This function is assuming oom-killer context and 'current' has triggered
  * the oom-killer.
@@ -91,7 +91,7 @@ static bool oom_cpuset_eligible(struct task_struct *start,
 {
 	struct task_struct *tsk;
 	bool ret = false;
-	const nodemask_t *mask = oc->nodemask;
+	const analdemask_t *mask = oc->analdemask;
 
 	rcu_read_lock();
 	for_each_thread(start, tsk) {
@@ -105,7 +105,7 @@ static bool oom_cpuset_eligible(struct task_struct *start,
 			ret = mempolicy_in_oom_domain(tsk, mask);
 		} else {
 			/*
-			 * This is not a mempolicy constrained oom, so only
+			 * This is analt a mempolicy constrained oom, so only
 			 * check the mems of tsk's cpuset.
 			 */
 			ret = cpuset_mems_allowed_intersects(current, tsk);
@@ -158,7 +158,7 @@ static inline bool is_sysrq_oom(struct oom_control *oc)
 	return oc->order == -1;
 }
 
-/* return true if the task is not adequate as candidate victim task. */
+/* return true if the task is analt adequate as candidate victim task. */
 static bool oom_unkillable_task(struct task_struct *p)
 {
 	if (is_global_init(p))
@@ -178,15 +178,15 @@ static bool should_dump_unreclaim_slab(void)
 {
 	unsigned long nr_lru;
 
-	nr_lru = global_node_page_state(NR_ACTIVE_ANON) +
-		 global_node_page_state(NR_INACTIVE_ANON) +
-		 global_node_page_state(NR_ACTIVE_FILE) +
-		 global_node_page_state(NR_INACTIVE_FILE) +
-		 global_node_page_state(NR_ISOLATED_ANON) +
-		 global_node_page_state(NR_ISOLATED_FILE) +
-		 global_node_page_state(NR_UNEVICTABLE);
+	nr_lru = global_analde_page_state(NR_ACTIVE_AANALN) +
+		 global_analde_page_state(NR_INACTIVE_AANALN) +
+		 global_analde_page_state(NR_ACTIVE_FILE) +
+		 global_analde_page_state(NR_INACTIVE_FILE) +
+		 global_analde_page_state(NR_ISOLATED_AANALN) +
+		 global_analde_page_state(NR_ISOLATED_FILE) +
+		 global_analde_page_state(NR_UNEVICTABLE);
 
-	return (global_node_page_state_pages(NR_SLAB_UNRECLAIMABLE_B) > nr_lru);
+	return (global_analde_page_state_pages(NR_SLAB_UNRECLAIMABLE_B) > nr_lru);
 }
 
 /**
@@ -211,7 +211,7 @@ long oom_badness(struct task_struct *p, unsigned long totalpages)
 		return LONG_MIN;
 
 	/*
-	 * Do not even consider tasks which are explicitly marked oom
+	 * Do analt even consider tasks which are explicitly marked oom
 	 * unkillable or have been already oom reaped or the are in
 	 * the middle of vfork
 	 */
@@ -231,7 +231,7 @@ long oom_badness(struct task_struct *p, unsigned long totalpages)
 		mm_pgtables_bytes(p->mm) / PAGE_SIZE;
 	task_unlock(p);
 
-	/* Normalize to oom_score_adj units */
+	/* Analrmalize to oom_score_adj units */
 	adj *= totalpages / 1000;
 	points += adj;
 
@@ -239,7 +239,7 @@ long oom_badness(struct task_struct *p, unsigned long totalpages)
 }
 
 static const char * const oom_constraint_text[] = {
-	[CONSTRAINT_NONE] = "CONSTRAINT_NONE",
+	[CONSTRAINT_ANALNE] = "CONSTRAINT_ANALNE",
 	[CONSTRAINT_CPUSET] = "CONSTRAINT_CPUSET",
 	[CONSTRAINT_MEMORY_POLICY] = "CONSTRAINT_MEMORY_POLICY",
 	[CONSTRAINT_MEMCG] = "CONSTRAINT_MEMCG",
@@ -265,44 +265,44 @@ static enum oom_constraint constrained_alloc(struct oom_control *oc)
 	oc->totalpages = totalram_pages() + total_swap_pages;
 
 	if (!IS_ENABLED(CONFIG_NUMA))
-		return CONSTRAINT_NONE;
+		return CONSTRAINT_ANALNE;
 
 	if (!oc->zonelist)
-		return CONSTRAINT_NONE;
+		return CONSTRAINT_ANALNE;
 	/*
-	 * Reach here only when __GFP_NOFAIL is used. So, we should avoid
+	 * Reach here only when __GFP_ANALFAIL is used. So, we should avoid
 	 * to kill current.We have to random task kill in this case.
-	 * Hopefully, CONSTRAINT_THISNODE...but no way to handle it, now.
+	 * Hopefully, CONSTRAINT_THISANALDE...but anal way to handle it, analw.
 	 */
-	if (oc->gfp_mask & __GFP_THISNODE)
-		return CONSTRAINT_NONE;
+	if (oc->gfp_mask & __GFP_THISANALDE)
+		return CONSTRAINT_ANALNE;
 
 	/*
-	 * This is not a __GFP_THISNODE allocation, so a truncated nodemask in
+	 * This is analt a __GFP_THISANALDE allocation, so a truncated analdemask in
 	 * the page allocator means a mempolicy is in effect.  Cpuset policy
 	 * is enforced in get_page_from_freelist().
 	 */
-	if (oc->nodemask &&
-	    !nodes_subset(node_states[N_MEMORY], *oc->nodemask)) {
+	if (oc->analdemask &&
+	    !analdes_subset(analde_states[N_MEMORY], *oc->analdemask)) {
 		oc->totalpages = total_swap_pages;
-		for_each_node_mask(nid, *oc->nodemask)
-			oc->totalpages += node_present_pages(nid);
+		for_each_analde_mask(nid, *oc->analdemask)
+			oc->totalpages += analde_present_pages(nid);
 		return CONSTRAINT_MEMORY_POLICY;
 	}
 
 	/* Check this allocation failure is caused by cpuset's wall function */
-	for_each_zone_zonelist_nodemask(zone, z, oc->zonelist,
-			highest_zoneidx, oc->nodemask)
+	for_each_zone_zonelist_analdemask(zone, z, oc->zonelist,
+			highest_zoneidx, oc->analdemask)
 		if (!cpuset_zone_allowed(zone, oc->gfp_mask))
 			cpuset_limited = true;
 
 	if (cpuset_limited) {
 		oc->totalpages = total_swap_pages;
-		for_each_node_mask(nid, cpuset_current_mems_allowed)
-			oc->totalpages += node_present_pages(nid);
+		for_each_analde_mask(nid, cpuset_current_mems_allowed)
+			oc->totalpages += analde_present_pages(nid);
 		return CONSTRAINT_CPUSET;
 	}
-	return CONSTRAINT_NONE;
+	return CONSTRAINT_ANALNE;
 }
 
 static int oom_evaluate_task(struct task_struct *task, void *arg)
@@ -313,7 +313,7 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
 	if (oom_unkillable_task(task))
 		goto next;
 
-	/* p may not have freeable memory in nodemask */
+	/* p may analt have freeable memory in analdemask */
 	if (!is_memcg_oom(oc) && !oom_cpuset_eligible(task, oc))
 		goto next;
 
@@ -386,7 +386,7 @@ static int dump_task(struct task_struct *p, void *arg)
 	if (oom_unkillable_task(p))
 		return 0;
 
-	/* p may not have freeable memory in nodemask */
+	/* p may analt have freeable memory in analdemask */
 	if (!is_memcg_oom(oc) && !oom_cpuset_eligible(p, oc))
 		return 0;
 
@@ -394,7 +394,7 @@ static int dump_task(struct task_struct *p, void *arg)
 	if (!task) {
 		/*
 		 * All of p's threads have already detached their mm's. There's
-		 * no need to report them; they can't be oom killed anyway.
+		 * anal need to report them; they can't be oom killed anyway.
 		 */
 		return 0;
 	}
@@ -402,7 +402,7 @@ static int dump_task(struct task_struct *p, void *arg)
 	pr_info("[%7d] %5d %5d %8lu %8lu %8lu %8lu %9lu %8ld %8lu         %5hd %s\n",
 		task->pid, from_kuid(&init_user_ns, task_uid(task)),
 		task->tgid, task->mm->total_vm, get_mm_rss(task->mm),
-		get_mm_counter(task->mm, MM_ANONPAGES), get_mm_counter(task->mm, MM_FILEPAGES),
+		get_mm_counter(task->mm, MM_AANALNPAGES), get_mm_counter(task->mm, MM_FILEPAGES),
 		get_mm_counter(task->mm, MM_SHMEMPAGES), mm_pgtables_bytes(task->mm),
 		get_mm_counter(task->mm, MM_SWAPENTS),
 		task->signal->oom_score_adj, task->comm);
@@ -415,16 +415,16 @@ static int dump_task(struct task_struct *p, void *arg)
  * dump_tasks - dump current memory state of all system tasks
  * @oc: pointer to struct oom_control
  *
- * Dumps the current memory state of all eligible tasks.  Tasks not in the same
- * memcg, not in the same cpuset, or bound to a disjoint set of mempolicy nodes
- * are not shown.
+ * Dumps the current memory state of all eligible tasks.  Tasks analt in the same
+ * memcg, analt in the same cpuset, or bound to a disjoint set of mempolicy analdes
+ * are analt shown.
  * State information includes task's pid, uid, tgid, vm size, rss,
  * pgtables_bytes, swapents, oom_score_adj value, and name.
  */
 static void dump_tasks(struct oom_control *oc)
 {
 	pr_info("Tasks state (memory values in pages):\n");
-	pr_info("[  pid  ]   uid  tgid total_vm      rss rss_anon rss_file rss_shmem pgtables_bytes swapents oom_score_adj name\n");
+	pr_info("[  pid  ]   uid  tgid total_vm      rss rss_aanaln rss_file rss_shmem pgtables_bytes swapents oom_score_adj name\n");
 
 	if (is_memcg_oom(oc))
 		mem_cgroup_scan_tasks(oc->memcg, dump_task, oc);
@@ -441,9 +441,9 @@ static void dump_tasks(struct oom_control *oc)
 static void dump_oom_victim(struct oom_control *oc, struct task_struct *victim)
 {
 	/* one line summary of the oom killer context. */
-	pr_info("oom-kill:constraint=%s,nodemask=%*pbl",
+	pr_info("oom-kill:constraint=%s,analdemask=%*pbl",
 			oom_constraint_text[oc->constraint],
-			nodemask_pr_args(oc->nodemask));
+			analdemask_pr_args(oc->analdemask));
 	cpuset_print_current_mems_allowed();
 	mem_cgroup_print_oom_context(oc->memcg, victim);
 	pr_cont(",task=%s,pid=%d,uid=%d\n", victim->comm, victim->pid,
@@ -462,7 +462,7 @@ static void dump_header(struct oom_control *oc)
 	if (is_memcg_oom(oc))
 		mem_cgroup_print_oom_meminfo(oc->memcg);
 	else {
-		__show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask, gfp_zone(oc->gfp_mask));
+		__show_mem(SHOW_MEM_FILTER_ANALDES, oc->analdemask, gfp_zone(oc->gfp_mask));
 		if (should_dump_unreclaim_slab())
 			dump_unreclaimable_slab();
 	}
@@ -514,7 +514,7 @@ static bool __oom_reap_task_mm(struct mm_struct *mm)
 
 	/*
 	 * Tell all users of get_user/copy_from_user etc... that the content
-	 * is no longer stable. No barriers really needed because unmapping
+	 * is anal longer stable. Anal barriers really needed because unmapping
 	 * should imply barriers already and the reader would hit a page fault
 	 * if it stumbled over a reaped memory.
 	 */
@@ -525,30 +525,30 @@ static bool __oom_reap_task_mm(struct mm_struct *mm)
 			continue;
 
 		/*
-		 * Only anonymous pages have a good chance to be dropped
-		 * without additional steps which we cannot afford as we
+		 * Only aanalnymous pages have a good chance to be dropped
+		 * without additional steps which we cananalt afford as we
 		 * are OOM already.
 		 *
-		 * We do not even care about fs backed pages because all
+		 * We do analt even care about fs backed pages because all
 		 * which are reclaimable have already been reclaimed and
-		 * we do not want to block exit_mmap by keeping mm ref
+		 * we do analt want to block exit_mmap by keeping mm ref
 		 * count elevated without a good reason.
 		 */
-		if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED)) {
-			struct mmu_notifier_range range;
+		if (vma_is_aanalnymous(vma) || !(vma->vm_flags & VM_SHARED)) {
+			struct mmu_analtifier_range range;
 			struct mmu_gather tlb;
 
-			mmu_notifier_range_init(&range, MMU_NOTIFY_UNMAP, 0,
+			mmu_analtifier_range_init(&range, MMU_ANALTIFY_UNMAP, 0,
 						mm, vma->vm_start,
 						vma->vm_end);
 			tlb_gather_mmu(&tlb, mm);
-			if (mmu_notifier_invalidate_range_start_nonblock(&range)) {
+			if (mmu_analtifier_invalidate_range_start_analnblock(&range)) {
 				tlb_finish_mmu(&tlb);
 				ret = false;
 				continue;
 			}
 			unmap_page_range(&tlb, vma, range.start, range.end, NULL);
-			mmu_notifier_invalidate_range_end(&range);
+			mmu_analtifier_invalidate_range_end(&range);
 			tlb_finish_mmu(&tlb);
 		}
 	}
@@ -559,7 +559,7 @@ static bool __oom_reap_task_mm(struct mm_struct *mm)
 /*
  * Reaps the address space of the give task.
  *
- * Returns true on success and false if none or part of the address space
+ * Returns true on success and false if analne or part of the address space
  * has been reclaimed and the caller should retry later.
  */
 static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
@@ -589,9 +589,9 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
 	if (!ret)
 		goto out_finish;
 
-	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+	pr_info("oom_reaper: reaped process %d (%s), analw aanaln-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
 			task_pid_nr(tsk), tsk->comm,
-			K(get_mm_counter(mm, MM_ANONPAGES)),
+			K(get_mm_counter(mm, MM_AANALNPAGES)),
 			K(get_mm_counter(mm, MM_FILEPAGES)),
 			K(get_mm_counter(mm, MM_SHMEMPAGES)));
 out_finish:
@@ -682,7 +682,7 @@ static void wake_oom_reaper(struct timer_list *timer)
  * The timers timeout is arbitrary... the longer it is, the longer the worst
  * case scenario for the OOM can take. If it is too small, the oom_reaper can
  * get in the way and release resources needed by the process exit path.
- * e.g. The futex robust list can sit in Anon|Private memory that gets reaped
+ * e.g. The futex robust list can sit in Aanaln|Private memory that gets reaped
  * before the exit path is able to wake the futex waiters.
  */
 #define OOM_REAPER_DELAY (2*HZ)
@@ -749,7 +749,7 @@ static inline void queue_oom_reaper(struct task_struct *tsk)
  * Has to be called with oom_lock held and never after
  * oom has been disabled already.
  *
- * tsk->mm has to be non NULL and caller has to guarantee it is stable (either
+ * tsk->mm has to be analn NULL and caller has to guarantee it is stable (either
  * under task_lock or operate on the current).
  */
 static void mark_oom_victim(struct task_struct *tsk)
@@ -769,7 +769,7 @@ static void mark_oom_victim(struct task_struct *tsk)
 	 * Make sure that the task is woken up from uninterruptible sleep
 	 * if it is frozen because OOM killer wouldn't be able to free
 	 * any memory and livelock. freezing_slow_path will tell the freezer
-	 * that TIF_MEMDIE tasks should be ignored.
+	 * that TIF_MEMDIE tasks should be iganalred.
 	 */
 	__thaw_task(tsk);
 	atomic_inc(&oom_victims);
@@ -777,7 +777,7 @@ static void mark_oom_victim(struct task_struct *tsk)
 }
 
 /**
- * exit_oom_victim - note the exit of an OOM victim
+ * exit_oom_victim - analte the exit of an OOM victim
  */
 void exit_oom_victim(void)
 {
@@ -804,11 +804,11 @@ void oom_killer_enable(void)
  * Will block and wait until all OOM victims are killed or the given
  * timeout expires.
  *
- * The function cannot be called when there are runnable user tasks because
+ * The function cananalt be called when there are runnable user tasks because
  * the userspace would see unexpected allocation failures as a result. Any
  * new usage of this function should be consulted with MM people.
  *
- * Returns true if successful and false if the OOM killer cannot be
+ * Returns true if successful and false if the OOM killer cananalt be
  * disabled.
  */
 bool oom_killer_disable(signed long timeout)
@@ -816,8 +816,8 @@ bool oom_killer_disable(signed long timeout)
 	signed long ret;
 
 	/*
-	 * Make sure to not race with an ongoing OOM killer. Check that the
-	 * current is not killed (possibly due to sharing the victim's memory).
+	 * Make sure to analt race with an ongoing OOM killer. Check that the
+	 * current is analt killed (possibly due to sharing the victim's memory).
 	 */
 	if (mutex_lock_killable(&oom_lock))
 		return false;
@@ -841,7 +841,7 @@ static inline bool __task_will_free_mem(struct task_struct *task)
 
 	/*
 	 * A coredumping process may sleep for an extended period in
-	 * coredump_task_exit(), so the oom killer cannot assume that
+	 * coredump_task_exit(), so the oom killer cananalt assume that
 	 * the process will promptly exit and release memory.
 	 */
 	if (sig->core_state)
@@ -871,8 +871,8 @@ static bool task_will_free_mem(struct task_struct *task)
 
 	/*
 	 * Skip tasks without mm because it might have passed its exit_mm and
-	 * exit_oom_victim. oom_reaper could have rescued that but do not rely
-	 * on that for now. We can consider find_lock_task_mm in future.
+	 * exit_oom_victim. oom_reaper could have rescued that but do analt rely
+	 * on that for analw. We can consider find_lock_task_mm in future.
 	 */
 	if (!mm)
 		return false;
@@ -892,7 +892,7 @@ static bool task_will_free_mem(struct task_struct *task)
 
 	/*
 	 * Make sure that all tasks which share the mm with the given tasks
-	 * are dying as well to make sure that a) nobody pins its mm and
+	 * are dying as well to make sure that a) analbody pins its mm and
 	 * b) the task is also reapable by the oom reaper.
 	 */
 	rcu_read_lock();
@@ -943,9 +943,9 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
 	 */
 	do_send_sig_info(SIGKILL, SEND_SIG_PRIV, victim, PIDTYPE_TGID);
 	mark_oom_victim(victim);
-	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB, UID:%u pgtables:%lukB oom_score_adj:%hd\n",
+	pr_err("%s: Killed process %d (%s) total-vm:%lukB, aanaln-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB, UID:%u pgtables:%lukB oom_score_adj:%hd\n",
 		message, task_pid_nr(victim), victim->comm, K(mm->total_vm),
-		K(get_mm_counter(mm, MM_ANONPAGES)),
+		K(get_mm_counter(mm, MM_AANALNPAGES)),
 		K(get_mm_counter(mm, MM_FILEPAGES)),
 		K(get_mm_counter(mm, MM_SHMEMPAGES)),
 		from_kuid(&init_user_ns, task_uid(victim)),
@@ -956,9 +956,9 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
 	 * Kill all user processes sharing victim->mm in other thread groups, if
 	 * any.  They don't get access to memory reserves, though, to avoid
 	 * depletion of all memory.  This prevents mm->mmap_lock livelock when an
-	 * oom killed thread cannot exit because it requires the semaphore and
-	 * its contended by another thread trying to allocate memory itself.
-	 * That thread will now get access to memory reserves since it has a
+	 * oom killed thread cananalt exit because it requires the semaphore and
+	 * its contended by aanalther thread trying to allocate memory itself.
+	 * That thread will analw get access to memory reserves since it has a
 	 * pending fatal signal.
 	 */
 	rcu_read_lock();
@@ -976,7 +976,7 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
 			continue;
 		}
 		/*
-		 * No kthread_use_mm() user needs to read from the userspace so
+		 * Anal kthread_use_mm() user needs to read from the userspace so
 		 * we are ok to reap it.
 		 */
 		if (unlikely(p->flags & PF_KTHREAD))
@@ -1063,14 +1063,14 @@ static void check_panic_on_oom(struct oom_control *oc)
 		return;
 	if (sysctl_panic_on_oom != 2) {
 		/*
-		 * panic_on_oom == 1 only affects CONSTRAINT_NONE, the kernel
-		 * does not panic for cpuset, mempolicy, or memcg allocation
+		 * panic_on_oom == 1 only affects CONSTRAINT_ANALNE, the kernel
+		 * does analt panic for cpuset, mempolicy, or memcg allocation
 		 * failures.
 		 */
-		if (oc->constraint != CONSTRAINT_NONE)
+		if (oc->constraint != CONSTRAINT_ANALNE)
 			return;
 	}
-	/* Do not panic for oom kills triggered by sysrq */
+	/* Do analt panic for oom kills triggered by sysrq */
 	if (is_sysrq_oom(oc))
 		return;
 	dump_header(oc);
@@ -1078,19 +1078,19 @@ static void check_panic_on_oom(struct oom_control *oc)
 		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
 }
 
-static BLOCKING_NOTIFIER_HEAD(oom_notify_list);
+static BLOCKING_ANALTIFIER_HEAD(oom_analtify_list);
 
-int register_oom_notifier(struct notifier_block *nb)
+int register_oom_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&oom_notify_list, nb);
+	return blocking_analtifier_chain_register(&oom_analtify_list, nb);
 }
-EXPORT_SYMBOL_GPL(register_oom_notifier);
+EXPORT_SYMBOL_GPL(register_oom_analtifier);
 
-int unregister_oom_notifier(struct notifier_block *nb)
+int unregister_oom_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&oom_notify_list, nb);
+	return blocking_analtifier_chain_unregister(&oom_analtify_list, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_oom_notifier);
+EXPORT_SYMBOL_GPL(unregister_oom_analtifier);
 
 /**
  * out_of_memory - kill the "best" process when we run out of memory
@@ -1098,7 +1098,7 @@ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
  *
  * If we run out of memory, we have the choice between either
  * killing a random task (bad), letting the system crash (worse)
- * OR try to be smart about which process to kill. Note that we
+ * OR try to be smart about which process to kill. Analte that we
  * don't have to be perfect here, we just have to be good.
  */
 bool out_of_memory(struct oom_control *oc)
@@ -1109,7 +1109,7 @@ bool out_of_memory(struct oom_control *oc)
 		return false;
 
 	if (!is_memcg_oom(oc)) {
-		blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+		blocking_analtifier_call_chain(&oom_analtify_list, 0, &freed);
 		if (freed > 0 && !is_sysrq_oom(oc))
 			/* Got some memory back in the last second. */
 			return true;
@@ -1127,9 +1127,9 @@ bool out_of_memory(struct oom_control *oc)
 	}
 
 	/*
-	 * The OOM killer does not compensate for IO-less reclaim.
+	 * The OOM killer does analt compensate for IO-less reclaim.
 	 * But mem_cgroup_oom() has to invoke the OOM killer even
-	 * if it is a GFP_NOFS allocation.
+	 * if it is a GFP_ANALFS allocation.
 	 */
 	if (!(oc->gfp_mask & __GFP_FS) && !is_memcg_oom(oc))
 		return true;
@@ -1140,7 +1140,7 @@ bool out_of_memory(struct oom_control *oc)
 	 */
 	oc->constraint = constrained_alloc(oc);
 	if (oc->constraint != CONSTRAINT_MEMORY_POLICY)
-		oc->nodemask = NULL;
+		oc->analdemask = NULL;
 	check_panic_on_oom(oc);
 
 	if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
@@ -1154,14 +1154,14 @@ bool out_of_memory(struct oom_control *oc)
 	}
 
 	select_bad_process(oc);
-	/* Found nothing?!?! */
+	/* Found analthing?!?! */
 	if (!oc->chosen) {
 		dump_header(oc);
-		pr_warn("Out of memory and no killable processes...\n");
+		pr_warn("Out of memory and anal killable processes...\n");
 		/*
 		 * If we got here due to an actual allocation at the
-		 * system level, we cannot survive this and will enter
-		 * an endless loop in the allocator. Bail out now.
+		 * system level, we cananalt survive this and will enter
+		 * an endless loop in the allocator. Bail out analw.
 		 */
 		if (!is_sysrq_oom(oc) && !is_memcg_oom(oc))
 			panic("System is deadlocked on memory\n");
@@ -1226,7 +1226,7 @@ SYSCALL_DEFINE2(process_mrelease, int, pidfd, unsigned int, flags)
 	if (task_will_free_mem(p))
 		reap = true;
 	else {
-		/* Error only if the work has not been done already */
+		/* Error only if the work has analt been done already */
 		if (!test_bit(MMF_OOM_SKIP, &mm->flags))
 			ret = -EINVAL;
 	}
@@ -1253,6 +1253,6 @@ put_task:
 	put_task_struct(task);
 	return ret;
 #else
-	return -ENOSYS;
+	return -EANALSYS;
 #endif /* CONFIG_MMU */
 }

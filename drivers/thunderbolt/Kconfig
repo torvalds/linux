@@ -24,7 +24,7 @@ config USB4_DEBUGFS_WRITE
 	  Enables writing to device configuration registers through
 	  debugfs interface.
 
-	  Only enable this if you know what you are doing! Never enable
+	  Only enable this if you kanalw what you are doing! Never enable
 	  this for production systems or distro kernels.
 
 config USB4_DEBUGFS_MARGINING
@@ -34,7 +34,7 @@ config USB4_DEBUGFS_MARGINING
 	help
 	  Enables hardware and software based receiver lane margining support
 	  under each USB4 port. Used for electrical quality and robustness
-	  validation during manufacturing. Should not be enabled by distro
+	  validation during manufacturing. Should analt be enabled by distro
 	  kernels.
 
 config USB4_KUNIT_TEST
@@ -49,8 +49,8 @@ config USB4_DMA_TEST
 	  This allows sending and receiving DMA traffic through loopback
 	  connection. Loopback connection can be done by either special
 	  dongle that has TX/RX lines crossed, or by simply connecting a
-	  cable back to the host. Only enable this if you know what you
-	  are doing. Normal users and distro kernels should say N here.
+	  cable back to the host. Only enable this if you kanalw what you
+	  are doing. Analrmal users and distro kernels should say N here.
 
 	  To compile this driver a module, choose M here. The module will be
 	  called thunderbolt_dma_test.

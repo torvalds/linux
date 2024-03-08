@@ -87,7 +87,7 @@ static irqreturn_t mv88e639x_pcs_handle_irq(int irq, void *dev_id)
 
 	handler = READ_ONCE(mpcs->handle_irq);
 	if (!handler)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	return handler(mpcs);
 }
@@ -138,7 +138,7 @@ static irqreturn_t mv88e639x_sgmii_handle_irq(struct mv88e639x_pcs *mpcs)
 
 	err = mv88e639x_read(mpcs, MV88E6390_SGMII_INT_STATUS, &int_status);
 	if (err)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (int_status & (MV88E6390_SGMII_INT_LINK_DOWN |
 			  MV88E6390_SGMII_INT_LINK_UP)) {
@@ -148,7 +148,7 @@ static irqreturn_t mv88e639x_sgmii_handle_irq(struct mv88e639x_pcs *mpcs)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int mv88e639x_sgmii_pcs_control_irq(struct mv88e639x_pcs *mpcs,
@@ -216,7 +216,7 @@ static int mv88e6390_erratum_3_14(struct mv88e639x_pcs *mpcs)
 
 	/* 88e6190x and 88e6390x errata 3.14:
 	 * After chip reset, SERDES reconfiguration or SERDES core
-	 * Software Reset, the SERDES lanes may not be properly aligned
+	 * Software Reset, the SERDES lanes may analt be properly aligned
 	 * resulting in CRC errors
 	 */
 
@@ -482,7 +482,7 @@ static irqreturn_t mv88e6390_xg_handle_irq(struct mv88e639x_pcs *mpcs)
 
 	err = mv88e639x_read(mpcs, MV88E6390_10G_INT_STATUS, &int_status);
 	if (err)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (int_status & (MV88E6390_10G_INT_LINK_DOWN |
 			  MV88E6390_10G_INT_LINK_UP)) {
@@ -492,7 +492,7 @@ static irqreturn_t mv88e6390_xg_handle_irq(struct mv88e639x_pcs *mpcs)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int mv88e6390_xg_control_irq(struct mv88e639x_pcs *mpcs, bool enable)
@@ -559,7 +559,7 @@ static int mv88e6390_pcs_init(struct mv88e6xxx_chip *chip, int port)
 
 	mpcs = mv88e639x_pcs_alloc(dev, bus, lane, port);
 	if (!mpcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mpcs->sgmii_pcs.ops = &mv88e639x_sgmii_pcs_ops;
 	mpcs->sgmii_pcs.neg_mode = true;
@@ -609,7 +609,7 @@ static int mv88e6393x_power_lane(struct mv88e639x_pcs *mpcs, bool enable)
 }
 
 /* mv88e6393x family errata 4.6:
- * Cannot clear PwrDn bit on SERDES if device is configured CPU_MGD mode or
+ * Cananalt clear PwrDn bit on SERDES if device is configured CPU_MGD mode or
  * P0_mode is configured for [x]MII.
  * Workaround: Set SERDES register 4.F002 bit 5=0 and bit 15=1.
  *
@@ -640,7 +640,7 @@ static int mv88e6393x_erratum_4_6(struct mv88e639x_pcs *mpcs)
 }
 
 /* mv88e6393x family errata 4.8:
- * When a SERDES port is operating in 1000BASE-X or SGMII mode link may not
+ * When a SERDES port is operating in 1000BASE-X or SGMII mode link may analt
  * come up after hardware reset or software reset of SERDES core. Workaround
  * is to write SERDES register 4.F074.14=1 for only those modes and 0 in all
  * other modes.
@@ -669,7 +669,7 @@ static int mv88e6393x_erratum_4_8(struct mv88e639x_pcs *mpcs)
 /* mv88e6393x family errata 5.2:
  * For optimal signal integrity the following sequence should be applied to
  * SERDES operating in 10G mode. These registers only apply to 10G operation
- * and have no effect on other speeds.
+ * and have anal effect on other speeds.
  */
 static int mv88e6393x_erratum_5_2(struct mv88e639x_pcs *mpcs)
 {
@@ -707,7 +707,7 @@ static int mv88e6393x_erratum_5_2(struct mv88e639x_pcs *mpcs)
  * It seem that when we do this configuration to 2500base-x mode (by changing
  * PCS mode to 1000base-x and frequency to 3.125 GHz from 1.25 GHz) and then
  * configure to sgmii or 1000base-x, the device thinks that it already has
- * SerDes at 1.25 GHz and does not change the 1e.8000 register, leaving SerDes
+ * SerDes at 1.25 GHz and does analt change the 1e.8000 register, leaving SerDes
  * at 3.125 GHz.
  * To avoid this, change PCS mode back to 2500base-x when disabling SerDes from
  * 2500base-x mode.
@@ -812,12 +812,12 @@ static irqreturn_t mv88e6393x_xg_handle_irq(struct mv88e639x_pcs *mpcs)
 
 	err = mv88e639x_read(mpcs, MV88E6393X_10G_INT_STATUS, &int_status);
 	if (err)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (int_status & MV88E6393X_10G_INT_LINK_CHANGE) {
 		err = mv88e639x_read(mpcs, MV88E6390_10G_STAT1, &stat1);
 		if (err)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 
 		link_down = !(stat1 & MDIO_STAT1_LSTATUS);
 
@@ -826,7 +826,7 @@ static irqreturn_t mv88e6393x_xg_handle_irq(struct mv88e639x_pcs *mpcs)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int mv88e6393x_xg_control_irq(struct mv88e639x_pcs *mpcs, bool enable)
@@ -938,7 +938,7 @@ static int mv88e6393x_pcs_init(struct mv88e6xxx_chip *chip, int port)
 
 	mpcs = mv88e639x_pcs_alloc(dev, bus, lane, port);
 	if (!mpcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mpcs->sgmii_pcs.ops = &mv88e6393x_sgmii_pcs_ops;
 	mpcs->sgmii_pcs.neg_mode = true;

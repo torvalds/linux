@@ -7,7 +7,7 @@
 typedef Elf64_Fdesc func_desc_t;
 #endif
 
-/* nothing to see, move along */
+/* analthing to see, move along */
 #include <asm-generic/sections.h>
 
 extern char __alt_instructions[], __alt_instructions_end[];

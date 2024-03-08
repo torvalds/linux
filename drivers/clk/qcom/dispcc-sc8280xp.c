@@ -2519,14 +2519,14 @@ static struct clk_branch disp1_cc_mdss_mdp_lut_clk = {
 	},
 };
 
-static struct clk_branch disp0_cc_mdss_non_gdsc_ahb_clk = {
+static struct clk_branch disp0_cc_mdss_analn_gdsc_ahb_clk = {
 	.halt_reg = 0x4004,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0x4004,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "disp0_cc_mdss_non_gdsc_ahb_clk",
+			.name = "disp0_cc_mdss_analn_gdsc_ahb_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&disp0_cc_mdss_ahb_clk_src.clkr.hw,
 			},
@@ -2537,14 +2537,14 @@ static struct clk_branch disp0_cc_mdss_non_gdsc_ahb_clk = {
 	},
 };
 
-static struct clk_branch disp1_cc_mdss_non_gdsc_ahb_clk = {
+static struct clk_branch disp1_cc_mdss_analn_gdsc_ahb_clk = {
 	.halt_reg = 0x4004,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0x4004,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "disp1_cc_mdss_non_gdsc_ahb_clk",
+			.name = "disp1_cc_mdss_analn_gdsc_ahb_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&disp1_cc_mdss_ahb_clk_src.clkr.hw,
 			},
@@ -2940,7 +2940,7 @@ static struct clk_regmap *disp0_cc_sc8280xp_clocks[] = {
 	[DISP_CC_MDSS_MDP_CLK_SRC] = &disp0_cc_mdss_mdp_clk_src.clkr,
 	[DISP_CC_MDSS_MDP_LUT1_CLK] = &disp0_cc_mdss_mdp_lut1_clk.clkr,
 	[DISP_CC_MDSS_MDP_LUT_CLK] = &disp0_cc_mdss_mdp_lut_clk.clkr,
-	[DISP_CC_MDSS_NON_GDSC_AHB_CLK] = &disp0_cc_mdss_non_gdsc_ahb_clk.clkr,
+	[DISP_CC_MDSS_ANALN_GDSC_AHB_CLK] = &disp0_cc_mdss_analn_gdsc_ahb_clk.clkr,
 	[DISP_CC_MDSS_PCLK0_CLK] = &disp0_cc_mdss_pclk0_clk.clkr,
 	[DISP_CC_MDSS_PCLK0_CLK_SRC] = &disp0_cc_mdss_pclk0_clk_src.clkr,
 	[DISP_CC_MDSS_PCLK1_CLK] = &disp0_cc_mdss_pclk1_clk.clkr,
@@ -3022,7 +3022,7 @@ static struct clk_regmap *disp1_cc_sc8280xp_clocks[] = {
 	[DISP_CC_MDSS_MDP_CLK_SRC] = &disp1_cc_mdss_mdp_clk_src.clkr,
 	[DISP_CC_MDSS_MDP_LUT1_CLK] = &disp1_cc_mdss_mdp_lut1_clk.clkr,
 	[DISP_CC_MDSS_MDP_LUT_CLK] = &disp1_cc_mdss_mdp_lut_clk.clkr,
-	[DISP_CC_MDSS_NON_GDSC_AHB_CLK] = &disp1_cc_mdss_non_gdsc_ahb_clk.clkr,
+	[DISP_CC_MDSS_ANALN_GDSC_AHB_CLK] = &disp1_cc_mdss_analn_gdsc_ahb_clk.clkr,
 	[DISP_CC_MDSS_PCLK0_CLK] = &disp1_cc_mdss_pclk0_clk.clkr,
 	[DISP_CC_MDSS_PCLK0_CLK_SRC] = &disp1_cc_mdss_pclk0_clk_src.clkr,
 	[DISP_CC_MDSS_PCLK1_CLK] = &disp1_cc_mdss_pclk1_clk.clkr,

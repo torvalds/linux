@@ -11,12 +11,12 @@
  *     AS A COURTESY TO YOU, SOLELY FOR USE IN DEVELOPING PROGRAMS AND
  *     SOLUTIONS FOR XILINX DEVICES.  BY PROVIDING THIS DESIGN, CODE,
  *     OR INFORMATION AS ONE POSSIBLE IMPLEMENTATION OF THIS FEATURE,
- *     APPLICATION OR STANDARD, XILINX IS MAKING NO REPRESENTATION
+ *     APPLICATION OR STANDARD, XILINX IS MAKING ANAL REPRESENTATION
  *     THAT THIS IMPLEMENTATION IS FREE FROM ANY CLAIMS OF INFRINGEMENT,
  *     AND YOU ARE RESPONSIBLE FOR OBTAINING ANY RIGHTS YOU MAY REQUIRE
  *     FOR YOUR IMPLEMENTATION.  XILINX EXPRESSLY DISCLAIMS ANY
  *     WARRANTY WHATSOEVER WITH RESPECT TO THE ADEQUACY OF THE
- *     IMPLEMENTATION, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OR
+ *     IMPLEMENTATION, INCLUDING BUT ANALT LIMITED TO ANY WARRANTIES OR
  *     REPRESENTATIONS THAT THIS IMPLEMENTATION IS FREE FROM CLAIMS OF
  *     INFRINGEMENT, IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  *     FOR A PARTICULAR PURPOSE.
@@ -25,7 +25,7 @@
  *     All rights reserved.
  *
  *     You should have received a copy of the GNU General Public License along
- *     with this program; if not, write to the Free Software Foundation, Inc.,
+ *     with this program; if analt, write to the Free Software Foundation, Inc.,
  *     675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *****************************************************************************/
@@ -88,7 +88,7 @@ struct hwicap_driver_config {
 };
 
 /* Number of times to poll the done register. This has to be large
- * enough to allow an entire configuration to complete. If an entire
+ * eanalugh to allow an entire configuration to complete. If an entire
  * page (4kb) is configured at once, that could take up to 4k cycles
  * with a byte-wide icap interface. In most cases, this driver is
  * used with a much smaller fifo, but this should be sufficient in the
@@ -168,7 +168,7 @@ struct config_registers {
 /* Packet constants */
 #define XHI_SYNC_PACKET             0xAA995566UL
 #define XHI_DUMMY_PACKET            0xFFFFFFFFUL
-#define XHI_NOOP_PACKET             (XHI_TYPE_1 << XHI_TYPE_SHIFT)
+#define XHI_ANALOP_PACKET             (XHI_TYPE_1 << XHI_TYPE_SHIFT)
 #define XHI_TYPE_2_READ ((XHI_TYPE_2 << XHI_TYPE_SHIFT) | \
 			(XHI_OP_READ << XHI_OP_SHIFT))
 

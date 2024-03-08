@@ -7,7 +7,7 @@
 #include <linux/iommu.h>
 #include <linux/xarray.h>
 #include <linux/file.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/fault-inject.h>
 #include <linux/platform_device.h>
 #include <uapi/linux/iommufd.h>
@@ -27,7 +27,7 @@ size_t iommufd_test_memory_limit = 65536;
 
 struct mock_bus_type {
 	struct bus_type bus;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 };
 
 static struct mock_bus_type iommufd_mock_bus_type = {
@@ -59,7 +59,7 @@ enum {
 
 /*
  * Syzkaller has trouble randomizing the correct iova to use since it is linked
- * to the map ioctl's output, and it has no ide about that. So, simplify things.
+ * to the map ioctl's output, and it has anal ide about that. So, simplify things.
  * In syzkaller mode the 64 bit IOVA is converted into an nth area and offset
  * value. This has a much smaller randomization space and syzkaller can hit it.
  */
@@ -154,19 +154,19 @@ struct selftest_obj {
 	};
 };
 
-static int mock_domain_nop_attach(struct iommu_domain *domain,
+static int mock_domain_analp_attach(struct iommu_domain *domain,
 				  struct device *dev)
 {
 	struct mock_dev *mdev = container_of(dev, struct mock_dev, dev);
 
-	if (domain->dirty_ops && (mdev->flags & MOCK_FLAGS_DEVICE_NO_DIRTY))
+	if (domain->dirty_ops && (mdev->flags & MOCK_FLAGS_DEVICE_ANAL_DIRTY))
 		return -EINVAL;
 
 	return 0;
 }
 
 static const struct iommu_domain_ops mock_blocking_ops = {
-	.attach_dev = mock_domain_nop_attach,
+	.attach_dev = mock_domain_analp_attach,
 };
 
 static struct iommu_domain mock_blocking_domain = {
@@ -180,7 +180,7 @@ static void *mock_domain_hw_info(struct device *dev, u32 *length, u32 *type)
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	info->test_reg = IOMMU_HW_INFO_SELFTEST_REGVAL;
 	*length = sizeof(*info);
@@ -199,7 +199,7 @@ static int mock_domain_set_dirty_tracking(struct iommu_domain *domain,
 	if (enable && !domain->dirty_ops)
 		return -EINVAL;
 
-	/* No change? */
+	/* Anal change? */
 	if (!(enable ^ !!(flags & MOCK_DIRTY_TRACK)))
 		return 0;
 
@@ -224,7 +224,7 @@ static bool mock_test_and_clear_dirty(struct mock_iommu_domain *mock,
 
 		dirty = true;
 		/* Clear dirty */
-		if (!(flags & IOMMU_DIRTY_NO_CLEAR)) {
+		if (!(flags & IOMMU_DIRTY_ANAL_CLEAR)) {
 			unsigned long val;
 
 			val = xa_to_value(ent) & ~MOCK_PFN_DIRTY_IOVA;
@@ -306,7 +306,7 @@ __mock_domain_alloc_nested(struct mock_iommu_domain *mock_parent,
 
 	mock_nested = kzalloc(sizeof(*mock_nested), GFP_KERNEL);
 	if (!mock_nested)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	mock_nested->parent = mock_parent;
 	mock_nested->domain.ops = &domain_nested_ops;
 	mock_nested->domain.type = IOMMU_DOMAIN_NESTED;
@@ -328,17 +328,17 @@ mock_domain_alloc_user(struct device *dev, u32 flags,
 	if (!parent) {
 		struct mock_dev *mdev = container_of(dev, struct mock_dev, dev);
 		bool has_dirty_flag = flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
-		bool no_dirty_ops = mdev->flags & MOCK_FLAGS_DEVICE_NO_DIRTY;
+		bool anal_dirty_ops = mdev->flags & MOCK_FLAGS_DEVICE_ANAL_DIRTY;
 		struct iommu_domain *domain;
 
 		if (flags & (~(IOMMU_HWPT_ALLOC_NEST_PARENT |
 			       IOMMU_HWPT_ALLOC_DIRTY_TRACKING)))
-			return ERR_PTR(-EOPNOTSUPP);
-		if (user_data || (has_dirty_flag && no_dirty_ops))
-			return ERR_PTR(-EOPNOTSUPP);
+			return ERR_PTR(-EOPANALTSUPP);
+		if (user_data || (has_dirty_flag && anal_dirty_ops))
+			return ERR_PTR(-EOPANALTSUPP);
 		domain = mock_domain_alloc_paging(dev);
 		if (!domain)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		if (has_dirty_flag)
 			container_of(domain, struct mock_iommu_domain, domain)
 				->domain.dirty_ops = &dirty_ops;
@@ -347,7 +347,7 @@ mock_domain_alloc_user(struct device *dev, u32 flags,
 
 	/* must be mock_domain_nested */
 	if (user_data->type != IOMMU_HWPT_DATA_SELFTEST || flags)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	if (!parent || parent->ops != mock_ops.default_domain_ops)
 		return ERR_PTR(-EINVAL);
 
@@ -383,11 +383,11 @@ static int mock_domain_map_pages(struct iommu_domain *domain,
 	unsigned long start_iova = iova;
 
 	/*
-	 * xarray does not reliably work with fault injection because it does a
+	 * xarray does analt reliably work with fault injection because it does a
 	 * retry allocation, so put our own failure point.
 	 */
 	if (iommufd_should_fail())
-		return -ENOENT;
+		return -EANALENT;
 
 	WARN_ON(iova % MOCK_IO_PAGE_SIZE);
 	WARN_ON(pgsize % MOCK_IO_PAGE_SIZE);
@@ -496,7 +496,7 @@ static bool mock_domain_capable(struct device *dev, enum iommu_cap cap)
 	case IOMMU_CAP_CACHE_COHERENCY:
 		return true;
 	case IOMMU_CAP_DIRTY_TRACKING:
-		return !(mdev->flags & MOCK_FLAGS_DEVICE_NO_DIRTY);
+		return !(mdev->flags & MOCK_FLAGS_DEVICE_ANAL_DIRTY);
 	default:
 		break;
 	}
@@ -510,13 +510,13 @@ static struct iommu_device mock_iommu_device = {
 static struct iommu_device *mock_probe_device(struct device *dev)
 {
 	if (dev->bus != &iommufd_mock_bus_type.bus)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	return &mock_iommu_device;
 }
 
 static const struct iommu_ops mock_ops = {
 	/*
-	 * IOMMU_DOMAIN_BLOCKED cannot be returned from def_domain_type()
+	 * IOMMU_DOMAIN_BLOCKED cananalt be returned from def_domain_type()
 	 * because it is zero.
 	 */
 	.default_domain = &mock_blocking_domain,
@@ -532,7 +532,7 @@ static const struct iommu_ops mock_ops = {
 	.default_domain_ops =
 		&(struct iommu_domain_ops){
 			.free = mock_domain_free,
-			.attach_dev = mock_domain_nop_attach,
+			.attach_dev = mock_domain_analp_attach,
 			.map_pages = mock_domain_map_pages,
 			.unmap_pages = mock_domain_unmap_pages,
 			.iova_to_phys = mock_domain_iova_to_phys,
@@ -571,7 +571,7 @@ mock_domain_cache_invalidate_user(struct iommu_domain *domain,
 			break;
 
 		if (inv.flags & ~IOMMU_TEST_INVALIDATE_FLAG_ALL) {
-			rc = -EOPNOTSUPP;
+			rc = -EOPANALTSUPP;
 			break;
 		}
 
@@ -581,7 +581,7 @@ mock_domain_cache_invalidate_user(struct iommu_domain *domain,
 		}
 
 		if (inv.flags & IOMMU_TEST_INVALIDATE_FLAG_ALL) {
-			/* Invalidate all mock iotlb entries and ignore iotlb_id */
+			/* Invalidate all mock iotlb entries and iganalre iotlb_id */
 			for (j = 0; j < MOCK_NESTED_DOMAIN_IOTLB_NUM; j++)
 				mock_nested->iotlb[j] = 0;
 		} else {
@@ -598,7 +598,7 @@ out:
 
 static struct iommu_domain_ops domain_nested_ops = {
 	.free = mock_domain_free_nested,
-	.attach_dev = mock_domain_nop_attach,
+	.attach_dev = mock_domain_analp_attach,
 	.cache_invalidate_user = mock_domain_cache_invalidate_user,
 };
 
@@ -664,12 +664,12 @@ static struct mock_dev *mock_dev_create(unsigned long dev_flags)
 	int rc;
 
 	if (dev_flags &
-	    ~(MOCK_FLAGS_DEVICE_NO_DIRTY | MOCK_FLAGS_DEVICE_HUGE_IOVA))
+	    ~(MOCK_FLAGS_DEVICE_ANAL_DIRTY | MOCK_FLAGS_DEVICE_HUGE_IOVA))
 		return ERR_PTR(-EINVAL);
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	device_initialize(&mdev->dev);
 	mdev->flags = dev_flags;
@@ -776,7 +776,7 @@ static int iommufd_test_mock_domain_replace(struct iommufd_ucmd *ucmd,
 
 	/*
 	 * Prefer to use the OBJ_SELFTEST because the destroy_rwsem will ensure
-	 * it doesn't race with detach, which is not allowed.
+	 * it doesn't race with detach, which is analt allowed.
 	 */
 	dev_obj =
 		iommufd_get_object(ucmd->ictx, device_id, IOMMUFD_OBJ_SELFTEST);
@@ -1010,10 +1010,10 @@ static int iommufd_test_access_item_destroy(struct iommufd_ucmd *ucmd,
 	}
 	mutex_unlock(&staccess->lock);
 	fput(staccess->file);
-	return -ENOENT;
+	return -EANALENT;
 }
 
-static int iommufd_test_staccess_release(struct inode *inode,
+static int iommufd_test_staccess_release(struct ianalde *ianalde,
 					 struct file *filep)
 {
 	struct selftest_access *staccess = filep->private_data;
@@ -1047,11 +1047,11 @@ static struct selftest_access *iommufd_test_alloc_access(void)
 
 	staccess = kzalloc(sizeof(*staccess), GFP_KERNEL_ACCOUNT);
 	if (!staccess)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	INIT_LIST_HEAD(&staccess->items);
 	mutex_init(&staccess->lock);
 
-	filep = anon_inode_getfile("[iommufd_test_staccess]",
+	filep = aanaln_ianalde_getfile("[iommufd_test_staccess]",
 				   &iommfd_test_staccess_fops, staccess,
 				   O_RDWR);
 	if (IS_ERR(filep)) {
@@ -1069,19 +1069,19 @@ static int iommufd_test_create_access(struct iommufd_ucmd *ucmd,
 	struct selftest_access *staccess;
 	struct iommufd_access *access;
 	u32 id;
-	int fdno;
+	int fdanal;
 	int rc;
 
 	if (flags & ~MOCK_FLAGS_ACCESS_CREATE_NEEDS_PIN_PAGES)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	staccess = iommufd_test_alloc_access();
 	if (IS_ERR(staccess))
 		return PTR_ERR(staccess);
 
-	fdno = get_unused_fd_flags(O_CLOEXEC);
-	if (fdno < 0) {
-		rc = -ENOMEM;
+	fdanal = get_unused_fd_flags(O_CLOEXEC);
+	if (fdanal < 0) {
+		rc = -EANALMEM;
 		goto out_free_staccess;
 	}
 
@@ -1093,24 +1093,24 @@ static int iommufd_test_create_access(struct iommufd_ucmd *ucmd,
 		staccess, &id);
 	if (IS_ERR(access)) {
 		rc = PTR_ERR(access);
-		goto out_put_fdno;
+		goto out_put_fdanal;
 	}
 	rc = iommufd_access_attach(access, ioas_id);
 	if (rc)
 		goto out_destroy;
-	cmd->create_access.out_access_fd = fdno;
+	cmd->create_access.out_access_fd = fdanal;
 	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
 	if (rc)
 		goto out_destroy;
 
 	staccess->access = access;
-	fd_install(fdno, staccess->file);
+	fd_install(fdanal, staccess->file);
 	return 0;
 
 out_destroy:
 	iommufd_access_destroy(access);
-out_put_fdno:
-	put_unused_fd(fdno);
+out_put_fdanal:
+	put_unused_fd(fdanal);
 out_free_staccess:
 	fput(staccess->file);
 	return rc;
@@ -1168,17 +1168,17 @@ static int iommufd_test_access_pages(struct iommufd_ucmd *ucmd,
 
 	/* Prevent syzkaller from triggering a WARN_ON in kvzalloc() */
 	if (length > 16*1024*1024)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (flags & ~(MOCK_FLAGS_ACCESS_WRITE | MOCK_FLAGS_ACCESS_SYZ))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	staccess = iommufd_access_get(access_id);
 	if (IS_ERR(staccess))
 		return PTR_ERR(staccess);
 
 	if (staccess->access->ops != &selftest_access_ops_pin) {
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto out_put;
 	}
 
@@ -1191,16 +1191,16 @@ static int iommufd_test_access_pages(struct iommufd_ucmd *ucmd,
 		 PAGE_SIZE;
 	pages = kvcalloc(npages, sizeof(*pages), GFP_KERNEL_ACCOUNT);
 	if (!pages) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_put;
 	}
 
 	/*
 	 * Drivers will need to think very carefully about this locking. The
 	 * core code can do multiple unmaps instantaneously after
-	 * iommufd_access_pin_pages() and *all* the unmaps must not return until
+	 * iommufd_access_pin_pages() and *all* the unmaps must analt return until
 	 * the range is unpinned. This simple implementation puts a global lock
-	 * around the pin, which may not suit drivers that want this to be a
+	 * around the pin, which may analt suit drivers that want this to be a
 	 * performance path. drivers that get this wrong will trigger WARN_ON
 	 * races and cause EDEADLOCK failures to userspace.
 	 */
@@ -1221,7 +1221,7 @@ static int iommufd_test_access_pages(struct iommufd_ucmd *ucmd,
 
 	item = kzalloc(sizeof(*item), GFP_KERNEL_ACCOUNT);
 	if (!item) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_unaccess;
 	}
 
@@ -1261,11 +1261,11 @@ static int iommufd_test_access_rw(struct iommufd_ucmd *ucmd,
 
 	/* Prevent syzkaller from triggering a WARN_ON in kvzalloc() */
 	if (length > 16*1024*1024)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (flags & ~(MOCK_ACCESS_RW_WRITE | MOCK_ACCESS_RW_SLOW_PATH |
 		      MOCK_FLAGS_ACCESS_SYZ))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	staccess = iommufd_access_get(access_id);
 	if (IS_ERR(staccess))
@@ -1273,7 +1273,7 @@ static int iommufd_test_access_rw(struct iommufd_ucmd *ucmd,
 
 	tmp = kvzalloc(length, GFP_KERNEL_ACCOUNT);
 	if (!tmp) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_put;
 	}
 
@@ -1338,7 +1338,7 @@ static int iommufd_test_dirty(struct iommufd_ucmd *ucmd, unsigned int mockpt_id,
 
 	tmp = kvzalloc(bitmap_size, GFP_KERNEL_ACCOUNT);
 	if (!tmp) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_put;
 	}
 
@@ -1438,7 +1438,7 @@ int iommufd_test(struct iommufd_ucmd *ucmd)
 		return iommufd_test_access_item_destroy(
 			ucmd, cmd->id, cmd->destroy_access_pages.access_pages_id);
 	case IOMMU_TEST_OP_SET_TEMP_MEMORY_LIMIT:
-		/* Protect _batch_init(), can not be less than elmsz */
+		/* Protect _batch_init(), can analt be less than elmsz */
 		if (cmd->memory_limit.limit <
 		    sizeof(unsigned long) + sizeof(u32))
 			return -EINVAL;
@@ -1451,7 +1451,7 @@ int iommufd_test(struct iommufd_ucmd *ucmd)
 					  u64_to_user_ptr(cmd->dirty.uptr),
 					  cmd->dirty.flags);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 

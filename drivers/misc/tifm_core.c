@@ -60,7 +60,7 @@ static int tifm_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	const struct tifm_dev *sock = container_of_const(dev, struct tifm_dev, dev);
 
 	if (add_uevent_var(env, "TIFM_CARD_TYPE=%s", tifm_media_type_name(sock->type, 1)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -70,7 +70,7 @@ static int tifm_device_probe(struct device *dev)
 	struct tifm_dev *sock = container_of(dev, struct tifm_dev, dev);
 	struct tifm_driver *drv = container_of(dev->driver, struct tifm_driver,
 					       driver);
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 
 	get_device(dev);
 	if (dev->driver && drv->probe) {
@@ -194,7 +194,7 @@ int tifm_add_adapter(struct tifm_adapter *fm)
 
 	idr_preload(GFP_KERNEL);
 	spin_lock(&tifm_adapter_lock);
-	rc = idr_alloc(&tifm_adapter_idr, fm, 0, 0, GFP_NOWAIT);
+	rc = idr_alloc(&tifm_adapter_idr, fm, 0, 0, GFP_ANALWAIT);
 	if (rc >= 0)
 		fm->id = rc;
 	spin_unlock(&tifm_adapter_lock);
@@ -330,7 +330,7 @@ static int __init tifm_init(void)
 
 	workqueue = create_freezable_workqueue("tifm");
 	if (!workqueue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = bus_register(&tifm_bus_type);
 

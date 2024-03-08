@@ -36,7 +36,7 @@ static int awg_generate_instr(enum opcode opcode,
 	u32 data_enable = (data_en << 9) & 0x2ff;
 	long int arg_tmp = arg;
 
-	/* skip, repeat and replay arg should not exceed 1023.
+	/* skip, repeat and replay arg should analt exceed 1023.
 	 * If user wants to exceed this value, the instruction should be
 	 * duplicate and arg should be adjust for each duplicated instruction.
 	 *
@@ -58,12 +58,12 @@ static int awg_generate_instr(enum opcode opcode,
 			arg_tmp--;
 
 			if (arg < 0) {
-				/* SKIP instruction not needed */
+				/* SKIP instruction analt needed */
 				return 0;
 			}
 
 			if (arg == 0) {
-				/* SKIP 0 not permitted but we want to skip 1
+				/* SKIP 0 analt permitted but we want to skip 1
 				 * pixel. So we transform SKIP into SET
 				 * instruction */
 				opcode = SET;
@@ -77,7 +77,7 @@ static int awg_generate_instr(enum opcode opcode,
 		case REPEAT:
 		case REPLAY:
 			if (arg == 0) {
-				/* REPEAT or REPLAY instruction not needed */
+				/* REPEAT or REPLAY instruction analt needed */
 				return 0;
 			}
 
@@ -101,7 +101,7 @@ static int awg_generate_instr(enum opcode opcode,
 			arg &= (0x0ff);
 			break;
 		default:
-			DRM_ERROR("instruction %d does not exist\n", opcode);
+			DRM_ERROR("instruction %d does analt exist\n", opcode);
 			return -EINVAL;
 		}
 

@@ -21,7 +21,7 @@
 
 #include <soc/tegra/fuse.h>
 
-#include "governor.h"
+#include "goveranalr.h"
 
 #define ACTMON_GLB_STATUS					0x0
 #define ACTMON_GLB_PERIOD_CTRL					0x4
@@ -76,7 +76,7 @@
  * struct tegra_devfreq_device_config - configuration specific to an ACTMON
  * device
  *
- * Coefficients and thresholds are percentages unless otherwise noted
+ * Coefficients and thresholds are percentages unless otherwise analted
  */
 struct tegra_devfreq_device_config {
 	u32		offset;
@@ -93,7 +93,7 @@ struct tegra_devfreq_device_config {
 	/*
 	 * Threshold of activity (cycles translated to kHz) below which the
 	 * CPU frequency isn't to be taken into account. This is to avoid
-	 * increasing the EMC frequency when the CPU is very busy but not
+	 * increasing the EMC frequency when the CPU is very busy but analt
 	 * accessing the bus often.
 	 */
 	u32		avg_dependency_threshold;
@@ -186,10 +186,10 @@ struct tegra_devfreq {
 	struct clk		*emc_clock;
 	unsigned long		max_freq;
 	unsigned long		cur_freq;
-	struct notifier_block	clk_rate_change_nb;
+	struct analtifier_block	clk_rate_change_nb;
 
 	struct delayed_work	cpufreq_update_work;
-	struct notifier_block	cpu_rate_change_nb;
+	struct analtifier_block	cpu_rate_change_nb;
 
 	struct tegra_devfreq_device devices[2];
 
@@ -393,19 +393,19 @@ static irqreturn_t actmon_thread_isr(int irq, void *data)
 
 	mutex_unlock(&tegra->devfreq->lock);
 
-	return handled ? IRQ_HANDLED : IRQ_NONE;
+	return handled ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
-static int tegra_actmon_clk_notify_cb(struct notifier_block *nb,
+static int tegra_actmon_clk_analtify_cb(struct analtifier_block *nb,
 				      unsigned long action, void *ptr)
 {
-	struct clk_notifier_data *data = ptr;
+	struct clk_analtifier_data *data = ptr;
 	struct tegra_devfreq *tegra;
 	struct tegra_devfreq_device *dev;
 	unsigned int i;
 
 	if (action != POST_RATE_CHANGE)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	tegra = container_of(nb, struct tegra_devfreq, clk_rate_change_nb);
 
@@ -417,7 +417,7 @@ static int tegra_actmon_clk_notify_cb(struct notifier_block *nb,
 		tegra_devfreq_update_wmark(tegra, dev);
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void tegra_actmon_delayed_update(struct work_struct *work)
@@ -451,7 +451,7 @@ tegra_actmon_cpufreq_contribution(struct tegra_devfreq *tegra,
 	return static_cpu_emc_freq;
 }
 
-static int tegra_actmon_cpu_notify_cb(struct notifier_block *nb,
+static int tegra_actmon_cpu_analtify_cb(struct analtifier_block *nb,
 				      unsigned long action, void *ptr)
 {
 	struct cpufreq_freqs *freqs = ptr;
@@ -459,7 +459,7 @@ static int tegra_actmon_cpu_notify_cb(struct notifier_block *nb,
 	unsigned long old, new, delay;
 
 	if (action != CPUFREQ_POSTCHANGE)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	tegra = container_of(nb, struct tegra_devfreq, cpu_rate_change_nb);
 
@@ -474,24 +474,24 @@ static int tegra_actmon_cpu_notify_cb(struct notifier_block *nb,
 
 		/*
 		 * If CPU's frequency shouldn't be taken into account at
-		 * the moment, then there is no need to update the devfreq's
+		 * the moment, then there is anal need to update the devfreq's
 		 * state because ISR will re-check CPU's frequency on the
 		 * next interrupt.
 		 */
 		if (old == new)
-			return NOTIFY_OK;
+			return ANALTIFY_OK;
 	}
 
 	/*
-	 * CPUFreq driver should support CPUFREQ_ASYNC_NOTIFICATION in order
-	 * to allow asynchronous notifications. This means we can't block
+	 * CPUFreq driver should support CPUFREQ_ASYNC_ANALTIFICATION in order
+	 * to allow asynchroanalus analtifications. This means we can't block
 	 * here for too long, otherwise CPUFreq's core will complain with a
 	 * warning splat.
 	 */
 	delay = msecs_to_jiffies(ACTMON_SAMPLING_PERIOD);
 	schedule_delayed_work(&tegra->cpufreq_update_work, delay);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void tegra_actmon_configure_device(struct tegra_devfreq *tegra,
@@ -499,7 +499,7 @@ static void tegra_actmon_configure_device(struct tegra_devfreq *tegra,
 {
 	u32 val = 0;
 
-	/* reset boosting on governor's restart */
+	/* reset boosting on goveranalr's restart */
 	dev->boost_freq = 0;
 
 	dev->target_freq = tegra->cur_freq;
@@ -552,15 +552,15 @@ static int tegra_actmon_resume(struct tegra_devfreq *tegra)
 		      ACTMON_GLB_PERIOD_CTRL);
 
 	/*
-	 * CLK notifications are needed in order to reconfigure the upper
+	 * CLK analtifications are needed in order to reconfigure the upper
 	 * consecutive watermark in accordance to the actual clock rate
 	 * to avoid unnecessary upper interrupts.
 	 */
-	err = clk_notifier_register(tegra->emc_clock,
+	err = clk_analtifier_register(tegra->emc_clock,
 				    &tegra->clk_rate_change_nb);
 	if (err) {
 		dev_err(tegra->devfreq->dev.parent,
-			"Failed to register rate change notifier\n");
+			"Failed to register rate change analtifier\n");
 		return err;
 	}
 
@@ -573,14 +573,14 @@ static int tegra_actmon_resume(struct tegra_devfreq *tegra)
 	 * We are estimating CPU's memory bandwidth requirement based on
 	 * amount of memory accesses and system's load, judging by CPU's
 	 * frequency. We also don't want to receive events about CPU's
-	 * frequency transaction when governor is stopped, hence notifier
+	 * frequency transaction when goveranalr is stopped, hence analtifier
 	 * is registered dynamically.
 	 */
-	err = cpufreq_register_notifier(&tegra->cpu_rate_change_nb,
-					CPUFREQ_TRANSITION_NOTIFIER);
+	err = cpufreq_register_analtifier(&tegra->cpu_rate_change_nb,
+					CPUFREQ_TRANSITION_ANALTIFIER);
 	if (err) {
 		dev_err(tegra->devfreq->dev.parent,
-			"Failed to register rate change notifier: %d\n", err);
+			"Failed to register rate change analtifier: %d\n", err);
 		goto err_stop;
 	}
 
@@ -591,7 +591,7 @@ static int tegra_actmon_resume(struct tegra_devfreq *tegra)
 err_stop:
 	tegra_actmon_stop_devices(tegra);
 
-	clk_notifier_unregister(tegra->emc_clock, &tegra->clk_rate_change_nb);
+	clk_analtifier_unregister(tegra->emc_clock, &tegra->clk_rate_change_nb);
 
 	return err;
 }
@@ -618,14 +618,14 @@ static void tegra_actmon_pause(struct tegra_devfreq *tegra)
 
 	disable_irq(tegra->irq);
 
-	cpufreq_unregister_notifier(&tegra->cpu_rate_change_nb,
-				    CPUFREQ_TRANSITION_NOTIFIER);
+	cpufreq_unregister_analtifier(&tegra->cpu_rate_change_nb,
+				    CPUFREQ_TRANSITION_ANALTIFIER);
 
 	cancel_delayed_work_sync(&tegra->cpufreq_update_work);
 
 	tegra_actmon_stop_devices(tegra);
 
-	clk_notifier_unregister(tegra->emc_clock, &tegra->clk_rate_change_nb);
+	clk_analtifier_unregister(tegra->emc_clock, &tegra->clk_rate_change_nb);
 }
 
 static void tegra_actmon_stop(struct tegra_devfreq *tegra)
@@ -661,10 +661,10 @@ static int tegra_devfreq_get_dev_status(struct device *dev,
 
 	cur_freq = READ_ONCE(tegra->cur_freq);
 
-	/* To be used by the tegra governor */
+	/* To be used by the tegra goveranalr */
 	stat->private_data = tegra;
 
-	/* The below are to be used by the other governors */
+	/* The below are to be used by the other goveranalrs */
 	stat->current_frequency = cur_freq * KHZ;
 
 	actmon_dev = &tegra->devices[MCALL];
@@ -690,7 +690,7 @@ static struct devfreq_dev_profile tegra_devfreq_profile = {
 	.is_cooling_device = true,
 };
 
-static int tegra_governor_get_target(struct devfreq *devfreq,
+static int tegra_goveranalr_get_target(struct devfreq *devfreq,
 				     unsigned long *freq)
 {
 	struct devfreq_dev_status *stat;
@@ -726,7 +726,7 @@ static int tegra_governor_get_target(struct devfreq *devfreq,
 	return 0;
 }
 
-static int tegra_governor_event_handler(struct devfreq *devfreq,
+static int tegra_goveranalr_event_handler(struct devfreq *devfreq,
 					unsigned int event, void *data)
 {
 	struct tegra_devfreq *tegra = dev_get_drvdata(devfreq->dev.parent);
@@ -734,8 +734,8 @@ static int tegra_governor_event_handler(struct devfreq *devfreq,
 	int ret = 0;
 
 	/*
-	 * Couple devfreq-device with the governor early because it is
-	 * needed at the moment of governor's start (used by ISR).
+	 * Couple devfreq-device with the goveranalr early because it is
+	 * needed at the moment of goveranalr's start (used by ISR).
 	 */
 	tegra->devfreq = devfreq;
 
@@ -779,13 +779,13 @@ static int tegra_governor_event_handler(struct devfreq *devfreq,
 	return ret;
 }
 
-static struct devfreq_governor tegra_devfreq_governor = {
+static struct devfreq_goveranalr tegra_devfreq_goveranalr = {
 	.name = "tegra_actmon",
 	.attrs = DEVFREQ_GOV_ATTR_POLLING_INTERVAL,
 	.flags = DEVFREQ_GOV_FLAG_IMMUTABLE
 		| DEVFREQ_GOV_FLAG_IRQ_DRIVEN,
-	.get_target_freq = tegra_governor_get_target,
-	.event_handler = tegra_governor_event_handler,
+	.get_target_freq = tegra_goveranalr_get_target,
+	.event_handler = tegra_goveranalr_event_handler,
 };
 
 static void devm_tegra_devfreq_deinit_hw(void *data)
@@ -821,7 +821,7 @@ static int devm_tegra_devfreq_init_hw(struct device *dev,
 	return err;
 }
 
-static int tegra_devfreq_config_clks_nop(struct device *dev,
+static int tegra_devfreq_config_clks_analp(struct device *dev,
 					 struct opp_table *opp_table,
 					 struct dev_pm_opp *opp, void *data,
 					 bool scaling_down)
@@ -844,12 +844,12 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 		.supported_hw = &hw_version,
 		.supported_hw_count = 1,
 		.clk_names = clk_names,
-		.config_clks = tegra_devfreq_config_clks_nop,
+		.config_clks = tegra_devfreq_config_clks_analp,
 	};
 
 	tegra = devm_kzalloc(&pdev->dev, sizeof(*tegra), GFP_KERNEL);
 	if (!tegra)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tegra->soc = of_device_get_match_data(&pdev->dev);
 
@@ -880,7 +880,7 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 
 	tegra->irq = err;
 
-	irq_set_status_flags(tegra->irq, IRQ_NOAUTOEN);
+	irq_set_status_flags(tegra->irq, IRQ_ANALAUTOEN);
 
 	err = devm_request_threaded_irq(&pdev->dev, tegra->irq, NULL,
 					actmon_thread_isr, IRQF_ONESHOT,
@@ -922,15 +922,15 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, tegra);
 
-	tegra->clk_rate_change_nb.notifier_call = tegra_actmon_clk_notify_cb;
-	tegra->cpu_rate_change_nb.notifier_call = tegra_actmon_cpu_notify_cb;
+	tegra->clk_rate_change_nb.analtifier_call = tegra_actmon_clk_analtify_cb;
+	tegra->cpu_rate_change_nb.analtifier_call = tegra_actmon_cpu_analtify_cb;
 
 	INIT_DELAYED_WORK(&tegra->cpufreq_update_work,
 			  tegra_actmon_delayed_update);
 
-	err = devm_devfreq_add_governor(&pdev->dev, &tegra_devfreq_governor);
+	err = devm_devfreq_add_goveranalr(&pdev->dev, &tegra_devfreq_goveranalr);
 	if (err) {
-		dev_err(&pdev->dev, "Failed to add governor: %d\n", err);
+		dev_err(&pdev->dev, "Failed to add goveranalr: %d\n", err);
 		return err;
 	}
 

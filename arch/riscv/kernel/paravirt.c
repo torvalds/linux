@@ -7,7 +7,7 @@
 
 #include <linux/cpuhotplug.h>
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/jump_label.h>
 #include <linux/kconfig.h>
@@ -33,13 +33,13 @@ static u64 native_steal_clock(int cpu)
 DEFINE_STATIC_CALL(pv_steal_clock, native_steal_clock);
 
 static bool steal_acc = true;
-static int __init parse_no_stealacc(char *arg)
+static int __init parse_anal_stealacc(char *arg)
 {
 	steal_acc = false;
 	return 0;
 }
 
-early_param("no-steal-acc", parse_no_stealacc);
+early_param("anal-steal-acc", parse_anal_stealacc);
 
 static DEFINE_PER_CPU(struct sbi_sta_struct, steal_time) __aligned(64);
 
@@ -66,7 +66,7 @@ static int sbi_sta_steal_time_set_shmem(unsigned long lo, unsigned long hi,
 			pr_warn("Failed to disable steal-time shmem");
 		else
 			pr_warn("Failed to set steal-time shmem");
-		return sbi_err_map_linux_errno(ret.error);
+		return sbi_err_map_linux_erranal(ret.error);
 	}
 
 	return 0;

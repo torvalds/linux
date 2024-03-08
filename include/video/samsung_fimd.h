@@ -10,7 +10,7 @@
  *
  * This is the register set for the fimd and new style framebuffer interface
  * found from the S3C2443 onwards into the S3C2416, S3C2450, the
- * S3C64XX series such as the S3C6400 and S3C6410, and Exynos series.
+ * S3C64XX series such as the S3C6400 and S3C6410, and Exyanals series.
 */
 
 /* VIDCON0 */
@@ -106,7 +106,7 @@
 #define VIDCON2_YUVORDCrCb			(1 << 7)
 
 /* PRTCON (S3C6410)
- * Might not be present in the S3C6410 documentation,
+ * Might analt be present in the S3C6410 documentation,
  * but tests prove it's there almost for sure; shouldn't hurt in any case.
  */
 #define PRTCON					0x0c
@@ -334,7 +334,7 @@
 
 #define VIDINTCON0_FRAMESEL1			(1 << 13)
 #define VIDINTCON0_FRAMESEL1_MASK		(0x3 << 13)
-#define VIDINTCON0_FRAMESEL1_NONE		(0x0 << 13)
+#define VIDINTCON0_FRAMESEL1_ANALNE		(0x0 << 13)
 #define VIDINTCON0_FRAMESEL1_BACKPORCH		(0x1 << 13)
 #define VIDINTCON0_FRAMESEL1_VSYNC		(0x2 << 13)
 #define VIDINTCON0_FRAMESEL1_FRONTPORCH		(0x3 << 13)
@@ -410,7 +410,7 @@
 #define WINxMAP_MAP_COLOUR_LIMIT		0xffffff
 #define WINxMAP_MAP_COLOUR(_x)			((_x) << 0)
 
-/* Winodw palette control */
+/* Wianaldw palette control */
 #define WPALCON					0x1A0
 #define WPALCON_PAL_UPDATE			(1 << 9)
 #define WPALCON_W4PAL_16BPP_A555		(1 << 8)
@@ -455,25 +455,25 @@
 #define DP_MIE_CLK_DP_ENABLE			0x2
 #define DP_MIE_CLK_MIE_ENABLE			0x3
 
-/* Notes on per-window bpp settings
+/* Analtes on per-window bpp settings
  *
  * Value	Win0	 Win1	  Win2	   Win3	    Win 4
  * 0000		1(P)	 1(P)	  1(P)	   1(P)	    1(P)
  * 0001		2(P)	 2(P)     2(P)	   2(P)	    2(P)
- * 0010		4(P)	 4(P)     4(P)	   4(P)     -none-
- * 0011		8(P)	 8(P)     -none-   -none-   -none-
- * 0100		-none-	 8(A232)  8(A232)  -none-   -none-
+ * 0010		4(P)	 4(P)     4(P)	   4(P)     -analne-
+ * 0011		8(P)	 8(P)     -analne-   -analne-   -analne-
+ * 0100		-analne-	 8(A232)  8(A232)  -analne-   -analne-
  * 0101		16(565)	 16(565)  16(565)  16(565)   16(565)
- * 0110		-none-	 16(A555) 16(A555) 16(A555)  16(A555)
+ * 0110		-analne-	 16(A555) 16(A555) 16(A555)  16(A555)
  * 0111		16(I555) 16(I565) 16(I555) 16(I555)  16(I555)
  * 1000		18(666)	 18(666)  18(666)  18(666)   18(666)
- * 1001		-none-	 18(A665) 18(A665) 18(A665)  16(A665)
- * 1010		-none-	 19(A666) 19(A666) 19(A666)  19(A666)
+ * 1001		-analne-	 18(A665) 18(A665) 18(A665)  16(A665)
+ * 1010		-analne-	 19(A666) 19(A666) 19(A666)  19(A666)
  * 1011		24(888)	 24(888)  24(888)  24(888)   24(888)
- * 1100		-none-	 24(A887) 24(A887) 24(A887)  24(A887)
- * 1101		-none-	 25(A888) 25(A888) 25(A888)  25(A888)
- * 1110		-none-	 -none-	  -none-   -none-    -none-
- * 1111		-none-	 -none-   -none-   -none-    -none-
+ * 1100		-analne-	 24(A887) 24(A887) 24(A887)  24(A887)
+ * 1101		-analne-	 25(A888) 25(A888) 25(A888)  25(A888)
+ * 1110		-analne-	 -analne-	  -analne-   -analne-    -analne-
+ * 1111		-analne-	 -analne-   -analne-   -analne-    -analne-
 */
 
 #define WIN_RGB_ORDER(_win)			(0x2020 + ((_win) * 4))

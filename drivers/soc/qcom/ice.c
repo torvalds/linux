@@ -53,20 +53,20 @@ static bool qcom_ice_check_supported(struct qcom_ice *ice)
 	u32 regval = qcom_ice_readl(ice, QCOM_ICE_REG_VERSION);
 	struct device *dev = ice->dev;
 	int major = FIELD_GET(GENMASK(31, 24), regval);
-	int minor = FIELD_GET(GENMASK(23, 16), regval);
+	int mianalr = FIELD_GET(GENMASK(23, 16), regval);
 	int step = FIELD_GET(GENMASK(15, 0), regval);
 
-	/* For now this driver only supports ICE version 3 and 4. */
+	/* For analw this driver only supports ICE version 3 and 4. */
 	if (major != 3 && major != 4) {
 		dev_warn(dev, "Unsupported ICE version: v%d.%d.%d\n",
-			 major, minor, step);
+			 major, mianalr, step);
 		return false;
 	}
 
 	dev_info(dev, "Found QC Inline Crypto Engine (ICE) v%d.%d.%d\n",
-		 major, minor, step);
+		 major, mianalr, step);
 
-	/* If fuses are blown, ICE might not work in the standard way. */
+	/* If fuses are blown, ICE might analt work in the standard way. */
 	regval = qcom_ice_readl(ice, QCOM_ICE_REG_FUSE_SETTING);
 	if (regval & (QCOM_ICE_FUSE_SETTING_MASK |
 		      QCOM_ICE_FORCE_HW_KEY0_SETTING_MASK |
@@ -106,13 +106,13 @@ static void qcom_ice_optimization_enable(struct qcom_ice *ice)
  * Wait until the ICE BIST (built-in self-test) has completed.
  *
  * This may be necessary before ICE can be used.
- * Note that we don't really care whether the BIST passed or failed;
+ * Analte that we don't really care whether the BIST passed or failed;
  * we really just want to make sure that it isn't still running. This is
  * because (a) the BIST is a FIPS compliance thing that never fails in
  * practice, (b) ICE is documented to reject crypto requests if the BIST
  * fails, so we needn't do it in software too, and (c) properly testing
  * storage encryption requires testing the full storage stack anyway,
- * and not relying on hardware-level self-tests.
+ * and analt relying on hardware-level self-tests.
  */
 static int qcom_ice_wait_bist_status(struct qcom_ice *ice)
 {
@@ -214,21 +214,21 @@ static struct qcom_ice *qcom_ice_create(struct device *dev,
 		return ERR_PTR(-EPROBE_DEFER);
 
 	if (!qcom_scm_ice_available()) {
-		dev_warn(dev, "ICE SCM interface not found\n");
+		dev_warn(dev, "ICE SCM interface analt found\n");
 		return NULL;
 	}
 
 	engine = devm_kzalloc(dev, sizeof(*engine), GFP_KERNEL);
 	if (!engine)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	engine->dev = dev;
 	engine->base = base;
 
 	/*
 	 * Legacy DT binding uses different clk names for each consumer,
-	 * so lets try those first. If none of those are a match, it means
-	 * the we only have one clock and it is part of the dedicated DT node.
+	 * so lets try those first. If analne of those are a match, it means
+	 * the we only have one clock and it is part of the dedicated DT analde.
 	 * Also, enable the clock before we check what HW version the driver
 	 * supports.
 	 */
@@ -241,7 +241,7 @@ static struct qcom_ice *qcom_ice_create(struct device *dev,
 		return ERR_CAST(engine->core_clk);
 
 	if (!qcom_ice_check_supported(engine))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	dev_dbg(dev, "Registered Qualcomm Inline Crypto Engine\n");
 
@@ -249,28 +249,28 @@ static struct qcom_ice *qcom_ice_create(struct device *dev,
 }
 
 /**
- * of_qcom_ice_get() - get an ICE instance from a DT node
+ * of_qcom_ice_get() - get an ICE instance from a DT analde
  * @dev: device pointer for the consumer device
  *
  * This function will provide an ICE instance either by creating one for the
- * consumer device if its DT node provides the 'ice' reg range and the 'ice'
+ * consumer device if its DT analde provides the 'ice' reg range and the 'ice'
  * clock (for legacy DT style). On the other hand, if consumer provides a
  * phandle via 'qcom,ice' property to an ICE DT, the ICE instance will already
  * be created and so this function will return that instead.
  *
- * Return: ICE pointer on success, NULL if there is no ICE data provided by the
+ * Return: ICE pointer on success, NULL if there is anal ICE data provided by the
  * consumer or ERR_PTR() on error.
  */
 struct qcom_ice *of_qcom_ice_get(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct qcom_ice *ice;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct resource *res;
 	void __iomem *base;
 
-	if (!dev || !dev->of_node)
-		return ERR_PTR(-ENODEV);
+	if (!dev || !dev->of_analde)
+		return ERR_PTR(-EANALDEV);
 
 	/*
 	 * In order to support legacy style devicetree bindings, we need
@@ -288,24 +288,24 @@ struct qcom_ice *of_qcom_ice_get(struct device *dev)
 	}
 
 	/*
-	 * If the consumer node does not provider an 'ice' reg range
+	 * If the consumer analde does analt provider an 'ice' reg range
 	 * (legacy DT binding), then it must at least provide a phandle
-	 * to the ICE devicetree node, otherwise ICE is not supported.
+	 * to the ICE devicetree analde, otherwise ICE is analt supported.
 	 */
-	node = of_parse_phandle(dev->of_node, "qcom,ice", 0);
-	if (!node)
+	analde = of_parse_phandle(dev->of_analde, "qcom,ice", 0);
+	if (!analde)
 		return NULL;
 
-	pdev = of_find_device_by_node(node);
+	pdev = of_find_device_by_analde(analde);
 	if (!pdev) {
-		dev_err(dev, "Cannot find device node %s\n", node->name);
+		dev_err(dev, "Cananalt find device analde %s\n", analde->name);
 		ice = ERR_PTR(-EPROBE_DEFER);
 		goto out;
 	}
 
 	ice = platform_get_drvdata(pdev);
 	if (!ice) {
-		dev_err(dev, "Cannot get ice instance from %s\n",
+		dev_err(dev, "Cananalt get ice instance from %s\n",
 			dev_name(&pdev->dev));
 		platform_device_put(pdev);
 		ice = ERR_PTR(-EPROBE_DEFER);
@@ -322,7 +322,7 @@ struct qcom_ice *of_qcom_ice_get(struct device *dev)
 	}
 
 out:
-	of_node_put(node);
+	of_analde_put(analde);
 
 	return ice;
 }
@@ -335,7 +335,7 @@ static int qcom_ice_probe(struct platform_device *pdev)
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base)) {
-		dev_warn(&pdev->dev, "ICE registers not found\n");
+		dev_warn(&pdev->dev, "ICE registers analt found\n");
 		return PTR_ERR(base);
 	}
 

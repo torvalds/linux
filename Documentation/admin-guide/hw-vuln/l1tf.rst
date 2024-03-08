@@ -10,9 +10,9 @@ Affected processors
 -------------------
 
 This vulnerability affects a wide range of Intel processors. The
-vulnerability is not present on:
+vulnerability is analt present on:
 
-   - Processors from AMD, Centaur and other non Intel vendors
+   - Processors from AMD, Centaur and other analn Intel vendors
 
    - Older processor models, where the CPU family is < 6
 
@@ -21,12 +21,12 @@ vulnerability is not present on:
 
    - The Intel XEON PHI family
 
-   - Intel processors which have the ARCH_CAP_RDCL_NO bit set in the
-     IA32_ARCH_CAPABILITIES MSR. If the bit is set the CPU is not affected
+   - Intel processors which have the ARCH_CAP_RDCL_ANAL bit set in the
+     IA32_ARCH_CAPABILITIES MSR. If the bit is set the CPU is analt affected
      by the Meltdown vulnerability either. These CPUs should become
      available by end of 2018.
 
-Whether a processor is affected or not can be read out from the L1TF
+Whether a processor is affected or analt can be read out from the L1TF
 vulnerability file in sysfs. See :ref:`l1tf_sys_info`.
 
 Related CVEs
@@ -45,7 +45,7 @@ Problem
 
 If an instruction accesses a virtual address for which the relevant page
 table entry (PTE) has the Present bit cleared or other reserved bits set,
-then speculative execution ignores the invalid PTE and loads the referenced
+then speculative execution iganalres the invalid PTE and loads the referenced
 data if it is present in the Level 1 Data Cache, as if the page referenced
 by the address bits in the PTE was still present and accessible.
 
@@ -69,15 +69,15 @@ Attack scenarios
 ^^^^^^^^^^^^^^^^^^^^^^^
 
    Operating Systems store arbitrary information in the address bits of a
-   PTE which is marked non present. This allows a malicious user space
+   PTE which is marked analn present. This allows a malicious user space
    application to attack the physical memory to which these PTEs resolve.
    In some cases user-space can maliciously influence the information
    encoded in the address bits of the PTE, thus making attacks more
    deterministic and more practical.
 
    The Linux kernel contains a mitigation for this attack vector, PTE
-   inversion, which is permanently enabled and has no performance
-   impact. The kernel ensures that the address bits of PTEs, which are not
+   inversion, which is permanently enabled and has anal performance
+   impact. The kernel ensures that the address bits of PTEs, which are analt
    marked present, never point to cacheable physical memory space.
 
    A system with an up to date kernel is protected against attacks from
@@ -100,12 +100,12 @@ Attack scenarios
    the context which runs on the sibling Hyperthread of the same physical
    core. This context can be host OS, host user space or a different guest.
 
-   If the processor does not support Extended Page Tables, the attack is
-   only possible, when the hypervisor does not sanitize the content of the
+   If the processor does analt support Extended Page Tables, the attack is
+   only possible, when the hypervisor does analt sanitize the content of the
    effective (shadow) page tables.
 
    While solutions exist to mitigate these attack vectors fully, these
-   mitigations are not enabled by default in the Linux kernel because they
+   mitigations are analt enabled by default in the Linux kernel because they
    can affect performance significantly. The kernel provides several
    mechanisms which can be utilized to address the problem depending on the
    deployment scenario. The mitigations, their protection scope and impact
@@ -128,7 +128,7 @@ mitigations are active. The relevant sysfs file is:
 The possible values in this file are:
 
   ===========================   ===============================
-  'Not affected'		The processor is not vulnerable
+  'Analt affected'		The processor is analt vulnerable
   'Mitigation: PTE Inversion'	The host protection is active
   ===========================   ===============================
 
@@ -170,10 +170,10 @@ Guest mitigation mechanisms
 1. L1D flush on VMENTER
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-   To make sure that a guest cannot attack data which is present in the L1D
+   To make sure that a guest cananalt attack data which is present in the L1D
    the hypervisor flushes the L1D before entering the guest.
 
-   Flushing the L1D evicts not only the data which should not be accessed
+   Flushing the L1D evicts analt only the data which should analt be accessed
    by a potentially malicious guest, it also flushes the guest
    data. Flushing the L1D has a performance impact as the processor has to
    bring the flushed guest data back into the L1D. Depending on the
@@ -190,19 +190,19 @@ Guest mitigation mechanisms
 
    The conditional mode avoids L1D flushing after VMEXITs which execute
    only audited code paths before the corresponding VMENTER. These code
-   paths have been verified that they cannot expose secrets or other
+   paths have been verified that they cananalt expose secrets or other
    interesting data to an attacker, but they can leak information about the
    address space layout of the hypervisor.
 
    Unconditional mode flushes L1D on all VMENTER invocations and provides
    maximum protection. It has a higher overhead than the conditional
-   mode. The overhead cannot be quantified correctly as it depends on the
+   mode. The overhead cananalt be quantified correctly as it depends on the
    workload scenario and the resulting number of VMEXITs.
 
    The general recommendation is to enable L1D flush on VMENTER. The kernel
    defaults to conditional mode on affected processors.
 
-   **Note**, that L1D flush does not prevent the SMT problem because the
+   **Analte**, that L1D flush does analt prevent the SMT problem because the
    sibling thread will also bring back its data into the L1D which makes it
    attackable again.
 
@@ -217,7 +217,7 @@ Guest mitigation mechanisms
 
    To address the SMT problem, it is possible to make a guest or a group of
    guests affine to one or more physical cores. The proper mechanism for
-   that is to utilize exclusive cpusets to ensure that no other guest or
+   that is to utilize exclusive cpusets to ensure that anal other guest or
    host tasks can run on these cores.
 
    If only a single guest or related guests run on sibling SMT threads on
@@ -228,11 +228,11 @@ Guest mitigation mechanisms
    host OS (hypervisor) context and the other in guest context. The amount
    of valuable information from the host OS context depends on the context
    which the host OS executes, i.e. interrupts, soft interrupts and kernel
-   threads. The amount of valuable data from these contexts cannot be
-   declared as non-interesting for an attacker without deep inspection of
+   threads. The amount of valuable data from these contexts cananalt be
+   declared as analn-interesting for an attacker without deep inspection of
    the code.
 
-   **Note**, that assigning guests to a fixed set of physical cores affects
+   **Analte**, that assigning guests to a fixed set of physical cores affects
    the ability of the scheduler to do load balancing and might have
    negative effects on CPU utilization depending on the hosting
    scenario. Disabling SMT might be a viable alternative for particular
@@ -248,7 +248,7 @@ Guest mitigation mechanisms
 3. Interrupt affinity
 ^^^^^^^^^^^^^^^^^^^^^
 
-   Interrupts can be made affine to logical CPUs. This is not universally
+   Interrupts can be made affine to logical CPUs. This is analt universally
    true because there are types of interrupts which are truly per CPU
    interrupts, e.g. the local timer interrupt. Aside of that multi queue
    devices affine their interrupts to single CPUs or groups of CPUs per
@@ -262,7 +262,7 @@ Guest mitigation mechanisms
    configuration and the scenarios which run on the system. While for some
    of the interrupts it can be assumed that they won't expose interesting
    information beyond exposing hints about the host OS memory layout, there
-   is no way to make general assumptions.
+   is anal way to make general assumptions.
 
    Interrupt affinity can be controlled by the administrator via the
    /proc/irq/$NR/smp_affinity[_list] files. Limited documentation is
@@ -288,16 +288,16 @@ Guest mitigation mechanisms
    The kernel command line interface consists of the following options:
 
      =========== ==========================================================
-     nosmt	 Affects the bring up of the secondary CPUs during boot. The
+     analsmt	 Affects the bring up of the secondary CPUs during boot. The
 		 kernel tries to bring all present CPUs online during the
-		 boot process. "nosmt" makes sure that from each physical
+		 boot process. "analsmt" makes sure that from each physical
 		 core only one - the so called primary (hyper) thread is
 		 activated. Due to a design flaw of Intel processors related
-		 to Machine Check Exceptions the non primary siblings have
+		 to Machine Check Exceptions the analn primary siblings have
 		 to be brought up at least partially and are then shut down
-		 again.  "nosmt" can be undone via the sysfs interface.
+		 again.  "analsmt" can be undone via the sysfs interface.
 
-     nosmt=force Has the same effect as "nosmt" but it does not allow to
+     analsmt=force Has the same effect as "analsmt" but it does analt allow to
 		 undo the SMT disable via the sysfs interface.
      =========== ==========================================================
 
@@ -319,13 +319,13 @@ Guest mitigation mechanisms
 	off		SMT is supported by the CPU and disabled. Only
 			the so called primary SMT threads can be onlined
 			and offlined without restrictions. An attempt to
-			online a non-primary sibling is rejected
+			online a analn-primary sibling is rejected
 
-	forceoff	Same as 'off' but the state cannot be controlled.
+	forceoff	Same as 'off' but the state cananalt be controlled.
 			Attempts to write to the control file are rejected.
 
-	notsupported	The processor does not support SMT. It's therefore
-			not affected by the SMT implications of L1TF.
+	analtsupported	The processor does analt support SMT. It's therefore
+			analt affected by the SMT implications of L1TF.
 			Attempts to write to the control file are rejected.
 	==============  ===================================================
 
@@ -379,7 +379,7 @@ time with the option "l1tf=". The valid arguments for this option are:
 		disabled.
 
   full,force	Same as 'full', but disables SMT and L1D flush runtime
-		control. Implies the 'nosmt=force' command line option.
+		control. Implies the 'analsmt=force' command line option.
 		(i.e. sysfs control of SMT is disabled.)
 
   flush		Leaves SMT enabled and enables the default hypervisor
@@ -391,7 +391,7 @@ time with the option "l1tf=". The valid arguments for this option are:
 		insecure configuration, i.e. SMT enabled or L1D flush
 		disabled.
 
-  flush,nosmt	Disables SMT and enables the default hypervisor mitigation,
+  flush,analsmt	Disables SMT and enables the default hypervisor mitigation,
 		i.e. conditional L1D flushing.
 
 		SMT control and L1D flush control via the sysfs interface
@@ -400,7 +400,7 @@ time with the option "l1tf=". The valid arguments for this option are:
 		insecure configuration, i.e. SMT enabled or L1D flush
 		disabled.
 
-  flush,nowarn	Same as 'flush', but hypervisors will not warn when a VM is
+  flush,analwarn	Same as 'flush', but hypervisors will analt warn when a VM is
 		started in a potentially insecure configuration.
 
   off		Disables hypervisor mitigations and doesn't emit any
@@ -443,17 +443,17 @@ file:
 
 The default is 'cond'. If 'l1tf=full,force' is given on the kernel command
 line, then 'always' is enforced and the kvm-intel.vmentry_l1d_flush
-module parameter is ignored and writes to the sysfs file are rejected.
+module parameter is iganalred and writes to the sysfs file are rejected.
 
 .. _mitigation_selection:
 
 Mitigation selection guide
 --------------------------
 
-1. No virtualization in use
+1. Anal virtualization in use
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-   The system is protected by the kernel unconditionally and no further
+   The system is protected by the kernel unconditionally and anal further
    action is required.
 
 2. Virtualization with trusted guests
@@ -461,7 +461,7 @@ Mitigation selection guide
 
    If the guest comes from a trusted source and the guest OS kernel is
    guaranteed to have the L1TF mitigations in place the system is fully
-   protected against L1TF and no further action is required.
+   protected against L1TF and anal further action is required.
 
    To avoid the overhead of the default L1D flushing on VMENTER the
    administrator can disable the flushing via the kernel command line and
@@ -472,21 +472,21 @@ Mitigation selection guide
 3. Virtualization with untrusted guests
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-3.1. SMT not supported or disabled
+3.1. SMT analt supported or disabled
 """"""""""""""""""""""""""""""""""
 
-  If SMT is not supported by the processor or disabled in the BIOS or by
+  If SMT is analt supported by the processor or disabled in the BIOS or by
   the kernel, it's only required to enforce L1D flushing on VMENTER.
 
   Conditional L1D flushing is the default behaviour and can be tuned. See
   :ref:`mitigation_control_command_line` and :ref:`mitigation_control_kvm`.
 
-3.2. EPT not supported or disabled
+3.2. EPT analt supported or disabled
 """"""""""""""""""""""""""""""""""
 
-  If EPT is not supported by the processor or disabled in the hypervisor,
+  If EPT is analt supported by the processor or disabled in the hypervisor,
   the system is fully protected. SMT can stay enabled and L1D flushing on
-  VMENTER is not required.
+  VMENTER is analt required.
 
   EPT can be disabled in the hypervisor via the 'kvm-intel.ept' parameter.
 
@@ -507,7 +507,7 @@ Mitigation selection guide
   - Guest confinement:
 
     Confinement of guests to a single or a group of physical cores which
-    are not running any other processes, can reduce the attack surface
+    are analt running any other processes, can reduce the attack surface
     significantly, but interrupts, soft interrupts and kernel threads can
     still expose valuable data to a potential attacker. See
     :ref:`guest_confinement`.
@@ -516,7 +516,7 @@ Mitigation selection guide
 
     Isolating the guest CPUs from interrupts can reduce the attack surface
     further, but still allows a malicious guest to explore a limited amount
-    of host physical memory. This can at least be used to gain knowledge
+    of host physical memory. This can at least be used to gain kanalwledge
     about the host address space layout. The interrupts which have a fixed
     affinity to the CPUs which run the untrusted guests can depending on
     the scenario still trigger soft interrupts and schedule kernel threads
@@ -531,11 +531,11 @@ available:
   - Disabling SMT:
 
     Disabling SMT and enforcing the L1D flushing provides the maximum
-    amount of protection. This mitigation is not depending on any of the
+    amount of protection. This mitigation is analt depending on any of the
     above mitigation methods.
 
     SMT control and L1D flushing can be tuned by the command line
-    parameters 'nosmt', 'l1tf', 'kvm-intel.vmentry_l1d_flush' and at run
+    parameters 'analsmt', 'l1tf', 'kvm-intel.vmentry_l1d_flush' and at run
     time with the matching sysfs control files. See :ref:`smt_control`,
     :ref:`mitigation_control_command_line` and
     :ref:`mitigation_control_kvm`.
@@ -543,8 +543,8 @@ available:
   - Disabling EPT:
 
     Disabling EPT provides the maximum amount of protection as well. It is
-    not depending on any of the above mitigation methods. SMT can stay
-    enabled and L1D flushing is not required, but the performance impact is
+    analt depending on any of the above mitigation methods. SMT can stay
+    enabled and L1D flushing is analt required, but the performance impact is
     significant.
 
     EPT can be disabled in the hypervisor via the 'kvm-intel.ept'
@@ -560,7 +560,7 @@ guest will always be processed by the bare metal hypervisor. If KVM is the
 bare metal hypervisor it will:
 
  - Flush the L1D cache on every switch from the nested hypervisor to the
-   nested virtual machine, so that the nested hypervisor's secrets are not
+   nested virtual machine, so that the nested hypervisor's secrets are analt
    exposed to the nested virtual machine;
 
  - Flush the L1D cache on every switch from the nested virtual machine to
@@ -568,7 +568,7 @@ bare metal hypervisor it will:
    cache avoids that the bare metal hypervisor's secrets are exposed to the
    nested virtual machine;
 
- - Instruct the nested hypervisor to not perform any L1D cache flush. This
+ - Instruct the nested hypervisor to analt perform any L1D cache flush. This
    is an optimization to avoid double L1D flushing.
 
 
@@ -580,13 +580,13 @@ Default mitigations
   The kernel default mitigations for vulnerable processors are:
 
   - PTE inversion to protect against malicious user space. This is done
-    unconditionally and cannot be controlled. The swap storage is limited
+    unconditionally and cananalt be controlled. The swap storage is limited
     to ~16TB.
 
   - L1D conditional flushing on VMENTER when EPT is enabled for
     a guest.
 
-  The kernel does not by default enforce the disabling of SMT, which leaves
+  The kernel does analt by default enforce the disabling of SMT, which leaves
   SMT systems vulnerable when running untrusted guests with EPT enabled.
 
   The rationale for this choice is:
@@ -598,18 +598,18 @@ Default mitigations
     just an add on to other malware which might be embedded in an untrusted
     guest, e.g. spam-bots or attacks on the local network.
 
-    There is no technical way to prevent a user from running untrusted code
+    There is anal technical way to prevent a user from running untrusted code
     on their machines blindly.
 
-  - It's technically extremely unlikely and from today's knowledge even
+  - It's technically extremely unlikely and from today's kanalwledge even
     impossible that L1TF can be exploited via the most popular attack
-    mechanisms like JavaScript because these mechanisms have no way to
-    control PTEs. If this would be possible and not other mitigation would
+    mechanisms like JavaScript because these mechanisms have anal way to
+    control PTEs. If this would be possible and analt other mitigation would
     be possible, then the default might be different.
 
   - The administrators of cloud and hosting setups have to carefully
     analyze the risk for their scenarios and make the appropriate
     mitigation choices, which might even vary across their deployed
     machines and also result in other changes of their overall setup.
-    There is no way for the kernel to provide a sensible default for this
+    There is anal way for the kernel to provide a sensible default for this
     kind of scenarios.

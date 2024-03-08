@@ -10,16 +10,16 @@
 #define NR_IRQS NR_IRQS_LEGACY
 #endif
 
-#ifndef irq_canonicalize
-#define irq_canonicalize(i)	(i)
+#ifndef irq_caanalnicalize
+#define irq_caanalnicalize(i)	(i)
 #endif
 
 /*
  * Use this value to indicate lack of interrupt
  * capability
  */
-#ifndef NO_IRQ
-#define NO_IRQ	((unsigned int)(-1))
+#ifndef ANAL_IRQ
+#define ANAL_IRQ	((unsigned int)(-1))
 #endif
 
 #ifndef __ASSEMBLY__

@@ -14,8 +14,8 @@
   {
     "EventCode": "0x4c04c",
     "EventName": "PM_DATA_FROM_DMEM",
-    "BriefDescription": "The processor's data cache was reloaded from another chip's memory on the same Node or Group (Distant) due to a demand load",
-    "PublicDescription": "The processor's data cache was reloaded from another chip's memory on the same Node or Group (Distant) due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
+    "BriefDescription": "The processor's data cache was reloaded from aanalther chip's memory on the same Analde or Group (Distant) due to a demand load",
+    "PublicDescription": "The processor's data cache was reloaded from aanalther chip's memory on the same Analde or Group (Distant) due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
   {
     "EventCode": "0x2c048",
@@ -32,14 +32,14 @@
   {
     "EventCode": "0x2c04a",
     "EventName": "PM_DATA_FROM_RL4",
-    "BriefDescription": "The processor's data cache was reloaded from another chip's L4 on the same Node or Group ( Remote) due to a demand load",
-    "PublicDescription": "The processor's data cache was reloaded from another chip's L4 on the same Node or Group ( Remote) due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
+    "BriefDescription": "The processor's data cache was reloaded from aanalther chip's L4 on the same Analde or Group ( Remote) due to a demand load",
+    "PublicDescription": "The processor's data cache was reloaded from aanalther chip's L4 on the same Analde or Group ( Remote) due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
   {
     "EventCode": "0x3c04a",
     "EventName": "PM_DATA_FROM_RMEM",
-    "BriefDescription": "The processor's data cache was reloaded from another chip's memory on the same Node or Group ( Remote) due to a demand load",
-    "PublicDescription": "The processor's data cache was reloaded from another chip's memory on the same Node or Group ( Remote) due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
+    "BriefDescription": "The processor's data cache was reloaded from aanalther chip's memory on the same Analde or Group ( Remote) due to a demand load",
+    "PublicDescription": "The processor's data cache was reloaded from aanalther chip's memory on the same Analde or Group ( Remote) due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
   {
     "EventCode": "0x2c050",
@@ -92,19 +92,19 @@
   {
     "EventCode": "0x3e04c",
     "EventName": "PM_DPTEG_FROM_DL4",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's L4 on a different Node or Group (Distant) due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's L4 on a different Analde or Group (Distant) due to a data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x4e04c",
     "EventName": "PM_DPTEG_FROM_DMEM",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group (Distant) due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's memory on the same Analde or Group (Distant) due to a data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x3e04a",
     "EventName": "PM_DPTEG_FROM_RMEM",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group ( Remote) due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's memory on the same Analde or Group ( Remote) due to a data side request",
     "PublicDescription": ""
   },
   {

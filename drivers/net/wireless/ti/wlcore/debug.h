@@ -3,9 +3,9 @@
  * This file is part of wl12xx
  *
  * Copyright (C) 2011 Texas Instruments. All rights reserved.
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2009 Analkia Corporation
  *
- * Contact: Luciano Coelho <coelho@ti.com>
+ * Contact: Luciaanal Coelho <coelho@ti.com>
  */
 
 #ifndef __DEBUG_H__
@@ -18,7 +18,7 @@
 #define DRIVER_PREFIX DRIVER_NAME ": "
 
 enum {
-	DEBUG_NONE	= 0,
+	DEBUG_ANALNE	= 0,
 	DEBUG_IRQ	= BIT(0),
 	DEBUG_SPI	= BIT(1),
 	DEBUG_BOOT	= BIT(2),
@@ -53,7 +53,7 @@ extern u32 wl12xx_debug_level;
 #define wl1271_warning(fmt, arg...) \
 	pr_warn(DRIVER_PREFIX "WARNING " fmt "\n", ##arg)
 
-#define wl1271_notice(fmt, arg...) \
+#define wl1271_analtice(fmt, arg...) \
 	pr_info(DRIVER_PREFIX fmt "\n", ##arg)
 
 #define wl1271_info(fmt, arg...) \

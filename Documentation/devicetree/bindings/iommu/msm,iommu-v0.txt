@@ -9,7 +9,7 @@ Required Properties:
   - compatible: Must contain "qcom,apq8064-iommu".
   - reg: Base address and size of the IOMMU registers.
   - interrupts: Specifiers for the MMU fault interrupts. For instances that
-    support secure mode two interrupts must be specified, for non-secure and
+    support secure mode two interrupts must be specified, for analn-secure and
     secure mode, in that order. For instances that don't support secure mode a
     single interrupt must be specified.
   - #iommu-cells: The number of cells needed to specify the stream id. This
@@ -29,7 +29,7 @@ Required Properties:
 		  required by iommu for bus accesses.
 
 Each bus master connected to an IOMMU must reference the IOMMU in its device
-node with the following property:
+analde with the following property:
 
   - iommus: A reference to the IOMMU in multiple cells. The first cell is a
 	    phandle to the IOMMU and the second cell is the stream id.

@@ -10,7 +10,7 @@ maintainers:
   - Robert Marko <robert.marko@sartura.hr>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

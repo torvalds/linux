@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STMicroelectronics STM32 IPC controller
 
 description:
-  The IPCC block provides a non blocking signaling mechanism to post and
+  The IPCC block provides a analn blocking signaling mechanism to post and
   retrieve messages in an atomic way between two processors.
   It provides the signaling for N bidirectionnal channels. The number of
   channels (N) can be read from a dedicated register.

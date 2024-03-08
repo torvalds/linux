@@ -22,9 +22,9 @@ static int bfq_gt(u64 a, u64 b)
 
 static struct bfq_entity *bfq_root_active_entity(struct rb_root *tree)
 {
-	struct rb_node *node = tree->rb_node;
+	struct rb_analde *analde = tree->rb_analde;
 
-	return rb_entry(node, struct bfq_entity, rb_node);
+	return rb_entry(analde, struct bfq_entity, rb_analde);
 }
 
 static unsigned int bfq_class_idx(struct bfq_entity *entity)
@@ -49,7 +49,7 @@ static bool bfq_update_parent_budget(struct bfq_entity *next_in_service);
 /**
  * bfq_update_next_in_service - update sd->next_in_service
  * @sd: sched_data for which to perform the update.
- * @new_entity: if not NULL, pointer to the entity whose activation,
+ * @new_entity: if analt NULL, pointer to the entity whose activation,
  *		requeueing or repositioning triggered the invocation of
  *		this function.
  * @expiration: id true, this function is being invoked after the
@@ -81,14 +81,14 @@ static bool bfq_update_next_in_service(struct bfq_sched_data *sd,
 
 	/*
 	 * If this update is triggered by the activation, requeueing
-	 * or repositioning of an entity that does not coincide with
+	 * or repositioning of an entity that does analt coincide with
 	 * sd->next_in_service, then a full lookup in the active tree
-	 * can be avoided. In fact, it is enough to check whether the
+	 * can be avoided. In fact, it is eanalugh to check whether the
 	 * just-modified entity has the same priority as
 	 * sd->next_in_service, is eligible and has a lower virtual
 	 * finish time than sd->next_in_service. If this compound
 	 * condition holds, then the new entity becomes the new
-	 * next_in_service. Otherwise no change is needed.
+	 * next_in_service. Otherwise anal change is needed.
 	 */
 	if (new_entity && new_entity != sd->next_in_service) {
 		/*
@@ -157,8 +157,8 @@ static bool bfq_update_parent_budget(struct bfq_entity *next_in_service)
 
 	bfqg = container_of(group_sd, struct bfq_group, sched_data);
 	/*
-	 * bfq_group's my_entity field is not NULL only if the group
-	 * is not the root group. We must not touch the root entity
+	 * bfq_group's my_entity field is analt NULL only if the group
+	 * is analt the root group. We must analt touch the root entity
 	 * as it must never become an in-service entity.
 	 */
 	bfqg_entity = bfqg->my_entity;
@@ -177,21 +177,21 @@ static bool bfq_update_parent_budget(struct bfq_entity *next_in_service)
  * next_in_service. In particular, this function is invoked for an
  * entity that is about to be set in service.
  *
- * If entity is a queue, then the entity is no longer a candidate for
+ * If entity is a queue, then the entity is anal longer a candidate for
  * next service according to the that definition, because entity is
  * about to become the in-service queue. This function then returns
  * true if entity is a queue.
  *
  * In contrast, entity could still be a candidate for next service if
- * it is not a queue, and has more than one active child. In fact,
+ * it is analt a queue, and has more than one active child. In fact,
  * even if one of its children is about to be set in service, other
  * active children may still be the next to serve, for the parent
  * entity, even according to the above definition. As a consequence, a
- * non-queue entity is not a candidate for next-service only if it has
+ * analn-queue entity is analt a candidate for next-service only if it has
  * only one active child. And only if this condition holds, then this
- * function returns true for a non-queue entity.
+ * function returns true for a analn-queue entity.
  */
-static bool bfq_no_longer_next_in_service(struct bfq_entity *entity)
+static bool bfq_anal_longer_next_in_service(struct bfq_entity *entity)
 {
 	struct bfq_group *bfqg;
 
@@ -201,14 +201,14 @@ static bool bfq_no_longer_next_in_service(struct bfq_entity *entity)
 	bfqg = container_of(entity, struct bfq_group, entity);
 
 	/*
-	 * The field active_entities does not always contain the
+	 * The field active_entities does analt always contain the
 	 * actual number of active children entities: it happens to
-	 * not account for the in-service entity in case the latter is
+	 * analt account for the in-service entity in case the latter is
 	 * removed from its active tree (which may get done after
-	 * invoking the function bfq_no_longer_next_in_service in
+	 * invoking the function bfq_anal_longer_next_in_service in
 	 * bfq_get_next_queue). Fortunately, here, i.e., while
-	 * bfq_no_longer_next_in_service is not yet completed in
-	 * bfq_get_next_queue, bfq_active_extract has not yet been
+	 * bfq_anal_longer_next_in_service is analt yet completed in
+	 * bfq_get_next_queue, bfq_active_extract has analt yet been
 	 * invoked, and thus active_entities still coincides with the
 	 * actual number of active entities.
 	 */
@@ -243,7 +243,7 @@ static bool bfq_update_parent_budget(struct bfq_entity *next_in_service)
 	return false;
 }
 
-static bool bfq_no_longer_next_in_service(struct bfq_entity *entity)
+static bool bfq_anal_longer_next_in_service(struct bfq_entity *entity)
 {
 	return true;
 }
@@ -312,20 +312,20 @@ static void bfq_calc_finish(struct bfq_entity *entity, unsigned long service)
 }
 
 /**
- * bfq_entity_of - get an entity from a node.
- * @node: the node field of the entity.
+ * bfq_entity_of - get an entity from a analde.
+ * @analde: the analde field of the entity.
  *
- * Convert a node pointer to the relative entity.  This is used only
- * to simplify the logic of some functions and not as the generic
+ * Convert a analde pointer to the relative entity.  This is used only
+ * to simplify the logic of some functions and analt as the generic
  * conversion mechanism because, e.g., in the tree walking functions,
  * the check for a %NULL value would be redundant.
  */
-struct bfq_entity *bfq_entity_of(struct rb_node *node)
+struct bfq_entity *bfq_entity_of(struct rb_analde *analde)
 {
 	struct bfq_entity *entity = NULL;
 
-	if (node)
-		entity = rb_entry(node, struct bfq_entity, rb_node);
+	if (analde)
+		entity = rb_entry(analde, struct bfq_entity, rb_analde);
 
 	return entity;
 }
@@ -338,7 +338,7 @@ struct bfq_entity *bfq_entity_of(struct rb_node *node)
 static void bfq_extract(struct rb_root *root, struct bfq_entity *entity)
 {
 	entity->tree = NULL;
-	rb_erase(&entity->rb_node, root);
+	rb_erase(&entity->rb_analde, root);
 }
 
 /**
@@ -350,15 +350,15 @@ static void bfq_idle_extract(struct bfq_service_tree *st,
 			     struct bfq_entity *entity)
 {
 	struct bfq_queue *bfqq = bfq_entity_to_bfqq(entity);
-	struct rb_node *next;
+	struct rb_analde *next;
 
 	if (entity == st->first_idle) {
-		next = rb_next(&entity->rb_node);
+		next = rb_next(&entity->rb_analde);
 		st->first_idle = bfq_entity_of(next);
 	}
 
 	if (entity == st->last_idle) {
-		next = rb_prev(&entity->rb_node);
+		next = rb_prev(&entity->rb_analde);
 		st->last_idle = bfq_entity_of(next);
 	}
 
@@ -379,21 +379,21 @@ static void bfq_idle_extract(struct bfq_service_tree *st,
 static void bfq_insert(struct rb_root *root, struct bfq_entity *entity)
 {
 	struct bfq_entity *entry;
-	struct rb_node **node = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **analde = &root->rb_analde;
+	struct rb_analde *parent = NULL;
 
-	while (*node) {
-		parent = *node;
-		entry = rb_entry(parent, struct bfq_entity, rb_node);
+	while (*analde) {
+		parent = *analde;
+		entry = rb_entry(parent, struct bfq_entity, rb_analde);
 
 		if (bfq_gt(entry->finish, entity->finish))
-			node = &parent->rb_left;
+			analde = &parent->rb_left;
 		else
-			node = &parent->rb_right;
+			analde = &parent->rb_right;
 	}
 
-	rb_link_node(&entity->rb_node, parent, node);
-	rb_insert_color(&entity->rb_node, root);
+	rb_link_analde(&entity->rb_analde, parent, analde);
+	rb_insert_color(&entity->rb_analde, root);
 
 	entity->tree = root;
 }
@@ -401,68 +401,68 @@ static void bfq_insert(struct rb_root *root, struct bfq_entity *entity)
 /**
  * bfq_update_min - update the min_start field of a entity.
  * @entity: the entity to update.
- * @node: one of its children.
+ * @analde: one of its children.
  *
  * This function is called when @entity may store an invalid value for
  * min_start due to updates to the active tree.  The function  assumes
- * that the subtree rooted at @node (which may be its left or its right
+ * that the subtree rooted at @analde (which may be its left or its right
  * child) has a valid min_start value.
  */
-static void bfq_update_min(struct bfq_entity *entity, struct rb_node *node)
+static void bfq_update_min(struct bfq_entity *entity, struct rb_analde *analde)
 {
 	struct bfq_entity *child;
 
-	if (node) {
-		child = rb_entry(node, struct bfq_entity, rb_node);
+	if (analde) {
+		child = rb_entry(analde, struct bfq_entity, rb_analde);
 		if (bfq_gt(entity->min_start, child->min_start))
 			entity->min_start = child->min_start;
 	}
 }
 
 /**
- * bfq_update_active_node - recalculate min_start.
- * @node: the node to update.
+ * bfq_update_active_analde - recalculate min_start.
+ * @analde: the analde to update.
  *
- * @node may have changed position or one of its children may have moved,
+ * @analde may have changed position or one of its children may have moved,
  * this function updates its min_start value.  The left and right subtrees
  * are assumed to hold a correct min_start value.
  */
-static void bfq_update_active_node(struct rb_node *node)
+static void bfq_update_active_analde(struct rb_analde *analde)
 {
-	struct bfq_entity *entity = rb_entry(node, struct bfq_entity, rb_node);
+	struct bfq_entity *entity = rb_entry(analde, struct bfq_entity, rb_analde);
 
 	entity->min_start = entity->start;
-	bfq_update_min(entity, node->rb_right);
-	bfq_update_min(entity, node->rb_left);
+	bfq_update_min(entity, analde->rb_right);
+	bfq_update_min(entity, analde->rb_left);
 }
 
 /**
  * bfq_update_active_tree - update min_start for the whole active tree.
- * @node: the starting node.
+ * @analde: the starting analde.
  *
- * @node must be the deepest modified node after an update.  This function
+ * @analde must be the deepest modified analde after an update.  This function
  * updates its min_start using the values held by its children, assuming
- * that they did not change, and then updates all the nodes that may have
- * changed in the path to the root.  The only nodes that may have changed
+ * that they did analt change, and then updates all the analdes that may have
+ * changed in the path to the root.  The only analdes that may have changed
  * are the ones in the path or their siblings.
  */
-static void bfq_update_active_tree(struct rb_node *node)
+static void bfq_update_active_tree(struct rb_analde *analde)
 {
-	struct rb_node *parent;
+	struct rb_analde *parent;
 
 up:
-	bfq_update_active_node(node);
+	bfq_update_active_analde(analde);
 
-	parent = rb_parent(node);
+	parent = rb_parent(analde);
 	if (!parent)
 		return;
 
-	if (node == parent->rb_left && parent->rb_right)
-		bfq_update_active_node(parent->rb_right);
+	if (analde == parent->rb_left && parent->rb_right)
+		bfq_update_active_analde(parent->rb_right);
 	else if (parent->rb_left)
-		bfq_update_active_node(parent->rb_left);
+		bfq_update_active_analde(parent->rb_left);
 
-	node = parent;
+	analde = parent;
 	goto up;
 }
 
@@ -473,24 +473,24 @@ up:
  * @entity: the entity being inserted.
  *
  * The active tree is ordered by finish time, but an extra key is kept
- * per each node, containing the minimum value for the start times of
- * its children (and the node itself), so it's possible to search for
- * the eligible node with the lowest finish time in logarithmic time.
+ * per each analde, containing the minimum value for the start times of
+ * its children (and the analde itself), so it's possible to search for
+ * the eligible analde with the lowest finish time in logarithmic time.
  */
 static void bfq_active_insert(struct bfq_service_tree *st,
 			      struct bfq_entity *entity)
 {
 	struct bfq_queue *bfqq = bfq_entity_to_bfqq(entity);
-	struct rb_node *node = &entity->rb_node;
+	struct rb_analde *analde = &entity->rb_analde;
 
 	bfq_insert(&st->active, entity);
 
-	if (node->rb_left)
-		node = node->rb_left;
-	else if (node->rb_right)
-		node = node->rb_right;
+	if (analde->rb_left)
+		analde = analde->rb_left;
+	else if (analde->rb_right)
+		analde = analde->rb_right;
 
-	bfq_update_active_tree(node);
+	bfq_update_active_tree(analde);
 
 	if (bfqq)
 		list_add(&bfqq->bfqq_list, &bfqq->bfqd->active_list[bfqq->actuator_idx]);
@@ -533,29 +533,29 @@ static void bfq_get_entity(struct bfq_entity *entity)
 }
 
 /**
- * bfq_find_deepest - find the deepest node that an extraction can modify.
- * @node: the node being removed.
+ * bfq_find_deepest - find the deepest analde that an extraction can modify.
+ * @analde: the analde being removed.
  *
  * Do the first step of an extraction in an rb tree, looking for the
- * node that will replace @node, and returning the deepest node that
- * the following modifications to the tree can touch.  If @node is the
- * last node in the tree return %NULL.
+ * analde that will replace @analde, and returning the deepest analde that
+ * the following modifications to the tree can touch.  If @analde is the
+ * last analde in the tree return %NULL.
  */
-static struct rb_node *bfq_find_deepest(struct rb_node *node)
+static struct rb_analde *bfq_find_deepest(struct rb_analde *analde)
 {
-	struct rb_node *deepest;
+	struct rb_analde *deepest;
 
-	if (!node->rb_right && !node->rb_left)
-		deepest = rb_parent(node);
-	else if (!node->rb_right)
-		deepest = node->rb_left;
-	else if (!node->rb_left)
-		deepest = node->rb_right;
+	if (!analde->rb_right && !analde->rb_left)
+		deepest = rb_parent(analde);
+	else if (!analde->rb_right)
+		deepest = analde->rb_left;
+	else if (!analde->rb_left)
+		deepest = analde->rb_right;
 	else {
-		deepest = rb_next(node);
+		deepest = rb_next(analde);
 		if (deepest->rb_right)
 			deepest = deepest->rb_right;
-		else if (rb_parent(deepest) != node)
+		else if (rb_parent(deepest) != analde)
 			deepest = rb_parent(deepest);
 	}
 
@@ -571,13 +571,13 @@ static void bfq_active_extract(struct bfq_service_tree *st,
 			       struct bfq_entity *entity)
 {
 	struct bfq_queue *bfqq = bfq_entity_to_bfqq(entity);
-	struct rb_node *node;
+	struct rb_analde *analde;
 
-	node = bfq_find_deepest(&entity->rb_node);
+	analde = bfq_find_deepest(&entity->rb_analde);
 	bfq_extract(&st->active, entity);
 
-	if (node)
-		bfq_update_active_tree(node);
+	if (analde)
+		bfq_update_active_tree(analde);
 	if (bfqq)
 		list_del(&bfqq->bfqq_list);
 
@@ -608,15 +608,15 @@ static void bfq_idle_insert(struct bfq_service_tree *st,
 }
 
 /**
- * bfq_forget_entity - do not consider entity any longer for scheduling
+ * bfq_forget_entity - do analt consider entity any longer for scheduling
  * @st: the service tree.
  * @entity: the entity being removed.
  * @is_in_service: true if entity is currently the in-service entity.
  *
  * Forget everything about @entity. In addition, if entity represents
- * a queue, and the latter is not in service, then release the service
+ * a queue, and the latter is analt in service, then release the service
  * reference to the queue (the one taken through bfq_get_entity). In
- * fact, in this case, there is really no more service reference to
+ * fact, in this case, there is really anal more service reference to
  * the queue, as the latter is also outside any service tree. If,
  * instead, the queue is in service, then __bfq_bfqd_reset_in_service
  * will take care of putting the reference when the queue finally
@@ -651,7 +651,7 @@ void bfq_put_idle_entity(struct bfq_service_tree *st, struct bfq_entity *entity)
  * @st: the service tree to act upon.
  *
  * To preserve the global O(log N) complexity we only remove one entry here;
- * as the idle tree will not grow indefinitely this can be done safely.
+ * as the idle tree will analt grow indefinitely this can be done safely.
  */
 static void bfq_forget_idle(struct bfq_service_tree *st)
 {
@@ -688,7 +688,7 @@ struct bfq_service_tree *bfq_entity_service_tree(struct bfq_entity *entity)
  * entity implies changing the destination service trees for that
  * entity. If such a change occurred when the entity is already on one
  * of the service trees for its previous class, then the state of the
- * entity would become more complex: none of the new possible service
+ * entity would become more complex: analne of the new possible service
  * trees for the entity, according to bfq_entity_service_tree(), would
  * match any of the possible service trees on which the entity
  * is. Complex operations involving these trees, such as entity
@@ -733,13 +733,13 @@ __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
 
 		/*
 		 * Reset prio_changed only if the ioprio_class change
-		 * is not pending any longer.
+		 * is analt pending any longer.
 		 */
 		if (!bfqq || bfqq->ioprio_class == bfqq->new_ioprio_class)
 			entity->prio_changed = 0;
 
 		/*
-		 * NOTE: here we may be changing the weight too early,
+		 * ANALTE: here we may be changing the weight too early,
 		 * this will cause unfairness.  The correct approach
 		 * would have required additional complexity to defer
 		 * weight changes to the proper time instants (i.e.,
@@ -759,7 +759,7 @@ __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
 			bfq_weights_tree_remove(bfqq);
 		entity->weight = new_weight;
 		/*
-		 * Add the entity, if it is not a weight-raised queue,
+		 * Add the entity, if it is analt a weight-raised queue,
 		 * to the counter associated with its new weight.
 		 */
 		if (prev_weight != new_weight && bfqq && bfqq->wr_coeff == 1)
@@ -780,8 +780,8 @@ __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
  * @bfqq: the queue being served.
  * @served: bytes to transfer.
  *
- * NOTE: this can be optimized, as the timestamps of upper level entities
- * are synchronized every time a new bfqq is selected for service.  By now,
+ * ANALTE: this can be optimized, as the timestamps of upper level entities
+ * are synchronized every time a new bfqq is selected for service.  By analw,
  * we keep it to better check consistency.
  */
 void bfq_bfqq_served(struct bfq_queue *bfqq, int served)
@@ -815,18 +815,18 @@ void bfq_bfqq_served(struct bfq_queue *bfqq, int served)
  * @bfqq: the queue that needs a service update.
  * @time_ms: the amount of time during which the queue has received service
  *
- * If a queue does not consume its budget fast enough, then providing
+ * If a queue does analt consume its budget fast eanalugh, then providing
  * the queue with service fairness may impair throughput, more or less
  * severely. For this reason, queues that consume their budget slowly
  * are provided with time fairness instead of service fairness. This
  * goal is achieved through the BFQ scheduling engine, even if such an
- * engine works in the service, and not in the time domain. The trick
+ * engine works in the service, and analt in the time domain. The trick
  * is charging these queues with an inflated amount of service, equal
  * to the amount of service that they would have received during their
  * service slot if they had been fast, i.e., if their requests had
  * been dispatched at a rate equal to the estimated peak rate.
  *
- * It is worth noting that time fairness can cause important
+ * It is worth analting that time fairness can cause important
  * distortions in terms of bandwidth distribution, on devices with
  * internal queueing. The reason is that I/O requests dispatched
  * during the service slot of a queue may be served after that service
@@ -859,7 +859,7 @@ static void bfq_update_fin_time_enqueue(struct bfq_entity *entity,
 	struct bfq_queue *bfqq = bfq_entity_to_bfqq(entity);
 
 	/*
-	 * When this function is invoked, entity is not in any service
+	 * When this function is invoked, entity is analt in any service
 	 * tree, then it is safe to invoke next function with the last
 	 * parameter set (see the comments on the function).
 	 */
@@ -881,23 +881,23 @@ static void bfq_update_fin_time_enqueue(struct bfq_entity *entity,
 	 * queues. As a consequence, the finish timestamps of all new
 	 * or newly activated queues may end up being much larger than
 	 * those of lucky queues with backshifted timestamps. The
-	 * latter queues may then monopolize the device for a lot of
+	 * latter queues may then moanalpolize the device for a lot of
 	 * time. This would simply break service guarantees.
 	 *
 	 * To reduce this problem, push up a little bit the
 	 * backshifted timestamps of the queue associated with this
 	 * entity (only a queue can happen to have the backshifted
-	 * flag set): just enough to let the finish timestamp of the
+	 * flag set): just eanalugh to let the finish timestamp of the
 	 * queue be equal to the current value of the system virtual
 	 * time. This may introduce a little unfairness among queues
-	 * with backshifted timestamps, but it does not break
+	 * with backshifted timestamps, but it does analt break
 	 * worst-case fairness guarantees.
 	 *
 	 * As a special case, if bfqq is weight-raised, push up
 	 * timestamps much less, to keep very low the probability that
 	 * this push up causes the backshifted finish timestamps of
 	 * weight-raised queues to become higher than the backshifted
-	 * finish timestamps of non weight-raised queues.
+	 * finish timestamps of analn weight-raised queues.
 	 */
 	if (backshifted && bfq_gt(st->vtime, entity->finish)) {
 		unsigned long delta = st->vtime - entity->finish;
@@ -915,9 +915,9 @@ static void bfq_update_fin_time_enqueue(struct bfq_entity *entity,
 /**
  * __bfq_activate_entity - handle activation of entity.
  * @entity: the entity being activated.
- * @non_blocking_wait_rq: true if entity was waiting for a request
+ * @analn_blocking_wait_rq: true if entity was waiting for a request
  *
- * Called for a 'true' activation, i.e., if entity is not active and
+ * Called for a 'true' activation, i.e., if entity is analt active and
  * one of its children receives a new request.
  *
  * Basically, this function updates the timestamps of entity and
@@ -925,14 +925,14 @@ static void bfq_update_fin_time_enqueue(struct bfq_entity *entity,
  * from its idle tree.
  */
 static void __bfq_activate_entity(struct bfq_entity *entity,
-				  bool non_blocking_wait_rq)
+				  bool analn_blocking_wait_rq)
 {
 	struct bfq_service_tree *st = bfq_entity_service_tree(entity);
 	bool backshifted = false;
 	unsigned long long min_vstart;
 
 	/* See comments on bfq_fqq_update_budg_for_activation */
-	if (non_blocking_wait_rq && bfq_gt(st->vtime, entity->finish)) {
+	if (analn_blocking_wait_rq && bfq_gt(st->vtime, entity->finish)) {
 		backshifted = true;
 		min_vstart = entity->finish;
 	} else
@@ -957,7 +957,7 @@ static void __bfq_activate_entity(struct bfq_entity *entity,
 		/*
 		 * entity is about to be inserted into a service tree,
 		 * and then set in service: get a reference to make
-		 * sure entity does not disappear until it is no
+		 * sure entity does analt disappear until it is anal
 		 * longer in service or scheduled for service.
 		 */
 		bfq_get_entity(entity);
@@ -1015,10 +1015,10 @@ static void __bfq_requeue_entity(struct bfq_entity *entity)
 		entity->start = entity->finish;
 		/*
 		 * In addition, if the entity had more than one child
-		 * when set in service, then it was not extracted from
+		 * when set in service, then it was analt extracted from
 		 * the active tree. This implies that the position of
 		 * the entity in the active tree may need to be
-		 * changed now, because we have just updated the start
+		 * changed analw, because we have just updated the start
 		 * time of the entity, and we will update its finish
 		 * time in a moment (the requeueing is then, more
 		 * precisely, a repositioning in this case). To
@@ -1028,7 +1028,7 @@ static void __bfq_requeue_entity(struct bfq_entity *entity)
 		 */
 		if (entity->tree)
 			bfq_active_extract(st, entity);
-	} else { /* The entity is already active, and not in service */
+	} else { /* The entity is already active, and analt in service */
 		/*
 		 * In this case, this function gets called only if the
 		 * next_in_service entity below this entity has
@@ -1041,7 +1041,7 @@ static void __bfq_requeue_entity(struct bfq_entity *entity)
 		 * dequeueing the entity here, 2) updating the finish
 		 * time and requeueing the entity according to the new
 		 * timestamps below. This is the same approach as the
-		 * non-extracted-entity sub-case above.
+		 * analn-extracted-entity sub-case above.
 		 */
 		bfq_active_extract(st, entity);
 	}
@@ -1050,7 +1050,7 @@ static void __bfq_requeue_entity(struct bfq_entity *entity)
 }
 
 static void __bfq_activate_requeue_entity(struct bfq_entity *entity,
-					  bool non_blocking_wait_rq)
+					  bool analn_blocking_wait_rq)
 {
 	struct bfq_service_tree *st = bfq_entity_service_tree(entity);
 
@@ -1063,10 +1063,10 @@ static void __bfq_activate_requeue_entity(struct bfq_entity *entity,
 		__bfq_requeue_entity(entity);
 	else
 		/*
-		 * Not in service and not queued on its active tree:
+		 * Analt in service and analt queued on its active tree:
 		 * the activity is idle and this is a true activation.
 		 */
-		__bfq_activate_entity(entity, non_blocking_wait_rq);
+		__bfq_activate_entity(entity, analn_blocking_wait_rq);
 }
 
 
@@ -1076,7 +1076,7 @@ static void __bfq_activate_requeue_entity(struct bfq_entity *entity,
  *				 all ancestors for which such an update becomes
  *				 necessary.
  * @entity: the entity to activate.
- * @non_blocking_wait_rq: true if this entity was waiting for a request
+ * @analn_blocking_wait_rq: true if this entity was waiting for a request
  * @requeue: true if this is a requeue, which implies that bfqq is
  *	     being expired; thus ALL its ancestors stop being served and must
  *	     therefore be requeued
@@ -1084,11 +1084,11 @@ static void __bfq_activate_requeue_entity(struct bfq_entity *entity,
  *             of the in-service queue
  */
 static void bfq_activate_requeue_entity(struct bfq_entity *entity,
-					bool non_blocking_wait_rq,
+					bool analn_blocking_wait_rq,
 					bool requeue, bool expiration)
 {
 	for_each_entity(entity) {
-		__bfq_activate_requeue_entity(entity, non_blocking_wait_rq);
+		__bfq_activate_requeue_entity(entity, analn_blocking_wait_rq);
 		if (!bfq_update_next_in_service(entity->sched_data, entity,
 						expiration) && !requeue)
 			break;
@@ -1099,11 +1099,11 @@ static void bfq_activate_requeue_entity(struct bfq_entity *entity,
  * __bfq_deactivate_entity - update sched_data and service trees for
  * entity, so as to represent entity as inactive
  * @entity: the entity being deactivated.
- * @ins_into_idle_tree: if false, the entity will not be put into the
+ * @ins_into_idle_tree: if false, the entity will analt be put into the
  *			idle tree.
  *
- * If necessary and allowed, puts entity into the idle tree. NOTE:
- * entity may be on no tree if in service.
+ * If necessary and allowed, puts entity into the idle tree. ANALTE:
+ * entity may be on anal tree if in service.
  */
 bool __bfq_deactivate_entity(struct bfq_entity *entity, bool ins_into_idle_tree)
 {
@@ -1132,9 +1132,9 @@ bool __bfq_deactivate_entity(struct bfq_entity *entity, bool ins_into_idle_tree)
 		sd->in_service_entity = NULL;
 	else
 		/*
-		 * Non in-service entity: nobody will take care of
+		 * Analn in-service entity: analbody will take care of
 		 * resetting its service counter on expiration. Do it
-		 * now.
+		 * analw.
 		 */
 		entity->service = 0;
 
@@ -1170,9 +1170,9 @@ static void bfq_deactivate_entity(struct bfq_entity *entity,
 
 		if (!__bfq_deactivate_entity(entity, ins_into_idle_tree)) {
 			/*
-			 * entity is not in any tree any more, so
-			 * this deactivation is a no-op, and there is
-			 * nothing to change for upper-level entities
+			 * entity is analt in any tree any more, so
+			 * this deactivation is a anal-op, and there is
+			 * analthing to change for upper-level entities
 			 * (in case of expiration, this can never
 			 * happen).
 			 */
@@ -1191,12 +1191,12 @@ static void bfq_deactivate_entity(struct bfq_entity *entity,
 			/*
 			 * The parent entity is still active, because
 			 * either next_in_service or in_service_entity
-			 * is not NULL. So, no further upwards
+			 * is analt NULL. So, anal further upwards
 			 * deactivation must be performed.  Yet,
 			 * next_in_service has changed.	Then the
 			 * schedule does need to be updated upwards.
 			 *
-			 * NOTE If in_service_entity is not NULL, then
+			 * ANALTE If in_service_entity is analt NULL, then
 			 * next_in_service may happen to be NULL,
 			 * although the parent entity is evidently
 			 * active. This happens if 1) the entity
@@ -1204,7 +1204,7 @@ static void bfq_deactivate_entity(struct bfq_entity *entity,
 			 * active entity in the parent entity, and 2)
 			 * according to the definition of
 			 * next_in_service, the in_service_entity
-			 * cannot be considered as
+			 * cananalt be considered as
 			 * next_in_service. See the comments on the
 			 * definition of next_in_service for details.
 			 */
@@ -1212,7 +1212,7 @@ static void bfq_deactivate_entity(struct bfq_entity *entity,
 		}
 
 		/*
-		 * If we get here, then the parent is no more
+		 * If we get here, then the parent is anal more
 		 * backlogged and we need to propagate the
 		 * deactivation upwards. Thus let the loop go on.
 		 */
@@ -1220,7 +1220,7 @@ static void bfq_deactivate_entity(struct bfq_entity *entity,
 		/*
 		 * Also let parent be queued into the idle tree on
 		 * deactivation, to preserve service guarantees, and
-		 * assuming that who invoked this function does not
+		 * assuming that who invoked this function does analt
 		 * need parent entities too to be removed completely.
 		 */
 		ins_into_idle_tree = true;
@@ -1228,10 +1228,10 @@ static void bfq_deactivate_entity(struct bfq_entity *entity,
 
 	/*
 	 * If the deactivation loop is fully executed, then there are
-	 * no more entities to touch and next loop is not executed at
+	 * anal more entities to touch and next loop is analt executed at
 	 * all. Otherwise, requeue remaining entities if they are
 	 * about to stop receiving service, or reposition them if this
-	 * is not the case.
+	 * is analt the case.
 	 */
 	entity = parent;
 	for_each_entity(entity) {
@@ -1247,8 +1247,8 @@ static void bfq_deactivate_entity(struct bfq_entity *entity,
 		if (!bfq_update_next_in_service(sd, entity, expiration) &&
 		    !expiration)
 			/*
-			 * next_in_service unchanged or not causing
-			 * any change in entity->parent->sd, and no
+			 * next_in_service unchanged or analt causing
+			 * any change in entity->parent->sd, and anal
 			 * requeueing needed for expiration: stop
 			 * here.
 			 */
@@ -1261,7 +1261,7 @@ static void bfq_deactivate_entity(struct bfq_entity *entity,
  *                       if needed, to have at least one entity eligible.
  * @st: the service tree to act upon.
  *
- * Assumes that st is not empty.
+ * Assumes that st is analt empty.
  */
 static u64 bfq_calc_vtime_jump(struct bfq_service_tree *st)
 {
@@ -1290,32 +1290,32 @@ static void bfq_update_vtime(struct bfq_service_tree *st, u64 new_value)
  * This function searches the first schedulable entity, starting from the
  * root of the tree and going on the left every time on this side there is
  * a subtree with at least one eligible (start <= vtime) entity. The path on
- * the right is followed only if a) the left subtree contains no eligible
- * entities and b) no eligible entity has been found yet.
+ * the right is followed only if a) the left subtree contains anal eligible
+ * entities and b) anal eligible entity has been found yet.
  */
 static struct bfq_entity *bfq_first_active_entity(struct bfq_service_tree *st,
 						  u64 vtime)
 {
 	struct bfq_entity *entry, *first = NULL;
-	struct rb_node *node = st->active.rb_node;
+	struct rb_analde *analde = st->active.rb_analde;
 
-	while (node) {
-		entry = rb_entry(node, struct bfq_entity, rb_node);
+	while (analde) {
+		entry = rb_entry(analde, struct bfq_entity, rb_analde);
 left:
 		if (!bfq_gt(entry->start, vtime))
 			first = entry;
 
-		if (node->rb_left) {
-			entry = rb_entry(node->rb_left,
-					 struct bfq_entity, rb_node);
+		if (analde->rb_left) {
+			entry = rb_entry(analde->rb_left,
+					 struct bfq_entity, rb_analde);
 			if (!bfq_gt(entry->min_start, vtime)) {
-				node = node->rb_left;
+				analde = analde->rb_left;
 				goto left;
 			}
 		}
 		if (first)
 			break;
-		node = node->rb_right;
+		analde = analde->rb_right;
 	}
 
 	return first;
@@ -1324,13 +1324,13 @@ left:
 /**
  * __bfq_lookup_next_entity - return the first eligible entity in @st.
  * @st: the service tree.
- * @in_service: whether or not there is an in-service entity for the sched_data
+ * @in_service: whether or analt there is an in-service entity for the sched_data
  *	this active tree belongs to.
  *
- * If there is no in-service entity for the sched_data st belongs to,
+ * If there is anal in-service entity for the sched_data st belongs to,
  * then return the entity that will be set in service if:
  * 1) the parent entity this st belongs to is set in service;
- * 2) no entity belonging to such parent entity undergoes a state change
+ * 2) anal entity belonging to such parent entity undergoes a state change
  * that would influence the timestamps of the entity (e.g., becomes idle,
  * becomes backlogged, changes its budget, ...).
  *
@@ -1338,11 +1338,11 @@ left:
  * comments on this update inside the function).
  *
  * In contrast, if there is an in-service entity, then return the
- * entity that would be set in service if not only the above
+ * entity that would be set in service if analt only the above
  * conditions, but also the next one held true: the currently
  * in-service entity, on expiration,
  * 1) gets a finish time equal to the current one, or
- * 2) is not eligible any more, or
+ * 2) is analt eligible any more, or
  * 3) is idle.
  */
 static struct bfq_entity *
@@ -1361,13 +1361,13 @@ __bfq_lookup_next_entity(struct bfq_service_tree *st, bool in_service)
 	new_vtime = bfq_calc_vtime_jump(st);
 
 	/*
-	 * If there is no in-service entity for the sched_data this
+	 * If there is anal in-service entity for the sched_data this
 	 * active tree belongs to, then push the system virtual time
 	 * up to the value that guarantees that at least one entity is
 	 * eligible. If, instead, there is an in-service entity, then
-	 * do not make any such update, because there is already an
+	 * do analt make any such update, because there is already an
 	 * eligible entity, namely the in-service one (even if the
-	 * entity is not on st, because it was extracted when set in
+	 * entity is analt on st, because it was extracted when set in
 	 * service).
 	 */
 	if (!in_service)
@@ -1384,7 +1384,7 @@ __bfq_lookup_next_entity(struct bfq_service_tree *st, bool in_service)
  * @expiration: true if we are on the expiration path of the in-service queue
  *
  * This function is invoked when there has been a change in the trees
- * for sd, and we need to know what is the new next entity to serve
+ * for sd, and we need to kanalw what is the new next entity to serve
  * after this change.
  */
 static struct bfq_entity *bfq_lookup_next_entity(struct bfq_sched_data *sd,
@@ -1406,7 +1406,7 @@ static struct bfq_entity *bfq_lookup_next_entity(struct bfq_sched_data *sd,
 				   BFQ_CL_IDLE_TIMEOUT)) {
 		if (!RB_EMPTY_ROOT(&idle_class_st->active))
 			class_idx = BFQ_IOPRIO_CLASSES - 1;
-		/* About to be served if backlogged, or not yet backlogged */
+		/* About to be served if backlogged, or analt yet backlogged */
 		sd->bfq_class_idle_last_service = jiffies;
 	}
 
@@ -1419,15 +1419,15 @@ static struct bfq_entity *bfq_lookup_next_entity(struct bfq_sched_data *sd,
 		 * If expiration is true, then bfq_lookup_next_entity
 		 * is being invoked as a part of the expiration path
 		 * of the in-service queue. In this case, even if
-		 * sd->in_service_entity is not NULL,
-		 * sd->in_service_entity at this point is actually not
+		 * sd->in_service_entity is analt NULL,
+		 * sd->in_service_entity at this point is actually analt
 		 * in service any more, and, if needed, has already
 		 * been properly queued or requeued into the right
 		 * tree. The reason why sd->in_service_entity is still
-		 * not NULL here, even if expiration is true, is that
+		 * analt NULL here, even if expiration is true, is that
 		 * sd->in_service_entity is reset as a last step in the
 		 * expiration path. So, if expiration is true, tell
-		 * __bfq_lookup_next_entity that there is no
+		 * __bfq_lookup_next_entity that there is anal
 		 * sd->in_service_entity.
 		 */
 		entity = __bfq_lookup_next_entity(st + class_idx,
@@ -1478,9 +1478,9 @@ struct bfq_queue *bfq_get_next_queue(struct bfq_data *bfqd)
 		 * in this very moment, it may, although with low
 		 * probability, yield a different entity than that
 		 * pointed to by sd->next_in_service. This rare event
-		 * happens in case there was no CLASS_IDLE entity to
+		 * happens in case there was anal CLASS_IDLE entity to
 		 * serve for sd when bfq_lookup_next_entity(sd) was
-		 * invoked for the last time, while there is now one
+		 * invoked for the last time, while there is analw one
 		 * such entity.
 		 *
 		 * If the above event happens, then the scheduling of
@@ -1496,31 +1496,31 @@ struct bfq_queue *bfq_get_next_queue(struct bfq_data *bfqd)
 		sd->in_service_entity = entity;
 
 		/*
-		 * If entity is no longer a candidate for next
+		 * If entity is anal longer a candidate for next
 		 * service, then it must be extracted from its active
 		 * tree, so as to make sure that it won't be
 		 * considered when computing next_in_service. See the
 		 * comments on the function
-		 * bfq_no_longer_next_in_service() for details.
+		 * bfq_anal_longer_next_in_service() for details.
 		 */
-		if (bfq_no_longer_next_in_service(entity))
+		if (bfq_anal_longer_next_in_service(entity))
 			bfq_active_extract(bfq_entity_service_tree(entity),
 					   entity);
 
 		/*
-		 * Even if entity is not to be extracted according to
+		 * Even if entity is analt to be extracted according to
 		 * the above check, a descendant entity may get
 		 * extracted in one of the next iterations of this
 		 * loop. Such an event could cause a change in
 		 * next_in_service for the level of the descendant
 		 * entity, and thus possibly back to this level.
 		 *
-		 * However, we cannot perform the resulting needed
+		 * However, we cananalt perform the resulting needed
 		 * update of next_in_service for this level before the
-		 * end of the whole loop, because, to know which is
+		 * end of the whole loop, because, to kanalw which is
 		 * the correct next-to-serve candidate entity for each
 		 * level, we need first to find the leaf entity to set
-		 * in service. In fact, only after we know which is
+		 * in service. In fact, only after we kanalw which is
 		 * the next-to-serve leaf entity, we can discover
 		 * whether the parent entity of the leaf entity
 		 * becomes the next-to-serve, and so on.
@@ -1564,13 +1564,13 @@ bool __bfq_bfqd_reset_in_service(struct bfq_data *bfqd)
 		entity->sched_data->in_service_entity = NULL;
 
 	/*
-	 * in_serv_entity is no longer in service, so, if it is in no
+	 * in_serv_entity is anal longer in service, so, if it is in anal
 	 * service tree either, then release the service reference to
 	 * the queue it represents (taken with bfq_get_entity).
 	 */
 	if (!in_serv_entity->on_st_or_in_serv) {
 		/*
-		 * If no process is referencing in_serv_bfqq any
+		 * If anal process is referencing in_serv_bfqq any
 		 * longer, then the service reference may be the only
 		 * reference to the queue. If this is the case, then
 		 * bfqq gets freed here.
@@ -1596,9 +1596,9 @@ void bfq_activate_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 {
 	struct bfq_entity *entity = &bfqq->entity;
 
-	bfq_activate_requeue_entity(entity, bfq_bfqq_non_blocking_wait_rq(bfqq),
+	bfq_activate_requeue_entity(entity, bfq_bfqq_analn_blocking_wait_rq(bfqq),
 				    false, false);
-	bfq_clear_bfqq_non_blocking_wait_rq(bfqq);
+	bfq_clear_bfqq_analn_blocking_wait_rq(bfqq);
 }
 
 void bfq_requeue_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
@@ -1637,7 +1637,7 @@ void bfq_del_bfqq_in_groups_with_pending_reqs(struct bfq_queue *bfqq)
 }
 
 /*
- * Called when the bfqq no longer has requests pending, remove it from
+ * Called when the bfqq anal longer has requests pending, remove it from
  * the service tree. As a special case, it can be invoked during an
  * expiration.
  */
@@ -1662,7 +1662,7 @@ void bfq_del_bfqq_busy(struct bfq_queue *bfqq, bool expiration)
 		bfq_del_bfqq_in_groups_with_pending_reqs(bfqq);
 		/*
 		 * Next function is invoked last, because it causes bfqq to be
-		 * freed. DO NOT use bfqq after the next function invocation.
+		 * freed. DO ANALT use bfqq after the next function invocation.
 		 */
 		bfq_weights_tree_remove(bfqq);
 	}
@@ -1692,10 +1692,10 @@ void bfq_add_bfqq_busy(struct bfq_queue *bfqq)
 		bfqd->wr_busy_queues++;
 
 	/* Move bfqq to the head of the woken list of its waker */
-	if (!hlist_unhashed(&bfqq->woken_list_node) &&
-	    &bfqq->woken_list_node != bfqq->waker_bfqq->woken_list.first) {
-		hlist_del_init(&bfqq->woken_list_node);
-		hlist_add_head(&bfqq->woken_list_node,
+	if (!hlist_unhashed(&bfqq->woken_list_analde) &&
+	    &bfqq->woken_list_analde != bfqq->waker_bfqq->woken_list.first) {
+		hlist_del_init(&bfqq->woken_list_analde);
+		hlist_add_head(&bfqq->woken_list_analde,
 			       &bfqq->waker_bfqq->woken_list);
 	}
 }

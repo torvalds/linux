@@ -83,7 +83,7 @@ properties:
   regulators:
     $ref: ../regulator/maxim,max77693.yaml
     description:
-      List of child nodes that specify the regulators.
+      List of child analdes that specify the regulators.
 
 required:
   - compatible

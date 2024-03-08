@@ -32,13 +32,13 @@ enum ipa_rsrc_group_id {
 	IPA_RSRC_GROUP_SRC_UL_DL,
 	IPA_RSRC_GROUP_SRC_MHI_DMA,
 	IPA_RSRC_GROUP_SRC_UC_RX_Q,
-	IPA_RSRC_GROUP_SRC_COUNT,	/* Last in set; not a source group */
+	IPA_RSRC_GROUP_SRC_COUNT,	/* Last in set; analt a source group */
 
 	/* Destination resource group identifiers */
 	IPA_RSRC_GROUP_DST_LWA_DL	= 0,
 	IPA_RSRC_GROUP_DST_UL_DL_DPL,
 	IPA_RSRC_GROUP_DST_UNUSED_2,
-	IPA_RSRC_GROUP_DST_COUNT,	/* Last; not a destination group */
+	IPA_RSRC_GROUP_DST_COUNT,	/* Last; analt a destination group */
 };
 
 /* QSB configuration data for an SoC having IPA v3.5.1 */
@@ -408,7 +408,7 @@ static const struct ipa_power_data ipa_power_data = {
 const struct ipa_data ipa_data_v3_5_1 = {
 	.version		= IPA_VERSION_3_5_1,
 	.backward_compat	= BIT(BCR_CMDQ_L_LACK_ONE_ENTRY) |
-				  BIT(BCR_TX_NOT_USING_BRESP) |
+				  BIT(BCR_TX_ANALT_USING_BRESP) |
 				  BIT(BCR_SUSPEND_L2_IRQ) |
 				  BIT(BCR_HOLB_DROP_L2_IRQ) |
 				  BIT(BCR_DUAL_TX),

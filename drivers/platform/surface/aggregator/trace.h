@@ -92,17 +92,17 @@ TRACE_DEFINE_ENUM(SSAM_SSH_TC_SHB);
 TRACE_DEFINE_ENUM(SSAM_SSH_TC_POS);
 
 #define SSAM_PTR_UID_LEN		9
-#define SSAM_U8_FIELD_NOT_APPLICABLE	((u16)-1)
-#define SSAM_SEQ_NOT_APPLICABLE		((u16)-1)
-#define SSAM_RQID_NOT_APPLICABLE	((u32)-1)
-#define SSAM_SSH_TC_NOT_APPLICABLE	0
-#define SSAM_SSH_TID_NOT_APPLICABLE	((u8)-1)
+#define SSAM_U8_FIELD_ANALT_APPLICABLE	((u16)-1)
+#define SSAM_SEQ_ANALT_APPLICABLE		((u16)-1)
+#define SSAM_RQID_ANALT_APPLICABLE	((u32)-1)
+#define SSAM_SSH_TC_ANALT_APPLICABLE	0
+#define SSAM_SSH_TID_ANALT_APPLICABLE	((u8)-1)
 
 #ifndef _SURFACE_AGGREGATOR_TRACE_HELPERS
 #define _SURFACE_AGGREGATOR_TRACE_HELPERS
 
 /**
- * ssam_trace_ptr_uid() - Convert the pointer to a non-pointer UID string.
+ * ssam_trace_ptr_uid() - Convert the pointer to a analn-pointer UID string.
  * @ptr: The pointer to convert.
  * @uid_str: A buffer of length SSAM_PTR_UID_LEN where the UID will be stored.
  *
@@ -125,12 +125,12 @@ static inline void ssam_trace_ptr_uid(const void *ptr, char *uid_str)
  * @p: The packet.
  *
  * Return: Returns the packet's sequence ID (SEQ) field if present, or
- * %SSAM_SEQ_NOT_APPLICABLE if not (e.g. flush packet).
+ * %SSAM_SEQ_ANALT_APPLICABLE if analt (e.g. flush packet).
  */
 static inline u16 ssam_trace_get_packet_seq(const struct ssh_packet *p)
 {
 	if (!p->data.ptr || p->data.len < SSH_MESSAGE_LENGTH(0))
-		return SSAM_SEQ_NOT_APPLICABLE;
+		return SSAM_SEQ_ANALT_APPLICABLE;
 
 	return p->data.ptr[SSH_MSGOFFSET_FRAME(seq)];
 }
@@ -140,13 +140,13 @@ static inline u16 ssam_trace_get_packet_seq(const struct ssh_packet *p)
  * @p: The packet.
  *
  * Return: Returns the packet's request ID (RQID) field if the packet
- * represents a request with command data, or %SSAM_RQID_NOT_APPLICABLE if not
+ * represents a request with command data, or %SSAM_RQID_ANALT_APPLICABLE if analt
  * (e.g. flush request, control packet).
  */
 static inline u32 ssam_trace_get_request_id(const struct ssh_packet *p)
 {
 	if (!p->data.ptr || p->data.len < SSH_COMMAND_MESSAGE_LENGTH(0))
-		return SSAM_RQID_NOT_APPLICABLE;
+		return SSAM_RQID_ANALT_APPLICABLE;
 
 	return get_unaligned_le16(&p->data.ptr[SSH_MSGOFFSET_COMMAND(rqid)]);
 }
@@ -156,13 +156,13 @@ static inline u32 ssam_trace_get_request_id(const struct ssh_packet *p)
  * @p: The packet.
  *
  * Return: Returns the packet's request target ID (TID) field if the packet
- * represents a request with command data, or %SSAM_SSH_TID_NOT_APPLICABLE
- * if not (e.g. flush request, control packet).
+ * represents a request with command data, or %SSAM_SSH_TID_ANALT_APPLICABLE
+ * if analt (e.g. flush request, control packet).
  */
 static inline u32 ssam_trace_get_request_tid(const struct ssh_packet *p)
 {
 	if (!p->data.ptr || p->data.len < SSH_COMMAND_MESSAGE_LENGTH(0))
-		return SSAM_SSH_TID_NOT_APPLICABLE;
+		return SSAM_SSH_TID_ANALT_APPLICABLE;
 
 	return get_unaligned_le16(&p->data.ptr[SSH_MSGOFFSET_COMMAND(tid)]);
 }
@@ -172,13 +172,13 @@ static inline u32 ssam_trace_get_request_tid(const struct ssh_packet *p)
  * @p: The packet.
  *
  * Return: Returns the packet's request source ID (SID) field if the packet
- * represents a request with command data, or %SSAM_SSH_TID_NOT_APPLICABLE
- * if not (e.g. flush request, control packet).
+ * represents a request with command data, or %SSAM_SSH_TID_ANALT_APPLICABLE
+ * if analt (e.g. flush request, control packet).
  */
 static inline u32 ssam_trace_get_request_sid(const struct ssh_packet *p)
 {
 	if (!p->data.ptr || p->data.len < SSH_COMMAND_MESSAGE_LENGTH(0))
-		return SSAM_SSH_TID_NOT_APPLICABLE;
+		return SSAM_SSH_TID_ANALT_APPLICABLE;
 
 	return get_unaligned_le16(&p->data.ptr[SSH_MSGOFFSET_COMMAND(sid)]);
 }
@@ -188,13 +188,13 @@ static inline u32 ssam_trace_get_request_sid(const struct ssh_packet *p)
  * @p: The packet.
  *
  * Return: Returns the packet's request target category (TC) field if the
- * packet represents a request with command data, or %SSAM_SSH_TC_NOT_APPLICABLE
- * if not (e.g. flush request, control packet).
+ * packet represents a request with command data, or %SSAM_SSH_TC_ANALT_APPLICABLE
+ * if analt (e.g. flush request, control packet).
  */
 static inline u32 ssam_trace_get_request_tc(const struct ssh_packet *p)
 {
 	if (!p->data.ptr || p->data.len < SSH_COMMAND_MESSAGE_LENGTH(0))
-		return SSAM_SSH_TC_NOT_APPLICABLE;
+		return SSAM_SSH_TC_ANALT_APPLICABLE;
 
 	return get_unaligned_le16(&p->data.ptr[SSH_MSGOFFSET_COMMAND(tc)]);
 }
@@ -207,7 +207,7 @@ static inline u32 ssam_trace_get_request_tc(const struct ssh_packet *p)
 
 #define ssam_show_generic_u8_field(value)				\
 	__print_symbolic(value,						\
-		{ SSAM_U8_FIELD_NOT_APPLICABLE,		"N/A" }		\
+		{ SSAM_U8_FIELD_ANALT_APPLICABLE,		"N/A" }		\
 	)
 
 #define ssam_show_frame_type(ty)					\
@@ -239,7 +239,7 @@ static inline u32 ssam_trace_get_request_tc(const struct ssh_packet *p)
 
 #define ssam_show_packet_seq(seq)					\
 	__print_symbolic(seq,						\
-		{ SSAM_SEQ_NOT_APPLICABLE,		"N/A" }		\
+		{ SSAM_SEQ_ANALT_APPLICABLE,		"N/A" }		\
 	)
 
 #define ssam_show_request_type(flags)					\
@@ -262,12 +262,12 @@ static inline u32 ssam_trace_get_request_tc(const struct ssh_packet *p)
 
 #define ssam_show_request_id(rqid)					\
 	__print_symbolic(rqid,						\
-		{ SSAM_RQID_NOT_APPLICABLE,		"N/A" }		\
+		{ SSAM_RQID_ANALT_APPLICABLE,		"N/A" }		\
 	)
 
 #define ssam_show_ssh_tid(tid)						\
 	__print_symbolic(tid,						\
-		{ SSAM_SSH_TID_NOT_APPLICABLE,		"N/A"      },	\
+		{ SSAM_SSH_TID_ANALT_APPLICABLE,		"N/A"      },	\
 		{ SSAM_SSH_TID_HOST,			"Host"     },	\
 		{ SSAM_SSH_TID_SAM,			"SAM"      },	\
 		{ SSAM_SSH_TID_KIP,			"KIP"      },	\
@@ -277,7 +277,7 @@ static inline u32 ssam_trace_get_request_tc(const struct ssh_packet *p)
 
 #define ssam_show_ssh_tc(tc)						\
 	__print_symbolic(tc,						\
-		{ SSAM_SSH_TC_NOT_APPLICABLE,		"N/A"  },	\
+		{ SSAM_SSH_TC_ANALT_APPLICABLE,		"N/A"  },	\
 		{ SSAM_SSH_TC_SAM,			"SAM"  },	\
 		{ SSAM_SSH_TC_BAT,			"BAT"  },	\
 		{ SSAM_SSH_TC_TMP,			"TMP"  },	\

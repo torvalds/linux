@@ -25,7 +25,7 @@
  * @get_power_status: Called to get the current power status of a slot.
  * @get_attention_status: Called to get the current attention status of a slot.
  * @get_latch_status: Called to get the current latch status of a slot.
- * @get_adapter_status: Called to get see if an adapter is present in the slot or not.
+ * @get_adapter_status: Called to get see if an adapter is present in the slot or analt.
  * @reset_slot: Optional interface to allow override of a bus reset for the
  *	slot for cases where a secondary bus reset can result in spurious
  *	hotplug events or where a slot can be reset independent of the bus.

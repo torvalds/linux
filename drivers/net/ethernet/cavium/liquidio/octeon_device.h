@@ -13,7 +13,7 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
 /*! \file octeon_device.h
  *  \brief Host Driver: This file defines the octeon device structure.
@@ -30,7 +30,7 @@
 #define  OCTEON_CN66XX_PCIID          0x92177d
 #define  OCTEON_CN23XX_PCIID_PF       0x9702177d
 /** Driver identifies chips by these Ids, created by clubbing together
- *  DeviceId+RevisionId; Where Revision Id is not used to distinguish
+ *  DeviceId+RevisionId; Where Revision Id is analt used to distinguish
  *  between chips, a value of 0 is used for revision id.
  */
 #define  OCTEON_CN68XX                0x0091
@@ -226,7 +226,7 @@ struct octeon_board_info {
 	char name[OCT_BOARD_NAME];
 	char serial_number[OCT_SERIAL_LEN];
 	u64 major;
-	u64 minor;
+	u64 mianalr;
 };
 
 struct octeon_fn_list {
@@ -264,7 +264,7 @@ struct octeon_fn_list {
  * available can be changed without affecting compatibility,
  * but name length changes require a bump in the bootmem
  * descriptor version
- * Note: This structure must be naturally 64 bit aligned, as a single
+ * Analte: This structure must be naturally 64 bit aligned, as a single
  * memory image will be used by both 32 and 64 bit programs.
  */
 struct cvmx_bootmem_named_block_desc {
@@ -610,7 +610,7 @@ struct octeon_device {
 	/* for 25G NIC speed change */
 	u8  speed_boot;
 	u8  speed_setting;
-	u8  no_speed_setting;
+	u8  anal_speed_setting;
 
 	u32    vfstats_poll;
 #define LIO_VFSTATS_POLL 10
@@ -732,7 +732,7 @@ u64 lio_pci_readq(struct octeon_device *oct, u64 addr);
  *  This routine is called to write to the indirectly accessed
  *  Octeon registers that are visible through a PCI BAR0 mapped window
  *  register.
- *  @return   Nothing.
+ *  @return   Analthing.
  */
 void lio_pci_writeq(struct octeon_device *oct, u64 val, u64 addr);
 
@@ -763,7 +763,7 @@ int octeon_mem_access_ok(struct octeon_device *oct);
  * @param oct which octeon to send to
  * @param timeout_in_ms pointer to how long to wait until DDR is initialized
  * in ms.
- *                      If contents are 0, it waits until contents are non-zero
+ *                      If contents are 0, it waits until contents are analn-zero
  *                      before starting to check.
  * @return Zero on success, negative on failure.
  */
@@ -795,7 +795,7 @@ int octeon_init_consoles(struct octeon_device *oct);
  * @param oct:          which octeon to add to
  * @param console_num:  which console
  * @param dbg_enb:      ptr to debug enablement string, one of:
- *                    * NULL for no debug output (i.e. disabled)
+ *                    * NULL for anal debug output (i.e. disabled)
  *                    * empty string enables debug output (via default method)
  *                    * specific string to enable debug console output
  *
@@ -833,7 +833,7 @@ int octeon_console_send_cmd(struct octeon_device *oct, char *cmd_str,
  *
  *  @return 0 if success.
  *         -EINVAL if file is incompatible or badly formatted.
- *         -ENODEV if no handler was found for the application type or an
+ *         -EANALDEV if anal handler was found for the application type or an
  *         invalid octeon id was passed.
  */
 int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
@@ -855,9 +855,9 @@ int octeon_setup_instr_queues(struct octeon_device *oct);
  */
 int octeon_setup_output_queues(struct octeon_device *oct);
 
-int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_no);
+int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_anal);
 
-int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_no);
+int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_anal);
 
 /** Turns off the input and output queues for the device
  *  @param oct which octeon to disable
@@ -866,10 +866,10 @@ int octeon_set_io_queues_off(struct octeon_device *oct);
 
 /** Turns on or off the given output queue for the device
  *  @param oct which octeon to change
- *  @param q_no which queue
+ *  @param q_anal which queue
  *  @param enable 1 to enable, 0 to disable
  */
-void octeon_set_droq_pkt_op(struct octeon_device *oct, u32 q_no, u32 enable);
+void octeon_set_droq_pkt_op(struct octeon_device *oct, u32 q_anal, u32 enable);
 
 /** Retrieve the config for the device
  *  @param oct which octeon

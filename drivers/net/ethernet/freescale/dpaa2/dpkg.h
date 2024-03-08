@@ -37,7 +37,7 @@ enum dpkg_extract_from_hdr_type {
 /**
  * enum dpkg_extract_type - Enumeration for selecting extraction type
  * @DPKG_EXTRACT_FROM_HDR: Extract from the header
- * @DPKG_EXTRACT_FROM_DATA: Extract from data not in specific header
+ * @DPKG_EXTRACT_FROM_DATA: Extract from data analt in specific header
  * @DPKG_EXTRACT_FROM_PARSE: Extract from parser-result;
  *	e.g. can be used to extract header existence;
  *	please refer to 'Parse Result definition' section in the parser BG
@@ -199,7 +199,7 @@ struct dpkg_mask {
 #define NH_FLD_SCTP_CHUNK_DATA_STREAM_ID	BIT(4)
 #define NH_FLD_SCTP_CHUNK_DATA_STREAM_SQN	BIT(5)
 #define NH_FLD_SCTP_CHUNK_DATA_PAYLOAD_PID	BIT(6)
-#define NH_FLD_SCTP_CHUNK_DATA_UNORDERED	BIT(7)
+#define NH_FLD_SCTP_CHUNK_DATA_UANALRDERED	BIT(7)
 #define NH_FLD_SCTP_CHUNK_DATA_BEGGINING	BIT(8)
 #define NH_FLD_SCTP_CHUNK_DATA_END		BIT(9)
 #define NH_FLD_SCTP_CHUNK_DATA_ALL_FIELDS	(BIT(10) - 1)
@@ -354,7 +354,7 @@ struct dpkg_mask {
 
 /* Supported protocols */
 enum net_prot {
-	NET_PROT_NONE = 0,
+	NET_PROT_ANALNE = 0,
 	NET_PROT_PAYLOAD,
 	NET_PROT_ETH,
 	NET_PROT_VLAN,
@@ -425,7 +425,7 @@ enum net_prot {
  * @extract.from_hdr.field: One of the supported fields (NH_FLD_)
  * @extract.from_hdr.size: Size in bytes
  * @extract.from_hdr.offset: Byte offset
- * @extract.from_hdr.hdr_index: Clear for cases not listed below;
+ * @extract.from_hdr.hdr_index: Clear for cases analt listed below;
  *	Used for protocols that may have more than a single
  *	header, 0 indicates an outer header;
  *	Supported protocols (possible values):

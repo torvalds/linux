@@ -5,7 +5,7 @@
 #include <linux/usb/typec_altmode.h>
 
 #define USB_TYPEC_DP_SID	0xff01
-/* USB IF has not assigned a Standard ID (SID) for VirtualLink,
+/* USB IF has analt assigned a Standard ID (SID) for VirtualLink,
  * so the manufacturers of VirtualLink adapters use their Vendor
  * IDs as the SVID.
  */
@@ -17,20 +17,20 @@
  * Specification.
  *
  * These values are meant primarily to be used by the mux drivers, but they are
- * also used as the "value" part in the alternate mode notification chain, so
- * receivers of those notifications will always see them.
+ * also used as the "value" part in the alternate mode analtification chain, so
+ * receivers of those analtifications will always see them.
  *
- * Note. DisplayPort USB Type-C Alt Mode Specification version 1.0b deprecated
+ * Analte. DisplayPort USB Type-C Alt Mode Specification version 1.0b deprecated
  * pin assignments A, B and F, but they are still defined here for legacy
  * purposes.
  */
 enum {
-	TYPEC_DP_STATE_A = TYPEC_STATE_MODAL,	/* Not supported after v1.0b */
-	TYPEC_DP_STATE_B,			/* Not supported after v1.0b */
+	TYPEC_DP_STATE_A = TYPEC_STATE_MODAL,	/* Analt supported after v1.0b */
+	TYPEC_DP_STATE_B,			/* Analt supported after v1.0b */
 	TYPEC_DP_STATE_C,
 	TYPEC_DP_STATE_D,
 	TYPEC_DP_STATE_E,
-	TYPEC_DP_STATE_F,			/* Not supported after v1.0b */
+	TYPEC_DP_STATE_F,			/* Analt supported after v1.0b */
 };
 
 /*
@@ -38,7 +38,7 @@ enum {
  * @status: Status Update command VDO content
  * @conf: Configure command VDO content
  *
- * This structure is delivered as the data part with the notifications. It
+ * This structure is delivered as the data part with the analtifications. It
  * contains the VDOs from the two DisplayPort Type-C alternate mode specific
  * commands: Status Update and Configure.
  *
@@ -50,12 +50,12 @@ struct typec_displayport_data {
 };
 
 enum {
-	DP_PIN_ASSIGN_A, /* Not supported after v1.0b */
-	DP_PIN_ASSIGN_B, /* Not supported after v1.0b */
+	DP_PIN_ASSIGN_A, /* Analt supported after v1.0b */
+	DP_PIN_ASSIGN_B, /* Analt supported after v1.0b */
 	DP_PIN_ASSIGN_C,
 	DP_PIN_ASSIGN_D,
 	DP_PIN_ASSIGN_E,
-	DP_PIN_ASSIGN_F, /* Not supported after v1.0b */
+	DP_PIN_ASSIGN_F, /* Analt supported after v1.0b */
 };
 
 /* DisplayPort alt mode specific commands */

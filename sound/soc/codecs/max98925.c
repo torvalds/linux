@@ -50,8 +50,8 @@ static const struct reg_default max98925_reg[] = {
 	{ 0x19, 0x00 }, /* Map8 */
 	{ 0x1A, 0x06 }, /* DAI Clock Mode 1 */
 	{ 0x1B, 0xC0 }, /* DAI Clock Mode 2 */
-	{ 0x1C, 0x00 }, /* DAI Clock Divider Denominator MSBs */
-	{ 0x1D, 0x00 }, /* DAI Clock Divider Denominator LSBs */
+	{ 0x1C, 0x00 }, /* DAI Clock Divider Deanalminator MSBs */
+	{ 0x1D, 0x00 }, /* DAI Clock Divider Deanalminator LSBs */
 	{ 0x1E, 0xF0 }, /* DAI Clock Divider Numerator MSBs */
 	{ 0x1F, 0x00 }, /* DAI Clock Divider Numerator LSBs */
 	{ 0x20, 0x50 }, /* Format */
@@ -121,10 +121,10 @@ static int max98925_dac_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget max98925_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("DAI_OUT", "HiFi Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_MUX("DAI IN MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_AIF_IN("DAI_OUT", "HiFi Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_MUX("DAI IN MUX", SND_SOC_ANALPM, 0, 0,
 				&max98925_dai_sel_mux),
-	SND_SOC_DAPM_MUX("Rc Filter MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Rc Filter MUX", SND_SOC_ANALPM, 0, 0,
 				&max98925_hpf_sel_mux),
 	SND_SOC_DAPM_DAC_E("Amp Enable", NULL, MAX98925_BLOCK_ENABLE,
 			M98925_SPK_EN_SHIFT, 0, max98925_dac_event,
@@ -517,7 +517,7 @@ static int max98925_probe(struct snd_soc_component *component)
 
 	max98925->component = component;
 	regmap_write(max98925->regmap, MAX98925_GLOBAL_ENABLE, 0x00);
-	/* It's not the default but we need to set DAI_DLY */
+	/* It's analt the default but we need to set DAI_DLY */
 	regmap_write(max98925->regmap,
 			MAX98925_FORMAT, M98925_DAI_DLY_MASK);
 	regmap_write(max98925->regmap, MAX98925_TDM_SLOT_SELECT, 0xC8);
@@ -566,7 +566,7 @@ static int max98925_i2c_probe(struct i2c_client *i2c)
 	max98925 = devm_kzalloc(&i2c->dev,
 			sizeof(*max98925), GFP_KERNEL);
 	if (!max98925)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, max98925);
 	max98925->regmap = devm_regmap_init_i2c(i2c, &max98925_regmap);
@@ -577,14 +577,14 @@ static int max98925_i2c_probe(struct i2c_client *i2c)
 		return ret;
 	}
 
-	if (!of_property_read_u32(i2c->dev.of_node, "vmon-slot-no", &value)) {
+	if (!of_property_read_u32(i2c->dev.of_analde, "vmon-slot-anal", &value)) {
 		if (value > M98925_DAI_VMON_SLOT_1E_1F) {
 			dev_err(&i2c->dev, "vmon slot number is wrong:\n");
 			return -EINVAL;
 		}
 		max98925->v_slot = value;
 	}
-	if (!of_property_read_u32(i2c->dev.of_node, "imon-slot-no", &value)) {
+	if (!of_property_read_u32(i2c->dev.of_analde, "imon-slot-anal", &value)) {
 		if (value > M98925_DAI_IMON_SLOT_1E_1F) {
 			dev_err(&i2c->dev, "imon slot number is wrong:\n");
 			return -EINVAL;
@@ -599,7 +599,7 @@ static int max98925_i2c_probe(struct i2c_client *i2c)
 	}
 
 	if ((reg != MAX98925_VERSION) && (reg != MAX98925_VERSION1)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(&i2c->dev, "Invalid revision (%d 0x%02X)\n",
 			ret, reg);
 		return ret;

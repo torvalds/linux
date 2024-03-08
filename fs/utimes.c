@@ -11,7 +11,7 @@
 
 static bool nsec_valid(long nsec)
 {
-	if (nsec == UTIME_OMIT || nsec == UTIME_NOW)
+	if (nsec == UTIME_OMIT || nsec == UTIME_ANALW)
 		return true;
 
 	return nsec >= 0 && nsec <= 999999999;
@@ -21,15 +21,15 @@ int vfs_utimes(const struct path *path, struct timespec64 *times)
 {
 	int error;
 	struct iattr newattrs;
-	struct inode *inode = path->dentry->d_inode;
-	struct inode *delegated_inode = NULL;
+	struct ianalde *ianalde = path->dentry->d_ianalde;
+	struct ianalde *delegated_ianalde = NULL;
 
 	if (times) {
 		if (!nsec_valid(times[0].tv_nsec) ||
 		    !nsec_valid(times[1].tv_nsec))
 			return -EINVAL;
-		if (times[0].tv_nsec == UTIME_NOW &&
-		    times[1].tv_nsec == UTIME_NOW)
+		if (times[0].tv_nsec == UTIME_ANALW &&
+		    times[1].tv_nsec == UTIME_ANALW)
 			times = NULL;
 	}
 
@@ -41,20 +41,20 @@ int vfs_utimes(const struct path *path, struct timespec64 *times)
 	if (times) {
 		if (times[0].tv_nsec == UTIME_OMIT)
 			newattrs.ia_valid &= ~ATTR_ATIME;
-		else if (times[0].tv_nsec != UTIME_NOW) {
+		else if (times[0].tv_nsec != UTIME_ANALW) {
 			newattrs.ia_atime = times[0];
 			newattrs.ia_valid |= ATTR_ATIME_SET;
 		}
 
 		if (times[1].tv_nsec == UTIME_OMIT)
 			newattrs.ia_valid &= ~ATTR_MTIME;
-		else if (times[1].tv_nsec != UTIME_NOW) {
+		else if (times[1].tv_nsec != UTIME_ANALW) {
 			newattrs.ia_mtime = times[1];
 			newattrs.ia_valid |= ATTR_MTIME_SET;
 		}
 		/*
 		 * Tell setattr_prepare(), that this is an explicit time
-		 * update, even if neither ATTR_ATIME_SET nor ATTR_MTIME_SET
+		 * update, even if neither ATTR_ATIME_SET analr ATTR_MTIME_SET
 		 * were used.
 		 */
 		newattrs.ia_valid |= ATTR_TIMES_SET;
@@ -62,12 +62,12 @@ int vfs_utimes(const struct path *path, struct timespec64 *times)
 		newattrs.ia_valid |= ATTR_TOUCH;
 	}
 retry_deleg:
-	inode_lock(inode);
-	error = notify_change(mnt_idmap(path->mnt), path->dentry, &newattrs,
-			      &delegated_inode);
-	inode_unlock(inode);
-	if (delegated_inode) {
-		error = break_deleg_wait(&delegated_inode);
+	ianalde_lock(ianalde);
+	error = analtify_change(mnt_idmap(path->mnt), path->dentry, &newattrs,
+			      &delegated_ianalde);
+	ianalde_unlock(ianalde);
+	if (delegated_ianalde) {
+		error = break_deleg_wait(&delegated_ianalde);
 		if (!error)
 			goto retry_deleg;
 	}
@@ -83,10 +83,10 @@ static int do_utimes_path(int dfd, const char __user *filename,
 	struct path path;
 	int lookup_flags = 0, error;
 
-	if (flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH))
+	if (flags & ~(AT_SYMLINK_ANALFOLLOW | AT_EMPTY_PATH))
 		return -EINVAL;
 
-	if (!(flags & AT_SYMLINK_NOFOLLOW))
+	if (!(flags & AT_SYMLINK_ANALFOLLOW))
 		lookup_flags |= LOOKUP_FOLLOW;
 	if (flags & AT_EMPTY_PATH)
 		lookup_flags |= LOOKUP_EMPTY;
@@ -127,7 +127,7 @@ static int do_utimes_fd(int fd, struct timespec64 *times, int flags)
  * @dfd: open file descriptor, -1 or AT_FDCWD
  * @filename: path name or NULL
  * @times: new times or NULL
- * @flags: zero or more flags (only AT_SYMLINK_NOFOLLOW for the moment)
+ * @flags: zero or more flags (only AT_SYMLINK_ANALFOLLOW for the moment)
  *
  * If filename is NULL and dfd refers to an open file, then operate on
  * the file.  Otherwise look up filename, possibly using dfd as a
@@ -155,7 +155,7 @@ SYSCALL_DEFINE4(utimensat, int, dfd, const char __user *, filename,
 			get_timespec64(&tstimes[1], &utimes[1])))
 			return -EFAULT;
 
-		/* Nothing to do, we must not even check the path.  */
+		/* Analthing to do, we must analt even check the path.  */
 		if (tstimes[0].tv_nsec == UTIME_OMIT &&
 		    tstimes[1].tv_nsec == UTIME_OMIT)
 			return 0;
@@ -183,8 +183,8 @@ static long do_futimesat(int dfd, const char __user *filename,
 
 		/* This test is needed to catch all invalid values.  If we
 		   would test only in do_utimes we would miss those invalid
-		   values truncated by the multiplication with 1000.  Note
-		   that we also catch UTIME_{NOW,OMIT} here which are only
+		   values truncated by the multiplication with 1000.  Analte
+		   that we also catch UTIME_{ANALW,OMIT} here which are only
 		   valid for utimensat.  */
 		if (times[0].tv_usec >= 1000000 || times[0].tv_usec < 0 ||
 		    times[1].tv_usec >= 1000000 || times[1].tv_usec < 0)
@@ -229,7 +229,7 @@ SYSCALL_DEFINE2(utime, char __user *, filename, struct utimbuf __user *, times)
 
 #ifdef CONFIG_COMPAT_32BIT_TIME
 /*
- * Not all architectures have sys_utime, so implement this in terms
+ * Analt all architectures have sys_utime, so implement this in terms
  * of sys_utimes.
  */
 #ifdef __ARCH_WANT_SYS_UTIME32

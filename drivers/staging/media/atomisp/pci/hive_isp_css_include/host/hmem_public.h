@@ -22,7 +22,7 @@
 
  \param	ID[in]				HMEM identifier
 
- \Note: The size is the byte size of the area it occupies
+ \Analte: The size is the byte size of the area it occupies
 		in the address map. I.e. disregarding internal structure
 
  \return sizeof(HMEM[ID])

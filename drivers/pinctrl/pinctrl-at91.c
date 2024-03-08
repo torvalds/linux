@@ -86,12 +86,12 @@ static int gpio_banks;
 
 /*
  * These defines will translated the dt binding settings to our internal
- * settings. They are not necessarily the same value as the register setting.
+ * settings. They are analt necessarily the same value as the register setting.
  * The actual drive strength current of low, medium and high must be looked up
  * from the corresponding device datasheet. This value is different for pins
  * that are even in the same banks. It is also dependent on VCC.
  * DRIVE_STRENGTH_DEFAULT is just a placeholder to avoid changing the drive
- * strength when there is no dt config for it.
+ * strength when there is anal dt config for it.
  */
 enum drive_strength_bit {
 	DRIVE_STRENGTH_BIT_DEF,
@@ -166,7 +166,7 @@ struct at91_pin_group {
  * on new IP with support for periph C and D the way to mux in
  * periph A and B has changed
  * So provide the right call back
- * if not present means the IP does not support it
+ * if analt present means the IP does analt support it
  * @get_periph: return the periph mode configured
  * @mux_A_periph: mux as periph A
  * @mux_B_periph: mux as periph B
@@ -285,24 +285,24 @@ static void at91_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	seq_printf(s, "%s", dev_name(pctldev->dev));
 }
 
-static int at91_dt_node_to_map(struct pinctrl_dev *pctldev,
-			struct device_node *np,
+static int at91_dt_analde_to_map(struct pinctrl_dev *pctldev,
+			struct device_analde *np,
 			struct pinctrl_map **map, unsigned *num_maps)
 {
 	struct at91_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	const struct at91_pin_group *grp;
 	struct pinctrl_map *new_map;
-	struct device_node *parent;
+	struct device_analde *parent;
 	int map_num = 1;
 	int i;
 
 	/*
-	 * first find the group of this node and check if we need to create
+	 * first find the group of this analde and check if we need to create
 	 * config maps for pins
 	 */
 	grp = at91_pinctrl_find_group_by_name(info, np->name);
 	if (!grp) {
-		dev_err(info->dev, "unable to find group for node %pOFn\n",
+		dev_err(info->dev, "unable to find group for analde %pOFn\n",
 			np);
 		return -EINVAL;
 	}
@@ -311,7 +311,7 @@ static int at91_dt_node_to_map(struct pinctrl_dev *pctldev,
 	new_map = devm_kcalloc(pctldev->dev, map_num, sizeof(*new_map),
 			       GFP_KERNEL);
 	if (!new_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*map = new_map;
 	*num_maps = map_num;
@@ -325,7 +325,7 @@ static int at91_dt_node_to_map(struct pinctrl_dev *pctldev,
 	new_map[0].type = PIN_MAP_TYPE_MUX_GROUP;
 	new_map[0].data.mux.function = parent->name;
 	new_map[0].data.mux.group = np->name;
-	of_node_put(parent);
+	of_analde_put(parent);
 
 	/* create config map */
 	new_map++;
@@ -353,7 +353,7 @@ static const struct pinctrl_ops at91_pctrl_ops = {
 	.get_group_name		= at91_get_group_name,
 	.get_group_pins		= at91_get_group_pins,
 	.pin_dbg_show		= at91_pin_dbg_show,
-	.dt_node_to_map		= at91_dt_node_to_map,
+	.dt_analde_to_map		= at91_dt_analde_to_map,
 	.dt_free_map		= at91_dt_free_map,
 };
 
@@ -643,7 +643,7 @@ static void set_drive_strength(void __iomem *reg, unsigned pin, u32 strength)
 static void at91_mux_sama5d3_set_drivestrength(void __iomem *pio, unsigned pin,
 						u32 setting)
 {
-	/* do nothing if setting is zero */
+	/* do analthing if setting is zero */
 	if (!setting)
 		return;
 
@@ -654,7 +654,7 @@ static void at91_mux_sama5d3_set_drivestrength(void __iomem *pio, unsigned pin,
 static void at91_mux_sam9x5_set_drivestrength(void __iomem *pio, unsigned pin,
 						u32 setting)
 {
-	/* do nothing if setting is zero */
+	/* do analthing if setting is zero */
 	if (!setting)
 		return;
 
@@ -797,7 +797,7 @@ static int pin_check_config(struct at91_pinctrl *info, const char *name,
 	}
 
 	if (!gpio_chips[pin->bank]) {
-		dev_err(info->dev, "%s: pin conf %d bank_id %d not enabled\n",
+		dev_err(info->dev, "%s: pin conf %d bank_id %d analt enabled\n",
 			name, index, pin->bank);
 		return -ENXIO;
 	}
@@ -820,7 +820,7 @@ static int pin_check_config(struct at91_pinctrl *info, const char *name,
 	}
 
 	if (!(info->mux_mask[pin->bank * info->nmux + mux] & 1 << pin->pin)) {
-		dev_err(info->dev, "%s: pin conf %d mux_id %d not supported for pio%c%d\n",
+		dev_err(info->dev, "%s: pin conf %d mux_id %d analt supported for pio%c%d\n",
 			name, index, mux, pin->bank + 'A', pin->pin);
 		return -EINVAL;
 	}
@@ -1144,11 +1144,11 @@ static struct pinctrl_desc at91_pinctrl_desc = {
 static const char *gpio_compat = "atmel,at91rm9200-gpio";
 
 static void at91_pinctrl_child_count(struct at91_pinctrl *info,
-				     struct device_node *np)
+				     struct device_analde *np)
 {
-	struct device_node *child;
+	struct device_analde *child;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		if (of_device_is_compatible(child, gpio_compat)) {
 			if (of_device_is_available(child))
 				info->nactive_banks++;
@@ -1160,7 +1160,7 @@ static void at91_pinctrl_child_count(struct at91_pinctrl *info,
 }
 
 static int at91_pinctrl_mux_mask(struct at91_pinctrl *info,
-				 struct device_node *np)
+				 struct device_analde *np)
 {
 	int ret = 0;
 	int size;
@@ -1168,7 +1168,7 @@ static int at91_pinctrl_mux_mask(struct at91_pinctrl *info,
 
 	list = of_get_property(np, "atmel,mux-mask", &size);
 	if (!list) {
-		dev_err(info->dev, "can not read the mux-mask of %d\n", size);
+		dev_err(info->dev, "can analt read the mux-mask of %d\n", size);
 		return -EINVAL;
 	}
 
@@ -1182,16 +1182,16 @@ static int at91_pinctrl_mux_mask(struct at91_pinctrl *info,
 	info->mux_mask = devm_kcalloc(info->dev, size, sizeof(u32),
 				      GFP_KERNEL);
 	if (!info->mux_mask)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u32_array(np, "atmel,mux-mask",
 					  info->mux_mask, size);
 	if (ret)
-		dev_err(info->dev, "can not read the mux-mask of %d\n", size);
+		dev_err(info->dev, "can analt read the mux-mask of %d\n", size);
 	return ret;
 }
 
-static int at91_pinctrl_parse_groups(struct device_node *np,
+static int at91_pinctrl_parse_groups(struct device_analde *np,
 				     struct at91_pin_group *grp,
 				     struct at91_pinctrl *info, u32 index)
 {
@@ -1210,7 +1210,7 @@ static int at91_pinctrl_parse_groups(struct device_node *np,
 	 * do sanity check and calculate pins number
 	 */
 	list = of_get_property(np, "atmel,pins", &size);
-	/* we do not check return since it's safe node passed down */
+	/* we do analt check return since it's safe analde passed down */
 	size /= sizeof(*list);
 	if (!size || size % 4) {
 		dev_err(info->dev, "wrong pins number or pins and configs should be by 4\n");
@@ -1225,7 +1225,7 @@ static int at91_pinctrl_parse_groups(struct device_node *np,
 	grp->pins = devm_kcalloc(info->dev, grp->npins, sizeof(unsigned int),
 				 GFP_KERNEL);
 	if (!grp->pins_conf || !grp->pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, j = 0; i < size; i += 4, j++) {
 		pin->bank = be32_to_cpu(*list++);
@@ -1241,10 +1241,10 @@ static int at91_pinctrl_parse_groups(struct device_node *np,
 	return 0;
 }
 
-static int at91_pinctrl_parse_functions(struct device_node *np,
+static int at91_pinctrl_parse_functions(struct device_analde *np,
 					struct at91_pinctrl *info, u32 index)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	struct at91_pmx_func *func;
 	struct at91_pin_group *grp;
 	int ret;
@@ -1259,20 +1259,20 @@ static int at91_pinctrl_parse_functions(struct device_node *np,
 	func->name = np->name;
 	func->ngroups = of_get_child_count(np);
 	if (func->ngroups == 0) {
-		dev_err(info->dev, "no groups defined\n");
+		dev_err(info->dev, "anal groups defined\n");
 		return -EINVAL;
 	}
 	func->groups = devm_kcalloc(info->dev,
 			func->ngroups, sizeof(char *), GFP_KERNEL);
 	if (!func->groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		func->groups[i] = child->name;
 		grp = &info->groups[grp_index++];
 		ret = at91_pinctrl_parse_groups(child, grp, info, i++);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 	}
@@ -1295,18 +1295,18 @@ static int at91_pinctrl_probe_dt(struct platform_device *pdev,
 	int ret = 0;
 	int i, j, ngpio_chips_enabled = 0;
 	uint32_t *tmp;
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *child;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	info->dev = &pdev->dev;
 	info->ops = device_get_match_data(&pdev->dev);
 	at91_pinctrl_child_count(info, np);
 
 	/*
-	 * We need all the GPIO drivers to probe FIRST, or we will not be able
+	 * We need all the GPIO drivers to probe FIRST, or we will analt be able
 	 * to obtain references to the struct gpio_chip * for them, and we
 	 * need this to proceed.
 	 */
@@ -1336,12 +1336,12 @@ static int at91_pinctrl_probe_dt(struct platform_device *pdev,
 	info->functions = devm_kcalloc(dev, info->nfunctions, sizeof(*info->functions),
 				       GFP_KERNEL);
 	if (!info->functions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->groups = devm_kcalloc(dev, info->ngroups, sizeof(*info->groups),
 				    GFP_KERNEL);
 	if (!info->groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(dev, "nbanks = %d\n", gpio_banks);
 	dev_dbg(dev, "nfunctions = %d\n", info->nfunctions);
@@ -1349,12 +1349,12 @@ static int at91_pinctrl_probe_dt(struct platform_device *pdev,
 
 	i = 0;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		if (of_device_is_compatible(child, gpio_compat))
 			continue;
 		ret = at91_pinctrl_parse_functions(child, info, i++);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			return dev_err_probe(dev, ret, "failed to parse function\n");
 		}
 	}
@@ -1371,7 +1371,7 @@ static int at91_pinctrl_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = at91_pinctrl_probe_dt(pdev, info);
 	if (ret)
@@ -1382,7 +1382,7 @@ static int at91_pinctrl_probe(struct platform_device *pdev)
 	at91_pinctrl_desc.pins = pdesc =
 		devm_kcalloc(dev, at91_pinctrl_desc.npins, sizeof(*pdesc), GFP_KERNEL);
 	if (!at91_pinctrl_desc.pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, k = 0; i < gpio_banks; i++) {
 		char **names;
@@ -1405,7 +1405,7 @@ static int at91_pinctrl_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 	info->pctl = devm_pinctrl_register(dev, &at91_pinctrl_desc, info);
 	if (IS_ERR(info->pctl))
-		return dev_err_probe(dev, PTR_ERR(info->pctl), "could not register AT91 pinctrl driver\n");
+		return dev_err_probe(dev, PTR_ERR(info->pctl), "could analt register AT91 pinctrl driver\n");
 
 	/* We will handle a range of GPIO pins */
 	for (i = 0; i < gpio_banks; i++)
@@ -1469,7 +1469,7 @@ static void at91_gpio_set_multiple(struct gpio_chip *chip,
 	void __iomem *pio = at91_gpio->regbase;
 
 #define BITS_MASK(bits) (((bits) == 32) ? ~0U : (BIT(bits) - 1))
-	/* Mask additionally to ngpio as not all GPIO controllers have 32 pins */
+	/* Mask additionally to ngpio as analt all GPIO controllers have 32 pins */
 	uint32_t set_mask = (*mask & *bits) & BITS_MASK(chip->ngpio);
 	uint32_t clear_mask = (*mask & ~(*bits)) & BITS_MASK(chip->ngpio);
 
@@ -1580,7 +1580,7 @@ static void gpio_irq_unmask(struct irq_data *d)
 static int gpio_irq_type(struct irq_data *d, unsigned type)
 {
 	switch (type) {
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 	case IRQ_TYPE_EDGE_BOTH:
 		return 0;
 	default:
@@ -1624,9 +1624,9 @@ static int alt_gpio_irq_type(struct irq_data *d, unsigned type)
 		irq_set_handler_locked(d, handle_simple_irq);
 		writel_relaxed(mask, pio + PIO_AIMDR);
 		return 0;
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 	default:
-		pr_warn("AT91: No type for GPIO irq offset %d\n", d->irq);
+		pr_warn("AT91: Anal type for GPIO irq offset %d\n", d->irq);
 		return -EINVAL;
 	}
 
@@ -1700,7 +1700,7 @@ static void gpio_irq_handler(struct irq_desc *desc)
 	chained_irq_enter(chip, desc);
 	for (;;) {
 		/* Reading ISR acks pending (edge triggered) GPIO interrupts.
-		 * When there are none pending, we're finished unless we need
+		 * When there are analne pending, we're finished unless we need
 		 * to process multiple banks (like ID_PIOCDE on sam9263).
 		 */
 		isr = readl_relaxed(pio + PIO_ISR) & readl_relaxed(pio + PIO_IMR);
@@ -1717,7 +1717,7 @@ static void gpio_irq_handler(struct irq_desc *desc)
 			generic_handle_domain_irq(gpio_chip->irq.domain, n);
 	}
 	chained_irq_exit(chip, desc);
-	/* now it may re-trigger */
+	/* analw it may re-trigger */
 }
 
 static int at91_gpio_of_irq_setup(struct platform_device *pdev,
@@ -1733,7 +1733,7 @@ static int at91_gpio_of_irq_setup(struct platform_device *pdev,
 
 	gpio_irqchip = devm_kzalloc(dev, sizeof(*gpio_irqchip), GFP_KERNEL);
 	if (!gpio_irqchip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	at91_gpio->pioc_hwirq = irqd_to_hwirq(d);
 
@@ -1758,7 +1758,7 @@ static int at91_gpio_of_irq_setup(struct platform_device *pdev,
 	 */
 	girq = &at91_gpio->chip.irq;
 	gpio_irq_chip_set_chip(girq, gpio_irqchip);
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_edge_irq;
 
 	/*
@@ -1774,7 +1774,7 @@ static int at91_gpio_of_irq_setup(struct platform_device *pdev,
 					     sizeof(*girq->parents),
 					     GFP_KERNEL);
 		if (!girq->parents)
-			return -ENOMEM;
+			return -EANALMEM;
 		girq->parents[0] = at91_gpio->pioc_virq;
 		return 0;
 	}
@@ -1818,7 +1818,7 @@ static const struct of_device_id at91_gpio_of_match[] = {
 static int at91_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct at91_gpio_chip *at91_chip = NULL;
 	struct gpio_chip *chip;
 	struct pinctrl_gpio_range *range;
@@ -1838,7 +1838,7 @@ static int at91_gpio_probe(struct platform_device *pdev)
 
 	at91_chip = devm_kzalloc(dev, sizeof(*at91_chip), GFP_KERNEL);
 	if (!at91_chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	at91_chip->regbase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(at91_chip->regbase))
@@ -1849,7 +1849,7 @@ static int at91_gpio_probe(struct platform_device *pdev)
 
 	at91_chip->clock = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(at91_chip->clock))
-		return dev_err_probe(dev, PTR_ERR(at91_chip->clock), "failed to get clock, ignoring.\n");
+		return dev_err_probe(dev, PTR_ERR(at91_chip->clock), "failed to get clock, iganalring.\n");
 
 	at91_chip->chip = at91_gpio_template;
 	at91_chip->id = alias_idx;
@@ -1902,7 +1902,7 @@ static int at91_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static DEFINE_NOIRQ_DEV_PM_OPS(at91_gpio_pm_ops, at91_gpio_suspend, at91_gpio_resume);
+static DEFINE_ANALIRQ_DEV_PM_OPS(at91_gpio_pm_ops, at91_gpio_suspend, at91_gpio_resume);
 
 static struct platform_driver at91_gpio_driver = {
 	.driver = {

@@ -151,7 +151,7 @@ static struct timer_of ls1x_to = {
 };
 
 /*
- * Since the PWM timer overflows every two ticks, its not very useful
+ * Since the PWM timer overflows every two ticks, its analt very useful
  * to just read by itself. So use jiffies to emulate a free
  * running counter:
  */
@@ -167,8 +167,8 @@ static u64 ls1x_clocksource_read(struct clocksource *cs)
 	raw_spin_lock_irqsave(&ls1x_timer_lock, flags);
 	/*
 	 * Although our caller may have the read side of xtime_lock,
-	 * this is now a seqlock, and we are cheating in this routine
-	 * by having side effects on state that we cannot undo if
+	 * this is analw a seqlock, and we are cheating in this routine
+	 * by having side effects on state that we cananalt undo if
 	 * there is a collision on the seqlock and our caller has to
 	 * retry.  (Namely, old_jifs and old_count.)  So we must treat
 	 * jiffies as volatile despite the lock.  We read jiffies
@@ -176,7 +176,7 @@ static u64 ls1x_clocksource_read(struct clocksource *cs)
 	 * the jiffies value might be older than the count (that is,
 	 * the counter may underflow between the last point where
 	 * jiffies was incremented and the point where we latch the
-	 * count), it cannot be newer.
+	 * count), it cananalt be newer.
 	 */
 	jifs = jiffies;
 	/* read the count */
@@ -190,7 +190,7 @@ static u64 ls1x_clocksource_read(struct clocksource *cs)
 	 *  interrupt and incremented jiffies yet.
 	 *
 	 * Previous attempts to handle these cases intelligently were buggy, so
-	 * we just do the simple thing now.
+	 * we just do the simple thing analw.
 	 */
 	if (count < old_count && jifs == old_jifs)
 		count = old_count;
@@ -213,7 +213,7 @@ static struct ls1x_clocksource ls1x_clocksource = {
 	},
 };
 
-static int __init ls1x_pwm_clocksource_init(struct device_node *np)
+static int __init ls1x_pwm_clocksource_init(struct device_analde *np)
 {
 	struct timer_of *to = &ls1x_to;
 	int ret;

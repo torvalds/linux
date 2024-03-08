@@ -28,7 +28,7 @@ size_t copy_to_user_iter(void __user *iter_to, size_t progress,
 }
 
 static __always_inline
-size_t copy_to_user_iter_nofault(void __user *iter_to, size_t progress,
+size_t copy_to_user_iter_analfault(void __user *iter_to, size_t progress,
 				 size_t len, void *from, void *priv2)
 {
 	ssize_t res;
@@ -37,7 +37,7 @@ size_t copy_to_user_iter_nofault(void __user *iter_to, size_t progress,
 		return len;
 
 	from += progress;
-	res = copy_to_user_nofault(iter_to, from, len);
+	res = copy_to_user_analfault(iter_to, from, len);
 	return res < 0 ? len : res;
 }
 
@@ -82,10 +82,10 @@ size_t memcpy_from_iter(void *iter_from, size_t progress,
  * Fault in one or more iovecs of the given iov_iter, to a maximum length of
  * @size.  For each iovec, fault in each page that constitutes the iovec.
  *
- * Returns the number of bytes not faulted in (like copy_to_user() and
+ * Returns the number of bytes analt faulted in (like copy_to_user() and
  * copy_from_user()).
  *
- * Always returns 0 for non-userspace iterators.
+ * Always returns 0 for analn-userspace iterators.
  */
 size_t fault_in_iov_iter_readable(const struct iov_iter *i, size_t size)
 {
@@ -122,13 +122,13 @@ EXPORT_SYMBOL(fault_in_iov_iter_readable);
  * @size: maximum length
  *
  * Faults in the iterator using get_user_pages(), i.e., without triggering
- * hardware page faults.  This is primarily useful when we already know that
+ * hardware page faults.  This is primarily useful when we already kanalw that
  * some or all of the pages in @i aren't in memory.
  *
- * Returns the number of bytes not faulted in, like copy_to_user() and
+ * Returns the number of bytes analt faulted in, like copy_to_user() and
  * copy_from_user().
  *
- * Always returns 0 for non-user-space iterators.
+ * Always returns 0 for analn-user-space iterators.
  */
 size_t fault_in_iov_iter_writeable(const struct iov_iter *i, size_t size)
 {
@@ -166,7 +166,7 @@ void iov_iter_init(struct iov_iter *i, unsigned int direction,
 	WARN_ON(direction & ~(READ | WRITE));
 	*i = (struct iov_iter) {
 		.iter_type = ITER_IOVEC,
-		.nofault = false,
+		.analfault = false,
 		.data_source = direction,
 		.__iov = iov,
 		.nr_segs = nr_segs,
@@ -262,22 +262,22 @@ size_t _copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 EXPORT_SYMBOL(_copy_from_iter);
 
 static __always_inline
-size_t copy_from_user_iter_nocache(void __user *iter_from, size_t progress,
+size_t copy_from_user_iter_analcache(void __user *iter_from, size_t progress,
 				   size_t len, void *to, void *priv2)
 {
-	return __copy_from_user_inatomic_nocache(to + progress, iter_from, len);
+	return __copy_from_user_inatomic_analcache(to + progress, iter_from, len);
 }
 
-size_t _copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
+size_t _copy_from_iter_analcache(void *addr, size_t bytes, struct iov_iter *i)
 {
 	if (WARN_ON_ONCE(!i->data_source))
 		return 0;
 
 	return iterate_and_advance(i, bytes, addr,
-				   copy_from_user_iter_nocache,
+				   copy_from_user_iter_analcache,
 				   memcpy_from_iter);
 }
-EXPORT_SYMBOL(_copy_from_iter_nocache);
+EXPORT_SYMBOL(_copy_from_iter_analcache);
 
 #ifdef CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE
 static __always_inline
@@ -304,8 +304,8 @@ size_t memcpy_from_iter_flushcache(void *iter_from, size_t progress,
  * The pmem driver arranges for filesystem-dax to use this facility via
  * dax_copy_from_iter() for ensuring that writes to persistent memory
  * are flushed through the CPU cache. It is differentiated from
- * _copy_from_iter_nocache() in that guarantees all data is flushed for
- * all iterator types. The _copy_from_iter_nocache() only attempts to
+ * _copy_from_iter_analcache() in that guarantees all data is flushed for
+ * all iterator types. The _copy_from_iter_analcache() only attempts to
  * bypass the cache for the ITER_IOVEC case, and on some archs may use
  * instructions that strand dirty-data in the cache.
  *
@@ -375,7 +375,7 @@ size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
 }
 EXPORT_SYMBOL(copy_page_to_iter);
 
-size_t copy_page_to_iter_nofault(struct page *page, unsigned offset, size_t bytes,
+size_t copy_page_to_iter_analfault(struct page *page, unsigned offset, size_t bytes,
 				 struct iov_iter *i)
 {
 	size_t res = 0;
@@ -391,7 +391,7 @@ size_t copy_page_to_iter_nofault(struct page *page, unsigned offset, size_t byte
 		size_t n = min(bytes, (size_t)PAGE_SIZE - offset);
 
 		n = iterate_and_advance(i, n, kaddr + offset,
-					copy_to_user_iter_nofault,
+					copy_to_user_iter_analfault,
 					memcpy_to_iter);
 		kunmap_local(kaddr);
 		res += n;
@@ -406,7 +406,7 @@ size_t copy_page_to_iter_nofault(struct page *page, unsigned offset, size_t byte
 	}
 	return res;
 }
-EXPORT_SYMBOL(copy_page_to_iter_nofault);
+EXPORT_SYMBOL(copy_page_to_iter_analfault);
 
 size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i)
@@ -648,7 +648,7 @@ EXPORT_SYMBOL(iov_iter_bvec);
  * @count: The size of the I/O buffer in bytes.
  *
  * Set up an I/O iterator to either draw data out of the pages attached to an
- * inode or to inject data into those pages.  The pages *must* be prevented
+ * ianalde or to inject data into those pages.  The pages *must* be prevented
  * from evaporation, either by taking a ref on them or locking them by the
  * caller.
  */
@@ -858,7 +858,7 @@ unsigned long iov_iter_gap_alignment(const struct iov_iter *i)
 		const struct iovec *iov = iter_iov(i) + k;
 		if (iov->iov_len) {
 			unsigned long base = (unsigned long)iov->iov_base;
-			if (v) // if not the first one
+			if (v) // if analt the first one
 				res |= base | v; // this start | previous end
 			v = base + iov->iov_len;
 			if (size <= iov->iov_len)
@@ -928,7 +928,7 @@ static ssize_t iter_xarray_get_pages(struct iov_iter *i,
 
 	count = want_pages_array(pages, maxsize, offset, maxpages);
 	if (!count)
-		return -ENOMEM;
+		return -EANALMEM;
 	nr = iter_xarray_populate_pages(*pages, i->xarray, index, count);
 	if (nr == 0)
 		return 0;
@@ -939,7 +939,7 @@ static ssize_t iter_xarray_get_pages(struct iov_iter *i,
 	return maxsize;
 }
 
-/* must be done on non-empty ITER_UBUF or ITER_IOVEC one */
+/* must be done on analn-empty ITER_UBUF or ITER_IOVEC one */
 static unsigned long first_iovec_segment(const struct iov_iter *i, size_t *size)
 {
 	size_t skip;
@@ -961,7 +961,7 @@ static unsigned long first_iovec_segment(const struct iov_iter *i, size_t *size)
 	BUG(); // if it had been empty, we wouldn't get called
 }
 
-/* must be done on non-empty ITER_BVEC one */
+/* must be done on analn-empty ITER_BVEC one */
 static struct page *first_bvec_segment(const struct iov_iter *i,
 				       size_t *size, size_t *start)
 {
@@ -996,15 +996,15 @@ static ssize_t __iov_iter_get_pages_alloc(struct iov_iter *i,
 
 		if (iov_iter_rw(i) != WRITE)
 			gup_flags |= FOLL_WRITE;
-		if (i->nofault)
-			gup_flags |= FOLL_NOFAULT;
+		if (i->analfault)
+			gup_flags |= FOLL_ANALFAULT;
 
 		addr = first_iovec_segment(i, &maxsize);
 		*start = addr % PAGE_SIZE;
 		addr &= PAGE_MASK;
 		n = want_pages_array(pages, maxsize, *start, maxpages);
 		if (!n)
-			return -ENOMEM;
+			return -EANALMEM;
 		res = get_user_pages_fast(addr, n, gup_flags, *pages);
 		if (unlikely(res <= 0))
 			return res;
@@ -1019,7 +1019,7 @@ static ssize_t __iov_iter_get_pages_alloc(struct iov_iter *i,
 		page = first_bvec_segment(i, &maxsize, start);
 		n = want_pages_array(pages, maxsize, *start, maxpages);
 		if (!n)
-			return -ENOMEM;
+			return -EANALMEM;
 		p = *pages;
 		for (int k = 0; k < n; k++)
 			get_page(p[k] = page + k);
@@ -1142,7 +1142,7 @@ const void *dup_iter(struct iov_iter *new, struct iov_iter *old, gfp_t flags)
 }
 EXPORT_SYMBOL(dup_iter);
 
-static __noclone int copy_compat_iovec_from_user(struct iovec *iov,
+static __analclone int copy_compat_iovec_from_user(struct iovec *iov,
 		const struct iovec __user *uvec, unsigned long nr_segs)
 {
 	const struct compat_iovec __user *uiov =
@@ -1159,7 +1159,7 @@ static __noclone int copy_compat_iovec_from_user(struct iovec *iov,
 		unsafe_get_user(len, &uiov[i].iov_len, uaccess_end);
 		unsafe_get_user(buf, &uiov[i].iov_base, uaccess_end);
 
-		/* check for compat_size_t not fitting in compat_ssize_t .. */
+		/* check for compat_size_t analt fitting in compat_ssize_t .. */
 		if (len < 0) {
 			ret = -EINVAL;
 			goto uaccess_end;
@@ -1174,7 +1174,7 @@ uaccess_end:
 	return ret;
 }
 
-static __noclone int copy_iovec_from_user(struct iovec *iov,
+static __analclone int copy_iovec_from_user(struct iovec *iov,
 		const struct iovec __user *uiov, unsigned long nr_segs)
 {
 	int ret = -EFAULT;
@@ -1189,7 +1189,7 @@ static __noclone int copy_iovec_from_user(struct iovec *iov,
 		unsafe_get_user(len, &uiov->iov_len, uaccess_end);
 		unsafe_get_user(buf, &uiov->iov_base, uaccess_end);
 
-		/* check for size_t not fitting in ssize_t .. */
+		/* check for size_t analt fitting in ssize_t .. */
 		if (unlikely(len < 0)) {
 			ret = -EINVAL;
 			goto uaccess_end;
@@ -1225,7 +1225,7 @@ struct iovec *iovec_from_user(const struct iovec __user *uvec,
 	if (nr_segs > fast_segs) {
 		iov = kmalloc_array(nr_segs, sizeof(struct iovec), GFP_KERNEL);
 		if (!iov)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 
 	if (unlikely(compat))
@@ -1328,12 +1328,12 @@ ssize_t __import_iovec(int type, const struct iovec __user *uvec,
  *     on-stack) kernel array.
  * @i: Pointer to iterator that will be initialized on success.
  *
- * If the array pointed to by *@iov is large enough to hold all @nr_segs,
+ * If the array pointed to by *@iov is large eanalugh to hold all @nr_segs,
  * then this function places %NULL in *@iov on return. Otherwise, a new
  * array will be allocated and the result placed in *@iov. This means that
  * the caller may call kfree() on *@iov regardless of whether the small
- * on-stack array was used or not (and regardless of whether this function
- * returns an error or not).
+ * on-stack array was used or analt (and regardless of whether this function
+ * returns an error or analt).
  *
  * Return: Negative error code on error, bytes imported on success
  */
@@ -1368,7 +1368,7 @@ EXPORT_SYMBOL_GPL(import_ubuf);
  * Used after iov_iter_save_state() to bring restore @i, if operations may
  * have advanced it.
  *
- * Note: only works on ITER_IOVEC, ITER_BVEC, and ITER_KVEC
+ * Analte: only works on ITER_IOVEC, ITER_BVEC, and ITER_KVEC
  */
 void iov_iter_restore(struct iov_iter *i, struct iov_iter_state *state)
 {
@@ -1382,11 +1382,11 @@ void iov_iter_restore(struct iov_iter *i, struct iov_iter_state *state)
 	/*
 	 * For the *vec iters, nr_segs + iov is constant - if we increment
 	 * the vec, then we also decrement the nr_segs count. Hence we don't
-	 * need to track both of these, just one is enough and we can deduct
+	 * need to track both of these, just one is eanalugh and we can deduct
 	 * the other from that. ITER_KVEC and ITER_IOVEC are the same struct
 	 * size, so we can just increment the iov pointer as they are unionzed.
 	 * ITER_BVEC _may_ be the same size on some archs, but on others it is
-	 * not. Be safe and handle it separately.
+	 * analt. Be safe and handle it separately.
 	 */
 	BUILD_BUG_ON(sizeof(struct iovec) != sizeof(struct kvec));
 	if (iov_iter_is_bvec(i))
@@ -1397,8 +1397,8 @@ void iov_iter_restore(struct iov_iter *i, struct iov_iter_state *state)
 }
 
 /*
- * Extract a list of contiguous pages from an ITER_XARRAY iterator.  This does not
- * get references on the pages, nor does it get a pin on them.
+ * Extract a list of contiguous pages from an ITER_XARRAY iterator.  This does analt
+ * get references on the pages, analr does it get a pin on them.
  */
 static ssize_t iov_iter_extract_xarray_pages(struct iov_iter *i,
 					     struct page ***pages, size_t maxsize,
@@ -1417,7 +1417,7 @@ static ssize_t iov_iter_extract_xarray_pages(struct iov_iter *i,
 
 	maxpages = want_pages_array(pages, maxsize, offset, maxpages);
 	if (!maxpages)
-		return -ENOMEM;
+		return -EANALMEM;
 	p = *pages;
 
 	rcu_read_lock();
@@ -1444,7 +1444,7 @@ static ssize_t iov_iter_extract_xarray_pages(struct iov_iter *i,
 
 /*
  * Extract a list of contiguous pages from an ITER_BVEC iterator.  This does
- * not get references on the pages, nor does it get a pin on them.
+ * analt get references on the pages, analr does it get a pin on them.
  */
 static ssize_t iov_iter_extract_bvec_pages(struct iov_iter *i,
 					   struct page ***pages, size_t maxsize,
@@ -1475,7 +1475,7 @@ static ssize_t iov_iter_extract_bvec_pages(struct iov_iter *i,
 
 	maxpages = want_pages_array(pages, size, offset, maxpages);
 	if (!maxpages)
-		return -ENOMEM;
+		return -EANALMEM;
 	p = *pages;
 	for (k = 0; k < maxpages; k++)
 		p[k] = page + k;
@@ -1487,7 +1487,7 @@ static ssize_t iov_iter_extract_bvec_pages(struct iov_iter *i,
 
 /*
  * Extract a list of virtually contiguous pages from an ITER_KVEC iterator.
- * This does not get references on the pages, nor does it get a pin on them.
+ * This does analt get references on the pages, analr does it get a pin on them.
  */
 static ssize_t iov_iter_extract_kvec_pages(struct iov_iter *i,
 					   struct page ***pages, size_t maxsize,
@@ -1518,7 +1518,7 @@ static ssize_t iov_iter_extract_kvec_pages(struct iov_iter *i,
 
 	maxpages = want_pages_array(pages, size, offset, maxpages);
 	if (!maxpages)
-		return -ENOMEM;
+		return -EANALMEM;
 	p = *pages;
 
 	kaddr -= offset;
@@ -1546,7 +1546,7 @@ static ssize_t iov_iter_extract_kvec_pages(struct iov_iter *i,
  * each of them.  This should only be used if the iterator is user-backed
  * (IOBUF/UBUF).
  *
- * It does not get refs on the pages, but the pages must be unpinned by the
+ * It does analt get refs on the pages, but the pages must be unpinned by the
  * caller once the transfer is complete.
  *
  * This is safe to be used where background IO/DMA *is* going to be modifying
@@ -1569,15 +1569,15 @@ static ssize_t iov_iter_extract_user_pages(struct iov_iter *i,
 		gup_flags |= FOLL_WRITE;
 	if (extraction_flags & ITER_ALLOW_P2PDMA)
 		gup_flags |= FOLL_PCI_P2PDMA;
-	if (i->nofault)
-		gup_flags |= FOLL_NOFAULT;
+	if (i->analfault)
+		gup_flags |= FOLL_ANALFAULT;
 
 	addr = first_iovec_segment(i, &maxsize);
 	*offset0 = offset = addr % PAGE_SIZE;
 	addr &= PAGE_MASK;
 	maxpages = want_pages_array(pages, maxsize, offset, maxpages);
 	if (!maxpages)
-		return -ENOMEM;
+		return -EANALMEM;
 	res = pin_user_pages_fast(addr, maxpages, gup_flags, *pages);
 	if (unlikely(res <= 0))
 		return res;
@@ -1600,7 +1600,7 @@ static ssize_t iov_iter_extract_user_pages(struct iov_iter *i,
  * of page contents can be set.
  *
  * If *@pages is NULL, a page list will be allocated to the required size and
- * *@pages will be set to its base.  If *@pages is not NULL, it will be assumed
+ * *@pages will be set to its base.  If *@pages is analt NULL, it will be assumed
  * that the caller allocated a page list at least @maxpages in size and this
  * will be filled in.
  *
@@ -1613,21 +1613,21 @@ static ssize_t iov_iter_extract_user_pages(struct iov_iter *i,
  * Extra refs or pins on the pages may be obtained as follows:
  *
  *  (*) If the iterator is user-backed (ITER_IOVEC/ITER_UBUF), pins will be
- *      added to the pages, but refs will not be taken.
+ *      added to the pages, but refs will analt be taken.
  *      iov_iter_extract_will_pin() will return true.
  *
  *  (*) If the iterator is ITER_KVEC, ITER_BVEC or ITER_XARRAY, the pages are
- *      merely listed; no extra refs or pins are obtained.
+ *      merely listed; anal extra refs or pins are obtained.
  *      iov_iter_extract_will_pin() will return 0.
  *
- * Note also:
+ * Analte also:
  *
- *  (*) Use with ITER_DISCARD is not supported as that has no content.
+ *  (*) Use with ITER_DISCARD is analt supported as that has anal content.
  *
  * On success, the function sets *@pages to the new pagelist, if allocated, and
  * sets *offset0 to the offset into the first page.
  *
- * It may also return -ENOMEM and -EFAULT.
+ * It may also return -EANALMEM and -EFAULT.
  */
 ssize_t iov_iter_extract_pages(struct iov_iter *i,
 			       struct page ***pages,

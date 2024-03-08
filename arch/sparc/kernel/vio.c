@@ -73,21 +73,21 @@ static int vio_device_probe(struct device *dev)
 	const struct vio_device_id *id;
 
 	if (!drv->probe)
-		return -ENODEV;
+		return -EANALDEV;
 
 	id = vio_match_device(drv->id_table, vdev);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* alloc irqs (unless the driver specified not to) */
-	if (!drv->no_irq) {
-		if (vdev->tx_irq == 0 && vdev->tx_ino != ~0UL)
+	/* alloc irqs (unless the driver specified analt to) */
+	if (!drv->anal_irq) {
+		if (vdev->tx_irq == 0 && vdev->tx_ianal != ~0UL)
 			vdev->tx_irq = sun4v_build_virq(vdev->cdev_handle,
-							vdev->tx_ino);
+							vdev->tx_ianal);
 
-		if (vdev->rx_irq == 0 && vdev->rx_ino != ~0UL)
+		if (vdev->rx_irq == 0 && vdev->rx_ianal != ~0UL)
 			vdev->rx_irq = sun4v_build_virq(vdev->cdev_handle,
-							vdev->rx_ino);
+							vdev->rx_ianal);
 	}
 
 	return drv->probe(vdev, id);
@@ -101,7 +101,7 @@ static void vio_device_remove(struct device *dev)
 	if (drv->remove) {
 		/*
 		 * Ideally, we would remove/deallocate tx/rx virqs
-		 * here - however, there are currently no support
+		 * here - however, there are currently anal support
 		 * routines to do so at the moment. TBD
 		 */
 
@@ -113,7 +113,7 @@ static ssize_t devspec_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct vio_dev *vdev = to_vio_dev(dev);
-	const char *str = "none";
+	const char *str = "analne";
 
 	if (!strcmp(vdev->type, "vnet-port"))
 		str = "vnet";
@@ -186,7 +186,7 @@ show_pciobppath_attr(struct device *dev, struct device_attribute *attr,
 		     char *buf)
 {
 	struct vio_dev *vdev;
-	struct device_node *dp;
+	struct device_analde *dp;
 
 	vdev = to_vio_dev(dev);
 	dp = vdev->dp;
@@ -197,17 +197,17 @@ show_pciobppath_attr(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(obppath, S_IRUSR | S_IRGRP | S_IROTH,
 		   show_pciobppath_attr, NULL);
 
-static struct device_node *cdev_node;
+static struct device_analde *cdev_analde;
 
 static struct vio_dev *root_vdev;
 static u64 cdev_cfg_handle;
 
-static const u64 *vio_cfg_handle(struct mdesc_handle *hp, u64 node)
+static const u64 *vio_cfg_handle(struct mdesc_handle *hp, u64 analde)
 {
 	const u64 *cfg_handle = NULL;
 	u64 a;
 
-	mdesc_for_each_arc(a, hp, node, MDESC_ARC_TYPE_BACK) {
+	mdesc_for_each_arc(a, hp, analde, MDESC_ARC_TYPE_BACK) {
 		u64 target;
 
 		target = mdesc_arc_target(hp, a);
@@ -221,39 +221,39 @@ static const u64 *vio_cfg_handle(struct mdesc_handle *hp, u64 node)
 }
 
 /**
- * vio_vdev_node() - Find VDEV node in MD
+ * vio_vdev_analde() - Find VDEV analde in MD
  * @hp:  Handle to the MD
  * @vdev:  Pointer to VDEV
  *
- * Find the node in the current MD which matches the given vio_dev. This
- * must be done dynamically since the node value can change if the MD
+ * Find the analde in the current MD which matches the given vio_dev. This
+ * must be done dynamically since the analde value can change if the MD
  * is updated.
  *
- * NOTE: the MD must be locked, using mdesc_grab(), when calling this routine
+ * ANALTE: the MD must be locked, using mdesc_grab(), when calling this routine
  *
- * Return: The VDEV node in MDESC
+ * Return: The VDEV analde in MDESC
  */
-u64 vio_vdev_node(struct mdesc_handle *hp, struct vio_dev *vdev)
+u64 vio_vdev_analde(struct mdesc_handle *hp, struct vio_dev *vdev)
 {
-	u64 node;
+	u64 analde;
 
 	if (vdev == NULL)
-		return MDESC_NODE_NULL;
+		return MDESC_ANALDE_NULL;
 
-	node = mdesc_get_node(hp, (const char *)vdev->node_name,
-			      &vdev->md_node_info);
+	analde = mdesc_get_analde(hp, (const char *)vdev->analde_name,
+			      &vdev->md_analde_info);
 
-	return node;
+	return analde;
 }
-EXPORT_SYMBOL(vio_vdev_node);
+EXPORT_SYMBOL(vio_vdev_analde);
 
 static void vio_fill_channel_info(struct mdesc_handle *hp, u64 mp,
 				  struct vio_dev *vdev)
 {
 	u64 a;
 
-	vdev->tx_ino = ~0UL;
-	vdev->rx_ino = ~0UL;
+	vdev->tx_ianal = ~0UL;
+	vdev->rx_ianal = ~0UL;
 	vdev->channel_id = ~0UL;
 	mdesc_for_each_arc(a, hp, mp, MDESC_ARC_TYPE_FWD) {
 		const u64 *chan_id;
@@ -262,13 +262,13 @@ static void vio_fill_channel_info(struct mdesc_handle *hp, u64 mp,
 
 		target = mdesc_arc_target(hp, a);
 
-		irq = mdesc_get_property(hp, target, "tx-ino", NULL);
+		irq = mdesc_get_property(hp, target, "tx-ianal", NULL);
 		if (irq)
-			vdev->tx_ino = *irq;
+			vdev->tx_ianal = *irq;
 
-		irq = mdesc_get_property(hp, target, "rx-ino", NULL);
+		irq = mdesc_get_property(hp, target, "rx-ianal", NULL);
 		if (irq)
-			vdev->rx_ino = *irq;
+			vdev->rx_ianal = *irq;
 
 		chan_id = mdesc_get_property(hp, target, "id", NULL);
 		if (chan_id)
@@ -278,21 +278,21 @@ static void vio_fill_channel_info(struct mdesc_handle *hp, u64 mp,
 	vdev->cdev_handle = cdev_cfg_handle;
 }
 
-int vio_set_intr(unsigned long dev_ino, int state)
+int vio_set_intr(unsigned long dev_ianal, int state)
 {
 	int err;
 
-	err = sun4v_vintr_set_valid(cdev_cfg_handle, dev_ino, state);
+	err = sun4v_vintr_set_valid(cdev_cfg_handle, dev_ianal, state);
 	return err;
 }
 EXPORT_SYMBOL(vio_set_intr);
 
 static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
-				      const char *node_name,
+				      const char *analde_name,
 				      struct device *parent)
 {
 	const char *type, *compat;
-	struct device_node *dp;
+	struct device_analde *dp;
 	struct vio_dev *vdev;
 	int err, tlen, clen;
 	const u64 *id, *cfg_handle;
@@ -301,7 +301,7 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	if (!type) {
 		type = mdesc_get_property(hp, mp, "name", &tlen);
 		if (!type) {
-			type = mdesc_node_name(hp, mp);
+			type = mdesc_analde_name(hp, mp);
 			tlen = strlen(type) + 1;
 		}
 	}
@@ -326,7 +326,7 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 
 	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
 	if (!vdev) {
-		printk(KERN_ERR "VIO: Could not allocate vio_dev\n");
+		printk(KERN_ERR "VIO: Could analt allocate vio_dev\n");
 		return NULL;
 	}
 
@@ -346,14 +346,14 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 
 	if (!id) {
 		dev_set_name(&vdev->dev, "%s", type);
-		vdev->dev_no = ~(u64)0;
+		vdev->dev_anal = ~(u64)0;
 	} else if (!cfg_handle) {
 		dev_set_name(&vdev->dev, "%s-%llu", type, *id);
-		vdev->dev_no = *id;
+		vdev->dev_anal = *id;
 	} else {
 		dev_set_name(&vdev->dev, "%s-%llu-%llu", type,
 			     *cfg_handle, *id);
-		vdev->dev_no = *cfg_handle;
+		vdev->dev_anal = *cfg_handle;
 		vdev->port_id = *id;
 	}
 
@@ -362,10 +362,10 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	vdev->dev.release = vio_dev_release;
 
 	if (parent == NULL) {
-		dp = cdev_node;
+		dp = cdev_analde;
 	} else if (to_vio_dev(parent) == root_vdev) {
-		for_each_child_of_node(cdev_node, dp) {
-			if (of_node_is_type(dp, type))
+		for_each_child_of_analde(cdev_analde, dp) {
+			if (of_analde_is_type(dp, type))
 				break;
 		}
 	} else {
@@ -374,29 +374,29 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	vdev->dp = dp;
 
 	/*
-	 * node_name is NULL for the parent/channel-devices node and
-	 * the parent doesn't require the MD node info.
+	 * analde_name is NULL for the parent/channel-devices analde and
+	 * the parent doesn't require the MD analde info.
 	 */
-	if (node_name != NULL) {
-		(void) snprintf(vdev->node_name, VIO_MAX_NAME_LEN, "%s",
-				node_name);
+	if (analde_name != NULL) {
+		(void) snprintf(vdev->analde_name, VIO_MAX_NAME_LEN, "%s",
+				analde_name);
 
-		err = mdesc_get_node_info(hp, mp, node_name,
-					  &vdev->md_node_info);
+		err = mdesc_get_analde_info(hp, mp, analde_name,
+					  &vdev->md_analde_info);
 		if (err) {
-			pr_err("VIO: Could not get MD node info %s, err=%d\n",
+			pr_err("VIO: Could analt get MD analde info %s, err=%d\n",
 			       dev_name(&vdev->dev), err);
 			kfree(vdev);
 			return NULL;
 		}
 	}
 
-	pr_info("VIO: Adding device %s (tx_ino = %llx, rx_ino = %llx)\n",
-		dev_name(&vdev->dev), vdev->tx_ino, vdev->rx_ino);
+	pr_info("VIO: Adding device %s (tx_ianal = %llx, rx_ianal = %llx)\n",
+		dev_name(&vdev->dev), vdev->tx_ianal, vdev->rx_ianal);
 
 	err = device_register(&vdev->dev);
 	if (err) {
-		printk(KERN_ERR "VIO: Could not register device %s, err=%d\n",
+		printk(KERN_ERR "VIO: Could analt register device %s, err=%d\n",
 		       dev_name(&vdev->dev), err);
 		put_device(&vdev->dev);
 		return NULL;
@@ -408,74 +408,74 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	return vdev;
 }
 
-static void vio_add(struct mdesc_handle *hp, u64 node,
-		    const char *node_name)
+static void vio_add(struct mdesc_handle *hp, u64 analde,
+		    const char *analde_name)
 {
-	(void) vio_create_one(hp, node, node_name, &root_vdev->dev);
+	(void) vio_create_one(hp, analde, analde_name, &root_vdev->dev);
 }
 
-struct vio_remove_node_data {
+struct vio_remove_analde_data {
 	struct mdesc_handle *hp;
-	u64 node;
+	u64 analde;
 };
 
-static int vio_md_node_match(struct device *dev, void *arg)
+static int vio_md_analde_match(struct device *dev, void *arg)
 {
 	struct vio_dev *vdev = to_vio_dev(dev);
-	struct vio_remove_node_data *node_data;
-	u64 node;
+	struct vio_remove_analde_data *analde_data;
+	u64 analde;
 
-	node_data = (struct vio_remove_node_data *)arg;
+	analde_data = (struct vio_remove_analde_data *)arg;
 
-	node = vio_vdev_node(node_data->hp, vdev);
+	analde = vio_vdev_analde(analde_data->hp, vdev);
 
-	if (node == node_data->node)
+	if (analde == analde_data->analde)
 		return 1;
 	else
 		return 0;
 }
 
-static void vio_remove(struct mdesc_handle *hp, u64 node, const char *node_name)
+static void vio_remove(struct mdesc_handle *hp, u64 analde, const char *analde_name)
 {
-	struct vio_remove_node_data node_data;
+	struct vio_remove_analde_data analde_data;
 	struct device *dev;
 
-	node_data.hp = hp;
-	node_data.node = node;
+	analde_data.hp = hp;
+	analde_data.analde = analde;
 
-	dev = device_find_child(&root_vdev->dev, (void *)&node_data,
-				vio_md_node_match);
+	dev = device_find_child(&root_vdev->dev, (void *)&analde_data,
+				vio_md_analde_match);
 	if (dev) {
 		printk(KERN_INFO "VIO: Removing device %s\n", dev_name(dev));
 
 		device_unregister(dev);
 		put_device(dev);
 	} else {
-		pr_err("VIO: %s node not found in MDESC\n", node_name);
+		pr_err("VIO: %s analde analt found in MDESC\n", analde_name);
 	}
 }
 
-static struct mdesc_notifier_client vio_device_notifier = {
+static struct mdesc_analtifier_client vio_device_analtifier = {
 	.add		= vio_add,
 	.remove		= vio_remove,
-	.node_name	= "virtual-device-port",
+	.analde_name	= "virtual-device-port",
 };
 
 /* We are only interested in domain service ports under the
- * "domain-services" node.  On control nodes there is another port
- * under "openboot" that we should not mess with as aparently that is
+ * "domain-services" analde.  On control analdes there is aanalther port
+ * under "openboot" that we should analt mess with as aparently that is
  * reserved exclusively for OBP use.
  */
-static void vio_add_ds(struct mdesc_handle *hp, u64 node,
-		       const char *node_name)
+static void vio_add_ds(struct mdesc_handle *hp, u64 analde,
+		       const char *analde_name)
 {
 	int found;
 	u64 a;
 
 	found = 0;
-	mdesc_for_each_arc(a, hp, node, MDESC_ARC_TYPE_BACK) {
+	mdesc_for_each_arc(a, hp, analde, MDESC_ARC_TYPE_BACK) {
 		u64 target = mdesc_arc_target(hp, a);
-		const char *name = mdesc_node_name(hp, target);
+		const char *name = mdesc_analde_name(hp, target);
 
 		if (!strcmp(name, "domain-services")) {
 			found = 1;
@@ -484,16 +484,16 @@ static void vio_add_ds(struct mdesc_handle *hp, u64 node,
 	}
 
 	if (found)
-		(void) vio_create_one(hp, node, node_name, &root_vdev->dev);
+		(void) vio_create_one(hp, analde, analde_name, &root_vdev->dev);
 }
 
-static struct mdesc_notifier_client vio_ds_notifier = {
+static struct mdesc_analtifier_client vio_ds_analtifier = {
 	.add		= vio_add_ds,
 	.remove		= vio_remove,
-	.node_name	= "domain-services-port",
+	.analde_name	= "domain-services-port",
 };
 
-static const char *channel_devices_node = "channel-devices";
+static const char *channel_devices_analde = "channel-devices";
 static const char *channel_devices_compat = "SUNW,sun4v-channel-devices";
 static const char *cfg_handle_prop = "cfg-handle";
 
@@ -507,7 +507,7 @@ static int __init vio_init(void)
 
 	err = bus_register(&vio_bus_type);
 	if (err) {
-		printk(KERN_ERR "VIO: Could not register bus type err=%d\n",
+		printk(KERN_ERR "VIO: Could analt register bus type err=%d\n",
 		       err);
 		return err;
 	}
@@ -516,17 +516,17 @@ static int __init vio_init(void)
 	if (!hp)
 		return 0;
 
-	root = mdesc_node_by_name(hp, MDESC_NODE_NULL, channel_devices_node);
-	if (root == MDESC_NODE_NULL) {
-		printk(KERN_INFO "VIO: No channel-devices MDESC node.\n");
+	root = mdesc_analde_by_name(hp, MDESC_ANALDE_NULL, channel_devices_analde);
+	if (root == MDESC_ANALDE_NULL) {
+		printk(KERN_INFO "VIO: Anal channel-devices MDESC analde.\n");
 		mdesc_release(hp);
 		return 0;
 	}
 
-	cdev_node = of_find_node_by_name(NULL, "channel-devices");
-	err = -ENODEV;
-	if (!cdev_node) {
-		printk(KERN_INFO "VIO: No channel-devices OBP node.\n");
+	cdev_analde = of_find_analde_by_name(NULL, "channel-devices");
+	err = -EANALDEV;
+	if (!cdev_analde) {
+		printk(KERN_INFO "VIO: Anal channel-devices OBP analde.\n");
 		goto out_release;
 	}
 
@@ -537,7 +537,7 @@ static int __init vio_init(void)
 		goto out_release;
 	}
 	if (!of_find_in_proplist(compat, channel_devices_compat, len)) {
-		printk(KERN_ERR "VIO: Channel devices node lacks (%s) "
+		printk(KERN_ERR "VIO: Channel devices analde lacks (%s) "
 		       "compat entry.\n", channel_devices_compat);
 		goto out_release;
 	}
@@ -552,14 +552,14 @@ static int __init vio_init(void)
 	cdev_cfg_handle = *cfg_handle;
 
 	root_vdev = vio_create_one(hp, root, NULL, NULL);
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (!root_vdev) {
-		printk(KERN_ERR "VIO: Could not create root device.\n");
+		printk(KERN_ERR "VIO: Could analt create root device.\n");
 		goto out_release;
 	}
 
-	mdesc_register_notifier(&vio_device_notifier);
-	mdesc_register_notifier(&vio_ds_notifier);
+	mdesc_register_analtifier(&vio_device_analtifier);
+	mdesc_register_analtifier(&vio_ds_analtifier);
 
 	mdesc_release(hp);
 

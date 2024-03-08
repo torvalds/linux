@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * snd_sst_tokens.h - Intel SST tokens definition
  *
@@ -15,10 +15,10 @@
  *                              tuples, bytes, short and words
  *
  * %SKL_TKN_U8_IN_PIN_TYPE:     Input pin type,
- *                              homogenous=0, heterogenous=1
+ *                              homogeanalus=0, heterogeanalus=1
  *
  * %SKL_TKN_U8_OUT_PIN_TYPE:    Output pin type,
- *                              homogenous=0, heterogenous=1
+ *                              homogeanalus=0, heterogeanalus=1
  * %SKL_TKN_U8_DYN_IN_PIN:      Configure Input pin dynamically
  *                              if true
  *
@@ -40,8 +40,8 @@
  * %SKL_TKN_U8_MOD_TYPE:        Module type value.
  *
  * %SKL_TKN_U8_CONN_TYPE:       Module connection type can be a FE,
- *                              BE or NONE as defined :
- *                              SKL_PIPE_CONN_TYPE_NONE = 0,
+ *                              BE or ANALNE as defined :
+ *                              SKL_PIPE_CONN_TYPE_ANALNE = 0,
  *                              SKL_PIPE_CONN_TYPE_FE = 1 (HOST_DMA)
  *                              SKL_PIPE_CONN_TYPE_BE = 2 (LINK_DMA)
  *
@@ -54,11 +54,11 @@
  *                              SKL_DEVICE_SLIMBUS = 0x3,
  *                              SKL_DEVICE_HDALINK = 0x4,
  *                              SKL_DEVICE_HDAHOST = 0x5,
- *                              SKL_DEVICE_NONE
+ *                              SKL_DEVICE_ANALNE
  *
  * %SKL_TKN_U8_HW_CONN_TYPE:    Connection type of the HW to which the
  *                              module is connected
- *                              SKL_CONN_NONE = 0,
+ *                              SKL_CONN_ANALNE = 0,
  *                              SKL_CONN_SOURCE = 1,
  *                              SKL_CONN_SINK = 2
  *
@@ -85,7 +85,7 @@
  *
  * %SKL_TKN_U32_PIPE_CONN_TYPE: Type of the token to which the pipe is
  *                              connected to. It can be
- *                              SKL_PIPE_CONN_TYPE_NONE = 0,
+ *                              SKL_PIPE_CONN_TYPE_ANALNE = 0,
  *                              SKL_PIPE_CONN_TYPE_FE = 1 (HOST_DMA),
  *                              SKL_PIPE_CONN_TYPE_BE = 2 (LINK_DMA),
  *

@@ -22,7 +22,7 @@
 
 #include "aegis.h"
 
-#define AEGIS128_NONCE_SIZE 16
+#define AEGIS128_ANALNCE_SIZE 16
 #define AEGIS128_STATE_BLOCKS 5
 #define AEGIS128_KEY_SIZE 16
 #define AEGIS128_MIN_AUTH_SIZE 8
@@ -433,7 +433,7 @@ static int crypto_aegis128_decrypt_generic(struct aead_request *req)
 		 * From Chapter 4. 'Security Analysis' of the AEGIS spec [0]
 		 *
 		 * "3. If verification fails, the decrypted plaintext and the
-		 *     wrong authentication tag should not be given as output."
+		 *     wrong authentication tag should analt be given as output."
 		 *
 		 * [0] https://competitions.cr.yp.to/round3/aegisv11.pdf
 		 */
@@ -509,7 +509,7 @@ static struct aead_alg crypto_aegis128_alg_generic = {
 	.encrypt		= crypto_aegis128_encrypt_generic,
 	.decrypt		= crypto_aegis128_decrypt_generic,
 
-	.ivsize			= AEGIS128_NONCE_SIZE,
+	.ivsize			= AEGIS128_ANALNCE_SIZE,
 	.maxauthsize		= AEGIS128_MAX_AUTH_SIZE,
 	.chunksize		= AEGIS_BLOCK_SIZE,
 
@@ -528,7 +528,7 @@ static struct aead_alg crypto_aegis128_alg_simd = {
 	.encrypt		= crypto_aegis128_encrypt_simd,
 	.decrypt		= crypto_aegis128_decrypt_simd,
 
-	.ivsize			= AEGIS128_NONCE_SIZE,
+	.ivsize			= AEGIS128_ANALNCE_SIZE,
 	.maxauthsize		= AEGIS128_MAX_AUTH_SIZE,
 	.chunksize		= AEGIS_BLOCK_SIZE,
 

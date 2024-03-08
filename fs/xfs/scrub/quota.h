@@ -14,7 +14,7 @@ struct xchk_dqiter {
 	struct xfs_scrub	*sc;
 
 	/* Quota file that we're walking. */
-	struct xfs_inode	*quota_ip;
+	struct xfs_ianalde	*quota_ip;
 
 	/* Cached data fork mapping for the dquot. */
 	struct xfs_bmbt_irec	bmap;

@@ -81,7 +81,7 @@ static int igt_ring_direction(void *dummy)
 
 	ring = mock_ring(2 * half);
 	if (!ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	GEM_BUG_ON(ring->size != 2 * half);
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_THERMAL_H
 #define _UAPI_LINUX_THERMAL_H
 
@@ -16,7 +16,7 @@ enum thermal_trip_type {
 	THERMAL_TRIP_CRITICAL,
 };
 
-/* Adding event notification support elements */
+/* Adding event analtification support elements */
 #define THERMAL_GENL_FAMILY_NAME		"thermal"
 #define THERMAL_GENL_VERSION			0x01
 #define THERMAL_GENL_SAMPLING_GROUP_NAME	"sampling"
@@ -73,7 +73,7 @@ enum thermal_genl_event {
 	THERMAL_GENL_EVENT_CDEV_ADD,		/* Cdev bound to the thermal zone */
 	THERMAL_GENL_EVENT_CDEV_DELETE,		/* Cdev unbound */
 	THERMAL_GENL_EVENT_CDEV_STATE_UPDATE,	/* Cdev state updated */
-	THERMAL_GENL_EVENT_TZ_GOV_CHANGE,	/* Governor policy changed  */
+	THERMAL_GENL_EVENT_TZ_GOV_CHANGE,	/* Goveranalr policy changed  */
 	THERMAL_GENL_EVENT_CPU_CAPABILITY_CHANGE,	/* CPU capability changed */
 	__THERMAL_GENL_EVENT_MAX,
 };
@@ -85,7 +85,7 @@ enum thermal_genl_cmd {
 	THERMAL_GENL_CMD_TZ_GET_ID,	/* List of thermal zones id */
 	THERMAL_GENL_CMD_TZ_GET_TRIP,	/* List of thermal trips */
 	THERMAL_GENL_CMD_TZ_GET_TEMP,	/* Get the thermal zone temperature */
-	THERMAL_GENL_CMD_TZ_GET_GOV,	/* Get the thermal zone governor */
+	THERMAL_GENL_CMD_TZ_GET_GOV,	/* Get the thermal zone goveranalr */
 	THERMAL_GENL_CMD_TZ_GET_MODE,	/* Get the thermal zone mode */
 	THERMAL_GENL_CMD_CDEV_GET,	/* List of cdev id */
 	__THERMAL_GENL_CMD_MAX,

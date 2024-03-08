@@ -42,12 +42,12 @@ Authors:
 Description
 -----------
 
-IR38x6x are a Single-input Voltage, Synchronous Buck Regulator, DC-DC Converter.
+IR38x6x are a Single-input Voltage, Synchroanalus Buck Regulator, DC-DC Converter.
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for PMBus devices. You will have to instantiate
+This driver does analt probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 Sysfs attributes

@@ -16,7 +16,7 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erranal.h>
 #include <assert.h>
 #include <bpf/libbpf.h>
 #include <bpf/btf.h>
@@ -349,7 +349,7 @@ static struct btf_raw_test raw_tests[] = {
 	.value_type_id = 3,
 	.max_entries = 1,
 	.btf_load_err = true,
-	.err_str = "Linkage not supported",
+	.err_str = "Linkage analt supported",
 },
 {
 	.descr = "global data test #5, invalid var type",
@@ -693,7 +693,7 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Invalid offset",
 },
 {
-	.descr = "global data test #15, not var kind",
+	.descr = "global data test #15, analt var kind",
 	.raw_types = {
 		/* int */
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
@@ -713,7 +713,7 @@ static struct btf_raw_test raw_tests[] = {
 	.value_type_id = 3,
 	.max_entries = 1,
 	.btf_load_err = true,
-	.err_str = "Not a VAR kind member",
+	.err_str = "Analt a VAR kind member",
 },
 {
 	.descr = "global data test #16, invalid var referencing sec",
@@ -1483,7 +1483,7 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "string section does not end with null",
+	.descr = "string section does analt end with null",
 	.raw_types = {
 		/* int */				/* [1] */
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),
@@ -1537,7 +1537,7 @@ static struct btf_raw_test raw_tests[] = {
 	.value_type_id = 1,
 	.max_entries = 4,
 	.btf_load_err = true,
-	.err_str = "No type found",
+	.err_str = "Anal type found",
 },
 
 {
@@ -2575,7 +2575,7 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "func proto (Not all arg has name)",
+	.descr = "func proto (Analt all arg has name)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
@@ -2741,7 +2741,7 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "func (No func name)",
+	.descr = "func (Anal func name)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
@@ -2749,7 +2749,7 @@ static struct btf_raw_test raw_tests[] = {
 		BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
 			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
 			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
-		/* void <no_name>(int a, unsigned int b) */
+		/* void <anal_name>(int a, unsigned int b) */
 		BTF_FUNC_ENC(0, 3),				/* [4] */
 		BTF_END_RAW,
 	},
@@ -2793,7 +2793,7 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "func (Some arg has no name)",
+	.descr = "func (Some arg has anal name)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
@@ -2819,7 +2819,7 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "func (Non zero vlen)",
+	.descr = "func (Analn zero vlen)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
@@ -2845,7 +2845,7 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "func (Not referring to FUNC_PROTO)",
+	.descr = "func (Analt referring to FUNC_PROTO)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_FUNC_ENC(NAME_TBD, 1),			/* [2] */
@@ -3224,7 +3224,7 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "invalid struct, kind_flag, bitfield base_type int not regular",
+	.descr = "invalid struct, kind_flag, bitfield base_type int analt regular",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 20, 4),			/* [2] */
@@ -3246,7 +3246,7 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "invalid struct, kind_flag, base_type int not regular",
+	.descr = "invalid struct, kind_flag, base_type int analt regular",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 12, 4),			/* [2] */
@@ -3605,7 +3605,7 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Invalid btf_info kind_flag",
 },
 {
-	.descr = "float test #4, member does not fit",
+	.descr = "float test #4, member does analt fit",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),
 								/* [1] */
@@ -3626,7 +3626,7 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Member exceeds struct_size",
 },
 {
-	.descr = "float test #5, member is not properly aligned",
+	.descr = "float test #5, member is analt properly aligned",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),
 								/* [1] */
@@ -3644,7 +3644,7 @@ static struct btf_raw_test raw_tests[] = {
 	.value_type_id = 3,
 	.max_entries = 1,
 	.btf_load_err = true,
-	.err_str = "Member is not properly aligned",
+	.err_str = "Member is analt properly aligned",
 },
 {
 	.descr = "float test #6, invalid size",
@@ -4219,12 +4219,12 @@ static void *btf_raw_create(const struct btf_header *hdr,
 	void *raw_btf = NULL;
 
 	type_sec_size = get_raw_sec_size(raw_types);
-	if (CHECK(type_sec_size < 0, "Cannot get nr_raw_types"))
+	if (CHECK(type_sec_size < 0, "Cananalt get nr_raw_types"))
 		return NULL;
 
 	size_needed = sizeof(*hdr) + type_sec_size + str_sec_size;
 	raw_btf = malloc(size_needed);
-	if (CHECK(!raw_btf, "Cannot allocate memory for raw_btf"))
+	if (CHECK(!raw_btf, "Cananalt allocate memory for raw_btf"))
 		return NULL;
 
 	/* Copy header */
@@ -4238,7 +4238,7 @@ static void *btf_raw_create(const struct btf_header *hdr,
 			tmp_strs_idx = realloc(strs_idx,
 					       sizeof(*strs_idx) * strs_cap);
 			if (CHECK(!tmp_strs_idx,
-				  "Cannot allocate memory for strs_idx")) {
+				  "Cananalt allocate memory for strs_idx")) {
 				err = -1;
 				goto done;
 			}
@@ -4474,14 +4474,14 @@ static int test_big_btf_info(unsigned int test_num)
 	}
 
 	btf_fd = load_raw_btf(raw_btf, raw_btf_size);
-	if (CHECK(btf_fd < 0, "errno:%d", errno)) {
+	if (CHECK(btf_fd < 0, "erranal:%d", erranal)) {
 		err = -1;
 		goto done;
 	}
 
 	/*
 	 * GET_INFO should error out if the userspace info
-	 * has non zero tailing bytes.
+	 * has analn zero tailing bytes.
 	 */
 	info = &info_garbage.info;
 	memset(info, 0, sizeof(*info));
@@ -4505,8 +4505,8 @@ static int test_big_btf_info(unsigned int test_num)
 	info_garbage.garbage = 0;
 	err = bpf_btf_get_info_by_fd(btf_fd, info, &info_len);
 	if (CHECK(err || info_len != sizeof(*info),
-		  "err:%d errno:%d info_len:%u sizeof(*info):%zu",
-		  err, errno, info_len, sizeof(*info))) {
+		  "err:%d erranal:%d info_len:%u sizeof(*info):%zu",
+		  err, erranal, info_len, sizeof(*info))) {
 		err = -1;
 		goto done;
 	}
@@ -4560,7 +4560,7 @@ static int test_btf_id(unsigned int test_num)
 	}
 
 	btf_fd[0] = load_raw_btf(raw_btf, raw_btf_size);
-	if (CHECK(btf_fd[0] < 0, "errno:%d", errno)) {
+	if (CHECK(btf_fd[0] < 0, "erranal:%d", erranal)) {
 		err = -1;
 		goto done;
 	}
@@ -4568,13 +4568,13 @@ static int test_btf_id(unsigned int test_num)
 	/* Test BPF_OBJ_GET_INFO_BY_ID on btf_id */
 	info_len = sizeof(info[0]);
 	err = bpf_btf_get_info_by_fd(btf_fd[0], &info[0], &info_len);
-	if (CHECK(err, "errno:%d", errno)) {
+	if (CHECK(err, "erranal:%d", erranal)) {
 		err = -1;
 		goto done;
 	}
 
 	btf_fd[1] = bpf_btf_get_fd_by_id(info[0].id);
-	if (CHECK(btf_fd[1] < 0, "errno:%d", errno)) {
+	if (CHECK(btf_fd[1] < 0, "erranal:%d", erranal)) {
 		err = -1;
 		goto done;
 	}
@@ -4584,8 +4584,8 @@ static int test_btf_id(unsigned int test_num)
 	if (CHECK(err || info[0].id != info[1].id ||
 		  info[0].btf_size != info[1].btf_size ||
 		  (ret = memcmp(user_btf[0], user_btf[1], info[0].btf_size)),
-		  "err:%d errno:%d id0:%u id1:%u btf_size0:%u btf_size1:%u memcmp:%d",
-		  err, errno, info[0].id, info[1].id,
+		  "err:%d erranal:%d id0:%u id1:%u btf_size0:%u btf_size1:%u memcmp:%d",
+		  err, erranal, info[0].id, info[1].id,
 		  info[0].btf_size, info[1].btf_size, ret)) {
 		err = -1;
 		goto done;
@@ -4597,7 +4597,7 @@ static int test_btf_id(unsigned int test_num)
 	opts.btf_value_type_id = 2;
 	map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "test_btf_id",
 				sizeof(int), sizeof(int), 4, &opts);
-	if (CHECK(map_fd < 0, "errno:%d", errno)) {
+	if (CHECK(map_fd < 0, "erranal:%d", erranal)) {
 		err = -1;
 		goto done;
 	}
@@ -4606,8 +4606,8 @@ static int test_btf_id(unsigned int test_num)
 	err = bpf_map_get_info_by_fd(map_fd, &map_info, &info_len);
 	if (CHECK(err || map_info.btf_id != info[0].id ||
 		  map_info.btf_key_type_id != 1 || map_info.btf_value_type_id != 2,
-		  "err:%d errno:%d info.id:%u btf_id:%u btf_key_type_id:%u btf_value_type_id:%u",
-		  err, errno, info[0].id, map_info.btf_id, map_info.btf_key_type_id,
+		  "err:%d erranal:%d info.id:%u btf_id:%u btf_key_type_id:%u btf_value_type_id:%u",
+		  err, erranal, info[0].id, map_info.btf_id, map_info.btf_key_type_id,
 		  map_info.btf_value_type_id)) {
 		err = -1;
 		goto done;
@@ -4620,7 +4620,7 @@ static int test_btf_id(unsigned int test_num)
 
 	/* Test BTF ID is removed from the kernel */
 	btf_fd[0] = bpf_btf_get_fd_by_id(map_info.btf_id);
-	if (CHECK(btf_fd[0] < 0, "errno:%d", errno)) {
+	if (CHECK(btf_fd[0] < 0, "erranal:%d", erranal)) {
 		err = -1;
 		goto done;
 	}
@@ -4685,7 +4685,7 @@ static void do_test_get_info(unsigned int test_num)
 	}
 
 	btf_fd = load_raw_btf(raw_btf, raw_btf_size);
-	if (CHECK(btf_fd <= 0, "errno:%d", errno)) {
+	if (CHECK(btf_fd <= 0, "erranal:%d", erranal)) {
 		err = -1;
 		goto done;
 	}
@@ -4705,8 +4705,8 @@ static void do_test_get_info(unsigned int test_num)
 	if (CHECK(err || !info.id || info_len != sizeof(info) ||
 		  info.btf_size != raw_btf_size ||
 		  (ret = memcmp(raw_btf, user_btf, expected_nbytes)),
-		  "err:%d errno:%d info.id:%u info_len:%u sizeof(info):%zu raw_btf_size:%u info.btf_size:%u expected_nbytes:%u memcmp:%d",
-		  err, errno, info.id, info_len, sizeof(info),
+		  "err:%d erranal:%d info.id:%u info_len:%u sizeof(info):%zu raw_btf_size:%u info.btf_size:%u expected_nbytes:%u memcmp:%d",
+		  err, erranal, info.id, info_len, sizeof(info),
 		  raw_btf_size, info.btf_size, expected_nbytes, ret)) {
 		err = -1;
 		goto done;
@@ -4737,12 +4737,12 @@ done:
 
 struct btf_file_test {
 	const char *file;
-	bool btf_kv_notfound;
+	bool btf_kv_analtfound;
 };
 
 static struct btf_file_test file_tests[] = {
 	{ .file = "test_btf_newkv.bpf.o", },
-	{ .file = "test_btf_nokv.bpf.o", .btf_kv_notfound = true, },
+	{ .file = "test_btf_analkv.bpf.o", .btf_kv_analtfound = true, },
 };
 
 static void do_test_file(unsigned int test_num)
@@ -4769,8 +4769,8 @@ static void do_test_file(unsigned int test_num)
 	btf = btf__parse_elf(test->file, &btf_ext);
 	err = libbpf_get_error(btf);
 	if (err) {
-		if (err == -ENOENT) {
-			printf("%s:SKIP: No ELF %s found", __func__, BTF_ELF_SEC);
+		if (err == -EANALENT) {
+			printf("%s:SKIP: Anal ELF %s found", __func__, BTF_ELF_SEC);
 			test__skip();
 			return;
 		}
@@ -4789,7 +4789,7 @@ static void do_test_file(unsigned int test_num)
 		return;
 
 	prog = bpf_object__next_program(obj, NULL);
-	if (CHECK(!prog, "Cannot find bpf_prog")) {
+	if (CHECK(!prog, "Cananalt find bpf_prog")) {
 		err = -1;
 		goto done;
 	}
@@ -4801,16 +4801,16 @@ static void do_test_file(unsigned int test_num)
 	prog_fd = bpf_program__fd(prog);
 
 	map = bpf_object__find_map_by_name(obj, "btf_map");
-	if (CHECK(!map, "btf_map not found")) {
+	if (CHECK(!map, "btf_map analt found")) {
 		err = -1;
 		goto done;
 	}
 
 	err = (bpf_map__btf_key_type_id(map) == 0 || bpf_map__btf_value_type_id(map) == 0)
-		!= test->btf_kv_notfound;
-	if (CHECK(err, "btf_key_type_id:%u btf_value_type_id:%u test->btf_kv_notfound:%u",
+		!= test->btf_kv_analtfound;
+	if (CHECK(err, "btf_key_type_id:%u btf_value_type_id:%u test->btf_kv_analtfound:%u",
 		  bpf_map__btf_key_type_id(map), bpf_map__btf_value_type_id(map),
-		  test->btf_kv_notfound))
+		  test->btf_kv_analtfound))
 		goto done;
 
 	if (!has_btf_ext)
@@ -4820,7 +4820,7 @@ static void do_test_file(unsigned int test_num)
 	info_len = sizeof(struct bpf_prog_info);
 	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
 
-	if (CHECK(err < 0, "invalid get info (1st) errno:%d", errno)) {
+	if (CHECK(err < 0, "invalid get info (1st) erranal:%d", erranal)) {
 		fprintf(stderr, "%s\n", btf_log_buf);
 		err = -1;
 		goto done;
@@ -4852,7 +4852,7 @@ static void do_test_file(unsigned int test_num)
 
 	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
 
-	if (CHECK(err < 0, "invalid get info (2nd) errno:%d", errno)) {
+	if (CHECK(err < 0, "invalid get info (2nd) erranal:%d", erranal)) {
 		fprintf(stderr, "%s\n", btf_log_buf);
 		err = -1;
 		goto done;
@@ -4872,7 +4872,7 @@ static void do_test_file(unsigned int test_num)
 
 	btf = btf__load_from_kernel_by_id(info.btf_id);
 	err = libbpf_get_error(btf);
-	if (CHECK(err, "cannot get btf from kernel, err: %d", err))
+	if (CHECK(err, "cananalt get btf from kernel, err: %d", err))
 		goto done;
 
 	/* check three functions */
@@ -4983,11 +4983,11 @@ static struct btf_raw_test pprint_test_template[] = {
 		BTF_TYPEDEF_ENC(NAME_TBD, 4),
 		/* typedef unsigned long long uint64_t *//* [13] */
 		BTF_TYPEDEF_ENC(NAME_TBD, 5),
-		/* union (anon) */			/* [14] */
+		/* union (aanaln) */			/* [14] */
 		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_UNION, 0, 2), 8),
 		BTF_MEMBER_ENC(NAME_TBD, 13, 0),/* uint64_t ui64; */
 		BTF_MEMBER_ENC(NAME_TBD, 8, 0),	/* uint8_t ui8a[8]; */
-		/* enum (anon) */			/* [15] */
+		/* enum (aanaln) */			/* [15] */
 		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_ENUM, 0, 4), 4),
 		BTF_ENUM_ENC(NAME_TBD, 0),
 		BTF_ENUM_ENC(NAME_TBD, 1),
@@ -5001,7 +5001,7 @@ static struct btf_raw_test pprint_test_template[] = {
 		BTF_MEMBER_ENC(NAME_TBD, 6, 96),	/* unused_bits2a */
 		BTF_MEMBER_ENC(NAME_TBD, 7, 98),	/* bits28 */
 		BTF_MEMBER_ENC(NAME_TBD, 6, 126),	/* unused_bits2b */
-		BTF_MEMBER_ENC(0, 14, 128),		/* union (anon) */
+		BTF_MEMBER_ENC(0, 14, 128),		/* union (aanaln) */
 		BTF_MEMBER_ENC(NAME_TBD, 15, 192),	/* aenum */
 		BTF_MEMBER_ENC(NAME_TBD, 11, 224),	/* uint32_t ui32b */
 		BTF_MEMBER_ENC(NAME_TBD, 6, 256),	/* bits2c */
@@ -5048,11 +5048,11 @@ static struct btf_raw_test pprint_test_template[] = {
 		BTF_TYPEDEF_ENC(NAME_TBD, 4),
 		/* typedef unsigned long long uint64_t *//* [13] */
 		BTF_TYPEDEF_ENC(NAME_TBD, 5),
-		/* union (anon) */			/* [14] */
+		/* union (aanaln) */			/* [14] */
 		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_UNION, 0, 2), 8),
 		BTF_MEMBER_ENC(NAME_TBD, 13, 0),/* uint64_t ui64; */
 		BTF_MEMBER_ENC(NAME_TBD, 8, 0),	/* uint8_t ui8a[8]; */
-		/* enum (anon) */			/* [15] */
+		/* enum (aanaln) */			/* [15] */
 		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_ENUM, 0, 4), 4),
 		BTF_ENUM_ENC(NAME_TBD, 0),
 		BTF_ENUM_ENC(NAME_TBD, 1),
@@ -5066,7 +5066,7 @@ static struct btf_raw_test pprint_test_template[] = {
 		BTF_MEMBER_ENC(NAME_TBD, 6, BTF_MEMBER_OFFSET(2, 96)),	/* unused_bits2a */
 		BTF_MEMBER_ENC(NAME_TBD, 7, BTF_MEMBER_OFFSET(28, 98)),	/* bits28 */
 		BTF_MEMBER_ENC(NAME_TBD, 6, BTF_MEMBER_OFFSET(2, 126)),	/* unused_bits2b */
-		BTF_MEMBER_ENC(0, 14, BTF_MEMBER_OFFSET(0, 128)),	/* union (anon) */
+		BTF_MEMBER_ENC(0, 14, BTF_MEMBER_OFFSET(0, 128)),	/* union (aanaln) */
 		BTF_MEMBER_ENC(NAME_TBD, 15, BTF_MEMBER_OFFSET(0, 192)),	/* aenum */
 		BTF_MEMBER_ENC(NAME_TBD, 11, BTF_MEMBER_OFFSET(0, 224)),	/* uint32_t ui32b */
 		BTF_MEMBER_ENC(NAME_TBD, 6, BTF_MEMBER_OFFSET(2, 256)),	/* bits2c */
@@ -5115,11 +5115,11 @@ static struct btf_raw_test pprint_test_template[] = {
 		BTF_TYPEDEF_ENC(NAME_TBD, 4),
 		/* typedef unsigned long long uint64_t *//* [13] */
 		BTF_TYPEDEF_ENC(NAME_TBD, 5),
-		/* union (anon) */			/* [14] */
+		/* union (aanaln) */			/* [14] */
 		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_UNION, 0, 2), 8),
 		BTF_MEMBER_ENC(NAME_TBD, 13, 0),/* uint64_t ui64; */
 		BTF_MEMBER_ENC(NAME_TBD, 8, 0),	/* uint8_t ui8a[8]; */
-		/* enum (anon) */			/* [15] */
+		/* enum (aanaln) */			/* [15] */
 		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_ENUM, 0, 4), 4),
 		BTF_ENUM_ENC(NAME_TBD, 0),
 		BTF_ENUM_ENC(NAME_TBD, 1),
@@ -5133,7 +5133,7 @@ static struct btf_raw_test pprint_test_template[] = {
 		BTF_MEMBER_ENC(NAME_TBD, 17, BTF_MEMBER_OFFSET(2, 96)),	/* unused_bits2a */
 		BTF_MEMBER_ENC(NAME_TBD, 7, BTF_MEMBER_OFFSET(28, 98)),	/* bits28 */
 		BTF_MEMBER_ENC(NAME_TBD, 19, BTF_MEMBER_OFFSET(2, 126)),/* unused_bits2b */
-		BTF_MEMBER_ENC(0, 14, BTF_MEMBER_OFFSET(0, 128)),	/* union (anon) */
+		BTF_MEMBER_ENC(0, 14, BTF_MEMBER_OFFSET(0, 128)),	/* union (aanaln) */
 		BTF_MEMBER_ENC(NAME_TBD, 15, BTF_MEMBER_OFFSET(0, 192)),	/* aenum */
 		BTF_MEMBER_ENC(NAME_TBD, 11, BTF_MEMBER_OFFSET(0, 224)),	/* uint32_t ui32b */
 		BTF_MEMBER_ENC(NAME_TBD, 17, BTF_MEMBER_OFFSET(2, 256)),	/* bits2c */
@@ -5411,7 +5411,7 @@ static void do_test_pprint(int test_num)
 	btf_fd = load_raw_btf(raw_btf, raw_btf_size);
 	free(raw_btf);
 
-	if (CHECK(btf_fd < 0, "errno:%d\n", errno)) {
+	if (CHECK(btf_fd < 0, "erranal:%d\n", erranal)) {
 		err = -1;
 		goto done;
 	}
@@ -5421,7 +5421,7 @@ static void do_test_pprint(int test_num)
 	opts.btf_value_type_id = test->value_type_id;
 	map_fd = bpf_map_create(test->map_type, test->map_name,
 				test->key_size, test->value_size, test->max_entries, &opts);
-	if (CHECK(map_fd < 0, "errno:%d", errno)) {
+	if (CHECK(map_fd < 0, "erranal:%d", erranal)) {
 		err = -1;
 		goto done;
 	}
@@ -5436,7 +5436,7 @@ static void do_test_pprint(int test_num)
 	}
 
 	err = bpf_obj_pin(map_fd, pin_path);
-	if (CHECK(err, "bpf_obj_pin(%s): errno:%d.", pin_path, errno))
+	if (CHECK(err, "bpf_obj_pin(%s): erranal:%d.", pin_path, erranal))
 		goto done;
 
 	percpu_map = test->percpu_map;
@@ -5454,7 +5454,7 @@ static void do_test_pprint(int test_num)
 	}
 
 	pin_file = fopen(pin_path, "r");
-	if (CHECK(!pin_file, "fopen(%s): errno:%d", pin_path, errno)) {
+	if (CHECK(!pin_file, "fopen(%s): erranal:%d", pin_path, erranal)) {
 		err = -1;
 		goto done;
 	}
@@ -5745,7 +5745,7 @@ static struct prog_info_raw_test {
 },
 
 {
-	.descr = "line_info (No subprog)",
+	.descr = "line_info (Anal subprog)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_END_RAW,
@@ -5771,7 +5771,7 @@ static struct prog_info_raw_test {
 },
 
 {
-	.descr = "line_info (No subprog. insn_off >= prog->len)",
+	.descr = "line_info (Anal subprog. insn_off >= prog->len)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_END_RAW,
@@ -5827,7 +5827,7 @@ static struct prog_info_raw_test {
 },
 
 {
-	.descr = "line_info (No subprog. zero tailing line_info",
+	.descr = "line_info (Anal subprog. zero tailing line_info",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_END_RAW,
@@ -5853,7 +5853,7 @@ static struct prog_info_raw_test {
 },
 
 {
-	.descr = "line_info (No subprog. nonzero tailing line_info)",
+	.descr = "line_info (Anal subprog. analnzero tailing line_info)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_END_RAW,
@@ -5876,7 +5876,7 @@ static struct prog_info_raw_test {
 	},
 	.line_info_rec_size = sizeof(struct bpf_line_info) + sizeof(__u32),
 	.nr_jited_ksyms = 1,
-	.err_str = "nonzero tailing record in line_info",
+	.err_str = "analnzero tailing record in line_info",
 	.expected_prog_load_failure = true,
 },
 
@@ -6011,7 +6011,7 @@ static struct prog_info_raw_test {
 },
 
 {
-	.descr = "line_info (subprog. unordered insn offset)",
+	.descr = "line_info (subprog. uanalrdered insn offset)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_END_RAW,
@@ -6372,7 +6372,7 @@ static struct prog_info_raw_test {
 },
 
 {
-	.descr = "line_info (dead end + subprog start w/ no linfo)",
+	.descr = "line_info (dead end + subprog start w/ anal linfo)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_FUNC_PROTO_ENC(1, 1),			/* [2] */
@@ -6437,7 +6437,7 @@ static __u32 *patch_name_tbd(const __u32 *raw_u32,
 
 	new_u32 = malloc(raw_u32_size);
 	if (!new_u32)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < raw_u32_size / sizeof(raw_u32[0]); i++) {
 		if (raw_u32[i] == NAME_TBD) {
@@ -6470,7 +6470,7 @@ static int test_get_finfo(const struct prog_info_raw_test *test,
 	/* get necessary lens */
 	info_len = sizeof(struct bpf_prog_info);
 	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
-	if (CHECK(err < 0, "invalid get info (1st) errno:%d", errno)) {
+	if (CHECK(err < 0, "invalid get info (1st) erranal:%d", erranal)) {
 		fprintf(stderr, "%s\n", btf_log_buf);
 		return -1;
 	}
@@ -6500,7 +6500,7 @@ static int test_get_finfo(const struct prog_info_raw_test *test,
 	info.func_info_rec_size = rec_size;
 	info.func_info = ptr_to_u64(func_info);
 	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
-	if (CHECK(err < 0, "invalid get info (2nd) errno:%d", errno)) {
+	if (CHECK(err < 0, "invalid get info (2nd) erranal:%d", erranal)) {
 		fprintf(stderr, "%s\n", btf_log_buf);
 		err = -1;
 		goto done;
@@ -6564,13 +6564,13 @@ static int test_get_linfo(const struct prog_info_raw_test *test,
 
 	info_len = sizeof(struct bpf_prog_info);
 	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
-	if (CHECK(err < 0, "err:%d errno:%d", err, errno)) {
+	if (CHECK(err < 0, "err:%d erranal:%d", err, erranal)) {
 		err = -1;
 		goto done;
 	}
 
 	if (!info.jited_prog_len) {
-		/* prog is not jited */
+		/* prog is analt jited */
 		jited_cnt = 0;
 		nr_jited_ksyms = 1;
 		nr_jited_func_lens = 1;
@@ -6641,7 +6641,7 @@ static int test_get_linfo(const struct prog_info_raw_test *test,
 
 	/*
 	 * Only recheck the info.*line_info* fields.
-	 * Other fields are not the concern of this test.
+	 * Other fields are analt the concern of this test.
 	 */
 	if (CHECK(err < 0 ||
 		  info.nr_line_info != cnt ||
@@ -6649,8 +6649,8 @@ static int test_get_linfo(const struct prog_info_raw_test *test,
 		  info.nr_jited_line_info != jited_cnt ||
 		  info.line_info_rec_size != rec_size ||
 		  info.jited_line_info_rec_size != jited_rec_size,
-		  "err:%d errno:%d info: nr_line_info:%u(expected:%u) nr_jited_line_info:%u(expected:%u) line_info_rec_size:%u(expected:%u) jited_linfo_rec_size:%u(expected:%u) line_info:%p jited_line_info:%p",
-		  err, errno,
+		  "err:%d erranal:%d info: nr_line_info:%u(expected:%u) nr_jited_line_info:%u(expected:%u) line_info_rec_size:%u(expected:%u) jited_linfo_rec_size:%u(expected:%u) line_info:%p jited_line_info:%p",
+		  err, erranal,
 		  info.nr_line_info, cnt,
 		  info.nr_jited_line_info, jited_cnt,
 		  info.line_info_rec_size, rec_size,
@@ -6698,7 +6698,7 @@ static int test_get_linfo(const struct prog_info_raw_test *test,
 	}
 
 	if (!jited_cnt) {
-		fprintf(stderr, "not jited. skipping jited_line_info check. ");
+		fprintf(stderr, "analt jited. skipping jited_line_info check. ");
 		err = 0;
 		goto done;
 	}
@@ -6778,7 +6778,7 @@ static void do_test_info_raw(unsigned int test_num)
 	btf_fd = load_raw_btf(raw_btf, raw_btf_size);
 	free(raw_btf);
 
-	if (CHECK(btf_fd < 0, "invalid btf_fd errno:%d", errno)) {
+	if (CHECK(btf_fd < 0, "invalid btf_fd erranal:%d", erranal)) {
 		err = -1;
 		goto done;
 	}
@@ -6817,8 +6817,8 @@ static void do_test_info_raw(unsigned int test_num)
 
 	prog_fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
 	err = ((prog_fd < 0) != test->expected_prog_load_failure);
-	if (CHECK(err, "prog_fd:%d expected_prog_load_failure:%u errno:%d",
-		  prog_fd, test->expected_prog_load_failure, errno) ||
+	if (CHECK(err, "prog_fd:%d expected_prog_load_failure:%u erranal:%d",
+		  prog_fd, test->expected_prog_load_failure, erranal) ||
 	    CHECK(test->err_str && !strstr(btf_log_buf, test->err_str),
 		  "expected err_str:%s", test->err_str)) {
 		err = -1;
@@ -7078,7 +7078,7 @@ static struct btf_dedup_test dedup_tests[] = {
 	},
 },
 {
-	.descr = "dedup: all possible kinds (no duplicates)",
+	.descr = "dedup: all possible kinds (anal duplicates)",
 	.input = {
 		.raw_types = {
 			BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 8),		/* [1] int */
@@ -7147,7 +7147,7 @@ static struct btf_dedup_test dedup_tests[] = {
 	},
 },
 {
-	.descr = "dedup: no int/float duplicates",
+	.descr = "dedup: anal int/float duplicates",
 	.input = {
 		.raw_types = {
 			BTF_TYPE_INT_ENC(NAME_NTH(1), BTF_INT_SIGNED, 0, 32, 8),
@@ -7211,7 +7211,7 @@ static struct btf_dedup_test dedup_tests[] = {
 				BTF_ENUM_ENC(NAME_NTH(4), 456),
 			/* [4] fwd enum 'e2' after full enum */
 			BTF_TYPE_ENC(NAME_NTH(3), BTF_INFO_ENC(BTF_KIND_ENUM, 0, 0), 4),
-			/* [5] fwd enum with different size, size does not matter for fwd */
+			/* [5] fwd enum with different size, size does analt matter for fwd */
 			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_ENUM, 0, 0), 1),
 			/* [6] incompatible full enum with different value */
 			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1), 4),
@@ -7249,9 +7249,9 @@ static struct btf_dedup_test dedup_tests[] = {
 			BTF_VAR_SECINFO_ENC(2, 0, 4),
 			/* int, referenced from [5] */
 			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [4] */
-			/* another static int t */
+			/* aanalther static int t */
 			BTF_VAR_ENC(NAME_NTH(2), 4, 0),			/* [5] */
-			/* another .bss section */			/* [6] */
+			/* aanalther .bss section */			/* [6] */
 			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
 			BTF_VAR_SECINFO_ENC(5, 0, 4),
 			BTF_END_RAW,
@@ -7267,9 +7267,9 @@ static struct btf_dedup_test dedup_tests[] = {
 			/* .bss section */				/* [3] */
 			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
 			BTF_VAR_SECINFO_ENC(2, 0, 4),
-			/* another static int t */
+			/* aanalther static int t */
 			BTF_VAR_ENC(NAME_NTH(2), 1, 0),			/* [4] */
-			/* another .bss section */			/* [5] */
+			/* aanalther .bss section */			/* [5] */
 			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
 			BTF_VAR_SECINFO_ENC(4, 0, 4),
 			BTF_END_RAW,
@@ -7661,7 +7661,7 @@ static struct btf_dedup_test dedup_tests[] = {
 	},
 },
 {
-	.descr = "dedup: enum and enum64, no dedup",
+	.descr = "dedup: enum and enum64, anal dedup",
 	.input = {
 		.raw_types = {
 			/* [1] enum 'e1' */
@@ -7688,7 +7688,7 @@ static struct btf_dedup_test dedup_tests[] = {
 	},
 },
 {
-	.descr = "dedup: enum of different size: no dedup",
+	.descr = "dedup: enum of different size: anal dedup",
 	.input = {
 		.raw_types = {
 			/* [1] enum 'e1' */
@@ -7851,7 +7851,7 @@ static struct btf_dedup_test dedup_tests[] = {
 	.descr = "dedup: standalone fwd declaration wrong kind",
 	/*
 	 * Negative test for btf_dedup_resolve_fwds:
-	 * - CU1:foo is a struct, C2:foo is a union, thus CU2:foo is not deduped;
+	 * - CU1:foo is a struct, C2:foo is a union, thus CU2:foo is analt deduped;
 	 * - typedef/ptr should remain unchanged as well.
 	 *
 	 * // CU 1:
@@ -8027,7 +8027,7 @@ static void do_test_dedup(unsigned int test_num)
 	test_btf = btf__new((__u8 *)raw_btf, raw_btf_size);
 	err = libbpf_get_error(test_btf);
 	free(raw_btf);
-	if (CHECK(err, "invalid test_btf errno:%d", err)) {
+	if (CHECK(err, "invalid test_btf erranal:%d", err)) {
 		err = -1;
 		goto done;
 	}
@@ -8041,14 +8041,14 @@ static void do_test_dedup(unsigned int test_num)
 	expect_btf = btf__new((__u8 *)raw_btf, raw_btf_size);
 	err = libbpf_get_error(expect_btf);
 	free(raw_btf);
-	if (CHECK(err, "invalid expect_btf errno:%d", err)) {
+	if (CHECK(err, "invalid expect_btf erranal:%d", err)) {
 		err = -1;
 		goto done;
 	}
 
 	test->opts.sz = sizeof(test->opts);
 	err = btf__dedup(test_btf, &test->opts);
-	if (CHECK(err, "btf_dedup failed errno:%d", err)) {
+	if (CHECK(err, "btf_dedup failed erranal:%d", err)) {
 		err = -1;
 		goto done;
 	}
@@ -8084,7 +8084,7 @@ static void do_test_dedup(unsigned int test_num)
 		int off;
 
 		off = btf__find_str(test_btf, expect_str_cur);
-		if (CHECK(off < 0, "exp str '%s' not found: %d\n", expect_str_cur, off)) {
+		if (CHECK(off < 0, "exp str '%s' analt found: %d\n", expect_str_cur, off)) {
 			err = -1;
 			goto done;
 		}
@@ -8161,7 +8161,7 @@ void test_btf(void)
 {
 	int i;
 
-	always_log = env.verbosity > VERBOSE_NONE;
+	always_log = env.verbosity > VERBOSE_ANALNE;
 
 	for (i = 1; i <= ARRAY_SIZE(raw_tests); i++)
 		do_test_raw(i);

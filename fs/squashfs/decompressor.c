@@ -57,8 +57,8 @@ static const struct squashfs_decompressor squashfs_zstd_comp_ops = {
 };
 #endif
 
-static const struct squashfs_decompressor squashfs_unknown_comp_ops = {
-	NULL, NULL, NULL, NULL, 0, "unknown", 0
+static const struct squashfs_decompressor squashfs_unkanalwn_comp_ops = {
+	NULL, NULL, NULL, NULL, 0, "unkanalwn", 0
 };
 
 static const struct squashfs_decompressor *decompressor[] = {
@@ -68,7 +68,7 @@ static const struct squashfs_decompressor *decompressor[] = {
 	&squashfs_xz_comp_ops,
 	&squashfs_lzma_unsupported_comp_ops,
 	&squashfs_zstd_comp_ops,
-	&squashfs_unknown_comp_ops
+	&squashfs_unkanalwn_comp_ops
 };
 
 
@@ -97,13 +97,13 @@ static void *get_comp_opts(struct super_block *sb, unsigned short flags)
 	if (SQUASHFS_COMP_OPTS(flags)) {
 		buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
 		if (buffer == NULL) {
-			comp_opts = ERR_PTR(-ENOMEM);
+			comp_opts = ERR_PTR(-EANALMEM);
 			goto out;
 		}
 
 		actor = squashfs_page_actor_init(&buffer, 1, 0);
 		if (actor == NULL) {
-			comp_opts = ERR_PTR(-ENOMEM);
+			comp_opts = ERR_PTR(-EANALMEM);
 			goto out;
 		}
 

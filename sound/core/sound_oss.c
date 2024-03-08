@@ -9,28 +9,28 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <sound/core.h>
-#include <sound/minors.h>
+#include <sound/mianalrs.h>
 #include <sound/info.h>
 #include <linux/sound.h>
 #include <linux/mutex.h>
 
-#define SNDRV_OSS_MINORS 256
+#define SNDRV_OSS_MIANALRS 256
 
-static struct snd_minor *snd_oss_minors[SNDRV_OSS_MINORS];
+static struct snd_mianalr *snd_oss_mianalrs[SNDRV_OSS_MIANALRS];
 static DEFINE_MUTEX(sound_oss_mutex);
 
-/* NOTE: This function increments the refcount of the associated card like
- * snd_lookup_minor_data(); the caller must call snd_card_unref() appropriately
+/* ANALTE: This function increments the refcount of the associated card like
+ * snd_lookup_mianalr_data(); the caller must call snd_card_unref() appropriately
  */
-void *snd_lookup_oss_minor_data(unsigned int minor, int type)
+void *snd_lookup_oss_mianalr_data(unsigned int mianalr, int type)
 {
-	struct snd_minor *mreg;
+	struct snd_mianalr *mreg;
 	void *private_data;
 
-	if (minor >= ARRAY_SIZE(snd_oss_minors))
+	if (mianalr >= ARRAY_SIZE(snd_oss_mianalrs))
 		return NULL;
 	mutex_lock(&sound_oss_mutex);
-	mreg = snd_oss_minors[minor];
+	mreg = snd_oss_mianalrs[mianalr];
 	if (mreg && mreg->type == type) {
 		private_data = mreg->private_data;
 		if (private_data && mreg->card_ptr)
@@ -40,66 +40,66 @@ void *snd_lookup_oss_minor_data(unsigned int minor, int type)
 	mutex_unlock(&sound_oss_mutex);
 	return private_data;
 }
-EXPORT_SYMBOL(snd_lookup_oss_minor_data);
+EXPORT_SYMBOL(snd_lookup_oss_mianalr_data);
 
-static int snd_oss_kernel_minor(int type, struct snd_card *card, int dev)
+static int snd_oss_kernel_mianalr(int type, struct snd_card *card, int dev)
 {
-	int minor;
+	int mianalr;
 
 	switch (type) {
 	case SNDRV_OSS_DEVICE_TYPE_MIXER:
 		if (snd_BUG_ON(!card || dev < 0 || dev > 1))
 			return -EINVAL;
-		minor = SNDRV_MINOR_OSS(card->number, (dev ? SNDRV_MINOR_OSS_MIXER1 : SNDRV_MINOR_OSS_MIXER));
+		mianalr = SNDRV_MIANALR_OSS(card->number, (dev ? SNDRV_MIANALR_OSS_MIXER1 : SNDRV_MIANALR_OSS_MIXER));
 		break;
 	case SNDRV_OSS_DEVICE_TYPE_SEQUENCER:
-		minor = SNDRV_MINOR_OSS_SEQUENCER;
+		mianalr = SNDRV_MIANALR_OSS_SEQUENCER;
 		break;
 	case SNDRV_OSS_DEVICE_TYPE_MUSIC:
-		minor = SNDRV_MINOR_OSS_MUSIC;
+		mianalr = SNDRV_MIANALR_OSS_MUSIC;
 		break;
 	case SNDRV_OSS_DEVICE_TYPE_PCM:
 		if (snd_BUG_ON(!card || dev < 0 || dev > 1))
 			return -EINVAL;
-		minor = SNDRV_MINOR_OSS(card->number, (dev ? SNDRV_MINOR_OSS_PCM1 : SNDRV_MINOR_OSS_PCM));
+		mianalr = SNDRV_MIANALR_OSS(card->number, (dev ? SNDRV_MIANALR_OSS_PCM1 : SNDRV_MIANALR_OSS_PCM));
 		break;
 	case SNDRV_OSS_DEVICE_TYPE_MIDI:
 		if (snd_BUG_ON(!card || dev < 0 || dev > 1))
 			return -EINVAL;
-		minor = SNDRV_MINOR_OSS(card->number, (dev ? SNDRV_MINOR_OSS_MIDI1 : SNDRV_MINOR_OSS_MIDI));
+		mianalr = SNDRV_MIANALR_OSS(card->number, (dev ? SNDRV_MIANALR_OSS_MIDI1 : SNDRV_MIANALR_OSS_MIDI));
 		break;
 	case SNDRV_OSS_DEVICE_TYPE_DMFM:
-		minor = SNDRV_MINOR_OSS(card->number, SNDRV_MINOR_OSS_DMFM);
+		mianalr = SNDRV_MIANALR_OSS(card->number, SNDRV_MIANALR_OSS_DMFM);
 		break;
 	case SNDRV_OSS_DEVICE_TYPE_SNDSTAT:
-		minor = SNDRV_MINOR_OSS_SNDSTAT;
+		mianalr = SNDRV_MIANALR_OSS_SNDSTAT;
 		break;
 	default:
 		return -EINVAL;
 	}
-	if (minor < 0 || minor >= SNDRV_OSS_MINORS)
+	if (mianalr < 0 || mianalr >= SNDRV_OSS_MIANALRS)
 		return -EINVAL;
-	return minor;
+	return mianalr;
 }
 
 int snd_register_oss_device(int type, struct snd_card *card, int dev,
 			    const struct file_operations *f_ops, void *private_data)
 {
-	int minor = snd_oss_kernel_minor(type, card, dev);
-	int minor_unit;
-	struct snd_minor *preg;
-	int cidx = SNDRV_MINOR_OSS_CARD(minor);
+	int mianalr = snd_oss_kernel_mianalr(type, card, dev);
+	int mianalr_unit;
+	struct snd_mianalr *preg;
+	int cidx = SNDRV_MIANALR_OSS_CARD(mianalr);
 	int track2 = -1;
 	int register1 = -1, register2 = -1;
 	struct device *carddev = snd_card_get_device_link(card);
 
-	if (card && card->number >= SNDRV_MINOR_OSS_DEVICES)
-		return 0; /* ignore silently */
-	if (minor < 0)
-		return minor;
-	preg = kmalloc(sizeof(struct snd_minor), GFP_KERNEL);
+	if (card && card->number >= SNDRV_MIANALR_OSS_DEVICES)
+		return 0; /* iganalre silently */
+	if (mianalr < 0)
+		return mianalr;
+	preg = kmalloc(sizeof(struct snd_mianalr), GFP_KERNEL);
 	if (preg == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	preg->type = type;
 	preg->card = card ? card->number : -1;
 	preg->device = dev;
@@ -107,28 +107,28 @@ int snd_register_oss_device(int type, struct snd_card *card, int dev,
 	preg->private_data = private_data;
 	preg->card_ptr = card;
 	mutex_lock(&sound_oss_mutex);
-	snd_oss_minors[minor] = preg;
-	minor_unit = SNDRV_MINOR_OSS_DEVICE(minor);
-	switch (minor_unit) {
-	case SNDRV_MINOR_OSS_PCM:
-		track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_AUDIO);
+	snd_oss_mianalrs[mianalr] = preg;
+	mianalr_unit = SNDRV_MIANALR_OSS_DEVICE(mianalr);
+	switch (mianalr_unit) {
+	case SNDRV_MIANALR_OSS_PCM:
+		track2 = SNDRV_MIANALR_OSS(cidx, SNDRV_MIANALR_OSS_AUDIO);
 		break;
-	case SNDRV_MINOR_OSS_MIDI:
-		track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_DMMIDI);
+	case SNDRV_MIANALR_OSS_MIDI:
+		track2 = SNDRV_MIANALR_OSS(cidx, SNDRV_MIANALR_OSS_DMMIDI);
 		break;
-	case SNDRV_MINOR_OSS_MIDI1:
-		track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_DMMIDI1);
+	case SNDRV_MIANALR_OSS_MIDI1:
+		track2 = SNDRV_MIANALR_OSS(cidx, SNDRV_MIANALR_OSS_DMMIDI1);
 		break;
 	}
-	register1 = register_sound_special_device(f_ops, minor, carddev);
-	if (register1 != minor)
+	register1 = register_sound_special_device(f_ops, mianalr, carddev);
+	if (register1 != mianalr)
 		goto __end;
 	if (track2 >= 0) {
 		register2 = register_sound_special_device(f_ops, track2,
 							  carddev);
 		if (register2 != track2)
 			goto __end;
-		snd_oss_minors[track2] = preg;
+		snd_oss_mianalrs[track2] = preg;
 	}
 	mutex_unlock(&sound_oss_mutex);
 	return 0;
@@ -138,7 +138,7 @@ int snd_register_oss_device(int type, struct snd_card *card, int dev,
       		unregister_sound_special(register2);
       	if (register1 >= 0)
       		unregister_sound_special(register1);
-	snd_oss_minors[minor] = NULL;
+	snd_oss_mianalrs[mianalr] = NULL;
 	mutex_unlock(&sound_oss_mutex);
 	kfree(preg);
       	return -EBUSY;
@@ -147,41 +147,41 @@ EXPORT_SYMBOL(snd_register_oss_device);
 
 int snd_unregister_oss_device(int type, struct snd_card *card, int dev)
 {
-	int minor = snd_oss_kernel_minor(type, card, dev);
-	int cidx = SNDRV_MINOR_OSS_CARD(minor);
+	int mianalr = snd_oss_kernel_mianalr(type, card, dev);
+	int cidx = SNDRV_MIANALR_OSS_CARD(mianalr);
 	int track2 = -1;
-	struct snd_minor *mptr;
+	struct snd_mianalr *mptr;
 
-	if (card && card->number >= SNDRV_MINOR_OSS_DEVICES)
+	if (card && card->number >= SNDRV_MIANALR_OSS_DEVICES)
 		return 0;
-	if (minor < 0)
-		return minor;
+	if (mianalr < 0)
+		return mianalr;
 	mutex_lock(&sound_oss_mutex);
-	mptr = snd_oss_minors[minor];
+	mptr = snd_oss_mianalrs[mianalr];
 	if (mptr == NULL) {
 		mutex_unlock(&sound_oss_mutex);
-		return -ENOENT;
+		return -EANALENT;
 	}
-	switch (SNDRV_MINOR_OSS_DEVICE(minor)) {
-	case SNDRV_MINOR_OSS_PCM:
-		track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_AUDIO);
+	switch (SNDRV_MIANALR_OSS_DEVICE(mianalr)) {
+	case SNDRV_MIANALR_OSS_PCM:
+		track2 = SNDRV_MIANALR_OSS(cidx, SNDRV_MIANALR_OSS_AUDIO);
 		break;
-	case SNDRV_MINOR_OSS_MIDI:
-		track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_DMMIDI);
+	case SNDRV_MIANALR_OSS_MIDI:
+		track2 = SNDRV_MIANALR_OSS(cidx, SNDRV_MIANALR_OSS_DMMIDI);
 		break;
-	case SNDRV_MINOR_OSS_MIDI1:
-		track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_DMMIDI1);
+	case SNDRV_MIANALR_OSS_MIDI1:
+		track2 = SNDRV_MIANALR_OSS(cidx, SNDRV_MIANALR_OSS_DMMIDI1);
 		break;
 	}
 	if (track2 >= 0)
-		snd_oss_minors[track2] = NULL;
-	snd_oss_minors[minor] = NULL;
+		snd_oss_mianalrs[track2] = NULL;
+	snd_oss_mianalrs[mianalr] = NULL;
 	mutex_unlock(&sound_oss_mutex);
 
 	/* call unregister_sound_special() outside sound_oss_mutex;
 	 * otherwise may deadlock, as it can trigger the release of a card
 	 */
-	unregister_sound_special(minor);
+	unregister_sound_special(mianalr);
 	if (track2 >= 0)
 		unregister_sound_special(track2);
 
@@ -214,37 +214,37 @@ static const char *snd_oss_device_type_name(int type)
 	}
 }
 
-static void snd_minor_info_oss_read(struct snd_info_entry *entry,
+static void snd_mianalr_info_oss_read(struct snd_info_entry *entry,
 				    struct snd_info_buffer *buffer)
 {
-	int minor;
-	struct snd_minor *mptr;
+	int mianalr;
+	struct snd_mianalr *mptr;
 
 	mutex_lock(&sound_oss_mutex);
-	for (minor = 0; minor < SNDRV_OSS_MINORS; ++minor) {
-		mptr = snd_oss_minors[minor];
+	for (mianalr = 0; mianalr < SNDRV_OSS_MIANALRS; ++mianalr) {
+		mptr = snd_oss_mianalrs[mianalr];
 		if (!mptr)
 			continue;
 		if (mptr->card >= 0)
-			snd_iprintf(buffer, "%3i: [%i-%2i]: %s\n", minor,
+			snd_iprintf(buffer, "%3i: [%i-%2i]: %s\n", mianalr,
 				    mptr->card, mptr->device,
 				    snd_oss_device_type_name(mptr->type));
 		else
-			snd_iprintf(buffer, "%3i:       : %s\n", minor,
+			snd_iprintf(buffer, "%3i:       : %s\n", mianalr,
 				    snd_oss_device_type_name(mptr->type));
 	}
 	mutex_unlock(&sound_oss_mutex);
 }
 
 
-int __init snd_minor_info_oss_init(void)
+int __init snd_mianalr_info_oss_init(void)
 {
 	struct snd_info_entry *entry;
 
 	entry = snd_info_create_module_entry(THIS_MODULE, "devices", snd_oss_root);
 	if (!entry)
-		return -ENOMEM;
-	entry->c.text.read = snd_minor_info_oss_read;
+		return -EANALMEM;
+	entry->c.text.read = snd_mianalr_info_oss_read;
 	return snd_info_register(entry); /* freed in error path */
 }
 #endif /* CONFIG_SND_PROC_FS */

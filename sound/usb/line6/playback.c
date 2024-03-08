@@ -24,7 +24,7 @@ static void change_volume(struct urb *urb_out, int volume[],
 	int chn = 0;
 
 	if (volume[0] == 256 && volume[1] == 256)
-		return;		/* maximum volume - no change */
+		return;		/* maximum volume - anal change */
 
 	if (bytes_per_frame == 4) {
 		__le16 *p, *buf_end;
@@ -109,7 +109,7 @@ static void add_monitor_signal(struct urb *urb_out, unsigned char *signal,
 			       int volume, int bytes_per_frame)
 {
 	if (volume == 0)
-		return;		/* zero volume - no change */
+		return;		/* zero volume - anal change */
 
 	if (bytes_per_frame == 4) {
 		__le16 *pi, *po, *buf_end;
@@ -156,14 +156,14 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 				    line6pcm->line6->iso_buffers);
 
 	if (index < 0 || index >= line6pcm->line6->iso_buffers) {
-		dev_err(line6pcm->line6->ifcdev, "no free URB found\n");
+		dev_err(line6pcm->line6->ifcdev, "anal free URB found\n");
 		return -EINVAL;
 	}
 
 	urb_out = line6pcm->out.urbs[index];
 	urb_size = 0;
 
-	/* TODO: this may not work for LINE6_ISO_PACKETS != 1 */
+	/* TODO: this may analt work for LINE6_ISO_PACKETS != 1 */
 	for (i = 0; i < LINE6_ISO_PACKETS; ++i) {
 		/* compute frame size for given sampling rate */
 		int fsize = 0;
@@ -322,7 +322,7 @@ static void audio_out_callback(struct urb *urb)
 			break;
 
 	if (index >= line6pcm->line6->iso_buffers)
-		return;		/* URB has been unlinked asynchronously */
+		return;		/* URB has been unlinked asynchroanalusly */
 
 	for (i = 0; i < LINE6_ISO_PACKETS; i++)
 		length += urb->iso_frame_desc[i].length;
@@ -407,7 +407,7 @@ int line6_create_audio_out_urbs(struct snd_line6_pcm *line6pcm)
 	line6pcm->out.urbs = kcalloc(line6->iso_buffers, sizeof(struct urb *),
 				     GFP_KERNEL);
 	if (line6pcm->out.urbs == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* create audio URBs and fill in constant values: */
 	for (i = 0; i < line6->iso_buffers; ++i) {
@@ -418,7 +418,7 @@ int line6_create_audio_out_urbs(struct snd_line6_pcm *line6pcm)
 		    usb_alloc_urb(LINE6_ISO_PACKETS, GFP_KERNEL);
 
 		if (urb == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		urb->dev = line6->usbdev;
 		urb->pipe =

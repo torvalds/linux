@@ -187,7 +187,7 @@
 #define S_IO		BIT(1)    /* Input/Output line from SCSI bus */
 #define S_CD		BIT(2)    /* Command/Data line from SCSI bus */
 #define S_BUSY		BIT(3)    /* Busy line from SCSI bus         */
-#define S_ACK		BIT(4)    /* Acknowledge line from SCSI bus  */
+#define S_ACK		BIT(4)    /* Ackanalwledge line from SCSI bus  */
 #define S_REQUEST	BIT(5)    /* Request line from SCSI bus      */
 #define S_SELECT	BIT(6)	  /*                                 */
 #define S_ATN		BIT(7)	  /*                                 */
@@ -228,10 +228,10 @@ typedef struct scsi_info_t {
 } scsi_info_t;
 
 
-/* synchronous transfer negotiation data */
+/* synchroanalus transfer negotiation data */
 typedef struct _sync_data {
 	unsigned int SyncNegotiation;
-#define SYNC_NOT_YET 0
+#define SYNC_ANALT_YET 0
 #define SYNC_OK      1
 #define SYNC_NG      2
 
@@ -359,7 +359,7 @@ enum _scsi_phase {
 };
 
 enum _data_in_out {
-	IO_UNKNOWN,
+	IO_UNKANALWN,
 	IO_IN,
 	IO_OUT
 };

@@ -32,26 +32,26 @@
  * snapshot the page was logically dirtied in, and thus which snap
  * context needs to be associated with the osd write during writeback.
  *
- * Similarly, struct ceph_inode_info maintains a set of counters to
- * count dirty pages on the inode.  In the absence of snapshots,
+ * Similarly, struct ceph_ianalde_info maintains a set of counters to
+ * count dirty pages on the ianalde.  In the absence of snapshots,
  * i_wrbuffer_ref == i_wrbuffer_ref_head == the dirty page count.
  *
  * When a snapshot is taken (that is, when the client receives
- * notification that a snapshot was taken), each inode with caps and
+ * analtification that a snapshot was taken), each ianalde with caps and
  * with dirty pages (dirty pages implies there is a cap) gets a new
  * ceph_cap_snap in the i_cap_snaps list (which is sorted in ascending
  * order, new snaps go to the tail).  The i_wrbuffer_ref_head count is
  * moved to capsnap->dirty. (Unless a sync write is currently in
  * progress.  In that case, the capsnap is said to be "pending", new
- * writes cannot start, and the capsnap isn't "finalized" until the
- * write completes (or fails) and a final size/mtime for the inode for
+ * writes cananalt start, and the capsnap isn't "finalized" until the
+ * write completes (or fails) and a final size/mtime for the ianalde for
  * that snap can be settled upon.)  i_wrbuffer_ref_head is reset to 0.
  *
  * On writeback, we must submit writes to the osd IN SNAP ORDER.  So,
  * we look for the first capsnap in i_cap_snaps and write out pages in
  * that snap context _only_.  Then we move on to the next capsnap,
  * eventually reaching the "live" or "head" context (i.e., pages that
- * are not yet snapped) and are writing the most recently dirtied
+ * are analt yet snapped) and are writing the most recently dirtied
  * pages.
  *
  * Invalidate and so forth must take care to ensure the dirty page
@@ -79,19 +79,19 @@ static inline struct ceph_snap_context *page_snap_context(struct page *page)
  */
 static bool ceph_dirty_folio(struct address_space *mapping, struct folio *folio)
 {
-	struct inode *inode = mapping->host;
-	struct ceph_client *cl = ceph_inode_to_client(inode);
-	struct ceph_inode_info *ci;
+	struct ianalde *ianalde = mapping->host;
+	struct ceph_client *cl = ceph_ianalde_to_client(ianalde);
+	struct ceph_ianalde_info *ci;
 	struct ceph_snap_context *snapc;
 
 	if (folio_test_dirty(folio)) {
 		doutc(cl, "%llx.%llx %p idx %lu -- already dirty\n",
-		      ceph_vinop(inode), folio, folio->index);
+		      ceph_vianalp(ianalde), folio, folio->index);
 		VM_BUG_ON_FOLIO(!folio_test_private(folio), folio);
 		return false;
 	}
 
-	ci = ceph_inode(inode);
+	ci = ceph_ianalde(ianalde);
 
 	/* dirty the head */
 	spin_lock(&ci->i_ceph_lock);
@@ -109,11 +109,11 @@ static bool ceph_dirty_folio(struct address_space *mapping, struct folio *folio)
 		++ci->i_wrbuffer_ref_head;
 	}
 	if (ci->i_wrbuffer_ref == 0)
-		ihold(inode);
+		ihold(ianalde);
 	++ci->i_wrbuffer_ref;
 	doutc(cl, "%llx.%llx %p idx %lu head %d/%d -> %d/%d "
 	      "snapc %p seq %lld (%d snaps)\n",
-	      ceph_vinop(inode), folio, folio->index,
+	      ceph_vianalp(ianalde), folio, folio->index,
 	      ci->i_wrbuffer_ref-1, ci->i_wrbuffer_ref_head-1,
 	      ci->i_wrbuffer_ref, ci->i_wrbuffer_ref_head,
 	      snapc, snapc->seq, snapc->num_snaps);
@@ -137,22 +137,22 @@ static bool ceph_dirty_folio(struct address_space *mapping, struct folio *folio)
 static void ceph_invalidate_folio(struct folio *folio, size_t offset,
 				size_t length)
 {
-	struct inode *inode = folio->mapping->host;
-	struct ceph_client *cl = ceph_inode_to_client(inode);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ianalde *ianalde = folio->mapping->host;
+	struct ceph_client *cl = ceph_ianalde_to_client(ianalde);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
 	struct ceph_snap_context *snapc;
 
 
 	if (offset != 0 || length != folio_size(folio)) {
 		doutc(cl, "%llx.%llx idx %lu partial dirty page %zu~%zu\n",
-		      ceph_vinop(inode), folio->index, offset, length);
+		      ceph_vianalp(ianalde), folio->index, offset, length);
 		return;
 	}
 
 	WARN_ON(!folio_test_locked(folio));
 	if (folio_test_private(folio)) {
 		doutc(cl, "%llx.%llx idx %lu full dirty page\n",
-		      ceph_vinop(inode), folio->index);
+		      ceph_vianalp(ianalde), folio->index);
 
 		snapc = folio_detach_private(folio);
 		ceph_put_wrbuffer_cap_refs(ci, 1, snapc);
@@ -164,10 +164,10 @@ static void ceph_invalidate_folio(struct folio *folio, size_t offset,
 
 static void ceph_netfs_expand_readahead(struct netfs_io_request *rreq)
 {
-	struct inode *inode = rreq->inode;
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ianalde *ianalde = rreq->ianalde;
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
 	struct ceph_file_layout *lo = &ci->i_layout;
-	unsigned long max_pages = inode->i_sb->s_bdi->ra_pages;
+	unsigned long max_pages = ianalde->i_sb->s_bdi->ra_pages;
 	loff_t end = rreq->start + rreq->len, new_end;
 	struct ceph_netfs_request_data *priv = rreq->netfs_priv;
 	unsigned long max_len;
@@ -190,7 +190,7 @@ static void ceph_netfs_expand_readahead(struct netfs_io_request *rreq)
 
 	/*
 	 * Try to expand the length forward by rounding up it to the next
-	 * block, but do not exceed the file size, unless the original
+	 * block, but do analt exceed the file size, unless the original
 	 * request already exceeds it.
 	 */
 	new_end = min(round_up(end, lo->stripe_unit), rreq->i_size);
@@ -207,23 +207,23 @@ static void ceph_netfs_expand_readahead(struct netfs_io_request *rreq)
 
 static bool ceph_netfs_clamp_length(struct netfs_io_subrequest *subreq)
 {
-	struct inode *inode = subreq->rreq->inode;
-	struct ceph_fs_client *fsc = ceph_inode_to_fs_client(inode);
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	u64 objno, objoff;
+	struct ianalde *ianalde = subreq->rreq->ianalde;
+	struct ceph_fs_client *fsc = ceph_ianalde_to_fs_client(ianalde);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
+	u64 objanal, objoff;
 	u32 xlen;
 
 	/* Truncate the extent at the end of the current block */
 	ceph_calc_file_object_mapping(&ci->i_layout, subreq->start, subreq->len,
-				      &objno, &objoff, &xlen);
+				      &objanal, &objoff, &xlen);
 	subreq->len = min(xlen, fsc->mount_options->rsize);
 	return true;
 }
 
 static void finish_netfs_read(struct ceph_osd_request *req)
 {
-	struct inode *inode = req->r_inode;
-	struct ceph_fs_client *fsc = ceph_inode_to_fs_client(inode);
+	struct ianalde *ianalde = req->r_ianalde;
+	struct ceph_fs_client *fsc = ceph_ianalde_to_fs_client(ianalde);
 	struct ceph_client *cl = fsc->client;
 	struct ceph_osd_data *osd_data = osd_req_op_extent_osd_data(req, 0);
 	struct netfs_io_subrequest *subreq = req->r_priv;
@@ -235,10 +235,10 @@ static void finish_netfs_read(struct ceph_osd_request *req)
 				 req->r_end_latency, osd_data->length, err);
 
 	doutc(cl, "result %d subreq->len=%zu i_size=%lld\n", req->r_result,
-	      subreq->len, i_size_read(req->r_inode));
+	      subreq->len, i_size_read(req->r_ianalde));
 
-	/* no object means success but no data */
-	if (err == -ENOENT)
+	/* anal object means success but anal data */
+	if (err == -EANALENT)
 		err = 0;
 	else if (err == -EBLOCKLISTED)
 		fsc->blocklisted = true;
@@ -248,8 +248,8 @@ static void finish_netfs_read(struct ceph_osd_request *req)
 			err = ceph_sparse_ext_map_end(op);
 		if (err < subreq->len)
 			__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
-		if (IS_ENCRYPTED(inode) && err > 0) {
-			err = ceph_fscrypt_decrypt_extents(inode,
+		if (IS_ENCRYPTED(ianalde) && err > 0) {
+			err = ceph_fscrypt_decrypt_extents(ianalde,
 					osd_data->pages, subreq->start,
 					op->extent.sparse_ext,
 					op->extent.sparse_ext_cnt);
@@ -264,19 +264,19 @@ static void finish_netfs_read(struct ceph_osd_request *req)
 					osd_data->length), false);
 	}
 	netfs_subreq_terminated(subreq, err, false);
-	iput(req->r_inode);
+	iput(req->r_ianalde);
 	ceph_dec_osd_stopping_blocker(fsc->mdsc);
 }
 
 static bool ceph_netfs_issue_op_inline(struct netfs_io_subrequest *subreq)
 {
 	struct netfs_io_request *rreq = subreq->rreq;
-	struct inode *inode = rreq->inode;
+	struct ianalde *ianalde = rreq->ianalde;
 	struct ceph_mds_reply_info_parsed *rinfo;
 	struct ceph_mds_reply_info_in *iinfo;
 	struct ceph_mds_request *req;
-	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(inode->i_sb);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(ianalde->i_sb);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
 	struct iov_iter iter;
 	ssize_t err = 0;
 	size_t len;
@@ -285,17 +285,17 @@ static bool ceph_netfs_issue_op_inline(struct netfs_io_subrequest *subreq)
 	__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
 	__clear_bit(NETFS_SREQ_COPY_TO_CACHE, &subreq->flags);
 
-	if (subreq->start >= inode->i_size)
+	if (subreq->start >= ianalde->i_size)
 		goto out;
 
 	/* We need to fetch the inline data. */
-	mode = ceph_try_to_choose_auth_mds(inode, CEPH_STAT_CAP_INLINE_DATA);
+	mode = ceph_try_to_choose_auth_mds(ianalde, CEPH_STAT_CAP_INLINE_DATA);
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_GETATTR, mode);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto out;
 	}
-	req->r_ino1 = ci->i_vino;
+	req->r_ianal1 = ci->i_vianal;
 	req->r_args.getattr.mask = cpu_to_le32(CEPH_STAT_CAP_INLINE_DATA);
 	req->r_num_caps = 2;
 
@@ -305,7 +305,7 @@ static bool ceph_netfs_issue_op_inline(struct netfs_io_subrequest *subreq)
 
 	rinfo = &req->r_reply_info;
 	iinfo = &rinfo->targeti;
-	if (iinfo->inline_version == CEPH_INLINE_NONE) {
+	if (iinfo->inline_version == CEPH_INLINE_ANALNE) {
 		/* The data got uninlined */
 		ceph_mdsc_put_request(req);
 		return false;
@@ -326,20 +326,20 @@ out:
 static void ceph_netfs_issue_read(struct netfs_io_subrequest *subreq)
 {
 	struct netfs_io_request *rreq = subreq->rreq;
-	struct inode *inode = rreq->inode;
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_fs_client *fsc = ceph_inode_to_fs_client(inode);
+	struct ianalde *ianalde = rreq->ianalde;
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
+	struct ceph_fs_client *fsc = ceph_ianalde_to_fs_client(ianalde);
 	struct ceph_client *cl = fsc->client;
 	struct ceph_osd_request *req = NULL;
-	struct ceph_vino vino = ceph_vino(inode);
+	struct ceph_vianal vianal = ceph_vianal(ianalde);
 	struct iov_iter iter;
 	int err = 0;
 	u64 len = subreq->len;
-	bool sparse = IS_ENCRYPTED(inode) || ceph_test_mount_opt(fsc, SPARSEREAD);
+	bool sparse = IS_ENCRYPTED(ianalde) || ceph_test_mount_opt(fsc, SPARSEREAD);
 	u64 off = subreq->start;
 	int extent_cnt;
 
-	if (ceph_inode_is_shutdown(inode)) {
+	if (ceph_ianalde_is_shutdown(ianalde)) {
 		err = -EIO;
 		goto out;
 	}
@@ -347,9 +347,9 @@ static void ceph_netfs_issue_read(struct netfs_io_subrequest *subreq)
 	if (ceph_has_inline_data(ci) && ceph_netfs_issue_op_inline(subreq))
 		return;
 
-	ceph_fscrypt_adjust_off_and_len(inode, &off, &len);
+	ceph_fscrypt_adjust_off_and_len(ianalde, &off, &len);
 
-	req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout, vino,
+	req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout, vianal,
 			off, &len, 0, 1, sparse ? CEPH_OSD_OP_SPARSE_READ : CEPH_OSD_OP_READ,
 			CEPH_OSD_FLAG_READ, NULL, ci->i_truncate_seq,
 			ci->i_truncate_size, false);
@@ -360,32 +360,32 @@ static void ceph_netfs_issue_read(struct netfs_io_subrequest *subreq)
 	}
 
 	if (sparse) {
-		extent_cnt = __ceph_sparse_read_ext_count(inode, len);
+		extent_cnt = __ceph_sparse_read_ext_count(ianalde, len);
 		err = ceph_alloc_sparse_ext_map(&req->r_ops[0], extent_cnt);
 		if (err)
 			goto out;
 	}
 
 	doutc(cl, "%llx.%llx pos=%llu orig_len=%zu len=%llu\n",
-	      ceph_vinop(inode), subreq->start, subreq->len, len);
+	      ceph_vianalp(ianalde), subreq->start, subreq->len, len);
 
 	iov_iter_xarray(&iter, ITER_DEST, &rreq->mapping->i_pages, subreq->start, len);
 
 	/*
-	 * FIXME: For now, use CEPH_OSD_DATA_TYPE_PAGES instead of _ITER for
-	 * encrypted inodes. We'd need infrastructure that handles an iov_iter
+	 * FIXME: For analw, use CEPH_OSD_DATA_TYPE_PAGES instead of _ITER for
+	 * encrypted ianaldes. We'd need infrastructure that handles an iov_iter
 	 * instead of page arrays, and we don't have that as of yet. Once the
 	 * dust settles on the write helpers and encrypt/decrypt routines for
 	 * netfs, we should be able to rework this.
 	 */
-	if (IS_ENCRYPTED(inode)) {
+	if (IS_ENCRYPTED(ianalde)) {
 		struct page **pages;
 		size_t page_off;
 
 		err = iov_iter_get_pages_alloc2(&iter, &pages, len, &page_off);
 		if (err < 0) {
 			doutc(cl, "%llx.%llx failed to allocate pages, %d\n",
-			      ceph_vinop(inode), err);
+			      ceph_vianalp(ianalde), err);
 			goto out;
 		}
 
@@ -405,21 +405,21 @@ static void ceph_netfs_issue_read(struct netfs_io_subrequest *subreq)
 	}
 	req->r_callback = finish_netfs_read;
 	req->r_priv = subreq;
-	req->r_inode = inode;
-	ihold(inode);
+	req->r_ianalde = ianalde;
+	ihold(ianalde);
 
 	ceph_osdc_start_request(req->r_osdc, req);
 out:
 	ceph_osdc_put_request(req);
 	if (err)
 		netfs_subreq_terminated(subreq, err, false);
-	doutc(cl, "%llx.%llx result %d\n", ceph_vinop(inode), err);
+	doutc(cl, "%llx.%llx result %d\n", ceph_vianalp(ianalde), err);
 }
 
 static int ceph_init_request(struct netfs_io_request *rreq, struct file *file)
 {
-	struct inode *inode = rreq->inode;
-	struct ceph_client *cl = ceph_inode_to_client(inode);
+	struct ianalde *ianalde = rreq->ianalde;
+	struct ceph_client *cl = ceph_ianalde_to_client(ianalde);
 	int got = 0, want = CEPH_CAP_FILE_CACHE;
 	struct ceph_netfs_request_data *priv;
 	int ret = 0;
@@ -427,9 +427,9 @@ static int ceph_init_request(struct netfs_io_request *rreq, struct file *file)
 	if (rreq->origin != NETFS_READAHEAD)
 		return 0;
 
-	priv = kzalloc(sizeof(*priv), GFP_NOFS);
+	priv = kzalloc(sizeof(*priv), GFP_ANALFS);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (file) {
 		struct ceph_rw_context *rw_ctx;
@@ -446,17 +446,17 @@ static int ceph_init_request(struct netfs_io_request *rreq, struct file *file)
 	}
 
 	/*
-	 * readahead callers do not necessarily hold Fcb caps
+	 * readahead callers do analt necessarily hold Fcb caps
 	 * (e.g. fadvise, madvise).
 	 */
-	ret = ceph_try_get_caps(inode, CEPH_CAP_FILE_RD, want, true, &got);
+	ret = ceph_try_get_caps(ianalde, CEPH_CAP_FILE_RD, want, true, &got);
 	if (ret < 0) {
-		doutc(cl, "%llx.%llx, error getting cap\n", ceph_vinop(inode));
+		doutc(cl, "%llx.%llx, error getting cap\n", ceph_vianalp(ianalde));
 		goto out;
 	}
 
 	if (!(got & want)) {
-		doutc(cl, "%llx.%llx, no cache cap\n", ceph_vinop(inode));
+		doutc(cl, "%llx.%llx, anal cache cap\n", ceph_vianalp(ianalde));
 		ret = -EACCES;
 		goto out;
 	}
@@ -483,7 +483,7 @@ static void ceph_netfs_free_request(struct netfs_io_request *rreq)
 		return;
 
 	if (priv->caps)
-		ceph_put_cap_refs(ceph_inode(rreq->inode), priv->caps);
+		ceph_put_cap_refs(ceph_ianalde(rreq->ianalde), priv->caps);
 	kfree(priv);
 	rreq->netfs_priv = NULL;
 }
@@ -505,26 +505,26 @@ static void ceph_set_page_fscache(struct page *page)
 
 static void ceph_fscache_write_terminated(void *priv, ssize_t error, bool was_async)
 {
-	struct inode *inode = priv;
+	struct ianalde *ianalde = priv;
 
-	if (IS_ERR_VALUE(error) && error != -ENOBUFS)
-		ceph_fscache_invalidate(inode, false);
+	if (IS_ERR_VALUE(error) && error != -EANALBUFS)
+		ceph_fscache_invalidate(ianalde, false);
 }
 
-static void ceph_fscache_write_to_cache(struct inode *inode, u64 off, u64 len, bool caching)
+static void ceph_fscache_write_to_cache(struct ianalde *ianalde, u64 off, u64 len, bool caching)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
 	struct fscache_cookie *cookie = ceph_fscache_cookie(ci);
 
-	fscache_write_to_cache(cookie, inode->i_mapping, off, len, i_size_read(inode),
-			       ceph_fscache_write_terminated, inode, caching);
+	fscache_write_to_cache(cookie, ianalde->i_mapping, off, len, i_size_read(ianalde),
+			       ceph_fscache_write_terminated, ianalde, caching);
 }
 #else
 static inline void ceph_set_page_fscache(struct page *page)
 {
 }
 
-static inline void ceph_fscache_write_to_cache(struct inode *inode, u64 off, u64 len, bool caching)
+static inline void ceph_fscache_write_to_cache(struct ianalde *ianalde, u64 off, u64 len, bool caching)
 {
 }
 #endif /* CONFIG_CEPH_FSCACHE */
@@ -539,15 +539,15 @@ struct ceph_writeback_ctl
 };
 
 /*
- * Get ref for the oldest snapc for an inode with dirty data... that is, the
+ * Get ref for the oldest snapc for an ianalde with dirty data... that is, the
  * only snap context we are allowed to write back.
  */
 static struct ceph_snap_context *
-get_oldest_context(struct inode *inode, struct ceph_writeback_ctl *ctl,
+get_oldest_context(struct ianalde *ianalde, struct ceph_writeback_ctl *ctl,
 		   struct ceph_snap_context *page_snapc)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_client *cl = ceph_inode_to_client(inode);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
+	struct ceph_client *cl = ceph_ianalde_to_client(ianalde);
 	struct ceph_snap_context *snapc = NULL;
 	struct ceph_cap_snap *capsnap = NULL;
 
@@ -564,7 +564,7 @@ get_oldest_context(struct inode *inode, struct ceph_writeback_ctl *ctl,
 
 		if (ctl) {
 			if (capsnap->writing) {
-				ctl->i_size = i_size_read(inode);
+				ctl->i_size = i_size_read(ianalde);
 				ctl->size_stable = false;
 			} else {
 				ctl->i_size = capsnap->size;
@@ -589,7 +589,7 @@ get_oldest_context(struct inode *inode, struct ceph_writeback_ctl *ctl,
 		doutc(cl, " head snapc %p has %d dirty pages\n", snapc,
 		      ci->i_wrbuffer_ref_head);
 		if (ctl) {
-			ctl->i_size = i_size_read(inode);
+			ctl->i_size = i_size_read(ianalde);
 			ctl->truncate_size = ci->i_truncate_size;
 			ctl->truncate_seq = ci->i_truncate_seq;
 			ctl->size_stable = false;
@@ -600,13 +600,13 @@ get_oldest_context(struct inode *inode, struct ceph_writeback_ctl *ctl,
 	return snapc;
 }
 
-static u64 get_writepages_data_length(struct inode *inode,
+static u64 get_writepages_data_length(struct ianalde *ianalde,
 				      struct page *page, u64 start)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
 	struct ceph_snap_context *snapc;
 	struct ceph_cap_snap *capsnap = NULL;
-	u64 end = i_size_read(inode);
+	u64 end = i_size_read(ianalde);
 	u64 ret;
 
 	snapc = page_snap_context(ceph_fscrypt_pagecache_page(page));
@@ -636,14 +636,14 @@ static u64 get_writepages_data_length(struct inode *inode,
  * Write a single page, but leave the page locked.
  *
  * If we get a write error, mark the mapping for error, but still adjust the
- * dirty page accounting (i.e., page is no longer dirty).
+ * dirty page accounting (i.e., page is anal longer dirty).
  */
-static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
+static int writepage_analunlock(struct page *page, struct writeback_control *wbc)
 {
 	struct folio *folio = page_folio(page);
-	struct inode *inode = page->mapping->host;
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_fs_client *fsc = ceph_inode_to_fs_client(inode);
+	struct ianalde *ianalde = page->mapping->host;
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
+	struct ceph_fs_client *fsc = ceph_ianalde_to_fs_client(ianalde);
 	struct ceph_client *cl = fsc->client;
 	struct ceph_snap_context *snapc, *oldest;
 	loff_t page_off = page_offset(page);
@@ -653,27 +653,27 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	struct ceph_writeback_ctl ceph_wbc;
 	struct ceph_osd_client *osdc = &fsc->client->osdc;
 	struct ceph_osd_request *req;
-	bool caching = ceph_is_cache_enabled(inode);
+	bool caching = ceph_is_cache_enabled(ianalde);
 	struct page *bounce_page = NULL;
 
-	doutc(cl, "%llx.%llx page %p idx %lu\n", ceph_vinop(inode), page,
+	doutc(cl, "%llx.%llx page %p idx %lu\n", ceph_vianalp(ianalde), page,
 	      page->index);
 
-	if (ceph_inode_is_shutdown(inode))
+	if (ceph_ianalde_is_shutdown(ianalde))
 		return -EIO;
 
 	/* verify this is a writeable snap context */
 	snapc = page_snap_context(page);
 	if (!snapc) {
-		doutc(cl, "%llx.%llx page %p not dirty?\n", ceph_vinop(inode),
+		doutc(cl, "%llx.%llx page %p analt dirty?\n", ceph_vianalp(ianalde),
 		      page);
 		return 0;
 	}
-	oldest = get_oldest_context(inode, &ceph_wbc, snapc);
+	oldest = get_oldest_context(ianalde, &ceph_wbc, snapc);
 	if (snapc->seq > oldest->seq) {
-		doutc(cl, "%llx.%llx page %p snapc %p not writeable - noop\n",
-		      ceph_vinop(inode), page, snapc);
-		/* we should only noop if called by kswapd */
+		doutc(cl, "%llx.%llx page %p snapc %p analt writeable - analop\n",
+		      ceph_vianalp(ianalde), page, snapc);
+		/* we should only analop if called by kswapd */
 		WARN_ON(!(current->flags & PF_MEMALLOC));
 		ceph_put_snap_context(oldest);
 		redirty_page_for_writepage(wbc, page);
@@ -684,7 +684,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	/* is this a partial page at end of file? */
 	if (page_off >= ceph_wbc.i_size) {
 		doutc(cl, "%llx.%llx folio at %lu beyond eof %llu\n",
-		      ceph_vinop(inode), folio->index, ceph_wbc.i_size);
+		      ceph_vianalp(ianalde), folio->index, ceph_wbc.i_size);
 		folio_invalidate(folio, 0, folio_size(folio));
 		return 0;
 	}
@@ -692,16 +692,16 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	if (ceph_wbc.i_size < page_off + len)
 		len = ceph_wbc.i_size - page_off;
 
-	wlen = IS_ENCRYPTED(inode) ? round_up(len, CEPH_FSCRYPT_BLOCK_SIZE) : len;
+	wlen = IS_ENCRYPTED(ianalde) ? round_up(len, CEPH_FSCRYPT_BLOCK_SIZE) : len;
 	doutc(cl, "%llx.%llx page %p index %lu on %llu~%llu snapc %p seq %lld\n",
-	      ceph_vinop(inode), page, page->index, page_off, wlen, snapc,
+	      ceph_vianalp(ianalde), page, page->index, page_off, wlen, snapc,
 	      snapc->seq);
 
 	if (atomic_long_inc_return(&fsc->writeback_count) >
 	    CONGESTION_ON_THRESH(fsc->mount_options->congestion_kb))
 		fsc->write_congested = true;
 
-	req = ceph_osdc_new_request(osdc, &ci->i_layout, ceph_vino(inode),
+	req = ceph_osdc_new_request(osdc, &ci->i_layout, ceph_vianal(ianalde),
 				    page_off, &wlen, 0, 1, CEPH_OSD_OP_WRITE,
 				    CEPH_OSD_FLAG_WRITE, snapc,
 				    ceph_wbc.truncate_seq,
@@ -717,12 +717,12 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	set_page_writeback(page);
 	if (caching)
 		ceph_set_page_fscache(page);
-	ceph_fscache_write_to_cache(inode, page_off, len, caching);
+	ceph_fscache_write_to_cache(ianalde, page_off, len, caching);
 
-	if (IS_ENCRYPTED(inode)) {
+	if (IS_ENCRYPTED(ianalde)) {
 		bounce_page = fscrypt_encrypt_pagecache_blocks(page,
 						    CEPH_FSCRYPT_BLOCK_SIZE, 0,
-						    GFP_NOFS);
+						    GFP_ANALFS);
 		if (IS_ERR(bounce_page)) {
 			redirty_page_for_writepage(wbc, page);
 			end_page_writeback(page);
@@ -737,10 +737,10 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 			bounce_page ? &bounce_page : &page, wlen, 0,
 			false, false);
 	doutc(cl, "%llx.%llx %llu~%llu (%llu bytes, %sencrypted)\n",
-	      ceph_vinop(inode), page_off, len, wlen,
-	      IS_ENCRYPTED(inode) ? "" : "not ");
+	      ceph_vianalp(ianalde), page_off, len, wlen,
+	      IS_ENCRYPTED(ianalde) ? "" : "analt ");
 
-	req->r_mtime = inode_get_mtime(inode);
+	req->r_mtime = ianalde_get_mtime(ianalde);
 	ceph_osdc_start_request(osdc, req);
 	err = ceph_osdc_wait_request(osdc, req);
 
@@ -758,7 +758,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 		if (err == -ERESTARTSYS) {
 			/* killed by SIGKILL */
 			doutc(cl, "%llx.%llx interrupted page %p\n",
-			      ceph_vinop(inode), page);
+			      ceph_vianalp(ianalde), page);
 			redirty_page_for_writepage(wbc, page);
 			end_page_writeback(page);
 			return err;
@@ -766,12 +766,12 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 		if (err == -EBLOCKLISTED)
 			fsc->blocklisted = true;
 		doutc(cl, "%llx.%llx setting page/mapping error %d %p\n",
-		      ceph_vinop(inode), err, page);
-		mapping_set_error(&inode->i_data, err);
+		      ceph_vianalp(ianalde), err, page);
+		mapping_set_error(&ianalde->i_data, err);
 		wbc->pages_skipped++;
 	} else {
 		doutc(cl, "%llx.%llx cleaned page %p\n",
-		      ceph_vinop(inode), page);
+		      ceph_vianalp(ianalde), page);
 		err = 0;  /* vfs expects us to return 0 */
 	}
 	oldest = detach_page_private(page);
@@ -790,50 +790,50 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 static int ceph_writepage(struct page *page, struct writeback_control *wbc)
 {
 	int err;
-	struct inode *inode = page->mapping->host;
-	BUG_ON(!inode);
-	ihold(inode);
+	struct ianalde *ianalde = page->mapping->host;
+	BUG_ON(!ianalde);
+	ihold(ianalde);
 
-	if (wbc->sync_mode == WB_SYNC_NONE &&
-	    ceph_inode_to_fs_client(inode)->write_congested)
+	if (wbc->sync_mode == WB_SYNC_ANALNE &&
+	    ceph_ianalde_to_fs_client(ianalde)->write_congested)
 		return AOP_WRITEPAGE_ACTIVATE;
 
 	wait_on_page_fscache(page);
 
-	err = writepage_nounlock(page, wbc);
+	err = writepage_analunlock(page, wbc);
 	if (err == -ERESTARTSYS) {
 		/* direct memory reclaimer was killed by SIGKILL. return 0
 		 * to prevent caller from setting mapping/page error */
 		err = 0;
 	}
 	unlock_page(page);
-	iput(inode);
+	iput(ianalde);
 	return err;
 }
 
 /*
  * async writeback completion handler.
  *
- * If we get an error, set the mapping error bit, but not the individual
+ * If we get an error, set the mapping error bit, but analt the individual
  * page error bits.
  */
 static void writepages_finish(struct ceph_osd_request *req)
 {
-	struct inode *inode = req->r_inode;
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_client *cl = ceph_inode_to_client(inode);
+	struct ianalde *ianalde = req->r_ianalde;
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
+	struct ceph_client *cl = ceph_ianalde_to_client(ianalde);
 	struct ceph_osd_data *osd_data;
 	struct page *page;
 	int num_pages, total_pages = 0;
 	int i, j;
 	int rc = req->r_result;
 	struct ceph_snap_context *snapc = req->r_snapc;
-	struct address_space *mapping = inode->i_mapping;
-	struct ceph_fs_client *fsc = ceph_inode_to_fs_client(inode);
+	struct address_space *mapping = ianalde->i_mapping;
+	struct ceph_fs_client *fsc = ceph_ianalde_to_fs_client(ianalde);
 	unsigned int len = 0;
 	bool remove_page;
 
-	doutc(cl, "%llx.%llx rc %d\n", ceph_vinop(inode), rc);
+	doutc(cl, "%llx.%llx rc %d\n", ceph_vianalp(ianalde), rc);
 	if (rc < 0) {
 		mapping_set_error(mapping, rc);
 		ceph_set_error_write(ci);
@@ -857,7 +857,7 @@ static void writepages_finish(struct ceph_osd_request *req)
 		if (req->r_ops[i].op != CEPH_OSD_OP_WRITE) {
 			pr_warn_client(cl,
 				"%llx.%llx incorrect op %d req %p index %d tid %llu\n",
-				ceph_vinop(inode), req->r_ops[i].op, req, i,
+				ceph_vianalp(ianalde), req->r_ops[i].op, req, i,
 				req->r_tid);
 			break;
 		}
@@ -888,13 +888,13 @@ static void writepages_finish(struct ceph_osd_request *req)
 			doutc(cl, "unlocking %p\n", page);
 
 			if (remove_page)
-				generic_error_remove_folio(inode->i_mapping,
+				generic_error_remove_folio(ianalde->i_mapping,
 							  page_folio(page));
 
 			unlock_page(page);
 		}
 		doutc(cl, "%llx.%llx wrote %llu bytes cleaned %d pages\n",
-		      ceph_vinop(inode), osd_data->length,
+		      ceph_vianalp(ianalde), osd_data->length,
 		      rc >= 0 ? num_pages : 0);
 
 		release_pages(osd_data->pages, num_pages);
@@ -920,36 +920,36 @@ static void writepages_finish(struct ceph_osd_request *req)
 static int ceph_writepages_start(struct address_space *mapping,
 				 struct writeback_control *wbc)
 {
-	struct inode *inode = mapping->host;
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_fs_client *fsc = ceph_inode_to_fs_client(inode);
+	struct ianalde *ianalde = mapping->host;
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
+	struct ceph_fs_client *fsc = ceph_ianalde_to_fs_client(ianalde);
 	struct ceph_client *cl = fsc->client;
-	struct ceph_vino vino = ceph_vino(inode);
+	struct ceph_vianal vianal = ceph_vianal(ianalde);
 	pgoff_t index, start_index, end = -1;
 	struct ceph_snap_context *snapc = NULL, *last_snapc = NULL, *pgsnapc;
 	struct folio_batch fbatch;
 	int rc = 0;
-	unsigned int wsize = i_blocksize(inode);
+	unsigned int wsize = i_blocksize(ianalde);
 	struct ceph_osd_request *req = NULL;
 	struct ceph_writeback_ctl ceph_wbc;
 	bool should_loop, range_whole = false;
 	bool done = false;
-	bool caching = ceph_is_cache_enabled(inode);
+	bool caching = ceph_is_cache_enabled(ianalde);
 	xa_mark_t tag;
 
-	if (wbc->sync_mode == WB_SYNC_NONE &&
+	if (wbc->sync_mode == WB_SYNC_ANALNE &&
 	    fsc->write_congested)
 		return 0;
 
-	doutc(cl, "%llx.%llx (mode=%s)\n", ceph_vinop(inode),
-	      wbc->sync_mode == WB_SYNC_NONE ? "NONE" :
+	doutc(cl, "%llx.%llx (mode=%s)\n", ceph_vianalp(ianalde),
+	      wbc->sync_mode == WB_SYNC_ANALNE ? "ANALNE" :
 	      (wbc->sync_mode == WB_SYNC_ALL ? "ALL" : "HOLD"));
 
-	if (ceph_inode_is_shutdown(inode)) {
+	if (ceph_ianalde_is_shutdown(ianalde)) {
 		if (ci->i_wrbuffer_ref > 0) {
 			pr_warn_ratelimited_client(cl,
 				"%llx.%llx %lld forced umount\n",
-				ceph_vinop(inode), ceph_ino(inode));
+				ceph_vianalp(ianalde), ceph_ianal(ianalde));
 		}
 		mapping_set_error(mapping, -EIO);
 		return -EIO; /* we're in a forced umount, don't write! */
@@ -969,11 +969,11 @@ static int ceph_writepages_start(struct address_space *mapping,
 	}
 retry:
 	/* find oldest snap context with dirty data */
-	snapc = get_oldest_context(inode, &ceph_wbc, NULL);
+	snapc = get_oldest_context(ianalde, &ceph_wbc, NULL);
 	if (!snapc) {
 		/* hmm, why does writepages get called when there
-		   is no dirty data? */
-		doutc(cl, " no snap context with dirty data?\n");
+		   is anal dirty data? */
+		doutc(cl, " anal snap context with dirty data?\n");
 		goto out;
 	}
 	doutc(cl, " oldest snapc is %p seq %lld (%d snaps)\n", snapc,
@@ -993,16 +993,16 @@ retry:
 			end = wbc->range_end >> PAGE_SHIFT;
 			if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
 				range_whole = true;
-			doutc(cl, " not cyclic, %lu to %lu\n", index, end);
+			doutc(cl, " analt cyclic, %lu to %lu\n", index, end);
 		}
 	} else if (!ceph_wbc.head_snapc) {
-		/* Do not respect wbc->range_{start,end}. Dirty pages
+		/* Do analt respect wbc->range_{start,end}. Dirty pages
 		 * in that range can be associated with newer snapc.
-		 * They are not writeable until we write all dirty pages
+		 * They are analt writeable until we write all dirty pages
 		 * associated with 'snapc' get written */
 		if (index > 0)
 			should_loop = true;
-		doutc(cl, " non-head snapc, range whole\n");
+		doutc(cl, " analn-head snapc, range whole\n");
 	}
 
 	if (wbc->sync_mode == WB_SYNC_ALL || wbc->tagged_writepages)
@@ -1050,7 +1050,7 @@ get_more_pages:
 				      pgsnapc, pgsnapc->seq, snapc, snapc->seq);
 				if (!should_loop &&
 				    !ceph_wbc.head_snapc &&
-				    wbc->sync_mode != WB_SYNC_NONE)
+				    wbc->sync_mode != WB_SYNC_ANALNE)
 					should_loop = true;
 				unlock_page(page);
 				continue;
@@ -1061,7 +1061,7 @@ get_more_pages:
 				doutc(cl, "folio at %lu beyond eof %llu\n",
 				      folio->index, ceph_wbc.i_size);
 				if ((ceph_wbc.size_stable ||
-				    folio_pos(folio) >= i_size_read(inode)) &&
+				    folio_pos(folio) >= i_size_read(ianalde)) &&
 				    folio_clear_dirty_for_io(folio))
 					folio_invalidate(folio, 0,
 							folio_size(folio));
@@ -1074,7 +1074,7 @@ get_more_pages:
 				break;
 			}
 			if (PageWriteback(page) || PageFsCache(page)) {
-				if (wbc->sync_mode == WB_SYNC_NONE) {
+				if (wbc->sync_mode == WB_SYNC_ANALNE) {
 					doutc(cl, "%p under writeback\n", page);
 					unlock_page(page);
 					continue;
@@ -1117,10 +1117,10 @@ get_more_pages:
 				max_pages = calc_pages_for(0, (u64)len);
 				pages = kmalloc_array(max_pages,
 						      sizeof(*pages),
-						      GFP_NOFS);
+						      GFP_ANALFS);
 				if (!pages) {
 					from_pool = true;
-					pages = mempool_alloc(ceph_wb_pagevec_pool, GFP_NOFS);
+					pages = mempool_alloc(ceph_wb_pagevec_pool, GFP_ANALFS);
 					BUG_ON(!pages);
 				}
 
@@ -1139,26 +1139,26 @@ get_more_pages:
 				len = 0;
 			}
 
-			/* note position of first page in fbatch */
+			/* analte position of first page in fbatch */
 			doutc(cl, "%llx.%llx will write page %p idx %lu\n",
-			      ceph_vinop(inode), page, page->index);
+			      ceph_vianalp(ianalde), page, page->index);
 
 			if (atomic_long_inc_return(&fsc->writeback_count) >
 			    CONGESTION_ON_THRESH(
 				    fsc->mount_options->congestion_kb))
 				fsc->write_congested = true;
 
-			if (IS_ENCRYPTED(inode)) {
+			if (IS_ENCRYPTED(ianalde)) {
 				pages[locked_pages] =
 					fscrypt_encrypt_pagecache_blocks(page,
 						PAGE_SIZE, 0,
-						locked_pages ? GFP_NOWAIT : GFP_NOFS);
+						locked_pages ? GFP_ANALWAIT : GFP_ANALFS);
 				if (IS_ERR(pages[locked_pages])) {
 					if (PTR_ERR(pages[locked_pages]) == -EINVAL)
 						pr_err_client(cl,
-							"inode->i_blkbits=%hhu\n",
-							inode->i_blkbits);
-					/* better not fail on first page! */
+							"ianalde->i_blkbits=%hhu\n",
+							ianalde->i_blkbits);
+					/* better analt fail on first page! */
 					BUG_ON(locked_pages == 0);
 					pages[locked_pages] = NULL;
 					redirty_page_for_writepage(wbc, page);
@@ -1202,14 +1202,14 @@ new_request:
 		len = wsize;
 
 		req = ceph_osdc_new_request(&fsc->client->osdc,
-					&ci->i_layout, vino,
+					&ci->i_layout, vianal,
 					offset, &len, 0, num_ops,
 					CEPH_OSD_OP_WRITE, CEPH_OSD_FLAG_WRITE,
 					snapc, ceph_wbc.truncate_seq,
 					ceph_wbc.truncate_size, false);
 		if (IS_ERR(req)) {
 			req = ceph_osdc_new_request(&fsc->client->osdc,
-						&ci->i_layout, vino,
+						&ci->i_layout, vianal,
 						offset, &len, 0,
 						min(num_ops,
 						    CEPH_OSD_SLAB_OPS),
@@ -1227,7 +1227,7 @@ new_request:
 			goto release_folios;
 		}
 		req->r_callback = writepages_finish;
-		req->r_inode = inode;
+		req->r_ianalde = ianalde;
 
 		/* Format the osd request message and submit the write */
 		len = 0;
@@ -1247,7 +1247,7 @@ new_request:
 					break;
 
 				/* Kick off an fscache write with what we have so far. */
-				ceph_fscache_write_to_cache(inode, offset, len, caching);
+				ceph_fscache_write_to_cache(ianalde, offset, len, caching);
 
 				/* Start a new extent */
 				osd_req_op_extent_dup_last(req, op_idx,
@@ -1270,7 +1270,7 @@ new_request:
 				ceph_set_page_fscache(page);
 			len += thp_size(page);
 		}
-		ceph_fscache_write_to_cache(inode, offset, len, caching);
+		ceph_fscache_write_to_cache(ianalde, offset, len, caching);
 
 		if (ceph_wbc.size_stable) {
 			len = min(len, ceph_wbc.i_size - offset);
@@ -1279,16 +1279,16 @@ new_request:
 			 * according to the data length, so make sure
 			 * data length covers all locked pages */
 			u64 min_len = len + 1 - thp_size(page);
-			len = get_writepages_data_length(inode, pages[i - 1],
+			len = get_writepages_data_length(ianalde, pages[i - 1],
 							 offset);
 			len = max(len, min_len);
 		}
-		if (IS_ENCRYPTED(inode))
+		if (IS_ENCRYPTED(ianalde))
 			len = round_up(len, CEPH_FSCRYPT_BLOCK_SIZE);
 
 		doutc(cl, "got pages at %llu~%llu\n", offset, len);
 
-		if (IS_ENCRYPTED(inode) &&
+		if (IS_ENCRYPTED(ianalde) &&
 		    ((offset | len) & ~CEPH_FSCRYPT_BLOCK_MASK))
 			pr_warn_client(cl,
 				"bad encrypted write offset=%lld len=%llu\n",
@@ -1309,10 +1309,10 @@ new_request:
 			/* allocate new pages array for next request */
 			data_pages = pages;
 			pages = kmalloc_array(locked_pages, sizeof(*pages),
-					      GFP_NOFS);
+					      GFP_ANALFS);
 			if (!pages) {
 				from_pool = true;
-				pages = mempool_alloc(ceph_wb_pagevec_pool, GFP_NOFS);
+				pages = mempool_alloc(ceph_wb_pagevec_pool, GFP_ANALFS);
 				BUG_ON(!pages);
 			}
 			memcpy(pages, data_pages + i,
@@ -1322,11 +1322,11 @@ new_request:
 		} else {
 			BUG_ON(num_ops != req->r_num_ops);
 			index = pages[i - 1]->index + 1;
-			/* request message now owns the pages array */
+			/* request message analw owns the pages array */
 			pages = NULL;
 		}
 
-		req->r_mtime = inode_get_mtime(inode);
+		req->r_mtime = ianalde_get_mtime(ianalde);
 		ceph_osdc_start_request(&fsc->client->osdc, req);
 		req = NULL;
 
@@ -1335,12 +1335,12 @@ new_request:
 			goto new_request;
 
 		/*
-		 * We stop writing back only if we are not doing
+		 * We stop writing back only if we are analt doing
 		 * integrity sync. In case of integrity sync we have to
 		 * keep going until we have written all the pages
 		 * we tagged for writeback prior to entering this loop.
 		 */
-		if (wbc->nr_to_write <= 0 && wbc->sync_mode == WB_SYNC_NONE)
+		if (wbc->nr_to_write <= 0 && wbc->sync_mode == WB_SYNC_ANALNE)
 			done = true;
 
 release_folios:
@@ -1356,7 +1356,7 @@ release_folios:
 
 		/* to write dirty pages associated with next snapc,
 		 * we need to wait until current writes complete */
-		if (wbc->sync_mode != WB_SYNC_NONE &&
+		if (wbc->sync_mode != WB_SYNC_ANALNE &&
 		    start_index == 0 && /* all dirty pages were checked */
 		    !ceph_wbc.head_snapc) {
 			struct page *page;
@@ -1389,7 +1389,7 @@ release_folios:
 out:
 	ceph_osdc_put_request(req);
 	ceph_put_snap_context(last_snapc);
-	doutc(cl, "%llx.%llx dend - startone, rc = %d\n", ceph_vinop(inode),
+	doutc(cl, "%llx.%llx dend - startone, rc = %d\n", ceph_vianalp(ianalde),
 	      rc);
 	return rc;
 }
@@ -1399,10 +1399,10 @@ out:
 /*
  * See if a given @snapc is either writeable, or already written.
  */
-static int context_is_writeable_or_written(struct inode *inode,
+static int context_is_writeable_or_written(struct ianalde *ianalde,
 					   struct ceph_snap_context *snapc)
 {
-	struct ceph_snap_context *oldest = get_oldest_context(inode, NULL, NULL);
+	struct ceph_snap_context *oldest = get_oldest_context(ianalde, NULL, NULL);
 	int ret = !oldest || snapc->seq <= oldest->seq;
 
 	ceph_put_snap_context(oldest);
@@ -1423,13 +1423,13 @@ static int context_is_writeable_or_written(struct inode *inode,
 static struct ceph_snap_context *
 ceph_find_incompatible(struct page *page)
 {
-	struct inode *inode = page->mapping->host;
-	struct ceph_client *cl = ceph_inode_to_client(inode);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ianalde *ianalde = page->mapping->host;
+	struct ceph_client *cl = ceph_ianalde_to_client(ianalde);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
 
-	if (ceph_inode_is_shutdown(inode)) {
+	if (ceph_ianalde_is_shutdown(ianalde)) {
 		doutc(cl, " %llx.%llx page %p is shutdown\n",
-		      ceph_vinop(inode), page);
+		      ceph_vianalp(ianalde), page);
 		return ERR_PTR(-ESTALE);
 	}
 
@@ -1443,24 +1443,24 @@ ceph_find_incompatible(struct page *page)
 			break;
 
 		/*
-		 * this page is already dirty in another (older) snap
-		 * context!  is it writeable now?
+		 * this page is already dirty in aanalther (older) snap
+		 * context!  is it writeable analw?
 		 */
-		oldest = get_oldest_context(inode, NULL, NULL);
+		oldest = get_oldest_context(ianalde, NULL, NULL);
 		if (snapc->seq > oldest->seq) {
-			/* not writeable -- return it for the caller to deal with */
+			/* analt writeable -- return it for the caller to deal with */
 			ceph_put_snap_context(oldest);
-			doutc(cl, " %llx.%llx page %p snapc %p not current or oldest\n",
-			      ceph_vinop(inode), page, snapc);
+			doutc(cl, " %llx.%llx page %p snapc %p analt current or oldest\n",
+			      ceph_vianalp(ianalde), page, snapc);
 			return ceph_get_snap_context(snapc);
 		}
 		ceph_put_snap_context(oldest);
 
-		/* yay, writeable, do it now (without dropping page lock) */
-		doutc(cl, " %llx.%llx page %p snapc %p not current, but oldest\n",
-		      ceph_vinop(inode), page, snapc);
+		/* yay, writeable, do it analw (without dropping page lock) */
+		doutc(cl, " %llx.%llx page %p snapc %p analt current, but oldest\n",
+		      ceph_vianalp(ianalde), page, snapc);
 		if (clear_page_dirty_for_io(page)) {
-			int r = writepage_nounlock(page, NULL);
+			int r = writepage_analunlock(page, NULL);
 			if (r < 0)
 				return ERR_PTR(r);
 		}
@@ -1471,8 +1471,8 @@ ceph_find_incompatible(struct page *page)
 static int ceph_netfs_check_write_begin(struct file *file, loff_t pos, unsigned int len,
 					struct folio **foliop, void **_fsdata)
 {
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
 	struct ceph_snap_context *snapc;
 
 	snapc = ceph_find_incompatible(folio_page(*foliop, 0));
@@ -1485,9 +1485,9 @@ static int ceph_netfs_check_write_begin(struct file *file, loff_t pos, unsigned 
 		if (IS_ERR(snapc))
 			return PTR_ERR(snapc);
 
-		ceph_queue_writeback(inode);
+		ceph_queue_writeback(ianalde);
 		r = wait_event_killable(ci->i_cap_wq,
-					context_is_writeable_or_written(inode, snapc));
+					context_is_writeable_or_written(ianalde, snapc));
 		ceph_put_snap_context(snapc);
 		return r == 0 ? -EAGAIN : r;
 	}
@@ -1502,12 +1502,12 @@ static int ceph_write_begin(struct file *file, struct address_space *mapping,
 			    loff_t pos, unsigned len,
 			    struct page **pagep, void **fsdata)
 {
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
 	struct folio *folio = NULL;
 	int r;
 
-	r = netfs_write_begin(&ci->netfs, file, inode->i_mapping, pos, len, &folio, NULL);
+	r = netfs_write_begin(&ci->netfs, file, ianalde->i_mapping, pos, len, &folio, NULL);
 	if (r < 0)
 		return r;
 
@@ -1526,15 +1526,15 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
 			  struct page *subpage, void *fsdata)
 {
 	struct folio *folio = page_folio(subpage);
-	struct inode *inode = file_inode(file);
-	struct ceph_client *cl = ceph_inode_to_client(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct ceph_client *cl = ceph_ianalde_to_client(ianalde);
 	bool check_cap = false;
 
-	doutc(cl, "%llx.%llx file %p folio %p %d~%d (%d)\n", ceph_vinop(inode),
+	doutc(cl, "%llx.%llx file %p folio %p %d~%d (%d)\n", ceph_vianalp(ianalde),
 	      file, folio, (int)pos, (int)copied, (int)len);
 
 	if (!folio_test_uptodate(folio)) {
-		/* just return that nothing was copied on a short copy */
+		/* just return that analthing was copied on a short copy */
 		if (copied < len) {
 			copied = 0;
 			goto out;
@@ -1543,8 +1543,8 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
 	}
 
 	/* did file size increase? */
-	if (pos+copied > i_size_read(inode))
-		check_cap = ceph_inode_set_size(inode, pos+copied);
+	if (pos+copied > i_size_read(ianalde))
+		check_cap = ceph_ianalde_set_size(ianalde, pos+copied);
 
 	folio_mark_dirty(folio);
 
@@ -1553,7 +1553,7 @@ out:
 	folio_put(folio);
 
 	if (check_cap)
-		ceph_check_caps(ceph_inode(inode), CHECK_CAPS_AUTHONLY);
+		ceph_check_caps(ceph_ianalde(ianalde), CHECK_CAPS_AUTHONLY);
 
 	return copied;
 }
@@ -1568,7 +1568,7 @@ const struct address_space_operations ceph_aops = {
 	.dirty_folio = ceph_dirty_folio,
 	.invalidate_folio = ceph_invalidate_folio,
 	.release_folio = netfs_release_folio,
-	.direct_IO = noop_direct_IO,
+	.direct_IO = analop_direct_IO,
 };
 
 static void ceph_block_sigs(sigset_t *oldset)
@@ -1589,22 +1589,22 @@ static void ceph_restore_sigs(sigset_t *oldset)
 static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
-	struct inode *inode = file_inode(vma->vm_file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_client *cl = ceph_inode_to_client(inode);
+	struct ianalde *ianalde = file_ianalde(vma->vm_file);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
+	struct ceph_client *cl = ceph_ianalde_to_client(ianalde);
 	struct ceph_file_info *fi = vma->vm_file->private_data;
 	loff_t off = (loff_t)vmf->pgoff << PAGE_SHIFT;
 	int want, got, err;
 	sigset_t oldset;
 	vm_fault_t ret = VM_FAULT_SIGBUS;
 
-	if (ceph_inode_is_shutdown(inode))
+	if (ceph_ianalde_is_shutdown(ianalde))
 		return ret;
 
 	ceph_block_sigs(&oldset);
 
 	doutc(cl, "%llx.%llx %llu trying to get caps\n",
-	      ceph_vinop(inode), off);
+	      ceph_vianalp(ianalde), off);
 	if (fi->fmode & CEPH_FILE_MODE_LAZY)
 		want = CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO;
 	else
@@ -1615,7 +1615,7 @@ static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 	if (err < 0)
 		goto out_restore;
 
-	doutc(cl, "%llx.%llx %llu got cap refs on %s\n", ceph_vinop(inode),
+	doutc(cl, "%llx.%llx %llu got cap refs on %s\n", ceph_vianalp(ianalde),
 	      off, ceph_cap_string(got));
 
 	if ((got & (CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO)) ||
@@ -1625,7 +1625,7 @@ static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 		ret = filemap_fault(vmf);
 		ceph_del_rw_context(fi, &rw_ctx);
 		doutc(cl, "%llx.%llx %llu drop cap refs %s ret %x\n",
-		      ceph_vinop(inode), off, ceph_cap_string(got), ret);
+		      ceph_vianalp(ianalde), off, ceph_cap_string(got), ret);
 	} else
 		err = -EAGAIN;
 
@@ -1636,10 +1636,10 @@ static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 
 	/* read inline data */
 	if (off >= PAGE_SIZE) {
-		/* does not support inline data > PAGE_SIZE */
+		/* does analt support inline data > PAGE_SIZE */
 		ret = VM_FAULT_SIGBUS;
 	} else {
-		struct address_space *mapping = inode->i_mapping;
+		struct address_space *mapping = ianalde->i_mapping;
 		struct page *page;
 
 		filemap_invalidate_lock_shared(mapping);
@@ -1649,9 +1649,9 @@ static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 			ret = VM_FAULT_OOM;
 			goto out_inline;
 		}
-		err = __ceph_do_getattr(inode, page,
+		err = __ceph_do_getattr(ianalde, page,
 					 CEPH_STAT_CAP_INLINE_DATA, true);
-		if (err < 0 || off >= i_size_read(inode)) {
+		if (err < 0 || off >= i_size_read(ianalde)) {
 			unlock_page(page);
 			put_page(page);
 			ret = vmf_error(err);
@@ -1667,7 +1667,7 @@ static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 out_inline:
 		filemap_invalidate_unlock_shared(mapping);
 		doutc(cl, "%llx.%llx %llu read inline data ret %x\n",
-		      ceph_vinop(inode), off, ret);
+		      ceph_vianalp(ianalde), off, ret);
 	}
 out_restore:
 	ceph_restore_sigs(&oldset);
@@ -1680,27 +1680,27 @@ out_restore:
 static vm_fault_t ceph_page_mkwrite(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
-	struct inode *inode = file_inode(vma->vm_file);
-	struct ceph_client *cl = ceph_inode_to_client(inode);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ianalde *ianalde = file_ianalde(vma->vm_file);
+	struct ceph_client *cl = ceph_ianalde_to_client(ianalde);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
 	struct ceph_file_info *fi = vma->vm_file->private_data;
 	struct ceph_cap_flush *prealloc_cf;
 	struct page *page = vmf->page;
 	loff_t off = page_offset(page);
-	loff_t size = i_size_read(inode);
+	loff_t size = i_size_read(ianalde);
 	size_t len;
 	int want, got, err;
 	sigset_t oldset;
 	vm_fault_t ret = VM_FAULT_SIGBUS;
 
-	if (ceph_inode_is_shutdown(inode))
+	if (ceph_ianalde_is_shutdown(ianalde))
 		return ret;
 
 	prealloc_cf = ceph_alloc_cap_flush();
 	if (!prealloc_cf)
 		return VM_FAULT_OOM;
 
-	sb_start_pagefault(inode->i_sb);
+	sb_start_pagefault(ianalde->i_sb);
 	ceph_block_sigs(&oldset);
 
 	if (off + thp_size(page) <= size)
@@ -1709,7 +1709,7 @@ static vm_fault_t ceph_page_mkwrite(struct vm_fault *vmf)
 		len = offset_in_thp(page, size);
 
 	doutc(cl, "%llx.%llx %llu~%zd getting caps i_size %llu\n",
-	      ceph_vinop(inode), off, len, size);
+	      ceph_vianalp(ianalde), off, len, size);
 	if (fi->fmode & CEPH_FILE_MODE_LAZY)
 		want = CEPH_CAP_FILE_BUFFER | CEPH_CAP_FILE_LAZYIO;
 	else
@@ -1720,21 +1720,21 @@ static vm_fault_t ceph_page_mkwrite(struct vm_fault *vmf)
 	if (err < 0)
 		goto out_free;
 
-	doutc(cl, "%llx.%llx %llu~%zd got cap refs on %s\n", ceph_vinop(inode),
+	doutc(cl, "%llx.%llx %llu~%zd got cap refs on %s\n", ceph_vianalp(ianalde),
 	      off, len, ceph_cap_string(got));
 
 	/* Update time before taking page lock */
 	file_update_time(vma->vm_file);
-	inode_inc_iversion_raw(inode);
+	ianalde_inc_iversion_raw(ianalde);
 
 	do {
 		struct ceph_snap_context *snapc;
 
 		lock_page(page);
 
-		if (page_mkwrite_check_truncate(page, inode) < 0) {
+		if (page_mkwrite_check_truncate(page, ianalde) < 0) {
 			unlock_page(page);
-			ret = VM_FAULT_NOPAGE;
+			ret = VM_FAULT_ANALPAGE;
 			break;
 		}
 
@@ -1753,9 +1753,9 @@ static vm_fault_t ceph_page_mkwrite(struct vm_fault *vmf)
 			break;
 		}
 
-		ceph_queue_writeback(inode);
+		ceph_queue_writeback(ianalde);
 		err = wait_event_killable(ci->i_cap_wq,
-				context_is_writeable_or_written(inode, snapc));
+				context_is_writeable_or_written(ianalde, snapc));
 		ceph_put_snap_context(snapc);
 	} while (err == 0);
 
@@ -1766,32 +1766,32 @@ static vm_fault_t ceph_page_mkwrite(struct vm_fault *vmf)
 					       &prealloc_cf);
 		spin_unlock(&ci->i_ceph_lock);
 		if (dirty)
-			__mark_inode_dirty(inode, dirty);
+			__mark_ianalde_dirty(ianalde, dirty);
 	}
 
 	doutc(cl, "%llx.%llx %llu~%zd dropping cap refs on %s ret %x\n",
-	      ceph_vinop(inode), off, len, ceph_cap_string(got), ret);
+	      ceph_vianalp(ianalde), off, len, ceph_cap_string(got), ret);
 	ceph_put_cap_refs_async(ci, got);
 out_free:
 	ceph_restore_sigs(&oldset);
-	sb_end_pagefault(inode->i_sb);
+	sb_end_pagefault(ianalde->i_sb);
 	ceph_free_cap_flush(prealloc_cf);
 	if (err < 0)
 		ret = vmf_error(err);
 	return ret;
 }
 
-void ceph_fill_inline_data(struct inode *inode, struct page *locked_page,
+void ceph_fill_inline_data(struct ianalde *ianalde, struct page *locked_page,
 			   char	*data, size_t len)
 {
-	struct ceph_client *cl = ceph_inode_to_client(inode);
-	struct address_space *mapping = inode->i_mapping;
+	struct ceph_client *cl = ceph_ianalde_to_client(ianalde);
+	struct address_space *mapping = ianalde->i_mapping;
 	struct page *page;
 
 	if (locked_page) {
 		page = locked_page;
 	} else {
-		if (i_size_read(inode) == 0)
+		if (i_size_read(ianalde) == 0)
 			return;
 		page = find_or_create_page(mapping, 0,
 					   mapping_gfp_constraint(mapping,
@@ -1805,8 +1805,8 @@ void ceph_fill_inline_data(struct inode *inode, struct page *locked_page,
 		}
 	}
 
-	doutc(cl, "%p %llx.%llx len %zu locked_page %p\n", inode,
-	      ceph_vinop(inode), len, locked_page);
+	doutc(cl, "%p %llx.%llx len %zu locked_page %p\n", ianalde,
+	      ceph_vianalp(ianalde), len, locked_page);
 
 	if (len > 0) {
 		void *kaddr = kmap_atomic(page);
@@ -1828,14 +1828,14 @@ void ceph_fill_inline_data(struct inode *inode, struct page *locked_page,
 
 int ceph_uninline_data(struct file *file)
 {
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_fs_client *fsc = ceph_inode_to_fs_client(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
+	struct ceph_fs_client *fsc = ceph_ianalde_to_fs_client(ianalde);
 	struct ceph_client *cl = fsc->client;
 	struct ceph_osd_request *req = NULL;
 	struct ceph_cap_flush *prealloc_cf = NULL;
 	struct folio *folio = NULL;
-	u64 inline_version = CEPH_INLINE_NONE;
+	u64 inline_version = CEPH_INLINE_ANALNE;
 	struct page *pages[1];
 	int err = 0;
 	u64 len;
@@ -1844,25 +1844,25 @@ int ceph_uninline_data(struct file *file)
 	inline_version = ci->i_inline_version;
 	spin_unlock(&ci->i_ceph_lock);
 
-	doutc(cl, "%llx.%llx inline_version %llu\n", ceph_vinop(inode),
+	doutc(cl, "%llx.%llx inline_version %llu\n", ceph_vianalp(ianalde),
 	      inline_version);
 
-	if (ceph_inode_is_shutdown(inode)) {
+	if (ceph_ianalde_is_shutdown(ianalde)) {
 		err = -EIO;
 		goto out;
 	}
 
-	if (inline_version == CEPH_INLINE_NONE)
+	if (inline_version == CEPH_INLINE_ANALNE)
 		return 0;
 
 	prealloc_cf = ceph_alloc_cap_flush();
 	if (!prealloc_cf)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (inline_version == 1) /* initial version, no data */
+	if (inline_version == 1) /* initial version, anal data */
 		goto out_uninline;
 
-	folio = read_mapping_folio(inode->i_mapping, 0, file);
+	folio = read_mapping_folio(ianalde->i_mapping, 0, file);
 	if (IS_ERR(folio)) {
 		err = PTR_ERR(folio);
 		goto out;
@@ -1870,12 +1870,12 @@ int ceph_uninline_data(struct file *file)
 
 	folio_lock(folio);
 
-	len = i_size_read(inode);
+	len = i_size_read(ianalde);
 	if (len > folio_size(folio))
 		len = folio_size(folio);
 
 	req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout,
-				    ceph_vino(inode), 0, &len, 0, 1,
+				    ceph_vianal(ianalde), 0, &len, 0, 1,
 				    CEPH_OSD_OP_CREATE, CEPH_OSD_FLAG_WRITE,
 				    NULL, 0, 0, false);
 	if (IS_ERR(req)) {
@@ -1883,7 +1883,7 @@ int ceph_uninline_data(struct file *file)
 		goto out_unlock;
 	}
 
-	req->r_mtime = inode_get_mtime(inode);
+	req->r_mtime = ianalde_get_mtime(ianalde);
 	ceph_osdc_start_request(&fsc->client->osdc, req);
 	err = ceph_osdc_wait_request(&fsc->client->osdc, req);
 	ceph_osdc_put_request(req);
@@ -1891,7 +1891,7 @@ int ceph_uninline_data(struct file *file)
 		goto out_unlock;
 
 	req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout,
-				    ceph_vino(inode), 0, &len, 1, 3,
+				    ceph_vianal(ianalde), 0, &len, 1, 3,
 				    CEPH_OSD_OP_WRITE, CEPH_OSD_FLAG_WRITE,
 				    NULL, ci->i_truncate_seq,
 				    ci->i_truncate_size, false);
@@ -1925,7 +1925,7 @@ int ceph_uninline_data(struct file *file)
 			goto out_put_req;
 	}
 
-	req->r_mtime = inode_get_mtime(inode);
+	req->r_mtime = ianalde_get_mtime(ianalde);
 	ceph_osdc_start_request(&fsc->client->osdc, req);
 	err = ceph_osdc_wait_request(&fsc->client->osdc, req);
 
@@ -1936,15 +1936,15 @@ out_uninline:
 	if (!err) {
 		int dirty;
 
-		/* Set to CAP_INLINE_NONE and dirty the caps */
+		/* Set to CAP_INLINE_ANALNE and dirty the caps */
 		down_read(&fsc->mdsc->snap_rwsem);
 		spin_lock(&ci->i_ceph_lock);
-		ci->i_inline_version = CEPH_INLINE_NONE;
+		ci->i_inline_version = CEPH_INLINE_ANALNE;
 		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR, &prealloc_cf);
 		spin_unlock(&ci->i_ceph_lock);
 		up_read(&fsc->mdsc->snap_rwsem);
 		if (dirty)
-			__mark_inode_dirty(inode, dirty);
+			__mark_ianalde_dirty(ianalde, dirty);
 	}
 out_put_req:
 	ceph_osdc_put_request(req);
@@ -1958,7 +1958,7 @@ out_unlock:
 out:
 	ceph_free_cap_flush(prealloc_cf);
 	doutc(cl, "%llx.%llx inline_version %llu = %d\n",
-	      ceph_vinop(inode), inline_version, err);
+	      ceph_vianalp(ianalde), inline_version, err);
 	return err;
 }
 
@@ -1972,7 +1972,7 @@ int ceph_mmap(struct file *file, struct vm_area_struct *vma)
 	struct address_space *mapping = file->f_mapping;
 
 	if (!mapping->a_ops->read_folio)
-		return -ENOEXEC;
+		return -EANALEXEC;
 	vma->vm_ops = &ceph_vmops;
 	return 0;
 }
@@ -1982,23 +1982,23 @@ enum {
 	POOL_WRITE	= 2,
 };
 
-static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
+static int __ceph_pool_perm_get(struct ceph_ianalde_info *ci,
 				s64 pool, struct ceph_string *pool_ns)
 {
-	struct ceph_fs_client *fsc = ceph_inode_to_fs_client(&ci->netfs.inode);
+	struct ceph_fs_client *fsc = ceph_ianalde_to_fs_client(&ci->netfs.ianalde);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_client *cl = fsc->client;
 	struct ceph_osd_request *rd_req = NULL, *wr_req = NULL;
-	struct rb_node **p, *parent;
+	struct rb_analde **p, *parent;
 	struct ceph_pool_perm *perm;
 	struct page **pages;
 	size_t pool_ns_len;
 	int err = 0, err2 = 0, have = 0;
 
 	down_read(&mdsc->pool_perm_rwsem);
-	p = &mdsc->pool_perm_tree.rb_node;
+	p = &mdsc->pool_perm_tree.rb_analde;
 	while (*p) {
-		perm = rb_entry(*p, struct ceph_pool_perm, node);
+		perm = rb_entry(*p, struct ceph_pool_perm, analde);
 		if (pool < perm->pool)
 			p = &(*p)->rb_left;
 		else if (pool > perm->pool)
@@ -2022,17 +2022,17 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 		goto out;
 
 	if (pool_ns)
-		doutc(cl, "pool %lld ns %.*s no perm cached\n", pool,
+		doutc(cl, "pool %lld ns %.*s anal perm cached\n", pool,
 		      (int)pool_ns->len, pool_ns->str);
 	else
-		doutc(cl, "pool %lld no perm cached\n", pool);
+		doutc(cl, "pool %lld anal perm cached\n", pool);
 
 	down_write(&mdsc->pool_perm_rwsem);
-	p = &mdsc->pool_perm_tree.rb_node;
+	p = &mdsc->pool_perm_tree.rb_analde;
 	parent = NULL;
 	while (*p) {
 		parent = *p;
-		perm = rb_entry(parent, struct ceph_pool_perm, node);
+		perm = rb_entry(parent, struct ceph_pool_perm, analde);
 		if (pool < perm->pool)
 			p = &(*p)->rb_left;
 		else if (pool > perm->pool)
@@ -2057,9 +2057,9 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 	}
 
 	rd_req = ceph_osdc_alloc_request(&fsc->client->osdc, NULL,
-					 1, false, GFP_NOFS);
+					 1, false, GFP_ANALFS);
 	if (!rd_req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -2068,16 +2068,16 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 	rd_req->r_base_oloc.pool = pool;
 	if (pool_ns)
 		rd_req->r_base_oloc.pool_ns = ceph_get_string(pool_ns);
-	ceph_oid_printf(&rd_req->r_base_oid, "%llx.00000000", ci->i_vino.ino);
+	ceph_oid_printf(&rd_req->r_base_oid, "%llx.00000000", ci->i_vianal.ianal);
 
-	err = ceph_osdc_alloc_messages(rd_req, GFP_NOFS);
+	err = ceph_osdc_alloc_messages(rd_req, GFP_ANALFS);
 	if (err)
 		goto out_unlock;
 
 	wr_req = ceph_osdc_alloc_request(&fsc->client->osdc, NULL,
-					 1, false, GFP_NOFS);
+					 1, false, GFP_ANALFS);
 	if (!wr_req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -2086,11 +2086,11 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 	ceph_oloc_copy(&wr_req->r_base_oloc, &rd_req->r_base_oloc);
 	ceph_oid_copy(&wr_req->r_base_oid, &rd_req->r_base_oid);
 
-	err = ceph_osdc_alloc_messages(wr_req, GFP_NOFS);
+	err = ceph_osdc_alloc_messages(wr_req, GFP_ANALFS);
 	if (err)
 		goto out_unlock;
 
-	/* one page should be large enough for STAT data */
+	/* one page should be large eanalugh for STAT data */
 	pages = ceph_alloc_page_vector(1, GFP_KERNEL);
 	if (IS_ERR(pages)) {
 		err = PTR_ERR(pages);
@@ -2101,13 +2101,13 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 				     0, false, true);
 	ceph_osdc_start_request(&fsc->client->osdc, rd_req);
 
-	wr_req->r_mtime = inode_get_mtime(&ci->netfs.inode);
+	wr_req->r_mtime = ianalde_get_mtime(&ci->netfs.ianalde);
 	ceph_osdc_start_request(&fsc->client->osdc, wr_req);
 
 	err = ceph_osdc_wait_request(&fsc->client->osdc, rd_req);
 	err2 = ceph_osdc_wait_request(&fsc->client->osdc, wr_req);
 
-	if (err >= 0 || err == -ENOENT)
+	if (err >= 0 || err == -EANALENT)
 		have |= POOL_READ;
 	else if (err != -EPERM) {
 		if (err == -EBLOCKLISTED)
@@ -2125,9 +2125,9 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 	}
 
 	pool_ns_len = pool_ns ? pool_ns->len : 0;
-	perm = kmalloc(sizeof(*perm) + pool_ns_len + 1, GFP_NOFS);
+	perm = kmalloc(sizeof(*perm) + pool_ns_len + 1, GFP_ANALFS);
 	if (!perm) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -2138,8 +2138,8 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 		memcpy(perm->pool_ns, pool_ns->str, pool_ns_len);
 	perm->pool_ns[pool_ns_len] = 0;
 
-	rb_link_node(&perm->node, parent, p);
-	rb_insert_color(&perm->node, &mdsc->pool_perm_tree);
+	rb_link_analde(&perm->analde, parent, p);
+	rb_insert_color(&perm->analde, &mdsc->pool_perm_tree);
 	err = 0;
 out_unlock:
 	up_write(&mdsc->pool_perm_rwsem);
@@ -2157,19 +2157,19 @@ out:
 	return err;
 }
 
-int ceph_pool_perm_check(struct inode *inode, int need)
+int ceph_pool_perm_check(struct ianalde *ianalde, int need)
 {
-	struct ceph_client *cl = ceph_inode_to_client(inode);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_client *cl = ceph_ianalde_to_client(ianalde);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
 	struct ceph_string *pool_ns;
 	s64 pool;
 	int ret, flags;
 
 	/* Only need to do this for regular files */
-	if (!S_ISREG(inode->i_mode))
+	if (!S_ISREG(ianalde->i_mode))
 		return 0;
 
-	if (ci->i_vino.snap != CEPH_NOSNAP) {
+	if (ci->i_vianal.snap != CEPH_ANALSNAP) {
 		/*
 		 * Pool permission check needs to write to the first object.
 		 * But for snapshot, head of the first object may have alread
@@ -2178,8 +2178,8 @@ int ceph_pool_perm_check(struct inode *inode, int need)
 		return 0;
 	}
 
-	if (ceph_test_mount_opt(ceph_inode_to_fs_client(inode),
-				NOPOOLPERM))
+	if (ceph_test_mount_opt(ceph_ianalde_to_fs_client(ianalde),
+				ANALPOOLPERM))
 		return 0;
 
 	spin_lock(&ci->i_ceph_lock);
@@ -2189,11 +2189,11 @@ int ceph_pool_perm_check(struct inode *inode, int need)
 check:
 	if (flags & CEPH_I_POOL_PERM) {
 		if ((need & CEPH_CAP_FILE_RD) && !(flags & CEPH_I_POOL_RD)) {
-			doutc(cl, "pool %lld no read perm\n", pool);
+			doutc(cl, "pool %lld anal read perm\n", pool);
 			return -EPERM;
 		}
 		if ((need & CEPH_CAP_FILE_WR) && !(flags & CEPH_I_POOL_WR)) {
-			doutc(cl, "pool %lld no write perm\n", pool);
+			doutc(cl, "pool %lld anal write perm\n", pool);
 			return -EPERM;
 		}
 		return 0;
@@ -2226,11 +2226,11 @@ check:
 void ceph_pool_perm_destroy(struct ceph_mds_client *mdsc)
 {
 	struct ceph_pool_perm *perm;
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	while (!RB_EMPTY_ROOT(&mdsc->pool_perm_tree)) {
 		n = rb_first(&mdsc->pool_perm_tree);
-		perm = rb_entry(n, struct ceph_pool_perm, node);
+		perm = rb_entry(n, struct ceph_pool_perm, analde);
 		rb_erase(n, &mdsc->pool_perm_tree);
 		kfree(perm);
 	}

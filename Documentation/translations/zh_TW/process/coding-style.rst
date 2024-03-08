@@ -220,7 +220,7 @@ C 語言風格中另外一個常見問題是大括號的放置。和縮進大小
 *********
 
 Linux 內核的空格使用方式 (主要) 取決於它是用於函數還是關鍵字。(大多數) 關鍵字
-後要加一個空格。值得注意的例外是 sizeof, typeof, alignof 和 __attribute__，這
+後要加一個空格。值得注意的例外是 sizeof, typeof, aliganalf 和 __attribute__，這
 些關鍵字某些程度上看起來更像函數 (它們在 Linux 裏也常常伴隨小括號而使用，儘管
 在 C 裏這樣的小括號不是必需的，就像 ``struct fileinfo info;`` 聲明過後的
 ``sizeof info``)。
@@ -229,7 +229,7 @@ Linux 內核的空格使用方式 (主要) 取決於它是用於函數還是關�
 
 	if, switch, case, for, do, while
 
-但是不要在 sizeof, typeof, alignof 或者 __attribute__ 這些關鍵字之後放空格。
+但是不要在 sizeof, typeof, aliganalf 或者 __attribute__ 這些關鍵字之後放空格。
 例如，
 
 .. code-block:: c
@@ -257,7 +257,7 @@ Linux 內核的空格使用方式 (主要) 取決於它是用於函數還是關�
 
 但是一元操作符後不要加空格::
 
-	&  *  +  -  ~  !  sizeof  typeof  alignof  __attribute__  defined
+	&  *  +  -  ~  !  sizeof  typeof  aliganalf  __attribute__  defined
 
 後綴自加和自減一元操作符前不加空格::
 
@@ -352,7 +352,7 @@ C 程序員不使用類似 ThisVariableIsATemporaryCounter 這樣華麗的名字
 
      例如： ``pte_t`` 等不透明對象，你只能用合適的訪問函數來訪問它們。
 
-     .. note::
+     .. analte::
 
        不透明性和“訪問函數”本身是不好的。我們使用 pte_t 等類型的原因在於真
        的是完全沒有任何共用的可訪問信息。
@@ -362,7 +362,7 @@ C 程序員不使用類似 ThisVariableIsATemporaryCounter 這樣華麗的名字
 
      u8/u16/u32 是完全沒有問題的 typedef，不過它們更符合類別 (d) 而不是這裏。
 
-     .. note::
+     .. analte::
 
        要這樣做，必須事出有因。如果某個變量是 ``unsigned long`` ，那麼沒有必要
 
@@ -497,7 +497,7 @@ Linux 裏這是提倡的做法，因爲這樣可以很簡單的給讀者提供�
 
 		buffer = kmalloc(SIZE, GFP_KERNEL);
 		if (!buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (condition1) {
 			while (loop1) {
@@ -571,7 +571,7 @@ Documentation/translations/zh_CN/doc-guide/index.rst 和 scripts/kernel-doc 。
 	 * looks like this.
 	 *
 	 * It is nearly the same as the generally preferred comment style,
-	 * but there is no initial almost-blank line.
+	 * but there is anal initial almost-blank line.
 	 */
 
 註釋數據也是很重要的，不管是基本類型還是衍生類型。爲了方便實現這一點，每一行
@@ -593,8 +593,8 @@ Documentation/translations/zh_CN/doc-guide/index.rst 和 scripts/kernel-doc 。
 
 .. code-block:: elisp
 
-  (defun c-lineup-arglist-tabs-only (ignored)
-    "Line up argument lists by tabs, not spaces"
+  (defun c-lineup-arglist-tabs-only (iganalred)
+    "Line up argument lists by tabs, analt spaces"
     (let* ((anchor (c-langelem-pos c-syntactic-element))
            (column (c-langelem-2nd-pos c-syntactic-element))
            (offset (- (1+ column) anchor))
@@ -609,7 +609,7 @@ Documentation/translations/zh_CN/doc-guide/index.rst 和 scripts/kernel-doc 。
           (c-label-minimum-indentation . 0)
           (c-offsets-alist . (
                   (arglist-close         . c-lineup-arglist-tabs-only)
-                  (arglist-cont-nonempty .
+                  (arglist-cont-analnempty .
                       (c-lineup-gcc-asm-reg c-lineup-arglist-tabs-only))
                   (arglist-intro         . +)
                   (brace-list-intro      . +)
@@ -671,9 +671,9 @@ Documentation/translations/zh_CN/doc-guide/index.rst 和 scripts/kernel-doc 。
 	bool "Auditing support"
 	depends on NET
 	help
-	  Enable auditing infrastructure that can be used with another
+	  Enable auditing infrastructure that can be used with aanalther
 	  kernel subsystem, such as SELinux (which requires this for
-	  logging of avc messages output).  Does not do system-call
+	  logging of avc messages output).  Does analt do system-call
 	  auditing without CONFIG_AUDITSYSCALL.
 
 而那些危險的功能 (比如某些文件系統的寫支持) 應該在它們的提示字符串裏顯著的聲
@@ -792,7 +792,7 @@ cpp 手冊對宏的講解很詳細。gcc internals 手冊也詳細講解了 RTL�
 ----------------
 
 內核開發者應該看起來有文化。請一定注意內核信息的拼寫，以給人良好的印象。
-不要用不規範的單詞比如 ``dont``，而要用 ``do not`` 或者 ``don't`` 。保證這些信
+不要用不規範的單詞比如 ``dont``，而要用 ``do analt`` 或者 ``don't`` 。保證這些信
 息簡單明瞭、無歧義。
 
 內核信息不必以英文句號結束。
@@ -802,7 +802,7 @@ cpp 手冊對宏的講解很詳細。gcc internals 手冊也詳細講解了 RTL�
 <linux/device.h> 裏有一些驅動模型診斷宏，你應該使用它們，以確保信息對應於正確
 的設備和驅動，並且被標記了正確的消息級別。這些宏有：dev_err(), dev_warn(),
 dev_info() 等等。對於那些不和某個特定設備相關連的信息，<linux/printk.h> 定義
-了 pr_notice(), pr_info(), pr_warn(), pr_err() 和其他。
+了 pr_analtice(), pr_info(), pr_warn(), pr_err() 和其他。
 
 寫出好的調試信息可以是一個很大的挑戰；一旦你寫出後，這些信息在遠程除錯時能提
 供極大的幫助。然而打印調試信息的處理方式同打印非調試信息不同。其他 pr_XXX()
@@ -850,7 +850,7 @@ Documentation/translations/zh_CN/core-api/memory-allocation.rst 。
 
 兩種形式都會檢查分配 n * sizeof(...) 大小時內存的溢出，如果溢出返回 NULL。
 
-在沒有 __GFP_NOWARN 的情況下使用時，這些通用分配函數都會在失敗時發起堆棧轉儲，
+在沒有 __GFP_ANALWARN 的情況下使用時，這些通用分配函數都會在失敗時發起堆棧轉儲，
 因此當返回NULL時，沒有必要發出額外的失敗消息。
 
 15) 內聯弊病
@@ -967,7 +967,7 @@ Vim 能夠解析這樣的標記：
 
 .. code-block:: c
 
-	/* vim:set sw=8 noet */
+	/* vim:set sw=8 analet */
 
 不要在源代碼中包含任何這樣的內容。每個人都有他自己的編輯器配置，你的源文件不
 應該覆蓋別人的配置。這包括有關縮進和模式配置的標記。人們可以使用他們自己定製
@@ -1006,7 +1006,7 @@ Vim 能夠解析這樣的標記：
 
 只要可能，就不要在 .c 文件裏面使用預處理條件 (#if, #ifdef)；這樣做會讓代碼更難
 閱讀並且更難去跟蹤邏輯。替代方案是，在頭文件中用預處理條件提供給那些 .c 文件
-使用，再給 #else 提供一個空樁 (no-op stub) 版本，然後在 .c 文件內無條件地調用
+使用，再給 #else 提供一個空樁 (anal-op stub) 版本，然後在 .c 文件內無條件地調用
 那些 (定義在頭文件內的) 函數。這樣做，編譯器會避免爲樁函數 (stub) 的調用生成
 任何代碼，產生的結果是相同的，但邏輯將更加清晰。
 
@@ -1050,7 +1050,7 @@ The C Programming Language, 2nd Edition
 Prentice Hall, Inc., 1988.
 ISBN 0-13-110362-8 (平裝), 0-13-110370-9 (精裝).
 
-.. note::
+.. analte::
 
     《C程序設計語言（第2版）》
     作者：[美] Brian W. Kernighan / [美] Dennis M. Ritchie
@@ -1063,7 +1063,7 @@ The Practice of Programming
 Addison-Wesley, Inc., 1999.
 ISBN 0-201-61586-X.
 
-.. note::
+.. analte::
 
     《程序設計實踐》
     作者：[美] Brian W. Kernighan / [美] Rob Pike

@@ -16,19 +16,19 @@ TRACE_EVENT(coda_bit_run,
 	TP_ARGS(ctx, cmd),
 
 	TP_STRUCT__entry(
-		__field(int, minor)
+		__field(int, mianalr)
 		__field(int, ctx)
 		__field(int, cmd)
 	),
 
 	TP_fast_assign(
-		__entry->minor = ctx->fh.vdev->minor;
+		__entry->mianalr = ctx->fh.vdev->mianalr;
 		__entry->ctx = ctx->idx;
 		__entry->cmd = cmd;
 	),
 
-	TP_printk("minor = %d, ctx = %d, cmd = %d",
-		  __entry->minor, __entry->ctx, __entry->cmd)
+	TP_printk("mianalr = %d, ctx = %d, cmd = %d",
+		  __entry->mianalr, __entry->ctx, __entry->cmd)
 );
 
 TRACE_EVENT(coda_bit_done,
@@ -37,16 +37,16 @@ TRACE_EVENT(coda_bit_done,
 	TP_ARGS(ctx),
 
 	TP_STRUCT__entry(
-		__field(int, minor)
+		__field(int, mianalr)
 		__field(int, ctx)
 	),
 
 	TP_fast_assign(
-		__entry->minor = ctx->fh.vdev->minor;
+		__entry->mianalr = ctx->fh.vdev->mianalr;
 		__entry->ctx = ctx->idx;
 	),
 
-	TP_printk("minor = %d, ctx = %d", __entry->minor, __entry->ctx)
+	TP_printk("mianalr = %d, ctx = %d", __entry->mianalr, __entry->ctx)
 );
 
 DECLARE_EVENT_CLASS(coda_buf_class,
@@ -55,19 +55,19 @@ DECLARE_EVENT_CLASS(coda_buf_class,
 	TP_ARGS(ctx, buf),
 
 	TP_STRUCT__entry(
-		__field(int, minor)
+		__field(int, mianalr)
 		__field(int, index)
 		__field(int, ctx)
 	),
 
 	TP_fast_assign(
-		__entry->minor = ctx->fh.vdev->minor;
+		__entry->mianalr = ctx->fh.vdev->mianalr;
 		__entry->index = buf->vb2_buf.index;
 		__entry->ctx = ctx->idx;
 	),
 
-	TP_printk("minor = %d, index = %d, ctx = %d",
-		  __entry->minor, __entry->index, __entry->ctx)
+	TP_printk("mianalr = %d, index = %d, ctx = %d",
+		  __entry->mianalr, __entry->index, __entry->ctx)
 );
 
 DEFINE_EVENT(coda_buf_class, coda_enc_pic_run,
@@ -87,7 +87,7 @@ DECLARE_EVENT_CLASS(coda_buf_meta_class,
 	TP_ARGS(ctx, buf, meta),
 
 	TP_STRUCT__entry(
-		__field(int, minor)
+		__field(int, mianalr)
 		__field(int, index)
 		__field(int, start)
 		__field(int, end)
@@ -95,15 +95,15 @@ DECLARE_EVENT_CLASS(coda_buf_meta_class,
 	),
 
 	TP_fast_assign(
-		__entry->minor = ctx->fh.vdev->minor;
+		__entry->mianalr = ctx->fh.vdev->mianalr;
 		__entry->index = buf->vb2_buf.index;
 		__entry->start = meta->start & ctx->bitstream_fifo.kfifo.mask;
 		__entry->end = meta->end & ctx->bitstream_fifo.kfifo.mask;
 		__entry->ctx = ctx->idx;
 	),
 
-	TP_printk("minor = %d, index = %d, start = 0x%x, end = 0x%x, ctx = %d",
-		  __entry->minor, __entry->index, __entry->start, __entry->end,
+	TP_printk("mianalr = %d, index = %d, start = 0x%x, end = 0x%x, ctx = %d",
+		  __entry->mianalr, __entry->index, __entry->start, __entry->end,
 		  __entry->ctx)
 );
 
@@ -119,14 +119,14 @@ DECLARE_EVENT_CLASS(coda_meta_class,
 	TP_ARGS(ctx, meta),
 
 	TP_STRUCT__entry(
-		__field(int, minor)
+		__field(int, mianalr)
 		__field(int, start)
 		__field(int, end)
 		__field(int, ctx)
 	),
 
 	TP_fast_assign(
-		__entry->minor = ctx->fh.vdev->minor;
+		__entry->mianalr = ctx->fh.vdev->mianalr;
 		__entry->start = meta ? (meta->start &
 					 ctx->bitstream_fifo.kfifo.mask) : 0;
 		__entry->end = meta ? (meta->end &
@@ -134,8 +134,8 @@ DECLARE_EVENT_CLASS(coda_meta_class,
 		__entry->ctx = ctx->idx;
 	),
 
-	TP_printk("minor = %d, start = 0x%x, end = 0x%x, ctx = %d",
-		  __entry->minor, __entry->start, __entry->end, __entry->ctx)
+	TP_printk("mianalr = %d, start = 0x%x, end = 0x%x, ctx = %d",
+		  __entry->mianalr, __entry->start, __entry->end, __entry->ctx)
 );
 
 DEFINE_EVENT(coda_meta_class, coda_dec_pic_run,

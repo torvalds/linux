@@ -59,7 +59,7 @@ static void trash_stolen(struct drm_i915_private *i915)
 
 		ggtt->vm.insert_page(&ggtt->vm, dma, slot,
 				     i915_gem_get_pat_index(i915,
-							    I915_CACHE_NONE),
+							    I915_CACHE_ANALNE),
 				     0);
 
 		s = io_mapping_map_atomic_wc(&ggtt->iomap, slot);
@@ -147,7 +147,7 @@ static int igt_gem_suspend(void *arg)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ctx = live_context(i915, file);
 	if (!IS_ERR(ctx))
 		err = switch_to_context(ctx);
@@ -160,7 +160,7 @@ static int igt_gem_suspend(void *arg)
 
 	igt_pm_suspend(i915);
 
-	/* Here be dragons! Note that with S3RST any S3 may become S4! */
+	/* Here be dragons! Analte that with S3RST any S3 may become S4! */
 	simulate_hibernate(i915);
 
 	igt_pm_resume(i915);
@@ -182,7 +182,7 @@ static int igt_gem_hibernate(void *arg)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ctx = live_context(i915, file);
 	if (!IS_ERR(ctx))
 		err = switch_to_context(ctx);

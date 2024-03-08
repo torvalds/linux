@@ -3,7 +3,7 @@
  * Driver for the s5k4aa sensor
  *
  * Copyright (C) 2008 Erik Andrén
- * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
+ * Copyright (C) 2007 Ilanal Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
  * Portions of code to USB interface and ALi driver software,
@@ -45,7 +45,7 @@
 #define S5K4AA_EXPOSURE_LO		0x18
 #define S5K4AA_BRIGHTNESS		0x1f /* (digital?) gain : 5 bits */
 #define S5K4AA_GAIN			0x20 /* (analogue?) gain : 7 bits */
-#define S5K4AA_NOISE_SUPP		0x37
+#define S5K4AA_ANALISE_SUPP		0x37
 
 #define S5K4AA_RM_ROW_SKIP_4X		0x08
 #define S5K4AA_RM_ROW_SKIP_2X		0x04

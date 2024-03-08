@@ -9,7 +9,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
@@ -37,7 +37,7 @@
  * @ap: variable arguments to be fed to passed format template
  * (see p9pdu_vwritef)
  *
- * Note: Even for response types (P9_R*) the format template and variable
+ * Analte: Even for response types (P9_R*) the format template and variable
  * arguments must always be for the originating request type (P9_T*).
  */
 size_t p9_msg_buf_size(struct p9_client *c, enum p9_msg_t type,
@@ -45,7 +45,7 @@ size_t p9_msg_buf_size(struct p9_client *c, enum p9_msg_t type,
 {
 	/* size[4] type[1] tag[2] */
 	const int hdr = 4 + 1 + 2;
-	/* ename[s] errno[4] */
+	/* ename[s] erranal[4] */
 	const int rerror_size = hdr + P9_ERRMAX + 4;
 	/* ecode[4] */
 	const int rlerror_size = hdr + 4;
@@ -57,7 +57,7 @@ size_t p9_msg_buf_size(struct p9_client *c, enum p9_msg_t type,
 
 	switch (type) {
 
-	/* message types not used at all */
+	/* message types analt used at all */
 	case P9_TERROR:
 	case P9_TLERROR:
 	case P9_TAUTH:
@@ -177,7 +177,7 @@ size_t p9_msg_buf_size(struct p9_client *c, enum p9_msg_t type,
 	case P9_TXATTRCREATE:
 	case P9_TLINK:
 	case P9_TMKDIR:
-	case P9_TMKNOD:
+	case P9_TMKANALD:
 	case P9_TRENAME:
 	case P9_TUNLINKAT:
 	case P9_TLOCK:
@@ -247,7 +247,7 @@ pdu_write_u(struct p9_fcall *pdu, struct iov_iter *from, size_t size)
  *	g - numeric gid
  *	S - stat
  *	Q - qid
- *	D - data blob (int32_t size followed by void *, results are not freed)
+ *	D - data blob (int32_t size followed by void *, results are analt freed)
  *	T - array of strings (int16_t count, followed by strings)
  *	R - array of qids (int16_t count, followed by qids)
  *	A - stat for 9p2000.L (p9_stat_dotl)
@@ -310,9 +310,9 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 				if (errcode)
 					break;
 
-				*sptr = kmalloc(len + 1, GFP_NOFS);
+				*sptr = kmalloc(len + 1, GFP_ANALFS);
 				if (*sptr == NULL) {
-					errcode = -ENOMEM;
+					errcode = -EANALMEM;
 					break;
 				}
 				if (pdu_read(pdu, *sptr, len)) {
@@ -402,9 +402,9 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 					*wnames =
 					    kmalloc_array(*nwname,
 							  sizeof(char *),
-							  GFP_NOFS);
+							  GFP_ANALFS);
 					if (!*wnames)
-						errcode = -ENOMEM;
+						errcode = -EANALMEM;
 					else
 						(*wnames)[0] = NULL;
 				}
@@ -453,9 +453,9 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 					*wqids =
 					    kmalloc_array(*nwqid,
 							  sizeof(struct p9_qid),
-							  GFP_NOFS);
+							  GFP_ANALFS);
 					if (*wqids == NULL)
-						errcode = -ENOMEM;
+						errcode = -EANALMEM;
 				}
 
 				if (!errcode) {

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __ASM_GENERIC_POLL_H
 #define __ASM_GENERIC_POLL_H
 
@@ -10,11 +10,11 @@
 #define POLLHUP		0x0010
 #define POLLNVAL	0x0020
 
-/* The rest seem to be more-or-less nonstandard. Check them! */
-#define POLLRDNORM	0x0040
+/* The rest seem to be more-or-less analnstandard. Check them! */
+#define POLLRDANALRM	0x0040
 #define POLLRDBAND	0x0080
-#ifndef POLLWRNORM
-#define POLLWRNORM	0x0100
+#ifndef POLLWRANALRM
+#define POLLWRANALRM	0x0100
 #endif
 #ifndef POLLWRBAND
 #define POLLWRBAND	0x0200

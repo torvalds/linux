@@ -141,13 +141,13 @@
 #define SCTRL_LOW_PRIO		0x08
 #define SCTRL_SQ_ENA		0x10
 #define SCTRL_TEST		0x20
-#define SCTRL_NONE_CAP		0x40
+#define SCTRL_ANALNE_CAP		0x40
 #define SCTRL_PWR_DOWN		0x80
 
 /* bits in SCTRL_E  */
 #define HFCPCI_AUTO_AWAKE	0x01
 #define HFCPCI_DBIT_1		0x04
-#define HFCPCI_IGNORE_COL	0x08
+#define HFCPCI_IGANALRE_COL	0x08
 #define HFCPCI_CHG_B1_B2	0x80
 
 /* bits in FIFO_EN register */
@@ -175,9 +175,9 @@ struct zt {
 
 struct dfifo {
 	u_char data[D_FIFO_SIZE]; /* FIFO data space */
-	u_char fill1[0x20A0 - D_FIFO_SIZE]; /* reserved, do not use */
+	u_char fill1[0x20A0 - D_FIFO_SIZE]; /* reserved, do analt use */
 	u_char f1, f2; /* f pointers */
-	u_char fill2[0x20C0 - 0x20A2]; /* reserved, do not use */
+	u_char fill2[0x20C0 - 0x20A2]; /* reserved, do analt use */
 	/* mask index with D_FREG_MASK for access */
 	struct zt za[MAX_D_FRAMES + 1];
 	u_char fill3[0x4000 - 0x2100]; /* align 16K */

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -57,10 +57,10 @@ static inline uint16_t complete_integer_division_u16(
 	return div16_u16_rem(dividend, divisor, (uint16_t *)remainder);
 }
 
-static uint16_t vpe_u1_8_from_fraction(uint16_t numerator, uint16_t denominator)
+static uint16_t vpe_u1_8_from_fraction(uint16_t numerator, uint16_t deanalminator)
 {
 	u16 arg1_value = numerator;
-	u16 arg2_value = denominator;
+	u16 arg2_value = deanalminator;
 
 	uint16_t remainder;
 
@@ -115,7 +115,7 @@ static uint16_t vpe_internal_get_pratio(uint16_t from_frequency, uint16_t to_fre
  * VPE FW will dynamically decide which level should be used according to current loading.
  *
  * Get VPE and SOC clocks from PM, and select the appropriate four clock values,
- * calculate the ratios of adjusting from one clock to another.
+ * calculate the ratios of adjusting from one clock to aanalther.
  * The VPE FW can then request the appropriate frequency from the PMFW.
  */
 int amdgpu_vpe_configure_dpm(struct amdgpu_vpe *vpe)
@@ -128,8 +128,8 @@ int amdgpu_vpe_configure_dpm(struct amdgpu_vpe *vpe)
 		struct dpm_clock *VPEClks;
 		struct dpm_clock *SOCClks;
 		uint32_t idx;
-		uint32_t pratio_vmax_vnorm = 0, pratio_vnorm_vmid = 0, pratio_vmid_vmin = 0;
-		uint16_t pratio_vmin_freq = 0, pratio_vmid_freq = 0, pratio_vnorm_freq = 0, pratio_vmax_freq = 0;
+		uint32_t pratio_vmax_vanalrm = 0, pratio_vanalrm_vmid = 0, pratio_vmid_vmin = 0;
+		uint16_t pratio_vmin_freq = 0, pratio_vmid_freq = 0, pratio_vanalrm_freq = 0, pratio_vmax_freq = 0;
 
 		dpm_ctl = RREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.dpm_enable));
 		dpm_ctl |= 1; /* DPM enablement */
@@ -169,7 +169,7 @@ int amdgpu_vpe_configure_dpm(struct amdgpu_vpe *vpe)
 				pratio_vmid_freq = min_freq;
 				break;
 			case 2:
-				pratio_vnorm_freq = min_freq;
+				pratio_vanalrm_freq = min_freq;
 				break;
 			case 3:
 				pratio_vmax_freq = min_freq;
@@ -179,14 +179,14 @@ int amdgpu_vpe_configure_dpm(struct amdgpu_vpe *vpe)
 			}
 		}
 
-		if (pratio_vmin_freq && pratio_vmid_freq && pratio_vnorm_freq && pratio_vmax_freq) {
+		if (pratio_vmin_freq && pratio_vmid_freq && pratio_vanalrm_freq && pratio_vmax_freq) {
 			uint32_t pratio_ctl;
 
-			pratio_vmax_vnorm = (uint32_t)vpe_internal_get_pratio(pratio_vmax_freq, pratio_vnorm_freq);
-			pratio_vnorm_vmid = (uint32_t)vpe_internal_get_pratio(pratio_vnorm_freq, pratio_vmid_freq);
+			pratio_vmax_vanalrm = (uint32_t)vpe_internal_get_pratio(pratio_vmax_freq, pratio_vanalrm_freq);
+			pratio_vanalrm_vmid = (uint32_t)vpe_internal_get_pratio(pratio_vanalrm_freq, pratio_vmid_freq);
 			pratio_vmid_vmin = (uint32_t)vpe_internal_get_pratio(pratio_vmid_freq, pratio_vmin_freq);
 
-			pratio_ctl = pratio_vmax_vnorm | (pratio_vnorm_vmid << 9) | (pratio_vmid_vmin << 18);
+			pratio_ctl = pratio_vmax_vanalrm | (pratio_vanalrm_vmid << 9) | (pratio_vmid_vmin << 18);
 			WREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.dpm_pratio), pratio_ctl);		/* PRatio */
 			WREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.dpm_request_interval), 24000);	/* 1ms, unit=1/24MHz */
 			WREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.dpm_decision_threshold), 1200000);	/* 50ms */
@@ -430,16 +430,16 @@ static int vpe_resume(void *handle)
 	return vpe_hw_init(adev);
 }
 
-static void vpe_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+static void vpe_ring_insert_analp(struct amdgpu_ring *ring, uint32_t count)
 {
 	int i;
 
 	for (i = 0; i < count; i++)
 		if (i == 0)
-			amdgpu_ring_write(ring, ring->funcs->nop |
-				VPE_CMD_NOP_HEADER_COUNT(count - 1));
+			amdgpu_ring_write(ring, ring->funcs->analp |
+				VPE_CMD_ANALP_HEADER_COUNT(count - 1));
 		else
-			amdgpu_ring_write(ring, ring->funcs->nop);
+			amdgpu_ring_write(ring, ring->funcs->analp);
 }
 
 static uint64_t vpe_get_csa_mc_addr(struct amdgpu_ring *ring, uint32_t vmid)
@@ -628,7 +628,7 @@ static int vpe_set_powergating_state(void *handle,
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
 	if (!adev->pm.dpm_enabled)
-		dev_err(adev->dev, "Without PM, cannot support powergating\n");
+		dev_err(adev->dev, "Without PM, cananalt support powergating\n");
 
 	dev_dbg(adev->dev, "%s: %s!\n", __func__, (state == AMD_PG_STATE_GATE) ? "GATE":"UNGATE");
 
@@ -696,7 +696,7 @@ static void vpe_ring_set_wptr(struct amdgpu_ring *ring)
 		atomic64_set((atomic64_t *)ring->wptr_cpu_addr, ring->wptr << 2);
 		WDOORBELL64(ring->doorbell_index, ring->wptr << 2);
 	} else {
-		dev_dbg(adev->dev, "Not using doorbell, \
+		dev_dbg(adev->dev, "Analt using doorbell, \
 			regVPEC_QUEUE0_RB_WPTR == 0x%08x, \
 			regVPEC_QUEUE0_RB_WPTR_HI == 0x%08x\n",
 			lower_32_bits(ring->wptr << 2),
@@ -777,10 +777,10 @@ static int vpe_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	ib.ptr[1] = lower_32_bits(wb_addr);
 	ib.ptr[2] = upper_32_bits(wb_addr);
 	ib.ptr[3] = test_pattern;
-	ib.ptr[4] = VPE_CMD_HEADER(VPE_CMD_OPCODE_NOP, 0);
-	ib.ptr[5] = VPE_CMD_HEADER(VPE_CMD_OPCODE_NOP, 0);
-	ib.ptr[6] = VPE_CMD_HEADER(VPE_CMD_OPCODE_NOP, 0);
-	ib.ptr[7] = VPE_CMD_HEADER(VPE_CMD_OPCODE_NOP, 0);
+	ib.ptr[4] = VPE_CMD_HEADER(VPE_CMD_OPCODE_ANALP, 0);
+	ib.ptr[5] = VPE_CMD_HEADER(VPE_CMD_OPCODE_ANALP, 0);
+	ib.ptr[6] = VPE_CMD_HEADER(VPE_CMD_OPCODE_ANALP, 0);
+	ib.ptr[7] = VPE_CMD_HEADER(VPE_CMD_OPCODE_ANALP, 0);
 	ib.length_dw = 8;
 
 	ret = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
@@ -811,20 +811,20 @@ static void vpe_ring_begin_use(struct amdgpu_ring *ring)
 
 	cancel_delayed_work_sync(&adev->vpe.idle_work);
 
-	/* Power on VPE and notify VPE of new context  */
+	/* Power on VPE and analtify VPE of new context  */
 	if (!vpe->context_started) {
-		uint32_t context_notify;
+		uint32_t context_analtify;
 
 		/* Power on VPE */
 		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VPE, AMD_PG_STATE_UNGATE);
 
 		/* Indicates that a job from a new context has been submitted. */
-		context_notify = RREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.context_indicator));
-		if ((context_notify & 0x1) == 0)
-			context_notify |= 0x1;
+		context_analtify = RREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.context_indicator));
+		if ((context_analtify & 0x1) == 0)
+			context_analtify |= 0x1;
 		else
-			context_notify &= ~(0x1);
-		WREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.context_indicator), context_notify);
+			context_analtify &= ~(0x1);
+		WREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.context_indicator), context_analtify);
 		vpe->context_started = true;
 	}
 }
@@ -839,7 +839,7 @@ static void vpe_ring_end_use(struct amdgpu_ring *ring)
 static const struct amdgpu_ring_funcs vpe_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_VPE,
 	.align_mask = 0xf,
-	.nop = VPE_CMD_HEADER(VPE_CMD_OPCODE_NOP, 0),
+	.analp = VPE_CMD_HEADER(VPE_CMD_OPCODE_ANALP, 0),
 	.support_64bit_ptrs = true,
 	.get_rptr = vpe_ring_get_rptr,
 	.get_wptr = vpe_ring_get_wptr,
@@ -859,7 +859,7 @@ static const struct amdgpu_ring_funcs vpe_ring_funcs = {
 	.emit_wreg = vpe_ring_emit_wreg,
 	.emit_reg_wait = vpe_ring_emit_reg_wait,
 	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
-	.insert_nop = vpe_ring_insert_nop,
+	.insert_analp = vpe_ring_insert_analp,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.test_ring = vpe_ring_test_ring,
 	.test_ib = vpe_ring_test_ib,
@@ -893,7 +893,7 @@ const struct amd_ip_funcs vpe_ip_funcs = {
 const struct amdgpu_ip_block_version vpe_v6_1_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_VPE,
 	.major = 6,
-	.minor = 1,
+	.mianalr = 1,
 	.rev = 0,
 	.funcs = &vpe_ip_funcs,
 };

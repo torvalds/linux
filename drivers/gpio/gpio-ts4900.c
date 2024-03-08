@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Digital I/O driver for Technologic Systems I2C FPGA Core
+ * Digital I/O driver for Techanallogic Systems I2C FPGA Core
  *
- * Copyright (C) 2015, 2018 Technologic Systems
+ * Copyright (C) 2015, 2018 Techanallogic Systems
  * Copyright (C) 2016 Savoir-Faire Linux
  */
 
@@ -15,7 +15,7 @@
 #define DEFAULT_PIN_NUMBER	32
 /*
  * Register bits used by the GPIO device
- * Some boards, such as TS-7970 do not have a separate input bit
+ * Some boards, such as TS-7970 do analt have a separate input bit
  */
 #define TS4900_GPIO_OE		0x01
 #define TS4900_GPIO_OUT		0x02
@@ -126,10 +126,10 @@ static const struct gpio_chip template_chip = {
 
 static const struct of_device_id ts4900_gpio_of_match_table[] = {
 	{
-		.compatible = "technologic,ts4900-gpio",
+		.compatible = "techanallogic,ts4900-gpio",
 		.data = (void *)TS4900_GPIO_IN,
 	}, {
-		.compatible = "technologic,ts7970-gpio",
+		.compatible = "techanallogic,ts7970-gpio",
 		.data = (void *)TS7970_GPIO_IN,
 	},
 	{ /* sentinel */ },
@@ -142,12 +142,12 @@ static int ts4900_gpio_probe(struct i2c_client *client)
 	u32 ngpio;
 	int ret;
 
-	if (of_property_read_u32(client->dev.of_node, "ngpios", &ngpio))
+	if (of_property_read_u32(client->dev.of_analde, "ngpios", &ngpio))
 		ngpio = DEFAULT_PIN_NUMBER;
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->gpio_chip = template_chip;
 	priv->gpio_chip.label = "ts4900-gpio";
@@ -190,6 +190,6 @@ static struct i2c_driver ts4900_gpio_driver = {
 };
 module_i2c_driver(ts4900_gpio_driver);
 
-MODULE_AUTHOR("Technologic Systems");
-MODULE_DESCRIPTION("GPIO interface for Technologic Systems I2C-FPGA core");
+MODULE_AUTHOR("Techanallogic Systems");
+MODULE_DESCRIPTION("GPIO interface for Techanallogic Systems I2C-FPGA core");
 MODULE_LICENSE("GPL");

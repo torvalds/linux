@@ -5,7 +5,7 @@
 #include <linux/if_vlan.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <net/netevent.h>
 #include <net/switchdev.h>
 
@@ -21,7 +21,7 @@
 
 struct prestera_fdb_event_work {
 	struct work_struct work;
-	struct switchdev_notifier_fdb_info fdb_info;
+	struct switchdev_analtifier_fdb_info fdb_info;
 	struct net_device *dev;
 	unsigned long event;
 };
@@ -30,8 +30,8 @@ struct prestera_switchdev {
 	struct prestera_switch *sw;
 	struct list_head bridge_list;
 	bool bridge_8021q_exists;
-	struct notifier_block swdev_nb_blk;
-	struct notifier_block swdev_nb;
+	struct analtifier_block swdev_nb_blk;
+	struct analtifier_block swdev_nb;
 };
 
 struct prestera_bridge {
@@ -74,7 +74,7 @@ struct prestera_port_vlan {
 
 struct prestera_br_mdb_port {
 	struct prestera_bridge_port *br_port;
-	struct list_head br_mdb_port_node;
+	struct list_head br_mdb_port_analde;
 };
 
 /* Software representation of MDB table. */
@@ -82,7 +82,7 @@ struct prestera_br_mdb_entry {
 	struct prestera_bridge *bridge;
 	struct prestera_mdb_entry *mdb;
 	struct list_head br_mdb_port_list;
-	struct list_head br_mdb_entry_node;
+	struct list_head br_mdb_entry_analde;
 	bool enabled;
 };
 
@@ -265,7 +265,7 @@ prestera_port_vlan_create(struct prestera_port *port, u16 vid, bool untagged)
 
 	port_vlan = kzalloc(sizeof(*port_vlan), GFP_KERNEL);
 	if (!port_vlan) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_port_vlan_alloc;
 	}
 
@@ -344,7 +344,7 @@ prestera_br_mdb_entry_put(struct prestera_br_mdb_entry *br_mdb)
 			prestera_mdb_port_del(br_mdb->mdb, br_port->dev);
 
 		prestera_mdb_entry_destroy(br_mdb->mdb);
-		list_del(&br_mdb->br_mdb_entry_node);
+		list_del(&br_mdb->br_mdb_entry_analde);
 		kfree(br_mdb);
 	}
 }
@@ -356,9 +356,9 @@ prestera_br_mdb_port_del(struct prestera_br_mdb_entry *br_mdb,
 	struct prestera_br_mdb_port *br_mdb_port, *tmp;
 
 	list_for_each_entry_safe(br_mdb_port, tmp, &br_mdb->br_mdb_port_list,
-				 br_mdb_port_node) {
+				 br_mdb_port_analde) {
 		if (br_mdb_port->br_port == br_port) {
-			list_del(&br_mdb_port->br_mdb_port_node);
+			list_del(&br_mdb_port->br_mdb_port_analde);
 			kfree(br_mdb_port);
 		}
 	}
@@ -372,10 +372,10 @@ prestera_mdb_flush_bridge_port(struct prestera_bridge_port *br_port)
 	struct prestera_bridge *br_dev = br_port->bridge;
 
 	list_for_each_entry_safe(br_mdb, br_mdb_tmp, &br_dev->br_mdb_entry_list,
-				 br_mdb_entry_node) {
+				 br_mdb_entry_analde) {
 		list_for_each_entry_safe(br_mdb_port, tmp_port,
 					 &br_mdb->br_mdb_port_list,
-					 br_mdb_port_node) {
+					 br_mdb_port_analde) {
 			prestera_mdb_port_del(br_mdb->mdb,
 					      br_mdb_port->br_port->dev);
 			prestera_br_mdb_port_del(br_mdb,  br_mdb_port->br_port);
@@ -445,7 +445,7 @@ prestera_bridge_create(struct prestera_switchdev *swdev, struct net_device *dev)
 
 	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (vlan_enabled) {
 		swdev->bridge_8021q_exists = true;
@@ -617,7 +617,7 @@ prestera_bridge_port_add(struct prestera_bridge *bridge, struct net_device *dev)
 
 	br_port = prestera_bridge_port_create(bridge, dev);
 	if (!br_port)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return br_port;
 }
@@ -682,7 +682,7 @@ int prestera_bridge_port_join(struct net_device *br_dev,
 	return 0;
 
 err_port_join:
-	switchdev_bridge_port_unoffload(br_port->dev, NULL, NULL, NULL);
+	switchdev_bridge_port_uanalffload(br_port->dev, NULL, NULL, NULL);
 err_switchdev_offload:
 	prestera_bridge_port_put(br_port);
 	return err;
@@ -756,7 +756,7 @@ void prestera_bridge_port_leave(struct net_device *br_dev,
 	else
 		prestera_bridge_1d_port_leave(br_port);
 
-	switchdev_bridge_port_unoffload(br_port->dev, NULL, NULL, NULL);
+	switchdev_bridge_port_uanalffload(br_port->dev, NULL, NULL, NULL);
 
 	prestera_mdb_flush_bridge_port(br_port);
 
@@ -945,7 +945,7 @@ prestera_br_mdb_port_is_member(struct prestera_br_mdb_entry *br_mdb,
 	struct prestera_br_mdb_port *tmp_port;
 
 	list_for_each_entry(tmp_port, &br_mdb->br_mdb_port_list,
-			    br_mdb_port_node)
+			    br_mdb_port_analde)
 		if (tmp_port->br_port->dev == orig_dev)
 			return true;
 
@@ -985,13 +985,13 @@ static int prestera_br_mdb_sync(struct prestera_bridge *br_dev)
 		return 0;
 
 	list_for_each_entry(br_mdb, &br_dev->br_mdb_entry_list,
-			    br_mdb_entry_node) {
+			    br_mdb_entry_analde) {
 		mdb = br_mdb->mdb;
 		/* Make sure every port that explicitly been added to the mdb
 		 * joins the specified group.
 		 */
 		list_for_each_entry(br_mdb_port, &br_mdb->br_mdb_port_list,
-				    br_mdb_port_node) {
+				    br_mdb_port_analde) {
 			br_port = br_mdb_port->br_port;
 			pr_port = prestera_port_dev_lower_find(br_port->dev);
 
@@ -1003,7 +1003,7 @@ static int prestera_br_mdb_sync(struct prestera_bridge *br_dev)
 						       mdb->vid))
 				continue;
 
-			/* If port is not in MDB or there's no Mrouter
+			/* If port is analt in MDB or there's anal Mrouter
 			 * clear HW mdb.
 			 */
 			if (prestera_br_mdb_port_is_member(br_mdb,
@@ -1020,14 +1020,14 @@ static int prestera_br_mdb_sync(struct prestera_bridge *br_dev)
 		}
 
 		/* Make sure that every mrouter port joins every MC group int
-		 * broadcast domain. If it's not an mrouter - it should leave
+		 * broadcast domain. If it's analt an mrouter - it should leave
 		 */
 		list_for_each_entry(br_port, &br_dev->port_list, head) {
 			pr_port = prestera_port_dev_lower_find(br_port->dev);
 
 			/* Make sure mrouter woudln't receive traffci from
-			 * another broadcast domain (e.g. from a vlan, which
-			 * mrouter port is not a member of).
+			 * aanalther broadcast domain (e.g. from a vlan, which
+			 * mrouter port is analt a member of).
 			 */
 			if (br_dev->vlan_enabled &&
 			    !prestera_port_vlan_by_vid(pr_port,
@@ -1078,7 +1078,7 @@ prestera_br_mdb_enable_set(struct prestera_bridge *br_dev, bool enable)
 	int err;
 
 	list_for_each_entry(br_mdb, &br_dev->br_mdb_entry_list,
-			    br_mdb_entry_node) {
+			    br_mdb_entry_analde) {
 		err = prestera_mdb_enable_set(br_mdb, enable);
 		if (err)
 			return err;
@@ -1100,7 +1100,7 @@ static int prestera_port_attr_br_mc_disabled_set(struct prestera_port *port,
 
 	br_dev->multicast_enabled = !mc_disabled;
 
-	/* There's no point in enabling mdb back if router is missing. */
+	/* There's anal point in enabling mdb back if router is missing. */
 	WARN_ON(prestera_br_mdb_enable_set(br_dev, br_dev->multicast_enabled &&
 					   br_dev->mrouter_exist));
 
@@ -1141,8 +1141,8 @@ prestera_port_attr_mrouter_set(struct prestera_port *port,
 	br_dev->mrouter_exist = prestera_bridge_mdb_mc_mrouter_exists(br_dev);
 
 	/* Enable MDB processing if both mrouter exists and mc is enabled.
-	 * In case if MC enabled, but there is no mrouter, device would flood
-	 * all multicast traffic (even if MDB table is not empty) with the use
+	 * In case if MC enabled, but there is anal mrouter, device would flood
+	 * all multicast traffic (even if MDB table is analt empty) with the use
 	 * of bridge's flood capabilities (without the use of flood_domain).
 	 */
 	WARN_ON(prestera_br_mdb_enable_set(br_dev, br_dev->multicast_enabled &&
@@ -1193,28 +1193,28 @@ static int prestera_port_obj_attr_set(struct net_device *dev, const void *ctx,
 							    attr->u.mc_disabled);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	return err;
 }
 
 static void
-prestera_fdb_offload_notify(struct prestera_port *port,
-			    struct switchdev_notifier_fdb_info *info)
+prestera_fdb_offload_analtify(struct prestera_port *port,
+			    struct switchdev_analtifier_fdb_info *info)
 {
-	struct switchdev_notifier_fdb_info send_info = {};
+	struct switchdev_analtifier_fdb_info send_info = {};
 
 	send_info.addr = info->addr;
 	send_info.vid = info->vid;
 	send_info.offloaded = true;
 
-	call_switchdev_notifiers(SWITCHDEV_FDB_OFFLOADED, port->dev,
+	call_switchdev_analtifiers(SWITCHDEV_FDB_OFFLOADED, port->dev,
 				 &send_info.info, NULL);
 }
 
 static int prestera_port_fdb_set(struct prestera_port *port,
-				 struct switchdev_notifier_fdb_info *fdb_info,
+				 struct switchdev_analtifier_fdb_info *fdb_info,
 				 bool adding)
 {
 	struct prestera_switch *sw = port->sw;
@@ -1244,7 +1244,7 @@ static int prestera_port_fdb_set(struct prestera_port *port,
 
 static void prestera_fdb_event_work(struct work_struct *work)
 {
-	struct switchdev_notifier_fdb_info *fdb_info;
+	struct switchdev_analtifier_fdb_info *fdb_info;
 	struct prestera_fdb_event_work *swdev_work;
 	struct prestera_port *port;
 	struct net_device *dev;
@@ -1269,7 +1269,7 @@ static void prestera_fdb_event_work(struct work_struct *work)
 		if (err)
 			break;
 
-		prestera_fdb_offload_notify(port, fdb_info);
+		prestera_fdb_offload_analtify(port, fdb_info);
 		break;
 
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
@@ -1286,12 +1286,12 @@ out_unlock:
 	dev_put(dev);
 }
 
-static int prestera_switchdev_event(struct notifier_block *unused,
+static int prestera_switchdev_event(struct analtifier_block *unused,
 				    unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
-	struct switchdev_notifier_fdb_info *fdb_info;
-	struct switchdev_notifier_info *info = ptr;
+	struct net_device *dev = switchdev_analtifier_info_to_dev(ptr);
+	struct switchdev_analtifier_fdb_info *fdb_info;
+	struct switchdev_analtifier_info *info = ptr;
 	struct prestera_fdb_event_work *swdev_work;
 	struct net_device *upper;
 	int err;
@@ -1300,22 +1300,22 @@ static int prestera_switchdev_event(struct notifier_block *unused,
 		err = switchdev_handle_port_attr_set(dev, ptr,
 						     prestera_netdev_check,
 						     prestera_port_obj_attr_set);
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 	}
 
 	if (!prestera_netdev_check(dev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	upper = netdev_master_upper_dev_get_rcu(dev);
 	if (!upper)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (!netif_is_bridge_master(upper))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	swdev_work = kzalloc(sizeof(*swdev_work), GFP_ATOMIC);
 	if (!swdev_work)
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
 	swdev_work->event = event;
 	swdev_work->dev = dev;
@@ -1324,7 +1324,7 @@ static int prestera_switchdev_event(struct notifier_block *unused,
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
 		fdb_info = container_of(info,
-					struct switchdev_notifier_fdb_info,
+					struct switchdev_analtifier_fdb_info,
 					info);
 
 		INIT_WORK(&swdev_work->work, prestera_fdb_event_work);
@@ -1342,15 +1342,15 @@ static int prestera_switchdev_event(struct notifier_block *unused,
 
 	default:
 		kfree(swdev_work);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	queue_work(swdev_wq, &swdev_work->work);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 
 out_bad:
 	kfree(swdev_work);
-	return NOTIFY_BAD;
+	return ANALTIFY_BAD;
 }
 
 static int
@@ -1377,7 +1377,7 @@ prestera_port_vlan_bridge_join(struct prestera_port_vlan *port_vlan,
 	if (!br_vlan) {
 		br_vlan = prestera_bridge_vlan_create(br_port, vid);
 		if (!br_vlan) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_bridge_vlan_get;
 		}
 	}
@@ -1511,7 +1511,7 @@ prestera_br_mdb_entry_create(struct prestera_switch *sw,
 	br_mdb_entry->enabled = true;
 	INIT_LIST_HEAD(&br_mdb_entry->br_mdb_port_list);
 
-	list_add(&br_mdb_entry->br_mdb_entry_node, &br_dev->br_mdb_entry_list);
+	list_add(&br_mdb_entry->br_mdb_entry_analde, &br_dev->br_mdb_entry_list);
 
 	return br_mdb_entry;
 
@@ -1526,16 +1526,16 @@ static int prestera_br_mdb_port_add(struct prestera_br_mdb_entry *br_mdb,
 	struct prestera_br_mdb_port *br_mdb_port;
 
 	list_for_each_entry(br_mdb_port, &br_mdb->br_mdb_port_list,
-			    br_mdb_port_node)
+			    br_mdb_port_analde)
 		if (br_mdb_port->br_port == br_port)
 			return 0;
 
 	br_mdb_port = kzalloc(sizeof(*br_mdb_port), GFP_KERNEL);
 	if (!br_mdb_port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	br_mdb_port->br_port = br_port;
-	list_add(&br_mdb_port->br_mdb_port_node,
+	list_add(&br_mdb_port->br_mdb_port_analde,
 		 &br_mdb->br_mdb_port_list);
 
 	return 0;
@@ -1548,7 +1548,7 @@ prestera_br_mdb_entry_find(struct prestera_bridge *br_dev,
 	struct prestera_br_mdb_entry *br_mdb;
 
 	list_for_each_entry(br_mdb, &br_dev->br_mdb_entry_list,
-			    br_mdb_entry_node)
+			    br_mdb_entry_analde)
 		if (ether_addr_equal(&br_mdb->mdb->addr[0], addr) &&
 		    vid == br_mdb->mdb->vid)
 			return br_mdb;
@@ -1600,10 +1600,10 @@ prestera_mdb_port_addr_obj_add(const struct switchdev_obj_port_mdb *mdb)
 						   br_dev->bridge_id);
 
 	if (!br_mdb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Make sure newly allocated MDB entry gets disabled if either MC is
-	 * disabled, or the mrouter does not exist.
+	 * disabled, or the mrouter does analt exist.
 	 */
 	WARN_ON(prestera_mdb_enable_set(br_mdb, br_dev->multicast_enabled &&
 					br_dev->mrouter_exist));
@@ -1641,7 +1641,7 @@ static int prestera_port_obj_add(struct net_device *dev, const void *ctx,
 	case SWITCHDEV_OBJ_ID_HOST_MDB:
 		fallthrough;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1656,7 +1656,7 @@ static int prestera_port_vlans_del(struct prestera_port *port,
 	struct prestera_switch *sw = port->sw;
 
 	if (netif_is_bridge_master(orig_dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	br_port = prestera_bridge_port_by_dev(sw->swdev, port->dev);
 	if (WARN_ON(!br_port))
@@ -1679,12 +1679,12 @@ prestera_mdb_port_addr_obj_del(struct prestera_port *port,
 	struct prestera_bridge *br_dev;
 	int err;
 
-	/* Bridge port no longer exists - and so does this MDB entry */
+	/* Bridge port anal longer exists - and so does this MDB entry */
 	br_port = prestera_bridge_port_find(port->sw, mdb->obj.orig_dev);
 	if (!br_port)
 		return 0;
 
-	/* Removing MDB with non-existing VLAN - not supported; */
+	/* Removing MDB with analn-existing VLAN - analt supported; */
 	if (mdb->vid && !prestera_port_vlan_by_vid(port, mdb->vid))
 		return 0;
 
@@ -1730,17 +1730,17 @@ static int prestera_port_obj_del(struct net_device *dev, const void *ctx,
 		err = prestera_mdb_port_addr_obj_del(port, mdb);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
 	return err;
 }
 
-static int prestera_switchdev_blk_event(struct notifier_block *unused,
+static int prestera_switchdev_blk_event(struct analtifier_block *unused,
 					unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_analtifier_info_to_dev(ptr);
 	int err;
 
 	switch (event) {
@@ -1760,16 +1760,16 @@ static int prestera_switchdev_blk_event(struct notifier_block *unused,
 						     prestera_port_obj_attr_set);
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
-	return notifier_from_errno(err);
+	return analtifier_from_erranal(err);
 }
 
 static void prestera_fdb_event(struct prestera_switch *sw,
 			       struct prestera_event *evt, void *arg)
 {
-	struct switchdev_notifier_fdb_info info = {};
+	struct switchdev_analtifier_fdb_info info = {};
 	struct net_device *dev = NULL;
 	struct prestera_port *port;
 	struct prestera_lag *lag;
@@ -1800,11 +1800,11 @@ static void prestera_fdb_event(struct prestera_switch *sw,
 
 	switch (evt->id) {
 	case PRESTERA_FDB_EVENT_LEARNED:
-		call_switchdev_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
+		call_switchdev_analtifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
 					 dev, &info.info, NULL);
 		break;
 	case PRESTERA_FDB_EVENT_AGED:
-		call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE,
+		call_switchdev_analtifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE,
 					 dev, &info.info, NULL);
 		break;
 	}
@@ -1843,29 +1843,29 @@ static int prestera_switchdev_handler_init(struct prestera_switchdev *swdev)
 {
 	int err;
 
-	swdev->swdev_nb.notifier_call = prestera_switchdev_event;
-	err = register_switchdev_notifier(&swdev->swdev_nb);
+	swdev->swdev_nb.analtifier_call = prestera_switchdev_event;
+	err = register_switchdev_analtifier(&swdev->swdev_nb);
 	if (err)
-		goto err_register_swdev_notifier;
+		goto err_register_swdev_analtifier;
 
-	swdev->swdev_nb_blk.notifier_call = prestera_switchdev_blk_event;
-	err = register_switchdev_blocking_notifier(&swdev->swdev_nb_blk);
+	swdev->swdev_nb_blk.analtifier_call = prestera_switchdev_blk_event;
+	err = register_switchdev_blocking_analtifier(&swdev->swdev_nb_blk);
 	if (err)
-		goto err_register_blk_swdev_notifier;
+		goto err_register_blk_swdev_analtifier;
 
 	return 0;
 
-err_register_blk_swdev_notifier:
-	unregister_switchdev_notifier(&swdev->swdev_nb);
-err_register_swdev_notifier:
+err_register_blk_swdev_analtifier:
+	unregister_switchdev_analtifier(&swdev->swdev_nb);
+err_register_swdev_analtifier:
 	destroy_workqueue(swdev_wq);
 	return err;
 }
 
 static void prestera_switchdev_handler_fini(struct prestera_switchdev *swdev)
 {
-	unregister_switchdev_blocking_notifier(&swdev->swdev_nb_blk);
-	unregister_switchdev_notifier(&swdev->swdev_nb);
+	unregister_switchdev_blocking_analtifier(&swdev->swdev_nb_blk);
+	unregister_switchdev_analtifier(&swdev->swdev_nb);
 }
 
 int prestera_switchdev_init(struct prestera_switch *sw)
@@ -1875,7 +1875,7 @@ int prestera_switchdev_init(struct prestera_switch *sw)
 
 	swdev = kzalloc(sizeof(*swdev), GFP_KERNEL);
 	if (!swdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sw->swdev = swdev;
 	swdev->sw = sw;
@@ -1884,7 +1884,7 @@ int prestera_switchdev_init(struct prestera_switch *sw)
 
 	swdev_wq = alloc_ordered_workqueue("%s_ordered", 0, "prestera_br");
 	if (!swdev_wq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_wq;
 	}
 

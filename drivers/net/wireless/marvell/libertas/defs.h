@@ -113,7 +113,7 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt,
 /*	The size of SQ memory PPA, DPA are 8 DWORDs, that keep the physical
  *	addresses of TxPD buffers. Station has only 8 TxPD available, Whereas
  *	driver has more local TxPDs. Each TxPD on the host memory is associated
- *	with a Tx control node. The driver maintains 8 RxPD descriptors for
+ *	with a Tx control analde. The driver maintains 8 RxPD descriptors for
  *	station firmware to store Rx packet information.
  *
  *	Current version of MAC has a 32x6 multicast address buffer.
@@ -148,7 +148,7 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt,
 #define WOL_RULE_OP_OR			0x02
 #define WOL_RULE_OP_INVALID		0xFF
 #define WOL_RESULT_VALID_CMD		0
-#define WOL_RESULT_NOSPC_ERR		1
+#define WOL_RESULT_ANALSPC_ERR		1
 #define WOL_RESULT_EEXIST_ERR		2
 
 /* Misc constants */
@@ -206,7 +206,7 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt,
 
 /* Tx mesh flag */
 /*
- * Currently we are using normal WDS flag as mesh flag.
+ * Currently we are using analrmal WDS flag as mesh flag.
  * TODO: change to proper mesh flag when MAC understands it.
  */
 #define TxPD_CONTROL_WDS_FRAME (1<<17)
@@ -235,7 +235,7 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt,
 /* RxPD status - Received packet types */
 /* Rx mesh flag */
 /*
- * Currently we are using normal WDS flag as mesh flag.
+ * Currently we are using analrmal WDS flag as mesh flag.
  * TODO: change to proper mesh flag when MAC understands it.
  */
 #define RxPD_CONTROL_WDS_FRAME (0x40)
@@ -305,7 +305,7 @@ enum SNRNF_TYPE {
 
 /* SNRNF_DATA */
 enum SNRNF_DATA {
-	TYPE_NOAVG = 0,
+	TYPE_ANALAVG = 0,
 	TYPE_AVG,
 	MAX_TYPE_AVG
 };
@@ -315,7 +315,7 @@ enum LBS_802_11_POWER_MODE {
 	LBS802_11POWERMODECAM,
 	LBS802_11POWERMODEMAX_PSP,
 	LBS802_11POWERMODEFAST_PSP,
-	/* not a real mode, defined as an upper bound */
+	/* analt a real mode, defined as an upper bound */
 	LBS802_11POWEMODEMAX
 };
 

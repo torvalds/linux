@@ -24,7 +24,7 @@ enum fixed_addresses {
 
 	/*
 	 * Share the kmap() region with early_ioremap(): this is guaranteed
-	 * not to clash since early_ioremap() is only available before
+	 * analt to clash since early_ioremap() is only available before
 	 * paging_init(), and kmap() only after.
 	 */
 #define NR_FIX_BTMAPS		32
@@ -42,12 +42,12 @@ static const enum fixed_addresses __end_of_fixed_addresses =
 
 #define FIXMAP_PAGE_COMMON	(L_PTE_YOUNG | L_PTE_PRESENT | L_PTE_XN | L_PTE_DIRTY)
 
-#define FIXMAP_PAGE_NORMAL	(pgprot_kernel | L_PTE_XN)
-#define FIXMAP_PAGE_RO		(FIXMAP_PAGE_NORMAL | L_PTE_RDONLY)
+#define FIXMAP_PAGE_ANALRMAL	(pgprot_kernel | L_PTE_XN)
+#define FIXMAP_PAGE_RO		(FIXMAP_PAGE_ANALRMAL | L_PTE_RDONLY)
 
-/* Used by set_fixmap_(io|nocache), both meant for mapping a device */
+/* Used by set_fixmap_(io|analcache), both meant for mapping a device */
 #define FIXMAP_PAGE_IO		(FIXMAP_PAGE_COMMON | L_PTE_MT_DEV_SHARED | L_PTE_SHARED)
-#define FIXMAP_PAGE_NOCACHE	FIXMAP_PAGE_IO
+#define FIXMAP_PAGE_ANALCACHE	FIXMAP_PAGE_IO
 
 #define __early_set_fixmap	__set_fixmap
 

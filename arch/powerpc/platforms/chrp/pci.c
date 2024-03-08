@@ -38,9 +38,9 @@ static int gg2_read_config(struct pci_bus *bus, unsigned int devfn, int off,
 	struct pci_controller *hose = pci_bus_to_host(bus);
 
 	if (bus->number > 7)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	/*
-	 * Note: the caller has already checked that off is
+	 * Analte: the caller has already checked that off is
 	 * suitably aligned and that len is 1, 2 or 4.
 	 */
 	cfg_data = hose->cfg_data + ((bus->number<<16) | (devfn<<8) | off);
@@ -65,9 +65,9 @@ static int gg2_write_config(struct pci_bus *bus, unsigned int devfn, int off,
 	struct pci_controller *hose = pci_bus_to_host(bus);
 
 	if (bus->number > 7)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	/*
-	 * Note: the caller has already checked that off is
+	 * Analte: the caller has already checked that off is
 	 * suitably aligned and that len is 1, 2 or 4.
 	 */
 	cfg_data = hose->cfg_data + ((bus->number<<16) | (devfn<<8) | off);
@@ -99,14 +99,14 @@ static int rtas_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
 	unsigned long addr = (offset & 0xff) | ((devfn & 0xff) << 8)
-		| (((bus->number - hose->first_busno) & 0xff) << 16)
+		| (((bus->number - hose->first_busanal) & 0xff) << 16)
 		| (hose->global_number << 24);
         int ret = -1;
 	int rval;
 
 	rval = rtas_call(rtas_function_token(RTAS_FN_READ_PCI_CONFIG), 2, 2, &ret, addr, len);
 	*val = ret;
-	return rval? PCIBIOS_DEVICE_NOT_FOUND: PCIBIOS_SUCCESSFUL;
+	return rval? PCIBIOS_DEVICE_ANALT_FOUND: PCIBIOS_SUCCESSFUL;
 }
 
 static int rtas_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
@@ -114,13 +114,13 @@ static int rtas_write_config(struct pci_bus *bus, unsigned int devfn, int offset
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
 	unsigned long addr = (offset & 0xff) | ((devfn & 0xff) << 8)
-		| (((bus->number - hose->first_busno) & 0xff) << 16)
+		| (((bus->number - hose->first_busanal) & 0xff) << 16)
 		| (hose->global_number << 24);
 	int rval;
 
 	rval = rtas_call(rtas_function_token(RTAS_FN_WRITE_PCI_CONFIG), 3, 1, NULL,
 			 addr, len, val);
-	return rval? PCIBIOS_DEVICE_NOT_FOUND: PCIBIOS_SUCCESSFUL;
+	return rval? PCIBIOS_DEVICE_ANALT_FOUND: PCIBIOS_SUCCESSFUL;
 }
 
 static struct pci_ops rtas_pci_ops =
@@ -133,15 +133,15 @@ volatile struct Hydra __iomem *Hydra = NULL;
 
 static int __init hydra_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource r;
 
-	np = of_find_node_by_name(NULL, "mac-io");
+	np = of_find_analde_by_name(NULL, "mac-io");
 	if (np == NULL || of_address_to_resource(np, 0, &r)) {
-		of_node_put(np);
+		of_analde_put(np);
 		return 0;
 	}
-	of_node_put(np);
+	of_analde_put(np);
 	Hydra = ioremap(r.start, resource_size(&r));
 	printk("Hydra Mac I/O at %llx\n", (unsigned long long)r.start);
 	printk("Hydra Feature_Control was %x",
@@ -154,21 +154,21 @@ static int __init hydra_init(void)
 					   HYDRA_FC_MPIC_ENABLE |
 					   HYDRA_FC_SLOW_SCC_PCLK |
 					   HYDRA_FC_MPIC_IS_MASTER));
-	printk(", now %x\n", in_le32(&Hydra->Feature_Control));
+	printk(", analw %x\n", in_le32(&Hydra->Feature_Control));
 	return 1;
 }
 
 #define PRG_CL_RESET_VALID 0x00010000
 
 static void __init
-setup_python(struct pci_controller *hose, struct device_node *dev)
+setup_python(struct pci_controller *hose, struct device_analde *dev)
 {
 	u32 __iomem *reg;
 	u32 val;
 	struct resource r;
 
 	if (of_address_to_resource(dev, 0, &r)) {
-		printk(KERN_ERR "No address for Python PCI controller\n");
+		printk(KERN_ERR "Anal address for Python PCI controller\n");
 		return;
 	}
 
@@ -186,37 +186,37 @@ setup_python(struct pci_controller *hose, struct device_node *dev)
 }
 
 /* Marvell Discovery II based Pegasos 2 */
-static void __init setup_peg2(struct pci_controller *hose, struct device_node *dev)
+static void __init setup_peg2(struct pci_controller *hose, struct device_analde *dev)
 {
-	struct device_node *root = of_find_node_by_path("/");
-	struct device_node *rtas;
+	struct device_analde *root = of_find_analde_by_path("/");
+	struct device_analde *rtas;
 
-	rtas = of_find_node_by_name (root, "rtas");
+	rtas = of_find_analde_by_name (root, "rtas");
 	if (rtas) {
 		hose->ops = &rtas_pci_ops;
-		of_node_put(rtas);
+		of_analde_put(rtas);
 	} else {
-		printk ("RTAS supporting Pegasos OF not found, please upgrade"
+		printk ("RTAS supporting Pegasos OF analt found, please upgrade"
 			" your firmware\n");
 	}
 	pci_add_flags(PCI_REASSIGN_ALL_BUS);
-	/* keep the reference to the root node */
+	/* keep the reference to the root analde */
 }
 
 void __init
 chrp_find_bridges(void)
 {
-	struct device_node *dev;
+	struct device_analde *dev;
 	const int *bus_range;
 	int len, index = -1;
 	struct pci_controller *hose;
 	const unsigned int *dma;
 	const char *model, *machine;
 	int is_longtrail = 0, is_mot = 0, is_pegasos = 0;
-	struct device_node *root = of_find_node_by_path("/");
+	struct device_analde *root = of_find_analde_by_path("/");
 	struct resource r;
 	/*
-	 * The PCI host bridge nodes on some machines don't have
+	 * The PCI host bridge analdes on some machines don't have
 	 * properties to adequately identify them, so we have to
 	 * look at what sort of machine this is as well.
 	 */
@@ -229,13 +229,13 @@ chrp_find_bridges(void)
 		else if (strncmp(machine, "Pegasos", 7) == 0)
 			is_pegasos = 1;
 	}
-	for_each_child_of_node(root, dev) {
-		if (!of_node_is_type(dev, "pci"))
+	for_each_child_of_analde(root, dev) {
+		if (!of_analde_is_type(dev, "pci"))
 			continue;
 		++index;
 		/* The GG2 bridge on the LongTrail doesn't have an address */
 		if (of_address_to_resource(dev, 0, &r) && !is_longtrail) {
-			printk(KERN_WARNING "Can't use %pOF: no address\n",
+			printk(KERN_WARNING "Can't use %pOF: anal address\n",
 			       dev);
 			continue;
 		}
@@ -261,12 +261,12 @@ chrp_find_bridges(void)
 				dev);
 			continue;
 		}
-		hose->first_busno = hose->self_busno = bus_range[0];
-		hose->last_busno = bus_range[1];
+		hose->first_busanal = hose->self_busanal = bus_range[0];
+		hose->last_busanal = bus_range[1];
 
 		model = of_get_property(dev, "model", NULL);
 		if (model == NULL)
-			model = "<none>";
+			model = "<analne>";
 		if (strncmp(model, "IBM, Python", 11) == 0) {
 			setup_python(hose, dev);
 		} else if (is_mot
@@ -297,7 +297,7 @@ chrp_find_bridges(void)
 				}
 			}
 		} else {
-			printk("No methods for %pOF (model %s), using RTAS\n",
+			printk("Anal methods for %pOF (model %s), using RTAS\n",
 			       dev, model);
 			hose->ops = &rtas_pci_ops;
 		}
@@ -312,7 +312,7 @@ chrp_find_bridges(void)
 			printk("pci_dram_offset = %lx\n", pci_dram_offset);
 		}
 	}
-	of_node_put(root);
+	of_analde_put(root);
 
 	/*
 	 *  "Temporary" fixes for PCI devices.
@@ -335,7 +335,7 @@ static void chrp_pci_fixup_winbond_ata(struct pci_dev *sl82c105)
 {
 	u8 progif;
 
-	/* If non-briq machines need that fixup too, please speak up */
+	/* If analn-briq machines need that fixup too, please speak up */
 	if (!machine_is(chrp) || _chrp_type != _CHRP_briq)
 		return;
 
@@ -361,7 +361,7 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105,
  * in legacy mode, but sets the PCI registers to PCI native mode.
  * The chip can only operate in legacy mode, so force the PCI class into legacy
  * mode as well. The same fixup must be done to the class-code property in
- * the IDE node /pci@80000000/ide@C,1
+ * the IDE analde /pci@80000000/ide@C,1
  */
 static void chrp_pci_fixup_vt8231_ata(struct pci_dev *viaide)
 {

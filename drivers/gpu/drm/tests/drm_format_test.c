@@ -22,7 +22,7 @@ static void drm_test_format_block_width_one_plane(struct kunit *test)
 {
 	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_XRGB4444);
 
-	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_ASSERT_ANALT_NULL(test, info);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 0), 1);
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 1), 0);
@@ -33,7 +33,7 @@ static void drm_test_format_block_width_two_plane(struct kunit *test)
 {
 	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_NV12);
 
-	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_ASSERT_ANALT_NULL(test, info);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 0), 1);
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 1), 1);
@@ -45,7 +45,7 @@ static void drm_test_format_block_width_three_plane(struct kunit *test)
 {
 	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_YUV422);
 
-	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_ASSERT_ANALT_NULL(test, info);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 0), 1);
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 1), 1);
@@ -58,7 +58,7 @@ static void drm_test_format_block_width_tiled(struct kunit *test)
 {
 	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_X0L0);
 
-	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_ASSERT_ANALT_NULL(test, info);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 0), 2);
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 1), 0);
@@ -78,7 +78,7 @@ static void drm_test_format_block_height_one_plane(struct kunit *test)
 {
 	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_XRGB4444);
 
-	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_ASSERT_ANALT_NULL(test, info);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 0), 1);
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, -1), 0);
@@ -89,7 +89,7 @@ static void drm_test_format_block_height_two_plane(struct kunit *test)
 {
 	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_NV12);
 
-	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_ASSERT_ANALT_NULL(test, info);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 0), 1);
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 1), 1);
@@ -101,7 +101,7 @@ static void drm_test_format_block_height_three_plane(struct kunit *test)
 {
 	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_YUV422);
 
-	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_ASSERT_ANALT_NULL(test, info);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 0), 1);
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 1), 1);
@@ -114,7 +114,7 @@ static void drm_test_format_block_height_tiled(struct kunit *test)
 {
 	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_X0L0);
 
-	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_ASSERT_ANALT_NULL(test, info);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 0), 2);
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 1), 0);
@@ -134,7 +134,7 @@ static void drm_test_format_min_pitch_one_plane_8bpp(struct kunit *test)
 {
 	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_RGB332);
 
-	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_ASSERT_ANALT_NULL(test, info);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 0), 0);
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, -1, 0), 0);
@@ -157,7 +157,7 @@ static void drm_test_format_min_pitch_one_plane_16bpp(struct kunit *test)
 {
 	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_XRGB4444);
 
-	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_ASSERT_ANALT_NULL(test, info);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 0), 0);
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, -1, 0), 0);
@@ -180,7 +180,7 @@ static void drm_test_format_min_pitch_one_plane_24bpp(struct kunit *test)
 {
 	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_RGB888);
 
-	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_ASSERT_ANALT_NULL(test, info);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 0), 0);
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, -1, 0), 0);
@@ -203,7 +203,7 @@ static void drm_test_format_min_pitch_one_plane_32bpp(struct kunit *test)
 {
 	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_ABGR8888);
 
-	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_ASSERT_ANALT_NULL(test, info);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 0), 0);
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, -1, 0), 0);
@@ -226,7 +226,7 @@ static void drm_test_format_min_pitch_two_plane(struct kunit *test)
 {
 	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_NV12);
 
-	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_ASSERT_ANALT_NULL(test, info);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 0), 0);
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 1, 0), 0);
@@ -261,7 +261,7 @@ static void drm_test_format_min_pitch_three_plane_8bpp(struct kunit *test)
 {
 	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_YUV422);
 
-	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_ASSERT_ANALT_NULL(test, info);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 0), 0);
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 1, 0), 0);
@@ -308,7 +308,7 @@ static void drm_test_format_min_pitch_tiled(struct kunit *test)
 {
 	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_X0L2);
 
-	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_ASSERT_ANALT_NULL(test, info);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 0), 0);
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, -1, 0), 0);

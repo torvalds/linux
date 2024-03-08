@@ -1,7 +1,7 @@
 Device-tree bindings for I2C OPAL driver
 ----------------------------------------
 
-Most of the device node and properties layout is specific to the firmware and
+Most of the device analde and properties layout is specific to the firmware and
 used by the firmware itself for configuring the port. From the linux
 perspective, the properties of use are "ibm,port-name" and "ibm,opal-id".
 
@@ -18,7 +18,7 @@ Optional properties:
 - ibm,port-name: Firmware provides this name that uniquely identifies the i2c
 		 port.
 
-The node contains a number of other properties that are used by the FW itself
+The analde contains a number of other properties that are used by the FW itself
 and depend on the specific hardware implementation. The example below depicts
 a P8 on-chip bus.
 

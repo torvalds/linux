@@ -39,7 +39,7 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attach,
 	 */
 	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -104,7 +104,7 @@ static int i915_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *
 		return drm_gem_prime_mmap(&obj->base, vma);
 
 	if (!obj->base.filp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = call_mmap(obj->base.filp, vma);
 	if (ret)
@@ -172,7 +172,7 @@ static int i915_gem_dmabuf_attach(struct dma_buf *dmabuf,
 	int err;
 
 	if (!i915_gem_object_can_migrate(obj, INTEL_REGION_SMEM))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	for_i915_gem_ww(&ww, err, true) {
 		err = i915_gem_object_lock(obj, &ww);
@@ -247,13 +247,13 @@ static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
 		return PTR_ERR(sgt);
 
 	/*
-	 * DG1 is special here since it still snoops transactions even with
-	 * CACHE_NONE. This is not the case with other HAS_SNOOP platforms. We
+	 * DG1 is special here since it still sanalops transactions even with
+	 * CACHE_ANALNE. This is analt the case with other HAS_SANALOP platforms. We
 	 * might need to revisit this as we add new discrete platforms.
 	 *
 	 * XXX: Consider doing a vmap flush or something, where possible.
 	 * Currently we just do a heavy handed wbinvd_on_all_cpus() here since
-	 * the underlying sg_table might not even point to struct pages, so we
+	 * the underlying sg_table might analt even point to struct pages, so we
 	 * can't just call drm_clflush_sg or similar, like we do elsewhere in
 	 * the driver.
 	 */
@@ -313,7 +313,7 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 
 	obj = i915_gem_object_alloc();
 	if (!obj) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_detach;
 	}
 
@@ -324,8 +324,8 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 	obj->base.resv = dma_buf->resv;
 
 	/* We use GTT as shorthand for a coherent domain, one that is
-	 * neither in the GPU cache nor in the CPU cache, where all
-	 * writes are immediately visible in memory. (That's not strictly
+	 * neither in the GPU cache analr in the CPU cache, where all
+	 * writes are immediately visible in memory. (That's analt strictly
 	 * true, but it's close! There are internal buffers such as the
 	 * write-combined buffer or a delay through the chipset for GTT
 	 * writes that do require us to treat GTT as a separate cache domain.)

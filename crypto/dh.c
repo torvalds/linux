@@ -113,8 +113,8 @@ static int dh_is_pubkey_valid(struct dh_ctx *ctx, MPI y)
 	 * Step 1: Verify that 2 <= y <= p - 2.
 	 *
 	 * The upper limit check is actually y < p instead of y < p - 1
-	 * in order to save one mpi_sub_ui() invocation here. Note that
-	 * p - 1 is the non-trivial element of the subgroup of order 2 and
+	 * in order to save one mpi_sub_ui() invocation here. Analte that
+	 * p - 1 is the analn-trivial element of the subgroup of order 2 and
 	 * thus, the check on y^q below would fail if y == p - 1.
 	 */
 	if (mpi_cmp_ui(y, 1) < 1 || mpi_cmp(y, ctx->p) >= 0)
@@ -131,16 +131,16 @@ static int dh_is_pubkey_valid(struct dh_ctx *ctx, MPI y)
 
 		val = mpi_alloc(0);
 		if (!val)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		q = mpi_alloc(mpi_get_nlimbs(ctx->p));
 		if (!q) {
 			mpi_free(val);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		/*
-		 * ->p is odd, so no need to explicitly subtract one
+		 * ->p is odd, so anal need to explicitly subtract one
 		 * from it before shifting to the right.
 		 */
 		mpi_rshift(q, ctx->p, 1);
@@ -172,7 +172,7 @@ static int dh_compute_value(struct kpp_request *req)
 	int sign;
 
 	if (!val)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (unlikely(!ctx->xa)) {
 		ret = -EINVAL;
@@ -211,7 +211,7 @@ static int dh_compute_value(struct kpp_request *req)
 			pone = mpi_alloc(0);
 
 			if (!pone) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err_free_base;
 			}
 
@@ -364,7 +364,7 @@ static void *dh_safe_prime_gen_privkey(const struct dh_safe_prime *safe_prime,
 	 * Choose the lower bound's next power of two for N in order to
 	 * avoid excessively large private keys while still
 	 * maintaining some extra reserve beyond the bare minimum in
-	 * most cases. Note that for each entry in safe_prime_groups[],
+	 * most cases. Analte that for each entry in safe_prime_groups[],
 	 * the following holds for such N:
 	 * - N >= 256, in particular it is a multiple of 2^6 = 64
 	 *   bits and
@@ -381,7 +381,7 @@ static void *dh_safe_prime_gen_privkey(const struct dh_safe_prime *safe_prime,
 	oversampling_size = (n + 1) * sizeof(__be64);
 	key = kmalloc(oversampling_size, GFP_KERNEL);
 	if (!key)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
 	 * 5.6.1.1.3, step 3 (and implicitly step 4): obtain N + 64
@@ -404,7 +404,7 @@ static void *dh_safe_prime_gen_privkey(const struct dh_safe_prime *safe_prime,
 	 * For step 6, calculate
 	 * key = (key[] mod (M - 1)) + 1 = (key[] mod (2^N - 1)) + 1.
 	 *
-	 * In order to avoid expensive divisions, note that
+	 * In order to avoid expensive divisions, analte that
 	 * 2^N mod (2^N - 1) = 1 and thus, for any integer h,
 	 * 2^N * h mod (2^N - 1) = h mod (2^N - 1) always holds.
 	 * The big endian integer key[] composed of n + 1 64bit words
@@ -416,7 +416,7 @@ static void *dh_safe_prime_gen_privkey(const struct dh_safe_prime *safe_prime,
 	 * As both, l and h are less than 2^N, their sum after
 	 * this first reduction is guaranteed to be <= 2^(N + 1) - 2.
 	 * Or equivalently, that their sum can again be written as
-	 * h' * 2^N + l' with h' now either zero or one and if one,
+	 * h' * 2^N + l' with h' analw either zero or one and if one,
 	 * then l' <= 2^N - 2. Thus, all bits at positions >= N will
 	 * be zero after a second reduction:
 	 * h' * 2^N + l' mod (2^N - 1) = l' + h' mod (2^N - 1).
@@ -435,7 +435,7 @@ static void *dh_safe_prime_gen_privkey(const struct dh_safe_prime *safe_prime,
 	/*
 	 * The overflow bit o from the increment is either zero or
 	 * one. If zero, key[1:n] holds the final result in big-endian
-	 * order. If one, key[1:n] is zero now, but needs to be set to
+	 * order. If one, key[1:n] is zero analw, but needs to be set to
 	 * one, c.f. above.
 	 */
 	if (o)
@@ -443,7 +443,7 @@ static void *dh_safe_prime_gen_privkey(const struct dh_safe_prime *safe_prime,
 
 	/* n is in units of u64, convert to bytes. */
 	*key_size = n << 3;
-	/* Strip the leading extra __be64, which is (virtually) zero by now. */
+	/* Strip the leading extra __be64, which is (virtually) zero by analw. */
 	memmove(key, &key[1], *key_size);
 
 	return key;
@@ -488,7 +488,7 @@ static int dh_safe_prime_set_secret(struct crypto_kpp *tfm, const void *buffer,
 	buf_size = crypto_dh_key_len(&params);
 	buf = kmalloc(buf_size, GFP_KERNEL);
 	if (!buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -568,7 +568,7 @@ static int __maybe_unused __dh_safe_prime_create(
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx = kpp_instance_ctx(inst);
 

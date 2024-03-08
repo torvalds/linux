@@ -2,14 +2,14 @@
 #include "common.h"
 
 /*
- * Checks that registers contain what we expect, ie. they were not clobbered by
+ * Checks that registers contain what we expect, ie. they were analt clobbered by
  * the syscall.
  *
  * r15: pattern to check registers against.
  *
  * At the end r3 == 0 if everything's OK.
  */
-	nop			# guaranteed to be illegal in reverse-endian
+	analp			# guaranteed to be illegal in reverse-endian
 	mr	r9,r15
 	cmpd    r9,r3		# check r3
 	bne     1f
@@ -98,4 +98,4 @@
 	li	r0, __NR_exit
 	sc
 2:	li	r0, __NR_switch_endian
-	nop
+	analp

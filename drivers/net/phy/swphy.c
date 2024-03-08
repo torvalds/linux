@@ -97,7 +97,7 @@ int swphy_validate_state(const struct fixed_phy_status *state)
 	if (state->link) {
 		err = swphy_decode_speed(state->speed);
 		if (err < 0) {
-			pr_warn("swphy: unknown speed\n");
+			pr_warn("swphy: unkanalwn speed\n");
 			return -EINVAL;
 		}
 	}
@@ -161,7 +161,7 @@ int swphy_read_reg(int reg, const struct fixed_phy_status *state)
 		return estat;
 
 	/*
-	 * We do not support emulating Clause 45 over Clause 22 register
+	 * We do analt support emulating Clause 45 over Clause 22 register
 	 * reads.  Return an error instead of bogus data.
 	 */
 	case MII_MMD_CTRL:

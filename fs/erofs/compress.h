@@ -44,8 +44,8 @@ struct z_erofs_decompressor {
  * Type                 page->mapping
  * short-lived page     NULL
  * preallocated page    NULL
- * cached/managed page  non-NULL or NULL (invalidated/truncated page)
- * online page          non-NULL
+ * cached/managed page  analn-NULL or NULL (invalidated/truncated page)
+ * online page          analn-NULL
  *
  * For all managed pages, PG_private should be set with 1 extra refcount,
  * which is used for page reclaim / migration.
@@ -53,8 +53,8 @@ struct z_erofs_decompressor {
 
 /*
  * short-lived pages are pages directly from buddy system with specific
- * page->private (no need to set PagePrivate since these are non-LRU /
- * non-movable pages and bypass reclaim / migration code).
+ * page->private (anal need to set PagePrivate since these are analn-LRU /
+ * analn-movable pages and bypass reclaim / migration code).
  */
 static inline bool z_erofs_is_shortlived_page(struct page *page)
 {
@@ -71,7 +71,7 @@ static inline bool z_erofs_put_shortlivedpage(struct page **pagepool,
 	if (!z_erofs_is_shortlived_page(page))
 		return false;
 
-	/* short-lived pages should not be used by others at the same time */
+	/* short-lived pages should analt be used by others at the same time */
 	if (page_ref_count(page) > 1) {
 		put_page(page);
 	} else {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Rockchip MIPI RX Innosilicon DPHY driver
+ * Rockchip MIPI RX Inanalsilicon DPHY driver
  *
  * Copyright (C) 2021 Fuzhou Rockchip Electronics Co., Ltd.
  */
@@ -36,7 +36,7 @@
 #define CSIDPHY_CTRL_LANE_ENABLE_MASK		GENMASK(5, 2)
 #define CSIDPHY_CTRL_LANE_ENABLE_UNDEFINED	BIT(0)
 
-/* not present on all variants */
+/* analt present on all variants */
 #define CSIDPHY_CTRL_PWRCTL			0x04
 #define CSIDPHY_CTRL_PWRCTL_UNDEFINED		GENMASK(7, 5)
 #define CSIDPHY_CTRL_PWRCTL_SYNCRST		BIT(2)
@@ -128,7 +128,7 @@ struct dphy_drv_data {
 	const struct dphy_reg *grf_regs;
 };
 
-struct rockchip_inno_csidphy {
+struct rockchip_inanal_csidphy {
 	struct device *dev;
 	void __iomem *phy_base;
 	struct clk *pclk;
@@ -139,7 +139,7 @@ struct rockchip_inno_csidphy {
 	u8 hsfreq;
 };
 
-static inline void write_grf_reg(struct rockchip_inno_csidphy *priv,
+static inline void write_grf_reg(struct rockchip_inanal_csidphy *priv,
 				 int index, u8 value)
 {
 	const struct dphy_drv_data *drv_data = priv->drv_data;
@@ -173,7 +173,7 @@ static const struct hsfreq_range rk3368_mipidphy_hsfreq_ranges[] = {
 	{1249, 0x0c}, {1349, 0x0d}, {1500, 0x0e}
 };
 
-static void rockchip_inno_csidphy_ths_settle(struct rockchip_inno_csidphy *priv,
+static void rockchip_inanal_csidphy_ths_settle(struct rockchip_inanal_csidphy *priv,
 					     int hsfreq, int offset)
 {
 	const struct dphy_drv_data *drv_data = priv->drv_data;
@@ -185,10 +185,10 @@ static void rockchip_inno_csidphy_ths_settle(struct rockchip_inno_csidphy *priv,
 	writel(val, priv->phy_base + drv_data->ths_settle_offset + offset);
 }
 
-static int rockchip_inno_csidphy_configure(struct phy *phy,
+static int rockchip_inanal_csidphy_configure(struct phy *phy,
 					   union phy_configure_opts *opts)
 {
-	struct rockchip_inno_csidphy *priv = phy_get_drvdata(phy);
+	struct rockchip_inanal_csidphy *priv = phy_get_drvdata(phy);
 	const struct dphy_drv_data *drv_data = priv->drv_data;
 	struct phy_configure_opts_mipi_dphy *config = &opts->mipi_dphy;
 	unsigned int hsfreq = 0;
@@ -219,9 +219,9 @@ static int rockchip_inno_csidphy_configure(struct phy *phy,
 	return 0;
 }
 
-static int rockchip_inno_csidphy_power_on(struct phy *phy)
+static int rockchip_inanal_csidphy_power_on(struct phy *phy)
 {
-	struct rockchip_inno_csidphy *priv = phy_get_drvdata(phy);
+	struct rockchip_inanal_csidphy *priv = phy_get_drvdata(phy);
 	const struct dphy_drv_data *drv_data = priv->drv_data;
 	u64 data_rate_mbps = HZ_TO_MHZ(priv->config.hs_clk_rate);
 	u32 val;
@@ -261,7 +261,7 @@ static int rockchip_inno_csidphy_power_on(struct phy *phy)
 	writel(CSIDPHY_CTRL_DIG_RST_UNDEFINED + CSIDPHY_CTRL_DIG_RST_RESET,
 	       priv->phy_base + CSIDPHY_CTRL_DIG_RST);
 
-	/* not into receive mode/wait stopstate */
+	/* analt into receive mode/wait stopstate */
 	write_grf_reg(priv, GRF_DPHY_CSIPHY_FORCERXMODE, 0x0);
 
 	/* enable calibration */
@@ -275,10 +275,10 @@ static int rockchip_inno_csidphy_power_on(struct phy *phy)
 						CSIDPHY_LANE_CALIB_EN(i));
 	}
 
-	rockchip_inno_csidphy_ths_settle(priv, priv->hsfreq,
+	rockchip_inanal_csidphy_ths_settle(priv, priv->hsfreq,
 					 CSIDPHY_CLK_THS_SETTLE);
 	for (i = 0; i < priv->config.lanes; i++)
-		rockchip_inno_csidphy_ths_settle(priv, priv->hsfreq,
+		rockchip_inanal_csidphy_ths_settle(priv, priv->hsfreq,
 						 CSIDPHY_LANE_THS_SETTLE(i));
 
 	write_grf_reg(priv, GRF_DPHY_CSIPHY_CLKLANE_EN, 0x1);
@@ -288,9 +288,9 @@ static int rockchip_inno_csidphy_power_on(struct phy *phy)
 	return 0;
 }
 
-static int rockchip_inno_csidphy_power_off(struct phy *phy)
+static int rockchip_inanal_csidphy_power_off(struct phy *phy)
 {
-	struct rockchip_inno_csidphy *priv = phy_get_drvdata(phy);
+	struct rockchip_inanal_csidphy *priv = phy_get_drvdata(phy);
 	const struct dphy_drv_data *drv_data = priv->drv_data;
 
 	/* disable all lanes */
@@ -311,28 +311,28 @@ static int rockchip_inno_csidphy_power_off(struct phy *phy)
 	return 0;
 }
 
-static int rockchip_inno_csidphy_init(struct phy *phy)
+static int rockchip_inanal_csidphy_init(struct phy *phy)
 {
-	struct rockchip_inno_csidphy *priv = phy_get_drvdata(phy);
+	struct rockchip_inanal_csidphy *priv = phy_get_drvdata(phy);
 
 	return clk_prepare(priv->pclk);
 }
 
-static int rockchip_inno_csidphy_exit(struct phy *phy)
+static int rockchip_inanal_csidphy_exit(struct phy *phy)
 {
-	struct rockchip_inno_csidphy *priv = phy_get_drvdata(phy);
+	struct rockchip_inanal_csidphy *priv = phy_get_drvdata(phy);
 
 	clk_unprepare(priv->pclk);
 
 	return 0;
 }
 
-static const struct phy_ops rockchip_inno_csidphy_ops = {
-	.power_on	= rockchip_inno_csidphy_power_on,
-	.power_off	= rockchip_inno_csidphy_power_off,
-	.init		= rockchip_inno_csidphy_init,
-	.exit		= rockchip_inno_csidphy_exit,
-	.configure	= rockchip_inno_csidphy_configure,
+static const struct phy_ops rockchip_inanal_csidphy_ops = {
+	.power_on	= rockchip_inanal_csidphy_power_on,
+	.power_off	= rockchip_inanal_csidphy_power_off,
+	.init		= rockchip_inanal_csidphy_init,
+	.exit		= rockchip_inanal_csidphy_exit,
+	.configure	= rockchip_inanal_csidphy_configure,
 	.owner		= THIS_MODULE,
 };
 
@@ -372,7 +372,7 @@ static const struct dphy_drv_data rk3568_mipidphy_drv_data = {
 	.grf_regs = rk3568_grf_dphy_regs,
 };
 
-static const struct of_device_id rockchip_inno_csidphy_match_id[] = {
+static const struct of_device_id rockchip_inanal_csidphy_match_id[] = {
 	{
 		.compatible = "rockchip,px30-csi-dphy",
 		.data = &rk3326_mipidphy_drv_data,
@@ -395,18 +395,18 @@ static const struct of_device_id rockchip_inno_csidphy_match_id[] = {
 	},
 	{}
 };
-MODULE_DEVICE_TABLE(of, rockchip_inno_csidphy_match_id);
+MODULE_DEVICE_TABLE(of, rockchip_inanal_csidphy_match_id);
 
-static int rockchip_inno_csidphy_probe(struct platform_device *pdev)
+static int rockchip_inanal_csidphy_probe(struct platform_device *pdev)
 {
-	struct rockchip_inno_csidphy *priv;
+	struct rockchip_inanal_csidphy *priv;
 	struct device *dev = &pdev->dev;
 	struct phy_provider *phy_provider;
 	struct phy *phy;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	platform_set_drvdata(pdev, priv);
@@ -414,10 +414,10 @@ static int rockchip_inno_csidphy_probe(struct platform_device *pdev)
 	priv->drv_data = of_device_get_match_data(dev);
 	if (!priv->drv_data) {
 		dev_err(dev, "Can't find device data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	priv->grf = syscon_regmap_lookup_by_phandle(dev->of_node,
+	priv->grf = syscon_regmap_lookup_by_phandle(dev->of_analde,
 						    "rockchip,grf");
 	if (IS_ERR(priv->grf)) {
 		dev_err(dev, "Can't find GRF syscon\n");
@@ -440,7 +440,7 @@ static int rockchip_inno_csidphy_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->rst);
 	}
 
-	phy = devm_phy_create(dev, NULL, &rockchip_inno_csidphy_ops);
+	phy = devm_phy_create(dev, NULL, &rockchip_inanal_csidphy_ops);
 	if (IS_ERR(phy)) {
 		dev_err(dev, "failed to create phy\n");
 		return PTR_ERR(phy);
@@ -459,23 +459,23 @@ static int rockchip_inno_csidphy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void rockchip_inno_csidphy_remove(struct platform_device *pdev)
+static void rockchip_inanal_csidphy_remove(struct platform_device *pdev)
 {
-	struct rockchip_inno_csidphy *priv = platform_get_drvdata(pdev);
+	struct rockchip_inanal_csidphy *priv = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(priv->dev);
 }
 
-static struct platform_driver rockchip_inno_csidphy_driver = {
+static struct platform_driver rockchip_inanal_csidphy_driver = {
 	.driver = {
-		.name = "rockchip-inno-csidphy",
-		.of_match_table = rockchip_inno_csidphy_match_id,
+		.name = "rockchip-inanal-csidphy",
+		.of_match_table = rockchip_inanal_csidphy_match_id,
 	},
-	.probe = rockchip_inno_csidphy_probe,
-	.remove_new = rockchip_inno_csidphy_remove,
+	.probe = rockchip_inanal_csidphy_probe,
+	.remove_new = rockchip_inanal_csidphy_remove,
 };
 
-module_platform_driver(rockchip_inno_csidphy_driver);
+module_platform_driver(rockchip_inanal_csidphy_driver);
 MODULE_AUTHOR("Heiko Stuebner <heiko.stuebner@theobroma-systems.com>");
-MODULE_DESCRIPTION("Rockchip MIPI Innosilicon CSI-DPHY driver");
+MODULE_DESCRIPTION("Rockchip MIPI Inanalsilicon CSI-DPHY driver");
 MODULE_LICENSE("GPL v2");

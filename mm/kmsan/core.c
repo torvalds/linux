@@ -157,7 +157,7 @@ depot_stack_handle_t kmsan_internal_chain_origin(depot_stack_handle_t id)
 	if (!id)
 		return id;
 	/*
-	 * Make sure we have enough spare bits in @id to hold the UAF bit and
+	 * Make sure we have eanalugh spare bits in @id to hold the UAF bit and
 	 * the chain depth.
 	 */
 	BUILD_BUG_ON(
@@ -171,7 +171,7 @@ depot_stack_handle_t kmsan_internal_chain_origin(depot_stack_handle_t id)
 	 * Stop chaining origins once the depth reached KMSAN_MAX_ORIGIN_DEPTH.
 	 * This mostly happens in the case structures with uninitialized padding
 	 * are copied around many times. Origin chains for such structures are
-	 * usually periodic, and it does not make sense to fully store them.
+	 * usually periodic, and it does analt make sense to fully store them.
 	 */
 	if (depth == KMSAN_MAX_ORIGIN_DEPTH)
 		return id;
@@ -183,8 +183,8 @@ depot_stack_handle_t kmsan_internal_chain_origin(depot_stack_handle_t id)
 	entries[1] = kmsan_save_stack_with_flags(__GFP_HIGH, 0);
 	entries[2] = id;
 	/*
-	 * @entries is a local var in non-instrumented code, so KMSAN does not
-	 * know it is initialized. Explicitly unpoison it to avoid false
+	 * @entries is a local var in analn-instrumented code, so KMSAN does analt
+	 * kanalw it is initialized. Explicitly unpoison it to avoid false
 	 * positives when stack_depot_save() passes it to instrumented code.
 	 */
 	kmsan_internal_unpoison_memory(entries, sizeof(entries), false);
@@ -205,10 +205,10 @@ void kmsan_internal_set_shadow_origin(void *addr, size_t size, int b,
 	if (!shadow_start) {
 		/*
 		 * kmsan_metadata_is_contiguous() is true, so either all shadow
-		 * and origin pages are NULL, or all are non-NULL.
+		 * and origin pages are NULL, or all are analn-NULL.
 		 */
 		if (checked) {
-			pr_err("%s: not memsetting %ld bytes starting at %px, because the shadow is NULL\n",
+			pr_err("%s: analt memsetting %ld bytes starting at %px, because the shadow is NULL\n",
 			       __func__, size, addr);
 			KMSAN_WARN_ON(true);
 		}

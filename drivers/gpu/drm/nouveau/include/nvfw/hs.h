@@ -32,8 +32,8 @@ struct nvfw_hs_header_v2 {
 const struct nvfw_hs_header_v2 *nvfw_hs_header_v2(struct nvkm_subdev *, const void *);
 
 struct nvfw_hs_load_header {
-	u32 non_sec_code_off;
-	u32 non_sec_code_size;
+	u32 analn_sec_code_off;
+	u32 analn_sec_code_size;
 	u32 data_dma_base;
 	u32 data_size;
 	u32 num_apps;

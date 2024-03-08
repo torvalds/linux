@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -34,17 +34,17 @@
 
 /*
  * struct i915_syncmap is a layer of a radixtree that maps a u64 fence
- * context id to the last u32 fence seqno waited upon from that context.
+ * context id to the last u32 fence seqanal waited upon from that context.
  * Unlike lib/radixtree it uses a parent pointer that allows traversal back to
  * the root. This allows us to access the whole tree via a single pointer
  * to the most recently used layer. We expect fence contexts to be dense
  * and most reuse to be on the same i915_gem_context but on neighbouring
  * engines (i.e. on adjacent contexts) and reuse the same leaf, a very
- * effective lookup cache. If the new lookup is not on the same leaf, we
+ * effective lookup cache. If the new lookup is analt on the same leaf, we
  * expect it to be on the neighbouring branch.
  *
- * A leaf holds an array of u32 seqno, and has height 0. The bitmap field
- * allows us to store whether a particular seqno is valid (i.e. allows us
+ * A leaf holds an array of u32 seqanal, and has height 0. The bitmap field
+ * allows us to store whether a particular seqanal is valid (i.e. allows us
  * to distinguish unset from 0).
  *
  * A branch holds an array of layer pointers, and has height > 0, and always
@@ -76,9 +76,9 @@ struct i915_syncmap {
 	unsigned int bitmap;
 	struct i915_syncmap *parent;
 	/*
-	 * Following this header is an array of either seqno or child pointers:
+	 * Following this header is an array of either seqanal or child pointers:
 	 * union {
-	 *	u32 seqno[KSYNCMAP];
+	 *	u32 seqanal[KSYNCMAP];
 	 *	struct i915_syncmap *child[KSYNCMAP];
 	 * };
 	 */
@@ -90,13 +90,13 @@ struct i915_syncmap {
  */
 void i915_syncmap_init(struct i915_syncmap **root)
 {
-	BUILD_BUG_ON_NOT_POWER_OF_2(KSYNCMAP);
-	BUILD_BUG_ON_NOT_POWER_OF_2(SHIFT);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(KSYNCMAP);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(SHIFT);
 	BUILD_BUG_ON(KSYNCMAP > BITS_PER_TYPE((*root)->bitmap));
 	*root = NULL;
 }
 
-static inline u32 *__sync_seqno(struct i915_syncmap *p)
+static inline u32 *__sync_seqanal(struct i915_syncmap *p)
 {
 	GEM_BUG_ON(p->height);
 	return (u32 *)(p + 1);
@@ -132,26 +132,26 @@ static inline u64 __sync_leaf_prefix(const struct i915_syncmap *p, u64 id)
 	return id >> SHIFT;
 }
 
-static inline bool seqno_later(u32 a, u32 b)
+static inline bool seqanal_later(u32 a, u32 b)
 {
 	return (s32)(a - b) >= 0;
 }
 
 /**
- * i915_syncmap_is_later -- compare against the last know sync point
+ * i915_syncmap_is_later -- compare against the last kanalw sync point
  * @root: pointer to the #i915_syncmap
  * @id: the context id (other timeline) we are synchronising to
- * @seqno: the sequence number along the other timeline
+ * @seqanal: the sequence number along the other timeline
  *
- * If we have already synchronised this @root timeline with another (@id) then
+ * If we have already synchronised this @root timeline with aanalther (@id) then
  * we can omit any repeated or earlier synchronisation requests. If the two
  * timelines are already coupled, we can also omit the dependency between the
- * two as that is already known via the timeline.
+ * two as that is already kanalwn via the timeline.
  *
- * Returns true if the two timelines are already synchronised wrt to @seqno,
- * false if not and the synchronisation must be emitted.
+ * Returns true if the two timelines are already synchronised wrt to @seqanal,
+ * false if analt and the synchronisation must be emitted.
  */
-bool i915_syncmap_is_later(struct i915_syncmap **root, u64 id, u32 seqno)
+bool i915_syncmap_is_later(struct i915_syncmap **root, u64 id, u32 seqanal)
 {
 	struct i915_syncmap *p;
 	unsigned int idx;
@@ -192,7 +192,7 @@ found:
 	if (!(p->bitmap & BIT(idx)))
 		return false;
 
-	return seqno_later(__sync_seqno(p)[idx], seqno);
+	return seqanal_later(__sync_seqanal(p)[idx], seqanal);
 }
 
 static struct i915_syncmap *
@@ -211,12 +211,12 @@ __sync_alloc_leaf(struct i915_syncmap *parent, u64 id)
 	return p;
 }
 
-static inline void __sync_set_seqno(struct i915_syncmap *p, u64 id, u32 seqno)
+static inline void __sync_set_seqanal(struct i915_syncmap *p, u64 id, u32 seqanal)
 {
 	unsigned int idx = __sync_leaf_idx(p, id);
 
 	p->bitmap |= BIT(idx);
-	__sync_seqno(p)[idx] = seqno;
+	__sync_seqanal(p)[idx] = seqanal;
 }
 
 static inline void __sync_set_child(struct i915_syncmap *p,
@@ -227,7 +227,7 @@ static inline void __sync_set_child(struct i915_syncmap *p,
 	__sync_child(p)[idx] = child;
 }
 
-static noinline int __sync_set(struct i915_syncmap **root, u64 id, u32 seqno)
+static analinline int __sync_set(struct i915_syncmap **root, u64 id, u32 seqanal)
 {
 	struct i915_syncmap *p = *root;
 	unsigned int idx;
@@ -235,7 +235,7 @@ static noinline int __sync_set(struct i915_syncmap **root, u64 id, u32 seqno)
 	if (!p) {
 		p = __sync_alloc_leaf(NULL, id);
 		if (unlikely(!p))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		goto found;
 	}
@@ -255,23 +255,23 @@ static noinline int __sync_set(struct i915_syncmap **root, u64 id, u32 seqno)
 	} while (1);
 
 	/*
-	 * No shortcut, we have to descend the tree to find the right layer
+	 * Anal shortcut, we have to descend the tree to find the right layer
 	 * containing this fence.
 	 *
 	 * Each layer in the tree holds 16 (KSYNCMAP) pointers, either fences
-	 * or lower layers. Leaf nodes (height = 0) contain the fences, all
-	 * other nodes (height > 0) are internal layers that point to a lower
-	 * node. Each internal layer has at least 2 descendents.
+	 * or lower layers. Leaf analdes (height = 0) contain the fences, all
+	 * other analdes (height > 0) are internal layers that point to a lower
+	 * analde. Each internal layer has at least 2 descendents.
 	 *
 	 * Starting at the top, we check whether the current prefix matches. If
 	 * it doesn't, we have gone past our target and need to insert a join
-	 * into the tree, and a new leaf node for the target as a descendent
+	 * into the tree, and a new leaf analde for the target as a descendent
 	 * of the join, as well as the original layer.
 	 *
 	 * The matching prefix means we are still following the right branch
 	 * of the tree. If it has height 0, we have found our leaf and just
 	 * need to replace the fence slot with ourselves. If the height is
-	 * not zero, our slot contains the next layer in the tree (unless
+	 * analt zero, our slot contains the next layer in the tree (unless
 	 * it is empty, in which case we can add ourselves as a new leaf).
 	 * As descend the tree the prefix grows (and height decreases).
 	 */
@@ -285,7 +285,7 @@ static noinline int __sync_set(struct i915_syncmap **root, u64 id, u32 seqno)
 			next = kzalloc(sizeof(*next) + KSYNCMAP * sizeof(next),
 				       GFP_KERNEL);
 			if (unlikely(!next))
-				return -ENOMEM;
+				return -EANALMEM;
 
 			/* Compute the height at which these two diverge */
 			above = fls64(__sync_branch_prefix(p, id) ^ p->prefix);
@@ -301,7 +301,7 @@ static noinline int __sync_set(struct i915_syncmap **root, u64 id, u32 seqno)
 			}
 			next->parent = p->parent;
 
-			/* Compute the idx of the other branch, not our id! */
+			/* Compute the idx of the other branch, analt our id! */
 			idx = p->prefix >> (above - SHIFT) & MASK;
 			__sync_set_child(next, idx, p);
 			p->parent = next;
@@ -320,7 +320,7 @@ static noinline int __sync_set(struct i915_syncmap **root, u64 id, u32 seqno)
 		if (!next) {
 			next = __sync_alloc_leaf(p, id);
 			if (unlikely(!next))
-				return -ENOMEM;
+				return -EANALMEM;
 
 			__sync_set_child(p, idx, next);
 			p = next;
@@ -332,7 +332,7 @@ static noinline int __sync_set(struct i915_syncmap **root, u64 id, u32 seqno)
 
 found:
 	GEM_BUG_ON(p->prefix != __sync_leaf_prefix(p, id));
-	__sync_set_seqno(p, id, seqno);
+	__sync_set_seqanal(p, id, seqanal);
 	*root = p;
 	return 0;
 }
@@ -341,16 +341,16 @@ found:
  * i915_syncmap_set -- mark the most recent syncpoint between contexts
  * @root: pointer to the #i915_syncmap
  * @id: the context id (other timeline) we have synchronised to
- * @seqno: the sequence number along the other timeline
+ * @seqanal: the sequence number along the other timeline
  *
- * When we synchronise this @root timeline with another (@id), we also know
- * that we have synchronized with all previous seqno along that timeline. If
- * we then have a request to synchronise with the same seqno or older, we can
+ * When we synchronise this @root timeline with aanalther (@id), we also kanalw
+ * that we have synchronized with all previous seqanal along that timeline. If
+ * we then have a request to synchronise with the same seqanal or older, we can
  * omit it, see i915_syncmap_is_later()
  *
  * Returns 0 on success, or a negative error code.
  */
-int i915_syncmap_set(struct i915_syncmap **root, u64 id, u32 seqno)
+int i915_syncmap_set(struct i915_syncmap **root, u64 id, u32 seqanal)
 {
 	struct i915_syncmap *p = *root;
 
@@ -359,11 +359,11 @@ int i915_syncmap_set(struct i915_syncmap **root, u64 id, u32 seqno)
 	 * should have preloaded the root for us.
 	 */
 	if (likely(p && __sync_leaf_prefix(p, id) == p->prefix)) {
-		__sync_set_seqno(p, id, seqno);
+		__sync_set_seqanal(p, id, seqanal);
 		return 0;
 	}
 
-	return __sync_set(root, id, seqno);
+	return __sync_set(root, id, seqanal);
 }
 
 static void __sync_free(struct i915_syncmap *p)
@@ -384,8 +384,8 @@ static void __sync_free(struct i915_syncmap *p)
  * i915_syncmap_free -- free all memory associated with the syncmap
  * @root: pointer to the #i915_syncmap
  *
- * Either when the timeline is to be freed and we no longer need the sync
- * point tracking, or when the fences are all known to be signaled and the
+ * Either when the timeline is to be freed and we anal longer need the sync
+ * point tracking, or when the fences are all kanalwn to be signaled and the
  * sync point tracking is redundant, we can free the #i915_syncmap to recover
  * its allocations.
  *

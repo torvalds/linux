@@ -2,7 +2,7 @@
 /*
  * Pin controller and GPIO driver for Amlogic Meson SoCs
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamianal Galvani <b.galvani@gmail.com>
  */
 
 /*
@@ -33,7 +33,7 @@
  * can be shared by more banks with different offsets.
  *
  * In addition to this there are some registers shared between all
- * banks that control the IRQ functionality. This feature is not
+ * banks that control the IRQ functionality. This feature is analt
  * supported at the moment by the driver.
  */
 
@@ -141,7 +141,7 @@ static const struct pinctrl_ops meson_pctrl_ops = {
 	.get_groups_count	= meson_get_groups_count,
 	.get_group_name		= meson_get_group_name,
 	.get_group_pins		= meson_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map		= pinctrl_utils_free_map,
 	.pin_dbg_show		= meson_pin_dbg_show,
 };
@@ -313,8 +313,8 @@ static int meson_pinconf_set_drive_strength(struct meson_pinctrl *pc,
 	int ret;
 
 	if (!pc->reg_ds) {
-		dev_err(pc->dev, "drive-strength not supported\n");
-		return -ENOTSUPP;
+		dev_err(pc->dev, "drive-strength analt supported\n");
+		return -EANALTSUPP;
 	}
 
 	ret = meson_get_bank(pc, pin, &bank);
@@ -387,7 +387,7 @@ static int meson_pinconf_set(struct pinctrl_dev *pcdev, unsigned int pin,
 			ret = meson_pinconf_set_output_drive(pc, pin, arg);
 			break;
 		default:
-			ret = -ENOTSUPP;
+			ret = -EANALTSUPP;
 		}
 
 		if (ret)
@@ -441,7 +441,7 @@ static int meson_pinconf_get_drive_strength(struct meson_pinctrl *pc,
 	int ret;
 
 	if (!pc->reg_ds)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = meson_get_bank(pc, pin, &bank);
 	if (ret)
@@ -514,7 +514,7 @@ static int meson_pinconf_get(struct pinctrl_dev *pcdev, unsigned int pin,
 		break;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -544,7 +544,7 @@ static int meson_pinconf_group_set(struct pinctrl_dev *pcdev,
 static int meson_pinconf_group_get(struct pinctrl_dev *pcdev,
 				   unsigned int group, unsigned long *config)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static const struct pinconf_ops meson_pinconf_ops = {
@@ -607,7 +607,7 @@ static int meson_gpiolib_register(struct meson_pinctrl *pc)
 
 	pc->chip.label = pc->data->name;
 	pc->chip.parent = pc->dev;
-	pc->chip.fwnode = pc->fwnode;
+	pc->chip.fwanalde = pc->fwanalde;
 	pc->chip.request = gpiochip_generic_request;
 	pc->chip.free = gpiochip_generic_free;
 	pc->chip.set_config = gpiochip_generic_config;
@@ -637,14 +637,14 @@ static struct regmap_config meson_regmap_config = {
 };
 
 static struct regmap *meson_map_resource(struct meson_pinctrl *pc,
-					 struct device_node *node, char *name)
+					 struct device_analde *analde, char *name)
 {
 	struct resource res;
 	void __iomem *base;
 	int i;
 
-	i = of_property_match_string(node, "reg-names", name);
-	if (of_address_to_resource(node, i, &res))
+	i = of_property_match_string(analde, "reg-names", name);
+	if (of_address_to_resource(analde, i, &res))
 		return NULL;
 
 	base = devm_ioremap_resource(pc->dev, &res);
@@ -653,42 +653,42 @@ static struct regmap *meson_map_resource(struct meson_pinctrl *pc,
 
 	meson_regmap_config.max_register = resource_size(&res) - 4;
 	meson_regmap_config.name = devm_kasprintf(pc->dev, GFP_KERNEL,
-						  "%pOFn-%s", node,
+						  "%pOFn-%s", analde,
 						  name);
 	if (!meson_regmap_config.name)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return devm_regmap_init_mmio(pc->dev, base, &meson_regmap_config);
 }
 
 static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc)
 {
-	struct device_node *gpio_np;
+	struct device_analde *gpio_np;
 	unsigned int chips;
 
-	chips = gpiochip_node_count(pc->dev);
+	chips = gpiochip_analde_count(pc->dev);
 	if (!chips) {
-		dev_err(pc->dev, "no gpio node found\n");
+		dev_err(pc->dev, "anal gpio analde found\n");
 		return -EINVAL;
 	}
 	if (chips > 1) {
-		dev_err(pc->dev, "multiple gpio nodes\n");
+		dev_err(pc->dev, "multiple gpio analdes\n");
 		return -EINVAL;
 	}
 
-	pc->fwnode = gpiochip_node_get_first(pc->dev);
-	gpio_np = to_of_node(pc->fwnode);
+	pc->fwanalde = gpiochip_analde_get_first(pc->dev);
+	gpio_np = to_of_analde(pc->fwanalde);
 
 	pc->reg_mux = meson_map_resource(pc, gpio_np, "mux");
 	if (IS_ERR_OR_NULL(pc->reg_mux)) {
-		dev_err(pc->dev, "mux registers not found\n");
-		return pc->reg_mux ? PTR_ERR(pc->reg_mux) : -ENOENT;
+		dev_err(pc->dev, "mux registers analt found\n");
+		return pc->reg_mux ? PTR_ERR(pc->reg_mux) : -EANALENT;
 	}
 
 	pc->reg_gpio = meson_map_resource(pc, gpio_np, "gpio");
 	if (IS_ERR_OR_NULL(pc->reg_gpio)) {
-		dev_err(pc->dev, "gpio registers not found\n");
-		return pc->reg_gpio ? PTR_ERR(pc->reg_gpio) : -ENOENT;
+		dev_err(pc->dev, "gpio registers analt found\n");
+		return pc->reg_gpio ? PTR_ERR(pc->reg_gpio) : -EANALENT;
 	}
 
 	pc->reg_pull = meson_map_resource(pc, gpio_np, "pull");
@@ -701,7 +701,7 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc)
 
 	pc->reg_ds = meson_map_resource(pc, gpio_np, "ds");
 	if (IS_ERR(pc->reg_ds)) {
-		dev_dbg(pc->dev, "ds registers not found - skipping\n");
+		dev_dbg(pc->dev, "ds registers analt found - skipping\n");
 		pc->reg_ds = NULL;
 	}
 
@@ -740,7 +740,7 @@ int meson_pinctrl_probe(struct platform_device *pdev)
 
 	pc = devm_kzalloc(dev, sizeof(struct meson_pinctrl), GFP_KERNEL);
 	if (!pc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pc->dev = dev;
 	pc->data = (struct meson_pinctrl_data *) of_device_get_match_data(dev);

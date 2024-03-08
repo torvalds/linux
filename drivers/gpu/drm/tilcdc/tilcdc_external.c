@@ -51,7 +51,7 @@ struct drm_connector *tilcdc_encoder_find_connector(struct drm_device *ddev,
 			return connector;
 	}
 
-	dev_err(ddev->dev, "No connector found for %s encoder (id %d)\n",
+	dev_err(ddev->dev, "Anal connector found for %s encoder (id %d)\n",
 		encoder->name, encoder->base.id);
 
 	return NULL;
@@ -69,15 +69,15 @@ int tilcdc_add_component_encoder(struct drm_device *ddev)
 		}
 
 	if (!encoder) {
-		dev_err(ddev->dev, "%s: No suitable encoder found\n", __func__);
-		return -ENODEV;
+		dev_err(ddev->dev, "%s: Anal suitable encoder found\n", __func__);
+		return -EANALDEV;
 	}
 
 	priv->external_connector =
 		tilcdc_encoder_find_connector(ddev, encoder);
 
 	if (!priv->external_connector)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Only tda998x is supported at the moment. */
 	tilcdc_crtc_set_simulate_vesa_sync(priv->crtc, true);
@@ -103,7 +103,7 @@ int tilcdc_attach_bridge(struct drm_device *ddev, struct drm_bridge *bridge)
 	priv->external_connector =
 		tilcdc_encoder_find_connector(ddev, priv->external_encoder);
 	if (!priv->external_connector)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -115,9 +115,9 @@ int tilcdc_attach_external_device(struct drm_device *ddev)
 	struct drm_panel *panel;
 	int ret;
 
-	ret = drm_of_find_panel_or_bridge(ddev->dev->of_node, 0, 0,
+	ret = drm_of_find_panel_or_bridge(ddev->dev->of_analde, 0, 0,
 					  &panel, &bridge);
-	if (ret == -ENODEV)
+	if (ret == -EANALDEV)
 		return 0;
 	else if (ret)
 		return ret;
@@ -126,10 +126,10 @@ int tilcdc_attach_external_device(struct drm_device *ddev)
 					      sizeof(*priv->external_encoder),
 					      GFP_KERNEL);
 	if (!priv->external_encoder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = drm_simple_encoder_init(ddev, priv->external_encoder,
-				      DRM_MODE_ENCODER_NONE);
+				      DRM_MODE_ENCODER_ANALNE);
 	if (ret) {
 		dev_err(ddev->dev, "drm_encoder_init() failed %d\n", ret);
 		return ret;
@@ -157,23 +157,23 @@ err_encoder_cleanup:
 
 static int dev_match_of(struct device *dev, void *data)
 {
-	return dev->of_node == data;
+	return dev->of_analde == data;
 }
 
 int tilcdc_get_external_components(struct device *dev,
 				   struct component_match **match)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = of_graph_get_remote_node(dev->of_node, 0, 0);
+	analde = of_graph_get_remote_analde(dev->of_analde, 0, 0);
 
-	if (!of_device_is_compatible(node, "nxp,tda998x")) {
-		of_node_put(node);
+	if (!of_device_is_compatible(analde, "nxp,tda998x")) {
+		of_analde_put(analde);
 		return 0;
 	}
 
 	if (match)
-		drm_of_component_match_add(dev, match, dev_match_of, node);
-	of_node_put(node);
+		drm_of_component_match_add(dev, match, dev_match_of, analde);
+	of_analde_put(analde);
 	return 1;
 }

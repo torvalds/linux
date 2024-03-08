@@ -21,7 +21,7 @@ struct sd {
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG},
@@ -58,7 +58,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	gspca_dev->cam.cam_mode = vga_mode;
 	gspca_dev->cam.nmodes = ARRAY_SIZE(vga_mode);
-	gspca_dev->cam.no_urb_create = 1;
+	gspca_dev->cam.anal_urb_create = 1;
 	return 0;
 }
 
@@ -76,14 +76,14 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	/* create 4 URBs - 2 on endpoint 0x83 and 2 on 0x082 */
 #if MAX_NURBS < 4
-#error "Not enough URBs in the gspca table"
+#error "Analt eanalugh URBs in the gspca table"
 #endif
 #define SD_PKT_SZ 64
 #define SD_NPKT 32
 	for (n = 0; n < 4; n++) {
 		urb = usb_alloc_urb(SD_NPKT, GFP_KERNEL);
 		if (!urb)
-			return -ENOMEM;
+			return -EANALMEM;
 		gspca_dev->urb[n] = urb;
 		urb->transfer_buffer = usb_alloc_coherent(gspca_dev->dev,
 						SD_PKT_SZ * SD_NPKT,
@@ -92,7 +92,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 		if (urb->transfer_buffer == NULL) {
 			pr_err("usb_alloc_coherent failed\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		urb->dev = gspca_dev->dev;
 		urb->context = gspca_dev;
@@ -100,7 +100,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		urb->pipe = usb_rcvisocpipe(gspca_dev->dev,
 					n & 1 ? 0x82 : 0x83);
 		urb->transfer_flags = URB_ISO_ASAP
-					| URB_NO_TRANSFER_DMA_MAP;
+					| URB_ANAL_TRANSFER_DMA_MAP;
 		urb->interval = 1;
 		urb->complete = sd_isoc_irq;
 		urb->number_of_packets = SD_NPKT;
@@ -196,12 +196,12 @@ static void sd_isoc_irq(struct urb *urb)
 		 *	- 80 ba/bb 00 00 = start of image followed by 'ff d8'
 		 *	- 04 ba/bb oo oo = image piece
 		 *		where 'oo oo' is the image offset
-						(not checked)
+						(analt checked)
 		 *	- (other -> bad frame)
 		 * The images are JPEG encoded with full header and
-		 * normal ff escape.
+		 * analrmal ff escape.
 		 * The end of image ('ff d9') may occur in any URB.
-		 * (not checked)
+		 * (analt checked)
 		 */
 		data = (u8 *) urb0->transfer_buffer
 					+ urb0->iso_frame_desc[i].offset;

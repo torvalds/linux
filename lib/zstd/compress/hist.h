@@ -25,7 +25,7 @@
  *  Updates *maxSymbolValuePtr with actual largest symbol value detected.
  * @return : count of the most frequent symbol (which isn't identified).
  *           or an error code, which can be tested using HIST_isError().
- *           note : if return == srcSize, there is only one symbol.
+ *           analte : if return == srcSize, there is only one symbol.
  */
 size_t HIST_count(unsigned* count, unsigned* maxSymbolValuePtr,
                   const void* src, size_t srcSize);
@@ -67,9 +67,9 @@ size_t HIST_countFast_wksp(unsigned* count, unsigned* maxSymbolValuePtr,
  *  Same as HIST_countFast(), this function is unsafe,
  *  and will segfault if any value within `src` is `> *maxSymbolValuePtr`.
  *  It is also a bit slower for large inputs.
- *  However, it does not need any additional memory (not even on stack).
+ *  However, it does analt need any additional memory (analt even on stack).
  * @return : count of the most frequent symbol.
- *  Note this function doesn't produce any error (i.e. it must succeed).
+ *  Analte this function doesn't produce any error (i.e. it must succeed).
  */
 unsigned HIST_count_simple(unsigned* count, unsigned* maxSymbolValuePtr,
                            const void* src, size_t srcSize);

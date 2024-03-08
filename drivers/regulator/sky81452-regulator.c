@@ -40,7 +40,7 @@ static const struct linear_range sky81452_reg_ranges[] = {
 static const struct regulator_desc sky81452_reg = {
 	.name = "LOUT",
 	.of_match = of_match_ptr("lout"),
-	.regulators_node = of_match_ptr("regulator"),
+	.regulators_analde = of_match_ptr("regulator"),
 	.ops = &sky81452_reg_ops,
 	.type = REGULATOR_VOLTAGE,
 	.owner = THIS_MODULE,
@@ -62,7 +62,7 @@ static int sky81452_reg_probe(struct platform_device *pdev)
 
 	config.dev = dev->parent;
 	config.init_data = init_data;
-	config.of_node = dev->of_node;
+	config.of_analde = dev->of_analde;
 	config.regmap = dev_get_drvdata(dev->parent);
 
 	rdev = devm_regulator_register(dev, &sky81452_reg, &config);
@@ -79,7 +79,7 @@ static int sky81452_reg_probe(struct platform_device *pdev)
 static struct platform_driver sky81452_reg_driver = {
 	.driver = {
 		.name = "sky81452-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = sky81452_reg_probe,
 };

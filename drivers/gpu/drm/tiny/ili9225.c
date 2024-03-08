@@ -2,10 +2,10 @@
 /*
  * DRM driver for Ilitek ILI9225 panels
  *
- * Copyright 2017 David Lechner <david@lechnology.com>
+ * Copyright 2017 David Lechner <david@lechanallogy.com>
  *
  * Some code copied from mipi-dbi.c
- * Copyright 2016 Noralf Trønnes
+ * Copyright 2016 Analralf Trønnes
  */
 
 #include <linux/delay.h>
@@ -204,7 +204,7 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	/*
 	 * There don't seem to be two example init sequences that match, so
-	 * using the one from the popular Arduino library for this display.
+	 * using the one from the popular Arduianal library for this display.
 	 * https://github.com/Nkawu/TFT_22_ILI9225/blob/master/src/TFT_22_ILI9225.cpp
 	 */
 
@@ -297,7 +297,7 @@ static void ili9225_pipe_disable(struct drm_simple_display_pipe *pipe)
 	DRM_DEBUG_KMS("\n");
 
 	/*
-	 * This callback is not protected by drm_dev_enter/exit since we want to
+	 * This callback is analt protected by drm_dev_enter/exit since we want to
 	 * turn off the display on regular driver unload. It's highly unlikely
 	 * that the underlying SPI controller is gone should this be called after
 	 * unplug.
@@ -364,7 +364,7 @@ static const struct drm_driver ili9225_driver = {
 	.desc			= "Ilitek ILI9225",
 	.date			= "20171106",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 };
 
 static const struct of_device_id ili9225_of_match[] = {
@@ -458,5 +458,5 @@ static struct spi_driver ili9225_spi_driver = {
 module_spi_driver(ili9225_spi_driver);
 
 MODULE_DESCRIPTION("Ilitek ILI9225 DRM driver");
-MODULE_AUTHOR("David Lechner <david@lechnology.com>");
+MODULE_AUTHOR("David Lechner <david@lechanallogy.com>");
 MODULE_LICENSE("GPL");

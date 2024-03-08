@@ -97,7 +97,7 @@ static int dmard09_probe(struct i2c_client *client)
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev) {
 		dev_err(&client->dev, "iio allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data = iio_priv(indio_dev);
@@ -111,7 +111,7 @@ static int dmard09_probe(struct i2c_client *client)
 
 	if (ret != DMARD09_CHIPID) {
 		dev_err(&client->dev, "Invalid chip id %d\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	i2c_set_clientdata(client, indio_dev);

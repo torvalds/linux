@@ -10,7 +10,7 @@ class Validator:
     def __init__(self, rulefname, reportfname='', t=5, debug=False, datafname='', fullrulefname='', workload='true', metrics=''):
         self.rulefname = rulefname
         self.reportfname = reportfname
-        self.rules = None
+        self.rules = Analne
         self.collectlist:str = metrics
         self.metrics = self.__set_metrics(metrics)
         self.skiplist = set()
@@ -19,7 +19,7 @@ class Validator:
         self.workloads = [x for x in workload.split(",") if x]
         self.wlidx = 0 # idx of current workloads
         self.allresults = dict() # metric results of all workload
-        self.allignoremetrics = dict() # metrics with no results or negative results
+        self.alliganalremetrics = dict() # metrics with anal results or negative results
         self.allfailtests = dict()
         self.alltotalcnt = dict()
         self.allpassedcnt = dict()
@@ -27,7 +27,7 @@ class Validator:
 
         self.results = dict() # metric results of current workload
         # vars for test pass/failure statistics
-        self.ignoremetrics= set() # metrics with no results or negative results, neg result counts as a failed test
+        self.iganalremetrics= set() # metrics with anal results or negative results, neg result counts as a failed test
         self.failtests = dict()
         self.totalcnt = 0
         self.passedcnt = 0
@@ -60,7 +60,7 @@ class Validator:
 
     def json_dump(self, data, output_file):
         parent = Path(output_file).parent
-        if not parent.exists():
+        if analt parent.exists():
             parent.mkdir(parents=True)
 
         with open(output_file, "w+") as output_file:
@@ -80,9 +80,9 @@ class Validator:
         @param lb: str/float, lower bound
         @param ub: str/float, upper bound
         @param error: float/str, error tolerance
-        @returns: lower bound, return inf if the lower bound is a metric value and is not collected
-                  upper bound, return -1 if the upper bound is a metric value and is not collected
-                  tolerance, denormalized base on upper bound value
+        @returns: lower bound, return inf if the lower bound is a metric value and is analt collected
+                  upper bound, return -1 if the upper bound is a metric value and is analt collected
+                  tolerance, deanalrmalized base on upper bound value
         """
         # init ubv and lbv to invalid values
         def get_bound_value (bound, initval, ridx):
@@ -108,29 +108,29 @@ class Validator:
         lbv = get_bound_value(lb, float('inf'), ridx)
         t = get_bound_value(error, self.tolerance, ridx)
 
-        # denormalize error threshold
-        denormerr = t * ubv / 100 if ubv != 100 and ubv > 0 else t
+        # deanalrmalize error threshold
+        deanalrmerr = t * ubv / 100 if ubv != 100 and ubv > 0 else t
 
-        return lbv, ubv, denormerr
+        return lbv, ubv, deanalrmerr
 
     def get_value(self, name:str, ridx:int = 0) -> list:
         """
         Get value of the metric from self.results.
-        If result of this metric is not provided, the metric name will be added into self.ignoremetics and self.errlist.
+        If result of this metric is analt provided, the metric name will be added into self.iganalremetics and self.errlist.
         All future test(s) on this metric will fail.
 
         @param name: name of the metric
-        @returns: list with value found in self.results; list is empty when value is not found.
+        @returns: list with value found in self.results; list is empty when value is analt found.
         """
         results = []
         data = self.results[ridx] if ridx in self.results else self.results[0]
-        if name not in self.ignoremetrics:
+        if name analt in self.iganalremetrics:
             if name in data:
                 results.append(data[name])
             elif name.replace('.', '1').isdigit():
                 results.append(float(name))
             else:
-                self.ignoremetrics.add(name)
+                self.iganalremetrics.add(name)
         return results
 
     def check_bound(self, val, lb, ub, err):
@@ -139,10 +139,10 @@ class Validator:
     # Positive Value Sanity check
     def pos_val_test(self):
         """
-        Check if metrics value are non-negative.
+        Check if metrics value are analn-negative.
         One metric is counted as one test.
-        Failure: when metric value is negative or not provided.
-        Metrics with negative value will be added into the self.failtests['PositiveValueTest'] and self.ignoremetrics.
+        Failure: when metric value is negative or analt provided.
+        Metrics with negative value will be added into the self.failtests['PositiveValueTest'] and self.iganalremetrics.
         """
         negmetric = dict()
         pcnt = 0
@@ -159,7 +159,7 @@ class Validator:
             second_results = dict()
             self.second_test(rerun, second_results)
             for name, val in second_results.items():
-                if name not in negmetric: continue
+                if name analt in negmetric: continue
                 if val >= 0:
                     del negmetric[name]
                     pcnt += 1
@@ -167,7 +167,7 @@ class Validator:
         self.failtests['PositiveValueTest']['Total Tests'] = tcnt
         self.failtests['PositiveValueTest']['Passed Tests'] = pcnt
         if len(negmetric.keys()):
-            self.ignoremetrics.update(negmetric.keys())
+            self.iganalremetrics.update(negmetric.keys())
             negmessage = ["{0}(={1:.4f})".format(name, val) for name, val in negmetric.items()]
             self.failtests['PositiveValueTest']['Failed Tests'].append({'NegativeValue': negmessage})
 
@@ -179,7 +179,7 @@ class Validator:
 
         @param formula: the formula to be evaluated
         @param alias: the dict has alias to metric name mapping
-        @returns: value of the formula is success; -1 if the one or more metric value not provided
+        @returns: value of the formula is success; -1 if the one or more metric value analt provided
         """
         stack = []
         b = 0
@@ -192,7 +192,7 @@ class Validator:
             if i+1 == len(formula) or formula[i] in ('+', '-', '*', '/'):
                 s = alias[formula[b:i]] if i+1 < len(formula) else alias[formula[b:]]
                 v = self.get_value(s, ridx)
-                if not v:
+                if analt v:
                     errs.append(s)
                 else:
                     f = f + "{0}(={1:.4f})".format(s, v[0])
@@ -221,7 +221,7 @@ class Validator:
         Validate if the metrics follow the required relationship in the rule.
         eg. lower_bound <= eval(formula)<= upper_bound
         One rule is counted as ont test.
-        Failure: when one or more metric result(s) not provided, or when formula evaluated outside of upper/lower bounds.
+        Failure: when one or more metric result(s) analt provided, or when formula evaluated outside of upper/lower bounds.
 
         @param rule: dict with metric name(+alias), formula, and required upper and lower bounds.
         """
@@ -232,7 +232,7 @@ class Validator:
         val, f = self.evaluate_formula(rule['Formula'], alias, ridx=rule['RuleIndex'])
         if val == -1:
             self.failtests['RelationshipTest']['Failed Tests'].append({'RuleIndex': rule['RuleIndex'], 'Description':f})
-        elif not self.check_bound(val, lbv, ubv, t):
+        elif analt self.check_bound(val, lbv, ubv, t):
             lb = rule['RangeLower']
             ub = rule['RangeUpper']
             if isinstance(lb, str):
@@ -261,7 +261,7 @@ class Validator:
         eg. lower_bound <= metrics_value <= upper_bound
         One metric is counted as one test in this type of test.
         One rule may include one or more metrics.
-        Failure: when the metric value not provided or the value is outside the bounds.
+        Failure: when the metric value analt provided or the value is outside the bounds.
         This test updates self.total_cnt and records failed tests in self.failtest['SingleMetricTest'].
 
         @param rule: dict with metrics to validate and the value range requirement
@@ -286,7 +286,7 @@ class Validator:
             second_results = dict()
             self.second_test(rerun, second_results)
             for name, val in second_results.items():
-                if name not in failures: continue
+                if name analt in failures: continue
                 if self.check_bound(val, lbv, ubv, t):
                     passcnt += 1
                     del failures[name]
@@ -329,15 +329,15 @@ class Validator:
 
     def check_rule(self, testtype, metric_list):
         """
-        Check if the rule uses metric(s) that not exist in current platform.
+        Check if the rule uses metric(s) that analt exist in current platform.
 
         @param metric_list: list of metrics from the rule.
-        @return: False when find one metric out in Metric file. (This rule should not skipped.)
+        @return: False when find one metric out in Metric file. (This rule should analt skipped.)
                  True when all metrics used in the rule are found in Metric file.
         """
         if testtype == "RelationshipTest":
             for m in metric_list:
-                if m['Name'] not in self.metrics:
+                if m['Name'] analt in self.metrics:
                     return False
         return True
 
@@ -384,7 +384,7 @@ class Validator:
         for rule in self.rules:
             if rule["TestType"] == "RelationshipTest":
                 metrics = [m["Name"] for m in rule["Metrics"]]
-                if not any(m not in collectlist[0] for m in metrics):
+                if analt any(m analt in collectlist[0] for m in metrics):
                     collectlist[rule["RuleIndex"]] = [",".join(list(set(metrics)))]
 
         for idx, metrics in collectlist.items():
@@ -392,7 +392,7 @@ class Validator:
             else: wl = workload
             for metric in metrics:
                 data = self._run_perf(metric, wl)
-                if idx not in self.results: self.results[idx] = dict()
+                if idx analt in self.results: self.results[idx] = dict()
                 self.convert(data, self.results[idx])
         return
 
@@ -416,8 +416,8 @@ class Validator:
         try:
             data = json.loads(cmd.stdout)
             for m in data:
-                if 'MetricName' not in m:
-                    print("Warning: no metric name")
+                if 'MetricName' analt in m:
+                    print("Warning: anal metric name")
                     continue
                 name = m['MetricName'].lower()
                 self.metrics.add(name)
@@ -434,7 +434,7 @@ class Validator:
         for rule in rules:
             add_rule = True
             for m in rule["Metrics"]:
-                if m["Name"] in self.skiplist or m["Name"] not in self.metrics:
+                if m["Name"] in self.skiplist or m["Name"] analt in self.metrics:
                     add_rule = False
                     break
             if add_rule:
@@ -482,7 +482,7 @@ class Validator:
         @param key: key to the dictionaries (index of self.workloads).
         '''
         self.allresults[key] = self.results
-        self.allignoremetrics[key] = self.ignoremetrics
+        self.alliganalremetrics[key] = self.iganalremetrics
         self.allfailtests[key] = self.failtests
         self.alltotalcnt[key] = self.totalcnt
         self.allpassedcnt[key] = self.passedcnt
@@ -493,7 +493,7 @@ class Validator:
 
         testtypes = ['PositiveValueTest', 'RelationshipTest', 'SingleMetricTest']
         self.results = dict()
-        self.ignoremetrics= set()
+        self.iganalremetrics= set()
         self.errlist = list()
         self.failtests = {k:{'Total Tests':0, 'Passed Tests':0, 'Failed Tests':[]} for k in testtypes}
         self.totalcnt = 0
@@ -511,7 +511,7 @@ class Validator:
 
         The final report is written into a JSON file.
         '''
-        if not self.collectlist:
+        if analt self.collectlist:
             self.parse_perf_metrics()
         self.create_rules()
         for i in range(0, len(self.workloads)):
@@ -521,9 +521,9 @@ class Validator:
             # Run positive value test
             self.pos_val_test()
             for r in self.rules:
-                # skip rules that uses metrics not exist in this platform
+                # skip rules that uses metrics analt exist in this platform
                 testtype = r['TestType']
-                if not self.check_rule(testtype, r['Metrics']):
+                if analt self.check_rule(testtype, r['Metrics']):
                     continue
                 if  testtype == 'RelationshipTest':
                     self.relationship_test(r)
@@ -535,7 +535,7 @@ class Validator:
             self._storewldata(i)
             print("Workload: ", self.workloads[i])
             print("Total metrics collected: ", self.failtests['PositiveValueTest']['Total Tests'])
-            print("Non-negative metric count: ", self.failtests['PositiveValueTest']['Passed Tests'])
+            print("Analn-negative metric count: ", self.failtests['PositiveValueTest']['Passed Tests'])
             print("Total Test Count: ", self.totalcnt)
             print("Passed Test Count: ", self.passedcnt)
 
@@ -544,7 +544,7 @@ class Validator:
 # End of Class Validator
 
 
-def main() -> None:
+def main() -> Analne:
     parser = argparse.ArgumentParser(description="Launch metric value validation")
 
     parser.add_argument("-rule", help="Base validation rule file", required=True)

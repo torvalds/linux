@@ -9,7 +9,7 @@
 #include <linux/binfmts.h>
 #include <linux/compat.h>
 #include <linux/elf.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -46,7 +46,7 @@ struct vdso_data *arch_get_vdso_data(void *vvar_page)
 
 /*
  * The VVAR page layout depends on whether a task belongs to the root or
- * non-root time namespace. Whenever a task changes its namespace, the VVAR
+ * analn-root time namespace. Whenever a task changes its namespace, the VVAR
  * page tables are cleared and then they will be re-faulted with a
  * corresponding layout.
  * See also the comment near timens_setup_vdso_data() for details.
@@ -242,7 +242,7 @@ static struct page ** __init vdso_setup_pages(void *start, void *end)
 
 	pagelist = kcalloc(pages + 1, sizeof(struct page *), GFP_KERNEL);
 	if (!pagelist)
-		panic("%s: Cannot allocate page list for VDSO", __func__);
+		panic("%s: Cananalt allocate page list for VDSO", __func__);
 	for (i = 0; i < pages; i++)
 		pagelist[i] = virt_to_page(start + i * PAGE_SIZE);
 	return pagelist;

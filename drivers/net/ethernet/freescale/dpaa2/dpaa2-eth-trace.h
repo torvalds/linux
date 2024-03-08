@@ -30,7 +30,7 @@ DECLARE_EVENT_CLASS(dpaa2_eth_fd,
 		    TP_ARGS(netdev, fd),
 
 		    /* A structure containing the relevant information we want
-		     * to record. Declare name and type for each normal element,
+		     * to record. Declare name and type for each analrmal element,
 		     * name, type and size for arrays. Use __string for variable
 		     * length strings.
 		     */
@@ -61,7 +61,7 @@ DECLARE_EVENT_CLASS(dpaa2_eth_fd,
 			      __entry->fd_offset)
 );
 
-/* Now declare events of the above type. Format is:
+/* Analw declare events of the above type. Format is:
  * DEFINE_EVENT(class, name, proto, args), with proto and args same as for class
  */
 
@@ -122,7 +122,7 @@ DECLARE_EVENT_CLASS(dpaa2_eth_buf,
 		    TP_ARGS(netdev, vaddr, size, dma_addr, map_size, bpid),
 
 		    /* A structure containing the relevant information we want
-		     * to record. Declare name and type for each normal element,
+		     * to record. Declare name and type for each analrmal element,
 		     * name, type and size for arrays. Use __string for variable
 		     * length strings.
 		     */

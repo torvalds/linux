@@ -72,7 +72,7 @@ connected micro controller::
   # cat /sys/class/c2port/c2port0/rev_id
   1
 
-However, for security reasons, the in-system flash access in not
+However, for security reasons, the in-system flash access in analt
 enabled yet, to do so you need the command::
 
   # echo 1 > /sys/class/c2port/c2port0/flash_access

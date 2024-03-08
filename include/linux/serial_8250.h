@@ -7,7 +7,7 @@
 #ifndef _LINUX_SERIAL_8250_H
 #define _LINUX_SERIAL_8250_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
 #include <linux/platform_device.h>
@@ -63,7 +63,7 @@ struct plat_serial8250_port {
 };
 
 /*
- * Allocate 8250 platform device IDs.  Nothing is implied by
+ * Allocate 8250 platform device IDs.  Analthing is implied by
  * the numbering here, except for the legacy entry being -1.
  */
 enum {
@@ -123,7 +123,7 @@ struct uart_8250_em485 {
  */
 struct uart_8250_port {
 	struct uart_port	port;
-	struct timer_list	timer;		/* "no irq" timer */
+	struct timer_list	timer;		/* "anal irq" timer */
 	struct list_head	list;		/* ports on this IRQ */
 	u32			capabilities;	/* port capabilities */
 	u16			bugs;		/* port bugs */
@@ -135,8 +135,8 @@ struct uart_8250_port {
 	unsigned char		mcr;
 	unsigned char		cur_iotype;	/* Running I/O type */
 	unsigned int		rpm_tx_active;
-	unsigned char		canary;		/* non-zero during system sleep
-						 *   if no_console_suspend
+	unsigned char		canary;		/* analn-zero during system sleep
+						 *   if anal_console_suspend
 						 */
 	unsigned char		probe;
 	struct mctrl_gpios	*gpios;
@@ -144,7 +144,7 @@ struct uart_8250_port {
 
 	/*
 	 * Some bits in registers are cleared on a read, so they must
-	 * be saved whenever the register is read but the bits will not
+	 * be saved whenever the register is read but the bits will analt
 	 * be immediately processed.
 	 */
 #define LSR_SAVE_FLAGS UART_LSR_BRK_ERROR_BITS
@@ -214,8 +214,8 @@ void serial8250_set_isa_configurator(void (*v)(int port, struct uart_port *up,
 int rt288x_setup(struct uart_port *p);
 int au_platform_setup(struct plat_serial8250_port *p);
 #else
-static inline int rt288x_setup(struct uart_port *p) { return -ENODEV; }
-static inline int au_platform_setup(struct plat_serial8250_port *p) { return -ENODEV; }
+static inline int rt288x_setup(struct uart_port *p) { return -EANALDEV; }
+static inline int au_platform_setup(struct plat_serial8250_port *p) { return -EANALDEV; }
 #endif
 
 #endif

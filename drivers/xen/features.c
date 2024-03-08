@@ -26,7 +26,7 @@
  */
 #define chk_required_feature(f) {					\
 		if (!xen_feature(f))					\
-			panic("Xen: feature %s not available!\n", #f);	\
+			panic("Xen: feature %s analt available!\n", #f);	\
 	}
 
 u8 xen_features[XENFEAT_NR_SUBMAPS * 32] __read_mostly;

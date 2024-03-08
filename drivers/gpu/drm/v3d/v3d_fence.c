@@ -9,13 +9,13 @@ struct dma_fence *v3d_fence_create(struct v3d_dev *v3d, enum v3d_queue queue)
 
 	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
 	if (!fence)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	fence->dev = &v3d->drm;
 	fence->queue = queue;
-	fence->seqno = ++v3d->queue[queue].emit_seqno;
+	fence->seqanal = ++v3d->queue[queue].emit_seqanal;
 	dma_fence_init(&fence->base, &v3d_fence_ops, &v3d->job_lock,
-		       v3d->queue[queue].fence_context, fence->seqno);
+		       v3d->queue[queue].fence_context, fence->seqanal);
 
 	return &fence->base;
 }

@@ -261,7 +261,7 @@ static void handle___pkvm_create_private_mapping(struct kvm_cpu_context *host_ct
 	 * hypervisor start address of the allocation.
 	 *
 	 * However, handle___pkvm_create_private_mapping() hypercall crosses the
-	 * EL1/EL2 boundary so the pointer would not be valid in this context.
+	 * EL1/EL2 boundary so the pointer would analt be valid in this context.
 	 *
 	 * Instead pass the allocation address as the return value (or return
 	 * ERR_PTR() on failure).
@@ -358,7 +358,7 @@ static void handle_host_hcall(struct kvm_cpu_context *host_ctxt)
 
 	/*
 	 * If pKVM has been initialised then reject any calls to the
-	 * early "privileged" hypercalls. Note that we cannot reject
+	 * early "privileged" hypercalls. Analte that we cananalt reject
 	 * calls to __pkvm_prot_finalize for two reasons: (1) The static
 	 * key used to determine initialisation must be toggled prior to
 	 * finalisation and (2) finalisation is performed on a per-CPU
@@ -383,7 +383,7 @@ static void handle_host_hcall(struct kvm_cpu_context *host_ctxt)
 
 	return;
 inval:
-	cpu_reg(host_ctxt, 0) = SMCCC_RET_NOT_SUPPORTED;
+	cpu_reg(host_ctxt, 0) = SMCCC_RET_ANALT_SUPPORTED;
 }
 
 static void default_host_smc_handler(struct kvm_cpu_context *host_ctxt)

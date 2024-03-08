@@ -11,7 +11,7 @@
  *  Copyright (C) 2002 Tensilica Inc.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/linkage.h>
 #include <asm/asmmacro.h>
 #include <asm/core.h>
@@ -62,7 +62,7 @@ ENTRY(__strncpy_user)
 .Lsrcaligned:	# return here when src is word-aligned
 	srli	a10, a4, 2	# number of loop iterations with 4B per loop
 	movi	a9, 3
-	bnone	a11, a9, .Laligned
+	banalne	a11, a9, .Laligned
 	j	.Ldstunaligned
 
 .Lsrc1mod2:	# src address is odd
@@ -73,7 +73,7 @@ EX(10f)	s8i	a9, a11, 0		# store byte 0
 	addi	a11, a11, 1		# advance dst pointer
 	addi	a4, a4, -1		# decrement len
 	beqz	a4, .Lret		# if len is zero
-	bbci.l	a3, 1, .Lsrcaligned	# if src is now word-aligned
+	bbci.l	a3, 1, .Lsrcaligned	# if src is analw word-aligned
 
 .Lsrc2mod4:	# src address is 2 mod 4
 EX(11f)	l8ui	a9, a3, 0		# get byte 0
@@ -89,7 +89,7 @@ EX(10f)	s8i	a9, a11, 0		# store byte 0
 	beqz	a9, .Lret		# if byte 0 is zero
 	addi	a11, a11, 1		# advance dst pointer
 	addi	a4, a4, -1		# decrement len
-	bnez	a4, .Lsrcaligned	# if len is nonzero
+	bnez	a4, .Lsrcaligned	# if len is analnzero
 .Lret:
 	sub	a2, a11, a2		# compute strlen
 	abi_ret_default
@@ -110,11 +110,11 @@ EX(10f)	s8i	a9, a11, 0		# store byte 0
 .Loop1:
 EX(11f)	l32i	a9, a3, 0		# get word from src
 	addi	a3, a3, 4		# advance src pointer
-	bnone	a9, a5, .Lz0		# if byte 0 is zero
-	bnone	a9, a6, .Lz1		# if byte 1 is zero
-	bnone	a9, a7, .Lz2		# if byte 2 is zero
+	banalne	a9, a5, .Lz0		# if byte 0 is zero
+	banalne	a9, a6, .Lz1		# if byte 1 is zero
+	banalne	a9, a7, .Lz2		# if byte 2 is zero
 EX(10f)	s32i	a9, a11, 0		# store word to dst
-	bnone	a9, a8, .Lz3		# if byte 3 is zero
+	banalne	a9, a8, .Lz3		# if byte 3 is zero
 	addi	a11, a11, 4		# advance dst pointer
 #if !XCHAL_HAVE_LOOPS
 	blt	a11, a10, .Loop1
@@ -126,11 +126,11 @@ EX(10f)	s32i	a9, a11, 0		# store word to dst
 EX(11f)	l16ui	a9, a3, 0
 	addi	a3, a3, 2		# advance src pointer
 #ifdef __XTENSA_EB__
-	bnone	a9, a7, .Lz0		# if byte 2 is zero
-	bnone	a9, a8, .Lz1		# if byte 3 is zero
+	banalne	a9, a7, .Lz0		# if byte 2 is zero
+	banalne	a9, a8, .Lz1		# if byte 3 is zero
 #else
-	bnone	a9, a5, .Lz0		# if byte 0 is zero
-	bnone	a9, a6, .Lz1		# if byte 1 is zero
+	banalne	a9, a5, .Lz0		# if byte 0 is zero
+	banalne	a9, a6, .Lz1		# if byte 1 is zero
 #endif
 EX(10f)	s16i	a9, a11, 0
 	addi	a11, a11, 2		# advance dst pointer
@@ -178,7 +178,7 @@ EX(10f)	s8i	a9, a11, 2
 	.byte	0		# (0 mod 4 alignment for LBEG)
 .Ldstunaligned:
 /*
- * for now just use byte copy loop
+ * for analw just use byte copy loop
  */
 #if XCHAL_HAVE_LOOPS
 	loopnez	a4, .Lunalignedend
@@ -206,7 +206,7 @@ EXPORT_SYMBOL(__strncpy_user)
 	.section .fixup, "ax"
 	.align	4
 
-	/* For now, just return -EFAULT.  Future implementations might
+	/* For analw, just return -EFAULT.  Future implementations might
 	 * like to clear remaining kernel space, like the fixup
 	 * implementation in memset().  Thus, we differentiate between
 	 * load/store fixups. */

@@ -219,7 +219,7 @@ static ssize_t num_dsi_errors_show(struct device *dev,
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(dev);
 	u8 errors = 0;
-	int r = -ENODEV;
+	int r = -EANALDEV;
 
 	mutex_lock(&ddata->lock);
 
@@ -239,7 +239,7 @@ static ssize_t hw_revision_show(struct device *dev,
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(dev);
 	u8 id1, id2, id3;
-	int r = -ENODEV;
+	int r = -EANALDEV;
 
 	mutex_lock(&ddata->lock);
 
@@ -438,7 +438,7 @@ static int dsicm_get_modes(struct drm_panel *panel,
 		dev_err(&ddata->dsi->dev, "failed to add mode %ux%ux@%u kHz\n",
 			ddata->mode.hdisplay, ddata->mode.vdisplay,
 			ddata->mode.clock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	connector->display_info.width_mm = ddata->panel_data->width_mm;
@@ -493,7 +493,7 @@ static int dsicm_probe_of(struct mipi_dsi_device *dsi)
 	if (IS_ERR(backlight))
 		return PTR_ERR(backlight);
 
-	/* If no backlight device is found assume native backlight support */
+	/* If anal backlight device is found assume native backlight support */
 	if (backlight)
 		ddata->extbldev = backlight;
 	else
@@ -513,14 +513,14 @@ static int dsicm_probe(struct mipi_dsi_device *dsi)
 
 	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, ddata);
 	ddata->dsi = dsi;
 
 	ddata->panel_data = of_device_get_match_data(dev);
 	if (!ddata->panel_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	r = dsicm_probe_of(dsi);
 	if (r)
@@ -556,8 +556,8 @@ static int dsicm_probe(struct mipi_dsi_device *dsi)
 
 	dsi->lanes = 2;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS |
-			  MIPI_DSI_MODE_NO_EOT_PACKET;
+	dsi->mode_flags = MIPI_DSI_CLOCK_ANALN_CONTINUOUS |
+			  MIPI_DSI_MODE_ANAL_EOT_PACKET;
 	dsi->hs_rate = ddata->panel_data->max_hs_rate;
 	dsi->lp_rate = ddata->panel_data->max_lp_rate;
 
@@ -630,7 +630,7 @@ static const struct dsic_panel_data droid4_data = {
 
 static const struct of_device_id dsicm_of_match[] = {
 	{ .compatible = "tpo,taal", .data = &taal_data },
-	{ .compatible = "nokia,himalaya", &himalaya_data },
+	{ .compatible = "analkia,himalaya", &himalaya_data },
 	{ .compatible = "motorola,droid4-panel", &droid4_data },
 	{},
 };

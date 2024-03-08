@@ -56,20 +56,20 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 
 	flag = snd_amd_acp_find_config(pci);
 	if (flag != FLAG_AMD_LEGACY && flag != FLAG_AMD_LEGACY_ONLY_DMIC)
-		return -ENODEV;
+		return -EANALDEV;
 
 	chip = devm_kzalloc(&pci->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pci_enable_device(pci))
-		return dev_err_probe(&pci->dev, -ENODEV,
+		return dev_err_probe(&pci->dev, -EANALDEV,
 				     "pci_enable_device failed\n");
 
 	ret = pci_request_regions(pci, "AMD ACP3x audio");
 	if (ret < 0) {
 		dev_err(&pci->dev, "pci_request_regions failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto disable_pci;
 	}
 
@@ -80,7 +80,7 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 
 	switch (pci->revision) {
 	case 0x01:
-		chip->name = "acp_asoc_renoir";
+		chip->name = "acp_asoc_reanalir";
 		chip->acp_rev = ACP3X_DEV;
 		break;
 	case 0x6f:
@@ -101,7 +101,7 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 		goto release_regions;
 	}
 
-	dmic_dev = platform_device_register_data(dev, "dmic-codec", PLATFORM_DEVID_NONE, NULL, 0);
+	dmic_dev = platform_device_register_data(dev, "dmic-codec", PLATFORM_DEVID_ANALNE, NULL, 0);
 	if (IS_ERR(dmic_dev)) {
 		dev_err(dev, "failed to create DMIC device\n");
 		ret = PTR_ERR(dmic_dev);
@@ -111,14 +111,14 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 	addr = pci_resource_start(pci, 0);
 	chip->base = devm_ioremap(&pci->dev, addr, pci_resource_len(pci, 0));
 	if (!chip->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unregister_dmic_dev;
 	}
 
 	acp_init(chip);
 	res = devm_kcalloc(&pci->dev, num_res, sizeof(struct resource), GFP_KERNEL);
 	if (!res) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unregister_dmic_dev;
 	}
 
@@ -152,7 +152,7 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 
 	pdev = platform_device_register_full(&pdevinfo);
 	if (IS_ERR(pdev)) {
-		dev_err(&pci->dev, "cannot register %s device\n", pdevinfo.name);
+		dev_err(&pci->dev, "cananalt register %s device\n", pdevinfo.name);
 		ret = PTR_ERR(pdev);
 		goto unregister_dmic_dev;
 	}
@@ -162,7 +162,7 @@ skip_pdev_creation:
 	dev_set_drvdata(&pci->dev, chip);
 	pm_runtime_set_autosuspend_delay(&pci->dev, 2000);
 	pm_runtime_use_autosuspend(&pci->dev);
-	pm_runtime_put_noidle(&pci->dev);
+	pm_runtime_put_analidle(&pci->dev);
 	pm_runtime_allow(&pci->dev);
 	return ret;
 
@@ -218,7 +218,7 @@ static void acp_pci_remove(struct pci_dev *pci)
 
 	chip = pci_get_drvdata(pci);
 	pm_runtime_forbid(&pci->dev);
-	pm_runtime_get_noresume(&pci->dev);
+	pm_runtime_get_analresume(&pci->dev);
 	if (dmic_dev)
 		platform_device_unregister(dmic_dev);
 	if (pdev)

@@ -11,7 +11,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/netdev.h>
 #include <sys/socket.h>
-#include <errno.h>
+#include <erranal.h>
 #include <time.h>
 
 #include "bpf.h"
@@ -61,26 +61,26 @@ static int libbpf_netlink_open(__u32 *nl_pid, int proto)
 
 	sock = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, proto);
 	if (sock < 0)
-		return -errno;
+		return -erranal;
 
 	if (setsockopt(sock, SOL_NETLINK, NETLINK_EXT_ACK,
 		       &one, sizeof(one)) < 0) {
-		pr_warn("Netlink error reporting not supported\n");
+		pr_warn("Netlink error reporting analt supported\n");
 	}
 
 	if (bind(sock, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
-		ret = -errno;
+		ret = -erranal;
 		goto cleanup;
 	}
 
 	addrlen = sizeof(sa);
 	if (getsockname(sock, (struct sockaddr *)&sa, &addrlen) < 0) {
-		ret = -errno;
+		ret = -erranal;
 		goto cleanup;
 	}
 
 	if (addrlen != sizeof(sa)) {
-		ret = -LIBBPF_ERRNO__INTERNAL;
+		ret = -LIBBPF_ERRANAL__INTERNAL;
 		goto cleanup;
 	}
 
@@ -109,10 +109,10 @@ static int netlink_recvmsg(int sock, struct msghdr *mhdr, int flags)
 
 	do {
 		len = recvmsg(sock, mhdr, flags);
-	} while (len < 0 && (errno == EINTR || errno == EAGAIN));
+	} while (len < 0 && (erranal == EINTR || erranal == EAGAIN));
 
 	if (len < 0)
-		return -errno;
+		return -erranal;
 	return len;
 }
 
@@ -122,7 +122,7 @@ static int alloc_iov(struct iovec *iov, int len)
 
 	nbuf = realloc(iov->iov_base, len);
 	if (!nbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iov->iov_base = nbuf;
 	iov->iov_len = len;
@@ -174,11 +174,11 @@ start:
 		for (nh = (struct nlmsghdr *)iov.iov_base; NLMSG_OK(nh, len);
 		     nh = NLMSG_NEXT(nh, len)) {
 			if (nh->nlmsg_pid != nl_pid) {
-				ret = -LIBBPF_ERRNO__WRNGPID;
+				ret = -LIBBPF_ERRANAL__WRNGPID;
 				goto done;
 			}
 			if (nh->nlmsg_seq != seq) {
-				ret = -LIBBPF_ERRNO__INVSEQ;
+				ret = -LIBBPF_ERRANAL__INVSEQ;
 				goto done;
 			}
 			if (nh->nlmsg_flags & NLM_F_MULTI)
@@ -235,7 +235,7 @@ static int libbpf_netlink_send_recv(struct libbpf_nla_req *req,
 	req->nh.nlmsg_seq = time(NULL);
 
 	if (send(sock, req, req->nh.nlmsg_len, 0) < 0) {
-		ret = -errno;
+		ret = -erranal;
 		goto out;
 	}
 
@@ -352,7 +352,7 @@ static int __dump_link_nlmsg(struct nlmsghdr *nlh,
 	attr = (struct nlattr *) ((void *) ifi + NLMSG_ALIGN(sizeof(*ifi)));
 
 	if (libbpf_nla_parse(tb, IFLA_MAX, attr, len, NULL) != 0)
-		return -LIBBPF_ERRNO__NLPARSE;
+		return -LIBBPF_ERRANAL__NLPARSE;
 
 	return dump_link_nlmsg(cookie, ifi, tb);
 }
@@ -380,7 +380,7 @@ static int get_xdp_info(void *cookie, void *msg, struct nlattr **tb)
 	xdp_id->info.attach_mode = libbpf_nla_getattr_u8(
 		xdp_tb[IFLA_XDP_ATTACHED]);
 
-	if (xdp_id->info.attach_mode == XDP_ATTACHED_NONE)
+	if (xdp_id->info.attach_mode == XDP_ATTACHED_ANALNE)
 		return 0;
 
 	if (xdp_tb[IFLA_XDP_PROG_ID])
@@ -473,7 +473,7 @@ int bpf_xdp_query(int ifindex, int xdp_flags, struct bpf_xdp_query_opts *opts)
 
 	err = libbpf_netlink_resolve_genl_family_id("netdev", sizeof("netdev"), &id);
 	if (err < 0) {
-		if (err == -ENOENT) {
+		if (err == -EANALENT) {
 			opts->feature_flags = 0;
 			goto skip_feature_flags;
 		}
@@ -551,7 +551,7 @@ static int attach_point_to_config(struct bpf_tc_hook *hook,
 		*config = &clsact_config;
 		return 0;
 	case BPF_TC_CUSTOM:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	default:
 		return -EINVAL;
 	}
@@ -642,7 +642,7 @@ int bpf_tc_hook_destroy(struct bpf_tc_hook *hook)
 	case BPF_TC_INGRESS | BPF_TC_EGRESS:
 		return libbpf_err(tc_qdisc_delete(hook));
 	case BPF_TC_CUSTOM:
-		return libbpf_err(-EOPNOTSUPP);
+		return libbpf_err(-EOPANALTSUPP);
 	default:
 		return libbpf_err(-EINVAL);
 	}
@@ -709,7 +709,7 @@ static int tc_add_fd_and_name(struct libbpf_nla_req *req, int fd)
 		return ret;
 	len = snprintf(name, sizeof(name), "%s:[%u]", info.name, info.id);
 	if (len < 0)
-		return -errno;
+		return -erranal;
 	if (len >= sizeof(name))
 		return -ENAMETOOLONG;
 	return nlattr_add(req, TCA_BPF_NAME, name, len + 1);
@@ -785,7 +785,7 @@ int bpf_tc_attach(const struct bpf_tc_hook *hook, struct bpf_tc_opts *opts)
 	if (ret < 0)
 		return libbpf_err(ret);
 	if (!info.processed)
-		return libbpf_err(-ENOENT);
+		return libbpf_err(-EANALENT);
 	return ret;
 }
 
@@ -917,6 +917,6 @@ int bpf_tc_query(const struct bpf_tc_hook *hook, struct bpf_tc_opts *opts)
 	if (ret < 0)
 		return libbpf_err(ret);
 	if (!info.processed)
-		return libbpf_err(-ENOENT);
+		return libbpf_err(-EANALENT);
 	return ret;
 }

@@ -15,5 +15,5 @@ Contact:	linux-input@vger.kernel.org
 Description:
 		Presence of this file indicates that HID++ driver is capable of
 		handling battery properties in the kernel. This way, upower can
-		add a udev rule to decide whether or not it should use the
+		add a udev rule to decide whether or analt it should use the
 		internal unifying support or the generic kernel one.

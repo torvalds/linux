@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Special rules for ignoring entire classes of data-racy memory accesses. None
+ * Special rules for iganalring entire classes of data-racy memory accesses. Analne
  * of the rules here imply that such data races are generally safe!
  *
  * All rules in this file can be configured via CONFIG_KCSAN_PERMISSIVE. Keep
@@ -17,25 +17,25 @@
 #include <linux/types.h>
 
 /*
- * Access ignore rules based on address.
+ * Access iganalre rules based on address.
  */
-static __always_inline bool kcsan_ignore_address(const volatile void *ptr)
+static __always_inline bool kcsan_iganalre_address(const volatile void *ptr)
 {
 	if (!IS_ENABLED(CONFIG_KCSAN_PERMISSIVE))
 		return false;
 
 	/*
-	 * Data-racy bitops on current->flags are too common, ignore completely
-	 * for now.
+	 * Data-racy bitops on current->flags are too common, iganalre completely
+	 * for analw.
 	 */
 	return ptr == &current->flags;
 }
 
 /*
- * Data race ignore rules based on access type and value change patterns.
+ * Data race iganalre rules based on access type and value change patterns.
  */
 static bool
-kcsan_ignore_data_race(size_t size, int type, u64 old, u64 new, u64 diff)
+kcsan_iganalre_data_race(size_t size, int type, u64 old, u64 new, u64 diff)
 {
 	if (!IS_ENABLED(CONFIG_KCSAN_PERMISSIVE))
 		return false;
@@ -62,12 +62,12 @@ kcsan_ignore_data_race(size_t size, int type, u64 old, u64 new, u64 diff)
 	 * that marking them all is often unrealistic and left to maintainer
 	 * preference.
 	 *
-	 * The assumption in all cases is that with all known compiler
-	 * optimizations (including those that tear accesses), because no more
+	 * The assumption in all cases is that with all kanalwn compiler
+	 * optimizations (including those that tear accesses), because anal more
 	 * than 1 bit changed, the plain accesses are safe despite the presence
 	 * of data races.
 	 *
-	 * The rules here will ignore the data races if we observe no more than
+	 * The rules here will iganalre the data races if we observe anal more than
 	 * 1 bit changed.
 	 *
 	 * Of course many operations can effecively change just 1 bit, but the
@@ -81,7 +81,7 @@ kcsan_ignore_data_race(size_t size, int type, u64 old, u64 new, u64 diff)
 		/*
 		 * Exception: Report data races where the values look like
 		 * ordinary booleans (one of them was 0 and the 0th bit was
-		 * changed) More often than not, they come with interesting
+		 * changed) More often than analt, they come with interesting
 		 * memory ordering requirements, so let's report them.
 		 */
 		if (!((!old || !new) && diff == 1))

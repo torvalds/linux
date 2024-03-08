@@ -87,7 +87,7 @@ static int octeon_gpio_probe(struct platform_device *pdev)
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 	chip = &gpio->chip;
 
 	reg_base = devm_platform_ioremap_resource(pdev, 0);

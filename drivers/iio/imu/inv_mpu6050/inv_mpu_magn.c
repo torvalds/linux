@@ -70,7 +70,7 @@ static int inv_magn_init(struct inv_mpu6050_state *st)
 	if (ret)
 		return ret;
 	if (val != INV_MPU_MAGN_BITS_WIA)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* software reset for MPU925x only */
 	switch (st->chip_type) {
@@ -147,14 +147,14 @@ static int inv_magn_init(struct inv_mpu6050_state *st)
  * Returns 0 on success, a negative error code otherwise
  *
  * It is probing the chip and setting up all needed i2c transfers.
- * Noop if there is no magnetometer in the chip.
+ * Analop if there is anal magnetometer in the chip.
  */
 int inv_mpu_magn_probe(struct inv_mpu6050_state *st)
 {
 	uint8_t val;
 	int ret;
 
-	/* quit if chip is not supported */
+	/* quit if chip is analt supported */
 	if (!inv_magn_supported(st))
 		return 0;
 
@@ -229,13 +229,13 @@ int inv_mpu_magn_probe(struct inv_mpu6050_state *st)
  *
  * Limit sampling frequency to the maximum value supported by the
  * magnetometer chip. Resulting in duplicated data for higher frequencies.
- * Noop if there is no magnetometer in the chip.
+ * Analop if there is anal magnetometer in the chip.
  */
 int inv_mpu_magn_set_rate(const struct inv_mpu6050_state *st, int fifo_rate)
 {
 	uint8_t d;
 
-	/* quit if chip is not supported */
+	/* quit if chip is analt supported */
 	if (!inv_magn_supported(st))
 		return 0;
 
@@ -298,7 +298,7 @@ int inv_mpu_magn_set_orient(struct inv_mpu6050_state *st)
 			else
 				str = devm_kasprintf(dev, GFP_KERNEL, "-%s", orient);
 			if (!str)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			st->magn_orient.rotation[i] = str;
 		}
@@ -326,9 +326,9 @@ int inv_mpu_magn_read(struct inv_mpu6050_state *st, int axis, int *val)
 	uint8_t addr;
 	int ret;
 
-	/* quit if chip is not supported */
+	/* quit if chip is analt supported */
 	if (!inv_magn_supported(st))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Mag data: XH,XL,YH,YL,ZH,ZL */
 	switch (axis) {

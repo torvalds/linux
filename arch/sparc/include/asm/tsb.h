@@ -122,11 +122,11 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	sethi	%hi(TSB_TAG_LOCK_HIGH), REG2;\
 	andcc	REG1, REG2, %g0;	\
 	bne,pn	%icc, 99b;		\
-	 nop;				\
+	 analp;				\
 	TSB_CAS_TAG_HIGH(TSB, REG1, REG2);	\
 	cmp	REG1, REG2;		\
 	bne,pn	%icc, 99b;		\
-	 nop;				\
+	 analp;				\
 
 #define TSB_WRITE(TSB, TTE, TAG) \
 	add	TSB, 0x8, TSB;   \
@@ -136,12 +136,12 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 
 	/* Do a kernel page table walk.  Leaves valid PTE value in
 	 * REG1.  Jumps to FAIL_LABEL on early page table walk
-	 * termination.  VADDR will not be clobbered, but REG2 will.
+	 * termination.  VADDR will analt be clobbered, but REG2 will.
 	 *
 	 * There are two masks we must apply to propagate bits from
 	 * the virtual address into the PTE physical address field
 	 * when dealing with huge pages.  This is because the page
-	 * table boundaries do not match the huge page size(s) the
+	 * table boundaries do analt match the huge page size(s) the
 	 * hardware supports.
 	 *
 	 * In these cases we propagate the bits that are below the
@@ -193,11 +193,11 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	andn		REG2, 0x7, REG2; \
 	ldxa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
 	brgez,pn	REG1, FAIL_LABEL; \
-	 nop; \
+	 analp; \
 699:
 
 	/* PUD has been loaded into REG1, interpret the value, seeing
-	 * if it is a HUGE PUD or a normal one.  If it is not valid
+	 * if it is a HUGE PUD or a analrmal one.  If it is analt valid
 	 * then jump to FAIL_LABEL.  If it is a HUGE PUD, and it
 	 * translates to a valid PTE, branch to PTE_LABEL.
 	 *
@@ -207,10 +207,10 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 #define USER_PGTABLE_CHECK_PUD_HUGE(VADDR, REG1, REG2, FAIL_LABEL, PTE_LABEL) \
 700:	ba 700f;					\
-	 nop;						\
+	 analp;						\
 	.section	.pud_huge_patch, "ax";		\
 	.word		700b;				\
-	nop;						\
+	analp;						\
 	.previous;					\
 	brz,pn		REG1, FAIL_LABEL;		\
 	 sethi		%uhi(_PAGE_PUD_HUGE), REG2;	\
@@ -228,11 +228,11 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 #else
 #define USER_PGTABLE_CHECK_PUD_HUGE(VADDR, REG1, REG2, FAIL_LABEL, PTE_LABEL) \
 	brz,pn		REG1, FAIL_LABEL; \
-	 nop;
+	 analp;
 #endif
 
 	/* PMD has been loaded into REG1, interpret the value, seeing
-	 * if it is a HUGE PMD or a normal one.  If it is not valid
+	 * if it is a HUGE PMD or a analrmal one.  If it is analt valid
 	 * then jump to FAIL_LABEL.  If it is a HUGE PMD, and it
 	 * translates to a valid PTE, branch to PTE_LABEL.
 	 *
@@ -256,17 +256,17 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 #else
 #define USER_PGTABLE_CHECK_PMD_HUGE(VADDR, REG1, REG2, FAIL_LABEL, PTE_LABEL) \
 	brz,pn		REG1, FAIL_LABEL; \
-	 nop;
+	 analp;
 #endif
 
 	/* Do a user page table walk in MMU globals.  Leaves final,
 	 * valid, PTE value in REG1.  Jumps to FAIL_LABEL on early
-	 * page table walk termination or if the PTE is not valid.
+	 * page table walk termination or if the PTE is analt valid.
 	 *
-	 * Physical base of page tables is in PHYS_PGD which will not
+	 * Physical base of page tables is in PHYS_PGD which will analt
 	 * be modified.
 	 *
-	 * VADDR will not be clobbered, but REG1 and REG2 will.
+	 * VADDR will analt be clobbered, but REG1 and REG2 will.
 	 */
 #define USER_PGTABLE_WALK_TL1(VADDR, PHYS_PGD, REG1, REG2, FAIL_LABEL)	\
 	sllx		VADDR, 64 - (PGDIR_SHIFT + PGDIR_BITS), REG2; \
@@ -291,11 +291,11 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	add		REG1, REG2, REG1; \
 	ldxa		[REG1] ASI_PHYS_USE_EC, REG1; \
 	brgez,pn	REG1, FAIL_LABEL; \
-	 nop; \
+	 analp; \
 800:
 
 /* Lookup a OBP mapping on VADDR in the prom_trans[] table at TL>0.
- * If no entry is found, FAIL_LABEL will be branched to.  On success
+ * If anal entry is found, FAIL_LABEL will be branched to.  On success
  * the resulting PTE value will be left in REG1.  VADDR is preserved
  * by this routine.
  */
@@ -304,7 +304,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	or		REG1, %lo(prom_trans), REG1; \
 97:	ldx		[REG1 + 0x00], REG2; \
 	brz,pn		REG2, FAIL_LABEL; \
-	 nop; \
+	 analp; \
 	ldx		[REG1 + 0x08], REG3; \
 	add		REG2, REG3, REG3; \
 	cmp		REG2, VADDR; \
@@ -333,7 +333,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	 * and the found TTE will be left in REG1.  REG3 and REG4 must
 	 * be an even/odd pair of registers.
 	 *
-	 * VADDR and TAG will be preserved and not clobbered by this macro.
+	 * VADDR and TAG will be preserved and analt clobbered by this macro.
 	 */
 #define KERN_TSB_LOOKUP_TL1(VADDR, TAG, REG1, REG2, REG3, REG4, OK_LABEL) \
 661:	sethi		%uhi(swapper_tsb), REG1; \

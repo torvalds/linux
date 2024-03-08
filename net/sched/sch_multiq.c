@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
@@ -177,7 +177,7 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt,
 	int i, n_removed = 0;
 
 	if (!netif_is_multiqueue(qdisc_dev(sch)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (nla_len(opt) < sizeof(*qopt))
 		return -EINVAL;
 
@@ -188,15 +188,15 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt,
 	removed = kmalloc(sizeof(*removed) * (q->max_bands - q->bands),
 			  GFP_KERNEL);
 	if (!removed)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sch_tree_lock(sch);
 	q->bands = qopt->bands;
 	for (i = q->bands; i < q->max_bands; i++) {
-		if (q->queues[i] != &noop_qdisc) {
+		if (q->queues[i] != &analop_qdisc) {
 			struct Qdisc *child = q->queues[i];
 
-			q->queues[i] = &noop_qdisc;
+			q->queues[i] = &analop_qdisc;
 			qdisc_purge_queue(child);
 			removed[n_removed++] = child;
 		}
@@ -209,7 +209,7 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt,
 	kfree(removed);
 
 	for (i = 0; i < q->bands; i++) {
-		if (q->queues[i] == &noop_qdisc) {
+		if (q->queues[i] == &analop_qdisc) {
 			struct Qdisc *child, *old;
 			child = qdisc_create_dflt(sch->dev_queue,
 						  &pfifo_qdisc_ops,
@@ -219,10 +219,10 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt,
 				sch_tree_lock(sch);
 				old = q->queues[i];
 				q->queues[i] = child;
-				if (child != &noop_qdisc)
+				if (child != &analop_qdisc)
 					qdisc_hash_add(child, true);
 
-				if (old != &noop_qdisc)
+				if (old != &analop_qdisc)
 					qdisc_purge_queue(old);
 				sch_tree_unlock(sch);
 				qdisc_put(old);
@@ -251,9 +251,9 @@ static int multiq_init(struct Qdisc *sch, struct nlattr *opt,
 
 	q->queues = kcalloc(q->max_bands, sizeof(struct Qdisc *), GFP_KERNEL);
 	if (!q->queues)
-		return -ENOBUFS;
+		return -EANALBUFS;
 	for (i = 0; i < q->max_bands; i++)
-		q->queues[i] = &noop_qdisc;
+		q->queues[i] = &analop_qdisc;
 
 	return multiq_tune(sch, opt, extack);
 }
@@ -284,7 +284,7 @@ static int multiq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	unsigned long band = arg - 1;
 
 	if (new == NULL)
-		new = &noop_qdisc;
+		new = &analop_qdisc;
 
 	*old = qdisc_replace(sch, new, &q->queues[band]);
 	return 0;

@@ -2,7 +2,7 @@
 /*
  *  Driver for the Conexant CX23885/7/8 PCIe bridge
  *
- *  Infrared device support routines - non-input, non-vl42_subdev routines
+ *  Infrared device support routines - analn-input, analn-vl42_subdev routines
  *
  *  Copyright (C) 2009  Andy Walls <awalls@md.metrocast.net>
  */
@@ -26,15 +26,15 @@ void cx23885_ir_rx_work_handler(struct work_struct *work)
 	struct cx23885_dev *dev =
 			     container_of(work, struct cx23885_dev, ir_rx_work);
 	u32 events = 0;
-	unsigned long *notifications = &dev->ir_rx_notifications;
+	unsigned long *analtifications = &dev->ir_rx_analtifications;
 
-	if (test_and_clear_bit(CX23885_IR_RX_SW_FIFO_OVERRUN, notifications))
+	if (test_and_clear_bit(CX23885_IR_RX_SW_FIFO_OVERRUN, analtifications))
 		events |= V4L2_SUBDEV_IR_RX_SW_FIFO_OVERRUN;
-	if (test_and_clear_bit(CX23885_IR_RX_HW_FIFO_OVERRUN, notifications))
+	if (test_and_clear_bit(CX23885_IR_RX_HW_FIFO_OVERRUN, analtifications))
 		events |= V4L2_SUBDEV_IR_RX_HW_FIFO_OVERRUN;
-	if (test_and_clear_bit(CX23885_IR_RX_END_OF_RX_DETECTED, notifications))
+	if (test_and_clear_bit(CX23885_IR_RX_END_OF_RX_DETECTED, analtifications))
 		events |= V4L2_SUBDEV_IR_RX_END_OF_RX_DETECTED;
-	if (test_and_clear_bit(CX23885_IR_RX_FIFO_SERVICE_REQ, notifications))
+	if (test_and_clear_bit(CX23885_IR_RX_FIFO_SERVICE_REQ, analtifications))
 		events |= V4L2_SUBDEV_IR_RX_FIFO_SERVICE_REQ;
 
 	if (events == 0)
@@ -49,9 +49,9 @@ void cx23885_ir_tx_work_handler(struct work_struct *work)
 	struct cx23885_dev *dev =
 			     container_of(work, struct cx23885_dev, ir_tx_work);
 	u32 events = 0;
-	unsigned long *notifications = &dev->ir_tx_notifications;
+	unsigned long *analtifications = &dev->ir_tx_analtifications;
 
-	if (test_and_clear_bit(CX23885_IR_TX_FIFO_SERVICE_REQ, notifications))
+	if (test_and_clear_bit(CX23885_IR_TX_FIFO_SERVICE_REQ, analtifications))
 		events |= V4L2_SUBDEV_IR_TX_FIFO_SERVICE_REQ;
 
 	if (events == 0)
@@ -60,19 +60,19 @@ void cx23885_ir_tx_work_handler(struct work_struct *work)
 }
 
 /* Possibly called in an IRQ context */
-void cx23885_ir_rx_v4l2_dev_notify(struct v4l2_subdev *sd, u32 events)
+void cx23885_ir_rx_v4l2_dev_analtify(struct v4l2_subdev *sd, u32 events)
 {
 	struct cx23885_dev *dev = to_cx23885(sd->v4l2_dev);
-	unsigned long *notifications = &dev->ir_rx_notifications;
+	unsigned long *analtifications = &dev->ir_rx_analtifications;
 
 	if (events & V4L2_SUBDEV_IR_RX_FIFO_SERVICE_REQ)
-		set_bit(CX23885_IR_RX_FIFO_SERVICE_REQ, notifications);
+		set_bit(CX23885_IR_RX_FIFO_SERVICE_REQ, analtifications);
 	if (events & V4L2_SUBDEV_IR_RX_END_OF_RX_DETECTED)
-		set_bit(CX23885_IR_RX_END_OF_RX_DETECTED, notifications);
+		set_bit(CX23885_IR_RX_END_OF_RX_DETECTED, analtifications);
 	if (events & V4L2_SUBDEV_IR_RX_HW_FIFO_OVERRUN)
-		set_bit(CX23885_IR_RX_HW_FIFO_OVERRUN, notifications);
+		set_bit(CX23885_IR_RX_HW_FIFO_OVERRUN, analtifications);
 	if (events & V4L2_SUBDEV_IR_RX_SW_FIFO_OVERRUN)
-		set_bit(CX23885_IR_RX_SW_FIFO_OVERRUN, notifications);
+		set_bit(CX23885_IR_RX_SW_FIFO_OVERRUN, analtifications);
 
 	/*
 	 * For the integrated AV core, we are already in a workqueue context.
@@ -85,13 +85,13 @@ void cx23885_ir_rx_v4l2_dev_notify(struct v4l2_subdev *sd, u32 events)
 }
 
 /* Possibly called in an IRQ context */
-void cx23885_ir_tx_v4l2_dev_notify(struct v4l2_subdev *sd, u32 events)
+void cx23885_ir_tx_v4l2_dev_analtify(struct v4l2_subdev *sd, u32 events)
 {
 	struct cx23885_dev *dev = to_cx23885(sd->v4l2_dev);
-	unsigned long *notifications = &dev->ir_tx_notifications;
+	unsigned long *analtifications = &dev->ir_tx_analtifications;
 
 	if (events & V4L2_SUBDEV_IR_TX_FIFO_SERVICE_REQ)
-		set_bit(CX23885_IR_TX_FIFO_SERVICE_REQ, notifications);
+		set_bit(CX23885_IR_TX_FIFO_SERVICE_REQ, analtifications);
 
 	/*
 	 * For the integrated AV core, we are already in a workqueue context.

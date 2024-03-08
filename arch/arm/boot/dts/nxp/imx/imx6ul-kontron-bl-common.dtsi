@@ -102,7 +102,7 @@
 
 &fec1 {
 	pinctrl-0 = <&pinctrl_enet1>;
-	/delete-node/ mdio;
+	/delete-analde/ mdio;
 };
 
 &fec2 {
@@ -214,7 +214,7 @@
 	wakeup-source;
 	vmmc-supply = <&reg_3v3>;
 	voltage-ranges = <3300 3300>;
-	no-1-8-v;
+	anal-1-8-v;
 	status = "okay";
 };
 
@@ -223,12 +223,12 @@
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
-	non-removable;
+	analn-removable;
 	keep-power-in-suspend;
 	wakeup-source;
 	vmmc-supply = <&reg_3v3>;
 	voltage-ranges = <3300 3300>;
-	no-1-8-v;
+	anal-1-8-v;
 	status = "okay";
 };
 

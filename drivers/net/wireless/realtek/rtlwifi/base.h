@@ -5,7 +5,7 @@
 #define __RTL_BASE_H__
 
 enum ap_peer {
-	PEER_UNKNOWN = 0,
+	PEER_UNKANALWN = 0,
 	PEER_RTL = 1,
 	PEER_RTL_92SE = 2,
 	PEER_BROAD = 3,

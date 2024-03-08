@@ -17,12 +17,12 @@ static int msm_hdmi_phy_resource_init(struct hdmi_phy *phy)
 	phy->regs = devm_kcalloc(dev, cfg->num_regs, sizeof(phy->regs[0]),
 				 GFP_KERNEL);
 	if (!phy->regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->clks = devm_kcalloc(dev, cfg->num_clks, sizeof(phy->clks[0]),
 				 GFP_KERNEL);
 	if (!phy->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < cfg->num_regs; i++)
 		phy->regs[i].supply = cfg->reg_names[i];
@@ -119,7 +119,7 @@ static int msm_hdmi_phy_pll_init(struct platform_device *pdev,
 		ret = msm_hdmi_pll_8996_init(pdev);
 		break;
 	/*
-	 * we don't have PLL support for these, don't report an error for now
+	 * we don't have PLL support for these, don't report an error for analw
 	 */
 	case MSM_HDMI_PHY_8x60:
 	case MSM_HDMI_PHY_8x74:
@@ -139,16 +139,16 @@ static int msm_hdmi_phy_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy->cfg = (struct hdmi_phy_cfg *)of_device_get_match_data(dev);
 	if (!phy->cfg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy->mmio = msm_ioremap(pdev, "hdmi_phy");
 	if (IS_ERR(phy->mmio)) {
 		DRM_DEV_ERROR(dev, "%s: failed to map phy base\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	phy->pdev = pdev;

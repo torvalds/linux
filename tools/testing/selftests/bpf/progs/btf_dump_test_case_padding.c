@@ -198,7 +198,7 @@ struct acpi_object_method {
 	char: 8;
 	char sync_level;
 	long: 64;
-	void *node;
+	void *analde;
 	void *aml_start;
 	union {} dispatch;
 	long: 64;

@@ -157,7 +157,7 @@ static int _sprd_pll_set_rate(const struct sprd_pll *pll,
 
 	cfg = kcalloc(regs_num, sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	refin = pll_get_refin(pll);
 

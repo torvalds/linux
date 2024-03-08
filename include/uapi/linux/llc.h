@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-analte */
 /*
  * IEEE 802.2 User Interface SAPs for Linux, data structures and indicators.
  *
@@ -33,7 +33,7 @@ struct sockaddr_llc {
 
 /* sockopt definitions. */
 enum llc_sockopts {
-	LLC_OPT_UNKNOWN = 0,
+	LLC_OPT_UNKANALWN = 0,
 	LLC_OPT_RETRY,		/* max retrans attempts. */
 	LLC_OPT_SIZE,		/* max PDU size (octets). */
 	LLC_OPT_ACK_TMR_EXP,	/* ack expire time (secs). */

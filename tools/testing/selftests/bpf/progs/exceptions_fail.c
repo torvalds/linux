@@ -12,7 +12,7 @@ extern void bpf_rcu_read_lock(void) __ksym;
 #define private(name) SEC(".bss." #name) __hidden __attribute__((aligned(8)))
 
 struct foo {
-	struct bpf_rb_node node;
+	struct bpf_rb_analde analde;
 };
 
 struct hmap_elem {
@@ -27,24 +27,24 @@ struct {
 } hmap SEC(".maps");
 
 private(A) struct bpf_spin_lock lock;
-private(A) struct bpf_rb_root rbtree __contains(foo, node);
+private(A) struct bpf_rb_root rbtree __contains(foo, analde);
 
-__noinline void *exception_cb_bad_ret_type(u64 cookie)
+__analinline void *exception_cb_bad_ret_type(u64 cookie)
 {
 	return NULL;
 }
 
-__noinline int exception_cb_bad_arg_0(void)
+__analinline int exception_cb_bad_arg_0(void)
 {
 	return 0;
 }
 
-__noinline int exception_cb_bad_arg_2(int a, int b)
+__analinline int exception_cb_bad_arg_2(int a, int b)
 {
 	return 0;
 }
 
-__noinline int exception_cb_ok_arg_small(int a)
+__analinline int exception_cb_ok_arg_small(int a)
 {
 	return 0;
 }
@@ -85,7 +85,7 @@ int reject_exception_cb_type_4(struct __sk_buff *ctx)
 	return 0;
 }
 
-__noinline
+__analinline
 static int timer_cb(void *map, int *key, struct bpf_timer *timer)
 {
 	bpf_throw(0);
@@ -93,7 +93,7 @@ static int timer_cb(void *map, int *key, struct bpf_timer *timer)
 }
 
 SEC("?tc")
-__failure __msg("cannot be called from callback subprog")
+__failure __msg("cananalt be called from callback subprog")
 int reject_async_callback_throw(struct __sk_buff *ctx)
 {
 	struct hmap_elem *elem;
@@ -104,7 +104,7 @@ int reject_async_callback_throw(struct __sk_buff *ctx)
 	return bpf_timer_set_callback(&elem->timer, timer_cb);
 }
 
-__noinline static int subprog_lock(struct __sk_buff *ctx)
+__analinline static int subprog_lock(struct __sk_buff *ctx)
 {
 	volatile int ret = 0;
 
@@ -115,7 +115,7 @@ __noinline static int subprog_lock(struct __sk_buff *ctx)
 }
 
 SEC("?tc")
-__failure __msg("function calls are not allowed while holding a lock")
+__failure __msg("function calls are analt allowed while holding a lock")
 int reject_with_lock(void *ctx)
 {
 	bpf_spin_lock(&lock);
@@ -124,7 +124,7 @@ int reject_with_lock(void *ctx)
 }
 
 SEC("?tc")
-__failure __msg("function calls are not allowed while holding a lock")
+__failure __msg("function calls are analt allowed while holding a lock")
 int reject_subprog_with_lock(void *ctx)
 {
 	return subprog_lock(ctx);
@@ -139,7 +139,7 @@ int reject_with_rcu_read_lock(void *ctx)
 	return 0;
 }
 
-__noinline static int throwing_subprog(struct __sk_buff *ctx)
+__analinline static int throwing_subprog(struct __sk_buff *ctx)
 {
 	if (ctx->len)
 		bpf_throw(0);
@@ -154,14 +154,14 @@ int reject_subprog_with_rcu_read_lock(void *ctx)
 	return throwing_subprog(ctx);
 }
 
-static bool rbless(struct bpf_rb_node *n1, const struct bpf_rb_node *n2)
+static bool rbless(struct bpf_rb_analde *n1, const struct bpf_rb_analde *n2)
 {
 	bpf_throw(0);
 	return true;
 }
 
 SEC("?tc")
-__failure __msg("function calls are not allowed while holding a lock")
+__failure __msg("function calls are analt allowed while holding a lock")
 int reject_with_rbtree_add_throw(void *ctx)
 {
 	struct foo *f;
@@ -170,7 +170,7 @@ int reject_with_rbtree_add_throw(void *ctx)
 	if (!f)
 		return 0;
 	bpf_spin_lock(&lock);
-	bpf_rbtree_add(&rbtree, &f->node, rbless);
+	bpf_rbtree_add(&rbtree, &f->analde, rbless);
 	bpf_spin_unlock(&lock);
 	return 0;
 }
@@ -188,7 +188,7 @@ int reject_with_reference(void *ctx)
 	return 0;
 }
 
-__noinline static int subprog_ref(struct __sk_buff *ctx)
+__analinline static int subprog_ref(struct __sk_buff *ctx)
 {
 	struct foo *f;
 
@@ -199,7 +199,7 @@ __noinline static int subprog_ref(struct __sk_buff *ctx)
 	return 0;
 }
 
-__noinline static int subprog_cb_ref(u32 i, void *ctx)
+__analinline static int subprog_cb_ref(u32 i, void *ctx)
 {
 	bpf_throw(0);
 	return 0;
@@ -220,7 +220,7 @@ int reject_with_cb_reference(void *ctx)
 }
 
 SEC("?tc")
-__failure __msg("cannot be called from callback")
+__failure __msg("cananalt be called from callback")
 int reject_with_cb(void *ctx)
 {
 	bpf_loop(5, subprog_cb_ref, NULL, 0);
@@ -234,35 +234,35 @@ int reject_with_subprog_reference(void *ctx)
 	return subprog_ref(ctx) + 1;
 }
 
-__noinline int throwing_exception_cb(u64 c)
+__analinline int throwing_exception_cb(u64 c)
 {
 	bpf_throw(0);
 	return c;
 }
 
-__noinline int exception_cb1(u64 c)
+__analinline int exception_cb1(u64 c)
 {
 	return c;
 }
 
-__noinline int exception_cb2(u64 c)
+__analinline int exception_cb2(u64 c)
 {
 	return c;
 }
 
-static __noinline int static_func(struct __sk_buff *ctx)
+static __analinline int static_func(struct __sk_buff *ctx)
 {
 	return exception_cb1(ctx->tstamp);
 }
 
-__noinline int global_func(struct __sk_buff *ctx)
+__analinline int global_func(struct __sk_buff *ctx)
 {
 	return exception_cb1(ctx->tstamp);
 }
 
 SEC("?tc")
 __exception_cb(throwing_exception_cb)
-__failure __msg("cannot be called from callback subprog")
+__failure __msg("cananalt be called from callback subprog")
 int reject_throwing_exception_cb(struct __sk_buff *ctx)
 {
 	return 0;
@@ -270,7 +270,7 @@ int reject_throwing_exception_cb(struct __sk_buff *ctx)
 
 SEC("?tc")
 __exception_cb(exception_cb1)
-__failure __msg("cannot call exception cb directly")
+__failure __msg("cananalt call exception cb directly")
 int reject_exception_cb_call_global_func(struct __sk_buff *ctx)
 {
 	return global_func(ctx);
@@ -278,7 +278,7 @@ int reject_exception_cb_call_global_func(struct __sk_buff *ctx)
 
 SEC("?tc")
 __exception_cb(exception_cb1)
-__failure __msg("cannot call exception cb directly")
+__failure __msg("cananalt call exception cb directly")
 int reject_exception_cb_call_static_func(struct __sk_buff *ctx)
 {
 	return static_func(ctx);
@@ -294,14 +294,14 @@ int reject_multiple_exception_cb(struct __sk_buff *ctx)
 	return 16;
 }
 
-__noinline int exception_cb_bad_ret(u64 c)
+__analinline int exception_cb_bad_ret(u64 c)
 {
 	return c;
 }
 
 SEC("?fentry/bpf_check")
 __exception_cb(exception_cb_bad_ret)
-__failure __msg("At program exit the register R0 has unknown scalar value should")
+__failure __msg("At program exit the register R0 has unkanalwn scalar value should")
 int reject_set_exception_cb_bad_ret1(void *ctx)
 {
 	return 0;
@@ -315,20 +315,20 @@ int reject_set_exception_cb_bad_ret2(void *ctx)
 	return 0;
 }
 
-__noinline static int loop_cb1(u32 index, int *ctx)
+__analinline static int loop_cb1(u32 index, int *ctx)
 {
 	bpf_throw(0);
 	return 0;
 }
 
-__noinline static int loop_cb2(u32 index, int *ctx)
+__analinline static int loop_cb2(u32 index, int *ctx)
 {
 	bpf_throw(0);
 	return 0;
 }
 
 SEC("?tc")
-__failure __msg("cannot be called from callback")
+__failure __msg("cananalt be called from callback")
 int reject_exception_throw_cb(struct __sk_buff *ctx)
 {
 	bpf_loop(5, loop_cb1, NULL, 0);
@@ -336,7 +336,7 @@ int reject_exception_throw_cb(struct __sk_buff *ctx)
 }
 
 SEC("?tc")
-__failure __msg("cannot be called from callback")
+__failure __msg("cananalt be called from callback")
 int reject_exception_throw_cb_diff(struct __sk_buff *ctx)
 {
 	if (ctx->protocol)

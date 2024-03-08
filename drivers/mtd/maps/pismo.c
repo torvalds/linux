@@ -103,7 +103,7 @@ static int pismo_add_device(struct pismo_data *pismo, int i,
 
 	dev = platform_device_alloc(name, i);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->dev.parent = &pismo->client->dev;
 
 	do {
@@ -127,7 +127,7 @@ static int pismo_add_device(struct pismo_data *pismo, int i,
 	return ret;
 }
 
-static int pismo_add_nor(struct pismo_data *pismo, int i,
+static int pismo_add_analr(struct pismo_data *pismo, int i,
 			 struct pismo_mem *region)
 {
 	struct physmap_flash_data data = {
@@ -165,7 +165,7 @@ static void pismo_add_one(struct pismo_data *pismo, int i,
 	region.size = le32_to_cpu(cs->size);
 
 	if (region.width == 0) {
-		dev_err(dev, "cs%u: bad width: %02x, ignoring\n", i, cs->width);
+		dev_err(dev, "cs%u: bad width: %02x, iganalring\n", i, cs->width);
 		return;
 	}
 
@@ -185,8 +185,8 @@ static void pismo_add_one(struct pismo_data *pismo, int i,
 		/* static DOC */
 		break;
 	case 2:
-		/* static NOR */
-		pismo_add_nor(pismo, i, &region);
+		/* static ANALR */
+		pismo_add_analr(pismo, i, &region);
 		break;
 	case 3:
 		/* static RAM */
@@ -220,7 +220,7 @@ static int pismo_probe(struct i2c_client *client)
 
 	pismo = kzalloc(sizeof(*pismo), GFP_KERNEL);
 	if (!pismo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pismo->client = client;
 	if (pdata) {

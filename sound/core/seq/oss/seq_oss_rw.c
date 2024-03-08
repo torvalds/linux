@@ -43,7 +43,7 @@ snd_seq_oss_read(struct seq_oss_devinfo *dp, char __user *buf, int count)
 		snd_seq_oss_readq_lock(readq, flags);
 		err = snd_seq_oss_readq_pick(readq, &rec);
 		if (err == -EAGAIN &&
-		    !is_nonblock_mode(dp->file_mode) && result == 0) {
+		    !is_analnblock_mode(dp->file_mode) && result == 0) {
 			snd_seq_oss_readq_unlock(readq, flags);
 			snd_seq_oss_readq_wait(readq);
 			snd_seq_oss_readq_lock(readq, flags);
@@ -146,7 +146,7 @@ snd_seq_oss_write(struct seq_oss_devinfo *dp, const char __user *buf, int count,
 
 /*
  * insert event record to write queue
- * return: 0 = OK, non-zero = NG
+ * return: 0 = OK, analn-zero = NG
  */
 static int
 insert_queue(struct seq_oss_devinfo *dp, union evrec *rec, struct file *opt)
@@ -156,23 +156,23 @@ insert_queue(struct seq_oss_devinfo *dp, union evrec *rec, struct file *opt)
 
 	/* if this is a timing event, process the current time */
 	if (snd_seq_oss_process_timer_event(dp->timer, rec))
-		return 0; /* no need to insert queue */
+		return 0; /* anal need to insert queue */
 
 	/* parse this event */
 	memset(&event, 0, sizeof(event));
 	/* set dummy -- to be sure */
-	event.type = SNDRV_SEQ_EVENT_NOTEOFF;
+	event.type = SNDRV_SEQ_EVENT_ANALTEOFF;
 	snd_seq_oss_fill_addr(dp, &event, dp->addr.client, dp->addr.port);
 
 	if (snd_seq_oss_process_event(dp, rec, &event))
-		return 0; /* invalid event - no need to insert queue */
+		return 0; /* invalid event - anal need to insert queue */
 
 	event.time.tick = snd_seq_oss_timer_cur_tick(dp->timer);
 	if (dp->timer->realtime || !dp->timer->running)
 		snd_seq_oss_dispatch(dp, &event, 0, 0);
 	else
 		rc = snd_seq_kernel_client_enqueue(dp->cseq, &event, opt,
-						   !is_nonblock_mode(dp->file_mode));
+						   !is_analnblock_mode(dp->file_mode));
 	return rc;
 }
 		
@@ -189,13 +189,13 @@ snd_seq_oss_poll(struct seq_oss_devinfo *dp, struct file *file, poll_table * wai
 	/* input */
 	if (dp->readq && is_read_mode(dp->file_mode)) {
 		if (snd_seq_oss_readq_poll(dp->readq, file, wait))
-			mask |= EPOLLIN | EPOLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDANALRM;
 	}
 
 	/* output */
 	if (dp->writeq && is_write_mode(dp->file_mode)) {
 		if (snd_seq_kernel_client_write_poll(dp->cseq, file, wait))
-			mask |= EPOLLOUT | EPOLLWRNORM;
+			mask |= EPOLLOUT | EPOLLWRANALRM;
 	}
 	return mask;
 }

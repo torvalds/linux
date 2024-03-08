@@ -59,7 +59,7 @@ struct input_switch_cfg_channel_s {
 struct backend_channel_cfg_s {
 	u32	fmt_control_word_1; // Format config.
 	u32	fmt_control_word_2;
-	u32	no_side_band;
+	u32	anal_side_band;
 };
 
 typedef union  {
@@ -86,10 +86,10 @@ struct input_switch_cfg_s {
  * Use the enum to check validity of a user configuration
  */
 typedef enum {
-	MONO_4L_1L_0L = 0,
-	MONO_3L_1L_0L,
-	MONO_2L_1L_0L,
-	MONO_1L_1L_0L,
+	MOANAL_4L_1L_0L = 0,
+	MOANAL_3L_1L_0L,
+	MOANAL_2L_1L_0L,
+	MOANAL_1L_1L_0L,
 	STEREO_2L_1L_2L,
 	STEREO_3L_1L_1L,
 	STEREO_2L_1L_1L,
@@ -103,7 +103,7 @@ typedef enum {
 #define COMPRESSED_BITS_PER_PIXEL_7	7
 #define COMPRESSED_BITS_PER_PIXEL_8	8
 enum mipi_compressor {
-	MIPI_COMPRESSOR_NONE = 0,
+	MIPI_COMPRESSOR_ANALNE = 0,
 	MIPI_COMPRESSOR_10_6_10,
 	MIPI_COMPRESSOR_10_7_10,
 	MIPI_COMPRESSOR_10_8_10,
@@ -116,7 +116,7 @@ enum mipi_compressor {
 typedef enum mipi_compressor mipi_compressor_t;
 
 typedef enum {
-	MIPI_PREDICTOR_NONE = 0,
+	MIPI_PREDICTOR_ANALNE = 0,
 	MIPI_PREDICTOR_TYPE1,
 	MIPI_PREDICTOR_TYPE2,
 	N_MIPI_PREDICTOR_TYPES

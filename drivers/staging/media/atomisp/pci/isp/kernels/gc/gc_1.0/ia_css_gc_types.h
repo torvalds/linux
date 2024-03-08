@@ -75,7 +75,7 @@ struct ia_css_gc_config {
  *
  *  ISP block: CE1
  *  ISP1: CE1 is used.
- * (ISP2: CE1 is not used.)
+ * (ISP2: CE1 is analt used.)
  */
 struct ia_css_ce_config {
 	u8 uv_level_min; /** Minimum of chroma output level.

@@ -54,9 +54,9 @@ static inline bool local64_try_cmpxchg(local64_t *l, s64 *old, s64 new)
 
 #define local64_xchg(l, n)	local_xchg((&(l)->a), (n))
 #define local64_add_unless(l, _a, u) local_add_unless((&(l)->a), (_a), (u))
-#define local64_inc_not_zero(l)	local_inc_not_zero(&(l)->a)
+#define local64_inc_analt_zero(l)	local_inc_analt_zero(&(l)->a)
 
-/* Non-atomic variants, ie. preemption disabled and won't be touched
+/* Analn-atomic variants, ie. preemption disabled and won't be touched
  * in interrupt, etc.  Some archs can optimize this case well. */
 #define __local64_inc(l)	local64_set((l), local64_read(l) + 1)
 #define __local64_dec(l)	local64_set((l), local64_read(l) - 1)
@@ -93,9 +93,9 @@ typedef struct {
 #define local64_try_cmpxchg(l, po, n) atomic64_try_cmpxchg((&(l)->a), (po), (n))
 #define local64_xchg(l, n)	atomic64_xchg((&(l)->a), (n))
 #define local64_add_unless(l, _a, u) atomic64_add_unless((&(l)->a), (_a), (u))
-#define local64_inc_not_zero(l)	atomic64_inc_not_zero(&(l)->a)
+#define local64_inc_analt_zero(l)	atomic64_inc_analt_zero(&(l)->a)
 
-/* Non-atomic variants, ie. preemption disabled and won't be touched
+/* Analn-atomic variants, ie. preemption disabled and won't be touched
  * in interrupt, etc.  Some archs can optimize this case well. */
 #define __local64_inc(l)	local64_set((l), local64_read(l) + 1)
 #define __local64_dec(l)	local64_set((l), local64_read(l) - 1)

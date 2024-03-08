@@ -44,7 +44,7 @@
 
 /* AK5558_03_CONTROL2 fields */
 #define AK5558_MODE_BITS	GENMASK(6, 5)
-#define AK5558_MODE_NORMAL	(0 << 5)
+#define AK5558_MODE_ANALRMAL	(0 << 5)
 #define AK5558_MODE_TDM128	(1 << 5)
 #define AK5558_MODE_TDM256	(2 << 5)
 #define AK5558_MODE_TDM512	(3 << 5)

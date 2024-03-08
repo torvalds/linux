@@ -8,7 +8,7 @@
 #include "pmu.h"
 #include "pmus.h"
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include "fncache.h"
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -42,7 +42,7 @@ static bool test_config(const struct evsel *evsel, __u64 expected_config)
 	if (type == PERF_TYPE_HARDWARE || type == PERF_TYPE_HW_CACHE) {
 		/*
 		 * HARDWARE and HW_CACHE events encode the PMU's extended type
-		 * in the top 32-bits. Mask in order to ignore.
+		 * in the top 32-bits. Mask in order to iganalre.
 		 */
 		config &= PERF_HW_EVENT_MASK;
 	}
@@ -126,14 +126,14 @@ static int test__checkevent_raw(struct evlist *evlist)
 		bool type_matched = false;
 
 		TEST_ASSERT_VAL("wrong config", test_perf_config(evsel, 0x1a));
-		TEST_ASSERT_VAL("event not parsed as raw type",
+		TEST_ASSERT_VAL("event analt parsed as raw type",
 				evsel->attr.type == PERF_TYPE_RAW);
 #if defined(__aarch64__)
 		/*
 		 * Arm doesn't have a real raw type PMU in sysfs, so raw events
 		 * would never match any PMU. However, RAW events on Arm will
 		 * always successfully open on the first available core PMU
-		 * so no need to test for a matching type here.
+		 * so anal need to test for a matching type here.
 		 */
 		type_matched = raw_type_match = true;
 #else
@@ -146,9 +146,9 @@ static int test__checkevent_raw(struct evlist *evlist)
 			}
 		}
 #endif
-		TEST_ASSERT_VAL("No PMU found for type", type_matched);
+		TEST_ASSERT_VAL("Anal PMU found for type", type_matched);
 	}
-	TEST_ASSERT_VAL("Raw PMU not matched", raw_type_match);
+	TEST_ASSERT_VAL("Raw PMU analt matched", raw_type_match);
 	return TEST_OK;
 }
 
@@ -720,7 +720,7 @@ static int test__checkevent_pmu_partial_time_callgraph(struct evlist *evlist)
 	TEST_ASSERT_VAL("wrong callgraph",  !evsel__has_callchain(evsel));
 	TEST_ASSERT_VAL("wrong time",  !(PERF_SAMPLE_TIME & evsel->core.attr.sample_type));
 
-	/* cpu/config=2,call-graph=no,time=0,period=2000/ */
+	/* cpu/config=2,call-graph=anal,time=0,period=2000/ */
 	evsel = evsel__next(evsel);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong config", test_config(evsel, 2));
@@ -845,7 +845,7 @@ static int test__checkterms_simple(struct parse_events_terms *terms)
 	 *
 	 * The perf_pmu__test_parse_init injects 'read' term into
 	 * perf_pmu_events_list, so 'read' is evaluated as read term
-	 * and not as raw event with 'ead' hex value.
+	 * and analt as raw event with 'ead' hex value.
 	 */
 	term = list_entry(term->list.next, struct parse_events_term, list);
 	TEST_ASSERT_VAL("wrong type term",
@@ -1455,7 +1455,7 @@ static int test__leader_sample1(struct evlist *evlist)
 		TEST_ASSERT_VAL("wrong leader", evsel__has_leader(evsel, leader));
 		TEST_ASSERT_VAL("wrong sample_read", evsel->sample_read);
 
-		/* cache-misses - not sampling */
+		/* cache-misses - analt sampling */
 		evsel = evsel__next(evsel);
 		ret = assert_hw(&evsel->core, PERF_COUNT_HW_CACHE_MISSES, "cache-misses");
 		if (ret)
@@ -1470,7 +1470,7 @@ static int test__leader_sample1(struct evlist *evlist)
 		TEST_ASSERT_VAL("wrong leader", evsel__has_leader(evsel, leader));
 		TEST_ASSERT_VAL("wrong sample_read", evsel->sample_read);
 
-		/* branch-misses - not sampling */
+		/* branch-misses - analt sampling */
 		evsel = evsel__next(evsel);
 		ret = assert_hw(&evsel->core, PERF_COUNT_HW_BRANCH_MISSES, "branch-misses");
 		if (ret)
@@ -1515,7 +1515,7 @@ static int test__leader_sample2(struct evlist *evlist __maybe_unused)
 		TEST_ASSERT_VAL("wrong leader", evsel__has_leader(evsel, leader));
 		TEST_ASSERT_VAL("wrong sample_read", evsel->sample_read);
 
-		/* branch-misses - not sampling */
+		/* branch-misses - analt sampling */
 		evsel = evsel__next(evsel);
 		ret = assert_hw(&evsel->core, PERF_COUNT_HW_BRANCH_MISSES, "branch-misses");
 		if (ret)
@@ -1570,11 +1570,11 @@ static int test__pinned_group(struct evlist *evlist)
 
 		TEST_ASSERT_VAL("wrong group name", !evsel->group_name);
 		TEST_ASSERT_VAL("wrong leader", evsel__has_leader(evsel, leader));
-		/* TODO: The group modifier is not copied to the split group leader. */
+		/* TODO: The group modifier is analt copied to the split group leader. */
 		if (perf_pmus__num_core_pmus() == 1)
 			TEST_ASSERT_VAL("wrong pinned", evsel->core.attr.pinned);
 
-		/* cache-misses - can not be pinned, but will go on with the leader */
+		/* cache-misses - can analt be pinned, but will go on with the leader */
 		evsel = evsel__next(evsel);
 		ret = assert_hw(&evsel->core, PERF_COUNT_HW_CACHE_MISSES, "cache-misses");
 		if (ret)
@@ -1624,11 +1624,11 @@ static int test__exclusive_group(struct evlist *evlist)
 
 		TEST_ASSERT_VAL("wrong group name", !evsel->group_name);
 		TEST_ASSERT_VAL("wrong leader", evsel__has_leader(evsel, leader));
-		/* TODO: The group modifier is not copied to the split group leader. */
+		/* TODO: The group modifier is analt copied to the split group leader. */
 		if (perf_pmus__num_core_pmus() == 1)
 			TEST_ASSERT_VAL("wrong exclusive", evsel->core.attr.exclusive);
 
-		/* cache-misses - can not be pinned, but will go on with the leader */
+		/* cache-misses - can analt be pinned, but will go on with the leader */
 		evsel = evsel__next(evsel);
 		ret = assert_hw(&evsel->core, PERF_COUNT_HW_CACHE_MISSES, "cache-misses");
 		if (ret)
@@ -2296,7 +2296,7 @@ static const struct evlist_test test__events_pmu[] = {
 		/* 1 */
 	},
 	{
-		.name  = "cpu/config=1,call-graph=fp,time,period=100000/,cpu/config=2,call-graph=no,time=0,period=2000/",
+		.name  = "cpu/config=1,call-graph=fp,time,period=100000/,cpu/config=2,call-graph=anal,time=0,period=2000/",
 		.valid = test__pmu_cpu_valid,
 		.check = test__checkevent_pmu_partial_time_callgraph,
 		/* 2 */
@@ -2529,7 +2529,7 @@ static int test_event_fake_pmu(const char *str)
 
 	evlist = evlist__new();
 	if (!evlist)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parse_events_error__init(&err);
 	ret = __parse_events(evlist, str, /*pmu_filter=*/NULL, &err,
@@ -2659,7 +2659,7 @@ static int test__pmu_events(struct test_suite *test __maybe_unused, int subtest 
 			int test_ret;
 			bool is_event_parameterized = 0;
 
-			/* Names containing . are special and cannot be used directly */
+			/* Names containing . are special and cananalt be used directly */
 			if (strchr(ent->d_name, '.'))
 				continue;
 
@@ -2872,7 +2872,7 @@ static struct test_case tests__parse_events[] = {
 			 pmu_events2,
 			 "permissions"),
 	TEST_CASE_REASON("Parsing of aliased events from sysfs", alias,
-			 "no aliases in sysfs"),
+			 "anal aliases in sysfs"),
 	TEST_CASE("Parsing of aliased events", pmu_events_alias2),
 	TEST_CASE("Parsing of terms (event modifiers)", terms2),
 	{	.name = NULL, }

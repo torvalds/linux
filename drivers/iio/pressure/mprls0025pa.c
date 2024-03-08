@@ -61,7 +61,7 @@
  * Values given to the userspace in sysfs interface:
  * * raw	- press_cnt
  * * offset	- (-1 * outputmin) - pmin / scale
- *                note: With all sensors from the datasheet pmin = 0
+ *                analte: With all sensors from the datasheet pmin = 0
  *                which reduces the offset to (-1 * outputmin)
  */
 
@@ -109,9 +109,9 @@ struct mpr_data {
 						 * value from sensor
 						 */
 	int                     scale;          /* int part of scale */
-	int                     scale2;         /* nano part of scale */
+	int                     scale2;         /* naanal part of scale */
 	int                     offset;         /* int part of offset */
-	int                     offset2;        /* nano part of offset */
+	int                     offset2;        /* naanal part of offset */
 	struct gpio_desc	*gpiod_reset;	/* reset */
 	int			irq;		/*
 						 * end of conversion irq;
@@ -238,7 +238,7 @@ static int mpr_read_pressure(struct mpr_data *data, s32 *press)
 		 * it should never be the case that status still indicates
 		 * business
 		 */
-		dev_err(dev, "data still not ready: %08x\n", buf[0]);
+		dev_err(dev, "data still analt ready: %08x\n", buf[0]);
 		return -ETIMEDOUT;
 	}
 
@@ -275,7 +275,7 @@ static irqreturn_t mpr_trigger_handler(int irq, void *p)
 
 err:
 	mutex_unlock(&data->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -302,11 +302,11 @@ static int mpr_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		*val = data->scale;
 		*val2 = data->scale2;
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_OFFSET:
 		*val = data->offset;
 		*val2 = data->offset2;
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return -EINVAL;
 	}
@@ -325,12 +325,12 @@ static int mpr_probe(struct i2c_client *client)
 	s64 scale, offset;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_READ_BYTE))
-		return dev_err_probe(dev, -EOPNOTSUPP,
-					"I2C functionality not supported\n");
+		return dev_err_probe(dev, -EOPANALTSUPP,
+					"I2C functionality analt supported\n");
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM, "couldn't get iio_dev\n");
+		return dev_err_probe(dev, -EANALMEM, "couldn't get iio_dev\n");
 
 	data = iio_priv(indio_dev);
 	data->client = client;
@@ -350,29 +350,29 @@ static int mpr_probe(struct i2c_client *client)
 		return dev_err_probe(dev, ret,
 				"can't get and enable vdd supply\n");
 
-	if (dev_fwnode(dev)) {
+	if (dev_fwanalde(dev)) {
 		ret = device_property_read_u32(dev, "honeywell,pmin-pascal",
 								&data->pmin);
 		if (ret)
 			return dev_err_probe(dev, ret,
-				"honeywell,pmin-pascal could not be read\n");
+				"honeywell,pmin-pascal could analt be read\n");
 		ret = device_property_read_u32(dev, "honeywell,pmax-pascal",
 								&data->pmax);
 		if (ret)
 			return dev_err_probe(dev, ret,
-				"honeywell,pmax-pascal could not be read\n");
+				"honeywell,pmax-pascal could analt be read\n");
 		ret = device_property_read_u32(dev,
 				"honeywell,transfer-function", &data->function);
 		if (ret)
 			return dev_err_probe(dev, ret,
-				"honeywell,transfer-function could not be read\n");
+				"honeywell,transfer-function could analt be read\n");
 		if (data->function > MPR_FUNCTION_C)
 			return dev_err_probe(dev, -EINVAL,
 				"honeywell,transfer-function %d invalid\n",
 								data->function);
 	} else {
 		/* when loaded as i2c device we need to use default values */
-		dev_notice(dev, "firmware node not found; using defaults\n");
+		dev_analtice(dev, "firmware analde analt found; using defaults\n");
 		data->pmin = 0;
 		data->pmax = 172369; /* 25 psi */
 		data->function = MPR_FUNCTION_A;
@@ -382,16 +382,16 @@ static int mpr_probe(struct i2c_client *client)
 	data->outmax = mpr_func_spec[data->function].output_max;
 
 	/* use 64 bit calculation for preserving a reasonable precision */
-	scale = div_s64(((s64)(data->pmax - data->pmin)) * NANO,
+	scale = div_s64(((s64)(data->pmax - data->pmin)) * NAANAL,
 						data->outmax - data->outmin);
-	data->scale = div_s64_rem(scale, NANO, &data->scale2);
+	data->scale = div_s64_rem(scale, NAANAL, &data->scale2);
 	/*
-	 * multiply with NANO before dividing by scale and later divide by NANO
+	 * multiply with NAANAL before dividing by scale and later divide by NAANAL
 	 * again.
 	 */
-	offset = ((-1LL) * (s64)data->outmin) * NANO -
-			div_s64(div_s64((s64)data->pmin * NANO, scale), NANO);
-	data->offset = div_s64_rem(offset, NANO, &data->offset2);
+	offset = ((-1LL) * (s64)data->outmin) * NAANAL -
+			div_s64(div_s64((s64)data->pmin * NAANAL, scale), NAANAL);
+	data->offset = div_s64_rem(offset, NAANAL, &data->offset2);
 
 	if (data->irq > 0) {
 		ret = devm_request_irq(dev, data->irq, mpr_eoc_handler,

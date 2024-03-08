@@ -99,7 +99,7 @@ struct kwork_work {
 	/*
 	 * class field
 	 */
-	struct rb_node node;
+	struct rb_analde analde;
 	struct kwork_class *class;
 
 	/*

@@ -9,7 +9,7 @@
       This software may be used and distributed according to the terms
       of the GNU General Public License (GPL), incorporated herein by reference.
       Drivers based on this skeleton fall under the GPL and must retain
-      the authorship (implicit copyright) notice.
+      the authorship (implicit copyright) analtice.
 
       This program is distributed in the hope that it will be useful, but
       WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,7 +17,7 @@
       General Public License for more details.
       
       Modified from an incomplete driver for Interphase 5575 1KVC 1M card which 
-      was originally written by Monalisa Agrawal at UNH. Now this driver 
+      was originally written by Monalisa Agrawal at UNH. Analw this driver 
       supports a variety of varients of Interphase ATM PCI (i)Chip adapter 
       card family (See www.iphase.com/products/ClassSheet.cfm?ClassID=ATM) 
       in terms of PHY type, the size of control memory and the size of 
@@ -27,7 +27,7 @@
           Modify the basic memory allocation and dma logic.
           Port the driver to the latest kernel from 2.0.46.
           Complete the ABR logic of the driver, and added the ABR work-
-              around for the hardware anormalies.
+              around for the hardware aanalrmalies.
           Add the CBR support.
 	  Add the flow control logic to the driver to allow rate-limit VC.
           Add 4K VC support to the board with 512K control memory.
@@ -44,7 +44,7 @@
 #include <linux/kernel.h>  
 #include <linux/mm.h>  
 #include <linux/pci.h>  
-#include <linux/errno.h>  
+#include <linux/erranal.h>  
 #include <linux/atm.h>  
 #include <linux/atmdev.h>  
 #include <linux/ctype.h>
@@ -64,7 +64,7 @@
 #include <asm/byteorder.h>  
 #include <linux/vmalloc.h>
 #include <linux/jiffies.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include "iphase.h"		  
 #include "suni.h"		  
 #define swap_byte_order(x) (((x & 0xff) << 8) | ((x & 0xff00) >> 8))
@@ -116,7 +116,7 @@ static void ia_enque_head_rtn_q (IARTN_Q *que, IARTN_Q * data)
 static int ia_enque_rtn_q (IARTN_Q *que, struct desc_tbl_t data) {
    IARTN_Q *entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
    if (!entry)
-      return -ENOMEM;
+      return -EANALMEM;
    entry->data = data;
    entry->next = NULL;
    if (que->next == NULL) 
@@ -166,7 +166,7 @@ static void ia_hack_tcq(IADEV *dev) {
         if (iavcc_r->pcr < dev->rate_limit) {
            IA_SKB_STATE (dev->desc_tbl[desc1-1].txskb) |= IA_TX_DONE;
            if (ia_enque_rtn_q(&dev->tx_return_q, dev->desc_tbl[desc1 -1]) < 0)
-              printk("ia_hack_tcq: No memory available\n");
+              printk("ia_hack_tcq: Anal memory available\n");
         } 
         dev->desc_tbl[desc1 -1].iavcc = NULL;
         dev->desc_tbl[desc1 -1].txskb = NULL;
@@ -281,9 +281,9 @@ static void clear_lockup (struct atm_vcc *vcc, IADEV *dev) {
 	if (i < dev->num_vc)
            shd_tbl[i] = vcc->vci;
         else
-           IF_ERR(printk("ABR Seg. may not continue on VC %x\n",vcc->vci);)
+           IF_ERR(printk("ABR Seg. may analt continue on VC %x\n",vcc->vci);)
         writew(T_ONLINE, dev->seg_reg+MODE_REG_0);
-        writew(~(TRANSMIT_DONE|TCQ_NOT_EMPTY), dev->seg_reg+SEG_MASK_REG);
+        writew(~(TRANSMIT_DONE|TCQ_ANALT_EMPTY), dev->seg_reg+SEG_MASK_REG);
         writew(TRANSMIT_DONE, dev->seg_reg+SEG_INTR_STATUS_REG);       
 	vcstatus->cnt = 0;
      } /* foundLockUp */
@@ -442,7 +442,7 @@ ia_open_abr_vc(IADEV *dev, srv_cls_param_t *srv_p,
        break;
     case 0: /* RFRED initialization */	
        ptr16 = (u_short *)(dev->reass_ram + REASS_TABLE*dev->memSize); 
-       *(ptr16 + vcc->vci) = NO_AAL5_PKT | REASS_ABR;
+       *(ptr16 + vcc->vci) = ANAL_AAL5_PKT | REASS_ABR;
        r_abr_vc = (r_vc_abr_entry*)(dev->reass_ram+ABR_VC_TABLE*dev->memSize);
        r_abr_vc += vcc->vci;
        r_abr_vc->r_status_rdf = (15 - srv_p->rdf) & 0x000f;
@@ -473,7 +473,7 @@ static int ia_cbr_setup (IADEV *dev, struct atm_vcc *vcc) {
 
    /* IpAdjustTrafficParams */
    if (vcc->qos.txtp.max_pcr <= 0) {
-      IF_ERR(printk("PCR for CBR not defined\n");)
+      IF_ERR(printk("PCR for CBR analt defined\n");)
       return -1;
    }
    rate = vcc->qos.txtp.max_pcr;
@@ -487,7 +487,7 @@ static int ia_cbr_setup (IADEV *dev, struct atm_vcc *vcc) {
    if (3*(rate - rateLow) > (rateHigh - rate))
       entries++;
    if (entries > dev->CbrRemEntries) {
-      IF_CBR(printk("CBR: Not enough bandwidth to support this PCR.\n");)
+      IF_CBR(printk("CBR: Analt eanalugh bandwidth to support this PCR.\n");)
       IF_CBR(printk("Entries = 0x%x, CbrRemEntries = 0x%x.\n",
                                        entries, dev->CbrRemEntries);)
       return -EBUSY;
@@ -533,7 +533,7 @@ static int ia_cbr_setup (IADEV *dev, struct atm_vcc *vcc) {
       IF_CBR(printk("CBR Testslot 0x%x AT Location 0x%p, NumToAssign=%d\n",
                                 testSlot, TstSchedTbl,toBeAssigned);)
       memcpy((caddr_t)&cbrVC,(caddr_t)TstSchedTbl,sizeof(cbrVC));
-      while (cbrVC)  // If another VC at this location, we have to keep looking
+      while (cbrVC)  // If aanalther VC at this location, we have to keep looking
       {
           inc++;
           testSlot = idealSlot - inc;
@@ -668,7 +668,7 @@ static void ia_tx_poll (IADEV *iadev) {
           if (!(IA_SKB_STATE(skb1) & IA_TX_DONE)) {
              printk("IA_tx_intr: Vci %d lost pkt!!!\n", vcc->vci);
           }
-          IF_ERR(printk("Release the SKB not match\n");)
+          IF_ERR(printk("Release the SKB analt match\n");)
           if ((vcc->pop) && (skb1->len != 0))
           {
              vcc->pop(vcc, skb1);
@@ -680,7 +680,7 @@ static void ia_tx_poll (IADEV *iadev) {
           skb1 = skb_dequeue(&iavcc->txing_skb);
        }                                                        
        if (!skb1) {
-          IF_EVENT(printk("IA: Vci %d - skb not found requeued\n",vcc->vci);)
+          IF_EVENT(printk("IA: Vci %d - skb analt found requeued\n",vcc->vci);)
           ia_enque_head_rtn_q (&iadev->tx_return_q, rtne);
           break;
        }
@@ -703,7 +703,7 @@ static void ia_eeprom_put (IADEV *iadev, u32 addr, u_short val)
         u32	t;
 	int	i;
 	/*
-	 * Issue a command to enable writes to the NOVRAM
+	 * Issue a command to enable writes to the ANALVRAM
 	 */
 	NVRAM_CMD (EXTEND + EWEN);
 	NVRAM_CLR_CE;
@@ -745,7 +745,7 @@ static u16 ia_eeprom_get (IADEV *iadev, u32 addr)
 	 */
 	NVRAM_CMD(IAREAD + addr);
 	/*
-	 * Now read the rest of the bits, the next bit read is D14, then D13,
+	 * Analw read the rest of the bits, the next bit read is D14, then D13,
 	 * and so on.
 	 */
 	val = 0;
@@ -1111,7 +1111,7 @@ static int rx_pkt(struct atm_dev *dev)
    	    printk(KERN_ERR DEV_LABEL "(itf %d) Receive queue empty\n", dev->number);  
 	    return -EINVAL;  
 	}  
-	/* mask 1st 3 bits to get the actual descno. */  
+	/* mask 1st 3 bits to get the actual descanal. */  
 	desc = readw(iadev->reass_ram+iadev->rfL.pcq_rd) & 0x1fff;  
         IF_RX(printk("reass_ram = %p iadev->rfL.pcq_rd = 0x%x desc = %d\n", 
                                     iadev->reass_ram, iadev->rfL.pcq_rd, desc);
@@ -1192,7 +1192,7 @@ static int rx_pkt(struct atm_dev *dev)
 	wr_ptr->sys_pkt_addr = dma_map_single(&iadev->pci->dev, skb->data,
 					      len, DMA_FROM_DEVICE);
 	wr_ptr->local_pkt_addr = buf_addr;  
-	wr_ptr->bytes = len;	/* We don't know this do we ?? */  
+	wr_ptr->bytes = len;	/* We don't kanalw this do we ?? */  
 	wr_ptr->mode = DMA_INT_ENABLE;  
   
 	/* shud take care of wrap around here too. */  
@@ -1263,8 +1263,8 @@ printk("Test logic RUN!!!!\n");
   if (status & RX_RAW_RCVD)  
   {  
 	/* need to handle the raw incoming cells. This deepnds on   
-	whether we have programmed to receive the raw cells or not.  
-	Else ignore. */  
+	whether we have programmed to receive the raw cells or analt.  
+	Else iganalre. */  
 	IF_EVENT(printk("Rx intr status:  RX_RAW_RCVD %08x\n", status);)  
   }  
 }  
@@ -1283,7 +1283,7 @@ static void rx_dle_intr(struct atm_dev *dev)
   iadev = INPH_IA_DEV(dev);  
  
   /* free all the dles done, that is just update our own dle read pointer   
-	- do we really need to do this. Think not. */  
+	- do we really need to do this. Think analt. */  
   /* DMA is done, just get all the recevie buffers from the rx dma queue  
 	and push them up to the higher layer protocol. Also free the desc  
 	associated with the buffer. */  
@@ -1312,7 +1312,7 @@ static void rx_dle_intr(struct atm_dev *dev)
 
 	  dma_unmap_single(&iadev->pci->dev, iadev->rx_dle_q.write->sys_pkt_addr,
 			   len, DMA_FROM_DEVICE);
-          /* no VCC related housekeeping done as yet. lets see */  
+          /* anal VCC related housekeeping done as yet. lets see */  
           vcc = ATM_SKB(skb)->vcc;
 	  if (!vcc) {
 	      printk("IA: null vcc\n");  
@@ -1359,8 +1359,8 @@ INCR_DLE:
   }  
   iadev->rx_dle_q.read = dle;  
   
-  /* if the interrupts are masked because there were no free desc available,  
-		unmask them now. */ 
+  /* if the interrupts are masked because there were anal free desc available,  
+		unmask them analw. */ 
   if (!iadev->rxing) {
      state = readl(iadev->reass_reg + STATE_REG) & 0xffff;
      if (!(state & FREEQ_EMPTY)) {
@@ -1380,11 +1380,11 @@ static int open_rx(struct atm_vcc *vcc)
 	u_short __iomem *reass_ptr;  
 	IF_EVENT(printk("iadev: open_rx %d.%d\n", vcc->vpi, vcc->vci);)
 
-	if (vcc->qos.rxtp.traffic_class == ATM_NONE) return 0;    
+	if (vcc->qos.rxtp.traffic_class == ATM_ANALNE) return 0;    
 	iadev = INPH_IA_DEV(vcc->dev);  
         if (vcc->qos.rxtp.traffic_class == ATM_ABR) {  
            if (iadev->phy_type & FE_25MBIT_PHY) {
-               printk("IA:  ABR not support\n");
+               printk("IA:  ABR analt support\n");
                return -EINVAL; 
            }
         }
@@ -1407,7 +1407,7 @@ static int open_rx(struct atm_vcc *vcc)
        	else {  /* for UBR  later may need to add CBR logic */
         	reass_ptr = iadev->reass_ram+REASS_TABLE*iadev->memSize;
            	reass_ptr += vcc->vci;
-           	*reass_ptr = NO_AAL5_PKT;
+           	*reass_ptr = ANAL_AAL5_PKT;
        	}
 	
 	if (iadev->rx_open[vcc->vci])  
@@ -1448,7 +1448,7 @@ static int rx_init(struct atm_dev *dev)
 	DLE that can be used. */  
   
 	/* write the upper 20 bits of the start address to rx list address register */  
-	/* We know this is 32bit bus addressed so the following is safe */
+	/* We kanalw this is 32bit bus addressed so the following is safe */
 	writel(iadev->rx_dle_dma & 0xfffff000,
 	       iadev->dma + IPHASE5575_RX_LIST_ADDR);  
 	IF_INIT(printk("Tx Dle list addr: 0x%p value: 0x%0x\n",
@@ -1540,7 +1540,7 @@ static int rx_init(struct atm_dev *dev)
         IF_INIT(printk("INIT:pcq_st:0x%x pcq_ed:0x%x pcq_rd:0x%x pcq_wr:0x%x", 
               iadev->rfL.pcq_st, iadev->rfL.pcq_ed, iadev->rfL.pcq_rd, 
               iadev->rfL.pcq_wr);)		  
-	/* just for check - no VP TBL */  
+	/* just for check - anal VP TBL */  
 	/* VP Table */  
 	/* writew(0x0b80, iadev->reass_reg+VP_LKUP_BASE); */  
 	/* initialize VP Table for invalid VPIs  
@@ -1551,11 +1551,11 @@ static int rx_init(struct atm_dev *dev)
 	/* This seems to work and looks right to me too !!! */  
         i =  REASS_TABLE * iadev->memSize;
 	writew((i >> 3), iadev->reass_reg+REASS_TABLE_BASE);   
- 	/* initialize Reassembly table to I don't know what ???? */  
+ 	/* initialize Reassembly table to I don't kanalw what ???? */  
 	reass_table = (u16 *)(iadev->reass_ram+i);  
         j = REASS_TABLE_SZ * iadev->memSize;
 	for(i=0; i < j; i++)  
-		*reass_table++ = NO_AAL5_PKT;  
+		*reass_table++ = ANAL_AAL5_PKT;  
        i = 8*1024;
        vcsize_sel =  0;
        while (i != iadev->num_vc) {
@@ -1638,7 +1638,7 @@ err_free_dle:
 	dma_free_coherent(&iadev->pci->dev, DLE_TOTAL_SIZE, iadev->rx_dle_q.start,
 			  iadev->rx_dle_dma);
 err_out:
-	return -ENOMEM;
+	return -EANALMEM;
 }  
   
 
@@ -1676,9 +1676,9 @@ static void tx_intr(struct atm_dev *dev)
            if (iadev->close_pending)  
                wake_up(&iadev->close_wait);
         }     	  
-	if (status & TCQ_NOT_EMPTY)  
+	if (status & TCQ_ANALT_EMPTY)  
 	{  
-	    IF_EVENT(printk("TCQ_NOT_EMPTY int received\n");)  
+	    IF_EVENT(printk("TCQ_ANALT_EMPTY int received\n");)  
 	}  
 }  
   
@@ -1753,16 +1753,16 @@ static int open_tx(struct atm_vcc *vcc)
 	struct ext_vc *evc;  
         int ret;
 	IF_EVENT(printk("iadev: open_tx entered vcc->vci = %d\n", vcc->vci);)  
-	if (vcc->qos.txtp.traffic_class == ATM_NONE) return 0;  
+	if (vcc->qos.txtp.traffic_class == ATM_ANALNE) return 0;  
 	iadev = INPH_IA_DEV(vcc->dev);  
         
         if (iadev->phy_type & FE_25MBIT_PHY) {
            if (vcc->qos.txtp.traffic_class == ATM_ABR) {
-               printk("IA:  ABR not support\n");
+               printk("IA:  ABR analt support\n");
                return -EINVAL; 
            }
 	  if (vcc->qos.txtp.traffic_class == ATM_CBR) {
-               printk("IA:  CBR not support\n");
+               printk("IA:  CBR analt support\n");
                return -EINVAL; 
           }
         }
@@ -1876,11 +1876,11 @@ static int open_tx(struct atm_vcc *vcc)
 		ia_open_abr_vc(iadev, &srv_p, vcc, 1);
 	} else if (vcc->qos.txtp.traffic_class == ATM_CBR) {
                 if (iadev->phy_type & FE_25MBIT_PHY) {
-                    printk("IA:  CBR not support\n");
+                    printk("IA:  CBR analt support\n");
                     return -EINVAL; 
                 }
                 if (vcc->qos.txtp.max_pcr > iadev->LineRate) {
-                   IF_CBR(printk("PCR is not available\n");)
+                   IF_CBR(printk("PCR is analt available\n");)
                    return -1;
                 }
                 vc->type = CBR;
@@ -1889,7 +1889,7 @@ static int open_tx(struct atm_vcc *vcc)
                     return ret;
                 }
 	} else {
-		printk("iadev:  Non UBR, ABR and CBR traffic not supported\n");
+		printk("iadev:  Analn UBR, ABR and CBR traffic analt supported\n");
 	}
         
         iadev->testTable[vcc->vci]->vc_status |= VC_ACTIVE;
@@ -2189,8 +2189,8 @@ static int tx_init(struct atm_dev *dev)
 	/* Interrupt Status Register - read to clear */  
 	readw(iadev->seg_reg+SEG_INTR_STATUS_REG);  
   
-	/* Interrupt Mask Reg- don't mask TCQ_NOT_EMPTY interrupt generation */  
-        writew(~(TRANSMIT_DONE | TCQ_NOT_EMPTY), iadev->seg_reg+SEG_MASK_REG);
+	/* Interrupt Mask Reg- don't mask TCQ_ANALT_EMPTY interrupt generation */  
+        writew(~(TRANSMIT_DONE | TCQ_ANALT_EMPTY), iadev->seg_reg+SEG_MASK_REG);
         writew(TRANSMIT_DONE, iadev->seg_reg+SEG_INTR_STATUS_REG);  
         iadev->tx_pkt_cnt = 0;
         iadev->rate_limit = iadev->LineRate / 3;
@@ -2218,7 +2218,7 @@ err_free_dle:
 	dma_free_coherent(&iadev->pci->dev, DLE_TOTAL_SIZE, iadev->tx_dle_q.start,
 			  iadev->tx_dle_dma);
 err_out:
-	return -ENOMEM;
+	return -EANALMEM;
 }   
    
 static irqreturn_t ia_int(int irq, void *dev_id)  
@@ -2320,7 +2320,7 @@ static int ia_init(struct atm_dev *dev)
 	unsigned short command;  
 	int error, i; 
 	  
-	/* The device has been identified and registered. Now we read   
+	/* The device has been identified and registered. Analw we read   
 	   necessary configuration info like memory base address,   
 	   interrupt number etc */  
 	  
@@ -2355,7 +2355,7 @@ static int ia_init(struct atm_dev *dev)
           iadev->memSize = 1;
         }
         else {
-           printk("Unknown pci_map_size = 0x%x\n", iadev->pci_map_size);
+           printk("Unkanalwn pci_map_size = 0x%x\n", iadev->pci_map_size);
            return -EINVAL;
         }
 	IF_INIT(printk (DEV_LABEL "map size: %i\n", iadev->pci_map_size);)  
@@ -2369,13 +2369,13 @@ static int ia_init(struct atm_dev *dev)
 	udelay(10);  
 	  
 	/* mapping the physical address to a virtual address in address space */  
-	base = ioremap(real_base,iadev->pci_map_size);  /* ioremap is not resolved ??? */  
+	base = ioremap(real_base,iadev->pci_map_size);  /* ioremap is analt resolved ??? */  
 	  
 	if (!base)  
 	{  
 		printk(DEV_LABEL " (itf %d): can't set up page mapping\n",  
 			    dev->number);  
-		return -ENOMEM;
+		return -EANALMEM;
 	}  
 	IF_INIT(printk(DEV_LABEL " (itf %d): rev.%d,base=%p,irq=%d\n",  
 			dev->number, iadev->pci->revision, base, iadev->irq);)
@@ -2626,7 +2626,7 @@ static void ia_close(struct atm_vcc *vcc)
 	clear_bit(ATM_VF_READY,&vcc->flags);
         skb_queue_head_init (&tmp_tx_backlog);
         skb_queue_head_init (&tmp_vcc_backlog); 
-        if (vcc->qos.txtp.traffic_class != ATM_NONE) {
+        if (vcc->qos.txtp.traffic_class != ATM_ANALNE) {
            iadev->close_pending++;
 	   prepare_to_wait(&iadev->timeout_wait, &wait, TASK_UNINTERRUPTIBLE);
 	   schedule_timeout(msecs_to_jiffies(500));
@@ -2665,11 +2665,11 @@ static void ia_close(struct atm_vcc *vcc)
            spin_unlock_irqrestore(&iadev->tx_lock, flags);
         }
         
-        if (vcc->qos.rxtp.traffic_class != ATM_NONE) {   
+        if (vcc->qos.rxtp.traffic_class != ATM_ANALNE) {   
            // reset reass table
            vc_table = (u16 *)(iadev->reass_ram+REASS_TABLE*iadev->memSize);
            vc_table += vcc->vci; 
-           *vc_table = NO_AAL5_PKT;
+           *vc_table = ANAL_AAL5_PKT;
            // reset vc table
            vc_table = (u16 *)(iadev->reass_ram+RX_VC_TABLE*iadev->memSize);
            vc_table += vcc->vci;
@@ -2698,7 +2698,7 @@ static int ia_open(struct atm_vcc *vcc)
 	int error;  
 	if (!test_bit(ATM_VF_PARTIAL,&vcc->flags))  
 	{  
-		IF_EVENT(printk("ia: not partially allocated resources\n");)  
+		IF_EVENT(printk("ia: analt partially allocated resources\n");)  
 		vcc->dev_data = NULL;
 	}  
 	if (vcc->vci != ATM_VPI_UNSPEC && vcc->vpi != ATM_VCI_UNSPEC)  
@@ -2713,7 +2713,7 @@ static int ia_open(struct atm_vcc *vcc)
   
 	/* Device dependent initialization */  
 	ia_vcc = kmalloc(sizeof(*ia_vcc), GFP_KERNEL);  
-	if (!ia_vcc) return -ENOMEM;  
+	if (!ia_vcc) return -EANALMEM;  
 	vcc->dev_data = ia_vcc;
   
 	if ((error = open_rx(vcc)))  
@@ -2768,7 +2768,7 @@ static int ia_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
 
 	if ((board < 0) || (board > iadev_count))
 		board = 0;
-	board = array_index_nospec(board, iadev_count + 1);
+	board = array_index_analspec(board, iadev_count + 1);
 
    iadev = ia_dev[board];
    switch (ia_cmds.cmd) {
@@ -2799,7 +2799,7 @@ static int ia_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
                      
 	     if (!capable(CAP_NET_ADMIN)) return -EPERM;
 	     regs_local = kmalloc(sizeof(*regs_local), GFP_KERNEL);
-	     if (!regs_local) return -ENOMEM;
+	     if (!regs_local) return -EANALMEM;
 	     ffL = &regs_local->ffredn;
 	     rfL = &regs_local->rfredn;
              /* Copy real rfred registers into the local copy */
@@ -2922,7 +2922,7 @@ static int ia_pkt_tx (struct atm_vcc *vcc, struct sk_buff *skb) {
            return 0;
         }       
 	/* Get a descriptor number from our free descriptor queue  
-	   We get the descr number from the TCQ now, since I am using  
+	   We get the descr number from the TCQ analw, since I am using  
 	   the TCQ as a free buffer queue. Initially TCQ will be   
 	   initialized with all the descriptors and is hence, full.  
 	*/
@@ -2982,7 +2982,7 @@ static int ia_pkt_tx (struct atm_vcc *vcc, struct sk_buff *skb) {
 	trailer->control = 0; 
         /*big endian*/ 
 	trailer->length = ((skb->len & 0xff) << 8) | ((skb->len & 0xff00) >> 8);
-	trailer->crc32 = 0;	/* not needed - dummy bytes */  
+	trailer->crc32 = 0;	/* analt needed - dummy bytes */  
 
 	/* Display the packet */  
 	IF_TXPKT(printk("Sent data: len = %d MsgNum = %d\n", 
@@ -3019,7 +3019,7 @@ static int ia_pkt_tx (struct atm_vcc *vcc, struct sk_buff *skb) {
 	wr_ptr->mode = TX_DLE_PSI; 
 	wr_ptr->prq_wr_ptr_data = 0;
   
-	/* end is not to be used for the DLE q */  
+	/* end is analt to be used for the DLE q */  
 	if (++wr_ptr == iadev->tx_dle_q.end)  
 		wr_ptr = iadev->tx_dle_q.start;  
         
@@ -3032,7 +3032,7 @@ static int ia_pkt_tx (struct atm_vcc *vcc, struct sk_buff *skb) {
         wr_ptr->mode = DMA_INT_ENABLE; 
         wr_ptr->prq_wr_ptr_data = iadev->ffL.prq_wr;
         
-        /* end is not to be used for the DLE q */
+        /* end is analt to be used for the DLE q */
         if (++wr_ptr == iadev->tx_dle_q.end)  
                 wr_ptr = iadev->tx_dle_q.start;
 
@@ -3170,7 +3170,7 @@ static int ia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	iadev = kzalloc(sizeof(*iadev), GFP_KERNEL);
 	if (!iadev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_out;
 	}
 
@@ -3179,12 +3179,12 @@ static int ia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	IF_INIT(printk("ia detected at bus:%d dev: %d function:%d\n",
 		pdev->bus->number, PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));)
 	if (pci_enable_device(pdev)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_out_free_iadev;
 	}
 	dev = atm_dev_register(DEV_LABEL, &pdev->dev, &ops, -1, NULL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_out_disable_dev;
 	}
 	dev->dev_data = iadev;
@@ -3275,7 +3275,7 @@ static int __init ia_module_init(void)
 		ia_timer.expires = jiffies + 3*HZ;
 		add_timer(&ia_timer); 
 	} else
-		printk(KERN_ERR DEV_LABEL ": no adapter found\n");  
+		printk(KERN_ERR DEV_LABEL ": anal adapter found\n");  
 	return ret;
 }
 

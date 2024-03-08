@@ -9,7 +9,7 @@ menu "Analog Front Ends"
 config IIO_RESCALE
 	tristate "IIO rescale"
 	help
-	  Say yes here to build support for the IIO rescaling
+	  Say anal here to build support for the IIO rescaling
 	  that handles voltage dividers, current sense shunts and
 	  current sense amplifiers.
 

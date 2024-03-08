@@ -102,7 +102,7 @@ static int __init sample_trace_array_init(void)
 	 * Return a pointer to the trace array with name "sample-instance" if it
 	 * exists, else create a new trace array.
 	 *
-	 * NOTE: This function increments the reference counter
+	 * ANALTE: This function increments the reference counter
 	 * associated with the trace array - "tr".
 	 */
 	tr = trace_array_get_by_name("sample-instance", "sched,timer,kprobes");
@@ -129,7 +129,7 @@ static void __exit sample_trace_array_exit(void)
 	kthread_stop(simple_tsk);
 
 	/*
-	 * We are unloading our module and no longer require the trace array.
+	 * We are unloading our module and anal longer require the trace array.
 	 * Remove/destroy "tr" using trace_array_destroy()
 	 */
 	trace_array_destroy(tr);

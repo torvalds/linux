@@ -18,7 +18,7 @@ const char perf_usage_string[] =
 const char perf_more_info_string[] =
 	"See 'perf help COMMAND' for more information on a specific command.";
 
-static __noreturn void usage_builtin(const char *err)
+static __analreturn void usage_builtin(const char *err)
 {
 	fprintf(stderr, "\n Usage: %s\n", err);
 	exit(129);
@@ -26,7 +26,7 @@ static __noreturn void usage_builtin(const char *err)
 
 /* If we are in a dlopen()ed .so write to a global variable would segfault
  * (ugh), so keep things static. */
-static void (*usage_routine)(const char *err) __noreturn = usage_builtin;
+static void (*usage_routine)(const char *err) __analreturn = usage_builtin;
 
 void usage(const char *err)
 {

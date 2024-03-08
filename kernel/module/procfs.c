@@ -40,7 +40,7 @@ static inline void print_unload_info(struct seq_file *m, struct module *mod)
 #else /* !CONFIG_MODULE_UNLOAD */
 static inline void print_unload_info(struct seq_file *m, struct module *mod)
 {
-	/* We don't know the usage count, or what modules are using. */
+	/* We don't kanalw the usage count, or what modules are using. */
 	seq_puts(m, " - -");
 }
 #endif /* CONFIG_MODULE_UNLOAD */
@@ -78,7 +78,7 @@ static int m_show(struct seq_file *m, void *p)
 	void *value;
 	unsigned int size;
 
-	/* We always ignore unformed modules. */
+	/* We always iganalre unformed modules. */
 	if (mod->state == MODULE_STATE_UNFORMED)
 		return 0;
 
@@ -117,13 +117,13 @@ static const struct seq_operations modules_op = {
 };
 
 /*
- * This also sets the "private" pointer to non-NULL if the
+ * This also sets the "private" pointer to analn-NULL if the
  * kernel pointers should be hidden (so you can just test
  * "m->private" to see if you should keep the values private).
  *
  * We use the same logic as for /proc/kallsyms.
  */
-static int modules_open(struct inode *inode, struct file *file)
+static int modules_open(struct ianalde *ianalde, struct file *file)
 {
 	int err = seq_open(file, &modules_op);
 

@@ -1,22 +1,22 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ===========================================================================
-Driver for Synopsys DesignWare PCIe traffic generator (also known as xData)
+Driver for Syanalpsys DesignWare PCIe traffic generator (also kanalwn as xData)
 ===========================================================================
 
 Supported chips:
-Synopsys DesignWare PCIe prototype solution
+Syanalpsys DesignWare PCIe prototype solution
 
 Datasheet:
-Not freely available
+Analt freely available
 
 Author:
-Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+Gustavo Pimentel <gustavo.pimentel@syanalpsys.com>
 
 Description
 -----------
 
-This driver should be used as a host-side (Root Complex) driver and Synopsys
+This driver should be used as a host-side (Root Complex) driver and Syanalpsys
 DesignWare prototype that includes this IP.
 
 The dw-xdata-pcie driver can be used to enable/disable PCIe traffic

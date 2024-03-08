@@ -15,7 +15,7 @@
 #define MAX_NR_PORTS 65536
 
 #define EINVAL 22
-#define ENOENT 2
+#define EANALENT 2
 
 /* map #0 */
 struct inner_a {
@@ -78,7 +78,7 @@ static __always_inline int do_reg_lookup(void *inner_map, u32 port)
 	int *result;
 
 	result = bpf_map_lookup_elem(inner_map, &port);
-	return result ? *result : -ENOENT;
+	return result ? *result : -EANALENT;
 }
 
 static __always_inline int do_inline_array_lookup(void *inner_map, u32 port)
@@ -89,7 +89,7 @@ static __always_inline int do_inline_array_lookup(void *inner_map, u32 port)
 		return -EINVAL;
 
 	result = bpf_map_lookup_elem(&port_a, &port);
-	return result ? *result : -ENOENT;
+	return result ? *result : -EANALENT;
 }
 
 static __always_inline int do_inline_hash_lookup(void *inner_map, u32 port)
@@ -100,7 +100,7 @@ static __always_inline int do_inline_hash_lookup(void *inner_map, u32 port)
 		return -EINVAL;
 
 	result = bpf_map_lookup_elem(&port_h, &port);
-	return result ? *result : -ENOENT;
+	return result ? *result : -EANALENT;
 }
 
 SEC("ksyscall/connect")
@@ -134,7 +134,7 @@ int BPF_KSYSCALL(trace_sys_connect, unsigned int fd, struct sockaddr_in6 *in6, i
 
 	port_key = port;
 
-	ret = -ENOENT;
+	ret = -EANALENT;
 	if (test_case == 0) {
 		outer_map = &a_of_port_a;
 	} else if (test_case == 1) {

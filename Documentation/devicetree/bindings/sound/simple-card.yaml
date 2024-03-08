@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Simple Audio Card Driver
 
 maintainers:
-  - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+  - Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 
 definitions:
 
@@ -50,9 +50,9 @@ definitions:
 
   system-clock-fixed:
     description: |
-      Specifies that the clock frequency should not be modified.
+      Specifies that the clock frequency should analt be modified.
       Implied when system-clock-frequency is specified, but can be used when
-      a clock is mapped to the device whose frequency cannot or should not be
+      a clock is mapped to the device whose frequency cananalt or should analt be
       changed. When mclk-fs is also specified, this restricts the device to a
       single fixed sampling rate.
     $ref: /schemas/types.yaml#/definitions/flag
@@ -60,7 +60,7 @@ definitions:
   mclk-fs:
     description: |
       Multiplication factor between stream rate and codec mclk.
-      When defined, mclk-fs property defined in dai-link sub nodes are ignored.
+      When defined, mclk-fs property defined in dai-link sub analdes are iganalred.
     $ref: /schemas/types.yaml#/definitions/uint32
 
   aux-devs:
@@ -89,11 +89,11 @@ definitions:
       A list of the connections between audio components.
       Each entry is a pair of strings, the first being the
       connection's sink, the second being the connection's source.
-    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    $ref: /schemas/types.yaml#/definitions/analn-unique-string-array
 
   widgets:
     description: User specified audio sound widgets.
-    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    $ref: /schemas/types.yaml#/definitions/analn-unique-string-array
 
   pin-switches:
     description: the widget names for which pin switches must be created.
@@ -221,7 +221,7 @@ patternProperties:
 
   "^simple-audio-card,dai-link(@[0-9a-f]+)?$":
     description: |
-      Container for dai-link level properties and the CPU and CODEC sub-nodes.
+      Container for dai-link level properties and the CPU and CODEC sub-analdes.
       This container may be omitted when the card has only one DAI link.
     type: object
     properties:

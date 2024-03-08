@@ -68,7 +68,7 @@
 #define AT803X_CDT_MDI_PAIR_MASK		GENMASK(9, 8)
 #define AT803X_CDT_ENABLE_TEST			BIT(0)
 #define AT803X_CDT_STATUS			0x1c
-#define AT803X_CDT_STATUS_STAT_NORMAL		0
+#define AT803X_CDT_STATUS_STAT_ANALRMAL		0
 #define AT803X_CDT_STATUS_STAT_SHORT		1
 #define AT803X_CDT_STATUS_STAT_OPEN		2
 #define AT803X_CDT_STATUS_STAT_FAIL		3
@@ -130,7 +130,7 @@
 /* AT803x supports either the XTAL input pad, an internal PLL or the
  * DSP as clock reference for the clock output pad. The XTAL reference
  * is only used for 25 MHz output, all other frequencies need the PLL.
- * The DSP as a clock reference is used in synchronous ethernet
+ * The DSP as a clock reference is used in synchroanalus ethernet
  * applications.
  *
  * By default the PLL is only enabled if there is a link. Otherwise
@@ -149,7 +149,7 @@
 #define AT803X_CLK_OUT_125MHZ_PLL		6
 #define AT803X_CLK_OUT_125MHZ_DSP		7
 
-/* The AR8035 has another mask which is compatible with the AR8031/AR8033 mask
+/* The AR8035 has aanalther mask which is compatible with the AR8031/AR8033 mask
  * but doesn't support choosing between XTAL/PLL and DSP.
  */
 #define AT8035_CLK_OUT_MASK			GENMASK(4, 3)
@@ -246,7 +246,7 @@
 #define QCA808X_MASTER_SLAVE_SEED_CFG		GENMASK(12, 2)
 #define QCA808X_MASTER_SLAVE_SEED_RANGE		0x32
 
-/* Hibernation yields lower power consumpiton in contrast with normal operation mode.
+/* Hibernation yields lower power consumpiton in contrast with analrmal operation mode.
  * when the copper cable is unplugged, the PHY enters into hibernation mode in about 10s.
  */
 #define QCA808X_DBG_AN_TEST			0xb
@@ -272,7 +272,7 @@
 
 #define QCA808X_CDT_STATUS_STAT_TYPE		GENMASK(1, 0)
 #define QCA808X_CDT_STATUS_STAT_FAIL		FIELD_PREP_CONST(QCA808X_CDT_STATUS_STAT_TYPE, 0)
-#define QCA808X_CDT_STATUS_STAT_NORMAL		FIELD_PREP_CONST(QCA808X_CDT_STATUS_STAT_TYPE, 1)
+#define QCA808X_CDT_STATUS_STAT_ANALRMAL		FIELD_PREP_CONST(QCA808X_CDT_STATUS_STAT_TYPE, 1)
 #define QCA808X_CDT_STATUS_STAT_SAME_OPEN	FIELD_PREP_CONST(QCA808X_CDT_STATUS_STAT_TYPE, 2)
 #define QCA808X_CDT_STATUS_STAT_SAME_SHORT	FIELD_PREP_CONST(QCA808X_CDT_STATUS_STAT_TYPE, 3)
 
@@ -281,18 +281,18 @@
 #define QCA808X_CDT_STATUS_STAT_MDI2		FIELD_PREP_CONST(QCA808X_CDT_STATUS_STAT_MDI, 2)
 #define QCA808X_CDT_STATUS_STAT_MDI3		FIELD_PREP_CONST(QCA808X_CDT_STATUS_STAT_MDI, 3)
 
-/* NORMAL are MDI with type set to 0 */
-#define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_NORMAL	QCA808X_CDT_STATUS_STAT_MDI1
+/* ANALRMAL are MDI with type set to 0 */
+#define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_ANALRMAL	QCA808X_CDT_STATUS_STAT_MDI1
 #define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_OPEN		(QCA808X_CDT_STATUS_STAT_SAME_OPEN |\
 									 QCA808X_CDT_STATUS_STAT_MDI1)
 #define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_SHORT	(QCA808X_CDT_STATUS_STAT_SAME_SHORT |\
 									 QCA808X_CDT_STATUS_STAT_MDI1)
-#define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_NORMAL	QCA808X_CDT_STATUS_STAT_MDI2
+#define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_ANALRMAL	QCA808X_CDT_STATUS_STAT_MDI2
 #define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_OPEN		(QCA808X_CDT_STATUS_STAT_SAME_OPEN |\
 									 QCA808X_CDT_STATUS_STAT_MDI2)
 #define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_SHORT	(QCA808X_CDT_STATUS_STAT_SAME_SHORT |\
 									 QCA808X_CDT_STATUS_STAT_MDI2)
-#define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_NORMAL	QCA808X_CDT_STATUS_STAT_MDI3
+#define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_ANALRMAL	QCA808X_CDT_STATUS_STAT_MDI3
 #define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_OPEN		(QCA808X_CDT_STATUS_STAT_SAME_OPEN |\
 									 QCA808X_CDT_STATUS_STAT_MDI3)
 #define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_SHORT	(QCA808X_CDT_STATUS_STAT_SAME_SHORT |\
@@ -489,7 +489,7 @@ static int at803x_set_wol(struct phy_device *phydev,
 		};
 
 		if (!ndev)
-			return -ENODEV;
+			return -EANALDEV;
 
 		mac = (const u8 *)ndev->dev_addr;
 
@@ -619,7 +619,7 @@ static int at803x_resume(struct phy_device *phydev)
 
 static int at803x_parse_dt(struct phy_device *phydev)
 {
-	struct device_node *node = phydev->mdio.dev.of_node;
+	struct device_analde *analde = phydev->mdio.dev.of_analde;
 	struct at803x_priv *priv = phydev->priv;
 	u32 freq, strength, tw;
 	unsigned int sel;
@@ -628,13 +628,13 @@ static int at803x_parse_dt(struct phy_device *phydev)
 	if (!IS_ENABLED(CONFIG_OF_MDIO))
 		return 0;
 
-	if (of_property_read_bool(node, "qca,disable-smarteee"))
+	if (of_property_read_bool(analde, "qca,disable-smarteee"))
 		priv->flags |= AT803X_DISABLE_SMARTEEE;
 
-	if (of_property_read_bool(node, "qca,disable-hibernation-mode"))
+	if (of_property_read_bool(analde, "qca,disable-hibernation-mode"))
 		priv->flags |= AT803X_DISABLE_HIBERNATION_MODE;
 
-	if (!of_property_read_u32(node, "qca,smarteee-tw-us-1g", &tw)) {
+	if (!of_property_read_u32(analde, "qca,smarteee-tw-us-1g", &tw)) {
 		if (!tw || tw > 255) {
 			phydev_err(phydev, "invalid qca,smarteee-tw-us-1g\n");
 			return -EINVAL;
@@ -642,7 +642,7 @@ static int at803x_parse_dt(struct phy_device *phydev)
 		priv->smarteee_lpi_tw_1g = tw;
 	}
 
-	if (!of_property_read_u32(node, "qca,smarteee-tw-us-100m", &tw)) {
+	if (!of_property_read_u32(analde, "qca,smarteee-tw-us-100m", &tw)) {
 		if (!tw || tw > 255) {
 			phydev_err(phydev, "invalid qca,smarteee-tw-us-100m\n");
 			return -EINVAL;
@@ -650,7 +650,7 @@ static int at803x_parse_dt(struct phy_device *phydev)
 		priv->smarteee_lpi_tw_100m = tw;
 	}
 
-	ret = of_property_read_u32(node, "qca,clk-out-frequency", &freq);
+	ret = of_property_read_u32(analde, "qca,clk-out-frequency", &freq);
 	if (!ret) {
 		switch (freq) {
 		case 25000000:
@@ -674,7 +674,7 @@ static int at803x_parse_dt(struct phy_device *phydev)
 		priv->clk_25m_mask |= AT803X_CLK_OUT_MASK;
 	}
 
-	ret = of_property_read_u32(node, "qca,clk-out-strength", &strength);
+	ret = of_property_read_u32(analde, "qca,clk-out-strength", &strength);
 	if (!ret) {
 		priv->clk_25m_mask |= AT803X_CLK_OUT_STRENGTH_MASK;
 		switch (strength) {
@@ -704,7 +704,7 @@ static int at803x_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phydev->priv = priv;
 
@@ -736,7 +736,7 @@ static int at803x_get_features(struct phy_device *phydev)
 	 * to 1 even when operating in copper TP mode.
 	 *
 	 * Remove this mode from the supported link modes
-	 * when not operating in 1000BaseX mode.
+	 * when analt operating in 1000BaseX mode.
 	 */
 	if (!priv->is_1000basex)
 		linkmode_clear_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
@@ -911,35 +911,35 @@ static irqreturn_t at803x_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, AT803X_INTR_STATUS);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Read the current enabled interrupts */
 	int_enabled = phy_read(phydev, AT803X_INTR_ENABLE);
 	if (int_enabled < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* See if this was one of our enabled interrupts */
 	if (!(irq_status & int_enabled))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
 	return IRQ_HANDLED;
 }
 
-static void at803x_link_change_notify(struct phy_device *phydev)
+static void at803x_link_change_analtify(struct phy_device *phydev)
 {
 	/*
 	 * Conduct a hardware reset for AT8030 every time a link loss is
 	 * signalled. This is necessary to circumvent a hardware bug that
 	 * occurs when the cable is unplugged while TX packets are pending
 	 * in the FIFO. In such cases, the FIFO enters an error mode it
-	 * cannot recover from by software.
+	 * cananalt recover from by software.
 	 */
-	if (phydev->state == PHY_NOLINK && phydev->mdio.reset_gpio) {
+	if (phydev->state == PHY_ANALLINK && phydev->mdio.reset_gpio) {
 		struct at803x_context context;
 
 		at803x_context_save(phydev, &context);
@@ -962,7 +962,7 @@ static int at803x_read_specific_status(struct phy_device *phydev,
 
 	/* Read the AT8035 PHY-Specific Status register, which indicates the
 	 * speed and duplex that the PHY is actually using, irrespective of
-	 * whether we are in autoneg mode or not.
+	 * whether we are in autoneg mode or analt.
 	 */
 	ss = phy_read(phydev, AT803X_SPECIFIC_STATUS);
 	if (ss < 0)
@@ -1028,12 +1028,12 @@ static int at803x_read_status(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	/* why bother the PHY if nothing can have changed */
+	/* why bother the PHY if analthing can have changed */
 	if (phydev->autoneg == AUTONEG_ENABLE && old_link && phydev->link)
 		return 0;
 
-	phydev->speed = SPEED_UNKNOWN;
-	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->speed = SPEED_UNKANALWN;
+	phydev->duplex = DUPLEX_UNKANALWN;
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 
@@ -1084,7 +1084,7 @@ static int at803x_prepare_config_aneg(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	/* Changes of the midx bits are disruptive to the normal operation;
+	/* Changes of the midx bits are disruptive to the analrmal operation;
 	 * therefore any changes to these registers must be followed by a
 	 * software reset to take effect.
 	 */
@@ -1171,7 +1171,7 @@ static int at803x_get_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_DOWNSHIFT:
 		return at803x_get_downshift(phydev, data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1182,14 +1182,14 @@ static int at803x_set_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_DOWNSHIFT:
 		return at803x_set_downshift(phydev, *(const u8 *)data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
 static int at803x_cable_test_result_trans(u16 status)
 {
 	switch (FIELD_GET(AT803X_CDT_STATUS_STAT_MASK, status)) {
-	case AT803X_CDT_STATUS_STAT_NORMAL:
+	case AT803X_CDT_STATUS_STAT_ANALRMAL:
 		return ETHTOOL_A_CABLE_RESULT_CODE_OK;
 	case AT803X_CDT_STATUS_STAT_SHORT:
 		return ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT;
@@ -1304,7 +1304,7 @@ static int at803x_cable_test_get_status(struct phy_device *phydev,
 	*finished = false;
 
 	/* According to the datasheet the CDT can be performed when
-	 * there is no link partner or when the link partner is
+	 * there is anal link partner or when the link partner is
 	 * auto-negotiating. Starting the test will restart the AN
 	 * automatically. It seems that doing this repeatedly we will
 	 * get a slot where our link partner won't disturb our
@@ -1329,8 +1329,8 @@ static int at803x_cable_test_get_status(struct phy_device *phydev,
 
 static void at803x_cable_test_autoneg(struct phy_device *phydev)
 {
-	/* Enable auto-negotiation, but advertise no capabilities, no link
-	 * will be established. A restart of the auto-negotiation is not
+	/* Enable auto-negotiation, but advertise anal capabilities, anal link
+	 * will be established. A restart of the auto-negotiation is analt
 	 * required, because the cable test will automatically break the link.
 	 */
 	phy_write(phydev, MII_BMCR, BMCR_ANENABLE);
@@ -1445,7 +1445,7 @@ static int at8031_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 	linkmode_zero(sfp_support);
 	sfp_parse_support(phydev->sfp_bus, id, sfp_support, interfaces);
 	/* Some modules support 10G modes as well as others we support.
-	 * Mask out non-supported modes so the correct interface is picked.
+	 * Mask out analn-supported modes so the correct interface is picked.
 	 */
 	linkmode_and(sfp_support, phy_support, sfp_support);
 
@@ -1464,7 +1464,7 @@ static int at8031_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 	 * of working.
 	 */
 	if (iface == PHY_INTERFACE_MODE_SGMII)
-		dev_warn(&phydev->mdio.dev, "module may not function if 1000Base-X not supported\n");
+		dev_warn(&phydev->mdio.dev, "module may analt function if 1000Base-X analt supported\n");
 	else if (iface != PHY_INTERFACE_MODE_1000BASEX)
 		return -EINVAL;
 
@@ -1479,11 +1479,11 @@ static const struct sfp_upstream_ops at8031_sfp_ops = {
 
 static int at8031_parse_dt(struct phy_device *phydev)
 {
-	struct device_node *node = phydev->mdio.dev.of_node;
+	struct device_analde *analde = phydev->mdio.dev.of_analde;
 	struct at803x_priv *priv = phydev->priv;
 	int ret;
 
-	if (of_property_read_bool(node, "qca,keep-pll-enabled"))
+	if (of_property_read_bool(analde, "qca,keep-pll-enabled"))
 		priv->flags |= AT803X_KEEP_PLL_ENABLED;
 
 	ret = at8031_register_regulators(phydev);
@@ -1654,16 +1654,16 @@ static int at8035_parse_dt(struct phy_device *phydev)
 
 	/* Mask is set by the generic at803x_parse_dt
 	 * if property is set. Assume property is set
-	 * with the mask not zero.
+	 * with the mask analt zero.
 	 */
 	if (priv->clk_25m_mask) {
-		/* Fixup for the AR8030/AR8035. This chip has another mask and
+		/* Fixup for the AR8030/AR8035. This chip has aanalther mask and
 		 * doesn't support the DSP reference. Eg. the lowest bit of the
 		 * mask. The upper two bits select the same frequencies. Mask
 		 * the lowest bit here.
 		 *
 		 * Warning:
-		 *   There was no datasheet for the AR8030 available so this is
+		 *   There was anal datasheet for the AR8030 available so this is
 		 *   just a guess. But the AR8035 is listed as pin compatible
 		 *   to the AR8030 so there might be a good chance it works on
 		 *   the AR8030 too.
@@ -1730,7 +1730,7 @@ static int qca8327_config_init(struct phy_device *phydev)
 	return qca83xx_config_init(phydev);
 }
 
-static void qca83xx_link_change_notify(struct phy_device *phydev)
+static void qca83xx_link_change_analtify(struct phy_device *phydev)
 {
 	/* Set DAC Amplitude adjustment to +6% for 100m on link running */
 	if (phydev->state == PHY_RUNNING) {
@@ -1749,7 +1749,7 @@ static int qca83xx_resume(struct phy_device *phydev)
 {
 	int ret, val;
 
-	/* Skip reset if not suspended */
+	/* Skip reset if analt suspended */
 	if (!phydev->suspended)
 		return 0;
 
@@ -1942,9 +1942,9 @@ static int qca808x_read_status(struct phy_device *phydev)
 		 * except for master/slave configuration fault detected or the master mode
 		 * preferred.
 		 *
-		 * the reason for not putting this code into the function link_change_notify is
+		 * the reason for analt putting this code into the function link_change_analtify is
 		 * the corner case where the link partner is also the qca8081 PHY and the seed
-		 * value is configured as the same value, the link can't be up and no link change
+		 * value is configured as the same value, the link can't be up and anal link change
 		 * occurs.
 		 */
 		if (qca808x_has_fast_retrain_or_slave_seed(phydev)) {
@@ -1979,13 +1979,13 @@ static bool qca808x_cdt_fault_length_valid(int cdt_code)
 	switch (cdt_code) {
 	case QCA808X_CDT_STATUS_STAT_SAME_SHORT:
 	case QCA808X_CDT_STATUS_STAT_SAME_OPEN:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_NORMAL:
+	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_ANALRMAL:
 	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_OPEN:
 	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_SHORT:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_NORMAL:
+	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_ANALRMAL:
 	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_OPEN:
 	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_SHORT:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_NORMAL:
+	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_ANALRMAL:
 	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_OPEN:
 	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_SHORT:
 		return true;
@@ -1997,19 +1997,19 @@ static bool qca808x_cdt_fault_length_valid(int cdt_code)
 static int qca808x_cable_test_result_trans(int cdt_code)
 {
 	switch (cdt_code) {
-	case QCA808X_CDT_STATUS_STAT_NORMAL:
+	case QCA808X_CDT_STATUS_STAT_ANALRMAL:
 		return ETHTOOL_A_CABLE_RESULT_CODE_OK;
 	case QCA808X_CDT_STATUS_STAT_SAME_SHORT:
 		return ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT;
 	case QCA808X_CDT_STATUS_STAT_SAME_OPEN:
 		return ETHTOOL_A_CABLE_RESULT_CODE_OPEN;
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_NORMAL:
+	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_ANALRMAL:
 	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_OPEN:
 	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_SHORT:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_NORMAL:
+	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_ANALRMAL:
 	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_OPEN:
 	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_SHORT:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_NORMAL:
+	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_ANALRMAL:
 	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_OPEN:
 	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_SHORT:
 		return ETHTOOL_A_CABLE_RESULT_CODE_CROSS_SHORT;
@@ -2178,7 +2178,7 @@ static int qca808x_get_features(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	/* The autoneg ability is not existed in bit3 of MMD7.1,
+	/* The autoneg ability is analt existed in bit3 of MMD7.1,
 	 * but it is supported by qca808x PHY, so we add it here
 	 * manually.
 	 */
@@ -2224,7 +2224,7 @@ static int qca808x_config_aneg(struct phy_device *phydev)
 	return __genphy_config_aneg(phydev, ret);
 }
 
-static void qca808x_link_change_notify(struct phy_device *phydev)
+static void qca808x_link_change_analtify(struct phy_device *phydev)
 {
 	/* Assert interface sgmii fifo on link down, deassert it on link up,
 	 * the interface device address is always phy address added by 1.
@@ -2264,7 +2264,7 @@ static struct phy_driver at803x_driver[] = {
 	.phy_id_mask		= AT8030_PHY_ID_MASK,
 	.probe			= at8035_probe,
 	.config_init		= at803x_config_init,
-	.link_change_notify	= at803x_link_change_notify,
+	.link_change_analtify	= at803x_link_change_analtify,
 	.set_wol		= at803x_set_wol,
 	.get_wol		= at803x_get_wol,
 	.suspend		= at803x_suspend,
@@ -2302,7 +2302,7 @@ static struct phy_driver at803x_driver[] = {
 	.probe			= at803x_probe,
 	.flags			= PHY_POLL_CABLE_TEST,
 	.config_init		= at803x_config_init,
-	.link_change_notify	= at803x_link_change_notify,
+	.link_change_analtify	= at803x_link_change_analtify,
 	.suspend		= at803x_suspend,
 	.resume			= at803x_resume,
 	/* PHY_BASIC_FEATURES */
@@ -2363,7 +2363,7 @@ static struct phy_driver at803x_driver[] = {
 	.phy_id_mask		= QCA8K_PHY_ID_MASK,
 	.name			= "Qualcomm Atheros 8327-A internal PHY",
 	/* PHY_GBIT_FEATURES */
-	.link_change_notify	= qca83xx_link_change_notify,
+	.link_change_analtify	= qca83xx_link_change_analtify,
 	.probe			= at803x_probe,
 	.flags			= PHY_IS_INTERNAL,
 	.config_init		= qca8327_config_init,
@@ -2379,7 +2379,7 @@ static struct phy_driver at803x_driver[] = {
 	.phy_id_mask		= QCA8K_PHY_ID_MASK,
 	.name			= "Qualcomm Atheros 8327-B internal PHY",
 	/* PHY_GBIT_FEATURES */
-	.link_change_notify	= qca83xx_link_change_notify,
+	.link_change_analtify	= qca83xx_link_change_analtify,
 	.probe			= at803x_probe,
 	.flags			= PHY_IS_INTERNAL,
 	.config_init		= qca8327_config_init,
@@ -2410,7 +2410,7 @@ static struct phy_driver at803x_driver[] = {
 	.soft_reset		= qca808x_soft_reset,
 	.cable_test_start	= qca808x_cable_test_start,
 	.cable_test_get_status	= qca808x_cable_test_get_status,
-	.link_change_notify	= qca808x_link_change_notify,
+	.link_change_analtify	= qca808x_link_change_analtify,
 }, };
 
 module_phy_driver(at803x_driver);

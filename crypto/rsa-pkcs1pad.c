@@ -142,7 +142,7 @@ static int pkcs1pad_set_pub_key(struct crypto_akcipher *tfm, const void *key,
 	/* Find out new modulus size from rsa implementation */
 	err = crypto_akcipher_maxsize(ctx->child);
 	if (err > PAGE_SIZE)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ctx->key_size = err;
 	return 0;
@@ -163,7 +163,7 @@ static int pkcs1pad_set_priv_key(struct crypto_akcipher *tfm, const void *key,
 	/* Find out new modulus size from rsa implementation */
 	err = crypto_akcipher_maxsize(ctx->child);
 	if (err > PAGE_SIZE)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ctx->key_size = err;
 	return 0;
@@ -214,7 +214,7 @@ static int pkcs1pad_encrypt_sign_complete(struct akcipher_request *req, int err)
 		goto out;
 
 	out_buf = kzalloc(ctx->key_size, GFP_ATOMIC);
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!out_buf)
 		goto out;
 
@@ -268,7 +268,7 @@ static int pkcs1pad_encrypt(struct akcipher_request *req)
 	req_ctx->in_buf = kmalloc(ctx->key_size - 1 - req->src_len,
 				  GFP_KERNEL);
 	if (!req_ctx->in_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ps_end = ctx->key_size - req->src_len - 2;
 	req_ctx->in_buf[0] = 0x02;
@@ -314,7 +314,7 @@ static int pkcs1pad_decrypt_complete(struct akcipher_request *req, int err)
 	out_buf = req_ctx->out_buf;
 	if (dst_len == ctx->key_size) {
 		if (out_buf[0] != 0x00)
-			/* Decrypted value had no leading 0 byte */
+			/* Decrypted value had anal leading 0 byte */
 			goto done;
 
 		dst_len--;
@@ -373,7 +373,7 @@ static int pkcs1pad_decrypt(struct akcipher_request *req)
 
 	req_ctx->out_buf = kmalloc(ctx->key_size, GFP_KERNEL);
 	if (!req_ctx->out_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkcs1pad_sg_set_buf(req_ctx->out_sg, req_ctx->out_buf,
 			    ctx->key_size, NULL);
@@ -422,7 +422,7 @@ static int pkcs1pad_sign(struct akcipher_request *req)
 	req_ctx->in_buf = kmalloc(ctx->key_size - 1 - req->src_len,
 				  GFP_KERNEL);
 	if (!req_ctx->in_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ps_end = ctx->key_size - digest_info_size - req->src_len - 2;
 	req_ctx->in_buf[0] = 0x01;
@@ -476,7 +476,7 @@ static int pkcs1pad_verify_complete(struct akcipher_request *req, int err)
 	out_buf = req_ctx->out_buf;
 	if (dst_len == ctx->key_size) {
 		if (out_buf[0] != 0x00)
-			/* Decrypted value had no leading 0 byte */
+			/* Decrypted value had anal leading 0 byte */
 			goto done;
 
 		dst_len--;
@@ -542,7 +542,7 @@ out:
 
 /*
  * The verify operation is here for completeness similar to the verification
- * defined in RFC2313 section 10.2 except that block type 0 is not accepted,
+ * defined in RFC2313 section 10.2 except that block type 0 is analt accepted,
  * as in RFC2437.  RFC2437 section 9.2 doesn't define any operation to
  * retrieve the DigestInfo from a signature, instead the user is expected
  * to call the sign operation to generate the expected signature and compare
@@ -563,7 +563,7 @@ static int pkcs1pad_verify(struct akcipher_request *req)
 
 	req_ctx->out_buf = kmalloc(ctx->key_size + digest_size, GFP_KERNEL);
 	if (!req_ctx->out_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkcs1pad_sg_set_buf(req_ctx->out_sg, req_ctx->out_buf,
 			    ctx->key_size, NULL);
@@ -633,7 +633,7 @@ static int pkcs1pad_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx = akcipher_instance_ctx(inst);
 

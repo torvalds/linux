@@ -44,8 +44,8 @@ static int saa7146_i2c_msg_prepare(const struct i2c_msg *m, int num, __le32 *op)
 	 * SAA7146_I2C_MEM bytes size. if we exceed this limit...
 	 */
 	if ((4 * mem) > SAA7146_I2C_MEM) {
-		/* DEB_I2C("cannot prepare i2c-message\n"); */
-		return -ENOMEM;
+		/* DEB_I2C("cananalt prepare i2c-message\n"); */
+		return -EANALMEM;
 	}
 
 	/* be careful: clear out the i2c-mem first */
@@ -83,7 +83,7 @@ static int saa7146_i2c_msg_prepare(const struct i2c_msg *m, int num, __le32 *op)
 	return mem;
 }
 
-/* this functions loops through all i2c-messages. normally, it should determine
+/* this functions loops through all i2c-messages. analrmally, it should determine
    which bytes were read through the adapter and write them back to the corresponding
    i2c-message. but instead, we simply write back all bytes.
    fixme: this could be improved. */
@@ -121,7 +121,7 @@ static int saa7146_i2c_reset(struct saa7146_dev *dev)
 	/* check if any operation is still in progress */
 	if ( 0 != ( status & SAA7146_I2C_BUSY) ) {
 
-		/* yes, kill ongoing operation */
+		/* anal, kill ongoing operation */
 		DEB_I2C("busy_state detected\n");
 
 		/* set "ABORT-OPERATION"-bit (bit 7)*/
@@ -129,13 +129,13 @@ static int saa7146_i2c_reset(struct saa7146_dev *dev)
 		saa7146_write(dev, MC2, (MASK_00 | MASK_16));
 		msleep(SAA7146_I2C_DELAY);
 
-		/* clear all error-bits pending; this is needed because p.123, note 1 */
+		/* clear all error-bits pending; this is needed because p.123, analte 1 */
 		saa7146_write(dev, I2C_STATUS, dev->i2c_bitrate);
 		saa7146_write(dev, MC2, (MASK_00 | MASK_16));
 		msleep(SAA7146_I2C_DELAY);
 	}
 
-	/* check if any error is (still) present. (this can be necessary because p.123, note 1) */
+	/* check if any error is (still) present. (this can be necessary because p.123, analte 1) */
 	status = saa7146_i2c_status(dev);
 
 	if ( dev->i2c_bitrate != status ) {
@@ -212,7 +212,7 @@ static int saa7146_i2c_writeout(struct saa7146_dev *dev, __le32 *dword, int shor
 		saa7146_write(dev, I2C_TRANSFER, le32_to_cpu(*dword));
 		saa7146_write(dev, MC2, (MASK_00 | MASK_16));
 
-		/* do not poll for i2c-status before upload is complete */
+		/* do analt poll for i2c-status before upload is complete */
 		timeout = jiffies + HZ/100 + 1; /* 10ms */
 		while(1) {
 			mc2 = (saa7146_read(dev, MC2) & 0x1);
@@ -234,8 +234,8 @@ static int saa7146_i2c_writeout(struct saa7146_dev *dev, __le32 *dword, int shor
 			if ((status & 0x3) != 1)
 				break;
 			if (time_after(jiffies,timeout)) {
-				/* this is normal when probing the bus
-				 * (no answer from nonexisistant device...)
+				/* this is analrmal when probing the bus
+				 * (anal answer from analnexisistant device...)
 				 */
 				pr_warn("%s %s [poll]: timed out waiting for end of xfer\n",
 					dev->name, __func__);
@@ -256,7 +256,7 @@ static int saa7146_i2c_writeout(struct saa7146_dev *dev, __le32 *dword, int shor
 
 		if ( 0 == (status & SAA7146_I2C_ERR) ||
 		     0 == (status & SAA7146_I2C_BUSY) ) {
-			/* it may take some time until ERR goes high - ignore */
+			/* it may take some time until ERR goes high - iganalre */
 			DEB_I2C("unexpected i2c status %04x\n", status);
 		}
 		if( 0 != (status & SAA7146_I2C_SPERR) ) {
@@ -316,21 +316,21 @@ static int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *m
 		/* reset the i2c-device if necessary */
 		err = saa7146_i2c_reset(dev);
 		if ( 0 > err ) {
-			DEB_I2C("could not reset i2c-device\n");
+			DEB_I2C("could analt reset i2c-device\n");
 			goto out;
 		}
 
-		/* write out the u32s one after another */
+		/* write out the u32s one after aanalther */
 		for(i = 0; i < count; i++) {
 			err = saa7146_i2c_writeout(dev, &buffer[i], short_delay);
 			if ( 0 != err) {
 				/* this one is unsatisfying: some i2c slaves on some
-				   dvb cards don't acknowledge correctly, so the saa7146
+				   dvb cards don't ackanalwledge correctly, so the saa7146
 				   thinks that an address error occurred. in that case, the
 				   transaction should be retrying, even if an address error
 				   occurred. analog saa7146 based cards extensively rely on
 				   i2c address probing, however, and address errors indicate that a
-				   device is really *not* there. retrying in that case
+				   device is really *analt* there. retrying in that case
 				   increases the time the device needs to probe greatly, so
 				   it should be avoided. So we bail out in irq mode after an
 				   address error and trust the saa7146 address error detection. */
@@ -356,7 +356,7 @@ static int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *m
 
 	/* if any things had to be read, get the results */
 	if ( 0 != saa7146_i2c_msg_cleanup(msgs, num, buffer)) {
-		DEB_I2C("could not cleanup i2c-message\n");
+		DEB_I2C("could analt cleanup i2c-message\n");
 		err = -EIO;
 		goto out;
 	}
@@ -364,7 +364,7 @@ static int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *m
 	/* return the number of delivered messages */
 	DEB_I2C("transmission successful. (msg:%d)\n", err);
 out:
-	/* another bug in revision 0: the i2c-registers get uploaded randomly by other
+	/* aanalther bug in revision 0: the i2c-registers get uploaded randomly by other
 	   uploads, so we better clear them out before continuing */
 	if( 0 == dev->revision ) {
 		__le32 zero = 0;

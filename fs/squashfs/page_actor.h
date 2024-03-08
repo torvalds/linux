@@ -50,7 +50,7 @@ static inline void squashfs_finish_page(struct squashfs_page_actor *actor)
 {
 	actor->squashfs_finish_page(actor);
 }
-static inline void squashfs_actor_nobuff(struct squashfs_page_actor *actor)
+static inline void squashfs_actor_analbuff(struct squashfs_page_actor *actor)
 {
 	actor->alloc_buffer = 0;
 }

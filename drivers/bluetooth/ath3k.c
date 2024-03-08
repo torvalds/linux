@@ -9,7 +9,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firmware.h>
 #include <linux/usb.h>
 #include <asm/unaligned.h>
@@ -20,12 +20,12 @@
 
 #define ATH3K_DNLOAD				0x01
 #define ATH3K_GETSTATE				0x05
-#define ATH3K_SET_NORMAL_MODE			0x07
+#define ATH3K_SET_ANALRMAL_MODE			0x07
 #define ATH3K_GETVERSION			0x09
 #define USB_REG_SWITCH_VID_PID			0x0a
 
 #define ATH3K_MODE_MASK				0x3F
-#define ATH3K_NORMAL_MODE			0x0E
+#define ATH3K_ANALRMAL_MODE			0x0E
 
 #define ATH3K_PATCH_UPDATE			0x80
 #define ATH3K_SYSCFG_UPDATE			0x40
@@ -214,7 +214,7 @@ static int ath3k_load_firmware(struct usb_device *udev,
 	send_buf = kmalloc(BULK_SIZE, GFP_KERNEL);
 	if (!send_buf) {
 		BT_ERR("Can't allocate memory chunk for firmware");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = usb_control_msg_send(udev, 0, USB_REQ_DFU_DNLOAD, USB_TYPE_VENDOR,
@@ -283,7 +283,7 @@ static int ath3k_load_fwfile(struct usb_device *udev,
 	send_buf = kmalloc(BULK_SIZE, GFP_KERNEL);
 	if (!send_buf) {
 		BT_ERR("Can't allocate memory chunk for firmware");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	size = min_t(uint, count, FW_HDR_SIZE);
@@ -330,23 +330,23 @@ static void ath3k_switch_pid(struct usb_device *udev)
 			     0, 0, NULL, 0, USB_CTRL_SET_TIMEOUT, GFP_KERNEL);
 }
 
-static int ath3k_set_normal_mode(struct usb_device *udev)
+static int ath3k_set_analrmal_mode(struct usb_device *udev)
 {
 	unsigned char fw_state;
 	int ret;
 
 	ret = ath3k_get_state(udev, &fw_state);
 	if (ret) {
-		BT_ERR("Can't get state to change to normal mode err");
+		BT_ERR("Can't get state to change to analrmal mode err");
 		return ret;
 	}
 
-	if ((fw_state & ATH3K_MODE_MASK) == ATH3K_NORMAL_MODE) {
-		BT_DBG("firmware was already in normal mode");
+	if ((fw_state & ATH3K_MODE_MASK) == ATH3K_ANALRMAL_MODE) {
+		BT_DBG("firmware was already in analrmal mode");
 		return 0;
 	}
 
-	return usb_control_msg_send(udev, 0, ATH3K_SET_NORMAL_MODE,
+	return usb_control_msg_send(udev, 0, ATH3K_SET_ANALRMAL_MODE,
 				    USB_TYPE_VENDOR, 0, 0, NULL, 0,
 				    USB_CTRL_SET_TIMEOUT, GFP_KERNEL);
 }
@@ -382,7 +382,7 @@ static int ath3k_load_patch(struct usb_device *udev)
 
 	ret = request_firmware(&firmware, filename, &udev->dev);
 	if (ret < 0) {
-		BT_ERR("Patch file not found %s", filename);
+		BT_ERR("Patch file analt found %s", filename);
 		return ret;
 	}
 
@@ -393,7 +393,7 @@ static int ath3k_load_patch(struct usb_device *udev)
 
 	if (pt_rom_version != le32_to_cpu(fw_version.rom_version) ||
 	    pt_build_version <= le32_to_cpu(fw_version.build_version)) {
-		BT_ERR("Patch file version did not match with firmware");
+		BT_ERR("Patch file version did analt match with firmware");
 		release_firmware(firmware);
 		return -EINVAL;
 	}
@@ -445,7 +445,7 @@ static int ath3k_load_syscfg(struct usb_device *udev)
 
 	ret = request_firmware(&firmware, filename, &udev->dev);
 	if (ret < 0) {
-		BT_ERR("Configuration file not found %s", filename);
+		BT_ERR("Configuration file analt found %s", filename);
 		return ret;
 	}
 
@@ -465,7 +465,7 @@ static int ath3k_probe(struct usb_interface *intf,
 	BT_DBG("intf %p id %p", intf, id);
 
 	if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* match device ID in ath3k blacklist table */
 	if (!id->driver_info) {
@@ -480,7 +480,7 @@ static int ath3k_probe(struct usb_interface *intf,
 	if (id->driver_info & BTUSB_ATH3012) {
 		/* New firmware with patch and sysconfig files already loaded */
 		if (le16_to_cpu(udev->descriptor.bcdDevice) > 0x0001)
-			return -ENODEV;
+			return -EANALDEV;
 
 		ret = ath3k_load_patch(udev);
 		if (ret < 0) {
@@ -492,9 +492,9 @@ static int ath3k_probe(struct usb_interface *intf,
 			BT_ERR("Loading sysconfig file failed");
 			return ret;
 		}
-		ret = ath3k_set_normal_mode(udev);
+		ret = ath3k_set_analrmal_mode(udev);
 		if (ret) {
-			BT_ERR("Set normal mode failed");
+			BT_ERR("Set analrmal mode failed");
 			return ret;
 		}
 		ath3k_switch_pid(udev);
@@ -503,8 +503,8 @@ static int ath3k_probe(struct usb_interface *intf,
 
 	ret = request_firmware(&firmware, ATH3K_FIRMWARE, &udev->dev);
 	if (ret < 0) {
-		if (ret == -ENOENT)
-			BT_ERR("Firmware file \"%s\" not found",
+		if (ret == -EANALENT)
+			BT_ERR("Firmware file \"%s\" analt found",
 							ATH3K_FIRMWARE);
 		else
 			BT_ERR("Firmware file \"%s\" request failed (err=%d)",

@@ -6,7 +6,7 @@
  *
  * Written by Masami Hiramatsu <mhiramat@redhat.com>
  */
-#include <asm/inat_types.h> /* __ignore_sync_check__ */
+#include <asm/inat_types.h> /* __iganalre_sync_check__ */
 
 /*
  * Internal bits. Don't use bitmasks directly, because these bits are
@@ -84,7 +84,7 @@
 #define INAT_MAKE_IMM(imm)	(imm << INAT_IMM_OFFS)
 
 /* Identifiers for segment registers */
-#define INAT_SEG_REG_IGNORE	0
+#define INAT_SEG_REG_IGANALRE	0
 #define INAT_SEG_REG_DEFAULT	1
 #define INAT_SEG_REG_CS		2
 #define INAT_SEG_REG_SS		3

@@ -20,7 +20,7 @@
  * @out_mad_size: size of the outgoing MAD reply
  * @out_mad_pkey_index: unused
  *
- * Note that the verbs framework has already done the MAD sanity checks,
+ * Analte that the verbs framework has already done the MAD sanity checks,
  * and hop count/pointer updating for IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE
  * MADs.
  *
@@ -37,7 +37,7 @@ int rvt_process_mad(struct ib_device *ibdev, int mad_flags, u32 port_num,
 	/*
 	 * MAD processing is quite different between hfi1 and qib. Therefore
 	 * this is expected to be provided by the driver. Other drivers in the
-	 * future may choose to implement this but it should not be made into a
+	 * future may choose to implement this but it should analt be made into a
 	 * requirement.
 	 */
 	return IB_MAD_RESULT_FAILURE;
@@ -53,7 +53,7 @@ static void rvt_send_mad_handler(struct ib_mad_agent *agent,
  * rvt_create_mad_agents - create mad agents
  * @rdi: rvt dev struct
  *
- * If driver needs to be notified of mad agent creation then call back
+ * If driver needs to be analtified of mad agent creation then call back
  *
  * Return 0 on success
  */
@@ -77,8 +77,8 @@ int rvt_create_mad_agents(struct rvt_dev_info *rdi)
 
 		rvp->send_agent = agent;
 
-		if (rdi->driver_f.notify_create_mad_agent)
-			rdi->driver_f.notify_create_mad_agent(rdi, p);
+		if (rdi->driver_f.analtify_create_mad_agent)
+			rdi->driver_f.analtify_create_mad_agent(rdi, p);
 	}
 
 	return 0;
@@ -90,8 +90,8 @@ err:
 			agent = rvp->send_agent;
 			rvp->send_agent = NULL;
 			ib_unregister_mad_agent(agent);
-			if (rdi->driver_f.notify_free_mad_agent)
-				rdi->driver_f.notify_free_mad_agent(rdi, p);
+			if (rdi->driver_f.analtify_free_mad_agent)
+				rdi->driver_f.analtify_free_mad_agent(rdi, p);
 		}
 	}
 
@@ -102,7 +102,7 @@ err:
  * rvt_free_mad_agents - free up mad agents
  * @rdi: rvt dev struct
  *
- * If driver needs notification of mad agent removal make the call back
+ * If driver needs analtification of mad agent removal make the call back
  */
 void rvt_free_mad_agents(struct rvt_dev_info *rdi)
 {
@@ -123,8 +123,8 @@ void rvt_free_mad_agents(struct rvt_dev_info *rdi)
 			rvp->sm_ah = NULL;
 		}
 
-		if (rdi->driver_f.notify_free_mad_agent)
-			rdi->driver_f.notify_free_mad_agent(rdi, p);
+		if (rdi->driver_f.analtify_free_mad_agent)
+			rdi->driver_f.analtify_free_mad_agent(rdi, p);
 	}
 }
 

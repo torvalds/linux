@@ -31,7 +31,7 @@ static const char *const bench_usage[] = {
 static unsigned int accumulator;
 static unsigned int use_of_val;
 
-static noinline void workload(int val)
+static analinline void workload(int val)
 {
 	use_of_val += val;
 	accumulator++;

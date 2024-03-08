@@ -9,7 +9,7 @@ void sparx5_pgid_init(struct sparx5 *spx5)
 		spx5->pgid_map[i] = SPX5_PGID_FREE;
 
 	/* Reserved for unicast, flood control, broadcast, and CPU.
-	 * These cannot be freed.
+	 * These cananalt be freed.
 	 */
 	for (i = 0; i <= PGID_CPU; i++)
 		spx5->pgid_map[i] = SPX5_PGID_RESERVED;

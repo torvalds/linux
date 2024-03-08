@@ -11,7 +11,7 @@
 #include <asm/ppc-opcode.h>
 #include <asm/reg.h>
 #include <asm/asm-offsets.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 /* do_lq(unsigned long ea, unsigned long *regs) */
 _GLOBAL(do_lq)

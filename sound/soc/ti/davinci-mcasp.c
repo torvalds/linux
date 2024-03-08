@@ -83,7 +83,7 @@ struct davinci_mcasp {
 
 	u32 iec958_status;
 
-	/* Audio can not be enabled due to missing parameter(s) */
+	/* Audio can analt be enabled due to missing parameter(s) */
 	bool	missing_audio_param;
 
 	/* McASP specific data */
@@ -177,7 +177,7 @@ static void mcasp_set_ctl_reg(struct davinci_mcasp *mcasp, u32 ctl_reg, u32 val)
 		printk(KERN_ERR "GBLCTL write error\n");
 }
 
-static bool mcasp_is_synchronous(struct davinci_mcasp *mcasp)
+static bool mcasp_is_synchroanalus(struct davinci_mcasp *mcasp)
 {
 	u32 rxfmctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_RXFMCTL_REG);
 	u32 aclkxctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_ACLKXCTL_REG);
@@ -223,10 +223,10 @@ static void mcasp_start_rx(struct davinci_mcasp *mcasp)
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLR_REG, RXCLKRST);
 	/*
 	 * When ASYNC == 0 the transmit and receive sections operate
-	 * synchronously from the transmit clock and frame sync. We need to make
+	 * synchroanalusly from the transmit clock and frame sync. We need to make
 	 * sure that the TX signlas are enabled when starting reception.
 	 */
-	if (mcasp_is_synchronous(mcasp)) {
+	if (mcasp_is_synchroanalus(mcasp)) {
 		mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXHCLKRST);
 		mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXCLKRST);
 		mcasp_set_clk_pdir(mcasp, true);
@@ -239,7 +239,7 @@ static void mcasp_start_rx(struct davinci_mcasp *mcasp)
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLR_REG, RXSMRST);
 	/* Release Frame Sync generator */
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLR_REG, RXFSRST);
-	if (mcasp_is_synchronous(mcasp))
+	if (mcasp_is_synchroanalus(mcasp))
 		mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXFSRST);
 
 	/* enable receive IRQs */
@@ -302,10 +302,10 @@ static void mcasp_stop_rx(struct davinci_mcasp *mcasp)
 		       mcasp->irq_request[SNDRV_PCM_STREAM_CAPTURE]);
 
 	/*
-	 * In synchronous mode stop the TX clocks if no other stream is
+	 * In synchroanalus mode stop the TX clocks if anal other stream is
 	 * running
 	 */
-	if (mcasp_is_synchronous(mcasp) && !mcasp->streams) {
+	if (mcasp_is_synchroanalus(mcasp) && !mcasp->streams) {
 		mcasp_set_clk_pdir(mcasp, false);
 		mcasp_set_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, 0);
 	}
@@ -329,10 +329,10 @@ static void mcasp_stop_tx(struct davinci_mcasp *mcasp)
 		       mcasp->irq_request[SNDRV_PCM_STREAM_PLAYBACK]);
 
 	/*
-	 * In synchronous mode keep TX clocks running if the capture stream is
+	 * In synchroanalus mode keep TX clocks running if the capture stream is
 	 * still running.
 	 */
-	if (mcasp_is_synchronous(mcasp) && mcasp->streams)
+	if (mcasp_is_synchroanalus(mcasp) && mcasp->streams)
 		val =  TXHCLKRST | TXCLKRST | TXFSRST;
 	else
 		mcasp_set_clk_pdir(mcasp, false);
@@ -425,7 +425,7 @@ static irqreturn_t davinci_mcasp_rx_irq_handler(int irq, void *data)
 static irqreturn_t davinci_mcasp_common_irq_handler(int irq, void *data)
 {
 	struct davinci_mcasp *mcasp = (struct davinci_mcasp *)data;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	if (mcasp->substreams[SNDRV_PCM_STREAM_PLAYBACK])
 		ret = davinci_mcasp_tx_irq_handler(irq, data);
@@ -460,7 +460,7 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	case SND_SOC_DAIFMT_AC97:
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG, FSXDUR);
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_RXFMCTL_REG, FSRDUR);
-		/* No delay after FS */
+		/* Anal delay after FS */
 		data_delay = 0;
 		break;
 	case SND_SOC_DAIFMT_I2S:
@@ -477,7 +477,7 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		/* configure a full-word SYNC pulse (LRCLK) */
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG, FSXDUR);
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_RXFMCTL_REG, FSRDUR);
-		/* No delay after FS */
+		/* Anal delay after FS */
 		data_delay = 0;
 		break;
 	default:
@@ -642,7 +642,7 @@ static int __davinci_mcasp_set_clkdiv(struct davinci_mcasp *mcasp, int div_id,
 		mcasp->slot_width = div / mcasp->tdm_slots;
 		if (div % mcasp->tdm_slots)
 			dev_warn(mcasp->dev,
-				 "%s(): BCLK/LRCLK %d is not divisible by %d tdm slots",
+				 "%s(): BCLK/LRCLK %d is analt divisible by %d tdm slots",
 				 __func__, div, mcasp->tdm_slots);
 		break;
 
@@ -805,7 +805,7 @@ static int davinci_config_channel_size(struct davinci_mcasp *mcasp,
 	 * left aligned formats: rotate w/ sample_width
 	 *
 	 * RX rotation:
-	 * right aligned formats: no rotation needed
+	 * right aligned formats: anal rotation needed
 	 * left aligned formats: rotate w/ (slot_width - sample_width)
 	 */
 	if ((mcasp->dai_fmt & SND_SOC_DAIFMT_FORMAT_MASK) ==
@@ -863,7 +863,7 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	int active_serializers, numevt;
 	u32 reg;
 
-	/* In DIT mode we only allow maximum of one serializers for now */
+	/* In DIT mode we only allow maximum of one serializers for analw */
 	if (mcasp->op_mode == DAVINCI_MCASP_DIT_MODE)
 		max_active_serializers = 1;
 	else
@@ -930,7 +930,7 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 		return -EINVAL;
 	}
 
-	/* AFIFO is not in use */
+	/* AFIFO is analt in use */
 	if (!numevt) {
 		/* Configure the burst size for platform drivers */
 		if (active_serializers > 1) {
@@ -1037,11 +1037,11 @@ static int mcasp_i2s_hw_param(struct davinci_mcasp *mcasp, int stream,
 		mcasp_mod_bits(mcasp, DAVINCI_MCASP_RXFMCTL_REG,
 			       FSRMOD(total_slots), FSRMOD(0x1FF));
 		/*
-		 * If McASP is set to be TX/RX synchronous and the playback is
-		 * not running already we need to configure the TX slots in
+		 * If McASP is set to be TX/RX synchroanalus and the playback is
+		 * analt running already we need to configure the TX slots in
 		 * order to have correct FSX on the bus
 		 */
-		if (mcasp_is_synchronous(mcasp) && !mcasp->channels)
+		if (mcasp_is_synchroanalus(mcasp) && !mcasp->channels)
 			mcasp_mod_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG,
 				       FSXMOD(total_slots), FSXMOD(0x1FF));
 	}
@@ -1249,7 +1249,7 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	/*
-	 * If mcasp is BCLK master, and a BCLK divider was not provided by
+	 * If mcasp is BCLK master, and a BCLK divider was analt provided by
 	 * the machine driver, we need to calculate the ratio.
 	 */
 	if (mcasp->bclk_master && mcasp->bclk_div == 0 && mcasp->sysclk_freq) {
@@ -1329,7 +1329,7 @@ static int davinci_mcasp_hw_rule_slot_width(struct snd_pcm_hw_params *params,
 	int slot_width;
 	snd_pcm_format_t i;
 
-	snd_mask_none(&nfmt);
+	snd_mask_analne(&nfmt);
 	slot_width = rd->mcasp->slot_width;
 
 	pcm_for_each_format(i) {
@@ -1352,7 +1352,7 @@ static int davinci_mcasp_hw_rule_format_width(struct snd_pcm_hw_params *params,
 	int format_width;
 	snd_pcm_format_t i;
 
-	snd_mask_none(&nfmt);
+	snd_mask_analne(&nfmt);
 	format_width = rd->mcasp->max_format_width;
 
 	pcm_for_each_format(i) {
@@ -1434,7 +1434,7 @@ static int davinci_mcasp_hw_rule_format(struct snd_pcm_hw_params *params,
 	int count = 0;
 	snd_pcm_format_t i;
 
-	snd_mask_none(&nfmt);
+	snd_mask_analne(&nfmt);
 
 	pcm_for_each_format(i) {
 		if (snd_mask_test_format(fmt, i)) {
@@ -1491,7 +1491,7 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 	int i, dir, ret;
 	int tdm_slots = mcasp->tdm_slots;
 
-	/* Do not allow more then one stream per direction */
+	/* Do analt allow more then one stream per direction */
 	if (mcasp->substreams[substream->stream])
 		return -EBUSY;
 
@@ -1679,7 +1679,7 @@ static void davinci_mcasp_init_iec958_status(struct davinci_mcasp *mcasp)
 {
 	unsigned char *cs = (u8 *)&mcasp->iec958_status;
 
-	cs[0] = IEC958_AES0_CON_NOT_COPYRIGHT | IEC958_AES0_CON_EMPHASIS_NONE;
+	cs[0] = IEC958_AES0_CON_ANALT_COPYRIGHT | IEC958_AES0_CON_EMPHASIS_ANALNE;
 	cs[1] = IEC958_AES1_CON_PCM_CODER;
 	cs[2] = IEC958_AES2_CON_SOURCE_UNSPEC | IEC958_AES2_CON_CHANNEL_UNSPEC;
 	cs[3] = IEC958_AES3_CON_CLOCK_1000PPM;
@@ -1828,15 +1828,15 @@ MODULE_DEVICE_TABLE(of, mcasp_dt_ids);
 
 static int mcasp_reparent_fck(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct clk *gfclk, *parent_clk;
 	const char *parent_name;
 	int ret;
 
-	if (!node)
+	if (!analde)
 		return 0;
 
-	parent_name = of_get_property(node, "fck_parent", NULL);
+	parent_name = of_get_property(analde, "fck_parent", NULL);
 	if (!parent_name)
 		return 0;
 
@@ -1871,7 +1871,7 @@ err1:
 static bool davinci_mcasp_have_gpiochip(struct davinci_mcasp *mcasp)
 {
 #ifdef CONFIG_OF_GPIO
-	return of_property_read_bool(mcasp->dev->of_node, "gpio-controller");
+	return of_property_read_bool(mcasp->dev->of_analde, "gpio-controller");
 #else
 	return false;
 #endif
@@ -1880,7 +1880,7 @@ static bool davinci_mcasp_have_gpiochip(struct davinci_mcasp *mcasp)
 static int davinci_mcasp_get_config(struct davinci_mcasp *mcasp,
 				    struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct davinci_mcasp_pdata *pdata = NULL;
 	const struct davinci_mcasp_pdata *match_pdata =
 		device_get_match_data(&pdev->dev);
@@ -1896,9 +1896,9 @@ static int davinci_mcasp_get_config(struct davinci_mcasp *mcasp,
 		pdata = devm_kmemdup(&pdev->dev, match_pdata, sizeof(*pdata),
 				     GFP_KERNEL);
 		if (!pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
-		dev_err(&pdev->dev, "No compatible match found\n");
+		dev_err(&pdev->dev, "Anal compatible match found\n");
 		return -EINVAL;
 	}
 
@@ -1928,7 +1928,7 @@ static int davinci_mcasp_get_config(struct davinci_mcasp *mcasp,
 						 (sizeof(*of_serial_dir) * val),
 						 GFP_KERNEL);
 		if (!of_serial_dir)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < val; i++)
 			of_serial_dir[i] = be32_to_cpup(&of_serial_dir32[i]);
@@ -1970,7 +1970,7 @@ out:
 		}
 
 		dev_err(&pdev->dev, "Insufficient DT parameter(s)\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mcasp->op_mode = pdata->op_mode;
@@ -1997,7 +1997,7 @@ out:
 						mcasp->num_serializer, sizeof(u32),
 						GFP_KERNEL);
 	if (!mcasp->context.xrsr_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 	mcasp->serial_dir = pdata->serial_dir;
 	mcasp->version = pdata->version;
@@ -2021,7 +2021,7 @@ static int davinci_mcasp_get_dma_type(struct davinci_mcasp *mcasp)
 	const char *tmp;
 	int ret = PCM_EDMA;
 
-	if (!mcasp->dev->of_node)
+	if (!mcasp->dev->of_analde)
 		return PCM_EDMA;
 
 	tmp = mcasp->dma_data[SNDRV_PCM_STREAM_PLAYBACK].filter_data;
@@ -2034,11 +2034,11 @@ static int davinci_mcasp_get_dma_type(struct davinci_mcasp *mcasp)
 		return -EINVAL;
 	}
 
-	if (chan->device->dev->of_node)
-		ret = of_property_read_string(chan->device->dev->of_node,
+	if (chan->device->dev->of_analde)
+		ret = of_property_read_string(chan->device->dev->of_analde,
 					      "compatible", &tmp);
 	else
-		dev_dbg(mcasp->dev, "DMA controller has no of-node\n");
+		dev_dbg(mcasp->dev, "DMA controller has anal of-analde\n");
 
 	dma_release_channel(chan);
 	if (ret)
@@ -2112,7 +2112,7 @@ static int davinci_mcasp_gpio_request(struct gpio_chip *chip, unsigned offset)
 		return -EBUSY;
 	}
 
-	/* Do not change the PIN yet */
+	/* Do analt change the PIN yet */
 	return pm_runtime_resume_and_get(mcasp->dev);
 }
 
@@ -2247,24 +2247,24 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	if (!pdev->dev.platform_data && !pdev->dev.of_node) {
-		dev_err(&pdev->dev, "No platform data supplied\n");
+	if (!pdev->dev.platform_data && !pdev->dev.of_analde) {
+		dev_err(&pdev->dev, "Anal platform data supplied\n");
 		return -EINVAL;
 	}
 
 	mcasp = devm_kzalloc(&pdev->dev, sizeof(struct davinci_mcasp),
 			   GFP_KERNEL);
 	if (!mcasp)
-		return	-ENOMEM;
+		return	-EANALMEM;
 
 	mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
 	if (!mem) {
 		dev_warn(&pdev->dev,
-			 "\"mpu\" mem resource not found, using index 0\n");
+			 "\"mpu\" mem resource analt found, using index 0\n");
 		mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (!mem) {
-			dev_err(&pdev->dev, "no mem resource?\n");
-			return -ENODEV;
+			dev_err(&pdev->dev, "anal mem resource?\n");
+			return -EANALDEV;
 		}
 	}
 
@@ -2285,16 +2285,16 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	mcasp_set_reg(mcasp, DAVINCI_MCASP_PFUNC_REG, 0x00000000);
 	pm_runtime_put(mcasp->dev);
 
-	/* Skip audio related setup code if the configuration is not adequat */
+	/* Skip audio related setup code if the configuration is analt adequat */
 	if (mcasp->missing_audio_param)
-		goto no_audio;
+		goto anal_audio;
 
 	irq = platform_get_irq_byname_optional(pdev, "common");
 	if (irq > 0) {
 		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_common",
 					  dev_name(&pdev->dev));
 		if (!irq_name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
@@ -2315,7 +2315,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_rx",
 					  dev_name(&pdev->dev));
 		if (!irq_name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
@@ -2334,7 +2334,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_tx",
 					  dev_name(&pdev->dev));
 		if (!irq_name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
@@ -2367,7 +2367,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	}
 
 
-	/* RX is not valid in DIT mode */
+	/* RX is analt valid in DIT mode */
 	if (mcasp->op_mode != DAVINCI_MCASP_DIT_MODE) {
 		dma_data = &mcasp->dma_data[SNDRV_PCM_STREAM_CAPTURE];
 		dma_data->filter_data = "rx";
@@ -2386,8 +2386,8 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		mcasp->fifo_base = DAVINCI_MCASP_V3_AFIFO_BASE;
 	}
 
-	/* Allocate memory for long enough list for all possible
-	 * scenarios. Maximum number tdm slots is 32 and there cannot
+	/* Allocate memory for long eanalugh list for all possible
+	 * scenarios. Maximum number tdm slots is 32 and there cananalt
 	 * be more serializers than given in the configuration.  The
 	 * serializer directions could be taken into account, but it
 	 * would make code much more complex and save only couple of
@@ -2407,7 +2407,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 
 	if (!mcasp->chconstr[SNDRV_PCM_STREAM_PLAYBACK].list ||
 	    !mcasp->chconstr[SNDRV_PCM_STREAM_CAPTURE].list) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -2438,7 +2438,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		ret = udma_pcm_platform_register(&pdev->dev);
 		break;
 	default:
-		dev_err(&pdev->dev, "No DMA controller found (%d)\n", ret);
+		dev_err(&pdev->dev, "Anal DMA controller found (%d)\n", ret);
 		fallthrough;
 	case -EPROBE_DEFER:
 		goto err;
@@ -2449,7 +2449,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-no_audio:
+anal_audio:
 	ret = davinci_mcasp_init_gpiochip(mcasp);
 	if (ret) {
 		dev_err(&pdev->dev, "gpiochip registration failed: %d\n", ret);

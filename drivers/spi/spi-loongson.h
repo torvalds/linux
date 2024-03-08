@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /* Header File for Loongson SPI Driver. */
-/* Copyright (C) 2023 Loongson Technology Corporation Limited */
+/* Copyright (C) 2023 Loongson Techanallogy Corporation Limited */
 
 #ifndef __LINUX_SPI_LOONGSON_H
 #define __LINUX_SPI_LOONGSON_H

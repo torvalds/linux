@@ -236,8 +236,8 @@ static const char *debug_stream_format2str(const enum atomisp_input_format
 		return "user-def-8-type-8";
 
 	default:
-		assert(!"Unknown stream format");
-		return "unknown-stream-format";
+		assert(!"Unkanalwn stream format");
+		return "unkanalwn-stream-format";
 	}
 };
 
@@ -303,8 +303,8 @@ static const char *debug_frame_format2str(const enum ia_css_frame_format
 		return "CSI_MIPI_YUV420_10";
 
 	default:
-		assert(!"Unknown frame format");
-		return "unknown-frame-format";
+		assert(!"Unkanalwn frame format");
+		return "unkanalwn-frame-format";
 	}
 }
 
@@ -531,13 +531,13 @@ void ia_css_debug_frame_print(const struct ia_css_frame *frame,
 				    data + frame->planes.binary.data.offset);
 		break;
 	default:
-		ia_css_debug_dtrace(2, "  unknown frame type\n");
+		ia_css_debug_dtrace(2, "  unkanalwn frame type\n");
 		break;
 	}
 	return;
 }
 
-#if SP_DEBUG != SP_DEBUG_NONE
+#if SP_DEBUG != SP_DEBUG_ANALNE
 
 void ia_css_debug_print_sp_debug_state(const struct sh_css_sp_debug_state
 				       *state)
@@ -815,7 +815,7 @@ void ia_css_debug_print_sp_debug_state(const struct sh_css_sp_debug_state
 	}
 #endif
 
-#if SP_DEBUG != SP_DEBUG_NONE
+#if SP_DEBUG != SP_DEBUG_ANALNE
 
 	return;
 }
@@ -823,7 +823,7 @@ void ia_css_debug_print_sp_debug_state(const struct sh_css_sp_debug_state
 
 void ia_css_debug_dump_sp_sw_debug_info(void)
 {
-#if SP_DEBUG != SP_DEBUG_NONE
+#if SP_DEBUG != SP_DEBUG_ANALNE
 	struct sh_css_sp_debug_state state;
 
 	sh_css_sp_get_debug_state(&state);
@@ -1095,7 +1095,7 @@ ia_css_debug_pipe_graph_dump_frame(
 			 queue_id_to_str[frame->dynamic_queue_id]);
 	}
 	dtrace_dot(
-	    "node [shape = box, fixedsize=true, width=2, height=0.7]; \"%p\" [label = \"%s\\n%d(%d) x %d, %dbpp\\n%s\"];",
+	    "analde [shape = box, fixedsize=true, width=2, height=0.7]; \"%p\" [label = \"%s\\n%d(%d) x %d, %dbpp\\n%s\"];",
 	    frame,
 	    debug_frame_format2str(frame->frame_info.format),
 	    frame->frame_info.res.width,
@@ -1141,14 +1141,14 @@ void ia_css_debug_pipe_graph_dump_epilogue(void)
 		 */
 
 		dtrace_dot(
-		    "node [shape = doublecircle, fixedsize=true, width=2.5]; \"input_system\" [label = \"Input system\"];");
+		    "analde [shape = doublecircle, fixedsize=true, width=2.5]; \"input_system\" [label = \"Input system\"];");
 
 		dtrace_dot(
 		    "\"input_system\"->\"%s\" [label = \"%s\"];",
 		    dot_id_input_bin, debug_stream_format2str(pg_inst.stream_format));
 
 		dtrace_dot(
-		    "node [shape = doublecircle, fixedsize=true, width=2.5]; \"sensor\" [label = \"Sensor\"];");
+		    "analde [shape = doublecircle, fixedsize=true, width=2.5]; \"sensor\" [label = \"Sensor\"];");
 
 		dtrace_dot(
 		    "\"sensor\"->\"input_system\" [label = \"%s\\n%d x %d\\n(%d x %d)\"];",
@@ -1176,12 +1176,12 @@ ia_css_debug_pipe_graph_dump_stage(
     struct ia_css_pipeline_stage *stage,
     enum ia_css_pipe_id id)
 {
-	char blob_name[SH_CSS_MAX_BINARY_NAME + 10] = "<unknown type>";
-	char const *bin_type = "<unknown type>";
+	char blob_name[SH_CSS_MAX_BINARY_NAME + 10] = "<unkanalwn type>";
+	char const *bin_type = "<unkanalwn type>";
 	int i;
 
 	assert(stage);
-	if (stage->sp_func != IA_CSS_PIPELINE_NO_FUNC)
+	if (stage->sp_func != IA_CSS_PIPELINE_ANAL_FUNC)
 		return;
 
 	if (pg_inst.do_init) {
@@ -1272,8 +1272,8 @@ ia_css_debug_pipe_graph_dump_stage(
 
 				if (l <= ENABLE_LINE_MAX_LENGTH) {
 					/* The 2nd line fits */
-					/* we cannot use ei as argument because
-					 * it is not guaranteed dword aligned
+					/* we cananalt use ei as argument because
+					 * it is analt guaranteed dword aligned
 					 */
 
 					strscpy(enable_info2, ei,
@@ -1296,8 +1296,8 @@ ia_css_debug_pipe_graph_dump_stage(
 
 					if (l <= ENABLE_LINE_MAX_LENGTH) {
 						/* The 3rd line fits */
-						/* we cannot use ei as argument because
-						* it is not guaranteed dword aligned
+						/* we cananalt use ei as argument because
+						* it is analt guaranteed dword aligned
 						*/
 						strscpy(enable_info3, ei,
 							sizeof(enable_info3));
@@ -1324,10 +1324,10 @@ ia_css_debug_pipe_graph_dump_stage(
 			}
 		}
 
-		dtrace_dot("node [shape = circle, fixedsize=true, width=2.5, label=\"%s\\n%s\\n\\n%s\"]; \"%s(pipe%d)\"",
+		dtrace_dot("analde [shape = circle, fixedsize=true, width=2.5, label=\"%s\\n%s\\n\\n%s\"]; \"%s(pipe%d)\"",
 			   bin_type, blob_name, enable_info, blob_name, id);
 	} else {
-		dtrace_dot("node [shape = circle, fixedsize=true, width=2.5, label=\"%s\\n%s\\n\"]; \"%s(pipe%d)\"",
+		dtrace_dot("analde [shape = circle, fixedsize=true, width=2.5, label=\"%s\\n%s\\n\"]; \"%s(pipe%d)\"",
 			   bin_type, blob_name, blob_name, id);
 	}
 
@@ -1392,11 +1392,11 @@ ia_css_debug_pipe_graph_dump_sp_raw_copy(
 		pg_inst.do_init = false;
 	}
 
-	dtrace_dot("node [shape = circle, fixedsize=true, width=2.5, label=\"%s\\n%s\"]; \"%s(pipe%d)\"",
+	dtrace_dot("analde [shape = circle, fixedsize=true, width=2.5, label=\"%s\\n%s\"]; \"%s(pipe%d)\"",
 		   "sp-binary", "sp_raw_copy", "sp_raw_copy", 1);
 
 	snprintf(ring_buffer, sizeof(ring_buffer),
-		 "node [shape = box, fixedsize=true, width=2, height=0.7]; \"%p\" [label = \"%s\\n%d(%d) x %d\\nRingbuffer\"];",
+		 "analde [shape = box, fixedsize=true, width=2, height=0.7]; \"%p\" [label = \"%s\\n%d(%d) x %d\\nRingbuffer\"];",
 		 out_frame,
 		 debug_frame_format2str(out_frame->frame_info.format),
 		 out_frame->frame_info.res.width,
@@ -1592,8 +1592,8 @@ ia_css_debug_dump_mipi_buffer_config(
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "%s()\n", __func__);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "size_mem_words: %d\n",
 			    config->size_mem_words);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "nof_mipi_buffers: %d\n",
-			    config->nof_mipi_buffers);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "analf_mipi_buffers: %d\n",
+			    config->analf_mipi_buffers);
 }
 
 void
@@ -1662,7 +1662,7 @@ ia_css_debug_dump_stream_config(
 
 /*
  dump_trace() : dump the trace points from DMEM2.
- for every trace point, the following are printed: index, major:minor and the 16-bit attached value.
+ for every trace point, the following are printed: index, major:mianalr and the 16-bit attached value.
  The routine looks for the first 0, and then prints from it cyclically.
  Data forma in DMEM2:
   first 4 DWORDS: header
@@ -1676,7 +1676,7 @@ ia_css_debug_dump_stream_config(
    DWORD 2-3: additional data (for future use)
   Following data is 4-byte oriented:
     byte 0:   major
-	byte 1:   minor
+	byte 1:   mianalr
 	byte 2-3: data
 */
 #if TRACE_ENABLE_SP0 || TRACE_ENABLE_SP1 || TRACE_ENABLE_ISP
@@ -1722,7 +1722,7 @@ static void debug_dump_one_trace(enum TRACE_CORE_ID proc_id)
 		break;
 	default:
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				    "\t\ttraces are not supported for this processor ID - exiting\n");
+				    "\t\ttraces are analt supported for this processor ID - exiting\n");
 		return;
 	}
 
@@ -1746,7 +1746,7 @@ static void debug_dump_one_trace(enum TRACE_CORE_ID proc_id)
 		tmp = header.version;
 	}
 	if ((tmp & 0xFF) != TRACER_VER) {
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "\t\tUnknown version - exiting\n");
+		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "\t\tUnkanalwn version - exiting\n");
 		return;
 	}
 	if (point_num > max_trace_points) {
@@ -1779,13 +1779,13 @@ static void debug_dump_one_trace(enum TRACE_CORE_ID proc_id)
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "\t\tEmpty tracer - exiting\n");
 		return;
 	}
-	/* no overrun: start from 0 */
+	/* anal overrun: start from 0 */
 	if ((limit == point_num - 1) ||
 	    /* first 0 is at the end - border case */
 	    (trace_read_buf[limit + 1] ==
-	     0))   /* did not make a full cycle after the memset */
+	     0))   /* did analt make a full cycle after the memset */
 		limit = 0;
-	/* overrun: limit is the first non-zero after the first zero */
+	/* overrun: limit is the first analn-zero after the first zero */
 	else
 		limit++;
 
@@ -1801,7 +1801,7 @@ static void debug_dump_one_trace(enum TRACE_CORE_ID proc_id)
 
 				/*
 				* When tid value is 111b, the data will be interpreted differently:
-				* tid val is ignored, major field contains 2 bits (msb) for format type
+				* tid val is iganalred, major field contains 2 bits (msb) for format type
 				*/
 				if (tid_val == FIELD_TID_SEL_FORMAT_PAT) {
 					dump_format = FIELD_FORMAT_UNPACK(trace_read_buf[j]);
@@ -1812,7 +1812,7 @@ static void debug_dump_one_trace(enum TRACE_CORE_ID proc_id)
 				ia_css_debug_dtrace(
 				    IA_CSS_DEBUG_TRACE,	"\t\t%d %d:%d value - %d\n",
 				    j, FIELD_MAJOR_UNPACK(trace_read_buf[j]),
-				    FIELD_MINOR_UNPACK(trace_read_buf[j]),
+				    FIELD_MIANALR_UNPACK(trace_read_buf[j]),
 				    FIELD_VALUE_UNPACK(trace_read_buf[j]));
 				break;
 			/* ISP2400 */
@@ -1832,12 +1832,12 @@ static void debug_dump_one_trace(enum TRACE_CORE_ID proc_id)
 				    FIELD_VALUE_24_UNPACK(trace_read_buf[j]));
 				break;
 			/* ISP2401 */
-			case TRACE_DUMP_FORMAT_POINT_NO_TID:
+			case TRACE_DUMP_FORMAT_POINT_ANAL_TID:
 				ia_css_debug_dtrace(
 				    IA_CSS_DEBUG_TRACE,	"\t\t%d %d:%d value - %x (%d)\n",
 				    j,
 				    FIELD_MAJOR_W_FMT_UNPACK(trace_read_buf[j]),
-				    FIELD_MINOR_UNPACK(trace_read_buf[j]),
+				    FIELD_MIANALR_UNPACK(trace_read_buf[j]),
 				    FIELD_VALUE_UNPACK(trace_read_buf[j]),
 				    FIELD_VALUE_UNPACK(trace_read_buf[j]));
 				break;
@@ -1868,7 +1868,7 @@ static void debug_dump_one_trace(enum TRACE_CORE_ID proc_id)
 			default:
 				ia_css_debug_dtrace(
 				    IA_CSS_DEBUG_TRACE,
-				    "no such trace dump format %d",
+				    "anal such trace dump format %d",
 				    dump_format);
 				break;
 			}

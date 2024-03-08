@@ -62,7 +62,7 @@ struct sclp_sd_data {
 };
 
 /**
- * struct sclp_sd_listener - Listener for asynchronous Store Data response
+ * struct sclp_sd_listener - Listener for asynchroanalus Store Data response
  * @list: For enqueueing this struct
  * @id: Event ID of response to listen for
  * @completion: Can be used to wait for response
@@ -125,7 +125,7 @@ static void sclp_sd_listener_remove(struct sclp_sd_listener *listener)
  * @listener: Response listener to initialize
  * @id: Event ID to listen for
  *
- * Initialize a listener for asynchronous Store Data responses. This listener
+ * Initialize a listener for asynchroanalus Store Data responses. This listener
  * can afterwards be used to wait for a specific response and to retrieve
  * the associated response data.
  */
@@ -172,7 +172,7 @@ static struct sclp_register sclp_sd_register = {
 };
 
 /**
- * sclp_sd_sync() - Perform Store Data request synchronously
+ * sclp_sd_sync() - Perform Store Data request synchroanalusly
  * @page: Address of work page - must be below 2GB
  * @eq: Input EQ value
  * @di: Input DI value
@@ -184,7 +184,7 @@ static struct sclp_register sclp_sd_register = {
  * Perform Store Data request with specified parameters and wait for completion.
  *
  * Return %0 on success and store resulting DSIZE and ESIZE values in
- * @dsize_ptr and @esize_ptr (if provided). Return non-zero on error.
+ * @dsize_ptr and @esize_ptr (if provided). Return analn-zero on error.
  */
 static int sclp_sd_sync(unsigned long page, u8 eq, u8 di, u64 sat, u64 sa,
 			u32 *dsize_ptr, u32 *esize_ptr)
@@ -221,7 +221,7 @@ static int sclp_sd_sync(unsigned long page, u8 eq, u8 di, u64 sat, u64 sa,
 
 	/* Evaluate response */
 	if (sccb->hdr.response_code == 0x73f0) {
-		pr_debug("event not supported\n");
+		pr_debug("event analt supported\n");
 		rc = -EIO;
 		goto out_remove;
 	}
@@ -245,7 +245,7 @@ static int sclp_sd_sync(unsigned long page, u8 eq, u8 di, u64 sat, u64 sa,
 			 evbuf->esize);
 		break;
 	case 3:
-		rc = -ENOENT;
+		rc = -EANALENT;
 		break;
 	default:
 		rc = -EIO;
@@ -254,7 +254,7 @@ static int sclp_sd_sync(unsigned long page, u8 eq, u8 di, u64 sat, u64 sa,
 	}
 
 out:
-	if (rc && rc != -ENOENT) {
+	if (rc && rc != -EANALENT) {
 		/* Provide some information about what went wrong */
 		pr_warn("Store Data request failed (eq=%d, di=%d, "
 			"response=0x%04x, flags=0x%02x, status=%d, rc=%d)\n",
@@ -279,7 +279,7 @@ out_remove:
  * Return:
  *   %0:       Success - result is stored in @result. @result->data must be
  *	       released using vfree() after use.
- *   %-ENOENT: No data available for this entity
+ *   %-EANALENT: Anal data available for this entity
  *   %<0:      Other error
  */
 static int sclp_sd_store_data(struct sclp_sd_data *result, u8 di)
@@ -291,7 +291,7 @@ static int sclp_sd_store_data(struct sclp_sd_data *result, u8 di)
 
 	page = __get_free_page(GFP_KERNEL | GFP_DMA);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get size */
 	rc = sclp_sd_sync(page, SD_EQ_SIZE, di, 0, 0, &dsize, &esize);
@@ -303,7 +303,7 @@ static int sclp_sd_store_data(struct sclp_sd_data *result, u8 di)
 	/* Allocate memory */
 	data = vzalloc(array_size((size_t)dsize, PAGE_SIZE));
 	if (!data) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -311,7 +311,7 @@ static int sclp_sd_store_data(struct sclp_sd_data *result, u8 di)
 	asce = base_asce_alloc((unsigned long) data, dsize);
 	if (!asce) {
 		vfree(data);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -372,7 +372,7 @@ static void sclp_sd_file_release(struct kobject *kobj)
  * @sd_file.
  *
  * On success, return %0 and generate a KOBJ_CHANGE event to indicate that the
- * data may have changed. Return non-zero otherwise.
+ * data may have changed. Return analn-zero otherwise.
  */
 static int sclp_sd_file_update(struct sclp_sd_file *sd_file)
 {
@@ -382,8 +382,8 @@ static int sclp_sd_file_update(struct sclp_sd_file *sd_file)
 
 	rc = sclp_sd_store_data(&data, sd_file->di);
 	if (rc) {
-		if (rc == -ENOENT) {
-			pr_info("No data is available for the %s data entity\n",
+		if (rc == -EANALENT) {
+			pr_info("Anal data is available for the %s data entity\n",
 				 name);
 		}
 		return rc;
@@ -402,7 +402,7 @@ static int sclp_sd_file_update(struct sclp_sd_file *sd_file)
 }
 
 /**
- * sclp_sd_file_update_async() - Wrapper for asynchronous update call
+ * sclp_sd_file_update_async() - Wrapper for asynchroanalus update call
  * @data: Object to update
  * @cookie: Unused
  */
@@ -555,7 +555,7 @@ static __init int sclp_sd_init(void)
 		return rc;
 
 	/* Create kset named "sclp_sd" located under /sys/firmware/ */
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	sclp_sd_kset = kset_create_and_add("sclp_sd", NULL, firmware_kobj);
 	if (!sclp_sd_kset)
 		goto err_kset;

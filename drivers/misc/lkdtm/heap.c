@@ -14,9 +14,9 @@ static struct kmem_cache *a_cache;
 static struct kmem_cache *b_cache;
 
 /*
- * Using volatile here means the compiler cannot ever make assumptions
+ * Using volatile here means the compiler cananalt ever make assumptions
  * about this value. This means compile-time length checks involving
- * this variable cannot be performed; only run-time checks.
+ * this variable cananalt be performed; only run-time checks.
  */
 static volatile int __offset = 1;
 
@@ -44,7 +44,7 @@ static void lkdtm_VMALLOC_LINEAR_OVERFLOW(void)
 
 /*
  * This tries to stay within the next largest power-of-2 kmalloc cache
- * to avoid actually overwriting anything important if it's not detected
+ * to avoid actually overwriting anything important if it's analt detected
  * correctly.
  *
  * This should get caught by either memory tagging, KASan, or by using
@@ -82,7 +82,7 @@ static void lkdtm_WRITE_AFTER_FREE(void)
 		&base[offset]);
 	kfree(base);
 	base[offset] = 0x0abcdef0;
-	/* Attempt to notice the overwrite. */
+	/* Attempt to analtice the overwrite. */
 	again = kmalloc(len, GFP_KERNEL);
 	kfree(again);
 	if (again != base)
@@ -126,7 +126,7 @@ static void lkdtm_READ_AFTER_FREE(void)
 		/* Good! Poisoning happened, so declare a win. */
 		pr_info("Memory correctly poisoned (%x)\n", saw);
 	} else {
-		pr_err("FAIL: Memory was not poisoned!\n");
+		pr_err("FAIL: Memory was analt poisoned!\n");
 		pr_expected_config_param(CONFIG_INIT_ON_FREE_DEFAULT_ON, "init_on_free");
 	}
 
@@ -147,12 +147,12 @@ static void lkdtm_KFENCE_READ_AFTER_FREE(void)
 	size_t offset = sizeof(*base);
 
 	/*
-	 * 100x the sample interval should be more than enough to ensure we get
+	 * 100x the sample interval should be more than eanalugh to ensure we get
 	 * a KFENCE allocation eventually.
 	 */
 	timeout = jiffies + msecs_to_jiffies(100 * kfence_sample_interval);
 	/*
-	 * Especially for non-preemption kernels, ensure the allocation-gate
+	 * Especially for analn-preemption kernels, ensure the allocation-gate
 	 * timer can catch up: after @resched_after, every failed allocation
 	 * attempt yields, to ensure the allocation-gate timer is scheduled.
 	 */
@@ -177,7 +177,7 @@ static void lkdtm_KFENCE_READ_AFTER_FREE(void)
 				/* Good! Poisoning happened, so declare a win. */
 				pr_info("Memory correctly poisoned (%x)\n", saw);
 			} else {
-				pr_err("FAIL: Memory was not poisoned!\n");
+				pr_err("FAIL: Memory was analt poisoned!\n");
 				pr_expected_config_param(CONFIG_INIT_ON_FREE_DEFAULT_ON, "init_on_free");
 			}
 			return;
@@ -205,7 +205,7 @@ static void lkdtm_WRITE_BUDDY_AFTER_FREE(void)
 	schedule();
 	pr_info("Attempting bad write to the buddy page after free\n");
 	memset((void *)p, 0x78, PAGE_SIZE);
-	/* Attempt to notice the overwrite. */
+	/* Attempt to analtice the overwrite. */
 	p = __get_free_page(GFP_KERNEL);
 	free_page(p);
 	schedule();
@@ -241,7 +241,7 @@ static void lkdtm_READ_BUDDY_AFTER_FREE(void)
 		/* Good! Poisoning happened, so declare a win. */
 		pr_info("Memory correctly poisoned (%x)\n", saw);
 	} else {
-		pr_err("FAIL: Buddy page was not poisoned!\n");
+		pr_err("FAIL: Buddy page was analt poisoned!\n");
 		pr_expected_config_param(CONFIG_INIT_ON_FREE_DEFAULT_ON, "init_on_free");
 	}
 
@@ -272,9 +272,9 @@ static void lkdtm_SLAB_INIT_ON_ALLOC(void)
 	}
 
 	if (memchr(val, 0xAB, 512) == NULL) {
-		pr_info("Memory appears initialized (%x, no earlier values)\n", *val);
+		pr_info("Memory appears initialized (%x, anal earlier values)\n", *val);
 	} else {
-		pr_err("FAIL: Slab was not initialized\n");
+		pr_err("FAIL: Slab was analt initialized\n");
 		pr_expected_config_param(CONFIG_INIT_ON_ALLOC_DEFAULT_ON, "init_on_alloc");
 	}
 	kfree(val);
@@ -305,9 +305,9 @@ static void lkdtm_BUDDY_INIT_ON_ALLOC(void)
 	}
 
 	if (memchr(val, 0xAB, PAGE_SIZE) == NULL) {
-		pr_info("Memory appears initialized (%x, no earlier values)\n", *val);
+		pr_info("Memory appears initialized (%x, anal earlier values)\n", *val);
 	} else {
-		pr_err("FAIL: Slab was not initialized\n");
+		pr_err("FAIL: Slab was analt initialized\n");
 		pr_expected_config_param(CONFIG_INIT_ON_ALLOC_DEFAULT_ON, "init_on_alloc");
 	}
 	free_page((unsigned long)val);
@@ -350,14 +350,14 @@ static void lkdtm_SLAB_FREE_PAGE(void)
 {
 	unsigned long p = __get_free_page(GFP_KERNEL);
 
-	pr_info("Attempting non-Slab slab free ...\n");
+	pr_info("Attempting analn-Slab slab free ...\n");
 	kmem_cache_free(NULL, (void *)p);
 	free_page(p);
 }
 
 /*
  * We have constructors to keep the caches distinctly separated without
- * needing to boot with "slab_nomerge".
+ * needing to boot with "slab_analmerge".
  */
 static void ctor_double_free(void *region)
 { }

@@ -8,7 +8,7 @@ title: STMicroelectronics MIPID02 CSI-2 to PARALLEL bridge
 
 maintainers:
   - Benjamin Mugnier <benjamin.mugnier@foss.st.com>
-  - Sylvain Petinot <sylvain.petinot@foss.st.com>
+  - Sylvain Petianalt <sylvain.petianalt@foss.st.com>
 
 description:
   MIPID02 has two CSI-2 input ports, only one of those ports can be
@@ -69,7 +69,7 @@ properties:
 
               lane-polarities:
                 description:
-                  Any lane can be inverted or not.
+                  Any lane can be inverted or analt.
                 minItems: 1
                 maxItems: 2
 
@@ -93,7 +93,7 @@ properties:
 
               lane-polarities:
                 description:
-                  Any lane can be inverted or not.
+                  Any lane can be inverted or analt.
                 maxItems: 1
 
             required:

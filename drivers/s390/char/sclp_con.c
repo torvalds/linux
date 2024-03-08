@@ -10,7 +10,7 @@
 #include <linux/kmod.h>
 #include <linux/console.h>
 #include <linux/init.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 #include <linux/termios.h>
@@ -23,7 +23,7 @@
 #include "sclp_tty.h"
 
 #define sclp_console_major 4		/* TTYAUX_MAJOR */
-#define sclp_console_minor 64
+#define sclp_console_mianalr 64
 #define sclp_console_name  "ttyS"
 
 /* Lock to guard over changes to global variables */
@@ -194,7 +194,7 @@ sclp_console_write(struct console *console, const char *message,
 		if (written == count)
 			break;
 		/*
-		 * Not all characters could be written to the current
+		 * Analt all characters could be written to the current
 		 * output buffer. Emit the buffer, create a new buffer
 		 * and then output the rest of the string.
 		 */
@@ -220,10 +220,10 @@ sclp_console_device(struct console *c, int *index)
 }
 
 /*
- * This panic/reboot notifier makes sure that all buffers
+ * This panic/reboot analtifier makes sure that all buffers
  * will be flushed to the SCLP.
  */
-static int sclp_console_notify(struct notifier_block *self,
+static int sclp_console_analtify(struct analtifier_block *self,
 			       unsigned long event, void *data)
 {
 	/*
@@ -232,21 +232,21 @@ static int sclp_console_notify(struct notifier_block *self,
 	 * to prevent potential lockups in atomic context.
 	 */
 	if (spin_is_locked(&sclp_con_lock))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	sclp_conbuf_emit();
 	sclp_console_sync_queue();
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block on_panic_nb = {
-	.notifier_call = sclp_console_notify,
+static struct analtifier_block on_panic_nb = {
+	.analtifier_call = sclp_console_analtify,
 	.priority = INT_MIN + 1, /* run the callback late */
 };
 
-static struct notifier_block on_reboot_nb = {
-	.notifier_call = sclp_console_notify,
+static struct analtifier_block on_reboot_nb = {
+	.analtifier_call = sclp_console_analtify,
 	.priority = INT_MIN + 1, /* run the callback late */
 };
 
@@ -288,8 +288,8 @@ sclp_console_init(void)
 	timer_setup(&sclp_con_timer, sclp_console_timeout, 0);
 
 	/* enable printk-access to this driver */
-	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
-	register_reboot_notifier(&on_reboot_nb);
+	atomic_analtifier_chain_register(&panic_analtifier_list, &on_panic_nb);
+	register_reboot_analtifier(&on_reboot_nb);
 	register_console(&sclp_console);
 	return 0;
 }

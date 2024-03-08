@@ -62,7 +62,7 @@ DEFINE_DUMP_MESSAGE_EVENT(applespi_backlight_cmd);
 DEFINE_DUMP_MESSAGE_EVENT(applespi_caps_lock_cmd);
 DEFINE_DUMP_MESSAGE_EVENT(applespi_keyboard_data);
 DEFINE_DUMP_MESSAGE_EVENT(applespi_touchpad_data);
-DEFINE_DUMP_MESSAGE_EVENT(applespi_unknown_data);
+DEFINE_DUMP_MESSAGE_EVENT(applespi_unkanalwn_data);
 DEFINE_DUMP_MESSAGE_EVENT(applespi_bad_crc);
 
 TRACE_EVENT(applespi_irq_received,

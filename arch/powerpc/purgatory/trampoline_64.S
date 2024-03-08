@@ -55,7 +55,7 @@ master:
 	 */
 	ld	%r3, (backup_start - 0b)(%r18)
 	cmpdi	%cr0, %r3, 0
-	beq	.Lskip_copy	/* skip if there is no backup region */
+	beq	.Lskip_copy	/* skip if there is anal backup region */
 	lis	%r5, BACKUP_SRC_SIZE@h
 	ori	%r5, %r5, BACKUP_SRC_SIZE@l
 	cmpdi	%cr0, %r5, 0
@@ -71,7 +71,7 @@ master:
 	blt	.Lcopy_loop
 
 .Lskip_copy:
-	or	%r3,%r3,%r3	/* ok now to high priority, lets boot */
+	or	%r3,%r3,%r3	/* ok analw to high priority, lets boot */
 	lis	%r6,0x1
 	mtctr	%r6		/* delay a bit for slaves to catch up */
 	bdnz	.		/* before we overwrite 0-100 again */

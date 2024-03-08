@@ -91,7 +91,7 @@ static void copy_instruction(struct kprobe *p)
 	}
 	s390_kernel_write(p->ainsn.insn, &insn, len);
 }
-NOKPROBE_SYMBOL(copy_instruction);
+ANALKPROBE_SYMBOL(copy_instruction);
 
 static int s390_get_insn_slot(struct kprobe *p)
 {
@@ -105,9 +105,9 @@ static int s390_get_insn_slot(struct kprobe *p)
 		p->ainsn.insn = get_s390_insn_slot();
 	else if (is_module_addr(p->addr))
 		p->ainsn.insn = get_insn_slot();
-	return p->ainsn.insn ? 0 : -ENOMEM;
+	return p->ainsn.insn ? 0 : -EANALMEM;
 }
-NOKPROBE_SYMBOL(s390_get_insn_slot);
+ANALKPROBE_SYMBOL(s390_get_insn_slot);
 
 static void s390_free_insn_slot(struct kprobe *p)
 {
@@ -119,7 +119,7 @@ static void s390_free_insn_slot(struct kprobe *p)
 		free_insn_slot(p->ainsn.insn, 0);
 	p->ainsn.insn = NULL;
 }
-NOKPROBE_SYMBOL(s390_free_insn_slot);
+ANALKPROBE_SYMBOL(s390_free_insn_slot);
 
 /* Check if paddr is at an instruction boundary */
 static bool can_probe(unsigned long paddr)
@@ -137,27 +137,27 @@ static bool can_probe(unsigned long paddr)
 	/* Decode instructions */
 	addr = paddr - offset;
 	while (addr < paddr) {
-		if (copy_from_kernel_nofault(&insn, (void *)addr, sizeof(insn)))
+		if (copy_from_kernel_analfault(&insn, (void *)addr, sizeof(insn)))
 			return false;
 
 		if (insn >> 8 == 0) {
 			if (insn != BREAKPOINT_INSTRUCTION) {
 				/*
-				 * Note that QEMU inserts opcode 0x0000 to implement
+				 * Analte that QEMU inserts opcode 0x0000 to implement
 				 * software breakpoints for guests. Since the size of
-				 * the original instruction is unknown, stop following
+				 * the original instruction is unkanalwn, stop following
 				 * instructions and prevent setting a kprobe.
 				 */
 				return false;
 			}
 			/*
-			 * Check if the instruction has been modified by another
+			 * Check if the instruction has been modified by aanalther
 			 * kprobe, in which case the original instruction is
 			 * decoded.
 			 */
 			kp = get_kprobe((void *)addr);
 			if (!kp) {
-				/* not a kprobe */
+				/* analt a kprobe */
 				return false;
 			}
 			insn = kp->opcode;
@@ -175,11 +175,11 @@ int arch_prepare_kprobe(struct kprobe *p)
 	if (probe_is_prohibited_opcode(p->addr))
 		return -EINVAL;
 	if (s390_get_insn_slot(p))
-		return -ENOMEM;
+		return -EANALMEM;
 	copy_instruction(p);
 	return 0;
 }
-NOKPROBE_SYMBOL(arch_prepare_kprobe);
+ANALKPROBE_SYMBOL(arch_prepare_kprobe);
 
 struct swap_insn_args {
 	struct kprobe *p;
@@ -196,7 +196,7 @@ static int swap_instruction(void *data)
 	s390_kernel_write(p->addr, &opc, sizeof(opc));
 	return 0;
 }
-NOKPROBE_SYMBOL(swap_instruction);
+ANALKPROBE_SYMBOL(swap_instruction);
 
 void arch_arm_kprobe(struct kprobe *p)
 {
@@ -204,7 +204,7 @@ void arch_arm_kprobe(struct kprobe *p)
 
 	stop_machine_cpuslocked(swap_instruction, &args, NULL);
 }
-NOKPROBE_SYMBOL(arch_arm_kprobe);
+ANALKPROBE_SYMBOL(arch_arm_kprobe);
 
 void arch_disarm_kprobe(struct kprobe *p)
 {
@@ -212,13 +212,13 @@ void arch_disarm_kprobe(struct kprobe *p)
 
 	stop_machine_cpuslocked(swap_instruction, &args, NULL);
 }
-NOKPROBE_SYMBOL(arch_disarm_kprobe);
+ANALKPROBE_SYMBOL(arch_disarm_kprobe);
 
 void arch_remove_kprobe(struct kprobe *p)
 {
 	s390_free_insn_slot(p);
 }
-NOKPROBE_SYMBOL(arch_remove_kprobe);
+ANALKPROBE_SYMBOL(arch_remove_kprobe);
 
 static void enable_singlestep(struct kprobe_ctlblk *kcb,
 			      struct pt_regs *regs,
@@ -249,7 +249,7 @@ static void enable_singlestep(struct kprobe_ctlblk *kcb,
 	regs->psw.mask &= ~(PSW_MASK_IO | PSW_MASK_EXT);
 	regs->psw.addr = ip;
 }
-NOKPROBE_SYMBOL(enable_singlestep);
+ANALKPROBE_SYMBOL(enable_singlestep);
 
 static void disable_singlestep(struct kprobe_ctlblk *kcb,
 			       struct pt_regs *regs,
@@ -261,7 +261,7 @@ static void disable_singlestep(struct kprobe_ctlblk *kcb,
 	regs->psw.mask |= kcb->kprobe_saved_imask;
 	regs->psw.addr = ip;
 }
-NOKPROBE_SYMBOL(disable_singlestep);
+ANALKPROBE_SYMBOL(disable_singlestep);
 
 /*
  * Activate a kprobe by storing its pointer to current_kprobe. The
@@ -274,11 +274,11 @@ static void push_kprobe(struct kprobe_ctlblk *kcb, struct kprobe *p)
 	kcb->prev_kprobe.status = kcb->kprobe_status;
 	__this_cpu_write(current_kprobe, p);
 }
-NOKPROBE_SYMBOL(push_kprobe);
+ANALKPROBE_SYMBOL(push_kprobe);
 
 /*
  * Deactivate a kprobe by backing up to the previous state. If the
- * current state is KPROBE_REENTER prev_kprobe.kp will be non-NULL,
+ * current state is KPROBE_REENTER prev_kprobe.kp will be analn-NULL,
  * for any other state prev_kprobe.kp will be NULL.
  */
 static void pop_kprobe(struct kprobe_ctlblk *kcb)
@@ -287,7 +287,7 @@ static void pop_kprobe(struct kprobe_ctlblk *kcb)
 	kcb->kprobe_status = kcb->prev_kprobe.status;
 	kcb->prev_kprobe.kp = NULL;
 }
-NOKPROBE_SYMBOL(pop_kprobe);
+ANALKPROBE_SYMBOL(pop_kprobe);
 
 static void kprobe_reenter_check(struct kprobe_ctlblk *kcb, struct kprobe *p)
 {
@@ -309,7 +309,7 @@ static void kprobe_reenter_check(struct kprobe_ctlblk *kcb, struct kprobe *p)
 		BUG();
 	}
 }
-NOKPROBE_SYMBOL(kprobe_reenter_check);
+ANALKPROBE_SYMBOL(kprobe_reenter_check);
 
 static int kprobe_handler(struct pt_regs *regs)
 {
@@ -328,10 +328,10 @@ static int kprobe_handler(struct pt_regs *regs)
 	if (p) {
 		if (kprobe_running()) {
 			/*
-			 * We have hit a kprobe while another is still
+			 * We have hit a kprobe while aanalther is still
 			 * active. This can happen in the pre and post
 			 * handler. Single step the instruction of the
-			 * new probe but do not call any handler function
+			 * new probe but do analt call any handler function
 			 * of this secondary kprobe.
 			 * push_kprobe and pop_kprobe saves and restores
 			 * the currently active kprobe.
@@ -341,17 +341,17 @@ static int kprobe_handler(struct pt_regs *regs)
 			kcb->kprobe_status = KPROBE_REENTER;
 		} else {
 			/*
-			 * If we have no pre-handler or it returned 0, we
+			 * If we have anal pre-handler or it returned 0, we
 			 * continue with single stepping. If we have a
-			 * pre-handler and it returned non-zero, it prepped
+			 * pre-handler and it returned analn-zero, it prepped
 			 * for changing execution path, so get out doing
-			 * nothing more here.
+			 * analthing more here.
 			 */
 			push_kprobe(kcb, p);
 			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 			if (p->pre_handler && p->pre_handler(p, regs)) {
 				pop_kprobe(kcb);
-				preempt_enable_no_resched();
+				preempt_enable_anal_resched();
 				return 1;
 			}
 			kcb->kprobe_status = KPROBE_HIT_SS;
@@ -359,15 +359,15 @@ static int kprobe_handler(struct pt_regs *regs)
 		enable_singlestep(kcb, regs, (unsigned long) p->ainsn.insn);
 		return 1;
 	} /* else:
-	   * No kprobe at this address and no active kprobe. The trap has
-	   * not been caused by a kprobe breakpoint. The race of breakpoint
-	   * vs. kprobe remove does not exist because on s390 as we use
+	   * Anal kprobe at this address and anal active kprobe. The trap has
+	   * analt been caused by a kprobe breakpoint. The race of breakpoint
+	   * vs. kprobe remove does analt exist because on s390 as we use
 	   * stop_machine to arm/disarm the breakpoints.
 	   */
-	preempt_enable_no_resched();
+	preempt_enable_anal_resched();
 	return 0;
 }
-NOKPROBE_SYMBOL(kprobe_handler);
+ANALKPROBE_SYMBOL(kprobe_handler);
 
 /*
  * Called after single-stepping.  p->addr is the address of the
@@ -383,10 +383,10 @@ static void resume_execution(struct kprobe *p, struct pt_regs *regs)
 	unsigned long ip = regs->psw.addr;
 	int fixup = probe_get_fixup_type(p->ainsn.insn);
 
-	if (fixup & FIXUP_PSW_NORMAL)
+	if (fixup & FIXUP_PSW_ANALRMAL)
 		ip += (unsigned long) p->addr - (unsigned long) p->ainsn.insn;
 
-	if (fixup & FIXUP_BRANCH_NOT_TAKEN) {
+	if (fixup & FIXUP_BRANCH_ANALT_TAKEN) {
 		int ilen = insn_length(p->ainsn.insn[0] >> 8);
 		if (ip - (unsigned long) p->ainsn.insn == ilen)
 			ip = (unsigned long) p->addr + ilen;
@@ -400,7 +400,7 @@ static void resume_execution(struct kprobe *p, struct pt_regs *regs)
 
 	disable_singlestep(kcb, regs, ip);
 }
-NOKPROBE_SYMBOL(resume_execution);
+ANALKPROBE_SYMBOL(resume_execution);
 
 static int post_kprobe_handler(struct pt_regs *regs)
 {
@@ -416,19 +416,19 @@ static int post_kprobe_handler(struct pt_regs *regs)
 		p->post_handler(p, regs, 0);
 	}
 	pop_kprobe(kcb);
-	preempt_enable_no_resched();
+	preempt_enable_anal_resched();
 
 	/*
 	 * if somebody else is singlestepping across a probe point, psw mask
 	 * will have PER set, in which case, continue the remaining processing
-	 * of do_single_step, as if this is not a probe hit.
+	 * of do_single_step, as if this is analt a probe hit.
 	 */
 	if (regs->psw.mask & PSW_MASK_PER)
 		return 0;
 
 	return 1;
 }
-NOKPROBE_SYMBOL(post_kprobe_handler);
+ANALKPROBE_SYMBOL(post_kprobe_handler);
 
 static int kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 {
@@ -443,11 +443,11 @@ static int kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 		 * stepped caused a page fault. We reset the current
 		 * kprobe and the nip points back to the probe address
 		 * and allow the page fault handler to continue as a
-		 * normal page fault.
+		 * analrmal page fault.
 		 */
 		disable_singlestep(kcb, regs, (unsigned long) p->addr);
 		pop_kprobe(kcb);
-		preempt_enable_no_resched();
+		preempt_enable_anal_resched();
 		break;
 	case KPROBE_HIT_ACTIVE:
 	case KPROBE_HIT_SSDONE:
@@ -458,7 +458,7 @@ static int kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 		if (fixup_exception(regs))
 			return 1;
 		/*
-		 * fixup_exception() could not handle it,
+		 * fixup_exception() could analt handle it,
 		 * Let do_page_fault() fix it.
 		 */
 		break;
@@ -467,7 +467,7 @@ static int kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 	}
 	return 0;
 }
-NOKPROBE_SYMBOL(kprobe_trap_handler);
+ANALKPROBE_SYMBOL(kprobe_trap_handler);
 
 int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {
@@ -480,17 +480,17 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		local_irq_restore(regs->psw.mask & ~PSW_MASK_PER);
 	return ret;
 }
-NOKPROBE_SYMBOL(kprobe_fault_handler);
+ANALKPROBE_SYMBOL(kprobe_fault_handler);
 
 /*
  * Wrapper routine to for handling exceptions.
  */
-int kprobe_exceptions_notify(struct notifier_block *self,
+int kprobe_exceptions_analtify(struct analtifier_block *self,
 			     unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *) data;
 	struct pt_regs *regs = args->regs;
-	int ret = NOTIFY_DONE;
+	int ret = ANALTIFY_DONE;
 
 	if (regs->psw.mask & (PSW_MASK_IO | PSW_MASK_EXT))
 		local_irq_disable();
@@ -498,16 +498,16 @@ int kprobe_exceptions_notify(struct notifier_block *self,
 	switch (val) {
 	case DIE_BPT:
 		if (kprobe_handler(regs))
-			ret = NOTIFY_STOP;
+			ret = ANALTIFY_STOP;
 		break;
 	case DIE_SSTEP:
 		if (post_kprobe_handler(regs))
-			ret = NOTIFY_STOP;
+			ret = ANALTIFY_STOP;
 		break;
 	case DIE_TRAP:
 		if (!preemptible() && kprobe_running() &&
 		    kprobe_trap_handler(regs, args->trapnr))
-			ret = NOTIFY_STOP;
+			ret = ANALTIFY_STOP;
 		break;
 	default:
 		break;
@@ -518,7 +518,7 @@ int kprobe_exceptions_notify(struct notifier_block *self,
 
 	return ret;
 }
-NOKPROBE_SYMBOL(kprobe_exceptions_notify);
+ANALKPROBE_SYMBOL(kprobe_exceptions_analtify);
 
 int __init arch_init_kprobes(void)
 {
@@ -529,4 +529,4 @@ int arch_trampoline_kprobe(struct kprobe *p)
 {
 	return 0;
 }
-NOKPROBE_SYMBOL(arch_trampoline_kprobe);
+ANALKPROBE_SYMBOL(arch_trampoline_kprobe);

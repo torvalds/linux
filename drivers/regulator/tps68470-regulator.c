@@ -119,7 +119,7 @@ static const struct regulator_desc regulators[] = {
 /*
  * (1) This regulator must have the same voltage as VIO if S_IO LDO is used to
  *     power a sensor/VCM which I2C is daisy chained behind the PMIC.
- * (2) If there is no I2C daisy chain it can be set freely.
+ * (2) If there is anal I2C daisy chain it can be set freely.
  */
 	TPS68470_REGULATOR(VSIO, TPS68470_VSIO, tps68470_regulator_ops, 126,
 			   TPS68470_REG_VSIOVAL, TPS68470_VSIOVAL_IOVOLT_MASK,
@@ -146,7 +146,7 @@ static int tps68470_regulator_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->clk = devm_clk_get(dev, "tps68470-clk");
 	if (IS_ERR(data->clk))
@@ -175,7 +175,7 @@ static int tps68470_regulator_probe(struct platform_device *pdev)
 static struct platform_driver tps68470_regulator_driver = {
 	.driver = {
 		.name = "tps68470-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = tps68470_regulator_probe,
 };

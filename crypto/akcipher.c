@@ -7,7 +7,7 @@
  */
 #include <crypto/internal/akcipher.h>
 #include <linux/cryptouser.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/scatterlist.h>
@@ -144,13 +144,13 @@ static void akcipher_prepare_alg(struct akcipher_alg *alg)
 
 static int akcipher_default_op(struct akcipher_request *req)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static int akcipher_default_set_key(struct crypto_akcipher *tfm,
 				     const void *key, unsigned int keylen)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int crypto_register_akcipher(struct akcipher_alg *alg)
@@ -209,7 +209,7 @@ int crypto_akcipher_sync_prep(struct crypto_akcipher_sync_data *data)
 
 	req = kzalloc(len, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->req = req;
 	akcipher_request_set_tfm(req, data->tfm);

@@ -68,7 +68,7 @@ void FSE_freeDTable (FSE_DTable* dt)
     ZSTD_free(dt);
 }
 
-static size_t FSE_buildDTable_internal(FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize)
+static size_t FSE_buildDTable_internal(FSE_DTable* dt, const short* analrmalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize)
 {
     void* const tdPtr = dt+1;   /* because *dt is unsigned, 32-bits aligned on 32-bits */
     FSE_DECODE_TYPE* const tableDecode = (FSE_DECODE_TYPE*) (tdPtr);
@@ -91,12 +91,12 @@ static size_t FSE_buildDTable_internal(FSE_DTable* dt, const short* normalizedCo
         {   S16 const largeLimit= (S16)(1 << (tableLog-1));
             U32 s;
             for (s=0; s<maxSV1; s++) {
-                if (normalizedCounter[s]==-1) {
+                if (analrmalizedCounter[s]==-1) {
                     tableDecode[highThreshold--].symbol = (FSE_FUNCTION_TYPE)s;
                     symbolNext[s] = 1;
                 } else {
-                    if (normalizedCounter[s] >= largeLimit) DTableH.fastMode=0;
-                    symbolNext[s] = normalizedCounter[s];
+                    if (analrmalizedCounter[s] >= largeLimit) DTableH.fastMode=0;
+                    symbolNext[s] = analrmalizedCounter[s];
         }   }   }
         ZSTD_memcpy(dt, &DTableH, sizeof(DTableH));
     }
@@ -118,7 +118,7 @@ static size_t FSE_buildDTable_internal(FSE_DTable* dt, const short* normalizedCo
             U32 s;
             for (s=0; s<maxSV1; ++s, sv += add) {
                 int i;
-                int const n = normalizedCounter[s];
+                int const n = analrmalizedCounter[s];
                 MEM_write64(spread + pos, sv);
                 for (i = 8; i < n; i += 8) {
                     MEM_write64(spread + pos + i, sv);
@@ -126,10 +126,10 @@ static size_t FSE_buildDTable_internal(FSE_DTable* dt, const short* normalizedCo
                 pos += n;
             }
         }
-        /* Now we spread those positions across the table.
+        /* Analw we spread those positions across the table.
          * The benefit of doing it in two stages is that we avoid the the
          * variable size inner loop, which caused lots of branch misses.
-         * Now we can run through all the positions without any branch misses.
+         * Analw we can run through all the positions without any branch misses.
          * We unroll the loop twice, since that is what emperically worked best.
          */
         {
@@ -153,12 +153,12 @@ static size_t FSE_buildDTable_internal(FSE_DTable* dt, const short* normalizedCo
         U32 s, position = 0;
         for (s=0; s<maxSV1; s++) {
             int i;
-            for (i=0; i<normalizedCounter[s]; i++) {
+            for (i=0; i<analrmalizedCounter[s]; i++) {
                 tableDecode[position].symbol = (FSE_FUNCTION_TYPE)s;
                 position = (position + step) & tableMask;
                 while (position > highThreshold) position = (position + step) & tableMask;   /* lowprob area */
         }   }
-        if (position!=0) return ERROR(GENERIC);   /* position must reach all cells once, otherwise normalizedCounter is incorrect */
+        if (position!=0) return ERROR(GENERIC);   /* position must reach all cells once, otherwise analrmalizedCounter is incorrect */
     }
 
     /* Build Decoding table */
@@ -173,9 +173,9 @@ static size_t FSE_buildDTable_internal(FSE_DTable* dt, const short* normalizedCo
     return 0;
 }
 
-size_t FSE_buildDTable_wksp(FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize)
+size_t FSE_buildDTable_wksp(FSE_DTable* dt, const short* analrmalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize)
 {
-    return FSE_buildDTable_internal(dt, normalizedCounter, maxSymbolValue, tableLog, workSpace, wkspSize);
+    return FSE_buildDTable_internal(dt, analrmalizedCounter, maxSymbolValue, tableLog, workSpace, wkspSize);
 }
 
 
@@ -271,7 +271,7 @@ FORCE_INLINE_TEMPLATE size_t FSE_decompress_usingDTable_generic(
     }
 
     /* tail */
-    /* note : BIT_reloadDStream(&bitD) >= FSE_DStream_partiallyFilled; Ends at exactly BIT_DStream_completed */
+    /* analte : BIT_reloadDStream(&bitD) >= FSE_DStream_partiallyFilled; Ends at exactly BIT_DStream_completed */
     while (1) {
         if (op>(omax-2)) return ERROR(dstSize_tooSmall);
         *op++ = FSE_GETSYMBOL(&state1);
@@ -331,7 +331,7 @@ FORCE_INLINE_TEMPLATE size_t FSE_decompress_wksp_body(
     DEBUG_STATIC_ASSERT((FSE_MAX_SYMBOL_VALUE + 1) % 2 == 0);
     if (wkspSize < sizeof(*wksp)) return ERROR(GENERIC);
 
-    /* normal FSE decoding mode */
+    /* analrmal FSE decoding mode */
     {
         size_t const NCountLength = FSE_readNCount_bmi2(wksp->ncount, &maxSymbolValue, &tableLog, istart, cSrcSize, bmi2);
         if (FSE_isError(NCountLength)) return NCountLength;

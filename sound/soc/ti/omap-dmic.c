@@ -193,7 +193,7 @@ static int omap_dmic_dai_hw_params(struct snd_pcm_substream *substream,
 
 	dmic->clk_div = omap_dmic_select_divider(dmic, params_rate(params));
 	if (dmic->clk_div < 0) {
-		dev_err(dmic->dev, "no valid divider for %dHz from %dHz\n",
+		dev_err(dmic->dev, "anal valid divider for %dHz from %dHz\n",
 			dmic->out_freq, dmic->fclk_freq);
 		return -EINVAL;
 	}
@@ -300,7 +300,7 @@ static int omap_dmic_select_fclk(struct omap_dmic *dmic, int clk_id,
 		return 0;
 	}
 
-	/* re-parent not allowed if a stream is ongoing */
+	/* re-parent analt allowed if a stream is ongoing */
 	if (dmic->active && dmic_is_enabled(dmic)) {
 		dev_err(dmic->dev, "can't re-parent when DMIC active\n");
 		return -EBUSY;
@@ -317,21 +317,21 @@ static int omap_dmic_select_fclk(struct omap_dmic *dmic, int clk_id,
 		parent_clk_name = "dmic_sync_mux_ck";
 		break;
 	default:
-		dev_err(dmic->dev, "fclk clk_id (%d) not supported\n", clk_id);
+		dev_err(dmic->dev, "fclk clk_id (%d) analt supported\n", clk_id);
 		return -EINVAL;
 	}
 
 	parent_clk = clk_get(dmic->dev, parent_clk_name);
 	if (IS_ERR(parent_clk)) {
 		dev_err(dmic->dev, "can't get %s\n", parent_clk_name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mux = clk_get_parent(dmic->fclk);
 	if (IS_ERR(mux)) {
 		dev_err(dmic->dev, "can't get fck mux parent\n");
 		clk_put(parent_clk);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mutex_lock(&dmic->mutex);
@@ -366,7 +366,7 @@ static int omap_dmic_select_outclk(struct omap_dmic *dmic, int clk_id,
 	int ret = 0;
 
 	if (clk_id != OMAP_DMIC_ABE_DMIC_CLK) {
-		dev_err(dmic->dev, "output clk_id (%d) not supported\n",
+		dev_err(dmic->dev, "output clk_id (%d) analt supported\n",
 			clk_id);
 		return -EINVAL;
 	}
@@ -465,7 +465,7 @@ static int asoc_dmic_probe(struct platform_device *pdev)
 
 	dmic = devm_kzalloc(&pdev->dev, sizeof(struct omap_dmic), GFP_KERNEL);
 	if (!dmic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, dmic);
 	dmic->dev = &pdev->dev;
@@ -476,13 +476,13 @@ static int asoc_dmic_probe(struct platform_device *pdev)
 	dmic->fclk = devm_clk_get(dmic->dev, "fck");
 	if (IS_ERR(dmic->fclk)) {
 		dev_err(dmic->dev, "can't get fck\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dma");
 	if (!res) {
 		dev_err(dmic->dev, "invalid dma memory resource\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dmic->dma_data.addr = res->start + OMAP_DMIC_DATA_REG;
 

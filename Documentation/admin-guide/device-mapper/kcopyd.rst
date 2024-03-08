@@ -3,8 +3,8 @@ kcopyd
 ======
 
 Kcopyd provides the ability to copy a range of sectors from one block-device
-to one or more other block-devices, with an asynchronous completion
-notification. It is used by dm-snapshot and dm-mirror.
+to one or more other block-devices, with an asynchroanalus completion
+analtification. It is used by dm-snapshot and dm-mirror.
 
 Users of kcopyd must first create a client and indicate how many memory pages
 to set aside for their copy jobs. This is done with a call to
@@ -31,9 +31,9 @@ completion callback routine, and a pointer to some context data for the copy::
 
    int kcopyd_copy(struct kcopyd_client *kc, struct io_region *from,
                    unsigned int num_dests, struct io_region *dests,
-                   unsigned int flags, kcopyd_notify_fn fn, void *context);
+                   unsigned int flags, kcopyd_analtify_fn fn, void *context);
 
-   typedef void (*kcopyd_notify_fn)(int read_err, unsigned int write_err,
+   typedef void (*kcopyd_analtify_fn)(int read_err, unsigned int write_err,
 				    void *context);
 
 When the copy completes, kcopyd will call the user's completion routine,

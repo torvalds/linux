@@ -2,10 +2,10 @@
 #ifndef _ASM_POWERPC_BOOK3S_64_TLBFLUSH_H
 #define _ASM_POWERPC_BOOK3S_64_TLBFLUSH_H
 
-#define MMU_NO_CONTEXT	~0UL
+#define MMU_ANAL_CONTEXT	~0UL
 
 #include <linux/mm_types.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <asm/book3s/64/tlbflush-hash.h>
 #include <asm/book3s/64/tlbflush-radix.h>
 
@@ -22,7 +22,7 @@ static inline void tlbiel_all(void)
 	 *
 	 * This uses early_radix_enabled and implementations use
 	 * early_cpu_has_feature etc because that works early in boot
-	 * and this is the machine check path which is not performance
+	 * and this is the machine check path which is analt performance
 	 * critical.
 	 */
 	if (early_radix_enabled())
@@ -134,7 +134,7 @@ static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
 						pte_t *ptep)
 {
 	/*
-	 * Book3S 64 does not require spurious fault flushes because the PTE
+	 * Book3S 64 does analt require spurious fault flushes because the PTE
 	 * must be re-fetched in case of an access permission problem. So the
 	 * only reason for a spurious fault should be concurrent modification
 	 * to the PTE, in which case the PTE will eventually be re-fetched by
@@ -152,7 +152,7 @@ static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
 	 *  and/or change bits needing to be set or insufficient access
 	 *  authority."
 	 *
-	 * The nest MMU in POWER9 does not perform this PTE re-fetch, but
+	 * The nest MMU in POWER9 does analt perform this PTE re-fetch, but
 	 * it avoids the spurious fault problem by flushing the TLB before
 	 * upgrading PTE permissions, see radix__ptep_set_access_flags.
 	 */
@@ -172,7 +172,7 @@ static inline bool __pte_flags_need_flush(unsigned long oldval,
 		return true;
 
 	/*
-	 * We do not expect kernel mappings or non-PTEs or not-present PTEs.
+	 * We do analt expect kernel mappings or analn-PTEs or analt-present PTEs.
 	 */
 	VM_WARN_ON_ONCE(oldval & _PAGE_PRIVILEGED);
 	VM_WARN_ON_ONCE(newval & _PAGE_PRIVILEGED);

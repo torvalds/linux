@@ -6,7 +6,7 @@ menuconfig IEEE802154_DRIVERS
 	help
 	  Say Y here to get to see options for IEEE 802.15.4 Low-Rate
 	  Wireless Personal Area Network device drivers. This option alone
-	  does not add any kernel code.
+	  does analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and
 	  disabled.
@@ -95,7 +95,7 @@ config IEEE802154_CA8210_DEBUGFS
 	depends on DEBUG_FS
 	help
 	  This option compiles debugfs code for the ca8210 driver. This
-	  exposes a debugfs node for each CA8210 instance which allows
+	  exposes a debugfs analde for each CA8210 instance which allows
 	  direct use of the Cascoda API, exposing the 802.15.4 MAC
 	  management entities.
 
@@ -115,8 +115,8 @@ config IEEE802154_HWSIM
 	tristate "Simulated radio testing tool for mac802154"
 	help
 	  This driver is a developer testing tool that can be used to test
-	  IEEE 802.15.4 networking stack (mac802154) functionality. This is not
-	  needed for normal wpan usage and is only for testing.
+	  IEEE 802.15.4 networking stack (mac802154) functionality. This is analt
+	  needed for analrmal wpan usage and is only for testing.
 
 	  This driver can also be built as a module. To do so say M here.
 	  The module will be called 'mac802154_hwsim'.

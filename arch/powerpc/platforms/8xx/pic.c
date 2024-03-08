@@ -95,7 +95,7 @@ static int mpc8xx_pic_host_map(struct irq_domain *h, unsigned int virq,
 }
 
 
-static int mpc8xx_pic_host_xlate(struct irq_domain *h, struct device_node *ct,
+static int mpc8xx_pic_host_xlate(struct irq_domain *h, struct device_analde *ct,
 			    const u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
@@ -113,7 +113,7 @@ static int mpc8xx_pic_host_xlate(struct irq_domain *h, struct device_node *ct,
 	if (intsize > 1 && intspec[1] < 4)
 		*out_flags = map_pic_senses[intspec[1]];
 	else
-		*out_flags = IRQ_TYPE_NONE;
+		*out_flags = IRQ_TYPE_ANALNE;
 
 	return 0;
 }
@@ -127,14 +127,14 @@ static const struct irq_domain_ops mpc8xx_pic_host_ops = {
 void __init mpc8xx_pic_init(void)
 {
 	struct resource res;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,pq1-pic");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,pq1-pic");
 	if (np == NULL)
-		np = of_find_node_by_type(NULL, "mpc8xx-pic");
+		np = of_find_analde_by_type(NULL, "mpc8xx-pic");
 	if (np == NULL) {
-		printk(KERN_ERR "Could not find fsl,pq1-pic node\n");
+		printk(KERN_ERR "Could analt find fsl,pq1-pic analde\n");
 		return;
 	}
 
@@ -151,5 +151,5 @@ void __init mpc8xx_pic_init(void)
 		printk(KERN_ERR "MPC8xx PIC: failed to allocate irq host!\n");
 
 out:
-	of_node_put(np);
+	of_analde_put(np);
 }

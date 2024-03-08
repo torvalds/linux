@@ -31,7 +31,7 @@ Optional properties:
 		 During system suspend, the irq will be enabled so that the
 		 bluetooth chip can wakeup host platform under certain
 		 conditions. During system resume, the irq will be disabled
-		 to make sure unnecessary interrupt is not received.
+		 to make sure unnecessary interrupt is analt received.
 
 Example:
 

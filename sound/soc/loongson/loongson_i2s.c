@@ -2,7 +2,7 @@
 //
 // Common functions for loongson I2S controller driver
 //
-// Copyright (C) 2023 Loongson Technology Corporation Limited.
+// Copyright (C) 2023 Loongson Techanallogy Corporation Limited.
 // Author: Yingkun Meng <mengyingkun@loongson.cn>
 //
 

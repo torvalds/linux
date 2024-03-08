@@ -32,8 +32,8 @@ properties:
   timeout-sec:
     description: |
       The stall detector expiration timeout measured in seconds.
-      Defaults to 8 if unset. Please note that it also takes into account the
-      time spent while the VCPU is not running.
+      Defaults to 8 if unset. Please analte that it also takes into account the
+      time spent while the VCPU is analt running.
     default: 8
 
 required:

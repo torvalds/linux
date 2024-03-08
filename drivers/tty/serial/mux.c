@@ -54,7 +54,7 @@ static struct uart_driver mux_driver = {
 	.driver_name = "ttyB",
 	.dev_name = "ttyB",
 	.major = MUX_MAJOR,
-	.minor = 0,
+	.mianalr = 0,
 	.nr = MUX_NR,
 };
 
@@ -69,7 +69,7 @@ static struct timer_list mux_timer;
  *
  * This function is used to determine the number of ports the Mux
  * supports.  The IODC data reports the number of ports the Mux
- * can support, but there are cases where not all the Mux ports
+ * can support, but there are cases where analt all the Mux ports
  * are connected.  This function can override the IODC and
  * return the true port count.
  */
@@ -81,7 +81,7 @@ static int __init get_mux_port_count(struct parisc_device *dev)
 
 	/* If this is the built-in Mux for the K-Class (Eole CAP/MUX),
 	 * we only need to allocate resources for 1 port since the
-	 * other 7 ports are not connected.
+	 * other 7 ports are analt connected.
 	 */
 	if(dev->id.hversion == 0x15)
 		return 1;
@@ -111,8 +111,8 @@ static unsigned int mux_tx_empty(struct uart_port *port)
  * @ports: Ptr to the uart_port.
  * @mctrl: Modem control bits.
  *
- * The Serial MUX does not support CTS, DCD or DSR so this function
- * is ignored.
+ * The Serial MUX does analt support CTS, DCD or DSR so this function
+ * is iganalred.
  */
 static void mux_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
@@ -122,7 +122,7 @@ static void mux_set_mctrl(struct uart_port *port, unsigned int mctrl)
  * mux_get_mctrl - Returns the current state of modem control inputs.
  * @port: Ptr to the uart_port.
  *
- * The Serial MUX does not support CTS, DCD or DSR so these lines are
+ * The Serial MUX does analt support CTS, DCD or DSR so these lines are
  * treated as permanently active.
  */
 static unsigned int mux_get_mctrl(struct uart_port *port)
@@ -134,7 +134,7 @@ static unsigned int mux_get_mctrl(struct uart_port *port)
  * mux_stop_tx - Stop transmitting characters.
  * @port: Ptr to the uart_port.
  *
- * The Serial MUX does not support this function.
+ * The Serial MUX does analt support this function.
  */
 static void mux_stop_tx(struct uart_port *port)
 {
@@ -144,7 +144,7 @@ static void mux_stop_tx(struct uart_port *port)
  * mux_start_tx - Start transmitting characters.
  * @port: Ptr to the uart_port.
  *
- * The Serial Mux does not support this function.
+ * The Serial Mux does analt support this function.
  */
 static void mux_start_tx(struct uart_port *port)
 {
@@ -154,7 +154,7 @@ static void mux_start_tx(struct uart_port *port)
  * mux_stop_rx - Stop receiving characters.
  * @port: Ptr to the uart_port.
  *
- * The Serial Mux does not support this function.
+ * The Serial Mux does analt support this function.
  */
 static void mux_stop_rx(struct uart_port *port)
 {
@@ -165,7 +165,7 @@ static void mux_stop_rx(struct uart_port *port)
  * @port: Ptr to the uart_port.
  * @break_state: Raise/Lower the break signal.
  *
- * The Serial Mux does not support this function.
+ * The Serial Mux does analt support this function.
  */
 static void mux_break_ctl(struct uart_port *port, int break_state)
 {
@@ -229,7 +229,7 @@ static void mux_read(struct uart_port *port)
 		if (uart_handle_sysrq_char(port, data & 0xffu))
 			continue;
 
-		tty_insert_flip_char(tport, data & 0xFF, TTY_NORMAL);
+		tty_insert_flip_char(tport, data & 0xFF, TTY_ANALRMAL);
 	}
 	
 	if (start_count != port->icount.rx)
@@ -266,7 +266,7 @@ static void mux_shutdown(struct uart_port *port)
  * @termios: new termios settings.
  * @old: old termios settings.
  *
- * The Serial Mux does not support this function.
+ * The Serial Mux does analt support this function.
  */
 static void
 mux_set_termios(struct uart_port *port, struct ktermios *termios,
@@ -302,7 +302,7 @@ static void mux_release_port(struct uart_port *port)
  * @port: Ptr to the uart_port.
  *
  * Request any memory and IO region resources required by the port.
- * If any fail, no resources should be registered when this function
+ * If any fail, anal resources should be registered when this function
  * returns, and it should return -EBUSY on failure.
  */
 static int mux_request_port(struct uart_port *port)
@@ -317,7 +317,7 @@ static int mux_request_port(struct uart_port *port)
  *
  * Perform any autoconfiguration steps for the port.  This function is
  * called if the UPF_BOOT_AUTOCONF flag is specified for the port.
- * [Note: This is required for now because of a bug in the Serial core.
+ * [Analte: This is required for analw because of a bug in the Serial core.
  *  rmk has already submitted a patch to linus, should be available for
  *  2.5.47.]
  */
@@ -423,7 +423,7 @@ static const struct uart_ops mux_pops = {
  * @dev: The parisc device.
  *
  * Deterimine if the Serial Mux should claim this chip (return 0)
- * or not (return 1).
+ * or analt (return 1).
  */
 static int __init mux_probe(struct parisc_device *dev)
 {
@@ -500,7 +500,7 @@ static void __exit mux_remove(struct parisc_device *dev)
  * want the builtin mux to be detected before addin mux cards, so we
  * specifically probe for the builtin mux cards first.
  *
- * This table only contains the parisc_device_id of known builtin mux
+ * This table only contains the parisc_device_id of kanalwn builtin mux
  * devices.  All other mux cards will be detected by the generic mux_tbl.
  */
 static const struct parisc_device_id builtin_mux_tbl[] __initconst = {

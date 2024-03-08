@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Mellanox Technology Inc.  All rights reserved.
+ * Copyright (c) 2006 - 2009 Mellaanalx Techanallogy Inc.  All rights reserved.
  * Copyright (C) 2008 - 2011 Bart Van Assche <bvanassche@acm.org>.
  *
  * This software is available to you under a choice of one of two
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -90,7 +90,7 @@ static int srpt_get_u64_x(char *buffer, const struct kernel_param *kp)
 module_param_call(srpt_service_guid, srpt_set_u64_x, srpt_get_u64_x,
 		  &srpt_service_guid, 0444);
 MODULE_PARM_DESC(srpt_service_guid,
-		 "Using this value for ioc_guid, id_ext, and cm_listen_id instead of using the node_guid of the first HCA.");
+		 "Using this value for ioc_guid, id_ext, and cm_listen_id instead of using the analde_guid of the first HCA.");
 
 static struct ib_client srpt_client;
 /* Protects both rdma_cm_port and rdma_cm_id. */
@@ -127,13 +127,13 @@ static bool srpt_set_ch_state(struct srpt_rdma_ch *ch, enum rdma_ch_state new)
 }
 
 /**
- * srpt_event_handler - asynchronous IB event callback function
+ * srpt_event_handler - asynchroanalus IB event callback function
  * @handler: IB event handler registered by ib_register_event_handler().
  * @event: Description of the event that occurred.
  *
- * Callback function called by the InfiniBand core when an asynchronous IB
+ * Callback function called by the InfiniBand core when an asynchroanalus IB
  * event occurs. This callback may occur in interrupt context. See also
- * section 11.5.2, Set Asynchronous Event Handler in the InfiniBand
+ * section 11.5.2, Set Asynchroanalus Event Handler in the InfiniBand
  * Architecture Specification.
  */
 static void srpt_event_handler(struct ib_event_handler *handler,
@@ -166,7 +166,7 @@ static void srpt_event_handler(struct ib_event_handler *handler,
 	case IB_EVENT_SM_CHANGE:
 	case IB_EVENT_CLIENT_REREGISTER:
 	case IB_EVENT_GID_CHANGE:
-		/* Refresh port data asynchronously. */
+		/* Refresh port data asynchroanalusly. */
 		port_num = event->element.port_num - 1;
 		if (port_num < sdev->device->phys_port_cnt) {
 			sport = &sdev->port[port_num];
@@ -227,9 +227,9 @@ static void srpt_qp_event(struct ib_event *event, void *ptr)
 	switch (event->event) {
 	case IB_EVENT_COMM_EST:
 		if (ch->using_rdma_cm)
-			rdma_notify(ch->rdma_cm.cm_id, event->event);
+			rdma_analtify(ch->rdma_cm.cm_id, event->event);
 		else
-			ib_cm_notify(ch->ib_cm.cm_id, event->event);
+			ib_cm_analtify(ch->ib_cm.cm_id, event->event);
 		break;
 	case IB_EVENT_QP_LAST_WQE_REACHED:
 		pr_debug("%s-%d, state %s: received Last WQE event.\n",
@@ -338,7 +338,7 @@ static void srpt_get_ioc(struct srpt_port *sport, u32 slot,
 
 	if (slot > 2) {
 		mad->mad_hdr.status
-			= cpu_to_be16(DM_MAD_STATUS_NO_IOC);
+			= cpu_to_be16(DM_MAD_STATUS_ANAL_IOC);
 		return;
 	}
 
@@ -398,7 +398,7 @@ static void srpt_get_svc_entries(u64 ioc_guid,
 
 	if (slot > 2 || lo > hi || hi > 1) {
 		mad->mad_hdr.status
-			= cpu_to_be16(DM_MAD_STATUS_NO_IOC);
+			= cpu_to_be16(DM_MAD_STATUS_ANAL_IOC);
 		return;
 	}
 
@@ -469,7 +469,7 @@ static void srpt_mad_send_handler(struct ib_mad_agent *mad_agent,
 /**
  * srpt_mad_recv_handler - MAD reception callback function
  * @mad_agent: Return value of ib_register_mad_agent().
- * @send_buf: Not used.
+ * @send_buf: Analt used.
  * @mad_wc: Work completion reporting that a MAD has been received.
  */
 static void srpt_mad_recv_handler(struct ib_mad_agent *mad_agent,
@@ -551,7 +551,7 @@ static int srpt_format_guid(char *buf, unsigned int size, const __be64 *guid)
  * lid and gid values, and register a callback function for processing MADs
  * on the specified port.
  *
- * Note: It is safe to call this function more than once for the same port.
+ * Analte: It is safe to call this function more than once for the same port.
  */
 static int srpt_refresh_port(struct srpt_port *sport)
 {
@@ -588,7 +588,7 @@ static int srpt_refresh_port(struct srpt_port *sport)
 
 	ret = ib_modify_port(sport->sdev->device, sport->port, 0, &port_modify);
 	if (ret) {
-		pr_warn("%s-%d: enabling device management failed (%d). Note: this is expected if SR-IOV is enabled.\n",
+		pr_warn("%s-%d: enabling device management failed (%d). Analte: this is expected if SR-IOV is enabled.\n",
 			dev_name(&sport->sdev->device->dev), sport->port, ret);
 		return 0;
 	}
@@ -608,7 +608,7 @@ static int srpt_refresh_port(struct srpt_port *sport)
 						  srpt_mad_recv_handler,
 						  sport, 0);
 		if (IS_ERR(mad_agent)) {
-			pr_err("%s-%d: MAD agent registration failed (%ld). Note: this is expected if SR-IOV is enabled.\n",
+			pr_err("%s-%d: MAD agent registration failed (%ld). Analte: this is expected if SR-IOV is enabled.\n",
 			       dev_name(&sport->sdev->device->dev), sport->port,
 			       PTR_ERR(mad_agent));
 			sport->mad_agent = NULL;
@@ -630,7 +630,7 @@ static int srpt_refresh_port(struct srpt_port *sport)
  * @sdev: SRPT HCA pointer.
  * @port_cnt: number of ports with registered MAD
  *
- * Note: It is safe to call this function more than once for the same device.
+ * Analte: It is safe to call this function more than once for the same device.
  */
 static void srpt_unregister_mad_agent(struct srpt_device *sdev, int port_cnt)
 {
@@ -779,7 +779,7 @@ static void srpt_free_ioctx_ring(struct srpt_ioctx **ioctx_ring,
  * @ioctx: Send I/O context.
  * @new: New I/O context state.
  *
- * Does not modify the state of aborted commands. Returns the previous command
+ * Does analt modify the state of aborted commands. Returns the previous command
  * state.
  */
 static enum srpt_command_state srpt_set_cmd_state(struct srpt_send_ioctx *ioctx,
@@ -854,7 +854,7 @@ static int srpt_post_recv(struct srpt_device *sdev, struct srpt_rdma_ch *ch,
  *
  * A quote from the InfiniBand specification: C9-88: For an HCA responder
  * using Reliable Connection service, for each zero-length RDMA READ or WRITE
- * request, the R_Key shall not be validated, even if the request includes
+ * request, the R_Key shall analt be validated, even if the request includes
  * Immediate data.
  */
 static int srpt_zerolength_write(struct srpt_rdma_ch *ch)
@@ -908,7 +908,7 @@ static int srpt_alloc_rw_ctxs(struct srpt_send_ioctx *ioctx,
 		ioctx->rw_ctxs = kmalloc_array(nbufs, sizeof(*ioctx->rw_ctxs),
 			GFP_KERNEL);
 		if (!ioctx->rw_ctxs)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	for (i = ioctx->n_rw_ctx; i < nbufs; i++, db++) {
@@ -1013,7 +1013,7 @@ static inline void *srpt_get_desc_buf(struct srp_cmd *srp_cmd)
  * This function initializes ioctx->nrbuf and ioctx->r_bufs.
  *
  * Returns -EINVAL when the SRP_CMD request contains inconsistent descriptors;
- * -ENOMEM when memory allocation fails and zero upon success.
+ * -EANALMEM when memory allocation fails and zero upon success.
  */
 static int srpt_get_desc_tbl(struct srpt_recv_ioctx *recv_ioctx,
 		struct srpt_send_ioctx *ioctx,
@@ -1036,7 +1036,7 @@ static int srpt_get_desc_tbl(struct srpt_recv_ioctx *recv_ioctx,
 		/* DATA-OUT: transfer data from initiator to target (write). */
 		*dir = DMA_TO_DEVICE;
 	else
-		*dir = DMA_NONE;
+		*dir = DMA_ANALNE;
 
 	/* initialize data_direction early as srpt_alloc_rw_ctxs needs it */
 	ioctx->cmd.data_direction = *dir;
@@ -1093,7 +1093,7 @@ static int srpt_get_desc_tbl(struct srpt_recv_ioctx *recv_ioctx,
 		*data_len = len;
 		ioctx->recv_ioctx = recv_ioctx;
 		if ((uintptr_t)data & 511) {
-			pr_warn_once("Internal error - the receive buffers are not aligned properly.\n");
+			pr_warn_once("Internal error - the receive buffers are analt aligned properly.\n");
 			return -EINVAL;
 		}
 		sg_init_one(&ioctx->imm_sg, data, len);
@@ -1123,7 +1123,7 @@ static int srpt_init_ch_qp(struct srpt_rdma_ch *ch, struct ib_qp *qp)
 
 	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
 	if (!attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	attr->qp_state = IB_QPS_INIT;
 	attr->qp_access_flags = IB_ACCESS_LOCAL_WRITE;
@@ -1150,7 +1150,7 @@ static int srpt_init_ch_qp(struct srpt_rdma_ch *ch, struct ib_qp *qp)
  *
  * Returns zero upon success and a negative value upon failure.
  *
- * Note: currently a struct ib_qp_attr takes 136 bytes on a 64-bit system.
+ * Analte: currently a struct ib_qp_attr takes 136 bytes on a 64-bit system.
  * If this structure ever becomes larger, it might be necessary to allocate
  * it dynamically instead of on the stack.
  */
@@ -1182,7 +1182,7 @@ out:
  *
  * Returns zero upon success and a negative value upon failure.
  *
- * Note: currently a struct ib_qp_attr takes 136 bytes on a 64-bit system.
+ * Analte: currently a struct ib_qp_attr takes 136 bytes on a 64-bit system.
  * If this structure ever becomes larger, it might be necessary to allocate
  * it dynamically instead of on the stack.
  */
@@ -1240,7 +1240,7 @@ static struct srpt_send_ioctx *srpt_get_send_ioctx(struct srpt_rdma_ch *ch)
 	ioctx->n_rw_ctx = 0;
 	ioctx->queue_status_only = false;
 	/*
-	 * transport_init_se_cmd() does not initialize all fields, so do it
+	 * transport_init_se_cmd() does analt initialize all fields, so do it
 	 * here.
 	 */
 	memset(&ioctx->cmd, 0, sizeof(ioctx->cmd));
@@ -1290,7 +1290,7 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 	case SRPT_STATE_MGMT:
 	case SRPT_STATE_DONE:
 		/*
-		 * Do nothing - defer abort processing until
+		 * Do analthing - defer abort processing until
 		 * srpt_queue_response() is invoked.
 		 */
 		break;
@@ -1302,7 +1302,7 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 	case SRPT_STATE_CMD_RSP_SENT:
 		/*
 		 * SRP_RSP sending failed or the SRP_RSP send completion has
-		 * not been received in time.
+		 * analt been received in time.
 		 */
 		transport_generic_free_cmd(&ioctx->cmd, 0);
 		break;
@@ -1322,9 +1322,9 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
  * @cq: Completion queue.
  * @wc: Work completion.
  *
- * XXX: what is now target_execute_cmd used to be asynchronous, and unmapping
+ * XXX: what is analw target_execute_cmd used to be asynchroanalus, and unmapping
  * the data that has been transferred via IB RDMA had to be postponed until the
- * check_stop_free() callback.  None of this is necessary anymore and needs to
+ * check_stop_free() callback.  Analne of this is necessary anymore and needs to
  * be cleaned up.
  */
 static void srpt_rdma_read_done(struct ib_cq *cq, struct ib_wc *wc)
@@ -1661,7 +1661,7 @@ srpt_handle_new_iu(struct srpt_rdma_ch *ch, struct srpt_recv_ioctx *recv_ioctx)
 		srpt_handle_tsk_mgmt(ch, recv_ioctx, send_ioctx);
 		break;
 	case SRP_I_LOGOUT:
-		pr_err("Not yet implemented: SRP_I_LOGOUT\n");
+		pr_err("Analt yet implemented: SRP_I_LOGOUT\n");
 		break;
 	case SRP_CRED_RSP:
 		pr_debug("received SRP_CRED_RSP\n");
@@ -1673,7 +1673,7 @@ srpt_handle_new_iu(struct srpt_rdma_ch *ch, struct srpt_recv_ioctx *recv_ioctx)
 		pr_err("Received SRP_RSP\n");
 		break;
 	default:
-		pr_err("received IU with unknown opcode 0x%x\n", opcode);
+		pr_err("received IU with unkanalwn opcode 0x%x\n", opcode);
 		break;
 	}
 
@@ -1741,7 +1741,7 @@ static void srpt_process_wait_list(struct srpt_rdma_ch *ch)
  * @cq: Completion queue.
  * @wc: Work completion.
  *
- * Note: Although this has not yet been observed during tests, at least in
+ * Analte: Although this has analt yet been observed during tests, at least in
  * theory it is possible that the srpt_get_send_ioctx() call invoked by
  * srpt_handle_new_iu() fails. This is possible because the req_lim_delta
  * value in each response is set to one, and it is possible that this response
@@ -1796,7 +1796,7 @@ static int srpt_create_ch_ib(struct srpt_rdma_ch *ch)
 
 	WARN_ON(ch->rq_size < 1);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	qp_init = kzalloc(sizeof(*qp_init), GFP_KERNEL);
 	if (!qp_init)
 		goto out;
@@ -1821,7 +1821,7 @@ retry:
 	/*
 	 * We divide up our send queue size into half SEND WRs to send the
 	 * completions, and half R/W contexts to actually do the RDMA
-	 * READ/WRITE transfers.  Note that we need to allocate CQ slots for
+	 * READ/WRITE transfers.  Analte that we need to allocate CQ slots for
 	 * both both, as RDMA contexts will also post completions for the
 	 * RDMA READ case.
 	 */
@@ -1932,10 +1932,10 @@ static bool srpt_close_ch(struct srpt_rdma_ch *ch)
 }
 
 /*
- * Change the channel state into CH_DISCONNECTING. If a channel has not yet
+ * Change the channel state into CH_DISCONNECTING. If a channel has analt yet
  * reached the connected state, close it. If a channel is in the connected
- * state, send a DREQ. If a DREQ has been received, send a DREP. Note: it is
- * the responsibility of the caller to ensure that this function is not
+ * state, send a DREQ. If a DREQ has been received, send a DREP. Analte: it is
+ * the responsibility of the caller to ensure that this function is analt
  * invoked concurrently with the code that accepts a connection. This means
  * that this function must either be invoked from inside a CM callback
  * function or that it must be invoked with the srpt_port.mutex held.
@@ -1945,7 +1945,7 @@ static int srpt_disconnect_ch(struct srpt_rdma_ch *ch)
 	int ret;
 
 	if (!srpt_set_ch_state(ch, CH_DISCONNECTING))
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if (ch->using_rdma_cm) {
 		ret = rdma_disconnect(ch->rdma_cm.cm_id);
@@ -2003,7 +2003,7 @@ static void __srpt_close_all_ch(struct srpt_port *sport)
 
 /*
  * Look up (i_port_id, t_port_id) in sport->nexus_list. Create an entry if
- * it does not yet exist.
+ * it does analt yet exist.
  */
 static struct srpt_nexus *srpt_get_nexus(struct srpt_port *sport,
 					 const u8 i_port_id[16],
@@ -2031,7 +2031,7 @@ static struct srpt_nexus *srpt_get_nexus(struct srpt_port *sport,
 			break;
 		tmp_nexus = kzalloc(sizeof(*nexus), GFP_KERNEL);
 		if (!tmp_nexus) {
-			nexus = ERR_PTR(-ENOMEM);
+			nexus = ERR_PTR(-EANALMEM);
 			break;
 		}
 		INIT_LIST_HEAD(&tmp_nexus->ch_list);
@@ -2180,7 +2180,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 		goto out;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	rsp = kzalloc(sizeof(*rsp), GFP_KERNEL);
 	rej = kzalloc(sizeof(*rej), GFP_KERNEL);
 	rep_param = kzalloc(sizeof(*rep_param), GFP_KERNEL);
@@ -2198,7 +2198,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 
 	if (!sport->enabled) {
 		rej->reason = cpu_to_be32(SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
-		pr_info("rejected SRP_LOGIN_REQ because target port %s_%d has not yet been enabled\n",
+		pr_info("rejected SRP_LOGIN_REQ because target port %s_%d has analt yet been enabled\n",
 			dev_name(&sport->sdev->device->dev), port_num);
 		goto reject;
 	}
@@ -2212,7 +2212,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 		goto reject;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	ch = kzalloc(sizeof(*ch), GFP_KERNEL);
 	if (!ch) {
 		rej->reason = cpu_to_be32(SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
@@ -2317,7 +2317,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 		 i_port_id);
 
 	tag_num = ch->rq_size;
-	tag_size = 1; /* ib_srpt does not use se_sess->sess_cmd_map */
+	tag_size = 1; /* ib_srpt does analt use se_sess->sess_cmd_map */
 
 	if (sport->guid_id) {
 		mutex_lock(&sport->guid_id->mutex);
@@ -2325,7 +2325,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 			if (!IS_ERR_OR_NULL(ch->sess))
 				break;
 			ch->sess = target_setup_session(&stpg->tpg, tag_num,
-						tag_size, TARGET_PROT_NORMAL,
+						tag_size, TARGET_PROT_ANALRMAL,
 						ch->sess_name, ch, NULL);
 		}
 		mutex_unlock(&sport->guid_id->mutex);
@@ -2337,13 +2337,13 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 			if (!IS_ERR_OR_NULL(ch->sess))
 				break;
 			ch->sess = target_setup_session(&stpg->tpg, tag_num,
-					tag_size, TARGET_PROT_NORMAL, i_port_id,
+					tag_size, TARGET_PROT_ANALRMAL, i_port_id,
 					ch, NULL);
 			if (!IS_ERR_OR_NULL(ch->sess))
 				break;
 			/* Retry without leading "0x" */
 			ch->sess = target_setup_session(&stpg->tpg, tag_num,
-						tag_size, TARGET_PROT_NORMAL,
+						tag_size, TARGET_PROT_ANALRMAL,
 						i_port_id + 2, ch, NULL);
 		}
 		mutex_unlock(&sport->gid_id->mutex);
@@ -2355,7 +2355,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 		ch->sess = NULL;
 		pr_info("Rejected login for initiator %s: ret = %d.\n",
 			ch->sess_name, ret);
-		rej->reason = cpu_to_be32(ret == -ENOMEM ?
+		rej->reason = cpu_to_be32(ret == -EANALMEM ?
 				SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES :
 				SRP_LOGIN_REJ_CHANNEL_LIMIT_REACHED);
 		goto destroy_ib;
@@ -2363,7 +2363,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 
 	/*
 	 * Once a session has been created destruction of srpt_rdma_ch objects
-	 * will decrement sport->refcount. Hence increment sport->refcount now.
+	 * will decrement sport->refcount. Hence increment sport->refcount analw.
 	 */
 	atomic_inc(&sport->refcount);
 
@@ -2388,7 +2388,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 	if (!sport->enabled) {
 		rej->reason = cpu_to_be32(
 				SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
-		pr_info("rejected SRP_LOGIN_REQ because target %s_%d is not enabled\n",
+		pr_info("rejected SRP_LOGIN_REQ because target %s_%d is analt enabled\n",
 			dev_name(&sdev->device->dev), port_num);
 		mutex_unlock(&sport->mutex);
 		ret = -EINVAL;
@@ -2515,7 +2515,7 @@ reject:
 	if (ch && ch->sess) {
 		srpt_close_ch(ch);
 		/*
-		 * Tell the caller not to free cm_id since
+		 * Tell the caller analt to free cm_id since
 		 * srpt_release_channel_work() will do that.
 		 */
 		ret = 0;
@@ -2617,9 +2617,9 @@ static void srpt_cm_rtu_recv(struct srpt_rdma_ch *ch)
 	}
 
 	/*
-	 * Note: calling srpt_close_ch() if the transition to the LIVE state
-	 * fails is not necessary since that means that that function has
-	 * already been invoked from another thread.
+	 * Analte: calling srpt_close_ch() if the transition to the LIVE state
+	 * fails is analt necessary since that means that that function has
+	 * already been invoked from aanalther thread.
 	 */
 	if (!srpt_set_ch_state(ch, CH_LIVE)) {
 		pr_err("%s-%d: channel transition to LIVE state failed\n",
@@ -2637,11 +2637,11 @@ static void srpt_cm_rtu_recv(struct srpt_rdma_ch *ch)
  * @cm_id: IB/CM connection identifier.
  * @event: IB/CM event.
  *
- * A non-zero return value will cause the caller destroy the CM ID.
+ * A analn-zero return value will cause the caller destroy the CM ID.
  *
- * Note: srpt_cm_handler() must only return a non-zero value when transferring
+ * Analte: srpt_cm_handler() must only return a analn-zero value when transferring
  * ownership of the cm_id to a channel by srpt_cm_req_recv() failed. Returning
- * a non-zero value in any other case will trigger a race with the
+ * a analn-zero value in any other case will trigger a race with the
  * ib_destroy_cm_id() call in srpt_release_channel().
  */
 static int srpt_cm_handler(struct ib_cm_id *cm_id,
@@ -2764,7 +2764,7 @@ static int srpt_write_pending(struct se_cmd *se_cmd)
 	if (atomic_sub_return(ioctx->n_rdma, &ch->sq_wr_avail) < 0) {
 		pr_warn("%s: IB send queue full (needed %d)\n",
 				__func__, ioctx->n_rdma);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_undo;
 	}
 
@@ -2797,7 +2797,7 @@ static u8 tcm_to_srp_tsk_mgmt_status(const int tcm_mgmt_status)
 	case TMR_FUNCTION_COMPLETE:
 		return SRP_TSK_MGMT_SUCCESS;
 	case TMR_FUNCTION_REJECTED:
-		return SRP_TSK_MGMT_FUNC_NOT_SUPP;
+		return SRP_TSK_MGMT_FUNC_ANALT_SUPP;
 	}
 	return SRP_TSK_MGMT_FAILED;
 }
@@ -2806,7 +2806,7 @@ static u8 tcm_to_srp_tsk_mgmt_status(const int tcm_mgmt_status)
  * srpt_queue_response - transmit the response to a SCSI command
  * @cmd: SCSI target command.
  *
- * Callback function called by the TCM core. Must not block since it can be
+ * Callback function called by the TCM core. Must analt block since it can be
  * invoked on the context of the IB completion handler.
  */
 static void srpt_queue_response(struct se_cmd *cmd)
@@ -2913,7 +2913,7 @@ static void srpt_queue_tm_rsp(struct se_cmd *cmd)
 }
 
 /*
- * This function is called for aborted commands if no response is sent to the
+ * This function is called for aborted commands if anal response is sent to the
  * initiator. Make sure that the credits freed by aborting a command are
  * returned to the initiator the next time a response is sent by incrementing
  * ch->req_lim_delta.
@@ -3109,7 +3109,7 @@ free_cache:
 
 free_srq:
 	ib_destroy_srq(srq);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int srpt_use_srq(struct srpt_device *sdev, bool use_srq)
@@ -3156,7 +3156,7 @@ static int srpt_add_one(struct ib_device *device)
 	sdev = kzalloc(struct_size(sdev, port, device->phys_port_cnt),
 		       GFP_KERNEL);
 	if (!sdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kref_init(&sdev->refcnt);
 	sdev->device = device;
@@ -3175,7 +3175,7 @@ static int srpt_add_one(struct ib_device *device)
 	srpt_use_srq(sdev, sdev->port[0].port_attrib.use_srq);
 
 	if (!srpt_service_guid)
-		srpt_service_guid = be64_to_cpu(device->node_guid);
+		srpt_service_guid = be64_to_cpu(device->analde_guid);
 
 	if (rdma_port_get_link_layer(device, 1) == IB_LINK_LAYER_INFINIBAND)
 		sdev->cm_id = ib_create_cm_id(device, srpt_cm_handler, sdev);
@@ -3193,7 +3193,7 @@ static int srpt_add_one(struct ib_device *device)
 		 srpt_service_guid, srpt_service_guid, srpt_service_guid);
 
 	/*
-	 * We do not have a consistent service_id (ie. also id_ext of target_id)
+	 * We do analt have a consistent service_id (ie. also id_ext of target_id)
 	 * to identify this target. We currently use the guid of the first HCA
 	 * in the system as service_id; therefore, the target_id will change
 	 * if this HCA is gone bad and replaced by different HCA
@@ -3280,7 +3280,7 @@ static void srpt_remove_one(struct ib_device *device, void *client_data)
 
 	/*
 	 * Unregistering a target must happen after destroying sdev->cm_id
-	 * such that no new SRP_LOGIN_REQ information units can arrive while
+	 * such that anal new SRP_LOGIN_REQ information units can arrive while
 	 * destroying the target.
 	 */
 	spin_lock(&srpt_dev_lock);
@@ -3366,7 +3366,7 @@ static void srpt_release_cmd(struct se_cmd *se_cmd)
  * @se_sess: SCSI target session.
  *
  * Callback function invoked by the TCM core to clean up sessions associated
- * with a node ACL when the user invokes
+ * with a analde ACL when the user invokes
  * rmdir /sys/kernel/config/target/$driver/$port/$tpg/acls/$i_port_id
  */
 static void srpt_close_session(struct se_session *se_sess)
@@ -3376,7 +3376,7 @@ static void srpt_close_session(struct se_session *se_sess)
 	srpt_disconnect_ch_sync(ch);
 }
 
-/* Note: only used from inside debug printk's by the TCM core. */
+/* Analte: only used from inside debug printk's by the TCM core. */
 static int srpt_get_tcm_cmd_state(struct se_cmd *se_cmd)
 {
 	struct srpt_send_ioctx *ioctx;
@@ -3437,7 +3437,7 @@ out:
  * 5054:00ff:fe4a:0b7b
  * 192.168.122.76
  */
-static int srpt_init_nodeacl(struct se_node_acl *se_nacl, const char *name)
+static int srpt_init_analdeacl(struct se_analde_acl *se_nacl, const char *name)
 {
 	struct sockaddr_storage sa;
 	u64 guid;
@@ -3734,7 +3734,7 @@ static struct se_portal_group *srpt_make_tpg(struct se_wwn *wwn,
 {
 	struct srpt_port_id *sport_id = srpt_wwn_to_sport_id(wwn);
 	struct srpt_tpg *stpg;
-	int res = -ENOMEM;
+	int res = -EANALMEM;
 
 	stpg = kzalloc(sizeof(*stpg), GFP_KERNEL);
 	if (!stpg)
@@ -3774,8 +3774,8 @@ static void srpt_drop_tpg(struct se_portal_group *tpg)
 
 /**
  * srpt_make_tport - configfs callback invoked for mkdir /sys/kernel/config/target/$driver/$port
- * @tf: Not used.
- * @group: Not used.
+ * @tf: Analt used.
+ * @group: Analt used.
  * @name: $port.
  */
 static struct se_wwn *srpt_make_tport(struct target_fabric_configfs *tf,
@@ -3796,7 +3796,7 @@ static struct se_wwn *srpt_make_tport(struct target_fabric_configfs *tf,
 	port_id = kzalloc(sizeof(*port_id), GFP_KERNEL);
 	if (!port_id) {
 		srpt_sdev_put(sport->sdev);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	mutex_init(&port_id->mutex);
 	INIT_LIST_HEAD(&port_id->tpg_list);
@@ -3867,7 +3867,7 @@ static const struct target_core_fabric_ops srpt_template = {
 	.fabric_make_tpg		= srpt_make_tpg,
 	.fabric_enable_tpg		= srpt_enable_tpg,
 	.fabric_drop_tpg		= srpt_drop_tpg,
-	.fabric_init_nodeacl		= srpt_init_nodeacl,
+	.fabric_init_analdeacl		= srpt_init_analdeacl,
 
 	.tfc_discovery_attrs		= srpt_da_attrs,
 	.tfc_wwn_attrs			= srpt_wwn_attrs,
@@ -3880,7 +3880,7 @@ static const struct target_core_fabric_ops srpt_template = {
 /**
  * srpt_init_module - kernel module initialization
  *
- * Note: Since ib_register_client() registers callback functions, and since at
+ * Analte: Since ib_register_client() registers callback functions, and since at
  * least one of these callback functions (srpt_add_one()) calls target core
  * functions, this driver must be registered with the target core before
  * ib_register_client() is called.

@@ -46,13 +46,13 @@ enum ucount_type {
 	UCOUNT_MNT_NAMESPACES,
 	UCOUNT_CGROUP_NAMESPACES,
 	UCOUNT_TIME_NAMESPACES,
-#ifdef CONFIG_INOTIFY_USER
-	UCOUNT_INOTIFY_INSTANCES,
-	UCOUNT_INOTIFY_WATCHES,
+#ifdef CONFIG_IANALTIFY_USER
+	UCOUNT_IANALTIFY_INSTANCES,
+	UCOUNT_IANALTIFY_WATCHES,
 #endif
-#ifdef CONFIG_FANOTIFY
-	UCOUNT_FANOTIFY_GROUPS,
-	UCOUNT_FANOTIFY_MARKS,
+#ifdef CONFIG_FAANALTIFY
+	UCOUNT_FAANALTIFY_GROUPS,
+	UCOUNT_FAANALTIFY_MARKS,
 #endif
 	UCOUNT_COUNTS,
 };
@@ -113,7 +113,7 @@ struct user_namespace {
 } __randomize_layout;
 
 struct ucounts {
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct user_namespace *ns;
 	kuid_t uid;
 	atomic_t count;

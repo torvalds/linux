@@ -61,7 +61,7 @@ static struct uart_driver liteuart_driver = {
 	.driver_name = KBUILD_MODNAME,
 	.dev_name = "ttyLXU",
 	.major = 0,
-	.minor = 0,
+	.mianalr = 0,
 	.nr = CONFIG_SERIAL_LITEUART_MAX_PORTS,
 #ifdef CONFIG_SERIAL_LITEUART_CONSOLE
 	.cons = &liteuart_console,
@@ -111,9 +111,9 @@ static void liteuart_rx_chars(struct uart_port *port)
 		/* necessary for RXEMPTY to refresh its value */
 		litex_write8(membase + OFF_EV_PENDING, EV_RX);
 
-		/* no overflow bits in status */
+		/* anal overflow bits in status */
 		if (!(uart_handle_sysrq_char(port, ch)))
-			uart_insert_char(port, 1, 0, ch, TTY_NORMAL);
+			uart_insert_char(port, 1, 0, ch, TTY_ANALRMAL);
 	}
 
 	tty_flip_buffer_push(&port->state->port);
@@ -161,7 +161,7 @@ static void liteuart_timer(struct timer_list *t)
 
 static unsigned int liteuart_tx_empty(struct uart_port *port)
 {
-	/* not really tx empty, just checking if tx is not full */
+	/* analt really tx empty, just checking if tx is analt full */
 	if (!litex_read8(port->membase + OFF_TXFULL))
 		return TIOCSER_TEMT;
 
@@ -170,7 +170,7 @@ static unsigned int liteuart_tx_empty(struct uart_port *port)
 
 static void liteuart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	/* modem control register is not present in LiteUART */
+	/* modem control register is analt present in LiteUART */
 }
 
 static unsigned int liteuart_get_mctrl(struct uart_port *port)
@@ -246,7 +246,7 @@ static const char *liteuart_type(struct uart_port *port)
 static void liteuart_config_port(struct uart_port *port, int flags)
 {
 	/*
-	 * Driver core for serial ports forces a non-zero value for port type.
+	 * Driver core for serial ports forces a analn-zero value for port type.
 	 * Write an arbitrary value here to accommodate the serial core driver,
 	 * as ID part of UAPI is redundant.
 	 */
@@ -256,7 +256,7 @@ static void liteuart_config_port(struct uart_port *port, int flags)
 static int liteuart_verify_port(struct uart_port *port,
 				struct serial_struct *ser)
 {
-	if (port->type != PORT_UNKNOWN && ser->type != 1)
+	if (port->type != PORT_UNKANALWN && ser->type != 1)
 		return -EINVAL;
 
 	return 0;
@@ -286,7 +286,7 @@ static int liteuart_probe(struct platform_device *pdev)
 
 	uart = devm_kzalloc(&pdev->dev, sizeof(struct liteuart_port), GFP_KERNEL);
 	if (!uart)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port = &uart->port;
 
@@ -301,8 +301,8 @@ static int liteuart_probe(struct platform_device *pdev)
 	if (ret > 0)
 		port->irq = ret;
 
-	/* look for aliases; auto-enumerate for free index if not found */
-	dev_id = of_alias_get_id(pdev->dev.of_node, "serial");
+	/* look for aliases; auto-enumerate for free index if analt found */
+	dev_id = of_alias_get_id(pdev->dev.of_analde, "serial");
 	if (dev_id < 0)
 		limit = XA_LIMIT(0, CONFIG_SERIAL_LITEUART_MAX_PORTS);
 	else
@@ -312,13 +312,13 @@ static int liteuart_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* values not from device tree */
+	/* values analt from device tree */
 	port->dev = &pdev->dev;
 	port->iotype = UPIO_MEM;
 	port->flags = UPF_BOOT_AUTOCONF;
 	port->ops = &liteuart_ops;
 	port->fifosize = 16;
-	port->type = PORT_UNKNOWN;
+	port->type = PORT_UNKANALWN;
 	port->line = dev_id;
 	spin_lock_init(&port->lock);
 
@@ -396,11 +396,11 @@ static int liteuart_console_setup(struct console *co, char *options)
 
 	uart = (struct liteuart_port *)xa_load(&liteuart_array, co->index);
 	if (!uart)
-		return -ENODEV;
+		return -EANALDEV;
 
 	port = &uart->port;
 	if (!port->membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -439,7 +439,7 @@ static int __init early_liteuart_setup(struct earlycon_device *device,
 				       const char *options)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = early_liteuart_write;
 	return 0;

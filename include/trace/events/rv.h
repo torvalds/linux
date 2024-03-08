@@ -52,7 +52,7 @@ DECLARE_EVENT_CLASS(error_da_monitor,
 		memcpy(__entry->event,		event,		MAX_DA_NAME_LEN);
 	),
 
-	TP_printk("event %s not expected in the state %s",
+	TP_printk("event %s analt expected in the state %s",
 		__entry->event,
 		__entry->state)
 );
@@ -117,7 +117,7 @@ DECLARE_EVENT_CLASS(error_da_monitor_id,
 		__entry->id			= id;
 	),
 
-	TP_printk("%d: event %s not expected in the state %s",
+	TP_printk("%d: event %s analt expected in the state %s",
 		__entry->id,
 		__entry->event,
 		__entry->state)

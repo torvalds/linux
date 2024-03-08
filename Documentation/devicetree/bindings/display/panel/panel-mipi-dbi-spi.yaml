@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: MIPI DBI SPI Panel
 
 maintainers:
-  - Noralf Trønnes <noralf@tronnes.org>
+  - Analralf Trønnes <analralf@tronnes.org>
 
 description: |
   This binding is for display panels using a MIPI DBI compatible controller
@@ -50,7 +50,7 @@ description: |
       |        Command or data         |
       |<D7><D6><D5><D4><D3><D2><D1><D0>|
 
-  The panel resolution is specified using the panel-timing node properties
+  The panel resolution is specified using the panel-timing analde properties
   hactive (width) and vactive (height). The other mandatory panel-timing
   properties should be set to zero except clock-frequency which can be
   optionally set to inform about the actual pixel clock frequency.
@@ -74,19 +74,19 @@ properties:
   write-only:
     type: boolean
     description:
-      Controller is not readable (ie. Din (MISO on the SPI interface) is not
+      Controller is analt readable (ie. Din (MISO on the SPI interface) is analt
       wired up).
 
   dc-gpios:
     maxItems: 1
     description: |
       Controller data/command selection (D/CX) in 4-line SPI mode.
-      If not set, the controller is in 3-line SPI mode.
+      If analt set, the controller is in 3-line SPI mode.
 
   io-supply:
     description: |
       Logic level supply for interface signals (Vddi).
-      No need to set if this is the same as power-supply.
+      Anal need to set if this is the same as power-supply.
 
   spi-3wire: true
 

@@ -181,7 +181,7 @@ static int bcma_mdio_phy_reset(struct mii_bus *bus)
 	struct bgmac *bgmac = bus->priv;
 	u8 phyaddr = bgmac->phyaddr;
 
-	if (phyaddr == BGMAC_PHY_NOREGS)
+	if (phyaddr == BGMAC_PHY_ANALREGS)
 		return 0;
 
 	bcma_mdio_phy_write(bgmac, phyaddr, MII_BMCR, BMCR_RESET);
@@ -212,12 +212,12 @@ struct mii_bus *bcma_mdio_mii_register(struct bgmac *bgmac)
 {
 	struct bcma_device *core = bgmac->bcma.core;
 	struct mii_bus *mii_bus;
-	struct device_node *np;
+	struct device_analde *np;
 	int err;
 
 	mii_bus = mdiobus_alloc();
 	if (!mii_bus) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
@@ -231,10 +231,10 @@ struct mii_bus *bcma_mdio_mii_register(struct bgmac *bgmac)
 	mii_bus->parent = &core->dev;
 	mii_bus->phy_mask = ~(1 << bgmac->phyaddr);
 
-	np = of_get_child_by_name(core->dev.of_node, "mdio");
+	np = of_get_child_by_name(core->dev.of_analde, "mdio");
 
 	err = of_mdiobus_register(mii_bus, np);
-	of_node_put(np);
+	of_analde_put(np);
 	if (err) {
 		dev_err(&core->dev, "Registration of mii bus failed\n");
 		goto err_free_bus;

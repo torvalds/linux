@@ -56,7 +56,7 @@ config MLX5_VDPA
 	bool
 	select VHOST_IOTLB
 	help
-	  Support library for Mellanox VDPA drivers. Provides code that is
+	  Support library for Mellaanalx VDPA drivers. Provides code that is
 	  common for all types of VDPA drivers. The following drivers are planned:
 	  net, block.
 
@@ -76,7 +76,7 @@ config MLX5_VDPA_STEERING_DEBUG
 	select MLX5_VDPA
 	help
 	  Expose RX steering counters in debugfs to aid in debugging. For each VLAN
-	  or non VLAN interface, two hardware counters are added to the RX flow
+	  or analn VLAN interface, two hardware counters are added to the RX flow
 	  table: one for unicast and one for multicast.
 	  The counters counts the number of packets and bytes and exposes them in
 	  debugfs. Once can read the counters using, e.g.:

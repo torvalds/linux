@@ -47,7 +47,7 @@
 
 			timer1: timer@a29000 {
 				/*
-				 * Only used in NORMAL state, not available ins
+				 * Only used in ANALRMAL state, analt available ins
 				 * SLOW or DOZE state.
 				 * The rate is fixed in 24MHz.
 				 */

@@ -10,7 +10,7 @@ maintainers:
   - Niklas Cassel <nks@flawful.org>
 
 description: |
-  CPR (Core Power Reduction) is a technology to reduce core power on a CPU
+  CPR (Core Power Reduction) is a techanallogy to reduce core power on a CPU
   or other device. Each OPP of a device corresponds to a "corner" that has
   a range of valid voltages for a particular frequency. While the device is
   running at a particular frequency, CPR monitors dynamic factors such as

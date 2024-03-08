@@ -4,7 +4,7 @@ Contact:	Chanwoo Choi <cw00.choi@samsung.com>
 Description:
 		Provide a place in sysfs for the devfreq-event objects.
 		This allows accessing various devfreq-event specific variables.
-		The name of devfreq-event object denoted as 'event<x>' which
+		The name of devfreq-event object deanalted as 'event<x>' which
 		includes the unique number of 'x' for each devfreq-event object.
 
 What:		/sys/class/devfreq-event/event<x>/name

@@ -2,7 +2,7 @@
 /*
  * TRNG driver for the StarFive JH7110 SoC
  *
- * Copyright (C) 2022 StarFive Technology Co.
+ * Copyright (C) 2022 StarFive Techanallogy Co.
  */
 
 #include <linux/clk.h>
@@ -40,12 +40,12 @@
 #define STARFIVE_AUTO_AGE		0x64
 
 /* CTRL CMD */
-#define STARFIVE_CTRL_EXEC_NOP		0x0
+#define STARFIVE_CTRL_EXEC_ANALP		0x0
 #define STARFIVE_CTRL_GENE_RANDNUM	0x1
 #define STARFIVE_CTRL_EXEC_RANDRESEED	0x2
 
 /* STAT */
-#define STARFIVE_STAT_NONCE_MODE	BIT(2)
+#define STARFIVE_STAT_ANALNCE_MODE	BIT(2)
 #define STARFIVE_STAT_R256		BIT(3)
 #define STARFIVE_STAT_MISSION_MODE	BIT(8)
 #define STARFIVE_STAT_SEEDED		BIT(9)
@@ -58,7 +58,7 @@
 #define STARFIVE_MODE_R256		BIT(3)
 
 /* SMODE */
-#define STARFIVE_SMODE_NONCE_MODE	BIT(2)
+#define STARFIVE_SMODE_ANALNCE_MODE	BIT(2)
 #define STARFIVE_SMODE_MISSION_MODE	BIT(8)
 #define STARFIVE_SMODE_MAX_REJECTS(x)	((x) << 16)
 
@@ -84,7 +84,7 @@
 
 enum reseed {
 	RANDOM_RESEED,
-	NONCE_RESEED,
+	ANALNCE_RESEED,
 };
 
 enum mode {
@@ -279,7 +279,7 @@ static int starfive_trng_probe(struct platform_device *pdev)
 
 	trng = devm_kzalloc(&pdev->dev, sizeof(*trng), GFP_KERNEL);
 	if (!trng)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, trng);
 	trng->dev = &pdev->dev;

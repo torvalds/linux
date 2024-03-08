@@ -2,8 +2,8 @@
 /*
  * BOE BF060Y8M-AJ0 5.99" MIPI-DSI OLED Panel on SW43404 DriverIC
  *
- * Copyright (c) 2020 AngeloGioacchino Del Regno
- *                    <angelogioacchino.delregno@somainline.org>
+ * Copyright (c) 2020 AngeloGioacchianal Del Reganal
+ *                    <angelogioacchianal.delreganal@somainline.org>
  */
 
 #include <linux/backlight.h>
@@ -131,7 +131,7 @@ static int boe_bf060y8m_aj0_prepare(struct drm_panel *panel)
 	/*
 	 * Enable EL Driving Voltage first - doing that at the beginning
 	 * or at the end of the power sequence doesn't matter, so enable
-	 * it here to avoid yet another usleep at the end.
+	 * it here to avoid yet aanalther usleep at the end.
 	 */
 	ret = regulator_enable(boe->vregs[BF060Y8M_VREG_EL_VDD].consumer);
 	if (ret)
@@ -212,7 +212,7 @@ static int boe_bf060y8m_aj0_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &boe_bf060y8m_aj0_mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_set_name(mode);
 
@@ -269,7 +269,7 @@ boe_bf060y8m_aj0_create_backlight(struct mipi_dsi_device *dsi)
 		.type = BACKLIGHT_RAW,
 		.brightness = 127,
 		.max_brightness = 255,
-		.scale = BACKLIGHT_SCALE_NON_LINEAR,
+		.scale = BACKLIGHT_SCALE_ANALN_LINEAR,
 	};
 
 	return devm_backlight_device_register(dev, dev_name(dev), dev, dsi,
@@ -321,24 +321,24 @@ static int boe_bf060y8m_aj0_init_vregs(struct boe_bf060y8m_aj0 *boe,
 		return ret;
 
 	/*
-	 * Set min/max rated current, known only for VCI and VDDIO and,
-	 * in case of failure, just go on gracefully, as this step is not
+	 * Set min/max rated current, kanalwn only for VCI and VDDIO and,
+	 * in case of failure, just go on gracefully, as this step is analt
 	 * guaranteed to succeed on all regulator HW but do a debug print
 	 * to inform the developer during debugging.
 	 * In any case, these two supplies are also optional, so they may
-	 * be fixed-regulator which, at the time of writing, does not
+	 * be fixed-regulator which, at the time of writing, does analt
 	 * support fake current limiting.
 	 */
 	vreg = boe->vregs[BF060Y8M_VREG_VDDIO].consumer;
 	ret = regulator_set_current_limit(vreg, 1500, 2500);
 	if (ret)
-		dev_dbg(dev, "Current limit cannot be set on %s: %d\n",
+		dev_dbg(dev, "Current limit cananalt be set on %s: %d\n",
 			boe->vregs[1].supply, ret);
 
 	vreg = boe->vregs[BF060Y8M_VREG_VCI].consumer;
 	ret = regulator_set_current_limit(vreg, 20000, 40000);
 	if (ret)
-		dev_dbg(dev, "Current limit cannot be set on %s: %d\n",
+		dev_dbg(dev, "Current limit cananalt be set on %s: %d\n",
 			boe->vregs[2].supply, ret);
 
 	return 0;
@@ -352,7 +352,7 @@ static int boe_bf060y8m_aj0_probe(struct mipi_dsi_device *dsi)
 
 	boe = devm_kzalloc(dev, sizeof(*boe), GFP_KERNEL);
 	if (!boe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = boe_bf060y8m_aj0_init_vregs(boe, dev);
 	if (ret)
@@ -369,9 +369,9 @@ static int boe_bf060y8m_aj0_probe(struct mipi_dsi_device *dsi)
 
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_NO_EOT_PACKET |
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_ANAL_EOT_PACKET |
 			  MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-			  MIPI_DSI_CLOCK_NON_CONTINUOUS |
+			  MIPI_DSI_CLOCK_ANALN_CONTINUOUS |
 			  MIPI_DSI_MODE_LPM;
 
 	drm_panel_init(&boe->panel, dev, &boe_bf060y8m_aj0_panel_funcs,
@@ -421,6 +421,6 @@ static struct mipi_dsi_driver boe_bf060y8m_aj0_driver = {
 };
 module_mipi_dsi_driver(boe_bf060y8m_aj0_driver);
 
-MODULE_AUTHOR("AngeloGioacchino Del Regno <angelogioacchino.delregno@somainline.org>");
+MODULE_AUTHOR("AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@somainline.org>");
 MODULE_DESCRIPTION("BOE BF060Y8M-AJ0 MIPI-DSI OLED panel");
 MODULE_LICENSE("GPL v2");

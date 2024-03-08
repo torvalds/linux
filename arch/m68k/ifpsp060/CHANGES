@@ -1,5 +1,5 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-MOTOROLA MICROPROCESSOR & MEMORY TECHNOLOGY GROUP
+MOTOROLA MICROPROCESSOR & MEMORY TECHANALLOGY GROUP
 M68000 Hi-Performance Microprocessor Division
 M68060 Software Package
 Production Release P1.00 -- October 10, 1994
@@ -14,16 +14,16 @@ and any warranty against infringement with regard to the SOFTWARE
 (INCLUDING ANY MODIFIED VERSIONS THEREOF) and any accompanying written materials.
 
 To the maximum extent permitted by applicable law,
-IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
+IN ANAL EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
 (INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
 BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
 ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
-Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+Motorola assumes anal responsibility for the maintenance and support of the SOFTWARE.
 
 You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
-so long as this entire notice is retained without alteration in any modified and/or
+so long as this entire analtice is retained without alteration in any modified and/or
 redistributed versions, and that such modified versions are clearly identified as such.
-No licenses are granted by implication, estoppel or otherwise under any patents
+Anal licenses are granted by implication, estoppel or otherwise under any patents
 or trademarks of Motorola, Inc.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -31,16 +31,16 @@ CHANGES SINCE LAST RELEASE:
 ---------------------------
 
 1) "movep" emulation where data was being read from memory
-was reading the intermediate bytes. Emulation now only
+was reading the intermediate bytes. Emulation analw only
 reads the required bytes.
 
 2) "flogn", "flog2", and "flog10" of "1" was setting the
-Inexact FPSR bit. Emulation now does not set Inexact for
+Inexact FPSR bit. Emulation analw does analt set Inexact for
 this case.
 
 3) For an opclass three FP instruction where the effective addressing
 mode was pre-decrement or post-increment and the address register
-was A0 or A1, the address register was not being updated as a result
+was A0 or A1, the address register was analt being updated as a result
 of the operation. This has been corrected.
 
 4) Beta B.2 version had the following erratum:
@@ -48,7 +48,7 @@ of the operation. This has been corrected.
 	Scenario:
 	---------
 	If {i,d}mem_{read,write}_{byte,word,long}() returns
-	a failing value to the 68060SP, the package ignores
+	a failing value to the 68060SP, the package iganalres
 	this return value and continues with program execution
 	as if it never received a failing value.
 
@@ -57,7 +57,7 @@ of the operation. This has been corrected.
 	For example, if a user executed "fsin.x ADDR,fp0" where
 	ADDR should cause a "segmentation violation", the memory read
 	requested by the package should return a failing value
-	to the package. Since the package currently ignores this
+	to the package. Since the package currently iganalres this
 	return value, the user program will continue to the
 	next instruction, and the result created in fp0 will be
 	undefined.
@@ -66,9 +66,9 @@ of the operation. This has been corrected.
 	----
 	This has been fixed in the current release.
 
-	Notes:
+	Analtes:
 	------
-	Upon receiving a non-zero (failing) return value from
+	Upon receiving a analn-zero (failing) return value from
 	a {i,d}mem_{read,write}_{byte,word,long}() "call-out",
 	the package creates a 16-byte access error stack frame
 	from the current exception stack frame and exits

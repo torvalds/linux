@@ -12,7 +12,7 @@ regardless of whatever else it is doing, unless it is completely locked up.
 How do I enable the magic SysRq key?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You need to say "yes" to 'Magic SysRq key (CONFIG_MAGIC_SYSRQ)' when
+You need to say "anal" to 'Magic SysRq key (CONFIG_MAGIC_SYSRQ)' when
 configuring the kernel. When running a kernel with SysRq compiled in,
 /proc/sys/kernel/sysrq controls the functions allowed to be invoked via
 the SysRq key. The default value in this file is set by the
@@ -41,7 +41,7 @@ The number may be written here either as decimal or as hexadecimal
 with the 0x prefix. CONFIG_MAGIC_SYSRQ_DEFAULT_ENABLE must always be
 written in hexadecimal.
 
-Note that the value of ``/proc/sys/kernel/sysrq`` influences only the invocation
+Analte that the value of ``/proc/sys/kernel/sysrq`` influences only the invocation
 via a keyboard. Invocation of any operation via ``/proc/sysrq-trigger`` is
 always allowed (by a user with admin privileges).
 
@@ -51,10 +51,10 @@ How do I use the magic SysRq key?
 On x86
 	You press the key combo :kbd:`ALT-SysRq-<command key>`.
 
-	.. note::
+	.. analte::
 	   Some
-           keyboards may not have a key labeled 'SysRq'. The 'SysRq' key is
-           also known as the 'Print Screen' key. Also some keyboards cannot
+           keyboards may analt have a key labeled 'SysRq'. The 'SysRq' key is
+           also kanalwn as the 'Print Screen' key. Also some keyboards cananalt
 	   handle so many keys being pressed at the same time, so you might
 	   have better luck with press :kbd:`Alt`, press :kbd:`SysRq`,
 	   release :kbd:`SysRq`, press :kbd:`<command key>`, release everything.
@@ -64,20 +64,20 @@ On SPARC
 
 On the serial console (PC style standard serial ports only)
         You send a ``BREAK``, then within 5 seconds a command key. Sending
-        ``BREAK`` twice is interpreted as a normal BREAK.
+        ``BREAK`` twice is interpreted as a analrmal BREAK.
 
 On PowerPC
 	Press :kbd:`ALT - Print Screen` (or :kbd:`F13`) - :kbd:`<command key>`.
         :kbd:`Print Screen` (or :kbd:`F13`) - :kbd:`<command key>` may suffice.
 
 On other
-	If you know of the key combos for other architectures, please
+	If you kanalw of the key combos for other architectures, please
 	submit a patch to be included in this section.
 
 On all
 	Write a single character to /proc/sysrq-trigger.
 	Only the first character is processed, the rest of the string is
-	ignored. However, it is not recommended to write any extra characters
+	iganalred. However, it is analt recommended to write any extra characters
 	as the behavior is undefined and might change in the future versions.
 	E.g.::
 
@@ -106,8 +106,8 @@ Command	    Function
 
 ``e``	    Send a SIGTERM to all processes, except for init.
 
-``f``	    Will call the oom killer to kill a memory hog process, but do not
-	    panic if nothing can be killed.
+``f``	    Will call the oom killer to kill a memory hog process, but do analt
+	    panic if analthing can be killed.
 
 ``g``	    Used by kgdb (kernel debugger)
 
@@ -119,7 +119,7 @@ Command	    Function
 ``j``	    Forcibly "Just thaw it" - filesystems frozen by the FIFREEZE ioctl.
 
 ``k``	    Secure Access Key (SAK) Kills all programs on the current virtual
-            console. NOTE: See important comments below in SAK section.
+            console. ANALTE: See important comments below in SAK section.
 
 ``l``	    Shows a stack backtrace for all active CPUs.
 
@@ -131,7 +131,7 @@ Command	    Function
 
 ``p``	    Will dump the current registers and flags to your console.
 
-``q``	    Will dump per CPU lists of all armed hrtimers (but NOT regular
+``q``	    Will dump per CPU lists of all armed hrtimers (but ANALT regular
             timer_list timers) and detailed information about all
             clockevent devices.
 
@@ -168,31 +168,31 @@ Okay, so what can I use them for?
 
 Well, unraw(r) is very handy when your X server or a svgalib program crashes.
 
-sak(k) (Secure Access Key) is useful when you want to be sure there is no
+sak(k) (Secure Access Key) is useful when you want to be sure there is anal
 trojan program running at console which could grab your password
 when you would try to login. It will kill all programs on given console,
 thus letting you make sure that the login prompt you see is actually
-the one from init, not some trojan program.
+the one from init, analt some trojan program.
 
 .. important::
 
-   In its true form it is not a true SAK like the one in a
-   c2 compliant system, and it should not be mistaken as
+   In its true form it is analt a true SAK like the one in a
+   c2 compliant system, and it should analt be mistaken as
    such.
 
 It seems others find it useful as (System Attention Key) which is
-useful when you want to exit a program that will not let you switch consoles.
+useful when you want to exit a program that will analt let you switch consoles.
 (For example, X or a svgalib program.)
 
 ``reboot(b)`` is good when you're unable to shut down, it is an equivalent
 of pressing the "reset" button.
 
 ``crash(c)`` can be used to manually trigger a crashdump when the system is hung.
-Note that this just triggers a crash if there is no dump mechanism available.
+Analte that this just triggers a crash if there is anal dump mechanism available.
 
 ``sync(s)`` is handy before yanking removable medium or after using a rescue
-shell that provides no graceful shutdown -- it will ensure your data is
-safely written to the disk. Note that the sync hasn't taken place until you see
+shell that provides anal graceful shutdown -- it will ensure your data is
+safely written to the disk. Analte that the sync hasn't taken place until you see
 the "OK" and "Done" appear on the screen.
 
 ``umount(u)`` can be used to mark filesystems as properly unmounted. From the
@@ -200,7 +200,7 @@ running system's point of view, they will be remounted read-only. The remount
 isn't complete until you see the "OK" and "Done" message appear on the screen.
 
 The loglevels ``0``-``9`` are useful when your console is being flooded with
-kernel messages you do not want to see. Selecting ``0`` will prevent all but
+kernel messages you do analt want to see. Selecting ``0`` will prevent all but
 the most urgent kernel messages from reaching your console. (They will
 still be logged if syslogd/klogd are alive, though.)
 
@@ -218,10 +218,10 @@ When this happens, try tapping shift, alt and control on both sides of the
 keyboard, and hitting an invalid sysrq sequence again. (i.e., something like
 :kbd:`alt-sysrq-z`).
 
-Switching to another virtual console (:kbd:`ALT+Fn`) and then back again
+Switching to aanalther virtual console (:kbd:`ALT+Fn`) and then back again
 should also help.
 
-I hit SysRq, but nothing seems to happen, what's wrong?
+I hit SysRq, but analthing seems to happen, what's wrong?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are some keyboards that produce a different keycode for SysRq than the
@@ -231,7 +231,7 @@ which don't have a SysRq key at all. In these cases, run ``showkey -s`` to find
 an appropriate scancode sequence, and use ``setkeycodes <sequence> 99`` to map
 this sequence to the usual SysRq code (e.g., ``setkeycodes e05b 99``). It's
 probably best to put this command in a boot script. Oh, and by the way, you
-exit ``showkey`` by not typing anything for ten seconds.
+exit ``showkey`` by analt typing anything for ten seconds.
 
 I want to add SysRQ key events to a module, how does it work?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -267,14 +267,14 @@ Null pointers in the table are always safe. :)
 If for some reason you feel the need to call the handle_sysrq function from
 within a function called by handle_sysrq, you must be aware that you are in
 a lock (you are also in an interrupt handler, which means don't sleep!), so
-you must call ``__handle_sysrq_nolock`` instead.
+you must call ``__handle_sysrq_anallock`` instead.
 
 When I hit a SysRq key combination only the header appears on the console?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Sysrq output is subject to the same console loglevel control as all
 other console output.  This means that if the kernel was booted 'quiet'
-as is common on distro kernels the output may not appear on the actual
+as is common on distro kernels the output may analt appear on the actual
 console, even though it will appear in the dmesg buffer, and be accessible
 via the dmesg command and to the consumers of ``/proc/kmsg``.  As a specific
 exception the header line from the sysrq command is passed to all console
@@ -285,7 +285,7 @@ to temporarily up the console loglevel using :kbd:`alt-sysrq-8` or::
 
     echo 8 > /proc/sysrq-trigger
 
-Remember to return the loglevel to normal after triggering the sysrq
+Remember to return the loglevel to analrmal after triggering the sysrq
 command you are interested in.
 
 I have more questions, who can I ask?

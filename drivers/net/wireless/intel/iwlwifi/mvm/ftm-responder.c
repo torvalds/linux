@@ -24,7 +24,7 @@ static int iwl_mvm_ftm_responder_set_bw_v1(struct cfg80211_chan_def *chandef,
 					   u8 *bw, u8 *ctrl_ch_position)
 {
 	switch (chandef->width) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20_ANALHT:
 		*bw = IWL_TOF_BW_20_LEGACY;
 		break;
 	case NL80211_CHAN_WIDTH_20:
@@ -39,7 +39,7 @@ static int iwl_mvm_ftm_responder_set_bw_v1(struct cfg80211_chan_def *chandef,
 		*ctrl_ch_position = iwl_mvm_get_ctrl_pos(chandef);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -50,7 +50,7 @@ static int iwl_mvm_ftm_responder_set_bw_v2(struct cfg80211_chan_def *chandef,
 					   u8 cmd_ver)
 {
 	switch (chandef->width) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20_ANALHT:
 		*format_bw = IWL_LOCATION_FRAME_FORMAT_LEGACY;
 		*format_bw |= IWL_LOCATION_BW_20MHZ << LOCATION_BW_POS;
 		break;
@@ -77,7 +77,7 @@ static int iwl_mvm_ftm_responder_set_bw_v2(struct cfg80211_chan_def *chandef,
 		}
 		fallthrough;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -128,16 +128,16 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	/* Use a default of bss_color=1 for now */
+	/* Use a default of bss_color=1 for analw */
 	if (cmd_ver == 9) {
 		cmd.cmd_valid_fields |=
 			cpu_to_le32(IWL_TOF_RESPONDER_CMD_VALID_BSS_COLOR |
 				    IWL_TOF_RESPONDER_CMD_VALID_MIN_MAX_TIME_BETWEEN_MSR);
 		cmd.bss_color = 1;
 		cmd.min_time_between_msr =
-			cpu_to_le16(IWL_MVM_FTM_NON_TB_MIN_TIME_BETWEEN_MSR);
+			cpu_to_le16(IWL_MVM_FTM_ANALN_TB_MIN_TIME_BETWEEN_MSR);
 		cmd.max_time_between_msr =
-			cpu_to_le16(IWL_MVM_FTM_NON_TB_MAX_TIME_BETWEEN_MSR);
+			cpu_to_le16(IWL_MVM_FTM_ANALN_TB_MAX_TIME_BETWEEN_MSR);
 		cmd_size = sizeof(struct iwl_tof_responder_config_cmd_v9);
 	} else {
 		/* All versions up to version 8 have the same size */
@@ -181,7 +181,7 @@ iwl_mvm_ftm_responder_dyn_cfg_v2(struct iwl_mvm *mvm,
 		.len[0] = sizeof(cmd),
 		.data[1] = &data,
 		/* .len[1] set later */
-		/* may not be able to DMA from stack */
+		/* may analt be able to DMA from stack */
 		.dataflags[1] = IWL_HCMD_DFL_DUP,
 	};
 	u32 aligned_lci_len = ALIGN(params->lci_len + 2, 4);
@@ -193,7 +193,7 @@ iwl_mvm_ftm_responder_dyn_cfg_v2(struct iwl_mvm *mvm,
 	if (aligned_lci_len + aligned_civicloc_len > sizeof(data)) {
 		IWL_ERR(mvm, "LCI/civicloc data too big (%zd + %zd)\n",
 			params->lci_len, params->civicloc_len);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	pos[0] = WLAN_EID_MEASURE_REPORT;
@@ -221,7 +221,7 @@ iwl_mvm_ftm_responder_dyn_cfg_v3(struct iwl_mvm *mvm,
 		.id = WIDE_ID(LOCATION_GROUP, TOF_RESPONDER_DYN_CONFIG_CMD),
 		.data[0] = &cmd,
 		.len[0] = sizeof(cmd),
-		/* may not be able to DMA from stack */
+		/* may analt be able to DMA from stack */
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
 	};
 
@@ -235,7 +235,7 @@ iwl_mvm_ftm_responder_dyn_cfg_v3(struct iwl_mvm *mvm,
 			IWL_ERR(mvm,
 				"LCI/civic data too big (lci=%zd, civic=%zd)\n",
 				params->lci_len, params->civicloc_len);
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 
 		cmd.lci_buf[0] = WLAN_EID_MEASURE_REPORT;
@@ -291,7 +291,7 @@ iwl_mvm_ftm_responder_dyn_cfg_cmd(struct iwl_mvm *mvm,
 	default:
 		IWL_ERR(mvm, "Unsupported DYN_CONFIG_CMD version %u\n",
 			cmd_ver);
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -332,12 +332,12 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	if (cmd_ver < 3) {
-		IWL_ERR(mvm, "Adding PASN station not supported by FW\n");
-		return -EOPNOTSUPP;
+		IWL_ERR(mvm, "Adding PASN station analt supported by FW\n");
+		return -EOPANALTSUPP;
 	}
 
 	if ((!hltk || !hltk_len) && (!tk || !tk_len)) {
-		IWL_ERR(mvm, "TK and HLTK not set\n");
+		IWL_ERR(mvm, "TK and HLTK analt set\n");
 		return -EINVAL;
 	}
 
@@ -354,7 +354,7 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 	if (tk && tk_len) {
 		sta = kzalloc(sizeof(*sta), GFP_KERNEL);
 		if (!sta)
-			return -ENOBUFS;
+			return -EANALBUFS;
 
 		ret = iwl_mvm_add_pasn_sta(mvm, vif, &sta->int_sta, addr,
 					   cipher, tk, tk_len);
@@ -388,7 +388,7 @@ int iwl_mvm_ftm_resp_remove_pasn_sta(struct iwl_mvm *mvm,
 		}
 	}
 
-	IWL_ERR(mvm, "FTM: PASN station %pM not found\n", addr);
+	IWL_ERR(mvm, "FTM: PASN station %pM analt found\n", addr);
 	return -EINVAL;
 }
 
@@ -411,7 +411,7 @@ int iwl_mvm_ftm_start_responder(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (vif->p2p || vif->type != NL80211_IFTYPE_AP ||
 	    !mvmvif->ap_ibss_active) {
-		IWL_ERR(mvm, "Cannot start responder, not in AP mode\n");
+		IWL_ERR(mvm, "Cananalt start responder, analt in AP mode\n");
 		return -EIO;
 	}
 
@@ -482,17 +482,17 @@ void iwl_mvm_ftm_responder_stats(struct iwl_mvm *mvm,
 	    (flags & FTM_RESP_STAT_ASAP_RESP))
 		stats->asap_num++;
 
-	if (flags & FTM_RESP_STAT_NON_ASAP_RESP)
-		stats->non_asap_num++;
+	if (flags & FTM_RESP_STAT_ANALN_ASAP_RESP)
+		stats->analn_asap_num++;
 
 	stats->total_duration_ms += le32_to_cpu(resp->duration) / USEC_PER_MSEC;
 
-	if (flags & FTM_RESP_STAT_TRIGGER_UNKNOWN)
-		stats->unknown_triggers_num++;
+	if (flags & FTM_RESP_STAT_TRIGGER_UNKANALWN)
+		stats->unkanalwn_triggers_num++;
 
 	if (flags & FTM_RESP_STAT_DUP)
 		stats->reschedule_requests_num++;
 
-	if (flags & FTM_RESP_STAT_NON_ASAP_OUT_WIN)
+	if (flags & FTM_RESP_STAT_ANALN_ASAP_OUT_WIN)
 		stats->out_of_window_triggers_num++;
 }

@@ -2,7 +2,7 @@
 config MICROBLAZE
 	def_bool y
 	select ARCH_32BIT_OFF_T
-	select ARCH_NO_SWAP
+	select ARCH_ANAL_SWAP
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
@@ -39,8 +39,8 @@ config MICROBLAZE
 	select OF_EARLY_FLATTREE
 	select PCI_DOMAINS_GENERIC if PCI
 	select PCI_SYSCALL if PCI
-	select CPU_NO_EFFICIENT_FFS
-	select MMU_GATHER_NO_RANGE
+	select CPU_ANAL_EFFICIENT_FFS
+	select MMU_GATHER_ANAL_RANGE
 	select SPARSE_IRQ
 	select ZONE_DMA
 	select TRACE_IRQFLAGS_SUPPORT
@@ -102,7 +102,7 @@ config CMDLINE
 	depends on CMDLINE_BOOL
 	default "console=ttyUL0,115200"
 	help
-	  On some architectures there is currently no way for the boot loader
+	  On some architectures there is currently anal way for the boot loader
 	  to pass arguments to the kernel. For these architectures, you should
 	  supply some command-line options at build time by entering them
 	  here.
@@ -127,11 +127,11 @@ config ADVANCED_OPTIONS
 	bool "Prompt for advanced kernel configuration options"
 	help
 	  This option will enable prompting for a variety of advanced kernel
-	  configuration options.  These options can cause the kernel to not
+	  configuration options.  These options can cause the kernel to analt
 	  work if they are set incorrectly, but can be used to optimize certain
 	  aspects of kernel memory management.
 
-	  Unless you know what you are doing, say N here.
+	  Unless you kanalw what you are doing, say N here.
 
 comment "Default settings for advanced configuration options are used"
 	depends on !ADVANCED_OPTIONS
@@ -143,9 +143,9 @@ config HIGHMEM
 	  The address space of Microblaze processors is only 4 Gigabytes large
 	  and it has to accommodate user address space, kernel address
 	  space as well as some memory mapped IO. That means that, if you
-	  have a large amount of physical memory and/or IO, not all of the
+	  have a large amount of physical memory and/or IO, analt all of the
 	  memory can be "permanently mapped" by the kernel. The physical
-	  memory that is not permanently mapped is called "high memory".
+	  memory that is analt permanently mapped is called "high memory".
 
 	  If unsure, say n.
 
@@ -159,7 +159,7 @@ config LOWMEM_SIZE_BOOL
 	  This can be useful in optimizing the layout of kernel virtual
 	  memory.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kanalw what you are doing.
 
 config LOWMEM_SIZE
 	hex "Maximum low memory size (in bytes)" if LOWMEM_SIZE_BOOL
@@ -170,9 +170,9 @@ config MANUAL_RESET_VECTOR
 	default "0x0"
 	help
 	  Set this option to have the kernel override the CPU Reset vector.
-	  If zero, no change will be made to the MicroBlaze reset vector at
+	  If zero, anal change will be made to the MicroBlaze reset vector at
 	  address 0x0.
-	  If non-zero, a jump instruction to this address, will be written
+	  If analn-zero, a jump instruction to this address, will be written
 	  to the reset vector at address 0x0.
 	  If you are unsure, set it to default value 0x0.
 
@@ -185,7 +185,7 @@ config KERNEL_START_BOOL
 	  this address).  This can be useful in optimizing the virtual memory
 	  layout of the system.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kanalw what you are doing.
 
 config KERNEL_START
 	hex "Virtual address of kernel base" if KERNEL_START_BOOL
@@ -199,7 +199,7 @@ config TASK_SIZE_BOOL
 	  allocated to user tasks.  This can be useful in optimizing the
 	  virtual memory layout of the system.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kanalw what you are doing.
 
 config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL
@@ -213,6 +213,6 @@ config MB_MANAGER
 	  control register, which is consumed by the break handler to
 	  block the break.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kanalw what you are doing.
 
 endmenu

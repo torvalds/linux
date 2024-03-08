@@ -9,7 +9,7 @@
  * enable register instead of separate mask/set/clear registers.
  *
  * The BCM3380 has a similar mask/status register layout, but each pair
- * of words is at separate locations (and SMP is not supported).
+ * of words is at separate locations (and SMP is analt supported).
  *
  * ENABLE/STATUS words are packed next to each other for each CPU:
  *
@@ -220,10 +220,10 @@ static int bcm6345_l1_set_affinity(struct irq_data *d,
 
 	irq_data_update_effective_affinity(d, cpumask_of(new_cpu));
 
-	return IRQ_SET_MASK_OK_NOCOPY;
+	return IRQ_SET_MASK_OK_ANALCOPY;
 }
 
-static int __init bcm6345_l1_init_one(struct device_node *dn,
+static int __init bcm6345_l1_init_one(struct device_analde *dn,
 				      unsigned int idx,
 				      struct bcm6345_l1_chip *intc)
 {
@@ -245,12 +245,12 @@ static int __init bcm6345_l1_init_one(struct device_node *dn,
 	cpu = intc->cpus[idx] = kzalloc(sizeof(*cpu) + n_words * sizeof(u32),
 					GFP_KERNEL);
 	if (!cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpu->intc = intc;
 	cpu->map_base = ioremap(res.start, sz);
 	if (!cpu->map_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!request_mem_region(res.start, sz, res.name))
 		pr_err("failed to request intc memory");
@@ -293,8 +293,8 @@ static const struct irq_domain_ops bcm6345_l1_domain_ops = {
 	.map			= bcm6345_l1_map,
 };
 
-static int __init bcm6345_l1_of_init(struct device_node *dn,
-			      struct device_node *parent)
+static int __init bcm6345_l1_of_init(struct device_analde *dn,
+			      struct device_analde *parent)
 {
 	struct bcm6345_l1_chip *intc;
 	unsigned int idx;
@@ -302,7 +302,7 @@ static int __init bcm6345_l1_of_init(struct device_node *dn,
 
 	intc = kzalloc(sizeof(*intc), GFP_KERNEL);
 	if (!intc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_possible_cpu(idx) {
 		ret = bcm6345_l1_init_one(dn, idx, intc);
@@ -314,7 +314,7 @@ static int __init bcm6345_l1_of_init(struct device_node *dn,
 	}
 
 	if (cpumask_empty(&intc->cpumask)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_free;
 	}
 
@@ -324,7 +324,7 @@ static int __init bcm6345_l1_of_init(struct device_node *dn,
 					     &bcm6345_l1_domain_ops,
 					     intc);
 	if (!intc->domain) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unmap;
 	}
 

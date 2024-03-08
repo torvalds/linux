@@ -5,14 +5,14 @@
 $id: http://devicetree.org/schemas/display/amlogic,meson-g12a-dw-mipi-dsi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Amlogic specific extensions to the Synopsys Designware MIPI DSI Host Controller
+title: Amlogic specific extensions to the Syanalpsys Designware MIPI DSI Host Controller
 
 maintainers:
   - Neil Armstrong <neil.armstrong@linaro.org>
 
 description: |
-  The Amlogic Meson Synopsys Designware Integration is composed of
-  - A Synopsys DesignWare MIPI DSI Host Controller IP
+  The Amlogic Meson Syanalpsys Designware Integration is composed of
+  - A Syanalpsys DesignWare MIPI DSI Host Controller IP
   - A TOP control block controlling the Clocks & Resets of the IP
 
 allOf:
@@ -58,11 +58,11 @@ properties:
     properties:
       port@0:
         $ref: /schemas/graph.yaml#/properties/port
-        description: Input node to receive pixel data.
+        description: Input analde to receive pixel data.
 
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
-        description: DSI output node to panel.
+        description: DSI output analde to panel.
 
     required:
       - port@0

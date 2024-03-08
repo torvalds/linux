@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -26,11 +26,11 @@
 
 #define NV887D_SOR_SET_CONTROL(a)                                               (0x00000600 + (a)*0x00000040)
 #define NV887D_SOR_SET_CONTROL_OWNER                                            3:0
-#define NV887D_SOR_SET_CONTROL_OWNER_NONE                                       (0x00000000)
+#define NV887D_SOR_SET_CONTROL_OWNER_ANALNE                                       (0x00000000)
 #define NV887D_SOR_SET_CONTROL_OWNER_HEAD0                                      (0x00000001)
 #define NV887D_SOR_SET_CONTROL_OWNER_HEAD1                                      (0x00000002)
 #define NV887D_SOR_SET_CONTROL_SUB_OWNER                                        5:4
-#define NV887D_SOR_SET_CONTROL_SUB_OWNER_NONE                                   (0x00000000)
+#define NV887D_SOR_SET_CONTROL_SUB_OWNER_ANALNE                                   (0x00000000)
 #define NV887D_SOR_SET_CONTROL_SUB_OWNER_SUBHEAD0                               (0x00000001)
 #define NV887D_SOR_SET_CONTROL_SUB_OWNER_SUBHEAD1                               (0x00000002)
 #define NV887D_SOR_SET_CONTROL_SUB_OWNER_BOTH                                   (0x00000003)

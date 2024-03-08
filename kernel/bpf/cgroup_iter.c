@@ -27,7 +27,7 @@
  * which means the walk has completed and the prog has a chance to
  * do post-processing, such as outputting an epilogue.
  *
- * Note: the iter_prog is called with cgroup_mutex held.
+ * Analte: the iter_prog is called with cgroup_mutex held.
  *
  * Currently only one session is supported, which means, depending on the
  * volume of data bpf program intends to send to user space, the number
@@ -37,7 +37,7 @@
  * be walked is 512. This is a limitation of cgroup_iter. If the output data
  * is larger than the kernel buffer size, after all data in the kernel buffer
  * is consumed by user space, the subsequent read() syscall will signal
- * EOPNOTSUPP. In order to work around, the user may have to update their
+ * EOPANALTSUPP. In order to work around, the user may have to update their
  * program to reduce the volume of data sent to output. For example, skip
  * some uninteresting cgroups.
  */
@@ -66,9 +66,9 @@ static void *cgroup_iter_seq_start(struct seq_file *seq, loff_t *pos)
 			return NULL;
 
 		/* Haven't visited all, but because cgroup_mutex has dropped,
-		 * return -EOPNOTSUPP to indicate incomplete iteration.
+		 * return -EOPANALTSUPP to indicate incomplete iteration.
 		 */
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	++*pos;
@@ -166,7 +166,7 @@ static int cgroup_iter_seq_init(void *priv, struct bpf_iter_aux_info *aux)
 
 	/* bpf_iter_attach_cgroup() has already acquired an extra reference
 	 * for the start cgroup, but the reference may be released after
-	 * cgroup_iter_seq_init(), so acquire another reference for the
+	 * cgroup_iter_seq_init(), so acquire aanalther reference for the
 	 * start cgroup.
 	 */
 	p->start_css = &cgrp->self;
@@ -236,12 +236,12 @@ static void bpf_iter_cgroup_show_fdinfo(const struct bpf_iter_aux_info *aux,
 
 	buf = kzalloc(PATH_MAX, GFP_KERNEL);
 	if (!buf) {
-		seq_puts(seq, "cgroup_path:\t<unknown>\n");
+		seq_puts(seq, "cgroup_path:\t<unkanalwn>\n");
 		goto show_order;
 	}
 
 	/* If cgroup_path_ns() fails, buf will be an empty string, cgroup_path
-	 * will print nothing.
+	 * will print analthing.
 	 *
 	 * Path is in the calling process's cgroup namespace.
 	 */
@@ -313,7 +313,7 @@ __bpf_kfunc int bpf_iter_css_new(struct bpf_iter_css *it,
 	struct bpf_iter_css_kern *kit = (void *)it;
 
 	BUILD_BUG_ON(sizeof(struct bpf_iter_css_kern) > sizeof(struct bpf_iter_css));
-	BUILD_BUG_ON(__alignof__(struct bpf_iter_css_kern) != __alignof__(struct bpf_iter_css));
+	BUILD_BUG_ON(__aliganalf__(struct bpf_iter_css_kern) != __aliganalf__(struct bpf_iter_css));
 
 	kit->start = NULL;
 	switch (flags) {

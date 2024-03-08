@@ -102,7 +102,7 @@ static inline u32 asd_mem_offs_swb(void)
 	return asd_mem_offs_swc() + MBAR0_SWC_SIZE + 0x20;
 }
 
-/* We know that the register wanted is in the range
+/* We kanalw that the register wanted is in the range
  * of the sliding window.
  */
 #define ASD_READ_SW(ww, type, ord)					\
@@ -158,7 +158,7 @@ ASD_WRITE_SW(swc, u32, dword);
  *
  * We map the most common registers we'd access of the internal 4GB
  * host adapter memory space.  If a register/internal memory location
- * is wanted which is not mapped, we slide SWB, by paging it,
+ * is wanted which is analt mapped, we slide SWB, by paging it,
  * see asd_move_swb() in aic94xx_reg.c.
  */
 

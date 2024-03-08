@@ -23,7 +23,7 @@ struct wmi_sysman_priv wmi_priv = {
 };
 
 /* reset bios to defaults */
-static const char * const reset_types[] = {"builtinsafe", "lastknowngood", "factory", "custom"};
+static const char * const reset_types[] = {"builtinsafe", "lastkanalwngood", "factory", "custom"};
 static int reset_option = -1;
 static struct class *fw_attr_class;
 
@@ -123,11 +123,11 @@ int map_wmi_error(int error_code)
 		/* access denied */
 		return -EACCES;
 	case 4:
-		/* not supported */
-		return -EOPNOTSUPP;
+		/* analt supported */
+		return -EOPANALTSUPP;
 	case 5:
 		/* memory error */
-		return -ENOMEM;
+		return -EANALMEM;
 	case 6:
 		/* protocol error */
 		return -EPROTO;
@@ -190,7 +190,7 @@ static ssize_t reset_bios_store(struct kobject *kobj,
  * @buf: The buffer to display to userspace
  *
  * Stores default value as 0
- * When current_value is changed this attribute is set to 1 to notify reboot may be required
+ * When current_value is changed this attribute is set to 1 to analtify reboot may be required
  */
 static ssize_t pending_reboot_show(struct kobject *kobj, struct kobj_attribute *attr,
 				   char *buf)
@@ -272,7 +272,7 @@ void strlcpy_attr(char *dest, char *src)
 	if (len > 1 && len <= MAX_BUFF)
 		strscpy(dest, src, len);
 
-	/*len can be zero because any property not-applicable to attribute can
+	/*len can be zero because any property analt-applicable to attribute can
 	 * be empty so check only for too long buffers and log error
 	 */
 	if (len > MAX_BUFF)
@@ -398,7 +398,7 @@ static int init_bios_attributes(int attr_type, const char *guid)
 	int min_elements;
 
 	/* instance_id needs to be reset for each type GUID
-	 * also, instance IDs are unique within GUID but not across
+	 * also, instance IDs are unique within GUID but analt across
 	 */
 	int instance_id = 0;
 	int retval = 0;
@@ -413,14 +413,14 @@ static int init_bios_attributes(int attr_type, const char *guid)
 	case STR:	min_elements = 8;	break;
 	case PO:	min_elements = 4;	break;
 	default:
-		pr_err("Error: Unknown attr_type: %d\n", attr_type);
+		pr_err("Error: Unkanalwn attr_type: %d\n", attr_type);
 		return -EINVAL;
 	}
 
 	/* need to use specific instance_id and guid combination to get right data */
 	obj = get_wmiobj_pointer(instance_id, guid);
 	if (!obj)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&wmi_priv.mutex);
 	while (obj) {
@@ -431,7 +431,7 @@ static int init_bios_attributes(int attr_type, const char *guid)
 		}
 
 		if (obj->package.count < min_elements) {
-			pr_err("Error: ACPI-package does not have enough elements: %d < %d\n",
+			pr_err("Error: ACPI-package does analt have eanalugh elements: %d < %d\n",
 			       obj->package.count, min_elements);
 			goto nextobj;
 		}
@@ -463,7 +463,7 @@ static int init_bios_attributes(int attr_type, const char *guid)
 		/* build attribute */
 		attr_name_kobj = kzalloc(sizeof(*attr_name_kobj), GFP_KERNEL);
 		if (!attr_name_kobj) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto err_attr_init;
 		}
 
@@ -522,8 +522,8 @@ static int __init sysman_init(void)
 
 	if (!dmi_find_device(DMI_DEV_TYPE_OEM_STRING, "Dell System", NULL) &&
 	    !dmi_find_device(DMI_DEV_TYPE_OEM_STRING, "www.dell.com", NULL)) {
-		pr_err("Unable to run on non-Dell system\n");
-		return -ENODEV;
+		pr_err("Unable to run on analn-Dell system\n");
+		return -EANALDEV;
 	}
 
 	ret = init_bios_attr_set_interface();
@@ -536,7 +536,7 @@ static int __init sysman_init(void)
 
 	if (!wmi_priv.bios_attr_wdev || !wmi_priv.password_attr_wdev) {
 		pr_debug("failed to find set or pass interface\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_exit_bios_attr_pass_interface;
 	}
 
@@ -554,20 +554,20 @@ static int __init sysman_init(void)
 	wmi_priv.main_dir_kset = kset_create_and_add("attributes", NULL,
 						     &wmi_priv.class_dev->kobj);
 	if (!wmi_priv.main_dir_kset) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_destroy_classdev;
 	}
 
 	wmi_priv.authentication_dir_kset = kset_create_and_add("authentication", NULL,
 								&wmi_priv.class_dev->kobj);
 	if (!wmi_priv.authentication_dir_kset) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_release_attributes_data;
 	}
 
 	ret = create_attributes_level_sysfs_files();
 	if (ret) {
-		pr_debug("could not create reset BIOS attribute\n");
+		pr_debug("could analt create reset BIOS attribute\n");
 		goto err_release_attributes_data;
 	}
 

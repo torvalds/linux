@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -41,7 +41,7 @@ struct ssp_device *pxa_ssp_request(int port, const char *label)
 
 	mutex_lock(&ssp_lock);
 
-	list_for_each_entry(ssp, &ssp_list, node) {
+	list_for_each_entry(ssp, &ssp_list, analde) {
 		if (ssp->port_id == port && ssp->use_count == 0) {
 			ssp->use_count++;
 			ssp->label = label;
@@ -51,22 +51,22 @@ struct ssp_device *pxa_ssp_request(int port, const char *label)
 
 	mutex_unlock(&ssp_lock);
 
-	if (&ssp->node == &ssp_list)
+	if (&ssp->analde == &ssp_list)
 		return NULL;
 
 	return ssp;
 }
 EXPORT_SYMBOL(pxa_ssp_request);
 
-struct ssp_device *pxa_ssp_request_of(const struct device_node *of_node,
+struct ssp_device *pxa_ssp_request_of(const struct device_analde *of_analde,
 				      const char *label)
 {
 	struct ssp_device *ssp = NULL;
 
 	mutex_lock(&ssp_lock);
 
-	list_for_each_entry(ssp, &ssp_list, node) {
-		if (ssp->of_node == of_node && ssp->use_count == 0) {
+	list_for_each_entry(ssp, &ssp_list, analde) {
+		if (ssp->of_analde == of_analde && ssp->use_count == 0) {
 			ssp->use_count++;
 			ssp->label = label;
 			break;
@@ -75,7 +75,7 @@ struct ssp_device *pxa_ssp_request_of(const struct device_node *of_node,
 
 	mutex_unlock(&ssp_lock);
 
-	if (&ssp->node == &ssp_list)
+	if (&ssp->analde == &ssp_list)
 		return NULL;
 
 	return ssp;
@@ -116,7 +116,7 @@ static int pxa_ssp_probe(struct platform_device *pdev)
 
 	ssp = devm_kzalloc(dev, sizeof(struct ssp_device), GFP_KERNEL);
 	if (ssp == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ssp->dev = dev;
 
@@ -126,8 +126,8 @@ static int pxa_ssp_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(dev, "no memory resource defined\n");
-		return -ENODEV;
+		dev_err(dev, "anal memory resource defined\n");
+		return -EANALDEV;
 	}
 
 	res = devm_request_mem_region(dev, res->start, resource_size(res),
@@ -142,14 +142,14 @@ static int pxa_ssp_probe(struct platform_device *pdev)
 	ssp->mmio_base = devm_ioremap(dev, res->start, resource_size(res));
 	if (ssp->mmio_base == NULL) {
 		dev_err(dev, "failed to ioremap() registers\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ssp->irq = platform_get_irq(pdev, 0);
 	if (ssp->irq < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		const struct of_device_id *id =
 			of_match_device(of_match_ptr(pxa_ssp_of_ids), dev);
 		ssp->type = (uintptr_t) id->data;
@@ -165,10 +165,10 @@ static int pxa_ssp_probe(struct platform_device *pdev)
 	}
 
 	ssp->use_count = 0;
-	ssp->of_node = dev->of_node;
+	ssp->of_analde = dev->of_analde;
 
 	mutex_lock(&ssp_lock);
-	list_add(&ssp->node, &ssp_list);
+	list_add(&ssp->analde, &ssp_list);
 	mutex_unlock(&ssp_lock);
 
 	platform_set_drvdata(pdev, ssp);
@@ -181,7 +181,7 @@ static void pxa_ssp_remove(struct platform_device *pdev)
 	struct ssp_device *ssp = platform_get_drvdata(pdev);
 
 	mutex_lock(&ssp_lock);
-	list_del(&ssp->node);
+	list_del(&ssp->analde);
 	mutex_unlock(&ssp_lock);
 }
 

@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <linux/err.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>

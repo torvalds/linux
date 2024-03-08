@@ -8,7 +8,7 @@
 
 #include <acpi/acpi.h>
 
-/* Headers not included by include/acpi/platform/aclinux.h */
+/* Headers analt included by include/acpi/platform/aclinux.h */
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -287,10 +287,10 @@ static void acpi_aml_loop(int fd)
 
 		if (acpi_aml_cmd_space()) {
 			if (acpi_aml_mode == ACPI_AML_INTERACTIVE)
-				maxfd = acpi_aml_set_fd(STDIN_FILENO, maxfd, &rfds);
+				maxfd = acpi_aml_set_fd(STDIN_FILEANAL, maxfd, &rfds);
 			else if (strlen(acpi_aml_batch_pos) &&
 				 acpi_aml_batch_state == ACPI_AML_BATCH_WRITE_CMD)
-				ACPI_AML_BATCH_DO(STDIN_FILENO, read, cmd, ret);
+				ACPI_AML_BATCH_DO(STDIN_FILEANAL, read, cmd, ret);
 		}
 		if (acpi_aml_cmd_count() &&
 		    (acpi_aml_mode == ACPI_AML_INTERACTIVE ||
@@ -301,7 +301,7 @@ static void acpi_aml_loop(int fd)
 		     acpi_aml_batch_state == ACPI_AML_BATCH_READ_LOG))
 			maxfd = acpi_aml_set_fd(fd, maxfd, &rfds);
 		if (acpi_aml_log_count())
-			maxfd = acpi_aml_set_fd(STDOUT_FILENO, maxfd, &wfds);
+			maxfd = acpi_aml_set_fd(STDOUT_FILEANAL, maxfd, &wfds);
 
 		ret = select(maxfd+1, &rfds, &wfds, NULL, &tv);
 		if (ret < 0) {
@@ -309,8 +309,8 @@ static void acpi_aml_loop(int fd)
 			break;
 		}
 		if (ret > 0) {
-			if (FD_ISSET(STDIN_FILENO, &rfds))
-				ACPI_AML_DO(STDIN_FILENO, read, cmd, ret);
+			if (FD_ISSET(STDIN_FILEANAL, &rfds))
+				ACPI_AML_DO(STDIN_FILEANAL, read, cmd, ret);
 			if (FD_ISSET(fd, &wfds)) {
 				if (acpi_aml_mode == ACPI_AML_BATCH)
 					ACPI_AML_BATCH_DO(fd, write, cmd, ret);
@@ -323,11 +323,11 @@ static void acpi_aml_loop(int fd)
 				else
 					ACPI_AML_DO(fd, read, log, ret);
 			}
-			if (FD_ISSET(STDOUT_FILENO, &wfds)) {
+			if (FD_ISSET(STDOUT_FILEANAL, &wfds)) {
 				if (acpi_aml_mode == ACPI_AML_BATCH)
-					ACPI_AML_BATCH_DO(STDOUT_FILENO, write, log, ret);
+					ACPI_AML_BATCH_DO(STDOUT_FILEANAL, write, log, ret);
 				else
-					ACPI_AML_DO(STDOUT_FILENO, write, log, ret);
+					ACPI_AML_DO(STDOUT_FILEANAL, write, log, ret);
 			}
 		}
 	}
@@ -419,14 +419,14 @@ int main(int argc, char **argv)
 		}
 	}
 
-	fd = open(acpi_aml_file_path, O_RDWR | O_NONBLOCK);
+	fd = open(acpi_aml_file_path, O_RDWR | O_ANALNBLOCK);
 	if (fd < 0) {
 		perror("open");
 		ret = EXIT_FAILURE;
 		goto exit;
 	}
-	acpi_aml_set_fl(STDIN_FILENO, O_NONBLOCK);
-	acpi_aml_set_fl(STDOUT_FILENO, O_NONBLOCK);
+	acpi_aml_set_fl(STDIN_FILEANAL, O_ANALNBLOCK);
+	acpi_aml_set_fl(STDOUT_FILEANAL, O_ANALNBLOCK);
 
 	if (acpi_aml_mode == ACPI_AML_BATCH)
 		acpi_aml_flush(fd);

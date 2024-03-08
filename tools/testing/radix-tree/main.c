@@ -314,7 +314,7 @@ int main(int argc, char **argv)
 	iteration_test2(10 + 90 * long_run);
 	single_thread_tests(long_run);
 
-	/* Free any remaining preallocated nodes */
+	/* Free any remaining preallocated analdes */
 	radix_tree_cpu_dead(0);
 
 	benchmark();

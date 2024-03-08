@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/media/cec/samsung,s5p-cec.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung S5PV210 and Exynos HDMI CEC
+title: Samsung S5PV210 and Exyanals HDMI CEC
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -48,7 +48,7 @@ unevaluatedProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/exynos5420.h>
+    #include <dt-bindings/clock/exyanals5420.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     cec@101b0000 {

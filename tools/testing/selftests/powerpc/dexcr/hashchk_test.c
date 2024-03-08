@@ -2,7 +2,7 @@
 
 #define _GNU_SOURCE
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <sched.h>
@@ -20,9 +20,9 @@
 
 static int require_nphie(void)
 {
-	SKIP_IF_MSG(!dexcr_exists(), "DEXCR not supported");
+	SKIP_IF_MSG(!dexcr_exists(), "DEXCR analt supported");
 	SKIP_IF_MSG(!(get_dexcr(EFFECTIVE) & DEXCR_PR_NPHIE),
-		    "DEXCR[NPHIE] not enabled");
+		    "DEXCR[NPHIE] analt enabled");
 
 	return 0;
 }
@@ -103,7 +103,7 @@ static int hashchk_exec_child(void)
 
 	fill_hash_values();
 
-	count = write(STDOUT_FILENO, hash_values, sizeof(hash_values));
+	count = write(STDOUT_FILEANAL, hash_values, sizeof(hash_values));
 	return count == sizeof(hash_values) ? 0 : EOVERFLOW;
 }
 
@@ -127,11 +127,11 @@ static int hashchk_exec_random_key_test(void)
 
 	pid = fork();
 	if (pid == 0) {
-		if (dup2(pipefd[1], STDOUT_FILENO) == -1)
-			_exit(errno);
+		if (dup2(pipefd[1], STDOUT_FILEANAL) == -1)
+			_exit(erranal);
 
 		execve("/proc/self/exe", hashchk_exec_child_args, NULL);
-		_exit(errno);
+		_exit(erranal);
 	}
 
 	await_child_success(pid);
@@ -197,7 +197,7 @@ static int hashchk_clone_share_key_test(void)
 		return err;
 
 	child_stack = mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+			   MAP_PRIVATE | MAP_AANALNYMOUS | MAP_STACK, -1, 0);
 
 	FAIL_IF_MSG(child_stack == MAP_FAILED, "failed to map child stack");
 

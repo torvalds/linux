@@ -19,15 +19,15 @@ static void kmsg_dumper_stdout(struct kmsg_dumper *dumper,
 	int cookie;
 
 	/*
-	 * If no consoles are available to output crash information, dump
+	 * If anal consoles are available to output crash information, dump
 	 * the kmsg buffer to stdout.
 	 */
 
 	cookie = console_srcu_read_lock();
 	for_each_console_srcu(con) {
 		/*
-		 * The ttynull console and disabled consoles are ignored
-		 * since they cannot output. All other consoles are
+		 * The ttynull console and disabled consoles are iganalred
+		 * since they cananalt output. All other consoles are
 		 * expected to output the crash information.
 		 */
 		if (strcmp(con->name, "ttynull") != 0 &&

@@ -48,7 +48,7 @@ struct kvm_nested_guest {
 
 /* Structure for a nested guest rmap entry */
 struct rmap_nested {
-	struct llist_node list;
+	struct llist_analde list;
 	u64 rmap;
 };
 
@@ -56,21 +56,21 @@ struct rmap_nested {
  * for_each_nest_rmap_safe - iterate over the list of nested rmap entries
  *			     safe against removal of the list entry or NULL list
  * @pos:	a (struct rmap_nested *) to use as a loop cursor
- * @node:	pointer to the first entry
- *		NOTE: this can be NULL
+ * @analde:	pointer to the first entry
+ *		ANALTE: this can be NULL
  * @rmapp:	an (unsigned long *) in which to return the rmap entries on each
  *		iteration
- *		NOTE: this must point to already allocated memory
+ *		ANALTE: this must point to already allocated memory
  *
  * The nested_rmap is a llist of (struct rmap_nested) entries pointed to by the
  * rmap entry in the memslot. The list is always terminated by a "single entry"
  * stored in the list element of the final entry of the llist. If there is ONLY
- * a single entry then this is itself in the rmap entry of the memslot, not a
+ * a single entry then this is itself in the rmap entry of the memslot, analt a
  * llist head pointer.
  *
- * Note that the iterator below assumes that a nested rmap entry is always
- * non-zero.  This is true for our usage because the LPID field is always
- * non-zero (zero is reserved for the host).
+ * Analte that the iterator below assumes that a nested rmap entry is always
+ * analn-zero.  This is true for our usage because the LPID field is always
+ * analn-zero (zero is reserved for the host).
  *
  * This should be used to iterate over the list of rmap_nested entries with
  * processing done on the u64 rmap value given by each iteration. This is safe
@@ -78,22 +78,22 @@ struct rmap_nested {
  *
  * e.g.
  * struct rmap_nested *cursor;
- * struct llist_node *first;
+ * struct llist_analde *first;
  * unsigned long rmap;
  * for_each_nest_rmap_safe(cursor, first, &rmap) {
  *	do_something(rmap);
  *	free(cursor);
  * }
  */
-#define for_each_nest_rmap_safe(pos, node, rmapp)			       \
-	for ((pos) = llist_entry((node), typeof(*(pos)), list);		       \
-	     (node) &&							       \
-	     (*(rmapp) = ((RMAP_NESTED_IS_SINGLE_ENTRY & ((u64) (node))) ?     \
-			  ((u64) (node)) : ((pos)->rmap))) &&		       \
-	     (((node) = ((RMAP_NESTED_IS_SINGLE_ENTRY & ((u64) (node))) ?      \
-			 ((struct llist_node *) ((pos) = NULL)) :	       \
+#define for_each_nest_rmap_safe(pos, analde, rmapp)			       \
+	for ((pos) = llist_entry((analde), typeof(*(pos)), list);		       \
+	     (analde) &&							       \
+	     (*(rmapp) = ((RMAP_NESTED_IS_SINGLE_ENTRY & ((u64) (analde))) ?     \
+			  ((u64) (analde)) : ((pos)->rmap))) &&		       \
+	     (((analde) = ((RMAP_NESTED_IS_SINGLE_ENTRY & ((u64) (analde))) ?      \
+			 ((struct llist_analde *) ((pos) = NULL)) :	       \
 			 (pos)->list.next)), true);			       \
-	     (pos) = llist_entry((node), typeof(*(pos)), list))
+	     (pos) = llist_entry((analde), typeof(*(pos)), list))
 
 struct kvm_nested_guest *kvmhv_get_nested(struct kvm *kvm, int l1_lpid,
 					  bool create);
@@ -148,14 +148,14 @@ int kvmhv_vcpu_entry_p9(struct kvm_vcpu *vcpu, u64 time_limit, unsigned long lpc
 #endif
 
 /*
- * Invalid HDSISR value which is used to indicate when HW has not set the reg.
+ * Invalid HDSISR value which is used to indicate when HW has analt set the reg.
  * Used to work around an errata.
  */
 #define HDSISR_CANARY	0x7fff
 
 /*
  * We use a lock bit in HPTE dword 0 to synchronize updates and
- * accesses to each HPTE, and another bit to indicate non-present
+ * accesses to each HPTE, and aanalther bit to indicate analn-present
  * HPTEs.
  */
 #define HPTE_V_HVLOCK	0x40UL
@@ -212,7 +212,7 @@ static inline void __unlock_hpte(__be64 *hpte, unsigned long hpte_v)
 }
 
 /*
- * These functions encode knowledge of the POWER7/8/9 hardware
+ * These functions encode kanalwledge of the POWER7/8/9 hardware
  * interpretations of the HPTE LP (large page size) field.
  */
 static inline int kvmppc_hpte_page_shifts(unsigned long h, unsigned long l)
@@ -308,10 +308,10 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 	}
 
 	/*
-	 * Ignore the top 14 bits of va
+	 * Iganalre the top 14 bits of va
 	 * v have top two bits covering segment size, hence move
 	 * by 16 bits, Also clear the lower HPTE_V_AVPN_SHIFT (7) bits.
-	 * AVA field in v also have the lower 23 bits ignored.
+	 * AVA field in v also have the lower 23 bits iganalred.
 	 * For base page size 4K we need 14 .. 65 bits (so need to
 	 * collect extra 11 bits)
 	 * For others we need 14..14+i
@@ -329,7 +329,7 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 	/*
 	 * get the vpn bits from va_low using reverse of hashing.
 	 * In v we have va with 23 bits dropped and then left shifted
-	 * HPTE_V_AVPN_SHIFT (7) bits. Now to find vsid we need
+	 * HPTE_V_AVPN_SHIFT (7) bits. Analw to find vsid we need
 	 * right shift it with (SID_SHIFT - (23 - 7))
 	 */
 	if (!(v & HPTE_V_1TB_SEG))
@@ -352,7 +352,7 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 		 */
 		rb |= (va_low << b_pgshift) & 0x7ff000;
 		/*
-		 * Now clear not needed LP bits based on actual psize
+		 * Analw clear analt needed LP bits based on actual psize
 		 */
 		rb &= ~((1ul << a_pgshift) - 1);
 		/*
@@ -435,7 +435,7 @@ static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing)
 			cpu_relax();
 			continue;
 		}
-		/* If pte is not present return None */
+		/* If pte is analt present return Analne */
 		if (unlikely(!pte_present(old_pte)))
 			return __pte(0);
 
@@ -519,10 +519,10 @@ static inline int is_vrma_hpte(unsigned long hpte_v)
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 /*
- * Note modification of an HPTE; set the HPTE modified bit
+ * Analte modification of an HPTE; set the HPTE modified bit
  * if anyone is interested.
  */
-static inline void note_hpte_modification(struct kvm *kvm,
+static inline void analte_hpte_modification(struct kvm *kvm,
 					  struct revmap_entry *rev)
 {
 	if (atomic_read(&kvm->arch.hpte_mod_interest))
@@ -652,7 +652,7 @@ static inline pte_t *find_kvm_secondary_pte(struct kvm *kvm, unsigned long ea,
 	pte_t *pte;
 
 	VM_WARN(!spin_is_locked(&kvm->mmu_lock),
-		"%s called with kvm mmu_lock not held \n", __func__);
+		"%s called with kvm mmu_lock analt held \n", __func__);
 	pte = __find_linux_pte(kvm->arch.pgtable, ea, NULL, hshift);
 
 	return pte;
@@ -664,7 +664,7 @@ static inline pte_t *find_kvm_host_pte(struct kvm *kvm, unsigned long mmu_seq,
 	pte_t *pte;
 
 	VM_WARN(!spin_is_locked(&kvm->mmu_lock),
-		"%s called with kvm mmu_lock not held \n", __func__);
+		"%s called with kvm mmu_lock analt held \n", __func__);
 
 	if (mmu_invalidate_retry(kvm, mmu_seq))
 		return NULL;

@@ -25,7 +25,7 @@ void test_global_func_dead_code(void)
 
 	tgt_fd = bpf_program__fd(tgt_skel->progs.chained_global_func_calls_success);
 
-	/* Attach to good non-eliminated subprog */
+	/* Attach to good analn-eliminated subprog */
 	skel = freplace_dead_global_func__open();
 	if (!ASSERT_OK_PTR(skel, "skel_good_open"))
 		goto out;

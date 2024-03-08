@@ -31,7 +31,7 @@ struct cmdq_client {
 
 /**
  * cmdq_dev_get_client_reg() - parse cmdq client reg from the device
- *			       node of CMDQ client
+ *			       analde of CMDQ client
  * @dev:	device of CMDQ mailbox client
  * @client_reg: CMDQ client reg pointer
  * @idx:	the index of desired reg
@@ -39,7 +39,7 @@ struct cmdq_client {
  * Return: 0 for success; else the error code is returned
  *
  * Help CMDQ client parsing the cmdq client reg
- * from the device node of CMDQ client.
+ * from the device analde of CMDQ client.
  */
 int cmdq_dev_get_client_reg(struct device *dev,
 			    struct cmdq_client_reg *client_reg, int idx);
@@ -133,7 +133,7 @@ int cmdq_pkt_write_s(struct cmdq_pkt *pkt, u16 high_addr_reg_idx,
  * @high_addr_reg_idx:	internal register ID which contains high address of pa
  * @addr_low:	low address of pa
  * @src_reg_idx:	the CMDQ internal register ID which cache source value
- * @mask:	the specified target address mask, use U32_MAX if no need
+ * @mask:	the specified target address mask, use U32_MAX if anal need
  *
  * Return: 0 for success; else the error code is returned
  *
@@ -177,7 +177,7 @@ int cmdq_pkt_write_s_mask_value(struct cmdq_pkt *pkt, u8 high_addr_reg_idx,
  * cmdq_pkt_wfe() - append wait for event command to the CMDQ packet
  * @pkt:	the CMDQ packet
  * @event:	the desired event type to wait
- * @clear:	clear event or not after event arrive
+ * @clear:	clear event or analt after event arrive
  *
  * Return: 0 for success; else the error code is returned
  */
@@ -267,15 +267,15 @@ int cmdq_pkt_jump(struct cmdq_pkt *pkt, dma_addr_t addr);
 int cmdq_pkt_finalize(struct cmdq_pkt *pkt);
 
 /**
- * cmdq_pkt_flush_async() - trigger CMDQ to asynchronously execute the CMDQ
+ * cmdq_pkt_flush_async() - trigger CMDQ to asynchroanalusly execute the CMDQ
  *                          packet and call back at the end of done packet
  * @pkt:	the CMDQ packet
  *
  * Return: 0 for success; else the error code is returned
  *
- * Trigger CMDQ to asynchronously execute the CMDQ packet and call back
- * at the end of done packet. Note that this is an ASYNC function. When the
- * function returned, it may or may not be finished.
+ * Trigger CMDQ to asynchroanalusly execute the CMDQ packet and call back
+ * at the end of done packet. Analte that this is an ASYNC function. When the
+ * function returned, it may or may analt be finished.
  */
 int cmdq_pkt_flush_async(struct cmdq_pkt *pkt);
 
@@ -284,7 +284,7 @@ int cmdq_pkt_flush_async(struct cmdq_pkt *pkt);
 static inline int cmdq_dev_get_client_reg(struct device *dev,
 					  struct cmdq_client_reg *client_reg, int idx)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline struct cmdq_client *cmdq_mbox_create(struct device *dev, int index)
@@ -303,43 +303,43 @@ static inline void cmdq_pkt_destroy(struct cmdq_pkt *pkt) { }
 
 static inline int cmdq_pkt_write(struct cmdq_pkt *pkt, u8 subsys, u16 offset, u32 value)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline int cmdq_pkt_write_mask(struct cmdq_pkt *pkt, u8 subsys,
 				      u16 offset, u32 value, u32 mask)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline int cmdq_pkt_read_s(struct cmdq_pkt *pkt, u16 high_addr_reg_idx,
 				  u16 addr_low, u16 reg_idx)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline int cmdq_pkt_write_s(struct cmdq_pkt *pkt, u16 high_addr_reg_idx,
 				   u16 addr_low, u16 src_reg_idx)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline int cmdq_pkt_write_s_mask(struct cmdq_pkt *pkt, u16 high_addr_reg_idx,
 					u16 addr_low, u16 src_reg_idx, u32 mask)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline int cmdq_pkt_write_s_value(struct cmdq_pkt *pkt, u8 high_addr_reg_idx,
 					 u16 addr_low, u32 value)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline int cmdq_pkt_write_s_mask_value(struct cmdq_pkt *pkt, u8 high_addr_reg_idx,
 					      u16 addr_low, u32 value, u32 mask)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline int cmdq_pkt_wfe(struct cmdq_pkt *pkt, u16 event, bool clear)

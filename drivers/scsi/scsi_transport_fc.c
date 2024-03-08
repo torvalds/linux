@@ -57,7 +57,7 @@ MODULE_PARM_DESC(dev_loss_tmo,
 		 " insulate the loss of a remote port. Once this value is"
 		 " exceeded, the scsi target is removed. Value should be"
 		 " between 1 and SCSI_DEVICE_BLOCK_MAX_TIMEOUT if"
-		 " fast_io_fail_tmo is not set.");
+		 " fast_io_fail_tmo is analt set.");
 
 /*
  * Redefine so that we can have same named attributes in the
@@ -104,9 +104,9 @@ static struct {
 	enum fc_port_type	value;
 	char			*name;
 } fc_port_type_names[] = {
-	{ FC_PORTTYPE_UNKNOWN,		"Unknown" },
+	{ FC_PORTTYPE_UNKANALWN,		"Unkanalwn" },
 	{ FC_PORTTYPE_OTHER,		"Other" },
-	{ FC_PORTTYPE_NOTPRESENT,	"Not Present" },
+	{ FC_PORTTYPE_ANALTPRESENT,	"Analt Present" },
 	{ FC_PORTTYPE_NPORT,	"NPort (fabric via point-to-point)" },
 	{ FC_PORTTYPE_NLPORT,	"NLPort (fabric via loop)" },
 	{ FC_PORTTYPE_LPORT,	"LPort (private loop)" },
@@ -131,11 +131,11 @@ static const struct {
 	{ FCH_EVT_LIPRESET,		"lip_reset" },
 	{ FCH_EVT_RSCN,			"rscn" },
 	{ FCH_EVT_ADAPTER_CHANGE,	"adapter_chg" },
-	{ FCH_EVT_PORT_UNKNOWN,		"port_unknown" },
+	{ FCH_EVT_PORT_UNKANALWN,		"port_unkanalwn" },
 	{ FCH_EVT_PORT_ONLINE,		"port_online" },
 	{ FCH_EVT_PORT_OFFLINE,		"port_offline" },
 	{ FCH_EVT_PORT_FABRIC,		"port_fabric" },
-	{ FCH_EVT_LINK_UNKNOWN,		"link_unknown" },
+	{ FCH_EVT_LINK_UNKANALWN,		"link_unkanalwn" },
 	{ FCH_EVT_LINK_FPIN,		"link_FPIN" },
 	{ FCH_EVT_LINK_FPIN_ACK,	"link_FPIN_ACK" },
 	{ FCH_EVT_VENDOR_UNIQUE,	"vendor_unique" },
@@ -151,13 +151,13 @@ static struct {
 	char			*name;
 	int			matchlen;
 } fc_port_state_names[] = {
-	{ FC_PORTSTATE_UNKNOWN,		"Unknown", 7},
-	{ FC_PORTSTATE_NOTPRESENT,	"Not Present", 11 },
+	{ FC_PORTSTATE_UNKANALWN,		"Unkanalwn", 7},
+	{ FC_PORTSTATE_ANALTPRESENT,	"Analt Present", 11 },
 	{ FC_PORTSTATE_ONLINE,		"Online", 6 },
 	{ FC_PORTSTATE_OFFLINE,		"Offline", 7 },
 	{ FC_PORTSTATE_BLOCKED,		"Blocked", 7 },
 	{ FC_PORTSTATE_BYPASSED,	"Bypassed", 8 },
-	{ FC_PORTSTATE_DIAGNOSTICS,	"Diagnostics", 11 },
+	{ FC_PORTSTATE_DIAGANALSTICS,	"Diaganalstics", 11 },
 	{ FC_PORTSTATE_LINKDOWN,	"Linkdown", 8 },
 	{ FC_PORTSTATE_ERROR,		"Error", 5 },
 	{ FC_PORTSTATE_LOOPBACK,	"Loopback", 8 },
@@ -174,13 +174,13 @@ static struct {
 	enum fc_vport_state	value;
 	char			*name;
 } fc_vport_state_names[] = {
-	{ FC_VPORT_UNKNOWN,		"Unknown" },
+	{ FC_VPORT_UNKANALWN,		"Unkanalwn" },
 	{ FC_VPORT_ACTIVE,		"Active" },
 	{ FC_VPORT_DISABLED,		"Disabled" },
 	{ FC_VPORT_LINKDOWN,		"Linkdown" },
 	{ FC_VPORT_INITIALIZING,	"Initializing" },
-	{ FC_VPORT_NO_FABRIC_SUPP,	"No Fabric Support" },
-	{ FC_VPORT_NO_FABRIC_RSCS,	"No Fabric Resources" },
+	{ FC_VPORT_ANAL_FABRIC_SUPP,	"Anal Fabric Support" },
+	{ FC_VPORT_ANAL_FABRIC_RSCS,	"Anal Fabric Resources" },
 	{ FC_VPORT_FABRIC_LOGOUT,	"Fabric Logout" },
 	{ FC_VPORT_FABRIC_REJ_WWN,	"Fabric Rejected WWN" },
 	{ FC_VPORT_FAILED,		"VPort Failed" },
@@ -198,9 +198,9 @@ static const struct {
 	char				*name;
 	int				matchlen;
 } fc_tgtid_binding_type_names[] = {
-	{ FC_TGTID_BIND_NONE, "none", 4 },
+	{ FC_TGTID_BIND_ANALNE, "analne", 4 },
 	{ FC_TGTID_BIND_BY_WWPN, "wwpn (World Wide Port Name)", 4 },
-	{ FC_TGTID_BIND_BY_WWNN, "wwnn (World Wide Node Name)", 4 },
+	{ FC_TGTID_BIND_BY_WWNN, "wwnn (World Wide Analde Name)", 4 },
 	{ FC_TGTID_BIND_BY_ID, "port_id (FC Address)", 7 },
 };
 fc_enum_name_search(tgtid_bind_type, fc_tgtid_binding_type,
@@ -264,7 +264,7 @@ static const struct {
 	{ FC_PORTSPEED_64GBIT,		"64 Gbit" },
 	{ FC_PORTSPEED_128GBIT,		"128 Gbit" },
 	{ FC_PORTSPEED_256GBIT,		"256 Gbit" },
-	{ FC_PORTSPEED_NOT_NEGOTIATED,	"Not Negotiated" },
+	{ FC_PORTSPEED_ANALT_NEGOTIATED,	"Analt Negotiated" },
 };
 fc_bitfield_name_search(port_speed, fc_port_speed_names)
 
@@ -299,8 +299,8 @@ fc_bitfield_name_search(port_roles, fc_port_role_names)
 /*
  * Define roles that are specific to port_id. Values are relative to ROLE_MASK.
  */
-#define FC_WELLKNOWN_PORTID_MASK	0xfffff0
-#define FC_WELLKNOWN_ROLE_MASK  	0x00000f
+#define FC_WELLKANALWN_PORTID_MASK	0xfffff0
+#define FC_WELLKANALWN_ROLE_MASK  	0x00000f
 #define FC_FPORT_PORTID			0x00000e
 #define FC_FABCTLR_PORTID		0x00000d
 #define FC_DIRSRVR_PORTID		0x00000c
@@ -361,15 +361,15 @@ static int fc_target_setup(struct transport_container *tc, struct device *dev,
 
 	/*
 	 * if parent is remote port, use values from remote port.
-	 * Otherwise, this host uses the fc_transport, but not the
-	 * remote port interface. As such, initialize to known non-values.
+	 * Otherwise, this host uses the fc_transport, but analt the
+	 * remote port interface. As such, initialize to kanalwn analn-values.
 	 */
 	if (rport) {
-		fc_starget_node_name(starget) = rport->node_name;
+		fc_starget_analde_name(starget) = rport->analde_name;
 		fc_starget_port_name(starget) = rport->port_name;
 		fc_starget_port_id(starget) = rport->port_id;
 	} else {
-		fc_starget_node_name(starget) = -1;
+		fc_starget_analde_name(starget) = -1;
 		fc_starget_port_name(starget) = -1;
 		fc_starget_port_id(starget) = -1;
 	}
@@ -394,13 +394,13 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	 * failure cases.  The scsi lldd is responsible for initializing
 	 * all transport attributes to valid values per host.
 	 */
-	fc_host->node_name = -1;
+	fc_host->analde_name = -1;
 	fc_host->port_name = -1;
 	fc_host->permanent_port_name = -1;
 	fc_host->supported_classes = FC_COS_UNSPECIFIED;
 	memset(fc_host->supported_fc4s, 0,
 		sizeof(fc_host->supported_fc4s));
-	fc_host->supported_speeds = FC_PORTSPEED_UNKNOWN;
+	fc_host->supported_speeds = FC_PORTSPEED_UNKANALWN;
 	fc_host->maxframe_size = -1;
 	fc_host->max_npiv_vports = 0;
 	memset(fc_host->serial_number, 0,
@@ -421,11 +421,11 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 		sizeof(fc_host->optionrom_version));
 
 	fc_host->port_id = -1;
-	fc_host->port_type = FC_PORTTYPE_UNKNOWN;
-	fc_host->port_state = FC_PORTSTATE_UNKNOWN;
+	fc_host->port_type = FC_PORTTYPE_UNKANALWN;
+	fc_host->port_state = FC_PORTSTATE_UNKANALWN;
 	memset(fc_host->active_fc4s, 0,
 		sizeof(fc_host->active_fc4s));
-	fc_host->speed = FC_PORTSPEED_UNKNOWN;
+	fc_host->speed = FC_PORTSPEED_UNKANALWN;
 	fc_host->fabric_name = -1;
 	memset(fc_host->symbolic_name, 0, sizeof(fc_host->symbolic_name));
 	memset(fc_host->system_hostname, 0, sizeof(fc_host->system_hostname));
@@ -442,25 +442,25 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	fc_host->npiv_vports_inuse = 0;
 
 	snprintf(fc_host->work_q_name, sizeof(fc_host->work_q_name),
-		 "fc_wq_%d", shost->host_no);
+		 "fc_wq_%d", shost->host_anal);
 	fc_host->work_q = alloc_workqueue("%s", 0, 0, fc_host->work_q_name);
 	if (!fc_host->work_q)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fc_host->dev_loss_tmo = fc_dev_loss_tmo;
 	snprintf(fc_host->devloss_work_q_name,
 		 sizeof(fc_host->devloss_work_q_name),
-		 "fc_dl_%d", shost->host_no);
+		 "fc_dl_%d", shost->host_anal);
 	fc_host->devloss_work_q = alloc_workqueue("%s", 0, 0,
 					fc_host->devloss_work_q_name);
 	if (!fc_host->devloss_work_q) {
 		destroy_workqueue(fc_host->work_q);
 		fc_host->work_q = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	fc_bsg_hostadd(shost, fc_host);
-	/* ignore any bsg add error - we just can't do sgio */
+	/* iganalre any bsg add error - we just can't do sgio */
 
 	return 0;
 }
@@ -510,9 +510,9 @@ static atomic_t fc_event_seq;
 /**
  * fc_get_event_number - Obtain the next sequential FC event number
  *
- * Notes:
+ * Analtes:
  *   We could have inlined this, but it would have required fc_event_seq to
- *   be exposed. For now, live with the subroutine call.
+ *   be exposed. For analw, live with the subroutine call.
  *   Atomic used to avoid lock/unlock...
  */
 u32
@@ -532,8 +532,8 @@ EXPORT_SYMBOL(fc_get_event_number);
  * @data_buf:		pointer to event data
  * @vendor_id:          value for Vendor id
  *
- * Notes:
- *	This routine assumes no locks are held on entry.
+ * Analtes:
+ *	This routine assumes anal locks are held on entry.
  */
 void
 fc_host_post_fc_event(struct Scsi_Host *shost, u32 event_number,
@@ -551,7 +551,7 @@ fc_host_post_fc_event(struct Scsi_Host *shost, u32 event_number,
 		data_len = 0;
 
 	if (!scsi_nl_sock) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto send_fail;
 	}
 
@@ -559,13 +559,13 @@ fc_host_post_fc_event(struct Scsi_Host *shost, u32 event_number,
 
 	skb = nlmsg_new(len, GFP_KERNEL);
 	if (!skb) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto send_fail;
 	}
 
 	nlh = nlmsg_put(skb, 0, 0, SCSI_TRANSPORT_MSG, len, 0);
 	if (!nlh) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto send_fail_skb;
 	}
 	event = nlmsg_data(nlh);
@@ -574,7 +574,7 @@ fc_host_post_fc_event(struct Scsi_Host *shost, u32 event_number,
 				FC_NL_ASYNC_EVENT, len);
 	event->seconds = ktime_get_real_seconds();
 	event->vendor_id = vendor_id;
-	event->host_no = shost->host_no;
+	event->host_anal = shost->host_anal;
 	event->event_datalen = data_len;	/* bytes */
 	event->event_num = event_number;
 	event->event_code = event_code;
@@ -593,8 +593,8 @@ send_fail:
 	name = get_fc_host_event_code_name(event_code);
 	printk(KERN_WARNING
 		"%s: Dropped Event : host %d %s data 0x%08x - err %d\n",
-		__func__, shost->host_no,
-		(name) ? name : "<unknown>",
+		__func__, shost->host_anal,
+		(name) ? name : "<unkanalwn>",
 		(data_len) ? *((u32 *)data_buf) : 0xFFFFFFFF, err);
 	return;
 }
@@ -607,8 +607,8 @@ EXPORT_SYMBOL(fc_host_post_fc_event);
  * @event_code:		fc_host event being posted
  * @event_data:		32bits of data for the event being posted
  *
- * Notes:
- *	This routine assumes no locks are held on entry.
+ * Analtes:
+ *	This routine assumes anal locks are held on entry.
  */
 void
 fc_host_post_event(struct Scsi_Host *shost, u32 event_number,
@@ -629,8 +629,8 @@ EXPORT_SYMBOL(fc_host_post_event);
  * @data_buf:		pointer to vendor unique data
  * @vendor_id:          Vendor id
  *
- * Notes:
- *	This routine assumes no locks are held on entry.
+ * Analtes:
+ *	This routine assumes anal locks are held on entry.
  */
 void
 fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
@@ -646,8 +646,8 @@ EXPORT_SYMBOL(fc_host_post_vendor_event);
  * @shost:		host the fc_rport is associated with
  * @wwpn:		wwpn of the fc_rport device
  *
- * Notes:
- *	This routine assumes no locks are held on entry.
+ * Analtes:
+ *	This routine assumes anal locks are held on entry.
  */
 struct fc_rport *
 fc_find_rport_by_wwpn(struct Scsi_Host *shost, u64 wwpn)
@@ -678,8 +678,8 @@ fc_li_stats_update(u16 event_type,
 {
 	stats->li++;
 	switch (event_type) {
-	case FPIN_LI_UNKNOWN:
-		stats->li_failure_unknown++;
+	case FPIN_LI_UNKANALWN:
+		stats->li_failure_unkanalwn++;
 		break;
 	case FPIN_LI_LINK_FAILURE:
 		stats->li_link_failure_count++;
@@ -710,8 +710,8 @@ fc_delivery_stats_update(u32 reason_code, struct fc_fpin_stats *stats)
 {
 	stats->dn++;
 	switch (reason_code) {
-	case FPIN_DELI_UNKNOWN:
-		stats->dn_unknown++;
+	case FPIN_DELI_UNKANALWN:
+		stats->dn_unkanalwn++;
 		break;
 	case FPIN_DELI_TIMEOUT:
 		stats->dn_timeout++;
@@ -796,7 +796,7 @@ fc_fpin_li_stats_update(struct Scsi_Host *shost, struct fc_tlv_desc *tlv)
 }
 
 /*
- * fc_fpin_delivery_stats_update - routine to update Delivery Notification
+ * fc_fpin_delivery_stats_update - routine to update Delivery Analtification
  * event statistics.
  * @shost:		host the FPIN was received on
  * @tlv:		pointer to delivery descriptor
@@ -895,20 +895,20 @@ fc_fpin_congn_stats_update(struct Scsi_Host *shost,
  * @shost:		host the FPIN was received on
  * @fpin_len:		length of FPIN payload, in bytes
  * @fpin_buf:		pointer to FPIN payload
- * @event_acknowledge:	1, if LLDD handles this event.
- * Notes:
- *	This routine assumes no locks are held on entry.
+ * @event_ackanalwledge:	1, if LLDD handles this event.
+ * Analtes:
+ *	This routine assumes anal locks are held on entry.
  */
 void
 fc_host_fpin_rcv(struct Scsi_Host *shost, u32 fpin_len, char *fpin_buf,
-		u8 event_acknowledge)
+		u8 event_ackanalwledge)
 {
 	struct fc_els_fpin *fpin = (struct fc_els_fpin *)fpin_buf;
 	struct fc_tlv_desc *tlv;
 	u32 bytes_remain;
 	u32 dtag;
 	enum fc_host_event_code event_code =
-		event_acknowledge ? FCH_EVT_LINK_FPIN_ACK : FCH_EVT_LINK_FPIN;
+		event_ackanalwledge ? FCH_EVT_LINK_FPIN_ACK : FCH_EVT_LINK_FPIN;
 
 	/* Update Statistics */
 	tlv = (struct fc_tlv_desc *)&fpin->fpin_desc[0];
@@ -994,7 +994,7 @@ show_fc_rport_##field (struct device *dev, 				\
 	if ((i->f->get_rport_##field) &&				\
 	    !((rport->port_state == FC_PORTSTATE_BLOCKED) ||		\
 	      (rport->port_state == FC_PORTSTATE_DELETED) ||		\
-	      (rport->port_state == FC_PORTSTATE_NOTPRESENT)))		\
+	      (rport->port_state == FC_PORTSTATE_ANALTPRESENT)))		\
 		i->f->get_rport_##field(rport);				\
 	return snprintf(buf, sz, format_string, cast rport->field); 	\
 }
@@ -1012,7 +1012,7 @@ store_fc_rport_##field(struct device *dev,				\
 	char *cp;							\
 	if ((rport->port_state == FC_PORTSTATE_BLOCKED) ||		\
 	    (rport->port_state == FC_PORTSTATE_DELETED) ||		\
-	    (rport->port_state == FC_PORTSTATE_NOTPRESENT))		\
+	    (rport->port_state == FC_PORTSTATE_ANALTPRESENT))		\
 		return -EBUSY;						\
 	val = simple_strtoul(buf, &cp, 0);				\
 	if (*cp && (*cp != '\n'))					\
@@ -1155,7 +1155,7 @@ static int fc_rport_set_dev_loss_tmo(struct fc_rport *rport,
 
 	if ((rport->port_state == FC_PORTSTATE_BLOCKED) ||
 	    (rport->port_state == FC_PORTSTATE_DELETED) ||
-	    (rport->port_state == FC_PORTSTATE_NOTPRESENT))
+	    (rport->port_state == FC_PORTSTATE_ANALTPRESENT))
 		return -EBUSY;
 	/*
 	 * Check for overflow; dev_loss_tmo is u32
@@ -1199,7 +1199,7 @@ static FC_DEVICE_ATTR(rport, dev_loss_tmo, S_IRUGO | S_IWUSR,
 
 /* Private Remote Port Attributes */
 
-fc_private_rport_rd_attr_cast(node_name, "0x%llx\n", 20, unsigned long long);
+fc_private_rport_rd_attr_cast(analde_name, "0x%llx\n", 20, unsigned long long);
 fc_private_rport_rd_attr_cast(port_name, "0x%llx\n", 20, unsigned long long);
 fc_private_rport_rd_attr(port_id, "0x%06x\n", 20);
 
@@ -1211,9 +1211,9 @@ show_fc_rport_roles (struct device *dev, struct device_attribute *attr,
 
 	/* identify any roles that are port_id specific */
 	if ((rport->port_id != -1) &&
-	    (rport->port_id & FC_WELLKNOWN_PORTID_MASK) ==
-					FC_WELLKNOWN_PORTID_MASK) {
-		switch (rport->port_id & FC_WELLKNOWN_ROLE_MASK) {
+	    (rport->port_id & FC_WELLKANALWN_PORTID_MASK) ==
+					FC_WELLKANALWN_PORTID_MASK) {
+		switch (rport->port_id & FC_WELLKANALWN_ROLE_MASK) {
 		case FC_FPORT_PORTID:
 			return snprintf(buf, 30, "Fabric Port\n");
 		case FC_FABCTLR_PORTID:
@@ -1225,11 +1225,11 @@ show_fc_rport_roles (struct device *dev, struct device_attribute *attr,
 		case FC_MGMTSRVR_PORTID:
 			return snprintf(buf, 30, "Management Server\n");
 		default:
-			return snprintf(buf, 30, "Unknown Fabric Entity\n");
+			return snprintf(buf, 30, "Unkanalwn Fabric Entity\n");
 		}
 	} else {
-		if (rport->roles == FC_PORT_ROLE_UNKNOWN)
-			return snprintf(buf, 20, "unknown\n");
+		if (rport->roles == FC_PORT_ROLE_UNKANALWN)
+			return snprintf(buf, 20, "unkanalwn\n");
 		return get_fc_port_roles_names(rport->roles, buf);
 	}
 }
@@ -1316,7 +1316,7 @@ store_fc_rport_fast_io_fail_tmo(struct device *dev,
 
 	if ((rport->port_state == FC_PORTSTATE_BLOCKED) ||
 	    (rport->port_state == FC_PORTSTATE_DELETED) ||
-	    (rport->port_state == FC_PORTSTATE_NOTPRESENT))
+	    (rport->port_state == FC_PORTSTATE_ANALTPRESENT))
 		return -EBUSY;
 	if (strncmp(buf, "off", 3) == 0)
 		rport->fast_io_fail_tmo = -1;
@@ -1351,7 +1351,7 @@ static ssize_t fc_rport_fpinstat_##name(struct device *cd,		\
 static FC_DEVICE_ATTR(rport, fpin_##name, 0444, fc_rport_fpinstat_##name, NULL)
 
 fc_rport_fpin_statistic(dn);
-fc_rport_fpin_statistic(dn_unknown);
+fc_rport_fpin_statistic(dn_unkanalwn);
 fc_rport_fpin_statistic(dn_timeout);
 fc_rport_fpin_statistic(dn_unable_to_route);
 fc_rport_fpin_statistic(dn_device_specific);
@@ -1362,7 +1362,7 @@ fc_rport_fpin_statistic(cn_credit_stall);
 fc_rport_fpin_statistic(cn_oversubscription);
 fc_rport_fpin_statistic(cn_device_specific);
 fc_rport_fpin_statistic(li);
-fc_rport_fpin_statistic(li_failure_unknown);
+fc_rport_fpin_statistic(li_failure_unkanalwn);
 fc_rport_fpin_statistic(li_link_failure_count);
 fc_rport_fpin_statistic(li_loss_of_sync_count);
 fc_rport_fpin_statistic(li_loss_of_signals_count);
@@ -1373,12 +1373,12 @@ fc_rport_fpin_statistic(li_device_specific);
 
 static struct attribute *fc_rport_statistics_attrs[] = {
 	&device_attr_rport_fpin_dn.attr,
-	&device_attr_rport_fpin_dn_unknown.attr,
+	&device_attr_rport_fpin_dn_unkanalwn.attr,
 	&device_attr_rport_fpin_dn_timeout.attr,
 	&device_attr_rport_fpin_dn_unable_to_route.attr,
 	&device_attr_rport_fpin_dn_device_specific.attr,
 	&device_attr_rport_fpin_li.attr,
-	&device_attr_rport_fpin_li_failure_unknown.attr,
+	&device_attr_rport_fpin_li_failure_unkanalwn.attr,
 	&device_attr_rport_fpin_li_link_failure_count.attr,
 	&device_attr_rport_fpin_li_loss_of_sync_count.attr,
 	&device_attr_rport_fpin_li_loss_of_signals_count.attr,
@@ -1406,8 +1406,8 @@ static struct attribute_group fc_rport_statistics_group = {
  */
 
 /*
- * Note: in the target show function we recognize when the remote
- *  port is in the hierarchy and do not allow the driver to get
+ * Analte: in the target show function we recognize when the remote
+ *  port is in the hierarchy and do analt allow the driver to get
  *  involved in sysfs functions. The driver only gets involved if
  *  it's the "old" style that doesn't use rports.
  */
@@ -1457,7 +1457,7 @@ static FC_DEVICE_ATTR(starget, field, S_IRUGO,			\
 		count++
 
 /* The FC Transport SCSI Target Attributes: */
-fc_starget_rd_attr_cast(node_name, "0x%llx\n", 20, unsigned long long);
+fc_starget_rd_attr_cast(analde_name, "0x%llx\n", 20, unsigned long long);
 fc_starget_rd_attr_cast(port_name, "0x%llx\n", 20, unsigned long long);
 fc_starget_rd_attr(port_id, "0x%06x\n", 20);
 
@@ -1608,7 +1608,7 @@ static FC_DEVICE_ATTR(vport, title, S_IRUGO,			\
 	i->vport_attrs[count] = &i->private_vport_attrs[count];		\
 	if (i->f->get_##field)						\
 		count++
-	/* NOTE: Above MACRO differs: checks function not show bit */
+	/* ANALTE: Above MACRO differs: checks function analt show bit */
 
 #define SETUP_PRIVATE_VPORT_ATTRIBUTE_RD(field)				\
 	i->private_vport_attrs[count] = device_attr_vport_##field; \
@@ -1622,7 +1622,7 @@ static FC_DEVICE_ATTR(vport, title, S_IRUGO,			\
 	i->vport_attrs[count] = &i->private_vport_attrs[count];		\
 	if (i->f->field)						\
 		count++
-	/* NOTE: Above MACRO differs: checks function */
+	/* ANALTE: Above MACRO differs: checks function */
 
 #define SETUP_VPORT_ATTRIBUTE_RW(field)					\
 	i->private_vport_attrs[count] = device_attr_vport_##field; \
@@ -1632,7 +1632,7 @@ static FC_DEVICE_ATTR(vport, title, S_IRUGO,			\
 	}								\
 	i->vport_attrs[count] = &i->private_vport_attrs[count];		\
 	count++
-	/* NOTE: Above MACRO differs: does not check show bit */
+	/* ANALTE: Above MACRO differs: does analt check show bit */
 
 #define SETUP_PRIVATE_VPORT_ATTRIBUTE_RW(field)				\
 {									\
@@ -1652,7 +1652,7 @@ static FC_DEVICE_ATTR(vport, title, S_IRUGO,			\
 
 fc_private_vport_rd_enum_attr(vport_state, FC_VPORTSTATE_MAX_NAMELEN);
 fc_private_vport_rd_enum_attr(vport_last_state, FC_VPORTSTATE_MAX_NAMELEN);
-fc_private_vport_rd_attr_cast(node_name, "0x%llx\n", 20, unsigned long long);
+fc_private_vport_rd_attr_cast(analde_name, "0x%llx\n", 20, unsigned long long);
 fc_private_vport_rd_attr_cast(port_name, "0x%llx\n", 20, unsigned long long);
 
 static ssize_t
@@ -1661,8 +1661,8 @@ show_fc_vport_roles (struct device *dev, struct device_attribute *attr,
 {
 	struct fc_vport *vport = transport_class_to_vport(dev);
 
-	if (vport->roles == FC_PORT_ROLE_UNKNOWN)
-		return snprintf(buf, 20, "unknown\n");
+	if (vport->roles == FC_PORT_ROLE_UNKANALWN)
+		return snprintf(buf, 20, "unkanalwn\n");
 	return get_fc_port_roles_names(vport->roles, buf);
 }
 static FC_DEVICE_ATTR(vport, roles, S_IRUGO, show_fc_vport_roles, NULL);
@@ -1911,8 +1911,8 @@ show_fc_host_supported_speeds (struct device *dev,
 {
 	struct Scsi_Host *shost = transport_class_to_shost(dev);
 
-	if (fc_host_supported_speeds(shost) == FC_PORTSPEED_UNKNOWN)
-		return snprintf(buf, 20, "unknown\n");
+	if (fc_host_supported_speeds(shost) == FC_PORTSPEED_UNKANALWN)
+		return snprintf(buf, 20, "unkanalwn\n");
 
 	return get_fc_port_speed_names(fc_host_supported_speeds(shost), buf);
 }
@@ -1920,7 +1920,7 @@ static FC_DEVICE_ATTR(host, supported_speeds, S_IRUGO,
 		show_fc_host_supported_speeds, NULL);
 
 
-fc_private_host_rd_attr_cast(node_name, "0x%llx\n", 20, unsigned long long);
+fc_private_host_rd_attr_cast(analde_name, "0x%llx\n", 20, unsigned long long);
 fc_private_host_rd_attr_cast(port_name, "0x%llx\n", 20, unsigned long long);
 fc_private_host_rd_attr_cast(permanent_port_name, "0x%llx\n", 20,
 			     unsigned long long);
@@ -1963,8 +1963,8 @@ show_fc_host_speed (struct device *dev,
 	if (i->f->get_host_speed)
 		i->f->get_host_speed(shost);
 
-	if (fc_host_speed(shost) == FC_PORTSPEED_UNKNOWN)
-		return snprintf(buf, 20, "unknown\n");
+	if (fc_host_speed(shost) == FC_PORTSPEED_UNKANALWN)
+		return snprintf(buf, 20, "unkanalwn\n");
 
 	return get_fc_port_speed_names(fc_host_speed(shost), buf);
 }
@@ -2044,13 +2044,13 @@ store_fc_private_host_issue_lip(struct device *dev,
 	struct fc_internal *i = to_fc_internal(shost->transportt);
 	int ret;
 
-	/* ignore any data value written to the attribute */
+	/* iganalre any data value written to the attribute */
 	if (i->f->issue_fc_host_lip) {
 		ret = i->f->issue_fc_host_lip(shost);
 		return ret ? ret: count;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static FC_DEVICE_ATTR(host, issue_lip, S_IWUSR, NULL,
@@ -2097,7 +2097,7 @@ fc_stat_show(const struct device *dev, char *buf, unsigned long offset)
 	struct Scsi_Host *shost = transport_class_to_shost(dev);
 	struct fc_internal *i = to_fc_internal(shost->transportt);
 	struct fc_host_statistics *stats;
-	ssize_t ret = -ENOENT;
+	ssize_t ret = -EANALENT;
 
 	if (offset > sizeof(struct fc_host_statistics) ||
 	    offset % sizeof(u64) != 0)
@@ -2130,7 +2130,7 @@ fc_host_statistic(tx_words);
 fc_host_statistic(rx_frames);
 fc_host_statistic(rx_words);
 fc_host_statistic(lip_count);
-fc_host_statistic(nos_count);
+fc_host_statistic(anals_count);
 fc_host_statistic(error_frames);
 fc_host_statistic(dumped_frames);
 fc_host_statistic(link_failure_count);
@@ -2147,12 +2147,12 @@ fc_host_statistic(fcp_output_megabytes);
 fc_host_statistic(fcp_packet_alloc_failures);
 fc_host_statistic(fcp_packet_aborts);
 fc_host_statistic(fcp_frame_alloc_failures);
-fc_host_statistic(fc_no_free_exch);
-fc_host_statistic(fc_no_free_exch_xid);
-fc_host_statistic(fc_xid_not_found);
+fc_host_statistic(fc_anal_free_exch);
+fc_host_statistic(fc_anal_free_exch_xid);
+fc_host_statistic(fc_xid_analt_found);
 fc_host_statistic(fc_xid_busy);
-fc_host_statistic(fc_seq_not_found);
-fc_host_statistic(fc_non_bls_resp);
+fc_host_statistic(fc_seq_analt_found);
+fc_host_statistic(fc_analn_bls_resp);
 fc_host_statistic(cn_sig_warn);
 fc_host_statistic(cn_sig_alarm);
 
@@ -2170,7 +2170,7 @@ static ssize_t fc_host_fpinstat_##name(struct device *cd,		\
 static FC_DEVICE_ATTR(host, fpin_##name, 0444, fc_host_fpinstat_##name, NULL)
 
 fc_host_fpin_statistic(dn);
-fc_host_fpin_statistic(dn_unknown);
+fc_host_fpin_statistic(dn_unkanalwn);
 fc_host_fpin_statistic(dn_timeout);
 fc_host_fpin_statistic(dn_unable_to_route);
 fc_host_fpin_statistic(dn_device_specific);
@@ -2181,7 +2181,7 @@ fc_host_fpin_statistic(cn_credit_stall);
 fc_host_fpin_statistic(cn_oversubscription);
 fc_host_fpin_statistic(cn_device_specific);
 fc_host_fpin_statistic(li);
-fc_host_fpin_statistic(li_failure_unknown);
+fc_host_fpin_statistic(li_failure_unkanalwn);
 fc_host_fpin_statistic(li_link_failure_count);
 fc_host_fpin_statistic(li_loss_of_sync_count);
 fc_host_fpin_statistic(li_loss_of_signals_count);
@@ -2197,13 +2197,13 @@ fc_reset_statistics(struct device *dev, struct device_attribute *attr,
 	struct Scsi_Host *shost = transport_class_to_shost(dev);
 	struct fc_internal *i = to_fc_internal(shost->transportt);
 
-	/* ignore any data value written to the attribute */
+	/* iganalre any data value written to the attribute */
 	if (i->f->reset_fc_host_stats) {
 		i->f->reset_fc_host_stats(shost);
 		return count;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 static FC_DEVICE_ATTR(host, reset_statistics, S_IWUSR, NULL,
 				fc_reset_statistics);
@@ -2215,7 +2215,7 @@ static struct attribute *fc_statistics_attrs[] = {
 	&device_attr_host_rx_frames.attr,
 	&device_attr_host_rx_words.attr,
 	&device_attr_host_lip_count.attr,
-	&device_attr_host_nos_count.attr,
+	&device_attr_host_anals_count.attr,
 	&device_attr_host_error_frames.attr,
 	&device_attr_host_dumped_frames.attr,
 	&device_attr_host_link_failure_count.attr,
@@ -2232,22 +2232,22 @@ static struct attribute *fc_statistics_attrs[] = {
 	&device_attr_host_fcp_packet_alloc_failures.attr,
 	&device_attr_host_fcp_packet_aborts.attr,
 	&device_attr_host_fcp_frame_alloc_failures.attr,
-	&device_attr_host_fc_no_free_exch.attr,
-	&device_attr_host_fc_no_free_exch_xid.attr,
-	&device_attr_host_fc_xid_not_found.attr,
+	&device_attr_host_fc_anal_free_exch.attr,
+	&device_attr_host_fc_anal_free_exch_xid.attr,
+	&device_attr_host_fc_xid_analt_found.attr,
 	&device_attr_host_fc_xid_busy.attr,
-	&device_attr_host_fc_seq_not_found.attr,
-	&device_attr_host_fc_non_bls_resp.attr,
+	&device_attr_host_fc_seq_analt_found.attr,
+	&device_attr_host_fc_analn_bls_resp.attr,
 	&device_attr_host_cn_sig_warn.attr,
 	&device_attr_host_cn_sig_alarm.attr,
 	&device_attr_host_reset_statistics.attr,
 	&device_attr_host_fpin_dn.attr,
-	&device_attr_host_fpin_dn_unknown.attr,
+	&device_attr_host_fpin_dn_unkanalwn.attr,
 	&device_attr_host_fpin_dn_timeout.attr,
 	&device_attr_host_fpin_dn_unable_to_route.attr,
 	&device_attr_host_fpin_dn_device_specific.attr,
 	&device_attr_host_fpin_li.attr,
-	&device_attr_host_fpin_li_failure_unknown.attr,
+	&device_attr_host_fpin_li_failure_unkanalwn.attr,
 	&device_attr_host_fpin_li_link_failure_count.attr,
 	&device_attr_host_fpin_li_loss_of_sync_count.attr,
 	&device_attr_host_fpin_li_loss_of_signals_count.attr,
@@ -2305,7 +2305,7 @@ fc_parse_wwn(const char *ns, u64 *nm)
  * "Short-cut" sysfs variable to create a new vport on a FC Host.
  * Input is a string of the form "<WWPN>:<WWNN>". Other attributes
  * will default to a NPIV-based FCP_Initiator; The WWNs are specified
- * as hex characters, and may *not* contain any prefixes (e.g. 0x, x, etc)
+ * as hex characters, and may *analt* contain any prefixes (e.g. 0x, x, etc)
  */
 static ssize_t
 store_fc_host_vport_create(struct device *dev, struct device_attribute *attr,
@@ -2323,7 +2323,7 @@ store_fc_host_vport_create(struct device *dev, struct device_attribute *attr,
 	if (buf[cnt-1] == '\n')
 		cnt--;
 
-	/* validate we have enough characters for WWPN */
+	/* validate we have eanalugh characters for WWPN */
 	if ((cnt != (16+1+16)) || (buf[16] != ':'))
 		return -EINVAL;
 
@@ -2331,7 +2331,7 @@ store_fc_host_vport_create(struct device *dev, struct device_attribute *attr,
 	if (stat)
 		return stat;
 
-	stat = fc_parse_wwn(&buf[17], &vid.node_name);
+	stat = fc_parse_wwn(&buf[17], &vid.analde_name);
 	if (stat)
 		return stat;
 
@@ -2351,7 +2351,7 @@ static FC_DEVICE_ATTR(host, vport_create, S_IWUSR, NULL,
 /*
  * "Short-cut" sysfs variable to delete a vport on a FC Host.
  * Vport is identified by a string containing "<WWPN>:<WWNN>".
- * The WWNs are specified as hex characters, and may *not* contain
+ * The WWNs are specified as hex characters, and may *analt* contain
  * any prefixes (e.g. 0x, x, etc)
  */
 static ssize_t
@@ -2370,7 +2370,7 @@ store_fc_host_vport_delete(struct device *dev, struct device_attribute *attr,
 	if (buf[cnt-1] == '\n')
 		cnt--;
 
-	/* validate we have enough characters for WWPN */
+	/* validate we have eanalugh characters for WWPN */
 	if ((cnt != (16+1+16)) || (buf[16] != ':'))
 		return -EINVAL;
 
@@ -2387,7 +2387,7 @@ store_fc_host_vport_delete(struct device *dev, struct device_attribute *attr,
 	/* we only allow support on Channel 0 !!! */
 	list_for_each_entry(vport, &fc_host->vports, peers) {
 		if ((vport->channel == 0) &&
-		    (vport->port_name == wwpn) && (vport->node_name == wwnn)) {
+		    (vport->port_name == wwpn) && (vport->analde_name == wwnn)) {
 			if (vport->flags & (FC_VPORT_DEL | FC_VPORT_CREATING))
 				break;
 			vport->flags |= FC_VPORT_DELETING;
@@ -2398,7 +2398,7 @@ store_fc_host_vport_delete(struct device *dev, struct device_attribute *attr,
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	if (!match)
-		return -ENODEV;
+		return -EANALDEV;
 
 	stat = fc_vport_terminate(vport);
 	return stat ? stat : count;
@@ -2518,7 +2518,7 @@ static int fc_vport_match(struct attribute_container *cont,
  * This routine protects against error handlers getting invoked while a
  * rport is in a blocked state, typically due to a temporarily loss of
  * connectivity. If the error handlers are allowed to proceed, requests
- * to abort i/o, reset the target, etc will likely fail as there is no way
+ * to abort i/o, reset the target, etc will likely fail as there is anal way
  * to communicate with the device to perform the requested function. These
  * failures may result in the midlayer taking the device offline, requiring
  * manual intervention to restore operation.
@@ -2527,11 +2527,11 @@ static int fc_vport_match(struct attribute_container *cont,
  * the underlying rport. If the rport is blocked, it returns
  * EH_RESET_TIMER, which will continue to reschedule the timeout.
  * Eventually, either the device will return, or devloss_tmo will fire,
- * and when the timeout then fires, it will be handled normally.
- * If the rport is not blocked, normal error handling continues.
+ * and when the timeout then fires, it will be handled analrmally.
+ * If the rport is analt blocked, analrmal error handling continues.
  *
- * Notes:
- *	This routine assumes no locks are held on entry.
+ * Analtes:
+ *	This routine assumes anal locks are held on entry.
  */
 enum scsi_timeout_action fc_eh_timed_out(struct scsi_cmnd *scmd)
 {
@@ -2540,7 +2540,7 @@ enum scsi_timeout_action fc_eh_timed_out(struct scsi_cmnd *scmd)
 	if (rport->port_state == FC_PORTSTATE_BLOCKED)
 		return SCSI_EH_RESET_TIMER;
 
-	return SCSI_EH_NOT_HANDLED;
+	return SCSI_EH_ANALT_HANDLED;
 }
 EXPORT_SYMBOL(fc_eh_timed_out);
 
@@ -2663,7 +2663,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	 * Setup SCSI Target Attributes.
 	 */
 	count = 0;
-	SETUP_STARGET_ATTRIBUTE_RD(node_name);
+	SETUP_STARGET_ATTRIBUTE_RD(analde_name);
 	SETUP_STARGET_ATTRIBUTE_RD(port_name);
 	SETUP_STARGET_ATTRIBUTE_RD(port_id);
 
@@ -2676,7 +2676,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	 * Setup SCSI Host Attributes.
 	 */
 	count=0;
-	SETUP_HOST_ATTRIBUTE_RD(node_name);
+	SETUP_HOST_ATTRIBUTE_RD(analde_name);
 	SETUP_HOST_ATTRIBUTE_RD(port_name);
 	SETUP_HOST_ATTRIBUTE_RD(permanent_port_name);
 	SETUP_HOST_ATTRIBUTE_RD(supported_classes);
@@ -2726,7 +2726,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	SETUP_RPORT_ATTRIBUTE_RD(maxframe_size);
 	SETUP_RPORT_ATTRIBUTE_RD(supported_classes);
 	SETUP_RPORT_ATTRIBUTE_RW(dev_loss_tmo);
-	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(node_name);
+	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(analde_name);
 	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(port_name);
 	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(port_id);
 	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(roles);
@@ -2744,7 +2744,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	count=0;
 	SETUP_PRIVATE_VPORT_ATTRIBUTE_RD(vport_state);
 	SETUP_PRIVATE_VPORT_ATTRIBUTE_RD(vport_last_state);
-	SETUP_PRIVATE_VPORT_ATTRIBUTE_RD(node_name);
+	SETUP_PRIVATE_VPORT_ATTRIBUTE_RD(analde_name);
 	SETUP_PRIVATE_VPORT_ATTRIBUTE_RD(port_name);
 	SETUP_PRIVATE_VPORT_ATTRIBUTE_RD(roles);
 	SETUP_PRIVATE_VPORT_ATTRIBUTE_RD(vport_type);
@@ -2789,7 +2789,7 @@ fc_queue_work(struct Scsi_Host *shost, struct work_struct *work)
 	if (unlikely(!fc_host_work_q(shost))) {
 		printk(KERN_ERR
 			"ERROR: FC host '%s' attempted to queue work, "
-			"when no workqueue created.\n", shost->hostt->name);
+			"when anal workqueue created.\n", shost->hostt->name);
 		dump_stack();
 
 		return -EINVAL;
@@ -2808,7 +2808,7 @@ fc_flush_work(struct Scsi_Host *shost)
 	if (!fc_host_work_q(shost)) {
 		printk(KERN_ERR
 			"ERROR: FC host '%s' attempted to flush work, "
-			"when no workqueue created.\n", shost->hostt->name);
+			"when anal workqueue created.\n", shost->hostt->name);
 		dump_stack();
 		return;
 	}
@@ -2832,7 +2832,7 @@ fc_queue_devloss_work(struct Scsi_Host *shost, struct delayed_work *work,
 	if (unlikely(!fc_host_devloss_work_q(shost))) {
 		printk(KERN_ERR
 			"ERROR: FC host '%s' attempted to queue work, "
-			"when no workqueue created.\n", shost->hostt->name);
+			"when anal workqueue created.\n", shost->hostt->name);
 		dump_stack();
 
 		return -EINVAL;
@@ -2851,7 +2851,7 @@ fc_flush_devloss(struct Scsi_Host *shost)
 	if (!fc_host_devloss_work_q(shost)) {
 		printk(KERN_ERR
 			"ERROR: FC host '%s' attempted to flush work, "
-			"when no workqueue created.\n", shost->hostt->name);
+			"when anal workqueue created.\n", shost->hostt->name);
 		dump_stack();
 		return;
 	}
@@ -2872,8 +2872,8 @@ fc_flush_devloss(struct Scsi_Host *shost)
  *   objects in /sys/class/fc_remote_ports. Access to any of these
  *   objects can result in a system crash !!!
  *
- * Notes:
- *	This routine assumes no locks are held on entry.
+ * Analtes:
+ *	This routine assumes anal locks are held on entry.
  */
 void
 fc_remove_host(struct Scsi_Host *shost)
@@ -3007,7 +3007,7 @@ fc_rport_final_delete(struct work_struct *work)
 		fc_starget_delete(&rport->stgt_delete_work);
 
 	/*
-	 * Notify the driver that the rport is now dead. The LLDD will
+	 * Analtify the driver that the rport is analw dead. The LLDD will
 	 * also guarantee that any communication to the rport is terminated
 	 *
 	 * Avoid this call if we already called it when we preserved the
@@ -3044,8 +3044,8 @@ fc_rport_final_delete(struct work_struct *work)
  * Allocates and creates the remoter port structure, including the
  * class and sysfs creation.
  *
- * Notes:
- *	This routine assumes no locks are held on entry.
+ * Analtes:
+ *	This routine assumes anal locks are held on entry.
  */
 static struct fc_rport *
 fc_remote_port_create(struct Scsi_Host *shost, int channel,
@@ -3069,7 +3069,7 @@ fc_remote_port_create(struct Scsi_Host *shost, int channel,
 	rport->maxframe_size = -1;
 	rport->supported_classes = FC_COS_UNSPECIFIED;
 	rport->dev_loss_tmo = fc_host->dev_loss_tmo;
-	memcpy(&rport->node_name, &ids->node_name, sizeof(rport->node_name));
+	memcpy(&rport->analde_name, &ids->analde_name, sizeof(rport->analde_name));
 	memcpy(&rport->port_name, &ids->port_name, sizeof(rport->port_name));
 	rport->port_id = ids->port_id;
 	rport->roles = ids->roles;
@@ -3103,7 +3103,7 @@ fc_remote_port_create(struct Scsi_Host *shost, int channel,
 	dev->parent = get_device(&shost->shost_gendev); /* parent reference */
 	dev->release = fc_rport_dev_release;
 	dev_set_name(dev, "rport-%d:%d-%d",
-		     shost->host_no, channel, rport->number);
+		     shost->host_anal, channel, rport->number);
 	transport_setup_device(dev);
 
 	error = device_add(dev);
@@ -3115,7 +3115,7 @@ fc_remote_port_create(struct Scsi_Host *shost, int channel,
 	transport_configure_device(dev);
 
 	fc_bsg_rportadd(shost, rport);
-	/* ignore any bsg add error - we just can't do sgio */
+	/* iganalre any bsg add error - we just can't do sgio */
 
 	if (rport->roles & FC_PORT_ROLE_FCP_TARGET) {
 		/* initiate a scan of the target */
@@ -3137,13 +3137,13 @@ delete_rport:
 }
 
 /**
- * fc_remote_port_add - notify fc transport of the existence of a remote FC port.
+ * fc_remote_port_add - analtify fc transport of the existence of a remote FC port.
  * @shost:	scsi host the remote port is connected to.
  * @channel:	Channel on shost port connected to.
  * @ids:	The world wide names, fc address, and FC4 port
  *		roles for the remote port.
  *
- * The LLDD calls this routine to notify the transport of the existence
+ * The LLDD calls this routine to analtify the transport of the existence
  * of a remote port. The LLDD provides the unique identifiers (wwpn,wwn)
  * of the port, it's FC address (port_id), and the FC4 roles that are
  * active for the port.
@@ -3154,7 +3154,7 @@ delete_rport:
  * a remote port identifier, which persists while the scsi host is
  * attached. The remote port can disappear, then later reappear, and
  * it's target id assignment remains the same. This allows for shifts
- * in FC addressing (if binding by wwpn or wwnn) with no apparent
+ * in FC addressing (if binding by wwpn or wwnn) with anal apparent
  * changes to the scsi subsystem which is based on scsi host number and
  * target id values.  Bindings are only valid during the attachment of
  * the scsi host. If the host detaches, then later re-attaches, target
@@ -3169,10 +3169,10 @@ delete_rport:
  * Whenever a remote port is allocated, a new fc_remote_port class
  * device is created.
  *
- * Should not be called from interrupt context.
+ * Should analt be called from interrupt context.
  *
- * Notes:
- *	This routine assumes no locks are held on entry.
+ * Analtes:
+ *	This routine assumes anal locks are held on entry.
  */
 struct fc_rport *
 fc_remote_port_add(struct Scsi_Host *shost, int channel,
@@ -3197,17 +3197,17 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 	list_for_each_entry(rport, &fc_host->rports, peers) {
 
 		if ((rport->port_state == FC_PORTSTATE_BLOCKED ||
-		     rport->port_state == FC_PORTSTATE_NOTPRESENT) &&
+		     rport->port_state == FC_PORTSTATE_ANALTPRESENT) &&
 			(rport->channel == channel)) {
 
 			switch (fc_host->tgtid_bind_type) {
 			case FC_TGTID_BIND_BY_WWPN:
-			case FC_TGTID_BIND_NONE:
+			case FC_TGTID_BIND_ANALNE:
 				if (rport->port_name == ids->port_name)
 					match = 1;
 				break;
 			case FC_TGTID_BIND_BY_WWNN:
-				if (rport->node_name == ids->node_name)
+				if (rport->analde_name == ids->analde_name)
 					match = 1;
 				break;
 			case FC_TGTID_BIND_BY_ID:
@@ -3218,8 +3218,8 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 
 			if (match) {
 
-				memcpy(&rport->node_name, &ids->node_name,
-					sizeof(rport->node_name));
+				memcpy(&rport->analde_name, &ids->analde_name,
+					sizeof(rport->analde_name));
 				memcpy(&rport->port_name, &ids->port_name,
 					sizeof(rport->port_name));
 				rport->port_id = ids->port_id;
@@ -3234,7 +3234,7 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 						fci->f->dd_fcrport_size);
 
 				/*
-				 * If we were not a target, cancel the
+				 * If we were analt a target, cancel the
 				 * io terminate and rport timers, and
 				 * we're done.
 				 *
@@ -3249,7 +3249,7 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 				 * and kick off a scan.
 				 */
 
-				/* was a target, not in roles */
+				/* was a target, analt in roles */
 				if ((rport->scsi_target_id != -1) &&
 				    (!(ids->roles & FC_PORT_ROLE_FCP_TARGET)))
 					return rport;
@@ -3257,7 +3257,7 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 				/*
 				 * Stop the fail io and dev_loss timers.
 				 * If they flush, the port_state will
-				 * be checked and will NOOP the function.
+				 * be checked and will ANALOP the function.
 				 */
 				if (!cancel_delayed_work(&rport->fail_io_work))
 					fc_flush_devloss(shost);
@@ -3294,9 +3294,9 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 
 	/*
 	 * Search the bindings array
-	 * Note: if never a FCP target, you won't be on this list
+	 * Analte: if never a FCP target, you won't be on this list
 	 */
-	if (fc_host->tgtid_bind_type != FC_TGTID_BIND_NONE) {
+	if (fc_host->tgtid_bind_type != FC_TGTID_BIND_ANALNE) {
 
 		/* search for a matching consistent binding */
 
@@ -3311,14 +3311,14 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 					match = 1;
 				break;
 			case FC_TGTID_BIND_BY_WWNN:
-				if (rport->node_name == ids->node_name)
+				if (rport->analde_name == ids->analde_name)
 					match = 1;
 				break;
 			case FC_TGTID_BIND_BY_ID:
 				if (rport->port_id == ids->port_id)
 					match = 1;
 				break;
-			case FC_TGTID_BIND_NONE: /* to keep compiler happy */
+			case FC_TGTID_BIND_ANALNE: /* to keep compiler happy */
 				break;
 			}
 
@@ -3329,8 +3329,8 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 		}
 
 		if (match) {
-			memcpy(&rport->node_name, &ids->node_name,
-				sizeof(rport->node_name));
+			memcpy(&rport->analde_name, &ids->analde_name,
+				sizeof(rport->analde_name));
 			memcpy(&rport->port_name, &ids->port_name,
 				sizeof(rport->port_name));
 			rport->port_id = ids->port_id;
@@ -3349,7 +3349,7 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
-	/* No consistent binding found - create new remote port entry */
+	/* Anal consistent binding found - create new remote port entry */
 	rport = fc_remote_port_create(shost, channel, ids);
 
 	return rport;
@@ -3358,12 +3358,12 @@ EXPORT_SYMBOL(fc_remote_port_add);
 
 
 /**
- * fc_remote_port_delete - notifies the fc transport that a remote port is no longer in existence.
- * @rport:	The remote port that no longer exists
+ * fc_remote_port_delete - analtifies the fc transport that a remote port is anal longer in existence.
+ * @rport:	The remote port that anal longer exists
  *
- * The LLDD calls this routine to notify the transport that a remote
- * port is no longer part of the topology. Note: Although a port
- * may no longer be part of the topology, it may persist in the remote
+ * The LLDD calls this routine to analtify the transport that a remote
+ * port is anal longer part of the topology. Analte: Although a port
+ * may anal longer be part of the topology, it may persist in the remote
  * ports displayed by the fc_host. We do this under 2 conditions:
  *
  * 1) If the port was a scsi target, we delay its deletion by "blocking" it.
@@ -3378,20 +3378,20 @@ EXPORT_SYMBOL(fc_remote_port_add);
  *    remain (although with minimal information) so that the target id
  *    bindings also remain.
  *
- * If the remote port is not an FCP Target, it will be fully torn down
+ * If the remote port is analt an FCP Target, it will be fully torn down
  * and deallocated, including the fc_remote_port class device.
  *
  * If the remote port is an FCP Target, the port will be placed in a
- * temporary blocked state. From the LLDD's perspective, the rport no
+ * temporary blocked state. From the LLDD's perspective, the rport anal
  * longer exists. From the SCSI midlayer's perspective, the SCSI target
  * exists, but all sdevs on it are blocked from further I/O. The following
  * is then expected.
  *
- *   If the remote port does not return (signaled by a LLDD call to
+ *   If the remote port does analt return (signaled by a LLDD call to
  *   fc_remote_port_add()) within the dev_loss_tmo timeout, then the
  *   scsi target is removed - killing all outstanding i/o and removing the
- *   scsi devices attached to it. The port structure will be marked Not
- *   Present and be partially cleared, leaving only enough information to
+ *   scsi devices attached to it. The port structure will be marked Analt
+ *   Present and be partially cleared, leaving only eanalugh information to
  *   recognize the remote port relative to the scsi target id binding if
  *   it later appears.  The port will remain as long as there is a valid
  *   binding (e.g. until the user changes the binding type or unloads the
@@ -3399,15 +3399,15 @@ EXPORT_SYMBOL(fc_remote_port_add);
  *
  *   If the remote port returns within the dev_loss_tmo value (and matches
  *   according to the target id binding type), the port structure will be
- *   reused. If it is no longer a SCSI target, the target will be torn
+ *   reused. If it is anal longer a SCSI target, the target will be torn
  *   down. If it continues to be a SCSI target, then the target will be
  *   unblocked (allowing i/o to be resumed), and a scan will be activated
  *   to ensure that all luns are detected.
  *
- * Called from normal process context only - cannot be called from interrupt.
+ * Called from analrmal process context only - cananalt be called from interrupt.
  *
- * Notes:
- *	This routine assumes no locks are held on entry.
+ * Analtes:
+ *	This routine assumes anal locks are held on entry.
  */
 void
 fc_remote_port_delete(struct fc_rport  *rport)
@@ -3417,7 +3417,7 @@ fc_remote_port_delete(struct fc_rport  *rport)
 	unsigned long flags;
 
 	/*
-	 * No need to flush the fc_host work_q's, as all adds are synchronous.
+	 * Anal need to flush the fc_host work_q's, as all adds are synchroanalus.
 	 *
 	 * We do need to reclaim the rport scan work element, so eventually
 	 * (in fc_rport_final_delete()) we'll flush the scsi host work_q if
@@ -3433,15 +3433,15 @@ fc_remote_port_delete(struct fc_rport  *rport)
 	}
 
 	/*
-	 * In the past, we if this was not an FCP-Target, we would
+	 * In the past, we if this was analt an FCP-Target, we would
 	 * unconditionally just jump to deleting the rport.
-	 * However, rports can be used as node containers by the LLDD,
-	 * and its not appropriate to just terminate the rport at the
+	 * However, rports can be used as analde containers by the LLDD,
+	 * and its analt appropriate to just terminate the rport at the
 	 * first sign of a loss in connectivity. The LLDD may want to
 	 * send ELS traffic to re-validate the login. If the rport is
-	 * immediately deleted, it makes it inappropriate for a node
+	 * immediately deleted, it makes it inappropriate for a analde
 	 * container.
-	 * So... we now unconditionally wait dev_loss_tmo before
+	 * So... we analw unconditionally wait dev_loss_tmo before
 	 * destroying an rport.
 	 */
 
@@ -3465,24 +3465,24 @@ fc_remote_port_delete(struct fc_rport  *rport)
 EXPORT_SYMBOL(fc_remote_port_delete);
 
 /**
- * fc_remote_port_rolechg - notifies the fc transport that the roles on a remote may have changed.
+ * fc_remote_port_rolechg - analtifies the fc transport that the roles on a remote may have changed.
  * @rport:	The remote port that changed.
  * @roles:      New roles for this port.
  *
- * Description: The LLDD calls this routine to notify the transport that the
+ * Description: The LLDD calls this routine to analtify the transport that the
  * roles on a remote port may have changed. The largest effect of this is
- * if a port now becomes a FCP Target, it must be allocated a
- * scsi target id.  If the port is no longer a FCP target, any
+ * if a port analw becomes a FCP Target, it must be allocated a
+ * scsi target id.  If the port is anal longer a FCP target, any
  * scsi target id value assigned to it will persist in case the
- * role changes back to include FCP Target. No changes in the scsi
+ * role changes back to include FCP Target. Anal changes in the scsi
  * midlayer will be invoked if the role changes (in the expectation
- * that the role will be resumed. If it doesn't normal error processing
+ * that the role will be resumed. If it doesn't analrmal error processing
  * will take place).
  *
- * Should not be called from interrupt context.
+ * Should analt be called from interrupt context.
  *
- * Notes:
- *	This routine assumes no locks are held on entry.
+ * Analtes:
+ *	This routine assumes anal locks are held on entry.
  */
 void
 fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles)
@@ -3508,13 +3508,13 @@ fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles)
 	if (create) {
 		/*
 		 * There may have been a delete timer running on the
-		 * port. Ensure that it is cancelled as we now know
+		 * port. Ensure that it is cancelled as we analw kanalw
 		 * the port is an FCP Target.
-		 * Note: we know the rport exists and is in an online
-		 *  state as the LLDD would not have had an rport
+		 * Analte: we kanalw the rport exists and is in an online
+		 *  state as the LLDD would analt have had an rport
 		 *  reference to pass us.
 		 *
-		 * Take no action on the del_timer failure as the state
+		 * Take anal action on the del_timer failure as the state
 		 * machine state change will validate the
 		 * transaction.
 		 */
@@ -3566,7 +3566,7 @@ fc_timeout_deleted_rport(struct work_struct *work)
 
 	/*
 	 * If the port is ONLINE, then it came back. If it was a SCSI
-	 * target, validate it still is. If not, tear down the
+	 * target, validate it still is. If analt, tear down the
 	 * scsi_target on it.
 	 */
 	if (((rport->port_state == FC_PORTSTATE_ONLINE) ||
@@ -3574,7 +3574,7 @@ fc_timeout_deleted_rport(struct work_struct *work)
 	    (rport->scsi_target_id != -1) &&
 	    !(rport->roles & FC_PORT_ROLE_FCP_TARGET)) {
 		dev_printk(KERN_ERR, &rport->dev,
-			"blocked FC remote port time out: no longer"
+			"blocked FC remote port time out: anal longer"
 			" a FCP target, removing starget\n");
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		scsi_target_unblock(&rport->dev, SDEV_TRANSPORT_OFFLINE);
@@ -3582,7 +3582,7 @@ fc_timeout_deleted_rport(struct work_struct *work)
 		return;
 	}
 
-	/* NOOP state - we're flushing workq's */
+	/* ANALOP state - we're flushing workq's */
 	if (rport->port_state != FC_PORTSTATE_BLOCKED) {
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		dev_printk(KERN_ERR, &rport->dev,
@@ -3592,7 +3592,7 @@ fc_timeout_deleted_rport(struct work_struct *work)
 		return;
 	}
 
-	if ((fc_host->tgtid_bind_type == FC_TGTID_BIND_NONE) ||
+	if ((fc_host->tgtid_bind_type == FC_TGTID_BIND_ANALNE) ||
 	    (rport->scsi_target_id == -1)) {
 		list_del(&rport->peers);
 		rport->port_state = FC_PORTSTATE_DELETED;
@@ -3612,7 +3612,7 @@ fc_timeout_deleted_rport(struct work_struct *work)
 	list_move_tail(&rport->peers, &fc_host->rport_bindings);
 
 	/*
-	 * Note: We do not remove or clear the hostdata area. This allows
+	 * Analte: We do analt remove or clear the hostdata area. This allows
 	 *   host-specific target data to persist along with the
 	 *   scsi_target_id. It's up to the host to manage it's hostdata area.
 	 */
@@ -3622,8 +3622,8 @@ fc_timeout_deleted_rport(struct work_struct *work)
 	 */
 	rport->maxframe_size = -1;
 	rport->supported_classes = FC_COS_UNSPECIFIED;
-	rport->roles = FC_PORT_ROLE_UNKNOWN;
-	rport->port_state = FC_PORTSTATE_NOTPRESENT;
+	rport->roles = FC_PORT_ROLE_UNKANALWN;
+	rport->port_state = FC_PORTSTATE_ANALTPRESENT;
 	rport->flags &= ~FC_RPORT_FAST_FAIL_TIMEDOUT;
 
 	/*
@@ -3636,12 +3636,12 @@ fc_timeout_deleted_rport(struct work_struct *work)
 
 	spin_lock_irqsave(shost->host_lock, flags);
 
-	if (rport->port_state == FC_PORTSTATE_NOTPRESENT) {	/* still missing */
+	if (rport->port_state == FC_PORTSTATE_ANALTPRESENT) {	/* still missing */
 
 		/* remove the identifiers that aren't used in the consisting binding */
 		switch (fc_host->tgtid_bind_type) {
 		case FC_TGTID_BIND_BY_WWPN:
-			rport->node_name = -1;
+			rport->analde_name = -1;
 			rport->port_id = -1;
 			break;
 		case FC_TGTID_BIND_BY_WWNN:
@@ -3649,10 +3649,10 @@ fc_timeout_deleted_rport(struct work_struct *work)
 			rport->port_id = -1;
 			break;
 		case FC_TGTID_BIND_BY_ID:
-			rport->node_name = -1;
+			rport->analde_name = -1;
 			rport->port_name = -1;
 			break;
-		case FC_TGTID_BIND_NONE:	/* to keep compiler happy */
+		case FC_TGTID_BIND_ANALNE:	/* to keep compiler happy */
 			break;
 		}
 
@@ -3670,10 +3670,10 @@ fc_timeout_deleted_rport(struct work_struct *work)
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	/*
-	 * Notify the driver that the rport is now dead. The LLDD will
+	 * Analtify the driver that the rport is analw dead. The LLDD will
 	 * also guarantee that any communication to the rport is terminated
 	 *
-	 * Note: we set the CALLBK_DONE flag above to correspond
+	 * Analte: we set the CALLBK_DONE flag above to correspond
 	 */
 	if (do_callback && i->f->dev_loss_tmo_callbk)
 		i->f->dev_loss_tmo_callbk(rport);
@@ -3684,7 +3684,7 @@ fc_timeout_deleted_rport(struct work_struct *work)
  * fc_timeout_fail_rport_io - Timeout handler for a fast io failing on a disconnected SCSI target.
  * @work:	rport to terminate io on.
  *
- * Notes: Only requests the failure of the io, not that all are flushed
+ * Analtes: Only requests the failure of the io, analt that all are flushed
  *    prior to returning.
  */
 static void
@@ -3788,13 +3788,13 @@ int fc_block_scsi_eh(struct scsi_cmnd *cmnd)
 EXPORT_SYMBOL(fc_block_scsi_eh);
 
 /*
- * fc_eh_should_retry_cmd - Checks if the cmd should be retried or not
+ * fc_eh_should_retry_cmd - Checks if the cmd should be retried or analt
  * @scmd:        The SCSI command to be checked
  *
  * This checks the rport state to decide if a cmd is
  * retryable.
  *
- * Returns: true if the rport state is not in marginal state.
+ * Returns: true if the rport state is analt in marginal state.
  */
 bool fc_eh_should_retry_cmd(struct scsi_cmnd *scmd)
 {
@@ -3821,8 +3821,8 @@ EXPORT_SYMBOL_GPL(fc_eh_should_retry_cmd);
  * Allocates and creates the vport structure, calls the parent host
  * to instantiate the vport, this completes w/ class and sysfs creation.
  *
- * Notes:
- *	This routine assumes no locks are held on entry.
+ * Analtes:
+ *	This routine assumes anal locks are held on entry.
  */
 static int
 fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
@@ -3839,18 +3839,18 @@ fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 	*ret_vport = NULL;
 
 	if ( ! fci->f->vport_create)
-		return -ENOENT;
+		return -EANALENT;
 
 	size = (sizeof(struct fc_vport) + fci->f->dd_fcvport_size);
 	vport = kzalloc(size, GFP_KERNEL);
 	if (unlikely(!vport)) {
 		printk(KERN_ERR "%s: allocation failure\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	vport->vport_state = FC_VPORT_UNKNOWN;
-	vport->vport_last_state = FC_VPORT_UNKNOWN;
-	vport->node_name = ids->node_name;
+	vport->vport_state = FC_VPORT_UNKANALWN;
+	vport->vport_last_state = FC_VPORT_UNKANALWN;
+	vport->analde_name = ids->analde_name;
 	vport->port_name = ids->port_name;
 	vport->roles = ids->roles;
 	vport->vport_type = ids->vport_type;
@@ -3866,7 +3866,7 @@ fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 	if (fc_host->npiv_vports_inuse >= fc_host->max_npiv_vports) {
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		kfree(vport);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	fc_host->npiv_vports_inuse++;
 	vport->number = fc_host->next_vport_number++;
@@ -3880,7 +3880,7 @@ fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 	dev->parent = get_device(pdev);		/* takes parent reference */
 	dev->release = fc_vport_dev_release;
 	dev_set_name(dev, "vport-%d:%d-%d",
-		     shost->host_no, channel, vport->number);
+		     shost->host_anal, channel, vport->number);
 	transport_setup_device(dev);
 
 	error = device_add(dev);
@@ -3906,7 +3906,7 @@ fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 				 &dev->kobj, dev_name(dev));
 		if (error)
 			printk(KERN_ERR
-				"%s: Cannot create vport symlinks for "
+				"%s: Cananalt create vport symlinks for "
 				"%s, err=%d\n",
 				__func__, dev_name(dev), error);
 	}
@@ -3914,9 +3914,9 @@ fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 	vport->flags &= ~FC_VPORT_CREATING;
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
-	dev_printk(KERN_NOTICE, pdev,
+	dev_printk(KERN_ANALTICE, pdev,
 			"%s created via shost%d channel %d\n", dev_name(dev),
-			shost->host_no, channel);
+			shost->host_anal, channel);
 
 	*ret_vport = vport;
 
@@ -3945,8 +3945,8 @@ delete_vport:
  * @ids:	The world wide names, FC4 port roles, etc for
  *              the virtual port.
  *
- * Notes:
- *	This routine assumes no locks are held on entry.
+ * Analtes:
+ *	This routine assumes anal locks are held on entry.
  */
 struct fc_vport *
 fc_vport_create(struct Scsi_Host *shost, int channel,
@@ -3968,8 +3968,8 @@ EXPORT_SYMBOL(fc_vport_create);
  * Calls the LLDD vport_delete() function, then deallocates and removes
  * the vport from the shost and object tree.
  *
- * Notes:
- *	This routine assumes no locks are held on entry.
+ * Analtes:
+ *	This routine assumes anal locks are held on entry.
  */
 int
 fc_vport_terminate(struct fc_vport *vport)
@@ -3984,7 +3984,7 @@ fc_vport_terminate(struct fc_vport *vport)
 	if (i->f->vport_delete)
 		stat = i->f->vport_delete(vport);
 	else
-		stat = -ENOENT;
+		stat = -EANALENT;
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	vport->flags &= ~FC_VPORT_DELETING;
@@ -4030,9 +4030,9 @@ fc_vport_sched_delete(struct work_struct *work)
 	stat = fc_vport_terminate(vport);
 	if (stat)
 		dev_printk(KERN_ERR, vport->dev.parent,
-			"%s: %s could not be deleted created via "
+			"%s: %s could analt be deleted created via "
 			"shost%d channel %d - error %d\n", __func__,
-			dev_name(&vport->dev), vport->shost->host_no,
+			dev_name(&vport->dev), vport->shost->host_anal,
 			vport->channel, stat);
 }
 
@@ -4091,7 +4091,7 @@ static int fc_bsg_host_dispatch(struct Scsi_Host *shost, struct bsg_job *job)
 
 	/* check if we really have all the request data needed */
 	if (job->request_len < cmdlen) {
-		ret = -ENOMSG;
+		ret = -EANALMSG;
 		goto fail_host_msg;
 	}
 
@@ -4105,7 +4105,7 @@ static int fc_bsg_host_dispatch(struct Scsi_Host *shost, struct bsg_job *job)
 		cmdlen += sizeof(struct fc_bsg_host_del_rport);
 		break;
 
-	case FC_BSG_HST_ELS_NOLOGIN:
+	case FC_BSG_HST_ELS_ANALLOGIN:
 		cmdlen += sizeof(struct fc_bsg_host_els);
 		/* there better be a xmt and rcv payloads */
 		if ((!job->request_payload.payload_len) ||
@@ -4145,7 +4145,7 @@ static int fc_bsg_host_dispatch(struct Scsi_Host *shost, struct bsg_job *job)
 		return 0;
 
 fail_host_msg:
-	/* return the errno failure code as the only status */
+	/* return the erranal failure code as the only status */
 	BUG_ON(job->reply_len < sizeof(uint32_t));
 	bsg_reply->reply_payload_rcv_len = 0;
 	bsg_reply->result = ret;
@@ -4184,7 +4184,7 @@ static int fc_bsg_rport_dispatch(struct Scsi_Host *shost, struct bsg_job *job)
 
 	/* check if we really have all the request data needed */
 	if (job->request_len < cmdlen) {
-		ret = -ENOMSG;
+		ret = -EANALMSG;
 		goto fail_rport_msg;
 	}
 
@@ -4214,7 +4214,7 @@ check_bidi:
 		return 0;
 
 fail_rport_msg:
-	/* return the errno failure code as the only status */
+	/* return the erranal failure code as the only status */
 	BUG_ON(job->reply_len < sizeof(uint32_t));
 	bsg_reply->reply_payload_rcv_len = 0;
 	bsg_reply->result = ret;
@@ -4282,17 +4282,17 @@ fc_bsg_hostadd(struct Scsi_Host *shost, struct fc_host_attrs *fc_host)
 	fc_host->rqst_q = NULL;
 
 	if (!i->f->bsg_request)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	snprintf(bsg_name, sizeof(bsg_name),
-		 "fc_host%d", shost->host_no);
+		 "fc_host%d", shost->host_anal);
 
 	q = bsg_setup_queue(dev, bsg_name, fc_bsg_dispatch, fc_bsg_job_timeout,
 				i->f->dd_bsg_size);
 	if (IS_ERR(q)) {
 		dev_err(dev,
 			"fc_host%d: bsg interface failed to initialize - setup queue\n",
-			shost->host_no);
+			shost->host_anal);
 		return PTR_ERR(q);
 	}
 	__scsi_init_queue(shost, q);
@@ -4316,7 +4316,7 @@ fc_bsg_rportadd(struct Scsi_Host *shost, struct fc_rport *rport)
 	rport->rqst_q = NULL;
 
 	if (!i->f->bsg_request)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	q = bsg_setup_queue(dev, dev_name(dev), fc_bsg_dispatch_prep,
 				fc_bsg_job_timeout, i->f->dd_bsg_size);
@@ -4335,7 +4335,7 @@ fc_bsg_rportadd(struct Scsi_Host *shost, struct fc_rport *rport)
  * fc_bsg_remove - Deletes the bsg hooks on fchosts/rports
  * @q:	the request_queue that is to be torn down.
  *
- * Notes:
+ * Analtes:
  *   Before unregistering the queue empty any requests that are blocked
  *
  *

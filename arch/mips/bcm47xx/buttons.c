@@ -193,13 +193,13 @@ bcm47xx_buttons_dell_tm2300[] __initconst = {
 static const struct gpio_keys_button
 bcm47xx_buttons_dlink_dir130[] __initconst = {
 	BCM47XX_GPIO_KEY(3, KEY_RESTART),
-	BCM47XX_GPIO_KEY(7, KEY_UNKNOWN),
+	BCM47XX_GPIO_KEY(7, KEY_UNKANALWN),
 };
 
 static const struct gpio_keys_button
 bcm47xx_buttons_dlink_dir330[] __initconst = {
 	BCM47XX_GPIO_KEY(3, KEY_RESTART),
-	BCM47XX_GPIO_KEY(7, KEY_UNKNOWN),
+	BCM47XX_GPIO_KEY(7, KEY_UNKANALWN),
 };
 
 /* Linksys */
@@ -278,14 +278,14 @@ bcm47xx_buttons_linksys_wrt300n_v1[] __initconst = {
 
 static const struct gpio_keys_button
 bcm47xx_buttons_linksys_wrt300nv11[] __initconst = {
-	BCM47XX_GPIO_KEY(4, KEY_UNKNOWN),
+	BCM47XX_GPIO_KEY(4, KEY_UNKANALWN),
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
 };
 
 static const struct gpio_keys_button
 bcm47xx_buttons_linksys_wrt310nv1[] __initconst = {
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
-	BCM47XX_GPIO_KEY(8, KEY_UNKNOWN),
+	BCM47XX_GPIO_KEY(8, KEY_UNKANALWN),
 };
 
 static const struct gpio_keys_button
@@ -505,7 +505,7 @@ static int __init bcm47xx_buttons_copy(const struct gpio_keys_button *buttons,
 
 	bcm47xx_button_pdata.buttons = kmemdup(buttons, size, GFP_KERNEL);
 	if (!bcm47xx_button_pdata.buttons)
-		return -ENOMEM;
+		return -EANALMEM;
 	bcm47xx_button_pdata.nbuttons = nbuttons;
 
 	return 0;
@@ -764,12 +764,12 @@ int __init bcm47xx_buttons_register(void)
 		break;
 
 	default:
-		pr_debug("No buttons configuration found for this device\n");
-		return -ENOTSUPP;
+		pr_debug("Anal buttons configuration found for this device\n");
+		return -EANALTSUPP;
 	}
 
 	if (err)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = platform_device_register(&bcm47xx_buttons_gpio_keys);
 	if (err) {

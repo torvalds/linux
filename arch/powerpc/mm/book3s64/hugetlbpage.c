@@ -36,12 +36,12 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 	 * At this point, we have a pte (old_pte) which can be used to build
 	 * or update an HPTE. There are 2 cases:
 	 *
-	 * 1. There is a valid (present) pte with no associated HPTE (this is
+	 * 1. There is a valid (present) pte with anal associated HPTE (this is
 	 *	the most common case)
 	 * 2. There is a valid (present) pte with an associated HPTE. The
 	 *	current values of the pp bits in the HPTE prevent access
 	 *	because we are doing software DIRTY bit management and the
-	 *	page is currently not DIRTY.
+	 *	page is currently analt DIRTY.
 	 */
 
 
@@ -76,7 +76,7 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 
 	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
 		/*
-		 * No CPU has hugepages but lacks no execute, so we
+		 * Anal CPU has hugepages but lacks anal execute, so we
 		 * don't need to worry about that case
 		 */
 		rflags = hash_page_do_lazy_icache(rflags, __pte(old_pte), trap);
@@ -118,7 +118,7 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 	}
 
 	/*
-	 * No need to use ldarx/stdcx here
+	 * Anal need to use ldarx/stdcx here
 	 */
 	*ptep = __pte(new_pte & ~H_PAGE_BUSY);
 	return 0;
@@ -130,7 +130,7 @@ pte_t huge_ptep_modify_prot_start(struct vm_area_struct *vma,
 {
 	unsigned long pte_val;
 	/*
-	 * Clear the _PAGE_PRESENT so that no hardware parallel update is
+	 * Clear the _PAGE_PRESENT so that anal hardware parallel update is
 	 * possible. Also keep the pte_present true so that we don't take
 	 * wrong fault.
 	 */

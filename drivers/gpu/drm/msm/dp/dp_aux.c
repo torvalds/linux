@@ -10,7 +10,7 @@
 #include "dp_aux.h"
 
 enum msm_dp_aux_err {
-	DP_AUX_ERR_NONE,
+	DP_AUX_ERR_ANALNE,
 	DP_AUX_ERR_ADDR,
 	DP_AUX_ERR_TOUT,
 	DP_AUX_ERR_NACK,
@@ -31,8 +31,8 @@ struct dp_aux_private {
 	bool cmd_busy;
 	bool native;
 	bool read;
-	bool no_send_addr;
-	bool no_send_stop;
+	bool anal_send_addr;
+	bool anal_send_stop;
 	bool initted;
 	bool is_edp;
 	u32 offset;
@@ -95,11 +95,11 @@ static ssize_t dp_aux_write(struct dp_aux_private *aux,
 	if (!aux->native) { /* i2c */
 		reg |= DP_AUX_TRANS_CTRL_I2C;
 
-		if (aux->no_send_addr)
-			reg |= DP_AUX_TRANS_CTRL_NO_SEND_ADDR;
+		if (aux->anal_send_addr)
+			reg |= DP_AUX_TRANS_CTRL_ANAL_SEND_ADDR;
 
-		if (aux->no_send_stop)
-			reg |= DP_AUX_TRANS_CTRL_NO_SEND_STOP;
+		if (aux->anal_send_stop)
+			reg |= DP_AUX_TRANS_CTRL_ANAL_SEND_STOP;
 	}
 
 	reg |= DP_AUX_TRANS_CTRL_GO;
@@ -192,8 +192,8 @@ static void dp_aux_update_offset_and_segment(struct dp_aux_private *aux,
  *
  * return: void
  *
- * This helper function is used to fix EDID reads for non-compliant
- * sinks that do not handle the i2c middle-of-transaction flag correctly.
+ * This helper function is used to fix EDID reads for analn-compliant
+ * sinks that do analt handle the i2c middle-of-transaction flag correctly.
  */
 static void dp_aux_transfer_helper(struct dp_aux_private *aux,
 				   struct drm_dp_aux_msg *input_msg,
@@ -221,8 +221,8 @@ static void dp_aux_transfer_helper(struct dp_aux_private *aux,
 
 	aux->read = false;
 	aux->cmd_busy = true;
-	aux->no_send_addr = true;
-	aux->no_send_stop = true;
+	aux->anal_send_addr = true;
+	aux->anal_send_stop = true;
 
 	/*
 	 * Send the segment address for every i2c read in which the
@@ -276,7 +276,7 @@ static ssize_t dp_aux_transfer(struct drm_dp_aux *dp_aux,
 
 	aux->native = msg->request & (DP_AUX_NATIVE_WRITE & DP_AUX_NATIVE_READ);
 
-	/* Ignore address only message */
+	/* Iganalre address only message */
 	if (msg->size == 0 || !msg->buffer) {
 		msg->reply = aux->native ?
 			DP_AUX_NATIVE_REPLY_ACK : DP_AUX_I2C_REPLY_ACK;
@@ -305,14 +305,14 @@ static ssize_t dp_aux_transfer(struct drm_dp_aux *dp_aux,
 	 * For eDP it's important to give a reasonably long wait here for HPD
 	 * to be asserted. This is because the panel driver may have _just_
 	 * turned on the panel and then tried to do an AUX transfer. The panel
-	 * driver has no way of knowing when the panel is ready, so it's up
+	 * driver has anal way of kanalwing when the panel is ready, so it's up
 	 * to us to wait. For DP we never get into this situation so let's
 	 * avoid ever doing the extra long wait for DP.
 	 */
 	if (aux->is_edp) {
 		ret = dp_catalog_aux_wait_for_hpd_connect_state(aux->catalog);
 		if (ret) {
-			DRM_DEBUG_DP("Panel not ready for aux transactions\n");
+			DRM_DEBUG_DP("Panel analt ready for aux transactions\n");
 			goto exit;
 		}
 	}
@@ -324,11 +324,11 @@ static ssize_t dp_aux_transfer(struct drm_dp_aux *dp_aux,
 	aux->cmd_busy = true;
 
 	if (aux->read) {
-		aux->no_send_addr = true;
-		aux->no_send_stop = false;
+		aux->anal_send_addr = true;
+		aux->anal_send_stop = false;
 	} else {
-		aux->no_send_addr = true;
-		aux->no_send_stop = true;
+		aux->anal_send_addr = true;
+		aux->anal_send_stop = true;
 	}
 
 	ret = dp_aux_cmd_fifo_tx(aux, msg);
@@ -344,7 +344,7 @@ static ssize_t dp_aux_transfer(struct drm_dp_aux *dp_aux,
 	} else {
 		aux->retry_cnt = 0;
 		switch (aux->aux_error_num) {
-		case DP_AUX_ERR_NONE:
+		case DP_AUX_ERR_ANALNE:
 			if (aux->read)
 				ret = dp_aux_cmd_fifo_rx(aux, msg);
 			msg->reply = aux->native ? DP_AUX_NATIVE_REPLY_ACK : DP_AUX_I2C_REPLY_ACK;
@@ -380,26 +380,26 @@ irqreturn_t dp_aux_isr(struct drm_dp_aux *dp_aux)
 
 	if (!dp_aux) {
 		DRM_ERROR("invalid input\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	aux = container_of(dp_aux, struct dp_aux_private, dp_aux);
 
 	isr = dp_catalog_aux_get_irq(aux->catalog);
 
-	/* no interrupts pending, return immediately */
+	/* anal interrupts pending, return immediately */
 	if (!isr)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!aux->cmd_busy) {
-		DRM_ERROR("Unexpected DP AUX IRQ %#010x when not busy\n", isr);
-		return IRQ_NONE;
+		DRM_ERROR("Unexpected DP AUX IRQ %#010x when analt busy\n", isr);
+		return IRQ_ANALNE;
 	}
 
 	/*
 	 * The logic below assumes only one error bit is set (other than "done"
 	 * which can apparently be set at the same time as some of the other
-	 * bits). Warn if more than one get set so we know we need to improve
+	 * bits). Warn if more than one get set so we kanalw we need to improve
 	 * the logic.
 	 */
 	if (hweight32(isr & ~DP_INTR_AUX_XFER_DONE) > 1)
@@ -422,10 +422,10 @@ irqreturn_t dp_aux_isr(struct drm_dp_aux *dp_aux)
 		else
 			aux->aux_error_num = DP_AUX_ERR_DEFER;
 	} else if (isr & DP_INTR_AUX_XFER_DONE) {
-		aux->aux_error_num = DP_AUX_ERR_NONE;
+		aux->aux_error_num = DP_AUX_ERR_ANALNE;
 	} else {
 		DRM_WARN("Unexpected interrupt: %#010x\n", isr);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	complete(&aux->comp);
@@ -523,12 +523,12 @@ struct drm_dp_aux *dp_aux_get(struct device *dev, struct dp_catalog *catalog,
 
 	if (!catalog) {
 		DRM_ERROR("invalid input\n");
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	aux = devm_kzalloc(dev, sizeof(*aux), GFP_KERNEL);
 	if (!aux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init_completion(&aux->comp);
 	aux->cmd_busy = false;

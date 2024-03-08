@@ -73,7 +73,7 @@ struct rxreport_8723b {
 	u32 splcp:1;	/* Ofdm sgi or cck_splcp */
 	u32 ldpc:1;
 	u32 stbc:1;
-	u32 not_sounding:1;
+	u32 analt_sounding:1;
 	u32 bw:2;
 	u32 rsvd1606:26;
 

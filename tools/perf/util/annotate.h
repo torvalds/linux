@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __PERF_ANNOTATE_H
-#define __PERF_ANNOTATE_H
+#ifndef __PERF_ANANALTATE_H
+#define __PERF_ANANALTATE_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -23,7 +23,7 @@ struct option;
 struct perf_sample;
 struct evsel;
 struct symbol;
-struct annotated_data_type;
+struct ananaltated_data_type;
 
 struct ins {
 	const char     *name;
@@ -78,13 +78,13 @@ bool ins__is_lock(const struct ins *ins);
 int ins__scnprintf(struct ins *ins, char *bf, size_t size, struct ins_operands *ops, int max_ins_name);
 bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2);
 
-#define ANNOTATION__IPC_WIDTH 6
-#define ANNOTATION__CYCLES_WIDTH 6
-#define ANNOTATION__MINMAX_CYCLES_WIDTH 19
-#define ANNOTATION__AVG_IPC_WIDTH 36
-#define ANNOTATION_DUMMY_LEN	256
+#define ANANALTATION__IPC_WIDTH 6
+#define ANANALTATION__CYCLES_WIDTH 6
+#define ANANALTATION__MINMAX_CYCLES_WIDTH 19
+#define ANANALTATION__AVG_IPC_WIDTH 36
+#define ANANALTATION_DUMMY_LEN	256
 
-struct annotation_options {
+struct ananaltation_options {
 	bool hide_src_code,
 	     use_offset,
 	     jump_arrows,
@@ -95,7 +95,7 @@ struct annotation_options {
 	     show_nr_jumps,
 	     show_minmax_cycle,
 	     show_asm_raw,
-	     annotate_src,
+	     ananaltate_src,
 	     full_addr;
 	u8   offset_level;
 	int  min_pcnt;
@@ -108,17 +108,17 @@ struct annotation_options {
 	unsigned int percent_type;
 };
 
-extern struct annotation_options annotate_opts;
+extern struct ananaltation_options ananaltate_opts;
 
 enum {
-	ANNOTATION__OFFSET_JUMP_TARGETS = 1,
-	ANNOTATION__OFFSET_CALL,
-	ANNOTATION__MAX_OFFSET_LEVEL,
+	ANANALTATION__OFFSET_JUMP_TARGETS = 1,
+	ANANALTATION__OFFSET_CALL,
+	ANANALTATION__MAX_OFFSET_LEVEL,
 };
 
-#define ANNOTATION__MIN_OFFSET_LEVEL ANNOTATION__OFFSET_JUMP_TARGETS
+#define ANANALTATION__MIN_OFFSET_LEVEL ANANALTATION__OFFSET_JUMP_TARGETS
 
-struct annotation;
+struct ananaltation;
 
 struct sym_hist_entry {
 	u64		nr_samples;
@@ -133,7 +133,7 @@ enum {
 	PERCENT_MAX,
 };
 
-struct annotation_data {
+struct ananaltation_data {
 	double			 percent[PERCENT_MAX];
 	double			 percent_sum;
 	struct sym_hist_entry	 he;
@@ -146,9 +146,9 @@ struct cycles_info {
 	u64			 min;
 };
 
-struct annotation_line {
-	struct list_head	 node;
-	struct rb_node		 rb_node;
+struct ananaltation_line {
+	struct list_head	 analde;
+	struct rb_analde		 rb_analde;
 	s64			 offset;
 	char			*line;
 	int			 line_nr;
@@ -159,7 +159,7 @@ struct annotation_line {
 	u32			 idx;
 	int			 idx_asm;
 	int			 data_nr;
-	struct annotation_data	 data[];
+	struct ananaltation_data	 data[];
 };
 
 struct disasm_line {
@@ -167,10 +167,10 @@ struct disasm_line {
 	struct ins_operands	 ops;
 
 	/* This needs to be at the end. */
-	struct annotation_line	 al;
+	struct ananaltation_line	 al;
 };
 
-static inline double annotation_data__percent(struct annotation_data *data,
+static inline double ananaltation_data__percent(struct ananaltation_data *data,
 					      unsigned int which)
 {
 	return which < PERCENT_MAX ? data->percent[which] : -1;
@@ -191,7 +191,7 @@ static inline const char *percent_type_str(unsigned int type)
 	return str[type];
 }
 
-static inline struct disasm_line *disasm_line(struct annotation_line *al)
+static inline struct disasm_line *disasm_line(struct ananaltation_line *al)
 {
 	return al ? container_of(al, struct disasm_line, al) : NULL;
 }
@@ -212,10 +212,10 @@ static inline bool disasm_line__has_local_offset(const struct disasm_line *dl)
 bool disasm_line__is_valid_local_jump(struct disasm_line *dl, struct symbol *sym);
 
 void disasm_line__free(struct disasm_line *dl);
-struct annotation_line *
-annotation_line__next(struct annotation_line *pos, struct list_head *head);
+struct ananaltation_line *
+ananaltation_line__next(struct ananaltation_line *pos, struct list_head *head);
 
-struct annotation_write_ops {
+struct ananaltation_write_ops {
 	bool first_line, current_entry, change_color;
 	int  width;
 	void *obj;
@@ -226,10 +226,10 @@ struct annotation_write_ops {
 	void (*write_graph)(void *obj, int graph);
 };
 
-void annotation_line__write(struct annotation_line *al, struct annotation *notes,
-			    struct annotation_write_ops *ops);
+void ananaltation_line__write(struct ananaltation_line *al, struct ananaltation *analtes,
+			    struct ananaltation_write_ops *ops);
 
-int __annotation__scnprintf_samples_period(struct annotation *notes,
+int __ananaltation__scnprintf_samples_period(struct ananaltation *analtes,
 					   char *bf, size_t size,
 					   struct evsel *evsel,
 					   bool show_freq);
@@ -258,35 +258,35 @@ struct cyc_hist {
 	u16	reset;
 };
 
-/** struct annotated_source - symbols with hits have this attached as in sannotation
+/** struct ananaltated_source - symbols with hits have this attached as in sananaltation
  *
  * @histograms: Array of addr hit histograms per event being monitored
- * nr_histograms: This may not be the same as evsel->evlist->core.nr_entries if
+ * nr_histograms: This may analt be the same as evsel->evlist->core.nr_entries if
  * 		  we have more than a group in a evlist, where we will want
- * 		  to see each group separately, that is why symbol__annotate2()
+ * 		  to see each group separately, that is why symbol__ananaltate2()
  * 		  sets src->nr_histograms to evsel->nr_members.
  * @lines: If 'print_lines' is specified, per source code line percentages
  * @source: source parsed from a disassembler like objdump -dS
  * @cyc_hist: Average cycles per basic block
  *
  * lines is allocated, percentages calculated and all sorted by percentage
- * when the annotation is about to be presented, so the percentages are for
+ * when the ananaltation is about to be presented, so the percentages are for
  * one of the entries in the histogram array, i.e. for the event/counter being
- * presented. It is deallocated right after symbol__{tui,tty,etc}_annotate
+ * presented. It is deallocated right after symbol__{tui,tty,etc}_ananaltate
  * returns.
  */
-struct annotated_source {
+struct ananaltated_source {
 	struct list_head	source;
 	size_t			sizeof_sym_hist;
 	struct sym_hist		*histograms;
-	struct annotation_line	**offsets;
+	struct ananaltation_line	**offsets;
 	int    			nr_histograms;
 	int			nr_entries;
 	int			nr_asm_entries;
 	u16			max_line_len;
 };
 
-struct annotated_branch {
+struct ananaltated_branch {
 	u64			hit_cycles;
 	u64			hit_insn;
 	unsigned int		total_insn;
@@ -295,7 +295,7 @@ struct annotated_branch {
 	u64			max_coverage;
 };
 
-struct LOCKABLE annotation {
+struct LOCKABLE ananaltation {
 	u64			start;
 	int			nr_events;
 	int			max_jump_sources;
@@ -307,54 +307,54 @@ struct LOCKABLE annotation {
 		u8		max_addr;
 		u8		max_ins_name;
 	} widths;
-	struct annotated_source *src;
-	struct annotated_branch *branch;
+	struct ananaltated_source *src;
+	struct ananaltated_branch *branch;
 };
 
-static inline void annotation__init(struct annotation *notes __maybe_unused)
+static inline void ananaltation__init(struct ananaltation *analtes __maybe_unused)
 {
 }
-void annotation__exit(struct annotation *notes);
+void ananaltation__exit(struct ananaltation *analtes);
 
-void annotation__lock(struct annotation *notes) EXCLUSIVE_LOCK_FUNCTION(*notes);
-void annotation__unlock(struct annotation *notes) UNLOCK_FUNCTION(*notes);
-bool annotation__trylock(struct annotation *notes) EXCLUSIVE_TRYLOCK_FUNCTION(true, *notes);
+void ananaltation__lock(struct ananaltation *analtes) EXCLUSIVE_LOCK_FUNCTION(*analtes);
+void ananaltation__unlock(struct ananaltation *analtes) UNLOCK_FUNCTION(*analtes);
+bool ananaltation__trylock(struct ananaltation *analtes) EXCLUSIVE_TRYLOCK_FUNCTION(true, *analtes);
 
-static inline int annotation__cycles_width(struct annotation *notes)
+static inline int ananaltation__cycles_width(struct ananaltation *analtes)
 {
-	if (notes->branch && annotate_opts.show_minmax_cycle)
-		return ANNOTATION__IPC_WIDTH + ANNOTATION__MINMAX_CYCLES_WIDTH;
+	if (analtes->branch && ananaltate_opts.show_minmax_cycle)
+		return ANANALTATION__IPC_WIDTH + ANANALTATION__MINMAX_CYCLES_WIDTH;
 
-	return notes->branch ? ANNOTATION__IPC_WIDTH + ANNOTATION__CYCLES_WIDTH : 0;
+	return analtes->branch ? ANANALTATION__IPC_WIDTH + ANANALTATION__CYCLES_WIDTH : 0;
 }
 
-static inline int annotation__pcnt_width(struct annotation *notes)
+static inline int ananaltation__pcnt_width(struct ananaltation *analtes)
 {
-	return (symbol_conf.show_total_period ? 12 : 7) * notes->nr_events;
+	return (symbol_conf.show_total_period ? 12 : 7) * analtes->nr_events;
 }
 
-static inline bool annotation_line__filter(struct annotation_line *al)
+static inline bool ananaltation_line__filter(struct ananaltation_line *al)
 {
-	return annotate_opts.hide_src_code && al->offset == -1;
+	return ananaltate_opts.hide_src_code && al->offset == -1;
 }
 
-void annotation__set_offsets(struct annotation *notes, s64 size);
-void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym);
-void annotation__update_column_widths(struct annotation *notes);
-void annotation__init_column_widths(struct annotation *notes, struct symbol *sym);
-void annotation__toggle_full_addr(struct annotation *notes, struct map_symbol *ms);
+void ananaltation__set_offsets(struct ananaltation *analtes, s64 size);
+void ananaltation__mark_jump_targets(struct ananaltation *analtes, struct symbol *sym);
+void ananaltation__update_column_widths(struct ananaltation *analtes);
+void ananaltation__init_column_widths(struct ananaltation *analtes, struct symbol *sym);
+void ananaltation__toggle_full_addr(struct ananaltation *analtes, struct map_symbol *ms);
 
-static inline struct sym_hist *annotated_source__histogram(struct annotated_source *src, int idx)
+static inline struct sym_hist *ananaltated_source__histogram(struct ananaltated_source *src, int idx)
 {
 	return ((void *)src->histograms) + (src->sizeof_sym_hist * idx);
 }
 
-static inline struct sym_hist *annotation__histogram(struct annotation *notes, int idx)
+static inline struct sym_hist *ananaltation__histogram(struct ananaltation *analtes, int idx)
 {
-	return annotated_source__histogram(notes->src, idx);
+	return ananaltated_source__histogram(analtes->src, idx);
 }
 
-static inline struct annotation *symbol__annotation(struct symbol *sym)
+static inline struct ananaltation *symbol__ananaltation(struct symbol *sym)
 {
 	return (void *)sym - symbol_conf.priv_size;
 }
@@ -362,7 +362,7 @@ static inline struct annotation *symbol__annotation(struct symbol *sym)
 int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, struct perf_sample *sample,
 				 struct evsel *evsel);
 
-struct annotated_branch *annotation__get_branch(struct annotation *notes);
+struct ananaltated_branch *ananaltation__get_branch(struct ananaltation *analtes);
 
 int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 				    struct addr_map_symbol *start,
@@ -371,58 +371,58 @@ int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 int hist_entry__inc_addr_samples(struct hist_entry *he, struct perf_sample *sample,
 				 struct evsel *evsel, u64 addr);
 
-struct annotated_source *symbol__hists(struct symbol *sym, int nr_hists);
-void symbol__annotate_zero_histograms(struct symbol *sym);
+struct ananaltated_source *symbol__hists(struct symbol *sym, int nr_hists);
+void symbol__ananaltate_zero_histograms(struct symbol *sym);
 
-int symbol__annotate(struct map_symbol *ms,
+int symbol__ananaltate(struct map_symbol *ms,
 		     struct evsel *evsel,
 		     struct arch **parch);
-int symbol__annotate2(struct map_symbol *ms,
+int symbol__ananaltate2(struct map_symbol *ms,
 		      struct evsel *evsel,
 		      struct arch **parch);
 
-enum symbol_disassemble_errno {
-	SYMBOL_ANNOTATE_ERRNO__SUCCESS		= 0,
+enum symbol_disassemble_erranal {
+	SYMBOL_ANANALTATE_ERRANAL__SUCCESS		= 0,
 
 	/*
-	 * Choose an arbitrary negative big number not to clash with standard
-	 * errno since SUS requires the errno has distinct positive values.
+	 * Choose an arbitrary negative big number analt to clash with standard
+	 * erranal since SUS requires the erranal has distinct positive values.
 	 * See 'Issue 6' in the link below.
 	 *
-	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/errno.h.html
+	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/erranal.h.html
 	 */
-	__SYMBOL_ANNOTATE_ERRNO__START		= -10000,
+	__SYMBOL_ANANALTATE_ERRANAL__START		= -10000,
 
-	SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX	= __SYMBOL_ANNOTATE_ERRNO__START,
-	SYMBOL_ANNOTATE_ERRNO__NO_LIBOPCODES_FOR_BPF,
-	SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_CPUID_PARSING,
-	SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_REGEXP,
-	SYMBOL_ANNOTATE_ERRNO__BPF_INVALID_FILE,
-	SYMBOL_ANNOTATE_ERRNO__BPF_MISSING_BTF,
+	SYMBOL_ANANALTATE_ERRANAL__ANAL_VMLINUX	= __SYMBOL_ANANALTATE_ERRANAL__START,
+	SYMBOL_ANANALTATE_ERRANAL__ANAL_LIBOPCODES_FOR_BPF,
+	SYMBOL_ANANALTATE_ERRANAL__ARCH_INIT_CPUID_PARSING,
+	SYMBOL_ANANALTATE_ERRANAL__ARCH_INIT_REGEXP,
+	SYMBOL_ANANALTATE_ERRANAL__BPF_INVALID_FILE,
+	SYMBOL_ANANALTATE_ERRANAL__BPF_MISSING_BTF,
 
-	__SYMBOL_ANNOTATE_ERRNO__END,
+	__SYMBOL_ANANALTATE_ERRANAL__END,
 };
 
 int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, size_t buflen);
 
-int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel);
-void symbol__annotate_zero_histogram(struct symbol *sym, int evidx);
-void symbol__annotate_decay_histogram(struct symbol *sym, int evidx);
-void annotated_source__purge(struct annotated_source *as);
+int symbol__ananaltate_printf(struct map_symbol *ms, struct evsel *evsel);
+void symbol__ananaltate_zero_histogram(struct symbol *sym, int evidx);
+void symbol__ananaltate_decay_histogram(struct symbol *sym, int evidx);
+void ananaltated_source__purge(struct ananaltated_source *as);
 
-int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel);
+int map_symbol__ananaltation_dump(struct map_symbol *ms, struct evsel *evsel);
 
-bool ui__has_annotation(void);
+bool ui__has_ananaltation(void);
 
-int symbol__tty_annotate(struct map_symbol *ms, struct evsel *evsel);
+int symbol__tty_ananaltate(struct map_symbol *ms, struct evsel *evsel);
 
-int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel);
+int symbol__tty_ananaltate2(struct map_symbol *ms, struct evsel *evsel);
 
 #ifdef HAVE_SLANG_SUPPORT
-int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
+int symbol__tui_ananaltate(struct map_symbol *ms, struct evsel *evsel,
 			 struct hist_browser_timer *hbt);
 #else
-static inline int symbol__tui_annotate(struct map_symbol *ms __maybe_unused,
+static inline int symbol__tui_ananaltate(struct map_symbol *ms __maybe_unused,
 				struct evsel *evsel  __maybe_unused,
 				struct hist_browser_timer *hbt __maybe_unused)
 {
@@ -430,29 +430,29 @@ static inline int symbol__tui_annotate(struct map_symbol *ms __maybe_unused,
 }
 #endif
 
-void annotation_options__init(void);
-void annotation_options__exit(void);
+void ananaltation_options__init(void);
+void ananaltation_options__exit(void);
 
-void annotation_config__init(void);
+void ananaltation_config__init(void);
 
-int annotate_parse_percent_type(const struct option *opt, const char *_str,
+int ananaltate_parse_percent_type(const struct option *opt, const char *_str,
 				int unset);
 
-int annotate_check_args(void);
+int ananaltate_check_args(void);
 
 /**
- * struct annotated_op_loc - Location info of instruction operand
+ * struct ananaltated_op_loc - Location info of instruction operand
  * @reg: Register in the operand
  * @offset: Memory access offset in the operand
  * @mem_ref: Whether the operand accesses memory
  */
-struct annotated_op_loc {
+struct ananaltated_op_loc {
 	int reg;
 	int offset;
 	bool mem_ref;
 };
 
-enum annotated_insn_ops {
+enum ananaltated_insn_ops {
 	INSN_OP_SOURCE = 0,
 	INSN_OP_TARGET = 1,
 
@@ -460,11 +460,11 @@ enum annotated_insn_ops {
 };
 
 /**
- * struct annotated_insn_loc - Location info of instruction
+ * struct ananaltated_insn_loc - Location info of instruction
  * @ops: Array of location info for source and target operands
  */
-struct annotated_insn_loc {
-	struct annotated_op_loc ops[INSN_OP_MAX];
+struct ananaltated_insn_loc {
+	struct ananaltated_op_loc ops[INSN_OP_MAX];
 };
 
 #define for_each_insn_op_loc(insn_loc, i, op_loc)			\
@@ -473,13 +473,13 @@ struct annotated_insn_loc {
 	     i++, op_loc++)
 
 /* Get detailed location info in the instruction */
-int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
-			       struct annotated_insn_loc *loc);
+int ananaltate_get_insn_location(struct arch *arch, struct disasm_line *dl,
+			       struct ananaltated_insn_loc *loc);
 
 /* Returns a data type from the sample instruction (if any) */
-struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he);
+struct ananaltated_data_type *hist_entry__get_data_type(struct hist_entry *he);
 
-struct annotated_item_stat {
+struct ananaltated_item_stat {
 	struct list_head list;
 	char *name;
 	int good;
@@ -487,4 +487,4 @@ struct annotated_item_stat {
 };
 extern struct list_head ann_insn_stat;
 
-#endif	/* __PERF_ANNOTATE_H */
+#endif	/* __PERF_ANANALTATE_H */

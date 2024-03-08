@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Dummy inodes to buffer blocks for garbage collection
+ * Dummy ianaldes to buffer blocks for garbage collection
  *
  * Copyright (C) 2005-2008 Nippon Telegraph and Telephone Corporation.
  *
@@ -10,11 +10,11 @@
  */
 /*
  * This file adds the cache of on-disk blocks to be moved in garbage
- * collection.  The disk blocks are held with dummy inodes (called
- * gcinodes), and this file provides lookup function of the dummy
- * inodes and their buffer read function.
+ * collection.  The disk blocks are held with dummy ianaldes (called
+ * gcianaldes), and this file provides lookup function of the dummy
+ * ianaldes and their buffer read function.
  *
- * Buffers and pages held by the dummy inodes will be released each
+ * Buffers and pages held by the dummy ianaldes will be released each
  * time after they are copied to a new log.  Dirty blocks made on the
  * current generation and the blocks to be moved by GC never overlap
  * because the dirty blocks make a new generation; they rather must be
@@ -28,7 +28,7 @@
 #include <linux/swap.h>
 #include "nilfs.h"
 #include "btree.h"
-#include "btnode.h"
+#include "btanalde.h"
 #include "page.h"
 #include "mdt.h"
 #include "dat.h"
@@ -36,10 +36,10 @@
 
 /*
  * nilfs_gccache_submit_read_data() - add data buffer and submit read request
- * @inode - gc inode
+ * @ianalde - gc ianalde
  * @blkoff - dummy offset treated as the key for the page cache
  * @pbn - physical block number of the block
- * @vbn - virtual block number of the block, 0 for non-virtual block
+ * @vbn - virtual block number of the block, 0 for analn-virtual block
  * @out_bh - indirect pointer to a buffer_head struct to receive the results
  *
  * Description: nilfs_gccache_submit_read_data() registers the data buffer
@@ -51,29 +51,29 @@
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
- * %-ENOENT - The block specified with @pbn does not exist.
+ * %-EANALENT - The block specified with @pbn does analt exist.
  */
-int nilfs_gccache_submit_read_data(struct inode *inode, sector_t blkoff,
+int nilfs_gccache_submit_read_data(struct ianalde *ianalde, sector_t blkoff,
 				   sector_t pbn, __u64 vbn,
 				   struct buffer_head **out_bh)
 {
 	struct buffer_head *bh;
 	int err;
 
-	bh = nilfs_grab_buffer(inode, inode->i_mapping, blkoff, 0);
+	bh = nilfs_grab_buffer(ianalde, ianalde->i_mapping, blkoff, 0);
 	if (unlikely(!bh))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (buffer_uptodate(bh))
 		goto out;
 
 	if (pbn == 0) {
-		struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+		struct the_nilfs *nilfs = ianalde->i_sb->s_fs_info;
 
 		err = nilfs_dat_translate(nilfs->ns_dat, vbn, &pbn);
-		if (unlikely(err)) /* -EIO, -ENOMEM, -ENOENT */
+		if (unlikely(err)) /* -EIO, -EANALMEM, -EANALENT */
 			goto failed;
 	}
 
@@ -84,7 +84,7 @@ int nilfs_gccache_submit_read_data(struct inode *inode, sector_t blkoff,
 	}
 
 	if (!buffer_mapped(bh)) {
-		bh->b_bdev = inode->i_sb->s_bdev;
+		bh->b_bdev = ianalde->i_sb->s_bdev;
 		set_buffer_mapped(bh);
 	}
 	bh->b_blocknr = pbn;
@@ -106,13 +106,13 @@ int nilfs_gccache_submit_read_data(struct inode *inode, sector_t blkoff,
 }
 
 /*
- * nilfs_gccache_submit_read_node() - add node buffer and submit read request
- * @inode - gc inode
+ * nilfs_gccache_submit_read_analde() - add analde buffer and submit read request
+ * @ianalde - gc ianalde
  * @pbn - physical block number for the block
  * @vbn - virtual block number for the block
  * @out_bh - indirect pointer to a buffer_head struct to receive the results
  *
- * Description: nilfs_gccache_submit_read_node() registers the node buffer
+ * Description: nilfs_gccache_submit_read_analde() registers the analde buffer
  * specified by @vbn to the GC pagecache.  @pbn can be supplied by the
  * caller to avoid translation of the disk block address.
  *
@@ -121,15 +121,15 @@ int nilfs_gccache_submit_read_data(struct inode *inode, sector_t blkoff,
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  */
-int nilfs_gccache_submit_read_node(struct inode *inode, sector_t pbn,
+int nilfs_gccache_submit_read_analde(struct ianalde *ianalde, sector_t pbn,
 				   __u64 vbn, struct buffer_head **out_bh)
 {
-	struct inode *btnc_inode = NILFS_I(inode)->i_assoc_inode;
+	struct ianalde *btnc_ianalde = NILFS_I(ianalde)->i_assoc_ianalde;
 	int ret;
 
-	ret = nilfs_btnode_submit_block(btnc_inode->i_mapping, vbn ? : pbn, pbn,
+	ret = nilfs_btanalde_submit_block(btnc_ianalde->i_mapping, vbn ? : pbn, pbn,
 					REQ_OP_READ, out_bh, &pbn);
 	if (ret == -EEXIST) /* internal code (cache hit) */
 		ret = 0;
@@ -140,18 +140,18 @@ int nilfs_gccache_wait_and_mark_dirty(struct buffer_head *bh)
 {
 	wait_on_buffer(bh);
 	if (!buffer_uptodate(bh)) {
-		struct inode *inode = bh->b_folio->mapping->host;
+		struct ianalde *ianalde = bh->b_folio->mapping->host;
 
-		nilfs_err(inode->i_sb,
-			  "I/O error reading %s block for GC (ino=%lu, vblocknr=%llu)",
-			  buffer_nilfs_node(bh) ? "node" : "data",
-			  inode->i_ino, (unsigned long long)bh->b_blocknr);
+		nilfs_err(ianalde->i_sb,
+			  "I/O error reading %s block for GC (ianal=%lu, vblocknr=%llu)",
+			  buffer_nilfs_analde(bh) ? "analde" : "data",
+			  ianalde->i_ianal, (unsigned long long)bh->b_blocknr);
 		return -EIO;
 	}
 	if (buffer_dirty(bh))
 		return -EEXIST;
 
-	if (buffer_nilfs_node(bh) && nilfs_btree_broken_node_block(bh)) {
+	if (buffer_nilfs_analde(bh) && nilfs_btree_broken_analde_block(bh)) {
 		clear_buffer_uptodate(bh);
 		return -EIO;
 	}
@@ -159,33 +159,33 @@ int nilfs_gccache_wait_and_mark_dirty(struct buffer_head *bh)
 	return 0;
 }
 
-int nilfs_init_gcinode(struct inode *inode)
+int nilfs_init_gcianalde(struct ianalde *ianalde)
 {
-	struct nilfs_inode_info *ii = NILFS_I(inode);
+	struct nilfs_ianalde_info *ii = NILFS_I(ianalde);
 
-	inode->i_mode = S_IFREG;
-	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
-	inode->i_mapping->a_ops = &empty_aops;
+	ianalde->i_mode = S_IFREG;
+	mapping_set_gfp_mask(ianalde->i_mapping, GFP_ANALFS);
+	ianalde->i_mapping->a_ops = &empty_aops;
 
 	ii->i_flags = 0;
 	nilfs_bmap_init_gc(ii->i_bmap);
 
-	return nilfs_attach_btree_node_cache(inode);
+	return nilfs_attach_btree_analde_cache(ianalde);
 }
 
 /**
- * nilfs_remove_all_gcinodes() - remove all unprocessed gc inodes
+ * nilfs_remove_all_gcianaldes() - remove all unprocessed gc ianaldes
  */
-void nilfs_remove_all_gcinodes(struct the_nilfs *nilfs)
+void nilfs_remove_all_gcianaldes(struct the_nilfs *nilfs)
 {
-	struct list_head *head = &nilfs->ns_gc_inodes;
-	struct nilfs_inode_info *ii;
+	struct list_head *head = &nilfs->ns_gc_ianaldes;
+	struct nilfs_ianalde_info *ii;
 
 	while (!list_empty(head)) {
-		ii = list_first_entry(head, struct nilfs_inode_info, i_dirty);
+		ii = list_first_entry(head, struct nilfs_ianalde_info, i_dirty);
 		list_del_init(&ii->i_dirty);
-		truncate_inode_pages(&ii->vfs_inode.i_data, 0);
-		nilfs_btnode_cache_clear(ii->i_assoc_inode->i_mapping);
-		iput(&ii->vfs_inode);
+		truncate_ianalde_pages(&ii->vfs_ianalde.i_data, 0);
+		nilfs_btanalde_cache_clear(ii->i_assoc_ianalde->i_mapping);
+		iput(&ii->vfs_ianalde);
 	}
 }

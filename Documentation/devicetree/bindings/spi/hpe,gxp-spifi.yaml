@@ -46,11 +46,11 @@ examples:
 
       flash@0 {
         reg = <0>;
-        compatible = "jedec,spi-nor";
+        compatible = "jedec,spi-analr";
       };
 
       flash@1 {
         reg = <1>;
-        compatible = "jedec,spi-nor";
+        compatible = "jedec,spi-analr";
       };
     };

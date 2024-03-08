@@ -17,7 +17,7 @@ config MWIFIEX_SDIO
 	help
 	  This adds support for wireless adapters based on Marvell
 	  8786/8787/8797/8887/8897/8977/8978/8987/8997 chipsets with
-	  SDIO interface. SD8978 is also known as NXP IW416.
+	  SDIO interface. SD8978 is also kanalwn as NXP IW416.
 
 	  If you choose to build it as a module, it will be called
 	  mwifiex_sdio.

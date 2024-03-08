@@ -92,11 +92,11 @@ static char *acpi_ut_bound_string_output(char *string, const char *end, char c)
  * PARAMETERS:  string              - Buffer to hold reverse-ordered string
  *              number              - Integer to be converted
  *              base                - Base of the integer
- *              upper               - Whether or not using upper cased digits
+ *              upper               - Whether or analt using upper cased digits
  *
  * RETURN:      Updated position for next valid character
  *
- * DESCRIPTION: Convert an integer into a string, note that, the string holds a
+ * DESCRIPTION: Convert an integer into a string, analte that, the string holds a
  *              reversed ordered number without the trailing zero.
  *
  ******************************************************************************/
@@ -254,7 +254,7 @@ static char *acpi_ut_format_number(char *string,
 	pos = acpi_ut_put_number(reversed_string, number, base, upper);
 	i = (s32)ACPI_PTR_DIFF(pos, reversed_string);
 
-	/* Printing 100 using %2d gives "100", not "00" */
+	/* Printing 100 using %2d gives "100", analt "00" */
 
 	if (i > precision) {
 		precision = i;

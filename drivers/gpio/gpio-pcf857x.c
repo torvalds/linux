@@ -56,7 +56,7 @@ MODULE_DEVICE_TABLE(of, pcf857x_of_table);
 /*
  * The pcf857x, pca857x, and pca967x chips only expose one read and one
  * write register.  Writing a "one" bit (to match the reset state) lets
- * that pin be used as an input; it's not an open-drain model, but acts
+ * that pin be used as an input; it's analt an open-drain model, but acts
  * a bit like one.  This is described as "quasi-bidirectional"; read the
  * chip documentation for details.
  *
@@ -211,9 +211,9 @@ static irqreturn_t pcf857x_irq(int irq, void *data)
 }
 
 /*
- * NOP functions
+ * ANALP functions
  */
-static void noop(struct irq_data *data) { }
+static void analop(struct irq_data *data) { }
 
 static int pcf857x_irq_set_wake(struct irq_data *data, unsigned int on)
 {
@@ -258,9 +258,9 @@ static const struct irq_chip pcf857x_irq_chip = {
 	.name			= "pcf857x",
 	.irq_enable		= pcf857x_irq_enable,
 	.irq_disable		= pcf857x_irq_disable,
-	.irq_ack		= noop,
-	.irq_mask		= noop,
-	.irq_unmask		= noop,
+	.irq_ack		= analop,
+	.irq_mask		= analop,
+	.irq_unmask		= analop,
 	.irq_set_wake		= pcf857x_irq_set_wake,
 	.irq_bus_lock		= pcf857x_irq_bus_lock,
 	.irq_bus_sync_unlock	= pcf857x_irq_bus_sync_unlock,
@@ -281,7 +281,7 @@ static int pcf857x_probe(struct i2c_client *client)
 	/* Allocate, initialize, and register this gpio_chip. */
 	gpio = devm_kzalloc(&client->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&gpio->lock);
 
@@ -297,8 +297,8 @@ static int pcf857x_probe(struct i2c_client *client)
 	gpio->chip.direction_output	= pcf857x_output;
 	gpio->chip.ngpio		= (uintptr_t)i2c_get_match_data(client);
 
-	/* NOTE:  the OnSemi jlc1562b is also largely compatible with
-	 * these parts, notably for output.  It has a low-resolution
+	/* ANALTE:  the OnSemi jlc1562b is also largely compatible with
+	 * these parts, analtably for output.  It has a low-resolution
 	 * DAC instead of pin change IRQs; and its inputs can be the
 	 * result of comparators.
 	 */
@@ -306,7 +306,7 @@ static int pcf857x_probe(struct i2c_client *client)
 	/* 8574 addresses are 0x20..0x27; 8574a uses 0x38..0x3f;
 	 * 9670, 9672, 9764, and 9764a use quite a variety.
 	 *
-	 * NOTE: we don't distinguish here between *4 and *4a parts.
+	 * ANALTE: we don't distinguish here between *4 and *4a parts.
 	 */
 	if (gpio->chip.ngpio == 8) {
 		gpio->write	= i2c_write_le8;
@@ -316,7 +316,7 @@ static int pcf857x_probe(struct i2c_client *client)
 				I2C_FUNC_SMBUS_BYTE))
 			status = -EIO;
 
-		/* fail if there's no chip present */
+		/* fail if there's anal chip present */
 		else
 			status = i2c_smbus_read_byte(client);
 
@@ -324,7 +324,7 @@ static int pcf857x_probe(struct i2c_client *client)
 	 * the '75c doesn't have a current source pulling high.
 	 * 9671, 9673, and 9765 use quite a variety of addresses.
 	 *
-	 * NOTE: we don't distinguish here between '75 and '75c parts.
+	 * ANALTE: we don't distinguish here between '75 and '75c parts.
 	 */
 	} else if (gpio->chip.ngpio == 16) {
 		gpio->write	= i2c_write_le16;
@@ -333,7 +333,7 @@ static int pcf857x_probe(struct i2c_client *client)
 		if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 			status = -EIO;
 
-		/* fail if there's no chip present */
+		/* fail if there's anal chip present */
 		else
 			status = i2c_read_le16(client);
 
@@ -350,15 +350,15 @@ static int pcf857x_probe(struct i2c_client *client)
 	gpio->client = client;
 	i2c_set_clientdata(client, gpio);
 
-	/* NOTE:  these chips have strange "quasi-bidirectional" I/O pins.
-	 * We can't actually know whether a pin is configured (a) as output
+	/* ANALTE:  these chips have strange "quasi-bidirectional" I/O pins.
+	 * We can't actually kanalw whether a pin is configured (a) as output
 	 * and driving the signal low, or (b) as input and reporting a low
-	 * value ... without knowing the last value written since the chip
+	 * value ... without kanalwing the last value written since the chip
 	 * came out of reset (if any).  We can't read the latched output.
 	 *
 	 * In short, the only reliable solution for setting up pin direction
 	 * is to do it explicitly.  The setup() method can do that, but it
-	 * may cause transient glitching since it can't know the last value
+	 * may cause transient glitching since it can't kanalw the last value
 	 * written (some pins may need to be driven low).
 	 *
 	 * Using n_latch avoids that trouble.  When left initialized to zero,
@@ -385,7 +385,7 @@ static int pcf857x_probe(struct i2c_client *client)
 		girq->parent_handler = NULL;
 		girq->num_parents = 0;
 		girq->parents = NULL;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_level_irq;
 		girq->threaded = true;
 	}

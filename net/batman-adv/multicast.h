@@ -18,25 +18,25 @@
  */
 enum batadv_forw_mode {
 	/**
-	 * @BATADV_FORW_BCAST: forward the packet to all nodes via a batman-adv
+	 * @BATADV_FORW_BCAST: forward the packet to all analdes via a batman-adv
 	 *  broadcast packet
 	 */
 	BATADV_FORW_BCAST,
 
 	/**
-	 * @BATADV_FORW_UCASTS: forward the packet to some nodes via one
+	 * @BATADV_FORW_UCASTS: forward the packet to some analdes via one
 	 *  or more batman-adv unicast packets
 	 */
 	BATADV_FORW_UCASTS,
 
 	/**
-	 * @BATADV_FORW_MCAST: forward the packet to some nodes via a
+	 * @BATADV_FORW_MCAST: forward the packet to some analdes via a
 	 *  batman-adv multicast packet
 	 */
 	BATADV_FORW_MCAST,
 
-	/** @BATADV_FORW_NONE: don't forward, drop it */
-	BATADV_FORW_NONE,
+	/** @BATADV_FORW_ANALNE: don't forward, drop it */
+	BATADV_FORW_ANALNE,
 };
 
 #ifdef CONFIG_BATMAN_ADV_MCAST
@@ -57,7 +57,7 @@ int batadv_mcast_flags_dump(struct sk_buff *msg, struct netlink_callback *cb);
 
 void batadv_mcast_free(struct batadv_priv *bat_priv);
 
-void batadv_mcast_purge_orig(struct batadv_orig_node *orig_node);
+void batadv_mcast_purge_orig(struct batadv_orig_analde *orig_analde);
 
 /* multicast_forw.c */
 
@@ -102,14 +102,14 @@ batadv_mcast_mesh_info_put(struct sk_buff *msg, struct batadv_priv *bat_priv)
 static inline int batadv_mcast_flags_dump(struct sk_buff *msg,
 					  struct netlink_callback *cb)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void batadv_mcast_free(struct batadv_priv *bat_priv)
 {
 }
 
-static inline void batadv_mcast_purge_orig(struct batadv_orig_node *orig_node)
+static inline void batadv_mcast_purge_orig(struct batadv_orig_analde *orig_analde)
 {
 }
 

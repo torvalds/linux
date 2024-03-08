@@ -33,8 +33,8 @@ void set_term_quiet_input(struct termios *old)
 
 	tcgetattr(0, old);
 	tc = *old;
-	tc.c_lflag &= ~(ICANON | ECHO);
+	tc.c_lflag &= ~(ICAANALN | ECHO);
 	tc.c_cc[VMIN] = 0;
 	tc.c_cc[VTIME] = 0;
-	tcsetattr(0, TCSANOW, &tc);
+	tcsetattr(0, TCSAANALW, &tc);
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos4210 based Galaxy S2 (GT-I9100 version) device tree
+ * Samsung's Exyanals4210 based Galaxy S2 (GT-I9100 version) device tree
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -9,15 +9,15 @@
  */
 
 /dts-v1/;
-#include "exynos4210.dtsi"
-#include "exynos4412-ppmu-common.dtsi"
+#include "exyanals4210.dtsi"
+#include "exyanals4412-ppmu-common.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/linux-event-codes.h>
 
 / {
 	model = "Samsung Galaxy S2 (GT-I9100)";
-	compatible = "samsung,i9100", "samsung,exynos4210", "samsung,exynos4";
+	compatible = "samsung,i9100", "samsung,exyanals4210", "samsung,exyanals4";
 	chassis-type = "handset";
 
 	memory@40000000 {
@@ -324,11 +324,11 @@
 &ehci {
 	status = "okay";
 
-	phys = <&exynos_usbphy 1>;
+	phys = <&exyanals_usbphy 1>;
 	phy-names = "host";
 };
 
-&exynos_usbphy {
+&exyanals_usbphy {
 	status = "okay";
 
 	vbus-supply = <&safe1_sreg>;
@@ -343,7 +343,7 @@
 };
 
 &fimc_1 {
-	/* Back camera not implemented */
+	/* Back camera analt implemented */
 	status = "disabled";
 
 	assigned-clocks = <&clock CLK_MOUT_FIMC1>, <&clock CLK_SCLK_FIMC1>;
@@ -360,7 +360,7 @@
 };
 
 &fimc_3 {
-	/* Back camera not implemented */
+	/* Back camera analt implemented */
 	status = "disabled";
 
 	assigned-clocks = <&clock CLK_MOUT_FIMC3>, <&clock CLK_SCLK_FIMC3>;
@@ -452,14 +452,14 @@
 		compatible = "maxim,max8997-pmic";
 		reg = <0x66>;
 
-		interrupts-extended = <&gpx0 7 IRQ_TYPE_NONE>,
+		interrupts-extended = <&gpx0 7 IRQ_TYPE_ANALNE>,
 				      <&gpx2 3 IRQ_TYPE_EDGE_FALLING>;
 
 		max8997,pmic-buck1-uses-gpio-dvs;
 		max8997,pmic-buck2-uses-gpio-dvs;
 		max8997,pmic-buck5-uses-gpio-dvs;
 
-		max8997,pmic-ignore-gpiodvs-side-effect;
+		max8997,pmic-iganalre-gpiodvs-side-effect;
 		max8997,pmic-buck125-default-dvs-idx = <0>;
 
 		max8997,pmic-buck125-dvs-gpios = <&gpx0 5 GPIO_ACTIVE_HIGH>,
@@ -727,26 +727,26 @@
 	sleep0: sleep-state {
 		gpa0-0-pin {
 			samsung,pins = "gpa0-0";
-			samsung,pin-con-pdn = <EXYNOS_PIN_PDN_INPUT>;
-			samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+			samsung,pin-con-pdn = <EXYANALS_PIN_PDN_INPUT>;
+			samsung,pin-pud-pdn = <EXYANALS_PIN_PULL_ANALNE>;
 		};
 
 		gpa0-1-pin {
 			samsung,pins = "gpa0-1";
-			samsung,pin-con-pdn = <EXYNOS_PIN_PDN_OUT0>;
-			samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+			samsung,pin-con-pdn = <EXYANALS_PIN_PDN_OUT0>;
+			samsung,pin-pud-pdn = <EXYANALS_PIN_PULL_ANALNE>;
 		};
 
 		gpa0-2-pin {
 			samsung,pins = "gpa0-2";
-			samsung,pin-con-pdn = <EXYNOS_PIN_PDN_INPUT>;
-			samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+			samsung,pin-con-pdn = <EXYANALS_PIN_PDN_INPUT>;
+			samsung,pin-pud-pdn = <EXYANALS_PIN_PULL_ANALNE>;
 		};
 
 		gpa0-3-pin {
 			samsung,pins = "gpa0-3";
-			samsung,pin-con-pdn = <EXYNOS_PIN_PDN_OUT1>;
-			samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+			samsung,pin-con-pdn = <EXYANALS_PIN_PDN_OUT1>;
+			samsung,pin-pud-pdn = <EXYANALS_PIN_PULL_ANALNE>;
 		};
 	};
 };
@@ -754,67 +754,67 @@
 &pinctrl_1 {
 	mhl_int: mhl-int-pins {
 		samsung,pins = "gpf3-5";
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 	};
 
 	i2c_mhl_bus: i2c-mhl-bus-pins {
 		samsung,pins = "gpf0-4", "gpf0-6";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <EXYANALS4_PIN_DRV_LV1>;
 	};
 
 	usb_sel: usb-sel-pins {
 		samsung,pins = "gpl0-6";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS4_PIN_DRV_LV1>;
 		samsung,pin-val = <0>;
 	};
 
 	bt_en: bt-en-pins {
 		samsung,pins = "gpl0-4";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV4>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS4_PIN_DRV_LV4>;
 		samsung,pin-val = <0>;
 	};
 
 	bt_res: bt-res-pins {
 		samsung,pins = "gpl1-0";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV4>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS4_PIN_DRV_LV4>;
 		samsung,pin-val = <0>;
 	};
 
 	otg_gp: otg-gp-pins {
 		samsung,pins = "gpx3-3";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS4_PIN_DRV_LV1>;
 		samsung,pin-val = <0>;
 	};
 
 	mag_mhl_gpio: mag-mhl-pins {
 		samsung,pins = "gpd0-2";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_3>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_3>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 	};
 
 	max8997_irq: max8997-irq-pins {
 		samsung,pins = "gpx0-7";
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 	};
 
 	max17042_fuel_irq: max17042-fuel-irq-pins {
 		samsung,pins = "gpx2-3";
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 	};
 
 	tsp224_irq: tsp224-irq-pins {
 		samsung,pins = "gpx0-4";
-		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_UP>;
 	};
 };
 
@@ -828,7 +828,7 @@
 	status = "okay";
 
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&vemmc_reg>;
 
 	pinctrl-0 = <&sd0_clk>, <&sd0_cmd>, <&sd0_bus8>;
@@ -852,7 +852,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	non-removable;
+	analn-removable;
 	bus-width = <4>;
 	mmc-pwrseq = <&wlan_pwrseq>;
 	vmmc-supply = <&vtf_reg>;

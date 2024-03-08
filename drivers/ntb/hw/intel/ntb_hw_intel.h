@@ -21,21 +21,21 @@
  *   are met:
  *
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copy
- *       notice, this list of conditions and the following disclaimer in
+ *       analtice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
+ *     * Neither the name of Intel Corporation analr the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
  *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -50,7 +50,7 @@
 
 #include <linux/ntb.h>
 #include <linux/pci.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 /* PCI device IDs */
 #define PCI_DEVICE_ID_INTEL_NTB_B2B_JSF	0x3725
@@ -75,12 +75,12 @@
 /* Ntb control and link status */
 #define NTB_CTL_CFG_LOCK		BIT(0)
 #define NTB_CTL_DISABLE			BIT(1)
-#define NTB_CTL_S2P_BAR2_SNOOP		BIT(2)
-#define NTB_CTL_P2S_BAR2_SNOOP		BIT(4)
-#define NTB_CTL_S2P_BAR4_SNOOP		BIT(6)
-#define NTB_CTL_P2S_BAR4_SNOOP		BIT(8)
-#define NTB_CTL_S2P_BAR5_SNOOP		BIT(12)
-#define NTB_CTL_P2S_BAR5_SNOOP		BIT(14)
+#define NTB_CTL_S2P_BAR2_SANALOP		BIT(2)
+#define NTB_CTL_P2S_BAR2_SANALOP		BIT(4)
+#define NTB_CTL_S2P_BAR4_SANALOP		BIT(6)
+#define NTB_CTL_P2S_BAR4_SANALOP		BIT(8)
+#define NTB_CTL_S2P_BAR5_SANALOP		BIT(12)
+#define NTB_CTL_P2S_BAR5_SANALOP		BIT(14)
 
 #define NTB_LNK_STA_ACTIVE_BIT		0x2000
 #define NTB_LNK_STA_SPEED_MASK		0x000f
@@ -178,7 +178,7 @@ struct intel_ntb_dev {
 
 	unsigned long			hwerr_flags;
 	unsigned long			unsafe_flags;
-	unsigned long			unsafe_flags_ignore;
+	unsigned long			unsafe_flags_iganalre;
 
 	struct dentry			*debugfs_dir;
 	struct dentry			*debugfs_info;

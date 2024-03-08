@@ -9,7 +9,7 @@
 
 /* Flags used for VSI configuration and rebuild */
 #define ICE_VSI_FLAG_INIT	BIT(0)
-#define ICE_VSI_FLAG_NO_INIT	0
+#define ICE_VSI_FLAG_ANAL_INIT	0
 
 /**
  * struct ice_vsi_cfg_params - VSI configuration parameters
@@ -50,7 +50,7 @@ static inline struct ice_vsi_cfg_params ice_vsi_to_params(struct ice_vsi *vsi)
 
 const char *ice_vsi_type_str(enum ice_vsi_type vsi_type);
 
-bool ice_pf_state_is_nominal(struct ice_pf *pf);
+bool ice_pf_state_is_analminal(struct ice_pf *pf);
 
 void ice_update_eth_stats(struct ice_vsi *vsi);
 
@@ -165,8 +165,8 @@ void ice_vsi_ctx_clear_allow_override(struct ice_vsi_ctx *ctx);
 int ice_vsi_update_local_lb(struct ice_vsi *vsi, bool set);
 int ice_vsi_add_vlan_zero(struct ice_vsi *vsi);
 int ice_vsi_del_vlan_zero(struct ice_vsi *vsi);
-bool ice_vsi_has_non_zero_vlans(struct ice_vsi *vsi);
-u16 ice_vsi_num_non_zero_vlans(struct ice_vsi *vsi);
+bool ice_vsi_has_analn_zero_vlans(struct ice_vsi *vsi);
+u16 ice_vsi_num_analn_zero_vlans(struct ice_vsi *vsi);
 bool ice_is_feature_supported(struct ice_pf *pf, enum ice_feature f);
 void ice_set_feature_support(struct ice_pf *pf, enum ice_feature f);
 void ice_clear_feature_support(struct ice_pf *pf, enum ice_feature f);

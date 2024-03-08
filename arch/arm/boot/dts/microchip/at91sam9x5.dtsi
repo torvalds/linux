@@ -210,115 +210,115 @@
 					pinctrl_dbgu: dbgu-0 {
 						atmel,pins =
 							<AT91_PIOA 9 AT91_PERIPH_A AT91_PINCTRL_PULL_UP
-							 AT91_PIOA 10 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+							 AT91_PIOA 10 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;
 					};
 				};
 
 				ebi {
 					pinctrl_ebi_data_0_7: ebi-data-lsb-0 {
 						atmel,pins =
-							<AT91_PIOD 6 AT91_PERIPH_A AT91_PINCTRL_NONE
-							 AT91_PIOD 7 AT91_PERIPH_A AT91_PINCTRL_NONE
-							 AT91_PIOD 8 AT91_PERIPH_A AT91_PINCTRL_NONE
-							 AT91_PIOD 9 AT91_PERIPH_A AT91_PINCTRL_NONE
-							 AT91_PIOD 10 AT91_PERIPH_A AT91_PINCTRL_NONE
-							 AT91_PIOD 11 AT91_PERIPH_A AT91_PINCTRL_NONE
-							 AT91_PIOD 12 AT91_PERIPH_A AT91_PINCTRL_NONE
-							 AT91_PIOD 13 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+							<AT91_PIOD 6 AT91_PERIPH_A AT91_PINCTRL_ANALNE
+							 AT91_PIOD 7 AT91_PERIPH_A AT91_PINCTRL_ANALNE
+							 AT91_PIOD 8 AT91_PERIPH_A AT91_PINCTRL_ANALNE
+							 AT91_PIOD 9 AT91_PERIPH_A AT91_PINCTRL_ANALNE
+							 AT91_PIOD 10 AT91_PERIPH_A AT91_PINCTRL_ANALNE
+							 AT91_PIOD 11 AT91_PERIPH_A AT91_PINCTRL_ANALNE
+							 AT91_PIOD 12 AT91_PERIPH_A AT91_PINCTRL_ANALNE
+							 AT91_PIOD 13 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_ebi_data_8_15: ebi-data-msb-0 {
 						atmel,pins =
-							<AT91_PIOD 14 AT91_PERIPH_A AT91_PINCTRL_NONE
-							 AT91_PIOD 15 AT91_PERIPH_A AT91_PINCTRL_NONE
-							 AT91_PIOD 16 AT91_PERIPH_A AT91_PINCTRL_NONE
-							 AT91_PIOD 17 AT91_PERIPH_A AT91_PINCTRL_NONE
-							 AT91_PIOD 18 AT91_PERIPH_A AT91_PINCTRL_NONE
-							 AT91_PIOD 19 AT91_PERIPH_A AT91_PINCTRL_NONE
-							 AT91_PIOD 20 AT91_PERIPH_A AT91_PINCTRL_NONE
-							 AT91_PIOD 21 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+							<AT91_PIOD 14 AT91_PERIPH_A AT91_PINCTRL_ANALNE
+							 AT91_PIOD 15 AT91_PERIPH_A AT91_PINCTRL_ANALNE
+							 AT91_PIOD 16 AT91_PERIPH_A AT91_PINCTRL_ANALNE
+							 AT91_PIOD 17 AT91_PERIPH_A AT91_PINCTRL_ANALNE
+							 AT91_PIOD 18 AT91_PERIPH_A AT91_PINCTRL_ANALNE
+							 AT91_PIOD 19 AT91_PERIPH_A AT91_PINCTRL_ANALNE
+							 AT91_PIOD 20 AT91_PERIPH_A AT91_PINCTRL_ANALNE
+							 AT91_PIOD 21 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_ebi_addr_nand: ebi-addr-0 {
 						atmel,pins =
-							<AT91_PIOD 2 AT91_PERIPH_A AT91_PINCTRL_NONE
-							 AT91_PIOD 3 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+							<AT91_PIOD 2 AT91_PERIPH_A AT91_PINCTRL_ANALNE
+							 AT91_PIOD 3 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;
 					};
 				};
 
 				usart0 {
 					pinctrl_usart0: usart0-0 {
 						atmel,pins =
-							<AT91_PIOA 0 AT91_PERIPH_A AT91_PINCTRL_NONE
+							<AT91_PIOA 0 AT91_PERIPH_A AT91_PINCTRL_ANALNE
 							 AT91_PIOA 1 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
 					};
 
 					pinctrl_usart0_rts: usart0_rts-0 {
 						atmel,pins =
-							<AT91_PIOA 2 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PA2 periph A */
+							<AT91_PIOA 2 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;	/* PA2 periph A */
 					};
 
 					pinctrl_usart0_cts: usart0_cts-0 {
 						atmel,pins =
-							<AT91_PIOA 3 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PA3 periph A */
+							<AT91_PIOA 3 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;	/* PA3 periph A */
 					};
 
 					pinctrl_usart0_sck: usart0_sck-0 {
 						atmel,pins =
-							<AT91_PIOA 4 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PA4 periph A */
+							<AT91_PIOA 4 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;	/* PA4 periph A */
 					};
 				};
 
 				usart1 {
 					pinctrl_usart1: usart1-0 {
 						atmel,pins =
-							<AT91_PIOA 5 AT91_PERIPH_A AT91_PINCTRL_NONE
+							<AT91_PIOA 5 AT91_PERIPH_A AT91_PINCTRL_ANALNE
 							 AT91_PIOA 6 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
 					};
 
 					pinctrl_usart1_rts: usart1_rts-0 {
 						atmel,pins =
-							<AT91_PIOC 27 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* PC27 periph C */
+							<AT91_PIOC 27 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;	/* PC27 periph C */
 					};
 
 					pinctrl_usart1_cts: usart1_cts-0 {
 						atmel,pins =
-							<AT91_PIOC 28 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* PC28 periph C */
+							<AT91_PIOC 28 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;	/* PC28 periph C */
 					};
 
 					pinctrl_usart1_sck: usart1_sck-0 {
 						atmel,pins =
-							<AT91_PIOC 29 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* PC29 periph C */
+							<AT91_PIOC 29 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;	/* PC29 periph C */
 					};
 				};
 
 				usart2 {
 					pinctrl_usart2: usart2-0 {
 						atmel,pins =
-							<AT91_PIOA 7 AT91_PERIPH_A AT91_PINCTRL_NONE
+							<AT91_PIOA 7 AT91_PERIPH_A AT91_PINCTRL_ANALNE
 							 AT91_PIOA 8 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
 					};
 
 					pinctrl_usart2_rts: usart2_rts-0 {
 						atmel,pins =
-							<AT91_PIOB 0 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PB0 periph B */
+							<AT91_PIOB 0 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;	/* PB0 periph B */
 					};
 
 					pinctrl_usart2_cts: usart2_cts-0 {
 						atmel,pins =
-							<AT91_PIOB 1 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PB1 periph B */
+							<AT91_PIOB 1 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;	/* PB1 periph B */
 					};
 
 					pinctrl_usart2_sck: usart2_sck-0 {
 						atmel,pins =
-							<AT91_PIOB 2 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PB2 periph B */
+							<AT91_PIOB 2 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;	/* PB2 periph B */
 					};
 				};
 
 				uart0 {
 					pinctrl_uart0: uart0-0 {
 						atmel,pins =
-							<AT91_PIOC 8 AT91_PERIPH_C AT91_PINCTRL_NONE	/* PC8 periph C */
+							<AT91_PIOC 8 AT91_PERIPH_C AT91_PINCTRL_ANALNE	/* PC8 periph C */
 							 AT91_PIOC 9 AT91_PERIPH_C AT91_PINCTRL_PULL_UP>;	/* PC9 periph C with pullup */
 					};
 				};
@@ -326,7 +326,7 @@
 				uart1 {
 					pinctrl_uart1: uart1-0 {
 						atmel,pins =
-							<AT91_PIOC 16 AT91_PERIPH_C AT91_PINCTRL_NONE	/* PC16 periph C */
+							<AT91_PIOC 16 AT91_PERIPH_C AT91_PINCTRL_ANALNE	/* PC16 periph C */
 							 AT91_PIOC 17 AT91_PERIPH_C AT91_PINCTRL_PULL_UP>;	/* PC17 periph C with pullup */
 					};
 				};
@@ -334,8 +334,8 @@
 				nand {
 					pinctrl_nand_oe_we: nand-oe-we-0 {
 						atmel,pins =
-							<AT91_PIOD 0 AT91_PERIPH_A AT91_PINCTRL_NONE
-							 AT91_PIOD 1 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+							<AT91_PIOD 0 AT91_PERIPH_A AT91_PINCTRL_ANALNE
+							 AT91_PIOD 1 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_nand_rb: nand-rb-0 {
@@ -352,7 +352,7 @@
 				mmc0 {
 					pinctrl_mmc0_slot0_clk_cmd_dat0: mmc0_slot0_clk_cmd_dat0-0 {
 						atmel,pins =
-							<AT91_PIOA 17 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PA17 periph A */
+							<AT91_PIOA 17 AT91_PERIPH_A AT91_PINCTRL_ANALNE	/* PA17 periph A */
 							 AT91_PIOA 16 AT91_PERIPH_A AT91_PINCTRL_PULL_UP	/* PA16 periph A with pullup */
 							 AT91_PIOA 15 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;	/* PA15 periph A with pullup */
 					};
@@ -368,7 +368,7 @@
 				mmc1 {
 					pinctrl_mmc1_slot0_clk_cmd_dat0: mmc1_slot0_clk_cmd_dat0-0 {
 						atmel,pins =
-							<AT91_PIOA 13 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PA13 periph B */
+							<AT91_PIOA 13 AT91_PERIPH_B AT91_PINCTRL_ANALNE	/* PA13 periph B */
 							 AT91_PIOA 12 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* PA12 periph B with pullup */
 							 AT91_PIOA 11 AT91_PERIPH_B AT91_PINCTRL_PULL_UP>;	/* PA11 periph B with pullup */
 					};
@@ -384,58 +384,58 @@
 				ssc0 {
 					pinctrl_ssc0_tx: ssc0_tx-0 {
 						atmel,pins =
-							<AT91_PIOA 24 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PA24 periph B */
-							 AT91_PIOA 25 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PA25 periph B */
-							 AT91_PIOA 26 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PA26 periph B */
+							<AT91_PIOA 24 AT91_PERIPH_B AT91_PINCTRL_ANALNE	/* PA24 periph B */
+							 AT91_PIOA 25 AT91_PERIPH_B AT91_PINCTRL_ANALNE	/* PA25 periph B */
+							 AT91_PIOA 26 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;	/* PA26 periph B */
 					};
 
 					pinctrl_ssc0_rx: ssc0_rx-0 {
 						atmel,pins =
-							<AT91_PIOA 27 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PA27 periph B */
-							 AT91_PIOA 28 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PA28 periph B */
-							 AT91_PIOA 29 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PA29 periph B */
+							<AT91_PIOA 27 AT91_PERIPH_B AT91_PINCTRL_ANALNE	/* PA27 periph B */
+							 AT91_PIOA 28 AT91_PERIPH_B AT91_PINCTRL_ANALNE	/* PA28 periph B */
+							 AT91_PIOA 29 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;	/* PA29 periph B */
 					};
 				};
 
 				spi0 {
 					pinctrl_spi0: spi0-0 {
 						atmel,pins =
-							<AT91_PIOA 11 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PA11 periph A SPI0_MISO pin */
-							 AT91_PIOA 12 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PA12 periph A SPI0_MOSI pin */
-							 AT91_PIOA 13 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PA13 periph A SPI0_SPCK pin */
+							<AT91_PIOA 11 AT91_PERIPH_A AT91_PINCTRL_ANALNE	/* PA11 periph A SPI0_MISO pin */
+							 AT91_PIOA 12 AT91_PERIPH_A AT91_PINCTRL_ANALNE	/* PA12 periph A SPI0_MOSI pin */
+							 AT91_PIOA 13 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;	/* PA13 periph A SPI0_SPCK pin */
 					};
 				};
 
 				spi1 {
 					pinctrl_spi1: spi1-0 {
 						atmel,pins =
-							<AT91_PIOA 21 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PA21 periph B SPI1_MISO pin */
-							 AT91_PIOA 22 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PA22 periph B SPI1_MOSI pin */
-							 AT91_PIOA 23 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PA23 periph B SPI1_SPCK pin */
+							<AT91_PIOA 21 AT91_PERIPH_B AT91_PINCTRL_ANALNE	/* PA21 periph B SPI1_MISO pin */
+							 AT91_PIOA 22 AT91_PERIPH_B AT91_PINCTRL_ANALNE	/* PA22 periph B SPI1_MOSI pin */
+							 AT91_PIOA 23 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;	/* PA23 periph B SPI1_SPCK pin */
 					};
 				};
 
 				i2c0 {
 					pinctrl_i2c0: i2c0-0 {
 						atmel,pins =
-							<AT91_PIOA 30 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PA30 periph A I2C0 data */
-							 AT91_PIOA 31 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PA31 periph A I2C0 clock */
+							<AT91_PIOA 30 AT91_PERIPH_A AT91_PINCTRL_ANALNE	/* PA30 periph A I2C0 data */
+							 AT91_PIOA 31 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;	/* PA31 periph A I2C0 clock */
 					};
 				};
 
 				i2c1 {
 					pinctrl_i2c1: i2c1-0 {
 						atmel,pins =
-							<AT91_PIOC 0 AT91_PERIPH_C AT91_PINCTRL_NONE	/* PC0 periph C I2C1 data */
-							 AT91_PIOC 1 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* PC1 periph C I2C1 clock */
+							<AT91_PIOC 0 AT91_PERIPH_C AT91_PINCTRL_ANALNE	/* PC0 periph C I2C1 data */
+							 AT91_PIOC 1 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;	/* PC1 periph C I2C1 clock */
 					};
 				};
 
 				i2c2 {
 					pinctrl_i2c2: i2c2-0 {
 						atmel,pins =
-							<AT91_PIOB 4 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PB4 periph B I2C2 data */
-							 AT91_PIOB 5 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PB5 periph B I2C2 clock */
+							<AT91_PIOB 4 AT91_PERIPH_B AT91_PINCTRL_ANALNE	/* PB4 periph B I2C2 data */
+							 AT91_PIOB 5 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;	/* PB5 periph B I2C2 clock */
 					};
 				};
 
@@ -466,122 +466,122 @@
 				pwm0 {
 					pinctrl_pwm0_pwm0_0: pwm0_pwm0-0 {
 						atmel,pins =
-							<AT91_PIOB 11 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+							<AT91_PIOB 11 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;
 					};
 					pinctrl_pwm0_pwm0_1: pwm0_pwm0-1 {
 						atmel,pins =
-							<AT91_PIOC 10 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+							<AT91_PIOC 10 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;
 					};
 					pinctrl_pwm0_pwm0_2: pwm0_pwm0-2 {
 						atmel,pins =
-							<AT91_PIOC 18 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+							<AT91_PIOC 18 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_pwm0_pwm1_0: pwm0_pwm1-0 {
 						atmel,pins =
-							<AT91_PIOB 12 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+							<AT91_PIOB 12 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;
 					};
 					pinctrl_pwm0_pwm1_1: pwm0_pwm1-1 {
 						atmel,pins =
-							<AT91_PIOC 11 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+							<AT91_PIOC 11 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;
 					};
 					pinctrl_pwm0_pwm1_2: pwm0_pwm1-2 {
 						atmel,pins =
-							<AT91_PIOC 19 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+							<AT91_PIOC 19 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_pwm0_pwm2_0: pwm0_pwm2-0 {
 						atmel,pins =
-							<AT91_PIOB 13 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+							<AT91_PIOB 13 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;
 					};
 					pinctrl_pwm0_pwm2_1: pwm0_pwm2-1 {
 						atmel,pins =
-							<AT91_PIOC 20 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+							<AT91_PIOC 20 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_pwm0_pwm3_0: pwm0_pwm3-0 {
 						atmel,pins =
-							<AT91_PIOB 14 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+							<AT91_PIOB 14 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;
 					};
 					pinctrl_pwm0_pwm3_1: pwm0_pwm3-1 {
 						atmel,pins =
-							<AT91_PIOC 21 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+							<AT91_PIOC 21 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;
 					};
 				};
 
 				tcb0 {
 					pinctrl_tcb0_tclk0: tcb0_tclk0-0 {
-						atmel,pins = <AT91_PIOA 24 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOA 24 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_tcb0_tclk1: tcb0_tclk1-0 {
-						atmel,pins = <AT91_PIOA 25 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOA 25 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_tcb0_tclk2: tcb0_tclk2-0 {
-						atmel,pins = <AT91_PIOA 26 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOA 26 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_tcb0_tioa0: tcb0_tioa0-0 {
-						atmel,pins = <AT91_PIOA 21 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOA 21 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_tcb0_tioa1: tcb0_tioa1-0 {
-						atmel,pins = <AT91_PIOA 22 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOA 22 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_tcb0_tioa2: tcb0_tioa2-0 {
-						atmel,pins = <AT91_PIOA 23 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOA 23 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_tcb0_tiob0: tcb0_tiob0-0 {
-						atmel,pins = <AT91_PIOA 27 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOA 27 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_tcb0_tiob1: tcb0_tiob1-0 {
-						atmel,pins = <AT91_PIOA 28 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOA 28 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_tcb0_tiob2: tcb0_tiob2-0 {
-						atmel,pins = <AT91_PIOA 29 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOA 29 AT91_PERIPH_A AT91_PINCTRL_ANALNE>;
 					};
 				};
 
 				tcb1 {
 					pinctrl_tcb1_tclk0: tcb1_tclk0-0 {
-						atmel,pins = <AT91_PIOC 4 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOC 4 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_tcb1_tclk1: tcb1_tclk1-0 {
-						atmel,pins = <AT91_PIOC 7 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOC 7 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_tcb1_tclk2: tcb1_tclk2-0 {
-						atmel,pins = <AT91_PIOC 14 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOC 14 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_tcb1_tioa0: tcb1_tioa0-0 {
-						atmel,pins = <AT91_PIOC 2 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOC 2 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_tcb1_tioa1: tcb1_tioa1-0 {
-						atmel,pins = <AT91_PIOC 5 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOC 5 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_tcb1_tioa2: tcb1_tioa2-0 {
-						atmel,pins = <AT91_PIOC 12 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOC 12 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_tcb1_tiob0: tcb1_tiob0-0 {
-						atmel,pins = <AT91_PIOC 3 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOC 3 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_tcb1_tiob1: tcb1_tiob1-0 {
-						atmel,pins = <AT91_PIOC 6 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOC 6 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;
 					};
 
 					pinctrl_tcb1_tiob2: tcb1_tiob2-0 {
-						atmel,pins = <AT91_PIOC 13 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+						atmel,pins = <AT91_PIOC 13 AT91_PERIPH_C AT91_PINCTRL_ANALNE>;
 					};
 				};
 

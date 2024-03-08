@@ -39,7 +39,7 @@ Documentation/arch/arm64/silicon-errata.rst 的中文翻译
   C 类：在正常操作中不会显现的小瑕疵。
 
 更多资讯，请在 infocenter.arm.com （需注册）中查阅“软件开发者勘误
-笔记”（“Software Developers Errata Notice”）文档。
+笔记”（“Software Developers Errata Analtice”）文档。
 
 对于 Linux 而言，B 类缺陷可能需要操作系统的某些特别处理。例如，避免
 一个特殊的代码序列，或是以一种特定的方式配置处理器。在某种不太常见的

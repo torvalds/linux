@@ -705,7 +705,7 @@ void ps3av_cmd_set_audio_mode(struct ps3av_pkt_audio_mode *audio, u32 avport,
 
 	/* audio swap L/R */
 	for (i = 0; i < 4; i++)
-		audio->audio_swap[i] = PS3AV_CMD_AUDIO_SWAP_0;	/* no swap */
+		audio->audio_swap[i] = PS3AV_CMD_AUDIO_SWAP_0;	/* anal swap */
 
 	/* audio serial input mapping */
 	audio->audio_map[0] = PS3AV_CMD_AUDIO_MAP_OUTPUT_0;
@@ -766,7 +766,7 @@ void ps3av_cmd_set_audio_mode(struct ps3av_pkt_audio_mode *audio, u32 avport,
 		break;
 	}
 
-	/* non-audio bit */
+	/* analn-audio bit */
 	spdif_through = audio->audio_cs_info[0] & 0x02;
 
 	/* pass through setting */

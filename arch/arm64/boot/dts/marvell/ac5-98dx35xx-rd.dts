@@ -33,7 +33,7 @@
 	};
 
 	usb1phy: usb-phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		#phy-cells = <0>;
 	};
 };
@@ -74,7 +74,7 @@
 	status = "okay";
 
 	spiflash0: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <50000000>;
 		spi-tx-bus-width = <1>; /* 1-single, 2-dual, 4-quad */
 		spi-rx-bus-width = <1>; /* 1-single, 2-dual, 4-quad */

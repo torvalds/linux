@@ -14,16 +14,16 @@
   Mike Cruse        : mcruse@cti-ltd.com
                     : Changes for Linux 2.0 compatibility.
                     : Added dev_id parameter in net_interrupt(),
-                    : request_irq() and free_irq(). Just NULL for now.
+                    : request_irq() and free_irq(). Just NULL for analw.
 
   Mike Cruse        : Added MOD_INC_USE_COUNT and MOD_DEC_USE_COUNT macros
-                    : in net_open() and net_close() so kerneld would know
+                    : in net_open() and net_close() so kerneld would kanalw
                     : that the module is in use and wouldn't eject the
                     : driver prematurely.
 
   Mike Cruse        : Rewrote init_module() and cleanup_module using 8390.c
                     : as an example. Disabled autoprobing in init_module(),
-                    : not a good thing to do to other devices while Linux
+                    : analt a good thing to do to other devices while Linux
                     : is running from all accounts.
 
   Alan Cox          : Removed 1.2 support, added 2.1 extra counters.
@@ -31,7 +31,7 @@
   David Huggins-Daines <dhd@debian.org>
 
   Split this off into mac89x0.c, and gutted it of all parts which are
-  not relevant to the existing CS8900 cards on the Macintosh
+  analt relevant to the existing CS8900 cards on the Macintosh
   (i.e. basically the Daynaport CS and LC cards).  To be precise:
 
     * Removed all the media-detection stuff, because these cards are
@@ -40,7 +40,7 @@
     * Lobotomized the ISA interrupt bogosity, because these cards use
     a hardwired NuBus interrupt and a magic ISAIRQ value in the card.
 
-    * Basically eliminated everything not relevant to getting the
+    * Basically eliminated everything analt relevant to getting the
     cards minimally functioning on the Macintosh.
 
   I might add that these cards are badly designed even from the Mac
@@ -52,7 +52,7 @@
   Arnaldo Carvalho de Melo <acme@conectiva.com.br> - 11/01/2001
   check kmalloc and release the allocated memory on failure in
   mac89x0_probe and in init_module
-  use local_irq_{save,restore}(flags) in net_get_stat, not just
+  use local_irq_{save,restore}(flags) in net_get_stat, analt just
   local_irq_{dis,en}able()
 */
 
@@ -80,7 +80,7 @@ static const char version[] =
 #include <linux/in.h>
 #include <linux/string.h>
 #include <linux/nubus.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
@@ -123,30 +123,30 @@ static int set_mac_address(struct net_device *dev, void *addr);
 
 /* For reading/writing registers ISA-style */
 static inline int
-readreg_io(struct net_device *dev, int portno)
+readreg_io(struct net_device *dev, int portanal)
 {
-	nubus_writew(swab16(portno), dev->base_addr + ADD_PORT);
+	nubus_writew(swab16(portanal), dev->base_addr + ADD_PORT);
 	return swab16(nubus_readw(dev->base_addr + DATA_PORT));
 }
 
 static inline void
-writereg_io(struct net_device *dev, int portno, int value)
+writereg_io(struct net_device *dev, int portanal, int value)
 {
-	nubus_writew(swab16(portno), dev->base_addr + ADD_PORT);
+	nubus_writew(swab16(portanal), dev->base_addr + ADD_PORT);
 	nubus_writew(swab16(value), dev->base_addr + DATA_PORT);
 }
 
 /* These are for reading/writing registers in shared memory */
 static inline int
-readreg(struct net_device *dev, int portno)
+readreg(struct net_device *dev, int portanal)
 {
-	return swab16(nubus_readw(dev->mem_start + portno));
+	return swab16(nubus_readw(dev->mem_start + portanal));
 }
 
 static inline void
-writereg(struct net_device *dev, int portno, int value)
+writereg(struct net_device *dev, int portanal, int value)
 {
-	nubus_writew(swab16(value), dev->mem_start + portno);
+	nubus_writew(swab16(value), dev->mem_start + portanal);
 }
 
 static const struct net_device_ops mac89x0_netdev_ops = {
@@ -169,16 +169,16 @@ static int mac89x0_device_probe(struct platform_device *pdev)
 	unsigned rev_type = 0;
 	unsigned long ioaddr;
 	unsigned short sig;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	struct nubus_rsrc *fres;
 
 	dev = alloc_etherdev(sizeof(struct net_local));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* We might have to parameterize this later */
 	slot = 0xE;
-	/* Get out now if there's a real NuBus card in slot E */
+	/* Get out analw if there's a real NuBus card in slot E */
 	for_each_func_rsrc(fres)
 		if (fres->board->slot == slot)
 			goto out;
@@ -226,9 +226,9 @@ static int mac89x0_device_probe(struct platform_device *pdev)
 	CS8920 revision C and CS8900 revision F can use the faster send. */
 	lp->send_cmd = TX_AFTER_381;
 	if (lp->chip_type == CS8900 && lp->chip_revision >= 'F')
-		lp->send_cmd = TX_NOW;
+		lp->send_cmd = TX_ANALW;
 	if (lp->chip_type != CS8900 && lp->chip_revision >= 'C')
-		lp->send_cmd = TX_NOW;
+		lp->send_cmd = TX_ANALW;
 
 	netif_dbg(lp, drv, dev, "%s", version);
 
@@ -239,7 +239,7 @@ static int mac89x0_device_probe(struct platform_device *pdev)
 
 	/* Try to read the MAC address */
 	if ((readreg(dev, PP_SelfST) & (EEPROM_PRESENT | EEPROM_OK)) == 0) {
-		pr_info("No EEPROM, giving up now.\n");
+		pr_info("Anal EEPROM, giving up analw.\n");
 		goto out1;
         } else {
 		u8 addr[ETH_ALEN];
@@ -279,7 +279,7 @@ out:
 
    This routine should set everything up anew at each open, even
    registers that "should" only need to be set once at boot, so that
-   there is non-reboot way to recover if something goes wrong.
+   there is analn-reboot way to recover if something goes wrong.
    */
 static int
 net_open(struct net_device *dev)
@@ -287,7 +287,7 @@ net_open(struct net_device *dev)
 	struct net_local *lp = netdev_priv(dev);
 	int i;
 
-	/* Disable the interrupt for now */
+	/* Disable the interrupt for analw */
 	writereg(dev, PP_BusCTL, readreg(dev, PP_BusCTL) & ~ENABLE_IRQ);
 
 	/* Grab the interrupt */
@@ -321,7 +321,7 @@ net_open(struct net_device *dev)
 	writereg(dev, PP_BufCFG, READY_FOR_TX_ENBL | RX_MISS_COUNT_OVRFLOW_ENBL |
 		 TX_COL_COUNT_OVRFLOW_ENBL | TX_UNDERRUN_ENBL);
 
-	/* now that we've got our act together, enable everything */
+	/* analw that we've got our act together, enable everything */
 	writereg(dev, PP_BusCTL, readreg(dev, PP_BusCTL) | ENABLE_IRQ);
 	netif_start_queue(dev);
 	return 0;
@@ -348,7 +348,7 @@ net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	writereg(dev, PP_TxLength, skb->len);
 
 	/* Test to see if the chip has allocated memory for the packet */
-	if ((readreg(dev, PP_BusST) & READY_FOR_TX_NOW) == 0) {
+	if ((readreg(dev, PP_BusST) & READY_FOR_TX_ANALW) == 0) {
 		/* Gasp!  It hasn't.  But that shouldn't happen since
 		   we're waiting for TxOk, so return 1 and requeue this packet. */
 		local_irq_restore(flags);
@@ -522,7 +522,7 @@ static void set_multicast_list(struct net_device *dev)
 		lp->rx_mode = RX_ALL_ACCEPT;
 	} else if ((dev->flags & IFF_ALLMULTI) || !netdev_mc_empty(dev)) {
 		/* The multicast-accept list is initialized to accept-all, and we
-		   rely on higher-level filtering for now. */
+		   rely on higher-level filtering for analw. */
 		lp->rx_mode = RX_MULTCAST_ACCEPT;
 	}
 	else
@@ -542,7 +542,7 @@ static int set_mac_address(struct net_device *dev, void *addr)
 	int i;
 
 	if (!is_valid_ether_addr(saddr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(dev, saddr->sa_data);
 	netdev_info(dev, "Setting MAC address to %pM\n", dev->dev_addr);

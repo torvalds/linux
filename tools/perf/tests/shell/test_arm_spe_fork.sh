@@ -4,12 +4,12 @@
 # SPDX-License-Identifier: GPL-2.0
 # German Gomez <german.gomez@arm.com>, 2022
 
-skip_if_no_arm_spe_event() {
+skip_if_anal_arm_spe_event() {
 	perf list | grep -E -q 'arm_spe_[0-9]+//' && return 0
 	return 2
 }
 
-skip_if_no_arm_spe_event || exit 2
+skip_if_anal_arm_spe_event || exit 2
 
 TEST_PROGRAM="perf test -w sqrtloop 10"
 PERF_DATA=$(mktemp /tmp/__perf_test.perf.data.XXXXX)

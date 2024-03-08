@@ -51,7 +51,7 @@ void pstack__remove(struct pstack *pstack, void *key)
 			return;
 		}
 	}
-	pr_err("%s: %p not on the pstack!\n", __func__, key);
+	pr_err("%s: %p analt on the pstack!\n", __func__, key);
 }
 
 void pstack__push(struct pstack *pstack, void *key)

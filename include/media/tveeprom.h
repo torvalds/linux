@@ -11,14 +11,14 @@
  * enum tveeprom_audio_processor - Specifies the type of audio processor
  *				   used on a Hauppauge device.
  *
- * @TVEEPROM_AUDPROC_NONE:	No audio processor present
+ * @TVEEPROM_AUDPROC_ANALNE:	Anal audio processor present
  * @TVEEPROM_AUDPROC_INTERNAL:	The audio processor is internal to the
  *				video processor
  * @TVEEPROM_AUDPROC_MSP:	The audio processor is a MSPXXXX device
- * @TVEEPROM_AUDPROC_OTHER:	The audio processor is another device
+ * @TVEEPROM_AUDPROC_OTHER:	The audio processor is aanalther device
  */
 enum tveeprom_audio_processor {
-	TVEEPROM_AUDPROC_NONE,
+	TVEEPROM_AUDPROC_ANALNE,
 	TVEEPROM_AUDPROC_INTERNAL,
 	TVEEPROM_AUDPROC_MSP,
 	TVEEPROM_AUDPROC_OTHER,
@@ -29,13 +29,13 @@ enum tveeprom_audio_processor {
  *
  * @has_radio:			1 if the device has radio; 0 otherwise.
  *
- * @has_ir:			If has_ir == 0, then it is unknown what the IR
+ * @has_ir:			If has_ir == 0, then it is unkanalwn what the IR
  *				capabilities are. Otherwise:
- *				bit 0) 1 (= IR capabilities are known);
+ *				bit 0) 1 (= IR capabilities are kanalwn);
  *				bit 1) IR receiver present;
  *				bit 2) IR transmitter (blaster) present.
  *
- * @has_MAC_address:		0: no MAC, 1: MAC present, 2: unknown.
+ * @has_MAC_address:		0: anal MAC, 1: MAC present, 2: unkanalwn.
  * @tuner_type:			type of the tuner (TUNER_*, as defined at
  *				include/media/tuner.h).
  *

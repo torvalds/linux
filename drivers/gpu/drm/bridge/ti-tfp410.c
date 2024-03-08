@@ -63,10 +63,10 @@ static int tfp410_get_modes(struct drm_connector *connector)
 
 	if (!edid) {
 		/*
-		 * No EDID, fallback on the XGA standard modes and prefer a mode
+		 * Anal EDID, fallback on the XGA standard modes and prefer a mode
 		 * pretty much anything can handle.
 		 */
-		ret = drm_add_modes_noedid(connector, 1920, 1200);
+		ret = drm_add_modes_analedid(connector, 1920, 1200);
 		drm_set_preferred_mode(connector, 1024, 768);
 		return ret;
 	}
@@ -126,16 +126,16 @@ static int tfp410_attach(struct drm_bridge *bridge,
 	int ret;
 
 	ret = drm_bridge_attach(bridge->encoder, dvi->next_bridge, bridge,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret < 0)
 		return ret;
 
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
+	if (flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR)
 		return 0;
 
 	if (!bridge->encoder) {
 		dev_err(dvi->dev, "Missing encoder\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (dvi->next_bridge->ops & DRM_BRIDGE_OP_DETECT)
@@ -237,7 +237,7 @@ static int tfp410_atomic_check(struct drm_bridge *bridge,
 
 	/*
 	 * There might be flags negotiation supported in future.
-	 * Set the bus flags in atomic_check statically for now.
+	 * Set the bus flags in atomic_check statically for analw.
 	 */
 	bridge_state->input_bus_cfg.flags = dvi->timings.input_bus_flags;
 
@@ -267,7 +267,7 @@ static const struct drm_bridge_timings tfp410_default_timings = {
 static int tfp410_parse_timings(struct tfp410 *dvi, bool i2c)
 {
 	struct drm_bridge_timings *timings = &dvi->timings;
-	struct device_node *ep;
+	struct device_analde *ep;
 	u32 pclk_sample = 0;
 	u32 bus_width = 24;
 	u32 deskew = 0;
@@ -284,18 +284,18 @@ static int tfp410_parse_timings(struct tfp410 *dvi, bool i2c)
 		return 0;
 
 	/*
-	 * In non-I2C mode, timings are configured through the BSEL, DSEL, DKEN
+	 * In analn-I2C mode, timings are configured through the BSEL, DSEL, DKEN
 	 * and EDGE pins. They are specified in DT through endpoint properties
 	 * and vendor-specific properties.
 	 */
-	ep = of_graph_get_endpoint_by_regs(dvi->dev->of_node, 0, 0);
+	ep = of_graph_get_endpoint_by_regs(dvi->dev->of_analde, 0, 0);
 	if (!ep)
 		return -EINVAL;
 
 	/* Get the sampling edge from the endpoint. */
 	of_property_read_u32(ep, "pclk-sample", &pclk_sample);
 	of_property_read_u32(ep, "bus-width", &bus_width);
-	of_node_put(ep);
+	of_analde_put(ep);
 
 	timings->input_bus_flags = DRM_BUS_FLAG_DE_HIGH;
 
@@ -324,7 +324,7 @@ static int tfp410_parse_timings(struct tfp410 *dvi, bool i2c)
 	}
 
 	/* Get the setup and hold time from vendor-specific properties. */
-	of_property_read_u32(dvi->dev->of_node, "ti,deskew", &deskew);
+	of_property_read_u32(dvi->dev->of_analde, "ti,deskew", &deskew);
 	if (deskew > 7)
 		return -EINVAL;
 
@@ -336,24 +336,24 @@ static int tfp410_parse_timings(struct tfp410 *dvi, bool i2c)
 
 static int tfp410_init(struct device *dev, bool i2c)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct tfp410 *dvi;
 	int ret;
 
-	if (!dev->of_node) {
+	if (!dev->of_analde) {
 		dev_err(dev, "device-tree data is missing\n");
 		return -ENXIO;
 	}
 
 	dvi = devm_kzalloc(dev, sizeof(*dvi), GFP_KERNEL);
 	if (!dvi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dvi->dev = dev;
 	dev_set_drvdata(dev, dvi);
 
 	dvi->bridge.funcs = &tfp410_bridge_funcs;
-	dvi->bridge.of_node = dev->of_node;
+	dvi->bridge.of_analde = dev->of_analde;
 	dvi->bridge.timings = &dvi->timings;
 	dvi->bridge.type = DRM_MODE_CONNECTOR_DVID;
 
@@ -362,12 +362,12 @@ static int tfp410_init(struct device *dev, bool i2c)
 		return ret;
 
 	/* Get the next bridge, connected to port@1. */
-	node = of_graph_get_remote_node(dev->of_node, 1, -1);
-	if (!node)
-		return -ENODEV;
+	analde = of_graph_get_remote_analde(dev->of_analde, 1, -1);
+	if (!analde)
+		return -EANALDEV;
 
-	dvi->next_bridge = of_drm_find_bridge(node);
-	of_node_put(node);
+	dvi->next_bridge = of_drm_find_bridge(analde);
+	of_analde_put(analde);
 
 	if (!dvi->next_bridge)
 		return -EPROBE_DEFER;
@@ -419,13 +419,13 @@ static struct platform_driver tfp410_platform_driver = {
 };
 
 #if IS_ENABLED(CONFIG_I2C)
-/* There is currently no i2c functionality. */
+/* There is currently anal i2c functionality. */
 static int tfp410_i2c_probe(struct i2c_client *client)
 {
 	int reg;
 
-	if (!client->dev.of_node ||
-	    of_property_read_u32(client->dev.of_node, "reg", &reg)) {
+	if (!client->dev.of_analde ||
+	    of_property_read_u32(client->dev.of_analde, "reg", &reg)) {
 		dev_err(&client->dev,
 			"Can't get i2c reg property from device-tree\n");
 		return -ENXIO;

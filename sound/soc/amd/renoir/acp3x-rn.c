@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 //
-// Machine driver for AMD Renoir platform using DMIC
+// Machine driver for AMD Reanalir platform using DMIC
 //
 //Copyright 2020 Advanced Micro Devices, Inc.
 

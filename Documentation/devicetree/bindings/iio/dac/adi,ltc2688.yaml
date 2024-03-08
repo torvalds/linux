@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Analog Devices LTC2688 DAC
 
 maintainers:
-  - Nuno Sá <nuno.sa@analog.com>
+  - Nuanal Sá <nuanal.sa@analog.com>
 
 description: |
   Analog Devices LTC2688 16 channel, 16 bit, +-15V DAC
@@ -30,7 +30,7 @@ properties:
   vref-supply:
     description:
       Reference Input/Output. The voltage at the REF pin sets the full-scale
-      range of all channels. If not provided the internal reference is used and
+      range of all channels. If analt provided the internal reference is used and
       also provided on the VREF pin".
 
   clr-gpios:
@@ -89,8 +89,8 @@ patternProperties:
         description:
           Selects the TGPx pin to be associated with this channel. This setting
           only makes sense for toggle or dither enabled channels. If
-          @adi,toggle-mode is not set and this property is given, the channel is
-          assumed to be a dither capable channel. Note that multiple channels
+          @adi,toggle-mode is analt set and this property is given, the channel is
+          assumed to be a dither capable channel. Analte that multiple channels
           can be mapped to the same pin. If this setting is given, the
           respective @clock must also be provided. Mappings between this and
           input pins

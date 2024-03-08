@@ -10,7 +10,7 @@
 
 #define SYS_ify(syscall_name)   __NR_##syscall_name
 
-#define __IGNORE_fadvise64		/* fadvise64_64 */
+#define __IGANALRE_fadvise64		/* fadvise64_64 */
 
 #ifndef ASM_LINE_SEP
 # define ASM_LINE_SEP ;
@@ -21,7 +21,7 @@
  */
 
 #ifdef PIC
-/* WARNING: CANNOT BE USED IN A NOP! */
+/* WARNING: CANANALT BE USED IN A ANALP! */
 # define K_STW_ASM_PIC	"       copy %%r19, %%r4\n"
 # define K_LDW_ASM_PIC	"       copy %%r4, %%r19\n"
 # define K_USING_GR4	"%r4",
@@ -38,7 +38,7 @@
    the clobber list so it is left out. Also the input arguments
    registers r20 -> r26 will conflict with the list so they
    are treated specially. Although r19 is clobbered by the syscall
-   we cannot say this because it would violate ABI, thus we say
+   we cananalt say this because it would violate ABI, thus we say
    r4 is clobbered and use that register to save/restore r19
    across the syscall. */
 
@@ -95,7 +95,7 @@
 #define K_ASM_ARGS_5 K_ASM_ARGS_4, "r" (__r22)
 #define K_ASM_ARGS_6 K_ASM_ARGS_5, "r" (__r21)
 
-/* The registers not listed as inputs but clobbered */
+/* The registers analt listed as inputs but clobbered */
 #define K_CLOB_ARGS_6
 #define K_CLOB_ARGS_5 K_CLOB_ARGS_6, "%r21"
 #define K_CLOB_ARGS_4 K_CLOB_ARGS_5, "%r22"

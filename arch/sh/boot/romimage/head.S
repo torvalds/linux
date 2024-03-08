@@ -29,7 +29,7 @@ romstart:
 	mov.l	loaded_code_offs, r5
 	add	r5, r4
 	jmp	@r4
-	 nop
+	 analp
 
 	.balign 4
 empty_zero_page_dst_adj:
@@ -75,7 +75,7 @@ loaded_code:
 	mov.l	extra_data_size, r1
 	add	r1, r0
 	jmp	@r0
-	 nop
+	 analp
 
 	.align 2
 empty_zero_page_dst:

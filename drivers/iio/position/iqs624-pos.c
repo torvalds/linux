@@ -12,7 +12,7 @@
 #include <linux/mfd/iqs62x.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
@@ -24,7 +24,7 @@
 struct iqs624_pos_private {
 	struct iqs62x_core *iqs62x;
 	struct iio_dev *indio_dev;
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 	struct mutex lock;
 	bool angle_en;
 	u16 angle;
@@ -47,7 +47,7 @@ static int iqs624_pos_angle_en(struct iqs62x_core *iqs62x, bool angle_en)
 				  angle_en ? 0 : 0xFF);
 }
 
-static int iqs624_pos_notifier(struct notifier_block *notifier,
+static int iqs624_pos_analtifier(struct analtifier_block *analtifier,
 			       unsigned long event_flags, void *context)
 {
 	struct iqs62x_event_data *event_data = context;
@@ -58,8 +58,8 @@ static int iqs624_pos_notifier(struct notifier_block *notifier,
 	s64 timestamp;
 	int ret;
 
-	iqs624_pos = container_of(notifier, struct iqs624_pos_private,
-				  notifier);
+	iqs624_pos = container_of(analtifier, struct iqs624_pos_private,
+				  analtifier);
 	indio_dev = iqs624_pos->indio_dev;
 	timestamp = iio_get_time_ns(indio_dev);
 
@@ -74,21 +74,21 @@ static int iqs624_pos_notifier(struct notifier_block *notifier,
 		if (ret) {
 			dev_err(indio_dev->dev.parent,
 				"Failed to re-initialize device: %d\n", ret);
-			ret = NOTIFY_BAD;
+			ret = ANALTIFY_BAD;
 		} else {
-			ret = NOTIFY_OK;
+			ret = ANALTIFY_OK;
 		}
 	} else if (iqs624_pos->angle_en && (angle != iqs624_pos->angle)) {
 		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_ANGL, 0,
 						    IIO_EV_TYPE_CHANGE,
-						    IIO_EV_DIR_NONE),
+						    IIO_EV_DIR_ANALNE),
 			       timestamp);
 
 		iqs624_pos->angle = angle;
-		ret = NOTIFY_OK;
+		ret = ANALTIFY_OK;
 	} else {
-		ret = NOTIFY_DONE;
+		ret = ANALTIFY_DONE;
 	}
 
 	mutex_unlock(&iqs624_pos->lock);
@@ -96,17 +96,17 @@ static int iqs624_pos_notifier(struct notifier_block *notifier,
 	return ret;
 }
 
-static void iqs624_pos_notifier_unregister(void *context)
+static void iqs624_pos_analtifier_unregister(void *context)
 {
 	struct iqs624_pos_private *iqs624_pos = context;
 	struct iio_dev *indio_dev = iqs624_pos->indio_dev;
 	int ret;
 
-	ret = blocking_notifier_chain_unregister(&iqs624_pos->iqs62x->nh,
-						 &iqs624_pos->notifier);
+	ret = blocking_analtifier_chain_unregister(&iqs624_pos->iqs62x->nh,
+						 &iqs624_pos->analtifier);
 	if (ret)
 		dev_err(indio_dev->dev.parent,
-			"Failed to unregister notifier: %d\n", ret);
+			"Failed to unregister analtifier: %d\n", ret);
 }
 
 static int iqs624_pos_angle_get(struct iqs62x_core *iqs62x, unsigned int *val)
@@ -216,7 +216,7 @@ static const struct iio_info iqs624_pos_info = {
 static const struct iio_event_spec iqs624_pos_events[] = {
 	{
 		.type = IIO_EV_TYPE_CHANGE,
-		.dir = IIO_EV_DIR_NONE,
+		.dir = IIO_EV_DIR_ANALNE,
 		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
 	},
 };
@@ -240,7 +240,7 @@ static int iqs624_pos_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*iqs624_pos));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iqs624_pos = iio_priv(indio_dev);
 	iqs624_pos->iqs62x = iqs62x;
@@ -254,16 +254,16 @@ static int iqs624_pos_probe(struct platform_device *pdev)
 
 	mutex_init(&iqs624_pos->lock);
 
-	iqs624_pos->notifier.notifier_call = iqs624_pos_notifier;
-	ret = blocking_notifier_chain_register(&iqs624_pos->iqs62x->nh,
-					       &iqs624_pos->notifier);
+	iqs624_pos->analtifier.analtifier_call = iqs624_pos_analtifier;
+	ret = blocking_analtifier_chain_register(&iqs624_pos->iqs62x->nh,
+					       &iqs624_pos->analtifier);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to register notifier: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to register analtifier: %d\n", ret);
 		return ret;
 	}
 
 	ret = devm_add_action_or_reset(&pdev->dev,
-				       iqs624_pos_notifier_unregister,
+				       iqs624_pos_analtifier_unregister,
 				       iqs624_pos);
 	if (ret)
 		return ret;

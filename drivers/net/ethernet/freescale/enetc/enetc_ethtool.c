@@ -194,12 +194,12 @@ static const struct {
 	{ ENETC_PM_TSCOL(0),	"MAC tx single collisions" },
 	{ ENETC_PM_TLCOL(0),	"MAC tx late collisions" },
 	{ ENETC_PM_TECOL(0),	"MAC tx excessive collisions" },
-	{ ENETC_UFDMF,		"SI MAC nomatch u-cast discards" },
-	{ ENETC_MFDMF,		"SI MAC nomatch m-cast discards" },
-	{ ENETC_PBFDSIR,	"SI MAC nomatch b-cast discards" },
-	{ ENETC_PUFDVFR,	"SI VLAN nomatch u-cast discards" },
-	{ ENETC_PMFDVFR,	"SI VLAN nomatch m-cast discards" },
-	{ ENETC_PBFDVFR,	"SI VLAN nomatch b-cast discards" },
+	{ ENETC_UFDMF,		"SI MAC analmatch u-cast discards" },
+	{ ENETC_MFDMF,		"SI MAC analmatch m-cast discards" },
+	{ ENETC_PBFDSIR,	"SI MAC analmatch b-cast discards" },
+	{ ENETC_PUFDVFR,	"SI VLAN analmatch u-cast discards" },
+	{ ENETC_PMFDVFR,	"SI VLAN analmatch m-cast discards" },
+	{ ENETC_PBFDVFR,	"SI VLAN analmatch b-cast discards" },
 	{ ENETC_PFDMSAPR,	"SI pruning discarded frames" },
 	{ ENETC_PICDR(0),	"ICM DR0 discarded frames" },
 	{ ENETC_PICDR(1),	"ICM DR1 discarded frames" },
@@ -230,7 +230,7 @@ static int enetc_get_sset_count(struct net_device *ndev, int sset)
 	int len;
 
 	if (sset != ETH_SS_STATS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	len = ARRAY_SIZE(enetc_si_counters) +
 	      ARRAY_SIZE(tx_ring_stats) * priv->num_tx_rings +
@@ -546,7 +546,7 @@ l4ip4:
 		rfse.dport_h = ntohs(l4ip4_h->pdst);
 		rfse.dport_m = ntohs(l4ip4_m->pdst);
 		if (l4ip4_m->tos)
-			netdev_warn(si->ndev, "ToS field is not supported and was ignored\n");
+			netdev_warn(si->ndev, "ToS field is analt supported and was iganalred\n");
 		rfse.ethtype_h = ETH_P_IP; /* IPv4 */
 		rfse.ethtype_m = 0xffff;
 		break;
@@ -559,7 +559,7 @@ l4ip4:
 		rfse.dip_h[0] = l3ip4_h->ip4dst;
 		rfse.dip_m[0] = l3ip4_m->ip4dst;
 		if (l3ip4_m->tos)
-			netdev_warn(si->ndev, "ToS field is not supported and was ignored\n");
+			netdev_warn(si->ndev, "ToS field is analt supported and was iganalred\n");
 		rfse.ethtype_h = ETH_P_IP; /* IPv4 */
 		rfse.ethtype_m = 0xffff;
 		break;
@@ -575,7 +575,7 @@ l4ip4:
 		rfse.ethtype_m = ntohs(eth_m->h_proto);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	rfse.mode |= ENETC_RFSE_EN;
@@ -632,7 +632,7 @@ static int enetc_get_rxnfc(struct net_device *ndev, struct ethtool_rxnfc *rxnfc,
 		rxnfc->rule_cnt = j;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -668,7 +668,7 @@ static int enetc_set_rxnfc(struct net_device *ndev, struct ethtool_rxnfc *rxnfc)
 		priv->cls_rules[rxnfc->fs.location].used = 0;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -801,12 +801,12 @@ static int enetc_set_coalesce(struct net_device *ndev,
 	rx_ictt = enetc_usecs_to_cycles(ic->rx_coalesce_usecs);
 
 	if (ic->rx_max_coalesced_frames != ENETC_RXIC_PKTTHR)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ic->tx_max_coalesced_frames != ENETC_TXIC_PKTTHR)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	ic_mode = ENETC_IC_NONE;
+	ic_mode = ENETC_IC_ANALNE;
 	if (ic->use_adaptive_rx_coalesce) {
 		ic_mode |= ENETC_IC_RX_ADAPTIVE;
 		rx_ictt = 0x1;
@@ -864,7 +864,7 @@ static int enetc_get_ts_info(struct net_device *ndev,
 	info->tx_types = (1 << HWTSTAMP_TX_OFF) |
 			 (1 << HWTSTAMP_TX_ON) |
 			 (1 << HWTSTAMP_TX_ONESTEP_SYNC);
-	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+	info->rx_filters = (1 << HWTSTAMP_FILTER_ANALNE) |
 			   (1 << HWTSTAMP_FILTER_ALL);
 #else
 	info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
@@ -890,7 +890,7 @@ static int enetc_set_wol(struct net_device *dev,
 	int ret;
 
 	if (!dev->phydev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = phy_ethtool_set_wol(dev->phydev, wol);
 	if (!ret)
@@ -921,7 +921,7 @@ static int enetc_get_link_ksettings(struct net_device *dev,
 	struct enetc_ndev_priv *priv = netdev_priv(dev);
 
 	if (!priv->phylink)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return phylink_ethtool_ksettings_get(priv->phylink, cmd);
 }
@@ -932,7 +932,7 @@ static int enetc_set_link_ksettings(struct net_device *dev,
 	struct enetc_ndev_priv *priv = netdev_priv(dev);
 
 	if (!priv->phylink)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return phylink_ethtool_ksettings_set(priv->phylink, cmd);
 }
@@ -963,7 +963,7 @@ static int enetc_get_mm(struct net_device *ndev, struct ethtool_mm_state *state)
 	u32 lafs, rafs, val;
 
 	if (!(si->hw_features & ENETC_SI_F_QBU))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&priv->mm_lock);
 
@@ -987,7 +987,7 @@ static int enetc_get_mm(struct net_device *ndev, struct ethtool_mm_state *state)
 		break;
 	case 5:
 	default:
-		state->verify_status = ETHTOOL_MM_VERIFY_STATUS_UNKNOWN;
+		state->verify_status = ETHTOOL_MM_VERIFY_STATUS_UNKANALWN;
 		break;
 	}
 
@@ -1017,7 +1017,7 @@ static int enetc_mm_wait_tx_active(struct enetc_hw *hw, int verify_time)
 	u32 val;
 
 	/* This will time out after the standard value of 3 verification
-	 * attempts. To not sleep forever, it relies on a non-zero verify_time,
+	 * attempts. To analt sleep forever, it relies on a analn-zero verify_time,
 	 * guarantee which is provided by the ethtool nlattr policy.
 	 */
 	return read_poll_timeout(enetc_port_rd, val,
@@ -1043,7 +1043,7 @@ static void enetc_set_ptcfpr(struct enetc_hw *hw, u8 preemptible_tcs)
 	}
 }
 
-/* ENETC does not have an IRQ to notify changes to the MAC Merge TX status
+/* ENETC does analt have an IRQ to analtify changes to the MAC Merge TX status
  * (active/inactive), but the preemptible traffic classes should only be
  * committed to hardware once TX is active. Resort to polling.
  */
@@ -1093,7 +1093,7 @@ static int enetc_set_mm(struct net_device *ndev, struct ethtool_mm_cfg *cfg,
 	int err;
 
 	if (!(si->hw_features & ENETC_SI_F_QBU))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = ethtool_mm_frag_size_min_to_add(cfg->tx_min_frag_size,
 					      &add_frag_size, extack);

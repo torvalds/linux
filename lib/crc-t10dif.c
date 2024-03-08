@@ -14,23 +14,23 @@
 #include <crypto/hash.h>
 #include <crypto/algapi.h>
 #include <linux/static_key.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 static struct crypto_shash __rcu *crct10dif_tfm;
 static DEFINE_STATIC_KEY_TRUE(crct10dif_fallback);
 static DEFINE_MUTEX(crc_t10dif_mutex);
 static struct work_struct crct10dif_rehash_work;
 
-static int crc_t10dif_notify(struct notifier_block *self, unsigned long val, void *data)
+static int crc_t10dif_analtify(struct analtifier_block *self, unsigned long val, void *data)
 {
 	struct crypto_alg *alg = data;
 
 	if (val != CRYPTO_MSG_ALG_LOADED ||
 	    strcmp(alg->cra_name, CRC_T10DIF_STRING))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	schedule_work(&crct10dif_rehash_work);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void crc_t10dif_rehash(struct work_struct *work)
@@ -56,8 +56,8 @@ static void crc_t10dif_rehash(struct work_struct *work)
 	}
 }
 
-static struct notifier_block crc_t10dif_nb = {
-	.notifier_call = crc_t10dif_notify,
+static struct analtifier_block crc_t10dif_nb = {
+	.analtifier_call = crc_t10dif_analtify,
 };
 
 __u16 crc_t10dif_update(__u16 crc, const unsigned char *buffer, size_t len)
@@ -92,14 +92,14 @@ EXPORT_SYMBOL(crc_t10dif);
 static int __init crc_t10dif_mod_init(void)
 {
 	INIT_WORK(&crct10dif_rehash_work, crc_t10dif_rehash);
-	crypto_register_notifier(&crc_t10dif_nb);
+	crypto_register_analtifier(&crc_t10dif_nb);
 	crc_t10dif_rehash(&crct10dif_rehash_work);
 	return 0;
 }
 
 static void __exit crc_t10dif_mod_fini(void)
 {
-	crypto_unregister_notifier(&crc_t10dif_nb);
+	crypto_unregister_analtifier(&crc_t10dif_nb);
 	cancel_work_sync(&crct10dif_rehash_work);
 	crypto_free_shash(rcu_dereference_protected(crct10dif_tfm, 1));
 }

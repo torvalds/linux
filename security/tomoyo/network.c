@@ -17,7 +17,7 @@ struct tomoyo_inet_addr_info {
 
 /* Structure for holding unix domain socket's address. */
 struct tomoyo_unix_addr_info {
-	u8 *addr; /* This may not be '\0' terminated string. */
+	u8 *addr; /* This may analt be '\0' terminated string. */
 	unsigned int addr_len;
 };
 
@@ -85,7 +85,7 @@ bool tomoyo_parse_ipaddr_union(struct tomoyo_acl_param *param,
  * @min_ip:     Pointer to __be32.
  * @max_ip:     Pointer to __be32.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void tomoyo_print_ipv4(char *buffer, const unsigned int buffer_len,
 			      const __be32 *min_ip, const __be32 *max_ip)
@@ -102,7 +102,7 @@ static void tomoyo_print_ipv4(char *buffer, const unsigned int buffer_len,
  * @min_ip:     Pointer to "struct in6_addr".
  * @max_ip:     Pointer to "struct in6_addr".
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void tomoyo_print_ipv6(char *buffer, const unsigned int buffer_len,
 			      const struct in6_addr *min_ip,
@@ -119,7 +119,7 @@ static void tomoyo_print_ipv6(char *buffer, const unsigned int buffer_len,
  * @size: Size of @buf.
  * @ptr:  Pointer to "struct ipaddr_union".
  *
- * Returns nothing.
+ * Returns analthing.
  */
 void tomoyo_print_ip(char *buf, const unsigned int size,
 		     const struct tomoyo_ipaddr_union *ptr)
@@ -300,7 +300,7 @@ int tomoyo_write_inet_network(struct tomoyo_acl_param *param)
 		e.address.group =
 			tomoyo_get_group(param, TOMOYO_ADDRESS_GROUP);
 		if (!e.address.group)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		if (!tomoyo_parse_ipaddr_union(param, &e.address))
 			goto out;
@@ -554,7 +554,7 @@ static int tomoyo_unix_entry(const struct tomoyo_addr_info *address)
 		int len = address->unix0.addr_len - sizeof(sa_family_t);
 
 		if (len <= 0) {
-			buf = "anonymous";
+			buf = "aanalnymous";
 			len = 9;
 		} else if (buf[0]) {
 			len = strnlen(buf, len);
@@ -575,7 +575,7 @@ static int tomoyo_unix_entry(const struct tomoyo_addr_info *address)
 			} while (error == TOMOYO_RETRY_REQUEST);
 			kfree(buf);
 		} else
-			error = -ENOMEM;
+			error = -EANALMEM;
 	}
 	tomoyo_read_unlock(idx);
 	return error;
@@ -606,13 +606,13 @@ static int tomoyo_check_unix_address(struct sockaddr *addr,
 }
 
 /**
- * tomoyo_kernel_service - Check whether I'm kernel service or not.
+ * tomoyo_kernel_service - Check whether I'm kernel service or analt.
  *
  * Returns true if I'm kernel service, false otherwise.
  */
 static bool tomoyo_kernel_service(void)
 {
-	/* Nothing to do if I am a kernel service. */
+	/* Analthing to do if I am a kernel service. */
 	return current->flags & PF_KTHREAD;
 }
 

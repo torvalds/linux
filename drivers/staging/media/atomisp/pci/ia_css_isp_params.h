@@ -13,7 +13,7 @@
  * more details.
  */
 
-/* Generated code: do not edit or commmit. */
+/* Generated code: do analt edit or commmit. */
 
 #ifndef _IA_CSS_ISP_PARAM_H
 #define _IA_CSS_ISP_PARAM_H

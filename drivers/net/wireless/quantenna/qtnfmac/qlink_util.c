@@ -43,8 +43,8 @@ u8 qlink_chan_width_mask_to_nl(u16 qlink_mask)
 	if (qlink_mask & BIT(QLINK_CHAN_WIDTH_10))
 		result |= BIT(NL80211_CHAN_WIDTH_10);
 
-	if (qlink_mask & BIT(QLINK_CHAN_WIDTH_20_NOHT))
-		result |= BIT(NL80211_CHAN_WIDTH_20_NOHT);
+	if (qlink_mask & BIT(QLINK_CHAN_WIDTH_20_ANALHT))
+		result |= BIT(NL80211_CHAN_WIDTH_20_ANALHT);
 
 	if (qlink_mask & BIT(QLINK_CHAN_WIDTH_20))
 		result |= BIT(NL80211_CHAN_WIDTH_20);
@@ -67,8 +67,8 @@ u8 qlink_chan_width_mask_to_nl(u16 qlink_mask)
 static enum nl80211_chan_width qlink_chanwidth_to_nl(u8 qlw)
 {
 	switch (qlw) {
-	case QLINK_CHAN_WIDTH_20_NOHT:
-		return NL80211_CHAN_WIDTH_20_NOHT;
+	case QLINK_CHAN_WIDTH_20_ANALHT:
+		return NL80211_CHAN_WIDTH_20_ANALHT;
 	case QLINK_CHAN_WIDTH_20:
 		return NL80211_CHAN_WIDTH_20;
 	case QLINK_CHAN_WIDTH_40:
@@ -91,8 +91,8 @@ static enum nl80211_chan_width qlink_chanwidth_to_nl(u8 qlw)
 static u8 qlink_chanwidth_nl_to_qlink(enum nl80211_chan_width nlwidth)
 {
 	switch (nlwidth) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
-		return QLINK_CHAN_WIDTH_20_NOHT;
+	case NL80211_CHAN_WIDTH_20_ANALHT:
+		return QLINK_CHAN_WIDTH_20_ANALHT;
 	case NL80211_CHAN_WIDTH_20:
 		return QLINK_CHAN_WIDTH_20;
 	case NL80211_CHAN_WIDTH_40:
@@ -149,9 +149,9 @@ enum qlink_hidden_ssid qlink_hidden_ssid_nl2q(enum nl80211_hidden_ssid nl_val)
 		return QLINK_HIDDEN_SSID_ZERO_LEN;
 	case NL80211_HIDDEN_SSID_ZERO_CONTENTS:
 		return QLINK_HIDDEN_SSID_ZERO_CONTENTS;
-	case NL80211_HIDDEN_SSID_NOT_IN_USE:
+	case NL80211_HIDDEN_SSID_ANALT_IN_USE:
 	default:
-		return QLINK_HIDDEN_SSID_NOT_IN_USE;
+		return QLINK_HIDDEN_SSID_ANALT_IN_USE;
 	}
 }
 
@@ -219,23 +219,23 @@ u32 qlink_utils_chflags_cfg2q(u32 cfgflags)
 	if (cfgflags & IEEE80211_CHAN_DISABLED)
 		flags |= QLINK_CHAN_DISABLED;
 
-	if (cfgflags & IEEE80211_CHAN_NO_IR)
-		flags |= QLINK_CHAN_NO_IR;
+	if (cfgflags & IEEE80211_CHAN_ANAL_IR)
+		flags |= QLINK_CHAN_ANAL_IR;
 
 	if (cfgflags & IEEE80211_CHAN_RADAR)
 		flags |= QLINK_CHAN_RADAR;
 
-	if (cfgflags & IEEE80211_CHAN_NO_HT40PLUS)
-		flags |= QLINK_CHAN_NO_HT40PLUS;
+	if (cfgflags & IEEE80211_CHAN_ANAL_HT40PLUS)
+		flags |= QLINK_CHAN_ANAL_HT40PLUS;
 
-	if (cfgflags & IEEE80211_CHAN_NO_HT40MINUS)
-		flags |= QLINK_CHAN_NO_HT40MINUS;
+	if (cfgflags & IEEE80211_CHAN_ANAL_HT40MINUS)
+		flags |= QLINK_CHAN_ANAL_HT40MINUS;
 
-	if (cfgflags & IEEE80211_CHAN_NO_80MHZ)
-		flags |= QLINK_CHAN_NO_80MHZ;
+	if (cfgflags & IEEE80211_CHAN_ANAL_80MHZ)
+		flags |= QLINK_CHAN_ANAL_80MHZ;
 
-	if (cfgflags & IEEE80211_CHAN_NO_160MHZ)
-		flags |= QLINK_CHAN_NO_160MHZ;
+	if (cfgflags & IEEE80211_CHAN_ANAL_160MHZ)
+		flags |= QLINK_CHAN_ANAL_160MHZ;
 
 	return flags;
 }
@@ -244,17 +244,17 @@ static u32 qtnf_reg_rule_flags_parse(u32 qflags)
 {
 	u32 flags = 0;
 
-	if (qflags & QLINK_RRF_NO_OFDM)
-		flags |= NL80211_RRF_NO_OFDM;
+	if (qflags & QLINK_RRF_ANAL_OFDM)
+		flags |= NL80211_RRF_ANAL_OFDM;
 
-	if (qflags & QLINK_RRF_NO_CCK)
-		flags |= NL80211_RRF_NO_CCK;
+	if (qflags & QLINK_RRF_ANAL_CCK)
+		flags |= NL80211_RRF_ANAL_CCK;
 
-	if (qflags & QLINK_RRF_NO_INDOOR)
-		flags |= NL80211_RRF_NO_INDOOR;
+	if (qflags & QLINK_RRF_ANAL_INDOOR)
+		flags |= NL80211_RRF_ANAL_INDOOR;
 
-	if (qflags & QLINK_RRF_NO_OUTDOOR)
-		flags |= NL80211_RRF_NO_OUTDOOR;
+	if (qflags & QLINK_RRF_ANAL_OUTDOOR)
+		flags |= NL80211_RRF_ANAL_OUTDOOR;
 
 	if (qflags & QLINK_RRF_DFS)
 		flags |= NL80211_RRF_DFS;
@@ -265,8 +265,8 @@ static u32 qtnf_reg_rule_flags_parse(u32 qflags)
 	if (qflags & QLINK_RRF_PTMP_ONLY)
 		flags |= NL80211_RRF_PTMP_ONLY;
 
-	if (qflags & QLINK_RRF_NO_IR)
-		flags |= NL80211_RRF_NO_IR;
+	if (qflags & QLINK_RRF_ANAL_IR)
+		flags |= NL80211_RRF_ANAL_IR;
 
 	if (qflags & QLINK_RRF_AUTO_BW)
 		flags |= NL80211_RRF_AUTO_BW;
@@ -274,17 +274,17 @@ static u32 qtnf_reg_rule_flags_parse(u32 qflags)
 	if (qflags & QLINK_RRF_IR_CONCURRENT)
 		flags |= NL80211_RRF_IR_CONCURRENT;
 
-	if (qflags & QLINK_RRF_NO_HT40MINUS)
-		flags |= NL80211_RRF_NO_HT40MINUS;
+	if (qflags & QLINK_RRF_ANAL_HT40MINUS)
+		flags |= NL80211_RRF_ANAL_HT40MINUS;
 
-	if (qflags & QLINK_RRF_NO_HT40PLUS)
-		flags |= NL80211_RRF_NO_HT40PLUS;
+	if (qflags & QLINK_RRF_ANAL_HT40PLUS)
+		flags |= NL80211_RRF_ANAL_HT40PLUS;
 
-	if (qflags & QLINK_RRF_NO_80MHZ)
-		flags |= NL80211_RRF_NO_80MHZ;
+	if (qflags & QLINK_RRF_ANAL_80MHZ)
+		flags |= NL80211_RRF_ANAL_80MHZ;
 
-	if (qflags & QLINK_RRF_NO_160MHZ)
-		flags |= NL80211_RRF_NO_160MHZ;
+	if (qflags & QLINK_RRF_ANAL_160MHZ)
+		flags |= NL80211_RRF_ANAL_160MHZ;
 
 	return flags;
 }

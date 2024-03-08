@@ -252,7 +252,7 @@ static int atmel_ac97c_playback_prepare(struct snd_pcm_substream *substream)
 	retval = snd_ac97_set_rate(chip->ac97, AC97_PCM_FRONT_DAC_RATE,
 			runtime->rate);
 	if (retval)
-		dev_dbg(&chip->pdev->dev, "could not set rate %d Hz\n",
+		dev_dbg(&chip->pdev->dev, "could analt set rate %d Hz\n",
 				runtime->rate);
 
 	/* Initialize and start the PDC */
@@ -334,7 +334,7 @@ static int atmel_ac97c_capture_prepare(struct snd_pcm_substream *substream)
 	retval = snd_ac97_set_rate(chip->ac97, AC97_PCM_LR_ADC_RATE,
 			runtime->rate);
 	if (retval)
-		dev_dbg(&chip->pdev->dev, "could not set rate %d Hz\n",
+		dev_dbg(&chip->pdev->dev, "could analt set rate %d Hz\n",
 				runtime->rate);
 
 	/* Initialize and start the PDC */
@@ -464,7 +464,7 @@ static const struct snd_pcm_ops atmel_ac97_capture_ops = {
 static irqreturn_t atmel_ac97c_interrupt(int irq, void *dev)
 {
 	struct atmel_ac97c	*chip  = (struct atmel_ac97c *)dev;
-	irqreturn_t		retval = IRQ_NONE;
+	irqreturn_t		retval = IRQ_ANALNE;
 	u32			sr     = ac97c_readl(chip, SR);
 	u32			casr   = ac97c_readl(chip, CASR);
 	u32			cosr   = ac97c_readl(chip, COSR);
@@ -479,7 +479,7 @@ static irqreturn_t atmel_ac97c_interrupt(int irq, void *dev)
 			(casr & AC97C_CSR_UNRUN)   ? " UNRUN"   : "",
 			(casr & AC97C_CSR_TXEMPTY) ? " TXEMPTY" : "",
 			(casr & AC97C_CSR_TXRDY)   ? " TXRDY"   : "",
-			!casr                      ? " NONE"    : "");
+			!casr                      ? " ANALNE"    : "");
 		if ((casr & camr) & AC97C_CSR_ENDTX) {
 			runtime = chip->playback_substream->runtime;
 			block_size = frames_to_bytes(runtime, runtime->period_size);
@@ -524,11 +524,11 @@ static irqreturn_t atmel_ac97c_interrupt(int irq, void *dev)
 			 (cosr & AC97C_CSR_RXRDY)   ? " RXRDY"   : "",
 			 (cosr & AC97C_CSR_TXEMPTY) ? " TXEMPTY" : "",
 			 (cosr & AC97C_CSR_TXRDY)   ? " TXRDY"   : "",
-			 !cosr                      ? " NONE"    : "");
+			 !cosr                      ? " ANALNE"    : "");
 		retval = IRQ_HANDLED;
 	}
 
-	if (retval == IRQ_NONE) {
+	if (retval == IRQ_ANALNE) {
 		dev_err(&chip->pdev->dev, "spurious interrupt sr 0x%08x "
 				"casr 0x%08x cosr 0x%08x\n", sr, casr, cosr);
 	}
@@ -710,19 +710,19 @@ static int atmel_ac97c_probe(struct platform_device *pdev)
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
-		dev_dbg(&pdev->dev, "no memory resource\n");
+		dev_dbg(&pdev->dev, "anal memory resource\n");
 		return -ENXIO;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_dbg(&pdev->dev, "could not get irq: %d\n", irq);
+		dev_dbg(&pdev->dev, "could analt get irq: %d\n", irq);
 		return irq;
 	}
 
 	pclk = clk_get(&pdev->dev, "ac97_clk");
 	if (IS_ERR(pclk)) {
-		dev_dbg(&pdev->dev, "no peripheral clock\n");
+		dev_dbg(&pdev->dev, "anal peripheral clock\n");
 		return PTR_ERR(pclk);
 	}
 	retval = clk_prepare_enable(pclk);
@@ -733,7 +733,7 @@ static int atmel_ac97c_probe(struct platform_device *pdev)
 			      SNDRV_DEFAULT_STR1, THIS_MODULE,
 			      sizeof(struct atmel_ac97c), &card);
 	if (retval) {
-		dev_dbg(&pdev->dev, "could not create sound card device\n");
+		dev_dbg(&pdev->dev, "could analt create sound card device\n");
 		goto err_snd_card_new;
 	}
 
@@ -758,14 +758,14 @@ static int atmel_ac97c_probe(struct platform_device *pdev)
 	chip->regs = ioremap(regs->start, resource_size(regs));
 
 	if (!chip->regs) {
-		dev_dbg(&pdev->dev, "could not remap register memory\n");
-		retval = -ENOMEM;
+		dev_dbg(&pdev->dev, "could analt remap register memory\n");
+		retval = -EANALMEM;
 		goto err_ioremap;
 	}
 
 	chip->reset_pin = devm_gpiod_get_index(dev, "ac97", 2, GPIOD_OUT_HIGH);
 	if (IS_ERR(chip->reset_pin))
-		dev_dbg(dev, "reset pin not available\n");
+		dev_dbg(dev, "reset pin analt available\n");
 
 	atmel_ac97c_reset(chip);
 
@@ -775,25 +775,25 @@ static int atmel_ac97c_probe(struct platform_device *pdev)
 
 	retval = snd_ac97_bus(card, 0, &ops, chip, &chip->ac97_bus);
 	if (retval) {
-		dev_dbg(&pdev->dev, "could not register on ac97 bus\n");
+		dev_dbg(&pdev->dev, "could analt register on ac97 bus\n");
 		goto err_ac97_bus;
 	}
 
 	retval = atmel_ac97c_mixer_new(chip);
 	if (retval) {
-		dev_dbg(&pdev->dev, "could not register ac97 mixer\n");
+		dev_dbg(&pdev->dev, "could analt register ac97 mixer\n");
 		goto err_ac97_bus;
 	}
 
 	retval = atmel_ac97c_pcm_new(chip);
 	if (retval) {
-		dev_dbg(&pdev->dev, "could not register ac97 pcm device\n");
+		dev_dbg(&pdev->dev, "could analt register ac97 pcm device\n");
 		goto err_ac97_bus;
 	}
 
 	retval = snd_card_register(card);
 	if (retval) {
-		dev_dbg(&pdev->dev, "could not register sound card\n");
+		dev_dbg(&pdev->dev, "could analt register sound card\n");
 		goto err_ac97_bus;
 	}
 
@@ -872,4 +872,4 @@ module_platform_driver(atmel_ac97c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Driver for Atmel AC97 controller");
-MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");
+MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.anal>");

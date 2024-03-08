@@ -28,7 +28,7 @@ struct bts_ctx {
 
 /* BTS context states: */
 enum {
-	/* no ongoing AUX transactions */
+	/* anal ongoing AUX transactions */
 	BTS_STATE_STOPPED = 0,
 	/* AUX transaction is on, BTS tracing is disabled */
 	BTS_STATE_INACTIVE,
@@ -83,7 +83,7 @@ bts_buffer_setup_aux(struct perf_event *event, void **pages,
 	struct bts_buffer *buf;
 	struct page *page;
 	int cpu = event->cpu;
-	int node = (cpu == -1) ? cpu : cpu_to_node(cpu);
+	int analde = (cpu == -1) ? cpu : cpu_to_analde(cpu);
 	unsigned long offset;
 	size_t size = nr_pages << PAGE_SHIFT;
 	int pg, nbuf, pad;
@@ -101,7 +101,7 @@ bts_buffer_setup_aux(struct perf_event *event, void **pages,
 	if (overwrite && nbuf > 1)
 		return NULL;
 
-	buf = kzalloc_node(offsetof(struct bts_buffer, buf[nbuf]), GFP_KERNEL, node);
+	buf = kzalloc_analde(offsetof(struct bts_buffer, buf[nbuf]), GFP_KERNEL, analde);
 	if (!buf)
 		return NULL;
 
@@ -296,7 +296,7 @@ static void __bts_event_stop(struct perf_event *event, int state)
 	WRITE_ONCE(bts->state, state);
 
 	/*
-	 * No extra synchronization is mandated by the documentation to have
+	 * Anal extra synchronization is mandated by the documentation to have
 	 * BTS data stores globally visible.
 	 */
 	intel_pmu_disable_bts();
@@ -362,7 +362,7 @@ void intel_bts_disable_local(void)
 
 	/*
 	 * Here we transition from ACTIVE to INACTIVE;
-	 * do nothing for STOPPED or INACTIVE.
+	 * do analthing for STOPPED or INACTIVE.
 	 */
 	if (READ_ONCE(bts->state) != BTS_STATE_ACTIVE)
 		return;
@@ -418,7 +418,7 @@ bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle)
 				head = phys->offset + phys->displacement;
 				/*
 				 * After this, cur_buf and head won't match ds
-				 * anymore, so we must not be racing with
+				 * anymore, so we must analt be racing with
 				 * bts_update().
 				 */
 				buf->cur_buf = next_buf;
@@ -438,11 +438,11 @@ bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle)
 	buf->end = head + space;
 
 	/*
-	 * If we have no space, the lost notification would have been sent when
+	 * If we have anal space, the lost analtification would have been sent when
 	 * we hit absolute_maximum - see bts_update()
 	 */
 	if (!space)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	return 0;
 }
@@ -454,10 +454,10 @@ int intel_bts_interrupt(void)
 	struct perf_event *event = bts->handle.event;
 	struct bts_buffer *buf;
 	s64 old_head;
-	int err = -ENOSPC, handled = 0;
+	int err = -EANALSPC, handled = 0;
 
 	/*
-	 * The only surefire way of knowing if this NMI is ours is by checking
+	 * The only surefire way of kanalwing if this NMI is ours is by checking
 	 * the write ptr against the PMI threshold.
 	 */
 	if (ds && (ds->bts_index >= ds->bts_interrupt_threshold))
@@ -476,7 +476,7 @@ int intel_bts_interrupt(void)
 
 	/*
 	 * Skip snapshot counters: they don't use the interrupt, but
-	 * there's no other way of telling, because the pointer will
+	 * there's anal other way of telling, because the pointer will
 	 * keep moving
 	 */
 	if (buf->snapshot)
@@ -485,7 +485,7 @@ int intel_bts_interrupt(void)
 	old_head = local_read(&buf->head);
 	bts_update(bts);
 
-	/* no new data */
+	/* anal new data */
 	if (old_head == local_read(&buf->head))
 		return handled;
 
@@ -550,15 +550,15 @@ static int bts_event_init(struct perf_event *event)
 	int ret;
 
 	if (event->attr.type != bts_pmu.type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * BTS leaks kernel addresses even when CPL0 tracing is
 	 * disabled, so disallow intel_bts driver for unprivileged
-	 * users on paranoid systems since it provides trace data
+	 * users on paraanalid systems since it provides trace data
 	 * to the user in a zero-copy fashion.
 	 *
-	 * Note that the default paranoia setting permits unprivileged
+	 * Analte that the default paraanalia setting permits unprivileged
 	 * users to profile the kernel.
 	 */
 	if (event->attr.exclude_kernel) {
@@ -588,7 +588,7 @@ static void bts_event_read(struct perf_event *event)
 static __init int bts_init(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_DTES64) || !x86_pmu.bts)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (boot_cpu_has(X86_FEATURE_PTI)) {
 		/*
@@ -597,18 +597,18 @@ static __init int bts_init(void)
 		 * the AUX buffer.
 		 *
 		 * However, since this driver supports per-CPU and per-task inherit
-		 * we cannot use the user mapping since it will not be available
-		 * if we're not running the owning process.
+		 * we cananalt use the user mapping since it will analt be available
+		 * if we're analt running the owning process.
 		 *
-		 * With PTI we can't use the kernel map either, because its not
+		 * With PTI we can't use the kernel map either, because its analt
 		 * there when we run userspace.
 		 *
-		 * For now, disable this driver when using PTI.
+		 * For analw, disable this driver when using PTI.
 		 */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	bts_pmu.capabilities	= PERF_PMU_CAP_AUX_NO_SG | PERF_PMU_CAP_ITRACE |
+	bts_pmu.capabilities	= PERF_PMU_CAP_AUX_ANAL_SG | PERF_PMU_CAP_ITRACE |
 				  PERF_PMU_CAP_EXCLUSIVE;
 	bts_pmu.task_ctx_nr	= perf_sw_context;
 	bts_pmu.event_init	= bts_event_init;

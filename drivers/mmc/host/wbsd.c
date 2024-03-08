@@ -7,12 +7,12 @@
  * Warning!
  *
  * Changes to the FIFO system should be done with extreme care since
- * the hardware is full of bugs related to the FIFO. Known issues are:
+ * the hardware is full of bugs related to the FIFO. Kanalwn issues are:
  *
  * - FIFO size field in FSR is always zero.
  *
- * - FIFO interrupts tend not to work as they should. Interrupts are
- *   triggered only for full/empty events, not for threshold values.
+ * - FIFO interrupts tend analt to work as they should. Interrupts are
+ *   triggered only for full/empty events, analt for threshold values.
  *
  * - On APIC systems the FIFO empty interrupt is sometimes lost.
  */
@@ -69,9 +69,9 @@ static const int valid_ids[] = {
 };
 
 #ifdef CONFIG_PNP
-static unsigned int param_nopnp = 0;
+static unsigned int param_analpnp = 0;
 #else
-static const unsigned int param_nopnp = 1;
+static const unsigned int param_analpnp = 1;
 #endif
 static unsigned int param_io = 0x248;
 static unsigned int param_irq = 6;
@@ -144,7 +144,7 @@ static void wbsd_init_device(struct wbsd_host *host)
 	 */
 	setup &= ~WBSD_DAT3_H;
 	wbsd_write_index(host, WBSD_IDX_SETUP, setup);
-	host->flags &= ~WBSD_FIGNORE_DETECT;
+	host->flags &= ~WBSD_FIGANALRE_DETECT;
 
 	/*
 	 * Read back default clock.
@@ -376,7 +376,7 @@ static void wbsd_send_command(struct wbsd_host *host, struct mmc_command *cmd)
 
 		/* Card removed? */
 		if (isr & WBSD_INT_CARD)
-			cmd->error = -ENOMEDIUM;
+			cmd->error = -EANALMEDIUM;
 		/* Timeout? */
 		else if (isr & WBSD_INT_TIMEOUT)
 			cmd->error = -ETIMEDOUT;
@@ -541,7 +541,7 @@ static void wbsd_prepare_data(struct wbsd_host *host, struct mmc_data *data)
 
 	/*
 	 * Check timeout values for overflow.
-	 * (Yes, some cards cause this value to overflow).
+	 * (Anal, some cards cause this value to overflow).
 	 */
 	if (data->timeout_ns > 127000000)
 		wbsd_write_index(host, WBSD_IDX_TAAC, 127);
@@ -760,7 +760,7 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	 * Check that there is actually a card in the slot.
 	 */
 	if (!(host->flags & WBSD_FCARD_PRESENT)) {
-		cmd->error = -ENOMEDIUM;
+		cmd->error = -EANALMEDIUM;
 		goto done;
 	}
 
@@ -791,7 +791,7 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			break;
 
 		default:
-			pr_warn("%s: Data command %d is not supported by this controller\n",
+			pr_warn("%s: Data command %d is analt supported by this controller\n",
 				mmc_hostname(host->mmc), cmd->opcode);
 			cmd->error = -EINVAL;
 
@@ -884,16 +884,16 @@ static void wbsd_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (ios->chip_select == MMC_CS_HIGH) {
 		BUG_ON(ios->bus_width != MMC_BUS_WIDTH_1);
 		setup |= WBSD_DAT3_H;
-		host->flags |= WBSD_FIGNORE_DETECT;
+		host->flags |= WBSD_FIGANALRE_DETECT;
 	} else {
 		if (setup & WBSD_DAT3_H) {
 			setup &= ~WBSD_DAT3_H;
 
 			/*
-			 * We cannot resume card detection immediately
+			 * We cananalt resume card detection immediately
 			 * because of capacitance and delays in the chip.
 			 */
-			mod_timer(&host->ignore_timer, jiffies + HZ / 100);
+			mod_timer(&host->iganalre_timer, jiffies + HZ / 100);
 		}
 	}
 	wbsd_write_index(host, WBSD_IDX_SETUP, setup);
@@ -942,20 +942,20 @@ static const struct mmc_host_ops wbsd_ops = {
 \*****************************************************************************/
 
 /*
- * Helper function to reset detection ignore
+ * Helper function to reset detection iganalre
  */
 
-static void wbsd_reset_ignore(struct timer_list *t)
+static void wbsd_reset_iganalre(struct timer_list *t)
 {
-	struct wbsd_host *host = from_timer(host, t, ignore_timer);
+	struct wbsd_host *host = from_timer(host, t, iganalre_timer);
 
 	BUG_ON(host == NULL);
 
-	DBG("Resetting card detection ignore\n");
+	DBG("Resetting card detection iganalre\n");
 
 	spin_lock_bh(&host->lock);
 
-	host->flags &= ~WBSD_FIGNORE_DETECT;
+	host->flags &= ~WBSD_FIGANALRE_DETECT;
 
 	/*
 	 * Card status might have changed during the
@@ -995,7 +995,7 @@ static void wbsd_tasklet_card(struct tasklet_struct *t)
 
 	spin_lock(&host->lock);
 
-	if (host->flags & WBSD_FIGNORE_DETECT) {
+	if (host->flags & WBSD_FIGANALRE_DETECT) {
 		spin_unlock(&host->lock);
 		return;
 	}
@@ -1019,7 +1019,7 @@ static void wbsd_tasklet_card(struct tasklet_struct *t)
 				mmc_hostname(host->mmc));
 			wbsd_reset(host);
 
-			host->mrq->cmd->error = -ENOMEDIUM;
+			host->mrq->cmd->error = -EANALMEDIUM;
 			tasklet_schedule(&host->finish_tasklet);
 		}
 
@@ -1151,7 +1151,7 @@ static irqreturn_t wbsd_irq(int irq, void *dev_id)
 	 * Was it actually our hardware that caused the interrupt?
 	 */
 	if (isr == 0xff || isr == 0x00)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	host->isr |= isr;
 
@@ -1192,7 +1192,7 @@ static int wbsd_alloc_mmc(struct device *dev)
 	 */
 	mmc = mmc_alloc_host(sizeof(struct wbsd_host), dev);
 	if (!mmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
@@ -1213,7 +1213,7 @@ static int wbsd_alloc_mmc(struct device *dev)
 	/*
 	 * Set up timers
 	 */
-	timer_setup(&host->ignore_timer, wbsd_reset_ignore, 0);
+	timer_setup(&host->iganalre_timer, wbsd_reset_iganalre, 0);
 
 	/*
 	 * Maximum number of segments. Worst case is one sector per segment
@@ -1239,7 +1239,7 @@ static int wbsd_alloc_mmc(struct device *dev)
 	mmc->max_blk_size = 4087;
 
 	/*
-	 * Maximum block count. There is no real limit so the maximum
+	 * Maximum block count. There is anal real limit so the maximum
 	 * request size will be the only restriction.
 	 */
 	mmc->max_blk_count = mmc->max_req_size;
@@ -1261,13 +1261,13 @@ static void wbsd_free_mmc(struct device *dev)
 	host = mmc_priv(mmc);
 	BUG_ON(host == NULL);
 
-	del_timer_sync(&host->ignore_timer);
+	del_timer_sync(&host->iganalre_timer);
 
 	mmc_free_host(mmc);
 }
 
 /*
- * Scan for known chip id:s
+ * Scan for kanalwn chip id:s
  */
 
 static int wbsd_scan(struct wbsd_host *host)
@@ -1277,7 +1277,7 @@ static int wbsd_scan(struct wbsd_host *host)
 
 	/*
 	 * Iterate through all ports, all codes to
-	 * find hardware that is in our known list.
+	 * find hardware that is in our kanalwn list.
 	 */
 	for (i = 0; i < ARRAY_SIZE(config_ports); i++) {
 		if (!request_region(config_ports[i], 2, DRIVER_NAME))
@@ -1308,7 +1308,7 @@ static int wbsd_scan(struct wbsd_host *host)
 			}
 
 			if (id != 0xFFFF) {
-				DBG("Unknown hardware (id %x) found at %x\n",
+				DBG("Unkanalwn hardware (id %x) found at %x\n",
 					id, config_ports[i]);
 			}
 		}
@@ -1319,7 +1319,7 @@ static int wbsd_scan(struct wbsd_host *host)
 	host->config = 0;
 	host->unlock_code = 0;
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /*
@@ -1369,7 +1369,7 @@ static void wbsd_request_dma(struct wbsd_host *host, int dma)
 	 * order for ISA to be able to DMA to it.
 	 */
 	host->dma_buffer = kmalloc(WBSD_DMA_SIZE,
-		GFP_NOIO | GFP_DMA | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
+		GFP_ANALIO | GFP_DMA | __GFP_RETRY_MAYFAIL | __GFP_ANALWARN);
 	if (!host->dma_buffer)
 		goto free;
 
@@ -1387,7 +1387,7 @@ static void wbsd_request_dma(struct wbsd_host *host, int dma)
 	if ((host->dma_addr & 0xffff) != 0)
 		goto unmap;
 	/*
-	 * ISA cannot access memory above 16 MB.
+	 * ISA cananalt access memory above 16 MB.
 	 */
 	else if (host->dma_addr >= 0x1000000)
 		goto unmap;
@@ -1421,7 +1421,7 @@ err:
 static void wbsd_release_dma(struct wbsd_host *host)
 {
 	/*
-	 * host->dma_addr is valid here iff host->dma_buffer is not NULL.
+	 * host->dma_addr is valid here iff host->dma_buffer is analt NULL.
 	 */
 	if (host->dma_buffer) {
 		dma_unmap_single(mmc_dev(host->mmc), host->dma_addr,
@@ -1646,7 +1646,7 @@ static int wbsd_init(struct device *dev, int base, int irq, int dma,
 	 */
 	ret = wbsd_scan(host);
 	if (ret) {
-		if (pnp && (ret == -ENODEV)) {
+		if (pnp && (ret == -EANALDEV)) {
 			pr_warn(DRIVER_NAME ": Unable to confirm device presence - you may experience lock-ups\n");
 		} else {
 			wbsd_free_mmc(dev);
@@ -1669,15 +1669,15 @@ static int wbsd_init(struct device *dev, int base, int irq, int dma,
 	 */
 	if (pnp) {
 		if ((host->config != 0) && !wbsd_chip_validate(host)) {
-			pr_warn(DRIVER_NAME ": PnP active but chip not configured! You probably have a buggy BIOS. Configuring chip manually.\n");
+			pr_warn(DRIVER_NAME ": PnP active but chip analt configured! You probably have a buggy BIOS. Configuring chip manually.\n");
 			wbsd_chip_config(host);
 		}
 	} else
 		wbsd_chip_config(host);
 
 	/*
-	 * Power Management stuff. No idea how this works.
-	 * Not tested.
+	 * Power Management stuff. Anal idea how this works.
+	 * Analt tested.
 	 */
 #ifdef CONFIG_PM
 	if (host->config) {
@@ -1692,7 +1692,7 @@ static int wbsd_init(struct device *dev, int base, int irq, int dma,
 	mdelay(5);
 
 	/*
-	 * Reset the chip into a known state.
+	 * Reset the chip into a kanalwn state.
 	 */
 	wbsd_init_device(host);
 
@@ -1745,7 +1745,7 @@ static void wbsd_shutdown(struct device *dev, int pnp)
 }
 
 /*
- * Non-PnP
+ * Analn-PnP
  */
 
 static int wbsd_probe(struct platform_device *dev)
@@ -1868,7 +1868,7 @@ static int wbsd_pnp_resume(struct pnp_dev *pnp_dev)
 	 */
 	if (host->config != 0) {
 		if (!wbsd_chip_validate(host)) {
-			pr_warn(DRIVER_NAME ": PnP active but chip not configured! You probably have a buggy BIOS. Configuring chip manually.\n");
+			pr_warn(DRIVER_NAME ": PnP active but chip analt configured! You probably have a buggy BIOS. Configuring chip manually.\n");
 			wbsd_chip_config(host);
 		}
 	}
@@ -1903,7 +1903,7 @@ static struct platform_driver wbsd_driver = {
 	.resume		= wbsd_platform_resume,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 
@@ -1935,14 +1935,14 @@ static int __init wbsd_drv_init(void)
 
 #ifdef CONFIG_PNP
 
-	if (!param_nopnp) {
+	if (!param_analpnp) {
 		result = pnp_register_driver(&wbsd_pnp_driver);
 		if (result < 0)
 			return result;
 	}
 #endif /* CONFIG_PNP */
 
-	if (param_nopnp) {
+	if (param_analpnp) {
 		result = platform_driver_register(&wbsd_driver);
 		if (result < 0)
 			return result;
@@ -1950,7 +1950,7 @@ static int __init wbsd_drv_init(void)
 		wbsd_device = platform_device_alloc(DRIVER_NAME, -1);
 		if (!wbsd_device) {
 			platform_driver_unregister(&wbsd_driver);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		result = platform_device_add(wbsd_device);
@@ -1968,12 +1968,12 @@ static void __exit wbsd_drv_exit(void)
 {
 #ifdef CONFIG_PNP
 
-	if (!param_nopnp)
+	if (!param_analpnp)
 		pnp_unregister_driver(&wbsd_pnp_driver);
 
 #endif /* CONFIG_PNP */
 
-	if (param_nopnp) {
+	if (param_analpnp) {
 		platform_device_unregister(wbsd_device);
 
 		platform_driver_unregister(&wbsd_driver);
@@ -1985,7 +1985,7 @@ static void __exit wbsd_drv_exit(void)
 module_init(wbsd_drv_init);
 module_exit(wbsd_drv_exit);
 #ifdef CONFIG_PNP
-module_param_hw_named(nopnp, param_nopnp, uint, other, 0444);
+module_param_hw_named(analpnp, param_analpnp, uint, other, 0444);
 #endif
 module_param_hw_named(io, param_io, uint, ioport, 0444);
 module_param_hw_named(irq, param_irq, uint, irq, 0444);
@@ -1996,8 +1996,8 @@ MODULE_AUTHOR("Pierre Ossman <pierre@ossman.eu>");
 MODULE_DESCRIPTION("Winbond W83L51xD SD/MMC card interface driver");
 
 #ifdef CONFIG_PNP
-MODULE_PARM_DESC(nopnp, "Scan for device instead of relying on PNP. (default 0)");
+MODULE_PARM_DESC(analpnp, "Scan for device instead of relying on PNP. (default 0)");
 #endif
 MODULE_PARM_DESC(io, "I/O base to allocate. Must be 8 byte aligned. (default 0x248)");
 MODULE_PARM_DESC(irq, "IRQ to allocate. (default 6)");
-MODULE_PARM_DESC(dma, "DMA channel to allocate. -1 for no DMA. (default 2)");
+MODULE_PARM_DESC(dma, "DMA channel to allocate. -1 for anal DMA. (default 2)");

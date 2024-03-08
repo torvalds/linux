@@ -15,7 +15,7 @@ errors:
   only errors counted here are those returned from the hcall, H_COP_OP.
 
 last_error:
-  The most recent non-zero return code from the H_COP_OP hcall. -EBUSY is not
+  The most recent analn-zero return code from the H_COP_OP hcall. -EBUSY is analt
   recorded here (the hcall will retry until -EBUSY goes away).
 
 last_error_pid:

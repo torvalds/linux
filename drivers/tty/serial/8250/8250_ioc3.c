@@ -9,7 +9,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
 
@@ -41,19 +41,19 @@ static int serial8250_ioc3_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	membase = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (!membase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		irq = 0; /* no interrupt -> use polling */
+		irq = 0; /* anal interrupt -> use polling */
 
 	/* Register serial ports with 8250.c */
 	memset(&up, 0, sizeof(struct uart_8250_port));

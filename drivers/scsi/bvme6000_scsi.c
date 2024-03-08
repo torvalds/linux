@@ -63,7 +63,7 @@ bvme6000_probe(struct platform_device *dev)
 	host = NCR_700_detect(&bvme6000_scsi_driver_template, hostdata,
 			      &dev->dev);
 	if (!host) {
-		printk(KERN_ERR "bvme6000-scsi: No host detected; "
+		printk(KERN_ERR "bvme6000-scsi: Anal host detected; "
 				"board configuration problem?\n");
 		goto out_free;
 	}
@@ -86,7 +86,7 @@ bvme6000_probe(struct platform_device *dev)
  out_free:
 	kfree(hostdata);
  out:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void

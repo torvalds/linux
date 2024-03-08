@@ -10,7 +10,7 @@
 #define FW_FEATURE_SET_KEY_IDX		GENMASK(2, 1)
 #define FW_FEATURE_ENCRY_MODE		BIT(4)
 #define FW_FEATURE_OVERRIDE_ADDR	BIT(5)
-#define FW_FEATURE_NON_DL		BIT(6)
+#define FW_FEATURE_ANALN_DL		BIT(6)
 
 #define DL_MODE_ENCRYPT			BIT(0)
 #define DL_MODE_KEY_IDX			GENMASK(2, 1)
@@ -24,7 +24,7 @@
 #define FW_START_WORKING_PDA_CR4	BIT(2)
 #define FW_START_WORKING_PDA_DSP	BIT(3)
 
-#define PATCH_SEC_NOT_SUPPORT		GENMASK(31, 0)
+#define PATCH_SEC_ANALT_SUPPORT		GENMASK(31, 0)
 #define PATCH_SEC_TYPE_MASK		GENMASK(15, 0)
 #define PATCH_SEC_TYPE_INFO		0x2
 
@@ -66,14 +66,14 @@ struct mt76_connac2_mcu_txd {
 /**
  * struct mt76_connac2_mcu_uni_txd - mcu command descriptor for connac2 and connac3
  * @txd: hardware descriptor
- * @len: total length not including txd
+ * @len: total length analt including txd
  * @cid: command identifier
  * @pkt_type: must be 0xa0 (cmd packet by long format)
  * @frag_n: fragment number
  * @seq: sequence number
- * @checksum: 0 mean there is no checksum
+ * @checksum: 0 mean there is anal checksum
  * @s2d_index: index for command source and destination
- *  Definition              | value | note
+ *  Definition              | value | analte
  *  CMD_S2D_IDX_H2N         | 0x00  | command from HOST to WM
  *  CMD_S2D_IDX_C2N         | 0x01  | command from WA to WM
  *  CMD_S2D_IDX_H2C         | 0x02  | command from HOST to WA
@@ -219,7 +219,7 @@ struct bss_info_basic {
 	u8 cipher;
 	u8 phy_mode;
 	u8 max_bssid;	/* max BSSID. range: 1 ~ 8, 0: MBSSID disabled */
-	u8 non_tx_bssid;/* non-transmitted BSSID, 0: transmitted BSSID */
+	u8 analn_tx_bssid;/* analn-transmitted BSSID, 0: transmitted BSSID */
 	u8 bmc_wcid_hi;	/* high Byte and version */
 	u8 rsv[2];
 } __packed;
@@ -446,7 +446,7 @@ struct sta_rec_bf {
 	__le16 tag;
 	__le16 len;
 
-	__le16 pfmu;		/* 0xffff: no access right for PFMU */
+	__le16 pfmu;		/* 0xffff: anal access right for PFMU */
 	bool su_mu;		/* 0: SU, 1: MU */
 	u8 bf_cap;		/* 0: iBF, 1: eBF */
 	u8 sounding_phy;	/* 0: legacy, 1: OFDM, 2: HT, 4: VHT */
@@ -495,7 +495,7 @@ struct sta_rec_bfee {
 	__le16 tag;
 	__le16 len;
 	bool fb_identity_matrix;	/* 1: feedback identity matrix */
-	bool ignore_feedback;		/* 1: ignore */
+	bool iganalre_feedback;		/* 1: iganalre */
 	u8 rsv[2];
 } __packed;
 
@@ -518,7 +518,7 @@ struct sta_rec_muru {
 		bool he_80m_in_160m;
 		bool lt16_sigb;
 		bool rx_su_comp_sigb;
-		bool rx_su_non_comp_sigb;
+		bool rx_su_analn_comp_sigb;
 		u8 rsv;
 	} ofdma_dl;
 
@@ -677,7 +677,7 @@ struct wtbl_hdr_trans {
 	__le16 len;
 	u8 to_ds;
 	u8 from_ds;
-	u8 no_rx_trans;
+	u8 anal_rx_trans;
 	u8 rsv;
 } __packed;
 
@@ -818,14 +818,14 @@ enum {
 	WTBL_RX,
 	WTBL_HT,
 	WTBL_VHT,
-	WTBL_PEER_PS,		/* not used */
+	WTBL_PEER_PS,		/* analt used */
 	WTBL_TX_PS,
 	WTBL_HDR_TRANS,
 	WTBL_SEC_KEY,
 	WTBL_BA,
 	WTBL_RDG,		/* obsoleted */
-	WTBL_PROTECT,		/* not used */
-	WTBL_CLEAR,		/* not used */
+	WTBL_PROTECT,		/* analt used */
+	WTBL_CLEAR,		/* analt used */
 	WTBL_BF,
 	WTBL_SMPS,
 	WTBL_RAW_DATA,		/* debug only */
@@ -975,7 +975,7 @@ enum {
 enum {
 	RST_BA_MAC_TID_MATCH,
 	RST_BA_MAC_MATCH,
-	RST_BA_NO_MATCH
+	RST_BA_ANAL_MATCH
 };
 
 enum {
@@ -1013,9 +1013,9 @@ enum {
 	MCU_EXT_EVENT_THERMAL_PROTECT = 0x22,
 	MCU_EXT_EVENT_ASSERT_DUMP = 0x23,
 	MCU_EXT_EVENT_RDD_REPORT = 0x3a,
-	MCU_EXT_EVENT_CSA_NOTIFY = 0x4f,
+	MCU_EXT_EVENT_CSA_ANALTIFY = 0x4f,
 	MCU_EXT_EVENT_WA_TX_STAT = 0x74,
-	MCU_EXT_EVENT_BCC_NOTIFY = 0x75,
+	MCU_EXT_EVENT_BCC_ANALTIFY = 0x75,
 	MCU_EXT_EVENT_MURU_CTRL = 0x9f,
 };
 
@@ -1056,22 +1056,22 @@ enum {
 };
 
 enum {
-	PATCH_NOT_DL_SEM_FAIL,
+	PATCH_ANALT_DL_SEM_FAIL,
 	PATCH_IS_DL,
-	PATCH_NOT_DL_SEM_SUCCESS,
+	PATCH_ANALT_DL_SEM_SUCCESS,
 	PATCH_REL_SEM_SUCCESS
 };
 
 enum {
 	FW_STATE_INITIAL,
 	FW_STATE_FW_DOWNLOAD,
-	FW_STATE_NORMAL_OPERATION,
-	FW_STATE_NORMAL_TRX,
+	FW_STATE_ANALRMAL_OPERATION,
+	FW_STATE_ANALRMAL_TRX,
 	FW_STATE_RDY = 7
 };
 
 enum {
-	CH_SWITCH_NORMAL = 0,
+	CH_SWITCH_ANALRMAL = 0,
 	CH_SWITCH_SCAN = 3,
 	CH_SWITCH_MCC = 4,
 	CH_SWITCH_DFS = 5,
@@ -1089,7 +1089,7 @@ enum {
 };
 
 enum mcu_cipher_type {
-	MCU_CIPHER_NONE = 0,
+	MCU_CIPHER_ANALNE = 0,
 	MCU_CIPHER_WEP40,
 	MCU_CIPHER_WEP104,
 	MCU_CIPHER_WEP128,
@@ -1426,7 +1426,7 @@ struct mt76_connac_bss_basic_tlv {
 		     * bit(8): AX6
 		     */
 	__le16 sta_idx;
-	__le16 nonht_basic_phy;
+	__le16 analnht_basic_phy;
 	u8 phymode_ext; /* bit(0) AX_6G */
 	u8 pad[1];
 } __packed;
@@ -1488,7 +1488,7 @@ struct mt76_connac_hw_scan_req {
 		       * BIT(1) Disable DBDC scan type 1~3.
 		       * BIT(2) Use DBDC scan type 3 (dedicated one RF to scan).
 		       */
-	u8 version; /* 0: Not support fields after ies.
+	u8 version; /* 0: Analt support fields after ies.
 		     * 1: Support fields after ies.
 		     */
 	struct mt76_connac_mcu_scan_ssid ssids[4];
@@ -1530,7 +1530,7 @@ struct mt76_connac_hw_scan_done {
 	u8 version;
 	u8 pad;
 	__le32 beacon_scan_num;
-	u8 pno_enabled;
+	u8 panal_enabled;
 	u8 pad2[3];
 	u8 sparse_channel_valid_num;
 	u8 pad3[3];
@@ -1629,7 +1629,7 @@ struct mt76_connac_gtk_rekey_tlv {
 	__le32 proto; /* WPA-RSN-WAPI-OPSN */
 	__le32 pairwise_cipher;
 	__le32 group_cipher;
-	__le32 key_mgmt; /* NONE-PSK-IEEE802.1X */
+	__le32 key_mgmt; /* ANALNE-PSK-IEEE802.1X */
 	__le32 mgmt_group_cipher;
 	u8 reserverd[4];
 } __packed;
@@ -1658,7 +1658,7 @@ struct mt76_connac_wow_ctrl_tlv {
 		 * 0x2: PM_WOWLAN_REQ_STOP
 		 * 0x3: PM_WOWLAN_PARAM_CLEAR
 		 */
-	u8 trigger; /* 0: NONE
+	u8 trigger; /* 0: ANALNE
 		     * BIT(0): NL80211_WOWLAN_TRIG_MAGIC_PKT
 		     * BIT(1): NL80211_WOWLAN_TRIG_ANY
 		     * BIT(2): NL80211_WOWLAN_TRIG_DISCONNECT
@@ -1708,7 +1708,7 @@ struct mt76_connac_suspend_tlv {
 } __packed;
 
 enum mt76_sta_info_state {
-	MT76_STA_INFO_STATE_NONE,
+	MT76_STA_INFO_STATE_ANALNE,
 	MT76_STA_INFO_STATE_AUTH,
 	MT76_STA_INFO_STATE_ASSOC
 };
@@ -1798,7 +1798,7 @@ mt76_connac_mcu_get_cipher(int cipher)
 	case WLAN_CIPHER_SUITE_SMS4:
 		return MCU_CIPHER_WAPI;
 	default:
-		return MCU_CIPHER_NONE;
+		return MCU_CIPHER_ANALNE;
 	}
 }
 

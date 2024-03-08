@@ -10,14 +10,14 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  *	Stephane Eranian <eranian@hpl.hp.com>
  *
- * All EFI Runtime Services are not implemented yet as EFI only
+ * All EFI Runtime Services are analt implemented yet as EFI only
  * supports physical mode addressing on SoftSDV. This is to be fixed
  * in a future version.  --drummond 1999-07-20
  *
  * Implemented EFI runtime services and virtual mode calls.  --davidm
  *
  * Goutham Rao: <goutham.rao@intel.com>
- *	Skip non-WB memory and ignore empty memory ranges.
+ *	Skip analn-WB memory and iganalre empty memory ranges.
  */
 
 #include <linux/kernel.h>

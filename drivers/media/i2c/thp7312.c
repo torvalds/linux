@@ -16,7 +16,7 @@
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mtd/spi-nor.h>
+#include <linux/mtd/spi-analr.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
@@ -28,7 +28,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #include <uapi/linux/thp7312.h>
@@ -93,8 +93,8 @@
 #define THP7312_REG_SHARPNESS				CCI_REG8(0xf053)
 #define THP7312_REG_BRIGHTNESS				CCI_REG8(0xf056)
 #define THP7312_REG_CONTRAST				CCI_REG8(0xf057)
-#define THP7312_REG_NOISE_REDUCTION			CCI_REG8(0xf059)
-#define THP7312_REG_NOISE_REDUCTION_FIXED		BIT(7)
+#define THP7312_REG_ANALISE_REDUCTION			CCI_REG8(0xf059)
+#define THP7312_REG_ANALISE_REDUCTION_FIXED		BIT(7)
 
 #define TH7312_REG_CUSTOM_MIPI_SET			CCI_REG8(0xf0f6)
 #define TH7312_REG_CUSTOM_MIPI_STATUS			CCI_REG8(0xf0f7)
@@ -103,7 +103,7 @@
 
 /*
  * Firmware update registers. Those use a different address space than the
- * normal operation ISP registers.
+ * analrmal operation ISP registers.
  */
 
 #define THP7312_REG_FW_DRIVABILITY			CCI_REG32(0xd65c)
@@ -116,9 +116,9 @@
 #define THP7312_REG_FW_CRC_RESULT			CCI_REG32(0xff64)
 #define THP7312_REG_FW_STATUS				CCI_REG8(0xfffc)
 
-#define THP7312_FW_VERSION(major, minor)		(((major) << 8) | (minor))
+#define THP7312_FW_VERSION(major, mianalr)		(((major) << 8) | (mianalr))
 #define THP7312_FW_VERSION_MAJOR(v)			((v) >> 8)
-#define THP7312_FW_VERSION_MINOR(v)			((v) & 0xff)
+#define THP7312_FW_VERSION_MIANALR(v)			((v) & 0xff)
 
 enum thp7312_focus_method {
 	THP7312_FOCUS_METHOD_CONTRAST,
@@ -139,7 +139,7 @@ enum thp7312_focus_method {
  * Valid transitions are as follow:
  *
  * digraph fsm {
- *         node [shape=circle];
+ *         analde [shape=circle];
  *
  *         manual [label="MANUAL"];
  *         auto [label="AUTO"];
@@ -283,8 +283,8 @@ struct thp7312_device {
 	enum thp7312_focus_state focus_state;
 
 	struct {
-		struct v4l2_ctrl *noise_reduction_auto;
-		struct v4l2_ctrl *noise_reduction_absolute;
+		struct v4l2_ctrl *analise_reduction_auto;
+		struct v4l2_ctrl *analise_reduction_absolute;
 	};
 
 	/* Lock to protect fw_cancel */
@@ -494,7 +494,7 @@ static int thp7312_init_mode(struct thp7312_device *thp7312,
 	interval = v4l2_subdev_state_get_interval(sd_state, 0);
 
 	mode = thp7312_find_mode(fmt->width, fmt->height, false);
-	rate = thp7312_find_rate(mode, interval->denominator, false);
+	rate = thp7312_find_rate(mode, interval->deanalminator, false);
 
 	if (WARN_ON(!mode || !rate))
 		return -EINVAL;
@@ -600,7 +600,7 @@ static int __thp7312_power_on(struct thp7312_device *thp7312)
 	}
 
 	/*
-	 * We cannot assume that turning off and on again will reset, so do a
+	 * We cananalt assume that turning off and on again will reset, so do a
 	 * software reset on power up.
 	 */
 	thp7312_reset(thp7312);
@@ -720,7 +720,7 @@ static int thp7312_enum_frame_interval(struct v4l2_subdev *sd,
 	for (rate = mode->rates; rate->fps; ++rate, --index) {
 		if (!index) {
 			fie->interval.numerator = 1;
-			fie->interval.denominator = rate->fps;
+			fie->interval.deanalminator = rate->fps;
 
 			return 0;
 		}
@@ -758,7 +758,7 @@ static int thp7312_set_fmt(struct v4l2_subdev *sd,
 
 	interval = v4l2_subdev_state_get_interval(sd_state, 0);
 	interval->numerator = 1;
-	interval->denominator = mode->rates[0].fps;
+	interval->deanalminator = mode->rates[0].fps;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		thp7312->link_freq = mode->rates[0].link_freq;
@@ -779,7 +779,7 @@ static int thp7312_set_frame_interval(struct v4l2_subdev *sd,
 
 	/* Avoid divisions by 0, pick the highest frame if the interval is 0. */
 	fps = fi->interval.numerator
-	    ? DIV_ROUND_CLOSEST(fi->interval.denominator, fi->interval.numerator)
+	    ? DIV_ROUND_CLOSEST(fi->interval.deanalminator, fi->interval.numerator)
 	    : UINT_MAX;
 
 	fmt = v4l2_subdev_state_get_format(sd_state, 0);
@@ -788,7 +788,7 @@ static int thp7312_set_frame_interval(struct v4l2_subdev *sd,
 
 	interval = v4l2_subdev_state_get_interval(sd_state, 0);
 	interval->numerator = 1;
-	interval->denominator = rate->fps;
+	interval->deanalminator = rate->fps;
 
 	if (fi->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		thp7312->link_freq = rate->link_freq;
@@ -869,10 +869,10 @@ static int thp7312_init_state(struct v4l2_subdev *sd,
 	fmt->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(fmt->colorspace);
 	fmt->width = default_mode->width;
 	fmt->height = default_mode->height;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 
 	interval->numerator = 1;
-	interval->denominator = default_mode->rates[0].fps;
+	interval->deanalminator = default_mode->rates[0].fps;
 
 	return 0;
 }
@@ -979,8 +979,8 @@ static int thp7312_set_focus(struct thp7312_device *thp7312)
 	}
 
 	/*
-	 * If neither the state nor the focus method has changed, and no new
-	 * one-shot focus is requested, there's nothing new to program to the
+	 * If neither the state analr the focus method has changed, and anal new
+	 * one-shot focus is requested, there's analthing new to program to the
 	 * hardware.
 	 */
 	if (thp7312->focus_state == new_state &&
@@ -1082,13 +1082,13 @@ static int thp7312_s_ctrl(struct v4l2_ctrl *ctrl)
 		cci_write(thp7312->regmap, THP7312_REG_FLIP_MIRROR, value, &ret);
 		break;
 
-	case V4L2_CID_THP7312_NOISE_REDUCTION_AUTO:
-	case V4L2_CID_THP7312_NOISE_REDUCTION_ABSOLUTE:
-		value = thp7312->noise_reduction_auto->val ? 0
-		      : THP7312_REG_NOISE_REDUCTION_FIXED |
-			thp7312->noise_reduction_absolute->val;
+	case V4L2_CID_THP7312_ANALISE_REDUCTION_AUTO:
+	case V4L2_CID_THP7312_ANALISE_REDUCTION_ABSOLUTE:
+		value = thp7312->analise_reduction_auto->val ? 0
+		      : THP7312_REG_ANALISE_REDUCTION_FIXED |
+			thp7312->analise_reduction_absolute->val;
 
-		cci_write(thp7312->regmap, THP7312_REG_NOISE_REDUCTION, value,
+		cci_write(thp7312->regmap, THP7312_REG_ANALISE_REDUCTION, value,
 			  &ret);
 		break;
 
@@ -1120,7 +1120,7 @@ static int thp7312_s_ctrl(struct v4l2_ctrl *ctrl)
 			value = THP7312_AE_FLICKER_MODE_50;
 		} else {
 			if (thp7312->fw_version == THP7312_FW_VERSION(40, 3)) {
-				/* THP7312_AE_FLICKER_MODE_DISABLE is not supported */
+				/* THP7312_AE_FLICKER_MODE_DISABLE is analt supported */
 				value = THP7312_AE_FLICKER_MODE_50;
 			} else {
 				value = THP7312_AE_FLICKER_MODE_DISABLE;
@@ -1197,8 +1197,8 @@ static const struct v4l2_ctrl_config thp7312_v4l2_ctrls_custom[] = {
 		.step = 1,
 	}, {
 		.ops = &thp7312_ctrl_ops,
-		.id = V4L2_CID_THP7312_NOISE_REDUCTION_AUTO,
-		.name = "Noise Reduction Auto",
+		.id = V4L2_CID_THP7312_ANALISE_REDUCTION_AUTO,
+		.name = "Analise Reduction Auto",
 		.type = V4L2_CTRL_TYPE_BOOLEAN,
 		.min = 0,
 		.def = 1,
@@ -1206,8 +1206,8 @@ static const struct v4l2_ctrl_config thp7312_v4l2_ctrls_custom[] = {
 		.step = 1,
 	}, {
 		.ops = &thp7312_ctrl_ops,
-		.id = V4L2_CID_THP7312_NOISE_REDUCTION_ABSOLUTE,
-		.name = "Noise Reduction Level",
+		.id = V4L2_CID_THP7312_ANALISE_REDUCTION_ABSOLUTE,
+		.name = "Analise Reduction Level",
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.min = 0,
 		.def = 0,
@@ -1224,7 +1224,7 @@ static int thp7312_init_controls(struct thp7312_device *thp7312)
 {
 	struct v4l2_ctrl_handler *hdl = &thp7312->ctrl_handler;
 	struct device *dev = thp7312->dev;
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	struct v4l2_ctrl *link_freq;
 	unsigned int num_controls;
 	unsigned int i;
@@ -1325,16 +1325,16 @@ static int thp7312_init_controls(struct thp7312_device *thp7312)
 					   V4L2_CID_LINK_FREQ, 0, 0,
 					   &thp7312->link_freq);
 
-	/* Set properties from fwnode (e.g. rotation, orientation). */
-	ret = v4l2_fwnode_device_parse(dev, &props);
+	/* Set properties from fwanalde (e.g. rotation, orientation). */
+	ret = v4l2_fwanalde_device_parse(dev, &props);
 	if (ret) {
-		dev_err(dev, "Failed to parse fwnode: %d\n", ret);
+		dev_err(dev, "Failed to parse fwanalde: %d\n", ret);
 		goto error;
 	}
 
-	ret = v4l2_ctrl_new_fwnode_properties(hdl, &thp7312_ctrl_ops, &props);
+	ret = v4l2_ctrl_new_fwanalde_properties(hdl, &thp7312_ctrl_ops, &props);
 	if (ret) {
-		dev_err(dev, "Failed to create new v4l2 ctrl for fwnode properties: %d\n", ret);
+		dev_err(dev, "Failed to create new v4l2 ctrl for fwanalde properties: %d\n", ret);
 		goto error;
 	}
 
@@ -1345,13 +1345,13 @@ static int thp7312_init_controls(struct thp7312_device *thp7312)
 
 		ctrl = v4l2_ctrl_new_custom(hdl, ctrl_cfg, NULL);
 
-		if (ctrl_cfg->id == V4L2_CID_THP7312_NOISE_REDUCTION_AUTO)
-			thp7312->noise_reduction_auto = ctrl;
-		else if (ctrl_cfg->id == V4L2_CID_THP7312_NOISE_REDUCTION_ABSOLUTE)
-			thp7312->noise_reduction_absolute = ctrl;
+		if (ctrl_cfg->id == V4L2_CID_THP7312_ANALISE_REDUCTION_AUTO)
+			thp7312->analise_reduction_auto = ctrl;
+		else if (ctrl_cfg->id == V4L2_CID_THP7312_ANALISE_REDUCTION_ABSOLUTE)
+			thp7312->analise_reduction_absolute = ctrl;
 	}
 
-	v4l2_ctrl_cluster(2, &thp7312->noise_reduction_auto);
+	v4l2_ctrl_cluster(2, &thp7312->analise_reduction_auto);
 
 	if (hdl->error) {
 		dev_err(dev, "v4l2_ctrl_handler error\n");
@@ -1424,24 +1424,24 @@ static const u8 thp7312_cmd_write_ram_to_flash[] = { 0xff, 0x70, 0x0f };
  */
 static const u8 thp7312_cmd_calc_crc[] = { 0xff, 0x70, 0x09 };
 
-static const u8 thp7312_jedec_rdid[] = { SPINOR_OP_RDID, 0x00, 0x00, 0x00 };
-static const u8 thp7312_jedec_rdsr[] = { SPINOR_OP_RDSR, 0x00, 0x00, 0x00 };
-static const u8 thp7312_jedec_wen[] = { SPINOR_OP_WREN };
+static const u8 thp7312_jedec_rdid[] = { SPIANALR_OP_RDID, 0x00, 0x00, 0x00 };
+static const u8 thp7312_jedec_rdsr[] = { SPIANALR_OP_RDSR, 0x00, 0x00, 0x00 };
+static const u8 thp7312_jedec_wen[] = { SPIANALR_OP_WREN };
 
 static int thp7312_read_firmware_version(struct thp7312_device *thp7312)
 {
 	u64 val = 0;
 	int ret = 0;
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 
 	cci_read(thp7312->regmap, THP7312_REG_FIRMWARE_VERSION_1, &val, &ret);
 	major = val;
 
 	cci_read(thp7312->regmap, THP7312_REG_FIRMWARE_VERSION_2, &val, &ret);
-	minor = val;
+	mianalr = val;
 
-	thp7312->fw_version = THP7312_FW_VERSION(major, minor);
+	thp7312->fw_version = THP7312_FW_VERSION(major, mianalr);
 	return ret;
 }
 
@@ -1542,7 +1542,7 @@ static enum fw_upload_err thp7312_fw_prepare_config(struct thp7312_device *thp73
 		return FW_UPLOAD_ERR_HW_ERROR;
 	}
 
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 static enum fw_upload_err thp7312_fw_prepare_check(struct thp7312_device *thp7312)
@@ -1561,7 +1561,7 @@ static enum fw_upload_err thp7312_fw_prepare_check(struct thp7312_device *thp731
 	dev_dbg(dev, "Flash Memory: JEDEC ID = 0x%x 0x%x 0x%x\n",
 		read_buf[0], read_buf[1], read_buf[2]);
 
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 static enum fw_upload_err thp7312_fw_prepare_reset(struct thp7312_device *thp7312)
@@ -1575,7 +1575,7 @@ static enum fw_upload_err thp7312_fw_prepare_reset(struct thp7312_device *thp731
 		return FW_UPLOAD_ERR_HW_ERROR;
 	}
 
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 /* TODO: Erase only the amount of blocks necessary */
@@ -1588,7 +1588,7 @@ static enum fw_upload_err thp7312_flash_erase(struct thp7312_device *thp7312)
 	int ret;
 
 	for (block = 0; block < 3; block++) {
-		const u8 jedec_se[] = { SPINOR_OP_SE, block, 0x00, 0x00 };
+		const u8 jedec_se[] = { SPIANALR_OP_SE, block, 0x00, 0x00 };
 
 		ret = thp7312_flash_reg_write(thp7312, thp7312_jedec_wen);
 		if (ret < 0) {
@@ -1622,7 +1622,7 @@ static enum fw_upload_err thp7312_flash_erase(struct thp7312_device *thp7312)
 	if (read_buf[0] & SR_WEL)
 		return FW_UPLOAD_ERR_HW_ERROR;
 
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 static enum fw_upload_err
@@ -1650,7 +1650,7 @@ thp7312_write_download_data_by_unit(struct thp7312_device *thp7312,
 	if (ret < 0)
 		dev_err(dev, "Unit transfer ERROR %s(): ret = %d\n", __func__, ret);
 
-	return ret >= 0 ? FW_UPLOAD_ERR_NONE : FW_UPLOAD_ERR_RW_ERROR;
+	return ret >= 0 ? FW_UPLOAD_ERR_ANALNE : FW_UPLOAD_ERR_RW_ERROR;
 }
 
 static enum fw_upload_err thp7312_fw_load_to_ram(struct thp7312_device *thp7312,
@@ -1691,7 +1691,7 @@ static enum fw_upload_err thp7312_fw_load_to_ram(struct thp7312_device *thp7312,
 
 			ret = thp7312_write_download_data_by_unit(thp7312, chunk_addr,
 								  data, chunk_size);
-			if (ret != FW_UPLOAD_ERR_NONE) {
+			if (ret != FW_UPLOAD_ERR_ANALNE) {
 				dev_err(dev, "Unit transfer ERROR at bank transfer %s(): %d\n",
 					__func__, j);
 				return ret;
@@ -1702,7 +1702,7 @@ static enum fw_upload_err thp7312_fw_load_to_ram(struct thp7312_device *thp7312,
 		}
 	}
 
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 static enum fw_upload_err thp7312_fw_write_to_flash(struct thp7312_device *thp7312,
@@ -1733,7 +1733,7 @@ static enum fw_upload_err thp7312_fw_write_to_flash(struct thp7312_device *thp73
 	if (ret < 0)
 		return FW_UPLOAD_ERR_RW_ERROR;
 
-	return val ?  FW_UPLOAD_ERR_HW_ERROR : FW_UPLOAD_ERR_NONE;
+	return val ?  FW_UPLOAD_ERR_HW_ERROR : FW_UPLOAD_ERR_ANALNE;
 }
 
 static enum fw_upload_err thp7312_fw_check_crc(struct thp7312_device *thp7312,
@@ -1776,7 +1776,7 @@ static enum fw_upload_err thp7312_fw_check_crc(struct thp7312_device *thp7312,
 		return FW_UPLOAD_ERR_HW_ERROR;
 	}
 
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 static enum fw_upload_err thp7312_fw_prepare(struct fw_upload *fw_upload,
@@ -1797,19 +1797,19 @@ static enum fw_upload_err thp7312_fw_prepare(struct fw_upload *fw_upload,
 	}
 
 	ret = thp7312_fw_prepare_config(thp7312);
-	if (ret != FW_UPLOAD_ERR_NONE)
+	if (ret != FW_UPLOAD_ERR_ANALNE)
 		return ret;
 
 	ret = thp7312_fw_prepare_check(thp7312);
-	if (ret != FW_UPLOAD_ERR_NONE)
+	if (ret != FW_UPLOAD_ERR_ANALNE)
 		return ret;
 
 	ret = thp7312_fw_prepare_reset(thp7312);
-	if (ret != FW_UPLOAD_ERR_NONE)
+	if (ret != FW_UPLOAD_ERR_ANALNE)
 		return ret;
 
 	mutex_lock(&thp7312->fw_lock);
-	ret = thp7312->fw_cancel ? FW_UPLOAD_ERR_CANCELED : FW_UPLOAD_ERR_NONE;
+	ret = thp7312->fw_cancel ? FW_UPLOAD_ERR_CANCELED : FW_UPLOAD_ERR_ANALNE;
 	mutex_unlock(&thp7312->fw_lock);
 
 	return ret;
@@ -1833,45 +1833,45 @@ static enum fw_upload_err thp7312_fw_write(struct fw_upload *fw_upload,
 		return FW_UPLOAD_ERR_CANCELED;
 
 	ret = thp7312_flash_erase(thp7312);
-	if (ret != FW_UPLOAD_ERR_NONE)
+	if (ret != FW_UPLOAD_ERR_ANALNE)
 		return ret;
 
 	ret = thp7312_fw_load_to_ram(thp7312, data, THP7312_FW_RAM_SIZE);
-	if (ret != FW_UPLOAD_ERR_NONE)
+	if (ret != FW_UPLOAD_ERR_ANALNE)
 		return ret;
 
 	ret = thp7312_fw_write_to_flash(thp7312, 0, 0x1ffff);
-	if (ret != FW_UPLOAD_ERR_NONE)
+	if (ret != FW_UPLOAD_ERR_ANALNE)
 		return ret;
 
 	ret = thp7312_fw_load_to_ram(thp7312, data + THP7312_FW_RAM_SIZE, header_size);
-	if (ret != FW_UPLOAD_ERR_NONE)
+	if (ret != FW_UPLOAD_ERR_ANALNE)
 		return ret;
 
 	ret = thp7312_fw_write_to_flash(thp7312, 0x20000, header_size - 1);
-	if (ret != FW_UPLOAD_ERR_NONE)
+	if (ret != FW_UPLOAD_ERR_ANALNE)
 		return ret;
 
 	ret = thp7312_fw_check_crc(thp7312, data, size);
-	if (ret != FW_UPLOAD_ERR_NONE)
+	if (ret != FW_UPLOAD_ERR_ANALNE)
 		return ret;
 
 	dev_info(dev, "Successfully wrote firmware\n");
 
 	*written = size;
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 static enum fw_upload_err thp7312_fw_poll_complete(struct fw_upload *fw_upload)
 {
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 /*
- * This may be called asynchronously with an on-going update.  All other
+ * This may be called asynchroanalusly with an on-going update.  All other
  * functions are called sequentially in a single thread. To avoid contention on
  * register accesses, only update the cancel_request flag. Other functions will
- * check this flag and handle the cancel request synchronously.
+ * check this flag and handle the cancel request synchroanalusly.
  */
 static void thp7312_fw_cancel(struct fw_upload *fw_upload)
 {
@@ -1903,7 +1903,7 @@ static int thp7312_register_flash_mode(struct thp7312_device *thp7312)
 	thp7312->fw_write_buf = devm_kzalloc(dev, THP7312_FW_DOWNLOAD_UNIT + 2,
 					     GFP_KERNEL);
 	if (!thp7312->fw_write_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = __thp7312_power_on(thp7312);
 	if (ret < 0)
@@ -1948,7 +1948,7 @@ static int thp7312_get_regulators(struct thp7312_device *thp7312)
 }
 
 static int thp7312_sensor_parse_dt(struct thp7312_device *thp7312,
-				   struct fwnode_handle *node)
+				   struct fwanalde_handle *analde)
 {
 	struct device *dev = thp7312->dev;
 	struct thp7312_sensor *sensor;
@@ -1960,9 +1960,9 @@ static int thp7312_sensor_parse_dt(struct thp7312_device *thp7312,
 	int ret;
 
 	/* Retrieve the sensor index from the reg property. */
-	ret = fwnode_property_read_u32(node, "reg", &reg);
+	ret = fwanalde_property_read_u32(analde, "reg", &reg);
 	if (ret < 0) {
-		dev_err(dev, "'reg' property missing in sensor node\n");
+		dev_err(dev, "'reg' property missing in sensor analde\n");
 		return -EINVAL;
 	}
 
@@ -1977,9 +1977,9 @@ static int thp7312_sensor_parse_dt(struct thp7312_device *thp7312,
 		return -EINVAL;
 	}
 
-	ret = fwnode_property_read_string(node, "thine,model", &model);
+	ret = fwanalde_property_read_string(analde, "thine,model", &model);
 	if (ret < 0) {
-		dev_err(dev, "'thine,model' property missing in sensor node\n");
+		dev_err(dev, "'thine,model' property missing in sensor analde\n");
 		return -EINVAL;
 	}
 
@@ -1998,7 +1998,7 @@ static int thp7312_sensor_parse_dt(struct thp7312_device *thp7312,
 		return -EINVAL;
 	}
 
-	ret = fwnode_property_read_u32_array(node, "data-lanes", values,
+	ret = fwanalde_property_read_u32_array(analde, "data-lanes", values,
 					     ARRAY_SIZE(values));
 	if (ret < 0) {
 		dev_err(dev, "Failed to read property data-lanes: %d\n", ret);
@@ -2020,24 +2020,24 @@ static int thp7312_sensor_parse_dt(struct thp7312_device *thp7312,
 
 static int thp7312_parse_dt(struct thp7312_device *thp7312)
 {
-	struct v4l2_fwnode_endpoint ep = {
+	struct v4l2_fwanalde_endpoint ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
 	struct device *dev = thp7312->dev;
-	struct fwnode_handle *endpoint;
-	struct fwnode_handle *sensors;
+	struct fwanalde_handle *endpoint;
+	struct fwanalde_handle *sensors;
 	unsigned int num_sensors = 0;
-	struct fwnode_handle *node;
+	struct fwanalde_handle *analde;
 	int ret;
 
-	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
+	endpoint = fwanalde_graph_get_next_endpoint(dev_fwanalde(dev), NULL);
 	if (!endpoint)
-		return dev_err_probe(dev, -EINVAL, "Endpoint node not found\n");
+		return dev_err_probe(dev, -EINVAL, "Endpoint analde analt found\n");
 
-	ret = v4l2_fwnode_endpoint_parse(endpoint, &ep);
-	fwnode_handle_put(endpoint);
+	ret = v4l2_fwanalde_endpoint_parse(endpoint, &ep);
+	fwanalde_handle_put(endpoint);
 	if (ret)
-		return dev_err_probe(dev, ret, "Could not parse endpoint\n");
+		return dev_err_probe(dev, ret, "Could analt parse endpoint\n");
 
 	ret = thp7312_map_data_lanes(&thp7312->lane_remap,
 				     ep.bus.mipi_csi2.data_lanes,
@@ -2064,23 +2064,23 @@ static int thp7312_parse_dt(struct thp7312_device *thp7312)
 				     "thine,boot-mode", thp7312->boot_mode);
 
 	/* Sensors */
-	sensors = device_get_named_child_node(dev, "sensors");
+	sensors = device_get_named_child_analde(dev, "sensors");
 	if (!sensors) {
-		dev_err(dev, "'sensors' child node not found\n");
+		dev_err(dev, "'sensors' child analde analt found\n");
 		return -EINVAL;
 	}
 
-	fwnode_for_each_available_child_node(sensors, node) {
-		if (fwnode_name_eq(node, "sensor")) {
-			if (!thp7312_sensor_parse_dt(thp7312, node))
+	fwanalde_for_each_available_child_analde(sensors, analde) {
+		if (fwanalde_name_eq(analde, "sensor")) {
+			if (!thp7312_sensor_parse_dt(thp7312, analde))
 				num_sensors++;
 		}
 	}
 
-	fwnode_handle_put(sensors);
+	fwanalde_handle_put(sensors);
 
 	if (!num_sensors) {
-		dev_err(dev, "No sensor found\n");
+		dev_err(dev, "Anal sensor found\n");
 		return -EINVAL;
 	}
 
@@ -2095,7 +2095,7 @@ static int thp7312_probe(struct i2c_client *client)
 
 	thp7312 = devm_kzalloc(dev, sizeof(*thp7312), GFP_KERNEL);
 	if (!thp7312)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	thp7312->dev = dev;
 
@@ -2127,7 +2127,7 @@ static int thp7312_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&thp7312->sd, client, &thp7312_subdev_ops);
 	thp7312->sd.internal_ops = &thp7312_internal_ops;
-	thp7312->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	thp7312->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	thp7312->pad.flags = MEDIA_PAD_FL_SOURCE;
 	thp7312->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
@@ -2146,7 +2146,7 @@ static int thp7312_probe(struct i2c_client *client)
 
 	ret = thp7312_read_firmware_version(thp7312);
 	if (ret < 0) {
-		dev_err(dev, "Camera is not found\n");
+		dev_err(dev, "Camera is analt found\n");
 		goto err_power_off;
 	}
 
@@ -2171,7 +2171,7 @@ static int thp7312_probe(struct i2c_client *client)
 	 * resuming the device.
 	 */
 	pm_runtime_set_active(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_use_autosuspend(dev);
@@ -2191,13 +2191,13 @@ static int thp7312_probe(struct i2c_client *client)
 
 	dev_info(dev, "THP7312 firmware version %02u.%02u\n",
 		 THP7312_FW_VERSION_MAJOR(thp7312->fw_version),
-		 THP7312_FW_VERSION_MINOR(thp7312->fw_version));
+		 THP7312_FW_VERSION_MIANALR(thp7312->fw_version));
 
 	return 0;
 
 err_pm:
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	v4l2_subdev_cleanup(&thp7312->sd);
 err_free_ctrls:
 	v4l2_ctrl_handler_free(&thp7312->ctrl_handler);

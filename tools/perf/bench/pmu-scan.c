@@ -48,7 +48,7 @@ static int save_result(void)
 	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		r = realloc(results, (nr_pmus + 1) * sizeof(*r));
 		if (r == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		results = r;
 		r = results + nr_pmus;
@@ -86,7 +86,7 @@ static int check_result(bool core_only)
 
 		pmu = perf_pmus__find(r->name);
 		if (pmu == NULL) {
-			pr_err("Cannot find PMU %s\n", r->name);
+			pr_err("Cananalt find PMU %s\n", r->name);
 			return -1;
 		}
 

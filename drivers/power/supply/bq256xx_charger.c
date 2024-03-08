@@ -41,8 +41,8 @@
 #define BQ256XX_IINDPM_MAX_uA		3200000
 #define BQ256XX_IINDPM_DEF_uA		2400000
 
-#define BQ256XX_TS_IGNORE		BIT(6)
-#define BQ256XX_TS_IGNORE_SHIFT		6
+#define BQ256XX_TS_IGANALRE		BIT(6)
+#define BQ256XX_TS_IGANALRE_SHIFT		6
 
 #define BQ256XX_VINDPM_MASK		GENMASK(3, 0)
 #define BQ256XX_VINDPM_STEP_uV		100000
@@ -115,14 +115,14 @@
 #define BQ25618_ICHG_THRESH_uA		1180000
 
 #define BQ256XX_VBUS_STAT_MASK		GENMASK(7, 5)
-#define BQ256XX_VBUS_STAT_NO_INPUT	0
+#define BQ256XX_VBUS_STAT_ANAL_INPUT	0
 #define BQ256XX_VBUS_STAT_USB_SDP	BIT(5)
 #define BQ256XX_VBUS_STAT_USB_CDP	BIT(6)
 #define BQ256XX_VBUS_STAT_USB_DCP	(BIT(6) | BIT(5))
 #define BQ256XX_VBUS_STAT_USB_OTG	(BIT(7) | BIT(6) | BIT(5))
 
 #define BQ256XX_CHRG_STAT_MASK		GENMASK(4, 3)
-#define BQ256XX_CHRG_STAT_NOT_CHRGING	0
+#define BQ256XX_CHRG_STAT_ANALT_CHRGING	0
 #define BQ256XX_CHRG_STAT_PRECHRGING	BIT(3)
 #define BQ256XX_CHRG_STAT_FAST_CHRGING	BIT(4)
 #define BQ256XX_CHRG_STAT_CHRG_TERM	(BIT(4) | BIT(3))
@@ -130,7 +130,7 @@
 #define BQ256XX_PG_STAT_MASK		BIT(2)
 #define BQ256XX_WDT_FAULT_MASK		BIT(7)
 #define BQ256XX_CHRG_FAULT_MASK		GENMASK(5, 4)
-#define BQ256XX_CHRG_FAULT_NORMAL	0
+#define BQ256XX_CHRG_FAULT_ANALRMAL	0
 #define BQ256XX_CHRG_FAULT_INPUT	BIT(4)
 #define BQ256XX_CHRG_FAULT_THERM	BIT(5)
 #define BQ256XX_CHRG_FAULT_CST_EXPIRE	(BIT(5) | BIT(4))
@@ -159,7 +159,7 @@
  * @vindpm: input voltage limit
  * @ichg_max: maximum fast charge current
  * @vbatreg_max: maximum charge voltage
- * @ts_ignore: TS_IGNORE flag
+ * @ts_iganalre: TS_IGANALRE flag
  */
 struct bq256xx_init_data {
 	u32 ichg;
@@ -170,7 +170,7 @@ struct bq256xx_init_data {
 	u32 vindpm;
 	u32 ichg_max;
 	u32 vbatreg_max;
-	bool ts_ignore;
+	bool ts_iganalre;
 };
 
 /**
@@ -216,7 +216,7 @@ enum bq256xx_id {
  *
  * @usb2_phy: usb_phy identifier
  * @usb3_phy: usb_phy identifier
- * @usb_nb: notifier block
+ * @usb_nb: analtifier block
  * @usb_work: usb work queue
  * @usb_event: usb_event code
  *
@@ -237,7 +237,7 @@ struct bq256xx_device {
 
 	struct usb_phy *usb2_phy;
 	struct usb_phy *usb3_phy;
-	struct notifier_block usb_nb;
+	struct analtifier_block usb_nb;
 	struct work_struct usb_work;
 	unsigned long usb_event;
 
@@ -268,7 +268,7 @@ struct bq256xx_device {
  * @bq256xx_set_iprechg: pointer to instance specific set_iprechg function
  * @bq256xx_set_vindpm: pointer to instance specific set_vindpm function
  * @bq256xx_set_charge_type: pointer to instance specific set_charge_type function
- * @bq256xx_set_ts_ignore: pointer to instance specific set_ts_ignore function
+ * @bq256xx_set_ts_iganalre: pointer to instance specific set_ts_iganalre function
  *
  * @bq256xx_def_ichg: default ichg value in microamps
  * @bq256xx_def_iindpm: default iindpm value in microamps
@@ -301,7 +301,7 @@ struct bq256xx_chip_info {
 	int (*bq256xx_set_iprechg)(struct bq256xx_device *bq, int iprechg);
 	int (*bq256xx_set_vindpm)(struct bq256xx_device *bq, int vindpm);
 	int (*bq256xx_set_charge_type)(struct bq256xx_device *bq, int type);
-	int (*bq256xx_set_ts_ignore)(struct bq256xx_device *bq, bool ts_ignore);
+	int (*bq256xx_set_ts_iganalre)(struct bq256xx_device *bq, bool ts_iganalre);
 
 	int bq256xx_def_ichg;
 	int bq256xx_def_iindpm;
@@ -338,7 +338,7 @@ static enum power_supply_usb_type bq256xx_usb_type[] = {
 	POWER_SUPPLY_USB_TYPE_SDP,
 	POWER_SUPPLY_USB_TYPE_CDP,
 	POWER_SUPPLY_USB_TYPE_DCP,
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
+	POWER_SUPPLY_USB_TYPE_UNKANALWN,
 	POWER_SUPPLY_USB_TYPE_ACA,
 };
 
@@ -366,7 +366,7 @@ static int bq256xx_array_parse(int array_size, int val, const int array[])
 	return -EINVAL;
 }
 
-static int bq256xx_usb_notifier(struct notifier_block *nb, unsigned long val,
+static int bq256xx_usb_analtifier(struct analtifier_block *nb, unsigned long val,
 				void *priv)
 {
 	struct bq256xx_device *bq =
@@ -375,7 +375,7 @@ static int bq256xx_usb_notifier(struct notifier_block *nb, unsigned long val,
 	bq->usb_event = val;
 	queue_work(system_power_efficient_wq, &bq->usb_work);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void bq256xx_usb_work(struct work_struct *data)
@@ -386,7 +386,7 @@ static void bq256xx_usb_work(struct work_struct *data)
 	switch (bq->usb_event) {
 	case USB_EVENT_ID:
 		break;
-	case USB_EVENT_NONE:
+	case USB_EVENT_ANALNE:
 		power_supply_changed(bq->charger);
 		break;
 	default:
@@ -466,7 +466,7 @@ static int bq256xx_set_charge_type(struct bq256xx_device *bq, int type)
 	int chg_config = 0;
 
 	switch (type) {
-	case POWER_SUPPLY_CHARGE_TYPE_NONE:
+	case POWER_SUPPLY_CHARGE_TYPE_ANALNE:
 		chg_config = 0x0;
 		break;
 	case POWER_SUPPLY_CHARGE_TYPE_TRICKLE:
@@ -703,10 +703,10 @@ static int bq25601d_set_chrg_volt(struct bq256xx_device *bq, int vbatreg)
 						BQ256XX_VBATREG_BIT_SHIFT);
 }
 
-static int bq256xx_set_ts_ignore(struct bq256xx_device *bq, bool ts_ignore)
+static int bq256xx_set_ts_iganalre(struct bq256xx_device *bq, bool ts_iganalre)
 {
 	return regmap_update_bits(bq->regmap, BQ256XX_INPUT_CURRENT_LIMIT,
-				BQ256XX_TS_IGNORE, (ts_ignore ? 1 : 0) << BQ256XX_TS_IGNORE_SHIFT);
+				BQ256XX_TS_IGANALRE, (ts_iganalre ? 1 : 0) << BQ256XX_TS_IGANALRE_SHIFT);
 }
 
 static int bq256xx_get_prechrg_curr(struct bq256xx_device *bq)
@@ -901,10 +901,10 @@ static void bq256xx_charger_reset(void *data)
 					BQ256XX_REG_RST, BQ256XX_REG_RST);
 
 	if (!IS_ERR_OR_NULL(bq->usb2_phy))
-		usb_unregister_notifier(bq->usb2_phy, &bq->usb_nb);
+		usb_unregister_analtifier(bq->usb2_phy, &bq->usb_nb);
 
 	if (!IS_ERR_OR_NULL(bq->usb3_phy))
-		usb_unregister_notifier(bq->usb3_phy, &bq->usb_nb);
+		usb_unregister_analtifier(bq->usb3_phy, &bq->usb_nb);
 }
 
 static int bq256xx_set_charger_property(struct power_supply *psy,
@@ -1006,11 +1006,11 @@ static int bq256xx_get_charger_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
-		if (state.vbus_stat == BQ256XX_VBUS_STAT_NO_INPUT ||
+		if (state.vbus_stat == BQ256XX_VBUS_STAT_ANAL_INPUT ||
 		    state.vbus_stat == BQ256XX_VBUS_STAT_USB_OTG)
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
-		else if (state.chrg_stat == BQ256XX_CHRG_STAT_NOT_CHRGING)
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		else if (state.chrg_stat == BQ256XX_CHRG_STAT_ANALT_CHRGING)
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		else if (state.chrg_stat == BQ256XX_CHRG_STAT_CHRG_TERM)
 			val->intval = POWER_SUPPLY_STATUS_FULL;
 		else
@@ -1018,7 +1018,7 @@ static int bq256xx_get_charger_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_HEALTH:
-		val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
+		val->intval = POWER_SUPPLY_HEALTH_UNKANALWN;
 		if (state.wdt_fault) {
 			val->intval =
 				POWER_SUPPLY_HEALTH_WATCHDOG_TIMER_EXPIRE;
@@ -1077,7 +1077,7 @@ static int bq256xx_get_charger_property(struct power_supply *psy,
 				val->intval = POWER_SUPPLY_USB_TYPE_ACA;
 				break;
 			default:
-				val->intval = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+				val->intval = POWER_SUPPLY_USB_TYPE_UNKANALWN;
 				break;
 			}
 		} else {
@@ -1089,7 +1089,7 @@ static int bq256xx_get_charger_property(struct power_supply *psy,
 				val->intval = POWER_SUPPLY_USB_TYPE_ACA;
 				break;
 			default:
-				val->intval = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+				val->intval = POWER_SUPPLY_USB_TYPE_UNKANALWN;
 				break;
 			}
 		}
@@ -1097,8 +1097,8 @@ static int bq256xx_get_charger_property(struct power_supply *psy,
 
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 		switch (state.chrg_stat) {
-		case BQ256XX_CHRG_STAT_NOT_CHRGING:
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		case BQ256XX_CHRG_STAT_ANALT_CHRGING:
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 			break;
 		case BQ256XX_CHRG_STAT_PRECHRGING:
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
@@ -1110,7 +1110,7 @@ static int bq256xx_get_charger_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
 			break;
 		default:
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_UNKANALWN;
 		}
 		break;
 
@@ -1325,7 +1325,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_get_iterm = bq256xx_get_term_curr,
 		.bq256xx_get_iprechg = bq256xx_get_prechrg_curr,
 		.bq256xx_get_vindpm = bq256xx_get_input_volt_lim,
-		.bq256xx_set_ts_ignore = NULL,
+		.bq256xx_set_ts_iganalre = NULL,
 
 		.bq256xx_set_ichg = bq256xx_set_ichg_curr,
 		.bq256xx_set_iindpm = bq256xx_set_input_curr_lim,
@@ -1365,7 +1365,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iprechg = bq256xx_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
 		.bq256xx_set_charge_type = bq256xx_set_charge_type,
-		.bq256xx_set_ts_ignore = NULL,
+		.bq256xx_set_ts_iganalre = NULL,
 
 		.bq256xx_def_ichg = BQ2560X_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1397,7 +1397,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iprechg = bq256xx_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
 		.bq256xx_set_charge_type = bq256xx_set_charge_type,
-		.bq256xx_set_ts_ignore = NULL,
+		.bq256xx_set_ts_iganalre = NULL,
 
 		.bq256xx_def_ichg = BQ2560X_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1429,7 +1429,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iprechg = bq256xx_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
 		.bq256xx_set_charge_type = bq256xx_set_charge_type,
-		.bq256xx_set_ts_ignore = NULL,
+		.bq256xx_set_ts_iganalre = NULL,
 
 		.bq256xx_def_ichg = BQ2560X_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1461,7 +1461,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iprechg = bq256xx_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
 		.bq256xx_set_charge_type = bq256xx_set_charge_type,
-		.bq256xx_set_ts_ignore = bq256xx_set_ts_ignore,
+		.bq256xx_set_ts_iganalre = bq256xx_set_ts_iganalre,
 
 		.bq256xx_def_ichg = BQ25611D_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1493,7 +1493,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iprechg = bq25618_619_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
 		.bq256xx_set_charge_type = bq256xx_set_charge_type,
-		.bq256xx_set_ts_ignore = bq256xx_set_ts_ignore,
+		.bq256xx_set_ts_iganalre = bq256xx_set_ts_iganalre,
 
 		.bq256xx_def_ichg = BQ25618_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1525,7 +1525,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iprechg = bq25618_619_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
 		.bq256xx_set_charge_type = bq256xx_set_charge_type,
-		.bq256xx_set_ts_ignore = bq256xx_set_ts_ignore,
+		.bq256xx_set_ts_iganalre = bq256xx_set_ts_iganalre,
 
 		.bq256xx_def_ichg = BQ25618_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1586,7 +1586,7 @@ static int bq256xx_hw_init(struct bq256xx_device *bq)
 		return ret;
 
 	ret = power_supply_get_battery_info(bq->charger, &bat_info);
-	if (ret == -ENOMEM)
+	if (ret == -EANALMEM)
 		return ret;
 
 	if (ret) {
@@ -1645,8 +1645,8 @@ static int bq256xx_hw_init(struct bq256xx_device *bq)
 	if (ret)
 		return ret;
 
-	if (bq->chip_info->bq256xx_set_ts_ignore) {
-		ret = bq->chip_info->bq256xx_set_ts_ignore(bq, bq->init_data.ts_ignore);
+	if (bq->chip_info->bq256xx_set_ts_iganalre) {
+		ret = bq->chip_info->bq256xx_set_ts_iganalre(bq, bq->init_data.ts_iganalre);
 		if (ret)
 			return ret;
 	}
@@ -1662,7 +1662,7 @@ static int bq256xx_parse_dt(struct bq256xx_device *bq,
 	int ret = 0;
 
 	psy_cfg->drv_data = bq;
-	psy_cfg->of_node = dev->of_node;
+	psy_cfg->of_analde = dev->of_analde;
 
 	ret = device_property_read_u32(bq->dev, "ti,watchdog-timeout-ms",
 				       &bq->watchdog_timer);
@@ -1685,7 +1685,7 @@ static int bq256xx_parse_dt(struct bq256xx_device *bq,
 	if (ret)
 		bq->init_data.iindpm = bq->chip_info->bq256xx_def_iindpm;
 
-	bq->init_data.ts_ignore = device_property_read_bool(bq->dev, "ti,no-thermistor");
+	bq->init_data.ts_iganalre = device_property_read_bool(bq->dev, "ti,anal-thermistor");
 
 	return 0;
 }
@@ -1701,7 +1701,7 @@ static int bq256xx_probe(struct i2c_client *client)
 
 	bq = devm_kzalloc(dev, sizeof(*bq), GFP_KERNEL);
 	if (!bq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bq->client = client;
 	bq->dev = dev;
@@ -1735,15 +1735,15 @@ static int bq256xx_probe(struct i2c_client *client)
 	bq->usb2_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
 	if (!IS_ERR_OR_NULL(bq->usb2_phy)) {
 		INIT_WORK(&bq->usb_work, bq256xx_usb_work);
-		bq->usb_nb.notifier_call = bq256xx_usb_notifier;
-		usb_register_notifier(bq->usb2_phy, &bq->usb_nb);
+		bq->usb_nb.analtifier_call = bq256xx_usb_analtifier;
+		usb_register_analtifier(bq->usb2_phy, &bq->usb_nb);
 	}
 
 	bq->usb3_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB3);
 	if (!IS_ERR_OR_NULL(bq->usb3_phy)) {
 		INIT_WORK(&bq->usb_work, bq256xx_usb_work);
-		bq->usb_nb.notifier_call = bq256xx_usb_notifier;
-		usb_register_notifier(bq->usb3_phy, &bq->usb_nb);
+		bq->usb_nb.analtifier_call = bq256xx_usb_analtifier;
+		usb_register_analtifier(bq->usb3_phy, &bq->usb_nb);
 	}
 
 	if (client->irq) {
@@ -1766,7 +1766,7 @@ static int bq256xx_probe(struct i2c_client *client)
 
 	ret = bq256xx_hw_init(bq);
 	if (ret) {
-		dev_err(dev, "Cannot initialize the chip.\n");
+		dev_err(dev, "Cananalt initialize the chip.\n");
 		return ret;
 	}
 

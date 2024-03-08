@@ -4,7 +4,7 @@
  *
  * Copyright 2005 Mentor Graphics Corporation
  * Copyright (C) 2005-2006 by Texas Instruments
- * Copyright (C) 2006-2007 Nokia Corporation
+ * Copyright (C) 2006-2007 Analkia Corporation
  */
 
 #ifndef __MUSB_GADGET_H
@@ -90,7 +90,7 @@ struct musb_ep {
 
 	u8				wedged;
 
-	/* true if lock must be dropped but req_list may not be advanced */
+	/* true if lock must be dropped but req_list may analt be advanced */
 	u8				busy;
 
 	u8				hb_mult;

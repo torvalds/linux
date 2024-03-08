@@ -48,7 +48,7 @@
 #define VBE_DISPI_GETCAPS                0x02
 #define VBE_DISPI_8BIT_DAC               0x20
 #define VBE_DISPI_LFB_ENABLED            0x40
-#define VBE_DISPI_NOCLEARMEM             0x80
+#define VBE_DISPI_ANALCLEARMEM             0x80
 
 static int bochs_modeset = -1;
 static int defx = 1024;
@@ -67,7 +67,7 @@ MODULE_PARM_DESC(defy, "default y resolution");
 enum bochs_types {
 	BOCHS_QEMU_STDVGA,
 	BOCHS_SIMICS,
-	BOCHS_UNKNOWN,
+	BOCHS_UNKANALWN,
 };
 
 struct bochs_device {
@@ -218,21 +218,21 @@ static int bochs_hw_init(struct drm_device *dev)
 	if (pdev->resource[2].flags & IORESOURCE_MEM) {
 		/* mmio bar with vga and bochs registers present */
 		if (pci_request_region(pdev, 2, "bochs-drm") != 0) {
-			DRM_ERROR("Cannot request mmio region\n");
+			DRM_ERROR("Cananalt request mmio region\n");
 			return -EBUSY;
 		}
 		ioaddr = pci_resource_start(pdev, 2);
 		iosize = pci_resource_len(pdev, 2);
 		bochs->mmio = ioremap(ioaddr, iosize);
 		if (bochs->mmio == NULL) {
-			DRM_ERROR("Cannot map mmio region\n");
-			return -ENOMEM;
+			DRM_ERROR("Cananalt map mmio region\n");
+			return -EANALMEM;
 		}
 	} else {
 		ioaddr = VBE_DISPI_IOPORT_INDEX;
 		iosize = 2;
 		if (!request_region(ioaddr, iosize, "bochs-drm")) {
-			DRM_ERROR("Cannot request ioports\n");
+			DRM_ERROR("Cananalt request ioports\n");
 			return -EBUSY;
 		}
 		bochs->ioports = 1;
@@ -243,15 +243,15 @@ static int bochs_hw_init(struct drm_device *dev)
 		* 64 * 1024;
 	if ((id & 0xfff0) != VBE_DISPI_ID0) {
 		DRM_ERROR("ID mismatch\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if ((pdev->resource[0].flags & IORESOURCE_MEM) == 0)
-		return -ENODEV;
+		return -EANALDEV;
 	addr = pci_resource_start(pdev, 0);
 	size = pci_resource_len(pdev, 0);
 	if (addr == 0)
-		return -ENODEV;
+		return -EANALDEV;
 	if (size != mem) {
 		DRM_ERROR("Size mismatch: pci=%ld, bochs=%ld\n",
 			size, mem);
@@ -259,12 +259,12 @@ static int bochs_hw_init(struct drm_device *dev)
 	}
 
 	if (pci_request_region(pdev, 0, "bochs-drm") != 0)
-		DRM_WARN("Cannot request framebuffer, boot fb still active?\n");
+		DRM_WARN("Cananalt request framebuffer, boot fb still active?\n");
 
 	bochs->fb_map = ioremap(addr, size);
 	if (bochs->fb_map == NULL) {
-		DRM_ERROR("Cannot map framebuffer\n");
-		return -ENOMEM;
+		DRM_ERROR("Cananalt map framebuffer\n");
+		return -EANALMEM;
 	}
 	bochs->fb_base = addr;
 	bochs->fb_size = size;
@@ -279,14 +279,14 @@ static int bochs_hw_init(struct drm_device *dev)
 		bochs->qext_size = readl(bochs->mmio + 0x600);
 		if (bochs->qext_size < 4 || bochs->qext_size > iosize) {
 			bochs->qext_size = 0;
-			goto noext;
+			goto analext;
 		}
 		DRM_DEBUG("Found qemu ext regs, size %ld\n",
 			  bochs->qext_size);
 		bochs_hw_set_native_endian(bochs);
 	}
 
-noext:
+analext:
 	return 0;
 }
 
@@ -374,7 +374,7 @@ static void bochs_hw_setformat(struct bochs_device *bochs, const struct drm_form
 		bochs_hw_set_big_endian(bochs);
 		break;
 	default:
-		/* should not happen */
+		/* should analt happen */
 		DRM_ERROR("%s: Huh? Got framebuffer format 0x%x",
 			  __func__, format->format);
 		break;
@@ -479,7 +479,7 @@ static int bochs_connector_get_modes(struct drm_connector *connector)
 		count = drm_add_edid_modes(connector, bochs->edid);
 
 	if (!count) {
-		count = drm_add_modes_noedid(connector, 8192, 8192);
+		count = drm_add_modes_analedid(connector, 8192, 8192);
 		drm_set_preferred_mode(connector, defx, defy);
 	}
 	return count;
@@ -573,7 +573,7 @@ static int bochs_load(struct drm_device *dev)
 
 	bochs = drmm_kzalloc(dev, sizeof(*bochs), GFP_KERNEL);
 	if (bochs == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->dev_private = bochs;
 	bochs->dev = dev;
 
@@ -605,7 +605,7 @@ static const struct drm_driver bochs_driver = {
 	.desc			= "bochs dispi vga interface (qemu stdvga)",
 	.date			= "20130925",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 	DRM_GEM_VRAM_DRIVER,
 };
 
@@ -644,8 +644,8 @@ static int bochs_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 
 	fbsize = pci_resource_len(pdev, 0);
 	if (fbsize < 4 * 1024 * 1024) {
-		DRM_ERROR("less than 4 MB video memory, ignoring device\n");
-		return -ENOMEM;
+		DRM_ERROR("less than 4 MB video memory, iganalring device\n");
+		return -EANALMEM;
 	}
 
 	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &bochs_driver);
@@ -708,7 +708,7 @@ static const struct pci_device_id bochs_pci_tbl[] = {
 		.device      = 0x1111,
 		.subvendor   = PCI_ANY_ID,
 		.subdevice   = PCI_ANY_ID,
-		.driver_data = BOCHS_UNKNOWN,
+		.driver_data = BOCHS_UNKANALWN,
 	},
 	{
 		.vendor      = 0x4321,

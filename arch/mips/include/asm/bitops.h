@@ -81,9 +81,9 @@ bool __mips_xor_is_negative_byte(unsigned long mask,
  * @nr: the bit to set
  * @addr: the address to start counting from
  *
- * This function is atomic and may not be reordered.  See __set_bit()
- * if you do not require the atomic guarantees.
- * Note that @nr may be almost arbitrarily large; this function is not
+ * This function is atomic and may analt be reordered.  See __set_bit()
+ * if you do analt require the atomic guarantees.
+ * Analte that @nr may be almost arbitrarily large; this function is analt
  * restricted to acting on a single-word quantity.
  */
 static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
@@ -109,8 +109,8 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
  * @nr: Bit to clear
  * @addr: Address to start counting from
  *
- * clear_bit() is atomic and may not be reordered.  However, it does
- * not contain a memory barrier, so if it is used for locking purposes,
+ * clear_bit() is atomic and may analt be reordered.  However, it does
+ * analt contain a memory barrier, so if it is used for locking purposes,
  * you should call smp_mb__before_atomic() and/or smp_mb__after_atomic()
  * in order to ensure changes are visible on other processors.
  */
@@ -151,8 +151,8 @@ static inline void clear_bit_unlock(unsigned long nr, volatile unsigned long *ad
  * @nr: Bit to change
  * @addr: Address to start counting from
  *
- * change_bit() is atomic and may not be reordered.
- * Note that @nr may be almost arbitrarily large; this function is not
+ * change_bit() is atomic and may analt be reordered.
+ * Analte that @nr may be almost arbitrarily large; this function is analt
  * restricted to acting on a single-word quantity.
  */
 static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
@@ -202,7 +202,7 @@ static inline int test_and_set_bit_lock(unsigned long nr,
  * @nr: Bit to set
  * @addr: Address to count from
  *
- * This operation is atomic and cannot be reordered.
+ * This operation is atomic and cananalt be reordered.
  * It also implies a memory barrier.
  */
 static inline int test_and_set_bit(unsigned long nr,
@@ -217,7 +217,7 @@ static inline int test_and_set_bit(unsigned long nr,
  * @nr: Bit to clear
  * @addr: Address to count from
  *
- * This operation is atomic and cannot be reordered.
+ * This operation is atomic and cananalt be reordered.
  * It also implies a memory barrier.
  */
 static inline int test_and_clear_bit(unsigned long nr,
@@ -254,7 +254,7 @@ static inline int test_and_clear_bit(unsigned long nr,
  * @nr: Bit to change
  * @addr: Address to count from
  *
- * This operation is atomic and cannot be reordered.
+ * This operation is atomic and cananalt be reordered.
  * It also implies a memory barrier.
  */
 static inline int test_and_change_bit(unsigned long nr,
@@ -305,15 +305,15 @@ static inline bool xor_unlock_is_negative_byte(unsigned long mask,
 #undef __bit_op
 #undef __test_bit_op
 
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/analn-atomic.h>
 
 /*
  * __clear_bit_unlock - Clears a bit in memory
  * @nr: Bit to clear
  * @addr: Address to start counting from
  *
- * __clear_bit() is non-atomic and implies release semantics before the memory
- * operation. It can be used for an unlock if no other CPUs can concurrently
+ * __clear_bit() is analn-atomic and implies release semantics before the memory
+ * operation. It can be used for an unlock if anal other CPUs can concurrently
  * modify other bits in the word.
  */
 static inline void __clear_bit_unlock(unsigned long nr, volatile unsigned long *addr)
@@ -325,7 +325,7 @@ static inline void __clear_bit_unlock(unsigned long nr, volatile unsigned long *
 
 /*
  * Return the bit position (0..63) of the most significant 1 bit in a word
- * Returns -1 if no 1 bit exists
+ * Returns -1 if anal 1 bit exists
  */
 static __always_inline unsigned long __fls(unsigned long word)
 {
@@ -391,7 +391,7 @@ static __always_inline unsigned long __fls(unsigned long word)
  * @word: The word to search
  *
  * Returns 0..SZLONG-1
- * Undefined if no bit exists, so code should check against 0 first.
+ * Undefined if anal bit exists, so code should check against 0 first.
  */
 static __always_inline unsigned long __ffs(unsigned long word)
 {
@@ -403,7 +403,7 @@ static __always_inline unsigned long __ffs(unsigned long word)
  * @word: The word to search
  *
  * This is defined the same way as ffs.
- * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
+ * Analte fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
  */
 static inline int fls(unsigned int x)
 {

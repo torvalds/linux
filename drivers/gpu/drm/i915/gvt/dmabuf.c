@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -59,15 +59,15 @@ static int vgpu_gem_get_pages(struct drm_i915_gem_object *obj)
 	page_num = obj->base.size >> PAGE_SHIFT;
 	fb_info = (struct intel_vgpu_fb_info *)obj->gvt_info;
 	if (drm_WARN_ON(&dev_priv->drm, !fb_info))
-		return -ENODEV;
+		return -EANALDEV;
 
 	vgpu = fb_info->obj->vgpu;
 	if (drm_WARN_ON(&dev_priv->drm, !vgpu))
-		return -ENODEV;
+		return -EANALDEV;
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (unlikely(!st))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sg_alloc_table(st, page_num, GFP_KERNEL);
 	if (ret) {
@@ -218,7 +218,7 @@ static struct drm_i915_gem_object *vgpu_create_gem(struct drm_device *dev,
 
 		switch (info->drm_format_mod) {
 		case DRM_FORMAT_MOD_LINEAR:
-			tiling_mode = I915_TILING_NONE;
+			tiling_mode = I915_TILING_ANALNE;
 			break;
 		case I915_FORMAT_MOD_X_TILED:
 			tiling_mode = I915_TILING_X;
@@ -324,7 +324,7 @@ static int vgpu_get_plane_info(struct drm_device *dev,
 	}
 
 	if (info->start & (PAGE_SIZE - 1)) {
-		gvt_vgpu_err("Not aligned fb address:0x%llx\n", info->start);
+		gvt_vgpu_err("Analt aligned fb address:0x%llx\n", info->start);
 		return -EFAULT;
 	}
 
@@ -448,7 +448,7 @@ int intel_vgpu_query_plane(struct intel_vgpu *vgpu, void *args)
 	dmabuf_obj = kmalloc(sizeof(struct intel_vgpu_dmabuf_obj), GFP_KERNEL);
 	if (unlikely(!dmabuf_obj)) {
 		gvt_vgpu_err("alloc dmabuf_obj failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -456,7 +456,7 @@ int intel_vgpu_query_plane(struct intel_vgpu *vgpu, void *args)
 				   GFP_KERNEL);
 	if (unlikely(!dmabuf_obj->info)) {
 		gvt_vgpu_err("allocate intel vgpu fb info failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_dmabuf;
 	}
 	memcpy(dmabuf_obj->info, &fb_info, sizeof(struct intel_vgpu_fb_info));
@@ -465,7 +465,7 @@ int intel_vgpu_query_plane(struct intel_vgpu *vgpu, void *args)
 
 	dmabuf_obj->vgpu = vgpu;
 
-	ret = idr_alloc(&vgpu->object_idr, dmabuf_obj, 1, 0, GFP_NOWAIT);
+	ret = idr_alloc(&vgpu->object_idr, dmabuf_obj, 1, 0, GFP_ANALWAIT);
 	if (ret < 0)
 		goto out_free_info;
 	gfx_plane_info->dmabuf_id = ret;
@@ -492,8 +492,8 @@ out_free_info:
 out_free_dmabuf:
 	kfree(dmabuf_obj);
 out:
-	/* ENODEV means plane isn't ready, which might be a normal case. */
-	return (ret == -ENODEV) ? 0 : ret;
+	/* EANALDEV means plane isn't ready, which might be a analrmal case. */
+	return (ret == -EANALDEV) ? 0 : ret;
 }
 
 /* To associate an exposed dmabuf with the dmabuf_obj */
@@ -518,7 +518,7 @@ int intel_vgpu_get_dmabuf(struct intel_vgpu *vgpu, unsigned int dmabuf_id)
 	obj = vgpu_create_gem(dev, dmabuf_obj->info);
 	if (obj == NULL) {
 		gvt_vgpu_err("create gvt gem obj failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

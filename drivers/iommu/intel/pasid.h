@@ -30,7 +30,7 @@
 #define NUM_RESERVED_DID		2
 
 #define PASID_FLAG_NESTED		BIT(1)
-#define PASID_FLAG_PAGE_SNOOP		BIT(2)
+#define PASID_FLAG_PAGE_SANALOP		BIT(2)
 
 /*
  * The PASID_FLAG_FL5LP flag Indicates using 5-level paging for first-
@@ -239,16 +239,16 @@ static inline void pasid_set_present(struct pasid_entry *pe)
 }
 
 /*
- * Setup Page Walk Snoop bit (Bit 87) of a scalable mode PASID
+ * Setup Page Walk Sanalop bit (Bit 87) of a scalable mode PASID
  * entry.
  */
-static inline void pasid_set_page_snoop(struct pasid_entry *pe, bool value)
+static inline void pasid_set_page_sanalop(struct pasid_entry *pe, bool value)
 {
 	pasid_set_bits(&pe->val[1], 1 << 23, value << 23);
 }
 
 /*
- * Setup No Execute Enable bit (Bit 133) of a scalable mode PASID
+ * Setup Anal Execute Enable bit (Bit 133) of a scalable mode PASID
  * entry. It is required when XD bit of the first level page table
  * entry is about to be set.
  */
@@ -258,7 +258,7 @@ static inline void pasid_set_nxe(struct pasid_entry *pe)
 }
 
 /*
- * Setup the Page Snoop (PGSNP) field (Bit 88) of a scalable mode
+ * Setup the Page Sanalop (PGSNP) field (Bit 88) of a scalable mode
  * PASID entry.
  */
 static inline void
@@ -315,7 +315,7 @@ int intel_pasid_setup_nested(struct intel_iommu *iommu, struct device *dev,
 			     u32 pasid, struct dmar_domain *domain);
 void intel_pasid_tear_down_entry(struct intel_iommu *iommu,
 				 struct device *dev, u32 pasid,
-				 bool fault_ignore);
-void intel_pasid_setup_page_snoop_control(struct intel_iommu *iommu,
+				 bool fault_iganalre);
+void intel_pasid_setup_page_sanalop_control(struct intel_iommu *iommu,
 					  struct device *dev, u32 pasid);
 #endif /* __INTEL_PASID_H */

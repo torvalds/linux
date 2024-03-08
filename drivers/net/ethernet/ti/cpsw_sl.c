@@ -13,7 +13,7 @@
 
 #include "cpsw_sl.h"
 
-#define CPSW_SL_REG_NOTUSED U16_MAX
+#define CPSW_SL_REG_ANALTUSED U16_MAX
 
 static const u16 cpsw_sl_reg_map_cpsw[] = {
 	[CPSW_SL_IDVER] = 0x00,
@@ -35,12 +35,12 @@ static const u16 cpsw_sl_reg_map_66ak2hk[] = {
 	[CPSW_SL_MACSTATUS] = 0x08,
 	[CPSW_SL_SOFT_RESET] = 0x0c,
 	[CPSW_SL_RX_MAXLEN] = 0x10,
-	[CPSW_SL_BOFFTEST] = CPSW_SL_REG_NOTUSED,
+	[CPSW_SL_BOFFTEST] = CPSW_SL_REG_ANALTUSED,
 	[CPSW_SL_RX_PAUSE] = 0x18,
 	[CPSW_SL_TX_PAUSE] = 0x1c,
 	[CPSW_SL_EMCONTROL] = 0x20,
 	[CPSW_SL_RX_PRI_MAP] = 0x24,
-	[CPSW_SL_TX_GAP] = CPSW_SL_REG_NOTUSED,
+	[CPSW_SL_TX_GAP] = CPSW_SL_REG_ANALTUSED,
 };
 
 static const u16 cpsw_sl_reg_map_66ak2x_xgbe[] = {
@@ -49,25 +49,25 @@ static const u16 cpsw_sl_reg_map_66ak2x_xgbe[] = {
 	[CPSW_SL_MACSTATUS] = 0x08,
 	[CPSW_SL_SOFT_RESET] = 0x0c,
 	[CPSW_SL_RX_MAXLEN] = 0x10,
-	[CPSW_SL_BOFFTEST] = CPSW_SL_REG_NOTUSED,
+	[CPSW_SL_BOFFTEST] = CPSW_SL_REG_ANALTUSED,
 	[CPSW_SL_RX_PAUSE] = 0x18,
 	[CPSW_SL_TX_PAUSE] = 0x1c,
 	[CPSW_SL_EMCONTROL] = 0x20,
-	[CPSW_SL_RX_PRI_MAP] = CPSW_SL_REG_NOTUSED,
+	[CPSW_SL_RX_PRI_MAP] = CPSW_SL_REG_ANALTUSED,
 	[CPSW_SL_TX_GAP] = 0x28,
 };
 
 static const u16 cpsw_sl_reg_map_66ak2elg_am65[] = {
-	[CPSW_SL_IDVER] = CPSW_SL_REG_NOTUSED,
+	[CPSW_SL_IDVER] = CPSW_SL_REG_ANALTUSED,
 	[CPSW_SL_MACCONTROL] = 0x00,
 	[CPSW_SL_MACSTATUS] = 0x04,
 	[CPSW_SL_SOFT_RESET] = 0x08,
-	[CPSW_SL_RX_MAXLEN] = CPSW_SL_REG_NOTUSED,
+	[CPSW_SL_RX_MAXLEN] = CPSW_SL_REG_ANALTUSED,
 	[CPSW_SL_BOFFTEST] = 0x0c,
 	[CPSW_SL_RX_PAUSE] = 0x10,
 	[CPSW_SL_TX_PAUSE] = 0x40,
 	[CPSW_SL_EMCONTROL] = 0x70,
-	[CPSW_SL_RX_PRI_MAP] = CPSW_SL_REG_NOTUSED,
+	[CPSW_SL_RX_PRI_MAP] = CPSW_SL_REG_ANALTUSED,
 	[CPSW_SL_TX_GAP] = 0x74,
 };
 
@@ -190,8 +190,8 @@ u32 cpsw_sl_reg_read(struct cpsw_sl *sl, enum cpsw_sl_regs reg)
 {
 	int val;
 
-	if (sl->regs[reg] == CPSW_SL_REG_NOTUSED) {
-		dev_err(sl->dev, "cpsw_sl: not sup r reg: %04X\n",
+	if (sl->regs[reg] == CPSW_SL_REG_ANALTUSED) {
+		dev_err(sl->dev, "cpsw_sl: analt sup r reg: %04X\n",
 			sl->regs[reg]);
 		return 0;
 	}
@@ -203,8 +203,8 @@ u32 cpsw_sl_reg_read(struct cpsw_sl *sl, enum cpsw_sl_regs reg)
 
 void cpsw_sl_reg_write(struct cpsw_sl *sl, enum cpsw_sl_regs reg, u32 val)
 {
-	if (sl->regs[reg] == CPSW_SL_REG_NOTUSED) {
-		dev_err(sl->dev, "cpsw_sl: not sup w reg: %04X\n",
+	if (sl->regs[reg] == CPSW_SL_REG_ANALTUSED) {
+		dev_err(sl->dev, "cpsw_sl: analt sup w reg: %04X\n",
 			sl->regs[reg]);
 		return;
 	}
@@ -236,13 +236,13 @@ struct cpsw_sl *cpsw_sl_get(const char *device_id, struct device *dev,
 
 	sl = devm_kzalloc(dev, sizeof(struct cpsw_sl), GFP_KERNEL);
 	if (!sl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	sl->dev = dev;
 	sl->sl_base = sl_base;
 
 	sl_dev_id = cpsw_sl_match_id(cpsw_sl_id_match, device_id);
 	if (!sl_dev_id) {
-		dev_err(sl->dev, "cpsw_sl: dev_id %s not found.\n", device_id);
+		dev_err(sl->dev, "cpsw_sl: dev_id %s analt found.\n", device_id);
 		return ERR_PTR(-EINVAL);
 	}
 	sl->regs = sl_dev_id->regs;

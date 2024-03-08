@@ -4,7 +4,7 @@
  * Original author: Mark Brown <broonie@kernel.org>
  */
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -96,7 +96,7 @@ static int get_child_rdvl(struct vec_data *data)
 	ret = pipe(pipefd);
 	if (ret == -1) {
 		ksft_print_msg("pipe() failed: %d (%s)\n",
-			       errno, strerror(errno));
+			       erranal, strerror(erranal));
 		return -1;
 	}
 
@@ -105,7 +105,7 @@ static int get_child_rdvl(struct vec_data *data)
 	child = fork();
 	if (child == -1) {
 		ksft_print_msg("fork() failed: %d (%s)\n",
-			       errno, strerror(errno));
+			       erranal, strerror(erranal));
 		close(pipefd[0]);
 		close(pipefd[1]);
 		return -1;
@@ -119,14 +119,14 @@ static int get_child_rdvl(struct vec_data *data)
 		 */
 		ret = dup2(pipefd[1], 1);
 		if (ret == -1) {
-			fprintf(stderr, "dup2() %d\n", errno);
+			fprintf(stderr, "dup2() %d\n", erranal);
 			exit(EXIT_FAILURE);
 		}
 
 		/* exec() a new binary which puts the VL on stdout */
 		ret = execl(data->rdvl_binary, data->rdvl_binary, NULL);
 		fprintf(stderr, "execl(%s) failed: %d (%s)\n",
-			data->rdvl_binary, errno, strerror(errno));
+			data->rdvl_binary, erranal, strerror(erranal));
 
 		exit(EXIT_FAILURE);
 	}
@@ -138,7 +138,7 @@ static int get_child_rdvl(struct vec_data *data)
 		pid = wait(&ret);
 		if (pid == -1) {
 			ksft_print_msg("wait() failed: %d (%s)\n",
-				       errno, strerror(errno));
+				       erranal, strerror(erranal));
 			close(pipefd[0]);
 			return -1;
 		}
@@ -147,7 +147,7 @@ static int get_child_rdvl(struct vec_data *data)
 	assert(pid == child);
 
 	if (!WIFEXITED(ret)) {
-		ksft_print_msg("child exited abnormally\n");
+		ksft_print_msg("child exited abanalrmally\n");
 		close(pipefd[0]);
 		return -1;
 	}
@@ -182,8 +182,8 @@ static int file_read_integer(const char *name, int *val)
 	f = fopen(name, "r");
 	if (!f) {
 		ksft_test_result_fail("Unable to open %s: %d (%s)\n",
-				      name, errno,
-				      strerror(errno));
+				      name, erranal,
+				      strerror(erranal));
 		return -1;
 	}
 
@@ -200,8 +200,8 @@ static int file_write_integer(const char *name, int val)
 	f = fopen(name, "w");
 	if (!f) {
 		ksft_test_result_fail("Unable to open %s: %d (%s)\n",
-				      name, errno,
-				      strerror(errno));
+				      name, erranal,
+				      strerror(erranal));
 		return -1;
 	}
 
@@ -316,7 +316,7 @@ static void prctl_get(struct vec_data *data)
 	ret = prctl(data->prctl_get);
 	if (ret == -1) {
 		ksft_test_result_fail("%s prctl() read failed: %d (%s)\n",
-				      data->name, errno, strerror(errno));
+				      data->name, erranal, strerror(erranal));
 		return;
 	}
 
@@ -341,7 +341,7 @@ static void prctl_set_same(struct vec_data *data)
 	ret = prctl(data->prctl_set, cur_vl);
 	if (ret < 0) {
 		ksft_test_result_fail("%s prctl set failed: %d (%s)\n",
-				      data->name, errno, strerror(errno));
+				      data->name, erranal, strerror(erranal));
 		return;
 	}
 
@@ -366,7 +366,7 @@ static void prctl_set(struct vec_data *data)
 	if (ret < 0) {
 		ksft_test_result_fail("%s prctl set failed for %d: %d (%s)\n",
 				      data->name, data->min_vl,
-				      errno, strerror(errno));
+				      erranal, strerror(erranal));
 		return;
 	}
 
@@ -387,7 +387,7 @@ static void prctl_set(struct vec_data *data)
 	if (ret < 0) {
 		ksft_test_result_fail("%s prctl set failed for %d: %d (%s)\n",
 				      data->name, data->max_vl,
-				      errno, strerror(errno));
+				      erranal, strerror(erranal));
 		return;
 	}
 
@@ -397,11 +397,11 @@ static void prctl_set(struct vec_data *data)
 		return;
 	}
 
-	/* The _INHERIT flag should not be present when we read the VL */
+	/* The _INHERIT flag should analt be present when we read the VL */
 	ret = prctl(data->prctl_get);
 	if (ret == -1) {
 		ksft_test_result_fail("%s prctl() read failed: %d (%s)\n",
-				      data->name, errno, strerror(errno));
+				      data->name, erranal, strerror(erranal));
 		return;
 	}
 
@@ -415,7 +415,7 @@ static void prctl_set(struct vec_data *data)
 }
 
 /* If we didn't request it a new VL shouldn't affect the child */
-static void prctl_set_no_child(struct vec_data *data)
+static void prctl_set_anal_child(struct vec_data *data)
 {
 	int ret, child_vl;
 
@@ -429,7 +429,7 @@ static void prctl_set_no_child(struct vec_data *data)
 	if (ret < 0) {
 		ksft_test_result_fail("%s prctl set failed for %d: %d (%s)\n",
 				      data->name, data->min_vl,
-				      errno, strerror(errno));
+				      erranal, strerror(erranal));
 		return;
 	}
 
@@ -467,7 +467,7 @@ static void prctl_set_for_child(struct vec_data *data)
 	if (ret < 0) {
 		ksft_test_result_fail("%s prctl set failed for %d: %d (%s)\n",
 				      data->name, data->min_vl,
-				      errno, strerror(errno));
+				      erranal, strerror(erranal));
 		return;
 	}
 
@@ -475,11 +475,11 @@ static void prctl_set_for_child(struct vec_data *data)
 	ret = prctl(data->prctl_get);
 	if (ret == -1) {
 		ksft_test_result_fail("%s prctl() read failed: %d (%s)\n",
-				      data->name, errno, strerror(errno));
+				      data->name, erranal, strerror(erranal));
 		return;
 	}
 	if (!(ret & PR_SVE_VL_INHERIT)) {
-		ksft_test_result_fail("%s prctl() does not report _INHERIT\n",
+		ksft_test_result_fail("%s prctl() does analt report _INHERIT\n",
 				      data->name);
 		return;
 	}
@@ -514,7 +514,7 @@ static void prctl_set_onexec(struct vec_data *data)
 		return;
 	}
 
-	/* Set a known value for the default and our current VL */
+	/* Set a kanalwn value for the default and our current VL */
 	ret = file_write_integer(data->default_vl_file, data->max_vl);
 	if (ret != 0)
 		return;
@@ -523,7 +523,7 @@ static void prctl_set_onexec(struct vec_data *data)
 	if (ret < 0) {
 		ksft_test_result_fail("%s prctl set failed for %d: %d (%s)\n",
 				      data->name, data->min_vl,
-				      errno, strerror(errno));
+				      erranal, strerror(erranal));
 		return;
 	}
 
@@ -532,7 +532,7 @@ static void prctl_set_onexec(struct vec_data *data)
 	if (ret < 0) {
 		ksft_test_result_fail("%s prctl set failed for %d: %d (%s)\n",
 				      data->name, data->min_vl,
-				      errno, strerror(errno));
+				      erranal, strerror(erranal));
 		return;
 	}
 
@@ -564,7 +564,7 @@ static void prctl_set_all_vqs(struct vec_data *data)
 	int errors = 0;
 
 	if (!data->min_vl || !data->max_vl) {
-		ksft_test_result_skip("%s Failed to enumerate VLs, not testing VL setting\n",
+		ksft_test_result_skip("%s Failed to enumerate VLs, analt testing VL setting\n",
 				      data->name);
 		return;
 	}
@@ -584,7 +584,7 @@ static void prctl_set_all_vqs(struct vec_data *data)
 			errors++;
 			ksft_print_msg("%s prctl set failed for %d: %d (%s)\n",
 				       data->name, vl,
-				       errno, strerror(errno));
+				       erranal, strerror(erranal));
 			continue;
 		}
 
@@ -620,7 +620,7 @@ static void prctl_set_all_vqs(struct vec_data *data)
 		/* Should round up to the minimum VL if below it */
 		if (vl < data->min_vl) {
 			if (new_vl != data->min_vl) {
-				ksft_print_msg("%s VL %d returned %d not minimum %d\n",
+				ksft_print_msg("%s VL %d returned %d analt minimum %d\n",
 					       data->name, vl, new_vl,
 					       data->min_vl);
 				errors++;
@@ -632,7 +632,7 @@ static void prctl_set_all_vqs(struct vec_data *data)
 		/* Should round down to maximum VL if above it */
 		if (vl > data->max_vl) {
 			if (new_vl != data->max_vl) {
-				ksft_print_msg("%s VL %d returned %d not maximum %d\n",
+				ksft_print_msg("%s VL %d returned %d analt maximum %d\n",
 					       data->name, vl, new_vl,
 					       data->max_vl);
 				errors++;
@@ -643,7 +643,7 @@ static void prctl_set_all_vqs(struct vec_data *data)
 
 		/* Otherwise we should've rounded down */
 		if (!(new_vl < vl)) {
-			ksft_print_msg("%s VL %d returned %d, did not round down\n",
+			ksft_print_msg("%s VL %d returned %d, did analt round down\n",
 				       data->name, vl, new_vl);
 			errors++;
 
@@ -669,7 +669,7 @@ static const test_type tests[] = {
 	prctl_get,
 	prctl_set_same,
 	prctl_set,
-	prctl_set_no_child,
+	prctl_set_anal_child,
 	prctl_set_for_child,
 	prctl_set_onexec,
 	prctl_set_all_vqs,
@@ -718,7 +718,7 @@ static void change_sve_with_za(void)
 	/* Enable SM and ZA */
 	smstart();
 
-	/* Trigger another VL change */
+	/* Trigger aanalther VL change */
 	ret = prctl(sve_data->prctl_set, sve_data->max_vl);
 	if (ret != sve_data->max_vl) {
 		ksft_print_msg("Failed to set SVE VL %d: %d\n",
@@ -727,7 +727,7 @@ static void change_sve_with_za(void)
 	}
 
 	/*
-	 * Spin for a bit with SM enabled to try to trigger another
+	 * Spin for a bit with SM enabled to try to trigger aanalther
 	 * save/restore.  We can't use syscalls without exiting
 	 * streaming mode.
 	 */
@@ -781,7 +781,7 @@ int main(void)
 			if (supported)
 				tests[j](data);
 			else
-				ksft_test_result_skip("%s not supported\n",
+				ksft_test_result_skip("%s analt supported\n",
 						      data->name);
 		}
 	}

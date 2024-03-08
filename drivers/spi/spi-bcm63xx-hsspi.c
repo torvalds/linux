@@ -21,7 +21,7 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/spi/spi-mem.h>
-#include <linux/mtd/spi-nor.h>
+#include <linux/mtd/spi-analr.h>
 #include <linux/reset.h>
 #include <linux/pm_runtime.h>
 
@@ -50,8 +50,8 @@
 
 #define HSSPI_PINGPONG_COMMAND_REG(x)		(0x80 + (x) * 0x40)
 #define PINGPONG_CMD_COMMAND_MASK		0xf
-#define PINGPONG_COMMAND_NOOP			0
-#define PINGPONG_COMMAND_START_NOW		1
+#define PINGPONG_COMMAND_ANALOP			0
+#define PINGPONG_COMMAND_START_ANALW		1
 #define PINGPONG_COMMAND_START_TRIGGER		2
 #define PINGPONG_COMMAND_HALT			3
 #define PINGPONG_COMMAND_FLUSH			4
@@ -111,7 +111,7 @@
 
 /*
  * Default transfer mode is auto. If the msg is prependable, use the prepend
- * mode.  If not, falls back to use the dummy cs workaround mode but limit the
+ * mode.  If analt, falls back to use the dummy cs workaround mode but limit the
  * clock to 25MHz to make sure it works in all board design.
  */
 #define HSSPI_XFER_MODE_AUTO		0
@@ -277,13 +277,13 @@ static bool bcm63xx_prepare_prepend_transfer(struct spi_controller *host,
 	 * only if the following are all true:
 	 *   1. One or more half duplex write transfer in single bit mode
 	 *   2. Optional full duplex read/write at the end
-	 *   3. No delay and cs_change between transfers
+	 *   3. Anal delay and cs_change between transfers
 	 */
 	bs->prepend_cnt = 0;
 	list_for_each_entry(t, &msg->transfers, transfer_list) {
 		if ((spi_delay_to_ns(&t->delay, t) > 0) || t->cs_change) {
 			bcm63xx_prepend_printk_on_checkfail(bs,
-				 "Delay or cs change not supported in prepend mode!\n");
+				 "Delay or cs change analt supported in prepend mode!\n");
 			return false;
 		}
 
@@ -300,7 +300,7 @@ static bool bcm63xx_prepare_prepend_transfer(struct spi_controller *host,
 			if (t->tx_nbits > SPI_NBITS_SINGLE &&
 				!list_is_last(&t->transfer_list, &msg->transfers)) {
 				bcm63xx_prepend_printk_on_checkfail(bs,
-					 "multi-bit prepend buf not supported!\n");
+					 "multi-bit prepend buf analt supported!\n");
 				return false;
 			}
 
@@ -311,7 +311,7 @@ static bool bcm63xx_prepare_prepend_transfer(struct spi_controller *host,
 		} else {
 			if (!list_is_last(&t->transfer_list, &msg->transfers)) {
 				bcm63xx_prepend_printk_on_checkfail(bs,
-					 "rx/tx_rx transfer not supported when it is not last one!\n");
+					 "rx/tx_rx transfer analt supported when it is analt last one!\n");
 				return false;
 			}
 		}
@@ -329,9 +329,9 @@ static bool bcm63xx_prepare_prepend_transfer(struct spi_controller *host,
 				bs->prepend_cnt = 0;
 			} else {
 				/*
-				 * if the last one is not a tx only transfer or dual tx xfer, all
+				 * if the last one is analt a tx only transfer or dual tx xfer, all
 				 * the previous transfers are sent through prepend bytes and
-				 * make sure it does not exceed the max prepend len
+				 * make sure it does analt exceed the max prepend len
 				 */
 				if (bs->prepend_cnt > HSSPI_MAX_PREPEND_LEN) {
 					bcm63xx_prepend_printk_on_checkfail(bs,
@@ -357,7 +357,7 @@ static int bcm63xx_hsspi_do_prepend_txrx(struct spi_device *spi,
 
 	/*
 	 * shouldn't happen as we set the max_message_size in the probe.
-	 * but check it again in case some driver does not honor the max size
+	 * but check it again in case some driver does analt hoanalr the max size
 	 */
 	if (t->len + bs->prepend_cnt > (HSSPI_BUFFER_LEN - HSSPI_OPCODE_LEN)) {
 		dev_warn(&bs->pdev->dev,
@@ -410,7 +410,7 @@ static int bcm63xx_hsspi_do_prepend_txrx(struct spi_device *spi,
 	/* start the transfer */
 	reg = chip_select << PINGPONG_CMD_SS_SHIFT |
 	    chip_select << PINGPONG_CMD_PROFILE_SHIFT |
-	    PINGPONG_COMMAND_START_NOW;
+	    PINGPONG_COMMAND_START_ANALW;
 	__raw_writel(reg, bs->regs + HSSPI_PINGPONG_COMMAND_REG(0));
 
 	if (bcm63xx_hsspi_wait_cmd(bs))
@@ -522,7 +522,7 @@ static int bcm63xx_hsspi_do_txrx(struct spi_device *spi, struct spi_transfer *t)
 
 		reg =  !chip_select << PINGPONG_CMD_SS_SHIFT |
 			    chip_select << PINGPONG_CMD_PROFILE_SHIFT |
-			    PINGPONG_COMMAND_START_NOW;
+			    PINGPONG_COMMAND_START_ANALW;
 		__raw_writel(reg, bs->regs + HSSPI_PINGPONG_COMMAND_REG(0));
 
 		if (bcm63xx_hsspi_wait_cmd(bs))
@@ -557,7 +557,7 @@ static int bcm63xx_hsspi_setup(struct spi_device *spi)
 	mutex_lock(&bs->bus_mutex);
 	reg = __raw_readl(bs->regs + HSSPI_GLOBAL_CTRL_REG);
 
-	/* only change actual polarities if there is no transfer */
+	/* only change actual polarities if there is anal transfer */
 	if ((reg & GLOBAL_CTRL_CS_POLARITY_MASK) == bs->cs_polarity) {
 		if (spi->mode & SPI_CS_HIGH)
 			reg |= BIT(spi_get_chipselect(spi, 0));
@@ -586,7 +586,7 @@ static int bcm63xx_hsspi_do_dummy_cs_txrx(struct spi_device *spi,
 	struct spi_transfer *t;
 
 	/*
-	 * This controller does not support keeping CS active during idle.
+	 * This controller does analt support keeping CS active during idle.
 	 * To work around this, we use the following ugly hack:
 	 *
 	 * a. Invert the target chip select's polarity so it will be active.
@@ -606,7 +606,7 @@ static int bcm63xx_hsspi_do_dummy_cs_txrx(struct spi_device *spi,
 	list_for_each_entry(t, &msg->transfers, transfer_list) {
 		/*
 		 * We are here because one of reasons below:
-		 * a. Message is not prependable and in default auto xfer mode. This mean
+		 * a. Message is analt prependable and in default auto xfer mode. This mean
 		 *    we fallback to dummy cs mode at maximum 25MHz safe clock rate.
 		 * b. User set to use the dummy cs mode.
 		 */
@@ -673,7 +673,7 @@ static int bcm63xx_hsspi_transfer_one(struct spi_controller *host,
 	} else {
 		if (bs->xfer_mode == HSSPI_XFER_MODE_PREPEND) {
 			dev_err(&bs->pdev->dev,
-				"User sets prepend mode but msg not prependable! Abort transfer\n");
+				"User sets prepend mode but msg analt prependable! Abort transfer\n");
 			status = -EINVAL;
 		} else
 			status = bcm63xx_hsspi_do_dummy_cs_txrx(spi, msg);
@@ -693,10 +693,10 @@ static bool bcm63xx_hsspi_mem_supports_op(struct spi_mem *mem,
 		return false;
 
 	/* Controller doesn't support spi mem dual io mode */
-	if ((op->cmd.opcode == SPINOR_OP_READ_1_2_2) ||
-		(op->cmd.opcode == SPINOR_OP_READ_1_2_2_4B) ||
-		(op->cmd.opcode == SPINOR_OP_READ_1_2_2_DTR) ||
-		(op->cmd.opcode == SPINOR_OP_READ_1_2_2_DTR_4B))
+	if ((op->cmd.opcode == SPIANALR_OP_READ_1_2_2) ||
+		(op->cmd.opcode == SPIANALR_OP_READ_1_2_2_4B) ||
+		(op->cmd.opcode == SPIANALR_OP_READ_1_2_2_DTR) ||
+		(op->cmd.opcode == SPIANALR_OP_READ_1_2_2_DTR_4B))
 		return false;
 
 	return true;
@@ -711,7 +711,7 @@ static irqreturn_t bcm63xx_hsspi_interrupt(int irq, void *dev_id)
 	struct bcm63xx_hsspi *bs = (struct bcm63xx_hsspi *)dev_id;
 
 	if (__raw_readl(bs->regs + HSSPI_INT_STATUS_MASKED_REG) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	__raw_writel(HSSPI_INT_CLEAR_ALL, bs->regs + HSSPI_INT_STATUS_REG);
 	__raw_writel(0, bs->regs + HSSPI_INT_MASK_REG);
@@ -781,7 +781,7 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(&pdev->dev, sizeof(*bs));
 	if (!host) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_disable_pll_clk;
 	}
 
@@ -795,7 +795,7 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	bs->wait_mode = HSSPI_WAIT_MODE_POLLING;
 	bs->prepend_buf = devm_kzalloc(dev, HSSPI_BUFFER_LEN, GFP_KERNEL);
 	if (!bs->prepend_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_put_host;
 	}
 
@@ -804,11 +804,11 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	init_completion(&bs->done);
 
 	host->mem_ops = &bcm63xx_hsspi_mem_ops;
-	host->dev.of_node = dev->of_node;
-	if (!dev->of_node)
+	host->dev.of_analde = dev->of_analde;
+	if (!dev->of_analde)
 		host->bus_num = HSSPI_BUS_NUM;
 
-	of_property_read_u32(dev->of_node, "num-cs", &num_cs);
+	of_property_read_u32(dev->of_analde, "num-cs", &num_cs);
 	if (num_cs > 8) {
 		dev_warn(dev, "unsupported number of cs (%i), reducing to 8\n",
 			 num_cs);

@@ -10,7 +10,7 @@
  * Limitations:
  * - Due to the fact that exact behavior depends on the underlying
  *   clock driver, various limitations are possible.
- * - Underlying clock may not be able to give 0% or 100% duty cycle
+ * - Underlying clock may analt be able to give 0% or 100% duty cycle
  *   (constant off or on), exact behavior will depend on the clock.
  * - When the PWM is disabled, the clock will be disabled as well,
  *   line state will depend on the clock.
@@ -86,7 +86,7 @@ static int pwm_clk_probe(struct platform_device *pdev)
 
 	pcchip = devm_kzalloc(&pdev->dev, sizeof(*pcchip), GFP_KERNEL);
 	if (!pcchip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcchip->clk = devm_clk_get_prepared(&pdev->dev, NULL);
 	if (IS_ERR(pcchip->clk))

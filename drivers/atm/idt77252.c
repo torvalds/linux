@@ -10,18 +10,18 @@
  * option) any later version.
  *
  * THIS  SOFTWARE  IS PROVIDED   ``AS  IS'' AND   ANY  EXPRESS OR   IMPLIED
- * WARRANTIES,   INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
+ * WARRANTIES,   INCLUDING, BUT ANALT  LIMITED  TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- * NO  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT,  INDIRECT,
+ * ANAL  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT,  INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
+ * ANALT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
  * USE, DATA,  OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  * ANY THEORY OF LIABILITY, WHETHER IN  CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if analt, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *******************************************************************/
@@ -67,14 +67,14 @@ static unsigned int vpibits = 1;
  * Debug HACKs.
  */
 #define DEBUG_MODULE 1
-#undef HAVE_EEPROM	/* does not work, yet. */
+#undef HAVE_EEPROM	/* does analt work, yet. */
 
 #ifdef CONFIG_ATM_IDT77252_DEBUG
 static unsigned long debug = DBG_GENERAL;
 #endif
 
 
-#define SAR_RX_DELAY	(SAR_CFG_RXINT_NODELAY)
+#define SAR_RX_DELAY	(SAR_CFG_RXINT_ANALDELAY)
 
 
 /*
@@ -210,7 +210,7 @@ read_utility(void *dev, unsigned long ubus_addr)
 	u8 value;
 
 	if (!card) {
-		printk("Error: No such device.\n");
+		printk("Error: Anal such device.\n");
 		return -1;
 	}
 
@@ -229,7 +229,7 @@ write_utility(void *dev, unsigned long ubus_addr, u8 value)
 	unsigned long flags;
 
 	if (!card) {
-		printk("Error: No such device.\n");
+		printk("Error: Anal such device.\n");
 		return;
 	}
 
@@ -588,7 +588,7 @@ sb_pool_add(struct idt77252_dev *card, struct sk_buff *skb, int queue)
 	while (pool->skb[index]) {
 		index = (index + 1) & FBQ_MASK;
 		if (index == pool->index)
-			return -ENOBUFS;
+			return -EANALBUFS;
 	}
 
 	pool->skb[index] = skb;
@@ -783,7 +783,7 @@ out:
 		scq->trans_start = jiffies;
 	}
 
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 
@@ -906,8 +906,8 @@ queue_skb(struct idt77252_dev *card, struct vc_map *vc,
 	case ATM_AAL1:
 	case ATM_AAL2:
 	default:
-		printk("%s: Traffic type not supported.\n", card->name);
-		error = -EPROTONOSUPPORT;
+		printk("%s: Traffic type analt supported.\n", card->name);
+		error = -EPROTOANALSUPPORT;
 		goto errout;
 	}
 
@@ -1051,7 +1051,7 @@ dequeue_rx(struct idt77252_dev *card, struct rsq_entry *rsqe)
 
 	vc = card->vcs[VPCI2VC(card, vpi, vci)];
 	if (!vc || !test_bit(VCF_RX, &vc->flags)) {
-		printk("%s: SDU received on non RX vc %u.%u\n",
+		printk("%s: SDU received on analn RX vc %u.%u\n",
 		       card->name, vpi, vci);
 		recycle_rx_skb(card, skb);
 		return;
@@ -1215,7 +1215,7 @@ idt77252_rx(struct idt77252_dev *card)
 		rsqe = card->rsq.next + 1;
 
 	if (!(le32_to_cpu(rsqe->word_4) & SAR_RSQE_VALID)) {
-		RXPRINTK("%s: no entry in RSQ.\n", card->name);
+		RXPRINTK("%s: anal entry in RSQ.\n", card->name);
 		return;
 	}
 
@@ -1291,7 +1291,7 @@ idt77252_rx_raw(struct idt77252_dev *card)
 
 		vc = card->vcs[VPCI2VC(card, vpi, vci)];
 		if (!vc || !test_bit(VCF_RX, &vc->flags)) {
-			RPRINTK("%s: SDU received on non RX vc %u.%u\n",
+			RPRINTK("%s: SDU received on analn RX vc %u.%u\n",
 				card->name, vpi, vci);
 			goto drop;
 		}
@@ -1299,7 +1299,7 @@ idt77252_rx_raw(struct idt77252_dev *card)
 		vcc = vc->rx_vcc;
 
 		if (vcc->qos.aal != ATM_AAL0) {
-			RPRINTK("%s: raw cell for non AAL0 vc %u.%u\n",
+			RPRINTK("%s: raw cell for analn AAL0 vc %u.%u\n",
 				card->name, vpi, vci);
 			atomic_inc(&vcc->stats->rx_drop);
 			goto drop;
@@ -1440,7 +1440,7 @@ idt77252_tx(struct idt77252_dev *card)
 			conn = le32_to_cpu(tsqe->word_1);
 
 			if (SAR_TSQE_TAG(stat) == 0x10) {
-#ifdef	NOTDEF
+#ifdef	ANALTDEF
 				printk("%s: Connection %d halted.\n",
 				       card->name,
 				       le32_to_cpu(tsqe->word_1) & 0x1fff);
@@ -1450,7 +1450,7 @@ idt77252_tx(struct idt77252_dev *card)
 
 			vc = card->vcs[conn & 0x1fff];
 			if (!vc) {
-				printk("%s: could not find VC from conn %d\n",
+				printk("%s: could analt find VC from conn %d\n",
 				       card->name, conn & 0x1fff);
 				break;
 			}
@@ -1467,7 +1467,7 @@ idt77252_tx(struct idt77252_dev *card)
 
 			vc = card->vcs[conn & 0x1fff];
 			if (!vc) {
-				printk("%s: no VC at index %d\n",
+				printk("%s: anal VC at index %d\n",
 				       card->name,
 				       le32_to_cpu(tsqe->word_1) & 0x1fff);
 				break;
@@ -1494,7 +1494,7 @@ idt77252_tx(struct idt77252_dev *card)
 			vc = card->vcs[VPCI2VC(card, vpi, vci)];
 			if (!vc) {
 				printk("%s: TBD complete: "
-				       "no VC at VPI.VCI %u.%u\n",
+				       "anal VC at VPI.VCI %u.%u\n",
 				       card->name, vpi, vci);
 				break;
 			}
@@ -1544,7 +1544,7 @@ tst_timer(struct timer_list *t)
 	if (test_bit(TST_SWITCH_WAIT, &card->tst_state)) {
 		jump = base + card->tst_size - 2;
 
-		pc = readl(SAR_REG_NOW) >> 2;
+		pc = readl(SAR_REG_ANALW) >> 2;
 		if ((pc ^ idle) & ~(card->tst_size - 1)) {
 			mod_timer(&card->tst_timer, jiffies + 1);
 			goto out;
@@ -1605,7 +1605,7 @@ __fill_tst(struct idt77252_dev *card, struct vc_map *vc,
 			break;
 	}
 	if (e >= avail) {
-		printk("%s: No free TST entries found\n", card->name);
+		printk("%s: Anal free TST entries found\n", card->name);
 		return -1;
 	}
 
@@ -1771,7 +1771,7 @@ set_tct(struct idt77252_dev *card, struct vc_map *vc)
 	case SCHED_VBR:
 	case SCHED_ABR:
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return 0;
@@ -1949,7 +1949,7 @@ idt77252_send_skb(struct atm_vcc *vcc, struct sk_buff *skb, int oam)
 		return -EINVAL;
 	}
 	if (!test_bit(VCF_TX, &vc->flags)) {
-		printk("%s: Trying to transmit on a non-tx VC.\n", card->name);
+		printk("%s: Trying to transmit on a analn-tx VC.\n", card->name);
 		atomic_inc(&vcc->stats->tx_err);
 		dev_kfree_skb(skb);
 		return -EINVAL;
@@ -1968,7 +1968,7 @@ idt77252_send_skb(struct atm_vcc *vcc, struct sk_buff *skb, int oam)
 	}
 
 	if (skb_shinfo(skb)->nr_frags != 0) {
-		printk("%s: No scatter-gather yet.\n", card->name);
+		printk("%s: Anal scatter-gather yet.\n", card->name);
 		atomic_inc(&vcc->stats->tx_err);
 		dev_kfree_skb(skb);
 		return -EINVAL;
@@ -2001,7 +2001,7 @@ idt77252_send_oam(struct atm_vcc *vcc, void *cell, int flags)
 	if (!skb) {
 		printk("%s: Out of memory in send_oam().\n", card->name);
 		atomic_inc(&vcc->stats->tx_err);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	refcount_add(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
 
@@ -2164,8 +2164,8 @@ idt77252_init_cbr(struct idt77252_dev *card, struct vc_map *vc,
 	} else if (tcr == 0) {
 		tst_entries = tst_free - SAR_TST_RESERVED;
 		if (tst_entries <= 0) {
-			printk("%s: no CBR bandwidth free.\n", card->name);
-			return -ENOSR;
+			printk("%s: anal CBR bandwidth free.\n", card->name);
+			return -EANALSR;
 		}
 	}
 
@@ -2176,8 +2176,8 @@ idt77252_init_cbr(struct idt77252_dev *card, struct vc_map *vc,
 	}
 
 	if (tst_entries > (tst_free - SAR_TST_RESERVED)) {
-		printk("%s: not enough CBR bandwidth free.\n", card->name);
-		return -ENOSR;
+		printk("%s: analt eanalugh CBR bandwidth free.\n", card->name);
+		return -EANALSR;
 	}
 
 	vc->ntste = tst_entries;
@@ -2255,31 +2255,31 @@ idt77252_init_tx(struct idt77252_dev *card, struct vc_map *vc,
 		case ATM_VBR:
 		case ATM_ABR:
 		default:
-			return -EPROTONOSUPPORT;
+			return -EPROTOANALSUPPORT;
 	}
 
 	vc->scq = alloc_scq(card, vc->class);
 	if (!vc->scq) {
 		printk("%s: can't get SCQ.\n", card->name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	vc->scq->scd = get_free_scd(card, vc);
 	if (vc->scq->scd == 0) {
-		printk("%s: no SCD available.\n", card->name);
+		printk("%s: anal SCD available.\n", card->name);
 		free_scq(card, vc->scq);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	fill_scd(card, vc->scq, vc->class);
 
 	if (set_tct(card, vc)) {
-		printk("%s: class %d not supported.\n",
+		printk("%s: class %d analt supported.\n",
 		       card->name, qos->txtp.traffic_class);
 
 		card->scd2vc[vc->scd_index] = NULL;
 		free_scq(card, vc->scq);
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	}
 
 	switch (vc->class) {
@@ -2415,7 +2415,7 @@ idt77252_open(struct atm_vcc *vcc)
 	default:
 		printk("%s: Unsupported AAL: %d\n", card->name, vcc->qos.aal);
 		mutex_unlock(&card->mutex);
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	}
 
 	index = VPCI2VC(card, vpi, vci);
@@ -2424,7 +2424,7 @@ idt77252_open(struct atm_vcc *vcc)
 		if (!card->vcs[index]) {
 			printk("%s: can't alloc vc in open()\n", card->name);
 			mutex_unlock(&card->mutex);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		card->vcs[index]->card = card;
 		card->vcs[index]->index = index;
@@ -2437,15 +2437,15 @@ idt77252_open(struct atm_vcc *vcc)
 
 	IPRINTK("%s: idt77252_open: vc = %d (%d.%d) %s/%s (max RX SDU: %u)\n",
 	        card->name, vc->index, vcc->vpi, vcc->vci,
-	        vcc->qos.rxtp.traffic_class != ATM_NONE ? "rx" : "--",
-	        vcc->qos.txtp.traffic_class != ATM_NONE ? "tx" : "--",
+	        vcc->qos.rxtp.traffic_class != ATM_ANALNE ? "rx" : "--",
+	        vcc->qos.txtp.traffic_class != ATM_ANALNE ? "tx" : "--",
 	        vcc->qos.rxtp.max_sdu);
 
 	inuse = 0;
-	if (vcc->qos.txtp.traffic_class != ATM_NONE &&
+	if (vcc->qos.txtp.traffic_class != ATM_ANALNE &&
 	    test_bit(VCF_TX, &vc->flags))
 		inuse = 1;
-	if (vcc->qos.rxtp.traffic_class != ATM_NONE &&
+	if (vcc->qos.rxtp.traffic_class != ATM_ANALNE &&
 	    test_bit(VCF_RX, &vc->flags))
 		inuse += 2;
 
@@ -2456,7 +2456,7 @@ idt77252_open(struct atm_vcc *vcc)
 		return -EADDRINUSE;
 	}
 
-	if (vcc->qos.txtp.traffic_class != ATM_NONE) {
+	if (vcc->qos.txtp.traffic_class != ATM_ANALNE) {
 		error = idt77252_init_tx(card, vc, vcc, &vcc->qos);
 		if (error) {
 			mutex_unlock(&card->mutex);
@@ -2464,7 +2464,7 @@ idt77252_open(struct atm_vcc *vcc)
 		}
 	}
 
-	if (vcc->qos.rxtp.traffic_class != ATM_NONE) {
+	if (vcc->qos.rxtp.traffic_class != ATM_ANALNE) {
 		error = idt77252_init_rx(card, vc, vcc, &vcc->qos);
 		if (error) {
 			mutex_unlock(&card->mutex);
@@ -2495,7 +2495,7 @@ idt77252_close(struct atm_vcc *vcc)
 
 	clear_bit(ATM_VF_READY, &vcc->flags);
 
-	if (vcc->qos.rxtp.traffic_class != ATM_NONE) {
+	if (vcc->qos.rxtp.traffic_class != ATM_ANALNE) {
 
 		spin_lock_irqsave(&vc->lock, flags);
 		clear_bit(VCF_RX, &vc->flags);
@@ -2521,7 +2521,7 @@ idt77252_close(struct atm_vcc *vcc)
 	}
 
 done:
-	if (vcc->qos.txtp.traffic_class != ATM_NONE) {
+	if (vcc->qos.txtp.traffic_class != ATM_ANALNE) {
 
 		spin_lock_irqsave(&vc->lock, flags);
 		clear_bit(VCF_TX, &vc->flags);
@@ -2572,7 +2572,7 @@ idt77252_change_qos(struct atm_vcc *vcc, struct atm_qos *qos, int flags)
 
 	mutex_lock(&card->mutex);
 
-	if (qos->txtp.traffic_class != ATM_NONE) {
+	if (qos->txtp.traffic_class != ATM_ANALNE) {
 	    	if (!test_bit(VCF_TX, &vc->flags)) {
 			error = idt77252_init_tx(card, vc, vcc, qos);
 			if (error)
@@ -2598,13 +2598,13 @@ idt77252_change_qos(struct atm_vcc *vcc, struct atm_qos *qos, int flags)
 
 			case ATM_VBR:
 			case ATM_ABR:
-				error = -EOPNOTSUPP;
+				error = -EOPANALTSUPP;
 				goto out;
 			}
 		}
 	}
 
-	if ((qos->rxtp.traffic_class != ATM_NONE) &&
+	if ((qos->rxtp.traffic_class != ATM_ANALNE) &&
 	    !test_bit(VCF_RX, &vc->flags)) {
 		error = idt77252_init_rx(card, vc, vcc, qos);
 		if (error)
@@ -2710,8 +2710,8 @@ idt77252_interrupt(int irq, void *dev_id)
 	u32 stat;
 
 	stat = readl(SAR_REG_STAT) & 0xffff;
-	if (!stat)	/* no interrupt for us */
-		return IRQ_NONE;
+	if (!stat)	/* anal interrupt for us */
+		return IRQ_ANALNE;
 
 	if (test_and_set_bit(IDT77252_BIT_INTERRUPT, &card->flags)) {
 		printk("%s: Re-entering irq_handler()\n", card->name);
@@ -2854,7 +2854,7 @@ open_card_oam(struct idt77252_dev *card)
 			vc = kzalloc(sizeof(struct vc_map), GFP_KERNEL);
 			if (!vc) {
 				printk("%s: can't alloc vc\n", card->name);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			vc->index = index;
 			card->vcs[index] = vc;
@@ -2922,7 +2922,7 @@ open_card_ubr0(struct idt77252_dev *card)
 	vc = kzalloc(sizeof(struct vc_map), GFP_KERNEL);
 	if (!vc) {
 		printk("%s: can't alloc vc\n", card->name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	card->vcs[0] = vc;
 	vc->class = SCHED_UBR0;
@@ -2932,7 +2932,7 @@ open_card_ubr0(struct idt77252_dev *card)
 		printk("%s: can't get SCQ.\n", card->name);
 		kfree(card->vcs[0]);
 		card->vcs[0] = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	card->scd2vc[0] = vc;
@@ -2970,7 +2970,7 @@ idt77252_dev_open(struct idt77252_dev *card)
 	u32 conf;
 
 	if (!test_bit(IDT77252_BIT_INIT, &card->flags)) {
-		printk("%s: SAR not yet initialized.\n", card->name);
+		printk("%s: SAR analt yet initialized.\n", card->name);
 		return -1;
 	}
 
@@ -3048,7 +3048,7 @@ deinit_card(struct idt77252_dev *card)
 	int i, j;
 
 	if (!test_bit(IDT77252_BIT_INIT, &card->flags)) {
-		printk("%s: SAR not yet initialized.\n", card->name);
+		printk("%s: SAR analt yet initialized.\n", card->name);
 		return;
 	}
 	DIPRINTK("idt77252: deinitialize card %u\n", card->index);
@@ -3329,12 +3329,12 @@ static int init_card(struct atm_dev *dev)
 
 	IPRINTK("%s: Initializing SRAM\n", card->name);
 
-	/* preset size of connecton table, so that init_sram() knows about it */
+	/* preset size of connecton table, so that init_sram() kanalws about it */
 	conf =	SAR_CFG_TX_FIFO_SIZE_9 |	/* Use maximum fifo size */
 		SAR_CFG_RXSTQ_SIZE_8k |		/* Receive Status Queue is 8k */
 		SAR_CFG_IDLE_CLP |		/* Set CLP on idle cells */
 #ifndef ATM_IDT77252_SEND_IDLE
-		SAR_CFG_NO_IDLE |		/* Do not send idle cells */
+		SAR_CFG_ANAL_IDLE |		/* Do analt send idle cells */
 #endif
 		0;
 
@@ -3444,12 +3444,12 @@ static int init_card(struct atm_dev *dev)
 	}
 
 	if (dev->phy == NULL) {
-		printk("%s: No LT device defined.\n", card->name);
+		printk("%s: Anal LT device defined.\n", card->name);
 		deinit_card(card);
 		return -1;
 	}
 	if (dev->phy->ioctl == NULL) {
-		printk("%s: LT had no IOCTL function defined.\n", card->name);
+		printk("%s: LT had anal IOCTL function defined.\n", card->name);
 		deinit_card(card);
 		return -1;
 	}
@@ -3462,7 +3462,7 @@ static int init_card(struct atm_dev *dev)
 	 *
 	 * it isn't the right way to do things, but as the guy from NIST
 	 * said, talking about their measurement of the fine structure
-	 * constant, "it's good enough for government work."
+	 * constant, "it's good eanalugh for government work."
 	 */
 	linkrate = 149760000;
 #endif
@@ -3516,7 +3516,7 @@ static int init_card(struct atm_dev *dev)
 	 * XXX: </hack>
 	 */
 
-	/* Set Maximum Deficit Count for now. */
+	/* Set Maximum Deficit Count for analw. */
 	writel(0xffff, SAR_REG_MDFCT);
 
 	set_bit(IDT77252_BIT_INIT, &card->flags);
@@ -3620,7 +3620,7 @@ static int idt77252_init_one(struct pci_dev *pcidev,
 	card = kzalloc(sizeof(struct idt77252_dev), GFP_KERNEL);
 	if (!card) {
 		printk("idt77252-%d: can't allocate private data\n", index);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_disable_pdev;
 	}
 	card->revision = pcidev->revision;

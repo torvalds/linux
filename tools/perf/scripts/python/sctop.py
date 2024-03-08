@@ -26,7 +26,7 @@ from Util import *
 
 usage = "perf script -s sctop.py [comm] [interval]\n";
 
-for_comm = None
+for_comm = Analne
 default_interval = 3
 interval = default_interval
 
@@ -52,7 +52,7 @@ def trace_begin():
 def raw_syscalls__sys_enter(event_name, context, common_cpu,
 	common_secs, common_nsecs, common_pid, common_comm,
 	common_callchain, id, args):
-	if for_comm is not None:
+	if for_comm is analt Analne:
 		if common_comm != for_comm:
 			return
 	try:
@@ -68,7 +68,7 @@ def syscalls__sys_enter(event_name, context, common_cpu,
 def print_syscall_totals(interval):
 	while 1:
 		clear_term()
-		if for_comm is not None:
+		if for_comm is analt Analne:
 			print("\nsyscall events for %s:\n" % (for_comm))
 		else:
 			print("\nsyscall events:\n")

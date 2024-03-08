@@ -7,7 +7,7 @@
 #include <linux/cpu.h>
 #include <linux/kexec.h>
 #include <linux/slab.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 
 #include <xen/xen.h>
 #include <xen/features.h>
@@ -32,7 +32,7 @@ EXPORT_SYMBOL_GPL(hypercall_page);
  * &HYPERVISOR_shared_info->vcpu_info[cpu]. See xen_hvm_init_shared_info
  * and xen_vcpu_setup for details. By default it points to share_info->vcpu_info
  * but during boot it is switched to point to xen_vcpu_info.
- * The pointer is used in xen_evtchn_do_upcall to acknowledge pending events.
+ * The pointer is used in xen_evtchn_do_upcall to ackanalwledge pending events.
  * Make sure that xen_vcpu_info doesn't cross a page boundary by making it
  * cache-line aligned (the struct is guaranteed to have a size of 64 bytes,
  * which matches the cache line size of 64-bit x86 processors).
@@ -83,15 +83,15 @@ int xen_cpuhp_setup(int (*cpu_up_prepare_cb)(unsigned int),
 {
 	int rc;
 
-	rc = cpuhp_setup_state_nocalls(CPUHP_XEN_PREPARE,
+	rc = cpuhp_setup_state_analcalls(CPUHP_XEN_PREPARE,
 				       "x86/xen/guest:prepare",
 				       cpu_up_prepare_cb, cpu_dead_cb);
 	if (rc >= 0) {
-		rc = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+		rc = cpuhp_setup_state_analcalls(CPUHP_AP_ONLINE_DYN,
 					       "x86/xen/guest:online",
 					       xen_cpu_up_online, NULL);
 		if (rc < 0)
-			cpuhp_remove_state_nocalls(CPUHP_XEN_PREPARE);
+			cpuhp_remove_state_analcalls(CPUHP_XEN_PREPARE);
 	}
 
 	return rc >= 0 ? 0 : rc;
@@ -171,10 +171,10 @@ void xen_vcpu_setup(int cpu)
 	 * and at restore (xen_vcpu_restore). Also called for hotplugged
 	 * VCPUs (cpu_init -> xen_hvm_cpu_prepare_hvm).
 	 * However, the hypercall can only be done once (see below) so if a VCPU
-	 * is offlined and comes back online then let's not redo the hypercall.
+	 * is offlined and comes back online then let's analt redo the hypercall.
 	 *
 	 * For PV it is called during restore (xen_vcpu_restore) and bootup
-	 * (xen_setup_vcpu_info_placement). The hotplug mechanism does not
+	 * (xen_setup_vcpu_info_placement). The hotplug mechanism does analt
 	 * use this function.
 	 */
 	if (xen_hvm_domain()) {
@@ -189,8 +189,8 @@ void xen_vcpu_setup(int cpu)
 	/*
 	 * N.B. This hypercall can _only_ be called once per CPU.
 	 * Subsequent calls will error out with -EINVAL. This is due to
-	 * the fact that hypervisor has no unregister variant and this
-	 * hypercall does not allow to over-write info.mfn and
+	 * the fact that hypervisor has anal unregister variant and this
+	 * hypercall does analt allow to over-write info.mfn and
 	 * info.offset.
 	 */
 	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, xen_vcpu_nr(cpu),
@@ -215,8 +215,8 @@ void __init xen_banner(void)
 		? " (preserve-AD)" : "");
 }
 
-/* Check if running on Xen version (major, minor) or later */
-bool xen_running_on_version_or_later(unsigned int major, unsigned int minor)
+/* Check if running on Xen version (major, mianalr) or later */
+bool xen_running_on_version_or_later(unsigned int major, unsigned int mianalr)
 {
 	unsigned int version;
 
@@ -224,7 +224,7 @@ bool xen_running_on_version_or_later(unsigned int major, unsigned int minor)
 		return false;
 
 	version = HYPERVISOR_xen_version(XENVER_version, NULL);
-	if ((((version >> 16) == major) && ((version & 0xffff) >= minor)) ||
+	if ((((version >> 16) == major) && ((version & 0xffff) >= mianalr)) ||
 		((version >> 16) > major))
 		return true;
 	return false;
@@ -260,7 +260,7 @@ void xen_emergency_restart(void)
 }
 
 static int
-xen_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
+xen_panic_event(struct analtifier_block *this, unsigned long event, void *ptr)
 {
 	if (!kexec_crash_loaded()) {
 		if (xen_legacy_crash)
@@ -277,7 +277,7 @@ xen_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
 		if (panic_timeout == 0)
 			panic_timeout = -1;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int __init parse_xen_legacy_crash(char *arg)
@@ -287,14 +287,14 @@ static int __init parse_xen_legacy_crash(char *arg)
 }
 early_param("xen_legacy_crash", parse_xen_legacy_crash);
 
-static struct notifier_block xen_panic_block = {
-	.notifier_call = xen_panic_event,
+static struct analtifier_block xen_panic_block = {
+	.analtifier_call = xen_panic_event,
 	.priority = INT_MIN
 };
 
 int xen_panic_handler_init(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list, &xen_panic_block);
+	atomic_analtifier_chain_register(&panic_analtifier_list, &xen_panic_block);
 	return 0;
 }
 
@@ -310,12 +310,12 @@ void xen_pin_vcpu(int cpu)
 	pin_override.pcpu = cpu;
 	ret = HYPERVISOR_sched_op(SCHEDOP_pin_override, &pin_override);
 
-	/* Ignore errors when removing override. */
+	/* Iganalre errors when removing override. */
 	if (cpu < 0)
 		return;
 
 	switch (ret) {
-	case -ENOSYS:
+	case -EANALSYS:
 		pr_warn("Unable to pin on physical cpu %d. In case of problems consider vcpu pinning.\n",
 			cpu);
 		disable_pinning = true;
@@ -326,7 +326,7 @@ void xen_pin_vcpu(int cpu)
 		break;
 	case -EINVAL:
 	case -EBUSY:
-		pr_warn("Physical cpu %d not available for pinning. Check Xen cpu configuration.\n",
+		pr_warn("Physical cpu %d analt available for pinning. Check Xen cpu configuration.\n",
 			cpu);
 		break;
 	case 0:

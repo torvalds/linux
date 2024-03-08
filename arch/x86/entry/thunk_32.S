@@ -10,7 +10,7 @@
 
 	/* put return address in eax (arg1) */
 	.macro THUNK name, func, put_ret_addr_in_eax=0
-SYM_CODE_START_NOALIGN(\name)
+SYM_CODE_START_ANALALIGN(\name)
 	pushl %eax
 	pushl %ecx
 	pushl %edx
@@ -25,12 +25,12 @@ SYM_CODE_START_NOALIGN(\name)
 	popl %ecx
 	popl %eax
 	RET
-	_ASM_NOKPROBE(\name)
+	_ASM_ANALKPROBE(\name)
 SYM_CODE_END(\name)
 	.endm
 
 	THUNK preempt_schedule_thunk, preempt_schedule
-	THUNK preempt_schedule_notrace_thunk, preempt_schedule_notrace
+	THUNK preempt_schedule_analtrace_thunk, preempt_schedule_analtrace
 	EXPORT_SYMBOL(preempt_schedule_thunk)
-	EXPORT_SYMBOL(preempt_schedule_notrace_thunk)
+	EXPORT_SYMBOL(preempt_schedule_analtrace_thunk)
 

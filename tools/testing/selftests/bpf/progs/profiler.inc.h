@@ -54,12 +54,12 @@ union any_profiler_data_t {
 volatile struct profiler_config_struct bpf_config = {};
 
 #define FETCH_CGROUPS_FROM_BPF (bpf_config.fetch_cgroups_from_bpf)
-#define CGROUP_FS_INODE (bpf_config.cgroup_fs_inode)
-#define CGROUP_LOGIN_SESSION_INODE \
-	(bpf_config.cgroup_login_session_inode)
+#define CGROUP_FS_IANALDE (bpf_config.cgroup_fs_ianalde)
+#define CGROUP_LOGIN_SESSION_IANALDE \
+	(bpf_config.cgroup_login_session_ianalde)
 #define KILL_SIGNALS (bpf_config.kill_signals_mask)
 #define STALE_INFO (bpf_config.stale_info_secs)
-#define INODE_FILTER (bpf_config.inode_filter)
+#define IANALDE_FILTER (bpf_config.ianalde_filter)
 #define READ_ENVIRON_FROM_EXEC (bpf_config.read_environ_from_exec)
 #define ENABLE_CGROUP_V1_RESOLVER (bpf_config.enable_cgroup_v1_resolver)
 
@@ -67,10 +67,10 @@ struct kernfs_iattrs___52 {
 	struct iattr ia_iattr;
 };
 
-struct kernfs_node___52 {
-	union /* kernfs_node_id */ {
+struct kernfs_analde___52 {
+	union /* kernfs_analde_id */ {
 		struct {
-			u32 ino;
+			u32 ianal;
 			u32 generation;
 		};
 		u64 id;
@@ -116,21 +116,21 @@ struct {
 	__type(key, u64);
 	__type(value, bool);
 	__uint(max_entries, 1024);
-} allowed_file_inodes SEC(".maps");
+} allowed_file_ianaldes SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, u64);
 	__type(value, bool);
 	__uint(max_entries, 1024);
-} allowed_directory_inodes SEC(".maps");
+} allowed_directory_ianaldes SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, u32);
 	__type(value, bool);
 	__uint(max_entries, 16);
-} disallowed_exec_inodes SEC(".maps");
+} disallowed_exec_ianaldes SEC(".maps");
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (int)(sizeof(arr) / sizeof(arr[0]))
@@ -203,8 +203,8 @@ static INLINE void populate_ancestors(struct task_struct* task,
 	}
 }
 
-static INLINE void* read_full_cgroup_path(struct kernfs_node* cgroup_node,
-					  struct kernfs_node* cgroup_root_node,
+static INLINE void* read_full_cgroup_path(struct kernfs_analde* cgroup_analde,
+					  struct kernfs_analde* cgroup_root_analde,
 					  void* payload,
 					  int* root_pos)
 {
@@ -217,29 +217,29 @@ static INLINE void* read_full_cgroup_path(struct kernfs_node* cgroup_node,
 	for (int i = 0; i < MAX_CGROUPS_PATH_DEPTH; i++) {
 		filepart_length =
 			bpf_probe_read_kernel_str(payload, MAX_PATH,
-						  BPF_CORE_READ(cgroup_node, name));
-		if (!cgroup_node)
+						  BPF_CORE_READ(cgroup_analde, name));
+		if (!cgroup_analde)
 			return payload;
-		if (cgroup_node == cgroup_root_node)
+		if (cgroup_analde == cgroup_root_analde)
 			*root_pos = payload - payload_start;
 		if (bpf_cmp_likely(filepart_length, <=, MAX_PATH)) {
 			payload += filepart_length;
 		}
-		cgroup_node = BPF_CORE_READ(cgroup_node, parent);
+		cgroup_analde = BPF_CORE_READ(cgroup_analde, parent);
 	}
 	return payload;
 }
 
-static ino_t get_inode_from_kernfs(struct kernfs_node* node)
+static ianal_t get_ianalde_from_kernfs(struct kernfs_analde* analde)
 {
-	struct kernfs_node___52* node52 = (void*)node;
+	struct kernfs_analde___52* analde52 = (void*)analde;
 
-	if (bpf_core_field_exists(node52->id.ino)) {
-		barrier_var(node52);
-		return BPF_CORE_READ(node52, id.ino);
+	if (bpf_core_field_exists(analde52->id.ianal)) {
+		barrier_var(analde52);
+		return BPF_CORE_READ(analde52, id.ianal);
 	} else {
-		barrier_var(node);
-		return (u64)BPF_CORE_READ(node, id);
+		barrier_var(analde);
+		return (u64)BPF_CORE_READ(analde, id);
 	}
 }
 
@@ -252,9 +252,9 @@ static INLINE void* populate_cgroup_info(struct cgroup_data_t* cgroup_data,
 					 struct task_struct* task,
 					 void* payload)
 {
-	struct kernfs_node* root_kernfs =
+	struct kernfs_analde* root_kernfs =
 		BPF_CORE_READ(task, nsproxy, cgroup_ns, root_cset, dfl_cgrp, kn);
-	struct kernfs_node* proc_kernfs = BPF_CORE_READ(task, cgroups, dfl_cgrp, kn);
+	struct kernfs_analde* proc_kernfs = BPF_CORE_READ(task, cgroups, dfl_cgrp, kn);
 
 #if __has_builtin(__builtin_preserve_enum_value)
 	if (ENABLE_CGROUP_V1_RESOLVER && CONFIG_CGROUP_PIDS) {
@@ -278,8 +278,8 @@ static INLINE void* populate_cgroup_info(struct cgroup_data_t* cgroup_data,
 	}
 #endif
 
-	cgroup_data->cgroup_root_inode = get_inode_from_kernfs(root_kernfs);
-	cgroup_data->cgroup_proc_inode = get_inode_from_kernfs(proc_kernfs);
+	cgroup_data->cgroup_root_ianalde = get_ianalde_from_kernfs(root_kernfs);
+	cgroup_data->cgroup_proc_ianalde = get_ianalde_from_kernfs(proc_kernfs);
 
 	if (bpf_core_field_exists(root_kernfs->iattr->ia_mtime)) {
 		cgroup_data->cgroup_root_mtime =
@@ -488,7 +488,7 @@ read_absolute_file_path_from_dentry(struct dentry* filp_dentry, void* payload)
 		filepart_length =
 			bpf_probe_read_kernel_str(payload, MAX_PATH,
 						  BPF_CORE_READ(filp_dentry, d_name.name));
-		bpf_nop_mov(filepart_length);
+		bpf_analp_mov(filepart_length);
 		if (bpf_cmp_unlikely(filepart_length, >, MAX_PATH))
 			break;
 		payload += filepart_length;
@@ -504,15 +504,15 @@ read_absolute_file_path_from_dentry(struct dentry* filp_dentry, void* payload)
 }
 
 static INLINE bool
-is_ancestor_in_allowed_inodes(struct dentry* filp_dentry)
+is_ancestor_in_allowed_ianaldes(struct dentry* filp_dentry)
 {
 	struct dentry* parent_dentry;
 #ifdef UNROLL
 #pragma unroll
 #endif
 	for (int i = 0; i < MAX_PATH_DEPTH; i++) {
-		u64 dir_ino = BPF_CORE_READ(filp_dentry, d_inode, i_ino);
-		bool* allowed_dir = bpf_map_lookup_elem(&allowed_directory_inodes, &dir_ino);
+		u64 dir_ianal = BPF_CORE_READ(filp_dentry, d_ianalde, i_ianal);
+		bool* allowed_dir = bpf_map_lookup_elem(&allowed_directory_ianaldes, &dir_ianal);
 
 		if (allowed_dir != NULL)
 			return true;
@@ -526,7 +526,7 @@ is_ancestor_in_allowed_inodes(struct dentry* filp_dentry)
 
 static INLINE bool is_dentry_allowed_for_filemod(struct dentry* file_dentry,
 						 u32* device_id,
-						 u64* file_ino)
+						 u64* file_ianal)
 {
 	u32 dev_id = BPF_CORE_READ(file_dentry, d_sb, s_dev);
 	*device_id = dev_id;
@@ -535,12 +535,12 @@ static INLINE bool is_dentry_allowed_for_filemod(struct dentry* file_dentry,
 	if (allowed_device == NULL)
 		return false;
 
-	u64 ino = BPF_CORE_READ(file_dentry, d_inode, i_ino);
-	*file_ino = ino;
-	bool* allowed_file = bpf_map_lookup_elem(&allowed_file_inodes, &ino);
+	u64 ianal = BPF_CORE_READ(file_dentry, d_ianalde, i_ianal);
+	*file_ianal = ianal;
+	bool* allowed_file = bpf_map_lookup_elem(&allowed_file_ianaldes, &ianal);
 
 	if (allowed_file == NULL)
-		if (!is_ancestor_in_allowed_inodes(BPF_CORE_READ(file_dentry, d_parent)))
+		if (!is_ancestor_in_allowed_ianaldes(BPF_CORE_READ(file_dentry, d_parent)))
 			return false;
 	return true;
 }
@@ -626,7 +626,7 @@ int raw_tracepoint__sched_process_exit(void* ctx)
 		goto out;
 
 	struct task_struct* task = (struct task_struct*)bpf_get_current_task();
-	struct kernfs_node* proc_kernfs = BPF_CORE_READ(task, cgroups, dfl_cgrp, kn);
+	struct kernfs_analde* proc_kernfs = BPF_CORE_READ(task, cgroups, dfl_cgrp, kn);
 
 #ifdef UNROLL
 #pragma unroll
@@ -682,9 +682,9 @@ int raw_tracepoint__sched_process_exec(struct bpf_raw_tracepoint_args* ctx)
 	bpf_stats_enter(&stats_ctx, profiler_bpf_sched_process_exec);
 
 	struct linux_binprm* bprm = (struct linux_binprm*)ctx->args[2];
-	u64 inode = BPF_CORE_READ(bprm, file, f_inode, i_ino);
+	u64 ianalde = BPF_CORE_READ(bprm, file, f_ianalde, i_ianal);
 
-	bool* should_filter_binprm = bpf_map_lookup_elem(&disallowed_exec_inodes, &inode);
+	bool* should_filter_binprm = bpf_map_lookup_elem(&disallowed_exec_ianaldes, &ianalde);
 	if (should_filter_binprm != NULL)
 		goto out;
 
@@ -693,7 +693,7 @@ int raw_tracepoint__sched_process_exec(struct bpf_raw_tracepoint_args* ctx)
 	if (!proc_exec_data)
 		goto out;
 
-	if (INODE_FILTER && inode != INODE_FILTER)
+	if (IANALDE_FILTER && ianalde != IANALDE_FILTER)
 		return 0;
 
 	u32 pid = get_userspace_pid();
@@ -768,16 +768,16 @@ int kprobe_ret__do_filp_open(struct pt_regs* ctx)
 		goto out;
 	if ((flags & O_TMPFILE) > 0)
 		goto out;
-	struct inode* file_inode = BPF_CORE_READ(filp, f_inode);
-	umode_t mode = BPF_CORE_READ(file_inode, i_mode);
+	struct ianalde* file_ianalde = BPF_CORE_READ(filp, f_ianalde);
+	umode_t mode = BPF_CORE_READ(file_ianalde, i_mode);
 	if (S_ISDIR(mode) || S_ISCHR(mode) || S_ISBLK(mode) || S_ISFIFO(mode) ||
 	    S_ISSOCK(mode))
 		goto out;
 
 	struct dentry* filp_dentry = BPF_CORE_READ(filp, f_path.dentry);
 	u32 device_id = 0;
-	u64 file_ino = 0;
-	if (!is_dentry_allowed_for_filemod(filp_dentry, &device_id, &file_ino))
+	u64 file_ianal = 0;
+	if (!is_dentry_allowed_for_filemod(filp_dentry, &device_id, &file_ianal))
 		goto out;
 
 	int zero = 0;
@@ -791,8 +791,8 @@ int kprobe_ret__do_filp_open(struct pt_regs* ctx)
 	filemod_data->meta.type = FILEMOD_EVENT;
 	filemod_data->fmod_type = FMOD_OPEN;
 	filemod_data->dst_flags = flags;
-	filemod_data->src_inode = 0;
-	filemod_data->dst_inode = file_ino;
+	filemod_data->src_ianalde = 0;
+	filemod_data->dst_ianalde = file_ianal;
 	filemod_data->src_device_id = 0;
 	filemod_data->dst_device_id = device_id;
 	filemod_data->src_filepath_length = 0;
@@ -819,18 +819,18 @@ out:
 SEC("kprobe/vfs_link")
 int BPF_KPROBE(kprobe__vfs_link,
 	       struct dentry* old_dentry, struct mnt_idmap *idmap,
-	       struct inode* dir, struct dentry* new_dentry,
-	       struct inode** delegated_inode)
+	       struct ianalde* dir, struct dentry* new_dentry,
+	       struct ianalde** delegated_ianalde)
 {
 	struct bpf_func_stats_ctx stats_ctx;
 	bpf_stats_enter(&stats_ctx, profiler_bpf_vfs_link);
 
 	u32 src_device_id = 0;
-	u64 src_file_ino = 0;
+	u64 src_file_ianal = 0;
 	u32 dst_device_id = 0;
-	u64 dst_file_ino = 0;
-	if (!is_dentry_allowed_for_filemod(old_dentry, &src_device_id, &src_file_ino) &&
-	    !is_dentry_allowed_for_filemod(new_dentry, &dst_device_id, &dst_file_ino))
+	u64 dst_file_ianal = 0;
+	if (!is_dentry_allowed_for_filemod(old_dentry, &src_device_id, &src_file_ianal) &&
+	    !is_dentry_allowed_for_filemod(new_dentry, &dst_device_id, &dst_file_ianal))
 		goto out;
 
 	int zero = 0;
@@ -844,8 +844,8 @@ int BPF_KPROBE(kprobe__vfs_link,
 	filemod_data->meta.type = FILEMOD_EVENT;
 	filemod_data->fmod_type = FMOD_LINK;
 	filemod_data->dst_flags = 0;
-	filemod_data->src_inode = src_file_ino;
-	filemod_data->dst_inode = dst_file_ino;
+	filemod_data->src_ianalde = src_file_ianal;
+	filemod_data->dst_ianalde = dst_file_ianal;
 	filemod_data->src_device_id = src_device_id;
 	filemod_data->dst_device_id = dst_device_id;
 	filemod_data->src_filepath_length = 0;
@@ -877,15 +877,15 @@ out:
 }
 
 SEC("kprobe/vfs_symlink")
-int BPF_KPROBE(kprobe__vfs_symlink, struct inode* dir, struct dentry* dentry,
+int BPF_KPROBE(kprobe__vfs_symlink, struct ianalde* dir, struct dentry* dentry,
 	       const char* oldname)
 {
 	struct bpf_func_stats_ctx stats_ctx;
 	bpf_stats_enter(&stats_ctx, profiler_bpf_vfs_symlink);
 
 	u32 dst_device_id = 0;
-	u64 dst_file_ino = 0;
-	if (!is_dentry_allowed_for_filemod(dentry, &dst_device_id, &dst_file_ino))
+	u64 dst_file_ianal = 0;
+	if (!is_dentry_allowed_for_filemod(dentry, &dst_device_id, &dst_file_ianal))
 		goto out;
 
 	int zero = 0;
@@ -899,8 +899,8 @@ int BPF_KPROBE(kprobe__vfs_symlink, struct inode* dir, struct dentry* dentry,
 	filemod_data->meta.type = FILEMOD_EVENT;
 	filemod_data->fmod_type = FMOD_SYMLINK;
 	filemod_data->dst_flags = 0;
-	filemod_data->src_inode = 0;
-	filemod_data->dst_inode = dst_file_ino;
+	filemod_data->src_ianalde = 0;
+	filemod_data->dst_ianalde = dst_file_ianal;
 	filemod_data->src_device_id = 0;
 	filemod_data->dst_device_id = dst_device_id;
 	filemod_data->src_filepath_length = 0;

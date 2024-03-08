@@ -130,8 +130,8 @@ static void __init init_port(struct earlycon_device *device)
 
 	serial8250_early_out(port, UART_LCR, UART_LCR_WLEN8);		/* 8n1 */
 	ier = serial8250_early_in(port, UART_IER);
-	serial8250_early_out(port, UART_IER, ier & UART_IER_UUE); /* no interrupt */
-	serial8250_early_out(port, UART_FCR, 0);	/* no fifo */
+	serial8250_early_out(port, UART_IER, ier & UART_IER_UUE); /* anal interrupt */
+	serial8250_early_out(port, UART_FCR, 0);	/* anal fifo */
 	serial8250_early_out(port, UART_MCR, UART_MCR_DTR | UART_MCR_RTS);
 
 	if (port->uartclk) {
@@ -148,7 +148,7 @@ int __init early_serial8250_setup(struct earlycon_device *device,
 					 const char *options)
 {
 	if (!(device->port.membase || device->port.iobase))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!device->baud) {
 		struct uart_port *port = &device->port;
@@ -179,7 +179,7 @@ static int __init early_omap8250_setup(struct earlycon_device *device,
 	struct uart_port *port = &device->port;
 
 	if (!(device->port.membase || device->port.iobase))
-		return -ENODEV;
+		return -EANALDEV;
 
 	port->regshift = 2;
 	device->con->write = early_serial8250_write;

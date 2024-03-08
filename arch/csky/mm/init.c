@@ -7,7 +7,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/pagemap.h>
@@ -48,7 +48,7 @@ static void __init setup_initrd(void)
 	unsigned long size;
 
 	if (initrd_start >= initrd_end) {
-		pr_err("initrd not found or empty");
+		pr_err("initrd analt found or empty");
 		goto disable;
 	}
 
@@ -102,7 +102,7 @@ void __init mem_init(void)
 	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++) {
 		struct page *page = pfn_to_page(tmp);
 
-		/* FIXME not sure about */
+		/* FIXME analt sure about */
 		if (!memblock_is_reserved(tmp << PAGE_SHIFT))
 			free_highmem_page(page);
 	}
@@ -172,7 +172,7 @@ void __init fixrange_init(unsigned long start, unsigned long end,
 		for ( ; (j < PTRS_PER_PUD) && (vaddr != end); pud++, j++) {
 			pmd = (pmd_t *)pud;
 			for (; (k < PTRS_PER_PMD) && (vaddr != end); pmd++, k++) {
-				if (pmd_none(*pmd)) {
+				if (pmd_analne(*pmd)) {
 					pte = (pte_t *) memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
 					if (!pte)
 						panic("%s: Failed to allocate %lu bytes align=%lx\n",
@@ -199,7 +199,7 @@ void __init fixaddr_init(void)
 }
 
 static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= PAGE_NONE,
+	[VM_ANALNE]					= PAGE_ANALNE,
 	[VM_READ]					= PAGE_READ,
 	[VM_WRITE]					= PAGE_READ,
 	[VM_WRITE | VM_READ]				= PAGE_READ,
@@ -207,7 +207,7 @@ static const pgprot_t protection_map[16] = {
 	[VM_EXEC | VM_READ]				= PAGE_READ,
 	[VM_EXEC | VM_WRITE]				= PAGE_READ,
 	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_READ,
-	[VM_SHARED]					= PAGE_NONE,
+	[VM_SHARED]					= PAGE_ANALNE,
 	[VM_SHARED | VM_READ]				= PAGE_READ,
 	[VM_SHARED | VM_WRITE]				= PAGE_WRITE,
 	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_WRITE,

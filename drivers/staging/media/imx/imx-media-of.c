@@ -9,7 +9,7 @@
 #include <linux/of_platform.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 #include <linux/of_graph.h>
@@ -17,20 +17,20 @@
 #include "imx-media.h"
 
 static int imx_media_of_add_csi(struct imx_media_dev *imxmd,
-				struct device_node *csi_np)
+				struct device_analde *csi_np)
 {
 	struct v4l2_async_connection *asd;
 	int ret = 0;
 
 	if (!of_device_is_available(csi_np)) {
-		dev_dbg(imxmd->md.dev, "%s: %pOFn not enabled\n", __func__,
+		dev_dbg(imxmd->md.dev, "%s: %pOFn analt enabled\n", __func__,
 			csi_np);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	/* add CSI fwnode to async notifier */
-	asd = v4l2_async_nf_add_fwnode(&imxmd->notifier,
-				       of_fwnode_handle(csi_np),
+	/* add CSI fwanalde to async analtifier */
+	asd = v4l2_async_nf_add_fwanalde(&imxmd->analtifier,
+				       of_fwanalde_handle(csi_np),
 				       struct v4l2_async_connection);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
@@ -43,9 +43,9 @@ static int imx_media_of_add_csi(struct imx_media_dev *imxmd,
 }
 
 int imx_media_add_of_subdevs(struct imx_media_dev *imxmd,
-			     struct device_node *np)
+			     struct device_analde *np)
 {
-	struct device_node *csi_np;
+	struct device_analde *csi_np;
 	int i, ret;
 
 	for (i = 0; ; i++) {
@@ -55,9 +55,9 @@ int imx_media_add_of_subdevs(struct imx_media_dev *imxmd,
 
 		ret = imx_media_of_add_csi(imxmd, csi_np);
 		if (ret) {
-			/* unavailable or already added is not an error */
-			if (ret == -ENODEV || ret == -EEXIST) {
-				of_node_put(csi_np);
+			/* unavailable or already added is analt an error */
+			if (ret == -EANALDEV || ret == -EEXIST) {
+				of_analde_put(csi_np);
 				continue;
 			}
 
@@ -69,7 +69,7 @@ int imx_media_add_of_subdevs(struct imx_media_dev *imxmd,
 	return 0;
 
 err_out:
-	of_node_put(csi_np);
+	of_analde_put(csi_np);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(imx_media_add_of_subdevs);

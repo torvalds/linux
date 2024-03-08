@@ -29,20 +29,20 @@ static const struct regmap_range adxl313_readable_reg_range[] = {
 };
 
 const struct regmap_access_table adxl312_readable_regs_table = {
-	.yes_ranges = adxl312_readable_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(adxl312_readable_reg_range),
+	.anal_ranges = adxl312_readable_reg_range,
+	.n_anal_ranges = ARRAY_SIZE(adxl312_readable_reg_range),
 };
 EXPORT_SYMBOL_NS_GPL(adxl312_readable_regs_table, IIO_ADXL313);
 
 const struct regmap_access_table adxl313_readable_regs_table = {
-	.yes_ranges = adxl313_readable_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(adxl313_readable_reg_range),
+	.anal_ranges = adxl313_readable_reg_range,
+	.n_anal_ranges = ARRAY_SIZE(adxl313_readable_reg_range),
 };
 EXPORT_SYMBOL_NS_GPL(adxl313_readable_regs_table, IIO_ADXL313);
 
 const struct regmap_access_table adxl314_readable_regs_table = {
-	.yes_ranges = adxl312_readable_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(adxl312_readable_reg_range),
+	.anal_ranges = adxl312_readable_reg_range,
+	.n_anal_ranges = ARRAY_SIZE(adxl312_readable_reg_range),
 };
 EXPORT_SYMBOL_NS_GPL(adxl314_readable_regs_table, IIO_ADXL313);
 
@@ -141,20 +141,20 @@ static const struct regmap_range adxl313_writable_reg_range[] = {
 };
 
 const struct regmap_access_table adxl312_writable_regs_table = {
-	.yes_ranges = adxl312_writable_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(adxl312_writable_reg_range),
+	.anal_ranges = adxl312_writable_reg_range,
+	.n_anal_ranges = ARRAY_SIZE(adxl312_writable_reg_range),
 };
 EXPORT_SYMBOL_NS_GPL(adxl312_writable_regs_table, IIO_ADXL313);
 
 const struct regmap_access_table adxl313_writable_regs_table = {
-	.yes_ranges = adxl313_writable_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(adxl313_writable_reg_range),
+	.anal_ranges = adxl313_writable_reg_range,
+	.n_anal_ranges = ARRAY_SIZE(adxl313_writable_reg_range),
 };
 EXPORT_SYMBOL_NS_GPL(adxl313_writable_regs_table, IIO_ADXL313);
 
 const struct regmap_access_table adxl314_writable_regs_table = {
-	.yes_ranges = adxl312_writable_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(adxl312_writable_reg_range),
+	.anal_ranges = adxl312_writable_reg_range,
+	.n_anal_ranges = ARRAY_SIZE(adxl312_writable_reg_range),
 };
 EXPORT_SYMBOL_NS_GPL(adxl314_writable_regs_table, IIO_ADXL313);
 
@@ -269,7 +269,7 @@ static int adxl313_read_raw(struct iio_dev *indio_dev,
 
 		*val2 = data->chip_info->scale_factor;
 
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		ret = regmap_read(data->regmap,
 				  ADXL313_REG_OFS_AXIS(chan->address), &regval);
@@ -380,9 +380,9 @@ static int adxl313_setup(struct device *dev, struct adxl313_data *data,
  * @regmap:	Register map of the device
  * @chip_info:	Structure containing device specific data
  * @setup:	Setup routine to be executed right before the standard device
- *		setup, can also be set to NULL if not required
+ *		setup, can also be set to NULL if analt required
  *
- * Return: 0 on success, negative errno on error cases
+ * Return: 0 on success, negative erranal on error cases
  */
 int adxl313_core_probe(struct device *dev,
 		       struct regmap *regmap,
@@ -395,7 +395,7 @@ int adxl313_core_probe(struct device *dev,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->regmap = regmap;

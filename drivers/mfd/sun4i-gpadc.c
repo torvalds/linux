@@ -98,7 +98,7 @@ static int sun4i_gpadc_probe(struct platform_device *pdev)
 	unsigned int irq, size;
 	int ret;
 
-	of_id = of_match_node(sun4i_gpadc_of_match, pdev->dev.of_node);
+	of_id = of_match_analde(sun4i_gpadc_of_match, pdev->dev.of_analde);
 	if (!of_id)
 		return -EINVAL;
 
@@ -121,7 +121,7 @@ static int sun4i_gpadc_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(dev->base))

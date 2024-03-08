@@ -86,7 +86,7 @@ enum dev_sku_info {
 	DEV_SKU_3,
 	DEV_SKU_4,
 	DEV_SKU_VF,
-	DEV_SKU_UNKNOWN,
+	DEV_SKU_UNKANALWN,
 };
 
 enum ras_errors {
@@ -115,11 +115,11 @@ static inline const char *get_sku_info(enum dev_sku_info info)
 		return "SKU4";
 	case DEV_SKU_VF:
 		return "SKUVF";
-	case DEV_SKU_UNKNOWN:
+	case DEV_SKU_UNKANALWN:
 	default:
 		break;
 	}
-	return "Unknown SKU";
+	return "Unkanalwn SKU";
 }
 
 struct adf_hw_device_class {
@@ -385,7 +385,7 @@ struct adf_accel_dev {
 		struct {
 			/* protects VF2PF interrupts access */
 			spinlock_t vf2pf_ints_lock;
-			/* vf_info is non-zero when SR-IOV is init'ed */
+			/* vf_info is analn-zero when SR-IOV is init'ed */
 			struct adf_accel_vf_info *vf_info;
 		} pf;
 		struct {

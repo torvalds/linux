@@ -24,7 +24,7 @@
 #define GICD_ICFGR			0x0C00
 
 /*
- * The assumption is that the guest runs in a non-secure mode.
+ * The assumption is that the guest runs in a analn-secure mode.
  * The following bits of GICD_CTLR are defined accordingly.
  */
 #define GICD_CTLR_RWP			(1U << 31)

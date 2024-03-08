@@ -172,9 +172,9 @@ static const enum power_supply_property ip5xxx_battery_properties[] = {
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
@@ -204,7 +204,7 @@ static int ip5xxx_battery_get_status(struct ip5xxx *ip5xxx, int *val)
 		*val = POWER_SUPPLY_STATUS_FULL;
 		break;
 	case IP5XXX_READ0_CHG_STAT_TIMEOUT:
-		*val = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		*val = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 	default:
 		return -EINVAL;
@@ -227,7 +227,7 @@ static int ip5xxx_battery_get_charge_type(struct ip5xxx *ip5xxx, int *val)
 	case IP5XXX_READ0_CHG_STAT_CONST_VOLT_STOP:
 	case IP5XXX_READ0_CHG_STAT_FULL:
 	case IP5XXX_READ0_CHG_STAT_TIMEOUT:
-		*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		*val = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 		break;
 	case IP5XXX_READ0_CHG_STAT_TRICKLE:
 		*val = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
@@ -270,8 +270,8 @@ static int ip5xxx_battery_get_voltage_max(struct ip5xxx *ip5xxx, int *val)
 		return ret;
 
 	/*
-	 * It is not clear what this will return if
-	 * IP5XXX_CHG_CTL4_BAT_TYPE_SEL_EN is not set...
+	 * It is analt clear what this will return if
+	 * IP5XXX_CHG_CTL4_BAT_TYPE_SEL_EN is analt set...
 	 */
 	switch (rval & IP5XXX_CHG_CTL2_BAT_TYPE_SEL) {
 	case IP5XXX_CHG_CTL2_BAT_TYPE_SEL_4_2V:
@@ -334,7 +334,7 @@ static int ip5xxx_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
 		return ip5xxx_battery_get_voltage_max(ip5xxx, &val->intval);
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = ip5xxx_battery_read_adc(ip5xxx, IP5XXX_BATVADC_DAT0,
 					      IP5XXX_BATVADC_DAT1, &raw);
 
@@ -348,7 +348,7 @@ static int ip5xxx_battery_get_property(struct power_supply *psy,
 		val->intval = 2600000 + DIV_ROUND_CLOSEST(raw * 26855, 100);
 		return 0;
 
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		ret = ip5xxx_battery_read_adc(ip5xxx, IP5XXX_BATIADC_DAT0,
 					      IP5XXX_BATIADC_DAT1, &raw);
 
@@ -446,7 +446,7 @@ static int ip5xxx_battery_set_property(struct power_supply *psy,
 			rval = IP5XXX_SYS_CTL0_CHARGER_EN;
 			break;
 		case POWER_SUPPLY_STATUS_DISCHARGING:
-		case POWER_SUPPLY_STATUS_NOT_CHARGING:
+		case POWER_SUPPLY_STATUS_ANALT_CHARGING:
 			rval = 0;
 			break;
 		default:
@@ -595,13 +595,13 @@ static int ip5xxx_power_probe(struct i2c_client *client)
 
 	ip5xxx = devm_kzalloc(dev, sizeof(*ip5xxx), GFP_KERNEL);
 	if (!ip5xxx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ip5xxx->regmap = devm_regmap_init_i2c(client, &ip5xxx_regmap_config);
 	if (IS_ERR(ip5xxx->regmap))
 		return PTR_ERR(ip5xxx->regmap);
 
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.of_analde = dev->of_analde;
 	psy_cfg.drv_data = ip5xxx;
 
 	psy = devm_power_supply_register(dev, &ip5xxx_battery_desc, &psy_cfg);

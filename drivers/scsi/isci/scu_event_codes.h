@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -247,7 +247,7 @@
 /**
  *
  *
- * REMOTE_NODE_SUSPEND_EVENTS
+ * REMOTE_ANALDE_SUSPEND_EVENTS
  */
 #define SCU_EVENT_TL_RNC_SUSPEND_TX \
 	SCU_EVENT_MESSAGE(SCU_EVENT_TYPE_RNC_SUSPEND_TX, 0x00)
@@ -261,7 +261,7 @@
 /**
  *
  *
- * REMOTE_NODE_MISC_EVENTS
+ * REMOTE_ANALDE_MISC_EVENTS
  */
 #define SCU_EVENT_POST_RCN_RELEASE \
 	SCU_EVENT_MESSAGE(SCU_EVENT_TYPE_RNC_OPS_MISC, SCU_EVENT_SPECIFIER_RNC_RELEASE)
@@ -317,10 +317,10 @@
  *
  * PTS_SCHEDULE_EVENT
  */
-#define SCU_EVENT_SMP_RESPONSE_NO_PE \
+#define SCU_EVENT_SMP_RESPONSE_ANAL_PE \
 	SCU_EVENT_MESSAGE(SCU_EVENT_TYPE_PTX_SCHEDULE_EVENT, 0x00)
-#define SCU_EVENT_SPECIFIC_SMP_RESPONSE_NO_PE \
-	scu_get_event_specifier(SCU_EVENT_SMP_RESPONSE_NO_PE)
+#define SCU_EVENT_SPECIFIC_SMP_RESPONSE_ANAL_PE \
+	scu_get_event_specifier(SCU_EVENT_SMP_RESPONSE_ANAL_PE)
 
 #define SCU_EVENT_TASK_TIMEOUT \
 	SCU_EVENT_MESSAGE(SCU_EVENT_TYPE_PTX_SCHEDULE_EVENT, 0x01)

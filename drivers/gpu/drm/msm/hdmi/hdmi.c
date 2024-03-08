@@ -87,24 +87,24 @@ static int msm_hdmi_get_phy(struct hdmi *hdmi)
 {
 	struct platform_device *pdev = hdmi->pdev;
 	struct platform_device *phy_pdev;
-	struct device_node *phy_node;
+	struct device_analde *phy_analde;
 
-	phy_node = of_parse_phandle(pdev->dev.of_node, "phys", 0);
-	if (!phy_node) {
-		DRM_DEV_ERROR(&pdev->dev, "cannot find phy device\n");
+	phy_analde = of_parse_phandle(pdev->dev.of_analde, "phys", 0);
+	if (!phy_analde) {
+		DRM_DEV_ERROR(&pdev->dev, "cananalt find phy device\n");
 		return -ENXIO;
 	}
 
-	phy_pdev = of_find_device_by_node(phy_node);
-	of_node_put(phy_node);
+	phy_pdev = of_find_device_by_analde(phy_analde);
+	of_analde_put(phy_analde);
 
 	if (!phy_pdev)
-		return dev_err_probe(&pdev->dev, -EPROBE_DEFER, "phy driver is not ready\n");
+		return dev_err_probe(&pdev->dev, -EPROBE_DEFER, "phy driver is analt ready\n");
 
 	hdmi->phy = platform_get_drvdata(phy_pdev);
 	if (!hdmi->phy) {
 		put_device(&phy_pdev->dev);
-		return dev_err_probe(&pdev->dev, -EPROBE_DEFER, "phy driver is not ready\n");
+		return dev_err_probe(&pdev->dev, -EPROBE_DEFER, "phy driver is analt ready\n");
 	}
 
 	hdmi->phy_dev = &phy_pdev->dev;
@@ -123,7 +123,7 @@ static int msm_hdmi_init(struct hdmi *hdmi)
 
 	hdmi->workq = alloc_ordered_workqueue("msm_hdmi", 0);
 	if (!hdmi->workq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -151,7 +151,7 @@ fail:
 
 /* Second part of initialization, the drm/kms level modeset_init,
  * constructs/initializes mode objects, etc, is called from master
- * driver (not hdmi sub-device's probe/bind!)
+ * driver (analt hdmi sub-device's probe/bind!)
  *
  * Any resource (regulator/clk/etc) which could be missing at boot
  * should be handled in msm_hdmi_init() so that failure happens from
@@ -175,7 +175,7 @@ int msm_hdmi_modeset_init(struct hdmi *hdmi,
 
 	if (hdmi->next_bridge) {
 		ret = drm_bridge_attach(hdmi->encoder, hdmi->next_bridge, hdmi->bridge,
-					DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+					DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 		if (ret) {
 			DRM_DEV_ERROR(dev->dev, "failed to attach next HDMI bridge: %d\n", ret);
 			goto fail;
@@ -311,7 +311,7 @@ static int msm_hdmi_audio_hw_params(struct device *dev, void *data,
 		rate = HDMI_SAMPLE_RATE_192KHZ;
 		break;
 	default:
-		DRM_DEV_ERROR(dev, "rate[%d] not supported!\n",
+		DRM_DEV_ERROR(dev, "rate[%d] analt supported!\n",
 			params->sample_rate);
 		return -EINVAL;
 	}
@@ -407,14 +407,14 @@ static int msm_hdmi_dev_probe(struct platform_device *pdev)
 
 	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdmi->pdev = pdev;
 	hdmi->config = config;
 	spin_lock_init(&hdmi->reg_lock);
 
-	ret = drm_of_find_panel_or_bridge(pdev->dev.of_node, 1, 0, NULL, &hdmi->next_bridge);
-	if (ret && ret != -ENODEV)
+	ret = drm_of_find_panel_or_bridge(pdev->dev.of_analde, 1, 0, NULL, &hdmi->next_bridge);
+	if (ret && ret != -EANALDEV)
 		return ret;
 
 	hdmi->mmio = msm_ioremap(pdev, "core_physical");
@@ -443,7 +443,7 @@ static int msm_hdmi_dev_probe(struct platform_device *pdev)
 				      sizeof(hdmi->hpd_regs[0]),
 				      GFP_KERNEL);
 	if (!hdmi->hpd_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < config->hpd_reg_cnt; i++)
 		hdmi->hpd_regs[i].supply = config->hpd_reg_names[i];
@@ -457,7 +457,7 @@ static int msm_hdmi_dev_probe(struct platform_device *pdev)
 				      sizeof(hdmi->pwr_regs[0]),
 				      GFP_KERNEL);
 	if (!hdmi->pwr_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < config->pwr_reg_cnt; i++)
 		hdmi->pwr_regs[i].supply = config->pwr_reg_names[i];
@@ -471,7 +471,7 @@ static int msm_hdmi_dev_probe(struct platform_device *pdev)
 				      sizeof(hdmi->hpd_clks[0]),
 				      GFP_KERNEL);
 	if (!hdmi->hpd_clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < config->hpd_clk_cnt; i++) {
 		struct clk *clk;
@@ -490,7 +490,7 @@ static int msm_hdmi_dev_probe(struct platform_device *pdev)
 				      sizeof(hdmi->pwr_clks[0]),
 				      GFP_KERNEL);
 	if (!hdmi->pwr_clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < config->pwr_clk_cnt; i++) {
 		struct clk *clk;

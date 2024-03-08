@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -54,7 +54,7 @@ static int mthca_update_rate(struct mthca_dev *dev, u8 port_num)
 
 	tprops = kmalloc(sizeof *tprops, GFP_KERNEL);
 	if (!tprops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ib_query_port(&dev->ib_dev, port_num, tprops);
 	if (ret) {
@@ -101,10 +101,10 @@ static void update_sm_ah(struct mthca_dev *dev,
 }
 
 /*
- * Snoop SM MADs for port info and P_Key table sets, so we can
+ * Sanalop SM MADs for port info and P_Key table sets, so we can
  * synthesize LID change and P_Key change events.
  */
-static void smp_snoop(struct ib_device *ibdev,
+static void smp_sanalop(struct ib_device *ibdev,
 		      u8 port_num,
 		      const struct ib_mad *mad,
 		      u16 prev_lid)
@@ -147,16 +147,16 @@ static void smp_snoop(struct ib_device *ibdev,
 	}
 }
 
-static void node_desc_override(struct ib_device *dev,
+static void analde_desc_override(struct ib_device *dev,
 			       struct ib_mad *mad)
 {
 	if ((mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED ||
 	     mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) &&
 	    mad->mad_hdr.method == IB_MGMT_METHOD_GET_RESP &&
-	    mad->mad_hdr.attr_id == IB_SMP_ATTR_NODE_DESC) {
+	    mad->mad_hdr.attr_id == IB_SMP_ATTR_ANALDE_DESC) {
 		mutex_lock(&to_mdev(dev)->cap_mask_mutex);
-		memcpy(((struct ib_smp *) mad)->data, dev->node_desc,
-		       IB_DEVICE_NODE_DESC_MAX);
+		memcpy(((struct ib_smp *) mad)->data, dev->analde_desc,
+		       IB_DEVICE_ANALDE_DESC_MAX);
 		mutex_unlock(&to_mdev(dev)->cap_mask_mutex);
 	}
 }
@@ -180,7 +180,7 @@ static void forward_trap(struct mthca_dev *dev,
 		/*
 		 * We rely here on the fact that MLX QPs don't use the
 		 * address handle after the send is posted (this is
-		 * wrong following the IB spec strictly, but we know
+		 * wrong following the IB spec strictly, but we kanalw
 		 * it's OK for our devices).
 		 */
 		spin_lock_irqsave(&dev->sm_lock, flags);
@@ -215,7 +215,7 @@ int mthca_process_mad(struct ib_device *ibdev, int mad_flags, u32 port_num,
 	/*
 	 * Only handle SM gets, sets and trap represses for SM class
 	 *
-	 * Only handle PMA and Mellanox vendor-specific class gets and
+	 * Only handle PMA and Mellaanalx vendor-specific class gets and
 	 * sets for other classes.
 	 */
 	if (in->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED ||
@@ -248,8 +248,8 @@ int mthca_process_mad(struct ib_device *ibdev, int mad_flags, u32 port_num,
 	    !ib_query_port(ibdev, port_num, &pattr))
 		prev_lid = ib_lid_cpu16(pattr.lid);
 
-	err = mthca_MAD_IFC(to_mdev(ibdev), mad_flags & IB_MAD_IGNORE_MKEY,
-			    mad_flags & IB_MAD_IGNORE_BKEY, port_num, in_wc,
+	err = mthca_MAD_IFC(to_mdev(ibdev), mad_flags & IB_MAD_IGANALRE_MKEY,
+			    mad_flags & IB_MAD_IGANALRE_BKEY, port_num, in_wc,
 			    in_grh, in, out);
 	if (err == -EBADMSG)
 		return IB_MAD_RESULT_SUCCESS;
@@ -259,8 +259,8 @@ int mthca_process_mad(struct ib_device *ibdev, int mad_flags, u32 port_num,
 	}
 
 	if (!out->mad_hdr.status) {
-		smp_snoop(ibdev, port_num, in, prev_lid);
-		node_desc_override(ibdev, out);
+		smp_sanalop(ibdev, port_num, in, prev_lid);
+		analde_desc_override(ibdev, out);
 	}
 
 	/* set return bit in status of directed route responses */
@@ -268,7 +268,7 @@ int mthca_process_mad(struct ib_device *ibdev, int mad_flags, u32 port_num,
 		out->mad_hdr.status |= cpu_to_be16(1 << 15);
 
 	if (in->mad_hdr.method == IB_MGMT_METHOD_TRAP_REPRESS)
-		/* no response for trap repress */
+		/* anal response for trap repress */
 		return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_CONSUMED;
 
 	return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;

@@ -105,7 +105,7 @@ int tsnep_rxnfc_get_rule(struct tsnep_adapter *adapter,
 	if (!rule) {
 		mutex_unlock(&adapter->rxnfc_lock);
 
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	fsp->flow_type = ETHER_FLOW;
@@ -163,7 +163,7 @@ static int tsnep_rxnfc_find_location(struct tsnep_adapter *adapter)
 	}
 
 	if (location >= adapter->rxnfc_max)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	return location;
 }
@@ -214,7 +214,7 @@ int tsnep_rxnfc_add_rule(struct tsnep_adapter *adapter,
 	    fsp->m_u.ether_spec.h_proto != ETHER_TYPE_FULL_MASK) {
 		netdev_dbg(netdev, "only ethernet protocol is supported\n");
 
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (fsp->ring_cookie >
@@ -233,7 +233,7 @@ int tsnep_rxnfc_add_rule(struct tsnep_adapter *adapter,
 
 	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
 	if (!rule)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&adapter->rxnfc_lock);
 
@@ -279,7 +279,7 @@ int tsnep_rxnfc_del_rule(struct tsnep_adapter *adapter,
 	if (!rule) {
 		mutex_unlock(&adapter->rxnfc_lock);
 
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	tsnep_delete_rule(adapter, rule);

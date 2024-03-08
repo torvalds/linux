@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.dmx
 
 .. _DMX_GET_STC:
@@ -12,7 +12,7 @@ Name
 
 DMX_GET_STC
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:macro:: DMX_GET_STC
@@ -36,7 +36,7 @@ This ioctl call returns the current value of the system time counter
 Some hardware supports more than one STC, so you must specify which one by
 setting the :c:type:`num <dmx_stc>` field of stc before the ioctl (range 0...n).
 The result is returned in form of a ratio with a 64 bit numerator
-and a 32 bit denominator, so the real 90kHz STC value is
+and a 32 bit deanalminator, so the real 90kHz STC value is
 ``stc->stc / stc->base``.
 
 Return Value
@@ -44,7 +44,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 .. tabularcolumns:: |p{2.5cm}|p{15.0cm}|

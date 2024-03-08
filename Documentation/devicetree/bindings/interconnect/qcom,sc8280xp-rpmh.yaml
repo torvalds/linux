@@ -12,25 +12,25 @@ maintainers:
 
 description: |
   RPMh interconnect providers support system bandwidth requirements through
-  RPMh hardware accelerators known as Bus Clock Manager (BCM).
+  RPMh hardware accelerators kanalwn as Bus Clock Manager (BCM).
 
   See also:: include/dt-bindings/interconnect/qcom,sc8280xp.h
 
 properties:
   compatible:
     enum:
-      - qcom,sc8280xp-aggre1-noc
-      - qcom,sc8280xp-aggre2-noc
+      - qcom,sc8280xp-aggre1-analc
+      - qcom,sc8280xp-aggre2-analc
       - qcom,sc8280xp-clk-virt
-      - qcom,sc8280xp-config-noc
-      - qcom,sc8280xp-dc-noc
-      - qcom,sc8280xp-gem-noc
-      - qcom,sc8280xp-lpass-ag-noc
+      - qcom,sc8280xp-config-analc
+      - qcom,sc8280xp-dc-analc
+      - qcom,sc8280xp-gem-analc
+      - qcom,sc8280xp-lpass-ag-analc
       - qcom,sc8280xp-mc-virt
-      - qcom,sc8280xp-mmss-noc
-      - qcom,sc8280xp-nspa-noc
-      - qcom,sc8280xp-nspb-noc
-      - qcom,sc8280xp-system-noc
+      - qcom,sc8280xp-mmss-analc
+      - qcom,sc8280xp-nspa-analc
+      - qcom,sc8280xp-nspb-analc
+      - qcom,sc8280xp-system-analc
 
 required:
   - compatible
@@ -43,7 +43,7 @@ unevaluatedProperties: false
 examples:
   - |
     interconnect-0 {
-        compatible = "qcom,sc8280xp-aggre1-noc";
+        compatible = "qcom,sc8280xp-aggre1-analc";
         #interconnect-cells = <2>;
         qcom,bcm-voters = <&apps_bcm_voter>;
     };

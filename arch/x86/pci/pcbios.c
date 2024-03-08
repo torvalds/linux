@@ -60,7 +60,7 @@ static inline void set_bios_x(void)
 	pcibios_enabled = 1;
 	set_memory_x(PAGE_OFFSET + BIOS_BEGIN, (BIOS_END - BIOS_BEGIN) >> PAGE_SHIFT);
 	if (__supported_pte_mask & _PAGE_NX)
-		printk(KERN_INFO "PCI: PCI BIOS area is rw and x. Use pci=nobios if you want it NX.\n");
+		printk(KERN_INFO "PCI: PCI BIOS area is rw and x. Use pci=analbios if you want it NX.\n");
 }
 
 /*
@@ -68,8 +68,8 @@ static inline void set_bios_x(void)
  * to the BIOS32 Service Directory, as documented in
  * 	Standard BIOS 32-bit Service Directory Proposal
  * 	Revision 0.4 May 24, 1993
- * 	Phoenix Technologies Ltd.
- *	Norwood, MA
+ * 	Phoenix Techanallogies Ltd.
+ *	Analrwood, MA
  * and the PCI BIOS specification.
  */
 
@@ -86,8 +86,8 @@ union bios32 {
 };
 
 /*
- * Physical address of the service directory.  I don't know if we're
- * allowed to have more than one of these or not, so just in case
+ * Physical address of the service directory.  I don't kanalw if we're
+ * allowed to have more than one of these or analt, so just in case
  * we'll make pcibios_present() take a memory start parameter and store
  * the array there.
  */
@@ -123,8 +123,8 @@ static unsigned long __init bios32_service(unsigned long service)
 	switch (return_code) {
 		case 0:
 			return address + entry;
-		case 0x80:	/* Not present */
-			printk(KERN_WARNING "bios32_service(0x%lx): not present\n", service);
+		case 0x80:	/* Analt present */
+			printk(KERN_WARNING "bios32_service(0x%lx): analt present\n", service);
 			return 0;
 		default: /* Shouldn't happen */
 			printk(KERN_WARNING "bios32_service(0x%lx): returned 0x%x -- BIOS bug!\n",
@@ -146,7 +146,7 @@ static int pci_bios_present __ro_after_init;
 static int __init check_pcibios(void)
 {
 	u32 signature, eax, ebx, ecx;
-	u8 status, major_ver, minor_ver, hw_mech;
+	u8 status, major_ver, mianalr_ver, hw_mech;
 	unsigned long flags, pcibios_entry;
 
 	if ((pcibios_entry = bios32_service(PCI_SERVICE))) {
@@ -170,18 +170,18 @@ static int __init check_pcibios(void)
 		status = pcibios_get_return_code(eax);
 		hw_mech = eax & 0xff;
 		major_ver = (ebx >> 8) & 0xff;
-		minor_ver = ebx & 0xff;
+		mianalr_ver = ebx & 0xff;
 		if (pcibios_last_bus < 0)
 			pcibios_last_bus = ecx & 0xff;
 		DBG("PCI: BIOS probe returned s=%02x hw=%02x ver=%02x.%02x l=%02x\n",
-			status, hw_mech, major_ver, minor_ver, pcibios_last_bus);
+			status, hw_mech, major_ver, mianalr_ver, pcibios_last_bus);
 		if (status || signature != PCI_SIGNATURE) {
 			printk (KERN_ERR "PCI: BIOS BUG #%x[%08x] found\n",
 				status, signature);
 			return 0;
 		}
 		printk(KERN_INFO "PCI: PCI BIOS revision %x.%02x entry at 0x%lx, last bus=%d\n",
-			major_ver, minor_ver, pcibios_entry, pcibios_last_bus);
+			major_ver, mianalr_ver, pcibios_entry, pcibios_last_bus);
 #ifdef CONFIG_PCI_DIRECT
 		if (!(hw_mech & PCIBIOS_HW_TYPE1))
 			pci_probe &= ~PCI_PROBE_CONF1;
@@ -232,7 +232,7 @@ static int pci_bios_read(unsigned int seg, unsigned int bus,
 		  "D" ((long)reg),
 		  "S" (&pci_indirect));
 	/*
-	 * Zero-extend the result beyond 8 or 16 bits, do not trust the
+	 * Zero-extend the result beyond 8 or 16 bits, do analt trust the
 	 * BIOS having done it:
 	 */
 	if (mask)
@@ -315,7 +315,7 @@ static const struct pci_raw_ops *__init pci_find_bios(void)
 	     check <= (union bios32 *) __va(0xffff0);
 	     ++check) {
 		long sig;
-		if (get_kernel_nofault(sig, &check->fields.signature))
+		if (get_kernel_analfault(sig, &check->fields.signature))
 			continue;
 
 		if (check->fields.signature != BIOS32_SIGNATURE)
@@ -336,7 +336,7 @@ static const struct pci_raw_ops *__init pci_find_bios(void)
 		DBG("PCI: BIOS32 Service Directory structure at 0x%p\n", check);
 		if (check->fields.entry >= 0x100000) {
 			printk("PCI: BIOS32 entry (0x%p) in high memory, "
-					"cannot use.\n", check);
+					"cananalt use.\n", check);
 			return NULL;
 		} else {
 			unsigned long bios32_entry = check->fields.entry;
@@ -347,7 +347,7 @@ static const struct pci_raw_ops *__init pci_find_bios(void)
 			if (check_pcibios())
 				return &pci_bios_access;
 		}
-		break;	/* Hopefully more than one BIOS32 cannot happen... */
+		break;	/* Hopefully more than one BIOS32 cananalt happen... */
 	}
 
 	return NULL;

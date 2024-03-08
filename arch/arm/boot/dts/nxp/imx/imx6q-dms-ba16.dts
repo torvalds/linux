@@ -111,7 +111,7 @@
 };
 
 &sata {
-	fsl,no-spread-spectrum;
+	fsl,anal-spread-spectrum;
 	fsl,transmit-atten-16ths = <12>;
 	fsl,transmit-boost-mdB = <3330>;
 	fsl,transmit-level-mV = <1133>;
@@ -133,7 +133,7 @@
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	bus-width = <8>;
 	cd-gpios = <&gpio6 11 GPIO_ACTIVE_LOW>;
-	no-1-8-v;
+	anal-1-8-v;
 	keep-power-in-suspend;
 	wakeup-source;
 	status = "okay";

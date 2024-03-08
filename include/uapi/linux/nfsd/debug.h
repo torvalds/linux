@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * linux/include/linux/nfsd/debug.h
  *
@@ -27,7 +27,7 @@
 #define NFSDDBG_LOCKD		0x0200
 #define NFSDDBG_PNFS		0x0400
 #define NFSDDBG_ALL		0x7FFF
-#define NFSDDBG_NOCHANGE	0xFFFF
+#define NFSDDBG_ANALCHANGE	0xFFFF
 
 
 

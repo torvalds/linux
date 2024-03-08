@@ -196,7 +196,7 @@ static int venus_write_queue(struct venus_hfi_device *hdev,
 		qhdr->tx_req = 1;
 		/* ensure tx_req is updated in memory */
 		wmb();
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	qhdr->tx_req = 0;
@@ -259,9 +259,9 @@ static int venus_read_queue(struct venus_hfi_device *hdev,
 	rmb();
 
 	/*
-	 * Do not set receive request for debug queue, if set, Venus generates
-	 * interrupt for debug messages even when there is no response message
-	 * available. In general debug queue will not become full as it is being
+	 * Do analt set receive request for debug queue, if set, Venus generates
+	 * interrupt for debug messages even when there is anal response message
+	 * available. In general debug queue will analt become full as it is being
 	 * emptied out for every interrupt from Venus. Venus will anyway
 	 * generates interrupt if it is full.
 	 */
@@ -273,7 +273,7 @@ static int venus_read_queue(struct venus_hfi_device *hdev,
 		*tx_req = 0;
 		/* update rx_req field in memory */
 		wmb();
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	rd_ptr = (u32 *)(queue->qmem.kva + (rd_idx << 2));
@@ -342,7 +342,7 @@ static int venus_alloc(struct venus_hfi_device *hdev, struct mem_desc *desc,
 	desc->kva = dma_alloc_attrs(dev, desc->size, &desc->da, GFP_KERNEL,
 				    desc->attrs);
 	if (!desc->kva)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -378,7 +378,7 @@ static void venus_soft_int(struct venus_hfi_device *hdev)
 	writel(clear_bit, cpu_ic_base + CPU_IC_SOFTINT);
 }
 
-static int venus_iface_cmdq_write_nolock(struct venus_hfi_device *hdev,
+static int venus_iface_cmdq_write_anallock(struct venus_hfi_device *hdev,
 					 void *pkt, bool sync)
 {
 	struct device *dev = hdev->core->dev;
@@ -403,7 +403,7 @@ static int venus_iface_cmdq_write_nolock(struct venus_hfi_device *hdev,
 
 	if (sync) {
 		/*
-		 * Inform video hardware to raise interrupt for synchronous
+		 * Inform video hardware to raise interrupt for synchroanalus
 		 * commands
 		 */
 		queue = &hdev->queues[IFACEQ_MSG_IDX];
@@ -423,7 +423,7 @@ static int venus_iface_cmdq_write(struct venus_hfi_device *hdev, void *pkt, bool
 	int ret;
 
 	mutex_lock(&hdev->lock);
-	ret = venus_iface_cmdq_write_nolock(hdev, pkt, sync);
+	ret = venus_iface_cmdq_write_anallock(hdev, pkt, sync);
 	mutex_unlock(&hdev->lock);
 
 	return ret;
@@ -437,7 +437,7 @@ static int venus_hfi_core_set_resource(struct venus_core *core, u32 id,
 	u8 packet[IFACEQ_VAR_SMALL_PKT_SIZE];
 	int ret;
 
-	if (id == VIDC_RESOURCE_NONE)
+	if (id == VIDC_RESOURCE_ANALNE)
 		return 0;
 
 	pkt = (struct hfi_sys_set_resource_pkt *)packet;
@@ -504,16 +504,16 @@ static u32 venus_hwversion(struct venus_hfi_device *hdev)
 	struct device *dev = hdev->core->dev;
 	void __iomem *wrapper_base = hdev->core->wrapper_base;
 	u32 ver;
-	u32 major, minor, step;
+	u32 major, mianalr, step;
 
 	ver = readl(wrapper_base + WRAPPER_HW_VERSION);
 	major = ver & WRAPPER_HW_VERSION_MAJOR_VERSION_MASK;
 	major = major >> WRAPPER_HW_VERSION_MAJOR_VERSION_SHIFT;
-	minor = ver & WRAPPER_HW_VERSION_MINOR_VERSION_MASK;
-	minor = minor >> WRAPPER_HW_VERSION_MINOR_VERSION_SHIFT;
+	mianalr = ver & WRAPPER_HW_VERSION_MIANALR_VERSION_MASK;
+	mianalr = mianalr >> WRAPPER_HW_VERSION_MIANALR_VERSION_SHIFT;
 	step = ver & WRAPPER_HW_VERSION_STEP_VERSION_MASK;
 
-	dev_dbg(dev, VDBGL "venus hw version %x.%x.%x\n", major, minor, step);
+	dev_dbg(dev, VDBGL "venus hw version %x.%x.%x\n", major, mianalr, step);
 
 	return major;
 }
@@ -563,10 +563,10 @@ static int venus_halt_axi(struct venus_hfi_device *hdev)
 		writel(0x3, cpu_cs_base + CPU_CS_X2RPMH_V6);
 
 		if (IS_IRIS2_1(hdev->core))
-			goto skip_aon_mvp_noc;
+			goto skip_aon_mvp_analc;
 
-		writel(0x1, aon_base + AON_WRAPPER_MVP_NOC_LPI_CONTROL);
-		ret = readl_poll_timeout(aon_base + AON_WRAPPER_MVP_NOC_LPI_STATUS,
+		writel(0x1, aon_base + AON_WRAPPER_MVP_ANALC_LPI_CONTROL);
+		ret = readl_poll_timeout(aon_base + AON_WRAPPER_MVP_ANALC_LPI_STATUS,
 					 val,
 					 val & BIT(0),
 					 POLL_INTERVAL_US,
@@ -574,7 +574,7 @@ static int venus_halt_axi(struct venus_hfi_device *hdev)
 		if (ret)
 			return -ETIMEDOUT;
 
-skip_aon_mvp_noc:
+skip_aon_mvp_analc:
 		mask_val = (BIT(2) | BIT(1) | BIT(0));
 		writel(mask_val, wrapper_base + WRAPPER_DEBUG_BRIDGE_LPI_CONTROL_V6);
 
@@ -674,7 +674,7 @@ err:
 	return ret;
 }
 
-static int venus_iface_msgq_read_nolock(struct venus_hfi_device *hdev,
+static int venus_iface_msgq_read_anallock(struct venus_hfi_device *hdev,
 					void *pkt)
 {
 	struct iface_queue *queue;
@@ -701,13 +701,13 @@ static int venus_iface_msgq_read(struct venus_hfi_device *hdev, void *pkt)
 	int ret;
 
 	mutex_lock(&hdev->lock);
-	ret = venus_iface_msgq_read_nolock(hdev, pkt);
+	ret = venus_iface_msgq_read_anallock(hdev, pkt);
 	mutex_unlock(&hdev->lock);
 
 	return ret;
 }
 
-static int venus_iface_dbgq_read_nolock(struct venus_hfi_device *hdev,
+static int venus_iface_dbgq_read_anallock(struct venus_hfi_device *hdev,
 					void *pkt)
 {
 	struct iface_queue *queue;
@@ -738,7 +738,7 @@ static int venus_iface_dbgq_read(struct venus_hfi_device *hdev, void *pkt)
 		return -EINVAL;
 
 	mutex_lock(&hdev->lock);
-	ret = venus_iface_dbgq_read_nolock(hdev, pkt);
+	ret = venus_iface_dbgq_read_anallock(hdev, pkt);
 	mutex_unlock(&hdev->lock);
 
 	return ret;
@@ -821,7 +821,7 @@ static int venus_interface_queues_init(struct venus_hfi_device *hdev)
 	tbl_hdr->num_active_q = IFACEQ_NUM;
 
 	/*
-	 * Set receive request to zero on debug queue as there is no
+	 * Set receive request to zero on debug queue as there is anal
 	 * need of interrupt from video hardware for debug messages
 	 */
 	queue = &hdev->queues[IFACEQ_DBG_IDX];
@@ -938,7 +938,7 @@ static int venus_sys_set_default_properties(struct venus_hfi_device *hdev)
 	if (ret)
 		dev_warn(dev, "setting fw debug msg ON failed (%d)\n", ret);
 
-	/* HFI_PROPERTY_SYS_IDLE_INDICATOR is not supported beyond 8916 (HFI V1) */
+	/* HFI_PROPERTY_SYS_IDLE_INDICATOR is analt supported beyond 8916 (HFI V1) */
 	if (IS_V1(hdev->core)) {
 		ret = venus_sys_set_idle_message(hdev, false);
 		if (ret)
@@ -1054,7 +1054,7 @@ static void venus_sfr_print(struct venus_hfi_device *hdev)
 static void venus_process_msg_sys_error(struct venus_hfi_device *hdev,
 					void *packet)
 {
-	struct hfi_msg_event_notify_pkt *event_pkt = packet;
+	struct hfi_msg_event_analtify_pkt *event_pkt = packet;
 
 	if (event_pkt->event_id != HFI_EVENT_SYS_ERROR)
 		return;
@@ -1072,7 +1072,7 @@ static irqreturn_t venus_isr_thread(struct venus_core *core)
 	u32 msg_ret;
 
 	if (!hdev)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	res = hdev->core->res;
 	pkt = hdev->pkt_buf;
@@ -1081,7 +1081,7 @@ static irqreturn_t venus_isr_thread(struct venus_core *core)
 	while (!venus_iface_msgq_read(hdev, pkt)) {
 		msg_ret = hfi_process_msg_packet(core, pkt);
 		switch (msg_ret) {
-		case HFI_MSG_EVENT_NOTIFY:
+		case HFI_MSG_EVENT_ANALTIFY:
 			venus_process_msg_sys_error(hdev, pkt);
 			break;
 		case HFI_MSG_SYS_INIT:
@@ -1114,7 +1114,7 @@ static irqreturn_t venus_isr(struct venus_core *core)
 	void __iomem *wrapper_base;
 
 	if (!hdev)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	cpu_cs_base = hdev->core->cpu_cs_base;
 	wrapper_base = hdev->core->wrapper_base;
@@ -1420,7 +1420,7 @@ static int venus_session_set_property(struct venus_inst *inst, u32 ptype,
 	pkt = (struct hfi_session_set_property_pkt *)packet;
 
 	ret = pkt_session_set_property(pkt, inst, ptype, pdata);
-	if (ret == -ENOTSUPP)
+	if (ret == -EANALTSUPP)
 		return 0;
 	if (ret)
 		return ret;
@@ -1478,7 +1478,7 @@ static int venus_suspend_1xx(struct venus_core *core)
 	mutex_unlock(&hdev->lock);
 
 	if (!ret) {
-		dev_err(dev, "bad state, cannot suspend\n");
+		dev_err(dev, "bad state, cananalt suspend\n");
 		return -EINVAL;
 	}
 
@@ -1577,7 +1577,7 @@ static int venus_suspend_3xx(struct venus_core *core)
 	mutex_unlock(&hdev->lock);
 
 	if (!ret) {
-		dev_err(dev, "bad state, cannot suspend\n");
+		dev_err(dev, "bad state, cananalt suspend\n");
 		return -EINVAL;
 	}
 
@@ -1685,7 +1685,7 @@ int venus_hfi_create(struct venus_core *core)
 
 	hdev = kzalloc(sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&hdev->lock);
 
@@ -1743,7 +1743,7 @@ void venus_hfi_queues_reinit(struct venus_core *core)
 	tbl_hdr->num_active_q = IFACEQ_NUM;
 
 	/*
-	 * Set receive request to zero on debug queue as there is no
+	 * Set receive request to zero on debug queue as there is anal
 	 * need of interrupt from video hardware for debug messages
 	 */
 	queue = &hdev->queues[IFACEQ_DBG_IDX];

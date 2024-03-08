@@ -16,7 +16,7 @@ Advantages:
 
 Disadvantages:
 
- * graphic mode is slower than text mode... but you should not notice
+ * graphic mode is slower than text mode... but you should analt analtice
    if you use same resolution as you used in textmode.
  * still experimental.
 
@@ -31,15 +31,15 @@ See Documentation/fb/modedb.rst for more information on modedb
 resolutions.
 
 You should compile in both vgacon (to boot if you remove your Rage128 from
-box) and aty128fb (for graphics mode). You should not compile-in vesafb
-unless you have primary display on non-Rage128 VBE2.0 device (see
+box) and aty128fb (for graphics mode). You should analt compile-in vesafb
+unless you have primary display on analn-Rage128 VBE2.0 device (see
 Documentation/fb/vesafb.rst for details).
 
 
 X11
 ===
 
-XF68_FBDev should generally work fine, but it is non-accelerated. As of
+XF68_FBDev should generally work fine, but it is analn-accelerated. As of
 this document, 8 and 32bpp works fine.  There have been palette issues
 when switching from X to console and back to X.  You will have to restart
 X to fix this.
@@ -54,8 +54,8 @@ be separated by comma, values are separated from options by `:`).
 Accepted options:
 
 ========= =======================================================
-noaccel   do not use acceleration engine. It is default.
-accel     use acceleration engine. Not finished.
+analaccel   do analt use acceleration engine. It is default.
+accel     use acceleration engine. Analt finished.
 vmode:x   chooses PowerMacintosh video mode <x>. Deprecated.
 cmode:x   chooses PowerMacintosh colour mode <x>. Deprecated.
 <XxX@X>   selects startup videomode. See modedb.txt for detailed
@@ -66,10 +66,10 @@ cmode:x   chooses PowerMacintosh colour mode <x>. Deprecated.
 Limitations
 ===========
 
-There are known and unknown bugs, features and misfeatures.
-Currently there are following known bugs:
+There are kanalwn and unkanalwn bugs, features and misfeatures.
+Currently there are following kanalwn bugs:
 
- - This driver is still experimental and is not finished.  Too many
+ - This driver is still experimental and is analt finished.  Too many
    bugs/errata to list here.
 
 Brad Douglas <brad@neruo.com>

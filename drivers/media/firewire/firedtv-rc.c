@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * FireDTV driver (formerly known as FireSAT)
+ * FireDTV driver (formerly kanalwn as FireSAT)
  *
  * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
  */
@@ -129,7 +129,7 @@ int fdtv_register_rc(struct firedtv *fdtv, struct device *dev)
 
 	idev = input_allocate_device();
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fdtv->remote_ctrl_dev = idev;
 	idev->name = "FireDTV remote control";
@@ -137,7 +137,7 @@ int fdtv_register_rc(struct firedtv *fdtv, struct device *dev)
 	idev->evbit[0] = BIT_MASK(EV_KEY);
 	idev->keycode = kmemdup(keytable, sizeof(keytable), GFP_KERNEL);
 	if (!idev->keycode) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail;
 	}
 	idev->keycodesize = sizeof(keytable[0]);

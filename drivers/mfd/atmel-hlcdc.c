@@ -86,11 +86,11 @@ static int atmel_hlcdc_probe(struct platform_device *pdev)
 
 	hregmap = devm_kzalloc(dev, sizeof(*hregmap), GFP_KERNEL);
 	if (!hregmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hlcdc = devm_kzalloc(dev, sizeof(*hlcdc), GFP_KERNEL);
 	if (!hlcdc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hregmap->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hregmap->regs))

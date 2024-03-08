@@ -300,7 +300,7 @@ xe_hw_engine_setup_default_lrc_state(struct xe_hw_engine *hwe)
 	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(hwe);
 	const struct xe_rtp_entry_sr lrc_was[] = {
 		/*
-		 * Some blitter commands do not have a field for MOCS, those
+		 * Some blitter commands do analt have a field for MOCS, those
 		 * commands will use MOCS index pointed by BLIT_CCTL.
 		 * BLIT_CCTL registers are needed to be programmed to un-cached.
 		 */
@@ -475,7 +475,7 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 err_kernel_lrc:
 	xe_lrc_finish(&hwe->kernel_lrc);
 err_hwsp:
-	xe_bo_unpin_map_no_vm(hwe->hwsp);
+	xe_bo_unpin_map_anal_vm(hwe->hwsp);
 err_name:
 	hwe->name = NULL;
 
@@ -631,7 +631,7 @@ static void check_gsc_availability(struct xe_gt *gt)
 
 	/*
 	 * The GSCCS is only used to communicate with the GSC FW, so if we don't
-	 * have the FW there is nothing we need the engine for and can therefore
+	 * have the FW there is analthing we need the engine for and can therefore
 	 * skip its initialization.
 	 */
 	if (!xe_uc_fw_is_available(&gt->uc.gsc.fw)) {

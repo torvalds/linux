@@ -8,7 +8,7 @@
  *
  * IPIs are handled through the Xen event mechanism.
  *
- * Because virtual CPUs can be scheduled onto any real CPU, there's no
+ * Because virtual CPUs can be scheduled onto any real CPU, there's anal
  * useful topology information for the kernel to make use of.  As a
  * result, all CPUs are treated as if they're single-core and
  * single-threaded.
@@ -80,13 +80,13 @@ static void cpu_bringup(void)
 
 	xen_setup_cpu_clockevents();
 
-	notify_cpu_starting(cpu);
+	analtify_cpu_starting(cpu);
 
 	set_cpu_online(cpu, true);
 
 	smp_mb();
 
-	/* We can take interrupts now: we're officially "up". */
+	/* We can take interrupts analw: we're officially "up". */
 	local_irq_enable();
 }
 
@@ -123,7 +123,7 @@ int xen_smp_intr_init_pv(unsigned int cpu)
 	rc = bind_ipi_to_irqhandler(XEN_IRQ_WORK_VECTOR,
 				    cpu,
 				    xen_irq_work_interrupt,
-				    IRQF_PERCPU|IRQF_NOBALANCING,
+				    IRQF_PERCPU|IRQF_ANALBALANCING,
 				    callfunc_name,
 				    NULL);
 	if (rc < 0)
@@ -135,7 +135,7 @@ int xen_smp_intr_init_pv(unsigned int cpu)
 		per_cpu(xen_pmu_irq, cpu).name = pmu_name;
 		rc = bind_virq_to_irqhandler(VIRQ_XENPMU, cpu,
 					     xen_pmu_irq_handler,
-					     IRQF_PERCPU|IRQF_NOBALANCING,
+					     IRQF_PERCPU|IRQF_ANALBALANCING,
 					     pmu_name, NULL);
 		if (rc < 0)
 			goto fail;
@@ -174,9 +174,9 @@ static void __init _get_smp_config(unsigned int early)
 	/* This is akin to using 'nr_cpus' on the Linux command line.
 	 * Which is OK as when we use 'dom0_max_vcpus=X' we can only
 	 * have up to X, while nr_cpu_ids is greater than X. This
-	 * normally is not a problem, except when CPU hotplugging
+	 * analrmally is analt a problem, except when CPU hotplugging
 	 * is involved and then there might be more than X CPUs
-	 * in the guest - which will not work as there is no
+	 * in the guest - which will analt work as there is anal
 	 * hypercall to expand the max number of VCPUs an already
 	 * running guest has. So cap it up to X. */
 	if (subtract)
@@ -202,7 +202,7 @@ static void __init xen_pv_smp_prepare_boot_cpu(void)
 	 * The alternative logic (which patches the unlock/lock) runs before
 	 * the smp bootup up code is activated. Hence we need to set this up
 	 * the core kernel is being patched. Otherwise we will have only
-	 * modules patched but not core code.
+	 * modules patched but analt core code.
 	 */
 	xen_init_spinlocks();
 }
@@ -213,9 +213,9 @@ static void __init xen_pv_smp_prepare_cpus(unsigned int max_cpus)
 
 	if (ioapic_is_disabled) {
 		char *m = (max_cpus == 0) ?
-			"The nosmp parameter is incompatible with Xen; " \
+			"The analsmp parameter is incompatible with Xen; " \
 			"use Xen dom0_max_vcpus=1 parameter" :
-			"The noapic parameter is incompatible with Xen";
+			"The analapic parameter is incompatible with Xen";
 
 		xen_raw_printk(m);
 		panic(m);
@@ -234,7 +234,7 @@ static void __init xen_pv_smp_prepare_cpus(unsigned int max_cpus)
 		BUG();
 
 	if (!alloc_cpumask_var(&xen_cpu_initialized_map, GFP_KERNEL))
-		panic("could not allocate xen_cpu_initialized_map\n");
+		panic("could analt allocate xen_cpu_initialized_map\n");
 
 	cpumask_copy(xen_cpu_initialized_map, cpumask_of(0));
 
@@ -262,14 +262,14 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (ctxt == NULL) {
 		cpumask_clear_cpu(cpu, xen_cpu_initialized_map);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	gdt = get_cpu_gdt_rw(cpu);
 
 	/*
 	 * Bring up the CPU in cpu_bringup_and_idle() with the stack
-	 * pointing just below where pt_regs would be if it were a normal
+	 * pointing just below where pt_regs would be if it were a analrmal
 	 * kernel entry.
 	 */
 	ctxt->user_regs.eip = (unsigned long)asm_cpu_bringup_and_idle;
@@ -336,7 +336,7 @@ static int xen_pv_kick_ap(unsigned int cpu, struct task_struct *idle)
 
 	/*
 	 * Why is this a BUG? If the hypercall fails then everything can be
-	 * rolled back, no?
+	 * rolled back, anal?
 	 */
 	BUG_ON(HYPERVISOR_vcpu_op(VCPUOP_up, xen_vcpu_nr(cpu), NULL));
 
@@ -377,7 +377,7 @@ static void xen_pv_cleanup_dead_cpu(unsigned int cpu)
 	xen_pmu_finish(cpu);
 }
 
-static void __noreturn xen_pv_play_dead(void) /* used only with HOTPLUG_CPU */
+static void __analreturn xen_pv_play_dead(void) /* used only with HOTPLUG_CPU */
 {
 	play_dead_common();
 	HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(smp_processor_id()), NULL);
@@ -388,7 +388,7 @@ static void __noreturn xen_pv_play_dead(void) /* used only with HOTPLUG_CPU */
 #else /* !CONFIG_HOTPLUG_CPU */
 static int xen_pv_cpu_disable(void)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static void xen_pv_cpu_die(unsigned int cpu)
@@ -401,7 +401,7 @@ static void xen_pv_cleanup_dead_cpu(unsigned int cpu)
 	BUG();
 }
 
-static void __noreturn xen_pv_play_dead(void)
+static void __analreturn xen_pv_play_dead(void)
 {
 	BUG();
 }
@@ -411,7 +411,7 @@ static void stop_self(void *v)
 {
 	int cpu = smp_processor_id();
 
-	/* make sure we're not pinning something down */
+	/* make sure we're analt pinning something down */
 	load_cr3(swapper_pg_dir);
 	/* should set up a minimal gdt */
 
@@ -458,6 +458,6 @@ void __init xen_smp_init(void)
 	smp_ops = xen_smp_ops;
 
 	/* Avoid searching for BIOS MP tables */
-	x86_init.mpparse.find_smp_config = x86_init_noop;
+	x86_init.mpparse.find_smp_config = x86_init_analop;
 	x86_init.mpparse.get_smp_config = _get_smp_config;
 }

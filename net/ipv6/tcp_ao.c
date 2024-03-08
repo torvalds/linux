@@ -3,9 +3,9 @@
  * INET		An implementation of the TCP Authentication Option (TCP-AO).
  *		See RFC5925.
  *
- * Authors:	Dmitry Safonov <dima@arista.com>
+ * Authors:	Dmitry Safoanalv <dima@arista.com>
  *		Francesco Ruggeri <fruggeri@arista.com>
- *		Salam Noureddine <noureddine@arista.com>
+ *		Salam Analureddine <analureddine@arista.com>
  */
 #include <crypto/hash.h>
 #include <linux/tcp.h>
@@ -154,7 +154,7 @@ int tcp_v6_ao_synack_hash(char *ao_hash, struct tcp_ao_key *ao_key,
 
 	hash_buf = kmalloc(tcp_ao_digest_size(ao_key), GFP_ATOMIC);
 	if (!hash_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = tcp_v6_ao_calc_key_rsk(ao_key, hash_buf, req);
 	if (err)

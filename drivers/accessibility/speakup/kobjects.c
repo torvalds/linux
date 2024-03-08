@@ -7,7 +7,7 @@
  * This code is based on kobject-example.c, which came with linux 2.6.x.
  *
  * Copyright (C) 2004-2007 Greg Kroah-Hartman <greg@kroah.com>
- * Copyright (C) 2007 Novell Inc.
+ * Copyright (C) 2007 Analvell Inc.
  *
  * Released under the GPL version 2 only.
  *
@@ -155,7 +155,7 @@ static ssize_t chars_chartab_store(struct kobject *kobj,
 		}
 
 		/*
-		 * Do not replace with kstrtoul:
+		 * Do analt replace with kstrtoul:
 		 * here we need temp to be updated
 		 */
 		index = simple_strtoul(cp, &temp, 10);
@@ -177,7 +177,7 @@ static ssize_t chars_chartab_store(struct kobject *kobj,
 		if (do_characters) {
 			desc = kmalloc(desc_length + 1, GFP_ATOMIC);
 			if (!desc) {
-				retval = -ENOMEM;
+				retval = -EANALMEM;
 				reset = 1;	/* just reset on error. */
 				break;
 			}
@@ -243,7 +243,7 @@ static ssize_t keymap_show(struct kobject *kobj, struct kobj_attribute *attr,
 	num_keys = (int)(*cp1);
 	nstates = (int)cp1[1];
 	cp += sprintf(cp, "%d, %d, %d,\n", KEY_MAP_VER, num_keys, nstates);
-	cp1 += 2; /* now pointing at shift states */
+	cp1 += 2; /* analw pointing at shift states */
 	/* dump num_keys+1 as first row is shift states + flags,
 	 * each subsequent row is key + states
 	 */
@@ -276,7 +276,7 @@ static ssize_t keymap_store(struct kobject *kobj, struct kobj_attribute *attr,
 	in_buff = kmemdup(buf, count + 1, GFP_ATOMIC);
 	if (!in_buff) {
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (strchr("dDrR", *in_buff)) {
 		spk_set_key_info(spk_key_defaults, spk_key_buf);
@@ -345,7 +345,7 @@ static ssize_t silent_store(struct kobject *kobj, struct kobj_attribute *attr,
 			ch = '0';
 	}
 	if (ch < '0' || ch > '7') {
-		pr_warn("silent value '%c' not in range (0,7)\n", ch);
+		pr_warn("silent value '%c' analt in range (0,7)\n", ch);
 		return -EINVAL;
 	}
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
@@ -374,7 +374,7 @@ static ssize_t synth_show(struct kobject *kobj, struct kobj_attribute *attr,
 	int rv;
 
 	if (!synth)
-		rv = sprintf(buf, "%s\n", "none");
+		rv = sprintf(buf, "%s\n", "analne");
 	else
 		rv = sprintf(buf, "%s\n", synth->name);
 	return rv;
@@ -401,7 +401,7 @@ static ssize_t synth_store(struct kobject *kobj, struct kobj_attribute *attr,
 		pr_warn("%s already in use\n", new_synth_name);
 	} else if (synth_init(new_synth_name) != 0) {
 		pr_warn("failed to init synth %s\n", new_synth_name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return count;
 }
@@ -421,7 +421,7 @@ static ssize_t synth_direct_store(struct kobject *kobj,
 
 	unescaped = kstrdup(buf, GFP_KERNEL);
 	if (!unescaped)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	string_unescape_any_inplace(unescaped);
 
@@ -686,7 +686,7 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 				param->name);
 		break;
 	default:
-		pr_warn("%s unknown type %d\n",
+		pr_warn("%s unkanalwn type %d\n",
 			param->name, (int)param->var_type);
 	break;
 	}
@@ -789,7 +789,7 @@ static ssize_t message_store_helper(const char *buf, size_t count,
 		}
 
 		/*
-		 * Do not replace with kstrtoul:
+		 * Do analt replace with kstrtoul:
 		 * here we need temp to be updated
 		 */
 		index = simple_strtoul(cp, &temp, 10);
@@ -801,7 +801,7 @@ static ssize_t message_store_helper(const char *buf, size_t count,
 		curmessage = firstmessage + index;
 
 		/*
-		 * Note the check (curmessage < firstmessage).  It is not
+		 * Analte the check (curmessage < firstmessage).  It is analt
 		 * redundant.  Suppose that the user gave us an index
 		 * equal to ULONG_MAX - 1.  If firstmessage > 1, then
 		 * firstmessage + index < firstmessage!
@@ -816,7 +816,7 @@ static ssize_t message_store_helper(const char *buf, size_t count,
 		msg_stored = spk_msg_set(curmessage, temp, desc_length);
 		if (msg_stored < 0) {
 			retval = msg_stored;
-			if (msg_stored == -ENOMEM)
+			if (msg_stored == -EANALMEM)
 				reset = 1;
 			break;
 		}
@@ -899,8 +899,8 @@ static struct kobj_attribute cursor_time_attribute =
 	__ATTR(cursor_time, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute key_echo_attribute =
 	__ATTR(key_echo, 0644, spk_var_show, spk_var_store);
-static struct kobj_attribute no_interrupt_attribute =
-	__ATTR(no_interrupt, 0644, spk_var_show, spk_var_store);
+static struct kobj_attribute anal_interrupt_attribute =
+	__ATTR(anal_interrupt, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute punc_level_attribute =
 	__ATTR(punc_level, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute reading_punc_attribute =
@@ -917,8 +917,8 @@ static struct kobj_attribute cur_phonetic_attribute =
 /*
  * These attributes are i18n related.
  */
-static struct kobj_attribute announcements_attribute =
-	__ATTR(announcements, 0644, message_show, message_store);
+static struct kobj_attribute ananaluncements_attribute =
+	__ATTR(ananaluncements, 0644, message_show, message_store);
 static struct kobj_attribute characters_attribute =
 	__ATTR(characters, 0644, chars_chartab_show,
 	       chars_chartab_store);
@@ -960,7 +960,7 @@ static struct attribute *main_attrs[] = {
 	&bleeps_attribute.attr,
 	&cursor_time_attribute.attr,
 	&key_echo_attribute.attr,
-	&no_interrupt_attribute.attr,
+	&anal_interrupt_attribute.attr,
 	&punc_level_attribute.attr,
 	&reading_punc_attribute.attr,
 	&say_control_attribute.attr,
@@ -971,7 +971,7 @@ static struct attribute *main_attrs[] = {
 };
 
 static struct attribute *i18n_attrs[] = {
-	&announcements_attribute.attr,
+	&ananaluncements_attribute.attr,
 	&characters_attribute.attr,
 	&chartab_attribute.attr,
 	&ctl_keys_attribute.attr,
@@ -1009,20 +1009,20 @@ int speakup_kobj_init(void)
 	 * Create a simple kobject with the name of "accessibility",
 	 * located under /sys/
 	 *
-	 * As this is a simple directory, no uevent will be sent to
-	 * userspace.  That is why this function should not be used for
+	 * As this is a simple directory, anal uevent will be sent to
+	 * userspace.  That is why this function should analt be used for
 	 * any type of dynamic kobjects, where the name and number are
-	 * not known ahead of time.
+	 * analt kanalwn ahead of time.
 	 */
 	accessibility_kobj = kobject_create_and_add("accessibility", NULL);
 	if (!accessibility_kobj) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out;
 	}
 
 	speakup_kobj = kobject_create_and_add("speakup", accessibility_kobj);
 	if (!speakup_kobj) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_acc;
 	}
 

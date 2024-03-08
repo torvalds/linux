@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * OF helpers for the old of_mm_gpio_chip, used on ppc32 and nios2,
- * do not use in new code.
+ * do analt use in new code.
  *
  * Copyright (c) 2007-2008  MontaVista Software, Inc.
  *
@@ -28,7 +28,7 @@ static inline struct of_mm_gpio_chip *to_of_mm_gpio_chip(struct gpio_chip *gc)
 	return container_of(gc, struct of_mm_gpio_chip, gc);
 }
 
-extern int of_mm_gpiochip_add_data(struct device_node *np,
+extern int of_mm_gpiochip_add_data(struct device_analde *np,
 				   struct of_mm_gpio_chip *mm_gc,
 				   void *data);
 extern void of_mm_gpiochip_remove(struct of_mm_gpio_chip *mm_gc);

@@ -113,7 +113,7 @@ static int scmi_init_voltage_levels(struct device *dev,
 
 	v->levels_uv = devm_kcalloc(dev, num_levels, sizeof(u32), GFP_KERNEL);
 	if (!v->levels_uv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v->num_levels = num_levels;
 	v->segmented = segmented;
@@ -149,7 +149,7 @@ static int iter_volt_levels_update_state(struct scmi_iterator_state *st,
 	st->num_returned = NUM_RETURNED_LEVELS(flags);
 	st->num_remaining = NUM_REMAINING_LEVELS(flags);
 
-	/* Allocate space for num_levels if not already done */
+	/* Allocate space for num_levels if analt already done */
 	if (!p->v->num_levels) {
 		ret = scmi_init_voltage_levels(p->dev, p->v, st->num_returned,
 					       st->num_remaining,
@@ -411,11 +411,11 @@ static int scmi_voltage_protocol_init(const struct scmi_protocol_handle *ph)
 		return ret;
 
 	dev_dbg(ph->dev, "Voltage Version %d.%d\n",
-		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
+		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MIANALR(version));
 
 	vinfo = devm_kzalloc(ph->dev, sizeof(*vinfo), GFP_KERNEL);
 	if (!vinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 	vinfo->version = version;
 
 	ret = scmi_protocol_attributes_get(ph, vinfo);
@@ -427,12 +427,12 @@ static int scmi_voltage_protocol_init(const struct scmi_protocol_handle *ph)
 					      sizeof(*vinfo->domains),
 					      GFP_KERNEL);
 		if (!vinfo->domains)
-			return -ENOMEM;
+			return -EANALMEM;
 		ret = scmi_voltage_descriptors_get(ph, vinfo);
 		if (ret)
 			return ret;
 	} else {
-		dev_warn(ph->dev, "No Voltage domains found.\n");
+		dev_warn(ph->dev, "Anal Voltage domains found.\n");
 	}
 
 	return ph->set_priv(ph, vinfo, version);

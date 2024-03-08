@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * fixme correct answer depends on hmc_mode,
- * as does (on omap1) any nonzero value for config->otg port number
+ * as does (on omap1) any analnzero value for config->otg port number
  */
 #include <linux/platform_data/usb-omap1.h>
 #include <linux/soc/ti/omap1-usb.h>

@@ -91,13 +91,13 @@
 &pinctrl {
 	board {
 		pinctrl_pck0_as_mck: pck0_as_mck {
-			atmel,pins = <AT91_PIOC 1 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+			atmel,pins = <AT91_PIOC 1 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;
 		};
 	};
 
 	usb0 {
 		pinctrl_usb1_vbus_gpio: usb0_vbus_gpio {
-			atmel,pins = <AT91_PIOC 5 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+			atmel,pins = <AT91_PIOC 5 AT91_PERIPH_GPIO AT91_PINCTRL_ANALNE>;
 		};
 	};
 };

@@ -9,7 +9,7 @@
  * 
  *  Changelog:
  *    Support interrupts per period.
- *    Removed noise from Center/LFE channel when in Analog mode.
+ *    Removed analise from Center/LFE channel when in Analog mode.
  *    Rename and remove mixer controls.
  *  0.0.6
  *    Use separate card based DMA buffer for periods table list.
@@ -21,7 +21,7 @@
  *    Fix AC3 output.
  *    Enable S32_LE format support.
  *  0.0.10
- *    Enable playback 48000 and 96000 rates. (Rates other that these do not work, even with "plug:front".)
+ *    Enable playback 48000 and 96000 rates. (Rates other that these do analt work, even with "plug:front".)
  *  0.0.11
  *    Add Model name recognition.
  *  0.0.12
@@ -141,7 +141,7 @@ static void ca0106_set_spdif_bits(struct snd_ca0106 *emu, int idx)
 static const DECLARE_TLV_DB_SCALE(snd_ca0106_db_scale1, -5175, 25, 1);
 static const DECLARE_TLV_DB_SCALE(snd_ca0106_db_scale2, -10350, 50, 1);
 
-#define snd_ca0106_shared_spdif_info	snd_ctl_boolean_mono_info
+#define snd_ca0106_shared_spdif_info	snd_ctl_boolean_moanal_info
 
 static int snd_ca0106_shared_spdif_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
@@ -502,7 +502,7 @@ static int snd_ca0106_i2c_volume_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-#define spi_mute_info	snd_ctl_boolean_mono_info
+#define spi_mute_info	snd_ctl_boolean_moanal_info
 
 static int spi_mute_get(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
@@ -525,11 +525,11 @@ static int spi_mute_put(struct snd_kcontrol *kcontrol,
 
 	ret = emu->spi_dac_reg[reg] & bit;
 	if (ucontrol->value.integer.value[0]) {
-		if (!ret)	/* bit already cleared, do nothing */
+		if (!ret)	/* bit already cleared, do analthing */
 			return 0;
 		emu->spi_dac_reg[reg] &= ~bit;
 	} else {
-		if (ret)	/* bit already set, do nothing */
+		if (ret)	/* bit already set, do analthing */
 			return 0;
 		emu->spi_dac_reg[reg] |= bit;
 	}
@@ -558,7 +558,7 @@ static const struct snd_kcontrol_new snd_ca0106_volume_ctls[] = {
 	CA_VOLUME("Analog Center/LFE Playback Volume",
 		  CONTROL_CENTER_LFE_CHANNEL, PLAYBACK_VOLUME2),
         CA_VOLUME("Analog Side Playback Volume",
-		  CONTROL_UNKNOWN_CHANNEL, PLAYBACK_VOLUME2),
+		  CONTROL_UNKANALWN_CHANNEL, PLAYBACK_VOLUME2),
 
         CA_VOLUME("IEC958 Front Playback Volume",
 		  CONTROL_FRONT_CHANNEL, PLAYBACK_VOLUME1),
@@ -566,8 +566,8 @@ static const struct snd_kcontrol_new snd_ca0106_volume_ctls[] = {
 		  CONTROL_REAR_CHANNEL, PLAYBACK_VOLUME1),
 	CA_VOLUME("IEC958 Center/LFE Playback Volume",
 		  CONTROL_CENTER_LFE_CHANNEL, PLAYBACK_VOLUME1),
-	CA_VOLUME("IEC958 Unknown Playback Volume",
-		  CONTROL_UNKNOWN_CHANNEL, PLAYBACK_VOLUME1),
+	CA_VOLUME("IEC958 Unkanalwn Playback Volume",
+		  CONTROL_UNKANALWN_CHANNEL, PLAYBACK_VOLUME1),
 
         CA_VOLUME("CAPTURE feedback Playback Volume",
 		  1, CAPTURE_CONTROL),
@@ -680,7 +680,7 @@ snd_ca0106_volume_spi_dac_ctl(const struct snd_ca0106_details *details,
 		spi_switch.name = "Analog Center/LFE Playback Switch";
 		dac_id = (details->spi_dac & 0x00f0) >> (4 * 1);
 		break;
-	case PCM_UNKNOWN_CHANNEL:
+	case PCM_UNKANALWN_CHANNEL:
 		spi_switch.name = "Analog Side Playback Switch";
 		dac_id = (details->spi_dac & 0x000f) >> (4 * 0);
 		break;
@@ -713,7 +713,7 @@ static int rename_ctl(struct snd_card *card, const char *src, const char *dst)
 		snd_ctl_rename(card, kctl, dst);
 		return 0;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 #define ADD_CTLS(emu, ctls)						\
@@ -737,7 +737,7 @@ static const char * const follower_vols[] = {
         "IEC958 Front Playback Volume",
 	"IEC958 Rear Playback Volume",
 	"IEC958 Center/LFE Playback Volume",
-	"IEC958 Unknown Playback Volume",
+	"IEC958 Unkanalwn Playback Volume",
         "CAPTURE feedback Playback Volume",
 	NULL
 };
@@ -758,8 +758,8 @@ int snd_ca0106_mixer(struct snd_ca0106 *emu)
 	const char * const *c;
 	struct snd_kcontrol *vmaster;
 	static const char * const ca0106_remove_ctls[] = {
-		"Master Mono Playback Switch",
-		"Master Mono Playback Volume",
+		"Master Moanal Playback Switch",
+		"Master Moanal Playback Volume",
 		"3D Control - Switch",
 		"3D Control Sigmatel - Depth",
 		"PCM Playback Switch",
@@ -772,7 +772,7 @@ int snd_ca0106_mixer(struct snd_ca0106 *emu)
 		"Video Playback Volume",
 		"Beep Playback Switch",
 		"Beep Playback Volume",
-		"Mono Output Select",
+		"Moanal Output Select",
 		"Capture Source",
 		"Capture Switch",
 		"Capture Volume",
@@ -828,7 +828,7 @@ int snd_ca0106_mixer(struct snd_ca0106 *emu)
 	vmaster = snd_ctl_make_virtual_master("Master Playback Volume",
 					      snd_ca0106_master_db_scale);
 	if (!vmaster)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = snd_ctl_add(card, vmaster);
 	if (err < 0)
 		return err;
@@ -840,7 +840,7 @@ int snd_ca0106_mixer(struct snd_ca0106 *emu)
 		vmaster = snd_ctl_make_virtual_master("Master Playback Switch",
 						      NULL);
 		if (!vmaster)
-			return -ENOMEM;
+			return -EANALMEM;
 		err = snd_ctl_add(card, vmaster);
 		if (err < 0)
 			return err;
@@ -863,11 +863,11 @@ static const struct ca0106_vol_tbl saved_volumes[NUM_SAVED_VOLUMES] = {
 	{ CONTROL_FRONT_CHANNEL, PLAYBACK_VOLUME2 },
 	{ CONTROL_REAR_CHANNEL, PLAYBACK_VOLUME2 },
 	{ CONTROL_CENTER_LFE_CHANNEL, PLAYBACK_VOLUME2 },
-	{ CONTROL_UNKNOWN_CHANNEL, PLAYBACK_VOLUME2 },
+	{ CONTROL_UNKANALWN_CHANNEL, PLAYBACK_VOLUME2 },
 	{ CONTROL_FRONT_CHANNEL, PLAYBACK_VOLUME1 },
 	{ CONTROL_REAR_CHANNEL, PLAYBACK_VOLUME1 },
 	{ CONTROL_CENTER_LFE_CHANNEL, PLAYBACK_VOLUME1 },
-	{ CONTROL_UNKNOWN_CHANNEL, PLAYBACK_VOLUME1 },
+	{ CONTROL_UNKANALWN_CHANNEL, PLAYBACK_VOLUME1 },
 	{ 1, CAPTURE_CONTROL },
 };
 

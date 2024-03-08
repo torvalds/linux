@@ -45,7 +45,7 @@ struct ssam_hub {
 	struct delayed_work update_work;
 	unsigned long connect_delay;
 
-	struct ssam_event_notifier notif;
+	struct ssam_event_analtifier analtif;
 	struct ssam_hub_ops ops;
 };
 
@@ -57,7 +57,7 @@ struct ssam_hub_desc {
 	} event;
 
 	struct {
-		u32 (*notify)(struct ssam_event_notifier *nf, const struct ssam_event *event);
+		u32 (*analtify)(struct ssam_event_analtifier *nf, const struct ssam_event *event);
 		int (*get_state)(struct ssam_hub *hub, enum ssam_hub_state *state);
 	} ops;
 
@@ -90,9 +90,9 @@ static void ssam_hub_update_workfn(struct work_struct *work)
 	 * been merged with this one.
 	 *
 	 * This then leads to one of two cases: Either we submit an unnecessary
-	 * work item (which will get ignored via either the queue or the state
+	 * work item (which will get iganalred via either the queue or the state
 	 * checks) or, in the unlikely case that the work is actually required,
-	 * double the normal connect delay.
+	 * double the analrmal connect delay.
 	 */
 	if (test_and_clear_bit(SSAM_HUB_HOT_REMOVED, &hub->flags)) {
 		if (state == SSAM_HUB_CONNECTED)
@@ -160,23 +160,23 @@ static int ssam_hub_probe(struct ssam_device *sdev)
 
 	desc = ssam_device_get_match_data(sdev);
 	if (!desc) {
-		WARN(1, "no driver match data specified");
+		WARN(1, "anal driver match data specified");
 		return -EINVAL;
 	}
 
 	hub = devm_kzalloc(&sdev->dev, sizeof(*hub), GFP_KERNEL);
 	if (!hub)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hub->sdev = sdev;
 	hub->state = SSAM_HUB_UNINITIALIZED;
 
-	hub->notif.base.priority = INT_MAX;  /* This notifier should run first. */
-	hub->notif.base.fn = desc->ops.notify;
-	hub->notif.event.reg = desc->event.reg;
-	hub->notif.event.id = desc->event.id;
-	hub->notif.event.mask = desc->event.mask;
-	hub->notif.event.flags = SSAM_EVENT_SEQUENCED;
+	hub->analtif.base.priority = INT_MAX;  /* This analtifier should run first. */
+	hub->analtif.base.fn = desc->ops.analtify;
+	hub->analtif.event.reg = desc->event.reg;
+	hub->analtif.event.id = desc->event.id;
+	hub->analtif.event.mask = desc->event.mask;
+	hub->analtif.event.flags = SSAM_EVENT_SEQUENCED;
 
 	hub->connect_delay = msecs_to_jiffies(desc->connect_delay_ms);
 	hub->ops.get_state = desc->ops.get_state;
@@ -185,7 +185,7 @@ static int ssam_hub_probe(struct ssam_device *sdev)
 
 	ssam_device_set_drvdata(sdev, hub);
 
-	status = ssam_device_notifier_register(sdev, &hub->notif);
+	status = ssam_device_analtifier_register(sdev, &hub->analtif);
 	if (status)
 		return status;
 
@@ -197,7 +197,7 @@ static void ssam_hub_remove(struct ssam_device *sdev)
 {
 	struct ssam_hub *hub = ssam_device_get_drvdata(sdev);
 
-	ssam_device_notifier_unregister(sdev, &hub->notif);
+	ssam_device_analtifier_unregister(sdev, &hub->analtif);
 	cancel_delayed_work_sync(&hub->update_work);
 	ssam_remove_clients(&sdev->dev);
 }
@@ -241,9 +241,9 @@ static int ssam_base_hub_query_state(struct ssam_hub *hub, enum ssam_hub_state *
 	return 0;
 }
 
-static u32 ssam_base_hub_notif(struct ssam_event_notifier *nf, const struct ssam_event *event)
+static u32 ssam_base_hub_analtif(struct ssam_event_analtifier *nf, const struct ssam_event *event)
 {
-	struct ssam_hub *hub = container_of(nf, struct ssam_hub, notif);
+	struct ssam_hub *hub = container_of(nf, struct ssam_hub, analtif);
 
 	if (event->command_id != SSAM_EVENT_BAS_CID_CONNECTION)
 		return 0;
@@ -256,7 +256,7 @@ static u32 ssam_base_hub_notif(struct ssam_event_notifier *nf, const struct ssam
 	ssam_hub_update(hub, event->data[0]);
 
 	/*
-	 * Do not return SSAM_NOTIF_HANDLED: The event should be picked up and
+	 * Do analt return SSAM_ANALTIF_HANDLED: The event should be picked up and
 	 * consumed by the detachment system driver. We're just a (more or less)
 	 * silent observer.
 	 */
@@ -270,10 +270,10 @@ static const struct ssam_hub_desc base_hub = {
 			.target_category = SSAM_SSH_TC_BAS,
 			.instance = 0,
 		},
-		.mask = SSAM_EVENT_MASK_NONE,
+		.mask = SSAM_EVENT_MASK_ANALNE,
 	},
 	.ops = {
-		.notify = ssam_base_hub_notif,
+		.analtify = ssam_base_hub_analtif,
 		.get_state = ssam_base_hub_query_state,
 	},
 	.connect_delay_ms = SSAM_BASE_UPDATE_CONNECT_DELAY,
@@ -312,9 +312,9 @@ static int ssam_kip_hub_query_state(struct ssam_hub *hub, enum ssam_hub_state *s
 	return 0;
 }
 
-static u32 ssam_kip_hub_notif(struct ssam_event_notifier *nf, const struct ssam_event *event)
+static u32 ssam_kip_hub_analtif(struct ssam_event_analtifier *nf, const struct ssam_event *event)
 {
-	struct ssam_hub *hub = container_of(nf, struct ssam_hub, notif);
+	struct ssam_hub *hub = container_of(nf, struct ssam_hub, analtif);
 
 	if (event->command_id != SSAM_EVENT_KIP_CID_CONNECTION)
 		return 0;	/* Return "unhandled". */
@@ -325,7 +325,7 @@ static u32 ssam_kip_hub_notif(struct ssam_event_notifier *nf, const struct ssam_
 	}
 
 	ssam_hub_update(hub, event->data[0]);
-	return SSAM_NOTIF_HANDLED;
+	return SSAM_ANALTIF_HANDLED;
 }
 
 static const struct ssam_hub_desc kip_hub = {
@@ -338,7 +338,7 @@ static const struct ssam_hub_desc kip_hub = {
 		.mask = SSAM_EVENT_MASK_TARGET,
 	},
 	.ops = {
-		.notify = ssam_kip_hub_notif,
+		.analtify = ssam_kip_hub_analtif,
 		.get_state = ssam_kip_hub_query_state,
 	},
 	.connect_delay_ms = SSAM_KIP_UPDATE_CONNECT_DELAY,
@@ -360,7 +360,7 @@ static struct ssam_device_driver ssam_subsystem_hub_driver = {
 	.match_table = ssam_hub_match,
 	.driver = {
 		.name = "surface_aggregator_subsystem_hub",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm = &ssam_hub_pm_ops,
 	},
 };

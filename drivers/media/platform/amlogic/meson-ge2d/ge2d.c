@@ -145,7 +145,7 @@ static const struct ge2d_fmt *find_fmt(struct v4l2_format *f)
 
 	/*
 	 * TRY_FMT/S_FMT should never return an error when the requested format
-	 * is not supported. Drivers should always return a valid format,
+	 * is analt supported. Drivers should always return a valid format,
 	 * preferably a format that is as widely supported by applications as
 	 * possible.
 	 */
@@ -180,7 +180,7 @@ static void ge2d_hw_start(struct meson_ge2d *ge2d)
 
 	usleep_range(100, 200);
 
-	/* Implement CANVAS for non-AXG */
+	/* Implement CANVAS for analn-AXG */
 	regmap_write(ge2d->map, GE2D_SRC1_BADDR_CTRL,
 		     (vb2_dma_contig_plane_dma_addr(&ctx->in.buf->vb2_buf, 0) + 7) >> 3);
 	regmap_write(ge2d->map, GE2D_SRC1_STRIDE_CTRL,
@@ -245,7 +245,7 @@ static void ge2d_hw_start(struct meson_ge2d *ge2d)
 	regmap_write(ge2d->map, GE2D_DST_X_START_END,
 		     FIELD_PREP(GE2D_END, ctx->out.pix_fmt.width - 1));
 
-	/* Color, no blend, use source color */
+	/* Color, anal blend, use source color */
 	reg = GE2D_ALU_DO_COLOR_OPERATION_LOGIC(LOGIC_OPERATION_COPY,
 						COLOR_FACTOR_SRC_COLOR);
 
@@ -342,7 +342,7 @@ static int ge2d_buf_prepare(struct vb2_buffer *vb)
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct ge2d_frame *f = get_frame(ctx, vb->vb2_queue->type);
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 
 	vb2_set_plane_payload(vb, 0, f->pix_fmt.sizeimage);
 
@@ -648,7 +648,7 @@ static int vidioc_try_fmt_out(struct file *file, void *priv, struct v4l2_format 
 {
 	const struct ge2d_fmt *fmt = find_fmt(f);
 
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix.pixelformat = fmt->fourcc;
 
 	if (f->fmt.pix.width > MAX_WIDTH)
@@ -823,7 +823,7 @@ static const struct ge2d_frame def_frame = {
 		.height = DEFAULT_HEIGHT,
 		.bytesperline = DEFAULT_STRIDE,
 		.sizeimage = DEFAULT_STRIDE * DEFAULT_HEIGHT,
-		.field = V4L2_FIELD_NONE,
+		.field = V4L2_FIELD_ANALNE,
 	},
 	.crop.width = DEFAULT_WIDTH,
 	.crop.height = DEFAULT_HEIGHT,
@@ -838,7 +838,7 @@ static int ge2d_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx->ge2d = ge2d;
 
 	/* Set default formats */
@@ -904,7 +904,7 @@ static const struct video_device ge2d_videodev = {
 	.name = "meson-ge2d",
 	.fops = &ge2d_fops,
 	.ioctl_ops = &ge2d_ioctl_ops,
-	.minor = -1,
+	.mianalr = -1,
 	.release = video_device_release,
 	.vfl_dir = VFL_DIR_M2M,
 	.device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
@@ -926,12 +926,12 @@ static int ge2d_probe(struct platform_device *pdev)
 	int ret = 0;
 	int irq;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
 	ge2d = devm_kzalloc(&pdev->dev, sizeof(*ge2d), GFP_KERNEL);
 	if (!ge2d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ge2d->dev = &pdev->dev;
 	mutex_init(&ge2d->mutex);
@@ -971,7 +971,7 @@ static int ge2d_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(ge2d->clk);
 	if (ret) {
-		dev_err(ge2d->dev, "Cannot enable ge2d sclk: %d\n", ret);
+		dev_err(ge2d->dev, "Cananalt enable ge2d sclk: %d\n", ret);
 		return ret;
 	}
 
@@ -982,7 +982,7 @@ static int ge2d_probe(struct platform_device *pdev)
 	vfd = video_device_alloc();
 	if (!vfd) {
 		v4l2_err(&ge2d->v4l2_dev, "Failed to allocate video device\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unreg_v4l2_dev;
 	}
 
@@ -1008,7 +1008,7 @@ static int ge2d_probe(struct platform_device *pdev)
 	}
 
 	v4l2_info(&ge2d->v4l2_dev, "Registered %s as /dev/%s\n",
-		  vfd->name, video_device_node_name(vfd));
+		  vfd->name, video_device_analde_name(vfd));
 
 	return 0;
 

@@ -58,7 +58,7 @@ static int lm36274_init(struct lm36274 *chip)
 		enable_val |= (1 << chip->led_sources[i]);
 
 	if (!enable_val) {
-		dev_err(chip->dev, "No LEDs were enabled\n");
+		dev_err(chip->dev, "Anal LEDs were enabled\n");
 		return -EINVAL;
 	}
 
@@ -71,27 +71,27 @@ static int lm36274_parse_dt(struct lm36274 *chip,
 			    struct led_init_data *init_data)
 {
 	struct device *dev = chip->dev;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	int ret;
 
-	/* There should only be 1 node */
-	if (device_get_child_node_count(dev) != 1)
+	/* There should only be 1 analde */
+	if (device_get_child_analde_count(dev) != 1)
 		return -EINVAL;
 
-	child = device_get_next_child_node(dev, NULL);
+	child = device_get_next_child_analde(dev, NULL);
 
-	init_data->fwnode = child;
+	init_data->fwanalde = child;
 	init_data->devicename = chip->pdev->name;
-	/* for backwards compatibility when `label` property is not present */
+	/* for backwards compatibility when `label` property is analt present */
 	init_data->default_label = ":";
 
-	chip->num_leds = fwnode_property_count_u32(child, "led-sources");
+	chip->num_leds = fwanalde_property_count_u32(child, "led-sources");
 	if (chip->num_leds <= 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
-	ret = fwnode_property_read_u32_array(child, "led-sources",
+	ret = fwanalde_property_read_u32_array(child, "led-sources",
 					     chip->led_sources, chip->num_leds);
 	if (ret) {
 		dev_err(dev, "led-sources property missing\n");
@@ -100,7 +100,7 @@ static int lm36274_parse_dt(struct lm36274 *chip,
 
 	return 0;
 err:
-	fwnode_handle_put(child);
+	fwanalde_handle_put(child);
 	return ret;
 }
 
@@ -113,7 +113,7 @@ static int lm36274_probe(struct platform_device *pdev)
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->pdev = pdev;
 	chip->dev = &pdev->dev;
@@ -122,13 +122,13 @@ static int lm36274_probe(struct platform_device *pdev)
 
 	ret = lm36274_parse_dt(chip, &init_data);
 	if (ret) {
-		dev_err(chip->dev, "Failed to parse DT node\n");
+		dev_err(chip->dev, "Failed to parse DT analde\n");
 		return ret;
 	}
 
 	ret = lm36274_init(chip);
 	if (ret) {
-		fwnode_handle_put(init_data.fwnode);
+		fwanalde_handle_put(init_data.fwanalde);
 		dev_err(chip->dev, "Failed to init the device\n");
 		return ret;
 	}
@@ -144,10 +144,10 @@ static int lm36274_probe(struct platform_device *pdev)
 	ret = devm_led_classdev_register_ext(chip->dev, &chip->led_dev,
 					     &init_data);
 	if (ret)
-		dev_err(chip->dev, "Failed to register LED for node %pfw\n",
-			init_data.fwnode);
+		dev_err(chip->dev, "Failed to register LED for analde %pfw\n",
+			init_data.fwanalde);
 
-	fwnode_handle_put(init_data.fwnode);
+	fwanalde_handle_put(init_data.fwanalde);
 
 	return ret;
 }

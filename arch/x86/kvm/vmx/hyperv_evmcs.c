@@ -13,7 +13,7 @@
 const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 	/* 64 bit rw */
 	EVMCS1_FIELD(GUEST_RIP, guest_rip,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE),
 	EVMCS1_FIELD(GUEST_RSP, guest_rsp,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_BASIC),
 	EVMCS1_FIELD(GUEST_RFLAGS, guest_rflags,
@@ -129,7 +129,7 @@ const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 	EVMCS1_FIELD(TSC_MULTIPLIER, tsc_multiplier,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_CONTROL_GRP2),
 	/*
-	 * Not used by KVM:
+	 * Analt used by KVM:
 	 *
 	 * EVMCS1_FIELD(0x00006828, guest_ia32_s_cet,
 	 *	     HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_GRP1),
@@ -149,26 +149,26 @@ const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 
 	/* 64 bit read only */
 	EVMCS1_FIELD(GUEST_PHYSICAL_ADDRESS, guest_physical_address,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE),
 	EVMCS1_FIELD(EXIT_QUALIFICATION, exit_qualification,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE),
 	/*
-	 * Not defined in KVM:
+	 * Analt defined in KVM:
 	 *
 	 * EVMCS1_FIELD(0x00006402, exit_io_instruction_ecx,
-	 *		HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE);
+	 *		HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE);
 	 * EVMCS1_FIELD(0x00006404, exit_io_instruction_esi,
-	 *		HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE);
+	 *		HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE);
 	 * EVMCS1_FIELD(0x00006406, exit_io_instruction_esi,
-	 *		HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE);
+	 *		HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE);
 	 * EVMCS1_FIELD(0x00006408, exit_io_instruction_eip,
-	 *		HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE);
+	 *		HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE);
 	 */
 	EVMCS1_FIELD(GUEST_LINEAR_ADDRESS, guest_linear_address,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE),
 
 	/*
-	 * No mask defined in the spec as Hyper-V doesn't currently support
+	 * Anal mask defined in the spec as Hyper-V doesn't currently support
 	 * these. Future proof by resetting the whole clean field mask on
 	 * access.
 	 */
@@ -181,7 +181,7 @@ const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 
 	/* 32 bit rw */
 	EVMCS1_FIELD(TPR_THRESHOLD, tpr_threshold,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE),
 	EVMCS1_FIELD(GUEST_INTERRUPTIBILITY_INFO, guest_interruptibility_info,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_BASIC),
 	EVMCS1_FIELD(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control,
@@ -248,23 +248,23 @@ const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 
 	/* 32 bit read only */
 	EVMCS1_FIELD(VM_INSTRUCTION_ERROR, vm_instruction_error,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE),
 	EVMCS1_FIELD(VM_EXIT_REASON, vm_exit_reason,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE),
 	EVMCS1_FIELD(VM_EXIT_INTR_INFO, vm_exit_intr_info,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE),
 	EVMCS1_FIELD(VM_EXIT_INTR_ERROR_CODE, vm_exit_intr_error_code,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE),
 	EVMCS1_FIELD(IDT_VECTORING_INFO_FIELD, idt_vectoring_info_field,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE),
 	EVMCS1_FIELD(IDT_VECTORING_ERROR_CODE, idt_vectoring_error_code,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE),
 	EVMCS1_FIELD(VM_EXIT_INSTRUCTION_LEN, vm_exit_instruction_len,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE),
 	EVMCS1_FIELD(VMX_INSTRUCTION_INFO, vmx_instruction_info,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
+		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE),
 
-	/* No mask defined in the spec (not used) */
+	/* Anal mask defined in the spec (analt used) */
 	EVMCS1_FIELD(PAGE_FAULT_ERROR_CODE_MASK, page_fault_error_code_mask,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL),
 	EVMCS1_FIELD(PAGE_FAULT_ERROR_CODE_MATCH, page_fault_error_code_match,

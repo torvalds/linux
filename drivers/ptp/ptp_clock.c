@@ -103,7 +103,7 @@ static int ptp_clock_adjtime(struct posix_clock *pc, struct __kernel_timex *tx)
 {
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
 	struct ptp_clock_info *ops;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	if (ptp_clock_freerun(ptp)) {
 		pr_err("ptp: physical clock is free running\n");
@@ -120,7 +120,7 @@ static int ptp_clock_adjtime(struct posix_clock *pc, struct __kernel_timex *tx)
 		ts.tv_sec  = tx->time.tv_sec;
 		ts.tv_nsec = tx->time.tv_usec;
 
-		if (!(tx->modes & ADJ_NANO))
+		if (!(tx->modes & ADJ_NAANAL))
 			ts.tv_nsec *= 1000;
 
 		if ((unsigned long) ts.tv_nsec >= NSEC_PER_SEC)
@@ -140,7 +140,7 @@ static int ptp_clock_adjtime(struct posix_clock *pc, struct __kernel_timex *tx)
 			s32 max_phase_adj = ops->getmaxphase(ops);
 			s32 offset = tx->offset;
 
-			if (!(tx->modes & ADJ_NANO))
+			if (!(tx->modes & ADJ_NAANAL))
 				offset *= NSEC_PER_USEC;
 
 			if (offset > max_phase_adj || offset < -max_phase_adj)
@@ -228,15 +228,15 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 		return ERR_PTR(-EINVAL);
 
 	/* Initialize a clock structure. */
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ptp = kzalloc(sizeof(struct ptp_clock), GFP_KERNEL);
 	if (ptp == NULL)
-		goto no_memory;
+		goto anal_memory;
 
-	index = ida_alloc_max(&ptp_clocks_map, MINORMASK, GFP_KERNEL);
+	index = ida_alloc_max(&ptp_clocks_map, MIANALRMASK, GFP_KERNEL);
 	if (index < 0) {
 		err = index;
-		goto no_slot;
+		goto anal_slot;
 	}
 
 	ptp->clock.ops = ptp_clock_ops;
@@ -246,12 +246,12 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	INIT_LIST_HEAD(&ptp->tsevqs);
 	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
 	if (!queue)
-		goto no_memory_queue;
+		goto anal_memory_queue;
 	list_add_tail(&queue->qlist, &ptp->tsevqs);
 	spin_lock_init(&ptp->tsevqs_lock);
 	queue->mask = bitmap_alloc(PTP_MAX_CHANNELS, GFP_KERNEL);
 	if (!queue->mask)
-		goto no_memory_bitmap;
+		goto anal_memory_bitmap;
 	bitmap_set(queue->mask, 0, PTP_MAX_CHANNELS);
 	spin_lock_init(&queue->lock);
 	mutex_init(&ptp->pincfg_mux);
@@ -263,7 +263,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 		if (!ptp->info->getcycles64 && ptp->info->getcyclesx64)
 			ptp->info->getcycles64 = ptp_getcycles64;
 	} else {
-		/* Free running cycle counter not supported, use time. */
+		/* Free running cycle counter analt supported, use time. */
 		ptp->info->getcycles64 = ptp_getcycles64;
 
 		if (ptp->info->gettimex64)
@@ -294,14 +294,14 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 		size = sizeof(int) * ptp->max_vclocks;
 		ptp->vclock_index = kzalloc(size, GFP_KERNEL);
 		if (!ptp->vclock_index) {
-			err = -ENOMEM;
-			goto no_mem_for_vclocks;
+			err = -EANALMEM;
+			goto anal_mem_for_vclocks;
 		}
 	}
 
 	err = ptp_populate_pin_groups(ptp);
 	if (err)
-		goto no_pin_groups;
+		goto anal_pin_groups;
 
 	/* Register a new PPS source. */
 	if (info->pps) {
@@ -314,7 +314,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 		if (IS_ERR(ptp->pps_source)) {
 			err = PTR_ERR(ptp->pps_source);
 			pr_err("failed to register pps source\n");
-			goto no_pps;
+			goto anal_pps;
 		}
 		ptp->pps_source->lookup_cookie = ptp;
 	}
@@ -350,25 +350,25 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 
 	return ptp;
 
-no_pps:
+anal_pps:
 	ptp_cleanup_pin_groups(ptp);
-no_pin_groups:
+anal_pin_groups:
 	kfree(ptp->vclock_index);
-no_mem_for_vclocks:
+anal_mem_for_vclocks:
 	if (ptp->kworker)
 		kthread_destroy_worker(ptp->kworker);
 kworker_err:
 	mutex_destroy(&ptp->pincfg_mux);
 	mutex_destroy(&ptp->n_vclocks_mux);
 	bitmap_free(queue->mask);
-no_memory_bitmap:
+anal_memory_bitmap:
 	list_del(&queue->qlist);
 	kfree(queue);
-no_memory_queue:
+anal_memory_queue:
 	ida_free(&ptp_clocks_map, index);
-no_slot:
+anal_slot:
 	kfree(ptp);
-no_memory:
+anal_memory:
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL(ptp_clock_register);
@@ -496,7 +496,7 @@ EXPORT_SYMBOL(ptp_cancel_worker_sync);
 static void __exit ptp_exit(void)
 {
 	class_destroy(ptp_class);
-	unregister_chrdev_region(ptp_devt, MINORMASK + 1);
+	unregister_chrdev_region(ptp_devt, MIANALRMASK + 1);
 	ida_destroy(&ptp_clocks_map);
 }
 
@@ -510,17 +510,17 @@ static int __init ptp_init(void)
 		return PTR_ERR(ptp_class);
 	}
 
-	err = alloc_chrdev_region(&ptp_devt, 0, MINORMASK + 1, "ptp");
+	err = alloc_chrdev_region(&ptp_devt, 0, MIANALRMASK + 1, "ptp");
 	if (err < 0) {
 		pr_err("ptp: failed to allocate device region\n");
-		goto no_region;
+		goto anal_region;
 	}
 
 	ptp_class->dev_groups = ptp_groups;
 	pr_info("PTP clock support registered\n");
 	return 0;
 
-no_region:
+anal_region:
 	class_destroy(ptp_class);
 	return err;
 }

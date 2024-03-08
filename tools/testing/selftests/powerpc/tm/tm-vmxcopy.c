@@ -10,7 +10,7 @@
  *
  * When the transaction aborts, VSR values should rollback to the values
  * they held before the transaction commenced. Using VSRs while transaction
- * is suspended should not affect the checkpointed values.
+ * is suspended should analt affect the checkpointed values.
  *
  * (1) write A to a VSR
  * (2) start transaction

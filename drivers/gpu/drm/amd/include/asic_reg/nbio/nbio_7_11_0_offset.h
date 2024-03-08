@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -165,8 +165,8 @@
 #define regCAM_TARGET_DATA_BASE_IDX                                                                     5
 #define regCAM_TARGET_DATA_MASK                                                                         0xe8405b
 #define regCAM_TARGET_DATA_MASK_BASE_IDX                                                                5
-#define regPCIE_VDM_NODE0_CTRL4                                                                         0xe84064
-#define regPCIE_VDM_NODE0_CTRL4_BASE_IDX                                                                5
+#define regPCIE_VDM_ANALDE0_CTRL4                                                                         0xe84064
+#define regPCIE_VDM_ANALDE0_CTRL4_BASE_IDX                                                                5
 #define regPCIE_VDM_CNTL2                                                                               0xe8408c
 #define regPCIE_VDM_CNTL2_BASE_IDX                                                                      5
 #define regPCIE_VDM_CNTL3                                                                               0xe8408d

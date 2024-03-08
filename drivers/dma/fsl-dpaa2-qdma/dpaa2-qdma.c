@@ -59,7 +59,7 @@ err_fl:
 err_fd:
 	dma_pool_destroy(dpaa2_chan->fd_pool);
 err:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void dpaa2_qdma_free_chan_resources(struct dma_chan *chan)
@@ -99,23 +99,23 @@ dpaa2_qdma_request_desc(struct dpaa2_qdma_chan *dpaa2_chan)
 	spin_lock_irqsave(&dpaa2_chan->queue_lock, flags);
 	if (list_empty(&dpaa2_chan->comp_free)) {
 		spin_unlock_irqrestore(&dpaa2_chan->queue_lock, flags);
-		comp_temp = kzalloc(sizeof(*comp_temp), GFP_NOWAIT);
+		comp_temp = kzalloc(sizeof(*comp_temp), GFP_ANALWAIT);
 		if (!comp_temp)
 			goto err;
 		comp_temp->fd_virt_addr =
-			dma_pool_alloc(dpaa2_chan->fd_pool, GFP_NOWAIT,
+			dma_pool_alloc(dpaa2_chan->fd_pool, GFP_ANALWAIT,
 				       &comp_temp->fd_bus_addr);
 		if (!comp_temp->fd_virt_addr)
 			goto err_comp;
 
 		comp_temp->fl_virt_addr =
-			dma_pool_alloc(dpaa2_chan->fl_pool, GFP_NOWAIT,
+			dma_pool_alloc(dpaa2_chan->fl_pool, GFP_ANALWAIT,
 				       &comp_temp->fl_bus_addr);
 		if (!comp_temp->fl_virt_addr)
 			goto err_fd_virt;
 
 		comp_temp->desc_virt_addr =
-			dma_pool_alloc(dpaa2_chan->sdd_pool, GFP_NOWAIT,
+			dma_pool_alloc(dpaa2_chan->sdd_pool, GFP_ANALWAIT,
 				       &comp_temp->desc_bus_addr);
 		if (!comp_temp->desc_virt_addr)
 			goto err_fl_virt;
@@ -288,7 +288,7 @@ static void dpaa2_qdma_issue_pending(struct dma_chan *chan)
 
 		fd = dpaa2_comp->fd_virt_addr;
 
-		list_del(&vdesc->node);
+		list_del(&vdesc->analde);
 		list_add_tail(&dpaa2_comp->list, &dpaa2_chan->comp_used);
 
 		err = dpaa2_io_service_enqueue_fq(NULL, dpaa2_chan->fqid, fd);
@@ -337,25 +337,25 @@ static int __cold dpaa2_qdma_setup(struct fsl_mc_device *ls_dev)
 		dev_err(dev, "DPDMAI major version mismatch\n"
 			     "Found %u.%u, supported version is %u.%u\n",
 				priv->dpdmai_attr.version.major,
-				priv->dpdmai_attr.version.minor,
-				DPDMAI_VER_MAJOR, DPDMAI_VER_MINOR);
+				priv->dpdmai_attr.version.mianalr,
+				DPDMAI_VER_MAJOR, DPDMAI_VER_MIANALR);
 		goto exit;
 	}
 
-	if (priv->dpdmai_attr.version.minor > DPDMAI_VER_MINOR) {
+	if (priv->dpdmai_attr.version.mianalr > DPDMAI_VER_MIANALR) {
 		err = -EINVAL;
-		dev_err(dev, "DPDMAI minor version mismatch\n"
+		dev_err(dev, "DPDMAI mianalr version mismatch\n"
 			     "Found %u.%u, supported version is %u.%u\n",
 				priv->dpdmai_attr.version.major,
-				priv->dpdmai_attr.version.minor,
-				DPDMAI_VER_MAJOR, DPDMAI_VER_MINOR);
+				priv->dpdmai_attr.version.mianalr,
+				DPDMAI_VER_MAJOR, DPDMAI_VER_MIANALR);
 		goto exit;
 	}
 
 	priv->num_pairs = min(priv->dpdmai_attr.num_of_priorities, prio_def);
 	ppriv = kcalloc(priv->num_pairs, sizeof(*ppriv), GFP_KERNEL);
 	if (!ppriv) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit;
 	}
 	priv->ppriv = ppriv;
@@ -387,7 +387,7 @@ exit:
 	return err;
 }
 
-static void dpaa2_qdma_fqdan_cb(struct dpaa2_io_notification_ctx *ctx)
+static void dpaa2_qdma_fqdan_cb(struct dpaa2_io_analtification_ctx *ctx)
 {
 	struct dpaa2_qdma_priv_per_prio *ppriv = container_of(ctx,
 			struct dpaa2_qdma_priv_per_prio, nctx);
@@ -414,7 +414,7 @@ static void dpaa2_qdma_fqdan_cb(struct dpaa2_io_notification_ctx *ctx)
 			dq = dpaa2_io_store_next(ppriv->store, &is_last);
 		} while (!is_last && !dq);
 		if (!dq) {
-			dev_err(priv->dev, "FQID returned no valid frames!\n");
+			dev_err(priv->dev, "FQID returned anal valid frames!\n");
 			continue;
 		}
 
@@ -471,14 +471,14 @@ static int __cold dpaa2_qdma_dpio_setup(struct dpaa2_qdma_priv *priv)
 		ppriv->nctx.cb = dpaa2_qdma_fqdan_cb;
 		err = dpaa2_io_service_register(NULL, &ppriv->nctx, dev);
 		if (err) {
-			dev_err(dev, "Notification register failed\n");
+			dev_err(dev, "Analtification register failed\n");
 			goto err_service;
 		}
 
 		ppriv->store =
 			dpaa2_io_store_create(DPAA2_QDMA_STORE_SIZE, dev);
 		if (!ppriv->store) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			dev_err(dev, "dpaa2_io_store_create() failed\n");
 			goto err_store;
 		}
@@ -661,7 +661,7 @@ static int dpaa2_qdma_probe(struct fsl_mc_device *dpdmai_dev)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, priv);
 	priv->dpdmai_dev = dpdmai_dev;
 
@@ -709,7 +709,7 @@ static int dpaa2_qdma_probe(struct fsl_mc_device *dpdmai_dev)
 
 	dpaa2_qdma = kzalloc(sizeof(*dpaa2_qdma), GFP_KERNEL);
 	if (!dpaa2_qdma) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_eng;
 	}
 

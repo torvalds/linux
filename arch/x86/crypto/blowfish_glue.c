@@ -155,7 +155,7 @@ static bool is_blacklisted_cpu(void)
 
 static int force;
 module_param(force, int, 0);
-MODULE_PARM_DESC(force, "Force module load, ignore CPU blacklist");
+MODULE_PARM_DESC(force, "Force module load, iganalre CPU blacklist");
 
 static int __init blowfish_init(void)
 {
@@ -166,7 +166,7 @@ static int __init blowfish_init(void)
 			"blowfish-x86_64: performance on this CPU "
 			"would be suboptimal: disabling "
 			"blowfish-x86_64.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = crypto_register_alg(&bf_cipher_alg);

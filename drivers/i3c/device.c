@@ -24,7 +24,7 @@
  *
  * Initiate one or several private SDR transfers with @dev.
  *
- * This function can sleep and thus cannot be called in atomic context.
+ * This function can sleep and thus cananalt be called in atomic context.
  *
  * Return: 0 in case of success, a negative error core otherwise.
  */
@@ -42,9 +42,9 @@ int i3c_device_do_priv_xfers(struct i3c_device *dev,
 			return -EINVAL;
 	}
 
-	i3c_bus_normaluse_lock(dev->bus);
+	i3c_bus_analrmaluse_lock(dev->bus);
 	ret = i3c_dev_do_priv_xfers_locked(dev->desc, xfers, nxfers);
-	i3c_bus_normaluse_unlock(dev->bus);
+	i3c_bus_analrmaluse_unlock(dev->bus);
 
 	return ret;
 }
@@ -62,9 +62,9 @@ int i3c_device_do_setdasa(struct i3c_device *dev)
 {
 	int ret;
 
-	i3c_bus_normaluse_lock(dev->bus);
+	i3c_bus_analrmaluse_lock(dev->bus);
 	ret = i3c_dev_setdasa_locked(dev->desc);
-	i3c_bus_normaluse_unlock(dev->bus);
+	i3c_bus_analrmaluse_unlock(dev->bus);
 
 	return ret;
 }
@@ -84,10 +84,10 @@ void i3c_device_get_info(const struct i3c_device *dev,
 	if (!info)
 		return;
 
-	i3c_bus_normaluse_lock(dev->bus);
+	i3c_bus_analrmaluse_lock(dev->bus);
 	if (dev->desc)
 		*info = dev->desc->info;
-	i3c_bus_normaluse_unlock(dev->bus);
+	i3c_bus_analrmaluse_unlock(dev->bus);
 }
 EXPORT_SYMBOL_GPL(i3c_device_get_info);
 
@@ -102,15 +102,15 @@ EXPORT_SYMBOL_GPL(i3c_device_get_info);
  */
 int i3c_device_disable_ibi(struct i3c_device *dev)
 {
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
-	i3c_bus_normaluse_lock(dev->bus);
+	i3c_bus_analrmaluse_lock(dev->bus);
 	if (dev->desc) {
 		mutex_lock(&dev->desc->ibi_lock);
 		ret = i3c_dev_disable_ibi_locked(dev->desc);
 		mutex_unlock(&dev->desc->ibi_lock);
 	}
-	i3c_bus_normaluse_unlock(dev->bus);
+	i3c_bus_analrmaluse_unlock(dev->bus);
 
 	return ret;
 }
@@ -124,22 +124,22 @@ EXPORT_SYMBOL_GPL(i3c_device_disable_ibi);
  * all pending IBIs to be processed. This should be called on a device
  * where i3c_device_request_ibi() has succeeded.
  *
- * Note that IBIs from this device might be received before this function
+ * Analte that IBIs from this device might be received before this function
  * returns to its caller.
  *
  * Return: 0 in case of success, a negative error core otherwise.
  */
 int i3c_device_enable_ibi(struct i3c_device *dev)
 {
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
-	i3c_bus_normaluse_lock(dev->bus);
+	i3c_bus_analrmaluse_lock(dev->bus);
 	if (dev->desc) {
 		mutex_lock(&dev->desc->ibi_lock);
 		ret = i3c_dev_enable_ibi_locked(dev->desc);
 		mutex_unlock(&dev->desc->ibi_lock);
 	}
-	i3c_bus_normaluse_unlock(dev->bus);
+	i3c_bus_analrmaluse_unlock(dev->bus);
 
 	return ret;
 }
@@ -151,7 +151,7 @@ EXPORT_SYMBOL_GPL(i3c_device_enable_ibi);
  * @req: setup requested for this IBI
  *
  * This function is responsible for pre-allocating all resources needed to
- * process IBIs coming from @dev. When this function returns, the IBI is not
+ * process IBIs coming from @dev. When this function returns, the IBI is analt
  * enabled until i3c_device_enable_ibi() is called.
  *
  * Return: 0 in case of success, a negative error core otherwise.
@@ -159,18 +159,18 @@ EXPORT_SYMBOL_GPL(i3c_device_enable_ibi);
 int i3c_device_request_ibi(struct i3c_device *dev,
 			   const struct i3c_ibi_setup *req)
 {
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	if (!req->handler || !req->num_slots)
 		return -EINVAL;
 
-	i3c_bus_normaluse_lock(dev->bus);
+	i3c_bus_analrmaluse_lock(dev->bus);
 	if (dev->desc) {
 		mutex_lock(&dev->desc->ibi_lock);
 		ret = i3c_dev_request_ibi_locked(dev->desc, req);
 		mutex_unlock(&dev->desc->ibi_lock);
 	}
-	i3c_bus_normaluse_unlock(dev->bus);
+	i3c_bus_analrmaluse_unlock(dev->bus);
 
 	return ret;
 }
@@ -186,13 +186,13 @@ EXPORT_SYMBOL_GPL(i3c_device_request_ibi);
  */
 void i3c_device_free_ibi(struct i3c_device *dev)
 {
-	i3c_bus_normaluse_lock(dev->bus);
+	i3c_bus_analrmaluse_lock(dev->bus);
 	if (dev->desc) {
 		mutex_lock(&dev->desc->ibi_lock);
 		i3c_dev_free_ibi_locked(dev->desc);
 		mutex_unlock(&dev->desc->ibi_lock);
 	}
-	i3c_bus_normaluse_unlock(dev->bus);
+	i3c_bus_analrmaluse_unlock(dev->bus);
 }
 EXPORT_SYMBOL_GPL(i3c_device_free_ibi);
 
@@ -213,7 +213,7 @@ EXPORT_SYMBOL_GPL(i3cdev_to_dev);
  * @i3cdev: I3C device
  * @id_table: I3C device match table
  *
- * Return: a pointer to an i3c_device_id object or NULL if there's no match.
+ * Return: a pointer to an i3c_device_id object or NULL if there's anal match.
  */
 const struct i3c_device_id *
 i3c_device_match_id(struct i3c_device *i3cdev,

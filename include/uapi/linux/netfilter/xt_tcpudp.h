@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _XT_TCPUDP_H
 #define _XT_TCPUDP_H
 
@@ -8,7 +8,7 @@
 struct xt_tcp {
 	__u16 spts[2];			/* Source port range. */
 	__u16 dpts[2];			/* Destination port range. */
-	__u8 option;			/* TCP Option iff non-zero*/
+	__u8 option;			/* TCP Option iff analn-zero*/
 	__u8 flg_mask;			/* TCP flags mask byte */
 	__u8 flg_cmp;			/* TCP flags compare byte */
 	__u8 invflags;			/* Inverse flags */

@@ -20,7 +20,7 @@ SYM_FUNC_START(__efi_rt_asm_wrapper)
 	/*
 	 * Preserve all callee saved registers and preserve the stack pointer
 	 * value at the base of the EFI runtime stack so we can recover from
-	 * synchronous exceptions occurring while executing the firmware
+	 * synchroanalus exceptions occurring while executing the firmware
 	 * routines.
 	 */
 	stp	x19, x20, [sp, #32]
@@ -34,7 +34,7 @@ SYM_FUNC_START(__efi_rt_asm_wrapper)
 	stp	x18, x29, [sp, #-16]!
 
 	/*
-	 * We are lucky enough that no EFI runtime services take more than
+	 * We are lucky eanalugh that anal EFI runtime services take more than
 	 * 5 arguments, so all are passed in registers rather than via the
 	 * stack.
 	 */

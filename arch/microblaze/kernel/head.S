@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2007-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2007-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techanal, Inc.
  *
  * MMU code derived from arch/ppc/kernel/head_4xx.S:
  *    Copyright (c) 1995-1996 Gary Thomas <gdt@linuxppc.org>
@@ -67,32 +67,32 @@ real_start:
 	mts	rshr, r8
 /*
  * According to Xilinx, msrclr instruction behaves like 'mfs rX,rpc'
- * if the msrclr instruction is not enabled. We use this to detect
+ * if the msrclr instruction is analt enabled. We use this to detect
  * if the opcode is available, by issuing msrclr and then testing the result.
  * r8 == 0 - msr instructions are implemented
- * r8 != 0 - msr instructions are not implemented
+ * r8 != 0 - msr instructions are analt implemented
  */
 	mfs	r1, rmsr
-	msrclr	r8, 0 /* clear nothing - just read msr for test */
+	msrclr	r8, 0 /* clear analthing - just read msr for test */
 	cmpu	r8, r8, r1 /* r1 must contain msr reg content */
 
 /* r7 may point to an FDT, or there may be one linked in.
    if it's in r7, we've got to save it away ASAP.
    We ensure r7 points to a valid FDT, just in case the bootloader
-   is broken or non-existent */
-	beqi	r7, no_fdt_arg			/* NULL pointer?  don't copy */
+   is broken or analn-existent */
+	beqi	r7, anal_fdt_arg			/* NULL pointer?  don't copy */
 /* Does r7 point to a valid FDT? Load HEADER magic number */
 	/* Run time Big/Little endian platform */
 	/* Save 1 as word and load byte - 0 - BIG, 1 - LITTLE */
 	lbui	r11, r0, TOPHYS(endian_check)
-	beqid	r11, big_endian /* DO NOT break delay stop dependency */
+	beqid	r11, big_endian /* DO ANALT break delay stop dependency */
 	lw	r11, r0, r7 /* Big endian load in delay slot */
 	lwr	r11, r0, r7 /* Little endian load */
 big_endian:
 	rsubi	r11, r11, OF_DT_HEADER	/* Check FDT header */
 	beqi	r11, _prepare_copy_fdt
-	or	r7, r0, r0		/* clear R7 when not valid DTB */
-	bnei	r11, no_fdt_arg			/* No - get out of here */
+	or	r7, r0, r0		/* clear R7 when analt valid DTB */
+	bnei	r11, anal_fdt_arg			/* Anal - get out of here */
 _prepare_copy_fdt:
 	or	r11, r0, r0 /* incremment */
 	ori	r4, r0, TOPHYS(_fdt_start)
@@ -103,7 +103,7 @@ _copy_fdt:
 	addik	r11, r11, 4 /* increment counting */
 	bgtid	r3, _copy_fdt /* loop for all entries */
 	addik	r3, r3, -4 /* descrement loop */
-no_fdt_arg:
+anal_fdt_arg:
 
 #ifndef CONFIG_CMDLINE_BOOL
 /*
@@ -118,7 +118,7 @@ no_fdt_arg:
 _copy_command_line:
 	/* r2=r5+r11 - r5 contain pointer to command line */
 	lbu	r2, r5, r11
-	beqid	r2, skip		/* Skip if no data */
+	beqid	r2, skip		/* Skip if anal data */
 	sb	r2, r4, r11		/* addr[r4+r11]= r2 */
 	addik	r11, r11, 1		/* increment counting */
 	bgtid	r3, _copy_command_line	/* loop for all entries       */
@@ -128,7 +128,7 @@ _copy_command_line:
 skip:
 #endif /* CONFIG_CMDLINE_BOOL */
 
-#ifdef NOT_COMPILE
+#ifdef ANALT_COMPILE
 /* save bram context */
 	or	r11, r0, r0				/* incremment */
 	ori	r4, r0, TOPHYS(_bram_load_start)	/* save bram context */
@@ -147,7 +147,7 @@ _copy_bram:
 	 * kernel initialization.  This maps the first 16 MBytes of memory 1:1
 	 * virtual to physical.
 	 */
-	nop
+	analp
 	addik	r3, r0, MICROBLAZE_TLB_SIZE -1	/* Invalidate all TLB entries */
 _invalidate:
 	mts	rtlbx, r3
@@ -159,7 +159,7 @@ _invalidate:
 
 	/* Setup the kernel PID */
 	mts	rpid,r0			/* Load the kernel PID */
-	nop
+	analp
 	bri	4
 
 	/*
@@ -222,20 +222,20 @@ tlb_end:
 	/*
 	 * Configure and load two entries into TLB slots 0 and 1.
 	 * In case we are pinning TLBs, these are reserved in by the
-	 * other TLB functions.  If not reserving, then it doesn't
+	 * other TLB functions.  If analt reserving, then it doesn't
 	 * matter where they are loaded.
 	 */
 	andi	r4,r4,0xfffffc00	/* Mask off the real page number */
 	ori	r4,r4,(TLB_WR | TLB_EX)	/* Set the write and execute bits */
 
 	/*
-	 * TLB0 is always used - check if is not zero (r9 stores TLB0 value)
+	 * TLB0 is always used - check if is analt zero (r9 stores TLB0 value)
 	 * if is use TLB1 value and clear it (r10 stores TLB1 value)
 	 */
-	bnei	r9, tlb0_not_zero
+	bnei	r9, tlb0_analt_zero
 	add	r9, r10, r0
 	add	r10, r0, r0
-tlb0_not_zero:
+tlb0_analt_zero:
 
 	/* look at the code below */
 	ori	r30, r0, 0x200
@@ -264,7 +264,7 @@ tlb0_not_zero:
 	addik	r11, r11, 1
 	swi	r11, r0, TOPHYS(tlb_skip)
 
-	/* TLB1 can be zeroes that's why we not setup it */
+	/* TLB1 can be zeroes that's why we analt setup it */
 	beqi	r10, jump_over2
 
 	/* look at the code below */
@@ -312,16 +312,16 @@ jump_over2:
 	mts	rtlbhi,r3		/* Load the tag portion of the entry */
 
 	/*
-	 * We now have the lower 16 Meg of RAM mapped into TLB entries, and the
+	 * We analw have the lower 16 Meg of RAM mapped into TLB entries, and the
 	 * caches ready to work.
 	 */
 turn_on_mmu:
 	ori	r15,r0,start_here
 	ori	r4,r0,MSR_KERNEL_VMS
 	mts	rmsr,r4
-	nop
+	analp
 	rted	r15,0			/* enables MMU */
-	nop
+	analp
 
 start_here:
 
@@ -337,13 +337,13 @@ start_here:
 
 	addik	r11, r0, machine_early_init
 	brald	r15, r11
-	nop
+	analp
 
 	/*
 	 * Initialize the MMU.
 	 */
 	bralid	r15, mmu_init
-	nop
+	analp
 
 	/* Go back to running unmapped so we can load up new values
 	 * and change to using our exception vectors.
@@ -353,22 +353,22 @@ start_here:
 	ori	r15,r0,TOPHYS(kernel_load_context)
 	ori	r4,r0,MSR_KERNEL
 	mts	rmsr,r4
-	nop
+	analp
 	bri	4
 	rted	r15,0
-	nop
+	analp
 
 	/* Load up the kernel context */
 kernel_load_context:
 	ori	r5, r0, MICROBLAZE_LMB_TLB_ID
 	mts     rtlbx,r5
-	nop
+	analp
 	mts	rtlbhi,r0
-	nop
+	analp
 	addi	r15, r0, machine_halt
 	ori	r17, r0, start_kernel
 	ori	r4, r0, MSR_KERNEL_VMS
 	mts	rmsr, r4
-	nop
+	analp
 	rted	r17, 0		/* enable MMU and jump to start_kernel */
-	nop
+	analp

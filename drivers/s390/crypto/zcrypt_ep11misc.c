@@ -46,7 +46,7 @@ static DEFINE_SPINLOCK(card_list_lock);
 
 static int card_cache_fetch(u16 cardnr, struct ep11_card_info *ci)
 {
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 	struct card_list_entry *ptr;
 
 	spin_lock_bh(&card_list_lock);
@@ -173,7 +173,7 @@ static int ep11_kb_decode(const u8 *kb, size_t kblen,
 		goto out;
 	tmph = (struct ep11kblob_header *)kb;
 
-	if (tmph->type != TOKTYPE_NON_CCA &&
+	if (tmph->type != TOKTYPE_ANALN_CCA &&
 	    tmph->len > kblen)
 		goto out;
 
@@ -235,10 +235,10 @@ int ep11_check_aes_key_with_hdr(debug_info_t *dbg, int dbflvl,
 		return -EINVAL;
 	}
 
-	if (hdr->type != TOKTYPE_NON_CCA) {
+	if (hdr->type != TOKTYPE_ANALN_CCA) {
 		if (dbg)
 			DBF("%s key check failed, type 0x%02x != 0x%02x\n",
-			    __func__, (int)hdr->type, TOKTYPE_NON_CCA);
+			    __func__, (int)hdr->type, TOKTYPE_ANALN_CCA);
 		return -EINVAL;
 	}
 	if (hdr->hver != 0x00) {
@@ -302,10 +302,10 @@ int ep11_check_ecc_key_with_hdr(debug_info_t *dbg, int dbflvl,
 		return -EINVAL;
 	}
 
-	if (hdr->type != TOKTYPE_NON_CCA) {
+	if (hdr->type != TOKTYPE_ANALN_CCA) {
 		if (dbg)
 			DBF("%s key check failed, type 0x%02x != 0x%02x\n",
-			    __func__, (int)hdr->type, TOKTYPE_NON_CCA);
+			    __func__, (int)hdr->type, TOKTYPE_ANALN_CCA);
 		return -EINVAL;
 	}
 	if (hdr->hver != 0x00) {
@@ -369,10 +369,10 @@ int ep11_check_aes_key(debug_info_t *dbg, int dbflvl,
 		return -EINVAL;
 	}
 
-	if (kb->head.type != TOKTYPE_NON_CCA) {
+	if (kb->head.type != TOKTYPE_ANALN_CCA) {
 		if (dbg)
 			DBF("%s key check failed, type 0x%02x != 0x%02x\n",
-			    __func__, (int)kb->head.type, TOKTYPE_NON_CCA);
+			    __func__, (int)kb->head.type, TOKTYPE_ANALN_CCA);
 		return -EINVAL;
 	}
 	if (kb->head.version != TOKVER_EP11_AES) {
@@ -502,7 +502,7 @@ static inline void prep_urb(struct ep11_urb *u,
 	u->resp_len = rep_len;
 }
 
-/* Check ep11 reply payload, return 0 or suggested errno value. */
+/* Check ep11 reply payload, return 0 or suggested erranal value. */
 static int check_reply_pl(const u8 *pl, const char *func)
 {
 	int len;
@@ -594,7 +594,7 @@ static int ep11_query_info(u16 cardnr, u16 domain, u32 query_type,
 	struct ep11_cprb *req = NULL, *rep = NULL;
 	struct ep11_target_dev target;
 	struct ep11_urb *urb = NULL;
-	int api = EP11_API_V1, rc = -ENOMEM;
+	int api = EP11_API_V1, rc = -EANALMEM;
 
 	/* request cprb and payload */
 	req = alloc_cprb(sizeof(struct ep11_info_req_pl));
@@ -636,14 +636,14 @@ static int ep11_query_info(u16 cardnr, u16 domain, u32 query_type,
 	if (rc)
 		goto out;
 	if (rep_pl->data_tag != 0x04 || rep_pl->data_lenfmt != 0x82) {
-		DEBUG_ERR("%s unknown reply data format\n", __func__);
+		DEBUG_ERR("%s unkanalwn reply data format\n", __func__);
 		rc = -EIO;
 		goto out;
 	}
 	if (rep_pl->data_len > buflen) {
 		DEBUG_ERR("%s mismatch between reply data len and buffer len\n",
 			  __func__);
-		rc = -ENOSPC;
+		rc = -EANALSPC;
 		goto out;
 	}
 
@@ -666,9 +666,9 @@ int ep11_get_card_info(u16 card, struct ep11_card_info *info, int verify)
 		u32 API_ord_nr;
 		u32 firmware_id;
 		u8  FW_major_vers;
-		u8  FW_minor_vers;
+		u8  FW_mianalr_vers;
 		u8  CSP_major_vers;
-		u8  CSP_minor_vers;
+		u8  CSP_mianalr_vers;
 		u8  fwid[32];
 		u8  xcp_config_hash[32];
 		u8  CSP_config_hash[32];
@@ -693,19 +693,19 @@ int ep11_get_card_info(u16 card, struct ep11_card_info *info, int verify)
 	if (rc || verify) {
 		pmqi = kmalloc(sizeof(*pmqi), GFP_KERNEL);
 		if (!pmqi)
-			return -ENOMEM;
+			return -EANALMEM;
 		rc = ep11_query_info(card, AUTOSEL_DOM,
 				     0x01 /* module info query */,
 				     sizeof(*pmqi), (u8 *)pmqi);
 		if (rc) {
-			if (rc == -ENODEV)
+			if (rc == -EANALDEV)
 				card_cache_scrub(card);
 			goto out;
 		}
 		memset(info, 0, sizeof(*info));
 		info->API_ord_nr = pmqi->API_ord_nr;
 		info->FW_version =
-			(pmqi->FW_major_vers << 8) + pmqi->FW_minor_vers;
+			(pmqi->FW_major_vers << 8) + pmqi->FW_mianalr_vers;
 		memcpy(info->serial, pmqi->serial, sizeof(info->serial));
 		info->op_mode = pmqi->op_mode;
 		card_cache_update(card, info);
@@ -733,7 +733,7 @@ int ep11_get_domain_info(u16 card, u16 domain, struct ep11_domain_info *info)
 
 	p_dom_info = kmalloc(sizeof(*p_dom_info), GFP_KERNEL);
 	if (!p_dom_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = ep11_query_info(card, domain, 0x03 /* domain info query */,
 			     sizeof(*p_dom_info), (u8 *)p_dom_info);
@@ -764,7 +764,7 @@ out:
 EXPORT_SYMBOL(ep11_get_domain_info);
 
 /*
- * Default EP11 AES key generate attributes, used when no keygenflags given:
+ * Default EP11 AES key generate attributes, used when anal keygenflags given:
  * XCP_BLOB_ENCRYPT | XCP_BLOB_DECRYPT | XCP_BLOB_PROTKEY_EXTRACTABLE
  */
 #define KEY_ATTR_DEFAULTS 0x00200c00
@@ -807,7 +807,7 @@ static int _ep11_genaeskey(u16 card, u16 domain,
 	size_t req_pl_size, pinblob_size = 0;
 	struct ep11_target_dev target;
 	struct ep11_urb *urb = NULL;
-	int api, rc = -ENOMEM;
+	int api, rc = -EANALMEM;
 	u8 *p;
 
 	switch (keybitsize) {
@@ -817,7 +817,7 @@ static int _ep11_genaeskey(u16 card, u16 domain,
 		break;
 	default:
 		DEBUG_ERR(
-			"%s unknown/unsupported keybitsize %d\n",
+			"%s unkanalwn/unsupported keybitsize %d\n",
 			__func__, keybitsize);
 		rc = -EINVAL;
 		goto out;
@@ -888,14 +888,14 @@ static int _ep11_genaeskey(u16 card, u16 domain,
 	if (rc)
 		goto out;
 	if (rep_pl->data_tag != 0x04 || rep_pl->data_lenfmt != 0x82) {
-		DEBUG_ERR("%s unknown reply data format\n", __func__);
+		DEBUG_ERR("%s unkanalwn reply data format\n", __func__);
 		rc = -EIO;
 		goto out;
 	}
 	if (rep_pl->data_len > *keybufsize) {
 		DEBUG_ERR("%s mismatch reply data len / key buffer len\n",
 			  __func__);
-		rc = -ENOSPC;
+		rc = -EANALSPC;
 		goto out;
 	}
 
@@ -939,7 +939,7 @@ int ep11_genaeskey(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
 	*keybufsize = hdr_size + pl_size;
 
 	/* update header information */
-	hdr->type = TOKTYPE_NON_CCA;
+	hdr->type = TOKTYPE_ANALN_CCA;
 	hdr->len = *keybufsize;
 	hdr->version = keybufver;
 	hdr->bitlen = keybitsize;
@@ -981,7 +981,7 @@ static int ep11_cryptsingle(u16 card, u16 domain,
 	struct ep11_target_dev target;
 	struct ep11_urb *urb = NULL;
 	size_t req_pl_size, rep_pl_size;
-	int n, api = EP11_API_V1, rc = -ENOMEM;
+	int n, api = EP11_API_V1, rc = -EANALMEM;
 	u8 *p;
 
 	/* the simple asn1 coding used has length limits */
@@ -1040,7 +1040,7 @@ static int ep11_cryptsingle(u16 card, u16 domain,
 	if (rc)
 		goto out;
 	if (rep_pl->data_tag != 0x04) {
-		DEBUG_ERR("%s unknown reply data format\n", __func__);
+		DEBUG_ERR("%s unkanalwn reply data format\n", __func__);
 		rc = -EIO;
 		goto out;
 	}
@@ -1053,7 +1053,7 @@ static int ep11_cryptsingle(u16 card, u16 domain,
 		n = *((u16 *)p);
 		p += 2;
 	} else {
-		DEBUG_ERR("%s unknown reply data length format 0x%02hhx\n",
+		DEBUG_ERR("%s unkanalwn reply data length format 0x%02hhx\n",
 			  __func__, rep_pl->data_lenfmt);
 		rc = -EIO;
 		goto out;
@@ -1061,7 +1061,7 @@ static int ep11_cryptsingle(u16 card, u16 domain,
 	if (n > *outbufsize) {
 		DEBUG_ERR("%s mismatch reply data len %d / output buffer %zu\n",
 			  __func__, n, *outbufsize);
-		rc = -ENOSPC;
+		rc = -EANALSPC;
 		goto out;
 	}
 
@@ -1118,7 +1118,7 @@ static int _ep11_unwrapkey(u16 card, u16 domain,
 	size_t req_pl_size, pinblob_size = 0;
 	struct ep11_target_dev target;
 	struct ep11_urb *urb = NULL;
-	int api, rc = -ENOMEM;
+	int api, rc = -EANALMEM;
 	u8 *p;
 
 	/* request cprb and payload */
@@ -1198,14 +1198,14 @@ static int _ep11_unwrapkey(u16 card, u16 domain,
 	if (rc)
 		goto out;
 	if (rep_pl->data_tag != 0x04 || rep_pl->data_lenfmt != 0x82) {
-		DEBUG_ERR("%s unknown reply data format\n", __func__);
+		DEBUG_ERR("%s unkanalwn reply data format\n", __func__);
 		rc = -EIO;
 		goto out;
 	}
 	if (rep_pl->data_len > *keybufsize) {
 		DEBUG_ERR("%s mismatch reply data len / key buffer len\n",
 			  __func__);
-		rc = -ENOSPC;
+		rc = -EANALSPC;
 		goto out;
 	}
 
@@ -1248,7 +1248,7 @@ static int ep11_unwrapkey(u16 card, u16 domain,
 
 	/* update header information */
 	hdr = (struct ep11kblob_header *)keybuf;
-	hdr->type = TOKTYPE_NON_CCA;
+	hdr->type = TOKTYPE_ANALN_CCA;
 	hdr->len = *keybufsize;
 	hdr->version = keybufver;
 	hdr->bitlen = keybitsize;
@@ -1290,7 +1290,7 @@ static int _ep11_wrapkey(u16 card, u16 domain,
 	struct ep11_target_dev target;
 	struct ep11_urb *urb = NULL;
 	size_t req_pl_size;
-	int api, rc = -ENOMEM;
+	int api, rc = -EANALMEM;
 	u8 *p;
 
 	/* request cprb and payload */
@@ -1353,14 +1353,14 @@ static int _ep11_wrapkey(u16 card, u16 domain,
 	if (rc)
 		goto out;
 	if (rep_pl->data_tag != 0x04 || rep_pl->data_lenfmt != 0x82) {
-		DEBUG_ERR("%s unknown reply data format\n", __func__);
+		DEBUG_ERR("%s unkanalwn reply data format\n", __func__);
 		rc = -EIO;
 		goto out;
 	}
 	if (rep_pl->data_len > *datasize) {
 		DEBUG_ERR("%s mismatch reply data len / data buffer len\n",
 			  __func__);
-		rc = -ENOSPC;
+		rc = -EANALSPC;
 		goto out;
 	}
 
@@ -1387,7 +1387,7 @@ int ep11_clr2keyblob(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
 		clrkeylen = keybitsize / 8;
 	} else {
 		DEBUG_ERR(
-			"%s unknown/unsupported keybitsize %d\n",
+			"%s unkanalwn/unsupported keybitsize %d\n",
 			__func__, keybitsize);
 		return -EINVAL;
 	}
@@ -1396,7 +1396,7 @@ int ep11_clr2keyblob(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
 	keklen = MAXEP11AESKEYBLOBSIZE;
 	kek = kmalloc(keklen, GFP_ATOMIC);
 	if (!kek) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -1464,13 +1464,13 @@ int ep11_kblob2protkey(u16 card, u16 dom,
 		/* wipe overlayed header */
 		memset(hdr, 0, sizeof(*hdr));
 	}
-	/* !!! hdr is no longer a valid header !!! */
+	/* !!! hdr is anal longer a valid header !!! */
 
 	/* alloc temp working buffer */
 	wkbuflen = (keylen + AES_BLOCK_SIZE) & (~(AES_BLOCK_SIZE - 1));
 	wkbuf = kmalloc(wkbuflen, GFP_ATOMIC);
 	if (!wkbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* ep11 secure key -> protected key + info */
 	rc = _ep11_wrapkey(card, dom, (u8 *)key, keylen,
@@ -1511,7 +1511,7 @@ int ep11_kblob2protkey(u16 card, u16 dom,
 				*protkeytype = PKEY_KEYTYPE_AES_256;
 			break;
 		default:
-			DEBUG_ERR("%s unknown/unsupported AES pkeysize %d\n",
+			DEBUG_ERR("%s unkanalwn/unsupported AES pkeysize %d\n",
 				  __func__, (int)wki->pkeysize);
 			rc = -EIO;
 			goto out;
@@ -1525,7 +1525,7 @@ int ep11_kblob2protkey(u16 card, u16 dom,
 		break;
 	case 2: /* TDES */
 	default:
-		DEBUG_ERR("%s unknown/unsupported key type %d\n",
+		DEBUG_ERR("%s unkanalwn/unsupported key type %d\n",
 			  __func__, (int)wki->pkeytype);
 		rc = -EIO;
 		goto out;
@@ -1552,7 +1552,7 @@ int ep11_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
 {
 	struct zcrypt_device_status_ext *device_status;
 	u32 *_apqns = NULL, _nr_apqns = 0;
-	int i, card, dom, rc = -ENOMEM;
+	int i, card, dom, rc = -EANALMEM;
 	struct ep11_domain_info edi;
 	struct ep11_card_info eci;
 
@@ -1561,14 +1561,14 @@ int ep11_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
 				       sizeof(struct zcrypt_device_status_ext),
 				       GFP_KERNEL);
 	if (!device_status)
-		return -ENOMEM;
+		return -EANALMEM;
 	zcrypt_device_status_mask_ext(device_status);
 
 	/* allocate 1k space for up to 256 apqns */
 	_apqns = kmalloc_array(256, sizeof(u32), GFP_KERNEL);
 	if (!_apqns) {
 		kvfree(device_status);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* walk through all the crypto apqnss */
@@ -1611,12 +1611,12 @@ int ep11_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
 			_apqns[_nr_apqns++] = (((u16)card) << 16) | ((u16)dom);
 	}
 
-	/* nothing found ? */
+	/* analthing found ? */
 	if (!_nr_apqns) {
 		kfree(_apqns);
-		rc = -ENODEV;
+		rc = -EANALDEV;
 	} else {
-		/* no re-allocation, simple return the _apqns array */
+		/* anal re-allocation, simple return the _apqns array */
 		*apqns = _apqns;
 		*nr_apqns = _nr_apqns;
 		rc = 0;

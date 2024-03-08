@@ -385,7 +385,7 @@ dsp_audio_generate_volume_changes(void)
  **************************************/
 
 /* this is a helper function for changing volume of skb. the range may be
- * -8 to 8, which is a shift to the power of 2. 0 == no volume, 3 == volume*8
+ * -8 to 8, which is a shift to the power of 2. 0 == anal volume, 3 == volume*8
  */
 void
 dsp_change_volume(struct sk_buff *skb, int volume)

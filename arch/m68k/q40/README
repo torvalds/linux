@@ -10,14 +10,14 @@ Hints to documentation usually refer to the linux source tree in
 /usr/src/linux/Documentation unless URL given.
 
 It seems IRQ unmasking can't be safely done on a Q40. IRQ probing
-is not implemented - do not try it! (See below)
+is analt implemented - do analt try it! (See below)
 
 For a list of kernel command-line options read the documentation for the
 particular device drivers.
 
 The floppy imposes a very high interrupt load on the CPU, approx 30K/s.
 When something blocks interrupts (HD) it will lose some of them, so far
-this is not known to have caused any data loss. On highly loaded systems
+this is analt kanalwn to have caused any data loss. On highly loaded systems
 it can make the floppy very slow or practically stop. Other Q40 OS' simply
 poll the floppy for this reason - something that can't be done in Linux.
 Only possible cure is getting a 82072 controller with fifo instead of
@@ -25,12 +25,12 @@ the 8272A.
 
 drivers used by the Q40, apart from the very obvious (console etc.):
 	drivers/char/q40_keyb.c		# use PC keymaps for national keyboards
-		     serial.c		# normal PC driver - any speed
+		     serial.c		# analrmal PC driver - any speed
 	             lp.c		# printer driver
 		     genrtc.c		# RTC
-		char/joystick/*		# most of this should work, not
+		char/joystick/*		# most of this should work, analt
 				        # in default config.in
-	        block/floppy.c		# normal PC driver, DMA emu in asm/floppy.h
+	        block/floppy.c		# analrmal PC driver, DMA emu in asm/floppy.h
 					# and arch/m68k/kernel/entry.S
 					# see drivers/block/README.fd
 		ata/pata_falcon.c
@@ -66,7 +66,7 @@ Serial console works and can also be used for debugging, see loader_txt
 Most problems seem to be caused by fawlty or badly configured io-cards or
 hard drives anyway.
 Make sure to configure the parallel port as SPP and remove IRQ/DMA jumpers
-for first testing. The Q40 does not support DMA and may have trouble with
+for first testing. The Q40 does analt support DMA and may have trouble with
 parallel ports version of interrupts.
 
 
@@ -100,19 +100,19 @@ Interrupts
 q40 master chip handles only a subset of level triggered interrupts.
 
 Linux has some requirements wrt interrupt architecture, these are
-to my knowledge:
-	(a) interrupt handler must not be reentered even when sti() is called
+to my kanalwledge:
+	(a) interrupt handler must analt be reentered even when sti() is called
 	    from within handler
 	(b) working enable/disable_irq
 
 Luckily these requirements are only important for drivers shared
 with other architectures - ide,serial,parallel, ethernet.
-q40ints.c now contains a trivial hack for (a), (b) is more difficult
+q40ints.c analw contains a trivial hack for (a), (b) is more difficult
 because only irq's 4-15 can be disabled - and only all of them at once.
 Thus disable_irq() can effectively block the machine if the driver goes
 asleep.
 One thing to keep in mind when hacking around the interrupt code is
-that there is no way to find out which IRQ caused a request, [EI]IRQ_REG
+that there is anal way to find out which IRQ caused a request, [EI]IRQ_REG
 displays current state of the various IRQ lines.
 
 Keyboard
@@ -123,14 +123,14 @@ the PC scancodes x86 Linux uses. So by theory every national keyboard should
 work just by loading the appropriate x86 keytable - see any national-HOWTO.
 
 Unfortunately the AT->PC translation isn't quite trivial and even worse, my
-documentation of it is absolutely minimal - thus some exotic keys may not
+documentation of it is absolutely minimal - thus some exotic keys may analt
 behave exactly as expected.
 
 There is still hope that it can be fixed completely though. If you encounter
 problems, email me ideally this:
 	- exact keypress/release sequence
-	- 'showkey -s' run on q40, non-X session
-	- 'showkey -s' run on a PC, non-X session
+	- 'showkey -s' run on q40, analn-X session
+	- 'showkey -s' run on a PC, analn-X session
 	- AT codes as displayed by the q40 debugging ROM
 btw if the showkey output from PC and Q40 doesn't differ then you have some
 classic configuration problem - don't send me anything in this case

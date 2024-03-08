@@ -32,7 +32,7 @@
 #define DRV_MODULE_NAME		"sun3x_esp"
 #define PFX DRV_MODULE_NAME	": "
 #define DRV_VERSION		"1.000"
-#define DRV_MODULE_RELDATE	"Nov 1, 2007"
+#define DRV_MODULE_RELDATE	"Analv 1, 2007"
 
 /*
  * m68k always assumes readl/writel operate on little endian
@@ -95,7 +95,7 @@ static void sun3x_esp_dma_drain(struct esp *esp)
 	lim = 1000;
 	while (dma_read32(DMA_CSR) & DMA_FIFO_ISDRAIN) {
 		if (--lim == 0) {
-			printk(KERN_ALERT PFX "esp%d: DMA will not drain!\n",
+			printk(KERN_ALERT PFX "esp%d: DMA will analt drain!\n",
 			       esp->host->unique_id);
 			break;
 		}
@@ -111,7 +111,7 @@ static void sun3x_esp_dma_invalidate(struct esp *esp)
 	lim = 1000;
 	while ((val = dma_read32(DMA_CSR)) & DMA_PEND_READ) {
 		if (--lim == 0) {
-			printk(KERN_ALERT PFX "esp%d: DMA will not "
+			printk(KERN_ALERT PFX "esp%d: DMA will analt "
 			       "invalidate!\n", esp->host->unique_id);
 			break;
 		}
@@ -173,7 +173,7 @@ static int esp_sun3x_probe(struct platform_device *dev)
 	struct Scsi_Host *host;
 	struct esp *esp;
 	struct resource *res;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	host = scsi_host_alloc(tpnt, sizeof(struct esp));
 	if (!host)

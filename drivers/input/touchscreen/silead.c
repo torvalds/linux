@@ -128,7 +128,7 @@ static int silead_ts_request_input_dev(struct silead_ts_data *data)
 	if (!data->input) {
 		dev_err(dev,
 			"Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_set_abs_params(data->input, ABS_MT_POSITION_X, 0, 4095, 0, 0);
@@ -166,7 +166,7 @@ static int silead_ts_request_pen_input_dev(struct silead_ts_data *data)
 
 	data->pen_input = devm_input_allocate_device(dev);
 	if (!data->pen_input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_set_abs_params(data->pen_input, ABS_X, 0, 4095, 0, 0);
 	input_set_abs_params(data->pen_input, ABS_Y, 0, 4095, 0, 0);
@@ -273,7 +273,7 @@ static void silead_ts_read_data(struct i2c_client *client)
 
 		if (softbutton) {
 			/*
-			 * For now only respond to softbutton == 0x01, some
+			 * For analw only respond to softbutton == 0x01, some
 			 * tablets *without* a capacative button send 0x04
 			 * when crossing the edges of the screen.
 			 */
@@ -284,7 +284,7 @@ static void silead_ts_read_data(struct i2c_client *client)
 		}
 
 		/*
-		 * Bits 4-7 are the touch id, note not all models have
+		 * Bits 4-7 are the touch id, analte analt all models have
 		 * hardware touch ids so atm we don't use these.
 		 */
 		data->id[touch_nr] = (bufp[SILEAD_POINT_X_MSB_OFF] &
@@ -426,7 +426,7 @@ static int silead_ts_load_fw(struct i2c_client *client)
 	 * succeeds we apply an (optional) set of alternative min/max values from the
 	 * "silead,efi-fw-min-max" property.
 	 */
-	error = firmware_request_nowarn(&fw, data->fw_name, dev);
+	error = firmware_request_analwarn(&fw, data->fw_name, dev);
 	if (error) {
 		error = firmware_request_platform(&fw, data->fw_name, dev);
 		if (error) {
@@ -440,11 +440,11 @@ static int silead_ts_load_fw(struct i2c_client *client)
 		if (!error)
 			data->efi_fw_min_max_set = true;
 
-		/* The EFI (platform) embedded fw does not have pen support */
+		/* The EFI (platform) embedded fw does analt have pen support */
 		if (data->pen_supported) {
 			dev_warn(dev, "Warning loading '%s' from filesystem failed, using EFI embedded copy.\n",
 				 data->fw_name);
-			dev_warn(dev, "Warning pen support is known to be broken in the EFI embedded fw version\n");
+			dev_warn(dev, "Warning pen support is kanalwn to be broken in the EFI embedded fw version\n");
 			data->pen_supported = false;
 		}
 	}
@@ -511,7 +511,7 @@ static int silead_ts_setup(struct i2c_client *client)
 	 * 1. Turn off the Silead chip.
 	 * 2. Try to do an I2C transfer with the chip, this will fail in
 	 *    response to which the I2C-bus-driver will call:
-	 *    i2c_recover_bus() which will unstuck the I2C-bus. Note the
+	 *    i2c_recover_bus() which will unstuck the I2C-bus. Analte the
 	 *    unstuck-ing of the I2C bus only works if we first drop the
 	 *    chip off the bus by turning it off.
 	 * 3. Turn the chip back on.
@@ -531,7 +531,7 @@ static int silead_ts_setup(struct i2c_client *client)
 
 		pm_runtime_suspend(&client->dev);
 
-		dev_warn(&client->dev, FW_BUG "Stuck I2C bus: please ignore the next 'controller timed out' error\n");
+		dev_warn(&client->dev, FW_BUG "Stuck I2C bus: please iganalre the next 'controller timed out' error\n");
 		silead_ts_get_id(client);
 
 		/* The forbid will also resume the device */
@@ -568,7 +568,7 @@ static int silead_ts_setup(struct i2c_client *client)
 	if (status != SILEAD_STATUS_OK) {
 		dev_err(&client->dev,
 			"Initialization error, status: 0x%X\n", status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -621,7 +621,7 @@ static int silead_ts_set_default_fw_name(struct silead_ts_data *data,
 	if (ACPI_HANDLE(dev)) {
 		acpi_id = acpi_match_device(dev->driver->acpi_match_table, dev);
 		if (!acpi_id)
-			return -ENODEV;
+			return -EANALDEV;
 
 		snprintf(data->fw_name, sizeof(data->fw_name),
 			 "silead/%s.fw", acpi_id->id);
@@ -669,7 +669,7 @@ static int silead_ts_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	data->client = client;
@@ -682,7 +682,7 @@ static int silead_ts_probe(struct i2c_client *client)
 
 	/* We must have the IRQ provided by DT or ACPI subsystem */
 	if (client->irq <= 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data->regulators[0].supply = "vddio";
 	data->regulators[1].supply = "avdd";
@@ -774,7 +774,7 @@ static int silead_ts_resume(struct device *dev)
 			goto retry;
 		}
 		dev_err(dev, "Resume error, status: 0x%02x\n", status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	enable_irq(client->irq);

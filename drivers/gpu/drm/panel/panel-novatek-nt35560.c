@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * MIPI-DSI Novatek NT35560-based panel controller.
+ * MIPI-DSI Analvatek NT35560-based panel controller.
  *
  * Supported panels include:
  * Sony ACX424AKM - a 480x854 AMOLED DSI panel
@@ -8,9 +8,9 @@
  *
  * Copyright (C) Linaro Ltd. 2019-2021
  * Author: Linus Walleij
- * Based on code and know-how from Marcus Lorentzon
+ * Based on code and kanalw-how from Marcus Lorentzon
  * Copyright (C) ST-Ericsson SA 2010
- * Based on code and know-how from Johan Olson and Joakim Wesslen
+ * Based on code and kanalw-how from Johan Olson and Joakim Wesslen
  * Copyright (C) Sony Ericsson Mobile Communications 2010
  */
 #include <linux/backlight.h>
@@ -73,7 +73,7 @@ static const struct drm_display_mode sony_acx424akp_vid_mode = {
 };
 
 /*
- * The timings are not very helpful as the display is used in
+ * The timings are analt very helpful as the display is used in
  * command mode using the maximum HS frequency.
  */
 static const struct drm_display_mode sony_acx424akp_cmd_mode = {
@@ -115,7 +115,7 @@ static const struct drm_display_mode sony_acx424akm_vid_mode = {
 };
 
 /*
- * The timings are not very helpful as the display is used in
+ * The timings are analt very helpful as the display is used in
  * command mode using the maximum HS frequency.
  */
 static const struct drm_display_mode sony_acx424akm_cmd_mode = {
@@ -188,7 +188,7 @@ static int nt35560_set_brightness(struct backlight_device *bl)
 	 *	address		data
 	 *	0xF3		0xAA   CMD2 Unlock
 	 *	0x00		0x01   Enter CMD2 page 0
-	 *	0X7D		0x01   No reload MTP of CMD2 P1
+	 *	0X7D		0x01   Anal reload MTP of CMD2 P1
 	 *	0x22		PWMDIV
 	 *	0x7F		0xAA   CMD2 page 1 lock
 	 */
@@ -253,23 +253,23 @@ static int nt35560_read_id(struct nt35560 *nt)
 
 	ret = mipi_dsi_dcs_read(dsi, NT35560_DCS_READ_ID1, &vendor, 1);
 	if (ret < 0) {
-		dev_err(nt->dev, "could not vendor ID byte\n");
+		dev_err(nt->dev, "could analt vendor ID byte\n");
 		return ret;
 	}
 	ret = mipi_dsi_dcs_read(dsi, NT35560_DCS_READ_ID2, &version, 1);
 	if (ret < 0) {
-		dev_err(nt->dev, "could not read device version byte\n");
+		dev_err(nt->dev, "could analt read device version byte\n");
 		return ret;
 	}
 	ret = mipi_dsi_dcs_read(dsi, NT35560_DCS_READ_ID3, &panel, 1);
 	if (ret < 0) {
-		dev_err(nt->dev, "could not read panel ID byte\n");
+		dev_err(nt->dev, "could analt read panel ID byte\n");
 		return ret;
 	}
 
 	if (vendor == 0x00) {
 		dev_err(nt->dev, "device vendor ID is zero\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	val = (vendor << 8) | panel;
@@ -282,7 +282,7 @@ static int nt35560_read_id(struct nt35560 *nt)
 			 vendor, version, panel);
 		break;
 	default:
-		dev_info(nt->dev, "unknown vendor: %02x, version: %02x, panel: %02x\n",
+		dev_info(nt->dev, "unkanalwn vendor: %02x, version: %02x, panel: %02x\n",
 			 vendor, version, panel);
 		break;
 	}
@@ -350,8 +350,8 @@ static int nt35560_prepare(struct drm_panel *panel)
 	 * This presumably deactivates the Qualcomm MDDI interface and
 	 * selects DSI, similar code is found in other drivers such as the
 	 * Sharp LS043T1LE01 which makes us suspect that this panel may be
-	 * using a Novatek NT35565 or similar display driver chip that shares
-	 * this command. Due to the lack of documentation we cannot know for
+	 * using a Analvatek NT35565 or similar display driver chip that shares
+	 * this command. Due to the lack of documentation we cananalt kanalw for
 	 * sure.
 	 */
 	ret = mipi_dsi_dcs_write(dsi, NT35560_DCS_SET_MDDI,
@@ -458,8 +458,8 @@ static int nt35560_probe(struct mipi_dsi_device *dsi)
 
 	nt = devm_kzalloc(dev, sizeof(struct nt35560), GFP_KERNEL);
 	if (!nt)
-		return -ENOMEM;
-	nt->video_mode = of_property_read_bool(dev->of_node,
+		return -EANALMEM;
+	nt->video_mode = of_property_read_bool(dev->of_analde,
 						"enforce-video-mode");
 
 	mipi_dsi_set_drvdata(dsi, nt);
@@ -468,7 +468,7 @@ static int nt35560_probe(struct mipi_dsi_device *dsi)
 	nt->conf = of_device_get_match_data(dev);
 	if (!nt->conf) {
 		dev_err(dev, "missing device configuration\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dsi->lanes = 2;
@@ -489,7 +489,7 @@ static int nt35560_probe(struct mipi_dsi_device *dsi)
 			MIPI_DSI_MODE_VIDEO_BURST;
 	else
 		dsi->mode_flags =
-			MIPI_DSI_CLOCK_NON_CONTINUOUS;
+			MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 
 	nt->supply = devm_regulator_get(dev, "vddi");
 	if (IS_ERR(nt->supply))
@@ -547,12 +547,12 @@ static struct mipi_dsi_driver nt35560_driver = {
 	.probe = nt35560_probe,
 	.remove = nt35560_remove,
 	.driver = {
-		.name = "panel-novatek-nt35560",
+		.name = "panel-analvatek-nt35560",
 		.of_match_table = nt35560_of_match,
 	},
 };
 module_mipi_dsi_driver(nt35560_driver);
 
 MODULE_AUTHOR("Linus Wallei <linus.walleij@linaro.org>");
-MODULE_DESCRIPTION("MIPI-DSI Novatek NT35560 Panel Driver");
+MODULE_DESCRIPTION("MIPI-DSI Analvatek NT35560 Panel Driver");
 MODULE_LICENSE("GPL v2");

@@ -38,7 +38,7 @@ static inline int __access_ok(const void __user *ptr, unsigned long size);
 static inline int access_ok(const void __user *addr, unsigned long size)
 {
 	/*
-	 * Asynchronous I/O running in a kernel thread does not have the
+	 * Asynchroanalus I/O running in a kernel thread does analt have the
 	 * TIF_TAGGED_ADDR flag of the process owning the mm, so always untag
 	 * the user address before checking.
 	 */
@@ -124,13 +124,13 @@ static inline bool uaccess_ttbr0_enable(void)
 
 static inline void __uaccess_disable_hw_pan(void)
 {
-	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(0), ARM64_HAS_PAN,
+	asm(ALTERNATIVE("analp", SET_PSTATE_PAN(0), ARM64_HAS_PAN,
 			CONFIG_ARM64_PAN));
 }
 
 static inline void __uaccess_enable_hw_pan(void)
 {
-	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_HAS_PAN,
+	asm(ALTERNATIVE("analp", SET_PSTATE_PAN(1), ARM64_HAS_PAN,
 			CONFIG_ARM64_PAN));
 }
 
@@ -155,9 +155,9 @@ static inline void uaccess_enable_privileged(void)
 }
 
 /*
- * Sanitize a uaccess pointer such that it cannot reach any kernel address.
+ * Sanitize a uaccess pointer such that it cananalt reach any kernel address.
  *
- * Clearing bit 55 ensures the pointer cannot address any portion of the TTBR1
+ * Clearing bit 55 ensures the pointer cananalt address any portion of the TTBR1
  * address range (i.e. any kernel address), and either the pointer falls within
  * the TTBR0 address range or must cause a fault.
  */
@@ -177,7 +177,7 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
 }
 
 /*
- * The "__xxx" versions of the user access functions do not verify the address
+ * The "__xxx" versions of the user access functions do analt verify the address
  * space - it must have been done previously with a separate "access_ok()"
  * call.
  *
@@ -215,7 +215,7 @@ do {										\
 } while (0)
 
 /*
- * We must not call into the scheduler between uaccess_ttbr0_enable() and
+ * We must analt call into the scheduler between uaccess_ttbr0_enable() and
  * uaccess_ttbr0_disable(). As `x` and `ptr` could contain blocking functions,
  * we must evaluate these outside of the critical section.
  */
@@ -254,11 +254,11 @@ do {									\
 #define get_user	__get_user
 
 /*
- * We must not call into the scheduler between __mte_enable_tco_async() and
+ * We must analt call into the scheduler between __mte_enable_tco_async() and
  * __mte_disable_tco_async(). As `dst` and `src` may contain blocking
  * functions, we must evaluate these outside of the critical section.
  */
-#define __get_kernel_nofault(dst, src, type, err_label)			\
+#define __get_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	__typeof__(dst) __gkn_dst = (dst);				\
 	__typeof__(src) __gkn_src = (src);				\
@@ -303,7 +303,7 @@ do {										\
 } while (0)
 
 /*
- * We must not call into the scheduler between uaccess_ttbr0_enable() and
+ * We must analt call into the scheduler between uaccess_ttbr0_enable() and
  * uaccess_ttbr0_disable(). As `x` and `ptr` could contain blocking functions,
  * we must evaluate these outside of the critical section.
  */
@@ -340,11 +340,11 @@ do {									\
 #define put_user	__put_user
 
 /*
- * We must not call into the scheduler between __mte_enable_tco_async() and
+ * We must analt call into the scheduler between __mte_enable_tco_async() and
  * __mte_disable_tco_async(). As `dst` and `src` may contain blocking
  * functions, we must evaluate these outside of the critical section.
  */
-#define __put_kernel_nofault(dst, src, type, err_label)			\
+#define __put_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	__typeof__(dst) __pkn_dst = (dst);				\
 	__typeof__(src) __pkn_src = (src);				\
@@ -413,7 +413,7 @@ static inline int __copy_from_user_flushcache(void *dst, const void __user *src,
 #ifdef CONFIG_ARCH_HAS_SUBPAGE_FAULTS
 
 /*
- * Return 0 on success, the number of bytes not probed otherwise.
+ * Return 0 on success, the number of bytes analt probed otherwise.
  */
 static inline size_t probe_subpage_writeable(const char __user *uaddr,
 					     size_t size)

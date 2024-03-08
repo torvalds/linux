@@ -63,7 +63,7 @@
 #define CE_ALG_PRNG_V2		0x1d
 
 /* Used in ce_variant */
-#define CE_ID_NOTSUPP		0xFF
+#define CE_ID_ANALTSUPP		0xFF
 
 #define CE_ID_CIPHER_AES	0
 #define CE_ID_CIPHER_DES	1
@@ -83,7 +83,7 @@
 #define CE_ID_OP_MAX	2
 
 /* Used in CE registers */
-#define CE_ERR_ALGO_NOTSUP	BIT(0)
+#define CE_ERR_ALGO_ANALTSUP	BIT(0)
 #define CE_ERR_DATALEN		BIT(1)
 #define CE_ERR_KEYSRAM		BIT(2)
 #define CE_ERR_ADDR_INVALID	BIT(5)

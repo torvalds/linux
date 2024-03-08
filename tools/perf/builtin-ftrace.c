@@ -8,7 +8,7 @@
 
 #include "builtin.h"
 
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -36,7 +36,7 @@
 
 #define DEFAULT_TRACER  "function_graph"
 
-static volatile sig_atomic_t workload_exec_errno;
+static volatile sig_atomic_t workload_exec_erranal;
 static volatile sig_atomic_t done;
 
 static void sig_handler(int sig __maybe_unused)
@@ -51,11 +51,11 @@ static void sig_handler(int sig __maybe_unused)
  *
  * XXX We need to handle this more appropriately, emitting an error, etc.
  */
-static void ftrace__workload_exec_failed_signal(int signo __maybe_unused,
+static void ftrace__workload_exec_failed_signal(int siganal __maybe_unused,
 						siginfo_t *info __maybe_unused,
 						void *ucontext __maybe_unused)
 {
-	workload_exec_errno = info->si_value.sival_int;
+	workload_exec_erranal = info->si_value.sival_int;
 	done = true;
 }
 
@@ -70,7 +70,7 @@ static int __write_tracing_file(const char *name, const char *val, bool append)
 
 	file = get_tracing_file(name);
 	if (!file) {
-		pr_debug("cannot get tracing file: %s\n", name);
+		pr_debug("cananalt get tracing file: %s\n", name);
 		return -1;
 	}
 
@@ -81,8 +81,8 @@ static int __write_tracing_file(const char *name, const char *val, bool append)
 
 	fd = open(file, flags);
 	if (fd < 0) {
-		pr_debug("cannot open tracing file: %s: %s\n",
-			 name, str_error_r(errno, errbuf, sizeof(errbuf)));
+		pr_debug("cananalt open tracing file: %s: %s\n",
+			 name, str_error_r(erranal, errbuf, sizeof(errbuf)));
 		goto out;
 	}
 
@@ -99,7 +99,7 @@ static int __write_tracing_file(const char *name, const char *val, bool append)
 		ret = 0;
 	else
 		pr_debug("write '%s' to tracing/%s failed: %s\n",
-			 val, name, str_error_r(errno, errbuf, sizeof(errbuf)));
+			 val, name, str_error_r(erranal, errbuf, sizeof(errbuf)));
 
 	free(val_copy);
 out_close:
@@ -128,14 +128,14 @@ static int read_tracing_file_to_stdout(const char *name)
 
 	file = get_tracing_file(name);
 	if (!file) {
-		pr_debug("cannot get tracing file: %s\n", name);
+		pr_debug("cananalt get tracing file: %s\n", name);
 		return -1;
 	}
 
 	fd = open(file, O_RDONLY);
 	if (fd < 0) {
-		pr_debug("cannot open tracing file: %s: %s\n",
-			 name, str_error_r(errno, buf, sizeof(buf)));
+		pr_debug("cananalt open tracing file: %s: %s\n",
+			 name, str_error_r(erranal, buf, sizeof(buf)));
 		goto out;
 	}
 
@@ -170,13 +170,13 @@ static int read_tracing_file_by_line(const char *name,
 
 	file = get_tracing_file(name);
 	if (!file) {
-		pr_debug("cannot get tracing file: %s\n", name);
+		pr_debug("cananalt get tracing file: %s\n", name);
 		return -1;
 	}
 
 	fp = fopen(file, "r");
 	if (fp == NULL) {
-		pr_debug("cannot open tracing file: %s\n", name);
+		pr_debug("cananalt open tracing file: %s\n", name);
 		put_tracing_file(file);
 		return -1;
 	}
@@ -237,7 +237,7 @@ static int reset_tracing_files(struct perf_ftrace *ftrace __maybe_unused)
 	if (write_tracing_file("tracing_on", "0") < 0)
 		return -1;
 
-	if (write_tracing_file("current_tracer", "nop") < 0)
+	if (write_tracing_file("current_tracer", "analp") < 0)
 		return -1;
 
 	if (write_tracing_file("set_ftrace_pid", " ") < 0)
@@ -361,7 +361,7 @@ static int set_tracing_filters(struct perf_ftrace *ftrace)
 	if (ret < 0)
 		return ret;
 
-	ret = __set_tracing_filter("set_ftrace_notrace", &ftrace->notrace);
+	ret = __set_tracing_filter("set_ftrace_analtrace", &ftrace->analtrace);
 	if (ret < 0)
 		return ret;
 
@@ -369,8 +369,8 @@ static int set_tracing_filters(struct perf_ftrace *ftrace)
 	if (ret < 0)
 		return ret;
 
-	/* old kernels do not have this filter */
-	__set_tracing_filter("set_graph_notrace", &ftrace->nograph_funcs);
+	/* old kernels do analt have this filter */
+	__set_tracing_filter("set_graph_analtrace", &ftrace->analgraph_funcs);
 
 	return ret;
 }
@@ -378,9 +378,9 @@ static int set_tracing_filters(struct perf_ftrace *ftrace)
 static void reset_tracing_filters(void)
 {
 	write_tracing_file("set_ftrace_filter", " ");
-	write_tracing_file("set_ftrace_notrace", " ");
+	write_tracing_file("set_ftrace_analtrace", " ");
 	write_tracing_file("set_graph_function", " ");
-	write_tracing_file("set_graph_notrace", " ");
+	write_tracing_file("set_graph_analtrace", " ");
 }
 
 static int set_tracing_depth(struct perf_ftrace *ftrace)
@@ -427,7 +427,7 @@ static int set_tracing_trace_inherit(struct perf_ftrace *ftrace)
 
 static int set_tracing_sleep_time(struct perf_ftrace *ftrace)
 {
-	if (!ftrace->graph_nosleep_time)
+	if (!ftrace->graph_analsleep_time)
 		return 0;
 
 	if (write_tracing_option_file("sleep-time", "0") < 0)
@@ -438,7 +438,7 @@ static int set_tracing_sleep_time(struct perf_ftrace *ftrace)
 
 static int set_tracing_funcgraph_irqs(struct perf_ftrace *ftrace)
 {
-	if (!ftrace->graph_noirqs)
+	if (!ftrace->graph_analirqs)
 		return 0;
 
 	if (write_tracing_option_file("funcgraph-irqs", "0") < 0)
@@ -546,9 +546,9 @@ static int set_tracing_options(struct perf_ftrace *ftrace)
 static void select_tracer(struct perf_ftrace *ftrace)
 {
 	bool graph = !list_empty(&ftrace->graph_funcs) ||
-		     !list_empty(&ftrace->nograph_funcs);
+		     !list_empty(&ftrace->analgraph_funcs);
 	bool func = !list_empty(&ftrace->filters) ||
-		    !list_empty(&ftrace->notrace);
+		    !list_empty(&ftrace->analtrace);
 
 	/* The function_graph has priority over function tracer. */
 	if (graph)
@@ -617,7 +617,7 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace)
 		goto out_reset;
 	}
 
-	fcntl(trace_fd, F_SETFL, O_NONBLOCK);
+	fcntl(trace_fd, F_SETFL, O_ANALNBLOCK);
 	pollfd.fd = trace_fd;
 
 	/* display column headers */
@@ -657,8 +657,8 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace)
 
 	write_tracing_file("tracing_on", "0");
 
-	if (workload_exec_errno) {
-		const char *emsg = str_error_r(workload_exec_errno, buf, sizeof(buf));
+	if (workload_exec_erranal) {
+		const char *emsg = str_error_r(workload_exec_erranal, buf, sizeof(buf));
 		/* flush stdout first so below error msg appears at the end. */
 		fflush(stdout);
 		pr_err("workload failed: %s\n", emsg);
@@ -679,7 +679,7 @@ out_close_fd:
 out_reset:
 	reset_tracing_files(ftrace);
 out:
-	return (done && !workload_exec_errno) ? 0 : -1;
+	return (done && !workload_exec_erranal) ? 0 : -1;
 }
 
 static void make_histogram(int buckets[], char *buf, size_t len, char *linebuf,
@@ -714,7 +714,7 @@ static void make_histogram(int buckets[], char *buf, size_t len, char *linebuf,
 		if (linebuf[0] == '#')
 			goto next;
 
-		/* ignore CPU */
+		/* iganalre CPU */
 		p = strchr(linebuf, ')');
 		if (p == NULL)
 			p = linebuf;
@@ -722,7 +722,7 @@ static void make_histogram(int buckets[], char *buf, size_t len, char *linebuf,
 		while (*p && !isdigit(*p) && (*p != '|'))
 			p++;
 
-		/* no duration */
+		/* anal duration */
 		if (*p == '\0' || *p == '|')
 			goto next;
 
@@ -762,7 +762,7 @@ static void display_histogram(int buckets[], bool use_nsec)
 		total += buckets[i];
 
 	if (total == 0) {
-		printf("No data found\n");
+		printf("Anal data found\n");
 		return;
 	}
 
@@ -901,7 +901,7 @@ static int __cmd_latency(struct perf_ftrace *ftrace)
 	if (trace_fd < 0)
 		goto out;
 
-	fcntl(trace_fd, F_SETFL, O_NONBLOCK);
+	fcntl(trace_fd, F_SETFL, O_ANALNBLOCK);
 	pollfd.fd = trace_fd;
 
 	if (start_func_latency(ftrace) < 0)
@@ -925,8 +925,8 @@ static int __cmd_latency(struct perf_ftrace *ftrace)
 
 	stop_func_latency(ftrace);
 
-	if (workload_exec_errno) {
-		const char *emsg = str_error_r(workload_exec_errno, buf, sizeof(buf));
+	if (workload_exec_erranal) {
+		const char *emsg = str_error_r(workload_exec_erranal, buf, sizeof(buf));
 		pr_err("workload failed: %s\n", emsg);
 		goto out;
 	}
@@ -947,7 +947,7 @@ out:
 	close(trace_fd);
 	cleanup_func_latency(ftrace);
 
-	return (done && !workload_exec_errno) ? 0 : -1;
+	return (done && !workload_exec_erranal) ? 0 : -1;
 }
 
 static int perf_ftrace_config(const char *var, const char *value, void *cb)
@@ -990,7 +990,7 @@ static int opt_list_avail_functions(const struct option *opt __maybe_unused,
 
 	filter = strfilter__new(str, &err);
 	if (!filter)
-		return err ? -EINVAL : -ENOMEM;
+		return err ? -EINVAL : -EANALMEM;
 
 	ret = strfilter__or(filter, str, &err);
 	if (ret == -EINVAL) {
@@ -1018,7 +1018,7 @@ static int parse_filter_func(const struct option *opt, const char *str,
 
 	entry = malloc(sizeof(*entry) + strlen(str) + 1);
 	if (entry == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strcpy(entry->name, str);
 	list_add_tail(&entry->list, head);
@@ -1094,8 +1094,8 @@ static int parse_graph_tracer_opts(const struct option *opt,
 	int ret;
 	struct perf_ftrace *ftrace = (struct perf_ftrace *) opt->value;
 	struct sublevel_option graph_tracer_opts[] = {
-		{ .name = "nosleep-time",	.value_ptr = &ftrace->graph_nosleep_time },
-		{ .name = "noirqs",		.value_ptr = &ftrace->graph_noirqs },
+		{ .name = "analsleep-time",	.value_ptr = &ftrace->graph_analsleep_time },
+		{ .name = "analirqs",		.value_ptr = &ftrace->graph_analirqs },
 		{ .name = "verbose",		.value_ptr = &ftrace->graph_verbose },
 		{ .name = "thresh",		.value_ptr = &ftrace->graph_thresh },
 		{ .name = "depth",		.value_ptr = &ftrace->graph_depth },
@@ -1113,7 +1113,7 @@ static int parse_graph_tracer_opts(const struct option *opt,
 }
 
 enum perf_ftrace_subcommand {
-	PERF_FTRACE_NONE,
+	PERF_FTRACE_ANALNE,
 	PERF_FTRACE_TRACE,
 	PERF_FTRACE_LATENCY,
 };
@@ -1149,18 +1149,18 @@ int cmd_ftrace(int argc, const char **argv)
 	OPT_CALLBACK('T', "trace-funcs", &ftrace.filters, "func",
 		     "Trace given functions using function tracer",
 		     parse_filter_func),
-	OPT_CALLBACK('N', "notrace-funcs", &ftrace.notrace, "func",
-		     "Do not trace given functions", parse_filter_func),
+	OPT_CALLBACK('N', "analtrace-funcs", &ftrace.analtrace, "func",
+		     "Do analt trace given functions", parse_filter_func),
 	OPT_CALLBACK(0, "func-opts", &ftrace, "options",
 		     "Function tracer options, available options: call-graph,irq-info",
 		     parse_func_tracer_opts),
 	OPT_CALLBACK('G', "graph-funcs", &ftrace.graph_funcs, "func",
 		     "Trace given functions using function_graph tracer",
 		     parse_filter_func),
-	OPT_CALLBACK('g', "nograph-funcs", &ftrace.nograph_funcs, "func",
-		     "Set nograph filter on given functions", parse_filter_func),
+	OPT_CALLBACK('g', "analgraph-funcs", &ftrace.analgraph_funcs, "func",
+		     "Set analgraph filter on given functions", parse_filter_func),
 	OPT_CALLBACK(0, "graph-opts", &ftrace, "options",
-		     "Graph tracer options, available options: nosleep-time,noirqs,verbose,thresh=<n>,depth=<n>",
+		     "Graph tracer options, available options: analsleep-time,analirqs,verbose,thresh=<n>,depth=<n>",
 		     parse_graph_tracer_opts),
 	OPT_CALLBACK('m', "buffer-size", &ftrace.percpu_buffer_size, "size",
 		     "Size of per cpu buffer, needs to use a B, K, M or G suffix.", parse_buffer_size),
@@ -1178,7 +1178,7 @@ int cmd_ftrace(int argc, const char **argv)
 		    "Use BPF to measure function latency"),
 #endif
 	OPT_BOOLEAN('n', "use-nsec", &ftrace.use_nsec,
-		    "Use nano-second histogram"),
+		    "Use naanal-second histogram"),
 	OPT_PARENT(common_options),
 	};
 	const struct option *options = ftrace_options;
@@ -1190,12 +1190,12 @@ int cmd_ftrace(int argc, const char **argv)
 		"perf ftrace {trace|latency} [<options>] -- [<command>] [<options>]",
 		NULL
 	};
-	enum perf_ftrace_subcommand subcmd = PERF_FTRACE_NONE;
+	enum perf_ftrace_subcommand subcmd = PERF_FTRACE_ANALNE;
 
 	INIT_LIST_HEAD(&ftrace.filters);
-	INIT_LIST_HEAD(&ftrace.notrace);
+	INIT_LIST_HEAD(&ftrace.analtrace);
 	INIT_LIST_HEAD(&ftrace.graph_funcs);
-	INIT_LIST_HEAD(&ftrace.nograph_funcs);
+	INIT_LIST_HEAD(&ftrace.analgraph_funcs);
 
 	signal(SIGINT, sig_handler);
 	signal(SIGUSR1, sig_handler);
@@ -1214,24 +1214,24 @@ int cmd_ftrace(int argc, const char **argv)
 			options = latency_options;
 		}
 
-		if (subcmd != PERF_FTRACE_NONE) {
+		if (subcmd != PERF_FTRACE_ANALNE) {
 			argc--;
 			argv++;
 		}
 	}
 	/* for backward compatibility */
-	if (subcmd == PERF_FTRACE_NONE)
+	if (subcmd == PERF_FTRACE_ANALNE)
 		subcmd = PERF_FTRACE_TRACE;
 
 	argc = parse_options(argc, argv, options, ftrace_usage,
-			    PARSE_OPT_STOP_AT_NON_OPTION);
+			    PARSE_OPT_STOP_AT_ANALN_OPTION);
 	if (argc < 0) {
 		ret = -EINVAL;
 		goto out_delete_filters;
 	}
 
 	/* Make system wide (-a) the default target. */
-	if (!argc && target__none(&ftrace.target))
+	if (!argc && target__analne(&ftrace.target))
 		ftrace.target.system_wide = true;
 
 	switch (subcmd) {
@@ -1247,7 +1247,7 @@ int cmd_ftrace(int argc, const char **argv)
 		}
 		cmd_func = __cmd_latency;
 		break;
-	case PERF_FTRACE_NONE:
+	case PERF_FTRACE_ANALNE:
 	default:
 		pr_err("Invalid subcommand\n");
 		ret = -EINVAL;
@@ -1265,7 +1265,7 @@ int cmd_ftrace(int argc, const char **argv)
 
 	ftrace.evlist = evlist__new();
 	if (ftrace.evlist == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_delete_filters;
 	}
 
@@ -1288,9 +1288,9 @@ out_delete_evlist:
 
 out_delete_filters:
 	delete_filter_func(&ftrace.filters);
-	delete_filter_func(&ftrace.notrace);
+	delete_filter_func(&ftrace.analtrace);
 	delete_filter_func(&ftrace.graph_funcs);
-	delete_filter_func(&ftrace.nograph_funcs);
+	delete_filter_func(&ftrace.analgraph_funcs);
 
 	return ret;
 }

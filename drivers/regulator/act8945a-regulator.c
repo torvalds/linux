@@ -142,8 +142,8 @@ static unsigned int act8945a_of_map_mode(unsigned int mode)
 {
 	switch (mode) {
 	case ACT8945A_REGULATOR_MODE_FIXED:
-	case ACT8945A_REGULATOR_MODE_NORMAL:
-		return REGULATOR_MODE_NORMAL;
+	case ACT8945A_REGULATOR_MODE_ANALRMAL:
+		return REGULATOR_MODE_ANALRMAL;
 	case ACT8945A_REGULATOR_MODE_LOWPOWER:
 		return REGULATOR_MODE_STANDBY;
 	default:
@@ -189,7 +189,7 @@ static int act8945a_set_mode(struct regulator_dev *rdev, unsigned int mode)
 		if (id > ACT8945A_ID_DCDC3)
 			val = BIT(5);
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		if (id <= ACT8945A_ID_DCDC3)
 			val = BIT(5);
 		break;
@@ -237,7 +237,7 @@ static const struct regulator_ops act8945a_ops = {
 		.supply_name		= _supply,			\
 		.of_match		= of_match_ptr("REG_"#_id),	\
 		.of_map_mode		= act8945a_of_map_mode,		\
-		.regulators_node	= of_match_ptr("regulators"),	\
+		.regulators_analde	= of_match_ptr("regulators"),	\
 		.id			= _family##_ID_##_id,		\
 		.type			= REGULATOR_VOLTAGE,		\
 		.ops			= &act8945a_ops,		\
@@ -282,16 +282,16 @@ static int act8945a_pmic_probe(struct platform_device *pdev)
 
 	act8945a = devm_kzalloc(&pdev->dev, sizeof(*act8945a), GFP_KERNEL);
 	if (!act8945a)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	act8945a->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!act8945a->regmap) {
 		dev_err(&pdev->dev,
-			"could not retrieve regmap from parent device\n");
+			"could analt retrieve regmap from parent device\n");
 		return -EINVAL;
 	}
 
-	voltage_select = of_property_read_bool(pdev->dev.parent->of_node,
+	voltage_select = of_property_read_bool(pdev->dev.parent->of_analde,
 					       "active-semi,vsel-high");
 
 	if (voltage_select) {
@@ -303,7 +303,7 @@ static int act8945a_pmic_probe(struct platform_device *pdev)
 	}
 
 	config.dev = &pdev->dev;
-	config.dev->of_node = pdev->dev.parent->of_node;
+	config.dev->of_analde = pdev->dev.parent->of_analde;
 	config.driver_data = act8945a;
 	for (i = 0; i < num_regulators; i++) {
 		rdev = devm_regulator_register(&pdev->dev, &regulators[i],
@@ -348,7 +348,7 @@ static void act8945a_pmic_shutdown(struct platform_device *pdev)
 static struct platform_driver act8945a_pmic_driver = {
 	.driver = {
 		.name = "act8945a-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm = &act8945a_pm,
 	},
 	.probe = act8945a_pmic_probe,

@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,8 +32,8 @@
 #include "amdgpu.h"
 #include "amdgpu_res_cursor.h"
 
-#ifdef CONFIG_MMU_NOTIFIER
-#include <linux/mmu_notifier.h>
+#ifdef CONFIG_MMU_ANALTIFIER
+#include <linux/mmu_analtifier.h>
 #endif
 
 #define AMDGPU_BO_INVALID_OFFSET	LONG_MAX
@@ -53,7 +53,7 @@ struct amdgpu_bo_param {
 	u32				preferred_domain;
 	u64				flags;
 	enum ttm_bo_type		type;
-	bool				no_wait_gpu;
+	bool				anal_wait_gpu;
 	struct dma_resv			*resv;
 	void				(*destroy)(struct ttm_buffer_object *bo);
 	/* xcp partition number plus 1, 0 means any partition */
@@ -64,7 +64,7 @@ struct amdgpu_bo_param {
 struct amdgpu_bo_va_mapping {
 	struct amdgpu_bo_va		*bo_va;
 	struct list_head		list;
-	struct rb_node			rb;
+	struct rb_analde			rb;
 	uint64_t			start;
 	uint64_t			last;
 	uint64_t			__subtree_last;
@@ -106,8 +106,8 @@ struct amdgpu_bo {
 	/* Constant after initialization */
 	struct amdgpu_bo		*parent;
 
-#ifdef CONFIG_MMU_NOTIFIER
-	struct mmu_interval_notifier	notifier;
+#ifdef CONFIG_MMU_ANALTIFIER
+	struct mmu_interval_analtifier	analtifier;
 #endif
 	struct kgd_mem                  *kfd_bo;
 
@@ -193,18 +193,18 @@ static inline unsigned amdgpu_mem_type_to_domain(u32 mem_type)
 /**
  * amdgpu_bo_reserve - reserve bo
  * @bo:		bo structure
- * @no_intr:	don't return -ERESTARTSYS on pending signal
+ * @anal_intr:	don't return -ERESTARTSYS on pending signal
  *
  * Returns:
  * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
  * a signal. Release all buffer reservations and return to user-space.
  */
-static inline int amdgpu_bo_reserve(struct amdgpu_bo *bo, bool no_intr)
+static inline int amdgpu_bo_reserve(struct amdgpu_bo *bo, bool anal_intr)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, !no_intr, false, NULL);
+	r = ttm_bo_reserve(&bo->tbo, !anal_intr, false, NULL);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			dev_err(adev->dev, "%p reserve failed\n", bo);
@@ -241,7 +241,7 @@ static inline unsigned amdgpu_bo_gpu_page_alignment(struct amdgpu_bo *bo)
  */
 static inline u64 amdgpu_bo_mmap_offset(struct amdgpu_bo *bo)
 {
-	return drm_vma_node_offset_addr(&bo->tbo.base.vma_node);
+	return drm_vma_analde_offset_addr(&bo->tbo.base.vma_analde);
 }
 
 /**
@@ -291,7 +291,7 @@ static inline bool amdgpu_bo_encrypted(struct amdgpu_bo *bo)
  * @bo: BO to be tested.
  *
  * Returns:
- * NULL if not shadowed or else return a BO pointer.
+ * NULL if analt shadowed or else return a BO pointer.
  */
 static inline struct amdgpu_bo *amdgpu_bo_shadowed(struct amdgpu_bo *bo)
 {
@@ -344,9 +344,9 @@ int amdgpu_bo_set_metadata (struct amdgpu_bo *bo, void *metadata,
 int amdgpu_bo_get_metadata(struct amdgpu_bo *bo, void *buffer,
 			   size_t buffer_size, uint32_t *metadata_size,
 			   uint64_t *flags);
-void amdgpu_bo_move_notify(struct ttm_buffer_object *bo, bool evict);
-void amdgpu_bo_release_notify(struct ttm_buffer_object *bo);
-vm_fault_t amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
+void amdgpu_bo_move_analtify(struct ttm_buffer_object *bo, bool evict);
+void amdgpu_bo_release_analtify(struct ttm_buffer_object *bo);
+vm_fault_t amdgpu_bo_fault_reserve_analtify(struct ttm_buffer_object *bo);
 void amdgpu_bo_fence(struct amdgpu_bo *bo, struct dma_fence *fence,
 		     bool shared);
 int amdgpu_bo_sync_wait_resv(struct amdgpu_device *adev, struct dma_resv *resv,
@@ -354,7 +354,7 @@ int amdgpu_bo_sync_wait_resv(struct amdgpu_device *adev, struct dma_resv *resv,
 			     bool intr);
 int amdgpu_bo_sync_wait(struct amdgpu_bo *bo, void *owner, bool intr);
 u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo);
-u64 amdgpu_bo_gpu_offset_no_check(struct amdgpu_bo *bo);
+u64 amdgpu_bo_gpu_offset_anal_check(struct amdgpu_bo *bo);
 void amdgpu_bo_get_memory(struct amdgpu_bo *bo,
 			  struct amdgpu_mem_stats *stats);
 void amdgpu_bo_add_to_shadow_list(struct amdgpu_bo_vm *vmbo);

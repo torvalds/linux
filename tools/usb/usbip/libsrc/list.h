@@ -11,7 +11,7 @@
  *
  * Some of the internal functions ("__xxx") are useful when
  * manipulating whole lists rather than single entries, as
- * sometimes we already know the next/prev entries and we can
+ * sometimes we already kanalw the next/prev entries and we can
  * generate better code by using them directly rather than
  * using the generic single-entry routines.
  */
@@ -32,9 +32,9 @@ static inline void INIT_LIST_HEAD(struct list_head *list)
 }
 
 /*
- * Insert a new entry between two known consecutive entries.
+ * Insert a new entry between two kanalwn consecutive entries.
  *
- * This is only for internal list manipulation where we know
+ * This is only for internal list manipulation where we kanalw
  * the prev/next entries already!
  */
 static inline void __list_add(struct list_head *new,
@@ -64,7 +64,7 @@ static inline void list_add(struct list_head *new, struct list_head *head)
  * Delete a list entry by making the prev/next entries
  * point to each other.
  *
- * This is only for internal list manipulation where we know
+ * This is only for internal list manipulation where we kanalw
  * the prev/next entries already!
  */
 static inline void __list_del(struct list_head * prev, struct list_head * next)
@@ -85,7 +85,7 @@ static inline void __list_del_entry(struct list_head *entry)
 /**
  * list_del - deletes entry from list.
  * @entry: the element to delete from the list.
- * Note: list_empty() on entry does not return true after this, the entry is
+ * Analte: list_empty() on entry does analt return true after this, the entry is
  * in an undefined state.
  */
 static inline void list_del(struct list_head *entry)
@@ -114,7 +114,7 @@ static inline void list_del(struct list_head *entry)
 /**
  * list_for_each_safe - iterate over a list safe against removal of list entry
  * @pos:	the &struct list_head to use as a loop cursor.
- * @n:		another &struct list_head to use as temporary storage
+ * @n:		aanalther &struct list_head to use as temporary storage
  * @head:	the head for your list.
  */
 #define list_for_each_safe(pos, n, head) \

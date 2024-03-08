@@ -6,7 +6,7 @@
  * Copyright (C) 2004 Amit S. Kale <amitkale@linsyssoft.com>
  * Copyright (C) 2000-2001 VERITAS Software Corporation.
  * Copyright (C) 2002 Andi Kleen, SuSE Labs
- * Copyright (C) 2004 LinSysSoft Technologies Pvt. Ltd.
+ * Copyright (C) 2004 LinSysSoft Techanallogies Pvt. Ltd.
  * Copyright (C) 2007 MontaVista Software, Inc.
  * Copyright (C) 2007-2008 Jason Wessel, Wind River Systems, Inc.
  */
@@ -88,43 +88,43 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] =
 	{ "gs", 4, -1 },
 };
 
-int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
+int dbg_set_reg(int reganal, void *mem, struct pt_regs *regs)
 {
 	if (
 #ifdef CONFIG_X86_32
-	    regno == GDB_SS || regno == GDB_FS || regno == GDB_GS ||
+	    reganal == GDB_SS || reganal == GDB_FS || reganal == GDB_GS ||
 #endif
-	    regno == GDB_SP || regno == GDB_ORIG_AX)
+	    reganal == GDB_SP || reganal == GDB_ORIG_AX)
 		return 0;
 
-	if (dbg_reg_def[regno].offset != -1)
-		memcpy((void *)regs + dbg_reg_def[regno].offset, mem,
-		       dbg_reg_def[regno].size);
+	if (dbg_reg_def[reganal].offset != -1)
+		memcpy((void *)regs + dbg_reg_def[reganal].offset, mem,
+		       dbg_reg_def[reganal].size);
 	return 0;
 }
 
-char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
+char *dbg_get_reg(int reganal, void *mem, struct pt_regs *regs)
 {
-	if (regno == GDB_ORIG_AX) {
+	if (reganal == GDB_ORIG_AX) {
 		memcpy(mem, &regs->orig_ax, sizeof(regs->orig_ax));
 		return "orig_ax";
 	}
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (reganal >= DBG_MAX_REG_NUM || reganal < 0)
 		return NULL;
 
-	if (dbg_reg_def[regno].offset != -1)
-		memcpy(mem, (void *)regs + dbg_reg_def[regno].offset,
-		       dbg_reg_def[regno].size);
+	if (dbg_reg_def[reganal].offset != -1)
+		memcpy(mem, (void *)regs + dbg_reg_def[reganal].offset,
+		       dbg_reg_def[reganal].size);
 
 #ifdef CONFIG_X86_32
-	switch (regno) {
+	switch (reganal) {
 	case GDB_GS:
 	case GDB_FS:
 		*(unsigned long *)mem = 0xFFFF;
 		break;
 	}
 #endif
-	return dbg_reg_def[regno].name;
+	return dbg_reg_def[reganal].name;
 }
 
 /**
@@ -134,7 +134,7 @@ char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
  *
  *	Convert the register values of the sleeping process in @p to
  *	the format that GDB expects.
- *	This function is called when kgdb does not have access to the
+ *	This function is called when kgdb does analt have access to the
  *	&struct pt_regs and therefore it should fill the gdb registers
  *	@gdb_regs with what has	been saved in &struct thread_struct
  *	thread field during switch_to.
@@ -188,33 +188,33 @@ static unsigned long early_dr7;
 
 static void kgdb_correct_hw_break(void)
 {
-	int breakno;
+	int breakanal;
 
-	for (breakno = 0; breakno < HBP_NUM; breakno++) {
+	for (breakanal = 0; breakanal < HBP_NUM; breakanal++) {
 		struct perf_event *bp;
 		struct arch_hw_breakpoint *info;
 		int val;
 		int cpu = raw_smp_processor_id();
-		if (!breakinfo[breakno].enabled)
+		if (!breakinfo[breakanal].enabled)
 			continue;
 		if (dbg_is_early) {
-			set_debugreg(breakinfo[breakno].addr, breakno);
-			early_dr7 |= encode_dr7(breakno,
-						breakinfo[breakno].len,
-						breakinfo[breakno].type);
+			set_debugreg(breakinfo[breakanal].addr, breakanal);
+			early_dr7 |= encode_dr7(breakanal,
+						breakinfo[breakanal].len,
+						breakinfo[breakanal].type);
 			set_debugreg(early_dr7, 7);
 			continue;
 		}
-		bp = *per_cpu_ptr(breakinfo[breakno].pev, cpu);
+		bp = *per_cpu_ptr(breakinfo[breakanal].pev, cpu);
 		info = counter_arch_bp(bp);
 		if (bp->attr.disabled != 1)
 			continue;
-		bp->attr.bp_addr = breakinfo[breakno].addr;
-		bp->attr.bp_len = breakinfo[breakno].len;
-		bp->attr.bp_type = breakinfo[breakno].type;
-		info->address = breakinfo[breakno].addr;
-		info->len = breakinfo[breakno].len;
-		info->type = breakinfo[breakno].type;
+		bp->attr.bp_addr = breakinfo[breakanal].addr;
+		bp->attr.bp_len = breakinfo[breakanal].len;
+		bp->attr.bp_type = breakinfo[breakanal].type;
+		info->address = breakinfo[breakanal].addr;
+		info->len = breakinfo[breakanal].len;
+		info->type = breakinfo[breakanal].type;
 		val = arch_install_hw_breakpoint(bp);
 		if (!val)
 			bp->attr.disabled = 0;
@@ -223,7 +223,7 @@ static void kgdb_correct_hw_break(void)
 		hw_breakpoint_restore();
 }
 
-static int hw_break_reserve_slot(int breakno)
+static int hw_break_reserve_slot(int breakanal)
 {
 	int cpu;
 	int cnt = 0;
@@ -234,7 +234,7 @@ static int hw_break_reserve_slot(int breakno)
 
 	for_each_online_cpu(cpu) {
 		cnt++;
-		pevent = per_cpu_ptr(breakinfo[breakno].pev, cpu);
+		pevent = per_cpu_ptr(breakinfo[breakanal].pev, cpu);
 		if (dbg_reserve_bp_slot(*pevent))
 			goto fail;
 	}
@@ -246,13 +246,13 @@ fail:
 		cnt--;
 		if (!cnt)
 			break;
-		pevent = per_cpu_ptr(breakinfo[breakno].pev, cpu);
+		pevent = per_cpu_ptr(breakinfo[breakanal].pev, cpu);
 		dbg_release_bp_slot(*pevent);
 	}
 	return -1;
 }
 
-static int hw_break_release_slot(int breakno)
+static int hw_break_release_slot(int breakanal)
 {
 	struct perf_event **pevent;
 	int cpu;
@@ -261,7 +261,7 @@ static int hw_break_release_slot(int breakno)
 		return 0;
 
 	for_each_online_cpu(cpu) {
-		pevent = per_cpu_ptr(breakinfo[breakno].pev, cpu);
+		pevent = per_cpu_ptr(breakinfo[breakanal].pev, cpu);
 		if (dbg_release_bp_slot(*pevent))
 			/*
 			 * The debugger is responsible for handing the retry on
@@ -284,7 +284,7 @@ kgdb_remove_hw_break(unsigned long addr, int len, enum kgdb_bptype bptype)
 		return -1;
 
 	if (hw_break_release_slot(i)) {
-		printk(KERN_ERR "Cannot remove hw breakpoint at %lx\n", addr);
+		printk(KERN_ERR "Cananalt remove hw breakpoint at %lx\n", addr);
 		return -1;
 	}
 	breakinfo[i].enabled = 0;
@@ -407,12 +407,12 @@ static void kgdb_disable_hw_debug(struct pt_regs *regs)
  *	kgdb_roundup_cpus - Get other CPUs into a holding pattern
  *
  *	On SMP systems, we need to get the attention of the other CPUs
- *	and get them be in a known state.  This should do what is needed
- *	to get the other CPUs to call kgdb_wait(). Note that on some arches,
- *	the NMI approach is not used for rounding up all the CPUs. For example,
+ *	and get them be in a kanalwn state.  This should do what is needed
+ *	to get the other CPUs to call kgdb_wait(). Analte that on some arches,
+ *	the NMI approach is analt used for rounding up all the CPUs. For example,
  *	in case of MIPS, smp_call_function() is used to roundup CPUs.
  *
- *	On non-SMP systems, this is not called.
+ *	On analn-SMP systems, this is analt called.
  */
 void kgdb_roundup_cpus(void)
 {
@@ -423,7 +423,7 @@ void kgdb_roundup_cpus(void)
 /**
  *	kgdb_arch_handle_exception - Handle architecture specific GDB packets.
  *	@e_vector: The error vector of the exception that happened.
- *	@signo: The signal number of the exception that happened.
+ *	@siganal: The signal number of the exception that happened.
  *	@err_code: The error code of the exception that happened.
  *	@remcomInBuffer: The buffer of the packet we have read.
  *	@remcomOutBuffer: The buffer of %BUFMAX bytes to write a packet into.
@@ -436,7 +436,7 @@ void kgdb_roundup_cpus(void)
  *	process more packets, and a %0 or %1 if it wants to exit from the
  *	kgdb callback.
  */
-int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
+int kgdb_arch_handle_exception(int e_vector, int siganal, int err_code,
 			       char *remcomInBuffer, char *remcomOutBuffer,
 			       struct pt_regs *linux_regs)
 {
@@ -446,7 +446,7 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 	switch (remcomInBuffer[0]) {
 	case 'c':
 	case 's':
-		/* try to read optional parameter, pc unchanged if no parm */
+		/* try to read optional parameter, pc unchanged if anal parm */
 		ptr = &remcomInBuffer[1];
 		if (kgdb_hex2long(&ptr, &addr))
 			linux_regs->ip = addr;
@@ -467,7 +467,7 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 		return 0;
 	}
 
-	/* this means that we do not want to exit from the handler: */
+	/* this means that we do analt want to exit from the handler: */
 	return -1;
 }
 
@@ -484,11 +484,11 @@ single_step_cont(struct pt_regs *regs, struct die_args *args)
 				   args->err, "c", "", regs);
 	/*
 	 * Reset the BS bit in dr6 (pointed by args->err) to
-	 * denote completion of processing
+	 * deanalte completion of processing
 	 */
 	(*(unsigned long *)ERR_PTR(args->err)) &= ~DR_STEP;
 
-	return NOTIFY_STOP;
+	return ANALTIFY_STOP;
 }
 
 static DECLARE_BITMAP(was_in_debug_nmi, NR_CPUS);
@@ -510,7 +510,7 @@ static int kgdb_nmi_handler(unsigned int cmd, struct pt_regs *regs)
 		}
 		break;
 
-	case NMI_UNKNOWN:
+	case NMI_UNKANALWN:
 		cpu = raw_smp_processor_id();
 
 		if (__test_and_clear_bit(cpu, was_in_debug_nmi))
@@ -518,13 +518,13 @@ static int kgdb_nmi_handler(unsigned int cmd, struct pt_regs *regs)
 
 		break;
 	default:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
 	return NMI_DONE;
 }
 
-static int __kgdb_notify(struct die_args *args, unsigned long cmd)
+static int __kgdb_analtify(struct die_args *args, unsigned long cmd)
 {
 	struct pt_regs *regs = args->regs;
 
@@ -536,21 +536,21 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 			break;
 		} else if (test_thread_flag(TIF_SINGLESTEP))
 			/* This means a user thread is single stepping
-			 * a system call which should be ignored
+			 * a system call which should be iganalred
 			 */
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		fallthrough;
 	default:
 		if (user_mode(regs))
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 	}
 
 	if (kgdb_handle_exception(args->trapnr, args->signr, cmd, regs))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
-	/* Must touch watchdog before return to normal operation */
+	/* Must touch watchdog before return to analrmal operation */
 	touch_nmi_watchdog();
-	return NOTIFY_STOP;
+	return ANALTIFY_STOP;
 }
 
 int kgdb_ll_trap(int cmd, const char *str,
@@ -566,26 +566,26 @@ int kgdb_ll_trap(int cmd, const char *str,
 	};
 
 	if (!kgdb_io_module_registered)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
-	return __kgdb_notify(&args, cmd);
+	return __kgdb_analtify(&args, cmd);
 }
 
 static int
-kgdb_notify(struct notifier_block *self, unsigned long cmd, void *ptr)
+kgdb_analtify(struct analtifier_block *self, unsigned long cmd, void *ptr)
 {
 	unsigned long flags;
 	int ret;
 
 	local_irq_save(flags);
-	ret = __kgdb_notify(ptr, cmd);
+	ret = __kgdb_analtify(ptr, cmd);
 	local_irq_restore(flags);
 
 	return ret;
 }
 
-static struct notifier_block kgdb_notifier = {
-	.notifier_call	= kgdb_notify,
+static struct analtifier_block kgdb_analtifier = {
+	.analtifier_call	= kgdb_analtify,
 };
 
 /**
@@ -598,7 +598,7 @@ int kgdb_arch_init(void)
 {
 	int retval;
 
-	retval = register_die_notifier(&kgdb_notifier);
+	retval = register_die_analtifier(&kgdb_analtifier);
 	if (retval)
 		goto out;
 
@@ -607,7 +607,7 @@ int kgdb_arch_init(void)
 	if (retval)
 		goto out1;
 
-	retval = register_nmi_handler(NMI_UNKNOWN, kgdb_nmi_handler,
+	retval = register_nmi_handler(NMI_UNKANALWN, kgdb_nmi_handler,
 					0, "kgdb");
 
 	if (retval)
@@ -618,7 +618,7 @@ int kgdb_arch_init(void)
 out2:
 	unregister_nmi_handler(NMI_LOCAL, "kgdb");
 out1:
-	unregister_die_notifier(&kgdb_notifier);
+	unregister_die_analtifier(&kgdb_analtifier);
 out:
 	return retval;
 }
@@ -642,7 +642,7 @@ void kgdb_arch_late(void)
 	struct perf_event **pevent;
 
 	/*
-	 * Pre-allocate the hw breakpoint instructions in the non-atomic
+	 * Pre-allocate the hw breakpoint instructions in the analn-atomic
 	 * portion of kgdb because this operation requires mutexs to
 	 * complete.
 	 */
@@ -656,7 +656,7 @@ void kgdb_arch_late(void)
 			continue;
 		breakinfo[i].pev = register_wide_hw_breakpoint(&attr, NULL, NULL);
 		if (IS_ERR((void * __force)breakinfo[i].pev)) {
-			printk(KERN_ERR "kgdb: Could not allocate hw"
+			printk(KERN_ERR "kgdb: Could analt allocate hw"
 			       "breakpoints\nDisabling the kernel debugger\n");
 			breakinfo[i].pev = NULL;
 			kgdb_arch_exit();
@@ -689,9 +689,9 @@ void kgdb_arch_exit(void)
 			breakinfo[i].pev = NULL;
 		}
 	}
-	unregister_nmi_handler(NMI_UNKNOWN, "kgdb");
+	unregister_nmi_handler(NMI_UNKANALWN, "kgdb");
 	unregister_nmi_handler(NMI_LOCAL, "kgdb");
-	unregister_die_notifier(&kgdb_notifier);
+	unregister_die_analtifier(&kgdb_analtifier);
 }
 
 /**
@@ -732,17 +732,17 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 	int err;
 
 	bpt->type = BP_BREAKPOINT;
-	err = copy_from_kernel_nofault(bpt->saved_instr, (char *)bpt->bpt_addr,
+	err = copy_from_kernel_analfault(bpt->saved_instr, (char *)bpt->bpt_addr,
 				BREAK_INSTR_SIZE);
 	if (err)
 		return err;
-	err = copy_to_kernel_nofault((char *)bpt->bpt_addr,
+	err = copy_to_kernel_analfault((char *)bpt->bpt_addr,
 				 arch_kgdb_ops.gdb_bpt_instr, BREAK_INSTR_SIZE);
 	if (!err)
 		return err;
 	/*
-	 * It is safe to call text_poke_kgdb() because normal kernel execution
-	 * is stopped on all cores, so long as the text_mutex is not locked.
+	 * It is safe to call text_poke_kgdb() because analrmal kernel execution
+	 * is stopped on all cores, so long as the text_mutex is analt locked.
 	 */
 	if (mutex_is_locked(&text_mutex))
 		return -EBUSY;
@@ -758,8 +758,8 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
 	if (bpt->type != BP_POKE_BREAKPOINT)
 		goto knl_write;
 	/*
-	 * It is safe to call text_poke_kgdb() because normal kernel execution
-	 * is stopped on all cores, so long as the text_mutex is not locked.
+	 * It is safe to call text_poke_kgdb() because analrmal kernel execution
+	 * is stopped on all cores, so long as the text_mutex is analt locked.
 	 */
 	if (mutex_is_locked(&text_mutex))
 		goto knl_write;
@@ -768,7 +768,7 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
 	return 0;
 
 knl_write:
-	return copy_to_kernel_nofault((char *)bpt->bpt_addr,
+	return copy_to_kernel_analfault((char *)bpt->bpt_addr,
 				  (char *)bpt->saved_instr, BREAK_INSTR_SIZE);
 }
 

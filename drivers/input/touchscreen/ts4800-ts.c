@@ -109,27 +109,27 @@ static int ts4800_parse_dt(struct platform_device *pdev,
 			   struct ts4800_ts *ts)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *syscon_np;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *syscon_np;
 	u32 reg, bit;
 	int error;
 
 	syscon_np = of_parse_phandle(np, "syscon", 0);
 	if (!syscon_np) {
-		dev_err(dev, "no syscon property\n");
-		return -ENODEV;
+		dev_err(dev, "anal syscon property\n");
+		return -EANALDEV;
 	}
 
-	ts->regmap = syscon_node_to_regmap(syscon_np);
-	of_node_put(syscon_np);
+	ts->regmap = syscon_analde_to_regmap(syscon_np);
+	of_analde_put(syscon_np);
 	if (IS_ERR(ts->regmap)) {
-		dev_err(dev, "cannot get parent's regmap\n");
+		dev_err(dev, "cananalt get parent's regmap\n");
 		return PTR_ERR(ts->regmap);
 	}
 
 	error = of_property_read_u32_index(np, "syscon", 1, &reg);
 	if (error < 0) {
-		dev_err(dev, "no offset in syscon\n");
+		dev_err(dev, "anal offset in syscon\n");
 		return error;
 	}
 
@@ -137,7 +137,7 @@ static int ts4800_parse_dt(struct platform_device *pdev,
 
 	error = of_property_read_u32_index(np, "syscon", 2, &bit);
 	if (error < 0) {
-		dev_err(dev, "no bit in syscon\n");
+		dev_err(dev, "anal bit in syscon\n");
 		return error;
 	}
 
@@ -154,7 +154,7 @@ static int ts4800_ts_probe(struct platform_device *pdev)
 
 	ts = devm_kzalloc(&pdev->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = ts4800_parse_dt(pdev, ts);
 	if (error)
@@ -166,7 +166,7 @@ static int ts4800_ts_probe(struct platform_device *pdev)
 
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(&pdev->dev));
 	ts->input = input_dev;
@@ -203,7 +203,7 @@ static int ts4800_ts_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id ts4800_ts_of_match[] = {
-	{ .compatible = "technologic,ts4800-ts", },
+	{ .compatible = "techanallogic,ts4800-ts", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ts4800_ts_of_match);

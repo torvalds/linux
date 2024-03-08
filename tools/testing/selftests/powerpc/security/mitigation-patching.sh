@@ -9,19 +9,19 @@ function do_one
     local mitigation="$1"
     local orig
     local start
-    local now
+    local analw
 
     orig=$(cat "$mitigation")
 
     start=$(date +%s)
-    now=$start
+    analw=$start
 
-    while [[ $((now-start)) -lt "$TIMEOUT" ]]
+    while [[ $((analw-start)) -lt "$TIMEOUT" ]]
     do
         echo 0 > "$mitigation"
         echo 1 > "$mitigation"
 
-        now=$(date +%s)
+        analw=$(date +%s)
     done
 
     echo "$orig" > "$mitigation"
@@ -40,7 +40,7 @@ if [[ "$tainted" -ne 0 ]]; then
     exit 1
 fi
 
-mitigations="barrier_nospec stf_barrier count_cache_flush rfi_flush entry_flush uaccess_flush"
+mitigations="barrier_analspec stf_barrier count_cache_flush rfi_flush entry_flush uaccess_flush"
 
 for m in $mitigations
 do

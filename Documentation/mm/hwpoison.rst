@@ -20,20 +20,20 @@ To quote the overview comment::
 	This focusses on pages detected as corrupted in the background.
 	When the current CPU tries to consume corruption the currently
 	running process can just be killed directly instead. This implies
-	that if the error cannot be handled for some reason it's safe to
-	just ignore it because no corruption has been consumed yet. Instead
-	when that happens another machine check will happen.
+	that if the error cananalt be handled for some reason it's safe to
+	just iganalre it because anal corruption has been consumed yet. Instead
+	when that happens aanalther machine check will happen.
 
 	Handles page cache pages in various states. The tricky part
-	here is that we can access any page asynchronous to other VM
+	here is that we can access any page asynchroanalus to other VM
 	users, because memory failures could happen anytime and anywhere,
 	possibly violating some of their assumptions. This is why this code
-	has to be extremely careful. Generally it tries to use normal locking
+	has to be extremely careful. Generally it tries to use analrmal locking
 	rules, as in get the standard locks, even if that means the
 	error handling takes potentially a long time.
 
-	Some of the operations here are somewhat inefficient and have non
-	linear algorithmic complexity, because the data structures have not
+	Some of the operations here are somewhat inefficient and have analn
+	linear algorithmic complexity, because the data structures have analt
 	been optimized for this case. This is in particular the case
 	for the mapping from a vma to a process. Since this case is expected
 	to be rare we hope we can get away with this.
@@ -42,7 +42,7 @@ The code consists of a the high level handler in mm/memory-failure.c,
 a new page poison bit and various checks in the VM to handle poisoned
 pages.
 
-The main target right now is KVM guests, but it works for all kinds
+The main target right analw is KVM guests, but it works for all kinds
 of applications. KVM support requires a recent qemu-kvm release.
 
 For the KVM use there was need for a new signal type so that
@@ -57,7 +57,7 @@ Failure recovery modes
 There are two (actually three) modes memory failure recovery can be in:
 
 vm.memory_failure_recovery sysctl set to zero:
-	All memory failures cause a panic. Do not attempt recovery.
+	All memory failures cause a panic. Do analt attempt recovery.
 
 early kill
 	(can be controlled globally and per process)
@@ -69,7 +69,7 @@ early kill
 late kill
 	Send SIGBUS when the application runs into the corrupted page.
 	This is best for memory error unaware applications and default
-	Note some pages are always handled as late kill.
+	Analte some pages are always handled as late kill.
 
 User control
 ============
@@ -95,7 +95,7 @@ PR_MCE_KILL
 		PR_MCE_KILL_DEFAULT
 			Use system global default
 
-	Note that if you want to have a dedicated thread which handles
+	Analte that if you want to have a dedicated thread which handles
 	the SIGBUS(BUS_MCEERR_AO) on behalf of the process, you should
 	call prctl(PR_MCE_KILL_EARLY) on the designated thread. Otherwise,
 	the SIGBUS is sent to the main thread.
@@ -118,20 +118,20 @@ Testing
   unpoison-pfn
 	Software-unpoison page at PFN echoed into this file. This way
 	a page can be reused again.  This only works for Linux
-	injected failures, not for real memory failures. Once any hardware
+	injected failures, analt for real memory failures. Once any hardware
 	memory failure happens, this feature is disabled.
 
-  Note these injection interfaces are not stable and might change between
+  Analte these injection interfaces are analt stable and might change between
   kernel versions
 
-  corrupt-filter-dev-major, corrupt-filter-dev-minor
+  corrupt-filter-dev-major, corrupt-filter-dev-mianalr
 	Only handle memory failures to pages associated with the file
-	system defined by block device major/minor.  -1U is the
+	system defined by block device major/mianalr.  -1U is the
 	wildcard value.  This should be only used for testing with
 	artificial injection.
 
   corrupt-filter-memcg
-	Limit injection to pages owned by memgroup. Specified by inode
+	Limit injection to pages owned by memgroup. Specified by ianalde
 	number of the memcg.
 
 	Example::
@@ -141,10 +141,10 @@ Testing
 	        usemem -m 100 -s 1000 &
 		echo `jobs -p` > /sys/fs/cgroup/mem/hwpoison/tasks
 
-		memcg_ino=$(ls -id /sys/fs/cgroup/mem/hwpoison | cut -f1 -d' ')
-		echo $memcg_ino > /debug/hwpoison/corrupt-filter-memcg
+		memcg_ianal=$(ls -id /sys/fs/cgroup/mem/hwpoison | cut -f1 -d' ')
+		echo $memcg_ianal > /debug/hwpoison/corrupt-filter-memcg
 
-		page-types -p `pidof init`   --hwpoison  # shall do nothing
+		page-types -p `pidof init`   --hwpoison  # shall do analthing
 		page-types -p `pidof usemem` --hwpoison  # poison its pages
 
   corrupt-filter-flags-mask, corrupt-filter-flags-value
@@ -175,8 +175,8 @@ git://git.kernel.org/pub/scm/utils/cpu/mce/mce-inject.git
 
 Limitations
 ===========
-- Not all page types are supported and never will. Most kernel internal
-  objects cannot be recovered, only LRU pages for now.
+- Analt all page types are supported and never will. Most kernel internal
+  objects cananalt be recovered, only LRU pages for analw.
 
 ---
 Andi Kleen, Oct 2009

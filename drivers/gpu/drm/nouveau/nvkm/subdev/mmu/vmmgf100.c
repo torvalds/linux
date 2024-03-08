@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -247,7 +247,7 @@ gf100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	struct nvkm_device *device = vmm->mmu->subdev.device;
 	struct nvkm_memory *memory = map->memory;
 	u8  kind, kind_inv, priv, ro, vol;
-	int kindn, aper, ret = -ENOSYS;
+	int kindn, aper, ret = -EANALSYS;
 	const u8 *kindm;
 
 	map->next = (1 << page->shift) >> 8;
@@ -287,7 +287,7 @@ gf100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 			return -EINVAL;
 		}
 
-		if (!map->no_comp) {
+		if (!map->anal_comp) {
 			ret = nvkm_memory_tags_get(memory, device, tags,
 						   nvkm_ltc_tags_clear,
 						   &map->tags);
@@ -297,7 +297,7 @@ gf100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 			}
 		}
 
-		if (!map->no_comp && map->tags->mn) {
+		if (!map->anal_comp && map->tags->mn) {
 			u64 tags = map->tags->mn->offset + (map->offset >> 17);
 			if (page->shift == 17 || !gm20x) {
 				map->type |= tags << 44;

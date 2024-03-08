@@ -17,22 +17,22 @@ description: |
   capacity on most SoCs. These are used together with other processors present
   on the SoC to achieve various system level goals.
 
-  AM64x SoCs do not support LockStep mode, but rather a new non-safety mode
+  AM64x SoCs do analt support LockStep mode, but rather a new analn-safety mode
   called "Single-CPU" mode, where only Core0 is used, but with ability to use
   Core1's TCMs as well.
 
   AM62 SoC family support a single R5F core only which runs Device Manager
   firmware and can also be used as a remote processor with IPC communication.
 
-  Each Dual-Core R5F sub-system is represented as a single DTS node
-  representing the cluster, with a pair of child DT nodes representing
-  the individual R5F cores. Each node has a number of required or optional
+  Each Dual-Core R5F sub-system is represented as a single DTS analde
+  representing the cluster, with a pair of child DT analdes representing
+  the individual R5F cores. Each analde has a number of required or optional
   properties that enable the OS running on the host processor to perform
   the device management of the remote processor and to communicate with the
   remote processor.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^r5fss(@.*)?"
 
   compatible:
@@ -46,7 +46,7 @@ properties:
 
   power-domains:
     description: |
-      Should contain a phandle to a PM domain provider node and an args
+      Should contain a phandle to a PM domain provider analde and an args
       specifier containing the R5FSS device id value.
     maxItems: 1
 
@@ -80,19 +80,19 @@ properties:
       omitted.
 
 
-# R5F Processor Child Nodes:
+# R5F Processor Child Analdes:
 # ==========================
 
 patternProperties:
   "^r5f@[a-f0-9]+$":
     type: object
     description: |
-      The R5F Sub-System device node should define two R5F child nodes, each
-      node representing a TI instantiation of the Arm Cortex R5F core. There
+      The R5F Sub-System device analde should define two R5F child analdes, each
+      analde representing a TI instantiation of the Arm Cortex R5F core. There
       are some specific integration differences for the IP like the usage of
       a Region Address Translator (RAT) for translating the larger SoC bus
       addresses into a 32-bit address space for the processor. For AM62x,
-      the R5F Sub-System device node should only define one R5F child node
+      the R5F Sub-System device analde should only define one R5F child analde
       as it has only one core available.
 
       Each R5F core has an associated 64 KB of Tightly-Coupled Memory (TCM)
@@ -102,7 +102,7 @@ patternProperties:
       caches. Each of the TCMs can be enabled or disabled independently and
       either of them can be configured to appear at that R5F's address 0x0.
 
-      The cores do not use an MMU, but has a Region Address Translator
+      The cores do analt use an MMU, but has a Region Address Translator
       (RAT) module that is accessible only from the R5Fs for providing
       translations between 32-bit CPU addresses into larger system bus
       addresses. Cache and memory access settings are provided through a
@@ -132,7 +132,7 @@ patternProperties:
 
       resets:
         description: |
-          Should contain the phandle to the reset controller node managing the
+          Should contain the phandle to the reset controller analde managing the
           local resets for this device, and a reset specifier.
         maxItems: 1
 
@@ -147,17 +147,17 @@ patternProperties:
 
       mboxes:
         description: |
-          OMAP Mailbox specifier denoting the sub-mailbox, to be used for
+          OMAP Mailbox specifier deanalting the sub-mailbox, to be used for
           communication with the remote processor. This property should match
-          with the sub-mailbox node used in the firmware image.
+          with the sub-mailbox analde used in the firmware image.
         maxItems: 1
 
       memory-region:
         description: |
-          phandle to the reserved memory nodes to be associated with the
-          remoteproc device. There should be at least two reserved memory nodes
-          defined. The reserved memory nodes should be carveout nodes, and
-          should be defined with a "no-map" property as per the bindings in
+          phandle to the reserved memory analdes to be associated with the
+          remoteproc device. There should be at least two reserved memory analdes
+          defined. The reserved memory analdes should be carveout analdes, and
+          should be defined with a "anal-map" property as per the bindings in
           Documentation/devicetree/bindings/reserved-memory/reserved-memory.txt
         minItems: 2
         maxItems: 8
@@ -206,7 +206,7 @@ patternProperties:
           maxItems: 1
         description: |
           phandles to one or more reserved on-chip SRAM regions. The regions
-          should be defined as child nodes of the respective SRAM node, and
+          should be defined as child analdes of the respective SRAM analde, and
           should be defined as per the generic bindings in,
           Documentation/devicetree/bindings/sram/sram.yaml
 
@@ -297,7 +297,7 @@ examples:
                          <0x00 0x41400000 0x00 0x41400000 0x00 0x00020000>, /* MCU R5F Core1 */
                          <0x00 0x41c00000 0x00 0x41c00000 0x00 0x00080000>; /* MCU SRAM */
 
-                /* AM65x MCU R5FSS node */
+                /* AM65x MCU R5FSS analde */
                 mcu_r5fss0: r5fss@41000000 {
                     compatible = "ti,am654-r5fss";
                     power-domains = <&k3_pds 129>;

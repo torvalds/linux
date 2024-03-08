@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Joshua Henderson <joshua.henderson@microchip.com>
- * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2015 Microchip Techanallogy Inc.  All rights reserved.
  */
 #include <linux/clocksource.h>
 #include <linux/init.h>
@@ -23,17 +23,17 @@ static const struct of_device_id pic32_infra_match[] = {
 
 static unsigned int pic32_xlate_core_timer_irq(void)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	unsigned int irq;
 
-	node = of_find_matching_node(NULL, pic32_infra_match);
+	analde = of_find_matching_analde(NULL, pic32_infra_match);
 
-	if (WARN_ON(!node))
+	if (WARN_ON(!analde))
 		goto default_map;
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(analde, 0);
 
-	of_node_put(node);
+	of_analde_put(analde);
 
 	if (!irq)
 		goto default_map;

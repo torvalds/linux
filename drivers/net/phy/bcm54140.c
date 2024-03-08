@@ -85,7 +85,7 @@
 /* According to the datasheet the formula is:
  *   U = bits[11:0] / 1024 * 220 / 0.2
  *
- * Normalized:
+ * Analrmalized:
  *   U = bits[11:0] / 4096 * 2514
  */
 #define BCM54140_HWMON_TO_IN_1V0(v) ((v) * 2514 >> 11)
@@ -94,7 +94,7 @@
 /* According to the datasheet the formula is:
  *   U = bits[10:0] / 1024 * 880 / 0.7
  *
- * Normalized:
+ * Analrmalized:
  *   U = bits[10:0] / 2048 * 4400
  */
 #define BCM54140_HWMON_TO_IN_3V3(v) ((v) * 4400 >> 12)
@@ -222,7 +222,7 @@ static int bcm54140_hwmon_read_temp(struct device *dev, u32 attr, long *val)
 						 BCM54140_RDB_MON_ISR_TEMP,
 						 val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	tmp = bcm_phy_read_rdb(phydev, reg);
@@ -255,7 +255,7 @@ static int bcm54140_hwmon_read_in(struct device *dev, u32 attr,
 		bit = BCM54140_HWMON_IN_ALARM_BIT(channel);
 		return bcm54140_hwmon_read_alarm(dev, bit, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	tmp = bcm_phy_read_rdb(phydev, reg);
@@ -278,7 +278,7 @@ static int bcm54140_hwmon_read(struct device *dev,
 	case hwmon_in:
 		return bcm54140_hwmon_read_in(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -298,10 +298,10 @@ static int bcm54140_hwmon_read_string(struct device *dev,
 			*str = bcm54140_hwmon_in_labels[channel];
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -323,7 +323,7 @@ static int bcm54140_hwmon_write_temp(struct device *dev, u32 attr,
 		reg = BCM54140_RDB_MON_TEMP_MAX;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return bcm_phy_modify_rdb(phydev, reg, mask,
@@ -347,7 +347,7 @@ static int bcm54140_hwmon_write_in(struct device *dev, u32 attr,
 		reg = BCM54140_HWMON_IN_MAX_REG(channel);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return bcm_phy_modify_rdb(phydev, reg, mask,
@@ -364,7 +364,7 @@ static int bcm54140_hwmon_write(struct device *dev,
 	case hwmon_in:
 		return bcm54140_hwmon_write_in(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -465,7 +465,7 @@ out:
 	return ret;
 }
 
-/* Under some circumstances a core PLL may not lock, this will then prevent
+/* Under some circumstances a core PLL may analt lock, this will then prevent
  * a successful link establishment. Restart the PLL after the voltages are
  * stable to workaround this issue.
  */
@@ -519,7 +519,7 @@ static int bcm54140_get_base_addr_and_port(struct phy_device *phydev)
 	 * backwards. Once we are finished, we have a min_addr and
 	 * max_addr which resembles the range of PHY addresses of the same
 	 * type of PHY. There is one caveat; there may be many PHYs of
-	 * the same type, but we know that each PHY takes exactly 4
+	 * the same type, but we kanalw that each PHY takes exactly 4
 	 * consecutive addresses. Therefore we can deduce our offset
 	 * to the base address of this quad PHY.
 	 */
@@ -559,7 +559,7 @@ static int bcm54140_get_base_addr_and_port(struct phy_device *phydev)
 		}
 	}
 
-	/* The range we get should be a multiple of four. Please note that both
+	/* The range we get should be a multiple of four. Please analte that both
 	 * the min_addr and max_addr are inclusive. So we have to add one if we
 	 * subtract them.
 	 */
@@ -583,7 +583,7 @@ static int bcm54140_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phydev->priv = priv;
 
@@ -652,18 +652,18 @@ static irqreturn_t bcm54140_handle_interrupt(struct phy_device *phydev)
 	irq_status = bcm_phy_read_rdb(phydev, BCM54140_RDB_ISR);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	irq_mask = bcm_phy_read_rdb(phydev, BCM54140_RDB_IMR);
 	if (irq_mask < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	irq_mask = ~irq_mask;
 
 	if (!(irq_status & irq_mask))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -844,7 +844,7 @@ static int bcm54140_get_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_EDPD:
 		return bcm54140_get_edpd(phydev, data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -857,7 +857,7 @@ static int bcm54140_set_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_EDPD:
 		return bcm54140_set_edpd(phydev, *(const u16 *)data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 

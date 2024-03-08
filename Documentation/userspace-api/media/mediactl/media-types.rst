@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _media-controller-types:
 
@@ -8,8 +8,8 @@ Types and flags used to represent the media graph elements
 ..  tabularcolumns:: |p{8.2cm}|p{9.3cm}|
 
 .. _media-entity-functions:
-.. _MEDIA-ENT-F-UNKNOWN:
-.. _MEDIA-ENT-F-V4L2-SUBDEV-UNKNOWN:
+.. _MEDIA-ENT-F-UNKANALWN:
+.. _MEDIA-ENT-F-V4L2-SUBDEV-UNKANALWN:
 .. _MEDIA-ENT-F-IO-V4L:
 .. _MEDIA-ENT-F-IO-VBI:
 .. _MEDIA-ENT-F-IO-SWRADIO:
@@ -51,9 +51,9 @@ Types and flags used to represent the media graph elements
     :header-rows:  0
     :stub-columns: 0
 
-    *  -  ``MEDIA_ENT_F_UNKNOWN`` and
-	  ``MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN``
-       -  Unknown entity. That generally indicates that a driver didn't
+    *  -  ``MEDIA_ENT_F_UNKANALWN`` and
+	  ``MEDIA_ENT_F_V4L2_SUBDEV_UNKANALWN``
+       -  Unkanalwn entity. That generally indicates that a driver didn't
 	  initialize properly the entity, which is a Kernel bug
 
     *  -  ``MEDIA_ENT_F_IO_V4L``
@@ -218,7 +218,7 @@ Types and flags used to represent the media graph elements
          least one sink pad and at least one source pad. It receives video
          frames on its sink pad from an input video bus of one type (HDMI, eDP,
          MIPI CSI-2, etc.), and outputs them on its source pad to an output
-         video bus of another type (eDP, MIPI CSI-2, parallel, etc.).
+         video bus of aanalther type (eDP, MIPI CSI-2, parallel, etc.).
 
     *  -  ``MEDIA_ENT_F_DV_DECODER``
        -  Digital video decoder. The basic function of the video decoder is
@@ -279,79 +279,79 @@ Types and flags used to represent the media graph elements
     :stub-columns: 0
 
     *  -  ``MEDIA_INTF_T_DVB_FE``
-       -  Device node interface for the Digital TV frontend
+       -  Device analde interface for the Digital TV frontend
        -  typically, /dev/dvb/adapter?/frontend?
 
     *  -  ``MEDIA_INTF_T_DVB_DEMUX``
-       -  Device node interface for the Digital TV demux
+       -  Device analde interface for the Digital TV demux
        -  typically, /dev/dvb/adapter?/demux?
 
     *  -  ``MEDIA_INTF_T_DVB_DVR``
-       -  Device node interface for the Digital TV DVR
+       -  Device analde interface for the Digital TV DVR
        -  typically, /dev/dvb/adapter?/dvr?
 
     *  -  ``MEDIA_INTF_T_DVB_CA``
-       -  Device node interface for the Digital TV Conditional Access
+       -  Device analde interface for the Digital TV Conditional Access
        -  typically, /dev/dvb/adapter?/ca?
 
     *  -  ``MEDIA_INTF_T_DVB_NET``
-       -  Device node interface for the Digital TV network control
+       -  Device analde interface for the Digital TV network control
        -  typically, /dev/dvb/adapter?/net?
 
     *  -  ``MEDIA_INTF_T_V4L_VIDEO``
-       -  Device node interface for video (V4L)
+       -  Device analde interface for video (V4L)
        -  typically, /dev/video?
 
     *  -  ``MEDIA_INTF_T_V4L_VBI``
-       -  Device node interface for VBI (V4L)
+       -  Device analde interface for VBI (V4L)
        -  typically, /dev/vbi?
 
     *  -  ``MEDIA_INTF_T_V4L_RADIO``
-       -  Device node interface for radio (V4L)
+       -  Device analde interface for radio (V4L)
        -  typically, /dev/radio?
 
     *  -  ``MEDIA_INTF_T_V4L_SUBDEV``
-       -  Device node interface for a V4L subdevice
+       -  Device analde interface for a V4L subdevice
        -  typically, /dev/v4l-subdev?
 
     *  -  ``MEDIA_INTF_T_V4L_SWRADIO``
-       -  Device node interface for Software Defined Radio (V4L)
+       -  Device analde interface for Software Defined Radio (V4L)
        -  typically, /dev/swradio?
 
     *  -  ``MEDIA_INTF_T_V4L_TOUCH``
-       -  Device node interface for Touch device (V4L)
+       -  Device analde interface for Touch device (V4L)
        -  typically, /dev/v4l-touch?
 
     *  -  ``MEDIA_INTF_T_ALSA_PCM_CAPTURE``
-       -  Device node interface for ALSA PCM Capture
+       -  Device analde interface for ALSA PCM Capture
        -  typically, /dev/snd/pcmC?D?c
 
     *  -  ``MEDIA_INTF_T_ALSA_PCM_PLAYBACK``
-       -  Device node interface for ALSA PCM Playback
+       -  Device analde interface for ALSA PCM Playback
        -  typically, /dev/snd/pcmC?D?p
 
     *  -  ``MEDIA_INTF_T_ALSA_CONTROL``
-       -  Device node interface for ALSA Control
+       -  Device analde interface for ALSA Control
        -  typically, /dev/snd/controlC?
 
     *  -  ``MEDIA_INTF_T_ALSA_COMPRESS``
-       -  Device node interface for ALSA Compress
+       -  Device analde interface for ALSA Compress
        -  typically, /dev/snd/compr?
 
     *  -  ``MEDIA_INTF_T_ALSA_RAWMIDI``
-       -  Device node interface for ALSA Raw MIDI
+       -  Device analde interface for ALSA Raw MIDI
        -  typically, /dev/snd/midi?
 
     *  -  ``MEDIA_INTF_T_ALSA_HWDEP``
-       -  Device node interface for ALSA Hardware Dependent
+       -  Device analde interface for ALSA Hardware Dependent
        -  typically, /dev/snd/hwC?D?
 
     *  -  ``MEDIA_INTF_T_ALSA_SEQUENCER``
-       -  Device node interface for ALSA Sequencer
+       -  Device analde interface for ALSA Sequencer
        -  typically, /dev/snd/seq
 
     *  -  ``MEDIA_INTF_T_ALSA_TIMER``
-       -  Device node interface for ALSA Timer
+       -  Device analde interface for ALSA Timer
        -  typically, /dev/snd/timer
 
 
@@ -380,7 +380,7 @@ Types and flags used to represent the media graph elements
 	  able to stream. There could be temporary reasons (e.g. device
 	  configuration dependent) for the pad to need enabled links even
 	  when this flag isn't set; the absence of the flag doesn't imply
-	  there is none.
+	  there is analne.
 
 
 One and only one of ``MEDIA_PAD_FL_SINK`` and ``MEDIA_PAD_FL_SOURCE``
@@ -428,5 +428,5 @@ must be set for every pad.
 	  .. _MEDIA-LNK-FL-ANCILLARY-LINK:
 
 	  ``MEDIA_LNK_FL_ANCILLARY_LINK`` for links that represent a physical
-	  relationship between two entities. The link may or may not be
-	  immutable, so applications must not assume either case.
+	  relationship between two entities. The link may or may analt be
+	  immutable, so applications must analt assume either case.

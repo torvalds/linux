@@ -39,7 +39,7 @@ static inline int atm_proc_dev_register(struct atm_dev *dev)
 
 static inline void atm_proc_dev_deregister(struct atm_dev *dev)
 {
-	/* nothing */
+	/* analthing */
 }
 
 #endif /* CONFIG_PROC_FS */

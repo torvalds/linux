@@ -1,7 +1,7 @@
 ARC PGU
 
 This is a display controller found on several development boards produced
-by Synopsys. The ARC PGU is an RGB streamer that reads the data from a
+by Syanalpsys. The ARC PGU is an RGB streamer that reads the data from a
 framebuffer and sends it to a single digital encoder (usually HDMI).
 
 Required properties:
@@ -12,7 +12,7 @@ Required properties:
   - clock-names: A list of clock names. For ARC PGU it should contain:
       - "pxlclk" for the clock feeding the output PLL of the controller.
 
-Required sub-nodes:
+Required sub-analdes:
   - port: The PGU connection to an encoder chip.
 
 Example:
@@ -23,7 +23,7 @@ Example:
 	pgu@XXXXXXXX {
 		compatible = "snps,arcpgu";
 		reg = <0xXXXXXXXX 0x400>;
-		clocks = <&clock_node>;
+		clocks = <&clock_analde>;
 		clock-names = "pxlclk";
 
 		port {

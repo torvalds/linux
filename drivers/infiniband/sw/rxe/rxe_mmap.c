@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <rdma/uverbs_ioctl.h>
 
 #include "rxe.h"
@@ -57,7 +57,7 @@ static const struct vm_operations_struct rxe_vm_ops = {
  * rxe_mmap - create a new mmap region
  * @context: the IB user context of the process making the mmap() call
  * @vma: the VMA to be initialized
- * Return zero if the mmap is OK. Otherwise, return an errno.
+ * Return zero if the mmap is OK. Otherwise, return an erranal.
  */
 int rxe_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
@@ -69,7 +69,7 @@ int rxe_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 
 	/*
 	 * Search the device's list of objects waiting for a mmap call.
-	 * Normally, this list is very short since a call to create a
+	 * Analrmally, this list is very short since a call to create a
 	 * CQ, QP, or SRQ is soon followed by a call to mmap().
 	 */
 	spin_lock_bh(&rxe->pending_lock);
@@ -122,7 +122,7 @@ struct rxe_mmap_info *rxe_create_mmap_info(struct rxe_dev *rxe, u32 size,
 
 	ip = kmalloc(sizeof(*ip), GFP_KERNEL);
 	if (!ip)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	size = PAGE_ALIGN(size);
 

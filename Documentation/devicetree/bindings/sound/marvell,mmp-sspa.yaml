@@ -13,7 +13,7 @@ allOf:
   - $ref: dai-common.yaml#
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^audio-controller(@.*)?$"
 
   compatible:

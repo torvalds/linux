@@ -12,7 +12,7 @@ maintainers:
   - Heiko Stuebner <heiko@sntech.de>
 
 description: |+
-  RK3568 SoC PCIe host controller is based on the Synopsys DesignWare
+  RK3568 SoC PCIe host controller is based on the Syanalpsys DesignWare
   PCIe IP and thus inherits all the common properties defined in
   snps,dw-pcie.yaml.
 
@@ -66,7 +66,7 @@ properties:
     items:
       - description:
           Combined system interrupt, which is used to signal the following
-          interrupts - phy_link_up, dll_link_up, link_req_rst_not, hp_pme,
+          interrupts - phy_link_up, dll_link_up, link_req_rst_analt, hp_pme,
           hp, hp_msi, link_auto_bw, link_auto_bw_msi, bw_mgt, bw_mgt_msi,
           edma_wr, edma_rd, dpa_sub_upd, rbar_update, link_eq_req, ep_elbi_app
       - description:
@@ -77,7 +77,7 @@ properties:
       - description:
           Combined message interrupt, which is used to signal the following
           interrupts - ven_msg, unlock_msg, ltr_msg, cfg_pme, cfg_pme_msi,
-          pm_pme, pm_to_ack, pm_turnoff, obff_idle, obff_obff, obff_cpu_active
+          pm_pme, pm_to_ack, pm_turanalff, obff_idle, obff_obff, obff_cpu_active
       - description:
           Combined legacy interrupt, which is used to signal the following
           interrupts - inta, intb, intc, intd
@@ -96,7 +96,7 @@ properties:
       - const: err
 
   legacy-interrupt-controller:
-    description: Interrupt controller node for handling legacy PCI interrupts.
+    description: Interrupt controller analde for handling legacy PCI interrupts.
     type: object
     additionalProperties: false
     properties:

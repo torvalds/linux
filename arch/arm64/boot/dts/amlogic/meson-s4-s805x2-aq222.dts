@@ -31,7 +31,7 @@
 		/* 52 MiB reserved for ARM Trusted Firmware */
 		secmon_reserved: secmon@5000000 {
 			reg = <0x0 0x05000000 0x0 0x3400000>;
-			no-map;
+			anal-map;
 		};
 	};
 };

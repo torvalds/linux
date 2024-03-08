@@ -91,7 +91,7 @@
 	EM(netfs_rreq_trace_put_complete,	"PUT COMPLT ")	\
 	EM(netfs_rreq_trace_put_discard,	"PUT DISCARD")	\
 	EM(netfs_rreq_trace_put_failed,		"PUT FAILED ")	\
-	EM(netfs_rreq_trace_put_no_submit,	"PUT NO-SUBM")	\
+	EM(netfs_rreq_trace_put_anal_submit,	"PUT ANAL-SUBM")	\
 	EM(netfs_rreq_trace_put_return,		"PUT RETURN ")	\
 	EM(netfs_rreq_trace_put_subreq,		"PUT SUBREQ ")	\
 	EM(netfs_rreq_trace_put_work,		"PUT WORK   ")	\
@@ -107,7 +107,7 @@
 	EM(netfs_sreq_trace_put_discard,	"PUT DISCARD")	\
 	EM(netfs_sreq_trace_put_failed,		"PUT FAILED ")	\
 	EM(netfs_sreq_trace_put_merged,		"PUT MERGED ")	\
-	EM(netfs_sreq_trace_put_no_copy,	"PUT NO COPY")	\
+	EM(netfs_sreq_trace_put_anal_copy,	"PUT ANAL COPY")	\
 	EM(netfs_sreq_trace_put_wip,		"PUT WIP    ")	\
 	EM(netfs_sreq_trace_put_work,		"PUT WORK   ")	\
 	E_(netfs_sreq_trace_put_terminated,	"PUT TERM   ")
@@ -181,7 +181,7 @@ netfs_sreq_ref_traces;
 netfs_folio_traces;
 
 /*
- * Now redefine the EM() and E_() macros to map the enums to the strings that
+ * Analw redefine the EM() and E_() macros to map the enums to the strings that
  * will be printed in the output.
  */
 #undef EM
@@ -202,7 +202,7 @@ TRACE_EVENT(netfs_read,
 		    __field(loff_t,			start		)
 		    __field(size_t,			len		)
 		    __field(enum netfs_read_trace,	what		)
-		    __field(unsigned int,		netfs_inode	)
+		    __field(unsigned int,		netfs_ianalde	)
 			     ),
 
 	    TP_fast_assign(
@@ -211,14 +211,14 @@ TRACE_EVENT(netfs_read,
 		    __entry->start	= start;
 		    __entry->len	= len;
 		    __entry->what	= what;
-		    __entry->netfs_inode = rreq->inode->i_ino;
+		    __entry->netfs_ianalde = rreq->ianalde->i_ianal;
 			   ),
 
 	    TP_printk("R=%08x %s c=%08x ni=%x s=%llx %zx",
 		      __entry->rreq,
 		      __print_symbolic(__entry->what, netfs_read_traces),
 		      __entry->cookie,
-		      __entry->netfs_inode,
+		      __entry->netfs_ianalde,
 		      __entry->start, __entry->len)
 	    );
 
@@ -385,21 +385,21 @@ TRACE_EVENT(netfs_folio,
 	    TP_ARGS(folio, why),
 
 	    TP_STRUCT__entry(
-		    __field(ino_t,			ino)
+		    __field(ianal_t,			ianal)
 		    __field(pgoff_t,			index)
 		    __field(unsigned int,		nr)
 		    __field(enum netfs_folio_trace,	why)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->ino = folio->mapping->host->i_ino;
+		    __entry->ianal = folio->mapping->host->i_ianal;
 		    __entry->why = why;
 		    __entry->index = folio_index(folio);
 		    __entry->nr = folio_nr_pages(folio);
 			   ),
 
 	    TP_printk("i=%05lx ix=%05lx-%05lx %s",
-		      __entry->ino, __entry->index, __entry->index + __entry->nr - 1,
+		      __entry->ianal, __entry->index, __entry->index + __entry->nr - 1,
 		      __print_symbolic(__entry->why, netfs_folio_traces))
 	    );
 
@@ -439,7 +439,7 @@ TRACE_EVENT(netfs_write,
 			     ),
 
 	    TP_fast_assign(
-		    struct netfs_inode *__ctx = netfs_inode(wreq->inode);
+		    struct netfs_ianalde *__ctx = netfs_ianalde(wreq->ianalde);
 		    struct fscache_cookie *__cookie = netfs_i_cookie(__ctx);
 		    __entry->wreq	= wreq->debug_id;
 		    __entry->cookie	= __cookie ? __cookie->debug_id : 0;

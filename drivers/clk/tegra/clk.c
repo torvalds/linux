@@ -21,7 +21,7 @@
 #include "clk.h"
 
 /* Global data of Tegra CPU CAR ops */
-static struct device_node *tegra_car_np;
+static struct device_analde *tegra_car_np;
 static struct tegra_cpu_car_ops dummy_car_ops;
 struct tegra_cpu_car_ops *tegra_cpu_car_ops = &dummy_car_ops;
 
@@ -104,8 +104,8 @@ static int tegra_clk_rst_assert(struct reset_controller_dev *rcdev,
 	/*
 	 * If peripheral is on the APB bus then we must read the APB bus to
 	 * flush the write operation in apb bus. This will avoid peripheral
-	 * access after disabling clock. Since the reset driver has no
-	 * knowledge of which reset IDs represent which devices, simply do
+	 * access after disabling clock. Since the reset driver has anal
+	 * kanalwledge of which reset IDs represent which devices, simply do
 	 * this all the time.
 	 */
 	tegra_read_chipid();
@@ -197,7 +197,7 @@ void tegra_clk_periph_resume(void)
 		writel_relaxed(periph_state_ctx[idx],
 			       clk_base + periph_regs[i].enb_reg);
 	/*
-	 * All non-boot peripherals will be in reset state on resume.
+	 * All analn-boot peripherals will be in reset state on resume.
 	 * Wait for 5us of reset propagation delay before de-asserting
 	 * the peripherals based on the saved context.
 	 */
@@ -215,7 +215,7 @@ static int tegra_clk_periph_ctx_init(int banks)
 	periph_state_ctx = kcalloc(2 * banks, sizeof(*periph_state_ctx),
 				   GFP_KERNEL);
 	if (!periph_state_ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -320,7 +320,7 @@ static struct reset_controller_dev rst_ctlr = {
 	.of_reset_n_cells = 1,
 };
 
-void __init tegra_add_of_provider(struct device_node *np,
+void __init tegra_add_of_provider(struct device_analde *np,
 				  void *clk_src_onecell_get)
 {
 	int i;
@@ -341,7 +341,7 @@ void __init tegra_add_of_provider(struct device_node *np,
 	clk_data.clk_num = clk_num;
 	of_clk_add_provider(np, clk_src_onecell_get, &clk_data);
 
-	rst_ctlr.of_node = np;
+	rst_ctlr.of_analde = np;
 	rst_ctlr.nr_resets = periph_banks * 32 + num_special_reset;
 	reset_controller_register(&rst_ctlr);
 }
@@ -379,21 +379,21 @@ struct clk ** __init tegra_lookup_dt_id(int clk_id,
 		return NULL;
 }
 
-static struct device_node *tegra_clk_get_of_node(struct clk_hw *hw)
+static struct device_analde *tegra_clk_get_of_analde(struct clk_hw *hw)
 {
-	struct device_node *np;
-	char *node_name;
+	struct device_analde *np;
+	char *analde_name;
 
-	node_name = kstrdup_and_replace(hw->init->name, '_', '-', GFP_KERNEL);
-	if (!node_name)
+	analde_name = kstrdup_and_replace(hw->init->name, '_', '-', GFP_KERNEL);
+	if (!analde_name)
 		return NULL;
 
-	for_each_child_of_node(tegra_car_np, np) {
-		if (!strcmp(np->name, node_name))
+	for_each_child_of_analde(tegra_car_np, np) {
+		if (!strcmp(np->name, analde_name))
 			break;
 	}
 
-	kfree(node_name);
+	kfree(analde_name);
 
 	return np;
 }
@@ -403,18 +403,18 @@ struct clk *tegra_clk_dev_register(struct clk_hw *hw)
 	struct platform_device *pdev, *parent;
 	const char *dev_name = NULL;
 	struct device *dev = NULL;
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = tegra_clk_get_of_node(hw);
+	np = tegra_clk_get_of_analde(hw);
 
 	if (!of_device_is_available(np))
-		goto put_node;
+		goto put_analde;
 
 	dev_name = kasprintf(GFP_KERNEL, "tegra_clk_%s", hw->init->name);
 	if (!dev_name)
-		goto put_node;
+		goto put_analde;
 
-	parent = of_find_device_by_node(tegra_car_np);
+	parent = of_find_device_by_analde(tegra_car_np);
 	if (parent) {
 		pdev = of_platform_device_create(np, dev_name, &parent->dev);
 		put_device(&parent->dev);
@@ -433,8 +433,8 @@ struct clk *tegra_clk_dev_register(struct clk_hw *hw)
 
 free_name:
 	kfree(dev_name);
-put_node:
-	of_node_put(np);
+put_analde:
+	of_analde_put(np);
 
 	return clk_register(dev, hw);
 }

@@ -69,13 +69,13 @@ static void p2sb_read_bar0(struct pci_dev *pdev, struct resource *mem)
 {
 	struct resource *bar0 = pci_resource_n(pdev, 0);
 
-	/* Make sure we have no dangling pointers in the output */
+	/* Make sure we have anal dangling pointers in the output */
 	memset(mem, 0, sizeof(*mem));
 
 	/*
 	 * We copy only selected fields from the original resource.
-	 * Because a PCI device will be removed soon, we may not use
-	 * any allocated data, hence we may not copy any pointers.
+	 * Because a PCI device will be removed soon, we may analt use
+	 * any allocated data, hence we may analt copy any pointers.
 	 */
 	mem->start = bar0->start;
 	mem->end = bar0->end;
@@ -108,7 +108,7 @@ static int p2sb_scan_and_cache(struct pci_bus *bus, unsigned int devfn)
 		p2sb_scan_and_cache_devfn(bus, SPI_DEVFN_GOLDMONT);
 
 	if (!p2sb_valid_resource(&p2sb_resources[PCI_FUNC(devfn)].res))
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -141,15 +141,15 @@ static int p2sb_cache_resources(void)
 
 	bus = p2sb_get_bus(NULL);
 	if (!bus)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * When a device with same devfn exists and its device class is not
-	 * PCI_CLASS_MEMORY_OTHER for P2SB, do not touch it.
+	 * When a device with same devfn exists and its device class is analt
+	 * PCI_CLASS_MEMORY_OTHER for P2SB, do analt touch it.
 	 */
 	pci_bus_read_config_word(bus, devfn_p2sb, PCI_CLASS_DEVICE, &class);
 	if (!PCI_POSSIBLE_ERROR(class) && class != PCI_CLASS_MEMORY_OTHER)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Prevent concurrent PCI bus scan from seeing the P2SB device and
@@ -189,7 +189,7 @@ static int p2sb_cache_resources(void)
  * Caller must provide a valid pointer to @mem.
  *
  * Return:
- * 0 on success or appropriate errno value on error.
+ * 0 on success or appropriate erranal value on error.
  */
 int p2sb_bar(struct pci_bus *bus, unsigned int devfn, struct resource *mem)
 {
@@ -198,7 +198,7 @@ int p2sb_bar(struct pci_bus *bus, unsigned int devfn, struct resource *mem)
 
 	bus = p2sb_get_bus(bus);
 	if (!bus)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!devfn) {
 		ret = p2sb_get_devfn(&devfn);
@@ -208,10 +208,10 @@ int p2sb_bar(struct pci_bus *bus, unsigned int devfn, struct resource *mem)
 
 	cache = &p2sb_resources[PCI_FUNC(devfn)];
 	if (cache->bus_dev_id != bus->dev.id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!p2sb_valid_resource(&cache->res))
-		return -ENOENT;
+		return -EANALENT;
 
 	memcpy(mem, &cache->res, sizeof(*mem));
 	return 0;
@@ -226,7 +226,7 @@ static int __init p2sb_fs_init(void)
 
 /*
  * pci_rescan_remove_lock to avoid access to unhidden P2SB devices can
- * not be locked in sysfs pci bus rescan path because of deadlock. To
+ * analt be locked in sysfs pci bus rescan path because of deadlock. To
  * avoid the deadlock, access to P2SB devices with the lock at an early
  * step in kernel initialization and cache required resources. This
  * should happen after subsys_initcall which initializes PCI subsystem

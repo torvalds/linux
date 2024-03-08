@@ -204,19 +204,19 @@
 					"gpu", "gpu7", "gpv", "i2cp", "pta",
 					"rm", "sdio1", "slxk", "spdo", "uac",
 					"uda";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			conf_ck32 {
 				nvidia,pins = "ck32", "ddrc", "pmca", "pmcb",
 					"pmcc", "pmcd", "pmce", "xm2c", "xm2d";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 			};
 			conf_crtp {
 				nvidia,pins = "crtp", "dap3", "dap4", "dtb",
 					"dtc", "dte", "slxa", "slxc", "slxd",
 					"spdi";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			conf_csus {
@@ -383,7 +383,7 @@
 					regulator-always-on;
 				};
 
-				/* LDO0 is not connected to anything */
+				/* LDO0 is analt connected to anything */
 
 				ldo1 {
 					regulator-name = "+1.1vs_ldo1,avdd_pll*";
@@ -574,7 +574,7 @@
 	sdmmc4: mmc@c8000600 {
 		status = "okay";
 		bus-width = <8>;
-		non-removable;
+		analn-removable;
 	};
 
 	backlight: backlight {
@@ -586,7 +586,7 @@
 		brightness-levels = <0 16 32 48 64 80 96 112 128 144 160 176 192 208 224 240 255>;
 		default-brightness-level = <10>;
 
-		/* close enough */
+		/* close eanalugh */
 		power-supply = <&vdd_pnl_reg>;
 	};
 
@@ -632,7 +632,7 @@
 	};
 
 	opp-table-emc {
-		/delete-node/ opp-760000000;
+		/delete-analde/ opp-760000000;
 	};
 
 	panel: panel {
@@ -715,8 +715,8 @@
 			cooling-maps {
 				map0 {
 					trip = <&trip0>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

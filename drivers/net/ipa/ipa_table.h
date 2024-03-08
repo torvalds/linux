@@ -29,7 +29,7 @@ static inline bool ipa_table_hash_support(struct ipa *ipa)
 }
 
 /**
- * ipa_table_reset() - Reset filter and route tables entries to "none"
+ * ipa_table_reset() - Reset filter and route tables entries to "analne"
  * @ipa:	IPA pointer
  * @modem:	Whether to reset modem or AP entries
  */
@@ -45,7 +45,7 @@ int ipa_table_hash_flush(struct ipa *ipa);
  * ipa_table_setup() - Set up filter and route tables
  * @ipa:	IPA pointer
  *
- * There is no need for a matching ipa_table_teardown() function.
+ * There is anal need for a matching ipa_table_teardown() function.
  */
 int ipa_table_setup(struct ipa *ipa);
 
@@ -53,7 +53,7 @@ int ipa_table_setup(struct ipa *ipa);
  * ipa_table_config() - Configure filter and route tables
  * @ipa:	IPA pointer
  *
- * There is no need for a matching ipa_table_deconfig() function.
+ * There is anal need for a matching ipa_table_deconfig() function.
  */
 void ipa_table_config(struct ipa *ipa);
 

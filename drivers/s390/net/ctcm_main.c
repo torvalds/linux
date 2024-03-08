@@ -27,7 +27,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
@@ -144,11 +144,11 @@ void ctcm_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 		len -= header->length;
 		skb = dev_alloc_skb(pskb->len);
 		if (!skb) {
-			if (!(ch->logflags & LOG_FLAG_NOMEM)) {
+			if (!(ch->logflags & LOG_FLAG_ANALMEM)) {
 				CTCM_DBF_TEXT_(ERROR, CTC_DBF_ERROR,
 					"%s(%s): MEMORY allocation error",
 						CTCM_FUNTAIL, dev->name);
-				ch->logflags |= LOG_FLAG_NOMEM;
+				ch->logflags |= LOG_FLAG_ANALMEM;
 			}
 			priv->stats.rx_dropped++;
 			return;
@@ -217,9 +217,9 @@ static void channel_remove(struct channel *ch)
 				fsm_deltimer(&ch->sweep_timer);
 
 			kfree_fsm(ch->fsm);
-			clear_normalized_cda(&ch->ccw[4]);
+			clear_analrmalized_cda(&ch->ccw[4]);
 			if (ch->trans_skb != NULL) {
-				clear_normalized_cda(&ch->ccw[1]);
+				clear_analrmalized_cda(&ch->ccw[1]);
 				dev_kfree_skb_any(ch->trans_skb);
 			}
 			if (IS_MPC(ch)) {
@@ -247,7 +247,7 @@ static void channel_remove(struct channel *ch)
  *  id		Id of channel we are interested in.
  *  direction	Direction we want to use this channel for.
  *
- * returns Pointer to a channel or NULL if no matching channel available.
+ * returns Pointer to a channel or NULL if anal matching channel available.
  */
 static struct channel *channel_get(enum ctcm_channel_types type,
 					char *id, int direction)
@@ -258,7 +258,7 @@ static struct channel *channel_get(enum ctcm_channel_types type,
 		ch = ch->next;
 	if (!ch) {
 		CTCM_DBF_TEXT_(ERROR, CTC_DBF_ERROR,
-				"%s(%d, %s, %d) not found in channel list\n",
+				"%s(%d, %s, %d) analt found in channel list\n",
 				CTCM_FUNTAIL, type, id, direction);
 	} else {
 		if (ch->flags & CHANNEL_FLAGS_INUSE)
@@ -315,7 +315,7 @@ static void ccw_unit_check(struct channel *ch, __u8 sense)
 	if (sense & SNS0_INTERVENTION_REQ) {
 		if (sense & 0x01) {
 			if (ch->sense_rc != 0x01) {
-				pr_notice(
+				pr_analtice(
 					"%s: The communication peer has "
 					"disconnected\n", ch->id);
 				ch->sense_rc = 0x01;
@@ -323,9 +323,9 @@ static void ccw_unit_check(struct channel *ch, __u8 sense)
 			fsm_event(ch->fsm, CTC_EVENT_UC_RCRESET, ch);
 		} else {
 			if (ch->sense_rc != SNS0_INTERVENTION_REQ) {
-				pr_notice(
+				pr_analtice(
 					"%s: The remote operating system is "
-					"not available\n", ch->id);
+					"analt available\n", ch->id);
 				ch->sense_rc = SNS0_INTERVENTION_REQ;
 			}
 			fsm_event(ch->fsm, CTC_EVENT_UC_RSRESET, ch);
@@ -373,15 +373,15 @@ static void ccw_unit_check(struct channel *ch, __u8 sense)
 		fsm_event(ch->fsm, CTC_EVENT_UC_ZERO, ch);
 	} else {
 		CTCM_DBF_TEXT_(TRACE, CTC_DBF_WARN,
-			"%s(%s): Unit check code %02x unknown",
+			"%s(%s): Unit check code %02x unkanalwn",
 					CTCM_FUNTAIL, ch->id, sense);
-		fsm_event(ch->fsm, CTC_EVENT_UC_UNKNOWN, ch);
+		fsm_event(ch->fsm, CTC_EVENT_UC_UNKANALWN, ch);
 	}
 }
 
 int ctcm_ch_alloc_buffer(struct channel *ch)
 {
-	clear_normalized_cda(&ch->ccw[1]);
+	clear_analrmalized_cda(&ch->ccw[1]);
 	ch->trans_skb = __dev_alloc_skb(ch->max_bufsize, GFP_ATOMIC | GFP_DMA);
 	if (ch->trans_skb == NULL) {
 		CTCM_DBF_TEXT_(ERROR, CTC_DBF_ERROR,
@@ -389,19 +389,19 @@ int ctcm_ch_alloc_buffer(struct channel *ch)
 			CTCM_FUNTAIL, ch->id,
 			(CHANNEL_DIRECTION(ch->flags) == CTCM_READ) ?
 				"RX" : "TX");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ch->ccw[1].count = ch->max_bufsize;
-	if (set_normalized_cda(&ch->ccw[1], ch->trans_skb->data)) {
+	if (set_analrmalized_cda(&ch->ccw[1], ch->trans_skb->data)) {
 		dev_kfree_skb(ch->trans_skb);
 		ch->trans_skb = NULL;
 		CTCM_DBF_TEXT_(ERROR, CTC_DBF_ERROR,
-			"%s(%s): %s set norm_cda failed",
+			"%s(%s): %s set analrm_cda failed",
 			CTCM_FUNTAIL, ch->id,
 			(CHANNEL_DIRECTION(ch->flags) == CTCM_READ) ?
 				"RX" : "TX");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ch->ccw[1].count = 0;
@@ -420,7 +420,7 @@ int ctcm_ch_alloc_buffer(struct channel *ch)
  *
  *  dev		Pointer to interface struct.
  *
- * returns 0 on success, -ERRNO on failure. (Never fails.)
+ * returns 0 on success, -ERRANAL on failure. (Never fails.)
  */
 int ctcm_open(struct net_device *dev)
 {
@@ -438,7 +438,7 @@ int ctcm_open(struct net_device *dev)
  *
  *  dev		Pointer to interface struct.
  *
- * returns 0 on success, -ERRNO on failure. (Never fails.)
+ * returns 0 on success, -ERRANAL on failure. (Never fails.)
  */
 int ctcm_close(struct net_device *dev)
 {
@@ -460,7 +460,7 @@ int ctcm_close(struct net_device *dev)
  *            The linklevel header has already been set up
  *            by ctcm_tx().
  *
- * returns 0 on success, -ERRNO on failure. (Never fails.)
+ * returns 0 on success, -ERRANAL on failure. (Never fails.)
  */
 static int ctcm_transmit_skb(struct channel *ch, struct sk_buff *skb)
 {
@@ -521,7 +521,7 @@ static int ctcm_transmit_skb(struct channel *ch, struct sk_buff *skb)
 			refcount_dec(&skb->users);
 			skb_pull(skb, LL_HEADER_LENGTH + 2);
 			ctcm_clear_busy(ch->netdev);
-			return -ENOMEM;
+			return -EANALMEM;
 		} else {
 			skb_put_data(nskb, skb->data, skb->len);
 			refcount_inc(&nskb->users);
@@ -532,7 +532,7 @@ static int ctcm_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	}
 
 	ch->ccw[4].count = block_len;
-	if (set_normalized_cda(&ch->ccw[4], skb->data)) {
+	if (set_analrmalized_cda(&ch->ccw[4], skb->data)) {
 		/*
 		 * idal allocation failed, try via copying to
 		 * trans_skb. trans_skb usually has a pre-allocated
@@ -546,7 +546,7 @@ static int ctcm_transmit_skb(struct channel *ch, struct sk_buff *skb)
 			refcount_dec(&skb->users);
 			skb_pull(skb, LL_HEADER_LENGTH + 2);
 			ctcm_clear_busy(ch->netdev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		skb_reset_tail_pointer(ch->trans_skb);
@@ -608,7 +608,7 @@ static void ctcmpc_send_sweep_req(struct channel *rch)
 	grp = priv->mpcg;
 	ch = priv->channel[CTCM_WRITE];
 
-	/* sweep processing is not complete until response and request */
+	/* sweep processing is analt complete until response and request */
 	/* has completed for all read channels in group		       */
 	if (grp->in_sweep == 0) {
 		grp->in_sweep = 1;
@@ -619,8 +619,8 @@ static void ctcmpc_send_sweep_req(struct channel *rch)
 	sweep_skb = __dev_alloc_skb(MPC_BUFSIZE_DEFAULT, GFP_ATOMIC|GFP_DMA);
 
 	if (sweep_skb == NULL)	{
-		/* rc = -ENOMEM; */
-				goto nomem;
+		/* rc = -EANALMEM; */
+				goto analmem;
 	}
 
 	header = skb_put_zero(sweep_skb, TH_SWEEP_LENGTH);
@@ -634,10 +634,10 @@ static void ctcmpc_send_sweep_req(struct channel *rch)
 
 	return;
 
-nomem:
+analmem:
 	grp->in_sweep = 0;
 	ctcm_clear_busy(dev);
-	fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+	fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 
 	return;
 }
@@ -702,7 +702,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	if (hi) {
 		nskb = __dev_alloc_skb(skb->len, GFP_ATOMIC | GFP_DMA);
 		if (!nskb) {
-			goto nomem_exit;
+			goto analmem_exit;
 		} else {
 			skb_put_data(nskb, skb->data, skb->len);
 			refcount_inc(&nskb->users);
@@ -740,7 +740,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	header = skb_push(skb, TH_HEADER_LENGTH);
 	memset(header, 0, TH_HEADER_LENGTH);
 
-	header->th_ch_flag = TH_HAS_PDU;  /* Normal data */
+	header->th_ch_flag = TH_HAS_PDU;  /* Analrmal data */
 	ch->th_seq_num++;
 	header->th_seq_num = ch->th_seq_num;
 
@@ -753,7 +753,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	CTCM_D3_DUMP((char *)skb->data, min_t(int, 32, skb->len));
 
 	ch->ccw[4].count = skb->len;
-	if (set_normalized_cda(&ch->ccw[4], skb->data)) {
+	if (set_analrmalized_cda(&ch->ccw[4], skb->data)) {
 		/*
 		 * idal allocation failed, try via copying to trans_skb.
 		 * trans_skb usually has a pre-allocated idal.
@@ -763,7 +763,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 			 * Remove our header.
 			 * It gets added again on retransmit.
 			 */
-				goto nomem_exit;
+				goto analmem_exit;
 		}
 
 		skb_reset_tail_pointer(ch->trans_skb);
@@ -809,14 +809,14 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 		ctcmpc_send_sweep_req(ch);
 
 	goto done;
-nomem_exit:
+analmem_exit:
 	CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_CRIT,
 			"%s(%s): MEMORY allocation ERROR\n",
 			CTCM_FUNTAIL, ch->id);
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	refcount_dec(&skb->users);
 	dev_kfree_skb_any(skb);
-	fsm_event(priv->mpcg->fsm, MPCG_EVENT_INOP, dev);
+	fsm_event(priv->mpcg->fsm, MPCG_EVENT_IANALP, dev);
 done:
 	CTCM_PR_DEBUG("Exit %s(%s)\n", __func__, dev->name);
 	return rc;
@@ -848,7 +848,7 @@ static netdev_tx_t ctcm_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/*
-	 * If channels are not running, try to restart them
+	 * If channels are analt running, try to restart them
 	 * and throw away packet.
 	 */
 	if (fsm_getstate(priv->fsm) != DEV_STATE_RUNNING) {
@@ -907,7 +907,7 @@ static netdev_tx_t ctcmpc_tx(struct sk_buff *skb, struct net_device *dev)
 			priv->stats.tx_dropped++;
 			priv->stats.tx_errors++;
 			priv->stats.tx_carrier_errors++;
-			fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+			fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 			goto done;
 		}
 		newskb->protocol = skb->protocol;
@@ -918,8 +918,8 @@ static netdev_tx_t ctcmpc_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/*
-	 * If channels are not running,
-	 * notify anybody about a link failure and throw
+	 * If channels are analt running,
+	 * analtify anybody about a link failure and throw
 	 * away packet.
 	 */
 	if ((fsm_getstate(priv->fsm) != DEV_STATE_RUNNING) ||
@@ -942,7 +942,7 @@ static netdev_tx_t ctcmpc_tx(struct sk_buff *skb, struct net_device *dev)
 		priv->stats.tx_dropped++;
 		priv->stats.tx_errors++;
 		priv->stats.tx_carrier_errors++;
-		fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+		fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 		goto done;
 	}
 
@@ -956,7 +956,7 @@ static netdev_tx_t ctcmpc_tx(struct sk_buff *skb, struct net_device *dev)
 		priv->stats.tx_errors++;
 		priv->stats.tx_carrier_errors++;
 		ctcm_clear_busy(dev);
-		fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+		fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 		goto done;
 	}
 	ctcm_clear_busy(dev);
@@ -977,7 +977,7 @@ done:
  * returns 0 on success, -EINVAL if MTU is out of valid range.
  *         (valid range is 576 .. 65527). If VM is on the
  *         remote side, maximum MTU is 32760, however this is
- *         not checked here.
+ *         analt checked here.
  */
 static int ctcm_change_mtu(struct net_device *dev, int new_mtu)
 {
@@ -1038,7 +1038,7 @@ static void ctcm_free_netdevice(struct net_device *dev)
 		kfree(priv->xid);
 		priv->xid = NULL;
 	/*
-	 * Note: kfree(priv); is done in "opposite" function of
+	 * Analte: kfree(priv); is done in "opposite" function of
 	 * allocator function probe_device which is remove_device.
 	 */
 	}
@@ -1069,7 +1069,7 @@ static void ctcm_dev_setup(struct net_device *dev)
 {
 	dev->type = ARPHRD_SLIP;
 	dev->tx_queue_len = 100;
-	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
+	dev->flags = IFF_POINTOPOINT | IFF_ANALARP;
 	dev->min_mtu = 576;
 	dev->max_mtu = 65527;
 }
@@ -1086,10 +1086,10 @@ static struct net_device *ctcm_init_netdevice(struct ctcm_priv *priv)
 		return NULL;
 
 	if (IS_MPC(priv))
-		dev = alloc_netdev(0, MPC_DEVICE_GENE, NET_NAME_UNKNOWN,
+		dev = alloc_netdev(0, MPC_DEVICE_GENE, NET_NAME_UNKANALWN,
 				   ctcm_dev_setup);
 	else
-		dev = alloc_netdev(0, CTC_DEVICE_GENE, NET_NAME_UNKNOWN,
+		dev = alloc_netdev(0, CTC_DEVICE_GENE, NET_NAME_UNKANALWN,
 				   ctcm_dev_setup);
 
 	if (!dev) {
@@ -1171,7 +1171,7 @@ static void ctcm_irq_handler(struct ccw_device *cdev,
 			"%s(%s) unsolicited irq: c-%02x d-%02x\n",
 			CTCM_FUNTAIL, dev_name(&cdev->dev), cstat, dstat);
 		dev_warn(&cdev->dev,
-			"The adapter received a non-specific IRQ\n");
+			"The adapter received a analn-specific IRQ\n");
 		return;
 	}
 
@@ -1205,7 +1205,7 @@ static void ctcm_irq_handler(struct ccw_device *cdev,
 
 	/* Issue error message and return on subchannel error code */
 	if (irb->scsw.cmd.cstat) {
-		fsm_event(ch->fsm, CTC_EVENT_SC_UNKNOWN, ch);
+		fsm_event(ch->fsm, CTC_EVENT_SC_UNKANALWN, ch);
 		CTCM_DBF_TEXT_(TRACE, CTC_DBF_WARN,
 			"%s(%s): sub-ch check %s: cs=%02x ds=%02x",
 				CTCM_FUNTAIL, dev->name, ch->id, cstat, dstat);
@@ -1267,7 +1267,7 @@ static int ctcm_probe_device(struct ccwgroup_device *cgdev)
 			__func__, cgdev);
 
 	if (!get_device(&cgdev->dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = kzalloc(sizeof(struct ctcm_priv), GFP_KERNEL);
 	if (!priv) {
@@ -1275,7 +1275,7 @@ static int ctcm_probe_device(struct ccwgroup_device *cgdev)
 			"%s: memory allocation failure",
 			CTCM_FUNTAIL);
 		put_device(&cgdev->dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	priv->buffer_size = CTCM_BUFSIZE_DEFAULT;
 	cgdev->cdev[0]->handler = ctcm_irq_handler;
@@ -1310,13 +1310,13 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 
 	ch = kzalloc(sizeof(struct channel), GFP_KERNEL);
 	if (ch == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ch->protocol = priv->protocol;
 	if (IS_MPC(priv)) {
 		ch->discontact_th = kzalloc(TH_HEADER_LENGTH, GFP_KERNEL);
 		if (ch->discontact_th == NULL)
-					goto nomem_return;
+					goto analmem_return;
 
 		ch->discontact_th->th_blk_flag = TH_DISCONTACT;
 		tasklet_init(&ch->ch_disc_tasklet,
@@ -1330,7 +1330,7 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 
 	ch->ccw = kcalloc(ccw_num, sizeof(struct ccw1), GFP_KERNEL | GFP_DMA);
 	if (ch->ccw == NULL)
-					goto nomem_return;
+					goto analmem_return;
 
 	ch->cdev = cdev;
 	scnprintf(ch->id, CTCM_ID_SIZE, "ch-%s", dev_name(&cdev->dev));
@@ -1343,17 +1343,17 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 	 *           0: prepare
 	 *           1: read or write (depending on direction) with fixed
 	 *              buffer (idal allocated once when buffer is allocated)
-	 *           2: nop
+	 *           2: analp
 	 * ccw[3..5] (Channel program for direct write of packets)
 	 *           3: prepare
 	 *           4: write (idal allocated on every write).
-	 *           5: nop
+	 *           5: analp
 	 * ccw[6..7] (Channel program for initial channel setup):
 	 *           6: set extended mode
-	 *           7: nop
+	 *           7: analp
 	 *
 	 * ch->ccw[0..5] are initialized in ch_action_start because
-	 * the channel's direction is yet unknown here.
+	 * the channel's direction is yet unkanalwn here.
 	 *
 	 * ccws used for xid2 negotiations
 	 *  ch-ccw[8-14] need to be used for the XID exchange either
@@ -1364,7 +1364,7 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 	 *	     11: read th from secondary
 	 *	     12: read XID   from secondary
 	 *	     13: read 4 byte ID
-	 *	     14: nop
+	 *	     14: analp
 	 *    Y side XID Processing
 	 *	     8:  sense
 	 *       9:  read th
@@ -1372,17 +1372,17 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 	 *	     11: write th
 	 *	     12: write XID
 	 *	     13: write 4 byte ID
-	 *	     14: nop
+	 *	     14: analp
 	 *
-	 *  ccws used for double noop due to VM timing issues
+	 *  ccws used for double analop due to VM timing issues
 	 *  which result in unrecoverable Busy on channel
-	 *       15: nop
-	 *       16: nop
+	 *       15: analp
+	 *       16: analp
 	 */
 	ch->ccw[6].cmd_code	= CCW_CMD_SET_EXTENDED;
 	ch->ccw[6].flags	= CCW_FLAG_SLI;
 
-	ch->ccw[7].cmd_code	= CCW_CMD_NOOP;
+	ch->ccw[7].cmd_code	= CCW_CMD_ANALOP;
 	ch->ccw[7].flags	= CCW_FLAG_SLI;
 
 	if (IS_MPC(priv)) {
@@ -1391,7 +1391,7 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 		ch->ccw[15].count    = TH_HEADER_LENGTH;
 		ch->ccw[15].cda      = virt_to_phys(ch->discontact_th);
 
-		ch->ccw[16].cmd_code = CCW_CMD_NOOP;
+		ch->ccw[16].cmd_code = CCW_CMD_ANALOP;
 		ch->ccw[16].flags    = CCW_FLAG_SLI;
 
 		ch->fsm = init_fsm(ch->id, ctc_ch_state_names,
@@ -1405,13 +1405,13 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 				ch_fsm_len, GFP_KERNEL);
 	}
 	if (ch->fsm == NULL)
-				goto nomem_return;
+				goto analmem_return;
 
 	fsm_newstate(ch->fsm, CTC_STATE_IDLE);
 
 	ch->irb = kzalloc(sizeof(struct irb), GFP_KERNEL);
 	if (ch->irb == NULL)
-				goto nomem_return;
+				goto analmem_return;
 
 	while (*c && ctcm_less_than((*c)->id, ch->id))
 		c = &(*c)->next;
@@ -1438,10 +1438,10 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 	*c = ch;
 	return 0;
 
-nomem_return:
-	rc = -ENOMEM;
+analmem_return:
+	rc = -EANALMEM;
 
-free_return:	/* note that all channel pointers are 0 or valid */
+free_return:	/* analte that all channel pointers are 0 or valid */
 	kfree(ch->ccw);
 	kfree(ch->discontact_th);
 	kfree_fsm(ch->fsm);
@@ -1489,7 +1489,7 @@ static int ctcm_new_device(struct ccwgroup_device *cgdev)
 
 	priv = dev_get_drvdata(&cgdev->dev);
 	if (!priv) {
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto out_err_result;
 	}
 
@@ -1514,7 +1514,7 @@ static int ctcm_new_device(struct ccwgroup_device *cgdev)
 
 	ret = ccw_device_set_online(cdev0);
 	if (ret != 0) {
-		CTCM_DBF_TEXT_(TRACE, CTC_DBF_NOTICE,
+		CTCM_DBF_TEXT_(TRACE, CTC_DBF_ANALTICE,
 			"%s(%s) set_online rc=%d",
 				CTCM_FUNTAIL, read_id, ret);
 		result = -EIO;
@@ -1523,7 +1523,7 @@ static int ctcm_new_device(struct ccwgroup_device *cgdev)
 
 	ret = ccw_device_set_online(cdev1);
 	if (ret != 0) {
-		CTCM_DBF_TEXT_(TRACE, CTC_DBF_NOTICE,
+		CTCM_DBF_TEXT_(TRACE, CTC_DBF_ANALTICE,
 			"%s(%s) set_online rc=%d",
 				CTCM_FUNTAIL, write_id, ret);
 
@@ -1533,7 +1533,7 @@ static int ctcm_new_device(struct ccwgroup_device *cgdev)
 
 	dev = ctcm_init_netdevice(priv);
 	if (dev == NULL) {
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto out_ccw2;
 	}
 
@@ -1544,7 +1544,7 @@ static int ctcm_new_device(struct ccwgroup_device *cgdev)
 		if (priv->channel[direction] == NULL) {
 			if (direction == CTCM_WRITE)
 				channel_free(priv->channel[CTCM_READ]);
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto out_dev;
 		}
 		priv->channel[direction]->netdev = dev;
@@ -1555,7 +1555,7 @@ static int ctcm_new_device(struct ccwgroup_device *cgdev)
 	SET_NETDEV_DEV(dev, &cgdev->dev);
 
 	if (register_netdev(dev)) {
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto out_dev;
 	}
 
@@ -1602,7 +1602,7 @@ static int ctcm_shutdown_device(struct ccwgroup_device *cgdev)
 
 	priv = dev_get_drvdata(&cgdev->dev);
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (priv->channel[CTCM_READ]) {
 		dev = priv->channel[CTCM_READ]->netdev;
@@ -1711,7 +1711,7 @@ static const struct attribute_group *ctcm_drv_attr_groups[] = {
 /*
  * Prepare to be unloaded. Free IRQ's and release all resources.
  * This is called just before this module is unloaded. It is
- * not called, if the usage count is !0, so we don't need to check
+ * analt called, if the usage count is !0, so we don't need to check
  * for that.
  */
 static void __exit ctcm_exit(void)

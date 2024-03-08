@@ -15,7 +15,7 @@
 
 struct ath79_reset {
 	struct reset_controller_dev rcdev;
-	struct notifier_block restart_nb;
+	struct analtifier_block restart_nb;
 	void __iomem *base;
 	spinlock_t lock;
 };
@@ -72,7 +72,7 @@ static const struct reset_control_ops ath79_reset_ops = {
 	.status = ath79_reset_status,
 };
 
-static int ath79_reset_restart_handler(struct notifier_block *nb,
+static int ath79_reset_restart_handler(struct analtifier_block *nb,
 				unsigned long action, void *data)
 {
 	struct ath79_reset *ath79_reset =
@@ -80,7 +80,7 @@ static int ath79_reset_restart_handler(struct notifier_block *nb,
 
 	ath79_reset_assert(&ath79_reset->rcdev, FULL_CHIP_RESET);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int ath79_reset_probe(struct platform_device *pdev)
@@ -91,7 +91,7 @@ static int ath79_reset_probe(struct platform_device *pdev)
 	ath79_reset = devm_kzalloc(&pdev->dev,
 				sizeof(*ath79_reset), GFP_KERNEL);
 	if (!ath79_reset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ath79_reset->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ath79_reset->base))
@@ -100,7 +100,7 @@ static int ath79_reset_probe(struct platform_device *pdev)
 	spin_lock_init(&ath79_reset->lock);
 	ath79_reset->rcdev.ops = &ath79_reset_ops;
 	ath79_reset->rcdev.owner = THIS_MODULE;
-	ath79_reset->rcdev.of_node = pdev->dev.of_node;
+	ath79_reset->rcdev.of_analde = pdev->dev.of_analde;
 	ath79_reset->rcdev.of_reset_n_cells = 1;
 	ath79_reset->rcdev.nr_resets = 32;
 
@@ -108,7 +108,7 @@ static int ath79_reset_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	ath79_reset->restart_nb.notifier_call = ath79_reset_restart_handler;
+	ath79_reset->restart_nb.analtifier_call = ath79_reset_restart_handler;
 	ath79_reset->restart_nb.priority = 128;
 
 	err = register_restart_handler(&ath79_reset->restart_nb);

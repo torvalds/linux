@@ -18,7 +18,7 @@ Signals Tests
   test from a clean slate.
 
 - New tests can be simply defined in testcases/ dir providing a proper struct
-  tdescr overriding all the defaults we wish to change (as of now providing a
+  tdescr overriding all the defaults we wish to change (as of analw providing a
   custom run method is mandatory though)
 
 - Signals' test-cases hereafter defined belong currently to two
@@ -30,7 +30,7 @@ Signals Tests
 
   - 'fake_sigreturn_' tests: a brand new custom artificial sigframe structure
     is placed on the stack and a sigreturn syscall is called to simulate a
-    real signal return. This kind of tests does not use a trigger usually and
+    real signal return. This kind of tests does analt use a trigger usually and
     they are just fired using some simple included assembly trampoline code.
 
  - Most of these tests are successfully passing if the process gets killed by
@@ -38,7 +38,7 @@ Signals Tests
    kind of tests it is extremely easy in fact to end-up injecting other
    unrelated SEGV bugs in the testcases, it becomes extremely tricky to
    be really sure that the tests are really addressing what they are meant
-   to address and they are not instead falling apart due to unplanned bugs
+   to address and they are analt instead falling apart due to unplanned bugs
    in the test code.
    In order to alleviate the misery of the life of such test-developer, a few
    helpers are provided:

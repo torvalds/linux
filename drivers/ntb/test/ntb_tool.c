@@ -26,21 +26,21 @@
  *   are met:
  *
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copy
- *       notice, this list of conditions and the following disclaimer in
+ *       analtice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
+ *     * Neither the name of Intel Corporation analr the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
  *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -444,7 +444,7 @@ static int tool_init_peers(struct tool_ctx *tc)
 	tc->peers = devm_kcalloc(&tc->ntb->dev, tc->peer_cnt,
 				 sizeof(*tc->peers), GFP_KERNEL);
 	if (tc->peers == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (pidx = 0; pidx < tc->peer_cnt; pidx++) {
 		tc->peers[pidx].pidx = pidx;
@@ -588,10 +588,10 @@ static int tool_setup_mw(struct tool_ctx *tc, int pidx, int widx,
 	inmw->mm_base = dma_alloc_coherent(&tc->ntb->pdev->dev, inmw->size,
 					   &inmw->dma_base, GFP_KERNEL);
 	if (!inmw->mm_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!IS_ALIGNED(inmw->dma_base, addr_align)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_dma;
 	}
 
@@ -649,7 +649,7 @@ static ssize_t tool_mw_trans_read(struct file *filep, char __user *ubuf,
 
 	buf = kmalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ntb_mw_get_align(inmw->tc->ntb, inmw->pidx, inmw->widx,
 			       &addr_align, &size_align, &size_max);
@@ -740,7 +740,7 @@ static ssize_t tool_peer_mw_read(struct file *filep, char __user *ubuf,
 
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy_fromio(buf, outmw->io_base + pos, size);
 	ret = copy_to_user(ubuf, buf, size);
@@ -777,7 +777,7 @@ static ssize_t tool_peer_mw_write(struct file *filep, const char __user *ubuf,
 
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = copy_from_user(buf, ubuf, size);
 	if (ret == size) {
@@ -883,7 +883,7 @@ static ssize_t tool_peer_mw_trans_read(struct file *filep, char __user *ubuf,
 
 	buf = kmalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	off += scnprintf(buf + off, buf_size - off,
 			 "Outbound MW:        \t%d\n", outmw->widx);
@@ -964,7 +964,7 @@ static int tool_init_mws(struct tool_ctx *tc)
 	tc->outmws = devm_kcalloc(&tc->ntb->dev, tc->outmw_cnt,
 				  sizeof(*tc->outmws), GFP_KERNEL);
 	if (tc->outmws == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (widx = 0; widx < tc->outmw_cnt; widx++) {
 		tc->outmws[widx].widx = widx;
@@ -979,7 +979,7 @@ static int tool_init_mws(struct tool_ctx *tc)
 			devm_kcalloc(&tc->ntb->dev, tc->peers[pidx].inmw_cnt,
 				    sizeof(*tc->peers[pidx].inmws), GFP_KERNEL);
 		if (tc->peers[pidx].inmws == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (widx = 0; widx < tc->peers[pidx].inmw_cnt; widx++) {
 			tc->peers[pidx].inmws[widx].widx = widx;
@@ -992,7 +992,7 @@ static int tool_init_mws(struct tool_ctx *tc)
 			devm_kcalloc(&tc->ntb->dev, tc->peers[pidx].outmw_cnt,
 				   sizeof(*tc->peers[pidx].outmws), GFP_KERNEL);
 		if (tc->peers[pidx].outmws == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (widx = 0; widx < tc->peers[pidx].outmw_cnt; widx++) {
 			tc->peers[pidx].outmws[widx].pidx = pidx;
@@ -1172,7 +1172,7 @@ static ssize_t tool_spad_write(struct file *filep, const char __user *ubuf,
 	int ret;
 
 	if (!spad->tc->ntb->ops->spad_write) {
-		dev_dbg(&spad->tc->ntb->dev, "no spad write fn\n");
+		dev_dbg(&spad->tc->ntb->dev, "anal spad write fn\n");
 		return -EINVAL;
 	}
 
@@ -1213,7 +1213,7 @@ static ssize_t tool_peer_spad_write(struct file *filep, const char __user *ubuf,
 	int ret;
 
 	if (!spad->tc->ntb->ops->peer_spad_write) {
-		dev_dbg(&spad->tc->ntb->dev, "no spad write fn\n");
+		dev_dbg(&spad->tc->ntb->dev, "anal spad write fn\n");
 		return -EINVAL;
 	}
 
@@ -1239,7 +1239,7 @@ static int tool_init_spads(struct tool_ctx *tc)
 	tc->inspads = devm_kcalloc(&tc->ntb->dev, tc->inspad_cnt,
 				   sizeof(*tc->inspads), GFP_KERNEL);
 	if (tc->inspads == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (sidx = 0; sidx < tc->inspad_cnt; sidx++) {
 		tc->inspads[sidx].sidx = sidx;
@@ -1254,7 +1254,7 @@ static int tool_init_spads(struct tool_ctx *tc)
 			devm_kcalloc(&tc->ntb->dev, tc->peers[pidx].outspad_cnt,
 				sizeof(*tc->peers[pidx].outspads), GFP_KERNEL);
 		if (tc->peers[pidx].outspads == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (sidx = 0; sidx < tc->peers[pidx].outspad_cnt; sidx++) {
 			tc->peers[pidx].outspads[sidx].sidx = sidx;
@@ -1403,7 +1403,7 @@ static int tool_init_msgs(struct tool_ctx *tc)
 	tc->inmsgs = devm_kcalloc(&tc->ntb->dev, tc->inmsg_cnt,
 				   sizeof(*tc->inmsgs), GFP_KERNEL);
 	if (tc->inmsgs == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (midx = 0; midx < tc->inmsg_cnt; midx++) {
 		tc->inmsgs[midx].midx = midx;
@@ -1418,7 +1418,7 @@ static int tool_init_msgs(struct tool_ctx *tc)
 			devm_kcalloc(&tc->ntb->dev, tc->peers[pidx].outmsg_cnt,
 				sizeof(*tc->peers[pidx].outmsgs), GFP_KERNEL);
 		if (tc->peers[pidx].outmsgs == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (midx = 0; midx < tc->peers[pidx].outmsg_cnt; midx++) {
 			tc->peers[pidx].outmsgs[midx].midx = midx;
@@ -1441,7 +1441,7 @@ static struct tool_ctx *tool_create_data(struct ntb_dev *ntb)
 
 	tc = devm_kzalloc(&ntb->dev, sizeof(*tc), GFP_KERNEL);
 	if (tc == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tc->ntb = ntb;
 	init_waitqueue_head(&tc->link_wq);

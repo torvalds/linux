@@ -6,8 +6,8 @@
 #
 # Flat Model:
 # Overlay and underlay share the same VRF.
-# SW1 uses default VRF so tunnel has no bound dev.
-# SW2 uses non-default VRF tunnel has a bound dev.
+# SW1 uses default VRF so tunnel has anal bound dev.
+# SW2 uses analn-default VRF tunnel has a bound dev.
 # +--------------------------------+
 # | H1                             |
 # |                     $h1 +      |
@@ -360,10 +360,10 @@ test_traffic_ip4ip6()
 
 	# Check ports after encap and after decap.
 	tc_check_at_least_x_packets "dev $ul1 egress" 101 1000
-	check_err $? "Packets did not go through $ul1, tc_flag = $TC_FLAG"
+	check_err $? "Packets did analt go through $ul1, tc_flag = $TC_FLAG"
 
 	tc_check_at_least_x_packets "dev $ol2 egress" 101 1000
-	check_err $? "Packets did not go through $ol2, tc_flag = $TC_FLAG"
+	check_err $? "Packets did analt go through $ol2, tc_flag = $TC_FLAG"
 
 	log_test "$@"
 
@@ -393,10 +393,10 @@ test_traffic_ip6ip6()
 
 	# Check ports after encap and after decap.
 	tc_check_at_least_x_packets "dev $ul1 egress" 101 1000
-	check_err $? "Packets did not go through $ul1, tc_flag = $TC_FLAG"
+	check_err $? "Packets did analt go through $ul1, tc_flag = $TC_FLAG"
 
 	tc_check_at_least_x_packets "dev $ol2 egress" 101 1000
-	check_err $? "Packets did not go through $ol2, tc_flag = $TC_FLAG"
+	check_err $? "Packets did analt go through $ol2, tc_flag = $TC_FLAG"
 
 	log_test "$@"
 
@@ -427,7 +427,7 @@ test_mtu_change()
 	RET=0
 
 	ping6_do $h1 2001:db8:2::1 "-s 1800 -w 3"
-	check_fail $? "ping GRE IPv6 should not pass with packet size 1800"
+	check_fail $? "ping GRE IPv6 should analt pass with packet size 1800"
 
 	RET=0
 

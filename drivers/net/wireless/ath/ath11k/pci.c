@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -22,7 +22,7 @@
 
 #define TCSR_SOC_HW_VERSION		0x0224
 #define TCSR_SOC_HW_VERSION_MAJOR_MASK	GENMASK(11, 8)
-#define TCSR_SOC_HW_VERSION_MINOR_MASK	GENMASK(7, 0)
+#define TCSR_SOC_HW_VERSION_MIANALR_MASK	GENMASK(7, 0)
 
 #define QCA6390_DEVICE_ID		0x1101
 #define QCN9074_DEVICE_ID		0x1104
@@ -669,7 +669,7 @@ static int ath11k_pci_start(struct ath11k_base *ab)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
-	/* TODO: for now don't restore ASPM in case of single MSI
+	/* TODO: for analw don't restore ASPM in case of single MSI
 	 * vector as MHI register reading in M2 causes system hang.
 	 */
 	if (test_bit(ATH11K_FLAG_MULTI_MSI_VECTORS, &ab->dev_flags))
@@ -702,18 +702,18 @@ static const struct ath11k_hif_ops ath11k_pci_hif_ops = {
 	.get_ce_msi_idx = ath11k_pcic_get_ce_msi_idx,
 };
 
-static void ath11k_pci_read_hw_version(struct ath11k_base *ab, u32 *major, u32 *minor)
+static void ath11k_pci_read_hw_version(struct ath11k_base *ab, u32 *major, u32 *mianalr)
 {
 	u32 soc_hw_version;
 
 	soc_hw_version = ath11k_pcic_read32(ab, TCSR_SOC_HW_VERSION);
 	*major = FIELD_GET(TCSR_SOC_HW_VERSION_MAJOR_MASK,
 			   soc_hw_version);
-	*minor = FIELD_GET(TCSR_SOC_HW_VERSION_MINOR_MASK,
+	*mianalr = FIELD_GET(TCSR_SOC_HW_VERSION_MIANALR_MASK,
 			   soc_hw_version);
 
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "tcsr_soc_hw_version major %d minor %d\n",
-		   *major, *minor);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "tcsr_soc_hw_version major %d mianalr %d\n",
+		   *major, *mianalr);
 }
 
 static int ath11k_pci_set_irq_affinity_hint(struct ath11k_pci *ab_pci,
@@ -730,7 +730,7 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 {
 	struct ath11k_base *ab;
 	struct ath11k_pci *ab_pci;
-	u32 soc_hw_version_major, soc_hw_version_minor, addr;
+	u32 soc_hw_version_major, soc_hw_version_mianalr, addr;
 	const struct ath11k_pci_ops *pci_ops;
 	int ret;
 
@@ -738,7 +738,7 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 
 	if (!ab) {
 		dev_err(&pdev->dev, "failed to allocate ath11k base\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ab->dev = &pdev->dev;
@@ -748,15 +748,15 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	ab_pci->ab = ab;
 	ab_pci->pdev = pdev;
 	ab->hif.ops = &ath11k_pci_hif_ops;
-	ab->fw_mode = ATH11K_FIRMWARE_MODE_NORMAL;
+	ab->fw_mode = ATH11K_FIRMWARE_MODE_ANALRMAL;
 	pci_set_drvdata(pdev, ab);
 	spin_lock_init(&ab_pci->window_lock);
 
 	/* Set fixed_mem_region to true for platforms support reserved memory
-	 * from DT. If memory is reserved from DT for FW, ath11k driver need not
+	 * from DT. If memory is reserved from DT for FW, ath11k driver need analt
 	 * allocate memory.
 	 */
-	ret = of_property_read_u32(ab->dev->of_node, "memory-region", &addr);
+	ret = of_property_read_u32(ab->dev->of_analde, "memory-region", &addr);
 	if (!ret)
 		set_bit(ATH11K_FLAG_FIXED_MEM_RGN, &ab->dev_flags);
 
@@ -778,15 +778,15 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	switch (pci_dev->device) {
 	case QCA6390_DEVICE_ID:
 		ath11k_pci_read_hw_version(ab, &soc_hw_version_major,
-					   &soc_hw_version_minor);
+					   &soc_hw_version_mianalr);
 		switch (soc_hw_version_major) {
 		case 2:
 			ab->hw_rev = ATH11K_HW_QCA6390_HW20;
 			break;
 		default:
 			dev_err(&pdev->dev, "Unsupported QCA6390 SOC hardware version: %d %d\n",
-				soc_hw_version_major, soc_hw_version_minor);
-			ret = -EOPNOTSUPP;
+				soc_hw_version_major, soc_hw_version_mianalr);
+			ret = -EOPANALTSUPP;
 			goto err_pci_free_region;
 		}
 
@@ -799,10 +799,10 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	case WCN6855_DEVICE_ID:
 		ab->id.bdf_search = ATH11K_BDF_SEARCH_BUS_AND_BOARD;
 		ath11k_pci_read_hw_version(ab, &soc_hw_version_major,
-					   &soc_hw_version_minor);
+					   &soc_hw_version_mianalr);
 		switch (soc_hw_version_major) {
 		case 2:
-			switch (soc_hw_version_minor) {
+			switch (soc_hw_version_mianalr) {
 			case 0x00:
 			case 0x01:
 				ab->hw_rev = ATH11K_HW_WCN6855_HW20;
@@ -818,17 +818,17 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 		default:
 unsupported_wcn6855_soc:
 			dev_err(&pdev->dev, "Unsupported WCN6855 SOC hardware version: %d %d\n",
-				soc_hw_version_major, soc_hw_version_minor);
-			ret = -EOPNOTSUPP;
+				soc_hw_version_major, soc_hw_version_mianalr);
+			ret = -EOPANALTSUPP;
 			goto err_pci_free_region;
 		}
 
 		pci_ops = &ath11k_pci_ops_qca6390;
 		break;
 	default:
-		dev_err(&pdev->dev, "Unknown PCI device found: 0x%x\n",
+		dev_err(&pdev->dev, "Unkanalwn PCI device found: 0x%x\n",
 			pci_dev->device);
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto err_pci_free_region;
 	}
 
@@ -975,7 +975,7 @@ static __maybe_unused int ath11k_pci_pm_suspend(struct device *dev)
 	int ret;
 
 	if (test_bit(ATH11K_FLAG_QMI_FAIL, &ab->dev_flags)) {
-		ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot skipping pci suspend as qmi is not initialised\n");
+		ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot skipping pci suspend as qmi is analt initialised\n");
 		return 0;
 	}
 
@@ -992,7 +992,7 @@ static __maybe_unused int ath11k_pci_pm_resume(struct device *dev)
 	int ret;
 
 	if (test_bit(ATH11K_FLAG_QMI_FAIL, &ab->dev_flags)) {
-		ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot skipping pci resume as qmi is not initialised\n");
+		ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot skipping pci resume as qmi is analt initialised\n");
 		return 0;
 	}
 
@@ -1038,7 +1038,7 @@ static void ath11k_pci_exit(void)
 
 module_exit(ath11k_pci_exit);
 
-MODULE_DESCRIPTION("Driver support for Qualcomm Technologies PCIe 802.11ax WLAN devices");
+MODULE_DESCRIPTION("Driver support for Qualcomm Techanallogies PCIe 802.11ax WLAN devices");
 MODULE_LICENSE("Dual BSD/GPL");
 
 /* firmware files */

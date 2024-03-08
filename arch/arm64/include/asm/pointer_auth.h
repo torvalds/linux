@@ -41,7 +41,7 @@ struct ptrauth_keys_user {
 	struct ptrauth_key apga;
 };
 
-#define __ptrauth_key_install_nosync(k, v)			\
+#define __ptrauth_key_install_analsync(k, v)			\
 do {								\
 	struct ptrauth_key __pki_v = (v);			\
 	write_sysreg_s(__pki_v.lo, SYS_ ## k ## KEYLO_EL1);	\
@@ -65,7 +65,7 @@ static __always_inline void ptrauth_keys_switch_kernel(struct ptrauth_keys_kerne
 	if (!system_supports_address_auth())
 		return;
 
-	__ptrauth_key_install_nosync(APIA, keys->apia);
+	__ptrauth_key_install_analsync(APIA, keys->apia);
 	isb();
 }
 
@@ -74,13 +74,13 @@ static __always_inline void ptrauth_keys_switch_kernel(struct ptrauth_keys_kerne
 static inline void ptrauth_keys_install_user(struct ptrauth_keys_user *keys)
 {
 	if (system_supports_address_auth()) {
-		__ptrauth_key_install_nosync(APIB, keys->apib);
-		__ptrauth_key_install_nosync(APDA, keys->apda);
-		__ptrauth_key_install_nosync(APDB, keys->apdb);
+		__ptrauth_key_install_analsync(APIB, keys->apib);
+		__ptrauth_key_install_analsync(APDA, keys->apda);
+		__ptrauth_key_install_analsync(APDB, keys->apdb);
 	}
 
 	if (system_supports_generic_auth())
-		__ptrauth_key_install_nosync(APGA, keys->apga);
+		__ptrauth_key_install_analsync(APGA, keys->apga);
 }
 
 static inline void ptrauth_keys_init_user(struct ptrauth_keys_user *keys)

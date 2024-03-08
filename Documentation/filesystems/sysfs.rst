@@ -44,7 +44,7 @@ ancestors of object hierarchies; i.e. the subsystems the objects
 belong to.
 
 sysfs internally stores a pointer to the kobject that implements a
-directory in the kernfs_node object associated with the directory. In
+directory in the kernfs_analde object associated with the directory. In
 the past this kobject pointer has been used by sysfs to do reference
 counting directly on the kobject whenever the file is opened or closed.
 With the current sysfs implementation the kobject reference count is
@@ -60,13 +60,13 @@ for the attributes, providing a means to read and write kernel
 attributes.
 
 Attributes should be ASCII text files, preferably with only one value
-per file. It is noted that it may not be efficient to contain only one
+per file. It is analted that it may analt be efficient to contain only one
 value per file, so it is socially acceptable to express an array of
 values of the same type.
 
 Mixing types, expressing multiple lines of data, and doing fancy
 formatting of data is heavily frowned upon. Doing these things may get
-you publicly humiliated and your code rewritten without notice.
+you publicly humiliated and your code rewritten without analtice.
 
 
 An attribute definition is simply::
@@ -82,7 +82,7 @@ An attribute definition is simply::
     void sysfs_remove_file(struct kobject * kobj, const struct attribute * attr);
 
 
-A bare attribute contains no means to read or write the value of the
+A bare attribute contains anal means to read or write the value of the
 attribute. Subsystems are encouraged to define their own attribute
 structure and wrapper functions for adding and removing attributes for
 a specific object type.
@@ -120,7 +120,7 @@ is equivalent to doing::
 	    .store = store_foo,
     };
 
-Note as stated in include/linux/kernel.h "OTHER_WRITABLE?  Generally
+Analte as stated in include/linux/kernel.h "OTHER_WRITABLE?  Generally
 considered a bad idea." so trying to set a sysfs file writable for
 everyone will fail reverting to RO mode for "Others".
 
@@ -232,7 +232,7 @@ implementations:
   Attribute method implementations should operate on an identical
   buffer when reading and writing values.
 
-Other notes:
+Other analtes:
 
 - Writing causes the show() method to be rearmed regardless of current
   file position.
@@ -254,7 +254,7 @@ Other notes:
 
 - The object passed to the methods will be pinned in memory via sysfs
   reference counting its embedded object. However, the physical
-  entity (e.g. device) the object represents may not be present. Be
+  entity (e.g. device) the object represents may analt be present. Be
   sure to have a way to check this, if necessary.
 
 
@@ -277,7 +277,7 @@ A very simple (and naive) implementation of a device attribute is::
     static DEVICE_ATTR(name, S_IRUGO, show_name, store_name);
 
 
-(Note that the real implementation doesn't allow userspace to set the
+(Analte that the real implementation doesn't allow userspace to set the
 name for a device.)
 
 
@@ -316,7 +316,7 @@ devices/ contains symlinks for each device discovered in the system
 that point to the device's directory under root/.
 
 drivers/ contains a directory for each device driver that is loaded
-for devices on that particular bus (this assumes that drivers do not
+for devices on that particular bus (this assumes that drivers do analt
 span multiple bus types).
 
 fs/ contains a directory for some filesystems.  Currently each
@@ -327,7 +327,7 @@ module/ contains parameter values and state information for all
 loaded system modules, for both builtin and loadable modules.
 
 dev/ contains two directories: char/ and block/. Inside these two
-directories there are symlinks named <major>:<minor>.  These symlinks
+directories there are symlinks named <major>:<mianalr>.  These symlinks
 point to the sysfs directory for the given device.  /sys/dev provides a
 quick way to lookup the sysfs interface for a device from the result of
 a stat(2) operation.

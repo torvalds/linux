@@ -80,7 +80,7 @@ int pcspkr_input_init(struct input_dev **rdev, struct device *dev)
 
 	struct input_dev *input_dev = devm_input_allocate_device(dev);
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev->name = "PC Speaker";
 	input_dev->phys = "isa0061/input0";

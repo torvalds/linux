@@ -21,7 +21,7 @@
 
 /* --------------------------------------------------*/
 
-#define NOF_ACQ_IRQS                              1
+#define ANALF_ACQ_IRQS                              1
 
 /* --------------------------------------------------*/
 /* FSM */
@@ -33,7 +33,7 @@
 /* REGISTER INFO */
 /* --------------------------------------------------*/
 
-#define NOF_ACQ_REGS                              12
+#define ANALF_ACQ_REGS                              12
 
 // Register id's of MMIO slave accessible registers
 #define ACQ_START_ADDR_REG_ID                     0
@@ -44,8 +44,8 @@
 #define ACQ_RECEIVED_LONG_PACKETS_REG_ID          5
 #define ACQ_LAST_COMMAND_REG_ID                   6
 #define ACQ_NEXT_COMMAND_REG_ID                   7
-#define ACQ_LAST_ACKNOWLEDGE_REG_ID               8
-#define ACQ_NEXT_ACKNOWLEDGE_REG_ID               9
+#define ACQ_LAST_ACKANALWLEDGE_REG_ID               8
+#define ACQ_NEXT_ACKANALWLEDGE_REG_ID               9
 #define ACQ_FSM_STATE_INFO_REG_ID                 10
 #define ACQ_INT_CNTR_INFO_REG_ID                  11
 
@@ -58,8 +58,8 @@
 #define ACQ_RECEIVED_LONG_PACKETS_REG_WIDTH       32
 #define ACQ_LAST_COMMAND_REG_WIDTH                32
 #define ACQ_NEXT_COMMAND_REG_WIDTH                32
-#define ACQ_LAST_ACKNOWLEDGE_REG_WIDTH            32
-#define ACQ_NEXT_ACKNOWLEDGE_REG_WIDTH            32
+#define ACQ_LAST_ACKANALWLEDGE_REG_WIDTH            32
+#define ACQ_NEXT_ACKANALWLEDGE_REG_WIDTH            32
 #define ACQ_FSM_STATE_INFO_REG_WIDTH              ((MEM2STREAM_FSM_STATE_BITS * 3) + (ACQ_SYNCHRONIZER_FSM_STATE_BITS * 3))
 #define ACQ_INT_CNTR_INFO_REG_WIDTH               32
 
@@ -72,8 +72,8 @@
 #define ACQ_RECEIVED_LONG_PACKETS_REG_RSTVAL      0
 #define ACQ_LAST_COMMAND_REG_RSTVAL               0
 #define ACQ_NEXT_COMMAND_REG_RSTVAL               0
-#define ACQ_LAST_ACKNOWLEDGE_REG_RSTVAL           0
-#define ACQ_NEXT_ACKNOWLEDGE_REG_RSTVAL           0
+#define ACQ_LAST_ACKANALWLEDGE_REG_RSTVAL           0
+#define ACQ_NEXT_ACKANALWLEDGE_REG_RSTVAL           0
 #define ACQ_FSM_STATE_INFO_REG_RSTVAL             0
 #define ACQ_INT_CNTR_INFO_REG_RSTVAL              0
 
@@ -97,8 +97,8 @@
 #define ACQ_INIT_CMD_INIT_BITS                    3
 #define ACQ_CMD_START_ADDR_IDX                    4
 #define ACQ_CMD_START_ADDR_BITS                   9
-#define ACQ_CMD_NOFWORDS_IDX                      13
-#define ACQ_CMD_NOFWORDS_BITS                     9
+#define ACQ_CMD_ANALFWORDS_IDX                      13
+#define ACQ_CMD_ANALFWORDS_BITS                     9
 #define ACQ_MEM_REGION_ID_IDX                     22
 #define ACQ_MEM_REGION_ID_BITS                    9
 #define ACQ_PACKET_LENGTH_TOKEN_MSB               21
@@ -116,7 +116,7 @@
 #define ACQ_READ_REGION_SOP_TOKEN_ID              2 //0010b
 #define ACQ_INIT_TOKEN_ID                         8 //1000b
 
-/* Acknowledge token IDs */
+/* Ackanalwledge token IDs */
 #define ACQ_READ_REGION_ACK_TOKEN_ID              0 //0000b
 #define ACQ_END_OF_PACKET_TOKEN_ID                4 //0100b
 #define ACQ_END_OF_REGION_TOKEN_ID                5 //0101b
@@ -125,8 +125,8 @@
 
 #define ACQ_TOKEN_MEMREGIONID_MSB                 30
 #define ACQ_TOKEN_MEMREGIONID_LSB                 22
-#define ACQ_TOKEN_NOFWORDS_MSB                    21
-#define ACQ_TOKEN_NOFWORDS_LSB                    13
+#define ACQ_TOKEN_ANALFWORDS_MSB                    21
+#define ACQ_TOKEN_ANALFWORDS_LSB                    13
 #define ACQ_TOKEN_STARTADDR_MSB                   12
 #define ACQ_TOKEN_STARTADDR_LSB                   4
 
@@ -136,7 +136,7 @@
 
 #define WORD_COUNT_WIDTH                          16
 #define PKT_CODE_WIDTH                            6
-#define CHN_NO_WIDTH                              2
+#define CHN_ANAL_WIDTH                              2
 #define ERROR_INFO_WIDTH                          8
 
 #define LONG_PKTCODE_MAX                          63
@@ -167,8 +167,8 @@
 #define ACQ_HEADER_DATA_BITS                      16
 #define ACQ_ACK_TOKEN_ID_IDX                      ACQ_TOKEN_ID_IDX
 #define ACQ_ACK_TOKEN_ID_BITS                     ACQ_TOKEN_ID_BITS
-#define ACQ_ACK_NOFWORDS_IDX                      13
-#define ACQ_ACK_NOFWORDS_BITS                     9
+#define ACQ_ACK_ANALFWORDS_IDX                      13
+#define ACQ_ACK_ANALFWORDS_BITS                     9
 #define ACQ_ACK_PKT_LEN_IDX                       4
 #define ACQ_ACK_PKT_LEN_BITS                      16
 
@@ -200,7 +200,7 @@
 #define ACQ_USR_DEF_6_DATA						 53   /* 11 0101    User Defined 8-bit Data Type 6                   */
 #define ACQ_USR_DEF_7_DATA						 54   /* 11 0110    User Defined 8-bit Data Type 7                   */
 #define ACQ_USR_DEF_8_DATA						 55   /* 11 0111    User Defined 8-bit Data Type 8                   */
-#define ACQ_Emb_DATA							 18   /* 01 0010    embedded eight bit non image data                */
+#define ACQ_Emb_DATA							 18   /* 01 0010    embedded eight bit analn image data                */
 #define ACQ_SOF_DATA							 0   /* 00 0000    frame start                                      */
 #define ACQ_EOF_DATA							 1   /* 00 0001    frame end                                        */
 #define ACQ_SOL_DATA							 2   /* 00 0010    line start                                       */

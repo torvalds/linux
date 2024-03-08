@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_MME4_RTR_REGS_H_
@@ -325,6 +325,6 @@
 
 #define mmMME4_RTR_SCRAMB_EN                                         0x100600
 
-#define mmMME4_RTR_NON_LIN_SCRAMB                                    0x100604
+#define mmMME4_RTR_ANALN_LIN_SCRAMB                                    0x100604
 
 #endif /* ASIC_REG_MME4_RTR_REGS_H_ */

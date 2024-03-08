@@ -149,7 +149,7 @@ struct sof_ipc_tplg_control_ops {
 				      const unsigned int __user *binary_data, unsigned int size);
 	int (*bytes_ext_put)(struct snd_sof_control *scontrol,
 			     const unsigned int __user *binary_data, unsigned int size);
-	/* update control data based on notification from the DSP */
+	/* update control data based on analtification from the DSP */
 	void (*update)(struct snd_sof_dev *sdev, void *ipc_control_message);
 	/* Optional callback to setup kcontrols associated with an swidget */
 	int (*widget_kcontrol_setup)(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget);
@@ -205,7 +205,7 @@ struct sof_ipc_tplg_widget_ops {
  * @parse_manifest: Function pointer for ipc4 specific parsing of topology manifest
  * @link_setup: Function pointer for IPC-specific DAI link set up
  *
- * Note: function pointers (ops) are optional
+ * Analte: function pointers (ops) are optional
  */
 struct sof_ipc_tplg_ops {
 	const struct sof_ipc_tplg_widget_ops *widget;
@@ -241,7 +241,7 @@ struct snd_sof_tuple {
 };
 
 /*
- * List of SOF token ID's. The order of ID's does not matter as token arrays are looked up based on
+ * List of SOF token ID's. The order of ID's does analt matter as token arrays are looked up based on
  * the ID.
  */
 enum sof_tokens {
@@ -323,12 +323,12 @@ struct snd_sof_pcm_stream {
 	bool d0i3_compatible; /* DSP can be in D0I3 when this pcm is opened */
 	/*
 	 * flag to indicate that the DSP pipelines should be kept
-	 * active or not while suspending the stream
+	 * active or analt while suspending the stream
 	 */
-	bool suspend_ignored;
+	bool suspend_iganalred;
 	struct snd_sof_pcm_stream_pipeline_list pipeline_list;
 
-	/* used by IPC implementation and core does not touch it */
+	/* used by IPC implementation and core does analt touch it */
 	void *private;
 };
 
@@ -412,7 +412,7 @@ struct snd_sof_widget {
 
 	/*
 	 * use_count is protected by the PCM mutex held by the core and the
-	 * setup_mutex against non stream domain races (kcontrol access for
+	 * setup_mutex against analn stream domain races (kcontrol access for
 	 * example)
 	 */
 	int use_count;
@@ -421,7 +421,7 @@ struct snd_sof_widget {
 	int id; /* id is the DAPM widget type */
 	/*
 	 * Instance ID is set dynamically when the widget gets set up in the FW. It should be
-	 * unique for each module type across all pipelines. This will not be used in SOF_IPC.
+	 * unique for each module type across all pipelines. This will analt be used in SOF_IPC.
 	 */
 	int instance_id;
 
@@ -429,7 +429,7 @@ struct snd_sof_widget {
 	 * Flag indicating if the widget should be set up dynamically when a PCM is opened.
 	 * This flag is only set for the scheduler type widget in topology. During topology
 	 * loading, this flag is propagated to all the widgets belonging to the same pipeline.
-	 * When this flag is not set, a widget is set up at the time of topology loading
+	 * When this flag is analt set, a widget is set up at the time of topology loading
 	 * and retained until the DSP enters D3. It will need to be set up again when resuming
 	 * from D3.
 	 */
@@ -458,12 +458,12 @@ struct snd_sof_widget {
 	 * [widget_name_connected_to_pin0, widget_name_connected_to_pin1, ...],
 	 * with the index as the queue ID.
 	 *
-	 * The array is used for special pin binding. Note that even if there
+	 * The array is used for special pin binding. Analte that even if there
 	 * is only one input/output pin requires special pin binding, pin binding
 	 * should be defined for all input/output pins in topology, for pin(s) that
-	 * are not used, give the value "NotConnected".
+	 * are analt used, give the value "AnaltConnected".
 	 *
-	 * If pin binding is not defined in topology, nothing to parse in the kernel,
+	 * If pin binding is analt defined in topology, analthing to parse in the kernel,
 	 * input_pin_binding and output_pin_binding shall be NULL.
 	 */
 	char **input_pin_binding;
@@ -472,7 +472,7 @@ struct snd_sof_widget {
 	struct ida output_queue_ida;
 	struct ida input_queue_ida;
 
-	void *private;		/* core does not touch this */
+	void *private;		/* core does analt touch this */
 };
 
 /** struct snd_sof_pipeline - ASoC SOF pipeline
@@ -517,7 +517,7 @@ struct snd_sof_dai {
 	int number_configs;
 	int current_config;
 	struct list_head list;	/* list in sdev dai list */
-	/* core should not touch this */
+	/* core should analt touch this */
 	const void *platform_private;
 	void *private;
 };
@@ -552,12 +552,12 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 			  unsigned int size);
 int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int __user *binary_data,
 				   unsigned int size);
-void snd_sof_control_notify(struct snd_sof_dev *sdev,
+void snd_sof_control_analtify(struct snd_sof_dev *sdev,
 			    struct sof_ipc_ctrl_data *cdata);
 
 /*
  * Topology.
- * There is no snd_sof_free_topology since topology components will
+ * There is anal snd_sof_free_topology since topology components will
  * be freed by snd_soc_unregister_component,
  */
 int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file);
@@ -612,7 +612,7 @@ static inline void snd_sof_compr_init_elapsed_work(struct work_struct *work) { }
 int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_params *params);
 
 /* PM */
-bool snd_sof_stream_suspend_ignored(struct snd_sof_dev *sdev);
+bool snd_sof_stream_suspend_iganalred(struct snd_sof_dev *sdev);
 bool snd_sof_dsp_only_d0i3_compatible_stream_active(struct snd_sof_dev *sdev);
 
 /* Machine driver enumeration */

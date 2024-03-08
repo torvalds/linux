@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Hardkernel's Exynos4412 based ODROID-U3 board device tree source
+ * Hardkernel's Exyanals4412 based ODROID-U3 board device tree source
  *
  * Copyright (c) 2014 Marek Szyprowski <m.szyprowski@samsung.com>
  *
  * Device tree source file for Hardkernel's ODROID-U3 board which is based
- * on Samsung's Exynos4412 SoC.
+ * on Samsung's Exyanals4412 SoC.
  */
 
 /dts-v1/;
 #include <dt-bindings/leds/common.h>
-#include "exynos4412-odroid-common.dtsi"
-#include "exynos4412-prime.dtsi"
+#include "exyanals4412-odroid-common.dtsi"
+#include "exyanals4412-prime.dtsi"
 
 / {
-	model = "Hardkernel ODROID-U3 board based on Exynos4412";
-	compatible = "hardkernel,odroid-u3", "samsung,exynos4412", "samsung,exynos4";
+	model = "Hardkernel ODROID-U3 board based on Exyanals4412";
+	compatible = "hardkernel,odroid-u3", "samsung,exyanals4412", "samsung,exyanals4";
 
 	aliases {
 		ethernet = &ethernet;
@@ -56,7 +56,7 @@
 
 &adc {
 	vdd-supply = <&ldo10_reg>;
-	/* Nothing connected to ADC inputs, keep it disabled */
+	/* Analthing connected to ADC inputs, keep it disabled */
 };
 
 /* Supply for LAN9730/SMSC95xx */
@@ -118,7 +118,7 @@
 &ehci {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	phys = <&exynos_usbphy 2>, <&exynos_usbphy 3>;
+	phys = <&exyanals_usbphy 2>, <&exyanals_usbphy 3>;
 	phy-names = "hsic0", "hsic1";
 
 	ethernet: ethernet@2 {

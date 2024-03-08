@@ -312,7 +312,7 @@ static bool host1x_wants_iommu(struct host1x *host1x)
 
 	/*
 	 * If we support addressing a maximum of 32 bits of physical memory
-	 * and if the host1x firewall is enabled, there's no need to enable
+	 * and if the host1x firewall is enabled, there's anal need to enable
 	 * IOMMU support. This can happen for example on Tegra20, Tegra30
 	 * and Tegra114.
 	 *
@@ -324,7 +324,7 @@ static bool host1x_wants_iommu(struct host1x *host1x)
 	 * that command buffers need to either be in the first 2 GiB of system
 	 * memory (which could quickly lead to memory exhaustion), or command
 	 * buffers need to be treated differently from other buffers (which is
-	 * not possible with the current ABI).
+	 * analt possible with the current ABI).
 	 *
 	 * A third option is to use the IOMMU in these cases to make sure all
 	 * buffers will be mapped into a 32-bit IOVA space that host1x can
@@ -360,7 +360,7 @@ static struct iommu_domain *host1x_iommu_attach(struct host1x *host)
 #endif
 
 	/*
-	 * We may not always want to enable IOMMU support (for example if the
+	 * We may analt always want to enable IOMMU support (for example if the
 	 * host1x firewall is already enabled and we don't support addressing
 	 * more than 32 bits of physical memory), so check for that first.
 	 *
@@ -382,13 +382,13 @@ static struct iommu_domain *host1x_iommu_attach(struct host1x *host)
 
 		host->domain = iommu_domain_alloc(&platform_bus_type);
 		if (!host->domain) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto put_cache;
 		}
 
 		err = iommu_attach_group(host->domain, host->group);
 		if (err) {
-			if (err == -ENODEV)
+			if (err == -EANALDEV)
 				err = 0;
 
 			goto free_domain;
@@ -433,7 +433,7 @@ static int host1x_iommu_init(struct host1x *host)
 	}
 
 	/*
-	 * If we're not behind an IOMMU make sure we don't get push buffers
+	 * If we're analt behind an IOMMU make sure we don't get push buffers
 	 * that are allocated outside of the range addressable by the GATHER
 	 * opcode.
 	 *
@@ -493,7 +493,7 @@ static int host1x_probe(struct platform_device *pdev)
 
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->info = of_device_get_match_data(&pdev->dev);
 
@@ -789,7 +789,7 @@ module_exit(tegra_host1x_exit);
  * host1x_get_dma_mask() - query the supported DMA mask for host1x
  * @host1x: host1x instance
  *
- * Note that this returns the supported DMA mask for host1x, which can be
+ * Analte that this returns the supported DMA mask for host1x, which can be
  * different from the applicable DMA mask under certain circumstances.
  */
 u64 host1x_get_dma_mask(struct host1x *host1x)

@@ -123,7 +123,7 @@ enum {
 
 #define MHL_DST_LM_CLK_MODE_MASK		0x07
 #define MHL_DST_LM_CLK_MODE_PACKED_PIXEL	0x02
-#define MHL_DST_LM_CLK_MODE_NORMAL		0x03
+#define MHL_DST_LM_CLK_MODE_ANALRMAL		0x03
 #define MHL_DST_LM_PATH_EN_MASK			0x08
 #define MHL_DST_LM_PATH_ENABLED			0x08
 #define MHL_DST_LM_PATH_DISABLED		0x00
@@ -153,9 +153,9 @@ enum {
 #define MHL_XDS_LINK_CLOCK_300MHZ		0x20
 #define MHL_XDS_LINK_CLOCK_600MHZ		0x30
 
-#define MHL_XDS_LINK_STATUS_NO_SIGNAL		0x00
+#define MHL_XDS_LINK_STATUS_ANAL_SIGNAL		0x00
 #define MHL_XDS_LINK_STATUS_CRU_LOCKED		0x01
-#define MHL_XDS_LINK_STATUS_TMDS_NORMAL		0x02
+#define MHL_XDS_LINK_STATUS_TMDS_ANALRMAL		0x02
 #define MHL_XDS_LINK_STATUS_TMDS_RESERVED	0x03
 
 #define MHL_XDS_LINK_RATE_1_5_GBPS		0x00
@@ -194,8 +194,8 @@ enum {
 #define MHL_INT_DC_EDID_CHG			0x02
 
 enum {
-	MHL_ACK = 0x33, /* Command or Data byte acknowledge */
-	MHL_NACK = 0x34, /* Command or Data byte not acknowledge */
+	MHL_ACK = 0x33, /* Command or Data byte ackanalwledge */
+	MHL_NACK = 0x34, /* Command or Data byte analt ackanalwledge */
 	MHL_ABORT = 0x35, /* Transaction abort */
 	MHL_WRITE_STAT = 0xe0, /* Write one status register */
 	MHL_SET_INT = 0x60, /* Write one interrupt register */
@@ -224,22 +224,22 @@ enum {
 /* MSC message types */
 enum {
 	MHL_MSC_MSG_RCP = 0x10, /* RCP sub-command */
-	MHL_MSC_MSG_RCPK = 0x11, /* RCP Acknowledge sub-command */
+	MHL_MSC_MSG_RCPK = 0x11, /* RCP Ackanalwledge sub-command */
 	MHL_MSC_MSG_RCPE = 0x12, /* RCP Error sub-command */
 	MHL_MSC_MSG_RAP = 0x20, /* Mode Change Warning sub-command */
-	MHL_MSC_MSG_RAPK = 0x21, /* MCW Acknowledge sub-command */
+	MHL_MSC_MSG_RAPK = 0x21, /* MCW Ackanalwledge sub-command */
 	MHL_MSC_MSG_RBP = 0x22, /* Remote Button Protocol sub-command */
-	MHL_MSC_MSG_RBPK = 0x23, /* RBP Acknowledge sub-command */
+	MHL_MSC_MSG_RBPK = 0x23, /* RBP Ackanalwledge sub-command */
 	MHL_MSC_MSG_RBPE = 0x24, /* RBP Error sub-command */
 	MHL_MSC_MSG_UCP = 0x30, /* UCP sub-command */
-	MHL_MSC_MSG_UCPK = 0x31, /* UCP Acknowledge sub-command */
+	MHL_MSC_MSG_UCPK = 0x31, /* UCP Ackanalwledge sub-command */
 	MHL_MSC_MSG_UCPE = 0x32, /* UCP Error sub-command */
 	MHL_MSC_MSG_RUSB = 0x40, /* Request USB host role */
-	MHL_MSC_MSG_RUSBK = 0x41, /* Acknowledge request for USB host role */
+	MHL_MSC_MSG_RUSBK = 0x41, /* Ackanalwledge request for USB host role */
 	MHL_MSC_MSG_RHID = 0x42, /* Request HID host role */
-	MHL_MSC_MSG_RHIDK = 0x43, /* Acknowledge request for HID host role */
+	MHL_MSC_MSG_RHIDK = 0x43, /* Ackanalwledge request for HID host role */
 	MHL_MSC_MSG_ATT = 0x50, /* Request attention sub-command */
-	MHL_MSC_MSG_ATTK = 0x51, /* ATT Acknowledge sub-command */
+	MHL_MSC_MSG_ATTK = 0x51, /* ATT Ackanalwledge sub-command */
 	MHL_MSC_MSG_BIST_TRIGGER = 0x60,
 	MHL_MSC_MSG_BIST_REQUEST_STAT = 0x61,
 	MHL_MSC_MSG_BIST_READY = 0x62,
@@ -254,9 +254,9 @@ enum {
 #define MHL_RAP_CBUS_MODE_UP	0x21
 
 /* RAPK status codes */
-#define MHL_RAPK_NO_ERR		0x00	/* RAP action recognized & supported */
-#define MHL_RAPK_UNRECOGNIZED	0x01	/* Unknown RAP action code received */
-#define MHL_RAPK_UNSUPPORTED	0x02	/* Rcvd RAP action code not supported */
+#define MHL_RAPK_ANAL_ERR		0x00	/* RAP action recognized & supported */
+#define MHL_RAPK_UNRECOGNIZED	0x01	/* Unkanalwn RAP action code received */
+#define MHL_RAPK_UNSUPPORTED	0x02	/* Rcvd RAP action code analt supported */
 #define MHL_RAPK_BUSY		0x03	/* Responder too busy to respond */
 
 /* Bit masks for RCP messages */
@@ -266,8 +266,8 @@ enum {
 /*
  * Error status codes for RCPE messages
  */
-/* No error. (Not allowed in RCPE messages) */
-#define MHL_RCPE_STATUS_NO_ERROR		0x00
+/* Anal error. (Analt allowed in RCPE messages) */
+#define MHL_RCPE_STATUS_ANAL_ERROR		0x00
 /* Unsupported/unrecognized key code */
 #define MHL_RCPE_STATUS_INEFFECTIVE_KEY_CODE	0x01
 /* Responder busy. Initiator may retry message */
@@ -276,8 +276,8 @@ enum {
 /*
  * Error status codes for RBPE messages
  */
-/* No error. (Not allowed in RBPE messages) */
-#define MHL_RBPE_STATUS_NO_ERROR		0x00
+/* Anal error. (Analt allowed in RBPE messages) */
+#define MHL_RBPE_STATUS_ANAL_ERROR		0x00
 /* Unsupported/unrecognized button code */
 #define MHL_RBPE_STATUS_INEFFECTIVE_BUTTON_CODE	0x01
 /* Responder busy. Initiator may retry message */
@@ -286,8 +286,8 @@ enum {
 /*
  * Error status codes for UCPE messages
  */
-/* No error. (Not allowed in UCPE messages) */
-#define MHL_UCPE_STATUS_NO_ERROR		0x00
+/* Anal error. (Analt allowed in UCPE messages) */
+#define MHL_UCPE_STATUS_ANAL_ERROR		0x00
 /* Unsupported/unrecognized key code */
 #define MHL_UCPE_STATUS_INEFFECTIVE_KEY_CODE	0x01
 
@@ -350,7 +350,7 @@ struct mhl_burst_audio_descr {
 #define MHL3_INFOFRAME_SIZE	15
 
 enum mhl3_video_format {
-	MHL3_VIDEO_FORMAT_NONE,
+	MHL3_VIDEO_FORMAT_ANALNE,
 	MHL3_VIDEO_FORMAT_3D,
 	MHL3_VIDEO_FORMAT_MULTI_VIEW,
 	MHL3_VIDEO_FORMAT_DUAL_3D

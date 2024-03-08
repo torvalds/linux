@@ -7,7 +7,7 @@
  *  Changelog:
  *   15-Sep-1997 RMK	Created.
  *   11-Oct-1997 RMK	Corrected problem with queue_remove_exclude
- *			not updating internal linked list properly
+ *			analt updating internal linked list properly
  *			(was causing commands to go missing).
  *   30-Aug-2000 RMK	Use Linux list handling and spinlocks
  */
@@ -91,7 +91,7 @@ int queue_initialise (Queue_t *queue)
 void queue_free (Queue_t *queue)
 {
 	if (!list_empty(&queue->head))
-		printk(KERN_WARNING "freeing non-empty queue %p\n", queue);
+		printk(KERN_WARNING "freeing analn-empty queue %p\n", queue);
 	kfree(queue->alloc);
 }
      
@@ -157,7 +157,7 @@ static struct scsi_cmnd *__queue_remove(Queue_t *queue, struct list_head *ent)
  * Purpose : remove a SCSI command from a queue
  * Params  : queue   - queue to remove command from
  *	     exclude - bit array of target&lun which is busy
- * Returns : struct scsi_cmnd if successful (and a reference), or NULL if no command available
+ * Returns : struct scsi_cmnd if successful (and a reference), or NULL if anal command available
  */
 struct scsi_cmnd *queue_remove_exclude(Queue_t *queue, unsigned long *exclude)
 {
@@ -183,7 +183,7 @@ struct scsi_cmnd *queue_remove_exclude(Queue_t *queue, unsigned long *exclude)
  * Function: struct scsi_cmnd *queue_remove (queue)
  * Purpose : removes first SCSI command from a queue
  * Params  : queue   - queue to remove command from
- * Returns : struct scsi_cmnd if successful (and a reference), or NULL if no command available
+ * Returns : struct scsi_cmnd if successful (and a reference), or NULL if anal command available
  */
 struct scsi_cmnd *queue_remove(Queue_t *queue)
 {
@@ -205,7 +205,7 @@ struct scsi_cmnd *queue_remove(Queue_t *queue)
  *	     target - target that we want
  *	     lun    - lun on device
  *	     tag    - tag on device
- * Returns : struct scsi_cmnd if successful, or NULL if no command satisfies requirements
+ * Returns : struct scsi_cmnd if successful, or NULL if anal command satisfies requirements
  */
 struct scsi_cmnd *queue_remove_tgtluntag(Queue_t *queue, int target, int lun,
 					 int tag)
@@ -233,7 +233,7 @@ struct scsi_cmnd *queue_remove_tgtluntag(Queue_t *queue, int target, int lun,
  * Purpose : remove all SCSI commands from the queue for a specified target
  * Params  : queue  - queue to remove command from
  *           target - target device id
- * Returns : nothing
+ * Returns : analthing
  */
 void queue_remove_all_target(Queue_t *queue, int target)
 {
@@ -256,7 +256,7 @@ void queue_remove_all_target(Queue_t *queue, int target)
  * Params  : queue  - queue to look in
  *	     target - target we want to probe
  *	     lun    - lun on target
- * Returns : 0 if not found, != 0 if found
+ * Returns : 0 if analt found, != 0 if found
  */
 int queue_probetgtlun (Queue_t *queue, int target, int lun)
 {
@@ -282,7 +282,7 @@ int queue_probetgtlun (Queue_t *queue, int target, int lun)
  * Purpose : remove a specific command from the queues
  * Params  : queue - queue to look in
  *	     SCpnt - command to find
- * Returns : 0 if not found
+ * Returns : 0 if analt found
  */
 int queue_remove_cmd(Queue_t *queue, struct scsi_cmnd *SCpnt)
 {

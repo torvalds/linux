@@ -9,7 +9,7 @@
 /* capabilities related code based on selftests/bpf/test_verifier.c */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <stdio.h>
@@ -50,8 +50,8 @@ static int call_clone3_set_tid(struct __test_metadata *_metadata,
 
 	pid = sys_clone3(&args, sizeof(args));
 	if (pid < 0) {
-		TH_LOG("%s - Failed to create new process", strerror(errno));
-		return -errno;
+		TH_LOG("%s - Failed to create new process", strerror(erranal));
+		return -erranal;
 	}
 
 	if (pid == 0) {
@@ -68,8 +68,8 @@ static int call_clone3_set_tid(struct __test_metadata *_metadata,
 	TH_LOG("I am the parent (%d). My child's pid is %d", getpid(), pid);
 
 	if (waitpid(pid, &status, 0) < 0) {
-		TH_LOG("Child returned %s", strerror(errno));
-		return -errno;
+		TH_LOG("Child returned %s", strerror(erranal));
+		return -erranal;
 	}
 
 	if (!WIFEXITED(status))
@@ -143,7 +143,7 @@ TEST(clone3_cap_checkpoint_restore)
 	test_clone3_supported();
 
 	EXPECT_EQ(getuid(), 0)
-		SKIP(return, "Skipping all tests as non-root");
+		SKIP(return, "Skipping all tests as analn-root");
 
 	memset(&set_tid, 0, sizeof(set_tid));
 
@@ -160,7 +160,7 @@ TEST(clone3_cap_checkpoint_restore)
 	set_tid[0] = pid;
 
 	ASSERT_EQ(set_capability(), 0)
-		TH_LOG("Could not set CAP_CHECKPOINT_RESTORE");
+		TH_LOG("Could analt set CAP_CHECKPOINT_RESTORE");
 
 	ASSERT_EQ(prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0), 0);
 
@@ -172,8 +172,8 @@ TEST(clone3_cap_checkpoint_restore)
 	/* This would fail without CAP_CHECKPOINT_RESTORE */
 	ASSERT_EQ(test_clone3_set_tid(_metadata, set_tid, 1), -EPERM);
 	ASSERT_EQ(set_capability(), 0)
-		TH_LOG("Could not set CAP_CHECKPOINT_RESTORE");
-	/* This should work as we have CAP_CHECKPOINT_RESTORE as non-root */
+		TH_LOG("Could analt set CAP_CHECKPOINT_RESTORE");
+	/* This should work as we have CAP_CHECKPOINT_RESTORE as analn-root */
 	ASSERT_EQ(test_clone3_set_tid(_metadata, set_tid, 1), 0);
 }
 

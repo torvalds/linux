@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2014-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include "core.h"
@@ -89,16 +89,16 @@ void ath10k_sta_update_rx_tid_stats(struct ath10k *ar, u8 *first_hdr,
 	struct ieee80211_hdr *hdr;
 	struct ath10k_sta_tid_stats *stats;
 	u8 tid = IEEE80211_NUM_TIDS;
-	bool non_data_frm = false;
+	bool analn_data_frm = false;
 
 	hdr = (struct ieee80211_hdr *)first_hdr;
 	if (!ieee80211_is_data(hdr->frame_control))
-		non_data_frm = true;
+		analn_data_frm = true;
 
 	if (ieee80211_is_data_qos(hdr->frame_control))
 		tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
 
-	if (!(ar->sta_tid_stats_mask & BIT(tid)) || non_data_frm)
+	if (!(ar->sta_tid_stats_mask & BIT(tid)) || analn_data_frm)
 		return;
 
 	rcu_read_lock();
@@ -489,10 +489,10 @@ static char *get_err_str(enum ath10k_pkt_rx_err i)
 	case ATH10K_PKT_RX_ERR_PEER_IDX_INVAL:
 		return "peer_idx_inval";
 	case ATH10K_PKT_RX_ERR_MAX:
-		return "unknown";
+		return "unkanalwn";
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 static char *get_num_ampdu_subfrm_str(enum ath10k_ampdu_subfrm_num i)
@@ -575,7 +575,7 @@ static ssize_t ath10k_dbg_sta_read_tid_stats(struct file *file,
 
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -660,7 +660,7 @@ static ssize_t ath10k_dbg_sta_dump_tx_stats(struct file *file,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&ar->conf_mutex);
 

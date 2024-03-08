@@ -46,7 +46,7 @@ enum {
 	UIO_IRQ_DISABLED = 0,
 };
 
-static int uio_dmem_genirq_open(struct uio_info *info, struct inode *inode)
+static int uio_dmem_genirq_open(struct uio_info *info, struct ianalde *ianalde)
 {
 	struct uio_dmem_genirq_platdata *priv = info->priv;
 	struct uio_mem *uiomem;
@@ -76,7 +76,7 @@ static int uio_dmem_genirq_open(struct uio_info *info, struct inode *inode)
 	return 0;
 }
 
-static int uio_dmem_genirq_release(struct uio_info *info, struct inode *inode)
+static int uio_dmem_genirq_release(struct uio_info *info, struct ianalde *ianalde)
 {
 	struct uio_dmem_genirq_platdata *priv = info->priv;
 	struct uio_mem *uiomem;
@@ -117,7 +117,7 @@ static irqreturn_t uio_dmem_genirq_handler(int irq, struct uio_info *dev_info)
 
 	spin_lock(&priv->lock);
 	if (!__test_and_set_bit(UIO_IRQ_DISABLED, &priv->flags))
-		disable_irq_nosync(irq);
+		disable_irq_analsync(irq);
 	spin_unlock(&priv->lock);
 
 	return IRQ_HANDLED;
@@ -142,7 +142,7 @@ static int uio_dmem_genirq_irqcontrol(struct uio_info *dev_info, s32 irq_on)
 			enable_irq(dev_info->irq);
 	} else {
 		if (!__test_and_set_bit(UIO_IRQ_DISABLED, &priv->flags))
-			disable_irq_nosync(dev_info->irq);
+			disable_irq_analsync(dev_info->irq);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -165,15 +165,15 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 	int ret = -EINVAL;
 	int i;
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		/* alloc uioinfo for one device */
 		uioinfo = devm_kzalloc(&pdev->dev, sizeof(*uioinfo), GFP_KERNEL);
 		if (!uioinfo) {
 			dev_err(&pdev->dev, "unable to kmalloc\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		uioinfo->name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%pOFn",
-					       pdev->dev.of_node);
+					       pdev->dev.of_analde);
 		uioinfo->version = "devicetree";
 	}
 
@@ -191,7 +191,7 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(&pdev->dev, "unable to kmalloc\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
@@ -207,10 +207,10 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 	mutex_init(&priv->alloc_lock);
 
 	if (!uioinfo->irq) {
-		/* Multiple IRQs are not supported */
+		/* Multiple IRQs are analt supported */
 		ret = platform_get_irq(pdev, 0);
-		if (ret == -ENXIO && pdev->dev.of_node)
-			ret = UIO_IRQ_NONE;
+		if (ret == -ENXIO && pdev->dev.of_analde)
+			ret = UIO_IRQ_ANALNE;
 		else if (ret < 0)
 			return ret;
 		uioinfo->irq = ret;
@@ -275,13 +275,13 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 		++uiomem;
 	}
 
-	/* This driver requires no hardware specific kernel code to handle
+	/* This driver requires anal hardware specific kernel code to handle
 	 * interrupts. Instead, the interrupt handler simply disables the
 	 * interrupt in the interrupt controller. User space is responsible
-	 * for performing hardware specific acknowledge and re-enabling of
+	 * for performing hardware specific ackanalwledge and re-enabling of
 	 * the interrupt in the interrupt controller.
 	 *
-	 * Interrupt sharing is not supported.
+	 * Interrupt sharing is analt supported.
 	 */
 
 	uioinfo->handler = uio_dmem_genirq_handler;
@@ -304,7 +304,7 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 	return devm_uio_register_device(&pdev->dev, priv->uioinfo);
 }
 
-static int uio_dmem_genirq_runtime_nop(struct device *dev)
+static int uio_dmem_genirq_runtime_analp(struct device *dev)
 {
 	/* Runtime PM callback shared between ->runtime_suspend()
 	 * and ->runtime_resume(). Simply returns success.
@@ -314,7 +314,7 @@ static int uio_dmem_genirq_runtime_nop(struct device *dev)
 	 * Runtime PM code to turn off power to the device while the
 	 * device is unused, ie before open() and after release().
 	 *
-	 * This Runtime PM callback does not need to save or restore
+	 * This Runtime PM callback does analt need to save or restore
 	 * any registers since user space is responsbile for hardware
 	 * register reinitialization after open().
 	 */
@@ -322,13 +322,13 @@ static int uio_dmem_genirq_runtime_nop(struct device *dev)
 }
 
 static const struct dev_pm_ops uio_dmem_genirq_dev_pm_ops = {
-	.runtime_suspend = uio_dmem_genirq_runtime_nop,
-	.runtime_resume = uio_dmem_genirq_runtime_nop,
+	.runtime_suspend = uio_dmem_genirq_runtime_analp,
+	.runtime_resume = uio_dmem_genirq_runtime_analp,
 };
 
 #ifdef CONFIG_OF
 static const struct of_device_id uio_of_genirq_match[] = {
-	{ /* empty for now */ },
+	{ /* empty for analw */ },
 };
 MODULE_DEVICE_TABLE(of, uio_of_genirq_match);
 #endif

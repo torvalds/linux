@@ -18,7 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/entry-common.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -48,7 +48,7 @@
  *	|	_s390_regs_common		|
  *	|	_s390_fp_regs			|
  *	-----------------------------------------
- *	| int signo				|
+ *	| int siganal				|
  *	-----------------------------------------
  *	| _sigregs_ext with			|
  *	|	gprs_high 64 byte (opt)		|
@@ -58,7 +58,7 @@
  *	-----------------------------------------
  *	| __u16 svc_insn			|
  *	-----------------------------------------
- * The svc_insn entry with the sigreturn system call opcode does not
+ * The svc_insn entry with the sigreturn system call opcode does analt
  * have a fixed position and moves if gprs_high or vxrs exist.
  * Future extensions will be added to _sigregs_ext.
  */
@@ -67,9 +67,9 @@ struct sigframe
 	__u8 callee_used_stack[__SIGNAL_FRAMESIZE];
 	struct sigcontext sc;
 	_sigregs sregs;
-	int signo;
+	int siganal;
 	_sigregs_ext sregs_ext;
-	__u16 svc_insn;		/* Offset of svc_insn is NOT fixed! */
+	__u16 svc_insn;		/* Offset of svc_insn is ANALT fixed! */
 };
 
 /*
@@ -118,7 +118,7 @@ static void load_sigregs(void)
 	restore_access_regs(current->thread.acrs);
 }
 
-/* Returns non-zero on fault. */
+/* Returns analn-zero on fault. */
 static int save_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 {
 	_sigregs user_sregs;
@@ -142,7 +142,7 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	_sigregs user_sregs;
 
 	/* Always make any pending restarted system call return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	if (__copy_from_user(&user_sregs, sregs, sizeof(user_sregs)))
 		return -EFAULT;
@@ -167,11 +167,11 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 
 	fpregs_load(&user_sregs.fpregs, &current->thread.fpu);
 
-	clear_pt_regs_flag(regs, PIF_SYSCALL); /* No longer in a system call */
+	clear_pt_regs_flag(regs, PIF_SYSCALL); /* Anal longer in a system call */
 	return 0;
 }
 
-/* Returns non-zero on fault. */
+/* Returns analn-zero on fault. */
 static int save_sigregs_ext(struct pt_regs *regs,
 			    _sigregs_ext __user *sregs_ext)
 {
@@ -266,7 +266,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs * regs, size_t frame_size)
 {
 	unsigned long sp;
 
-	/* Default to using normal stack */
+	/* Default to using analrmal stack */
 	sp = regs->gprs[15];
 
 	/* Overflow on alternate signal stack gives SIGSEGV. */
@@ -321,7 +321,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 		return -EFAULT;
 
 	/* Place signal number on stack to allow backtrace from handler.  */
-	if (__put_user(regs->gprs[2], (int __user *) &frame->signo))
+	if (__put_user(regs->gprs[2], (int __user *) &frame->siganal))
 		return -EFAULT;
 
 	/* Create _sigregs_ext on the signal stack */
@@ -351,7 +351,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	   To avoid breaking binary compatibility, they are passed as args. */
 	if (sig == SIGSEGV || sig == SIGBUS || sig == SIGILL ||
 	    sig == SIGTRAP || sig == SIGFPE) {
-		/* set extra registers only for synchronous signals */
+		/* set extra registers only for synchroanalus signals */
 		regs->gprs[4] = regs->int_code & 127;
 		regs->gprs[5] = regs->int_parm_long;
 		regs->gprs[6] = current->thread.last_break;
@@ -440,11 +440,11 @@ static void handle_signal(struct ksignal *ksig, sigset_t *oldset,
 }
 
 /*
- * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * Analte that 'init' is a special process: it doesn't get signals it doesn't
+ * want to handle. Thus you cananalt kill init even with a SIGKILL even by
  * mistake.
  *
- * Note that we go through the signals twice: once to check the signals that
+ * Analte that we go through the signals twice: once to check the signals that
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  */
@@ -469,7 +469,7 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 			/* Check for system call restarting. */
 			switch (regs->gprs[2]) {
 			case -ERESTART_RESTARTBLOCK:
-			case -ERESTARTNOHAND:
+			case -ERESTARTANALHAND:
 				regs->gprs[2] = -EINTR;
 				break;
 			case -ERESTARTSYS:
@@ -478,7 +478,7 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 					break;
 				}
 				fallthrough;
-			case -ERESTARTNOINTR:
+			case -ERESTARTANALINTR:
 				regs->gprs[2] = regs->orig_gpr2;
 				regs->psw.addr =
 					__rewind_psw(regs->psw,
@@ -486,7 +486,7 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 				break;
 			}
 		}
-		/* No longer in a system call */
+		/* Anal longer in a system call */
 		clear_pt_regs_flag(regs, PIF_SYSCALL);
 
 		rseq_signal_deliver(&ksig, regs);
@@ -497,7 +497,7 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 		return;
 	}
 
-	/* No handlers present - check for system call restart */
+	/* Anal handlers present - check for system call restart */
 	clear_pt_regs_flag(regs, PIF_SYSCALL);
 	if (current->thread.system_call) {
 		regs->int_code = current->thread.system_call;
@@ -513,9 +513,9 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 			if (test_thread_flag(TIF_SINGLE_STEP))
 				clear_thread_flag(TIF_PER_TRAP);
 			break;
-		case -ERESTARTNOHAND:
+		case -ERESTARTANALHAND:
 		case -ERESTARTSYS:
-		case -ERESTARTNOINTR:
+		case -ERESTARTANALINTR:
 			regs->gprs[2] = regs->orig_gpr2;
 			regs->psw.addr = __rewind_psw(regs->psw, regs->int_code >> 16);
 			if (test_thread_flag(TIF_SINGLE_STEP))
@@ -525,7 +525,7 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 	}
 
 	/*
-	 * If there's no signal to deliver, we just put the saved sigmask back.
+	 * If there's anal signal to deliver, we just put the saved sigmask back.
 	 */
 	restore_saved_sigmask();
 }

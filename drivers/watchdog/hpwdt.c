@@ -34,7 +34,7 @@
 #define PRETIMEOUT_SEC			9
 
 static unsigned int soft_margin = DEFAULT_MARGIN;	/* in seconds */
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 static bool pretimeout = IS_ENABLED(CONFIG_HPWDT_NMI_DECODING);
 static int kdumptimeout = -1;
 
@@ -177,7 +177,7 @@ static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 		"3. OA Forward Progress Log\n"
 		"4. iLO Event Log";
 
-	if (ulReason == NMI_UNKNOWN && !mynmi)
+	if (ulReason == NMI_UNKANALWN && !mynmi)
 		return NMI_DONE;
 
 	if (kdumptimeout < 0)
@@ -240,9 +240,9 @@ static int hpwdt_init_nmi_decoding(struct pci_dev *dev)
 #ifdef CONFIG_HPWDT_NMI_DECODING
 	int retval;
 	/*
-	 * Only one function can register for NMI_UNKNOWN
+	 * Only one function can register for NMI_UNKANALWN
 	 */
-	retval = register_nmi_handler(NMI_UNKNOWN, hpwdt_pretimeout, 0, "hpwdt");
+	retval = register_nmi_handler(NMI_UNKANALWN, hpwdt_pretimeout, 0, "hpwdt");
 	if (retval)
 		goto error;
 	retval = register_nmi_handler(NMI_SERR, hpwdt_pretimeout, 0, "hpwdt");
@@ -260,10 +260,10 @@ static int hpwdt_init_nmi_decoding(struct pci_dev *dev)
 error2:
 	unregister_nmi_handler(NMI_SERR, "hpwdt");
 error1:
-	unregister_nmi_handler(NMI_UNKNOWN, "hpwdt");
+	unregister_nmi_handler(NMI_UNKANALWN, "hpwdt");
 error:
 	dev_warn(&dev->dev,
-		"Unable to register a die notifier (err=%d).\n",
+		"Unable to register a die analtifier (err=%d).\n",
 		retval);
 	return retval;
 #endif	/* CONFIG_HPWDT_NMI_DECODING */
@@ -273,7 +273,7 @@ error:
 static void hpwdt_exit_nmi_decoding(void)
 {
 #ifdef CONFIG_HPWDT_NMI_DECODING
-	unregister_nmi_handler(NMI_UNKNOWN, "hpwdt");
+	unregister_nmi_handler(NMI_UNKANALWN, "hpwdt");
 	unregister_nmi_handler(NMI_SERR, "hpwdt");
 	unregister_nmi_handler(NMI_IO_CHECK, "hpwdt");
 #endif
@@ -286,33 +286,33 @@ static int hpwdt_init_one(struct pci_dev *dev,
 
 	/*
 	 * First let's find out if we are on an iLO2+ server. We will
-	 * not run on a legacy ASM box.
+	 * analt run on a legacy ASM box.
 	 * So we only support the G5 ProLiant servers and higher.
 	 */
 	if (dev->subsystem_vendor != PCI_VENDOR_ID_HP &&
 	    dev->subsystem_vendor != PCI_VENDOR_ID_HP_3PAR) {
 		dev_warn(&dev->dev,
-			"This server does not have an iLO2+ ASIC.\n");
-		return -ENODEV;
+			"This server does analt have an iLO2+ ASIC.\n");
+		return -EANALDEV;
 	}
 
 	if (pci_match_id(hpwdt_blacklist, dev)) {
-		dev_dbg(&dev->dev, "Not supported on this device\n");
-		return -ENODEV;
+		dev_dbg(&dev->dev, "Analt supported on this device\n");
+		return -EANALDEV;
 	}
 
 	if (pci_enable_device(dev)) {
 		dev_warn(&dev->dev,
-			"Not possible to enable PCI Device: 0x%x:0x%x.\n",
+			"Analt possible to enable PCI Device: 0x%x:0x%x.\n",
 			ent->vendor, ent->device);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pci_mem_addr = pci_iomap(dev, 1, 0x80);
 	if (!pci_mem_addr) {
 		dev_warn(&dev->dev,
 			"Unable to detect the iLO2+ server memory.\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto error_pci_iomap;
 	}
 	hpwdt_nmistat	= pci_mem_addr + 0x6e;
@@ -331,7 +331,7 @@ static int hpwdt_init_one(struct pci_dev *dev,
 		goto error_init_nmi_decoding;
 
 	watchdog_stop_on_unregister(&hpwdt_dev);
-	watchdog_set_nowayout(&hpwdt_dev, nowayout);
+	watchdog_set_analwayout(&hpwdt_dev, analwayout);
 	watchdog_init_timeout(&hpwdt_dev, soft_margin, NULL);
 
 	if (is_kdump_kernel()) {
@@ -353,8 +353,8 @@ static int hpwdt_init_one(struct pci_dev *dev,
 
 	dev_info(&dev->dev, "HPE Watchdog Timer Driver: Version: %s\n",
 				HPWDT_VERSION);
-	dev_info(&dev->dev, "timeout: %d seconds (nowayout=%d)\n",
-				hpwdt_dev.timeout, nowayout);
+	dev_info(&dev->dev, "timeout: %d seconds (analwayout=%d)\n",
+				hpwdt_dev.timeout, analwayout);
 	dev_info(&dev->dev, "pretimeout: %s.\n",
 				pretimeout ? "on" : "off");
 	dev_info(&dev->dev, "kdumptimeout: %d.\n", kdumptimeout);
@@ -396,9 +396,9 @@ MODULE_PARM_DESC(soft_margin, "Watchdog timeout in seconds");
 module_param_named(timeout, soft_margin, int, 0);
 MODULE_PARM_DESC(timeout, "Alias of soft_margin");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+		__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 module_param(kdumptimeout, int, 0444);
 MODULE_PARM_DESC(kdumptimeout, "Timeout applied for crash kernel transition in seconds");

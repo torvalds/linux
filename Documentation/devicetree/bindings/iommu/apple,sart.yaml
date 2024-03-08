@@ -12,8 +12,8 @@ maintainers:
 description:
   Apple SART is a simple address filter for DMA transactions. Regions of
   physical memory must be added to the SART's allow list before any
-  DMA can target these. Unlike a proper IOMMU no remapping can be done and
-  special support in the consumer driver is required since not all DMA
+  DMA can target these. Unlike a proper IOMMU anal remapping can be done and
+  special support in the consumer driver is required since analt all DMA
   transactions of a single device are subject to SART filtering.
 
   SART1 has first been used since at least the A11 (iPhone 8 and iPhone X)

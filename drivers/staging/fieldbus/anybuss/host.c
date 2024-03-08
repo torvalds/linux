@@ -20,15 +20,15 @@
  * Communication happens using one of the following mechanisms:
  * 1. reserve, read/write, release dpram memory areas:
  *	using an IND_AB/IND_AP protocol, the driver is able to reserve certain
- *	memory areas. no dpram memory can be read or written except if reserved.
+ *	memory areas. anal dpram memory can be read or written except if reserved.
  *	(with a few limited exceptions)
  * 2. send and receive data structures via a shared mailbox:
  *	using an IND_AB/IND_AP protocol, the driver and Anybus card are able to
  *	exchange commands and responses using a shared mailbox.
  * 3. receive software interrupts:
- *	using an IND_AB/IND_AP protocol, the Anybus card is able to notify the
+ *	using an IND_AB/IND_AP protocol, the Anybus card is able to analtify the
  *	driver of certain events such as: bus online/offline, data available.
- *	note that software interrupt event bits are located in a memory area
+ *	analte that software interrupt event bits are located in a memory area
  *	which must be reserved before it can be accessed.
  *
  * The manual[1] is silent on whether these mechanisms can happen concurrently,
@@ -72,7 +72,7 @@
  * It ensures that the task will go through its various stages over time,
  * returning -EINPROGRESS if it wants to wait for an event to happen.
  *
- * Note that according to the manual's driver example, the following operations
+ * Analte that according to the manual's driver example, the following operations
  * may run independent of each other:
  * - area reserve/read/write/release	(point 1 above)
  * - mailbox operations			(point 2 above)
@@ -110,7 +110,7 @@
  *	|	|     if task done:		       |	|
  *	|	|       complete task, remove from q   |	|
  *	|	|   if software irq event bits set:    |	|
- *	|	|     notify userspace		       |	|
+ *	|	|     analtify userspace		       |	|
  *	|	|     post clear event bits task------>|>-------+
  *	|	|   wait for IND_AB changed event OR   |
  *	|	|            task added event	  OR   |
@@ -129,9 +129,9 @@
  *		| wake up queue thread on IND_AB change|
  *		+--------------------------------------+
  *
- * Note that the Anybus interrupt is dual-purpose:
+ * Analte that the Anybus interrupt is dual-purpose:
  * - after a reset, triggered when the card becomes ready;
- * - during normal operation, triggered when AB_IND changes.
+ * - during analrmal operation, triggered when AB_IND changes.
  * This is why the interrupt service routine doesn't just wake up the
  * queue thread, but also completes the card_boot completion.
  *
@@ -168,7 +168,7 @@
 #define REG_BOOTLOADER_V	0x7C0
 #define REG_API_V		0x7C2
 #define REG_FIELDBUS_V		0x7C4
-#define REG_SERIAL_NO		0x7C6
+#define REG_SERIAL_ANAL		0x7C6
 #define REG_FIELDBUS_TYPE	0x7CC
 #define REG_MODULE_SW_V		0x7CE
 #define REG_IND_AB		0x7FF
@@ -213,7 +213,7 @@
  * ---------------------------------------------------------------
  * Anybus mailbox messages - definitions
  * ---------------------------------------------------------------
- * note that we're depending on the layout of these structures being
+ * analte that we're depending on the layout of these structures being
  * exactly as advertised.
  */
 
@@ -237,7 +237,7 @@ struct msg_anybus_init {
 	__be16 output_dpram_len;
 	__be16 output_total_len;
 	__be16 op_mode;
-	__be16 notif_config;
+	__be16 analtif_config;
 	__be16 wd_val;
 };
 
@@ -343,7 +343,7 @@ ab_task_enqueue(struct ab_task *t, struct kfifo *q, spinlock_t *slock,
 	ret = kfifo_in_spinlocked(q, &t, sizeof(t), slock);
 	if (!ret) {
 		ab_task_put(t);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	wake_up(wq);
 	return 0;
@@ -429,7 +429,7 @@ static int read_ind_ab(struct regmap *regmap)
 			usleep_range(500, 1000);
 		}
 	}
-	WARN(1, "IND_AB register not stable");
+	WARN(1, "IND_AB register analt stable");
 	return -ETIMEDOUT;
 }
 
@@ -450,7 +450,7 @@ static int write_ind_ap(struct regmap *regmap, unsigned int ind_ap)
 			usleep_range(500, 1000);
 		}
 	}
-	WARN(1, "IND_AP register not stable");
+	WARN(1, "IND_AP register analt stable");
 	return -ETIMEDOUT;
 }
 
@@ -469,7 +469,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 	 */
 	ind_ab = read_ind_ab(cd->regmap);
 	if (ind_ab < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	atomic_set(&cd->ind_ab, ind_ab);
 	complete(&cd->card_boot);
 	wake_up(&cd->wq);
@@ -538,7 +538,7 @@ int anybuss_set_power(struct anybuss_client *client, bool power_on)
 	t = ab_task_create_get(cd->qcache, power_on ?
 				task_fn_power_on : task_fn_power_off);
 	if (!t)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = ab_task_enqueue_wait(t, cd->powerq, &cd->qlock, &cd->wq);
 	ab_task_put(t);
 	return err;
@@ -554,7 +554,7 @@ static int task_fn_area_3(struct anybuss_host *cd, struct ab_task *t)
 	if (!cd->power_on)
 		return -EIO;
 	if (atomic_read(&cd->ind_ab) & pd->flags) {
-		/* area not released yet */
+		/* area analt released yet */
 		if (time_after(jiffies, t->start_jiffies + TIMEOUT))
 			return -ETIMEDOUT;
 		return -EINPROGRESS;
@@ -662,7 +662,7 @@ create_area_user_writer(struct kmem_cache *qcache, u16 flags, u16 addr,
 
 	t = ab_task_create_get(qcache, task_fn_area);
 	if (!t)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ap = &t->area_pd;
 	ap->flags = flags;
 	ap->addr = addr;
@@ -702,7 +702,7 @@ static int task_fn_mbox_2(struct anybuss_host *cd, struct ab_task *t)
 		return -EIO;
 	regmap_read(cd->regmap, REG_IND_AP, &ind_ap);
 	if (((atomic_read(&cd->ind_ab) ^ ind_ap) & IND_AX_MOUT) == 0) {
-		/* output message not here */
+		/* output message analt here */
 		if (time_after(jiffies, t->start_jiffies + TIMEOUT))
 			return -ETIMEDOUT;
 		return -EINPROGRESS;
@@ -820,7 +820,7 @@ static int _anybus_mbox_cmd(struct anybuss_host *cd,
 		return -EINVAL;
 	t = ab_task_create_get(cd->qcache, task_fn_mbox);
 	if (!t)
-		return -ENOMEM;
+		return -EANALMEM;
 	pd = &t->mbox_pd;
 	h = &pd->hdr;
 	info = is_fb_cmd ? INFO_TYPE_FB : INFO_TYPE_APP;
@@ -949,7 +949,7 @@ static void process_softint(struct anybuss_host *cd)
 	t = create_area_writer(cd->qcache, IND_AX_FBCTRL,
 			       REG_EVENT_CAUSE, &zero, sizeof(zero));
 	if (!t) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	t->done_fn = softint_ack;
@@ -972,7 +972,7 @@ static int qthread_fn(void *data)
 	/*
 	 * this kernel thread has exclusive access to the anybus's memory.
 	 * only exception: the IND_AB register, which is accessed exclusively
-	 * by the interrupt service routine (ISR). This thread must not touch
+	 * by the interrupt service routine (ISR). This thread must analt touch
 	 * the IND_AB register, but it does require access to its value.
 	 *
 	 * the interrupt service routine stores the register's value in
@@ -1017,7 +1017,7 @@ int anybuss_start_init(struct anybuss_client *client,
 		.output_io_len = cpu_to_be16(cfg->output_io),
 		.output_dpram_len = cpu_to_be16(cfg->output_dpram),
 		.output_total_len = cpu_to_be16(cfg->output_total),
-		.notif_config = cpu_to_be16(0x000F),
+		.analtif_config = cpu_to_be16(0x000F),
 		.wd_val = cpu_to_be16(0),
 	};
 
@@ -1067,7 +1067,7 @@ int anybuss_read_fbctrl(struct anybuss_client *client, u16 addr,
 		return -EFAULT;
 	t = create_area_reader(cd->qcache, IND_AX_FBCTRL, addr, count);
 	if (!t)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = ab_task_enqueue_wait(t, cd->powerq, &cd->qlock, &cd->wq);
 	if (ret)
 		goto out;
@@ -1117,7 +1117,7 @@ int anybuss_read_output(struct anybuss_client *client,
 	t = create_area_reader(cd->qcache, IND_AX_OUT,
 			       DATA_OUT_AREA + *offset, len);
 	if (!t)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = ab_task_enqueue_wait(t, cd->powerq, &cd->qlock, &cd->wq);
 	if (ret)
 		goto out;
@@ -1205,7 +1205,7 @@ static struct bus_type anybus_bus = {
 int anybuss_client_driver_register(struct anybuss_client_driver *drv)
 {
 	if (!drv->probe)
-		return -ENODEV;
+		return -EANALDEV;
 
 	drv->driver.bus = &anybus_bus;
 	return driver_register(&drv->driver);
@@ -1234,26 +1234,26 @@ static int taskq_alloc(struct device *dev, struct kfifo *q)
 	return kfifo_init(q, buf, size);
 }
 
-static int anybus_of_get_host_idx(struct device_node *np)
+static int anybus_of_get_host_idx(struct device_analde *np)
 {
 	const __be32 *host_idx;
 
 	host_idx = of_get_address(np, 0, NULL, NULL);
 	if (!host_idx)
-		return -ENOENT;
+		return -EANALENT;
 	return __be32_to_cpu(*host_idx);
 }
 
-static struct device_node *
+static struct device_analde *
 anybus_of_find_child_device(struct device *dev, int host_idx)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
-	if (!dev || !dev->of_node)
+	if (!dev || !dev->of_analde)
 		return NULL;
-	for_each_child_of_node(dev->of_node, node) {
-		if (anybus_of_get_host_idx(node) == host_idx)
-			return node;
+	for_each_child_of_analde(dev->of_analde, analde) {
+		if (anybus_of_get_host_idx(analde) == host_idx)
+			return analde;
 	}
 	return NULL;
 }
@@ -1269,7 +1269,7 @@ anybuss_host_common_probe(struct device *dev,
 
 	cd = devm_kzalloc(dev, sizeof(*cd), GFP_KERNEL);
 	if (!cd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	cd->dev = dev;
 	cd->host_idx = ops->host_idx;
 	init_completion(&cd->card_boot);
@@ -1294,7 +1294,7 @@ anybuss_host_common_probe(struct device *dev,
 	cd->qcache = kmem_cache_create(dev_name(dev),
 				       sizeof(struct ab_task), 0, 0, NULL);
 	if (!cd->qcache)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	cd->irq = ops->irq;
 	if (cd->irq <= 0) {
 		ret = -EINVAL;
@@ -1306,14 +1306,14 @@ anybuss_host_common_probe(struct device *dev,
 	 */
 	reset_assert(cd);
 	if (test_dpram(cd->regmap)) {
-		dev_err(dev, "no Anybus-S card in slot");
-		ret = -ENODEV;
+		dev_err(dev, "anal Anybus-S card in slot");
+		ret = -EANALDEV;
 		goto err_qcache;
 	}
 	ret = devm_request_threaded_irq(dev, cd->irq, NULL, irq_handler,
 					IRQF_ONESHOT, dev_name(dev), cd);
 	if (ret) {
-		dev_err(dev, "could not request irq");
+		dev_err(dev, "could analt request irq");
 		goto err_qcache;
 	}
 	/*
@@ -1341,7 +1341,7 @@ anybuss_host_common_probe(struct device *dev,
 	dev_info(dev, "API version: %02X%02X", val[0], val[1]);
 	regmap_bulk_read(cd->regmap, REG_FIELDBUS_V, val, 2);
 	dev_info(dev, "Fieldbus version: %02X%02X", val[0], val[1]);
-	regmap_bulk_read(cd->regmap, REG_SERIAL_NO, val, 4);
+	regmap_bulk_read(cd->regmap, REG_SERIAL_ANAL, val, 4);
 	dev_info(dev, "Serial number: %02X%02X%02X%02X",
 		 val[0], val[1], val[2], val[3]);
 	add_device_randomness(&val, 4);
@@ -1358,17 +1358,17 @@ anybuss_host_common_probe(struct device *dev,
 	/* fire up the queue thread */
 	cd->qthread = kthread_run(qthread_fn, cd, dev_name(dev));
 	if (IS_ERR(cd->qthread)) {
-		dev_err(dev, "could not create kthread");
+		dev_err(dev, "could analt create kthread");
 		ret = PTR_ERR(cd->qthread);
 		goto err_reset;
 	}
 	/*
-	 * now advertise that we've detected a client device (card).
+	 * analw advertise that we've detected a client device (card).
 	 * the bus infrastructure will match it to a client driver.
 	 */
 	cd->client = kzalloc(sizeof(*cd->client), GFP_KERNEL);
 	if (!cd->client) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_kthread;
 	}
 	cd->client->anybus_id = fieldbus_type;
@@ -1376,7 +1376,7 @@ anybuss_host_common_probe(struct device *dev,
 	cd->client->dev.bus = &anybus_bus;
 	cd->client->dev.parent = dev;
 	cd->client->dev.release = client_device_release;
-	cd->client->dev.of_node =
+	cd->client->dev.of_analde =
 		anybus_of_find_child_device(dev, cd->host_idx);
 	dev_set_name(&cd->client->dev, "anybuss.card%d", cd->host_idx);
 	ret = device_register(&cd->client->dev);
@@ -1436,7 +1436,7 @@ static int __init anybus_init(void)
 
 	ret = bus_register(&anybus_bus);
 	if (ret)
-		pr_err("could not register Anybus-S bus: %d\n", ret);
+		pr_err("could analt register Anybus-S bus: %d\n", ret);
 	return ret;
 }
 module_init(anybus_init);

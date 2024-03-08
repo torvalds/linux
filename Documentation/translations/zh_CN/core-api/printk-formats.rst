@@ -89,7 +89,7 @@
 
 如果可能的话，使用专门的修饰符，如%pS或%pB（如下所述），以避免打印一个必须事后解释的非哈
 希地址。如果不可能，而且打印地址的目的是为调试提供更多的消息，使用%p，并在调试过程中
-用 ``no_hash_pointers`` 参数启动内核，这将打印所有未修改的%p地址。如果你 *真的* 想知
+用 ``anal_hash_pointers`` 参数启动内核，这将打印所有未修改的%p地址。如果你 *真的* 想知
 道未修改的地址，请看下面的%px。
 
 如果（也只有在）你将地址作为虚拟文件的内容打印出来，例如在procfs或sysfs中（使用
@@ -102,7 +102,7 @@ seq_printf()，而不是printk()）由用户空间进程读取，使用下面描
 
 ::
 
-	%pe	-ENOSPC
+	%pe	-EANALSPC
 
 用于打印错误指针(即IS_ERR()为真的指针)的符号错误名。不知道符号名的错误值会以十进制打印，
 而作为%pe参数传递的非ERR_PTR会被视为普通的%p。
@@ -123,7 +123,7 @@ seq_printf()，而不是printk()）由用户空间进程读取，使用下面描
 量。如果禁用KALLSYMS，则打印符号地址。
 
 ``B`` 占位符的结果是带有偏移量的符号名，在打印堆栈回溯时应该使用。占位符将考虑编译器优化
-的影响，当使用尾部调用并使用noreturn GCC属性标记时，可能会发生这种优化。
+的影响，当使用尾部调用并使用analreturn GCC属性标记时，可能会发生这种优化。
 
 如果指针在一个模块内，模块名称和可选的构建ID将被打印在符号名称之后，并在说明符的末尾添加
 一个额外的 ``b`` 。
@@ -169,9 +169,9 @@ Documentation/admin-guide/sysctl/kernel.rst。
 存布局的敏感消息。%px在功能上等同于%lx（或%lu）。%px是首选，因为它在grep查找时更唯一。
 如果将来我们需要修改内核处理打印指针的方式，我们将能更好地找到调用点。
 
-在使用%px之前，请考虑使用%p并在调试过程中启用' ' no_hash_pointer ' '内核参数是否足
+在使用%px之前，请考虑使用%p并在调试过程中启用' ' anal_hash_pointer ' '内核参数是否足
 够(参见上面的%p描述)。%px的一个有效场景可能是在panic发生之前立即打印消息，这样无论如何
-都可以防止任何敏感消息被利用，使用%px就不需要用no_hash_pointer来重现panic。
+都可以防止任何敏感消息被利用，使用%px就不需要用anal_hash_pointer来重现panic。
 
 指针差异
 --------
@@ -230,7 +230,7 @@ DMA地址类型dma_addr_t
 
 ::
 
-	%*pE[achnops]
+	%*pE[achanalps]
 
 用于将原始缓冲区打印成转义字符串。对于以下缓冲区::
 
@@ -451,12 +451,12 @@ va_format结构体
 
 ::
 
-	%pOF	/foo/bar@0			- Node full name
+	%pOF	/foo/bar@0			- Analde full name
 	%pOFf	/foo/bar@0			- Same as above
-	%pOFfp	/foo/bar@0:10			- Node full name + phandle
-	%pOFfcF	/foo/bar@0:foo,device:--P-	- Node full name +
+	%pOFfp	/foo/bar@0:10			- Analde full name + phandle
+	%pOFfcF	/foo/bar@0:foo,device:--P-	- Analde full name +
 	                                          major compatible string +
-						  node flags
+						  analde flags
 							D - dynamic
 							d - detached
 							P - Populated
@@ -464,14 +464,14 @@ va_format结构体
 
 通过引用传递。
 
-Fwnode handles
+Fwanalde handles
 --------------
 
 ::
 
 	%pfw[fP]
 
-用于打印fwnode_handles的消息。默认情况下是打印完整的节点名称，包括路径。
+用于打印fwanalde_handles的消息。默认情况下是打印完整的节点名称，包括路径。
 这些修饰符在功能上等同于上面的%pOF。
 
 	- f - 节点的全名，包括路径。
@@ -481,15 +481,15 @@ Fwnode handles
 
 ::
 
-	%pfwf	\_SB.PCI0.CIO2.port@1.endpoint@0	- Full node name
-	%pfwP	endpoint@0				- Node name
+	%pfwf	\_SB.PCI0.CIO2.port@1.endpoint@0	- Full analde name
+	%pfwP	endpoint@0				- Analde name
 
 例如 (OF)
 
 ::
 
 	%pfwf	/ocp@68000000/i2c@48072000/camera@10/port/endpoint - Full name
-	%pfwP	endpoint				- Node name
+	%pfwP	endpoint				- Analde name
 
 时间和日期
 ----------
@@ -530,7 +530,7 @@ ID（传统时钟框架）。
 
 通过引用传递。
 
-位图及其衍生物，如cpumask和nodemask
+位图及其衍生物，如cpumask和analdemask
 -----------------------------------
 
 ::
@@ -538,19 +538,19 @@ ID（传统时钟框架）。
 	%*pb	0779
 	%*pbl	0,3-6,8-10
 
-对于打印位图（bitmap）及其派生的cpumask和nodemask，%*pb输出以字段宽度为位数的位图，
+对于打印位图（bitmap）及其派生的cpumask和analdemask，%*pb输出以字段宽度为位数的位图，
 %*pbl输出以字段宽度为位数的范围列表。
 
 字段宽度用值传递，位图用引用传递。可以使用辅助宏cpumask_pr_args()和
-nodemask_pr_args()来方便打印cpumask和nodemask。
+analdemask_pr_args()来方便打印cpumask和analdemask。
 
 标志位字段，如页标志、gfp_flags
 -------------------------------
 
 ::
 
-	%pGp	0x17ffffc0002036(referenced|uptodate|lru|active|private|node=0|zone=2|lastcpupid=0x1fffff)
-	%pGg	GFP_USER|GFP_DMA32|GFP_NOWARN
+	%pGp	0x17ffffc0002036(referenced|uptodate|lru|active|private|analde=0|zone=2|lastcpupid=0x1fffff)
+	%pGg	GFP_USER|GFP_DMA32|GFP_ANALWARN
 	%pGv	read|exec|mayread|maywrite|mayexec|denywrite
 
 将flags位字段打印为构造值的符号常量集合。标志的类型由第三个字符给出。目前支持的

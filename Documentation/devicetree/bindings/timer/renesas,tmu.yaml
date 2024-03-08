@@ -76,7 +76,7 @@ required:
   - power-domains
 
 if:
-  not:
+  analt:
     properties:
       compatible:
         contains:

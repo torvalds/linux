@@ -10,12 +10,12 @@ maintainers:
   - Heiko Stuebner <heiko@sntech.de>
 
 description:
-  The common content of the node is defined in snps,dwc3.yaml.
+  The common content of the analde is defined in snps,dwc3.yaml.
 
   Phy documentation is provided in the following places.
 
   USB2.0 PHY
-  Documentation/devicetree/bindings/phy/rockchip,inno-usb2phy.yaml
+  Documentation/devicetree/bindings/phy/rockchip,inanal-usb2phy.yaml
 
   Type-C PHY
   Documentation/devicetree/bindings/phy/phy-rockchip-typec.txt

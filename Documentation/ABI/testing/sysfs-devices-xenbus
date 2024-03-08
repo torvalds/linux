@@ -25,7 +25,7 @@ What:		/sys/devices/*/xenbus/spurious_events
 Date:		February 2021
 Contact:	Xen Developers mailing list <xen-devel@lists.xenproject.org>
 Description:
-		Number of events received for a Xen pv device which did not
+		Number of events received for a Xen pv device which did analt
 		require any action. Too many spurious events in a row will
 		trigger delayed EOI processing.
 
@@ -37,5 +37,5 @@ Description:
 		before delayed EOI processing is triggered for a Xen pv
 		device. Default is 1. This can be modified in case the other
 		end of the pv device is issuing spurious events on a regular
-		basis and is known not to be malicious on purpose. Raising
+		basis and is kanalwn analt to be malicious on purpose. Raising
 		the value for such cases can improve pv device performance.

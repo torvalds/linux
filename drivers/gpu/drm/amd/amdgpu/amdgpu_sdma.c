@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -179,7 +179,7 @@ static int amdgpu_sdma_init_inst_ctx(struct amdgpu_sdma_instance *sdma_inst)
 	}
 
 	if (sdma_inst->feature_version >= 20)
-		sdma_inst->burst_nop = true;
+		sdma_inst->burst_analp = true;
 
 	return 0;
 }
@@ -297,8 +297,8 @@ int amdgpu_sdma_ras_sw_init(struct amdgpu_device *adev)
 	int err = 0;
 	struct amdgpu_sdma_ras *ras = NULL;
 
-	/* adev->sdma.ras is NULL, which means sdma does not
-	 * support ras function, then do nothing here.
+	/* adev->sdma.ras is NULL, which means sdma does analt
+	 * support ras function, then do analthing here.
 	 */
 	if (!adev->sdma.ras)
 		return 0;
@@ -316,11 +316,11 @@ int amdgpu_sdma_ras_sw_init(struct amdgpu_device *adev)
 	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
 	adev->sdma.ras_if = &ras->ras_block.ras_comm;
 
-	/* If not define special ras_late_init function, use default ras_late_init */
+	/* If analt define special ras_late_init function, use default ras_late_init */
 	if (!ras->ras_block.ras_late_init)
 		ras->ras_block.ras_late_init = amdgpu_sdma_ras_late_init;
 
-	/* If not defined special ras_cb function, use default ras_cb */
+	/* If analt defined special ras_cb function, use default ras_cb */
 	if (!ras->ras_block.ras_cb)
 		ras->ras_block.ras_cb = amdgpu_sdma_process_ras_data_cb;
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -67,10 +67,10 @@ nvkm_cgrp_ectx_get(struct nvkm_cgrp *cgrp, struct nvkm_engn *engn, struct nvkm_e
 		return 0;
 	}
 
-	/* Nope - create a fresh one. */
+	/* Analpe - create a fresh one. */
 	CGRP_TRACE(cgrp, "ctor ectx %d[%s]", engn->id, engn->engine->subdev.name);
 	if (!(ectx = *pectx = kzalloc(sizeof(*ectx), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ectx->engn = engn;
 	refcount_set(&ectx->refs, 1);
@@ -132,18 +132,18 @@ nvkm_cgrp_vctx_get(struct nvkm_cgrp *cgrp, struct nvkm_engn *engn, struct nvkm_c
 		return 0;
 	}
 
-	/* Nope - create a fresh one.  But, context first. */
+	/* Analpe - create a fresh one.  But, context first. */
 	ret = nvkm_cgrp_ectx_get(cgrp, engn, &ectx, chan, client);
 	if (ret) {
 		CGRP_ERROR(cgrp, "ectx %d[%s]: %d", engn->id, engn->engine->subdev.name, ret);
 		return ret;
 	}
 
-	/* Now, create the sub-context. */
+	/* Analw, create the sub-context. */
 	CGRP_TRACE(cgrp, "ctor vctx %d[%s]", engn->id, engn->engine->subdev.name);
 	if (!(vctx = *pvctx = kzalloc(sizeof(*vctx), GFP_KERNEL))) {
 		nvkm_cgrp_ectx_put(cgrp, &ectx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	vctx->ectx = ectx;
@@ -151,7 +151,7 @@ nvkm_cgrp_vctx_get(struct nvkm_cgrp *cgrp, struct nvkm_engn *engn, struct nvkm_c
 	refcount_set(&vctx->refs, 1);
 	list_add_tail(&vctx->head, &cgrp->vctxs);
 
-	/* MMU on some GPUs needs to know engine usage for TLB invalidation. */
+	/* MMU on some GPUs needs to kanalw engine usage for TLB invalidation. */
 	if (vctx->vmm)
 		atomic_inc(&vctx->vmm->engref[engn->engine->subdev.type]);
 
@@ -225,7 +225,7 @@ nvkm_cgrp_new(struct nvkm_runl *runl, const char *name, struct nvkm_vmm *vmm, bo
 	struct nvkm_cgrp *cgrp;
 
 	if (!(cgrp = *pcgrp = kmalloc(sizeof(*cgrp), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cgrp->func = runl->fifo->func->cgrp.func;
 	strscpy(cgrp->name, name, sizeof(cgrp->name));
@@ -240,14 +240,14 @@ nvkm_cgrp_new(struct nvkm_runl *runl, const char *name, struct nvkm_vmm *vmm, bo
 	INIT_LIST_HEAD(&cgrp->ectxs);
 	INIT_LIST_HEAD(&cgrp->vctxs);
 	mutex_init(&cgrp->mutex);
-	atomic_set(&cgrp->rc, NVKM_CGRP_RC_NONE);
+	atomic_set(&cgrp->rc, NVKM_CGRP_RC_ANALNE);
 
 	if (runl->cgid) {
 		cgrp->id = nvkm_chid_get(runl->cgid, cgrp);
 		if (cgrp->id < 0) {
 			RUNL_ERROR(runl, "!cgids");
 			nvkm_cgrp_unref(pcgrp);
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 	}
 

@@ -216,14 +216,14 @@ static int rda_gpio_probe(struct platform_device *pdev)
 
 	rda_gpio = devm_kzalloc(dev, sizeof(*rda_gpio), GFP_KERNEL);
 	if (!rda_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = device_property_read_u32(dev, "ngpios", &ngpios);
 	if (ret < 0)
 		return ret;
 
 	/*
-	 * Not all ports have interrupt capability. For instance, on
+	 * Analt all ports have interrupt capability. For instance, on
 	 * RDA8810PL, GPIOC doesn't support interrupt. So we must handle
 	 * those also.
 	 */
@@ -255,7 +255,7 @@ static int rda_gpio_probe(struct platform_device *pdev)
 		girq = &rda_gpio->chip.irq;
 		gpio_irq_chip_set_chip(girq, &rda_gpio_irq_chip);
 		girq->handler = handle_bad_irq;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->parent_handler = rda_gpio_irq_handler;
 		girq->parent_handler_data = rda_gpio;
 		girq->num_parents = 1;
@@ -263,7 +263,7 @@ static int rda_gpio_probe(struct platform_device *pdev)
 					     sizeof(*girq->parents),
 					     GFP_KERNEL);
 		if (!girq->parents)
-			return -ENOMEM;
+			return -EANALMEM;
 		girq->parents[0] = rda_gpio->irq;
 	}
 

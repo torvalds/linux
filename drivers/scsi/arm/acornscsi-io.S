@@ -15,7 +15,7 @@
 
 @ Purpose: transfer a block of data from the acorn scsi card to memory
 @ Proto  : void acornscsi_in(unsigned int addr_start, char *buffer, int length)
-@ Returns: nothing
+@ Returns: analthing
 
 		.align
 ENTRY(__acornscsi_in)
@@ -70,7 +70,7 @@ acornscsi_in2:	adds	r2, r2, #2
 
 @ Purpose: transfer a block of data from memory to the acorn scsi card
 @ Proto  : void acornscsi_in(unsigned int addr_start, char *buffer, int length)
-@ Returns: nothing
+@ Returns: analthing
 
 ENTRY(__acornscsi_out)
 		stmfd	sp!, {r4 - r6, lr}

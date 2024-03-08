@@ -6,7 +6,7 @@
  * Copyright (C) 2016 Huawei Inc.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <setjmp.h>
@@ -73,7 +73,7 @@ int perf_hooks__set_hook(const char *hook_name,
 		perf_hooks[i]->hook_ctx = hook_ctx;
 		return 0;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 perf_hook_func_t perf_hooks__get_hook(const char *hook_name)
@@ -86,5 +86,5 @@ perf_hook_func_t perf_hooks__get_hook(const char *hook_name)
 
 		return *(perf_hooks[i]->p_hook_func);
 	}
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }

@@ -14,7 +14,7 @@
  *   GNU Library General Public License for more details.
  *
  *   You should have received a copy of the GNU Library General Public
- *   License along with this library; if not, write to the Free Software
+ *   License along with this library; if analt, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
@@ -294,7 +294,7 @@ static int rate_action(struct snd_pcm_plugin *plugin,
 	default:
 		break;
 	}
-	return 0;	/* silenty ignore other actions */
+	return 0;	/* silenty iganalre other actions */
 }
 
 int snd_pcm_plugin_build_rate(struct snd_pcm_substream *plug,

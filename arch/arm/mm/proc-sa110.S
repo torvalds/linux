@@ -3,7 +3,7 @@
  *  linux/arch/arm/mm/proc-sa110.S
  *
  *  Copyright (C) 1997-2002 Russell King
- *  hacked for non-paged-MM by Hyok S. Choi, 2003.
+ *  hacked for analn-paged-MM by Hyok S. Choi, 2003.
  *
  *  MMU functions for SA110
  *

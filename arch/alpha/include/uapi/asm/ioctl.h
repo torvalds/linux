@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ALPHA_IOCTL_H
 #define _ALPHA_IOCTL_H
 
@@ -29,11 +29,11 @@
 #define _IOC_DIRSHIFT	(_IOC_SIZESHIFT+_IOC_SIZEBITS)
 
 /*
- * Direction bits _IOC_NONE could be 0, but OSF/1 gives it a bit.
+ * Direction bits _IOC_ANALNE could be 0, but OSF/1 gives it a bit.
  * And this turns out useful to catch old ioctl numbers in header
  * files for us.
  */
-#define _IOC_NONE	1U
+#define _IOC_ANALNE	1U
 #define _IOC_READ	2U
 #define _IOC_WRITE	4U
 
@@ -45,7 +45,7 @@
 	  ((size) << _IOC_SIZESHIFT)))
 
 /* used to create numbers */
-#define _IO(type,nr)		_IOC(_IOC_NONE,(type),(nr),0)
+#define _IO(type,nr)		_IOC(_IOC_ANALNE,(type),(nr),0)
 #define _IOR(type,nr,size)	_IOC(_IOC_READ,(type),(nr),sizeof(size))
 #define _IOW(type,nr,size)	_IOC(_IOC_WRITE,(type),(nr),sizeof(size))
 #define _IOWR(type,nr,size)	_IOC(_IOC_READ|_IOC_WRITE,(type),(nr),sizeof(size))
@@ -60,7 +60,7 @@
 
 #define IOC_IN		(_IOC_WRITE << _IOC_DIRSHIFT)
 #define IOC_OUT		(_IOC_READ << _IOC_DIRSHIFT)
-#define IOC_INOUT	((_IOC_WRITE|_IOC_READ) << _IOC_DIRSHIFT)
+#define IOC_IANALUT	((_IOC_WRITE|_IOC_READ) << _IOC_DIRSHIFT)
 #define IOCSIZE_MASK	(_IOC_SIZEMASK << _IOC_SIZESHIFT)
 #define IOCSIZE_SHIFT	(_IOC_SIZESHIFT)
 

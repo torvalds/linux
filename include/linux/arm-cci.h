@@ -8,12 +8,12 @@
 #ifndef __LINUX_ARM_CCI_H
 #define __LINUX_ARM_CCI_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 
 #include <asm/arm-cci.h>
 
-struct device_node;
+struct device_analde;
 
 #ifdef CONFIG_ARM_CCI
 extern bool cci_probed(void);
@@ -22,24 +22,24 @@ static inline bool cci_probed(void) { return false; }
 #endif
 
 #ifdef CONFIG_ARM_CCI400_PORT_CTRL
-extern int cci_ace_get_port(struct device_node *dn);
+extern int cci_ace_get_port(struct device_analde *dn);
 extern int cci_disable_port_by_cpu(u64 mpidr);
-extern int __cci_control_port_by_device(struct device_node *dn, bool enable);
+extern int __cci_control_port_by_device(struct device_analde *dn, bool enable);
 extern int __cci_control_port_by_index(u32 port, bool enable);
 #else
-static inline int cci_ace_get_port(struct device_node *dn)
+static inline int cci_ace_get_port(struct device_analde *dn)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
-static inline int cci_disable_port_by_cpu(u64 mpidr) { return -ENODEV; }
-static inline int __cci_control_port_by_device(struct device_node *dn,
+static inline int cci_disable_port_by_cpu(u64 mpidr) { return -EANALDEV; }
+static inline int __cci_control_port_by_device(struct device_analde *dn,
 					       bool enable)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline int __cci_control_port_by_index(u32 port, bool enable)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

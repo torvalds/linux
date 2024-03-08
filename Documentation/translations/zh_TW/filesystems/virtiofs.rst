@@ -16,7 +16,7 @@
 virtiofs: virtio-fs 主機<->客機共享文件系統
 ===========================================
 
-- Copyright (C) 2020 Vivo Communication Technology Co. Ltd.
+- Copyright (C) 2020 Vivo Communication Techanallogy Co. Ltd.
 
 介紹
 ====

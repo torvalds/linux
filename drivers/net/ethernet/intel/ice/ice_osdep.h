@@ -14,7 +14,7 @@
 #include <linux/if_ether.h>
 #include <linux/pci_ids.h>
 #ifndef CONFIG_64BIT
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #endif
 #include <net/udp_tunnel.h>
 

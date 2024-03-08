@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Kconfig for uClinux(non-paged MM) depend configurations
+# Kconfig for uClinux(analn-paged MM) depend configurations
 # Hyok S. Choi <hyok.choi@samsung.com>
 # 
 
@@ -33,14 +33,14 @@ config PROCESSOR_ID
 	default 0x00007700
 	depends on !(CPU_CP15 || CPU_V7M)
 	help
-	  If processor has no CP15 register, this processor ID is
+	  If processor has anal CP15 register, this processor ID is
 	  used instead of the auto-probing which utilizes the register.
 
 config REMAP_VECTORS_TO_RAM
 	bool 'Install vectors to the beginning of RAM'
 	help
 	  The kernel needs to change the hardware exception vectors.
-	  In nommu mode, the hardware exception vectors are normally
+	  In analmmu mode, the hardware exception vectors are analrmally
 	  placed at address 0x00000000. However, this region may be
 	  occupied by read-only memory depending on H/W design.
 
@@ -63,4 +63,4 @@ config ARM_MPU
          memory.
 
          If your CPU has an MPU then you should choose 'y' here unless you
-         know that you do not want to use the MPU.
+         kanalw that you do analt want to use the MPU.

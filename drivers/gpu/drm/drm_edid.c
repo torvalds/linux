@@ -15,13 +15,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -59,7 +59,7 @@ static int oui(u8 first, u8 second, u8 third)
 
 /*
  * EDID blocks out in the wild have a variety of bugs, try to collect
- * them here (note that userspace may work around broken monitors first,
+ * them here (analte that userspace may work around broken monitors first,
  * but fixes should make their way here so that the kernel "just works"
  * on as many displays as possible).
  */
@@ -70,7 +70,7 @@ static int oui(u8 first, u8 second, u8 third)
 #define EDID_QUIRK_135_CLOCK_TOO_HIGH		(1 << 1)
 /* Prefer the largest mode at 75 Hz */
 #define EDID_QUIRK_PREFER_LARGE_75		(1 << 2)
-/* Detail timing is in cm not mm */
+/* Detail timing is in cm analt mm */
 #define EDID_QUIRK_DETAILED_IN_CM		(1 << 3)
 /* Detailed timing descriptors have bogus size values, so just take the
  * maximum size and use that.
@@ -88,8 +88,8 @@ static int oui(u8 first, u8 second, u8 third)
 #define EDID_QUIRK_FORCE_6BPC			(1 << 10)
 /* Force 10bpc */
 #define EDID_QUIRK_FORCE_10BPC			(1 << 11)
-/* Non desktop display (i.e. HMD) */
-#define EDID_QUIRK_NON_DESKTOP			(1 << 12)
+/* Analn desktop display (i.e. HMD) */
+#define EDID_QUIRK_ANALN_DESKTOP			(1 << 12)
 /* Cap the DSC target bitrate to 15bpp */
 #define EDID_QUIRK_CAP_DSC_15BPP		(1 << 13)
 
@@ -135,7 +135,7 @@ static const struct edid_quirk {
 	/* CPT panel of Asus UX303LA reports 8 bpc, but is a 6 bpc panel */
 	EDID_QUIRK('C', 'P', 'T', 0x17df, EDID_QUIRK_FORCE_6BPC),
 
-	/* SDC panel of Lenovo B50-80 reports 8 bpc, but is a 6 bpc panel */
+	/* SDC panel of Leanalvo B50-80 reports 8 bpc, but is a 6 bpc panel */
 	EDID_QUIRK('S', 'D', 'C', 0x3652, EDID_QUIRK_FORCE_6BPC),
 
 	/* BOE model 0x0771 reports 8 bpc, but is a 6 bpc panel */
@@ -160,14 +160,14 @@ static const struct edid_quirk {
 	/* LG 27GN950 */
 	EDID_QUIRK('G', 'S', 'M', 0x5b9a, EDID_QUIRK_CAP_DSC_15BPP),
 
-	/* LGD panel of HP zBook 17 G2, eDP 10 bpc, but reports unknown bpc */
+	/* LGD panel of HP zBook 17 G2, eDP 10 bpc, but reports unkanalwn bpc */
 	EDID_QUIRK('L', 'G', 'D', 764, EDID_QUIRK_FORCE_10BPC),
 
 	/* LG Philips LCD LP154W01-A5 */
 	EDID_QUIRK('L', 'P', 'L', 0, EDID_QUIRK_DETAILED_USE_MAXIMUM_SIZE),
 	EDID_QUIRK('L', 'P', 'L', 0x2a00, EDID_QUIRK_DETAILED_USE_MAXIMUM_SIZE),
 
-	/* Samsung SyncMaster 205BW.  Note: irony */
+	/* Samsung SyncMaster 205BW.  Analte: irony */
 	EDID_QUIRK('S', 'A', 'M', 541, EDID_QUIRK_DETAILED_SYNC_PP),
 	/* Samsung SyncMaster 22[5-6]BW */
 	EDID_QUIRK('S', 'A', 'M', 596, EDID_QUIRK_PREFER_LARGE_60),
@@ -182,61 +182,61 @@ static const struct edid_quirk {
 	/* Medion MD 30217 PG */
 	EDID_QUIRK('M', 'E', 'D', 0x7b8, EDID_QUIRK_PREFER_LARGE_75),
 
-	/* Lenovo G50 */
+	/* Leanalvo G50 */
 	EDID_QUIRK('S', 'D', 'C', 18514, EDID_QUIRK_FORCE_6BPC),
 
-	/* Panel in Samsung NP700G7A-S01PL notebook reports 6bpc */
+	/* Panel in Samsung NP700G7A-S01PL analtebook reports 6bpc */
 	EDID_QUIRK('S', 'E', 'C', 0xd033, EDID_QUIRK_FORCE_8BPC),
 
 	/* Rotel RSX-1058 forwards sink's EDID but only does HDMI 1.1*/
 	EDID_QUIRK('E', 'T', 'R', 13896, EDID_QUIRK_FORCE_8BPC),
 
 	/* Valve Index Headset */
-	EDID_QUIRK('V', 'L', 'V', 0x91a8, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('V', 'L', 'V', 0x91b0, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('V', 'L', 'V', 0x91b1, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('V', 'L', 'V', 0x91b2, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('V', 'L', 'V', 0x91b3, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('V', 'L', 'V', 0x91b4, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('V', 'L', 'V', 0x91b5, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('V', 'L', 'V', 0x91b6, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('V', 'L', 'V', 0x91b7, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('V', 'L', 'V', 0x91b8, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('V', 'L', 'V', 0x91b9, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('V', 'L', 'V', 0x91ba, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('V', 'L', 'V', 0x91bb, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('V', 'L', 'V', 0x91bc, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('V', 'L', 'V', 0x91bd, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('V', 'L', 'V', 0x91be, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('V', 'L', 'V', 0x91bf, EDID_QUIRK_NON_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91a8, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91b0, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91b1, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91b2, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91b3, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91b4, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91b5, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91b6, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91b7, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91b8, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91b9, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91ba, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91bb, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91bc, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91bd, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91be, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('V', 'L', 'V', 0x91bf, EDID_QUIRK_ANALN_DESKTOP),
 
 	/* HTC Vive and Vive Pro VR Headsets */
-	EDID_QUIRK('H', 'V', 'R', 0xaa01, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('H', 'V', 'R', 0xaa02, EDID_QUIRK_NON_DESKTOP),
+	EDID_QUIRK('H', 'V', 'R', 0xaa01, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('H', 'V', 'R', 0xaa02, EDID_QUIRK_ANALN_DESKTOP),
 
 	/* Oculus Rift DK1, DK2, CV1 and Rift S VR Headsets */
-	EDID_QUIRK('O', 'V', 'R', 0x0001, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('O', 'V', 'R', 0x0003, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('O', 'V', 'R', 0x0004, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('O', 'V', 'R', 0x0012, EDID_QUIRK_NON_DESKTOP),
+	EDID_QUIRK('O', 'V', 'R', 0x0001, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('O', 'V', 'R', 0x0003, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('O', 'V', 'R', 0x0004, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('O', 'V', 'R', 0x0012, EDID_QUIRK_ANALN_DESKTOP),
 
 	/* Windows Mixed Reality Headsets */
-	EDID_QUIRK('A', 'C', 'R', 0x7fce, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('L', 'E', 'N', 0x0408, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('F', 'U', 'J', 0x1970, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('D', 'E', 'L', 0x7fce, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('S', 'E', 'C', 0x144a, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('A', 'U', 'S', 0xc102, EDID_QUIRK_NON_DESKTOP),
+	EDID_QUIRK('A', 'C', 'R', 0x7fce, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('L', 'E', 'N', 0x0408, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('F', 'U', 'J', 0x1970, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('D', 'E', 'L', 0x7fce, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('S', 'E', 'C', 0x144a, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('A', 'U', 'S', 0xc102, EDID_QUIRK_ANALN_DESKTOP),
 
 	/* Sony PlayStation VR Headset */
-	EDID_QUIRK('S', 'N', 'Y', 0x0704, EDID_QUIRK_NON_DESKTOP),
+	EDID_QUIRK('S', 'N', 'Y', 0x0704, EDID_QUIRK_ANALN_DESKTOP),
 
 	/* Sensics VR Headsets */
-	EDID_QUIRK('S', 'E', 'N', 0x1019, EDID_QUIRK_NON_DESKTOP),
+	EDID_QUIRK('S', 'E', 'N', 0x1019, EDID_QUIRK_ANALN_DESKTOP),
 
 	/* OSVR HDK and HDK2 VR Headsets */
-	EDID_QUIRK('S', 'V', 'R', 0x1019, EDID_QUIRK_NON_DESKTOP),
-	EDID_QUIRK('A', 'U', 'O', 0x1111, EDID_QUIRK_NON_DESKTOP),
+	EDID_QUIRK('S', 'V', 'R', 0x1019, EDID_QUIRK_ANALN_DESKTOP),
+	EDID_QUIRK('A', 'U', 'O', 0x1111, EDID_QUIRK_ANALN_DESKTOP),
 };
 
 /*
@@ -735,7 +735,7 @@ static const struct minimode extra_modes[] = {
 /*
  * From CEA/CTA-861 spec.
  *
- * Do not access directly, instead always use cea_mode_for_vic().
+ * Do analt access directly, instead always use cea_mode_for_vic().
  */
 static const struct drm_display_mode edid_cea_modes_1[] = {
 	/* 1 - 640x480@60Hz 4:3 */
@@ -1403,7 +1403,7 @@ static const struct drm_display_mode edid_cea_modes_1[] = {
 /*
  * From CEA/CTA-861 spec.
  *
- * Do not access directly, instead always use cea_mode_for_vic().
+ * Do analt access directly, instead always use cea_mode_for_vic().
  */
 static const struct drm_display_mode edid_cea_modes_193[] = {
 	/* 193 - 5120x2160@120Hz 64:27 */
@@ -1640,7 +1640,7 @@ static int __drm_edid_block_count(const struct drm_edid *drm_edid)
 		int eeodb;
 
 		/*
-		 * Note: HF-EEODB may specify a smaller extension count than the
+		 * Analte: HF-EEODB may specify a smaller extension count than the
 		 * regular one. Unlike in buffer allocation, here we can use it.
 		 */
 		eeodb = edid_hfeeodb_block_count(drm_edid->edid);
@@ -1677,8 +1677,8 @@ static const void *drm_edid_extension_block_data(const struct drm_edid *drm_edid
 }
 
 /*
- * Initializer helper for legacy interfaces, where we have no choice but to
- * trust edid size. Not for general purpose use.
+ * Initializer helper for legacy interfaces, where we have anal choice but to
+ * trust edid size. Analt for general purpose use.
  */
 static const struct drm_edid *drm_edid_legacy_init(struct drm_edid *drm_edid,
 						   const struct edid *edid)
@@ -1918,10 +1918,10 @@ static void edid_block_status_print(enum edid_block_status status,
 		pr_debug("EDID block %d pointer is NULL\n", block_num);
 		break;
 	case EDID_BLOCK_ZERO:
-		pr_notice("EDID block %d is all zeroes\n", block_num);
+		pr_analtice("EDID block %d is all zeroes\n", block_num);
 		break;
 	case EDID_BLOCK_HEADER_CORRUPT:
-		pr_notice("EDID has corrupt header\n");
+		pr_analtice("EDID has corrupt header\n");
 		break;
 	case EDID_BLOCK_HEADER_REPAIR:
 		pr_debug("EDID corrupt header needs repair\n");
@@ -1931,21 +1931,21 @@ static void edid_block_status_print(enum edid_block_status status,
 		break;
 	case EDID_BLOCK_CHECKSUM:
 		if (edid_block_status_valid(status, edid_block_tag(block))) {
-			pr_debug("EDID block %d (tag 0x%02x) checksum is invalid, remainder is %d, ignoring\n",
+			pr_debug("EDID block %d (tag 0x%02x) checksum is invalid, remainder is %d, iganalring\n",
 				 block_num, edid_block_tag(block),
 				 edid_block_compute_checksum(block));
 		} else {
-			pr_notice("EDID block %d (tag 0x%02x) checksum is invalid, remainder is %d\n",
+			pr_analtice("EDID block %d (tag 0x%02x) checksum is invalid, remainder is %d\n",
 				  block_num, edid_block_tag(block),
 				  edid_block_compute_checksum(block));
 		}
 		break;
 	case EDID_BLOCK_VERSION:
-		pr_notice("EDID has major version %d, instead of 1\n",
+		pr_analtice("EDID has major version %d, instead of 1\n",
 			  block->version);
 		break;
 	default:
-		WARN(1, "EDID block %d unknown edid block status code %d\n",
+		WARN(1, "EDID block %d unkanalwn edid block status code %d\n",
 		     block_num, status);
 		break;
 	}
@@ -1964,7 +1964,7 @@ static void edid_block_dump(const char *level, const void *block, int block_num)
 	else
 		sprintf(prefix, "\t[%02x] GOOD ", block_num);
 
-	print_hex_dump(level, prefix, DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump(level, prefix, DUMP_PREFIX_ANALNE, 16, 1,
 		       block, EDID_LENGTH, false);
 }
 
@@ -2004,7 +2004,7 @@ bool drm_edid_block_valid(u8 *_block, int block_num, bool print_bad_edid,
 
 	if (edid_corrupt) {
 		/*
-		 * Unknown major version isn't corrupt but we can't use it. Only
+		 * Unkanalwn major version isn't corrupt but we can't use it. Only
 		 * the base block can reset edid_corrupt to false.
 		 */
 		if (is_base_block &&
@@ -2020,8 +2020,8 @@ bool drm_edid_block_valid(u8 *_block, int block_num, bool print_bad_edid,
 	valid = edid_block_status_valid(status, edid_block_tag(block));
 
 	if (!valid && print_bad_edid && status != EDID_BLOCK_ZERO) {
-		pr_notice("Raw EDID:\n");
-		edid_block_dump(KERN_NOTICE, block, block_num);
+		pr_analtice("Raw EDID:\n");
+		edid_block_dump(KERN_ANALTICE, block, block_num);
 	}
 
 	return valid;
@@ -2091,7 +2091,7 @@ static struct edid *edid_filter_invalid_blocks(struct edid *edid,
 	int i, valid_blocks = 0;
 
 	/*
-	 * Note: If the EDID uses HF-EEODB, but has invalid blocks, we'll revert
+	 * Analte: If the EDID uses HF-EEODB, but has invalid blocks, we'll revert
 	 * back to regular extension count here. We don't want to start
 	 * modifying the HF-EEODB extension too.
 	 */
@@ -2173,13 +2173,13 @@ drm_do_probe_ddc_edid(void *data, u8 *buf, unsigned int block, size_t len)
 		};
 
 		/*
-		 * Avoid sending the segment addr to not upset non-compliant
+		 * Avoid sending the segment addr to analt upset analn-compliant
 		 * DDC monitors.
 		 */
 		ret = i2c_transfer(adapter, &msgs[3 - xfers], xfers);
 
 		if (ret == -ENXIO) {
-			DRM_DEBUG_KMS("drm: skipping non-existent adapter %s\n",
+			DRM_DEBUG_KMS("drm: skipping analn-existent adapter %s\n",
 					adapter->name);
 			break;
 		}
@@ -2432,7 +2432,7 @@ static struct edid *_drm_do_get_edid(struct drm_connector *connector,
 			 * the first Data Block is HF-EEODB, override the
 			 * extension block count.
 			 *
-			 * Note: HF-EEODB could specify a smaller extension
+			 * Analte: HF-EEODB could specify a smaller extension
 			 * count too, but we can't risk allocating a smaller
 			 * amount.
 			 */
@@ -2510,7 +2510,7 @@ const struct edid *drm_edid_raw(const struct drm_edid *drm_edid)
 		return NULL;
 
 	/*
-	 * Do not return pointers where relying on EDID extension count would
+	 * Do analt return pointers where relying on EDID extension count would
 	 * lead to buffer overflow.
 	 */
 	if (WARN_ON(edid_size(drm_edid->edid) > drm_edid->size))
@@ -2542,8 +2542,8 @@ static const struct drm_edid *_drm_edid_alloc(const void *edid, size_t size)
  * @edid: Pointer to raw EDID data
  * @size: Size of memory allocated for EDID
  *
- * Allocate a new drm_edid container. Do not calculate edid size from edid, pass
- * the actual size that has been allocated for the data. There is no validation
+ * Allocate a new drm_edid container. Do analt calculate edid size from edid, pass
+ * the actual size that has been allocated for the data. There is anal validation
  * of the raw EDID data against the size, but at least the EDID base block must
  * fit in the buffer.
  *
@@ -2678,7 +2678,7 @@ const struct drm_edid *drm_edid_read_custom(struct drm_connector *connector,
 	if (!edid)
 		return NULL;
 
-	/* Sanity check for now */
+	/* Sanity check for analw */
 	drm_WARN_ON(connector->dev, !size);
 
 	drm_edid = _drm_edid_alloc(edid, size);
@@ -2720,7 +2720,7 @@ const struct drm_edid *drm_edid_read_ddc(struct drm_connector *connector,
 
 	drm_edid = drm_edid_read_custom(connector, drm_do_probe_ddc_edid, adapter);
 
-	/* Note: Do *not* call connector updates here. */
+	/* Analte: Do *analt* call connector updates here. */
 
 	return drm_edid;
 }
@@ -2755,7 +2755,7 @@ static u32 edid_extract_panel_id(const struct edid *edid)
 	 * We represent the ID as a 32-bit number so it can easily be compared
 	 * with "==".
 	 *
-	 * NOTE that we deal with endianness differently for the top half
+	 * ANALTE that we deal with endianness differently for the top half
 	 * of this ID than for the bottom half. The bottom half (the product
 	 * id) gets decoded as little endian by the EDID_PRODUCT_ID because
 	 * that's how everyone seems to interpret it. The top half (the mfg_id)
@@ -2783,8 +2783,8 @@ static u32 edid_extract_panel_id(const struct edid *edid)
  * assume that the EDID of the panel is correct, at least as far as the ID
  * is concerned (in other words, we don't process any overrides here).
  *
- * NOTE: it's expected that this function and drm_do_get_edid() will both
- * be read the EDID, but there is no caching between them. Since we're only
+ * ANALTE: it's expected that this function and drm_do_get_edid() will both
+ * be read the EDID, but there is anal caching between them. Since we're only
  * reading the first block, hopefully this extra overhead won't be too big.
  *
  * Return: A 32-bit ID that should be different for each make/model of panel.
@@ -2800,7 +2800,7 @@ u32 drm_edid_get_panel_id(struct i2c_adapter *adapter)
 	u32 panel_id = 0;
 
 	/*
-	 * There are no manufacturer IDs of 0, so if there is a problem reading
+	 * There are anal manufacturer IDs of 0, so if there is a problem reading
 	 * the EDID then we'll just return 0.
 	 */
 
@@ -2815,7 +2815,7 @@ u32 drm_edid_get_panel_id(struct i2c_adapter *adapter)
 	if (edid_block_status_valid(status, edid_block_tag(base_block)))
 		panel_id = edid_extract_panel_id(base_block);
 	else
-		edid_block_dump(KERN_NOTICE, base_block, 0);
+		edid_block_dump(KERN_ANALTICE, base_block, 0);
 
 	kfree(base_block);
 
@@ -2986,7 +2986,7 @@ mode_is_rb(const struct drm_display_mode *mode)
  *
  * Walk the DMT mode list looking for a match for the given parameters.
  *
- * Return: A newly allocated copy of the mode, or NULL if not found.
+ * Return: A newly allocated copy of the mode, or NULL if analt found.
  */
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh,
@@ -3055,7 +3055,7 @@ vtb_for_each_detailed_block(const u8 *ext, detailed_cb *cb, void *closure)
 	const u8 *det_base = ext + 5;
 
 	if (ext[0x01] != 1)
-		return; /* unknown version */
+		return; /* unkanalwn version */
 
 	for (i = 0; i < n; i++)
 		cb((const struct detailed_timing *)(det_base + 18 * i), closure);
@@ -3435,7 +3435,7 @@ drm_mode_do_interlace_quirk(struct drm_display_mode *mode,
 
 /*
  * Create a new mode from an EDID detailed timing section. An EDID detailed
- * timing block contains enough info for us to create and return a new struct
+ * timing block contains eanalugh info for us to create and return a new struct
  * drm_display_mode.
  */
 static struct drm_display_mode *drm_mode_detailed(struct drm_connector *connector,
@@ -3455,17 +3455,17 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_connector *connecto
 	unsigned vsync_offset = (pt->hsync_vsync_offset_pulse_width_hi & 0xc) << 2 | pt->vsync_offset_pulse_width_lo >> 4;
 	unsigned vsync_pulse_width = (pt->hsync_vsync_offset_pulse_width_hi & 0x3) << 4 | (pt->vsync_offset_pulse_width_lo & 0xf);
 
-	/* ignore tiny modes */
+	/* iganalre tiny modes */
 	if (hactive < 64 || vactive < 64)
 		return NULL;
 
 	if (pt->misc & DRM_EDID_PT_STEREO) {
-		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] Stereo mode not supported\n",
+		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] Stereo mode analt supported\n",
 			    connector->base.id, connector->name);
 		return NULL;
 	}
 	if (!(pt->misc & DRM_EDID_PT_SEPARATE_SYNC)) {
-		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] Composite sync not supported\n",
+		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] Composite sync analt supported\n",
 			    connector->base.id, connector->name);
 	}
 
@@ -3771,7 +3771,7 @@ static void
 do_inferred_modes(const struct detailed_timing *timing, void *c)
 {
 	struct detailed_mode_closure *closure = c;
-	const struct detailed_non_pixel *data = &timing->data.other_data;
+	const struct detailed_analn_pixel *data = &timing->data.other_data;
 	const struct detailed_data_monitor_range *range = &data->data.range;
 
 	if (!is_display_descriptor(timing, EDID_DETAIL_MONITOR_RANGE))
@@ -3782,7 +3782,7 @@ do_inferred_modes(const struct detailed_timing *timing, void *c)
 						  timing);
 
 	if (closure->drm_edid->edid->revision < 2)
-		return; /* GTF not defined yet */
+		return; /* GTF analt defined yet */
 
 	switch (range->flags) {
 	case DRM_EDID_SECONDARY_GTF_SUPPORT_FLAG:
@@ -3905,7 +3905,7 @@ static void
 do_standard_modes(const struct detailed_timing *timing, void *c)
 {
 	struct detailed_mode_closure *closure = c;
-	const struct detailed_non_pixel *data = &timing->data.other_data;
+	const struct detailed_analn_pixel *data = &timing->data.other_data;
 	struct drm_connector *connector = closure->connector;
 	int i;
 
@@ -4117,7 +4117,7 @@ static int add_detailed_modes(struct drm_connector *connector,
 /*
  * Search EDID for CEA extension block.
  *
- * FIXME: Prefer not returning pointers to raw EDID data.
+ * FIXME: Prefer analt returning pointers to raw EDID data.
  */
 const u8 *drm_find_edid_extension(const struct drm_edid *drm_edid,
 				  int ext_id, int *ext_index)
@@ -4125,7 +4125,7 @@ const u8 *drm_find_edid_extension(const struct drm_edid *drm_edid,
 	const u8 *edid_ext = NULL;
 	int i;
 
-	/* No EDID or EDID extensions */
+	/* Anal EDID or EDID extensions */
 	if (!drm_edid || !drm_edid_extension_block_count(drm_edid))
 		return NULL;
 
@@ -4342,7 +4342,7 @@ static enum hdmi_picture_aspect drm_get_cea_aspect_ratio(const u8 video_code)
 	if (mode)
 		return mode->picture_aspect_ratio;
 
-	return HDMI_PICTURE_ASPECT_NONE;
+	return HDMI_PICTURE_ASPECT_ANALNE;
 }
 
 static enum hdmi_picture_aspect drm_get_hdmi_aspect_ratio(const u8 video_code)
@@ -4681,7 +4681,7 @@ static int add_hdmi_mode(struct drm_connector *connector, u8 vic)
 	struct drm_display_mode *newmode;
 
 	if (!drm_valid_hdmi_vic(vic)) {
-		drm_err(connector->dev, "[CONNECTOR:%d:%s] Unknown HDMI VIC: %d\n",
+		drm_err(connector->dev, "[CONNECTOR:%d:%s] Unkanalwn HDMI VIC: %d\n",
 			connector->base.id, connector->name, vic);
 		return 0;
 	}
@@ -4769,13 +4769,13 @@ do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len)
 	if (len < 8)
 		goto out;
 
-	/* no HDMI_Video_Present */
+	/* anal HDMI_Video_Present */
 	if (!(db[8] & (1 << 5)))
 		goto out;
 
 	offset += hdmi_vsdb_latency_length(db);
 
-	/* the declared length is not long enough for the 2 first bytes
+	/* the declared length is analt long eanalugh for the 2 first bytes
 	 * of additional video format capabilities */
 	if (len < (8 + offset + 2))
 		goto out;
@@ -5037,7 +5037,7 @@ static const void *__cea_db_iter_edid_next(struct cea_db_iter *iter)
  * - DisplayID v1.3 Appendix C: CEA Data Block within a DisplayID Data Block
  * - DisplayID v2.0 section 4.10 CTA DisplayID Data Block
  *
- * Note that the above do not specify any connection between DisplayID Data
+ * Analte that the above do analt specify any connection between DisplayID Data
  * Block revision and CTA Extension versions.
  */
 static const void *__cea_db_iter_displayid_next(struct cea_db_iter *iter)
@@ -5172,8 +5172,8 @@ static bool cea_db_is_hdmi_hdr_metadata_block(const struct cea_db *db)
  * The passed in EDID may be partially read, as long as it has at least two
  * blocks (base block and one extension block) if EDID extension count is > 0.
  *
- * Note that this is *not* how you should parse CTA Data Blocks in general; this
- * is only to handle partially read EDIDs. Normally, use the CTA Data Block
+ * Analte that this is *analt* how you should parse CTA Data Blocks in general; this
+ * is only to handle partially read EDIDs. Analrmally, use the CTA Data Block
  * iterators instead.
  *
  * References:
@@ -5183,7 +5183,7 @@ static int edid_hfeeodb_extension_block_count(const struct edid *edid)
 {
 	const u8 *cta;
 
-	/* No extensions according to base block, no HF-EEODB. */
+	/* Anal extensions according to base block, anal HF-EEODB. */
 	if (!edid_extension_block_count(edid))
 		return 0;
 
@@ -5236,7 +5236,7 @@ static void parse_cta_y420cmdb(struct drm_connector *connector,
 	 * We will parse and keep this map, before parsing VDB itself
 	 * to avoid going through the same block again and again.
 	 *
-	 * Spec is not clear about max possible size of this block.
+	 * Spec is analt clear about max possible size of this block.
 	 * Clamping max bitmap block size at 8 bytes. Every byte can
 	 * address 8 CEA modes, in this way this map can address
 	 * 8*8 = first 64 SVDs.
@@ -5352,7 +5352,7 @@ static void drm_calculate_luminance_range(struct drm_connector *connector)
 	 * Where CV is a one-byte value.
 	 * For calculating this expression we may need float point precision;
 	 * to avoid this complexity level, we take advantage that CV is divided
-	 * by a constant. From the Euclids division algorithm, we know that CV
+	 * by a constant. From the Euclids division algorithm, we kanalw that CV
 	 * can be written as: CV = 32*q + r. Next, we replace CV in the
 	 * Luminance expression and get 50*(2**q)*(2**(r/32)), hence we just
 	 * need to pre-compute the value of r/32. For pre-computing the values
@@ -5633,7 +5633,7 @@ static int _drm_edid_to_sad(const struct drm_edid *drm_edid,
 			sads = kcalloc(count, sizeof(*sads), GFP_KERNEL);
 			*psads = sads;
 			if (!sads)
-				return -ENOMEM;
+				return -EANALMEM;
 			for (i = 0; i < count; i++)
 				drm_edid_cta_sad_set(&sads[i], &db->data[i * 3]);
 			break;
@@ -5653,7 +5653,7 @@ static int _drm_edid_to_sad(const struct drm_edid *drm_edid,
  *
  * Looks for CEA EDID block and extracts SADs (Short Audio Descriptors) from it.
  *
- * Note: The returned pointer needs to be freed using kfree().
+ * Analte: The returned pointer needs to be freed using kfree().
  *
  * Return: The number of found SADs or negative number on error.
  */
@@ -5679,7 +5679,7 @@ static int _drm_edid_to_speaker_allocation(const struct drm_edid *drm_edid,
 			*sadb = kmemdup(db->data, cea_db_payload_len(db),
 					GFP_KERNEL);
 			if (!*sadb)
-				return -ENOMEM;
+				return -EANALMEM;
 			count = cea_db_payload_len(db);
 			break;
 		}
@@ -5698,7 +5698,7 @@ static int _drm_edid_to_speaker_allocation(const struct drm_edid *drm_edid,
  *
  * Looks for CEA EDID block and extracts the Speaker Allocation Data Block from it.
  *
- * Note: The returned pointer needs to be freed using kfree().
+ * Analte: The returned pointer needs to be freed using kfree().
  *
  * Return: The number of found Speaker Allocation Blocks or negative number on
  * error.
@@ -5742,7 +5742,7 @@ int drm_av_sync_delay(struct drm_connector *connector,
 
 	/*
 	 * Convert raw EDID values to millisecond.
-	 * Treat unknown latency as 0ms.
+	 * Treat unkanalwn latency as 0ms.
 	 */
 	if (a)
 		a = min(2 * (a - 1), 500);
@@ -5784,7 +5784,7 @@ static bool _drm_detect_hdmi_monitor(const struct drm_edid *drm_edid)
  * Drivers that have added the modes parsed from EDID to drm_display_info
  * should use &drm_display_info.is_hdmi instead of calling this function.
  *
- * Return: True if the monitor is HDMI, false if not or unknown.
+ * Return: True if the monitor is HDMI, false if analt or unkanalwn.
  */
 bool drm_detect_hdmi_monitor(const struct edid *edid)
 {
@@ -5841,10 +5841,10 @@ end:
  * @edid: EDID block to scan
  *
  * Monitor should have CEA extension block.
- * If monitor has 'basic audio', but no CEA audio blocks, it's 'basic
+ * If monitor has 'basic audio', but anal CEA audio blocks, it's 'basic
  * audio' only. If there is any audio extension block and supported
  * audio format, assume at least 'basic audio' support, even if 'basic
- * audio' is not defined in EDID.
+ * audio' is analt defined in EDID.
  *
  * Return: True if the monitor supports audio, false otherwise.
  */
@@ -6112,7 +6112,7 @@ static void drm_parse_hdmi_forum_scds(struct drm_connector *connector,
 	 * All HDMI 2.0 monitors must support scrambling at rates > 340 MHz.
 	 * And as per the spec, three factors confirm this:
 	 * * Availability of a HF-VSDB block in EDID (check)
-	 * * Non zero Max_TMDS_Char_Rate filed in HF-VSDB (let's check)
+	 * * Analn zero Max_TMDS_Char_Rate filed in HF-VSDB (let's check)
 	 * * SCDC support available (let's check)
 	 * Lets check it out.
 	 */
@@ -6152,7 +6152,7 @@ static void drm_parse_hdmi_forum_scds(struct drm_connector *connector,
 	drm_dbg_kms(connector->dev,
 		    "[CONNECTOR:%d:%s] HF-VSDB: max TMDS clock: %d KHz, HDMI 2.1 support: %s, DSC 1.2 support: %s\n",
 		    connector->base.id, connector->name,
-		    max_tmds_clock, str_yes_no(max_frl_rate), str_yes_no(dsc_support));
+		    max_tmds_clock, str_anal_anal(max_frl_rate), str_anal_anal(dsc_support));
 }
 
 static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
@@ -6189,7 +6189,7 @@ static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
 	}
 
 	if (dc_bpc == 0) {
-		drm_dbg_kms(connector->dev, "[CONNECTOR:%d:%s] No deep color support on this HDMI sink.\n",
+		drm_dbg_kms(connector->dev, "[CONNECTOR:%d:%s] Anal deep color support on this HDMI sink.\n",
 			    connector->base.id, connector->name);
 		return;
 	}
@@ -6210,7 +6210,7 @@ static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
 	 * then deep color 36 bit must be supported.
 	 */
 	if (!(hdmi[6] & DRM_EDID_HDMI_DC_36)) {
-		drm_dbg_kms(connector->dev, "[CONNECTOR:%d:%s] HDMI sink should do DC_36, but does not!\n",
+		drm_dbg_kms(connector->dev, "[CONNECTOR:%d:%s] HDMI sink should do DC_36, but does analt!\n",
 			    connector->base.id, connector->name);
 	}
 }
@@ -6260,7 +6260,7 @@ static void drm_parse_microsoft_vsdb(struct drm_connector *connector,
 
 	/* Version 1 and 2 for HMDs, version 3 flags desktop usage explicitly */
 	if (version == 1 || version == 2 || (version == 3 && !desktop_usage))
-		info->non_desktop = true;
+		info->analn_desktop = true;
 
 	drm_dbg_kms(connector->dev,
 		    "[CONNECTOR:%d:%s] HMD or specialized display VSDB version %u: 0x%02x\n",
@@ -6340,7 +6340,7 @@ void get_monitor_range(const struct detailed_timing *timing, void *c)
 	struct detailed_mode_closure *closure = c;
 	struct drm_display_info *info = &closure->connector->display_info;
 	struct drm_monitor_range_info *monitor_range = &info->monitor_range;
-	const struct detailed_non_pixel *data = &timing->data.other_data;
+	const struct detailed_analn_pixel *data = &timing->data.other_data;
 	const struct detailed_data_monitor_range *range = &data->data.range;
 	const struct edid *edid = closure->drm_edid->edid;
 
@@ -6354,7 +6354,7 @@ void get_monitor_range(const struct detailed_timing *timing, void *c)
 	 * any and all timings are accepted by the sink, as
 	 * opposed to just timings conforming to the indicated
 	 * formula (GTF/GTF2/CVT). Thus other variants of the
-	 * range descriptor are not accepted here.
+	 * range descriptor are analt accepted here.
 	 */
 	if (range->flags != DRM_EDID_RANGE_LIMITS_ONLY_FLAG)
 		return;
@@ -6467,7 +6467,7 @@ static void drm_update_mso(struct drm_connector *connector,
 	displayid_iter_end(&iter);
 }
 
-/* A connector has no EDID information, so we've got no EDID to compute quirks from. Reset
+/* A connector has anal EDID information, so we've got anal EDID to compute quirks from. Reset
  * all of the values which would have been set from EDID
  */
 static void drm_reset_display_info(struct drm_connector *connector)
@@ -6491,7 +6491,7 @@ static void drm_reset_display_info(struct drm_connector *connector)
 	info->edid_hdmi_rgb444_dc_modes = 0;
 	info->edid_hdmi_ycbcr444_dc_modes = 0;
 
-	info->non_desktop = 0;
+	info->analn_desktop = 0;
 	memset(&info->monitor_range, 0, sizeof(info->monitor_range));
 	memset(&info->luminance_range, 0, sizeof(info->luminance_range));
 
@@ -6520,10 +6520,10 @@ static void update_displayid_info(struct drm_connector *connector,
 		if (displayid_version(&iter) == DISPLAY_ID_STRUCTURE_VER_20 &&
 		    (displayid_primary_use(&iter) == PRIMARY_USE_HEAD_MOUNTED_VR ||
 		     displayid_primary_use(&iter) == PRIMARY_USE_HEAD_MOUNTED_AR))
-			info->non_desktop = true;
+			info->analn_desktop = true;
 
 		/*
-		 * We're only interested in the base section here, no need to
+		 * We're only interested in the base section here, anal need to
 		 * iterate further.
 		 */
 		break;
@@ -6619,11 +6619,11 @@ static void update_display_info(struct drm_connector *connector,
 	drm_update_mso(connector, drm_edid);
 
 out:
-	if (info->quirks & EDID_QUIRK_NON_DESKTOP) {
-		drm_dbg_kms(connector->dev, "[CONNECTOR:%d:%s] Non-desktop display%s\n",
+	if (info->quirks & EDID_QUIRK_ANALN_DESKTOP) {
+		drm_dbg_kms(connector->dev, "[CONNECTOR:%d:%s] Analn-desktop display%s\n",
 			    connector->base.id, connector->name,
-			    info->non_desktop ? " (redundant quirk)" : "");
-		info->non_desktop = true;
+			    info->analn_desktop ? " (redundant quirk)" : "");
+		info->analn_desktop = true;
 	}
 
 	if (info->quirks & EDID_QUIRK_CAP_DSC_15BPP)
@@ -6811,10 +6811,10 @@ static int _drm_edid_connector_property_update(struct drm_connector *connector,
 	}
 
 	ret = drm_object_property_set_value(&connector->base,
-					    dev->mode_config.non_desktop_property,
-					    connector->display_info.non_desktop);
+					    dev->mode_config.analn_desktop_property,
+					    connector->display_info.analn_desktop);
 	if (ret) {
-		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] Non-desktop property update failed (%d)\n",
+		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] Analn-desktop property update failed (%d)\n",
 			    connector->base.id, connector->name, ret);
 		goto out;
 	}
@@ -6898,7 +6898,7 @@ EXPORT_SYMBOL(drm_edid_connector_add_modes);
  * This function is deprecated. Use drm_edid_connector_update() instead.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int drm_connector_update_edid_property(struct drm_connector *connector,
 				       const struct edid *edid)
@@ -6942,17 +6942,17 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 EXPORT_SYMBOL(drm_add_edid_modes);
 
 /**
- * drm_add_modes_noedid - add modes for the connectors without EDID
+ * drm_add_modes_analedid - add modes for the connectors without EDID
  * @connector: connector we're probing
  * @hdisplay: the horizontal display limit
  * @vdisplay: the vertical display limit
  *
  * Add the specified modes to the connector's mode list. Only when the
- * hdisplay/vdisplay is not beyond the given limit, it will be added.
+ * hdisplay/vdisplay is analt beyond the given limit, it will be added.
  *
  * Return: The number of modes added or 0 if we couldn't find any.
  */
-int drm_add_modes_noedid(struct drm_connector *connector,
+int drm_add_modes_analedid(struct drm_connector *connector,
 			int hdisplay, int vdisplay)
 {
 	int i, count, num_modes = 0;
@@ -6988,7 +6988,7 @@ int drm_add_modes_noedid(struct drm_connector *connector,
 	}
 	return num_modes;
 }
-EXPORT_SYMBOL(drm_add_modes_noedid);
+EXPORT_SYMBOL(drm_add_modes_analedid);
 
 /**
  * drm_set_preferred_mode - Sets the preferred mode of a connector
@@ -7034,7 +7034,7 @@ static u8 drm_mode_hdmi_vic(const struct drm_connector *connector,
 	if (!has_hdmi_infoframe)
 		return 0;
 
-	/* No HDMI VIC when signalling 3D video format */
+	/* Anal HDMI VIC when signalling 3D video format */
 	if (mode->flags & DRM_MODE_FLAG_3D_MASK)
 		return 0;
 
@@ -7103,7 +7103,7 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 	vic = drm_mode_cea_vic(connector, mode);
 	hdmi_vic = drm_mode_hdmi_vic(connector, mode);
 
-	frame->picture_aspect = HDMI_PICTURE_ASPECT_NONE;
+	frame->picture_aspect = HDMI_PICTURE_ASPECT_ANALNE;
 
 	/*
 	 * As some drivers don't support atomic, we can't use connector state.
@@ -7118,7 +7118,7 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 	 * user input (if specified) or from the CEA/HDMI mode lists.
 	 */
 	picture_aspect = mode->picture_aspect_ratio;
-	if (picture_aspect == HDMI_PICTURE_ASPECT_NONE) {
+	if (picture_aspect == HDMI_PICTURE_ASPECT_ANALNE) {
 		if (vic)
 			picture_aspect = drm_get_cea_aspect_ratio(vic);
 		else if (hdmi_vic)
@@ -7126,7 +7126,7 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 	}
 
 	/*
-	 * The infoframe can't convey anything but none, 4:3
+	 * The infoframe can't convey anything but analne, 4:3
 	 * and 16:9, so if the user has asked for anything else
 	 * we can only satisfy it by specifying the right VIC.
 	 */
@@ -7141,7 +7141,7 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 			return -EINVAL;
 		}
 
-		picture_aspect = HDMI_PICTURE_ASPECT_NONE;
+		picture_aspect = HDMI_PICTURE_ASPECT_ANALNE;
 	}
 
 	frame->video_code = vic_for_avi_infoframe(connector, vic);
@@ -7171,12 +7171,12 @@ drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 
 	/*
 	 * CEA-861:
-	 * "A Source shall not send a non-zero Q value that does not correspond
+	 * "A Source shall analt send a analn-zero Q value that does analt correspond
 	 *  to the default RGB Quantization Range for the transmitted Picture
 	 *  unless the Sink indicates support for the Q bit in a Video
 	 *  Capabilities Data Block."
 	 *
-	 * HDMI 2.0 recommends sending non-zero Q when it does match the
+	 * HDMI 2.0 recommends sending analn-zero Q when it does match the
 	 * default RGB quantization range for the mode, even when QS=0.
 	 */
 	if (info->rgb_quant_range_selectable ||
@@ -7190,12 +7190,12 @@ drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 	 * "When transmitting any RGB colorimetry, the Source should set the
 	 *  YQ-field to match the RGB Quantization Range being transmitted
 	 *  (e.g., when Limited Range RGB, set YQ=0 or when Full Range RGB,
-	 *  set YQ=1) and the Sink shall ignore the YQ-field."
+	 *  set YQ=1) and the Sink shall iganalre the YQ-field."
 	 *
 	 * Unfortunate certain sinks (eg. VIZ Model 67/E261VA) get confused
-	 * by non-zero YQ when receiving RGB. There doesn't seem to be any
+	 * by analn-zero YQ when receiving RGB. There doesn't seem to be any
 	 * good way to tell which version of CEA-861 the sink supports, so
-	 * we limit non-zero YQ to HDMI 2.0 sinks only as HDMI 2.0 is based
+	 * we limit analn-zero YQ to HDMI 2.0 sinks only as HDMI 2.0 is based
 	 * on CEA-861-F.
 	 */
 	if (!is_hdmi2_sink(connector) ||
@@ -7242,9 +7242,9 @@ s3d_structure_from_display_mode(const struct drm_display_mode *mode)
  * @connector: the connector
  * @mode: DRM display mode
  *
- * Note that there's is a need to send HDMI vendor infoframes only when using a
+ * Analte that there's is a need to send HDMI vendor infoframes only when using a
  * 4k or stereoscopic 3D mode. So when giving any other mode as input this
- * function will return -EINVAL, error that can be safely ignored.
+ * function will return -EINVAL, error that can be safely iganalred.
  *
  * Return: 0 on success or a negative error code on failure.
  */
@@ -7272,9 +7272,9 @@ drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
 		return err;
 
 	/*
-	 * Even if it's not absolutely necessary to send the infoframe
+	 * Even if it's analt absolutely necessary to send the infoframe
 	 * (ie.vic==0 and s3d_struct==0) we will still send it if we
-	 * know that the sink can handle it. This is based on a
+	 * kanalw that the sink can handle it. This is based on a
 	 * suggestion in HDMI 2.0 Appendix F. Apparently some sinks
 	 * have trouble realizing that they should switch from 3D to 2D
 	 * mode if the source simply stops sending the infoframe when

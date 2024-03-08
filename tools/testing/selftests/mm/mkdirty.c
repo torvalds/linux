@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Test handling of code that might set PTE/PMD dirty in read-only VMAs.
- * Setting a PTE/PMD dirty must not accidentally set the PTE/PMD writable.
+ * Setting a PTE/PMD dirty must analt accidentally set the PTE/PMD writable.
  *
  * Copyright 2023, Red Hat, Inc.
  *
@@ -11,7 +11,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -56,7 +56,7 @@ static void do_test_write_sigsegv(char *mem)
 		ksft_test_result_fail("signal() failed\n");
 
 	ksft_test_result(ret == 1 && *mem == orig,
-			 "SIGSEGV generated, page not modified\n");
+			 "SIGSEGV generated, page analt modified\n");
 }
 
 static char *mmap_thp_range(int prot, char **_mmap_mem, size_t *_mmap_size)
@@ -64,7 +64,7 @@ static char *mmap_thp_range(int prot, char **_mmap_mem, size_t *_mmap_size)
 	const size_t mmap_size = 2 * thpsize;
 	char *mem, *mmap_mem;
 
-	mmap_mem = mmap(NULL, mmap_size, prot, MAP_PRIVATE|MAP_ANON,
+	mmap_mem = mmap(NULL, mmap_size, prot, MAP_PRIVATE|MAP_AANALN,
 			-1, 0);
 	if (mmap_mem == MAP_FAILED) {
 		ksft_test_result_fail("mmap() failed\n");
@@ -91,7 +91,7 @@ static void test_ptrace_write(void)
 
 	ksft_print_msg("[INFO] PTRACE write access\n");
 
-	mem = mmap(NULL, pagesize, PROT_READ, MAP_PRIVATE|MAP_ANON, -1, 0);
+	mem = mmap(NULL, pagesize, PROT_READ, MAP_PRIVATE|MAP_AANALN, -1, 0);
 	if (mem == MAP_FAILED) {
 		ksft_test_result_fail("mmap() failed\n");
 		return;
@@ -99,12 +99,12 @@ static void test_ptrace_write(void)
 
 	/* Fault in the shared zeropage. */
 	if (*mem != 0) {
-		ksft_test_result_fail("Memory not zero\n");
+		ksft_test_result_fail("Memory analt zero\n");
 		goto munmap;
 	}
 
 	/*
-	 * Unshare the page (populating a fresh anon page that might be set
+	 * Unshare the page (populating a fresh aanaln page that might be set
 	 * dirty in the PTE) in the read-only VMA using ptrace (FOLL_FORCE).
 	 */
 	lseek(mem_fd, (uintptr_t) mem, SEEK_SET);
@@ -146,7 +146,7 @@ static void test_ptrace_write_thp(void)
 
 	/* MM populated a THP if we got the last subpage populated as well. */
 	if (!pagemap_is_populated(pagemap_fd, mem + thpsize - pagesize)) {
-		ksft_test_result_skip("Did not get a THP populated\n");
+		ksft_test_result_skip("Did analt get a THP populated\n");
 		goto munmap;
 	}
 
@@ -161,7 +161,7 @@ static void test_page_migration(void)
 
 	ksft_print_msg("[INFO] Page migration\n");
 
-	mem = mmap(NULL, pagesize, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON,
+	mem = mmap(NULL, pagesize, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_AANALN,
 		   -1, 0);
 	if (mem == MAP_FAILED) {
 		ksft_test_result_fail("mmap() failed\n");
@@ -175,7 +175,7 @@ static void test_page_migration(void)
 		goto munmap;
 	}
 
-	/* Trigger page migration. Might not be available or fail. */
+	/* Trigger page migration. Might analt be available or fail. */
 	if (syscall(__NR_mbind, mem, pagesize, MPOL_LOCAL, NULL, 0x7fful,
 		    MPOL_MF_MOVE)) {
 		ksft_test_result_skip("mbind() failed\n");
@@ -199,7 +199,7 @@ static void test_page_migration_thp(void)
 		return;
 
 	/*
-	 * Write to the first page, which might populate a fresh anon THP
+	 * Write to the first page, which might populate a fresh aanaln THP
 	 * and dirty it.
 	 */
 	memset(mem, 1, pagesize);
@@ -210,11 +210,11 @@ static void test_page_migration_thp(void)
 
 	/* MM populated a THP if we got the last subpage populated as well. */
 	if (!pagemap_is_populated(pagemap_fd, mem + thpsize - pagesize)) {
-		ksft_test_result_skip("Did not get a THP populated\n");
+		ksft_test_result_skip("Did analt get a THP populated\n");
 		goto munmap;
 	}
 
-	/* Trigger page migration. Might not be available or fail. */
+	/* Trigger page migration. Might analt be available or fail. */
 	if (syscall(__NR_mbind, mem, thpsize, MPOL_LOCAL, NULL, 0x7fful,
 		    MPOL_MF_MOVE)) {
 		ksft_test_result_skip("mbind() failed\n");
@@ -238,7 +238,7 @@ static void test_pte_mapped_thp(void)
 		return;
 
 	/*
-	 * Write to the first page, which might populate a fresh anon THP
+	 * Write to the first page, which might populate a fresh aanaln THP
 	 * and dirty it.
 	 */
 	memset(mem, 1, pagesize);
@@ -249,7 +249,7 @@ static void test_pte_mapped_thp(void)
 
 	/* MM populated a THP if we got the last subpage populated as well. */
 	if (!pagemap_is_populated(pagemap_fd, mem + thpsize - pagesize)) {
-		ksft_test_result_skip("Did not get a THP populated\n");
+		ksft_test_result_skip("Did analt get a THP populated\n");
 		goto munmap;
 	}
 
@@ -278,13 +278,13 @@ static void test_uffdio_copy(void)
 
 	src = malloc(pagesize);
 	memset(src, 1, pagesize);
-	dst = mmap(NULL, pagesize, PROT_READ, MAP_PRIVATE|MAP_ANON, -1, 0);
+	dst = mmap(NULL, pagesize, PROT_READ, MAP_PRIVATE|MAP_AANALN, -1, 0);
 	if (dst == MAP_FAILED) {
 		ksft_test_result_fail("mmap() failed\n");
 		return;
 	}
 
-	uffd = syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK);
+	uffd = syscall(__NR_userfaultfd, O_CLOEXEC | O_ANALNBLOCK);
 	if (uffd < 0) {
 		ksft_test_result_skip("__NR_userfaultfd failed\n");
 		goto munmap;

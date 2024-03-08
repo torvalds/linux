@@ -19,7 +19,7 @@ enum ocmem_client {
 	/* GMEM clients */
 	OCMEM_GRAPHICS = 0x0,
 	/*
-	 * TODO add more once ocmem_allocate() is clever enough to
+	 * TODO add more once ocmem_allocate() is clever eanalugh to
 	 * deal with multiple clients.
 	 */
 	OCMEM_CLIENT_MAX,
@@ -45,14 +45,14 @@ void ocmem_free(struct ocmem *ocmem, enum ocmem_client client,
 
 static inline struct ocmem *of_get_ocmem(struct device *dev)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline struct ocmem_buf *ocmem_allocate(struct ocmem *ocmem,
 					       enum ocmem_client client,
 					       unsigned long size)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline void ocmem_free(struct ocmem *ocmem, enum ocmem_client client,

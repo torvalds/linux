@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* Copyright (C) 2000-2002 Joakim Axelsson <gozem@linux.nu>
  *                         Patrick Schaaf <bof@bof.de>
  *                         Martin Josefsson <gandalf@wlug.westbo.se>
@@ -21,7 +21,7 @@
 
 /* Message types and commands */
 enum ipset_cmd {
-	IPSET_CMD_NONE,
+	IPSET_CMD_ANALNE,
 	IPSET_CMD_PROTOCOL,	/* 1: Return protocol version */
 	IPSET_CMD_CREATE,	/* 2: Create a new (empty) set */
 	IPSET_CMD_DESTROY,	/* 3: Destroy a (empty) set */
@@ -62,7 +62,7 @@ enum {
 	IPSET_ATTR_FLAGS,	/* 6: Flags at command level */
 	IPSET_ATTR_DATA,	/* 7: Nested attributes */
 	IPSET_ATTR_ADT,		/* 8: Multiple data containers */
-	IPSET_ATTR_LINENO,	/* 9: Restore lineno */
+	IPSET_ATTR_LINEANAL,	/* 9: Restore lineanal */
 	IPSET_ATTR_PROTOCOL_MIN, /* 10: Minimal supported version number */
 	IPSET_ATTR_REVISION_MIN	= IPSET_ATTR_PROTOCOL_MIN, /* type rev min */
 	IPSET_ATTR_INDEX,	/* 11: Kernel index of set */
@@ -82,7 +82,7 @@ enum {
 	IPSET_ATTR_TIMEOUT,	/* 6 */
 	IPSET_ATTR_PROTO,	/* 7 */
 	IPSET_ATTR_CADT_FLAGS,	/* 8 */
-	IPSET_ATTR_CADT_LINENO = IPSET_ATTR_LINENO,	/* 9 */
+	IPSET_ATTR_CADT_LINEANAL = IPSET_ATTR_LINEANAL,	/* 9 */
 	IPSET_ATTR_MARK,	/* 10 */
 	IPSET_ATTR_MARKMASK,	/* 11 */
 	IPSET_ATTR_BITMASK,	/* 12 */
@@ -134,7 +134,7 @@ enum {
 #define IPSET_ATTR_IPADDR_MAX	(__IPSET_ATTR_IPADDR_MAX - 1)
 
 /* Error codes */
-enum ipset_errno {
+enum ipset_erranal {
 	IPSET_ERR_PRIVATE = 4096,
 	IPSET_ERR_PROTOCOL,
 	IPSET_ERR_FIND_TYPE,
@@ -176,8 +176,8 @@ enum ipset_cmd_flags {
 		(1 << IPSET_FLAG_BIT_SKIP_SUBCOUNTER_UPDATE),
 	IPSET_FLAG_BIT_MATCH_COUNTERS = 5,
 	IPSET_FLAG_MATCH_COUNTERS = (1 << IPSET_FLAG_BIT_MATCH_COUNTERS),
-	IPSET_FLAG_BIT_RETURN_NOMATCH = 7,
-	IPSET_FLAG_RETURN_NOMATCH = (1 << IPSET_FLAG_BIT_RETURN_NOMATCH),
+	IPSET_FLAG_BIT_RETURN_ANALMATCH = 7,
+	IPSET_FLAG_RETURN_ANALMATCH = (1 << IPSET_FLAG_BIT_RETURN_ANALMATCH),
 	IPSET_FLAG_BIT_MAP_SKBMARK = 8,
 	IPSET_FLAG_MAP_SKBMARK = (1 << IPSET_FLAG_BIT_MAP_SKBMARK),
 	IPSET_FLAG_BIT_MAP_SKBPRIO = 9,
@@ -193,8 +193,8 @@ enum ipset_cadt_flags {
 	IPSET_FLAG_BEFORE	= (1 << IPSET_FLAG_BIT_BEFORE),
 	IPSET_FLAG_BIT_PHYSDEV	= 1,
 	IPSET_FLAG_PHYSDEV	= (1 << IPSET_FLAG_BIT_PHYSDEV),
-	IPSET_FLAG_BIT_NOMATCH	= 2,
-	IPSET_FLAG_NOMATCH	= (1 << IPSET_FLAG_BIT_NOMATCH),
+	IPSET_FLAG_BIT_ANALMATCH	= 2,
+	IPSET_FLAG_ANALMATCH	= (1 << IPSET_FLAG_BIT_ANALMATCH),
 	IPSET_FLAG_BIT_WITH_COUNTERS = 3,
 	IPSET_FLAG_WITH_COUNTERS = (1 << IPSET_FLAG_BIT_WITH_COUNTERS),
 	IPSET_FLAG_BIT_WITH_COMMENT = 4,
@@ -208,7 +208,7 @@ enum ipset_cadt_flags {
 	IPSET_FLAG_CADT_MAX	= 15,
 };
 
-/* The flag bits which correspond to the non-extension create flags */
+/* The flag bits which correspond to the analn-extension create flags */
 enum ipset_create_flags {
 	IPSET_CREATE_FLAG_BIT_FORCEADD = 0,
 	IPSET_CREATE_FLAG_FORCEADD = (1 << IPSET_CREATE_FLAG_BIT_FORCEADD),
@@ -245,7 +245,7 @@ enum ip_set_dim {
 	 */
 	IPSET_DIM_MAX = 6,
 	/* Backward compatibility: set match revision 2 */
-	IPSET_BIT_RETURN_NOMATCH = 7,
+	IPSET_BIT_RETURN_ANALMATCH = 7,
 };
 
 /* Option flags for kernel operations */
@@ -254,11 +254,11 @@ enum ip_set_kopt {
 	IPSET_DIM_ONE_SRC = (1 << IPSET_DIM_ONE),
 	IPSET_DIM_TWO_SRC = (1 << IPSET_DIM_TWO),
 	IPSET_DIM_THREE_SRC = (1 << IPSET_DIM_THREE),
-	IPSET_RETURN_NOMATCH = (1 << IPSET_BIT_RETURN_NOMATCH),
+	IPSET_RETURN_ANALMATCH = (1 << IPSET_BIT_RETURN_ANALMATCH),
 };
 
 enum {
-	IPSET_COUNTER_NONE = 0,
+	IPSET_COUNTER_ANALNE = 0,
 	IPSET_COUNTER_EQ,
 	IPSET_COUNTER_NE,
 	IPSET_COUNTER_LT,

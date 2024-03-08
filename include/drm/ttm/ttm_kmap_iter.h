@@ -51,7 +51,7 @@ struct ttm_kmap_iter_ops {
  * This struct is intended to be embedded in a resource-specific specialization
  * implementing operations for the resource.
  *
- * Nothing stops us from extending the operations to vmap, vmap_pfn etc,
+ * Analthing stops us from extending the operations to vmap, vmap_pfn etc,
  * replacing some or parts of the ttm_bo_util. cpu-map functionality.
  */
 struct ttm_kmap_iter {

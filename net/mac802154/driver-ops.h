@@ -33,7 +33,7 @@ static inline int drv_set_pan_id(struct ieee802154_local *local, __le16 pan_id)
 
 	if (!local->ops->set_hw_addr_filt) {
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	filt.pan_id = pan_id;
@@ -55,7 +55,7 @@ drv_set_extended_addr(struct ieee802154_local *local, __le64 extended_addr)
 
 	if (!local->ops->set_hw_addr_filt) {
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	filt.ieee_addr = extended_addr;
@@ -77,7 +77,7 @@ drv_set_short_addr(struct ieee802154_local *local, __le16 short_addr)
 
 	if (!local->ops->set_hw_addr_filt) {
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	filt.short_addr = short_addr;
@@ -99,7 +99,7 @@ drv_set_pan_coord(struct ieee802154_local *local, bool is_coord)
 
 	if (!local->ops->set_hw_addr_filt) {
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	filt.pan_coord = is_coord;
@@ -120,7 +120,7 @@ drv_set_promiscuous_mode(struct ieee802154_local *local, bool on)
 
 	if (!local->ops->set_promiscuous_mode) {
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	trace_802154_drv_set_promiscuous_mode(local, on);
@@ -153,7 +153,7 @@ static inline int drv_start(struct ieee802154_local *local,
 	}
 
 	switch (level) {
-	case IEEE802154_FILTERING_NONE:
+	case IEEE802154_FILTERING_ANALNE:
 		fallthrough;
 	case IEEE802154_FILTERING_1_FCS:
 		fallthrough;
@@ -168,12 +168,12 @@ static inline int drv_start(struct ieee802154_local *local,
 			if (ret < 0)
 				return ret;
 		} else {
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		/* In practice other filtering levels can be requested, but as
-		 * for now most hardware/drivers only support
-		 * IEEE802154_FILTERING_NONE, we fallback to this actual
+		 * for analw most hardware/drivers only support
+		 * IEEE802154_FILTERING_ANALNE, we fallback to this actual
 		 * filtering level in hardware and make our own additional
 		 * filtering in mac802154 receive path.
 		 *
@@ -184,10 +184,10 @@ static inline int drv_start(struct ieee802154_local *local,
 		 * start() callback and let the driver go into the mode before
 		 * it will turn on receive handling.
 		 */
-		local->phy->filtering = IEEE802154_FILTERING_NONE;
+		local->phy->filtering = IEEE802154_FILTERING_ANALNE;
 		break;
 	case IEEE802154_FILTERING_4_FRAME_FIELDS:
-		/* Do not error out if IEEE802154_HW_PROMISCUOUS because we
+		/* Do analt error out if IEEE802154_HW_PROMISCUOUS because we
 		 * expect the hardware to operate at the level
 		 * IEEE802154_FILTERING_4_FRAME_FIELDS anyway.
 		 */
@@ -250,7 +250,7 @@ static inline int drv_set_tx_power(struct ieee802154_local *local, s32 mbm)
 
 	if (!local->ops->set_txpower) {
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	trace_802154_drv_set_tx_power(local, mbm);
@@ -268,7 +268,7 @@ static inline int drv_set_cca_mode(struct ieee802154_local *local,
 
 	if (!local->ops->set_cca_mode) {
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	trace_802154_drv_set_cca_mode(local, cca);
@@ -285,7 +285,7 @@ static inline int drv_set_lbt_mode(struct ieee802154_local *local, bool mode)
 
 	if (!local->ops->set_lbt) {
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	trace_802154_drv_set_lbt_mode(local, mode);
@@ -303,7 +303,7 @@ drv_set_cca_ed_level(struct ieee802154_local *local, s32 mbm)
 
 	if (!local->ops->set_cca_ed_level) {
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	trace_802154_drv_set_cca_ed_level(local, mbm);
@@ -322,7 +322,7 @@ drv_set_csma_params(struct ieee802154_local *local, u8 min_be, u8 max_be,
 
 	if (!local->ops->set_csma_params) {
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	trace_802154_drv_set_csma_params(local, min_be, max_be,
@@ -342,7 +342,7 @@ drv_set_max_frame_retries(struct ieee802154_local *local, s8 max_frame_retries)
 
 	if (!local->ops->set_frame_retries) {
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	trace_802154_drv_set_max_frame_retries(local, max_frame_retries);

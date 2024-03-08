@@ -64,8 +64,8 @@ static void drop_alloc_keys(struct journal_keys *keys)
 }
 
 /*
- * Btree node pointers have a field to stack a pointer to the in memory btree
- * node; we need to zero out this field when reading in btree nodes, or when
+ * Btree analde pointers have a field to stack a pointer to the in memory btree
+ * analde; we need to zero out this field when reading in btree analdes, or when
  * reading in keys from the journal:
  */
 static void zero_out_btree_mem_ptr(struct journal_keys *keys)
@@ -79,7 +79,7 @@ static void zero_out_btree_mem_ptr(struct journal_keys *keys)
 
 /* journal replay: */
 
-static void replay_now_at(struct journal *j, u64 seq)
+static void replay_analw_at(struct journal *j, u64 seq)
 {
 	BUG_ON(seq < j->replay_journal_seq);
 
@@ -95,8 +95,8 @@ static int bch2_journal_replay_key(struct btree_trans *trans,
 	struct btree_iter iter;
 	unsigned iter_flags =
 		BTREE_ITER_INTENT|
-		BTREE_ITER_NOT_EXTENTS;
-	unsigned update_flags = BTREE_TRIGGER_NORUN;
+		BTREE_ITER_ANALT_EXTENTS;
+	unsigned update_flags = BTREE_TRIGGER_ANALRUN;
 	int ret;
 
 	if (k->overwritten)
@@ -106,9 +106,9 @@ static int bch2_journal_replay_key(struct btree_trans *trans,
 
 	/*
 	 * BTREE_UPDATE_KEY_CACHE_RECLAIM disables key cache lookup/update to
-	 * keep the key cache coherent with the underlying btree. Nothing
+	 * keep the key cache coherent with the underlying btree. Analthing
 	 * besides the allocator is doing updates yet so we don't need key cache
-	 * coherency for non-alloc btrees, and key cache fills for snapshots
+	 * coherency for analn-alloc btrees, and key cache fills for snapshots
 	 * btrees use BTREE_ITER_FILTER_SNAPSHOTS, which isn't available until
 	 * the snapshots recovery pass runs.
 	 */
@@ -117,7 +117,7 @@ static int bch2_journal_replay_key(struct btree_trans *trans,
 	else
 		update_flags |= BTREE_UPDATE_KEY_CACHE_RECLAIM;
 
-	bch2_trans_node_iter_init(trans, &iter, k->btree_id, k->k->k.p,
+	bch2_trans_analde_iter_init(trans, &iter, k->btree_id, k->k->k.p,
 				  BTREE_MAX_DEPTH, k->level,
 				  iter_flags);
 	ret = bch2_btree_iter_traverse(&iter);
@@ -174,9 +174,9 @@ static int bch2_journal_replay(struct bch_fs *c)
 		/* Skip fastpath if we're low on space in the journal */
 		ret = c->journal.watermark ? -1 :
 			commit_do(trans, NULL, NULL,
-				  BCH_TRANS_COMMIT_no_enospc|
+				  BCH_TRANS_COMMIT_anal_eanalspc|
 				  BCH_TRANS_COMMIT_journal_reclaim|
-				  (!k->allocated ? BCH_TRANS_COMMIT_no_journal_res : 0),
+				  (!k->allocated ? BCH_TRANS_COMMIT_anal_journal_res : 0),
 			     bch2_journal_replay_key(trans, k));
 		BUG_ON(!ret && !k->overwritten);
 		if (ret) {
@@ -187,7 +187,7 @@ static int bch2_journal_replay(struct bch_fs *c)
 	}
 
 	/*
-	 * Now, replay any remaining keys in the order in which they appear in
+	 * Analw, replay any remaining keys in the order in which they appear in
 	 * the journal, unpinning those journal entries as we go:
 	 */
 	sort(keys_sorted.data, keys_sorted.nr,
@@ -199,12 +199,12 @@ static int bch2_journal_replay(struct bch_fs *c)
 
 		struct journal_key *k = *kp;
 
-		replay_now_at(j, k->journal_seq);
+		replay_analw_at(j, k->journal_seq);
 
 		ret = commit_do(trans, NULL, NULL,
-				BCH_TRANS_COMMIT_no_enospc|
+				BCH_TRANS_COMMIT_anal_eanalspc|
 				(!k->allocated
-				 ? BCH_TRANS_COMMIT_no_journal_res|BCH_WATERMARK_reclaim
+				 ? BCH_TRANS_COMMIT_anal_journal_res|BCH_WATERMARK_reclaim
 				 : 0),
 			     bch2_journal_replay_key(trans, k));
 		bch_err_msg(c, ret, "while replaying key at btree %s level %u:",
@@ -225,7 +225,7 @@ static int bch2_journal_replay(struct bch_fs *c)
 	if (!c->opts.keep_journal)
 		bch2_journal_keys_put_initial(c);
 
-	replay_now_at(j, j->replay_journal_seq_end);
+	replay_analw_at(j, j->replay_journal_seq_end);
 	j->replay_journal_seq = 0;
 
 	bch2_journal_set_replay_done(j);
@@ -279,8 +279,8 @@ static int journal_replay_entry_early(struct bch_fs *c,
 				c->usage_base->persistent_reserved[entry->level] =
 					le64_to_cpu(u->v);
 			break;
-		case BCH_FS_USAGE_inodes:
-			c->usage_base->b.nr_inodes = le64_to_cpu(u->v);
+		case BCH_FS_USAGE_ianaldes:
+			c->usage_base->b.nr_ianaldes = le64_to_cpu(u->v);
 			break;
 		case BCH_FS_USAGE_key_version:
 			atomic64_set(&c->key_version,
@@ -334,7 +334,7 @@ static int journal_replay_entry_early(struct bch_fs *c,
 		struct jset_entry_clock *clock =
 			container_of(entry, struct jset_entry_clock, entry);
 
-		atomic64_set(&c->io_clock[clock->rw].now, le64_to_cpu(clock->time));
+		atomic64_set(&c->io_clock[clock->rw].analw, le64_to_cpu(clock->time));
 	}
 	}
 
@@ -359,7 +359,7 @@ static int journal_replay_early(struct bch_fs *c,
 		genradix_for_each(&c->journal_entries, iter, _i) {
 			i = *_i;
 
-			if (!i || i->ignore)
+			if (!i || i->iganalre)
 				continue;
 
 			vstruct_for_each(&i->j, entry) {
@@ -397,7 +397,7 @@ static int read_btree_roots(struct bch_fs *c)
 		if (r->error) {
 			__fsck_err(c,
 				   btree_id_is_alloc(i)
-				   ? FSCK_CAN_IGNORE : 0,
+				   ? FSCK_CAN_IGANALRE : 0,
 				   btree_root_bkey_invalid,
 				   "invalid btree root %s",
 				   bch2_btree_id_str(i));
@@ -454,7 +454,7 @@ static int bch2_initialize_subvolumes(struct bch_fs *c)
 	root_volume.k.p.offset = BCACHEFS_ROOT_SUBVOL;
 	root_volume.v.flags	= 0;
 	root_volume.v.snapshot	= cpu_to_le32(U32_MAX);
-	root_volume.v.inode	= cpu_to_le64(BCACHEFS_ROOT_INO);
+	root_volume.v.ianalde	= cpu_to_le64(BCACHEFS_ROOT_IANAL);
 
 	ret =   bch2_btree_insert(c, BTREE_ID_snapshot_trees,	&root_tree.k_i, NULL, 0) ?:
 		bch2_btree_insert(c, BTREE_ID_snapshots,	&root_snapshot.k_i, NULL, 0) ?:
@@ -467,34 +467,34 @@ static int __bch2_fs_upgrade_for_subvolumes(struct btree_trans *trans)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	struct bch_inode_unpacked inode;
+	struct bch_ianalde_unpacked ianalde;
 	int ret;
 
-	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
-			       SPOS(0, BCACHEFS_ROOT_INO, U32_MAX), 0);
+	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_ianaldes,
+			       SPOS(0, BCACHEFS_ROOT_IANAL, U32_MAX), 0);
 	ret = bkey_err(k);
 	if (ret)
 		return ret;
 
-	if (!bkey_is_inode(k.k)) {
-		bch_err(trans->c, "root inode not found");
-		ret = -BCH_ERR_ENOENT_inode;
+	if (!bkey_is_ianalde(k.k)) {
+		bch_err(trans->c, "root ianalde analt found");
+		ret = -BCH_ERR_EANALENT_ianalde;
 		goto err;
 	}
 
-	ret = bch2_inode_unpack(k, &inode);
+	ret = bch2_ianalde_unpack(k, &ianalde);
 	BUG_ON(ret);
 
-	inode.bi_subvol = BCACHEFS_ROOT_SUBVOL;
+	ianalde.bi_subvol = BCACHEFS_ROOT_SUBVOL;
 
-	ret = bch2_inode_write(trans, &iter, &inode);
+	ret = bch2_ianalde_write(trans, &iter, &ianalde);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
-/* set bi_subvol on root inode */
-noinline_for_stack
+/* set bi_subvol on root ianalde */
+analinline_for_stack
 static int bch2_fs_upgrade_for_subvolumes(struct bch_fs *c)
 {
 	int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_lazy_rw,
@@ -512,7 +512,7 @@ const char * const bch2_recovery_passes[] = {
 
 static int bch2_check_allocations(struct bch_fs *c)
 {
-	return bch2_gc(c, true, c->opts.norecovery);
+	return bch2_gc(c, true, c->opts.analrecovery);
 }
 
 static int bch2_set_may_go_rw(struct bch_fs *c)
@@ -597,7 +597,7 @@ static bool check_version_upgrade(struct bch_fs *c)
 		case BCH_VERSION_UPGRADE_incompatible:
 			new_version = latest_version;
 			break;
-		case BCH_VERSION_UPGRADE_none:
+		case BCH_VERSION_UPGRADE_analne:
 			new_version = min(old_version, latest_version);
 			break;
 		}
@@ -661,7 +661,7 @@ static bool should_run_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pa
 {
 	struct recovery_pass_fn *p = recovery_pass_fns + pass;
 
-	if (c->opts.norecovery && pass > BCH_RECOVERY_PASS_snapshots_read)
+	if (c->opts.analrecovery && pass > BCH_RECOVERY_PASS_snapshots_read)
 		return false;
 	if (c->recovery_passes_explicit & BIT_ULL(pass))
 		return true;
@@ -757,7 +757,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 	}
 
 	if (!(c->sb.features & (1ULL << BCH_FEATURE_new_extent_overwrite))) {
-		bch_err(c, "feature new_extent_overwrite not set, filesystem no longer supported");
+		bch_err(c, "feature new_extent_overwrite analt set, filesystem anal longer supported");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -769,20 +769,20 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 	}
 
-	if (c->opts.fsck && c->opts.norecovery) {
-		bch_err(c, "cannot select both norecovery and fsck");
+	if (c->opts.fsck && c->opts.analrecovery) {
+		bch_err(c, "cananalt select both analrecovery and fsck");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	if (!c->opts.nochanges) {
+	if (!c->opts.analchanges) {
 		mutex_lock(&c->sb_lock);
 		bool write_sb = false;
 
 		struct bch_sb_field_ext *ext =
 			bch2_sb_field_get_minsize(&c->disk_sb, ext, sizeof(*ext) / sizeof(u64));
 		if (!ext) {
-			ret = -BCH_ERR_ENOSPC_sb;
+			ret = -BCH_ERR_EANALSPC_sb;
 			mutex_unlock(&c->sb_lock);
 			goto err;
 		}
@@ -809,8 +809,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 			__le64 passes = ext->recovery_passes_required[0];
 			bch2_sb_set_downgrade(c,
-					BCH_VERSION_MINOR(bcachefs_metadata_version_current),
-					BCH_VERSION_MINOR(c->sb.version));
+					BCH_VERSION_MIANALR(bcachefs_metadata_version_current),
+					BCH_VERSION_MIANALR(c->sb.version));
 			passes = ext->recovery_passes_required[0] & ~passes;
 			if (passes) {
 				prt_str(&buf, "\n  running recovery passes: ");
@@ -855,14 +855,14 @@ int bch2_fs_recovery(struct bch_fs *c)
 			goto err;
 
 		/*
-		 * note: cmd_list_journal needs the blacklist table fully up to date so
-		 * it can asterisk ignored journal entries:
+		 * analte: cmd_list_journal needs the blacklist table fully up to date so
+		 * it can asterisk iganalred journal entries:
 		 */
 		if (c->opts.read_journal_only)
 			goto out;
 
 		genradix_for_each_reverse(&c->journal_entries, iter, i)
-			if (*i && !(*i)->ignore) {
+			if (*i && !(*i)->iganalre) {
 				last_journal_entry = &(*i)->j;
 				break;
 			}
@@ -870,8 +870,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 		if (mustfix_fsck_err_on(c->sb.clean &&
 					last_journal_entry &&
 					!journal_entry_empty(last_journal_entry), c,
-				clean_but_journal_not_empty,
-				"filesystem marked clean but journal not empty")) {
+				clean_but_journal_analt_empty,
+				"filesystem marked clean but journal analt empty")) {
 			c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 			SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
 			c->sb.clean = false;
@@ -879,18 +879,18 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 		if (!last_journal_entry) {
 			fsck_err_on(!c->sb.clean, c,
-				    dirty_but_no_journal_entries,
-				    "no journal entries found");
+				    dirty_but_anal_journal_entries,
+				    "anal journal entries found");
 			if (clean)
 				goto use_clean;
 
 			genradix_for_each_reverse(&c->journal_entries, iter, i)
 				if (*i) {
 					last_journal_entry = &(*i)->j;
-					(*i)->ignore = false;
+					(*i)->iganalre = false;
 					/*
-					 * This was probably a NO_FLUSH entry,
-					 * so last_seq was garbage - but we know
+					 * This was probably a ANAL_FLUSH entry,
+					 * so last_seq was garbage - but we kanalw
 					 * we're only using a single journal
 					 * entry, set it here:
 					 */
@@ -912,7 +912,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 	} else {
 use_clean:
 		if (!clean) {
-			bch_err(c, "no superblock clean section found");
+			bch_err(c, "anal superblock clean section found");
 			ret = -BCH_ERR_fsck_repair_impossible;
 			goto err;
 
@@ -938,7 +938,7 @@ use_clean:
 	 * After an unclean shutdown, skip then next few journal sequence
 	 * numbers as they may have been referenced by btree writes that
 	 * happened before their corresponding journal writes - those btree
-	 * writes need to be ignored, by skipping and blacklisting the next few
+	 * writes need to be iganalred, by skipping and blacklisting the next few
 	 * journal sequence numbers:
 	 */
 	if (!c->sb.clean)
@@ -965,7 +965,7 @@ use_clean:
 		bch2_journal_log_msg(c, "dropping alloc info");
 
 	/*
-	 * Skip past versions that might have possibly been used (as nonces),
+	 * Skip past versions that might have possibly been used (as analnces),
 	 * but hadn't had their pointers written:
 	 */
 	if (c->sb.encryption_type && !c->sb.clean)
@@ -981,10 +981,10 @@ use_clean:
 
 	clear_bit(BCH_FS_fsck_running, &c->flags);
 
-	/* If we fixed errors, verify that fs is actually clean now: */
+	/* If we fixed errors, verify that fs is actually clean analw: */
 	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) &&
 	    test_bit(BCH_FS_errors_fixed, &c->flags) &&
-	    !test_bit(BCH_FS_errors_not_fixed, &c->flags) &&
+	    !test_bit(BCH_FS_errors_analt_fixed, &c->flags) &&
 	    !test_bit(BCH_FS_error, &c->flags)) {
 		bch2_flush_fsck_errs(c);
 
@@ -998,9 +998,9 @@ use_clean:
 			goto err;
 
 		if (test_bit(BCH_FS_errors_fixed, &c->flags) ||
-		    test_bit(BCH_FS_errors_not_fixed, &c->flags)) {
-			bch_err(c, "Second fsck run was not clean");
-			set_bit(BCH_FS_errors_not_fixed, &c->flags);
+		    test_bit(BCH_FS_errors_analt_fixed, &c->flags)) {
+			bch_err(c, "Second fsck run was analt clean");
+			set_bit(BCH_FS_errors_analt_fixed, &c->flags);
 		}
 
 		set_bit(BCH_FS_errors_fixed, &c->flags);
@@ -1041,7 +1041,7 @@ use_clean:
 
 	if (c->opts.fsck &&
 	    !test_bit(BCH_FS_error, &c->flags) &&
-	    !test_bit(BCH_FS_errors_not_fixed, &c->flags)) {
+	    !test_bit(BCH_FS_errors_analt_fixed, &c->flags)) {
 		SET_BCH_SB_HAS_ERRORS(c->disk_sb.sb, 0);
 		SET_BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb, 0);
 		write_sb = true;
@@ -1059,14 +1059,14 @@ use_clean:
 
 		struct printbuf buf = PRINTBUF;
 		bch2_version_to_text(&buf, c->sb.version_min);
-		bch_info(c, "scanning for old btree nodes: min_version %s", buf.buf);
+		bch_info(c, "scanning for old btree analdes: min_version %s", buf.buf);
 		printbuf_exit(&buf);
 
 		ret =   bch2_fs_read_write_early(c) ?:
-			bch2_scan_old_btree_nodes(c, &stats);
+			bch2_scan_old_btree_analdes(c, &stats);
 		if (ret)
 			goto err;
-		bch_info(c, "scanning for old btree nodes done");
+		bch_info(c, "scanning for old btree analdes done");
 	}
 
 	if (c->journal_seq_blacklist_table &&
@@ -1084,7 +1084,7 @@ out:
 
 	if (!ret &&
 	    test_bit(BCH_FS_need_delete_dead_snapshots, &c->flags) &&
-	    !c->opts.nochanges) {
+	    !c->opts.analchanges) {
 		bch2_fs_read_write_early(c);
 		bch2_delete_dead_snapshots_async(c);
 	}
@@ -1099,12 +1099,12 @@ fsck_err:
 
 int bch2_fs_initialize(struct bch_fs *c)
 {
-	struct bch_inode_unpacked root_inode, lostfound_inode;
-	struct bkey_inode_buf packed_inode;
+	struct bch_ianalde_unpacked root_ianalde, lostfound_ianalde;
+	struct bkey_ianalde_buf packed_ianalde;
 	struct qstr lostfound = QSTR("lost+found");
 	int ret;
 
-	bch_notice(c, "initializing new filesystem");
+	bch_analtice(c, "initializing new filesystem");
 
 	mutex_lock(&c->sb_lock);
 	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_extents_above_btree_updates_done);
@@ -1112,7 +1112,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 
 	bch2_check_version_downgrade(c);
 
-	if (c->opts.version_upgrade != BCH_VERSION_UPGRADE_none) {
+	if (c->opts.version_upgrade != BCH_VERSION_UPGRADE_analne) {
 		bch2_sb_upgrade(c, bcachefs_metadata_version_current);
 		SET_BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb, bcachefs_metadata_version_current);
 		bch2_write_super(c);
@@ -1144,7 +1144,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 		goto err;
 
 	/*
-	 * Write out the superblock and journal buckets, now that we can do
+	 * Write out the superblock and journal buckets, analw that we can do
 	 * btree updates
 	 */
 	bch_verbose(c, "marking superblocks");
@@ -1170,23 +1170,23 @@ int bch2_fs_initialize(struct bch_fs *c)
 		goto err;
 	bch_verbose(c, "reading snapshots done");
 
-	bch2_inode_init(c, &root_inode, 0, 0, S_IFDIR|0755, 0, NULL);
-	root_inode.bi_inum	= BCACHEFS_ROOT_INO;
-	root_inode.bi_subvol	= BCACHEFS_ROOT_SUBVOL;
-	bch2_inode_pack(&packed_inode, &root_inode);
-	packed_inode.inode.k.p.snapshot = U32_MAX;
+	bch2_ianalde_init(c, &root_ianalde, 0, 0, S_IFDIR|0755, 0, NULL);
+	root_ianalde.bi_inum	= BCACHEFS_ROOT_IANAL;
+	root_ianalde.bi_subvol	= BCACHEFS_ROOT_SUBVOL;
+	bch2_ianalde_pack(&packed_ianalde, &root_ianalde);
+	packed_ianalde.ianalde.k.p.snapshot = U32_MAX;
 
-	ret = bch2_btree_insert(c, BTREE_ID_inodes, &packed_inode.inode.k_i, NULL, 0);
+	ret = bch2_btree_insert(c, BTREE_ID_ianaldes, &packed_ianalde.ianalde.k_i, NULL, 0);
 	bch_err_msg(c, ret, "creating root directory");
 	if (ret)
 		goto err;
 
-	bch2_inode_init_early(c, &lostfound_inode);
+	bch2_ianalde_init_early(c, &lostfound_ianalde);
 
 	ret = bch2_trans_do(c, NULL, NULL, 0,
 		bch2_create_trans(trans,
 				  BCACHEFS_ROOT_SUBVOL_INUM,
-				  &root_inode, &lostfound_inode,
+				  &root_ianalde, &lostfound_ianalde,
 				  &lostfound,
 				  0, 0, S_IFDIR|0700, 0,
 				  NULL, NULL, (subvol_inum) { 0 }, 0));

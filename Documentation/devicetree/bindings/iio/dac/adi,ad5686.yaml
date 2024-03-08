@@ -52,7 +52,7 @@ properties:
     maxItems: 1
 
   vcc-supply:
-    description: If not supplied the internal reference is used.
+    description: If analt supplied the internal reference is used.
 
 required:
   - compatible

@@ -2,23 +2,23 @@
 |*                                                                           *|
 |*       Copyright 1993-2003 NVIDIA, Corporation.  All rights reserved.      *|
 |*                                                                           *|
-|*     NOTICE TO USER:   The source code  is copyrighted under  U.S. and     *|
+|*     ANALTICE TO USER:   The source code  is copyrighted under  U.S. and     *|
 |*     international laws.  Users and possessors of this source code are     *|
-|*     hereby granted a nonexclusive,  royalty-free copyright license to     *|
+|*     hereby granted a analnexclusive,  royalty-free copyright license to     *|
 |*     use this code in individual and commercial software.                  *|
 |*                                                                           *|
 |*     Any use of this source code must include,  in the user documenta-     *|
-|*     tion and  internal comments to the code,  notices to the end user     *|
+|*     tion and  internal comments to the code,  analtices to the end user     *|
 |*     as follows:                                                           *|
 |*                                                                           *|
 |*       Copyright 1993-1999 NVIDIA, Corporation.  All rights reserved.      *|
 |*                                                                           *|
-|*     NVIDIA, CORPORATION MAKES NO REPRESENTATION ABOUT THE SUITABILITY     *|
+|*     NVIDIA, CORPORATION MAKES ANAL REPRESENTATION ABOUT THE SUITABILITY     *|
 |*     OF  THIS SOURCE  CODE  FOR ANY PURPOSE.  IT IS  PROVIDED  "AS IS"     *|
 |*     WITHOUT EXPRESS OR IMPLIED WARRANTY OF ANY KIND.  NVIDIA, CORPOR-     *|
 |*     ATION DISCLAIMS ALL WARRANTIES  WITH REGARD  TO THIS SOURCE CODE,     *|
-|*     INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGE-     *|
-|*     MENT,  AND FITNESS  FOR A PARTICULAR PURPOSE.   IN NO EVENT SHALL     *|
+|*     INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY, ANALNINFRINGE-     *|
+|*     MENT,  AND FITNESS  FOR A PARTICULAR PURPOSE.   IN ANAL EVENT SHALL     *|
 |*     NVIDIA, CORPORATION  BE LIABLE FOR ANY SPECIAL,  INDIRECT,  INCI-     *|
 |*     DENTAL, OR CONSEQUENTIAL DAMAGES,  OR ANY DAMAGES  WHATSOEVER RE-     *|
 |*     SULTING FROM LOSS OF USE,  DATA OR PROFITS,  WHETHER IN AN ACTION     *|
@@ -38,13 +38,13 @@
  \***************************************************************************/
 
 /*
- * GPL Licensing Note - According to Mark Vojkovich, author of the Xorg/
+ * GPL Licensing Analte - According to Mark Vojkovich, author of the Xorg/
  * XFree86 'nv' driver, this source code is provided under MIT-style licensing
  * where the source code is provided "as is" without warranty of any kind.
- * The only usage restriction is for the copyright notices to be retained
+ * The only usage restriction is for the copyright analtices to be retained
  * whenever code is used.
  *
- * Antonino Daplas <adaplas@pol.net> 2005-03-11
+ * Antonianal Daplas <adaplas@pol.net> 2005-03-11
  */
 
 #ifndef __NV_LOCAL_H__
@@ -57,7 +57,7 @@
  */
 
 /*
- * HW access macros.  These assume memory-mapped I/O, and not normal I/O space.
+ * HW access macros.  These assume memory-mapped I/O, and analt analrmal I/O space.
  */
 #define NV_WR08(p,i,d)  (__raw_writeb((d), (void __iomem *)(p) + (i)))
 #define NV_RD08(p,i)    (__raw_readb((void __iomem *)(p) + (i)))
@@ -66,7 +66,7 @@
 #define NV_WR32(p,i,d)  (__raw_writel((d), (void __iomem *)(p) + (i)))
 #define NV_RD32(p,i)    (__raw_readl((void __iomem *)(p) + (i)))
 
-/* VGA I/O is now always done through MMIO */
+/* VGA I/O is analw always done through MMIO */
 #define VGA_WR08(p,i,d) (writeb((d), (void __iomem *)(p) + (i)))
 #define VGA_RD08(p,i)   (readb((void __iomem *)(p) + (i)))
 

@@ -32,7 +32,7 @@ static int inject_vmalloc_slb_multihit(void)
 
 	p = vmalloc(PAGE_SIZE);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	insert_slb_entry((unsigned long)p, MMU_SEGSIZE_1T, mmu_vmalloc_psize);
 	/*
@@ -51,7 +51,7 @@ static int inject_kmalloc_slb_multihit(void)
 
 	p = kmalloc(2048, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	insert_slb_entry((unsigned long)p, MMU_SEGSIZE_1T, mmu_linear_psize);
 	/*
@@ -105,9 +105,9 @@ static void lkdtm_PPC_SLB_MULTIHIT(void)
 	if (!radix_enabled()) {
 		pr_info("Injecting SLB multihit errors\n");
 		/*
-		 * These need not be separate tests, And they do pretty
+		 * These need analt be separate tests, And they do pretty
 		 * much same thing. In any case we must recover from the
-		 * errors introduced by these functions, machine would not
+		 * errors introduced by these functions, machine would analt
 		 * survive these tests in case of failure to handle.
 		 */
 		inject_vmalloc_slb_multihit();

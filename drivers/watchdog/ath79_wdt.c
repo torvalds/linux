@@ -17,7 +17,7 @@
 
 #include <linux/bitops.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -42,15 +42,15 @@
 
 #define WDOG_CTRL_LAST_RESET	BIT(31)
 #define WDOG_CTRL_ACTION_MASK	3
-#define WDOG_CTRL_ACTION_NONE	0	/* no action */
+#define WDOG_CTRL_ACTION_ANALNE	0	/* anal action */
 #define WDOG_CTRL_ACTION_GPI	1	/* general purpose interrupt */
 #define WDOG_CTRL_ACTION_NMI	2	/* NMI */
 #define WDOG_CTRL_ACTION_FCR	3	/* full chip reset */
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
-			   "(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started "
+			   "(default=" __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static int timeout = WDT_TIMEOUT;
 module_param(timeout, int, 0);
@@ -104,7 +104,7 @@ static inline void ath79_wdt_enable(void)
 
 static inline void ath79_wdt_disable(void)
 {
-	ath79_wdt_wr(WDOG_REG_CTRL, WDOG_CTRL_ACTION_NONE);
+	ath79_wdt_wr(WDOG_REG_CTRL, WDOG_CTRL_ACTION_ANALNE);
 	/* flush write */
 	ath79_wdt_rr(WDOG_REG_CTRL);
 }
@@ -120,7 +120,7 @@ static int ath79_wdt_set_timeout(int val)
 	return 0;
 }
 
-static int ath79_wdt_open(struct inode *inode, struct file *file)
+static int ath79_wdt_open(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_set_bit(WDT_FLAGS_BUSY, &wdt_flags))
 		return -EBUSY;
@@ -128,15 +128,15 @@ static int ath79_wdt_open(struct inode *inode, struct file *file)
 	clear_bit(WDT_FLAGS_EXPECT_CLOSE, &wdt_flags);
 	ath79_wdt_enable();
 
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int ath79_wdt_release(struct inode *inode, struct file *file)
+static int ath79_wdt_release(struct ianalde *ianalde, struct file *file)
 {
 	if (test_bit(WDT_FLAGS_EXPECT_CLOSE, &wdt_flags))
 		ath79_wdt_disable();
 	else {
-		pr_crit("device closed unexpectedly, watchdog timer will not stop!\n");
+		pr_crit("device closed unexpectedly, watchdog timer will analt stop!\n");
 		ath79_wdt_keepalive();
 	}
 
@@ -150,7 +150,7 @@ static ssize_t ath79_wdt_write(struct file *file, const char *data,
 				size_t len, loff_t *ppos)
 {
 	if (len) {
-		if (!nowayout) {
+		if (!analwayout) {
 			size_t i;
 
 			clear_bit(WDT_FLAGS_EXPECT_CLOSE, &wdt_flags);
@@ -222,7 +222,7 @@ static long ath79_wdt_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	default:
-		err = -ENOTTY;
+		err = -EANALTTY;
 		break;
 	}
 
@@ -231,7 +231,7 @@ static long ath79_wdt_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations ath79_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.write		= ath79_wdt_write,
 	.unlocked_ioctl	= ath79_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -240,7 +240,7 @@ static const struct file_operations ath79_wdt_fops = {
 };
 
 static struct miscdevice ath79_wdt_miscdev = {
-	.minor = WATCHDOG_MINOR,
+	.mianalr = WATCHDOG_MIANALR,
 	.name = "watchdog",
 	.fops = &ath79_wdt_fops,
 };

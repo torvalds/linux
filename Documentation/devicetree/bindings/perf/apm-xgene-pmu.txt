@@ -8,7 +8,7 @@ The following PMU devices are supported:
   MCB			- Memory controller bridge
   MC			- Memory controller
 
-The following section describes the SoC PMU DT node binding.
+The following section describes the SoC PMU DT analde binding.
 
 Required properties:
 - compatible		: Shall be "apm,xgene-pmu" for revision 1 or
@@ -19,20 +19,20 @@ Required properties:
 - reg			: First resource shall be the CPU bus PMU resource.
 - interrupts            : Interrupt-specifier for PMU IRQ.
 
-Required properties for L3C subnode:
+Required properties for L3C subanalde:
 - compatible		: Shall be "apm,xgene-pmu-l3c".
 - reg			: First resource shall be the L3C PMU resource.
 
-Required properties for IOB subnode:
+Required properties for IOB subanalde:
 - compatible		: Shall be "apm,xgene-pmu-iob".
 - reg			: First resource shall be the IOB PMU resource.
 
-Required properties for MCB subnode:
+Required properties for MCB subanalde:
 - compatible		: Shall be "apm,xgene-pmu-mcb".
 - reg			: First resource shall be the MCB PMU resource.
 - enable-bit-index	: The bit indicates if the according MCB is enabled.
 
-Required properties for MC subnode:
+Required properties for MC subanalde:
 - compatible		: Shall be "apm,xgene-pmu-mc".
 - reg			: First resource shall be the MC PMU resource.
 - enable-bit-index	: The bit indicates if the according MC is enabled.

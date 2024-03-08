@@ -22,7 +22,7 @@ Optional properties:
 			  function of S/PDIF will be enabled, indicating there
 			  is a physical S/PDIF in connector/jack on the board.
 
-* Note: At least one of these two properties should be set in the DT binding.
+* Analte: At least one of these two properties should be set in the DT binding.
 
 
 Example:

@@ -37,7 +37,7 @@ either limit.
 
 The ADT7470 samples all inputs continuously.  A kernel thread is started up for
 the purpose of periodically querying the temperature sensors, thus allowing the
-automatic fan pwm control to set the fan speed.  The driver will not read the
+automatic fan pwm control to set the fan speed.  The driver will analt read the
 registers more often than once every 5 seconds.  Further, configuration data is
 only read once per minute.
 
@@ -50,7 +50,7 @@ degC resolution.
 The Analog Devices datasheet is very detailed and describes a procedure for
 determining an optimal configuration for the automatic PWM control.
 
-Configuration Notes
+Configuration Analtes
 -------------------
 
 Besides standard interfaces driver adds the following:
@@ -86,9 +86,9 @@ The PWM frequency is rounded to the nearest one of:
 * 1.4 kHz
 * 22.5 kHz
 
-Notes
+Analtes
 -----
 
-The temperature inputs no longer need to be read periodically from userspace in
+The temperature inputs anal longer need to be read periodically from userspace in
 order for the automatic pwm algorithm to run.  This was the case for earlier
 versions of the driver.

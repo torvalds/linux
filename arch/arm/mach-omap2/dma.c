@@ -2,11 +2,11 @@
 /*
  * OMAP2+ DMA driver
  *
- * Copyright (C) 2003 - 2008 Nokia Corporation
- * Author: Juha Yrjölä <juha.yrjola@nokia.com>
- * DMA channel linking for 1610 by Samuel Ortiz <samuel.ortiz@nokia.com>
+ * Copyright (C) 2003 - 2008 Analkia Corporation
+ * Author: Juha Yrjölä <juha.yrjola@analkia.com>
+ * DMA channel linking for 1610 by Samuel Ortiz <samuel.ortiz@analkia.com>
  * Graphics DMA and LCD DMA graphics tranformations
- * by Imre Deak <imre.deak@nokia.com>
+ * by Imre Deak <imre.deak@analkia.com>
  * OMAP2/3 support Copyright (C) 2004-2007 Texas Instruments, Inc.
  * Some functions based on earlier dma-omap.c Copyright (C) 2001 RidgeRun, Inc.
  *
@@ -86,20 +86,20 @@ static unsigned configure_dma_errata(void)
 	 * Errata applicable for OMAP2430ES1.0 and all omap2420
 	 *
 	 * I.
-	 * Erratum ID: Not Available
+	 * Erratum ID: Analt Available
 	 * Inter Frame DMA buffering issue DMA will wrongly
 	 * buffer elements if packing and bursting is enabled. This might
 	 * result in data gets stalled in FIFO at the end of the block.
 	 * Workaround: DMA channels must have BUFFERING_DISABLED bit set to
-	 * guarantee no data will stay in the DMA FIFO in case inter frame
+	 * guarantee anal data will stay in the DMA FIFO in case inter frame
 	 * buffering occurs
 	 *
 	 * II.
-	 * Erratum ID: Not Available
+	 * Erratum ID: Analt Available
 	 * DMA may hang when several channels are used in parallel
 	 * In the following configuration, DMA channel hanging can occur:
 	 * a. Channel i, hardware synchronized, is enabled
-	 * b. Another channel (Channel x), software synchronized, is enabled.
+	 * b. Aanalther channel (Channel x), software synchronized, is enabled.
 	 * c. Channel i is disabled before end of transfer
 	 * d. Channel i is reenabled.
 	 * e. Steps 1 to 4 are repeated a certain number of times.
@@ -116,7 +116,7 @@ static unsigned configure_dma_errata(void)
 	}
 
 	/*
-	 * Erratum ID: i378: OMAP2+: sDMA Channel is not disabled
+	 * Erratum ID: i378: OMAP2+: sDMA Channel is analt disabled
 	 * after a transaction error.
 	 * Workaround: SW should explicitely disable the channel.
 	 */
@@ -124,10 +124,10 @@ static unsigned configure_dma_errata(void)
 		SET_DMA_ERRATA(DMA_ERRATA_i378);
 
 	/*
-	 * Erratum ID: i541: sDMA FIFO draining does not finish
+	 * Erratum ID: i541: sDMA FIFO draining does analt finish
 	 * If sDMA channel is disabled on the fly, sDMA enters standby even
 	 * through FIFO Drain is still in progress
-	 * Workaround: Put sDMA in NoStandby more before a logical channel is
+	 * Workaround: Put sDMA in AnalStandby more before a logical channel is
 	 * disabled, then put it back to SmartStandby right after the channel
 	 * finishes FIFO draining.
 	 */
@@ -137,7 +137,7 @@ static unsigned configure_dma_errata(void)
 	/*
 	 * Erratum ID: i88 : Special programming model needed to disable DMA
 	 * before end of block.
-	 * Workaround: software must ensure that the DMA is configured in No
+	 * Workaround: software must ensure that the DMA is configured in Anal
 	 * Standby mode(DMAx_OCP_SYSCONFIG.MIDLEMODE = "01")
 	 */
 	if (omap_type() == OMAP3430_REV_ES1_0)
@@ -150,7 +150,7 @@ static unsigned configure_dma_errata(void)
 	SET_DMA_ERRATA(DMA_ERRATA_3_3);
 
 	/*
-	 * Erratum ID: Not Available
+	 * Erratum ID: Analt Available
 	 * A bug in ROM code leaves IRQ status for channels 0 and 1 uncleared
 	 * after secure sram context save and restore.
 	 * Work around: Hence we need to manually clear those IRQs to avoid
@@ -190,7 +190,7 @@ static int __init omap2_system_dma_init(void)
 	dma_plat_info.errata = configure_dma_errata();
 
 	if (soc_is_omap24xx()) {
-		/* DMA slave map for drivers not yet converted to DT */
+		/* DMA slave map for drivers analt yet converted to DT */
 		dma_plat_info.slave_map = omap24xx_sdma_dt_map;
 		dma_plat_info.slavecnt = ARRAY_SIZE(omap24xx_sdma_dt_map);
 	}

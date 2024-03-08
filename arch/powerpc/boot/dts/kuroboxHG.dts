@@ -42,7 +42,7 @@ XXXX add flash parts, rtc, ??
 			clock-frequency = <266000000>;	/* Fixed by bootloader */
 			timebase-frequency = <32522240>; /* Fixed by bootloader */
 			bus-frequency = <0>;		/* Fixed by bootloader */
-			/* Following required by dtc but not used */
+			/* Following required by dtc but analt used */
 			i-cache-size = <0x4000>;
 			d-cache-size = <0x4000>;
 		};

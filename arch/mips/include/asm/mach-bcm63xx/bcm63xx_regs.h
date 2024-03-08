@@ -88,7 +88,7 @@
 					CKCTL_6338_SPI_EN)
 
 /* BCM6345 clock bits are shifted by 16 on the left, because of the test
- * control register which is 16-bits wide. That way we do not have any
+ * control register which is 16-bits wide. That way we do analt have any
  * specific BCM6345 code for handling clocks, and writing 0 to the test
  * control register is fine.
  */
@@ -437,7 +437,7 @@
 #define TIMER_CTL1_REG			0x8
 #define TIMER_CTL2_REG			0xC
 #define TIMER_CTL_COUNTDOWN_MASK	(0x3fffffff)
-#define TIMER_CTL_MONOTONIC_MASK	(1 << 30)
+#define TIMER_CTL_MOANALTONIC_MASK	(1 << 30)
 #define TIMER_CTL_ENABLE_MASK		(1 << 31)
 
 
@@ -480,7 +480,7 @@
 #define GPIO_MODE_6348_G4_DIAG		0x00090000
 #define GPIO_MODE_6348_G4_UTOPIA	0x00080000
 #define GPIO_MODE_6348_G4_LEGACY_LED	0x00030000
-#define GPIO_MODE_6348_G4_MII_SNOOP	0x00020000
+#define GPIO_MODE_6348_G4_MII_SANALOP	0x00020000
 #define GPIO_MODE_6348_G4_EXT_EPHY	0x00010000
 #define GPIO_MODE_6348_G3_DIAG		0x00009000
 #define GPIO_MODE_6348_G3_UTOPIA	0x00008000
@@ -492,7 +492,7 @@
 #define GPIO_MODE_6348_G1_SPI_UART	0x00000060
 #define GPIO_MODE_6348_G1_SPI_MASTER	0x00000060
 #define GPIO_MODE_6348_G1_MII_PCCARD	0x00000040
-#define GPIO_MODE_6348_G1_MII_SNOOP	0x00000020
+#define GPIO_MODE_6348_G1_MII_SANALOP	0x00000020
 #define GPIO_MODE_6348_G1_EXT_EPHY	0x00000010
 #define GPIO_MODE_6348_G0_DIAG		0x00000009
 #define GPIO_MODE_6348_G0_EXT_MII	0x00000007
@@ -688,7 +688,7 @@
 #define ENETDMA_IR_REG(x)		(0x104 + (x) * 0x10)
 #define ENETDMA_IR_BUFDONE_MASK		(1 << 0)
 #define ENETDMA_IR_PKTDONE_MASK		(1 << 1)
-#define ENETDMA_IR_NOTOWNER_MASK	(1 << 2)
+#define ENETDMA_IR_ANALTOWNER_MASK	(1 << 2)
 
 /* Interrupt Mask register */
 #define ENETDMA_IRMASK_REG(x)		(0x108 + (x) * 0x10)
@@ -751,7 +751,7 @@
 #define ENETDMAC_IR_REG			(0x4)
 #define ENETDMAC_IR_BUFDONE_MASK	(1 << 0)
 #define ENETDMAC_IR_PKTDONE_MASK	(1 << 1)
-#define ENETDMAC_IR_NOTOWNER_MASK	(1 << 2)
+#define ENETDMAC_IR_ANALTOWNER_MASK	(1 << 2)
 
 /* Interrupt Mask register */
 #define ENETDMAC_IRMASK_REG		(0x8)
@@ -866,8 +866,8 @@
 #define USBH_PRIV_SWAP_OHCI_DATA_MASK	(1 << USBH_PRIV_SWAP_OHCI_DATA_SHIFT)
 
 #define USBH_PRIV_UTMI_CTL_6368_REG	0x10
-#define USBH_PRIV_UTMI_CTL_NODRIV_SHIFT 12
-#define USBH_PRIV_UTMI_CTL_NODRIV_MASK	(0xf << USBH_PRIV_UTMI_CTL_NODRIV_SHIFT)
+#define USBH_PRIV_UTMI_CTL_ANALDRIV_SHIFT 12
+#define USBH_PRIV_UTMI_CTL_ANALDRIV_MASK	(0xf << USBH_PRIV_UTMI_CTL_ANALDRIV_SHIFT)
 #define USBH_PRIV_UTMI_CTL_HOSTB_SHIFT	0
 #define USBH_PRIV_UTMI_CTL_HOSTB_MASK	(0xf << USBH_PRIV_UTMI_CTL_HOSTB_SHIFT)
 
@@ -1025,7 +1025,7 @@
  * _REG relative to RSET_MPI
  *************************************************************************/
 
-/* well known (hard wired) chip select */
+/* well kanalwn (hard wired) chip select */
 #define MPI_CS_PCMCIA_COMMON		4
 #define MPI_CS_PCMCIA_ATTR		5
 #define MPI_CS_PCMCIA_IO		6
@@ -1102,15 +1102,15 @@
 #define MPI_L2PREMAP_IS_CARDBUS_MASK	(1 << 2)
 
 #define MPI_PCIMODESEL_REG		0x144
-#define MPI_PCIMODESEL_BAR1_NOSWAP_MASK (1 << 0)
-#define MPI_PCIMODESEL_BAR2_NOSWAP_MASK (1 << 1)
+#define MPI_PCIMODESEL_BAR1_ANALSWAP_MASK (1 << 0)
+#define MPI_PCIMODESEL_BAR2_ANALSWAP_MASK (1 << 1)
 #define MPI_PCIMODESEL_EXT_ARB_MASK	(1 << 2)
 #define MPI_PCIMODESEL_PREFETCH_SHIFT	4
 #define MPI_PCIMODESEL_PREFETCH_MASK	(0xf << MPI_PCIMODESEL_PREFETCH_SHIFT)
 
 #define MPI_LOCBUSCTL_REG		0x14C
 #define MPI_LOCBUSCTL_EN_PCI_GPIO_MASK	(1 << 0)
-#define MPI_LOCBUSCTL_U2P_NOSWAP_MASK	(1 << 1)
+#define MPI_LOCBUSCTL_U2P_ANALSWAP_MASK	(1 << 1)
 
 #define MPI_LOCINT_REG			0x150
 #define MPI_LOCINT_MASK(x)		(1 << (x + 16))
@@ -1247,7 +1247,7 @@
 #define M2M_CTRL_IRQEN_MASK		(1 << 1)
 #define M2M_CTRL_ERROR_CLR_MASK		(1 << 6)
 #define M2M_CTRL_DONE_CLR_MASK		(1 << 7)
-#define M2M_CTRL_NOINC_MASK		(1 << 8)
+#define M2M_CTRL_ANALINC_MASK		(1 << 8)
 #define M2M_CTRL_PCMCIASWAP_MASK	(1 << 9)
 #define M2M_CTRL_SWAPBYTE_MASK		(1 << 10)
 #define M2M_CTRL_ENDIAN_MASK		(1 << 11)
@@ -1308,7 +1308,7 @@
 #define SPI_6358_MSG_TYPE_SHIFT		14
 
 /* Command */
-#define SPI_CMD_NOOP			0x00
+#define SPI_CMD_ANALOP			0x00
 #define SPI_CMD_SOFT_RESET		0x01
 #define SPI_CMD_HARD_RESET		0x02
 #define SPI_CMD_START_IMMEDIATE		0x03
@@ -1394,8 +1394,8 @@
 #define OPT2_UBUS_UR_DECODE_DIS		(1 << 2)
 #define OPT2_TX_CREDIT_CHK_EN		(1 << 4)
 #define OPT2_CFG_TYPE1_BD_SEL		(1 << 7)
-#define OPT2_CFG_TYPE1_BUS_NO_SHIFT	16
-#define OPT2_CFG_TYPE1_BUS_NO_MASK	(0xff << OPT2_CFG_TYPE1_BUS_NO_SHIFT)
+#define OPT2_CFG_TYPE1_BUS_ANAL_SHIFT	16
+#define OPT2_CFG_TYPE1_BUS_ANAL_MASK	(0xff << OPT2_CFG_TYPE1_BUS_ANAL_SHIFT)
 
 #define PCIE_BRIDGE_BAR0_BASEMASK_REG	0x2828
 #define PCIE_BRIDGE_BAR1_BASEMASK_REG	0x2830

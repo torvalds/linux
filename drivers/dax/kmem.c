@@ -17,9 +17,9 @@
 #include "bus.h"
 
 /*
- * Default abstract distance assigned to the NUMA node onlined
+ * Default abstract distance assigned to the NUMA analde onlined
  * by DAX/kmem if the low level platform driver didn't initialize
- * one for this NUMA node.
+ * one for this NUMA analde.
  */
 #define MEMTIER_DEFAULT_DAX_ADISTANCE	(MEMTIER_ADISTANCE_DRAM * 5)
 
@@ -39,7 +39,7 @@ static int dax_kmem_range(struct dev_dax *dev_dax, int i, struct range *r)
 	if (r->start >= r->end) {
 		r->start = range->start;
 		r->end = range->end;
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	return 0;
 }
@@ -95,23 +95,23 @@ static int dev_dax_kmem_probe(struct dev_dax *dev_dax)
 	struct memory_dev_type *mtype;
 	int i, rc, mapped = 0;
 	mhp_t mhp_flags;
-	int numa_node;
+	int numa_analde;
 	int adist = MEMTIER_DEFAULT_DAX_ADISTANCE;
 
 	/*
 	 * Ensure good NUMA information for the persistent memory.
 	 * Without this check, there is a risk that slow memory
-	 * could be mixed in a node with faster memory, causing
+	 * could be mixed in a analde with faster memory, causing
 	 * unavoidable performance issues.
 	 */
-	numa_node = dev_dax->target_node;
-	if (numa_node < 0) {
-		dev_warn(dev, "rejecting DAX region with invalid node: %d\n",
-				numa_node);
+	numa_analde = dev_dax->target_analde;
+	if (numa_analde < 0) {
+		dev_warn(dev, "rejecting DAX region with invalid analde: %d\n",
+				numa_analde);
 		return -EINVAL;
 	}
 
-	mt_calc_adistance(numa_node, &adist);
+	mt_calc_adistance(numa_analde, &adist);
 	mtype = kmem_find_alloc_memory_type(adist);
 	if (IS_ERR(mtype))
 		return PTR_ERR(mtype);
@@ -133,9 +133,9 @@ static int dev_dax_kmem_probe(struct dev_dax *dev_dax)
 		return -EINVAL;
 	}
 
-	init_node_memory_type(numa_node, mtype);
+	init_analde_memory_type(numa_analde, mtype);
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	data = kzalloc(struct_size(data, res, dev_dax->nr_range), GFP_KERNEL);
 	if (!data)
 		goto err_dax_kmem_data;
@@ -144,7 +144,7 @@ static int dev_dax_kmem_probe(struct dev_dax *dev_dax)
 	if (!data->res_name)
 		goto err_res_name;
 
-	rc = memory_group_register_static(numa_node, PFN_UP(total_len));
+	rc = memory_group_register_static(numa_analde, PFN_UP(total_len));
 	if (rc < 0)
 		goto err_reg_mgid;
 	data->mgid = rc;
@@ -160,7 +160,7 @@ static int dev_dax_kmem_probe(struct dev_dax *dev_dax)
 		/* Region is permanently reserved if hotremove fails. */
 		res = request_mem_region(range.start, range_len(&range), data->res_name);
 		if (!res) {
-			dev_warn(dev, "mapping%d: %#llx-%#llx could not reserve region\n",
+			dev_warn(dev, "mapping%d: %#llx-%#llx could analt reserve region\n",
 					i, range.start, range.end);
 			/*
 			 * Once some memory has been onlined we can't
@@ -175,9 +175,9 @@ static int dev_dax_kmem_probe(struct dev_dax *dev_dax)
 
 		/*
 		 * Set flags appropriate for System RAM.  Leave ..._BUSY clear
-		 * so that add_memory() can add a child resource.  Do not
+		 * so that add_memory() can add a child resource.  Do analt
 		 * inherit flags from the parent since it may set new flags
-		 * unknown to us that will break add_memory() below.
+		 * unkanalwn to us that will break add_memory() below.
 		 */
 		res->flags = IORESOURCE_SYSTEM_RAM;
 
@@ -186,7 +186,7 @@ static int dev_dax_kmem_probe(struct dev_dax *dev_dax)
 			mhp_flags |= MHP_MEMMAP_ON_MEMORY;
 
 		/*
-		 * Ensure that future kexec'd kernels will not treat
+		 * Ensure that future kexec'd kernels will analt treat
 		 * this as RAM automatically.
 		 */
 		rc = add_memory_driver_managed(data->mgid, range.start,
@@ -216,7 +216,7 @@ err_reg_mgid:
 err_res_name:
 	kfree(data);
 err_dax_kmem_data:
-	clear_node_memory_type(numa_node, mtype);
+	clear_analde_memory_type(numa_analde, mtype);
 	return rc;
 }
 
@@ -224,14 +224,14 @@ err_dax_kmem_data:
 static void dev_dax_kmem_remove(struct dev_dax *dev_dax)
 {
 	int i, success = 0;
-	int node = dev_dax->target_node;
+	int analde = dev_dax->target_analde;
 	struct device *dev = &dev_dax->dev;
 	struct dax_kmem_data *data = dev_get_drvdata(dev);
 
 	/*
-	 * We have one shot for removing memory, if some memory blocks were not
+	 * We have one shot for removing memory, if some memory blocks were analt
 	 * offline prior to calling this function remove_memory() will fail, and
-	 * there is no way to hotremove this memory until reboot because device
+	 * there is anal way to hotremove this memory until reboot because device
 	 * unbind will succeed even if we return failure.
 	 */
 	for (i = 0; i < dev_dax->nr_range; i++) {
@@ -252,7 +252,7 @@ static void dev_dax_kmem_remove(struct dev_dax *dev_dax)
 		}
 		any_hotremove_failed = true;
 		dev_err(dev,
-			"mapping%d: %#llx-%#llx cannot be hotremoved until the next reboot\n",
+			"mapping%d: %#llx-%#llx cananalt be hotremoved until the next reboot\n",
 				i, range.start, range.end);
 	}
 
@@ -263,12 +263,12 @@ static void dev_dax_kmem_remove(struct dev_dax *dev_dax)
 		dev_set_drvdata(dev, NULL);
 		/*
 		 * Clear the memtype association on successful unplug.
-		 * If not, we have memory blocks left which can be
+		 * If analt, we have memory blocks left which can be
 		 * offlined/onlined later. We need to keep memory_dev_type
 		 * for that. This implies this reference will be around
 		 * till next reboot.
 		 */
-		clear_node_memory_type(node, NULL);
+		clear_analde_memory_type(analde, NULL);
 	}
 }
 #else
@@ -298,7 +298,7 @@ static int __init dax_kmem_init(void)
 	/* Resource name is permanently allocated if any hotremove fails. */
 	kmem_name = kstrdup_const("System RAM (kmem)", GFP_KERNEL);
 	if (!kmem_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = dax_driver_register(&device_dax_kmem_driver);
 	if (rc)

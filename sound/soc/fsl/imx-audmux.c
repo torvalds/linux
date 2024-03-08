@@ -31,7 +31,7 @@ static u32 reg_max;
 #ifdef CONFIG_DEBUG_FS
 static struct dentry *audmux_debugfs_root;
 
-/* There is an annoying discontinuity in the SSI numbering with regard
+/* There is an ananalying discontinuity in the SSI numbering with regard
  * to the Linux number of the devices */
 static const char *audmux_port_string(int port)
 {
@@ -49,7 +49,7 @@ static const char *audmux_port_string(int port)
 	case MX31_AUDMUX_PORT6_SSI_PINS_6:
 		return "SSI6";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -72,7 +72,7 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sysfs_emit(buf, "PDCR: %08x\nPTCR: %08x\n", pdcr, ptcr);
 
@@ -182,7 +182,7 @@ int imx_audmux_v1_configure_port(unsigned int port, unsigned int pcr)
 		return -EINVAL;
 
 	if (!audmux_base)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (port >= ARRAY_SIZE(port_mapping))
 		return -EINVAL;
@@ -202,7 +202,7 @@ int imx_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
 		return -EINVAL;
 
 	if (!audmux_base)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	ret = clk_prepare_enable(audmux_clk);
 	if (ret)
@@ -218,11 +218,11 @@ int imx_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
 EXPORT_SYMBOL_GPL(imx_audmux_v2_configure_port);
 
 static int imx_audmux_parse_dt_defaults(struct platform_device *pdev,
-		struct device_node *of_node)
+		struct device_analde *of_analde)
 {
-	struct device_node *child;
+	struct device_analde *child;
 
-	for_each_available_child_of_node(of_node, child) {
+	for_each_available_child_of_analde(of_analde, child) {
 		unsigned int port;
 		unsigned int ptcr = 0;
 		unsigned int pdcr = 0;
@@ -233,12 +233,12 @@ static int imx_audmux_parse_dt_defaults(struct platform_device *pdev,
 
 		ret = of_property_read_u32(child, "fsl,audmux-port", &port);
 		if (ret) {
-			dev_warn(&pdev->dev, "Failed to get fsl,audmux-port of child node \"%pOF\"\n",
+			dev_warn(&pdev->dev, "Failed to get fsl,audmux-port of child analde \"%pOF\"\n",
 					child);
 			continue;
 		}
 		if (!of_property_read_bool(child, "fsl,port-config")) {
-			dev_warn(&pdev->dev, "child node \"%pOF\" does not have property fsl,port-config\n",
+			dev_warn(&pdev->dev, "child analde \"%pOF\" does analt have property fsl,port-config\n",
 					child);
 			continue;
 		}
@@ -264,7 +264,7 @@ static int imx_audmux_parse_dt_defaults(struct platform_device *pdev,
 
 		if (audmux_type == IMX31_AUDMUX) {
 			if (i % 2) {
-				dev_err(&pdev->dev, "One pdcr value is missing in child node %pOF\n",
+				dev_err(&pdev->dev, "One pdcr value is missing in child analde %pOF\n",
 						child);
 				continue;
 			}
@@ -285,7 +285,7 @@ static int imx_audmux_probe(struct platform_device *pdev)
 
 	audmux_clk = devm_clk_get(&pdev->dev, "audmux");
 	if (IS_ERR(audmux_clk)) {
-		dev_dbg(&pdev->dev, "cannot get clock: %ld\n",
+		dev_dbg(&pdev->dev, "cananalt get clock: %ld\n",
 				PTR_ERR(audmux_clk));
 		audmux_clk = NULL;
 	}
@@ -307,9 +307,9 @@ static int imx_audmux_probe(struct platform_device *pdev)
 
 	regcache = devm_kzalloc(&pdev->dev, sizeof(u32) * reg_max, GFP_KERNEL);
 	if (!regcache)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	imx_audmux_parse_dt_defaults(pdev, pdev->dev.of_node);
+	imx_audmux_parse_dt_defaults(pdev, pdev->dev.of_analde);
 
 	return 0;
 }

@@ -23,7 +23,7 @@ static int cpu_get_least_loaded(struct mlx5_irq_pool *pool,
 	int cpu;
 
 	for_each_cpu_and(cpu, req_mask, cpu_online_mask) {
-		/* CPU has zero IRQs on it. No need to search any more CPUs. */
+		/* CPU has zero IRQs on it. Anal need to search any more CPUs. */
 		if (!pool->irqs_per_cpu[cpu]) {
 			best_cpu = cpu;
 			break;
@@ -35,7 +35,7 @@ static int cpu_get_least_loaded(struct mlx5_irq_pool *pool,
 	}
 	if (best_cpu == -1) {
 		/* There isn't online CPUs in req_mask */
-		mlx5_core_err(pool->dev, "NO online CPUs in req_mask (%*pbl)\n",
+		mlx5_core_err(pool->dev, "ANAL online CPUs in req_mask (%*pbl)\n",
 			      cpumask_pr_args(req_mask));
 		best_cpu = cpumask_first(cpu_online_mask);
 	}
@@ -94,7 +94,7 @@ irq_pool_find_least_loaded(struct mlx5_irq_pool *pool, const struct cpumask *req
 		int iter_refcount = mlx5_irq_read_locked(iter);
 
 		if (!cpumask_subset(iter_mask, req_mask))
-			/* skip IRQs with a mask which is not subset of req_mask */
+			/* skip IRQs with a mask which is analt subset of req_mask */
 			continue;
 		if (iter_refcount < pool->min_threshold)
 			/* If we found an IRQ with less than min_thres, return it */

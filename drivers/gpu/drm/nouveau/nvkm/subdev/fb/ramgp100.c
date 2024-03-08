@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -41,7 +41,7 @@ gp100_ram_init(struct nvkm_ram *ram)
 	 * individual pointers for each rammap entry too, but, nvidia
 	 * seem to just run the last two entries' scripts early on in
 	 * their init, and never again.. we'll just run 'em all once
-	 * for now.
+	 * for analw.
 	 *
 	 * i strongly suspect that each script is for a separate mode
 	 * (likely selected by 0x9a065c's lower bits?), and the
@@ -92,7 +92,7 @@ gp100_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	struct nvkm_ram *ram;
 
 	if (!(ram = *pram = kzalloc(sizeof(*ram), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return gf100_ram_ctor(&gp100_ram, fb, ram);
 

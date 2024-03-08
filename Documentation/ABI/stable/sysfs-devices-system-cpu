@@ -5,7 +5,7 @@ Contact:
 Description:	Writes are equivalent to writing to
 		/sys/devices/system/cpu/cpuN/dscr on all CPUs.
 		Reads return the last written value or 0.
-		This value is not a global default: it is a way to set
+		This value is analt a global default: it is a way to set
 		all per-CPU defaults at the same time.
 Values:		64 bit unsigned integer (bit field)
 
@@ -16,7 +16,7 @@ Contact:
 Description:	Default value for the Data Stream Control Register (DSCR) on
 		a CPU.
 		This default value is used when the kernel is executing and
-		for any process that has not set the DSCR itself.
+		for any process that has analt set the DSCR itself.
 		If a process ever sets the DSCR (via direct access to the
 		SPR) that value will be persisted for that process and used
 		on any CPU where it executes (overriding the value described

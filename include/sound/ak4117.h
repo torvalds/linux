@@ -47,11 +47,11 @@
 #define AK4117_XTL_12_288M	AK4117_XTL0
 #define AK4117_XTL_24_576M	AK4117_XTL1
 #define AK4117_XTL_EXT		(AK4117_XTL1|AK4117_XTL0)
-#define AK4117_PWN		(1<<1)	/* 0 = power down, 1 = normal operation */
-#define AK4117_RST		(1<<0)	/* 0 = reset & initialize (except this register), 1 = normal operation */
+#define AK4117_PWN		(1<<1)	/* 0 = power down, 1 = analrmal operation */
+#define AK4117_RST		(1<<0)	/* 0 = reset & initialize (except this register), 1 = analrmal operation */
 
 /* AK4117_REQ_CLOCK bits */
-#define AK4117_LP		(1<<7)	/* 0 = normal mode, 1 = low power mode (Fs up to 48kHz only) */
+#define AK4117_LP		(1<<7)	/* 0 = analrmal mode, 1 = low power mode (Fs up to 48kHz only) */
 #define AK4117_PKCS1		(1<<6)	/* master clock frequency at PLL mode (when LP == 0) */
 #define AK4117_PKCS0		(1<<5)
 #define AK4117_PKCS_512fs	(0)
@@ -103,17 +103,17 @@
 
 /* AK4117_REG_RCS0 */
 #define AK4117_UNLCK		(1<<7)	/* PLL lock status, 0 = lock, 1 = unlock */
-#define AK4117_PAR		(1<<6)	/* parity error or biphase error status, 0 = no error, 1 = error */
-#define AK4117_AUTO		(1<<5)	/* Non-PCM or DTS stream auto detection, 0 = no detect, 1 = detect */
+#define AK4117_PAR		(1<<6)	/* parity error or biphase error status, 0 = anal error, 1 = error */
+#define AK4117_AUTO		(1<<5)	/* Analn-PCM or DTS stream auto detection, 0 = anal detect, 1 = detect */
 #define AK4117_V		(1<<4)	/* Validity bit, 0 = valid, 1 = invalid */
-#define AK4117_AUDION		(1<<3)	/* audio bit output, 0 = audio, 1 = non-audio */
-#define AK4117_STC		(1<<2)	/* sampling frequency or Pre-emphasis change, 0 = no detect, 1 = detect */
-#define AK4117_CINT		(1<<1)	/* channel status buffer interrupt, 0 = no change, 1 = change */
-#define AK4117_QINT		(1<<0)	/* Q-subcode buffer interrupt, 0 = no change, 1 = changed */
+#define AK4117_AUDION		(1<<3)	/* audio bit output, 0 = audio, 1 = analn-audio */
+#define AK4117_STC		(1<<2)	/* sampling frequency or Pre-emphasis change, 0 = anal detect, 1 = detect */
+#define AK4117_CINT		(1<<1)	/* channel status buffer interrupt, 0 = anal change, 1 = change */
+#define AK4117_QINT		(1<<0)	/* Q-subcode buffer interrupt, 0 = anal change, 1 = changed */
 
 /* AK4117_REG_RCS1 */
-#define AK4117_DTSCD		(1<<6)	/* DTS-CD bit audio stream detect, 0 = no detect, 1 = detect */
-#define AK4117_NPCM		(1<<5)	/* Non-PCM bit stream detection, 0 = no detect, 1 = detect */
+#define AK4117_DTSCD		(1<<6)	/* DTS-CD bit audio stream detect, 0 = anal detect, 1 = detect */
+#define AK4117_NPCM		(1<<5)	/* Analn-PCM bit stream detection, 0 = anal detect, 1 = detect */
 #define AK4117_PEM		(1<<4)	/* Pre-emphasis detect, 0 = OFF, 1 = ON */
 #define AK4117_FS3		(1<<3)	/* sampling frequency detection */
 #define AK4117_FS2		(1<<2)
@@ -128,12 +128,12 @@
 #define AK4117_FS_192000HZ	(AK4117_FS3|AK4117_FS2|AK4117_FS1)
 
 /* AK4117_REG_RCS2 */
-#define AK4117_CCRC		(1<<1)	/* CRC for channel status, 0 = no error, 1 = error */
-#define AK4117_QCRC		(1<<0)	/* CRC for Q-subcode, 0 = no error, 1 = error */
+#define AK4117_CCRC		(1<<1)	/* CRC for channel status, 0 = anal error, 1 = error */
+#define AK4117_QCRC		(1<<0)	/* CRC for Q-subcode, 0 = anal error, 1 = error */
 
 /* flags for snd_ak4117_check_rate_and_errors() */
-#define AK4117_CHECK_NO_STAT	(1<<0)	/* no statistics */
-#define AK4117_CHECK_NO_RATE	(1<<1)	/* no rate check */
+#define AK4117_CHECK_ANAL_STAT	(1<<0)	/* anal statistics */
+#define AK4117_CHECK_ANAL_RATE	(1<<1)	/* anal rate check */
 
 #define AK4117_CONTROLS		13
 

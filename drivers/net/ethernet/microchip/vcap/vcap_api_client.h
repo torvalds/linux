@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
-/* Copyright (C) 2022 Microchip Technology Inc. and its subsidiaries.
+/* Copyright (C) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  * Microchip VCAP API
  */
 
@@ -222,7 +222,7 @@ const struct vcap_field *vcap_lookup_keyfield(struct vcap_rule *rule,
 int vcap_lookup_rule_by_cookie(struct vcap_control *vctrl, u64 cookie);
 /* Calculate the value used for chaining VCAP rules */
 int vcap_chain_offset(struct vcap_control *vctrl, int from_cid, int to_cid);
-/* Is the next chain id in the following lookup, possible in another VCAP */
+/* Is the next chain id in the following lookup, possible in aanalther VCAP */
 bool vcap_is_next_lookup(struct vcap_control *vctrl, int cur_cid, int next_cid);
 /* Is this chain id the last lookup of all VCAPs */
 bool vcap_is_last_chain(struct vcap_control *vctrl, int cid, bool ingress);
@@ -245,7 +245,7 @@ int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin);
 /* Add a keyset to a keyset list */
 bool vcap_keyset_list_add(struct vcap_keyset_list *keysetlist,
 			  enum vcap_keyfield_set keyset);
-/* Drop keys in a keylist and any keys that are not supported by the keyset */
+/* Drop keys in a keylist and any keys that are analt supported by the keyset */
 int vcap_filter_rule_keys(struct vcap_rule *rule,
 			  enum vcap_key_field keylist[], int length,
 			  bool drop_unsupported);

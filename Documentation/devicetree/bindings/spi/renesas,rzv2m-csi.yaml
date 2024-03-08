@@ -39,7 +39,7 @@ properties:
   power-domains:
     maxItems: 1
 
-  renesas,csi-no-ss:
+  renesas,csi-anal-ss:
     type: boolean
     description:
       The CSI Slave Selection (SS) pin won't be used to enable transmission and
@@ -57,7 +57,7 @@ required:
   - '#size-cells'
 
 dependencies:
-  renesas,csi-no-ss: [ spi-slave ]
+  renesas,csi-anal-ss: [ spi-slave ]
 
 unevaluatedProperties: false
 

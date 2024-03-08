@@ -53,7 +53,7 @@ config IBM_EMAC_EMAC4
 	bool
 	default n
 
-config IBM_EMAC_NO_FLOW_CTRL
+config IBM_EMAC_ANAL_FLOW_CTRL
 	bool
 	default n
 

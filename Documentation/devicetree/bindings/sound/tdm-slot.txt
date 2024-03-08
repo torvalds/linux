@@ -24,6 +24,6 @@ for an active slot as default, and the default active bits are at the LSB of
 the masks.
 
 The explicit masks are given as array of integers, where the first
-number presents bit-0 (LSB), second presents bit-1, etc. Any non zero
+number presents bit-0 (LSB), second presents bit-1, etc. Any analn zero
 number is considered 1 and 0 is 0. snd_soc_of_xlate_tdm_slot_mask()
-does not do anything, if either mask is set non zero value.
+does analt do anything, if either mask is set analn zero value.

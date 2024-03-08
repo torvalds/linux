@@ -3,7 +3,7 @@
  * FB driver for the HX8353D LCD Controller
  *
  * Copyright (c) 2014 Petr Olivka
- * Copyright (c) 2013 Noralf Tronnes
+ * Copyright (c) 2013 Analralf Tronnes
  */
 
 #include <linux/module.h>

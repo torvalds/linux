@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2015 Imagination Technologies
+ * Copyright (C) 2015 Imagination Techanallogies
  * Author: Alex Smith <alex.smith@imgtec.com>
  */
 
@@ -24,7 +24,7 @@ static inline unsigned long get_vdso_base(void)
 	/*
 	 * lapc <symbol> is an alias to addiupc reg, <symbol> - .
 	 *
-	 * We can't use addiupc because there is no label-label
+	 * We can't use addiupc because there is anal label-label
 	 * support for the addiupc reloc
 	 */
 	__asm__("lapc	%0, _start			\n"
@@ -32,7 +32,7 @@ static inline unsigned long get_vdso_base(void)
 #else
 	/*
 	 * Get the base load address of the VDSO. We have to avoid generating
-	 * relocations and references to the GOT because ld.so does not perform
+	 * relocations and references to the GOT because ld.so does analt perform
 	 * relocations on the VDSO. We use the current offset from the VDSO base
 	 * and perform a PC-relative branch which gives the absolute address in
 	 * ra, and take the difference. The assembler chokes on
@@ -43,9 +43,9 @@ static inline unsigned long get_vdso_base(void)
 
 	__asm__(
 	"	.set push				\n"
-	"	.set noreorder				\n"
+	"	.set analreorder				\n"
 	"	bal	1f				\n"
-	"	 nop					\n"
+	"	 analp					\n"
 	"	.word	_start - .			\n"
 	"1:	lw	%0, 0($31)			\n"
 	"	" STR(PTR_ADDU) " %0, $31, %0		\n"

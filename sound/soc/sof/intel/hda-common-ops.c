@@ -97,7 +97,7 @@ struct snd_sof_dsp_ops sof_hda_common_ops = {
 			SNDRV_PCM_INFO_MMAP_VALID |
 			SNDRV_PCM_INFO_INTERLEAVED |
 			SNDRV_PCM_INFO_PAUSE |
-			SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
+			SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP,
 
 	.dsp_arch_ops = &sof_xtensa_arch_ops,
 };

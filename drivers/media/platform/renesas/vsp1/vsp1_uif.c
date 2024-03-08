@@ -245,7 +245,7 @@ struct vsp1_uif *vsp1_uif_create(struct vsp1_device *vsp1, unsigned int index)
 
 	uif = devm_kzalloc(vsp1->dev, sizeof(*uif), GFP_KERNEL);
 	if (!uif)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (soc_device_match(vsp1_r8a7796))
 		uif->m3w_quirk = true;

@@ -49,9 +49,9 @@ GPIO bindings.
 See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt for
 further information on IRQ bindings.
 
-Sub-nodes:
+Sub-analdes:
 
-- regulators : This node defines the settings for the LDOs and BUCKs.
+- regulators : This analde defines the settings for the LDOs and BUCKs.
   The DA9062 regulators are bound using their names listed below:
 
     buck1    : BUCK_1
@@ -80,9 +80,9 @@ Sub-nodes:
   regulator-initial-mode may be specified for buck regulators using mode values
   from include/dt-bindings/regulator/dlg,da9063-regulator.h.
 
-- rtc : This node defines settings required for the Real-Time Clock associated
-  with the DA9062. There are currently no entries in this binding, however
-  compatible = "dlg,da9062-rtc" should be added if a node is created.
+- rtc : This analde defines settings required for the Real-Time Clock associated
+  with the DA9062. There are currently anal entries in this binding, however
+  compatible = "dlg,da9062-rtc" should be added if a analde is created.
 
 - onkey : See ../input/da9062-onkey.txt
 

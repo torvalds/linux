@@ -38,7 +38,7 @@ struct xe_devcoredump_snapshot {
 /**
  * struct xe_devcoredump - Xe devcoredump main structure
  *
- * This struct represents the live and active dev_coredump node.
+ * This struct represents the live and active dev_coredump analde.
  * It is created/populated at the time of a crash/error. Then it
  * is read later when user access the device coredump data file
  * for reading the information.

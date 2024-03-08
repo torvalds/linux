@@ -488,14 +488,14 @@ DECLARE_EVENT_CLASS(xprtrdma_wrch_event,
 TRACE_DEFINE_ENUM(DMA_BIDIRECTIONAL);
 TRACE_DEFINE_ENUM(DMA_TO_DEVICE);
 TRACE_DEFINE_ENUM(DMA_FROM_DEVICE);
-TRACE_DEFINE_ENUM(DMA_NONE);
+TRACE_DEFINE_ENUM(DMA_ANALNE);
 
 #define xprtrdma_show_direction(x)					\
 		__print_symbolic(x,					\
 				{ DMA_BIDIRECTIONAL, "BIDIR" },		\
 				{ DMA_TO_DEVICE, "TO_DEVICE" },		\
 				{ DMA_FROM_DEVICE, "FROM_DEVICE" },	\
-				{ DMA_NONE, "NONE" })
+				{ DMA_ANALNE, "ANALNE" })
 
 DECLARE_EVENT_CLASS(xprtrdma_mr_class,
 	TP_PROTO(
@@ -552,7 +552,7 @@ DECLARE_EVENT_CLASS(xprtrdma_mr_class,
 				),					\
 				TP_ARGS(mr))
 
-DECLARE_EVENT_CLASS(xprtrdma_anonymous_mr_class,
+DECLARE_EVENT_CLASS(xprtrdma_aanalnymous_mr_class,
 	TP_PROTO(
 		const struct rpcrdma_mr *mr
 	),
@@ -584,8 +584,8 @@ DECLARE_EVENT_CLASS(xprtrdma_anonymous_mr_class,
 	)
 );
 
-#define DEFINE_ANON_MR_EVENT(name)					\
-		DEFINE_EVENT(xprtrdma_anonymous_mr_class,		\
+#define DEFINE_AANALN_MR_EVENT(name)					\
+		DEFINE_EVENT(xprtrdma_aanalnymous_mr_class,		\
 				xprtrdma_mr_##name,			\
 				TP_PROTO(				\
 					const struct rpcrdma_mr *mr	\
@@ -755,7 +755,7 @@ TRACE_EVENT(xprtrdma_createmrs,
 	)
 );
 
-TRACE_EVENT(xprtrdma_nomrs_err,
+TRACE_EVENT(xprtrdma_analmrs_err,
 	TP_PROTO(
 		const struct rpcrdma_xprt *r_xprt,
 		const struct rpcrdma_req *req
@@ -790,9 +790,9 @@ DEFINE_WRCH_EVENT(write);
 DEFINE_WRCH_EVENT(reply);
 DEFINE_WRCH_EVENT(wp);
 
-TRACE_DEFINE_ENUM(rpcrdma_noch);
-TRACE_DEFINE_ENUM(rpcrdma_noch_pullup);
-TRACE_DEFINE_ENUM(rpcrdma_noch_mapped);
+TRACE_DEFINE_ENUM(rpcrdma_analch);
+TRACE_DEFINE_ENUM(rpcrdma_analch_pullup);
+TRACE_DEFINE_ENUM(rpcrdma_analch_mapped);
 TRACE_DEFINE_ENUM(rpcrdma_readch);
 TRACE_DEFINE_ENUM(rpcrdma_areadch);
 TRACE_DEFINE_ENUM(rpcrdma_writech);
@@ -800,9 +800,9 @@ TRACE_DEFINE_ENUM(rpcrdma_replych);
 
 #define xprtrdma_show_chunktype(x)					\
 		__print_symbolic(x,					\
-				{ rpcrdma_noch, "inline" },		\
-				{ rpcrdma_noch_pullup, "pullup" },	\
-				{ rpcrdma_noch_mapped, "mapped" },	\
+				{ rpcrdma_analch, "inline" },		\
+				{ rpcrdma_analch_pullup, "pullup" },	\
+				{ rpcrdma_analch_mapped, "mapped" },	\
 				{ rpcrdma_readch, "read list" },	\
 				{ rpcrdma_areadch, "*read list" },	\
 				{ rpcrdma_writech, "write list" },	\
@@ -1204,7 +1204,7 @@ DEFINE_MR_EVENT(localinv);
 DEFINE_MR_EVENT(reminv);
 DEFINE_MR_EVENT(map);
 
-DEFINE_ANON_MR_EVENT(unmap);
+DEFINE_AANALN_MR_EVENT(unmap);
 
 TRACE_EVENT(xprtrdma_dma_maperr,
 	TP_PROTO(
@@ -1499,7 +1499,7 @@ DEFINE_ACCEPT_EVENT(initdepth);
 DEFINE_ACCEPT_EVENT(accept);
 
 TRACE_DEFINE_ENUM(RDMA_MSG);
-TRACE_DEFINE_ENUM(RDMA_NOMSG);
+TRACE_DEFINE_ENUM(RDMA_ANALMSG);
 TRACE_DEFINE_ENUM(RDMA_MSGP);
 TRACE_DEFINE_ENUM(RDMA_DONE);
 TRACE_DEFINE_ENUM(RDMA_ERROR);
@@ -1507,7 +1507,7 @@ TRACE_DEFINE_ENUM(RDMA_ERROR);
 #define show_rpcrdma_proc(x)						\
 		__print_symbolic(x,					\
 				{ RDMA_MSG, "RDMA_MSG" },		\
-				{ RDMA_NOMSG, "RDMA_NOMSG" },		\
+				{ RDMA_ANALMSG, "RDMA_ANALMSG" },		\
 				{ RDMA_MSGP, "RDMA_MSGP" },		\
 				{ RDMA_DONE, "RDMA_DONE" },		\
 				{ RDMA_ERROR, "RDMA_ERROR" })
@@ -1620,18 +1620,18 @@ DEFINE_BADREQ_EVENT(parse);
 TRACE_EVENT(svcrdma_encode_wseg,
 	TP_PROTO(
 		const struct svc_rdma_send_ctxt *ctxt,
-		u32 segno,
+		u32 seganal,
 		u32 handle,
 		u32 length,
 		u64 offset
 	),
 
-	TP_ARGS(ctxt, segno, handle, length, offset),
+	TP_ARGS(ctxt, seganal, handle, length, offset),
 
 	TP_STRUCT__entry(
 		__field(u32, cq_id)
 		__field(int, completion_id)
-		__field(u32, segno)
+		__field(u32, seganal)
 		__field(u32, handle)
 		__field(u32, length)
 		__field(u64, offset)
@@ -1640,15 +1640,15 @@ TRACE_EVENT(svcrdma_encode_wseg,
 	TP_fast_assign(
 		__entry->cq_id = ctxt->sc_cid.ci_queue_id;
 		__entry->completion_id = ctxt->sc_cid.ci_completion_id;
-		__entry->segno = segno;
+		__entry->seganal = seganal;
 		__entry->handle = handle;
 		__entry->length = length;
 		__entry->offset = offset;
 	),
 
-	TP_printk("cq.id=%u cid=%d segno=%u %u@0x%016llx:0x%08x",
+	TP_printk("cq.id=%u cid=%d seganal=%u %u@0x%016llx:0x%08x",
 		__entry->cq_id, __entry->completion_id,
-		__entry->segno, __entry->length,
+		__entry->seganal, __entry->length,
 		(unsigned long long)__entry->offset, __entry->handle
 	)
 );
@@ -1665,7 +1665,7 @@ TRACE_EVENT(svcrdma_decode_rseg,
 	TP_STRUCT__entry(
 		__field(u32, cq_id)
 		__field(int, completion_id)
-		__field(u32, segno)
+		__field(u32, seganal)
 		__field(u32, position)
 		__field(u32, handle)
 		__field(u32, length)
@@ -1675,16 +1675,16 @@ TRACE_EVENT(svcrdma_decode_rseg,
 	TP_fast_assign(
 		__entry->cq_id = cid->ci_queue_id;
 		__entry->completion_id = cid->ci_completion_id;
-		__entry->segno = chunk->ch_segcount;
+		__entry->seganal = chunk->ch_segcount;
 		__entry->position = chunk->ch_position;
 		__entry->handle = segment->rs_handle;
 		__entry->length = segment->rs_length;
 		__entry->offset = segment->rs_offset;
 	),
 
-	TP_printk("cq.id=%u cid=%d segno=%u position=%u %u@0x%016llx:0x%08x",
+	TP_printk("cq.id=%u cid=%d seganal=%u position=%u %u@0x%016llx:0x%08x",
 		__entry->cq_id, __entry->completion_id,
-		__entry->segno, __entry->position, __entry->length,
+		__entry->seganal, __entry->position, __entry->length,
 		(unsigned long long)__entry->offset, __entry->handle
 	)
 );
@@ -1693,15 +1693,15 @@ TRACE_EVENT(svcrdma_decode_wseg,
 	TP_PROTO(
 		const struct rpc_rdma_cid *cid,
 		const struct svc_rdma_chunk *chunk,
-		u32 segno
+		u32 seganal
 	),
 
-	TP_ARGS(cid, chunk, segno),
+	TP_ARGS(cid, chunk, seganal),
 
 	TP_STRUCT__entry(
 		__field(u32, cq_id)
 		__field(int, completion_id)
-		__field(u32, segno)
+		__field(u32, seganal)
 		__field(u32, handle)
 		__field(u32, length)
 		__field(u64, offset)
@@ -1709,19 +1709,19 @@ TRACE_EVENT(svcrdma_decode_wseg,
 
 	TP_fast_assign(
 		const struct svc_rdma_segment *segment =
-			&chunk->ch_segments[segno];
+			&chunk->ch_segments[seganal];
 
 		__entry->cq_id = cid->ci_queue_id;
 		__entry->completion_id = cid->ci_completion_id;
-		__entry->segno = segno;
+		__entry->seganal = seganal;
 		__entry->handle = segment->rs_handle;
 		__entry->length = segment->rs_length;
 		__entry->offset = segment->rs_offset;
 	),
 
-	TP_printk("cq.id=%u cid=%d segno=%u %u@0x%016llx:0x%08x",
+	TP_printk("cq.id=%u cid=%d seganal=%u %u@0x%016llx:0x%08x",
 		__entry->cq_id, __entry->completion_id,
-		__entry->segno, __entry->length,
+		__entry->seganal, __entry->length,
 		(unsigned long long)__entry->offset, __entry->handle
 	)
 );
@@ -1862,26 +1862,26 @@ TRACE_EVENT(svcrdma_rwctx_empty,
 TRACE_EVENT(svcrdma_page_overrun_err,
 	TP_PROTO(
 		const struct rpc_rdma_cid *cid,
-		unsigned int pageno
+		unsigned int pageanal
 	),
 
-	TP_ARGS(cid, pageno),
+	TP_ARGS(cid, pageanal),
 
 	TP_STRUCT__entry(
 		__field(u32, cq_id)
 		__field(int, completion_id)
-		__field(unsigned int, pageno)
+		__field(unsigned int, pageanal)
 	),
 
 	TP_fast_assign(
 		__entry->cq_id = cid->ci_queue_id;
 		__entry->completion_id = cid->ci_completion_id;
-		__entry->pageno = pageno;
+		__entry->pageanal = pageanal;
 	),
 
-	TP_printk("cq.id=%u cid=%d pageno=%u",
+	TP_printk("cq.id=%u cid=%d pageanal=%u",
 		__entry->cq_id, __entry->completion_id,
-		__entry->pageno
+		__entry->pageanal
 	)
 );
 
@@ -1889,17 +1889,17 @@ TRACE_EVENT(svcrdma_small_wrch_err,
 	TP_PROTO(
 		const struct rpc_rdma_cid *cid,
 		unsigned int remaining,
-		unsigned int seg_no,
+		unsigned int seg_anal,
 		unsigned int num_segs
 	),
 
-	TP_ARGS(cid, remaining, seg_no, num_segs),
+	TP_ARGS(cid, remaining, seg_anal, num_segs),
 
 	TP_STRUCT__entry(
 		__field(u32, cq_id)
 		__field(int, completion_id)
 		__field(unsigned int, remaining)
-		__field(unsigned int, seg_no)
+		__field(unsigned int, seg_anal)
 		__field(unsigned int, num_segs)
 	),
 
@@ -1907,13 +1907,13 @@ TRACE_EVENT(svcrdma_small_wrch_err,
 		__entry->cq_id = cid->ci_queue_id;
 		__entry->completion_id = cid->ci_completion_id;
 		__entry->remaining = remaining;
-		__entry->seg_no = seg_no;
+		__entry->seg_anal = seg_anal;
 		__entry->num_segs = num_segs;
 	),
 
-	TP_printk("cq.id=%u cid=%d remaining=%u seg_no=%u num_segs=%u",
+	TP_printk("cq.id=%u cid=%d remaining=%u seg_anal=%u num_segs=%u",
 		__entry->cq_id, __entry->completion_id,
-		__entry->remaining, __entry->seg_no, __entry->num_segs
+		__entry->remaining, __entry->seg_anal, __entry->num_segs
 	)
 );
 

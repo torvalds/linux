@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2016 Mellaanalx Techanallogies. All rights reserved.
+ * Copyright (c) 2016 Jiri Pirko <jiri@mellaanalx.com>
  */
 
 #include <net/genetlink.h>
@@ -38,7 +38,7 @@ static void devlink_nl_sock_priv_destroy(void *priv)
 	kfree_rcu(flt, rcu);
 }
 
-int devlink_nl_notify_filter_set_doit(struct sk_buff *skb,
+int devlink_nl_analtify_filter_set_doit(struct sk_buff *skb,
 				      struct genl_info *info)
 {
 	struct devlink_nl_sock_priv *sk_priv;
@@ -57,7 +57,7 @@ int devlink_nl_notify_filter_set_doit(struct sk_buff *skb,
 
 	flt = kzalloc(size_add(sizeof(*flt), data_size), GFP_KERNEL);
 	if (!flt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos = (char *) flt->data;
 	if (attrs[DEVLINK_ATTR_BUS_NAME]) {
@@ -112,7 +112,7 @@ static bool devlink_obj_desc_match(const struct devlink_obj_desc *desc,
 	return true;
 }
 
-int devlink_nl_notify_filter(struct sock *dsk, struct sk_buff *skb, void *data)
+int devlink_nl_analtify_filter(struct sock *dsk, struct sk_buff *skb, void *data)
 {
 	struct devlink_obj_desc *desc = data;
 	struct devlink_nl_sock_priv *sk_priv;
@@ -173,7 +173,7 @@ int devlink_nl_msg_reply_and_new(struct sk_buff **msg, struct genl_info *info)
 	}
 	*msg = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!*msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -202,7 +202,7 @@ devlink_get_from_attrs_lock(struct net *net, struct nlattr **attrs,
 		devlink_put(devlink);
 	}
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static int __devlink_nl_pre_doit(struct sk_buff *skb, struct genl_info *info,

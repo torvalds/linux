@@ -28,7 +28,7 @@ do {								\
 	cmdq_pkt_wfe(&((c)->pkt), (e), true);			\
 } while (0)
 
-#define MM_REG_WAIT_NO_CLEAR(cmd, evt)				\
+#define MM_REG_WAIT_ANAL_CLEAR(cmd, evt)				\
 do {								\
 	typeof(cmd) (c) = (cmd);				\
 	typeof(evt) (e) = (evt);				\
@@ -65,7 +65,7 @@ do {								\
 } while (0)
 
 enum mtk_mdp_comp_id {
-	MDP_COMP_NONE = -1,	/* Invalid engine */
+	MDP_COMP_ANALNE = -1,	/* Invalid engine */
 
 	/* ISP */
 	MDP_COMP_WPEI = 0,
@@ -127,7 +127,7 @@ enum mdp_comp_type {
 	MDP_COMP_TYPE_COUNT	/* ALWAYS keep at the end */
 };
 
-#define MDP_GCE_NO_EVENT (-1)
+#define MDP_GCE_ANAL_EVENT (-1)
 enum {
 	MDP_GCE_EVENT_SOF = 0,
 	MDP_GCE_EVENT_EOF = 1,

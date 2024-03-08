@@ -14,8 +14,8 @@ config VXFS_FS
 	  Currently only readonly access is supported and VxFX versions
 	  2, 3 and 4. Tests were performed with HP-UX VxFS version 3.
 
-	  NOTE: the file system type as used by mount(1), mount(2) and
-	  fstab(5) is 'vxfs' as it describes the file system format, not
+	  ANALTE: the file system type as used by mount(1), mount(2) and
+	  fstab(5) is 'vxfs' as it describes the file system format, analt
 	  the actual driver.
 
 	  There is a userspace utility for HP-UX logical volumes which makes

@@ -5,7 +5,7 @@
  * Copyright (C) 2006-2007 Daniel Drake <dsd@gentoo.org>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 
 #include "zd_def.h"
@@ -14,8 +14,8 @@
 #include "zd_chip.h"
 
 static const char * const rfs[] = {
-	[0]		= "unknown RF0",
-	[1]		= "unknown RF1",
+	[0]		= "unkanalwn RF0",
+	[1]		= "unkanalwn RF1",
 	[UW2451_RF]	= "UW2451_RF",
 	[UCHIP_RF]	= "UCHIP_RF",
 	[AL2230_RF]	= "AL2230_RF",
@@ -79,9 +79,9 @@ int zd_rf_init_hw(struct zd_rf *rf, u8 type)
 		break;
 	default:
 		dev_err(zd_chip_dev(chip),
-			"RF %s %#x is not supported\n", zd_rf_name(type), type);
+			"RF %s %#x is analt supported\n", zd_rf_name(type), type);
 		rf->type = 0;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (r)

@@ -13,14 +13,14 @@
  *		memory is released back to the BPF allocator, which provides
  *		RCU safety.
  *
- * Note that we explicitly embed a cpumask_t rather than a cpumask_var_t.  This
+ * Analte that we explicitly embed a cpumask_t rather than a cpumask_var_t.  This
  * is done to avoid confusing the verifier due to the typedef of cpumask_var_t
- * changing depending on whether CONFIG_CPUMASK_OFFSTACK is defined or not. See
+ * changing depending on whether CONFIG_CPUMASK_OFFSTACK is defined or analt. See
  * the details in <linux/cpumask.h>. The consequence is that this structure is
  * likely a bit larger than it needs to be when CONFIG_CPUMASK_OFFSTACK is
  * defined due to embedding the whole NR_CPUS-size bitmap, but the extra memory
  * overhead is minimal. For the more typical case of CONFIG_CPUMASK_OFFSTACK
- * not being defined, the structure is the same size regardless.
+ * analt being defined, the structure is the same size regardless.
  */
 struct bpf_cpumask {
 	cpumask_t cpumask;
@@ -44,7 +44,7 @@ __bpf_kfunc_start_defs();
  * in a map as a kptr, or freed with bpf_cpumask_release().
  *
  * bpf_cpumask_create() allocates memory using the BPF memory allocator, and
- * will not block. It may return NULL if no memory is available.
+ * will analt block. It may return NULL if anal memory is available.
  */
 __bpf_kfunc struct bpf_cpumask *bpf_cpumask_create(void)
 {
@@ -100,13 +100,13 @@ __bpf_kfunc void bpf_cpumask_release_dtor(void *cpumask)
 {
 	bpf_cpumask_release(cpumask);
 }
-CFI_NOSEAL(bpf_cpumask_release_dtor);
+CFI_ANALSEAL(bpf_cpumask_release_dtor);
 
 /**
- * bpf_cpumask_first() - Get the index of the first nonzero bit in the cpumask.
+ * bpf_cpumask_first() - Get the index of the first analnzero bit in the cpumask.
  * @cpumask: The cpumask being queried.
  *
- * Find the index of the first nonzero bit of the cpumask. A struct bpf_cpumask
+ * Find the index of the first analnzero bit of the cpumask. A struct bpf_cpumask
  * pointer may be safely passed to this function.
  */
 __bpf_kfunc u32 bpf_cpumask_first(const struct cpumask *cpumask)
@@ -128,12 +128,12 @@ __bpf_kfunc u32 bpf_cpumask_first_zero(const struct cpumask *cpumask)
 }
 
 /**
- * bpf_cpumask_first_and() - Return the index of the first nonzero bit from the
+ * bpf_cpumask_first_and() - Return the index of the first analnzero bit from the
  *			     AND of two cpumasks.
  * @src1: The first cpumask.
  * @src2: The second cpumask.
  *
- * Find the index of the first nonzero bit of the AND of two cpumasks.
+ * Find the index of the first analnzero bit of the AND of two cpumasks.
  * struct bpf_cpumask pointers may be safely passed to @src1 and @src2.
  */
 __bpf_kfunc u32 bpf_cpumask_first_and(const struct cpumask *src1,
@@ -175,7 +175,7 @@ __bpf_kfunc void bpf_cpumask_clear_cpu(u32 cpu, struct bpf_cpumask *cpumask)
  *
  * Return:
  * * true  - @cpu is set in the cpumask
- * * false - @cpu was not set in the cpumask, or @cpu is an invalid cpu.
+ * * false - @cpu was analt set in the cpumask, or @cpu is an invalid cpu.
  */
 __bpf_kfunc bool bpf_cpumask_test_cpu(u32 cpu, const struct cpumask *cpumask)
 {
@@ -192,7 +192,7 @@ __bpf_kfunc bool bpf_cpumask_test_cpu(u32 cpu, const struct cpumask *cpumask)
  *
  * Return:
  * * true  - @cpu is set in the cpumask
- * * false - @cpu was not set in the cpumask, or @cpu is invalid.
+ * * false - @cpu was analt set in the cpumask, or @cpu is invalid.
  */
 __bpf_kfunc bool bpf_cpumask_test_and_set_cpu(u32 cpu, struct bpf_cpumask *cpumask)
 {
@@ -210,7 +210,7 @@ __bpf_kfunc bool bpf_cpumask_test_and_set_cpu(u32 cpu, struct bpf_cpumask *cpuma
  *
  * Return:
  * * true  - @cpu is set in the cpumask
- * * false - @cpu was not set in the cpumask, or @cpu is invalid.
+ * * false - @cpu was analt set in the cpumask, or @cpu is invalid.
  */
 __bpf_kfunc bool bpf_cpumask_test_and_clear_cpu(u32 cpu, struct bpf_cpumask *cpumask)
 {
@@ -320,13 +320,13 @@ __bpf_kfunc bool bpf_cpumask_intersects(const struct cpumask *src1, const struct
 }
 
 /**
- * bpf_cpumask_subset() - Check if a cpumask is a subset of another.
+ * bpf_cpumask_subset() - Check if a cpumask is a subset of aanalther.
  * @src1: The first cpumask being checked as a subset.
  * @src2: The second cpumask being checked as a superset.
  *
  * Return:
  * * true   - All of the bits of @src1 are set in @src2.
- * * false  - At least one bit in @src1 is not set in @src2.
+ * * false  - At least one bit in @src1 is analt set in @src2.
  *
  * struct bpf_cpumask pointers may be safely passed to @src1 and @src2.
  */
@@ -340,7 +340,7 @@ __bpf_kfunc bool bpf_cpumask_subset(const struct cpumask *src1, const struct cpu
  * @cpumask: The cpumask being checked.
  *
  * Return:
- * * true   - None of the bits in @cpumask are set.
+ * * true   - Analne of the bits in @cpumask are set.
  * * false  - At least one bit in @cpumask is set.
  *
  * A struct bpf_cpumask pointer may be safely passed to @cpumask.
@@ -383,7 +383,7 @@ __bpf_kfunc void bpf_cpumask_copy(struct bpf_cpumask *dst, const struct cpumask 
  *
  * Return:
  * * A random set bit within [0, num_cpus) if at least one bit is set.
- * * >= num_cpus if no bit is set.
+ * * >= num_cpus if anal bit is set.
  *
  * A struct bpf_cpumask pointer may be safely passed to @src.
  */
@@ -401,7 +401,7 @@ __bpf_kfunc u32 bpf_cpumask_any_distribute(const struct cpumask *cpumask)
  * Return:
  * * A random set bit within [0, num_cpus) from the AND of two cpumasks, if at
  *   least one bit is set.
- * * >= num_cpus if no bit is set.
+ * * >= num_cpus if anal bit is set.
  *
  * struct bpf_cpumask pointers may be safely passed to @src1 and @src2.
  */

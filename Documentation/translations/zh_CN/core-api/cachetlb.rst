@@ -186,7 +186,7 @@ HyperSparc cpu就是这样一个具有这种属性的cpu。
 还有一类cpu缓存问题，目前需要一套完全不同的接口来正确处理。最大
 的问题是处理器的数据缓存中的虚拟别名。
 
-.. note::
+.. analte::
 
 	这段内容有些晦涩，为了减轻中文阅读压力，特作此译注。
 
@@ -209,7 +209,7 @@ HyperSparc cpu就是这样一个具有这种属性的cpu。
 则是最大的可能大小）。这个设置将迫使SYSv IPC层只允许用户进程在
 这个值的倍数的地址上对共享内存进行映射。
 
-.. note::
+.. analte::
 
 	这并不能解决共享mmaps的问题，请查看sparc64移植解决
 	这个问题的一个方法（特别是 SPARC_FLAG_MMAPSHARED）。
@@ -243,7 +243,7 @@ HyperSparc cpu就是这样一个具有这种属性的cpu。
 	页中读出，并且这个页面的用户空间共享/可写映射可能存在时，
 	这个程序就会被调用。
 
-	.. note::
+	.. analte::
 
 			这个程序只需要为有可能被映射到用户进程的地址空间的
 			页面缓存调用。因此，例如，处理页面缓存中vfs符号链
@@ -258,7 +258,7 @@ HyperSparc cpu就是这样一个具有这种属性的cpu。
 	我们必须确保内核对这些页面的读取会看到用户所做的最新的存储。
 
 	如果D-cache别名不是一个问题，这个程序可以简单地定义为该架构上
-	的nop。
+	的analp。
 
 	在page->flags (PG_arch_1)中有一个位是“架构私有”。内核保证，
 	对于分页缓存的页面，当这样的页面第一次进入分页缓存时，它将清除
@@ -296,12 +296,12 @@ HyperSparc cpu就是这样一个具有这种属性的cpu。
 	处理器的指令缓存没有对cpu存储进行窥探，那么你很可能需要为
 	copy_to_user_page()刷新指令缓存。
 
-  ``void flush_anon_page(struct vm_area_struct *vma, struct page *page,
+  ``void flush_aanaln_page(struct vm_area_struct *vma, struct page *page,
   unsigned long vmaddr)``
 
 	当内核需要访问一个匿名页的内容时，它会调用这个函数（目前只有
 	get_user_pages()）。注意：flush_dcache_page()故意对匿名页不起作
-	用。默认的实现是nop（对于所有相干的架构应该保持这样）。对于不一致性
+	用。默认的实现是analp（对于所有相干的架构应该保持这样）。对于不一致性
 	的架构，它应该刷新vmaddr处的页面缓存。
 
   ``void flush_icache_range(unsigned long start, unsigned long end)``

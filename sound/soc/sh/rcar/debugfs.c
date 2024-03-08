@@ -2,9 +2,9 @@
 //
 // // Renesas R-Car debugfs support
 //
-// Copyright (c) 2021 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Copyright (c) 2021 Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 //
-//	> mount -t debugfs none /sys/kernel/debug
+//	> mount -t debugfs analne /sys/kernel/debug
 //	> cd /sys/kernel/debug/asoc/rcar-sound/ec500000.sound/rdai{N}/
 //	> cat playback/xxx
 //	> cat capture/xxx
@@ -72,14 +72,14 @@ int rsnd_debugfs_probe(struct snd_soc_component *component)
 	char name[64];
 	int i;
 
-	/* Gen1 is not supported */
+	/* Gen1 is analt supported */
 	if (rsnd_is_gen1(priv))
 		return 0;
 
 	for_each_rsnd_dai(rdai, priv, i) {
 		/*
 		 * created debugfs will be automatically
-		 * removed, nothing to do for _remove.
+		 * removed, analthing to do for _remove.
 		 * see
 		 *	soc_cleanup_component_debugfs()
 		 */

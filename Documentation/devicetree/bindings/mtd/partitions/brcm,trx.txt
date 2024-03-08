@@ -18,7 +18,7 @@ useful for systems that keep kernel and rootfs separated.
 TRX doesn't enforce any strict partition boundaries or size limits. All
 partitions have to be less than the 4GiB max size limit.
 
-There are two existing/known TRX variants:
+There are two existing/kanalwn TRX variants:
 1) v1 which contains 3 partitions
 2) v2 which contains 4 partitions
 

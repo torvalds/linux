@@ -906,9 +906,9 @@ static int gcm_aes_crypt(struct aead_request *req, unsigned int flags)
 
 		n = aad_bytes + pc_bytes;
 		if (gcm_in_walk_done(&gw_in, n) != n)
-			return -ENOMEM;
+			return -EANALMEM;
 		if (gcm_out_walk_done(&gw_out, n) != n)
-			return -ENOMEM;
+			return -EANALMEM;
 		aadlen -= aad_bytes;
 		pclen -= pc_bytes;
 	} while (aadlen + pclen > 0);
@@ -1024,7 +1024,7 @@ static int __init aes_s390_init(void)
 	    cpacf_test_func(&kmctr_functions, CPACF_KMCTR_AES_256)) {
 		ctrblk = (u8 *) __get_free_page(GFP_KERNEL);
 		if (!ctrblk) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_err;
 		}
 		ret = aes_s390_register_skcipher(&ctr_aes_alg);

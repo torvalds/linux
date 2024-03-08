@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -119,7 +119,7 @@ static int vmw_overlay_send_put(struct vmw_private *dev_priv,
 	cmds = VMW_CMD_RESERVE(dev_priv, fifo_size);
 	/* hardware has hung, can't do anything here */
 	if (!cmds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	items = (typeof(items))&cmds[1];
 	flush = (struct vmw_escape_video_flush *)&items[num_items];
@@ -213,7 +213,7 @@ static int vmw_overlay_send_stop(struct vmw_private *dev_priv,
 /*
  * Move a buffer to vram or gmr if @pin is set, else unpin the buffer.
  *
- * With the introduction of screen objects buffers could now be
+ * With the introduction of screen objects buffers could analw be
  * used with GMRs instead of being locked to vram.
  */
 static int vmw_overlay_move_buffer(struct vmw_private *dev_priv,
@@ -232,7 +232,7 @@ static int vmw_overlay_move_buffer(struct vmw_private *dev_priv,
 /*
  * Stop or pause a stream.
  *
- * If the stream is paused the no evict flag is removed from the buffer
+ * If the stream is paused the anal evict flag is removed from the buffer
  * but left in vram. This allows for instance mode_set to evict it
  * should it need to.
  *
@@ -249,7 +249,7 @@ static int vmw_overlay_stop(struct vmw_private *dev_priv,
 	struct vmw_stream *stream = &overlay->stream[stream_id];
 	int ret;
 
-	/* no buffer attached the stream is completely stopped */
+	/* anal buffer attached the stream is completely stopped */
 	if (!stream->buf)
 		return 0;
 
@@ -260,7 +260,7 @@ static int vmw_overlay_stop(struct vmw_private *dev_priv,
 		if (ret)
 			return ret;
 
-		/* We just remove the NO_EVICT flag so no -ENOMEM */
+		/* We just remove the ANAL_EVICT flag so anal -EANALMEM */
 		ret = vmw_overlay_move_buffer(dev_priv, stream->buf, false,
 					      interruptible);
 		if (interruptible && ret == -ERESTARTSYS)
@@ -285,7 +285,7 @@ static int vmw_overlay_stop(struct vmw_private *dev_priv,
  * The caller must hold the overlay lock.
  *
  * Returns
- * -ENOMEM if buffer doesn't fit in vram.
+ * -EANALMEM if buffer doesn't fit in vram.
  * -ERESTARTSYS if interrupted.
  */
 static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
@@ -301,7 +301,7 @@ static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
 		return -EINVAL;
 
 	DRM_DEBUG("   %s: old %p, new %p, %spaused\n", __func__,
-		  stream->buf, buf, stream->paused ? "" : "not ");
+		  stream->buf, buf, stream->paused ? "" : "analt ");
 
 	if (stream->buf != buf) {
 		ret = vmw_overlay_stop(dev_priv, arg->stream_id,
@@ -309,8 +309,8 @@ static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
 		if (ret)
 			return ret;
 	} else if (!stream->paused) {
-		/* If the buffers match and not paused then just send
-		 * the put command, no need to do anything else.
+		/* If the buffers match and analt paused then just send
+		 * the put command, anal need to do anything else.
 		 */
 		ret = vmw_overlay_send_put(dev_priv, buf, arg, interruptible);
 		if (ret == 0)
@@ -322,7 +322,7 @@ static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
 	}
 
 	/* We don't start the old stream if we are interrupted.
-	 * Might return -ENOMEM if it can't fit the buffer in vram.
+	 * Might return -EANALMEM if it can't fit the buffer in vram.
 	 */
 	ret = vmw_overlay_move_buffer(dev_priv, buf, true, interruptible);
 	if (ret)
@@ -330,8 +330,8 @@ static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
 
 	ret = vmw_overlay_send_put(dev_priv, buf, arg, interruptible);
 	if (ret) {
-		/* This one needs to happen no matter what. We only remove
-		 * the NO_EVICT flag so this is safe from -ENOMEM.
+		/* This one needs to happen anal matter what. We only remove
+		 * the ANAL_EVICT flag so this is safe from -EANALMEM.
 		 */
 		BUG_ON(vmw_overlay_move_buffer(dev_priv, buf, false, false)
 		       != 0);
@@ -341,7 +341,7 @@ static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
 	if (stream->buf != buf)
 		stream->buf = vmw_bo_reference(buf);
 	stream->saved = *arg;
-	/* stream is no longer stopped/paused */
+	/* stream is anal longer stopped/paused */
 	stream->paused = false;
 
 	return 0;
@@ -350,7 +350,7 @@ static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
 /*
  * Try to resume all paused streams.
  *
- * Used by the kms code after moving a new scanout buffer to vram.
+ * Used by the kms code after moving a new scaanalut buffer to vram.
  *
  * Takes the overlay lock.
  */
@@ -384,7 +384,7 @@ int vmw_overlay_resume_all(struct vmw_private *dev_priv)
 /*
  * Pauses all active streams.
  *
- * Used by the kms code when moving a new scanout buffer to vram.
+ * Used by the kms code when moving a new scaanalut buffer to vram.
  *
  * Takes the overlay lock.
  */
@@ -432,7 +432,7 @@ int vmw_overlay_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!vmw_overlay_available(dev_priv))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	ret = vmw_user_stream_lookup(dev_priv, tfile, &arg->stream_id, &res);
 	if (ret)
@@ -493,7 +493,7 @@ int vmw_overlay_claim(struct vmw_private *dev_priv, uint32_t *out)
 	int i;
 
 	if (!overlay)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	mutex_lock(&overlay->mutex);
 
@@ -519,7 +519,7 @@ int vmw_overlay_unref(struct vmw_private *dev_priv, uint32_t stream_id)
 	BUG_ON(stream_id >= VMW_MAX_NUM_STREAMS);
 
 	if (!overlay)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	mutex_lock(&overlay->mutex);
 
@@ -541,7 +541,7 @@ int vmw_overlay_init(struct vmw_private *dev_priv)
 
 	overlay = kzalloc(sizeof(*overlay), GFP_KERNEL);
 	if (!overlay)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&overlay->mutex);
 	for (i = 0; i < VMW_MAX_NUM_STREAMS; i++) {
@@ -562,7 +562,7 @@ int vmw_overlay_close(struct vmw_private *dev_priv)
 	int i;
 
 	if (!overlay)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	for (i = 0; i < VMW_MAX_NUM_STREAMS; i++) {
 		if (overlay->stream[i].buf) {

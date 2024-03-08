@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -26,7 +26,7 @@
 /* FILE POLICY AND INTENDED USAGE:
  *
  * This file implements generic display communication protocols such as i2c, aux
- * and scdc. The file should not contain any specific applications of these
+ * and scdc. The file should analt contain any specific applications of these
  * protocols such as display capability query, detection, or handshaking such as
  * link training.
  */
@@ -306,7 +306,7 @@ static bool submit_aux_command(struct ddc_service *ddc,
 		current_payload.reply = payload->reply;
 		current_payload.write = payload->write;
 
-		ret = link_aux_transfer_with_retries_no_mutex(ddc, &current_payload);
+		ret = link_aux_transfer_with_retries_anal_mutex(ddc, &current_payload);
 
 		retrieved += payload_length;
 	} while (retrieved < payload->length && ret == true);
@@ -349,7 +349,7 @@ bool link_query_ddc_data(
 
 		if (write_size != 0) {
 			payload.write = true;
-			/* should not set mot (middle of transaction) to 0
+			/* should analt set mot (middle of transaction) to 0
 			 * if there are pending read payloads
 			 */
 			payload.mot = !(read_size == 0);
@@ -474,7 +474,7 @@ bool link_configure_fixed_vs_pe_retimer(struct ddc_service *ddc, const uint8_t *
 		.defer_delay = 0,
 	};
 
-	return link_aux_transfer_with_retries_no_mutex(ddc,
+	return link_aux_transfer_with_retries_anal_mutex(ddc,
 			&write_payload);
 }
 
@@ -492,11 +492,11 @@ bool link_query_fixed_vs_pe_retimer(struct ddc_service *ddc, uint8_t *data, uint
 		.defer_delay = 0,
 	};
 
-	return link_aux_transfer_with_retries_no_mutex(ddc,
+	return link_aux_transfer_with_retries_anal_mutex(ddc,
 			&read_payload);
 }
 
-bool link_aux_transfer_with_retries_no_mutex(struct ddc_service *ddc,
+bool link_aux_transfer_with_retries_anal_mutex(struct ddc_service *ddc,
 		struct aux_payload *payload)
 {
 	return dce_aux_transfer_with_retries(ddc, payload);
@@ -524,7 +524,7 @@ bool try_to_configure_aux_timeout(struct ddc_service *ddc,
 		timeout = 3072;
 	}
 
-	/* Do not try to access nonexistent DDC pin. */
+	/* Do analt try to access analnexistent DDC pin. */
 	if (ddc->link->ep_type != DISPLAY_ENDPOINT_PHY)
 		return true;
 

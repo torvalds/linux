@@ -31,10 +31,10 @@ properties:
 
   clocks:
     maxItems: 1
-    description: If not provided the defulat ADC sample rate will be used.
+    description: If analt provided the defulat ADC sample rate will be used.
 
   vref-supply:
-    description: If not supplied, the internal voltage reference will be used.
+    description: If analt supplied, the internal voltage reference will be used.
 
   "#io-channel-cells":
     const: 1

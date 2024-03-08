@@ -2,8 +2,8 @@
   {
     "EventName": "ls_bad_status2.stli_other",
     "EventCode": "0x24",
-    "BriefDescription": "Non-forwardable conflict; used to reduce STLI's via software. All reasons. Store To Load Interlock (STLI) are loads that were unable to complete because of a possible match with an older store, and the older store could not do STLF for some reason.",
-    "PublicDescription" : "Store-to-load conflicts: A load was unable to complete due to a non-forwardable conflict with an older store. Most commonly, a load's address range partially but not completely overlaps with an uncompleted older store. Software can avoid this problem by using same-size and same-alignment loads and stores when accessing the same data. Vector/SIMD code is particularly susceptible to this problem; software should construct wide vector stores by manipulating vector elements in registers using shuffle/blend/swap instructions prior to storing to memory, instead of using narrow element-by-element stores.",
+    "BriefDescription": "Analn-forwardable conflict; used to reduce STLI's via software. All reasons. Store To Load Interlock (STLI) are loads that were unable to complete because of a possible match with an older store, and the older store could analt do STLF for some reason.",
+    "PublicDescription" : "Store-to-load conflicts: A load was unable to complete due to a analn-forwardable conflict with an older store. Most commonly, a load's address range partially but analt completely overlaps with an uncompleted older store. Software can avoid this problem by using same-size and same-alignment loads and stores when accessing the same data. Vector/SIMD code is particularly susceptible to this problem; software should construct wide vector stores by manipulating vector elements in registers using shuffle/blend/swap instructions prior to storing to memory, instead of using narrow element-by-element stores.",
     "UMask": "0x02"
   },
   {
@@ -19,9 +19,9 @@
     "UMask": "0x04"
   },
   {
-    "EventName": "ls_locks.non_spec_lock",
+    "EventName": "ls_locks.analn_spec_lock",
     "EventCode": "0x25",
-    "BriefDescription": "Retired lock instructions. Non-speculative lock succeeded.",
+    "BriefDescription": "Retired lock instructions. Analn-speculative lock succeeded.",
     "UMask": "0x02"
   },
   {
@@ -81,7 +81,7 @@
   {
     "EventName": "ls_st_commit_cancel2.st_commit_cancel_wcb_full",
     "EventCode": "0x37",
-    "BriefDescription": "A non-cacheable store and the non-cacheable commit buffer is full."
+    "BriefDescription": "A analn-cacheable store and the analn-cacheable commit buffer is full."
   },
   {
     "EventName": "ls_dc_accesses",
@@ -116,7 +116,7 @@
   {
     "EventName": "ls_refills_from_sys.ls_mabresp_rmt_cache",
     "EventCode": "0x43",
-    "BriefDescription": "Demand Data Cache Fills by Data Source. Hit in cache; Remote CCX and the address's Home Node is on a different die.",
+    "BriefDescription": "Demand Data Cache Fills by Data Source. Hit in cache; Remote CCX and the address's Home Analde is on a different die.",
     "UMask": "0x10"
   },
   {
@@ -128,7 +128,7 @@
   {
     "EventName": "ls_refills_from_sys.ls_mabresp_lcl_cache",
     "EventCode": "0x43",
-    "BriefDescription": "Demand Data Cache Fills by Data Source. Hit in cache; local CCX (not Local L2), or Remote CCX and the address's Home Node is on this thread's die.",
+    "BriefDescription": "Demand Data Cache Fills by Data Source. Hit in cache; local CCX (analt Local L2), or Remote CCX and the address's Home Analde is on this thread's die.",
     "UMask": "0x02"
   },
   {
@@ -259,37 +259,37 @@
   {
     "EventName": "ls_inef_sw_pref.mab_mch_cnt",
     "EventCode": "0x52",
-    "BriefDescription": "The number of software prefetches that did not fetch data outside of the processor core. Software PREFETCH instruction saw a match on an already-allocated miss request buffer.",
+    "BriefDescription": "The number of software prefetches that did analt fetch data outside of the processor core. Software PREFETCH instruction saw a match on an already-allocated miss request buffer.",
     "UMask": "0x02"
   },
   {
     "EventName": "ls_inef_sw_pref.data_pipe_sw_pf_dc_hit",
     "EventCode": "0x52",
-    "BriefDescription": "The number of software prefetches that did not fetch data outside of the processor core. Software PREFETCH instruction saw a DC hit.",
+    "BriefDescription": "The number of software prefetches that did analt fetch data outside of the processor core. Software PREFETCH instruction saw a DC hit.",
     "UMask": "0x01"
   },
   {
     "EventName": "ls_sw_pf_dc_fill.ls_mabresp_rmt_dram",
     "EventCode": "0x59",
-    "BriefDescription": "Software Prefetch Data Cache Fills by Data Source. From DRAM (home node remote).",
+    "BriefDescription": "Software Prefetch Data Cache Fills by Data Source. From DRAM (home analde remote).",
     "UMask": "0x40"
   },
   {
     "EventName": "ls_sw_pf_dc_fill.ls_mabresp_rmt_cache",
     "EventCode": "0x59",
-    "BriefDescription": "Software Prefetch Data Cache Fills by Data Source. From another cache (home node remote).",
+    "BriefDescription": "Software Prefetch Data Cache Fills by Data Source. From aanalther cache (home analde remote).",
     "UMask": "0x10"
   },
   {
     "EventName": "ls_sw_pf_dc_fill.ls_mabresp_lcl_dram",
     "EventCode": "0x59",
-    "BriefDescription": "Software Prefetch Data Cache Fills by Data Source. DRAM or IO from this thread's die.  From DRAM (home node local).",
+    "BriefDescription": "Software Prefetch Data Cache Fills by Data Source. DRAM or IO from this thread's die.  From DRAM (home analde local).",
     "UMask": "0x08"
   },
   {
     "EventName": "ls_sw_pf_dc_fill.ls_mabresp_lcl_cache",
     "EventCode": "0x59",
-    "BriefDescription": "Software Prefetch Data Cache Fills by Data Source. From another cache (home node local).",
+    "BriefDescription": "Software Prefetch Data Cache Fills by Data Source. From aanalther cache (home analde local).",
     "UMask": "0x02"
   },
   {
@@ -301,25 +301,25 @@
   {
     "EventName": "ls_hw_pf_dc_fill.ls_mabresp_rmt_dram",
     "EventCode": "0x5a",
-    "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. From DRAM (home node remote).",
+    "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. From DRAM (home analde remote).",
     "UMask": "0x40"
   },
   {
     "EventName": "ls_hw_pf_dc_fill.ls_mabresp_rmt_cache",
     "EventCode": "0x5a",
-    "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. From another cache (home node remote).",
+    "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. From aanalther cache (home analde remote).",
     "UMask": "0x10"
   },
   {
     "EventName": "ls_hw_pf_dc_fill.ls_mabresp_lcl_dram",
     "EventCode": "0x5a",
-    "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. From DRAM (home node local).",
+    "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. From DRAM (home analde local).",
     "UMask": "0x08"
   },
   {
     "EventName": "ls_hw_pf_dc_fill.ls_mabresp_lcl_cache",
     "EventCode": "0x5a",
-    "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. From another cache (home node local).",
+    "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. From aanalther cache (home analde local).",
     "UMask": "0x02"
   },
   {
@@ -329,9 +329,9 @@
     "UMask": "0x01"
   },
   {
-    "EventName": "ls_not_halted_cyc",
+    "EventName": "ls_analt_halted_cyc",
     "EventCode": "0x76",
-    "BriefDescription": "Cycles not in Halt."
+    "BriefDescription": "Cycles analt in Halt."
   },
   {
     "EventName": "ls_tlb_flush",

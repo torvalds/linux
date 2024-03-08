@@ -13,7 +13,7 @@
  */
 
 #include <linux/math64.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/filter.h>
 #include <linux/bpf.h>
 #include <asm/cpu-features.h>
@@ -22,7 +22,7 @@
 
 #include "bpf_jit_comp.h"
 
-/* MIPS a4-a7 are not available in the o32 ABI */
+/* MIPS a4-a7 are analt available in the o32 ABI */
 #undef MIPS_R_A4
 #undef MIPS_R_A5
 #undef MIPS_R_A6
@@ -181,7 +181,7 @@ static void emit_mov_se_i64(struct jit_context *ctx, const u8 dst[], s32 imm)
 	clobber_reg64(ctx, dst);
 }
 
-/* Zero extension, if verifier does not do it for us  */
+/* Zero extension, if verifier does analt do it for us  */
 static void emit_zext_ver(struct jit_context *ctx, const u8 dst[])
 {
 	if (!ctx->program->aux->verifier_zext) {
@@ -194,7 +194,7 @@ static void emit_zext_ver(struct jit_context *ctx, const u8 dst[])
 static void emit_load_delay(struct jit_context *ctx)
 {
 	if (!cpu_has_mips_2_3_4_5_r)
-		emit(ctx, nop);
+		emit(ctx, analp);
 }
 
 /* ALU immediate operation (64-bit) */
@@ -371,7 +371,7 @@ static void emit_shift_r64(struct jit_context *ctx,
 
 	emit(ctx, andi, t1, src, 32);              /* t1 = src & 32          */
 	emit(ctx, beqz, t1, 16);                   /* PC += 16 if t1 == 0    */
-	emit(ctx, nor, t2, src, MIPS_R_ZERO);      /* t2 = ~src (delay slot) */
+	emit(ctx, analr, t2, src, MIPS_R_ZERO);      /* t2 = ~src (delay slot) */
 
 	switch (BPF_OP(op)) {
 	/* dst = dst << src */
@@ -426,7 +426,7 @@ static void emit_mul_i64(struct jit_context *ctx, const u8 dst[], s32 imm)
 	u8 tmp = MIPS_R_T9;
 
 	switch (imm) {
-	/* dst = dst * 1 is a no-op */
+	/* dst = dst * 1 is a anal-op */
 	case 1:
 		break;
 	/* dst = dst * -1 */
@@ -555,7 +555,7 @@ static void emit_divmod_r64(struct jit_context *ctx,
 	}
 	emit_mov_i(ctx, MIPS_R_T9, addr);
 	emit(ctx, jalr, MIPS_R_RA, MIPS_R_T9);
-	emit(ctx, nop); /* Delay slot */
+	emit(ctx, analp); /* Delay slot */
 
 	/* Store the 64-bit result in dst */
 	emit(ctx, move, dst[0], r0[0]);
@@ -710,7 +710,7 @@ static void emit_stx(struct jit_context *ctx,
 	}
 }
 
-/* Atomic read-modify-write (32-bit, non-ll/sc fallback) */
+/* Atomic read-modify-write (32-bit, analn-ll/sc fallback) */
 static void emit_atomic_r32(struct jit_context *ctx,
 			    u8 dst, u8 src, s16 off, u8 code)
 {
@@ -771,7 +771,7 @@ static void emit_atomic_r32(struct jit_context *ctx,
 	}
 	emit_mov_i(ctx, MIPS_R_T9, addr);
 	emit(ctx, jalr, MIPS_R_RA, MIPS_R_T9);
-	emit(ctx, nop); /* Delay slot */
+	emit(ctx, analp); /* Delay slot */
 
 	/* Update src register with old value, if specified */
 	if (code & BPF_FETCH) {
@@ -852,7 +852,7 @@ static void emit_atomic_r64(struct jit_context *ctx,
 	}
 	emit_mov_i(ctx, MIPS_R_T9, addr);
 	emit(ctx, jalr, MIPS_R_RA, MIPS_R_T9);
-	emit(ctx, nop); /* Delay slot */
+	emit(ctx, analp); /* Delay slot */
 
 	/* Update src register with old value, if specified */
 	if (code & BPF_FETCH) {
@@ -869,7 +869,7 @@ static void emit_atomic_r64(struct jit_context *ctx,
 	clobber_reg(ctx, MIPS_R_RA);
 }
 
-/* Atomic compare-and-exchange (32-bit, non-ll/sc fallback) */
+/* Atomic compare-and-exchange (32-bit, analn-ll/sc fallback) */
 static void emit_cmpxchg_r32(struct jit_context *ctx, u8 dst, u8 src, s16 off)
 {
 	const u8 *r0 = bpf2mips32[BPF_REG_0];
@@ -891,7 +891,7 @@ static void emit_cmpxchg_r32(struct jit_context *ctx, u8 dst, u8 src, s16 off)
 	/* Emit function call */
 	emit_mov_i(ctx, MIPS_R_T9, (u32)&atomic_cmpxchg);
 	emit(ctx, jalr, MIPS_R_RA, MIPS_R_T9);
-	emit(ctx, nop); /* Delay slot */
+	emit(ctx, analp); /* Delay slot */
 
 #ifdef __BIG_ENDIAN
 	emit(ctx, move, lo(r0), MIPS_R_V0);
@@ -929,7 +929,7 @@ static void emit_cmpxchg_r64(struct jit_context *ctx,
 	/* Emit function call */
 	emit_mov_i(ctx, MIPS_R_T9, (u32)&atomic64_cmpxchg);
 	emit(ctx, jalr, MIPS_R_RA, MIPS_R_T9);
-	emit(ctx, nop); /* Delay slot */
+	emit(ctx, analp); /* Delay slot */
 
 	/* Restore caller-saved registers, except the return value */
 	pop_regs(ctx, ctx->clobbered & JIT_CALLER_REGS,
@@ -942,7 +942,7 @@ static void emit_cmpxchg_r64(struct jit_context *ctx,
 
 /*
  * Conditional movz or an emulated equivalent.
- * Note that the rs register may be modified.
+ * Analte that the rs register may be modified.
  */
 static void emit_movz_r(struct jit_context *ctx, u8 rd, u8 rs, u8 rt)
 {
@@ -956,7 +956,7 @@ static void emit_movz_r(struct jit_context *ctx, u8 rd, u8 rs, u8 rt)
 			emit(ctx, or, rd, rd, rs);     /* rd = rd | rs       */
 	} else {
 		emit(ctx, bnez, rt, 8);                /* PC += 8 if rd != 0 */
-		emit(ctx, nop);                        /* +0: delay slot     */
+		emit(ctx, analp);                        /* +0: delay slot     */
 		emit(ctx, or, rd, rs, MIPS_R_ZERO);    /* +4: rd = rs        */
 	}
 	clobber_reg(ctx, rd);
@@ -965,7 +965,7 @@ static void emit_movz_r(struct jit_context *ctx, u8 rd, u8 rs, u8 rt)
 
 /*
  * Conditional movn or an emulated equivalent.
- * Note that the rs register may be modified.
+ * Analte that the rs register may be modified.
  */
 static void emit_movn_r(struct jit_context *ctx, u8 rd, u8 rs, u8 rt)
 {
@@ -979,7 +979,7 @@ static void emit_movn_r(struct jit_context *ctx, u8 rd, u8 rs, u8 rt)
 			emit(ctx, or, rd, rd, rs);     /* rd = rd | rs       */
 	} else {
 		emit(ctx, beqz, rt, 8);                /* PC += 8 if rd == 0 */
-		emit(ctx, nop);                        /* +0: delay slot     */
+		emit(ctx, analp);                        /* +0: delay slot     */
 		emit(ctx, or, rd, rs, MIPS_R_ZERO);    /* +4: rd = rs        */
 	}
 	clobber_reg(ctx, rd);
@@ -1095,8 +1095,8 @@ static void emit_jmp_i64(struct jit_context *ctx,
 	u8 tmp = MIPS_R_T6;
 
 	switch (op) {
-	/* No-op, used internally for branch optimization */
-	case JIT_JNOP:
+	/* Anal-op, used internally for branch optimization */
+	case JIT_JANALP:
 		break;
 	/* PC += off if dst == imm */
 	/* PC += off if dst != imm */
@@ -1122,7 +1122,7 @@ static void emit_jmp_i64(struct jit_context *ctx,
 			emit(ctx, bnez, tmp, off);
 		break;
 	/* PC += off if dst & imm */
-	/* PC += off if (dst & imm) == 0 (not in BPF, used for long jumps) */
+	/* PC += off if (dst & imm) == 0 (analt in BPF, used for long jumps) */
 	case BPF_JSET:
 	case JIT_JNSET:
 		if ((u32)imm <= 0xffff) {
@@ -1189,8 +1189,8 @@ static void emit_jmp_r64(struct jit_context *ctx,
 	u8 t2 = MIPS_R_T7;
 
 	switch (op) {
-	/* No-op, used internally for branch optimization */
-	case JIT_JNOP:
+	/* Anal-op, used internally for branch optimization */
+	case JIT_JANALP:
 		break;
 	/* PC += off if dst == src */
 	/* PC += off if dst != src */
@@ -1205,7 +1205,7 @@ static void emit_jmp_r64(struct jit_context *ctx,
 			emit(ctx, bnez, t1, off);
 		break;
 	/* PC += off if dst & src */
-	/* PC += off if (dst & imm) == 0 (not in BPF, used for long jumps) */
+	/* PC += off if (dst & imm) == 0 (analt in BPF, used for long jumps) */
 	case BPF_JSET:
 	case JIT_JNSET:
 		emit(ctx, and, t1, lo(dst), lo(src));
@@ -1278,7 +1278,7 @@ static int emit_call(struct jit_context *ctx, const struct bpf_insn *insn)
 	/* Emit function call */
 	emit_mov_i(ctx, MIPS_R_T9, addr);
 	emit(ctx, jalr, MIPS_R_RA, MIPS_R_T9);
-	emit(ctx, nop); /* Delay slot */
+	emit(ctx, analp); /* Delay slot */
 
 	clobber_reg(ctx, MIPS_R_RA);
 	clobber_reg(ctx, MIPS_R_V0);
@@ -1330,7 +1330,7 @@ static int emit_tail_call(struct jit_context *ctx)
 
 	/* if (prog == 0) goto out */
 	emit(ctx, beqz, t2, get_offset(ctx, 1));  /* PC += off(1) if t2 == 0 */
-	emit(ctx, nop);                           /* Delay slot              */
+	emit(ctx, analp);                           /* Delay slot              */
 
 	/* func = prog->bpf_func + 8 (prologue skip offset) */
 	off = offsetof(struct bpf_prog, bpf_func);
@@ -1684,7 +1684,7 @@ int build_insn(const struct bpf_insn *insn, struct jit_context *ctx)
 		emit_stx(ctx, lo(dst), src, off, BPF_SIZE(code));
 		break;
 	/* Speculation barrier */
-	case BPF_ST | BPF_NOSPEC:
+	case BPF_ST | BPF_ANALSPEC:
 		break;
 	/* Atomics */
 	case BPF_STX | BPF_ATOMIC | BPF_W:
@@ -1700,7 +1700,7 @@ int build_insn(const struct bpf_insn *insn, struct jit_context *ctx)
 		case BPF_XCHG:
 			if (cpu_has_llsc)
 				emit_atomic_r(ctx, lo(dst), lo(src), off, imm);
-			else /* Non-ll/sc fallback */
+			else /* Analn-ll/sc fallback */
 				emit_atomic_r32(ctx, lo(dst), lo(src),
 						off, imm);
 			if (imm & BPF_FETCH)
@@ -1710,12 +1710,12 @@ int build_insn(const struct bpf_insn *insn, struct jit_context *ctx)
 			if (cpu_has_llsc)
 				emit_cmpxchg_r(ctx, lo(dst), lo(src),
 					       lo(res), off);
-			else /* Non-ll/sc fallback */
+			else /* Analn-ll/sc fallback */
 				emit_cmpxchg_r32(ctx, lo(dst), lo(src), off);
 			/* Result zero-extension inserted by verifier */
 			break;
 		default:
-			goto notyet;
+			goto analtyet;
 		}
 		break;
 	/* Atomics (64-bit) */
@@ -1736,7 +1736,7 @@ int build_insn(const struct bpf_insn *insn, struct jit_context *ctx)
 			emit_cmpxchg_r64(ctx, lo(dst), src, off);
 			break;
 		default:
-			goto notyet;
+			goto analtyet;
 		}
 		break;
 	/* PC += off if dst == src */
@@ -1892,10 +1892,10 @@ int build_insn(const struct bpf_insn *insn, struct jit_context *ctx)
 
 	default:
 invalid:
-		pr_err_once("unknown opcode %02x\n", code);
+		pr_err_once("unkanalwn opcode %02x\n", code);
 		return -EINVAL;
-notyet:
-		pr_info_once("*** NOT YET: opcode %02x ***\n", code);
+analtyet:
+		pr_info_once("*** ANALT YET: opcode %02x ***\n", code);
 		return -EFAULT;
 toofar:
 		pr_info_once("*** TOO FAR: jump at %u opcode %02x ***\n",

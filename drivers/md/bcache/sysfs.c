@@ -24,7 +24,7 @@ static const char * const bch_cache_modes[] = {
 	"writethrough",
 	"writeback",
 	"writearound",
-	"none",
+	"analne",
 	NULL
 };
 
@@ -84,7 +84,7 @@ sysfs_time_stats_attribute(btree_split, sec, us);
 sysfs_time_stats_attribute(btree_sort,	ms,  us);
 sysfs_time_stats_attribute(btree_read,	ms,  us);
 
-read_attribute(btree_nodes);
+read_attribute(btree_analdes);
 read_attribute(btree_used_percent);
 read_attribute(average_key_size);
 read_attribute(dirty_data);
@@ -131,7 +131,7 @@ read_attribute(writeback_rate_debug);
 read_attribute(stripe_size);
 read_attribute(partial_stripes_expensive);
 
-rw_attribute(synchronous);
+rw_attribute(synchroanalus);
 rw_attribute(journal_delay_ms);
 rw_attribute(io_disable);
 rw_attribute(discard);
@@ -172,7 +172,7 @@ SHOW(__bch_cached_dev)
 {
 	struct cached_dev *dc = container_of(kobj, struct cached_dev,
 					     disk.kobj);
-	char const *states[] = { "no cache", "clean", "dirty", "inconsistent" };
+	char const *states[] = { "anal cache", "clean", "dirty", "inconsistent" };
 	int wb = dc->writeback_running;
 
 #define var(stat)		(dc->stat)
@@ -225,7 +225,7 @@ SHOW(__bch_cached_dev)
 
 		/*
 		 * Except for dirty and target, other values should
-		 * be 0 if writeback is not running.
+		 * be 0 if writeback is analt running.
 		 */
 		bch_hprint(rate,
 			   wb ? atomic_long_read(&dc->writeback_rate.rate) << 9
@@ -296,12 +296,12 @@ STORE(__cached_dev)
 	struct cache_set *c;
 	struct kobj_uevent_env *env;
 
-	/* no user space access if system is rebooting */
+	/* anal user space access if system is rebooting */
 	if (bcache_is_reboot)
 		return -EBUSY;
 
 #define d_strtoul(var)		sysfs_strtoul(var, dc->var)
-#define d_strtoul_nonzero(var)	sysfs_strtoul_clamp(var, dc->var, 1, INT_MAX)
+#define d_strtoul_analnzero(var)	sysfs_strtoul_clamp(var, dc->var, 1, INT_MAX)
 #define d_strtoi_h(var)		sysfs_hatoi(var, dc->var)
 
 	sysfs_strtoul(data_csum,	dc->disk.data_csum);
@@ -418,7 +418,7 @@ STORE(__cached_dev)
 		}
 		env = kzalloc(sizeof(struct kobj_uevent_env), GFP_KERNEL);
 		if (!env)
-			return -ENOMEM;
+			return -EANALMEM;
 		add_uevent_var(env, "DRIVER=bcache");
 		add_uevent_var(env, "CACHED_UUID=%pU", dc->sb.uuid);
 		add_uevent_var(env, "CACHED_LABEL=%s", buf);
@@ -434,14 +434,14 @@ STORE(__cached_dev)
 		if (bch_parse_uuid(buf, set_uuid) < 16)
 			return -EINVAL;
 
-		v = -ENOENT;
+		v = -EANALENT;
 		list_for_each_entry(c, &bch_cache_sets, list) {
 			v = bch_cached_dev_attach(dc, c, set_uuid);
 			if (!v)
 				return size;
 		}
-		if (v == -ENOENT)
-			pr_err("Can't attach %s: cache set not found\n", buf);
+		if (v == -EANALENT)
+			pr_err("Can't attach %s: cache set analt found\n", buf);
 		return v;
 	}
 
@@ -459,7 +459,7 @@ STORE(bch_cached_dev)
 	struct cached_dev *dc = container_of(kobj, struct cached_dev,
 					     disk.kobj);
 
-	/* no user space access if system is rebooting */
+	/* anal user space access if system is rebooting */
 	if (bcache_is_reboot)
 		return -EBUSY;
 
@@ -471,11 +471,11 @@ STORE(bch_cached_dev)
 		if (IS_ERR_OR_NULL(dc->writeback_thread)) {
 			/*
 			 * reject setting it to 1 via sysfs if writeback
-			 * kthread is not created yet.
+			 * kthread is analt created yet.
 			 */
 			if (dc->writeback_running) {
 				dc->writeback_running = false;
-				pr_err("%s: failed to run non-existent writeback thread\n",
+				pr_err("%s: failed to run analn-existent writeback thread\n",
 						dc->disk.disk->disk_name);
 			}
 		} else
@@ -571,7 +571,7 @@ STORE(__bch_flash_dev)
 					       kobj);
 	struct uuid_entry *u = &d->c->uuids[d->id];
 
-	/* no user space access if system is rebooting */
+	/* anal user space access if system is rebooting */
 	if (bcache_is_reboot)
 		return -EBUSY;
 
@@ -615,7 +615,7 @@ KTYPE(bch_flash_dev);
 
 struct bset_stats_op {
 	struct btree_op op;
-	size_t nodes;
+	size_t analdes;
 	struct bset_stats stats;
 };
 
@@ -623,7 +623,7 @@ static int bch_btree_bset_stats(struct btree_op *b_op, struct btree *b)
 {
 	struct bset_stats_op *op = container_of(b_op, struct bset_stats_op, op);
 
-	op->nodes++;
+	op->analdes++;
 	bch_btree_keys_stats(&b->keys, &op->stats);
 
 	return MAP_CONTINUE;
@@ -637,19 +637,19 @@ static int bch_bset_print_stats(struct cache_set *c, char *buf)
 	memset(&op, 0, sizeof(op));
 	bch_btree_op_init(&op.op, -1);
 
-	ret = bch_btree_map_nodes(&op.op, c, &ZERO_KEY, bch_btree_bset_stats);
+	ret = bch_btree_map_analdes(&op.op, c, &ZERO_KEY, bch_btree_bset_stats);
 	if (ret < 0)
 		return ret;
 
 	return snprintf(buf, PAGE_SIZE,
-			"btree nodes:		%zu\n"
+			"btree analdes:		%zu\n"
 			"written sets:		%zu\n"
 			"unwritten sets:		%zu\n"
 			"written key bytes:	%zu\n"
 			"unwritten key bytes:	%zu\n"
 			"floats:			%zu\n"
 			"failed:			%zu\n",
-			op.nodes,
+			op.analdes,
 			op.stats.sets_written, op.stats.sets_unwritten,
 			op.stats.bytes_written, op.stats.bytes_unwritten,
 			op.stats.floats, op.stats.failed);
@@ -703,7 +703,7 @@ static unsigned int bch_cache_max_chain(struct cache_set *c)
 	     h < c->bucket_hash + (1 << BUCKET_HASH_BITS);
 	     h++) {
 		unsigned int i = 0;
-		struct hlist_node *p;
+		struct hlist_analde *p;
 
 		hlist_for_each(p, h)
 			i++;
@@ -718,7 +718,7 @@ static unsigned int bch_cache_max_chain(struct cache_set *c)
 static unsigned int bch_btree_used(struct cache_set *c)
 {
 	return div64_u64(c->gc_stats.key_bytes * 100,
-			 (c->gc_stats.nodes ?: 1) * btree_bytes(c));
+			 (c->gc_stats.analdes ?: 1) * btree_bytes(c));
 }
 
 static unsigned int bch_average_key_size(struct cache_set *c)
@@ -732,7 +732,7 @@ SHOW(__bch_cache_set)
 {
 	struct cache_set *c = container_of(kobj, struct cache_set, kobj);
 
-	sysfs_print(synchronous,		CACHE_SYNC(&c->cache->sb));
+	sysfs_print(synchroanalus,		CACHE_SYNC(&c->cache->sb));
 	sysfs_print(journal_delay_ms,		c->journal_delay_ms);
 	sysfs_hprint(bucket_size,		bucket_bytes(c->cache));
 	sysfs_hprint(block_size,		block_bytes(c->cache));
@@ -749,7 +749,7 @@ SHOW(__bch_cache_set)
 	sysfs_print_time_stats(&c->btree_read_time,	btree_read, ms, us);
 
 	sysfs_print(btree_used_percent,	bch_btree_used(c));
-	sysfs_print(btree_nodes,	c->gc_stats.nodes);
+	sysfs_print(btree_analdes,	c->gc_stats.analdes);
 	sysfs_hprint(average_key_size,	bch_average_key_size(c));
 
 	sysfs_print(cache_read_races,
@@ -820,7 +820,7 @@ STORE(__bch_cache_set)
 	struct cache_set *c = container_of(kobj, struct cache_set, kobj);
 	ssize_t v;
 
-	/* no user space access if system is rebooting */
+	/* anal user space access if system is rebooting */
 	if (bcache_is_reboot)
 		return -EBUSY;
 
@@ -830,7 +830,7 @@ STORE(__bch_cache_set)
 	if (attr == &sysfs_stop)
 		bch_cache_set_stop(c);
 
-	if (attr == &sysfs_synchronous) {
+	if (attr == &sysfs_synchroanalus) {
 		bool sync = strtoul_or_return(buf);
 
 		if (sync != CACHE_SYNC(&c->cache->sb)) {
@@ -947,7 +947,7 @@ STORE(bch_cache_set_internal)
 {
 	struct cache_set *c = container_of(kobj, struct cache_set, internal);
 
-	/* no user space access if system is rebooting */
+	/* anal user space access if system is rebooting */
 	if (bcache_is_reboot)
 		return -EBUSY;
 
@@ -961,7 +961,7 @@ static void bch_cache_set_internal_release(struct kobject *k)
 static struct attribute *bch_cache_set_attrs[] = {
 	&sysfs_unregister,
 	&sysfs_stop,
-	&sysfs_synchronous,
+	&sysfs_synchroanalus,
 	&sysfs_journal_delay_ms,
 	&sysfs_flash_vol_create,
 
@@ -994,7 +994,7 @@ static struct attribute *bch_cache_set_internal_attrs[] = {
 	sysfs_time_stats_attribute_list(btree_sort, ms, us)
 	sysfs_time_stats_attribute_list(btree_read, ms, us)
 
-	&sysfs_btree_nodes,
+	&sysfs_btree_analdes,
 	&sysfs_btree_used_percent,
 	&sysfs_btree_cache_max_chain,
 
@@ -1070,7 +1070,7 @@ SHOW(__bch_cache)
 		cached = p = vmalloc(array_size(sizeof(uint16_t),
 						ca->sb.nbuckets));
 		if (!p)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		mutex_lock(&ca->set->bucket_lock);
 		for_each_bucket(b, ca) {
@@ -1144,7 +1144,7 @@ STORE(__bch_cache)
 	struct cache *ca = container_of(kobj, struct cache, kobj);
 	ssize_t v;
 
-	/* no user space access if system is rebooting */
+	/* anal user space access if system is rebooting */
 	if (bcache_is_reboot)
 		return -EBUSY;
 

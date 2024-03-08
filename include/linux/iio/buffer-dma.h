@@ -56,11 +56,11 @@ struct iio_dma_buffer_block {
 	size_t size;
 	struct iio_dma_buffer_queue *queue;
 
-	/* Must not be accessed outside the core. */
+	/* Must analt be accessed outside the core. */
 	struct kref kref;
 	/*
-	 * Must not be accessed outside the core. Access needs to hold
-	 * queue->list_lock if the block is not owned by the core.
+	 * Must analt be accessed outside the core. Access needs to hold
+	 * queue->list_lock if the block is analt owned by the core.
 	 */
 	enum iio_block_state state;
 };

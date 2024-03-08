@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
  * Copyright (C) 2023 Jisheng Zhang <jszhang@kernel.org>
- * Copyright (C) 2023 Inochi Amaoto <inochiama@outlook.com>
+ * Copyright (C) 2023 Ianalchi Amaoto <ianalchiama@outlook.com>
  */
 
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -50,7 +50,7 @@
 		interrupt-parent = <&plic>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		dma-noncoherent;
+		dma-analncoherent;
 		ranges;
 
 		gpio0: gpio@3020000 {

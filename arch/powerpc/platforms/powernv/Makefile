@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-# nothing that deals with real mode is safe to KASAN
+# analthing that deals with real mode is safe to KASAN
 # in particular, idle code runs a bunch of things in real mode
 KASAN_SANITIZE_idle.o := n
 KASAN_SANITIZE_pci-ioda.o := n

@@ -19,7 +19,7 @@ static const struct mtk_gate_regs apmixed_cg_regs = {
 };
 
 #define GATE_APMIXED(_id, _name, _parent, _shift)			\
-	GATE_MTK(_id, _name, _parent, &apmixed_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &apmixed_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate apmixed_clks[] = {
 	GATE_APMIXED(CLK_APMIXED_PLL_SSUSB26M_EN, "pll_ssusb26m_en", "clk26m", 1),
@@ -99,23 +99,23 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt8188_apmixed);
 static int clk_mt8188_apmixed_probe(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	int r;
 
 	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	r = mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
+	r = mtk_clk_register_plls(analde, plls, ARRAY_SIZE(plls), clk_data);
 	if (r)
 		goto free_apmixed_data;
 
-	r = mtk_clk_register_gates(&pdev->dev, node, apmixed_clks,
+	r = mtk_clk_register_gates(&pdev->dev, analde, apmixed_clks,
 				   ARRAY_SIZE(apmixed_clks), clk_data);
 	if (r)
 		goto unregister_plls;
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (r)
 		goto unregister_gates;
 
@@ -134,10 +134,10 @@ free_apmixed_data:
 
 static void clk_mt8188_apmixed_remove(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct clk_hw_onecell_data *clk_data = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(node);
+	of_clk_del_provider(analde);
 	mtk_clk_unregister_gates(apmixed_clks, ARRAY_SIZE(apmixed_clks), clk_data);
 	mtk_clk_unregister_plls(plls, ARRAY_SIZE(plls), clk_data);
 	mtk_free_clk_data(clk_data);

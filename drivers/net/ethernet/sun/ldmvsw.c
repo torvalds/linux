@@ -54,10 +54,10 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 
 /* Ordered from largest major to lowest */
 static struct vio_version vsw_versions[] = {
-	{ .major = 1, .minor = 8 },
-	{ .major = 1, .minor = 7 },
-	{ .major = 1, .minor = 6 },
-	{ .major = 1, .minor = 0 },
+	{ .major = 1, .mianalr = 8 },
+	{ .major = 1, .mianalr = 7 },
+	{ .major = 1, .mianalr = 6 },
+	{ .major = 1, .mianalr = 0 },
 };
 
 static void vsw_get_drvinfo(struct net_device *dev,
@@ -164,7 +164,7 @@ static const char *local_mac_prop = "local-mac-address";
 static const char *cfg_handle_prop = "cfg-handle";
 
 static struct vnet *vsw_get_vnet(struct mdesc_handle *hp,
-				 u64 port_node,
+				 u64 port_analde,
 				 u64 *handle)
 {
 	struct vnet *vp;
@@ -174,7 +174,7 @@ static struct vnet *vsw_get_vnet(struct mdesc_handle *hp,
 	u64 a;
 
 	/* Get the parent virtual-network-switch macaddr and cfghandle */
-	mdesc_for_each_arc(a, hp, port_node, MDESC_ARC_TYPE_BACK) {
+	mdesc_for_each_arc(a, hp, port_analde, MDESC_ARC_TYPE_BACK) {
 		u64 target = mdesc_arc_target(hp, a);
 		const char *name;
 
@@ -189,7 +189,7 @@ static struct vnet *vsw_get_vnet(struct mdesc_handle *hp,
 		break;
 	}
 	if (!local_mac || !cfghandle)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	/* find or create associated vnet */
 	vp = NULL;
@@ -205,7 +205,7 @@ static struct vnet *vsw_get_vnet(struct mdesc_handle *hp,
 		vp = kzalloc(sizeof(*vp), GFP_KERNEL);
 		if (unlikely(!vp)) {
 			mutex_unlock(&vnet_list_mutex);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 
 		spin_lock_init(&vp->lock);
@@ -232,7 +232,7 @@ static struct net_device *vsw_alloc_netdev(u8 hwaddr[],
 
 	dev = alloc_etherdev_mqs(sizeof(*port), VNET_MAX_TXQS, 1);
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	dev->needed_headroom = VNET_PACKET_SKIP + 8;
 	dev->needed_tailroom = 8;
 
@@ -287,10 +287,10 @@ static int vsw_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	hp = mdesc_grab();
 
 	if (!hp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rmac = mdesc_get_property(hp, vdev->mp, remote_macaddr_prop, &len);
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (!rmac) {
 		pr_err("Port lacks %s property\n", remote_macaddr_prop);
 		mdesc_release(hp);
@@ -298,7 +298,7 @@ static int vsw_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	}
 
 	port_id = mdesc_get_property(hp, vdev->mp, id_prop, NULL);
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (!port_id) {
 		pr_err("Port lacks %s property\n", id_prop);
 		mdesc_release(hp);
@@ -333,7 +333,7 @@ static int vsw_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	port->vp = vp;
 	port->dev = dev;
 	port->switch_port = 1;
-	port->tso = false; /* no tso in vsw, misbehaves in bridge */
+	port->tso = false; /* anal tso in vsw, misbehaves in bridge */
 	port->tsolen = 0;
 
 	/* Mark the port as belonging to ldmvsw which directs the
@@ -366,7 +366,7 @@ static int vsw_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	err = register_netdev(dev);
 	if (err) {
-		pr_err("Cannot register net device, aborting\n");
+		pr_err("Cananalt register net device, aborting\n");
 		goto err_out_del_timer;
 	}
 
@@ -377,7 +377,7 @@ static int vsw_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	napi_enable(&port->napi);
 	vio_port_up(&port->vio);
 
-	/* assure no carrier until we receive an LDC_EVENT_UP,
+	/* assure anal carrier until we receive an LDC_EVENT_UP,
 	 * even if the vsw config script tries to force us up
 	 */
 	netif_carrier_off(dev);
@@ -441,7 +441,7 @@ static void vsw_cleanup(void)
 		list_del(&vp->list);
 		/* vio_unregister_driver() should have cleaned up port_list */
 		if (!list_empty(&vp->port_list))
-			pr_err("Ports not removed by VIO subsystem!\n");
+			pr_err("Ports analt removed by VIO subsystem!\n");
 		kfree(vp);
 	}
 	mutex_unlock(&vnet_list_mutex);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  *
  * Derived from MIPS:
  * Copyright (C) 1995 - 2000 by Ralf Baechle
@@ -11,7 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/entry-common.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -31,7 +31,7 @@
 
 int show_unhandled_signals = 1;
 
-static void __kprobes no_context(struct pt_regs *regs,
+static void __kprobes anal_context(struct pt_regs *regs,
 			unsigned long write, unsigned long address)
 {
 	const int field = sizeof(unsigned long) * 2;
@@ -64,7 +64,7 @@ static void __kprobes do_out_of_memory(struct pt_regs *regs,
 	 * (which will retry the fault, or kill us if we got oom-killed).
 	 */
 	if (!user_mode(regs)) {
-		no_context(regs, write, address);
+		anal_context(regs, write, address);
 		return;
 	}
 	pagefault_out_of_memory();
@@ -75,7 +75,7 @@ static void __kprobes do_sigbus(struct pt_regs *regs,
 {
 	/* Kernel mode? Handle exceptions or die */
 	if (!user_mode(regs)) {
-		no_context(regs, write, address);
+		anal_context(regs, write, address);
 		return;
 	}
 
@@ -96,7 +96,7 @@ static void __kprobes do_sigsegv(struct pt_regs *regs,
 
 	/* Kernel mode? Handle exceptions or die */
 	if (!user_mode(regs)) {
-		no_context(regs, write, address);
+		anal_context(regs, write, address);
 		return;
 	}
 
@@ -148,22 +148,22 @@ static void __kprobes __do_page_fault(struct pt_regs *regs,
 	 * We fault-in kernel-space virtual memory on-demand. The
 	 * 'reference' page table is init_mm.pgd.
 	 *
-	 * NOTE! We MUST NOT take any locks for this case. We may
+	 * ANALTE! We MUST ANALT take any locks for this case. We may
 	 * be in an interrupt or a critical region, and should
 	 * only copy the information from the master page table,
-	 * nothing more.
+	 * analthing more.
 	 */
 	if (address & __UA_LIMIT) {
 		if (!user_mode(regs))
-			no_context(regs, write, address);
+			anal_context(regs, write, address);
 		else
 			do_sigsegv(regs, write, address, si_code);
 		return;
 	}
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have anal user
+	 * context, we must analt take the fault..
 	 */
 	if (faulthandler_disabled() || !mm) {
 		do_sigsegv(regs, write, address, si_code);
@@ -177,7 +177,7 @@ static void __kprobes __do_page_fault(struct pt_regs *regs,
 retry:
 	vma = lock_mm_and_find_vma(mm, address, regs);
 	if (unlikely(!vma))
-		goto bad_area_nosemaphore;
+		goto bad_area_analsemaphore;
 	goto good_area;
 
 /*
@@ -186,7 +186,7 @@ retry:
  */
 bad_area:
 	mmap_read_unlock(mm);
-bad_area_nosemaphore:
+bad_area_analsemaphore:
 	do_sigsegv(regs, write, address, si_code);
 	return;
 
@@ -217,7 +217,7 @@ good_area:
 
 	if (fault_signal_pending(fault, regs)) {
 		if (!user_mode(regs))
-			no_context(regs, write, address);
+			anal_context(regs, write, address);
 		return;
 	}
 
@@ -229,7 +229,7 @@ good_area:
 		flags |= FAULT_FLAG_TRIED;
 
 		/*
-		 * No need to mmap_read_unlock(mm) as we would
+		 * Anal need to mmap_read_unlock(mm) as we would
 		 * have already released it in __lock_page_or_retry
 		 * in mm/filemap.c.
 		 */

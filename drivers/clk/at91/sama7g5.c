@@ -2,7 +2,7 @@
 /*
  * SAMA7G5 PMC code.
  *
- * Copyright (C) 2020 Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) 2020 Microchip Techanallogy Inc. and its subsidiaries
  *
  * Author: Claudiu Beznea <claudiu.beznea@microchip.com>
  *
@@ -104,8 +104,8 @@ static const struct clk_pll_layout pll_layout_divio = {
 
 /*
  * CPU PLL output range.
- * Notice: The upper limit has been setup to 1000000002 due to hardware
- * block which cannot output exactly 1GHz.
+ * Analtice: The upper limit has been setup to 1000000002 due to hardware
+ * block which cananalt output exactly 1GHz.
  */
 static const struct clk_range cpu_pll_outputs[] = {
 	{ .min = 2343750, .max = 1000000002 },
@@ -153,7 +153,7 @@ enum sama7g5_pll_parent {
  * @p:		clock parent
  * @eid:	export index in sama7g5->chws[] array
  * @safe_div:	intermediate divider need to be set on PRE_RATE_CHANGE
- *		notification
+ *		analtification
  */
 static struct sama7g5_pll {
 	const char *n;
@@ -175,7 +175,7 @@ static struct sama7g5_pll {
 			.t = PLL_TYPE_FRAC,
 			/*
 			 * This feeds cpupll_divpmcck which feeds CPU. It should
-			 * not be disabled.
+			 * analt be disabled.
 			 */
 			.f = CLK_IS_CRITICAL,
 		},
@@ -186,7 +186,7 @@ static struct sama7g5_pll {
 			.l = &pll_layout_divpmc,
 			.c = &cpu_pll_characteristics,
 			.t = PLL_TYPE_DIV,
-			/* This feeds CPU. It should not be disabled. */
+			/* This feeds CPU. It should analt be disabled. */
 			.f = CLK_IS_CRITICAL | CLK_SET_RATE_PARENT,
 			.eid = PMC_CPUPLL,
 			/*
@@ -206,7 +206,7 @@ static struct sama7g5_pll {
 			.t = PLL_TYPE_FRAC,
 			/*
 			 * This feeds syspll_divpmcck which may feed critical parts
-			 * of the systems like timers. Therefore it should not be
+			 * of the systems like timers. Therefore it should analt be
 			 * disabled.
 			 */
 			.f = CLK_IS_CRITICAL | CLK_SET_RATE_GATE,
@@ -220,7 +220,7 @@ static struct sama7g5_pll {
 			.t = PLL_TYPE_DIV,
 			/*
 			 * This may feed critical parts of the systems like timers.
-			 * Therefore it should not be disabled.
+			 * Therefore it should analt be disabled.
 			 */
 			.f = CLK_IS_CRITICAL | CLK_SET_RATE_GATE,
 			.eid = PMC_SYSPLL,
@@ -235,7 +235,7 @@ static struct sama7g5_pll {
 			.c = &pll_characteristics,
 			.t = PLL_TYPE_FRAC,
 			/*
-			 * This feeds ddrpll_divpmcck which feeds DDR. It should not
+			 * This feeds ddrpll_divpmcck which feeds DDR. It should analt
 			 * be disabled.
 			 */
 			.f = CLK_IS_CRITICAL | CLK_SET_RATE_GATE,
@@ -247,7 +247,7 @@ static struct sama7g5_pll {
 			.l = &pll_layout_divpmc,
 			.c = &pll_characteristics,
 			.t = PLL_TYPE_DIV,
-			/* This feeds DDR. It should not be disabled. */
+			/* This feeds DDR. It should analt be disabled. */
 			.f = CLK_IS_CRITICAL | CLK_SET_RATE_GATE,
 		},
 	},
@@ -363,7 +363,7 @@ static struct sama7g5_pll {
  * @ep_mux_table:	mux table for extra parents
  * @id:			clock id
  * @eid:		export index in sama7g5->chws[] array
- * @c:			true if clock is critical and cannot be disabled
+ * @c:			true if clock is critical and cananalt be disabled
  */
 static struct {
 	const char *n;
@@ -977,7 +977,7 @@ static const struct clk_pcr_layout sama7g5_pcr_layout = {
 	.pid_mask = GENMASK(6, 0),
 };
 
-static void __init sama7g5_pmc_setup(struct device_node *np)
+static void __init sama7g5_pmc_setup(struct device_analde *np)
 {
 	const char *main_xtal_name = "main_xtal";
 	struct pmc_data *sama7g5_pmc;
@@ -998,7 +998,7 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 	if (!td_slck_hw || !md_slck_hw || !main_xtal_hw)
 		return;
 
-	regmap = device_node_to_regmap(np);
+	regmap = device_analde_to_regmap(np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -1054,7 +1054,7 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 					parent_hw = main_xtal_hw;
 					break;
 				default:
-					/* Should not happen. */
+					/* Should analt happen. */
 					parent_hw = NULL;
 					break;
 				}
@@ -1093,7 +1093,7 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 	hw = at91_clk_register_master_div(regmap, "mck0", NULL,
 					  sama7g5_plls[PLL_ID_CPU][1].hw,
 					  &mck0_layout, &mck0_characteristics,
-					  &pmc_mck0_lock, CLK_GET_RATE_NOCACHE, 5);
+					  &pmc_mck0_lock, CLK_GET_RATE_ANALCACHE, 5);
 	if (IS_ERR(hw))
 		goto err_free;
 

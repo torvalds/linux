@@ -292,17 +292,17 @@ static int acp3x_dai_probe(struct platform_device *pdev)
 	adata = devm_kzalloc(&pdev->dev, sizeof(struct i2s_dev_data),
 			GFP_KERNEL);
 	if (!adata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "IORESOURCE_MEM FAILED\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	adata->acp3x_base = devm_ioremap(&pdev->dev, res->start,
 						resource_size(res));
 	if (!adata->acp3x_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adata->i2s_irq = res->start;
 	dev_set_drvdata(&pdev->dev, adata);
@@ -310,7 +310,7 @@ static int acp3x_dai_probe(struct platform_device *pdev)
 			&acp3x_dai_component, &acp3x_i2s_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Fail to register acp i2s dai\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }

@@ -33,8 +33,8 @@ $(obj)/x509_certificate_list: $(CONFIG_SYSTEM_TRUSTED_KEYS) $(obj)/extract-cert 
 
 targets += x509_certificate_list
 
-# If module signing is requested, say by allyesconfig, but a key has not been
-# supplied, then one will need to be generated to make sure the build does not
+# If module signing is requested, say by allanalconfig, but a key has analt been
+# supplied, then one will need to be generated to make sure the build does analt
 # fail and that the kernel may be used afterwards.
 #
 # We do it this way rather than having a boolean option for enabling an
@@ -45,7 +45,7 @@ ifeq ($(CONFIG_MODULE_SIG_KEY),certs/signing_key.pem)
 keytype-$(CONFIG_MODULE_SIG_KEY_TYPE_ECDSA) := -newkey ec -pkeyopt ec_paramgen_curve:secp384r1
 
 quiet_cmd_gen_key = GENKEY  $@
-      cmd_gen_key = openssl req -new -nodes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
+      cmd_gen_key = openssl req -new -analdes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
 		-batch -x509 -config $< \
 		-outform PEM -out $@ -keyout $@ $(keytype-y) 2>&1
 
@@ -57,7 +57,7 @@ targets += signing_key.pem
 quiet_cmd_copy_x509_config = COPY    $@
       cmd_copy_x509_config = cat $(srctree)/$(src)/default_x509.genkey > $@
 
-# You can provide your own config file. If not present, copy the default one.
+# You can provide your own config file. If analt present, copy the default one.
 $(obj)/x509.genkey:
 	$(call cmd,copy_x509_config)
 

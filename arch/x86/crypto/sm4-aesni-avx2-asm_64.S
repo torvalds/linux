@@ -39,14 +39,14 @@
 #define RB2          %ymm14
 #define RB3          %ymm15
 
-#define RNOT         %ymm0
+#define RANALT         %ymm0
 #define RBSWAP       %ymm1
 
 #define RX0x         %xmm0
 #define RX1x         %xmm1
 #define MASK_4BITx   %xmm2
 
-#define RNOTx        %xmm0
+#define RANALTx        %xmm0
 #define RBSWAPx      %xmm1
 
 #define RTMP0x       %xmm3
@@ -82,7 +82,7 @@
 	vpshufb x, hi_t, x;                          \
 	vpxor tmp0, x, x;
 
-/* post-SubByte transform. Note: x has been XOR'ed with mask4bit by
+/* post-SubByte transform. Analte: x has been XOR'ed with mask4bit by
  * 'vaeslastenc' instruction. */
 #define transform_post(x, lo_t, hi_t, mask4bit, tmp0) \
 	vpandn mask4bit, x, tmp0;                     \
@@ -193,7 +193,7 @@ SYM_FUNC_START_LOCAL(__sm4_crypt_blk16)
 	vpxor r2, RX1, RX1;                                         \
 	vpxor r3, RX1, RX1; /* r1 ^ r2 ^ r3 ^ rk */                 \
 	                                                            \
-	/* sbox, non-linear part */                                 \
+	/* sbox, analn-linear part */                                 \
 	transform_pre(RX0, RTMP4, RTMP1, MASK_4BIT, RTMP0);         \
 	transform_pre(RX1, RTMP4, RTMP1, MASK_4BIT, RTMP0);         \
 	vextracti128 $1, RX0, RTMP4x;                               \
@@ -294,15 +294,15 @@ SYM_TYPED_FUNC_START(sm4_aesni_avx2_ctr_enc_blk16)
 	vzeroupper;
 
 	vbroadcasti128 .Lbswap128_mask rRIP, RTMP3;
-	vpcmpeqd RNOT, RNOT, RNOT;
-	vpsrldq $8, RNOT, RNOT;   /* ab: -1:0 ; cd: -1:0 */
-	vpaddq RNOT, RNOT, RTMP2; /* ab: -2:0 ; cd: -2:0 */
+	vpcmpeqd RANALT, RANALT, RANALT;
+	vpsrldq $8, RANALT, RANALT;   /* ab: -1:0 ; cd: -1:0 */
+	vpaddq RANALT, RANALT, RTMP2; /* ab: -2:0 ; cd: -2:0 */
 
 	/* load IV and byteswap */
 	vmovdqu (%rcx), RTMP4x;
 	vpshufb RTMP3x, RTMP4x, RTMP4x;
 	vmovdqa RTMP4x, RTMP0x;
-	inc_le128(RTMP4x, RNOTx, RTMP1x);
+	inc_le128(RTMP4x, RANALTx, RTMP1x);
 	vinserti128 $1, RTMP4x, RTMP0, RTMP0;
 	vpshufb RTMP3, RTMP0, RA0; /* +1 ; +0 */
 
@@ -332,28 +332,28 @@ SYM_TYPED_FUNC_START(sm4_aesni_avx2_ctr_enc_blk16)
 
 .Lhandle_ctr_carry:
 	/* construct IVs */
-	inc_le128(RTMP0, RNOT, RTMP1);
-	inc_le128(RTMP0, RNOT, RTMP1);
+	inc_le128(RTMP0, RANALT, RTMP1);
+	inc_le128(RTMP0, RANALT, RTMP1);
 	vpshufb RTMP3, RTMP0, RA1; /* +3 ; +2 */
-	inc_le128(RTMP0, RNOT, RTMP1);
-	inc_le128(RTMP0, RNOT, RTMP1);
+	inc_le128(RTMP0, RANALT, RTMP1);
+	inc_le128(RTMP0, RANALT, RTMP1);
 	vpshufb RTMP3, RTMP0, RA2; /* +5 ; +4 */
-	inc_le128(RTMP0, RNOT, RTMP1);
-	inc_le128(RTMP0, RNOT, RTMP1);
+	inc_le128(RTMP0, RANALT, RTMP1);
+	inc_le128(RTMP0, RANALT, RTMP1);
 	vpshufb RTMP3, RTMP0, RA3; /* +7 ; +6 */
-	inc_le128(RTMP0, RNOT, RTMP1);
-	inc_le128(RTMP0, RNOT, RTMP1);
+	inc_le128(RTMP0, RANALT, RTMP1);
+	inc_le128(RTMP0, RANALT, RTMP1);
 	vpshufb RTMP3, RTMP0, RB0; /* +9 ; +8 */
-	inc_le128(RTMP0, RNOT, RTMP1);
-	inc_le128(RTMP0, RNOT, RTMP1);
+	inc_le128(RTMP0, RANALT, RTMP1);
+	inc_le128(RTMP0, RANALT, RTMP1);
 	vpshufb RTMP3, RTMP0, RB1; /* +11 ; +10 */
-	inc_le128(RTMP0, RNOT, RTMP1);
-	inc_le128(RTMP0, RNOT, RTMP1);
+	inc_le128(RTMP0, RANALT, RTMP1);
+	inc_le128(RTMP0, RANALT, RTMP1);
 	vpshufb RTMP3, RTMP0, RB2; /* +13 ; +12 */
-	inc_le128(RTMP0, RNOT, RTMP1);
-	inc_le128(RTMP0, RNOT, RTMP1);
+	inc_le128(RTMP0, RANALT, RTMP1);
+	inc_le128(RTMP0, RANALT, RTMP1);
 	vpshufb RTMP3, RTMP0, RB3; /* +15 ; +14 */
-	inc_le128(RTMP0, RNOT, RTMP1);
+	inc_le128(RTMP0, RANALT, RTMP1);
 	vextracti128 $1, RTMP0, RTMP0x;
 	vpshufb RTMP3x, RTMP0x, RTMP0x; /* +16 */
 
@@ -413,9 +413,9 @@ SYM_TYPED_FUNC_START(sm4_aesni_avx2_cbc_dec_blk16)
 
 	call __sm4_crypt_blk16;
 
-	vmovdqu (%rcx), RNOTx;
-	vinserti128 $1, (%rdx), RNOT, RNOT;
-	vpxor RNOT, RA0, RA0;
+	vmovdqu (%rcx), RANALTx;
+	vinserti128 $1, (%rdx), RANALT, RANALT;
+	vpxor RANALT, RA0, RA0;
 	vpxor (0 * 32 + 16)(%rdx), RA1, RA1;
 	vpxor (1 * 32 + 16)(%rdx), RA2, RA2;
 	vpxor (2 * 32 + 16)(%rdx), RA3, RA3;
@@ -423,8 +423,8 @@ SYM_TYPED_FUNC_START(sm4_aesni_avx2_cbc_dec_blk16)
 	vpxor (4 * 32 + 16)(%rdx), RB1, RB1;
 	vpxor (5 * 32 + 16)(%rdx), RB2, RB2;
 	vpxor (6 * 32 + 16)(%rdx), RB3, RB3;
-	vmovdqu (7 * 32 + 16)(%rdx), RNOTx;
-	vmovdqu RNOTx, (%rcx); /* store new IV */
+	vmovdqu (7 * 32 + 16)(%rdx), RANALTx;
+	vmovdqu RANALTx, (%rcx); /* store new IV */
 
 	vmovdqu RA0, (0 * 32)(%rsi);
 	vmovdqu RA1, (1 * 32)(%rsi);

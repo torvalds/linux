@@ -10,7 +10,7 @@
 
 struct br_mrp {
 	/* list of mrp instances */
-	struct hlist_node		list;
+	struct hlist_analde		list;
 
 	struct net_bridge_port __rcu	*p_port;
 	struct net_bridge_port __rcu	*s_port;
@@ -50,14 +50,14 @@ struct br_mrp {
 
 /* This type is returned by br_mrp_switchdev functions that allow to have a SW
  * backup in case the HW can't implement completely the protocol.
- * BR_MRP_NONE - means the HW can't run at all the protocol, so the SW stops
- *               configuring the node anymore.
+ * BR_MRP_ANALNE - means the HW can't run at all the protocol, so the SW stops
+ *               configuring the analde anymore.
  * BR_MRP_SW - the HW can help the SW to run the protocol, by redirecting MRP
  *             frames to CPU.
  * BR_MRP_HW - the HW can implement completely the protocol.
  */
 enum br_mrp_hw_support {
-	BR_MRP_NONE,
+	BR_MRP_ANALNE,
 	BR_MRP_SW,
 	BR_MRP_HW,
 };

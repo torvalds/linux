@@ -135,7 +135,7 @@ static int crypto_poly1305_p10_final(struct shash_desc *desc, u8 *dst)
 	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
 
 	if (unlikely(!dctx->sset))
-		return -ENOKEY;
+		return -EANALKEY;
 
 	if ((dctx->buflen)) {
 		dctx->buf[dctx->buflen++] = 1;

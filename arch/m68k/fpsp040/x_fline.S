@@ -5,7 +5,7 @@
 |
 |	First determine if the exception is one of the unimplemented
 |	floating point instructions.  If so, let fpsp_unimp handle it.
-|	Next, determine if the instruction is an fmovecr with a non-zero
+|	Next, determine if the instruction is an fmovecr with a analn-zero
 |	<ea> field.  If so, handle here and return.  Otherwise, it
 |	must be a real F-line exception.
 |
@@ -39,7 +39,7 @@ fpsp_fline:
 	beql	fpsp_unimp
 
 |
-|	fmovecr with non-zero <ea> handling here
+|	fmovecr with analn-zero <ea> handling here
 |
 	subl	#4,%a7		|4 accounts for 2-word difference
 |				;between six word frame (unimp) and
@@ -58,10 +58,10 @@ fpsp_fline:
 	movel	L_SCR1(%a6),%d0	|d0 contains the fline and command word
 	bfextu	%d0{#4:#3},%d1	|extract coprocessor id
 	cmpib	#1,%d1		|check if cpid=1
-	bne	not_mvcr	|exit if not
+	bne	analt_mvcr	|exit if analt
 	bfextu	%d0{#16:#6},%d1
 	cmpib	#0x17,%d1		|check if it is an FMOVECR encoding
-	bne	not_mvcr
+	bne	analt_mvcr
 |				;if an FMOVECR instruction, fix stack
 |				;and go to FPSP_UNIMP
 fix_stack:
@@ -74,7 +74,7 @@ fix_stack:
 	bras	fix_con
 ck_rev:
 	cmpib	#VER_41,(%a7)	|test for rev unimp frame
-	bnel	fpsp_fmt_error	|if not $40 or $41, exit with error
+	bnel	fpsp_fmt_error	|if analt $40 or $41, exit with error
 	subl	#UNIMP_41_SIZE-4,%a7 |emulate a rev fsave
 	moveb	#VER_41,(%a7)
 	moveb	#UNIMP_41_SIZE-4,1(%a7)
@@ -93,7 +93,7 @@ fix_con:
 	moveml	USER_DA(%a6),%d0-%d1/%a0-%a1 |restore data registers
 	bral	uni_2
 
-not_mvcr:
+analt_mvcr:
 	moveml	USER_DA(%a6),%d0-%d1/%a0-%a1 |restore data registers
 	frestore (%a7)+
 	unlk	%a6

@@ -84,7 +84,7 @@ static irqreturn_t stm32_ipcc_rx_irq(int irq, void *data)
 	struct stm32_ipcc *ipcc = data;
 	struct device *dev = ipcc->controller.dev;
 	u32 status, mr, tosr, chan;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	int proc_offset;
 
 	/* read 'channel occupied' status from other proc */
@@ -117,7 +117,7 @@ static irqreturn_t stm32_ipcc_tx_irq(int irq, void *data)
 	struct stm32_ipcc *ipcc = data;
 	struct device *dev = ipcc->controller.dev;
 	u32 status, mr, tosr, chan;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	tosr = readl_relaxed(ipcc->reg_proc + IPCC_XTOYSR);
 	mr = readl_relaxed(ipcc->reg_proc + IPCC_XMR);
@@ -171,7 +171,7 @@ static int stm32_ipcc_startup(struct mbox_chan *link)
 
 	ret = clk_prepare_enable(ipcc->clk);
 	if (ret) {
-		dev_err(ipcc->controller.dev, "can not enable the clock\n");
+		dev_err(ipcc->controller.dev, "can analt enable the clock\n");
 		return ret;
 	}
 
@@ -204,7 +204,7 @@ static const struct mbox_chan_ops stm32_ipcc_ops = {
 static int stm32_ipcc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct stm32_ipcc *ipcc;
 	unsigned long i;
 	int ret;
@@ -213,20 +213,20 @@ static int stm32_ipcc_probe(struct platform_device *pdev)
 	irq_handler_t irq_thread[] = {stm32_ipcc_rx_irq, stm32_ipcc_tx_irq};
 
 	if (!np) {
-		dev_err(dev, "No DT found\n");
-		return -ENODEV;
+		dev_err(dev, "Anal DT found\n");
+		return -EANALDEV;
 	}
 
 	ipcc = devm_kzalloc(dev, sizeof(*ipcc), GFP_KERNEL);
 	if (!ipcc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&ipcc->lock);
 
 	/* proc_id */
 	if (of_property_read_u32(np, "st,proc-id", &ipcc->proc_id)) {
 		dev_err(dev, "Missing st,proc-id\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (ipcc->proc_id >= STM32_MAX_PROCS) {
@@ -248,7 +248,7 @@ static int stm32_ipcc_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(ipcc->clk);
 	if (ret) {
-		dev_err(dev, "can not enable the clock\n");
+		dev_err(dev, "can analt enable the clock\n");
 		return ret;
 	}
 
@@ -298,7 +298,7 @@ static int stm32_ipcc_probe(struct platform_device *pdev)
 					      sizeof(*ipcc->controller.chans),
 					      GFP_KERNEL);
 	if (!ipcc->controller.chans) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_irq_wkp;
 	}
 
@@ -335,7 +335,7 @@ static void stm32_ipcc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	if (of_property_read_bool(dev->of_node, "wakeup-source"))
+	if (of_property_read_bool(dev->of_analde, "wakeup-source"))
 		dev_pm_clear_wake_irq(&pdev->dev);
 
 	device_set_wakeup_capable(dev, false);

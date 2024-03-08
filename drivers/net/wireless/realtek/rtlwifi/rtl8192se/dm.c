@@ -11,7 +11,7 @@
 #include "fw.h"
 
 static const u32 edca_setting_dl[PEER_MAX] = {
-	0xa44f,		/* 0 UNKNOWN */
+	0xa44f,		/* 0 UNKANALWN */
 	0x5ea44f,	/* 1 REALTEK_90 */
 	0x5ea44f,	/* 2 REALTEK_92SE */
 	0xa630,		/* 3 BROAD	*/
@@ -22,7 +22,7 @@ static const u32 edca_setting_dl[PEER_MAX] = {
 };
 
 static const u32 edca_setting_dl_gmode[PEER_MAX] = {
-	0x4322,		/* 0 UNKNOWN */
+	0x4322,		/* 0 UNKANALWN */
 	0xa44f,		/* 1 REALTEK_90 */
 	0x5ea44f,	/* 2 REALTEK_92SE */
 	0xa42b,		/* 3 BROAD */
@@ -33,7 +33,7 @@ static const u32 edca_setting_dl_gmode[PEER_MAX] = {
 };
 
 static const u32 edca_setting_ul[PEER_MAX] = {
-	0x5e4322,	/* 0 UNKNOWN */
+	0x5e4322,	/* 0 UNKANALWN */
 	0xa44f,		/* 1 REALTEK_90 */
 	0x5ea44f,	/* 2 REALTEK_92SE */
 	0x5ea322,	/* 3 BROAD */
@@ -62,7 +62,7 @@ static void _rtl92s_dm_check_edca_turbo(struct ieee80211_hw *hw)
 		goto dm_checkedcaturbo_exit;
 	}
 
-	if ((!rtlpriv->dm.is_any_nonbepkts) &&
+	if ((!rtlpriv->dm.is_any_analnbepkts) &&
 	    (!rtlpriv->dm.disable_framebursting)) {
 		cur_txok_cnt = rtlpriv->stats.txbytesunicast - last_txok_cnt;
 		cur_rxok_cnt = rtlpriv->stats.rxbytesunicast - last_rxok_cnt;
@@ -127,7 +127,7 @@ static void _rtl92s_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	}
 
 dm_checkedcaturbo_exit:
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_analnbepkts = false;
 	last_txok_cnt = rtlpriv->stats.txbytesunicast;
 	last_rxok_cnt = rtlpriv->stats.rxbytesunicast;
 }
@@ -309,7 +309,7 @@ static void _rtl92s_dm_switch_baseband_mrc(struct ieee80211_hw *hw)
 		}
 	}
 
-	/* MRC settings would NOT affect TP on Wireless B mode. */
+	/* MRC settings would ANALT affect TP on Wireless B mode. */
 	if (mac->mode != WIRELESS_MODE_B) {
 		if ((rssi_a == 0) && (rssi_b == 0)) {
 			enable_mrc = true;
@@ -347,7 +347,7 @@ void rtl92s_dm_init_edca_turbo(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtlpriv->dm.current_turbo_edca = false;
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_analnbepkts = false;
 	rtlpriv->dm.is_cur_rdlstate = false;
 }
 
@@ -468,7 +468,7 @@ static void _rtl92s_dm_initial_gain_sta_beforeconnect(struct ieee80211_hw *hw)
 						 digtable->rx_gain_max;
 		/* connected -> connected or disconnected -> disconnected  */
 		} else {
-			/* Firmware control DIG, do nothing in driver dm */
+			/* Firmware control DIG, do analthing in driver dm */
 			return;
 		}
 		/* disconnected -> connected or connected ->
@@ -513,7 +513,7 @@ static void _rtl92s_dm_ctrl_initgain_bytwoport(struct ieee80211_hw *hw)
 	if (rtlpriv->mac80211.act_scanning)
 		return;
 
-	/* Decide the current status and if modify initial gain or not */
+	/* Decide the current status and if modify initial gain or analt */
 	if (rtlpriv->mac80211.link_state >= MAC80211_LINKED ||
 	    rtlpriv->mac80211.opmode == NL80211_IFTYPE_ADHOC)
 		dig->cur_sta_cstate = DIG_STA_CONNECT;
@@ -570,18 +570,18 @@ static void _rtl92s_dm_dynamic_txpower(struct ieee80211_hw *hw)
 
 	if (!rtlpriv->dm.dynamic_txpower_enable ||
 	    rtlpriv->dm.dm_flag & HAL_DM_HIPWR_DISABLE) {
-		rtlpriv->dm.dynamic_txhighpower_lvl = TX_HIGHPWR_LEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TX_HIGHPWR_LEVEL_ANALRMAL;
 		return;
 	}
 
 	if ((mac->link_state < MAC80211_LINKED) &&
 	    (rtlpriv->dm.entry_min_undec_sm_pwdb == 0)) {
 		rtl_dbg(rtlpriv, COMP_POWER, DBG_TRACE,
-			"Not connected to any\n");
+			"Analt connected to any\n");
 
-		rtlpriv->dm.dynamic_txhighpower_lvl = TX_HIGHPWR_LEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TX_HIGHPWR_LEVEL_ANALRMAL;
 
-		rtlpriv->dm.last_dtp_lvl = TX_HIGHPWR_LEVEL_NORMAL;
+		rtlpriv->dm.last_dtp_lvl = TX_HIGHPWR_LEVEL_ANALRMAL;
 		return;
 	}
 
@@ -609,14 +609,14 @@ static void _rtl92s_dm_dynamic_txpower(struct ieee80211_hw *hw)
 	txpwr_threshold_lv1 = TX_POWER_NEAR_FIELD_THRESH_LVL1;
 
 	if (rtl_get_bbreg(hw, 0xc90, MASKBYTE0) == 1)
-		rtlpriv->dm.dynamic_txhighpower_lvl = TX_HIGHPWR_LEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TX_HIGHPWR_LEVEL_ANALRMAL;
 	else if (undec_sm_pwdb >= txpwr_threshold_lv2)
-		rtlpriv->dm.dynamic_txhighpower_lvl = TX_HIGHPWR_LEVEL_NORMAL2;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TX_HIGHPWR_LEVEL_ANALRMAL2;
 	else if ((undec_sm_pwdb < (txpwr_threshold_lv2 - 3)) &&
 		(undec_sm_pwdb >= txpwr_threshold_lv1))
-		rtlpriv->dm.dynamic_txhighpower_lvl = TX_HIGHPWR_LEVEL_NORMAL1;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TX_HIGHPWR_LEVEL_ANALRMAL1;
 	else if (undec_sm_pwdb < (txpwr_threshold_lv1 - 3))
-		rtlpriv->dm.dynamic_txhighpower_lvl = TX_HIGHPWR_LEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TX_HIGHPWR_LEVEL_ANALRMAL;
 
 	if ((rtlpriv->dm.dynamic_txhighpower_lvl != rtlpriv->dm.last_dtp_lvl))
 		rtl92s_phy_set_txpower(hw, rtlphy->current_channel);
@@ -629,7 +629,7 @@ static void _rtl92s_dm_init_dig(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct dig_t *digtable = &rtlpriv->dm_digtable;
 
-	/* Disable DIG scheme now.*/
+	/* Disable DIG scheme analw.*/
 	digtable->dig_enable_flag = true;
 	digtable->backoff_enable_flag = true;
 
@@ -685,8 +685,8 @@ static void _rtl92s_dm_init_dynamic_txpower(struct ieee80211_hw *hw)
 	else
 		rtlpriv->dm.dynamic_txpower_enable = false;
 
-	rtlpriv->dm.last_dtp_lvl = TX_HIGHPWR_LEVEL_NORMAL;
-	rtlpriv->dm.dynamic_txhighpower_lvl = TX_HIGHPWR_LEVEL_NORMAL;
+	rtlpriv->dm.last_dtp_lvl = TX_HIGHPWR_LEVEL_ANALRMAL;
+	rtlpriv->dm.dynamic_txhighpower_lvl = TX_HIGHPWR_LEVEL_ANALRMAL;
 }
 
 void rtl92s_dm_init(struct ieee80211_hw *hw)

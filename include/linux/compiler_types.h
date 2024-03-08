@@ -21,17 +21,17 @@
 	__has_attribute(btf_type_tag) && !defined(__BINDGEN__)
 # define BTF_TYPE_TAG(value) __attribute__((btf_type_tag(#value)))
 #else
-# define BTF_TYPE_TAG(value) /* nothing */
+# define BTF_TYPE_TAG(value) /* analthing */
 #endif
 
 /* sparse defines __CHECKER__; see Documentation/dev-tools/sparse.rst */
 #ifdef __CHECKER__
 /* address spaces */
 # define __kernel	__attribute__((address_space(0)))
-# define __user		__attribute__((noderef, address_space(__user)))
-# define __iomem	__attribute__((noderef, address_space(__iomem)))
-# define __percpu	__attribute__((noderef, address_space(__percpu)))
-# define __rcu		__attribute__((noderef, address_space(__rcu)))
+# define __user		__attribute__((analderef, address_space(__user)))
+# define __iomem	__attribute__((analderef, address_space(__iomem)))
+# define __percpu	__attribute__((analderef, address_space(__percpu)))
+# define __rcu		__attribute__((analderef, address_space(__rcu)))
 static inline void __chk_user_ptr(const volatile void __user *ptr) { }
 static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
 /* context/locking */
@@ -44,9 +44,9 @@ static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
 # define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)
 /* other */
 # define __force	__attribute__((force))
-# define __nocast	__attribute__((nocast))
+# define __analcast	__attribute__((analcast))
 # define __safe		__attribute__((safe))
-# define __private	__attribute__((noderef))
+# define __private	__attribute__((analderef))
 # define ACCESS_PRIVATE(p, member) (*((typeof((p)->member) __force *) &(p)->member))
 #else /* __CHECKER__ */
 /* address spaces */
@@ -72,7 +72,7 @@ static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
 # define __cond_lock(x,c) (c)
 /* other */
 # define __force
-# define __nocast
+# define __analcast
 # define __safe
 # define __private
 # define ACCESS_PRIVATE(p, member) ((p)->member)
@@ -101,7 +101,7 @@ static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
  * When -falign-functions=N is in use, we must avoid the cold attribute as
  * contemporary versions of GCC drop the alignment for cold functions. Worse,
  * GCC can implicitly mark callees of cold functions as cold themselves, so
- * it's not sufficient to add __function_aligned here as that will not ensure
+ * it's analt sufficient to add __function_aligned here as that will analt ensure
  * that callees are correctly aligned.
  *
  * See:
@@ -127,18 +127,18 @@ static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
  * rarely taken slow paths, such as error-reporting functions that may be called
  * from hot paths.
  *
- * Note: This may conflict with instrumentation inserted on function entry which
- * does not use __preserve_most or equivalent convention (if in assembly). Since
- * function tracing assumes the normal C calling convention, where the attribute
- * is supported, __preserve_most implies notrace.  It is recommended to restrict
+ * Analte: This may conflict with instrumentation inserted on function entry which
+ * does analt use __preserve_most or equivalent convention (if in assembly). Since
+ * function tracing assumes the analrmal C calling convention, where the attribute
+ * is supported, __preserve_most implies analtrace.  It is recommended to restrict
  * use of the attribute to functions that should or already disable tracing.
  *
- * Optional: not supported by gcc.
+ * Optional: analt supported by gcc.
  *
  * clang: https://clang.llvm.org/docs/AttributeReference.html#preserve-most
  */
 #if __has_attribute(__preserve_most__) && (defined(CONFIG_X86_64) || defined(CONFIG_ARM64))
-# define __preserve_most notrace __attribute__((__preserve_most__))
+# define __preserve_most analtrace __attribute__((__preserve_most__))
 #else
 # define __preserve_most
 #endif
@@ -150,7 +150,7 @@ static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
 /* The above compilers also define __GNUC__, so order is important here. */
 #include <linux/compiler-gcc.h>
 #else
-#error "Unknown compiler"
+#error "Unkanalwn compiler"
 #endif
 
 /*
@@ -188,29 +188,29 @@ struct ftrace_likely_data {
 };
 
 #if defined(CC_USING_HOTPATCH)
-#define notrace			__attribute__((hotpatch(0, 0)))
+#define analtrace			__attribute__((hotpatch(0, 0)))
 #elif defined(CC_USING_PATCHABLE_FUNCTION_ENTRY)
-#define notrace			__attribute__((patchable_function_entry(0, 0)))
+#define analtrace			__attribute__((patchable_function_entry(0, 0)))
 #else
-#define notrace			__attribute__((__no_instrument_function__))
+#define analtrace			__attribute__((__anal_instrument_function__))
 #endif
 
 /*
  * it doesn't make sense on ARM (currently the only user of __naked)
  * to trace naked functions because then mcount is called without
- * stack and frame pointer being set up and there is no chance to
+ * stack and frame pointer being set up and there is anal chance to
  * restore the lr register to the value before mcount was called.
  */
-#define __naked			__attribute__((__naked__)) notrace
+#define __naked			__attribute__((__naked__)) analtrace
 
 /*
- * Prefer gnu_inline, so that extern inline functions do not emit an
+ * Prefer gnu_inline, so that extern inline functions do analt emit an
  * externally visible function. This makes extern inline behave as per gnu89
  * semantics rather than c99. This prevents multiple symbol definition errors
  * of extern inline functions at link time.
  * A lot of inline functions can cause havoc with function tracing.
  */
-#define inline inline __gnu_inline __inline_maybe_unused notrace
+#define inline inline __gnu_inline __inline_maybe_unused analtrace
 
 /*
  * gcc provides both __inline__ and __inline as alternate spellings of
@@ -225,7 +225,7 @@ struct ftrace_likely_data {
 #define __inline__ inline
 
 /*
- * GCC does not warn about unused static inline functions for -Wunused-function.
+ * GCC does analt warn about unused static inline functions for -Wunused-function.
  * Suppress the warning in clang as well by using __maybe_unused, but enable it
  * for W=1 build. This will allow clang to find unused functions. Remove the
  * __inline_maybe_unused entirely after fixing most of -Wunused-function warnings.
@@ -237,58 +237,58 @@ struct ftrace_likely_data {
 #endif
 
 /*
- * Rather then using noinline to prevent stack consumption, use
- * noinline_for_stack instead.  For documentation reasons.
+ * Rather then using analinline to prevent stack consumption, use
+ * analinline_for_stack instead.  For documentation reasons.
  */
-#define noinline_for_stack noinline
+#define analinline_for_stack analinline
 
 /*
  * Sanitizer helper attributes: Because using __always_inline and
- * __no_sanitize_* conflict, provide helper attributes that will either expand
- * to __no_sanitize_* in compilation units where instrumentation is enabled
+ * __anal_sanitize_* conflict, provide helper attributes that will either expand
+ * to __anal_sanitize_* in compilation units where instrumentation is enabled
  * (__SANITIZE_*__), or __always_inline in compilation units without
  * instrumentation (__SANITIZE_*__ undefined).
  */
 #ifdef __SANITIZE_ADDRESS__
 /*
- * We can't declare function 'inline' because __no_sanitize_address conflicts
+ * We can't declare function 'inline' because __anal_sanitize_address conflicts
  * with inlining. Attempt to inline it may cause a build failure.
  *     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=67368
- * '__maybe_unused' allows us to avoid defined-but-not-used warnings.
+ * '__maybe_unused' allows us to avoid defined-but-analt-used warnings.
  */
-# define __no_kasan_or_inline __no_sanitize_address notrace __maybe_unused
-# define __no_sanitize_or_inline __no_kasan_or_inline
+# define __anal_kasan_or_inline __anal_sanitize_address analtrace __maybe_unused
+# define __anal_sanitize_or_inline __anal_kasan_or_inline
 #else
-# define __no_kasan_or_inline __always_inline
+# define __anal_kasan_or_inline __always_inline
 #endif
 
 #ifdef __SANITIZE_THREAD__
 /*
  * Clang still emits instrumentation for __tsan_func_{entry,exit}() and builtin
- * atomics even with __no_sanitize_thread (to avoid false positives in userspace
- * ThreadSanitizer). The kernel's requirements are stricter and we really do not
- * want any instrumentation with __no_kcsan.
+ * atomics even with __anal_sanitize_thread (to avoid false positives in userspace
+ * ThreadSanitizer). The kernel's requirements are stricter and we really do analt
+ * want any instrumentation with __anal_kcsan.
  *
  * Therefore we add __disable_sanitizer_instrumentation where available to
  * disable all instrumentation. See Kconfig.kcsan where this is mandatory.
  */
-# define __no_kcsan __no_sanitize_thread __disable_sanitizer_instrumentation
-# define __no_sanitize_or_inline __no_kcsan notrace __maybe_unused
+# define __anal_kcsan __anal_sanitize_thread __disable_sanitizer_instrumentation
+# define __anal_sanitize_or_inline __anal_kcsan analtrace __maybe_unused
 #else
-# define __no_kcsan
+# define __anal_kcsan
 #endif
 
-#ifndef __no_sanitize_or_inline
-#define __no_sanitize_or_inline __always_inline
+#ifndef __anal_sanitize_or_inline
+#define __anal_sanitize_or_inline __always_inline
 #endif
 
 /* Section for code which can't be instrumented at all */
-#define __noinstr_section(section)					\
-	noinline notrace __attribute((__section__(section)))		\
-	__no_kcsan __no_sanitize_address __no_profile __no_sanitize_coverage \
-	__no_sanitize_memory
+#define __analinstr_section(section)					\
+	analinline analtrace __attribute((__section__(section)))		\
+	__anal_kcsan __anal_sanitize_address __anal_profile __anal_sanitize_coverage \
+	__anal_sanitize_memory
 
-#define noinstr __noinstr_section(".noinstr.text")
+#define analinstr __analinstr_section(".analinstr.text")
 
 /*
  * The __cpuidle section is used twofold:
@@ -298,17 +298,17 @@ struct ftrace_likely_data {
  *
  *  2) supressing instrumentation around where cpuidle disables RCU; where the
  *     function isn't strictly required for #1, this is interchangeable with
- *     noinstr.
+ *     analinstr.
  */
-#define __cpuidle __noinstr_section(".cpuidle.text")
+#define __cpuidle __analinstr_section(".cpuidle.text")
 
 #endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */
 
 /*
- * The below symbols may be defined for one or more, but not ALL, of the above
- * compilers. We don't consider that to be an error, so set them to nothing.
+ * The below symbols may be defined for one or more, but analt ALL, of the above
+ * compilers. We don't consider that to be an error, so set them to analthing.
  * For example, some of them are for compiler specific plugins.
  */
 #ifndef __latent_entropy
@@ -317,23 +317,23 @@ struct ftrace_likely_data {
 
 #if defined(RANDSTRUCT) && !defined(__CHECKER__)
 # define __randomize_layout __designated_init __attribute__((randomize_layout))
-# define __no_randomize_layout __attribute__((no_randomize_layout))
-/* This anon struct can add padding, so only enable it under randstruct. */
+# define __anal_randomize_layout __attribute__((anal_randomize_layout))
+/* This aanaln struct can add padding, so only enable it under randstruct. */
 # define randomized_struct_fields_start	struct {
 # define randomized_struct_fields_end	} __randomize_layout;
 #else
 # define __randomize_layout __designated_init
-# define __no_randomize_layout
+# define __anal_randomize_layout
 # define randomized_struct_fields_start
 # define randomized_struct_fields_end
 #endif
 
-#ifndef __noscs
-# define __noscs
+#ifndef __analscs
+# define __analscs
 #endif
 
-#ifndef __nocfi
-# define __nocfi
+#ifndef __analcfi
+# define __analcfi
 #endif
 
 /*
@@ -352,7 +352,7 @@ struct ftrace_likely_data {
 
 /*
  * When the size of an allocated object is needed, use the best available
- * mechanism to find it. (For cases where sizeof() cannot be used.)
+ * mechanism to find it. (For cases where sizeof() cananalt be used.)
  */
 #if __has_builtin(__builtin_dynamic_object_size)
 #define __struct_size(p)	__builtin_dynamic_object_size(p, 0)
@@ -363,7 +363,7 @@ struct ftrace_likely_data {
 #endif
 
 /*
- * Some versions of gcc do not mark 'asm goto' volatile:
+ * Some versions of gcc do analt mark 'asm goto' volatile:
  *
  *  https://gcc.gnu.org/bugzilla/show_bug.cgi?id=103979
  *
@@ -379,16 +379,16 @@ struct ftrace_likely_data {
 #define asm_inline asm
 #endif
 
-/* Are two types/vars the same type (ignoring qualifiers)? */
+/* Are two types/vars the same type (iganalring qualifiers)? */
 #define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
 
 /*
  * __unqual_scalar_typeof(x) - Declare an unqualified scalar type, leaving
- *			       non-scalar types unchanged.
+ *			       analn-scalar types unchanged.
  */
 /*
- * Prefer C11 _Generic for better compile-times and simpler code. Note: 'char'
- * is not type-compatible with 'signed char', and we define a separate case.
+ * Prefer C11 _Generic for better compile-times and simpler code. Analte: 'char'
+ * is analt type-compatible with 'signed char', and we define a separate case.
  */
 #define __scalar_type_to_expr_cases(type)				\
 		unsigned type:	(unsigned type)0,			\
@@ -413,11 +413,11 @@ struct ftrace_likely_data {
 # define __compiletime_assert(condition, msg, prefix, suffix)		\
 	do {								\
 		/*							\
-		 * __noreturn is needed to give the compiler enough	\
+		 * __analreturn is needed to give the compiler eanalugh	\
 		 * information to avoid certain possibly-uninitialized	\
 		 * warnings (regardless of the build failing).		\
 		 */							\
-		__noreturn extern void prefix ## suffix(void)		\
+		__analreturn extern void prefix ## suffix(void)		\
 			__compiletime_error(msg);			\
 		if (!(condition))					\
 			prefix ## suffix();				\
@@ -445,7 +445,7 @@ struct ftrace_likely_data {
 	compiletime_assert(__native_word(t),				\
 		"Need native word sized stores/loads for atomicity.")
 
-/* Helpers for emitting diagnostics in pragmas. */
+/* Helpers for emitting diaganalstics in pragmas. */
 #ifndef __diag
 #define __diag(string)
 #endif
@@ -457,15 +457,15 @@ struct ftrace_likely_data {
 #define __diag_push()	__diag(push)
 #define __diag_pop()	__diag(pop)
 
-#define __diag_ignore(compiler, version, option, comment) \
-	__diag_ ## compiler(version, ignore, option)
+#define __diag_iganalre(compiler, version, option, comment) \
+	__diag_ ## compiler(version, iganalre, option)
 #define __diag_warn(compiler, version, option, comment) \
 	__diag_ ## compiler(version, warn, option)
 #define __diag_error(compiler, version, option, comment) \
 	__diag_ ## compiler(version, error, option)
 
-#ifndef __diag_ignore_all
-#define __diag_ignore_all(option, comment)
+#ifndef __diag_iganalre_all
+#define __diag_iganalre_all(option, comment)
 #endif
 
 #endif /* __LINUX_COMPILER_TYPES_H */

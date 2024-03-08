@@ -124,7 +124,7 @@ static void hsu_dma_start_transfer(struct hsu_dma_chan *hsuc)
 		return;
 	}
 
-	list_del(&vdesc->node);
+	list_del(&vdesc->analde);
 	hsuc->desc = to_hsu_dma_desc(vdesc);
 
 	/* Start the channel with a new descriptor */
@@ -146,7 +146,7 @@ static void hsu_dma_start_transfer(struct hsu_dma_chan *hsuc)
  *
  *      Return:
  *      1 for DMA timeout status, 0 for other DMA status, or error code for
- *      invalid parameters or no interrupt pending.
+ *      invalid parameters or anal interrupt pending.
  */
 int hsu_dma_get_status(struct hsu_dma_chip *chip, unsigned short nr,
 		       u32 *status)
@@ -162,7 +162,7 @@ int hsu_dma_get_status(struct hsu_dma_chip *chip, unsigned short nr,
 	hsuc = &chip->hsu->chan[nr];
 
 	/*
-	 * No matter what situation, need read clear the IRQ status
+	 * Anal matter what situation, need read clear the IRQ status
 	 * There is a bug, see Errata 5, HSD 2900918
 	 */
 	spin_lock_irqsave(&hsuc->vchan.lock, flags);
@@ -181,7 +181,7 @@ int hsu_dma_get_status(struct hsu_dma_chip *chip, unsigned short nr,
 	/*
 	 * At this point, at least one of Descriptor Time Out, Channel Error
 	 * or Descriptor Done bits must be set. Clear the Descriptor Time Out
-	 * bits and if sr is still non-zero, it must be channel error or
+	 * bits and if sr is still analn-zero, it must be channel error or
 	 * descriptor done which are higher priority than timeout and handled
 	 * in hsu_dma_do_irq(). Else, it must be a timeout.
 	 */
@@ -202,7 +202,7 @@ EXPORT_SYMBOL_GPL(hsu_dma_get_status);
  *      Description:
  *      This function handles Channel Error and Descriptor Done interrupts.
  *      This function should be called after determining that the DMA interrupt
- *      is not a normal timeout interrupt, ie. hsu_dma_get_status() returned 0.
+ *      is analt a analrmal timeout interrupt, ie. hsu_dma_get_status() returned 0.
  *
  *      Return:
  *      0 for invalid channel number, 1 otherwise.
@@ -245,11 +245,11 @@ static struct hsu_dma_desc *hsu_dma_alloc_desc(unsigned int nents)
 {
 	struct hsu_dma_desc *desc;
 
-	desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+	desc = kzalloc(sizeof(*desc), GFP_ANALWAIT);
 	if (!desc)
 		return NULL;
 
-	desc->sg = kcalloc(nents, sizeof(*desc->sg), GFP_NOWAIT);
+	desc->sg = kcalloc(nents, sizeof(*desc->sg), GFP_ANALWAIT);
 	if (!desc->sg) {
 		kfree(desc);
 		return NULL;
@@ -433,7 +433,7 @@ int hsu_dma_probe(struct hsu_dma_chip *chip)
 
 	hsu = devm_kzalloc(chip->dev, sizeof(*hsu), GFP_KERNEL);
 	if (!hsu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->hsu = hsu;
 
@@ -443,7 +443,7 @@ int hsu_dma_probe(struct hsu_dma_chip *chip)
 	hsu->chan = devm_kcalloc(chip->dev, hsu->nr_channels,
 				 sizeof(*hsu->chan), GFP_KERNEL);
 	if (!hsu->chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&hsu->dma.channels);
 	for (i = 0; i < hsu->nr_channels; i++) {

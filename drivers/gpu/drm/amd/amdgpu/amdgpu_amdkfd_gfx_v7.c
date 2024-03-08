@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,7 +35,7 @@
 #include "cik_structs.h"
 
 enum hqd_dequeue_request_type {
-	NO_ACTION = 0,
+	ANAL_ACTION = 0,
 	DRAIN_PIPE,
 	RESET_WAVES
 };
@@ -94,7 +94,7 @@ static int kgd_set_pasid_vmid_mapping(struct amdgpu_device *adev, u32 pasid,
 					unsigned int vmid, uint32_t inst)
 {
 	/*
-	 * We have to assume that there is no outstanding mapping.
+	 * We have to assume that there is anal outstanding mapping.
 	 * The ATC_VMID_PASID_MAPPING_UPDATE_STATUS bit could be 0 because
 	 * a mapping is in progress or because a mapping finished and the
 	 * SW cleared it. So the protocol is to always wait & clear.
@@ -216,7 +216,7 @@ static int kgd_hqd_dump(struct amdgpu_device *adev,
 
 	*dump = kmalloc_array(HQD_N_REGS, sizeof(**dump), GFP_KERNEL);
 	if (*dump == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	acquire_queue(adev, pipe_id, queue_id);
 
@@ -256,7 +256,7 @@ static int kgd_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
 		if (data & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC analt idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -303,7 +303,7 @@ static int kgd_hqd_sdma_dump(struct amdgpu_device *adev,
 
 	*dump = kmalloc_array(HQD_N_REGS, sizeof(**dump), GFP_KERNEL);
 	if (*dump == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (reg = mmSDMA0_RLC0_RB_CNTL; reg <= mmSDMA0_RLC0_DOORBELL; reg++)
 		DUMP_REG(sdma_offset + reg);
@@ -385,7 +385,7 @@ static int kgd_hqd_destroy(struct amdgpu_device *adev, void *mqd,
 	}
 
 	/* Workaround: If IQ timer is active and the wait time is close to or
-	 * equal to 0, dequeueing is not safe. Wait until either the wait time
+	 * equal to 0, dequeueing is analt safe. Wait until either the wait time
 	 * is larger or timer is cleared. Also, ensure that IQ_REQ_PEND is
 	 * cleared before continuing. Also, ensure wait times are set to at
 	 * least 0x3.
@@ -477,7 +477,7 @@ static int kgd_hqd_sdma_destroy(struct amdgpu_device *adev, void *mqd,
 		if (temp & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC analt idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);

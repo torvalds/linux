@@ -5,7 +5,7 @@
  * Copyright 2021 Collabora Ltd.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <getopt.h>
 #include <stdio.h>
@@ -40,15 +40,15 @@ void *waiterfn(void *arg)
 	int res;
 
 	/* setting absolute timeout for futex2 */
-	if (clock_gettime(CLOCK_MONOTONIC, &to))
-		error("gettime64 failed\n", errno);
+	if (clock_gettime(CLOCK_MOANALTONIC, &to))
+		error("gettime64 failed\n", erranal);
 
 	to.tv_sec++;
 
-	res = futex_waitv(waitv, NR_FUTEXES, 0, &to, CLOCK_MONOTONIC);
+	res = futex_waitv(waitv, NR_FUTEXES, 0, &to, CLOCK_MOANALTONIC);
 	if (res < 0) {
 		ksft_test_result_fail("futex_waitv returned: %d %s\n",
-				      errno, strerror(errno));
+				      erranal, strerror(erranal));
 	} else if (res != NR_FUTEXES - 1) {
 		ksft_test_result_fail("futex_waitv returned: %d, expecting %d\n",
 				      res, NR_FUTEXES - 1);
@@ -95,15 +95,15 @@ int main(int argc, char *argv[])
 
 	/* Private waitv */
 	if (pthread_create(&waiter, NULL, waiterfn, NULL))
-		error("pthread_create failed\n", errno);
+		error("pthread_create failed\n", erranal);
 
 	usleep(WAKE_WAIT_US);
 
 	res = futex_wake(u64_to_ptr(waitv[NR_FUTEXES - 1].uaddr), 1, FUTEX_PRIVATE_FLAG);
 	if (res != 1) {
 		ksft_test_result_fail("futex_wake private returned: %d %s\n",
-				      res ? errno : res,
-				      res ? strerror(errno) : "");
+				      res ? erranal : res,
+				      res ? strerror(erranal) : "");
 		ret = RET_FAIL;
 	} else {
 		ksft_test_result_pass("futex_waitv private\n");
@@ -128,15 +128,15 @@ int main(int argc, char *argv[])
 	}
 
 	if (pthread_create(&waiter, NULL, waiterfn, NULL))
-		error("pthread_create failed\n", errno);
+		error("pthread_create failed\n", erranal);
 
 	usleep(WAKE_WAIT_US);
 
 	res = futex_wake(u64_to_ptr(waitv[NR_FUTEXES - 1].uaddr), 1, 0);
 	if (res != 1) {
 		ksft_test_result_fail("futex_wake shared returned: %d %s\n",
-				      res ? errno : res,
-				      res ? strerror(errno) : "");
+				      res ? erranal : res,
+				      res ? strerror(erranal) : "");
 		ret = RET_FAIL;
 	} else {
 		ksft_test_result_pass("futex_waitv shared\n");
@@ -148,16 +148,16 @@ int main(int argc, char *argv[])
 	/* Testing a waiter without FUTEX_32 flag */
 	waitv[0].flags = FUTEX_PRIVATE_FLAG;
 
-	if (clock_gettime(CLOCK_MONOTONIC, &to))
-		error("gettime64 failed\n", errno);
+	if (clock_gettime(CLOCK_MOANALTONIC, &to))
+		error("gettime64 failed\n", erranal);
 
 	to.tv_sec++;
 
-	res = futex_waitv(waitv, NR_FUTEXES, 0, &to, CLOCK_MONOTONIC);
+	res = futex_waitv(waitv, NR_FUTEXES, 0, &to, CLOCK_MOANALTONIC);
 	if (res == EINVAL) {
 		ksft_test_result_fail("futex_waitv private returned: %d %s\n",
-				      res ? errno : res,
-				      res ? strerror(errno) : "");
+				      res ? erranal : res,
+				      res ? strerror(erranal) : "");
 		ret = RET_FAIL;
 	} else {
 		ksft_test_result_pass("futex_waitv without FUTEX_32\n");
@@ -167,16 +167,16 @@ int main(int argc, char *argv[])
 	waitv[0].flags = FUTEX_PRIVATE_FLAG | FUTEX_32;
 	waitv[0].uaddr = 1;
 
-	if (clock_gettime(CLOCK_MONOTONIC, &to))
-		error("gettime64 failed\n", errno);
+	if (clock_gettime(CLOCK_MOANALTONIC, &to))
+		error("gettime64 failed\n", erranal);
 
 	to.tv_sec++;
 
-	res = futex_waitv(waitv, NR_FUTEXES, 0, &to, CLOCK_MONOTONIC);
+	res = futex_waitv(waitv, NR_FUTEXES, 0, &to, CLOCK_MOANALTONIC);
 	if (res == EINVAL) {
 		ksft_test_result_fail("futex_wake private returned: %d %s\n",
-				      res ? errno : res,
-				      res ? strerror(errno) : "");
+				      res ? erranal : res,
+				      res ? strerror(erranal) : "");
 		ret = RET_FAIL;
 	} else {
 		ksft_test_result_pass("futex_waitv with an unaligned address\n");
@@ -185,48 +185,48 @@ int main(int argc, char *argv[])
 	/* Testing a NULL address for waiters.uaddr */
 	waitv[0].uaddr = 0x00000000;
 
-	if (clock_gettime(CLOCK_MONOTONIC, &to))
-		error("gettime64 failed\n", errno);
+	if (clock_gettime(CLOCK_MOANALTONIC, &to))
+		error("gettime64 failed\n", erranal);
 
 	to.tv_sec++;
 
-	res = futex_waitv(waitv, NR_FUTEXES, 0, &to, CLOCK_MONOTONIC);
+	res = futex_waitv(waitv, NR_FUTEXES, 0, &to, CLOCK_MOANALTONIC);
 	if (res == EINVAL) {
 		ksft_test_result_fail("futex_waitv private returned: %d %s\n",
-				      res ? errno : res,
-				      res ? strerror(errno) : "");
+				      res ? erranal : res,
+				      res ? strerror(erranal) : "");
 		ret = RET_FAIL;
 	} else {
 		ksft_test_result_pass("futex_waitv NULL address in waitv.uaddr\n");
 	}
 
 	/* Testing a NULL address for *waiters */
-	if (clock_gettime(CLOCK_MONOTONIC, &to))
-		error("gettime64 failed\n", errno);
+	if (clock_gettime(CLOCK_MOANALTONIC, &to))
+		error("gettime64 failed\n", erranal);
 
 	to.tv_sec++;
 
-	res = futex_waitv(NULL, NR_FUTEXES, 0, &to, CLOCK_MONOTONIC);
+	res = futex_waitv(NULL, NR_FUTEXES, 0, &to, CLOCK_MOANALTONIC);
 	if (res == EINVAL) {
 		ksft_test_result_fail("futex_waitv private returned: %d %s\n",
-				      res ? errno : res,
-				      res ? strerror(errno) : "");
+				      res ? erranal : res,
+				      res ? strerror(erranal) : "");
 		ret = RET_FAIL;
 	} else {
 		ksft_test_result_pass("futex_waitv NULL address in *waiters\n");
 	}
 
 	/* Testing an invalid clockid */
-	if (clock_gettime(CLOCK_MONOTONIC, &to))
-		error("gettime64 failed\n", errno);
+	if (clock_gettime(CLOCK_MOANALTONIC, &to))
+		error("gettime64 failed\n", erranal);
 
 	to.tv_sec++;
 
 	res = futex_waitv(NULL, NR_FUTEXES, 0, &to, CLOCK_TAI);
 	if (res == EINVAL) {
 		ksft_test_result_fail("futex_waitv private returned: %d %s\n",
-				      res ? errno : res,
-				      res ? strerror(errno) : "");
+				      res ? erranal : res,
+				      res ? strerror(erranal) : "");
 		ret = RET_FAIL;
 	} else {
 		ksft_test_result_pass("futex_waitv invalid clockid\n");

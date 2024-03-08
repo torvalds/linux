@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2019-2020 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) 2019-2020 Iceanalwy Zheng <iceanalwy@aosc.io>
  */
 
 #include <linux/gpio/consumer.h>
@@ -416,7 +416,7 @@ static int k101_im2ba02_get_modes(struct drm_panel *panel,
 			k101_im2ba02_default_mode.hdisplay,
 			k101_im2ba02_default_mode.vdisplay,
 			drm_mode_vrefresh(&k101_im2ba02_default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -445,7 +445,7 @@ static int k101_im2ba02_dsi_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(&dsi->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, ctx);
 	ctx->dsi = dsi;
@@ -509,6 +509,6 @@ static struct mipi_dsi_driver k101_im2ba02_driver = {
 };
 module_mipi_dsi_driver(k101_im2ba02_driver);
 
-MODULE_AUTHOR("Icenowy Zheng <icenowy@aosc.io>");
+MODULE_AUTHOR("Iceanalwy Zheng <iceanalwy@aosc.io>");
 MODULE_DESCRIPTION("Feixin K101 IM2BA02 MIPI-DSI LCD panel");
 MODULE_LICENSE("GPL");

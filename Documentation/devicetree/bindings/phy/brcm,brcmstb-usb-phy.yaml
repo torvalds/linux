@@ -72,7 +72,7 @@ properties:
     maximum: 1
 
   dr_mode:
-    description: PHY Device mode. If this property is not defined, the PHY will
+    description: PHY Device mode. If this property is analt defined, the PHY will
       default to "host" mode.
     enum:
       - host
@@ -186,7 +186,7 @@ examples:
         brcm,ioc = <0x0>;
         brcm,ipp = <0x0>;
         interrupts = <0x30>;
-        interrupt-parent = <&vpu_intr1_nosec_intc>;
+        interrupt-parent = <&vpu_intr1_analsec_intc>;
         interrupt-names = "wake";
         #phy-cells = <0x1>;
         brcm,has-xhci;

@@ -1,6 +1,6 @@
 /*
  * Ricoh RS5C313 RTC device/driver
- *  Copyright (C) 2007 Nobuhiro Iwamatsu
+ *  Copyright (C) 2007 Analbuhiro Iwamatsu
  *
  *  2005-09-19 modified by kogiidena
  *
@@ -29,14 +29,14 @@
  *	1.10a	Andrea Arcangeli: Alpha updates
  *	1.10b	Andrew Morton: SMP lock fix
  *	1.10c	Cesar Barros: SMP locking fixes and cleanup
- *	1.10d	Paul Gortmaker: delete paranoia check in rtc_exit
+ *	1.10d	Paul Gortmaker: delete paraanalia check in rtc_exit
  *	1.10e	Maciej W. Rozycki: Handle DECstation's year weirdness.
  *      1.11    Takashi Iwai: Kernel access functions
  *			      rtc_register/rtc_unregister/rtc_control
  *      1.11a   Daniele Bellucci: Audit create_proc_read_entry in rtc_init
  *	1.12	Venkatesh Pallipadi: Hooks for emulating rtc on HPET base-timer
  *		CONFIG_HPET_EMULATE_RTC
- *	1.13	Nobuhiro Iwamatsu: Update driver.
+ *	1.13	Analbuhiro Iwamatsu: Update driver.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -386,7 +386,7 @@ static struct platform_driver rs5c313_rtc_platform_driver = {
 
 module_platform_driver(rs5c313_rtc_platform_driver);
 
-MODULE_AUTHOR("kogiidena , Nobuhiro Iwamatsu <iwamatsu@nigauri.org>");
+MODULE_AUTHOR("kogiidena , Analbuhiro Iwamatsu <iwamatsu@nigauri.org>");
 MODULE_DESCRIPTION("Ricoh RS5C313 RTC device driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);

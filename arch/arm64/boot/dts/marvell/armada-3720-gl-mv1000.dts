@@ -80,7 +80,7 @@
 
 	flash@0 {
 		reg = <0>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <104000000>;
 		m25p,fast-read;
 		partitions {
@@ -123,7 +123,7 @@
 	bus-width = <4>;
 	cd-gpios = <&gpionb 17 GPIO_ACTIVE_LOW>;
 	marvell,pad-type = "sd";
-	no-1-8-v;
+	anal-1-8-v;
 	vqmmc-supply = <&vcc_sd_reg1>;
 	status = "okay";
 };
@@ -132,9 +132,9 @@
 	bus-width = <8>;
 	mmc-ddr-1_8v;
 	mmc-hs400-1_8v;
-	non-removable;
-	no-sd;
-	no-sdio;
+	analn-removable;
+	anal-sd;
+	anal-sdio;
 	marvell,pad-type = "fixed-1-8v";
 	status = "okay";
 };

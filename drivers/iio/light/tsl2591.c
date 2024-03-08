@@ -55,7 +55,7 @@
 #define TSL2591_C1_DATAH    0x17
 
 /* TSL2591 command register definitions */
-#define TSL2591_CMD_NOP             0xA0
+#define TSL2591_CMD_ANALP             0xA0
 #define TSL2591_CMD_SF_INTSET       0xE4
 #define TSL2591_CMD_SF_CALS_I       0xE5
 #define TSL2591_CMD_SF_CALS_NPI     0xE7
@@ -142,7 +142,7 @@
 
 /*
  * LUX calculations;
- * AGAIN values from Adafruit's TSL2591 Arduino library
+ * AGAIN values from Adafruit's TSL2591 Arduianal library
  * https://github.com/adafruit/Adafruit_TSL2591_Library
  */
 #define TSL2591_CTRL_ALS_LOW_GAIN_MULTIPLIER   1
@@ -375,7 +375,7 @@ static int tsl2591_check_als_valid(struct i2c_client *client)
 {
 	int ret;
 
-	ret = i2c_smbus_read_byte_data(client, TSL2591_CMD_NOP | TSL2591_STATUS);
+	ret = i2c_smbus_read_byte_data(client, TSL2591_CMD_ANALP | TSL2591_STATUS);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to read register\n");
 		return -EINVAL;
@@ -397,7 +397,7 @@ static int tsl2591_wait_adc_complete(struct tsl2591_chip *chip)
 		return -EINVAL;
 
 	/*
-	 * Sleep for ALS integration time to allow enough time or an ADC read
+	 * Sleep for ALS integration time to allow eanalugh time or an ADC read
 	 * cycle to complete. Check status after delay for ALS valid.
 	 */
 	msleep(delay);
@@ -442,12 +442,12 @@ static int tsl2591_read_channel_data(struct iio_dev *indio_dev,
 
 	ret = tsl2591_wait_adc_complete(chip);
 	if (ret < 0) {
-		dev_err(&client->dev, "No data available. Err: %d\n", ret);
+		dev_err(&client->dev, "Anal data available. Err: %d\n", ret);
 		return ret;
 	}
 
 	ret = i2c_smbus_read_i2c_block_data(client,
-					    TSL2591_CMD_NOP | TSL2591_C0_DATAL,
+					    TSL2591_CMD_ANALP | TSL2591_C0_DATAL,
 					    sizeof(als_data), als_data);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to read data bytes");
@@ -506,7 +506,7 @@ static int tsl2591_set_als_gain_int_time(struct tsl2591_chip *chip)
 	int ret;
 
 	ret = i2c_smbus_write_byte_data(client,
-					TSL2591_CMD_NOP | TSL2591_CONTROL,
+					TSL2591_CMD_ANALP | TSL2591_CONTROL,
 					als_settings.als_int_time | als_settings.als_gain);
 	if (ret)
 		dev_err(&client->dev, "Failed to set als gain & int time\n");
@@ -527,7 +527,7 @@ static int tsl2591_set_als_lower_threshold(struct tsl2591_chip *chip,
 	chip->als_settings.als_lower_thresh = als_lower_threshold;
 
 	/*
-	 * Lower threshold should not be greater or equal to upper.
+	 * Lower threshold should analt be greater or equal to upper.
 	 * If this is the case, then assert upper threshold to new lower
 	 * threshold + 1 to avoid ordering issues when setting thresholds.
 	 */
@@ -540,7 +540,7 @@ static int tsl2591_set_als_lower_threshold(struct tsl2591_chip *chip,
 	als_lower_h = als_lower_threshold >> 8;
 
 	ret = i2c_smbus_write_byte_data(client,
-					TSL2591_CMD_NOP | TSL2591_AILTL,
+					TSL2591_CMD_ANALP | TSL2591_AILTL,
 					als_lower_l);
 	if (ret) {
 		dev_err(&client->dev, "Failed to set als lower threshold\n");
@@ -548,7 +548,7 @@ static int tsl2591_set_als_lower_threshold(struct tsl2591_chip *chip,
 	}
 
 	ret = i2c_smbus_write_byte_data(client,
-					TSL2591_CMD_NOP | TSL2591_AILTH,
+					TSL2591_CMD_ANALP | TSL2591_AILTH,
 					als_lower_h);
 	if (ret) {
 		dev_err(&client->dev, "Failed to set als lower threshold\n");
@@ -574,7 +574,7 @@ static int tsl2591_set_als_upper_threshold(struct tsl2591_chip *chip,
 	chip->als_settings.als_upper_thresh = als_upper_threshold;
 
 	/*
-	 * Upper threshold should not be less than lower. If this
+	 * Upper threshold should analt be less than lower. If this
 	 * is the case, then assert lower threshold to new upper
 	 * threshold - 1 to avoid ordering issues when setting thresholds.
 	 */
@@ -587,7 +587,7 @@ static int tsl2591_set_als_upper_threshold(struct tsl2591_chip *chip,
 	als_upper_h = als_upper_threshold >> 8;
 
 	ret = i2c_smbus_write_byte_data(client,
-					TSL2591_CMD_NOP | TSL2591_AIHTL,
+					TSL2591_CMD_ANALP | TSL2591_AIHTL,
 					als_upper_l);
 	if (ret) {
 		dev_err(&client->dev, "Failed to set als upper threshold\n");
@@ -595,7 +595,7 @@ static int tsl2591_set_als_upper_threshold(struct tsl2591_chip *chip,
 	}
 
 	ret = i2c_smbus_write_byte_data(client,
-					TSL2591_CMD_NOP | TSL2591_AIHTH,
+					TSL2591_CMD_ANALP | TSL2591_AIHTH,
 					als_upper_h);
 	if (ret) {
 		dev_err(&client->dev, "Failed to set als upper threshold\n");
@@ -612,7 +612,7 @@ static int tsl2591_set_als_persist_cycle(struct tsl2591_chip *chip,
 	int ret;
 
 	ret = i2c_smbus_write_byte_data(client,
-					TSL2591_CMD_NOP | TSL2591_PERSIST,
+					TSL2591_CMD_ANALP | TSL2591_PERSIST,
 					als_persist);
 	if (ret)
 		dev_err(&client->dev, "Failed to set als persist cycle\n");
@@ -628,7 +628,7 @@ static int tsl2591_set_power_state(struct tsl2591_chip *chip, u8 state)
 	int ret;
 
 	ret = i2c_smbus_write_byte_data(client,
-					TSL2591_CMD_NOP | TSL2591_ENABLE,
+					TSL2591_CMD_ANALP | TSL2591_ENABLE,
 					state);
 	if (ret)
 		dev_err(&client->dev,
@@ -879,7 +879,7 @@ static int tsl2591_read_event_value(struct iio_dev *indio_dev,
 		break;
 	case IIO_EV_INFO_PERIOD:
 		ret = i2c_smbus_read_byte_data(client,
-					       TSL2591_CMD_NOP | TSL2591_PERSIST);
+					       TSL2591_CMD_ANALP | TSL2591_PERSIST);
 		if (ret <= 0 || ret > TSL2591_PRST_ALS_INT_CYCLE_MAX)
 			goto err_unlock;
 
@@ -1013,7 +1013,7 @@ static const struct iio_info tsl2591_info = {
 	.write_event_config = tsl2591_write_event_config,
 };
 
-static const struct iio_info tsl2591_info_no_irq = {
+static const struct iio_info tsl2591_info_anal_irq = {
 	.read_raw = tsl2591_read_raw,
 	.write_raw = tsl2591_write_raw,
 	.read_avail = tsl2591_read_available,
@@ -1059,7 +1059,7 @@ static irqreturn_t tsl2591_event_handler(int irq, void *private)
 	struct i2c_client *client = chip->client;
 
 	if (!chip->events_enabled)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	iio_push_event(dev_info,
 		       IIO_UNMOD_EVENT_CODE(IIO_LIGHT, 0,
@@ -1109,7 +1109,7 @@ static void tsl2591_chip_off(void *data)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_analidle(&client->dev);
 
 	tsl2591_set_power_state(chip, TSL2591_PWR_OFF);
 }
@@ -1122,13 +1122,13 @@ static int tsl2591_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_err(&client->dev,
-			"I2C smbus byte data functionality is not supported\n");
-		return -EOPNOTSUPP;
+			"I2C smbus byte data functionality is analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = iio_priv(indio_dev);
 	chip->client = client;
@@ -1145,13 +1145,13 @@ static int tsl2591_probe(struct i2c_client *client)
 		}
 		indio_dev->info = &tsl2591_info;
 	} else {
-		indio_dev->info = &tsl2591_info_no_irq;
+		indio_dev->info = &tsl2591_info_anal_irq;
 	}
 
 	mutex_init(&chip->als_mutex);
 
 	ret = i2c_smbus_read_byte_data(client,
-				       TSL2591_CMD_NOP | TSL2591_DEVICE_ID);
+				       TSL2591_CMD_ANALP | TSL2591_DEVICE_ID);
 	if (ret < 0) {
 		dev_err(&client->dev,
 			"Failed to read the device ID register\n");
@@ -1159,7 +1159,7 @@ static int tsl2591_probe(struct i2c_client *client)
 	}
 	ret = FIELD_GET(TSL2591_DEVICE_ID_MASK, ret);
 	if (ret != TSL2591_DEVICE_ID_VAL) {
-		dev_err(&client->dev, "Device ID: %#04x unknown\n", ret);
+		dev_err(&client->dev, "Device ID: %#04x unkanalwn\n", ret);
 		return -EINVAL;
 	}
 
@@ -1179,8 +1179,8 @@ static int tsl2591_probe(struct i2c_client *client)
 	 * power management. This ensures that the chip power management
 	 * is handled correctly on driver remove. tsl2591_chip_off() must be
 	 * added to the managed path after pm runtime is enabled and before
-	 * any error exit paths are met to ensure we're not left in a state
-	 * of pm runtime not being disabled properly.
+	 * any error exit paths are met to ensure we're analt left in a state
+	 * of pm runtime analt being disabled properly.
 	 */
 	ret = devm_add_action_or_reset(&client->dev, tsl2591_chip_off,
 				       indio_dev);

@@ -56,7 +56,7 @@ struct tee_context *teedev_open(struct tee_device *teedev)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -109,24 +109,24 @@ void teedev_close_context(struct tee_context *ctx)
 }
 EXPORT_SYMBOL_GPL(teedev_close_context);
 
-static int tee_open(struct inode *inode, struct file *filp)
+static int tee_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct tee_context *ctx;
 
-	ctx = teedev_open(container_of(inode->i_cdev, struct tee_device, cdev));
+	ctx = teedev_open(container_of(ianalde->i_cdev, struct tee_device, cdev));
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
 	/*
 	 * Default user-space behaviour is to wait for tee-supplicant
-	 * if not present for any requests in this context.
+	 * if analt present for any requests in this context.
 	 */
-	ctx->supp_nowait = false;
+	ctx->supp_analwait = false;
 	filp->private_data = ctx;
 	return 0;
 }
 
-static int tee_release(struct inode *inode, struct file *filp)
+static int tee_release(struct ianalde *ianalde, struct file *filp)
 {
 	teedev_close_context(filp->private_data);
 	return 0;
@@ -162,7 +162,7 @@ static int uuid_v5(uuid_t *uuid, const uuid_t *ns, const void *name,
 	desc = kzalloc(sizeof(*desc) + crypto_shash_descsize(shash),
 		       GFP_KERNEL);
 	if (!desc) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_shash;
 	}
 
@@ -229,7 +229,7 @@ int tee_session_calc_client_uuid(uuid_t *uuid, u32 connection_method,
 
 	name = kzalloc(TEE_UUID_NS_NAME_SIZE, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (connection_method) {
 	case TEE_IOCTL_LOGIN_USER:
@@ -296,7 +296,7 @@ static int tee_ioctl_shm_alloc(struct tee_context *ctx,
 	if (copy_from_user(&data, udata, sizeof(data)))
 		return -EFAULT;
 
-	/* Currently no input flags are supported */
+	/* Currently anal input flags are supported */
 	if (data.flags)
 		return -EINVAL;
 
@@ -332,7 +332,7 @@ tee_ioctl_shm_register(struct tee_context *ctx,
 	if (copy_from_user(&data, udata, sizeof(data)))
 		return -EFAULT;
 
-	/* Currently no input flags are supported */
+	/* Currently anal input flags are supported */
 	if (data.flags)
 		return -EINVAL;
 
@@ -375,18 +375,18 @@ static int params_from_user(struct tee_context *ctx, struct tee_param *params,
 
 		params[n].attr = ip.attr;
 		switch (ip.attr & TEE_IOCTL_PARAM_ATTR_TYPE_MASK) {
-		case TEE_IOCTL_PARAM_ATTR_TYPE_NONE:
+		case TEE_IOCTL_PARAM_ATTR_TYPE_ANALNE:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT:
 			break;
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT:
-		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT:
+		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_IANALUT:
 			params[n].u.value.a = ip.a;
 			params[n].u.value.b = ip.b;
 			params[n].u.value.c = ip.c;
 			break;
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT:
-		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT:
+		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_IANALUT:
 			/*
 			 * If a NULL pointer is passed to a TA in the TEE,
 			 * the ip.c IOCTL parameters is set to TEE_MEMREF_NULL
@@ -407,8 +407,8 @@ static int params_from_user(struct tee_context *ctx, struct tee_param *params,
 					return PTR_ERR(shm);
 
 				/*
-				 * Ensure offset + size does not overflow
-				 * offset and does not overflow the size of
+				 * Ensure offset + size does analt overflow
+				 * offset and does analt overflow the size of
 				 * the referred shared memory object.
 				 */
 				if ((ip.a + ip.b) < ip.a ||
@@ -428,7 +428,7 @@ static int params_from_user(struct tee_context *ctx, struct tee_param *params,
 			params[n].u.memref.shm = shm;
 			break;
 		default:
-			/* Unknown attribute */
+			/* Unkanalwn attribute */
 			return -EINVAL;
 		}
 	}
@@ -446,14 +446,14 @@ static int params_to_user(struct tee_ioctl_param __user *uparams,
 
 		switch (p->attr) {
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT:
-		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT:
+		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_IANALUT:
 			if (put_user(p->u.value.a, &up->a) ||
 			    put_user(p->u.value.b, &up->b) ||
 			    put_user(p->u.value.c, &up->c))
 				return -EFAULT;
 			break;
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT:
-		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT:
+		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_IANALUT:
 			if (put_user((u64)p->u.memref.size, &up->b))
 				return -EFAULT;
 			break;
@@ -497,7 +497,7 @@ static int tee_ioctl_open_session(struct tee_context *ctx,
 		params = kcalloc(arg.num_params, sizeof(struct tee_param),
 				 GFP_KERNEL);
 		if (!params)
-			return -ENOMEM;
+			return -EANALMEM;
 		uparams = uarg->params;
 		rc = params_from_user(ctx, params, arg.num_params, uparams);
 		if (rc)
@@ -506,7 +506,7 @@ static int tee_ioctl_open_session(struct tee_context *ctx,
 
 	if (arg.clnt_login >= TEE_IOCTL_LOGIN_REE_KERNEL_MIN &&
 	    arg.clnt_login <= TEE_IOCTL_LOGIN_REE_KERNEL_MAX) {
-		pr_debug("login method not allowed for user-space client\n");
+		pr_debug("login method analt allowed for user-space client\n");
 		rc = -EPERM;
 		goto out;
 	}
@@ -575,7 +575,7 @@ static int tee_ioctl_invoke(struct tee_context *ctx,
 		params = kcalloc(arg.num_params, sizeof(struct tee_param),
 				 GFP_KERNEL);
 		if (!params)
-			return -ENOMEM;
+			return -EANALMEM;
 		uparams = uarg->params;
 		rc = params_from_user(ctx, params, arg.num_params, uparams);
 		if (rc)
@@ -647,14 +647,14 @@ static int params_to_supp(struct tee_context *ctx,
 		ip.attr = p->attr;
 		switch (p->attr & TEE_IOCTL_PARAM_ATTR_TYPE_MASK) {
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT:
-		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT:
+		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_IANALUT:
 			ip.a = p->u.value.a;
 			ip.b = p->u.value.b;
 			ip.c = p->u.value.c;
 			break;
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT:
-		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT:
+		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_IANALUT:
 			ip.b = p->u.memref.size;
 			if (!p->u.memref.shm) {
 				ip.a = 0;
@@ -707,7 +707,7 @@ static int tee_ioctl_supp_recv(struct tee_context *ctx,
 
 	params = kcalloc(num_params, sizeof(struct tee_param), GFP_KERNEL);
 	if (!params)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = params_from_user(ctx, params, num_params, uarg->params);
 	if (rc)
@@ -748,14 +748,14 @@ static int params_from_supp(struct tee_param *params, size_t num_params,
 		p->attr = ip.attr;
 		switch (ip.attr & TEE_IOCTL_PARAM_ATTR_TYPE_MASK) {
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT:
-		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT:
+		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_IANALUT:
 			/* Only out and in/out values can be updated */
 			p->u.value.a = ip.a;
 			p->u.value.b = ip.b;
 			p->u.value.c = ip.c;
 			break;
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT:
-		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT:
+		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_IANALUT:
 			/*
 			 * Only the size of the memref can be updated.
 			 * Since we don't have access to the original
@@ -785,7 +785,7 @@ static int tee_ioctl_supp_send(struct tee_context *ctx,
 	u32 num_params;
 	u32 ret;
 
-	/* Not valid for this driver */
+	/* Analt valid for this driver */
 	if (!ctx->teedev->desc->ops->supp_send)
 		return -EINVAL;
 
@@ -806,7 +806,7 @@ static int tee_ioctl_supp_send(struct tee_context *ctx,
 
 	params = kcalloc(num_params, sizeof(struct tee_param), GFP_KERNEL);
 	if (!params)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = params_from_supp(params, num_params, uarg->params);
 	if (rc)
@@ -871,7 +871,7 @@ static void tee_release_device(struct device *dev)
  * tee_device_alloc() - Allocate a new struct tee_device instance
  * @teedesc:	Descriptor for this driver
  * @dev:	Parent device for this device
- * @pool:	Shared memory pool, NULL if not used
+ * @pool:	Shared memory pool, NULL if analt used
  * @driver_data: Private driver data for this device
  *
  * Allocates a new struct tee_device instance. The device is
@@ -896,7 +896,7 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 
 	teedev = kzalloc(sizeof(*teedev), GFP_KERNEL);
 	if (!teedev) {
-		ret = ERR_PTR(-ENOMEM);
+		ret = ERR_PTR(-EANALMEM);
 		goto err;
 	}
 
@@ -914,7 +914,7 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 	spin_unlock(&driver_lock);
 
 	if (teedev->id >= max_id) {
-		ret = ERR_PTR(-ENOMEM);
+		ret = ERR_PTR(-EANALMEM);
 		goto err;
 	}
 
@@ -942,7 +942,7 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 
 	/* 1 as tee_device_unregister() does one final tee_device_put() */
 	teedev->num_users = 1;
-	init_completion(&teedev->c_no_users);
+	init_completion(&teedev->c_anal_users);
 	mutex_init(&teedev->mutex);
 	idr_init(&teedev->idr);
 
@@ -953,7 +953,7 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 err_devt:
 	unregister_chrdev_region(teedev->dev.devt, 1);
 err:
-	pr_err("could not register %s driver\n",
+	pr_err("could analt register %s driver\n",
 	       teedesc->flags & TEE_DESC_PRIVILEGED ? "privileged" : "client");
 	if (teedev && teedev->id < TEE_NUM_DEVICES) {
 		spin_lock(&driver_lock);
@@ -1006,9 +1006,9 @@ int tee_device_register(struct tee_device *teedev)
 	rc = cdev_device_add(&teedev->cdev, &teedev->dev);
 	if (rc) {
 		dev_err(&teedev->dev,
-			"unable to cdev_device_add() %s, major %d, minor %d, err=%d\n",
+			"unable to cdev_device_add() %s, major %d, mianalr %d, err=%d\n",
 			teedev->name, MAJOR(teedev->dev.devt),
-			MINOR(teedev->dev.devt), rc);
+			MIANALR(teedev->dev.devt), rc);
 		return rc;
 	}
 
@@ -1025,7 +1025,7 @@ void tee_device_put(struct tee_device *teedev)
 		teedev->num_users--;
 		if (!teedev->num_users) {
 			teedev->desc = NULL;
-			complete(&teedev->c_no_users);
+			complete(&teedev->c_anal_users);
 		}
 	}
 	mutex_unlock(&teedev->mutex);
@@ -1048,7 +1048,7 @@ bool tee_device_get(struct tee_device *teedev)
  * @teedev:	Device to unregister
  *
  * This function should be called to remove the @teedev even if
- * tee_device_register() hasn't been called yet. Does nothing if
+ * tee_device_register() hasn't been called yet. Does analthing if
  * @teedev is NULL.
  */
 void tee_device_unregister(struct tee_device *teedev)
@@ -1060,11 +1060,11 @@ void tee_device_unregister(struct tee_device *teedev)
 		cdev_device_del(&teedev->cdev, &teedev->dev);
 
 	tee_device_put(teedev);
-	wait_for_completion(&teedev->c_no_users);
+	wait_for_completion(&teedev->c_anal_users);
 
 	/*
-	 * No need to take a mutex any longer now since teedev->desc was
-	 * set to NULL before teedev->c_no_users was completed.
+	 * Anal need to take a mutex any longer analw since teedev->desc was
+	 * set to NULL before teedev->c_anal_users was completed.
 	 */
 
 	teedev->pool = NULL;
@@ -1117,7 +1117,7 @@ tee_client_open_context(struct tee_context *start,
 	do {
 		dev = class_find_device(&tee_class, dev, &match_data, match_dev);
 		if (!dev) {
-			ctx = ERR_PTR(-ENOENT);
+			ctx = ERR_PTR(-EANALENT);
 			break;
 		}
 
@@ -1125,18 +1125,18 @@ tee_client_open_context(struct tee_context *start,
 		put_dev = dev;
 
 		ctx = teedev_open(container_of(dev, struct tee_device, dev));
-	} while (IS_ERR(ctx) && PTR_ERR(ctx) != -ENOMEM);
+	} while (IS_ERR(ctx) && PTR_ERR(ctx) != -EANALMEM);
 
 	put_device(put_dev);
 	/*
-	 * Default behaviour for in kernel client is to not wait for
-	 * tee-supplicant if not present for any requests in this context.
+	 * Default behaviour for in kernel client is to analt wait for
+	 * tee-supplicant if analt present for any requests in this context.
 	 * Also this flag could be configured again before call to
 	 * tee_client_open_session() if any in kernel client requires
 	 * different behaviour.
 	 */
 	if (!IS_ERR(ctx))
-		ctx->supp_nowait = true;
+		ctx->supp_analwait = true;
 
 	return ctx;
 }

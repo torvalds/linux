@@ -294,10 +294,10 @@ static const struct coda_video_device *coda9_video_devices[] = {
 };
 
 /*
- * Normalize all supported YUV 4:2:0 formats to the value used in the codec
+ * Analrmalize all supported YUV 4:2:0 formats to the value used in the codec
  * tables.
  */
-static u32 coda_format_normalize_yuv(u32 fourcc)
+static u32 coda_format_analrmalize_yuv(u32 fourcc)
 {
 	switch (fourcc) {
 	case V4L2_PIX_FMT_NV12:
@@ -318,8 +318,8 @@ static const struct coda_codec *coda_find_codec(struct coda_dev *dev,
 	int num_codecs = dev->devtype->num_codecs;
 	int k;
 
-	src_fourcc = coda_format_normalize_yuv(src_fourcc);
-	dst_fourcc = coda_format_normalize_yuv(dst_fourcc);
+	src_fourcc = coda_format_analrmalize_yuv(src_fourcc);
+	dst_fourcc = coda_format_analrmalize_yuv(dst_fourcc);
 	if (src_fourcc == dst_fourcc)
 		return NULL;
 
@@ -393,15 +393,15 @@ const char *coda_product_name(int product)
 
 static struct vdoa_data *coda_get_vdoa_data(void)
 {
-	struct device_node *vdoa_node;
+	struct device_analde *vdoa_analde;
 	struct platform_device *vdoa_pdev;
 	struct vdoa_data *vdoa_data = NULL;
 
-	vdoa_node = of_find_compatible_node(NULL, NULL, "fsl,imx6q-vdoa");
-	if (!vdoa_node)
+	vdoa_analde = of_find_compatible_analde(NULL, NULL, "fsl,imx6q-vdoa");
+	if (!vdoa_analde)
 		return NULL;
 
-	vdoa_pdev = of_find_device_by_node(vdoa_node);
+	vdoa_pdev = of_find_device_by_analde(vdoa_analde);
 	if (!vdoa_pdev)
 		goto out;
 
@@ -411,7 +411,7 @@ static struct vdoa_data *coda_get_vdoa_data(void)
 
 	put_device(&vdoa_pdev->dev);
 out:
-	of_node_put(vdoa_node);
+	of_analde_put(vdoa_analde);
 
 	return vdoa_data;
 }
@@ -478,7 +478,7 @@ static int coda_enum_fmt(struct file *file, void *priv,
 	if (f->index >= CODA_MAX_FORMATS || formats[f->index] == 0)
 		return -EINVAL;
 
-	/* Skip YUYV if the vdoa is not available */
+	/* Skip YUYV if the vdoa is analt available */
 	if (!ctx->vdoa && f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE &&
 	    formats[f->index] == V4L2_PIX_FMT_YUYV)
 		return -EINVAL;
@@ -498,7 +498,7 @@ static int coda_g_fmt(struct file *file, void *priv,
 	if (!q_data)
 		return -EINVAL;
 
-	f->fmt.pix.field	= V4L2_FIELD_NONE;
+	f->fmt.pix.field	= V4L2_FIELD_ANALNE;
 	f->fmt.pix.pixelformat	= q_data->fourcc;
 	f->fmt.pix.width	= q_data->width;
 	f->fmt.pix.height	= q_data->height;
@@ -527,7 +527,7 @@ static int coda_try_pixelformat(struct coda_ctx *ctx, struct v4l2_format *f)
 		return -EINVAL;
 
 	for (i = 0; i < CODA_MAX_FORMATS; i++) {
-		/* Skip YUYV if the vdoa is not available */
+		/* Skip YUYV if the vdoa is analt available */
 		if (!ctx->vdoa && f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE &&
 		    formats[i] == V4L2_PIX_FMT_YUYV)
 			continue;
@@ -593,8 +593,8 @@ static int coda_try_fmt(struct coda_ctx *ctx, const struct coda_codec *codec,
 
 	field = f->fmt.pix.field;
 	if (field == V4L2_FIELD_ANY)
-		field = V4L2_FIELD_NONE;
-	else if (V4L2_FIELD_NONE != field)
+		field = V4L2_FIELD_ANALNE;
+	else if (V4L2_FIELD_ANALNE != field)
 		return -EINVAL;
 
 	/* V4L2 specification suggests the driver corrects the format struct
@@ -941,8 +941,8 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 		return -EINVAL;
 
 	/*
-	 * Setting the capture queue format is not possible while the capture
-	 * queue is still busy. This is not an error, but the user will have to
+	 * Setting the capture queue format is analt possible while the capture
+	 * queue is still busy. This is analt an error, but the user will have to
 	 * make sure themselves that the capture format is set correctly before
 	 * starting the output queue again.
 	 */
@@ -1265,7 +1265,7 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 		}
 
 		if (wakeup) {
-			/* If there is no buffer in flight, wake up */
+			/* If there is anal buffer in flight, wake up */
 			coda_wake_up_capture_queue(ctx);
 		}
 
@@ -1288,7 +1288,7 @@ static int coda_enum_framesizes(struct file *file, void *fh,
 	if (fsize->index)
 		return -EINVAL;
 
-	if (coda_format_normalize_yuv(fsize->pixel_format) ==
+	if (coda_format_analrmalize_yuv(fsize->pixel_format) ==
 	    V4L2_PIX_FMT_YUV420) {
 		q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 		codec = coda_find_codec(ctx->dev, fsize->pixel_format,
@@ -1321,11 +1321,11 @@ static int coda_enum_frameintervals(struct file *file, void *fh,
 	if (f->index)
 		return -EINVAL;
 
-	/* Disallow YUYV if the vdoa is not available */
+	/* Disallow YUYV if the vdoa is analt available */
 	if (!ctx->vdoa && f->pixel_format == V4L2_PIX_FMT_YUYV)
 		return -EINVAL;
 
-	if (coda_format_normalize_yuv(f->pixel_format) == V4L2_PIX_FMT_YUV420) {
+	if (coda_format_analrmalize_yuv(f->pixel_format) == V4L2_PIX_FMT_YUV420) {
 		q_data = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 		codec = coda_find_codec(ctx->dev, f->pixel_format,
 					q_data->fourcc);
@@ -1342,11 +1342,11 @@ static int coda_enum_frameintervals(struct file *file, void *fh,
 
 	f->type = V4L2_FRMIVAL_TYPE_CONTINUOUS;
 	f->stepwise.min.numerator = 1;
-	f->stepwise.min.denominator = 65535;
+	f->stepwise.min.deanalminator = 65535;
 	f->stepwise.max.numerator = 65536;
-	f->stepwise.max.denominator = 1;
+	f->stepwise.max.deanalminator = 1;
 	f->stepwise.step.numerator = 1;
-	f->stepwise.step.denominator = 1;
+	f->stepwise.step.deanalminator = 1;
 
 	return 0;
 }
@@ -1361,7 +1361,7 @@ static int coda_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 
 	a->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
 	tpf = &a->parm.output.timeperframe;
-	tpf->denominator = ctx->params.framerate & CODA_FRATE_RES_MASK;
+	tpf->deanalminator = ctx->params.framerate & CODA_FRATE_RES_MASK;
 	tpf->numerator = 1 + (ctx->params.framerate >>
 			      CODA_FRATE_DIV_OFFSET);
 
@@ -1378,36 +1378,36 @@ static void coda_approximate_timeperframe(struct v4l2_fract *timeperframe)
 	struct v4l2_fract f0;
 	struct v4l2_fract f1 = { 1, 0 };
 	struct v4l2_fract f2 = { 0, 1 };
-	unsigned int i, div, s_denominator;
+	unsigned int i, div, s_deanalminator;
 
 	/* Lower bound is 1/65535 */
-	if (s.numerator == 0 || s.denominator / s.numerator > 65535) {
+	if (s.numerator == 0 || s.deanalminator / s.numerator > 65535) {
 		timeperframe->numerator = 1;
-		timeperframe->denominator = 65535;
+		timeperframe->deanalminator = 65535;
 		return;
 	}
 
 	/* Upper bound is 65536/1 */
-	if (s.denominator == 0 || s.numerator / s.denominator > 65536) {
+	if (s.deanalminator == 0 || s.numerator / s.deanalminator > 65536) {
 		timeperframe->numerator = 65536;
-		timeperframe->denominator = 1;
+		timeperframe->deanalminator = 1;
 		return;
 	}
 
 	/* Reduce fraction to lowest terms */
-	div = gcd(s.numerator, s.denominator);
+	div = gcd(s.numerator, s.deanalminator);
 	if (div > 1) {
 		s.numerator /= div;
-		s.denominator /= div;
+		s.deanalminator /= div;
 	}
 
-	if (s.numerator <= 65536 && s.denominator < 65536) {
+	if (s.numerator <= 65536 && s.deanalminator < 65536) {
 		*timeperframe = s;
 		return;
 	}
 
 	/* Find successive convergents from continued fraction expansion */
-	while (f2.numerator <= 65536 && f2.denominator < 65536) {
+	while (f2.numerator <= 65536 && f2.deanalminator < 65536) {
 		f0 = f1;
 		f1 = f2;
 
@@ -1415,14 +1415,14 @@ static void coda_approximate_timeperframe(struct v4l2_fract *timeperframe)
 		if (s.numerator == 0)
 			break;
 
-		i = s.denominator / s.numerator;
+		i = s.deanalminator / s.numerator;
 
 		f2.numerator = f0.numerator + i * f1.numerator;
-		f2.denominator = f0.denominator + i * f2.denominator;
+		f2.deanalminator = f0.deanalminator + i * f2.deanalminator;
 
-		s_denominator = s.numerator;
-		s.numerator = s.denominator % s.numerator;
-		s.denominator = s_denominator;
+		s_deanalminator = s.numerator;
+		s.numerator = s.deanalminator % s.numerator;
+		s.deanalminator = s_deanalminator;
 	}
 
 	*timeperframe = f1;
@@ -1431,7 +1431,7 @@ static void coda_approximate_timeperframe(struct v4l2_fract *timeperframe)
 static uint32_t coda_timeperframe_to_frate(struct v4l2_fract *timeperframe)
 {
 	return ((timeperframe->numerator - 1) << CODA_FRATE_DIV_OFFSET) |
-		timeperframe->denominator;
+		timeperframe->deanalminator;
 }
 
 static int coda_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
@@ -1575,12 +1575,12 @@ static int coda_job_ready(void *m2m_priv)
 	 * the compressed frame can be in the bitstream.
 	 */
 	if (!src_bufs && ctx->inst_type != CODA_INST_DECODER) {
-		coda_dbg(1, ctx, "not ready: not enough vid-out buffers.\n");
+		coda_dbg(1, ctx, "analt ready: analt eanalugh vid-out buffers.\n");
 		return 0;
 	}
 
 	if (!v4l2_m2m_num_dst_bufs_ready(ctx->fh.m2m_ctx)) {
-		coda_dbg(1, ctx, "not ready: not enough vid-cap buffers.\n");
+		coda_dbg(1, ctx, "analt ready: analt eanalugh vid-cap buffers.\n");
 		return 0;
 	}
 
@@ -1594,7 +1594,7 @@ static int coda_job_ready(void *m2m_priv)
 		count = hweight32(ctx->frm_dis_flg);
 		if (ctx->use_vdoa && count >= (ctx->num_internal_frames - 1)) {
 			coda_dbg(1, ctx,
-				 "not ready: all internal buffers in use: %d/%d (0x%x)",
+				 "analt ready: all internal buffers in use: %d/%d (0x%x)",
 				 count, ctx->num_internal_frames,
 				 ctx->frm_dis_flg);
 			return 0;
@@ -1602,13 +1602,13 @@ static int coda_job_ready(void *m2m_priv)
 
 		if (ctx->hold && !src_bufs) {
 			coda_dbg(1, ctx,
-				 "not ready: on hold for more buffers.\n");
+				 "analt ready: on hold for more buffers.\n");
 			return 0;
 		}
 
 		if (!stream_end && (num_metas + src_bufs) < 2) {
 			coda_dbg(1, ctx,
-				 "not ready: need 2 buffers available (queue:%d + bitstream:%d)\n",
+				 "analt ready: need 2 buffers available (queue:%d + bitstream:%d)\n",
 				 num_metas, src_bufs);
 			return 0;
 		}
@@ -1618,14 +1618,14 @@ static int coda_job_ready(void *m2m_priv)
 		if (!coda_bitstream_can_fetch_past(ctx, meta->end) &&
 		    !stream_end) {
 			coda_dbg(1, ctx,
-				 "not ready: not enough bitstream data to read past %u (%u)\n",
+				 "analt ready: analt eanalugh bitstream data to read past %u (%u)\n",
 				 meta->end, ctx->bitstream_fifo.kfifo.in);
 			return 0;
 		}
 	}
 
 	if (ctx->aborting) {
-		coda_dbg(1, ctx, "not ready: aborting\n");
+		coda_dbg(1, ctx, "analt ready: aborting\n");
 		return 0;
 	}
 
@@ -1740,8 +1740,8 @@ static int coda_buf_prepare(struct vb2_buffer *vb)
 	q_data = get_q_data(ctx, vb->vb2_queue->type);
 	if (V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type)) {
 		if (vbuf->field == V4L2_FIELD_ANY)
-			vbuf->field = V4L2_FIELD_NONE;
-		if (vbuf->field != V4L2_FIELD_NONE) {
+			vbuf->field = V4L2_FIELD_ANALNE;
+		if (vbuf->field != V4L2_FIELD_ANALNE) {
 			v4l2_warn(&ctx->dev->v4l2_dev,
 				  "%s field isn't supported\n", __func__);
 			return -EINVAL;
@@ -1750,7 +1750,7 @@ static int coda_buf_prepare(struct vb2_buffer *vb)
 
 	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
 		v4l2_warn(&ctx->dev->v4l2_dev,
-			  "%s data will not fit into plane (%lu < %lu)\n",
+			  "%s data will analt fit into plane (%lu < %lu)\n",
 			  __func__, vb2_plane_size(vb, 0),
 			  (long)q_data->sizeimage);
 		return -EINVAL;
@@ -1767,7 +1767,7 @@ static void coda_update_menu_ctrl(struct v4l2_ctrl *ctrl, int value)
 	v4l2_ctrl_lock(ctrl);
 
 	/*
-	 * Extend the control range if the parsed stream contains a known but
+	 * Extend the control range if the parsed stream contains a kanalwn but
 	 * unsupported value or level.
 	 */
 	if (value > ctrl->maximum) {
@@ -1937,7 +1937,7 @@ int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 		v4l2_err(&dev->v4l2_dev,
 			 "Failed to allocate %s buffer of size %zu\n",
 			 name, size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	buf->size = size;
@@ -2015,7 +2015,7 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 			coda_jpeg_decode_header(ctx, &buf->vb2_buf);
 			/*
 			 * We have to start streaming even if the first buffer
-			 * does not contain a valid JPEG image. The error will
+			 * does analt contain a valid JPEG image. The error will
 			 * be caught during device run and will be signalled
 			 * via the capture buffer error flag.
 			 */
@@ -2063,7 +2063,7 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 		goto err;
 	}
 
-	/* Allow BIT decoder device_run with no new buffers queued */
+	/* Allow BIT decoder device_run with anal new buffers queued */
 	if (ctx->inst_type == CODA_INST_DECODER && ctx->use_bit)
 		v4l2_m2m_set_src_buffered(ctx->fh.m2m_ctx, true);
 
@@ -2248,7 +2248,7 @@ static int coda_s_ctrl(struct v4l2_ctrl *ctrl)
 			ctx->params.h264_profile_idc = 66;
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_LEVEL:
-		/* nothing to do, this is set by the encoder */
+		/* analthing to do, this is set by the encoder */
 		break;
 	case V4L2_CID_MPEG_VIDEO_MPEG4_I_FRAME_QP:
 		ctx->params.mpeg4_intra_qp = ctrl->val;
@@ -2260,7 +2260,7 @@ static int coda_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_MPEG2_LEVEL:
 	case V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE:
 	case V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL:
-		/* nothing to do, these are fixed */
+		/* analthing to do, these are fixed */
 		break;
 	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE:
 		ctx->params.slice_mode = ctrl->val;
@@ -2542,7 +2542,7 @@ static int coda_queue_init(struct coda_ctx *ctx, struct vb2_queue *vq)
 	 */
 	vq->allow_zero_bytesused = 1;
 	/*
-	 * We might be fine with no buffers on some of the queues, but that
+	 * We might be fine with anal buffers on some of the queues, but that
 	 * would need to be reflected in job_ready(). Currently we expect all
 	 * queues to have at least one buffer queued.
 	 */
@@ -2587,7 +2587,7 @@ int coda_decoder_queue_init(void *priv, struct vb2_queue *src_vq,
 
 	dst_vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	dst_vq->io_modes = VB2_DMABUF | VB2_MMAP;
-	dst_vq->dma_attrs = DMA_ATTR_NO_KERNEL_MAPPING;
+	dst_vq->dma_attrs = DMA_ATTR_ANAL_KERNEL_MAPPING;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 
 	return coda_queue_init(priv, dst_vq);
@@ -2609,7 +2609,7 @@ static int coda_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (dev->devtype->product == CODA_DX6)
 		max = CODADX6_MAX_INSTANCES - 1;
@@ -2621,7 +2621,7 @@ static int coda_open(struct file *file)
 
 	name = kasprintf(GFP_KERNEL, "context%d", idx);
 	if (!name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_coda_name_init;
 	}
 
@@ -2668,7 +2668,7 @@ static int coda_open(struct file *file)
 		ctx->vdoa = vdoa_context_create(dev->vdoa);
 		if (!ctx->vdoa)
 			v4l2_warn(&dev->v4l2_dev,
-				  "Failed to create vdoa context: not using vdoa");
+				  "Failed to create vdoa context: analt using vdoa");
 	}
 	ctx->use_vdoa = false;
 
@@ -2748,7 +2748,7 @@ static int coda_release(struct file *file)
 	if (ctx->vdoa)
 		vdoa_context_destroy(ctx->vdoa);
 
-	/* In case the instance was not running, we still need to call SEQ_END */
+	/* In case the instance was analt running, we still need to call SEQ_END */
 	if (ctx->ops->seq_end_work) {
 		queue_work(dev->workqueue, &ctx->seq_end_work);
 		flush_work(&ctx->seq_end_work);
@@ -2900,7 +2900,7 @@ static int coda_register_device(struct coda_dev *dev, int i)
 	vfd->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
 	video_set_drvdata(vfd, dev);
 
-	/* Not applicable, use the selection API instead */
+	/* Analt applicable, use the selection API instead */
 	v4l2_disable_ioctl(vfd, VIDIOC_CROPCAP);
 	v4l2_disable_ioctl(vfd, VIDIOC_G_CROP);
 	v4l2_disable_ioctl(vfd, VIDIOC_S_CROP);
@@ -2925,7 +2925,7 @@ static int coda_register_device(struct coda_dev *dev, int i)
 	ret = video_register_device(vfd, VFL_TYPE_VIDEO, 0);
 	if (!ret)
 		v4l2_info(&dev->v4l2_dev, "%s registered as %s\n",
-			  name, video_device_node_name(vfd));
+			  name, video_device_analde_name(vfd));
 	return ret;
 }
 
@@ -2975,7 +2975,7 @@ static int coda_firmware_request(struct coda_dev *dev)
 	dev_dbg(dev->dev, "requesting firmware '%s' for %s\n", fw,
 		coda_product_name(dev->devtype->product));
 
-	return request_firmware_nowait(THIS_MODULE, true, fw, dev->dev,
+	return request_firmware_analwait(THIS_MODULE, true, fw, dev->dev,
 				       GFP_KERNEL, dev, coda_fw_callback);
 }
 
@@ -2995,7 +2995,7 @@ static void coda_fw_callback(const struct firmware *fw, void *context)
 	}
 	if (dev->firmware > 0) {
 		/*
-		 * Since we can't suppress warnings for failed asynchronous
+		 * Since we can't suppress warnings for failed asynchroanalus
 		 * firmware requests, report that the fallback firmware was
 		 * found.
 		 */
@@ -3146,27 +3146,27 @@ MODULE_DEVICE_TABLE(of, coda_dt_ids);
 
 static int coda_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct gen_pool *pool;
 	struct coda_dev *dev;
 	int ret, irq;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->devtype = of_device_get_match_data(&pdev->dev);
 
 	dev->dev = &pdev->dev;
 	dev->clk_per = devm_clk_get(&pdev->dev, "per");
 	if (IS_ERR(dev->clk_per)) {
-		dev_err(&pdev->dev, "Could not get per clock\n");
+		dev_err(&pdev->dev, "Could analt get per clock\n");
 		return PTR_ERR(dev->clk_per);
 	}
 
 	dev->clk_ahb = devm_clk_get(&pdev->dev, "ahb");
 	if (IS_ERR(dev->clk_ahb)) {
-		dev_err(&pdev->dev, "Could not get ahb clock\n");
+		dev_err(&pdev->dev, "Could analt get ahb clock\n");
 		return PTR_ERR(dev->clk_ahb);
 	}
 
@@ -3216,8 +3216,8 @@ static int coda_probe(struct platform_device *pdev)
 	/* Get IRAM pool from device tree */
 	pool = of_gen_pool_get(np, "iram", 0);
 	if (!pool) {
-		dev_err(&pdev->dev, "iram pool not available\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "iram pool analt available\n");
+		return -EANALMEM;
 	}
 	dev->iram_pool = pool;
 
@@ -3271,7 +3271,7 @@ static int coda_probe(struct platform_device *pdev)
 	dev->workqueue = alloc_ordered_workqueue("coda", WQ_MEM_RECLAIM);
 	if (!dev->workqueue) {
 		dev_err(&pdev->dev, "unable to alloc workqueue\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_v4l2_register;
 	}
 
@@ -3282,7 +3282,7 @@ static int coda_probe(struct platform_device *pdev)
 	 * coda_fw_callback regardless of whether CONFIG_PM is
 	 * enabled or whether the device is associated with a PM domain.
 	 */
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
@@ -3293,7 +3293,7 @@ static int coda_probe(struct platform_device *pdev)
 
 err_alloc_workqueue:
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	destroy_workqueue(dev->workqueue);
 err_v4l2_register:
 	v4l2_device_unregister(&dev->v4l2_dev);

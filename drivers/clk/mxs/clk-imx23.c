@@ -94,15 +94,15 @@ static enum imx23_clk clks_init_on[] __initdata = {
 	cpu, hbus, xbus, emi, uart,
 };
 
-static void __init mx23_clocks_init(struct device_node *np)
+static void __init mx23_clocks_init(struct device_analde *np)
 {
-	struct device_node *dcnp;
+	struct device_analde *dcnp;
 	u32 i;
 
-	dcnp = of_find_compatible_node(NULL, NULL, "fsl,imx23-digctl");
+	dcnp = of_find_compatible_analde(NULL, NULL, "fsl,imx23-digctl");
 	digctrl = of_iomap(dcnp, 0);
 	WARN_ON(!digctrl);
-	of_node_put(dcnp);
+	of_analde_put(dcnp);
 
 	clkctrl = of_iomap(np, 0);
 	WARN_ON(!clkctrl);

@@ -67,7 +67,7 @@ static int skl_int3472_fill_gpiod_lookup(struct gpiod_lookup *table_entry,
 
 	adev = acpi_fetch_acpi_dev(handle);
 	if (!adev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	table_entry->key = acpi_dev_name(adev);
 	table_entry->chip_hwnum = agpio->pin_table[0];
@@ -99,7 +99,7 @@ static int skl_int3472_map_gpio_to_sensor(struct int3472_discrete_device *int347
 	return 0;
 }
 
-/* This should *really* only be used when there's no other way... */
+/* This should *really* only be used when there's anal other way... */
 static struct gpio_desc *
 skl_int3472_gpiod_get_from_temp_lookup(struct int3472_discrete_device *int3472,
 				       struct acpi_resource_gpio *agpio,
@@ -111,7 +111,7 @@ skl_int3472_gpiod_get_from_temp_lookup(struct int3472_discrete_device *int3472,
 	struct gpiod_lookup_table *lookup __free(kfree) =
 			kzalloc(struct_size(lookup, table, 2), GFP_KERNEL);
 	if (!lookup)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	lookup->dev_id = dev_name(int3472->dev);
 	ret = skl_int3472_fill_gpiod_lookup(&lookup->table[0], agpio, func, polarity);
@@ -149,7 +149,7 @@ static void int3472_get_func_and_polarity(u8 type, const char **func, u32 *polar
 		*polarity = GPIO_ACTIVE_HIGH;
 		break;
 	default:
-		*func = "unknown";
+		*func = "unkanalwn";
 		*polarity = GPIO_ACTIVE_HIGH;
 		break;
 	}
@@ -171,10 +171,10 @@ static void int3472_get_func_and_polarity(u8 type, const char **func, u32 *polar
  * 0x0c Clock enable
  * 0x0d Privacy LED
  *
- * There are some known platform specific quirks where that does not quite
+ * There are some kanalwn platform specific quirks where that does analt quite
  * hold up; for example where a pin with type 0x01 (Power down) is mapped to
  * a sensor pin that performs a reset function or entries in _CRS and _DSM that
- * do not actually correspond to a physical connection. These will be handled
+ * do analt actually correspond to a physical connection. These will be handled
  * by the mapping sub-functions.
  *
  * GPIOs will either be mapped directly to the sensor device or else used
@@ -183,8 +183,8 @@ static void int3472_get_func_and_polarity(u8 type, const char **func, u32 *polar
  * Return:
  * * 1		- To continue the loop
  * * 0		- When all resources found are handled properly.
- * * -EINVAL	- If the resource is not a GPIO IO resource
- * * -ENODEV	- If the resource has no corresponding _DSM entry
+ * * -EINVAL	- If the resource is analt a GPIO IO resource
+ * * -EANALDEV	- If the resource has anal corresponding _DSM entry
  * * -Other	- Errors propagated from one of the sub-functions.
  */
 static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
@@ -213,7 +213,7 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 				      NULL, ACPI_TYPE_INTEGER);
 
 	if (!obj) {
-		dev_warn(int3472->dev, "No _DSM entry for GPIO pin %u\n",
+		dev_warn(int3472->dev, "Anal _DSM entry for GPIO pin %u\n",
 			 agpio->pin_table[0]);
 		return 1;
 	}
@@ -280,7 +280,7 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 		break;
 	default:
 		dev_warn(int3472->dev,
-			 "GPIO type 0x%02x unknown; the sensor may not work\n",
+			 "GPIO type 0x%02x unkanalwn; the sensor may analt work\n",
 			 type);
 		ret = 1;
 		break;
@@ -310,7 +310,7 @@ static int skl_int3472_parse_crs(struct int3472_discrete_device *int3472)
 
 	acpi_dev_free_resource_list(&resource_list);
 
-	/* Register _DSM based clock (no-op if a GPIO clock was already registered) */
+	/* Register _DSM based clock (anal-op if a GPIO clock was already registered) */
 	ret = skl_int3472_register_dsm_clock(int3472);
 	if (ret < 0)
 		return ret;
@@ -355,7 +355,7 @@ static int skl_int3472_discrete_probe(struct platform_device *pdev)
 	int3472 = devm_kzalloc(&pdev->dev, struct_size(int3472, gpios.table,
 			       INT3472_MAX_SENSOR_GPIOS + 1), GFP_KERNEL);
 	if (!int3472)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	int3472->adev = adev;
 	int3472->dev = &pdev->dev;

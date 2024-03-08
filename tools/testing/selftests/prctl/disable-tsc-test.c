@@ -25,7 +25,7 @@
 
 const char *tsc_names[] =
 {
-	[0] = "[not set]",
+	[0] = "[analt set]",
 	[PR_TSC_ENABLE] = "PR_TSC_ENABLE",
 	[PR_TSC_SIGSEGV] = "PR_TSC_SIGSEGV",
 };
@@ -33,7 +33,7 @@ const char *tsc_names[] =
 static uint64_t rdtsc(void)
 {
 uint32_t lo, hi;
-/* We cannot use "=A", since this would use %rax on x86_64 */
+/* We cananalt use "=A", since this would use %rax on x86_64 */
 __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
 return (uint64_t)hi << 32 | lo;
 }

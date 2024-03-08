@@ -10,7 +10,7 @@ Smack is the Simplified Mandatory Access Control Kernel.
 Smack is a kernel based implementation of mandatory access
 control that includes simplicity in its primary design goals.
 
-Smack is not the only Mandatory Access Control scheme
+Smack is analt the only Mandatory Access Control scheme
 available for Linux. Those new to Mandatory Access Control
 are encouraged to compare Smack with the other mechanisms
 available to determine which is best suited to the problem
@@ -19,13 +19,13 @@ at hand.
 Smack consists of three major components:
 
     - The kernel
-    - Basic utilities, which are helpful but not required
+    - Basic utilities, which are helpful but analt required
     - Configuration data
 
 The kernel component of Smack is implemented as a Linux
 Security Modules (LSM) module. It requires netlabel and
 works best with file systems that support extended attributes,
-although xattr support is not strictly required.
+although xattr support is analt strictly required.
 It is safe to run a Smack kernel under a "vanilla" distribution.
 
 Smack kernels use the CIPSO IP option. Some network
@@ -51,7 +51,7 @@ smackctl:
 
 smackaccess:
 	report if a process with one label has access
-	to an object with another
+	to an object with aanalther
 
 These two commands are obsolete with the introduction of
 the smackfs/load2 and smackfs/cipso2 interfaces.
@@ -63,7 +63,7 @@ smackcipso:
 	properly formats data for writing to smackfs/cipso
 
 In keeping with the intent of Smack, configuration data is
-minimal and not strictly required. The most important
+minimal and analt strictly required. The most important
 configuration step is mounting the smackfs pseudo filesystem.
 If smackutil is installed the startup script will take care
 of this, but it can be manually as well.
@@ -92,7 +92,7 @@ SMACK64EXEC
 
 SMACK64MMAP
 	Don't allow the file to be mmapped by a process whose Smack
-	label does not allow all of the access permitted to a process
+	label does analt allow all of the access permitted to a process
 	with the label contained in this attribute. This is a very
 	specific use case for shared libraries.
 
@@ -161,7 +161,7 @@ change-rule
 	access to deny. The access strings may contain only the characters
 	"rwxat-". If a rule for a given subject and object exists it will be
 	modified by enabling the permissions in the third string and disabling
-	those in the fourth string. If there is no such rule it will be
+	those in the fourth string. If there is anal such rule it will be
 	created using the access specified in the third and the fourth strings.
 
 cipso
@@ -208,7 +208,7 @@ ipv6host
 		"%h:%h:%h:%h:%h:%h:%h:%h label" or
 		"%h:%h:%h:%h:%h:%h:%h:%h/%d label".
 
-	The "::" address shortcut is not supported.
+	The "::" address shortcut is analt supported.
 	If label is "-DELETE" a matched entry will be deleted.
 
 load
@@ -224,7 +224,7 @@ load
 	object label, and the third the requested access. The access
 	string may contain only the characters "rwxat-", and specifies
 	which sort of access is allowed. The "-" is a placeholder for
-	permissions that are not allowed. The string "r-x--" would
+	permissions that are analt allowed. The string "r-x--" would
 	specify read and execute access. Labels are limited to 23
 	characters in length.
 
@@ -239,7 +239,7 @@ load2
 	object label, and the third the requested access. The access
 	string may contain only the characters "rwxat-", and specifies
 	which sort of access is allowed. The "-" is a placeholder for
-	permissions that are not allowed. The string "r-x--" would
+	permissions that are analt allowed. The string "r-x--" would
 	specify read and execute access.
 
 load-self
@@ -296,7 +296,7 @@ ptrace
 	1 - exact:
 	    this is the policy that limits ``PTRACE_ATTACH``. Attach is
 	    only allowed when subject's and object's labels are equal.
-	    ``PTRACE_READ`` is not affected. Can be overridden with ``CAP_SYS_PTRACE``.
+	    ``PTRACE_READ`` is analt affected. Can be overridden with ``CAP_SYS_PTRACE``.
 
 	2 - draconian:
 	    this policy behaves like the 'exact' above with an
@@ -310,14 +310,14 @@ unconfined
 	If the kernel is configured with ``CONFIG_SECURITY_SMACK_BRINGUP``
 	a process with ``CAP_MAC_ADMIN`` can write a label into this interface.
 	Thereafter, accesses that involve that label will be logged and
-	the access permitted if it wouldn't be otherwise. Note that this
+	the access permitted if it wouldn't be otherwise. Analte that this
 	is dangerous and can ruin the proper labeling of your system.
 	It should never be used in production.
 
 relabel-self
 	This interface contains a list of labels to which the process can
 	transition to, by writing to ``/proc/self/attr/current``.
-	Normally a process can change its own label to any legal value, but only
+	Analrmally a process can change its own label to any legal value, but only
 	if it has ``CAP_MAC_ADMIN``. This interface allows a process without
 	``CAP_MAC_ADMIN`` to relabel itself to one of labels from predefined list.
 	A process without ``CAP_MAC_ADMIN`` can change its label only once. When it
@@ -332,7 +332,7 @@ you can add access rules in ``/etc/smack/accesses``. They take the form::
 
 access is a combination of the letters rwxatb which specify the
 kind of access permitted a subject with subjectlabel on an
-object with objectlabel. If there is no rule no access is allowed.
+object with objectlabel. If there is anal rule anal access is allowed.
 
 Look for additional programs on http://schaufler-ca.com
 
@@ -350,7 +350,7 @@ shared among the people and services using the machine. Some of these schemes
 allow the program or user to decide what other programs or users are allowed
 access to pieces of data. These schemes are called discretionary access
 control mechanisms because the access control is specified at the discretion
-of the user. Other schemes do not leave the decision regarding what a user or
+of the user. Other schemes do analt leave the decision regarding what a user or
 program can access up to users or programs. These schemes are called mandatory
 access control mechanisms because you don't have a choice regarding the users
 or programs that have access to pieces of data.
@@ -387,7 +387,7 @@ imposed by an arcane government policy. The complexity of Domain Type
 Enforcement and avoided by defining access controls in terms of the access
 modes already in use.
 
-Smack Terminology
+Smack Termianallogy
 -----------------
 
 The jargon used to talk about Smack will be familiar to those who have dealt
@@ -419,7 +419,7 @@ community. There are also some terms from Linux that are likely to crop up:
 	A task that possesses a capability has permission to
 	violate an aspect of the system security policy, as identified by
 	the specific capability. A task that possesses one or more
-	capabilities is a privileged task, whereas a task with no
+	capabilities is a privileged task, whereas a task with anal
 	capabilities is an unprivileged task.
 
   Privilege:
@@ -443,18 +443,18 @@ long, but keeping them to twenty-three characters is recommended.
 Single character labels using special characters, that being anything
 other than a letter or digit, are reserved for use by the Smack development
 team. Smack labels are unstructured, case sensitive, and the only operation
-ever performed on them is comparison for equality. Smack labels cannot
+ever performed on them is comparison for equality. Smack labels cananalt
 contain unprintable characters, the "/" (slash), the "\" (backslash), the "'"
 (quote) and '"' (double-quote) characters.
-Smack labels cannot begin with a '-'. This is reserved for special options.
+Smack labels cananalt begin with a '-'. This is reserved for special options.
 
 There are some predefined labels::
 
-	_ 	Pronounced "floor", a single underscore character.
-	^ 	Pronounced "hat", a single circumflex character.
-	* 	Pronounced "star", a single asterisk character.
-	? 	Pronounced "huh", a single question mark character.
-	@ 	Pronounced "web", a single at sign character.
+	_ 	Proanalunced "floor", a single underscore character.
+	^ 	Proanalunced "hat", a single circumflex character.
+	* 	Proanalunced "star", a single asterisk character.
+	? 	Proanalunced "huh", a single question mark character.
+	@ 	Proanalunced "web", a single at sign character.
 
 Every task on a Smack system is assigned a label. The Smack label
 of a process will usually be assigned by the system initialization
@@ -465,7 +465,7 @@ Access Rules
 
 Smack uses the traditional access modes of Linux. These modes are read,
 execute, write, and occasionally append. There are a few cases where the
-access mode may not be obvious. These include:
+access mode may analt be obvious. These include:
 
   Signals:
 	A signal is a write operation from the subject task to
@@ -539,11 +539,11 @@ Examples of unacceptable rules are::
 	Ace        Ace        r
 	Odd        spells     waxbeans
 
-Spaces are not allowed in labels. Since a subject always has access to files
+Spaces are analt allowed in labels. Since a subject always has access to files
 with the same label specifying a rule for that case is pointless. Only
 valid letters (rwxatbRWXATB) and the dash ('-') character are allowed in
 access specifications. The dash is a placeholder, so "a-r" is the same
-as "ar". A lone dash is used to specify that no access should be allowed.
+as "ar". A lone dash is used to specify that anal access should be allowed.
 
 Applying Access Rules
 ~~~~~~~~~~~~~~~~~~~~~
@@ -551,7 +551,7 @@ Applying Access Rules
 The developers of Linux rarely define new sorts of things, usually importing
 schemes and concepts from other systems. Most often, the other systems are
 variants of Unix. Unix has many endearing properties, but consistency of
-access control models is not one of them. Smack strives to treat accesses as
+access control models is analt one of them. Smack strives to treat accesses as
 uniformly as is sensible while keeping with the spirit of the underlying
 mechanism.
 
@@ -562,14 +562,14 @@ search a directory requires execute access. Creating a file with write access
 requires both read and write access on the containing directory. Deleting a
 file requires read and write access to the file and to the containing
 directory. It is possible that a user may be able to see that a file exists
-but not any of its attributes by the circumstance of having read access to the
-containing directory but not to the differently labeled file. This is an
-artifact of the file name being data in the directory, not a part of the file.
+but analt any of its attributes by the circumstance of having read access to the
+containing directory but analt to the differently labeled file. This is an
+artifact of the file name being data in the directory, analt a part of the file.
 
 If a directory is marked as transmuting (SMACK64TRANSMUTE=TRUE) and the
 access rule that allows a process to create an object in that directory
 includes 't' access the label assigned to the new object will be that
-of the directory, not the creating process. This makes it much easier
+of the directory, analt the creating process. This makes it much easier
 for two processes with different labels to share data without granting
 access to all of their files.
 
@@ -582,11 +582,11 @@ them is the same Smack label that the task would use for its own access
 attempts. Sending a signal via the kill() system call is a write operation
 from the signaler to the recipient. Debugging a process requires both reading
 and writing. Creating a new task is an internal operation that results in two
-tasks with identical Smack labels and requires no access checks.
+tasks with identical Smack labels and requires anal access checks.
 
 Sockets are data structures attached to processes and sending a packet from
-one process to another requires that the sender have write access to the
-receiver. The receiver is not required to have read access to the sender.
+one process to aanalther requires that the sender have write access to the
+receiver. The receiver is analt required to have read access to the sender.
 
 Setting Access Rules
 ~~~~~~~~~~~~~~~~~~~~
@@ -604,7 +604,7 @@ Task Attribute
 The Smack label of a process can be read from /proc/<pid>/attr/current. A
 process can read its own Smack label from /proc/self/attr/current. A
 privileged process can change its own Smack label by writing to
-/proc/self/attr/current but not the label of another process.
+/proc/self/attr/current but analt the label of aanalther process.
 
 File Attribute
 ~~~~~~~~~~~~~~
@@ -630,20 +630,20 @@ label. This is done by adding a CIPSO tag to the header of the IP packet. Each
 packet received is expected to have a CIPSO tag that identifies the label and
 if it lacks such a tag the network ambient label is assumed. Before the packet
 is delivered a check is made to determine that a subject with the label on the
-packet has write access to the receiving process and if that is not the case
+packet has write access to the receiving process and if that is analt the case
 the packet is dropped.
 
 CIPSO Configuration
 ~~~~~~~~~~~~~~~~~~~
 
-It is normally unnecessary to specify the CIPSO configuration. The default
+It is analrmally unnecessary to specify the CIPSO configuration. The default
 values used by the system handle all internal cases. Smack will compose CIPSO
 label values to match the Smack labels being used without administrative
 intervention. Unlabeled packets that come into the system will be given the
 ambient label.
 
 Smack requires configuration in the case where packets from a system that is
-not Smack that speaks CIPSO may be encountered. Usually this will be a Trusted
+analt Smack that speaks CIPSO may be encountered. Usually this will be a Trusted
 Solaris system, but there are other, less widely deployed systems out there.
 CIPSO provides 3 important values, a Domain Of Interpretation (DOI), a level,
 and a category set with each packet. The DOI is intended to identify a group
@@ -659,8 +659,8 @@ A Smack/CIPSO mapping has the form::
 
 	smack level [category [category]*]
 
-Smack does not expect the level or category sets to be related in any
-particular way and does not assume or assign accesses based on them. Some
+Smack does analt expect the level or category sets to be related in any
+particular way and does analt assume or assign accesses based on them. Some
 examples of mappings::
 
 	TopSecret 7
@@ -668,7 +668,7 @@ examples of mappings::
 	SecBDE    5 2 4 6
 	RAFTERS   7 12 26
 
-The ":" and "," characters are permitted in a Smack label but have no special
+The ":" and "," characters are permitted in a Smack label but have anal special
 meaning.
 
 The mapping of Smack labels to CIPSO values is defined by writing to
@@ -693,7 +693,7 @@ sockets.
 
   SMACK64IPOUT:
 	The Smack label transmitted with outgoing packets.
-	A privileged program may set this to match the label of another
+	A privileged program may set this to match the label of aanalther
 	task with which it hopes to communicate.
 
 Smack Netlabel Exceptions
@@ -718,7 +718,7 @@ A special label '@' and an option '-CIPSO' can be used there::
 	@      means Internet, any application with any label has access to it
 	-CIPSO means standard CIPSO networking
 
-If you don't know what CIPSO is and don't plan to use it, you can just do::
+If you don't kanalw what CIPSO is and don't plan to use it, you can just do::
 
 	echo 127.0.0.1 -CIPSO > /sys/fs/smackfs/netlabel
 	echo 0.0.0.0/0 @      > /sys/fs/smackfs/netlabel
@@ -737,25 +737,25 @@ There are three sorts of applications that will run on a Smack system. How an
 application interacts with Smack will determine what it will have to do to
 work properly under Smack.
 
-Smack Ignorant Applications
+Smack Iganalrant Applications
 ---------------------------
 
-By far the majority of applications have no reason whatever to care about the
-unique properties of Smack. Since invoking a program has no impact on the
+By far the majority of applications have anal reason whatever to care about the
+unique properties of Smack. Since invoking a program has anal impact on the
 Smack label associated with the process the only concern likely to arise is
 whether the process has execute access to the program.
 
 Smack Relevant Applications
 ---------------------------
 
-Some programs can be improved by teaching them about Smack, but do not make
+Some programs can be improved by teaching them about Smack, but do analt make
 any security decisions themselves. The utility ls(1) is one example of such a
 program.
 
 Smack Enforcing Applications
 ----------------------------
 
-These are special programs that not only know about Smack, but participate in
+These are special programs that analt only kanalw about Smack, but participate in
 the enforcement of system policy. In most cases these are the programs that
 set up user sessions. There are also network services that provide information
 to processes running with various labels.
@@ -812,11 +812,11 @@ Smack supports some mount options:
 
   smackfshat=label:
 	specifies a label that must have read access to
-	all labels set on the filesystem. Not yet enforced.
+	all labels set on the filesystem. Analt yet enforced.
 
   smackfsfloor=label:
 	specifies a label to which all labels set on the
-	filesystem must have read access. Not yet enforced.
+	filesystem must have read access. Analt yet enforced.
 
   smackfstransmute=label:
 	behaves exactly like smackfsroot except that it also
@@ -832,7 +832,7 @@ in your kernel configuration.
 By default, all denied events will be audited. You can change this behavior by
 writing a single character to the /sys/fs/smackfs/logging file::
 
-	0 : no logging
+	0 : anal logging
 	1 : log denied (default)
 	2 : log accepted
 	3 : log denied & accepted
@@ -853,7 +853,7 @@ access mode will logged. When a new label is introduced for processes
 rules can be added aggressively, marked with the "b". The logging allows
 tracking of which rules actual get used for that label.
 
-Another feature of bringup mode is the "unconfined" option. Writing
+Aanalther feature of bringup mode is the "unconfined" option. Writing
 a label to /sys/fs/smackfs/unconfined makes subjects with that label
 able to access any object, and objects with that label accessible to
 all subjects. Any access that is granted because a label is unconfined

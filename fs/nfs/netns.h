@@ -12,7 +12,7 @@
 
 struct bl_dev_msg {
 	int32_t status;
-	uint32_t major, minor;
+	uint32_t major, mianalr;
 };
 
 struct nfs_netns_client;
@@ -29,7 +29,7 @@ struct nfs_net {
 	struct idr cb_ident_idr; /* Protected by nfs_client_lock */
 	unsigned short nfs_callback_tcpport;
 	unsigned short nfs_callback_tcpport6;
-	int cb_users[NFS4_MAX_MINOR_VERSION + 1];
+	int cb_users[NFS4_MAX_MIANALR_VERSION + 1];
 #endif
 	struct nfs_netns_client *nfs_client;
 	spinlock_t nfs_client_lock;

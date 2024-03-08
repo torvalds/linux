@@ -22,7 +22,7 @@ properties:
 patternProperties:
   '-pins$':
     type: object
-    $ref: pinmux-node.yaml#
+    $ref: pinmux-analde.yaml#
     additionalProperties: false
 
     properties:

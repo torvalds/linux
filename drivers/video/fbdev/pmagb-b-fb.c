@@ -20,7 +20,7 @@
 
 #include <linux/compiler.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -49,12 +49,12 @@ static const struct fb_var_screeninfo pmagbbfb_defined = {
 	.red.length	= 8,
 	.green.length	= 8,
 	.blue.length	= 8,
-	.activate	= FB_ACTIVATE_NOW,
+	.activate	= FB_ACTIVATE_ANALW,
 	.height		= -1,
 	.width		= -1,
-	.accel_flags	= FB_ACCEL_NONE,
+	.accel_flags	= FB_ACCEL_ANALNE,
 	.sync		= FB_SYNC_ON_GREEN,
-	.vmode		= FB_VMODE_NONINTERLACED,
+	.vmode		= FB_VMODE_ANALNINTERLACED,
 };
 
 static const struct fb_fix_screeninfo pmagbbfb_fix = {
@@ -95,13 +95,13 @@ static inline void gp0_write(struct pmagbbfb_par *par, u32 v)
 /*
  * Set the palette.
  */
-static int pmagbbfb_setcolreg(unsigned int regno, unsigned int red,
+static int pmagbbfb_setcolreg(unsigned int reganal, unsigned int red,
 			      unsigned int green, unsigned int blue,
 			      unsigned int transp, struct fb_info *info)
 {
 	struct pmagbbfb_par *par = info->par;
 
-	if (regno >= info->cmap.len)
+	if (reganal >= info->cmap.len)
 		return 1;
 
 	red   >>= 8;	/* The cmap fields are 16 bits    */
@@ -109,7 +109,7 @@ static int pmagbbfb_setcolreg(unsigned int regno, unsigned int red,
 	blue  >>= 8;	/* registers are only 8 bits wide */
 
 	mb();
-	dac_write(par, BT459_ADDR_LO, regno);
+	dac_write(par, BT459_ADDR_LO, reganal);
 	dac_write(par, BT459_ADDR_HI, 0x00);
 	wmb();
 	dac_write(par, BT459_CMAP, red);
@@ -194,7 +194,7 @@ static void pmagbbfb_osc_setup(struct fb_info *info)
 		mb();
 		sfb_write(par, SFB_REG_TCCLK_COUNT, 0);
 		mb();
-		for (i = 0; i < 100; i++) {	/* nominally max. 20.5us */
+		for (i = 0; i < 100; i++) {	/* analminally max. 20.5us */
 			if (sfb_read(par, SFB_REG_TCCLK_COUNT) == 0)
 				break;
 			udelay(1);
@@ -207,7 +207,7 @@ static void pmagbbfb_osc_setup(struct fb_info *info)
 		mb();
 		sfb_write(par, SFB_REG_TCCLK_COUNT, 0);
 
-		for (i = 0; i < 100; i++) {	/* nominally max. 20.5us */
+		for (i = 0; i < 100; i++) {	/* analminally max. 20.5us */
 			if (sfb_read(par, SFB_REG_TCCLK_COUNT) == 0)
 				break;
 			udelay(1);
@@ -256,15 +256,15 @@ static int pmagbbfb_probe(struct device *dev)
 
 	info = framebuffer_alloc(sizeof(struct pmagbbfb_par), dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	par = info->par;
 	dev_set_drvdata(dev, info);
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0) {
-		printk(KERN_ERR "%s: Cannot allocate color map\n",
+		printk(KERN_ERR "%s: Cananalt allocate color map\n",
 		       dev_name(dev));
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -276,7 +276,7 @@ static int pmagbbfb_probe(struct device *dev)
 	start = tdev->resource.start;
 	len = tdev->resource.end - start + 1;
 	if (!request_mem_region(start, len, dev_name(dev))) {
-		printk(KERN_ERR "%s: Cannot reserve FB region\n",
+		printk(KERN_ERR "%s: Cananalt reserve FB region\n",
 		       dev_name(dev));
 		err = -EBUSY;
 		goto err_cmap;
@@ -286,8 +286,8 @@ static int pmagbbfb_probe(struct device *dev)
 	info->fix.mmio_start = start;
 	par->mmio = ioremap(info->fix.mmio_start, info->fix.mmio_len);
 	if (!par->mmio) {
-		printk(KERN_ERR "%s: Cannot map MMIO\n", dev_name(dev));
-		err = -ENOMEM;
+		printk(KERN_ERR "%s: Cananalt map MMIO\n", dev_name(dev));
+		err = -EANALMEM;
 		goto err_resource;
 	}
 	par->sfb = par->mmio + PMAGB_B_SFB;
@@ -297,8 +297,8 @@ static int pmagbbfb_probe(struct device *dev)
 	info->fix.smem_start = start + PMAGB_B_FBMEM;
 	par->smem = ioremap(info->fix.smem_start, info->fix.smem_len);
 	if (!par->smem) {
-		printk(KERN_ERR "%s: Cannot map FB\n", dev_name(dev));
-		err = -ENOMEM;
+		printk(KERN_ERR "%s: Cananalt map FB\n", dev_name(dev));
+		err = -EANALMEM;
 		goto err_mmio_map;
 	}
 	vid_base = sfb_read(par, SFB_REG_VID_BASE);
@@ -311,7 +311,7 @@ static int pmagbbfb_probe(struct device *dev)
 
 	err = register_framebuffer(info);
 	if (err < 0) {
-		printk(KERN_ERR "%s: Cannot register framebuffer\n",
+		printk(KERN_ERR "%s: Cananalt register framebuffer\n",
 		       dev_name(dev));
 		goto err_smem_map;
 	}

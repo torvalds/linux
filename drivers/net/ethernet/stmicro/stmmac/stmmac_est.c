@@ -86,7 +86,7 @@ static void est_irq_status(struct stmmac_priv *priv, struct net_device *dev,
 
 	value = EST_CGCE | EST_HLBS | EST_HLBF | EST_BTRE | EST_SWLC;
 
-	/* Return if there is no error */
+	/* Return if there is anal error */
 	if (!(status & value))
 		return;
 

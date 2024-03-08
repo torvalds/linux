@@ -17,17 +17,17 @@ static inline bool bch2_dev_bucket_exists(struct bch_fs *c, struct bpos pos)
 {
 	struct bch_dev *ca;
 
-	if (!bch2_dev_exists2(c, pos.inode))
+	if (!bch2_dev_exists2(c, pos.ianalde))
 		return false;
 
-	ca = bch_dev_bkey_exists(c, pos.inode);
+	ca = bch_dev_bkey_exists(c, pos.ianalde);
 	return pos.offset >= ca->mi.first_bucket &&
 		pos.offset < ca->mi.nbuckets;
 }
 
 static inline u64 bucket_to_u64(struct bpos bucket)
 {
-	return (bucket.inode << 48) | bucket.offset;
+	return (bucket.ianalde << 48) | bucket.offset;
 }
 
 static inline struct bpos u64_to_bucket(u64 bucket)

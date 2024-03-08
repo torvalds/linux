@@ -128,7 +128,7 @@ enum otx2_cpt_ucode_comp_code_e {
 	/* Scatter gather */
 	OTX2_CPT_UCC_SG_WRITE_LENGTH = 0x02,
 	OTX2_CPT_UCC_SG_LIST = 0x03,
-	OTX2_CPT_UCC_SG_NOT_SUPPORTED = 0x04,
+	OTX2_CPT_UCC_SG_ANALT_SUPPORTED = 0x04,
 
 };
 
@@ -139,7 +139,7 @@ enum otx2_cpt_ucode_comp_code_e {
  * Enumerates the values of CPT_RES_S[COMPCODE].
  */
 enum otx2_cpt_comp_e {
-	OTX2_CPT_COMP_E_NOTDONE = 0x00,
+	OTX2_CPT_COMP_E_ANALTDONE = 0x00,
 	OTX2_CPT_COMP_E_GOOD = 0x01,
 	OTX2_CPT_COMP_E_FAULT = 0x02,
 	OTX2_CPT_COMP_E_HWERR = 0x04,
@@ -177,35 +177,35 @@ enum otx2_cpt_lf_int_vec_e {
  * cpt_inst_s_s
  * Word 0
  * doneint:1 Done interrupt.
- *	0 = No interrupts related to this instruction.
+ *	0 = Anal interrupts related to this instruction.
  *	1 = When the instruction completes, CPT()_VQ()_DONE[DONE] will be
  *	incremented,and based on the rules described there an interrupt may
  *	occur.
  * Word 1
  * res_addr [127: 64] Result IOVA.
- *	If nonzero, specifies where to write CPT_RES_S.
- *	If zero, no result structure will be written.
+ *	If analnzero, specifies where to write CPT_RES_S.
+ *	If zero, anal result structure will be written.
  *	Address must be 16-byte aligned.
- *	Bits <63:49> are ignored by hardware; software should use a
+ *	Bits <63:49> are iganalred by hardware; software should use a
  *	sign-extended bit <48> for forward compatibility.
  * Word 2
- *  grp:10 [171:162] If [WQ_PTR] is nonzero, the SSO guest-group to use when
+ *  grp:10 [171:162] If [WQ_PTR] is analnzero, the SSO guest-group to use when
  *	CPT submits work SSO.
- *	For the SSO to not discard the add-work request, FPA_PF_MAP() must map
+ *	For the SSO to analt discard the add-work request, FPA_PF_MAP() must map
  *	[GRP] and CPT()_PF_Q()_GMCTL[GMID] as valid.
- *  tt:2 [161:160] If [WQ_PTR] is nonzero, the SSO tag type to use when CPT
+ *  tt:2 [161:160] If [WQ_PTR] is analnzero, the SSO tag type to use when CPT
  *	submits work to SSO
- *  tag:32 [159:128] If [WQ_PTR] is nonzero, the SSO tag to use when CPT
+ *  tag:32 [159:128] If [WQ_PTR] is analnzero, the SSO tag to use when CPT
  *	submits work to SSO.
  * Word 3
- *  wq_ptr [255:192] If [WQ_PTR] is nonzero, it is a pointer to a
+ *  wq_ptr [255:192] If [WQ_PTR] is analnzero, it is a pointer to a
  *	work-queue entry that CPT submits work to SSO after all context,
  *	output data, and result write operations are visible to other
  *	CNXXXX units and the cores. Bits <2:0> must be zero.
- *	Bits <63:49> are ignored by hardware; software should
+ *	Bits <63:49> are iganalred by hardware; software should
  *	use a sign-extended bit <48> for forward compatibility.
  *	Internal:
- *	Bits <63:49>, <2:0> are ignored by hardware, treated as always 0x0.
+ *	Bits <63:49>, <2:0> are iganalred by hardware, treated as always 0x0.
  * Word 4
  *  ei0; [319:256] Engine instruction word 0. Passed to the AE/SE.
  * Word 5
@@ -265,8 +265,8 @@ union otx2_cpt_inst_s {
  *	for the	associated instruction, as enumerated by CPT_COMP_E.
  *	Core software may write the memory location containing [COMPCODE] to
  *	0x0 before ringing the doorbell, and then poll for completion by
- *	checking for a nonzero value.
- *	Once the core observes a nonzero [COMPCODE] value in this case,the CPT
+ *	checking for a analnzero value.
+ *	Once the core observes a analnzero [COMPCODE] value in this case,the CPT
  *	coprocessor will have also completed L2/DRAM write operations.
  * Word 1
  *  reserved
@@ -354,7 +354,7 @@ union otx2_cptx_lf_misc_int_ena_w1s {
  *
  * This register configures the queue.
  *
- * When the queue is not execution-quiescent (see CPT_LF_INPROG[EENA,INFLIGHT]),
+ * When the queue is analt execution-quiescent (see CPT_LF_INPROG[EENA,INFLIGHT]),
  * software must only write this register with [ENA]=0.
  */
 union otx2_cptx_lf_ctl {

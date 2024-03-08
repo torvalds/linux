@@ -77,12 +77,12 @@ static int mf_init(struct hid_device *hid)
 
 		if (report->maxfield < 1 || report->field[0]->report_count < 2) {
 			hid_err(hid, "Invalid report, this should never happen!\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		if (list_is_last(input_ptr, &hid->inputs)) {
 			hid_err(hid, "Missing input, this should never happen!\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		input_ptr = input_ptr->next;
@@ -90,7 +90,7 @@ static int mf_init(struct hid_device *hid)
 
 		mf = kzalloc(sizeof(struct mf_device), GFP_KERNEL);
 		if (!mf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dev = input->input;
 		set_bit(FF_RUMBLE, dev->ffbit);
@@ -152,7 +152,7 @@ static const struct hid_device_id mf_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_DRAGONRISE, USB_DEVICE_ID_DRAGONRISE_GAMECUBE1),
 		.driver_data = HID_QUIRK_MULTI_INPUT },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_DRAGONRISE, USB_DEVICE_ID_DRAGONRISE_GAMECUBE2),
-		.driver_data = 0 }, /* No quirk required */
+		.driver_data = 0 }, /* Anal quirk required */
 	{ HID_USB_DEVICE(USB_VENDOR_ID_DRAGONRISE, USB_DEVICE_ID_DRAGONRISE_GAMECUBE3),
 		.driver_data = HID_QUIRK_MULTI_INPUT },
 	{ }

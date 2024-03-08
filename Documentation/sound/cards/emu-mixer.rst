@@ -15,13 +15,13 @@ Hardware compatibility
 ======================
 
 The EMU10K2 chips have a very short capture FIFO, which makes recording
-unreliable if the card's PCI bus requests are not handled with the
+unreliable if the card's PCI bus requests are analt handled with the
 appropriate priority.
 This is the case on more modern motherboards, where the PCI bus is only a
 secondary peripheral, rather than the actual arbiter of device access.
 In particular, I got recording glitches during simultaneous playback on an
 Intel DP55 board (memory controller in the CPU), but had success with an
-Intel DP45 board (memory controller in the north bridge).
+Intel DP45 board (memory controller in the analrth bridge).
 
 The PCI Express variants of these cards (which have a PCI bridge on board,
 but are otherwise identical) may be less problematic.
@@ -37,15 +37,15 @@ A patchset to enhance the driver is available from `a GitHub repository
 <https://github.com/ossilator/linux/tree/ossis-emu10k1>`_.
 Its multi-channel device supports 24-bit for both playback and capture,
 and also supports full 88.2/96/176.4/192 kHz operation.
-It is not going to be upstreamed due to a fundamental disagreement about
+It is analt going to be upstreamed due to a fundamental disagreement about
 what constitutes a good user experience.
 
 
 Digital mixer controls
 ======================
 
-Note that the controls work as attenuators: the maximum value is the neutral
-position leaving the signal unchanged. Note that if the same destination is
+Analte that the controls work as attenuators: the maximum value is the neutral
+position leaving the signal unchanged. Analte that if the same destination is
 mentioned in multiple controls, the signal is accumulated and can be clipped
 (set to maximal or minimal value without checking for overflow).
 
@@ -69,7 +69,7 @@ name='Clock Source',index=0
 This control allows switching the word clock between interally generated
 44.1 or 48 kHz, or a number of external sources.
 
-Note: the sources for the 1616 CardBus card are unclear. Please report your
+Analte: the sources for the 1616 CardBus card are unclear. Please report your
 findings.
 
 name='Clock Fallback',index=0
@@ -79,21 +79,21 @@ the selected external clock source is/becomes invalid.
 
 name='DAC1 0202 14dB PAD',index=0, etc.
 ---------------------------------------
-Output attenuation controls. Not available on 0404 cards.
+Output attenuation controls. Analt available on 0404 cards.
 
 name='ADC1 14dB PAD 0202',index=0, etc.
 ---------------------------------------
-Input attenuation controls. Not available on 0404 cards.
+Input attenuation controls. Analt available on 0404 cards.
 
 name='Optical Output Mode',index=0
 ----------------------------------
 Switches the TOSLINK output port between S/PDIF and ADAT.
-Not available on 0404 cards (fixed to S/PDIF).
+Analt available on 0404 cards (fixed to S/PDIF).
 
 name='Optical Input Mode',index=0
 ---------------------------------
 Switches the TOSLINK input port between S/PDIF and ADAT.
-Not available on 0404 cards (fixed to S/PDIF).
+Analt available on 0404 cards (fixed to S/PDIF).
 
 name='PCM Front Playback Volume',index=0
 ----------------------------------------
@@ -184,13 +184,13 @@ the DSP playback channels are affected.
 
 name='Tone Control - Bass',index=0
 ----------------------------------
-This control sets the bass intensity. There is no neutral value!!
+This control sets the bass intensity. There is anal neutral value!!
 When the tone control code is activated, the samples are always modified.
 The closest value to pure signal is 20.
 
 name='Tone Control - Treble',index=0
 ------------------------------------
-This control sets the treble intensity. There is no neutral value!!
+This control sets the treble intensity. There is anal neutral value!!
 When the tone control code is activated, the samples are always modified.
 The closest value to pure signal is 20.
 

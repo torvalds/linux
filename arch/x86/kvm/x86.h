@@ -22,8 +22,8 @@ struct kvm_caps {
 	u64  default_tsc_scaling_ratio;
 	/* bus lock detection supported? */
 	bool has_bus_lock_exit;
-	/* notify VM exit supported? */
-	bool has_notify_vmexit;
+	/* analtify VM exit supported? */
+	bool has_analtify_vmexit;
 
 	u64 supported_mce_cap;
 	u64 supported_xcr0;
@@ -43,7 +43,7 @@ void kvm_spurious_fault(void);
 
 /*
  * The first...last VMX feature MSRs that are emulated by KVM.  This may or may
- * not cover all known VMX MSRs, as KVM doesn't emulate an MSR until there's an
+ * analt cover all kanalwn VMX MSRs, as KVM doesn't emulate an MSR until there's an
  * associated feature that KVM supports for nested virtualization.
  */
 #define KVM_FIRST_EMULATED_VMX_MSR	MSR_IA32_VMX_BASIC
@@ -164,7 +164,7 @@ static inline bool is_64_bit_mode(struct kvm_vcpu *vcpu)
 static inline bool is_64_bit_hypercall(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * If running with protected guest state, the CS register is not
+	 * If running with protected guest state, the CS register is analt
 	 * accessible. The hypercall register values will have had to been
 	 * provided in 64-bit mode, so assume the guest is in 64-bit.
 	 */
@@ -210,9 +210,9 @@ static inline u8 vcpu_virt_addr_bits(struct kvm_vcpu *vcpu)
 	return kvm_is_cr4_bit_set(vcpu, X86_CR4_LA57) ? 57 : 48;
 }
 
-static inline bool is_noncanonical_address(u64 la, struct kvm_vcpu *vcpu)
+static inline bool is_analncaanalnical_address(u64 la, struct kvm_vcpu *vcpu)
 {
-	return !__is_canonical_address(la, vcpu_virt_addr_bits(vcpu));
+	return !__is_caanalnical_address(la, vcpu_virt_addr_bits(vcpu));
 }
 
 static inline void vcpu_cache_mmio_info(struct kvm_vcpu *vcpu,
@@ -334,7 +334,7 @@ extern bool enable_pmu;
  * Get a filtered version of KVM's supported XCR0 that strips out dynamic
  * features for which the current process doesn't (yet) have permission to use.
  * This is intended to be used only when enumerating support to userspace,
- * e.g. in KVM_GET_SUPPORTED_CPUID and KVM_CAP_XSAVE2, it does NOT need to be
+ * e.g. in KVM_GET_SUPPORTED_CPUID and KVM_CAP_XSAVE2, it does ANALT need to be
  * used to check/restrict guest behavior as KVM rejects KVM_SET_CPUID{2} if
  * userspace attempts to enable unpermitted features.
  */
@@ -370,19 +370,19 @@ extern bool enable_vmware_backdoor;
 
 extern int pi_inject_timer;
 
-extern bool report_ignored_msrs;
+extern bool report_iganalred_msrs;
 
 extern bool eager_page_split;
 
 static inline void kvm_pr_unimpl_wrmsr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
-	if (report_ignored_msrs)
+	if (report_iganalred_msrs)
 		vcpu_unimpl(vcpu, "Unhandled WRMSR(0x%x) = 0x%llx\n", msr, data);
 }
 
 static inline void kvm_pr_unimpl_rdmsr(struct kvm_vcpu *vcpu, u32 msr)
 {
-	if (report_ignored_msrs)
+	if (report_iganalred_msrs)
 		vcpu_unimpl(vcpu, "Unhandled RDMSR(0x%x)\n", msr);
 }
 
@@ -426,13 +426,13 @@ static inline bool kvm_cstate_in_guest(struct kvm *kvm)
 	return kvm->arch.cstate_in_guest;
 }
 
-static inline bool kvm_notify_vmexit_enabled(struct kvm *kvm)
+static inline bool kvm_analtify_vmexit_enabled(struct kvm *kvm)
 {
-	return kvm->arch.notify_vmexit_flags & KVM_X86_NOTIFY_VMEXIT_ENABLED;
+	return kvm->arch.analtify_vmexit_flags & KVM_X86_ANALTIFY_VMEXIT_ENABLED;
 }
 
 enum kvm_intr_type {
-	/* Values are arbitrary, but must be non-zero. */
+	/* Values are arbitrary, but must be analn-zero. */
 	KVM_HANDLING_IRQ = 1,
 	KVM_HANDLING_NMI,
 };
@@ -476,14 +476,14 @@ static inline bool kvm_dr6_valid(u64 data)
  * Trigger machine check on the host. We assume all the MSRs are already set up
  * by the CPU and that we still run on the same CPU as the MCE occurred on.
  * We pass a fake environment to the machine check handler because we want
- * the guest to be always treated like user space, no matter what context
+ * the guest to be always treated like user space, anal matter what context
  * it used internally.
  */
 static inline void kvm_machine_check(void)
 {
 #if defined(CONFIG_X86_MCE)
 	struct pt_regs regs = {
-		.cs = 3, /* Fake ring 3 no matter what the guest ran on */
+		.cs = 3, /* Fake ring 3 anal matter what the guest ran on */
 		.flags = X86_EFLAGS_IF,
 	};
 

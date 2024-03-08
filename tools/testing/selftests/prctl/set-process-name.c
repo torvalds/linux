@@ -3,7 +3,7 @@
  * This test covers the PR_SET_NAME functionality of prctl calls
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <sys/prctl.h>
 #include <string.h>
 
@@ -21,7 +21,7 @@ int set_name(char *name)
 	res = prctl(PR_SET_NAME, name, NULL, NULL, NULL);
 
 	if (res < 0)
-		return -errno;
+		return -erranal;
 	return res;
 }
 
@@ -33,7 +33,7 @@ int check_is_name_correct(char *check_name)
 	res = prctl(PR_GET_NAME, name, NULL, NULL, NULL);
 
 	if (res < 0)
-		return -errno;
+		return -erranal;
 
 	return !strcmp(name, check_name);
 }
@@ -72,7 +72,7 @@ int check_name(void)
 	int res = prctl(PR_GET_NAME, name, NULL, NULL, NULL);
 
 	if (res < 0)
-		return -errno;
+		return -erranal;
 
 	return !strcmp(output, name);
 }

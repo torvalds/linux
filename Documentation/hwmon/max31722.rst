@@ -31,7 +31,7 @@ Description
 This driver adds support for the Maxim Integrated MAX31722/MAX31723 thermometers
 and thermostats running over an SPI interface.
 
-Usage Notes
+Usage Analtes
 -----------
 
 This driver uses ACPI to auto-detect devices. See ACPI IDs in the above section.

@@ -113,22 +113,22 @@ properties:
       port@0:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          The output port node form video port 1
+          The output port analde form video port 1
 
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          The output port node from video port 2
+          The output port analde from video port 2
 
       port@2:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          The output port node from video port 3
+          The output port analde from video port 3
 
       port@3:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          The output port node from video port 4
+          The output port analde from video port 4
 
   max-memory-bandwidth:
     $ref: /schemas/types.yaml#/definitions/uint32

@@ -1,5 +1,5 @@
 /*
- * Driver for Nuvoton Technology Corporation w83667hg/w83677hg-i CIR
+ * Driver for Nuvoton Techanallogy Corporation w83667hg/w83677hg-i CIR
  *
  * Copyright (C) 2010 Jarod Wilson <jarod@redhat.com>
  * Copyright (C) 2009 Nuvoton PS Team
@@ -246,7 +246,7 @@ static ssize_t wakeup_data_store(struct device *dev,
 
 	argv = argv_split(GFP_KERNEL, buf, &count);
 	if (!argv)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!count || count > WAKEUP_MAX_SIZE) {
 		ret = -EINVAL;
 		goto out;
@@ -361,8 +361,8 @@ static void cir_wake_dump_regs(struct nvt_dev *nvt)
 		nvt_cir_wake_reg_read(nvt, CIR_WAKE_RD_FIFO_ONLY));
 	pr_info(" * RD FIFO ONLY IDX: 0x%x\n",
 		nvt_cir_wake_reg_read(nvt, CIR_WAKE_RD_FIFO_ONLY_IDX));
-	pr_info(" * FIFO IGNORE:    0x%x\n",
-		nvt_cir_wake_reg_read(nvt, CIR_WAKE_FIFO_IGNORE));
+	pr_info(" * FIFO IGANALRE:    0x%x\n",
+		nvt_cir_wake_reg_read(nvt, CIR_WAKE_FIFO_IGANALRE));
 	pr_info(" * IRFSM:          0x%x\n",
 		nvt_cir_wake_reg_read(nvt, CIR_WAKE_IRFSM));
 
@@ -407,26 +407,26 @@ static int nvt_hw_detect(struct nvt_dev *nvt)
 		nvt_efm_enable(nvt);
 		nvt->chip_major = nvt_cr_read(nvt, CR_CHIP_ID_HI);
 	}
-	nvt->chip_minor = nvt_cr_read(nvt, CR_CHIP_ID_LO);
+	nvt->chip_mianalr = nvt_cr_read(nvt, CR_CHIP_ID_LO);
 
 	nvt_efm_disable(nvt);
 
-	chip_id = nvt->chip_major << 8 | nvt->chip_minor;
+	chip_id = nvt->chip_major << 8 | nvt->chip_mianalr;
 	if (chip_id == NVT_INVALID) {
-		dev_err(dev, "No device found on either EFM port\n");
-		return -ENODEV;
+		dev_err(dev, "Anal device found on either EFM port\n");
+		return -EANALDEV;
 	}
 
 	chip_name = nvt_find_chip(nvt, chip_id);
 
-	/* warn, but still let the driver load, if we don't know this chip */
+	/* warn, but still let the driver load, if we don't kanalw this chip */
 	if (!chip_name)
 		dev_warn(dev,
-			 "unknown chip, id: 0x%02x 0x%02x, it may not work...",
-			 nvt->chip_major, nvt->chip_minor);
+			 "unkanalwn chip, id: 0x%02x 0x%02x, it may analt work...",
+			 nvt->chip_major, nvt->chip_mianalr);
 	else
 		dev_info(dev, "found %s or compatible: chip id: 0x%02x 0x%02x",
-			 chip_name, nvt->chip_major, nvt->chip_minor);
+			 chip_name, nvt->chip_major, nvt->chip_mianalr);
 
 	return 0;
 }
@@ -607,7 +607,7 @@ static u32 nvt_rx_carrier_detect(struct nvt_dev *nvt)
 	duration *= SAMPLE_PERIOD;
 
 	if (!count || !duration) {
-		dev_notice(nvt_get_dev(nvt),
+		dev_analtice(nvt_get_dev(nvt),
 			   "Unable to determine carrier! (c:%u, d:%u)",
 			   count, duration);
 		return 0;
@@ -641,11 +641,11 @@ static int nvt_ir_raw_set_wakeup_filter(struct rc_dev *dev,
 
 	raw = kmalloc_array(WAKEUP_MAX_SIZE, sizeof(*raw), GFP_KERNEL);
 	if (!raw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ir_raw_encode_scancode(dev->wakeup_protocol, sc_filter->data,
 				     raw, WAKEUP_MAX_SIZE);
-	complete = (ret != -ENOBUFS);
+	complete = (ret != -EANALBUFS);
 	if (!complete)
 		ret = WAKEUP_MAX_SIZE;
 	else if (ret < 0)
@@ -761,7 +761,7 @@ static void nvt_get_rx_ir_data(struct nvt_dev *nvt)
 		nvt->buf[i] = nvt_cir_reg_read(nvt, CIR_SRXFIFO);
 
 	nvt->pkts = fifocount;
-	nvt_dbg("%s: pkts now %d", __func__, nvt->pkts);
+	nvt_dbg("%s: pkts analw %d", __func__, nvt->pkts);
 
 	nvt_process_rx_ir_data(nvt);
 }
@@ -824,7 +824,7 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	if (!(status & iren)) {
 		spin_unlock(&nvt->lock);
 		nvt_dbg_verbose("%s exiting, IRSTS 0x0", __func__);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* ack/clear all irq flags we've got */
@@ -920,36 +920,36 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 
 	nvt = devm_kzalloc(&pdev->dev, sizeof(struct nvt_dev), GFP_KERNEL);
 	if (!nvt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* input device for IR remote */
 	nvt->rdev = devm_rc_allocate_device(&pdev->dev, RC_DRIVER_IR_RAW);
 	if (!nvt->rdev)
-		return -ENOMEM;
+		return -EANALMEM;
 	rdev = nvt->rdev;
 
 	/* activate pnp device */
 	ret = pnp_activate_dev(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not activate PNP device!\n");
+		dev_err(&pdev->dev, "Could analt activate PNP device!\n");
 		return ret;
 	}
 
 	/* validate pnp resources */
 	if (!pnp_port_valid(pdev, 0) ||
 	    pnp_port_len(pdev, 0) < CIR_IOREG_LENGTH) {
-		dev_err(&pdev->dev, "IR PNP Port not valid!\n");
+		dev_err(&pdev->dev, "IR PNP Port analt valid!\n");
 		return -EINVAL;
 	}
 
 	if (!pnp_irq_valid(pdev, 0)) {
-		dev_err(&pdev->dev, "PNP IRQ not valid!\n");
+		dev_err(&pdev->dev, "PNP IRQ analt valid!\n");
 		return -EINVAL;
 	}
 
 	if (!pnp_port_valid(pdev, 1) ||
 	    pnp_port_len(pdev, 1) < CIR_IOREG_LENGTH) {
-		dev_err(&pdev->dev, "Wake PNP Port not valid!\n");
+		dev_err(&pdev->dev, "Wake PNP Port analt valid!\n");
 		return -EINVAL;
 	}
 
@@ -995,7 +995,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	rdev->input_id.bustype = BUS_HOST;
 	rdev->input_id.vendor = PCI_VENDOR_ID_WINBOND2;
 	rdev->input_id.product = nvt->chip_major;
-	rdev->input_id.version = nvt->chip_minor;
+	rdev->input_id.version = nvt->chip_mianalr;
 	rdev->driver_name = NVT_DRIVER_NAME;
 	rdev->map_name = RC_MAP_RC6_MCE;
 	rdev->timeout = MS_TO_US(100);
@@ -1009,7 +1009,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	if (ret)
 		return ret;
 
-	/* now claim resources */
+	/* analw claim resources */
 	if (!devm_request_region(&pdev->dev, nvt->cir_addr,
 			    CIR_IOREG_LENGTH, NVT_DRIVER_NAME))
 		return -EBUSY;
@@ -1029,7 +1029,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 
 	device_init_wakeup(&pdev->dev, true);
 
-	dev_notice(&pdev->dev, "driver has been successfully loaded\n");
+	dev_analtice(&pdev->dev, "driver has been successfully loaded\n");
 	if (debug) {
 		cir_dump_regs(nvt);
 		cir_wake_dump_regs(nvt);
@@ -1100,7 +1100,7 @@ static const struct pnp_device_id nvt_ids[] = {
 static struct pnp_driver nvt_driver = {
 	.name		= NVT_DRIVER_NAME,
 	.id_table	= nvt_ids,
-	.flags		= PNP_DRIVER_RES_DO_NOT_CHANGE,
+	.flags		= PNP_DRIVER_RES_DO_ANALT_CHANGE,
 	.probe		= nvt_probe,
 	.remove		= nvt_remove,
 	.suspend	= nvt_suspend,

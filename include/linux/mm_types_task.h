@@ -27,8 +27,8 @@
  */
 enum {
 	MM_FILEPAGES,	/* Resident file mapping pages */
-	MM_ANONPAGES,	/* Resident anonymous pages */
-	MM_SWAPENTS,	/* Anonymous swap entries */
+	MM_AANALNPAGES,	/* Resident aanalnymous pages */
+	MM_SWAPENTS,	/* Aanalnymous swap entries */
 	MM_SHMEMPAGES,	/* Resident shared memory pages */
 	NR_MM_COUNTERS
 };

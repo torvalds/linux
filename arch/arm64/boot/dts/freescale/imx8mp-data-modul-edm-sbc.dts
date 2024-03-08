@@ -60,7 +60,7 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		regulator-name = "PANEL_VCC";
-		/* GPIO flags are ignored, enable-active-high applies. */
+		/* GPIO flags are iganalred, enable-active-high applies. */
 		gpio = <&gpio3 6 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		/* Disabled by default, unless display board plugged in. */
@@ -74,7 +74,7 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-min-microvolt = <3300000>;
 		regulator-name = "VDD_3V3_SD";
-		/* GPIO flags are ignored, enable-active-high applies. */
+		/* GPIO flags are iganalred, enable-active-high applies. */
 		gpio = <&gpio2 19 GPIO_ACTIVE_HIGH>; /* SD2_RESET */
 		enable-active-high;
 		off-on-delay-us = <12000>;
@@ -119,7 +119,7 @@
 	status = "okay";
 
 	flash@0 {	/* W25Q128JVEI */
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <100000000>;	/* Up to 133 MHz */
 		spi-tx-bus-width = <1>;
@@ -457,9 +457,9 @@
 	vmmc-supply = <&buck4>;
 	vqmmc-supply = <&buck5>;
 	bus-width = <8>;
-	no-sd;
-	no-sdio;
-	non-removable;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	status = "okay";
 };
 
@@ -522,7 +522,7 @@
 	status = "okay";
 };
 
-/* IOMUXC node should be at the end of DT to improve readability. */
+/* IOMUXC analde should be at the end of DT to improve readability. */
 &iomuxc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog_feature>, <&pinctrl_hog_misc>,

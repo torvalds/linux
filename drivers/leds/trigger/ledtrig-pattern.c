@@ -391,7 +391,7 @@ static int pattern_trig_activate(struct led_classdev *led_cdev)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!!led_cdev->pattern_set ^ !!led_cdev->pattern_clear) {
 		dev_warn(led_cdev->dev,

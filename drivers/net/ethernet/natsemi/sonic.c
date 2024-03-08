@@ -17,7 +17,7 @@
  *    Core code included by system sonic drivers
  *
  * And... partially rewritten again by David Huggins-Daines in order
- * to cope with screwed up Macintosh NICs that may or may not use
+ * to cope with screwed up Macintosh NICs that may or may analt use
  * 16-bit DMA.
  *
  * (C) 1999 David Huggins-Daines <dhd@debian.org>
@@ -30,7 +30,7 @@
  * controller, and the files "8390.c" and "skeleton.c" in this directory.
  *
  * Additional sources: Nat Semi data sheet for the DP83932C and Nat Semi
- * Application Note AN-746, the files "lance.c" and "ibmlana.c". See also
+ * Application Analte AN-746, the files "lance.c" and "ibmlana.c". See also
  * the NetBSD file "sys/arch/mac68k/dev/if_sn.c".
  */
 
@@ -54,8 +54,8 @@ static int sonic_alloc_descriptors(struct net_device *dev)
 {
 	struct sonic_local *lp = netdev_priv(dev);
 
-	/* Allocate a chunk of memory for the descriptors. Note that this
-	 * must not cross a 64K boundary. It is smaller than one page which
+	/* Allocate a chunk of memory for the descriptors. Analte that this
+	 * must analt cross a 64K boundary. It is smaller than one page which
 	 * means that page alignment is a sufficient condition.
 	 */
 	lp->descriptors =
@@ -65,7 +65,7 @@ static int sonic_alloc_descriptors(struct net_device *dev)
 				   &lp->descriptors_laddr, GFP_KERNEL);
 
 	if (!lp->descriptors)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp->cda = lp->descriptors;
 	lp->tda = lp->cda + SIZEOF_SONIC_CDA *
@@ -91,7 +91,7 @@ static int sonic_alloc_descriptors(struct net_device *dev)
  *
  * This routine should set everything up anew at each open, even
  *  registers that "should" only need to be set once at boot, so that
- *  there is non-reboot way to recover if something goes wrong.
+ *  there is analn-reboot way to recover if something goes wrong.
  */
 static int sonic_open(struct net_device *dev)
 {
@@ -112,7 +112,7 @@ static int sonic_open(struct net_device *dev)
 			}
 			printk(KERN_ERR "%s: couldn't allocate receive buffers\n",
 			       dev->name);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		/* align IP header unless DMA requires otherwise */
 		if (SONIC_BUS_SCALE(lp->dma_bitmode) == 2)
@@ -135,7 +135,7 @@ static int sonic_open(struct net_device *dev)
 			}
 			printk(KERN_ERR "%s: couldn't map rx DMA buffers\n",
 			       dev->name);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		lp->rx_laddr[i] = laddr;
 	}
@@ -359,7 +359,7 @@ static irqreturn_t sonic_interrupt(int irq, void *dev_id)
 	if (!status) {
 		spin_unlock_irqrestore(&lp->lock, flags);
 
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	do {
@@ -421,7 +421,7 @@ static irqreturn_t sonic_interrupt(int irq, void *dev_id)
 			}
 
 			if (freed_some || lp->tx_skb[entry] == NULL)
-				netif_wake_queue(dev);  /* The ring is no longer full */
+				netif_wake_queue(dev);  /* The ring is anal longer full */
 			lp->cur_tx = entry;
 		}
 
@@ -493,7 +493,7 @@ static int index_from_addr(struct sonic_local *lp, dma_addr_t addr,
 			return i;
 	} while (i != last);
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /* Allocate and map a new skb to be used as a receive buffer. */
@@ -774,7 +774,7 @@ static int sonic_init(struct net_device *dev, bool may_sleep)
 		sonic_rda_put(dev, i, SONIC_RD_PKTLEN, 0);
 		sonic_rda_put(dev, i, SONIC_RD_PKTPTR_L, 0);
 		sonic_rda_put(dev, i, SONIC_RD_PKTPTR_H, 0);
-		sonic_rda_put(dev, i, SONIC_RD_SEQNO, 0);
+		sonic_rda_put(dev, i, SONIC_RD_SEQANAL, 0);
 		sonic_rda_put(dev, i, SONIC_RD_IN_USE, 1);
 		sonic_rda_put(dev, i, SONIC_RD_LINK,
 			lp->rda_laddr +

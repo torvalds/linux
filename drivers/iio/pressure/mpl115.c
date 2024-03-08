@@ -161,7 +161,7 @@ int mpl115_probe(struct device *dev, const char *name,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->dev = dev;
@@ -201,18 +201,18 @@ int mpl115_probe(struct device *dev, const char *name,
 						 GPIOD_OUT_LOW);
 	if (IS_ERR(data->shutdown))
 		return dev_err_probe(dev, PTR_ERR(data->shutdown),
-				     "cannot get shutdown gpio\n");
+				     "cananalt get shutdown gpio\n");
 
 	if (data->shutdown) {
 		/* Enable runtime PM */
-		pm_runtime_get_noresume(dev);
+		pm_runtime_get_analresume(dev);
 		pm_runtime_set_active(dev);
 		pm_runtime_enable(dev);
 
 		/*
 		 * As the device takes 3 ms to come up with a fresh
 		 * reading after power-on and 5 ms to actually power-on,
-		 * do not shut it down unnecessarily. Set autosuspend to
+		 * do analt shut it down unnecessarily. Set autosuspend to
 		 * 2000 ms.
 		 */
 		pm_runtime_set_autosuspend_delay(dev, 2000);

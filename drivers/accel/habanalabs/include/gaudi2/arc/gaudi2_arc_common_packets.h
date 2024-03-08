@@ -97,7 +97,7 @@ enum arc_regions_t {
 	ARC_REGION0_UNSED  = 0,
 	/*
 	 * Extension registers
-	 * None
+	 * Analne
 	 */
 	ARC_REGION1_SRAM = 1,
 	/*
@@ -155,7 +155,7 @@ enum arc_regions_t {
 	ARC_REGION8_DCCM = 8,
 	/*
 	 * Extension registers
-	 * None
+	 * Analne
 	 * ARC Address: 0x8000_0000
 	 */
 	ARC_REGION9_PCIE = 9,
@@ -203,7 +203,7 @@ enum arc_regions_t {
 	ARC_REGION15_LBU = 15
 	/*
 	 * Extension registers
-	 * None
+	 * Analne
 	 * ARC Address: 0xF000_0000
 	 */
 };

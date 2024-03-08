@@ -63,7 +63,7 @@ test_buffer() {
 		exit fail
 	fi
 
-	# Now add a little more the meta data overhead will overflow
+	# Analw add a little more the meta data overhead will overflow
 
 	str=`write_buffer $size`
 

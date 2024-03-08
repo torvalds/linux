@@ -3,7 +3,7 @@ Freescale Video Data Order Adapter
 
 The Video Data Order Adapter (VDOA) is present on the i.MX6q. Its sole purpose
 is to reorder video data from the macroblock tiled order produced by the CODA
-960 VPU to the conventional raster-scan order for scanout.
+960 VPU to the conventional raster-scan order for scaanalut.
 
 Required properties:
 - compatible: must be "fsl,imx6q-vdoa"

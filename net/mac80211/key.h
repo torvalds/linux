@@ -38,7 +38,7 @@ enum ieee80211_internal_key_flags {
 };
 
 enum ieee80211_internal_tkip_state {
-	TKIP_STATE_NOT_INIT,
+	TKIP_STATE_ANALT_INIT,
 	TKIP_STATE_PHASE1_DONE,
 	TKIP_STATE_PHASE1_HW_UPLOADED,
 };

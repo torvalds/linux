@@ -106,8 +106,8 @@ static const struct soc_enum da7213_tonegen_swg_sel =
 
 /* Gain ramping rate value */
 static const char * const da7213_gain_ramp_rate_txt[] = {
-	"nominal rate * 8", "nominal rate * 16", "nominal rate / 16",
-	"nominal rate / 32"
+	"analminal rate * 8", "analminal rate * 16", "analminal rate / 16",
+	"analminal rate / 32"
 };
 
 static SOC_ENUM_SINGLE_DECL(da7213_gain_ramp_rate,
@@ -115,7 +115,7 @@ static SOC_ENUM_SINGLE_DECL(da7213_gain_ramp_rate,
 			    DA7213_GAIN_RAMP_RATE_SHIFT,
 			    da7213_gain_ramp_rate_txt);
 
-/* DAC noise gate setup time value */
+/* DAC analise gate setup time value */
 static const char * const da7213_dac_ng_setup_time_txt[] = {
 	"256 samples", "512 samples", "1024 samples", "2048 samples"
 };
@@ -125,7 +125,7 @@ static SOC_ENUM_SINGLE_DECL(da7213_dac_ng_setup_time,
 			    DA7213_DAC_NG_SETUP_TIME_SHIFT,
 			    da7213_dac_ng_setup_time_txt);
 
-/* DAC noise gate rampup rate value */
+/* DAC analise gate rampup rate value */
 static const char * const da7213_dac_ng_rampup_txt[] = {
 	"0.02 ms/dB", "0.16 ms/dB"
 };
@@ -135,7 +135,7 @@ static SOC_ENUM_SINGLE_DECL(da7213_dac_ng_rampup_rate,
 			    DA7213_DAC_NG_RAMPUP_RATE_SHIFT,
 			    da7213_dac_ng_rampup_txt);
 
-/* DAC noise gate rampdown rate value */
+/* DAC analise gate rampdown rate value */
 static const char * const da7213_dac_ng_rampdown_txt[] = {
 	"0.64 ms/dB", "20.48 ms/dB"
 };
@@ -520,65 +520,65 @@ static const struct snd_kcontrol_new da7213_snd_controls[] = {
 	/* Volume controls */
 	SOC_SINGLE_TLV("Mic 1 Volume", DA7213_MIC_1_GAIN,
 		       DA7213_MIC_AMP_GAIN_SHIFT, DA7213_MIC_AMP_GAIN_MAX,
-		       DA7213_NO_INVERT, mic_vol_tlv),
+		       DA7213_ANAL_INVERT, mic_vol_tlv),
 	SOC_SINGLE_TLV("Mic 2 Volume", DA7213_MIC_2_GAIN,
 		       DA7213_MIC_AMP_GAIN_SHIFT, DA7213_MIC_AMP_GAIN_MAX,
-		       DA7213_NO_INVERT, mic_vol_tlv),
+		       DA7213_ANAL_INVERT, mic_vol_tlv),
 	SOC_DOUBLE_R_TLV("Aux Volume", DA7213_AUX_L_GAIN, DA7213_AUX_R_GAIN,
 			 DA7213_AUX_AMP_GAIN_SHIFT, DA7213_AUX_AMP_GAIN_MAX,
-			 DA7213_NO_INVERT, aux_vol_tlv),
+			 DA7213_ANAL_INVERT, aux_vol_tlv),
 	SOC_DOUBLE_R_EXT_TLV("Mixin PGA Volume", DA7213_MIXIN_L_GAIN,
 			     DA7213_MIXIN_R_GAIN, DA7213_MIXIN_AMP_GAIN_SHIFT,
-			     DA7213_MIXIN_AMP_GAIN_MAX, DA7213_NO_INVERT,
+			     DA7213_MIXIN_AMP_GAIN_MAX, DA7213_ANAL_INVERT,
 			     snd_soc_get_volsw_2r, da7213_put_mixin_gain,
 			     mixin_gain_tlv),
 	SOC_DOUBLE_R_TLV("ADC Volume", DA7213_ADC_L_GAIN, DA7213_ADC_R_GAIN,
 			 DA7213_ADC_AMP_GAIN_SHIFT, DA7213_ADC_AMP_GAIN_MAX,
-			 DA7213_NO_INVERT, digital_gain_tlv),
+			 DA7213_ANAL_INVERT, digital_gain_tlv),
 	SOC_DOUBLE_R_TLV("DAC Volume", DA7213_DAC_L_GAIN, DA7213_DAC_R_GAIN,
 			 DA7213_DAC_AMP_GAIN_SHIFT, DA7213_DAC_AMP_GAIN_MAX,
-			 DA7213_NO_INVERT, digital_gain_tlv),
+			 DA7213_ANAL_INVERT, digital_gain_tlv),
 	SOC_DOUBLE_R_TLV("Headphone Volume", DA7213_HP_L_GAIN, DA7213_HP_R_GAIN,
 			 DA7213_HP_AMP_GAIN_SHIFT, DA7213_HP_AMP_GAIN_MAX,
-			 DA7213_NO_INVERT, hp_vol_tlv),
+			 DA7213_ANAL_INVERT, hp_vol_tlv),
 	SOC_SINGLE_TLV("Lineout Volume", DA7213_LINE_GAIN,
 		       DA7213_LINE_AMP_GAIN_SHIFT, DA7213_LINE_AMP_GAIN_MAX,
-		       DA7213_NO_INVERT, lineout_vol_tlv),
+		       DA7213_ANAL_INVERT, lineout_vol_tlv),
 
 	/* DAC Equalizer controls */
 	SOC_SINGLE("DAC EQ Switch", DA7213_DAC_FILTERS4, DA7213_DAC_EQ_EN_SHIFT,
-		   DA7213_DAC_EQ_EN_MAX, DA7213_NO_INVERT),
+		   DA7213_DAC_EQ_EN_MAX, DA7213_ANAL_INVERT),
 	SOC_SINGLE_TLV("DAC EQ1 Volume", DA7213_DAC_FILTERS2,
 		       DA7213_DAC_EQ_BAND1_SHIFT, DA7213_DAC_EQ_BAND_MAX,
-		       DA7213_NO_INVERT, eq_gain_tlv),
+		       DA7213_ANAL_INVERT, eq_gain_tlv),
 	SOC_SINGLE_TLV("DAC EQ2 Volume", DA7213_DAC_FILTERS2,
 		       DA7213_DAC_EQ_BAND2_SHIFT, DA7213_DAC_EQ_BAND_MAX,
-		       DA7213_NO_INVERT, eq_gain_tlv),
+		       DA7213_ANAL_INVERT, eq_gain_tlv),
 	SOC_SINGLE_TLV("DAC EQ3 Volume", DA7213_DAC_FILTERS3,
 		       DA7213_DAC_EQ_BAND3_SHIFT, DA7213_DAC_EQ_BAND_MAX,
-		       DA7213_NO_INVERT, eq_gain_tlv),
+		       DA7213_ANAL_INVERT, eq_gain_tlv),
 	SOC_SINGLE_TLV("DAC EQ4 Volume", DA7213_DAC_FILTERS3,
 		       DA7213_DAC_EQ_BAND4_SHIFT, DA7213_DAC_EQ_BAND_MAX,
-		       DA7213_NO_INVERT, eq_gain_tlv),
+		       DA7213_ANAL_INVERT, eq_gain_tlv),
 	SOC_SINGLE_TLV("DAC EQ5 Volume", DA7213_DAC_FILTERS4,
 		       DA7213_DAC_EQ_BAND5_SHIFT, DA7213_DAC_EQ_BAND_MAX,
-		       DA7213_NO_INVERT, eq_gain_tlv),
+		       DA7213_ANAL_INVERT, eq_gain_tlv),
 
 	/* High Pass Filter and Voice Mode controls */
 	SOC_SINGLE("ADC HPF Switch", DA7213_ADC_FILTERS1, DA7213_HPF_EN_SHIFT,
-		   DA7213_HPF_EN_MAX, DA7213_NO_INVERT),
+		   DA7213_HPF_EN_MAX, DA7213_ANAL_INVERT),
 	SOC_ENUM("ADC HPF Cutoff", da7213_adc_audio_hpf_corner),
 	SOC_SINGLE("ADC Voice Mode Switch", DA7213_ADC_FILTERS1,
 		   DA7213_VOICE_EN_SHIFT, DA7213_VOICE_EN_MAX,
-		   DA7213_NO_INVERT),
+		   DA7213_ANAL_INVERT),
 	SOC_ENUM("ADC Voice Cutoff", da7213_adc_voice_hpf_corner),
 
 	SOC_SINGLE("DAC HPF Switch", DA7213_DAC_FILTERS1, DA7213_HPF_EN_SHIFT,
-		   DA7213_HPF_EN_MAX, DA7213_NO_INVERT),
+		   DA7213_HPF_EN_MAX, DA7213_ANAL_INVERT),
 	SOC_ENUM("DAC HPF Cutoff", da7213_dac_audio_hpf_corner),
 	SOC_SINGLE("DAC Voice Mode Switch", DA7213_DAC_FILTERS1,
 		   DA7213_VOICE_EN_SHIFT, DA7213_VOICE_EN_MAX,
-		   DA7213_NO_INVERT),
+		   DA7213_ANAL_INVERT),
 	SOC_ENUM("DAC Voice Cutoff", da7213_dac_voice_hpf_corner),
 
 	/* Mute controls */
@@ -599,100 +599,100 @@ static const struct snd_kcontrol_new da7213_snd_controls[] = {
 		   DA7213_MUTE_EN_MAX, DA7213_INVERT),
 	SOC_SINGLE("DAC Soft Mute Switch", DA7213_DAC_FILTERS5,
 		   DA7213_DAC_SOFTMUTE_EN_SHIFT, DA7213_DAC_SOFTMUTE_EN_MAX,
-		   DA7213_NO_INVERT),
+		   DA7213_ANAL_INVERT),
 	SOC_ENUM("DAC Soft Mute Rate", da7213_dac_soft_mute_rate),
 
 	/* Zero Cross controls */
 	SOC_DOUBLE_R("Aux ZC Switch", DA7213_AUX_L_CTRL, DA7213_AUX_R_CTRL,
-		     DA7213_ZC_EN_SHIFT, DA7213_ZC_EN_MAX, DA7213_NO_INVERT),
+		     DA7213_ZC_EN_SHIFT, DA7213_ZC_EN_MAX, DA7213_ANAL_INVERT),
 	SOC_DOUBLE_R("Mixin PGA ZC Switch", DA7213_MIXIN_L_CTRL,
 		     DA7213_MIXIN_R_CTRL, DA7213_ZC_EN_SHIFT, DA7213_ZC_EN_MAX,
-		     DA7213_NO_INVERT),
+		     DA7213_ANAL_INVERT),
 	SOC_DOUBLE_R("Headphone ZC Switch", DA7213_HP_L_CTRL, DA7213_HP_R_CTRL,
-		     DA7213_ZC_EN_SHIFT, DA7213_ZC_EN_MAX, DA7213_NO_INVERT),
+		     DA7213_ZC_EN_SHIFT, DA7213_ZC_EN_MAX, DA7213_ANAL_INVERT),
 
 	/* Tone Generator */
 	SOC_SINGLE_EXT_TLV("ToneGen Volume", DA7213_TONE_GEN_CFG2,
 			   DA7213_TONE_GEN_GAIN_SHIFT, DA7213_TONE_GEN_GAIN_MAX,
-			   DA7213_NO_INVERT, da7213_volsw_locked_get,
+			   DA7213_ANAL_INVERT, da7213_volsw_locked_get,
 			   da7213_volsw_locked_put, da7213_tonegen_gain_tlv),
 	SOC_ENUM_EXT("ToneGen DTMF Key", da7213_tonegen_dtmf_key,
 		     da7213_enum_locked_get, da7213_enum_locked_put),
 	SOC_SINGLE_EXT("ToneGen DTMF Switch", DA7213_TONE_GEN_CFG1,
 		       DA7213_DTMF_EN_SHIFT, DA7213_SWITCH_EN_MAX,
-		       DA7213_NO_INVERT, da7213_volsw_locked_get,
+		       DA7213_ANAL_INVERT, da7213_volsw_locked_get,
 		       da7213_volsw_locked_put),
 	SOC_SINGLE_EXT("ToneGen Start", DA7213_TONE_GEN_CFG1,
 		       DA7213_START_STOPN_SHIFT, DA7213_SWITCH_EN_MAX,
-		       DA7213_NO_INVERT, da7213_volsw_locked_get,
+		       DA7213_ANAL_INVERT, da7213_volsw_locked_get,
 		       da7213_volsw_locked_put),
 	SOC_ENUM_EXT("ToneGen Sinewave Gen Type", da7213_tonegen_swg_sel,
 		     da7213_enum_locked_get, da7213_enum_locked_put),
 	SOC_SINGLE_EXT("ToneGen Sinewave1 Freq", DA7213_TONE_GEN_FREQ1_L,
-		       DA7213_FREQ1_L_SHIFT, DA7213_FREQ_MAX, DA7213_NO_INVERT,
+		       DA7213_FREQ1_L_SHIFT, DA7213_FREQ_MAX, DA7213_ANAL_INVERT,
 		       da7213_tonegen_freq_get, da7213_tonegen_freq_put),
 	SOC_SINGLE_EXT("ToneGen Sinewave2 Freq", DA7213_TONE_GEN_FREQ2_L,
-		       DA7213_FREQ2_L_SHIFT, DA7213_FREQ_MAX, DA7213_NO_INVERT,
+		       DA7213_FREQ2_L_SHIFT, DA7213_FREQ_MAX, DA7213_ANAL_INVERT,
 		       da7213_tonegen_freq_get, da7213_tonegen_freq_put),
 	SOC_SINGLE_EXT("ToneGen On Time", DA7213_TONE_GEN_ON_PER,
 		       DA7213_BEEP_ON_PER_SHIFT, DA7213_BEEP_ON_OFF_MAX,
-		       DA7213_NO_INVERT, da7213_volsw_locked_get,
+		       DA7213_ANAL_INVERT, da7213_volsw_locked_get,
 		       da7213_volsw_locked_put),
 	SOC_SINGLE("ToneGen Off Time", DA7213_TONE_GEN_OFF_PER,
 		   DA7213_BEEP_OFF_PER_SHIFT, DA7213_BEEP_ON_OFF_MAX,
-		   DA7213_NO_INVERT),
+		   DA7213_ANAL_INVERT),
 
 	/* Gain Ramping controls */
 	SOC_DOUBLE_R("Aux Gain Ramping Switch", DA7213_AUX_L_CTRL,
 		     DA7213_AUX_R_CTRL, DA7213_GAIN_RAMP_EN_SHIFT,
-		     DA7213_GAIN_RAMP_EN_MAX, DA7213_NO_INVERT),
+		     DA7213_GAIN_RAMP_EN_MAX, DA7213_ANAL_INVERT),
 	SOC_DOUBLE_R("Mixin Gain Ramping Switch", DA7213_MIXIN_L_CTRL,
 		     DA7213_MIXIN_R_CTRL, DA7213_GAIN_RAMP_EN_SHIFT,
-		     DA7213_GAIN_RAMP_EN_MAX, DA7213_NO_INVERT),
+		     DA7213_GAIN_RAMP_EN_MAX, DA7213_ANAL_INVERT),
 	SOC_DOUBLE_R("ADC Gain Ramping Switch", DA7213_ADC_L_CTRL,
 		     DA7213_ADC_R_CTRL, DA7213_GAIN_RAMP_EN_SHIFT,
-		     DA7213_GAIN_RAMP_EN_MAX, DA7213_NO_INVERT),
+		     DA7213_GAIN_RAMP_EN_MAX, DA7213_ANAL_INVERT),
 	SOC_DOUBLE_R("DAC Gain Ramping Switch", DA7213_DAC_L_CTRL,
 		     DA7213_DAC_R_CTRL, DA7213_GAIN_RAMP_EN_SHIFT,
-		     DA7213_GAIN_RAMP_EN_MAX, DA7213_NO_INVERT),
+		     DA7213_GAIN_RAMP_EN_MAX, DA7213_ANAL_INVERT),
 	SOC_DOUBLE_R("Headphone Gain Ramping Switch", DA7213_HP_L_CTRL,
 		     DA7213_HP_R_CTRL, DA7213_GAIN_RAMP_EN_SHIFT,
-		     DA7213_GAIN_RAMP_EN_MAX, DA7213_NO_INVERT),
+		     DA7213_GAIN_RAMP_EN_MAX, DA7213_ANAL_INVERT),
 	SOC_SINGLE("Lineout Gain Ramping Switch", DA7213_LINE_CTRL,
 		   DA7213_GAIN_RAMP_EN_SHIFT, DA7213_GAIN_RAMP_EN_MAX,
-		   DA7213_NO_INVERT),
+		   DA7213_ANAL_INVERT),
 	SOC_ENUM("Gain Ramping Rate", da7213_gain_ramp_rate),
 
-	/* DAC Noise Gate controls */
+	/* DAC Analise Gate controls */
 	SOC_SINGLE("DAC NG Switch", DA7213_DAC_NG_CTRL, DA7213_DAC_NG_EN_SHIFT,
-		   DA7213_DAC_NG_EN_MAX, DA7213_NO_INVERT),
+		   DA7213_DAC_NG_EN_MAX, DA7213_ANAL_INVERT),
 	SOC_ENUM("DAC NG Setup Time", da7213_dac_ng_setup_time),
 	SOC_ENUM("DAC NG Rampup Rate", da7213_dac_ng_rampup_rate),
 	SOC_ENUM("DAC NG Rampdown Rate", da7213_dac_ng_rampdown_rate),
 	SOC_SINGLE("DAC NG OFF Threshold", DA7213_DAC_NG_OFF_THRESHOLD,
 		   DA7213_DAC_NG_THRESHOLD_SHIFT, DA7213_DAC_NG_THRESHOLD_MAX,
-		   DA7213_NO_INVERT),
+		   DA7213_ANAL_INVERT),
 	SOC_SINGLE("DAC NG ON Threshold", DA7213_DAC_NG_ON_THRESHOLD,
 		   DA7213_DAC_NG_THRESHOLD_SHIFT, DA7213_DAC_NG_THRESHOLD_MAX,
-		   DA7213_NO_INVERT),
+		   DA7213_ANAL_INVERT),
 
 	/* DAC Routing & Inversion */
-	SOC_DOUBLE("DAC Mono Switch", DA7213_DIG_ROUTING_DAC,
-		   DA7213_DAC_L_MONO_SHIFT, DA7213_DAC_R_MONO_SHIFT,
-		   DA7213_DAC_MONO_MAX, DA7213_NO_INVERT),
+	SOC_DOUBLE("DAC Moanal Switch", DA7213_DIG_ROUTING_DAC,
+		   DA7213_DAC_L_MOANAL_SHIFT, DA7213_DAC_R_MOANAL_SHIFT,
+		   DA7213_DAC_MOANAL_MAX, DA7213_ANAL_INVERT),
 	SOC_DOUBLE("DAC Invert Switch", DA7213_DIG_CTRL, DA7213_DAC_L_INV_SHIFT,
 		   DA7213_DAC_R_INV_SHIFT, DA7213_DAC_INV_MAX,
-		   DA7213_NO_INVERT),
+		   DA7213_ANAL_INVERT),
 
 	/* DMIC controls */
 	SOC_DOUBLE_R("DMIC Switch", DA7213_MIXIN_L_SELECT,
 		     DA7213_MIXIN_R_SELECT, DA7213_DMIC_EN_SHIFT,
-		     DA7213_DMIC_EN_MAX, DA7213_NO_INVERT),
+		     DA7213_DMIC_EN_MAX, DA7213_ANAL_INVERT),
 
 	/* ALC Controls */
 	SOC_DOUBLE_EXT("ALC Switch", DA7213_ALC_CTRL1, DA7213_ALC_L_EN_SHIFT,
 		       DA7213_ALC_R_EN_SHIFT, DA7213_ALC_EN_MAX,
-		       DA7213_NO_INVERT, snd_soc_get_volsw, da7213_put_alc_sw),
+		       DA7213_ANAL_INVERT, snd_soc_get_volsw, da7213_put_alc_sw),
 	SOC_ENUM("ALC Attack Rate", da7213_alc_attack_rate),
 	SOC_ENUM("ALC Release Rate", da7213_alc_release_rate),
 	SOC_ENUM("ALC Hold Time", da7213_alc_hold_time),
@@ -706,7 +706,7 @@ static const struct snd_kcontrol_new da7213_snd_controls[] = {
 	 * smaller
 	 */
 	SOC_ENUM("ALC Integ Release Rate", da7213_alc_integ_release_rate),
-	SOC_SINGLE_TLV("ALC Noise Threshold Volume", DA7213_ALC_NOISE,
+	SOC_SINGLE_TLV("ALC Analise Threshold Volume", DA7213_ALC_ANALISE,
 		       DA7213_ALC_THRESHOLD_SHIFT, DA7213_ALC_THRESHOLD_MAX,
 		       DA7213_INVERT, alc_threshold_tlv),
 	SOC_SINGLE_TLV("ALC Min Threshold Volume", DA7213_ALC_TARGET_MIN,
@@ -717,23 +717,23 @@ static const struct snd_kcontrol_new da7213_snd_controls[] = {
 		       DA7213_INVERT, alc_threshold_tlv),
 	SOC_SINGLE_TLV("ALC Max Attenuation Volume", DA7213_ALC_GAIN_LIMITS,
 		       DA7213_ALC_ATTEN_MAX_SHIFT,
-		       DA7213_ALC_ATTEN_GAIN_MAX_MAX, DA7213_NO_INVERT,
+		       DA7213_ALC_ATTEN_GAIN_MAX_MAX, DA7213_ANAL_INVERT,
 		       alc_gain_tlv),
 	SOC_SINGLE_TLV("ALC Max Gain Volume", DA7213_ALC_GAIN_LIMITS,
 		       DA7213_ALC_GAIN_MAX_SHIFT, DA7213_ALC_ATTEN_GAIN_MAX_MAX,
-		       DA7213_NO_INVERT, alc_gain_tlv),
+		       DA7213_ANAL_INVERT, alc_gain_tlv),
 	SOC_SINGLE_TLV("ALC Min Analog Gain Volume", DA7213_ALC_ANA_GAIN_LIMITS,
 		       DA7213_ALC_ANA_GAIN_MIN_SHIFT, DA7213_ALC_ANA_GAIN_MAX,
-		       DA7213_NO_INVERT, alc_analog_gain_tlv),
+		       DA7213_ANAL_INVERT, alc_analog_gain_tlv),
 	SOC_SINGLE_TLV("ALC Max Analog Gain Volume", DA7213_ALC_ANA_GAIN_LIMITS,
 		       DA7213_ALC_ANA_GAIN_MAX_SHIFT, DA7213_ALC_ANA_GAIN_MAX,
-		       DA7213_NO_INVERT, alc_analog_gain_tlv),
+		       DA7213_ANAL_INVERT, alc_analog_gain_tlv),
 	SOC_SINGLE("ALC Anticlip Mode Switch", DA7213_ALC_ANTICLIP_CTRL,
 		   DA7213_ALC_ANTICLIP_EN_SHIFT, DA7213_ALC_ANTICLIP_EN_MAX,
-		   DA7213_NO_INVERT),
+		   DA7213_ANAL_INVERT),
 	SOC_SINGLE("ALC Anticlip Level", DA7213_ALC_ANTICLIP_LEVEL,
 		   DA7213_ALC_ANTICLIP_LEVEL_SHIFT,
-		   DA7213_ALC_ANTICLIP_LEVEL_MAX, DA7213_NO_INVERT),
+		   DA7213_ALC_ANTICLIP_LEVEL_MAX, DA7213_ANAL_INVERT),
 };
 
 
@@ -811,82 +811,82 @@ static const struct snd_kcontrol_new da7213_dac_r_src_mux =
 static const struct snd_kcontrol_new da7213_dapm_mixinl_controls[] = {
 	SOC_DAPM_SINGLE("Aux Left Switch", DA7213_MIXIN_L_SELECT,
 			DA7213_MIXIN_L_MIX_SELECT_AUX_L_SHIFT,
-			DA7213_MIXIN_L_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXIN_L_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("Mic 1 Switch", DA7213_MIXIN_L_SELECT,
 			DA7213_MIXIN_L_MIX_SELECT_MIC_1_SHIFT,
-			DA7213_MIXIN_L_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXIN_L_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("Mic 2 Switch", DA7213_MIXIN_L_SELECT,
 			DA7213_MIXIN_L_MIX_SELECT_MIC_2_SHIFT,
-			DA7213_MIXIN_L_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXIN_L_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("Mixin Right Switch", DA7213_MIXIN_L_SELECT,
 			DA7213_MIXIN_L_MIX_SELECT_MIXIN_R_SHIFT,
-			DA7213_MIXIN_L_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXIN_L_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 };
 
 /* Mixin Right */
 static const struct snd_kcontrol_new da7213_dapm_mixinr_controls[] = {
 	SOC_DAPM_SINGLE("Aux Right Switch", DA7213_MIXIN_R_SELECT,
 			DA7213_MIXIN_R_MIX_SELECT_AUX_R_SHIFT,
-			DA7213_MIXIN_R_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXIN_R_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("Mic 2 Switch", DA7213_MIXIN_R_SELECT,
 			DA7213_MIXIN_R_MIX_SELECT_MIC_2_SHIFT,
-			DA7213_MIXIN_R_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXIN_R_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("Mic 1 Switch", DA7213_MIXIN_R_SELECT,
 			DA7213_MIXIN_R_MIX_SELECT_MIC_1_SHIFT,
-			DA7213_MIXIN_R_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXIN_R_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("Mixin Left Switch", DA7213_MIXIN_R_SELECT,
 			DA7213_MIXIN_R_MIX_SELECT_MIXIN_L_SHIFT,
-			DA7213_MIXIN_R_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXIN_R_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 };
 
 /* Mixout Left */
 static const struct snd_kcontrol_new da7213_dapm_mixoutl_controls[] = {
 	SOC_DAPM_SINGLE("Aux Left Switch", DA7213_MIXOUT_L_SELECT,
 			DA7213_MIXOUT_L_MIX_SELECT_AUX_L_SHIFT,
-			DA7213_MIXOUT_L_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXOUT_L_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("Mixin Left Switch", DA7213_MIXOUT_L_SELECT,
 			DA7213_MIXOUT_L_MIX_SELECT_MIXIN_L_SHIFT,
-			DA7213_MIXOUT_L_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXOUT_L_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("Mixin Right Switch", DA7213_MIXOUT_L_SELECT,
 			DA7213_MIXOUT_L_MIX_SELECT_MIXIN_R_SHIFT,
-			DA7213_MIXOUT_L_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXOUT_L_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("DAC Left Switch", DA7213_MIXOUT_L_SELECT,
 			DA7213_MIXOUT_L_MIX_SELECT_DAC_L_SHIFT,
-			DA7213_MIXOUT_L_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXOUT_L_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("Aux Left Invert Switch", DA7213_MIXOUT_L_SELECT,
 			DA7213_MIXOUT_L_MIX_SELECT_AUX_L_INVERTED_SHIFT,
-			DA7213_MIXOUT_L_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXOUT_L_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("Mixin Left Invert Switch", DA7213_MIXOUT_L_SELECT,
 			DA7213_MIXOUT_L_MIX_SELECT_MIXIN_L_INVERTED_SHIFT,
-			DA7213_MIXOUT_L_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXOUT_L_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("Mixin Right Invert Switch", DA7213_MIXOUT_L_SELECT,
 			DA7213_MIXOUT_L_MIX_SELECT_MIXIN_R_INVERTED_SHIFT,
-			DA7213_MIXOUT_L_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXOUT_L_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 };
 
 /* Mixout Right */
 static const struct snd_kcontrol_new da7213_dapm_mixoutr_controls[] = {
 	SOC_DAPM_SINGLE("Aux Right Switch", DA7213_MIXOUT_R_SELECT,
 			DA7213_MIXOUT_R_MIX_SELECT_AUX_R_SHIFT,
-			DA7213_MIXOUT_R_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXOUT_R_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("Mixin Right Switch", DA7213_MIXOUT_R_SELECT,
 			DA7213_MIXOUT_R_MIX_SELECT_MIXIN_R_SHIFT,
-			DA7213_MIXOUT_R_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXOUT_R_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("Mixin Left Switch", DA7213_MIXOUT_R_SELECT,
 			DA7213_MIXOUT_R_MIX_SELECT_MIXIN_L_SHIFT,
-			DA7213_MIXOUT_R_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXOUT_R_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("DAC Right Switch", DA7213_MIXOUT_R_SELECT,
 			DA7213_MIXOUT_R_MIX_SELECT_DAC_R_SHIFT,
-			DA7213_MIXOUT_R_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXOUT_R_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("Aux Right Invert Switch", DA7213_MIXOUT_R_SELECT,
 			DA7213_MIXOUT_R_MIX_SELECT_AUX_R_INVERTED_SHIFT,
-			DA7213_MIXOUT_R_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXOUT_R_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("Mixin Right Invert Switch", DA7213_MIXOUT_R_SELECT,
 			DA7213_MIXOUT_R_MIX_SELECT_MIXIN_R_INVERTED_SHIFT,
-			DA7213_MIXOUT_R_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXOUT_R_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 	SOC_DAPM_SINGLE("Mixin Left Invert Switch", DA7213_MIXOUT_R_SELECT,
 			DA7213_MIXOUT_R_MIX_SELECT_MIXIN_L_INVERTED_SHIFT,
-			DA7213_MIXOUT_R_MIX_SELECT_MAX, DA7213_NO_INVERT),
+			DA7213_MIXOUT_R_MIX_SELECT_MAX, DA7213_ANAL_INVERT),
 };
 
 
@@ -915,7 +915,7 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component, DA7213_PC_COUNT,
 				    DA7213_PC_FREERUN_MASK, 0);
 
-		/* If SRM not enabled then nothing more to do */
+		/* If SRM analt enabled then analthing more to do */
 		pll_ctrl = snd_soc_component_read(component, DA7213_PLL_CTRL);
 		if (!(pll_ctrl & DA7213_PLL_SRM_EN))
 			return 0;
@@ -983,7 +983,7 @@ static const struct snd_soc_dapm_widget da7213_dapm_widgets[] = {
 
 	/* Use a supply here as this controls both input & output DAIs */
 	SND_SOC_DAPM_SUPPLY("DAI", DA7213_DAI_CTRL, DA7213_DAI_EN_SHIFT,
-			    DA7213_NO_INVERT, da7213_dai_event,
+			    DA7213_ANAL_INVERT, da7213_dai_event,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/*
@@ -997,96 +997,96 @@ static const struct snd_soc_dapm_widget da7213_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("AUXR"),
 
 	/* MUXs for Mic PGA source selection */
-	SND_SOC_DAPM_MUX("Mic 1 Amp Source MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Mic 1 Amp Source MUX", SND_SOC_ANALPM, 0, 0,
 			 &da7213_mic_1_amp_in_sel_mux),
-	SND_SOC_DAPM_MUX("Mic 2 Amp Source MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Mic 2 Amp Source MUX", SND_SOC_ANALPM, 0, 0,
 			 &da7213_mic_2_amp_in_sel_mux),
 
 	/* Input PGAs */
 	SND_SOC_DAPM_PGA("Mic 1 PGA", DA7213_MIC_1_CTRL, DA7213_AMP_EN_SHIFT,
-			 DA7213_NO_INVERT, NULL, 0),
+			 DA7213_ANAL_INVERT, NULL, 0),
 	SND_SOC_DAPM_PGA("Mic 2 PGA", DA7213_MIC_2_CTRL, DA7213_AMP_EN_SHIFT,
-			 DA7213_NO_INVERT, NULL, 0),
+			 DA7213_ANAL_INVERT, NULL, 0),
 	SND_SOC_DAPM_PGA("Aux Left PGA", DA7213_AUX_L_CTRL, DA7213_AMP_EN_SHIFT,
-			 DA7213_NO_INVERT, NULL, 0),
+			 DA7213_ANAL_INVERT, NULL, 0),
 	SND_SOC_DAPM_PGA("Aux Right PGA", DA7213_AUX_R_CTRL,
-			 DA7213_AMP_EN_SHIFT, DA7213_NO_INVERT, NULL, 0),
+			 DA7213_AMP_EN_SHIFT, DA7213_ANAL_INVERT, NULL, 0),
 	SND_SOC_DAPM_PGA("Mixin Left PGA", DA7213_MIXIN_L_CTRL,
-			 DA7213_AMP_EN_SHIFT, DA7213_NO_INVERT, NULL, 0),
+			 DA7213_AMP_EN_SHIFT, DA7213_ANAL_INVERT, NULL, 0),
 	SND_SOC_DAPM_PGA("Mixin Right PGA", DA7213_MIXIN_R_CTRL,
-			 DA7213_AMP_EN_SHIFT, DA7213_NO_INVERT, NULL, 0),
+			 DA7213_AMP_EN_SHIFT, DA7213_ANAL_INVERT, NULL, 0),
 
 	/* Mic Biases */
 	SND_SOC_DAPM_SUPPLY("Mic Bias 1", DA7213_MICBIAS_CTRL,
-			    DA7213_MICBIAS1_EN_SHIFT, DA7213_NO_INVERT,
+			    DA7213_MICBIAS1_EN_SHIFT, DA7213_ANAL_INVERT,
 			    NULL, 0),
 	SND_SOC_DAPM_SUPPLY("Mic Bias 2", DA7213_MICBIAS_CTRL,
-			    DA7213_MICBIAS2_EN_SHIFT, DA7213_NO_INVERT,
+			    DA7213_MICBIAS2_EN_SHIFT, DA7213_ANAL_INVERT,
 			    NULL, 0),
 
 	/* Input Mixers */
-	SND_SOC_DAPM_MIXER("Mixin Left", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Mixin Left", SND_SOC_ANALPM, 0, 0,
 			   &da7213_dapm_mixinl_controls[0],
 			   ARRAY_SIZE(da7213_dapm_mixinl_controls)),
-	SND_SOC_DAPM_MIXER("Mixin Right", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Mixin Right", SND_SOC_ANALPM, 0, 0,
 			   &da7213_dapm_mixinr_controls[0],
 			   ARRAY_SIZE(da7213_dapm_mixinr_controls)),
 
 	/* ADCs */
 	SND_SOC_DAPM_ADC("ADC Left", NULL, DA7213_ADC_L_CTRL,
-			 DA7213_ADC_EN_SHIFT, DA7213_NO_INVERT),
+			 DA7213_ADC_EN_SHIFT, DA7213_ANAL_INVERT),
 	SND_SOC_DAPM_ADC("ADC Right", NULL, DA7213_ADC_R_CTRL,
-			 DA7213_ADC_EN_SHIFT, DA7213_NO_INVERT),
+			 DA7213_ADC_EN_SHIFT, DA7213_ANAL_INVERT),
 
 	/* DAI */
-	SND_SOC_DAPM_MUX("DAI Left Source MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAI Left Source MUX", SND_SOC_ANALPM, 0, 0,
 			 &da7213_dai_l_src_mux),
-	SND_SOC_DAPM_MUX("DAI Right Source MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAI Right Source MUX", SND_SOC_ANALPM, 0, 0,
 			 &da7213_dai_r_src_mux),
-	SND_SOC_DAPM_AIF_OUT("DAIOUTL", "Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DAIOUTR", "Capture", 1, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DAIOUTL", "Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DAIOUTR", "Capture", 1, SND_SOC_ANALPM, 0, 0),
 
 	/*
 	 * Output
 	 */
 
 	/* DAI */
-	SND_SOC_DAPM_AIF_IN("DAIINL", "Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("DAIINR", "Playback", 1, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_MUX("DAC Left Source MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_AIF_IN("DAIINL", "Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DAIINR", "Playback", 1, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_MUX("DAC Left Source MUX", SND_SOC_ANALPM, 0, 0,
 			 &da7213_dac_l_src_mux),
-	SND_SOC_DAPM_MUX("DAC Right Source MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAC Right Source MUX", SND_SOC_ANALPM, 0, 0,
 			 &da7213_dac_r_src_mux),
 
 	/* DACs */
 	SND_SOC_DAPM_DAC("DAC Left", NULL, DA7213_DAC_L_CTRL,
-			 DA7213_DAC_EN_SHIFT, DA7213_NO_INVERT),
+			 DA7213_DAC_EN_SHIFT, DA7213_ANAL_INVERT),
 	SND_SOC_DAPM_DAC("DAC Right", NULL, DA7213_DAC_R_CTRL,
-			 DA7213_DAC_EN_SHIFT, DA7213_NO_INVERT),
+			 DA7213_DAC_EN_SHIFT, DA7213_ANAL_INVERT),
 
 	/* Output Mixers */
-	SND_SOC_DAPM_MIXER("Mixout Left", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Mixout Left", SND_SOC_ANALPM, 0, 0,
 			   &da7213_dapm_mixoutl_controls[0],
 			   ARRAY_SIZE(da7213_dapm_mixoutl_controls)),
-	SND_SOC_DAPM_MIXER("Mixout Right", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Mixout Right", SND_SOC_ANALPM, 0, 0,
 			   &da7213_dapm_mixoutr_controls[0],
 			   ARRAY_SIZE(da7213_dapm_mixoutr_controls)),
 
 	/* Output PGAs */
 	SND_SOC_DAPM_PGA("Mixout Left PGA", DA7213_MIXOUT_L_CTRL,
-			 DA7213_AMP_EN_SHIFT, DA7213_NO_INVERT, NULL, 0),
+			 DA7213_AMP_EN_SHIFT, DA7213_ANAL_INVERT, NULL, 0),
 	SND_SOC_DAPM_PGA("Mixout Right PGA", DA7213_MIXOUT_R_CTRL,
-			 DA7213_AMP_EN_SHIFT, DA7213_NO_INVERT, NULL, 0),
+			 DA7213_AMP_EN_SHIFT, DA7213_ANAL_INVERT, NULL, 0),
 	SND_SOC_DAPM_PGA("Lineout PGA", DA7213_LINE_CTRL, DA7213_AMP_EN_SHIFT,
-			 DA7213_NO_INVERT, NULL, 0),
+			 DA7213_ANAL_INVERT, NULL, 0),
 	SND_SOC_DAPM_PGA("Headphone Left PGA", DA7213_HP_L_CTRL,
-			 DA7213_AMP_EN_SHIFT, DA7213_NO_INVERT, NULL, 0),
+			 DA7213_AMP_EN_SHIFT, DA7213_ANAL_INVERT, NULL, 0),
 	SND_SOC_DAPM_PGA("Headphone Right PGA", DA7213_HP_R_CTRL,
-			 DA7213_AMP_EN_SHIFT, DA7213_NO_INVERT, NULL, 0),
+			 DA7213_AMP_EN_SHIFT, DA7213_ANAL_INVERT, NULL, 0),
 
 	/* Charge Pump */
 	SND_SOC_DAPM_SUPPLY("Charge Pump", DA7213_CP_CTRL, DA7213_CP_EN_SHIFT,
-			    DA7213_NO_INVERT, NULL, 0),
+			    DA7213_ANAL_INVERT, NULL, 0),
 
 	/* Output Lines */
 	SND_SOC_DAPM_OUTPUT("HPL"),
@@ -1268,7 +1268,7 @@ static const struct reg_default da7213_reg_defaults[] = {
 	{ DA7213_DIG_CTRL, 0x00 },
 	{ DA7213_ALC_CTRL2, 0x00 },
 	{ DA7213_ALC_CTRL3, 0x00 },
-	{ DA7213_ALC_NOISE, 0x3F },
+	{ DA7213_ALC_ANALISE, 0x3F },
 	{ DA7213_ALC_TARGET_MIN, 0x3F },
 	{ DA7213_ALC_TARGET_MAX, 0x00 },
 	{ DA7213_ALC_GAIN_LIMITS, 0xFF },
@@ -1330,13 +1330,13 @@ static int da7213_hw_params(struct snd_pcm_substream *substream,
 	switch (params_channels(params)) {
 	case 1:
 		if (da7213->fmt != DA7213_DAI_FORMAT_DSP) {
-			dev_err(component->dev, "Mono supported only in DSP mode\n");
+			dev_err(component->dev, "Moanal supported only in DSP mode\n");
 			return -EINVAL;
 		}
-		dai_ctrl |= DA7213_DAI_MONO_MODE_EN;
+		dai_ctrl |= DA7213_DAI_MOANAL_MODE_EN;
 		break;
 	case 2:
-		dai_ctrl &= ~(DA7213_DAI_MONO_MODE_EN);
+		dai_ctrl &= ~(DA7213_DAI_MOANAL_MODE_EN);
 		break;
 	default:
 		return -EINVAL;
@@ -1411,7 +1411,7 @@ static int da7213_hw_params(struct snd_pcm_substream *substream,
 		DA7213_DAI_BCLKS_PER_WCLK_MASK, dai_clk_mode);
 
 	snd_soc_component_update_bits(component, DA7213_DAI_CTRL,
-		DA7213_DAI_WORD_LENGTH_MASK | DA7213_DAI_MONO_MODE_MASK, dai_ctrl);
+		DA7213_DAI_WORD_LENGTH_MASK | DA7213_DAI_MOANAL_MODE_MASK, dai_ctrl);
 	snd_soc_component_write(component, DA7213_SR, fs);
 
 	return 0;
@@ -1436,7 +1436,7 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	/* Set clock normal/inverted */
+	/* Set clock analrmal/inverted */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 	case SND_SOC_DAIFMT_LEFT_J:
@@ -1572,7 +1572,7 @@ static int da7213_set_component_sysclk(struct snd_soc_component *component,
 				    DA7213_PLL_MCLK_SQR_EN);
 		break;
 	default:
-		dev_err(component->dev, "Unknown clock source %d\n", clk_id);
+		dev_err(component->dev, "Unkanalwn clock source %d\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -1716,7 +1716,7 @@ static int da7213_set_component_pll(struct snd_soc_component *component,
 }
 
 /*
- * Select below from Sound Card, not Auto
+ * Select below from Sound Card, analt Auto
  *	SND_SOC_DAIFMT_CBC_CFC
  *	SND_SOC_DAIFMT_CBP_CFP
  */
@@ -1736,7 +1736,7 @@ static const struct snd_soc_dai_ops da7213_dai_ops = {
 	.hw_params	= da7213_hw_params,
 	.set_fmt	= da7213_set_dai_fmt,
 	.mute_stream	= da7213_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 	.auto_selectable_formats	= &da7213_dai_formats,
 	.num_auto_selectable_formats	= 1,
 };
@@ -1774,13 +1774,13 @@ static int da7213_set_auto_pll(struct snd_soc_component *component, bool enable)
 	da7213->mclk_rate = clk_get_rate(da7213->mclk);
 
 	if (enable) {
-		/* Slave mode needs SRM for non-harmonic frequencies */
+		/* Slave mode needs SRM for analn-harmonic frequencies */
 		if (da7213->master)
 			mode = DA7213_SYSCLK_PLL;
 		else
 			mode = DA7213_SYSCLK_PLL_SRM;
 
-		/* PLL is not required for harmonic frequencies */
+		/* PLL is analt required for harmonic frequencies */
 		switch (da7213->out_rate) {
 		case DA7213_PLL_FREQ_OUT_90316800:
 			if (da7213->mclk_rate == 11289600 ||
@@ -2016,7 +2016,7 @@ static int da7213_probe(struct snd_soc_component *component)
 	 * well as headphone and line outs.
 	 * One to enable corresponding amplifier and other to enable its
 	 * output. As amplifier bits are related to power control, they are
-	 * being managed by DAPM while other (non power related) bits are
+	 * being managed by DAPM while other (analn power related) bits are
 	 * enabled here
 	 */
 	snd_soc_component_update_bits(component, DA7213_MIXIN_L_CTRL,
@@ -2103,7 +2103,7 @@ static int da7213_probe(struct snd_soc_component *component)
 	/* Check if MCLK provided */
 	da7213->mclk = devm_clk_get(component->dev, "mclk");
 	if (IS_ERR(da7213->mclk)) {
-		if (PTR_ERR(da7213->mclk) != -ENOENT)
+		if (PTR_ERR(da7213->mclk) != -EANALENT)
 			return PTR_ERR(da7213->mclk);
 		else
 			da7213->mclk = NULL;
@@ -2164,7 +2164,7 @@ static int da7213_i2c_probe(struct i2c_client *i2c)
 
 	da7213 = devm_kzalloc(&i2c->dev, sizeof(*da7213), GFP_KERNEL);
 	if (!da7213)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, da7213);
 

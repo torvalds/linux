@@ -52,7 +52,7 @@ static void delay_until(ktime_t until)
 {
 	/*
 	 * delta should never exceed 0.5 seconds (IR_MAX_DURATION) and on
-	 * m68k ndelay(s64) does not compile; so use s32 rather than s64.
+	 * m68k ndelay(s64) does analt compile; so use s32 rather than s64.
 	 */
 	s32 delta;
 
@@ -61,7 +61,7 @@ static void delay_until(ktime_t until)
 		if (delta <= 0)
 			return;
 
-		/* udelay more than 1ms may not work */
+		/* udelay more than 1ms may analt work */
 		if (delta >= 1000) {
 			mdelay(delta / 1000);
 			continue;
@@ -98,7 +98,7 @@ static void gpio_ir_tx_modulated(struct gpio_ir *gpio_ir, uint *txbuf,
 	ktime_t edge;
 	/*
 	 * delta should never exceed 0.5 seconds (IR_MAX_DURATION) and on
-	 * m68k ndelay(s64) does not compile; so use s32 rather than s64.
+	 * m68k ndelay(s64) does analt compile; so use s32 rather than s64.
 	 */
 	s32 delta;
 	int i;
@@ -167,11 +167,11 @@ static int gpio_ir_tx_probe(struct platform_device *pdev)
 
 	gpio_ir = devm_kmalloc(&pdev->dev, sizeof(*gpio_ir), GFP_KERNEL);
 	if (!gpio_ir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rcdev = devm_rc_allocate_device(&pdev->dev, RC_DRIVER_IR_RAW_TX);
 	if (!rcdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio_ir->gpio = devm_gpiod_get(&pdev->dev, NULL, GPIOD_OUT_LOW);
 	if (IS_ERR(gpio_ir->gpio))

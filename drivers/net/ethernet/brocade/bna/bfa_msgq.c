@@ -75,7 +75,7 @@ cmdq_sm_stopped(struct bfa_msgq_cmdq *cmdq, enum cmdq_event event)
 
 	case CMDQ_E_STOP:
 	case CMDQ_E_FAIL:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	case CMDQ_E_POST:
@@ -342,7 +342,7 @@ rspq_sm_stopped(struct bfa_msgq_rspq *rspq, enum rspq_event event)
 
 	case RSPQ_E_STOP:
 	case RSPQ_E_FAIL:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	default:
@@ -548,7 +548,7 @@ bfa_msgq_isr(void *cbarg, struct bfi_mbmsg *msg)
 }
 
 static void
-bfa_msgq_notify(void *cbarg, enum bfa_ioc_event event)
+bfa_msgq_analtify(void *cbarg, enum bfa_ioc_event event)
 {
 	struct bfa_msgq *msgq = (struct bfa_msgq *)cbarg;
 
@@ -606,8 +606,8 @@ bfa_msgq_attach(struct bfa_msgq *msgq, struct bfa_ioc *ioc)
 	bfa_msgq_rspq_attach(&msgq->rspq, msgq);
 
 	bfa_nw_ioc_mbox_regisr(msgq->ioc, BFI_MC_MSGQ, bfa_msgq_isr, msgq);
-	bfa_ioc_notify_init(&msgq->ioc_notify, bfa_msgq_notify, msgq);
-	bfa_nw_ioc_notify_register(msgq->ioc, &msgq->ioc_notify);
+	bfa_ioc_analtify_init(&msgq->ioc_analtify, bfa_msgq_analtify, msgq);
+	bfa_nw_ioc_analtify_register(msgq->ioc, &msgq->ioc_analtify);
 }
 
 void

@@ -24,7 +24,7 @@
 #include "cobalt-alsa.h"
 #include "cobalt-omnitek.h"
 
-/* add your revision and whatnot here */
+/* add your revision and whatanalt here */
 static const struct pci_device_id cobalt_pci_tbl[] = {
 	{PCI_VENDOR_ID_CISCO, PCI_DEVICE_ID_COBALT,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -39,10 +39,10 @@ int cobalt_debug;
 module_param_named(debug, cobalt_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level. Default: 0\n");
 
-int cobalt_ignore_err;
-module_param_named(ignore_err, cobalt_ignore_err, int, 0644);
-MODULE_PARM_DESC(ignore_err,
-	"If set then ignore missing i2c adapters/receivers. Default: 0\n");
+int cobalt_iganalre_err;
+module_param_named(iganalre_err, cobalt_iganalre_err, int, 0644);
+MODULE_PARM_DESC(iganalre_err,
+	"If set then iganalre missing i2c adapters/receivers. Default: 0\n");
 
 MODULE_AUTHOR("Hans Verkuil <hans.verkuil@cisco.com> & Morten Hestnes");
 MODULE_DESCRIPTION("cobalt driver");
@@ -126,15 +126,15 @@ static unsigned cobalt_get_sd_nr(struct v4l2_subdev *sd)
 	struct cobalt *cobalt = to_cobalt(sd->v4l2_dev);
 	unsigned i;
 
-	for (i = 0; i < COBALT_NUM_NODES; i++)
+	for (i = 0; i < COBALT_NUM_ANALDES; i++)
 		if (sd == cobalt->streams[i].sd)
 			return i;
 	cobalt_err("Invalid adv7604 subdev pointer!\n");
 	return 0;
 }
 
-static void cobalt_notify(struct v4l2_subdev *sd,
-			  unsigned int notification, void *arg)
+static void cobalt_analtify(struct v4l2_subdev *sd,
+			  unsigned int analtification, void *arg)
 {
 	struct cobalt *cobalt = to_cobalt(sd->v4l2_dev);
 	unsigned sd_nr = cobalt_get_sd_nr(sd);
@@ -144,13 +144,13 @@ static void cobalt_notify(struct v4l2_subdev *sd,
 	if (s->is_output)
 		return;
 
-	switch (notification) {
+	switch (analtification) {
 	case ADV76XX_HOTPLUG:
 		cobalt_s_bit_sysctrl(cobalt,
 			COBALT_SYS_CTRL_HPD_TO_CONNECTOR_BIT(sd_nr), hotplug);
 		cobalt_dbg(1, "Set hotplug for adv %d to %d\n", sd_nr, hotplug);
 		break;
-	case V4L2_DEVICE_NOTIFY_EVENT:
+	case V4L2_DEVICE_ANALTIFY_EVENT:
 		cobalt_dbg(1, "Format changed for adv %d\n", sd_nr);
 		v4l2_event_queue(&s->vdev, arg);
 		break;
@@ -180,7 +180,7 @@ static const char *get_link_speed(u16 stat)
 	case 2:	return "5 Gbit/s";
 	case 3:	return "10 Gbit/s";
 	}
-	return "Unknown speed";
+	return "Unkanalwn speed";
 }
 
 void cobalt_pcie_status_show(struct cobalt *cobalt)
@@ -316,7 +316,7 @@ static int cobalt_setup_pci(struct cobalt *cobalt, struct pci_dev *pci_dev,
 		cobalt_info("PCI Express interface from Omnitek\n");
 		break;
 	default:
-		cobalt_info("PCI Express interface provider is unknown!\n");
+		cobalt_info("PCI Express interface provider is unkanalwn!\n");
 		break;
 	}
 
@@ -327,7 +327,7 @@ static int cobalt_setup_pci(struct cobalt *cobalt, struct pci_dev *pci_dev,
 			cobalt_warn("The current slot only supports %d lanes, for best performance 8 are needed\n",
 					pcie_bus_link_get_lanes(cobalt));
 		if (pcie_link_get_lanes(cobalt) != pcie_bus_link_get_lanes(cobalt)) {
-			cobalt_err("The card is most likely not seated correctly in the PCIe slot\n");
+			cobalt_err("The card is most likely analt seated correctly in the PCIe slot\n");
 			ret = -EIO;
 			goto err_disable;
 		}
@@ -336,7 +336,7 @@ static int cobalt_setup_pci(struct cobalt *cobalt, struct pci_dev *pci_dev,
 	if (dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(64))) {
 		ret = dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32));
 		if (ret) {
-			cobalt_err("no suitable DMA available\n");
+			cobalt_err("anal suitable DMA available\n");
 			goto err_disable;
 		}
 	}
@@ -369,7 +369,7 @@ static int cobalt_setup_pci(struct cobalt *cobalt, struct pci_dev *pci_dev,
 	cobalt_set_interrupt(cobalt, false);
 
 	if (pci_alloc_irq_vectors(pci_dev, 1, 1, PCI_IRQ_MSI) < 1) {
-		cobalt_err("Could not enable MSI\n");
+		cobalt_err("Could analt enable MSI\n");
 		ret = -EIO;
 		goto err_release;
 	}
@@ -429,7 +429,7 @@ static void cobalt_stream_struct_init(struct cobalt *cobalt)
 		 * number than the FIFO DMA. Video input should map to the
 		 * stream 0-3. The other can use stream struct from 4 and
 		 * higher */
-		if (i <= COBALT_HSMA_IN_NODE) {
+		if (i <= COBALT_HSMA_IN_ANALDE) {
 			s->dma_channel = i + cobalt->first_fifo_channel;
 			s->video_channel = i;
 			s->dma_fifo_mask =
@@ -444,7 +444,7 @@ static void cobalt_stream_struct_init(struct cobalt *cobalt)
 			s->is_audio = true;
 			s->video_channel = idx;
 			s->dma_fifo_mask = COBALT_SYSSTAT_AUD_IN_LOST_DATA_MSK;
-		} else if (i == COBALT_HSMA_OUT_NODE) {
+		} else if (i == COBALT_HSMA_OUT_ANALDE) {
 			s->dma_channel = 11;
 			s->is_output = true;
 			s->video_channel = 5;
@@ -458,7 +458,7 @@ static void cobalt_stream_struct_init(struct cobalt *cobalt)
 			s->dma_fifo_mask = COBALT_SYSSTAT_AUD_OUT_LOST_DATA_MSK;
 		} else {
 			/* FIXME: Memory DMA for debug purpose */
-			s->dma_channel = i - COBALT_NUM_NODES;
+			s->dma_channel = i - COBALT_NUM_ANALDES;
 		}
 		cobalt_info("stream #%d -> dma channel #%d <- video channel %d\n",
 			    i, s->dma_channel, s->video_channel);
@@ -513,9 +513,9 @@ static int cobalt_subdevs_init(struct cobalt *cobalt)
 		s[i].sd = v4l2_i2c_new_subdev_board(&cobalt->v4l2_dev,
 			s[i].i2c_adap, &adv7604_info, NULL);
 		if (!s[i].sd) {
-			if (cobalt_ignore_err)
+			if (cobalt_iganalre_err)
 				continue;
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		err = v4l2_subdev_call(s[i].sd, video, s_routing,
 				ADV76XX_PAD_HDMI_PORT_A, 0, 0);
@@ -595,7 +595,7 @@ static int cobalt_subdevs_hsma_init(struct cobalt *cobalt)
 		.blocks = 2,
 		.edid = edid,
 	};
-	struct cobalt_stream *s = &cobalt->streams[COBALT_HSMA_IN_NODE];
+	struct cobalt_stream *s = &cobalt->streams[COBALT_HSMA_IN_ANALDE];
 
 	s->i2c_adap = &cobalt->i2c_adap[COBALT_NUM_ADAPTERS - 1];
 	if (s->i2c_adap->dev.parent == NULL)
@@ -650,7 +650,7 @@ static int cobalt_subdevs_hsma_init(struct cobalt *cobalt)
 		cobalt->streams[COBALT_AUDIO_OUT_STREAM].is_dummy = false;
 		return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int cobalt_probe(struct pci_dev *pci_dev,
@@ -665,7 +665,7 @@ static int cobalt_probe(struct pci_dev *pci_dev,
 
 	cobalt = kzalloc(sizeof(struct cobalt), GFP_KERNEL);
 	if (cobalt == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	cobalt->pci_dev = pci_dev;
 	cobalt->instance = i;
 	mutex_init(&cobalt->pci_lock);
@@ -679,14 +679,14 @@ static int cobalt_probe(struct pci_dev *pci_dev,
 	}
 	snprintf(cobalt->v4l2_dev.name, sizeof(cobalt->v4l2_dev.name),
 		 "cobalt-%d", cobalt->instance);
-	cobalt->v4l2_dev.notify = cobalt_notify;
+	cobalt->v4l2_dev.analtify = cobalt_analtify;
 	cobalt_info("Initializing card %d\n", cobalt->instance);
 
 	cobalt->irq_work_queues =
 		create_singlethread_workqueue(cobalt->v4l2_dev.name);
 	if (cobalt->irq_work_queues == NULL) {
-		cobalt_err("Could not create workqueue\n");
-		retval = -ENOMEM;
+		cobalt_err("Could analt create workqueue\n");
+		retval = -EANALMEM;
 		goto err;
 	}
 
@@ -699,7 +699,7 @@ static int cobalt_probe(struct pci_dev *pci_dev,
 
 	/* Show HDL version info */
 	if (cobalt_hdl_info_get(cobalt))
-		cobalt_info("Not able to read the HDL info\n");
+		cobalt_info("Analt able to read the HDL info\n");
 	else
 		cobalt_info("%s", cobalt->hdl_info);
 
@@ -720,9 +720,9 @@ static int cobalt_probe(struct pci_dev *pci_dev,
 			goto err_i2c;
 	}
 
-	retval = cobalt_nodes_register(cobalt);
+	retval = cobalt_analdes_register(cobalt);
 	if (retval) {
-		cobalt_err("Error %d registering device nodes\n", retval);
+		cobalt_err("Error %d registering device analdes\n", retval);
 		goto err_i2c;
 	}
 	cobalt_set_interrupt(cobalt, true);
@@ -762,7 +762,7 @@ static void cobalt_remove(struct pci_dev *pci_dev)
 	cobalt_flash_remove(cobalt);
 	cobalt_set_interrupt(cobalt, false);
 	flush_workqueue(cobalt->irq_work_queues);
-	cobalt_nodes_unregister(cobalt);
+	cobalt_analdes_unregister(cobalt);
 	for (i = 0; i < COBALT_NUM_ADAPTERS; i++) {
 		struct v4l2_subdev *sd = cobalt->streams[i].sd;
 		struct i2c_client *client;

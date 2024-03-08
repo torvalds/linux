@@ -34,29 +34,29 @@ properties:
     maxItems: 1
 
   clock-controller:
-    # Child node
+    # Child analde
     type: object
     $ref: ../clock/canaan,k210-clk.yaml
     description:
-      Clock controller for the SoC clocks. This child node definition
+      Clock controller for the SoC clocks. This child analde definition
       should follow the bindings specified in
       Documentation/devicetree/bindings/clock/canaan,k210-clk.yaml.
 
   reset-controller:
-    # Child node
+    # Child analde
     type: object
     $ref: ../reset/canaan,k210-rst.yaml
     description:
-      Reset controller for the SoC. This child node definition
+      Reset controller for the SoC. This child analde definition
       should follow the bindings specified in
       Documentation/devicetree/bindings/reset/canaan,k210-rst.yaml.
 
   syscon-reboot:
-    # Child node
+    # Child analde
     type: object
     $ref: ../power/reset/syscon-reboot.yaml
     description:
-      Reboot method for the SoC. This child node definition
+      Reboot method for the SoC. This child analde definition
       should follow the bindings specified in
       Documentation/devicetree/bindings/power/reset/syscon-reboot.yaml.
 

@@ -73,7 +73,7 @@ V4L2 驱动框架概览
       |
       +-sub-device instances（子设备实例）
       |
-      \-V4L2 device nodes（V4L2 设备节点）
+      \-V4L2 device analdes（V4L2 设备节点）
 	  |
 	  \-filehandle instances（文件句柄实例）
 
@@ -124,7 +124,7 @@ platform_device 的指针。很少使其为 NULL，除非是一个ISA设备或�
 当一个设备创建了多个 PCI 设备，使得 v4l2_dev 无法与一个特定的父设备
 关联。
 
-你也可以提供一个 notify() 回调，使子设备可以调用它实现事件通知。
+你也可以提供一个 analtify() 回调，使子设备可以调用它实现事件通知。
 但这个设置与子设备相关。子设备支持的任何通知必须在
 include/media/<subdevice>.h 中定义一个消息头。
 
@@ -336,26 +336,26 @@ subdev->dev 域就指向了 v4l2_device。
 
 注册之设备后，可通过以下方式直接调用其操作函数：
 
-	err = sd->ops->core->g_std(sd, &norm);
+	err = sd->ops->core->g_std(sd, &analrm);
 
 但使用如下宏会比较容易且合适：
 
-	err = v4l2_subdev_call(sd, core, g_std, &norm);
+	err = v4l2_subdev_call(sd, core, g_std, &analrm);
 
-这个宏将会做 NULL 指针检查，如果 subdev 为 NULL，则返回-ENODEV；如果
-subdev->core 或 subdev->core->g_std 为 NULL，则返回 -ENOIOCTLCMD；
+这个宏将会做 NULL 指针检查，如果 subdev 为 NULL，则返回-EANALDEV；如果
+subdev->core 或 subdev->core->g_std 为 NULL，则返回 -EANALIOCTLCMD；
 否则将返回 subdev->ops->core->g_std ops 调用的实际结果。
 
 有时也可能同时调用所有或一系列子设备的某个操作函数：
 
-	v4l2_device_call_all(v4l2_dev, 0, core, g_std, &norm);
+	v4l2_device_call_all(v4l2_dev, 0, core, g_std, &analrm);
 
 任何不支持此操作的子设备都会被跳过，并忽略错误返回值。但如果你需要
 检查出错码，则可使用如下函数：
 
-	err = v4l2_device_call_until_err(v4l2_dev, 0, core, g_std, &norm);
+	err = v4l2_device_call_until_err(v4l2_dev, 0, core, g_std, &analrm);
 
-除 -ENOIOCTLCMD 外的任何错误都会跳出循环并返回错误值。如果（除 -ENOIOCTLCMD
+除 -EANALIOCTLCMD 外的任何错误都会跳出循环并返回错误值。如果（除 -EANALIOCTLCMD
 外）没有错误发生，则返回 0。
 
 对于以上两个函数的第二个参数为组 ID。如果为 0，则所有子设备都会执行
@@ -370,8 +370,8 @@ subdev->core 或 subdev->core->g_std 为 NULL，则返回 -ENOIOCTLCMD；
 需要的子设备才会执行这个回调。
 
 如果子设备需要通知它的 v4l2_device 父设备一个事件，可以调用
-v4l2_subdev_notify(sd, notification, arg)。这个宏检查是否有一个
-notify() 回调被注册，如果没有，返回 -ENODEV。否则返回 notify() 调用
+v4l2_subdev_analtify(sd, analtification, arg)。这个宏检查是否有一个
+analtify() 回调被注册，如果没有，返回 -EANALDEV。否则返回 analtify() 调用
 结果。
 
 使用 v4l2_subdev 的好处在于它是一个通用结构体，且不包含任何底层硬件
@@ -387,11 +387,11 @@ V4L2 子设备用户空间API
 通过用户空间应用程序来控制。
 
 可以在 /dev 中创建名为 v4l-subdevX 设备节点，以通过其直接访问子设备。
-如果子设备支持用户空间直接配置，必须在注册前设置 V4L2_SUBDEV_FL_HAS_DEVNODE
+如果子设备支持用户空间直接配置，必须在注册前设置 V4L2_SUBDEV_FL_HAS_DEVANALDE
 标志。
 
-注册子设备之后， v4l2_device 驱动会通过调用 v4l2_device_register_subdev_nodes()
-函数为所有已注册并设置了 V4L2_SUBDEV_FL_HAS_DEVNODE 的子设备创建
+注册子设备之后， v4l2_device 驱动会通过调用 v4l2_device_register_subdev_analdes()
+函数为所有已注册并设置了 V4L2_SUBDEV_FL_HAS_DEVANALDE 的子设备创建
 设备节点。这些设备节点会在子设备注销时自动删除。
 
 这些设备节点处理 V4L2 API 的一个子集。
@@ -418,7 +418,7 @@ VIDIOC_UNSUBSCRIBE_EVENT
 
 	要使用事件通知的子设备驱动，在注册子设备前必须在 v4l2_subdev::flags
 	中设置 V4L2_SUBDEV_USES_EVENTS 并在 v4l2_subdev::nevents
-	中初始化事件队列深度。注册完成后，事件会在 v4l2_subdev::devnode
+	中初始化事件队列深度。注册完成后，事件会在 v4l2_subdev::devanalde
 	设备节点中像通常一样被排队。
 
 	为正确支持事件机制，poll() 文件操作也应被实现。
@@ -533,7 +533,7 @@ video_device结构体
 	struct video_device *vdev = video_device_alloc();
 
 	if (vdev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdev->release = video_device_release;
 
@@ -594,7 +594,7 @@ void v4l2_disable_ioctl(struct video_device *vdev, unsigned int cmd);
 要关闭 v4l2_ioctl_ops 中某个特性往往需要这个机制。
 
 v4l2_file_operations 结构体是 file_operations 的一个子集。其主要
-区别在于：因 inode 参数从未被使用，它将被忽略。
+区别在于：因 ianalde 参数从未被使用，它将被忽略。
 
 如果需要与媒体框架整合，你必须通过调用 media_entity_pads_init() 初始化
 嵌入在 video_device 结构体中的 media_entity（entity 域）结构体：
@@ -678,7 +678,7 @@ VFL_TYPE_RADIO: 用于广播调谐器的 radioX
 如果失败，则它会就选择第一个空闲的编号。
 
 由于这种情况下，你会忽略无法选择特定设备节点号的警告，则可调用
-video_register_device_no_warn() 函数避免警告信息的产生。
+video_register_device_anal_warn() 函数避免警告信息的产生。
 
 只要设备节点被创建，一些属性也会同时创建。在 /sys/class/video4linux
 目录中你会找到这些设备。例如进入其中的 video0 目录，你会看到‘name’和
@@ -693,7 +693,7 @@ video_register_device_no_warn() 函数避免警告信息的产生。
 在设备成功注册后，就可以使用这些域：
 
 - vfl_type: 传递给 video_register_device 的设备类型。
-- minor: 已指派的次设备号。
+- mianalr: 已指派的次设备号。
 - num: 设备节点编号 (例如 videoX 中的 X)。
 - index: 设备索引号。
 
@@ -762,10 +762,10 @@ struct v4l2_device *v4l2_dev = vdev->v4l2_dev;
 
 video_device 设备节点在内核中的名称可以通过以下函数获得
 
-const char *video_device_node_name(struct video_device *vdev);
+const char *video_device_analde_name(struct video_device *vdev);
 
 这个名字被用户空间工具（例如 udev）作为提示信息使用。应尽可能使用
-此功能，而非访问 video_device::num 和 video_device::minor 域。
+此功能，而非访问 video_device::num 和 video_device::mianalr 域。
 
 
 v4l2_fh 结构体

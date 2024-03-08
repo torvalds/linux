@@ -45,7 +45,7 @@ static int __init early_sbi_setup(struct earlycon_device *device,
 	else if (IS_ENABLED(CONFIG_RISCV_SBI_V01))
 		device->con->write = sbi_0_1_console_write;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }

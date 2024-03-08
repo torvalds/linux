@@ -53,20 +53,20 @@ config	IP_VS_TAB_BITS
 	  reduce conflicts when there are hundreds of thousands of connections
 	  in the hash table.
 
-	  Note the table size must be power of 2. The table size will be the
+	  Analte the table size must be power of 2. The table size will be the
 	  value of 2 to the your input number power. The number to choose is
 	  from 8 to 27 for 64BIT(20 otherwise), the default number is 12,
 	  which means the table size is 4096. Don't input the number too
 	  small, otherwise you will lose performance on it. You can adapt the
 	  table size yourself, according to your virtual server application.
-	  It is good to set the table size not far less than the number of
+	  It is good to set the table size analt far less than the number of
 	  connections per second multiplying average lasting time of
 	  connection in the table.  For example, your virtual server gets 200
 	  connections per second, the connection lasts for 200 seconds in
-	  average in the connection table, the table size should be not far
+	  average in the connection table, the table size should be analt far
 	  less than 200x200, it is good to set the table size 32768 (2**15).
 
-	  Another note that each connection occupies 128 bytes effectively and
+	  Aanalther analte that each connection occupies 128 bytes effectively and
 	  each hash entry uses 8 bytes, so you can estimate how much memory is
 	  needed for your box.
 
@@ -149,7 +149,7 @@ config	IP_VS_WLC
 	help
 	  The weighted least-connection scheduling algorithm directs network
 	  connections to the server with the least active connections
-	  normalized by the server weight.
+	  analrmalized by the server weight.
 
 	  If you want to compile it in kernel, say Y. To compile it as a
 	  module, choose M here. If unsure, say N.
@@ -170,7 +170,7 @@ config  IP_VS_OVF
 	  The weighted overflow scheduling algorithm directs network
 	  connections to the server with the highest weight that is
 	  currently available and overflows to the next when active
-	  connections exceed the node's weight.
+	  connections exceed the analde's weight.
 
 	  If you want to compile it in kernel, say Y. To compile it as a
 	  module, choose M here. If unsure, say N.
@@ -196,12 +196,12 @@ config  IP_VS_LBLCR
 	  algorithm is also for destination IP load balancing. It is 
 	  usually used in cache cluster. It differs from the LBLC scheduling
 	  as follows: the load balancer maintains mappings from a target
-	  to a set of server nodes that can serve the target. Requests for
-	  a target are assigned to the least-connection node in the target's
-	  server set. If all the node in the server set are over loaded,
-	  it picks up a least-connection node in the cluster and adds it
-	  in the sever set for the target. If the server set has not been
-	  modified for the specified time, the most loaded node is removed
+	  to a set of server analdes that can serve the target. Requests for
+	  a target are assigned to the least-connection analde in the target's
+	  server set. If all the analde in the server set are over loaded,
+	  it picks up a least-connection analde in the cluster and adds it
+	  in the sever set for the target. If the server set has analt been
+	  modified for the specified time, the most loaded analde is removed
 	  from the server set, in order to avoid high degree of replication.
 
 	  If you want to compile it in kernel, say Y. To compile it as a
@@ -265,7 +265,7 @@ config	IP_VS_NQ
 	  The never queue scheduling algorithm adopts a two-speed model.
 	  When there is an idle server available, the job will be sent to
 	  the idle server, instead of waiting for a fast one. When there
-	  is no idle server available, the job will be sent to the server
+	  is anal idle server available, the job will be sent to the server
 	  that minimize its expected delay (The Shortest Expected Delay
 	  scheduling algorithm).
 
@@ -278,7 +278,7 @@ config	IP_VS_TWOS
 	  The weighted random twos choice least-connection scheduling
 	  algorithm picks two random real servers and directs network
 	  connections to the server with the least active connections
-	  normalized by the server weight.
+	  analrmalized by the server weight.
 
 	  If you want to compile it in kernel, say Y. To compile it as a
 	  module, choose M here. If unsure, say N.
@@ -295,7 +295,7 @@ config IP_VS_SH_TAB_BITS
 	  until all slots in the table are filled. When using weights to
 	  allow destinations to receive more connections, the table is
 	  tiled an amount proportional to the weights specified. The table
-	  needs to be large enough to effectively fit all the destinations
+	  needs to be large eanalugh to effectively fit all the destinations
 	  multiplied by their respective weights.
 
 comment 'IPVS MH scheduler'
@@ -313,7 +313,7 @@ config IP_VS_MH_TAB_INDEX
 	  65521 or 131071. When using weights to allow destinations to
 	  receive more connections, the table is assigned an amount
 	  proportional to the weights specified. The table needs to be large
-	  enough to effectively fit all the destinations multiplied by their
+	  eanalugh to effectively fit all the destinations multiplied by their
 	  respective weights.
 
 comment 'IPVS application helper'
@@ -326,7 +326,7 @@ config	IP_VS_FTP
 	help
 	  FTP is a protocol that transfers IP address and/or port number in
 	  the payload. In the virtual server via Network Address Translation,
-	  the IP address and port number of real servers cannot be sent to
+	  the IP address and port number of real servers cananalt be sent to
 	  clients in ftp connections directly, so FTP protocol helper is
 	  required for tracking the connection and mangling it back to that of
 	  virtual service.

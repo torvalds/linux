@@ -19,12 +19,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -34,7 +34,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/unistd.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/uio.h>
 #include <linux/kernel.h>
@@ -52,11 +52,11 @@
 #include "xenbus.h"
 
 /*
- * Framework to protect suspend/resume handling against normal Xenstore
+ * Framework to protect suspend/resume handling against analrmal Xenstore
  * message handling:
- * During suspend/resume there must be no open transaction and no pending
+ * During suspend/resume there must be anal open transaction and anal pending
  * Xenstore request.
- * New watch events happening in this time can be ignored by firing all watches
+ * New watch events happening in this time can be iganalred by firing all watches
  * after resume.
  */
 
@@ -143,7 +143,7 @@ void xs_request_exit(struct xb_req_data *req)
 	if ((req->type == XS_TRANSACTION_START && req->msg.type == XS_ERROR) ||
 	    (req->type == XS_TRANSACTION_END && !req->user_req &&
 	     !WARN_ON_ONCE(req->msg.type == XS_ERROR &&
-			   !strcmp(req->body, "ENOENT"))))
+			   !strcmp(req->body, "EANALENT"))))
 		xs_state_users--;
 	spin_unlock(&xs_state_lock);
 
@@ -157,7 +157,7 @@ static int get_error(const char *errorstring)
 
 	for (i = 0; strcmp(errorstring, xsd_errors[i].errstring) != 0; i++) {
 		if (i == ARRAY_SIZE(xsd_errors) - 1) {
-			pr_warn("xen store gave: unknown error %s\n",
+			pr_warn("xen store gave: unkanalwn error %s\n",
 				errorstring);
 			return EINVAL;
 		}
@@ -181,7 +181,7 @@ static bool xenbus_ok(void)
 	case XS_PV:
 	case XS_HVM:
 		/* FIXME: Could check that the remote domain is alive,
-		 * but it is normally initial domain. */
+		 * but it is analrmally initial domain. */
 		return true;
 	default:
 		break;
@@ -211,7 +211,7 @@ static void *read_reply(struct xb_req_data *req)
 		if (!xenbus_ok())
 			/*
 			 * If we are in the process of being shut-down there is
-			 * no point of trying to contact XenBus - it is either
+			 * anal point of trying to contact XenBus - it is either
 			 * killed (xenstored application) or the other domain
 			 * has been killed or is unreachable.
 			 */
@@ -226,7 +226,7 @@ static void *read_reply(struct xb_req_data *req)
 
 static void xs_send(struct xb_req_data *req, struct xsd_sockmsg *msg)
 {
-	bool notify;
+	bool analtify;
 
 	req->msg = *msg;
 	req->err = 0;
@@ -239,10 +239,10 @@ static void xs_send(struct xb_req_data *req, struct xsd_sockmsg *msg)
 
 	mutex_lock(&xb_write_mutex);
 	list_add_tail(&req->list, &xb_write_list);
-	notify = list_is_singular(&xb_write_list);
+	analtify = list_is_singular(&xb_write_list);
 	mutex_unlock(&xb_write_mutex);
 
-	if (notify)
+	if (analtify)
 		wake_up(&xb_waitq);
 }
 
@@ -280,7 +280,7 @@ int xenbus_dev_request_and_reply(struct xsd_sockmsg *msg, void *par)
 
 	req = kmalloc(sizeof(*req) + sizeof(*vec), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vec = (struct kvec *)(req + 1);
 	vec->iov_len = msg->len;
@@ -311,9 +311,9 @@ static void *xs_talkv(struct xenbus_transaction t,
 	unsigned int i;
 	int err;
 
-	req = kmalloc(sizeof(*req), GFP_NOIO | __GFP_HIGH);
+	req = kmalloc(sizeof(*req), GFP_ANALIO | __GFP_HIGH);
 	if (!req)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	req->vec = iovec;
 	req->num_vecs = num_vecs;
@@ -390,10 +390,10 @@ static char *join(const char *dir, const char *name)
 	char *buffer;
 
 	if (strlen(name) == 0)
-		buffer = kasprintf(GFP_NOIO | __GFP_HIGH, "%s", dir);
+		buffer = kasprintf(GFP_ANALIO | __GFP_HIGH, "%s", dir);
 	else
-		buffer = kasprintf(GFP_NOIO | __GFP_HIGH, "%s/%s", dir, name);
-	return (!buffer) ? ERR_PTR(-ENOMEM) : buffer;
+		buffer = kasprintf(GFP_ANALIO | __GFP_HIGH, "%s/%s", dir, name);
+	return (!buffer) ? ERR_PTR(-EANALMEM) : buffer;
 }
 
 static char **split(char *strings, unsigned int len, unsigned int *num)
@@ -404,10 +404,10 @@ static char **split(char *strings, unsigned int len, unsigned int *num)
 	*num = count_strings(strings, len);
 
 	/* Transfer to one big alloc for easy freeing. */
-	ret = kmalloc(*num * sizeof(char *) + len, GFP_NOIO | __GFP_HIGH);
+	ret = kmalloc(*num * sizeof(char *) + len, GFP_ANALIO | __GFP_HIGH);
 	if (!ret) {
 		kfree(strings);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	memcpy(&ret[*num], strings, len);
 	kfree(strings);
@@ -420,12 +420,12 @@ static char **split(char *strings, unsigned int len, unsigned int *num)
 }
 
 char **xenbus_directory(struct xenbus_transaction t,
-			const char *dir, const char *node, unsigned int *num)
+			const char *dir, const char *analde, unsigned int *num)
 {
 	char *strings, *path;
 	unsigned int len;
 
-	path = join(dir, node);
+	path = join(dir, analde);
 	if (IS_ERR(path))
 		return (char **)path;
 
@@ -440,12 +440,12 @@ EXPORT_SYMBOL_GPL(xenbus_directory);
 
 /* Check if a path exists. Return 1 if it does. */
 int xenbus_exists(struct xenbus_transaction t,
-		  const char *dir, const char *node)
+		  const char *dir, const char *analde)
 {
 	char **d;
 	int dir_n;
 
-	d = xenbus_directory(t, dir, node, &dir_n);
+	d = xenbus_directory(t, dir, analde, &dir_n);
 	if (IS_ERR(d))
 		return 0;
 	kfree(d);
@@ -458,12 +458,12 @@ EXPORT_SYMBOL_GPL(xenbus_exists);
  * len indicates length in bytes.
  */
 void *xenbus_read(struct xenbus_transaction t,
-		  const char *dir, const char *node, unsigned int *len)
+		  const char *dir, const char *analde, unsigned int *len)
 {
 	char *path;
 	void *ret;
 
-	path = join(dir, node);
+	path = join(dir, analde);
 	if (IS_ERR(path))
 		return (void *)path;
 
@@ -477,13 +477,13 @@ EXPORT_SYMBOL_GPL(xenbus_read);
  * Returns -err on failure.
  */
 int xenbus_write(struct xenbus_transaction t,
-		 const char *dir, const char *node, const char *string)
+		 const char *dir, const char *analde, const char *string)
 {
 	const char *path;
 	struct kvec iovec[2];
 	int ret;
 
-	path = join(dir, node);
+	path = join(dir, analde);
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 
@@ -500,12 +500,12 @@ EXPORT_SYMBOL_GPL(xenbus_write);
 
 /* Create a new directory. */
 int xenbus_mkdir(struct xenbus_transaction t,
-		 const char *dir, const char *node)
+		 const char *dir, const char *analde)
 {
 	char *path;
 	int ret;
 
-	path = join(dir, node);
+	path = join(dir, analde);
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 
@@ -516,12 +516,12 @@ int xenbus_mkdir(struct xenbus_transaction t,
 EXPORT_SYMBOL_GPL(xenbus_mkdir);
 
 /* Destroy a file or directory (directories must be empty). */
-int xenbus_rm(struct xenbus_transaction t, const char *dir, const char *node)
+int xenbus_rm(struct xenbus_transaction t, const char *dir, const char *analde)
 {
 	char *path;
 	int ret;
 
-	path = join(dir, node);
+	path = join(dir, analde);
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 
@@ -531,8 +531,8 @@ int xenbus_rm(struct xenbus_transaction t, const char *dir, const char *node)
 }
 EXPORT_SYMBOL_GPL(xenbus_rm);
 
-/* Start a transaction: changes by others will not be seen during this
- * transaction, and changes will not be visible to others until end.
+/* Start a transaction: changes by others will analt be seen during this
+ * transaction, and changes will analt be visible to others until end.
  */
 int xenbus_transaction_start(struct xenbus_transaction *t)
 {
@@ -564,15 +564,15 @@ int xenbus_transaction_end(struct xenbus_transaction t, int abort)
 }
 EXPORT_SYMBOL_GPL(xenbus_transaction_end);
 
-/* Single read and scanf: returns -errno or num scanned. */
+/* Single read and scanf: returns -erranal or num scanned. */
 int xenbus_scanf(struct xenbus_transaction t,
-		 const char *dir, const char *node, const char *fmt, ...)
+		 const char *dir, const char *analde, const char *fmt, ...)
 {
 	va_list ap;
 	int ret;
 	char *val;
 
-	val = xenbus_read(t, dir, node, NULL);
+	val = xenbus_read(t, dir, analde, NULL);
 	if (IS_ERR(val))
 		return PTR_ERR(val);
 
@@ -580,7 +580,7 @@ int xenbus_scanf(struct xenbus_transaction t,
 	ret = vsscanf(val, fmt, ap);
 	va_end(ap);
 	kfree(val);
-	/* Distinctive errno. */
+	/* Distinctive erranal. */
 	if (ret == 0)
 		return -ERANGE;
 	return ret;
@@ -588,13 +588,13 @@ int xenbus_scanf(struct xenbus_transaction t,
 EXPORT_SYMBOL_GPL(xenbus_scanf);
 
 /* Read an (optional) unsigned value. */
-unsigned int xenbus_read_unsigned(const char *dir, const char *node,
+unsigned int xenbus_read_unsigned(const char *dir, const char *analde,
 				  unsigned int default_val)
 {
 	unsigned int val;
 	int ret;
 
-	ret = xenbus_scanf(XBT_NIL, dir, node, "%u", &val);
+	ret = xenbus_scanf(XBT_NIL, dir, analde, "%u", &val);
 	if (ret <= 0)
 		val = default_val;
 
@@ -602,22 +602,22 @@ unsigned int xenbus_read_unsigned(const char *dir, const char *node,
 }
 EXPORT_SYMBOL_GPL(xenbus_read_unsigned);
 
-/* Single printf and write: returns -errno or 0. */
+/* Single printf and write: returns -erranal or 0. */
 int xenbus_printf(struct xenbus_transaction t,
-		  const char *dir, const char *node, const char *fmt, ...)
+		  const char *dir, const char *analde, const char *fmt, ...)
 {
 	va_list ap;
 	int ret;
 	char *buf;
 
 	va_start(ap, fmt);
-	buf = kvasprintf(GFP_NOIO | __GFP_HIGH, fmt, ap);
+	buf = kvasprintf(GFP_ANALIO | __GFP_HIGH, fmt, ap);
 	va_end(ap);
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = xenbus_write(t, dir, node, buf);
+	ret = xenbus_write(t, dir, analde, buf);
 
 	kfree(buf);
 
@@ -722,9 +722,9 @@ int xs_watch_msg(struct xs_watch_event *event)
 }
 
 /*
- * Certain older XenBus toolstack cannot handle reading values that are
- * not populated. Some Xen 3.4 installation are incapable of doing this
- * so if we are running on anything older than 4 do not attempt to read
+ * Certain older XenBus toolstack cananalt handle reading values that are
+ * analt populated. Some Xen 3.4 installation are incapable of doing this
+ * so if we are running on anything older than 4 do analt attempt to read
  * control/platform-feature-xs_reset_watches.
  */
 static bool xen_strict_xenbus_quirk(void)
@@ -760,7 +760,7 @@ static void xs_reset_watches(void)
 		pr_warn("xs_reset_watches failed: %d\n", err);
 }
 
-/* Register callback to watch this node. */
+/* Register callback to watch this analde. */
 int register_xenbus_watch(struct xenbus_watch *watch)
 {
 	/* Pointer in ascii is the token. */
@@ -778,7 +778,7 @@ int register_xenbus_watch(struct xenbus_watch *watch)
 	list_add(&watch->list, &watches);
 	spin_unlock(&watches_lock);
 
-	err = xs_watch(watch->node, token);
+	err = xs_watch(watch->analde, token);
 
 	if (err) {
 		spin_lock(&watches_lock);
@@ -807,13 +807,13 @@ void unregister_xenbus_watch(struct xenbus_watch *watch)
 	list_del(&watch->list);
 	spin_unlock(&watches_lock);
 
-	err = xs_unwatch(watch->node, token);
+	err = xs_unwatch(watch->analde, token);
 	if (err)
-		pr_warn("Failed to release watch %s: %i\n", watch->node, err);
+		pr_warn("Failed to release watch %s: %i\n", watch->analde, err);
 
 	up_read(&xs_watch_rwsem);
 
-	/* Make sure there are no callbacks running currently (unless
+	/* Make sure there are anal callbacks running currently (unless
 	   its us) */
 	if (current->pid != xenwatch_pid)
 		mutex_lock(&xenwatch_mutex);
@@ -855,10 +855,10 @@ void xs_resume(void)
 
 	xs_suspend_exit();
 
-	/* No need for watches_lock: the xs_watch_rwsem is sufficient. */
+	/* Anal need for watches_lock: the xs_watch_rwsem is sufficient. */
 	list_for_each_entry(watch, &watches, list) {
 		sprintf(token, "%lX", (long)watch);
-		xs_watch(watch->node, token);
+		xs_watch(watch->analde, token);
 	}
 
 	up_write(&xs_watch_rwsem);
@@ -911,11 +911,11 @@ static int xenwatch_thread(void *unused)
 /*
  * Wake up all threads waiting for a xenstore reply. In case of shutdown all
  * pending replies will be marked as "aborted" in order to let the waiters
- * return in spite of xenstore possibly no longer being able to reply. This
+ * return in spite of xenstore possibly anal longer being able to reply. This
  * will avoid blocking shutdown by a thread waiting for xenstore but being
  * necessary for shutdown processing to proceed.
  */
-static int xs_reboot_notify(struct notifier_block *nb,
+static int xs_reboot_analtify(struct analtifier_block *nb,
 			    unsigned long code, void *unused)
 {
 	struct xb_req_data *req;
@@ -926,11 +926,11 @@ static int xs_reboot_notify(struct notifier_block *nb,
 	list_for_each_entry(req, &xb_write_list, list)
 		wake_up(&req->wq);
 	mutex_unlock(&xb_write_mutex);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block xs_reboot_nb = {
-	.notifier_call = xs_reboot_notify,
+static struct analtifier_block xs_reboot_nb = {
+	.analtifier_call = xs_reboot_analtify,
 };
 
 int xs_init(void)
@@ -938,7 +938,7 @@ int xs_init(void)
 	int err;
 	struct task_struct *task;
 
-	register_reboot_notifier(&xs_reboot_nb);
+	register_reboot_analtifier(&xs_reboot_nb);
 
 	/* Initialize the shared memory rings to talk to xenstored */
 	err = xb_init_comms();

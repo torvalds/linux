@@ -59,7 +59,7 @@ int sctp_bind_addr_copy(struct net *net, struct sctp_bind_addr *dest,
 			goto out;
 	}
 
-	/* If there are no addresses matching the scope and
+	/* If there are anal addresses matching the scope and
 	 * this is global scope, try to get a link scope address, with
 	 * the assumption that we must be sitting behind a NAT.
 	 */
@@ -73,7 +73,7 @@ int sctp_bind_addr_copy(struct net *net, struct sctp_bind_addr *dest,
 		}
 	}
 
-	/* If somehow no addresses were found that can be used with this
+	/* If somehow anal addresses were found that can be used with this
 	 * scope, it's an error.
 	 */
 	if (list_empty(&dest->address_list))
@@ -149,11 +149,11 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
 	/* Add the address to the bind address list.  */
 	addr = kzalloc(sizeof(*addr), gfp);
 	if (!addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(&addr->a, new, min_t(size_t, sizeof(*new), new_size));
 
-	/* Fix up the port if it has not yet been set.
+	/* Fix up the port if it has analt yet been set.
 	 * Both v4 and v6 have the port at the same offset.
 	 */
 	if (!addr->a.v4.sin_port)
@@ -224,7 +224,7 @@ union sctp_params sctp_bind_addrs_to_raw(const struct sctp_bind_addr *bp,
 	addrparms_len = 0;
 	len = 0;
 
-	/* Allocate enough memory at once. */
+	/* Allocate eanalugh memory at once. */
 	list_for_each(pos, &bp->address_list) {
 		len += sizeof(union sctp_addr_param);
 	}
@@ -373,7 +373,7 @@ int sctp_bind_addr_conflict(struct sctp_bind_addr *bp,
 
 	/* Pick the IPv6 socket as the basis of comparison
 	 * since it's usually a superset of the IPv4.
-	 * If there is no IPv6 socket, then default to bind_addr.
+	 * If there is anal IPv6 socket, then default to bind_addr.
 	 */
 	if (sctp_opt2sk(bp_sp)->sk_family == AF_INET6)
 		sp = bp_sp;
@@ -417,7 +417,7 @@ int sctp_bind_addr_state(const struct sctp_bind_addr *bp,
 	return -1;
 }
 
-/* Find the first address in the bind address list that is not present in
+/* Find the first address in the bind address list that is analt present in
  * the addrs packed array.
  */
 union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
@@ -465,7 +465,7 @@ static int sctp_copy_one_addr(struct net *net, struct sctp_bind_addr *dest,
 	if (sctp_is_any(NULL, addr)) {
 		error = sctp_copy_local_addr_list(net, dest, scope, gfp, flags);
 	} else if (sctp_in_scope(net, addr, scope)) {
-		/* Now that the address is in scope, check to see if
+		/* Analw that the address is in scope, check to see if
 		 * the address type is supported by local sock as
 		 * well as the remote peer.
 		 */
@@ -507,7 +507,7 @@ int sctp_in_scope(struct net *net, const union sctp_addr *addr,
 {
 	enum sctp_scope addr_scope = sctp_scope(addr);
 
-	/* The unusable SCTP addresses will not be considered with
+	/* The unusable SCTP addresses will analt be considered with
 	 * any defined scopes.
 	 */
 	if (SCTP_SCOPE_UNUSABLE == addr_scope)

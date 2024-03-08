@@ -47,5 +47,5 @@ Zoran cards list
      - 13ca:4231
 
    * - 8
-     - 6-Eyes
+     - 6-Eanal
      - <any>

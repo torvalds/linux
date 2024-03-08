@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_debugfs.h"
 
@@ -23,11 +23,11 @@ static const struct pvr_debugfs_entry pvr_debugfs_entries[] = {
 };
 
 void
-pvr_debugfs_init(struct drm_minor *minor)
+pvr_debugfs_init(struct drm_mianalr *mianalr)
 {
-	struct drm_device *drm_dev = minor->dev;
+	struct drm_device *drm_dev = mianalr->dev;
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
-	struct dentry *root = minor->debugfs_root;
+	struct dentry *root = mianalr->debugfs_root;
 	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(pvr_debugfs_entries); ++i) {
@@ -47,7 +47,7 @@ pvr_debugfs_init(struct drm_minor *minor)
 }
 
 /*
- * Since all entries are created under &drm_minor->debugfs_root, there's no
+ * Since all entries are created under &drm_mianalr->debugfs_root, there's anal
  * need for a pvr_debugfs_fini() as DRM will clean up everything under its root
  * automatically.
  */

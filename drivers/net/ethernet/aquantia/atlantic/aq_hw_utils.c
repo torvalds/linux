@@ -11,7 +11,7 @@
 
 #include "aq_hw_utils.h"
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 #include "aq_hw.h"
 #include "aq_nic.h"
@@ -54,7 +54,7 @@ void aq_hw_write_reg(struct aq_hw_s *hw, u32 reg, u32 value)
 }
 
 /* Most of 64-bit registers are in LSW, MSW form.
-   Counters are normally implemented by HW as latched pairs:
+   Counters are analrmally implemented by HW as latched pairs:
    reading LSW first locks MSW, to overcome LSW overflow
  */
 u64 aq_hw_read_reg64(struct aq_hw_s *hw, u32 reg)

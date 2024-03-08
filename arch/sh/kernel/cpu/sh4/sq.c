@@ -106,7 +106,7 @@ static int __sq_remap(struct sq_mapping *map, pgprot_t prot)
 	vma = __get_vm_area_caller(map->size, VM_IOREMAP, map->sq_addr,
 			SQ_ADDRMAX, __builtin_return_address(0));
 	if (!vma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vma->phys_addr = map->addr;
 
@@ -152,7 +152,7 @@ unsigned long sq_remap(unsigned long phys, unsigned int size,
 	end = phys + size - 1;
 	if (unlikely(!size || end < phys))
 		return -EINVAL;
-	/* Don't allow anyone to remap normal memory.. */
+	/* Don't allow anyone to remap analrmal memory.. */
 	if (unlikely(phys < virt_to_phys(high_memory)))
 		return -EINVAL;
 
@@ -161,7 +161,7 @@ unsigned long sq_remap(unsigned long phys, unsigned int size,
 
 	map = kmem_cache_alloc(sq_cache, GFP_KERNEL);
 	if (unlikely(!map))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map->addr = phys;
 	map->size = size;
@@ -170,7 +170,7 @@ unsigned long sq_remap(unsigned long phys, unsigned int size,
 	page = bitmap_find_free_region(sq_bitmap, 0x04000000 >> PAGE_SHIFT,
 				       get_order(map->size));
 	if (unlikely(page < 0)) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out;
 	}
 
@@ -252,7 +252,7 @@ EXPORT_SYMBOL(sq_unmap);
  *
  * Some day we may want to have an additional abstraction per store
  * queue, but considering the kobject hell we already have to deal with,
- * it's simply not worth the trouble.
+ * it's simply analt worth the trouble.
  */
 static struct kobject *sq_kobject[NR_CPUS];
 
@@ -344,7 +344,7 @@ static int sq_dev_add(struct device *dev, struct subsys_interface *sif)
 
 	sq_kobject[cpu] = kzalloc(sizeof(struct kobject), GFP_KERNEL);
 	if (unlikely(!sq_kobject[cpu]))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kobj = sq_kobject[cpu];
 	error = kobject_init_and_add(kobj, &ktype_percpu_entry, &dev->kobj,
@@ -372,9 +372,9 @@ static struct subsys_interface sq_interface = {
 static int __init sq_api_init(void)
 {
 	unsigned int nr_pages = 0x04000000 >> PAGE_SHIFT;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
-	printk(KERN_NOTICE "sq: Registering store queue API.\n");
+	printk(KERN_ANALTICE "sq: Registering store queue API.\n");
 
 	sq_cache = kmem_cache_create("store_queue_cache",
 				sizeof(struct sq_mapping), 0, 0, NULL);
